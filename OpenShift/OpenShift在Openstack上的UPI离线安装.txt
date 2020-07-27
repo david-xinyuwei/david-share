@@ -1,0 +1,980 @@
+实验环境有几个机器：堡垒机（bastion 控制openstak）、工具机（utilityvm 离线仓库位置）
+
+[xiwei-redhat.com@bastion ~]$ ansible localhost -m lineinfile -a 'path=$HOME/.bashrc regexp="^export OCP_RELEASE" line="export OCP_RELEASE=4.5.3"'
+
+localhost | CHANGED => {
+    "backup": "",
+    "changed": true,
+    "msg": "line added"
+}
+[xiwei-redhat.com@bastion ~]$
+[xiwei-redhat.com@bastion ~]$  source $HOME/.bashrc
+[xiwei-redhat.com@bastion ~]$ wget https://mirror.openshift.com/pub/openshift-v4/clients/ocp/$OCP_RELEASE/openshift-client-linux-$OCP_RELEASE.tar.gz
+--2020-07-27 02:02:02--  https://mirror.openshift.com/pub/openshift-v4/clients/ocp/4.5.3/openshift-client-linux-4.5.3.tar.gz
+Resolving mirror.openshift.com (mirror.openshift.com)... 54.172.173.155, 54.173.18.88, 54.172.163.83
+Connecting to mirror.openshift.com (mirror.openshift.com)|54.172.173.155|:443...connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 25909584 (25M) [application/x-gzip]
+Saving to: ‘openshift-client-linux-4.5.3.tar.gz’
+
+100%[=====================================>] 25,909,584  28.3MB/s   in 0.9s
+
+2020-07-27 02:02:03 (28.3 MB/s) - ‘openshift-client-linux-4.5.3.tar.gz’ saved [ 25909584/25909584]
+
+[xiwei-redhat.com@bastion ~]$ sudo tar xzf openshift-client-linux-$OCP_RELEASE.tar.gz -C /usr/local/sbin/ oc kubectl
+[xiwei-redhat.com@bastion ~]$  which oc; oc version
+/usr/local/sbin/oc
+Client Version: 4.5.3
+[xiwei-redhat.com@bastion ~]$ oc completion bash | sudo tee /etc/bash_completion.d/openshift > /dev/null
+[xiwei-redhat.com@bastion ~]$  . /usr/share/bash-completion/bash_completion
+[xiwei-redhat.com@bastion ~]$ cat $HOME/.config/openstack/clouds.yaml
+clouds:
+  36fd-project:
+    auth:
+      auth_url: "http://169.47.17.15:5000/v3"
+      username: "36fd-user"
+      project_name: "36fd-project"
+      project_id: "c1432ed2c62b4b18bcaa402cc6be482d"
+      user_domain_name: "Default"
+      password: "AXwFK01JZF24"
+    region_name: "regionOne"
+    interface: "public"
+    identity_api_version: 3
+
+[xiwei-redhat.com@bastion ~]$  openstack server list     -f json
+[
+  {
+    "ID": "2b2001c6-7757-4f8e-bcde-dd38192c96ca",
+    "Name": "utilityvm",
+    "Status": "ACTIVE",
+    "Networks": "36fd-ocp-network=192.168.47.15",
+    "Image": "",
+    "Flavor": "2c2g30d"
+  },
+  {
+    "ID": "71b91258-7c59-4d45-9f0b-4cd2042a63bf",
+    "Name": "bastion",
+    "Status": "ACTIVE",
+    "Networks": "36fd-ocp-network=192.168.47.13, 52.116.95.208",
+    "Image": "",
+    "Flavor": "2c2g30d"
+  }
+]
+[xiwei-redhat.com@bastion ~]$ echo $GUID
+36fd
+[xiwei-redhat.com@bastion ~]$ openstack server list
++--------------------------------------+-----------+--------+------------------                                        -----------------------------+-------+---------+
+| ID                                   | Name      | Status | Networks                                                                              | Image | Flavor  |
++--------------------------------------+-----------+--------+------------------                                        -----------------------------+-------+---------+
+| 2b2001c6-7757-4f8e-bcde-dd38192c96ca | utilityvm | ACTIVE | 36fd-ocp-network=                                        192.168.47.15                |       | 2c2g30d |
+| 71b91258-7c59-4d45-9f0b-4cd2042a63bf | bastion   | ACTIVE | 36fd-ocp-network=                                        192.168.47.13, 52.116.95.208 |       | 2c2g30d |
++--------------------------------------+-----------+--------+------------------                                        -----------------------------+-------+---------+
+[xiwei-redhat.com@bastion ~]$ openstack network list
++--------------------------------------+------------------+--------------------                                        -------------------------------------------------------------------------------                                        ---------------+
+| ID                                   | Name             | Subnets                                                                                                                                                                                          |
++--------------------------------------+------------------+--------------------                                        -------------------------------------------------------------------------------                                        ---------------+
+| 53c7a2c4-7fab-4720-9eec-57bae5c622fa | external         | 3a90520f-99d9-4291-                                        b46f-dd0aef63a3a8, e4dc2b97-1913-4f55-bfde-527f371973e7, f98c71e6-4531-4e03-8f9                                        b-d10ab48abb8c |
+| 5c544d10-ab79-4c13-b160-dc9f094acb31 | 36fd-ocp-network | 35376056-4bec-4004-                                        923a-77b371d62c84                                                                                                                     |
++--------------------------------------+------------------+--------------------                                        -------------------------------------------------------------------------------                                        ---------------+
+[xiwei-redhat.com@bastion ~]$ openstack security group list
++--------------------------------------+------------------+--------------------                                        ------------------------------------------------------+------------------------                                        ----------+------+
+| ID                                   | Name             | Description                                                                                                      | Project                                                                  | Tags |
++--------------------------------------+------------------+--------------------                                        ------------------------------------------------------+------------------------                                        ----------+------+
+| 3b1ceb88-66a6-4388-960f-e6dc53805166 | 36fd-master_sg   | Security group for                                         OpenShift master and bootstrap                        | c1432ed2c62b4b18bcaa402                                        cc6be482d | []   |
+| 3b8611c9-ec22-4fcd-8232-943073803742 | 36fd-utility_sg  | Utility security gr                                        oup allows SSH from bastion and egress to *           | c1432ed2c62b4b18bcaa402                                        cc6be482d | []   |
+| 65214d3f-e210-4617-91fb-0486bf98336a | default          | Default security gr                                        oup                                                   | c1432ed2c62b4b18bcaa402                                        cc6be482d | []   |
+| 6d4c29a2-46d0-4abb-aaf0-e466518cbaa7 | 36fd-worker_sg   | Security group for                                         OpenShift workers                                     | c1432ed2c62b4b18bcaa402                                        cc6be482d | []   |
+| 7bcfa990-c505-485e-b57b-0f040720cda9 | 36fd-bastion_sg  | Bastion security gr                                        oup allows basic icmp and SSH ingress and egress to * | c1432ed2c62b4b18bcaa402                                        cc6be482d | []   |
+| 9dd22c4b-4850-4954-871a-f693719c6f36 | 36fd-isolated_sg | All instances in th                                        e disconnected network                                | c1432ed2c62b4b18bcaa402                                        cc6be482d | []   |
++--------------------------------------+------------------+--------------------                                        ------------------------------------------------------+------------------------                                        ----------+------+
+[xiwei-redhat.com@bastion ~]$  openstack subnet show $GUID-ocp-subnet -f json
+{
+  "allocation_pools": [
+    {
+      "start": "192.168.47.10",
+      "end": "192.168.47.254"
+    }
+  ],
+  "cidr": "192.168.47.0/24",
+  "created_at": "2020-07-27T05:38:52Z",
+  "description": "",
+  "dns_nameservers": [],
+  "enable_dhcp": true,
+  "gateway_ip": "192.168.47.1",
+  "host_routes": [],
+  "id": "35376056-4bec-4004-923a-77b371d62c84",
+  "ip_version": 4,
+  "ipv6_address_mode": null,
+  "ipv6_ra_mode": null,
+  "location": {
+    "cloud": "36fd-project",
+    "region_name": "regionOne",
+    "zone": null,
+    "project": {
+      "id": "c1432ed2c62b4b18bcaa402cc6be482d",
+      "name": "36fd-project",
+      "domain_id": "default",
+      "domain_name": null
+    }
+  },
+  "name": "36fd-ocp-subnet",
+  "network_id": "5c544d10-ab79-4c13-b160-dc9f094acb31",
+  "prefix_length": null,
+  "project_id": "c1432ed2c62b4b18bcaa402cc6be482d",
+  "revision_number": 0,
+  "segment_id": null,
+  "service_types": [],
+  "subnetpool_id": null,
+  "tags": [],
+  "updated_at": "2020-07-27T05:38:52Z"
+}
+
+
+
+
+Deploy Container Registry
+[xiwei-redhat.com@bastion ~]$ ssh utilityvm.example.com
+Warning: Permanently added 'utilityvm.example.com,192.168.47.15' (ECDSA) to the list of known hosts.
+Last login: Mon Jul 27 01:55:52 2020 from 192.168.47.13
+[cloud-user@utilityvm ~]$ podman pull ubi7/ubi:7.7
+Trying to pull registry.access.redhat.com/ubi7/ubi:7.7...Getting image source signatures
+Copying blob 09dbbf8834d2 done
+Copying blob fcd63ccfdd0c done
+ podman run ubi7/ubi:7.7 cat /etc/os-releaseCopying config 0355cd652b [======================================] 4.3KiB /Copying config 0355cd652b done
+Writing manifest to image destination
+Storing signatures
+
+0355cd652bd1c4afd8d8f2cd8d0a4887196cb4808b8f803e146ec266ecdd5aa2
+[cloud-user@utilityvm ~]$  podman run ubi7/ubi:7.7 cat /etc/os-release
+NAME="Red Hat Enterprise Linux Server"
+VERSION="7.7 (Maipo)"
+ID="rhel"
+ID_LIKE="fedora"
+VARIANT="Server"
+VARIANT_ID="server"
+VERSION_ID="7.7"
+PRETTY_NAME="Red Hat Enterprise Linux Server 7.7 (Maipo)"
+ANSI_COLOR="0;31"
+CPE_NAME="cpe:/o:redhat:enterprise_linux:7.7:GA:server"
+HOME_URL="https://www.redhat.com/"
+BUG_REPORT_URL="https://bugzilla.redhat.com/"
+
+REDHAT_BUGZILLA_PRODUCT="Red Hat Enterprise Linux 7"
+REDHAT_BUGZILLA_PRODUCT_VERSION=7.7
+REDHAT_SUPPORT_PRODUCT="Red Hat Enterprise Linux"
+REDHAT_SUPPORT_PRODUCT_VERSION="7.7"
+[cloud-user@utilityvm ~]$ sudo mkdir -p /opt/registry/{auth,certs,data}
+[cloud-user@utilityvm ~]$ sudo chown -R $USER /opt/registry
+[cloud-user@utilityvm ~]$ cd /opt/registry/certs
+实验环境有几个机器：
+
+
+[cloud-user@utilityvm certs]$ openssl req -newkey rsa:4096 -nodes -sha256 -keyout domain.key -x509 -days 365 -out domain.crt
+Generating a 4096 bit RSA private key
+....................................................++
+.......................................................................................................................++
+writing new private key to 'domain.key'
+-----
+You are about to be asked to enter information that will be incorporated
+into your certificate request.
+What you are about to enter is what is called a Distinguished Name or a DN.
+There are quite a few fields but you can leave some blank
+For some fields there will be a default value,
+If you enter '.', the field will be left blank.
+-----
+Country Name (2 letter code) [XX]:CN
+State or Province Name (full name) []:CN
+Locality Name (eg, city) [Default City]:CN
+Organization Name (eg, company) [Default Company Ltd]:CN
+Organizational Unit Name (eg, section) []:CN
+Common Name (eg, your name or your server's hostname) []:utilityvm.example.com
+Email Address []:
+[cloud-user@utilityvm certs]$  htpasswd -bBc /opt/registry/auth/htpasswd openshift redhat
+Adding password for user openshift
+[cloud-user@utilityvm certs]$ podman run -d --name mirror-registry \
+>     -p 5000:5000 --restart=always \
+>     -v /opt/registry/data:/var/lib/registry:z \
+>     -v /opt/registry/auth:/auth:z \
+>     -e "REGISTRY_AUTH=htpasswd" \
+>     -e "REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm" \
+>     -e "REGISTRY_AUTH_HTPASSWD_PATH=/auth/htpasswd" \
+>     -v /opt/registry/certs:/certs:z \
+>     -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/domain.crt \
+>     -e REGISTRY_HTTP_TLS_KEY=/certs/domain.key \
+>     docker.io/library/registry:2
+Trying to pull docker.io/library/registry:2...Getting image source signatures
+Copying blob cbdbe7a5bc2a done
+Copying blob 46bcb632e506 done
+Copying blob 3db6272dcbfa done
+Copying blob 47112e65547d done
+Copying blob c1cc712bcecd done
+Copying config 2d4f4b5309 done
+Writing manifest to image destination
+Storing signatures
+96911df51154b2e64f9f7a2478f87ad68a80d3cdb8ef9fe9518f865638ef518e
+[cloud-user@utilityvm certs]$  curl -u openshift:redhat -k https://utilityvm.example.com:5000/v2/_catalog
+{"repositories":[]}
+
+通过TLS检查
+[cloud-user@utilityvm certs]$ curl -u openshift:redhat https://utilityvm.example.com:5000/v2/_catalog
+curl: (60) Peer's certificate issuer has been marked as not trusted by the user.
+More details here: http://curl.haxx.se/docs/sslcerts.html
+
+curl performs SSL certificate verification by default, using a "bundle"
+ of Certificate Authority (CA) public keys (CA certs). If the default
+ bundle file isn't adequate, you can specify an alternate file
+ using the --cacert option.
+If this HTTPS server uses a certificate signed by a CA represented in
+ the bundle, the certificate verification probably failed due to a
+ problem with the certificate (it might be expired, or the name might
+ not match the domain name in the URL).
+If you'd like to turn off curl's verification of the certificate, use
+ the -k (or --insecure) option.
+
+
+
+[cloud-user@utilityvm certs]$ sudo cp /opt/registry/certs/domain.crt /etc/pki/ca-trust/source/anchors/
+[cloud-user@utilityvm certs]$  sudo update-ca-trust
+[cloud-user@utilityvm certs]$  curl -u openshift:redhat https://utilityvm.example.com:5000/v2/_catalog
+{"repositories":[]}
+[cloud-user@utilityvm certs]$
+
+
+
+测试推拉镜像正常
+$ podman pull ubi7/ubi:7.7
+$ podman login -u openshift -p redhat utilityvm.example.com:5000
+$ podman tag registry.access.redhat.com/ubi7/ubi:7.7 utilityvm.example.com:5000/ubi7/ubi:7.7
+$ podman push utilityvm.example.com:5000/ubi7/ubi:7.7
+
+执行命令：
+[cloud-user@utilityvm certs]$ podman pull ubi7/ubi:7.7
+Trying to pull registry.access.redhat.com/ubi7/ubi:7.7...Getting image source signatures
+Copying blob 09dbbf8834d2 skipped: already exists
+Copying blob fcd63ccfdd0c skipped: already exists
+Copying config 0355cd652b done
+Writing manifest to image destination
+Storing signatures
+0355cd652bd1c4afd8d8f2cd8d0a4887196cb4808b8f803e146ec266ecdd5aa2
+[cloud-user@utilityvm certs]$ podman login -u openshift -p redhat utilityvm.example.com:5000
+Login Succeeded!
+[cloud-user@utilityvm certs]$ podman tag registry.access.redhat.com/ubi7/ubi:7.7 utilityvm.example.com:5000/ubi7/ubi:7.7
+[cloud-user@utilityvm certs]$ podman push utilityvm.example.com:5000/ubi7/ubi:7.7
+Getting image source signatures
+Copying blob ac7577b8c383 done
+Copying blob 5601485f0109 done
+Copying config 0355cd652b done
+Writing manifest to image destination
+Storing signatures
+
+
+查看镜像已经push成功：
+[cloud-user@utilityvm certs]$ ls /opt/registry/data/docker/registry/v2/repositories
+ubi7
+
+
+Mirror Content缓存镜像
+[cloud-user@utilityvm certs]$ cat  $HOME/pullsecret_config.json
+{
+        "auths": {
+                "utilityvm.example.com:5000": {
+                        "auth": "b3BlbnNoaWZ0OnJlZGhhdA=="
+                }
+        }
+}
+
+sudo yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+sudo yum install jq -y
+
+[cloud-user@utilityvm certs]$ jq -c --argjson var "$(jq .auths $HOME/pullsecret_config.json)" '.auths += $var'  /opt/registry/certs/pull.json  > merged_pullsecret.json
+[cloud-user@utilityvm certs]$  jq . merged_pullsecret.json
+{
+  "auths": {
+    "cloud.openshift.com": {
+      "auth": "b3BlbnNoaWZ0LXJlbGVhc2UtZGV2K3hpd2VpcmVkaGF0Y29tMWdxeHc3ZzdzYnlwcWxseXUxZGowOWNvY2FiOkxMMlFSVzZXVUpQQ1NZOVVSOTM2T1JZTkpQWkowT1NJWlgwMTdXTkM5VTlVVDFTR0pURTZNWkpNSVkwUUtQNFA=",
+      "email": "xiwei@redhat.com"
+    },
+    "quay.io": {
+      "auth": "b3BlbnNoaWZ0LXJlbGVhc2UtZGV2K3hpd2VpcmVkaGF0Y29tMWdxeHc3ZzdzYnlwcWxseXUxZGowOWNvY2FiOkxMMlFSVzZXVUpQQ1NZOVVSOTM2T1JZTkpQWkowT1NJWlgwMTdXTkM5VTlVVDFTR0pURTZNWkpNSVkwUUtQNFA=",
+      "email": "xiwei@redhat.com"
+    },
+    "registry.connect.redhat.com": {
+      "auth": "Nzk4NTAzOHx1aGMtMUdxeFc3RzdTQllQUWxsWXUxRGowOUNvQ0FCOmV5SmhiR2NpT2lKU1V6VXhNaUo5LmV5SnpkV0lpT2lJMllXSmpPR0ZpTXpRMU9EYzBOamN3WVRVd1pqWm1NamxrT0dKallqa3dZaUo5LlBONFdTRkdRLTZ1Q1lER2ZJM3RLR3ZyYnlHU1dqVGppZVhDRC1vbjhpMXUxN29YeG9tS09yd20xbjlLbXlvZk80b1pfaEoydnlmZ2VySTdaLVpBSDJiRU5janlWV3h5aEcyQVowRzJLa0VtZk1QT1hQRlVXRjZQSTJaWWd2RXdlT0k2ZzgxR0Nvbm9wLUdZSkVJaXlGenkxVms3d0tMbURfSGVmV1c1X05oTzlBNEY3MUpid3JTeTNRa3V3cUp3cjhIRWlmdUdyOHJKdGZRb2ZFdElYVUVsMm0wSkZoaGV6WFFJeHI5aFlXNXhnMnFpV19VSFY0VjZvRkZjUVF2VDg2SXVIeWNBV1BEVUlKdzdjNnZDdk0wa1E5T2NNZEtBc1NIZ3JRMUdVTTU0NW5SeXBZSFVXMTN0Mk11bWRNYnhmc1FQTEFEa3RfdFI4UThOTk1QWml0YURMT3pqQTV0aVhua0IzUFlfUDBicTUtRnhrNnFUYTBFdEs3RWRRVUlJemJaSldsek9fZkVlanBZaHZ0dWktUnp4QUFZSnpILTFlNGExNTlJSGdWdG9lZkZCMzdldW9MYjZNcWs1RmJWX1FKZ0RzYnc3UVA3WEJVX1I2blRPcUV4M0lnQ1RVSGVmdGRQakFJQzdPWGs5U0dzTko0NkhkOUpDRDFmb1Y2TlpVQ0hJcUFWQm1IeU16YzhpMUJ1RmRsZFFQRGFfakFEbGVPZXBrM3ZpWVItaEdUQU82N2Y5X29wa1Zia3V6bXRoVnNwMlczTzF6ZUZ0UVh3a3FRMThFdHlQcHhzSWRyUEV5bTRhcEVRdFJYZFlQZ0czVmJBR0E4NTdGak90OUx0c3B6dlphNFBCV1lxSHVDcjUwLUNzcS1JTHQ5bm92Y3NKVmlPTmw2ZW9OVEw0",
+      "email": "xiwei@redhat.com"
+    },
+    "registry.redhat.io": {
+      "auth": "Nzk4NTAzOHx1aGMtMUdxeFc3RzdTQllQUWxsWXUxRGowOUNvQ0FCOmV5SmhiR2NpT2lKU1V6VXhNaUo5LmV5SnpkV0lpT2lJMllXSmpPR0ZpTXpRMU9EYzBOamN3WVRVd1pqWm1NamxrT0dKallqa3dZaUo5LlBONFdTRkdRLTZ1Q1lER2ZJM3RLR3ZyYnlHU1dqVGppZVhDRC1vbjhpMXUxN29YeG9tS09yd20xbjlLbXlvZk80b1pfaEoydnlmZ2VySTdaLVpBSDJiRU5janlWV3h5aEcyQVowRzJLa0VtZk1QT1hQRlVXRjZQSTJaWWd2RXdlT0k2ZzgxR0Nvbm9wLUdZSkVJaXlGenkxVms3d0tMbURfSGVmV1c1X05oTzlBNEY3MUpid3JTeTNRa3V3cUp3cjhIRWlmdUdyOHJKdGZRb2ZFdElYVUVsMm0wSkZoaGV6WFFJeHI5aFlXNXhnMnFpV19VSFY0VjZvRkZjUVF2VDg2SXVIeWNBV1BEVUlKdzdjNnZDdk0wa1E5T2NNZEtBc1NIZ3JRMUdVTTU0NW5SeXBZSFVXMTN0Mk11bWRNYnhmc1FQTEFEa3RfdFI4UThOTk1QWml0YURMT3pqQTV0aVhua0IzUFlfUDBicTUtRnhrNnFUYTBFdEs3RWRRVUlJemJaSldsek9fZkVlanBZaHZ0dWktUnp4QUFZSnpILTFlNGExNTlJSGdWdG9lZkZCMzdldW9MYjZNcWs1RmJWX1FKZ0RzYnc3UVA3WEJVX1I2blRPcUV4M0lnQ1RVSGVmdGRQakFJQzdPWGs5U0dzTko0NkhkOUpDRDFmb1Y2TlpVQ0hJcUFWQm1IeU16YzhpMUJ1RmRsZFFQRGFfakFEbGVPZXBrM3ZpWVItaEdUQU82N2Y5X29wa1Zia3V6bXRoVnNwMlczTzF6ZUZ0UVh3a3FRMThFdHlQcHhzSWRyUEV5bTRhcEVRdFJYZFlQZ0czVmJBR0E4NTdGak90OUx0c3B6dlphNFBCV1lxSHVDcjUwLUNzcS1JTHQ5bm92Y3NKVmlPTmw2ZW9OVEw0",
+      "email": "xiwei@redhat.com"
+    },
+    "utilityvm.example.com:5000": {
+      "auth": "b3BlbnNoaWZ0OnJlZGhhdA=="
+    }
+  }
+}
+
+设置以下环境变量。这不是镜像内容所必需的步骤，但是它将使后续命令更容易。其中大多数是不言自明的，但下面的命令后还包含一些其他详细信息。
+ansible localhost -m lineinfile -a 'path=$HOME/.bashrc regexp="^export LOCAL_REGISTRY" line="export LOCAL_REGISTRY=utilityvm.example.com:5000"'
+ansible localhost -m lineinfile -a 'path=$HOME/.bashrc regexp="^export LOCAL_REPOSITORY" line="export LOCAL_REPOSITORY=ocp4/openshift4"'
+ansible localhost -m lineinfile -a 'path=$HOME/.bashrc regexp="^export LOCAL_SECRET_JSON" line="export LOCAL_SECRET_JSON=$HOME/merged_pullsecret.json"'
+ansible localhost -m lineinfile -a 'path=$HOME/.bashrc regexp="^export PRODUCT_REPO" line="export PRODUCT_REPO=openshift-release-dev"'
+ansible localhost -m lineinfile -a 'path=$HOME/.bashrc regexp="^export RELEASE_NAME" line="export RELEASE_NAME=ocp-release"'
+ansible localhost -m lineinfile -a 'path=$HOME/.bashrc regexp="^export ARCHITECTURE" line="export ARCHITECTURE=x86_64"'
+source $HOME/.bashrc
+
+
+LOCAL_REGISTRY是您在实用程序VM上安装的容器注册表。如果您在其他环境中执行此操作，则是要将容器映像镜像到的容器注册表。
+
+LOCAL_REPOSITORY是要将图像推送到的存储库和图像名称。您应该在这里选择一些描述性的内容，但是选择是您的。
+
+LOCAL_SECRET_JSON是您创建的合并的合并机密。这将拉出秘密容器凭据，以拉出OpenShift映像并将其推送到本地容器注册表。必须将其设置为绝对路径。
+
+PRODUCT_REPO是您要镜像映像的存储库。请勿更改。
+
+RELEASE_NAME是指您要提取的图像。请勿更改。
+
+ARCHITECTURE是服务器的体系结构，例如x86_64。请勿更改。
+
+
+
+在vm主机上缓存镜像：
+
+[cloud-user@utilityvm ~]$ oc adm -a ${LOCAL_SECRET_JSON} release mirror      --from=quay.io/${PRODUCT_REPO}/${RELEASE_NAME}:${OCP_RELEASE}-${ARCHITECTURE}      --to=${LOCAL_REGISTRY}/${LOCAL_REPOSITORY}      --to-release-image=${LOCAL_REGISTRY}/${LOCAL_REPOSITORY}:${OCP_RELEASE}-${ARCHITECTURE}
+缓存结果：
+Success
+Update image:  utilityvm.example.com:5000/ocp4/openshift4:4.5.3-x86_64
+Mirror prefix: utilityvm.example.com:5000/ocp4/openshift4
+
+To use the new mirrored repository to install, add the following section to the install-config.yaml:
+
+imageContentSources:
+- mirrors:
+  - utilityvm.example.com:5000/ocp4/openshift4
+  source: quay.io/openshift-release-dev/ocp-release
+- mirrors:
+  - utilityvm.example.com:5000/ocp4/openshift4
+  source: quay.io/openshift-release-dev/ocp-v4.0-art-dev
+
+
+To use the new mirrored repository for upgrades, use the following to create an ImageContentSourcePolicy:
+
+apiVersion: operator.openshift.io/v1alpha1
+kind: ImageContentSourcePolicy
+metadata:
+  name: example
+spec:
+  repositoryDigestMirrors:
+  - mirrors:
+    - utilityvm.example.com:5000/ocp4/openshift4
+    source: quay.io/openshift-release-dev/ocp-release
+  - mirrors:
+    - utilityvm.example.com:5000/ocp4/openshift4
+    source: quay.io/openshift-release-dev/ocp-v4.0-art-dev
+
+检查镜像缓存成功：
+[cloud-user@utilityvm ~]$  podman pull --authfile $HOME/pullsecret_config.json utilityvm.example.com:5000/ocp4/openshift4:4.5.3-operator-lifecycle-manager
+Trying to pull utilityvm.example.com:5000/ocp4/openshift4:4.5.3-operator-lifecycle-manager...Getting image source signatures
+Copying blob 9b199159ccc9 done
+Copying blob 521e7401c9c8 done
+Copying blob a03401a44180 done
+Copying blob bb0da44cdbce done
+Copying blob ec4ff9475976 done
+Copying config 99bdeb6f3c done
+Writing manifest to image destination
+Storing signatures
+99bdeb6f3c4f6207deb6bc948d6a09e774e0dcffe5796807aab4503bfed30c67
+[cloud-user@utilityvm ~]$  podman images
+REPOSITORY                                   TAG                                IMAGE ID       CREATED        SIZE
+utilityvm.example.com:5000/ocp4/openshift4   4.5.3-operator-lifecycle-manager   99bdeb6f3c4f   9 days ago     472 MB
+docker.io/library/registry                   2                                  2d4f4b5309b1   5 weeks ago    26.8 MB
+utilityvm.example.com:5000/ubi7/ubi          7.7                                0355cd652bd1   4 months ago   215 MB
+registry.access.redhat.com/ubi7/ubi          7.7                                0355cd652bd1   4 months ago   215 MB
+[cloud-user@utilityvm ~]$
+
+
+
+
+花一点时间来验证您下载的版本信息。同样，您可以使用oc adm release命令。
+[cloud-user@utilityvm ~]$ oc adm release info -a ${LOCAL_SECRET_JSON} "${LOCAL_REGISTRY}/${LOCAL_REPOSITORY}:${OCP_RELEASE}-${ARCHITECTURE}" | head -n 18
+Name:      4.5.3
+Digest:    sha256:eab93b4591699a5a4ff50ad3517892653f04fb840127895bb3609b3cc68f98f3
+Created:   2020-07-21T06:25:58Z
+OS/Arch:   linux/amd64
+Manifests: 419
+
+Pull From: utilityvm.example.com:5000/ocp4/openshift4@sha256:eab93b4591699a5a4ff50ad3517892653f04fb840127895bb3609b3cc68f98f3
+
+Release Metadata:
+  Version:  4.5.3
+  Upgrades: 4.4.10, 4.4.11, 4.4.12, 4.4.13, 4.4.14, 4.4.15, 4.5.1, 4.5.2
+  Metadata:
+    description:
+  Metadata:
+    url: https://access.redhat.com/errata/RHBA-2020:2956
+
+Component Versions:
+  kubernetes 1.18.3
+
+
+
+您可以将此信息与进行连接安装后得到的信息进行比较。运行相同的命令，但将其指向quay.io上托管的Red Hat存储库。除了“ Pull From”行外，它的外观应与上面的输出相同。
+[cloud-user@utilityvm ~]$ oc adm release info -a ${LOCAL_SECRET_JSON} "quay.io/${PRODUCT_REPO}/${RELEASE_NAME}:${OCP_RELEASE}-${ARCHITECTURE}" | head -n 18
+Name:      4.5.3
+Digest:    sha256:eab93b4591699a5a4ff50ad3517892653f04fb840127895bb3609b3cc68f98f3
+Created:   2020-07-21T06:25:58Z
+OS/Arch:   linux/amd64
+Manifests: 419
+
+Pull From: quay.io/openshift-release-dev/ocp-release@sha256:eab93b4591699a5a4ff50ad3517892653f04fb840127895bb3609b3cc68f98f3
+
+Release Metadata:
+  Version:  4.5.3
+  Upgrades: 4.4.10, 4.4.11, 4.4.12, 4.4.13, 4.4.14, 4.4.15, 4.5.1, 4.5.2
+  Metadata:
+    description:
+  Metadata:
+    url: https://access.redhat.com/errata/RHBA-2020:2956
+
+Component Versions:
+  kubernetes 1.18.3
+
+
+
+ Prepare Installation Artifacts
+[cloud-user@utilityvm openstack-upi]$ scp /opt/registry/certs/domain.crt xiwei-redhat.com@bastion:~
+xiwei-redhat.com@bastion's password:
+domain.crt                                                                           100% 1996   646.8KB/s   00:00
+
+
+[xiwei-redhat.com@bastion ~]$ sudo update-ca-trust
+[xiwei-redhat.com@bastion ~]$ curl -u openshift:redhat https://utilityvm.example.com:5000/v2/_catalog
+{"repositories":["ocp4/openshift4","ubi7/ubi"]}
+
+生成openshift-install二进制文件：
+[xiwei-redhat.com@bastion ~]$ oc adm release extract -a ${LOCAL_SECRET_JSON} --command=openshift-install "${LOCAL_REGISTRY}/${LOCAL_REPOSITORY}:${OCP_RELEASE}-${ARCHITECTURE}"
+[xiwei-redhat.com@bastion ~]$ ls -l
+total 384940
+drwxrwxr-x. 6 xiwei-redhat.com root        105 Jul 27 01:57 certbot
+drwxrwxr-x. 2 xiwei-redhat.com root         79 Jul 27 01:57 certificates
+-rw-r--r--. 1 xiwei-redhat.com users      1996 Jul 27 03:06 domain.crt
+-rw-r--r--. 1 xiwei-redhat.com users      2796 Jul 27 03:00 merged_pullsecret.json
+-rw-r--r--. 1 xiwei-redhat.com users  25909584 Jul 17 17:39 openshift-client-linux-4.5.3.tar.gz
+-rwxr-xr-x. 1 xiwei-redhat.com users 368259072 Jul 17 17:39 openshift-install
+drwxr--r--. 2 xiwei-redhat.com users       127 Jul 27 01:55 resources
+drwxr-xr-x. 3 xiwei-redhat.com users        21 Jul 27 01:56 virtualenvs
+[xiwei-redhat.com@bastion ~]$  sudo mv openshift-install /usr/local/sbin/
+[xiwei-redhat.com@bastion ~]$  openshift-install version
+openshift-install 4.5.3
+built from commit 01f5643a02f154246fab0923f8828aa9ae3b76fb
+release image utilityvm.example.com:5000/ocp4/openshift4@sha256:eab93b4591699a5a4ff50ad3517892653f04fb840127895bb3609b3cc68f98f3
+[xiwei-redhat.com@bastion ~]$  mkdir -p $HOME/openstack-upi
+[xiwei-redhat.com@bastion ~]$ cd $HOME/openstack-upi
+
+
+[xiwei-redhat.com@bastion openstack-upi]$ openshift-install create install-config --dir $HOME/openstack-upi
+? SSH Public Key /home/xiwei-redhat.com/.ssh/36fdkey.pub
+? Platform openstack
+INFO Credentials loaded from file "/home/xiwei-redhat.com/.config/openstack/clouds.yaml"
+? Cloud 36fd-project
+? ExternalNetwork external
+? APIFloatingIPAddress 52.116.95.177
+? FlavorName 4c16g30d
+? Base Domain blue.osp.opentlc.com
+? Cluster Name cluster-36fd
+? Pull Secret [? for help] **********************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************[xiwei-redhat.com@bastion openstack-upi]$ *******************************************
+
+
+[xiwei-redhat.com@bastion openstack-upi]$ cat  install-config.yaml
+apiVersion: v1
+baseDomain: blue.osp.opentlc.com
+compute:
+- architecture: amd64
+  hyperthreading: Enabled
+  name: worker
+  platform: {}
+  replicas: 3
+controlPlane:
+  architecture: amd64
+  hyperthreading: Enabled
+  name: master
+  platform: {}
+  replicas: 3
+metadata:
+  creationTimestamp: null
+  name: cluster-36fd
+networking:
+  clusterNetwork:
+  - cidr: 10.128.0.0/14
+    hostPrefix: 23
+  machineNetwork:
+  - cidr: 10.0.0.0/16
+  networkType: OpenShiftSDN
+  serviceNetwork:
+  - 172.30.0.0/16
+platform:
+  openstack:
+    apiVIP: 10.0.0.5
+    cloud: 36fd-project
+    computeFlavor: 4c16g30d
+    externalDNS: null
+    externalNetwork: external
+    ingressVIP: 10.0.0.7
+    lbFloatingIP: 52.116.95.177
+    octaviaSupport: "1"
+    region: ""
+    trunkSupport: "1"
+publish: External
+pullSecret: '{"auths":{"cloud.openshift.com":{"auth":"b3BlbnNoaWZ0LXJlbGVhc2UtZGV2K3hpd2VpcmVkaGF0Y29tMWdxeHc3ZzdzYnlwcWxseXUxZGowOWNvY2FiOkxMMlFSVzZXVUpQQ1NZOVVSOTM2T1JZTkpQWkowT1NJWlgwMTdXTkM5VTlVVDFTR0pURTZNWkpNSVkwUUtQNFA=","email":"xiwei@redhat.com"},"quay.io":{"auth":"b3BlbnNoaWZ0LXJlbGVhc2UtZGV2K3hpd2VpcmVkaGF0Y29tMWdxeHc3ZzdzYnlwcWxseXUxZGowOWNvY2FiOkxMMlFSVzZXVUpQQ1NZOVVSOTM2T1JZTkpQWkowT1NJWlgwMTdXTkM5VTlVVDFTR0pURTZNWkpNSVkwUUtQNFA=","email":"xiwei@redhat.com"},"registry.connect.redhat.com":{"auth":"Nzk4NTAzOHx1aGMtMUdxeFc3RzdTQllQUWxsWXUxRGowOUNvQ0FCOmV5SmhiR2NpT2lKU1V6VXhNaUo5LmV5SnpkV0lpT2lJMllXSmpPR0ZpTXpRMU9EYzBOamN3WVRVd1pqWm1NamxrT0dKallqa3dZaUo5LlBONFdTRkdRLTZ1Q1lER2ZJM3RLR3ZyYnlHU1dqVGppZVhDRC1vbjhpMXUxN29YeG9tS09yd20xbjlLbXlvZk80b1pfaEoydnlmZ2VySTdaLVpBSDJiRU5janlWV3h5aEcyQVowRzJLa0VtZk1QT1hQRlVXRjZQSTJaWWd2RXdlT0k2ZzgxR0Nvbm9wLUdZSkVJaXlGenkxVms3d0tMbURfSGVmV1c1X05oTzlBNEY3MUpid3JTeTNRa3V3cUp3cjhIRWlmdUdyOHJKdGZRb2ZFdElYVUVsMm0wSkZoaGV6WFFJeHI5aFlXNXhnMnFpV19VSFY0VjZvRkZjUVF2VDg2SXVIeWNBV1BEVUlKdzdjNnZDdk0wa1E5T2NNZEtBc1NIZ3JRMUdVTTU0NW5SeXBZSFVXMTN0Mk11bWRNYnhmc1FQTEFEa3RfdFI4UThOTk1QWml0YURMT3pqQTV0aVhua0IzUFlfUDBicTUtRnhrNnFUYTBFdEs3RWRRVUlJemJaSldsek9fZkVlanBZaHZ0dWktUnp4QUFZSnpILTFlNGExNTlJSGdWdG9lZkZCMzdldW9MYjZNcWs1RmJWX1FKZ0RzYnc3UVA3WEJVX1I2blRPcUV4M0lnQ1RVSGVmdGRQakFJQzdPWGs5U0dzTko0NkhkOUpDRDFmb1Y2TlpVQ0hJcUFWQm1IeU16YzhpMUJ1RmRsZFFQRGFfakFEbGVPZXBrM3ZpWVItaEdUQU82N2Y5X29wa1Zia3V6bXRoVnNwMlczTzF6ZUZ0UVh3a3FRMThFdHlQcHhzSWRyUEV5bTRhcEVRdFJYZFlQZ0czVmJBR0E4NTdGak90OUx0c3B6dlphNFBCV1lxSHVDcjUwLUNzcS1JTHQ5bm92Y3NKVmlPTmw2ZW9OVEw0","email":"xiwei@redhat.com"},"registry.redhat.io":{"auth":"Nzk4NTAzOHx1aGMtMUdxeFc3RzdTQllQUWxsWXUxRGowOUNvQ0FCOmV5SmhiR2NpT2lKU1V6VXhNaUo5LmV5SnpkV0lpT2lJMllXSmpPR0ZpTXpRMU9EYzBOamN3WVRVd1pqWm1NamxrT0dKallqa3dZaUo5LlBONFdTRkdRLTZ1Q1lER2ZJM3RLR3ZyYnlHU1dqVGppZVhDRC1vbjhpMXUxN29YeG9tS09yd20xbjlLbXlvZk80b1pfaEoydnlmZ2VySTdaLVpBSDJiRU5janlWV3h5aEcyQVowRzJLa0VtZk1QT1hQRlVXRjZQSTJaWWd2RXdlT0k2ZzgxR0Nvbm9wLUdZSkVJaXlGenkxVms3d0tMbURfSGVmV1c1X05oTzlBNEY3MUpid3JTeTNRa3V3cUp3cjhIRWlmdUdyOHJKdGZRb2ZFdElYVUVsMm0wSkZoaGV6WFFJeHI5aFlXNXhnMnFpV19VSFY0VjZvRkZjUVF2VDg2SXVIeWNBV1BEVUlKdzdjNnZDdk0wa1E5T2NNZEtBc1NIZ3JRMUdVTTU0NW5SeXBZSFVXMTN0Mk11bWRNYnhmc1FQTEFEa3RfdFI4UThOTk1QWml0YURMT3pqQTV0aVhua0IzUFlfUDBicTUtRnhrNnFUYTBFdEs3RWRRVUlJemJaSldsek9fZkVlanBZaHZ0dWktUnp4QUFZSnpILTFlNGExNTlJSGdWdG9lZkZCMzdldW9MYjZNcWs1RmJWX1FKZ0RzYnc3UVA3WEJVX1I2blRPcUV4M0lnQ1RVSGVmdGRQakFJQzdPWGs5U0dzTko0NkhkOUpDRDFmb1Y2TlpVQ0hJcUFWQm1IeU16YzhpMUJ1RmRsZFFQRGFfakFEbGVPZXBrM3ZpWVItaEdUQU82N2Y5X29wa1Zia3V6bXRoVnNwMlczTzF6ZUZ0UVh3a3FRMThFdHlQcHhzSWRyUEV5bTRhcEVRdFJYZFlQZ0czVmJBR0E4NTdGak90OUx0c3B6dlphNFBCV1lxSHVDcjUwLUNzcS1JTHQ5bm92Y3NKVmlPTmw2ZW9OVEw0","email":"xiwei@redhat.com"},"utilityvm.example.com:5000":{"auth":"b3BlbnNoaWZ0OnJlZGhhdA=="}}}'
+sshKey: |
+  ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCopJeJttTs2n97GKMRJGUpPEMJRaBUoEWjbDJzGBcm5y8mi1qTW4DdGhHCHdyy+Cad+6AnIpNtXdqRldmp2NtWEiSSaq3NQ0TUXdheJgX/m2ohjNIxGKrmXTNVnFH6+OkGTmQrM5YzzsyANIcbsDafokP7IpBe6dnNtqv5BTVjfBG2h4ToP0OdB6EsWgphzWtF04mFZ29CVPfMGT/iqrvyHBcVOhWr7J2GpYYRwkgpOFArsOfEo8a0ZGxDu/hY6KVr9Ix868bmvHqGfWZ96YUN0ZYr0FjI64MVTRVhfMAdY0l1gNvgpDuW5mPe7haeafuHTV4n5Pq91o1CAQ2YBHOd opentlc-mgr@admin.na.shared.opentlc.com
+
+
+
+[xiwei-redhat.com@bastion openstack-upi]$ mkdir -p $HOME/backup
+[xiwei-redhat.com@bastion openstack-upi]$ cp $HOME/openstack-upi/install-config.yaml $HOME/backup/
+[xiwei-redhat.com@bastion openstack-upi]$  openshift-install create manifests --dir $HOME/openstack-upi
+INFO Credentials loaded from file "/home/xiwei-redhat.com/.config/openstack/clouds.yaml"
+INFO Consuming Install Config from target directory
+[xiwei-redhat.com@bastion openstack-upi]$  tree
+.
+├── manifests
+│   ├── 04-openshift-machine-config-operator.yaml
+│   ├── cloud-provider-config.yaml
+│   ├── cluster-config.yaml
+│   ├── cluster-dns-02-config.yml
+│   ├── cluster-infrastructure-02-config.yml
+│   ├── cluster-ingress-02-config.yml
+│   ├── cluster-network-01-crd.yml
+│   ├── cluster-network-02-config.yml
+│   ├── cluster-proxy-01-config.yaml
+│   ├── cluster-scheduler-02-config.yml
+│   ├── cvo-overrides.yaml
+│   ├── etcd-ca-bundle-configmap.yaml
+│   ├── etcd-client-secret.yaml
+│   ├── etcd-host-service-endpoints.yaml
+│   ├── etcd-host-service.yaml
+│   ├── etcd-metric-client-secret.yaml
+│   ├── etcd-metric-serving-ca-configmap.yaml
+│   ├── etcd-metric-signer-secret.yaml
+│   ├── etcd-namespace.yaml
+│   ├── etcd-service.yaml
+│   ├── etcd-serving-ca-configmap.yaml
+│   ├── etcd-signer-secret.yaml
+│   ├── kube-cloud-config.yaml
+│   ├── kube-system-configmap-root-ca.yaml
+│   ├── machine-config-server-tls-secret.yaml
+│   └── openshift-config-secret-pull-secret.yaml
+└── openshift
+    ├── 99_cloud-creds-secret.yaml
+    ├── 99_kubeadmin-password-secret.yaml
+    ├── 99_openshift-cluster-api_master-machines-0.yaml
+    ├── 99_openshift-cluster-api_master-machines-1.yaml
+    ├── 99_openshift-cluster-api_master-machines-2.yaml
+    ├── 99_openshift-cluster-api_master-user-data-secret.yaml
+    ├── 99_openshift-cluster-api_worker-machineset-0.yaml
+    ├── 99_openshift-cluster-api_worker-user-data-secret.yaml
+    ├── 99_openshift-machineconfig_99-master-ssh.yaml
+    ├── 99_openshift-machineconfig_99-worker-ssh.yaml
+    ├── 99_role-cloud-creds-secret-reader.yaml
+    └── openshift-install-manifests.yaml
+
+2 directories, 38 files
+
+
+
+[xiwei-redhat.com@bastion openstack-upi]$ ansible localhost -m lineinfile -a 'path="$HOME/openstack-upi/manifests/cluster-scheduler-02-config.yml" regexp="^  mastersSchedulable" line="  mastersSchedulable: false"'
+localhost | SUCCESS => {
+    "backup": "",
+    "changed": false,
+    "msg": ""
+}
+[xiwei-redhat.com@bastion openstack-upi]$  cat $HOME/openstack-upi/manifests/cluster-scheduler-02-config.yml
+apiVersion: config.openshift.io/v1
+kind: Scheduler
+metadata:
+  creationTimestamp: null
+  name: cluster
+spec:
+  mastersSchedulable: false
+  policy:
+    name: ""
+status: {}
+[xiwei-redhat.com@bastion openstack-upi]$  rm -f openshift/99_openshift-cluster-api_master-machines-*.yaml
+[xiwei-redhat.com@bastion openstack-upi]$  openshift-install create ignition-configs --dir $HOME/openstack-upi
+INFO Consuming OpenShift Install (Manifests) from target directory
+INFO Consuming Master Machines from target directory
+INFO Consuming Common Manifests from target directory
+INFO Consuming Worker Machines from target directory
+INFO Consuming Openshift Manifests from target directory
+[xiwei-redhat.com@bastion openstack-upi]$  tree
+.
+├── auth
+│   ├── kubeadmin-password
+│   └── kubeconfig
+├── bootstrap.ign
+├── master.ign
+├── metadata.json
+└── worker.ign
+
+1 directory, 6 files
+
+
+为您的INFRA_ID设置环境变量。这将使在本实验中使用某些后续命令更加容易。	
+[xiwei-redhat.com@bastion openstack-upi]$ ansible localhost -m lineinfile -a 'path=$HOME/.bashrc regexp="^export INFRA_ID" line="export INFRA_ID=$(jq -r .infraID $HOME/openstack-upi/metadata.json)"'
+localhost | SUCCESS => {
+    "backup": "",
+    "changed": false,
+    "msg": ""
+}
+[xiwei-redhat.com@bastion openstack-upi]$ source $HOME/.bashrc
+[xiwei-redhat.com@bastion openstack-upi]$ echo $INFRA_ID
+cluster-36fd-j4f2q
+[xiwei-redhat.com@bastion openstack-upi]$ cd $HOME/openstack-upi
+[xiwei-redhat.com@bastion openstack-upi]$ python3 $HOME/resources/update_ignition.py
+[xiwei-redhat.com@bastion openstack-upi]$  jq '.storage.files | map(select(.path=="/etc/dhcp/dhclient.conf", .path=="/etc/NetworkManager/conf.d/dhcp-client.conf", .path=="/etc/dhcp/dhclient.conf", .path=="/etc/hostname"))' bootstrap.ign
+[
+  {
+    "filesystem": "root",
+    "path": "/etc/NetworkManager/conf.d/dhcp-client.conf",
+    "user": {
+      "name": "root"
+    },
+    "contents": {
+      "source": "data:text/plain;charset=utf-8;base64,W21haW5dCmRoY3A9ZGhjbGllbnQK",
+      "verification": {}
+    },
+    "mode": 384
+  },
+  {
+    "filesystem": "root",
+    "path": "/etc/dhcp/dhclient.conf",
+    "user": {
+      "name": "root"
+    },
+    "contents": {
+      "source": "data:text/plain;charset=utf-8;base64,c2VuZCBkaGNwLWNsaWVudC1pZGVudGlmaWVyID0gaGFyZHdhcmU7CnByZXBlbmQgZG9tYWluLW5hbWUtc2VydmVycyAxMjcuMC4wLjE7Cg==",
+      "verification": {}
+    },
+    "mode": 384
+  },
+  {
+    "filesystem": "root",
+    "path": "/etc/dhcp/dhclient.conf",
+    "user": {
+      "name": "root"
+    },
+    "contents": {
+      "source": "data:text/plain;charset=utf-8;base64,c2VuZCBkaGNwLWNsaWVudC1pZGVudGlmaWVyID0gaGFyZHdhcmU7CnByZXBlbmQgZG9tYWluLW5hbWUtc2VydmVycyAxMjcuMC4wLjE7Cg==",
+      "verification": {}
+    },
+    "mode": 384
+  },
+  {
+    "path": "/etc/hostname",
+    "mode": 420,
+    "contents": {
+      "source": "data:text/plain;charset=utf-8;base64,Y2x1c3Rlci0zNmZkLWo0ZjJxLWJvb3RzdHJhcAo=",
+      "verification": {}
+    },
+    "filesystem": "root"
+  },
+  {
+    "path": "/etc/NetworkManager/conf.d/dhcp-client.conf",
+    "mode": 420,
+    "contents": {
+      "source": "data:text/plain;charset=utf-8;base64,W21haW5dCmRoY3A9ZGhjbGllbnQK",
+      "verification": {}
+    },
+    "filesystem": "root"
+  },
+  {
+    "path": "/etc/dhcp/dhclient.conf",
+    "mode": 420,
+    "contents": {
+      "source": "data:text/plain;charset=utf-8;base64,c2VuZCBkaGNwLWNsaWVudC1pZGVudGlmaWVyID0gaGFyZHdhcmU7CnByZXBlbmQgZG9tYWluLW5hbWUtc2VydmVycyAxMjcuMC4wLjE7Cg==",
+      "verification": {}
+    },
+    "filesystem": "root"
+  },
+  {
+    "path": "/etc/dhcp/dhclient.conf",
+    "mode": 420,
+    "contents": {
+      "source": "data:text/plain;charset=utf-8;base64,c2VuZCBkaGNwLWNsaWVudC1pZGVudGlmaWVyID0gaGFyZHdhcmU7CnByZXBlbmQgZG9tYWluLW5hbWUtc2VydmVycyAxMjcuMC4wLjE7Cg==",
+      "verification": {}
+    },
+    "filesystem": "root"
+  }
+]
+
+对于点火更改，必须为将要创建的三个主节点创建点火文件。运行以下命令来创建这些文件。
+[xiwei-redhat.com@bastion openstack-upi]$ for index in $(seq 0 2); do
+>     MASTER_HOSTNAME="$INFRA_ID-master-$index\n"
+>     python3 -c "import base64, json, sys;
+> ignition = json.load(sys.stdin);
+> files = ignition['storage'].get('files', []);
+> files.append({'path': '/etc/hostname', 'mode': 420, 'contents': {'source': 'data:text/plain;charset=utf-8;base64,' + base64.standard_b64encode(b'$MASTER_HOSTNAME').decode().strip(), 'verification': {}}, 'filesystem': 'root'});
+> ignition['storage']['files'] = files;
+> json.dump(ignition, sys.stdout)" <master.ign >"$INFRA_ID-master-$index-ignition.json"
+> done
+
+点火文件完成后，就可以进入下一个阶段了。 bootstrap.ign太大，无法在启动时通过用户数据传递给OpenStack实例，因此必须将其托管在其他地方。您可以将其托管在可通过HTTP（S）访问的任何位置。在本实验中，您将使用在UtilityVM上运行的简单httpd服务器。存在用于托管此文件的其他选项，例如OpenStack中的Amazon S3或Swift对象存储。在OpenStack上安装OpenShift时，IPI安装程序使用Swift。在OpenStack项目中运行httpd服务器的另一个好处是无法从外部访问。
+
+bootstrap.ign文件包含一些敏感的凭据和证书信息。不要将其保留在公共场所。
+从您的堡垒，将bootstrap.ign文件复制到UtilityVM。将其复制到正确的位置并设置SELinux上下文，以便可以对其进行访问。
+
+
+
+[xiwei-redhat.com@bastion openstack-upi]$ scp bootstrap.ign utilityvm.example.com:
+bootstrap.ign                                                                        100%  299KB  28.2MB/s   00:00
+[xiwei-redhat.com@bastion openstack-upi]$ ssh utilityvm.example.com chmod 644 bootstrap.ign
+[xiwei-redhat.com@bastion openstack-upi]$  ssh utilityvm.example.com sudo mv bootstrap.ign /var/www/html/
+[xiwei-redhat.com@bastion openstack-upi]$ ssh utilityvm.example.com sudo restorecon /var/www/html/bootstrap.ign
+[xiwei-redhat.com@bastion openstack-upi]$  wget -O $HOME/mybootstrap.ign http://utilityvm.example.com/bootstrap.ign
+--2020-07-27 03:23:09--  http://utilityvm.example.com/bootstrap.ign
+Resolving utilityvm.example.com (utilityvm.example.com)... 192.168.47.15
+Connecting to utilityvm.example.com (utilityvm.example.com)|192.168.47.15|:80... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 306074 (299K)
+Saving to: ‘/home/xiwei-redhat.com/mybootstrap.ign’
+
+100%[=============================================================================>] 306,074     --.-K/s   in 0.006s
+
+2020-07-27 03:23:09 (50.2 MB/s) - ‘/home/xiwei-redhat.com/mybootstrap.ign’ saved [306074/306074]
+
+[xiwei-redhat.com@bastion openstack-upi]$
+
+您现在唯一需要的是引导节点的新点火文件，它将指向真实的点火文件。这称为自举点火垫片。该命令将为您生成文件，指向您从实用程序VM托管的真正的bootstrap.ign。这个新文件是启动时将提供给引导节点的点火文件。
+
+[xiwei-redhat.com@bastion openstack-upi]$  cat << EOF > $HOME/openstack-upi/$INFRA_ID-bootstrap-ignition.json
+> {
+>   "ignition": {
+>     "config": {
+>       "append": [
+>         {
+>           "source": "http://utilityvm.example.com/bootstrap.ign",
+>           "verification": {}
+>         }
+>       ]
+>     },
+>     "security": {},
+>     "timeouts": {},
+>     "version": "2.4.0"
+>   },
+>   "networkd": {},
+>   "passwd": {},
+>   "storage": {},
+>   "systemd": {}
+> }
+> EOF
+[xiwei-redhat.com@bastion openstack-upi]$
+
+
+
+OpenShift Installationan安装
+
+在您的堡垒中，为API流量创建一个OpenStack网络端口。在群集引导和配置时，OpenShift将使用和管理此端口。 OpenShift会将端口动态连接到正确的服务器。
+[xiwei-redhat.com@bastion openstack-upi]$  openstack port create --network "$GUID-ocp-network" --security-group "$GUID-master_sg" --fixed-ip "subnet=$GUID-ocp-subnet,ip-address=192.168.47.5" --tag openshiftClusterID="$INFRA_ID" "$INFRA_ID-api-port" -f json
+{
+  "admin_state_up": true,
+  "allowed_address_pairs": [],
+  "binding_host_id": null,
+  "binding_profile": null,
+  "binding_vif_details": null,
+  "binding_vif_type": null,
+  "binding_vnic_type": "normal",
+  "created_at": "2020-07-27T07:24:57Z",
+  "data_plane_status": null,
+  "description": "",
+  "device_id": "",
+  "device_owner": "",
+  "dns_assignment": [
+    {
+      "hostname": "host-192-168-47-5",
+      "ip_address": "192.168.47.5",
+      "fqdn": "host-192-168-47-5.example.com."
+    }
+  ],
+  "dns_domain": "",
+  "dns_name": "",
+  "extra_dhcp_opts": [],
+  "fixed_ips": [
+    {
+      "subnet_id": "35376056-4bec-4004-923a-77b371d62c84",
+      "ip_address": "192.168.47.5"
+    }
+  ],
+  "id": "c172b5d3-1e12-4178-8da2-197ae2295124",
+  "location": {
+    "cloud": "36fd-project",
+    "region_name": "regionOne",
+    "zone": null,
+    "project": {
+      "id": "c1432ed2c62b4b18bcaa402cc6be482d",
+      "name": "36fd-project",
+      "domain_id": "default",
+      "domain_name": null
+    }
+  },
+  "mac_address": "fa:16:3e:fc:c5:33",
+  "name": "cluster-36fd-j4f2q-api-port",
+  "network_id": "5c544d10-ab79-4c13-b160-dc9f094acb31",
+  "port_security_enabled": true,
+  "project_id": "c1432ed2c62b4b18bcaa402cc6be482d",
+  "propagate_uplink_status": null,
+  "qos_policy_id": null,
+  "resource_request": null,
+  "revision_number": 6,
+  "security_group_ids": [
+    "3b1ceb88-66a6-4388-960f-e6dc53805166"
+  ],
+  "status": "DOWN",
+  "tags": [
+    "openshiftClusterID=cluster-36fd-j4f2q"
+  ],
+  "trunk_details": null,
+  "updated_at": "2020-07-27T07:24:57Z"
+}
+[xiwei-redhat.com@bastion openstack-upi]$  openstack port create \
+>   --network "$GUID-ocp-network" \
+>   --security-group "$GUID-worker_sg" \
+>   --fixed-ip "subnet=$GUID-ocp-subnet,ip-address=192.168.47.7" \
+>   --tag openshiftClusterID="$INFRA_ID" \
+>   "$INFRA_ID-ingress-port"
++-------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Field                   | Value                                                                                                                                                                               |
++-------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| admin_state_up          | UP                                                                                                                                                                                  |
+| allowed_address_pairs   |                                                                                                                                                                                     |
+| binding_host_id         | None                                                                                                                                                                                |
+| binding_profile         | None                                                                                                                                                                                |
+| binding_vif_details     | None                                                                                                                                                                                |
+| binding_vif_type        | None                                                                                                                                                                                |
+| binding_vnic_type       | normal                                                                                                                                                                              |
+| created_at              | 2020-07-27T07:25:06Z                                                                                                                                                                |
+| data_plane_status       | None                                                                                                                                                                                |
+| description             |                                                                                                                                                                                     |
+| device_id               |                                                                                                                                                                                     |
+| device_owner            |                                                                                                                                                                                     |
+| dns_assignment          | fqdn='host-192-168-47-7.example.com.', hostname='host-192-168-47-7', ip_address='192.168.47.7'                                                                                      |
+| dns_domain              |                                                                                                                                                                                     |
+| dns_name                |                                                                                                                                                                                     |
+| extra_dhcp_opts         |                                                                                                                                                                                     |
+| fixed_ips               | ip_address='192.168.47.7', subnet_id='35376056-4bec-4004-923a-77b371d62c84'                                                                                                         |
+| id                      | f8215a48-012b-4ede-96cf-e973876f20ee                                                                                                                                                |
+| location                | cloud='36fd-project', project.domain_id='default', project.domain_name=, project.id='c1432ed2c62b4b18bcaa402cc6be482d', project.name='36fd-project', region_name='regionOne', zone= |
+| mac_address             | fa:16:3e:e9:2b:b4                                                                                                                                                                   |
+| name                    | cluster-36fd-j4f2q-ingress-port                                                                                                                                                     |
+| network_id              | 5c544d10-ab79-4c13-b160-dc9f094acb31                                                                                                                                                |
+| port_security_enabled   | True                                                                                                                                                                                |
+| project_id              | c1432ed2c62b4b18bcaa402cc6be482d                                                                                                                                                    |
+| propagate_uplink_status | None                                                                                                                                                                                |
+| qos_policy_id           | None                                                                                                                                                                                |
+| resource_request        | None                                                                                                                                                                                |
+| revision_number         | 6                                                                                                                                                                                   |
+| security_group_ids      | 6d4c29a2-46d0-4abb-aaf0-e466518cbaa7                                                                                                                                                |
+| status                  | DOWN                                                                                                                                                                                |
+| tags                    | openshiftClusterID=cluster-36fd-j4f2q                                                                                                                                               |
+| trunk_details           | None                                                                                                                                                                                |
+| updated_at              | 2020-07-27T07:25:06Z                                                                                                                                                                |
++-------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+[xiwei-redhat.com@bastion openstack-upi]$ openstack floating ip set --port "$INFRA_ID-api-port" $API_FIP
+[xiwei-redhat.com@bastion openstack-upi]$  openstack floating ip list -c ID -c "Floating IP Address" -c "Fixed IP Address"
++--------------------------------------+---------------------+------------------+
+| ID                                   | Floating IP Address | Fixed IP Address |
++--------------------------------------+---------------------+------------------+
+| 35da089e-4322-4a81-95a6-965097197063 | 52.116.95.208       | 192.168.47.13    |
+| 904fded9-8142-49b6-9675-76ef6ce22da2 | 52.116.95.177       | 192.168.47.5     |
+| caa5cdf8-353c-49cf-a68e-cd4c84922295 | 52.116.95.64        | None             |
++--------------------------------------+---------------------+------------------+
+[xiwei-redhat.com@bastion openstack-upi]$ openstack port create \
+>   --network "$GUID-ocp-network" \
+>   --security-group "$GUID-master_sg" \
+>   --allowed-address ip-address=192.168.47.5 \
+>   --allowed-address ip-address=192.168.47.6 \
+>   --allowed-address ip-address=192.168.47.7 \
+>   --tag openshiftClusterID="$INFRA_ID" \
+>   "$INFRA_ID-bootstrap-port"
+        +-------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Field                   | Value                                                                                                                                                                               |
++-------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| admin_state_up          | UP                                                                                                                                                                                  |
+| allowed_address_pairs   | ip_address='192.168.47.5', mac_address='fa:16:3e:41:43:0c'                                                                                                                          |
+|                         | ip_address='192.168.47.6', mac_address='fa:16:3e:41:43:0c'                                                                                                                          |
+|                         | ip_address='192.168.47.7', mac_address='fa:16:3e:41:43:0c'                                                                                                                          |
+| binding_host_id         | None                                                                                                                                                                                |
+| binding_profile         | None                                                                                                                                                                                |
+| binding_vif_details     | None                                                                                                                                                                                |
+| binding_vif_type        | None                                                                                                                                                                                |
+| binding_vnic_type       | normal                                                                                                                                                                              |
+| created_at              | 2020-07-27T07:25:29Z                                                                                                                                                                |
+| data_plane_status       | None                                                                                                                                                                                |
+| description             |                                                                                                                                                                                     |
+| device_id               |                                                                                                                                                                                     |
+| device_owner            |                                                                                                                                                                                     |
+| dns_assignment          | fqdn='host-192-168-47-27.example.com.', hostname='host-192-168-47-27', ip_address='192.168.47.27'                                                                                   |
+| dns_domain              |                                                                                                                                                                                     |
+| dns_name                |                                                                                                                                                                                     |
+| extra_dhcp_opts         |                                                                                                                                                                                     |
+| fixed_ips               | ip_address='192.168.47.27', subnet_id='35376056-4bec-4004-923a-77b371d62c84'                                                                                                        |
+| id                      | f678a64d-dd58-4943-b070-65a593f940b4                                                                                                                                                |
+| location                | cloud='36fd-project', project.domain_id='default', project.domain_name=, project.id='c1432ed2c62b4b18bcaa402cc6be482d', project.name='36fd-project', region_name='regionOne', zone= |
+| mac_address             | fa:16:3e:41:43:0c                                                                                                                                                                   |
+| name                    | cluster-36fd-j4f2q-bootstrap-port                                                                                                                                                   |
+| network_id              | 5c544d10-ab79-4c13-b160-dc9f094acb31                                                                                                                                                |
+| port_security_enabled   | True                                                                                                                                                                                |
+| project_id              | c1432ed2c62b4b18bcaa402cc6be482d                                                                                                                                                    |
+| propagate_uplink_status | None                                                                                                                                                                                |
+| qos_policy_id           | None                                                                                                                                                                                |
+| resource_request        | None                                                                                                                                                                                |
+| revision_number         | 8                                                                                                                                                                                   |
+| security_group_ids      | 3b1ceb88-66a6-4388-960f-e6dc53805166                                                                                                                                                |
+| status                  | DOWN                                                                                                                                                                                |
+| tags                    | openshiftClusterID=cluster-36fd-j4f2q                                                                                                                                               |
+| trunk_details           | None                                                                                                                                                                                |
+| updated_at              | 2020-07-27T07:25:29Z                                                                                                                                                                |
++-------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+[xiwei-redhat.com@bastion openstack-upi]$ openstack server create --image rhcos-ocp45 --flavor 4c16g30d --user-data "$HOME/openstack-upi/$INFRA_ID-bootstrap-ignition.json" --port "$INFRA_ID-bootstrap-port" --wait --property openshiftClusterID="$INFRA_ID" "$INFRA_ID-bootstrap"
++-----------------------------+----------------------------------------------------------+
+| Field                       | Value                                                    |
++-----------------------------+----------------------------------------------------------+
+| OS-DCF:diskConfig           | MANUAL                                                   |
+| OS-EXT-AZ:availability_zone | nova                                                     |
+| OS-EXT-STS:power_state      | Running                                                  |
+| OS-EXT-STS:task_state       | None                                                     |
+| OS-EXT-STS:vm_state         | active                                                   |
+| OS-SRV-USG:launched_at      | 2020-07-27T07:26:25.000000                               |
+| OS-SRV-USG:terminated_at    | None                                                     |
+| accessIPv4                  |                                                          |
+| accessIPv6                  |                                                          |
+| addresses                   | 36fd-ocp-network=192.168.47.27                           |
+| adminPass                   | i2U6SdGc99H7                                             |
+| config_drive                |                                                          |
+| created                     | 2020-07-27T07:25:44Z                                     |
+| flavor                      | 4c16g30d (a02c754b-dbc9-4db1-afb7-6abb90071f41)          |
+| hostId                      | 4ec5bbc0d7622513383f10c73e179c769db7723349b09cca801c269c |
+| id                          | dfd2e110-3fa7-495d-8818-ee7abb7ad05a                     |
+| image                       | rhcos-ocp45 (e1a13377-2b55-4aee-ba05-0391a53c92e8)       |
+| key_name                    | None                                                     |
+| name                        | cluster-36fd-j4f2q-bootstrap                             |
+| progress                    | 0                                                        |
+| project_id                  | c1432ed2c62b4b18bcaa402cc6be482d                         |
+| properties                  | openshiftClusterID='cluster-36fd-j4f2q'                  |
+| security_groups             | name='36fd-master_sg'                                    |
+| status                      | ACTIVE                                                   |
+| updated                     | 2020-07-27T07:26:25Z                                     |
+| user_id                     | b9879fc3ceda4e62be98021488f29296                         |
+| volumes_attached            |                                                          |
++-----------------------------+----------------------------------------------------------+
+
+上面的命令将创建一个临时虚拟机。这意味着它将没有任何持久磁盘支持它。像这样配置引导节点是可以的，因为它只会存活很短的时间。
+
+
+至此，您的OpenShift集群已启动引导过程。在继续下一步之前，请确保在引导服务器上按预期运行一切，这是一个好主意。从堡垒服务器SSH进入引导服务器。
+
+openstack console log show "$INFRA_ID-bootstrap"
+Red Hat Enterprise Linux CoreOS 45.82.202007141718-0 (Ootpa) 4.5
+SSH host key: SHA256:pKyB5O1iv3wccofU/KBCzsxV2BXoZEegPU+j0ZCnvzE (ED25519)
+SSH host key: SHA256:IwonZwsbIbTYGrssb/UcCja4F1tL3hY1DXffWlzGNvo (ECDSA)
+SSH host key: SHA256:CLJPmUowWO3ViHkSr5HtlqNuTCK7l8je2v8CuSDJC0Q (RSA)
+ens3: 192.168.47.27 fe80::f9c6:9d51:e2:6368
+cluster-36fd-j4f2q-bootstrap login:
