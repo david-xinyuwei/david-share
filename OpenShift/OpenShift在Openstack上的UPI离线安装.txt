@@ -434,19 +434,19 @@ parse error: Invalid numeric literal at line 2, column 0
 {
   "auths": {
     "cloud.openshift.com": {
-      "auth": "b3BlbnNoaWZ0LXJlbGVhc2UtZGV2K3hpd2VpcmVkaGF0Y29tMWdxeHc3ZzdzYnlwcWxseXUxZGowOWNvY2FiOkxMMlFSVzZXVUpQQ1NZOVVSOTM2T1JZTkpQWkowT1NJWlgwMTdXTkM5VTlVVDFTR0pURTZNWkpNSVkwUUtQNFA=",
+      "auth": "b3BlbnNoaWZ0LXJlbGVhc2UtZGV2K3hpVpcmVkaGF0Y29tMWdxeHc3ZzdzYnlwcWxseXUxZGowOWNvY2FiOkxMMlFSVzZXVUpQQ1NZOVVSOTM2T1JZTkpQWkowT1NJWlgwMTdXTkM5VTlVVDFTR0pURTZNWkpNSVkwUUtQNFA=",
       "email": "xiwei@redhat.com"
     },
     "quay.io": {
-      "auth": "b3BlbnNoaWZ0LXJlbGVhc2UtZGV2K3hpd2VpcmVkaGF0Y29tMWdxeHc3ZzdzYnlwcWxseXUxZGowOWNvY2FiOkxMMlFSVzZXVUpQQ1NZOVVSOTM2T1JZTkpQWkowT1NJWlgwMTdXTkM5VTlVVDFTR0pURTZNWkpNSVkwUUtQNFA=",
+      "auth": "b3BlbnNoaWZ0LXJlbGVhGV2K3hpd2VpcmVkaGF0Y29tMWdxeHc3ZzdzYnlwcWxseXUxZGowOWNvY2FiOkxMMlFSVzZXVUpQQ1NZOVVSOTM2T1JZTkpQWkowT1NJWlgwMTdXTkM5VTlVVDFTR0pURTZNWkpNSVkwUUtQNFA=",
       "email": "xiwei@redhat.com"
     },
     "registry.connect.redhat.com": {
-      "auth": "Nzk4NTAzOHx1aGMtMUdxeFc3RzdTQllQUWxsWXUxRGowOUNvQ0FCOmV5SmhiR2NpT2lKU1V6VXhNaUo5LmV5SnpkV0lpT2lJMllXSmpPR0ZpTXpRMU9EYzBOamN3WVRVd1pqWm1NamxrT0dKallqa3dZaUo5LlBONFdTRkdRLTZ1Q1lER2ZJM3RLR3ZyYnlHU1dqVGppZVhDRC1vbjhpMXUxN29YeG9tS09yd20xbjlLbXlvZk80b1pfaEoydnlmZ2VySTdaLVpBSDJiRU5janlWV3h5aEcyQVowRzJLa0VtZk1QT1hQRlVXRjZQSTJaWWd2RXdlT0k2ZzgxR0Nvbm9wLUdZSkVJaXlGenkxVms3d0tMbURfSGVmV1c1X05oTzlBNEY3MUpid3JTeTNRa3V3cUp3cjhIRWlmdUdyOHJKdGZRb2ZFdElYVUVsMm0wSkZoaGV6WFFJeHI5aFlXNXhnMnFpV19VSFY0VjZvRkZjUVF2VDg2SXVIeWNBV1BEVUlKdzdjNnZDdk0wa1E5T2NNZEtBc1NIZ3JRMUdVTTU0NW5SeXBZSFVXMTN0Mk11bWRNYnhmc1FQTEFEa3RfdFI4UThOTk1QWml0YURMT3pqQTV0aVhua0IzUFlfUDBicTUtRnhrNnFUYTBFdEs3RWRRVUlJemJaSldsek9fZkVlanBZaHZ0dWktUnp4QUFZSnpILTFlNGExNTlJSGdWdG9lZkZCMzdldW9MYjZNcWs1RmJWX1FKZ0RzYnc3UVA3WEJVX1I2blRPcUV4M0lnQ1RVSGVmdGRQakFJQzdPWGs5U0dzTko0NkhkOUpDRDFmb1Y2TlpVQ0hJcUFWQm1IeU16YzhpMUJ1RmRsZFFQRGFfakFEbGVPZXBrM3ZpWVItaEdUQU82N2Y5X29wa1Zia3V6bXRoVnNwMlczTzF6ZUZ0UVh3a3FRMThFdHlQcHhzSWRyUEV5bTRhcEVRdFJYZFlQZ0czVmJBR0E4NTdGak90OUx0c3B6dlphNFBCV1lxSHVDcjUwLUNzcS1JTHQ5bm92Y3NKVmlPTmw2ZW9OVEw0",
+      "auth": "Nzk4NTAzOHx1aGMtM3RzdTQllQUWxsWXUxRGowOUNvQ0FCOmV5SmhiR2NpT2lKU1V6VXhNaUo5LmV5SnpkV0lpT2lJMllXSmpPR0ZpTXpRMU9EYzBOamN3WVRVd1pqWm1NamxrT0dKallqa3dZaUo5LlBONFdTRkdRLTZ1Q1lER2ZJM3RLR3ZyYnlHU1dqVGppZVhDRC1vbjhpMXUxN29YeG9tS09yd20xbjlLbXlvZk80b1pfaEoydnlmZ2VySTdaLVpBSDJiRU5janlWV3h5aEcyQVowRzJLa0VtZk1QT1hQRlVXRjZQSTJaWWd2RXdlT0k2ZzgxR0Nvbm9wLUdZSkVJaXlGenkxVms3d0tMbURfSGVmV1c1X05oTzlBNEY3MUpid3JTeTNRa3V3cUp3cjhIRWlmdUdyOHJKdGZRb2ZFdElYVUVsMm0wSkZoaGV6WFFJeHI5aFlXNXhnMnFpV19VSFY0VjZvRkZjUVF2VDg2SXVIeWNBV1BEVUlKdzdjNnZDdk0wa1E5T2NNZEtBc1NIZ3JRMUdVTTU0NW5SeXBZSFVXMTN0Mk11bWRNYnhmc1FQTEFEa3RfdFI4UThOTk1QWml0YURMT3pqQTV0aVhua0IzUFlfUDBicTUtRnhrNnFUYTBFdEs3RWRRVUlJemJaSldsek9fZkVlanBZaHZ0dWktUnp4QUFZSnpILTFlNGExNTlJSGdWdG9lZkZCMzdldW9MYjZNcWs1RmJWX1FKZ0RzYnc3UVA3WEJVX1I2blRPcUV4M0lnQ1RVSGVmdGRQakFJQzdPWGs5U0dzTko0NkhkOUpDRDFmb1Y2TlpVQ0hJcUFWQm1IeU16YzhpMUJ1RmRsZFFQRGFfakFEbGVPZXBrM3ZpWVItaEdUQU82N2Y5X29wa1Zia3V6bXRoVnNwMlczTzF6ZUZ0UVh3a3FRMThFdHlQcHhzSWRyUEV5bTRhcEVRdFJYZFlQZ0czVmJBR0E4NTdGak90OUx0c3B6dlphNFBCV1lxSHVDcjUwLUNzY3NKVmlPTmw2ZW9OVEw0",
       "email": "xiwei@redhat.com"
     },
     "registry.redhat.io": {
-      "auth": "Nzk4NTAzOHx1aGMtMUdxeFc3RzdTQllQUWxsWXUxRGowOUNvQ0FCOmV5SmhiR2NpT2lKU1V6VXhNaUo5LmV5SnpkV0lpT2lJMllXSmpPR0ZpTXpRMU9EYzBOamN3WVRVd1pqWm1NamxrT0dKallqa3dZaUo5LlBONFdTRkdRLTZ1Q1lER2ZJM3RLR3ZyYnlHU1dqVGppZVhDRC1vbjhpMXUxN29YeG9tS09yd20xbjlLbXlvZk80b1pfaEoydnlmZ2VySTdaLVpBSDJiRU5janlWV3h5aEcyQVowRzJLa0VtZk1QT1hQRlVXRjZQSTJaWWd2RXdlT0k2ZzgxR0Nvbm9wLUdZSkVJaXlGenkxVms3d0tMbURfSGVmV1c1X05oTzlBNEY3MUpid3JTeTNRa3V3cUp3cjhIRWlmdUdyOHJKdGZRb2ZFdElYVUVsMm0wSkZoaGV6WFFJeHI5aFlXNXhnMnFpV19VSFY0VjZvRkZjUVF2VDg2SXVIeWNBV1BEVUlKdzdjNnZDdk0wa1E5T2NNZEtBc1NIZ3JRMUdVTTU0NW5SeXBZSFVXMTN0Mk11bWRNYnhmc1FQTEFEa3RfdFI4UThOTk1QWml0YURMT3pqQTV0aVhua0IzUFlfUDBicTUtRnhrNnFUYTBFdEs3RWRRVUlJemJaSldsek9fZkVlanBZaHZ0dWktUnp4QUFZSnpILTFlNGExNTlJSGdWdG9lZkZCMzdldW9MYjZNcWs1RmJWX1FKZ0RzYnc3UVA3WEJVX1I2blRPcUV4M0lnQ1RVSGVmdGRQakFJQzdPWGs5U0dzTko0NkhkOUpDRDFmb1Y2TlpVQ0hJcUFWQm1IeU16YzhpMUJ1RmRsZFFQRGFfakFEbGVPZXBrM3ZpWVItaEdUQU82N2Y5X29wa1Zia3V6bXRoVnNwMlczTzF6ZUZ0UVh3a3FRMThFdHlQcHhzSWRyUEV5bTRhcEVRdFJYZFlQZ0czVmJBR0E4NTdGak90OUx0c3B6dlphNFBCV1lxSHVDcjUwLUNzcS1JTHQ5bm92Y3NKVmlPTmw2ZW9OVEw0",
+      "auth": "Nzk4NTAzOHx1aGMtMUdxeFc3RzdTQllQUWxsWXUxRGowOUNvQ0FCOmV5SmhiR2NpT2lKU1V6VXhNaUo5LmV5SnpkV0lpT2lJMllXSmpPR0ZpTXpRMU9EYzBOamN3WVRVd1pqWm1NamxrT0dKallqa3dZaUo5LlBONFdTRkdRLTZ1Q1lER2ZJM3RLR3ZyYnlHU1dqVGppZVhDRC1vbjhpMXUxN29YeG9tS09yd20xbjlLbXlvZk80b1pfaEoydnlmZ2VySTdaLVpBSDJiRU5janlWV3h5aEcyQVowRzJLa0VtZk1QT1hQRlVXRjZQSTJaWWd2RXdlT0k2ZzgxR0Nvbm9wLUdZSkVJaXlGenkxVms3d0tMbURfSGVmV1c1X05oTzlBNEY3MUpid3JTeTNRa3V3cUp3cjhIRWlmdUdyOHJKdGZRb2ZFdElYVUVsMm0wSkZoaGV6WFFJeHI5aFlXNXhnMnFpV19VSFY0VjZvRkZjUVF2VDg2SXVIeWNBV1BEVUlKdzdjNnZDdk0wa1E5T2NNZEtBc1NIZ3JRMUdVTTU0NW5SeXBZSFVXMTN0Mk11bWRNYnhmc1FQTEFEa3RfdFI4UThOTk1QWml0YURMT3pqQTV0aVhua0IzUFlfUDBicTUtRnhrNnFUYTBFdEs3RWRRVUlJemJaSldsek9fZkVlanBZaHZ0dWktUnp4QUFZSnpILTFlNGExNTlJSGdWdG9lZkZCMzdldW9MYjZNcWs1RmJWX1FKZ0RzYnc3UVA3WEJVX1I2blRPcUV4M0lnQ1RVSGVmdGRQakFJQzdPWGs5U0dzTko0NkhkOUpDRDFmb1Y2TlpVQ0hJcUFWQm1IeU16YzhpMUJ1RmRsZFFQRGFfakFEbGVPZXBrM3ZpWVItaEdUQU82N2Y5X29wa1Zia3V6bXRoVnNwMlczTzF6ZUZ0UVh3a3FRMThFdHlQcHhzSWRyUEV5bTRhcEVRdFJYZFlQZ0czVmJBR0E4NTdGak90OUx0c3B6dlphNFBCV1lxSHVDcj2Y3NKVmlPTmw2ZW9OVEw0",
       "email": "xiwei@redhat.com"
     },
     "utilityvm.example.com:5000": {
@@ -613,7 +613,7 @@ release image utilityvm.example.com:5000/ocp4/openshift4@sha256:eab93b4591699a5a
 [xiwei-redhat.com@bastion openstack-upi]$ echo $OPENSHIFT_DNS_ZONE
 blue.osp.opentlc.com
 [xiwei-redhat.com@bastion openstack-upi]$  cat $HOME/merged_pullsecret.json
-{"auths":{"cloud.openshift.com":{"auth":"b3BlbnNoaWZ0LXJlbGVhc2UtZGV2K3hpd2VpcmVkaGF0Y29tMWdxeHc3ZzdzYnlwcWxseXUxZGowOWNvY2FiOkxMMlFSVzZXVUpQQ1NZOVVSOTM2T1JZTkpQWkowT1NJWlgwMTdXTkM5VTlVVDFTR0pURTZNWkpNSVkwUUtQNFA=","email":"xiwei@redhat.com"},"quay.io":{"auth":"b3BlbnNoaWZ0LXJlbGVhc2UtZGV2K3hpd2VpcmVkaGF0Y29tMWdxeHc3ZzdzYnlwcWxseXUxZGowOWNvY2FiOkxMMlFSVzZXVUpQQ1NZOVVSOTM2T1JZTkpQWkowT1NJWlgwMTdXTkM5VTlVVDFTR0pURTZNWkpNSVkwUUtQNFA=","email":"xiwei@redhat.com"},"registry.connect.redhat.com":{"auth":"Nzk4NTAzOHx1aGMtMUdxeFc3RzdTQllQUWxsWXUxRGowOUNvQ0FCOmV5SmhiR2NpT2lKU1V6VXhNaUo5LmV5SnpkV0lpT2lJMllXSmpPR0ZpTXpRMU9EYzBOamN3WVRVd1pqWm1NamxrT0dKallqa3dZaUo5LlBONFdTRkdRLTZ1Q1lER2ZJM3RLR3ZyYnlHU1dqVGppZVhDRC1vbjhpMXUxN29YeG9tS09yd20xbjlLbXlvZk80b1pfaEoydnlmZ2VySTdaLVpBSDJiRU5janlWV3h5aEcyQVowRzJLa0VtZk1QT1hQRlVXRjZQSTJaWWd2RXdlT0k2ZzgxR0Nvbm9wLUdZSkVJaXlGenkxVms3d0tMbURfSGVmV1c1X05oTzlBNEY3MUpid3JTeTNRa3V3cUp3cjhIRWlmdUdyOHJKdGZRb2ZFdElYVUVsMm0wSkZoaGV6WFFJeHI5aFlXNXhnMnFpV19VSFY0VjZvRkZjUVF2VDg2SXVIeWNBV1BEVUlKdzdjNnZDdk0wa1E5T2NNZEtBc1NIZ3JRMUdVTTU0NW5SeXBZSFVXMTN0Mk11bWRNYnhmc1FQTEFEa3RfdFI4UThOTk1QWml0YURMT3pqQTV0aVhua0IzUFlfUDBicTUtRnhrNnFUYTBFdEs3RWRRVUlJemJaSldsek9fZkVlanBZaHZ0dWktUnp4QUFZSnpILTFlNGExNTlJSGdWdG9lZkZCMzdldW9MYjZNcWs1RmJWX1FKZ0RzYnc3UVA3WEJVX1I2blRPcUV4M0lnQ1RVSGVmdGRQakFJQzdPWGs5U0dzTko0NkhkOUpDRDFmb1Y2TlpVQ0hJcUFWQm1IeU16YzhpMUJ1RmRsZFFQRGFfakFEbGVPZXBrM3ZpWVItaEdUQU82N2Y5X29wa1Zia3V6bXRoVnNwMlczTzF6ZUZ0UVh3a3FRMThFdHlQcHhzSWRyUEV5bTRhcEVRdFJYZFlQZ0czVmJBR0E4NTdGak90OUx0c3B6dlphNFBCV1lxSHVDcjUwLUNzcS1JTHQ5bm92Y3NKVmlPTmw2ZW9OVEw0","email":"xiwei@redhat.com"},"registry.redhat.io":{"auth":"Nzk4NTAzOHx1aGMtMUdxeFc3RzdTQllQUWxsWXUxRGowOUNvQ0FCOmV5SmhiR2NpT2lKU1V6VXhNaUo5LmV5SnpkV0lpT2lJMllXSmpPR0ZpTXpRMU9EYzBOamN3WVRVd1pqWm1NamxrT0dKallqa3dZaUo5LlBONFdTRkdRLTZ1Q1lER2ZJM3RLR3ZyYnlHU1dqVGppZVhDRC1vbjhpMXUxN29YeG9tS09yd20xbjlLbXlvZk80b1pfaEoydnlmZ2VySTdaLVpBSDJiRU5janlWV3h5aEcyQVowRzJLa0VtZk1QT1hQRlVXRjZQSTJaWWd2RXdlT0k2ZzgxR0Nvbm9wLUdZSkVJaXlGenkxVms3d0tMbURfSGVmV1c1X05oTzlBNEY3MUpid3JTeTNRa3V3cUp3cjhIRWlmdUdyOHJKdGZRb2ZFdElYVUVsMm0wSkZoaGV6WFFJeHI5aFlXNXhnMnFpV19VSFY0VjZvRkZjUVF2VDg2SXVIeWNBV1BEVUlKdzdjNnZDdk0wa1E5T2NNZEtBc1NIZ3JRMUdVTTU0NW5SeXBZSFVXMTN0Mk11bWRNYnhmc1FQTEFEa3RfdFI4UThOTk1QWml0YURMT3pqQTV0aVhua0IzUFlfUDBicTUtRnhrNnFUYTBFdEs3RWRRVUlJemJaSldsek9fZkVlanBZaHZ0dWktUnp4QUFZSnpILTFlNGExNTlJSGdWdG9lZkZCMzdldW9MYjZNcWs1RmJWX1FKZ0RzYnc3UVA3WEJVX1I2blRPcUV4M0lnQ1RVSGVmdGRQakFJQzdPWGs5U0dzTko0NkhkOUpDRDFmb1Y2TlpVQ0hJcUFWQm1IeU16YzhpMUJ1RmRsZFFQRGFfakFEbGVPZXBrM3ZpWVItaEdUQU82N2Y5X29wa1Zia3V6bXRoVnNwMlczTzF6ZUZ0UVh3a3FRMThFdHlQcHhzSWRyUEV5bTRhcEVRdFJYZFlQZ0czVmJBR0E4NTdGak90OUx0c3B6dlphNFBCV1lxSHVDcjUwLUNzcS1JTHQ5bm92Y3NKVmlPTmw2ZW9OVEw0","email":"xiwei@redhat.com"},"utilityvm.example.com:5000":{"auth":"b3BlbnNoaWZ0OnJlZGhhdA=="}}}
+{"auths":{"cloud.openshift.com":{"auth":"b3BlbnNoaWZ0LXJlbGVhc2UtZGV2K3hpd2VpcmVkaGF0Y29tMWdxeHc3ZzdzYnlwcWxseXUxZGowOWNvY2FiOkxMMlFSVzZXVUpQQ1NZOVVSOTM2T1JZTkpQWkowT1NJWlgwMTdXTkM5VTlVVDFTR0pURTZNWkpNSVkwUUtQNFA=","email":"xiwei@redhat.com"},"quay.io":{"auth":"b3BlbnNoaWZ0LXJlbGVhc2UtZGV2K3hpd2VpcmVkaGF0Y29tMWdxeHc3ZzdzYnlwcWxseXUxZGowOWNvY2FiOkxMMlFSVzZXVUpQQ1NZOVVSOTM2T1JZTkpQWkowT1NJWlgwMTdXTkM5VTlVVDFTR0pURTZNWkpNSVkwUUtQNFA=","email":"xiwei@redhat.com"},"registry.connect.redhat.com":{"auth":"Nzk4NTAzOHx1aGMtMUdxeFc3RzdTQllQUWxsWXUxRGowOUNvQ0FCOmV5SmhiR2NpT2lKU1V6VXhNaUo5LmV5SnpkV0lpT2lJMllXSmpPR0ZpTXpRMU9EYzBOamN3WVRVd1pqWm1NamxrT0dKallqa3dZaUo5LlBONFdTRkdRLTZ1Q1lER2ZJM3RLR3ZyYnlHU1dqVGppZVhDRC1vbjhpMXUxN29YeG9tS09yd20xbjlLbXlvZk80b1pfaEoydnlmZ2VySTdaLVpBSDJiRU5janlWV3h5aEcyQVowRzJLa0VtZk1QT1hQRlVXRjZQSTJaWWd2RXdlT0k2ZzgxR0Nvbm9wLUdZSkVJaXlGenkxVms3d0tMbURfSGVmV1c1X05oTzlBNEY3MUpid3JTeTNRa3V3cUp3cjhIRWlmdUdyOHJKdGZRb2ZFdElYVUVsMm0wSkZoaGV6WFFJeHI5aFlXNXhnMnFpV19VSFY0VjZvRkZjUVF2VDg2SXVIeWNBV1BEVUlKdzdjNnZDdk0wa1E5T2NNZEtBc1NIZ3JRMUdVTTU0NW5SeXBZSFVXMTN0Mk11bWRNYnhmc1FQTEFEa3RfdFI4UThOTk1QWml0YURMT3pqQTV0aVhua0IzUFlfUDBicTUtRnhrNnFUYTBFdEs3RWRRVUlJemJaSldsek9fZkVlanBZaHZ0dWktUnp4QUFZSnpILTFlNGExNTlJSGdWdG9lZkZCMzdldW9MYjZNcWs1RmJWX1FKZ0RzYnc3UVA3WEJVX1I2blRPcUV4M0lnQ1RVSGVmdGRQakFJQzdPWGs5U0dzTko0NkhkOUpDRDFmb1Y2TlpVQ0hJcUFWQm1IeU16YzhpMUJ1RmRsZFFQRGFfakFEbGVPZXBrM3ZpWVItaEdUQU82N2Y5X29wa1Zia3V6bXRoVnNwMlczTzF6ZUZ0UVh3a3FRMThFdHlQcHhzSWRyUEV5bTRRdFJYZFlQZ0czVmJBR0E4NTdGak90OUx0c3B6dlphNFBCV1lxSHVDcjUwLUNzcS1JTHQ5bm92Y3NKVmlPTmw2ZW9OVEw0","email":"xiwei@redhat.com"},"registry.redhat.io":{"auth":"Nzk4NTAzOHx1aGUdxeFc3RzdTQllQUWxsWXUxRGowOUNvQ0FCOmV5SmhiR2NpT2lKU1V6VXhNaUo5LmV5SnpkV0lpT2lJMllXSmpPR0ZpTXpRMU9EYzBOamN3WVRVd1pqWm1NamxrT0dKallqa3dZaUo5LlBONFdTRkdRLTZ1Q1lER2ZJM3RLR3ZyYnlHU1dqVGppZVhDRC1vbjhpMXUxN29YeG9tS09yd20xbjlLbXlvZk80b1pfaEoydnlmZ2VySTdaLVpBSDJiRU5janlWV3h5aEcyQVowRzJLa0VtZk1QT1hQRlVXRjZQSTJaWWd2RXdlT0k2ZzgxR0Nvbm9wLUdZSkVJaXlGenkxVms3d0tMbURfSGVmV1c1X05oTzlBNEY3MUpid3JTeTNRa3V3cUp3cjhIRWlmdUdyOHJKdGZRb2ZFdElYVUVsMm0wSkZoaGV6WFFJeHI5aFlXNXhnMnFpV19VSFY0VjZvRkZjUVF2VDg2SXVIeWNBV1BEVUlKdzdjNnZDdk0wa1E5T2NNZEtBc1NIZ3JRMUdVTTU0NW5SeXBZSFVXMTN0Mk11bWRNYnhmc1FQTEFEa3RfdFI4UThOTk1QWml0YURMT3pqQTV0aVhua0IzUFlfUDBicTUtRnhrNnFUYTBemJaSldsek9fZkVlanBZaHZ0dWktUnp4QUFZSnpILTFlNGExNTlJSGdWdG9lZkZCMzdldW9MYjZNcWs1RmJWX1FKZ0RzYnc3UVA3WEJVX1I2blRPcUV4M0lnQ1RVSGVmdGRQakFJQzdPWGs5U0dzTko0NkhkOUpDRDFmb1Y2TlpVQ0hJcUFWQm1IeU16YzhpMUJ1RmRsZFFfakFGVPZXBrM3ZpWVItaEdUQU82N2Y5X29wa1Zia3V6bXRoVnNwMlczTzF6ZUZ0UVh3a3FRMThFdHlQcHhzSWRyV5bTRhcEVRdFJYZFlQZ0czVmJBR0E4NTdGak90OUx0c3B6dlphNFBCV1lxSHVDLUNzcS1JTHQ5bm92Y3NVEw0","email":"xiwei@redhat.com"},"utilityvm.example.com:5000":{"auth":"b3nNZ0OnJlZGhhdA=="}}}
 
 
 
@@ -637,76 +637,84 @@ compute:
   hyperthreading: Enabled
   name: worker
   platform: {}
-  replicas: 3
+  replicas: 0 
 controlPlane:
   architecture: amd64
   hyperthreading: Enabled
   name: master
-  platform: {}
+  platform:
+    openstack:
+      type: 4c16g30d 
   replicas: 3
 metadata:
   creationTimestamp: null
-  name: cluster-a389
+  name: "cluster-16f4" 
 networking:
   clusterNetwork:
   - cidr: 10.128.0.0/14
     hostPrefix: 23
   machineNetwork:
-  - cidr: 10.0.0.0/16
+  - cidr: 192.168.47.0/24 
   networkType: OpenShiftSDN
   serviceNetwork:
   - 172.30.0.0/16
 platform:
   openstack:
-    apiVIP: 10.0.0.5
-    cloud: a389-project
-    computeFlavor: 4c16g30d
+    apiVIP: 192.168.47.5 
+    cloud: "16f4-project"
+    computeFlavor: 4c16g30d 
     externalDNS: null
     externalNetwork: external
-    ingressVIP: 10.0.0.7
-    lbFloatingIP: 52.116.95.177
+    ingressVIP: 192.168.47.7 
+    lbFloatingIP: 52.116.95.60 
     octaviaSupport: "1"
     region: ""
-    trunkSupport: "1"
+    trunkSupport: "0" 
 publish: External
-pullSecret: '{"auths":{"cloud.openshift.com":{"auth":"b3BlbnNoaWZ0LXJlbGVhc2UtZGV2K3hpd2VpcmVkaGF0Y29tMWdxeHc3ZzdzYnlwcWxseXUxZGowOWNvY2FiOkxMMlFSVzZXVUpQQ1NZOVVSOTM2T1JZTkpQWkowT1NJWlgwMTdXTkM5VTlVVDFTR0pURTZNWkpNSVkwUUtQNFA=","email":"xiwei@redhat.com"},"quay.io":{"auth":"b3BlbnNoaWZ0LXJlbGVhc2UtZGV2K3hpd2VpcmVkaGF0Y29tMWdxeHc3ZzdzYnlwcWxseXUxZGowOWNvY2FiOkxMMlFSVzZXVUpQQ1NZOVVSOTM2T1JZTkpQWkowT1NJWlgwMTdXTkM5VTlVVDFTR0pURTZNWkpNSVkwUUtQNFA=","email":"xiwei@redhat.com"},"registry.connect.redhat.com":{"auth":"Nzk4NTAzOHx1aGMtMUdxeFc3RzdTQllQUWxsWXUxRGowOUNvQ0FCOmV5SmhiR2NpT2lKU1V6VXhNaUo5LmV5SnpkV0lpT2lJMllXSmpPR0ZpTXpRMU9EYzBOamN3WVRVd1pqWm1NamxrT0dKallqa3dZaUo5LlBONFdTRkdRLTZ1Q1lER2ZJM3RLR3ZyYnlHU1dqVGppZVhDRC1vbjhpMXUxN29YeG9tS09yd20xbjlLbXlvZk80b1pfaEoydnlmZ2VySTdaLVpBSDJiRU5janlWV3h5aEcyQVowRzJLa0VtZk1QT1hQRlVXRjZQSTJaWWd2RXdlT0k2ZzgxR0Nvbm9wLUdZSkVJaXlGenkxVms3d0tMbURfSGVmV1c1X05oTzlBNEY3MUpid3JTeTNRa3V3cUp3cjhIRWlmdUdyOHJKdGZRb2ZFdElYVUVsMm0wSkZoaGV6WFFJeHI5aFlXNXhnMnFpV19VSFY0VjZvRkZjUVF2VDg2SXVIeWNBV1BEVUlKdzdjNnZDdk0wa1E5T2NNZEtBc1NIZ3JRMUdVTTU0NW5SeXBZSFVXMTN0Mk11bWRNYnhmc1FQTEFEa3RfdFI4UThOTk1QWml0YURMT3pqQTV0aVhua0IzUFlfUDBicTUtRnhrNnFUYTBFdEs3RWRRVUlJemJaSldsek9fZkVlanBZaHZ0dWktUnp4QUFZSnpILTFlNGExNTlJSGdWdG9lZkZCMzdldW9MYjZNcWs1RmJWX1FKZ0RzYnc3UVA3WEJVX1I2blRPcUV4M0lnQ1RVSGVmdGRQakFJQzdPWGs5U0dzTko0NkhkOUpDRDFmb1Y2TlpVQ0hJcUFWQm1IeU16YzhpMUJ1RmRsZFFQRGFfakFEbGVPZXBrM3ZpWVItaEdUQU82N2Y5X29wa1Zia3V6bXRoVnNwMlczTzF6ZUZ0UVh3a3FRMThFdHlQcHhzSWRyUEV5bTRhcEVRdFJYZFlQZ0czVmJBR0E4NTdGak90OUx0c3B6dlphNFBCV1lxSHVDcjUwLUNzcS1JTHQ5bm92Y3NKVmlPTmw2ZW9OVEw0","email":"xiwei@redhat.com"},"registry.redhat.io":{"auth":"Nzk4NTAzOHx1aGMtMUdxeFc3RzdTQllQUWxsWXUxRGowOUNvQ0FCOmV5SmhiR2NpT2lKU1V6VXhNaUo5LmV5SnpkV0lpT2lJMllXSmpPR0ZpTXpRMU9EYzBOamN3WVRVd1pqWm1NamxrT0dKallqa3dZaUo5LlBONFdTRkdRLTZ1Q1lER2ZJM3RLR3ZyYnlHU1dqVGppZVhDRC1vbjhpMXUxN29YeG9tS09yd20xbjlLbXlvZk80b1pfaEoydnlmZ2VySTdaLVpBSDJiRU5janlWV3h5aEcyQVowRzJLa0VtZk1QT1hQRlVXRjZQSTJaWWd2RXdlT0k2ZzgxR0Nvbm9wLUdZSkVJaXlGenkxVms3d0tMbURfSGVmV1c1X05oTzlBNEY3MUpid3JTeTNRa3V3cUp3cjhIRWlmdUdyOHJKdGZRb2ZFdElYVUVsMm0wSkZoaGV6WFFJeHI5aFlXNXhnMnFpV19VSFY0VjZvRkZjUVF2VDg2SXVIeWNBV1BEVUlKdzdjNnZDdk0wa1E5T2NNZEtBc1NIZ3JRMUdVTTU0NW5SeXBZSFVXMTN0Mk11bWRNYnhmc1FQTEFEa3RfdFI4UThOTk1QWml0YURMT3pqQTV0aVhua0IzUFlfUDBicTUtRnhrNnFUYTBFdEs3RWRRVUlJemJaSldsek9fZkVlanBZaHZ0dWktUnp4QUFZSnpILTFlNGExNTlJSGdWdG9lZkZCMzdldW9MYjZNcWs1RmJWX1FKZ0RzYnc3UVA3WEJVX1I2blRPcUV4M0lnQ1RVSGVmdGRQakFJQzdPWGs5U0dzTko0NkhkOUpDRDFmb1Y2TlpVQ0hJcUFWQm1IeU16YzhpMUJ1RmRsZFFQRGFfakFEbGVPZXBrM3ZpWVItaEdUQU82N2Y5X29wa1Zia3V6bXRoVnNwMlczTzF6ZUZ0UVh3a3FRMThFdHlQcHhzSWRyUEV5bTRhcEVRdFJYZFlQZ0czVmJBR0E4NTdGak90OUx0c3B6dlphNFBCV1lxSHVDcjUwLUNzcS1JTHQ5bm92Y3NKVmlPTmw2ZW9OVEw0","email":"xiwei@redhat.com"},"utilityvm.example.com:5000":{"auth":"b3BlbnNoaWZ0OnJlZGhhdA=="}}}'
+pullSecret: '<your json merged pull secret>' 
 sshKey: |
-  ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDTL4RsiBOBf8RrLMfWgINNiCVH8BNl0qOUwhLtOVwqK5XaK6PzOjyfPV6X+mMDQTBdcTdHEj1FFAbhrzg2kkhMbL7mx8SuJ0xucfLfRwygza/36Hu26F/7TSTD1D/LPLBPCtEyv7I25+7+yN/vci1guK5uQNVhNsHy4Xe69JCOIh8nuCZtjdqnuM4lhjBXif2IYKailcAPc7tfeO47e8uBMPRN4kVd2M88s5kalMonLFeyfVDRrFtIA+hFZH8D2edhe8P0qYSmiMY8lYzBshR7pO2pE4vVHh0O6T/KP1GAxInCRXq2HIIpk+WDkUCINNtKNHxbmzBZJWOUrGd/vVs3 opentlc-mgr@admin.na.shared.opentlc.com
+  ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDRno7MhdEiuxrOTj9Du/8KDT4+KoILI+GdMvjCtzs5rmbOI342YgNc9ojsb6F+vaIMzlbFkf15soEarmgj2BiGaK/6hoI4OVxMOmlJzckEbEUEHpNjiYq0Ih0pylDmMG3BidMuokR6HjcYYTG0ex1jYqOmr7rUZ+e7nLeiniLv2QpcYFHdFDzxEOWYEy6BSAF8dWuJIYfEpDhvOCqCcMqGeWkSpClueEV1KZR+Md3UF+ijqihBXHuZnlbiPVoZZ/G+leWZPjU+IHxHNtJuaGrtIXofQ8M9MSeYA+hhHZBL6ag5pD6gStz3ojQjGwXbbMvhWYFBLjutlWZYSApIgj6T opentlc-mgr@admin.na.shared.opentlc.com
+imageContentSources: 
+- mirrors:
+  - utilityvm.example.com:5000/ocp4/openshift4
+  source: quay.io/openshift-release-dev/ocp-release
+- mirrors:
+  - utilityvm.example.com:5000/ocp4/openshift4
+  source: quay.io/openshift-release-dev/ocp-v4.0-art-dev
 additionalTrustBundle: |
   -----BEGIN CERTIFICATE-----
-  MIIGATCCA+mgAwIBAgIJAP0NNXlfUFwcMA0GCSqGSIb3DQEBCwUAMIGWMQswCQYD
-  VQQGEwJVUzETMBEGA1UECAwKV2FzaGluZ3RvbjEQMA4GA1UEBwwHU2VhdHRsZTEQ
-  MA4GA1UECgwHUmVkIEhhdDENMAsGA1UECwwER1BURTEeMBwGA1UEAwwVdXRpbGl0
-  eXZtLmV4YW1wbGUuY29tMR8wHQYJKoZIhvcNAQkBFhB4aXdlaUByZWRoYXQuY29t
-  MB4XDTIwMDcyNzA4MjcwOFoXDTIxMDcyNzA4MjcwOFowgZYxCzAJBgNVBAYTAlVT
-  MRMwEQYDVQQIDApXYXNoaW5ndG9uMRAwDgYDVQQHDAdTZWF0dGxlMRAwDgYDVQQK
-  DAdSZWQgSGF0MQ0wCwYDVQQLDARHUFRFMR4wHAYDVQQDDBV1dGlsaXR5dm0uZXhh
-  bXBsZS5jb20xHzAdBgkqhkiG9w0BCQEWEHhpd2VpQHJlZGhhdC5jb20wggIiMA0G
-  CSqGSIb3DQEBAQUAA4ICDwAwggIKAoICAQDm8l32jefwqG2NPs1hz05GvqVlLQJJ
-  s0ALGqTufqtcKzThkVICC27tSkThR7bioCgwGia2nX3sqqZ2RGMVC9RKKssf6h2/
-  MaZmWQd3SkKYX8vJzBNUtiBRrB/VEWODjrq0LUesmlV962I2fwxpJFOUX3L6FKR4
-  TCr8xEwkzTn8I8KECnveixf8WTBYQ66UVXP5mhrVzqYHMg9dMCUs/k1HFHDGiygG
-  SJUZW9t+cuKJODdf89Mfo97PpkkjZMyyp1Qu5e1iiPccY0Zq0PNgBY/4Fk+yjN2C
-  +x/wIeknSWCtv9Bm0ItJ9jU089LyYv6UF68AEcgGmD8CiBQ0tYJ3T2uvry4SgW06
-  ddXR4Bo3tdy4+0/dpnYzSgzyTLHm0A8jKm56t5dwKP3lhdTk/sBoLZob/Vu1YiJ6
-  v6zm7L3e5CaKxr2eWh7XB1bpPp2+PjspsqSzRk48aoYBDm+cvbJl7Qb4J66m/6gm
-  IJj23Oo8vRXPItj7T9bW7lNRwDo46iy38SndX9peu1sX2dFYrwUAmBBBjawiYLbp
-  FmiT2FToSO9Vd5oJ4N35UVE1oa2pvXMZv8jQwPcKCLGQMFrSzC2tSy65hYUTdhEI
-  GWZtmQHGoyUr+Hyx+E+TYWIoRc4UF0OsXAbNQwXIZ4qGNVSx1aibnA7J+A+Eq7ol
-  nS4J49GtCMlJ3QIDAQABo1AwTjAdBgNVHQ4EFgQUk1UEp2o3W9suNebNNtKGRnAp
-  GTowHwYDVR0jBBgwFoAUk1UEp2o3W9suNebNNtKGRnApGTowDAYDVR0TBAUwAwEB
-  /zANBgkqhkiG9w0BAQsFAAOCAgEABrJObB+9zPtnx/TVbVxf0+P6lQhfk7oIz5xA
-  nmRdMSItNG6ENMyl68uZzpfCqZ8QCtKQbxE7SWg5GkAmWrx4Kbe/EssGvCXOIfq1
-  +uTMfchNFz1wVsS5obUMn/pnxWrgHeXJyojJVmGWk/912AOalaLF3KpjwX/m/ywY
-  sgji73l7OBVvWXl6RcyxJL45/+YtQI9Oye8slheX0CPWNpVF+wNfmFUIgvjBstIJ
-  MMeIobB8Tx/zVXZxkYcFSg4xTiXucwnM+Wrj0Lx/HhWK/rVruiZqi+I82R4Rh7Re
-  EGGqx55Y5hg3YsvhgxFVG23x9wcs+CgkliRL8Z0iDh7PtBLJBAkTWvQX4kvrvuy4
-  MhFCo8mX8TImQB/sKZQd3TQkbF+Z8QRhXoiQ1UwJL/t6T+7NREwabrHOUyzTXymY
-  mhVeb0g0YJZenP0qDdslb2mekeDaaDcoUo384DJ6gC+pKTTxBVg6H2O9U4G4sSf4
-  kkC4VE1NfL9gj1Y1ZRHlh6jvlbCludLBwyB7gZq0CKVTF+KDp5eFg9sQNCcu1Dl7
-  CS6mzWIITxRB8v4MWMqTkQn6zwt5xr7v6hd5+KEWZsZsAU4pv7fbQHnyATE6NsTx
-  HTEOM479eW3qt/7apzQRM0nhjeLN+rZbtTAAgx7ltvvg5JZMvKELncdZqRYLAd49
-  I/ODldo=
+  MIIF5zCCA8+gAwIBAgIJAKQGgnmWgGkuMA0GCSqGSIb3DQEBCwUAMIGJMQswCQYD
+  VQQGEwJVUzENMAsGA1UECAwEdGVtcDENMAsGA1UEBwwEdGVtcDENMAsGA1UECgwE
+  dGVtcDENMAsGA1UECwwEdGVtcDEeMBwGA1UEAwwVdXRpbGl0eXZtLmV4YW1wbGUu
+  Y29tMR4wHAYJKoZIhvcNAQkBFg9qdWRkQHJlZGh0YS5jb20wHhcNMjAwNzIzMTgy
+  MTM0WhcNMjEwNzIzMTgyMTM0WjCBiTELMAkGA1UEBhMCVVMxDTALBgNVBAgMBHRl
+  bXAxDTALBgNVBAcMBHRlbXAxDTALBgNVBAoMBHRlbXAxDTALBgNVBAsMBHRlbXAx
+  HjAcBgNVBAMMFXV0aWxpdHl2bS5leGFtcGxlLmNvbTEeMBwGCSqGSIb3DQEJARYP
+  anVkZEByZWRodGEuY29tMIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEA
+  ulXc9JIkoGwXhjeNpUp9aHhtNOPWaHcAfU1+82BlHZkNKQo6/q9WYu9hMxUUfFDh
+  9cwtTC6d9l+WMXf+vCLISBGHh4hEZvdP46XWyfMiTDliQY6W4mvK4NxcDIo6FFOF
+  yMu0o6KagpPtU1Xjdx9iQ/w4GJcCLzL8TDjtfbYsrHWOJOMw6FPbkbqLj6dNnvG6
+  ipapRQ4W4Kknb4Oc3OsftNDEQaqQGtFx2PDu6IuKwyzc0H/aENh7YJ/gg7MMESwf
+  Z82mD0foPwk9/NdC+I9jDt1z/lGA6SMvtdAu4gFxmgHp+MdclGyaWgYEVec1mWMZ
+  WbNheCD0A2Kg7cNvYbRCzsnqpxAtx8D0UfPu7piVDECtTZ5YGoQiAiNn2DFd9o3O
+  YOuykBe4EfLDlHdKdHK4RJOw+pxVpg7Bgkfs0ptaJfjzJmAunL50mSrfGCnaw7Yy
+  UZ581B6jeUSeW6jez6F6w5hr0WCI59OpPoS1Go+pE2+FXr0hk54DtikjzAJjFgpx
+  kI7kOlQEZlp1+dENBzks+Th66VT0YSrtX0PKW5F8rO7ORfDlLUgOv5GaFoxQxSIz
+  3qR0b7YIaThwaMr2mPSBoTabTWuitzZLx7HCQ2pZ5k3VMIMZN8PlxhjedaF5VKHK
+  uVmwaLHm56w5LtDLfjTvMErWyOFxLm9uRX98/BvzVKsCAwEAAaNQME4wHQYDVR0O
+  BBYEFGuuitaLdtF3BnwTkIGCy/OTrJlqMB8GA1UdIwQYMBaAFGuuitaLdtF3BnwT
+  kIGCy/OTrJlqMAwGA1UdEwQFMAMBAf8wDQYJKoZIhvcNAQELBQADggIBAC07Ijp4
+  HjYfwTMvTR6dJybn1Tx+o21DMRUWTpetG8xdrfaI0E9n8gpg68NJInwj9308YLUw
+  av3oK7wRmuwrYt+2d0ei5tZLvof0vZOa1S9PuqYgOdTdt0fISlDXu9rv+AmB7bSe
+  pMQZ0lvtUQcOfEZRwgBLeaQ45SI/aSO2ugtkA9ZO2AAYOGCRAE2hZ3AqeE3SGCRy
+  QQ7ftQcs4yu4iYLqpeKkfo+3wmovK/cFtQRAtck5KT3eEG1dHkFzXkWaunRYFACk
+  ZjpsyvDLNP7trjqyFL72I63vP2M4nXNm9OFjEk9N0fyJiFhIxPqarKoqkwX3DV4V
+  YuBxbCUhP2arQo9mfPiMLNysItmx4ajXjRWJeTahxiSq79fHd/ec6xo7zjmIXD0t
+  zMURu5nYH9LfwUKU7WdDHbupAipDxkqb+vzuCuSMJDJ5V//4jTpXQuC/TXBSDz50
+  28D54nkveANNveKDhdpFpEqOVgbP/1dlOKDF5/up4BerEWBUn7FhenttTBMQTqiO
+  a6RqpmkkfO0axQ6UCSzURkz11NqF8QOcBRxBDwlF10x9ZseXpvRajPA+2HEcEA5K
+  ExNLs9ZVl1YnIW9MTxwjVx4s87bORkKHtfEhA2PDDtWWEXjxt7vdZN3mljtzDYlH
+  1CvEPwrxJxpUwDcKaajWjt6mgk2CSLRJbS3n
   -----END CERTIFICATE-----
 
 
@@ -1035,14 +1043,16 @@ $ openstack floating ip set --port "$INFRA_ID-ingress-port" $INGRESS_FIP
 | da624837-77c7-4b69-bdbd-3a6273996a1e | 52.116.95.177       | 192.168.47.5     |
 +--------------------------------------+---------------------+------------------+
 
-[xiwei-redhat.com@bastion openstack-upi]$ openstack port create \
->   --network "$GUID-ocp-network" \
->   --security-group "$GUID-master_sg" \
->   --allowed-address ip-address=192.168.47.5 \
->   --allowed-address ip-address=192.168.47.6 \
->   --allowed-address ip-address=192.168.47.7 \
->   --tag openshiftClusterID="$INFRA_ID" \
->   "$INFRA_ID-bootstrap-port"
++--------------------------------------+---------------------+------------------+
+
+ openstack port create \
+  --network "$GUID-ocp-network" \
+  --security-group "$GUID-master_sg" \
+  --allowed-address ip-address=192.168.47.5 \
+  --allowed-address ip-address=192.168.47.6 \
+  --allowed-address ip-address=192.168.47.7 \
+  --tag openshiftClusterID="$INFRA_ID" \
+  "$INFRA_ID-bootstrap-port"
 
 [xiwei-redhat.com@bastion openstack-upi]$ openstack server create --image rhcos-ocp45 --flavor 4c16g30d --user-data "$HOME/openstack-upi/$INFRA_ID-bootstrap-ignition.json" --port "$INFRA_ID-bootstrap-port" --wait --property openshiftClusterID="$INFRA_ID" "$INFRA_ID-bootstrap"
 +-----------------------------+----------------------------------------------------------+
@@ -1401,3 +1411,353 @@ quay.io/openshift-release-dev/ocp-v4.0-art-dev   <none>   3348a05d15b0   9 days 
 [xiwei-redhat.com@bastion ~]$  openshift-install wait-for bootstrap-complete --dir $HOME/openstack-upi
 INFO Waiting up to 20m0s for the Kubernetes API at https://api.cluster-a389.blue.osp.opentlc.com:6443...
 
+直到：
+[xiwei-redhat.com@bastion ~]$ openshift-install wait-for bootstrap-complete --dir $HOME/openstack-upi
+INFO Waiting up to 20m0s for the Kubernetes API at https://api.cluster-a389.blue.osp.opentlc.com:6443...
+INFO API v1.18.3+3107688 up
+INFO Waiting up to 40m0s for bootstrapping to complete...
+INFO It is now safe to remove the bootstrap resources
+INFO Time elapsed: 5m18s
+[xiwei-redhat.com@bastion ~]$
+
+
+xiwei-redhat.com@bastion ~]$ oc get clusterversion
+NAME      VERSION   AVAILABLE   PROGRESSING   SINCE   STATUS
+version             False       True          14m     Working towards 4.5.3: 62% complete
+[xiwei-redhat.com@bastion ~]$
+
+
+[xiwei-redhat.com@bastion ~]$ oc get clusteroperators
+NAME                                       VERSION   AVAILABLE   PROGRESSING   DEGRADED   SINCE
+authentication                                       Unknown     Unknown       True       4m11s
+cloud-credential                                     True        False         False      15m
+cluster-autoscaler
+config-operator
+console
+csi-snapshot-controller
+dns                                        4.5.3     True        False         False      2m52s
+etcd                                       4.5.3     True        False         False      2m38s
+image-registry
+ingress
+insights
+kube-apiserver                             4.5.3     True        True          True       2m7s
+kube-controller-manager                    4.5.3     True        True          True       118s
+kube-scheduler                             4.5.3     True        True          True       68s
+kube-storage-version-migrator              4.5.3     False       False         False      4m12s
+machine-api
+machine-approver                           4.5.3     True        False         False      2m9s
+machine-config                                       False       True          True       4m12s
+marketplace
+monitoring
+network                                    4.5.3     True        False         False      3m39s
+node-tuning                                4.5.3     True        False         False      4m11s
+openshift-apiserver                        4.5.3     False       False         False      4m10s
+openshift-controller-manager                         False       True          False      4m6s
+openshift-samples
+operator-lifecycle-manager                 4.5.3     True        True          False      3m7s
+operator-lifecycle-manager-catalog         4.5.3     True        True          False      3m9s
+operator-lifecycle-manager-packageserver             False       True          False      3m7s
+service-ca                                 4.5.3     True        False         False      4m
+storage
+
+
+
+============================================================
+ Create Workers 创建worker节点
+[xiwei-redhat.com@bastion ~]$ for index in $(seq 0 1); do
+>     openstack port create \
+>     --network "$GUID-ocp-network" \
+>     --security-group "$GUID-worker_sg" \
+>     --allowed-address ip-address=192.168.47.5 \
+>     --allowed-address ip-address=192.168.47.6 \
+>     --allowed-address ip-address=192.168.47.7 \
+>     --tag openshiftClusterID="$INFRA_ID" \
+>     "$INFRA_ID-worker-port-$index"
+> done
++-------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Field                   | Value                                                                                                                                                                               |
++-------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| admin_state_up          | UP                                                                                                                                                                                  |
+| allowed_address_pairs   | ip_address='192.168.47.5', mac_address='fa:16:3e:f4:be:6a'                                                                                                                          |
+|                         | ip_address='192.168.47.6', mac_address='fa:16:3e:f4:be:6a'                                                                                                                          |
+|                         | ip_address='192.168.47.7', mac_address='fa:16:3e:f4:be:6a'                                                                                                                          |
+| binding_host_id         | None                                                                                                                                                                                |
+| binding_profile         | None                                                                                                                                                                                |
+| binding_vif_details     | None                                                                                                                                                                                |
+| binding_vif_type        | None                                                                                                                                                                                |
+| binding_vnic_type       | normal                                                                                                                                                                              |
+| created_at              | 2020-07-27T13:46:03Z                                                                                                                                                                |
+| data_plane_status       | None                                                                                                                                                                                |
+| description             |                                                                                                                                                                                     |
+| device_id               |                                                                                                                                                                                     |
+| device_owner            |                                                                                                                                                                                     |
+| dns_assignment          | fqdn='host-192-168-47-13.example.com.', hostname='host-192-168-47-13', ip_address='192.168.47.13'                                                                                   |
+| dns_domain              |                                                                                                                                                                                     |
+| dns_name                |                                                                                                                                                                                     |
+| extra_dhcp_opts         |                                                                                                                                                                                     |
+| fixed_ips               | ip_address='192.168.47.13', subnet_id='5956d52b-7612-4f5b-9d7b-7924843ea42c'                                                                                                        |
+| id                      | c1f0957d-a56a-4e31-93cb-c48766755dce                                                                                                                                                |
+| location                | cloud='a389-project', project.domain_id='default', project.domain_name=, project.id='4541cf7e0bf4484b907d0024eb60b327', project.name='a389-project', region_name='regionOne', zone= |
+| mac_address             | fa:16:3e:f4:be:6a                                                                                                                                                                   |
+| name                    | cluster-a389-fmxsv-worker-port-0                                                                                                                                                    |
+| network_id              | 261b4a11-55ac-413b-adb5-357fea543c1a                                                                                                                                                |
+| port_security_enabled   | True                                                                                                                                                                                |
+| project_id              | 4541cf7e0bf4484b907d0024eb60b327                                                                                                                                                    |
+| propagate_uplink_status | None                                                                                                                                                                                |
+| qos_policy_id           | None                                                                                                                                                                                |
+| resource_request        | None                                                                                                                                                                                |
+| revision_number         | 8                                                                                                                                                                                   |
+| security_group_ids      | 69218b72-f52a-4fc1-a7b1-03615e2829f5                                                                                                                                                |
+| status                  | DOWN                                                                                                                                                                                |
+| tags                    | openshiftClusterID=cluster-a389-fmxsv                                                                                                                                               |
+| trunk_details           | None                                                                                                                                                                                |
+| updated_at              | 2020-07-27T13:46:03Z                                                                                                                                                                |
++-------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
++-------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Field                   | Value                                                                                                                                                                               |
++-------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| admin_state_up          | UP                                                                                                                                                                                  |
+| allowed_address_pairs   | ip_address='192.168.47.5', mac_address='fa:16:3e:e2:66:36'                                                                                                                          |
+|                         | ip_address='192.168.47.6', mac_address='fa:16:3e:e2:66:36'                                                                                                                          |
+|                         | ip_address='192.168.47.7', mac_address='fa:16:3e:e2:66:36'                                                                                                                          |
+| binding_host_id         | None                                                                                                                                                                                |
+| binding_profile         | None                                                                                                                                                                                |
+| binding_vif_details     | None                                                                                                                                                                                |
+| binding_vif_type        | None                                                                                                                                                                                |
+| binding_vnic_type       | normal                                                                                                                                                                              |
+| created_at              | 2020-07-27T13:46:08Z                                                                                                                                                                |
+| data_plane_status       | None                                                                                                                                                                                |
+| description             |                                                                                                                                                                                     |
+| device_id               |                                                                                                                                                                                     |
+| device_owner            |                                                                                                                                                                                     |
+| dns_assignment          | fqdn='host-192-168-47-29.example.com.', hostname='host-192-168-47-29', ip_address='192.168.47.29'                                                                                   |
+| dns_domain              |                                                                                                                                                                                     |
+| dns_name                |                                                                                                                                                                                     |
+| extra_dhcp_opts         |                                                                                                                                                                                     |
+| fixed_ips               | ip_address='192.168.47.29', subnet_id='5956d52b-7612-4f5b-9d7b-7924843ea42c'                                                                                                        |
+| id                      | e54d181f-b307-41ef-8325-14265e0341bc                                                                                                                                                |
+| location                | cloud='a389-project', project.domain_id='default', project.domain_name=, project.id='4541cf7e0bf4484b907d0024eb60b327', project.name='a389-project', region_name='regionOne', zone= |
+| mac_address             | fa:16:3e:e2:66:36                                                                                                                                                                   |
+| name                    | cluster-a389-fmxsv-worker-port-1                                                                                                                                                    |
+| network_id              | 261b4a11-55ac-413b-adb5-357fea543c1a                                                                                                                                                |
+| port_security_enabled   | True                                                                                                                                                                                |
+| project_id              | 4541cf7e0bf4484b907d0024eb60b327                                                                                                                                                    |
+| propagate_uplink_status | None                                                                                                                                                                                |
+| qos_policy_id           | None                                                                                                                                                                                |
+| resource_request        | None                                                                                                                                                                                |
+| revision_number         | 8                                                                                                                                                                                   |
+| security_group_ids      | 69218b72-f52a-4fc1-a7b1-03615e2829f5                                                                                                                                                |
+| status                  | DOWN                                                                                                                                                                                |
+| tags                    | openshiftClusterID=cluster-a389-fmxsv                                                                                                                                               |
+| trunk_details           | None                                                                                                                                                                                |
+| updated_at              | 2020-07-27T13:46:09Z                                                                                                                                                                |
++-------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+[xiwei-redhat.com@bastion ~]$ for index in $(seq 0 1); do
+>     openstack server create \
+>     --image rhcos-ocp45 \
+>     --flavor 4c16g30d \
+>     --user-data "$HOME/openstack-upi/worker.ign" \
+>     --port "$INFRA_ID-worker-port-$index" \
+>     --property openshiftClusterID="$INFRA_ID" \
+>     "$INFRA_ID-worker-$index"
+> done
++-----------------------------+----------------------------------------------------+
+| Field                       | Value                                              |
++-----------------------------+----------------------------------------------------+
+| OS-DCF:diskConfig           | MANUAL                                             |
+| OS-EXT-AZ:availability_zone |                                                    |
+| OS-EXT-STS:power_state      | NOSTATE                                            |
+| OS-EXT-STS:task_state       | scheduling                                         |
+| OS-EXT-STS:vm_state         | building                                           |
+| OS-SRV-USG:launched_at      | None                                               |
+| OS-SRV-USG:terminated_at    | None                                               |
+| accessIPv4                  |                                                    |
+| accessIPv6                  |                                                    |
+| addresses                   |                                                    |
+| adminPass                   | Buyx8bTjrF6A                                       |
+| config_drive                |                                                    |
+| created                     | 2020-07-27T13:46:21Z                               |
+| flavor                      | 4c16g30d (a02c754b-dbc9-4db1-afb7-6abb90071f41)    |
+| hostId                      |                                                    |
+| id                          | 91a2a09a-ba4a-43b2-9715-849c2457f43a               |
+| image                       | rhcos-ocp45 (e1a13377-2b55-4aee-ba05-0391a53c92e8) |
+| key_name                    | None                                               |
+| name                        | cluster-a389-fmxsv-worker-0                        |
+| progress                    | 0                                                  |
+| project_id                  | 4541cf7e0bf4484b907d0024eb60b327                   |
+| properties                  | openshiftClusterID='cluster-a389-fmxsv'            |
+| security_groups             | name='default'                                     |
+| status                      | BUILD                                              |
+| updated                     | 2020-07-27T13:46:21Z                               |
+| user_id                     | 964aa0854e564db6919c0fc1e14e4dc2                   |
+| volumes_attached            |                                                    |
++-----------------------------+----------------------------------------------------+
++-----------------------------+----------------------------------------------------+
+| Field                       | Value                                              |
++-----------------------------+----------------------------------------------------+
+| OS-DCF:diskConfig           | MANUAL                                             |
+| OS-EXT-AZ:availability_zone |                                                    |
+| OS-EXT-STS:power_state      | NOSTATE                                            |
+| OS-EXT-STS:task_state       | scheduling                                         |
+| OS-EXT-STS:vm_state         | building                                           |
+| OS-SRV-USG:launched_at      | None                                               |
+| OS-SRV-USG:terminated_at    | None                                               |
+| accessIPv4                  |                                                    |
+| accessIPv6                  |                                                    |
+| addresses                   |                                                    |
+| adminPass                   | nATsW4NYigRo                                       |
+| config_drive                |                                                    |
+| created                     | 2020-07-27T13:46:32Z                               |
+| flavor                      | 4c16g30d (a02c754b-dbc9-4db1-afb7-6abb90071f41)    |
+| hostId                      |                                                    |
+| id                          | c7ced2b0-33f1-4b03-bb9b-896dd1acb421               |
+| image                       | rhcos-ocp45 (e1a13377-2b55-4aee-ba05-0391a53c92e8) |
+| key_name                    | None                                               |
+| name                        | cluster-a389-fmxsv-worker-1                        |
+| progress                    | 0                                                  |
+| project_id                  | 4541cf7e0bf4484b907d0024eb60b327                   |
+| properties                  | openshiftClusterID='cluster-a389-fmxsv'            |
+| security_groups             | name='default'                                     |
+| status                      | BUILD                                              |
+| updated                     | 2020-07-27T13:46:32Z                               |
+| user_id                     | 964aa0854e564db6919c0fc1e14e4dc2                   |
+| volumes_attached            |                                                    |
++-----------------------------+----------------------------------------------------+
+[xiwei-redhat.com@bastion ~]$ jq .ignition.config $HOME/openstack-upi/worker.ign
+{
+  "append": [
+    {
+      "source": "https://192.168.47.5:22623/config/worker",
+      "verification": {}
+    }
+  ]
+}
+
+
+
+
+[xiwei-redhat.com@bastion ~]$  oc adm certificate approve csr-bt47h csr-kgbq2
+certificatesigningrequest.certificates.k8s.io/csr-bt47h approved
+certificatesigningrequest.certificates.k8s.io/csr-kgbq2 approved
+[xiwei-redhat.com@bastion ~]$ oc get csr
+NAME        AGE   SIGNERNAME                                    REQUESTOR                                                                   CONDITION
+csr-4mwxt   22m   kubernetes.io/kube-apiserver-client-kubelet   system:serviceaccount:openshift-machine-config-operator:node-bootstrapper   Approved,Issued
+csr-765fh   22m   kubernetes.io/kube-apiserver-client-kubelet   system:serviceaccount:openshift-machine-config-operator:node-bootstrapper   Approved,Issued
+csr-8c4zl   21m   kubernetes.io/kubelet-serving                 system:node:cluster-a389-fmxsv-master-1                                     Approved,Issued
+csr-8wtpm   23m   kubernetes.io/kubelet-serving                 system:node:cluster-a389-fmxsv-master-0                                     Approved,Issued
+csr-bt47h   76s   kubernetes.io/kube-apiserver-client-kubelet   system:serviceaccount:openshift-machine-config-operator:node-bootstrapper   Approved,Issued
+csr-kgbq2   56s   kubernetes.io/kube-apiserver-client-kubelet   system:serviceaccount:openshift-machine-config-operator:node-bootstrapper   Approved,Issued
+csr-nfkzc   22m   kubernetes.io/kubelet-serving                 system:node:cluster-a389-fmxsv-master-2                                     Approved,Issued
+csr-q2flt   23m   kubernetes.io/kube-apiserver-client-kubelet   system:serviceaccount:openshift-machine-config-operator:node-bootstrapper   Approved,Issued
+
+
+
+[xiwei-redhat.com@bastion ~]$ oc get nodes
+NAME                          STATUS   ROLES    AGE    VERSION
+cluster-a389-fmxsv-master-0   Ready    master   24m    v1.18.3+3107688
+cluster-a389-fmxsv-master-1   Ready    master   23m    v1.18.3+3107688
+cluster-a389-fmxsv-master-2   Ready    master   24m    v1.18.3+3107688
+cluster-a389-fmxsv-worker-0   Ready    worker   102s   v1.18.3+3107688
+cluster-a389-fmxsv-worker-1   Ready    worker   103s   v1.18.3+3107688
+
+
+
+
+=============================================================
+ Configure Registry Storage  配置镜像仓库存储
+
+删除旧的存储
+[xiwei-redhat.com@bastion ~]$  oc project openshift-image-registry
+Now using project "openshift-image-registry" on server "https://api.cluster-a389.blue.osp.opentlc.com:6443".
+[xiwei-redhat.com@bastion ~]$ oc get pvc
+NAME                     STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+image-registry-storage   Bound    pvc-8a36227c-09b3-4d61-9f80-bdbb660e85a2   100Gi      RWO            standard       20m
+[xiwei-redhat.com@bastion ~]$ oc get pv
+NAME                                       CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM                                             STORAGECLASS   REASON   AGE
+pvc-8a36227c-09b3-4d61-9f80-bdbb660e85a2   100Gi      RWO            Delete           Bound    openshift-image-registry/image-registry-storage   standard                3m59s
+[xiwei-redhat.com@bastion ~]$ oc delete pvc image-registry-storage
+persistentvolumeclaim "image-registry-storage" deleted
+
+
+[xiwei-redhat.com@bastion ~]$ cat $HOME/resources/pv-registry.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: registry-storage
+spec:
+  capacity:
+    storage: 100Gi
+  accessModes:
+  - ReadWriteMany
+  nfs:
+    path: /ocp-registry
+    server: utilityvm.example.com
+  persistentVolumeReclaimPolicy: Recycle
+  storageClassName: nfs[xiwei-redhat.com@bastion ~]$ cat $HOME/resources/pvc-registry.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: image-registry-storage
+  namespace: openshift-image-registry
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: nfs
+  volumeMode: Filesystem[xiwei-redhat.com@bastion ~]$ oc create -f $HOME/resources/pv-registry.yaml
+persistentvolume/registry-storage created
+[xiwei-redhat.com@bastion ~]$ oc create -f $HOME/resources/pvc-registry.yaml
+
+
+将Image Registry扩展到两个副本。
+$ oc patch configs.imageregistry.operator.openshift.io cluster --type merge -p '{"spec":{"replicas":2}}'
+
+oc get pods -o wide -n openshift-image-registry
+NAME                                              READY   STATUS      RESTARTS   AGE   IP              NODE                          NOMINATED NODE   READINESS GATES
+cluster-image-registry-operator-b466c78bd-9bb59   2/2     Running     0          53m   10.129.0.17     cluster-625c-xx7tn-master-2   <none>           <none>
+image-pruner-1595548800-br25g                     0/1     Completed   0          14m   10.128.2.5      cluster-625c-xx7tn-worker-0   <none>           <none>
+image-registry-5fc95665c-6qklv                    1/1     Running     0          48s   10.128.2.6      cluster-625c-xx7tn-worker-0   <none>           <none> 
+image-registry-5fc95665c-7gf28                    1/1     Running     0          48s   10.131.0.24     cluster-625c-xx7tn-worker-1   <none>           <none> 
+node-ca-brjfw                                     1/1     Running     0          33m   192.168.47.19   cluster-625c-xx7tn-worker-0   <none>           <none>
+node-ca-nh4vh                                     1/1     Running     0          53m   192.168.47.30   cluster-625c-xx7tn-master-1   <none>           <none>
+node-ca-pcwjf                                     1/1     Running     0          53m   192.168.47.14   cluster-625c-xx7tn-master-2   <none>           <none>
+node-ca-sdjs7                                     1/1     Running     0          53m   192.168.47.13   cluster-625c-xx7tn-master-0   <none>           <none>
+node-ca-vbcbc                                     1/1     Running     0          35m   192.168.47.26   cluster-625c-xx7tn-worker-1   <none>           <none>
+
+
+最后查看所有co状态：
+[xiwei-redhat.com@bastion ~]$ oc get co
+NAME                                       VERSION   AVAILABLE   PROGRESSING   DEGRADED   SINCE
+authentication                             4.5.3     True        False         False      2m20s
+cloud-credential                           4.5.3     True        False         False      45m
+cluster-autoscaler                         4.5.3     True        False         False      22m
+config-operator                            4.5.3     True        False         False      22m
+console                                    4.5.3     True        False         False      7m44s
+csi-snapshot-controller                    4.5.3     True        False         False      10m
+dns                                        4.5.3     True        False         False      33m
+etcd                                       4.5.3     True        False         False      32m
+image-registry                             4.5.3     True        False         False      11m
+ingress                                    4.5.3     True        False         False      11m
+insights                                   4.5.3     True        False         False      27m
+kube-apiserver                             4.5.3     True        False         False      32m
+kube-controller-manager                    4.5.3     True        False         True       32m
+kube-scheduler                             4.5.3     True        False         False      31m
+kube-storage-version-migrator              4.5.3     True        False         False      11m
+machine-api                                4.5.3     True        False         False      23m
+machine-approver                           4.5.3     True        False         False      32m
+machine-config                             4.5.3     True        False         False      16m
+marketplace                                4.5.3     True        False         False      27m
+monitoring                                 4.5.3     True        False         False      10m
+network                                    4.5.3     True        False         False      33m
+node-tuning                                4.5.3     True        False         False      34m
+openshift-apiserver                        4.5.3     True        False         False      28m
+openshift-controller-manager               4.5.3     True        False         False      27m
+openshift-samples                          4.5.3     True        False         False      22m
+operator-lifecycle-manager                 4.5.3     True        False         False      33m
+operator-lifecycle-manager-catalog         4.5.3     True        False         False      33m
+operator-lifecycle-manager-packageserver   4.5.3     True        False         False      29m
+service-ca                                 4.5.3     True        False         False      34m
+storage                                    4.5.3     True        False         False      27m
+[xiwei-redhat.com@bastion ~]$
