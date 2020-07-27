@@ -1677,8 +1677,10 @@ NAME                                       CAPACITY   ACCESS MODES   RECLAIM POL
 pvc-8a36227c-09b3-4d61-9f80-bdbb660e85a2   100Gi      RWO            Delete           Bound    openshift-image-registry/image-registry-storage   standard                3m59s
 [xiwei-redhat.com@bastion ~]$ oc delete pvc image-registry-storage
 persistentvolumeclaim "image-registry-storage" deleted
+oc patch configs.imageregistry.operator.openshift.io cluster --type merge -p '{"spec":{"replicas":0}}'
 
 
+创建新的存储：
 [xiwei-redhat.com@bastion ~]$ cat $HOME/resources/pv-registry.yaml
 apiVersion: v1
 kind: PersistentVolume
@@ -1693,7 +1695,9 @@ spec:
     path: /ocp-registry
     server: utilityvm.example.com
   persistentVolumeReclaimPolicy: Recycle
-  storageClassName: nfs[xiwei-redhat.com@bastion ~]$ cat $HOME/resources/pvc-registry.yaml
+  storageClassName: nfs
+
+[xiwei-redhat.com@bastion ~]$ cat $HOME/resources/pvc-registry.yaml
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -1706,9 +1710,12 @@ spec:
     requests:
       storage: 100Gi
   storageClassName: nfs
-  volumeMode: Filesystem[xiwei-redhat.com@bastion ~]$ oc create -f $HOME/resources/pv-registry.yaml
+  volumeMode: Filesystem
+
+[xiwei-redhat.com@bastion ~]$ oc create -f $HOME/resources/pv-registry.yaml
 persistentvolume/registry-storage created
 [xiwei-redhat.com@bastion ~]$ oc create -f $HOME/resources/pvc-registry.yaml
+persistentvolumeclaim/image-registry-storage created
 
 
 将Image Registry扩展到两个副本。
