@@ -1,0 +1,876 @@
+概念介绍：
+Machine API由 Machine API Operator管理，他可以完成如下工作：
+Creating new virtual machines：Different requirements depending on cloud provider
+Deleting unecessary virtual machines
+Keeps track of Node <> Machine relationships
+Ensures the correct number of Machines are deployed based on MachineSet replicas
+Ensures correct settings (such as labels and taints) are applied from Machine > Node
+
+OpenShift中和Machine API相关有几个概念：Nodes, Machines, MachineSets，MachineAutoscaler，ClusterAutoscaler
+OCP4对IaaS Machine API 资源全部驻留在openshift-machine-api命名空间中。
+这个几个概念之间的关系：
+MachineSet （定义了与IaaS对接的凭证、创建machine的模板、默认machine的数量)->Machine->OCP Node
+MachineAutoscaler：定义的machinset副本最大值和最小值
+ClusterAutoscaler：设置machinet副本增加和减少的触发条件（CPU和内存阈值）。每个OCP集群只能有一个ClusterAutoscaler。用名为default的ClusterAutoscaler。
+
+也就是说，通过Machine API，OpenShift可以管理IaaS层。当然这些IaaS是必须要支持OCP UPI的IaaS。目前OCP4.5增加了对vSphere的支持。除此之外，红帽RHV、OpenStack、AWS也都支持。
+
+本文就是验证在红帽OpenStack上部署OCP后，如何通过Machine API实现对OpenStack的纳管（如增加节点、弹性伸缩）。
+
+
+==============================================================================
+查看默认的MachineSet：
+
+[xiwei-redhat.com@bastion ~]$ oc get machineset -n openshift-machine-api
+NAME                        DESIRED   CURRENT   READY   AVAILABLE   AGE
+cluster-a389-fmxsv-worker   0         0                             41h
+
+[xiwei-redhat.com@bastion ~]$ oc get machinesets cluster-a389-fmxsv-worker -o yaml -n openshift-machine-api
+apiVersion: machine.openshift.io/v1beta1
+kind: MachineSet
+metadata:
+  creationTimestamp: "2020-07-27T13:30:30Z"
+  generation: 1
+  labels:
+    machine.openshift.io/cluster-api-cluster: cluster-a389-fmxsv
+    machine.openshift.io/cluster-api-machine-role: worker
+    machine.openshift.io/cluster-api-machine-type: worker
+  managedFields:
+  - apiVersion: machine.openshift.io/v1beta1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:labels:
+          .: {}
+          f:machine.openshift.io/cluster-api-cluster: {}
+          f:machine.openshift.io/cluster-api-machine-role: {}
+          f:machine.openshift.io/cluster-api-machine-type: {}
+      f:spec:
+        .: {}
+        f:replicas: {}
+        f:selector:
+          .: {}
+          f:matchLabels:
+            .: {}
+            f:machine.openshift.io/cluster-api-cluster: {}
+            f:machine.openshift.io/cluster-api-machineset: {}
+        f:template:
+          .: {}
+          f:metadata:
+            .: {}
+            f:labels:
+              .: {}
+              f:machine.openshift.io/cluster-api-cluster: {}
+              f:machine.openshift.io/cluster-api-machine-role: {}
+              f:machine.openshift.io/cluster-api-machine-type: {}
+              f:machine.openshift.io/cluster-api-machineset: {}
+          f:spec:
+            .: {}
+            f:metadata: {}
+            f:providerSpec:
+              .: {}
+              f:value:
+                .: {}
+                f:apiVersion: {}
+                f:cloudName: {}
+                f:cloudsSecret: {}
+                f:flavor: {}
+                f:image: {}
+                f:kind: {}
+                f:metadata: {}
+                f:networks: {}
+                f:securityGroups: {}
+                f:serverMetadata: {}
+                f:tags: {}
+                f:trunk: {}
+                f:userDataSecret: {}
+      f:status:
+        .: {}
+        f:replicas: {}
+    manager: cluster-bootstrap
+    operation: Update
+    time: "2020-07-27T13:30:30Z"
+  - apiVersion: machine.openshift.io/v1beta1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:status:
+        f:observedGeneration: {}
+    manager: machineset-controller
+    operation: Update
+    time: "2020-07-27T13:48:31Z"
+  name: cluster-a389-fmxsv-worker
+  namespace: openshift-machine-api
+  resourceVersion: "14340"
+  selfLink: /apis/machine.openshift.io/v1beta1/namespaces/openshift-machine-api/machinesets/cluster-a389-fmxsv-worker
+  uid: 9e449efd-c8f9-400b-9997-3b9e1266a659
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      machine.openshift.io/cluster-api-cluster: cluster-a389-fmxsv
+      machine.openshift.io/cluster-api-machineset: cluster-a389-fmxsv-worker
+  template:
+    metadata:
+      labels:
+        machine.openshift.io/cluster-api-cluster: cluster-a389-fmxsv
+        machine.openshift.io/cluster-api-machine-role: worker
+        machine.openshift.io/cluster-api-machine-type: worker
+        machine.openshift.io/cluster-api-machineset: cluster-a389-fmxsv-worker
+    spec:
+      metadata: {}
+      providerSpec:
+        value:
+          apiVersion: openstackproviderconfig.openshift.io/v1alpha1
+          cloudName: openstack
+          cloudsSecret:
+            name: openstack-cloud-credentials
+            namespace: openshift-machine-api
+          flavor: 4c16g30d
+          image: cluster-a389-fmxsv-rhcos
+          kind: OpenstackProviderSpec
+          metadata:
+            creationTimestamp: null
+          networks:
+          - filter: {}
+            subnets:
+            - filter:
+                name: cluster-a389-fmxsv-nodes
+                tags: openshiftClusterID=cluster-a389-fmxsv
+          securityGroups:
+          - filter: {}
+            name: cluster-a389-fmxsv-worker
+          serverMetadata:
+            Name: cluster-a389-fmxsv-worker
+            openshiftClusterID: cluster-a389-fmxsv
+          tags:
+          - openshiftClusterID=cluster-a389-fmxsv
+          trunk: true
+          userDataSecret:
+            name: worker-user-data
+status:
+  observedGeneration: 1
+  replicas: 0
+
+默认的machinset中的副本数为0。将副本数调整为1：
+
+You currently have this MachineSet configured with zero replicas. Change this now to 1 replica.
+[xiwei-redhat.com@bastion ~]$  oc scale machineset cluster-a389-fmxsv-worker --replicas=1 -n openshift-machine-api
+machineset.machine.openshift.io/cluster-a389-fmxsv-worker scaled
+
+[xiwei-redhat.com@bastion ~]$ oc get machineset -n openshift-machine-api
+NAME                        DESIRED   CURRENT   READY   AVAILABLE   AGE
+cluster-a389-fmxsv-worker   1         1                             41h
+[xiwei-redhat.com@bastion ~]$
+
+将machineset调整为1，会触发创建machineset：
+xiwei-redhat.com@bastion ~]$  oc get machine -n openshift-machine-api
+NAME                              PHASE          TYPE   REGION   ZONE   AGE
+cluster-a389-fmxsv-worker-mcqfh   Provisioning                          38s
+
+
+machine创建失败：
+[xiwei-redhat.com@bastion ~]$ oc describe machine cluster-a389-fmxsv-worker-mcqfh -n  openshift-machine-api
+Name:         cluster-a389-fmxsv-worker-mcqfh
+Namespace:    openshift-machine-api
+Labels:       machine.openshift.io/cluster-api-cluster=cluster-a389-fmxsv
+              machine.openshift.io/cluster-api-machine-role=worker
+              machine.openshift.io/cluster-api-machine-type=worker
+              machine.openshift.io/cluster-api-machineset=cluster-a389-fmxsv-worker
+Annotations:  machine.openshift.io/instance-state: ERROR
+API Version:  machine.openshift.io/v1beta1
+Kind:         Machine
+Metadata:
+  Creation Timestamp:  2020-07-29T06:50:18Z
+  Finalizers:
+    machine.machine.openshift.io
+  Generate Name:  cluster-a389-fmxsv-worker-
+  Generation:     1
+  Managed Fields:
+    API Version:  machine.openshift.io/v1beta1
+    Fields Type:  FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:generateName:
+        f:labels:
+          .:
+          f:machine.openshift.io/cluster-api-cluster:
+          f:machine.openshift.io/cluster-api-machine-role:
+          f:machine.openshift.io/cluster-api-machine-type:
+          f:machine.openshift.io/cluster-api-machineset:
+        f:ownerReferences:
+          .:
+          k:{"uid":"9e449efd-c8f9-400b-9997-3b9e1266a659"}:
+            .:
+            f:apiVersion:
+            f:blockOwnerDeletion:
+            f:controller:
+            f:kind:
+            f:name:
+            f:uid:
+      f:spec:
+        .:
+        f:metadata:
+        f:providerSpec:
+          .:
+          f:value:
+            .:
+            f:apiVersion:
+            f:cloudName:
+            f:cloudsSecret:
+            f:flavor:
+            f:image:
+            f:kind:
+            f:metadata:
+            f:networks:
+            f:securityGroups:
+            f:serverMetadata:
+            f:tags:
+            f:trunk:
+            f:userDataSecret:
+    Manager:      machineset-controller
+    Operation:    Update
+    Time:         2020-07-29T06:50:18Z
+    API Version:  machine.openshift.io/v1beta1
+    Fields Type:  FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:annotations:
+          .:
+          f:machine.openshift.io/instance-state:
+        f:finalizers:
+          .:
+          v:"machine.machine.openshift.io":
+      f:status:
+        .:
+        f:errorMessage:
+        f:errorReason:
+        f:lastUpdated:
+        f:phase:
+    Manager:    machine-controller-manager
+    Operation:  Update
+    Time:       2020-07-29T06:51:53Z
+  Owner References:
+    API Version:           machine.openshift.io/v1beta1
+    Block Owner Deletion:  true
+    Controller:            true
+    Kind:                  MachineSet
+    Name:                  cluster-a389-fmxsv-worker
+    UID:                   9e449efd-c8f9-400b-9997-3b9e1266a659
+  Resource Version:        737798
+  Self Link:               /apis/machine.openshift.io/v1beta1/namespaces/openshift-machine-api/machines/cluster-a389-fmxsv-worker-mcqfh
+  UID:                     84e22374-fac6-4eec-b075-f3d1c1abff32
+Spec:
+  Metadata:
+  Provider Spec:
+    Value:
+      API Version:  openstackproviderconfig.openshift.io/v1alpha1
+      Cloud Name:   openstack
+      Clouds Secret:
+        Name:       openstack-cloud-credentials
+        Namespace:  openshift-machine-api
+      Flavor:       4c16g30d
+      Image:        cluster-a389-fmxsv-rhcos
+      Kind:         OpenstackProviderSpec
+      Metadata:
+        Creation Timestamp:  <nil>
+      Networks:
+        Filter:
+        Subnets:
+          Filter:
+            Name:  cluster-a389-fmxsv-nodes
+            Tags:  openshiftClusterID=cluster-a389-fmxsv
+      Security Groups:
+        Filter:
+        Name:  cluster-a389-fmxsv-worker
+      Server Metadata:
+        Name:                  cluster-a389-fmxsv-worker
+        Openshift Cluster ID:  cluster-a389-fmxsv
+      Tags:
+        openshiftClusterID=cluster-a389-fmxsv
+      Trunk:  true
+      User Data Secret:
+        Name:  worker-user-data
+Status:
+  Last Updated:  2020-07-29T06:50:19Z
+  Phase:         Provisioning
+Events:
+  Type     Reason        Age                From                  Message
+  ----     ------        ----               ----                  -------
+  Warning  FailedCreate  8s (x25 over 93s)  openstack_controller  CreateError
+
+
+
+接下来，我们查看报错的日志。需要找到machine-controller的日志才能分析根因。
+
+
+[xiwei-redhat.com@bastion ~]$ oc get pods -n openshift-machine-api
+NAME                                           READY   STATUS    RESTARTS   AGE
+cluster-autoscaler-operator-599677cbf8-lgwsk   2/2     Running   0          40h
+machine-api-controllers-65fcff5d55-57h5l       4/4     Running   0          40h
+machine-api-operator-6bf7bfcc-5w8zh            2/2     Running   0          40h
+
+
+
+[xiwei-redhat.com@bastion ~]$ oc get pod  machine-api-controllers-65fcff5d55-57h5l -o json -n openshift-machine-api | jq -r .spec.containers[].name
+machineset-controller
+machine-controller
+nodelink-controller
+machine-healthcheck-controller
+
+
+报错原因：error creating Openstack instance: No network was found or provided. 也就说machinset的配置有问题。
+[xiwei-redhat.com@bastion ~]$ oc logs -f  machine-api-controllers-65fcff5d55-57h5l  -c machine-controller -n openshift-machine-api | grep -i worker
+E0729 06:54:36.736308       1 actuator.go:538] Machine error cluster-a389-fmxsv-worker-mcqfh: error creating Openstack instance: No network was found or provided. Please check your machine configuration and try again
+W0729 06:54:36.736349       1 controller.go:315] cluster-a389-fmxsv-worker-mcqfh: failed to create machine: error creating Openstack instance: No network was found or provided. Please check your machine configuration and try again
+I0729 06:54:36.736435       1 controller.go:169] cluster-a389-fmxsv-worker-mcqfh: reconciling Machine
+I0729 06:54:37.528822       1 controller.go:313] cluster-a389-fmxsv-worker-mcqfh: reconciling machine triggers idempotent create
+
+
+将现有的machineset删除：
+[xiwei-redhat.com@bastion ~]$ oc scale machineset cluster-a389-fmxsv-worker  --replicas=0 -n openshift-machine-api
+machineset.machine.openshift.io/cluster-a389-fmxsv-worker scaled
+
+[xiwei-redhat.com@bastion ~]$ oc get machines -n openshift-machine-api
+No resources found in openshift-machine-api namespace.
+
+
+
+手工创建machineset，在machinset进行如下设置（这些设置都是和IaaS相关的）
+
+general-purpose-1a
+
+failure-domain.beta.kubernetes.io/region: "east"
+
+failure-domain.beta.kubernetes.io/zone: "1a"
+
+node-role.kubernetes.io/general-use: ""
+
+general-purpose-1b
+
+failure-domain.beta.kubernetes.io/region: "east"
+
+failure-domain.beta.kubernetes.io/zone: "1b"
+
+node-role.kubernetes.io/general-use: ""
+
+There should be 0 replicas of each MachineSet - you will scale up later
+
+They should use a flavor named 4c12g30d
+
+
+内容如下：
+[xiwei-redhat.com@bastion ~]$ cat $HOME/resources/general-ms.yaml.j2
+apiVersion: machine.openshift.io/v1beta1
+kind: MachineSet
+metadata:
+  labels:
+    machine.openshift.io/cluster-api-cluster: {{ lookup('env', 'INFRA_ID') }}
+    machine.openshift.io/cluster-api-machine-role: worker
+    machine.openshift.io/cluster-api-machine-type: worker
+  name: general-purpose-{{ msid }}
+  namespace: openshift-machine-api
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      machine.openshift.io/cluster-api-cluster: {{ lookup('env', 'INFRA_ID') }}
+      machine.openshift.io/cluster-api-machineset: general-purpose-{{ msid }}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        machine.openshift.io/cluster-api-cluster: {{ lookup('env', 'INFRA_ID') }}
+        machine.openshift.io/cluster-api-machine-role: worker
+        machine.openshift.io/cluster-api-machine-type: worker
+        machine.openshift.io/cluster-api-machineset: general-purpose-{{ msid }}
+    spec:
+      metadata:
+        labels:
+          failure-domain.beta.kubernetes.io/region: "east"
+          failure-domain.beta.kubernetes.io/zone: "{{ msid }}"
+          node-role.kubernetes.io/general-use: ""
+      providerSpec:
+        value:
+          apiVersion: openstackproviderconfig.openshift.io/v1alpha1
+          cloudName: openstack
+          cloudsSecret:
+            name: openstack-cloud-credentials
+            namespace: openshift-machine-api
+          flavor: 4c12g30d
+          image: rhcos-ocp43
+          kind: OpenstackProviderSpec
+          networks:
+          - filter: {}
+            subnets:
+            - filter:
+                name: {{ lookup('env', 'GUID') }}-ocp-subnet
+          securityGroups:
+          - filter: {}
+            name: {{ lookup('env', 'GUID') }}-worker_sg
+          serverMetadata:
+            Name: {{ lookup('env', 'INFRA_ID') }}-worker
+            openshiftClusterID: {{ lookup('env', 'INFRA_ID') }}
+          tags:
+          - openshiftClusterID={{ lookup('env', 'INFRA_ID') }}
+          trunk: false
+          userDataSecret:
+            name: worker-user-data
+
+创建两个machinset，用于在两个zone中创建vm：
+for i in 1a 1b
+do
+ansible localhost -m template -a "src='$HOME/resources/general-ms.yaml.j2' dest='$HOME/worker-ms-$i.yaml'" -e msid=$i
+done
+
+
+
+[xiwei-redhat.com@bastion ~]$ oc create -f worker-ms-1a.yaml  -n openshift-machine-api
+machineset.machine.openshift.io/general-purpose-1a created
+[xiwei-redhat.com@bastion ~]$ oc create -f worker-ms-1b.yaml  -n openshift-machine-api
+machineset.machine.openshift.io/general-purpose-1b created
+
+查看创建好的machinset，副本数为0：
+[xiwei-redhat.com@bastion ~]$ oc get machineset
+NAME                        DESIRED   CURRENT   READY   AVAILABLE   AGE
+cluster-a389-fmxsv-worker   0         0                             41h
+general-purpose-1a          0         0                             18s
+general-purpose-1b          0         0                             6s
+
+将副本数都扩为1：
+[xiwei-redhat.com@bastion ~]$ oc scale machineset general-purpose-1a --replicas=1 -n openshift-machine-api
+machineset.machine.openshift.io/general-purpose-1a scaled
+[xiwei-redhat.com@bastion ~]$ oc scale machineset general-purpose-1b --replicas=1 -n openshift-machine-api
+machineset.machine.openshift.io/general-purpose-1b scaled
+
+查看machine，在创建中：
+[xiwei-redhat.com@bastion ~]$  oc get machines -n openshift-machine-api
+NAME                       PHASE         TYPE       REGION      ZONE   AGE
+general-purpose-1a-bggcg   Provisioned   4c12g30d   regionOne   nova   103s
+general-purpose-1b-hv2lh   Provisioned   4c12g30d   regionOne   nova   94s
+
+在openstack层面查看，vm已经创建成功：
+[xiwei-redhat.com@bastion ~]$ openstack server list |grep -i general
+| 28dc50a7-7e8c-4273-8bfd-341270c72c31 | general-purpose-1b-hv2lh    | ACTIVE | a389-ocp-network=192.168.47.33                | rhcos-ocp43 | 4c12g30d |
+| f35ae565-33fc-42bc-9d8e-2b25b90e100b | general-purpose-1a-bggcg    | ACTIVE | a389-ocp-network=192.168.47.16                | rhcos-ocp43 | 4c12g30d |
+
+接下来，就是machine变为OCP node，查看OCP node，添加成功。
+[xiwei-redhat.com@bastion ~]$ oc get nodes
+NAME                          STATUS   ROLES                AGE     VERSION
+cluster-a389-fmxsv-master-0   Ready    master               42h     v1.18.3+3107688
+cluster-a389-fmxsv-master-1   Ready    master               42h     v1.18.3+3107688
+cluster-a389-fmxsv-master-2   Ready    master               42h     v1.18.3+3107688
+cluster-a389-fmxsv-worker-0   Ready    worker               42h     v1.18.3+3107688
+cluster-a389-fmxsv-worker-1   Ready    worker               42h     v1.18.3+3107688
+general-purpose-1a-bggcg      Ready    general-use,worker   7m30s   v1.18.3+3107688
+general-purpose-1b-hv2lh      Ready    general-use,worker   6m55s   v1.18.3+3107688
+
+
+==============================================================================
+手工删除手工加入worker节点（不是通过machieapi的方式的、OCP离线安装时加入的worker）：
+
+首先不让新的pod调度到这个节点上
+[xiwei-redhat.com@bastion ~]$ oc adm cordon cluster-a389-fmxsv-worker-0
+node/cluster-a389-fmxsv-worker-0 cordoned
+
+然后把这个节点上现有的pod赶走：
+[xiwei-redhat.com@bastion ~]$ oc adm drain cluster-a389-fmxsv-worker-0 --ignore-daemonsets --delete-local-data --force=true
+node/cluster-a389-fmxsv-worker-0 already cordoned
+WARNING: ignoring DaemonSet-managed Pods: openshift-cluster-node-tuning-operator/tuned-ndppz, openshift-dns/dns-default-v877c, openshift-image-registry/node-ca-r4rk4, openshift-machine-config-operator/machine-config-daemon-5fgfx, openshift-monitoring/node-exporter-9pvs2, openshift-multus/multus-26qdk, openshift-sdn/ovs-bcx8c, openshift-sdn/sdn-6c4vw
+evicting pod openshift-ingress/router-default-665b6ccc79-h2f6x
+evicting pod openshift-cluster-storage-operator/csi-snapshot-controller-operator-597974c889-m6r6n
+evicting pod openshift-console/downloads-7cd9697c56-tnt9b
+evicting pod openshift-image-registry/image-pruner-1595894400-t7glv
+evicting pod openshift-image-registry/image-pruner-1595980800-cgg7j
+evicting pod openshift-image-registry/image-registry-57c4954f6-ldtdh
+evicting pod openshift-monitoring/prometheus-adapter-5c95c89879-xr67f
+evicting pod openshift-monitoring/alertmanager-main-1
+evicting pod openshift-monitoring/kube-state-metrics-6676f9858f-kzq4c
+evicting pod openshift-monitoring/prometheus-adapter-5c95c89879-gdvk4
+evicting pod openshift-monitoring/thanos-querier-5fd6ddb875-zxsmn
+evicting pod openshift-monitoring/prometheus-k8s-0
+evicting pod openshift-service-catalog-removed/openshift-service-catalog-apiserver-remover-qg6p9
+evicting pod openshift-service-catalog-removed/openshift-service-catalog-controller-manager-remover-5gftz
+pod/image-pruner-1595980800-cgg7j evicted
+pod/image-pruner-1595894400-t7glv evicted
+pod/openshift-service-catalog-apiserver-remover-qg6p9 evicted
+pod/openshift-service-catalog-controller-manager-remover-5gftz evicted
+I0729 04:27:03.151252    2081 request.go:621] Throttling request took 1.033441568s, request: GET:https://api.cluster-a389.blue.osp.opentlc.com:6443/api/v1/namespaces/openshift-monitoring/pods/thanos-querier-5fd6ddb875-zxsmn
+pod/kube-state-metrics-6676f9858f-kzq4c evicted
+pod/prometheus-adapter-5c95c89879-xr67f evicted
+pod/csi-snapshot-controller-operator-597974c889-m6r6n evicted
+pod/prometheus-adapter-5c95c89879-gdvk4 evicted
+pod/image-registry-57c4954f6-ldtdh evicted
+pod/prometheus-k8s-0 evicted
+pod/thanos-querier-5fd6ddb875-zxsmn evicted
+pod/alertmanager-main-1 evicted
+pod/downloads-7cd9697c56-tnt9b evicted
+pod/router-default-665b6ccc79-h2f6x evicted
+node/cluster-a389-fmxsv-worker-0 evicted
+
+
+
+删除cluster-a389-fmxsv-worker-0节点：
+[xiwei-redhat.com@bastion ~]$ oc get nodes
+NAME                          STATUS                     ROLES                AGE   VERSION
+cluster-a389-fmxsv-master-0   Ready                      master               42h   v1.18.3+3107688
+cluster-a389-fmxsv-master-1   Ready                      master               42h   v1.18.3+3107688
+cluster-a389-fmxsv-master-2   Ready                      master               42h   v1.18.3+3107688
+cluster-a389-fmxsv-worker-0   Ready,SchedulingDisabled   worker               42h   v1.18.3+3107688
+cluster-a389-fmxsv-worker-1   Ready                      worker               42h   v1.18.3+3107688
+general-purpose-1a-bggcg      Ready                      general-use,worker   12m   v1.18.3+3107688
+general-purpose-1b-hv2lh      Ready                      general-use,worker   12m   v1.18.3+3107688
+
+[xiwei-redhat.com@bastion ~]$ oc delete node cluster-a389-fmxsv-worker-0
+node "cluster-a389-fmxsv-worker-0" deleted
+
+[xiwei-redhat.com@bastion ~]$ oc get nodes
+NAME                          STATUS   ROLES                AGE   VERSION
+cluster-a389-fmxsv-master-0   Ready    master               42h   v1.18.3+3107688
+cluster-a389-fmxsv-master-1   Ready    master               42h   v1.18.3+3107688
+cluster-a389-fmxsv-master-2   Ready    master               42h   v1.18.3+3107688
+cluster-a389-fmxsv-worker-1   Ready    worker               42h   v1.18.3+3107688
+general-purpose-1a-bggcg      Ready    general-use,worker   13m   v1.18.3+3107688
+general-purpose-1b-hv2lh      Ready    general-use,worker   12m   v1.18.3+3107688
+
+
+
+
+
+
+==============================================================
+创建Cluster Autoscaler
+
+
+A cluster autoscaler cannot directly increase the number of replicas of, or scale up, a MachineSet. It needs an intermediate resource called a MachineAutoscaler. This is another object that you must create and assign to a MachineSet. Only those MachineSets with a MachineAutoscaler assigned to them will participate in autoscaling activities in the cluster.
+
+The MachineAutoscaler is a namespace scoped resource, unlike the ClusterAutoscaler. It must be created in the openshift-machine-api namespace. This is the same namespace that you have been creating your Machine and MachineSet resources in throughout this module. The MachineAutoscaler is much simpler to define and really is focused on three things:
+
+The scaleTargetRef that it is responsible for is always the name of the MachineSet
+
+The maximum number of nodes for the MachineSet
+
+The minimum number of nodes for the MachineSet
+
+
+[xiwei-redhat.com@bastion ~]$  oc explain clusterautoscaler.spec --recursive=true
+
+KIND:     ClusterAutoscaler
+VERSION:  autoscaling.openshift.io/v1
+
+RESOURCE: spec <Object>
+
+DESCRIPTION:
+     Desired state of ClusterAutoscaler resource
+
+FIELDS:
+   balanceSimilarNodeGroups     <boolean>
+   ignoreDaemonsetsUtilization  <boolean>
+   maxPodGracePeriod    <integer>
+   podPriorityThreshold <integer>
+   resourceLimits       <Object>
+      cores     <Object>
+         max    <integer>
+         min    <integer>
+      gpus      <[]Object>
+         max    <integer>
+         min    <integer>
+         type   <string>
+      maxNodesTotal     <integer>
+      memory    <Object>
+         max    <integer>
+         min    <integer>
+   scaleDown    <Object>
+      delayAfterAdd     <string>
+      delayAfterDelete  <string>
+      delayAfterFailure <string>
+      enabled   <boolean>
+      unneededTime      <string>
+   skipNodesWithLocalStorage    <boolean>
+
+
+[xiwei-redhat.com@bastion ~]$ oc project openshift-machine-api
+Already on project "openshift-machine-api" on server "https://api.cluster-a389.blue.osp.opentlc.com:6443".
+
+
+[xiwei-redhat.com@bastion ~]$ oc get machineset
+NAME                        DESIRED   CURRENT   READY   AVAILABLE   AGE
+cluster-a389-fmxsv-worker   0         0                             43h
+general-purpose-1a          1         1         1       1           113m
+general-purpose-1b          1         1         1       1           113m
+infra-1a                    1         1         1       1           12m
+[xiwei-redhat.com@bastion ~]$
+
+
+
+首先创建MachineAutoscaler，规则如下：
+
+Only the general-purpose-1a and general-purpose-1b MachineSets are autoscaled
+
+The infra-1a MachineSet is not autoscaled
+
+The maximum number of nodes in each MachineSet is 4.
+
+The maximum CPU and memory is 48 and 156, respectively
+
+The minimum CPU and memory is 20 and 80, respectively
+
+Scale down functionality should be enabled with values set to 5m
+
+
+创建两个MachineAutoscaler，针对两个machineset（说简单点就是这个machinset能够长出machine的最大、最小值）：
+
+$ echo "
+apiVersion: autoscaling.openshift.io/v1beta1
+kind: MachineAutoscaler
+metadata:
+  name: ma-general-purpose-1a
+  namespace: openshift-machine-api
+spec:
+  minReplicas: 1
+  maxReplicas: 4
+  scaleTargetRef:
+    apiVersion: machine.openshift.io/v1beta1
+    kind: MachineSet
+    name: general-purpose-1a" | oc create -f - -n openshift-machine-api
+
+
+
+$ echo "
+apiVersion: autoscaling.openshift.io/v1beta1
+kind: MachineAutoscaler
+metadata:
+  name: ma-general-purpose-1b
+  namespace: openshift-machine-api
+spec:
+  minReplicas: 1
+  maxReplicas: 4
+  scaleTargetRef:
+    apiVersion: machine.openshift.io/v1beta1
+    kind: MachineSet
+    name: general-purpose-1b" | oc create -f - -n openshift-machine-api
+
+
+
+[xiwei-redhat.com@bastion ~]$  oc get machineautoscaler
+NAME                    REF KIND     REF NAME             MIN   MAX   AGE
+ma-general-purpose-1a   MachineSet   general-purpose-1a   1     4     12s
+ma-general-purpose-1b   MachineSet   general-purpose-1b   1     4     5s
+
+
+接下来，创加 ClusterAutoscaler（也就是这个集群最多、最少的node数）.
+
+
+[xiwei-redhat.com@bastion ~]$ echo "
+> apiVersion: autoscaling.openshift.io/v1
+> kind: ClusterAutoscaler
+> metadata:
+>   name: default
+> spec:
+>   balanceSimilarNodeGroups: true
+>   podPriorityThreshold: -10
+>   resourceLimits:
+>     maxNodesTotal: 12
+>     cores:
+>       min: 20
+>       max: 48
+>     memory:
+>       min: 80
+>       max: 156
+>   scaleDown:
+>     enabled: true
+>     delayAfterAdd: 5m
+>     delayAfterDelete: 5m
+>     delayAfterFailure: 5m
+>     unneededTime: 60s" | oc create -f -
+
+
+clusterautoscaler.autoscaling.openshift.io/default created
+[xiwei-redhat.com@bastion ~]$ oc describe clusterautoscaler default
+Name:         default
+Namespace:
+Labels:       <none>
+Annotations:  <none>
+API Version:  autoscaling.openshift.io/v1
+Kind:         ClusterAutoscaler
+Metadata:
+  Creation Timestamp:  2020-07-29T08:59:04Z
+  Generation:          1
+  Managed Fields:
+    API Version:  autoscaling.openshift.io/v1
+    Fields Type:  FieldsV1
+    fieldsV1:
+      f:spec:
+        .:
+        f:balanceSimilarNodeGroups:
+        f:podPriorityThreshold:
+        f:resourceLimits:
+          .:
+          f:cores:
+            .:
+            f:max:
+            f:min:
+          f:maxNodesTotal:
+          f:memory:
+            .:
+            f:max:
+            f:min:
+        f:scaleDown:
+          .:
+          f:delayAfterAdd:
+          f:delayAfterDelete:
+          f:delayAfterFailure:
+          f:enabled:
+          f:unneededTime:
+    Manager:         oc
+    Operation:       Update
+    Time:            2020-07-29T08:59:04Z
+  Resource Version:  777715
+  Self Link:         /apis/autoscaling.openshift.io/v1/clusterautoscalers/default
+  UID:               4e1f9e4d-b788-4745-bdc3-f1fe6f46377a
+Spec:
+  Balance Similar Node Groups:  true
+  Pod Priority Threshold:       -10
+  Resource Limits:
+    Cores:
+      Max:            48
+      Min:            20
+    Max Nodes Total:  12
+    Memory:
+      Max:  156
+      Min:  80
+  Scale Down:
+    Delay After Add:      5m
+    Delay After Delete:   5m
+    Delay After Failure:  5m
+    Enabled:              true
+    Unneeded Time:        60s
+Events:                   <none>
+[xiwei-redhat.com@bastion ~]$
+
+
+检查配置：
+
+[xiwei-redhat.com@bastion ~]$  oc get machinesets -o yaml | grep annotations -A 3
+    annotations:
+      autoscaling.openshift.io/machineautoscaler: openshift-machine-api/ma-general-purpose-1a
+      machine.openshift.io/cluster-api-autoscaler-node-group-max-size: "4"
+      machine.openshift.io/cluster-api-autoscaler-node-group-min-size: "1"
+--
+          f:annotations:
+            .: {}
+            f:autoscaling.openshift.io/machineautoscaler: {}
+            f:machine.openshift.io/cluster-api-autoscaler-node-group-max-size: {}
+--
+    annotations:
+      autoscaling.openshift.io/machineautoscaler: openshift-machine-api/ma-general-purpose-1b
+      machine.openshift.io/cluster-api-autoscaler-node-group-max-size: "4"
+      machine.openshift.io/cluster-api-autoscaler-node-group-min-size: "1"
+--
+          f:annotations:
+            .: {}
+            f:autoscaling.openshift.io/machineautoscaler: {}
+            f:machine.openshift.io/cluster-api-autoscaler-node-group-max-size: {}
+
+
+查看对应的pod：
+[xiwei-redhat.com@bastion ~]$  oc get pods
+NAME                                           READY   STATUS    RESTARTS   AGE
+cluster-autoscaler-default-846bdb6784-bldvn    1/1     Running   0          75s
+cluster-autoscaler-operator-599677cbf8-lgwsk   2/2     Running   0          43h
+machine-api-controllers-65fcff5d55-57h5l       4/4     Running   0          43h
+machine-api-operator-6bf7bfcc-5w8zh            2/2     Running   0          43h
+
+
+
+=============================================================
+验证OCP集群的节点扩缩容。
+
+
+压力测试脚本：
+[xiwei-redhat.com@bastion ~]$ echo '
+> apiVersion: batch/v1
+> kind: Job
+> metadata:
+>   generateName: work-queue-
+> spec:
+>   template:
+>     spec:
+>       containers:
+>       - name: work
+>         image: busybox
+>         command: ["sleep",  "300"]
+>         resources:
+>           requests:
+>             memory: 500Mi
+>             cpu: 300m
+>       restartPolicy: Never
+>       nodeSelector:
+>         node-role.kubernetes.io/general-use: ""
+>   parallelism: 50
+>   completions: 50' | oc create -f - -n work-queue
+job.batch/work-queue-sqf46 created
+
+
+
+压力发起后，machine自动创建：
+oc get machines -n openshift-machine-api                                     
+NAME                       PHASE          TYPE       REGION      ZONE   AGE
+general-purpose-1a-6t44k   Provisioning                                 64s
+general-purpose-1a-bc85p   Provisioning   4c12g30d   regionOne   nova   64s
+general-purpose-1a-bggcg   Running        4c12g30d   regionOne   nova   53m
+general-purpose-1b-hv2lh   Running        4c12g30d   regionOne   nova   53m
+general-purpose-1b-jf7lp                                                64s
+general-purpose-1b-mpp2b                                                64s
+infra-1a-6mxjs             Running        4c12g30d   regionOne   nova   24m
+
+
+machine会变成OCP nodes：
+
+[xiwei-redhat.com@bastion ~]$ oc get nodes
+NAME                          STATUS     ROLES                AGE   VERSION
+cluster-a389-fmxsv-master-0   Ready      master               43h   v1.18.3+3107688
+cluster-a389-fmxsv-master-1   Ready      master               43h   v1.18.3+3107688
+cluster-a389-fmxsv-master-2   Ready      master               43h   v1.18.3+3107688
+general-purpose-1a-bggcg      Ready      general-use,worker   59m   v1.18.3+3107688
+general-purpose-1b-hv2lh      Ready      general-use,worker   58m   v1.18.3+3107688
+general-purpose-1b-jf7lp      NotReady   general-use,worker   48s   v1.18.3+3107688
+infra-1a-6mxjs                Ready      worker               30m   v1.18.3+3107688
+
+
+[xiwei-redhat.com@bastion ~]$ oc get nodes
+NAME                          STATUS   ROLES                AGE   VERSION
+cluster-a389-fmxsv-master-0   Ready    master               43h   v1.18.3+3107688
+cluster-a389-fmxsv-master-1   Ready    master               43h   v1.18.3+3107688
+cluster-a389-fmxsv-master-2   Ready    master               43h   v1.18.3+3107688
+general-purpose-1a-bggcg      Ready    general-use,worker   59m   v1.18.3+3107688
+general-purpose-1b-hv2lh      Ready    general-use,worker   58m   v1.18.3+3107688
+general-purpose-1b-jf7lp      Ready    general-use,worker   62s   v1.18.3+3107688
+infra-1a-6mxjs                Ready    worker               30m   v1.18.3+3107688
+
+压力减小后，OCP节点缩容：
+[xiwei-redhat.com@bastion ~]$ oc get nodes
+NAME                          STATUS                        ROLES                AGE     VERSION
+cluster-a389-fmxsv-master-0   Ready                         master               43h     v1.18.3+3107688
+cluster-a389-fmxsv-master-1   Ready                         master               43h     v1.18.3+3107688
+cluster-a389-fmxsv-master-2   Ready                         master               43h     v1.18.3+3107688
+general-purpose-1a-98s8h      Ready                         general-use,worker   84s     v1.18.3+3107688
+general-purpose-1a-bggcg      Ready                         general-use,worker   64m     v1.18.3+3107688
+general-purpose-1a-bn7s6      Ready                         general-use,worker   97s     v1.18.3+3107688
+general-purpose-1b-hv2lh      Ready                         general-use,worker   64m     v1.18.3+3107688
+general-purpose-1b-jf7lp      NotReady,SchedulingDisabled   general-use,worker   6m45s   v1.18.3+3107688
+infra-1a-6mxjs                Ready                         worker               36m     v1.18.3+3107688
+
+
+
+[xiwei-redhat.com@bastion ~]$ oc get nodes
+NAME                          STATUS   ROLES                AGE   VERSION
+cluster-a389-fmxsv-master-0   Ready    master               43h   v1.18.3+3107688
+cluster-a389-fmxsv-master-1   Ready    master               43h   v1.18.3+3107688
+cluster-a389-fmxsv-master-2   Ready    master               43h   v1.18.3+3107688
+general-purpose-1a-bggcg      Ready    general-use,worker   65m   v1.18.3+3107688
+general-purpose-1b-hv2lh      Ready    general-use,worker   64m   v1.18.3+3107688
+infra-1a-6mxjs                Ready    worker               37m   v1.18.3+3107688
+
+
+
+
