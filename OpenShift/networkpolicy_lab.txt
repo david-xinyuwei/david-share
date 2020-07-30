@@ -1,0 +1,940 @@
+
+
+
+===================
+ 让一个项目只允许Ingress项目访问
+
+
+创建一个项目，在里面部署应用：
+[xiwei-redhat.com@bastion ~]$ oc new-project cakephp-example
+
+[xiwei-redhat.com@bastion ~]$ oc new-app cakephp-mysql-example
+--> Deploying template "openshift/cakephp-mysql-example" to project cakephp-example
+
+     CakePHP + MySQL (Ephemeral)
+     ---------
+     An example CakePHP application with a MySQL database. For more information about using this template, including OpenShift considerations, see https://github.com/sclorg/cakephp-ex/blob/master/README.md.
+
+     WARNING: Any data stored will be lost upon pod destruction. Only use this template for testing.
+
+     The following service(s) have been created in your project: cakephp-mysql-example, mysql.
+
+     For more information about using this template, including OpenShift considerations, see https://github.com/sclorg/cakephp-ex/blob/master/README.md.
+
+     * With parameters:
+        * Name=cakephp-mysql-example
+        * Namespace=openshift
+        * PHP Version=7.3
+        * Memory Limit=512Mi
+        * Memory Limit (MySQL)=512Mi
+        * Git Repository URL=https://github.com/sclorg/cakephp-ex.git
+        * Git Reference=
+        * Context Directory=
+        * Application Hostname=
+        * GitHub Webhook Secret=8xU4SJPFQMlxO1TOfoBUNhmOIJCkLyL6LnygkGK1 # generated
+        * Database Service Name=mysql
+        * Database Engine=mysql
+        * Database Name=default
+        * Database User=cakephp
+        * Database Password=mSR3J3E2Ou5uQLJL # generated
+        * CakePHP secret token=2nuEXYjD5CGvbQu14YA6ClY6UzGKTbK_Qac6LlvlFUAVZx9LNH # generated
+        * CakePHP Security Salt=ygruLTLFwo2qgb30cno0YVptUNXrTd1O6fjsDumL # generated
+        * OPcache Revalidation Frequency=2
+        * Custom Composer Mirror URL=
+
+--> Creating resources ...
+    secret "cakephp-mysql-example" created
+    service "cakephp-mysql-example" created
+    route.route.openshift.io "cakephp-mysql-example" created
+    imagestream.image.openshift.io "cakephp-mysql-example" created
+    buildconfig.build.openshift.io "cakephp-mysql-example" created
+    deploymentconfig.apps.openshift.io "cakephp-mysql-example" created
+    service "mysql" created
+    deploymentconfig.apps.openshift.io "mysql" created
+--> Success
+    Access your application via route 'cakephp-mysql-example-cakephp-example.apps.cluster-a389.blue.osp.opentlc.com'
+    Build scheduled, use 'oc logs -f bc/cakephp-mysql-example' to track its progress.
+    Run 'oc status' to view your app.
+
+[xiwei-redhat.com@bastion ~]$  oc get routes
+NAME                    HOST/PORT                                                                      PATH   SERVICES                PORT    TERMINATION   WILDCARD
+cakephp-mysql-example   cakephp-mysql-example-cakephp-example.apps.cluster-a389.blue.osp.opentlc.com          cakephp-mysql-example   <all>                 None
+
+截止到目前，我们项目中没有任何networkpolicy，所有项目都可以访问这个项目中的所有应用。通过curl应用路由，可以成功：
+
+
+
+
+
+创建一个让项目中pod可以互通的networkpolicy：
+$ cat <<EOF >allow-same-namespace.yml
+---
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: allow-same-namespace
+spec:
+  podSelector: {}
+  ingress:
+  - from:
+    - podSelector: {}
+EOF
+$ oc create -n cakephp-example -f allow-same-namespace.yml
+
+再curl路由，就不通了。
+
+需要打通从openshift-ingress到本项目的通信：
+
+不同ngress controller的Policy Groups不同, 这取决于infrastructure.
+ network.openshift.io/policy-group=ingress   label  in AWS and other clouds. 
+network.openshift.io/policy-group=host-network  in OpenStack.
+
+[xiwei-redhat.com@bastion ~]$  oc get namespace openshift-ingress -o yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
+    openshift.io/node-selector: ""
+    openshift.io/sa.scc.mcs: s0:c24,c4
+    openshift.io/sa.scc.supplemental-groups: 1000560000/10000
+    openshift.io/sa.scc.uid-range: 1000560000/10000
+  creationTimestamp: "2020-07-27T13:47:42Z"
+  labels:
+    name: openshift-ingress
+    network.openshift.io/policy-group: ingress
+    olm.operatorgroup.uid/9a5d1bae-53ae-4d1b-8f22-fe9a112b5bbc: ""
+    openshift.io/cluster-monitoring: "true"
+  managedFields:
+  - apiVersion: v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:annotations:
+          f:openshift.io/sa.scc.mcs: {}
+          f:openshift.io/sa.scc.supplemental-groups: {}
+          f:openshift.io/sa.scc.uid-range: {}
+    manager: cluster-policy-controller
+    operation: Update
+    time: "2020-07-27T13:47:42Z"
+  - apiVersion: v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:annotations:
+          .: {}
+          f:openshift.io/node-selector: {}
+        f:labels:
+          .: {}
+          f:name: {}
+          f:network.openshift.io/policy-group: {}
+          f:openshift.io/cluster-monitoring: {}
+      f:status:
+        f:phase: {}
+    manager: ingress-operator
+    operation: Update
+    time: "2020-07-27T13:47:42Z"
+  - apiVersion: v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:labels:
+          f:olm.operatorgroup.uid/9a5d1bae-53ae-4d1b-8f22-fe9a112b5bbc: {}
+    manager: olm
+    operation: Update
+    time: "2020-07-27T14:13:46Z"
+  name: openshift-ingress
+  resourceVersion: "26954"
+  selfLink: /api/v1/namespaces/openshift-ingress
+  uid: 0ab89a20-e1b4-4150-b162-3383e0088944
+spec:
+  finalizers:
+  - kubernetes
+status:
+  phase: Active
+
+
+创建openshift-ingress namespace的inbound，使用label.
+[xiwei-redhat.com@bastion ~]$ cat <<EOF >allow-openshift-ingress.yml
+> ---
+> apiVersion: networking.k8s.io/v1
+> kind: NetworkPolicy
+> metadata:
+>   name: allow-openshift-ingress
+> spec:
+>   podSelector: {}
+>   ingress:
+>   - from:
+>     - namespaceSelector:
+>         matchLabels:
+>           network.openshift.io/policy-group: ingress
+> EOF
+[xiwei-redhat.com@bastion ~]$  oc create -n cakephp-example -f allow-openshift-ingress.yml
+networkpolicy.networking.k8s.io/allow-openshift-ingress created
+
+
+
+目前 ingress controller使用hostnetwork有bug，需要通过以下的方法修复：
+[xiwei-redhat.com@bastion ~]$ oc describe namespace default
+Name:         default
+Labels:       <none>
+Annotations:  openshift.io/sa.scc.mcs: s0:c11,c10
+              openshift.io/sa.scc.supplemental-groups: 1000130000/10000
+              openshift.io/sa.scc.uid-range: 1000130000/10000
+Status:       Active
+
+
+[xiwei-redhat.com@bastion ~]$ oc patch namespace default --type=merge -p '{"metadata": {"labels": {"network.openshift.io/policy-group": "ingress"}}}'
+namespace/default patched
+
+
+[xiwei-redhat.com@bastion ~]$ oc describe namespace default
+Name:         default
+Labels:       network.openshift.io/policy-group=ingress
+Annotations:  openshift.io/sa.scc.mcs: s0:c11,c10
+              openshift.io/sa.scc.supplemental-groups: 1000130000/10000
+              openshift.io/sa.scc.uid-range: 1000130000/10000
+Status:       Active
+
+No resource quota.
+
+No LimitRange resource.
+
+
+
+====================================================================================================
+允许项目之间互通
+
+多项目应用： CakePHP + MySQL包含三个namespaces:
+
+cakephp-example-build - Application build and image stream
+
+cakephp-example-database - Backend MySQL database
+
+cakephp-example-frontend - Application frontend web application
+
+
+Template                                         Use With                  Description
+cakephp-namespaces           oc apply                          Create and configure project namespaces
+cakephp-namespace-init       oc create                         Initialize namespaces with resources including password secrets
+cakephp-build                       oc apply                         Create and configure build config & image stream 
+cakephp-mysql-frontend      oc apply                         Create and configure frontend deployment, service, & route
+cakephp-mysql-persistent      oc apply                       Create and configure MySQL database deployment & service
+
+
+label namespaces需要有cluster-admin权限：
+[xiwei-redhat.com@bastion ~]$  oc whoami
+system:admin
+[xiwei-redhat.com@bastion ~]$  oc auth can-i update Namespace
+Warning: resource 'namespaces' is not namespace scoped
+yes
+[xiwei-redhat.com@bastion ~]$  oc auth can-i create EgressNetworkPolicy
+yes
+
+
+[xiwei-redhat.com@bastion ~]$ git clone https://github.com/redhat-gpte-devopsautomation/cakephp-ex.git
+Cloning into 'cakephp-ex'...
+remote: Enumerating objects: 9, done.
+remote: Counting objects: 100% (9/9), done.
+remote: Compressing objects: 100% (9/9), done.
+remote: Total 3369 (delta 3), reused 3 (delta 0), pack-reused 3360
+Receiving objects: 100% (3369/3369), 3.70 MiB | 0 bytes/s, done.
+Resolving deltas: 100% (1127/1127), done.
+[xiwei-redhat.com@bastion ~]$  cd cakephp-ex
+[xiwei-redhat.com@bastion cakephp-ex]$  cat openshift/multi-project-templates/parameters.yml
+NAME: "cakephp"
+BUILD_NAMESPACE: "cakephp-example-build"
+DATABASE_NAMESPACE: "cakephp-example-database"
+FRONTEND_NAMESPACE: "cakephp-example-frontend"
+IMAGE_NAMESPACE: "openshift"
+VOLUME_CAPACITY: "1Gi"
+#CAKEPHP_SECRET_SALT: "...generate..."
+#CAKEPHP_SECRET_TOKEN: "...generate..."
+#DATABASE_NAME: ""
+#DATABASE_USER: "cakephp"
+#DATABASE_PASSWORD: "...generate..."
+#DATABASE_ROOT_PASSWORD: "...generate..."
+#DATABASE_SERVICE_NAME: "mysql"
+#PHP_VERSION: "7.1"
+#SOURCE_REPOSITORY_URL: "https://github.com/redhat-gpte-devopsautomation/cakephp-ex.git"
+#SOURCE_REPOSITORY_REF: ""
+#CONTEXT_DIR: ""
+#GITHUB_WEBHOOK_SECRET: "...generate..."
+#COMPOSER_MIRROR: ""
+#VERSION: "latest"
+
+
+
+使用cakephp-namespaces.yml模板通过参数文件创建项目。
+[xiwei-redhat.com@bastion cakephp-ex]$ oc process --local \
+> --param-file=openshift/multi-project-templates/parameters.yml \
+> --ignore-unknown-parameters \
+> -f openshift/multi-project-templates/cakephp-namespaces.yml \
+> | oc apply -f -
+namespace/cakephp-example-build created
+namespace/cakephp-example-frontend created
+namespace/cakephp-example-database created
+
+
+初始化namespaces with secrets and persistent volume claims
+[xiwei-redhat.com@bastion cakephp-ex]$  oc process --local \
+> --param-file=openshift/multi-project-templates/parameters.yml \
+> --ignore-unknown-parameters \
+> -f openshift/multi-project-templates/cakephp-namespace-init.yml \
+> | oc create -f -
+secret/cakephp created
+secret/mysql created
+persistentvolumeclaim/mysql created
+
+部署MySQL database backend.
+[xiwei-redhat.com@bastion cakephp-ex]$ oc process --local \
+> --param-file=openshift/multi-project-templates/parameters.yml \
+> --ignore-unknown-parameters \
+> -f openshift/multi-project-templates/cakephp-mysql-persistent.yml \
+> | oc apply -f -
+service/mysql created
+deploymentconfig.apps.openshift.io/mysql created
+
+trigger application build as version "0.1".触发应用构建0.1版本，并将version 0.1部署到 frontend namespace.
+[xiwei-redhat.com@bastion cakephp-ex]$ oc process --local \
+> --param=VERSION=0.1 \
+> --param-file=openshift/multi-project-templates/parameters.yml \
+> --ignore-unknown-parameters \
+> -f openshift/multi-project-templates/cakephp-build.yml \
+> | oc apply -f -
+imagestream.image.openshift.io/cakephp created
+buildconfig.build.openshift.io/cakephp created
+[xiwei-redhat.com@bastion cakephp-ex]$
+[xiwei-redhat.com@bastion cakephp-ex]$
+[xiwei-redhat.com@bastion cakephp-ex]$  oc process --local \
+> --param=VERSION=0.1 \
+> --param-file=openshift/multi-project-templates/parameters.yml \
+> --ignore-unknown-parameters \
+> -f openshift/multi-project-templates/cakephp-mysql-frontend.yml \
+> | oc apply -f -
+service/cakephp created
+route.route.openshift.io/cakephp created
+deploymentconfig.apps.openshift.io/cakephp created
+rolebinding.rbac.authorization.k8s.io/system:image-pullers:cakephp-example-frontend created
+
+[xiwei-redhat.com@bastion cakephp-ex]$  oc get route -n cakephp-example-frontend cakephp
+NAME      HOST/PORT                                                                 PATH   SERVICES   PORT    TERMINATION   WILDCARD
+cakephp   cakephp-cakephp-example-frontend.apps.cluster-a389.blue.osp.opentlc.com          cakephp    <all>                 None
+
+
+
+==============================================
+配置NetworkPolicy
+修改openshift/multi-project-templates/cakephp-namespaces.yml，为项目添加label：
+
+
+[xiwei-redhat.com@bastion cakephp-ex]$ cat openshift/multi-project-templates/cakephp-namespaces.yml
+---
+kind: Template
+apiVersion: v1
+metadata:
+  name: cakephp-example-namespaces
+  annotations:
+    openshift.io/display-name: CakePHP Namespaces
+    description: >-
+      Namespaces for a CakePHP example deployment across multiple namespaces.
+      For more information about using this template, including OpenShift
+      considerations, see
+      https://github.com/redhat-gpte-devopsautomation/cakephp-ex/blob/master/README.md.
+    tags: quickstart,php,cakephp
+    iconClass: icon-php
+    openshift.io/long-description: >-
+      This template defines namespaces for a CakePHP application OpenShift
+      build and deployment with separate namespaces for build, frontend, and
+      database deployment. This template requires cluster-admin privileges.
+    openshift.io/provider-display-name: Red Hat, Inc.
+    openshift.io/documentation-url: https://github.com/redhat-gpte-devopsautomation/cakephp-ex
+    template.openshift.io/bindable: 'false'
+message: |-
+  The following namespaces have been configured: ${BUILD_NAMESPACE}, ${FRONTEND_NAMESPACE}, ${DATABASE_NAMESPACE}
+
+  For more information about using this template, including OpenShift considerations, see https://github.com/redhat-gpte-devopsautomation/cakephp-ex/blob/master/README.md.
+labels:
+  template: cakephp-example-namespaces
+  app: cakephp-example
+parameters:
+- name: BUILD_NAMESPACE
+  displayName: Build Namespace
+  description: >-
+    The OpenShift Namespace where the ImageStream and BuildConfig reside.
+  required: true
+  value: cakephp-example-build
+- name: FRONTEND_NAMESPACE
+  displayName: Frontend Namespace
+  description: >-
+    The OpenShift Namespace where the Frontend application deployment, route,
+    and service reside.
+  required: true
+  value: cakephp-example-frontend
+- name: DATABASE_NAMESPACE
+  displayName: Database Namespace
+  description: >-
+    The OpenShift Namespace where the Database deployment and service reside.
+  required: true
+  value: cakephp-example-database
+objects:
+- kind: Namespace
+  apiVersion: v1
+  metadata:
+    name: ${BUILD_NAMESPACE}
+    labels:
+      name: ${BUILD_NAMESPACE}
+- kind: Namespace
+  apiVersion: v1
+  metadata:
+    name: ${FRONTEND_NAMESPACE}
+    labels:
+      name: ${FRONTEND_NAMESPACE}
+- kind: Namespace
+  apiVersion: v1
+  metadata:
+    name: ${DATABASE_NAMESPACE}
+    labels:
+      name: ${DATABASE_NAMESPACE}
+
+运行template，为项目添加label
+[xiwei-redhat.com@bastion cakephp-ex]$ oc process --local \
+> --param-file=openshift/multi-project-templates/parameters.yml \
+> --ignore-unknown-parameters \
+> -f openshift/multi-project-templates/cakephp-namespaces.yml \
+> | oc apply -f -
+namespace/cakephp-example-build configured
+namespace/cakephp-example-frontend configured
+namespace/cakephp-example-database configured
+
+
+Add NetworkPolicy resource definitions to lock-down the frontend project namespace to the cakephp-mysql-frontend.yml template.
+networkpolicy包括：
+deny-by-default
+allow-same-namespace
+allow-openshift-ingress
+
+
+修改模板，增加networkpolicy：
+[xiwei-redhat.com@bastion cakephp-ex]$ cat openshift/multi-project-templates/cakephp-mysql-frontend.yml
+---
+kind: Template
+apiVersion: v1
+metadata:
+  name: cakephp-mysql-frontend
+  annotations:
+    openshift.io/display-name: CakePHP + MySQL
+    description: >-
+      FIXME
+    tags: quickstart,php,cakephp
+    iconClass: icon-php
+    openshift.io/long-description: >-
+      FIXME
+    openshift.io/provider-display-name: Red Hat, Inc.
+    openshift.io/documentation-url: https://github.com/redhat-gpte-devopsautomation/cakephp-ex
+    openshift.io/support-url: https://access.redhat.com
+    template.openshift.io/bindable: 'false'
+message: |-
+  FIXME
+
+  For more information about using this template, including OpenShift considerations, see https://github.com/redhat-gpte-devopsautomation/cakephp-ex/blob/master/README.md.
+labels:
+  template: cakephp-mysql-persistent
+  app: cakephp-mysql-persistent
+parameters:
+- name: NAME
+  displayName: Name
+  description: The name assigned to all of the frontend objects defined in this template.
+  required: true
+  value: cakephp-example
+- name: VERSION
+  displayName: Version
+  description: Image tag for CakePHP application.
+  required: true
+  value: latest
+- name: BUILD_NAMESPACE
+  displayName: Build Namespace
+  description: >-
+    The OpenShift Namespace where the ImageStream and BuildConfig reside.
+  required: true
+  value: cakephp-example-build
+- name: FRONTEND_NAMESPACE
+  displayName: Frontend Namespace
+  description: >-
+    The OpenShift Namespace where the Frontend application deployment, route,
+    and service reside.
+  required: true
+  value: cakephp-example-frontend
+- name: MEMORY_LIMIT
+  displayName: Memory Limit
+  description: Maximum amount of memory the CakePHP container can use.
+  required: true
+  value: 512Mi
+- name: APPLICATION_DOMAIN
+  displayName: Application Hostname
+  description: The exposed hostname that will route to the CakePHP service, if left
+    blank a value will be defaulted.
+  value: ''
+- name: DATABASE_ENGINE
+  displayName: Database Engine
+  description: 'Database engine: postgresql, mysql or sqlite (default).'
+  required: true
+  value: mysql
+- name: OPCACHE_REVALIDATE_FREQ
+  displayName: OPcache Revalidation Frequency
+  description: How often to check script timestamps for updates, in seconds. 0 will
+    result in OPcache checking for updates on every request.
+  value: '2'
+objects:
+- kind: Service
+  apiVersion: v1
+  metadata:
+    name: ${NAME}
+    namespace: ${FRONTEND_NAMESPACE}
+    annotations:
+      description: Exposes and load balances the application pods
+  spec:
+    ports:
+    - name: web
+      port: 8080
+      targetPort: 8080
+    selector:
+      name: ${NAME}
+- kind: Route
+  apiVersion: v1
+  metadata:
+    name: ${NAME}
+    namespace: ${FRONTEND_NAMESPACE}
+  spec:
+    host: ${APPLICATION_DOMAIN}
+    to:
+      kind: Service
+      name: ${NAME}
+- kind: DeploymentConfig
+  apiVersion: v1
+  metadata:
+    name: ${NAME}
+    namespace: ${FRONTEND_NAMESPACE}
+    annotations:
+      description: Defines how to deploy the application server
+      template.alpha.openshift.io/wait-for-ready: 'true'
+  spec:
+    strategy:
+      type: Recreate
+      recreateParams:
+        pre:
+          failurePolicy: Retry
+          execNewPod:
+            command:
+            - ./migrate-database.sh
+            containerName: cakephp-mysql-persistent
+      resources:
+        requests:
+          cpu: 50m
+          memory: 100Mi
+        limits:
+          cpu: 500m
+          memory: 100Mi
+    triggers:
+    - type: ImageChange
+      imageChangeParams:
+        automatic: true
+        containerNames:
+        - cakephp-mysql-persistent
+        from:
+          kind: ImageStreamTag
+          name: ${NAME}:${VERSION}
+          namespace: ${BUILD_NAMESPACE}
+    - type: ConfigChange
+    replicas: 1
+    selector:
+      name: ${NAME}
+    template:
+      metadata:
+        name: ${NAME}
+        labels:
+          name: ${NAME}
+      spec:
+        containers:
+        - name: cakephp-mysql-persistent
+          image: " "
+          ports:
+          - containerPort: 8080
+          readinessProbe:
+            timeoutSeconds: 3
+            initialDelaySeconds: 3
+            periodSeconds: 60
+            httpGet:
+              path: /health.php
+              port: 8080
+          livenessProbe:
+            timeoutSeconds: 3
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            httpGet:
+              path: /health.php
+              port: 8080
+          env:
+          - name: MYSQL_SERVICE_HOST
+            valueFrom:
+              secretKeyRef:
+                name: ${NAME}
+                key: database-host
+          - name: MYSQL_SERVICE_PORT
+            value: "3306"
+          - name: DATABASE_SERVICE_NAME
+            value: mysql
+          - name: DATABASE_ENGINE
+            value: ${DATABASE_ENGINE}
+          - name: DATABASE_NAME
+            valueFrom:
+              secretKeyRef:
+                name: ${NAME}
+                key: database-name
+          - name: DATABASE_USER
+            valueFrom:
+              secretKeyRef:
+                name: ${NAME}
+                key: database-user
+          - name: DATABASE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: ${NAME}
+                key: database-password
+          - name: CAKEPHP_SECRET_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: ${NAME}
+                key: cakephp-secret-token
+          - name: CAKEPHP_SECURITY_SALT
+            valueFrom:
+              secretKeyRef:
+                name: ${NAME}
+                key: cakephp-security-salt
+          - name: OPCACHE_REVALIDATE_FREQ
+            value: ${OPCACHE_REVALIDATE_FREQ}
+          resources:
+            requests:
+              cpu: 100m
+              memory: "${MEMORY_LIMIT}"
+            limits:
+              cpu: "1"
+              memory: "${MEMORY_LIMIT}"
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: RoleBinding
+  metadata:
+    annotations:
+      openshift.io/description: >-
+        Allows CakePHP frontend to pull from build namespace.
+    name: system:image-pullers:${FRONTEND_NAMESPACE}
+    namespace: ${BUILD_NAMESPACE}
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: system:image-puller
+  subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: system:serviceaccounts:${FRONTEND_NAMESPACE}
+- kind: NetworkPolicy
+  apiVersion: networking.k8s.io/v1
+  metadata:
+    name: deny-by-default
+    namespace: ${FRONTEND_NAMESPACE}
+  spec:
+    podSelector: {}
+    policyTypes:
+    - Ingress
+- kind: NetworkPolicy
+  apiVersion: networking.k8s.io/v1
+  metadata:
+    name: allow-same-namespace
+    namespace: ${FRONTEND_NAMESPACE}
+  spec:
+    podSelector:
+    policyTypes:
+    - Ingress
+    ingress:
+    - from:
+      - podSelector: {}
+- kind: NetworkPolicy
+  apiVersion: networking.k8s.io/v1
+  metadata:
+    name: allow-openshift-ingress
+    namespace: ${FRONTEND_NAMESPACE}
+  spec:
+    podSelector: {}
+    ingress:
+    - from:
+      - namespaceSelector:
+          matchLabels:
+            network.openshift.io/policy-group: ingress
+
+
+
+为cakephp-mysql-persistent.yml增加networkpolicy：
+
+deny-by-default
+
+allow-same-namespace
+
+allow-cakephp
+
+Allow for MySQL database pods
+
+Allow ingress to ports 3306/tcp from cakephp-example-frontend namespace
+
+
+
+[xiwei-redhat.com@bastion cakephp-ex]$ cat openshift/multi-project-templates/cakephp-mysql-persistent.yml
+---
+kind: Template
+apiVersion: v1
+metadata:
+  name: cakephp-multi-project-mysql-persistent
+  annotations:
+    openshift.io/display-name: CakePHP MySQL Database
+    description: >-
+      CakePHP MySQL database configuration for configuration across multiple
+      namespaces. For more information about using this template, including
+      OpenShift considerations, see
+      https://github.com/redhat-gpte-devopsautomation/cakephp-ex/blob/master/README.md.
+    tags: quickstart,php,cakephp
+    iconClass: icon-php
+    openshift.io/long-description: >-
+      This template defines a DeploymentConfig and ImageStream for a CakePHP
+      example application. This template is meant to be used with separate
+      deployment and namespace initialization templates.
+    openshift.io/provider-display-name: Red Hat, Inc.
+    openshift.io/documentation-url: https://github.com/redhat-gpte-devopsautomation/cakephp-ex
+    template.openshift.io/bindable: 'false'
+message: |-
+  MySQL database deployment has been configured in project: ${DATABASE_NAMESPACE}.
+
+  For more information about using this template, including OpenShift considerations, see https://github.com/redhat-gpte-devopsautomation/cakephp-ex/blob/master/README.md.
+labels:
+  template: cakephp-multi-project-mysql-persistent
+  app: cakephp-example
+parameters:
+- name: DATABASE_NAMESPACE
+  displayName: Database Namespace
+  description: >-
+    The OpenShift Namespace where the Database deployment and service reside.
+  required: true
+  value: cakephp-example-database
+- name: IMAGE_NAMESPACE
+  displayName: Image Namespace
+  description: The OpenShift Namespace where the PHP S2I ImageStream resides.
+  required: true
+  value: openshift
+- name: MEMORY_MYSQL_LIMIT
+  displayName: Memory Limit (MySQL)
+  description: Maximum amount of memory the MySQL container can use.
+  required: true
+  value: 512Mi
+- name: DATABASE_SERVICE_NAME
+  displayName: Database Service Name
+  required: true
+  value: mysql
+objects:
+- kind: Service
+  apiVersion: v1
+  metadata:
+    name: ${DATABASE_SERVICE_NAME}
+    namespace: ${DATABASE_NAMESPACE}
+  spec:
+    ports:
+    - name: mysql
+      port: 3306
+      targetPort: 3306
+    selector:
+      name: ${DATABASE_SERVICE_NAME}
+- kind: DeploymentConfig
+  apiVersion: v1
+  metadata:
+    name: ${DATABASE_SERVICE_NAME}
+    namespace: ${DATABASE_NAMESPACE}
+  spec:
+    strategy:
+      type: Recreate
+      resources:
+        requests:
+          cpu: 50m
+          memory: 100Mi
+        limits:
+          cpu: 500m
+          memory: 100Mi
+    triggers:
+    - type: ImageChange
+      imageChangeParams:
+        automatic: true
+        containerNames:
+        - mysql
+        from:
+          kind: ImageStreamTag
+          namespace: ${IMAGE_NAMESPACE}
+          name: mysql:5.7
+    - type: ConfigChange
+    replicas: 1
+    selector:
+      name: ${DATABASE_SERVICE_NAME}
+    template:
+      metadata:
+        name: ${DATABASE_SERVICE_NAME}
+        labels:
+          name: ${DATABASE_SERVICE_NAME}
+      spec:
+        volumes:
+        - name: mysql-data
+          persistentVolumeClaim:
+            claimName: ${DATABASE_SERVICE_NAME}
+        containers:
+        - name: mysql
+          image: " "
+          ports:
+          - containerPort: 3306
+          volumeMounts:
+          - name: mysql-data
+            mountPath: /var/lib/mysql/data
+          readinessProbe:
+            timeoutSeconds: 1
+            initialDelaySeconds: 5
+            exec:
+              command:
+              - /bin/sh
+              - -i
+              - -c
+              - MYSQL_PWD="$MYSQL_PASSWORD" mysql -h 127.0.0.1
+                -u "$MYSQL_USER" -D "$MYSQL_DATABASE" -e 'SELECT 1'
+          livenessProbe:
+            timeoutSeconds: 1
+            initialDelaySeconds: 30
+            tcpSocket:
+              port: 3306
+          env:
+          - name: MYSQL_USER
+            valueFrom:
+              secretKeyRef:
+                name: ${DATABASE_SERVICE_NAME}
+                key: database-user
+          - name: MYSQL_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: ${DATABASE_SERVICE_NAME}
+                key: database-password
+          - name: MYSQL_ROOT_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: database-root-password
+                name: ${DATABASE_SERVICE_NAME}
+          - name: MYSQL_DATABASE
+            valueFrom:
+              secretKeyRef:
+                name: ${DATABASE_SERVICE_NAME}
+                key: database-name
+          resources:
+            requests:
+              cpu: 100m
+              memory: ${MEMORY_MYSQL_LIMIT}
+            limits:
+              cpu: "1"
+              memory: ${MEMORY_MYSQL_LIMIT}
+- kind: NetworkPolicy
+  apiVersion: networking.k8s.io/v1
+  metadata:
+    name: deny-by-default
+    namespace: ${DATABASE_NAMESPACE}
+  spec:
+    podSelector: {}
+    policyTypes:
+    - Ingress
+- kind: NetworkPolicy
+  apiVersion: networking.k8s.io/v1
+  metadata:
+    name: allow-same-namespace
+    namespace: ${DATABASE_NAMESPACE}
+  spec:
+    podSelector:
+    policyTypes:
+    - Ingress
+    ingress:
+    - from:
+      - podSelector: {}
+- kind: NetworkPolicy
+  apiVersion: networking.k8s.io/v1
+  metadata:
+    name: allow-frontend-to-database
+    namespace: ${DATABASE_NAMESPACE}
+  spec:
+    podSelector:
+      matchLabels:
+        name: ${DATABASE_SERVICE_NAME}
+    ingress:
+    - from:
+      - namespaceSelector:
+          matchLabels:
+            name: cakephp-example-frontend
+      ports:
+      - protocol: TCP
+        port: 3306
+
+
+
+[xiwei-redhat.com@bastion cakephp-ex]$ oc process --local \
+> --param-file=openshift/multi-project-templates/parameters.yml \
+> --ignore-unknown-parameters \
+> -f openshift/multi-project-templates/cakephp-mysql-persistent.yml \
+> | oc apply -f -
+service/mysql unchanged
+deploymentconfig.apps.openshift.io/mysql configured
+networkpolicy.networking.k8s.io/deny-by-default unchanged
+networkpolicy.networking.k8s.io/allow-same-namespace configured
+networkpolicy.networking.k8s.io/allow-frontend-to-database created
+
+
+===============
+创建EgressNetworkPolicy
+For the CakePHP example application the build process needs access to a number of external sources to pull images, and source code. Securing the build process of this application would require use of a proxy repository service such as Nexus and so is beyond the scope of this lab. The database and frontend namespaces require no external access and so can be secured quite simply.
+
+Add EgressNetworkPolicy resource definitions to lock-down the database project namespace to the cakephp-namespaces.yml templates. Using the cakephp-namespaces.yml template for these resources is appropriate because both adding labels to namespaces and defining EgressNetworkPolicy requires cluster-admin privilege.
+
+[xiwei-redhat.com@bastion cakephp-ex]$ cat <<EOF >>openshift/multi-project-templates/cakephp-namespaces.yml
+> - kind: EgressNetworkPolicy
+>   apiVersion: network.openshift.io/v1
+>   metadata:
+>     name: default
+>     namespace: \${FRONTEND_NAMESPACE}
+>   spec:
+>     egress:
+>     - type: Deny
+>       to:
+>         cidrSelector: 0.0.0.0/0
+> - kind: EgressNetworkPolicy
+>   apiVersion: network.openshift.io/v1
+>   metadata:
+>     name: default
+>     namespace: \${DATABASE_NAMESPACE}
+>   spec:
+>     egress:
+>     - type: Deny
+>       to:
+>         cidrSelector: 0.0.0.0/0
+> EOF
+[xiwei-redhat.com@bastion cakephp-ex]$ oc process --local \
+> --param-file=openshift/multi-project-templates/parameters.yml \
+> --ignore-unknown-parameters \
+> -f openshift/multi-project-templates/cakephp-namespaces.yml \
+> | oc apply -f -
+
+
+
+namespace/cakephp-example-build unchanged
+namespace/cakephp-example-frontend unchanged
+namespace/cakephp-example-database unchanged
+egressnetworkpolicy.network.openshift.io/default created
+egressnetworkpolicy.network.openshift.io/default created
+
+
+
+
+Use the updated cakephp-namespaces.yml template to create the EgressNetworkPolicy resources.
+
