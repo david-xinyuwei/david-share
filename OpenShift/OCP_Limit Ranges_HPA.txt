@@ -354,30 +354,21 @@ roleRef:
   name: view" | oc create -f -
 
 返回Prometheus用户界面，再次对http_requests_total执行查询，您应该会看到结果。 如果您没有立即看到结果，请耐心等待。
+![image](https://github.com/davidsajare/david-share/blob/master/IMAGES/1.png)
 
 既然您知道Prometheus可以正常工作，现在就可以将其连接到Kubernetes，以便HPA可以根据自定义指标进行操作。 对象列表如下：
 APIService
 
 ServiceAccount
-
 ClusterRole - custom metrics-server-resources
-
 ClusterRole - custom-metrics-resource-reader
-
 ClusterRoleBinding - custom-metrics:system:auth-delegator
-
 ClusterRoleBinding - custom-metrics-resource-reader
-
 ClusterRoleBinding - hpa-controller-custom-metrics
-
 RoleBinding - custom-metrics-auth-reader
-
 Secret
-
 ConfigMap
-
 Deployment
-
 Service
 
 创建所有对象
@@ -415,8 +406,7 @@ v1beta1.custom.metrics.k8s.io   my-prometheus/my-metrics-apiserver   True       
 
 
 ==========================================================
-创建
-Custom HPA
+创建Custom HPA
 [centos@lb.weixinyucluster ~]$ echo "---
 > kind: HorizontalPodAutoscaler
 > apiVersion: autoscaling/v2beta1
