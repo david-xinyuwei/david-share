@@ -1,0 +1,577 @@
+新集群要做的第一件事就是为API和默认入口配置TLS证书。默认证书由群集内部的TLS证书颁发机构签名，并非所有客户都接受。您不能替换OpenShift创建和使用的内部证书，但是可以替换API和默认入口使用的证书。在实验的此部分中，您将使用自定义证书颁发机构颁发证书并为群集配置证书。
+
+您的环境已配置了“加密”证书。这些是真实的证书，现代浏览器信任创建它们的“加密”证书颁发机构。您可以阅读有关“加密”以及用于生成这些证书的certbot工具的更多信息。
+
+=================
+设置环境变量
+[xiwei-redhat.com@bastion ~]$ ansible localhost -m lineinfile -a 'path=$HOME/.bashrc regexp="^export API_HOSTNAME" line="export API_HOSTNAME='$(oc whoami --show-server | sed -r 's|.*//(.*):.*|\1|')'"'
+localhost | CHANGED => {
+    "backup": "",
+    "changed": true,
+    "msg": "line added"
+}
+[xiwei-redhat.com@bastion ~]$ ansible localhost -m lineinfile -a 'path=$HOME/.bashrc regexp="^export INGRESS_DOMAIN" line="export INGRESS_DOMAIN='$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}')'"'
+ source $HOME/.bashrclocalhost | CHANGED => {
+    "backup": "",
+    "changed": true,
+    "msg": "line added"
+}
+[xiwei-redhat.com@bastion ~]$  source $HOME/.bashrc
+
+
+[xiwei-redhat.com@bastion ~]$ cd $HOME/certificates/
+[xiwei-redhat.com@bastion certificates]$ ls
+cert.pem  chain.pem  fullchain.pem  privkey.pem
+[xiwei-redhat.com@bastion certificates]$ ls -al
+total 20
+drwxrwxr-x.  2 xiwei-redhat.com root    79 Jul 27 04:11 .
+drwx------. 16 xiwei-redhat.com users 4096 Jul 29 09:47 ..
+-rw-r--r--.  1 xiwei-redhat.com root  2029 Jul 27 04:11 cert.pem
+-rw-r--r--.  1 xiwei-redhat.com root  1647 Jul 27 04:11 chain.pem
+-rw-r--r--.  1 xiwei-redhat.com root  3676 Jul 27 04:11 fullchain.pem
+-rw-r--r--.  1 xiwei-redhat.com root  1704 Jul 27 04:11 privkey.pem
+[xiwei-redhat.com@bastion certificates]$
+
+
+Create a secret, cluster-apiserver-tls in the openshift-config namespace. The API TLS secret could be named anything. The name cluster-apiserver-tls gives a clear indication of the purpose for this secret.
+
+[xiwei-redhat.com@bastion ~]$ oc create secret tls cluster-apiserver-tls --cert=$HOME/certificates/cert.pem --key=$HOME/certificates/privkey.pem -n openshift-config
+secret/cluster-apiserver-tls created
+[xiwei-redhat.com@bastion ~]$
+[xiwei-redhat.com@bastion ~]$ oc patch apiservers.config.openshift.io cluster --type=merge -p '{"spec":{"servingCerts": {"namedCertificates": [{"names": ["'$API_HOSTNAME'"], "servingCertificate": {"name": "cluster-apiserver-tls"}}]}}}'
+apiserver.config.openshift.io/cluster patched
+
+
+[xiwei-redhat.com@bastion ~]$ oc get co  |grep -i kube-apiserver
+kube-apiserver                             4.5.3     True        True          False      2d
+[xiwei-redhat.com@bastion ~]$ oc get co  |grep -i kube-apiserver
+kube-apiserver                             4.5.3     True        True          False      2d
+[xiwei-redhat.com@bastion ~]$ oc get co  |grep -i kube-apiserver
+kube-apiserver                             4.5.3     True        True          False      2d
+[xiwei-redhat.com@bastion ~]$ oc get co  |grep -i kube-apiserver
+Unable to connect to the server: x509: certificate signed by unknown authority
+
+
+
+[xiwei-redhat.com@bastion ~]$ curl https://$API_HOSTNAME:6443/healthz -v
+* About to connect() to api.cluster-a389.blue.osp.opentlc.com port 6443 (#0)
+*   Trying 52.116.95.177...
+* Connected to api.cluster-a389.blue.osp.opentlc.com (52.116.95.177) port 6443 (#0)
+* Initializing NSS with certpath: sql:/etc/pki/nssdb
+*   CAfile: /etc/pki/tls/certs/ca-bundle.crt
+  CApath: none
+* NSS: client certificate not found (nickname not specified)
+* SSL connection using TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+* Server certificate:
+*       subject: CN=api.cluster-a389.blue.osp.opentlc.com
+*       start date: Jul 27 07:11:38 2020 GMT
+*       expire date: Oct 25 07:11:38 2020 GMT
+*       common name: api.cluster-a389.blue.osp.opentlc.com
+*       issuer: CN=Let's Encrypt Authority X3,O=Let's Encrypt,C=US
+> GET /healthz HTTP/1.1
+> User-Agent: curl/7.29.0
+> Host: api.cluster-a389.blue.osp.opentlc.com:6443
+> Accept: */*
+>
+< HTTP/1.1 200 OK
+< Cache-Control: no-cache, private
+< Content-Type: text/plain; charset=utf-8
+< X-Content-Type-Options: nosniff
+< X-Kubernetes-Pf-Flowschema-Uid: 1f12149d-8b0d-4670-b630-010c19f9f8e3
+< X-Kubernetes-Pf-Prioritylevel-Uid: 20fc1d70-7ebe-4649-8897-1d22412288eb
+< Date: Wed, 29 Jul 2020 14:04:51 GMT
+< Content-Length: 2
+<* Connection #0 to host api.cluster-a389.blue.osp.opentlc.com left intact
+ok
+
+The API server is working with the new certificate, but your oc client is still failing. Try to login with the following command and it will produce an error indicating the certificate is signed by an unknown authority. Select No or ctrl-c when prompted to abort the login attempt.
+
+
+[xiwei-redhat.com@bastion ~]$ oc login -u system:admin
+The server uses a certificate signed by an unknown authority.
+You can bypass the certificate check, but any data you send to the server could be intercepted by others.
+Use insecure connections? (y/n): yes
+
+^C
+
+
+
+This is due to your kubeconfig, which the oc client uses, still not being properly updated. You can update your client kubeconfig with the Let’s Encrypt CA by running the following command.
+
+[xiwei-redhat.com@bastion ~]$ oc config set-cluster cluster-$GUID --certificate-authority=$HOME/certificates/chain.pem
+Cluster "cluster-a389" set.
+[xiwei-redhat.com@bastion ~]$  oc login -u system:admin
+Logged into "https://api.cluster-a389.blue.osp.opentlc.com:6443" as "system:admin" using existing credentials.
+
+You have access to 57 projects, the list has been suppressed. You can list all projects with 'oc projects'
+
+Using project "default".
+
+
+Your API server is now using a live and Let’s Encrypt signed certificate.
+
+Your Red Hat Enterprise Linux VM however still doesn’t trust the API Server certificate because it does not have the Let’s Encrypt root certificate as part of its trusted CA bundle. For that to work you need to once again update the trusted CA bundle.
+
+
+[xiwei-redhat.com@bastion ~]$ sudo cp ~/certificates/fullchain.pem /etc/pki/ca-trust/source/anchors
+[xiwei-redhat.com@bastion ~]$ sudo update-ca-trust
+[xiwei-redhat.com@bastion ~]$
+
+
+
+===========================
+ Configure Ingress Default Certificate  
+reate a TLS secret to store the default ingress certificate and key in the openshift-ingress namespace. In this lab, you are using the fullchain.pem file. This has both the wildcard certificate as well as the the Let’s Encrypt root certificate, removing the need to update the certificate store on all of the hosts in your cluster.
+
+
+[xiwei-redhat.com@bastion certificates]$ oc create secret tls default-ingress-tls --cert=$HOME/certificates/fullchain.pem --key=$HOME/certificates/privkey.pem -n openshift-ingress
+secret/default-ingress-tls created
+[xiwei-redhat.com@bastion certificates]$ oc patch ingresscontroller.operator default --type=merge -p '{"spec":{"defaultCertificate": {"name": "default-ingress-tls"}}}' -n openshift-ingress-operator
+ingresscontroller.operator.openshift.io/default patched
+[xiwei-redhat.com@bastion certificates]$ oc get pod -n openshift-ingress
+NAME                              READY   STATUS        RESTARTS   AGE
+router-default-665b6ccc79-jdfmg   0/1     Pending       0          5h53m
+router-default-665b6ccc79-mtw88   1/1     Terminating   0          6h55m
+router-default-665b6ccc79-trc9x   1/1     Terminating   0          6h38m
+router-default-d89479fdf-r66pv    0/1     Pending       0          16s
+[xiwei-redhat.com@bastion certificates]$
+
+
+
+
+[xiwei-redhat.com@bastion certificates]$ oc get pod -n openshift-ingress
+NAME                             READY   STATUS    RESTARTS   AGE
+router-default-d89479fdf-r66pv   1/1     Running   0          31m
+router-default-d89479fdf-sxc7z   1/1     Running   0          18m
+
+
+Verify Ingress router certificate by using the curl command to validate the console route.
+[xiwei-redhat.com@bastion certificates]$ curl $(oc whoami --show-console) -v | head -1
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0* About to connect() to console-openshift-console.apps.cluster-a389.blue.osp.opentlc.com port 443 (#0)
+*   Trying 52.116.95.199...
+* Connected to console-openshift-console.apps.cluster-a389.blue.osp.opentlc.com (52.116.95.199) port 443 (#0)
+* Initializing NSS with certpath: sql:/etc/pki/nssdb
+*   CAfile: /etc/pki/tls/certs/ca-bundle.crt
+  CApath: none
+* SSL connection using TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+* Server certificate:
+*       subject: CN=api.cluster-a389.blue.osp.opentlc.com
+*       start date: Jul 27 07:11:38 2020 GMT
+*       expire date: Oct 25 07:11:38 2020 GMT
+*       common name: api.cluster-a389.blue.osp.opentlc.com
+*       issuer: CN=Let's Encrypt Authority X3,O=Let's Encrypt,C=US
+> GET / HTTP/1.1
+> User-Agent: curl/7.29.0
+> Host: console-openshift-console.apps.cluster-a389.blue.osp.opentlc.com
+> Accept: */*
+>
+< HTTP/1.1 200 OK
+< referrer-policy: strict-origin-when-cross-origin
+< set-cookie: csrf-token=ta90HnPZOWAguH7S7gol/DtDxYehI5OqYBUC9LX0zv4MZ4U+h16Ykcmxgs1MExRXjhHvCNh8igwYTyEreK2nCA==; Path=/; Secure
+< x-content-type-options: nosniff
+< x-dns-prefetch-control: off
+< x-frame-options: DENY
+< x-xss-protection: 1; mode=block
+< date: Wed, 29 Jul 2020 15:54:30 GMT
+< content-type: text/html; charset=utf-8
+< transfer-encoding: chunked
+< set-cookie: 1e2670d92730b515ce3a1bb65da45062=8b7b02feffdea837dd252dc83abbf476; path=/; HttpOnly; Secure
+< cache-control: private
+<
+{ [data not shown]
+100  3266    0  3266    0     0  19474      0 --:--:-- --:--:-- --:--:-- 19556
+* Connection #0 to host console-openshift-console.apps.cluster-a389.blue.osp.opentlc.com left intact
+<!DOCTYPE html>
+[xiwei-redhat.com@bastion certificates]$ curl $(oc whoami --show-console) -v | head -1
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0* About to connect() to console-openshift-console.apps.cluster-a389.blue.osp.opentlc.com port 443 (#0)
+*   Trying 52.116.95.199...
+* Connected to console-openshift-console.apps.cluster-a389.blue.osp.opentlc.com (52.116.95.199) port 443 (#0)
+* Initializing NSS with certpath: sql:/etc/pki/nssdb
+*   CAfile: /etc/pki/tls/certs/ca-bundle.crt
+  CApath: none
+* SSL connection using TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+* Server certificate:
+*       subject: CN=api.cluster-a389.blue.osp.opentlc.com
+*       start date: Jul 27 07:11:38 2020 GMT
+*       expire date: Oct 25 07:11:38 2020 GMT
+*       common name: api.cluster-a389.blue.osp.opentlc.com
+*       issuer: CN=Let's Encrypt Authority X3,O=Let's Encrypt,C=US
+> GET / HTTP/1.1
+> User-Agent: curl/7.29.0
+> Host: console-openshift-console.apps.cluster-a389.blue.osp.opentlc.com
+> Accept: */*
+>
+< HTTP/1.1 200 OK
+
+
+===========================================================
+Delegating  Cluster Admin Rights
+'[xiwei-redhat.com@bastion certificates]$  cd $HOME
+[xiwei-redhat.com@bastion ~]$  touch $HOME/htpasswd
+[xiwei-redhat.com@bastion ~]$  htpasswd -Bb $HOME/htpasswd andrew openshift
+Adding password for user andrew
+[xiwei-redhat.com@bastion ~]$ $ oc create secret generic htpasswd --from-file=$HOME/htpasswd -n openshift-config
+-bash: $: command not found
+[xiwei-redhat.com@bastion ~]$
+[xiwei-redhat.com@bastion ~]$ oc create secret generic htpasswd --from-file=$HOME/htpasswd -n openshift-config
+secret/htpasswd created
+[xiwei-redhat.com@bastion ~]$ oc apply -f - <<EOF
+> apiVersion: config.openshift.io/v1
+> kind: OAuth
+> metadata:
+>   name: cluster
+> spec:
+>   identityProviders:
+>   - name: Local Password
+>     mappingMethod: claim
+>     type: HTPasswd
+>     htpasswd:
+>       fileData:
+>         name: htpasswd
+> EOF
+Warning: oc apply should be used on resource created by either oc create --save-config or oc apply
+oauth.config.openshift.io/cluster configured
+[xiwei-redhat.com@bastion ~]$ oc get pod -n openshift-authentication
+NAME                               READY   STATUS    RESTARTS   AGE
+oauth-openshift-5cbf7f9b99-dwvrz   1/1     Running   0          29m
+oauth-openshift-5cbf7f9b99-wqtc6   1/1     Running   0          35m
+[xiwei-redhat.com@bastion ~]$ oc login -u andrew -p openshift $(oc whoami --show-server)
+Login failed (401 Unauthorized)
+Verify you have provided correct credentials.
+[xiwei-redhat.com@bastion ~]$
+[xiwei-redhat.com@bastion ~]$ oc whoami --show-server
+https://api.cluster-a389.blue.osp.opentlc.com:6443
+[xiwei-redhat.com@bastion ~]$ oc login -u andrew -p openshift $(oc whoami --show-server)
+Login successful.
+
+You don't have any projects. You can try to create a new project, by running
+
+    oc new-project <projectname>
+
+[xiwei-redhat.com@bastion ~]$
+[xiwei-redhat.com@bastion ~]$  oc login -u system:admin
+Logged into "https://api.cluster-a389.blue.osp.opentlc.com:6443" as "system:admin" using existing credentials.
+
+You have access to 57 projects, the list has been suppressed. You can list all projects with 'oc projects'
+
+Using project "default".
+
+
+=====================================================
+Delegate cluster-admin privileges
+ oc adm groups new lab-cluster-admins david karla
+ oc adm policy add-cluster-role-to-group cluster-admin lab-cluster-admins --rolebinding-name=lab-cluster-admins
+$ oc login -u karla -p openshift $(oc whoami --show-server)
+$ oc delete secret kubeadmin -n kube-system
+
+
+===================================================
+Configure the Container Image Registry
+
+[xiwei-redhat.com@bastion ~]$  oc patch configs.imageregistry.operator.openshift.io/cluster --type=merge --patch '{"spec":{"defaultRoute":true}}'
+config.imageregistry.operator.openshift.io/cluster patched (no change)
+[xiwei-redhat.com@bastion ~]$ oc get route -n openshift-image-registry
+NAME            HOST/PORT                                                                       PATH   SERVICES         PORT    TERMINATION   WILDCARD
+default-route   default-route-openshift-image-registry.apps.cluster-a389.blue.osp.opentlc.com          image-registry   <all>   reencrypt     None
+[xiwei-redhat.com@bastion ~]$  oc patch configs.imageregistry.operator.openshift.io/cluster --type=merge --patch '{"spec":{"routes":[{"name":"image-registry", "hostname":"image-registry.'$INGRESS_DOMAIN'"}]}}'
+config.imageregistry.operator.openshift.io/cluster patched
+[xiwei-redhat.com@bastion ~]$  curl https://$(oc get route -n openshift-image-registry image-registry -o jsonpath='{.spec.host}')/healthz -v
+* About to connect() to image-registry.apps.cluster-a389.blue.osp.opentlc.com port 443 (#0)
+*   Trying 52.116.95.199...
+* Connected to image-registry.apps.cluster-a389.blue.osp.opentlc.com (52.116.95.199) port 443 (#0)
+* Initializing NSS with certpath: sql:/etc/pki/nssdb
+*   CAfile: /etc/pki/tls/certs/ca-bundle.crt
+  CApath: none
+* SSL connection using TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+* Server certificate:
+*       subject: CN=api.cluster-a389.blue.osp.opentlc.com
+*       start date: Jul 27 07:11:38 2020 GMT
+*       expire date: Oct 25 07:11:38 2020 GMT
+*       common name: api.cluster-a389.blue.osp.opentlc.com
+*       issuer: CN=Let's Encrypt Authority X3,O=Let's Encrypt,C=US
+> GET /healthz HTTP/1.1
+> User-Agent: curl/7.29.0
+> Host: image-registry.apps.cluster-a389.blue.osp.opentlc.com
+> Accept: */*
+>
+< HTTP/1.1 200 OK
+< cache-control: no-cache
+< date: Wed, 29 Jul 2020 16:25:58 GMT
+< content-length: 0
+< set-cookie: 4291c3724fd78cc0c66c8030b827d5a7=e53f6d5691bd33779d337b1ae3a37258; path=/; HttpOnly; Secure
+<
+* Connection #0 to host image-registry.apps.cluster-a389.blue.osp.opentlc.com left intact
+[xiwei-redhat.com@bastion ~]$
+
+
+=============================================
+ Configure a service account to push images to the registry
+
+Error from server (AlreadyExists): serviceaccounts "registry-admin" already exists
+[xiwei-redhat.com@bastion ~]$ oc adm policy add-cluster-role-to-user registry-admin system:serviceaccount:openshift-config:registry-admin
+clusterrole.rbac.authorization.k8s.io/registry-admin added: "system:serviceaccount:openshift-config:registry-admin"
+[xiwei-redhat.com@bastion ~]$  oc create imagestream ubi8 -n openshift
+Error from server (AlreadyExists): imagestreams.image.openshift.io "ubi8" already exists
+[xiwei-redhat.com@bastion ~]$ sudo yum install -y skopeo
+Loaded plugins: search-disabled-repos
+Package 1:skopeo-0.1.37-3.el7.x86_64 already installed and latest version
+Nothing to do
+[xiwei-redhat.com@bastion ~]$ REGISTRY_ADMIN_TOKEN=$(oc sa get-token -n openshift-config registry-admin)
+[xiwei-redhat.com@bastion ~]$  UBI8_IMAGE_REPO="image-registry.$INGRESS_DOMAIN/openshift/ubi8"
+[xiwei-redhat.com@bastion ~]$  skopeo copy docker://registry.access.redhat.com/ubi8:latest docker://$UBI8_IMAGE_REPO:latest --dest-creds -:$REGISTRY_ADMIN_TOKEN
+Getting image source signatures
+Copying blob 47db82df7f3f done
+Copying blob 77c58f19bd6e done
+Copying config a1f8c96997 done
+Writing manifest to image destination
+FATA[0011] Error writing manifest: Error uploading manifest latest to image-registry.apps.cluster-a389.blue.osp.opentlc.com/openshift/ubi8: manifest blob unknown: blob unknown to registry
+[xiwei-redhat.com@bastion ~]$  UBI8_IMAGE_REPO="image-registry.$INGRESS_DOMAIN/openshift/ubi8"                      [xiwei-redhat.com@bastion ~]$  skopeo copy docker://registry.access.redhat.com/ubi8:latest docker://$UBI8_IMAGE_REPO:latest --dest-creds -:$REGISTRY_ADMIN_TOKEN
+Getting image source signatures
+Copying blob 77c58f19bd6e skipped: already exists
+Copying blob 47db82df7f3f skipped: already exists
+Copying config a1f8c96997 done
+Writing manifest to image destination
+Storing signatures
+[xiwei-redhat.com@bastion ~]$ podman pull $UBI8_IMAGE_REPO:latest --creds -:$REGISTRY_ADMIN_TOKEN
+Trying to pull image-registry.apps.cluster-a389.blue.osp.opentlc.com/openshift/ubi8:latest...Getting image source signatures
+Copying blob 47db82df7f3f done
+Copying blob 77c58f19bd6e done
+Copying config a1f8c96997 done
+Writing manifest to image destination
+Storing signatures
+a1f8c969978652a6d1b2dfb265ae0c6c346da69000160cd3ecd5f619e26fa9f3
+[xiwei-redhat.com@bastion ~]$  podman images
+REPOSITORY                                                             TAG                                IMAGE ID       CREATED        SIZE
+image-registry.apps.cluster-a389.blue.osp.opentlc.com/openshift/ubi8   latest                             a1f8c9699786   7 days ago     211 MB
+utilityvm.example.com:5000/ocp4/openshift4                             4.5.3-operator-lifecycle-manager   99bdeb6f3c4f   11 days ago    472 MB
+registry.access.redhat.com/ubi7/ubi                                    7.7                                0355cd652bd1   4 months ago   215 MB
+
+
+
+=================
+Configure SSH access to nodes
+
+Inspect the MachineConfig resources configured during installation. You will see that there are two for SSH, 99-master-ssh and 99-worker-ssh used for SSH access to the masters and workers respectively.
+[xiwei-redhat.com@bastion ~]$ oc get machineconfigs.machineconfiguration.openshift.io
+NAME                                                        GENERATEDBYCONTROLLER                      IGNITIONVERSION   AGE
+00-master                                                   4173030d89fbf4a7a0976d1665491a4d9a6e54f1   2.2.0             2d2h
+00-worker                                                   4173030d89fbf4a7a0976d1665491a4d9a6e54f1   2.2.0             2d2h
+01-master-container-runtime                                 4173030d89fbf4a7a0976d1665491a4d9a6e54f1   2.2.0             2d2h
+01-master-kubelet                                           4173030d89fbf4a7a0976d1665491a4d9a6e54f1   2.2.0             2d2h
+01-worker-container-runtime                                 4173030d89fbf4a7a0976d1665491a4d9a6e54f1   2.2.0             2d2h
+01-worker-kubelet                                           4173030d89fbf4a7a0976d1665491a4d9a6e54f1   2.2.0             2d2h
+99-master-2e7338b3-148f-4b67-aee9-4be6ef1819d4-registries   4173030d89fbf4a7a0976d1665491a4d9a6e54f1   2.2.0             2d2h
+99-master-ssh                                                                                          2.2.0             2d3h
+99-worker-113111b8-0353-493a-aec4-09c1308420e2-registries   4173030d89fbf4a7a0976d1665491a4d9a6e54f1   2.2.0             2d2h
+99-worker-ssh                                                                                          2.2.0             2d3h
+rendered-master-a2bd45191f1886e809cf9a39ac384d2a            4173030d89fbf4a7a0976d1665491a4d9a6e54f1   2.2.0             2d2h
+rendered-worker-aba93eb0beab036a972eafcb4eeeacee            4173030d89fbf4a7a0976d1665491a4d9a6e54f1   2.2.0             2d2h
+
+
+Take a look at the definition of the 99-worker-ssh MachineConfig. Note the value of spec.config.passwd.users includes a user named core with a value for sshAuthorizedKeys.
+
+
+
+[xiwei-redhat.com@bastion ~]$  oc get machineconfig 99-worker-ssh -o yaml
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  creationTimestamp: "2020-07-27T13:30:16Z"
+  generation: 1
+  labels:
+    machineconfiguration.openshift.io/role: worker
+  managedFields:
+  - apiVersion: machineconfiguration.openshift.io/v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:labels:
+          .: {}
+          f:machineconfiguration.openshift.io/role: {}
+      f:spec:
+        .: {}
+        f:config:
+          .: {}
+          f:ignition:
+            .: {}
+            f:config: {}
+            f:security:
+              .: {}
+              f:tls: {}
+            f:timeouts: {}
+            f:version: {}
+          f:networkd: {}
+          f:passwd:
+            .: {}
+            f:users: {}
+          f:storage: {}
+          f:systemd: {}
+        f:fips: {}
+        f:kernelArguments: {}
+        f:kernelType: {}
+        f:osImageURL: {}
+    manager: cluster-bootstrap
+    operation: Update
+    time: "2020-07-27T13:30:16Z"
+  name: 99-worker-ssh
+  resourceVersion: "1250"
+  selfLink: /apis/machineconfiguration.openshift.io/v1/machineconfigs/99-worker-ssh
+  uid: b33c277e-3d54-43bc-b20a-d0dcd652e0a3
+spec:
+  config:
+    ignition:
+      config: {}
+      security:
+        tls: {}
+      timeouts: {}
+      version: 2.2.0
+    networkd: {}
+    passwd:
+      users:
+      - name: core
+        sshAuthorizedKeys:
+        - |
+          ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDTL4RsiBOBf8RrLMfWgINNiCVH8BNl0qOUwhLtOVwqK5XaK6PzOjyfPV6X+mMDQTBdcTdHEj1FFAbhrzg2kkhMbL7mx8SuJ0xucfLfRwygza/36Hu26F/7TSTD1D/LPLBPCtEyv7I25+7+yN/vci1guK5uQNVhNsHy4Xe69JCOIh8nuCZtjdqnuM4lhjBXif2IYKailcAPc7tfeO47e8uBMPRN4kVd2M88s5kalMonLFeyfVDRrFtIA+hFZH8D2edhe8P0qYSmiMY8lYzBshR7pO2pE4vVHh0O6T/KP1GAxInCRXq2HIIpk+WDkUCINNtKNHxbmzBZJWOUrGd/vVs3 opentlc-mgr@admin.na.shared.opentlc.com
+    storage: {}
+    systemd: {}
+  fips: false
+  kernelArguments: null
+  kernelType: ""
+  osImageURL: ""
+[xiwei-redhat.com@bastion ~]$
+
+
+Create a new project namespace, node-ssh for node SSH access configuration.
+ oc new-project node-ssh
+
+oc new-build openshift/ubi8:latest --name=node-ssh --dockerfile - <<EOF
+FROM unused
+RUN dnf install -y openssh-clients
+CMD ["sleep", "infinity"]
+EOF
+
+
+[xiwei-redhat.com@bastion ~]$ oc get pods
+NAME               READY   STATUS      RESTARTS   AGE
+node-ssh-2-build   0/1     Completed   0          52s
+
+
+Now that you have a container image that you can use to SSH into, proceed with creating a Deployment. Start by creating a secret also named node-ssh containing the cluster SSH private key as id_rsa.
+[xiwei-redhat.com@bastion ~]$ oc create secret generic node-ssh --from-file=id_rsa=$HOME/.ssh/${GUID}key.pem -n node-ssh
+secret/node-ssh created
+[xiwei-redhat.com@bastion ~]$ NODE_SSH_IMAGE=$(oc get imagestream node-ssh -o jsonpath='{.status.dockerImageRepository}' -n node-ssh)
+[xiwei-redhat.com@bastion ~]$  oc create deployment node-ssh --image=$NODE_SSH_IMAGE:latest --dry-run -o yaml -n node-ssh > $HOME/node-ssh.deployment.yaml
+W0729 12:42:22.049223    7983 helpers.go:535] --dry-run is deprecated and can be replaced with --dry-run=client.
+
+
+Edit $HOME/node-ssh.deployment.yaml to mount the node-ssh secret at /.ssh within the container. The resulting deployment definition should look like this.
+[xiwei-redhat.com@bastion ~]$ cat $HOME/node-ssh.deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: node-ssh
+  name: node-ssh
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: node-ssh
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: node-ssh
+    spec:
+      containers:
+      - image: image-registry.openshift-image-registry.svc:5000/node-ssh/node-ssh:latest
+        name: node-ssh
+        resources: {}
+        volumeMounts:
+        - name: node-ssh
+          mountPath: /.ssh
+      volumes:
+      - name: node-ssh
+        secret:
+          secretName: node-ssh
+          defaultMode: 0600
+status: {}
+
+
+
+[xiwei-redhat.com@bastion ~]$  oc apply -f $HOME/node-ssh.deployment.yaml
+deployment.apps/node-ssh created
+[xiwei-redhat.com@bastion ~]$ oc get node -l node-role.kubernetes.io/worker -o wide
+NAME                       STATUS     ROLES                AGE     VERSION           INTERNAL-IP     EXTERNAL-IP   OS-IMAGE                                                       KERNEL-VERSION                 CONTAINER-RUNTIME
+general-purpose-1a-q2qp7   Ready      general-use,worker   70m     v1.18.3+3107688   192.168.47.22   <none>        Red Hat Enterprise Linux CoreOS 45.82.202007171855-0 (Ootpa)   4.18.0-193.13.2.el8_2.x86_64   cri-o://1.18.3-4.rhaos4.5.gitb5e3b15.el8
+general-purpose-1a-v6xl6   Ready      general-use,worker   69m     v1.18.3+3107688   192.168.47.31   <none>        Red Hat Enterprise Linux CoreOS 45.82.202007171855-0 (Ootpa)   4.18.0-193.13.2.el8_2.x86_64   cri-o://1.18.3-4.rhaos4.5.gitb5e3b15.el8
+general-purpose-1b-94jl9   Ready      general-use,worker   68m     v1.18.3+3107688   192.168.47.27   <none>        Red Hat Enterprise Linux CoreOS 45.82.202007171855-0 (Ootpa)   4.18.0-193.13.2.el8_2.x86_64   cri-o://1.18.3-4.rhaos4.5.gitb5e3b15.el8
+general-purpose-1b-n2nz4   Ready      general-use,worker   70m     v1.18.3+3107688   192.168.47.48   <none>        Red Hat Enterprise Linux CoreOS 45.82.202007171855-0 (Ootpa)   4.18.0-193.13.2.el8_2.x86_64   cri-o://1.18.3-4.rhaos4.5.gitb5e3b15.el8
+infra-1a-6mxjs             NotReady   worker               7h59m   v1.18.3+3107688   192.168.47.23   <none>        Red Hat Enterprise Linux CoreOS 45.82.202007171855-0 (Ootpa)   4.18.0-193.13.2.el8_2.x86_64   cri-o://1.18.3-4.rhaos4.5.gitb5e3b15.el8
+[xiwei-redhat.com@bastion ~]$  NODE_SSH_POD=$(oc get pod -l app=node-ssh -o jsonpath='{.items[0].metadata.name}')
+[xiwei-redhat.com@bastion ~]$  oc exec -it $NODE_SSH_POD -- ssh core@192.168.47.22
+The authenticity of host '192.168.47.22 (192.168.47.22)' can't be established.
+ECDSA key fingerprint is SHA256:yjDWe53HX/VxLYKz3dumVq+EK7j4SMtNxMUW/4GH3bs.
+Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
+Failed to add the host to the list of known hosts (/.ssh/known_hosts).
+Red Hat Enterprise Linux CoreOS 45.82.202007171855-0
+  Part of OpenShift 4.5, RHCOS is a Kubernetes native operating system
+  managed by the Machine Config Operator (`clusteroperator/machine-config`).
+
+WARNING: Direct SSH access to machines is not recommended; instead,
+make configuration changes via `machineconfig` objects:
+  https://docs.openshift.com/container-platform/4.5/architecture/architecture-rhcos.html
+
+---
+[core@general-purpose-1a-q2qp7 ~]$
+
+
+
+
+=====================================================
+4.2. Add an SSH key for worker machine access
+[xiwei-redhat.com@bastion ~]$  cat $HOME/.ssh/node.id_rsa.pub
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCeaSEO9+jNNDTWrudkWrpKmGmCHskc9PDijFOBm/tJHaEznuH1OyK9B3pp9SgxGhnOm8njrYqGiGOntNOWNilR9+lM2kRMiwq2U4jKFSVhTGXzCtSTbDkIFHIpOX/Tvf+wVfCzkg5ocVwTOOSvP0FP/zO2E7K7+RvakaTjFPO9HqDlsuOOReEG+hD13JpvU7tQ1yVaiSVOGfafXkazaXigFamtFUZUX9E2u96NTS2LPv4WxC4ijq6qO78DnODPFO68M9i5Limgyijguh2xMPyuQTv0fj6rjZ0Tp8P5ldTlJzke4qJFB3sAGWBwkvxuENwIHgynZvfJdTq9naZQnovL xiwei-redhat.com@bastion
+[xiwei-redhat.com@bastion ~]$ oc patch machineconfig 99-worker-ssh --type=json --patch="[{\"op\":\"add\", \"path\":\"/spec/config/passwd/users/0/sshAuthorizedKeys/-\", \"value\":\"$(cat $HOME/.ssh/node.id_rsa.pub)\"}]"
+machineconfig.machineconfiguration.openshift.io/99-worker-ssh patched
+Wait for the MachineConfig update to deploy. A short time after updating the worker configuration the machine config daemon will begin restarting the nodes in the cluster as part of the reconfiguration. It may take 15 minutes or more to cycle through the nodes. Your nodes will show SchedulingDisabled, NotReady and finally Ready. One after the other.
+
+[xiwei-redhat.com@bastion ~]$ watch oc get nodes
+[xiwei-redhat.com@bastion ~]$
+
+
+Replace the node-ssh secret you created earlier and rollout a new instance of the node-ssh Pod. The existing Pod won’t get the updated Secret if you do not redeploy the pod. Alternately, you can try to SSH directly from the bastion to one of the nodes using the new SSH key as well.
+
+Reset the node-ssh deployment to use the new key.
+$ oc delete secret node-ssh -n node-ssh
+
+$ oc create secret generic node-ssh --from-file=id_rsa=$HOME/.ssh/node.id_rsa -n node-ssh
+
+$ oc delete pod -l app=node-ssh -n node-ssh
+
+$ NODE_SSH_POD=$(oc get pod -l app=node-ssh -o jsonpath='{.items[0].metadata.name}' -n node-ssh)
+
+$ oc exec -it $NODE_SSH_POD -- ssh core@<your-node-IP>
+
+
+[xiwei-redhat.com@bastion ~]$   oc exec -it $NODE_SSH_POD -- ssh core@192.168.47.31
+The authenticity of host '192.168.47.31 (192.168.47.31)' can't be established.
+ECDSA key fingerprint is SHA256:wQ0NWz83yLjv0k6q4FOeJ3FMewnWN/Ru7ceRoUVbUlw.
+Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
+Failed to add the host to the list of known hosts (/.ssh/known_hosts).
+Red Hat Enterprise Linux CoreOS 45.82.202007171855-0
+  Part of OpenShift 4.5, RHCOS is a Kubernetes native operating system
+  managed by the Machine Config Operator (`clusteroperator/machine-config`).
+
+WARNING: Direct SSH access to machines is not recommended; instead,
+make configuration changes via `machineconfig` objects:
+  https://docs.openshift.com/container-platform/4.5/architecture/architecture-rhcos.html
+
+---
+[core@general-purpose-1a-v6xl6 ~]$

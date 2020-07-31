@@ -1,0 +1,1273 @@
+
+
+
+查看openshift-operators namespace中安装了什么？
+[centos@lb.weixinyucluster ~]$ oc get all -n openshift-operators
+NAME                                             READY   STATUS    RESTARTS   AGE
+pod/knative-eventing-operator-7cbfcb768f-d4tvw   1/1     Running   0          6d23h
+pod/knative-openshift-84b4c6f488-xqndk           1/1     Running   0          6d23h
+pod/knative-openshift-ingress-69745d745-dbq7w    1/1     Running   0          6d23h
+pod/knative-serving-operator-55ff9b55c8-tkbxx    1/1     Running   0          6d23h
+
+NAME                                TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)             AGE
+service/admission-server-service    ClusterIP   172.30.184.141   <none>        443/TCP             10d
+service/knative-openshift-metrics   ClusterIP   172.30.248.141   <none>        8383/TCP,8686/TCP   10d
+
+NAME                                        READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/knative-eventing-operator   1/1     1            1           10d
+deployment.apps/knative-openshift           1/1     1            1           10d
+deployment.apps/knative-openshift-ingress   1/1     1            1           10d
+deployment.apps/knative-serving-operator    1/1     1            1           10d
+
+NAME                                                   DESIRED   CURRENT   READY   AGE
+replicaset.apps/knative-eventing-operator-6f9d68fb97   0         0         0       10d
+replicaset.apps/knative-eventing-operator-7cbfcb768f   1         1         1       7d
+replicaset.apps/knative-openshift-5c9bb68df6           0         0         0       10d
+replicaset.apps/knative-openshift-84b4c6f488           1         1         1       7d
+replicaset.apps/knative-openshift-ingress-69745d745    1         1         1       7d
+replicaset.apps/knative-openshift-ingress-78fdb75566   0         0         0       10d
+replicaset.apps/knative-serving-operator-55ff9b55c8    1         1         1       7d
+replicaset.apps/knative-serving-operator-6f5799d575    0         0         0       10d
+
+
+
+查看Operator的Subscription
+[centos@lb.weixinyucluster ~]$ oc get subscription -n openshift-operators
+NAME                  PACKAGE               SOURCE             CHANNEL
+serverless-operator   serverless-operator   redhat-operators   4.5
+[centos@lb.weixinyucluster ~]$ oc get subscription serverless-operator  -o yaml -n openshift-operators
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  creationTimestamp: "2020-07-20T06:34:40Z"
+  generation: 1
+  managedFields:
+  - apiVersion: operators.coreos.com/v1alpha1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:spec:
+        .: {}
+        f:channel: {}
+        f:installPlanApproval: {}
+        f:name: {}
+        f:source: {}
+        f:sourceNamespace: {}
+        f:startingCSV: {}
+    manager: Mozilla
+    operation: Update
+    time: "2020-07-20T06:34:40Z"
+  - apiVersion: operators.coreos.com/v1alpha1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:spec:
+        f:config:
+          .: {}
+          f:resources: {}
+      f:status:
+        .: {}
+        f:catalogHealth: {}
+        f:conditions: {}
+        f:currentCSV: {}
+        f:installPlanGeneration: {}
+        f:installPlanRef:
+          .: {}
+          f:apiVersion: {}
+          f:kind: {}
+          f:name: {}
+          f:namespace: {}
+          f:resourceVersion: {}
+          f:uid: {}
+        f:installedCSV: {}
+        f:installplan:
+          .: {}
+          f:apiVersion: {}
+          f:kind: {}
+          f:name: {}
+          f:uuid: {}
+        f:lastUpdated: {}
+        f:state: {}
+    manager: catalog
+    operation: Update
+    time: "2020-07-24T02:03:44Z"
+  name: serverless-operator
+  namespace: openshift-operators
+  resourceVersion: "8293820"
+  selfLink: /apis/operators.coreos.com/v1alpha1/namespaces/openshift-operators/subscriptions/serverless-operator
+  uid: d6040164-2425-4ec2-917a-9de2d39a1937
+spec:
+  channel: "4.5"
+  installPlanApproval: Automatic
+  name: serverless-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  startingCSV: serverless-operator.v1.7.1
+status:
+  catalogHealth:
+  - catalogSourceRef:
+      apiVersion: operators.coreos.com/v1alpha1
+      kind: CatalogSource
+      name: certified-operators
+      namespace: openshift-marketplace
+      resourceVersion: "4305043"
+      uid: 2869e199-5dfa-4250-9d3a-567db09485d1
+    healthy: true
+    lastUpdated: "2020-07-20T06:34:42Z"
+  - catalogSourceRef:
+      apiVersion: operators.coreos.com/v1alpha1
+      kind: CatalogSource
+      name: community-operators
+      namespace: openshift-marketplace
+      resourceVersion: "4305041"
+      uid: 6e709e09-5add-4c19-a617-8777a669d20a
+    healthy: true
+    lastUpdated: "2020-07-20T06:34:42Z"
+  - catalogSourceRef:
+      apiVersion: operators.coreos.com/v1alpha1
+      kind: CatalogSource
+      name: redhat-marketplace
+      namespace: openshift-marketplace
+      resourceVersion: "4305040"
+      uid: 78f69f5d-ef52-4287-875d-3d20ed9c19cf
+    healthy: true
+    lastUpdated: "2020-07-20T06:34:42Z"
+  - catalogSourceRef:
+      apiVersion: operators.coreos.com/v1alpha1
+      kind: CatalogSource
+      name: redhat-operators
+      namespace: openshift-marketplace
+      resourceVersion: "4305042"
+      uid: 294a12ed-d43c-4b1c-9301-33c7d03ff648
+    healthy: true
+    lastUpdated: "2020-07-20T06:34:42Z"
+  conditions:
+  - lastTransitionTime: "2020-07-20T06:34:42Z"
+    message: all available catalogsources are healthy
+    reason: AllCatalogSourcesHealthy
+    status: "False"
+    type: CatalogSourcesUnhealthy
+  currentCSV: serverless-operator.v1.7.2
+  installPlanGeneration: 2
+  installPlanRef:
+    apiVersion: operators.coreos.com/v1alpha1
+    kind: InstallPlan
+    name: install-hv4t8
+    namespace: openshift-operators
+    resourceVersion: "8293323"
+    uid: 0571f629-291e-4c6d-8498-48f1fee85306
+  installedCSV: serverless-operator.v1.7.2
+  installplan:
+    apiVersion: operators.coreos.com/v1alpha1
+    kind: InstallPlan
+    name: install-hv4t8
+    uuid: 0571f629-291e-4c6d-8498-48f1fee85306
+  lastUpdated: "2020-07-24T02:03:43Z"
+  state: AtLatestKnown
+
+
+
+查看哪些Operators可用：
+[centos@lb.weixinyucluster ~]$ oc get packagemanifests -n openshift-marketplace
+NAME                                         CATALOG               AGE
+cert-manager-operator-rhmp                   Red Hat Marketplace   22d
+planetscale                                  Community Operators   22d
+openshiftartifactoryha-operator              Certified Operators   22d
+kube-arangodb                                Certified Operators   22d
+redhat-marketplace-operator                  Certified Operators   22d
+joget-openshift-operator-rhmp                Red Hat Marketplace   22d
+presto-operator                              Certified Operators   22d
+openshifttemplateservicebroker               Red Hat Operators     22d
+ibmcloud-iam-operator                        Community Operators   22d
+nexus-operator-m88i                          Community Operators   22d
+splunk                                       Community Operators   22d
+ibm-helm-api-operator-app                    Certified Operators   22d
+anchore-engine                               Certified Operators   22d
+microcks                                     Community Operators   22d
+horreum-operator                             Community Operators   22d
+yugabyte-operator                            Certified Operators   22d
+quay-bridge-operator                         Red Hat Operators     22d
+lightbend-console-operator                   Community Operators   22d
+jaeger                                       Community Operators   22d
+couchdb-operator-certified                   Certified Operators   22d
+open-enterprise-spinnaker                    Certified Operators   22d
+rapidbiz-operator-certified-rhmp             Red Hat Marketplace   22d
+ibm-block-csi-operator-community             Community Operators   22d
+infinispan                                   Community Operators   22d
+hspc-operator                                Certified Operators   22d
+amq7-interconnect-operator                   Red Hat Operators     22d
+cost-mgmt-operator                           Community Operators   22d
+opsmx-spinnaker-operator                     Community Operators   22d
+prisma-cloud-compute-console-operator        Community Operators   22d
+kong-offline-operator                        Certified Operators   22d
+storageos-10tb                               Certified Operators   22d
+openunison-ocp-certified                     Certified Operators   22d
+ibm-block-csi-operator                       Certified Operators   22d
+vertical-pod-autoscaler                      Red Hat Operators     22d
+fuse-apicurito                               Red Hat Operators     22d
+atlasmap-operator                            Community Operators   22d
+jenkins-operator                             Community Operators   22d
+fp-predict-plus-operator-certified           Certified Operators   22d
+ibm-mongodb-operator-app                     Certified Operators   22d
+triggermesh-operator                         Certified Operators   22d
+anaconda-team-edition-rhmp                   Red Hat Marketplace   22d
+k8s-triliovault-rhmp                         Red Hat Marketplace   22d
+traefikee-redhat-certified-rhmp              Red Hat Marketplace   22d
+postgresql-operator-dev4devs-com             Community Operators   22d
+hazelcast-jet-enterprise-operator            Certified Operators   22d
+rapidbiz-operator-certified                  Certified Operators   22d
+postgresql                                   Community Operators   22d
+hive-operator                                Community Operators   22d
+couchbase-enterprise-certified               Certified Operators   22d
+datadog-operator-certified                   Certified Operators   22d
+orca-rhmp                                    Red Hat Marketplace   22d
+businessautomation-operator                  Red Hat Operators     22d
+servicemeshoperator                          Red Hat Operators     22d
+apicast-community-operator                   Community Operators   22d
+metering                                     Community Operators   22d
+orca                                         Certified Operators   22d
+neuvector-certified-operator-rhmp            Red Hat Marketplace   22d
+ivory-server-app-rhmp                        Red Hat Marketplace   22d
+submariner                                   Community Operators   22d
+cortex-hub-operator                          Certified Operators   22d
+appdynamics-operator                         Certified Operators   22d
+f5-bigip-ctlr-operator                       Certified Operators   22d
+performance-addon-operator                   Red Hat Operators     22d
+federation                                   Community Operators   22d
+datadog-operator                             Community Operators   22d
+splunk-certified                             Certified Operators   22d
+nxrm-operator-certified-rhmp                 Red Hat Marketplace   22d
+oneagent-certified-rhmp                      Red Hat Marketplace   22d
+instana-agent                                Certified Operators   22d
+rocketchat-operator-certified                Certified Operators   22d
+infinibox-operator-certified                 Certified Operators   22d
+cluster-logging                              Red Hat Operators     22d
+amq-broker-lts                               Red Hat Operators     22d
+runtime-component-operator-certified         Certified Operators   22d
+wavefront-operator                           Certified Operators   22d
+appranix-cps                                 Certified Operators   22d
+openunison-ocp-certified-rhmp                Red Hat Marketplace   22d
+federatorai-certified-rhmp                   Red Hat Marketplace   22d
+uma-operator-rhmp                            Red Hat Marketplace   22d
+fuse-online                                  Red Hat Operators     22d
+nxrm-operator-certified                      Certified Operators   22d
+hyperfoil-bundle                             Community Operators   22d
+crossplane                                   Community Operators   22d
+portshift-operator-rhmp                      Red Hat Marketplace   22d
+ibm-block-csi-operator-rhmp                  Red Hat Marketplace   22d
+cluster-kube-descheduler-operator            Red Hat Operators     22d
+dv-operator                                  Red Hat Operators     22d
+serverless-operator                          Red Hat Operators     22d
+citrix-cpx-istio-sidecar-injector-operator   Certified Operators   22d
+cyberarmor-operator-certified-rhmp           Red Hat Marketplace   22d
+local-storage-operator                       Red Hat Operators     22d
+traefikee-operator                           Community Operators   22d
+ibm-helm-repo-operator-app                   Certified Operators   22d
+twistlock-certified                          Certified Operators   22d
+kubeturbo-certified                          Certified Operators   22d
+kong-offline-operator-rhmp                   Red Hat Marketplace   22d
+special-resource-operator                    Community Operators   22d
+konveyor-operator                            Community Operators   22d
+must-gather-operator                         Community Operators   22d
+linstor-operator                             Certified Operators   22d
+percona-server-mongodb-operator-certified    Certified Operators   22d
+clusterresourceoverride                      Red Hat Operators     22d
+apicurito                                    Community Operators   22d
+knative-camel-operator                       Community Operators   22d
+ditto-operator                               Community Operators   22d
+argocd-operator                              Community Operators   22d
+aci-containers-operator                      Certified Operators   22d
+ibm-platform-api-operator-app                Certified Operators   22d
+enterprise-operator-rhmp                     Red Hat Marketplace   22d
+grafana-operator                             Community Operators   22d
+perceptilabs-operator-package                Certified Operators   22d
+vfunction-server-operator-rhmp               Red Hat Marketplace   22d
+aws-ebs-csi-driver-operator                  Red Hat Operators     22d
+keycloak-operator                            Community Operators   22d
+amq7-cert-manager                            Red Hat Operators     22d
+ivory-server-app                             Certified Operators   22d
+timemachine-operator                         Certified Operators   22d
+portworx-certified                           Certified Operators   22d
+traefikee-redhat-certified                   Certified Operators   22d
+nxiq-operator-certified-rhmp                 Red Hat Marketplace   22d
+crunchy-postgres-operator-rhmp               Red Hat Marketplace   22d
+eap                                          Red Hat Operators     22d
+strimzi-kafka-operator                       Community Operators   22d
+atomicorp-helm-operator-certified            Certified Operators   22d
+kubemq-operator-marketplace                  Certified Operators   22d
+universalagent-operator-certified            Certified Operators   22d
+cortex-fabric-operator                       Certified Operators   22d
+t8c-certified                                Certified Operators   22d
+cpx-cic-operator-rhmp                        Red Hat Marketplace   22d
+aws-efs-operator                             Community Operators   22d
+planetscale-certified                        Certified Operators   22d
+kubemq-operator-marketplace-rhmp             Red Hat Marketplace   22d
+kubevirt-hyperconverged                      Red Hat Operators     22d
+iot-simulator                                Community Operators   22d
+maistraoperator                              Community Operators   22d
+cass-operator                                Certified Operators   22d
+openshift-pipelines-operator-rh              Red Hat Operators     22d
+aqua                                         Community Operators   22d
+etcd                                         Community Operators   22d
+seldon-operator                              Community Operators   22d
+couchbase-enterprise-certified-rhmp          Red Hat Marketplace   22d
+sriov-network-operator                       Red Hat Operators     22d
+composable-operator                          Community Operators   22d
+dell-csi-operator                            Community Operators   22d
+ibm-monitoring-grafana-operator-app          Certified Operators   22d
+cnvrg-operator-certifyed-rhmp                Red Hat Marketplace   22d
+ibm-spectrum-scale-csi-operator              Community Operators   22d
+prometheus-exporter-operator                 Community Operators   22d
+kubefed                                      Community Operators   22d
+storageos                                    Certified Operators   22d
+hazelcast-jet-enterprise-operator-rhmp       Red Hat Marketplace   22d
+xcrypt-operator-rhmp                         Red Hat Marketplace   22d
+amq-online                                   Red Hat Operators     22d
+codeready-toolchain-operator                 Community Operators   22d
+cortex-operator                              Certified Operators   22d
+open-liberty-certified                       Certified Operators   22d
+jaeger-product                               Red Hat Operators     22d
+descheduler                                  Community Operators   22d
+node-problem-detector                        Community Operators   22d
+knative-kafka-operator                       Community Operators   22d
+namespace-configuration-operator             Community Operators   22d
+service-binding-operator                     Community Operators   22d
+crunchy-postgres-operator                    Certified Operators   22d
+citrix-adc-istio-ingress-gateway-operator    Certified Operators   22d
+sysdig-certified                             Certified Operators   22d
+nuodb-ce-certified                           Certified Operators   22d
+vprotect-operator-rhmp                       Red Hat Marketplace   22d
+cass-operator-rhmp                           Red Hat Marketplace   22d
+openshiftansibleservicebroker                Red Hat Operators     22d
+snapscheduler                                Community Operators   22d
+t8c                                          Community Operators   22d
+cockroachdb                                  Community Operators   22d
+kubemq-operator                              Certified Operators   22d
+resource-locker-operator                     Community Operators   22d
+keda                                         Community Operators   22d
+alcide-kaudit-operator                       Certified Operators   22d
+container-security-operator                  Red Hat Operators     22d
+hazelcast-operator                           Community Operators   22d
+codeready-workspaces                         Red Hat Operators     22d
+storageos-1tb                                Certified Operators   22d
+zabbix-operator-certified                    Certified Operators   22d
+kubeturbo-marketplace-certified              Certified Operators   22d
+hpe-csi-operator                             Certified Operators   22d
+here-service-operator-certified              Certified Operators   22d
+eddi-operator-certified                      Certified Operators   22d
+instana-agent-rhmp                           Red Hat Marketplace   22d
+3scale-operator                              Red Hat Operators     22d
+keepalived-operator                          Community Operators   22d
+ember-csi-operator                           Community Operators   22d
+aqua-certified                               Certified Operators   22d
+mongodb-enterprise                           Certified Operators   22d
+esindex-operator                             Community Operators   22d
+nfd                                          Red Hat Operators     22d
+gpu-operator-certified                       Certified Operators   22d
+cockroachdb-certified                        Certified Operators   22d
+transform-adv-operator                       Certified Operators   22d
+vprotect-operator                            Certified Operators   22d
+cyberarmor-operator-certified                Certified Operators   22d
+joget-dx-operator-rhmp                       Red Hat Marketplace   22d
+seldon-operator-certified-rhmp               Red Hat Marketplace   22d
+hawtio-operator                              Community Operators   22d
+event-streams-topic                          Community Operators   22d
+syndesis                                     Community Operators   22d
+group-sync-operator                          Community Operators   22d
+portshift-operator                           Certified Operators   22d
+gitlab-operator                              Certified Operators   22d
+apicurio-registry                            Community Operators   22d
+ripsaw                                       Community Operators   22d
+kiali                                        Community Operators   22d
+cic-operator                                 Certified Operators   22d
+ubix-operator                                Certified Operators   22d
+kong                                         Certified Operators   22d
+percona-xtradb-cluster-operator-certified    Certified Operators   22d
+cortex-certifai-operator                     Certified Operators   22d
+neuvector-community-operator                 Community Operators   22d
+ibm-spectrum-scale-csi                       Certified Operators   22d
+neuvector-certified-operator                 Certified Operators   22d
+openshiftxray-operator                       Certified Operators   22d
+vfunction-server-operator                    Certified Operators   22d
+linstor-operator-rhmp                        Red Hat Marketplace   22d
+redis-operator                               Community Operators   22d
+awss3-operator-registry                      Community Operators   22d
+multicluster-operators-subscription          Community Operators   22d
+dotscience-operator                          Certified Operators   22d
+uma-operator                                 Certified Operators   22d
+storageos-rhmp                               Red Hat Marketplace   22d
+eunomia                                      Community Operators   22d
+ibmcloud-operator                            Community Operators   22d
+fp-predict-plus-operator-certified-rhmp      Red Hat Marketplace   22d
+advanced-cluster-management                  Red Hat Operators     22d
+amq-streams                                  Red Hat Operators     22d
+starter-kit-operator                         Community Operators   22d
+k8s-triliovault                              Certified Operators   22d
+open-enterprise-spinnaker-rhmp               Red Hat Marketplace   22d
+appranix-cps-rhmp                            Red Hat Marketplace   22d
+elasticsearch-operator                       Red Hat Operators     22d
+podium-operator-bundle                       Community Operators   22d
+nsm-operator-registry                        Community Operators   22d
+driverlessai-deployment-operator-certified   Certified Operators   22d
+xcrypt-operator                              Certified Operators   22d
+skydive-operator                             Community Operators   22d
+redis-enterprise-operator-cert               Certified Operators   22d
+ibm-licensing-operator-app                   Certified Operators   22d
+synopsys-certified                           Certified Operators   22d
+opendatahub-operator                         Community Operators   22d
+joget-openshift-operator                     Certified Operators   22d
+robin-operator-rhmp                          Red Hat Marketplace   22d
+memql-certified-rhmp                         Red Hat Marketplace   22d
+zabbix-operator-certified-rhmp               Red Hat Marketplace   22d
+ibm-auditlogging-operator-app                Certified Operators   22d
+cortex-fabric-operator-rhmp                  Red Hat Marketplace   22d
+quay-operator                                Red Hat Operators     22d
+cortex-healthcare-hub-operator               Certified Operators   22d
+ibm-spectrum-symphony-operator               Certified Operators   22d
+myvirtualdirectory                           Community Operators   22d
+microsegmentation-operator                   Community Operators   22d
+camel-k                                      Community Operators   22d
+ocean-operator                               Certified Operators   22d
+aqua-operator-certified-rhmp                 Red Hat Marketplace   22d
+presto-operator-rhmp                         Red Hat Marketplace   22d
+node-red-operator-certified-rhmp             Red Hat Marketplace   22d
+rhsso-operator                               Red Hat Operators     22d
+ocs-operator                                 Red Hat Operators     22d
+sealed-secrets-operator-helm                 Community Operators   22d
+akka-cluster-operator-certified              Certified Operators   22d
+service-registry-operator                    Red Hat Operators     22d
+hazelcast-jet-operator                       Community Operators   22d
+egressip-ipam-operator                       Community Operators   22d
+api-operator                                 Community Operators   22d
+wso2am-operator                              Community Operators   22d
+falco-certified                              Certified Operators   22d
+hazelcast-enterprise-certified               Certified Operators   22d
+traefikee-certified                          Certified Operators   22d
+kubeturbo-certified-rhmp                     Red Hat Marketplace   22d
+apicast-operator                             Red Hat Operators     22d
+manila-csi-driver-operator                   Red Hat Operators     22d
+ham-deploy                                   Community Operators   22d
+sematext                                     Certified Operators   22d
+federatorai-certified                        Certified Operators   22d
+joget-dx-operator                            Certified Operators   22d
+atomicorp-helm-operator-certified-rhmp       Red Hat Marketplace   22d
+insightedge-enterprise-operator2-rhmp        Red Hat Marketplace   22d
+kiali-ossm                                   Red Hat Operators     22d
+ptp-operator                                 Red Hat Operators     22d
+cockroachdb-certified-rhmp                   Red Hat Marketplace   22d
+timemachine-operator-rhmp                    Red Hat Marketplace   22d
+hazelcast-enterprise-certified-rhmp          Red Hat Marketplace   22d
+eddi-operator-certified-rhmp                 Red Hat Marketplace   22d
+spark-gcp                                    Community Operators   22d
+buildv2-operator                             Community Operators   22d
+openshift-pipelines-operator                 Community Operators   22d
+cnvrg-operator                               Certified Operators   22d
+cic-operator-with-crds                       Certified Operators   22d
+anaconda-team-edition                        Certified Operators   22d
+transadv-operator                            Certified Operators   22d
+cic-operator-with-crds-rhmp                  Red Hat Marketplace   22d
+cert-utils-operator                          Community Operators   22d
+federatorai                                  Community Operators   22d
+radanalytics-spark                           Community Operators   22d
+amq-broker-rhel8                             Red Hat Operators     22d
+pystol                                       Community Operators   22d
+spinnaker-operator                           Community Operators   22d
+percona-server-mongodb-operator              Community Operators   22d
+datagrid                                     Red Hat Operators     22d
+cih-operator-certified                       Certified Operators   22d
+nginx-ingress-operator                       Certified Operators   22d
+node-red-operator-certified                  Certified Operators   22d
+robin-operator                               Certified Operators   22d
+ibm-management-ingress-operator-app          Certified Operators   22d
+akka-cluster-operator-certified-rhmp         Red Hat Marketplace   22d
+perceptilabs-operator-package-rhmp           Red Hat Marketplace   22d
+metering-ocp                                 Red Hat Operators     22d
+sysflow-operator                             Community Operators   22d
+enmasse                                      Community Operators   22d
+insightedge-enterprise-operator2             Certified Operators   22d
+nxiq-operator-certified                      Certified Operators   22d
+memql-certified                              Certified Operators   22d
+snyk-operator                                Community Operators   22d
+appsody-operator-certified                   Certified Operators   22d
+seldon-operator-certified                    Certified Operators   22d
+argocd-operator-helm                         Community Operators   22d
+lib-bucket-provisioner                       Community Operators   22d
+here-service-operator-certified-rhmp         Red Hat Marketplace   22d
+cam-operator                                 Red Hat Operators     22d
+akka-cluster-operator                        Community Operators   22d
+eclipse-che                                  Community Operators   22d
+aqua-operator-certified                      Certified Operators   22d
+tigera-operator                              Certified Operators   22d
+sysdig-certified-rhmp                        Red Hat Marketplace   22d
+cortex-certifai-operator-rhmp                Red Hat Marketplace   22d
+amq-broker                                   Red Hat Operators     22d
+3scale-community-operator                    Community Operators   22d
+cpx-cic-operator                             Certified Operators   22d
+newrelic-infrastructure                      Certified Operators   22d
+cert-manager-operator                        Certified Operators   22d
+oneagent-certified                           Certified Operators   22d
+kubernetes-imagepuller-operator              Community Operators   22d
+prometheus                                   Community Operators   22d
+tidb-operator-certified                      Certified Operators   22d
+percona-xtradb-cluster-operator              Community Operators   22d
+kubeturbo                                    Community Operators   22d
+kubestone                                    Community Operators   22d
+red-hat-camel-k                              Red Hat Operators     22d
+teiid                                        Community Operators   22d
+openebs                                      Community Operators   22d
+kogito-operator                              Community Operators   22d
+
+
+
+Red Hat Operators: Red Hat products packaged and shipped by Red Hat. Supported by Red Hat.
+
+Certified Operators: Products from leading independent software vendors (ISVs). Red Hat partners with ISVs to package and ship. Supported by the ISV.
+
+Community Operators: Optionally-visible software maintained by relevant representatives in the operator-framework/community-operators GitHub repository. No official support.
+
+Plus, there might be Custom Operators that you add to the cluster yourself.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+============================================================================================
+安装node Feature Discovery Operator
+[centos@lb.weixinyucluster ~]$  oc describe packagemanifests nfd -n openshift-marketplace
+Name:         nfd
+Namespace:    openshift-marketplace
+Labels:       catalog=redhat-operators
+              catalog-namespace=openshift-marketplace
+              olm-visibility=hidden
+              openshift-marketplace=true
+              operatorframework.io/arch.amd64=supported
+              operatorframework.io/os.linux=supported
+              opsrc-datastore=true
+              opsrc-owner-name=redhat-operators
+              opsrc-owner-namespace=openshift-marketplace
+              opsrc-provider=redhat
+              provider=Red Hat
+              provider-url=
+Annotations:  <none>
+API Version:  packages.operators.coreos.com/v1
+Kind:         PackageManifest
+Metadata:
+  Creation Timestamp:  2020-07-08T03:22:17Z
+  Self Link:           /apis/packages.operators.coreos.com/v1/namespaces/openshift-marketplace/packagemanifests/nfd
+Spec:
+Status:
+  Catalog Source:               redhat-operators
+  Catalog Source Display Name:  Red Hat Operators
+  Catalog Source Namespace:     openshift-marketplace
+  Catalog Source Publisher:     Red Hat
+  Channels:
+    Current CSV:  nfd.4.2.36-202006230600.p0
+    Current CSV Desc:
+      Annotations:
+        Alm - Examples:  [
+  {
+    "apiVersion": "nfd.openshift.io/v1alpha1",
+    "kind": "NodeFeatureDiscovery",
+    "metadata": {
+      "name": "nfd-master-server"
+    },
+    "spec": {
+      "namespace": "openshift-nfd"
+    }
+  }
+]
+        Capabilities:     Basic Install
+        Categories:       Database
+        Certified:        false
+        Container Image:
+        Created At:       2019-05-30T00:00:00Z
+        Description:      This software enables node feature discovery for Kubernetes. It detects hardware features available on each node in a Kubernetes cluster, and advertises those features using node labels.
+        Provider:         Red Hat
+        Repository:       https://github.com/openshift/cluster-nfd-operator
+        Support:          Red Hat
+      Apiservicedefinitions:
+      Customresourcedefinitions:
+        Owned:
+          Description:  The NFD operator creates and maintains the Node Feature Discovery (NFD) on Kubernetes.
+It detects hardware features available on each node in a Kubernetes cluster, and advertises those features using node labels.
+
+          Display Name:  Node Feature Discovery
+          Kind:          NodeFeatureDiscovery
+          Name:          nodefeaturediscoveries.nfd.openshift.io
+          Version:       v1alpha1
+      Description:       The NFD operator creates and maintiains the Node Feature Discovery (NFD) on Kubernetes.
+It detects hardware features available on each node in a Kubernetes cluster, and advertises those features using node labels.
+
+      Display Name:  Node Feature Discovery
+      Install Modes:
+        Supported:  true
+        Type:       OwnNamespace
+        Supported:  true
+        Type:       SingleNamespace
+        Supported:  false
+        Type:       MultiNamespace
+        Supported:  true
+        Type:       AllNamespaces
+      Links:
+        Name:  Documentation operator
+        URL:   https://github.com/openshift/cluster-nfd-operator
+        Name:  Documentation operand
+        URL:   https://github.com/openshift/node-feature-discovery
+      Maintainers:
+        Email:   openshift-psap@redhat.com
+        Name:    Red Hat
+      Maturity:  alpha
+      Provider:
+        Name:  Red Hat
+      Related Images:
+        registry.redhat.io/openshift4/ose-node-feature-discovery@sha256:98184c2459a3c6489968eab361094c5651381902e026e07dd64eded8e01315c7
+        registry.redhat.io/openshift4/ose-cluster-nfd-operator@sha256:34c5bce0197f60f5e925d3a60666e3e0921336b8f973250af027f058eafc39f6
+      Version:    4.2.0
+    Name:         4.2
+    Current CSV:  nfd.4.2.36-202006230600.p0-s390x
+    Current CSV Desc:
+      Annotations:
+        Alm - Examples:  [
+  {
+    "apiVersion": "nfd.openshift.io/v1alpha1",
+    "kind": "NodeFeatureDiscovery",
+    "metadata": {
+      "name": "nfd-master-server"
+    },
+    "spec": {
+      "namespace": "openshift-nfd"
+    }
+  }
+]
+        Capabilities:     Basic Install
+        Categories:       Database
+        Certified:        false
+        Container Image:
+        Created At:       2019-05-30T00:00:00Z
+        Description:      This software enables node feature discovery for Kubernetes. It detects hardware features available on each node in a Kubernetes cluster, and advertises those features using node labels.
+        Provider:         Red Hat
+        Repository:       https://github.com/openshift/cluster-nfd-operator
+        Support:          Red Hat
+      Apiservicedefinitions:
+      Customresourcedefinitions:
+        Owned:
+          Description:  The NFD operator creates and maintains the Node Feature Discovery (NFD) on Kubernetes.
+It detects hardware features available on each node in a Kubernetes cluster, and advertises those features using node labels.
+
+          Display Name:  Node Feature Discovery
+          Kind:          NodeFeatureDiscovery
+          Name:          nodefeaturediscoveries.nfd.openshift.io
+          Version:       v1alpha1
+      Description:       The NFD operator creates and maintiains the Node Feature Discovery (NFD) on Kubernetes.
+It detects hardware features available on each node in a Kubernetes cluster, and advertises those features using node labels.
+
+      Display Name:  Node Feature Discovery
+      Install Modes:
+        Supported:  true
+        Type:       OwnNamespace
+        Supported:  true
+        Type:       SingleNamespace
+        Supported:  false
+        Type:       MultiNamespace
+        Supported:  true
+        Type:       AllNamespaces
+      Links:
+        Name:  Documentation operator
+        URL:   https://github.com/openshift/cluster-nfd-operator
+        Name:  Documentation operand
+        URL:   https://github.com/openshift/node-feature-discovery
+      Maintainers:
+        Email:   openshift-psap@redhat.com
+        Name:    Red Hat
+      Maturity:  alpha
+      Provider:
+        Name:  Red Hat
+      Related Images:
+        registry.redhat.io/openshift4/ose-node-feature-discovery@sha256:8e6320f1f264eb7d69e2c98186e38189af39086e32d8f0a7adabefd865100a24
+        registry.redhat.io/openshift4/ose-cluster-nfd-operator@sha256:1f93a77abdb5b147826b86e51c08a45d99c01ec0470a0611e7f53ec134b62ae9
+      Version:    4.2.0
+    Name:         4.2-s390x
+    Current CSV:  nfd.4.3.29-202007061006.p0
+    Current CSV Desc:
+      Annotations:
+        Alm - Examples:  [
+  {
+    "apiVersion": "nfd.openshift.io/v1alpha1",
+    "kind": "NodeFeatureDiscovery",
+    "metadata": {
+      "name": "nfd-master-server"
+    },
+    "spec": {
+      "namespace": "openshift-nfd"
+    }
+  }
+]
+        Capabilities:     Basic Install
+        Categories:       Database
+        Certified:        false
+        Container Image:
+        Created At:       2019-05-30T00:00:00Z
+        Description:      This software enables node feature discovery for Kubernetes. It detects hardware features available on each node in a Kubernetes cluster, and advertises those features using node labels.
+        Provider:         Red Hat
+        Repository:       https://github.com/openshift/cluster-nfd-operator
+        Support:          Red Hat
+      Apiservicedefinitions:
+      Customresourcedefinitions:
+        Owned:
+          Description:  The NFD operator creates and maintains the Node Feature Discovery (NFD) on Kubernetes.
+It detects hardware features available on each node in a Kubernetes cluster, and advertises those features using node labels.
+
+          Display Name:  Node Feature Discovery
+          Kind:          NodeFeatureDiscovery
+          Name:          nodefeaturediscoveries.nfd.openshift.io
+          Version:       v1alpha1
+      Description:       The NFD operator creates and maintiains the Node Feature Discovery (NFD) on Kubernetes.
+It detects hardware features available on each node in a Kubernetes cluster, and advertises those features using node labels.
+
+      Display Name:  Node Feature Discovery
+      Install Modes:
+        Supported:  true
+        Type:       OwnNamespace
+        Supported:  true
+        Type:       SingleNamespace
+        Supported:  false
+        Type:       MultiNamespace
+        Supported:  true
+        Type:       AllNamespaces
+      Links:
+        Name:  Documentation operator
+        URL:   https://github.com/openshift/cluster-nfd-operator
+        Name:  Documentation operand
+        URL:   https://github.com/openshift/node-feature-discovery
+      Maintainers:
+        Email:   openshift-psap@redhat.com
+        Name:    Red Hat
+      Maturity:  alpha
+      Provider:
+        Name:  Red Hat
+      Related Images:
+        registry.redhat.io/openshift4/ose-cluster-nfd-operator@sha256:8d2d30af3aaec9c783dc1f6adfcd8797c8aaf9ec7660f0271de87a5f7b0b692e
+        registry.redhat.io/openshift4/ose-node-feature-discovery@sha256:8a3b891fc46a4a9fbfcdc5ff4be86cc14279a41c573637f6d5de84f8119d3189
+      Version:    4.3.0
+    Name:         4.3
+    Current CSV:  nfd.4.4.0-202007171809.p0
+    Current CSV Desc:
+      Annotations:
+        Alm - Examples:  [
+  {
+    "apiVersion": "nfd.openshift.io/v1alpha1",
+    "kind": "NodeFeatureDiscovery",
+    "metadata": {
+      "name": "nfd-master-server"
+    },
+    "spec": {
+      "namespace": "openshift-nfd"
+    }
+  }
+]
+        Capabilities:     Basic Install
+        Categories:       Database
+        Certified:        false
+        Container Image:
+        Created At:       2019-05-30T00:00:00Z
+        Description:      This software enables node feature discovery for Kubernetes. It detects hardware features available on each node in a Kubernetes cluster, and advertises those features using node labels.
+        olm.skipRange:    >=4.1.0 <4.5.0
+        Provider:         Red Hat
+        Repository:       https://github.com/openshift/cluster-nfd-operator
+        Support:          Red Hat
+      Apiservicedefinitions:
+      Customresourcedefinitions:
+        Owned:
+          Description:  The NFD operator creates and maintains the Node Feature Discovery (NFD) on Kubernetes.
+It detects hardware features available on each node in a Kubernetes cluster, and advertises those features using node labels.
+
+          Display Name:  Node Feature Discovery
+          Kind:          NodeFeatureDiscovery
+          Name:          nodefeaturediscoveries.nfd.openshift.io
+          Version:       v1alpha1
+      Description:       The NFD operator creates and maintains the Node Feature Discovery (NFD) on Kubernetes.
+It detects hardware features available on each node in a Kubernetes cluster, and advertises those features using node labels.
+
+      Display Name:  Node Feature Discovery
+      Install Modes:
+        Supported:  true
+        Type:       OwnNamespace
+        Supported:  true
+        Type:       SingleNamespace
+        Supported:  false
+        Type:       MultiNamespace
+        Supported:  true
+        Type:       AllNamespaces
+      Links:
+        Name:  Documentation operator
+        URL:   https://github.com/openshift/cluster-nfd-operator
+        Name:  Documentation operand
+        URL:   https://github.com/openshift/node-feature-discovery
+      Maintainers:
+        Email:           openshift-psap@redhat.com
+        Name:            Red Hat
+      Maturity:          alpha
+      Min Kube Version:  1.17.0
+      Provider:
+        Name:  Red Hat
+      Related Images:
+        registry.redhat.io/openshift4/ose-node-feature-discovery@sha256:d407b1e5294e1fce21a40e8d976bb62b0de087ab43365c81a3c6950546ce5be2
+        registry.redhat.io/openshift4/ose-cluster-nfd-operator@sha256:79876b63b4adab927562fa2039bbd7c1aeb53f929b63f91482be619aa172e19c
+      Version:    4.4.0
+    Name:         4.4
+    Current CSV:  nfd.4.5.0-202007172106.p0
+    Current CSV Desc:
+      Annotations:
+        Alm - Examples:  [
+  {
+    "apiVersion": "nfd.openshift.io/v1alpha1",
+    "kind": "NodeFeatureDiscovery",
+    "metadata": {
+      "name": "nfd-master-server"
+    },
+    "spec": {
+      "namespace": "openshift-nfd"
+    }
+  }
+]
+        Capabilities:     Basic Install
+        Categories:       Database
+        Certified:        false
+        Container Image:
+        Created At:       2019-05-30T00:00:00Z
+        Description:      This software enables node feature discovery for Kubernetes. It detects hardware features available on each node in a Kubernetes cluster, and advertises those features using node labels.
+        olm.skipRange:    >=4.1.0 <4.6.0
+        Provider:         Red Hat
+        Repository:       https://github.com/openshift/cluster-nfd-operator
+        Support:          Red Hat
+      Apiservicedefinitions:
+      Customresourcedefinitions:
+        Owned:
+          Description:  The NFD operator creates and maintains the Node Feature Discovery (NFD) on Kubernetes.
+It detects hardware features available on each node in a Kubernetes cluster, and advertises those features using node labels.
+
+          Display Name:  Node Feature Discovery
+          Kind:          NodeFeatureDiscovery
+          Name:          nodefeaturediscoveries.nfd.openshift.io
+          Version:       v1alpha1
+      Description:       The NFD operator creates and maintains the Node Feature Discovery (NFD) on Kubernetes.
+It detects hardware features available on each node in a Kubernetes cluster, and advertises those features using node labels.
+
+      Display Name:  Node Feature Discovery
+      Install Modes:
+        Supported:  true
+        Type:       OwnNamespace
+        Supported:  true
+        Type:       SingleNamespace
+        Supported:  false
+        Type:       MultiNamespace
+        Supported:  true
+        Type:       AllNamespaces
+      Links:
+        Name:  Documentation operator
+        URL:   https://github.com/openshift/cluster-nfd-operator
+        Name:  Documentation operand
+        URL:   https://github.com/openshift/node-feature-discovery
+      Maintainers:
+        Email:           openshift-psap@redhat.com
+        Name:            Red Hat
+      Maturity:          alpha
+      Min Kube Version:  1.17.0
+      Provider:
+        Name:  Red Hat
+      Related Images:
+        registry.redhat.io/openshift4/ose-cluster-nfd-operator@sha256:a2149c0ec74b0a19ce8b4e557219f9753415aab4c0741a492451a11cff67b636
+        registry.redhat.io/openshift4/ose-node-feature-discovery@sha256:673ba5fe6859f330b1cd96deff69e3f01e4a49bb62e7e254e70c19ae71720655
+      Version:      4.5.0
+    Name:           4.5
+  Default Channel:  4.5
+  Package Name:     nfd
+  Provider:
+    Name:  Red Hat
+Events:    <none>
+[centos@lb.weixinyucluster ~]$ vi 5.yaml
+[centos@lb.weixinyucluster ~]$ vi 5.yaml
+[centos@lb.weixinyucluster ~]$ cat 5.yaml
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: nfd
+  namespace: openshift-operators
+spec:
+  channel: "4.5"
+  installPlanApproval: Automatic
+  name: nfd
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+[centos@lb.weixinyucluster ~]$  oc apply -f nfd-sub.yaml
+error: the path "nfd-sub.yaml" does not exist
+[centos@lb.weixinyucluster ~]$  oc apply -f 5.yaml
+subscription.operators.coreos.com/nfd created
+[centos@lb.weixinyucluster ~]$  oc get pods -n openshift-operators
+NAME                                         READY   STATUS              RESTARTS   AGE
+knative-eventing-operator-7cbfcb768f-d4tvw   1/1     Running             0          6d23h
+knative-openshift-84b4c6f488-xqndk           1/1     Running             0          6d23h
+knative-openshift-ingress-69745d745-dbq7w    1/1     Running             0          6d23h
+knative-serving-operator-55ff9b55c8-tkbxx    1/1     Running             0          6d23h
+nfd-operator-757c49674-g8fpv                 0/1     ContainerCreating   0          3s
+[centos@lb.weixinyucluster ~]$ vi nfd-resource.yaml
+[centos@lb.weixinyucluster ~]$ oc apply -f nfd-resource.yaml
+Error from server (NotFound): error when creating "nfd-resource.yaml": namespaces "openshift-nfd" not found
+[centos@lb.weixinyucluster ~]$ cat nfd-resource.yaml
+apiVersion: nfd.openshift.io/v1alpha1
+kind: NodeFeatureDiscovery
+metadata:
+  name: nfd-master-server
+  namespace: openshift-nfd
+spec: {}
+[centos@lb.weixinyucluster ~]$ oc new-project openshift-nfd
+Error from server (Forbidden): project.project.openshift.io "openshift-nfd" is forbidden: cannot request a project starting with "openshift-"
+[centos@lb.weixinyucluster ~]$ oc create ns openshift-nfd
+namespace/openshift-nfd created
+[centos@lb.weixinyucluster ~]$ oc apply -f nfd-resource.yaml
+nodefeaturediscovery.nfd.openshift.io/nfd-master-server created
+[centos@lb.weixinyucluster ~]$  oc get all -n openshift-nfd
+
+NAME                   READY   STATUS              RESTARTS   AGE
+pod/nfd-master-77wz7   0/1     ContainerCreating   0          10s
+pod/nfd-master-9tvr6   0/1     ContainerCreating   0          10s
+pod/nfd-master-v2ggl   1/1     Running             0          10s
+pod/nfd-worker-dd9pj   1/1     Running             0          9s
+pod/nfd-worker-r4mmk   1/1     Running             0          10s
+pod/nfd-worker-z2h6v   0/1     Error               0          9s
+
+NAME                 TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)     AGE
+service/nfd-master   ClusterIP   172.30.78.80   <none>        12000/TCP   10s
+
+NAME                        DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR                     AGE
+daemonset.apps/nfd-master   3         3         1       3            1           node-role.kubernetes.io/master=   10s
+daemonset.apps/nfd-worker   3         3         2       3            2           node-role.kubernetes.io/worker=   10s
+
+================================================================================
+探索ClusterServiceVersions
+查看 NodeFeatureDiscovery operator的csv
+[centos@lb.weixinyucluster ~]$  oc get csv
+NAME                         DISPLAY                         VERSION   REPLACES                     PHASE
+nfd.4.5.0-202007172106.p0    Node Feature Discovery          4.5.0                                  Succeeded
+serverless-operator.v1.7.2   OpenShift Serverless Operator   1.7.2     serverless-operator.v1.7.1   Succeeded
+
+查看所有ns的csv
+[centos@lb.weixinyucluster ~]$ oc get csv -A
+NAMESPACE                                          NAME                                      DISPLAY                                  VERSION   REPLACES                                  PHASE
+default                                            nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+default                                            serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+group-sync-operator                                group-sync-operator.v0.0.2                Group Sync Operator                      0.0.2                                               Succeeded
+group-sync-operator                                nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+group-sync-operator                                serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+keycloak-operator                                  keycloak-operator.v11.0.0                 Keycloak Operator                        11.0.0    keycloak-operator.v10.0.0                 Succeeded
+keycloak-operator                                  nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+keycloak-operator                                  serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+knative-eventing                                   nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+knative-eventing                                   serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+knative-serving-ingress                            nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+knative-serving-ingress                            serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+knative-serving                                    nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+knative-serving                                    serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+kube-node-lease                                    nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+kube-node-lease                                    serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+kube-public                                        nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+kube-public                                        serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+kube-system                                        nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+kube-system                                        serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+ldap                                               nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+ldap                                               serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+myapp-database                                     nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+myapp-database                                     serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+namespace-configuration-operator                   namespace-configuration-operator.v0.2.1   Namespace Configuration Operator         0.2.1     namespace-configuration-operator.v0.2.0   Succeeded
+namespace-configuration-operator                   nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+namespace-configuration-operator                   serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-apiserver-operator                       nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-apiserver-operator                       serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-apiserver                                nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-apiserver                                serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-authentication-operator                  nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-authentication-operator                  serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-authentication                           nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-authentication                           serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-cloud-credential-operator                nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-cloud-credential-operator                serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-cluster-machine-approver                 nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-cluster-machine-approver                 serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-cluster-node-tuning-operator             nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-cluster-node-tuning-operator             serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-cluster-samples-operator                 nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-cluster-samples-operator                 serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-cluster-storage-operator                 nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-cluster-storage-operator                 serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-cluster-version                          nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-cluster-version                          serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-config-managed                           nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-config-managed                           serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-config-operator                          nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-config-operator                          serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-config                                   nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-config                                   serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-console-operator                         nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-console-operator                         serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-console                                  nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-console                                  serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-controller-manager-operator              nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-controller-manager-operator              serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-controller-manager                       nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-controller-manager                       serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-dns-operator                             nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-dns-operator                             serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-dns                                      nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-dns                                      serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-etcd-backup                              nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-etcd-backup                              serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-etcd-operator                            nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-etcd-operator                            serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-etcd                                     nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-etcd                                     serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-image-registry                           nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-image-registry                           serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-infra                                    nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-infra                                    serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-ingress-operator                         nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-ingress-operator                         serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-ingress                                  nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-ingress                                  serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-insights                                 nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-insights                                 serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-kni-infra                                nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-kni-infra                                serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-kube-apiserver-operator                  nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-kube-apiserver-operator                  serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-kube-apiserver                           nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-kube-apiserver                           serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-kube-controller-manager-operator         nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-kube-controller-manager-operator         serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-kube-controller-manager                  nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-kube-controller-manager                  serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-kube-scheduler-operator                  nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-kube-scheduler-operator                  serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-kube-scheduler                           nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-kube-scheduler                           serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-kube-storage-version-migrator-operator   nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-kube-storage-version-migrator-operator   serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-kube-storage-version-migrator            nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-kube-storage-version-migrator            serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-machine-api                              nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-machine-api                              serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-machine-config-operator                  nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-machine-config-operator                  serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-marketplace                              nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-marketplace                              serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-migration                                cam-operator.v1.2.3                       Cluster Application Migration Operator   1.2.3                                               Succeeded
+openshift-migration                                nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-migration                                serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-monitoring                               nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-monitoring                               serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-multus                                   nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-multus                                   serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-network-operator                         nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-network-operator                         serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-nfd                                      nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-nfd                                      serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-node                                     nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-node                                     serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-openstack-infra                          nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-openstack-infra                          serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-operator-lifecycle-manager               nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-operator-lifecycle-manager               packageserver                             Package Server                           0.15.1                                              Succeeded
+openshift-operator-lifecycle-manager               serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-operators                                nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-operators                                serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-ovirt-infra                              nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-ovirt-infra                              serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-sdn                                      nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-sdn                                      serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-service-ca-operator                      nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-service-ca-operator                      serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-service-ca                               nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-service-ca                               serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-service-catalog-removed                  nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-service-catalog-removed                  serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-user-workload-monitoring                 nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-user-workload-monitoring                 serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift-vsphere-infra                            nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift-vsphere-infra                            serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+openshift                                          nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+openshift                                          serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+test123                                            nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+test123                                            serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+web                                                nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+web                                                serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+web1                                               nfd.4.5.0-202007172106.p0                 Node Feature Discovery                   4.5.0                                               Succeeded
+web1                                               serverless-operator.v1.7.2                OpenShift Serverless Operator            1.7.2     serverless-operator.v1.7.1                Succeeded
+
+
+
+[centos@lb.weixinyucluster ~]$ oc get csv nfd.4.5.0-202007172106.p0  -o json | jq '.metadata.name'
+"nfd.4.5.0-202007172106.p0"
+[centos@lb.weixinyucluster ~]$ oc get csv nfd.4.5.0-202007172106.p0  -o json | jq '.spec.version'
+"4.5.0"
+[centos@lb.weixinyucluster ~]$ oc get csv nfd.4.5.0-202007172106.p0  -o json | jq '.spec.customresourcedefinitions.owned[].kind'
+"NodeFeatureDiscovery"
+
+
+=============================================================================================
+Enable和Disable Operator Sources
+[centos@lb.weixinyucluster ~]$  oc get operatorsource -n openshift-marketplace
+NAME                  TYPE          ENDPOINT              REGISTRY              DISPLAYNAME           PUBLISHER   STATUS      MESSAGE                                       AGE
+certified-operators   appregistry   https://quay.io/cnr   certified-operators   Certified Operators   Red Hat     Succeeded   The object has been successfully reconciled   22d
+community-operators   appregistry   https://quay.io/cnr   community-operators   Community Operators   Red Hat     Succeeded   The object has been successfully reconciled   22d
+redhat-marketplace    appregistry   https://quay.io/cnr   redhat-marketplace    Red Hat Marketplace   Red Hat     Succeeded   The object has been successfully reconciled   22d
+redhat-operators      appregistry   https://quay.io/cnr   redhat-operators      Red Hat Operators     Red Hat     Succeeded   The object has been successfully reconciled   22d
+[centos@lb.weixinyucluster ~]$ oc get operatorsource certified-operators -n openshift-marketplace -o yaml
+apiVersion: operators.coreos.com/v1
+kind: OperatorSource
+metadata:
+  creationTimestamp: "2020-07-08T03:22:16Z"
+  finalizers:
+  - finalizer.operatorsources.operators.coreos.com
+  generation: 104
+  labels:
+    opsrc-provider: certified
+  name: certified-operators
+  namespace: openshift-marketplace
+  resourceVersion: "8311782"
+  selfLink: /apis/operators.coreos.com/v1/namespaces/openshift-marketplace/operatorsources/certified-operators
+  uid: a5d7f988-44b2-40d9-9307-21ea45b0defc
+spec:
+  authorizationToken: {}
+  displayName: Certified Operators
+  endpoint: https://quay.io/cnr
+  publisher: Red Hat
+  registryNamespace: certified-operators
+  type: appregistry
+status:
+  currentPhase:
+    lastTransitionTime: "2020-07-24T02:24:02Z"
+    lastUpdateTime: "2020-07-24T02:24:02Z"
+    phase:
+      message: The object has been successfully reconciled
+      name: Succeeded
+  packages: redis-enterprise-operator-cert,nginx-ingress-operator,cortex-hub-operator,atomicorp-helm-operator-certified,traefikee-certified,runtime-component-operator-certified,triggermesh-operator,kubemq-operator-marketplace,sysdig-certified,xcrypt-operator,transform-adv-operator,cic-operator,dotscience-operator,uma-operator,k8s-triliovault,couchbase-enterprise-certified,t8c-certified,open-enterprise-spinnaker,ibm-block-csi-operator,ivory-server-app,ibm-management-ingress-operator-app,seldon-operator-certified,driverlessai-deployment-operator-certified,kube-arangodb,eddi-operator-certified,traefikee-redhat-certified,cass-operator,cnvrg-operator,robin-operator,ibm-spectrum-scale-csi,yugabyte-operator,cockroachdb-certified,storageos-10tb,mongodb-enterprise,aqua-certified,citrix-adc-istio-ingress-gateway-operator,storageos-1tb,perceptilabs-operator-package,zabbix-operator-certified,appdynamics-operator,openunison-ocp-certified,hazelcast-jet-enterprise-operator,cih-operator-certified,kong,instana-agent,gitlab-operator,alcide-kaudit-operator,appranix-cps,couchdb-operator-certified,crunchy-postgres-operator,tigera-operator,redhat-marketplace-operator,cert-manager-operator,cyberarmor-operator-certified,kong-offline-operator,ibm-licensing-operator-app,planetscale-certified,akka-cluster-operator-certified,citrix-cpx-istio-sidecar-injector-operator,f5-bigip-ctlr-operator,ibm-platform-api-operator-app,timemachine-operator,percona-xtradb-cluster-operator-certified,percona-server-mongodb-operator-certified,wavefront-operator,splunk-certified,nxiq-operator-certified,cortex-fabric-operator,linstor-operator,joget-openshift-operator,fp-predict-plus-operator-certified,hspc-operator,sematext,rapidbiz-operator-certified,ibm-helm-repo-operator-app,ibm-auditlogging-operator-app,portshift-operator,cortex-healthcare-hub-operator,twistlock-certified,cortex-operator,neuvector-certified-operator,anaconda-team-edition,universalagent-operator-certified,hazelcast-enterprise-certified,newrelic-infrastructure,anchore-engine,kubeturbo-certified,cortex-certifai-operator,aqua-operator-certified,gpu-operator-certified,openshiftxray-operator,memql-certified,appsody-operator-certified,aci-containers-operator,storageos,synopsys-certified,orca,ocean-operator,transadv-operator,datadog-operator-certified,openshiftartifactoryha-operator,hpe-csi-operator,portworx-certified,ubix-operator,ibm-helm-api-operator-app,kubeturbo-marketplace-certified,oneagent-certified,insightedge-enterprise-operator2,rocketchat-operator-certified,cpx-cic-operator,ibm-mongodb-operator-app,infinibox-operator-certified,ibm-spectrum-symphony-operator,vfunction-server-operator,nuodb-ce-certified,tidb-operator-certified,open-liberty-certified,joget-dx-operator,ibm-monitoring-grafana-operator-app,nxrm-operator-certified,node-red-operator-certified,cic-operator-with-crds,falco-certified,federatorai-certified,presto-operator,kubemq-operator,here-service-operator-certified,vprotect-operator
+
+
+
+OperatorSources列表由OperatorHub群集资源维护。找到它（无需指定名称空间，因为它是集群范围的资源）：
+[centos@lb.weixinyucluster ~]$ oc get operatorhubs
+NAME      AGE
+cluster   22d
+
+
+[centos@lb.weixinyucluster ~]$ oc get operatorsource certified-operators -n openshift-marketplace -o yaml
+apiVersion: operators.coreos.com/v1
+kind: OperatorSource
+metadata:
+  creationTimestamp: "2020-07-08T03:22:16Z"
+  finalizers:
+  - finalizer.operatorsources.operators.coreos.com
+  generation: 104
+  labels:
+    opsrc-provider: certified
+  name: certified-operators
+  namespace: openshift-marketplace
+  resourceVersion: "8311782"
+  selfLink: /apis/operators.coreos.com/v1/namespaces/openshift-marketplace/operatorsources/certified-operators
+  uid: a5d7f988-44b2-40d9-9307-21ea45b0defc
+spec:
+  authorizationToken: {}
+  displayName: Certified Operators
+  endpoint: https://quay.io/cnr
+  publisher: Red Hat
+  registryNamespace: certified-operators
+  type: appregistry
+status:
+  currentPhase:
+    lastTransitionTime: "2020-07-24T02:24:02Z"
+    lastUpdateTime: "2020-07-24T02:24:02Z"
+    phase:
+      message: The object has been successfully reconciled
+      name: Succeeded
+  packages: redis-enterprise-operator-cert,nginx-ingress-operator,cortex-hub-operator,atomicorp-helm-operator-certified,traefikee-certified,runtime-component-operator-certified,triggermesh-operator,kubemq-operator-marketplace,sysdig-certified,xcrypt-operator,transform-adv-operator,cic-operator,dotscience-operator,uma-operator,k8s-triliovault,couchbase-enterprise-certified,t8c-certified,open-enterprise-spinnaker,ibm-block-csi-operator,ivory-server-app,ibm-management-ingress-operator-app,seldon-operator-certified,driverlessai-deployment-operator-certified,kube-arangodb,eddi-operator-certified,traefikee-redhat-certified,cass-operator,cnvrg-operator,robin-operator,ibm-spectrum-scale-csi,yugabyte-operator,cockroachdb-certified,storageos-10tb,mongodb-enterprise,aqua-certified,citrix-adc-istio-ingress-gateway-operator,storageos-1tb,perceptilabs-operator-package,zabbix-operator-certified,appdynamics-operator,openunison-ocp-certified,hazelcast-jet-enterprise-operator,cih-operator-certified,kong,instana-agent,gitlab-operator,alcide-kaudit-operator,appranix-cps,couchdb-operator-certified,crunchy-postgres-operator,tigera-operator,redhat-marketplace-operator,cert-manager-operator,cyberarmor-operator-certified,kong-offline-operator,ibm-licensing-operator-app,planetscale-certified,akka-cluster-operator-certified,citrix-cpx-istio-sidecar-injector-operator,f5-bigip-ctlr-operator,ibm-platform-api-operator-app,timemachine-operator,percona-xtradb-cluster-operator-certified,percona-server-mongodb-operator-certified,wavefront-operator,splunk-certified,nxiq-operator-certified,cortex-fabric-operator,linstor-operator,joget-openshift-operator,fp-predict-plus-operator-certified,hspc-operator,sematext,rapidbiz-operator-certified,ibm-helm-repo-operator-app,ibm-auditlogging-operator-app,portshift-operator,cortex-healthcare-hub-operator,twistlock-certified,cortex-operator,neuvector-certified-operator,anaconda-team-edition,universalagent-operator-certified,hazelcast-enterprise-certified,newrelic-infrastructure,anchore-engine,kubeturbo-certified,cortex-certifai-operator,aqua-operator-certified,gpu-operator-certified,openshiftxray-operator,memql-certified,appsody-operator-certified,aci-containers-operator,storageos,synopsys-certified,orca,ocean-operator,transadv-operator,datadog-operator-certified,openshiftartifactoryha-operator,hpe-csi-operator,portworx-certified,ubix-operator,ibm-helm-api-operator-app,kubeturbo-marketplace-certified,oneagent-certified,insightedge-enterprise-operator2,rocketchat-operator-certified,cpx-cic-operator,ibm-mongodb-operator-app,infinibox-operator-certified,ibm-spectrum-symphony-operator,vfunction-server-operator,nuodb-ce-certified,tidb-operator-certified,open-liberty-certified,joget-dx-operator,ibm-monitoring-grafana-operator-app,nxrm-operator-certified,node-red-operator-certified,cic-operator-with-crds,falco-certified,federatorai-certified,presto-operator,kubemq-operator,here-service-operator-certified,vprotect-operator
+[centos@lb.weixinyucluster ~]$ oc get operatorhubs
+NAME      AGE
+cluster   22d
+[centos@lb.weixinyucluster ~]$  oc get operatorhubs cluster -o yaml
+apiVersion: config.openshift.io/v1
+kind: OperatorHub
+metadata:
+  annotations:
+    release.openshift.io/create-only: "true"
+  creationTimestamp: "2020-07-08T02:48:17Z"
+  generation: 1
+  name: cluster
+  resourceVersion: "13300586"
+  selfLink: /apis/config.openshift.io/v1/operatorhubs/cluster
+  uid: 88a6c12a-45ba-47fb-8916-f58a6c09b109
+spec: {}
+status:
+  sources:
+  - disabled: false
+    name: redhat-operators
+    status: Success
+  - disabled: false
+    name: certified-operators
+    status: Success
+  - disabled: false
+    name: community-operators
+    status: Success
+  - disabled: false
+    name: redhat-marketplace
+    status: Success
+
+
+
+
+如您所见，规格部分为空。这意味着OperatorHub将使用默认值。默认情况下，所有的OperatorSources都处于启用状态，如状态部分所示。
+
+要禁用OperatorSource，我们必须使用状态部分的信息填充规范部分，然后禁用其中之一。您可以使用oc edit命令或使用嵌入式OpenShift YAML编辑器（从4.2版开始提供）来编辑operatorhub资源。
+
+要使用后一种方式，请转到管理→群集设置→全局配置→OperatorHub。然后打开“ YAML”选项卡。
+
+要使用命令行方式，只需键入oc edit operatorhub cluster。
+
+您应该删除规范部分中的{}，然后复制状态部分中的列表或来源。之后，删除状态：成功行。最后，在社区操作员的disabled：行中将false更改为true。您指定的部分应如下所示：
+apiVersion: config.openshift.io/v1
+kind: OperatorHub
+metadata:
+  annotations:
+    release.openshift.io/create-only: "true"
+  creationTimestamp: "2020-07-08T02:48:17Z"
+  generation: 1
+  name: cluster
+  resourceVersion: "13300586"
+  selfLink: /apis/config.openshift.io/v1/operatorhubs/cluster
+  uid: 88a6c12a-45ba-47fb-8916-f58a6c09b109
+spec:
+  sources:
+  - disabled: false
+    name: redhat-operators
+  - disabled: false
+    name: certified-operators
+  - disabled: false
+    name: community-operators
+  - disabled: true
+    name: redhat-marketplace
+
+
+
+[centos@lb.weixinyucluster ~]$ oc get operatorsource -n openshift-marketplace
+NAME                  TYPE          ENDPOINT              REGISTRY              DISPLAYNAME           PUBLISHER   STATUS      MESSAGE                                       AGE
+certified-operators   appregistry   https://quay.io/cnr   certified-operators   Certified Operators   Red Hat     Succeeded   The object has been successfully reconciled   22d
+community-operators   appregistry   https://quay.io/cnr   community-operators   Community Operators   Red Hat     Succeeded   The object has been successfully reconciled   22d
+redhat-operators      appregistry   https://quay.io/cnr   redhat-operators      Red Hat Operators     Red Hat     Succeeded   The object has been successfully reconciled   22d
+[centos@lb.weixinyucluster ~]$

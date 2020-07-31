@@ -1,5 +1,5 @@
 Kubernetes的Networkpoliy中，既可以这是networkpolicy.ingress,也可以设置networkpolicy.engress。但OCP中目前只能设置networkpolicy.ingress，这和OCP中的Egress networkpolicy是不同的两个概念。
-
+https://docs.openshift.com/container-platform/4.1/networking/configuring-networkpolicy.html
 
 ===================
  让一个项目只允许Ingress项目访问
