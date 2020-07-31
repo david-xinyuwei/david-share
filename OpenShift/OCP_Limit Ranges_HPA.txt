@@ -501,3 +501,279 @@ pod-autoscale-2-deploy   0/1     Completed           0          24m
 pod-autoscale-2-dqdrg    0/1     ContainerCreating   0          1s
 pod-autoscale-2-pvrw8    1/1     Running             0          24m
 pod-autoscale-2-t52hd    0/1     ContainerCreating   0          1s
+
+
+================================================
+部署一个新的应用程序并设置一个自定义监视器。 一些提示：
+
+使用从quay.io/gpte-devops-automation/instrumented_app:rc0中拉出的应用程序
+将应用程序部署到新项目中
+使用相同的Prometheus实例
+探索应用程序路由的/ metrics端点处的公开指标
+设置HPA以根据自定义指标（http_requests）进行扩展
+如果需要，请参考公开自定义应用程序指标以获取自动缩放文档
+
+
+[centos@lb.weixinyucluster ~]$ oc new-project my-new-hpa
+Now using project "my-new-hpa" on server "https://api.weixinyucluster.bluecat.ltd:6443".
+
+You can add applications to this project with the 'new-app' command. For example, try:
+
+    oc new-app ruby~https://github.com/sclorg/ruby-ex.git
+
+to build a new example application in Python. Or use kubectl to deploy a simple Kubernetes application:
+
+    kubectl create deployment hello-node --image=gcr.io/hello-minikube-zero-install/hello-node
+
+[centos@lb.weixinyucluster ~]$ oc new-app quay.io/gpte-devops-automation/instrumented_app:rc0 -n my-new-hpa
+--> Found container image df0538f (4 years old) from quay.io for "quay.io/gpte-devops-automation/instrumented_app:rc0"
+
+    * An image stream tag will be created as "instrumentedapp:rc0" that will track this image
+    * This image will be deployed in deployment config "instrumentedapp"
+    * Port 8080/tcp will be load balanced by service "instrumentedapp"
+      * Other containers can access this service through the hostname "instrumentedapp"
+    * WARNING: Image "quay.io/gpte-devops-automation/instrumented_app:rc0" runs as the 'root' user which may not be permitted by your cluster administrator
+
+--> Creating resources ...
+    imagestream.image.openshift.io "instrumentedapp" created
+    deploymentconfig.apps.openshift.io "instrumentedapp" created
+    service "instrumentedapp" created
+--> Success
+    Application is not exposed. You can expose services to the outside world by executing one or more of the commands below:
+     'oc expose svc/instrumentedapp'
+    Run 'oc status' to view your app.
+[centos@lb.weixinyucluster ~]$ oc expose svc instrumentedapp -n my-new-hpa
+route.route.openshift.io/instrumentedapp exposed
+
+
+查看新应用程序公开的所有指标：
+curl http://$(oc get route instrumentedapp -n my-new-hpa -o jsonpath='{ .spec.host}')/metrics
+.....................
+http_response_size_bytes{handler="api",quantile="0.5"} 0
+http_response_size_bytes{handler="api",quantile="0.9"} 0
+http_response_size_bytes{handler="api",quantile="0.99"} 35
+http_response_size_bytes_sum{handler="api"} 1575
+http_response_size_bytes_count{handler="api"} 569
+http_response_size_bytes{handler="prometheus",quantile="0.5"} NaN
+http_response_size_bytes{handler="prometheus",quantile="0.9"} NaN
+http_response_size_bytes{handler="prometheus",quantile="0.99"} NaN
+http_response_size_bytes_sum{handler="prometheus"} 0
+http_response_size_bytes_count{handler="prometheus"} 0
+# HELP process_cpu_seconds_total Total user and system CPU time spent in seconds.
+# TYPE process_cpu_seconds_total counter
+process_cpu_seconds_total 0.29
+# HELP process_max_fds Maximum number of open file descriptors.
+# TYPE process_max_fds gauge
+process_max_fds 1.048576e+06
+# HELP process_open_fds Number of open file descriptors.
+# TYPE process_open_fds gauge
+process_open_fds 11
+# HELP process_resident_memory_bytes Resident memory size in bytes.
+# TYPE process_resident_memory_bytes gauge
+process_resident_memory_bytes 1.4344192e+07
+# HELP process_start_time_seconds Start time of the process since unix epoch in seconds.
+# TYPE process_start_time_seconds gauge
+process_start_time_seconds 1.59620561392e+09
+# HELP process_virtual_memory_bytes Virtual memory size in bytes.
+# TYPE process_virtual_memory_bytes gauge
+process_virtual_memory_bytes 3.59006208e+08
+[centos@lb.weixinyucluster ~]$
+[centos@lb.weixinyucluster ~]$ clear
+[centos@lb.weixinyucluster ~]$ curl http://$(oc get route instrumentedapp -n my-new-hpa -o jsonpath='{ .spec.host}')/metrics
+# HELP codelab_api_http_requests_in_progress The current number of API HTTP requests in progress.
+# TYPE codelab_api_http_requests_in_progress gauge
+codelab_api_http_requests_in_progress 1
+# HELP codelab_api_request_duration_seconds A histogram of the API HTTP request durations in seconds.
+# TYPE codelab_api_request_duration_seconds histogram
+codelab_api_request_duration_seconds_bucket{method="GET",path="/api/bar",status="200",le="0.0001"} 0
+codelab_api_request_duration_seconds_bucket{method="GET",path="/api/bar",status="200",le="0.00015000000000000001"} 0
+codelab_api_request_duration_seconds_bucket{method="GET",path="/api/bar",status="200",le="0.00022500000000000002"} 0
+codelab_api_request_duration_seconds_bucket{method="GET",path="/api/bar",status="200",le="0.0003375"} 0
+codelab_api_request_duration_seconds_bucket{method="GET",path="/api/bar",status="200",le="0.00050625"} 0
+codelab_api_request_duration_seconds_bucket{method="GET",path="/api/bar",status="200",le="0.000759375"} 0
+codelab_api_request_duration_seconds_bucket{method="GET",path="/api/bar",status="200",le="0.0011390624999999999"} 0
+codelab_api_request_duration_seconds_bucket{method="GET",path="/api/bar",status="200",le="0.0017085937499999998"} 0
+codelab_api_request_duration_seconds_bucket{method="GET",path="/api/bar",status="200",le="0.0025628906249999996"} 0
+codelab_api_request_duration_seconds_bucket{method="GET",path="/api/bar",status="200",le="0.0038443359374999994"} 0
+codelab_api_request_duration_seconds_bucket{method="GET",path="/api/bar",status="200",le="0.00576650390625"} 0
+codelab_api_request_duration_seconds_bucket{method="GET",path="/api/bar",status="200",le="0.008649755859375"} 0
+........................................
+
+在OCP UI创建一个新的ServiceMonitor实例
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    lab: custom-hpa
+  name: my-servicemonitor
+  namespace: my-prometheus
+spec:
+  endpoints:
+    - interval: 30s
+      port: 8080-tcp
+  namespaceSelector:
+    matchNames:
+    - my-new-hpa
+  selector:
+    matchLabels:
+      app: instrumentedapp
+
+
+
+使Prometheus可以访问您的新项目，以便它可以开始收集指标：
+echo "---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-new-hpa
+  namespace: my-new-hpa
+subjects:
+  - kind: ServiceAccount
+    name: prometheus-k8s
+    namespace: my-prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view" | oc create -f -
+
+Prometheus中可以收集这个指标
+http_requests_total{job="instrumentedapp"}
+
+再次运行以下命令时，您将获得许多其他输出，这些输出由Prometheus从新应用程序公开的指标中获得：
+[centos@lb.weixinyucluster ~]$ oc get --raw /apis/custom.metrics.k8s.io/v1beta1/ | jq -r '.resources[] | select(.name | contains("pods/http"))'
+{
+  "name": "pods/http_response_size_bytes",
+  "singularName": "",
+  "namespaced": true,
+  "kind": "MetricValueList",
+  "verbs": [
+    "get"
+  ]
+}
+{
+  "name": "pods/http_requests",
+  "singularName": "",
+  "namespaced": true,
+  "kind": "MetricValueList",
+  "verbs": [
+    "get"
+  ]
+}
+{
+  "name": "pods/http_request_size_bytes",
+  "singularName": "",
+  "namespaced": true,
+  "kind": "MetricValueList",
+  "verbs": [
+    "get"
+  ]
+}
+{
+  "name": "pods/http_response_size_bytes_count",
+  "singularName": "",
+  "namespaced": true,
+  "kind": "MetricValueList",
+  "verbs": [
+    "get"
+  ]
+}
+{
+  "name": "pods/http_request_duration_microseconds_count",
+  "singularName": "",
+  "namespaced": true,
+  "kind": "MetricValueList",
+  "verbs": [
+    "get"
+  ]
+}
+{
+  "name": "pods/http_request_size_bytes_sum",
+  "singularName": "",
+  "namespaced": true,
+  "kind": "MetricValueList",
+  "verbs": [
+    "get"
+  ]
+}
+{
+  "name": "pods/http_request_duration_microseconds",
+  "singularName": "",
+  "namespaced": true,
+  "kind": "MetricValueList",
+  "verbs": [
+    "get"
+  ]
+}
+{
+  "name": "pods/http_request_size_bytes_count",
+  "singularName": "",
+  "namespaced": true,
+  "kind": "MetricValueList",
+  "verbs": [
+    "get"
+  ]
+}
+{
+  "name": "pods/http_request_duration_microseconds_sum",
+  "singularName": "",
+  "namespaced": true,
+  "kind": "MetricValueList",
+  "verbs": [
+    "get"
+  ]
+}
+{
+  "name": "pods/http_response_size_bytes_sum",
+  "singularName": "",
+  "namespaced": true,
+  "kind": "MetricValueList",
+  "verbs": [
+    "get"
+  ]
+}
+在新名称空间中为新应用程序创建新的HPA：
+echo "---
+kind: HorizontalPodAutoscaler
+apiVersion: autoscaling/v2beta1
+metadata:
+  name: pod-autoscale-custom
+  namespace: my-new-hpa
+spec:
+  scaleTargetRef:
+    kind: DeploymentConfig
+    name: instrumentedapp
+    apiVersion: apps.openshift.io/v1
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+    - type: Pods
+      pods:
+        metricName: http_requests
+        targetAverageValue: 50000m" | oc create -f -
+
+该应用程序动态生成自己的负载，因此无需人为创建任何负载。 看看您是否可以算出这是如何计算的。
+[centos@lb.weixinyucluster ~]$ oc get hpa
+NAME                   REFERENCE                          TARGETS     MINPODS   MAXPODS   REPLICAS   AGE
+pod-autoscale-custom   DeploymentConfig/instrumentedapp   49500m/50   1         5         2          57s
+[centos@lb.weixinyucluster ~]$ oc describe hpa pod-autoscale-custom
+Name:                       pod-autoscale-custom
+Namespace:                  my-new-hpa
+Labels:                     <none>
+Annotations:                <none>
+CreationTimestamp:          Fri, 31 Jul 2020 14:52:17 +0000
+Reference:                  DeploymentConfig/instrumentedapp
+Metrics:                    ( current / target )
+  "http_requests" on pods:  37081m / 50
+Min replicas:               1
+Max replicas:               5
+DeploymentConfig pods:      2 current / 2 desired
+Conditions:
+  Type            Status  Reason              Message
+  ----            ------  ------              -------
+  AbleToScale     True    ReadyForNewScale    recommended size matches current size
+  ScalingActive   True    ValidMetricFound    the HPA was able to successfully calculate a replica count from pods metric http_requests
+  ScalingLimited  False   DesiredWithinRange  the desired count is within the acceptable range
+Events:
+  Type    Reason             Age   From                       Message
+  ----    ------             ----  ----                       -------
+  Normal  SuccessfulRescale  53s   horizontal-pod-autoscaler  New size: 2; reason: pods metric http_requests above target
