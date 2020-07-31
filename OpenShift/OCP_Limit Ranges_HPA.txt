@@ -1,4 +1,90 @@
 
+==========================================================================================
+架构理解：
+HPA：Horizontal PodAutoscaling。
+
+HPA基于基于CPU、内存的利用率或者custom metrics这些指标，通过replication controller, deployment 或replica set中扩展pod的副本数量。
+
+
+
+HPA 从以下 APIs获取metrics:
+
+metrics.k8s.io是用于正常资源使用（即cpu，mem等）。
+custom.metrics.k8s.io利用一个 adapter API 用于定制化metrics。
+external.metrics.k8s.io允许我们查询外部非 Kube感知监控系统
+
+
+
+OCP4的HPA基于kube-state-metrics（OCP3是metric-server）
+
+metric-server（或heapster）是从api-server中获取cpu、内存使用率这种监控指标，并把他们发送给存储后端，如influxdb或云厂商，他当前的核心作用是：为HPA等组件提供决策指标支持。
+kube-state-metrics关注于获取k8s各种资源的最新状态，如deployment或者daemonset，之所以没有把kube-state-metrics纳入到metric-server的能力中，是因为他们的关注点本质上是不一样的。metric-server仅仅是获取、格式化现有数据，写入特定的存储，实质上是一个监控系统。而kube-state-metrics是将k8s的运行状况在内存中做了个快照，并且获取新的指标，但他没有能力导出这些指标。Prometheus不会去用metric-server中的数据，他都是自己做指标收集、集成的（Prometheus包含了metric-server的能力）。
+
+
+
+我们查看一个HPA配置，它的功能如下：
+必须将API组设置为此，监控对象是DeploymentConfig
+最小副本数1
+最大副本数5
+要观察的指标类型-CPU，内存资源
+
+DC中观察到的所有Pod的汇总使用情况（ targetAverageUtilization）
+
+
+
+apiVersion: autoscaling/v2beta1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: hpa-resource-metrics-cpu
+spec:
+  scaleTargetRef:
+    apiVersion: apps.openshift.io/v1 
+    kind: DeploymentConfig
+    name: hello-hpa-cpu
+  minReplicas: 1 
+  maxReplicas: 5 
+  metrics:
+  - type: Resource 
+    resource:
+      name: cpu
+      targetAverageUtilization: 50
+
+
+
+基于custom metrics实现HPA需要"adapter" API server，例如Prometheus adapter
+
+支持诸如http_requests之类的指标
+也可以使用 metric blocks ，例如：
+
+CPU利用率
+每秒Pod数据包 
+每秒入网请求
+
+
+
+我们看一段HPA:
+
+监控 DC（或RC，RS等）中所有Pod的平均值，利用http请求数字。500m相当于每秒0.5个请求。
+
+kind: HorizontalPodAutoscaler
+apiVersion: autoscaling/v2beta1
+metadata:
+ name: hpa-custom-metrics-http
+spec:
+ scaleTargetRef:
+   kind: DeploymentConfig
+   name: hello-hpa-cpu
+   apiVersion: apps.openshift.io/v1
+ minReplicas: 1
+ maxReplicas: 5
+ metrics:
+   - type: Pods
+     pods:
+       metricName: http_requests
+       targetAverageValue: 500m
+
+
+======================================================================
 首先创建应用
 [xiwei-redhat.com@bastion ~]$ oc new-project my-hpa
 
@@ -77,7 +163,7 @@ limitrange/limits created
 =================================
 创建 HPA资源
 
-为pod-autoscale部署创建资源HPA，以在一个和五个副本之间扩展，并设置为在CPU利用率达到60％时扩展。
+为pod-autoscale部署创建资源HPA，以在1个和5个副本之间扩展，并设置为在CPU利用率达到60％时扩展。
 
 [centos@lb.weixinyucluster ~]$ oc get dc
 NAME            REVISION   DESIRED   CURRENT   TRIGGERED BY
@@ -134,7 +220,6 @@ Events:
 增加 CPU load
 
 oc rsh -n my-hpa $(oc get ep pod-autoscale -n my-hpa -o jsonpath='{ .subsets[].addresses[0].targetRef.name }')
-
 while true;do true;done
 
 
@@ -145,149 +230,17 @@ pod-autoscale-55f9858b67-qcxxv   1/1     Running   0          5m41s
 pod-autoscale-55f9858b67-tqkrh   1/1     Running   0          10m
 
 
-
-
-=======================================================
+================================================================================
 创建Custom HPA
 
 部署Prometheus Operator，通过UI部署Prometheus Operator
 [centos@lb.weixinyucluster ~]$ oc new-project my-prometheus
 
-查看订阅：
-[centos@lb.weixinyucluster ~]$ oc describe subscriptions.operators.coreos.com prometheus -n my-prometheus
-Name:         prometheus
-Namespace:    my-prometheus
-Labels:       <none>
-Annotations:  <none>
-API Version:  operators.coreos.com/v1alpha1
-Kind:         Subscription
-Metadata:
-  Creation Timestamp:  2020-07-31T12:48:00Z
-  Generation:          1
-  Managed Fields:
-    API Version:  operators.coreos.com/v1alpha1
-    Fields Type:  FieldsV1
-    fieldsV1:
-      f:spec:
-        .:
-        f:channel:
-        f:installPlanApproval:
-        f:name:
-        f:source:
-        f:sourceNamespace:
-        f:startingCSV:
-    Manager:      Mozilla
-    Operation:    Update
-    Time:         2020-07-31T12:48:00Z
-    API Version:  operators.coreos.com/v1alpha1
-    Fields Type:  FieldsV1
-    fieldsV1:
-      f:spec:
-        f:config:
-          .:
-          f:resources:
-      f:status:
-        .:
-        f:catalogHealth:
-        f:conditions:
-        f:currentCSV:
-        f:installPlanGeneration:
-        f:installPlanRef:
-          .:
-          f:apiVersion:
-          f:kind:
-          f:name:
-          f:namespace:
-          f:resourceVersion:
-          f:uid:
-        f:installedCSV:
-        f:installplan:
-          .:
-          f:apiVersion:
-          f:kind:
-          f:name:
-          f:uuid:
-        f:lastUpdated:
-        f:state:
-    Manager:         catalog
-    Operation:       Update
-    Time:            2020-07-31T12:48:05Z
-  Resource Version:  13968698
-  Self Link:         /apis/operators.coreos.com/v1alpha1/namespaces/my-prometheus/subscriptions/prometheus
-  UID:               0086561e-8e2f-4739-ae04-25b51e2ca49f
-Spec:
-  Channel:                beta
-  Install Plan Approval:  Automatic
-  Name:                   prometheus
-  Source:                 community-operators
-  Source Namespace:       openshift-marketplace
-  Starting CSV:           prometheusoperator.0.37.0
-Status:
-  Catalog Health:
-    Catalog Source Ref:
-      API Version:       operators.coreos.com/v1alpha1
-      Kind:              CatalogSource
-      Name:              certified-operators
-      Namespace:         openshift-marketplace
-      Resource Version:  13606472
-      UID:               2869e199-5dfa-4250-9d3a-567db09485d1
-    Healthy:             true
-    Last Updated:        2020-07-31T12:48:00Z
-    Catalog Source Ref:
-      API Version:       operators.coreos.com/v1alpha1
-      Kind:              CatalogSource
-      Name:              community-operators
-      Namespace:         openshift-marketplace
-      Resource Version:  13606471
-      UID:               6e709e09-5add-4c19-a617-8777a669d20a
-    Healthy:             true
-    Last Updated:        2020-07-31T12:48:00Z
-    Catalog Source Ref:
-      API Version:       operators.coreos.com/v1alpha1
-      Kind:              CatalogSource
-      Name:              redhat-marketplace
-      Namespace:         openshift-marketplace
-      Resource Version:  13606473
-      UID:               df006c81-927e-4765-bc78-f897332c3108
-    Healthy:             true
-    Last Updated:        2020-07-31T12:48:00Z
-    Catalog Source Ref:
-      API Version:       operators.coreos.com/v1alpha1
-      Kind:              CatalogSource
-      Name:              redhat-operators
-      Namespace:         openshift-marketplace
-      Resource Version:  13606475
-      UID:               294a12ed-d43c-4b1c-9301-33c7d03ff648
-    Healthy:             true
-    Last Updated:        2020-07-31T12:48:00Z
-  Conditions:
-    Last Transition Time:   2020-07-31T12:48:00Z
-    Message:                all available catalogsources are healthy
-    Reason:                 AllCatalogSourcesHealthy
-    Status:                 False
-    Type:                   CatalogSourcesUnhealthy
-  Current CSV:              prometheusoperator.0.37.0
-  Install Plan Generation:  1
-  Install Plan Ref:
-    API Version:       operators.coreos.com/v1alpha1
-    Kind:              InstallPlan
-    Name:              install-m5269
-    Namespace:         my-prometheus
-    Resource Version:  13968577
-    UID:               7a277801-b7be-45ce-8186-e54dae1b65d4
-  Installed CSV:       prometheusoperator.0.37.0
-  Installplan:
-    API Version:  operators.coreos.com/v1alpha1
-    Kind:         InstallPlan
-    Name:         install-m5269
-    Uuid:         7a277801-b7be-45ce-8186-e54dae1b65d4
-  Last Updated:   2020-07-31T12:48:05Z
-  State:          AtLatestKnown
-Events:           <none>
+在OCP的OperatorHub中安装Prometheus Operator到my-prometheus项目中 click Operators > Installed Operators > Prometheus Operator
 
-In the UI, click Operators > Installed Operators > Prometheus Operator
-
-create a Service Monitor. 
+创建Service Monitor实例
+（Watch pods based on a matchLabel selector
+Be watched by a Prometheus instance based on the Service Monitor's labels）
 
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
@@ -309,7 +262,7 @@ spec:
 
 
 
- on the Prometheus operator overview click Create Instance under the Prometheus option
+创建Prometheus实例
 apiVersion: monitoring.coreos.com/v1
 kind: Prometheus
 metadata:
@@ -325,16 +278,16 @@ spec:
     matchLabels:
       lab: custom-hpa
 
-
+创建并查看prometheus的路由：
 [centos@lb.weixinyucluster ~]$ oc expose svc prometheus-operated -n my-prometheus
 route.route.openshift.io/prometheus-operated exposed
+
 [centos@lb.weixinyucluster ~]$ oc get route prometheus-operated -o jsonpath='{.spec.host}{"\n"}' -n my-prometheus
 prometheus-operated-my-prometheus.apps.weixinyucluster.bluecat.ltd
 
 现在已经部署了ServiceMonitor和Prometheus实例，您应该能够在Prometheus UI中查询http_requests_total指标，但是没有数据。 您缺少两个关键要素：
 
 Prometheus没有适当的RBAC权限来查询其他名称空间。
-
 没有设置可以转换Kubernetes HPA的Prometheus指标的适配器
 
 首先，可以通过为my-prometheus命名空间中的Prometheus使用的ServiceAccount赋予对my-hpa命名空间的适当访问权限来解决RBAC权限。
@@ -356,9 +309,8 @@ roleRef:
 返回Prometheus用户界面，再次对http_requests_total执行查询，您应该会看到结果。 如果您没有立即看到结果，请耐心等待。
 ![image](https://github.com/davidsajare/david-share/blob/master/IMAGES/1.png)
 
-既然您知道Prometheus可以正常工作，现在就可以将其连接到Kubernetes，以便HPA可以根据自定义指标进行操作。 对象列表如下：
+Prometheus可以正常工作了，现在就可以将其连接到Kubernetes，以便HPA可以根据自定义指标进行操作。 对象列表如下：
 APIService
-
 ServiceAccount
 ClusterRole - custom metrics-server-resources
 ClusterRole - custom-metrics-resource-reader
@@ -385,14 +337,14 @@ secret/cm-adapter-serving-certs created
 configmap/adapter-config created
 deployment.apps/custom-metrics-apiserver created
 service/my-metrics-apiserver created
-[centos@lb.weixinyucluster ~]$
 
 
+查看API service被创建：
 [centos@lb.weixinyucluster ~]$ oc get apiservice v1beta1.custom.metrics.k8s.io
 NAME                            SERVICE                              AVAILABLE   AGE
 v1beta1.custom.metrics.k8s.io   my-prometheus/my-metrics-apiserver   True        19s
 
-测试：
+查看API中包含pods/http指标：
 [centos@lb.weixinyucluster ~]$ oc get --raw /apis/custom.metrics.k8s.io/v1beta1/ | jq -r '.resources[] | select(.name | contains("pods/http"))'
 {
   "name": "pods/http_requests",
@@ -405,26 +357,26 @@ v1beta1.custom.metrics.k8s.io   my-prometheus/my-metrics-apiserver   True       
 }
 
 
-==========================================================
-创建Custom HPA
+=========================================================================
+验证应用的Custom HPA
 [centos@lb.weixinyucluster ~]$ echo "---
-> kind: HorizontalPodAutoscaler
-> apiVersion: autoscaling/v2beta1
-> metadata:
->   name: pod-autoscale-custom
->   namespace: my-hpa
-> spec:
->   scaleTargetRef:
->     kind: DeploymentConfig
->     name: pod-autoscale
->     apiVersion: apps.openshift.io/v1
->   minReplicas: 1
->   maxReplicas: 5
->   metrics:
->     - type: Pods
->       pods:
->         metricName: http_requests
->         targetAverageValue: 500m" | oc create -f -
+ kind: HorizontalPodAutoscaler
+ apiVersion: autoscaling/v2beta1
+ metadata:
+   name: pod-autoscale-custom
+   namespace: my-hpa
+ spec:
+   scaleTargetRef:
+     kind: DeploymentConfig
+     name: pod-autoscale
+     apiVersion: apps.openshift.io/v1
+   minReplicas: 1
+   maxReplicas: 5
+   metrics:
+     - type: Pods
+       pods:
+         metricName: http_requests
+         targetAverageValue: 500m" | oc create -f -
 horizontalpodautoscaler.autoscaling/pod-autoscale-custom created
 
 为了生成负载，请打开另一个SSH终端并且运行：
@@ -435,17 +387,9 @@ Hello! My name is pod-autoscale-2-pvrw8. I have served 20 requests so far.
 Hello! My name is pod-autoscale-2-pvrw8. I have served 21 requests so far.
 Hello! My name is pod-autoscale-2-pvrw8. I have served 22 requests so far.
 Hello! My name is pod-autoscale-2-pvrw8. I have served 23 requests so far.
-Hello! My name is pod-autoscale-2-pvrw8. I have served 24 requests so far.
-Hello! My name is pod-autoscale-2-pvrw8. I have served 25 requests so far.
-Hello! My name is pod-autoscale-2-pvrw8. I have served 26 requests so far.
-Hello! My name is pod-autoscale-2-pvrw8. I have served 27 requests so far.
-Hello! My name is pod-autoscale-2-pvrw8. I have served 28 requests so far.
-Hello! My name is pod-autoscale-2-pvrw8. I have served 29 requests so far.
-Hello! My name is pod-autoscale-2-pvrw8. I have served 30 requests so far.
-Hello! My name is pod-autoscale-2-pvrw8. I have served 31 requests so far.
 
 
-
+查看hpa的状态：
 [centos@lb.weixinyucluster ~]$  oc describe hpa pod-autoscale-custom -n my-hpa
 Name:                       pod-autoscale-custom
 Namespace:                  my-hpa
@@ -492,7 +436,7 @@ Events:
   Normal  SuccessfulRescale  12s (x3 over 42s)  horizontal-pod-autoscaler  New size: 4; reason: pods metric http_requests above target
 
 
-
+确认pod已经扩张：
 [centos@lb.weixinyucluster ~]$  oc get pods -n my-hpa
 NAME                     READY   STATUS              RESTARTS   AGE
 pod-autoscale-1-deploy   0/1     Completed           0          26m
@@ -504,44 +448,20 @@ pod-autoscale-2-t52hd    0/1     ContainerCreating   0          1s
 
 
 ================================================
-部署一个新的应用程序并设置一个自定义监视器。 一些提示：
+部署一个新的应用程序并设置一个自定义监视器：
 
 使用从quay.io/gpte-devops-automation/instrumented_app:rc0中拉出的应用程序
 将应用程序部署到新项目中
 使用相同的Prometheus实例
 探索应用程序路由的/ metrics端点处的公开指标
 设置HPA以根据自定义指标（http_requests）进行扩展
-如果需要，请参考公开自定义应用程序指标以获取自动缩放文档
+
 
 
 [centos@lb.weixinyucluster ~]$ oc new-project my-new-hpa
-Now using project "my-new-hpa" on server "https://api.weixinyucluster.bluecat.ltd:6443".
-
-You can add applications to this project with the 'new-app' command. For example, try:
-
-    oc new-app ruby~https://github.com/sclorg/ruby-ex.git
-
-to build a new example application in Python. Or use kubectl to deploy a simple Kubernetes application:
-
-    kubectl create deployment hello-node --image=gcr.io/hello-minikube-zero-install/hello-node
 
 [centos@lb.weixinyucluster ~]$ oc new-app quay.io/gpte-devops-automation/instrumented_app:rc0 -n my-new-hpa
---> Found container image df0538f (4 years old) from quay.io for "quay.io/gpte-devops-automation/instrumented_app:rc0"
 
-    * An image stream tag will be created as "instrumentedapp:rc0" that will track this image
-    * This image will be deployed in deployment config "instrumentedapp"
-    * Port 8080/tcp will be load balanced by service "instrumentedapp"
-      * Other containers can access this service through the hostname "instrumentedapp"
-    * WARNING: Image "quay.io/gpte-devops-automation/instrumented_app:rc0" runs as the 'root' user which may not be permitted by your cluster administrator
-
---> Creating resources ...
-    imagestream.image.openshift.io "instrumentedapp" created
-    deploymentconfig.apps.openshift.io "instrumentedapp" created
-    service "instrumentedapp" created
---> Success
-    Application is not exposed. You can expose services to the outside world by executing one or more of the commands below:
-     'oc expose svc/instrumentedapp'
-    Run 'oc status' to view your app.
 [centos@lb.weixinyucluster ~]$ oc expose svc instrumentedapp -n my-new-hpa
 route.route.openshift.io/instrumentedapp exposed
 
@@ -731,6 +651,7 @@ http_requests_total{job="instrumentedapp"}
     "get"
   ]
 }
+
 在新名称空间中为新应用程序创建新的HPA：
 echo "---
 kind: HorizontalPodAutoscaler
