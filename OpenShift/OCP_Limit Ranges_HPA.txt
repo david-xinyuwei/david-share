@@ -1,0 +1,513 @@
+
+首先创建应用
+[xiwei-redhat.com@bastion ~]$ oc new-project my-hpa
+
+[xiwei-redhat.com@bastion ~]$  oc new-app quay.io/gpte-devops-automation/pod-autoscale-lab:rc0 --name=pod-autoscale -n my-hpa
+--> Found container image 4047254 (15 months old) from quay.io for "quay.io/gpte-devops-automation/pod-autoscale-lab:rc0"
+
+    * An image stream tag will be created as "pod-autoscale:rc0" that will track this image
+
+--> Creating resources ...
+    imagestream.image.openshift.io "pod-autoscale" created
+    deployment.apps "pod-autoscale" created
+    service "pod-autoscale" created
+--> Success
+    Application is not exposed. You can expose services to the outside world by executing one or more of the commands below:
+     'oc expose svc/pod-autoscale'
+    Run 'oc status' to view your app.
+
+[xiwei-redhat.com@bastion ~]$ oc expose svc pod-autoscale
+route.route.openshift.io/pod-autoscale exposed
+
+
+[xiwei-redhat.com@bastion ~]$ oc get pods
+NAME                             READY   STATUS    RESTARTS   AGE
+pod-autoscale-55f9858b67-x8k5v   1/1     Running   0          27s
+
+
+
+===========================================================
+创建Limit Range
+
+创建Pod Limits
+Min CPU		10m
+Max CPU		100m
+Min Memory           5Mi
+Max Memory          	750Mi
+
+创建Container Limits
+Min CPU		10m
+Max CPU		100m
+Min Memory	5Mi
+Max Memory	750Mi
+Default CPU	50m
+Default Memory	100Mi
+
+
+
+[xiwei-redhat.com@bastion ~]$ echo '---
+ kind: LimitRange
+ apiVersion: v1
+ metadata:
+   name: limits
+ spec:
+   limits:
+   - type: Pod
+     max:
+       cpu: 100m
+       memory: 750Mi
+     min:
+       cpu: 10m
+       memory: 5Mi
+   - type: Container
+     max:
+       cpu: 100m
+       memory: 750Mi
+     min:
+       cpu: 10m
+       memory: 5Mi
+     default:
+       cpu: 50m
+       memory: 100Mi
+ ' | oc create -f - -n my-hpa
+
+
+limitrange/limits created
+
+=================================
+创建 HPA资源
+
+为pod-autoscale部署创建资源HPA，以在一个和五个副本之间扩展，并设置为在CPU利用率达到60％时扩展。
+
+[centos@lb.weixinyucluster ~]$ oc get dc
+NAME            REVISION   DESIRED   CURRENT   TRIGGERED BY
+pod-autoscale   1          1         1         config,image(pod-autoscale:rc0)
+
+
+
+[xiwei-redhat.com@bastion ~]$ oc autoscale dc/pod-autoscale --min 1 --max 5 --cpu-percent=60
+horizontalpodautoscaler.autoscaling/pod-autoscale autoscaled
+
+
+
+[centos@lb.weixinyucluster ~]$ oc get hpa pod-autoscale -n my-hpa
+NAME            REFERENCE                        TARGETS         MINPODS   MAXPODS   REPLICAS   AGE
+pod-autoscale   DeploymentConfig/pod-autoscale   <unknown>/60%   1         5         0          6s
+
+
+
+HPA需要几分钟的时间来收集足够的指标以显示当前状态。如果在“ TARGETS ”列中看到<unknown>，请等待30秒钟，然后重复此步骤。
+
+ oc describe hpa pod-autoscale -n my-hpa
+
+[centos@lb.weixinyucluster ~]$ oc rollout latest pod-autoscale -n my-hpa  (抓不到数据，所以重建)
+deploymentconfig.apps.openshift.io/pod-autoscale rolled out
+
+[xiwei-redhat.com@bastion ~]$ oc describe hpa pod-autoscale -n my-hpa
+Name:                                                  pod-autoscale
+Namespace:                                             my-hpa
+Labels:                                                <none>
+Annotations:                                           <none>
+CreationTimestamp:                                     Fri, 31 Jul 2020 08:20:07 -0400
+Reference:                                             Deployment/pod-autoscale
+Metrics:                                               ( current / target )
+  resource cpu on pods  (as a percentage of request):  49% (24m) / 60%
+Min replicas:                                          1
+Max replicas:                                          5
+Deployment pods:                                       2 current / 2 desired
+Conditions:
+  Type            Status  Reason              Message
+  ----            ------  ------              -------
+  AbleToScale     True    ReadyForNewScale    recommended size matches current size
+  ScalingActive   True    ValidMetricFound    the HPA was able to successfully calculate a replica count from cpu resource utilization (percentage of request)
+  ScalingLimited  False   DesiredWithinRange  the desired count is within the acceptable range
+Events:
+  Type     Reason                        Age                  From                       Message
+  ----     ------                        ----                 ----                       -------
+  Warning  FailedComputeMetricsReplicas  16m (x12 over 19m)   horizontal-pod-autoscaler  invalid metrics (1 invalid out of 1), first error is: failed to get cpu utilization: missing request for cpu
+  Warning  FailedGetResourceMetric       14m (x21 over 19m)   horizontal-pod-autoscaler  missing request for cpu
+  Warning  FailedGetResourceMetric       9m14s (x6 over 10m)  horizontal-pod-autoscaler  did not receive metrics for any ready pods
+
+
+
+
+增加 CPU load
+
+oc rsh -n my-hpa $(oc get ep pod-autoscale -n my-hpa -o jsonpath='{ .subsets[].addresses[0].targetRef.name }')
+
+while true;do true;done
+
+
+
+[xiwei-redhat.com@bastion ~]$ oc get pods
+NAME                             READY   STATUS    RESTARTS   AGE
+pod-autoscale-55f9858b67-qcxxv   1/1     Running   0          5m41s
+pod-autoscale-55f9858b67-tqkrh   1/1     Running   0          10m
+
+
+
+
+=======================================================
+创建Custom HPA
+
+部署Prometheus Operator，通过UI部署Prometheus Operator
+[centos@lb.weixinyucluster ~]$ oc new-project my-prometheus
+
+查看订阅：
+[centos@lb.weixinyucluster ~]$ oc describe subscriptions.operators.coreos.com prometheus -n my-prometheus
+Name:         prometheus
+Namespace:    my-prometheus
+Labels:       <none>
+Annotations:  <none>
+API Version:  operators.coreos.com/v1alpha1
+Kind:         Subscription
+Metadata:
+  Creation Timestamp:  2020-07-31T12:48:00Z
+  Generation:          1
+  Managed Fields:
+    API Version:  operators.coreos.com/v1alpha1
+    Fields Type:  FieldsV1
+    fieldsV1:
+      f:spec:
+        .:
+        f:channel:
+        f:installPlanApproval:
+        f:name:
+        f:source:
+        f:sourceNamespace:
+        f:startingCSV:
+    Manager:      Mozilla
+    Operation:    Update
+    Time:         2020-07-31T12:48:00Z
+    API Version:  operators.coreos.com/v1alpha1
+    Fields Type:  FieldsV1
+    fieldsV1:
+      f:spec:
+        f:config:
+          .:
+          f:resources:
+      f:status:
+        .:
+        f:catalogHealth:
+        f:conditions:
+        f:currentCSV:
+        f:installPlanGeneration:
+        f:installPlanRef:
+          .:
+          f:apiVersion:
+          f:kind:
+          f:name:
+          f:namespace:
+          f:resourceVersion:
+          f:uid:
+        f:installedCSV:
+        f:installplan:
+          .:
+          f:apiVersion:
+          f:kind:
+          f:name:
+          f:uuid:
+        f:lastUpdated:
+        f:state:
+    Manager:         catalog
+    Operation:       Update
+    Time:            2020-07-31T12:48:05Z
+  Resource Version:  13968698
+  Self Link:         /apis/operators.coreos.com/v1alpha1/namespaces/my-prometheus/subscriptions/prometheus
+  UID:               0086561e-8e2f-4739-ae04-25b51e2ca49f
+Spec:
+  Channel:                beta
+  Install Plan Approval:  Automatic
+  Name:                   prometheus
+  Source:                 community-operators
+  Source Namespace:       openshift-marketplace
+  Starting CSV:           prometheusoperator.0.37.0
+Status:
+  Catalog Health:
+    Catalog Source Ref:
+      API Version:       operators.coreos.com/v1alpha1
+      Kind:              CatalogSource
+      Name:              certified-operators
+      Namespace:         openshift-marketplace
+      Resource Version:  13606472
+      UID:               2869e199-5dfa-4250-9d3a-567db09485d1
+    Healthy:             true
+    Last Updated:        2020-07-31T12:48:00Z
+    Catalog Source Ref:
+      API Version:       operators.coreos.com/v1alpha1
+      Kind:              CatalogSource
+      Name:              community-operators
+      Namespace:         openshift-marketplace
+      Resource Version:  13606471
+      UID:               6e709e09-5add-4c19-a617-8777a669d20a
+    Healthy:             true
+    Last Updated:        2020-07-31T12:48:00Z
+    Catalog Source Ref:
+      API Version:       operators.coreos.com/v1alpha1
+      Kind:              CatalogSource
+      Name:              redhat-marketplace
+      Namespace:         openshift-marketplace
+      Resource Version:  13606473
+      UID:               df006c81-927e-4765-bc78-f897332c3108
+    Healthy:             true
+    Last Updated:        2020-07-31T12:48:00Z
+    Catalog Source Ref:
+      API Version:       operators.coreos.com/v1alpha1
+      Kind:              CatalogSource
+      Name:              redhat-operators
+      Namespace:         openshift-marketplace
+      Resource Version:  13606475
+      UID:               294a12ed-d43c-4b1c-9301-33c7d03ff648
+    Healthy:             true
+    Last Updated:        2020-07-31T12:48:00Z
+  Conditions:
+    Last Transition Time:   2020-07-31T12:48:00Z
+    Message:                all available catalogsources are healthy
+    Reason:                 AllCatalogSourcesHealthy
+    Status:                 False
+    Type:                   CatalogSourcesUnhealthy
+  Current CSV:              prometheusoperator.0.37.0
+  Install Plan Generation:  1
+  Install Plan Ref:
+    API Version:       operators.coreos.com/v1alpha1
+    Kind:              InstallPlan
+    Name:              install-m5269
+    Namespace:         my-prometheus
+    Resource Version:  13968577
+    UID:               7a277801-b7be-45ce-8186-e54dae1b65d4
+  Installed CSV:       prometheusoperator.0.37.0
+  Installplan:
+    API Version:  operators.coreos.com/v1alpha1
+    Kind:         InstallPlan
+    Name:         install-m5269
+    Uuid:         7a277801-b7be-45ce-8186-e54dae1b65d4
+  Last Updated:   2020-07-31T12:48:05Z
+  State:          AtLatestKnown
+Events:           <none>
+
+In the UI, click Operators > Installed Operators > Prometheus Operator
+
+create a Service Monitor. 
+
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: pod-autoscale
+  labels:
+    lab: custom-hpa
+spec:
+  namespaceSelector:
+    matchNames:
+      - my-prometheus
+      - my-hpa
+  selector:
+    matchLabels:
+      app: pod-autoscale
+  endpoints:
+  - port: 8080-tcp
+    interval: 30s
+
+
+
+ on the Prometheus operator overview click Create Instance under the Prometheus option
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  name: my-prometheus
+  labels:
+    prometheus: my-prometheus
+  namespace: my-prometheus
+spec:
+  replicas: 2
+  serviceAccountName: prometheus-k8s
+  securityContext: {}
+  serviceMonitorSelector:
+    matchLabels:
+      lab: custom-hpa
+
+
+[centos@lb.weixinyucluster ~]$ oc expose svc prometheus-operated -n my-prometheus
+route.route.openshift.io/prometheus-operated exposed
+[centos@lb.weixinyucluster ~]$ oc get route prometheus-operated -o jsonpath='{.spec.host}{"\n"}' -n my-prometheus
+prometheus-operated-my-prometheus.apps.weixinyucluster.bluecat.ltd
+
+现在已经部署了ServiceMonitor和Prometheus实例，您应该能够在Prometheus UI中查询http_requests_total指标，但是没有数据。 您缺少两个关键要素：
+
+Prometheus没有适当的RBAC权限来查询其他名称空间。
+
+没有设置可以转换Kubernetes HPA的Prometheus指标的适配器
+
+首先，可以通过为my-prometheus命名空间中的Prometheus使用的ServiceAccount赋予对my-hpa命名空间的适当访问权限来解决RBAC权限。
+$ echo "---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-prometheus-hpa
+  namespace: my-hpa
+subjects:
+  - kind: ServiceAccount
+    name: prometheus-k8s
+    namespace: my-prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view" | oc create -f -
+
+返回Prometheus用户界面，再次对http_requests_total执行查询，您应该会看到结果。 如果您没有立即看到结果，请耐心等待。
+
+既然您知道Prometheus可以正常工作，现在就可以将其连接到Kubernetes，以便HPA可以根据自定义指标进行操作。 对象列表如下：
+APIService
+
+ServiceAccount
+
+ClusterRole - custom metrics-server-resources
+
+ClusterRole - custom-metrics-resource-reader
+
+ClusterRoleBinding - custom-metrics:system:auth-delegator
+
+ClusterRoleBinding - custom-metrics-resource-reader
+
+ClusterRoleBinding - hpa-controller-custom-metrics
+
+RoleBinding - custom-metrics-auth-reader
+
+Secret
+
+ConfigMap
+
+Deployment
+
+Service
+
+创建所有对象
+[centos@lb.weixinyucluster ~]$ oc create -f https://raw.githubusercontent.com/redhat-gpte-devopsautomation/ocp_advanced_deployment_resources/master/ocp4_adv_deploy_lab/custom_hpa/custom_adapter_kube_objects.yaml
+apiservice.apiregistration.k8s.io/v1beta1.custom.metrics.k8s.io created
+serviceaccount/my-metrics-apiserver created
+clusterrole.rbac.authorization.k8s.io/my-metrics-server-resources created
+clusterrole.rbac.authorization.k8s.io/my-metrics-resource-reader created
+clusterrolebinding.rbac.authorization.k8s.io/my-metrics:system:auth-delegator created
+clusterrolebinding.rbac.authorization.k8s.io/my-metrics-resource-reader created
+clusterrolebinding.rbac.authorization.k8s.io/my-hpa-controller-custom-metrics created
+rolebinding.rbac.authorization.k8s.io/my-metrics-auth-reader created
+secret/cm-adapter-serving-certs created
+configmap/adapter-config created
+deployment.apps/custom-metrics-apiserver created
+service/my-metrics-apiserver created
+[centos@lb.weixinyucluster ~]$
+
+
+[centos@lb.weixinyucluster ~]$ oc get apiservice v1beta1.custom.metrics.k8s.io
+NAME                            SERVICE                              AVAILABLE   AGE
+v1beta1.custom.metrics.k8s.io   my-prometheus/my-metrics-apiserver   True        19s
+
+测试：
+[centos@lb.weixinyucluster ~]$ oc get --raw /apis/custom.metrics.k8s.io/v1beta1/ | jq -r '.resources[] | select(.name | contains("pods/http"))'
+{
+  "name": "pods/http_requests",
+  "singularName": "",
+  "namespaced": true,
+  "kind": "MetricValueList",
+  "verbs": [
+    "get"
+  ]
+}
+
+
+==========================================================
+创建
+Custom HPA
+[centos@lb.weixinyucluster ~]$ echo "---
+> kind: HorizontalPodAutoscaler
+> apiVersion: autoscaling/v2beta1
+> metadata:
+>   name: pod-autoscale-custom
+>   namespace: my-hpa
+> spec:
+>   scaleTargetRef:
+>     kind: DeploymentConfig
+>     name: pod-autoscale
+>     apiVersion: apps.openshift.io/v1
+>   minReplicas: 1
+>   maxReplicas: 5
+>   metrics:
+>     - type: Pods
+>       pods:
+>         metricName: http_requests
+>         targetAverageValue: 500m" | oc create -f -
+horizontalpodautoscaler.autoscaling/pod-autoscale-custom created
+
+为了生成负载，请打开另一个SSH终端并且运行：
+[centos@lb.weixinyucluster ~]$ AUTOSCALE_ROUTE=$(oc get route pod-autoscale -n my-hpa -o jsonpath='{ .spec.host}')
+[centos@lb.weixinyucluster ~]$ while true;do curl http://$AUTOSCALE_ROUTE;sleep .5;done
+Hello! My name is pod-autoscale-2-pvrw8. I have served 19 requests so far.
+Hello! My name is pod-autoscale-2-pvrw8. I have served 20 requests so far.
+Hello! My name is pod-autoscale-2-pvrw8. I have served 21 requests so far.
+Hello! My name is pod-autoscale-2-pvrw8. I have served 22 requests so far.
+Hello! My name is pod-autoscale-2-pvrw8. I have served 23 requests so far.
+Hello! My name is pod-autoscale-2-pvrw8. I have served 24 requests so far.
+Hello! My name is pod-autoscale-2-pvrw8. I have served 25 requests so far.
+Hello! My name is pod-autoscale-2-pvrw8. I have served 26 requests so far.
+Hello! My name is pod-autoscale-2-pvrw8. I have served 27 requests so far.
+Hello! My name is pod-autoscale-2-pvrw8. I have served 28 requests so far.
+Hello! My name is pod-autoscale-2-pvrw8. I have served 29 requests so far.
+Hello! My name is pod-autoscale-2-pvrw8. I have served 30 requests so far.
+Hello! My name is pod-autoscale-2-pvrw8. I have served 31 requests so far.
+
+
+
+[centos@lb.weixinyucluster ~]$  oc describe hpa pod-autoscale-custom -n my-hpa
+Name:                       pod-autoscale-custom
+Namespace:                  my-hpa
+Labels:                     <none>
+Annotations:                <none>
+CreationTimestamp:          Fri, 31 Jul 2020 12:58:08 +0000
+Reference:                  DeploymentConfig/pod-autoscale
+Metrics:                    ( current / target )
+  "http_requests" on pods:  2 / 500m
+Min replicas:               1
+Max replicas:               5
+DeploymentConfig pods:      1 current / 4 desired
+Conditions:
+  Type            Status  Reason              Message
+  ----            ------  ------              -------
+  AbleToScale     True    SucceededRescale    the HPA controller was able to update the target scale to 4
+  ScalingActive   True    ValidMetricFound    the HPA was able to successfully calculate a replica count from pods metric http_requests
+  ScalingLimited  False   DesiredWithinRange  the desired count is within the acceptable range
+Events:
+  Type    Reason             Age               From                       Message
+  ----    ------             ----              ----                       -------
+  Normal  SuccessfulRescale  8s (x3 over 38s)  horizontal-pod-autoscaler  New size: 4; reason: pods metric http_requests above target
+[centos@lb.weixinyucluster ~]$  oc describe hpa pod-autoscale-custom -n my-hpa
+Name:                       pod-autoscale-custom
+Namespace:                  my-hpa
+Labels:                     <none>
+Annotations:                <none>
+CreationTimestamp:          Fri, 31 Jul 2020 12:58:08 +0000
+Reference:                  DeploymentConfig/pod-autoscale
+Metrics:                    ( current / target )
+  "http_requests" on pods:  2 / 500m
+Min replicas:               1
+Max replicas:               5
+DeploymentConfig pods:      1 current / 4 desired
+Conditions:
+  Type            Status  Reason              Message
+  ----            ------  ------              -------
+  AbleToScale     True    SucceededRescale    the HPA controller was able to update the target scale to 4
+  ScalingActive   True    ValidMetricFound    the HPA was able to successfully calculate a replica count from pods metric http_requests
+  ScalingLimited  False   DesiredWithinRange  the desired count is within the acceptable range
+Events:
+  Type    Reason             Age                From                       Message
+  ----    ------             ----               ----                       -------
+  Normal  SuccessfulRescale  12s (x3 over 42s)  horizontal-pod-autoscaler  New size: 4; reason: pods metric http_requests above target
+
+
+
+[centos@lb.weixinyucluster ~]$  oc get pods -n my-hpa
+NAME                     READY   STATUS              RESTARTS   AGE
+pod-autoscale-1-deploy   0/1     Completed           0          26m
+pod-autoscale-2-2vrgc    0/1     ContainerCreating   0          1s
+pod-autoscale-2-deploy   0/1     Completed           0          24m
+pod-autoscale-2-dqdrg    0/1     ContainerCreating   0          1s
+pod-autoscale-2-pvrw8    1/1     Running             0          24m
+pod-autoscale-2-t52hd    0/1     ContainerCreating   0          1s
