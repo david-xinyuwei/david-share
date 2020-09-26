@@ -26,6 +26,9 @@ Saving to: ‘openshift-client-linux-4.5.3.tar.gz’
 
 2020-07-27 02:02:03 (28.3 MB/s) - ‘openshift-client-linux-4.5.3.tar.gz’ saved [ 25909584/25909584]
 
+也可以将openshift-install一并下载，主要openshift-install和OCP的版本镜像完全一致即可！没必要一定生成这个二进制：
+wget https://mirror.openshift.com/pub/openshift-v4/clients/ocp/$OCP_RELEASE/openshift-install-linux-4.5.12.tar.gz
+
 [xiwei-redhat.com@bastion ~]$ sudo tar xzf openshift-client-linux-$OCP_RELEASE.tar.gz -C /usr/local/sbin/ oc kubectl
 [xiwei-redhat.com@bastion ~]$  which oc; oc version
 /usr/local/sbin/oc
@@ -35,7 +38,7 @@ Client Version: 4.5.3
 [xiwei-redhat.com@bastion ~]$ oc completion bash | sudo tee /etc/bash_completion.d/openshift > /dev/null
 [xiwei-redhat.com@bastion ~]$  . /usr/share/bash-completion/bash_completion
 
-查看openstack的认证文件：
+查看openstack的认证文件，在openstack中的一个用户的项目中把该创建的资源都创建好。
 [xiwei-redhat.com@bastion ~]$ cat $HOME/.config/openstack/clouds.yaml
 clouds:
   36fd-project:
@@ -49,6 +52,13 @@ clouds:
     region_name: "regionOne"
     interface: "public"
     identity_api_version: 3
+
+36fd-user是OpenStack的一个租户。
+
+
+通过浏览器可以登录OpenStack的UI：
+http://169.47.17.15/dashboard
+详见OSP补充材料。
 
 [xiwei-redhat.com@bastion ~]$  openstack server list    -f json
 [
@@ -629,6 +639,9 @@ INFO Credentials loaded from file "/home/xiwei-redhat.com/.config/openstack/clou
 ? Cluster Name cluster-a389
 ? Pull Secret [? for help] **************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************
 
+[xiwei-redhat.com@bastion openstack-upi]$ pwd
+/home/xiwei-redhat.com/openstack-upi
+
 [xiwei-redhat.com@bastion openstack-upi]$ cat install-config.yaml
 apiVersion: v1
 baseDomain: blue.osp.opentlc.com
@@ -817,6 +830,29 @@ localhost | CHANGED => {
     "changed": true,
     "msg": "line added"
 }
+
+修改后，该文件增加了最后一行：
+[xiwei-redhat.com@bastion ~]$ cat $HOME/.bashrc
+# .bashrc
+
+# Source global definitions
+if [ -f /etc/bashrc ]; then
+        . /etc/bashrc
+fi
+
+# Uncomment the following line if you don't like systemctl's auto-paging feature:
+# export SYSTEMD_PAGER=
+
+# User specific aliases and functions
+export GUID=3123
+export CLOUDUSER=cloud-user
+export API_FIP=52.116.95.215
+export INGRESS_FIP=52.116.95.185
+export OPENSHIFT_DNS_ZONE=blue.osp.opentlc.com
+export OS_CLOUD=3123-project
+export OCP_RELEASE=4.5.12
+export INFRA_ID=$(jq -r .infraID $HOME/openstack-upi/metadata.json)
+
 [xiwei-redhat.com@bastion openstack-upi]$ source $HOME/.bashrc
 [xiwei-redhat.com@bastion openstack-upi]$ echo $INFRA_ID
 cluster-a389-287mt
@@ -901,15 +937,17 @@ cluster-a389-287mt
   }
 ]
 最后，对于点火更改，必须为将要创建的三个主节点创建点火文件。运行以下命令来创建这些文件。
-[xiwei-redhat.com@bastion openstack-upi]$ for index in $(seq 0 2); do
->     MASTER_HOSTNAME="$INFRA_ID-master-$index\n"
->     python3 -c "import base64, json, sys;
-> ignition = json.load(sys.stdin);
-> files = ignition['storage'].get('files', []);
-> files.append({'path': '/etc/hostname', 'mode': 420, 'contents': {'source': 'data:text/plain;charset=utf-8;base64,' + base64.standard_b64encode(b'$MASTER_HOSTNAME').decode().strip(), 'verification': {}}, 'filesystem': 'root'});
-> ignition['storage']['files'] = files;
-> json.dump(ignition, sys.stdout)" <master.ign >"$INFRA_ID-master-$index-ignition.json"
-> done
+[xiwei-redhat.com@bastion openstack-upi]$ 
+for index in $(seq 0 2); do
+MASTER_HOSTNAME="$INFRA_ID-master-$index\n"
+python3 -c "import base64, json, sys;
+ignition = json.load(sys.stdin);
+files = ignition['storage'].get('files', []);
+files.append({'path': '/etc/hostname', 'mode': 420, 'contents': {'source': 'data:text/plain;charset=utf-8;base64,' + base64.standard_b64encode(b'$MASTER_HOSTNAME').decode().strip(), 'verification': {}}, 'filesystem': 'root'});
+ignition['storage']['files'] = files;
+json.dump(ignition, sys.stdout)" <master.ign >"$INFRA_ID-master-$index-ignition.json"
+done
+
 
 从您的堡垒，将bootstrap.ign文件复制到UtilityVM。将其复制到正确的位置并设置SELinux上下文，以便可以对其进行访问。
 [xiwei-redhat.com@bastion openstack-upi]$ scp bootstrap.ign utilityvm.example.com:
@@ -934,27 +972,28 @@ Saving to: ‘/home/xiwei-redhat.com/mybootstrap.ign’
 2020-07-27 05:16:33 (30.6 MB/s) - ‘/home/xiwei-redhat.com/mybootstrap.ign’ saved [315557/315557]
 
 您现在唯一需要的是引导节点的新点火文件，它将指向真实的点火文件。这称为自举点火垫片。该命令将为您生成文件，指向您从实用程序VM托管的真正的bootstrap.ign。这个新文件是启动时将提供给引导节点的点火文件。
-[xiwei-redhat.com@bastion openstack-upi]$  cat << EOF > $HOME/openstack-upi/$INFRA_ID-bootstrap-ignition.json
-> {
->   "ignition": {
->     "config": {
->       "append": [
->         {
->           "source": "http://utilityvm.example.com/bootstrap.ign",
->           "verification": {}
->         }
->       ]
->     },
->     "security": {},
->     "timeouts": {},
->     "version": "2.4.0"
->   },
->   "networkd": {},
->   "passwd": {},
->   "storage": {},
->   "systemd": {}
-> }
-> EOF
+[xiwei-redhat.com@bastion openstack-upi]$  
+cat << EOF > $HOME/openstack-upi/$INFRA_ID-bootstrap-ignition.json
+ {
+   "ignition": {
+     "config": {
+       "append": [
+         {
+           "source": "http://bastion.example.com/bootstrap.ign",
+           "verification": {}
+         }
+       ]
+     },
+     "security": {},
+     "timeouts": {},
+     "version": "2.4.0"
+   },
+   "networkd": {},
+   "passwd": {},
+   "storage": {},
+   "systemd": {}
+ }
+ EOF
 
 
 创建Bootstrap Node
@@ -1024,12 +1063,13 @@ Saving to: ‘/home/xiwei-redhat.com/mybootstrap.ign’
   "trunk_details": null,
   "updated_at": "2020-07-27T09:17:55Z"
 }
-[xiwei-redhat.com@bastion openstack-upi]$  openstack port create \
->   --network "$GUID-ocp-network" \
->   --security-group "$GUID-worker_sg" \
->   --fixed-ip "subnet=$GUID-ocp-subnet,ip-address=192.168.47.7" \
->   --tag openshiftClusterID="$INFRA_ID" \
->   "$INFRA_ID-ingress-port"
+[xiwei-redhat.com@bastion openstack-upi]$  
+openstack port create \
+   --network "$GUID-ocp-network" \
+   --security-group "$GUID-worker_sg" \
+   --fixed-ip "subnet=$GUID-ocp-subnet,ip-address=192.168.47.7" \
+   --tag openshiftClusterID="$INFRA_ID" \
+   "$INFRA_ID-ingress-port"
 
 $ openstack floating ip set --port "$INFRA_ID-api-port" $API_FIP
 $ openstack floating ip set --port "$INFRA_ID-ingress-port" $INGRESS_FIP
@@ -1053,6 +1093,12 @@ $ openstack floating ip set --port "$INFRA_ID-ingress-port" $INGRESS_FIP
   --allowed-address ip-address=192.168.47.7 \
   --tag openshiftClusterID="$INFRA_ID" \
   "$INFRA_ID-bootstrap-port"
+
+查看镜像：
+[xiwei-redhat.com@bastion openstack-upi]$ openstack  image list |grep -i ocp45
+| e1a13377-2b55-4aee-ba05-0391a53c92e8 | rhcos-ocp45                                                   | active |
+[xiwei-redhat.com@bastion openstack-upi]$
+
 
 [xiwei-redhat.com@bastion openstack-upi]$ openstack server create --image rhcos-ocp45 --flavor 4c16g30d --user-data "$HOME/openstack-upi/$INFRA_ID-bootstrap-ignition.json" --port "$INFRA_ID-bootstrap-port" --wait --property openshiftClusterID="$INFRA_ID" "$INFRA_ID-bootstrap"
 +-----------------------------+----------------------------------------------------------+
@@ -1135,16 +1181,17 @@ $ journalctl -b -f -u release-image.service -u bootkube.service
     "Flavor": "2c2g30d"
   }
 ]
-[xiwei-redhat.com@bastion ~]$ for index in $(seq 0 2); do
->     openstack port create \
->     --network "$GUID-ocp-network" \
->     --security-group "$GUID-master_sg" \
->     --allowed-address ip-address=192.168.47.5 \
->     --allowed-address ip-address=192.168.47.6 \
->     --allowed-address ip-address=192.168.47.7 \
->     --tag openshiftClusterID="$INFRA_ID" \
->     "$INFRA_ID-master-port-$index"
-> done
+[xiwei-redhat.com@bastion ~]$ 
+for index in $(seq 0 2); do
+     openstack port create \
+     --network "$GUID-ocp-network" \
+     --security-group "$GUID-master_sg" \
+     --allowed-address ip-address=192.168.47.5 \
+     --allowed-address ip-address=192.168.47.6 \
+     --allowed-address ip-address=192.168.47.7 \
+     --tag openshiftClusterID="$INFRA_ID" \
+     "$INFRA_ID-master-port-$index"
+ done
 +-------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Field                   | Value                                                                                                                                                                               |
 +-------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -1265,16 +1312,17 @@ $ journalctl -b -f -u release-image.service -u bootkube.service
 
 
 创建网络端口后，您可以继续创建VM。此命令将为您创建3个主节点。请注意正在创建的内容以及它与您在上一步中创建的网络端口之间的关系。
-[xiwei-redhat.com@bastion ~]$ for index in $(seq 0 2); do
->     openstack server create \
->     --boot-from-volume 30 \
->     --image rhcos-ocp45 \
->     --flavor 4c16g30d \
->     --user-data "$HOME/openstack-upi/$INFRA_ID-master-$index-ignition.json" \
->     --port "$INFRA_ID-master-port-$index" \
->     --property openshiftClusterID="$INFRA_ID" \
->     "$INFRA_ID-master-$index"
-> done
+[xiwei-redhat.com@bastion ~]$
+ for index in $(seq 0 2); do
+     openstack server create \
+     --boot-from-volume 30 \
+     --image rhcos-ocp45 \
+     --flavor 4c16g30d \
+     --user-data "$HOME/openstack-upi/$INFRA_ID-master-$index-ignition.json" \
+     --port "$INFRA_ID-master-port-$index" \
+     --property openshiftClusterID="$INFRA_ID" \
+     "$INFRA_ID-master-$index"
+ done
 +-----------------------------+-------------------------------------------------+
 | Field                       | Value                                           |
 +-----------------------------+-------------------------------------------------+
@@ -1418,7 +1466,8 @@ INFO API v1.18.3+3107688 up
 INFO Waiting up to 40m0s for bootstrapping to complete...
 INFO It is now safe to remove the bootstrap resources
 INFO Time elapsed: 5m18s
-[xiwei-redhat.com@bastion ~]$
+
+[xiwei-redhat.com@bastion auth]$ export KUBECONFIG=/home/xiwei-redhat.com/openstack-upi/auth/kubeconfig
 
 
 xiwei-redhat.com@bastion ~]$ oc get clusterversion
@@ -1464,16 +1513,17 @@ storage
 
 ============================================================
  Create Workers 创建worker节点
-[xiwei-redhat.com@bastion ~]$ for index in $(seq 0 1); do
->     openstack port create \
->     --network "$GUID-ocp-network" \
->     --security-group "$GUID-worker_sg" \
->     --allowed-address ip-address=192.168.47.5 \
->     --allowed-address ip-address=192.168.47.6 \
->     --allowed-address ip-address=192.168.47.7 \
->     --tag openshiftClusterID="$INFRA_ID" \
->     "$INFRA_ID-worker-port-$index"
-> done
+[xiwei-redhat.com@bastion ~]$ 
+for index in $(seq 0 1); do
+     openstack port create \
+     --network "$GUID-ocp-network" \
+     --security-group "$GUID-worker_sg" \
+     --allowed-address ip-address=192.168.47.5 \
+     --allowed-address ip-address=192.168.47.6 \
+     --allowed-address ip-address=192.168.47.7 \
+     --tag openshiftClusterID="$INFRA_ID" \
+     "$INFRA_ID-worker-port-$index"
+ done
 +-------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | Field                   | Value                                                                                                                                                                               |
 +-------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -1552,15 +1602,16 @@ storage
 | trunk_details           | None                                                                                                                                                                                |
 | updated_at              | 2020-07-27T13:46:09Z                                                                                                                                                                |
 +-------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-[xiwei-redhat.com@bastion ~]$ for index in $(seq 0 1); do
->     openstack server create \
->     --image rhcos-ocp45 \
->     --flavor 4c16g30d \
->     --user-data "$HOME/openstack-upi/worker.ign" \
->     --port "$INFRA_ID-worker-port-$index" \
->     --property openshiftClusterID="$INFRA_ID" \
->     "$INFRA_ID-worker-$index"
-> done
+[xiwei-redhat.com@bastion ~]$ 
+for index in $(seq 0 1); do
+     openstack server create \
+     --image rhcos-ocp45 \
+     --flavor 4c16g30d \
+     --user-data "$HOME/openstack-upi/worker.ign" \
+     --port "$INFRA_ID-worker-port-$index" \
+     --property openshiftClusterID="$INFRA_ID" \
+     "$INFRA_ID-worker-$index"
+ done
 +-----------------------------+----------------------------------------------------+
 | Field                       | Value                                              |
 +-----------------------------+----------------------------------------------------+
