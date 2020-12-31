@@ -1819,3 +1819,23 @@ operator-lifecycle-manager-packageserver   4.5.3     True        False         F
 service-ca                                 4.5.3     True        False         False      37m
 storage                                    4.5.3     True        False         False      31m
 
+[xiwei-redhat.com@bastion ~]$ oc get pods -n openshift-openstack-infra
+NAME                                         READY   STATUS    RESTARTS   AGE
+coredns-cluster-4a29-rgcpk-master-0          1/1     Running   0          4d11h
+coredns-cluster-4a29-rgcpk-master-1          1/1     Running   0          4d11h
+coredns-cluster-4a29-rgcpk-master-2          1/1     Running   0          4d11h
+coredns-cluster-4a29-rgcpk-worker-0          1/1     Running   0          4d11h
+coredns-cluster-4a29-rgcpk-worker-1          1/1     Running   0          4d11h
+haproxy-cluster-4a29-rgcpk-master-0          2/2     Running   2          4d11h
+haproxy-cluster-4a29-rgcpk-master-1          2/2     Running   0          4d11h
+haproxy-cluster-4a29-rgcpk-master-2          2/2     Running   2          4d11h
+keepalived-cluster-4a29-rgcpk-master-0       1/1     Running   0          4d11h
+keepalived-cluster-4a29-rgcpk-master-1       1/1     Running   0          4d11h
+keepalived-cluster-4a29-rgcpk-master-2       1/1     Running   0          4d11h
+keepalived-cluster-4a29-rgcpk-worker-0       1/1     Running   0          4d11h
+keepalived-cluster-4a29-rgcpk-worker-1       1/1     Running   0          4d11h
+mdns-publisher-cluster-4a29-rgcpk-master-0   1/1     Running   0          4d11h
+mdns-publisher-cluster-4a29-rgcpk-master-1   1/1     Running   0          4d11h
+mdns-publisher-cluster-4a29-rgcpk-master-2   1/1     Running   0          4d11h
+mdns-publisher-cluster-4a29-rgcpk-worker-0   1/1     Running   0          4d11h
+mdns-publisher-cluster-4a29-rgcpk-worker-1   1/1     Running   0          4d11h
