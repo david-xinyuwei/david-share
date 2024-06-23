@@ -4,7 +4,8 @@ This repository contains the essence of the "david-share" WeChat public account,
 My current research focus is on GenAI, and all related content can be found in the "**LLMs**" directory.
 
 ## Latest Research Findings 
-### Week June, 23th, 2024
+### Study in June, 2024
+Phi3-vision-Fine-tuning: LLMs/Phi3-vision-Fine-tuning
 
 ****
 
