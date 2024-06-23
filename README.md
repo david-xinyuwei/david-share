@@ -5,6 +5,7 @@ My current research focus is on GenAI, and all related content can be found in t
 
 ## Latest Research Findings 
 ### Study in June, 2024
+* ***Continue-Pre-training: LLMs/Continue-Pre-training***
 * ***Phi3-vision-Fine-tuning: LLMs/Phi3-vision-Fine-tuning***
 
 ****
