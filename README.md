@@ -33,6 +33,6 @@ My current research focus is on GenAI, and all related content can be found in t
 
 <img src="https://github.com/davidsajare/david-share/blob/master/IMAGES/2.png" width="400" height="550">
 
-### The 1st book was published in Nov 1st，2019. 
+#### The 1st book was published in Nov 1st，2019. 
 
 <img src="https://github.com/davidsajare/david-share/blob/master/IMAGES/1.png" width="400" height="550">
