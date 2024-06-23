@@ -12,7 +12,7 @@ My current research focus is on GenAI, and all related content can be found in t
 
 ## Book Publishing History: 
 ### The 5th book is scheduled to be published in August 2024. Please look forward to it！
-Repo：https://github.com/davidsajare/Training-and-Application-of-LLMs-and-SLMs.git
+***Repo：https://github.com/davidsajare/Training-and-Application-of-LLMs-and-SLMs.git***
 
 <img src="https://github.com/davidsajare/david-share/blob/master/IMAGES/5.png" width="400" height="550">
 
