@@ -4,7 +4,7 @@ This repository contains the essence of the "Da Wei Shares" WeChat public accoun
 ## Book Publishing History: 
 ### The 5th book is scheduled to be published in August 2024. Please look forward to it！
 
-<img src="https://github.com/davidsajare/david-share/blob/master/IMAGES/book5.jpg" width="500" height="600">
+<img src="https://github.com/davidsajare/david-share/blob/master/IMAGES/5.png" width="500" height="600">
 
 ### The 4th book was published in January 1st，2022. 
 
