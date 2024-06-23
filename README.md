@@ -1,5 +1,6 @@
 # david-share
-This repository contains the essence of the "Da Wei Shares" WeChat public account, as well as Da Wei's study notes from his daily work. 
+This repository contains the essence of the "david-share" WeChat public account, as well as study notes from daily work. 
+My current research focus is on GenAI, and all related content can be found in the LLMs directory.
 
 ## Book Publishing History: 
 ### The 5th book is scheduled to be published in August 2024. Please look forward to it！
