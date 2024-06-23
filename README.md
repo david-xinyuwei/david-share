@@ -16,7 +16,7 @@ This repository contains the essence of the "Da Wei Shares" WeChat public accoun
 
 
 ### The 2nd book was published in July 1st，2020. 
-
+Repo: https://github.com/ocp-msa-devops/Version-2.git
 <img src="https://github.com/davidsajare/david-share/blob/master/IMAGES/2.png" width="400" height="550">
 
 ### The 1st book was published in Nov 1st，2019. 
