@@ -21,6 +21,7 @@ My current research focus is on GenAI, and all related content can be found in t
 <img src="https://github.com/davidsajare/david-share/blob/master/IMAGES/5.png" width="400" height="550">
 
 #### The 4th book was published in January 1st，2022. 
+***Repo：https://github.com/davidsajare/FSI-IT-construction.git***
 
 <img src="https://github.com/davidsajare/david-share/blob/master/IMAGES/4.png" width="400" height="550">
 
