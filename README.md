@@ -3,6 +3,7 @@ This repository contains the essence of the "Da Wei Shares" WeChat public accoun
 
 ## Book Publishing History: 
 ### The 5th book is scheduled to be published in August 2024. Please look forward to it！
+Repo：https://github.com/davidsajare/Training-and-Application-of-LLMs-and-SLMs.git
 
 <img src="https://github.com/davidsajare/david-share/blob/master/IMAGES/5.png" width="400" height="550">
 
