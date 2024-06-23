@@ -8,6 +8,7 @@ My current research focus is on GenAI, and all related content can be found in t
 * **KV-Cache-Quantization: LLMs/KV-Cache-Quantization**
 * **Continue-Pre-training: LLMs/Continue-Pre-training**
 * **Phi3-vision-Fine-tuning: LLMs/Phi3-vision-Fine-tuning**
+* **Chinese-PII-With-Azure-Speech-Service: LLMs/Phi3-vision-Fine-tuning**
 
 ****
 
