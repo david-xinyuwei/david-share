@@ -5,10 +5,11 @@ My current research focus is on GenAI, and all related content can be found in t
 
 ## Latest Research Findings 
 ### Study in June, 2024
-* **KV-Cache-Quantization: LLMs/KV-Cache-Quantization**
-* **Continue-Pre-training: LLMs/Continue-Pre-training**
-* **Phi3-vision-Fine-tuning: LLMs/Phi3-vision-Fine-tuning**
-* **Chinese-PII-With-Azure-Speech-Service: LLMs/Phi3-vision-Fine-tuning**
+
+* **KV-Cache-Quantization: LLMs**
+* **Continue-Pre-training: LLMs**
+* **Phi3-vision-Fine-tuning: LLMs**
+* **Chinese-PII-With-Azure-Speech-Service: LLMs**
 
 ****
 
