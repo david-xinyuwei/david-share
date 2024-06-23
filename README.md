@@ -3,6 +3,9 @@ This repository contains the essence of the "david-share" WeChat public account,
 
 My current research focus is on GenAI, and all related content can be found in the "**LLMs**" directory.
 
+## Latest Research Findings 
+### Week June, 23th, 2024
+
 ## Book Publishing History: 
 ### The 5th book is scheduled to be published in August 2024. Please look forward to it！
 Repo：https://github.com/davidsajare/Training-and-Application-of-LLMs-and-SLMs.git
