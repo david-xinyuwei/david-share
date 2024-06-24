@@ -1,8 +1,0 @@
-com/apress/todo/domain/ToDo.class
-com/apress/todo/TodoInMemoryApplication.class
-com/apress/todo/repository/CommonRepository.class
-com/apress/todo/validation/ToDoValidationErrorBuilder.class
-com/apress/todo/controller/ToDoController.class
-com/apress/todo/validation/ToDoValidationError.class
-com/apress/todo/repository/ToDoRepository.class
-com/apress/todo/domain/ToDoBuilder.class
