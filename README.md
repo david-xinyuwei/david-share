@@ -9,7 +9,7 @@ My current research focus is on GenAI, and all related content can be found in t
 * **模型即服务Model as a Service以及大小模型配合的最佳实践: LLMs**
 * **KV-Cache-Quantization: LLMs**
 * **Continue-Pre-training: LLMs**
-* **Phi3-vision-Fine-tuning: LLMs**
+* **Phi3-vision-Fine-tuning: Multimodal Models**
 * **Chinese-PII-With-Azure-Speech-Service: LLMs**
 
 ****
