@@ -64,9 +64,10 @@ Without quantization, the FP16 inference for an image (passport as an example) i
 
 Take the Chinese test ID card as an example:
 
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/1.png width="400" height="550")
+![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/1.png)
 
 ***Inference results:***
+
 ![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/chinaidres.jpg)
 
 
