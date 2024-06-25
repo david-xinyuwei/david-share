@@ -28,7 +28,7 @@ https://github.com/davidsajare/david-share/tree/master/Multimodal-Models/Phi3-vi
 3. Whether there are enough resources, especially memory.Not enough arithmetic causes slow inference, but not enough memory directly causes OOM.
 
 
-## Phi3-Vision test result
+## Phi3-Vision on CUDA with HF transformer test result
 Currently Phi3-v has only 128K contexts in both HF and ONNX formats.
 https://huggingface.co/microsoft/Phi-3-vision-128k-instruct
 
@@ -76,3 +76,6 @@ In addition, summarizing and intent recognition for a picture is more clearly de
 Inference time: 4.555504083633423
 
 The image shows a white truck driving on a road with trees on both sides. There is a car in front of the truck, and the truck appears to be in motion. The road seems to be in a rural or less-traveled area. There is no immediate indication of danger, but the truck's position and the car's proximity suggest caution is advisable.
+
+
+## Phi3-Vision on CUDA with vLLM test result
