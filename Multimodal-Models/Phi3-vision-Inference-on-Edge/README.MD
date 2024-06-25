@@ -15,6 +15,7 @@ Phi3-Vision is besides capable and suitable for reasoning at the edge end due to
 
 From the above figure you can see the memory consumed by the phi3-v loading model for different data types.
 
+
 ## Consideration for edge-side Inference
 
 **1. Whether you need to do fine-tuning the model to meet specific business needs. See my repo for ways to fine tune:**
@@ -26,6 +27,7 @@ From the above figure you can see the memory consumed by the phi3-v loading mode
 **3. Whether there are enough resources, especially memory.Not enough arithmetic causes slow inference, but not enough memory directly causes OOM.**
 
 
+
 ## Phi3-Vision on CUDA with HF transformer test result
 Currently Phi3-v has only 128K contexts in both HF and ONNX formats.
 
@@ -34,9 +36,7 @@ Check the memory needs for Phi3-Vision in different datatype.
 
 ![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/3.jpg)
 
-In this article I use the HF format for validation.
-
-***For testing passports:***
+***For testing picture which is a sample passports:***
 ![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/usa-passport.jpg)
 
 ### 3 Points notice:
