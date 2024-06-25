@@ -10,10 +10,10 @@ In this test, I use Burberry's data to fine-tune Phi3-Vision comprehensively. Th
 
 ## Phi3-Vision Benchmark Score
 Previously, we used AI computer vision, mainly using models like Llava and GPT-4o. After Phi3-Vision was released in May, it has surpassed Llava in many aspects:
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/2.jpg width="400" height="550")
+![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/2.jpg)
 
 Phi3-Vision is besides capable and suitable for reasoning at the edge end due to the comparatively small number of parameters:
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/3.jpg width="400" height="550")
+![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/3.jpg)
 
 From the above figure you can see the memory consumed by the phi3-v loading model for different data types.
 
@@ -32,12 +32,12 @@ https://github.com/davidsajare/david-share/tree/master/Multimodal-Models/Phi3-vi
 Currently Phi3-v has only 128K contexts in both HF and ONNX formats.
 https://huggingface.co/microsoft/Phi-3-vision-128k-instruct
 
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/3.jpg width="400" height="550")
+![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/3.jpg)
 
 In this article I use the HF format for validation.
 
 For testing passports:
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/usa-passport.jpg width="400" height="550")
+![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/usa-passport.jpg)
 
 ### 2 Points：
 
