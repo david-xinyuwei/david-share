@@ -37,6 +37,8 @@ Check the memory needs for Phi3-Vision in different datatype.
 ![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/3.jpg)
 
 ***For testing picture which is a sample passports:***
+
+
 ![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/usa-passport.jpg)
 
 ### 3 Points notice:
