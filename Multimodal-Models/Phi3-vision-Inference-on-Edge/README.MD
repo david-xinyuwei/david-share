@@ -51,12 +51,12 @@ For English, whether dynamic quantization are very accurate, whether it is pictu
 For Chinese, OCR accuracy needs to be improved, and intent recognition is OK.
 
 With the A100, the inference for a picture after quantization (passport as an example) is around 17 seconds. Memory 6G:
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/int4infer.jpg width="400" height="550")
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/int4gpu.jpg width="400" height="550")
+![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/int4infer.jpg)
+![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/int4gpu.jpg)
 
 Without quantization, the FP16 inference for an image (passport as an example) is in the neighborhood of 13 seconds, with close to 12 GB of memory.
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/fp16infer.jpg width="400" height="550")
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/fp16gpu.jpg width="400" height="550")
+![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/fp16infer.jpg)
+![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/fp16gpu.jpg)
 
 ##### 3. On the problems encountered in Chinese recognition.
 
@@ -65,13 +65,13 @@ Take the Chinese test ID card as an example:
 ![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/1.png width="400" height="550")
 
 Inference results:
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/chinaidres.jpg width="400" height="550")
+![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/chinaidres.jpg)
 
 
 When we look at names and addresses, they are not very accurate.
 
 In addition, summarizing and intent recognition for a picture is more clearly described in English, but not in Chinese.
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/car.jpg width="400" height="550")
+![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/car.jpg)
 
 Inference time: 4.555504083633423
 
@@ -79,3 +79,6 @@ The image shows a white truck driving on a road with trees on both sides. There 
 
 
 ## Phi3-Vision on CUDA with vLLM test result
+TODO
+## Phi3-Vision with ONNX test result
+TODO
