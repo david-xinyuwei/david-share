@@ -10,10 +10,10 @@ In this test, I use Burberry's data to fine-tune Phi3-Vision comprehensively. Th
 
 ## Phi3-Vision Benchmark Score
 Previously, we used AI computer vision, mainly using models like Llava and GPT-4o. After Phi3-Vision was released in May, it has surpassed Llava in many aspects:
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/2.jpg)
+![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/2.jpg width="400" height="550")
 
 Phi3-Vision is besides capable and suitable for reasoning at the edge end due to the comparatively small number of parameters:
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/3.jpg)
+![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/3.jpg width="400" height="550")
 
 From the above figure you can see the memory consumed by the phi3-v loading model for different data types.
 
@@ -32,44 +32,46 @@ https://github.com/davidsajare/david-share/tree/master/Multimodal-Models/Phi3-vi
 Currently Phi3-v has only 128K contexts in both HF and ONNX formats.
 https://huggingface.co/microsoft/Phi-3-vision-128k-instruct
 
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/3.jpg)
+![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/3.jpg width="400" height="550")
 
 In this article I use the HF format for validation.
 
 For testing passports:
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/usa-passport.jpg)
+![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/usa-passport.jpg width="400" height="550")
 
-### 2 Points
+### 2 Points：
 
-1. Does bnb dynamic quantization cause a decrease in inference accuracy, the answer is no.
+##### 1. Does bnb dynamic quantization cause a decrease in inference accuracy, the answer is no.
 
-2. bnb whether dynamic quantization will cause a decline in reasoning speed, the answer is yes.
+##### 2. Whether dynamic quantization will cause a decline in reasoning speed, the answer is yes.
+
 
 For English, whether dynamic quantization are very accurate, whether it is picture intent recognition, picture description or OCR (for example, for passports), are very accurate, and do not need to write too many prompt words.
 
 For Chinese, OCR accuracy needs to be improved, and intent recognition is OK.
 
 With the A100, the inference for a picture after quantization (passport as an example) is around 17 seconds. Memory 6G:
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/int4infer.jpg)
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/int4gpu.jpg)
+![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/int4infer.jpg width="400" height="550")
+![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/int4gpu.jpg width="400" height="550")
 
 Without quantization, the FP16 inference for an image (passport as an example) is in the neighborhood of 13 seconds, with close to 12 GB of memory.
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/fp16infer.jpg)
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/fp16gpu.jpg)
+![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/fp16infer.jpg width="400" height="550")
+![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/fp16gpu.jpg width="400" height="550")
 
-3. On the problems encountered in Chinese recognition.
+##### 3. On the problems encountered in Chinese recognition.
 
 Take the Chinese test ID card as an example:
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/1.png)
+
+![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/1.png width="400" height="550")
 
 Inference results:
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/chinaidres.jpg)
+![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/chinaidres.jpg width="400" height="550")
 
 
 When we look at names and addresses, they are not very accurate.
 
 In addition, summarizing and intent recognition for a picture is more clearly described in English, but not in Chinese.
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/car.jpg)
+![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/car.jpg width="400" height="550")
 
 Inference time: 4.555504083633423
 
