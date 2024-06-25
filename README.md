@@ -12,7 +12,7 @@ My current research focus is on GenAI, and all related content can be found in t
 * ***KV-Cache-Quantization: LLMs***
 * ***Continue-Pre-training: LLMs***
 * ***Phi3-vision-Fine-tuning: Multimodal Models***
-** **Chinese-PII-With-Azure-Speech-Service: LLMs***
+* ***Chinese-PII-With-Azure-Speech-Service: LLMs***
 
 ****
 
