@@ -6,12 +6,12 @@ My current research focus is on GenAI, and all related content can be found in t
 ## Latest Research Findings 
 ### Study in June, 2024
 
-* **Phi3-vision-Inference-on-Edge: Multimodal Models**
-* **模型即服务Model as a Service以及大小模型配合的最佳实践: LLMs**
-* **KV-Cache-Quantization: LLMs**
-* **Continue-Pre-training: LLMs**
-* **Phi3-vision-Fine-tuning: Multimodal Models**
-* **Chinese-PII-With-Azure-Speech-Service: LLMs**
+* ***Phi3-vision-Inference-on-Edge: Multimodal Models***
+* ***模型即服务Model as a Service以及大小模型配合的最佳实践: LLMs***
+* ***KV-Cache-Quantization: LLMs***
+* ***Continue-Pre-training: LLMs***
+* ***Phi3-vision-Fine-tuning: Multimodal Models***
+** **Chinese-PII-With-Azure-Speech-Service: LLMs***
 
 ****
 
