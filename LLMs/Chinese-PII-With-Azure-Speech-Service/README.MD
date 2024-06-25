@@ -31,7 +31,7 @@ presidio可以对接多种开源模型实现PII。但针对中文，经过验证
 
 我叫孙悟空，其实我是一只好猴，名字叫如来的人说我是坏猴，其实他才是个坏人，我的电话是1234456768，银行卡是31212122112。我的邮箱wukong.sun@xiyouji.com。有取经业务欢迎电话或者邮件联系我。
 
-![Image text](https://raw.githubusercontent.com/davidsajare/Chinese-PII-With-Azure-Speech-Service/main/1.webp)
+![Image text](https://github.com/davidsajare/david-share/blob/master/LLMs/Chinese-PII-With-Azure-Speech-Service/1.webp)
 
 *The presidio+Azure Language effect is as follows:*
 
@@ -39,7 +39,7 @@ presidio可以对接多种开源模型实现PII。但针对中文，经过验证
 
 *My name is Sun Wukong, in fact, I am a good monkey, the name of Rudra said I am a bad monkey, in fact, he is the bad guy, my phone number is 1234456768, the bank card is 31212122112. My email wukongsun@journey2thewest.com. There is the business of fetching the scriptures welcome to contact me by phone or email.*
 
-![Image text](https://raw.githubusercontent.com/davidsajare/Chinese-PII-With-Azure-Speech-Service/main/2.webp)
+![Image text](https://github.com/davidsajare/david-share/blob/master/LLMs/Chinese-PII-With-Azure-Speech-Service/2.webp)
 
 ## 运行demo
 
