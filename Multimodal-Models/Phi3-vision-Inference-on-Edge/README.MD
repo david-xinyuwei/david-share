@@ -28,7 +28,9 @@ From the above figure you can see the memory consumed by the phi3-v loading mode
 
 ## Phi3-Vision on CUDA with HF transformer test result
 Currently Phi3-v has only 128K contexts in both HF and ONNX formats.
+
 *https://huggingface.co/microsoft/Phi-3-vision-128k-instruct*
+Check the memory needs for Phi3-Vision in different datatype.
 
 ![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/3.jpg)
 
