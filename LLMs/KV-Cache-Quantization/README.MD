@@ -9,7 +9,7 @@ Reference Link: https://kaitchup.substack.com/p/kv-cache-quantization-for-memory
 ##  Models support
 The models that support KV cache are for now as following:
 
-- Llama (probably also Mistral but I'm not sure)
+- Llama
 
 - Gemma
 

@@ -1,12 +1,10 @@
 # Phi3-vision-Inference-on-Edge
 
-**Reference Link:**
+**Notice:**
 
+- I have upload my jupyter file named Phi3-vision-Inference-on-Edge.ipynb , I ran the code on Azure NC A100 GPU VM.
 
-
-I have upload my jupyter file named Phi3-vision-Inference-on-Edge.ipynb , I ran the code on Azure NC A100 GPU VM.
-
-In this test, I use Burberry's data to fine-tune Phi3-Vision comprehensively. The goal is to enable the fine-tuned model to predict brand, description, category, and price information based on product images.
+- In this test, I will test Phi3-Vision on Edge solution, including on GPU/CPU and different inference server.
 
 ## Phi3-Vision Benchmark Score
 Previously, we used AI computer vision, mainly using models like Llava and GPT-4o. After Phi3-Vision was released in May, it has surpassed Llava in many aspects:
@@ -19,27 +17,27 @@ From the above figure you can see the memory consumed by the phi3-v loading mode
 
 ## Consideration for edge-side Inference
 
-1. Whether you need to do fine-tuning the model to meet specific business needs. See my repo for ways to fine tune:
+**1. Whether you need to do fine-tuning the model to meet specific business needs. See my repo for ways to fine tune:**
 
-https://github.com/davidsajare/david-share/tree/master/Multimodal-Models/Phi3-vision-Fine-tuning
+*https://github.com/davidsajare/david-share/tree/master/Multimodal-Models/Phi3-vision-Fine-tuning*
 
-2. The hardware on which the model is running when reasoning at the edge end. For example, GPU or CPU(Cuda/ROCm).
+**2. The hardware on which the model is running when reasoning at the edge end. For example, GPU or CPU(Cuda/ROCm).**
 
-3. Whether there are enough resources, especially memory.Not enough arithmetic causes slow inference, but not enough memory directly causes OOM.
+**3. Whether there are enough resources, especially memory.Not enough arithmetic causes slow inference, but not enough memory directly causes OOM.**
 
 
 ## Phi3-Vision on CUDA with HF transformer test result
 Currently Phi3-v has only 128K contexts in both HF and ONNX formats.
-https://huggingface.co/microsoft/Phi-3-vision-128k-instruct
+*https://huggingface.co/microsoft/Phi-3-vision-128k-instruct*
 
 ![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/3.jpg)
 
 In this article I use the HF format for validation.
 
-For testing passports:
+***For testing passports:***
 ![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/usa-passport.jpg)
 
-### 2 Points：
+### 3 Points notice:
 
 ##### 1. Does bnb dynamic quantization cause a decrease in inference accuracy, the answer is no.
 
@@ -58,13 +56,13 @@ Without quantization, the FP16 inference for an image (passport as an example) i
 ![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/fp16infer.jpg)
 ![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/fp16gpu.jpg)
 
-##### 3. On the problems encountered in Chinese recognition.
+##### 3. The problems encountered in Chinese recognition.
 
 Take the Chinese test ID card as an example:
 
 ![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/1.png width="400" height="550")
 
-Inference results:
+***Inference results:***
 ![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/chinaidres.jpg)
 
 
@@ -73,9 +71,9 @@ When we look at names and addresses, they are not very accurate.
 In addition, summarizing and intent recognition for a picture is more clearly described in English, but not in Chinese.
 ![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/car.jpg)
 
-Inference time: 4.555504083633423
+***Inference time: 4.555504083633423***
 
-The image shows a white truck driving on a road with trees on both sides. There is a car in front of the truck, and the truck appears to be in motion. The road seems to be in a rural or less-traveled area. There is no immediate indication of danger, but the truck's position and the car's proximity suggest caution is advisable.
+*The image shows a white truck driving on a road with trees on both sides. There is a car in front of the truck, and the truck appears to be in motion. The road seems to be in a rural or less-traveled area. There is no immediate indication of danger, but the truck's position and the car's proximity suggest caution is advisable.*
 
 
 ## Phi3-Vision on CUDA with vLLM test result
