@@ -109,8 +109,6 @@ python3 demo_txt2img_xl.py "a photo of an astronaut riding a horse on mars" --ve
 
 假设您正在开发一个新的推理应用，需要从头开始构建TensorRT引擎，您的CLI命令可能会包括 `--onnx-dir` 参数，如下所示：
 
-- 
-
 ```
 python3 inference_script.py --version model_version --onnx-dir path_to_onnx_models --engine-dir path_to_save_engines
 ```
