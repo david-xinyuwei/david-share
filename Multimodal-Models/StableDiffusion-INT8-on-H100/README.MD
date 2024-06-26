@@ -48,37 +48,31 @@ Building TensorRT engine for onnx/unetxl-int8.l2.5.bs2.s30.c32.p1.0.a0.8.opt/mod
 我们看到INT8的推理速度比FP16增加了20%。
 
 root@d6865c4fc3d8:/workspace/demo/Diffusion# ls -al onnx-sdxl
-
-- 
-- 
-- 
-- 
-- 
-- 
-- 
-- 
-- 
-- 
-- 
-
 ```
-total 408drwxr-xr-x 10 root root   4096 May 21 06:34 .drwx------ 11 root root   4096 May 21 06:34 ..drwxr-xr-x  2 root root   4096 May 21 06:34 clipdrwxr-xr-x  2 root root   4096 May 21 06:34 clip.optdrwxr-xr-x  2 root root   4096 May 21 06:34 clip2drwxr-xr-x  2 root root   4096 May 21 06:35 clip2.optdrwxr-xr-x  2 root root 376832 May 21 06:40 unetxl-int8.l2.5.bs2.s30.c32.p1.0.a0.8drwxr-xr-x  2 root root   4096 May 21 06:41 unetxl-int8.l2.5.bs2.s30.c32.p1.0.a0.8.optdrwxr-xr-x  2 root root   4096 May 21 06:41 vaedrwxr-xr-x  2 root root   4096 May 21 06:41 vae.opt
+total 408
+drwxr-xr-x 10 root root   4096 May 21 06:34 .
+drwx------ 11 root root   4096 May 21 06:34 ..
+drwxr-xr-x  2 root root   4096 May 21 06:34 clip
+drwxr-xr-x  2 root root   4096 May 21 06:34 clip.opt
+drwxr-xr-x  2 root root   4096 May 21 06:34 clip2
+drwxr-xr-x  2 root root   4096 May 21 06:35 clip2.opt
+drwxr-xr-x  2 root root 376832 May 21 06:40 unetxl-int8.l2.5.bs2.s30.c32.p1.0.a0.8
+drwxr-xr-x  2 root root   4096 May 21 06:41 unetxl-int8.l2.5.bs2.s30.c32.p1.0.a0.8.opt
+drwxr-xr-x  2 root root   4096 May 21 06:41 vae
+drwxr-xr-x  2 root root   4096 May 21 06:41 vae.opt
 ```
-
 
 
 root@d6865c4fc3d8:/workspace/demo/Diffusion# ls -al engine-sdxl
-
-- 
-- 
-- 
-- 
-- 
-- 
-- 
-
 ```
-total 4755732drwxr-xr-x  2 root root       4096 May 21 06:48 .drwx------ 11 root root       4096 May 21 06:34 ..-rw-r--r--  1 root root  248576668 May 21 06:41 clip.trt10.0.1.plan-rw-r--r--  1 root root 1395532052 May 21 06:42 clip2.trt10.0.1.plan-rw-r--r--  1 root root 2880794876 May 21 06:47 unetxl-int8.l2.5.bs2.s30.c32.p1.0.a0.8.trt10.0.1.plan-rw-r--r--  1 root root  344938836 May 21 06:48 vae.trt10.0.1.plan
+
+total 4755732
+drwxr-xr-x  2 root root       4096 May 21 06:48 .
+drwx------ 11 root root       4096 May 21 06:34 ..
+-rw-r--r--  1 root root  248576668 May 21 06:41 clip.trt10.0.1.plan
+-rw-r--r--  1 root root 1395532052 May 21 06:42 clip2.trt10.0.1.plan
+-rw-r--r--  1 root root 2880794876 May 21 06:47 unetxl-int8.l2.5.bs2.s30.c32.p1.0.a0.8.trt10.0.1.plan
+-rw-r--r--  1 root root  344938836 May 21 06:48 vae.trt10.0.1.plan
 ```
 
 
