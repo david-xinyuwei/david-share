@@ -5,7 +5,7 @@ My current research focus is on GenAI, and all related content can be found in t
 
 ## Latest Research Findings 
 ### Study in June, 2024
-
+* ***StableDiffusion INT8 on H100: Multimodal Models***
 * ***AzureOpenAI-HA: LLMs***
 * ***Phi3-vision-Inference-on-Edge: Multimodal Models***
 * ***模型即服务Model as a Service以及大小模型配合的最佳实践: LLMs***
