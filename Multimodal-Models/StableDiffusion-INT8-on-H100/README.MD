@@ -1,16 +1,17 @@
+## StableDiffusion INT8 on H100
 在单H100上测试Stable Diffusion XL1.0，验证了一下int8的效果。英伟达声称在H100上，INT8比A100上有优化。
 
 参照repo：
 
-https://github.com/NVIDIA/TensorRT/tree/release/10.0/demo/Diffusion
+***https://github.com/NVIDIA/TensorRT/tree/release/10.0/demo/Diffusion***
 
-选择TRT10版本的分支。
+选择TRT10版本的分支进行验证。
 
-### 根据单个文本提示，使用SDXL以FP16生成图像。
+#### 根据单个文本提示，使用SDXL以FP16生成图像。
 
-```
-python3 demo_txt2img_xl.py "a photo of an astronaut riding a horse on mars" --hf-token=$HF_TOKEN --version=xl-1.0
-```
+
+***#python3 demo_txt2img_xl.py "a photo of an astronaut riding a horse on mars" --hf-token=$HF_TOKEN --version=xl-1.0***
+
 
 运行时间：
 
