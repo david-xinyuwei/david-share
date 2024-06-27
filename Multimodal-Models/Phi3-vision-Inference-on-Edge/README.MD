@@ -82,6 +82,30 @@ In addition, summarizing and intent recognition for a picture is more clearly de
 
 
 ## Phi3-Vision on CUDA with vLLM test result
-TODO
+
+As of now, the support for Phi3-V in vLLM is still in a preview state. Therefore, if you want to test the support for Phi3-V in vLLM, you need to compile and install vLLM from the source code. The local compilation time will take about 5-10 minutes.
+
+***#conda activate vllm-phi3-v***
+***#git clone https://github.com/vllm-project/vllm.git***
+***#cd vllm/***
+***#pip install -r requirements-common.txt***
+***#pip install -r requirements-cuda.txt.txt***
+***#pip install -r requirements-cuda.txt***
+***#pip install .***
+
+In terms of vLLM performance, I finally compared the performance using Transformer FP16 and vLLM FP16. I still used the previous example of recognizing a U.S. passport. The inference speed was 2.96 seconds.
+
+![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/vllm-h100-infer.png)
+
+The memory usage was around 22GB.
+
+![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/vllm-h100-gpu.png)
+
+
+If using HF inference with FP16 on H100, the inference speed is 8.5 seconds. Although this method is slower, it saves 2/3 of the memory compared to the vLLM method. This is mainly because the accelerate library used by vLLM at the underlying level requires pre-allocating K-V cache. Even though I set max_model_len and gpu_memory_utilization in the code, it still needs more memory than HF. Therefore, when performing edge inference, it is necessary to evaluate both memory utilization and speed.
+
+![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/TF-h100-FP16-infer.png)
+
+
 ## Phi3-Vision with ONNX test result
 TODO
