@@ -81,7 +81,7 @@ In addition, summarizing and intent recognition for a picture is more clearly de
 *The image shows a white truck driving on a road with trees on both sides. There is a car in front of the truck, and the truck appears to be in motion. The road seems to be in a rural or less-traveled area. There is no immediate indication of danger, but the truck's position and the car's proximity suggest caution is advisable.*
 
 
-## Phi3-Vision on CUDA with vLLM test result
+## Phi3-Vision FP16 on CUDA with vLLM test result
 
 As of now, the support for Phi3-V in vLLM is still in a preview state. Therefore, if you want to test the support for Phi3-V in vLLM, you need to compile and install vLLM from the source code. The local compilation time will take about 5-10 minutes.
 
@@ -105,6 +105,20 @@ The memory usage was around 22GB.
 If using HF inference with FP16 on H100, the inference speed is 8.5 seconds. Although this method is slower, it saves 2/3 of the memory compared to the vLLM method. This is mainly because the accelerate library used by vLLM at the underlying level requires pre-allocating K-V cache. Even though I set max_model_len and gpu_memory_utilization in the code, it still needs more memory than HF. Therefore, when performing edge inference, it is necessary to evaluate both memory utilization and speed.
 
 ![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/TF-h100-FP16-infer.png)
+
+## Phi3-Vision FP8 on CUDA with vLLM test result
+vLLM FP8 of Phi3-V is still under developing by vLLM. Previous AMMO library has been depreciated:
+```
+****************************************************************************************************
+https://github.com/vllm-project/vllm/blob/v0.5.0/examples/fp8/quantizer/quantize.py
+
+(vllm-phi3v) root@h100vm:~/5/vllm/examples/fp8/quantizer# python quantize.py --model_dir /root/5/phi3-v-fp16 --dtype float16 --qformat fp8 --kv_cache_dtype fp8 --output_dir  /root/5/phi3-v-fp8 --calib_size 512 --tp_size 1
+
+/opt/miniconda/envs/vllm-phi3v/lib/python3.11/site-packages/ammo/__init__.py:17: UserWarning:
+`nvidia-ammo` package is now deprecated and renamed as `nvidia-modelopt`.
+Please see more details at https://github.com/NVIDIA/TensorRT-Model-Optimizer?tab=readme-ov-file#release-notes
+****************************************************************************************************
+```
 
 
 ## Phi3-Vision with ONNX test result
