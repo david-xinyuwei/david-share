@@ -85,13 +85,13 @@ In addition, summarizing and intent recognition for a picture is more clearly de
 
 As of now, the support for Phi3-V in vLLM is still in a preview state. Therefore, if you want to test the support for Phi3-V in vLLM, you need to compile and install vLLM from the source code. The local compilation time will take about 5-10 minutes.
 
-***#conda activate vllm-phi3-v***
-***#git clone https://github.com/vllm-project/vllm.git***
-***#cd vllm/***
-***#pip install -r requirements-common.txt***
-***#pip install -r requirements-cuda.txt.txt***
-***#pip install -r requirements-cuda.txt***
-***#pip install .***
+*#conda activate vllm-phi3-v*
+*#git clone https://github.com/vllm-project/vllm.git*
+*#cd vllm/*
+*#pip install -r requirements-common.txt*
+*#pip install -r requirements-cuda.txt.txt*
+*#pip install -r requirements-cuda.txt*
+*#pip install .*
 
 In terms of vLLM performance, I finally compared the performance using Transformer FP16 and vLLM FP16. I still used the previous example of recognizing a U.S. passport. The inference speed was 2.96 seconds.
 
@@ -108,17 +108,14 @@ If using HF inference with FP16 on H100, the inference speed is 8.5 seconds. Alt
 
 ## Phi3-Vision FP8 on CUDA with vLLM test result
 vLLM FP8 of Phi3-V is still under developing by vLLM. Previous AMMO library has been depreciated:
-```
-****************************************************************************************************
+
 https://github.com/vllm-project/vllm/blob/v0.5.0/examples/fp8/quantizer/quantize.py
 
-(vllm-phi3v) root@h100vm:~/5/vllm/examples/fp8/quantizer# python quantize.py --model_dir /root/5/phi3-v-fp16 --dtype float16 --qformat fp8 --kv_cache_dtype fp8 --output_dir  /root/5/phi3-v-fp8 --calib_size 512 --tp_size 1
+*(vllm-phi3v) root@h100vm:~/5/vllm/examples/fp8/quantizer# python quantize.py --model_dir /root/5/phi3-v-fp16 --dtype float16 --qformat fp8 --kv_cache_dtype fp8 --output_dir  /root/5/phi3-v-fp8 --calib_size 512 --tp_size 1*
 
-/opt/miniconda/envs/vllm-phi3v/lib/python3.11/site-packages/ammo/__init__.py:17: UserWarning:
+*/opt/miniconda/envs/vllm-phi3v/lib/python3.11/site-packages/ammo/__init__.py:17: UserWarning:
 `nvidia-ammo` package is now deprecated and renamed as `nvidia-modelopt`.
-Please see more details at https://github.com/NVIDIA/TensorRT-Model-Optimizer?tab=readme-ov-file#release-notes
-****************************************************************************************************
-```
+Please see more details at https://github.com/NVIDIA/TensorRT-Model-Optimizer?tab=readme-ov-file#release-notes*
 
 
 ## Phi3-Vision with ONNX test result
