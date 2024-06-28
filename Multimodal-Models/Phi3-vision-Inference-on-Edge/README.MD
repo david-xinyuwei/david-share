@@ -167,5 +167,5 @@ Generating response...
 ![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/onnxinfer.png)
 From the results, it can be seen that even though I wrote a very detailed prompt, the scanned results are still incomplete. This is much worse compared to HF and vLLM. The GPU memory utilization is around 11GB.
 ![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/onnxgpu.png)
-
+#### Note：
 Perhaps the test results are related to the library versions or configurations I used, which requires further investigation.
