@@ -1,9 +1,11 @@
 # PyTorch Model Performance Optimization
 **Refer：**
 https://pytorch.org/tutorials/intermediate/tensorboard_profiler_tutorial.html
+
 https://pub.towardsai.net/deepspeed-zero-dp-distributed-training-for-large-models-20aa1d74d9bb
 
 ## Deep Learning architecture
+从下往上的深度学习堆栈如下图所示：
 ```
   +---------------------+  
   |      Model          |  <-- 模型层（例如，Phi3-Vision）  
@@ -35,23 +37,17 @@ https://pub.towardsai.net/deepspeed-zero-dp-distributed-training-for-large-model
   +---------------------+  
 ```
 
-**Notice:**
-
-- I have upload my jupyter file named Phi3-vision-Inference-on-Edge.ipynb , I ran the code on Azure NC A100 GPU VM.
-
-- In this test, I will test Phi3-Vision on Edge solution, including on GPU/CPU and different inference server.
-
 
 ## 数据并行与模型并行
 在数据并行（DP）中，模型被复制到多个设备（如 GPU）上，每个设备处理不同的数据子集。处理完成后，梯度汇总，模型参数同步。在模型并行（MP）中，模型的不同部分分布在多个设备上。每个设备负责计算模型操作的不同部分。下图展示了其主要思想。
 ```
 
-
+<img src="https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Deep-Speed-ZeRO-Policy/images/dpandtp.png" width="400" height="550">
 
 ```
 我们看一下两者的对比：
 
-image
+<img src="https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Deep-Speed-ZeRO-Policy/images/mpdp.webp" width="400" height="550">
 
 DP 具有良好的计算/通信效率，但内存效率较差（每个设备都保留模型的副本）。MP 具有良好的内存效率，但由于需要跨模型分区进行同步，因此通信效率可能较差。ZeRO-DP 旨在兼顾两全其美，同时提高内存和计算效率：
 
@@ -71,7 +67,7 @@ DP 具有良好的计算/通信效率，但内存效率较差（每个设备都�
 
 以下图为例：
 
-image
+<img src="https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Deep-Speed-ZeRO-Policy/images/memoryintraining.webp" width="400" height="550">
 
 ## DeepSpeed  ZeRO policy
 DeepSpeed  ZeRO出于节约训练中内存的目的。
@@ -100,7 +96,7 @@ ZeRO策略通过切分和分布梯度和优化器状态，减少了每个设备�
 因此，DeepSpeed 的 ZeRO 策略选择切分梯度和优化器状态，而不是激活，以实现高效的内存使用和加速训练过程。
 
 #### DeepSpeed ZeRO架构图
-image
+<img src="https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Deep-Speed-ZeRO-Policy/images/zero3stage.png" width="400" height="550">
 
 这张图来自 DeepSpeed 的论文，展示了不同优化阶段（ZeRO-DP 优化）的每个设备上的内存消耗对比。它详细说明了在模型训练过程中，参数、梯度和优化器状态如何分区，以及每种分区方式对内存消耗的影响。
 每个 GPU 的内存消耗按不同颜色表示：
