@@ -119,4 +119,51 @@ Please see more details at https://github.com/NVIDIA/TensorRT-Model-Optimizer?ta
 
 
 ## Phi3-Vision with ONNX test result
-TODO
+Till now, ONNX runtime need CUDA 11:
+```
+root@h100vm:~# nvcc --version
+nvcc: NVIDIA (R) Cuda compiler driver
+Copyright (c) 2005-2020 NVIDIA Corporation
+Built on Thu_Jun_11_22:26:38_PDT_2020
+Cuda compilation tools, release 11.0, V11.0.194
+Build cuda_11.0_bu.TC445_37.28540450_0
+root@h100vm:~#
+root@h100vm:~# nvidia-smi
+Fri Jun 28 02:49:23 2024
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 555.42.02              Driver Version: 555.42.02      CUDA Version: 12.5     |
+|-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA H100 NVL                Off |   00000001:00:00.0 Off |                    0 |
+| N/A   35C    P0             64W /  400W |     142MiB /  95830MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI        PID   Type   Process name                              GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|    0   N/A  N/A      1656      G   /usr/lib/xorg/Xorg                            107MiB |
+|    0   N/A  N/A      2757      G   /usr/bin/gnome-shell                           16MiB |
++-----------------------------------------------------------------------------------------+
+```
+The inference of Phi3-V based on ONNX can be referenced:
+https://onnxruntime.ai/docs/genai/tutorials/phi3-v.html
+
+I slightly modified the inference script from the above link to be able to measure the inference time. The inference speed is very fast, around 4 seconds for FP16, but the inference accuracy is not as good as HF and vLLM.
+```
+(phi3) root@h100vm:~# python3 1phi3v.py -m cuda-fp16
+Loading model...
+Image Path (leave empty if no image): /root/usa-passport.jpg
+Loading image...
+Prompt: OCR the text of the image. Extract the text of the following fields and put it in a JSON format: {'Type / Type / Tipo': '', 'Code / Code / Código': '', 'Passport No. / No de passeport / Pasaporte n.º': '', 'Surname / Nom / Apellido': '', 'Given Names / Prénom / Nombre': '', 'Nationality / Nationalité / Nacionalidad': '', 'Date of birth / Date de naissance / Fecha de nacimiento': '', 'Place of birth / Lieu de naissance / Lugar de nacimiento': '', 'Date of issue / Date de délivrance / Fecha de expedición': '', 'Date of expiration / Date d'expiration / Fecha de vencimiento': '', 'Sex / Sexe / Sexo': '', 'Authority / Autorité / Autoridad': '', 'Endorsements / Mentions / Anotaciones': ''}. Ensure all fields are extracted accurately from the image, especially 'Type / Type / Tipo', 'Code / Code / Código', 'Passport No. / No de passeport / Pasaporte n.º', 'Sex / Sexe / Sexo', and 'Authority / Autorité / Autoridad'.
+Processing image and prompt...
+Generating response...
+```
+![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/onnxinfer.png)
+From the results, it can be seen that even though I wrote a very detailed prompt, the scanned results are still incomplete. This is much worse compared to HF and vLLM. The GPU memory utilization is around 11GB.
+![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/onnxgpu.png)
