@@ -61,6 +61,7 @@ DP 具有良好的计算/通信效率，但内存效率较差（每个设备都�
 - 框架开销：这通常占据较小的内存比例，但在内存管理不当或框架本身较为复杂的情况下，也可能成为一个不容忽视的因素。
 
 以下图为例：
+
 ![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Deep-Speed-ZeRO-Policy/images/memoryintraining.webp)
 
 ## DeepSpeed  ZeRO policy
