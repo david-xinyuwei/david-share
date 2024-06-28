@@ -40,9 +40,7 @@ https://pub.towardsai.net/deepspeed-zero-dp-distributed-training-for-large-model
 
 ## 数据并行与模型并行
 在数据并行（DP）中，模型被复制到多个设备（如 GPU）上，每个设备处理不同的数据子集。处理完成后，梯度汇总，模型参数同步。在模型并行（MP）中，模型的不同部分分布在多个设备上。每个设备负责计算模型操作的不同部分。下图展示了其主要思想。
-```
 ![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Deep-Speed-ZeRO-Policy/images/dpandtp.png)
-```
 我们看一下两者的对比：
 ![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Deep-Speed-ZeRO-Policy/images/mpdp.webp)
 
