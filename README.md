@@ -1,7 +1,7 @@
 # david-share
 This repository contains the essence of the "david-share" WeChat public account, as well as study notes from daily work. 
 
-My current research focus is on GenAI, and all related content can be found in the "**LLMs**" directory.
+My current research focus is on GenAI, and all related content can be found in the related directories.
 
 ## Latest Research Findings 
 ### Study in June, 2024
