@@ -4,7 +4,7 @@
 
 - After FT Axolotl，suggest inference with vLLM
 - Pay attention to version compatibility of Linux kernel, CUDA, torch, deepspeed(if you use).
-
+- Refer：https://kaitchup.substack.com/p/simple-qlora-fine-tuning-with-axolotl
 
 
 ## Axolotl
