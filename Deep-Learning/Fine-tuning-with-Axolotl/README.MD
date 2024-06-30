@@ -171,11 +171,11 @@ Lanuch training:
       88.  .88  .d88b.  88.  .88 88 88.  .88   88   88
       `88888P8 dP'  `dP `88888P' dP `88888P'   dP   dP
 ```      
-![image](https://github.com/davidsajare/david-share/blob/main/Deep-Learning/Fine-tuning-with-Axolotl/images/trainingsteps.png)
+![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Fine-tuning-with-Axolotl/images/trainingsteps.png)
 
 Resource during training:
 
-![image](https://github.com/davidsajare/david-share/blob/main/Deep-Learning/Fine-tuning-with-Axolotl/images/traininggpu.png)
+![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Fine-tuning-with-Axolotl/images/traininggpu.png)
 
 
 Check the trained models:
