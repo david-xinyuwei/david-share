@@ -2,7 +2,7 @@
 
 **Notice:**
 
-- After FT Axolotl， suggest inference with vLLM
+- After FT Axolotl，suggest inference with vLLM
 - Pay attention to version compatibility of Linux kernel, CUDA, torch, deepspeed(if you use).
 
 
