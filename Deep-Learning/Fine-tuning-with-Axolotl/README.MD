@@ -25,10 +25,7 @@ Features:
 - Log results and optionally checkpoints to wandb or mlflow
 
 ![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Fine-tuning-with-Axolotl/images/modelsupport.png)
-<<<<<<< HEAD
-=======
 
->>>>>>> 485fc497be04ed7038f6c5290e49d975a3a09fa3
 Before to use axolotl run fine tuning, we need set accelerate.
 
 ```
