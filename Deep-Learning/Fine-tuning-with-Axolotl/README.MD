@@ -24,9 +24,7 @@ Features:
 - Easily run with Docker locally or on the cloud
 - Log results and optionally checkpoints to wandb or mlflow
 
-![image](https://github.com/davidsajare/Backend-of-david-share/blob/main/Deep-Learning/Fine-tuning-with-Axolotl/images/modelsupport.png)
-![image](https://github.com/davidsajare/david-share/blob/main/Deep-Learning/Fine-tuning-with-Axolotl/images/modelsupport.png)
-
+![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Fine-tuning-with-Axolotl/images/modelsupport.png)
 Before to use axolotl run fine tuning, we need set accelerate.
 
 ```
@@ -72,118 +70,6 @@ accelerate configuration saved at /root/.cache/huggingface/accelerate/default_co
 All setting is saved in /root/.cache/huggingface/accelerate/default_config.yaml, we could change it as need: 
 */root/.cache/huggingface/accelerate/default_config.yaml*
 
-
-**Notice and confidential:**
-Must make sure the version of following components are compatible： 
-cuda,nvcc --version,pytorch,deepspeed
-
-```
-sudo apt-get --purge remove "*cublas*" "cuda*" "nsight*" "nvidia*"  
-sudo apt-get autoremove  
-
-wget https://developer.download.nvidia.com/compute/cuda/12.1.0/local_installers/cuda_12.1.0_530.30.02_linux.run
-sudo sh cuda_12.1.0_530.30.02_linux.run
-# Add the following to the end of the file  
-export PATH=/usr/local/cuda-12.1/bin:$PATH  
-export LD_LIBRARY_PATH=/usr/local/cuda-12.1/lib64:$LD_LIBRARY_PATH  
-
-https://www.nvidia.com/en-in/drivers/
-image
-download:nvidia-driver-local-repo-ubuntu2004-525.147.05_1.0-1_amd64.deb
-sudo dpkg -i nvidia-driver-local-repo-ubuntu2004-525.147.05_1.0-1_amd64.deb  
-sudo apt-get install linux-headers-$(uname -r)
-
-
-*** Issue: ***
-root@h100vm:~# nvidia-smi
-No devices were found
-
-ubuntu-drivers devices  
-sudo ubuntu-drivers autoinstall  
-
-root@h100vm:~# nvidia-smi
-Failed to initialize NVML: Driver/library version mismatch
-NVML library version: 535.183
-root@h100vm:~#
-
-root@h100vm:~# sudo modprobe nvidia
-root@h100vm:~# cat /proc/driver/nvidia/version
-NVRM version: NVIDIA UNIX x86_64 Kernel Module  530.30.02  Wed Feb 22 04:11:39 UTC 2023
-GCC version:  gcc version 8.4.0 (Ubuntu 8.4.0-3ubuntu2)
-root@h100vm:~#
-The problem is a mismatch between NVIDIA's kernel module version and the user-space NVML library version. Specifically, the kernel module version is 530.30.02 and the NVML library version is 535.183. The mismatch between these two versions causes nvidia-smi to not work properly.
-
-
-wget https://us.download.nvidia.com/XFree86/Linux-x86_64/530.30.02/NVIDIA-Linux-x86_64-530.30.02.run  
-chmod +x NVIDIA-Linux-x86_64-530.30.02.run  
-sudo ./NVIDIA-Linux-x86_64-530.30.02.run  
-sudo reboot  
-
-After reboot:
-root@h100vm:~# nvidia-smi
-Failed to initialize NVML: Driver/library version mismatch
-root@h100vm:~# cat /proc/driver/nvidia/version
-NVRM version: NVIDIA UNIX x86_64 Kernel Module  535.183.01  Sun May 12 19:39:15 UTC 2024
-GCC version:
-root@h100vm:~# cat /proc/driver/nvidia/version
-NVRM version: NVIDIA UNIX x86_64 Kernel Module  535.183.01  Sun May 12 19:39:15 UTC 2024
-GCC version:
-root@h100vm:~# nvidia-smi
-Failed to initialize NVML: Driver/library version mismatch
-sudo find /usr -name "libnvidia*" -exec rm -f {} +  
-
-sudo apt-get --purge remove '*nvidia*'  
-sudo apt-get autoremove  
-sudo apt-get autoclean  
-
-sudo apt-get update  
-sudo apt-get install build-essential  
-sudo apt-get install linux-headers-$(uname -r)  
-wget https://us.download.nvidia.com/XFree86/Linux-x86_64/535.183.01/NVIDIA-Linux-x86_64-535.183.01.run  
-chmod +x NVIDIA-Linux-x86_64-535.183.01.run  
-sudo ./NVIDIA-Linux-x86_64-535.183.01.run  
-```
-```
-root@h100vm:~# nvidia-smi
-Sun Jun 30 08:56:27 2024
-+---------------------------------------------------------------------------------------+
-| NVIDIA-SMI 535.183.01             Driver Version: 535.183.01   CUDA Version: 12.2     |
-|-----------------------------------------+----------------------+----------------------+
-| GPU  Name                 Persistence-M | Bus-Id        Disp.A | Volatile Uncorr. ECC |
-| Fan  Temp   Perf          Pwr:Usage/Cap |         Memory-Usage | GPU-Util  Compute M. |
-|                                         |                      |               MIG M. |
-|=========================================+======================+======================|
-|   0  NVIDIA H100 NVL                Off | 00000001:00:00.0 Off |                    0 |
-| N/A   45C    P0              95W / 400W |      0MiB / 95830MiB |     11%      Default |
-|                                         |                      |             Disabled |
-+-----------------------------------------+----------------------+----------------------+
-
-+---------------------------------------------------------------------------------------+
-| Processes:                                                                            |
-|  GPU   GI   CI        PID   Type   Process name                            GPU Memory |
-|        ID   ID                                                             Usage      |
-|=======================================================================================|
-|  No running processes found                                                           |
-+---------------------------------------------------------------------------------------|
-```
-```
-conda create -n axolotl-test python=3.10  
-conda activate axolotl-test  
-  
-# Install a compatible version of torch  
-pip install torch==2.0.0  
-  
-# Install other dependencies  
-pip install accelerate==0.30.1 bitsandbytes==0.43.1 optimum==1.16.2 peft==0.11.1 xformers==0.0.26.post1  
-  
-# Finally, install axolotl  
-git clone https://github.com/OpenAccess-AI-Collective/axolotl
-cd axolotl
-
-pip3 install packaging ninja
-pip3 install -e '.[flash-attn,deepspeed]'
-
-```
 ## Config training profile
 Create yaml file on Azure GPU VM:
 
@@ -272,7 +158,6 @@ weight_decay: 0.0
 special_tokens:
   pad_token: <|eot_id|>
 ```
-
 ### Training result
 Lanuch training:
 ```
@@ -285,13 +170,9 @@ Lanuch training:
       88.  .88  .d88b.  88.  .88 88 88.  .88   88   88
       `88888P8 dP'  `dP `88888P' dP `88888P'   dP   dP
 ```      
-
-![image](https://github.com/davidsajare/Backend-of-david-share/blob/main/Deep-Learning/Fine-tuning-with-Axolotl/images/trainingsteps.png)
 ![image](https://github.com/davidsajare/david-share/blob/main/Deep-Learning/Fine-tuning-with-Axolotl/images/trainingsteps.png)
 
 Resource during training:
-
-![image](https://github.com/davidsajare/Backend-of-david-share/blob/main/Deep-Learning/Fine-tuning-with-Axolotl/images/traininggpu.png)
 
 ![image](https://github.com/davidsajare/david-share/blob/main/Deep-Learning/Fine-tuning-with-Axolotl/images/traininggpu.png)
 
