@@ -24,7 +24,7 @@ Features:
 - Easily run with Docker locally or on the cloud
 - Log results and optionally checkpoints to wandb or mlflow
 
-![image](https://github.com/davidsajare/david-share/blob/main/Deep-Learning/Fine-tuning-with-Axolotl/images/modelsupport.png)
+![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Fine-tuning-with-Axolotl/images/modelsupport.png)
 
 Before to use axolotl run fine tuning, we need set accelerate.
 
