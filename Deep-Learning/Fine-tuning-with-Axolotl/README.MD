@@ -76,7 +76,7 @@ Create yaml file on Azure GPU VM:
 
 (axolotl-test) root@h100vm:~/axolotl-test# cat 1.yaml
 ```
-base_model: microsoft/Phi-3-mini-128k-instruct
+base_model: microsoft/Phi-3-mini-4k-instruct
 trust_remote_code: true
 lora_modules_to_save:
   - embed_tokens
@@ -129,7 +129,7 @@ lora_target_modules:
 #lora_target_linear: true
 
 gradient_accumulation_steps: 4
-micro_batch_size: 8
+micro_batch_size: 16
 optimizer: paged_adamw_8bit
 lr_scheduler: linear
 learning_rate: 0.0001
@@ -175,7 +175,7 @@ Lanuch training:
 
 Resource during training:
 
-![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Fine-tuning-with-Axolotl/images/traininggpu.png)
+![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Fine-tuning-with-Axolotl/images/phi3minigpu.png)
 
 
 Check the trained models:
