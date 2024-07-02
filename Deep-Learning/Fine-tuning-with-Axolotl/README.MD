@@ -115,9 +115,14 @@ Performance: Short model loading time, but longest generation time, lowest token
 Output quality: Generated text is accurate but contains repetitive context, which may need further optimization to reduce redundancy.
 
 ### Overall Summary:
-Performance: Scenario 1 has the fastest inference speed, while Scenario 4 has the slowest.
-Output Quality: Scenarios 1 and 2 have higher output quality, Scenario 3 provides concise output, and Scenario 4 has repetitive content.
-Applicable Scenarios: Scenario 1 is suitable for applications requiring quick responses, Scenario 2 is suitable for applications requiring detailed explanations, Scenario 3 is suitable for applications requiring concise answers, and Scenario 4 may need further optimization to reduce redundancy.
+- Performance: Scenario 1 has the fastest inference speed, while Scenario 4 has the slowest.
+- Output Quality: Scenarios 1 and 2 have higher output quality, Scenario 3 provides concise output, and Scenario 4 has repetitive content.
+- Applicable Scenarios: 
+Scenario 1 is suitable for applications requiring quick responses
+Scenario 2 is suitable for applications requiring detailed explanations
+Scenario 3 is suitable for applications requiring concise answers
+Scenario 4 may need further optimization to reduce redundancy.
+
 
 
 ## Fine tuning Configuration steps
