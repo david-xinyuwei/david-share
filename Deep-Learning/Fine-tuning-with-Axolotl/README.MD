@@ -27,14 +27,17 @@ Features:
 ![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Fine-tuning-with-Axolotl/images/modelsupport.png)
 
 ## Overall scenario
-Step 1: Use Axolotl to call DeepSpeed for QLoRA quantization (bnb) on phi-3-mini-4k, generating the quantized weight files. 
-Step 2: Dequantize the parameters and weights generated in the first step, and merge them with the original phi-3-mini-4k to create a complete model.
+## Overall scenario
+- Step 1: Use Axolotl to call DeepSpeed for QLoRA quantization (bnb) on phi-3-mini-4k, generating the quantized weight files. 
+- Step 2: Dequantize the parameters and weights generated in the first step, and merge them with the original phi-3-mini-4k to create a complete model.
 
 Then do 4 tests:
-1.Merge adapter and original model together, then do inference with FP/BF16 on vLLM.
-2.Merge adapter and original model together, then do inference with FP/BF16 on HF transformer.
-3.Based on merged model #1, use bnb to quantization and inference on HF transformer.
-4.Use bnb to dynamically load the phi-3 base model, load the post-FT checkpoints as adapter, and then use the INFERENCE on HF transformer.
+
+- Merge adapter and original model together, then do inference with FP/BF16 on vLLM.
+- Merge adapter and original model together, then do inference with FP/BF16 on HF transformer.
+- Based on merged model #1, use bnb to quantization and inference on HF transformer.
+- Use bnb to dynamically load the phi-3 base model, load the post-FT checkpoints as adapter, and then use the INFERENCE on HF transformer.
+
 
 **Notice:**
 1. Flash atten2 is enable in 4 scenarios.
