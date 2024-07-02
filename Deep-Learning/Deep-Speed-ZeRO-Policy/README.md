@@ -1,142 +1,140 @@
-# Deep-Speed-Inference
+# Deep-Speed-ZeRO-Policy
 **Refer：**
-https://github.com/microsoft/DeepSpeed-MII
+https://pytorch.org/tutorials/intermediate/tensorboard_profiler_tutorial.html
 
-https://medium.com/towards-data-science/deepspeed-deep-dive-model-implementations-for-inference-mii-b02aa5d5e7f7
+https://pub.towardsai.net/deepspeed-zero-dp-distributed-training-for-large-models-20aa1d74d9bb
 
 ## Deep Learning architecture
 从下往上的深度学习堆栈如下图所示：
 
 ```
   +---------------------+  
-  |      Model          |  <-- Model layers (e.g., Phi3-Vision)  
+  |      Model          |  <-- 模型层（例如，Phi3-Vision）  
   +---------------------+  
             |  
             v  
   +---------------------+  
-  |  DeepSpeed/vLLM     |  <-- Specific frameworks (e.g. vLLM for optimising the Transformer)  
+  |  DeepSpeed/vLLM     |  <-- 特定框架（如vLLM，用于优化Transformer）  
   +---------------------+  
             |  
             v  
   +---------------------+  
-  |   Transformer       |  <-- Specific neural network architectures (e.g. Transformer)  
+  |   Transformer       |  <-- 特定神经网络架构（如Transformer）  
   +---------------------+  
             |  
             v  
   +---------------------+  
-  |      PyTorch        |  <-- Deep learning frameworks  
+  |      PyTorch        |  <-- 深度学习框架  
   +---------------------+  
             |  
             v  
   +---------------------+  
-  |      Python         |  <-- programming language  
+  |      Python         |  <-- 编程语言  
   +---------------------+  
             |  
             v  
   +---------------------+  
-  |       CUDA/ROCm     |  <-- Underlying computational acceleration library  
+  |       CUDA          |  <-- 底层计算加速库  
   +---------------------+  
 ```
 
-## Is DeepSpeed Zero available for use in inference?
-DeepSpeed的ZeRO优化是主要用于训练阶段的，而不是推理阶段。在推理阶段，模型已经被训练好了，我们主要关注的是如何更快、更高效地进行推理，而不需要再进行模型的优化。因此，ZeRO优化在推理阶段通常是不需要的，也不会被使用。
+## 数据并行与模型并行
+在数据并行（DP）中，模型被复制到多个设备（如 GPU）上，每个设备处理不同的数据子集。处理完成后，梯度汇总，模型参数同步。在模型并行（MP）中，模型的不同部分分布在多个设备上。每个设备负责计算模型操作的不同部分。下图展示了其主要思想。
+![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Deep-Speed-ZeRO-Policy/images/dpandtp.png)
+我们看一下两者的对比：
+![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Deep-Speed-ZeRO-Policy/images/mpdp.webp)
 
-如果你需要在推理阶段进行优化，可以使用其他适用于推理的优化技术，如混合精度（FP16）和内核注入。
+DP 具有良好的计算/通信效率，但内存效率较差（每个设备都保留模型的副本）。MP 具有良好的内存效率，但由于需要跨模型分区进行同步，因此通信效率可能较差。ZeRO-DP 旨在兼顾两全其美，同时提高内存和计算效率：
 
-ZeRO（Zero Redundancy Optimizer）是DeepSpeed的一个特性，它的主要目标是减少训练大型模型时的内存占用。ZeRO通过在多个设备间分割模型参数、优化器状态和梯度来实现这一目标。这就是你提到的ZeRO的三个阶段：P_os（只对优化器状态进行分区）、P_os+g（对优化器状态和梯度进行分区）和P_os+g+p（对优化器状态、梯度和参数进行分区）。
+- 它通过对模型状态进行分区（而不是像 DP 中那样复制它们）来消除模型并行的冗余，从而保持内存效率。每个设备都存储模型状态的互斥子集。
+- 它通过使用动态通信策略来保持计算/通信效率。一个关键的见解是，并非所有设备在任何时候都需要所有状态。当训练期间需要某个状态时，所有者设备会将其广播给其他设备。一旦使用，它就会被丢弃。
 
-然而，在推理（或称为预测）阶段，我们通常不需要优化器或梯度，因为模型已经被训练好了，我们只需要用它来生成预测。因此，ZeRO的优化在推理阶段并不适用。
+## 模型训练内存开销
+在训练中，一个模型的内存开销主要有以下几部分：
 
-此外，推理阶段的主要关注点通常是如何更快、更高效地进行预测，而不是如何减少内存占用。因此，我们在推理阶段通常会使用其他的优化技术，如模型量化（减少模型大小和计算复杂性）和模型融合（合并模型的操作以减少计算时间）等。
+- 模型参数：这部分通常占据相对固定的内存，根据模型的大小（层数、参数数量）而定。对于较大的模型，这部分可以占据显著的内存比例，尤其是在模型参数多的情况下。在推理场景，内存的主要消耗就是模型参数加载。
 
+- 激活：在推理时，激活不是内存消耗的主要部分。但在训练场景，尤其是当批量大小较大或模型深度较大时。这部分内存消耗很大。
 
-DeepSpeed提供了一些推理优化技术，主要包括以下几个方面12：
+- 优化器状态：在推理过程中，如果不进行模型更新，则优化器状态的内存消耗可以忽略。但在训练场景，这部分内存消耗很大。
 
-具有自适应并行性的多GPU推理：优化延迟是推理系统的重要目标。使用模型并行（MP），可以拆分模型并使用多个GPU进行并行计算以减少延迟，但这可能会影响吞吐量。
-专为推理优化的CUDA内核：为了实现高计算效率，DeepSpeed推理通过运算符融合为Transformer blocks提供定制化的推理内核，同时考虑了多GPU的模型并行性。
-灵活的量化支持：为了进一步降低大规模模型的推理成本，DeepSpeed创建了量化工具包，支持灵活的量化感知训练和用于量化推理的高性能内核。
+- 框架开销：这通常占据较小的内存比例，但在内存管理不当或框架本身较为复杂的情况下，也可能成为一个不容忽视的因素。
 
-## DeepSpeed-MII
-MII 是 DeepSpeed 设计的开源 Python 库，旨在实现强大模型推理的民主化，重点关注高吞吐量、低延迟和成本效益。MII 的功能包括blocked KV-caching、continuous batching、Dynamic SplitFuse、 tensor parallelism和and high-performance CUDA kernels，以支持 LLM（如 Llama-2-70B、Mixtral (MoE) 8x7B 和 Phi-2）的快速高吞吐量文本生成。
-
+以下图为例：
 
 ![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Deep-Speed-ZeRO-Policy/images/memoryintraining.webp)
 
-```
-# create pipeline
-pipe = pipeline("text-generation",
-                model="mistralai/Mistral-7B-Instruct-v0.3",
-                device=0,
-                torch_dtype=torch.float16)
+## DeepSpeed  ZeRO policy
+DeepSpeed  ZeRO出于节约训练中内存的目的。
+需要指出的是，在训练中，虽然激活的内存开销远大于梯度，但ZeRO不能切分激活，可以切分梯度。
+##### 梯度可以被Zero切分而激活不能的原因
+激活不能被切分的原因
+- 激活是前向传播的中间状态：
+激活是每一层神经网络在前向传播过程中计算得到的中间结果。它们需要在前向传播过程中被保留，以便在反向传播过程中使用。
+由于激活是基于输入数据和模型参数计算得到的，并且每一层的激活依赖于上一层的激活，所以激活不能像梯度和优化器状态那样在多个设备间独立存储和计算。
+- 反向传播对激活的依赖：
+在反向传播过程中，需要使用前向传播过程中保存的激活来计算梯度。如果激活被切分到不同的设备上，将导致在反向传播过程中需要频繁地在设备之间传递数据，这会带来巨大的通信开销，反而降低训练效率。
+激活必须在相应的计算设备上保留，以便在反向传播中能够快速访问和使用。
 
-# prompt
-tokenizer = AutoTokenizer.from_pretrained("mistralai/Mistral-7B-Instruct-v0.3")
-start_text = "Once upon a time"
-tokens_start_text = len(tokenizer(start_text, return_tensors="pt").input_ids[0])
+ZeRO 可以切分梯度和优化器状态的原因
+- 梯度和优化器状态是全局性的：
+梯度是损失函数对模型参数的偏导数，其计算是全局性的，可以在不同设备上独立计算，然后进行聚合。
+优化器状态（如动量、二阶动量等）是与模型参数相关的辅助变量，这些状态也可以在不同设备上独立存储和更新。
+- 减少冗余存储：
+ZeRO策略通过切分和分布梯度和优化器状态，减少了每个设备上冗余的存储需求，从而有效地降低了内存消耗。
+每个设备只需要存储和计算部分梯度和优化器状态，然后在需要时进行全局聚合。
 
-new_tokens = 2000
+#####总结
+- 激活不能被切分：由于激活是前向传播的中间状态，必须在相应的设备上保留，以便在反向传播中使用。切分激活会导致大量的跨设备通信，降低训练效率。
+- 梯度和优化器状态可以被切分：梯度和优化器状态是全局性的，可以在不同设备上独立存储、计算和聚合，从而减少冗余存储，优化内存使用。
 
-# generate text (500 new tokens)
-t0 = time.time()
-result = pipe(start_text, max_new_tokens=new_tokens)
-t1 = time.time()
-```
+因此，DeepSpeed 的 ZeRO 策略选择切分梯度和优化器状态，而不是激活，以实现高效的内存使用和加速训练过程。
 
+#### DeepSpeed ZeRO架构图
+![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Deep-Speed-ZeRO-Policy/images/zero3stage.png)
 
-## 推理速度对比
-首先使用HF Transformers pipeline
-```
-# 设置输入文本、模型、最大令牌数  
-input_text = "Once upon a time"  
-model = "mistralai/Mistral-7B-Instruct-v0.3"  
-new_tokens = 2000  
-  
-# 加载tokenizer和pipeline  
-tokenizer = AutoTokenizer.from_pretrained(model)  
-pipe = pipeline("text-generation", model=model, device=0)  
-```
-我们查看执行结果：
-image
+这张图来自 DeepSpeed 的论文，展示了不同优化阶段（ZeRO-DP 优化）的每个设备上的内存消耗对比。它详细说明了在模型训练过程中，参数、梯度和优化器状态如何分区，以及每种分区方式对内存消耗的影响。
+每个 GPU 的内存消耗按不同颜色表示：
+- 蓝色：参数
+- 橙色：梯度
+- 绿色：优化器状态
 
-接下来使用DeepSpeed推理.
-# 使用 DeepSpeed 初始化模型  
-pipe.model = deepspeed.init_inference(  
-    pipe.model,  
-    mp_size=1,  
-    dtype=torch.half,  
-    replace_method='auto',  
-    replace_with_kernel_inject=True  
-)  
-```
+几种优化策略
+- 基线（未优化）：所有 GPU 上都存储完整的参数、梯度和优化器状态。120GB
+- P_os：只对优化器状态进行分，即Stage1：31.4GB
+- P_os+g：对优化器状态和梯度进行分区，即Stage2：16.6GB
+- P_os+g+p：对优化器状态、梯度和参数进行分区，即Stage3：1.9GB
 
-我们看到DeepSpeed的速度没有明显提升
+DeepSpeed ZeRO仍然是一种数据并行模式，但在幕后消除了模型状态的冗余。
+1. 在 N 个设备上训练时的阶段 1 优化（P_os）。在幕后，ZeRO 将优化器状态分成 N 个部分。每个设备负责更新其中一个部分，即 1/N 的优化器状态，因此对应的参数也是 1/N。在每个训练步骤结束时，参数会同步（all-gather 操作），以确保所有设备上都有一致更新的参数。在上面的混合精度训练示例中，内存需求变为 4P + 12P/N，对于大的 N 值，这趋向于 4P，相比于需要 16P 的普通数据并行减少了 4 倍。此外，在每个设备上保存较少的状态所节省的内存可以支持更大的批量大小，使训练更加高效。
 
-使用DeepSpeed MII推理：
+2. 在阶段 2（P_os+g）中，每个设备负责更新 1/N 的参数，因此在反向传播过程中每个设备只需要 1/N 的梯度。此外，一旦梯度分区在反向传播中使用完毕，它就可以被释放。在上面的混合精度训练示例中，内存需求变为 2P + (2P + 12P)/N，对于大的 N 值，变为 2P，相比于普通数据并行减少了 8 倍。
 
-```
-conda activate dsmii;cd dsmii
-pip install git+https://github.com/huggingface/transformers
-pip install --upgrade torch torchvision torchaudio deepspeed
-export PATH=/usr/local/cuda/bin:$PATH
-export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
-export CXX=/usr/bin/g++
-export CUDA_HOME=/usr
-export PATH=$CUDA_HOME/bin:$PATH
-#sudo apt-get install libaio-dev  
-(dsmii) root@h100vm:~/DeepSpeed-MII# git clone https://github.com/NVIDIA/cutlass.git
-Cloning into 'cutlass'...
-remote: Enumerating objects: 26714, done.
-remote: Counting objects: 100% (25/25), done.
-remote: Compressing objects: 100% (23/23), done.
-remote: Total 26714 (delta 5), reused 10 (delta 0), pack-reused 26689
-Receiving objects: 100% (26714/26714), 42.66 MiB | 64.52 MiB/s, done.
-Resolving deltas: 100% (20054/20054), done.
-(dsmii) root@h100vm:~/DeepSpeed-MII# pwd
-/root/DeepSpeed-MII
-(dsmii) root@h100vm:~/DeepSpeed-MII# export CUTLASS_PATH=/root/DeepSpeed-MII/cutlass
-(dsmii) root@h100vm:~/DeepSpeed-MII#
-deepspeed --num_gpus 1 3.py
+3. 在 P_os+g+p 阶段，为什么在每个设备上始终存储所有参数，如果每个设备只负责更新 1/N 的参数呢？在每个设备上只存储 1/N 的参数意味着在示例中每个设备需要 16P/N 的内存。但我们需要考虑通讯量。
+通信量是多少？
+
+#### ZeRO中的通讯量
+ 
+如果我们将分区分配给任意数量的节点，我们是否需要为保持分区同步支付通信成本？关键是并不是所有参数在所有时间都需要在所有设备上。通过限制同步的时间点，通信成本类似于经典的数据并行。
+
+1.P_os: 在反向传播之后，每个设备都会根据本地数据计算局部梯度。然后跨所有设备平均局部梯度。每个设备使用平均梯度进行权重更新。由于所有设备都有相同的平均梯度，它们会进行相同的更新，因此所有设备会有一致的模型副本。为了提高效率，这种对梯度的 all-reduce 操作分两步实现，并且对于 P 参数的模型需要总共 2P 的通信：
+
+- reduce-scatter：每个进程平均部分梯度（对于 P 参数的模型，梯度大小为 P 的通信为 O(P)）。
+- all-gather：每个进程收集所有其他进程减少的梯度（同样为 O(P) 的通信）。
+
+ 这两个步骤是流水线化的，因此这个过程是通信受限的，GPU 不会闲置。
 
 
-ImportError: cannot import name 'Conversation' from 'transformers' (/opt/miniconda/envs/dsmii/lib/python3.10/site-packages/transformers/__init__.py)
-```
+2.P_os+g：所需的通信与经典的数据并行相同。reduce-scatter 操作需要 P 的通信来减少每个进程拥有的梯度部分。每个进程只需要更新它拥有的参数部分。然后它将更新的参数传递给所有其他设备，总通信量为 P 的 all-gather 操作。总通信量仍然是 2P。
+ 
+
+3.P_os+g+p：在这个优化阶段，每个设备上只存储 1/N 的 P 模型参数。因此，每个进程需要将 P/N（部分参数）通信给所有 N 个设备，用于前向和反向传播。即每次传播的通信量为 P/N * N = P，总共为 2P。梯度的 reduce-scatter 操作需要 P 的通信量。总通信量为 3P，即经典数据并行的 1.5 倍。通信是分散进行的，因此参数只有在需要时才存在于节点上，并在使用后立即丢弃，从而保持所讨论的内存节省特性。
+ 
+
+##### 结论
+DeepSpeed 提供了一种复杂的分布式训练策略，与经典的数据并行相比，减少了内存冗余，同时保持了类似水平的通信。该库设计良好，允许模型开发者使用它而无需真正理解上述任何机制。如果你仍然想了解，希望本文提供了一个关于其内部运作的概述。关注我们以获取类似的文章。
+
+
+
+
+
