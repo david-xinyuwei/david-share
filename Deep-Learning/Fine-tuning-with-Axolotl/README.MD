@@ -27,7 +27,6 @@ Features:
 ![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Fine-tuning-with-Axolotl/images/modelsupport.png)
 
 ## Overall scenario
-## Overall scenario
 - Step 1: Use Axolotl to call DeepSpeed for QLoRA quantization (bnb) on phi-3-mini-4k, generating the quantized weight files. 
 - Step 2: Dequantize the parameters and weights generated in the first step, and merge them with the original phi-3-mini-4k to create a complete model.
 
