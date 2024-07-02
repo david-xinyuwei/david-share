@@ -4,6 +4,9 @@ This repository contains the essence of the "david-share" WeChat public account,
 My current research focus is on GenAI, and all related content can be found in the related directories.
 
 ## Latest Research Findings 
+### Study in July, 2024
+* ***E2E Fine tuning with Axolotl and Inference with vLLM: Deep Learning***
+
 ### Study in June, 2024
 * ***StableDiffusion INT8 on H100: Multimodal Models***
 * ***AzureOpenAI-HA: LLMs***
