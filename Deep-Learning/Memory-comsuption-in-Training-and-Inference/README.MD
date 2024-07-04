@@ -86,6 +86,8 @@ Substituting the specific values into the formula, we get:
 Converted to GB, we find that the gradients occupy approximately 262.63 GB of memory.
 
 ## Memory comsuption in Activations
+In this part when calculating the memory consumption of Activations, the formula does not consider the detailed Data Type. This means that if FP16 is used, the formula below needs to be multiplied by 2.
+
 We need to know the following information to estimate the activation memory consumption:
 s: Maximum sequence length (number of tokens in the input)
 b: Batch size
