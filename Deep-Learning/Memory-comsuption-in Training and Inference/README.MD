@@ -1,273 +1,264 @@
-**一、模型内存开销**
+## Calculate Model Memory consumption in Training and Inference
+The specific proportion of model memory consumption can vary greatly under different models and configurations, but a general overview can help understand the relative importance of each part:
 
-模型内存消耗的具体比重在不同的模型和配置下会有很大差异，但可以提供一个大致的概览来帮助理解各部分的相对重要性：
+- Model Parameters: This part usually occupies a relatively fixed amount of memory, depending on the size of the model (number of layers, number of parameters). For larger models, this can take up a significant proportion of memory, especially when there are many model parameters. In inference scenarios, the main memory consumption is the loading of model parameters.
+- Optimizer State: In inference processes, if there is no model updating, the memory consumption of the optimizer state can be negligible. However, in training scenarios, this part consumes a significant amount of memory, even higher than Model Parameters
+- Gradients: In the training phase, gradients are a significant part of memory consumption. Each parameter in the model has an associated gradient which is used to update the parameter during backpropagation. Especially in large models, the memory required to store these gradients can be substantial. This is crucial for understanding the overall memory requirements during model training. It should be noted that the memory consumption of the gradients usually calculate into the optimizer's memory usage.
+- Activations: During inference, activations are not the main part of memory consumption. However, in training scenarios, especially when the batch size is large or the model depth is significant, this part consumes a lot of memory.
+- KV cache in vLLM inference: During inference with vLLM, when handling long sequences, it will occupy lots of memory，This is the additional memory required beyond the KV cache memory for normal model training and inference.
+- Framework Overhead: This usually occupies a smaller proportion of memory, but in cases of poor memory management or a complex framework itself, it can also become a non-negligible factor.
 
-1. **模型参数**：这部分通常占据相对固定的内存，根据模型的大小（层数、参数数量）而定。对于较大的模型，这部分可以占据显著的内存比例，尤其是在模型参数多的情况下。在推理场景，内存的主要消耗就是模型参数加载。
-2. **激活**：在推理时，激活不是内存消耗的主要部分。但在训练场景，尤其是当批量大小较大或模型深度较大时。这部分内存消耗很大。
-3. **优化器状态**：在推理过程中，如果不进行模型更新，则优化器状态的内存消耗可以忽略。但在训练场景，这部分内存消耗很大。
-4. **框架开销**：这通常占据较小的内存比例，但在内存管理不当或框架本身较为复杂的情况下，也可能成为一个不容忽视的因素。
+**Overall**
+- In training phase: ***Memory need = Model Parameters + Optimizer State + Gradients + Activations***. 
+- In inference phase： ***Memory need =  Model Parameters + Activations***
 
+For example in Inference：
 
-总的来说，激活和模型参数通常是内存消耗的主要部分，尤其是在大型模型和大批量数据处理时。临时变量和框架开销通常较小，但在特定情况下也可能显著。优化器状态和输入输出数据的影响则更加依赖于具体的使用场景和配置。要准确评估各部分的内存消耗比例，通常需要进行具体的测量和分析，这可以通过各种性能分析工具来实现。
+![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Memory-comsuption-in%20Training%20and%20Inference/images/4.webp)
 
-### 二、**推理中激活的内存消耗的分析**
 
-### 在训练过程中，我们需要存储所有层的激活值，以便进行反向传播和梯度计算。这就需要更多的内存。而在推理过程中，我们只需要逐层进行计算，并且在每一层计算完成后，就可以释放该层的激活值，从而节省内存。
+For example in Training(Gradients are calculated into the optimizer)，
 
-我们需要知道以下信息来估计激活内存消耗：
+![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Memory-comsuption-in%20Training%20and%20Inference/images/9.webp)
 
-- s：最大序列长度（输入中的令牌数量）
-- b：批处理大小
-- h：模型的隐藏维度
-- a：注意力头的数量
 
-一个标准的Transformer层由一个自注意力块和一个MLP块组成，每个块通过两个层规范化连接。
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nU28soR7Wf6gQlBJuwzmt0MY6ibw5lZvAaW9nAmDWABJosSRbaB7PeKOWFaHdgSB95cYmVpyah8npQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
 
-在上图中，标记为“feed forward”的黄色部分代表了MLP（多层感知器）块。这个MLP块是Transformer层结构中的一个关键组成部分，它在多头自注意力机制（标记为"multi-head self attention"的红色部分）之后对数据进行进一步的处理和变换。这张图中显示的“feed forward”部分虽然用单个方框表示，但实际上，在常规的Transformer模型中，这个“feed forward”网络包含两个线性层，这两个线性层之间有一个激活函数。
+## Memory comsuption in Model Parameters Loading
 
-“feed forward”部分通常是这样构成的：
+For Training and inference，Memory comsuption in Model Parameters Loading is same.
 
-1. 第一个线性层（全连接层）：扩展输入特征的维度。
-2. 激活函数，通常是ReLU或GELU，用于引入非线性。
-3. 第二个线性层：将特征维度从扩展后的维度恢复到原始维度。
+For example, to calculate the GPU RAM needed to load the Llama 3 70B model, we can follow these steps:
 
-这样的结构使得MLP块能够对输入数据进行更深层次的处理，增强模型的学习能力。图示中可能未详细分解这些组件，但它们是MLP块标准配置的关键部分。
+- Determine the Number of Parameters: The Llama 3 70B model has 70 billion (i.e., 70 billion or 70,000,000,000) parameters.
 
-每个组件的内存消耗估计如下：
+- Calculate the Total Memory Required for Parameters: Each parameter uses 16 bits (or 2 bytes) of memory (since the parameters are stored in bfloat16 format, 16 bits equals 2 bytes).
 
-#### 2.1 自注意力
+Total Memory = Number of Parameters x Memory per Parameter
 
-注意力块包括自注意力机制和线性投影。内存需求包括：
-注意：当我写“sbh”，请将其解释为乘法“s*b*h”。
+- Total Memory = 70,000,000,000 parameters x 2 bytes/parameter = 140,000,000,000 bytes
+- Convert Bytes to GB:
+1 GB = 1,073,741,824 bytes (note that this uses the binary conversion, i.e., 2^30)
+Total Memory (GB) = 140,000,000,000 bytes ÷ 1,073,741,824 bytes/GB ≈ 130.4 GB
 
-- 线性投影（Linear Projection）保留其输入激活，大小为2sbh。
+This value is very close to the result from the HF (Hugging Face) tool.
+![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Memory-comsuption-in%20Training%20and%20Inference/images/3.webp)
 
-- 线性投影和自注意力输入激活，每个需要2sbh。
 
-- 自注意力的查询（Q）和键（K）矩阵，总共需要4sbh。
+## Memory comsuption in Optimizer State and Gradients
+The memory increase due to the optimizer during the training process mainly includes the following two parts:
+- New parameters created by the optimizer
+- Copies of model parameters
 
-- Softmax需要2as²b。
+### New parameters created by the optimizer
+AdamW is a commonly used optimizer, notable for considering the historical update data of parameters while adjusting the model parameters. This is similar to an experienced engineer who, when tuning a machine, not only considers the current performance but also refers to past adjustment records for more precise tuning. Now, let's examine the memory consumption. When using the AdamW optimizer, each model parameter has two additional pieces of information recorded: momentum and variance.
 
-- 存储应用于自注意力的值（V）的注意力，总计为2as²b + 2sbh。
+- Momentum: This reflects the trend of parameter changes during previous training processes, helping the optimizer understand how to smoothly change parameters during adjustments.
+- Variance: This helps the optimizer understand the stability of each parameter at different training stages, making the adjustments more robust.
 
-  注意力块总共需要的内存为10sbh + 4as²b。
+These two additional pieces of information require extra memory for storage, as the optimizer records both for each model parameter. Next, let's look at the memory consumption during fine-tuning of the model. Taking the Mixtral-8x22B model as an example, the optimizer creates and stores two new parameters (momentum and variance) for each parameter of the model, which requires additional memory. Specifically.
 
-#### 3.2 MLP块
+This includes momentum and variance; we have 282 billion of these new parameters, each of which is a float32 type, occupying 4 bytes of memory. Similarly, we can calculate the total memory occupied by the new parameters created by the optimizer using the following formula:
+Memory = Number of New Parameters × Memory Size per New Parameter
+Substituting the specific values into the formula, we get:
 
-MLP块包含两个线性层：
+![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Memory-comsuption-in%20Training%20and%20Inference/images/7.webp)
 
-- 线性层存储输入，需要2sbh和8sbh，GeLU非线性同样需要8sbh。注意：我们可能不需要为推理存储GeLU的激活，但我仍将其计入以估计最坏情况下的内存消耗，以防用于推理的框架存储了这些激活。
+Converted to GB, we find that the new parameters created by the optimizer occupy approximately 1050.53 GB of memory.
 
-  总的来说，MLP块需要18sbh的存储空间。
+### Copies of Model Parameters by the optimizer
+We have 141 billion (141B) parameters, each of which is a float32 type, occupying 4 bytes of memory. Thus, the total memory occupied by the copies of model parameters can be calculated using the following formula:
+Memory = Number of Parameters × Memory Size per Parameter
+Substituting the specific values into the formula, we get:
 
-#### 3.3 层规范
+![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Memory-comsuption-in%20Training%20and%20Inference/images/5.webp)
 
-每个层规范存储其输入，每个需要2sbh，两个规范总共需要4sbh。
 
-#### 整个层
+This result is in bytes, and we usually convert it to GB for easier understanding. 1GB equals 1,024^3 bytes, so we can determine that the total memory occupied by the copies of model parameters is approximately 525.27 GB.
 
-存储一个Transformer层激活所需的总内存为来自注意力块的10sbh + 4as²b，来自MLP块的18sbh，以及来自层规范的4sbh。
+### Memory comsuption in Gradients
+We have 141 billion gradients, each of which is of type float16, occupying 2 bytes of memory. Similarly, we can calculate the total memory occupied by the gradients using the following formula:
+Memory = Number of Gradients × Memory Size per Gradient
+Substituting the specific values into the formula, we get:
 
-每层的激活内存消耗 = 32 sbh + 4as²b
+![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Memory-comsuption-in%20Training%20and%20Inference/images/6.webp)
 
-如果我们使用16位数据类型，我们需要将这个数字乘以2，因为每个激活参数将消耗2字节。
+Converted to GB, we find that the gradients occupy approximately 262.63 GB of memory.
 
-### 16位数据类型
+## Memory comsuption in Activations
+We need to know the following information to estimate the activation memory consumption:
+s: Maximum sequence length (number of tokens in the input)
+b: Batch size
+h: Model's hidden dimension
+a: Number of attention heads
 
-- 每个激活参数消耗2字节。
-- 如果我们使用16位数据类型，需要将参数个数乘以2来计算总内存消耗。
+A standard Transformer layer consists of a self-attention block and an MLP block, each connected through two layer normalizations.
+![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Memory-comsuption-in%20Training%20and%20Inference/images/1.webp)
 
-### 32位数据类型
+#### For Inference
+The memory overhead of activations during inference requires storing the activations of a single layer and then passing them to the next layer. 
 
-- 每个激活参数消耗4字节。
-- 如果我们使用32位数据类型，需要将参数个数乘以4来计算总内存消耗。
+The memory consumption for each component is estimated as follows:
+1. Self-Attention Block
+The attention block includes the self-attention mechanism and linear projections. The memory requirements include:
+· Linear Projection: Retains its input activations, with a size of 2sbh.
+· Linear Projection and Self-Attention Input Activations: Each requires 2sbh.
+· Self-Attention Query (Q) and Key (K) Matrices: Requires a total of 4sbh.
+· Softmax: Requires 2as²b.
+· Storing the Attention Applied to the Values (V) of Self-Attention: Requires a total of 2as²b + 2sbh.
+
+The total memory required for the attention block is： 10sbh + 4as²b.
+
+2. MLP Block
+The MLP block contains two linear layers:
+. Linear Layers: Store input, requiring 2sbh and 8sbh respectively.
+. GeLU Non-linearity: Also requires 8sbh.
+Overall, the MLP blck requires 18sbh of storage.
+
+3 Layer Normalization
+Each layer normalization stores its input, requiring 2sbh each, totaling 4sbh for two normalizations.
+Total Memory for a Transformer Layer
+The total memory required to store activations for one Transformer layer is:
+- From the attention block: 10sbh + 4as²b
+- From the MLP block: 18sbh
+- From layer normalization: 4sbh
+
+Total activation memory per layer = 32sbh + 4as²b
+
+Conclusion
+The memory overhead for activations during inference is:
+
+Activation memory consumption per Layer in inference = 32 sbh + 4as²b
+
+Depending on the data type used, you will need to adjust the total memory consumption accordingly.
+
+
+
+#### For Training
+While the activation calculation for training and inference appears similar, training requires storing the activations of all layers to perform backpropagation and gradient computation, which demands more memory. In contrast, during inference, we only need to compute layer by layer and can release the activations of each layer once its computation is complete, thereby saving memory.For the activation overhead of each layer, we also need to consider the dropout masks in the self-attention and MLP modules, which add an additional 2sbh.
+
+Activation memory consumption per Layer in training = L(34sbh + 5as²b)
+
+
+
+## KV cache in vLLM:
+When vLLM performs inference, it utilizes the HF accelerate library, which causes it to pre-allocate 90% of the GPU memory by default when loading the model.
+
+![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Memory-comsuption-in%20Training%20and%20Inference/images/10.webp)
+
+To address this issue, specify gpu_memory_utilization during inference. Of course, this percentage must satisfy the model's inference requirements. Based on practical tests, setting gpu_memory_utilization does not reduce inference performance as long as the GPU memory can meet the inference needs. Here are the analyses of two test results: in the first test, gpu_memory_utilization was set to 0.2, while in the second test, it was not set. The tests were conducted using H100 + vLLM + Phi3 Mini 4K.
+
+
+### Model Loading and Memory Allocation
+ 
+#### Model Loading:
+- First Test: Loading model weights occupied 7.1183 GB of memory.
+- Second Test: Loading model weights also occupied 7.1183 GB of memory.
+
+#### Memory Usage:
+- First Test:
+Maximum RAM Usage: 6085.128192 MB
+Maximum Global VRAM Usage: 21886.861312 MB
+Maximum Process VRAM Usage: 21254.635520 MB
+- Second Test:
+Maximum RAM Usage: 6089.269248 MB
+Maximum Global VRAM Usage: 91814.297600 MB
+Maximum Process VRAM Usage: 91182.071808 MB
 
-### 8位数据类型
+From the memory usage data, the VRAM usage in the second test is significantly higher than in the first test.
+### Latency and Throughput
+ 
+#### Prefill Latency:
 
-- 每个激活参数消耗1字节。
-- 如果我们使用8位数据类型，需要将参数个数乘以1来计算总内存消耗。
+Prefill latency in both tests is very close, with average latency and standard deviation nearly identical.
+##### First Test:
+Total: 9.958572 s
+Average: 0.026276 s
+Standard Deviation: 0.000201 s (0.77%)
+p50: 0.026256 s
+p90: 0.026402 s
+p95: 0.026436 s
+p99: 0.027318 s
+##### Second Test:
+Total: 9.958938 s
+Average: 0.026346 s
+Standard Deviation: 0.000212 s (0.80%)
+p50: 0.026328 s
+p90: 0.026469 s
+p95: 0.026500 s
+p99: 0.027580 s
 
-### 4位数据类型
+#### Decode Latency:
 
-- 每个激活参数消耗0.5字节。
-- 如果我们使用4位数据类型，需要将参数个数乘以0.5来计算总内存消耗。
+Decode latency is also very close, with average latency and standard deviation nearly identical in both tests.
+##### First Test:
+Total: 9.272923 s
+Average: 0.299127 s
+Standard Deviation: 0.000345 s (0.12%)
+p50: 0.299020 s
+p90: 0.299618 s
+p95: 0.299694 s
+p99: 0.299866 s
+##### Second Test:
+Total: 9.259893 s
+Average: 0.298706 s
+Standard Deviation: 0.000405 s (0.14%)
+p50: 0.298628 s
+p90: 0.299288 s
+p95: 0.299376 s
+p99: 0.299385 s
 
-结论：推理过程中，激活的内存开销：
+#### Throughput:
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nU28soR7Wf6gQlBJuwzmt0MibjvHea5OfCO1yiaQxO86R22X7dyfn8HPmhlwNGg68vYxLUPAiasia9oPA/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+Throughput in both tests is also very close, with very minimal differences.
+##### Prefill Throughput:
+19485.523696 tokens/s (First Test)
+19433.397122 tokens/s (Second Test)
+##### Decode Throughput:
+163.810265 tokens/s (First Test)
+164.040766 tokens/s (Second Test)
 
-是用来估计在推理过程中，一个Transformer层激活所需的总内存。这里的各个符号代表的含义是：
+### Summary
+ 
+##### Memory Usage:
 
-- s：序列长度
-- b：批大小
-- h：隐藏层的大小
-- a：注意力头的数量
+The VRAM usage in the second test is significantly higher than in the first test, possibly due to more GPU resources being used in the second test.
 
+##### Latency and Throughput:
 
+The latency and throughput in both tests are almost identical, showing very stable performance.
 
+Overall, except for the significant difference in VRAM usage, the performance metrics in both tests are very close, indicating that the model's performance is stable under the same testing environment and configuration.
 
 
-**四、计算模型加载时内存开销**
+## DeepSpeed ZeRO policy for saving memory
+### Deepspeed ZeRO stage
+This image is from the DeepSpeed paper, illustrating the memory consumption on each device during different optimization stages (ZeRO-DP optimization). It details how parameters, gradients, and optimizer states are partitioned during the model training process, and the impact of each partitioning method on memory consumption. Memory consumption for each GPU is represented in different colors:
 
-举例而言，要计算 Llama 3 70B 模型加载需要的 GPU RAM，我们可以遵循以下步骤：
+- Blue: Parameters
+- Orange: Gradients
+- Green: Optimizer State
+![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Deep-Speed-ZeRO-Policy/images/zero3stage.png)
 
-1. **确定参数数量**：Llama 3 70B 模型有 70 billion（即 70 亿或 70,000,000,000）个参数。
-2. **计算参数所需的总内存**：
-   - 每个参数使用 16 位（或 2 字节）的内存（由于参数采用 bfloat16 格式存储，16 位等于 2 字节）。
-   - 因此，总内存 = 参数数量 x 每个参数的内存
-   - 总内存 = 70,000,000,000 参数 x 2 字节/参数 = 140,000,000,000 字节
-3. **将字节转换为**GB：
-   - 1 GB = 1,073,741,824 字节（注意这里使用的是二进制转换，即 2^30）
-   - 总内存（GB）= 140,000,000,000 字节 ÷ 1,073,741,824 字节/GB ≈ 130.4 GB
-4. 这个数值与HF工具的结果很接近：
-5. ![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nU28soR7Wf6gQlBJuwzmt0Mgml3O4iakq5f7OtCDib1HmKNnakPMB4FWsHp7Ek8O0ADvzyTg6kHf6Rg/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
-6. 
+Several optimization strategies include:
+- Baseline (unoptimized): All GPUs store complete parameters, gradients, and optimizer states: 120GB in above image.
+- P_os: Partitioning only the optimizer state, i.e., Stage 1: 31.4GB in above image.
+- P_os+g: Partitioning both the optimizer state and gradients, i.e., Stage 2: 16.6GB in above image.
+- P_os+g+p: Partitioning optimizer state, gradients, and parameters, i.e., Stage 3: 1.9GB in above image.
 
 
+#### Communication in ZeRO stage
+1. P_os: After backpropagation, each device calculates local gradients based on local data. Then, local gradients are averaged across all devices. Each device uses the averaged gradient for weight updates. Since all devices have the same averaged gradient, they perform the same updates, thus all devices have a consistent model copy. For efficiency, this all-reduce operation on gradients is implemented in two steps, and for a model with P parameters, it requires a total of 2P communication:
+- reduce-scatter: Each process averages part of the gradients (for a model with P parameters, the communication size of the gradient is O(P)).
+- all-gather: Each process collects all other processes' reduced gradients (also O(P) communication). These two steps are pipelined, so the process is communication-bound, and GPUs are not idle.
 
-**五、计算模型推理需要的激活内存**
 
-我们需要估计模型的大小，并且为一个层添加激活的大小。这些估计是针对标准情况计算的，在这种情况下，模型的参数和激活都是16位的。我们还需要设置解码的超参数。我使用的是：s = 512（序列长度）b = 8（批大小），将数值滴入公式32 sbh + 4as²b。
+2. P_os+g: The required communication is the same as classic data parallelism. The reduce-scatter operation needs P communication to reduce the part of the gradients each process owns. Each process only needs to update the part of the parameters it owns. Then it passes the updated parameters to all other devices, a total communication of P in the all-gather operation. The total communication is still 2P.
 
-最终得到如下结果：
+3. P_os+g+p: In this optimization stage, only 1/N of the P model parameters are stored on each device. Thus, each process needs to communicate P/N (part of the parameters) to all N devices for forward and backward propagation. That is, each propagation's communication volume is P/N * N = P, a total of 2P. The gradient's reduce-scatter operation requires P communication. The total communication is 3P, 1.5 times that of classic data parallelism. Communication is distributed, so parameters are only present on nodes when needed and are immediately discarded after use, maintaining the discussed memory-saving characteristics.
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nU28soR7Wf6gQlBJuwzmt0MkLE66Uw5Jn9WqNUfDDHIOHmZKHrVJe9uIoENm3JL7bBWib9sjM9ic4Fg/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+## **Refer：**
 
-从上表可以看到，在推理场景中，与模型在内存中的大小相比，激活的大小可以忽略不计。然而，随着批大小和序列长度的增加，它们的大小会迅速增长。
+***https://kaitchup.substack.com/p/estimate-the-memory-consumption-of***
+***https://github.com/microsoft/DeepSpeed***
 
-
-推理过程中的大部分内存消耗来自模型的参数。最近的量化算法可以显著减少这种内存消耗。它们通过减少大多数参数的位宽来压缩模型，同时尝试保持其精度。8位量化几乎是无损的，而4位量化只会轻微降低性能。4位量化使模型的内存消耗减少了4倍，因为大多数参数都是4位，即0.5字节而不是2字节。我推荐使用AWQ进行4位量化，它运行简单并且模型运行速度快。然而，对于参数超过100B的非常大的模型，使用更低精度的量化，例如2.5位或3位，仍然可以获得精确的模型。例如，AQLM在应用于Mixtral-8x7B的2位量化时表现良好。AQLM的问题在于量化模型的成本非常高。在云端对非常大的模型进行量化可能需要几周的时间。
-
-
-**七、模型微调所需的内存
-**
-对于LLMs的微调，估算内存模型权重和激活外，对于所有层，我们还需要存储优化器状态。
-
-**7.1 优化器状态的内存消耗**
-
-AdamW是一种常用的优化器，它的特点是在调整模型参数的同时，还会考虑参数的历史更新情况。这就像一个经验丰富的工程师在调整机器时，不仅会考虑当前的表现，还会参考过去的调整记录，以便更精确地进行调整。
-
-然后，我们来看看内存消耗。在使用AdamW优化器时，每个模型参数都会有两个额外的信息被记录下来：动量和方差。
-
-- 动量：这反映了参数在之前训练过程中的变化趋势，帮助优化器了解在调整时应该如何平滑地改变参数。
-- 方差：这帮助优化器了解每个参数在不同训练阶段的稳定性，使得调整更加稳健。
-
-这两种额外的信息需要额外的内存来存储，因为对于每一个模型参数，优化器都要记录这两种信息。
-
-接下来，我们来看看微调模型时的内存消耗。以Mixtral-8x22B模型为例，优化器会为模型的每个参数创建并存储2个新参数（动量和方差），这就需要额外的内存。具体来说：
-
-- **模型参数的副本**：我们有141B（即141亿）的参数，每个参数都是float32类型，占用4字节的内存。所以，模型参数的副本总共占用的内存可以通过以下公式计算：
-
-  内存=参数数量×每个参数的字节大小
-
-  把具体的数值代入公式，我们得到：
-
-  
-
-  
-
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nU28soR7Wf6gQlBJuwzmt0MGuzN1F0IJKcZHvFGSjDl49waeGyUhOvC396BMOmFsaZMSDlMoIlSlA/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
-
-这个结果是以字节为单位的，我们通常会把它转换为GB以便于理解。1GB等于10243字节，所以我们可以得到模型参数的副本总共占用了约**525.27 GB**的内存。
-
-- **梯度**：我们有141B的梯度，每个梯度都是float16类型，占用2字节的内存。同样，我们可以通过以下公式计算梯度总共占用的内存：
-
-  内存=梯度数量×每个梯度的字节大小
-
-  把具体的数值代入公式，我们得到：
-
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nU28soR7Wf6gQlBJuwzmt0MwlTcGv8ZnibNCuYiasOhvehmGJjHXYtpObSET0VkFPKRSYgQZGvofLZw/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
-
-转换为GB，我们得到梯度总共占用了约**262.63 GB**的内存。
-
-- **优化器创建的新参数**：这包括了动量和方差，我们有282B的这些新参数，每个参数都是float32类型，占用4字节的内存。同样，我们可以通过以下公式计算优化器创建的新参数总共占用的内存：
-
-  内存=新参数数量×每个新参数的字节大小
-
-  把具体的数值代入公式，我们得到：
-
-
-
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nU28soR7Wf6gQlBJuwzmt0MFmqqTHdvF0Qj8G0CNicpLFdx91vpOwqt3OegvqIMm18KmWb7mcouZ4Q/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
-
-转换为GB，我们得到优化器创建的新参数总共占用了约1050.53 GB的内存。
-
-因此，优化器在训练过程中会增加的内存主要包括以下三部分：
-
-1. 模型参数的副本：约525.27 GB
-2. 梯度：约262.63 GB
-3. 优化器创建的新参数（动量和方差）：约1050.53 GB
-
-
-
-所以，优化器在训练过程中一共会增加约 1838.43 GB 的内存。这是一个大概的估计，实际的内存消耗可能会因为具体的训练设置和硬件环境有所不同。
-
-这个计算训练内存消耗的方法适用于微调和预训练两种情况。无论是微调还是预训练，优化器都需要为模型参数创建副本，计算梯度，并存储额外的参数（如动量和方差）。因此，这些内存消耗的计算方法对两者都适用。
-
-但是，需要注意的是，预训练和微调的具体内存消耗可能会有所不同，因为它们可能使用不同大小的模型，不同的批次大小，甚至不同的优化器。此外，一些特定的训练策略，如梯度累积，也可能影响内存消耗。
-
-
-**7.2 训练中的激活内存：用于计算梯度所需的计算内存**
-
-Memory Required to Compute the Gradients：这是指在训练过程中，为了计算梯度（即参数更新的方向和大小），需要存储的内存。这部分内存主要用于存储模型的激活值，因为梯度的计算需要用到这些激活值。
-
-与推理相比，我们只需要存储单个层的激活然后传递给下一个层，微调需要存储在前向传递期间创建的所有激活。这是必要的，以计算梯度，然后用于反向传播错误并更新模型的权重。
-
-要估算计算梯度所需的内存，我们可以使用推理时使用的相同公式，然后将结果乘以层数。我们还需要考虑自注意力和MLP模块的dropout掩码，它们增加了2 sbh。
-
-如果L是层数，那么计算梯度所消耗的内存是
-
-L(34sbh + 5as²b)
-
-是用来估计在训练过程中，所有Transformer层激活所需的总内存。这里的各个符号代表的含义是：
-
-- L：模型的层数
-- s：序列长度
-- b：批大小
-- h：隐藏层的大小
-- a：注意力头的数量
-
-所以，所有Transformer层在训练过程中的激活内存消耗可以通过这个公式来估计。这个公式考虑了自注意力、MLP块和层规范等各个组件的内存需求。
-
-公式上看，训练中的激活计算公式和推理中的激活计算公式确实相差不大。然而，在训练过程中，我们需要存储所有层的激活值，以便进行反向传播和梯度计算。这就需要更多的内存。而在推理过程中，我们只需要逐层进行计算，并且在每一层计算完成后，就可以释放该层的激活值，从而节省内存。
-
-我设置了以下超参数进行微调：
-
-s = 512（序列长度）
-
-b = 8（批次大小）
-
-对于优化器状态，我假设它们是 float32。通过计算得到如下数值：
-
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nU28soR7Wf6gQlBJuwzmt0MJE827w6sERumtN90R1DWuhawpX3nAlrVobNL862p3U1hguSUk0xqHA/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
-
-最终的结果是：
-
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nU28soR7Wf6gQlBJuwzmt0MGoUZ8K8e4MgMnAhwXrH7ia5Bdibo0lAIvaPo2OE43MpC5v1NTNd4qaCw/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
-
-这是最坏情况下的内存消耗，即没有使用任何优化来减少它。我们离一个可负担的硬件配置还很远。幸运的是，有许多优化措施可以我们可以应用来减少内存需求。
-
-
-**八、减少微调的内存消耗**
-
-由于优化器状态消耗大量内存，已经进行了大量研究来减少它们的内存占用，例如：
-
-LoRA：冻结整个模型并添加一个具有几百万参数的可训练适配器。使用LoRA，我们只存储适配器参数的优化器状态。
-
-QLoRA：LoRA，但模型量化到4位或更低精度。
-
-AdaFactor和AdamW-8bit：内存效率更高的优化器，性能接近AdamW。AdaFactor在训练期间可能不稳定。
-
-GaLore：将梯度投影到低秩子空间，可以减少优化器状态的大小达80%。
-
-内存的另一个重要部分由激活消耗。为了减少它，通常使用梯度检查点。它在需要计算梯度时重新计算某些激活。它减少了内存消耗，但也减慢了微调速度。
-
-最后，有一些框架，如Unsloth，针对使用LoRA和QLoRA的微调进行了极致优化。
-
-
-
-**参考文章：**
-
-https://kaitchup.substack.com/p/estimate-the-memory-consumption-of
