@@ -10,7 +10,7 @@ The specific proportion of model memory consumption can vary greatly under diffe
 
 **Overall**
 - In training phase: ***Memory need = Model Parameters + Optimizer State + Gradients + Activations***. 
-- In inference phase： ***Memory need =  Model Parameters + Activations***
+- In inference phase： ***Memory need =  Model Parameters + Activations + vLLM KV Cache(In case you use vLLM)***
 
 For example in Inference：
 
@@ -148,6 +148,7 @@ When vLLM performs inference, it utilizes the HF accelerate library, which cause
 
 To address this issue, specify gpu_memory_utilization during inference. Of course, this percentage must satisfy the model's inference requirements. Based on practical tests, setting gpu_memory_utilization does not reduce inference performance as long as the GPU memory can meet the inference needs. Here are the analyses of two test results: in the first test, gpu_memory_utilization was set to 0.2, while in the second test, it was not set. The tests were conducted using H100 + vLLM + Phi3 Mini 4K.
 
+However, vLLM team is working on FP8 of KV cache now with AMMO, but it supports limited Models. It is very useful when it supports most of HF models.
 
 ### Model Loading and Memory Allocation
  
