@@ -5,6 +5,7 @@ My current research focus is on GenAI, and all related content can be found in t
 
 ## Latest Research Findings 
 ### Study in July, 2024
+* ***Florence2 applications in multiple CV scenarios: Multimodal Models***
 * ***Calculate Model Memory consumption in Training and Inference: Deep Learning***
 * ***E2E Fine tuning with Axolotl and Inference with vLLM: Deep Learning***
 
