@@ -260,6 +260,9 @@ Several optimization strategies include:
 
 3. P_os+g+p: In this optimization stage, only 1/N of the P model parameters are stored on each device. Thus, each process needs to communicate P/N (part of the parameters) to all N devices for forward and backward propagation. That is, each propagation's communication volume is P/N * N = P, a total of 2P. The gradient's reduce-scatter operation requires P communication. The total communication is 3P, 1.5 times that of classic data parallelism. Communication is distributed, so parameters are only present on nodes when needed and are immediately discarded after use, maintaining the discussed memory-saving characteristics.
 
+Today，when we want to use DeepSpeed to do CPT for FT, we could easily use Axolotl, please refer to:
+
+***https://github.com/davidsajare/david-share/tree/master/Deep-Learning/Fine-tuning-with-Axolotl***
 ## **Refer：**
 
 ***https://kaitchup.substack.com/p/estimate-the-memory-consumption-of***
