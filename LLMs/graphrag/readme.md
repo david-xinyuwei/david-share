@@ -51,7 +51,7 @@ Installation will take ~40-50 minutes to deploy.Don't worry that the installatio
 ####  Step3: run test
 Refer to following link to create a dataset:
 
-*** https://github.com/Azure-Samples/graphrag-accelerator/tree/main/notebooks ***
+***https://github.com/Azure-Samples/graphrag-accelerator/tree/main/notebooks***
 
 Then run ipynb file 
 
