@@ -23,7 +23,7 @@ For example in Training(Gradients are calculated into the optimizer)，
 
 
 There is also an example for a quick assessment of the amount of memory sold while the model is being trained, this is a quick reference and may not be 100% accurate. Refer below for the exact steps.
-![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Memory-comsuption-in%20Training%20and%20Inference/images/example.png)
+![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Memory-comsuption-in-Training-and-Inference/images/example.png)
 
 
 ## Memory comsuption in Model Parameters Loading
