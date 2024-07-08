@@ -5,7 +5,7 @@ My current research focus is on GenAI, and all related content can be found in t
 
 ## Latest Research Findings 
 ### Study in July, 2024
-* ***Graphrag configure and validation: LLMs***
+* ***graphrag configure and validation: LLMs***
 * ***NVIDIA GPUs running distributed training/NVIDIA GPU运行分布式训练: GPUs***
 * ***Florence2 applications in multiple CV scenarios: Multimodal Models***
 * ***Calculate Model Memory consumption in Training and Inference: Deep Learning***

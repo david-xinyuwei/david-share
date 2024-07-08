@@ -1,5 +1,5 @@
 
-# Graphrag configure and validation
+# graphrag configure and validation
 **Notice:**
 graphrag is a Microsoft opensource project, link:
 ***https://github.com/microsoft/graphrag.git***
