@@ -363,7 +363,7 @@ output_df = pd.DataFrame([{to: graphml_string}]): Stores the generated GraphML s
 - _get_attribute_column_mapping: Converts attribute mappings to dictionary format.
 - _clean_value: Cleans attribute values.
 
-### ###  GraphML file generation logicSummary
+### GraphML file generation logicSummary
  
 In this code, the create_graph function generates a GraphML file using the NetworkX library. The specific steps include creating a graph object, adding nodes and edges, generating a GraphML string, and storing it in a DataFrame. The final GraphML file can be used for further graph analysis and visualization.
 
