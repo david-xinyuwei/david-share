@@ -18,12 +18,11 @@ Both graphs have the same data source.
 ## graphrag implementation logic
 Global Query：
 ![image](https://github.com/davidsajare/david-share/blob/master/LLMs/graphrag/images/5.png)
-Global Query Dataflow
-###### Input:
+##### Input:
 - User Query
 - Conversation History
 
-###### Processing Flow:
+##### Processing Flow:
 
 The user query and conversation history are divided into multiple batches (Shuffled Community Report Batch 1, 2, ..., N).
 Each batch generates an intermediate response (Rated Intermediate Response 1, 2, ..., N).
@@ -39,21 +38,23 @@ Suitable for scenarios that require searching and aggregating information on a l
 
 Local Query：
 ![image](https://github.com/davidsajare/david-share/blob/master/LLMs/graphrag/images/6.png)
-Local Query Dataflow
-###### Input:
+
+##### Input:
 - User Query
 - Conversation History
-###### Processing Flow:
+
+##### Processing Flow:
 The user query and conversation history are used to extract entities (Extracted Entities).
 The extracted entities are mapped to different candidates (Candidate Text Units, Candidate Community Reports, Candidate Entities, Candidate Relationships, Candidate Covariates).
 Each candidate is ranked and filtered (Ranking + Filtering), generating prioritized candidates (Prioritized Text Units, Prioritized Community Reports, Prioritized Entities, Prioritized Relationships, Prioritized Covariates).
 The final prioritized candidates are integrated, and the final response is returned (Response).
-###### Characteristics:
+
+##### Characteristics:
 Local search focuses more on entity extraction and mapping.
 The processing flow is more detailed, involving multiple different types of candidates.
 Suitable for scenarios that require detailed search and analysis of specific entities or relationships.
 
-###### Summary
+#### Summary
 - Global Search:
 
 Broader processing scope, involving multiple batches of processing and aggregation.
@@ -104,7 +105,7 @@ This means that global_search and local_search use different API endpoints.
 The comment for global_search indicates that it performs a global query on the knowledge graph.
 The comment for local_search indicates that it performs a local query on the knowledge graph.
 
-#####Similarities in Code Implementation
+##### Similarities in Code Implementation
 - Parameters:
 
 Both functions accept index_name and query as parameters.
