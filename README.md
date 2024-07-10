@@ -2,7 +2,7 @@
 This repository contains the essence of the "david-share" WeChat public account, as well as study notes from daily work. 
 
 My current research focus is on GenAI, and all related content can be found in the related directories.
-![image](https://github.com/davidsajare/david-share/blob/master/IMAGES/Conan.png)
+<img src="https://github.com/davidsajare/david-share/blob/master/IMAGES/Conan.png" width="400" height="550">
 ## Latest Research Findings 
 ### Study in July, 2024
 * ***graphrag configure and validation: LLMs***
