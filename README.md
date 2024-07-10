@@ -5,6 +5,7 @@ My current research focus is on GenAI, and all related content can be found in t
 
 ## Latest Research Findings 
 <img src="https://github.com/davidsajare/david-share/blob/master/IMAGES/Conan.png" width="700" height="350">
+
 ### Study in July, 2024
 * ***graphrag configure and validation: LLMs***
 * ***NVIDIA GPUs running distributed training/NVIDIA GPU运行分布式训练: GPUs***
