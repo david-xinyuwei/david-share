@@ -494,6 +494,7 @@ print(f"Answer: {answer}")
 The output is as following:
 ![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Florence-2-Inference-and-Fine-Tuning/images/arch.jpg)
 
-
+GPU consumption during above inference:
+![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Florence-2-Inference-and-Fine-Tuning/images/infergpu.jpg)
 **Refer:**
 https://huggingface.co/blog/finetune-florence2
