@@ -496,5 +496,7 @@ The output is as following:
 
 GPU consumption during above inference:
 ![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Florence-2-Inference-and-Fine-Tuning/images/infergpu.jpg)
+
+
 **Refer:**
 https://huggingface.co/blog/finetune-florence2
