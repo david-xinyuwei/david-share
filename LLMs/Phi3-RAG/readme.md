@@ -191,6 +191,8 @@ Output:
 
 }
 ```
+The inference is finished in 2 seconds:
+
 ![image](https://github.com/davidsajare/david-share/blob/master/LLMs/Phi3-RAG/images/2.png)
 
 The result is same as the in original pdf:
