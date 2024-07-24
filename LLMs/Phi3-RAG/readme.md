@@ -2,7 +2,7 @@
 
 **Notice:**
 
-- This repo was originally written with reference to https://github.com/sankethsj/phi3-rag-application.git, I do some modifications, mainly the implementation of a mixture of keyword and vector search.
+- This repo was originally written with reference to *https://github.com/sankethsj/phi3-rag-application.git*, I do some modifications, mainly the implementation of a mixture of keyword and vector search.
 
 
 ## Phi3 RAG Implementation Architecture
@@ -29,13 +29,21 @@ Solar	10.7B	6.1GB	ollama run solar
 ```
 db.py is to creat chromaDB, keyword_generator.py is to genarate key words.
 The two script will be called automatically during following code.
+
+The code includes 3 parts:
+- Env preparation
+- Build DB and index
+- Input prompt and get completion
+
+### Part1：Env preparation
 ```
-(phi3rag) root@david1a100:~# cd phi3-rag-application/
+(phi3rag) root@david1a100:~# cd Phi3-RAG/
 #pip install -r requirements
-(phi3rag) root@david1a100:~/phi3-rag-application# !ju
+(phi3rag) root@david1a100:~/Phi3-RAG# !ju
 jupyter notebook --no-browser --port=8889 --allow-root --ip=0.0.0.0 --log-level=ERROR
 
 ```
+### Part2：Build DB and index
 ```
 import nltk  
 from langchain_community.document_loaders import PyPDFLoader  
@@ -113,7 +121,7 @@ Processed chunk: docs-wildfire_stats-pdf-p2-c0
 Collection my_project10 does not exist.
 Documents loaded to DB
 ```
-### Query and get results.
+### Part3: Input prompt and get completion
 ```
 
 def query_collection_combined(collection, query_text, vector_weight=0.5, keyword_weight=0.5):  
