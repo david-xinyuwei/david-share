@@ -5,7 +5,7 @@
 - This repo was originally written with reference to https://github.com/sankethsj/phi3-rag-application.git, I do some modifications, mainly the implementation of a mixture of keyword and vector search.
 
 
-## Phi3 RAG实现架构
+## Phi3 RAG Implementation Architecture
 Phi3 is run using the Ollama approach, with a database using chromaDB that supports vector and keyword search.
 Ollma executes a large number of mainstream open source models, including Phi3:
 *https://github.com/ollama/ollama*
