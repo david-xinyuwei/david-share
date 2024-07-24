@@ -6,6 +6,7 @@ My current research focus is on GenAI, and all related content can be found in t
 ## Latest Research Findings 
 
 ### Study in July, 2024
+* ***Phi3 RAG: LLMs***
 * ***Florence2 applications in multiple CV scenarios and Fine Tuning: Multimodal Models***
 * ***graphrag configure and validation: LLMs***
 * ***NVIDIA GPUs running distributed training/NVIDIA GPU运行分布式训练: GPUs***
