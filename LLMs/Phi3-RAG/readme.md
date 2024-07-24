@@ -202,9 +202,11 @@ Output:
 
 }
 ```
-Got response in 2s:
-
+![image](https://github.com/davidsajare/david-share/blob/master/LLMs/Phi3-RAG/images/2.png)
 The result is same as the in original pdf:
+
+![image](https://github.com/davidsajare/david-share/blob/master/LLMs/Phi3-RAG/images/1.png)
+
 
 
 Resource consumed in inference:
