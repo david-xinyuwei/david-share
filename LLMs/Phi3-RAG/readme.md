@@ -6,8 +6,8 @@
 
 
 ## Phi3 RAG实现架构
-Phi3的运行使用Ollama的方式，数据库使用chromaDB，支持向量搜索和关键词搜索。
-Ollma执行大量的主流开源模型，包括Phi3：
+Phi3 is run using the Ollama approach, with a database using chromaDB that supports vector and keyword search.
+Ollma executes a large number of mainstream open source models, including Phi3:
 *https://github.com/ollama/ollama*
 ```
 Model	Parameters	Size	Download
@@ -48,7 +48,7 @@ from sentence_transformers import SentenceTransformer
 import chromadb  
 from chromadb.utils import embedding_functions  
   
-# 初始化  
+
 nltk.download("stopwords")  
 nltk.download("punkt")  
 stop_words = set(nltk.corpus.stopwords.words("english"))  
@@ -58,7 +58,7 @@ embedding_func = embedding_functions.SentenceTransformerEmbeddingFunction(
     model_name="Alibaba-NLP/gte-large-en-v1.5", trust_remote_code=True  
 )  
   
-# 加载PDF文档并分块  
+ 
 file_path = "docs/wildfire_stats.pdf"  
 loader = PyPDFLoader(file_path)  
 document = loader.load()  
@@ -66,7 +66,7 @@ print("No. of pages in the document:", len(document))
 text_splitter = RecursiveCharacterTextSplitter(chunk_size=10000, chunk_overlap=100)  
 chunked_documents = text_splitter.split_documents(document)  
   
-# 准备数据进行索引  
+
 contents = []  
 ids = []  
 keywords = []  
@@ -86,7 +86,6 @@ for index, doc in enumerate(chunked_documents):
     keywords.append(extract_keywords(doc.page_content))  
     print("Processed chunk:", chunk_id)  
   
-# 创建Chroma DB集合并添加数据  
 COLLECTION_NAME = "my_project10"  
 collection = get_db_collection(COLLECTION_NAME)  
 metadata = [{"tags": ", ".join(i)} for i in keywords]  
@@ -116,27 +115,20 @@ Documents loaded to DB
 ```
 ### Query and get results.
 ```
-# 混合查询函数  
+
 def query_collection_combined(collection, query_text, vector_weight=0.5, keyword_weight=0.5):  
-    # 向量查询  
     vector_results = collection.query(query_texts=[query_text], n_results=5)  
-    # 关键词提取  
     keywords = extract_keywords(query_text, n=5)  
     keyword_results = collection.query(query_texts=keywords, n_results=5)  
-    # 合并结果  
     combined_results = {}  
-    # 处理向量查询结果  
     for i, doc_id in enumerate(vector_results['ids'][0]):  
         score = vector_results['distances'][0][i] * vector_weight  
         combined_results[doc_id] = combined_results.get(doc_id, 0) + score  
-    # 处理关键词查询结果  
     for i, doc_id in enumerate(keyword_results['ids'][0]):  
         score = keyword_results['distances'][0][i] * keyword_weight  
         combined_results[doc_id] = combined_results.get(doc_id, 0) + score  
-    # 排序并返回前n个结果  
     sorted_results = sorted(combined_results.items(), key=lambda x: x[1], reverse=True)  
-    top_results = sorted_results[:3]  
-    # 获取详细信息  
+    top_results = sorted_results[:3]   
     detailed_results = []  
     for doc_id, score in top_results:  
         index = vector_results['ids'][0].index(doc_id) if doc_id in vector_results['ids'][0] else keyword_results['ids'][0].index(doc_id)  
@@ -150,12 +142,10 @@ def query_collection_combined(collection, query_text, vector_weight=0.5, keyword
         })  
     return detailed_results  
   
-# 查询集合  
 query_text = "What is NICC?"  
 results = query_collection_combined(collection, query_text)  
 #print(results)  
   
-# 准备最终提示  
 text = ""  
 for result in results:  
     text += result['document']  
@@ -175,7 +165,6 @@ prompt = ChatPromptTemplate.from_messages(
 final_prompt = prompt.format(input=query_text)  
 print(final_prompt)  
   
-# 连接本地LLM模型  
 llm = Ollama(  
     model="phi3",  
     keep_alive=-1,  
@@ -203,6 +192,7 @@ Output:
 }
 ```
 ![image](https://github.com/davidsajare/david-share/blob/master/LLMs/Phi3-RAG/images/2.png)
+
 The result is same as the in original pdf:
 
 ![image](https://github.com/davidsajare/david-share/blob/master/LLMs/Phi3-RAG/images/1.png)
