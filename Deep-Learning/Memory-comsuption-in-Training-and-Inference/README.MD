@@ -23,7 +23,7 @@ For example in Training(Gradients are calculated into the optimizer)，
 
 Take Llama 3.1 as an example to see how much memory it needs for training:
 
-![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Memory-comsuption-in%20Training%20and%20Inference/images/11.webp)
+![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Memory-comsuption-in-Training-and-Inference/images/11.webp)
 
 There is also an example for a quick assessment of the amount of memory sold while the model is being trained, this is a quick reference and may not be 100% accurate. Refer below for the exact steps.
 
@@ -31,7 +31,7 @@ There is also an example for a quick assessment of the amount of memory sold whi
 
 Take Llama 3.1 as an example to see how much memory it needs for inference:
 
-![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Memory-comsuption-in%20Training%20and%20Inference/images/12.webp)
+![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Memory-comsuption-in-Training-and-Inference/images/12.webp)
 
 ## Memory comsuption in Model Parameters Loading
 
