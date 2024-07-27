@@ -14,17 +14,24 @@ The specific proportion of model memory consumption can vary greatly under diffe
 
 For example in Inference：
 
-![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Memory-comsuption-in-Training-and-Inference/images/4.webp)
+![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Memory-comsuption-in%20Training%20and%20Inference/images/4.webp)
 
 
 For example in Training(Gradients are calculated into the optimizer)，
 
-![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Memory-comsuption-in-Training-and-Inference/images/9.webp)
+![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Memory-comsuption-in%20Training%20and%20Inference/images/9.webp)
 
+Take Llama 3.1 as an example to see how much memory it needs for training:
+
+![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Memory-comsuption-in%20Training%20and%20Inference/images/11.webp)
 
 There is also an example for a quick assessment of the amount of memory sold while the model is being trained, this is a quick reference and may not be 100% accurate. Refer below for the exact steps.
+
 ![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Memory-comsuption-in-Training-and-Inference/images/example.png)
 
+Take Llama 3.1 as an example to see how much memory it needs for inference:
+
+![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Memory-comsuption-in%20Training%20and%20Inference/images/12.webp)
 
 ## Memory comsuption in Model Parameters Loading
 
@@ -44,7 +51,7 @@ Total Memory = Number of Parameters x Memory per Parameter
 Total Memory (GB) = 140,000,000,000 bytes ÷ 1,073,741,824 bytes/GB ≈ 130.4 GB
 
 This value is very close to the result from the HF (Hugging Face) tool.
-![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Memory-comsuption-in-Training-and-Inference/images/3.webp)
+![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Memory-comsuption-in%20Training%20and%20Inference/images/3.webp)
 
 
 ## Memory comsuption in Optimizer State and Gradients
@@ -64,7 +71,7 @@ This includes momentum and variance; we have 282 billion of these new parameters
 Memory = Number of New Parameters × Memory Size per New Parameter
 Substituting the specific values into the formula, we get:
 
-![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Memory-comsuption-in-Training-and-Inference/images/7.webp)
+![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Memory-comsuption-in%20Training%20and%20Inference/images/7.webp)
 
 Converted to GB, we find that the new parameters created by the optimizer occupy approximately 1050.53 GB of memory.
 
@@ -73,7 +80,7 @@ We have 141 billion (141B) parameters, each of which is a float32 type, occupyin
 Memory = Number of Parameters × Memory Size per Parameter
 Substituting the specific values into the formula, we get:
 
-![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Memory-comsuption-in-Training-and-Inference/images/5.webp)
+![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Memory-comsuption-in%20Training%20and%20Inference/images/5.webp)
 
 
 This result is in bytes, and we usually convert it to GB for easier understanding. 1GB equals 1,024^3 bytes, so we can determine that the total memory occupied by the copies of model parameters is approximately 525.27 GB.
@@ -83,11 +90,12 @@ We have 141 billion gradients, each of which is of type float16, occupying 2 byt
 Memory = Number of Gradients × Memory Size per Gradient
 Substituting the specific values into the formula, we get:
 
-![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Memory-comsuption-in-Training-and-Inference/images/6.webp)
+![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Memory-comsuption-in%20Training%20and%20Inference/images/6.webp)
 
 Converted to GB, we find that the gradients occupy approximately 262.63 GB of memory.
 
 ## Memory comsuption in Activations
+*** Note: ***
 In this part when calculating the memory consumption of Activations, the formula does not consider the detailed Data Type. This means that if FP16 is used, the formula below needs to be multiplied by 2.
 
 We need to know the following information to estimate the activation memory consumption:
@@ -97,7 +105,7 @@ h: Model's hidden dimension
 a: Number of attention heads
 
 A standard Transformer layer consists of a self-attention block and an MLP block, each connected through two layer normalizations.
-![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Memory-comsuption-in-Training-and-Inference/images/1.webp)
+![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Memory-comsuption-in%20Training%20and%20Inference/images/1.webp)
 
 #### For Inference
 The memory overhead of activations during inference requires storing the activations of a single layer and then passing them to the next layer. 
@@ -148,12 +156,11 @@ Activation memory consumption per Layer in training = L(34sbh + 5as²b)
 ## KV cache in vLLM:
 When vLLM performs inference, it utilizes the HF accelerate library, which causes it to pre-allocate 90% of the GPU memory by default when loading the model.
 
-![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Memory-comsuption-in-Training-and-Inference/images/10.webp)
+![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Memory-comsuption-in%20Training%20and%20Inference/images/10.webp)
 
 To address this issue, specify gpu_memory_utilization during inference. Of course, this percentage must satisfy the model's inference requirements. Based on practical tests, setting gpu_memory_utilization does not reduce inference performance as long as the GPU memory can meet the inference needs. Here are the analyses of two test results: in the first test, gpu_memory_utilization was set to 0.2, while in the second test, it was not set. The tests were conducted using H100 + vLLM + Phi3 Mini 4K.
 
 However, vLLM team is working on FP8 of KV cache now with AMMO, but it supports limited Models. It is very useful when it supports most of HF models.
-
 ### Model Loading and Memory Allocation
  
 #### Model Loading:
@@ -243,7 +250,7 @@ This image is from the DeepSpeed paper, illustrating the memory consumption on e
 - Blue: Parameters
 - Orange: Gradients
 - Green: Optimizer State
-![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Memory-comsuption-in-Training-and-Inference/images/zero3stage.png)
+![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Deep-Speed-ZeRO-Policy/images/zero3stage.png)
 
 Several optimization strategies include:
 - Baseline (unoptimized): All GPUs store complete parameters, gradients, and optimizer states: 120GB in above image.
@@ -265,9 +272,9 @@ Several optimization strategies include:
 Today，when we want to use DeepSpeed to do CPT for FT, we could easily use Axolotl, please refer to:
 
 ***https://github.com/davidsajare/david-share/tree/master/Deep-Learning/Fine-tuning-with-Axolotl***
+
 ## **Refer：**
 
 ***https://kaitchup.substack.com/p/estimate-the-memory-consumption-of***
-
 ***https://github.com/microsoft/DeepSpeed***
 
