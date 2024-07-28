@@ -7,7 +7,7 @@ My current research focus is on GenAI, and all related content can be found in t
 
 ### Study in July, 2024
 * ***Function-Call-Training: Deep-Learning***
-* ***NVIDIA-Hopper-Study:GPUs ***
+* ***NVIDIA-Hopper-Study: GPUs***
 * ***Phi3-Quantization-and-Fine-Tuning: Deep-Learning***
 * ***Phi3 RAG: LLMs***
 * ***Florence2 applications in multiple CV scenarios and Fine Tuning: Multimodal Models***
