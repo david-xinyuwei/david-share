@@ -156,3 +156,6 @@ Q: What may happen if CMOC does not meet it's goals? ---- Available choices:
 
 A: They will be seen as incompetent.
 ```
+## Synthetic-Instructions with GPT-4o
+***Refer to：***
+https://github.com/Azure/synthetic-qa-generation.git
