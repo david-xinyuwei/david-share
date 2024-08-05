@@ -6,11 +6,12 @@ My current research focus is on GenAI, and all related content can be found in t
 ## Latest Research Findings 
 
 ### Study in August, 2024
-* ***Llama3.1-Fine-Tuning: Deep-Learningg***
-* ***Pretrain-on-Synthetic-Instructions: DeepLearning***
+* ***Llama3.1-Fine-Tuning: Deep-Learning***
+* ***NVIDIA-Hopper-Study: GPUs***
+* ***Pretrain-on-Synthetic-Instructions: Deep-Learning***
 * ***Perplexity-test: LLM***
 * ***Multi-LoRA-adapter: Deep-Learning***
-* ***Special-Tokens(EOS)-In-Training-and-Inference :Deep-Learning***
+* ***Special-Tokens(EOS)-In-Training-and-Inference: Deep-Learning***
 * ***SDXL-LoRA-Test: Multimodal-Models***
 
 ### Study in July, 2024
