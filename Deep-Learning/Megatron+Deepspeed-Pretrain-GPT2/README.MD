@@ -309,5 +309,5 @@ The steps of the BPE (Byte Pair Encoding) tokenization method are as follows:
 - Final Vocabulary: The final vocabulary may include [a, b, c, …, z, er, wer, lo, ne], and the subword sequences are [lo, wer] and [ne, wer].
 
 ***Refer to:***
-*https://github.com/bigscience-workshop/Megatron-DeepSpeed*
-*https://help.aliyun.com/zh/ecs/use-cases/use-the-megatron-deepspeed-training-gpt-2-and-generate-text?spm=a2c4g.11186623.0.0.72a47e45epJ6T7*
+- *https://github.com/bigscience-workshop/Megatron-DeepSpeed*
+- *https://help.aliyun.com/zh/ecs/use-cases/use-the-megatron-deepspeed-training-gpt-2-and-generate-text?spm=a2c4g.11186623.0.0.72a47e45epJ6T7*
