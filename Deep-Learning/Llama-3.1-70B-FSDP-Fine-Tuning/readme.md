@@ -34,6 +34,7 @@ Create a file config_fsdp.yaml
 ```
 config_fsdp.yaml
 ```
+```
 compute_environment: LOCAL_MACHINE
 debug: false
 distributed_type: FSDP
@@ -60,7 +61,10 @@ tpu_use_cluster: false
 tpu_use_sudo: false
 use_cpu: false
 ```
-num_processes: 2 specifies the use of two processes for distributed computing, which means two GPUs. fsdp_sharding_strategy: FULL_SHARD specifies the use of a full sharding strategy, meaning that all parameters of the model will be sharded and distributed across different devices. Because of this setting, there will be two shards when loading the model.
+- num_processes: 2 specifies the use of two processes for distributed computing, which means two GPUs. 
+- fsdp_sharding_strategy: FULL_SHARD specifies the use of a full sharding strategy, meaning that all parameters of the model will be sharded and distributed across different devices. Because of this setting, there will be shards when loading the model, which will alse increase model load time a lot.
+
+![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Llama-3.1-70B-FSDP-Fine-Tuning/images/1.png)
 
 
 Training script: fsdp+QLoRA.py
@@ -186,7 +190,6 @@ Run folling command:
 ```
 (llama3.1) root@xinyu2a100vm:~# accelerate launch --config_file config_fsdp.yaml fsdp+QLoRA.py
 ```
-因为在前面的
 When I conducted my experiments, I used two card A100, and the CPU memory did not run full during training, indicating that the batchsize can be further increased:
 
 ![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nW81Idvzj0dbl6jyIWT2YPr7JpIIVbpcPyPtUkicfmpTMtUibo1887luRSQSakcAaHvlf2V0j1nIW5A/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
@@ -204,15 +207,14 @@ Model files after training:
 ## Increase batchsize
 Use this configuration in fsdp+QLoRA.py
 ```
-
 training_arguments = SFTConfig(
         output_dir=output_dir ,
         eval_strategy="steps",
         do_eval=True,
         optim="adamw_torch",
-        per_device_train_batch_size=3,
-        gradient_accumulation_steps=16,
-        per_device_eval_batch_size=3,
+        per_device_train_batch_size=8,
+        gradient_accumulation_steps=8,
+        per_device_eval_batch_size=8,
         log_level="debug",
         logging_steps=10,
         learning_rate=1e-4,
@@ -226,7 +228,9 @@ training_arguments = SFTConfig(
 )
 
 ```
-Run 
+Run training command:
 ```
 (llama3.1) root@xinyu2a100vm:~# accelerate launch --config_file config_fsdp.yaml fsdp+QLoRA.py
 ```
+Observe the GPU memory usage:
+![image](https://github.com/davidsajare/david-share/blob/master/Deep-Learning/Llama-3.1-70B-FSDP-Fine-Tuning/images/2.png)
