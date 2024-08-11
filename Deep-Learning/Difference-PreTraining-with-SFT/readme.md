@@ -1,14 +1,14 @@
-## Difference between PreTraining with SFT
+# Difference between PreTraining with SFT
 
 The goals of pre-training, the datasets used, and the number of GPUs required are all different. However, if we are to explain the difference from the essence of deep learning training, it is: 
 
-**Pre-training involves randomly initializing model parameters, constructing the model, and then training it on a large amount of unlabeled data to learn general features of the corpus; whereas fine-tuning loads parameters from the pre-trained model, retains the general features learned during pre-training, and trains the model on a small amount of high-quality labeled data to enhance the model's capability and performance on specific tasks. **
+** Pre-training involves randomly initializing model parameters, constructing the model, and then training it on a large amount of unlabeled data to learn general features of the corpus; whereas fine-tuning loads parameters from the pre-trained model, retains the general features learned during pre-training, and trains the model on a small amount of high-quality labeled data to enhance the model's capability and performance on specific tasks. **
 
 The parameters mentioned above include: weights, biases, Word Embeddings, Positional Encoding, attention mechanism parameters, etc.
 
-### ## More detail explaination
+## More detail explaination
 
-### ### Pre-Training
+### Pre-Training
 
 **Pre-Training** aims to learn the fundamental structure and semantic features of a language using large-scale unsupervised datasets (such as text corpora). Pre-training typically involves the following steps:
 
@@ -41,7 +41,6 @@ The parameters mentioned above include: weights, biases, Word Embeddings, Positi
 1. **Training Efficiency**: Pre-training usually requires substantial computational resources and time because it involves training all model parameters on a large-scale dataset. Fine-tuning is relatively efficient as it builds on the pre-trained model and only requires further optimization on task-specific data.
 2. **Model Performance**: The pre-trained model has already learned general language features, allowing fine-tuning to converge faster and perform better on specific tasks. Training a task-specific model from random initialization typically requires more data and time, and its performance may not match that of the pre-training + fine-tuning approach.
 3. **Application Scenarios**: Pre-trained models can serve as general-purpose base models suitable for various downstream tasks. Fine-tuning allows for quick adaptation to different task requirements without the need to train a model from scratch.
-
 
 
 ## Pre-training Code Demonstration
@@ -250,15 +249,18 @@ There is no doubt that pre-training large language models requires multi-node an
 
 ### Megatron-DeepSpeed
 For detailed information on pre-training using Megatron combined with DeepSpeed, refer to:
+
 *https://github.com/davidsajare/david-share/tree/master/Deep-Learning/Megatron%2BDeepspeed-Pretrain-GPT2*
 
 
 ### DeepSpeed
 For an example of SFT implementation using DeepSpeed, refer to:
+
 *https://github.com/davidsajare/david-share/tree/master/Multimodal-Models/DeepSpeed-FT-Stable-Diffusion*
 
 ### Axolotl
 Currently, some open-source fine-tuning tools like Axolotl can also directly interface with DeepSpeed. For an example, refer to:
+
 *https://github.com/davidsajare/david-share/tree/master/Deep-Learning/Fine-tuning-with-Axolotl*
 
 ### Accelerate
@@ -279,4 +281,5 @@ When using FSDP with `accelerate`, other parallel strategies can be combined to 
      Combining these strategies usually requires significant customization and adjustments to the model and training scripts. `accelerate` provides some tools to simplify these processes, but specific implementations may require combining other PyTorch libraries (such as `torch.distributed`) and custom code.
 
 For an example of FSDP with `accelerate`, refer to:
+
 *https://github.com/davidsajare/david-share/tree/master/Deep-Learning/Llama-3.1-70B-FSDP-Fine-Tuning*
