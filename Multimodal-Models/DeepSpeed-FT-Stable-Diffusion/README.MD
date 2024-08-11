@@ -68,7 +68,9 @@ Resource utilisation in training:
 
 Next, to validate the reasoning, a comparison of the generated images will be made with the base model before fine-tuning (stabilityai/stable-diffusion-2-1-base) and the model I just fine-tuned:
 
+```
 (deepspeed) root@davidwei:~/DeepSpeedExamples/training/stable_diffusion# python inf_txt2img_loop.py --ft_model ./sd-distill-v21/
+```
 
 ![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nWnicoxGopS7cyhd9Ems2icMbQP8iaDvPlF5icA7Wx2nc3iaBatWewpCyhagCiaouSlXibn71JfBJdA2p4BQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
 
