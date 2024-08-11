@@ -1,5 +1,5 @@
 # DeepSpeed FT StableDiffusion
-** Refer to：** 
+Refer to： 
 
 *https://github.com/microsoft/DeepSpeedExamples/tree/master/training/stable_diffusion*
 
@@ -37,7 +37,7 @@ Next, run training script:
 
 ```
 (deepspeed) root@davidwei:~/DeepSpeedExamples/training/stable_diffusion# bash mytrainbash.sh
-
+```
 The script has detected 4 GPUs and will use 4 GPUs for concurrent training.
 
 ![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/DeepSpeed-FT-Stable-Diffusion/images/1.webp)
