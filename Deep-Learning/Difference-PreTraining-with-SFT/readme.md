@@ -51,34 +51,32 @@ The parameters mentioned above include: weights, biases, Word Embeddings, Positi
 
 *To pre-train GPT-2, we need to use the classes `GPT2LMHeadModel` and `GPT2Config`.**
 ```
-# 创建一个新的 GPT-2 配置  
 config = GPT2Config()  
   
-# 从头开始初始化模型  
 model = GPT2LMHeadModel(config)  
   
-# 初始化 tokenizer  
+
 tokenizer = GPT2Tokenizer.from_pretrained("gpt2")  
 tokenizer.pad_token = tokenizer.eos_token  # 设置 pad_token  
   
-# 加载数据集  
+
 dataset = load_dataset("wikitext", "wikitext-2-raw-v1")  
   
-# 定义标记化函数  
+
 def tokenize_function(examples):  
     return tokenizer(examples["text"], truncation=True, padding="max_length", max_length=512, return_special_tokens_mask=True)  
   
-# 对数据集进行标记化  
+
 tokenized_datasets = dataset.map(tokenize_function, batched=True, remove_columns=["text"])  
   
-# 检查数据集大小  
+
 print("Train dataset size:", len(tokenized_datasets["train"]))  
 print("Validation dataset size:", len(tokenized_datasets["validation"]))  
   
-# 数据整理器  
+
 data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)  
   
-# 训练参数  
+
 training_args = TrainingArguments(  
     output_dir="./results",  
     overwrite_output_dir=True,  
@@ -91,7 +89,7 @@ training_args = TrainingArguments(
     learning_rate=5e-4  # 设置自定义学习率  
 )  
   
-# 创建 Trainer  
+
 trainer = Trainer(  
     model=model,  
     args=training_args,  
@@ -100,11 +98,11 @@ trainer = Trainer(
     eval_dataset=tokenized_datasets["validation"]  
 )  
   
-# 将模型移动到 GPU（如果可用）  
+
 if torch.cuda.is_available():  
     model.cuda()  
   
-# 开始训练  
+
 trainer.train()  
 ```
 
@@ -118,27 +116,20 @@ Training resule is as following:
 
 The trained model can be used for inference validation.
 ```
-# 加载模型和tokenizer  
 model = GPT2LMHeadModel.from_pretrained("./results/checkpoint-2870")  
 tokenizer = GPT2Tokenizer.from_pretrained("gpt2")  
   
-# 设置pad_token  
 tokenizer.pad_token = tokenizer.eos_token  
   
-# 将模型移动到GPU（如果可用）  
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  
 model.to(device)  
   
-# 设置模型为评估模式  
 model.eval()  
   
-# 输入文本  
 input_text = "Once upon a time"  
   
-# 编码输入文本  
 inputs = tokenizer(input_text, return_tensors="pt", padding=True).to(device)  
-  
-# 生成文本  
+   
 with torch.no_grad():  
     outputs = model.generate(  
         inputs.input_ids,  
@@ -153,7 +144,6 @@ with torch.no_grad():
         pad_token_id=tokenizer.eos_token_id  
     )  
   
-# 解码生成的文本  
 generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)  
 print(generated_text)  
 ```
@@ -258,6 +248,7 @@ For an example of SFT implementation using DeepSpeed, refer to:
 
 *https://github.com/davidsajare/david-share/tree/master/Multimodal-Models/DeepSpeed-FT-Stable-Diffusion*
 
+In this demo, accelerate is also used.
 ### Axolotl
 Currently, some open-source fine-tuning tools like Axolotl can also directly interface with DeepSpeed. For an example, refer to:
 
