@@ -55,7 +55,26 @@ http://h100vm.eastus.cloudapp.azure.com:7860/
 ## Image to Image
 Run stable-diffusion-webui and verify the text-image.
 
-Use SDXL mode: *https://civitai.com/models/133005/juggernaut-xl* for testing:
+Use SDXL mode: *https://civitai.com/models/133005/juggernaut-xl* for testing.
+
+On the above link, click the imnage, you could get the prompt and SD metadata:
+
+*https://civitai.com/images/10895925*
+
+```
+- Prompt
+beautiful lady,(a very very  little freckles), white skin, big smile, brown hazel eyes, short hair, rainbow color hair, dark makeup, hyperdetailed photography, soft light, head and shoulders portrait, cover
+
+- Negtive Prompt
+bad eyes, cgi, airbrushed, plastic, watermark
+```
+Other metadata:
+```
+Guidance: 2
+Steps: 6
+Sampler: DPM++ SDE
+Seed: 886204265
+```
 
 ![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nVXQ0VnhQ5jGGDrrpvQYkr7NoQCibFicCQrGiaZeBZ6wQIicicXgHM3DftSYF5WO1ialRxBj3xtj9FHiaosw/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
 
