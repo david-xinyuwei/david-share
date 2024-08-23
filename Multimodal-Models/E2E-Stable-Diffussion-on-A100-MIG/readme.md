@@ -55,9 +55,9 @@ After reboot the VM, CPU MIG configuration will be lost, so I need to setup bash
 ```
 ```
 #!/bin/bash
-sudo nvidia-smi mig -dci  
-sudo nvidia-smi mig -dgi  
-sudo nvidia-smi mig -cgi 14,14,14,20 -C  
+nvidia-smi -i 0 -mig 1
+sudo nvidia-smi mig -dgi
+sudo nvidia-smi mig -cgi 14,14,14,20 -C
 ```
 ```
 chmod +x /usr/local/bin/setup_mig.sh  
