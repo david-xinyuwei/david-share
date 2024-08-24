@@ -1,4 +1,4 @@
-# End-to-end Stable Diffusion test on Azure NC A100/H100 MIG#### E2E Stable Diffusion on A100 MIG
+# End-to-end Stable Diffusion test on Azure NC A100/H100 MIG
 
 A100/H100 are High end Training GPU, which could also work as Inference. In order to save compute power and GPU memory, We could use NVIDIA Multi-Instance GPU (MIG), then we could run Stable Diffusion on MIG.
 I do the test on Azure NC A100 VM.
