@@ -1,31 +1,30 @@
-# E2E Stable-Diffussion on A100 MIG
+#### E2E Stable Diffusion on A100 MIG
+
 A100/H100 are High end Training GPU, which could also work as Inference. In order to save compute power and GPU memory, We could use NVIDIA Multi-Instance GPU (MIG), then we could run Stable Diffusion on MIG.
 I do the test on Azure NC A100 VM.
 
-## Config MIG
-
-### Enabling MIG mode:
+#### Config MIG
 
 Enable MIG on the first physical GPU.
+
 ```
-sudo nvidia-smi -i 0 -mig 1  
-sudo reboot  
+root@david1a100:~# nvidia-smi -i 0 -mig 1
 ```
+
 After the VM reboot, MIG has been enabled.
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/E2E-Stable-Diffussion-on-A100-MIG/images/1.png)
+![thumbnail image 1 of blog post titled  	 	 	  	 	 	 				 		 			 				 						 							End-to-end Stable Diffusion test on Azure NC A100/H100 MIG 							 						 					 			 		 	 			 	 	 	 	 	 ](https://techcommunity.microsoft.com/t5/image/serverpage/image-id/613660i473A304D9181F419/image-size/medium?v=v2&px=400)
 
 Lists all available GPU MIG profiles:
 
 ```
-nvidia-smi mig -lgip  
+#nvidia-smi mig -lgip
 ```
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/E2E-Stable-Diffussion-on-A100-MIG/images/2.png)
+![thumbnail image 2 of blog post titled  	 	 	  	 	 	 				 		 			 				 						 							End-to-end Stable Diffusion test on Azure NC A100/H100 MIG 							 						 					 			 		 	 			 	 	 	 	 	 ](https://techcommunity.microsoft.com/t5/image/serverpage/image-id/613661iE1B4137FB79039DD/image-size/medium?v=v2&px=400)
 
 At this moment, we need to calculate how to maximise utilize the GPU resource and meet the compute power and GPU memory for SD.
 
-### Config MIG
 I divide A100 to four parts: ID 14x3 and ID 20x1
 
 ```
@@ -39,33 +38,47 @@ Successfully created compute instance ID  0 on GPU  0 GPU instance ID  4 using p
 Successfully created GPU instance ID 13 on GPU  0 using profile MIG 1g.10gb+me (ID 20)
 Successfully created compute instance ID  0 on GPU  0 GPU instance ID 13 using profile MIG 1g.10gb (ID  0)
 ```
-Check mig:
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/E2E-Stable-Diffussion-on-A100-MIG/images/3.png)
-
-```
-root@david1a100:~# nvidia-smi mig -lgi
-```
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/E2E-Stable-Diffussion-on-A100-MIG/images/4.png)
+![thumbnail image 3 of blog post titled  	 	 	  	 	 	 				 		 			 				 						 							End-to-end Stable Diffusion test on Azure NC A100/H100 MIG 							 						 					 			 		 	 			 	 	 	 	 	 ](https://techcommunity.microsoft.com/t5/image/serverpage/image-id/613662iF6005A24A7FA70A0/image-size/medium?v=v2&px=400)
 
 ### Persist the MIG configuratgion
+
+
+
 After reboot the VM, CPU MIG configuration will be lost, so I need to setup bash script.
-``` 
-#vi /usr/local/bin/setup_mig.sh 
+
 ```
+#vi /usr/local/bin/setup_mig.sh
 ```
-#!/bin/bash
+
+ 
+
+```applescript
+!/bin/bash
 nvidia-smi -i 0 -mig 1
 sudo nvidia-smi mig -dgi
 sudo nvidia-smi mig -cgi 14,14,14,20 -C
 ```
+
+ 
+
+ 
+
+Grant execute permission:
+
 ```
-chmod +x /usr/local/bin/setup_mig.sh  
+chmod +x /usr/local/bin/setup_mig.sh
 ```
+
+Create a system service:
+
 ```
-vi /etc/systemd/system/setup_mig.service  
+vi /etc/systemd/system/setup_mig.service
 ```
-```
+
+ 
+
+```applescript
 [Unit]  
 Description=Setup NVIDIA MIG Instances  
 After=default.target  
@@ -77,14 +90,26 @@ ExecStart=/usr/local/bin/setup_mig.sh
 [Install]  
 WantedBy=default.target  
 ```
-```
-sudo systemctl daemon-reload  
-sudo systemctl enable setup_mig.service  
-```
-## Prepare Contaner environmement
-Install Docker and NVIDIA Container Toolkit
+
+ 
+
+ 
+
+Enable and start setup_mig.service:
 
 ```
+sudo systemctl daemon-reload 
+sudo systemctl enable setup_mig.service
+sudo systemctl status setup_mig.service
+```
+
+## Prepare MIG Container environment
+
+Install Docker and NVIDIA Container Toolkit on VM
+
+ 
+
+```applescript
 sudo apt-get update  
 sudo apt-get install -y docker.io  
 sudo apt-get install -y aptitude  
@@ -97,33 +122,113 @@ sudo systemctl restart docker
 sudo aptitude install -y nvidia-container-toolkit  
 sudo systemctl restart docker  
 ```
-Checking Docker Service Status
-```
-systemctl status docker  
-``` 
-Start the container and enter the interactive terminal,Use the docker run command to start the container and enter the interactive terminal. 
 
-In the cli 0:3 is the first MIG.
+ 
+
+ 
+
+Configure create Container script on VM
 
 ```
-sudo docker run --gpus '"device=0:3"' --network host -v /mig1:/mnt/mig1 -it --name mig1_tensorrt_container nvcr.io/nvidia/pytorch:24.05-py3  /bin/bash  
+#vi createcontainer.sh
 ```
+
+ 
+
+```applescript
+#!/bin/bash
+
+# 容器名称数组
+CONTAINER_NAMES=("mig1_tensorrt_container" "mig2_tensorrt_container" "mig3_tensorrt_container" "mig4_tensorrt_container")
+
+# 删除已有的容器
+for CONTAINER in "${CONTAINER_NAMES[@]}"; do
+  if [ "$(sudo docker ps -a -q -f name=$CONTAINER)" ]; then
+    echo "Stopping and removing container: $CONTAINER"
+    sudo docker stop $CONTAINER
+    sudo docker rm $CONTAINER
+  fi
+done
+
+# 获取MIG设备的UUID
+MIG_UUIDS=$(nvidia-smi -L | grep 'MIG' | awk -F 'UUID: ' '{print $2}' | awk -F ')' '{print $1}')
+UUID_ARRAY=($MIG_UUIDS)
+
+# 检查是否获取到足够的MIG设备UUID
+if [ ${#UUID_ARRAY[@]} -lt 4 ]; then
+  echo "Error: Not enough MIG devices found."
+  exit 1
+fi
+
+# 启动容器
+sudo docker run --gpus '"device='${UUID_ARRAY[0]}'"' -v /mig1:/mnt/mig1 -p 8081:80 -d --name mig1_tensorrt_container nvcr.io/nvidia/pytorch:24.05-py3 tail -f /dev/null
+sudo docker run --gpus '"device='${UUID_ARRAY[1]}'"' -v /mig2:/mnt/mig2 -p 8082:80 -d --name mig2_tensorrt_container nvcr.io/nvidia/pytorch:24.05-py3 tail -f /dev/null
+sudo docker run --gpus '"device='${UUID_ARRAY[2]}'"' -v /mig3:/mnt/mig3 -p 8083:80 -d --name mig3_tensorrt_container nvcr.io/nvidia/pytorch:24.05-py3 tail -f /dev/null
+sudo docker run --gpus '"device='${UUID_ARRAY[3]}'"' -v /mig4:/mnt/mig4 -p 8084:80 -d --name mig4_tensorrt_container nvcr.io/nvidia/pytorch:24.05-py3 tail -f /dev/null
+
+# 打印容器状态
+sudo docker ps
+sudo ufw allow 8081
+sudo ufw allow 8082
+sudo ufw allow 8083
+sudo ufw allow 8084
+sudo ufw reload
+```
+
+ 
+
+ 
+
+Check container is accessible from outside.
+
+In container, start 80 listener:
+
+```
+root@david1a100:~# sudo docker exec -it mig1_tensorrt_container /bin/bash
+root@b6abf5bf48ae:/workspace# python3 -m http.server 80
+Serving HTTP on 0.0.0.0 port 80 (http://0.0.0.0:80/) ...
+167.220.233.184 - - [23/Aug/2024 10:54:47] "GET / HTTP/1.1" 200 -
+```
+
+Curl from my laptop:
+
+```
+(base) PS C:\Users\xinyuwei> curl http://20.5.**.**:8081
+StatusCode : 200
+StatusDescription : OK
+Content : <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>Directory listing fo...
+RawContent : HTTP/1.0 200 OK
+Content-Length: 594
+Content-Type: text/html; charset=utf-8
+Date: Fri, 23 Aug 2024 10:54:47 GMT
+Server: SimpleHTTP/0.6 Python/3.10.12
+```
+
+In container, ping google.com:
+
+```
+root@david1a100:~#sudo docker exec -it mig1_tensorrt_container /bin/bash
+root@b6abf5bf48ae:/workspace# pip install ping3
+root@b6abf5bf48ae:/workspace# ping3 www.google.com
+ping 'www.google.com' ... 2ms
+ping 'www.google.com' ... 1ms
+ping 'www.google.com' ... 1ms
+ping 'www.google.com' ... 1ms
 Related useful commands.
 ```
-sudo docker ps  
-sudo docker start mig1_tensorrt_container  
-sudo docker exec -it mig1_tensorrt_container /bin/bash  
-``` 
-Run the nvidia-smi command inside the container to verify that the GPU and MIG instances are available:
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/E2E-Stable-Diffussion-on-A100-MIG/images/5.png)
+ 
 
 ## Do SD inference test in Container.
-Vlidate tensorrt version in a container
+
+Check tensorrt version in container:
+
 ```
 root@david1a100:/workspace# pip show tensorrt
-```
-```
 Name: tensorrt
 Version: 10.2.0
 Summary: A high performance deep learning inference library
@@ -135,154 +240,75 @@ Location: /usr/local/lib/python3.10/dist-packages
 Requires:
 Required-by:
 ```
+
 Do SD test via github examples, in container：
+
 ```
-git clone git clone --branch release/10.2 --single-branch https://github.com/NVIDIA/TensorRT.git  
+git clone --branch release/10.2 --single-branch https://github.com/NVIDIA/TensorRT.git 
 cd TensorRT/demo/Diffusion
 pip3 install -r requirements.txt
-export HF_TOKEN= ***
-pip install accelarate
-pip install --upgrade torch torchvision torchaudio
-pip install --upgrade nvidia-tensorrt
-pip install --upgrade torch onnx  
-pip install --upgrade onnxruntime  
-pip install onnxruntime-gpu  
 ```
+
 Genarate inmage 1024*1024 image from test.
+
 ```
 python3 demo_txt2img.py "a beautiful photograph of Mt. Fuji during cherry blossom" --hf-token=$HF_TOKEN
 ```
-We could check the spped of generating imnage:
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/E2E-Stable-Diffussion-on-A100-MIG/images/7.png)
- 
-The output image is as following:
+We could check the speed of generating image in different:
+
+In MIG1 container, which has 2 GPC and 20G memory:
+
+![thumbnail image 4 of blog post titled  	 	 	  	 	 	 				 		 			 				 						 							End-to-end Stable Diffusion test on Azure NC A100/H100 MIG 							 						 					 			 		 	 			 	 	 	 	 	 ](https://techcommunity.microsoft.com/t5/image/serverpage/image-id/613665i1AC964E2948C3A89/image-size/medium?v=v2&px=400)
+
+In mig4 container, which has 2 GPC and 20G memory:
+
+![thumbnail image 5 of blog post titled  	 	 	  	 	 	 				 		 			 				 						 							End-to-end Stable Diffusion test on Azure NC A100/H100 MIG 							 						 					 			 		 	 			 	 	 	 	 	 ](https://techcommunity.microsoft.com/t5/image/serverpage/image-id/613666i8E29868AEC483E85/image-size/medium?v=v2&px=400)
+
+Check The output image is as following, copy it to VM and download it.
+
 ```
 #cp ./output/* /mig1
 ```
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/E2E-Stable-Diffussion-on-A100-MIG/images/9.png)
+![thumbnail image 6 of blog post titled  	 	 	  	 	 	 				 		 			 				 						 							End-to-end Stable Diffusion test on Azure NC A100/H100 MIG 							 						 					 			 		 	 			 	 	 	 	 	 ](https://techcommunity.microsoft.com/t5/image/serverpage/image-id/613667iDA21E83F74183BF6/image-size/medium?v=v2&px=400)
 
-We could also genarate from image to image:
-```
-root@david1a100:/workspace/TensorRT/demo/Diffusion# python3 demo_img2img.py "A fantasy landscape, trending on artstation" --hf-token=$HF_TOKEN --input-image=sketch-mountains-input.jpg
- ```
+## Compare Int8 inference speed and quality on H100 GPU
 
-## Compare Int8 inference speed and qulity on whole H100 GPU
 Tested Stable Diffusion XL1.0 on a single H100 to verify the effects of int8. NVIDIA claims that on H100, INT8 is optimised over A100.
 
 ```
-#python3 demo_txt2img_xl.py "a photo of an astronaut riding a horse on mars" --hf-token=$HF_TOKEN --version=xl-1.0***
+#python3 demo_txt2img_xl.py "a photo of an astronaut riding a horse on mars" --hf-token=$HF_TOKEN --version=xl-1.0
 ```
-Run time:
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUj0hByhSBicSUTicZOnjWGOL1U7icPciauNdgMibolw6d6271Jky8kPMKDjw8r17Xy2hvFXnC8BDAyNgA/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![thumbnail image 7 of blog post titled  	 	 	  	 	 	 				 		 			 				 						 							End-to-end Stable Diffusion test on Azure NC A100/H100 MIG 							 						 					 			 		 	 			 	 	 	 	 	 ](https://techcommunity.microsoft.com/t5/image/serverpage/image-id/613668i01F1068739BA154C/image-size/medium?v=v2&px=400)
 
 Image generation effect:
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUj0hByhSBicSUTicZOnjWGOLFQhCfrkBOB5LzDp7gvdvpmSXKIpCOEcLL0Q3DAZxAftcAyTjialpOQw/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![thumbnail image 8 of blog post titled  	 	 	  	 	 	 				 		 			 				 						 							End-to-end Stable Diffusion test on Azure NC A100/H100 MIG 							 						 					 			 		 	 			 	 	 	 	 	 ](https://techcommunity.microsoft.com/t5/image/serverpage/image-id/613669iD5C7A5AF59665197/image-size/medium?v=v2&px=400)
 
 Use SDXL & INT8 AMMO quantization：
 
 ```
 python3 demo_txt2img_xl.py "a photo of an astronaut riding a horse on mars" --version xl-1.0 --onnx-dir onnx-sdxl --engine-dir engine-sdxl --int8
 ```
+
 After executing the above command, 8-bit quantisation of the model will be performed first.
 
 ```
 Building TensorRT engine for onnx/unetxl-int8.l2.5.bs2.s30.c32.p1.0.a0.8.opt/model.onnx: engine/unetxl-int8.l2.5.bs2.s30.c32.p1.0.a0.8.trt10.0.1.plan
 ```
+
 Then do inference
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUj0hByhSBicSUTicZOnjWGOLPallL3kz4wXl2Gz53ZgKHQt9BElISrojuSauMpQ2Ig7ZE4icu322zaA/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![thumbnail image 9 of blog post titled  	 	 	  	 	 	 				 		 			 				 						 							End-to-end Stable Diffusion test on Azure NC A100/H100 MIG 							 						 					 			 		 	 			 	 	 	 	 	 ](https://techcommunity.microsoft.com/t5/image/serverpage/image-id/613670iCC93F3893A9CA6E5/image-size/medium?v=v2&px=400)
 
 Check generated image:
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUj0hByhSBicSUTicZOnjWGOLJ6Q5Yib3PuDusic7VhLaxJculL2GKicQyiaApnkmwygjuPdFibfoebyoibzg/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![thumbnail image 10 of blog post titled  	 	 	  	 	 	 				 		 			 				 						 							End-to-end Stable Diffusion test on Azure NC A100/H100 MIG 							 						 					 			 		 	 			 	 	 	 	 	 ](https://techcommunity.microsoft.com/t5/image/serverpage/image-id/613671i0F0845E2A3768635/image-dimensions/407x406?v=v2)
 
 We see that the quality of the generated images is the same, and the file sizes are almost identical as well.
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUj0hByhSBicSUTicZOnjWGOLjT8uL9PfwiaicpxEuGp5zic41GmHU5TCKXR4dsjDdh5IwgUg1c5DJ4VzQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![thumbnail image 11 of blog post titled  	 	 	  	 	 	 				 		 			 				 						 							End-to-end Stable Diffusion test on Azure NC A100/H100 MIG 							 						 					 			 		 	 			 	 	 	 	 	 ](https://techcommunity.microsoft.com/t5/image/serverpage/image-id/613672i8727D9802A938660/image-size/medium?v=v2&px=400)
 
-We observed that the inference speed of INT8 increased by 20% compared to FP16
-
-```
-root@d6865c4fc3d8:/workspace/demo/Diffusion# ls -al onnx-sdxl
-```
-```
-total 408
-drwxr-xr-x 10 root root   4096 May 21 06:34 .
-drwx------ 11 root root   4096 May 21 06:34 ..
-drwxr-xr-x  2 root root   4096 May 21 06:34 clip
-drwxr-xr-x  2 root root   4096 May 21 06:34 clip.opt
-drwxr-xr-x  2 root root   4096 May 21 06:34 clip2
-drwxr-xr-x  2 root root   4096 May 21 06:35 clip2.opt
-drwxr-xr-x  2 root root 376832 May 21 06:40 unetxl-int8.l2.5.bs2.s30.c32.p1.0.a0.8
-drwxr-xr-x  2 root root   4096 May 21 06:41 unetxl-int8.l2.5.bs2.s30.c32.p1.0.a0.8.opt
-drwxr-xr-x  2 root root   4096 May 21 06:41 vae
-drwxr-xr-x  2 root root   4096 May 21 06:41 vae.opt
-```
-
-
-root@d6865c4fc3d8:/workspace/demo/Diffusion# ls -al engine-sdxl
-```
-
-total 4755732
-drwxr-xr-x  2 root root       4096 May 21 06:48 .
-drwx------ 11 root root       4096 May 21 06:34 ..
--rw-r--r--  1 root root  248576668 May 21 06:41 clip.trt10.0.1.plan
--rw-r--r--  1 root root 1395532052 May 21 06:42 clip2.trt10.0.1.plan
--rw-r--r--  1 root root 2880794876 May 21 06:47 unetxl-int8.l2.5.bs2.s30.c32.p1.0.a0.8.trt10.0.1.plan
--rw-r--r--  1 root root  344938836 May 21 06:48 vae.trt10.0.1.plan
-```
-If you already have a quantized model and only need to perform inference without re-quantization, you can simplify the command-line interface (CLI) to focus on loading and using the existing quantized model for inference. Assuming your quantized model has already been converted to the TensorRT engine format and is stored in the engine-dir directory, you can directly use these engine files for inference without re-quantization or model conversion.
-
-For example, you can use the following command to perform inference:
-```
-python3 demo_txt2img_xl.py "a photo of an astronaut riding a horse on mars" --version xl-1.0 --engine-dir engine-sdxl 
-```
- 
-In this way, most of the CLI parameters can remain unchanged, but it ensures that no additional quantization or model conversion processes are triggered.
-
-
-The inference speed is 0.61, which seems to be on par with FP16.
-
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUj0hByhSBicSUTicZOnjWGOLfDFZMB5T0NTDYwXjjQe1xicC6SPsca9Mf4sqImiaKSlcC9q8nbkzuHCA/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
-
-
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUj0hByhSBicSUTicZOnjWGOLd3ooKlI2DOcQd5fV4mKHhzUHF9WJd1X2fgV10ziciaGz4xduGJA8ukMw/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
-
-Appending --int8 at the end of the above CLI increases the inference speed by 20%
-
-```
-python3 demo_txt2img_xl.py "a photo of an astronaut riding a horse on mars" --version xl-1.0 --engine-dir engine-sdxl --int8
-```
-
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUj0hByhSBicSUTicZOnjWGOLgZJjkboPDPUb35icSsfhgSjiaadQHic9ntwRUiaIpVtLGialI1kFpBHtPaA/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
-
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUj0hByhSBicSUTicZOnjWGOLHVVQWqXKdiaiaq2eTngSia2VWiaoGhIL7rNkRpcYUwYaGHvgqB739caYHA/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
-
-
-
-Next, we look at two other methods of accelerated reasoning in SD:
-
-Accelerated text-to-image conversion using SDXL + LCM (Latent Consistency Model) LoRA weights
-```
-python3 demo_txt2img_xl.py "a photo of an astronaut riding a horse on mars" --version xl-1.0 --lora-path "latent-consistency/lcm-lora-sdxl" --lora-scale 1.0 --onnx-dir onnx-sdxl-lcm-nocfg --engine-dir engine-sdxl-lcm-nocfg --denoising-steps 4 --scheduler LCM --guidance-scale 0.0
-```
-
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUj0hByhSBicSUTicZOnjWGOL6l3ExIj5FSxacKUg8sgtcbPKY0TSooyPoNXiaOiboWc7y3NA3wIzZ2FQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
-
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUj0hByhSBicSUTicZOnjWGOLzwC3tnAl5keulJZR0LPPmbibfQAbm0n5GicqibEO7gF4cu7etcxqPnWwg/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
-
-Use SDXL Turbo to speed up text to image, the following cli generates 512*512 images.
-
-```
-python3 demo_txt2img_xl.py "a photo of an astronaut riding a horse on mars" --version xl-turbo --onnx-dir onnx-sdxl-turbo --engine-dir engine-sdxl-turbo --denoising-steps 1 --scheduler EulerA --guidance-scale 0.0 --width 512 --height 512
-```
-
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUj0hByhSBicSUTicZOnjWGOL1xsEZHufSsUBzKvRxoqwMF8B8ycPc71s4TFAibjpPCXQjEdEzws7AvQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
-
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUj0hByhSBicSUTicZOnjWGOLYPhPq9PzdYepCor0L9R63AoYtcSzlLs05yucVWd3ZH8tnQIt8MrpDg/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
-
-Overall, it is still INT8+SDXL 1.0 that can balance the quality of the generated images and improve the inference speed.
+We observe that the inference speed of INT8 increased by 20% compared to FP16.
