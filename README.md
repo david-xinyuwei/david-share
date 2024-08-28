@@ -1,5 +1,5 @@
 # david-share
-This repository contains the essence of the "david-share" WeChat public account, as well as study notes from daily work. 
+This repository contains the essence of the "david-share" WeChat public account blog, as well as study notes from daily work. 
 
 My current research focus is on GenAI, and all related content can be found in the related directories.
 
