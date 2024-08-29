@@ -247,9 +247,10 @@ Do SD test via github examples, in container：
 git clone --branch release/10.2 --single-branch https://github.com/NVIDIA/TensorRT.git 
 cd TensorRT/demo/Diffusion
 pip3 install -r requirements.txt
+export HF_TOKEN=<your access token>
 ```
 
-Genarate inmage 1024*1024 image from test.
+Genarate inmage 512*512 image from test.
 
 ```
 python3 demo_txt2img.py "a beautiful photograph of Mt. Fuji during cherry blossom" --hf-token=$HF_TOKEN
