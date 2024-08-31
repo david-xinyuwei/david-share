@@ -74,7 +74,7 @@ https://data.commoncrawl.org/crawl-data/CC-MAIN-2023-23/index.html
 
 Download this file named warc.paths.gz :
 
-![images](https://github.com/Azure/Make-High-Quality-Dataset-From-WARC-For-Pre-training/blob/main/images/1.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Make-High-Quality-Dataset-From-WARC/images/1.png)
 
 
 Check file path just as follwing in warc.paths.gz. There are so many warc.gz files, I only take CC-MAIN-20230527223515-20230528013515-00000.warc.gz as an example. 
@@ -802,7 +802,7 @@ Check the the first item of final outputs:
 ```
 (dataclean) root@david1a100:~/dataclean/final_deduplicated_output#  zcat ./00000.jsonl.gz | head -n 1 | jq .
 ```
-![images](https://github.com/Azure/Make-High-Quality-Dataset-From-WARC-For-Pre-training/blob/main/images/2.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Make-High-Quality-Dataset-From-WARC/images/2.png)
 
 
 # Check quality of the corpus
