@@ -1,8 +1,9 @@
-# Make High Quality Dataset from WARC
+# Make High Quality Dataset from WARC for Pre-training
 
- In the following subsections, we will explain each step involved in generating High Qualit dataset.
+In the following subsections, we will explain each step involved in generating High Qualit dataset Pre-training
 
-## What is good data?
+
+## How to evaluate the quality of training data?
 
 ### Using a "clean" corpus and perplexity check
 - Method: Train a model using a high-quality corpus (e.g., Wikipedia) and then use this model to check the perplexity of the new dataset.
@@ -50,10 +51,18 @@ Overfitting Risk: If not careful, there is a risk of over-optimizing specific ta
 
 
 ## Prepare environment
+In the following content, I will show how to create High Quality Dataset from WARC.
+
 ### Create conda env
 ```
 #conda create --name=dataclean python=3.10  
 #conda activate dataclean  
+(dataclean) root@david1a100:~# cd dataclean/
+
+(dataclean) root@david1a100:~/dataclean# hostname
+david1a100.australiaeast.cloudapp.azure.com
+
+#pip install datatrove xxhash faust-cchardet python-magic warcio fasteners tldextract trafilatura fasttext-wheel nltk awscli fasttext numpy==1.21.0  
 #pip install datatrove[all]  
 #pip install datatrove trafilatura awscli 
 #aws configure  
@@ -63,12 +72,12 @@ Overfitting Risk: If not careful, there is a risk of over-optimizing specific ta
 Access the following link to check WARC file address:
 https://data.commoncrawl.org/crawl-data/CC-MAIN-2023-23/index.html
 
-Download this file :
-```
-WARC	warc.paths.gz	80000	86.77
-```
+Download this file named warc.paths.gz :
 
-Check file path just as follwing in warc.paths.gz:
+![images](https://github.com/Azure/Make-High-Quality-Dataset-From-WARC-For-Pre-training/blob/main/images/1.png)
+
+
+Check file path just as follwing in warc.paths.gz. There are so many warc.gz files, I only take CC-MAIN-20230527223515-20230528013515-00000.warc.gz as an example. 
 ```
 crawl-data/CC-MAIN-2023-23/segments/1685224643388.45/warc/CC-MAIN-20230527223515-20230528013515-00000.warc.gz
 ```
@@ -81,21 +90,22 @@ import subprocess
 def download_warc_file(url, output_dir):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
+
     print(f"Downloading {url}...")
     command = f"wget -P {output_dir} {url}"
     subprocess.run(command, shell=True, check=True)
 
 if __name__ == '__main__':
+    # URL of the WARC file
     warc_url = "https://data.commoncrawl.org/crawl-data/CC-MAIN-2023-23/segments/1685224643388.45/warc/CC-MAIN-20230527223515-20230528013515-00000.warc.gz"
 
+    # output directory
     output_dir = "/root/dataclean/data/CC-MAIN-2023-23/segments"
 
     download_warc_file(warc_url, output_dir)
 ```
 ## Basic data processing
-I wrote this part of code according to process_common_crawl_dump.py, I modified many original code.
-
-My code uses the local executor LocalPipelineExecutor to execute the data processing pipeline, which includes the following steps: 
+After download 00000.warc.gz， I uses the local executor LocalPipelineExecutor to execute the data processing pipeline, which includes the following steps: 
 - reading WARC files
 - filtering URLs
 - extracting content using Trafilatura
@@ -108,7 +118,10 @@ My code uses the local executor LocalPipelineExecutor to execute the data proces
 (dataclean) root@david1a100:~/dataclean# cat process_common_crawl_dump.py
 ```
 ```
-from datatrove.executor.local import LocalPipelineExecutor  # 使用本地执行器
+import nltk
+import sys
+import os
+from datatrove.executor.local import LocalPipelineExecutor  
 from datatrove.pipeline.extractors import Trafilatura
 from datatrove.pipeline.filters import (
     GopherQualityFilter,
@@ -123,7 +136,6 @@ def download_punkt():
     nltk.download('punkt')
     nltk.download('punkt_tab')
 
-
 def set_nltk_data_path():
     nltk.data.path.append('/root/nltk_data')
 
@@ -137,8 +149,9 @@ def main():
         sys.exit(-1)
 
     DUMP = sys.argv[1]
-    MAIN_OUTPUT_PATH = "./output"  
+    MAIN_OUTPUT_PATH = "./output"  # Local Output Path
     DATA_PATH = f"./data/{DUMP}/segments/"
+
     print(f"Checking files in {DATA_PATH}")
     for root, dirs, files in os.walk(DATA_PATH):
         print(f"Found directory: {root}")
@@ -148,7 +161,7 @@ def main():
     if not any(os.scandir(DATA_PATH)):
         print(f"No files found in {DATA_PATH}")
         sys.exit(-1)
-
+        
     def initializer():
         set_nltk_data_path()
         download_punkt()
@@ -175,7 +188,7 @@ def main():
                 GopherQualityFilter(exclusion_writer=JsonlWriter(f"{MAIN_OUTPUT_PATH}/removed/quality/{DUMP}")),
                 JsonlWriter(f"{MAIN_OUTPUT_PATH}/output/{DUMP}"),
             ],
-            tasks=8, 
+            tasks=8,  # Number of local tasks, adjusted to your VM configuration
             logging_dir=f"{MAIN_OUTPUT_PATH}/logs/base_processing/{DUMP}",
         )
 
@@ -186,7 +199,7 @@ if __name__ == '__main__':
 ```
 Run script as following:
 ```
-python process_common_crawl_dump.py CC-MAIN-2023-23
+#python3 process_common_crawl_dump.py CC-MAIN-2023-23
 ```
 Script will run for 26 minutes, final output is as follwing:
 ```
@@ -235,7 +248,7 @@ Total Runtime: 26 minutes and 36 seconds
     Runtime: (0.14%) 2 seconds [0.40 milliseconds±0.60 milliseconds/doc]
     Stats: {XXXXX.jsonl.gz: 5728, total: 5728, doc_len: 18117059 [min=257, max=73080, 3162.89±4611/doc]}
 ```
-### Check data processing result
+### Check data processing results
 
 ```
 root@david1a100:~/dataclean/output/output/CC-MAIN-2023-23# zcat ./00000.jsonl.gz | head -n 2 | jq .
@@ -253,8 +266,6 @@ Output:
     "language": "en",
     "language_score": 0.8990675806999207
   }
-```
-```
 }
 {
   "text": "My little guy turned two over the summer and we celebrated with an oh-so-cute Golf Birthday Party. He is all boy and loves anything that includes a stick and ball, which made choosing the golf theme fairly easy. We had fun golfing games, snacks & treats and each little caddie even received there very own golf bag. The post was getting fairly large I decided to split it in two parts. Part one covers the favor and dessert table and part two will focus on the food and games. Enjoy!\nGolf Pro Shop for the favor table\nEach “Golf Pro” received his/her own set of golf clubs (thank you Target dollar section for saving the day!), a blue or green visor I purchased at Joann’s, practice golf balls and a water bottle to stay hydrated on the course.\nI created the backdrop for the dessert table with a tan table cloth I had and pinned it to the window frame with thumb tacks (my husband wasn’t too happy about that one…opps!) I used 12” white tissue paper balls that I purchased from Devra Party and hung them by grosgrain ribbon.\nI wanted to use items on the dessert table that went along with the theme so I racked my brain for some golf terms. The sign over the table was “Caddie’s Sweet Spot” (sweet spot refers to the center point of the face of the club).\nThere was a “water hazard” ~ blue jell-o jigglers, “wormburners” (which is the term for a ball that skims the grass) ~ chocolate pudding pack topped with crumbled Oreos and gummy worms plus a sand trap of “doughnut hole in one” ~ made with powder sugar doughnuts and crumbled graham crackers for the sand.\nI also made cake pops that resembled golf balls ~ some like a lollipop and others with a golf flag and the number two for the birthday boy. The kids had a few candy choices and a small bag to fill so they could bring treats home.\n“Wormburners” – Chocolate pudding cups topped with crushed oreos and gummy worms\nGreen Grass Cupcakes, with white gumball and printable golf flags.\nThank you so much to everyone who helped make this party amazing, I couldn’t have done it without you.\nVendor List:\nPhotography: Andary Studio\nParty Printables: Printable Studio by 505 Design, Inc\nGolf Club Sets: Target Dollar Section\nFoam Visors: Joann’s\nGreen & White Tissue Balls: Devra Party\nGreen Polka Dot Balloons: Paws Attraction Boutique\nCupcakes – My super talented sister\nInterested in hosting your own Golf Themed Party – Check out the Golf Pro Printable set now available in the shop.\nMore details coming soon….\nThanks for stopping by! Cathy C.",
@@ -272,7 +283,7 @@ Output:
 
 ## Minhash deduplication
 
-My code uses the local executor `LocalPipelineExecutor` to execute the data deduplication pipeline, which includes the following steps:
+I use the local executor `LocalPipelineExecutor` to execute the data deduplication pipeline, which includes the following steps:
 
 - **Configuring Minhash**: Setting up Minhash with 64-bit hashes for better precision and fewer false positives (collisions).
 
@@ -284,7 +295,7 @@ My code uses the local executor `LocalPipelineExecutor` to execute the data dedu
   - **Output**: Stores signatures in a specified folder.
   - **Tasks**: Configured to run with a specified number of tasks based on the local environment.
 
-- Stage 2: Finding Matches Between Signatures in Each Bucket:
+- Stage 2: Finding Matches Between Signatures in Each Bucket :
 
   - **Pipeline**: Processes the signatures to find matches within each bucket.
   - **Output**: Stores bucketed signatures in a specified folder.
@@ -323,15 +334,16 @@ from datatrove.pipeline.tokens import TokensCounter
 from datatrove.pipeline.writers.jsonl import JsonlWriter
 
 def main():
-   
-    minhash_config = MinhashConfig(use_64bit_hashes=True)
+    minhash_config = MinhashConfig(use_64bit_hashes=True)  
 
     LOCAL_MINHASH_BASE_PATH = "./minhash"
     LOCAL_LOGS_FOLDER = "./logs"
-    TOTAL_TASKS = 8 
+    TOTAL_TASKS = 8  
 
+    # Input data path
     INPUT_READER = JsonlReader("./output/output/CC-MAIN-2023-23/")
 
+    # Stage 1: Calculate the Minhash signature for each task
     stage1 = LocalPipelineExecutor(
         pipeline=[
             INPUT_READER,
@@ -341,6 +353,7 @@ def main():
         logging_dir=f"{LOCAL_LOGS_FOLDER}/signatures",
     )
 
+    # Stage 2: Finding matches between signatures in each bucket
     stage2 = LocalPipelineExecutor(
         pipeline=[
             MinhashDedupBuckets(
@@ -354,6 +367,7 @@ def main():
         depends=stage1,
     )
 
+    # Stage 3: Create clusters of duplicate items using the results of all buckets
     stage3 = LocalPipelineExecutor(
         pipeline=[
             MinhashDedupCluster(
@@ -367,10 +381,11 @@ def main():
         depends=stage2,
     )
 
+    # Stage 4: Read raw input data and remove all samples from each duplicate cluster (keep only one)
     stage4 = LocalPipelineExecutor(
         pipeline=[
             INPUT_READER,
-            TokensCounter(), 
+            TokensCounter(),  # View the number of tokens before and after de-duplication
             MinhashDedupFilter(
                 input_folder=f"{LOCAL_MINHASH_BASE_PATH}/remove_ids",
                 exclusion_writer=JsonlWriter(f"{LOCAL_MINHASH_BASE_PATH}/removed"),
@@ -393,7 +408,7 @@ Run code:
 ```
 (dataclean) root@david1a100:~/dataclean# python minhash_deduplication.py
 ```
-Result is as following:
+Results are as following:
 ```
 --- 🛠️ PIPELINE 🛠
 📖 - READER: 🐿 Jsonl
@@ -519,6 +534,15 @@ import nltk
 from nltk.tokenize.punkt import PunktSentenceTokenizer, PunktParameters
 from datatrove.executor.base import PipelineExecutor
 from datatrove.executor.local import LocalPipelineExecutor
+from datatrove.pipeline.dedup import SentenceDedupFilter, SentenceDedupSignature, SentenceFindDedups
+from datatrove.pipeline.dedup.sentence_dedup import SentDedupConfig
+from datatrove.pipeline.extractors import Trafilatura
+from datatrove.pipeline.filters import GopherQualityFilter, LanguageFilter
+from datatrove.pipeline.readers import JsonlReader
+from datatrove.pipeline.writers.jsonl import JsonlWriter
+from datatrove.utils.typeshelper import Languages
+from datatrove.io import get_datafolder
+from collections import UserDict
 import multiprocessing
 
 # Ensure punkt tokenizer is downloaded before multiprocessing
@@ -773,38 +797,152 @@ PipelineStats(total_runtime=0, time_stats=TimeStats(global_mean=0, global_std_de
     Runtime: (92.23%) 0 seconds±0 seconds/task, min=0 seconds [0.66 milliseconds±0.88 milliseconds/doc]
     Stats: {XXXXX.jsonl.gz: 4, total: 4, doc_len: 40103 [min=484, max=30632, 10025.75±14240/doc], doc_len_tokens: 10228 [min=95, max=6656, 2557.00±3132/doc]}
 ```
-Check the the frist item of final output:
+Check the the first item of final outputs:
 
 ```
 (dataclean) root@david1a100:~/dataclean/final_deduplicated_output#  zcat ./00000.jsonl.gz | head -n 1 | jq .
 ```
+![images](https://github.com/Azure/Make-High-Quality-Dataset-From-WARC-For-Pre-training/blob/main/images/2.png)
+
+
+# Check quality of the corpus
+
+This part of my code is refer to: https://github.com/Azure/synthetic-qa-generation/tree/main*, I modified some codes, please refer to corpus-suggestions.ipynb, which could analyze quality of the corpus from the last steps and give lots of useful suggestions.
+
+Take some results as examples:
 ```
-  "text": "Angular 2 has reached Beta and appears poised to become the hot new framework of 2016. It’s time for a showdown. Let’s see how it stacks up against 2015’s darling: React. Disclaimer: I enjoyed working in Angular 1 but switched to React in 2015. I just published a Pluralsight course on React and Flux (free trial). So yes, I’m biased. But I’m attacking both sides. Alright, let’s do this. There will be blood. Angular 2 has reached Beta and appears poised to become the hot new framework of 2016. It’s time for a showdown. Let’s see how it stacks up against 2015’s darling: React. Disclaimer: I enjoyed working in Angular 1 but switched to React in 2015. I’ve published Pluralsight courses on React and Flux and React and Redux in ES6 (free trial). So yes, I’m biased. But I’m attacking both sides. Alright, let’s do this. There will be blood. You’re Comparing Apples and Orangutans! Sigh. Yes, Angular is a framework, React is a library. Some say this difference makes comparing them illogical. Not at all! Choosing between Angular and React is like choosing between buying an off-the-shelf computer and building your own with off-the-shelf parts. This post considers the merits of these two approaches. I compare React’s syntax and component model to Angular’s syntax and component model. This is like comparing an off-the-shelf computer’s CPU to a raw CPU. Apples to apples. Angular 2 Advantages Let’s start by considering Angular 2’s advantages over React. Low Decision Fatigue Since Angular is a framework, it provides significantly more opinions and functionality out of the box. With React, you typically pull a number of other libraries off the shelf to build a real app. You’ll likely want libraries for routing, enforcing unidirectional flows, web API calls, testing, dependency management, and so on. The number of decisions is pretty overwhelming. This is why React has so many starter kits (I’ve published two). Angular offers more opinions out of the box, which helps you get started more quickly without feeling intimidated by decisions. This enforced consistency also helps new hires feel at home more quickly and makes switching developers between teams more practical. I admire how the Angular core team has embraced TypeScript, which leads to the next advantage… TypeScript = Clear Path Sure, TypeScript isn’t loved by all, but Angular 2’s opinionated take on which flavor of JavaScript to use is a big win. React examples across the web are frustratingly inconsistent — it’s presented in ES5 and ES6 in roughly equal numbers, and it currently offers three different ways to declare components. This creates confusion for newcomers. (Angular also embraces decorators instead of extends — many would consider this a plus as well). While Angular 2 doesn’t require TypeScript, the Angular core team certainly embraces it and defaults to using TypeScript in documentation. This means related examples and open source projects are more likely to feel familiar and consistent. Angular already provides clear examples that show how to utilize the TypeScript compiler. (though admittedly, not everyone is embracing TypeScript yet, but I suspect shortly after launch it’ll become the de facto standard). This consistency should help avoid the confusion and decision overload that comes with getting started with React. Reduced Churn 2015 was the year of JavaScript fatigue. Although React itself is expected to be quite stable with version 15 coming soon, React’s ecosystem has churned at a rapid pace, particularly around the long list of Flux flavors and routing. So anything you write in React today may feel out of date or require breaking changes in the future if you lean on one of many related libraries. In contrast, Angular 2 is a careful, methodical reinvention of a mature, comprehensive framework. So Angular is less likely to churn in painful ways after release. And as a full framework, when you choose Angular, you can trust a single team to make careful decisions about the future. In React, it’s your responsibility to herd a bunch of disparate, fast-moving, open-source libraries into a comprehensive whole that plays well together. It’s time-consuming, frustrating, and a never-ending job. Broad Tooling Support As you’ll see below, I consider React’s JSX a big win. However, you need to select tooling that supports JSX. React has become so popular that tooling support is rarely a problem today, but new tooling such as IDEs and linters are unlikely to support JSX on day one. Angular 2’s templates store markup in a string or in separate HTML files, so it doesn’t require special tooling support (though it appears tooling to intelligently parse Angular’s string templates is on the way). Web Component Friendly Angular 2’s design embraces the web component’s standard. Sheesh, I’m embarrassed I forgot to mention this initially — I recently published a course on web components! In short, the components that you build in Angular 2 should be much easier to convert into plain, native web components than React’s components. Sure, browser support is still weak, but this could be a big win in the long-term. Angular’s approach comes with its own set of gotchas, which is a good segue for discussing React’s advantages… React Advantages Alright, let’s consider what sets React apart. JSX JSX is an HTML-like syntax that compiles down to JavaScript. Markup and code are composed in the same file. This means code completion gives you a hand as you type references to your component’s functions and variables. In contrast, Angular’s string-based templates come with the usual downsides: No code coloring in many editors, limited code completion support, and run-time failures. You’d normally expect poor error messaging as well, but the Angular team created their own HTML parser to fix that. (Bravo!) If you don’t like Angular string-based templates, you can move the templates to a separate file, but then you’re back to what I call “the old days:” wiring the two files together in your head, with no code completion support or compile-time checking to assist. That doesn’t seem like a big deal until you’ve enjoyed life in React. Composing components in a single compile-time checked file is one of the big reasons JSX is so special. For more on why JSX is such a big win, see JSX: The Other Side of the Coin. React Fails Fast and Explicitly When you make a typo in React’s JSX, it won’t compile. That’s a beautiful thing. It means you know immediately exactly which line has an error. It tells you immediately when you forget to close a tag or reference a property that doesn’t exist. In fact, the JSX compiler specifies the line number where the typo occurred. This behavior radically speeds development. In contrast, when you mistype a variable reference in Angular 2, nothing happens at all. Angular 2 fails quietly at run time instead of compile-time. It fails slowly. I load the app and wonder why my data isn’t displaying. Not fun. React is JavaScript-Centric Here it is. This is the fundamental difference between React and Angular. Unfortunately, Angular 2 remains HTML-centric rather than JavaScript-centric. Angular 2 failed to solve its most fundamental design problem: Angular 2 continues to put “JS” into HTML. React puts “HTML” into JS. I can’t emphasize the impact of this schism enough. It fundamentally impacts the development experience. Angular’s HTML-centric design remains its greatest weakness. As I cover in “JSX: The Other Side of the Coin”, JavaScript is far more powerful than HTML. Thus, it’s more logical to enhance JavaScript to support markup than to enhance HTML to support logic. HTML and JavaScript need to be glued together somehow, and React’s JavaScript-centric approach is fundamentally superior to Angular, Ember, and Knockout’s HTML-centric approach. Here’s why… React’s JavaScript-centric design = simplicity Angular 2 continues Angular 1’s approach of trying to make HTML more powerful. So you have to utilize Angular 2’s unique syntax for simple tasks like looping and conditionals. For example, Angular 2 offers both one and two way binding via two syntaxes that are unfortunately quite different: {{myVar}} //One-way binding ngModel=\"myVar\" //Two-way binding In React, binding markup doesn’t change based on this decision (it’s handled elsewhere, as I’d argue it should be). In either case, it looks like this: {myVar} Angular 2 supports inline master templates using this syntax:",
-  "id": "<urn:uuid:b4dd1e12-c924-4e84-acfb-e3d9894b0ffa>",
-  "metadata": 
-    "dump": "CC-MAIN-2023-23",
-    "url": "http://www.bitnative.com/2016/01/04/angular-2-versus-react/",
-    "date": "2023-05-27T23:18:42Z",
-    "file_path": "/root/dataclean/data/CC-MAIN-2023-23/segments/CC-MAIN-20230527223515-20230528013515-00000.warc.gz",
-    "language": "en",
-    "language_score": 0.9108889102935791,
-    "token_count": 3354
-  
+Result 1:
+Feedback Required: [True, False, True, False, True]
+Feedback List:
+#Need Feedback#: Yes
+#Issue Name#: Lack of new scenarios or contexts
+#Reason#: The evolved instruction does not introduce any new scenarios or examples.
+#Feedback#: Introduce diverse contexts or examples to enhance the instructional variety.
+#Need Feedback#: No
+#Need Feedback#: Yes
+#Issue Name#: Limited diversity in examples
+#Reason#: No new scenarios or varied contexts introduced in the evolved instruction.
+#Feedback#: Incorporate diverse examples or contexts to cover a wider range of situations.
+#Need Feedback#: No
+#Need Feedback#: Yes
+#Issue Name#: Limited diversity
+#Reason#: No new scenarios, examples, or contexts introduced.
+#Feedback#: Include various use cases and contexts for accessing journal content.
+Optimized Instruction:
+Accessing full-text articles for free on HTML pages can be a convenient way to stay informed, but if you need the article in PDF or Epub format, a subscription to the Journal of Postgraduate Medicine is required. Here are different ways to access the content based on various contexts:
 
+1. **Individual Subscription:** If you frequently need access to articles in PDF or Epub format, consider subscribing online for a year. Subscribing is a straightforward process:
+
+   - Visit the Journal of Postgraduate Medicine's subscription page.
+   - Choose the subscription plan that suits your needs.
+   - Complete the payment process to gain access to the content.
+
+2. **Institutional Access:** If you are affiliated with a university or a research institution, you might recommend that your institution's library subscribe to the journal. This way, everyone at your institution can have unrestricted access to the content.
+
+   - Click on the "Recommend the Journal" link typically provided on the journal's website.
+   - Fill out the recommendation form with the necessary details.
+   - Submit the recommendation to your institution's library acquisition team.
+
+3. **Library Access:** If your local library has a subscription to the journal, you can access the PDF and Epub formats through their facilities. Check with your library to see if they offer remote access options, especially useful during non-operational hours or remote working conditions.
+
+4. **Interlibrary Loan (ILL):** If neither you nor your institution has a subscription and you need a specific article in PDF or Epub format, you can request it through interlibrary loan services:
+
+   - Contact your library's interlibrary loan department.
+   - Provide the details of the article you need.
+   - Wait for your library to obtain a copy from another subscribing institution.
+
+5. **Pay-Per-View Purchase:** Some journals offer pay-per-view options for non-subscribers to access specific articles:
+
+   - Visit the article page on the journal's website.
+   - Look for a purchase or pay-per-view option.
+   - Complete the payment to download the article in PDF or Epub format.
+
+By understanding these various methods, you can choose the most appropriate way to access the Journal of Postgraduate Medicine articles based on your specific context and needs.
+Evolved Instruction Step 1:
+Accessing full-text articles for free on HTML pages can be a convenient way to stay informed, but if you need the article in PDF or Epub format or face geographic restrictions, a subscription to the Journal of Postgraduate Medicine is required. Here are different ways to access the content based on various contexts and considerations:
+
+1. **Individual Subscription:** If you frequently need access to articles in PDF or Epub format, consider subscribing online for a year. Consider different subscription tiers based on your usage frequency and preferred payment method (credit card, PayPal, or wire transfer):
+
+   - Visit the Journal of Postgraduate Medicine's subscription page.
+   - Choose the appropriate subscription plan that suits your reading needs and budget.
+   - Complete the payment process, selecting your preferred payment method, to gain access to the content.
+   - Confirm your subscription through the verification email you will receive.
+
+2. **Institutional Access:** If you are affiliated with a university, specialized institute, or research organization, you might recommend that your institution's library subscribe to the journal, allowing everyone at your institution unrestricted access to the content:
+
+   - Click on the "Recommend the Journal" link typically provided on the journal's website.
+   - Fill out the recommendation form with the necessary details, specifying your institution type.
+   - Submit the recommendation to your institution's library acquisition team.
+   - Follow up with your acquisition team to verify the status of the subscription request.
+
+3. **Library Access:** If your local library has a subscription to the journal, you can access the PDF and Epub formats through their facilities. Check with your library to see if they offer remote access options or have updated policies for off-hour access due to remote working conditions or geographical restrictions:
+
+   - Visit your library's online resource portal.
+   - Authenticate your library membership details to access the journal remotely.
+   - Verify the access duration and loan policies to ensure continuous availability.
+
+4. **Interlibrary Loan (ILL):** If neither you nor your institution has a subscription and you need a specific article in PDF or Epub format, you can request it through Interlibrary Loan services, which might involve multiple steps and waiting periods:
+
+   - Contact your library's interlibrary loan department and inquire about any pre-requisites.
+   - Provide the exact details of the article you need and verify your contact information.
+   - Wait for your library to notify you on the progress and estimated delivery time of the article from another subscribing institution.
+   - Confirm the received article's access duration to avoid lapses in availability.
+
+5. **Pay-Per-View Purchase:** Some journals offer pay-per-view options for non-subscribers to access specific articles. Be aware of different payment methods and possible return policies if the article does not meet your needs:
+
+   - Visit the article page on the journal's website.
+   - Look for a purchase or pay-per-view option and compare prices if there are multiple.
+   - Complete the payment process, choosing a method that's secure and convenient for you.
+   - Download the article in PDF or Epub format, and review any return policies if you face access issues.
+
+By understanding these various methods, including conditional scenarios and additional steps, you can choose the most appropriate way to access the Journal of Postgraduate Medicine articles based on your specific context, requirements, and potential contingent situations.
+New Feedback Required: [True, True, True, True, True]
+New Feedback List:
+#Need Feedback#: Yes
+    #Issue Name#: Preservation of key information
+    #Reason#: Key information is maintained with added details and considerations.
+    #Feedback#: Key information preserved well with added context and steps for clarity.
+#Need Feedback#: Yes
+#Issue Name#: Complexity
+#Reason#: More details and steps have been added sufficiently.
+#Feedback#: Complexity increased adequately with detailed steps and additional considerations.
+#Need Feedback#: Yes
+#Issue Name#: Insufficient scenario diversity
+#Reason#: Limited expansion on new contexts or examples in evolved instruction.
+#Feedback#: Introduce more varied scenarios to enhance diversity and coverage of different situations.
+#Need Feedback#: Yes
+#Issue Name#: Increased complexity
+#Reason#: The Evolved Instruction introduces more detailed steps and additional considerations.
+#Feedback#: The complexity has increased adequately with additional steps and detailed guidance.
+#Need Feedback#: Yes
+    #Issue Name#: Limited diversity in access methods
+    #Reason#: Few new scenarios or examples introduced in the evolved instruction.
+    #Feedback#: Expand diversity by adding varied contexts, like international access options.
 ```
 
-##  Exact substrings (Optional)
+## Genarate Synthetic Q&A 
 
-Refer to : *https://github.com/google-research/deduplicate-text-datasets*
-
+Refer to generate-QA.ipynb, we could generate high quality synthetic Q&A pairs with GPT -4o. Prompt temlpate is refer to : *https://github.com/Azure/synthetic-qa-generation/tree/main/seed/prompt_template/en*
+Take some results as examples:
 ```
-(dataclean) root@david1a100:~/dataclean# git clone https://github.com/google-research/deduplicate-text-datasets
-#cd deduplicate-text-datasets
-#curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-#pip3 install numpy scipy sentencepiece
-#pip3 install -r requirements-tf.txt
-#cargo build
-```
-Follow the repo to do rest steps.
+1. **What type of access is free in HTML pages?**
+   Full text access is free in HTML pages.
 
+2. **Who can access PDF and EPub formats of the journal?**
+   PDF and EPub access is only available to paid subscribers and members.
+
+3. **What must you do to access the article in PDF format?**
+   To access the article in PDF format, you should be a subscriber to the Journal of Postgraduate Medicine.
+
+4. **How can you subscribe to the Journal of Postgraduate Medicine?**
+   You can subscribe online for a year.
+
+5. **What can you do if you want your institution to have unrestricted access to the journal?**
+   You could recommend your institution's library to subscribe to the journal so that you can have unrestricted access.
+```
+
+
+## References
+- DataTrove: https://github.com/huggingface/datatrove/
+- Generate Synthetic QnAs from Real-world Data: https://github.com/Azure/synthetic-qa-generation/
 

@@ -1,0 +1,174 @@
+import nltk
+from nltk.tokenize.punkt import PunktSentenceTokenizer, PunktParameters
+from datatrove.executor.base import PipelineExecutor
+from datatrove.executor.local import LocalPipelineExecutor
+from datatrove.pipeline.dedup import SentenceDedupFilter, SentenceDedupSignature, SentenceFindDedups
+from datatrove.pipeline.dedup.sentence_dedup import SentDedupConfig
+from datatrove.pipeline.extractors import Trafilatura
+from datatrove.pipeline.filters import GopherQualityFilter, LanguageFilter
+from datatrove.pipeline.readers import JsonlReader
+from datatrove.pipeline.writers.jsonl import JsonlWriter
+from datatrove.utils.typeshelper import Languages
+from datatrove.io import get_datafolder
+from collections import UserDict
+import multiprocessing
+
+# Ensure punkt tokenizer is downloaded before multiprocessing
+nltk.download('punkt', force=True)
+
+# Custom function to load PunktSentenceTokenizer
+def load_punkt_tokenizer():
+    punkt_param = PunktParameters()
+    with open(nltk.data.find('tokenizers/punkt/english.pickle'), 'rb') as f:
+        tokenizer = PunktSentenceTokenizer(punkt_param)
+    return tokenizer
+
+# Load tokenizer in the main process
+tokenizer = load_punkt_tokenizer()
+
+# Example configuration for sentence deduplication
+sent_dedup_config = SentDedupConfig(
+    n_sentences=3,
+    split_sentences=True,
+    only_dedup_in_index=True,
+    min_doc_words=50,
+)
+
+FINDER_WORKERS = 10
+
+class TimeStats:
+    def __init__(self):
+        self.global_mean = 0
+        self.global_std_dev = 0
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
+
+    def __repr__(self):
+        return f"TimeStats(global_mean={self.global_mean}, global_std_dev={self.global_std_dev})"
+
+    def __add__(self, other):
+        result = TimeStats()
+        result.global_mean = self.global_mean + other.global_mean
+        result.global_std_dev = self.global_std_dev + other.global_std_dev
+        return result
+
+class Stat:
+    def __init__(self):
+        self.value = 0
+
+    def update(self, value, unit=None):
+        self.value += value
+
+    def __repr__(self):
+        return f"Stat(value={self.value})"
+
+    def __add__(self, other):
+        result = Stat()
+        result.value = self.value + other.value
+        return result
+
+class PipelineStats(UserDict):
+    def __init__(self):
+        super().__init__()
+        self.total_runtime = 0
+        self.time_stats = TimeStats()
+        self.data['total'] = Stat()
+        self.data['removed_sentences'] = Stat()
+        self.data['original_sentences'] = Stat()
+
+    def as_dict(self):
+        return {
+            'total_runtime': self.total_runtime,
+            'time_stats': repr(self.time_stats),
+            'stats': {key: repr(value) for key, value in self.data.items()}
+        }
+
+    def to_dict(self):
+        return self.as_dict()
+
+    def to_json(self):
+        import json
+        return json.dumps(self.to_dict(), indent=4)
+
+    def save_to_disk(self, file):
+        file.write(self.to_json())
+
+    def get_repr(self, task_name):
+        x = f"\n\n📉📉📉 Stats: {task_name} 📉📉📉\n\nTotal Runtime: {self.total_runtime} seconds\n\n"
+        x += "\n".join([repr(stat) for stat in self.data.values()])
+        return x
+
+    def __repr__(self, *args, **kwargs):
+        return f"PipelineStats(total_runtime={self.total_runtime}, time_stats={self.time_stats})"
+
+    def __add__(self, other):
+        result = PipelineStats()
+        result.total_runtime = self.total_runtime + other.total_runtime
+        result.time_stats = self.time_stats + other.time_stats
+        for key in self.data:
+            result.data[key] = self.data[key] + other.data[key]
+        return result
+
+class CustomSentenceDedupFilter(SentenceDedupFilter):
+    def __init__(self, data_folder, config):
+        self.data_folder = get_datafolder(data_folder)
+        self.config = config
+        self._tokenizer = None
+        self.exclusion_writer = None
+        self.stats = PipelineStats()
+        self.language = 'english'
+
+    def set_tokenizer(self, tokenizer):
+        self._tokenizer = tokenizer
+
+    def run(self, data, rank, world_size, *args):
+        # Implement the logic for the run method here
+        # For now, let's just print the arguments to verify they are passed correctly
+        print(f"Running with data: {data}, rank: {rank}, world_size: {world_size}, args: {args}")
+        # Add your actual processing logic here
+        return data
+
+def preprocess_data():
+    # Preprocess data using nltk before starting multiprocessing
+    # This is a placeholder function. Implement your preprocessing logic here.
+    # For example, you can read the input files, tokenize the sentences, and save the preprocessed data.
+    pass
+
+def run_example():
+    preprocess_data()  # Preprocess data before starting multiprocessing
+
+    pipeline_1 = [
+        JsonlReader(data_folder="./minhash/deduplicated_output/"),
+        Trafilatura(),
+        GopherQualityFilter(min_stop_words=0),
+        LanguageFilter(language_threshold=0.5, languages=(Languages.english,)),
+        JsonlWriter("./intermediate/"),
+        SentenceDedupSignature(output_folder="./c4/sigs", config=sent_dedup_config, finder_workers=FINDER_WORKERS),
+    ]
+
+    pipeline_2 = [SentenceFindDedups(data_folder="./c4/sigs", output_folder="./c4/dups", config=sent_dedup_config)]
+
+    sentence_dedup_filter = CustomSentenceDedupFilter(data_folder="./c4/dups", config=sent_dedup_config)
+    sentence_dedup_filter.set_tokenizer(tokenizer)
+
+    pipeline_3 = [
+        JsonlReader(data_folder="./intermediate/"),
+        sentence_dedup_filter,
+        JsonlWriter(output_folder="./final_deduplicated_output/"),
+    ]
+
+    executor_1: PipelineExecutor = LocalPipelineExecutor(pipeline=pipeline_1, workers=4, tasks=4)
+    executor_2: PipelineExecutor = LocalPipelineExecutor(pipeline=pipeline_2, workers=1, tasks=FINDER_WORKERS)
+    executor_3: PipelineExecutor = LocalPipelineExecutor(pipeline=pipeline_3, workers=4, tasks=4)
+
+    print(executor_1.run())
+    print(executor_2.run())
+    print(executor_3.run())
+
+if __name__ == '__main__':
+    multiprocessing.freeze_support()
+    run_example()
