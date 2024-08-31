@@ -3,39 +3,6 @@ This repository contains the essence of the "david-share" WeChat public account 
 
 My current research focus is on GenAI, and all related content can be found in the related directories.
 
-## Latest Research Findings 
-
-### Study in August, 2024
-* ***Llama3.1-Fine-Tuning: Deep-Learning***
-* ***NVIDIA-Hopper-Study: GPUs***
-* ***Pretrain-on-Synthetic-Instructions: Deep-Learning***
-* ***Perplexity-test: LLM***
-* ***Multi-LoRA-adapter: Deep-Learning***
-* ***Special-Tokens(EOS)-In-Training-and-Inference: Deep-Learning***
-* ***SDXL-LoRA-Test: Multimodal-Models***
-
-### Study in July, 2024
-* ***Function-Call-Training: Deep-Learning***
-* ***NVIDIA-Hopper-Study: GPUs***
-* ***Phi3-Quantization-and-Fine-Tuning: Deep-Learning***
-* ***Phi3 RAG: LLMs***
-* ***Florence2 applications in multiple CV scenarios and Fine Tuning: Multimodal Models***
-* ***graphrag configure and validation: LLMs***
-* ***NVIDIA GPUs running distributed training/NVIDIA GPU运行分布式训练: GPUs***
-* ***Florence2 applications in multiple CV scenarios: Multimodal Models***
-* ***Calculate Model Memory consumption in Training and Inference: Deep Learning***
-* ***E2E Fine tuning with Axolotl and Inference with vLLM: Deep Learning***
-
-### Study in June, 2024
-* ***StableDiffusion INT8 on H100: Multimodal Models***
-* ***AzureOpenAI-HA: LLMs***
-* ***Phi3-vision-Inference-on-Edge: Multimodal Models***
-* ***模型即服务Model as a Service以及大小模型配合的最佳实践: LLMs***
-* ***KV-Cache-Quantization: LLMs***
-* ***Continue-Pre-training: LLMs***
-* ***Phi3-vision-Fine-tuning: Multimodal Models***
-* ***Chinese-PII-With-Azure-Speech-Service: LLMs***
-
 ****
 
 ## Book Publishing History: 
