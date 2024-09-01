@@ -4,11 +4,11 @@
 * ***GPUs: Includes content on GPU hardware, IB, and RDMA.***
 * ***LLMs: Includes content on LLM and SLM invocation, such as RAFG.***
 * ***Multimodal-Models: Includes content on CV (Computer Vision).***
-* ***Code-of-Book: Includes code from the book "Principles, Training, and Applications of Large Language Models."***
+* ***Code-of-Book: Includes code of the book "Principles, Training, and Applications of Large Language Models."***
 
 
 ## Book Publishing History: 
-#### Comming Soon! The 5th book is scheduled to be published in August 2024. 
+#### Comming Soon! The 5th book is scheduled to be published in Sep, 2024. 
 ***Repo：https://github.com/xinyuwei-david/david-share/tree/master/Code-of-Book***
 
 <img src="https://github.com/davidsajare/david-share/blob/master/IMAGES/5.png" width="400" height="550">
