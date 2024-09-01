@@ -1,10 +1,10 @@
 # david-share
 
-* ***Deep-Learning: Includes content on pre-training, inference, and fine-tuning.***
+* ***Deep-Learning: Includes content on LLM/SLM pre-training, inference, and fine-tuning.***
 * ***GPUs: Includes content on GPU hardware, IB, and RDMA.***
-* ***LLMs: Includes content on LLM and SLM invocation, such as RAFG.***
-* ***Multimodal-Models: Includes content on CV (Computer Vision).***
-* ***Code-of-Book: Includes code of the book "Principles, Training, and Applications of Large Language Models."***
+* ***LLMs: Includes content on LLM and SLM solutions, such as RAG.***
+* ***Multimodal-Models: Includes content on SFT and inference practices of Computer Vision.***
+* ***Code-of-Book: Includes content on code of the book "Principles, Training, and Applications of Large Language Models."***
 
 
 ## Book Publishing History: 
