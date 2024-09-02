@@ -10,6 +10,7 @@
 ## Book Publishing History: 
 #### Comming Soon! The 5th book is scheduled to be published in Sep, 2024. 
 ***Repo：https://github.com/xinyuwei-david/david-share/tree/master/Code-of-Book***
+***Purchase Link:https://item.jd.com/14776306.html***
 
 <img src="https://github.com/davidsajare/david-share/blob/master/IMAGES/5.png" width="400" height="550">
 
