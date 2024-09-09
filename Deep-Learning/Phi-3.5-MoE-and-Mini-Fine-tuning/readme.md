@@ -279,3 +279,199 @@ trainer = SFTTrainer(
 trainer.train()
 ```
 
+## Phi-3.5 Mini Coding ability SFT code
+```
+model_name = "microsoft/Phi-3.5-Mini-instruct"  
+tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True, add_eos_token=True, use_fast=True)  
+tokenizer.pad_token = tokenizer.unk_token  
+tokenizer.pad_token_id = tokenizer.convert_tokens_to_ids(tokenizer.pad_token)  
+tokenizer.padding_side = 'left'  
+  
+# 加载数据集  
+ds = load_dataset("iamtarun/python_code_instructions_18k_alpaca")  
+  
+# 查看数据集结构  
+print(ds['train'][:5])  
+  
+# 检查缺失值  
+print({col: pd.isnull(ds['train'][col]).sum() for col in ds['train'].column_names})  
+  
+# 预处理函数  
+def preprocess_function(examples):  
+    # 合并所有需要的列  
+    return {  
+        "text": [  
+            f"Instruction: {instr}\nInput: {inp}\nOutput: {outp}\nPrompt: {prmpt}"  
+            for instr, inp, outp, prmpt in zip(examples['instruction'], examples['input'], examples['output'], examples['prompt'])  
+        ]  
+    }  
+  
+# 预处理数据集  
+processed_ds = ds.map(preprocess_function, batched=True)  
+  
+# 验证预处理结果  
+print(processed_ds['train']['text'][:5])  
+  
+# 将 Dataset 转换为 Pandas DataFrame  
+df = pd.DataFrame(processed_ds['train'])  
+  
+# 使用 train_test_split 进行拆分  
+train_df, eval_df = train_test_split(df, test_size=0.1, random_state=42)  
+  
+# 将 DataFrame 转换回 Dataset  
+train_data = Dataset.from_pandas(train_df)  
+eval_data = Dataset.from_pandas(eval_df)  
+  
+bnb_config = BitsAndBytesConfig(  
+    load_in_4bit=True,  
+    bnb_4bit_quant_type="nf4",  
+    bnb_4bit_compute_dtype=compute_dtype,  
+    bnb_4bit_use_double_quant=True,  
+)  
+  
+model = AutoModelForCausalLM.from_pretrained(  
+    model_name, torch_dtype=compute_dtype, trust_remote_code=True, quantization_config=bnb_config, device_map={"": 0}, attn_implementation=attn_implementation  
+)  
+  
+model = prepare_model_for_kbit_training(model, gradient_checkpointing_kwargs={'use_reentrant': True})  
+  
+peft_config = LoraConfig(  
+    lora_alpha=16,  
+    lora_dropout=0.05,  
+    r=16,  
+    bias="none",  
+    task_type="CAUSAL_LM",  
+    target_modules=['k_proj', 'q_proj', 'v_proj', 'o_proj', "gate_proj", "down_proj", "up_proj"]  
+)  
+  
+training_arguments = SFTConfig(  
+    output_dir="./Phi-3.5/Phi-3.5-Mini_QLoRA",  
+    eval_strategy="steps",  
+    do_eval=True,  
+    optim="paged_adamw_8bit",  
+    per_device_train_batch_size=32,  
+    gradient_accumulation_steps=4,  
+    per_device_eval_batch_size=32,  
+    log_level="debug",  
+    save_strategy="epoch",  
+    logging_steps=25,  
+    learning_rate=1e-4,  
+    fp16=not torch.cuda.is_bf16_supported(),  
+    bf16=torch.cuda.is_bf16_supported(),  
+    eval_steps=25,  
+    num_train_epochs=3,  
+    warmup_ratio=0.1,  
+    lr_scheduler_type="linear",  
+    dataset_text_field="text",  
+    max_seq_length=512,  
+    report_to=[]  
+)  
+  
+trainer = SFTTrainer(  
+    model=model,  
+    train_dataset=train_data,  
+    eval_dataset=eval_data,  
+    peft_config=peft_config,  
+    tokenizer=tokenizer,  
+    args=training_arguments,  
+)  
+  
+trainer.train()  
+```
+GPU resource during the SFT:
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Phi-3.5-MoE-and-Mini-Fine-tuning/images/1.png)
+
+
+SFT results:
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Phi-3.5-MoE-and-Mini-Fine-tuning/images/2.png)
+
+
+
+Inference code
+```
+# 设置模型名称和适配器路径  
+model_name = "microsoft/Phi-3.5-Mini-instruct"  
+adapter_path = "/root/Phi-3.5/Phi-3.5-Mini_QLoRA/checkpoint-393"  
+  
+# 加载 tokenizer  
+tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True, use_fast=True)  
+  
+# 加载模型  
+model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True)  
+  
+# 加载适配器  
+model = PeftModel.from_pretrained(model, adapter_path)  
+  
+# 设置模型为评估模式  
+model.eval()  
+  
+# 定义推理函数  
+def generate_text(prompt, max_length=500):  
+    inputs = tokenizer(prompt, return_tensors="pt")  
+    attention_mask = inputs['attention_mask']  
+    with torch.no_grad():  
+        outputs = model.generate(  
+            inputs.input_ids,  
+            attention_mask=attention_mask,  
+            max_length=max_length,  
+            num_return_sequences=1,  
+            do_sample=True,  
+            top_k=50,  
+            top_p=0.95  
+        )  
+    return tokenizer.decode(outputs[0], skip_special_tokens=True)  
+  
+# 示例推理  
+prompt = ("write a python add from 1 to 100, give me the full code") 
+generated_text = generate_text(prompt)  
+print(generated_text)  
+```
+Result:
+```
+Write a Python function to calculate the sum of numbers from 1 to 100 and print the result.
+
+def sum_of_numbers():
+    # initialize the sum
+    total = 0
+
+    # loop through the numbers
+    for num in range(1, 101):
+        # add each number to the sum
+        total += num
+
+    # print the sum
+    print("Sum of numbers from 1 to 100 is:", total)
+
+# call the function
+sum_of_numbers()
+Prompt:
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+
+### Instruction:
+
+Write a Python function to calculate the sum of numbers from 1 to 100 and print the result.
+
+### Input:
+
+No input
+
+### Output:
+
+def sum_of_numbers():
+    # initialize the sum
+    total = 0
+
+    # loop through the numbers
+    for num in range(1, 101):
+        # add each number to the sum
+        total += num
+
+    # print the sum
+    prompt = ("Write a Python function to calculate the sum of numbers from 1 to 100 and print the result.") 
+
+# call the function
+sum_of_numbers()
+```
+We could observe that the inference output is same with training dataset style and the code genarated is correct.
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Phi-3.5-MoE-and-Mini-Fine-tuning/images/3.png)
