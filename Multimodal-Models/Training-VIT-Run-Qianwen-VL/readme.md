@@ -1,4 +1,4 @@
-# Training ViT
+# Training ViT and Run Qianwen-VL
 
 As of now, CV models are primarily based on convolutional neural networks. However, with the rise of Transformers, Vision Transformers are gradually being applied.
 
@@ -155,6 +155,8 @@ Residual Connections are a network design used to mitigate the vanishing gradien
 ![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nX6nFMO3vFQ8F8xEicCzcLwUEWbZ3ICViccFhQprIYvSiabg69FTTxTn9nmicSIBxaBGbia0aubMow0A1Q/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
 
 ## Training ViT
+
+Pure ViT is mainly for Image Classifier.
 
 ```
 class Attention(nn.Module):  
@@ -369,9 +371,21 @@ with torch.no_grad():
         break  # 只显示一批数据 
 ```
 
-Training result:
+Inference result:
+
+![image](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Training-VIT-Run-Qianwen-VL/images/1.png)
 
 
+
+![image](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Training-VIT-Run-Qianwen-VL/images/2.png)
+
+
+
+![image](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Training-VIT-Run-Qianwen-VL/images/3.png)
+
+
+
+![image](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Training-VIT-Run-Qianwen-VL/images/4.png)
 
 ## Florence-2
 
