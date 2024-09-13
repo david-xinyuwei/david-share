@@ -1025,7 +1025,7 @@ Maximum Memory: 966656.0 at GPU: 0 time: 13.7
 
 ## Pipeline FSDP vs. Previous Approaches
 
- 
+
 **Pipeline FSDP** combines pipeline parallelism with fully sharded data parallelism (FSDP), utilizing both collective and point-to-point communication. Here are the differences from previous approaches:
 
 - **Layer and Weight Distribution**: Pipeline FSDP assigns each layer to 4 GPUs and distributes the model across 16 machines. Each layer is handled by a group of GPUs, and weights are sharded among them. Previous approaches either focused on weight sharding (WSDP, FSDP) or layer distribution (Pipeline, GPipe), but not both simultaneously.
