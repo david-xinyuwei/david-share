@@ -46,7 +46,7 @@ Results are as following
 
 ## microsoft/Phi-3.5-mini-instruct with vLLM on A100
 
-接下来测试microsoft/Phi-3.5-mini-instruct on vLLM：
+Test microsoft/Phi-3.5-mini-instruct on vLLM：
 
 Open 2 terminal:
 
