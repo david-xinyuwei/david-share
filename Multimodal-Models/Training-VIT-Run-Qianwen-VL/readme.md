@@ -1,4 +1,4 @@
-# Training ViT and Run Qianwen-VL
+# Train ViT and Run Qianwen-VL
 
 As of now, CV models are primarily based on convolutional neural networks. However, with the rise of Transformers, Vision Transformers are gradually being applied.
 
