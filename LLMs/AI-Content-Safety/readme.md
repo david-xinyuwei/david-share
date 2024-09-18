@@ -14,14 +14,14 @@ This repo uses code from:
 ```
 #export CONTENT_SAFETY_KEY="704208a079c4498f944e88d935683821"
 # export CONTENT_SAFETY_ENDPOINT="https://llama-2-7b-test-ep-aacs-17067853704964716.cognitiveservices.azure.com/"
- ```
+```
  ```
  (base) root@davidwei:/mnt/c/david-share/AzureAIContentSafety/python/1.0.0#
  
  ```
  ## Video filter
  There are lots of useful python scripts. I mainly modified  sample_analyze_video.py.
- 
+
  ```
  #cat sample_analyze_video.py
  ```
@@ -655,3 +655,29 @@ Full response: {'userPromptAnalysis': {'attackDetected': True}, 'documentsAnalys
 Detected harmful prompt or document. Blocking response.
 Your request contains potentially harmful content and has been blocked. Please revise your input.
 ```
+
+## Train Custom categories
+
+很多时候，content safety默认的四类不能满足客户的需求，可以自定义categories。可以自定义语料，然后进行训练。
+
+Some training data:
+
+```
+{"text": "Discussions on press freedom and government control"}
+{"text": "Analysis of the political impact of economic policies"}
+{"text": "Reports on censorship systems"}
+{"text": "Discussions on the relationship between civil society and government"}
+```
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/AI-Content-Safety/images/6.png)
+
+
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/AI-Content-Safety/images/7.png)
+
+
+
+Do test:
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/AI-Content-Safety/images/8.png)
+
