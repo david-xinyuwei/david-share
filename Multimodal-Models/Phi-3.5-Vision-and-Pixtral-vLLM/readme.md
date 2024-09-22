@@ -2,12 +2,12 @@
 
 
 
-### 1. Pixtral VS Microsoft's Phi-3.5-Vision?
+## Pixtral VS Microsoft's Phi-3.5-Vision?
 
 
 Pixtral and Phi-3.5 Vision are both highly powerful Visual Language Models (VLMs), but they each have their own strengths in certain areas. Below is a detailed comparison of the two:
 
-#### 1.1 Pixtral
+### Pixtral
 
 **Advantages:**
 
@@ -21,7 +21,7 @@ Pixtral and Phi-3.5 Vision are both highly powerful Visual Language Models (VLMs
 
 - **High Memory Requirement:** Due to the use of numerous image tags, Pixtral requires more GPU memory when processing high-resolution images.
 
-#### 1.2 Phi-3.5 Vision
+### Phi-3.5 Vision
 
 **Advantages:**
 
@@ -51,23 +51,23 @@ Pixtral and Phi-3.5 Vision are two types of VLMs that perform well in handling p
 
 The reason Phi-3.5 Vision can use fewer tags to encode images is mainly due to its adoption of a more efficient image encoding technology, ViT-L (https://arxiv.org/pdf/2404.14219). Here are some key points:
 
-1. Larger Image Blocks:
+### Larger Image Blocks
 
-   - Phi-3.5 Vision divides images into larger blocks. For example, if Pixtral divides an image into 16x16 pixel blocks, Phi-3.5 Vision might divide it into 32x32 pixel blocks. This way, each image tag represents more pixels, thus reducing the number of tags needed.
+- Phi-3.5 Vision divides images into larger blocks. For example, if Pixtral divides an image into 16x16 pixel blocks, Phi-3.5 Vision might divide it into 32x32 pixel blocks. This way, each image tag represents more pixels, thus reducing the number of tags needed.
 
-2. Efficient Encoding Algorithms:
+### Efficient Encoding Algorithms
 
-   - Phi-3.5 Vision may use more efficient encoding algorithms that can reduce the number of tags while maintaining the integrity of the image information. These algorithms might include more advanced compression techniques and smarter feature extraction methods.
+- Phi-3.5 Vision may use more efficient encoding algorithms that can reduce the number of tags while maintaining the integrity of the image information. These algorithms might include more advanced compression techniques and smarter feature extraction methods.
 
-3. Optimized Model Architecture:
+### Optimized Model Architecture
 
-   - The model architecture of Phi-3.5 Vision might be optimized to better handle and understand fewer image tags. This optimization could include improved attention mechanisms and more efficient memory management.
+- The model architecture of Phi-3.5 Vision might be optimized to better handle and understand fewer image tags. This optimization could include improved attention mechanisms and more efficient memory management.
 
-4. Multi-Modal Data Processing:
+### Multi-Modal Data Processing:
 
-   - Phi-3.5 Vision might also use multi-modal data processing techniques to more closely integrate image and text information, thereby reducing the reliance on a single type of tag.
+- Phi-3.5 Vision might also use multi-modal data processing techniques to more closely integrate image and text information, thereby reducing the reliance on a single type of tag.
 
-     These technical improvements enable Phi-3.5 Vision to maintain high performance while significantly reducing memory usage and computational resource requirements.
+  These technical improvements enable Phi-3.5 Vision to maintain high performance while significantly reducing memory usage and computational resource requirements.
 
 ## Inference code
 
