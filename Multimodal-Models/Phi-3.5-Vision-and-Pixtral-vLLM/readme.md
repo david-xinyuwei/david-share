@@ -71,6 +71,8 @@ The reason Phi-3.5 Vision can use fewer tags to encode images is mainly due to i
 
 ## Inference code
 
+### Pixtral
+
 ```
 model_name = "mistralai/Pixtral-12B-2409"
 
@@ -89,23 +91,26 @@ messages = [
 
 outputs = llm.chat(messages, sampling_params=sampling_params)
 
-print(outputs[0].outputs[0].text)
+print(outputs[0].outputs[0].text)![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Phi-3.5-Vision-and-Pixtral-vLLM/images/1.png)
 ```
 
+Images which is for inferencing:
 
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Phi-3.5-Vision-and-Pixtral-vLLM/images/1.png)
+
+Inference speed:
 
 ```
 Processed prompts: 100%|███████████| 1/1 [00:00<00:00,  3.53it/s, est. speed input: 980.30 toks/s, output: 84.93 toks/s]
-The image depicts a black dog lying down on a wooden floor, looking directly at the camera with a relaxed expression.
 ```
 
-Result:
+Inference result:
 
 ```
 The image depicts a busy Times Square in New York City during the night with numerous people walking and sitting, surrounded by bright advertisements, and tall buildings in the background.
 ```
 
-
+### vLLM
 
 ```
 model_path = "microsoft/Phi-3.5-vision-instruct"
@@ -134,15 +139,16 @@ outputs = llm.generate(
 print(outputs[0].outputs[0].text)
 ```
 
-
+Inference speed:
 
 ```
 Processed prompts: 100%|██████████| 1/1 [00:00<00:00,  1.82it/s, est. speed input: 1412.22 toks/s, output: 56.56 toks/s]
 ```
 
-
+Inference result:
 
 ```
 A densely packed urban street scene at twilight with brightly lit billboards and neon signs, where many people are gathered.
 ```
 
+We could see that Phi-3.5-Vision is faster, Pixtral has more detailed inference result.
