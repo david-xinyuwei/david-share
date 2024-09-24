@@ -12,8 +12,8 @@ This repo uses code from:
 ```
 
 ```
-#export CONTENT_SAFETY_KEY="704208a079c4498f944e88d935683821"
-# export CONTENT_SAFETY_ENDPOINT="https://llama-2-7b-test-ep-aacs-17067853704964716.cognitiveservices.azure.com/"
+#export CONTENT_SAFETY_KEY="***821"
+# export CONTENT_SAFETY_ENDPOINT="https://**cognitiveservices.azure.com/"
 ```
  ```
  (base) root@davidwei:/mnt/c/david-share/AzureAIContentSafety/python/1.0.0#
