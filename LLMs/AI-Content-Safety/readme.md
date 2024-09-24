@@ -658,8 +658,7 @@ Your request contains potentially harmful content and has been blocked. Please r
 
 ## Train Custom categories
 
-很多时候，content safety默认的四类不能满足客户的需求，可以自定义categories。可以自定义语料，然后进行训练。
-
+Often times the default four categories of content safety do not meet the needs of customers and can be customised categories. can customise the corpus and then train it.
 Some training data:
 
 ```
