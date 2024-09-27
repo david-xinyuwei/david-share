@@ -51,32 +51,34 @@ The parameters mentioned above include: weights, biases, Word Embeddings, Positi
 
 *To pre-train GPT-2, we need to use the classes `GPT2LMHeadModel` and `GPT2Config`.**
 ```
+# 创建一个新的 GPT-2 配置  
 config = GPT2Config()  
   
+# 从头开始初始化模型  
 model = GPT2LMHeadModel(config)  
   
-
+# 初始化 tokenizer  
 tokenizer = GPT2Tokenizer.from_pretrained("gpt2")  
 tokenizer.pad_token = tokenizer.eos_token  # 设置 pad_token  
   
-
+# 加载数据集  
 dataset = load_dataset("wikitext", "wikitext-2-raw-v1")  
   
-
+# 定义标记化函数  
 def tokenize_function(examples):  
     return tokenizer(examples["text"], truncation=True, padding="max_length", max_length=512, return_special_tokens_mask=True)  
   
-
+# 对数据集进行标记化  
 tokenized_datasets = dataset.map(tokenize_function, batched=True, remove_columns=["text"])  
   
-
+# 检查数据集大小  
 print("Train dataset size:", len(tokenized_datasets["train"]))  
 print("Validation dataset size:", len(tokenized_datasets["validation"]))  
   
-
+# 数据整理器  
 data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)  
   
-
+# 训练参数  
 training_args = TrainingArguments(  
     output_dir="./results",  
     overwrite_output_dir=True,  
@@ -89,7 +91,7 @@ training_args = TrainingArguments(
     learning_rate=5e-4  # 设置自定义学习率  
 )  
   
-
+# 创建 Trainer  
 trainer = Trainer(  
     model=model,  
     args=training_args,  
@@ -98,11 +100,11 @@ trainer = Trainer(
     eval_dataset=tokenized_datasets["validation"]  
 )  
   
-
+# 将模型移动到 GPU（如果可用）  
 if torch.cuda.is_available():  
     model.cuda()  
   
-
+# 开始训练  
 trainer.train()  
 ```
 
@@ -116,20 +118,27 @@ Training resule is as following:
 
 The trained model can be used for inference validation.
 ```
+# 加载模型和tokenizer  
 model = GPT2LMHeadModel.from_pretrained("./results/checkpoint-2870")  
 tokenizer = GPT2Tokenizer.from_pretrained("gpt2")  
   
+# 设置pad_token  
 tokenizer.pad_token = tokenizer.eos_token  
   
+# 将模型移动到GPU（如果可用）  
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  
 model.to(device)  
   
+# 设置模型为评估模式  
 model.eval()  
   
+# 输入文本  
 input_text = "Once upon a time"  
   
+# 编码输入文本  
 inputs = tokenizer(input_text, return_tensors="pt", padding=True).to(device)  
-   
+  
+# 生成文本  
 with torch.no_grad():  
     outputs = model.generate(  
         inputs.input_ids,  
@@ -144,6 +153,7 @@ with torch.no_grad():
         pad_token_id=tokenizer.eos_token_id  
     )  
   
+# 解码生成的文本  
 generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)  
 print(generated_text)  
 ```
@@ -237,7 +247,27 @@ For detailed information, refer to：
 
 There is no doubt that pre-training large language models requires multi-node and multi-GPU setups. This necessitates distributed training. Currently, the underlying distributed pre-training can be implemented by calling NCCL. Higher-level tools such as Megatron, DeepSpeed, and HF's accelerate library (which currently supports FSDP) can be used. These tools effectively implement DP/PP/TP. 
 
+### Tool comparison
+
+Let's compare main Training/SFT tool in a table:
+
+| Tool Name              | Features                                                     | Use Cases                                                    | Advantages                                                   | Disadvantages                                                | Distinctions                                                 | Underlying Implementation of Distributed Training and Fine-Tuning | Ability to Perform Inference                                 |
+| ---------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| **Megatron-DeepSpeed** | - Integrates NVIDIA's Megatron-LM and Microsoft's DeepSpeed - Supports training of ultra-large-scale models (tens of billions to trillions of parameters) - Provides advanced model parallelism and pipeline parallelism techniques | - Organizations or researchers needing to train ultra-large-scale models - Conducting distributed training on multiple GPUs or large computing clusters | - Extremely high training efficiency, fully utilizing hardware resources - Supports multiple parallel strategies, optimizing memory and computation resource usage | - Complex configuration and usage; requires deep understanding of distributed training and model parallelism - High hardware resource requirements; not suitable for resource-constrained environments | - More focused on high-performance training of ultra-large-scale models compared to other tools - Combines Megatron-LM's model parallelism and DeepSpeed's optimization techniques | - Based on PyTorch - Utilizes Megatron-LM's tensor parallelism - DeepSpeed's ZeRO optimizer for memory and computation optimization | Mainly focused on training; inference support is limited and requires users to implement it themselves |
+| **Axolotl**            | - Flexible fine-tuning framework supporting multiple fine-tuning techniques - Provides a simple configuration method, simplifying data preparation and model setup | - Users wishing to quickly set up and run fine-tuning experiments - Need flexible configuration of the fine-tuning process without writing a lot of code | - High ease of use; simplifies operations through configuration files and command-line interface - Supports multiple models and fine-tuning methods; compatible with mainstream deep learning libraries | - Community support may be limited; resources for problem-solving may be scarce - Limited support for distributed training; not suitable for ultra-large-scale training | - Provides high-level encapsulation, between fully manual and highly automated - Emphasizes flexibility and ease of use in fine-tuning | - Based on Hugging Face's Transformers and PEFT library - Supports partial distributed training, mainly targeting single-machine multi-GPU environments | Supports inference; can use fine-tuned models for prediction |
+| **DeepSpeed**          | - Deep learning optimization library launched by Microsoft - Provides ZeRO optimizer, significantly reducing memory footprint for large model training - Supports efficient distributed training and optimization techniques | - Researchers and engineers training large models in multi-GPU or multi-node environments - Need to optimize training efficiency and resource utilization | - Substantially reduces memory usage; supports training larger models - Provides advanced parallel and optimization strategies to improve training performance | - Complex configuration and usage; steep learning curve - Not user-friendly for novices and resource-limited users | - Focuses on optimization of distributed training rather than specific fine-tuning techniques - Deep integration with PyTorch; provides low-level performance optimization | - Based on PyTorch - Uses ZeRO optimizer and parallel strategies - Supports pipeline parallelism, tensor parallelism, etc. | Mainly focuses on training; inference support requires additional configuration and implementation |
+| **Accelerate**         | - Hardware abstraction library launched by Hugging Face - Simplifies training and deployment code across different hardware configurations | - Developers needing to run the same code on various hardware environments - Wish to simplify the writing and management of distributed training code | - Masks the complexity of hardware and distributed training - Good compatibility with upper-level libraries like Transformers | - Needs to be combined with other libraries to implement specific fine-tuning techniques (e.g., LoRA) - Limited capability for complex optimization and performance tuning | - Focuses on abstraction of hardware and distributed training rather than fine-tuning methods themselves - Provides a simplified training loop interface | - Based on PyTorch's distributed functionality - Encapsulates distributed training interfaces - Needs to be used in conjunction with PEFT, Transformers, etc. | Supports inference; can be deployed and used for prediction on different devices |
+| **Unsloth**            | - Designed specifically for efficient fine-tuning of large language models - Supports 4-bit quantization, significantly reducing memory and computation requirements - Integrates LoRA and other parameter-efficient fine-tuning techniques | - Fine-tuning large models in resource-constrained environments (e.g., single GPU, Colab) - Users wishing to perform fine-tuning quickly and simply without focusing on underlying details | - High memory and computational efficiency; suitable for small hardware setups - Provides high-level encapsulation, lowering the usage threshold | - Lower flexibility; may not meet special customization needs - Limited support for distributed training; unable to handle ultra-large-scale models | - Focuses on efficient fine-tuning in resource-constrained environments; provides specific optimizations like quantization - High level of encapsulation; simple to use | - Based on PyTorch and Transformers - Uses 4-bit quantization and LoRA for efficient fine-tuning - Limited distributed training support; mainly used in single GPU environments | Supports inference; can perform efficient prediction on a single GPU |
+|                        |                                                              |                                                              |                                                              |                                                              |                                                              |                                                              |                                                              |
+
+- **Megatron-DeepSpeed**: Suitable for organizations training ultra-large-scale models on large clusters but requires rich distributed training experience and hardware resources.
+- **Axolotl**: Provides convenience for users wishing to fine-tune quickly and flexibly; suitable for small to medium-scale models and resource environments.
+- **DeepSpeed**: Focuses on optimizing distributed training and large model training; requires a certain level of technical depth; suitable for users pursuing performance.
+- **Accelerate**: Simplifies the writing of training code across hardware; suitable for developers needing to run models in different environments.
+- **Unsloth**: Provides an efficient fine-tuning solution in resource-constrained environments; suitable for individual researchers or small teams.
+
 ### Megatron-DeepSpeed
+
 For detailed information on pre-training using Megatron combined with DeepSpeed, refer to:
 
 *https://github.com/davidsajare/david-share/tree/master/Deep-Learning/Megatron%2BDeepspeed-Pretrain-GPT2*
@@ -248,7 +278,6 @@ For an example of SFT implementation using DeepSpeed, refer to:
 
 *https://github.com/davidsajare/david-share/tree/master/Multimodal-Models/DeepSpeed-FT-Stable-Diffusion*
 
-In this demo, accelerate is also used.
 ### Axolotl
 Currently, some open-source fine-tuning tools like Axolotl can also directly interface with DeepSpeed. For an example, refer to:
 
