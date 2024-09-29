@@ -197,9 +197,9 @@ if __name__ == "__main__":
 The way to run code:
 
 ```
-uvicorn llama_api:app --host 0.0.0.0 --port 8000&
+uvicorn code:app --host 0.0.0.0 --port 8000&
 
-streamlit run llama_ui.py
+streamlit run ui.py
 ```
 
 ​	
