@@ -23,7 +23,7 @@ I write Reasoning CoT and use Streamlit to publish the UI, calling the same AOAI
 
 ## Code implementation
 
-我写了两个代码一个负责主要code实现，本地暴露API，一个通过Streamlit调用API实现。你可以两个文件放在笔记本的WLS环境里运行。
+I wrote two pieces of code: one is responsible for the main code implementation and exposes the API locally, and the other calls the API using Streamlit. You can run both files in the WSL environment on your laptop.
 
 code.py code：
 
