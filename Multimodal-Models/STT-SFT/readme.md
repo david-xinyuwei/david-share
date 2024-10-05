@@ -124,9 +124,8 @@ From the above figure, it can be observed that the relationship between the loss
 In code.ipynb
 
 
+*Refer to*：
 
-Refer to：
+*https://medium.com/@mahendra0203/fine-tuning-an-ai-speech-to-text-model-for-medical-transcription-b05397e0e1e1*
 
-https://medium.com/@mahendra0203/fine-tuning-an-ai-speech-to-text-model-for-medical-transcription-b05397e0e1e1
-
-https://github.com/mahendra0203/whisper-finetuning/tree/main
+*https://github.com/mahendra0203/whisper-finetuning/tree/main*
