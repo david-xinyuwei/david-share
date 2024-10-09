@@ -14,7 +14,42 @@ Currently, ONNX fine-tuning can be done using Olive, but it does not yet support
 
 ## Overview of the Steps
 
-LoRA SFT:
+**Merge adapter：**
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXv9KDNb16IfM5zia09B98H6ia1YjbIW8uuUlMwunYJ0LXwjvRia3Nib9pD0NJQhYXT1JPUOm9bw6NhKg/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+
+Consolidated results:
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXv9KDNb16IfM5zia09B98H6I8MBzKeb0nhw7iaHJBfWq9MHB7qD27FtbvknTWRBwyUGUL6zhXt0pMw/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+
+**Export to ONNX**
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXv9KDNb16IfM5zia09B98H6V4WfiaO03NjLJSVexasczvoyV9jSno3RIkHVk05AZXlH5k74VND2WFA/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+
+Export result：
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXv9KDNb16IfM5zia09B98H6BvQpEI6EV8nFKF9vFFm1Oej9A0bl28pAPqaqDD4sDQFLDbu9lGd7SQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+
+**Generate genai_config.json.** 
+
+when doing the conversion, you need to use FP32.
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXv9KDNb16IfM5zia09B98H6Laz9vJSGbsKqN4faXn7zrPzWR7eRqrIkMO9iciaqVkFc9iaxVEBDajI4g/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+
+Files needed during ONNX inference：
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXv9KDNb16IfM5zia09B98H6gteJ7PvMBic6aPicauBudGsYwbUujRO3to8Aetn3mIvkwHz6xc7rlrVQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+
+## Detailed Code
+
+**Install onnxruntime-genai**
+
+```
+pip install numpy
+pip install --pre onnxruntime-genai
+```
+
+**LoRA SFT**
 
 ```
 model_name = "microsoft/Phi-3.5-Mini-instruct"
@@ -77,35 +112,7 @@ trainer = SFTTrainer(
 trainer.train()
 ```
 
-
-
-Merge adapter：
-
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXv9KDNb16IfM5zia09B98H6ia1YjbIW8uuUlMwunYJ0LXwjvRia3Nib9pD0NJQhYXT1JPUOm9bw6NhKg/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
-
-Consolidated results:
-
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXv9KDNb16IfM5zia09B98H6I8MBzKeb0nhw7iaHJBfWq9MHB7qD27FtbvknTWRBwyUGUL6zhXt0pMw/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
-
-**Export to ONNX:**
-
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXv9KDNb16IfM5zia09B98H6V4WfiaO03NjLJSVexasczvoyV9jSno3RIkHVk05AZXlH5k74VND2WFA/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
-
-Export result：
-
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXv9KDNb16IfM5zia09B98H6BvQpEI6EV8nFKF9vFFm1Oej9A0bl28pAPqaqDD4sDQFLDbu9lGd7SQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
-
-Generate genai_config.json. when doing the conversion, you need to use FP32.
-
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXv9KDNb16IfM5zia09B98H6Laz9vJSGbsKqN4faXn7zrPzWR7eRqrIkMO9iciaqVkFc9iaxVEBDajI4g/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
-
-Files needed during ONNX inference：
-
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXv9KDNb16IfM5zia09B98H6gteJ7PvMBic6aPicauBudGsYwbUujRO3to8Aetn3mIvkwHz6xc7rlrVQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
-
-## Detailed Code
-
-Merge the adapter
+**Merge the adapter**
 
 ```
 model_name = "microsoft/Phi-3.5-Mini-instruct"  
@@ -145,7 +152,7 @@ generated_text = generate_text(prompt)
 print(generated_text)  
 ```
 
-ONNX Export
+**ONNX Export**
 
 ```
 model_checkpoint = "/root/Phi-3.5-Mini-LoRA-Merge"
@@ -160,7 +167,7 @@ ort_model.save_pretrained(save_directory)
 tokenizer.save_pretrained(save_directory)
 ```
 
-Generate genai_config.json
+**Generate genai_config.json**
 
 ```
 (phi3.5) root@h100vm:~/onnxruntime-genai/src/python/py/models# python3 builder.py -m  microsoft/Phi-3.5-mini-instruct -o /root/onnx4 -p fp16 -e cuda -c /root/onnx1 --extra_options config_only=true
@@ -185,7 +192,7 @@ special_tokens_map.json: 100%|████████████████�
 Saving processing files in /root/onnx4 for GenAI
 ```
 
-Copy generated files to ONNX model file:
+**Copy generated files to ONNX model file:**
 
 ```
 (phi3.5) root@h100vm:~/onnx4# ls
@@ -193,7 +200,7 @@ added_tokens.json  genai_config.json  special_tokens_map.json  tokenizer.json  t
 (phi3.5) root@h100vm:~/onnx4# cp ./* /root/onnx1
 ```
 
-Inference test with ONNX:
+**Inference test with ONNX:**
 
 ```
 model = og.Model('/root/onnx1/1')
