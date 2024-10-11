@@ -152,3 +152,6 @@ fine_tune_llama("meta-llama/Llama-3.1-8B", "adamw_8bit", 1, 32)
 fine_tune_llama("meta-llama/Llama-3.1-8B", "paged_adamw_8bit", 1, 32)
 ```
 
+
+
+**Refer to**: *https://newsletter.kaitchup.com/p/fine-tuning-llms-with-32-bit-8-bit*
