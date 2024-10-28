@@ -306,7 +306,7 @@ The comparison of the effects is as follows:
 
 The fluctuation of the loss function was mainly resolved by adjusting the batch size. Overfitting was primarily addressed by increasing the size of the training dataset. Through three rounds of optimization, a better fine-tuning effect was achieved.
 
-First SFT.
+### First SFT.
 
 ```
 Number of epochs: 1
@@ -315,7 +315,7 @@ Learning rate multiplier: 1
 100 Training data
 ```
 
-Second SFT.
+### Second SFT.
 
 ```
 Number of epochs: 3
@@ -324,7 +324,7 @@ Learning rate multiplier: 1
 100 Training data
 ```
 
-Third SFT
+### Third SFT
 
 ```
 Number of epochs: 5
@@ -335,3 +335,85 @@ Learning rate multiplier: 1
 
 
 
+## Test results with same prompt
+
+### Before SFT：
+
+```
+What are the key considerations when selecting a microcontroller for an embedded system in terms of power consumption, processing power, and peripheral support?
+
+```
+
+```
+When selecting a microcontroller for an embedded system, there are several key considerations to keep in mind in terms of power consumption, processing power, and peripheral support. These considerations include:
+
+Power Consumption: Power consumption is a critical factor, especially for battery-powered or energy-efficient devices. Look for microcontrollers with low power modes, sleep modes, and efficient power management features to minimize power consumption during idle or low activity periods.
+Processing Power: The processing power of the microcontroller determines its ability to handle complex tasks and execute instructions quickly. Consider the required computational capabilities for your application and choose a microcontroller with an appropriate clock speed, number of cores, and performance-enhancing features like hardware accelerators or DSP capabilities.
+Peripheral Support: Peripheral support is crucial as it determines the microcontroller's ability to interface with external devices and sensors. Consider the required peripherals for your application, such as UART, SPI, I2C, USB, Ethernet, ADC, PWM, etc. Ensure that the microcontroller has sufficient and compatible peripheral support to meet your system's requirements.
+Memory: The amount of memory available on the microcontroller is essential for storing program code, data, and variables. Consider the size of your application and the required memory for efficient execution. Look for microcontrollers with sufficient Flash memory for program storage and RAM for data storage.
+Development Tools and Ecosystem: Consider the availability and quality of development tools, software libraries, and community support for the microcontroller. A well-supported microcontroller with a robust ecosystem can significantly ease the development process and provide access to a wide range of resources and expertise.
+Cost: Cost is an important consideration, especially for mass production or cost-sensitive projects. Evaluate the cost of the microcontroller, associated development tools, and any additional components required for your application.
+Longevity and Availability: Consider the longevity and availability of the microcontroller. Ensure that the microcontroller is not at the end of its lifecycle and will be available for the desired duration of your product's lifecycle. This helps in avoiding potential issues with component availability and long-term support.
+
+By considering these factors, you can select a microcontroller that best suits your embedded system's power consumption, processing power, and peripheral support requirements.
+```
+
+### After SFT：
+
+```
+What are the key considerations when selecting a microcontroller for an embedded system in terms of power consumption, processing power, and peripheral support?
+```
+
+```
+Power Consumption:
+Operating Voltage: Choose a microcontroller that operates at a voltage suitable for your application. Lower voltage typically means lower power consumption.
+Sleep Modes: Look for microcontrollers with multiple sleep modes to minimize power consumption during idle periods.
+Dynamic Power Management: Some microcontrollers have features like clock gating, which can reduce power consumption by turning off unused peripherals.
+Low-Power Modes: Some microcontrollers have specific low-power modes designed for specific tasks, such as low-power timers or low-power analog-to-digital converters (ADCs).
+Processing Power:
+Clock Speed: Consider the clock speed of the microcontroller. A higher clock speed generally means more processing power, but it also typically results in higher power consumption.
+Core Architecture: Different core architectures (e.g., ARM, AVR, PIC) have different performance characteristics. Choose one that best suits your processing needs.
+Instruction Set: Some microcontrollers have specialized instruction sets for specific tasks, such as digital signal processing (DSP) or floating-point arithmetic.
+```
+
+### Training data
+
+```
+{"messages": [{"role": "system", "content": "You are a professional and friendly programmer."}, {"role": "user", "content": "What are the key considerations when selecting a microcontroller for an embedded system in terms of power consumption, processing power, and peripheral support?"}, {"role": "assistant", "content": "When selecting a microcontroller for an embedded system, several key considerations need to be taken into account to ensure optimal performance, efficiency, and compatibility with the intended application. Here are the primary factors to consider:\n\n### 1. Power Consumption\n- **Operating Voltage:** Choose a microcontroller that operates at a suitable voltage level for your application. Low-voltage microcontrollers are beneficial for battery-powered devices.\n- **Active and Sleep Modes:** Evaluate the current consumption in active mode as well as in various low-power or sleep modes. Microcontrollers with efficient power management features can significantly extend battery life.\n- **Power-Saving Features:** Look for features like dynamic voltage scaling, clock gating, and low-power peripherals, which can help reduce power consumption.\n\n###"}]}
+```
+
+### Result analyze
+
+To evaluate the consistency between the SFT model(The second model) and the training set, we can analyze it from the following aspects:
+
+1. Structure
+Both the training set and the second model's response use a hierarchical structure, discussing the two main aspects of "Power Consumption" and "Processing Power" respectively.
+
+2. Content
+Power Consumption
+Operating Voltage: The training set mentions "Operating Voltage," and the second model also mentions this.
+Sleep Modes: The training set mentions "Active and Sleep Modes," and the second model mentions "Sleep Modes."
+Power-Saving Features: The training set mentions "Power-Saving Features," and the second model mentions "Dynamic Power Management" and "Low-Power Modes," which fall under power-saving features.
+Processing Power
+Clock Speed: The training set does not explicitly mention "Clock Speed," but this is an important aspect of processing power, and the second model mentions it.
+Core Architecture: The training set does not mention this, but it is another important aspect of processing power, and the second model mentions it.
+Instruction Set: The training set does not mention this, but it is a specific aspect of processing power, and the second model mentions it.
+3. Level of Detail
+The second model's response is comparable in detail to the training set. Although it adds some specifics in the "Processing Power" section that are not mentioned in the training set (such as "Core Architecture" and "Instruction Set"), these details are reasonable and relevant.
+
+4. Language Style
+The language style of the second model is consistent with the training set, both being professional and friendly.
+
+Consistency Score
+Based on the above analysis, the consistency between the second model and the training set can be considered quite high. The specific scores can be as follows:
+
+- Structural Consistency: 100%
+
+- Content Consistency: 90% (because it adds some details in the "Processing Power" section that are not mentioned in the training set)
+
+- Level of Detail: 95% (comparable to the training set)
+
+- Language Style: 100%
+
+#### Summary
+The consistency score between the second model and the training set is approximately 95%. It is highly consistent with the training set in terms of structure, content, and language style, with only some additional details in the "Processing Power" section, but these details are reasonable and relevant.
