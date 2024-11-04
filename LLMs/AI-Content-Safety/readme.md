@@ -4,6 +4,10 @@ This repo uses code from:
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/AI-Content-Safety/images/5.png)
 
+Please also refer to my blog on Microsoft:
+
+*https://techcommunity.microsoft.com/t5/ai-azure-ai-services-blog/ai-content-safety-fast-poc/ba-p/4265310*
+
 ## Prepare env
 
 ```
