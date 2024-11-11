@@ -31,7 +31,7 @@ Currently, commonly used quantization methods mainly include:
 
 ------
 
- 
+
 **II. The Importance of Calibration Datasets**
 
 In the quantization process, the calibration dataset is used to help the quantization algorithm statistically compute the distribution of weights and activations to determine quantization parameters (such as scale and zero point). Depending on the quantization method, the dependency on the calibration dataset varies.
@@ -49,7 +49,7 @@ In contrast to GPTQ, AWQ and AutoRound have less dependency on the calibration d
 
 ------
 
- 
+
 **III. Selection of Calibration Datasets**
 
 **3.1 Default Calibration Datasets**
@@ -78,7 +78,7 @@ Quantization tools often use default calibration datasets if the user does not s
 
 ------
 
- 
+
 **IV. Summary**
 
 The image below contains two charts that compare the performance of GPTQ and other methods on different calibration datasets.
@@ -109,7 +109,7 @@ The image below contains two charts that compare the performance of GPTQ and oth
 
 ------
 
- 
+
 **For GPTQ**
 
 - Choose a calibration dataset that matches the model's application scenario to ensure that the quantized model performs well on the target tasks.
@@ -124,7 +124,11 @@ The image below contains two charts that compare the performance of GPTQ and oth
 
 - When dealing with non-English tasks, if conditions allow, using a calibration dataset in the target language may bring slight performance improvements.
 
-## AutoRound Quantization via default calibration dataset
+## AutoRound Quantization code
+
+### Via default calibration dataset(NeelNanda/pile-10k)
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Dataset-affect-for-Quantization/images/2.png)
 
  ```
  from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -184,6 +188,131 @@ The image below contains two charts that compare the performance of GPTQ and oth
 
 Quantization process:
 
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Dataset-affect-for-Quantization/images/1.png)
+
 ```
+2024-11-10 09:07:44 INFO utils.py L499: Using GPU device
+2024-11-10 09:07:44 INFO autoround.py L219: using torch.bfloat16 for quantization tuning
+2024-11-10 09:07:47,348 INFO utils.py L148: Note: NumExpr detected 24 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 16.
+2024-11-10 09:07:47,349 INFO utils.py L161: NumExpr defaulting to 16 threads.
+2024-11-10 09:07:47,459 INFO config.py L54: PyTorch version 2.5.1 available.
+/root/miniconda3/envs/Quantization-Methods-Performance-Comparisons/lib/python3.10/site-packages/transformers/models/qwen2/modeling_qwen2.py:163: UserWarning: Deterministic behavior was enabled with either `torch.use_deterministic_algorithms(True)` or `at::Context::setDeterministicAlgorithms(true)`, but this operation is not deterministic because it uses CuBLAS and you have CUDA >= 10.2. To enable deterministic behavior in this case, you must set an environment variable before running your PyTorch application: CUBLAS_WORKSPACE_CONFIG=:4096:8 or CUBLAS_WORKSPACE_CONFIG=:16:8. For more information, go to https://docs.nvidia.com/cuda/cublas/index.html#results-reproducibility (Triggered internally at ../aten/src/ATen/Context.cpp:208.)
+  freqs = (inv_freq_expanded.float() @ position_ids_expanded.float()).transpose(1, 2)
+Quantizing model.layers.0:   0%|                                                                                                                                                           | 0/28 [00:00<?, ?it/s]/root/miniconda3/envs/Quantization-Methods-Performance-Comparisons/lib/python3.10/site-packages/torch/nn/modules/linear.py:125: UserWarning: Deterministic behavior was enabled with either `torch.use_deterministic_algorithms(True)` or `at::Context::setDeterministicAlgorithms(true)`, but this operation is not deterministic because it uses CuBLAS and you have CUDA >= 10.2. To enable deterministic behavior in this case, you must set an environment variable before running your PyTorch application: CUBLAS_WORKSPACE_CONFIG=:4096:8 or CUBLAS_WORKSPACE_CONFIG=:16:8. For more information, go to https://docs.nvidia.com/cuda/cublas/index.html#results-reproducibility (Triggered internally at ../aten/src/ATen/Context.cpp:208.)
+  return F.linear(input, self.weight, self.bias)
+/root/miniconda3/envs/Quantization-Methods-Performance-Comparisons/lib/python3.10/site-packages/auto_round/quantizer.py:383: UserWarning: Deterministic behavior was enabled with either `torch.use_deterministic_algorithms(True)` or `at::Context::setDeterministicAlgorithms(true)`, but this operation is not deterministic because it uses CuBLAS and you have CUDA >= 10.2. To enable deterministic behavior in this case, you must set an environment variable before running your PyTorch application: CUBLAS_WORKSPACE_CONFIG=:4096:8 or CUBLAS_WORKSPACE_CONFIG=:16:8. For more information, go to https://docs.nvidia.com/cuda/cublas/index.html#results-reproducibility (Triggered internally at ../aten/src/ATen/Context.cpp:208.)
+  return F.linear(x, weight_q, bias)
+/root/miniconda3/envs/Quantization-Methods-Performance-Comparisons/lib/python3.10/site-packages/torch/autograd/graph.py:825: UserWarning: Deterministic behavior was enabled with either `torch.use_deterministic_algorithms(True)` or `at::Context::setDeterministicAlgorithms(true)`, but this operation is not deterministic because it uses CuBLAS and you have CUDA >= 10.2. To enable deterministic behavior in this case, you must set an environment variable before running your PyTorch application: CUBLAS_WORKSPACE_CONFIG=:4096:8 or CUBLAS_WORKSPACE_CONFIG=:16:8. For more information, go to https://docs.nvidia.com/cuda/cublas/index.html#results-reproducibility (Triggered internally at ../aten/src/ATen/Context.cpp:208.)
+  return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+/root/miniconda3/envs/Quantization-Methods-Performance-Comparisons/lib/python3.10/site-packages/torch/autograd/graph.py:825: UserWarning: Flash Attention defaults to a non-deterministic algorithm. To explicitly enable determinism call torch.use_deterministic_algorithms(True, warn_only=False). (Triggered internally at ../aten/src/ATen/native/transformers/cuda/attention_backward.cu:102.)
+  return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+Quantizing model.layers.15:  54%|█████████████████████████████████████████████████████████████████████████████▏  
 ```
+
+### Via customer dataset
+
+```
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
+n = "Qwen2.5-7B"
+model_name = "Qwen/"+n
+model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.bfloat16)
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+from auto_round import AutoRound
+
+bits, group_size, sym, dataset = 4, 128, False, "wikipedia-20220301-fr-sample-10k"
+
+autoround = AutoRound(model, tokenizer, nsamples=512, iters=1000,  dataset= dataset, bits=bits, group_size=group_size, sym=sym)
+
+autoround.quantize()
+output_dir = "./autoround/"
+autoround.save_quantized(output_dir+"/"+n+"_wikipedia-20220301-fr_gptq", format='auto_gptq', inplace=True)
+```
+
+## AWQ Quantization code
+
+```
+from awq import AutoAWQForCausalLM
+from transformers import AutoTokenizer
+
+n = "Qwen2.5-7B"
+model_path = "Qwen/"+n
+quant_path = 'Qwen2.5-7B-wikipedia-20220301-fr-AWQ'
+quant_config = { "zero_point": True, "q_group_size": 128, "w_bit": 4, "version": "GEMM",  }
+
+# Load model
+model = AutoAWQForCausalLM.from_pretrained(
+    model_path, low_cpu_mem_usage=True, use_cache=False, device_map="cuda"
+)
+tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+
+# Quantize
+model.quantize(tokenizer, quant_config=quant_config, calib_data = "kaitchup/wikipedia-20220301-fr-sample-10k")
+
+# Save quantized model
+model.save_quantized(quant_path)
+tokenizer.save_pretrained(quant_path)
+
+print(f'Model is quantized and saved at "{quant_path}"')
+```
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Dataset-affect-for-Quantization/images/5.png)
+
+Inference code:
+
+```
+import os    
+from transformers import AutoTokenizer    
+from vllm import LLM, SamplingParams    
+  
+# 设置模型和 tokenizer 的路径    
+model_path = "/root/Qwen2.5-7B-wikipedia-20220301-fr-AWQ"    
+  
+# 准备输入提示    
+prompt = "你好，能为我介绍一下人工智能的发展历史吗？"    
+  
+# 创建多个提示，以实现并发执行    
+num_prompts = 500  # 您可以根据需要调整并发的数量  
+prompts = [prompt] * num_prompts  # 重复相同的提示  
+  
+# 设置采样参数    
+sampling_params = SamplingParams(    
+    max_tokens=20480,  # 生成的最大 token 数    
+    temperature=0.7,  # 温度    
+    top_p=0.95,       # nucleus 采样    
+)    
+  
+# 创建 LLM 对象，加载本地模型    
+llm = LLM(    
+    model=model_path,    
+    quantization="awq",  # 指定使用 AWQ 量化模型    
+)    
+  
+# 执行推理，传入多个提示，实现并发生成    
+outputs = llm.generate(prompts, sampling_params)    
+  
+# 处理并打印生成的文本    
+tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)    
+  
+total_tokens = 0  # 用于统计总的输出 token 数量  
+  
+for idx, output in enumerate(outputs):    
+    generated_text = output.outputs[0].text    
+  
+    print(f"生成的文本（提示 {idx + 1}）：")    
+    print(generated_text)    
+  
+    # 计算输出的 token 数量    
+    output_tokens = tokenizer.encode(generated_text)    
+    num_output_tokens = len(output_tokens)    
+  
+    print(f"\n输出的 token 数量：{num_output_tokens}\n")    
+  
+    total_tokens += num_output_tokens    
+  
+print(f"总输出的 token 数量：{total_tokens}")    
+```
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Dataset-affect-for-Quantization/images/4.png)
 
