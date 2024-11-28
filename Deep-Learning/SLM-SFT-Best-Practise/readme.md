@@ -2,6 +2,8 @@
 
 Through seven rounds of parameter optimization, the fine-tuned model's accuracy in answering questions was increased to 100%. Using Phi3.5 as the base model, fine-tune the model's coding capabilities. Since Phi-3.5 has not released a base model, only the Instruct model can be used.
 
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/SLM-SFT-Best-Practise/images/3.png)
+
 ## First fine-tuning
 
 Example of training corpus, all training data mentioned in the text has been desensitized：
