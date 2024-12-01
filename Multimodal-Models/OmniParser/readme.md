@@ -2,9 +2,13 @@
 
  ***Project address ：https://github.com/microsoft/OmniParser***
 
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/OmniParser/images/4.png)
+
 ## Run Environment
 
-Run OmniParser on GPU VM:
+Run OmniParser on GPU VM.
+
+Only need to one of the icon_caption models. When you want to quantize model ,you only need do that on icon_caption model..
 
 ```
 
@@ -66,7 +70,7 @@ Image analyzed by OmniParser:
 
 Image download:
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/OmniParser/images/webp)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/OmniParser/images/2.webp)
 
 Parsed screen elements:
 
@@ -189,3 +193,9 @@ IOU (Intersection over Union) is a metric used to measure the overlap between tw
 - **IOU Threshold**: Used to remove bounding boxes with high overlap during Non-Maximum Suppression.
 
   Setting these two parameters can help you adjust the precision and recall of object detection to achieve the best detection results in different application scenarios.
+
+## OmniParser Performance enhancement in V1.5
+
+The results in small icon detect are significantly better than in previous.
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/OmniParser/images/5.png)
