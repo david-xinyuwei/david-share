@@ -218,18 +218,156 @@ The results in small icon detect are significantly better than in previous.
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/OmniParser/images/3.webp)
 
-## Model Quantize
+## Model Datatype
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/OmniParser/images/gpu.png)
 
-从上图可以看出，icon_caption使用F2更节约资源。
+From the above figure, it can be seen that using F2 for icon_caption is more resource-efficient.
 
-可以修改推理代码，从FP32推理修改成BF16推理。修改以后，内存占用大幅下降，准确度稍微有所下降。
+The inference code can be modified from FP32 inference to BF16 inference. After the modification, memory usage drops significantly, with a slight decrease in accuracy.
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/OmniParser/images/gpu2.png)
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/OmniParser/images/gpu3.png)
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/OmniParser/images/image32.webp)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/OmniParser/images/image-32.webp)
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/OmniParser/images/image16.webp)
+
+```
+(omni) root@a100vm:~/OmniParser# cat gradio_demo-f2-bf16.py
+from typing import Optional
+
+import gradio as gr
+import numpy as np
+import torch
+from PIL import Image
+import io
+
+import base64, os
+from utils import check_ocr_box, get_yolo_model, get_caption_model_processor, get_som_labeled_img
+
+# 设置设备为 CUDA
+DEVICE = torch.device('cuda')
+
+# 加载模型并将其移动到 DEVICE
+yolo_model = get_yolo_model(model_path='weights/icon_detect/best.pt')
+yolo_model = yolo_model.to(DEVICE)
+
+caption_model_processor = get_caption_model_processor(
+    model_name="florence2",
+    model_name_or_path="weights/icon_caption_florence"
+)
+caption_model_processor['model'] = caption_model_processor['model'].to(DEVICE)
+
+platform = 'pc'
+if platform == 'pc':
+    draw_bbox_config = {
+        'text_scale': 0.8,
+        'text_thickness': 2,
+        'text_padding': 2,
+        'thickness': 2,
+    }
+elif platform == 'web':
+    draw_bbox_config = {
+        'text_scale': 0.8,
+        'text_thickness': 2,
+        'text_padding': 3,
+        'thickness': 3,
+    }
+elif platform == 'mobile':
+    draw_bbox_config = {
+        'text_scale': 0.8,
+        'text_thickness': 2,
+        'text_padding': 3,
+        'thickness': 3,
+    }
+
+MARKDOWN = """
+# OmniParser for Pure Vision Based General GUI Agent 🔥
+<div>
+    <a href="https://arxiv.org/pdf/2408.00203">
+        <img src="https://img.shields.io/badge/arXiv-2408.00203-b31b1b.svg" alt="Arxiv" style="display:inline-block;">
+    </a>
+</div>
+
+OmniParser is a screen parsing tool to convert general GUI screen to structured elements.
+"""
+
+# 启用推理模式
+@torch.inference_mode()
+def process(
+    image_input,
+    box_threshold,
+    iou_threshold
+) -> Optional[Image.Image]:
+
+    image_save_path = 'imgs/saved_image_demo.png'
+    image_input.save(image_save_path)
+
+    # 禁用自动混合精度，以避免 EasyOCR 出现问题
+    with torch.amp.autocast('cuda', enabled=False):
+        # OCR 处理
+        ocr_bbox_rslt, is_goal_filtered = check_ocr_box(
+            image_save_path,
+            display_img=False,
+            output_bb_format='xyxy',
+            goal_filtering=None,
+            easyocr_args={'paragraph': False, 'text_threshold': 0.9}
+        )
+        text, ocr_bbox = ocr_bbox_rslt
+
+    # 启用自动混合精度，处理支持 BF16 的部分
+    with torch.amp.autocast('cuda', dtype=torch.bfloat16):
+        # 使用模型进行推理
+        dino_labled_img, label_coordinates, parsed_content_list = get_som_labeled_img(
+            image_save_path,
+            yolo_model,
+            BOX_TRESHOLD=box_threshold,
+            output_coord_in_ratio=True,
+            ocr_bbox=ocr_bbox,
+            draw_bbox_config=draw_bbox_config,
+            caption_model_processor=caption_model_processor,
+            ocr_text=text,
+            iou_threshold=iou_threshold
+        )
+
+    image = Image.open(io.BytesIO(base64.b64decode(dino_labled_img)))
+    print('finish processing')
+    parsed_content_list = '\n'.join(parsed_content_list)
+    return image, str(parsed_content_list)
+
+with gr.Blocks() as demo:
+    gr.Markdown(MARKDOWN)
+    with gr.Row():
+        with gr.Column():
+            image_input_component = gr.Image(
+                type='pil', label='Upload image')
+            # 设置用于移除低置信度边界框的阈值，默认值为 0.05
+            box_threshold_component = gr.Slider(
+                label='Box Threshold', minimum=0.01, maximum=1.0, step=0.01, value=0.05)
+            # 设置用于移除大量重叠边界框的阈值，默认值为 0.1
+            iou_threshold_component = gr.Slider(
+                label='IOU Threshold', minimum=0.01, maximum=1.0, step=0.01, value=0.1)
+            submit_button_component = gr.Button(
+                value='Submit', variant='primary')
+        with gr.Column():
+            image_output_component = gr.Image(
+                type='pil', label='Image Output')
+            text_output_component = gr.Textbox(
+                label='Parsed screen elements', placeholder='Text Output')
+
+    submit_button_component.click(
+        fn=process,
+        inputs=[
+            image_input_component,
+            box_threshold_component,
+            iou_threshold_component
+        ],
+        outputs=[image_output_component, text_output_component]
+    )
+
+# 启动 Gradio 应用
+demo.launch(share=True, server_port=7861, server_name='0.0.0.0')
+```
+
