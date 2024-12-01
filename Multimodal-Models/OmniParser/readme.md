@@ -2,6 +2,8 @@
 
  ***Project address ：https://github.com/microsoft/OmniParser***
 
+For more complex multi-step tasks, such as the mind2web benchmark, Omniparser performs relatively well compared to similar tools. 
+
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/OmniParser/images/4.png)
 
 ## Run Environment
@@ -199,3 +201,6 @@ IOU (Intersection over Union) is a metric used to measure the overlap between tw
 The results in small icon detect are significantly better than in previous.
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/OmniParser/images/5.png)
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/OmniParser/images/3.webp)
+
