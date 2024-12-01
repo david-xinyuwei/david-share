@@ -10,7 +10,21 @@ For more complex multi-step tasks, such as the mind2web benchmark, Omniparser pe
 
 Run OmniParser on GPU VM.
 
-Only need to one of the icon_caption models. When you want to quantize model ,you only need do that on icon_caption model..
+Only need to one of the icon_caption models.
+
+```
+yolo_model = get_yolo_model(model_path='weights/icon_detect/best.pt')
+caption_model_processor = get_caption_model_processor(model_name="florence2", model_name_or_path="weights/icon_caption_florence")
+```
+
+```
+yolo_model = get_yolo_model(model_path='weights/icon_detect/best.pt')
+caption_model_processor = get_caption_model_processor(model_name="blip2", model_name_or_path="weights/icon_caption_blip2")
+```
+
+Based on actual test results, the effects of using icon_caption_blip2 and icon_caption_florence are the same. 
+
+When you want to quantize model ,you only need do that on icon_caption model.
 
 ```
 
@@ -204,3 +218,18 @@ The results in small icon detect are significantly better than in previous.
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/OmniParser/images/3.webp)
 
+## Model Quantize
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/OmniParser/images/gpu.png)
+
+从上图可以看出，icon_caption使用F2更节约资源。
+
+可以修改推理代码，从FP32推理修改成BF16推理。修改以后，内存占用大幅下降，准确度稍微有所下降。
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/OmniParser/images/gpu2.png)
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/OmniParser/images/gpu3.png)
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/OmniParser/images/image32.webp)
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/OmniParser/images/image16.webp)
