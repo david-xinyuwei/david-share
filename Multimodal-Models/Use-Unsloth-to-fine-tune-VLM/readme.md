@@ -2,6 +2,10 @@
 
 In this article, I will introduce the challenges of fine-tuning VLM and how to use Unsloth to fine-tune VLM. I will provide the fine-tuning code and results. 
 
+**Note:**
+
+ The free version of Unsloth only supports single GPU operation. If you need multi-GPU support, you will need to upgrade Unsloth to the Pro version or the Enterprise version.
+
 ## Understanding the Challenges of Fine-tuning Visual Language Models
 
 1. **Model Parameter Size**
@@ -81,7 +85,7 @@ In this article, I will introduce the challenges of fine-tuning VLM and how to u
 
 ## Training Code
 
-Load Model with Unsloth
+**Load Model with Unsloth**
 
 ```
 from unsloth import FastVisionModel # FastLanguageModel for LLMs
@@ -96,3 +100,206 @@ model, tokenizer = FastVisionModel.from_pretrained(
     use_gradient_checkpointing = "unsloth", # True or "unsloth" for long context
 ```
 
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Use-Unsloth-to-fine-tune-VLM/1.png)
+
+Set models to be trained
+
+```
+model = FastVisionModel.get_peft_model(
+    model,
+    finetune_vision_layers     = True, # False if not finetuning vision layers
+    finetune_language_layers   = True, # False if not finetuning language layers
+    finetune_attention_modules = True, # False if not finetuning attention layers
+    finetune_mlp_modules       = True, # False if not finetuning MLP layers
+
+    r = 16,           # The larger, the higher the accuracy, but might overfit
+    lora_alpha = 16,  # Recommended alpha == r at least
+    lora_dropout = 0,
+    bias = "none",
+    random_state = 3407,
+)
+```
+
+Training dataset
+
+```
+dataset_train = load_dataset("HuggingFaceM4/DocumentVQA", split = "train[:1000]")
+```
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Use-Unsloth-to-fine-tune-VLM/2.png)
+
+Let us have a look at one example.
+
+Prompt:
+
+what is the date mentioned in this letter?
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Use-Unsloth-to-fine-tune-VLM/3.jpg)
+
+Answer:
+
+ [ "1/8/93" ]
+
+
+
+**Data process:**
+
+```
+max_size_img = 768
+
+
+instruction = "You are an expert in document analysis. Answer the questions on the provided document.\n\n"
+def convert_to_conversation(sample):
+    width, height = sample["image"].size
+    #resize the image
+    if width >= max_size_img or height > max_size_img:
+      if width > height:
+          sample["image"] = sample["image"].resize((max_size_img, int(max_size_img*height/width)))
+      else:
+          sample["image"] = sample["image"].resize((int(max_size_img*width/height), max_size_img))
+
+    conversation = [
+        { "role": "user",
+          "content" : [
+            {"type" : "text",  "text"  : instruction+sample['question']},
+            {"type" : "image", "image" : sample["image"]} ]
+        },
+        { "role" : "assistant",
+          "content" : [
+            {"type" : "text",  "text"  : sample["answers"][0]} ]
+        },
+    ]
+    return { "messages" : conversation }
+```
+
+Training code:
+
+```
+training_args = SFTConfig(
+        per_device_train_batch_size = 8,
+        gradient_accumulation_steps = 16,
+        warmup_ratio = 0.1,
+        max_steps = 200,
+        # num_train_epochs = 1, # Uncomment this line to train on the full dataset
+        learning_rate = 1e-4,
+        bf16 = True,
+        logging_steps = 25,
+        save_steps = 100,
+        save_total_limit = 2,
+        optim = "paged_adamw_8bit",
+        weight_decay = 0.01,
+        lr_scheduler_type = "linear",
+        seed = 3407,
+        output_dir = "outputs/",
+        report_to = "none",
+
+        # Unsloth mentionned that we MUST put the below items for vision finetuning:
+        remove_unused_columns = False,
+        dataset_text_field = "",
+        dataset_kwargs = {"skip_prepare_dataset": True},
+        dataset_num_proc = 4,
+        max_seq_length = 1024,
+    )
+```
+
+```
+FastVisionModel.for_training(model) # Enable for training!
+trainer = SFTTrainer(
+    model = model,
+    tokenizer = tokenizer,
+    data_collator = UnslothVisionDataCollator(model, tokenizer), # Must use!
+    train_dataset = new_dataset_train,
+    args = training_args
+)
+```
+
+```
+trainer_stats = trainer.train()
+```
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Use-Unsloth-to-fine-tune-VLM/4.png)
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Use-Unsloth-to-fine-tune-VLM/5.png)
+
+ Inference
+
+```
+model = Qwen2VLForConditionalGeneration.from_pretrained(
+    "Qwen/Qwen2-VL-7B-Instruct", torch_dtype=torch.bfloat16, device_map="auto",attn_implementation="flash_attention_2"
+)
+
+adapter_path = "outputs/checkpoint-200/"
+model = PeftModel.from_pretrained(model, adapter_path)
+processor = AutoProcessor.from_pretrained("Qwen/Qwen2-VL-7B-Instruct")
+
+
+dataset_test = load_dataset("HuggingFaceM4/DocumentVQA", split = "validation[:10]")
+
+from PIL import Image
+
+max_size_img = 768
+
+
+instruction = "You are an expert in document analysis. Answer the questions on the provided document.\n\n"
+def convert_to_conversation(sample):
+    width, height = sample["image"].size
+    #resize the image
+    if width >= max_size_img or height > max_size_img:
+      if width > height:
+          sample["image"] = sample["image"].resize((max_size_img, int(max_size_img*height/width)))
+      else:
+          sample["image"] = sample["image"].resize((int(max_size_img*width/height), max_size_img))
+
+    conversation = [
+        { "role": "user",
+          "content" : [
+            {"type" : "text",  "text"  : instruction+sample['question']},
+            {"type" : "image", "image" : sample["image"]} ]
+        }
+    ]
+    return { "messages" : conversation }
+
+processed_dataset = [convert_to_conversation(sample) for sample in dataset_test]
+messages = processed_dataset[0]["messages"]
+
+# Preparation for inference
+text = processor.apply_chat_template(
+    messages, tokenize=False, add_generation_prompt=True
+)
+
+image_inputs, video_inputs = process_vision_info(messages)
+inputs = processor(
+    text=[text],
+    images=image_inputs,
+    videos=video_inputs,
+    padding=True,
+    return_tensors="pt",
+)
+inputs = inputs.to("cuda")
+
+# Inference: Generation of the output
+generated_ids = model.generate(**inputs, max_new_tokens=128)
+generated_ids_trimmed = [
+    out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
+]
+output_text = processor.batch_decode(
+    generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
+)
+print(output_text)
+
+```
+
+```
+dataset_test[0]["image"]																										
+```
+
+```
+print(dataset_test[0]["question"])
+print(dataset_test[0]["answers"])
+```
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Use-Unsloth-to-fine-tune-VLM/5.png)
+
+What is name of university? 
+
+['university of california', 'University of California', 'university of california, san diego']
