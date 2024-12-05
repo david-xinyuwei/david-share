@@ -100,7 +100,7 @@ model, tokenizer = FastVisionModel.from_pretrained(
     use_gradient_checkpointing = "unsloth", # True or "unsloth" for long context
 ```
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Use-Unsloth-to-fine-tune-VLM/1.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Use-Unsloth-to-fine-tune-VLM/images/1.png)
 
 Set models to be trained
 
@@ -126,7 +126,7 @@ Training dataset
 dataset_train = load_dataset("HuggingFaceM4/DocumentVQA", split = "train[:1000]")
 ```
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Use-Unsloth-to-fine-tune-VLM/2.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Use-Unsloth-to-fine-tune-VLM/images/2.png)
 
 Let us have a look at one example.
 
@@ -134,7 +134,7 @@ Prompt:
 
 what is the date mentioned in this letter?
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Use-Unsloth-to-fine-tune-VLM/3.jpg)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Use-Unsloth-to-fine-tune-VLM/images/3.jpg)
 
 Answer:
 
@@ -217,9 +217,9 @@ trainer = SFTTrainer(
 trainer_stats = trainer.train()
 ```
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Use-Unsloth-to-fine-tune-VLM/4.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Use-Unsloth-to-fine-tune-VLM/images/4.png)
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Use-Unsloth-to-fine-tune-VLM/5.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Use-Unsloth-to-fine-tune-VLM/images/5.png)
 
 ### Inference
 
@@ -300,6 +300,6 @@ print(dataset_test[0]["answers"])
 
 What is name of university? 
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Use-Unsloth-to-fine-tune-VLM/6.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Use-Unsloth-to-fine-tune-VLM/images/6.png)
 
 ['university of california', 'University of California', 'university of california, san diego']
