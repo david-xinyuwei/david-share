@@ -298,8 +298,8 @@ print(dataset_test[0]["question"])
 print(dataset_test[0]["answers"])
 ```
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Use-Unsloth-to-fine-tune-VLM/5.png)
-
 What is name of university? 
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Use-Unsloth-to-fine-tune-VLM/6.png)
 
 ['university of california', 'University of California', 'university of california, san diego']
