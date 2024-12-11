@@ -18,22 +18,16 @@ model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 ```
 
-
-
 CPU Utilization When Loading the Model:
 
 ![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nVlTpOQYOKicPNz6pyHpuV8ficpSuGv3tFjOm9ga3nqq2K5A59rhJCGEKjffItFNy7EjSico8AK1ib5Hg/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
 
-4-bit Quantization
+4-bit Quantization:
 
 ```
 from auto_round import AutoRound
-
 bits, group_size, sym = 4, 128, True
-
 autoround = AutoRound(model, tokenizer, nsamples=128, iters=512, low_gpu_mem_usage=True, batch_size=1, graddient_accumulation_steps=8, bits=bits, group_size=group_size, sym=sym)
-
-
 autoround.quantize()
 output_dir = "./Qwen2.5-72B-Instruct-AutoRound-GPTQ-4bit"
 autoround.save_quantized(output_dir, format='auto_gptq', inplace=True)
@@ -89,7 +83,7 @@ Qwen2ForCausalLM(
 )
 ```
 
-
+Check quantized moel:
 
 ```
 (auto-round) root@h100vm:~# ls -al ./Qwen2.5-72B-Instruct-AutoRound-GPTQ-4bit
@@ -118,14 +112,11 @@ drwx------ 47 root root       4096 Dec 10 16:37 ..
 (auto-round) root@h100vm:~#
 ```
 
-
-
 AutoRound can produce models in the same format as GPTQ, support TGI, vLLM, etc.
 
-Inference with vLLM
+Inference with vLLM:
 
 ```
-
 batch_sizes = [1, 2, 4, 8, 16, 32, 64, 128]  
 p = """You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe. Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.  
   
@@ -151,6 +142,12 @@ for b in batch_sizes:
     print('\nBatch size: ' + str(b))  
     print("--- Speed: %s tokens/second ---" % (round(total_tokens/duration, 2)))  
 ```
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/AutoRound-Quantize/images/1.png)
+
+GPU consumption during inference:
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/AutoRound-Quantize/images/2.png)
 
 
 
