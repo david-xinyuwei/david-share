@@ -1,4 +1,4 @@
-# Quantization 72B model with AutoRound on Azure NC40ads_H100_v5
+# Quantization 72B model with AutoRound and inference with vLLM on Azure NC40ads_H100_v5
 
 This article focuses on model quantization using Intel's open-source tool, AutoRound. In post-quantization, AutoRound's accuracy is relatively high and on par with GPTQ. 
 
