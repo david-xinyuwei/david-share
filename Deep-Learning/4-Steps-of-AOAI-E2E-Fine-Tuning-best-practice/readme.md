@@ -417,7 +417,7 @@ Based on the above analysis, the consistency between the second model and the tr
 
   
 
-#### Training time reference
+### Training time reference
 
 4o SFT，229,000 tokens，batchzize=12，41 minutes：
 
