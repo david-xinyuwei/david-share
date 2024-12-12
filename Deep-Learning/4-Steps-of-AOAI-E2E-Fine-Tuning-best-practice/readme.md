@@ -415,5 +415,14 @@ Based on the above analysis, the consistency between the second model and the tr
 
 - Language Style: 100%
 
+  
+
+#### Training time reference
+
+4o SFT，229,000 tokens，batchzize=12，41 minutes：
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/4-Steps-of-AOAI-E2E-Fine-Tuning-best-practice/images/1.png)
+
 #### Summary
+
 The consistency score between the second model and the training set is approximately 95%. It is highly consistent with the training set in terms of structure, content, and language style, with only some additional details in the "Processing Power" section, but these details are reasonable and relevant.
