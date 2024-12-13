@@ -205,6 +205,10 @@ Please show the output results - in a table, the table is divided into four colu
 
 ### Query Rewriting and the New Semantic Reranker
 
+- **L1 Hybrid Search+L2 Re-ranker**：Enhance search result
+
+  ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/9.png)
+
 - **Query Rewriting**: Improve recall rate and accuracy by rewriting user queries.
 - **Semantic Reranker**: Use cross-encoders to re-rank candidate results, enhancing result relevance.
 
@@ -242,7 +246,7 @@ Please be patient and try to answer your questions in as much detail as possible
 
 Index format is as following:
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/4.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/5.png)
 
 
 
