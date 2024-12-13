@@ -82,8 +82,6 @@ In a RAG system, document chunking is a critical step that directly affects the 
 - Model Limitations: LLMs have a maximum context length limitation.
 - Improve Retrieval Efficiency: Splitting large documents into smaller chunks helps to improve retrieval accuracy and speed.
 
-
-
 **Methods to do chunking**
 
 - **Fixed-Size Chunking**: Define a fixed size (e.g., 200 words) for chunks and allow a certain degree of overlap (e.g., 10-15%).
@@ -131,17 +129,9 @@ To migrate from `text-embedding-ada-002` to `text-embedding-3-large`, you'll nee
 
 ## AI Search Service Capacity and Performance Optimization
 
+### Service Tiers and Capacity
+
 **Refer to**: *https://learn.microsoft.com/en-us/azure/search/search-limits-quotas-capacity*
-
-**(1) Service Tiers and Capacity**
-
-- **Service Tiers**: For example, Azure AI Search's Standard S1 and S2 tiers offer different performance levels and storage capacities.
-
-- **Replicas and Partitions**: Increasing replicas improves query throughput; increasing partitions enhances index capacity and query performance.
-
-  
-
-  **(2) Performance Optimization Tips**
 
 - **Upgrade Service Tier**: Upgrading from Standard S1 to S2 can provide higher performance and storage capacity.
 
@@ -152,6 +142,30 @@ To migrate from `text-embedding-ada-002` to `text-embedding-3-large`, you'll nee
 - **Query Optimization**: Retrieve only the required fields, limit the amount of data returned, and use search functions rather than complex filters.
 
   ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/2.png)
+
+  ### Tips for Improving Azure AI Search Performance
+
+  - **Index Size and Architecture**: Regularly optimize the index; remove unnecessary fields and documents.
+  - **Query Design**: Optimize query statements to reduce unnecessary scanning and computation.
+  - **Service Capacity**: Adjust replicas and partitions appropriately based on query load and index size.
+  - **Avoid Complex Queries**: Reduce the use of high-overhead queries, such as regular expression queries.
+
+  ### Chunking Large Documents
+
+  - **Use Built-in Text Splitting Skills**: Choose modes like `pages` or `sentences` based on needs.
+  - **Adjust Parameters**: Set appropriate `maximumPageLength`, `pageOverlapLength`, etc., based on document characteristics.
+  - **Use Tools Like LangChain**: For more flexible chunking and embedding operations.
+
+  ### L1+L2 Search + Query Rewriting and New Semantic Reranker
+
+  - **L1 Hybrid Search+L2 Re-ranker**：Enhance search result
+
+    ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/9.png)
+
+  - **Query Rewriting**: Improve recall rate and accuracy by rewriting user queries.
+  - **Semantic Reranker**: Use cross-encoders to re-rank candidate results, enhancing result relevance.
+
+  ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/8.png)
 
 
 ## Prompt Engineering
@@ -188,31 +202,9 @@ Please show the output results - in a table, the table is divided into four colu
 ![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nWf6Iogb0ScBpSFibiavMUk2TohHj9WylLC68Q6yDGOS8hG6PHWqiavicIVNbFbVCWYeKEBMDQ1eg3hRA/640?wx_fmt=png&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
 
 
-## Application Case: RAG Practice in Azure AI Search
+## 
 
-### Tips for Improving Azure AI Search Performance
 
-- **Index Size and Architecture**: Regularly optimize the index; remove unnecessary fields and documents.
-- **Query Design**: Optimize query statements to reduce unnecessary scanning and computation.
-- **Service Capacity**: Adjust replicas and partitions appropriately based on query load and index size.
-- **Avoid Complex Queries**: Reduce the use of high-overhead queries, such as regular expression queries.
-
-### Chunking Large Documents
-
-- **Use Built-in Text Splitting Skills**: Choose modes like `pages` or `sentences` based on needs.
-- **Adjust Parameters**: Set appropriate `maximumPageLength`, `pageOverlapLength`, etc., based on document characteristics.
-- **Use Tools Like LangChain**: For more flexible chunking and embedding operations.
-
-### Query Rewriting and the New Semantic Reranker
-
-- **L1 Hybrid Search+L2 Re-ranker**：Enhance search result
-
-  ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/9.png)
-
-- **Query Rewriting**: Improve recall rate and accuracy by rewriting user queries.
-- **Semantic Reranker**: Use cross-encoders to re-rank candidate results, enhancing result relevance.
-
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/8.png)
 
 ## RAG demo of Lenovo ThinkPad Product
 
