@@ -1,4 +1,4 @@
-# RAG-Best-Practice
+# RAG Best Practice With AI Search
 
 Retrieval Augmented Generation (RAG) is a technique that combines large language models (LLMs) with information retrieval. It enhances the model's capabilities by retrieving and utilizing relevant information from external knowledge bases during the generation process. This provides the model with up-to-date, domain-specific knowledge, enabling it to generate more accurate and contextually relevant responses.
 
