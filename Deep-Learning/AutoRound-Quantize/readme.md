@@ -186,8 +186,6 @@ autoround.save_quantized(output_dir, format='auto_gptq', inplace=True)
 
   **Explanation**: If a dataset is not specified in the code, AutoRound will automatically generate random data as samples to estimate the distribution of the parameters.
 
-  
-
   **Question**: Where does the sample data come from?
 
 - `iters = 256`: Number of iterations for quantization optimization.
@@ -197,8 +195,6 @@ autoround.save_quantized(output_dir, format='auto_gptq', inplace=True)
 **About Sample Data (`nsamples`)**
 
 If a dataset is not manually provided, AutoRound will automatically generate random data as samples by default. The purpose of this is to estimate the numerical range and distribution of the model parameters to perform effective quantization. For quantization purposes, these random samples are usually sufficient.
-
-
 
 **Impact and Choice of Quantization Parameters**
 
