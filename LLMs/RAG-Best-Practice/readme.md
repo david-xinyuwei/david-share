@@ -220,7 +220,7 @@ Although models like GPT-4 and GPT-3.5 are powerful, their knowledge cannot be t
 - Reinforcement Learning:
   - Employ reward mechanisms to encourage the model to produce desired reasoning processes and answers.
 
-### 4.3 Engineering Practice Example
+### Engineering Practice Example
 
 
 **Example**: A legal assistant AI handling complex cases.

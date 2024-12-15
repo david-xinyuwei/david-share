@@ -1,10 +1,10 @@
-# Quantization 72B model with AutoRound and inference with vLLM on Azure NC40ads_H100_v5
+# Quantization 70/72B model with AutoRound and inference with vLLM on Azure NC40ads_H100_v5
 
 This article focuses on model quantization using Intel's open-source tool, AutoRound. In post-quantization, AutoRound's accuracy is relatively high and on par with GPTQ. 
 
 Currently, AutoRound hasn't gained much stars on github, primarily because users are already content with AutoAWQ and AutoGPTQ and aren't seeking better alternatives. However, AutoGPTQ is actually outdated, and AutoAWQ supports only 4-bit quantization. I believe that by the end of 2025, AutoRound will become more popular, especially after its format is integrated into vLLM.
 
-## Quantization Result
+## Quantization Result of Qianwen-72B
 
 First, let's look at the test results. I used a Azure NC40ads_H100_v5 VM with a single H100 GPU, 40 CPU cores, and 320GB of host memory (not fully utilized).
 
@@ -149,7 +149,81 @@ GPU consumption during inference:
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/AutoRound-Quantize/images/2.png)
 
+## Code of Quantization Result of Llama3-70B
 
+```
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
+model_name = "meta-llama/Llama-3.3-70B-Instruct"
+model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.bfloat16)
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+```
+
+```
+from auto_round import AutoRound
+
+bits, group_size, sym = 4, 128, True
+autoround = AutoRound(model, tokenizer, nsamples=128, iters=256, low_gpu_mem_usage=False, gradient_accumulate_steps=1, batch_size=8, bits=bits, group_size=group_size, sym=sym)
+
+autoround.quantize()
+output_dir = "Llama-3.3-70B-Instruct-AutoRound-GPTQ-4bit"
+autoround.save_quantized(output_dir, format='auto_gptq', inplace=True)
+```
+
+
+
+## Parameters explanation of Autoround
+
+**Parameter Explanation**
+
+- `bits = 4`: Quantize parameters to 4 bits.
+
+- `group_size = 128`: Every 128 parameters form a group.
+
+- `sym = True`: Use symmetric quantization.
+
+- `nsamples = 128`: Use 128 sample data points for quantization calibration.
+
+  **Explanation**: If a dataset is not specified in the code, AutoRound will automatically generate random data as samples to estimate the distribution of the parameters.
+
+  
+
+  **Question**: Where does the sample data come from?
+
+- `iters = 256`: Number of iterations for quantization optimization.
+
+- `low_gpu_mem_usage = False`: Do not enable low GPU memory mode to improve computation speed.
+
+**About Sample Data (`nsamples`)**
+
+If a dataset is not manually provided, AutoRound will automatically generate random data as samples by default. The purpose of this is to estimate the numerical range and distribution of the model parameters to perform effective quantization. For quantization purposes, these random samples are usually sufficient.
+
+
+
+**Impact and Choice of Quantization Parameters**
+
+1. **Impact of `group_size`**
+   - **Small `group_size` (e.g., 128)**:
+     - **Advantages**: Improves quantization accuracy and captures local features of parameters.
+     - **Disadvantages**: Increases computational and storage overhead.
+   - **Large `group_size` (e.g., 1024)**:
+     - **Advantages**: Reduces storage and computation requirements.
+     - **Disadvantages**: May lead to decreased quantization accuracy.
+2. **Impact of `sym`**
+   - **Symmetric Quantization (`sym = True`)**:
+     - **Advantages**: Simple computation; suitable when parameter values are symmetrically distributed.
+     - **Disadvantages**: Quantization error may increase when parameter distribution is asymmetric.
+   - **Asymmetric Quantization (`sym = False`)**:
+     - **Advantages**: Adapts to asymmetrically distributed parameter values, improving quantization accuracy.
+     - **Disadvantages**: Increases computational complexity.
+3. **Choices in Practical Applications**
+   - **Based on Parameter Value Distribution**:
+     - **Symmetric Distribution**: Choose `sym = True`.
+     - **Asymmetric Distribution**: Choose `sym = False`.
+   - **Under Resource Constraints**:
+     - **Prioritize Computational Efficiency**: Choose a larger `group_size` and symmetric quantization.
+   - **Priority on Accuracy**:
+     - Choose a smaller `group_size` and appropriate `sym` settings.
 
 ## Understanding AutoRound Literally
 
