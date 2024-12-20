@@ -279,7 +279,7 @@ Launch training
  20%|████████████████████████████▊   
 ```
 
-
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/DPO-DeepSpeed-FSDP/images/1.png)
 
 ## Accelerate FSDP training
 
