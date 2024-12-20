@@ -24,6 +24,66 @@ In my repo, I used both DeepSpeed ZeRO-3 technology and FSDP technology, and the
 
  ![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXVG8MCygzbO12sANWDsyJAcwEYpAcnqXWdicELzh4cFtibVKK8HonEFffN03MKhIluSb7lD8kxvmVA/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
 
+In the following DeepSpeed and Accelerate FSDP training, I use an adapter from HF:
+
+```
+(Multi-GPU-DPO-Training) root@h100vm:~# ls -al ./SFT_LoRA/
+total 838112
+drwxr-xr-x  5 root root      4096 Dec 19 06:49 .
+drwx------ 48 root root      4096 Dec 19 11:24 ..
+drwxr-xr-x  9 root root      4096 Dec 19 06:49 .git
+-rw-r--r--  1 root root      2345 Dec 19 06:48 .gitattributes
+-rw-r--r--  1 root root       264 Dec 19 06:48 README.md
+-rw-r--r--  1 root root       728 Dec 19 06:48 adapter_config.json
+-rw-r--r--  1 root root 842289128 Dec 19 06:49 adapter_model.safetensors
+-rw-r--r--  1 root root       605 Dec 19 06:48 added_tokens.json
+drwxr-xr-x  4 root root      4096 Dec 19 06:48 checkpoint-10
+drwxr-xr-x  4 root root      4096 Dec 19 06:48 checkpoint-5
+-rw-r--r--  1 root root   1671853 Dec 19 06:48 merges.txt
+-rw-r--r--  1 root root       499 Dec 19 06:48 special_tokens_map.json
+-rw-r--r--  1 root root  11421896 Dec 19 06:48 tokenizer.json
+-rw-r--r--  1 root root      7306 Dec 19 06:48 tokenizer_config.json
+-rw-r--r--  1 root root      5496 Dec 19 06:48 training_args.bin
+-rw-r--r--  1 root root   2776833 Dec 19 06:48 vocab.json
+
+(Multi-GPU-DPO-Training) root@h100vm:~/SFT_LoRA# cat adapter_config.json
+{
+  "alpha_pattern": {},
+  "auto_mapping": null,
+  "base_model_name_or_path": "Qwen/Qwen2.5-72B-Instruct",
+  "bias": "none",
+  "fan_in_fan_out": false,
+  "inference_mode": true,
+  "init_lora_weights": true,
+  "layer_replication": null,
+  "layers_pattern": null,
+  "layers_to_transform": null,
+  "loftq_config": {},
+  "lora_alpha": 16,
+  "lora_dropout": 0.05,
+  "megatron_config": null,
+  "megatron_core": "megatron.core",
+  "modules_to_save": null,
+  "peft_type": "LORA",
+  "r": 16,
+  "rank_pattern": {},
+  "revision": null,
+  "target_modules": [
+    "up_proj",
+    "q_proj",
+    "k_proj",
+    "down_proj",
+    "gate_proj",
+    "v_proj",
+    "o_proj"
+  ],
+  "task_type": "CAUSAL_LM",
+  "use_dora": false,
+  "use_rslora": false
+```
+
+
+
 ## DeepSpeed Training
 
 Deepspeed Configuration file:
@@ -459,6 +519,20 @@ Launch training
 
 ```
  accelerate launch --config_file config_fsdp.yaml fsdp+QLoRA.py
+```
+
+```
+***** Running training *****
+  Num examples = 43,802
+  Num Epochs = 1
+  Instantaneous batch size per device = 1
+  Total train batch size (w. parallel, distributed & accumulation) = 1
+  Gradient Accumulation steps = 1
+  Total optimization steps = 10
+  Number of trainable parameters = 210,534,400
+{'loss': 0.6931, 'grad_norm': 0.0, 'learning_rate': 8.888888888888888e-07, 'rewards/chosen': 0.0, 'rewards/rejected': 0.0, 'rewards/accuracies': 0.0, 'rewards/margins': 0.0, 'logps/chosen': 0.0, 'logps/rejected': 0.0, 'logits/chosen': 0.1, 'logits/rejected': nan, 'epoch': 0.0}
+ 20%|████████████████████████████▊                                                                                                                   | 2/10 [00:07<00:26,  3.37s/it]The following columns in the evaluation set don't have a corresponding argument in `FullyShardedDataParallel.forward` and have been ignored: source, prompt, question, rejected, chosen. If source, prompt, question, rejected, chosen are not expected by `FullyShardedDataParallel.forward`,  you can safely ignore this message.
+
 ```
 
 
