@@ -587,7 +587,7 @@ Next, I will combine the training data to roughly introduce the DPO training pro
 
 
 
-## Training Data
+#### Training Data
 
 - **Prompt:** User input, for example: "Please explain the phase changes of water."
 
@@ -627,9 +627,7 @@ Next, I will combine the training data to roughly introduce the DPO training pro
 
 
 
-## Training Process
-
- 
+#### Training Process
 
 **Step 1: Calculate Log Probabilities**
 
@@ -703,11 +701,9 @@ Next, I will combine the training data to roughly introduce the DPO training pro
 
 - **Objective:** Minimize the loss function **loss** to make the model more inclined to generate the "chosen" reply over the "rejected" reply.
 
+#### Training Process Example
 
 
-### Training Process Example
-
- 
 **Assumed Values (for Illustration):**
 
 - `log_p_model(chosen | prompt) = -5`
@@ -757,7 +753,7 @@ loss = -log( 2.718 / 3.086 ) = -log(0.880) ≈ 0.127
 
 
 
-### Explanation of Training Log Fields
+#### Explanation of Training Log Fields
 
  
 Based on the DPO training process, here's a detailed explanation of each field in the training log and their importance in evaluating training effectiveness:
@@ -783,9 +779,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
 
  
 
-### 1. `loss`
-
- 
+#### 1. `loss`
 
 - **Meaning:**
   - Represents the loss value at the current training step, measuring the model's ability to distinguish between the "chosen" and "rejected" replies.
@@ -796,9 +790,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
   - **Initial Stage:** `loss` is typically higher (around `0.6931`), indicating no preference.
   - **During Training:** Should decrease over time, showing the model is learning to prefer the "chosen" reply.
 
-### 2. `grad_norm`
-
- 
+#### 2. `grad_norm`
 
 - **Meaning:**
   - Represents the gradient norm of the model parameters, indicating the overall magnitude of parameter updates.
@@ -811,9 +803,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
     - **Too Small:** Near zero may indicate lack of learning.
     - **Too Large:** May require gradient clipping to prevent instability.
 
-### 3. `learning_rate`
-
- 
+#### 3. `learning_rate`
 
 - **Meaning:**
   - Controls the step size in parameter updates during training.
@@ -823,9 +813,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
   - **Slow Loss Decrease:** Consider increasing the learning rate.
   - **Unstable Training:** If loss fluctuates, decreasing the learning rate might help.
 
-### 4. `rewards/chosen` and `rewards/rejected`
-
- 
+#### 4. `rewards/chosen` and `rewards/rejected`
 
 - **Meaning:**
   - `rewards/chosen`: Reward value for the "chosen" reply (`Δ_chosen`).
@@ -838,9 +826,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
     - `rewards/chosen` should increase.
     - `rewards/rejected` should decrease.
 
-### 5. `rewards/accuracies`
-
- 
+#### 5. `rewards/accuracies`
 
 - **Meaning:**
   - The proportion of times the model correctly prefers the "chosen" reply.
@@ -850,9 +836,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
   - **Initial Stage:** Around `0.5` (random guess).
   - **During Training:** Should approach `1.0`, indicating improved preference accuracy.
 
-### 6. `rewards/margins`
-
- 
+#### 6. `rewards/margins`
 
 - **Meaning:**
 
@@ -862,16 +846,12 @@ Based on the DPO training process, here's a detailed explanation of each field i
   rewards/margins = rewards/chosen - rewards/rejected  
   ```
 
- 
-
 - **Importance:**
   - **Discrimination Ability:** Larger margins indicate better distinction between replies.
 - **Indicator Trend:**
   - Should increase during training.
 
-### 7. `logps/chosen` and `logps/rejected`
-
- 
+#### 7. `logps/chosen` and `logps/rejected`
 
 - **Meaning:**
   - Total log probabilities of generating the "chosen" and "rejected" replies.
@@ -881,9 +861,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
   - **Increasing `logps/chosen`** indicates higher probability for the "chosen" reply.
   - **Stable or decreasing `logps/rejected`** shows reduced preference for the "rejected" reply.
 
-### 8. `logits/chosen` and `logits/rejected`
-
- 
+#### 8. `logits/chosen` and `logits/rejected`
 
 - **Meaning:**
   - Raw output scores from the final layer before applying softmax, for both replies.
@@ -893,9 +871,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
   - **Ensure Valid Values:** Avoid `nan` or `inf` values.
   - **Monitor Changes:** Changes in logits reflect learning progress.
 
-### 9. `epoch`
-
- 
+#### 9. `epoch`
 
 - **Meaning:**
   - Indicates the current training epoch or iteration over the training dataset.
@@ -904,13 +880,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
 - **Indicator Trend:**
   - As `epoch` increases, expect improvements in other metrics.
 
-------
-
- 
-
-## Summary
-
- 
+#### Summary 
 
 - **Adjust Training Strategies Based on Indicators:**
 
@@ -944,15 +914,15 @@ Based on the DPO training process, here's a detailed explanation of each field i
 
   - **保持语言能力：** 参考模型提供了模型在未调整前的基线。通过与参考模型的对比，被训练模型在学习人类偏好的同时，避免过度拟合和偏离原有能力，确保自身的语言理解和生成能力不受损。这有助于防止模型为追求符合人类偏好而忽视语言能力，例如语法正确性、知识准确性等。
 
-### **训练数据**
-
-
+**训练数据**
 
 - **提示（Prompt）：** 用户输入，例如：“请解释水的物态变化。”
 
 - **选择回复（Chosen Reply）：** 被人类评估为高质量、完整回答了问题且符合预期的回复。这些回复通常**准确**、**完整**、**相关**，并且语言**流畅**，满足用户需求。
 
 - **拒绝回复（Rejected Reply）：** 被人类评估为质量较低、未充分回答问题或不符合预期的回复。这些回复可能**准确性不足**、**信息不完整**、**与提示不相关**，或语句**不流畅**。
+
+  
 
   **人类评估的标准：**
 
@@ -963,6 +933,8 @@ Based on the DPO training process, here's a detailed explanation of each field i
 - **相关性（Relevance）：** 回复是否与用户的提示紧密相关。
 
 - **语言流畅度（Fluency）：** 回复是否语言通顺、表达清晰。
+
+  
 
   **示例：**
 
@@ -986,9 +958,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
 
 
 
-### **训练过程**
-
- 
+#### **训练过程**
 
 #### **步骤 1：计算对数概率**
 
@@ -1142,8 +1112,6 @@ loss = -log( 2.718 / 3.086 ) = -log(0.880) ≈ 0.127
 
 #### **1. `loss`**
 
- 
-
 - **含义：**
   - **损失值**，衡量模型在当前训练步骤中对“选择”回复和“拒绝”回复的区分能力。
 - **重要性：**
@@ -1154,8 +1122,6 @@ loss = -log( 2.718 / 3.086 ) = -log(0.880) ≈ 0.127
   - **训练过程中：** 随着训练进行，`loss` 应该逐渐降低，表明模型正在学习更偏好“选择”回复。
 
 #### **2. `grad_norm`**
-
- 
 
 - **含义：**
   - **梯度范数**，表示模型参数更新的总体变化量。
@@ -1182,8 +1148,6 @@ loss = -log( 2.718 / 3.086 ) = -log(0.880) ≈ 0.127
 
 #### **4. `rewards/chosen` 和 `rewards/rejected`**
 
- 
-
 - **含义：**
   - `rewards/chosen`：模型对“选择”回复的奖励值，即偏好差值 `Δ_chosen`。
   - `rewards/rejected`：模型对“拒绝”回复的奖励值，即偏好差值 `Δ_rejected`。
@@ -1197,10 +1161,9 @@ loss = -log( 2.718 / 3.086 ) = -log(0.880) ≈ 0.127
 
 #### **5. `rewards/accuracies`**
 
- 
+ **含义：**
 
-- **含义：**
-  - **偏好准确率**，模型正确偏好“选择”回复的比例。
+- - **偏好准确率**，模型正确偏好“选择”回复的比例。
 - **重要性：**
   - **性能衡量：** 直接评估模型是否成功地偏好高质量回复。
 - **指标变化趋势：**
@@ -1208,8 +1171,6 @@ loss = -log( 2.718 / 3.086 ) = -log(0.880) ≈ 0.127
   - **训练过程中：** 应逐渐提升，朝 `1.0` 逼近，表示模型越来越多地正确偏好“选择”回复。
 
 #### **6. `rewards/margins`**
-
- 
 
 - **含义：**
 
@@ -1220,8 +1181,6 @@ loss = -log( 2.718 / 3.086 ) = -log(0.880) ≈ 0.127
     ```
     rewards/margins = rewards/chosen - rewards/rejected  
     ```
-
- 
 
 - **重要性：**
   - **区分能力：** 差距越大，模型对两种回复的区分度越高。
@@ -1243,8 +1202,6 @@ loss = -log( 2.718 / 3.086 ) = -log(0.880) ≈ 0.127
 
 #### **8. `logits/chosen` 和 `logits/rejected`**
 
- 
-
 - **含义：**
   - **原始输出得分**，模型在最后一层对两种回复的未归一化得分（一般是一个向量）。
 - **重要性：**
@@ -1253,8 +1210,6 @@ loss = -log( 2.718 / 3.086 ) = -log(0.880) ≈ 0.127
   - **数值正常：** 确保 `logits` 的数值没有异常（如 `nan` 或 `inf`）。
 
 #### **9. `epoch`**
-
- 
 
 - **含义：**
   - **训练轮次**，模型遍历整个训练数据的次数。
