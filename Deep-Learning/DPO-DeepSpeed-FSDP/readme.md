@@ -271,8 +271,15 @@ trainer.save_model(output_dir)
 Launch training 
 
 ```
-# deepspeed fsdp+QLoRA_deepspeed.py
+(dpo) root@h1002gpu:~# deepspeed fsdp+QLoRA_deepspeed.py
 ```
+
+```
+{'loss': 0.6914, 'grad_norm': 3.3615094645372428, 'learning_rate': 8.888888888888888e-06, 'rewards/chosen': 0.0, 'rewards/rejected': 0.0, 'rewards/accuracies': 0.0, 'rewards/margins': 0.0, 'logps/chosen': -536.0, 'logps/rejected': -532.0, 'logits/chosen': 0.1, 'logits/rejected': 0.0, 'epoch': 0.0}
+ 20%|████████████████████████████▊   
+```
+
+
 
 ## Accelerate FSDP training
 
