@@ -4,6 +4,28 @@ The Phi-4 model has **14 billion (14B) parameters**, which makes it quite memory
 
 Let's examine the **VRAM consumption** and **performance** during inference after quantizing to **4-bit**.
 
+Quantization Code：
+
+```
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
+model_name = "microsoft/phi4"
+model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.bfloat16)
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+```
+
+```
+from auto_round import AutoRound
+
+bits, group_size, sym = 4, 128, True
+autoround = AutoRound(model, tokenizer, nsamples=128, iters=256, low_gpu_mem_usage=False, gradient_accumulate_steps=1, batch_size=8, bits=bits, group_size=group_size, sym=sym)
+
+autoround.quantize()
+output_dir = "phi4-Instruct-AutoRound-GPTQ-4bit"
+autoround.save_quantized(output_dir, format='auto_gptq', inplace=True)
+```
+
 For the quantized version, I wrote a **vLLM inference program**. The inference speed is very fast, it occupies **11GB of VRAM**, and the inference results are very accurate. This way, we can run Phi-4 on consumer-grade graphics cards.
 
 ***Please click below pictures to see my demo vedios on Yutube***:
