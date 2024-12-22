@@ -185,37 +185,27 @@ Tokens per second: 260.01 tokens/sec
 
 ## Phi-4 Model Architecture
 
- 
-
 #### Transformer-Based Decoder Architecture
 
- 
+
 Phi-4 adopts a Transformer-based **decoder-only** architecture, similar to the GPT series models. This architecture utilizes the **self-attention mechanism**, effectively capturing long-term dependencies in text sequences and excelling at natural language generation tasks.
 
 #### Parameter Scale and Number of Layers
-
- 
 
 - **Total Parameters**: 14 billion (14B) parameters.
 - **Number of Layers**: 40 layers.
 
 #### Context Length
 
- 
-
 - **Initial Context Length**: 4,096 tokens.
 - **Mid-training Expansion**: During the mid-training phase, Phi-4's context length was expanded to **16,000 tokens (16K)**, enhancing the model's ability to handle long texts.
 
 #### Vocabulary and Tokenizer
 
- 
-
 - **Tokenizer**: Utilizes OpenAI's `tiktoken` tokenizer, which supports multiple languages and provides better tokenization performance.
 - **Vocabulary Size**: 100,352 tokens, including some reserved and unused tokens.
 
-------
 
- 
 
 ### Attention Mechanism and Positional Encoding
 
@@ -223,7 +213,7 @@ Phi-4 adopts a Transformer-based **decoder-only** architecture, similar to the G
 
 #### 1. Full Attention Mechanism
 
- 
+
 Phi-4 employs a **full attention mechanism**, performing self-attention calculations over the entire context sequence. Unlike previous models, where Phi-3-medium used a sliding window of 2,048 tokens, Phi-4 directly performs global attention over contexts of 4,096 tokens (initially) and 16,000 tokens (after expansion), improving the model's ability to capture long-range dependencies.
 
 #### 2. Rotary Positional Embeddings (RoPE)
@@ -234,55 +224,44 @@ To support longer context lengths, Phi-4 adjusted the base frequency of **Rotary
 - **Base Frequency Adjustment**: Increased RoPE's base frequency to **250,000** to accommodate a context length of 16K tokens.
 - **Purpose**: RoPE helps maintain the effectiveness of positional encoding in long sequences, allowing the model to perform well over extended texts.
 
-------
+
 
  
 
-## IV. Training Strategies and Methods
+## Training Strategies and Methods
 
  
 
-### 1. Focus on Data Quality
+### Focus on Data Quality
 
  
 Phi-4's training strategy centers on **data quality**. Unlike other models that primarily use organic web data (e.g., web content, code) for pre-training, Phi-4 strategically introduces **synthetic data** throughout its training process.
 
-### 2. Generation and Application of Synthetic Data
+### Generation and Application of Synthetic Data
 
  
 **Synthetic data** plays a crucial role in Phi-4's pre-training and mid-training phases:
 
-- Diverse Data Generation Techniques
-
-  :
-
+- Diverse Data Generation Techniques:
   - **Multi-Agent Prompting**: Utilizing multiple language models or agents to collaboratively generate data, enriching data diversity.
   - **Self-Revision Workflows**: The model generates initial outputs, then performs self-evaluation and revision, iteratively improving output quality.
   - **Instruction Reversal**: Generating corresponding input instructions from existing outputs, enhancing the model's instruction understanding and generation capabilities.
-
-- Advantages of Synthetic Data
-
-  :
-
+- Advantages of Synthetic Data:
   - **Structured and Progressive Learning**: Synthetic data allows precise control over difficulty and content, gradually guiding the model to learn complex reasoning and problem-solving skills.
   - **Improved Training Efficiency**: Synthetic data generation can target the model's weak points, providing specific training data.
   - **Avoiding Data Contamination**: Since synthetic data is generated, it reduces the risk of training data containing content from evaluation sets.
 
-### 3. Fine-Grained Selection and Filtering of Organic Data
+### Fine-Grained Selection and Filtering of Organic Data
 
  
 In addition to synthetic data, Phi-4 emphasizes carefully selecting and filtering high-quality **organic data** from various sources:
 
 - **Data Sources**: Includes web content, books, code repositories, academic papers, etc.
-
-- Data Filtering
-
-  :
-
+- Data Filtering:
   - **Removing Low-Quality Content**: Using automated and manual methods to filter out meaningless, incorrect, duplicate, or harmful content.
   - **Preventing Data Contamination**: Employing mixed n-gram algorithms (13-gram and 7-gram) for deduplication and decontamination, ensuring the training data doesn't contain content from evaluation sets.
 
-### 4. Data Mixing Strategy
+### Data Mixing Strategy
 
  
 Phi-4 optimizes the composition of training data with the following specific ratios:
@@ -293,27 +272,21 @@ Phi-4 optimizes the composition of training data with the following specific rat
 - **Code Data**: 20% (including public code repositories and generated synthetic code data)
 - **Targeted Acquisitions**: 10% (includes academic papers, professional books, and other high-value content)
 
-### 5. Multi-Stage Training Process
+### Multi-Stage Training Process
 
  
 
-### Pre-Training Phase
-
- 
+#### Pre-Training Phase
 
 - **Objective**: Establish the model's foundational language understanding and generation capabilities.
 - **Data Volume**: Approximately **10 trillion (10T)** tokens.
 
-Mid-Training Phase
-
- 
+**Mid-Training Phase**
 
 - **Objective**: Expand context length and enhance long-text processing capabilities.
 - **Data Volume**: **250 billion (250B)** tokens.
 
-Post-Training Phase (Fine-Tuning)
-
- 
+**Post-Training Phase (Fine-Tuning)** 
 
 - **Supervised Fine-Tuning (SFT)**: Fine-tuning with high-quality, multi-domain data to improve the model's instruction-following abilities and response quality.
 - **Direct Preference Optimization (DPO)**: Utilizing methods like **Pivotal Token Search (PTS)** to further optimize the model's outputs.
@@ -322,7 +295,7 @@ Post-Training Phase (Fine-Tuning)
 
 ## Innovative Training Techniques
 
- 
+
 
 ### Pivotal Token Search (PTS)
 
@@ -335,8 +308,6 @@ The **PTS method** is a significant innovation in Phi-4's training process:
   - **Enhanced Model Performance**: Helps the model make correct choices at critical decision points, improving overall output quality.
 
 ### Improved Direct Preference Optimization (DPO)
-
- 
 
 - **DPO Method**: Directly using preference data for optimization, making the model's outputs more aligned with human preferences.
 - Innovations:
@@ -408,8 +379,6 @@ Phi-4's development follows Microsoft's **Responsible AI principles**, focusing 
 - **Red Teaming and Automated Evaluation**: Conducted extensive red teaming tests and automated safety evaluations covering dozens of potential risk categories.
 
 ### Data Decontamination and Overfitting Prevention
-
- 
 
 - **Enhanced Data Decontamination Strategy**: Using mixed 13-gram and 7-gram algorithms to remove overlapping content between training data and evaluation benchmarks, preventing model overfitting.
 
