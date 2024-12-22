@@ -88,7 +88,100 @@ print(f"\nTotal tokens: {total_tokens}")
 print(f"Tokens per second: {tokens_per_second:.2f} tokens/sec")
 ```
 
+Inference Result:
 
+```
+INFO 12-22 10:55:31 selector.py:120] Using Flash Attention backend.
+[rank0]:[W1222 10:55:31.124628071 ProcessGroupGloo.cpp:715] Warning: Unable to resolve hostname to a (local) address. Using the loopback address as fallback. Manually set the network interface to bind to with GLOO_SOCKET_IFNAME. (function operator())
+INFO 12-22 10:55:31 model_runner.py:1092] Starting to load model kaitchup/Phi-4-AutoRound-GPTQ-4bit...
+INFO 12-22 10:55:31 gptq_marlin.py:200] Using MarlinLinearKernel for GPTQMarlinLinearMethod
+INFO 12-22 10:55:32 weight_utils.py:243] Using model weights format ['*.safetensors']
+Loading safetensors checkpoint shards:   0% Completed | 0/2 [00:00<?, ?it/s]
+Loading safetensors checkpoint shards:  50% Completed | 1/2 [00:00<00:00,  1.42it/s]
+Loading safetensors checkpoint shards: 100% Completed | 2/2 [00:01<00:00,  1.36it/s]
+Loading safetensors checkpoint shards: 100% Completed | 2/2 [00:01<00:00,  1.37it/s]
+
+INFO 12-22 10:55:34 model_runner.py:1097] Loading model weights took 8.5107 GB
+INFO 12-22 10:55:34 worker.py:241] Memory profiling takes 0.69 seconds
+INFO 12-22 10:55:34 worker.py:241] the current vLLM instance can use total_gpu_memory (79.25GiB) x gpu_memory_utilization (0.15) = 11.89GiB
+INFO 12-22 10:55:34 worker.py:241] model weights take 8.51GiB; non_torch_memory takes 0.26GiB; PyTorch activation peak memory takes 0.94GiB; the rest of the memory reserved for KV Cache is 2.18GiB.
+INFO 12-22 10:55:35 gpu_executor.py:76] # GPU blocks: 715, # CPU blocks: 1310
+INFO 12-22 10:55:35 gpu_executor.py:80] Maximum concurrency for 2048 tokens per request: 5.59x
+INFO 12-22 10:55:38 model_runner.py:1413] Capturing cudagraphs for decoding. This may lead to unexpected consequences if the model is not static. To run the model in eager mode, set 'enforce_eager=True' or use '--enforce-eager' in the CLI.
+INFO 12-22 10:55:38 model_runner.py:1417] If out-of-memory error occurs during cudagraph capture, consider decreasing `gpu_memory_utilization` or switching to eager mode. You can also reduce the `max_num_seqs` as needed to decrease memory usage.
+INFO 12-22 10:55:51 model_runner.py:1527] Graph capturing finished in 13 secs, took 0.27 GiB
+INFO 12-22 10:55:51 llm_engine.py:446] init engine (profile, create kv cache, warmup model) took 17.27 seconds
+INFO 12-22 10:55:51 chat_utils.py:333] Detected the chat template content format to be 'string'. You can set `--chat-template-content-format` to override this.
+Processed prompts: 100%|███████████████████████████████| 7/7 [00:04<00:00,  1.58it/s, est. speed input: 34.60 toks/s, output: 238.61 toks/s]
+Batch size: 7
+Total time: 4.4306 seconds
+Throughput: 1.58 requests/sec
+
+Input 1: What is the capital of France?
+Output 1: The capital of France is Paris.
+Input tokens: 7, Output tokens: 7
+
+Input 2: There are ten birds on a branch. If you shoot one, how many are left?
+Output 2: This question can be interpreted in different ways, leading to various answers:
+
+1. **Literal Interpretation**: If you shoot one bird, there are nine birds left on the branch. However, the noise from the gunshot would likely scare the remaining birds away, so realistically, there might be no birds left on the branch.
+
+2. **Figurative Interpretation**: The question might be a riddle or a play on words, suggesting that the act of shooting could cause all the birds to fly away due to the disturbance, leaving zero birds on the branch.
+
+Ultimately, the answer depends on the context and the intended interpretation of the question.
+Input tokens: 18, Output tokens: 128
+
+Input 3: Why haven't penguins been eaten by polar bears?
+Output 3: Penguins and polar bears inhabit different ecosystems, which is the primary reason they don't encounter each other in the wild. Polar bears are native to the Arctic region, where they live on sea ice and hunt for seals. Penguins, on the other hand, are primarily found in the Southern Hemisphere, with the majority living in Antarctica and surrounding areas. The geographical separation between the Arctic and Antarctic regions, divided by the vast expanse of the equator, prevents these two species from coming into contact with each other in their natural habitats.
+
+Additionally, even if they were to encounter each other, polar bears are adapted to hunting in icy, Arctic conditions, while penguins are adapted to the colder, but different, conditions of the Antarctic. The differences in their environments, hunting techniques, and prey preferences further reduce the likelihood of such interactions.
+
+In summary, the primary reason penguins haven't been eaten by polar bears is the vast geographical distance and ecological separation between their respective habitats.
+Input tokens: 11, Output tokens: 194
+
+Input 4: Tell me a funny joke.
+Output 4: Sure! Here's a classic one:
+
+Why don't scientists trust atoms?
+
+Because they make up everything! 😄
+Input tokens: 6, Output tokens: 23
+
+Input 5: 树枝上有十只鸟。如果射杀一只，还剩几只?
+Output 5: 这是一个经典的谜题，旨在考验逻辑思维。如果你射杀一只鸟，那么剩下的鸟会因为惊吓而飞走。因此，树枝上可能不会剩下任何鸟。这个问题的答案通常是“零”，因为其他鸟会飞走。
+Input tokens: 27, Output tokens: 104
+
+Input 6: 为什么企鹅没有被北极熊吃掉？?
+Output 6: 企鹅和北极熊都生活在极地地区，但它们的生活环境有很大的不同，这使得企鹅不太可能被北极熊捕食。以下是一些原因：
+
+1. **栖息地分离**：企鹅主要生活在南极洲及其周边海域，而北极熊则生活在北极地区。这两种动物的栖息地相隔遥远，自然不会有直接的接触。
+
+2. **生态位差异**：企鹅和北极熊在生态系统中扮演不同的角色。企鹅主要是海洋生物，以鱼类和海洋无脊椎动物为食，而北极熊是陆地和海洋的捕食者，以 海豹和鱼类为主食。
+
+3. **捕食者适应性**：北极熊适应于北极的寒冷环境，它们的捕猎技巧和体型更适合捕捉海豹和其他北极动物，而不是企鹅。
+
+4. **行为和生活习性**：企鹅的行为和生活习性使它们在南极洲的海洋环境中生存良好，而北极熊则更适应于北极的陆地和海冰环境。
+
+总的来说，由于地理位置的隔离和生态位的不同，企鹅和北极熊之间没有直接的捕食关系。
+Input tokens: 23, Output tokens: 461
+
+Input 7: 给我讲个有趣的笑话.
+Output 7: 当然可以！这里有一个经典的笑话：
+
+有一天，一个人去看牙医，牙医说：“你的牙齿很糟糕，需要拔掉。”
+
+那个人说：“不，我不能拔掉我的牙齿，我要留着它们来吃东西。”
+
+牙医回答说：“那你就得用勺子来吃了！”
+
+希望这个笑话能让你开心！
+Input tokens: 12, Output tokens: 131
+
+Total tokens: 1152
+Tokens per second: 260.01 tokens/sec
+```
+
+![image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Phi4/images/1.png)
 
 ## Phi-4 Model Architecture
 
