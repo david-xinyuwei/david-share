@@ -459,3 +459,7 @@ Phi-4's success demonstrates the importance of data quality and training strateg
 - **Safety and Responsibility**: Strict adherence to Responsible AI principles ensures the model's safety and ethics.
 
   Phi-4 sets a new benchmark for small-parameter models, proving that by focusing on data quality and training strategies, it is possible to achieve exceptional performance even at a smaller scale.
+
+
+
+#### **Refer to：***https://kaitchup.substack.com/p/phi-4-whats-new-and-how-to-fine-tune*
