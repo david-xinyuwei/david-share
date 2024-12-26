@@ -1,6 +1,6 @@
 # Microsoft Computer Vision Test
 
-I have developed a Python program that runs on Windows and utilizes Azure Computer Vision (Azure CV) .
+I have developed 2 Python programs that runs on Windows and utilizes Azure Computer Vision (Azure CV) .
 
 - Perform object recognition on images selected by the user. After the recognition is complete, the user can choose the objects they wish to retain (one or more). The selected objects are then cropped and saved locally.
 - Do background remove based on the images and the object user select.
