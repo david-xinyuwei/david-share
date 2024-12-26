@@ -1,10 +1,13 @@
 # Microsoft Computer Vision Test
 
-I have developed a Python program that runs on Windows and utilizes Azure Computer Vision (Azure CV) to perform object recognition on images selected by the user. After the recognition is complete, the user can choose the objects they wish to retain (one or more). The selected objects are then cropped and saved locally.
+I have developed a Python program that runs on Windows and utilizes Azure Computer Vision (Azure CV) .
+
+- Perform object recognition on images selected by the user. After the recognition is complete, the user can choose the objects they wish to retain (one or more). The selected objects are then cropped and saved locally.
+- Do background remove based on the images and the object user select.
 
 
 
-**Object detection and image segmentation**
+**Object detection and image segmentation**：
 
 ***Please click below pictures to see my demo vedio on Yutube***:
 [![CV-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/edjB-PDapN8)
@@ -223,6 +226,8 @@ if __name__ == "__main__":
     create_gui()  
 ```
 
+![imgaes](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Computer-Vision/images/3.png)
+
 ## Code for Object recognition and background remove
 
 On GPU VM：
@@ -432,3 +437,6 @@ display(upload_button)
 upload_button.observe(on_file_upload, names='value')  
 ```
 
+![imgaes](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Computer-Vision/images/2.png)
+
+![imgaes](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Computer-Vision/images/1.png)
