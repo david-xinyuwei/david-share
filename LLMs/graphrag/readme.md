@@ -401,11 +401,125 @@ Finally we'll run the pipeline!
 graphrag index --root ./ragtest
 ```
 
+I write a script to check the parquet file:
+
+```
+(gg3) root@davidgpt:~/ragtest/output# cat inspect_parquet2.py
+import pyarrow.parquet as pq
+import pandas as pd
+
+def inspect_parquet_file(parquet_file_path):
+    print(f"正在检查文件：{parquet_file_path}\n")
+
+    # 使用 PyArrow 读取 Parquet 文件的模式
+    try:
+        parquet_file = pq.ParquetFile(parquet_file_path)
+        schema = parquet_file.schema
+        print("Parquet 文件的模式：")
+        print(schema)
+        print("\n")
+    except Exception as e:
+        print(f"读取 Parquet 文件模式时出错：{e}")
+        return
+
+    # 使用 Pandas 加载 Parquet 文件并打印列名
+    try:
+        df = pd.read_parquet(parquet_file_path)
+        print("数据框的列名：")
+        print(df.columns.tolist())
+        print("\n")
+
+        # 设置 Pandas 显示选项，确保完整显示所有数据
+        pd.set_option('display.max_columns', None)       # 显示所有列
+        pd.set_option('display.max_colwidth', None)      # 列内容不截断
+        pd.set_option('display.width', 1000)             # 设置显示的总宽度为1000
+
+        # 选择指定的列
+        selected_columns = ['id', 'human_readable_id', 'source', 'target', 'description', 'weight', 'combined_degree', 'text_unit_ids']
+        df_selected = df[selected_columns]
+
+        # 显示前十五行数据
+        print("前十五行数据：")
+        print(df_selected.head(15))
+
+        # 将选定的字段保存为新的 Parquet 文件（可选）
+        output_parquet = '/root/ragtest/output/selected_columns.parquet'
+        df_selected.to_parquet(output_parquet, index=False)
+        print(f"\n选定的字段已保存到 {output_parquet}")
+
+        # 将前十五行数据保存到文本文件
+        output_text = '/root/ragtest/output/output.txt'
+        with open(output_text, 'w', encoding='utf-8') as f:
+            f.write(df_selected.head(15).to_string(index=False))
+        print(f"\n前十五行数据已保存到 {output_text}")
+
+    except Exception as e:
+        print(f"读取 Parquet 文件数据时出错：{e}")
+
+if __name__ == "__main__":
+    # 修改为您的 Parquet 文件路径
+    parquet_file_path = '/root/ragtest/output/create_final_relationships.parquet'
+
+    inspect_parquet_file(parquet_file_path)
+(gg3) root@davidgpt:~/ragtest/output#
+(gg3) root@davidgpt:~/ragtest/output# python inspect_parquet2.py
+正在检查文件：/root/ragtest/output/create_final_relationships.parquet
+
+Parquet 文件的模式：
+<pyarrow._parquet.ParquetSchema object at 0x79d1c73bf880>
+required group field_id=-1 schema {
+  optional binary field_id=-1 id (String);
+  optional int64 field_id=-1 human_readable_id;
+  optional binary field_id=-1 source (String);
+  optional binary field_id=-1 target (String);
+  optional binary field_id=-1 description (String);
+  optional double field_id=-1 weight;
+  optional int64 field_id=-1 combined_degree;
+  optional group field_id=-1 text_unit_ids (List) {
+    repeated group field_id=-1 list {
+      optional binary field_id=-1 element (String);
+    }
+  }
+}
+
+
+
+数据框的列名：
+['id', 'human_readable_id', 'source', 'target', 'description', 'weight', 'combined_degree', 'text_unit_ids']
+
+
+前十五行数据：
+                                      id  human_readable_id source target         description  weight  combined_degree
+                                                         text_unit_ids
+0   b8294119-a80d-400d-8a82-02151e970d00                  0    罗贯中   三国演义       罗贯中是《三国演义》的作者    10.0                7  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
+1   aab04773-c063-4922-a886-7e76279c76b8                  1     东汉   黄巾起义         黄巾起义发生在东汉末年     9.0               43  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
+2   71d42882-800a-4b3b-9a5b-dea030cac458                  2     东汉      魏  魏是东汉末年分裂后形成的政治军事集团     8.0               39  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
+3   ea998eb7-5eb5-47a7-9737-02e782e43f2a                  3     东汉      蜀  蜀是东汉末年分裂后形成的政治军事集团     8.0               53  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
+4   9a966936-5bad-4d1f-a85a-89c39d1bf3f8                  4     东汉      吴  吴是东汉末年分裂后形成的政治军事集团     8.0               31  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
+5   5a807ad7-c432-4399-a737-89f42da1c764                  5     东汉     洛阳            洛阳是东汉的都城     7.0               61  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
+6   d1c28321-b588-4ed9-9d27-eb4b724021fc                  6     东汉     桓帝          桓帝是东汉末年的皇帝     7.0               24  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
+7   c6a4f7b8-5a8d-4819-951c-aab5eaa24aec                  7     东汉     灵帝          灵帝是东汉末年的皇帝     7.0               34  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
+8   1c1e381b-dc4e-4803-844d-5c07102adb03                  8     东汉     窦武         窦武是东汉末年的大将军     6.0               24  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
+9   ba730216-ed35-435c-bdd3-5d15ec098813                  9     东汉     陈蕃          陈蕃是东汉末年的太傅     6.0               24  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
+10  8cb073ee-5e07-4bbc-bf2e-dd506ddff65b                 10     东汉     曹节          曹节是东汉末年的宦官     6.0               27  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
+11  1998adde-6bc1-4285-9dc2-be7e9c340a52                 11     东汉     献帝        献帝是东汉的最后一位皇帝     8.0               46  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
+12  155214fd-5c1f-4db7-bd60-6906de5fd265                 12     东汉    光武帝         光武帝是东汉的开国皇帝     8.0               22  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
+13  95a5c7d3-15e1-4fc0-8516-bc8bcfb46d7b                 13     东汉     建宁          建宁是东汉的一个年号     7.0               24  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
+14  e0620b66-5a10-4193-a099-c06f380719de                 14     东汉   洛阳地震      洛阳地震是东汉末年的一场灾害     6.0               22  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
+
+选定的字段已保存到 /root/ragtest/output/selected_columns.parquet
+
+前十五行数据已保存到 /root/ragtest/output/output.txt
+```
+
+
+
+
+
 Next, we can perform global and local search.
 
 ```\
 graphrag query \ --root ./ragtest \ --method global \ --query "What are the top themes in this story?"
-
 graphrag query \ --root ./ragtest \ --method local \ --query "Who is Scrooge and what are his main relationships?"
 ```
 
