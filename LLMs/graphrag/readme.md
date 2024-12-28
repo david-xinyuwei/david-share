@@ -27,11 +27,14 @@ Global Query：
 
 ##### Processing Flow:
 
+![image](https://github.com/davidsajare/david-share/blob/master/LLMs/graphrag/images/12.png)
+
 The user query and conversation history are divided into multiple batches (Shuffled Community Report Batch 1, 2, ..., N).
 Each batch generates an intermediate response (Rated Intermediate Response 1, 2, ..., N).
 These intermediate responses are ranked and filtered (Ranking + Filtering).
 The final intermediate responses are aggregated (Aggregated Intermediate Responses).
 The final response is returned (Response).
+
 - Characteristics:
 
 Global search involves processing multiple batches, with each batch independently generating an intermediate response.
