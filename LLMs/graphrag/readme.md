@@ -401,7 +401,94 @@ Finally we'll run the pipeline!
 graphrag index --root ./ragtest
 ```
 
-I write a script to check the parquet file:
+I write a script to check the parquet file.
+
+inspect_parquet.py:
+
+```
+(gg3) root@davidgpt:~/ragtest/output# cat inspect_parquet.py
+import pyarrow.parquet as pq
+import pandas as pd
+
+def inspect_parquet_file(parquet_file_path):
+    print(f"正在检查文件：{parquet_file_path}\n")
+
+    # 使用 PyArrow 读取 Parquet 文件的模式
+    try:
+        parquet_file = pq.ParquetFile(parquet_file_path)
+        schema = parquet_file.schema
+        print("Parquet 文件的模式：")
+        print(schema)
+        print("\n")
+    except Exception as e:
+        print(f"读取 Parquet 文件模式时出错：{e}")
+        return
+
+    # 使用 Pandas 加载 Parquet 文件并打印列名
+    try:
+        df = pd.read_parquet(parquet_file_path)
+        print("数据框的列名：")
+        print(df.columns.tolist())
+        print("\n")
+
+        # 显示前几行数据
+        print("前十五行数据：")
+        print(df.head(15))
+    except Exception as e:
+        print(f"读取 Parquet 文件数据时出错：{e}")
+
+if __name__ == "__main__":
+    # 修改为您的 Parquet 文件路径
+    parquet_file_path = '/root/ragtest/output/create_final_entities.parquet'
+
+    inspect_parquet_file(parquet_file_path)
+```
+
+```
+(gg3) root@davidgpt:~/ragtest/output# python inspect_parquet.py
+正在检查文件：/root/ragtest/output/create_final_entities.parquet
+
+Parquet 文件的模式：
+<pyarrow._parquet.ParquetSchema object at 0x7a74653264c0>
+required group field_id=-1 schema {
+  optional binary field_id=-1 id (String);
+  optional int64 field_id=-1 human_readable_id;
+  optional binary field_id=-1 title (String);
+  optional binary field_id=-1 type (String);
+  optional binary field_id=-1 description (String);
+  optional group field_id=-1 text_unit_ids (List) {
+    repeated group field_id=-1 list {
+      optional binary field_id=-1 element (String);
+    }
+  }
+}
+
+
+
+数据框的列名：
+['id', 'human_readable_id', 'title', 'type', 'description', 'text_unit_ids']
+
+
+前十五行数据：
+                                      id  human_readable_id title    type                                        description                                      text_unit_ids
+0   70436dce-df5a-424f-8b8a-228da7a1e20d                  0   罗贯中  PERSON                            罗贯中是《三国演义》的作者，中国古代著名小说家  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
+1   ff2459ab-b2c8-4dbe-852f-d3956d1dfd66                  1    东汉     GEO                         东汉是中国历史上的一个朝代，故事的开端发生在东汉末年  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
+2   184504a9-eba5-4dd4-9705-2793a1865056                  2    西晋     GEO  西晋是中国历史上的一个朝代，位于三国时期之后。它成功结束了三国分裂局面，通过灭亡东吴实现了全...  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
+3   47de1847-023a-446a-9b44-3592f02932f4                  3     魏     GEO  魏是三国时期的一个国家，形成于东汉末年分裂后，是当时的一个重要政治军事集团。作为三国之一，魏...  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
+4   c3de0dba-e7f1-4bf4-b095-05d06d972487                  4     蜀     GEO  蜀是三国时期的一个重要国家之一，形成于东汉末年分裂后，作为一个政治军事集团而崛起。蜀以益州为...  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
+5   e81b7816-0540-4b26-91d3-4206cb239557                  5     吴     GEO  吴是三国时期的一个重要国家，与蜀汉和曹魏并立，形成鼎足之势。它是东汉末年分裂后形成的政治军事...  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
+6   bf829f70-d751-4172-a79e-fb847fcabb4e                  6     晋     GEO                               晋是西晋的简称，最终统一了魏、蜀、吴三国  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
+7   42280ef4-411c-4b9f-a175-d06f0232ca35                  7  黄巾起义   EVENT  黄巾起义是东汉末年的一次大规模农民起义，标志着三国故事的开端。起义由张角及其兄弟张梁、张宝共...  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
+8   c961b273-2f12-415c-9a22-b457f5d4ab79                  8    陈寿  PERSON                      陈寿是《三国志》的作者，为《三国演义》的创作提供了重要素材  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
+9   761a64f7-0c4b-4ab0-8a6b-6d58b9f12276                  9   裴松之  PERSON                 裴松之是《三国志》的注释者，为《三国演义》的创作提供了丰富的背景资料  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
+10  6d0e82ed-8efd-4b33-8c29-aeae940195a3                 10    洛阳     GEO  洛阳是中国古代历史上极为重要的城市，曾多次作为都城和政治、军事中心。东汉时期，洛阳是都城，成...  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
+11  76af3287-eebf-4a5a-a45c-ac47a13dcf13                 11    桓帝  PERSON  桓帝是东汉末年的皇帝，其统治时期被认为是三国乱局的起点之一。他在位期间因无子嗣，最终迎立解渎...  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
+12  6eafd67a-50b2-49f6-8aab-0444c17e2212                 12    灵帝  PERSON  灵帝是东汉末年的一位皇帝，其统治时期因亲近小人和宦官专权而导致国家衰败，成为东汉衰落的重要原...  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
+13  28f5b5fc-629d-44be-a5df-5fcd012d14dc                 13    窦武  PERSON                           窦武是东汉末年的大将军，曾试图铲除宦官势力但失败  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
+14  7eb2c8e9-6579-48fb-8fe1-b3a67f6d87eb                 14    陈蕃  PERSON                        陈蕃是东汉末年的太傅，与窦武合作试图铲除宦官势力但失败  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
+```
+
+inspect_parquet2.py:
 
 ```
 (gg3) root@davidgpt:~/ragtest/output# cat inspect_parquet2.py
@@ -461,7 +548,10 @@ if __name__ == "__main__":
     parquet_file_path = '/root/ragtest/output/create_final_relationships.parquet'
 
     inspect_parquet_file(parquet_file_path)
-(gg3) root@davidgpt:~/ragtest/output#
+
+```
+
+```
 (gg3) root@davidgpt:~/ragtest/output# python inspect_parquet2.py
 正在检查文件：/root/ragtest/output/create_final_relationships.parquet
 
@@ -511,8 +601,6 @@ required group field_id=-1 schema {
 
 前十五行数据已保存到 /root/ragtest/output/output.txt
 ```
-
-
 
 
 
