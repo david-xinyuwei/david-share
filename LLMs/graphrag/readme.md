@@ -7,17 +7,20 @@ graphrag is a Microsoft opensource project, link:
 
 ## Result show
 The final graph generated during the test is under ***results*** directory：
-- knowledge_graph.html is a graph that is dynamic in itself 
-- knowledge_graph1.html is a static graph.
+- results/graph.graphml is a graph that  could loaded by Gephi software.
 
-Both graphs have the same data source.
+This knowledge graph was created by using the Chinese novel *Romance of the Three Kingdoms* as the foundational data.
 
 ![image](https://github.com/davidsajare/david-share/blob/master/LLMs/graphrag/images/1.png)
+
+***Please click below pictures to see my demo vedios on Yutube***:
+[![GraphRAG-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/CvCONQzhrp8)
 
 
 ## graphrag implementation logic
 Global Query：
 ![image](https://github.com/davidsajare/david-share/blob/master/LLMs/graphrag/images/5.png)
+
 ##### Input:
 - User Query
 - Conversation History
@@ -67,13 +70,42 @@ Suitable for scenarios that require detailed search and analysis of specific ent
 These two search methods have significant differences in their underlying implementation, mainly in the processing flow and data aggregation methods. Global search is more suitable for large-scale search and information aggregation, while local search is more suitable for detailed entity and relationship search.
 
 ## graphrag Search system Prompt
-The search process of GlobalSearch and LocalSearch primarily relies on a large language model (LLM) to generate answers. Below is a detailed analysis of the MAP_SYSTEM_PROMPT and how it guides the LLM in generating search results.
+The search process of GlobalSearch and LocalSearch primarily relies on a large language model (LLM) to generate answers. Below is how it guides the LLM in generating search results.
 
-![image](https://github.com/davidsajare/david-share/blob/master/LLMs/graphrag/images/9.png)
+```
+(gg3) root@davidgpt:~/ragtest/prompts# ls
+claim_extraction.txt  drift_search_system_prompt.txt  global_search_knowledge_system_prompt.txt  global_search_reduce_system_prompt.txt  question_gen_system_prompt.txt
+community_report.txt  entity_extraction.txt           global_search_map_system_prompt.txt        local_search_system_prompt.txt          summarize_descriptions.txt
+```
 
-![image](https://github.com/davidsajare/david-share/blob/master/LLMs/graphrag/images/10.png)
+![image](https://github.com/davidsajare/david-share/blob/master/LLMs/graphrag/images/11.png)
 
-The global search system uses both MAP and REDUCE prompts, while the local search system only has one prompt. This is because global search and local search differ significantly in how they process data and generate responses.
+###  graphrag Search system input and output file
+
+```
+(gg3) root@davidgpt:~/ragtest# ls -al input/
+total 1784
+drwxr-xr-x 2 root root    4096 Dec 26 12:32 .
+drwxr-xr-x 7 root root    4096 Dec 27 13:55 ..
+-rw-r--r-- 1 root root 1806411 Dec 26 12:31 book.txt
+(gg3) root@davidgpt:~/ragtest# ls -al output/
+total 10124
+drwxr-xr-x 3 root root    4096 Dec 26 14:40 .
+drwxr-xr-x 7 root root    4096 Dec 27 13:55 ..
+-rw-r--r-- 1 root root  482476 Dec 26 14:31 create_final_communities.parquet
+-rw-r--r-- 1 root root 3941374 Dec 26 14:40 create_final_community_reports.parquet
+-rw-r--r-- 1 root root 1335205 Dec 26 14:09 create_final_documents.parquet
+-rw-r--r-- 1 root root  650393 Dec 26 14:31 create_final_entities.parquet
+-rw-r--r-- 1 root root  263620 Dec 26 14:32 create_final_nodes.parquet
+-rw-r--r-- 1 root root 1126498 Dec 26 14:31 create_final_relationships.parquet
+-rw-r--r-- 1 root root 1855868 Dec 26 14:32 create_final_text_units.parquet
+-rw-r--r-- 1 root root  679181 Dec 26 14:31 graph.graphml
+drwxr-xr-x 5 root root    4096 Dec 26 14:42 lancedb
+-rw-r--r-- 1 root root    1764 Dec 26 14:42 stats.json
+```
+
+
+
 ### Global Search System
 The global search system typically needs to handle large volumes of data, which may be distributed across multiple sources or batches. To efficiently process and integrate this data, the global search system employs two stages: MAP and REDUCE.
 #### MAP Stage
@@ -123,14 +155,265 @@ Both functions return a requests.Response object.
 The main difference between global_search and local_search is the API endpoint they call: one performs a global query, and the other performs a local query.In other aspects, such as parameters, request method, and return value, the two functions are identical.
 
 ## How to fast install
-graphrag is an open source project created not long ago, in the installation process will inevitably encounter some problems is normal. If you are just starting out with this project , it is recommended to use its sub-projects, you could follow it to do One-click deployment on Azure saves a lot of time.
-https://github.com/Azure-Samples/graphrag-accelerator
+Graphrag is a rapidly developing open-source project with frequent version updates. If you want to quickly create a Proof of Concept (PoC) to understand its features, you can refer to: https://microsoft.github.io/graphrag/get_started/. With this deployment method, Parquet files won't be stored in the database but will exist on the local file system. However, in my PoC, I found that if you use AOAI GPT-4O, the query speed is also very fast. If you want to deploy Graphrag into a production environment, you need to consider high availability and storing Parquet files in a database. You can refer to: https://github.com/Azure-Samples/graphrag-accelerator.
 
 The architecture diagram is shown below:
 ![image](https://github.com/davidsajare/david-share/blob/master/LLMs/graphrag/images/2.png)
 
 
+
+### Note
+
+- **Schema Changes in Version 0.5.0**: Starting from Graphrag version 0.5.0, the schema has undergone changes due to the introduction of features like **drift search** and **community embedding**. This has resulted in differences in fields such as `name` and `title`.
+
+- **Incremental Updates**: Version 0.5.0 and above support incremental updates by maintaining consistent entity IDs. This allows for **insert-update merge operations** in the database, enabling incremental updates without the need to delete and reload data. In earlier versions, IDs were not consistent, necessitating a complete reload for updates.
+
+- **Drift Search and Global Search Performance**: Drift search was added to improve the performance of global searches by utilizing local search methods to achieve global search effects. However, both global search and drift search can consume a large number of tokens, leading to **429 errors** (Too Many Requests), especially when dealing with large graphs. This makes them inefficient for very large datasets.
+
+- **Version Stability Concerns**: The Graphrag project is evolving rapidly, and versions after **1.0** may have addressed some of the token consumption and performance issues. However, the fast pace of changes may introduce other challenges, and thorough testing is recommended.
+
+- **Parquet File Generation**: After updating the original data files, it's necessary to **rerun the processing pipeline** to regenerate the Parquet files. In some versions, the intermediary Parquet files may not be generated automatically as before.
+
+- **Localization and Prompt Tuning**: By default, Graphrag indexes content in English, even if the source material is in another language (e.g., Chinese). To have the generated relationship graphs display in the desired language, it's important to adjust the prompts in Graphrag, possibly through **command-line prompt tuning**.
+
+- **Token Consumption Issues**: Both global search and drift search consume a significant number of tokens, making them inefficient for large-scale graphs. This necessitates careful consideration when deploying Graphrag in production environments with extensive datasets.
+
+  
+
+### Simple Installation
+
+Refer to: https://microsoft.github.io/graphrag/get_started/
+
+When installing the Graphrag library, please note that its version often changes; it is now at version 1.0.
+
+```
+pip install graphrag
+```
+
+```
+(gg3) root@davidgpt:~/ragtest# pip show graphrag
+Name: graphrag
+Version: 1.0.1
+Summary: GraphRAG: A graph-based retrieval-augmented generation (RAG) system.
+Home-page:
+Author: Alonso Guevara Fernández
+Author-email: alonsog@microsoft.com
+License: MIT
+Location: /root/anaconda3/envs/gg3/lib/python3.11/site-packages
+Requires: aiofiles, azure-identity, azure-search-documents, azure-storage-blob, datashaper, devtools, environs, fnllm, future, graspologic, httpx, json-repair, lancedb, matplotlib, networkx, nltk, numpy, openai, pandas, pyaml-env, pyarrow, pydantic, python-dotenv, pyyaml, rich, tenacity, tiktoken, tqdm, typer, typing-extensions, umap-learn
+Required-by:
+```
+
+Create a directory and place text `.txt` files inside; you can include any text documents in `.txt` format, but you need to pay attention to the encoding.
+
+```
+mkdir -p ./ragtest/input
+curl https://www.gutenberg.org/cache/epub/24022/pg24022.txt -o ./ragtest/input/book.txt
+```
+
+Sometimes, Chinese documents use the GB18030 encoding, which is a commonly used encoding that supports both traditional and simplified Chinese characters. You can convert `book.txt` to UTF-8 encoding so that you don't need to specify a special encoding in your program.
+
+Use the `iconv` tool to convert the file encoding:
+
+```
+#iconv -f gb18030 -t utf-8 book.txt -o book_utf8.txt  
+```
+
+```
+
+(gg3) root@davidgpt:~/ragtest/input# cat 2.py
+encodings = ['utf-8', 'gb18030', 'gbk', 'gb2312', 'big5']
+
+for enc in encodings:
+    try:
+        with open('book.txt', 'r', encoding=enc) as f:
+            content = f.read()
+            print(f"\n使用编码 {enc} 读取成功！")
+            print("文件内容预览：")
+            print(content[:500])  # 打印前500个字符
+            break
+    except Exception as e:
+        print(f"使用编码 {enc} 读取失败：{e}")
+(gg3) root@davidgpt:~/ragtest/input#
+(gg3) root@davidgpt:~/ragtest/input# python 2.py
+
+使用编码 utf-8 读取成功！
+文件内容预览：
+《三国演义》（精校版全本）作者：罗贯中
+
+
+内容简介
+```
+
+To initialize your workspace, first run the `graphrag init` command. Since we have already configured a directory named `./ragtest` in the previous step, run the following command:
+
+```
+graphrag init --root ./ragtest
+```
+
+This will create two files: `.env` and `settings.yaml` in the `./ragtest` directory.
+
+```
+(gg3) root@davidgpt:~/ragtest# cat  .env
+GRAPHRAG_API_KEY=A***vw
+```
+
+```
+(gg3) root@davidgpt:~/ragtest# cat  settings.yaml
+### This config file contains required core defaults that must be set, along with a handful of common optional settings.
+### For a full list of available settings, see https://microsoft.github.io/graphrag/config/yaml/
+
+### LLM settings ###
+## There are a number of settings to tune the threading and token limits for LLM calls - check the docs.
+
+encoding_model: cl100k_base # this needs to be matched to your model!
+
+llm:
+  api_key: ${GRAPHRAG_API_KEY} # set this in the generated .env file
+  type: azure_openai_chat
+  model: gpt-4o
+  model_supports_json: true # recommended if this is available for your model.
+  # audience: "https://cognitiveservices.azure.com/.default"
+  api_base: https://ai-xinyuwei8714ai888427144375.cognitiveservices.azure.com/
+  api_version: '2024-08-01-preview'
+  # organization: <organization_id>
+  deployment_name: gpt-4o-1120
+
+parallelization:
+  stagger: 0.3
+  # num_threads: 50
+
+async_mode: threaded # or asyncio
+
+embeddings:
+  async_mode: threaded # or asyncio
+  vector_store:
+    type: lancedb
+    db_uri: 'output/lancedb'
+    container_name: default
+    overwrite: true
+  llm:
+    api_key: ${GRAPHRAG_API_KEY}
+    type: azure_openai_embedding
+    model: text-embedding-3-small
+    api_base: https://ai-xinyuwei8714ai888427144375.cognitiveservices.azure.com/
+    api_version: '2023-05-15'
+    # audience: "https://cognitiveservices.azure.com/.default"
+    # organization: <organization_id>
+    deployment_name: text-embedding-3-small
+
+### Input settings ###
+
+input:
+  type: file # or blob
+  file_type: text # or csv
+  base_dir: "input"
+  file_encoding: utf-8
+  file_pattern: ".*\\.txt$"
+
+chunks:
+  size: 1200
+  overlap: 100
+  group_by_columns: [id]
+
+### Storage settings ###
+## If blob storage is specified in the following four sections,
+## connection_string and container_name must be provided
+
+cache:
+  type: file # or blob
+  base_dir: "cache"
+
+reporting:
+  type: file # or console, blob
+  base_dir: "logs"
+
+storage:
+  type: file # or blob
+  base_dir: "output"
+
+## only turn this on if running `graphrag index` with custom settings
+## we normally use `graphrag update` with the defaults
+update_index_storage:
+  # type: file # or blob
+  # base_dir: "update_output"
+
+### Workflow settings ###
+
+skip_workflows: []
+
+entity_extraction:
+  prompt: "prompts/entity_extraction.txt"
+  entity_types: [organization,person,geo,event]
+  max_gleanings: 1
+
+summarize_descriptions:
+  prompt: "prompts/summarize_descriptions.txt"
+  max_length: 500
+
+claim_extraction:
+  enabled: false
+  prompt: "prompts/claim_extraction.txt"
+  description: "Any claims or facts that could be relevant to information discovery."
+  max_gleanings: 1
+
+community_reports:
+  prompt: "prompts/community_report.txt"
+  max_length: 2000
+  max_input_length: 8000
+
+cluster_graph:
+  max_cluster_size: 10
+
+embed_graph:
+  enabled: true # if true, will generate node2vec embeddings for nodes
+
+umap:
+  enabled: true # if true, will generate UMAP embeddings for nodes
+
+snapshots:
+  graphml: true
+  embeddings: false
+  transient: false
+
+### Query settings ###
+## The prompt locations are required here, but each search method has a number of optional knobs that can be tuned.
+## See the config docs: https://microsoft.github.io/graphrag/config/yaml/#query
+
+local_search:
+  prompt: "prompts/local_search_system_prompt.txt"
+
+global_search:
+  map_prompt: "prompts/global_search_map_system_prompt.txt"
+  reduce_prompt: "prompts/global_search_reduce_system_prompt.txt"
+  knowledge_prompt: "prompts/global_search_knowledge_system_prompt.txt"
+
+drift_search:
+  prompt: "prompts/drift_search_system_prompt.txt"
+```
+
+Finally we'll run the pipeline!
+
+```
+graphrag index --root ./ragtest
+```
+
+Next, we can perform global and local search.
+
+```\
+graphrag query \ --root ./ragtest \ --method global \ --query "What are the top themes in this story?"
+
+graphrag query \ --root ./ragtest \ --method local \ --query "Who is Scrooge and what are his main relationships?"
+```
+
+ Refer to the following steps to generate graph diagrams using Gephi software:
+
+https://microsoft.github.io/graphrag/visualization_guide/
+
+### graphrag-accelerator
+
 ####  Step1: follow this guide to install env on Azure.
+
 Deploy guide:
 ***https://github.com/Azure-Samples/graphrag-accelerator/blob/main/docs/DEPLOYMENT-GUIDE.md***
 
@@ -348,7 +631,7 @@ def create_graph(
 ```
 
 #### Detailed Explanation
- 
+
 - Creating Graph Object:
 out_graph: nx.Graph = _create_nx_graph(graph_type): Creates a NetworkX graph object based on the graph_type parameter, which can be a directed graph (DiGraph) or an undirected graph (Graph).
 - Adding Nodes and Edges:
@@ -365,7 +648,7 @@ output_df = pd.DataFrame([{to: graphml_string}]): Stores the generated GraphML s
 - _clean_value: Cleans attribute values.
 
 ### GraphML file generation logicSummary
- 
+
 In this code, the create_graph function generates a GraphML file using the NetworkX library. The specific steps include creating a graph object, adding nodes and edges, generating a GraphML string, and storing it in a DataFrame. The final GraphML file can be used for further graph analysis and visualization.
 
 
