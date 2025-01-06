@@ -16,6 +16,8 @@
 
 **RLHF（Reinforcement Learning from Human Feedback，基于人类反馈的强化学习）：**
 
+![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUZtF6XYK9EpTpg40XvUeRCHQFd39MdyIIIbGaFjQKZ8PDxic6faSnOGnITqdpvbznWY1Sp2aqIIcw/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+
 - **组成**：RLHF = SFT + PPO + 人类反馈
 - **过程**：在 SFT 的基础上，使用 PPO 进行强化学习，奖励信号来自**人类反馈**。
 - **评估方式**：人类对模型输出进行评价，或者使用基于人类反馈训练的**奖励模型**来评估。
@@ -26,8 +28,9 @@
 - **过程**：在 SFT 的基础上，**引入参考模型**（通常是经过 SFT 的初始模型，参数固定不更新），使用 DPO（直接偏好优化）方法，利用参考模型和人类偏好数据，直接优化模型参数。
 - **评估方式**：利用**人类偏好数据和参考模型**，构建损失函数，直接优化模型参数，使模型更倾向于生成被人类偏好的输出。
 
-
 **RLAIF（Reinforcement Learning from AI Feedback，基于 AI 反馈的强化学习）：**
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUZtF6XYK9EpTpg40XvUeRCxfjelLwiaed6DNmzrv9LKwPYwaPAqFJ0qc9ddesiaDzsU9wgaEmettJg/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
 
 - **组成**：RLAIF = SFT + PPO + AI 反馈
 - **过程**：在 SFT 的基础上，使用 PPO 进行强化学习，奖励信号来自**AI 模型的反馈**。
@@ -72,6 +75,29 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
    - **直接优化模型参数**：通过最小化该损失函数，直接调整模型参数，使其更倾向于生成被人类偏好的输出。
 
      DPO 避免了强化学习中的试错过程，训练更稳定，效率更高，适用于有大量人类偏好数据的场景。**同时，参考模型的引入有助于保持模型生成质量的稳定性，防止模型偏离预训练分布过远。**
+
+   目前AOAI也支持DPO，https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/fine-tuning?tabs=azure-openai%2Cturbo%2Cpython-new&pivots=programming-language-studio#direct-preference-optimization-dpo-preview
+
+   ```
+   {  
+     "input": {  
+       "messages": {"role": "system", "content": ...},  
+       "tools": [...],  
+       "parallel_tool_calls": true  
+     },  
+     "preferred_output": [{"role": "assistant", "content": ...}],  
+     "non_preferred_output": [{"role": "assistant", "content": ...}]  
+   }  
+   ```
+
+   Jsonal format:
+
+   ```
+   {{"input": {"messages": [{"role": "system", "content": "You are a chatbot assistant. Given a user question with multiple choice answers, provide the correct answer."}, {"role": "user", "content": "Question: Janette conducts an investigation to see which foods make her feel more fatigued. She eats one of four different foods each day at the same time for four days and then records how she feels. She asks her friend Carmen to do the same investigation to see if she gets similar results. Which would make the investigation most difficult to replicate? Answer choices: A: measuring the amount of fatigue, B: making sure the same foods are eaten, C: recording observations in the same chart, D: making sure the foods are at the same temperature"}]}, "preferred_output": [{"role": "assistant", "content": "A: Measuring The Amount Of Fatigue"}], "non_preferred_output": [{"role": "assistant", "content": "D: making sure the foods are at the same temperature"}]}
+   }
+   ```
+
+   
 
 4. **RLAIF（Reinforcement Learning from AI Feedback，基于AI反馈的强化学习）**：这是SFT、PPO和AI反馈的结合。在SFT后，使用PPO进行强化学习，然而奖励信号不是来自人类，而是来自辅助的AI模型（如奖励模型）的反馈。AI模型对主模型的输出进行评估，提供奖励信号。这样的方法节省了人类评价的成本，但依赖于辅助AI模型的质量。
 
@@ -159,7 +185,7 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
 
 #### **2. 举例说明**
 
- 
+
 **例子：自动驾驶小车**
 
 - **环境**：一个简单的二维道路网格，小车需要从起点到达终点。
@@ -203,7 +229,7 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
 
 #### **5. 总结**
 
- 
+
 在强化学习中，智能体通过不断与环境交互，根据奖励信号调整策略，目的是找到能使累积奖励最大化的最优策略。关键组件包括：
 
 - **状态空间（S）\**和\**动作空间（A）**
