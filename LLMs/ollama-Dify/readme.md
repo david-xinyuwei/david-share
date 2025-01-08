@@ -4,14 +4,18 @@ Dify is an open-source platform for developing large language model (LLM) applic
 
 Dify offers various types of tools, including first-party and custom tools. These tools can extend the capabilities of LLMs, such as web search, scientific calculations, image generation, and more. On Dify, you can create more powerful AI applications, like intelligent assistant-type applications, which can complete complex tasks through task reasoning, step decomposition, and tool invocation.
 
-Till now, Dify could not integrate with Microsoft directly via default Dify web portal. Let me show how to achieve it.
+- Dify works with Azure AI Search and AOAI to achieve RAG
+- Dify works with Azure AI Foundry.
+- Dify works with Microsoft local open source model.
 
-## Dify work AI Search Demo
+## Dify works with AI Search Demo
+
+Till now, Dify could not integrate with Microsoft directly via default Dify web portal. Let me show how to achieve it.
 
 ***Please click below pictures to see my demo video on Yutube***:
 [![dify-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/_-Y432d2VQU)
 
-## Dify work AI Search Configuration steps
+## Dify works with AI Search Configuration steps
 
 **Configure on AI search**
 
@@ -137,5 +141,5 @@ Do search:
 
 
 
-## Dify work Azure AI foundary
+## Dify work Azure AI Foundry
 
