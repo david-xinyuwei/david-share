@@ -6,7 +6,7 @@ Dify offers various types of tools, including first-party and custom tools. Thes
 
 - Dify works with Azure AI Search and AOAI to achieve RAG
 - Dify works with Azure AI Foundry.
-- Dify works with Microsoft local open source model.
+- Dify works with Microsoft open source model locally.
 
 ## Dify works with AI Search Demo
 
@@ -143,3 +143,6 @@ Do search:
 
 ## Dify work Azure AI Foundry
 
+Under working.
+
+## Dify works with Microsoft open source model locally.
