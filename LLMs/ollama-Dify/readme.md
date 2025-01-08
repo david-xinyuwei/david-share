@@ -35,13 +35,11 @@ Access dify portal via:
 
 http://a100vm.australiaeast.cloudapp.azure.com
 
-1.png
-
-
-
-
+![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/1.png)
 
  Create customer tool in Dify portal,set schema:
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/2.png)
 
 ```
 {
@@ -113,3 +111,26 @@ http://a100vm.australiaeast.cloudapp.azure.com
 }
 ```
 
+![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/3.png)
+
+Do search test:
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/4.png)
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/5.png)
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/6.png)
+
+Create a workflow on dify:
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/7.png)
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/8.png)
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/9.png)
+
+Do search:
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/10.png)
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/11.png)
