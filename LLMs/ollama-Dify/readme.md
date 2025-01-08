@@ -21,7 +21,11 @@ Till now, Dify could not integrate with Microsoft directly via default Dify web 
 
 ## Dify works with AI Search Configuration steps
 
+
+
 **Configure on AI search**
+
+
 
 Create index, make sure you could get the result from AI search index:
 
@@ -46,6 +50,8 @@ root@a100vm:~# docker ps |grep -i dify
 **Access dify portal via:**
 
 http://a100vm.australiaeast.cloudapp.azure.com
+
+
 
 
 
