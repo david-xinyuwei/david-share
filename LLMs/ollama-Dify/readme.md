@@ -21,7 +21,9 @@ Till now, Dify could not integrate with Microsoft directly via default Dify web 
 
 Create index, make sure you could get the result from AI search index:
 
-1.png
+
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/1.png)
 
 
 
@@ -35,15 +37,21 @@ root@a100vm:~# docker ps |grep -i dify
 708937964fbb   langgenius/dify-web:0.8.3          "/bin/sh ./entrypoin…"   3 months ago   Up 3 minutes             3000/tcp                                                                   docker-web-1
 ```
 
-Access dify portal via:
+
+
+**Access dify portal via:**
 
 http://a100vm.australiaeast.cloudapp.azure.com
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/1.png)
 
- Create customer tool in Dify portal,set schema:
+
+ **Create customer tool in Dify portal,set schema:**
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/2.png)
+
+
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/3.png)
 
 ```
 {
@@ -115,27 +123,45 @@ http://a100vm.australiaeast.cloudapp.azure.com
 }
 ```
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/3.png)
-
-Do search test:
+**Set AI Search AI key:**
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/4.png)
+
+
+
+**Do search test:**
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/5.png)
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/6.png)
 
-Create a workflow on dify:
+
+
+**Create a workflow on dify:**
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/7.png)
 
+
+
+**Check AI search stage:**
+
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/8.png)
+
+
+
+**Check LLM stage:**
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/9.png)
 
-Do search:
+
+
+**Run workflow:**
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/10.png)
+
+
+
+**Get workflow result:**
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/11.png)
 
