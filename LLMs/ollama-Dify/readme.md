@@ -5,8 +5,12 @@ Dify is an open-source platform for developing large language model (LLM) applic
 Dify offers various types of tools, including first-party and custom tools. These tools can extend the capabilities of LLMs, such as web search, scientific calculations, image generation, and more. On Dify, you can create more powerful AI applications, like intelligent assistant-type applications, which can complete complex tasks through task reasoning, step decomposition, and tool invocation.
 
 - Dify works with Azure AI Search and AOAI to achieve RAG
+
 - Dify works with Azure AI Foundry.
+
 - Dify works with Microsoft open source model locally.
+
+  
 
 ## Dify works with AI Search Demo
 
@@ -125,7 +129,11 @@ http://a100vm.australiaeast.cloudapp.azure.com
 }
 ```
 
+
+
 **Set AI Search AI key:**
+
+
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/4.png)
 
@@ -133,11 +141,15 @@ http://a100vm.australiaeast.cloudapp.azure.com
 
 **Do search test:**
 
+
+
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/5.png)
 
 
 
 **Input words:**
+
+
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/6.png)
 
@@ -145,11 +157,15 @@ http://a100vm.australiaeast.cloudapp.azure.com
 
 **Create a workflow on dify:**
 
+
+
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/7.png)
 
 
 
 **Check AI search stage:**
+
+
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/8.png)
 
@@ -157,17 +173,23 @@ http://a100vm.australiaeast.cloudapp.azure.com
 
 **Check LLM stage:**
 
+
+
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/9.png)
 
 
 
 **Run workflow:**
 
+
+
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/10.png)
 
 
 
 **Get workflow result:**
+
+
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/11.png)
 
