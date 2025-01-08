@@ -47,11 +47,13 @@ http://a100vm.australiaeast.cloudapp.azure.com
 
  **Create customer tool in Dify portal,set schema:**
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/2.png)
-
 
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/3.png)
+
+
+
+**schema details:**
 
 ```
 {
@@ -132,6 +134,10 @@ http://a100vm.australiaeast.cloudapp.azure.com
 **Do search test:**
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/5.png)
+
+
+
+**Input words:**
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/6.png)
 
