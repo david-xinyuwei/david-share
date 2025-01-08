@@ -23,7 +23,7 @@ Till now, Dify could not integrate with Microsoft directly via default Dify web 
 
 
 
-**Configure on AI search**
+#### **Configure on AI search**
 
 
 
@@ -47,7 +47,7 @@ root@a100vm:~# docker ps |grep -i dify
 
 
 
-**Access dify portal via:**
+#### **Access dify portal via:**
 
 http://a100vm.australiaeast.cloudapp.azure.com
 
@@ -55,7 +55,7 @@ http://a100vm.australiaeast.cloudapp.azure.com
 
 
 
- **Create customer tool in Dify portal,set schema:**
+####  **Create customer tool in Dify portal,set schema:**
 
 
 
@@ -63,7 +63,7 @@ http://a100vm.australiaeast.cloudapp.azure.com
 
 
 
-**schema details:**
+#### **schema details:**
 
 ```
 {
@@ -137,7 +137,7 @@ http://a100vm.australiaeast.cloudapp.azure.com
 
 
 
-**Set AI Search AI key:**
+#### **Set AI Search AI key:**
 
 
 
@@ -145,7 +145,7 @@ http://a100vm.australiaeast.cloudapp.azure.com
 
 
 
-**Do search test:**
+#### **Do search test:**
 
 
 
@@ -153,7 +153,7 @@ http://a100vm.australiaeast.cloudapp.azure.com
 
 
 
-**Input words:**
+#### **Input words:**
 
 
 
@@ -161,7 +161,7 @@ http://a100vm.australiaeast.cloudapp.azure.com
 
 
 
-**Create a workflow on dify:**
+#### **Create a workflow on dify:**
 
 
 
@@ -169,7 +169,7 @@ http://a100vm.australiaeast.cloudapp.azure.com
 
 
 
-**Check AI search stage:**
+#### **Check AI search stage:**
 
 
 
@@ -177,7 +177,7 @@ http://a100vm.australiaeast.cloudapp.azure.com
 
 
 
-**Check LLM stage:**
+#### **Check LLM stage:**
 
 
 
@@ -185,7 +185,7 @@ http://a100vm.australiaeast.cloudapp.azure.com
 
 
 
-**Run workflow:**
+#### **Run workflow:**
 
 
 
@@ -193,7 +193,7 @@ http://a100vm.australiaeast.cloudapp.azure.com
 
 
 
-**Get workflow result:**
+#### **Get workflow result:**
 
 
 
