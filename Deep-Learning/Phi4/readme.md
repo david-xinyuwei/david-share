@@ -9,13 +9,16 @@ Quantization Code：
 ```
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
-model_name = "microsoft/phi4"
+model_name = "microsoft/phi-4"
 model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.bfloat16)
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 
 ```
 
+![image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Phi4/images/2.png)
+
 ```
+
 from auto_round import AutoRound
 
 bits, group_size, sym = 4, 128, True
@@ -26,19 +29,35 @@ output_dir = "phi4-Instruct-AutoRound-GPTQ-4bit"
 autoround.save_quantized(output_dir, format='auto_gptq', inplace=True)
 ```
 
+quantization process output：
+
+![image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Phi4/images/4.png)
+
+![image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Phi4/images/5.png)
+
+Resource needed during quantization：
+
+![image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Phi4/images/6.png)
+
+Output directory：
+
+![image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Phi4/images/3.png)
+
 For the quantized version, I wrote a **vLLM inference program**. The inference speed is very fast, it occupies **11GB of VRAM**, and the inference results are very accurate. This way, we can run Phi-4 on consumer-grade graphics cards.
 
 ***Please click below pictures to see my demo vedios on Yutube***:
 [![Phi4-vLLM-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/PGWnwSxyrfs)
 
-Follow is my inference code:
+Follow is my inference code.
+
+Local model from HF:
 
 ```
 from vllm import LLM, SamplingParams
 import time
 
 # 定义模型
-model_name = "kaitchup/Phi-4-AutoRound-GPTQ-4bit"
+model_name = "Phi-4-AutoRound-GPTQ-4bit"
 llm = LLM(
     model=model_name,
     max_model_len=2048,
@@ -205,6 +224,86 @@ Tokens per second: 260.01 tokens/sec
 
 ![image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Phi4/images/1.png)
 
+Load model from Local:
+
+```
+from vllm import LLM, SamplingParams  
+import time  
+
+# 去除模型路径末尾的斜杠  
+model_path = "/root/phi4-Instruct-AutoRound-GPTQ-4bit"  
+
+llm = LLM(  
+    model=model_path,               # 使用本地模型的路径  
+    max_model_len=2048,  
+    gpu_memory_utilization=0.15,    # 设置 GPU 内存利用率为 15%  
+    trust_remote_code=True,         # 信任远程代码，必要时用于自定义模型和 FlashAttention  
+    hf_overrides={"local_files_only": True}  # 强制仅从本地加载模型  
+)  
+
+# 以下部分代码无需修改  
+# 定义多个提示  
+prompts = [  
+    "What is the capital of France?",  
+    "There are ten birds on a branch. If you shoot one, how many are left?",  
+    "Why haven't penguins been eaten by polar bears?",  
+    "Tell me a funny joke.",  
+    "树枝上有十只鸟。如果射杀一只，还剩几只?",  
+    "为什么企鹅没有被北极熊吃掉？",  
+    "给我讲个有趣的笑话。",  
+]  
+
+batch_size = len(prompts)  
+messages_list = [[{"role": "user", "content": prompt}] for prompt in prompts]  
+
+sampling_params = SamplingParams(temperature=0.7, top_p=0.5, max_tokens=1024)  
+
+# 统计开始时间  
+start_time = time.time()  
+
+# 批量推理  
+outputs = llm.chat(messages_list, sampling_params)  
+
+# 统计结束时间  
+end_time = time.time()  
+
+# 计算总耗时和吞吐量  
+total_time = end_time - start_time  
+throughput = batch_size / total_time  
+
+print(f"Batch size: {batch_size}")  
+print(f"Total time: {total_time:.4f} seconds")  
+print(f"Throughput: {throughput:.2f} requests/sec")  
+
+# 获取分词器  
+tokenizer = llm.get_tokenizer()  
+
+# 统计总 token 数量  
+total_tokens = 0  
+
+# 输出结果  
+for idx, output in enumerate(outputs):  
+    print(f"\nInput {idx + 1}: {prompts[idx]}")  
+    # 获取生成的文本  
+    generated_text = output.outputs[0].text  
+    print(f"Output {idx + 1}: {generated_text}")  
+
+    # 计算输入和输出的 tokens 数量  
+    input_ids = tokenizer(prompts[idx])['input_ids']  
+    output_ids = tokenizer(generated_text)['input_ids']  
+    input_tokens = len(input_ids)  
+    output_tokens = len(output_ids)  
+    total_tokens += input_tokens + output_tokens  
+    print(f"Input tokens: {input_tokens}, Output tokens: {output_tokens}")  
+
+# 计算 tokens/s  
+tokens_per_second = total_tokens / total_time  
+print(f"\nTotal tokens: {total_tokens}")  
+print(f"Tokens per second: {tokens_per_second:.2f} tokens/sec")  
+```
+
+
+
 ## Phi-4 Model Architecture
 
 #### Transformer-Based Decoder Architecture
@@ -240,7 +339,7 @@ Phi-4 employs a **full attention mechanism**, performing self-attention calculat
 
 #### 2. Rotary Positional Embeddings (RoPE)
 
- 
+
 To support longer context lengths, Phi-4 adjusted the base frequency of **Rotary Positional Embeddings (RoPE)** during the mid-training phase:
 
 - **Base Frequency Adjustment**: Increased RoPE's base frequency to **250,000** to accommodate a context length of 16K tokens.
@@ -256,12 +355,12 @@ To support longer context lengths, Phi-4 adjusted the base frequency of **Rotary
 
 ### Focus on Data Quality
 
- 
+
 Phi-4's training strategy centers on **data quality**. Unlike other models that primarily use organic web data (e.g., web content, code) for pre-training, Phi-4 strategically introduces **synthetic data** throughout its training process.
 
 ### Generation and Application of Synthetic Data
 
- 
+
 **Synthetic data** plays a crucial role in Phi-4's pre-training and mid-training phases:
 
 - Diverse Data Generation Techniques:
@@ -275,7 +374,7 @@ Phi-4's training strategy centers on **data quality**. Unlike other models that 
 
 ### Fine-Grained Selection and Filtering of Organic Data
 
- 
+
 In addition to synthetic data, Phi-4 emphasizes carefully selecting and filtering high-quality **organic data** from various sources:
 
 - **Data Sources**: Includes web content, books, code repositories, academic papers, etc.
@@ -285,7 +384,7 @@ In addition to synthetic data, Phi-4 emphasizes carefully selecting and filterin
 
 ### Data Mixing Strategy
 
- 
+
 Phi-4 optimizes the composition of training data with the following specific ratios:
 
 - **Synthetic Data**: 40%
@@ -321,7 +420,7 @@ Phi-4 optimizes the composition of training data with the following specific rat
 
 ### Pivotal Token Search (PTS)
 
- 
+
 The **PTS method** is a significant innovation in Phi-4's training process:
 
 - **Principle**: Identifying pivotal tokens that have a significant impact on the correctness of the answer during generation, and specifically optimizing the model's predictions on these tokens.
@@ -380,7 +479,7 @@ Phi-4 demonstrates leading performance on multiple public evaluation benchmarks:
 
 ### Internal Evaluation Suite (PhiBench)
 
- 
+
 To gain deeper insights into the model's capabilities and shortcomings, the team developed a dedicated internal evaluation suite, **PhiBench**:
 
 - **Diverse Tasks**: Includes code debugging, code completion, mathematical reasoning, error identification, etc.
@@ -394,7 +493,7 @@ To gain deeper insights into the model's capabilities and shortcomings, the team
 
 ### Strict Safety Alignment Strategy
 
- 
+
 Phi-4's development follows Microsoft's **Responsible AI principles**, focusing on model safety and ethics during training and fine-tuning:
 
 - **Preventing Harmful Content**: Incorporating safety fine-tuning data during the post-training phase to reduce the probability of the model generating inappropriate content.
@@ -410,7 +509,7 @@ Phi-4's development follows Microsoft's **Responsible AI principles**, focusing 
 
 ### Training Time
 
- 
+
 While the official report does not explicitly state the total training time for Phi-4, considering:
 
 - **Model Scale**: 14B parameters.
