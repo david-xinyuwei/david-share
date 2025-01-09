@@ -302,6 +302,308 @@ print(f"\nTotal tokens: {total_tokens}")
 print(f"Tokens per second: {tokens_per_second:.2f} tokens/sec")  
 ```
 
+## Phi-4 Model Fine-Tuning
+
+Full fine-tuning:
+
+```
+(phi-4) root@h1002gpuvm:~# cat /root/.cache/huggingface/accelerate/default_config.yaml
+compute_environment: LOCAL_MACHINE
+debug: false
+distributed_type: MULTI_GPU
+downcast_bf16: 'no'
+enable_cpu_affinity: true
+gpu_ids: all
+machine_rank: 0
+main_training_function: main
+mixed_precision: bf16
+num_machines: 1
+num_processes: 2
+rdzv_backend: static
+same_network: true
+tpu_env: []
+tpu_use_cluster: false
+tpu_use_sudo: false
+use_cpu: false
+```
+
+Full fine-tuning code:
+
+```
+import pandas as pd  
+from datasets import Dataset  
+from transformers import (  
+    AutoTokenizer,  
+    AutoModelForCausalLM,  
+    get_linear_schedule_with_warmup,  
+)  
+from accelerate import Accelerator  
+from sklearn.model_selection import train_test_split  
+import torch  
+import os  
+  
+# 初始化 Accelerator  
+accelerator = Accelerator(mixed_precision="bf16")  
+  
+# 检查 Accelerator 是否检测到多个 GPU  
+print(f"Number of processes: {accelerator.num_processes}")  
+print(f"Device: {accelerator.device}")  
+  
+# 检查可用的 GPU  
+print("Available GPUs:", torch.cuda.device_count())  
+for i in range(torch.cuda.device_count()):  
+    print(f"GPU {i}: {torch.cuda.get_device_name(i)}")  
+  
+# 设置模型名称  
+model_name = "microsoft/Phi-4"  
+  
+# 加载分词器  
+tokenizer = AutoTokenizer.from_pretrained(  
+    model_name,  
+    trust_remote_code=True,  
+    add_eos_token=True,  
+    use_fast=True  
+)  
+  
+# 设置填充标记  
+tokenizer.pad_token = "<|dummy_0|>"
+tokenizer.pad_token_id = 100256
+tokenizer.padding_side = 'right'
+  
+# 定义系统提示  
+system_prompt = (  
+    "<|system|>\n"  
+    "You are an expert in .NET/.NET Framework and are familiar with the functions provided by NEBULA SDK. "  
+    "You know how to use NEBULA SDK to develop application systems on the CAMP platform. "  
+    "When providing the user with results, no explanation or thought process is needed. "  
+    "Ensure the code format is correct, indentation is standard, and it can compile successfully. "  
+    "Avoid repeating the same code output. "  
+)  
+  
+# 读取 CSV 文件  
+df = pd.read_csv("/root/Phi3.5_20241031_1question.csv")  
+  
+# 删除缺失值的行  
+df = df.dropna(subset=['Question', 'Answer'])  
+  
+# 确保所有数据都是字符串类型  
+df['Question'] = df['Question'].astype(str)  
+df['Answer'] = df['Answer'].astype(str)  
+  
+# 定义格式化数据集的函数  
+def format_dataset(row):  
+    return f"{system_prompt}<|user|>\n{row['Question']}\n<|assistant|>\n{row['Answer']}{tokenizer.eos_token}\n"  
+  
+# 应用格式化函数  
+df['text'] = df.apply(format_dataset, axis=1)  
+  
+# 将处理后的 DataFrame 转换为 Dataset  
+train_df, eval_df = train_test_split(df, test_size=0.2, random_state=42)  
+  
+train_dataset = Dataset.from_pandas(train_df.reset_index(drop=True))  
+eval_dataset = Dataset.from_pandas(eval_df.reset_index(drop=True))  
+  
+# 定义数据预处理函数  
+def tokenize_function(examples):  
+    tokens = tokenizer(  
+        examples["text"],  
+        padding="max_length",  
+        truncation=True,  
+        max_length=1024,  
+    )  
+    tokens["labels"] = tokens["input_ids"].copy()  
+    # 将填充标记的标签设置为 -100，以在损失计算中忽略  
+    for i, label in enumerate(tokens["labels"]):  
+        tokens["labels"][i] = [-100 if token == tokenizer.pad_token_id else token for token in label]  
+    return tokens  
+  
+# 预处理数据集  
+train_dataset = train_dataset.map(tokenize_function, batched=True, remove_columns=train_dataset.column_names)  
+eval_dataset = eval_dataset.map(tokenize_function, batched=True, remove_columns=eval_dataset.column_names)  
+  
+# 设置为 PyTorch 张量格式  
+train_dataset.set_format(type='torch', columns=['input_ids', 'attention_mask', 'labels'])  
+eval_dataset.set_format(type='torch', columns=['input_ids', 'attention_mask', 'labels'])  
+  
+# 使用 from_pretrained 加载模型，并指定 device_map="auto"  
+model = AutoModelForCausalLM.from_pretrained(  
+    model_name,  
+    trust_remote_code=True,  
+    device_map="auto",  
+    torch_dtype=torch.bfloat16,  
+)  
+  
+# 启用梯度检查点  
+model.gradient_checkpointing_enable()  
+  
+# 验证模型参数的设备分配  
+for name, param in model.named_parameters():  
+    print(f"Parameter: {name}, Device: {param.device}")  
+  
+# 定义优化器  
+optimizer = torch.optim.AdamW(model.parameters(), lr=5e-4)  
+  
+# 使用 DataLoader  
+from torch.utils.data import DataLoader  
+  
+train_dataloader = DataLoader(train_dataset, batch_size=1, shuffle=True)  
+eval_dataloader = DataLoader(eval_dataset, batch_size=1)  
+  
+# 使用 Accelerator 准备模型、优化器和数据加载器  
+model, optimizer, train_dataloader, eval_dataloader = accelerator.prepare(  
+    model, optimizer, train_dataloader, eval_dataloader  
+)  
+  
+# 定义训练参数  
+num_train_epochs = 150  # 根据需要调整  
+gradient_accumulation_steps = 32  # 根据需要调整  
+  
+total_training_steps = (len(train_dataloader) * num_train_epochs) // gradient_accumulation_steps  
+  
+# 创建学习率调度器  
+lr_scheduler = get_linear_schedule_with_warmup(  
+    optimizer,  
+    num_warmup_steps=100,  
+    num_training_steps=total_training_steps,  
+)  
+  
+# 开始训练  
+from tqdm.auto import tqdm  
+  
+for epoch in range(num_train_epochs):  
+    model.train()  
+    total_loss = 0  
+    progress_bar = tqdm(train_dataloader, desc=f"Epoch {epoch+1}/{num_train_epochs}")  
+    for step, batch in enumerate(progress_bar):  
+        with accelerator.accumulate(model):  
+            outputs = model(**batch)  
+            loss = outputs.loss  
+            accelerator.backward(loss)  
+  
+            if (step + 1) % gradient_accumulation_steps == 0:  
+                optimizer.step()  
+                lr_scheduler.step()  
+                optimizer.zero_grad()  
+  
+            total_loss += loss.item()  
+            if (step + 1) % 10 == 0:  
+                progress_bar.set_postfix({'loss': total_loss / (step + 1)})  
+  
+    # 可选：在每个 epoch 结束时进行评估  
+    model.eval()  
+    eval_loss = 0  
+    with torch.no_grad():  
+        for batch in eval_dataloader:  
+            outputs = model(**batch)  
+            loss = outputs.loss  
+            eval_loss += loss.item()  
+    eval_loss = eval_loss / len(eval_dataloader)  
+    print(f"Evaluation loss after epoch {epoch + 1}: {eval_loss}")  
+    model.train()  
+  
+    # 在每个 epoch 结束时保存模型检查点  
+    accelerator.wait_for_everyone()  
+    unwrapped_model = accelerator.unwrap_model(model)  
+    unwrapped_model.save_pretrained(  
+        f"./Phi-4-FullFineTune-1question-22/checkpoint-epoch{epoch + 1}",  
+        save_function=accelerator.save  
+    )  
+    if accelerator.is_main_process:  
+        tokenizer.save_pretrained(f"./Phi-4-FullFineTune-1question-22/checkpoint-epoch{epoch + 1}")  
+  
+# 训练结束后保存最终模型  
+accelerator.wait_for_everyone()  
+unwrapped_model = accelerator.unwrap_model(model)  
+unwrapped_model.save_pretrained(  
+    "./Phi-4-FullFineTune-1question-22",  
+    save_function=accelerator.save  
+)  
+if accelerator.is_main_process:  
+    tokenizer.save_pretrained("./Phi-4-FullFineTune-1question-22")  
+  
+print("Training completed and model saved.")  
+```
+
+![image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Phi4/images/7.png)
+
+Resource needed during training:
+
+![image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Phi4/images/8.png)
+
+Inference code:
+
+```
+import torch  
+from transformers import AutoTokenizer, AutoModelForCausalLM  
+  
+# 设置设备  
+device = "cuda" if torch.cuda.is_available() else "cpu"  
+print("Using device:", device)  
+  
+# 微调后的模型路径  
+model_path = "/root/Phi-4-FullFineTune-1question-22/checkpoint-epoch10"  
+# 加载 tokenizer  
+tokenizer = AutoTokenizer.from_pretrained(  
+    model_path,  
+    trust_remote_code=True,  
+    use_fast=True  
+)  
+  
+# 如果您的分词器包含特殊的分词器配置，需要确保分词器的特殊标记与模型一致  
+# 如果在微调过程中添加了特殊标记，需要在这里再次添加  
+special_tokens = {'additional_special_tokens': ["<|system|>", "<|user|>", "<|assistant|>", "<|endoftext|>"]}  
+tokenizer.add_special_tokens(special_tokens)  
+  
+# 加载微调后的模型  
+model = AutoModelForCausalLM.from_pretrained(  
+    model_path,  
+    trust_remote_code=True,  
+)  
+  
+# 调整模型的嵌入层大小  
+model.resize_token_embeddings(len(tokenizer))  
+  
+# 将模型移动到设备上  
+model.to(device)  
+  
+# 设置模型为评估模式  
+model.eval()  
+  
+# 定义推理函数  
+def generate_text(prompt, max_new_tokens=300):  
+    # 将输入编码并移动到设备上  
+    inputs = tokenizer(prompt, return_tensors="pt").to(device)  
+    with torch.no_grad():  
+        outputs = model.generate(  
+            inputs.input_ids,  
+            attention_mask=inputs.attention_mask,  
+            max_new_tokens=max_new_tokens,  
+            num_return_sequences=1,  
+            do_sample=True,  
+            temperature=0.1,        # 根据需要调整采样温度  
+            top_p=0.9,              # 使用 nucleus sampling  
+            repetition_penalty=1.5, # 增加重复惩罚系数，防止重复生成  
+            eos_token_id=tokenizer.eos_token_id  # 指定结束标记  
+        )  
+    # 解码生成的文本  
+    return tokenizer.decode(outputs[0], skip_special_tokens=True)  
+```
+
+```
+# 示例使用  
+prompt = """<|system|>You are an expert in .NET/.NET Framework and are familiar with the functions provided by NEBULA SDK. You know how to use NEBULA SDK to develop application systems on the CAMP platform.When providing the user with results, no explanation or thought process is needed. Ensure the code format is correct, indentation is standard, and it can compile successfully. Avoid repeating the same code output.
+<|user|>  
+How to query the English name of a CAMP user through NEBULA SDK in a .NET Framework application?? Give me sample code.<|endoftext|>
+<|assistant|>""" + "<|endoftext|>"
+  
+generated_text = generate_text(prompt)  
+print(generated_text) 
+print("Tokenizer EOS token ID:", tokenizer.eos_token_id)  
+print("Model EOS token ID:", model.config.eos_token_id)  
+```
+
+![image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Phi4/images/11.png)
+
 
 
 ## Phi-4 Model Architecture
