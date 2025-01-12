@@ -16,13 +16,13 @@ In this test, I use Burberry's data to fine-tune Phi3-Vision comprehensively. Th
 
 Phi-3-v base model gives wrong answer based on text question "1.what is the price in 6.5? 2.What is the good?" and image.
 
-![image](https://github.com/davidsajare/Phi3-vision-Fine-tuning/blob/main/images/7.png)
+![image](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Phi3-vision-Fine-tuning/images/7.png)
 
 
 
 Phi-3.5-v base model gives wrong answer based on text question "1.what is the price in 6.5? 2.What is the good?" and image.
 
-![image](https://github.com/davidsajare/Phi3-vision-Fine-tuning/blob/main/images/8.png)
+![image](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Phi3-vision-Fine-tuning/images/8.png)
 
  
 
@@ -47,11 +47,11 @@ Training Results:
 
 We could also check training report on wandb:
 
-![image](https://github.com/davidsajare/Phi3-vision-Fine-tuning/blob/main/images/9.png)
+![image](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Phi3-vision-Fine-tuning/images/9.png)
 
-![image](https://github.com/davidsajare/Phi3-vision-Fine-tuning/blob/main/images/10.png)
+![image](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Phi3-vision-Fine-tuning/images/10.png)
 
-![image](https://github.com/davidsajare/Phi3-vision-Fine-tuning/blob/main/images/12.png)
+![image](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Phi3-vision-Fine-tuning/images/12.png)
 
 ## Inference validation
 
