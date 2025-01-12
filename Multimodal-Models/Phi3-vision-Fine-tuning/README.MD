@@ -6,7 +6,7 @@
 
 
 I have upload my jupyter file named Phi3-v.ipynb , I ran the code on Azure NC H100 GPU VM.
-![image](https://github.com/davidsajare/david-share/blob/master/LLMs/Phi3-vision-Fine-tuning/images/4.png)
+![image](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Phi3-vision-Fine-tuning/images/4.png)
 
 In this test, I use Burberry's data to fine-tune Phi3-Vision comprehensively. The goal is to enable the fine-tuned model to predict brand, description, category, and price information based on product images.
 
@@ -16,13 +16,13 @@ In this test, I use Burberry's data to fine-tune Phi3-Vision comprehensively. Th
 
 Phi-3-v base model gives wrong answer based on text question "1.what is the price in 6.5? 2.What is the good?" and image.
 
-![image](https://github.com/davidsajare/Phi3-vision-Fine-tuning/blob/main/images/7.png)
+![image](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Phi3-vision-Fine-tuning/images/7.png)
 
 
 
 Phi-3.5-v base model gives wrong answer based on text question "1.what is the price in 6.5? 2.What is the good?" and image.
 
-![image](https://github.com/davidsajare/Phi3-vision-Fine-tuning/blob/main/images/8.png)
+![image](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Phi3-vision-Fine-tuning/images/8.png)
 
  
 
