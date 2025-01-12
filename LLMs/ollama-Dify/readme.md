@@ -17,7 +17,7 @@ Dify offers various types of tools, including first-party and custom tools. Thes
 Till now, Dify could not integrate with Microsoft directly via default Dify web portal. Let me show how to achieve it.
 
 ***Please click below pictures to see my demo video on Yutube***:
-[![dify-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/_-Y432d2VQU)
+[![dify-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://www.youtube.com/watch?v=20GjS6AtjTo)
 
 ## Dify works with AI Search Configuration steps
 
