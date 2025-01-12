@@ -6,11 +6,28 @@
 
 
 I have upload my jupyter file named Phi3-v.ipynb , I ran the code on Azure NC H100 GPU VM.
-![image](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Phi3-vision-Fine-tuning/images/4.png)
+![image](https://github.com/davidsajare/david-share/blob/master/LLMs/Phi3-vision-Fine-tuning/images/4.png)
 
 In this test, I use Burberry's data to fine-tune Phi3-Vision comprehensively. The goal is to enable the fine-tuned model to predict brand, description, category, and price information based on product images.
 
+
+
+## Base Model capability before SFT
+
+Phi-3-v base model gives wrong answer based on text question "1.what is the price in 6.5? 2.What is the good?" and image.
+
+![image](https://github.com/davidsajare/Phi3-vision-Fine-tuning/blob/main/images/7.png)
+
+
+
+Phi-3.5-v base model gives wrong answer based on text question "1.what is the price in 6.5? 2.What is the good?" and image.
+
+![image](https://github.com/davidsajare/Phi3-vision-Fine-tuning/blob/main/images/8.png)
+
+ 
+
 ## Training Steps
+
 Original training data URL:
 
 https://huggingface.co/datasets/DBQ/Burberry.Product.prices.United.States
@@ -27,6 +44,14 @@ Here is a sample image from the images directory:
 Training Results:
 ![image](https://github.com/davidsajare/Phi3-vision-Fine-tuning/blob/main/images/5.png)
 ![image](https://github.com/davidsajare/Phi3-vision-Fine-tuning/blob/main/images/6.png)
+
+We could also check training report on wandb:
+
+![image](https://github.com/davidsajare/Phi3-vision-Fine-tuning/blob/main/images/9.png)
+
+![image](https://github.com/davidsajare/Phi3-vision-Fine-tuning/blob/main/images/10.png)
+
+![image](https://github.com/davidsajare/Phi3-vision-Fine-tuning/blob/main/images/12.png)
 
 ## Inference validation
 
