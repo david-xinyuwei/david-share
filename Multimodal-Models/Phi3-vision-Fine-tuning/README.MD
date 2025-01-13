@@ -1,11 +1,9 @@
 # Phi-3.5-vision Fine tuning
 
- I ran the code on Azure NC H100 GPU VM.
-![image](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Phi3-vision-Fine-tuning/images/4.png)
-
 In this test, I use Burberry's data to fine-tune Phi3.5-Vision comprehensively. The goal is to enable the fine-tuned model to predict brand, description, category, and price information based on product images.
 
-
+ I ran the code on Azure NC H100 GPU VM.
+![image](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Phi3-vision-Fine-tuning/images/4.png)
 
 ## Base Model capability before SFT
 
