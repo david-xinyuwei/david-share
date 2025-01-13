@@ -1,4 +1,9 @@
-# Phi-4 quantization and inference speedup
+# Phi-4 quantization Fine-Tuning and inference speedup
+
+If a model requires both quantization and fine-tuning, it is usually fine-tuned first and then quantized. There may be three possible approaches:
+
+1. Perform full fine-tuning and then quantize.
+2. Use LoRA for fine-tuning, merge the adapter, and then quantize.
 
 The Phi-4 model has **14 billion (14B) parameters**, which makes it quite memory-intensive during inference. Therefore, if we want to run it on edge devices, we need to **quantize** it. There are many quantization methods; as previously introduced, using the **Auto-Round GPTQ format** for quantization suffices.
 
