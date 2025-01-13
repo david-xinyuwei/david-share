@@ -1,14 +1,9 @@
-# Phi-3.5-vision-Fine-tuning
+# Phi-3.5-vision Fine tuning
 
-**Reference Link:**
-
-*https://wandb.ai/byyoung3/mlnews3/reports/How-to-fine-tune-Phi-3-vision-on-a-custom-dataset--Vmlldzo4MTEzMTg3*
-
-
-I have upload my jupyter file named Phi3-v.ipynb , I ran the code on Azure NC H100 GPU VM.
+ I ran the code on Azure NC H100 GPU VM.
 ![image](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Phi3-vision-Fine-tuning/images/4.png)
 
-In this test, I use Burberry's data to fine-tune Phi3-Vision comprehensively. The goal is to enable the fine-tuned model to predict brand, description, category, and price information based on product images.
+In this test, I use Burberry's data to fine-tune Phi3.5-Vision comprehensively. The goal is to enable the fine-tuned model to predict brand, description, category, and price information based on product images.
 
 
 
@@ -530,3 +525,7 @@ Do more complex test:
 ***Prompt: 1.what are the prices in 6.5， 7.5， 8? 2.What is the good?<|end|><|assistant|>\n"***  
 
 ![image](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Phi3-vision-Fine-tuning/images/13.png)
+
+**Reference Link:**
+
+*https://wandb.ai/byyoung3/mlnews3/reports/How-to-fine-tune-Phi-3-vision-on-a-custom-dataset--Vmlldzo4MTEzMTg3*
