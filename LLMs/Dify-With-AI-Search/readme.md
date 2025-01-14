@@ -29,13 +29,7 @@ Create index, make sure you could get the result from AI search index:
 
 Run dify on VM via docker:
 
-```
-root@a100vm:~# docker ps |grep -i dify
-5d6c32a94313   langgenius/dify-api:0.8.3          "/bin/bash /entrypoi…"   3 months ago   Up 3 minutes             5001/tcp                                                                   docker-worker-1
-264e477883ee   langgenius/dify-api:0.8.3          "/bin/bash /entrypoi…"   3 months ago   Up 3 minutes             5001/tcp                                                                   docker-api-1
-2eb90cd5280a   langgenius/dify-sandbox:0.2.9      "/main"                  3 months ago   Up 3 minutes (healthy)                                                                              docker-sandbox-1
-708937964fbb   langgenius/dify-web:0.8.3          "/bin/sh ./entrypoin…"   3 months ago   Up 3 minutes             3000/tcp                                                                   docker-web-1
-```
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/12.png" alt="images" style="width:80%;">  
 
 
 
