@@ -23,9 +23,7 @@ Till now, Dify could not integrate with Microsoft directly via default Dify web 
 
 Create index, make sure you could get the result from AI search index:
 
-
-
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/1.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/1.png" alt="images" style="width:80%;">  
 
 
 
@@ -45,7 +43,7 @@ Then Access dify portal via the URL of your dify container.
 
 
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/3.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/3.png" alt="images" style="width:80%;">  
 
 
 
@@ -125,17 +123,13 @@ Then Access dify portal via the URL of your dify container.
 
 #### **Set AI Search AI key:**
 
-
-
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/4.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/4.png" alt="images" style="width:80%;">  
 
 
 
 #### **Do search test:**
 
-
-
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/5.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/5.png" alt="images" style="width:80%;">  
 
 
 
@@ -143,7 +137,7 @@ Then Access dify portal via the URL of your dify container.
 
 
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/6.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/6.png" alt="images" style="width:80%;">  
 
 
 
@@ -151,7 +145,7 @@ Then Access dify portal via the URL of your dify container.
 
 
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/7.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/7.png" alt="images" style="width:80%;">  
 
 
 
@@ -159,7 +153,7 @@ Then Access dify portal via the URL of your dify container.
 
 
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/8.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/8.png" alt="images" style="width:80%;">  
 
 
 
@@ -167,26 +161,16 @@ Then Access dify portal via the URL of your dify container.
 
 
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/9.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/9.png" alt="images" style="width:80%;">  
 
 
 
 #### **Run workflow:**
 
-
-
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/10.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/10.png" alt="images" style="width:80%;">  
 
 
 
 #### **Get workflow result:**
-
-
-
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/11.png)
-
-
-
-
 
 <img src="https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/11.png" alt="images" style="width:80%;">  
