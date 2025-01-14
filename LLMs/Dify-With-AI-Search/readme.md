@@ -25,7 +25,7 @@ Create index, make sure you could get the result from AI search index:
 
 
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/1.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/1.png)
 
 
 
@@ -45,7 +45,7 @@ Then Access dify portal via the URL of your dify container.
 
 
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/3.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/3.png)
 
 
 
@@ -127,7 +127,7 @@ Then Access dify portal via the URL of your dify container.
 
 
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/4.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/4.png)
 
 
 
@@ -135,7 +135,7 @@ Then Access dify portal via the URL of your dify container.
 
 
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/5.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/5.png)
 
 
 
@@ -143,7 +143,7 @@ Then Access dify portal via the URL of your dify container.
 
 
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/6.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/6.png)
 
 
 
@@ -151,7 +151,7 @@ Then Access dify portal via the URL of your dify container.
 
 
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/7.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/7.png)
 
 
 
@@ -159,7 +159,7 @@ Then Access dify portal via the URL of your dify container.
 
 
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/8.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/8.png)
 
 
 
@@ -167,7 +167,7 @@ Then Access dify portal via the URL of your dify container.
 
 
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/9.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/9.png)
 
 
 
@@ -175,7 +175,7 @@ Then Access dify portal via the URL of your dify container.
 
 
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/10.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/10.png)
 
 
 
@@ -183,7 +183,7 @@ Then Access dify portal via the URL of your dify container.
 
 
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/ollama-Dify/images/11.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/11.png)
 
 
 
