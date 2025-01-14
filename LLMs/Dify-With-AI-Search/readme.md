@@ -186,11 +186,3 @@ Then Access dify portal via the URL of your dify container.
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/11.png)
 
 
-
-## Dify work Azure AI Foundry
-
-Under working.
-
-## Dify works with Microsoft open source model locally
-
-Under working.
