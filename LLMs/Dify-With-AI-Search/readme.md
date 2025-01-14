@@ -168,3 +168,5 @@ Then Access dify portal via the URL of your dify container.
 #### **Get workflow result:**
 
 <img src="https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/11.png" alt="images" style="width:80%;">  
+
+At this point, we can clearly see that Dify can seamlessly integrate and work together with Microsoft's AI Search and Azure OpenAI GPT-4o, achieving an end-to-end Dify RAG workflow. 
