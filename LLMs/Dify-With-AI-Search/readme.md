@@ -1,16 +1,10 @@
-# Dify work with Microsoft solution
+# Dify work with Microsoft AI Search
 
 Dify is an open-source platform for developing large language model (LLM) applications. It combines the concepts of Backend as a Service (BaaS) and LLMOps, enabling developers to quickly build production-grade generative AI applications.
 
 Dify offers various types of tools, including first-party and custom tools. These tools can extend the capabilities of LLMs, such as web search, scientific calculations, image generation, and more. On Dify, you can create more powerful AI applications, like intelligent assistant-type applications, which can complete complex tasks through task reasoning, step decomposition, and tool invocation.
 
-- Dify works with Azure AI Search and AOAI to achieve RAG
-
-- Dify works with Azure AI Foundry.
-
-- Dify works with Microsoft open source model locally.
-
-  
+In the repo, we are going to show how could Dify work with Azure AI Search and Azure OpenAI to achieve RAG
 
 ## Dify works with AI Search Demo
 
@@ -45,15 +39,7 @@ root@a100vm:~# docker ps |grep -i dify
 708937964fbb   langgenius/dify-web:0.8.3          "/bin/sh ./entrypoin…"   3 months ago   Up 3 minutes             3000/tcp                                                                   docker-web-1
 ```
 
-
-
-#### **Access dify portal via:**
-
-http://a100vm.australiaeast.cloudapp.azure.com
-
-
-
-
+Then Access dify portal via the URL of your dify container.
 
 ####  **Create customer tool in Dify portal,set schema:**
 
