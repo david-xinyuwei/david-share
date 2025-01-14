@@ -169,7 +169,7 @@ Then Access dify portal via the URL of your dify container.
 
 #### **Run workflow:**
 
-<img src="https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/10.png" alt="images" style="width:80%;">  
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/10.png" alt="images" style="width:40%;">  
 
 #### **Get workflow result:**
 
