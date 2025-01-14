@@ -37,6 +37,8 @@ root@a100vm:~# docker ps |grep -i dify
 708937964fbb   langgenius/dify-web:0.8.3          "/bin/sh ./entrypoin…"   3 months ago   Up 3 minutes             3000/tcp                                                                   docker-web-1
 ```
 
+
+
 Then Access dify portal via the URL of your dify container.
 
 ####  **Create customer tool in Dify portal,set schema:**
