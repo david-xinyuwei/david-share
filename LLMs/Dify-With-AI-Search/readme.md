@@ -189,4 +189,4 @@ Then Access dify portal via the URL of your dify container.
 
 
 
-<img src="https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/11.png" alt="images" style="width:60%;">  
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/11.png" alt="images" style="width:80%;">  
