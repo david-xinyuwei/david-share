@@ -18,6 +18,8 @@ You must login https://portal.azure.com  with your account, create a resource gr
 
 <img src="https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Computer-Vision-Workshop/images/13.png" alt="images" style="width:80%;">  
 
+You need to install python and vscode on your laptop before do following Lab.
+
 ### Text to Image
 
 Login https://oai.azure.com/ with your account, create dalle-3 deployment under AOAI instance:
