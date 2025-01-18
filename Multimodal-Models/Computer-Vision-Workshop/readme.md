@@ -26,4 +26,4 @@ Login https://oai.azure.com/ with your account, create dalle-3 deployment under 
 
 <img src="https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Computer-Vision-Workshop/images/3.png" alt="images" style="width:80%;">  
 
-<img src="https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Computer-Vision-Workshop/images/4.png" alt="images" style="width:80%;">  
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Computer-Vision-Workshop/images/4.png" alt="images" style="width:80%;"> 
