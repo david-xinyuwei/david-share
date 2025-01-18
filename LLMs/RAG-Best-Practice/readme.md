@@ -223,6 +223,7 @@ Although models like GPT-4 and GPT-3.5 are powerful, their knowledge cannot be t
 ### Engineering Practice Example
 
 
+
 **Example**: A legal assistant AI handling complex cases.
 
 **Scenario**: A user consults on a complex legal issue. The AI needs to provide advice, citing relevant legal provisions and precedents.
@@ -259,7 +260,7 @@ Although models like GPT-4 and GPT-3.5 are powerful, their knowledge cannot be t
 
 ## Comprehensive Consideration: Combining Fine-Tuned LLMs and RAG
 
- 
+
 While fine-tuning LLMs can enhance the model's reasoning ability and domain adaptability, it cannot entirely replace the role of RAG. RAG has unique advantages in handling dynamic, massive, and real-time updated knowledge. Combining fine-tuning and RAG leverages their respective strengths, enabling the model to possess strong reasoning capabilities while accessing the latest and most comprehensive external knowledge.
 
 ### Advantages of the Combination
@@ -445,10 +446,75 @@ To migrate from `text-embedding-ada-002` to `text-embedding-3-large`, you'll nee
     ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/9.png)
 
   - **Query Rewriting**: Improve recall rate and accuracy by rewriting user queries.
+  
   - **Semantic Reranker**: Use cross-encoders to re-rank candidate results, enhancing result relevance.
-
+  
   ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/8.png)
 
+***Please click below pictures to see my Query Rewriting demo video on Yutube***:
+[![Query-Rwritting-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://www.youtube.com/watch?v=uMDOpPzFfsc)
+
+In the demo above for reference, I increased the number of rewritten queries from 1 to 3, which significantly improved the accuracy of the search results. The complete answer should consist of four results. When the number of rewritten query vectors is 1, only three results can be retrieved.
+
+Sample code：
+
+```
+import requests  
+import json  
+  
+url = 'https://ai-search-eastus-xinyuwei.search.windows.net/indexes/wukong-doc1/docs/search'  
+params = {  
+    'api-version': '2024-11-01-preview'  
+}  
+  
+headers = {  
+    'Content-Type': 'application/json',  
+    'api-key': '**'  
+}  
+  
+payload = {  
+    "search": "What the hell is Black Myth Goku?",  
+    "semanticConfiguration": "wukong-doc1-semantic-configuration",  
+    "queryType": "semantic",  
+    "queryRewrites": "generative|count-5",  
+    "queryLanguage": "en-US",  
+    "debug": "queryRewrites",  
+    "top": 1  
+}  
+  
+response = requests.post(url, params=params, headers=headers, json=payload)  
+  
+print('Status Code:', response.status_code)  
+print('Response Body:', json.dumps(response.json(), indent=2, ensure_ascii=False))  
+```
+
+Output:
+
+```
+Status Code: 200
+Response Body: {
+  "@odata.context": "https://ai-search-eastus-xinyuwei.search.windows.net/indexes('wukong-doc1')/$metadata#docs(*)",
+  "@search.debug": {
+    "semantic": null,
+    "queryRewrites": {
+      "text": {
+        "inputQuery": "What the hell is Black Myth Goku?",
+        "rewrites": [
+          "Black Myth Goku game details",
+          "What is Black Myth Goku?",
+          "Explanation of Black Myth Goku",
+          "Understanding Black Myth Goku",
+          "Guide to Black Myth Goku"
+        ]
+      },
+      "vectors": []
+    }
+  },
+  "value": [
+    {
+      "@search.score": 10.368155,
+      "@search.rerankerScore": 2.3498611450195312,
+```
 
 ## Prompt Engineering
 
