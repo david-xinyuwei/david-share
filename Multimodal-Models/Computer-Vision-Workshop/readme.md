@@ -75,3 +75,13 @@ Download the package:
 Then Unzip it in you local laptop under the directory of azure_computer_vision_workshop
 
 <img src="https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Computer-Vision-Workshop/images/12.png" alt="images" style="width:80%;"> 
+
+Open jupyter files via VScode, the use local laptop python as your runtime, set CV endpoint and key in azure.env:
+
+```
+# Azure Computer Vision 4 (Florence)
+azure_cv_key = *
+azure_cv_endpoint = https://davidcv.cognitiveservices.azure.com/
+```
+
+Then you could do the Lab.
