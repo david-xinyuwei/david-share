@@ -12,9 +12,11 @@
 
 •Azure AI Vision
 
-
-
 ## Hands-on reference
+
+You must login https://portal.azure.com  with your account, create a resource group in East US, then create AOAI, computer vision service under the RG you created before:
+
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Computer-Vision-Workshop/images/13.png" alt="images" style="width:80%;">  
 
 ### Text to Image
 
@@ -60,3 +62,12 @@ Login https://ai.azure.com/ with your account.
 
 ***Refer to the code here:***
 
+*https://github.com/xinyuwei-david/david-share/tree/master/Multimodal-Models/Computer-Vision-Workshop/azure_computer_vision_workshop*
+
+Download the package:
+
+*https://www.dropbox.com/scl/fi/86pyom130xxanz4m4ouhc/fashion_samples.zip?rlkey=am2qoyixyqmkb5j9r5rfmkk9s&e=2*
+
+Then Unzip it in you local laptop under the directory of azure_computer_vision_workshop
+
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Computer-Vision-Workshop/images/12.png" alt="images" style="width:80%;"> 
