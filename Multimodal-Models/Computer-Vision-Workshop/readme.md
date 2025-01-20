@@ -68,6 +68,10 @@ Login https://ai.azure.com/ with your account.
 
 *https://github.com/xinyuwei-david/david-share/tree/master/Multimodal-Models/Computer-Vision-Workshop/azure_computer_vision_workshop*
 
+***Original repo link：***
+
+https://github.com/Azure/gen-cv/tree/main/azure_computer_vision_workshop
+
 Download the package:
 
 *https://www.dropbox.com/scl/fi/86pyom130xxanz4m4ouhc/fashion_samples.zip?rlkey=am2qoyixyqmkb5j9r5rfmkk9s&e=2*
@@ -85,3 +89,9 @@ azure_cv_endpoint = https://davidcv.cognitiveservices.azure.com/
 ```
 
 Then you could do the Lab.
+
+
+
+##### *More AI knowledge, please refer to my book:*
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/IMAGES/5.png)
