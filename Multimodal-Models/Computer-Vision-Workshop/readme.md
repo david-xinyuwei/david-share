@@ -22,7 +22,7 @@ You must login https://portal.azure.com  with your account, create a resource gr
 
 You need to install python and vscode on your laptop before do following Lab.
 
-### Text to Image
+### Lab1: Text to Image
 
 Login https://oai.azure.com/ with your account, create dalle-3 deployment under AOAI instance:
 
@@ -34,7 +34,7 @@ Login https://oai.azure.com/ with your account, create dalle-3 deployment under 
 
 <img src="https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Computer-Vision-Workshop/images/4.png" alt="images" style="width:80%;"> 
 
-### gpt-4o
+### Lab2:  gpt-4o
 
 Login https://oai.azure.com/ with your account, create 4o-2024-11-20 deployment under AOAI instance:
 
@@ -46,7 +46,7 @@ Login https://oai.azure.com/ with your account, create 4o-2024-11-20 deployment 
 
 <img src="https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Computer-Vision-Workshop/images/8.png" alt="images" style="width:80%;"> 
 
-### Phi3-vision
+### Lab3: Phi3-vision
 
 Login https://ai.azure.com/ with your account.
 
@@ -56,13 +56,13 @@ Login https://ai.azure.com/ with your account.
 
 <img src="https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Computer-Vision-Workshop/images/11.png" alt="images" style="width:80%;"> 
 
-## VLM Fine-tuning
+## Lab4: VLM Fine-tuning
 
 ***Refer to:***
 
 *https://github.com/xinyuwei-david/david-share/tree/master/Multimodal-Models/Phi3-vision-Fine-tuning*
 
-## Azure AI Vision
+## Lab5: Azure AI Vision
 
 ***Refer to the code here:***
 
