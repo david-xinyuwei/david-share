@@ -24,10 +24,10 @@ Install need package:
 #pip install torch
 ```
 
-Run  estimatememory.pyc in https://github.com/xinyuwei-david/david-share/tree/master/Deep-Learning/Estimate-Inference-Memory
+Run  estimatememory.pyc in *https://github.com/xinyuwei-david/david-share/tree/master/Deep-Learning/Estimate-Inference-Memory*
 
 ```
-(EstimatingMemoryInference) root@davidgpt:~# python  estimatememory.pyc 
+(EstimatingMemoryInference) root@davidgpt:~# python python-estimating.py 
 
 ######################################################################
 #                                                                    #
@@ -41,6 +41,8 @@ Note: Ensure that your environment has internet access to Hugging Face and that 
 Enter the model name from Hugging Face: microsoft/phi-4
 
 Loading model configuration...
+/root/anaconda3/envs/EstimatingMemoryInference/lib/python3.11/site-packages/transformers/models/auto/configuration_auto.py:1039: FutureWarning: The `use_auth_token` argument is deprecated and will be removed in v5 of Transformers. Please use `token` instead.
+  warnings.warn(
 
 --- Model Parameters ---
 Model Name: microsoft/phi-4
@@ -55,16 +57,16 @@ Number of parameters in the model (n) (in billions) (**Please enter this manuall
 Bitwidth of the model's parameters (p) (in bits) [Default 16]: 
 Sequence length (s) (**Please enter this manually**): 16384
 Batch size (b) (**Please enter this manually**) [Default 1]: 1
-Use FlashAttention? [Y/n] (Default Y): Y
-Use KV Cache? [Y/n] (Default Y): Y
+Use FlashAttention? [Y/n] (Default Y): N
+Use KV Cache? [Y/n] (Default Y): N
 
 --- Memory Consumption Results ---
 Memory consumption of the model: 29.4 GB
 Memory consumption of vanilla inference: 91.27 GB
 Memory consumption of inference with GQA: 26.26 GB
-Memory consumption of inference with FlashAttention: 5.39 GB
-Memory consumption of the KV cache (with GQA): 1.34 GB
 
-Total Memory consumption (given the selected configuration): 36.13 GB
+Total Memory consumption (given the selected configuration): 55.66 GB
 ```
+
+When I use a H100 VM to do actual inference test, the result is:
 
