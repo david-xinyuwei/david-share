@@ -26,6 +26,8 @@ Install need package:
 
 Run  estimatememory.pyc in *https://github.com/xinyuwei-david/david-share/tree/master/Deep-Learning/Estimate-Inference-Memory*
 
+Note: The result of the tool is very reply on the parameters.
+
 ```
 (EstimatingMemoryInference) root@davidgpt:~# python python-estimating.py 
 
@@ -70,3 +72,6 @@ Total Memory consumption (given the selected configuration): 55.66 GB
 
 When I use a H100 VM to do actual inference test, the result is:
 
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Estimate-Inference-Memory/images/3.png)
+
+The accuracy of the tool's calculated values was 99.7%.
