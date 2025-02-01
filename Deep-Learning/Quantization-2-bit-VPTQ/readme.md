@@ -10,9 +10,53 @@ Welcome to this comprehensive guide where we delve into the application of **VPT
 
  
 
+## VPTQ Quantization Effect Demonstration
+
+### Memory saved Evaluation
+
+In this section, I will showcase the performance of Llama-3.1-8B-Instruct running on the A100 GPU in two scenarios: before quantization using 16-bit precision and after applying VPTQ quantization. My prompt is a math problem: calculating the sum of numbers from 1 to 100. Both methods produce accurate results. After quantization, the model's memory consumption is only 17% of that of the non-quantized model. 
+
+**Code:**
+
+```
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
+# Load VPTQ-quantized model directly from HuggingFace Hub
+model = AutoModelForCausalLM.from_pretrained("VPTQ-community/Meta-Llama-3.1-8B-Instruct", device_map="auto")
+#model = AutoModelForCausalLM.from_pretrained("VPTQ-community/Meta-Llama-3.1-8B-Instruct-v8-k65536-256-woft", device_map="auto")
+
+tokenizer = AutoTokenizer.from_pretrained("VPTQ-community/Meta-Llama-3.1-8B-Instruct")
+#tokenizer = AutoTokenizer.from_pretrained("VPTQ-community/Meta-Llama-3.1-8B-Instruct-v8-k65536-256-woft")
+
+# Simple inference
+prompt = "Explain: Do not go gentle into that good night."
+output = model.generate(**tokenizer(prompt, return_tensors="pt").to(model.device))
+print(tokenizer.decode(output[0], skip_special_tokens=True))
+```
+
+**Base Model:**
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Quantization-2-bit-VPTQ/images/2.jpg)
+
+ **Quantization Model:**
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Quantization-2-bit-VPTQ/images/3.jpg)
+
+### Accuracy Evaluation
+
+
+Quantized models' performance depends on the quantization method and parameter choices. In practice, VPTQ-quantized models often maintain accuracy levels comparable to their original 16-bit counterparts in specific tasks.
+
+**Example:**
+
+In evaluations using benchmarks like **MMLU (Massive Multi-Task Language Understanding)**, VPTQ 2-bit quantized models of large sizes (e.g., 70B parameters) have demonstrated accuracy within a few percentage points of the original models.
+
+- **Original 16-bit Model Accuracy:** Approximately 51.4% on MMLU-PRO
+- **VPTQ 2-bit Model Accuracy:** Close to the original, demonstrating minimal loss in performance
+
 ## Understanding Key Concepts: Centroids, Codebooks, and Centroid Quantity
 
- 
+
 Before diving into the VPTQ quantization process, it's essential to understand several key concepts: **Centroids**, **Codebooks**, and **Centroid Quantity (k)**. To illustrate these concepts more intuitively, let's use the analogy of a fruit merchant.
 
 ### Centroids
@@ -37,7 +81,7 @@ In model quantization, the **codebook** stores all the centroids, each with a un
 
 ### Centroid Quantity (k)
 
- 
+
 **Meaning:**
 
 The centroid quantity **k** represents the number of categories into which you have divided the fruits. A larger **k** means more categories with finer distinctions (each category has similar fruits), while a smaller **k** means fewer categories with broader groupings (each category contains fruits with more differences).
@@ -53,8 +97,9 @@ In model quantization, the choice of centroid quantity **k** affects both the co
 
 ## Detailed Steps of VPTQ Quantization
 
- 
 The VPTQ quantization process can be broken down into the following primary steps:
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Quantization-2-bit-VPTQ/images/1.jpg)
 
 ### 1. Reshape and Group
 
@@ -69,7 +114,7 @@ This reshaping converts high-dimensional weight matrices into smaller vector gro
 
 ### 2. Clustering
 
- 
+
 **Operation:**
 
 Cluster the small vectors obtained from the previous step using a clustering algorithm (e.g., **k-means clustering**), grouping similar vectors together. Each cluster's central vector is called the **centroid**.
@@ -80,7 +125,7 @@ Clustering is the core step of VPTQ, determining the effectiveness of model quan
 
 ### 3. Constructing the Codebook
 
- 
+
 **Operation:**
 
 Store all the centroids and their corresponding indices in a **codebook**. During model inference, you can quickly retrieve the corresponding centroids using indices to reconstruct approximate weight values.
@@ -91,7 +136,7 @@ The model reconstructs the weights by looking up centroids from the codebook bas
 
 ### 4. Residual Vector Quantization (RVQ)
 
- 
+
 **Purpose:**
 
 **Residual Vector Quantization (RVQ)** is used to further refine the quantization process. RVQ quantizes the residual errors that remain after the initial quantization, enabling high accuracy with minimal bit overhead.
@@ -118,7 +163,7 @@ The model reconstructs the weights by looking up centroids from the codebook bas
 
 ## Understanding the Bit Calculation in VPTQ
 
- 
+
 In VPTQ quantization, it's important to understand how many bits each weight occupies after quantization. This depends on the centroid quantity **K** and vector length **v**.
 
 ### 1. Basic Calculation Method
@@ -137,7 +182,7 @@ In VPTQ quantization, it's important to understand how many bits each weight occ
 
 ### 2. Example Calculations
 
- 
+
 **Example 1:**
 
 - **Vector Length (v):** 8
@@ -192,7 +237,7 @@ By adjusting the centroid quantity **K**, residual centroid quantity **K_res**, 
 
 ### 1. Memory Savings
 
- 
+
 Using the ultra-low-bit quantization of VPTQ, we can significantly reduce a model's memory footprint. For example, compressing a 70-billion-parameter model from the original 140 GB (FP16) to approximately 26 GB (using 3-bit quantization), achieving over **80% memory savings**.
 
 **Model Size Estimation Example:**
@@ -211,24 +256,11 @@ Using the ultra-low-bit quantization of VPTQ, we can significantly reduce a mode
   Model Size = (70,000,000,000 parameters × 3 bits) / 8 bits per byte = 26.25 GB  
   ```
 
- 
 **Note:** This estimation excludes the size of the codebooks and potential overheads from storing indices.
-
-### 2. Performance Evaluation
-
-
-Quantized models' performance depends on the quantization method and parameter choices. In practice, VPTQ-quantized models often maintain accuracy levels comparable to their original 16-bit counterparts in specific tasks.
-
-**Example:**
-
-In evaluations using benchmarks like **MMLU (Massive Multi-Task Language Understanding)**, VPTQ 2-bit quantized models of large sizes (e.g., 70B parameters) have demonstrated accuracy within a few percentage points of the original models.
-
-- **Original 16-bit Model Accuracy:** Approximately 51.4% on MMLU-PRO
-- **VPTQ 2-bit Model Accuracy:** Close to the original, demonstrating minimal loss in performance
 
 ### 3. Inference Speed and Memory Consumption
 
- 
+
 **Inference Speed:**
 
 - VPTQ models may experience a slight decrease in inference speed compared to other quantization methods due to additional computations for weight reconstruction.
@@ -250,7 +282,7 @@ In VPTQ, we introduce the **Hessian** and **Inverse Hessian** matrices to assess
 
 ### 1. Role of the Hessian Matrix
 
- 
+
 **Analogy:**
 
 The Hessian matrix is like a map indicating which parameters in the model have the most significant impact on performance—similar to knowing which fruits are most valuable in our fruit merchant analogy.
@@ -271,7 +303,7 @@ The Hessian matrix is like a map indicating which parameters in the model have t
 
 ### 2. Role of the Inverse Hessian Matrix
 
- 
+
 **Analogy:**
 
 The inverse Hessian matrix acts as a tool to precisely adjust parameters when they are perturbed due to quantization errors, similar to how a fruit merchant might carefully handle valuable fruits to prevent damage.
@@ -298,7 +330,7 @@ The inverse Hessian matrix acts as a tool to precisely adjust parameters when th
 
 ### 3. Detailed Procedure
 
- 
+
 **Step 1: Compute the Hessian Matrix**
 
 - Operation:
@@ -375,7 +407,7 @@ The inverse Hessian matrix acts as a tool to precisely adjust parameters when th
 
 ### 1. Example Quantization Command
 
- 
+
 Below is an example command for performing VPTQ quantization, following the guidelines from the VPTQ GitHub repository:
 
 ```
@@ -402,7 +434,7 @@ CUDA_VISIBLE_DEVICES=0 python run_vptq.py \
     --kiter 100  
 ```
 
- 
+
 **Parameter Explanations:**
 
 - `--model_name`: Specifies the model to be quantized.
@@ -414,8 +446,6 @@ CUDA_VISIBLE_DEVICES=0 python run_vptq.py \
 - Other parameters control aspects like sequence length, block size, and whether to enable normalization or permutation.
 
 ### 2. Considerations
-
- 
 
 - Centroid Quantity Limitations:
   - Due to CUDA kernel limitations, using more than 4096 centroids can cause illegal memory access errors.
@@ -435,9 +465,13 @@ CUDA_VISIBLE_DEVICES=0 python run_vptq.py \
   - Quantized models may have slower inference speeds due to overhead in reconstructing weights.
   - Optimizations in the implementation can mitigate this issue.
 
-------
+The quantization process does not consume much GPU memory but is intensive on CUDA/Tensor cores. Quantization is performed layer by layer on the model. If multiple GPUs are available, it's best to use them; otherwise, the process will be very slow. 
 
- 
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Quantization-2-bit-VPTQ/images/4.jpg)
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Quantization-2-bit-VPTQ/images/5.jpg)
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Quantization-2-bit-VPTQ/images/6.jpg)
 
 ## Conclusion
 
