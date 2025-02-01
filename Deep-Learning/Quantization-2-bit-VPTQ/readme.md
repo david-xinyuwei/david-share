@@ -47,12 +47,43 @@ print(tokenizer.decode(output[0], skip_special_tokens=True))
 
 Quantized models' performance depends on the quantization method and parameter choices. In practice, VPTQ-quantized models often maintain accuracy levels comparable to their original 16-bit counterparts in specific tasks.
 
-**Example:**
+**Code:**
 
-In evaluations using benchmarks like **MMLU (Massive Multi-Task Language Understanding)**, VPTQ 2-bit quantized models of large sizes (e.g., 70B parameters) have demonstrated accuracy within a few percentage points of the original models.
+```
+git clone --depth 1 https://github.com/EleutherAI/lm-evaluation-harness && cd lm-evaluation-harness && pip install -e .
+```
 
-- **Original 16-bit Model Accuracy:** Approximately 51.4% on MMLU-PRO
-- **VPTQ 2-bit Model Accuracy:** Close to the original, demonstrating minimal loss in performance
+```
+models = ["VPTQ-community/Meta-Llama-3.1-8B-Instruct-v8-k65536-256-woft", # 2 bits bits
+          "meta-llama/Llama-3.1-8B-Instruct", # 1.625 bits bits
+          ]
+
+for m in models:
+    !HF_HUB_ENABLE_HF_TRANSFER=1 huggingface-cli download {m} --exclude *.pth
+```
+
+```
+for m in models:
+      !lm_eval --model hf --model_args pretrained={m},dtype=float16 --tasks mmlu --device cuda:0 --num_fewshot 0 --batch_size auto --output_path ./eval/
+```
+
+**Output Analyze**:
+
+| **Category**          | **Subcategory**           | **Quantized Model**                                          | **Non-Quantized Model**          | **Difference/Improvement** |
+| --------------------- | ------------------------- | ------------------------------------------------------------ | -------------------------------- | -------------------------- |
+| **Model Information** | Model Name                | VPTQ-community/Meta-Llama-3.1-8B-Instruct-v8-k65536-256-woft | meta-llama/Llama-3.1-8B-Instruct | -                          |
+| **Overall Accuracy**  | MMLU Overall Accuracy     | 63.88%                                                       | 68.09%                           | +4.21%                     |
+| **By Domain**         | Humanities                | 58.34%                                                       | 64.51%                           | +6.17%                     |
+|                       | STEM                      | 56.52%                                                       | 58.71%                           | +2.19%                     |
+|                       | Social Sciences           | 73.19%                                                       | 76.93%                           | +3.74%                     |
+|                       | Other                     | 70.52%                                                       | 74.28%                           | +3.76%                     |
+| **Detailed Tasks**    | Humanities (Average)      | 58.34%                                                       | 64.51%                           | +6.17%                     |
+|                       | STEM (Average)            | 56.52%                                                       | 58.71%                           | +2.19%                     |
+|                       | Social Sciences (Average) | 73.19%                                                       | 76.93%                           | +3.74%                     |
+|                       | Other (Average)           | 70.52%                                                       | 74.28%                           | +3.76%                     |
+| **Summary**           | Overall Accuracy          | Non-quantized model has 4.21% higher accuracy overall.       |                                  |                            |
+|                       | Best Improvement          | Humanities domain shows the largest improvement.             |                                  | +6.17%                     |
+|                       | Smallest Improvement      | STEM domain shows the smallest improvement.                  |                                  | +2.19%                     |
 
 ## Understanding Key Concepts: Centroids, Codebooks, and Centroid Quantity
 
