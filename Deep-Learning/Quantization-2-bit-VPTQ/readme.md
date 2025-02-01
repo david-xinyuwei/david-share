@@ -55,7 +55,7 @@ git clone --depth 1 https://github.com/EleutherAI/lm-evaluation-harness && cd lm
 
 ```
 models = ["VPTQ-community/Meta-Llama-3.1-8B-Instruct-v8-k65536-256-woft", # 2 bits bits
-          "meta-llama/Llama-3.1-8B-Instruct", # 1.625 bits bits
+          "meta-llama/Llama-3.1-8B-Instruct", # 16 bits
           ]
 
 for m in models:
