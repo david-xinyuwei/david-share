@@ -165,7 +165,6 @@ def fine_tune(model_name, batch_size=1, gradient_accumulation_steps=32, LoRA=Fal
           args=training_arguments,
   )
 
-  #--code by Unsloth: https://colab.research.google.com/drive/1Ys44kVvmeZtnICzWz0xgpRnrIOjZAuxp?usp=sharing#scrollTo=pCqnaKmlO1U9
 
   gpu_stats = torch.cuda.get_device_properties(0)
   start_gpu_memory = round(torch.cuda.max_memory_reserved() / 1024 / 1024 / 1024, 3)
