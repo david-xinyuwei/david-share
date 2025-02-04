@@ -3,7 +3,7 @@
 I tried fine-tuning Microsoft's Phi-4 model using the open-source R1 dataset. Below, I'll share my steps with everyone. 
 
 ***Please click below pictures to see my demo video on Youtube***:
-[![SLM-DS-R1-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://www.youtube.com/watch?v=el7edql4Xug)
+[![SLM-DS-R1-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/9CVKR0YcdKU)
 
 ## **Dataset Used**
 
@@ -40,7 +40,7 @@ During the fine-tuning process, I chose the **LoRA (Low-Rank Adaptation)** metho
 5. **Resource Consumption**
 
 - **GPU Memory**: Approximately 72149MiB of GPU memory is needed.
-- **Training Time**: It took about 3 hours on an H100
+- **Training Time**: It took about 4 hours on a H100
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/SLM-DeepSeek-R1/images/1.png)
 
@@ -222,13 +222,79 @@ Inference test：
 
 ```
 prompt = [{'role':'system', 'content':"You are a helpful assistant and you know a lot about rabbits. Think before answering!"},
-    {'role':'user', 'content':"假设有一个池塘，里面有无穷多的水。现有2个空水壶，容积分别为5升和6升。请问如何只用这2个水壶从池塘里取得3升的水？"}
+    {'role':'user', 'content':"Assume there is a pond with an infinite amount of water. You have two empty jugs with capacities of 5 liters and 6 liters, respectively. How can you use only these two jugs to obtain exactly 3 liters of water from the pond?"}
     ]
 
 prompt = tokenizer.apply_chat_template(prompt, tokenize=False, add_generation_prompt=True)
 input_ids = tokenizer(prompt, return_tensors="pt", truncation=True).to('cuda')
-output = model.generate(**input_ids, temperature=0.7, max_new_tokens=1024)
+output = model.generate(**input_ids, temperature=0.7, max_new_tokens=2048)
 print(tokenizer.decode(output[0], skip_special_tokens=False))
+```
+
+Result：
+
+```
+<|im_start|>system<|im_sep|>You are a helpful assistant and you know a lot about rabbits. Think before answering!<|im_end|><|im_start|>user<|im_sep|>Assume there is a pond with an infinite amount of water. You have two empty jugs with capacities of 5 liters and 6 liters, respectively. How can you use only these two jugs to obtain exactly 3 liters of water from the pond?<|im_end|><|im_start|>assistant<|im_sep|><think>Okay, so I need to figure out how to get exactly 3 liters of water using a 5-liter jug and a 6-liter jug. Hmm, this is a classic water jug problem. Let me think about the steps.
+
+First, I need to remember the rules: I can fill either jug from the pond, pour water from one jug to the other until one is full or the other is empty, and empty a jug back into the pond. So, I can't measure directly, but I can use the difference between the two jugs to get the desired amount.
+
+Let's start by filling the 6-liter jug. Then, pour from the 6-liter jug into the 5-liter jug until the 5-liter jug is full. That would leave 1 liter in the 6-liter jug. Then, empty the 5-liter jug back into the pond. Now, pour the remaining 1 liter from the 6-liter jug into the 5-liter jug. Then, fill the 6-liter jug again. Pour from the 6-liter jug into the 5-liter jug until the 5-liter jug is full. Since the 5-liter jug already has 1 liter, it can only take 4 more liters. So, after pouring 4 liters, the 6-liter jug will have 2 liters left. Then, empty the 5-liter jug again. Pour the 2 liters from the 6-liter jug into the 5-liter jug. Now, fill the 6-liter jug again. Pour from the 6-liter jug into the 5-liter jug until the 5-liter jug is full. The 5-liter jug already has 2 liters, so it can take 3 more liters. After pouring 3 liters, the 6-liter jug will have 3 liters left. So, that's how you get 3 liters in the 6-liter jug.
+
+Wait, let me check if that's correct. Let's go through the steps again:
+
+1. Fill the 6-liter jug. (6, 0)
+2. Pour from 6-liter to 5-liter until 5-liter is full. (1, 5)
+3. Empty the 5-liter jug. (1, 0)
+4. Pour the 1 liter from the 6-liter jug into the 5-liter jug. (0, 1)
+5. Fill the 6-liter jug again. (6, 1)
+6. Pour from 6-liter to 5-liter until 5-liter is full. The 5-liter jug has 1 liter, so it can take 4 more liters. (2, 5)
+7. Empty the 5-liter jug. (2, 0)
+8. Pour the 2 liters from the 6-liter jug into the 5-liter jug. (0, 2)
+9. Fill the 6-liter jug again. (6, 2)
+10. Pour from 6-liter to 5-liter until 5-liter is full. The 5-liter jug has 2 liters, so it can take 3 more liters. (3, 5)
+
+So, after step 10, the 6-liter jug has 3 liters left. That's correct. The answer is that you can get 3 liters in the 6-liter jug after these steps.
+
+Alternatively, let me see if there's another way. Maybe starting with the 5-liter jug? But that seems less straightforward. Let me try:
+
+1. Fill the 5-liter jug. (5, 0)
+2. Pour from 5-liter to 6-liter. (0, 5)
+3. Fill the 5-liter jug again. (5, 5)
+4. Pour from 5-liter to 6-liter until 6-liter is full. The 6-liter jug already has 5 liters, so it can take 1 more liter. (4, 6)
+5. Empty the 6-liter jug. (4, 0)
+6. Pour the 4 liters from the 5-liter jug into the 6-liter jug. (0, 4)
+7. Fill the 5-liter jug again. (5, 4)
+8. Pour from 5-liter to 6-liter until 6-liter is full. The 6-liter jug has 4 liters, so it can take 2 more liters. (3, 6)
+
+So, after step 8, the 5-liter jug has 3 liters left. That's another way to get 3 liters. So, there are two possible solutions: either the 5-liter jug ends up with 3 liters, or the 6-liter jug ends up with 3 liters. Both are valid.
+
+Therefore, the answer is that you can obtain exactly 3 liters of water in either the 5-liter jug or the 6-liter jug by following the steps outlined above.</think>
+
+To obtain exactly 3 liters of water using a 5-liter jug and a 6-liter jug, follow these steps:
+
+1. Fill the 6-liter jug completely. (6, 0)
+2. Pour water from the 6-liter jug into the 5-liter jug until the 5-liter jug is full. (1, 5)
+3. Empty the 5-liter jug. (1, 0)
+4. Pour the remaining 1 liter from the 6-liter jug into the 5-liter jug. (0, 1)
+5. Fill the 6-liter jug again. (6, 1)
+6. Pour water from the 6-liter jug into the 5-liter jug until the 5-liter jug is full. (2, 5)
+7. Empty the 5-liter jug. (2, 0)
+8. Pour the 2 liters from the 6-liter jug into the 5-liter jug. (0, 2)
+9. Fill the 6-liter jug again. (6, 2)
+10. Pour water from the 6-liter jug into the 5-liter jug until the 5-liter jug is full. (3, 5)
+
+After step 10, the 6-liter jug will contain exactly 3 liters of water. Alternatively, you can also end up with 3 liters in the 5-liter jug by following a different sequence:
+
+1. Fill the 5-liter jug completely. (5, 0)
+2. Pour water from the 5-liter jug into the 6-liter jug. (0, 5)
+3. Fill the 5-liter jug again. (5, 5)
+4. Pour water from the 5-liter jug into the 6-liter jug until the 6-liter jug is full. (4, 6)
+5. Empty the 6-liter jug. (4, 0)
+6. Pour the 4 liters from the 5-liter jug into the 6-liter jug. (0, 4)
+7. Fill the 5-liter jug again. (5, 4)
+8. Pour water from the 5-liter jug into the 6-liter jug until the 6-liter jug is full. (3, 6)
+
+After step 8, the 5-liter jug will contain exactly 3 liters of water.<|im_end|>
 ```
 
 
