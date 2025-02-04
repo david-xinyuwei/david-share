@@ -1,4 +1,4 @@
-# Phi-4 think as DeepSeek-R1
+# Phi-4 thinks as DeepSeek-R1
 
 I tried fine-tuning Microsoft's Phi-4 model using the open-source R1 dataset. Below, I'll share my steps with everyone. 
 
@@ -127,13 +127,7 @@ def fine_tune(model_name, batch_size=1, gradient_accumulation_steps=32, LoRA=Fal
   else:
       peft_config = None
 
-  if LoRA:
-    output_dir = "./LoRA/"
-  elif QLoRA:
-    output_dir = "./QLoRA/"
-  else:
-    output_dir = "./FFT/"
-
+  output_dir = "./LoRA/"
   training_arguments = SFTConfig(
           output_dir=output_dir,
           eval_strategy="steps",
@@ -165,31 +159,16 @@ def fine_tune(model_name, batch_size=1, gradient_accumulation_steps=32, LoRA=Fal
           args=training_arguments,
   )
 
-
-  gpu_stats = torch.cuda.get_device_properties(0)
-  start_gpu_memory = round(torch.cuda.max_memory_reserved() / 1024 / 1024 / 1024, 3)
-  max_memory = round(gpu_stats.total_memory / 1024 / 1024 / 1024, 3)
-  print(f"GPU = {gpu_stats.name}. Max memory = {max_memory} GB.")
-  print(f"{start_gpu_memory} GB of memory reserved.")
-
   trainer_ = trainer.train()
 
-
-  used_memory = round(torch.cuda.max_memory_reserved() / 1024 / 1024 / 1024, 3)
-  used_memory_for_trainer= round(used_memory - start_gpu_memory, 3)
-  used_percentage = round(used_memory         /max_memory*100, 3)
-  trainer_percentage = round(used_memory_for_trainer/max_memory*100, 3)
-  print(f"{trainer_.metrics['train_runtime']} seconds used for training.")
-  print(f"{round(trainer_.metrics['train_runtime']/60, 2)} minutes used for training.")
-  print(f"Peak reserved memory = {used_memory} GB.")
-  print(f"Peak reserved memory for training = {used_memory_for_trainer} GB.")
-  print(f"Peak reserved memory % of max memory = {used_percentage} %.")
-  print(f"Peak reserved memory for training % of max memory = {trainer_percentage} %.")
-  print("-----")
-  #----
-  
-  fine_tune("microsoft/phi-4", batch_size=16, gradient_accumulation_steps=4, LoRA=True)
 ```
+
+```
+ 
+ fine_tune("microsoft/phi-4", batch_size=16, gradient_accumulation_steps=4, LoRA=True)
+```
+
+
 
 Load Fine-tuned Model
 
@@ -325,112 +304,6 @@ So, the probability of winning by switching to door No. 2 is 1/3, and the probab
 Therefore, the answer is that there is no advantage to switching or sticking. Both options have the same probability of winning, which is 1/3.</think>
 
 In this scenario, the host's offer to switch to door No. 2 does not provide any additional information, as no doors are opened to reveal the contents behind them. Therefore, the probabilities remain the same as the initial choice. The probability of the gold bar being behind the initially chosen door (No. 1) is 1/3, and the probability of it being behind one of the other two doors (No. 2 or No. 3) is 2/3. However, since the host is offering to switch specifically to door No. 2, the probability of winning by switching to door No. 2 is 1/3, and the probability of winning by sticking with door No. 1 is also 1/3. Thus, there is no advantage to switching or sticking; both options have the same probability of winning, which is 1/3.<|im_end|>
-```
-
-**Question3 and answers3:**
-
-```
-<|im_start|>system<|im_sep|>You are a helpful assistant and you know a lot about rabbits. Think before answering!<|im_end|><|im_start|>user<|im_sep|>A group of four people needs to cross a bridge at night. The bridge is very old and rickety. They have only one torch, and because it's nighttime, the torch is necessary to cross the bridge. Each person walks at a different speed:A takes 1 minute to cross,B takes 2 minutes,C takes 5 minutes, andD takes 10 minutes.What is the fastest time they can all get across the bridge?<|im_end|><|im_start|>assistant<|im_sep|><think>Okay, so I need to figure out the fastest way for four people to cross a bridge at night with only one torch. Each person has a different crossing time: A takes 1 minute, B takes 2 minutes, C takes 5 minutes, and D takes 10 minutes. The bridge can only hold two people at a time, and they need the torch to cross. So, the torch has to be carried back and forth. Let me think about how to approach this.
-
-First, I remember that in these types of problems, the key is to minimize the time spent on the return trips because the slowest person takes the longest. So, the strategy usually involves having the fastest person (A) shuttle the torch back and forth. Let me try to outline the steps.
-
-1. The two fastest people should cross first, then one of them returns with the torch. Then the two slowest people cross together, and the fastest person returns again. Finally, the two fastest cross again. Let me check if that works.
-
-Step 1: A and B cross together. That takes 2 minutes (since B is slower). Then A returns with the torch. That's another 1 minute. Total so far: 3 minutes.
-
-Step 2: C and D cross together. That takes 10 minutes (since D is slower). Then A returns again. Another 1 minute. Total so far: 14 minutes.
-
-Step 3: A and B cross again. That's 2 minutes. Total: 16 minutes.
-
-Wait, that seems a bit long. Let me see if there's a better way.
-
-Alternatively, maybe the two slowest cross first, but that would take 10 minutes, and then the fastest returns, which is 1 minute. Then the two fastest cross, which is 2 minutes. Then the second fastest returns, which is 2 minutes. Then the two fastest cross again, which is 2 minutes. Let me calculate that.
-
-10 + 1 + 2 + 2 + 2 = 17 minutes. That's even worse.
-
-Hmm, maybe the two fastest cross first, then the fastest returns, then the two slowest cross, then the second fastest returns, then the two fastest cross again. Let me check that.
-
-1. A and B cross: 2 minutes. A returns: 1 minute. Total: 3 minutes.
-2. C and D cross: 10 minutes. B returns: 2 minutes. Total: 15 minutes.
-3. A and B cross again: 2 minutes. Total: 17 minutes.
-
-Wait, that's the same as the previous method. So maybe that's the optimal way. Let me verify.
-
-Another approach could be to have the two slowest cross first, but that would take 10 minutes, and then the fastest returns, which is 1 minute. Then the two fastest cross, which is 2 minutes. Then the second fastest returns, which is 2 minutes. Then the two fastest cross again, which is 2 minutes. Let me calculate that.
-
-10 + 1 + 2 + 2 + 2 = 17 minutes. That's the same as the previous method.
-
-Alternatively, maybe the two fastest cross first, then the fastest returns, then the two slowest cross, then the second fastest returns, then the two fastest cross again. Let me check that.
-
-1. A and B cross: 2 minutes. A returns: 1 minute. Total: 3 minutes.
-2. C and D cross: 10 minutes. B returns: 2 minutes. Total: 15 minutes.
-3. A and B cross again: 2 minutes. Total: 17 minutes.
-
-Wait, that's the same as the previous method. So maybe that's the optimal way. Let me verify.
-
-Another approach could be to have the two slowest cross first, but that would take 10 minutes, and then the fastest returns, which is 1 minute. Then the two fastest cross, which is 2 minutes. Then the second fastest returns, which is 2 minutes. Then the two fastest cross again, which is 2 minutes. Let me calculate that.
-
-10 + 1 + 2 + 2 + 2 = 17 minutes. That's the same as the previous method.
-
-Alternatively, maybe the two fastest cross first, then the fastest returns, then the two slowest cross, then the second fastest returns, then the two fastest cross again. Let me check that.
-
-1. A and B cross: 2 minutes. A returns: 1 minute. Total: 3 minutes.
-2. C and D cross: 10 minutes. B returns: 2 minutes. Total: 15 minutes.
-3. A and B cross again: 2 minutes. Total: 17 minutes.
-
-Wait, that's the same as the previous method. So maybe that's the optimal way. Let me verify.
-
-Another approach could be to have the two slowest cross first, but that would take 10 minutes, and then the fastest returns, which is 1 minute. Then the two fastest cross, which is 2 minutes. Then the second fastest returns, which is 2 minutes. Then the two fastest cross again, which is 2 minutes. Let me calculate that.
-
-10 + 1 + 2 + 2 + 2 = 17 minutes. That's the same as the previous method.
-
-Alternatively, maybe the two fastest cross first, then the fastest returns, then the two slowest cross, then the second fastest returns, then the two fastest cross again. Let me check that.
-
-1. A and B cross: 2 minutes. A returns: 1 minute. Total: 3 minutes.
-2. C and D cross: 10 minutes. B returns: 2 minutes. Total: 15 minutes.
-3. A and B cross again: 2 minutes. Total: 17 minutes.
-
-Wait, that's the same as the previous method. So maybe that's the optimal way. Let me verify.
-
-Another approach could be to have the two slowest cross first, but that would take 10 minutes, and then the fastest returns, which is 1 minute. Then the two fastest cross, which is 2 minutes. Then the second fastest returns, which is 2 minutes. Then the two fastest cross again, which is 2 minutes. Let me calculate that.
-
-10 + 1 + 2 + 2 + 2 = 17 minutes. That's the same as the previous method.
-
-Alternatively, maybe the two fastest cross first, then the fastest returns, then the two slowest cross, then the second fastest returns, then the two fastest cross again. Let me check that.
-
-1. A and B cross: 2 minutes. A returns: 1 minute. Total: 3 minutes.
-2. C and D cross: 10 minutes. B returns: 2 minutes. Total: 15 minutes.
-3. A and B cross again: 2 minutes. Total: 17 minutes.
-
-Wait, that's the same as the previous method. So maybe that's the optimal way. Let me verify.
-
-Another approach could be to have the two slowest cross first, but that would take 10 minutes, and then the fastest returns, which is 1 minute. Then the two fastest cross, which is 2 minutes. Then the second fastest returns, which is 2 minutes. Then the two fastest cross again, which is 2 minutes. Let me calculate that.
-
-10 + 1 + 2 + 2 + 2 = 17 minutes. That's the same as the previous method.
-
-Alternatively, maybe the two fastest cross first, then the fastest returns, then the two slowest cross, then the second fastest returns, then the two fastest cross again. Let me check that.
-
-1. A and B cross: 2 minutes. A returns: 1 minute. Total: 3 minutes.
-2. C and D cross: 10 minutes. B returns: 2 minutes. Total: 15 minutes.
-3. A and B cross again: 2 minutes. Total: 17 minutes.
-
-Wait, that's the same as the previous method. So maybe that's the optimal way. Let me verify.
-
-Another approach could be to have the two slowest cross first, but that would take 10 minutes, and then the fastest returns, which is 1 minute. Then the two fastest cross, which is 2 minutes. Then the second fastest returns, which is 2 minutes. Then the two fastest cross again, which is 2 minutes. Let me calculate that.
-
-10 + 1 + 2 + 2 + 2 = 17 minutes. That's the same as the previous method.
-
-Alternatively, maybe the two fastest cross first, then the fastest returns, then the two slowest cross, then the second fastest returns, then the two fastest cross again. Let me check that.
-
-1. A and B cross: 2 minutes. A returns: 1 minute. Total: 3 minutes.
-2. C and D cross: 10 minutes. B returns: 2 minutes. Total: 15 minutes.
-3. A and B cross again: 2 minutes. Total: 17 minutes.
-
-Wait, that's the same as the previous method. So maybe that's the optimal way. Let me verify.
-
-Another approach could be to have the two slowest cross first, but that would take 10 minutes, and then the fastest returns, which is 1 minute. Then the two fastest cross, which is 2 minutes. Then the second fastest returns, which is 2 minutes. Then the two fastest cross again, which is 2 minutes. Let me calculate that.
-
-10 + 1 + 2 + 2 + 2 = 17 minutes. That's the same as the previous method.
 ```
 
 The results were satisfying! The model successfully generated a reasoning process containing `<think>` tags, demonstrating a certain level of logical thinking ability. 
