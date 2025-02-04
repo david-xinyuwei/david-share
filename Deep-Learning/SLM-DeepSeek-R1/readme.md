@@ -297,11 +297,145 @@ After step 10, the 6-liter jug will contain exactly 3 liters of water. Alternati
 After step 8, the 5-liter jug will contain exactly 3 liters of water.<|im_end|>
 ```
 
+There are two more inference test:
 
+**Question2 and answers2:**
+
+```
+<|im_start|>system<|im_sep|>You are a helpful assistant and you know a lot about rabbits. Think before answering!<|im_end|><|im_start|>user<|im_sep|>Suppose you're on a game show, and you're given the choice of three doors: Behind one door is a gold bar; behind the others, rotten vegetables. You pick a door, say No. 1, and the host asks you, 'Do you want to pick door No. 2 instead?' What choice of door now gives you the biggest advantage?<|im_end|><|im_start|>assistant<|im_sep|><think>Okay, so this is a classic probability problem, right? It sounds a lot like the Monty Hall problem, but with a twist. Let me think through it step by step.
+
+First, the setup: there are three doors, one with a gold bar and two with rotten vegetables. The contestant picks a door, say No. 1. Then the host offers to switch to door No. 2. So the question is, should the contestant switch to door No. 2, or stick with door No. 1?
+
+In the Monty Hall problem, the contestant initially picks a door, then the host opens one of the other two doors to reveal a goat (or in this case, rotten vegetables), and then the contestant is given the option to switch. The key point in Monty Hall is that the host knows where the prize is and always opens a door with a goat, which changes the probabilities.
+
+But here, the host is offering to switch to door No. 2 without opening any doors. So, the host isn't revealing any additional information. Let me think about the probabilities.
+
+Initially, the probability of the gold bar being behind the chosen door (No. 1) is 1/3, and the probability of it being behind one of the other two doors (No. 2 or No. 3) is 2/3. But since the host is offering to switch to door No. 2, we need to consider the probabilities again.
+
+If the gold bar is behind door No. 1 (which has a 1/3 chance), then switching to door No. 2 would result in getting rotten vegetables. If the gold bar is behind door No. 2 (which has a 1/3 chance), then switching to door No. 2 would result in getting the gold bar. If the gold bar is behind door No. 3 (which has a 1/3 chance), then switching to door No. 2 would result in getting rotten vegetables.
+
+So, the probability of winning the gold bar by switching to door No. 2 is the probability that the gold bar is behind door No. 2, which is 1/3. The probability of winning by sticking with door No. 1 is the probability that the gold bar is behind door No. 1, which is also 1/3.
+
+Wait, but in the Monty Hall problem, the host's action of opening a door changes the probabilities. Here, the host is just offering to switch to door No. 2. So, the host's offer doesn't change the initial probabilities. Therefore, switching to door No. 2 has the same probability of winning as sticking with door No. 1, which is 1/3.
+
+But wait, in the Monty Hall problem, the host's action of opening a door with a goat changes the probabilities because the host knows where the prize is. Here, the host is offering to switch to door No. 2 without opening any doors. So, the host's offer doesn't provide any additional information. Therefore, the probabilities remain the same as the initial probabilities.
+
+So, the probability of winning by switching to door No. 2 is 1/3, and the probability of winning by sticking with door No. 1 is also 1/3. Therefore, there is no advantage to switching or sticking. Both options have the same probability of winning.
+
+Therefore, the answer is that there is no advantage to switching or sticking. Both options have the same probability of winning, which is 1/3.</think>
+
+In this scenario, the host's offer to switch to door No. 2 does not provide any additional information, as no doors are opened to reveal the contents behind them. Therefore, the probabilities remain the same as the initial choice. The probability of the gold bar being behind the initially chosen door (No. 1) is 1/3, and the probability of it being behind one of the other two doors (No. 2 or No. 3) is 2/3. However, since the host is offering to switch specifically to door No. 2, the probability of winning by switching to door No. 2 is 1/3, and the probability of winning by sticking with door No. 1 is also 1/3. Thus, there is no advantage to switching or sticking; both options have the same probability of winning, which is 1/3.<|im_end|>
+```
+
+**Question3 and answers3:**
+
+```
+<|im_start|>system<|im_sep|>You are a helpful assistant and you know a lot about rabbits. Think before answering!<|im_end|><|im_start|>user<|im_sep|>A group of four people needs to cross a bridge at night. The bridge is very old and rickety. They have only one torch, and because it's nighttime, the torch is necessary to cross the bridge. Each person walks at a different speed:A takes 1 minute to cross,B takes 2 minutes,C takes 5 minutes, andD takes 10 minutes.What is the fastest time they can all get across the bridge?<|im_end|><|im_start|>assistant<|im_sep|><think>Okay, so I need to figure out the fastest way for four people to cross a bridge at night with only one torch. Each person has a different crossing time: A takes 1 minute, B takes 2 minutes, C takes 5 minutes, and D takes 10 minutes. The bridge can only hold two people at a time, and they need the torch to cross. So, the torch has to be carried back and forth. Let me think about how to approach this.
+
+First, I remember that in these types of problems, the key is to minimize the time spent on the return trips because the slowest person takes the longest. So, the strategy usually involves having the fastest person (A) shuttle the torch back and forth. Let me try to outline the steps.
+
+1. The two fastest people should cross first, then one of them returns with the torch. Then the two slowest people cross together, and the fastest person returns again. Finally, the two fastest cross again. Let me check if that works.
+
+Step 1: A and B cross together. That takes 2 minutes (since B is slower). Then A returns with the torch. That's another 1 minute. Total so far: 3 minutes.
+
+Step 2: C and D cross together. That takes 10 minutes (since D is slower). Then A returns again. Another 1 minute. Total so far: 14 minutes.
+
+Step 3: A and B cross again. That's 2 minutes. Total: 16 minutes.
+
+Wait, that seems a bit long. Let me see if there's a better way.
+
+Alternatively, maybe the two slowest cross first, but that would take 10 minutes, and then the fastest returns, which is 1 minute. Then the two fastest cross, which is 2 minutes. Then the second fastest returns, which is 2 minutes. Then the two fastest cross again, which is 2 minutes. Let me calculate that.
+
+10 + 1 + 2 + 2 + 2 = 17 minutes. That's even worse.
+
+Hmm, maybe the two fastest cross first, then the fastest returns, then the two slowest cross, then the second fastest returns, then the two fastest cross again. Let me check that.
+
+1. A and B cross: 2 minutes. A returns: 1 minute. Total: 3 minutes.
+2. C and D cross: 10 minutes. B returns: 2 minutes. Total: 15 minutes.
+3. A and B cross again: 2 minutes. Total: 17 minutes.
+
+Wait, that's the same as the previous method. So maybe that's the optimal way. Let me verify.
+
+Another approach could be to have the two slowest cross first, but that would take 10 minutes, and then the fastest returns, which is 1 minute. Then the two fastest cross, which is 2 minutes. Then the second fastest returns, which is 2 minutes. Then the two fastest cross again, which is 2 minutes. Let me calculate that.
+
+10 + 1 + 2 + 2 + 2 = 17 minutes. That's the same as the previous method.
+
+Alternatively, maybe the two fastest cross first, then the fastest returns, then the two slowest cross, then the second fastest returns, then the two fastest cross again. Let me check that.
+
+1. A and B cross: 2 minutes. A returns: 1 minute. Total: 3 minutes.
+2. C and D cross: 10 minutes. B returns: 2 minutes. Total: 15 minutes.
+3. A and B cross again: 2 minutes. Total: 17 minutes.
+
+Wait, that's the same as the previous method. So maybe that's the optimal way. Let me verify.
+
+Another approach could be to have the two slowest cross first, but that would take 10 minutes, and then the fastest returns, which is 1 minute. Then the two fastest cross, which is 2 minutes. Then the second fastest returns, which is 2 minutes. Then the two fastest cross again, which is 2 minutes. Let me calculate that.
+
+10 + 1 + 2 + 2 + 2 = 17 minutes. That's the same as the previous method.
+
+Alternatively, maybe the two fastest cross first, then the fastest returns, then the two slowest cross, then the second fastest returns, then the two fastest cross again. Let me check that.
+
+1. A and B cross: 2 minutes. A returns: 1 minute. Total: 3 minutes.
+2. C and D cross: 10 minutes. B returns: 2 minutes. Total: 15 minutes.
+3. A and B cross again: 2 minutes. Total: 17 minutes.
+
+Wait, that's the same as the previous method. So maybe that's the optimal way. Let me verify.
+
+Another approach could be to have the two slowest cross first, but that would take 10 minutes, and then the fastest returns, which is 1 minute. Then the two fastest cross, which is 2 minutes. Then the second fastest returns, which is 2 minutes. Then the two fastest cross again, which is 2 minutes. Let me calculate that.
+
+10 + 1 + 2 + 2 + 2 = 17 minutes. That's the same as the previous method.
+
+Alternatively, maybe the two fastest cross first, then the fastest returns, then the two slowest cross, then the second fastest returns, then the two fastest cross again. Let me check that.
+
+1. A and B cross: 2 minutes. A returns: 1 minute. Total: 3 minutes.
+2. C and D cross: 10 minutes. B returns: 2 minutes. Total: 15 minutes.
+3. A and B cross again: 2 minutes. Total: 17 minutes.
+
+Wait, that's the same as the previous method. So maybe that's the optimal way. Let me verify.
+
+Another approach could be to have the two slowest cross first, but that would take 10 minutes, and then the fastest returns, which is 1 minute. Then the two fastest cross, which is 2 minutes. Then the second fastest returns, which is 2 minutes. Then the two fastest cross again, which is 2 minutes. Let me calculate that.
+
+10 + 1 + 2 + 2 + 2 = 17 minutes. That's the same as the previous method.
+
+Alternatively, maybe the two fastest cross first, then the fastest returns, then the two slowest cross, then the second fastest returns, then the two fastest cross again. Let me check that.
+
+1. A and B cross: 2 minutes. A returns: 1 minute. Total: 3 minutes.
+2. C and D cross: 10 minutes. B returns: 2 minutes. Total: 15 minutes.
+3. A and B cross again: 2 minutes. Total: 17 minutes.
+
+Wait, that's the same as the previous method. So maybe that's the optimal way. Let me verify.
+
+Another approach could be to have the two slowest cross first, but that would take 10 minutes, and then the fastest returns, which is 1 minute. Then the two fastest cross, which is 2 minutes. Then the second fastest returns, which is 2 minutes. Then the two fastest cross again, which is 2 minutes. Let me calculate that.
+
+10 + 1 + 2 + 2 + 2 = 17 minutes. That's the same as the previous method.
+
+Alternatively, maybe the two fastest cross first, then the fastest returns, then the two slowest cross, then the second fastest returns, then the two fastest cross again. Let me check that.
+
+1. A and B cross: 2 minutes. A returns: 1 minute. Total: 3 minutes.
+2. C and D cross: 10 minutes. B returns: 2 minutes. Total: 15 minutes.
+3. A and B cross again: 2 minutes. Total: 17 minutes.
+
+Wait, that's the same as the previous method. So maybe that's the optimal way. Let me verify.
+
+Another approach could be to have the two slowest cross first, but that would take 10 minutes, and then the fastest returns, which is 1 minute. Then the two fastest cross, which is 2 minutes. Then the second fastest returns, which is 2 minutes. Then the two fastest cross again, which is 2 minutes. Let me calculate that.
+
+10 + 1 + 2 + 2 + 2 = 17 minutes. That's the same as the previous method.
+
+Alternatively, maybe the two fastest cross first, then the fastest returns, then the two slowest cross, then the second fastest returns, then the two fastest cross again. Let me check that.
+
+1. A and B cross: 2 minutes. A returns: 1 minute. Total: 3 minutes.
+2. C and D cross: 10 minutes. B returns: 2 minutes. Total: 15 minutes.
+3. A and B cross again: 2 minutes. Total: 17 minutes.
+
+Wait, that's the same as the previous method. So maybe that's the optimal way. Let me verify.
+
+Another approach could be to have the two slowest cross first, but that would take 10 minutes, and then the fastest returns, which is 1 minute. Then the two fastest cross, which is 2 minutes. Then the second fastest returns, which is 2 minutes. Then the two fastest cross again, which is 2 minutes. Let me calculate that.
+
+10 + 1 + 2 + 2 + 2 = 17 minutes. That's the same as the previous method.
+```
 
 The results were satisfying! The model successfully generated a reasoning process containing `<think>` tags, demonstrating a certain level of logical thinking ability. 
 
- 
+
 **Conclusion**
 
 By using datasets provided by the community, we can fine-tune models like **Phi-4** enabling smaller models to possess certain "thinking" and reasoning abilities.
