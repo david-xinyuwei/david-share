@@ -51,119 +51,126 @@ During the fine-tuning process, I chose the **LoRA (Low-Rank Adaptation)** metho
 Training code：
 
 ```
-from datasets import load_dataset
-import torch, multiprocessing, sys
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
-from peft import prepare_model_for_kbit_training, LoraConfig
-from trl import SFTConfig, SFTTrainer
-
-
-compute_dtype = torch.bfloat16
-attn_implementation = 'flash_attention_2'
-
-tokenizer = AutoTokenizer.from_pretrained("microsoft/phi-4")
-tokenizer.pad_token = "<|finetune_right_pad_id|>"
-tokenizer.pad_token_id = 100257
-tokenizer.padding_side = 'right'
-
-tokenizer.vocab[128011] = '<think>'
-tokenizer.vocab[128012] = '</think>'
-
-ds = load_dataset("cognitivecomputations/dolphin-r1", 'reasoning-deepseek', split='train[:30000]').train_test_split(test_size=0.1)
-
-#We need to add the reasoning and response of the assistant to the messages columns
-def process(row):
-  assisant_message = "<think>"+row['reasoning']+"</think>\n\n"+row['answer']
-  row['messages'].append({'role': 'assistant', 'content': assisant_message})
-  row['text'] = tokenizer.apply_chat_template(row['messages'], tokenize=False)
-  return row
-
-ds['train'] = ds['train'].map(
-    process,
-    num_proc= multiprocessing.cpu_count(),
-    load_from_cache_file=False,
-)
-
-ds['test'] = ds['test'].map(
-    process,
-    num_proc= multiprocessing.cpu_count(),
-    load_from_cache_file=False,
-)
-
-
-
-def fine_tune(model_name, batch_size=1, gradient_accumulation_steps=32, LoRA=False, QLoRA=False):
-
-
-  if QLoRA:
-    bnb_config = BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_quant_type="nf4",
-            bnb_4bit_compute_dtype=compute_dtype,
-            bnb_4bit_use_double_quant=True,
-    )
-    model = AutoModelForCausalLM.from_pretrained(
-              model_name, quantization_config=bnb_config, device_map={"": 0}, attn_implementation=attn_implementation
-    )
-    model = prepare_model_for_kbit_training(model, gradient_checkpointing_kwargs={'use_reentrant':True})
-  else:
-    model = AutoModelForCausalLM.from_pretrained(
-              model_name, device_map={"": 0}, torch_dtype=compute_dtype, #attn_implementation=attn_implementation
-    )
-    model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={'use_reentrant':True})
-
-
-
-  if LoRA or QLoRA:
-    peft_config = LoraConfig(
-            lora_alpha=16,
-            lora_dropout=0.05,
-            r=16,
-            bias="none",
-            task_type="CAUSAL_LM",
-            target_modules= ['k_proj', 'o_proj','q_proj', 'v_proj', 'up_proj', 'down_proj', 'gate_proj'],
-            modules_to_save=["lm_head","embed_tokens"],
-    )
-  else:
-      peft_config = None
-
-  output_dir = "./LoRA/"
-  training_arguments = SFTConfig(
-          output_dir=output_dir,
-          eval_strategy="steps",
-          do_eval=True,
-          optim="adamw_8bit",
-          per_device_train_batch_size=batch_size,
-          gradient_accumulation_steps=gradient_accumulation_steps,
-          per_device_eval_batch_size=batch_size,
-          log_level="debug",
-          save_strategy="epoch",
-          logging_steps=25,
-          learning_rate=1e-5,
-          bf16 = True,
-          eval_steps=25,
-          num_train_epochs=1,
-          warmup_ratio=0.1,
-          lr_scheduler_type="linear",
-          dataset_text_field="text",
-          max_seq_length=1024,
-          report_to='none'
-  )
-
-  trainer = SFTTrainer(
-          model=model,
-          train_dataset=ds['train'],
-          eval_dataset=ds['test'],
-          peft_config=peft_config,
-          processing_class=tokenizer,
-          args=training_arguments,
-  )
-
-  trainer_ = trainer.train()
+from datasets import load_dataset  
+import torch, multiprocessing, sys  
+from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig  
+from peft import prepare_model_for_kbit_training, LoraConfig  
+from trl import SFTConfig, SFTTrainer  
+  
+compute_dtype = torch.bfloat16    
+# attn_implementation = 'flash_attention_2' 
+  
+# 加载 tokenizer  
+tokenizer = AutoTokenizer.from_pretrained("microsoft/phi-4")  
+tokenizer.pad_token = "<|finetune_right_pad_id|>"  
+tokenizer.pad_token_id = 100257  
+tokenizer.padding_side = 'right'  
+  
+# 添加新标记 '<think>' 和 '</think>'  
+new_tokens = ['<think>', '</think>']  
+tokenizer.add_tokens(new_tokens)  
+  
+# 加载数据集  
+ds = load_dataset("cognitivecomputations/dolphin-r1", 'reasoning-deepseek', split='train[:30000]').train_test_split(test_size=0.1)  
+  
+# 处理数据集  
+def process(row):  
+    assistant_message = "<think>" + row['reasoning'] + "</think>\n\n" + row['answer']  
+    row['messages'].append({'role': 'assistant', 'content': assistant_message})  
+    # 手动拼接消息内容  
+    conversations = ''  
+    for message in row['messages']:  
+        conversations += f"{message['role']}: {message['content']}\n"  
+    row['text'] = conversations.strip()  
+    return row  
+  
+ds['train'] = ds['train'].map(  
+    process,  
+    num_proc=multiprocessing.cpu_count(),  
+    load_from_cache_file=False,  
+)  
+  
+ds['test'] = ds['test'].map(  
+    process,  
+    num_proc=multiprocessing.cpu_count(),  
+    load_from_cache_file=False,  
+)  
+  
+def fine_tune(model_name, batch_size=1, gradient_accumulation_steps=32, LoRA=False, QLoRA=False):  
+  
+    if QLoRA:  
+        bnb_config = BitsAndBytesConfig(  
+            load_in_4bit=True,  
+            bnb_4bit_quant_type="nf4",  
+            bnb_4bit_compute_dtype=compute_dtype,  
+            bnb_4bit_use_double_quant=True,  
+        )  
+        model = AutoModelForCausalLM.from_pretrained(  
+            model_name, quantization_config=bnb_config, device_map={"": 0}  
+        )  
+        model = prepare_model_for_kbit_training(model)  
+    else:  
+        model = AutoModelForCausalLM.from_pretrained(  
+            model_name, device_map={"": 0}, torch_dtype=compute_dtype  
+        )  
+        model.gradient_checkpointing_enable()  
+  
+    # **调整模型的嵌入矩阵以匹配新的词汇表大小**  
+    model.resize_token_embeddings(len(tokenizer))  
+  
+    if LoRA or QLoRA:  
+        peft_config = LoraConfig(  
+            lora_alpha=16,  
+            lora_dropout=0.05,  
+            r=16,  
+            bias="none",  
+            task_type="CAUSAL_LM",  
+            target_modules=['k_proj', 'o_proj', 'q_proj', 'v_proj', 'up_proj', 'down_proj', 'gate_proj'],  
+            modules_to_save=["lm_head", "embed_tokens"],  
+        )  
+    else:  
+        peft_config = None  
+  
+    output_dir = "./LoRA/"  
+  
+    training_arguments = SFTConfig(  
+        output_dir=output_dir,  
+        evaluation_strategy="steps",  
+        do_eval=True,  
+        optim="adamw_8bit",  
+        per_device_train_batch_size=batch_size,  
+        gradient_accumulation_steps=gradient_accumulation_steps,  
+        per_device_eval_batch_size=batch_size,  
+        log_level="debug",  
+        save_strategy="steps",        
+        save_steps=200,              
+        logging_steps=25,  
+        learning_rate=1e-5,  
+        bf16=True,                    
+        eval_steps=200,               
+        num_train_epochs=1,  
+        warmup_ratio=0.1,  
+        lr_scheduler_type="linear",  
+        dataset_text_field="text",  
+        max_seq_length=1024,  
+        report_to='none',  
+        save_total_limit=3            
+    )  
+  
+    trainer = SFTTrainer(  
+        model=model,  
+        train_dataset=ds['train'],  
+        eval_dataset=ds['test'],  
+        peft_config=peft_config,  
+        tokenizer=tokenizer,          
+        args=training_arguments,  
+    )  
+  
+    trainer.train()  
 ```
 
 ```
- fine_tune("microsoft/phi-4", batch_size=16, gradient_accumulation_steps=4, LoRA=True)
+fine_tune("microsoft/phi-4", batch_size=16, gradient_accumulation_steps=4, LoRA=True)
 ```
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/SLM-DeepSeek-R1/images/3.png)
@@ -191,10 +198,12 @@ model = AutoModelForCausalLM.from_pretrained(
     torch_dtype=torch.bfloat16,
 )
 
-model = PeftModel.from_pretrained(model, "./LoRA_R1/checkpoint-843/")
+model = PeftModel.from_pretrained(model, "./LoRA/checkpoint-422/")
 ```
 
-Inference test：
+**Inference test**
+
+**Question 1 and answer 1:**
 
 ```
 prompt = [{'role':'system', 'content':"You are a helpful assistant, please think before answering."},
@@ -275,7 +284,7 @@ After step 8, the 5-liter jug will contain exactly 3 liters of water.<|im_end|>
 
 There are two more inference test:
 
-**Question2 and answers2:**
+**Question 2 and answer 2:**
 
 ```
 <|im_start|>user<|im_sep|>Suppose you're on a game show, and you're given the choice of three doors: Behind one door is a gold bar; behind the others, rotten vegetables. You pick a door, say No. 1, and the host asks you, 'Do you want to pick door No. 2 instead?' What choice of door now gives you the biggest advantage?<|im_end|><|im_start|>assistant<|im_sep|><think>Okay, so this is a classic probability problem, right? It sounds a lot like the Monty Hall problem, but with a twist. Let me think through it step by step.
