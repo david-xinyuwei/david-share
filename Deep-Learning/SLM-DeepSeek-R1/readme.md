@@ -160,15 +160,13 @@ def fine_tune(model_name, batch_size=1, gradient_accumulation_steps=32, LoRA=Fal
   )
 
   trainer_ = trainer.train()
-
 ```
 
 ```
- 
  fine_tune("microsoft/phi-4", batch_size=16, gradient_accumulation_steps=4, LoRA=True)
 ```
 
-
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/SLM-DeepSeek-R1/images/3.png)
 
 Load Fine-tuned Model
 
@@ -180,7 +178,6 @@ import torch
 compute_dtype = torch.bfloat16
 attn_implementation = 'flash_attention_2'
 
-### Not sure why but tokenizer is not saved by the SFTTrainer with our custmo tokens
 tokenizer = AutoTokenizer.from_pretrained("microsoft/phi-4")
 tokenizer.pad_token = "<|finetune_right_pad_id|>"
 tokenizer.pad_token_id = 100257
@@ -200,7 +197,7 @@ model = PeftModel.from_pretrained(model, "./LoRA_R1/checkpoint-843/")
 Inference test：
 
 ```
-prompt = [{'role':'system', 'content':"You are a helpful assistant and you know a lot about rabbits. Think before answering!"},
+prompt = [{'role':'system', 'content':"You are a helpful assistant, please think before answering."},
     {'role':'user', 'content':"Assume there is a pond with an infinite amount of water. You have two empty jugs with capacities of 5 liters and 6 liters, respectively. How can you use only these two jugs to obtain exactly 3 liters of water from the pond?"}
     ]
 
@@ -213,7 +210,7 @@ print(tokenizer.decode(output[0], skip_special_tokens=False))
 Result：
 
 ```
-<|im_start|>system<|im_sep|>You are a helpful assistant and you know a lot about rabbits. Think before answering!<|im_end|><|im_start|>user<|im_sep|>Assume there is a pond with an infinite amount of water. You have two empty jugs with capacities of 5 liters and 6 liters, respectively. How can you use only these two jugs to obtain exactly 3 liters of water from the pond?<|im_end|><|im_start|>assistant<|im_sep|><think>Okay, so I need to figure out how to get exactly 3 liters of water using a 5-liter jug and a 6-liter jug. Hmm, this is a classic water jug problem. Let me think about the steps.
+<|im_end|><|im_start|>user<|im_sep|>Assume there is a pond with an infinite amount of water. You have two empty jugs with capacities of 5 liters and 6 liters, respectively. How can you use only these two jugs to obtain exactly 3 liters of water from the pond?<|im_end|><|im_start|>assistant<|im_sep|><think>Okay, so I need to figure out how to get exactly 3 liters of water using a 5-liter jug and a 6-liter jug. Hmm, this is a classic water jug problem. Let me think about the steps.
 
 First, I need to remember the rules: I can fill either jug from the pond, pour water from one jug to the other until one is full or the other is empty, and empty a jug back into the pond. So, I can't measure directly, but I can use the difference between the two jugs to get the desired amount.
 
@@ -281,7 +278,7 @@ There are two more inference test:
 **Question2 and answers2:**
 
 ```
-<|im_start|>system<|im_sep|>You are a helpful assistant and you know a lot about rabbits. Think before answering!<|im_end|><|im_start|>user<|im_sep|>Suppose you're on a game show, and you're given the choice of three doors: Behind one door is a gold bar; behind the others, rotten vegetables. You pick a door, say No. 1, and the host asks you, 'Do you want to pick door No. 2 instead?' What choice of door now gives you the biggest advantage?<|im_end|><|im_start|>assistant<|im_sep|><think>Okay, so this is a classic probability problem, right? It sounds a lot like the Monty Hall problem, but with a twist. Let me think through it step by step.
+<|im_start|>user<|im_sep|>Suppose you're on a game show, and you're given the choice of three doors: Behind one door is a gold bar; behind the others, rotten vegetables. You pick a door, say No. 1, and the host asks you, 'Do you want to pick door No. 2 instead?' What choice of door now gives you the biggest advantage?<|im_end|><|im_start|>assistant<|im_sep|><think>Okay, so this is a classic probability problem, right? It sounds a lot like the Monty Hall problem, but with a twist. Let me think through it step by step.
 
 First, the setup: there are three doors, one with a gold bar and two with rotten vegetables. The contestant picks a door, say No. 1. Then the host offers to switch to door No. 2. So the question is, should the contestant switch to door No. 2, or stick with door No. 1?
 
