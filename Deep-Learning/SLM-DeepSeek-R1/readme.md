@@ -314,7 +314,10 @@ In this scenario, the host's offer to switch to door No. 2 does not provide any 
 
 The results were satisfying! The model successfully generated a reasoning process containing `<think>` tags, demonstrating a certain level of logical thinking ability. 
 
-
-**Conclusion**
-
 By using datasets provided by the community, we can fine-tune models like **Phi-4** enabling smaller models to possess certain "thinking" and reasoning abilities.
+
+
+
+**Refer to：**
+
+https://kaitchup.substack.com/p/fine-tuning-your-llm-to-think-like-r1
