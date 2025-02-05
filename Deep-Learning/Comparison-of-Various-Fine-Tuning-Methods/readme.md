@@ -78,7 +78,9 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
 
    ## Azure OpenAI的DPO
 
-   目前AOAI支持DPO，https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/fine-tuning?tabs=azure-openai%2Cturbo%2Cpython-new&pivots=programming-language-studio#direct-preference-optimization-dpo-preview
+   目前AOAI支持DPO：
+
+   *https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/fine-tuning?tabs=azure-openai%2Cturbo%2Cpython-new&pivots=programming-language-studio#direct-preference-optimization-dpo-preview*
 
    ```
    {  
@@ -103,7 +105,9 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
 
 4. **RLAIF（Reinforcement Learning from AI Feedback，基于AI反馈的强化学习）**：这是SFT、PPO和AI反馈的结合。在SFT后，使用PPO进行强化学习，然而奖励信号不是来自人类，而是来自辅助的AI模型（如奖励模型）的反馈。AI模型对主模型的输出进行评估，提供奖励信号。这样的方法节省了人类评价的成本，但依赖于辅助AI模型的质量。
 
-**总结：**四种方法中，ReFT、RLHF和RLAIF都使用了PPO作为强化学习算法，区别在于奖励信号的来源不同：ReFT来自自动化程序的评估，RLHF来自人类反馈，RLAIF来自AI模型的反馈。只有DPO方法使用了监督学习的方式，不采用PPO等强化学习算法，而是直接利用人类偏好数据优化模型。
+**总结：**
+
+四种方法中，ReFT、RLHF和RLAIF都使用了PPO作为强化学习算法，区别在于奖励信号的来源不同：ReFT来自自动化程序的评估，RLHF来自人类反馈，RLAIF来自AI模型的反馈。只有DPO方法使用了监督学习的方式，不采用PPO等强化学习算法，而是直接利用人类偏好数据优化模型。
 
 
 
@@ -312,7 +316,7 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
 
 
 
-**三、直接偏好优化（Direct Preference Optimization，DPO**
+**三、直接偏好优化（Direct Preference Optimization，DPO）**
 
 直接偏好优化（DPO）是一种利用人类偏好数据直接优化策略的方法，旨在使模型的行为更符合人类的期望。与传统的强化学习相比，DPO不需要训练单独的奖励模型，而是直接使用人类的偏好来指导模型的优化。 
 
@@ -464,7 +468,7 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
 
    - 是否属于强化学习：不属于强化学习。
 
-   - **归属：有监督学习。
+   - 归属：有监督学习。
 
    - **解释：**
 
