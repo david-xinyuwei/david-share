@@ -103,8 +103,6 @@ https://www.runpod.io/compare/l4-vs-a100sxm
 
 ## GPU VM performance
 
-![images](https://github.com/xinyuwei-david/Backend-of-david-share/blob/main/Working-Scripts/DN-AI-Inference-Workshop/images/4.png)
-
 ![images](https://github.com/xinyuwei-david/Backend-of-david-share/blob/main/Working-Scripts/DN-AI-Inference-Workshop/images/14.png)
 
 ![images](https://github.com/xinyuwei-david/Backend-of-david-share/blob/main/Working-Scripts/DN-AI-Inference-Workshop/images/13.png)
