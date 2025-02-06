@@ -2,7 +2,9 @@
 
 ## Inference Process
 
-![images](https://github.com/xinyuwei-david/Backend-of-david-share/blob/main/Working-Scripts/DN-AI-Inference-Workshop/images/17.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/AI-Inference-Workshop/images/17.png)
+
+https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/AI-Inference-Workshop/images/1.png
 
 ### Prefill与decoding
 
@@ -79,9 +81,9 @@
 
 ## Inference Engine
 
-![images](https://github.com/xinyuwei-david/Backend-of-david-share/blob/main/Working-Scripts/DN-AI-Inference-Workshop/images/2.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/AI-Inference-Workshop/images/2.png)
 
-![images](https://github.com/xinyuwei-david/Backend-of-david-share/blob/main/Working-Scripts/DN-AI-Inference-Workshop/images/1.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/AI-Inference-Workshop/images/1.png)
 
 ***Flash Attention3:***
 
@@ -91,34 +93,34 @@
 
 https://www.runpod.io/compare/l4-vs-a100sxm
 
-![images](https://github.com/xinyuwei-david/Backend-of-david-share/blob/main/Working-Scripts/DN-AI-Inference-Workshop/images/7.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/AI-Inference-Workshop/images/7.png)
 
-![images](https://github.com/xinyuwei-david/Backend-of-david-share/blob/main/Working-Scripts/DN-AI-Inference-Workshop/images/8.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/AI-Inference-Workshop/images/8.png)
 
-![images](https://github.com/xinyuwei-david/Backend-of-david-share/blob/main/Working-Scripts/DN-AI-Inference-Workshop/images/10.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/AI-Inference-Workshop/images/10.png)
 
-![images](https://github.com/xinyuwei-david/Backend-of-david-share/blob/main/Working-Scripts/DN-AI-Inference-Workshop/images/9.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/AI-Inference-Workshop/images/9.png)
 
-![images](https://github.com/xinyuwei-david/Backend-of-david-share/blob/main/Working-Scripts/DN-AI-Inference-Workshop/images/11.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/AI-Inference-Workshop/images/11.png)
 
 ## GPU VM performance
 
-![images](https://github.com/xinyuwei-david/Backend-of-david-share/blob/main/Working-Scripts/DN-AI-Inference-Workshop/images/14.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/AI-Inference-Workshop/images/14.png)
 
-![images](https://github.com/xinyuwei-david/Backend-of-david-share/blob/main/Working-Scripts/DN-AI-Inference-Workshop/images/13.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/AI-Inference-Workshop/images/13.png)
 
 *https://mp.weixin.qq.com/s/uTOGjz6p7OaOXX86ntETFg?payreadticket=HBWyiLTwNfMzbnPtYge5g1_q39Oedvw8B6jP6tlCCEJHpdx5xzn79t2pc8lZCwqlwMATtms*
 
 
 
-![images](https://github.com/xinyuwei-david/Backend-of-david-share/blob/main/Working-Scripts/DN-AI-Inference-Workshop/images/15.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/AI-Inference-Workshop/images/15.png)
 
 ***Please click below pictures to see my demo video on Youtube about spot VM***:
 [![Spot-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/wDf4WA_7myM)
 
 ## Phi-4 quantization Fine-Tuning and inference speedup
 
-![images](https://github.com/xinyuwei-david/Backend-of-david-share/blob/main/Working-Scripts/DN-AI-Inference-Workshop/images/12.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/AI-Inference-Workshop/images/12.png)
 
 https://github.com/xinyuwei-david/david-share/tree/master/Deep-Learning/Phi4
 
@@ -148,7 +150,7 @@ Collecting usage statistics. To deactivate, set browser.gatherUsageStats to fals
   External URL: http://68.218.112.37:8503
 ```
 
-![images](https://github.com/xinyuwei-david/Backend-of-david-share/blob/main/Working-Scripts/DN-AI-Inference-Workshop/images/6.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/AI-Inference-Workshop/images/6.png)
 
 ## End-to-end Stable Diffusion test on Azure NC A100/H100 MIG
 
