@@ -134,22 +134,6 @@ https://github.com/xinyuwei-david/david-share/tree/master/Deep-Learning/LLM-Infe
 
 https://github.com/xinyuwei-david/david-share/tree/master/Deep-Learning/Estimate-Inference-Memory
 
-https://github.com/xinyuwei-david/Backend-of-david-share/tree/main/Deep-Learning/Estimate-Inference-Memory
-
-```
-(base) root@davidgpt:~# conda activate EstimatingMemoryInference
-(EstimatingMemoryInference) root@davidgpt:~# streamlit run streamlit-estimating.py
-
-Collecting usage statistics. To deactivate, set browser.gatherUsageStats to false.
-
-
-  You can now view your Streamlit app in your browser.
-
-  Local URL: http://localhost:8503
-  Network URL: http://10.0.0.5:8503
-  External URL: http://68.218.112.37:8503
-```
-
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/AI-Inference-Workshop/images/6.png)
 
 ## End-to-end Stable Diffusion test on Azure NC A100/H100 MIG
