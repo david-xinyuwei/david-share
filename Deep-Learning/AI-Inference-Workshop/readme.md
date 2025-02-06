@@ -122,6 +122,8 @@ https://www.runpod.io/compare/l4-vs-a100sxm
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/AI-Inference-Workshop/images/12.png)
 
+https://github.com/xinyuwei-david/david-share/tree/master/Deep-Learning/SLM-DeepSeek-R1
+
 https://github.com/xinyuwei-david/david-share/tree/master/Deep-Learning/Phi4
 
 https://mp.weixin.qq.com/s/6FJBsLHkKYLSMV-CHYjLmw?token=1109685727&lang=zh_CN
