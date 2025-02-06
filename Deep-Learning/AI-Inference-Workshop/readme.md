@@ -103,8 +103,6 @@ https://www.runpod.io/compare/l4-vs-a100sxm
 
 ## GPU VM performance
 
-![images](https://github.com/xinyuwei-david/Backend-of-david-share/blob/main/Working-Scripts/DN-AI-Inference-Workshop/images/3.png)
-
 ![images](https://github.com/xinyuwei-david/Backend-of-david-share/blob/main/Working-Scripts/DN-AI-Inference-Workshop/images/4.png)
 
 ![images](https://github.com/xinyuwei-david/Backend-of-david-share/blob/main/Working-Scripts/DN-AI-Inference-Workshop/images/14.png)
@@ -116,8 +114,6 @@ https://www.runpod.io/compare/l4-vs-a100sxm
 
 
 ![images](https://github.com/xinyuwei-david/Backend-of-david-share/blob/main/Working-Scripts/DN-AI-Inference-Workshop/images/15.png)
-
-![images](https://github.com/xinyuwei-david/Backend-of-david-share/blob/main/Working-Scripts/DN-AI-Inference-Workshop/images/16.png)
 
 ***Please click below pictures to see my demo video on Youtube about spot VM***:
 [![Spot-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/wDf4WA_7myM)
