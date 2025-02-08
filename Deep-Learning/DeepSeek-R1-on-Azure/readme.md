@@ -19,6 +19,14 @@
 
 ## Deployment steps
 
+**On AI Foundry**
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/DeepSeek-R1-on-Azure/images/4.png)
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/DeepSeek-R1-on-Azure/images/5.png)
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/DeepSeek-R1-on-Azure/images/6.png)
+
 **On NVIDIA H200**
 
 Refer to *https://datacrunch.io/blog/deploy-deepseek-r1-on-8x-nvidia-h200*
