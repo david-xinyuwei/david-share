@@ -45,7 +45,9 @@ Refer to *https://blogs.nvidia.com/blog/deepseek-r1-nim-microservice/*
 
 **On AMD MI300X**
 
-Refer to: *https://techcommunity.microsoft.com/blog/azurehighperformancecomputingblog/running-deepseek-r1-on-a-single-ndv5-mi300x-vm/4372726*
+Refer to: 
+
+*https://techcommunity.microsoft.com/blog/azurehighperformancecomputingblog/running-deepseek-r1-on-a-single-ndv5-mi300x-vm/4372726*
 
 Run container on MI300X VM:
 
