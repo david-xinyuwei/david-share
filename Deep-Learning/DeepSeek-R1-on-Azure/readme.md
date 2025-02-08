@@ -23,8 +23,12 @@
 
 Refer to *https://datacrunch.io/blog/deploy-deepseek-r1-on-8x-nvidia-h200*
 
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/DeepSeek-R1-on-Azure/images/1.png)
 
-
-
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/DeepSeek-R1-on-Azure/images/2.png)
 
 Refer to *https://blogs.nvidia.com/blog/deepseek-r1-nim-microservice/*
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/DeepSeek-R1-on-Azure/images/3.png)
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/DeepSeek-R1-on-Azure/images/4.png)
