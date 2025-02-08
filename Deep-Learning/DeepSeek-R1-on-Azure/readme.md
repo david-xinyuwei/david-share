@@ -22,3 +22,9 @@
 **On NVIDIA H200**
 
 Refer to *https://datacrunch.io/blog/deploy-deepseek-r1-on-8x-nvidia-h200*
+
+
+
+
+
+Refer to *https://blogs.nvidia.com/blog/deepseek-r1-nim-microservice/*
