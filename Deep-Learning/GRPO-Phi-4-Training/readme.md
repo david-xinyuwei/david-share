@@ -1,4 +1,4 @@
-# GRPO-Phi-4-Training
+# GRPO on Phi-4 RL Training
 
 ***Please click below pictures to see my demo video on Youtube about GRPO of Microsoft/phi-4:***
 [![BitNet-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/WXjJdsV2cbU)
