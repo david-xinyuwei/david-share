@@ -43,6 +43,12 @@ Refer to *https://blogs.nvidia.com/blog/deepseek-r1-nim-microservice/*
 
 
 
+**SGLang Framework**
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/DeepSeek-R1-on-Azure/images/7.png)
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/DeepSeek-R1-on-Azure/images/8.png)
+
 **On AMD MI300X**
 
 Refer to: 
