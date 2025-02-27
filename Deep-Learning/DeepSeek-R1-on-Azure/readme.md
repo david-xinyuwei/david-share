@@ -45,6 +45,8 @@ Refer to *https://blogs.nvidia.com/blog/deepseek-r1-nim-microservice/*
 
 **SGLang Framework**
 
+**Refer to:** *https://lmsys.org/blog/2024-01-17-sglang/*
+
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/DeepSeek-R1-on-Azure/images/7.png)
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/DeepSeek-R1-on-Azure/images/8.png)
