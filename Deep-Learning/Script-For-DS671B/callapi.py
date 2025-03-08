@@ -5,10 +5,10 @@ from azure.ai.inference import ChatCompletionsClient
 from azure.ai.inference.models import SystemMessage, UserMessage
 
 # ========== [1. Configuration: Replace with your actual Azure resource info] ==========
-AZURE_AI_KEY = "**"
-ENDPOINT = "https://ai*-.services.ai.azure.com/models"  # If you use Azure AI Inference, usually append /models
+AZURE_AI_KEY = "avw"
+ENDPOINT = "https://ai*ai.azure.com/models"  # If you use Azure AI Inference, usually append /models
 DEPLOYMENT_NAME = "DeepSeek-R1"  # e.g., "DeepSeek-R1" or "mistral-large"
-REQUEST_TIMEOUT = 30  # Timeout in seconds for future.result()
+REQUEST_TIMEOUT = 0  # Timeout in seconds for future.result()
 
 # Create a global ChatCompletionsClient to avoid repeated instantiation under concurrency
 client = ChatCompletionsClient(
@@ -103,8 +103,10 @@ def main():
     Main function: configure different concurrency levels and prompt lengths
     to perform load testing. Adjust them as needed.
     """
-    concurrency_levels = [5, 100, 500, 1000]  # Extend as needed, e.g., [5, 100, 500, 1000, 4000]
-    prompt_lengths = [100, 512]   # Different input lengths to observe impact
+    #concurrency_levels = [5, 100, 500, 1000]  # Extend as needed, e.g., [5, 100, 500, 1000, 4000]
+    concurrency_levels = [300, 1000]  # Extend as needed, e.g., [5, 100, 500, 1000, 4000]
+    #prompt_lengths = [100, 512, 1024, 2048, 4096]   # Different input lengths to observe impact
+    prompt_lengths = [4096, 8192]   # Different input lengths to observe impact
     total_requests_each = 10                  # Number of requests per scenario
 
     for c in concurrency_levels:
