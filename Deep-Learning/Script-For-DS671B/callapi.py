@@ -1,121 +1,182 @@
-import time
-import concurrent.futures
-from azure.core.credentials import AzureKeyCredential
-from azure.ai.inference import ChatCompletionsClient
-from azure.ai.inference.models import SystemMessage, UserMessage
-
-# ========== [1. Configuration: Replace with your actual Azure resource info] ==========
-AZURE_AI_KEY = "avw"
-ENDPOINT = "https://ai*ai.azure.com/models"  # If you use Azure AI Inference, usually append /models
+import time  
+import concurrent.futures  
+from azure.core.credentials import AzureKeyCredential  
+from azure.ai.inference import ChatCompletionsClient  
+from azure.ai.inference.models import SystemMessage, UserMessage  
+  
+# ========== [1. Configuration: Replace with your actual Azure resource info] ==========  
+AZURE_AI_KEY = "3eu"
+ENDPOINT = ".ai.azure.com/models"  # If you use Azure AI Inference, usually append /models
 DEPLOYMENT_NAME = "DeepSeek-R1"  # e.g., "DeepSeek-R1" or "mistral-large"
-REQUEST_TIMEOUT = 0  # Timeout in seconds for future.result()
-
-# Create a global ChatCompletionsClient to avoid repeated instantiation under concurrency
-client = ChatCompletionsClient(
-    endpoint=ENDPOINT,
-    credential=AzureKeyCredential(AZURE_AI_KEY)
-)
-
-def generate_prompt_content(length: int) -> str:
-    """
-    Generate a longer string for User Message based on a given character length.
-    This simply repeats a base_text until reaching the desired length.
-    """
-    base_text = "Riemann's Conjecture is a fundamental unsolved problem in mathematics. "
-    repeat_count = (length // len(base_text)) + 1
-    combined = (base_text * repeat_count)[:length]
-    return combined
-
-def send_request(prompt_length: int):
-    """
-    Send a single request to ChatCompletions and measure latency, tokens, etc.
-    If an exception occurs, it will be caught in the upper-level function.
-    """
-    system_msg = SystemMessage(content="You are a helpful assistant.")
-    user_msg_text = (
-        "Explain Riemann's conjecture in 1 paragraph. "
-        "Then expand with more details: "
-    ) + generate_prompt_content(prompt_length)
-
-    start_time = time.time()
-    response = client.complete(
-        messages=[system_msg, UserMessage(content=user_msg_text)],
-        model=DEPLOYMENT_NAME
-    )
-    end_time = time.time()
-
-    usage = getattr(response, "usage", None)
-    total_tokens = usage.total_tokens if usage else 0
-
-    return {
-        "latency": end_time - start_time,      # Overall request time (seconds)
-        "ttft": end_time - start_time,         # No streaming => TTFT ~ total time
-        "tokens": total_tokens,
-        "success": True
-    }
-
-def run_load_test(concurrency: int, total_requests: int, prompt_length: int):
-    """
-    Perform total_requests calls at a given concurrency level and prompt_length.
-    Collect success count, fail count, average latency, average TTFT, and tokens/s.
-    """
-    results = []
-    fail_count = 0
-    start_batch_time = time.time()
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=concurrency) as executor:
-        future_list = []
-        for _ in range(total_requests):
-            future = executor.submit(send_request, prompt_length)
-            future_list.append(future)
-
-        for future in concurrent.futures.as_completed(future_list):
-            try:
-                result = future.result(timeout=REQUEST_TIMEOUT)
-                results.append(result)
-            except concurrent.futures.TimeoutError:
-                fail_count += 1
-            except Exception:
-                fail_count += 1
-
-    end_batch_time = time.time()
-    batch_duration = end_batch_time - start_batch_time
-
-    success_count = len(results)
-    if success_count == 0:
-        print(f"=== Concurrency: {concurrency}, Prompt length: {prompt_length}, Total requests: {total_requests} ===")
-        print(f"  All requests failed or timed out. Fail count: {fail_count}")
-        return
-
-    avg_latency = sum(r["latency"] for r in results) / success_count
-    avg_ttft = sum(r["ttft"] for r in results) / success_count
-    total_tokens = sum(r["tokens"] for r in results)
-    tokens_per_second = (total_tokens / batch_duration) if batch_duration > 0 else 0
-
-    print(f"=== Concurrency: {concurrency}, Prompt length: {prompt_length}, Total requests: {total_requests} ===")
-    print(f"  Success count: {success_count}, Fail count: {fail_count}")
-    print(f"  Average latency (s): {avg_latency:.3f}")
-    print(f"  Average TTFT (s): {avg_ttft:.3f} (No streaming => same as total duration)")
-    print(f"  Total tokens: {total_tokens}, Throughput: {tokens_per_second:.2f} tokens/s\n")
-
-def main():
-    """
-    Main function: configure different concurrency levels and prompt lengths
-    to perform load testing. Adjust them as needed.
-    """
-    #concurrency_levels = [5, 100, 500, 1000]  # Extend as needed, e.g., [5, 100, 500, 1000, 4000]
-    concurrency_levels = [300, 1000]  # Extend as needed, e.g., [5, 100, 500, 1000, 4000]
-    #prompt_lengths = [100, 512, 1024, 2048, 4096]   # Different input lengths to observe impact
-    prompt_lengths = [4096, 8192]   # Different input lengths to observe impact
-    total_requests_each = 10                  # Number of requests per scenario
-
-    for c in concurrency_levels:
-        for p_len in prompt_lengths:
-            run_load_test(
-                concurrency=c,
-                total_requests=total_requests_each,
-                prompt_length=p_len
-            )
-
-if __name__ == "__main__":
+REQUEST_TIMEOUT = 60  # 默认超时时间  
+  
+# Create a global ChatCompletionsClient to avoid repeated instantiation under concurrency  
+client = ChatCompletionsClient(  
+    endpoint=ENDPOINT,  
+    credential=AzureKeyCredential(AZURE_AI_KEY)  
+)  
+  
+def get_prompt_by_length(length: int) -> str:  
+    """  
+    Return a meaningful prompt based on the requested length.  
+    """  
+    prompts = {  
+        128: "Describe the significance of the Riemann Hypothesis in modern mathematics and its potential applications in number theory.",  
+        256: "Explain the concept of black holes, their formation, and how they affect the surrounding space-time. Discuss their significance in understanding the universe and the role of Hawking radiation in studying them.",  
+        512: "Write a brief essay on the history of artificial intelligence (AI), covering its origins, key milestones, and current advancements. Include a discussion on the ethical implications and future challenges of AI in society, particularly in areas like employment, privacy, and decision-making.",  
+        1024: "Provide a detailed explanation of the process of photosynthesis in plants. Include the roles of chloroplasts, light absorption, and the Calvin cycle. Additionally, discuss how environmental factors such as light intensity, carbon dioxide concentration, and temperature affect the efficiency of photosynthesis. Conclude with the significance of photosynthesis for life on Earth.",  
+        2048: "Draft a fictional story about a group of astronauts who discover an ancient alien civilization on a distant exoplanet. The story should describe their journey to the planet, their initial exploration, and their interaction with the remnants of the alien civilization. Include elements of mystery, suspense, and the philosophical implications of finding intelligent life beyond Earth. Highlight the challenges the astronauts face and how they overcome them, while leaving room for the reader's imagination to ponder the unanswered questions about the aliens' fate.",  
+        4096: "Compose a comprehensive research article on the impact of climate change on global biodiversity. The article should begin with an introduction to climate change, its causes, and the mechanisms through which it affects ecosystems. Provide specific examples of species and habitats that are particularly vulnerable, and discuss the cascading effects on food webs and ecosystem services. Additionally, evaluate the role of human activities, such as deforestation and pollution, in exacerbating the problem. Conclude with potential solutions, including conservation efforts, policy changes, and technological innovations that could mitigate the impact of climate change on biodiversity."  
+    }  
+    return prompts.get(length, "Default prompt for unknown lengths.")  # Default prompt if length is not in the dictionary  
+  
+def send_request(prompt_length: int, stream: bool):  
+    """  
+    Send a single request to ChatCompletions and measure latency, TTFT, tokens, etc.  
+    """  
+    RETRY_COUNT = 3  # Maximum retry attempts  
+    for attempt in range(RETRY_COUNT):  
+        try:  
+            system_msg = SystemMessage(content="You are a helpful assistant.")  
+            user_msg_text = get_prompt_by_length(prompt_length)  # Use the meaningful prompt based on length  
+  
+            start_time = time.time()  
+            if stream:  
+                # Stream mode: incremental token generation  
+                response = client.complete(  
+                    stream=True,  
+                    messages=[system_msg, UserMessage(content=user_msg_text)],  
+                    model=DEPLOYMENT_NAME  
+                )  
+                token_times = []  # Record the time of each token arrival  
+                first_token_time = None  
+                for update in response:  
+                    if update.choices:  
+                        if first_token_time is None:  
+                            first_token_time = time.time()  # Record time for first token  
+                        token_times.append(time.time())  # Record each token's arrival time  
+                end_time = time.time()  
+  
+                # Calculate TTFT (Time to First Token)  
+                ttft = first_token_time - start_time if first_token_time else None  
+                total_tokens = len(token_times)  
+                throughput = total_tokens / (end_time - start_time) if total_tokens > 0 else 0  
+            else:  
+                # Non-stream mode: complete response in one go  
+                response = client.complete(  
+                    stream=False,  
+                    messages=[system_msg, UserMessage(content=user_msg_text)],  
+                    model=DEPLOYMENT_NAME  
+                )  
+                end_time = time.time()  
+  
+                # Extract token usage from the response (if available)  
+                usage = getattr(response, "usage", None)  
+                total_tokens = usage.total_tokens if usage else 0  
+  
+                # In non-stream mode, TTFT is the total latency  
+                ttft = end_time - start_time  
+                throughput = total_tokens / (end_time - start_time) if total_tokens > 0 else 0  
+  
+            return {  
+                "latency": end_time - start_time,  
+                "ttft": ttft,  
+                "tokens": total_tokens,  
+                "throughput": throughput,  
+                "success": True  
+            }  
+        except Exception as e:  
+            print(f"Attempt {attempt + 1} failed: {e}")  
+            if attempt == RETRY_COUNT - 1:  
+                return {  
+                    "latency": None,  
+                    "ttft": None,  
+                    "tokens": 0,  
+                    "throughput": 0,  
+                    "success": False  
+                }  
+  
+def run_load_test(concurrency: int, total_requests: int, prompt_length: int, stream: bool):  
+    """  
+    Perform total_requests calls at a given concurrency level and prompt_length.  
+    Collect success count, fail count, average latency, average TTFT, and tokens/s.  
+    Supports both stream and non-stream modes.  
+    """  
+    results = []  
+    fail_count = 0  
+    start_batch_time = time.time()  
+  
+    try:  
+        with concurrent.futures.ThreadPoolExecutor(max_workers=concurrency) as executor:  
+            future_list = [executor.submit(send_request, prompt_length, stream) for _ in range(total_requests)]  
+            for future in concurrent.futures.as_completed(future_list):  
+                try:  
+                    results.append(future.result(timeout=REQUEST_TIMEOUT))  
+                except concurrent.futures.TimeoutError:  
+                    print("Request timed out.")  
+                    fail_count += 1  
+                except Exception as e:  
+                    print(f"Error during request: {e}")  
+                    fail_count += 1  
+    except KeyboardInterrupt:  
+        print("Test interrupted by user.")  
+        executor.shutdown(wait=False)  # Force shutdown threads  
+        raise  
+  
+    end_batch_time = time.time()  
+    batch_duration = end_batch_time - start_batch_time  
+  
+    # Calculate per-request metrics  
+    success_results = [r for r in results if r["success"]]  
+    success_count = len(success_results)  
+    if success_count == 0:  
+        print(f"=== Concurrency: {concurrency}, Prompt length: {prompt_length}, Total requests: {total_requests} ===")  
+        print(f"  All requests failed or timed out. Fail count: {fail_count}")  
+        return  
+  
+    avg_latency = sum(r["latency"] for r in success_results) / success_count  
+    avg_ttft = sum(r["ttft"] for r in success_results) / success_count  
+    avg_throughput = sum(r["throughput"] for r in success_results) / success_count  
+    total_tokens = sum(r["tokens"] for r in success_results)  
+    overall_throughput = total_tokens / batch_duration if batch_duration > 0 else 0  
+  
+    mode = "Stream" if stream else "Non-Stream"  
+    print(f"=== {mode} Mode | Concurrency: {concurrency}, Prompt length: {prompt_length}, Total requests: {total_requests} ===")  
+    print(f"  Success count: {success_count}, Fail count: {fail_count}")  
+    print(f"  Average latency (s): {avg_latency:.3f}")  
+    print(f"  Average TTFT (s): {avg_ttft:.3f}")  
+    print(f"  Average token throughput (tokens/s): {avg_throughput:.2f}")  
+    print(f"  Overall throughput (tokens/s): {overall_throughput:.2f}\n")  
+  
+def main():  
+    """  
+    Main function: configure different concurrency levels and prompt lengths  
+    to perform load testing. Adjust them as needed.  
+    """  
+    concurrency_levels = [300]  # Test concurrency levels  
+    prompt_lengths = [128, 256, 512, 1024, 2048, 4096]  # Test different input sizes  
+    total_requests_each = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150]  # Adjust as needed  
+  
+    for c in concurrency_levels:  
+        for p_len in prompt_lengths:  
+            for total_requests in total_requests_each:  
+                print(f"\n>>> Testing Concurrency: {c}, Prompt Length: {p_len}, Total Requests: {total_requests} <<<")  
+                  
+                # First, test non-stream mode  
+                run_load_test(  
+                    concurrency=c,  
+                    total_requests=total_requests,  
+                    prompt_length=p_len,  
+                    stream=False  # Non-stream mode  
+                )  
+  
+                # Then, test stream mode  
+                run_load_test(  
+                    concurrency=c,  
+                    total_requests=total_requests,  
+                    prompt_length=p_len,  
+                    stream=True  # Stream mode  
+                )  
+  
+if __name__ == "__main__":  
     main()
