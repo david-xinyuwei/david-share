@@ -19,7 +19,7 @@ Azure Language Service可以实现PII的信息过滤（LLM处理后的信息发�
 
 *The Azure Language Service is capable of filtering PII (after the LLM has processed the information and it is sent back locally, it may be necessary to revert it back to its pre-anonymized state for business use), but it cannot restore sensitive information after LLM processing. However, with the help of Microsoft's Presidio open-source project, it is possible to both filter and restore PII.*
 
-![Image text](https://github.com/davidsajare/Chinese-PII-With-Azure-Speech-Service/blob/main/3.png)
+![Image text](https://github.com/xinyuwei-david/Chinese-PII-With-Azure-Speech-Service/blob/main/3.png)
 
 presidio可以对接多种开源模型实现PII。但针对中文，经过验证，使用presidio+Azure Language效果是最好的，其他开源模型存在各种各样的不足（英文没有这个问题）。Azure Language可以部署到China 21V和Azure Global。
 
