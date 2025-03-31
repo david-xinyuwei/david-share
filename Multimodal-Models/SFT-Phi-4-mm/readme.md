@@ -637,87 +637,272 @@ prompt_suffix = '<|end|>'
 Run following code to start a UI:
 
 ```
-def clean_response(response, instruction_keywords):
-    """Removes the prompt text dynamically based on instruction keywords."""
-    for keyword in instruction_keywords:
-        if response.lower().startswith(keyword.lower()):
-            response = response[len(keyword):].strip()
-    return response
-
-# task prompt is from technical report
-asr_prompt = f'{user_prompt}<|audio_1|>Transcribe the audio clip into text.{prompt_suffix}{assistant_prompt}'
-ast_ko_prompt = f'{user_prompt}<|audio_1|>Translate the audio to Chinese.{prompt_suffix}{assistant_prompt}'
-ast_cot_ko_prompt = f'{user_prompt}<|audio_1|>Transcribe the audio to text, and then translate the audio to Chinese. Use <sep> as a separator between the original transcript and the translation.{prompt_suffix}{assistant_prompt}'
-ast_en_prompt = f'{user_prompt}<|audio_1|>Translate the audio to English.{prompt_suffix}{assistant_prompt}'
-ast_cot_en_prompt = f'{user_prompt}<|audio_1|>Transcribe the audio to text, and then translate the audio to English. Use <sep> as a separator between the original transcript and the translation.{prompt_suffix}{assistant_prompt}'
-
-def process_input(file, input_type, question):
-    user_prompt = "<|user|>"
-    assistant_prompt = "<|assistant|>"
-    prompt_suffix = "<|end|>"
-    
-    if input_type == "Image":
-        prompt= f'{user_prompt}<|image_1|>{question}{prompt_suffix}{assistant_prompt}'
-        image = Image.open(file)
-        inputs = processor(text=prompt, images=image, return_tensors='pt').to(model.device)
-    elif input_type == "Audio":
-        prompt= f'{user_prompt}<|audio_1|>{question}{prompt_suffix}{assistant_prompt}'
-        audio, samplerate = sf.read(file)
-        inputs = processor(text=prompt, audios=[(audio, samplerate)], return_tensors='pt').to(model.device)
-    elif input_type == "Text":
-        prompt = f'{user_prompt}{question} "{file}"{prompt_suffix}{assistant_prompt}'
-        inputs = processor(text=prompt, return_tensors='pt').to(model.device)
-    else:
-        return "Invalid input type"    
-    
-    generate_ids = model.generate(**inputs, max_new_tokens=1000, generation_config=generation_config)
-    response = processor.batch_decode(generate_ids, skip_special_tokens=True)[0]
-    return clean_response(response, [question])
-
-def process_text_translate(text, target_language):
-    prompt = f'Transcribe the audio to text, and then Translate the following text to {target_language}: "{text}"'
-    return process_input(text, "Text", prompt)
-def process_text_grammar(text):
-    prompt = f'Check the grammar and provide corrections if needed for the following text: "{text}"'
-    return process_input(text, "Text", prompt)
-
-def gradio_interface():
-    with gr.Blocks() as demo:
-        gr.Markdown("# Phi 4 Powered - Multimodal Language Tutor")        
-        with gr.Tab("Text-Based Learning"):
-            text_input = gr.Textbox(label="Enter Text")
-            language_input = gr.Textbox(label="Target Language", value="Korean")
-            text_output = gr.Textbox(label="Response")
-            text_translate_btn = gr.Button("Translate")
-            text_grammar_btn = gr.Button("Check Grammar")
-            text_clear_btn = gr.Button("Clear")
-            text_translate_btn.click(process_text_translate, inputs=[text_input, language_input], outputs=text_output)
-            text_grammar_btn.click(process_text_grammar, inputs=[text_input], outputs=text_output)
-            text_clear_btn.click(lambda: ("", "", ""), outputs=[text_input, language_input, text_output])        
-        with gr.Tab("Image-Based Learning"):
-            image_input = gr.Image(type="filepath", label="Upload Image")
-            language_input_image = gr.Textbox(label="Target Language for Translation", value="English")
-            image_output = gr.Textbox(label="Response")
-            image_clear_btn = gr.Button("Clear")
-            image_translate_btn = gr.Button("Translate Text in Image")
-            image_summarize_btn = gr.Button("Summarize Image")
-            image_translate_btn.click(process_input, inputs=[image_input, gr.Textbox(value="Image", visible=False), gr.Textbox(value="Extract and translate text", visible=False)], outputs=image_output)
-            image_summarize_btn.click(process_input, inputs=[image_input, gr.Textbox(value="Image", visible=False), gr.Textbox(value="Summarize this image", visible=False)], outputs=image_output)
-            image_clear_btn.click(lambda: (None, "", ""), outputs=[image_input, language_input_image, image_output])
-        with gr.Tab("Audio-Based Learning"):
-            audio_input = gr.Audio(type="filepath", label="Upload Audio")
-            language_input_audio = gr.Textbox(label="Target Language for Translation", value="English")
-            transcript_output = gr.Textbox(label="Transcribed Text")
-            translated_output = gr.Textbox(label="Translated Text")
-            audio_clear_btn = gr.Button("Clear")
-            audio_transcribe_btn = gr.Button("Transcribe & Translate")
-            audio_transcribe_btn.click(process_input, inputs=[audio_input, gr.Textbox(value="Audio", visible=False), gr.Textbox(value="Transcribe this audio", visible=False)], outputs=transcript_output)
-            audio_transcribe_btn.click(process_input, inputs=[audio_input, gr.Textbox(value="Audio", visible=False), language_input_audio], outputs=translated_output)
-            audio_clear_btn.click(lambda: (None, "", "", ""), outputs=[audio_input, language_input_audio, transcript_output, translated_output])        
-        demo.launch(debug=True, share=True)
-
-if __name__ == "__main__":
-    gradio_interface()
+import gradio as gr  
+import soundfile as sf  
+from PIL import Image  
+  
+# ---------------------------------------------------------------------------- #  
+# Please ensure that you have the following variables defined in your code:  
+#   model             = the Phi-4 multimodal model (AutoModelForCausalLM)  
+#   processor         = the corresponding AutoProcessor instance  
+#   generation_config = an instance of GenerationConfig for inference  
+#  
+# And make sure you have installed:  
+#   pip install gradio soundfile  
+# ---------------------------------------------------------------------------- #  
+  
+def clean_response(response, instruction_keywords):  
+    """  
+    Remove the leading prompt text based on instruction keywords.  
+    This function can be customized to strip out any unnecessary  
+    prompt-related text so that the final answer is cleaner.  
+    """  
+    for keyword in instruction_keywords:  
+        if response.lower().startswith(keyword.lower()):  
+            response = response[len(keyword):].strip()  
+    return response  
+  
+# The following user_prompt, assistant_prompt, and prompt_suffix are just examples.  
+user_prompt = "<|user|>"  
+assistant_prompt = "<|assistant|>"  
+prompt_suffix = "<|end|>"  
+  
+# Example prompts for audio tasks, kept here for reference:  
+asr_prompt = f'{user_prompt}<|audio_1|>Transcribe the audio clip into text.{prompt_suffix}{assistant_prompt}'  
+ast_ko_prompt = f'{user_prompt}<|audio_1|>Translate the audio to Chinese.{prompt_suffix}{assistant_prompt}'  
+ast_cot_ko_prompt = f'{user_prompt}<|audio_1|>Transcribe the audio to text, and then translate the audio to Chinese. Use <sep> as a separator between the original transcript and the translation.{prompt_suffix}{assistant_prompt}'  
+ast_en_prompt = f'{user_prompt}<|audio_1|>Translate the audio to English.{prompt_suffix}{assistant_prompt}'  
+ast_cot_en_prompt = f'{user_prompt}<|audio_1|>Transcribe the audio to text, and then translate the audio to English. Use <sep> as a separator between the original transcript and the translation.{prompt_suffix}{assistant_prompt}'  
+  
+  
+def process_input(file, input_type, question):  
+    """  
+    This function processes general inputs for Text or Audio type.  
+    The 'Image' branch is excluded here and handled separately in 'process_pmc_image'.  
+    """  
+    user_prompt = "<|user|>"  
+    assistant_prompt = "<|assistant|>"  
+    prompt_suffix = "<|end|>"  
+  
+    if input_type == "Audio":  
+        # Build an audio prompt  
+        prompt = f'{user_prompt}<|audio_1|>{question}{prompt_suffix}{assistant_prompt}'  
+        audio, samplerate = sf.read(file)  
+        inputs = processor(text=prompt, audios=[(audio, samplerate)], return_tensors='pt').to(model.device)  
+  
+    elif input_type == "Text":  
+        # Build a text prompt  
+        prompt = f'{user_prompt}{question} "{file}"{prompt_suffix}{assistant_prompt}'  
+        inputs = processor(text=prompt, return_tensors='pt').to(model.device)  
+  
+    else:  
+        return "Invalid input type or not supported in this function."  
+  
+    generate_ids = model.generate(  
+        **inputs,  
+        max_new_tokens=1000,  
+        generation_config=generation_config  
+    )  
+    response = processor.batch_decode(generate_ids, skip_special_tokens=True)[0]  
+    return clean_response(response, [question])  
+  
+  
+def process_text_translate(text, target_language):  
+    """  
+    Example function for translating text to a given language.   
+    It uses 'process_input' under the "Text" input_type.  
+    """  
+    prompt = f'Transcribe the audio to text, and then Translate the following text to {target_language}: "{text}"'  
+    return process_input(text, "Text", prompt)  
+  
+  
+def process_text_grammar(text):  
+    """  
+    Example function for grammar checking.   
+    It uses 'process_input' under the "Text" input_type.  
+    """  
+    prompt = f'Check the grammar and provide corrections if needed for the following text: "{text}"'  
+    return process_input(text, "Text", prompt)  
+  
+  
+def process_pmc_image(  
+    image_path,  
+    question,  
+    choiceA,  
+    choiceB,  
+    choiceC,  
+    choiceD,  
+    instruction  
+):  
+    """  
+    This function handles an image query in a way similar to the PMC-VQA multi-choice style.  
+    The user can provide a question, four choices, and a specific instruction.  
+    The prompt is constructed to mirror the style used in training.  
+    """  
+    user_prompt = "<|user|>"  
+    assistant_prompt = "<|assistant|>"  
+    prompt_suffix = "<|end|>"  
+  
+    prompt = (  
+        f"{user_prompt}<|image_1|>\n"  
+        f"{question}\n"  
+        f"{choiceA}\n"  
+        f"{choiceB}\n"  
+        f"{choiceC}\n"  
+        f"{choiceD}\n"  
+        f"{instruction}"  
+        f"{prompt_suffix}"  
+        f"{assistant_prompt}"  
+    )  
+  
+    image = Image.open(image_path)  
+    inputs = processor(text=prompt, images=image, return_tensors='pt').to(model.device)  
+  
+    generate_ids = model.generate(  
+        **inputs,  
+        max_new_tokens=64,  
+        generation_config=generation_config  
+    )  
+    response = processor.batch_decode(generate_ids, skip_special_tokens=True)[0]  
+    return clean_response(response, [question])  
+  
+  
+def gradio_interface():  
+    """  
+    Define a simple Gradio interface with three tabs:  
+    1) Text-Based Learning  
+    2) Image-Based Learning (multi-choice style)  
+    3) Audio-Based Learning  
+    """  
+    with gr.Blocks() as demo:  
+        gr.Markdown("# Phi-4 Powered - Multimodal Language Tutor")  
+  
+        # -------------------------  
+        # 1) Text-Based Learning  
+        # -------------------------  
+        with gr.Tab("Text-Based Learning"):  
+            text_input = gr.Textbox(label="Enter Text")  
+            language_input = gr.Textbox(label="Target Language", value="Korean")  
+            text_output = gr.Textbox(label="Response")  
+            text_translate_btn = gr.Button("Translate")  
+            text_grammar_btn = gr.Button("Check Grammar")  
+            text_clear_btn = gr.Button("Clear")  
+  
+            text_translate_btn.click(  
+                process_text_translate,  
+                inputs=[text_input, language_input],  
+                outputs=text_output  
+            )  
+            text_grammar_btn.click(  
+                process_text_grammar,  
+                inputs=[text_input],  
+                outputs=text_output  
+            )  
+            text_clear_btn.click(  
+                fn=lambda: ("", "", ""),  
+                outputs=[text_input, language_input, text_output]  
+            )  
+  
+        # -------------------------  
+        # 2) Image-Based Learning  
+        # -------------------------  
+        with gr.Tab("Image-Based Learning"):  
+            gr.Markdown("Test multi-choice questions similar to PMC-VQA")  
+  
+            image_input = gr.Image(type="filepath", label="Upload Image")  
+            question_input = gr.Textbox(  
+                label="Question",  
+                value="What color is used to label the Golgi complexes in the image?"  
+            )  
+            choiceA_input = gr.Textbox(label="Choice A", value="A: Green")  
+            choiceB_input = gr.Textbox(label="Choice B", value="B: Red")  
+            choiceC_input = gr.Textbox(label="Choice C", value="C: Light blue")  
+            choiceD_input = gr.Textbox(label="Choice D", value="D: Yellow")  
+            instruction_input = gr.Textbox(  
+                label="Instruction",  
+                value="Answer with the option's letter from the given choices directly."  
+            )  
+            image_output = gr.Textbox(label="Response (Model's Predicted Answer)")  
+  
+            image_submit_btn = gr.Button("Ask")  
+            image_clear_btn = gr.Button("Clear")  
+  
+            image_submit_btn.click(  
+                fn=process_pmc_image,  
+                inputs=[  
+                    image_input,  
+                    question_input,  
+                    choiceA_input,  
+                    choiceB_input,  
+                    choiceC_input,  
+                    choiceD_input,  
+                    instruction_input  
+                ],  
+                outputs=image_output  
+            )  
+            image_clear_btn.click(  
+                fn=lambda: (  
+                    None,  
+                    "What color is used to label the Golgi complexes in the image?",  
+                    "A: Green",  
+                    "B: Red",  
+                    "C: Light blue",  
+                    "D: Yellow",  
+                    "Answer with the option's letter from the given choices directly.",  
+                    ""  
+                ),  
+                outputs=[  
+                    image_input,  
+                    question_input,  
+                    choiceA_input,  
+                    choiceB_input,  
+                    choiceC_input,  
+                    choiceD_input,  
+                    instruction_input,  
+                    image_output  
+                ]  
+            )  
+  
+        # -------------------------  
+        # 3) Audio-Based Learning  
+        # -------------------------  
+        with gr.Tab("Audio-Based Learning"):  
+            audio_input = gr.Audio(type="filepath", label="Upload Audio")  
+            language_input_audio = gr.Textbox(label="Target Language for Translation", value="English")  
+            transcript_output = gr.Textbox(label="Transcribed Text")  
+            translated_output = gr.Textbox(label="Translated Text")  
+            audio_clear_btn = gr.Button("Clear")  
+            audio_transcribe_btn = gr.Button("Transcribe & Translate")  
+  
+            # First click: transcribe the audio  
+            audio_transcribe_btn.click(  
+                fn=process_input,  
+                inputs=[  
+                    audio_input,  
+                    gr.Textbox(value="Audio", visible=False),  
+                    gr.Textbox(value="Transcribe this audio", visible=False)  
+                ],  
+                outputs=transcript_output  
+            )  
+            # Second click: reuse the same button to also perform translation  
+            audio_transcribe_btn.click(  
+                fn=process_input,  
+                inputs=[  
+                    audio_input,  
+                    gr.Textbox(value="Audio", visible=False),  
+                    language_input_audio  
+                ],  
+                outputs=translated_output  
+            )  
+            audio_clear_btn.click(  
+                fn=lambda: (None, "", "", ""),  
+                outputs=[audio_input, language_input_audio, transcript_output, translated_output]  
+            )  
+  
+        demo.launch(debug=True, share=True)  
+  
+if __name__ == "__main__":  
+    gradio_interface()  
 ```
 
 
