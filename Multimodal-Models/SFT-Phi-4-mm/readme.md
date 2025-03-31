@@ -20,7 +20,7 @@ This section focuses on training the speech translation capability of phi-4-mm. 
 
 In the training script mentioned above, the data dictionaries include three options: `en_zh-CN`, `en_id`, and `en_sl`. However, this does not mean that the script can only train translation capabilities for these few languages. The range of supported languages depends on the `facebook/covost2` in the training script.
 
-It is important to note that `facebook/covost2` is not an actual dataset; it is merely a processing script for corpus data. The true source corpus is derived from the Common Voice Corpus 4 available at: https://commonvoice.mozilla.org/en/datasets. 
+It is important to note that `facebook/covost2` is not an actual dataset; it is merely a processing script for corpus data. The true source corpus is derived from the Common Voice Corpus 4 available at: *https://commonvoice.mozilla.org/en/datasets.* 
 
 Install required packages:
 
