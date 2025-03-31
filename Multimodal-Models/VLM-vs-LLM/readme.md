@@ -1,5 +1,7 @@
 # VLM and LLM 文本生成能力对比
 
+本Repo阐述VLM与SLM的区别，并以Phi3.5v和Florance2举例，如何微调SLM的指定模块。
+
 ## 文本生成能力对比
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/VLM-vs-LLM/images/2.png)
@@ -30,7 +32,7 @@
 
    综合来看，72B 级别的大模型拥有更充足的“容量”去应对多模态后训练带来的新知识和新任务，不仅不会牺牲原有的语言能力，反而会因额外的再训练过程而进一步提升语言表现。相较之下，小模型在多模态后训练中更容易出现“舍此取彼”的现象，导致语言任务表现退化。
 
-## VLM的架构
+## Phi-3.5v的架构
 
 以Phi为例。
 
@@ -603,7 +605,7 @@ optimizer = optim.AdamW(
 
 2. **“只微调文本，冻结视觉编码器”的思路**
 
- 
+
 反过来，如果你想 **“只更新文本解码器”**，而冻结 `CLIPVisionModel` 等视觉部分，则需要让 `vision_embed_tokens` 相关的所有参数 `requires_grad = False`，文本侧（如 `embedding`、`decoder layer`、`lm_head`）设置为 `True`。
 
 以下是伪代码示例：
