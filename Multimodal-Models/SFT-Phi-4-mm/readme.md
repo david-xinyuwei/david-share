@@ -12,7 +12,9 @@ Before officially starting the training, let's first take a look at the actual p
 
 [![Phi-4-mm-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/IGaANDJhRLM)
 
+In the SFT process, I used a single H100 GPU, and the resource consumption is approximately as follows: 
 
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/SFT-Phi-4-mm/images/3.png)
 
 ### SFT Audio encoder on Azure NC H100 VM
 
