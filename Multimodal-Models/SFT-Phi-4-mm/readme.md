@@ -1,5 +1,9 @@
 ## SFT Phi-4-multimodal-instruct Audio and Vision Encoders
 
+***Refer to**: https://huggingface.co/microsoft/Phi-4-multimodal-instruct*
+
+
+
 Phi-4-multimodal-instruct is a multimodal model capable of processing text input, audio input, and image input. Its architecture is as follows: 
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/SFT-Phi-4-mm/images/1.png)
@@ -1304,4 +1308,6 @@ Part of training process log:
 {'loss': 0.1319, 'grad_norm': 1.7234206199645996, 'learning_rate': 1.7931034482758623e-05, 'epoch': 1.7}          
 ```
 
-To verify the image inference capability of the code, you can achieve it by slightly modifying the code from the Audio training above. 
+To verify the image inference capability of the code, you can achieve it by using the same inference code from the Audio training above. 
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/SFT-Phi-4-mm/images/4.png)
