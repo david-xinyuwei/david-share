@@ -1,8 +1,16 @@
-## DPO VS PPO
+## **解读 DPO 和 PPO：从偏好反馈中学习的最佳实践解析**
 
 ***Refer to ：Unpacking DPO and PPO: Disentangling Best Practices for Learning from Preference Feedback***
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/DPO-vs-PPO/images/6.png)
+
+这篇论文再次证实了 PPO 显著优于 DPO。值得注意的是，最初的 DPO 论文声称在结合强化学习与人类反馈（RLHF）的情况下，DPO 比 PPO 更好。然而，经过大量的实际测试、社区反馈以及后续研究，很明显事实并非如此。
+
+简而言之，研究发现，合成的、多样化的数据集以及详细的分方面偏好信息对于从偏好数据中训练模型最为有效。此外，偏好注释的质量比生成的响应本身的质量更重要。在各种数据集上，PPO 的表现普遍优于 DPO。通过增大用于 PPO 的奖励模型规模以及增加训练数据量，可以显著提升奖励模型在直接评估中的性能，但这种提升主要针对特定任务（例如 GSM），而非模型的整体表现。此外，结合与测试环境高度匹配的未标注提示（prompts）可以提升特定领域的性能，例如数学任务，但对更广泛的性能指标影响有限。
+
+DPO 的运行成本显著低于 PPO，因为它不需要奖励模型。其更简单的目标函数使优化更加容易，收敛速度更快。对于通用的后训练任务以及预算有限的 AI 项目，DPO 仍是比复杂的强化学习方法（如 PPO 或 GRPO）更强有力的替代方案。
+
+
 
 ### 摘要（Abstract）
 
