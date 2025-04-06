@@ -1,22 +1,23 @@
 ## Llama-4 is Coming
 
-
+Refer to：*https://ai.meta.com/blog/llama-4-multimodal-intelligence/*
 **一、Llama 4 的诞生：新的大模型时代**
 
 在历经整整一年的等待后，Meta 再次放出重磅炸弹：Llama 4 正式登场。相比之前的第三代，这次的参数规模直接飙到了惊人的三个数量级：约 1090 亿、4000 亿，以及最高达 2 万亿的“巨无霸”版本。这种级别的模型让人不禁感慨，Meta 对大模型的野心依然不减。
 
 如果说上一代还有在小模型上精雕细琢的打算，那么到了 Llama 4，Meta 似乎更加专注于大规模训练的优势。在他们庞大的 GPU 集群支持下，巨型模型的训练似乎不再成为瓶颈。接下来，我们就来探究一下 Llama 4 的内部奥秘，以及它将为多模态AI的发展带来哪些新火花。
 
-
 **二、三款新模型：Scout、Maverick 和 Behemoth**
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Llama-4/images/3.png)
 
 Llama 4 这次的“产品线”里包括三个名字颇具个性的模型：Scout、Maverick 和 Behemoth。其中，Scout 和 Maverick 已经对外开放下载（但需要先注册，和往常一样），而体量最为夸张的 Behemoth（2 万亿参数！）则还处于训练阶段，内部用来给中小模型做“老师”。
 
-1. Scout：在上下文长度和多模态处理上有极大突破，据说还可以在一定条件下使用单张 GPU 做本地微调。
-2. Maverick：基于 Mixture-of-Experts（MoE）的结构，合计 4000 亿参数，但推理时只会用到其中的 170 亿，可在性能和内存中找到平衡点。
-3. Behemoth：拥有恐怖的 2 万亿参数，是 Meta 内部使用的重要“大脑”，主要通过“共同蒸馏”（codistillation）方式来教导其它两个模型。
+1. Llama 4 Scout 是一个拥有 16 位专家的 170 亿个活跃参数模型，是同类产品中世界上最好的多模式模型，比所有上一代 Llama 模型都更强大，同时适用于单个 NVIDIA H100 GPU。此外，Llama 4 Scout 提供业界领先的 10M 上下文窗口，并且在广泛报道的基准测试中比 Gemma 3、Gemini 2.0 Flash-Lite 和 Mistral 3.1 提供更好的结果。
+2. Llama 4 Maverick 是一个拥有 128 位专家的 170 亿个活跃参数模型，是同类中最好的多模态模型，在广泛报道的基准测试中击败了 GPT-4o 和 Gemini 2.0 Flash，同时在推理和编码方面取得了与新 DeepSeek v3 相当的结果——活跃参数不到一半。Llama 4 Maverick 提供了一流的性价比，其实验性聊天版本在[LMArena](https://lmarena.ai/leaderboard)上的 ELO 得分为 1417 。
+3. 这些模型是我们迄今为止最好的模型，这要归功于 Llama 4 Behemoth 的提炼，Llama 4 Behemoth 是一个拥有 16 位专家的 2880 亿个活跃参数模型，是我们迄今为止最强大的模型，也是世界上最智能的 LLM 之一。Llama 4 Behemoth 在多个 STEM 基准测试中的表现优于 GPT-4.5、Claude Sonnet 3.7 和 Gemini 2.0 Pro。Llama 4 Behemoth 仍在训练中，我们很高兴在它仍在飞行时分享有关它的更多详细信息。
 
-
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Llama-4/images/1.png)
 
 **三、Mixture of Experts（MoE）的大变革**
 
@@ -58,6 +59,16 @@ Behemoth 作为家族中的巨无霸，采用与 Scout、Maverick 相似的 MoE 
 如果你想用个人设备跑 Llama 4，短期内也许只能考虑 Scout：这个规模最小的变体在量化到 4bit 后，的确有机会在单块 80GB 显存的 GPU 上勉强运作。如果尝试把部分专家参数迁移到 CPU，以换取节省 GPU 资源，也是一种思路，但目前还没有成为主流方案。据说 GGUF 版本也会问世，让你在纯 CPU 环境上跑这些模型，但速度可能很慢。
 
 未来几天，很多开发者估计都会深入研究这三个模型的表现，尤其是本地微调以及上下文窗口到底能开到多大的程度。倘若一切顺利，我们还可能看到社区开发出新的工具和教程，让更多人用较低门槛就能体验到 Llama 4 带来的进步。
+
+
+
+**九、AMD的Blog**
+
+https://www.linkedin.com/pulse/llama-4-day0-support-amd-instinct-gpus-amd-cgm5e/
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Llama-4/images/4.png)
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Llama-4/images/5.png)
 
 
 **结语**
