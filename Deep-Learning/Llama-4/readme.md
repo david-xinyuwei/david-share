@@ -1,6 +1,11 @@
 ## Llama-4 is Landing on Azure AML/AI Foundry
 
-Refer to：*https://ai.meta.com/blog/llama-4-multimodal-intelligence/*
+Refer to：
+
+*https://ai.meta.com/blog/llama-4-multimodal-intelligence/*
+
+
+
 **一、Llama 4 的诞生：新的大模型时代**
 
 在历经整整一年的等待后，Meta 再次放出重磅炸弹：Llama 4 正式登场。相比之前的第三代，这次的参数规模直接飙到了惊人的三个数量级：约 1090 亿、4000 亿，以及最高达 2 万亿的“巨无霸”版本。这种级别的模型让人不禁感慨，Meta 对大模型的野心依然不减。
