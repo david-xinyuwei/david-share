@@ -91,7 +91,7 @@ docker run \
   --cap-add=SYS_PTRACE \
   --group-add video \
   --privileged \
-  --shm-size 32g \
+  --shm-size 128g \
   --ipc=host \
   -p 30000:30000 \
   -v /mnt/resource_nvme:/mnt/resource_nvme \
@@ -99,8 +99,19 @@ docker run \
   -e HSA_NO_SCRATCH_RECLAIM=1 \
   -e GPU_FORCE_BLIT_COPY_SIZE=64 \
   -e DEBUG_HIP_BLOCK_SYN=1024 \
-  rocm/sglang-staging:20250303 \
+  rocm/sgl-dev:upstream_20250312_v1 \
   python3 -m sglang.launch_server --model deepseek-ai/DeepSeek-R1 --tp 8 --trust-remote-code --chunked-prefill-size 131072 --enable-torch-comple --torch-compile-max-bs 256 --host 0.0.0.0 
+```
+
+直到出现类似的内容，表示容器已经启动成功：
+
+```
+[2025-04-01 03:42:11 DP7 TP7] Prefill batch. #new-seq: 1, #new-token: 7, #cached-token: 0, token usage: 0.00, #running-req: 0, #queue-req: 0, 
+[2025-04-01 03:42:15] INFO:     127.0.0.1:37762 - "POST /generate HTTP/1.1" 200 OK
+[2025-04-01 03:42:15] The server is fired up and ready to roll!
+[2025-04-01 04:00:11] INFO:     172.17.0.1:55994 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[2025-04-01 04:00:11 DP0 TP0] Prefill batch. #new-seq: 1, #new-token: 5, #cached-token: 1, token usage: 0.00, #running-req: 0, #queue-req: 0, 
+[2025-04-01 04:00:43] INFO:     172.17.0.1:41068 - "POST /v1/chat/completions HTTP/1.1" 200 OK
 ```
 
 确保本地可以访问DS 671B的容器：
