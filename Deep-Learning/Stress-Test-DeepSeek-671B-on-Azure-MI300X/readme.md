@@ -13,13 +13,13 @@ az vm create --name <VMNAME> --resource-group <RESOURCE_GROUP_NAME> --location <
 
 ```
 
-我使用的cli：
+我使用的创建VM cli：
 
 ```
 xinyu [ ~ ]$ az vm create --name mi300x-xinyu --resource-group amdrg --location westus --image microsoft-dsvm:ubuntu-hpc:2204-rocm:22.04.2025030701 --size Standard_ND96isr_MI300X_v5 --security-type Standard --priority Spot --max-price -1 --eviction-policy Deallocate --os-disk-size-gb 512 --os-disk-delete-option Delete --admin-username azureadmin --authentication-type password --admin-password azureadmin@123
 ```
 
-部署步骤：
+VM部署步骤：
 
 ```
 Argument '--max-price' is in preview and under development. Reference and support levels: https://aka.ms/CLI_refstatus
@@ -50,6 +50,8 @@ sudo chmod 1777 /mnt/resource_nvme
 使用本地NVME临时磁盘用作docker的运行环境，需要注意的是，VM重启以后，临时磁盘上的内容会丢失,针对快速低成本测试这种方式是可行的，针对生产则需要使用持久化文件系统。
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Stress-Test-DeepSeek-671B-on-Azure-MI300X/images/1.png)
+
+首先创建RAID0的挂载目录:
 
 ```bash
 mkdir –p /mnt/resource_nvme/hf_cache 
@@ -107,8 +109,6 @@ curl http://localhost:30000/get_model_info
 curl http://localhost:30000/generate -H "Content-Type: application/json" -d '{ "text": "Once upon a time,", "sampling_params": { "max_new_tokens": 16, "temperature": 0.6 } }'
 ```
 
-
-
 接下来将Azure NSG的 30000端口打开，以便远程访问测试。
 
 
@@ -138,19 +138,19 @@ evalscope perf --url http://mi300x-xinyu.westus.cloudapp.azure.com:30000/v1/chat
 
 单并发
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Stress-Test-DeepSeek-671B-on-Azure-MI300X/images/2.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Stress-Test-DeepSeek-671B-on-Azure-MI300X/images/2.jpg)
 
 
 
 5并发 
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Stress-Test-DeepSeek-671B-on-Azure-MI300X/images/3.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Stress-Test-DeepSeek-671B-on-Azure-MI300X/images/3.jpg)
 
 
 
 10并发
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Stress-Test-DeepSeek-671B-on-Azure-MI300X/images/4.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Stress-Test-DeepSeek-671B-on-Azure-MI300X/images/4.jpg)
 
 
 
