@@ -103,7 +103,7 @@ docker run \
   python3 -m sglang.launch_server --model deepseek-ai/DeepSeek-R1 --tp 8 --trust-remote-code --chunked-prefill-size 131072 --enable-torch-comple --torch-compile-max-bs 256 --host 0.0.0.0 
 ```
 
-首先确保本地可以访问：
+确保本地可以访问DS 671B的容器：
 
 ```
 curl http://localhost:30000/get_model_info 
@@ -112,8 +112,6 @@ curl http://localhost:30000/generate -H "Content-Type: application/json" -d '{ "
 ```
 
 接下来将Azure NSG的 30000端口打开，以便远程访问测试。
-
-
 
 登录Linux压测客户端，执行如下cli安装evalscope压测工具：
 
