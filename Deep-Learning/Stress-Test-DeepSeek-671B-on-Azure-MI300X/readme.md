@@ -37,7 +37,9 @@ Consider upgrading security for your workloads using Azure Trusted Launch VMs. T
 }
 ```
 
-系统部署成功后，进行额外的运行准备：
+系统部署成功后，打开VM NSG的22端口。
+
+然后ssh到VM进行如下环境配置。
 
 ```
 mkdir -p /mnt/resource_nvme/
@@ -47,7 +49,7 @@ sudo mount /dev/md128 /mnt/resource_nvme
 sudo chmod 1777 /mnt/resource_nvme  
 ```
 
-使用本地NVME临时磁盘用作docker的运行环境，需要注意的是，VM重启以后，临时磁盘上的内容会丢失,针对快速低成本测试这种方式是可行的，针对生产则需要使用持久化文件系统。
+测试的时候，使用本地NVME临时磁盘用作docker的运行环境，需要注意的是，VM重启以后，临时磁盘上的内容会丢失,针对快速低成本测试这种方式是可行的，针对生产则需要使用持久化文件系统。
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Stress-Test-DeepSeek-671B-on-Azure-MI300X/images/1.png)
 
