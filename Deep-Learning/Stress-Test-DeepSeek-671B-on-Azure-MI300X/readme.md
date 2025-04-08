@@ -142,7 +142,6 @@ pip install gradio
 
 ```
 evalscope perf --url http://mi300x-xinyu.westus.cloudapp.azure.com:30000/v1/chat/completions --model "deepseek-ai/DeepSeek-R1" --parallel 1 --number 20 --api openai --min-prompt-length 10000 --dataset "longalpaca" --max-tokens 2048 --min-tokens 2048 --stream 
-
 ```
 
 接下来我列出几个不同并发和请求数量的测试结果。
