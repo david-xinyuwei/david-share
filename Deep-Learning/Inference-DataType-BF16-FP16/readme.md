@@ -1,4 +1,4 @@
-## Inference Data Type: BF16 vs FP16
+# Inference Data Type: BF16 vs FP16
 
 在大语言模型（LLMs）的训练和推理阶段，浮点数据类型（Floating-Point Data Type）的选择尤为重要。本文将深入介绍BF16与FP16这两种主流16位浮点数据类型的差异，详细分析其算法原理与数值特性，并以Google发布的Gemma 3模型为案例，探讨数据类型选择对模型推理性能和数值稳定性的实际影响。
 
