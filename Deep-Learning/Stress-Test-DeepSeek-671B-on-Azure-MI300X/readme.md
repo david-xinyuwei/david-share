@@ -26,7 +26,7 @@ Argument '--max-price' is in preview and under development. Reference and suppor
 Consider upgrading security for your workloads using Azure Trusted Launch VMs. To know more about Trusted Launch, please visit https://aka.ms/TrustedLaunch.
 {
   "fqdns": "",
-  "id": "/subscriptions/53039473-9bbd-499d-90d7-d046d4fa63b6/resourceGroups/amdrg/providers/Microsoft.Compute/virtualMachines/mi300x-xinyu",
+  "id": "/subscriptions/***/resourceGroups/amdrg/providers/Microsoft.Compute/virtualMachines/mi300x-xinyu",
   "location": "westus",
   "macAddress": "60-45-BD-01-4B-AF",
   "powerState": "VM running",
