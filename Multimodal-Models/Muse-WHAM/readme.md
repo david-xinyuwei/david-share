@@ -5,6 +5,8 @@ Given 10 context frames, WHAM is able to **simultaneously** predict the *next* g
 
 Before diving into the details, let me show a quick demo: I used the *Muse* model from the AML *Model Catalog*, predicted the next **50** frames from the image below, and turned them into a GIF.
 
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Muse-WHAM/images/2.png)
+
 **Original frame**
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Muse-WHAM/images/1.png)
