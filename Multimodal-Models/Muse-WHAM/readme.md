@@ -1,18 +1,77 @@
 ##  深度解读微软 Muse / WHAM 世界模型与实战指南
 
+在 2024 年底，微软 Research ‑ Game Intelligence 团队公开了 WHAM（World & Human Action Model）权重与代码，并在 Azure 与 Hugging Face 提供预训练端点。WHAM 能在给定 10 帧上下文的前提下，同时生成「下一帧游戏画面」与「玩家下一步手柄输入」。
 
+在正式介绍内容之前，我先展示我的测试结果：我使用AML上model catalog上MUSE模型，基于下图预测后续50帧，并生成gif的效果。
+
+原始图：
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Muse-WHAM/images/1.png)
+
+预测50帧后的gif，我们可以看到帧的顺序是流畅和符合逻辑的：
 
 ![示例GIF](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Muse-WHAM/images/dream_x4-50.gif)
 
-## 0 摘要
+这50帧对应的action列表如下：
 
-在 2024 年底，微软 Research ‑ Game Intelligence 团队公开了 WHAM（World & Human Action Model）权重与代码，并在 Azure 与 Hugging Face 提供预训练端点。WHAM 能在给定 10 帧上下文的前提下，同时生成「下一帧游戏画面」与「玩家下一步手柄输入」。本文用超过 10 000 字的篇幅，从背景、数据、网络架构到完整代码与实验结果，系统拆解这套模型，并给出 GIF 与 CSV 日志，让你可复现实验、深度理解动作向量与画面生成之间的映射关系。
+| step | left_stick_x | left_stick_y | right_stick_x | right_stick_y | trigger_LT | trigger_RT | button_A | button_B | button_X | button_Y | dpad_up | dpad_down | dpad_left | dpad_right | skill_1 | skill_2 |
+| ---- | ------------ | ------------ | ------------- | ------------- | ---------- | ---------- | -------- | -------- | -------- | -------- | ------- | --------- | --------- | ---------- | ------- | ------- |
+| 1    | 0            | 0            | 1             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 10        | 6          | 5       | 5       |
+| 2    | 0            | 0            | 1             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 9         | 6          | 5       | 5       |
+| 3    | 0            | 0            | 1             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 9         | 7          | 5       | 5       |
+| 4    | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 8         | 8          | 5       | 5       |
+| 5    | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 8         | 8          | 5       | 5       |
+| 6    | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 9         | 8          | 5       | 5       |
+| 7    | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 9         | 8          | 5       | 5       |
+| 8    | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 8         | 8          | 5       | 5       |
+| 9    | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 7         | 9          | 5       | 5       |
+| 10   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 6         | 10         | 5       | 5       |
+| 11   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 6         | 10         | 0       | 5       |
+| 12   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 8         | 9          | 3       | 4       |
+| 13   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 8         | 8          | 5       | 5       |
+| 14   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 8         | 8          | 5       | 5       |
+| 15   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 8         | 9          | 5       | 5       |
+| 16   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 7         | 9          | 5       | 5       |
+| 17   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 7         | 9          | 5       | 5       |
+| 18   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 7         | 9          | 5       | 5       |
+| 19   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 7         | 9          | 5       | 5       |
+| 20   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 6         | 10         | 5       | 5       |
+| 21   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 5         | 10         | 5       | 5       |
+| 22   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 5         | 10         | 5       | 5       |
+| 23   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 5         | 10         | 5       | 5       |
+| 24   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 5         | 10         | 5       | 5       |
+| 25   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 4         | 10         | 5       | 5       |
+| 26   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 4         | 10         | 5       | 5       |
+| 27   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 4         | 10         | 5       | 5       |
+| 28   | 0            | 0            | 0             | 0             | 0          | 0          | 1        | 0        | 0        | 0        | 0       | 0         | 4         | 9          | 5       | 5       |
+| 29   | 0            | 0            | 0             | 0             | 0          | 0          | 1        | 0        | 0        | 0        | 0       | 0         | 3         | 9          | 5       | 5       |
+| 30   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 3         | 9          | 8       | 6       |
+| 31   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 2         | 9          | 10      | 6       |
+| 32   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 2         | 8          | 5       | 5       |
+| 33   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 1         | 8          | 5       | 5       |
+| 34   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 2         | 9          | 5       | 5       |
+| 35   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 4         | 9          | 5       | 5       |
+| 36   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 6         | 10         | 5       | 5       |
+| 37   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 6         | 10         | 0       | 5       |
+| 38   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 6         | 10         | 0       | 5       |
+| 39   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 6         | 10         | 4       | 5       |
+| 40   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 7         | 9          | 5       | 5       |
+| 41   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 5         | 5          | 5       | 5       |
+| 42   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 5         | 5          | 5       | 5       |
+| 43   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 5         | 5          | 5       | 5       |
+| 44   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 5         | 5          | 5       | 5       |
+| 45   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 5         | 5          | 5       | 5       |
+| 46   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 5         | 5          | 5       | 5       |
+| 47   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 5         | 5          | 5       | 5       |
+| 48   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 5         | 5          | 5       | 5       |
+| 49   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 5         | 5          | 5       | 5       |
+| 50   | 1            | 0            | 0             | 0             | 0          | 0          | 0        | 0        | 0        | 0        | 0       | 0         | 5         | 10         | 1       | 7       |
 
-------
 
-## 1 背景与动机
 
-### 1.1 为什么 3D 游戏需要世界模型
+## 背景与动机
+
+### 为什么 3D 游戏需要世界模型
 
 游戏 AI 在过去 20 年多依赖脚本、有限状态机或手工设计的行为树。这些方法虽然稳定，但在以下场景会捉襟见肘：
 
@@ -22,7 +81,7 @@
 
 世界模型（World Model）提供了一个解耦思路——**用神经网络近似「真实引擎 + 玩家行为」的联合分布**。只要模型在像素级别能合成可信画面，同时在动作空间上展现合理控制，就能在纯 GPU 或 TPU 上进行「快进」模拟，大幅压缩开发与训练成本。
 
-### 1.2 选择《Bleeding Edge》作为数据源
+### 选择《Bleeding Edge》作为数据源
 
 - **技术原因**：Bleeding Edge 是一款第三人称 4v4 对战游戏，镜头跟随角色，动作多样，且官方可合法获得服务器录像与玩家输入。
 - **数据规模**：一年时间、总计 27 990 名玩家、约 500 k 场对局。
@@ -30,7 +89,7 @@
 
 ------
 
-## 2 Muse / WHAM 概览
+## Muse / WHAM 概览
 
 | 指标             | 200 M 版  | 1.6 B 版  |
 | ---------------- | --------- | --------- |
@@ -41,7 +100,7 @@
 | 训练 GPU         | 98×H100   | 同左      |
 | 训练时长         | 5 天      | 同左      |
 
-### 2.1 三种运行模式
+### 三种运行模式
 
 | 模式             | 输入                         | 输出               | 典型用途                  |
 | ---------------- | ---------------------------- | ------------------ | ------------------------- |
@@ -53,9 +112,9 @@
 
 ------
 
-## 3 数据与训练细节
+## 数据与训练细节
 
-### 3.1 数据管线
+### 数据管线
 
 1. **原始录像**：服务器端 1080 p → 300 × 180 缩放；帧率下采样为 10 fps（平衡细节与 token 长度）。
 2. **手柄信号**：XInput 格式读取，连续值（摇杆 / 扳机）保持浮点，离散按钮 one‑hot 化。
@@ -63,7 +122,7 @@
 4. **离散化图像**：VQ‑GAN encoder → 每张 300×180 图变 75×45×(codebook=1024) token，token 长度 ≈ 3375。
 5. **合并序列**：视觉 token 与动作 token interleave，得到总 token ≈ 5560。
 
-### 3.2 训练超参
+### 训练超参
 
 ```
 batch_size          = 384        # tokens 级别
@@ -81,35 +140,33 @@ fp16 + FlashAttention v2
 
 ------
 
-## 4 模型架构深入解析
+## 模型架构深入解析
 
-### 4.1 VQ‑GAN 编解码器
+### VQ‑GAN 编解码器
 
 - **Encoder**：4 层 down‑sampling ResNet，码本 size = 1024，维度 256。
 - **Decoder**：对称上采样，并带 bilinear skip。
 - **优势**：相比普通 CNN AutoEncoder，VQ‑GAN 提供离散 latent，更适合 Transformer token 化，也减少蓝色条纹伪影。
 
-### 4.2 Transformer 主干
+### Transformer 主干
 
 - **类型**：GPT‑like decoder‑only。
 - **深度 × 宽度**：200 M = 16 层 × 1024 hid，1.6 B = 48 层 × 2048。
 - **位置编码**：1D learned；每个视觉 token 与动作 token 都有独立 slot。
 - **跨模态融合**：Transformer treat 所有 token 同质；上下文中「动作」token 一样能被 attend，隐式学到因果映射。
 
-### 4.3 Token 排布
+### Token 排布
 
 ```
 O0_t0 O0_t1 … O0_tN,   A0,   
 O1_t0 … ON,   A1,                 ... , O9, A9,   <bos>
 ```
 
-
-
 最后模型预测 O₁₀ 的图像 token；若训练「双头」，同时还预测 A₁₀。
 
 ------
 
-## 5 16 维动作空间全拆解
+## 16 维动作空间全拆解
 
 | idx  | 名称          | float range | 原生含义   | 常见效果        |
 | ---- | ------------- | ----------- | ---------- | --------------- |
@@ -136,17 +193,7 @@ O1_t0 … ON,   A1,                 ... , O9, A9,   <bos>
 
 ------
 
-## 6 推理端到端实战
-
-### 6.1 端点部署概览
-
-| 场景                     | 体验          | 命令                                              | 注意事项       |
-| ------------------------ | ------------- | ------------------------------------------------- | -------------- |
-| Azure ML Online Endpoint | 马上可用      | 1) 上传 ckpt <br>2) 指定 score.py <br>3) 申请 Key | 免费层有限 QPS |
-| 本地服务器               | GPU 充分      | `python run_server.py --model WHAM_200M.ckpt`     | Port 默认 5000 |
-| Colab Demo               | 无 GPU 也能跑 | pip + 推理 CPU                                    | 帧数建议 ≤ 5   |
-
-### 6.2 Python 全流程脚本
+### Python 全流程脚本
 
 脚本功能：
 
@@ -155,75 +202,160 @@ O1_t0 … ON,   A1,                 ... , O9, A9,   <bos>
 - 每帧做 Lanczos 4× / Real‑ESRGAN 超分
 - 输出 raw PNG、超分 PNG、GIF、CSV
 
-（代码片段见前文）
+```
+(AIF) root@pythonvm:~/AIFperformance# cat call_muse_iterative_debug.py
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
-### 6.3 结果示例
+"""
+call_muse_iterative_debug.py  (2025‑04‑27)
 
-| 输出         | 描述                       |
-| ------------ | -------------------------- |
-| raw/01.png   | 原生 300×180，约 20 KB     |
-| sr/01_x4.png | 1200×720，约 240 KB        |
-| dream_x4.gif | 30 帧 × 4 fps ≈ 3 MB       |
-| actions.csv  | 31×17 表，含 step & 16 dim |
+功能
+-----
+1. 命令行 --steps N 控制生成帧数（默认 10）
+2. 调 Muse / WHAM 端点，保存原帧 raw/ 与 4× Lanczos 帧 sr/
+3. 生成 GIF (sr/dream_x4.gif)
+4. 打印服务器响应前 2 KB；自动捕获任意 16‑维动作数组
+5. 若端点无动作 → 使用“更丰富”的随机 fallback（摇杆+按钮），便于观察画面变化
+依赖
+-----
+pip install pillow imageio
+(可选 AI 超分) pip install realesrgan torch
+"""
 
-------
+import argparse, base64, io, json, os, random, time, urllib.request
+from typing import List, Optional
+from PIL import Image
+import imageio.v3 as imageio
 
-## 7 创意实验与可视化
+# ========== 必改 ==========
+ENDPOINT_URL = "https://xinyu-workspace-westus-qatee.westus.inference.ml.azure.com/score"      # ★改成你的
+API_KEY      = "9Oms7vSUWIFwYpqSErPiJn0lBNdoywia2JIbUkGiVJ2IbksBKWBjJQQJ99BDAAAAAAAAAAAAINFRAZML27vQ"  
+# ==========================
 
-### 7.1 固定动作 vs. 模型动作
+SLEEP_SEC   = 3
+RAW_DIR, SR_DIR = "raw", "sr"
+GIF_PATH, CSV_PATH = "sr/dream_x4.gif", "actions.csv"
+PAYLOAD_PATH = "musePayload.txt"
 
-| 实验 | 输入策略        | 观察                         |
-| ---- | --------------- | ---------------------------- |
-| A    | right_stick_x=1 | 镜头稳步右旋，场景不抖动     |
-| B    | 模型闭环动作    | 角色先向前跑，5 s 后掉头攻击 |
-| C    | 随机左摇杆      | 视角杂乱，容易贴墙，不太自然 |
+# ---------- 是否启用 Real‑ESRGAN ----------
+USE_SR = False    # True→需安装 realesrgan+torch
 
-### 7.2 GIF + CSV 联动
+if USE_SR:
+    try:
+        from realesrgan import RealESRGAN
+        import torch, numpy as np
+        _dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        _sr = RealESRGAN(_dev, 4); _sr.load_weights("RealESRGAN_x4.pth")
+        print("✅ Real‑ESRGAN 4× 已启用")
+    except Exception as e:
+        print("⚠️  Real‑ESRGAN 初始化失败，回退 Lanczos:", e)
+        USE_SR = False
 
-- 用 Matplotlib 把 `left_stick_x` 曲线绘制在下一帧 GIF 下方，读者能直观看到「摇杆往右 → 角色向右偏移」。
-- 将 `trigger_RT` 的二值信号作为柱形图叠在视频下方，看到攻击闪白。
+def upsample(img: Image.Image) -> Image.Image:
+    if USE_SR:
+        import numpy as np
+        return Image.fromarray(_sr.predict(np.array(img)))
+    return img.resize((img.width*4, img.height*4), Image.Resampling.LANCZOS)
 
-### 7.3 多帧插值与时间重采样
+HEAD = ["left_stick_x","left_stick_y","right_stick_x","right_stick_y",
+        "trigger_LT","trigger_RT","button_A","button_B","button_X","button_Y",
+        "dpad_up","dpad_down","dpad_left","dpad_right","skill_1","skill_2"]
 
-Muse 固定 10 Hz，但可以在客户端线性插值到 30 fps 播放；人眼观感更顺滑，只是若动作剧烈变动会产生轻微模糊。
+def build_headers(api_key:str):
+    return {"Content-Type":"application/json",
+            "Accept":"application/json",
+            "Authorization":"Bearer "+api_key}
 
-------
+def fallback_action() -> List[float]:
+    """更丰富的随机动作：摇杆 -1~1, RT 40%, 随机点方向键"""
+    v = [0.0]*16
+    v[0], v[1] = random.uniform(-1,1), random.uniform(-1,1)      # 左摇杆
+    v[2], v[3] = random.uniform(-1,1), random.uniform(-1,1)      # 右摇杆
+    v[5] = 1.0 if random.random()<0.4 else 0.0                   # RT
+    dpad_index = 10 + random.randint(0,3)                        # 任一方向键
+    v[dpad_index] = 1.0
+    return v
 
-## 8 局限性、踩坑与性能评测
+def pil_to_b64(img: Image.Image, size=(300,180)) -> str:
+    buf = io.BytesIO()
+    img.resize(size, Image.Resampling.LANCZOS).save(buf, format="PNG")
+    return base64.b64encode(buf.getvalue()).decode()
 
-| 类别       | 问题描述                   | 影响              | 解决思路                                      |
-| ---------- | -------------------------- | ----------------- | --------------------------------------------- |
-| 分辨率     | 固定 300×180，纹理糊       | 演示不够炫        | Real‑ESRGAN / StableSR Upsample               |
-| 动作缺失   | 部署端常忘记返回 `actions` | CSV 只有 fallback | 修改 score.py 把 `pred_actions.tolist()` 写回 |
-| 长时衰减   | ≥ 60 帧会出现角色原地踏步  | 丢失动力学        | ① 提高 context length ② 重新放入真实帧        |
-| token 上限 | 5560，无法塞更多对象       | 多目标生成困难    | 分层编码 (patch‑wise)                         |
-| 推理延迟   | 1.6 B ≈ 80 ms/帧           | 实时不可用        | 蒸馏到 LLaMA‑like 轻量模型                    |
+def muse_call(payload:dict, hdr:dict, url:str):
+    req = urllib.request.Request(url, json.dumps(payload).encode(), hdr)
+    with urllib.request.urlopen(req) as r:
+        js = json.loads(r.read().decode())
 
-**显存实测**（A100‑80 GB，batch=1）：
+    # 调试：打印前 2 KB
+    print("── server response (first 2 KB) ──")
+    print(json.dumps(js, indent=2)[:2048], "\n────────────────────────")
 
-- 200 M：显存峰值 4.3 GB
-- 1.6 B：显存峰值 28.1 GB
-- Flash‑Attention v2 比原生 PyTorch 节省 ~25 % 显存
+    img_b64 = js["results"][0]["image"]
+    img = Image.open(io.BytesIO(base64.b64decode(img_b64)))
 
-------
+    act, act_key = None, None
+    for k, v in js["results"][0].items():
+        if isinstance(v, (list, tuple)) and len(v) == 16 and all(isinstance(x,(int,float)) for x in v):
+            act, act_key = list(map(float, v)), k
+            break
+    return img, act, act_key, list(js["results"][0].keys())
 
-## 9 未来方向 & 研究机会
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--steps", type=int, default=10, help="迭代帧数 (默认 10)")
+    args = parser.parse_args()
+    total_iter = args.steps
 
-1. **高分辨率扩散 / pix2pix upsampler**
-   把 300×180 作为条件，使用 ControlNet Upsampler 输出 1080 p，保留动态一致性。
-2. **跨游戏通用世界模型**
-   多源数据（FPS、MOBA、RPG）→ 探索视觉‑动作 token 的共享子空间，像语言模型那样「多语同训」。
-3. **世界模型 × 强化学习**
-   把 Muse 当作模拟器，外部 SAC / PPO 学 policy；论文如 Dreamer‑V3 可参考。
-4. **NVMe 混合训练**
-   大 token 序列 → Offload KV Cache 到 NVMe + Flash‑Attention‑2，单机训练 6 B 世界模型。
-5. **与 UGC 编辑器结合**
-   在 Unity HUD 里把 Muse 作为「AI 镜头预览」模块，一键生成动态分镜，让关卡设计师实时迭代。
+    os.makedirs(RAW_DIR, exist_ok=True)
+    os.makedirs(SR_DIR,  exist_ok=True)
 
-------
+    payload = json.load(open(PAYLOAD_PATH, "r", encoding="utf-8"))
+    ctx, ctx_len = payload["input_data"]["context"], len(payload["input_data"]["context"])
 
-## 10 结论
+    with open(CSV_PATH, "w", encoding="utf-8") as f:
+        f.write("step," + ",".join(HEAD) + "\n")
 
-Muse / WHAM 展示了一个可行范式：**用单一 Transformer 编排「世界状态 token + 人类动作 token」**，就能让模型既学到环境动力学，也学到玩家行为。对游戏开发者，它是一个可脚本化的「可控环境模拟器」；对科研人员，它是研究世界模型、决策‑生成一体化的绝佳实验平台。
+    hdr = build_headers(API_KEY)
 
-期待社区在更高分辨率、多游戏迁移、RL‑coupling 等方向继续深化，共同探索「下一代可交互式生成 AI」。
+    for step in range(total_iter):
+        print(f"\n🚀 调用 {step+1}/{total_iter}")
+        try:
+            img, act, act_key, keys = muse_call(payload, hdr, ENDPOINT_URL)
+        except Exception as e:
+            print("❌ HTTP 错误：", e)
+            break
+
+        if act is None:
+            act = fallback_action()
+            print(f"⚠️  未检测到 16 维动作，使用随机 fallback (keys={keys})")
+        else:
+            print(f"✅ 捕获动作字段: '{act_key}'")
+
+        # 保存图像
+        raw_path = f"{RAW_DIR}/{step+1:02d}.png"; img.save(raw_path)
+        upsample(img).save(f"{SR_DIR}/{step+1:02d}_x4.png")
+
+        # 写 CSV
+        with open(CSV_PATH, "a", encoding="utf-8") as f:
+            f.write(f"{step+1}," + ",".join(map(str, act)) + "\n")
+
+        # 更新 context
+        if len(ctx) >= ctx_len:
+            ctx.pop(0)
+        ctx.append({"image": pil_to_b64(img), "actions": act, "actions_output": act, "tokens": []})
+
+        if step < total_iter - 1:
+            time.sleep(SLEEP_SEC)
+
+    # 合成 GIF
+    frames = [imageio.imread(f"{SR_DIR}/{i+1:02d}_x4.png") for i in range(step+1)]
+    imageio.imwrite(GIF_PATH, frames, duration=0.25, loop=0)
+    print(f"\n🎉 完成 {step+1} 帧。GIF: {GIF_PATH}  CSV: {CSV_PATH}")
+
+if __name__ == "__main__":
+    main()
+```
+
+
+
