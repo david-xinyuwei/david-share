@@ -2,7 +2,7 @@
 
 
 
-![示例GIF](./images/example.gif)
+![示例GIF](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Muse-WHAM/images/dream_x4-50.gif)
 
 ## 0 摘要
 
