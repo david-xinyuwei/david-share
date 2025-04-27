@@ -1,18 +1,19 @@
-##  深度解读微软 Muse / WHAM 世界模型与实战指南
+# An Guide to Microsoft Muse / WHAM World Model
 
-在 2024 年底，微软 Research ‑ Game Intelligence 团队公开了 WHAM（World & Human Action Model）权重与代码，并在 Azure 与 Hugging Face 提供预训练端点。WHAM 能在给定 10 帧上下文的前提下，同时生成「下一帧游戏画面」与「玩家下一步手柄输入」。
+At the end of 2024, Microsoft Research – Game Intelligence publicly released the weights and source code of WHAM (World & Human Action Model) and exposed fully‑hosted inference endpoints on both Azure and Hugging Face.
+Given 10 context frames, WHAM is able to **simultaneously** predict the *next* game frame **and** the player’s *next* game‑pad input.
 
-在正式介绍内容之前，我先展示我的测试结果：我使用AML上model catalog上MUSE模型，基于下图预测后续50帧，并生成gif的效果。
+Before diving into the details, let me show a quick demo: I used the *Muse* model from the AML *Model Catalog*, predicted the next **50** frames from the image below, and turned them into a GIF.
 
-原始图：
+**Original frame**
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Muse-WHAM/images/1.png)
 
-预测50帧后的gif，我们可以看到帧的顺序是流畅和符合逻辑的：
+**GIF after predicting 50 frames** — the temporal order looks smooth and logically consistent:
 
 ![示例GIF](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Muse-WHAM/images/dream_x4-50.gif)
 
-这50帧对应的action列表如下：
+The corresponding **action list** (16‑D vectors) for those 50 frames is printed by the following script:
 
 | step | left_stick_x | left_stick_y | right_stick_x | right_stick_y | trigger_LT | trigger_RT | button_A | button_B | button_X | button_Y | dpad_up | dpad_down | dpad_left | dpad_right | skill_1 | skill_2 |
 | ---- | ------------ | ------------ | ------------- | ------------- | ---------- | ---------- | -------- | -------- | -------- | -------- | ------- | --------- | --------- | ---------- | ------- | ------- |
@@ -69,138 +70,133 @@
 
 
 
-## 背景与动机
+## Background & Motivation
 
-### 为什么 3D 游戏需要世界模型
+- ### Why 3‑D Games Need a World Model
 
-游戏 AI 在过去 20 年多依赖脚本、有限状态机或手工设计的行为树。这些方法虽然稳定，但在以下场景会捉襟见肘：
+  For more than two decades, game AI has relied on scripts, finite‑state machines, or hand‑crafted behavior trees. Although these approaches are stable, they struggle in the following scenarios:
 
-- **内容创作**：关卡设计师希望快速「预演」不同场景、不同角色的交互，传统管线需要先写脚本、再进游戏引擎运行，迭代长且费人力。
-- **AI 训练**：强化学习在 3D 环境中需要海量 roll‑out，Unity 或 Unreal 级别的真实引擎帧耗高，难以在大规模算力上并行。
-- **玩家个性化**：自动生成大量非关键路径动画或场景状态，可极大降低美术与动画师成本。
+  1. **Content creation** – Level designers want to *preview* interactions among different scenes and characters rapidly. In a traditional pipeline they have to write scripts and then run them inside the engine; each iteration is slow and human‑intensive.
+  2. **AI training** – Reinforcement learning in 3‑D environments requires massive roll‑outs. Realistic engines such as Unity or Unreal are GPU‑heavy and hard to parallelize at scale.
+  3. **Player personalization** – Automatically generating a large number of non‑critical path animations or scene states can dramatically cut art and animation costs.
 
-世界模型（World Model）提供了一个解耦思路——**用神经网络近似「真实引擎 + 玩家行为」的联合分布**。只要模型在像素级别能合成可信画面，同时在动作空间上展现合理控制，就能在纯 GPU 或 TPU 上进行「快进」模拟，大幅压缩开发与训练成本。
+  A World Model offers a decoupled solution: use a neural network to approximate the *joint distribution* of “real engine + player behavior.” As long as the model can synthesize plausible pixels and produce reasonable controls, we can “fast‑forward” simulation entirely on GPUs/TPUs, slashing development and training cost.
 
-### 选择《Bleeding Edge》作为数据源
+  ### Why We Picked *Bleeding Edge* as the Data Source
 
-- **技术原因**：Bleeding Edge 是一款第三人称 4v4 对战游戏，镜头跟随角色，动作多样，且官方可合法获得服务器录像与玩家输入。
-- **数据规模**：一年时间、总计 27 990 名玩家、约 500 k 场对局。
-- **授权与隐私**：所有录像和控制信号在内部匿名化处理，仅保留操作与像素，不含语音、聊天或玩家标识。
+  • Technical fit – *Bleeding Edge* is a 3rd‑person 4‑v‑4 brawler; the camera is player‑centric, actions are diverse, and the dev team can legally access server replays and controller inputs.
+  • Data scale – One year of logs, 27 990 unique players, ≈ 500 k matches.
+  • Licensing & privacy – All replays and control signals are anonymized internally; only actions and pixels are kept—no voice, chat, or PII.
 
-------
 
-## Muse / WHAM 概览
 
-| 指标             | 200 M 版  | 1.6 B 版  |
-| ---------------- | --------- | --------- |
-| 参数量           | 2.0 × 10⁸ | 1.6 × 10⁹ |
-| ckpt 大小        | 3.7 GB    | 18.9 GB   |
-| 单帧显存 (A6000) | ≈ 4 GB    | ≈ 28 GB   |
-| 推理耗时 (A6000) | 32 ms     | 82 ms     |
-| 训练 GPU         | 98×H100   | 同左      |
-| 训练时长         | 5 天      | 同左      |
+## Muse / WHAM at a Glance
 
-### 三种运行模式
+| Metric                    | 200 M version | 1.6 B version |
+| :------------------------ | ------------: | ------------: |
+| Parameters                |     2.0 × 10⁸ |     1.6 × 10⁹ |
+| ckpt size                 |        3.7 GB |       18.9 GB |
+| VRAM per frame (A6000)    |        ≈ 4 GB |       ≈ 28 GB |
+| Latency per frame (A6000) |         32 ms |         82 ms |
+| Training GPUs             |     98 × H100 |          same |
+| Training time             |        5 days |          same |
 
-| 模式             | 输入                         | 输出               | 典型用途                  |
-| ---------------- | ---------------------------- | ------------------ | ------------------------- |
-| World Model      | 10 帧画面 + 10 步动作        | 下一帧画面         | 物理 / 视觉预测、视频压缩 |
-| Behaviour Policy | 10 帧画面                    | 下一步动作 (16‑维) | 机器人 / NPC 控制         |
-| Full Generation  | 任意长度 prompt (画面或动作) | 下一帧画面 + 动作  | 故事 / 关卡素材生成       |
+### Three Inference Modes
 
-**亮点**：Muse 的 API 与强化学习的 (sₜ, aₜ) → sₜ₊₁ 完美对齐；开发者可直接把 Muse 视为「超高分辨率环境模拟器」，把上层 RL 或搜索算法无缝套进去。
+| Mode                | Input                                    | Output              | Typical use case                               |
+| :------------------ | :--------------------------------------- | :------------------ | :--------------------------------------------- |
+| **World Model**     | 10 frames + 10 actions                   | next frame          | physics / vision prediction, video compression |
+| **Behavior Policy** | 10 frames                                | next action (16‑D)  | robot / NPC control                            |
+| **Full Generation** | prompt of any length (frames or actions) | next frame + action | story or level material generation             |
 
-------
+**Highlight:** Muse’s API aligns perfectly with the RL formulation (sₜ, aₜ) → sₜ₊₁. Developers can treat Muse as a *high‑resolution environment simulator* and plug upper‑level RL or search algorithms on top with zero friction.
 
-## 数据与训练细节
 
-### 数据管线
 
-1. **原始录像**：服务器端 1080 p → 300 × 180 缩放；帧率下采样为 10 fps（平衡细节与 token 长度）。
-2. **手柄信号**：XInput 格式读取，连续值（摇杆 / 扳机）保持浮点，离散按钮 one‑hot 化。
-3. **切片**：按「10 帧 + 10 动作」滑窗，生成 (O₀, A₀, …, O₉, A₉, O₁₀) 序列。
-4. **离散化图像**：VQ‑GAN encoder → 每张 300×180 图变 75×45×(codebook=1024) token，token 长度 ≈ 3375。
-5. **合并序列**：视觉 token 与动作 token interleave，得到总 token ≈ 5560。
+## Data & Training Details
 
-### 训练超参
+### Data Pipeline
+
+1. **Raw replays** – Server‑side 1080 p ⇒ down‑scaled to 300 × 180; FPS down‑sampled to 10 fps (trade‑off between detail and token length).
+2. **Controller signals** – Read in XInput format; continuous values (sticks / triggers) kept as float, discrete buttons one‑hot encoded.
+3. **Slicing** – Sliding window of “10 frames + 10 actions” to form sequences (O₀, A₀, …, O₉, A₉, O₁₀).
+4. **Image discretization** – VQ‑GAN encoder maps each 300 × 180 frame to 75 × 45×(codebook = 1024) tokens; length ≈ 3 375.
+5. **Sequence merge** – Interleave vision tokens with action tokens → total length ≈ 5 560.
+
+### Training Hyper‑Parameters
 
 ```
-batch_size          = 384        # tokens 级别
+batch_size          = 384      # tokens
 optimizer           = AdamW
 lr_schedule         = cosine
 weight_decay        = 0.01
 dropout             = 0.1
-fp16 + FlashAttention v2
+precision           = fp16     # + FlashAttention v2
+loss                = CrossEntropy(next_token)   # no extra KL or weighting
+augmentations       = random horizontal flip + brightness jitter
+```
+
+## Model Architecture Deep Dive
+
+### VQ‑GAN Encoder/Decoder
+
+• Encoder – 4‑stage down‑sampling ResNet, codebook = 1024, latent dim = 256.
+• Decoder – Symmetric up‑sampling with bilinear skips.
+Advantage: Compared with a vanilla CNN auto‑encoder, VQ‑GAN provides *discrete* latents, making tokenization Transformer‑friendly and reducing blue‑stripe artifacts.
+
+### Transformer Backbone
+
+• Type – GPT‑style *decoder‑only*.
+• Depth × Width – 200 M = 16 layers × 1024 hid; 1.6 B = 48 layers × 2048.
+• Positional encoding – 1‑D learned; vision and action tokens each have a dedicated slot.
+• Cross‑modal fusion – All tokens are homogeneous; action tokens inside the context are attended just like image tokens, letting the model learn causality implicitly.
+
+### Token Layout
+
+```
+O0_t0 O0_t1 … O0_tN,  A0,
+O1_t0 … ON,  A1,   … , O9, A9,  <bos>
 ```
 
 
 
-- **目标函数**：Cross‑Entropy over next‑token；不需要额外 KL 或维数加权。
-- **数据增广**：随机水平翻转、亮度 jitter，保证对称性。
+The model finally predicts the image tokens of **O₁₀**; if trained “dual‑head,” it simultaneously predicts **A₁₀** as well.
 
 ------
 
-## 模型架构深入解析
+## 16‑Dimensional Action Space Breakdown
 
-### VQ‑GAN 编解码器
+| idx  | name          | float range | Native meaning  | Typical effect         |
+| :--: | :------------ | :---------- | :-------------- | :--------------------- |
+|  1   | left_stick_x  | –1 ~ 1      | horizontal move | –1 left, 1 right       |
+|  2   | left_stick_y  | –1 ~ 1      | vertical move   | –1 forward, 1 backward |
+|  3   | right_stick_x | –1 ~ 1      | camera pan      | –1 CCW, 1 CW           |
+|  4   | right_stick_y | –1 ~ 1      | camera tilt     | –1 up, 1 down          |
+|  5   | trigger_LT    | 0 ~ 1       | aim / block     | 0.5 half‑press         |
+|  6   | trigger_RT    | 0 ~ 1       | attack / shoot  | 1 full‑press           |
+|  7   | button_A      | 0 / 1       | jump            |                        |
+|  8   | button_B      | 0 / 1       | dodge           |                        |
+|  9   | button_X      | 0 / 1       | light hit       |                        |
+|  10  | button_Y      | 0 / 1       | heavy hit       |                        |
+|  11  | dpad_up       | 0 / 1       | emote / shout   |                        |
+|  12  | dpad_down     | 0 / 1       | skill 3         |                        |
+|  13  | dpad_left     | 0 / 1       | switch weapon   |                        |
+|  14  | dpad_right    | 0 / 1       | switch weapon   |                        |
+|  15  | skill_1       | 0 / 1       | character skill |                        |
+|  16  | skill_2       | 0 / 1       | character skill |                        |
 
-- **Encoder**：4 层 down‑sampling ResNet，码本 size = 1024，维度 256。
-- **Decoder**：对称上采样，并带 bilinear skip。
-- **优势**：相比普通 CNN AutoEncoder，VQ‑GAN 提供离散 latent，更适合 Transformer token 化，也减少蓝色条纹伪影。
+*Mini experiment:* Set `right_stick_x = 1` while others are 0 → camera rotates clockwise at ≈ 90°/s. Set `trigger_RT = 1` → the character will likely perform a basic attack.
 
-### Transformer 主干
 
-- **类型**：GPT‑like decoder‑only。
-- **深度 × 宽度**：200 M = 16 层 × 1024 hid，1.6 B = 48 层 × 2048。
-- **位置编码**：1D learned；每个视觉 token 与动作 token 都有独立 slot。
-- **跨模态融合**：Transformer treat 所有 token 同质；上下文中「动作」token 一样能被 attend，隐式学到因果映射。
 
-### Token 排布
+- ## End‑to‑End Python Script
 
-```
-O0_t0 O0_t1 … O0_tN,   A0,   
-O1_t0 … ON,   A1,                 ... , O9, A9,   <bos>
-```
+  **Features**
 
-最后模型预测 O₁₀ 的图像 token；若训练「双头」，同时还预测 A₁₀。
-
-------
-
-## 16 维动作空间全拆解
-
-| idx  | 名称          | float range | 原生含义   | 常见效果        |
-| ---- | ------------- | ----------- | ---------- | --------------- |
-| 1    | left_stick_x  | –1 ~ 1      | 横向平移   | –1 左移，1 右移 |
-| 2    | left_stick_y  | –1 ~ 1      | 纵向平移   | –1 前进，1 后退 |
-| 3    | right_stick_x | –1 ~ 1      | 摄像机水平 | –1 左旋，1 右旋 |
-| 4    | right_stick_y | –1 ~ 1      | 摄像机垂直 | –1 向上，1 向下 |
-| 5    | trigger_LT    | 0 ~ 1       | 瞄准/格挡  | 0.5 半按        |
-| 6    | trigger_RT    | 0 ~ 1       | 攻击/射击  | 1 全按          |
-| 7    | button_A      | 0/1         | 跳跃       |                 |
-| 8    | button_B      | 0/1         | 闪避       |                 |
-| 9    | button_X      | 0/1         | 轻击       |                 |
-| 10   | button_Y      | 0/1         | 重击       |                 |
-| 11   | dpad_up       | 0/1         | 表情/战吼  |                 |
-| 12   | dpad_down     | 0/1         | 技能 3     |                 |
-| 13   | dpad_left     | 0/1         | 切武器     |                 |
-| 14   | dpad_right    | 0/1         | 切武器     |                 |
-| 15   | skill_1       | 0/1         | 角色技能   |                 |
-| 16   | skill_2       | 0/1         | 角色技能   |                 |
-
-> 小实验：
-> 把 **right_stick_x=1** 其余 0 → 视角以 ≈90°/s 速度顺时针；
-> 把 **trigger_RT=1** → 大概率角色挥出一次普通攻击。
-
-------
-
-### Python 全流程脚本
-
-脚本功能：
-
-- 命令行 `--steps N` 控制帧数
-- 自动检测 `actions` 字段；若无 → 随机 fallback
-- 每帧做 Lanczos 4× / Real‑ESRGAN 超分
-- 输出 raw PNG、超分 PNG、GIF、CSV
+  - `--steps N` on the CLI controls how many frames to generate.
+  - Automatically detects the `actions` field; if missing → falls back to random actions.
+  - Each frame is up‑scaled via Lanczos 4× (or optional Real‑ESRGAN).
+  - Outputs raw PNGs, super‑res PNGs, GIF, and CSV.
 
 ```
 (AIF) root@pythonvm:~/AIFperformance# cat call_muse_iterative_debug.py
@@ -210,84 +206,138 @@ O1_t0 … ON,   A1,                 ... , O9, A9,   <bos>
 """
 call_muse_iterative_debug.py  (2025‑04‑27)
 
-功能
------
-1. 命令行 --steps N 控制生成帧数（默认 10）
-2. 调 Muse / WHAM 端点，保存原帧 raw/ 与 4× Lanczos 帧 sr/
-3. 生成 GIF (sr/dream_x4.gif)
-4. 打印服务器响应前 2 KB；自动捕获任意 16‑维动作数组
-5. 若端点无动作 → 使用“更丰富”的随机 fallback（摇杆+按钮），便于观察画面变化
-依赖
------
+Functionality
+-------------
+1. Command‑line flag --steps N controls the number of frames to generate (default 10)
+2. Calls a Muse / WHAM endpoint; saves raw frames to raw/ and 4× super‑resolved
+   frames to sr/
+3. Creates an animated GIF (sr/dream_x4.gif)
+4. Prints the first 2 KB of the server response; automatically captures any
+   16‑dimensional action array
+5. If the endpoint returns no action vector → falls back to a more diverse
+   random input (sticks + buttons) to keep the scene changing
+
+Dependencies
+------------
 pip install pillow imageio
-(可选 AI 超分) pip install realesrgan torch
+(optional SR) pip install realesrgan torch
 """
 
-import argparse, base64, io, json, os, random, time, urllib.request
+import argparse
+import base64
+import getpass
+import io
+import json
+import os
+import random
+import time
+import urllib.request
 from typing import List, Optional
+
 from PIL import Image
 import imageio.v3 as imageio
 
-# ========== 必改 ==========
-ENDPOINT_URL = "https://xinyu-workspace-westus-qatee.westus.inference.ml.azure.com/score"      # ★改成你的
-API_KEY      = "9Oms7vSUWIFwYpqSErPiJn0lBNdoywia2JIbUkGiVJ2IbksBKWBjJQQJ99BDAAAAAAAAAAAAINFRAZML27vQ"  
-# ==========================
-
-SLEEP_SEC   = 3
-RAW_DIR, SR_DIR = "raw", "sr"
-GIF_PATH, CSV_PATH = "sr/dream_x4.gif", "actions.csv"
-PAYLOAD_PATH = "musePayload.txt"
-
-# ---------- 是否启用 Real‑ESRGAN ----------
-USE_SR = False    # True→需安装 realesrgan+torch
+# ---------------------------------------------------------------------------
+# Super‑resolution settings
+# ---------------------------------------------------------------------------
+USE_SR = False  # Set to True → requires realesrgan + torch
 
 if USE_SR:
     try:
         from realesrgan import RealESRGAN
-        import torch, numpy as np
-        _dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        _sr = RealESRGAN(_dev, 4); _sr.load_weights("RealESRGAN_x4.pth")
-        print("✅ Real‑ESRGAN 4× 已启用")
+        import torch
+        import numpy as np
+
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        _sr = RealESRGAN(device, scale=4)
+        _sr.load_weights("RealESRGAN_x4.pth")
+        print("✅ Real‑ESRGAN 4× up‑scaling enabled.")
     except Exception as e:
-        print("⚠️  Real‑ESRGAN 初始化失败，回退 Lanczos:", e)
+        print("⚠️  Failed to initialize Real‑ESRGAN; falling back to Lanczos:", e)
         USE_SR = False
 
+
 def upsample(img: Image.Image) -> Image.Image:
+    """Upsample a PIL image by 4× using Real‑ESRGAN or Lanczos."""
     if USE_SR:
         import numpy as np
+
         return Image.fromarray(_sr.predict(np.array(img)))
-    return img.resize((img.width*4, img.height*4), Image.Resampling.LANCZOS)
+    return img.resize((img.width * 4, img.height * 4), Image.Resampling.LANCZOS)
 
-HEAD = ["left_stick_x","left_stick_y","right_stick_x","right_stick_y",
-        "trigger_LT","trigger_RT","button_A","button_B","button_X","button_Y",
-        "dpad_up","dpad_down","dpad_left","dpad_right","skill_1","skill_2"]
 
-def build_headers(api_key:str):
-    return {"Content-Type":"application/json",
-            "Accept":"application/json",
-            "Authorization":"Bearer "+api_key}
+# ---------------------------------------------------------------------------
+# File system constants
+# ---------------------------------------------------------------------------
+RAW_DIR, SR_DIR = "raw", "sr"
+GIF_PATH, CSV_PATH = "sr/dream_x4.gif", "actions.csv"
+PAYLOAD_PATH = "musePayload.txt"
+
+# ---------------------------------------------------------------------------
+# 16‑D action head names (for CSV output)
+# ---------------------------------------------------------------------------
+ACTION_HEAD = [
+    "left_stick_x",
+    "left_stick_y",
+    "right_stick_x",
+    "right_stick_y",
+    "trigger_LT",
+    "trigger_RT",
+    "button_A",
+    "button_B",
+    "button_X",
+    "button_Y",
+    "dpad_up",
+    "dpad_down",
+    "dpad_left",
+    "dpad_right",
+    "skill_1",
+    "skill_2",
+]
+
+
+# ---------------------------------------------------------------------------
+# Helper functions
+# ---------------------------------------------------------------------------
+def build_headers(api_key: str):
+    """Build HTTP headers for the Azure/HF endpoint."""
+    return {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Authorization": "Bearer " + api_key,
+    }
+
 
 def fallback_action() -> List[float]:
-    """更丰富的随机动作：摇杆 -1~1, RT 40%, 随机点方向键"""
-    v = [0.0]*16
-    v[0], v[1] = random.uniform(-1,1), random.uniform(-1,1)      # 左摇杆
-    v[2], v[3] = random.uniform(-1,1), random.uniform(-1,1)      # 右摇杆
-    v[5] = 1.0 if random.random()<0.4 else 0.0                   # RT
-    dpad_index = 10 + random.randint(0,3)                        # 任一方向键
+    """
+    Generate a richer random action vector:
+    - Sticks sampled from [-1, 1]
+    - RT pressed with 40 % probability
+    - Exactly one random d‑pad key is pressed
+    """
+    v = [0.0] * 16
+    v[0], v[1] = random.uniform(-1, 1), random.uniform(-1, 1)  # left stick
+    v[2], v[3] = random.uniform(-1, 1), random.uniform(-1, 1)  # right stick
+    v[5] = 1.0 if random.random() < 0.4 else 0.0  # RT
+    dpad_index = 10 + random.randint(0, 3)  # choose one d‑pad key
     v[dpad_index] = 1.0
     return v
 
-def pil_to_b64(img: Image.Image, size=(300,180)) -> str:
+
+def pil_to_b64(img: Image.Image, size=(300, 180)) -> str:
+    """Downscale a PIL image and return its Base64‑encoded PNG bytes."""
     buf = io.BytesIO()
     img.resize(size, Image.Resampling.LANCZOS).save(buf, format="PNG")
     return base64.b64encode(buf.getvalue()).decode()
 
-def muse_call(payload:dict, hdr:dict, url:str):
+
+def muse_call(payload: dict, hdr: dict, url: str):
+    """Send an HTTP request to the Muse / WHAM endpoint and parse the response."""
     req = urllib.request.Request(url, json.dumps(payload).encode(), hdr)
     with urllib.request.urlopen(req) as r:
         js = json.loads(r.read().decode())
 
-    # 调试：打印前 2 KB
+    # Debug: print first 2 KB of the response
     print("── server response (first 2 KB) ──")
     print(json.dumps(js, indent=2)[:2048], "\n────────────────────────")
 
@@ -296,66 +346,114 @@ def muse_call(payload:dict, hdr:dict, url:str):
 
     act, act_key = None, None
     for k, v in js["results"][0].items():
-        if isinstance(v, (list, tuple)) and len(v) == 16 and all(isinstance(x,(int,float)) for x in v):
+        if (
+            isinstance(v, (list, tuple))
+            and len(v) == 16
+            and all(isinstance(x, (int, float)) for x in v)
+        ):
             act, act_key = list(map(float, v)), k
             break
     return img, act, act_key, list(js["results"][0].keys())
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--steps", type=int, default=10, help="迭代帧数 (默认 10)")
-    args = parser.parse_args()
-    total_iter = args.steps
 
+# ---------------------------------------------------------------------------
+# Main entry
+# ---------------------------------------------------------------------------
+def main():
+    parser = argparse.ArgumentParser(
+        description="Iteratively call a Muse / WHAM endpoint and build a GIF."
+    )
+    parser.add_argument("--steps", type=int, default=10, help="number of frames (default 10)")
+    parser.add_argument("--endpoint", type=str, help="AI endpoint URL")
+    parser.add_argument("--key", type=str, help="API key for the endpoint")
+    args = parser.parse_args()
+
+    # -----------------------------------------------------------------------
+    # Resolve endpoint & key: CLI flag → ENV var → interactive prompt
+    # -----------------------------------------------------------------------
+    ENDPOINT_URL = (
+        args.endpoint
+        or os.getenv("MUSE_ENDPOINT_URL")
+        or input("Enter ENDPOINT_URL: ").strip()
+    )
+    API_KEY = (
+        args.key
+        or os.getenv("MUSE_API_KEY")
+        or getpass.getpass("Enter API_KEY (input hidden): ").strip()
+    )
+
+    # -----------------------------------------------------------------------
+    # Create output folders & load initial payload
+    # -----------------------------------------------------------------------
     os.makedirs(RAW_DIR, exist_ok=True)
-    os.makedirs(SR_DIR,  exist_ok=True)
+    os.makedirs(SR_DIR, exist_ok=True)
 
     payload = json.load(open(PAYLOAD_PATH, "r", encoding="utf-8"))
     ctx, ctx_len = payload["input_data"]["context"], len(payload["input_data"]["context"])
 
+    # Prepare CSV
     with open(CSV_PATH, "w", encoding="utf-8") as f:
-        f.write("step," + ",".join(HEAD) + "\n")
+        f.write("step," + ",".join(ACTION_HEAD) + "\n")
 
-    hdr = build_headers(API_KEY)
+    headers = build_headers(API_KEY)
+    total_iter = args.steps
 
+    # -----------------------------------------------------------------------
+    # Main inference loop
+    # -----------------------------------------------------------------------
     for step in range(total_iter):
-        print(f"\n🚀 调用 {step+1}/{total_iter}")
+        print(f"\n🚀 Inference {step + 1}/{total_iter}")
         try:
-            img, act, act_key, keys = muse_call(payload, hdr, ENDPOINT_URL)
+            img, act, act_key, keys = muse_call(payload, headers, ENDPOINT_URL)
         except Exception as e:
-            print("❌ HTTP 错误：", e)
+            print("❌ HTTP error:", e)
             break
 
         if act is None:
             act = fallback_action()
-            print(f"⚠️  未检测到 16 维动作，使用随机 fallback (keys={keys})")
+            print(f"⚠️  No 16‑D action found; using random fallback (keys={keys})")
         else:
-            print(f"✅ 捕获动作字段: '{act_key}'")
+            print(f"✅ Captured action field: '{act_key}'")
 
-        # 保存图像
-        raw_path = f"{RAW_DIR}/{step+1:02d}.png"; img.save(raw_path)
-        upsample(img).save(f"{SR_DIR}/{step+1:02d}_x4.png")
+        # Save the raw image
+        raw_path = f"{RAW_DIR}/{step + 1:02d}.png"
+        img.save(raw_path)
 
-        # 写 CSV
+        # Save the 4× up‑sampled image
+        upsample(img).save(f"{SR_DIR}/{step + 1:02d}_x4.png")
+
+        # Append to CSV
         with open(CSV_PATH, "a", encoding="utf-8") as f:
-            f.write(f"{step+1}," + ",".join(map(str, act)) + "\n")
+            f.write(f"{step + 1}," + ",".join(map(str, act)) + "\n")
 
-        # 更新 context
+        # Update context for the next call
         if len(ctx) >= ctx_len:
             ctx.pop(0)
-        ctx.append({"image": pil_to_b64(img), "actions": act, "actions_output": act, "tokens": []})
+        ctx.append(
+            {"image": pil_to_b64(img), "actions": act, "actions_output": act, "tokens": []}
+        )
 
+        # Optional sleep between calls
         if step < total_iter - 1:
-            time.sleep(SLEEP_SEC)
+            time.sleep(3)
 
-    # 合成 GIF
-    frames = [imageio.imread(f"{SR_DIR}/{i+1:02d}_x4.png") for i in range(step+1)]
+    # -----------------------------------------------------------------------
+    # Build the animated GIF
+    # -----------------------------------------------------------------------
+    frames = [imageio.imread(f"{SR_DIR}/{i + 1:02d}_x4.png") for i in range(step + 1)]
     imageio.imwrite(GIF_PATH, frames, duration=0.25, loop=0)
-    print(f"\n🎉 完成 {step+1} 帧。GIF: {GIF_PATH}  CSV: {CSV_PATH}")
+    print(f"\n🎉 Done. Generated {step + 1} frames.")
+    print(f"   GIF : {GIF_PATH}")
+    print(f"   CSV : {CSV_PATH}")
+
 
 if __name__ == "__main__":
     main()
 ```
 
+Run programme
 
+```
+python call_muse_iterative_debug.py --steps 50
+```
 
