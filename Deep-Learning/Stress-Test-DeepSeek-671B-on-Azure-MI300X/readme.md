@@ -98,7 +98,7 @@ docker run \
   -e GPU_FORCE_BLIT_COPY_SIZE=64 \
   -e DEBUG_HIP_BLOCK_SYN=1024 \
   rocm/sgl-dev:upstream_20250312_v1 \
-  python3 -m sglang.launch_server --model deepseek-ai/DeepSeek-R1 --tp 8 --trust-remote-code --chunked-prefill-size 131072 --enable-torch-comple --torch-compile-max-bs 256 --host 0.0.0.0 
+  python3 -m sglang.launch_server --model deepseek-ai/DeepSeek-R1 --tp 8 --trust-remote-code --chunked-prefill-size 131072  --host 0.0.0.0 
 ```
 
 直到出现类似的内容，表示容器已经启动成功：
