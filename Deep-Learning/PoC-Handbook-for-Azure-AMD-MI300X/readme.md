@@ -48,7 +48,7 @@ Then SSH into the VM and perform the following environment configuration steps.
 
 For testing, use the local NVME temporary disk as the docker runtime environment. Note that after VM restart, data stored on the temporary disk will be lost. This approach is suitable for fast, low-cost testing scenarios. However, for production scenarios, a persistent file system should be used.
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Stress-Test-DeepSeek-671B-on-Azure-MI300X/images/1.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/PoC-Handbook-for-Azure-AMD-MI300X/images/1.png)
 
 ```
 mkdir -p /mnt/resource_nvme/
@@ -324,15 +324,15 @@ Next, I will list test results for several scenarios with different concurrency 
 
 Single concurrency:
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Stress-Test-DeepSeek-671B-on-Azure-MI300X/images/2.jpg)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/PoC-Handbook-for-Azure-AMD-MI300X/images/2.jpg)
 
 5 Concurrent Requests:
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Stress-Test-DeepSeek-671B-on-Azure-MI300X/images/3.jpg)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/PoC-Handbook-for-Azure-AMD-MI300X/images/3.jpg)
 
 10 Concurrent Requests:
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Stress-Test-DeepSeek-671B-on-Azure-MI300X/images/4.jpg)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/PoC-Handbook-for-Azure-AMD-MI300X/images/4.jpg)
 
 **Note**: Additional performance parameters
 
@@ -427,7 +427,7 @@ evalscope perf --url http://172.167.140.16:30000/v1/chat/completions --model dee
 
 The test results are available in **result.txt**.
 
-*https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Stress-Test-DeepSeek-671B-on-Azure-MI300X/results.txt*
+*https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/PoC-Handbook-for-Azure-AMD-MI300X/results.txt*
 
 ### Launch Qwen 2.5 72B using vLLM
 
@@ -464,7 +464,7 @@ evalscope perf --url http://172.167.140.16:8080/v1/chat/completions --model Qwen
 
 The test results are available in **result.txt**.
 
-*https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Stress-Test-DeepSeek-671B-on-Azure-MI300X/results.txt*
+*https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/PoC-Handbook-for-Azure-AMD-MI300X/results.txt*
 
 **Refer to:**
 
