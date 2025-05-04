@@ -1,6 +1,8 @@
 ## PoC Handbook for Azure AMD MI300X
 
-This repository aims to help you quickly deploy and validate performance of open-source flagship models on Azure ND MI300X.
+This repository provides comprehensive guidance and resources for efficiently deploying, testing, and benchmarking cutting-edge open-source foundation models using Azure's latest ND MI300X GPU-enabled Virtual Machines.
+
+The handbook is designed both as a quick-start guide and as an exhaustive handbook, empowering you to rapidly establish an optimized deployment environment, perform sophisticated inference tasks, conduct systematic performance evaluations, and maximize computational throughput on Azure ND MI300X.
 
 Currently included models: 
 
