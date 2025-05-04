@@ -179,7 +179,7 @@ This parameter is supported in the AMD environment. However, it doesn't improve 
 
 
 
-#### Stress test DeepSeek R1 671B using SGLang with EvalScope's customized dataset.
+### Stress test DeepSeek R1 671B using SGLang with EvalScope's customized dataset.
 
 In many cases, EvalScope's default dataset might not meet our specific requirements. In this section, I will demonstrate the steps to conduct stress testing on DeepSeek R1 671B using the customized C3 dataset.
 
@@ -232,7 +232,7 @@ test: 100%|███████████████████████
 ✅ Lines written: 9571
 ```
 
-Perform stress testing on DeepSeek R1 671B using a customized dataset.
+### Perform stress testing on DeepSeek R1 671B using a customized dataset.
 
 ```
 DeepSeek-R1（30000 端口） 1️⃣ Instruction-S1-low 256→50
@@ -256,7 +256,7 @@ evalscope perf --url http://172.167.140.16:30000/v1/chat/completions --model dee
 
 The test results are available in **result.txt**.
 
-
+*https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Stress-Test-DeepSeek-671B-on-Azure-MI300X/results.txt*
 
 ### Launch Qwen 2.5 72B using vLLM
 
@@ -268,10 +268,11 @@ docker run -d --name qwen72b_8x --device=/dev/kfd --device=/dev/dri --privileged
 
 
 
-**Stress test Qwen 2.5 72B  using SGLang with EvalScope's customized dataset.**
+### **Stress test Qwen 2.5 72B  using SGLang with EvalScope's customized dataset.**
 
 ```
-Qwen-2.5-72B（8080 端口） 7️⃣ Instruction-S1-low 256→50
+Qwen-2.5-72B（8080 端口）
+7️⃣ Instruction-S1-low 256→50
 evalscope perf --url http://172.167.140.16:8080/v1/chat/completions --model Qwen/Qwen2.5-72B-Instruct --api openai --stream --parallel 300 --number 1000 --dataset custom --dataset-path ./c3_evalscope.jsonl --min-prompt-length 256 --min-tokens 50 --max-tokens 150
 
 8️⃣ Instruction-S1-high 512→150
@@ -292,7 +293,7 @@ evalscope perf --url http://172.167.140.16:8080/v1/chat/completions --model Qwen
 
 The test results are available in **result.txt**.
 
-
+*https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Stress-Test-DeepSeek-671B-on-Azure-MI300X/results.txt*
 
 **Refer to:**
 
