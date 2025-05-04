@@ -425,9 +425,7 @@ evalscope perf --url http://172.167.140.16:30000/v1/chat/completions --model dee
 evalscope perf --url http://172.167.140.16:30000/v1/chat/completions --model deepseek-ai/DeepSeek-R1 --api openai --stream --parallel 300 --number 1000 --dataset custom --dataset-path ./c3_evalscope.jsonl --min-prompt-length 512 --min-tokens 1024 --max-tokens 1024
 ```
 
-The test results are available in **result.txt**.
-
-*https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/PoC-Handbook-for-Azure-AMD-MI300X/results.txt*
+The test results are available in **[results.txt](*https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/PoC-Handbook-for-Azure-AMD-MI300X/results.txt*)**.
 
 ### Launch Qwen 2.5 72B using vLLM
 
@@ -462,9 +460,9 @@ evalscope perf --url http://172.167.140.16:8080/v1/chat/completions --model Qwen
 evalscope perf --url http://172.167.140.16:8080/v1/chat/completions --model Qwen/Qwen2.5-72B-Instruct --api openai --stream --parallel 300 --number 1000 --dataset custom --dataset-path ./c3_evalscope.jsonl --min-prompt-length 512 --min-tokens 1024 --max-tokens 1024
 ```
 
-The test results are available in **result.txt**.
+The test results are available in [**results.txt**.](*https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/PoC-Handbook-for-Azure-AMD-MI300X/results.txt*)
 
-*https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/PoC-Handbook-for-Azure-AMD-MI300X/results.txt*
+
 
 **Refer to:**
 
