@@ -96,7 +96,19 @@ Qwen3‑235B‑A22B is the flagship MoE model in the Qwen3 family:
 Next, I will demonstrate testing using the vLLM Docker image as an example.
 
 ```
- docker run -d --name qwen3_235b   --device=/dev/kfd --device=/dev/dri   --privileged --security-opt seccomp=unconfined --cap-add SYS_PTRACE   -p 8090:8090   -v /mnt/resource_nvme:/mnt/resource_nvme   -e HF_HOME=/mnt/resource_nvme/hf_cache   -e HSA_NO_SCRATCH_RECLAIM=1   rocm/vllm:rocm6.3.1_instinct_vllm0.8.3_20250410   python -m vllm.entrypoints.openai.api_server     --model Qwen/Qwen3-235B-A22B     --tensor-parallel-size 8     --dtype bfloat16     --max-model-len 32768     --enable-reasoning     --reasoning-parser deepseek_r1     --max-num-batched-tokens 120000     --tokenizer-pool-size 16     --tokenizer-pool-type ray     --swap-space 8     --gpu-memory-utilization 0.92     --port 8090 --host 0.0.0.0     --trust-remote-code
+docker run -d --name qwen3_A -p 8090:8090 \
+  --device=/dev/kfd --device=/dev/dri --privileged \
+  -v /mnt/resource_nvme:/mnt/resource_nvme -e HF_HOME=/mnt/resource_nvme/hf_cache \
+  rocm/vllm:rocm6.3.1_instinct_vllm0.8.3_20250410 \
+  python -m vllm.entrypoints.openai.api_server \
+    --model Qwen/Qwen3-235B-A22B --tensor-parallel-size 8 --dtype bfloat16 \
+    --max-model-len 32768 \
+    --enable-reasoning --reasoning-parser deepseek_r1 \
+    --max-num-batched-tokens 120000 \
+    --max-num-seqs 512 \
+    --tokenizer-pool-size 16 --tokenizer-pool-type ray \
+    --gpu-memory-utilization 0.92 --swap-space 0 \
+    --port 8090 --host 0.0.0.0 --trust-remote-code
 ```
 
 I will use `curl` to perform testing requests against the model.
@@ -162,7 +174,76 @@ pip install gradio
 Perform stress testing against the running model.
 
 ```
-#evalscope perf --url http://localhost:8090/v1/chat/completions --model Qwen/Qwen3-235B-A22B --api openai --parallel 512 --number 6000 --dataset longalpaca --min-prompt-length 128 --min-tokens 128 --max-tokens 256 --stream
+#evalscope perf --url http://172.167.140.16:8090/v1/chat/completions   --model Qwen/Qwen3-235B-A22B --api openai --stream   --parallel 256 --number 1024   --dataset random   --tokenizer-path Qwen/Qwen3-235B-A22B   --min-prompt-length 64 --max-prompt-length 64   --min-tokens 64 --max-tokens 128
+```
+
+Logs from the server during inference：
+
+```
+reqs, GPU KV cache usage: 98.9%, CPU KV cache usage: 0.0%.
+INFO 05-04 13:53:57 [metrics.py:489] Avg prompt throughput: 7760.5 tokens/s, Avg generation throughput: 442.4 tokens/s, Running: 207 reqs, Swapped: 0 reqs, Pending: 274 reqs, GPU KV cache usage: 98.9%, CPU KV cache usage: 0.0%.
+INFO 05-04 13:54:02 [metrics.py:489] Avg prompt throughput: 2562.4 tokens/s, Avg generation throughput: 1099.7 tokens/s, Running: 207 reqs, Swapped: 0 reqs, Pending: 274 reqs, GPU KV cache usage: 99.2%, CPU KV cache usage: 0.0%.
+INFO 05-04 13:54:07 [metrics.py:489] Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1283.4 tokens/s, Running: 207 reqs, Swapped: 0 reqs, Pending: 274 reqs, GPU KV cache usage: 99.4%, CPU KV cache usage: 0.0%.
+INFO 05-04 13:54:12 [metrics.py:489] Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 1282.8 tokens/s, Running: 207 reqs, Swapped: 0 reqs, Pending: 274 reqs, GPU KV cache usage: 99.7%, CPU KV cache usage: 0.0%.
+```
+
+Final result:
+
+```
+Benchmarking summary:
++-----------------------------------+-----------------------------------------------------------+
+| Key                               | Value                                                     |
++===================================+===========================================================+
+| Time taken for tests (s)          | 69.8914                                                   |
++-----------------------------------+-----------------------------------------------------------+
+| Number of concurrency             | 256                                                       |
++-----------------------------------+-----------------------------------------------------------+
+| Total requests                    | 1024                                                      |
++-----------------------------------+-----------------------------------------------------------+
+| Succeed requests                  | 1024                                                      |
++-----------------------------------+-----------------------------------------------------------+
+| Failed requests                   | 0                                                         |
++-----------------------------------+-----------------------------------------------------------+
+| Output token throughput (tok/s)   | 1865.8519                                                 |
++-----------------------------------+-----------------------------------------------------------+
+| Total token throughput (tok/s)    | 2850.9516                                                 |
++-----------------------------------+-----------------------------------------------------------+
+| Request throughput (req/s)        | 14.6513                                                   |
++-----------------------------------+-----------------------------------------------------------+
+| Average latency (s)               | 17.3582                                                   |
++-----------------------------------+-----------------------------------------------------------+
+| Average time to first token (s)   | 5.7435                                                    |
++-----------------------------------+-----------------------------------------------------------+
+| Average time per output token (s) | 0.0911                                                    |
++-----------------------------------+-----------------------------------------------------------+
+| Average input tokens per request  | 67.2363                                                   |
++-----------------------------------+-----------------------------------------------------------+
+| Average output tokens per request | 127.3506                                                  |
++-----------------------------------+-----------------------------------------------------------+
+| Average package latency (s)       | 0.0919                                                    |
++-----------------------------------+-----------------------------------------------------------+
+| Average package per request       | 126.3184                                                  |
++-----------------------------------+-----------------------------------------------------------+
+| Expected number of requests       | 1024                                                      |
++-----------------------------------+-----------------------------------------------------------+
+| Result DB path                    | outputs/20250504_222303/Qwen3-235B-A22B/benchmark_data.db |
++-----------------------------------+-----------------------------------------------------------+
+2025-05-04 22:24:27,790 - evalscope - INFO - 
+Percentile results:
++------------+----------+---------+----------+-------------+--------------+---------------+--------------------------+-------------------------+
+| Percentile | TTFT (s) | ITL (s) | TPOT (s) | Latency (s) | Input tokens | Output tokens | Output throughput(tok/s) | Total throughput(tok/s) |
++------------+----------+---------+----------+-------------+--------------+---------------+--------------------------+-------------------------+
+|    10%     |  5.8189  | 0.0544  |  0.0588  |   13.3598   |      64      |      128      |          6.0347          |         9.1481          |
+|    25%     |  5.8442  | 0.0583  |  0.0686  |   13.5874   |      65      |      128      |          6.2648          |         9.4244          |
+|    50%     |  5.8657  |  0.06   |  0.1083  |   16.7161   |      66      |      128      |          7.1796          |         11.6407         |
+|    66%     |  5.8822  | 0.0607  |  0.1134  |   20.3827   |      67      |      128      |          8.7303          |         13.2849         |
+|    75%     |  5.8921  | 0.0612  |  0.1193  |   20.422    |      68      |      128      |          8.7556          |         14.1945         |
+|    80%     |  5.897   | 0.0616  |  0.1194  |   21.1746   |      69      |      128      |          9.5546          |         14.3859         |
+|    90%     |  5.9128  | 0.0629  |  0.1195  |   21.2086   |      72      |      128      |          9.5785          |         14.5611         |
+|    95%     |  5.9307  | 0.1034  |  0.1195  |   21.2282   |      77      |      128      |          9.5905          |         14.7346         |
+|    98%     |  5.9465  | 0.2248  |  0.1197  |   21.2461   |      83      |      128      |          9.6005          |         14.9724         |
+|    99%     |  5.9502  | 2.2631  |  0.1201  |   21.2522   |      87      |      128      |          9.604           |         15.2534         |
++------------+----------+---------+----------+-------------+--------------+---------------+--------------------------+-------------------------+
 ```
 
 
