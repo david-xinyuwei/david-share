@@ -1,4 +1,4 @@
-Qwen-2.5-72B（8080 端口） 7️⃣ Instruction-S1-low 256→50
+Qwen-2.5-72B（8000 端口） Instruction-S1-low 256→50
 evalscope perf --url http://172.167.140.16:8000/v1/chat/completions --model Qwen/Qwen2.5-72B-Instruct --api openai --stream --parallel 300 --number 1000 --dataset custom --dataset-path ./c3_evalscope.jsonl --min-prompt-length 256 --min-tokens 50 --max-tokens 150
 
 Instruction-S1-high 512→150
