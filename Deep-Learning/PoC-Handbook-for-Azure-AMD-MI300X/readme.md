@@ -411,30 +411,30 @@ test: 100%|███████████████████████
 DeepSeek-R1（30000 端口） 1️⃣ Instruction-S1-low 256→50
 evalscope perf --url http://172.167.140.16:30000/v1/chat/completions --model deepseek-ai/DeepSeek-R1 --api openai --stream --parallel 300 --number 1000 --dataset custom --dataset-path ./c3_evalscope.jsonl --min-prompt-length 256 --min-tokens 50 --max-tokens 150
 
-2️⃣ Instruction-S1-high 512→150
+Instruction-S1-high 512→150
 evalscope perf --url http://172.167.140.16:30000/v1/chat/completions --model deepseek-ai/DeepSeek-R1 --api openai --stream --parallel 300 --number 1000 --dataset custom --dataset-path ./c3_evalscope.jsonl --min-prompt-length 512 --min-tokens 50 --max-tokens 150
 
-3️⃣ MultiStep-S2-low 512→150-500
+MultiStep-S2-low 512→150-500
 evalscope perf --url http://172.167.140.16:30000/v1/chat/completions --model deepseek-ai/DeepSeek-R1 --api openai --stream --parallel 300 --number 1000 --dataset custom --dataset-path ./c3_evalscope.jsonl --min-prompt-length 512 --min-tokens 150 --max-tokens 500
 
-4️⃣ MultiStep-S2-high 1024→150-500
+MultiStep-S2-high 1024→150-500
 evalscope perf --url http://172.167.140.16:30000/v1/chat/completions --model deepseek-ai/DeepSeek-R1 --api openai --stream --parallel 300 --number 1000 --dataset custom --dataset-path ./c3_evalscope.jsonl --min-prompt-length 1024 --min-tokens 150 --max-tokens 500
 
-5️⃣ Reasoning-S3-low 256→1024
+Reasoning-S3-low 256→1024
 evalscope perf --url http://172.167.140.16:30000/v1/chat/completions --model deepseek-ai/DeepSeek-R1 --api openai --stream --parallel 300 --number 1000 --dataset custom --dataset-path ./c3_evalscope.jsonl --min-prompt-length 256 --min-tokens 1024 --max-tokens 1024
 
-6️⃣ Reasoning-S3-high 512→1024 172.167.140.16
+Reasoning-S3-high 512→1024 172.167.140.16
 evalscope perf --url http://172.167.140.16:30000/v1/chat/completions --model deepseek-ai/DeepSeek-R1 --api openai --stream --parallel 300 --number 1000 --dataset custom --dataset-path ./c3_evalscope.jsonl --min-prompt-length 512 --min-tokens 1024 --max-tokens 1024
 ```
 
-The test results are available in [**results.txt**](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/PoC-Handbook-for-Azure-AMD-MI300X/results.txt).
+The test results are available in [**results.txt**](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/PoC-Handbook-for-Azure-AMD-MI300X/results1.txt).
 
 ### Launch Qwen 2.5 72B using vLLM
 
 Start container：
 
 ```
-docker run -d --name qwen72b_8x --device=/dev/kfd --device=/dev/dri --privileged --security-opt seccomp=unconfined --cap-add SYS_PTRACE -p 8080:8080 -v /mnt/resource_nvme:/mnt/resource_nvme -e HF_HOME=/mnt/resource_nvme/hf_cache -e HSA_NO_SCRATCH_RECLAIM=1 rocm/vllm:rocm6.3.1_instinct_vllm0.8.3_20250410 python -m vllm.entrypoints.openai.api_server --model Qwen/Qwen2.5-72B-Instruct --dtype bfloat16 --tensor-parallel-size 8 --max-num-batched-tokens 60000 --tokenizer-pool-size 16 --max-num-seqs 512 --tokenizer-pool-type ray --swap-space 4 --gpu-memory-utilization 0.9 --port 8080 --host 0.0.0.0 --trust-remote-code
+docker run -d --name qwen72b_8x --device=/dev/kfd --device=/dev/dri --privileged --security-opt seccomp=unconfined --cap-add SYS_PTRACE -p 8000:8000 -v /mnt/resource_nvme:/mnt/resource_nvme -e HF_HOME=/mnt/resource_nvme/hf_cache -e HSA_NO_SCRATCH_RECLAIM=1 -e VLLM_USE_TRITON_FLASH_ATTN=0 -e VLLM_USE_V1=0 rocm/vllm-dev:nightly_main_20250423 vllm serve Qwen/Qwen2.5-72B-Instruct --dtype float16 --tensor-parallel-size 8 --swap-space 16 --max-model-len 8192 --max-num-batched-tokens 65536 --gpu-memory-utilization 0.95 --num-scheduler-steps 10 --disable-log-requests
 ```
 
 
@@ -443,26 +443,26 @@ docker run -d --name qwen72b_8x --device=/dev/kfd --device=/dev/dri --privileged
 
 ```
 Qwen-2.5-72B（8080 端口）
-7️⃣ Instruction-S1-low 256→50
-evalscope perf --url http://172.167.140.16:8080/v1/chat/completions --model Qwen/Qwen2.5-72B-Instruct --api openai --stream --parallel 300 --number 1000 --dataset custom --dataset-path ./c3_evalscope.jsonl --min-prompt-length 256 --min-tokens 50 --max-tokens 150
+Instruction-S1-low 256→50
+evalscope perf --url http://172.167.140.16:8000/v1/chat/completions --model Qwen/Qwen2.5-72B-Instruct --api openai --stream --parallel 300 --number 1000 --dataset custom --dataset-path ./c3_evalscope.jsonl --min-prompt-length 256 --min-tokens 50 --max-tokens 150
 
-8️⃣ Instruction-S1-high 512→150
-evalscope perf --url http://172.167.140.16:8080/v1/chat/completions --model Qwen/Qwen2.5-72B-Instruct --api openai --stream --parallel 300 --number 1000 --dataset custom --dataset-path ./c3_evalscope.jsonl --min-prompt-length 512 --min-tokens 50 --max-tokens 150
+Instruction-S1-high 512→150
+evalscope perf --url http://172.167.140.16:8000/v1/chat/completions --model Qwen/Qwen2.5-72B-Instruct --api openai --stream --parallel 300 --number 1000 --dataset custom --dataset-path ./c3_evalscope.jsonl --min-prompt-length 512 --min-tokens 50 --max-tokens 150
 
-9️⃣ MultiStep-S2-low 512→150-500
-evalscope perf --url http://172.167.140.16:8080/v1/chat/completions --model Qwen/Qwen2.5-72B-Instruct --api openai --stream --parallel 300 --number 1000 --dataset custom --dataset-path ./c3_evalscope.jsonl --min-prompt-length 512 --min-tokens 150 --max-tokens 500
+MultiStep-S2-low 512→150-500
+evalscope perf --url http://172.167.140.16:8000/v1/chat/completions --model Qwen/Qwen2.5-72B-Instruct --api openai --stream --parallel 300 --number 1000 --dataset custom --dataset-path ./c3_evalscope.jsonl --min-prompt-length 512 --min-tokens 150 --max-tokens 500
 
-🔟 MultiStep-S2-high 1024→150-500
-evalscope perf --url http://172.167.140.16:8080/v1/chat/completions --model Qwen/Qwen2.5-72B-Instruct --api openai --stream --parallel 300 --number 1000 --dataset custom --dataset-path ./c3_evalscope.jsonl --min-prompt-length 1024 --min-tokens 150 --max-tokens 500
+MultiStep-S2-high 1024→150-500
+evalscope perf --url http://172.167.140.16:8000/v1/chat/completions --model Qwen/Qwen2.5-72B-Instruct --api openai --stream --parallel 300 --number 1000 --dataset custom --dataset-path ./c3_evalscope.jsonl --min-prompt-length 1024 --min-tokens 150 --max-tokens 500
 
-1️⃣1️⃣ Reasoning-S3-low 256→1024
+Reasoning-S3-low 256→1024
 evalscope perf --url http://172.167.140.16:8080/v1/chat/completions --model Qwen/Qwen2.5-72B-Instruct --api openai --stream --parallel 300 --number 1000 --dataset custom --dataset-path ./c3_evalscope.jsonl --min-prompt-length 256 --min-tokens 1024 --max-tokens 1024
 
-1️⃣2️⃣ Reasoning-S3-high 512→1024
-evalscope perf --url http://172.167.140.16:8080/v1/chat/completions --model Qwen/Qwen2.5-72B-Instruct --api openai --stream --parallel 300 --number 1000 --dataset custom --dataset-path ./c3_evalscope.jsonl --min-prompt-length 512 --min-tokens 1024 --max-tokens 1024
+Reasoning-S3-high 512→1024
+evalscope perf --url http://172.167.140.16:8000/v1/chat/completions --model Qwen/Qwen2.5-72B-Instruct --api openai --stream --parallel 300 --number 1000 --dataset custom --dataset-path ./c3_evalscope.jsonl --min-prompt-length 512 --min-tokens 1024 --max-tokens 1024
 ```
 
-The test results are available in [**results.txt**.](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/PoC-Handbook-for-Azure-AMD-MI300X/results.txt)
+The test results are available in [**results.txt**.](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/PoC-Handbook-for-Azure-AMD-MI300X/results2.txt)
 
 
 
