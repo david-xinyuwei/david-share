@@ -1,12 +1,14 @@
 ## A2A Demo on Azure OpenAI
 
-Refer to：
+### A2A 快速PoC
+
+参考:
 
 *https://github.com/google/A2A/tree/main/samples/python/agents/semantickernel*
 
-Just need to replace the original **agent.py** with it in my repo.
+原始repo是针对OpenAI开发的，如果想使用Azure OpenAI，只需要用我repo的 **agent.py** 文件替换原始repo中的对应文件即可。
 
-Set .env as my example:
+设置.env范例：
 
 ```
 AZURE_OPENAI_ENDPOINT="https://ai-xinyuwei8714ai888427144375.openai.azure.com"
@@ -120,9 +122,114 @@ INFO:common.server.task_manager:Getting task 69e9be843a464587a1534d009c00bfa1
 INFO:     127.0.0.1:40238 - "POST / HTTP/1.1" 200 OK
 ```
 
+### 代码分析：
+
+agent.py 里，总共出现了 3 个真正意义上的 ChatCompletionAgent，外加 1 个工具插件：
+
+1. TravelManagerAgent
+   • 角色：总控 / 路由器。
+   • 对外暴露为 A2A Server，本体就是启动的 “SK Travel Agent”。
+   • 职责：
+   – 接收用户请求；
+   – 判断是“货币/金额”还是“活动/行程”；
+   – 把任务转给下面两个专用代理；
+   – 汇总结果，按 A2A 格式流式返回。
+2. CurrencyExchangeAgent
+   • 角色：货币与预算问题专家。
+   • 被注册为 TravelManagerAgent 的一个插件（Skill-Agent）。
+   • 内部调用 CurrencyPlugin.get_exchange_rate()，真正触发 Frankfurter API。
+   • 只有当用户消息里出现金额、汇率、兑换等关键词时才会被 TravelManager 选中。
+3. ActivityPlannerAgent
+   • 角色：行程／活动规划专家。
+   • 处理除货币之外的一切旅行体验内容：景点、餐饮、课程、门票等。
+   • 在你的“火星旅行”对话中，所有回帖都由它生成；因此它两次访问 Azure OpenAI，每轮开销 ~1000 tokens。
+
+———————————————
+辅助组件（不是 Agent）：
+• CurrencyPlugin
+– 一个工具插件（kernel_function）；包含单个函数 get_exchange_rate()。
+– 仅被 CurrencyExchangeAgent 调用，不对外暴露。
+
+• ChatHistoryAgentThread
+– 用来保存对话历史的线程对象；按 sessionId 复用，重启进程会清零。
+
+———————————————
+层次关系
+A2A 调用链 = (客户端) → TravelManagerAgent ─┬─> CurrencyExchangeAgent ──> CurrencyPlugin/Frankfurter
+└─> ActivityPlannerAgent ──> Azure OpenAI
+
+因此，外部世界只看得到 1 个 A2A Agent（TravelManager）。内部又包含 2 个子智能体，各自负责不同职能。
+
+### 调用结果分析
+
+在上面的调用例子中，三类 Agent 都被按预期触发了。
+日志可拆成三段，对应你连续输入的三条 prompt：
+
+┌── 第 1 条 prompt ───────────────────────── “请把 1000 美元换算成今日的欧元……” · TravelManager 收到请求
+· 路由到 CurrencyExchangeAgent
+· CurrencyExchangeAgent ⇒ CurrencyPlugin.get_exchange_rate()
+└─ 日志出现 GET https://api.frankfurter.app/latest?from=USD&to=EUR
+· 未调用 ActivityPlannerAgent
+→ 只动用「汇率代理」
+
+┌── 第 2 条 prompt ───────────────────────── “帮我规划 3 天京都深度文化之旅……” · TravelManager 路由到 ActivityPlannerAgent
+· 日志仅见两次 Azure OpenAI 请求，没有 Frankfurter GET
+→ 只动用「行程规划代理」
+
+┌── 第 3 条 prompt ───────────────────────── “首尔 2 天，每人每天预算 120 美元…” · TravelManager 同时识别到“货币 + 行程”
+· 日志显示 parallel 调用 2 个 tool call：
+① CurrencyExchangeAgent ⇒ CurrencyPlugin（USD→KRW）→ Frankfurter GET
+② ActivityPlannerAgent ⇒ Azure OpenAI（行程生成）
+→ 两个子代理都被激活，结果在 CLI 合并返回
+
+因此：
+
+• TravelManagerAgent：三轮都在工作（对外唯一 A2A 服务端）。
+• CurrencyExchangeAgent：在第 1、3 条 prompt 中被调用。
+• ActivityPlannerAgent：在第 2、3 条 prompt 中被调用。
+• CurrencyPlugin / Frankfurter API：在两次涉及汇率的任务中被调用。
+
+总结：此次试验充分验证了路由逻辑；所有子代理在合适的语境下都被调动起来，功能正常。
+
+## A2A与MCP的类比
+
+首先，A2A与MCP不是冲突，而是分层协作—它们解决的问题根本就不在同一“层”，用网络协议的比喻大概是这样：
+
+• MCP 像 “TCP”：把一台智能体内部（或它对外提供的）“功能/工具”抽象成统一调用格式，让模型能可靠地“打 API 电话”。
+• A2A 像 “HTTP”：定义两台真正独立的智能体之间如何发现彼此、交换目标、流式回包、做鉴权。
+二者可以同时出现：Agent A 先按 A2A 找到 Agent B → Agent B 内部再用 MCP 去调某个 PDF-QA、SQL-Query、支付网关等工具。
+
+——核心区别与互补——
+
+1. 关注对象
+   • MCP：Agent ↔ Tool / 外部资源（“单兵拿武器”）。
+   • A2A：Agent ↔ Agent / 多智能体编队（“部队协同作战”）。
+   引用①②
+2. 消息粒度
+   • MCP 消息通常是一次函数调用描述（name、args、schema）+ 可选中间思考。
+   • A2A 消息是一个完整任务生命周期：目标、进度事件、子调用、最终结果。
+   引用③⑤
+3. 发现与治理
+   • MCP 默认你已经知道要调哪把“工具”，主要解决“怎么调”。
+   • A2A 附带 Agent Card、目录服务、mTLS/OAuth 等，让你先“找到”合适的 Agent，再谈调用。
+   引用①④
+4. 组合关系
+   • A2A 调用链里可以嵌套 MCP：
+   (A) 出行规划 Agent ——A2A→ (B) 财务 Agent ——MCP→ 汇率 API。
+   • 反过来，一台 Agent 也可以在同一流程里既回复 A2A 消息，又把一些子任务暴露成 MCP 函数。
 
 
-## A2A与MCP的关系
 
+——有没有重叠？——
+• 都基于 JSON（RPC 或变体），字段有点像；
+• 都鼓励在 message 中携带 “function schema”；
+• 但规范级别、目标场景不同，官方工作组也明确将两者并列为“互补协议”③。
+所以它们不是竞争关系，而是可堆叠的两层：
+Agent 网络层（A2A）
+↕
+工具调用层（MCP）
 
+——典型使用场景——
+• 只做“模型调工具”——用 MCP 就够。
+• 想让多家公司、跨云 Agent 协作——A2A 必不可少；每台 Agent 内部再随意选 MCP、LangChain-Tools、SK-Plugins 等实现工具调用。
 
