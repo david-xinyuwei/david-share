@@ -4,17 +4,24 @@ Refer to：
 
 https://github.com/google/A2A/tree/main/samples/python/agents/semantickernel
 
-Replace the **agent.py** with my program.
+Just need to replace the original **agent.py** with it in my repo.
 
 Set .env as my example:
 
-Server端：
+```
+AZURE_OPENAI_ENDPOINT="https://ai-xinyuwei8714ai888427144375.openai.azure.com"
+AZURE_OPENAI_API_KEY="Al**"
+AZURE_OPENAI_DEPLOYMENT_NAME="gpt-4o-1120"
+AZURE_OPENAI_API_VERSION="2024-12-01-preview"
+```
+
+Server side：
 
 ```
 (semantickernel) (base) root@pythonvm:~/A2A/samples/python/agents/semantickernel# uv run .
 ```
 
-Client：
+Client side：
 
 ```
 (base) root@pythonvm:~/A2A/samples/python# uv run hosts/cli --agent http://localhost:10020
