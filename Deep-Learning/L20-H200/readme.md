@@ -2,7 +2,9 @@
 
 
 
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/L20-H200/images/1.png)
 
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/L20-H200/images/2.png)
 
 
 
