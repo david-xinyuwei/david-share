@@ -1,4 +1,4 @@
-# 深入解析大模型并行训练方法：DP、FSDP、TP、PP 详解与实践指南
+# 深入解析大模型并行训练方法：DP、FSDP、TP、PP 详解与实践指南以及Llama-Factory的使用
 
 近年来，大语言模型（LLM）快速发展，参数规模迅速增长至数十亿甚至数千亿级别，推动了 GPT、LLaMA 等模型广泛应用。但模型参数的增长也带来了巨大挑战：如何高效地在 GPU 集群上进行大模型训练或微调？针对这个问题，业界常用的模型并行策略包括数据并行（DP/DDP）、全参数分片并行（ZeRO/FSDP）、张量并行（TP）和流水线并行（PP）。然而，很多人在实践时容易混淆它们之间的本质区别与适用场景。
 
@@ -164,7 +164,7 @@ torchrun --nproc-per-node 4 llamafactory-cli train config.json --fsdp "full_shar
 
 
 
-### 安装LLaMA-Factory的方法
+### 五、安装LLaMA-Factory的方法
 
 ```
 mkdir /content/
