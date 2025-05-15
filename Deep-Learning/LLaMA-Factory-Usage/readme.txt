@@ -24,6 +24,8 @@
 | 模型生态兼容                         | ✔✔ 官方测试了上百种热门中文/英文Base模型                     | ◑ 需手动适配特定模型和tokenizer格式            |
 | 推荐使用场景                         | 小至中规模（≤32 GPU）LoRA/QLoRA快速微调、学生/探索者、高效原型 | 百卡级大规模连续预训练、企业生产上线、复杂并行 |
 
+
+
 ### 安装LLaMA-Factory的方法
 
 ```
@@ -474,5 +476,15 @@ GRADIO_SHARE=1 llamafactory-cli webui
 
 接下来的操作，就可以通过浏览器实现，确实生态十分强大。
 
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLaMA-Factory-Usage/images/1.png)
 
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLaMA-Factory-Usage/images/2.png)
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLaMA-Factory-Usage/images/3.png)
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLaMA-Factory-Usage/images/4.png)
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLaMA-Factory-Usage/images/5.png)
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLaMA-Factory-Usage/images/6.png)
 
