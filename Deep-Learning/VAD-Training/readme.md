@@ -146,7 +146,7 @@ VAD 的根本优势有“两层”：
 
 ## VAD 总体工作流程
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/VAD-Training/images/4.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/VAD-Training/images/5.png)
 
 1. **左侧：感知 Backbone**
    - 多视角相机图片先进入 BEV Encoder（ResNet+Lift-Splat 已在前文解释）。
