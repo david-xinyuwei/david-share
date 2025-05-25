@@ -1,0 +1,2927 @@
+(aml_env) root@linuxworkvm:~/AIFperformance# python 303.py 
+Please enter the API service URL: https://aml-westus-pejwg.westus.inference.ml.azure.com/score
+Please enter the API Key: 540fZsZECWBYzePqCmPA4KMleO2CQ3ftNQWdsrZxoAd6mAPyrbZJJQQJ99BCAAAAAAAAAAAAINFRAZML2amY
+Please enter the full name of the HuggingFace model for tokenizer loading: mistralai/Mixtral-8x7B-Instruct-v0.1
+Tokenizer loaded successfully: mistralai/Mixtral-8x7B-Instruct-v0.1
+
+Scenario: Text Generation, Concurrency: 1
+  Request 1:
+    TTFT          : 2.828 s
+    Latency       : 2.828 s
+    Throughput    : 73.19 tokens/s
+    Prompt tokens : 158, Output tokens: 207
+
+  Summary for concurrency 1:
+    Successful requests          : 1
+    Failed requests              : 0
+    Average TTFT per request     : 2.828 s
+    Average throughput per req   : 73.19 tokens/s
+    Overall throughput (sum)     : 73.19 tokens/s
+    Batch duration (wall-clock)  : 2.838 s
+
+Scenario: Text Generation, Concurrency: 2
+  Request 1:
+    TTFT          : 2.801 s
+    Latency       : 2.801 s
+    Throughput    : 73.91 tokens/s
+    Prompt tokens : 158, Output tokens: 207
+  Request 2:
+    TTFT          : 4.967 s
+    Latency       : 4.967 s
+    Throughput    : 41.48 tokens/s
+    Prompt tokens : 158, Output tokens: 206
+
+  Summary for concurrency 2:
+    Successful requests          : 2
+    Failed requests              : 0
+    Average TTFT per request     : 3.884 s
+    Average throughput per req   : 57.69 tokens/s
+    Overall throughput (sum)     : 115.38 tokens/s
+    Batch duration (wall-clock)  : 4.978 s
+
+Scenario: Text Generation, Concurrency: 3
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+  Request 1:
+    TTFT          : 2.813 s
+    Latency       : 2.813 s
+    Throughput    : 74.29 tokens/s
+    Prompt tokens : 158, Output tokens: 209
+  Request 2:
+    TTFT          : 4.981 s
+    Latency       : 4.981 s
+    Throughput    : 41.35 tokens/s
+    Prompt tokens : 158, Output tokens: 206
+  Request 3:
+    TTFT          : 2.829 s
+    Latency       : 2.829 s
+    Throughput    : 73.17 tokens/s
+    Prompt tokens : 158, Output tokens: 207
+
+  Summary for concurrency 3:
+    Successful requests          : 3
+    Failed requests              : 0
+    Average TTFT per request     : 3.541 s
+    Average throughput per req   : 62.94 tokens/s
+    Overall throughput (sum)     : 188.81 tokens/s
+    Batch duration (wall-clock)  : 7.155 s
+
+Scenario: Text Generation, Concurrency: 4
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+  Request 1:
+    TTFT          : 2.793 s
+    Latency       : 2.793 s
+    Throughput    : 74.48 tokens/s
+    Prompt tokens : 158, Output tokens: 208
+  Request 2:
+    TTFT          : 4.932 s
+    Latency       : 4.932 s
+    Throughput    : 41.97 tokens/s
+    Prompt tokens : 158, Output tokens: 207
+  Request 3:
+    TTFT          : 2.783 s
+    Latency       : 2.783 s
+    Throughput    : 74.37 tokens/s
+    Prompt tokens : 158, Output tokens: 207
+  Request 4:
+    TTFT          : 4.935 s
+    Latency       : 4.935 s
+    Throughput    : 42.15 tokens/s
+    Prompt tokens : 158, Output tokens: 208
+
+  Summary for concurrency 4:
+    Successful requests          : 4
+    Failed requests              : 0
+    Average TTFT per request     : 3.861 s
+    Average throughput per req   : 58.24 tokens/s
+    Overall throughput (sum)     : 232.98 tokens/s
+    Batch duration (wall-clock)  : 9.253 s
+
+Scenario: Text Generation, Concurrency: 5
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.785 s
+    Latency       : 2.785 s
+    Throughput    : 74.70 tokens/s
+    Prompt tokens : 158, Output tokens: 208
+  Request 2:
+    TTFT          : 4.935 s
+    Latency       : 4.935 s
+    Throughput    : 42.35 tokens/s
+    Prompt tokens : 158, Output tokens: 209
+  Request 3:
+    TTFT          : 2.808 s
+    Latency       : 2.808 s
+    Throughput    : 74.09 tokens/s
+    Prompt tokens : 158, Output tokens: 208
+  Request 4:
+    TTFT          : 4.975 s
+    Latency       : 4.975 s
+    Throughput    : 41.41 tokens/s
+    Prompt tokens : 158, Output tokens: 206
+
+  Summary for concurrency 5:
+    Successful requests          : 4
+    Failed requests              : 1
+    Average TTFT per request     : 3.875 s
+    Average throughput per req   : 58.14 tokens/s
+    Overall throughput (sum)     : 232.55 tokens/s
+    Batch duration (wall-clock)  : 9.312 s
+
+Scenario: Text Generation, Concurrency: 6
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.795 s
+    Latency       : 2.795 s
+    Throughput    : 74.06 tokens/s
+    Prompt tokens : 158, Output tokens: 207
+  Request 2:
+    TTFT          : 4.957 s
+    Latency       : 4.957 s
+    Throughput    : 41.76 tokens/s
+    Prompt tokens : 158, Output tokens: 207
+  Request 3:
+    TTFT          : 2.800 s
+    Latency       : 2.800 s
+    Throughput    : 73.93 tokens/s
+    Prompt tokens : 158, Output tokens: 207
+  Request 4:
+    TTFT          : 4.948 s
+    Latency       : 4.948 s
+    Throughput    : 42.04 tokens/s
+    Prompt tokens : 158, Output tokens: 208
+
+  Summary for concurrency 6:
+    Successful requests          : 4
+    Failed requests              : 2
+    Average TTFT per request     : 3.875 s
+    Average throughput per req   : 57.95 tokens/s
+    Overall throughput (sum)     : 231.78 tokens/s
+    Batch duration (wall-clock)  : 9.279 s
+
+Scenario: Text Generation, Concurrency: 7
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.799 s
+    Latency       : 2.799 s
+    Throughput    : 74.32 tokens/s
+    Prompt tokens : 158, Output tokens: 208
+  Request 2:
+    TTFT          : 4.943 s
+    Latency       : 4.943 s
+    Throughput    : 41.88 tokens/s
+    Prompt tokens : 158, Output tokens: 207
+  Request 3:
+    TTFT          : 2.786 s
+    Latency       : 2.786 s
+    Throughput    : 74.66 tokens/s
+    Prompt tokens : 158, Output tokens: 208
+  Request 4:
+    TTFT          : 4.940 s
+    Latency       : 4.940 s
+    Throughput    : 41.91 tokens/s
+    Prompt tokens : 158, Output tokens: 207
+
+  Summary for concurrency 7:
+    Successful requests          : 4
+    Failed requests              : 3
+    Average TTFT per request     : 3.867 s
+    Average throughput per req   : 58.19 tokens/s
+    Overall throughput (sum)     : 232.76 tokens/s
+    Batch duration (wall-clock)  : 9.281 s
+
+Scenario: Text Generation, Concurrency: 8
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.798 s
+    Latency       : 2.798 s
+    Throughput    : 74.70 tokens/s
+    Prompt tokens : 158, Output tokens: 209
+  Request 2:
+    TTFT          : 4.961 s
+    Latency       : 4.961 s
+    Throughput    : 41.73 tokens/s
+    Prompt tokens : 158, Output tokens: 207
+  Request 3:
+    TTFT          : 2.810 s
+    Latency       : 2.810 s
+    Throughput    : 73.68 tokens/s
+    Prompt tokens : 158, Output tokens: 207
+  Request 4:
+    TTFT          : 4.954 s
+    Latency       : 4.954 s
+    Throughput    : 41.58 tokens/s
+    Prompt tokens : 158, Output tokens: 206
+
+  Summary for concurrency 8:
+    Successful requests          : 4
+    Failed requests              : 4
+    Average TTFT per request     : 3.881 s
+    Average throughput per req   : 57.92 tokens/s
+    Overall throughput (sum)     : 231.68 tokens/s
+    Batch duration (wall-clock)  : 9.310 s
+
+Scenario: Text Generation, Concurrency: 9
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.797 s
+    Latency       : 2.797 s
+    Throughput    : 74.36 tokens/s
+    Prompt tokens : 158, Output tokens: 208
+  Request 2:
+    TTFT          : 4.953 s
+    Latency       : 4.953 s
+    Throughput    : 41.80 tokens/s
+    Prompt tokens : 158, Output tokens: 207
+  Request 3:
+    TTFT          : 2.804 s
+    Latency       : 2.804 s
+    Throughput    : 73.47 tokens/s
+    Prompt tokens : 158, Output tokens: 206
+  Request 4:
+    TTFT          : 4.954 s
+    Latency       : 4.954 s
+    Throughput    : 41.79 tokens/s
+    Prompt tokens : 158, Output tokens: 207
+
+  Summary for concurrency 9:
+    Successful requests          : 4
+    Failed requests              : 5
+    Average TTFT per request     : 3.877 s
+    Average throughput per req   : 57.85 tokens/s
+    Overall throughput (sum)     : 231.41 tokens/s
+    Batch duration (wall-clock)  : 9.298 s
+
+Scenario: Text Generation, Concurrency: 10
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.795 s
+    Latency       : 2.795 s
+    Throughput    : 74.42 tokens/s
+    Prompt tokens : 158, Output tokens: 208
+  Request 2:
+    TTFT          : 4.944 s
+    Latency       : 4.944 s
+    Throughput    : 41.87 tokens/s
+    Prompt tokens : 158, Output tokens: 207
+  Request 3:
+    TTFT          : 2.784 s
+    Latency       : 2.784 s
+    Throughput    : 74.73 tokens/s
+    Prompt tokens : 158, Output tokens: 208
+  Request 4:
+    TTFT          : 4.938 s
+    Latency       : 4.938 s
+    Throughput    : 42.12 tokens/s
+    Prompt tokens : 158, Output tokens: 208
+
+  Summary for concurrency 10:
+    Successful requests          : 4
+    Failed requests              : 6
+    Average TTFT per request     : 3.865 s
+    Average throughput per req   : 58.28 tokens/s
+    Overall throughput (sum)     : 233.13 tokens/s
+    Batch duration (wall-clock)  : 9.297 s
+
+Scenario: Question Answering, Concurrency: 1
+  Request 1:
+    TTFT          : 2.803 s
+    Latency       : 2.803 s
+    Throughput    : 73.50 tokens/s
+    Prompt tokens : 122, Output tokens: 206
+
+  Summary for concurrency 1:
+    Successful requests          : 1
+    Failed requests              : 0
+    Average TTFT per request     : 2.803 s
+    Average throughput per req   : 73.50 tokens/s
+    Overall throughput (sum)     : 73.50 tokens/s
+    Batch duration (wall-clock)  : 2.810 s
+
+Scenario: Question Answering, Concurrency: 2
+  Request 1:
+    TTFT          : 2.775 s
+    Latency       : 2.775 s
+    Throughput    : 74.23 tokens/s
+    Prompt tokens : 122, Output tokens: 206
+  Request 2:
+    TTFT          : 4.925 s
+    Latency       : 4.925 s
+    Throughput    : 42.03 tokens/s
+    Prompt tokens : 122, Output tokens: 207
+
+  Summary for concurrency 2:
+    Successful requests          : 2
+    Failed requests              : 0
+    Average TTFT per request     : 3.850 s
+    Average throughput per req   : 58.13 tokens/s
+    Overall throughput (sum)     : 116.25 tokens/s
+    Batch duration (wall-clock)  : 4.935 s
+
+Scenario: Question Answering, Concurrency: 3
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+  Request 1:
+    TTFT          : 2.791 s
+    Latency       : 2.791 s
+    Throughput    : 73.82 tokens/s
+    Prompt tokens : 122, Output tokens: 206
+  Request 2:
+    TTFT          : 4.951 s
+    Latency       : 4.951 s
+    Throughput    : 41.60 tokens/s
+    Prompt tokens : 122, Output tokens: 206
+  Request 3:
+    TTFT          : 2.799 s
+    Latency       : 2.799 s
+    Throughput    : 73.96 tokens/s
+    Prompt tokens : 122, Output tokens: 207
+
+  Summary for concurrency 3:
+    Successful requests          : 3
+    Failed requests              : 0
+    Average TTFT per request     : 3.514 s
+    Average throughput per req   : 63.13 tokens/s
+    Overall throughput (sum)     : 189.38 tokens/s
+    Batch duration (wall-clock)  : 7.126 s
+
+Scenario: Question Answering, Concurrency: 4
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+  Request 1:
+    TTFT          : 2.808 s
+    Latency       : 2.808 s
+    Throughput    : 73.73 tokens/s
+    Prompt tokens : 122, Output tokens: 207
+  Request 2:
+    TTFT          : 4.950 s
+    Latency       : 4.950 s
+    Throughput    : 41.42 tokens/s
+    Prompt tokens : 122, Output tokens: 205
+  Request 3:
+    TTFT          : 2.787 s
+    Latency       : 2.787 s
+    Throughput    : 74.28 tokens/s
+    Prompt tokens : 122, Output tokens: 207
+  Request 4:
+    TTFT          : 4.942 s
+    Latency       : 4.942 s
+    Throughput    : 41.89 tokens/s
+    Prompt tokens : 122, Output tokens: 207
+
+  Summary for concurrency 4:
+    Successful requests          : 4
+    Failed requests              : 0
+    Average TTFT per request     : 3.871 s
+    Average throughput per req   : 57.83 tokens/s
+    Overall throughput (sum)     : 231.31 tokens/s
+    Batch duration (wall-clock)  : 9.270 s
+
+Scenario: Question Answering, Concurrency: 5
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.802 s
+    Latency       : 2.802 s
+    Throughput    : 74.24 tokens/s
+    Prompt tokens : 122, Output tokens: 208
+  Request 2:
+    TTFT          : 4.966 s
+    Latency       : 4.966 s
+    Throughput    : 41.48 tokens/s
+    Prompt tokens : 122, Output tokens: 206
+  Request 3:
+    TTFT          : 2.801 s
+    Latency       : 2.801 s
+    Throughput    : 74.26 tokens/s
+    Prompt tokens : 122, Output tokens: 208
+
+  Summary for concurrency 5:
+    Successful requests          : 3
+    Failed requests              : 2
+    Average TTFT per request     : 3.523 s
+    Average throughput per req   : 63.33 tokens/s
+    Overall throughput (sum)     : 189.98 tokens/s
+    Batch duration (wall-clock)  : 8.973 s
+
+Scenario: Question Answering, Concurrency: 6
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.790 s
+    Latency       : 2.790 s
+    Throughput    : 74.19 tokens/s
+    Prompt tokens : 122, Output tokens: 207
+  Request 2:
+    TTFT          : 4.930 s
+    Latency       : 4.930 s
+    Throughput    : 42.60 tokens/s
+    Prompt tokens : 122, Output tokens: 210
+  Request 3:
+    TTFT          : 2.784 s
+    Latency       : 2.784 s
+    Throughput    : 74.37 tokens/s
+    Prompt tokens : 122, Output tokens: 207
+  Request 4:
+    TTFT          : 4.932 s
+    Latency       : 4.932 s
+    Throughput    : 41.97 tokens/s
+    Prompt tokens : 122, Output tokens: 207
+
+  Summary for concurrency 6:
+    Successful requests          : 4
+    Failed requests              : 2
+    Average TTFT per request     : 3.859 s
+    Average throughput per req   : 58.28 tokens/s
+    Overall throughput (sum)     : 233.13 tokens/s
+    Batch duration (wall-clock)  : 9.264 s
+
+Scenario: Question Answering, Concurrency: 7
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.794 s
+    Latency       : 2.794 s
+    Throughput    : 74.09 tokens/s
+    Prompt tokens : 122, Output tokens: 207
+  Request 2:
+    TTFT          : 4.946 s
+    Latency       : 4.946 s
+    Throughput    : 42.05 tokens/s
+    Prompt tokens : 122, Output tokens: 208
+  Request 3:
+    TTFT          : 2.790 s
+    Latency       : 2.790 s
+    Throughput    : 73.84 tokens/s
+    Prompt tokens : 122, Output tokens: 206
+  Request 4:
+    TTFT          : 4.955 s
+    Latency       : 4.955 s
+    Throughput    : 41.57 tokens/s
+    Prompt tokens : 122, Output tokens: 206
+
+  Summary for concurrency 7:
+    Successful requests          : 4
+    Failed requests              : 3
+    Average TTFT per request     : 3.871 s
+    Average throughput per req   : 57.89 tokens/s
+    Overall throughput (sum)     : 231.56 tokens/s
+    Batch duration (wall-clock)  : 9.289 s
+
+Scenario: Question Answering, Concurrency: 8
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.806 s
+    Latency       : 2.806 s
+    Throughput    : 73.41 tokens/s
+    Prompt tokens : 122, Output tokens: 206
+  Request 2:
+    TTFT          : 4.959 s
+    Latency       : 4.959 s
+    Throughput    : 41.74 tokens/s
+    Prompt tokens : 122, Output tokens: 207
+  Request 3:
+    TTFT          : 2.450 s
+    Latency       : 2.450 s
+    Throughput    : 70.21 tokens/s
+    Prompt tokens : 122, Output tokens: 172
+  Request 4:
+    TTFT          : 4.606 s
+    Latency       : 4.606 s
+    Throughput    : 45.81 tokens/s
+    Prompt tokens : 122, Output tokens: 211
+
+  Summary for concurrency 8:
+    Successful requests          : 4
+    Failed requests              : 4
+    Average TTFT per request     : 3.705 s
+    Average throughput per req   : 57.79 tokens/s
+    Overall throughput (sum)     : 231.18 tokens/s
+    Batch duration (wall-clock)  : 8.989 s
+
+Scenario: Question Answering, Concurrency: 9
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.793 s
+    Latency       : 2.793 s
+    Throughput    : 73.77 tokens/s
+    Prompt tokens : 122, Output tokens: 206
+  Request 2:
+    TTFT          : 4.937 s
+    Latency       : 4.937 s
+    Throughput    : 41.73 tokens/s
+    Prompt tokens : 122, Output tokens: 206
+  Request 3:
+    TTFT          : 2.788 s
+    Latency       : 2.788 s
+    Throughput    : 73.89 tokens/s
+    Prompt tokens : 122, Output tokens: 206
+  Request 4:
+    TTFT          : 4.943 s
+    Latency       : 4.943 s
+    Throughput    : 41.47 tokens/s
+    Prompt tokens : 122, Output tokens: 205
+
+  Summary for concurrency 9:
+    Successful requests          : 4
+    Failed requests              : 5
+    Average TTFT per request     : 3.865 s
+    Average throughput per req   : 57.71 tokens/s
+    Overall throughput (sum)     : 230.86 tokens/s
+    Batch duration (wall-clock)  : 9.264 s
+
+Scenario: Question Answering, Concurrency: 10
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.804 s
+    Latency       : 2.804 s
+    Throughput    : 73.46 tokens/s
+    Prompt tokens : 122, Output tokens: 206
+  Request 2:
+    TTFT          : 4.970 s
+    Latency       : 4.970 s
+    Throughput    : 41.86 tokens/s
+    Prompt tokens : 122, Output tokens: 208
+  Request 3:
+    TTFT          : 2.829 s
+    Latency       : 2.829 s
+    Throughput    : 73.18 tokens/s
+    Prompt tokens : 122, Output tokens: 207
+  Request 4:
+    TTFT          : 4.979 s
+    Latency       : 4.979 s
+    Throughput    : 41.37 tokens/s
+    Prompt tokens : 122, Output tokens: 206
+
+  Summary for concurrency 10:
+    Successful requests          : 4
+    Failed requests              : 6
+    Average TTFT per request     : 3.895 s
+    Average throughput per req   : 57.47 tokens/s
+    Overall throughput (sum)     : 229.87 tokens/s
+    Batch duration (wall-clock)  : 9.321 s
+
+Scenario: Translation, Concurrency: 1
+  Request 1:
+    TTFT          : 2.780 s
+    Latency       : 2.780 s
+    Throughput    : 73.39 tokens/s
+    Prompt tokens : 95, Output tokens: 204
+
+  Summary for concurrency 1:
+    Successful requests          : 1
+    Failed requests              : 0
+    Average TTFT per request     : 2.780 s
+    Average throughput per req   : 73.39 tokens/s
+    Overall throughput (sum)     : 73.39 tokens/s
+    Batch duration (wall-clock)  : 2.786 s
+
+Scenario: Translation, Concurrency: 2
+  Request 1:
+    TTFT          : 2.801 s
+    Latency       : 2.801 s
+    Throughput    : 73.54 tokens/s
+    Prompt tokens : 95, Output tokens: 206
+  Request 2:
+    TTFT          : 4.605 s
+    Latency       : 4.605 s
+    Throughput    : 36.92 tokens/s
+    Prompt tokens : 95, Output tokens: 170
+
+  Summary for concurrency 2:
+    Successful requests          : 2
+    Failed requests              : 0
+    Average TTFT per request     : 3.703 s
+    Average throughput per req   : 55.23 tokens/s
+    Overall throughput (sum)     : 110.46 tokens/s
+    Batch duration (wall-clock)  : 4.614 s
+
+Scenario: Translation, Concurrency: 3
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+          Request 1:
+    TTFT          : 2.665 s
+    Latency       : 2.665 s
+    Throughput    : 72.81 tokens/s
+    Prompt tokens : 95, Output tokens: 194
+  Request 2:
+    TTFT          : 4.826 s
+    Latency       : 4.826 s
+    Throughput    : 42.28 tokens/s
+    Prompt tokens : 95, Output tokens: 204
+  Request 3:
+    TTFT          : 2.816 s
+    Latency       : 2.816 s
+    Throughput    : 73.52 tokens/s
+    Prompt tokens : 95, Output tokens: 207
+
+  Summary for concurrency 3:
+    Successful requests          : 3
+    Failed requests              : 0
+    Average TTFT per request     : 3.435 s
+    Average throughput per req   : 62.87 tokens/s
+    Overall throughput (sum)     : 188.60 tokens/s
+    Batch duration (wall-clock)  : 7.108 s
+
+Scenario: Translation, Concurrency: 4
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.797 s
+    Latency       : 2.797 s
+    Throughput    : 73.31 tokens/s
+    Prompt tokens : 95, Output tokens: 205
+  Request 2:
+    TTFT          : 4.965 s
+    Latency       : 4.965 s
+    Throughput    : 41.29 tokens/s
+    Prompt tokens : 95, Output tokens: 205
+  Request 3:
+    TTFT          : 2.825 s
+    Latency       : 2.825 s
+    Throughput    : 73.26 tokens/s
+    Prompt tokens : 95, Output tokens: 207
+
+  Summary for concurrency 4:
+    Successful requests          : 3
+    Failed requests              : 1
+    Average TTFT per request     : 3.529 s
+    Average throughput per req   : 62.62 tokens/s
+    Overall throughput (sum)     : 187.86 tokens/s
+    Batch duration (wall-clock)  : 8.966 s
+
+Scenario: Translation, Concurrency: 5
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.788 s
+    Latency       : 2.788 s
+    Throughput    : 73.53 tokens/s
+    Prompt tokens : 95, Output tokens: 205
+  Request 2:
+    TTFT          : 4.936 s
+    Latency       : 4.936 s
+    Throughput    : 41.94 tokens/s
+    Prompt tokens : 95, Output tokens: 207
+  Request 3:
+    TTFT          : 2.246 s
+    Latency       : 2.246 s
+    Throughput    : 67.67 tokens/s
+    Prompt tokens : 95, Output tokens: 152
+  Request 4:
+    TTFT          : 4.200 s
+    Latency       : 4.200 s
+    Throughput    : 44.29 tokens/s
+    Prompt tokens : 95, Output tokens: 186
+
+  Summary for concurrency 5:
+    Successful requests          : 4
+    Failed requests              : 1
+    Average TTFT per request     : 3.542 s
+    Average throughput per req   : 56.86 tokens/s
+    Overall throughput (sum)     : 227.43 tokens/s
+    Batch duration (wall-clock)  : 8.967 s
+
+Scenario: Translation, Concurrency: 6
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.765 s
+    Latency       : 2.765 s
+    Throughput    : 74.86 tokens/s
+    Prompt tokens : 95, Output tokens: 207
+  Request 2:
+    TTFT          : 4.942 s
+    Latency       : 4.942 s
+    Throughput    : 41.48 tokens/s
+    Prompt tokens : 95, Output tokens: 205
+  Request 3:
+    TTFT          : 2.675 s
+    Latency       : 2.675 s
+    Throughput    : 72.53 tokens/s
+    Prompt tokens : 95, Output tokens: 194
+  Request 4:
+    TTFT          : 4.832 s
+    Latency       : 4.832 s
+    Throughput    : 42.42 tokens/s
+    Prompt tokens : 95, Output tokens: 205
+
+  Summary for concurrency 6:
+    Successful requests          : 4
+    Failed requests              : 2
+    Average TTFT per request     : 3.804 s
+    Average throughput per req   : 57.82 tokens/s
+    Overall throughput (sum)     : 231.29 tokens/s
+    Batch duration (wall-clock)  : 9.168 s
+
+Scenario: Translation, Concurrency: 7
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.772 s
+    Latency       : 2.772 s
+    Throughput    : 73.95 tokens/s
+    Prompt tokens : 95, Output tokens: 205
+  Request 2:
+    TTFT          : 4.834 s
+    Latency       : 4.834 s
+    Throughput    : 40.54 tokens/s
+    Prompt tokens : 95, Output tokens: 196
+  Request 3:
+    TTFT          : 2.805 s
+    Latency       : 2.805 s
+    Throughput    : 73.08 tokens/s
+    Prompt tokens : 95, Output tokens: 205
+  Request 4:
+    TTFT          : 4.935 s
+    Latency       : 4.935 s
+    Throughput    : 41.54 tokens/s
+    Prompt tokens : 95, Output tokens: 205
+
+  Summary for concurrency 7:
+    Successful requests          : 4
+    Failed requests              : 3
+    Average TTFT per request     : 3.836 s
+    Average throughput per req   : 57.28 tokens/s
+    Overall throughput (sum)     : 229.12 tokens/s
+    Batch duration (wall-clock)  : 9.266 s
+
+Scenario: Translation, Concurrency: 8
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.764 s
+    Latency       : 2.764 s
+    Throughput    : 75.61 tokens/s
+    Prompt tokens : 95, Output tokens: 209
+  Request 2:
+    TTFT          : 4.939 s
+    Latency       : 4.939 s
+    Throughput    : 41.91 tokens/s
+    Prompt tokens : 95, Output tokens: 207
+  Request 3:
+    TTFT          : 1.966 s
+    Latency       : 1.966 s
+    Throughput    : 62.56 tokens/s
+    Prompt tokens : 95, Output tokens: 123
+  Request 4:
+    TTFT          : 4.005 s
+    Latency       : 4.005 s
+    Throughput    : 47.94 tokens/s
+    Prompt tokens : 95, Output tokens: 192
+
+  Summary for concurrency 8:
+    Successful requests          : 4
+    Failed requests              : 4
+    Average TTFT per request     : 3.419 s
+    Average throughput per req   : 57.01 tokens/s
+    Overall throughput (sum)     : 228.02 tokens/s
+    Batch duration (wall-clock)  : 8.983 s
+
+Scenario: Translation, Concurrency: 9
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.520 s
+    Latency       : 2.520 s
+    Throughput    : 70.23 tokens/s
+    Prompt tokens : 95, Output tokens: 177
+  Request 2:
+    TTFT          : 4.665 s
+    Latency       : 4.665 s
+    Throughput    : 43.94 tokens/s
+    Prompt tokens : 95, Output tokens: 205
+  Request 3:
+    TTFT          : 2.803 s
+    Latency       : 2.803 s
+    Throughput    : 73.86 tokens/s
+    Prompt tokens : 95, Output tokens: 207
+  Request 4:
+    TTFT          : 4.953 s
+    Latency       : 4.953 s
+    Throughput    : 41.59 tokens/s
+    Prompt tokens : 95, Output tokens: 206
+
+  Summary for concurrency 9:
+    Successful requests          : 4
+    Failed requests              : 5
+    Average TTFT per request     : 3.735 s
+    Average throughput per req   : 57.41 tokens/s
+    Overall throughput (sum)     : 229.63 tokens/s
+    Batch duration (wall-clock)  : 9.272 s
+
+Scenario: Translation, Concurrency: 10
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.810 s
+    Latency       : 2.810 s
+    Throughput    : 73.32 tokens/s
+    Prompt tokens : 95, Output tokens: 206
+  Request 2:
+    TTFT          : 4.970 s
+    Latency       : 4.970 s
+    Throughput    : 41.85 tokens/s
+    Prompt tokens : 95, Output tokens: 208
+  Request 3:
+    TTFT          : 2.804 s
+    Latency       : 2.804 s
+    Throughput    : 73.47 tokens/s
+    Prompt tokens : 95, Output tokens: 206
+  Request 4:
+    TTFT          : 4.919 s
+    Latency       : 4.919 s
+    Throughput    : 41.47 tokens/s
+    Prompt tokens : 95, Output tokens: 204
+
+  Summary for concurrency 10:
+    Successful requests          : 4
+    Failed requests              : 6
+    Average TTFT per request     : 3.876 s
+    Average throughput per req   : 57.53 tokens/s
+    Overall throughput (sum)     : 230.10 tokens/s
+    Batch duration (wall-clock)  : 9.266 s
+
+Scenario: Text Summarization, Concurrency: 1
+  Request 1:
+    TTFT          : 2.787 s
+    Latency       : 2.787 s
+    Throughput    : 74.27 tokens/s
+    Prompt tokens : 96, Output tokens: 207
+
+  Summary for concurrency 1:
+    Successful requests          : 1
+    Failed requests              : 0
+    Average TTFT per request     : 2.787 s
+    Average throughput per req   : 74.27 tokens/s
+    Overall throughput (sum)     : 74.27 tokens/s
+    Batch duration (wall-clock)  : 2.794 s
+
+Scenario: Text Summarization, Concurrency: 2
+  Request 1:
+    TTFT          : 2.451 s
+    Latency       : 2.451 s
+    Throughput    : 69.78 tokens/s
+    Prompt tokens : 96, Output tokens: 171
+  Request 2:
+    TTFT          : 4.610 s
+    Latency       : 4.610 s
+    Throughput    : 45.12 tokens/s
+    Prompt tokens : 96, Output tokens: 208
+
+  Summary for concurrency 2:
+    Successful requests          : 2
+    Failed requests              : 0
+    Average TTFT per request     : 3.530 s
+    Average throughput per req   : 57.45 tokens/s
+    Overall throughput (sum)     : 114.90 tokens/s
+    Batch duration (wall-clock)  : 4.620 s
+
+Scenario: Text Summarization, Concurrency: 3
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+  Request 1:
+    TTFT          : 2.182 s
+    Latency       : 2.182 s
+    Throughput    : 66.44 tokens/s
+    Prompt tokens : 96, Output tokens: 145
+  Request 2:
+    TTFT          : 2.397 s
+    Latency       : 2.397 s
+    Throughput    : 6.68 tokens/s
+    Prompt tokens : 96, Output tokens: 16
+  Request 3:
+    TTFT          : 0.966 s
+    Latency       : 0.966 s
+    Throughput    : 16.57 tokens/s
+    Prompt tokens : 96, Output tokens: 16
+
+  Summary for concurrency 3:
+    Successful requests          : 3
+    Failed requests              : 0
+    Average TTFT per request     : 1.848 s
+    Average throughput per req   : 29.89 tokens/s
+    Overall throughput (sum)     : 89.68 tokens/s
+    Batch duration (wall-clock)  : 2.625 s
+
+Scenario: Text Summarization, Concurrency: 4
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+  Request 1:
+    TTFT          : 2.799 s
+    Latency       : 2.799 s
+    Throughput    : 73.60 tokens/s
+    Prompt tokens : 96, Output tokens: 206
+  Request 2:
+    TTFT          : 4.953 s
+    Latency       : 4.953 s
+    Throughput    : 41.80 tokens/s
+    Prompt tokens : 96, Output tokens: 207
+  Request 3:
+    TTFT          : 2.805 s
+    Latency       : 2.805 s
+    Throughput    : 73.79 tokens/s
+    Prompt tokens : 96, Output tokens: 207
+  Request 4:
+    TTFT          : 4.650 s
+    Latency       : 4.650 s
+    Throughput    : 36.99 tokens/s
+    Prompt tokens : 96, Output tokens: 172
+
+  Summary for concurrency 4:
+    Successful requests          : 4
+    Failed requests              : 0
+    Average TTFT per request     : 3.802 s
+    Average throughput per req   : 56.54 tokens/s
+    Overall throughput (sum)     : 226.17 tokens/s
+    Batch duration (wall-clock)  : 8.967 s
+
+Scenario: Text Summarization, Concurrency: 5
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 0.848 s
+    Latency       : 0.848 s
+    Throughput    : 18.86 tokens/s
+    Prompt tokens : 96, Output tokens: 16
+  Request 2:
+    TTFT          : 2.983 s
+    Latency       : 2.983 s
+    Throughput    : 68.72 tokens/s
+    Prompt tokens : 96, Output tokens: 205
+  Request 3:
+    TTFT          : 3.474 s
+    Latency       : 3.474 s
+    Throughput    : 59.88 tokens/s
+    Prompt tokens : 96, Output tokens: 208
+  Request 4:
+    TTFT          : 2.970 s
+    Latency       : 2.970 s
+    Throughput    : 69.69 tokens/s
+    Prompt tokens : 96, Output tokens: 207
+
+  Summary for concurrency 5:
+    Successful requests          : 4
+    Failed requests              : 1
+    Average TTFT per request     : 2.569 s
+    Average throughput per req   : 54.29 tokens/s
+    Overall throughput (sum)     : 217.14 tokens/s
+    Batch duration (wall-clock)  : 8.962 s
+
+Scenario: Text Summarization, Concurrency: 6
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.804 s
+    Latency       : 2.804 s
+    Throughput    : 74.89 tokens/s
+    Prompt tokens : 96, Output tokens: 210
+  Request 2:
+    TTFT          : 4.955 s
+    Latency       : 4.955 s
+    Throughput    : 41.57 tokens/s
+    Prompt tokens : 96, Output tokens: 206
+  Request 3:
+    TTFT          : 0.857 s
+    Latency       : 0.857 s
+    Throughput    : 18.66 tokens/s
+    Prompt tokens : 96, Output tokens: 16
+  Request 4:
+    TTFT          : 2.447 s
+    Latency       : 2.447 s
+    Throughput    : 60.90 tokens/s
+    Prompt tokens : 96, Output tokens: 149
+
+  Summary for concurrency 6:
+    Successful requests          : 4
+    Failed requests              : 2
+    Average TTFT per request     : 2.766 s
+    Average throughput per req   : 49.01 tokens/s
+    Overall throughput (sum)     : 196.03 tokens/s
+    Batch duration (wall-clock)  : 8.997 s
+
+Scenario: Text Summarization, Concurrency: 7
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.566 s
+    Latency       : 2.566 s
+    Throughput    : 72.11 tokens/s
+    Prompt tokens : 96, Output tokens: 185
+  Request 2:
+    TTFT          : 4.718 s
+    Latency       : 4.718 s
+    Throughput    : 43.87 tokens/s
+    Prompt tokens : 96, Output tokens: 207
+  Request 3:
+    TTFT          : 2.961 s
+    Latency       : 2.961 s
+    Throughput    : 71.27 tokens/s
+    Prompt tokens : 96, Output tokens: 211
+  Request 4:
+    TTFT          : 5.113 s
+    Latency       : 5.113 s
+    Throughput    : 40.29 tokens/s
+    Prompt tokens : 96, Output tokens: 206
+
+  Summary for concurrency 7:
+    Successful requests          : 4
+    Failed requests              : 3
+    Average TTFT per request     : 3.839 s
+    Average throughput per req   : 56.88 tokens/s
+    Overall throughput (sum)     : 227.54 tokens/s
+    Batch duration (wall-clock)  : 9.447 s
+
+Scenario: Text Summarization, Concurrency: 8
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 0.859 s
+    Latency       : 0.859 s
+    Throughput    : 18.63 tokens/s
+    Prompt tokens : 96, Output tokens: 16
+  Request 2:
+    TTFT          : 3.023 s
+    Latency       : 3.023 s
+    Throughput    : 68.48 tokens/s
+    Prompt tokens : 96, Output tokens: 207
+  Request 3:
+    TTFT          : 2.719 s
+    Latency       : 2.719 s
+    Throughput    : 47.44 tokens/s
+    Prompt tokens : 96, Output tokens: 129
+  Request 4:
+    TTFT          : 2.802 s
+    Latency       : 2.802 s
+    Throughput    : 73.88 tokens/s
+    Prompt tokens : 96, Output tokens: 207
+  Request 5:
+    TTFT          : 4.115 s
+    Latency       : 4.115 s
+    Throughput    : 29.89 tokens/s
+    Prompt tokens : 96, Output tokens: 123
+
+  Summary for concurrency 8:
+    Successful requests          : 5
+    Failed requests              : 3
+    Average TTFT per request     : 2.704 s
+    Average throughput per req   : 47.66 tokens/s
+    Overall throughput (sum)     : 238.31 tokens/s
+    Batch duration (wall-clock)  : 9.007 s
+
+Scenario: Text Summarization, Concurrency: 9
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.779 s
+    Latency       : 2.779 s
+    Throughput    : 75.58 tokens/s
+    Prompt tokens : 96, Output tokens: 210
+  Request 2:
+    TTFT          : 4.938 s
+    Latency       : 4.938 s
+    Throughput    : 41.72 tokens/s
+    Prompt tokens : 96, Output tokens: 206
+  Request 3:
+    TTFT          : 2.314 s
+    Latency       : 2.314 s
+    Throughput    : 67.85 tokens/s
+    Prompt tokens : 96, Output tokens: 157
+  Request 4:
+    TTFT          : 4.455 s
+    Latency       : 4.455 s
+    Throughput    : 46.92 tokens/s
+    Prompt tokens : 96, Output tokens: 209
+
+  Summary for concurrency 9:
+    Successful requests          : 4
+    Failed requests              : 5
+    Average TTFT per request     : 3.621 s
+    Average throughput per req   : 58.02 tokens/s
+    Overall throughput (sum)     : 232.07 tokens/s
+    Batch duration (wall-clock)  : 8.990 s
+
+Scenario: Text Summarization, Concurrency: 10
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.801 s
+    Latency       : 2.801 s
+    Throughput    : 74.60 tokens/s
+    Prompt tokens : 96, Output tokens: 209
+  Request 2:
+    TTFT          : 4.968 s
+    Latency       : 4.968 s
+    Throughput    : 41.67 tokens/s
+    Prompt tokens : 96, Output tokens: 207
+  Request 3:
+    TTFT          : 2.813 s
+    Latency       : 2.813 s
+    Throughput    : 72.87 tokens/s
+    Prompt tokens : 96, Output tokens: 205
+  Request 4:
+    TTFT          : 4.699 s
+    Latency       : 4.699 s
+    Throughput    : 38.30 tokens/s
+    Prompt tokens : 96, Output tokens: 180
+
+  Summary for concurrency 10:
+    Successful requests          : 4
+    Failed requests              : 6
+    Average TTFT per request     : 3.820 s
+    Average throughput per req   : 56.86 tokens/s
+    Overall throughput (sum)     : 227.45 tokens/s
+    Batch duration (wall-clock)  : 9.038 s
+
+Scenario: Code Generation, Concurrency: 1
+  Request 1:
+    TTFT          : 2.796 s
+    Latency       : 2.796 s
+    Throughput    : 79.76 tokens/s
+    Prompt tokens : 86, Output tokens: 223
+
+  Summary for concurrency 1:
+    Successful requests          : 1
+    Failed requests              : 0
+    Average TTFT per request     : 2.796 s
+    Average throughput per req   : 79.76 tokens/s
+    Overall throughput (sum)     : 79.76 tokens/s
+    Batch duration (wall-clock)  : 2.803 s
+
+Scenario: Code Generation, Concurrency: 2
+  Request 1:
+    TTFT          : 2.794 s
+    Latency       : 2.794 s
+    Throughput    : 81.25 tokens/s
+    Prompt tokens : 86, Output tokens: 227
+  Request 2:
+    TTFT          : 4.941 s
+    Latency       : 4.941 s
+    Throughput    : 45.34 tokens/s
+    Prompt tokens : 86, Output tokens: 224
+
+  Summary for concurrency 2:
+    Successful requests          : 2
+    Failed requests              : 0
+    Average TTFT per request     : 3.867 s
+    Average throughput per req   : 63.29 tokens/s
+    Overall throughput (sum)     : 126.58 tokens/s
+    Batch duration (wall-clock)  : 4.950 s
+
+Scenario: Code Generation, Concurrency: 3
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+  Request 1:
+    TTFT          : 2.777 s
+    Latency       : 2.777 s
+    Throughput    : 80.31 tokens/s
+    Prompt tokens : 86, Output tokens: 223
+  Request 2:
+    TTFT          : 4.931 s
+    Latency       : 4.931 s
+    Throughput    : 45.43 tokens/s
+    Prompt tokens : 86, Output tokens: 224
+  Request 3:
+    TTFT          : 2.796 s
+    Latency       : 2.796 s
+    Throughput    : 80.10 tokens/s
+    Prompt tokens : 86, Output tokens: 224
+
+  Summary for concurrency 3:
+    Successful requests          : 3
+    Failed requests              : 0
+    Average TTFT per request     : 3.501 s
+    Average throughput per req   : 68.61 tokens/s
+    Overall throughput (sum)     : 205.84 tokens/s
+    Batch duration (wall-clock)  : 7.104 s
+
+Scenario: Code Generation, Concurrency: 4
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+  Request 1:
+    TTFT          : 2.780 s
+    Latency       : 2.780 s
+    Throughput    : 79.50 tokens/s
+    Prompt tokens : 86, Output tokens: 221
+  Request 2:
+    TTFT          : 4.943 s
+    Latency       : 4.943 s
+    Throughput    : 45.93 tokens/s
+    Prompt tokens : 86, Output tokens: 227
+  Request 3:
+    TTFT          : 2.808 s
+    Latency       : 2.808 s
+    Throughput    : 77.99 tokens/s
+    Prompt tokens : 86, Output tokens: 219
+  Request 4:
+    TTFT          : 4.963 s
+    Latency       : 4.963 s
+    Throughput    : 45.14 tokens/s
+    Prompt tokens : 86, Output tokens: 224
+
+  Summary for concurrency 4:
+    Successful requests          : 4
+    Failed requests              : 0
+    Average TTFT per request     : 3.873 s
+    Average throughput per req   : 62.14 tokens/s
+    Overall throughput (sum)     : 248.56 tokens/s
+    Batch duration (wall-clock)  : 9.270 s
+
+Scenario: Code Generation, Concurrency: 5
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.772 s
+    Latency       : 2.772 s
+    Throughput    : 80.82 tokens/s
+    Prompt tokens : 86, Output tokens: 224
+  Request 2:
+    TTFT          : 4.915 s
+    Latency       : 4.915 s
+    Throughput    : 45.16 tokens/s
+    Prompt tokens : 86, Output tokens: 222
+  Request 3:
+    TTFT          : 2.786 s
+    Latency       : 2.786 s
+    Throughput    : 79.68 tokens/s
+    Prompt tokens : 86, Output tokens: 222
+  Request 4:
+    TTFT          : 4.940 s
+    Latency       : 4.940 s
+    Throughput    : 44.73 tokens/s
+    Prompt tokens : 86, Output tokens: 221
+
+  Summary for concurrency 5:
+    Successful requests          : 4
+    Failed requests              : 1
+    Average TTFT per request     : 3.853 s
+    Average throughput per req   : 62.60 tokens/s
+    Overall throughput (sum)     : 250.39 tokens/s
+    Batch duration (wall-clock)  : 9.261 s
+
+Scenario: Code Generation, Concurrency: 6
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.786 s
+    Latency       : 2.786 s
+    Throughput    : 79.34 tokens/s
+    Prompt tokens : 86, Output tokens: 221
+  Request 2:
+    TTFT          : 4.919 s
+    Latency       : 4.919 s
+    Throughput    : 45.54 tokens/s
+    Prompt tokens : 86, Output tokens: 224
+  Request 3:
+    TTFT          : 2.786 s
+    Latency       : 2.786 s
+    Throughput    : 79.33 tokens/s
+    Prompt tokens : 86, Output tokens: 221
+  Request 4:
+    TTFT          : 4.936 s
+    Latency       : 4.936 s
+    Throughput    : 44.57 tokens/s
+    Prompt tokens : 86, Output tokens: 220
+
+  Summary for concurrency 6:
+    Successful requests          : 4
+    Failed requests              : 2
+    Average TTFT per request     : 3.857 s
+    Average throughput per req   : 62.19 tokens/s
+    Overall throughput (sum)     : 248.77 tokens/s
+    Batch duration (wall-clock)  : 9.250 s
+
+Scenario: Code Generation, Concurrency: 7
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.807 s
+    Latency       : 2.807 s
+    Throughput    : 79.81 tokens/s
+    Prompt tokens : 86, Output tokens: 224
+  Request 2:
+    TTFT          : 4.970 s
+    Latency       : 4.970 s
+    Throughput    : 45.27 tokens/s
+    Prompt tokens : 86, Output tokens: 225
+  Request 3:
+    TTFT          : 2.806 s
+    Latency       : 2.806 s
+    Throughput    : 79.83 tokens/s
+    Prompt tokens : 86, Output tokens: 224
+  Request 4:
+    TTFT          : 4.957 s
+    Latency       : 4.957 s
+    Throughput    : 45.19 tokens/s
+    Prompt tokens : 86, Output tokens: 224
+
+  Summary for concurrency 7:
+    Successful requests          : 4
+    Failed requests              : 3
+    Average TTFT per request     : 3.885 s
+    Average throughput per req   : 62.52 tokens/s
+    Overall throughput (sum)     : 250.10 tokens/s
+    Batch duration (wall-clock)  : 9.301 s
+
+Scenario: Code Generation, Concurrency: 8
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.787 s
+    Latency       : 2.787 s
+    Throughput    : 80.37 tokens/s
+    Prompt tokens : 86, Output tokens: 224
+  Request 2:
+    TTFT          : 4.931 s
+    Latency       : 4.931 s
+    Throughput    : 45.43 tokens/s
+    Prompt tokens : 86, Output tokens: 224
+  Request 3:
+    TTFT          : 2.778 s
+    Latency       : 2.778 s
+    Throughput    : 82.06 tokens/s
+    Prompt tokens : 86, Output tokens: 228
+  Request 4:
+    TTFT          : 4.937 s
+    Latency       : 4.937 s
+    Throughput    : 45.98 tokens/s
+    Prompt tokens : 86, Output tokens: 227
+
+  Summary for concurrency 8:
+    Successful requests          : 4
+    Failed requests              : 4
+    Average TTFT per request     : 3.858 s
+    Average throughput per req   : 63.46 tokens/s
+    Overall throughput (sum)     : 253.84 tokens/s
+    Batch duration (wall-clock)  : 9.258 s
+
+Scenario: Code Generation, Concurrency: 9
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.790 s
+    Latency       : 2.790 s
+    Throughput    : 80.29 tokens/s
+    Prompt tokens : 86, Output tokens: 224
+  Request 2:
+    TTFT          : 4.933 s
+    Latency       : 4.933 s
+    Throughput    : 45.21 tokens/s
+    Prompt tokens : 86, Output tokens: 223
+  Request 3:
+    TTFT          : 2.796 s
+    Latency       : 2.796 s
+    Throughput    : 80.11 tokens/s
+    Prompt tokens : 86, Output tokens: 224
+  Request 4:
+    TTFT          : 4.961 s
+    Latency       : 4.961 s
+    Throughput    : 44.75 tokens/s
+    Prompt tokens : 86, Output tokens: 222
+
+  Summary for concurrency 9:
+    Successful requests          : 4
+    Failed requests              : 5
+    Average TTFT per request     : 3.870 s
+    Average throughput per req   : 62.59 tokens/s
+    Overall throughput (sum)     : 250.36 tokens/s
+    Batch duration (wall-clock)  : 9.289 s
+
+Scenario: Code Generation, Concurrency: 10
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.804 s
+    Latency       : 2.804 s
+    Throughput    : 80.95 tokens/s
+    Prompt tokens : 86, Output tokens: 227
+  Request 2:
+    TTFT          : 4.956 s
+    Latency       : 4.956 s
+    Throughput    : 45.81 tokens/s
+    Prompt tokens : 86, Output tokens: 227
+  Request 3:
+    TTFT          : 2.793 s
+    Latency       : 2.793 s
+    Throughput    : 80.19 tokens/s
+    Prompt tokens : 86, Output tokens: 224
+  Request 4:
+    TTFT          : 4.944 s
+    Latency       : 4.944 s
+    Throughput    : 43.69 tokens/s
+    Prompt tokens : 86, Output tokens: 216
+
+  Summary for concurrency 10:
+    Successful requests          : 4
+    Failed requests              : 6
+    Average TTFT per request     : 3.874 s
+    Average throughput per req   : 62.66 tokens/s
+    Overall throughput (sum)     : 250.63 tokens/s
+    Batch duration (wall-clock)  : 9.272 s
+
+Scenario: Chatbot, Concurrency: 1
+  Request 1:
+    TTFT          : 2.787 s
+    Latency       : 2.787 s
+    Throughput    : 75.00 tokens/s
+    Prompt tokens : 65, Output tokens: 209
+
+  Summary for concurrency 1:
+    Successful requests          : 1
+    Failed requests              : 0
+    Average TTFT per request     : 2.787 s
+    Average throughput per req   : 75.00 tokens/s
+    Overall throughput (sum)     : 75.00 tokens/s
+    Batch duration (wall-clock)  : 2.793 s
+
+Scenario: Chatbot, Concurrency: 2
+  Request 1:
+    TTFT          : 2.780 s
+    Latency       : 2.780 s
+    Throughput    : 74.81 tokens/s
+    Prompt tokens : 65, Output tokens: 208
+  Request 2:
+    TTFT          : 4.926 s
+    Latency       : 4.926 s
+    Throughput    : 42.84 tokens/s
+    Prompt tokens : 65, Output tokens: 211
+
+  Summary for concurrency 2:
+    Successful requests          : 2
+    Failed requests              : 0
+    Average TTFT per request     : 3.853 s
+    Average throughput per req   : 58.82 tokens/s
+    Overall throughput (sum)     : 117.65 tokens/s
+    Batch duration (wall-clock)  : 4.935 s
+
+Scenario: Chatbot, Concurrency: 3
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+  Request 1:
+    TTFT          : 2.777 s
+    Latency       : 2.777 s
+    Throughput    : 74.91 tokens/s
+    Prompt tokens : 65, Output tokens: 208
+  Request 2:
+    TTFT          : 4.927 s
+    Latency       : 4.927 s
+    Throughput    : 42.42 tokens/s
+    Prompt tokens : 65, Output tokens: 209
+  Request 3:
+    TTFT          : 2.813 s
+    Latency       : 2.813 s
+    Throughput    : 73.95 tokens/s
+    Prompt tokens : 65, Output tokens: 208
+
+  Summary for concurrency 3:
+    Successful requests          : 3
+    Failed requests              : 0
+    Average TTFT per request     : 3.506 s
+    Average throughput per req   : 63.76 tokens/s
+    Overall throughput (sum)     : 191.28 tokens/s
+    Batch duration (wall-clock)  : 7.129 s
+
+Scenario: Chatbot, Concurrency: 4
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.811 s
+    Latency       : 2.811 s
+    Throughput    : 74.34 tokens/s
+    Prompt tokens : 65, Output tokens: 209
+  Request 2:
+    TTFT          : 4.974 s
+    Latency       : 4.974 s
+    Throughput    : 41.82 tokens/s
+    Prompt tokens : 65, Output tokens: 208
+  Request 3:
+    TTFT          : 2.819 s
+    Latency       : 2.819 s
+    Throughput    : 73.79 tokens/s
+    Prompt tokens : 65, Output tokens: 208
+
+  Summary for concurrency 4:
+    Successful requests          : 3
+    Failed requests              : 1
+    Average TTFT per request     : 3.535 s
+    Average throughput per req   : 63.32 tokens/s
+    Overall throughput (sum)     : 189.95 tokens/s
+    Batch duration (wall-clock)  : 8.969 s
+
+Scenario: Chatbot, Concurrency: 5
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.800 s
+    Latency       : 2.800 s
+    Throughput    : 74.30 tokens/s
+    Prompt tokens : 65, Output tokens: 208
+  Request 2:
+    TTFT          : 4.959 s
+    Latency       : 4.959 s
+    Throughput    : 41.94 tokens/s
+    Prompt tokens : 65, Output tokens: 208
+  Request 3:
+    TTFT          : 2.813 s
+    Latency       : 2.813 s
+    Throughput    : 73.93 tokens/s
+    Prompt tokens : 65, Output tokens: 208
+  Request 4:
+    TTFT          : 4.982 s
+    Latency       : 4.982 s
+    Throughput    : 41.95 tokens/s
+    Prompt tokens : 65, Output tokens: 209
+
+  Summary for concurrency 5:
+    Successful requests          : 4
+    Failed requests              : 1
+    Average TTFT per request     : 3.888 s
+    Average throughput per req   : 58.03 tokens/s
+    Overall throughput (sum)     : 232.12 tokens/s
+    Batch duration (wall-clock)  : 9.302 s
+
+Scenario: Chatbot, Concurrency: 6
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.800 s
+    Latency       : 2.800 s
+    Throughput    : 74.30 tokens/s
+    Prompt tokens : 65, Output tokens: 208
+  Request 2:
+    TTFT          : 4.962 s
+    Latency       : 4.962 s
+    Throughput    : 41.92 tokens/s
+    Prompt tokens : 65, Output tokens: 208
+  Request 3:
+    TTFT          : 2.816 s
+    Latency       : 2.816 s
+    Throughput    : 74.23 tokens/s
+    Prompt tokens : 65, Output tokens: 209
+  Request 4:
+    TTFT          : 4.974 s
+    Latency       : 4.974 s
+    Throughput    : 41.81 tokens/s
+    Prompt tokens : 65, Output tokens: 208
+
+  Summary for concurrency 6:
+    Successful requests          : 4
+    Failed requests              : 2
+    Average TTFT per request     : 3.888 s
+    Average throughput per req   : 58.06 tokens/s
+    Overall throughput (sum)     : 232.26 tokens/s
+    Batch duration (wall-clock)  : 9.309 s
+
+Scenario: Chatbot, Concurrency: 7
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.798 s
+    Latency       : 2.798 s
+    Throughput    : 74.68 tokens/s
+    Prompt tokens : 65, Output tokens: 209
+  Request 2:
+    TTFT          : 4.953 s
+    Latency       : 4.953 s
+    Throughput    : 42.00 tokens/s
+    Prompt tokens : 65, Output tokens: 208
+  Request 3:
+    TTFT          : 2.805 s
+    Latency       : 2.805 s
+    Throughput    : 74.16 tokens/s
+    Prompt tokens : 65, Output tokens: 208
+  Request 4:
+    TTFT          : 4.965 s
+    Latency       : 4.965 s
+    Throughput    : 41.89 tokens/s
+    Prompt tokens : 65, Output tokens: 208
+
+  Summary for concurrency 7:
+    Successful requests          : 4
+    Failed requests              : 3
+    Average TTFT per request     : 3.880 s
+    Average throughput per req   : 58.18 tokens/s
+    Overall throughput (sum)     : 232.73 tokens/s
+    Batch duration (wall-clock)  : 9.285 s
+
+Scenario: Chatbot, Concurrency: 8
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.798 s
+    Latency       : 2.798 s
+    Throughput    : 74.35 tokens/s
+    Prompt tokens : 65, Output tokens: 208
+  Request 2:
+    TTFT          : 4.946 s
+    Latency       : 4.946 s
+    Throughput    : 42.06 tokens/s
+    Prompt tokens : 65, Output tokens: 208
+  Request 3:
+    TTFT          : 2.807 s
+    Latency       : 2.807 s
+    Throughput    : 74.11 tokens/s
+    Prompt tokens : 65, Output tokens: 208
+  Request 4:
+    TTFT          : 4.954 s
+    Latency       : 4.954 s
+    Throughput    : 42.19 tokens/s
+    Prompt tokens : 65, Output tokens: 209
+
+  Summary for concurrency 8:
+    Successful requests          : 4
+    Failed requests              : 4
+    Average TTFT per request     : 3.876 s
+    Average throughput per req   : 58.17 tokens/s
+    Overall throughput (sum)     : 232.70 tokens/s
+    Batch duration (wall-clock)  : 9.278 s
+
+Scenario: Chatbot, Concurrency: 9
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.804 s
+    Latency       : 2.804 s
+    Throughput    : 74.55 tokens/s
+    Prompt tokens : 65, Output tokens: 209
+  Request 2:
+    TTFT          : 4.977 s
+    Latency       : 4.977 s
+    Throughput    : 41.80 tokens/s
+    Prompt tokens : 65, Output tokens: 208
+  Request 3:
+    TTFT          : 2.812 s
+    Latency       : 2.812 s
+    Throughput    : 73.96 tokens/s
+    Prompt tokens : 65, Output tokens: 208
+  Request 4:
+    TTFT          : 4.944 s
+    Latency       : 4.944 s
+    Throughput    : 42.07 tokens/s
+    Prompt tokens : 65, Output tokens: 208
+
+  Summary for concurrency 9:
+    Successful requests          : 4
+    Failed requests              : 5
+    Average TTFT per request     : 3.884 s
+    Average throughput per req   : 58.09 tokens/s
+    Overall throughput (sum)     : 232.38 tokens/s
+    Batch duration (wall-clock)  : 9.313 s
+
+Scenario: Chatbot, Concurrency: 10
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.791 s
+    Latency       : 2.791 s
+    Throughput    : 74.51 tokens/s
+    Prompt tokens : 65, Output tokens: 208
+  Request 2:
+    TTFT          : 4.937 s
+    Latency       : 4.937 s
+    Throughput    : 42.13 tokens/s
+    Prompt tokens : 65, Output tokens: 208
+  Request 3:
+    TTFT          : 2.802 s
+    Latency       : 2.802 s
+    Throughput    : 74.23 tokens/s
+    Prompt tokens : 65, Output tokens: 208
+  Request 4:
+    TTFT          : 4.964 s
+    Latency       : 4.964 s
+    Throughput    : 41.90 tokens/s
+    Prompt tokens : 65, Output tokens: 208
+
+  Summary for concurrency 10:
+    Successful requests          : 4
+    Failed requests              : 6
+    Average TTFT per request     : 3.874 s
+    Average throughput per req   : 58.20 tokens/s
+    Overall throughput (sum)     : 232.78 tokens/s
+    Batch duration (wall-clock)  : 9.281 s
+
+Scenario: Sentiment Analysis / Classification, Concurrency: 1
+  Request 1:
+    TTFT          : 0.960 s
+    Latency       : 0.960 s
+    Throughput    : 27.10 tokens/s
+    Prompt tokens : 94, Output tokens: 26
+
+  Summary for concurrency 1:
+    Successful requests          : 1
+    Failed requests              : 0
+    Average TTFT per request     : 0.960 s
+    Average throughput per req   : 27.10 tokens/s
+    Overall throughput (sum)     : 27.10 tokens/s
+    Batch duration (wall-clock)  : 0.966 s
+
+Scenario: Sentiment Analysis / Classification, Concurrency: 2
+  Request 1:
+    TTFT          : 0.950 s
+    Latency       : 0.950 s
+    Throughput    : 26.32 tokens/s
+    Prompt tokens : 94, Output tokens: 25
+  Request 2:
+    TTFT          : 1.122 s
+    Latency       : 1.122 s
+    Throughput    : 9.81 tokens/s
+    Prompt tokens : 94, Output tokens: 11
+
+  Summary for concurrency 2:
+    Successful requests          : 2
+    Failed requests              : 0
+    Average TTFT per request     : 1.036 s
+    Average throughput per req   : 18.06 tokens/s
+    Overall throughput (sum)     : 36.13 tokens/s
+    Batch duration (wall-clock)  : 1.131 s
+
+Scenario: Sentiment Analysis / Classification, Concurrency: 3
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+  Request 1:
+    TTFT          : 0.803 s
+    Latency       : 0.803 s
+    Throughput    : 13.70 tokens/s
+    Prompt tokens : 94, Output tokens: 11
+  Request 2:
+    TTFT          : 0.973 s
+    Latency       : 0.973 s
+    Throughput    : 11.31 tokens/s
+    Prompt tokens : 94, Output tokens: 11
+  Request 3:
+    TTFT          : 0.808 s
+    Latency       : 0.808 s
+    Throughput    : 13.62 tokens/s
+    Prompt tokens : 94, Output tokens: 11
+
+  Summary for concurrency 3:
+    Successful requests          : 3
+    Failed requests              : 0
+    Average TTFT per request     : 0.861 s
+    Average throughput per req   : 12.88 tokens/s
+    Overall throughput (sum)     : 38.63 tokens/s
+    Batch duration (wall-clock)  : 2.469 s
+
+Scenario: Sentiment Analysis / Classification, Concurrency: 4
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+  Request 1:
+    TTFT          : 0.961 s
+    Latency       : 0.961 s
+    Throughput    : 27.06 tokens/s
+    Prompt tokens : 94, Output tokens: 26
+  Request 2:
+    TTFT          : 1.271 s
+    Latency       : 1.271 s
+    Throughput    : 19.67 tokens/s
+    Prompt tokens : 94, Output tokens: 25
+  Request 3:
+    TTFT          : 0.800 s
+    Latency       : 0.800 s
+    Throughput    : 13.74 tokens/s
+    Prompt tokens : 94, Output tokens: 11
+  Request 4:
+    TTFT          : 0.967 s
+    Latency       : 0.967 s
+    Throughput    : 11.38 tokens/s
+    Prompt tokens : 94, Output tokens: 11
+
+  Summary for concurrency 4:
+    Successful requests          : 4
+    Failed requests              : 0
+    Average TTFT per request     : 1.000 s
+    Average throughput per req   : 17.96 tokens/s
+    Overall throughput (sum)     : 71.85 tokens/s
+    Batch duration (wall-clock)  : 2.630 s
+
+Scenario: Sentiment Analysis / Classification, Concurrency: 5
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+  Request 1:
+    TTFT          : 0.931 s
+    Latency       : 0.931 s
+    Throughput    : 24.70 tokens/s
+    Prompt tokens : 94, Output tokens: 23
+  Request 2:
+    TTFT          : 1.104 s
+    Latency       : 1.104 s
+    Throughput    : 9.97 tokens/s
+    Prompt tokens : 94, Output tokens: 11
+  Request 3:
+    TTFT          : 0.805 s
+    Latency       : 0.805 s
+    Throughput    : 13.67 tokens/s
+    Prompt tokens : 94, Output tokens: 11
+  Request 4:
+    TTFT          : 1.082 s
+    Latency       : 1.082 s
+    Throughput    : 19.41 tokens/s
+    Prompt tokens : 94, Output tokens: 21
+  Request 5:
+    TTFT          : 0.806 s
+    Latency       : 0.806 s
+    Throughput    : 13.65 tokens/s
+    Prompt tokens : 94, Output tokens: 11
+
+  Summary for concurrency 5:
+    Successful requests          : 5
+    Failed requests              : 0
+    Average TTFT per request     : 0.945 s
+    Average throughput per req   : 16.28 tokens/s
+    Overall throughput (sum)     : 81.41 tokens/s
+    Batch duration (wall-clock)  : 5.125 s
+
+Scenario: Sentiment Analysis / Classification, Concurrency: 6
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+  Request 1:
+    TTFT          : 0.805 s
+    Latency       : 0.805 s
+    Throughput    : 13.66 tokens/s
+    Prompt tokens : 94, Output tokens: 11
+  Request 2:
+    TTFT          : 0.981 s
+    Latency       : 0.981 s
+    Throughput    : 11.22 tokens/s
+    Prompt tokens : 94, Output tokens: 11
+  Request 3:
+    TTFT          : 0.803 s
+    Latency       : 0.803 s
+    Throughput    : 13.69 tokens/s
+    Prompt tokens : 94, Output tokens: 11
+  Request 4:
+    TTFT          : 0.966 s
+    Latency       : 0.966 s
+    Throughput    : 11.39 tokens/s
+    Prompt tokens : 94, Output tokens: 11
+  Request 5:
+    TTFT          : 0.803 s
+    Latency       : 0.803 s
+    Throughput    : 13.71 tokens/s
+    Prompt tokens : 94, Output tokens: 11
+  Request 6:
+    TTFT          : 0.965 s
+    Latency       : 0.965 s
+    Throughput    : 11.40 tokens/s
+    Prompt tokens : 94, Output tokens: 11
+
+  Summary for concurrency 6:
+    Successful requests          : 6
+    Failed requests              : 0
+    Average TTFT per request     : 0.887 s
+    Average throughput per req   : 12.51 tokens/s
+    Overall throughput (sum)     : 75.05 tokens/s
+    Batch duration (wall-clock)  : 5.294 s
+
+Scenario: Sentiment Analysis / Classification, Concurrency: 7
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 0.919 s
+    Latency       : 0.919 s
+    Throughput    : 22.86 tokens/s
+    Prompt tokens : 94, Output tokens: 21
+  Request 2:
+    TTFT          : 1.224 s
+    Latency       : 1.224 s
+    Throughput    : 20.42 tokens/s
+    Prompt tokens : 94, Output tokens: 25
+  Request 3:
+    TTFT          : 0.955 s
+    Latency       : 0.955 s
+    Throughput    : 26.18 tokens/s
+    Prompt tokens : 94, Output tokens: 25
+  Request 4:
+    TTFT          : 1.260 s
+    Latency       : 1.260 s
+    Throughput    : 19.83 tokens/s
+    Prompt tokens : 94, Output tokens: 25
+  Request 5:
+    TTFT          : 0.889 s
+    Latency       : 0.889 s
+    Throughput    : 23.63 tokens/s
+    Prompt tokens : 94, Output tokens: 21
+  Request 6:
+    TTFT          : 1.059 s
+    Latency       : 1.059 s
+    Throughput    : 10.39 tokens/s
+    Prompt tokens : 94, Output tokens: 11
+
+  Summary for concurrency 7:
+    Successful requests          : 6
+    Failed requests              : 1
+    Average TTFT per request     : 1.051 s
+    Average throughput per req   : 20.55 tokens/s
+    Overall throughput (sum)     : 123.31 tokens/s
+    Batch duration (wall-clock)  : 8.978 s
+
+Scenario: Sentiment Analysis / Classification, Concurrency: 8
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 0.805 s
+    Latency       : 0.805 s
+    Throughput    : 13.66 tokens/s
+    Prompt tokens : 94, Output tokens: 11
+  Request 2:
+    TTFT          : 0.975 s
+    Latency       : 0.975 s
+    Throughput    : 11.29 tokens/s
+    Prompt tokens : 94, Output tokens: 11
+  Request 3:
+    TTFT          : 0.803 s
+    Latency       : 0.803 s
+    Throughput    : 13.69 tokens/s
+    Prompt tokens : 94, Output tokens: 11
+  Request 4:
+    TTFT          : 0.969 s
+    Latency       : 0.969 s
+    Throughput    : 11.36 tokens/s
+    Prompt tokens : 94, Output tokens: 11
+  Request 5:
+    TTFT          : 0.910 s
+    Latency       : 0.910 s
+    Throughput    : 23.08 tokens/s
+    Prompt tokens : 94, Output tokens: 21
+  Request 6:
+    TTFT          : 1.078 s
+    Latency       : 1.078 s
+    Throughput    : 10.21 tokens/s
+    Prompt tokens : 94, Output tokens: 11
+
+  Summary for concurrency 8:
+    Successful requests          : 6
+    Failed requests              : 2
+    Average TTFT per request     : 0.923 s
+    Average throughput per req   : 13.88 tokens/s
+    Overall throughput (sum)     : 83.28 tokens/s
+    Batch duration (wall-clock)  : 8.986 s
+
+Scenario: Sentiment Analysis / Classification, Concurrency: 9
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 0.815 s
+    Latency       : 0.815 s
+    Throughput    : 13.49 tokens/s
+    Prompt tokens : 94, Output tokens: 11
+  Request 2:
+    TTFT          : 1.146 s
+    Latency       : 1.146 s
+    Throughput    : 22.70 tokens/s
+    Prompt tokens : 94, Output tokens: 26
+  Request 3:
+    TTFT          : 0.806 s
+    Latency       : 0.806 s
+    Throughput    : 13.65 tokens/s
+    Prompt tokens : 94, Output tokens: 11
+  Request 4:
+    TTFT          : 0.972 s
+    Latency       : 0.972 s
+    Throughput    : 11.32 tokens/s
+    Prompt tokens : 94, Output tokens: 11
+  Request 5:
+    TTFT          : 0.805 s
+    Latency       : 0.805 s
+    Throughput    : 13.66 tokens/s
+    Prompt tokens : 94, Output tokens: 11
+  Request 6:
+    TTFT          : 1.123 s
+    Latency       : 1.123 s
+    Throughput    : 23.15 tokens/s
+    Prompt tokens : 94, Output tokens: 26
+
+  Summary for concurrency 9:
+    Successful requests          : 6
+    Failed requests              : 3
+    Average TTFT per request     : 0.945 s
+    Average throughput per req   : 16.33 tokens/s
+    Overall throughput (sum)     : 97.96 tokens/s
+    Batch duration (wall-clock)  : 8.991 s
+
+Scenario: Sentiment Analysis / Classification, Concurrency: 10
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 0.806 s
+    Latency       : 0.806 s
+    Throughput    : 13.65 tokens/s
+    Prompt tokens : 94, Output tokens: 11
+  Request 2:
+    TTFT          : 0.971 s
+    Latency       : 0.971 s
+    Throughput    : 11.33 tokens/s
+    Prompt tokens : 94, Output tokens: 11
+  Request 3:
+    TTFT          : 0.813 s
+    Latency       : 0.813 s
+    Throughput    : 13.53 tokens/s
+    Prompt tokens : 94, Output tokens: 11
+  Request 4:
+    TTFT          : 1.131 s
+    Latency       : 1.131 s
+    Throughput    : 22.99 tokens/s
+    Prompt tokens : 94, Output tokens: 26
+  Request 5:
+    TTFT          : 0.802 s
+    Latency       : 0.802 s
+    Throughput    : 13.71 tokens/s
+    Prompt tokens : 94, Output tokens: 11
+  Request 6:
+    TTFT          : 0.969 s
+    Latency       : 0.969 s
+    Throughput    : 11.35 tokens/s
+    Prompt tokens : 94, Output tokens: 11
+
+  Summary for concurrency 10:
+    Successful requests          : 6
+    Failed requests              : 4
+    Average TTFT per request     : 0.915 s
+    Average throughput per req   : 14.43 tokens/s
+    Overall throughput (sum)     : 86.57 tokens/s
+    Batch duration (wall-clock)  : 8.988 s
+
+Scenario: Multi-turn Reasoning / Complex Tasks, Concurrency: 1
+  Request 1:
+    TTFT          : 2.810 s
+    Latency       : 2.810 s
+    Throughput    : 74.38 tokens/s
+    Prompt tokens : 110, Output tokens: 209
+
+  Summary for concurrency 1:
+    Successful requests          : 1
+    Failed requests              : 0
+    Average TTFT per request     : 2.810 s
+    Average throughput per req   : 74.38 tokens/s
+    Overall throughput (sum)     : 74.38 tokens/s
+    Batch duration (wall-clock)  : 2.817 s
+
+Scenario: Multi-turn Reasoning / Complex Tasks, Concurrency: 2
+  Request 1:
+    TTFT          : 2.801 s
+    Latency       : 2.801 s
+    Throughput    : 74.62 tokens/s
+    Prompt tokens : 110, Output tokens: 209
+  Request 2:
+    TTFT          : 4.968 s
+    Latency       : 4.968 s
+    Throughput    : 41.87 tokens/s
+    Prompt tokens : 110, Output tokens: 208
+
+  Summary for concurrency 2:
+    Successful requests          : 2
+    Failed requests              : 0
+    Average TTFT per request     : 3.884 s
+    Average throughput per req   : 58.24 tokens/s
+    Overall throughput (sum)     : 116.49 tokens/s
+    Batch duration (wall-clock)  : 4.977 s
+
+Scenario: Multi-turn Reasoning / Complex Tasks, Concurrency: 3
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+  Request 1:
+    TTFT          : 2.770 s
+    Latency       : 2.770 s
+    Throughput    : 75.44 tokens/s
+    Prompt tokens : 110, Output tokens: 209
+  Request 2:
+    TTFT          : 4.894 s
+    Latency       : 4.894 s
+    Throughput    : 42.50 tokens/s
+    Prompt tokens : 110, Output tokens: 208
+  Request 3:
+    TTFT          : 2.753 s
+    Latency       : 2.753 s
+    Throughput    : 75.56 tokens/s
+    Prompt tokens : 110, Output tokens: 208
+
+  Summary for concurrency 3:
+    Successful requests          : 3
+    Failed requests              : 0
+    Average TTFT per request     : 3.472 s
+    Average throughput per req   : 64.50 tokens/s
+    Overall throughput (sum)     : 193.50 tokens/s
+    Batch duration (wall-clock)  : 7.070 s
+
+Scenario: Multi-turn Reasoning / Complex Tasks, Concurrency: 4
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+  Request 1:
+    TTFT          : 2.763 s
+    Latency       : 2.763 s
+    Throughput    : 75.64 tokens/s
+    Prompt tokens : 110, Output tokens: 209
+  Request 2:
+    TTFT          : 4.884 s
+    Latency       : 4.884 s
+    Throughput    : 42.59 tokens/s
+    Prompt tokens : 110, Output tokens: 208
+  Request 3:
+    TTFT          : 2.766 s
+    Latency       : 2.766 s
+    Throughput    : 75.21 tokens/s
+    Prompt tokens : 110, Output tokens: 208
+  Request 4:
+    TTFT          : 4.884 s
+    Latency       : 4.884 s
+    Throughput    : 42.59 tokens/s
+    Prompt tokens : 110, Output tokens: 208
+
+  Summary for concurrency 4:
+    Successful requests          : 4
+    Failed requests              : 0
+    Average TTFT per request     : 3.824 s
+    Average throughput per req   : 59.01 tokens/s
+    Overall throughput (sum)     : 236.03 tokens/s
+    Batch duration (wall-clock)  : 9.204 s
+
+Scenario: Multi-turn Reasoning / Complex Tasks, Concurrency: 5
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.762 s
+    Latency       : 2.762 s
+    Throughput    : 75.32 tokens/s
+    Prompt tokens : 110, Output tokens: 208
+  Request 2:
+    TTFT          : 4.884 s
+    Latency       : 4.884 s
+    Throughput    : 42.38 tokens/s
+    Prompt tokens : 110, Output tokens: 207
+  Request 3:
+    TTFT          : 2.761 s
+    Latency       : 2.761 s
+    Throughput    : 75.70 tokens/s
+    Prompt tokens : 110, Output tokens: 209
+  Request 4:
+    TTFT          : 4.890 s
+    Latency       : 4.890 s
+    Throughput    : 42.54 tokens/s
+    Prompt tokens : 110, Output tokens: 208
+
+  Summary for concurrency 5:
+    Successful requests          : 4
+    Failed requests              : 1
+    Average TTFT per request     : 3.824 s
+    Average throughput per req   : 58.98 tokens/s
+    Overall throughput (sum)     : 235.94 tokens/s
+    Batch duration (wall-clock)  : 9.215 s
+
+Scenario: Multi-turn Reasoning / Complex Tasks, Concurrency: 6
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.758 s
+    Latency       : 2.758 s
+    Throughput    : 76.14 tokens/s
+    Prompt tokens : 110, Output tokens: 210
+  Request 2:
+    TTFT          : 4.890 s
+    Latency       : 4.890 s
+    Throughput    : 42.33 tokens/s
+    Prompt tokens : 110, Output tokens: 207
+  Request 3:
+    TTFT          : 2.770 s
+    Latency       : 2.770 s
+    Throughput    : 74.74 tokens/s
+    Prompt tokens : 110, Output tokens: 207
+  Request 4:
+    TTFT          : 4.021 s
+    Latency       : 4.021 s
+    Throughput    : 29.84 tokens/s
+    Prompt tokens : 110, Output tokens: 120
+
+  Summary for concurrency 6:
+    Successful requests          : 4
+    Failed requests              : 2
+    Average TTFT per request     : 3.610 s
+    Average throughput per req   : 55.76 tokens/s
+    Overall throughput (sum)     : 223.05 tokens/s
+    Batch duration (wall-clock)  : 8.976 s
+
+Scenario: Multi-turn Reasoning / Complex Tasks, Concurrency: 7
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.783 s
+    Latency       : 2.783 s
+    Throughput    : 74.39 tokens/s
+    Prompt tokens : 110, Output tokens: 207
+  Request 2:
+    TTFT          : 4.936 s
+    Latency       : 4.936 s
+    Throughput    : 42.14 tokens/s
+    Prompt tokens : 110, Output tokens: 208
+  Request 3:
+    TTFT          : 2.782 s
+    Latency       : 2.782 s
+    Throughput    : 74.77 tokens/s
+    Prompt tokens : 110, Output tokens: 208
+  Request 4:
+    TTFT          : 4.926 s
+    Latency       : 4.926 s
+    Throughput    : 42.02 tokens/s
+    Prompt tokens : 110, Output tokens: 207
+
+  Summary for concurrency 7:
+    Successful requests          : 4
+    Failed requests              : 3
+    Average TTFT per request     : 3.857 s
+    Average throughput per req   : 58.33 tokens/s
+    Overall throughput (sum)     : 233.32 tokens/s
+    Batch duration (wall-clock)  : 9.250 s
+
+Scenario: Multi-turn Reasoning / Complex Tasks, Concurrency: 8
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.788 s
+    Latency       : 2.788 s
+    Throughput    : 74.97 tokens/s
+    Prompt tokens : 110, Output tokens: 209
+  Request 2:
+    TTFT          : 4.950 s
+    Latency       : 4.950 s
+    Throughput    : 42.02 tokens/s
+    Prompt tokens : 110, Output tokens: 208
+  Request 3:
+    TTFT          : 2.807 s
+    Latency       : 2.807 s
+    Throughput    : 73.75 tokens/s
+    Prompt tokens : 110, Output tokens: 207
+  Request 4:
+    TTFT          : 4.923 s
+    Latency       : 4.923 s
+    Throughput    : 43.06 tokens/s
+    Prompt tokens : 110, Output tokens: 212
+
+  Summary for concurrency 8:
+    Successful requests          : 4
+    Failed requests              : 4
+    Average TTFT per request     : 3.867 s
+    Average throughput per req   : 58.45 tokens/s
+    Overall throughput (sum)     : 233.81 tokens/s
+    Batch duration (wall-clock)  : 9.261 s
+
+Scenario: Multi-turn Reasoning / Complex Tasks, Concurrency: 9
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.771 s
+    Latency       : 2.771 s
+    Throughput    : 75.43 tokens/s
+    Prompt tokens : 110, Output tokens: 209
+  Request 2:
+    TTFT          : 4.917 s
+    Latency       : 4.917 s
+    Throughput    : 41.90 tokens/s
+    Prompt tokens : 110, Output tokens: 206
+  Request 3:
+    TTFT          : 2.786 s
+    Latency       : 2.786 s
+    Throughput    : 75.74 tokens/s
+    Prompt tokens : 110, Output tokens: 211
+  Request 4:
+    TTFT          : 4.901 s
+    Latency       : 4.901 s
+    Throughput    : 42.24 tokens/s
+    Prompt tokens : 110, Output tokens: 207
+
+  Summary for concurrency 9:
+    Successful requests          : 4
+    Failed requests              : 5
+    Average TTFT per request     : 3.844 s
+    Average throughput per req   : 58.83 tokens/s
+    Overall throughput (sum)     : 235.30 tokens/s
+    Batch duration (wall-clock)  : 9.244 s
+
+Scenario: Multi-turn Reasoning / Complex Tasks, Concurrency: 10
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 1: Received 429 Too Many Requests, backing off for 1 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 2: Received 429 Too Many Requests, backing off for 2 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+Attempt 3: Received 429 Too Many Requests, backing off for 4 seconds.
+  Request 1:
+    TTFT          : 2.770 s
+    Latency       : 2.770 s
+    Throughput    : 74.73 tokens/s
+    Prompt tokens : 110, Output tokens: 207
+  Request 2:
+    TTFT          : 4.881 s
+    Latency       : 4.881 s
+    Throughput    : 42.82 tokens/s
+    Prompt tokens : 110, Output tokens: 209
+  Request 3:
+    TTFT          : 2.801 s
+    Latency       : 2.801 s
+    Throughput    : 74.62 tokens/s
+    Prompt tokens : 110, Output tokens: 209
+  Request 4:
+    TTFT          : 4.930 s
+    Latency       : 4.930 s
+    Throughput    : 42.19 tokens/s
+    Prompt tokens : 110, Output tokens: 208
+
+  Summary for concurrency 10:
+    Successful requests          : 4
+    Failed requests              : 6
+    Average TTFT per request     : 3.846 s
+    Average throughput per req   : 58.59 tokens/s
+    Overall throughput (sum)     : 234.35 tokens/s
+    Batch duration (wall-clock)  : 9.284 s

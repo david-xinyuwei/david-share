@@ -1,0 +1,2900 @@
+(aml_env) root@linuxworkvm:~/AIFperformance# python press-swinv2-20250322.py
+Please enter the API service URL (default: https://aml-westus-1-nc24-a100.westus.inference.ml.azure.com/score): https://aml-westus-xjprw-1-nc48.westus.inference.ml.azure.com/score
+Please enter the API Key (default is configured): AeKQRDVLjqSkAufM4gwaW4xTdJ8CG2tazlGuck4nI7mih2jNuGaTJQQJ99BCAAAAAAAAAAAAINFRAZML47We
+Please enter the HuggingFace model name for loading the tokenizer (default: gpt2, leave blank to skip loading): microsoft/swinv2-base-patch4-window12-192-22k
+Failed to load tokenizer. Error: <class 'transformers.models.swinv2.configuration_swinv2.Swinv2Config'>
+
+Starting load test: Concurrency=1, Total Requests=1
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.925s, TTFT=0.925s, Throughput=27.04 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 0.925 s
+    Latency       : 0.925 s
+    Throughput    : 27.04 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=1:
+  Successful requests          : 1
+  Failed requests              : 0
+  Average TTFT per request     : 0.925 s
+  Average throughput per req   : 27.04 tokens/s
+  Overall throughput (sum)     : 27.04 tokens/s
+  Batch duration (wall-clock)  : 0.926 s
+
+
+Starting load test: Concurrency=2, Total Requests=2
+
+[Iteration 2] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 2: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.910s, TTFT=0.910s, Throughput=27.46 tokens/s
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.318s, TTFT=1.318s, Throughput=18.97 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 1.318 s
+    Latency       : 1.318 s
+    Throughput    : 18.97 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 2:
+    TTFT          : 0.910 s
+    Latency       : 0.910 s
+    Throughput    : 27.46 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=2:
+  Successful requests          : 2
+  Failed requests              : 0
+  Average TTFT per request     : 1.114 s
+  Average throughput per req   : 23.22 tokens/s
+  Overall throughput (sum)     : 46.44 tokens/s
+  Batch duration (wall-clock)  : 1.318 s
+
+
+Starting load test: Concurrency=3, Total Requests=3
+Iteration 1: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+
+[Iteration 3] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 3: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.926s, TTFT=0.926s, Throughput=27.00 tokens/s
+
+[Iteration 2] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 2: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.216s, TTFT=1.216s, Throughput=20.56 tokens/s
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.937s, TTFT=0.937s, Throughput=26.69 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 0.937 s
+    Latency       : 0.937 s
+    Throughput    : 26.69 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 2:
+    TTFT          : 1.216 s
+    Latency       : 1.216 s
+    Throughput    : 20.56 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 3:
+    TTFT          : 0.926 s
+    Latency       : 0.926 s
+    Throughput    : 27.00 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=3:
+  Successful requests          : 3
+  Failed requests              : 0
+  Average TTFT per request     : 1.026 s
+  Average throughput per req   : 24.75 tokens/s
+  Overall throughput (sum)     : 74.25 tokens/s
+  Batch duration (wall-clock)  : 2.588 s
+
+
+Starting load test: Concurrency=4, Total Requests=4
+Iteration 2: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 4: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.918s, TTFT=0.918s, Throughput=27.23 tokens/s
+
+[Iteration 3] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 3: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.199s, TTFT=1.199s, Throughput=20.84 tokens/s
+
+[Iteration 4] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 4: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.920s, TTFT=0.920s, Throughput=27.17 tokens/s
+
+[Iteration 2] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 2: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.738s, TTFT=1.738s, Throughput=14.39 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 0.918 s
+    Latency       : 0.918 s
+    Throughput    : 27.23 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 2:
+    TTFT          : 1.738 s
+    Latency       : 1.738 s
+    Throughput    : 14.39 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 3:
+    TTFT          : 1.199 s
+    Latency       : 1.199 s
+    Throughput    : 20.84 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 4:
+    TTFT          : 0.920 s
+    Latency       : 0.920 s
+    Throughput    : 27.17 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=4:
+  Successful requests          : 4
+  Failed requests              : 0
+  Average TTFT per request     : 1.194 s
+  Average throughput per req   : 22.41 tokens/s
+  Overall throughput (sum)     : 89.63 tokens/s
+  Batch duration (wall-clock)  : 3.400 s
+
+
+Starting load test: Concurrency=5, Total Requests=5
+Iteration 1: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 3: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 4: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+
+[Iteration 2] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 2: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.909s, TTFT=0.909s, Throughput=27.50 tokens/s
+
+[Iteration 5] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 5: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.204s, TTFT=1.204s, Throughput=20.76 tokens/s
+Iteration 4: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.911s, TTFT=0.911s, Throughput=27.44 tokens/s
+
+[Iteration 3] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 3: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.181s, TTFT=1.181s, Throughput=21.17 tokens/s
+
+[Iteration 4] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 4: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.920s, TTFT=0.920s, Throughput=27.17 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 0.911 s
+    Latency       : 0.911 s
+    Throughput    : 27.44 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 2:
+    TTFT          : 0.909 s
+    Latency       : 0.909 s
+    Throughput    : 27.50 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 3:
+    TTFT          : 1.181 s
+    Latency       : 1.181 s
+    Throughput    : 21.17 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 4:
+    TTFT          : 0.920 s
+    Latency       : 0.920 s
+    Throughput    : 27.17 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 5:
+    TTFT          : 1.204 s
+    Latency       : 1.204 s
+    Throughput    : 20.76 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=5:
+  Successful requests          : 5
+  Failed requests              : 0
+  Average TTFT per request     : 1.025 s
+  Average throughput per req   : 24.81 tokens/s
+  Overall throughput (sum)     : 124.04 tokens/s
+  Batch duration (wall-clock)  : 5.223 s
+
+
+Starting load test: Concurrency=6, Total Requests=6
+Iteration 5: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 6: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 1: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 3: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+
+[Iteration 4] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 4: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.915s, TTFT=0.915s, Throughput=27.31 tokens/s
+
+[Iteration 2] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 2: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.199s, TTFT=1.199s, Throughput=20.84 tokens/s
+Iteration 6: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 1: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+
+[Iteration 5] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 5: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.232s, TTFT=1.232s, Throughput=20.30 tokens/s
+
+[Iteration 3] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 3: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.511s, TTFT=1.511s, Throughput=16.55 tokens/s
+
+[Iteration 6] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 6: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.984s, TTFT=0.984s, Throughput=25.40 tokens/s
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.269s, TTFT=1.269s, Throughput=19.70 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 1.269 s
+    Latency       : 1.269 s
+    Throughput    : 19.70 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 2:
+    TTFT          : 1.199 s
+    Latency       : 1.199 s
+    Throughput    : 20.84 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 3:
+    TTFT          : 1.511 s
+    Latency       : 1.511 s
+    Throughput    : 16.55 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 4:
+    TTFT          : 0.915 s
+    Latency       : 0.915 s
+    Throughput    : 27.31 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 5:
+    TTFT          : 1.232 s
+    Latency       : 1.232 s
+    Throughput    : 20.30 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 6:
+    TTFT          : 0.984 s
+    Latency       : 0.984 s
+    Throughput    : 25.40 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=6:
+  Successful requests          : 6
+  Failed requests              : 0
+  Average TTFT per request     : 1.185 s
+  Average throughput per req   : 21.68 tokens/s
+  Overall throughput (sum)     : 130.10 tokens/s
+  Batch duration (wall-clock)  : 5.569 s
+
+
+Starting load test: Concurrency=7, Total Requests=7
+Iteration 5: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 2: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 6: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 4: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 3: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+
+[Iteration 7] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 7: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.974s, TTFT=0.974s, Throughput=25.68 tokens/s
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.306s, TTFT=1.306s, Throughput=19.14 tokens/s
+Iteration 4: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 6: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 5: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+
+[Iteration 3] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 3: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.906s, TTFT=0.906s, Throughput=27.58 tokens/s
+
+[Iteration 2] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 2: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.179s, TTFT=1.179s, Throughput=21.20 tokens/s
+Iteration 6: Attempt 3 received 429 Too Many Requests, backing off for 4 seconds.
+
+[Iteration 5] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 5: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.082s, TTFT=1.082s, Throughput=23.11 tokens/s
+
+[Iteration 4] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 4: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.370s, TTFT=1.370s, Throughput=18.25 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 1.306 s
+    Latency       : 1.306 s
+    Throughput    : 19.14 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 2:
+    TTFT          : 1.179 s
+    Latency       : 1.179 s
+    Throughput    : 21.20 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 3:
+    TTFT          : 0.906 s
+    Latency       : 0.906 s
+    Throughput    : 27.58 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 4:
+    TTFT          : 1.370 s
+    Latency       : 1.370 s
+    Throughput    : 18.25 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 5:
+    TTFT          : 1.082 s
+    Latency       : 1.082 s
+    Throughput    : 23.11 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 7:
+    TTFT          : 0.974 s
+    Latency       : 0.974 s
+    Throughput    : 25.68 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=7:
+  Successful requests          : 6
+  Failed requests              : 1
+  Average TTFT per request     : 1.136 s
+  Average throughput per req   : 22.49 tokens/s
+  Overall throughput (sum)     : 134.95 tokens/s
+  Batch duration (wall-clock)  : 8.945 s
+
+
+Starting load test: Concurrency=8, Total Requests=8
+Iteration 7: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 2: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 8: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 1: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 4: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 5: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+
+[Iteration 6] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 6: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.973s, TTFT=0.973s, Throughput=25.68 tokens/s
+
+[Iteration 3] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 3: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.300s, TTFT=1.300s, Throughput=19.23 tokens/s
+Iteration 7: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 8: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 5: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 4: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.911s, TTFT=0.911s, Throughput=27.44 tokens/s
+
+[Iteration 2] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 2: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.203s, TTFT=1.203s, Throughput=20.79 tokens/s
+Iteration 5: Attempt 3 received 429 Too Many Requests, backing off for 4 seconds.
+Iteration 4: Attempt 3 received 429 Too Many Requests, backing off for 4 seconds.
+
+[Iteration 7] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 7: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.921s, TTFT=0.921s, Throughput=27.15 tokens/s
+
+[Iteration 8] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 8: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.258s, TTFT=1.258s, Throughput=19.87 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 0.911 s
+    Latency       : 0.911 s
+    Throughput    : 27.44 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 2:
+    TTFT          : 1.203 s
+    Latency       : 1.203 s
+    Throughput    : 20.79 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 3:
+    TTFT          : 1.300 s
+    Latency       : 1.300 s
+    Throughput    : 19.23 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 6:
+    TTFT          : 0.973 s
+    Latency       : 0.973 s
+    Throughput    : 25.68 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 7:
+    TTFT          : 0.921 s
+    Latency       : 0.921 s
+    Throughput    : 27.15 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 8:
+    TTFT          : 1.258 s
+    Latency       : 1.258 s
+    Throughput    : 19.87 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=8:
+  Successful requests          : 6
+  Failed requests              : 2
+  Average TTFT per request     : 1.094 s
+  Average throughput per req   : 23.36 tokens/s
+  Overall throughput (sum)     : 140.17 tokens/s
+  Batch duration (wall-clock)  : 8.957 s
+
+
+Starting load test: Concurrency=9, Total Requests=9
+Iteration 7: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 2: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 6: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 1: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 5: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 4: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 9: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+
+[Iteration 8] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 8: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.303s, TTFT=1.303s, Throughput=19.19 tokens/s
+
+[Iteration 3] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 3: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.591s, TTFT=1.591s, Throughput=15.71 tokens/s
+Iteration 5: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 7: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 1: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 9: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 4: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+
+[Iteration 2] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 2: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.959s, TTFT=0.959s, Throughput=26.07 tokens/s
+
+[Iteration 6] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 6: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.278s, TTFT=1.278s, Throughput=19.56 tokens/s
+Iteration 9: Attempt 3 received 429 Too Many Requests, backing off for 4 seconds.
+Iteration 1: Attempt 3 received 429 Too Many Requests, backing off for 4 seconds.
+Iteration 4: Attempt 3 received 429 Too Many Requests, backing off for 4 seconds.
+
+[Iteration 7] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 7: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.607s, TTFT=1.607s, Throughput=15.55 tokens/s
+
+[Iteration 5] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 5: Success | Desired tokens=4096 | Temp=1.0 | Latency=2.000s, TTFT=2.000s, Throughput=12.50 tokens/s
+
+Detailed Results:
+  Request 2:
+    TTFT          : 0.959 s
+    Latency       : 0.959 s
+    Throughput    : 26.07 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 3:
+    TTFT          : 1.591 s
+    Latency       : 1.591 s
+    Throughput    : 15.71 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 5:
+    TTFT          : 2.000 s
+    Latency       : 2.000 s
+    Throughput    : 12.50 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 6:
+    TTFT          : 1.278 s
+    Latency       : 1.278 s
+    Throughput    : 19.56 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 7:
+    TTFT          : 1.607 s
+    Latency       : 1.607 s
+    Throughput    : 15.55 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 8:
+    TTFT          : 1.303 s
+    Latency       : 1.303 s
+    Throughput    : 19.19 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=9:
+  Successful requests          : 6
+  Failed requests              : 3
+  Average TTFT per request     : 1.457 s
+  Average throughput per req   : 18.10 tokens/s
+  Overall throughput (sum)     : 108.58 tokens/s
+  Batch duration (wall-clock)  : 8.946 s
+
+
+Starting load test: Concurrency=10, Total Requests=10
+Iteration 7: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 10: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 3: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 8: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 9: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 5: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 1: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 4: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+
+[Iteration 6] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 6: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.908s, TTFT=0.908s, Throughput=27.54 tokens/s
+
+[Iteration 2] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 2: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.194s, TTFT=1.194s, Throughput=20.93 tokens/s
+Iteration 4: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 3: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 9: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 10: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 1: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 5: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+
+[Iteration 7] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 7: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.014s, TTFT=1.014s, Throughput=24.67 tokens/s
+
+[Iteration 8] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 8: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.302s, TTFT=1.302s, Throughput=19.21 tokens/s
+Iteration 4: Attempt 3 received 429 Too Many Requests, backing off for 4 seconds.
+Iteration 1: Attempt 3 received 429 Too Many Requests, backing off for 4 seconds.
+Iteration 10: Attempt 3 received 429 Too Many Requests, backing off for 4 seconds.
+Iteration 3: Attempt 3 received 429 Too Many Requests, backing off for 4 seconds.
+
+[Iteration 5] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 5: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.183s, TTFT=1.183s, Throughput=21.13 tokens/s
+
+[Iteration 9] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 9: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.456s, TTFT=1.456s, Throughput=17.17 tokens/s
+
+Detailed Results:
+  Request 2:
+    TTFT          : 1.194 s
+    Latency       : 1.194 s
+    Throughput    : 20.93 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 5:
+    TTFT          : 1.183 s
+    Latency       : 1.183 s
+    Throughput    : 21.13 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 6:
+    TTFT          : 0.908 s
+    Latency       : 0.908 s
+    Throughput    : 27.54 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 7:
+    TTFT          : 1.014 s
+    Latency       : 1.014 s
+    Throughput    : 24.67 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 8:
+    TTFT          : 1.302 s
+    Latency       : 1.302 s
+    Throughput    : 19.21 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 9:
+    TTFT          : 1.456 s
+    Latency       : 1.456 s
+    Throughput    : 17.17 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=10:
+  Successful requests          : 6
+  Failed requests              : 4
+  Average TTFT per request     : 1.176 s
+  Average throughput per req   : 21.77 tokens/s
+  Overall throughput (sum)     : 130.64 tokens/s
+  Batch duration (wall-clock)  : 8.969 s
+
+(aml_env) root@linuxworkvm:~/AIFperformance# python press-swinv2-20250322.py
+Please enter the API service URL (default: https://aml-westus-1-nc24-a100.westus.inference.ml.azure.com/score): https://aml-westus-xjprw-1-nc48.westus.inference.ml.azure.com/score
+Please enter the API Key (default is configured): AeKQRDVLjqSkAufM4gwaW4xTdJ8CG2tazlGuck4nI7mih2jNuGaTJQQJ99BCAAAAAAAAAAAAINFRAZML47We
+Please enter the HuggingFace model name for loading the tokenizer (default: gpt2, leave blank to skip loading): microsoft/swinv2-base-patch4-window12-192-22k
+Failed to load tokenizer. Error: <class 'transformers.models.swinv2.configuration_swinv2.Swinv2Config'>
+
+Starting load test: Concurrency=1, Total Requests=1
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.910s, TTFT=0.910s, Throughput=27.46 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 0.910 s
+    Latency       : 0.910 s
+    Throughput    : 27.46 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=1:
+  Successful requests          : 1
+  Failed requests              : 0
+  Average TTFT per request     : 0.910 s
+  Average throughput per req   : 27.46 tokens/s
+  Overall throughput (sum)     : 27.46 tokens/s
+  Batch duration (wall-clock)  : 0.911 s
+
+
+Starting load test: Concurrency=2, Total Requests=2
+
+[Iteration 2] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 2: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.913s, TTFT=0.913s, Throughput=27.37 tokens/s
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.197s, TTFT=1.197s, Throughput=20.88 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 1.197 s
+    Latency       : 1.197 s
+    Throughput    : 20.88 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 2:
+    TTFT          : 0.913 s
+    Latency       : 0.913 s
+    Throughput    : 27.37 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=2:
+  Successful requests          : 2
+  Failed requests              : 0
+  Average TTFT per request     : 1.055 s
+  Average throughput per req   : 24.12 tokens/s
+  Overall throughput (sum)     : 48.25 tokens/s
+  Batch duration (wall-clock)  : 1.198 s
+
+
+Starting load test: Concurrency=3, Total Requests=3
+Iteration 3: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.964s, TTFT=0.964s, Throughput=25.94 tokens/s
+
+[Iteration 2] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 2: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.305s, TTFT=1.305s, Throughput=19.16 tokens/s
+
+[Iteration 3] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 3: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.950s, TTFT=0.950s, Throughput=26.32 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 0.964 s
+    Latency       : 0.964 s
+    Throughput    : 25.94 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 2:
+    TTFT          : 1.305 s
+    Latency       : 1.305 s
+    Throughput    : 19.16 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 3:
+    TTFT          : 0.950 s
+    Latency       : 0.950 s
+    Throughput    : 26.32 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=3:
+  Successful requests          : 3
+  Failed requests              : 0
+  Average TTFT per request     : 1.073 s
+  Average throughput per req   : 23.80 tokens/s
+  Overall throughput (sum)     : 71.41 tokens/s
+  Batch duration (wall-clock)  : 2.600 s
+
+
+Starting load test: Concurrency=4, Total Requests=4
+Iteration 1: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 2: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+
+[Iteration 4] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 4: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.903s, TTFT=0.903s, Throughput=27.69 tokens/s
+
+[Iteration 3] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 3: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.579s, TTFT=1.579s, Throughput=15.83 tokens/s
+
+[Iteration 2] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 2: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.973s, TTFT=0.973s, Throughput=25.70 tokens/s
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.336s, TTFT=1.336s, Throughput=18.71 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 1.336 s
+    Latency       : 1.336 s
+    Throughput    : 18.71 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 2:
+    TTFT          : 0.973 s
+    Latency       : 0.973 s
+    Throughput    : 25.70 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 3:
+    TTFT          : 1.579 s
+    Latency       : 1.579 s
+    Throughput    : 15.83 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 4:
+    TTFT          : 0.903 s
+    Latency       : 0.903 s
+    Throughput    : 27.69 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=4:
+  Successful requests          : 4
+  Failed requests              : 0
+  Average TTFT per request     : 1.198 s
+  Average throughput per req   : 21.98 tokens/s
+  Overall throughput (sum)     : 87.93 tokens/s
+  Batch duration (wall-clock)  : 2.983 s
+
+
+Starting load test: Concurrency=5, Total Requests=5
+Iteration 1: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 5: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 4: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+
+[Iteration 2] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 2: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.908s, TTFT=0.908s, Throughput=27.52 tokens/s
+
+[Iteration 3] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 3: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.187s, TTFT=1.187s, Throughput=21.06 tokens/s
+Iteration 4: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.931s, TTFT=0.931s, Throughput=26.86 tokens/s
+
+[Iteration 5] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 5: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.222s, TTFT=1.222s, Throughput=20.46 tokens/s
+
+[Iteration 4] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 4: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.907s, TTFT=0.907s, Throughput=27.55 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 0.931 s
+    Latency       : 0.931 s
+    Throughput    : 26.86 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 2:
+    TTFT          : 0.908 s
+    Latency       : 0.908 s
+    Throughput    : 27.52 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 3:
+    TTFT          : 1.187 s
+    Latency       : 1.187 s
+    Throughput    : 21.06 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 4:
+    TTFT          : 0.907 s
+    Latency       : 0.907 s
+    Throughput    : 27.55 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 5:
+    TTFT          : 1.222 s
+    Latency       : 1.222 s
+    Throughput    : 20.46 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=5:
+  Successful requests          : 5
+  Failed requests              : 0
+  Average TTFT per request     : 1.031 s
+  Average throughput per req   : 24.69 tokens/s
+  Overall throughput (sum)     : 123.45 tokens/s
+  Batch duration (wall-clock)  : 5.209 s
+
+
+Starting load test: Concurrency=6, Total Requests=6
+Iteration 1: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 3: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 4: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 2: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+
+[Iteration 5] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 5: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.357s, TTFT=1.357s, Throughput=18.42 tokens/s
+
+[Iteration 6] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 6: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.626s, TTFT=1.626s, Throughput=15.37 tokens/s
+Iteration 4: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 1: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+
+[Iteration 2] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 2: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.920s, TTFT=0.920s, Throughput=27.16 tokens/s
+
+[Iteration 3] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 3: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.810s, TTFT=1.810s, Throughput=13.81 tokens/s
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.929s, TTFT=0.929s, Throughput=26.91 tokens/s
+
+[Iteration 4] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 4: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.211s, TTFT=1.211s, Throughput=20.64 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 0.929 s
+    Latency       : 0.929 s
+    Throughput    : 26.91 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 2:
+    TTFT          : 0.920 s
+    Latency       : 0.920 s
+    Throughput    : 27.16 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 3:
+    TTFT          : 1.810 s
+    Latency       : 1.810 s
+    Throughput    : 13.81 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 4:
+    TTFT          : 1.211 s
+    Latency       : 1.211 s
+    Throughput    : 20.64 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 5:
+    TTFT          : 1.357 s
+    Latency       : 1.357 s
+    Throughput    : 18.42 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 6:
+    TTFT          : 1.626 s
+    Latency       : 1.626 s
+    Throughput    : 15.37 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=6:
+  Successful requests          : 6
+  Failed requests              : 0
+  Average TTFT per request     : 1.309 s
+  Average throughput per req   : 20.39 tokens/s
+  Overall throughput (sum)     : 122.32 tokens/s
+  Batch duration (wall-clock)  : 5.506 s
+
+
+Starting load test: Concurrency=7, Total Requests=7
+Iteration 4: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 5: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 2: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 1: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 7: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+
+[Iteration 6] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 6: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.909s, TTFT=0.909s, Throughput=27.52 tokens/s
+
+[Iteration 3] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 3: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.185s, TTFT=1.185s, Throughput=21.09 tokens/s
+Iteration 5: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 2: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 4: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.924s, TTFT=0.924s, Throughput=27.05 tokens/s
+
+[Iteration 7] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 7: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.223s, TTFT=1.223s, Throughput=20.44 tokens/s
+Iteration 4: Attempt 3 received 429 Too Many Requests, backing off for 4 seconds.
+
+[Iteration 5] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 5: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.918s, TTFT=0.918s, Throughput=27.23 tokens/s
+
+[Iteration 2] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 2: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.195s, TTFT=1.195s, Throughput=20.92 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 0.924 s
+    Latency       : 0.924 s
+    Throughput    : 27.05 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 2:
+    TTFT          : 1.195 s
+    Latency       : 1.195 s
+    Throughput    : 20.92 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 3:
+    TTFT          : 1.185 s
+    Latency       : 1.185 s
+    Throughput    : 21.09 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 5:
+    TTFT          : 0.918 s
+    Latency       : 0.918 s
+    Throughput    : 27.23 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 6:
+    TTFT          : 0.909 s
+    Latency       : 0.909 s
+    Throughput    : 27.52 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 7:
+    TTFT          : 1.223 s
+    Latency       : 1.223 s
+    Throughput    : 20.44 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=7:
+  Successful requests          : 6
+  Failed requests              : 1
+  Average TTFT per request     : 1.059 s
+  Average throughput per req   : 24.04 tokens/s
+  Overall throughput (sum)     : 144.25 tokens/s
+  Batch duration (wall-clock)  : 8.957 s
+
+
+Starting load test: Concurrency=8, Total Requests=8
+Iteration 8: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 5: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 6: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 3: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 2: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 7: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+
+[Iteration 4] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 4: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.915s, TTFT=0.915s, Throughput=27.33 tokens/s
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.215s, TTFT=1.215s, Throughput=20.58 tokens/s
+Iteration 5: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 3: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 2: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 6: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+
+[Iteration 8] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 8: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.903s, TTFT=0.903s, Throughput=27.68 tokens/s
+
+[Iteration 7] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 7: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.184s, TTFT=1.184s, Throughput=21.11 tokens/s
+Iteration 3: Attempt 3 received 429 Too Many Requests, backing off for 4 seconds.
+Iteration 6: Attempt 3 received 429 Too Many Requests, backing off for 4 seconds.
+
+[Iteration 5] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 5: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.005s, TTFT=1.005s, Throughput=24.87 tokens/s
+
+[Iteration 2] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 2: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.435s, TTFT=1.435s, Throughput=17.42 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 1.215 s
+    Latency       : 1.215 s
+    Throughput    : 20.58 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 2:
+    TTFT          : 1.435 s
+    Latency       : 1.435 s
+    Throughput    : 17.42 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 4:
+    TTFT          : 0.915 s
+    Latency       : 0.915 s
+    Throughput    : 27.33 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 5:
+    TTFT          : 1.005 s
+    Latency       : 1.005 s
+    Throughput    : 24.87 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 7:
+    TTFT          : 1.184 s
+    Latency       : 1.184 s
+    Throughput    : 21.11 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 8:
+    TTFT          : 0.903 s
+    Latency       : 0.903 s
+    Throughput    : 27.68 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=8:
+  Successful requests          : 6
+  Failed requests              : 2
+  Average TTFT per request     : 1.110 s
+  Average throughput per req   : 23.16 tokens/s
+  Overall throughput (sum)     : 138.99 tokens/s
+  Batch duration (wall-clock)  : 8.965 s
+
+
+Starting load test: Concurrency=9, Total Requests=9
+Iteration 1: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 8: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 4: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 9: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 5: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 2: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 6: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+
+[Iteration 7] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 7: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.924s, TTFT=0.924s, Throughput=27.05 tokens/s
+
+[Iteration 3] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 3: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.242s, TTFT=1.242s, Throughput=20.13 tokens/s
+Iteration 4: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 5: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 8: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 2: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 6: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.906s, TTFT=0.906s, Throughput=27.59 tokens/s
+
+[Iteration 9] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 9: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.221s, TTFT=1.221s, Throughput=20.47 tokens/s
+Iteration 6: Attempt 3 received 429 Too Many Requests, backing off for 4 seconds.
+Iteration 8: Attempt 3 received 429 Too Many Requests, backing off for 4 seconds.
+Iteration 4: Attempt 3 received 429 Too Many Requests, backing off for 4 seconds.
+
+[Iteration 5] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 5: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.933s, TTFT=0.933s, Throughput=26.80 tokens/s
+
+[Iteration 2] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 2: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.280s, TTFT=1.280s, Throughput=19.53 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 0.906 s
+    Latency       : 0.906 s
+    Throughput    : 27.59 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 2:
+    TTFT          : 1.280 s
+    Latency       : 1.280 s
+    Throughput    : 19.53 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 3:
+    TTFT          : 1.242 s
+    Latency       : 1.242 s
+    Throughput    : 20.13 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 5:
+    TTFT          : 0.933 s
+    Latency       : 0.933 s
+    Throughput    : 26.80 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 7:
+    TTFT          : 0.924 s
+    Latency       : 0.924 s
+    Throughput    : 27.05 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 9:
+    TTFT          : 1.221 s
+    Latency       : 1.221 s
+    Throughput    : 20.47 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=9:
+  Successful requests          : 6
+  Failed requests              : 3
+  Average TTFT per request     : 1.084 s
+  Average throughput per req   : 23.59 tokens/s
+  Overall throughput (sum)     : 141.56 tokens/s
+  Batch duration (wall-clock)  : 8.956 s
+
+
+Starting load test: Concurrency=10, Total Requests=10
+Iteration 7: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 10: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 5: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 6: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 9: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 4: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 2: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 3: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+
+[Iteration 8] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 8: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.918s, TTFT=0.918s, Throughput=27.24 tokens/s
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.203s, TTFT=1.203s, Throughput=20.78 tokens/s
+Iteration 4: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 3: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 7: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 2: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 5: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 9: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+
+[Iteration 6] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 6: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.901s, TTFT=0.900s, Throughput=27.76 tokens/s
+
+[Iteration 10] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 10: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.190s, TTFT=1.190s, Throughput=21.01 tokens/s
+Iteration 5: Attempt 3 received 429 Too Many Requests, backing off for 4 seconds.
+Iteration 9: Attempt 3 received 429 Too Many Requests, backing off for 4 seconds.
+Iteration 3: Attempt 3 received 429 Too Many Requests, backing off for 4 seconds.
+Iteration 7: Attempt 3 received 429 Too Many Requests, backing off for 4 seconds.
+
+[Iteration 4] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 4: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.072s, TTFT=1.072s, Throughput=23.31 tokens/s
+
+[Iteration 2] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388736724853516}, "1": {"label": "LABEL_14195", "score": 0.08251414448022842}, "2": {"label": "LABEL_7158", "score": 0.06013041362166405}, "3": {"label": "LABEL_14404", "score": 0.03096662648022175}, "4": {"label": "LABEL_18665", "score": 0.029402218759059906}}]
+----- End of Completion -----
+
+Iteration 2: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.367s, TTFT=1.367s, Throughput=18.29 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 1.203 s
+    Latency       : 1.203 s
+    Throughput    : 20.78 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 2:
+    TTFT          : 1.367 s
+    Latency       : 1.367 s
+    Throughput    : 18.29 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 4:
+    TTFT          : 1.072 s
+    Latency       : 1.072 s
+    Throughput    : 23.31 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 6:
+    TTFT          : 0.900 s
+    Latency       : 0.901 s
+    Throughput    : 27.76 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 8:
+    TTFT          : 0.918 s
+    Latency       : 0.918 s
+    Throughput    : 27.24 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 10:
+    TTFT          : 1.190 s
+    Latency       : 1.190 s
+    Throughput    : 21.01 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=10:
+  Successful requests          : 6
+  Failed requests              : 4
+  Average TTFT per request     : 1.108 s
+  Average throughput per req   : 23.07 tokens/s
+  Overall throughput (sum)     : 138.40 tokens/s
+  Batch duration (wall-clock)  : 8.963 s
+
+
+
+
+
+
+
+Last login: Sun Mar 23 01:11:00 2025 from 20.2.217.9
+(base) root@linuxworkvm:~# !con
+conda activate aml_env
+(aml_env) root@linuxworkvm:~# cd AIFperformance/
+(aml_env) root@linuxworkvm:~/AIFperformance# python press-swinv2-20250322.py
+Please enter the API service URL (default: https://aml-westus-1-nc24-a100.westus.inference.ml.azure.com/score): https://aml-westus-mhxtc-2-nc24.westus.inference.ml.azure.com/score
+Please enter the API Key (default is configured): FBqxODcHTcppePtUTP7DxpMqVrKKtiCk8lRWyoy2ff7Yk9DMoRBVJQQJ99BCAAAAAAAAAAAAINFRAZML1bUx
+Please enter the HuggingFace model name for loading the tokenizer (default: gpt2, leave blank to skip loading): microsoft/swinv2-base-patch4-window12-192-22k
+Failed to load tokenizer. Error: <class 'transformers.models.swinv2.configuration_swinv2.Swinv2Config'>
+
+Starting load test: Concurrency=1, Total Requests=1
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.002s, TTFT=1.002s, Throughput=24.94 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 1.002 s
+    Latency       : 1.002 s
+    Throughput    : 24.94 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=1:
+  Successful requests          : 1
+  Failed requests              : 0
+  Average TTFT per request     : 1.002 s
+  Average throughput per req   : 24.94 tokens/s
+  Overall throughput (sum)     : 24.94 tokens/s
+  Batch duration (wall-clock)  : 1.004 s
+
+
+Starting load test: Concurrency=2, Total Requests=2
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.125s, TTFT=1.125s, Throughput=22.22 tokens/s
+
+[Iteration 2] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 2: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.420s, TTFT=1.420s, Throughput=17.61 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 1.125 s
+    Latency       : 1.125 s
+    Throughput    : 22.22 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 2:
+    TTFT          : 1.420 s
+    Latency       : 1.420 s
+    Throughput    : 17.61 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=2:
+  Successful requests          : 2
+  Failed requests              : 0
+  Average TTFT per request     : 1.272 s
+  Average throughput per req   : 19.91 tokens/s
+  Overall throughput (sum)     : 39.83 tokens/s
+  Batch duration (wall-clock)  : 1.421 s
+
+
+Starting load test: Concurrency=3, Total Requests=3
+
+[Iteration 3] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 3: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.991s, TTFT=0.991s, Throughput=25.23 tokens/s
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.998s, TTFT=0.998s, Throughput=25.04 tokens/s
+
+[Iteration 2] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 2: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.290s, TTFT=1.290s, Throughput=19.38 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 0.998 s
+    Latency       : 0.998 s
+    Throughput    : 25.04 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 2:
+    TTFT          : 1.290 s
+    Latency       : 1.290 s
+    Throughput    : 19.38 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 3:
+    TTFT          : 0.991 s
+    Latency       : 0.991 s
+    Throughput    : 25.23 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=3:
+  Successful requests          : 3
+  Failed requests              : 0
+  Average TTFT per request     : 1.093 s
+  Average throughput per req   : 23.22 tokens/s
+  Overall throughput (sum)     : 69.65 tokens/s
+  Batch duration (wall-clock)  : 1.292 s
+
+
+Starting load test: Concurrency=4, Total Requests=4
+
+[Iteration 3] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 3: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.960s, TTFT=0.960s, Throughput=26.05 tokens/s
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.003s, TTFT=1.003s, Throughput=24.92 tokens/s
+
+[Iteration 4] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 4: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.285s, TTFT=1.285s, Throughput=19.45 tokens/s
+
+[Iteration 2] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 2: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.356s, TTFT=1.356s, Throughput=18.44 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 1.003 s
+    Latency       : 1.003 s
+    Throughput    : 24.92 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 2:
+    TTFT          : 1.356 s
+    Latency       : 1.356 s
+    Throughput    : 18.44 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 3:
+    TTFT          : 0.960 s
+    Latency       : 0.960 s
+    Throughput    : 26.05 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 4:
+    TTFT          : 1.285 s
+    Latency       : 1.285 s
+    Throughput    : 19.45 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=4:
+  Successful requests          : 4
+  Failed requests              : 0
+  Average TTFT per request     : 1.151 s
+  Average throughput per req   : 22.22 tokens/s
+  Overall throughput (sum)     : 88.86 tokens/s
+  Batch duration (wall-clock)  : 1.357 s
+
+
+Starting load test: Concurrency=5, Total Requests=5
+Iteration 2: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+
+[Iteration 4] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 4: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.912s, TTFT=0.912s, Throughput=27.40 tokens/s
+
+[Iteration 5] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 5: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.935s, TTFT=0.935s, Throughput=26.73 tokens/s
+
+[Iteration 3] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 3: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.199s, TTFT=1.199s, Throughput=20.86 tokens/s
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.240s, TTFT=1.240s, Throughput=20.15 tokens/s
+
+[Iteration 2] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 2: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.925s, TTFT=0.925s, Throughput=27.02 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 1.240 s
+    Latency       : 1.240 s
+    Throughput    : 20.15 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 2:
+    TTFT          : 0.925 s
+    Latency       : 0.925 s
+    Throughput    : 27.02 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 3:
+    TTFT          : 1.199 s
+    Latency       : 1.199 s
+    Throughput    : 20.86 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 4:
+    TTFT          : 0.912 s
+    Latency       : 0.912 s
+    Throughput    : 27.40 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 5:
+    TTFT          : 0.935 s
+    Latency       : 0.935 s
+    Throughput    : 26.73 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=5:
+  Successful requests          : 5
+  Failed requests              : 0
+  Average TTFT per request     : 1.042 s
+  Average throughput per req   : 24.43 tokens/s
+  Overall throughput (sum)     : 122.16 tokens/s
+  Batch duration (wall-clock)  : 2.582 s
+
+
+Starting load test: Concurrency=6, Total Requests=6
+Iteration 1: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 6: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+
+[Iteration 2] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 2: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.925s, TTFT=0.925s, Throughput=27.01 tokens/s
+
+[Iteration 3] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 3: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.931s, TTFT=0.931s, Throughput=26.85 tokens/s
+
+[Iteration 4] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 4: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.236s, TTFT=1.236s, Throughput=20.23 tokens/s
+
+[Iteration 5] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 5: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.284s, TTFT=1.284s, Throughput=19.47 tokens/s
+
+[Iteration 6] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 6: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.950s, TTFT=0.950s, Throughput=26.32 tokens/s
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.958s, TTFT=0.958s, Throughput=26.09 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 0.958 s
+    Latency       : 0.958 s
+    Throughput    : 26.09 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 2:
+    TTFT          : 0.925 s
+    Latency       : 0.925 s
+    Throughput    : 27.01 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 3:
+    TTFT          : 0.931 s
+    Latency       : 0.931 s
+    Throughput    : 26.85 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 4:
+    TTFT          : 1.236 s
+    Latency       : 1.236 s
+    Throughput    : 20.23 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 5:
+    TTFT          : 1.284 s
+    Latency       : 1.284 s
+    Throughput    : 19.47 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 6:
+    TTFT          : 0.950 s
+    Latency       : 0.950 s
+    Throughput    : 26.32 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=6:
+  Successful requests          : 6
+  Failed requests              : 0
+  Average TTFT per request     : 1.047 s
+  Average throughput per req   : 24.33 tokens/s
+  Overall throughput (sum)     : 145.98 tokens/s
+  Batch duration (wall-clock)  : 2.610 s
+
+
+Starting load test: Concurrency=7, Total Requests=7
+Iteration 6: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 7: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 4: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+
+[Iteration 3] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 3: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.956s, TTFT=0.956s, Throughput=26.15 tokens/s
+
+[Iteration 2] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 2: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.968s, TTFT=0.968s, Throughput=25.82 tokens/s
+
+[Iteration 5] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 5: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.245s, TTFT=1.245s, Throughput=20.08 tokens/s
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.262s, TTFT=1.262s, Throughput=19.81 tokens/s
+
+[Iteration 7] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 7: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.908s, TTFT=0.908s, Throughput=27.53 tokens/s
+
+[Iteration 4] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 4: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.920s, TTFT=0.920s, Throughput=27.16 tokens/s
+
+[Iteration 6] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 6: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.207s, TTFT=1.207s, Throughput=20.71 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 1.262 s
+    Latency       : 1.262 s
+    Throughput    : 19.81 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 2:
+    TTFT          : 0.968 s
+    Latency       : 0.968 s
+    Throughput    : 25.82 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 3:
+    TTFT          : 0.956 s
+    Latency       : 0.956 s
+    Throughput    : 26.15 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 4:
+    TTFT          : 0.920 s
+    Latency       : 0.920 s
+    Throughput    : 27.16 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 5:
+    TTFT          : 1.245 s
+    Latency       : 1.245 s
+    Throughput    : 20.08 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 6:
+    TTFT          : 1.207 s
+    Latency       : 1.207 s
+    Throughput    : 20.71 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 7:
+    TTFT          : 0.908 s
+    Latency       : 0.908 s
+    Throughput    : 27.53 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=7:
+  Successful requests          : 7
+  Failed requests              : 0
+  Average TTFT per request     : 1.067 s
+  Average throughput per req   : 23.90 tokens/s
+  Overall throughput (sum)     : 167.27 tokens/s
+  Batch duration (wall-clock)  : 2.859 s
+
+
+Starting load test: Concurrency=8, Total Requests=8
+Iteration 2: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 4: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 1: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 3: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+
+[Iteration 8] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 8: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.140s, TTFT=1.140s, Throughput=21.93 tokens/s
+
+[Iteration 7] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 7: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.308s, TTFT=1.308s, Throughput=19.12 tokens/s
+
+[Iteration 6] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 6: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.414s, TTFT=1.414s, Throughput=17.68 tokens/s
+
+[Iteration 5] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 5: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.659s, TTFT=1.659s, Throughput=15.07 tokens/s
+
+[Iteration 3] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 3: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.927s, TTFT=0.927s, Throughput=26.96 tokens/s
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.930s, TTFT=0.930s, Throughput=26.87 tokens/s
+
+[Iteration 4] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 4: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.206s, TTFT=1.206s, Throughput=20.73 tokens/s
+
+[Iteration 2] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 2: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.233s, TTFT=1.233s, Throughput=20.27 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 0.930 s
+    Latency       : 0.930 s
+    Throughput    : 26.87 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 2:
+    TTFT          : 1.233 s
+    Latency       : 1.233 s
+    Throughput    : 20.27 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 3:
+    TTFT          : 0.927 s
+    Latency       : 0.927 s
+    Throughput    : 26.96 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 4:
+    TTFT          : 1.206 s
+    Latency       : 1.206 s
+    Throughput    : 20.73 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 5:
+    TTFT          : 1.659 s
+    Latency       : 1.659 s
+    Throughput    : 15.07 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 6:
+    TTFT          : 1.414 s
+    Latency       : 1.414 s
+    Throughput    : 17.68 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 7:
+    TTFT          : 1.308 s
+    Latency       : 1.308 s
+    Throughput    : 19.12 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 8:
+    TTFT          : 1.140 s
+    Latency       : 1.140 s
+    Throughput    : 21.93 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=8:
+  Successful requests          : 8
+  Failed requests              : 0
+  Average TTFT per request     : 1.227 s
+  Average throughput per req   : 21.08 tokens/s
+  Overall throughput (sum)     : 168.63 tokens/s
+  Batch duration (wall-clock)  : 2.881 s
+
+
+Starting load test: Concurrency=9, Total Requests=9
+Iteration 6: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 2: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 3: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 5: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 8: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+
+[Iteration 7] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 7: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.905s, TTFT=0.905s, Throughput=27.64 tokens/s
+
+[Iteration 9] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 9: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.956s, TTFT=0.956s, Throughput=26.14 tokens/s
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.204s, TTFT=1.204s, Throughput=20.77 tokens/s
+
+[Iteration 4] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 4: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.369s, TTFT=1.369s, Throughput=18.26 tokens/s
+Iteration 3: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+
+[Iteration 5] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 5: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.935s, TTFT=0.935s, Throughput=26.75 tokens/s
+
+[Iteration 2] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 2: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.944s, TTFT=0.944s, Throughput=26.49 tokens/s
+
+[Iteration 6] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 6: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.216s, TTFT=1.216s, Throughput=20.55 tokens/s
+
+[Iteration 8] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 8: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.230s, TTFT=1.230s, Throughput=20.32 tokens/s
+
+[Iteration 3] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 3: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.910s, TTFT=0.910s, Throughput=27.47 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 1.204 s
+    Latency       : 1.204 s
+    Throughput    : 20.77 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 2:
+    TTFT          : 0.944 s
+    Latency       : 0.944 s
+    Throughput    : 26.49 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 3:
+    TTFT          : 0.910 s
+    Latency       : 0.910 s
+    Throughput    : 27.47 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 4:
+    TTFT          : 1.369 s
+    Latency       : 1.369 s
+    Throughput    : 18.26 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 5:
+    TTFT          : 0.935 s
+    Latency       : 0.935 s
+    Throughput    : 26.75 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 6:
+    TTFT          : 1.216 s
+    Latency       : 1.216 s
+    Throughput    : 20.55 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 7:
+    TTFT          : 0.905 s
+    Latency       : 0.905 s
+    Throughput    : 27.64 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 8:
+    TTFT          : 1.230 s
+    Latency       : 1.230 s
+    Throughput    : 20.32 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 9:
+    TTFT          : 0.956 s
+    Latency       : 0.956 s
+    Throughput    : 26.14 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=9:
+  Successful requests          : 9
+  Failed requests              : 0
+  Average TTFT per request     : 1.074 s
+  Average throughput per req   : 23.82 tokens/s
+  Overall throughput (sum)     : 214.39 tokens/s
+  Batch duration (wall-clock)  : 5.212 s
+
+
+Starting load test: Concurrency=10, Total Requests=10
+Iteration 1: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 5: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 8: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 2: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 4: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 10: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+
+[Iteration 6] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 6: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.977s, TTFT=0.977s, Throughput=25.58 tokens/s
+
+[Iteration 7] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 7: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.989s, TTFT=0.989s, Throughput=25.29 tokens/s
+
+[Iteration 9] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 9: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.248s, TTFT=1.248s, Throughput=20.03 tokens/s
+
+[Iteration 3] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 3: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.300s, TTFT=1.300s, Throughput=19.23 tokens/s
+Iteration 5: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 2: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+
+[Iteration 10] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 10: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.935s, TTFT=0.935s, Throughput=26.74 tokens/s
+
+[Iteration 4] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 4: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.460s, TTFT=1.460s, Throughput=17.12 tokens/s
+
+[Iteration 8] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 8: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.562s, TTFT=1.562s, Throughput=16.00 tokens/s
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.755s, TTFT=1.755s, Throughput=14.24 tokens/s
+
+[Iteration 2] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 2: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.912s, TTFT=0.912s, Throughput=27.40 tokens/s
+
+[Iteration 5] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 5: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.198s, TTFT=1.198s, Throughput=20.87 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 1.755 s
+    Latency       : 1.755 s
+    Throughput    : 14.24 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 2:
+    TTFT          : 0.912 s
+    Latency       : 0.912 s
+    Throughput    : 27.40 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 3:
+    TTFT          : 1.300 s
+    Latency       : 1.300 s
+    Throughput    : 19.23 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 4:
+    TTFT          : 1.460 s
+    Latency       : 1.460 s
+    Throughput    : 17.12 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 5:
+    TTFT          : 1.198 s
+    Latency       : 1.198 s
+    Throughput    : 20.87 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 6:
+    TTFT          : 0.977 s
+    Latency       : 0.977 s
+    Throughput    : 25.58 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 7:
+    TTFT          : 0.989 s
+    Latency       : 0.989 s
+    Throughput    : 25.29 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 8:
+    TTFT          : 1.562 s
+    Latency       : 1.562 s
+    Throughput    : 16.00 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 9:
+    TTFT          : 1.248 s
+    Latency       : 1.248 s
+    Throughput    : 20.03 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 10:
+    TTFT          : 0.935 s
+    Latency       : 0.935 s
+    Throughput    : 26.74 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=10:
+  Successful requests          : 10
+  Failed requests              : 0
+  Average TTFT per request     : 1.234 s
+  Average throughput per req   : 21.25 tokens/s
+  Overall throughput (sum)     : 212.51 tokens/s
+  Batch duration (wall-clock)  : 5.506 s
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+(aml_env) root@linuxworkvm:~/AIFperformance# python press-swinv2-20250322.py 
+Please enter the API service URL (default: https://aml-westus-1-nc24-a100.westus.inference.ml.azure.com/score): https://aml-westus-otktt-1-nc24.westus.inference.ml.azure.com/score
+Please enter the API Key (default is configured): QDwQzRfVKVrA2ucSODy4pbRMdGNcQkMqIgUFjSl4rHhsYw0wOJjvJQQJ99BCAAAAAAAAAAAAINFRAZML10Uc
+Please enter the HuggingFace model name for loading the tokenizer (default: gpt2, leave blank to skip loading): microsoft/swinv2-base-patch4-window12-192-22k
+Failed to load tokenizer. Error: <class 'transformers.models.swinv2.configuration_swinv2.Swinv2Config'>
+
+Starting load test: Concurrency=1, Total Requests=1
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.015s, TTFT=1.015s, Throughput=24.64 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 1.015 s
+    Latency       : 1.015 s
+    Throughput    : 24.64 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=1:
+  Successful requests          : 1
+  Failed requests              : 0
+  Average TTFT per request     : 1.015 s
+  Average throughput per req   : 24.64 tokens/s
+  Overall throughput (sum)     : 24.64 tokens/s
+  Batch duration (wall-clock)  : 1.016 s
+
+
+Starting load test: Concurrency=2, Total Requests=2
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.918s, TTFT=0.918s, Throughput=27.24 tokens/s
+
+[Iteration 2] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 2: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.219s, TTFT=1.219s, Throughput=20.51 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 0.918 s
+    Latency       : 0.918 s
+    Throughput    : 27.24 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 2:
+    TTFT          : 1.219 s
+    Latency       : 1.219 s
+    Throughput    : 20.51 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=2:
+  Successful requests          : 2
+  Failed requests              : 0
+  Average TTFT per request     : 1.068 s
+  Average throughput per req   : 23.88 tokens/s
+  Overall throughput (sum)     : 47.75 tokens/s
+  Batch duration (wall-clock)  : 1.220 s
+
+
+Starting load test: Concurrency=3, Total Requests=3
+Iteration 3: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+
+[Iteration 2] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 2: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.973s, TTFT=0.973s, Throughput=25.70 tokens/s
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.292s, TTFT=1.292s, Throughput=19.35 tokens/s
+
+[Iteration 3] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 3: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.957s, TTFT=0.957s, Throughput=26.13 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 1.292 s
+    Latency       : 1.292 s
+    Throughput    : 19.35 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 2:
+    TTFT          : 0.973 s
+    Latency       : 0.973 s
+    Throughput    : 25.70 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 3:
+    TTFT          : 0.957 s
+    Latency       : 0.957 s
+    Throughput    : 26.13 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=3:
+  Successful requests          : 3
+  Failed requests              : 0
+  Average TTFT per request     : 1.074 s
+  Average throughput per req   : 23.73 tokens/s
+  Overall throughput (sum)     : 71.18 tokens/s
+  Batch duration (wall-clock)  : 2.602 s
+
+
+Starting load test: Concurrency=4, Total Requests=4
+Iteration 3: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 2: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+
+[Iteration 4] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 4: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.982s, TTFT=0.982s, Throughput=25.47 tokens/s
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.298s, TTFT=1.298s, Throughput=19.26 tokens/s
+
+[Iteration 3] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 3: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.924s, TTFT=0.924s, Throughput=27.06 tokens/s
+
+[Iteration 2] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 2: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.218s, TTFT=1.218s, Throughput=20.52 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 1.298 s
+    Latency       : 1.298 s
+    Throughput    : 19.26 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 2:
+    TTFT          : 1.218 s
+    Latency       : 1.218 s
+    Throughput    : 20.52 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 3:
+    TTFT          : 0.924 s
+    Latency       : 0.924 s
+    Throughput    : 27.06 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 4:
+    TTFT          : 0.982 s
+    Latency       : 0.982 s
+    Throughput    : 25.47 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=4:
+  Successful requests          : 4
+  Failed requests              : 0
+  Average TTFT per request     : 1.105 s
+  Average throughput per req   : 23.08 tokens/s
+  Overall throughput (sum)     : 92.31 tokens/s
+  Batch duration (wall-clock)  : 2.872 s
+
+
+Starting load test: Concurrency=5, Total Requests=5
+Iteration 2: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 4: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 5: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+
+[Iteration 3] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 3: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.009s, TTFT=1.009s, Throughput=24.79 tokens/s
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.315s, TTFT=1.315s, Throughput=19.02 tokens/s
+Iteration 2: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+
+[Iteration 4] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 4: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.973s, TTFT=0.973s, Throughput=25.71 tokens/s
+
+[Iteration 5] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 5: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.263s, TTFT=1.263s, Throughput=19.80 tokens/s
+
+[Iteration 2] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 2: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.922s, TTFT=0.922s, Throughput=27.12 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 1.315 s
+    Latency       : 1.315 s
+    Throughput    : 19.02 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 2:
+    TTFT          : 0.922 s
+    Latency       : 0.922 s
+    Throughput    : 27.12 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 3:
+    TTFT          : 1.009 s
+    Latency       : 1.009 s
+    Throughput    : 24.79 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 4:
+    TTFT          : 0.973 s
+    Latency       : 0.973 s
+    Throughput    : 25.71 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 5:
+    TTFT          : 1.263 s
+    Latency       : 1.263 s
+    Throughput    : 19.80 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=5:
+  Successful requests          : 5
+  Failed requests              : 0
+  Average TTFT per request     : 1.096 s
+  Average throughput per req   : 23.29 tokens/s
+  Overall throughput (sum)     : 116.43 tokens/s
+  Batch duration (wall-clock)  : 5.226 s
+
+
+Starting load test: Concurrency=6, Total Requests=6
+Iteration 3: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 6: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 2: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 1: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+
+[Iteration 5] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 5: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.997s, TTFT=0.997s, Throughput=25.07 tokens/s
+
+[Iteration 4] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 4: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.281s, TTFT=1.281s, Throughput=19.52 tokens/s
+Iteration 2: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 1: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+
+[Iteration 3] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 3: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.925s, TTFT=0.925s, Throughput=27.03 tokens/s
+
+[Iteration 6] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 6: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.404s, TTFT=1.404s, Throughput=17.81 tokens/s
+
+[Iteration 2] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 2: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.905s, TTFT=0.905s, Throughput=27.63 tokens/s
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.269s, TTFT=1.269s, Throughput=19.69 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 1.269 s
+    Latency       : 1.269 s
+    Throughput    : 19.69 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 2:
+    TTFT          : 0.905 s
+    Latency       : 0.905 s
+    Throughput    : 27.63 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 3:
+    TTFT          : 0.925 s
+    Latency       : 0.925 s
+    Throughput    : 27.03 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 4:
+    TTFT          : 1.281 s
+    Latency       : 1.281 s
+    Throughput    : 19.52 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 5:
+    TTFT          : 0.997 s
+    Latency       : 0.997 s
+    Throughput    : 25.07 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 6:
+    TTFT          : 1.404 s
+    Latency       : 1.404 s
+    Throughput    : 17.81 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=6:
+  Successful requests          : 6
+  Failed requests              : 0
+  Average TTFT per request     : 1.130 s
+  Average throughput per req   : 22.79 tokens/s
+  Overall throughput (sum)     : 136.74 tokens/s
+  Batch duration (wall-clock)  : 5.571 s
+
+
+Starting load test: Concurrency=7, Total Requests=7
+Iteration 7: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 4: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 6: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 2: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 1: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+
+[Iteration 3] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 3: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.967s, TTFT=0.967s, Throughput=25.85 tokens/s
+
+[Iteration 5] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 5: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.294s, TTFT=1.294s, Throughput=19.32 tokens/s
+Iteration 1: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 6: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 2: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+
+[Iteration 7] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 7: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.960s, TTFT=0.960s, Throughput=26.05 tokens/s
+
+[Iteration 4] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 4: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.262s, TTFT=1.262s, Throughput=19.81 tokens/s
+Iteration 6: Attempt 3 received 429 Too Many Requests, backing off for 4 seconds.
+
+[Iteration 2] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 2: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.911s, TTFT=0.911s, Throughput=27.44 tokens/s
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.208s, TTFT=1.208s, Throughput=20.69 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 1.208 s
+    Latency       : 1.208 s
+    Throughput    : 20.69 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 2:
+    TTFT          : 0.911 s
+    Latency       : 0.911 s
+    Throughput    : 27.44 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 3:
+    TTFT          : 0.967 s
+    Latency       : 0.967 s
+    Throughput    : 25.85 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 4:
+    TTFT          : 1.262 s
+    Latency       : 1.262 s
+    Throughput    : 19.81 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 5:
+    TTFT          : 1.294 s
+    Latency       : 1.294 s
+    Throughput    : 19.32 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 7:
+    TTFT          : 0.960 s
+    Latency       : 0.960 s
+    Throughput    : 26.05 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=7:
+  Successful requests          : 6
+  Failed requests              : 1
+  Average TTFT per request     : 1.100 s
+  Average throughput per req   : 23.19 tokens/s
+  Overall throughput (sum)     : 139.16 tokens/s
+  Batch duration (wall-clock)  : 8.958 s
+
+
+Starting load test: Concurrency=8, Total Requests=8
+Iteration 1: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 7: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 6: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 3: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 5: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 2: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+
+[Iteration 8] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 8: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.935s, TTFT=0.935s, Throughput=26.74 tokens/s
+
+[Iteration 4] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 4: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.240s, TTFT=1.240s, Throughput=20.16 tokens/s
+Iteration 6: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 7: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 2: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 5: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+
+[Iteration 3] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 3: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.994s, TTFT=0.994s, Throughput=25.16 tokens/s
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.286s, TTFT=1.286s, Throughput=19.44 tokens/s
+Iteration 6: Attempt 3 received 429 Too Many Requests, backing off for 4 seconds.
+Iteration 5: Attempt 3 received 429 Too Many Requests, backing off for 4 seconds.
+
+[Iteration 2] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 2: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.924s, TTFT=0.924s, Throughput=27.04 tokens/s
+
+[Iteration 7] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 7: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.224s, TTFT=1.224s, Throughput=20.43 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 1.286 s
+    Latency       : 1.286 s
+    Throughput    : 19.44 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 2:
+    TTFT          : 0.924 s
+    Latency       : 0.924 s
+    Throughput    : 27.04 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 3:
+    TTFT          : 0.994 s
+    Latency       : 0.994 s
+    Throughput    : 25.16 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 4:
+    TTFT          : 1.240 s
+    Latency       : 1.240 s
+    Throughput    : 20.16 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 7:
+    TTFT          : 1.224 s
+    Latency       : 1.224 s
+    Throughput    : 20.43 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 8:
+    TTFT          : 0.935 s
+    Latency       : 0.935 s
+    Throughput    : 26.74 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=8:
+  Successful requests          : 6
+  Failed requests              : 2
+  Average TTFT per request     : 1.101 s
+  Average throughput per req   : 23.16 tokens/s
+  Overall throughput (sum)     : 138.96 tokens/s
+  Batch duration (wall-clock)  : 8.951 s
+
+
+Starting load test: Concurrency=9, Total Requests=9
+Iteration 4: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 6: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 5: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 7: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 2: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 8: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 9: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+
+[Iteration 3] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 3: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.958s, TTFT=0.958s, Throughput=26.09 tokens/s
+
+[Iteration 1] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 1: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.263s, TTFT=1.263s, Throughput=19.79 tokens/s
+Iteration 4: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 5: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 6: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 9: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 8: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+
+[Iteration 2] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 2: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.926s, TTFT=0.926s, Throughput=26.98 tokens/s
+
+[Iteration 7] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 7: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.225s, TTFT=1.225s, Throughput=20.40 tokens/s
+Iteration 6: Attempt 3 received 429 Too Many Requests, backing off for 4 seconds.
+Iteration 4: Attempt 3 received 429 Too Many Requests, backing off for 4 seconds.
+Iteration 5: Attempt 3 received 429 Too Many Requests, backing off for 4 seconds.
+
+[Iteration 9] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 9: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.902s, TTFT=0.902s, Throughput=27.72 tokens/s
+
+[Iteration 8] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 8: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.201s, TTFT=1.201s, Throughput=20.81 tokens/s
+
+Detailed Results:
+  Request 1:
+    TTFT          : 1.263 s
+    Latency       : 1.263 s
+    Throughput    : 19.79 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 2:
+    TTFT          : 0.926 s
+    Latency       : 0.926 s
+    Throughput    : 26.98 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 3:
+    TTFT          : 0.958 s
+    Latency       : 0.958 s
+    Throughput    : 26.09 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 7:
+    TTFT          : 1.225 s
+    Latency       : 1.225 s
+    Throughput    : 20.40 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 8:
+    TTFT          : 1.201 s
+    Latency       : 1.201 s
+    Throughput    : 20.81 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 9:
+    TTFT          : 0.902 s
+    Latency       : 0.902 s
+    Throughput    : 27.72 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=9:
+  Successful requests          : 6
+  Failed requests              : 3
+  Average TTFT per request     : 1.079 s
+  Average throughput per req   : 23.63 tokens/s
+  Overall throughput (sum)     : 141.81 tokens/s
+  Batch duration (wall-clock)  : 8.951 s
+
+
+Starting load test: Concurrency=10, Total Requests=10
+Iteration 9: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 4: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 8: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 7: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 10: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 5: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 1: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+Iteration 6: Attempt 1 received 429 Too Many Requests, backing off for 1 seconds.
+
+[Iteration 2] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 2: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.925s, TTFT=0.925s, Throughput=27.02 tokens/s
+
+[Iteration 3] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 3: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.223s, TTFT=1.223s, Throughput=20.45 tokens/s
+Iteration 9: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 10: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 6: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 1: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 7: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+Iteration 5: Attempt 2 received 429 Too Many Requests, backing off for 2 seconds.
+
+[Iteration 4] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 4: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.919s, TTFT=0.919s, Throughput=27.21 tokens/s
+
+[Iteration 8] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 8: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.200s, TTFT=1.200s, Throughput=20.83 tokens/s
+Iteration 1: Attempt 3 received 429 Too Many Requests, backing off for 4 seconds.
+Iteration 6: Attempt 3 received 429 Too Many Requests, backing off for 4 seconds.
+Iteration 7: Attempt 3 received 429 Too Many Requests, backing off for 4 seconds.
+Iteration 5: Attempt 3 received 429 Too Many Requests, backing off for 4 seconds.
+
+[Iteration 9] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 9: Success | Desired tokens=4096 | Temp=1.0 | Latency=0.936s, TTFT=0.936s, Throughput=26.71 tokens/s
+
+[Iteration 10] Model Completion:
+[{"0": {"label": "LABEL_6530", "score": 0.5388737916946411}, "1": {"label": "LABEL_14195", "score": 0.08251415193080902}, "2": {"label": "LABEL_7158", "score": 0.06013047695159912}, "3": {"label": "LABEL_14404", "score": 0.030966630205512047}, "4": {"label": "LABEL_18665", "score": 0.029402168467640877}}]
+----- End of Completion -----
+
+Iteration 10: Success | Desired tokens=4096 | Temp=1.0 | Latency=1.246s, TTFT=1.246s, Throughput=20.06 tokens/s
+
+Detailed Results:
+  Request 2:
+    TTFT          : 0.925 s
+    Latency       : 0.925 s
+    Throughput    : 27.02 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 3:
+    TTFT          : 1.223 s
+    Latency       : 1.223 s
+    Throughput    : 20.45 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 4:
+    TTFT          : 0.919 s
+    Latency       : 0.919 s
+    Throughput    : 27.21 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 8:
+    TTFT          : 1.200 s
+    Latency       : 1.200 s
+    Throughput    : 20.83 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 9:
+    TTFT          : 0.936 s
+    Latency       : 0.936 s
+    Throughput    : 26.71 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+  Request 10:
+    TTFT          : 1.246 s
+    Latency       : 1.246 s
+    Throughput    : 20.06 tokens/s
+    Prompt tokens : 15, Output tokens: 25
+
+Summary for concurrency=10:
+  Successful requests          : 6
+  Failed requests              : 4
+  Average TTFT per request     : 1.075 s
+  Average throughput per req   : 23.71 tokens/s
+  Overall throughput (sum)     : 142.28 tokens/s
+  Batch duration (wall-clock)  : 8.946 s
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

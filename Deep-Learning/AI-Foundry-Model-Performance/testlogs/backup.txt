@@ -1,0 +1,161 @@
+### Create your own Model Registry
+
+You can **skip this step** if you want to use the model's AML registry. 
+
+```
+#cat registry.yml
+name: xinyuwei-registry1
+tags:
+  description: Basic registry with one primary region and to additional regions
+  foo: bar
+location: eastus
+replication_locations:
+  - location: eastus
+  - location: eastus2
+  - location: westus
+```
+
+
+
+```
+(aml_env) root@davidwei:~/AML_MAAP_benchmark# az ml registry create --resource-group rg-admin-2776_ai --file registry.yml
+```
+
+```
+Class RegistryRegionDetailsSchema: This is an experimental class, and may change at any time. Please see https://aka.ms/azuremlexperimental for more information.
+{
+  "containerRegistry": null,
+  "description": null,
+  "discoveryUrl": "https://eastus.api.azureml.ms/registrymanagement/v1.0/registries/xinyuwei-registry1/discovery",
+  "identity": {
+    "principalId": "4d455e6e-22c9-4281-b1c7-d5f9c7641797",
+    "tenantId": "9812d5f8-3c48-49c9-aada-e7174b336629",
+    "type": "SystemAssigned",
+    "userAssignedIdentities": null
+  },
+  "intellectualProperty": null,
+  "location": "eastus",
+  "managedResourceGroup": {
+    "resourceId": "/subscriptions/08f95cfd-64fe-4187-99bb-7b3e661c4cde/resourceGroups/azureml-rg-xinyuwei-registry1_fc12d3b8-b1e4-44e1-a461-cf28bb2fc418"
+  },
+  "mlflowRegistryUri": "azureml://eastus.api.azureml.ms/mlflow/v1.0/subscriptions/08f95cfd-64fe-4187-99bb-7b3e661c4cde/resourceGroups/rg-admin-2776_ai/providers/Microsoft.MachineLearningServices/registries/xinyuwei-registry1",
+  "name": "xinyuwei-registry1",
+  "properties": {},
+  "publicNetworkAccess": "Enabled",
+  "replicationLocations": [
+    {
+      "acrConfig": [
+        {
+          "acrAccountSku": "Premium",
+          "armResourceId": "/subscriptions/08f95cfd-64fe-4187-99bb-7b3e661c4cde/resourceGroups/azureml-rg-xinyuwei-registry1_fc12d3b8-b1e4-44e1-a461-cf28bb2fc418/providers/Microsoft.ContainerRegistry/registries/de35df4bd6e"
+        }
+      ],
+      "location": "eastus",
+      "storageConfig": {
+        "armResourceId": "/subscriptions/08f95cfd-64fe-4187-99bb-7b3e661c4cde/resourceGroups/azureml-rg-xinyuwei-registry1_fc12d3b8-b1e4-44e1-a461-cf28bb2fc418/providers/Microsoft.Storage/storageAccounts/471837b7de9",
+        "replicatedIds": null,
+        "replicationCount": 1,
+        "storageAccountHns": false,
+        "storageAccountType": "standard_lrs"
+      }
+    },
+    {
+      "acrConfig": [
+        {
+          "acrAccountSku": "Premium",
+          "armResourceId": "/subscriptions/08f95cfd-64fe-4187-99bb-7b3e661c4cde/resourceGroups/azureml-rg-xinyuwei-registry1_fc12d3b8-b1e4-44e1-a461-cf28bb2fc418/providers/Microsoft.ContainerRegistry/registries/de35df4bd6e"
+        }
+      ],
+      "location": "eastus2",
+      "storageConfig": {
+        "armResourceId": "/subscriptions/08f95cfd-64fe-4187-99bb-7b3e661c4cde/resourceGroups/azureml-rg-xinyuwei-registry1_fc12d3b8-b1e4-44e1-a461-cf28bb2fc418/providers/Microsoft.Storage/storageAccounts/7a7c0937565",
+        "replicatedIds": null,
+        "replicationCount": 1,
+        "storageAccountHns": false,
+        "storageAccountType": "standard_lrs"
+      }
+    },
+    {
+      "acrConfig": [
+        {
+          "acrAccountSku": "Premium",
+          "armResourceId": "/subscriptions/08f95cfd-64fe-4187-99bb-7b3e661c4cde/resourceGroups/azureml-rg-xinyuwei-registry1_fc12d3b8-b1e4-44e1-a461-cf28bb2fc418/providers/Microsoft.ContainerRegistry/registries/de35df4bd6e"
+        }
+      ],
+      "location": "westus",
+      "storageConfig": {
+        "armResourceId": "/subscriptions/08f95cfd-64fe-4187-99bb-7b3e661c4cde/resourceGroups/azureml-rg-xinyuwei-registry1_fc12d3b8-b1e4-44e1-a461-cf28bb2fc418/providers/Microsoft.Storage/storageAccounts/33ee5e64e33",
+        "replicatedIds": null,
+        "replicationCount": 1,
+        "storageAccountHns": false,
+        "storageAccountType": "standard_lrs"
+      }
+    }
+  ],
+  "tags": {
+    "description": "Basic registry with one primary region and to additional regions",
+    "foo": "bar"
+  }
+}
+```
+
+
+
+```
+# az ml model list --registry-name  xinyuwei-registry1 --resource-group rg-admin-2776_ai
+```
+
+```
+  {
+    "creation_context": {
+      "created_at": "2024-12-13T00:56:50.995337+00:00",
+      "created_by": "azureml",
+      "created_by_type": "User",
+      "last_modified_at": "0001-01-01T00:00:00+00:00"
+    },
+    "description": "",
+    "id": "azureml://registries/AzureML/models/Phi-4",
+    "latest version": "3",
+    "name": "Phi-4",
+    "properties": {},
+    "stage": null,
+    "tags": {}
+  },
+  {
+    "creation_context": {
+      "created_at": "2024-12-06T17:14:18.513744+00:00",
+      "created_by": "azureml",
+      "created_by_type": "User",
+      "last_modified_at": "0001-01-01T00:00:00+00:00"
+    },
+    "description": "",
+    "id": "azureml://registries/AzureML/models/supply-chain-trade-regulations",
+    "latest version": "2",
+    "name": "supply-chain-trade-regulations",
+    "properties": {},
+    "stage": null,
+    "tags": {}
+  },
+```
+
+### Create models from the AML registry
+
+View the models in the AML registry
+
+```
+(aml_env) root@davidwei:~/AML_MAAP_benchmark# az ml model list --registry-name AzureML --query "[?contains(name, 'Phi-3')]" --output table
+Name                        Description    Latest version
+--------------------------  -------------  ----------------
+Phi-3.5-vision-instruct                    2
+Phi-3.5-mini-instruct                      6
+Phi-3.5-MoE-instruct                       5
+Phi-3-vision-128k-instruct                 2
+Phi-3-small-8k-instruct                    5
+Phi-3-small-128k-instruct                  5
+Phi-3-medium-4k-instruct                   6
+Phi-3-medium-128k-instruct                 7
+Phi-3-mini-4k-instruct                     15
+Phi-3-mini-128k-instruct                   13
+```
+
+To create a model deployment using a program, you need to specify the model name, subscription ID, resource group name, VM SKU, and the number of VMs.

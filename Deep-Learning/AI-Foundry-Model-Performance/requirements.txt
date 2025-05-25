@@ -1,0 +1,8 @@
+azure-ai-ml  
+azure-identity  
+requests  
+pyyaml  
+tabulate  
+torch
+transformers
+tiktoken
