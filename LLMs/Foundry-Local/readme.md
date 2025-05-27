@@ -1,6 +1,6 @@
 # Foundry Local Functionality Verification
 
-***Refer to：***https://learn.microsoft.com/en-us/azure/ai-foundry/foundry-local/get-started
+**Refer to： **https://learn.microsoft.com/en-us/azure/ai-foundry/foundry-local/get-started
 
 Your system must meet the following requirements to run Foundry Local:
 Operating System: Windows 10 (x64), Windows 11 (x64/ARM), Windows Server 2025, macOS.
