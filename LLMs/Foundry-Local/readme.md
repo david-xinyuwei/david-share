@@ -1,16 +1,26 @@
+# Foundry Local Functionality Verification
+
+***Refer to：***https://learn.microsoft.com/en-us/azure/ai-foundry/foundry-local/get-started
+
+Your system must meet the following requirements to run Foundry Local:
+Operating System: Windows 10 (x64), Windows 11 (x64/ARM), Windows Server 2025, macOS.
+Hardware: Minimum 8GB RAM, 3GB free disk space. Recommended 16GB RAM, 15GB free disk space.
+Network: Internet connection for initial model download (optional for offline use)
+Acceleration (optional): NVIDIA GPU (2,000 series or newer), AMD GPU (6,000 series or newer), Qualcomm Snapdragon X Elite (8GB or more of memory), or Apple silicon.
 
 
-On Powershell：
+
+### Install and Run Foundry Local on my Surface Laptop
+
+On Powershell to install
 
 ```
-Windows PowerShell
-Copyright (C) Microsoft Corporation. All rights reserved.
+winget install Microsoft.FoundryLocal
+```
 
-Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+Start foundry service for open-webui  connection:
 
-Loading personal and system profiles took 1207ms.
-
-
+```
 PS C:\Users\xinyuwei> foundry service status
 🔴 Model management service is not running!
 To start the service, run the following command: foundry service start
@@ -22,97 +32,31 @@ PS C:\Users\xinyuwei>  foundry service start
 
 PS C:\Users\xinyuwei> foundry service status
 🟢 Model management service is running on http://localhost:5273/openai/status
-PS C:\Users\xinyuwei> nvidia-smi
-Sun May 25 23:54:10 2025
-+---------------------------------------------------------------------------------------+
-| NVIDIA-SMI 538.92                 Driver Version: 538.92       CUDA Version: 12.2     |
-|-----------------------------------------+----------------------+----------------------+
-| GPU  Name                     TCC/WDDM  | Bus-Id        Disp.A | Volatile Uncorr. ECC |
-| Fan  Temp   Perf          Pwr:Usage/Cap |         Memory-Usage | GPU-Util  Compute M. |
-|                                         |                      |               MIG M. |
-|=========================================+======================+======================|
-|   0  NVIDIA RTX A2000 Laptop GPU  WDDM  | 00000000:F3:00.0 Off |                  N/A |
-| N/A   50C    P0              10W /  39W |    370MiB /  4096MiB |      5%      Default |
-|                                         |                      |                  N/A |
-+-----------------------------------------+----------------------+----------------------+
-
-+---------------------------------------------------------------------------------------+
-| Processes:                                                                            |
-|  GPU   GI   CI        PID   Type   Process name                            GPU Memory |
-|        ID   ID                                                             Usage      |
-|=======================================================================================|
-|    0   N/A  N/A     42864      C   ...3d8bbwe\Inference.Service.Agent.exe    N/A      |
-+---------------------------------------------------------------------------------------+
-PS C:\Users\xinyuwei> nvidia-smi
-Sun May 25 23:54:13 2025
-+---------------------------------------------------------------------------------------+
-| NVIDIA-SMI 538.92                 Driver Version: 538.92       CUDA Version: 12.2     |
-|-----------------------------------------+----------------------+----------------------+
-| GPU  Name                     TCC/WDDM  | Bus-Id        Disp.A | Volatile Uncorr. ECC |
-| Fan  Temp   Perf          Pwr:Usage/Cap |         Memory-Usage | GPU-Util  Compute M. |
-|                                         |                      |               MIG M. |
-|=========================================+======================+======================|
-|   0  NVIDIA RTX A2000 Laptop GPU  WDDM  | 00000000:F3:00.0 Off |                  N/A |
-| N/A   50C    P0              10W /  39W |   2490MiB /  4096MiB |     21%      Default |
-|                                         |                      |                  N/A |
-+-----------------------------------------+----------------------+----------------------+
-
-+---------------------------------------------------------------------------------------+
-| Processes:                                                                            |
-|  GPU   GI   CI        PID   Type   Process name                            GPU Memory |
-|        ID   ID                                                             Usage      |
-|=======================================================================================|
-|    0   N/A  N/A     42864      C   ...3d8bbwe\Inference.Service.Agent.exe    N/A      |
-+---------------------------------------------------------------------------------------+
-PS C:\Users\xinyuwei> nvidia-smi
-Mon May 26 08:01:36 2025
-+---------------------------------------------------------------------------------------+
-| NVIDIA-SMI 538.92                 Driver Version: 538.92       CUDA Version: 12.2     |
-|-----------------------------------------+----------------------+----------------------+
-| GPU  Name                     TCC/WDDM  | Bus-Id        Disp.A | Volatile Uncorr. ECC |
-| Fan  Temp   Perf          Pwr:Usage/Cap |         Memory-Usage | GPU-Util  Compute M. |
-|                                         |                      |               MIG M. |
-|=========================================+======================+======================|
-|   0  NVIDIA RTX A2000 Laptop GPU  WDDM  | 00000000:F3:00.0 Off |                  N/A |
-| N/A   60C    P8               3W /  39W |      0MiB /  4096MiB |      0%      Default |
-|                                         |                      |                  N/A |
-+-----------------------------------------+----------------------+----------------------+
-
-+---------------------------------------------------------------------------------------+
-| Processes:                                                                            |
-|  GPU   GI   CI        PID   Type   Process name                            GPU Memory |
-|        ID   ID                                                             Usage      |
-|=======================================================================================|
-|    0   N/A  N/A     42864      C   ...3d8bbwe\Inference.Service.Agent.exe    N/A      |
-+---------------------------------------------------------------------------------------+
-PS C:\Users\xinyuwei> nvidia-smi
-Mon May 26 08:01:37 2025
-+---------------------------------------------------------------------------------------+
-| NVIDIA-SMI 538.92                 Driver Version: 538.92       CUDA Version: 12.2     |
-|-----------------------------------------+----------------------+----------------------+
-| GPU  Name                     TCC/WDDM  | Bus-Id        Disp.A | Volatile Uncorr. ECC |
-| Fan  Temp   Perf          Pwr:Usage/Cap |         Memory-Usage | GPU-Util  Compute M. |
-|                                         |                      |               MIG M. |
-|=========================================+======================+======================|
-|   0  NVIDIA RTX A2000 Laptop GPU  WDDM  | 00000000:F3:00.0 Off |                  N/A |
-| N/A   60C    P8               3W /  39W |      0MiB /  4096MiB |      0%      Default |
-|                                         |                      |                  N/A |
-+-----------------------------------------+----------------------+----------------------+
-
-+---------------------------------------------------------------------------------------+
-| Processes:                                                                            |
-|  GPU   GI   CI        PID   Type   Process name                            GPU Memory |
-|        ID   ID                                                             Usage      |
-|=======================================================================================|
-|    0   N/A  N/A     42864      C   ...3d8bbwe\Inference.Service.Agent.exe    N/A      |
-+---------------------------------------------------------------------------------------+
-```
-
-On Linux:
 
 ```
-  483  open-webui serve
-  
-  http://localhost:8080/
+
+On  WLS of my Laptop:
+
+```
+pip install open-webui
+open-webui serve
 ```
 
+Access  http://localhost:8080/ of open-webui
+
+**Connect Open Web UI to Foundry Local**:
+
+1. Select **Settings** in the navigation menu
+2. Select **Connections**
+3. Select **Manage Direct Connections**
+4. Select the **+** icon to add a connection
+5. For the **URL**, enter `http://localhost:PORT/v1` where `PORT` is replaced with the port of the Foundry Local endpoint, which you can find using the CLI command `foundry service status`. Note, that Foundry Local dynamically assigns a port, so it's not always the same.
+6. Type any value (like `test`) for the API Key, since it can't be empty.
+7. Save your connection
+
+**Note:** The local models visible on Open-WebUI are models that have already been pulled locally using Foundry through PowerShell.
+
+
+
+***Please click below pictures to see my demo video on Youtube***:
+[![BitNet-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/NpYDsGXFrAU)
