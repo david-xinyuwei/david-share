@@ -21,7 +21,9 @@ Follow this steps to install and config NLWeb, it is very easy:
 
 
 
-Configuration file examples:
+Configuration file examples.
+
+I use AI search and Azure OpenAI in NLWeb
 
 (NLWeb) root@linuxworkvm:~/NLWeb/code# cat .env
 
@@ -62,6 +64,8 @@ QDRANT_API_KEY="<OPTIONAL>"
 # This is used to set the logging level and other configurations in config/config_logging.py
 NLWEB_LOGGING_PROFILE=production
 ```
+
+I use Azure OpenAI gpt-4o-mini as backend LLM:
 
 (NLWeb) root@linuxworkvm:~/NLWeb/code# cat config/config_llm.yaml 
 
