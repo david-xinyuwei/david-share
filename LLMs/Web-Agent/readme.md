@@ -1,8 +1,10 @@
-# Agent Web: NLWeb Introduction and tuning
+# NLWeb Introduction and tuning
 
-*Refer to https://github.com/microsoft/NLWeb*
+***Refer to: https://github.com/microsoft/NLWeb***
 
-The essential implementation principle of NLweb is Retrieval-Augmented Generation (RAG). It constructs embedding data using content from website RSS feeds within AI Search, enabling users or customers to conversationally query the website's content through a chat interface. Additionally, NLWeb provides a wealth of web interfaces. For an overview of the overall effect, please refer to my demo video below.
+
+
+NLWeb (Natural Language Web) wraps a classic Retrieval-Augmented-Generation (RAG) loop in a production-ready service. During ingestion a one-line `tools.db_load` command converts RSS, JSON-LD, or schema.org feeds into vector embeddings and stores them in the configured back-end (Azure AI Search, Qdrant, Milvus, Snowflake Cortex, etc.). At query time the `/mcp/ask` endpoint—defined by the open Model-Context-Protocol—retrieves relevant chunks, passes them to an LLM, and returns a schema.org Answer JSON-LD object, complete with citations and rendering instructions. Additional MCP tools (`list_tools`, `get_sites`, `get_prompt`, …) let agent frameworks discover NLWeb automatically. Out of the box the repo also ships several front-end templates (full chat page, streaming mini-widget, dropdown search bar) that consume the same API and stream answers via Server-Sent Events. With those layers in place, any site that exposes an RSS feed can be turned into a conversational, agent-friendly endpoint in minutes.
 
 ***Please click below pictures to see my demo video on Youtube***:
 [![BitNet-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/byfcPxY_Mz0)
@@ -10,6 +12,8 @@ The essential implementation principle of NLweb is Retrieval-Augmented Generatio
 Inside AI Search index:
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Web-Agent/images/1.png)
+
+Fields in the Index:
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Web-Agent/images/2.png)
 
