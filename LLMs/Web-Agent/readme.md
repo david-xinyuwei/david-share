@@ -7,6 +7,12 @@ The essential implementation principle of NLweb is Retrieval-Augmented Generatio
 ***Please click below pictures to see my demo video on Youtube***:
 [![BitNet-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/byfcPxY_Mz0)
 
+Inside AI Search index:
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Web-Agent/images/1.png)
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Web-Agent/images/2.png)
+
 ## How to start
 
 Follow this steps to install and config NLWeb, it is very easy:
