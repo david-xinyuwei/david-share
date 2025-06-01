@@ -1,19 +1,145 @@
 ## A2A Demo on Azure OpenAI
 
-### A2A 快速PoC
+
+
+## 什么是A2A
+
+A2A，全称 Agent-to-Agent（“代理到代理”），是一种允许不同类型、专长各异的AI代理之间直接沟通、任务委托和协作完成工作的协议。
+
+例如，它允许主代理（如个人助理）像项目经理那样，协调一组专业代理的工作。
+
+这样一来，就解决了目前AI代理各自孤立运行的问题，开启了构建复杂多代理协作系统的全新可能性。
+
+根据官方文档，A2A 构建在以下 5 个核心原则之上：
+
+1. **简单性**：充分复用现有的技术标准（HTTP、JSON-RPC、SSE、推送通知等）。
+2. **企业级支持**：自带认证、安全、隐私保护、追踪与监控支持。
+3. **异步优先**：可以处理非常耗时的任务，并能随时提供有意义的进度更新。
+4. **多模态支持**：可支持多种数据模态，包括文本、音频/视频、表单、Iframe 等。
+5. **不透明执行**：代理之间无需公开自己的具体思考过程、计划步骤或使用的工具。
+
+你可以把它理解成AI代理们一种标准化的方式：让它们能够相互介绍、说明自己的能力和共同完成任务。
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/A2A-Demo/images/1.png)
+
+接下来，我们看一下组成 A2A 的核心组件有哪些。
+
+## A2A 协议的关键组件
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/A2A-Demo/images/3.png)
+
+A2A 由以下核心组件构成：
+
+- **客户端-服务端模型（Client-Server Model）**：
+  A2A 基于客户端-服务端架构，客户端代理请求完成某项任务，服务端（专业代理或工具）执行该任务。不过在任务执行流程中，这些角色可能会动态变化。
+- **代理卡片（Agent Cards）**：
+  一种 JSON 格式的文件，类似于代理的“个人简介”，包含代理 ID、名字、工作类型、安全细节、MCP支持等信息，用于客户端代理发现合适的专业代理。
+- **任务（Task）**：
+  任务是 A2A 中工作的基本单位，清晰地分成几个阶段——已提交（submitted）、处理中（working）、待输入（input-required）、已完成（completed）、失败（failed）或已取消（cancelled）。这样有助于有效地管理进度和工作流程。
+- **消息结构（Message Structure）**：
+  在每个任务中，代理通过消息进行沟通。消息中包含实际内容，这些内容可支持多模态信息格式。
+- **产物（Artefacts）**：
+  任务输出的最终成果以产物形式交付。这些产物为结构化结果，确保最终输出的一致性和易用性。
+
+💡注意：为保持本文易于理解，这里只涵盖了最基本的部分。详细的深入内容可见[这里](https://composio.dev/blog/mcp-vs-a2a-everything-you-need-to-know/)
+
+搞清楚核心组件后，让我们深入了解整个A2A协议到底如何运作。
+
+## A2A 协议的工作原理
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/A2A-Demo/images/2.png)
+
+### 第一步：代理发现（Agent Discovery）
+
+- 每一个专业代理都会先发布“代理卡片”（类似于代理的简历）。
+- 代理卡片列出其能力（例如：“旅行规划”、“预算分析”）。
+- 请求任务的代理通过这些代理卡片，发现和选取合适的专业代理。
+
+### 第二步：任务委托（Task Delegation）
+
+- 请求代理将任务委派给被选定的专家代理。
+- 委派的任务以自然语言描述，允许更高的灵活度。
+- 举个例子：“寻找价格合理的航班与住宿。”
+- 专家代理利用自己的智能，解释并执行这些高层次需求。
+
+### 第三步：任务处理（Task Processing，多轮交互）
+
+- 任务有一个生命周期：未开始 (pending) → 运行中 (running) → 中间过程更新 (intermediate updates) → 已完成 (completed)/ 失败 (failed)。
+- 请求代理可获得任务收到确认报告、实时跟踪进展、中途获取结果，并持续监测任务最新状态。
+
+### 第四步：任务完成与结果交付（Completion & Delivery）
+
+- 所有任务完成后，请求代理会整理汇集所有的产物（artefacts）。
+- 最终产出是一套连贯整合的整体解决方案（例如，一份完整的旅行计划方案）。
+- 请求代理可以根据需要对收集到的数据进一步提炼加工，用于展示或后续使用。
+
+多代理之间的无缝协作能实现复杂的工作流。但实际上，多代理系统经常遇到工具不兼容、上下文信息缺失和目标差异等问题。
+
+为了应对这些问题，MCP 提供了有效解决方案。
+
+## 代理发现机制（灵感来源于 OpenID Connect）
+
+那么，这些代理（Agent）是如何彼此互相感知、相互认识的呢？
+
+每个托管代理的组织都会提供一个公开的发现（Discovery）网址，其形式如下：
+
+```
+yourdomain.com/.well-known/agent.json
+```
+
+这个JSON文件相当于代理的一份个人资料，通常包含：
+
+- 代理的名称与描述
+- 已声明的能力（Capabilities）
+- 可以处理的示例查询（Queries）
+- 支持的模态（Modalities）与通信协议（Protocols）
+
+这种方法的灵感源自于 OpenID Connect 的发现机制（即 `.well-known/openid-configuration`），确保代理之间可以自动相互发现与互操作，而无需依赖紧密耦合或手动配置。
+
+所有这些代理都会使用 `.well-known/agent.json` 文件进行注册，因此，借助于 A2A 协议所提供的标准化消息与协调格式，生态系统中的任何新代理都能够动态地发现、评估并与之互动。
+
+
+
+## A2A 与 MCP 对比分析
+
+| 特性     | MCP（模型上下文协议 Model Context Protocol） | A2A（代理间协议 Agent-to-Agent Protocol） |
+| -------- | -------------------------------------------- | ----------------------------------------- |
+| 通信模式 | 代理 ↔ 外部系统或 API                        | 代理 ↔ 代理                               |
+| 目标     | API 集成                                     | 协作与互操作性                            |
+| 层次定位 | 后端（数据/API访问层）                       | 中间层（代理网络层）                      |
+| 技术标准 | REST、JSON、数据库驱动Driver                 | JSON-RPC、服务（Services）、事件(Events)  |
+| 灵感来源 | 语言服务器协议（LSP）                        | OpenID Connect，服务发现机制              |
+
+MCP提供代理执行单独任务所需的工具，而A2A协议则促进代理之间的合作与协同。两者功能互补，确保系统能够有效地执行单项任务，也能协调更复杂、多步骤的流程。
+
+虽然MCP赋予代理完成特定任务所需的工具，A2A则使各个代理互相协作，确保整体体验一致、流畅。
+
+Anthropic公司的MCP协议和Google公司的A2A协议都推动了AI系统与外部组件之间的互动，但它们各自适用的场景与架构有所区别：
+
+| 类别（Category）                   | Anthropic MCP                                                | Google A2A                                                   |
+| ---------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| 主要目标（Main Objective）         | 专门用于单个AI模型与外部工具和数据管道的连接。               | 支持跨环境多个自主AI代理之间的互动。                         |
+| 最佳适用场景（Best Fit Scenario）  | 适用于需要受控且安全的数据访问的企业级系统。                 | 适合于分布式企业（B2B）场景下多个AI代理的协作需求。          |
+| 通信协议（Communication Protocol） | 本地通信：STDIO；远程通信：HTTP及服务端发送事件（SSE），支持实时响应。 | 基于HTTP/HTTPS，同时支持Webhook和SSE，具备异步、可扩展的消息传输能力。 |
+| 服务发现（Service Discovery）      | 基于预先固定的服务器配置；连接需手动定义                     | 使用代理卡片（Agent Cards）实现动态发现并连接兼容能力的代理。 |
+| 交互模式（Interaction Pattern）    | 自上而下方式——语言模型（LLM）直接访问外部资源。              | 点对点（Peer-to-peer）协作模式，代理间地位平等。             |
+| 安全方法（Security Approach）      | 强调代理间跨越信任边界进行安全交互的能力，适用于多代理体系。 | 专注于单一AI模型与外部工具和数据管道的连接安全。             |
+| 流程处理（Workflow Handling）      | 为简单直接的请求-响应型流程优化。                            | 专为实现带有状态跟踪和生命周期管理的长期任务设计。           |
+
+### Demo1：Semantic Kernel Agent with A2A Protocol
 
 参考:
 
-*https://github.com/google/A2A/tree/main/samples/python/agents/semantickernel*
+https://github.com/google-a2a/a2a-samples/tree/main/samples/python/agents/semantickernel
 
-原始repo是针对OpenAI开发的，如果想使用Azure OpenAI，只需要用我repo的 **agent.py** 文件替换原始repo中的对应文件即可。
+![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/A2A-Demo/images/4.png)
 
 设置.env范例：
 
 ```
-AZURE_OPENAI_ENDPOINT="https://ai-xinyuwei8714ai888427144375.openai.azure.com"
-AZURE_OPENAI_API_KEY="Al**"
-AZURE_OPENAI_DEPLOYMENT_NAME="gpt-4o-1120"
+AZURE_OPENAI_API_KEY="your-azure-api-key-here"
+AZURE_OPENAI_ENDPOINT="https://your-resource.openai.azure.com/"
+AZURE_OPENAI_CHAT_DEPLOYMENT_NAME="your-deployment-name"
 AZURE_OPENAI_API_VERSION="2024-12-01-preview"
 ```
 
@@ -122,7 +248,7 @@ INFO:common.server.task_manager:Getting task 69e9be843a464587a1534d009c00bfa1
 INFO:     127.0.0.1:40238 - "POST / HTTP/1.1" 200 OK
 ```
 
-### 代码分析：
+### 调用分析
 
 agent.py 里，总共出现了 3 个真正意义上的 ChatCompletionAgent，外加 1 个工具插件：
 
@@ -191,45 +317,5 @@ A2A 调用链 = (客户端) → TravelManagerAgent ─┬─> CurrencyExchangeAg
 
 总结：此次试验充分验证了路由逻辑；所有子代理在合适的语境下都被调动起来，功能正常。
 
-## A2A与MCP的类比
 
-首先，A2A与MCP不是冲突，而是分层协作—它们解决的问题根本就不在同一“层”，用网络协议的比喻大概是这样：
-
-• MCP 像 “TCP”：把一台智能体内部（或它对外提供的）“功能/工具”抽象成统一调用格式，让模型能可靠地“打 API 电话”。
-• A2A 像 “HTTP”：定义两台真正独立的智能体之间如何发现彼此、交换目标、流式回包、做鉴权。
-二者可以同时出现：Agent A 先按 A2A 找到 Agent B → Agent B 内部再用 MCP 去调某个 PDF-QA、SQL-Query、支付网关等工具。
-
-——核心区别与互补——
-
-1. 关注对象
-   • MCP：Agent ↔ Tool / 外部资源（“单兵拿武器”）。
-   • A2A：Agent ↔ Agent / 多智能体编队（“部队协同作战”）。
-   引用①②
-2. 消息粒度
-   • MCP 消息通常是一次函数调用描述（name、args、schema）+ 可选中间思考。
-   • A2A 消息是一个完整任务生命周期：目标、进度事件、子调用、最终结果。
-   引用③⑤
-3. 发现与治理
-   • MCP 默认你已经知道要调哪把“工具”，主要解决“怎么调”。
-   • A2A 附带 Agent Card、目录服务、mTLS/OAuth 等，让你先“找到”合适的 Agent，再谈调用。
-   引用①④
-4. 组合关系
-   • A2A 调用链里可以嵌套 MCP：
-   (A) 出行规划 Agent ——A2A→ (B) 财务 Agent ——MCP→ 汇率 API。
-   • 反过来，一台 Agent 也可以在同一流程里既回复 A2A 消息，又把一些子任务暴露成 MCP 函数。
-
-
-
-——有没有重叠？——
-• 都基于 JSON（RPC 或变体），字段有点像；
-• 都鼓励在 message 中携带 “function schema”；
-• 但规范级别、目标场景不同，官方工作组也明确将两者并列为“互补协议”③。
-所以它们不是竞争关系，而是可堆叠的两层：
-Agent 网络层（A2A）
-↕
-工具调用层（MCP）
-
-——典型使用场景——
-• 只做“模型调工具”——用 MCP 就够。
-• 想让多家公司、跨云 Agent 协作——A2A 必不可少；每台 Agent 内部再随意选 MCP、LangChain-Tools、SK-Plugins 等实现工具调用。
 
