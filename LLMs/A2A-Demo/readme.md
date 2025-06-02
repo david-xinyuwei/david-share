@@ -12,8 +12,6 @@ Every direct call to an agent (except the router) is rejected unless the request
 `Authorization: Bearer <A2A_TOKEN>`.
 The router automatically attaches this token when it invokes the other agents, so the user only needs to provide the token once when talking to the router.
 
-***Refer to: [**a2a-samples ](https://github.com/google-a2a/a2a-samples/tree/main/samples/python/agents/azureaifoundry_sdk/azurefoundryagent) but I did many code modifications and enhancements, will contribute my code to this repo.*
-
 ### Demo1
 
 The following ASCII diagram illustrates the runtime architecture:
@@ -50,7 +48,6 @@ The following ASCII diagram illustrates the runtime architecture:
       │        Router merges all results → back to Client    │
       └──────────────────────────────────────────────────────┘
 ```
-
 
 ① Client sends a single JSON-RPC request to the LLM Router (port 10009).
 ② Router uses an Azure LLM to classify the user intent(s).
@@ -327,7 +324,7 @@ HTTP Request: POST http://localhost:10008/ "HTTP/1.1 200 OK"
 
 
 
-
+***Refer to:*** *https://github.com/google-a2a/a2a-samples/tree/main/samples/python/agents/azureaifoundry_sdk/azurefoundryagent, but I did many code modifications and enhancements, will contribute my code to this repo.*
 
 ## What is A2A?
 
@@ -443,7 +440,7 @@ MCP equips agents with tools to perform independent tasks, whereas A2A facilitat
 
 Anthropic's MCP and Google's A2A are both designed to support interactions between AI systems and their surrounding environments, but their scenarios and architectures differ:
 
-| 类Category              | Anthropic MCP                                                | Google A2A                                                   |
+| Category                | Anthropic MCP                                                | Google A2A                                                   |
 | ----------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
 | Main Objective          | Connecting individual AI models with external tools and data pipelines | Supporting interactions across multiple autonomous AI agents |
 | Best Fit Scenario       | Ideal for enterprise systems requiring secure and controlled data access | Suitable for distributed enterprise (B2B) environments needing agent collaboration |
