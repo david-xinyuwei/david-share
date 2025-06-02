@@ -350,8 +350,6 @@ Next, let's examine the core components of A2A in detail.
 
 ## Key Components of the A2A Protocol
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/A2A-Demo/images/3.png)
-
 A2A consists of the following core components:
 
 - **Client-Server Model:**
