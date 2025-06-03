@@ -168,6 +168,7 @@ Padding-free advantages only manifest clearly when batch size exceeds one:
 
 - **Batch size = 1:** No padding needed anyway, padding-free provides no benefits.
 - **Batch size > 1:** Variable lengths across sequences cause heavy padding overhead, eliminated entirely by padding-free.
+- **Larger GPU memory capacity and speed**：batches per device are faster to process with higher memory bandwidth. TFlops on H100 and H200 are same, but memory speed is much higher on H200 than that on H100.
 
 For Visual-Language Models (VLMs), applicability notably depends on textual modality:
 
