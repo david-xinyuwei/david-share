@@ -1,6 +1,8 @@
 # MInference的实践
 
-本文基于MInference*（https://github.com/microsoft/MInference）*最新官方文档与实测结果进行详细技术阐述，加入个人实践、通俗解读以及对比数据，系统讲解MInference技术缘起、实现原理、具体优化细节、算法展开与真实应用场景分析，以帮助读者更好地理解和使用这一微软新开源的工具。
+本文基于MInference最新官方文档与实测结果进行详细技术阐述，加入个人实践、通俗解读以及对比数据，系统讲解MInference技术缘起、实现原理、具体优化细节、算法展开与真实应用场景分析，以帮助读者更好地理解和使用这一微软新开源的工具。
+
+Refer to: *https://github.com/microsoft/MInference*
 
 ## 一、引言：从算力危机到长上下文时代的挑战
 
