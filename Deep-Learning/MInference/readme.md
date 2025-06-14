@@ -180,14 +180,7 @@ MInference 本质上并不是一个独立的底层推理引擎本身，而是建
 - MInference的角色是在这些框架之中或之上新增一套经过优化的动态稀疏注意力机制，通过动态选择attention矩阵稀疏位置的方式，达到推理加速。
 - 在实际用途中，MInference 只是替换了这些主流推理引擎里 Attention 单元的计算过程，而不会整体替代或改变模型在这些推理引擎的平台运行方式。
 
-------
-
-### 换句话说：
-
-- **不是新引擎**：MInference并没自己提供独立于Torch等框架的推理引擎库，比如TensorRT、ONNX Runtime或XInference这样的东西。
-- **是优化插件**：MInference 实际上更像插件，负责对现有框架的推理过程核心Attention算子的计算，提供动态稀疏索引、动态掩码优化和Kernel优化实现。
-
-你可以简单理解为（更直观通俗地）：
+可以简单理解为：
 
 > MInference ≈ HuggingFace / vLLM / SGLang的『动态稀疏 Attention 提速插件』
 >
