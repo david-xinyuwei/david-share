@@ -2,8 +2,6 @@
 
 This document first explains the implementation-level differences between RL and SFT, then walks through a concrete example that shows how to build an SFT-plus-GRPO pipeline.
 
-------
-
 ## Choosing Between SFT and RL
 
 In most cases the safest and most efficient workflow is **“SFT first, RL afterwards”**—especially for small-capacity models or tasks that require strictly formatted outputs.
@@ -50,8 +48,6 @@ Key questions:
 **Conclusion**
 “SFT, then RL” is not mandatory, but for most label-rich tasks with structured outputs it is the most worry-free and robust path.
 Only when labels are scarce or the task provides a computable reward natively should you consider “RL only”.
-
-------
 
 ## Common RL Pitfalls
 
@@ -136,8 +132,6 @@ Typical indicators
 • Performance off-distribution plummets.
 
 Major causes: overly simple reward, long training with unresolved KL, continuous gradient blow-ups, low-quality data, etc.
-
-------
 
 ## GRPO in TRL
 
@@ -268,8 +262,6 @@ num_generations = 4
 | Early (0-200 steps) | ≈ -5, almost no positives   | **≈ 0.3-1.0**, clear positive signal     |
 | Mid (200-800)       | Tags learnt, still negative | **Near-correct +4 appears, reward ↑**    |
 | Late (>1000)        | Few +8, mostly negative     | **Reward stays ≥ 0, surpasses 2 easily** |
-
-------
 
 ## Code Example
 
@@ -690,8 +682,6 @@ Start ≈ 5.05 → End ≈ 4.03
 • Unit: token-level cross-entropy (log loss)
 • Converted to perplexity: exp(5.05)=156 → exp(4.03)=56, a ≈ 64 % reduction
 • With only 280 training steps, a 2.2 k-sample dataset, and LoRA updating just 0.8 % of the parameters, this is considered a “normal” loss drop.
-
-------
 
 ### GRPO Section
 
