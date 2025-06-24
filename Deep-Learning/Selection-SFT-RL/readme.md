@@ -432,17 +432,11 @@ cat qwen3_grpo_train3.py
 ```
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
-###############################################################################
-# ★ PATCH 0 ───────────────────────────────────────────────────────────────────
-#   允许动态形状，避免 Torch-Inductor “size()[1] is static” 报错
-###############################################################################
 import os, torch
 import torch._dynamo as _td
 _td.config.dynamic_shapes = True
 _td.config.assume_static_by_default = False
-torch.set_float32_matmul_precision("high")     # 可选：让 matmul 用 float32，高速且稳定
-###############################################################################
+torch.set_float32_matmul_precision("high")     
 
 # -------- stub-wandb ---------------------------------------------------------
 import sys, types, importlib.machinery
@@ -499,7 +493,6 @@ def get_args():
     p.add_argument("--print_every",     type=int, default=10)
     p.add_argument("--debug_every",     type=int, default=1)
     p.add_argument("--save_dir",        default="outputs")
-    # ★ 让 fast_inference CLI 可控（训练期建议关闭）
     p.add_argument("--fast_inference",  action="store_true")
     return p.parse_args()
 
@@ -530,7 +523,6 @@ def chat_template():
 ############## ★ ChatTemplate 修改 结束 ★ -----------------------------
 
 # ---------- reward ----------
-############## ★ Reward-Patch 开始 -----------------------------------
 import sympy as sp
 sol_re = re.compile(
     re.escape(solution_start) + r"\s*([^<\n ]+?)\s*" + re.escape(solution_end),
@@ -590,7 +582,7 @@ def reward_answer(prompts, completions, answer, **_):
         else:
             outs.append(NEAR_BONUS)
     return outs
-############## ★ Reward-Patch 结束 -----------------------------------
+############## Reward-Patch 结束 -----------------------------------
 
 # ---------- Debug ----------
 def make_debug(freq, num_gen):
@@ -948,7 +940,7 @@ So, there are 19 positive integers less than 100 that are divisible by 6 or 15.<
 Parsed answer: 19
 ```
 
-
+答案回答正确，而且有solution tag。
 
 ##### **备注：训练结果指标解读**
 
