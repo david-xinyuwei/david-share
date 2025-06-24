@@ -1,256 +1,198 @@
-# 强化学习（RL）与有监督微调（SFT）的选择以及奖励函数的优化
+# Choosing Between Reinforcement Learning (RL) and Supervised Fine-Tuning (SFT) & Reward-Function Optimisation
 
-本文首先将阐述强化学习（RL）和监督微调（SFT）在实现方式上的区别，然后通过一个具体案例，详细说明如何设计SFT和GRPO流水线。
-
-## SFT和RL选择
-
-大多数情况下训练模型先 SFT 再 RL 更安全、更高效，尤其是对能力尚弱的小模型或需要严格格式输出的任务。不过这并不是绝对法则，下面补充几点可作为快速校验的要点。
-
-**一、为什么“先 SFT 后 RL”通常更好**
-
-1. 训练稳定性
-   • 直接 RL（尤其是小模型）容易出现 KL 爆冲、梯度爆炸，模型甚至崩盘。
-   • SFT 先把策略锚定在“基本正确、格式合规”的空间，再让 RL 微调，KL 跳变小很多，收敛更稳。
-2. 数据利用效率
-   • SFT 等价于“先喂答案教基础功”；RL 更像“在掌握基础后练举一反三”。
-   • 如果一开始就 RL，模型会在大量无意义探索上浪费步数。
-3. 人工标注成本
-   • SFT 阶段可用少量高质量标注（或合成高质量标注）直接模仿；RL 阶段只用奖励信号即可继续放大效果，二者配合能节省标注量。
-
-**二、直接 RL 的合理场景**
-
-1. 几乎没有标注数据、但可以自动计算奖励
-   例如：解数独、玩 Atari 游戏，环境本身给出分数。
-2. 大模型已具备强基础能力
-   GPT-4、Claude 3-Sonnet 这一级别，格式和基本推理已比较稳，直接 RL（或 RLAIF）效果也可接受。
-3. 任务鼓励高多样性、无法提供单一“标准答案”
-   如创意写作、对话风格优化，仅用偏好打分即可训练。
-
-**三、实践经验速查表**
-
-| 情况               | 建议策略                            | 备注                    |
-| ------------------ | ----------------------------------- | ----------------------- |
-| 有一批高质量标注   | 先 SFT，后 RL                       | 主流 RLHF/GRPO Pipeline |
-| 只有合成弱标注     | 可尝试短 SFT + RL                   | 先对齐格式再放大能力    |
-| 纯交互式/环境奖励  | 直接 RL/在线 RL                     | 如游戏、机器人控制      |
-| 预算极低、模型极小 | 先小规模 SFT，再视情况决定是否加 RL | RL 计算开销更大         |
-
-1. 我们的奖励函数是不是完全依赖“答案==标准答案”？
-   如果是，说明我们已经有明确标注；SFT 通常先做更划算。
-2. 我们有多大 GPU/TPU 预算？
-   RL（尤其 GRPO/PPO）往往需要比 SFT 高 2-4 倍的算力。
-3. 任务对“推理链”可解释性要求高吗？
-   先 SFT（教会标签格式）再 RL（提升正确率）更容易满足可解释输出。
-
-**结论 ：**
-
-“先 SFT 再 RL”并非硬性规定，但在绝大多数需要结构化输出、且有可用标注的场景下是最省心、最稳妥的路径。只有当标注极少或任务天然提供可计算奖励时，才会优先考虑“直接 RL”。
-
-### RL常见问题
-
-前文提到的RL常见的KL爆冲、梯度爆炸、模型崩盘问题，本小节详细介绍。
-
-| 术语     | 问题本质（到底是哪里出了问题）           | 属于哪种概念                                          | 错误的具体表现（学术描述）                                   |
-| -------- | ---------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------ |
-| KL爆冲   | 模型输出分布变化太剧烈、速度太快         | 输出分布问题 （Distribution-level issue）             | KL散度指标短期内急剧上升（如超过10或更高）；<br>策略模型与参考模型的概率分布差异迅速扩大；<br>导致模型输出质量急剧下降，如明显的文本内容混乱、重复或断句异常； |
-| 梯度爆炸 | 训练过程参数更新数值过大、模型变得不稳定 | 训练过程中参数更新的问题 （Training stability issue） | 反向传播过程中梯度范数（Gradient norm）异常剧增（数值巨大甚至趋于无穷或NaN）；<br>训练损失(loss)数值异常增大甚至跳跃至无穷大或NaN；<br>模型权重参数技术层面上更新幅度异常大，导致网络计算存溢出或数值退化； |
-| 模型崩盘 | 模型生成的内容变得单一、呆板、无法泛化   | 模型最终表现问题 （Final-generation quality issue）   | 模型生成内容多样性急速降低，信息熵（Entropy）显著减小；<br>输出分布退化到极少的模式（如mode collapse），文本表现为反复生成单一或少数固定答案；<br>在训练集之外的数据上表现能力急剧下降，泛化能力严重受损。 |
-
-一般情况下，这三个问题会组成一条「连锁反应」：
-
-```
-奖励函数设计不佳或超参错误
-      ↓↓导致↓↓
-   KL爆冲 --> 梯度爆炸 --> 模型参数剧烈变化或NaN
-      ↓↓进一步导致↓↓
-   模型崩盘 (输出单一、低质)
-```
-
-**① KL爆冲**
-
-**KL 散度 (Kullback–Leibler Divergence)** 本质上衡量的确实是 **两个概率分布之间的差距**。在 **DPO (Direct Preference Optimization)** 方法中，**参考模型(reference model)** 和 **训练中模型(policy model)** 之间计算的就是 **KL散度**。
-
-**用简单例子解释一下：**
-
-假设默认模型只会讲三句话：“我们好”、“谢谢”、“再见”。
-
-它现在的“说话概率”（也可以叫“原始概率分布”）是：
-
-| 鹦鹉自己的当前概率分布（P分布） | 概率 |
-| ------------------------------- | ---- |
-| 我们好                          | 0.6  |
-| 谢谢                            | 0.3  |
-| 再见                            | 0.1  |
-
-我们心目中理想的“模型应该说话的概率分布”（目标概率分布）是：
-
-| 我们想要的目标概率分布（Q分布） | 概率 |
-| ------------------------------- | ---- |
-| 我们好                          | 0.2  |
-| 谢谢                            | 0.7  |
-| 再见                            | 0.1  |
-
-我们希望模型朝着**目标概率(Q分布)\**学习，但它原本的习惯是\**当前概率(P分布)**。
-
-这时候，为了知道我们的鹦鹉**目前的概率分布 P** 与 **目标概率分布 Q** 差距有多远。
-
-- KL散度 **越小** = 两个概率 **越接近**。
-- KL散度 **越大** = 两个概率分布的差距 **越明显**。
-- 
-
-在例子中，如果原来模型会说:“我们好(Hello)”，但我们想教它说:"谢谢(Thank you)"，那么就有了：
-
-- 一个**原始模型**的分布（Original distribution）：擅长说“我们好”；
-- 一个**目标模型**的分布（Target distribution）：我们希望它能学会说“谢谢”。
-
-假设我们给了模型过分高的奖励，比如只要提到“谢谢”，我们奖励20分。模型会在几步内学得太猛，突然所有问题只回复：“谢谢谢谢！”这就是KL距离瞬间爆发。
-
-
-
-KL爆冲 发生以后，需要用算法调整KL惩罚系数 (β)
-
-```
-Loss总 = 奖励损失 + β × KL散度
-```
-
-提高β，比如0.01 → 0.1，约束模型变化的幅度。
-
-**② 梯度爆炸**
-
-深度学习中很常见的梯度爆炸问题主要是指：
-
-- 网络在**训练过程中**因为某次更新的**梯度过大**，导致**模型参数突然变化过大**，从而网络可能变得不稳定甚至崩溃。
-
-最常见导致梯度爆炸的情况，很少是简单的代码Bug；事实上更多是**算法超参设置不当或数值计算不稳定**导致的：
-
-- **学习率（LR）过大**：
-  如原本建议的学习率是`1e-5`，但使用了过高学习率（如`1e-2`或者更高），一次参数更新迈步过大，造成梯度过大。
-- **奖励信号设计不合理（尺度过大）**：
-  有时设计奖励信号时，没有进行归一化处理，例如我们奖励的值过大（比如正常奖励是±1，却给了数百甚至上万），导致更新步幅过猛，产生极大的梯度数值。
-- **网络结构本身设计或优化器配置不好**：
-  比如神经网络某些层的初始化不合理，或梯度累计出现了数值问题，使得运动过程中梯度持续放大。
-- **未使用梯度裁剪或裁剪设置值过大**：
-  如果训练过程中未用梯度裁剪方法，或梯度裁剪的上限值设置过大（如10以上），一旦梯度猛增就不能约束，即可引发梯度爆炸。
-
-算法表现为梯度值剧烈变大甚至NaN。
-
-**③ 模型崩盘**
-
-模型崩盘的本质含义是：
-
-- 模型的参数被 “过度优化” 到单一或极少数的策略上（也称为Mode Collapse）；
-- 策略分布发生严重的退化，模型无法再生成丰富、多样化的内容。
-
-模型崩盘有典型的指标，例如：
-
-- 输出的**熵大幅降低**（Entropy↓），表示语言多样性消失；
-- **生成内容变得单一固定**，重复度极高；
-- 在训练数据以外的泛化能力和稳健性大幅下降。
-
-算法上，熵的定义是：
-
-```
-熵值 = -sum( p(X_i)*log(p(X_i)) )
-# 熵越低，表示模型生成的语言越单调单一，越接近崩盘
-```
-
-一种典型的模型崩盘的表现是：
-
-- 训练前语言多样性熵值 ≈ 8 到 10；
-
-- 训练后模型崩盘，语言熵值 下降至 1～2 左右。
-
-  
-
-模型崩盘最常见的直接原因是源于强化学习训练过程本身的一系列内在问题（尤其是强化学习），例如：
-
-- **奖励函数过于单一和简单**：导致模型倾向走极端，重复一种行为；
-- **长时间训练、KL问题持续未解决**：模型能力持续退化，最终彻底丢失多样性；
-- **连续出现梯度爆炸但未干预**：参数持续异常更新，模型能力根本不能正常保留；
-- **数据质量较低或过拟合于一种模式**：模型长时间反复学习有限模式，无法泛化。
-
-如果出现上述问题我们还继续训练，鹦鹉最后脑袋就真的弄坏了。比如它彻底只会一招，一问就吐出“苹果苹果”或彻底傻掉不回话，再训练也没用（模型崩溃）。
-
-## TRL中的GRPO
-
-目前GRPO Trainer已经被集成到TRL中：*https://huggingface.co/docs/trl/main/grpo_trainer*
-
-**GRPO中的群组优势**(Group Advantage)"
-
-“群组优势”(group advantage) 只是把 **已有 reward** 做一次“组内中心化／截断”以降低梯度方差；它并不会自己产生 reward。
-因此在所有基于策略梯度的方法里，仍必须先有某种“奖励来源”——可以是
-
-1. 规则型（rule-based）
-   ‑ 如你脚本中的 `reward_format_exact`、`reward_answer`，直接硬编码 +5/–2/–4。
-2. 奖励模型（reward model, RM）
-   ‑ 先用人类偏好或比较数据训练一个专门网络，然后用该网络给生成文本打分。
-   ‑ 常见于对话偏好强化（ChatGPT、RLHF）或复杂开放任务。
-3. 其他外部信号
-   ‑ 例如环境分数、用户点击率、游戏得分等。
-
-无论 reward 来源是哪一种，**群组优势只是后处理**：
-
-```
-┌─────────┐   ┌────────────┐
-生成 N 个候选 → │ Reward  │ → │ group mean │ → Advantage
-                 └─────────┘   └────────────┘
-```
+This document first explains the implementation-level differences between RL and SFT, then walks through a concrete example that shows how to build an SFT-plus-GRPO pipeline.
 
 ------
 
-**假设一个场景**：
+## Choosing Between SFT and RL
 
-你给同样一个问题，让你的AI模型连续生成了好几个答案（比如4个候选方案）。
-然后你对这4个答案逐个打个分：好的答案分数高，不好的答案分数低。
+In most cases the safest and most efficient workflow is **“SFT first, RL afterwards”**—especially for small-capacity models or tasks that require strictly formatted outputs.
+That guideline is not absolute, though. The quick checks below may help you decide.
 
-现在问题来了：如何引导模型变得更聪明呢？很简单：
+### 1. Why “SFT → RL” Is Usually Better
+
+1. Training stability
+   • Direct RL (particularly on small models) easily triggers KL spikes, exploding gradients, or total collapse.
+   • SFT anchors the policy in a “basically correct & format-compliant” region; RL then fine-tunes it. The KL jump is much smaller and convergence is steadier.
+2. Data efficiency
+   • SFT is equivalent to “feed the answers first and teach the basics”; RL is more like “exercise generalisation after the basics are learned”.
+   • Starting with RL alone wastes many steps on useless exploration.
+3. Human-label cost
+   • SFT can copy a small amount of high-quality labels (or synthetic labels); RL needs only reward signals to amplify the effect. Combining both saves annotation effort.
+
+### 2. When Direct RL Makes Sense
+
+1. Almost no labelled data but the reward is automatically computable
+   e.g. solving Sudoku, playing Atari—scores come from the environment itself.
+2. The base model is already strong
+   Models on the GPT-4 / Claude-3-Sonnet tier have stable format & reasoning; direct RL (or RLAIF) is acceptable.
+3. The task encourages high diversity and has no single “gold answer”
+   e.g. creative writing, dialogue style tuning—preference scores alone are enough.
+
+### 3. Quick Reference
+
+| Situation                      | Recommended Strategy         | Notes                          |
+| ------------------------------ | ---------------------------- | ------------------------------ |
+| A batch of high-quality labels | SFT → RL                     | Mainstream RLHF/GRPO pipeline  |
+| Only synthetic weak labels     | Short SFT → RL               | Align format first, then boost |
+| Pure interactive / env reward  | Direct / on-line RL          | Games, robotics, etc.          |
+| Very low budget, tiny model    | Small-scale SFT, then decide | RL is 2-4× more compute-hungry |
+
+Key questions:
+
+1. Does our reward rely purely on “answer == gold answer”?
+   • Yes → we obviously have labels → do SFT first, it is cheaper.
+2. How much GPU/TPU budget do we have?
+   • RL (especially GRPO/PPO) typically needs 2-4× the compute of SFT.
+3. Do we need an interpretable “chain of thought”?
+   • Teach the format via SFT, then use RL to raise accuracy; that yields easier-to-explain outputs.
+
+**Conclusion**
+“SFT, then RL” is not mandatory, but for most label-rich tasks with structured outputs it is the most worry-free and robust path.
+Only when labels are scarce or the task provides a computable reward natively should you consider “RL only”.
 
 ------
 
- **GRPO的处理方式（用一个例子解释）**：
+## Common RL Pitfalls
 
-- 首先，我们每个回合生成多个答案，这些答案是一个“群组(group)”，也就是"一轮回答"。
-- 给所有答案打个分（比如：第一个成绩80，第二个60，第三个90，第四个70）。
-- 然后算一下这一组答案的**平均得分**。比如算出来平均价是75分。
+The KL spike, gradient explosion and model collapse mentioned above are explained in detail below.
 
- **这个平均分，其实可以简单理解为当前这个模型的“平均水平”，也就是在这个问题/情况里面模型平时能达到的表现，我们称为“基线”或baseline。**
+| Term             | Essence – What Actually Goes Wrong          | Concept Category               | Observable Symptoms (academic description)                   |
+| ---------------- | ------------------------------------------- | ------------------------------ | ------------------------------------------------------------ |
+| KL spike         | Output distribution changes too drastically | Distribution-level issue       | KL divergence shoots up (e.g. >10);<br>policy diverges from reference rapidly;<br>text becomes chaotic, repetitive or fragmented. |
+| Gradient blow-up | Parameter updates become numerically huge   | Training-stability issue       | Gradient norm explodes to very large or ∞/NaN;<br>loss jumps to ∞/NaN;<br>weights overflow or degrade. |
+| Model collapse   | Outputs become single-mode and non-general  | Final-generation-quality issue | Output entropy drops sharply;<br>mode collapse—always the same answer;<br>generalisation outside training data crumbles. |
 
-- 接下来就很好理解了：我们每个方案的得分，去和这个“平均水平”比较一下：
-  - 第一个答案是80分，平均是75分，说明方案很好，超过平均了。那么，下次就要更多地鼓励模型产生类似于第一个方案的答案（提高概率）。
-  - 第二个答案是60分，低于75的平均分，代表比平常差了，下次就要少生产这样的方案，给的概率低一点。
-  - 第三个答案90分，那非常好，比均值高很多，下次要显著增加出现类似方案的概率;
-  - 第四个70分，比75分平均值差一些，也是会稍微降低一点概率。
-
-用这种方法，每次都生产多个方案后“看一眼周围方案的平均水平”，就知道“自己这次到底是进步了还是退步了”。
-而每次都用“进步的还是退步了”来决定下次的升级。
-
-
-
-## TRL SFT+GRPO训练qwen模型
-
-在本小节中，我们展示一个例子，先进行SFT，再进行GRPO。
-
-### **SFT 阶段（监督微调）**
-
-• 数据集
-
-- HF Hub：`unsloth/OpenMathReasoning-mini`
-- split：`"cot"`（带模型生成的 chain-of-thought）
-
-• 使用的字段
-
-| 列名                 | 示例                        | 用途                             |
-| -------------------- | --------------------------- | -------------------------------- |
-| `problem`            | “Given √(x²+165) − … = 7 …” | 题干                             |
-| `expected_answer`    | `14`                        | 数值答案（必须能 cast 为 float） |
-| `generated_solution` | `<think> … </think>`        | 思路文本                         |
-
-其它列（`problem_type`, `pass_rate_72b_tir` 等）在代码中未被引用。
-
-• 构造对话（chat_template）
+These three problems often chain together:
 
 ```
-system    : 固定 system_prompt
+Poor reward design / wrong hyper-params
+      ↓↓
+   KL spike → gradient blow-up → weights NaN / huge
+      ↓↓
+   Model collapse (single, low-quality output)
+```
+
+
+
+### ① KL Spike
+
+KL divergence (Kullback–Leibler Divergence) measures the distance between two probability distributions—here, the reference model and the policy model.
+
+## Simple toy example
+
+Imagine a parrot can only say three sentences:
+
+| Parrot’s current distribution P | Prob. |
+| ------------------------------- | ----- |
+| Hello                           | 0.6   |
+| Thank you                       | 0.3   |
+| Bye                             | 0.1   |
+
+We want a new target distribution Q:
+
+| Desired distribution Q | Prob. |
+| ---------------------- | ----- |
+| Hello                  | 0.2   |
+| Thank you              | 0.7   |
+| Bye                    | 0.1   |
+
+KL small ⇒ P ≈ Q; KL large ⇒ P far from Q.
+
+If we give an overly huge reward “+20 if it says ‘Thank you’”, the model can jump in a few steps to always output “Thank you!!!” → KL blows up.
+
+Cure: add KL penalty β in the loss
+
+```
+TotalLoss = -reward + β × KL
+```
+
+
+
+Raise β (e.g. 0.01 → 0.1) to constrain policy change.
+
+### ② Gradient Explosion
+
+Common causes
+
+• Learning rate too high (e.g. 1e-2 instead of 1e-5).
+• Reward scale too large (hundreds instead of ±1).
+• Bad initialisation or optimiser config.
+• No / ineffective gradient clipping.
+
+Result: gradient norm → ∞ or NaN; loss to ∞/NaN.
+
+### ③ Model Collapse
+
+Meaning
+
+• Parameters over-optimised into a single or few modes (mode collapse).
+• Entropy ↓, diversity gone; fails to generalise.
+
+Typical indicators
+
+• Output entropy drops from ~8-10 to ~1-2.
+• Always repeats one answer.
+• Performance off-distribution plummets.
+
+Major causes: overly simple reward, long training with unresolved KL, continuous gradient blow-ups, low-quality data, etc.
+
+------
+
+## GRPO in TRL
+
+`GRPOTrainer` is already integrated in TRL:
+https://huggingface.co/docs/trl/main/grpo_trainer
+
+### What Is “Group Advantage”?
+
+“Group Advantage” is merely a **post-processing step** that centres / clips *existing* rewards within the group to reduce gradient variance.
+You still need a real **reward source**:
+
+1. Rule-based
+   • e.g. `reward_format_exact`, `reward_answer` (+5 / –2 / –4).
+2. Reward model (RM)
+   • Train a separate network on human preferences, then score text.
+3. External signals
+   • Environment score, CTR, game score, etc.
+
+Workflow:
+
+```
+Generate N candidates ─→  Reward  ─→  group mean  ─→ Advantage
+```
+
+
+
+## Example
+
+• You ask the model to answer once, it generates four candidate answers.
+• You score them: 80, 60, 90, 70.
+• Average = 75 → that is the *baseline*.
+• Compute (score – mean) for each answer; reinforce the positive ones, suppress the negative ones.
+
+------
+
+## Training a Qwen Model with TRL (SFT + GRPO)
+
+### SFT Stage
+
+Dataset
+• HF Hub: `unsloth/OpenMathReasoning-mini`
+• Split: `"cot"` (with chain-of-thought)
+
+Used columns
+
+| Column               | Example                     | Purpose                         |
+| -------------------- | --------------------------- | ------------------------------- |
+| `problem`            | “Given √(x²+165) − … = 7 …” | Problem statement               |
+| `expected_answer`    | `14`                        | Numeric answer (float-castable) |
+| `generated_solution` | `<think> … </think>`        | Reasoning text                  |
+
+Chat template
+
+```
+system    : <fixed system_prompt>
 user      : {problem}
 assistant : <start_working_out>{thoughts}<end_working_out>
             <SOLUTION>{expected_answer}</SOLUTION>
@@ -258,137 +200,97 @@ assistant : <start_working_out>{thoughts}<end_working_out>
 
 
 
-其中
-`thoughts = generated_solution` 去掉包裹的 `<think>…</think>` 标签。
+`thoughts` = `generated_solution` with `<think>` tags stripped.
 
-• 生成训练文本
+Training target = normal causal-LM loss (no reward here).
 
-```
-tok.apply_chat_template(messages, tokenize=False)
-```
+### GRPO Stage
 
+Dataset
+• HF Hub: `open-r1/DAPO-Math-17k-Processed`
+• config `"en"`, split `"train"`
 
+| Column     | Example (truncated)      | Purpose             |
+| ---------- | ------------------------ | ------------------- |
+| `prompt`   | “In △ABC, sin∠A = 4/5 …” | Problem             |
+| `solution` | `34`                     | Gold numeric answer |
 
-得到完整 prompt+answer 作为 LM 监督目标。
-
-• 过滤 / 采样
-
-1. 若 `expected_answer` 不能转成 `float` → 丢弃该行。
-2. 若传参 `--sft_sample_frac<1` → 再随机下采样。
-
-• 训练目标
-标准因果语言模型 loss；此阶段 **不** 用奖励函数。
-
-### **GRPO 阶段（RL fine-tune）**
-
-• 数据集
-
-- HF Hub：`open-r1/DAPO-Math-17k-Processed`
-- configuration `"en"`, split `"train"`
-
-• 使用的字段
-
-| 列名       | 示例（截取）                      | 用途                   |
-| ---------- | --------------------------------- | ---------------------- |
-| `prompt`   | “In △ABC, sin∠A = 4/5 … 求 a+b+c” | 题干                   |
-| `solution` | `34`                              | 真实数值答案（字符串） |
-
-其余列（`data_source`, `ability`, …）均不参与训练。
-
-• 对话模板
+Chat template
 
 ```
-system : 固定 system_prompt
+system : <fixed system_prompt>
 user   : {prompt}
-# assistant 留空，由模型生成
+# assistant – generated by model
 ```
 
 
 
-调用 `tok.apply_chat_template(..., add_generation_prompt=True)`
-→ 模板末尾自动附 `<start_working_out>`，作为模型生成起点。
-
-• 数据过滤
-
-1. 渲染后仅含 prompt 的 token 数 ≤ `max_prompt_length`(≈ seq_len/2) 才保留；
-2. 目的是保证再生成 ≤ `max_completion_length` token 时总长不超 context 窗口。
-
-• 保存到 RL 训练集的字段
-
-```
-{"prompt": messages_list,   # list[dict]
- "answer": solution.strip()}
-```
-
-
-
-• 采样参数（SamplingParams）
+Sampling params
 
 ```
 temperature = 0.7
 top_p       = 0.9
 max_tokens  = 256
 stop        = ["</SOLUTION>", tok.eos_token]
-num_generations = 4   # 默认，可用 CLI 调整
+num_generations = 4
 ```
 
-GRPO奖励函数优化：
 
-`reward_format_exact` (格式奖励)
 
-| 对比维度            | 原始版                                 | **渐进式版本**（当前有效）                     |
-| ------------------- | -------------------------------------- | ---------------------------------------------- |
-| 初始得分基线        | -2                                     | **0**（更温和，有效鼓励模型输出标签）          |
-| 标签存在奖励        | 每标签 +1 (但基于 -2 基线，很容易负分) | 每标签 +1 (**基于 0 起步，更易正分；最多+4**)  |
-| 缺标签惩罚          | 起始即 -2，下限较低                    | 无额外惩罚（仅不给分，不再额外惩罚）           |
-| `reasoning`长度要求 | 至少 10 个词，否则 -1                  | **至少 6 个词** (要求较低，早期更易满足)       |
-| 得分范围裁剪        | 无显式裁剪                             | 限制在 [-2, +4] (避免极端偏离)                 |
-| 典型分布            | -2 ~ 0，持续负分                       | **+1 ~ +2 稳定正分**                           |
-| 设计目的            | 严格惩罚缺失标签，几乎无正反馈         | **快速鼓励标签格式，加强正激励，稳定梯度信号** |
+#### Reward Functions
 
-`reward_answer` (数值答案奖励)
+`reward_format_exact` (format reward)
 
-| 对比维度                   | 原始版                                 | **渐进式版本**（当前有效）                           |
-| -------------------------- | -------------------------------------- | ---------------------------------------------------- |
-| 无法匹配`<SOLUTION>`标签块 | -4                                     | **-1** (惩罚柔和，更易纠正)                          |
-| 提取数字失败 (无法解析)    | -2                                     | **-1**                                               |
-| 数字解析成功 & 完全正确    | +8                                     | **+8**（未改动）                                     |
-| 数字解析成功 & 近似正确    | 无（只有完全正确才有奖励）             | **+4** (新增奖励项：误差<1% 或 <1e-2 即可得分)       |
-| 数字解析成功 & 不够准确    | -2 (严厉惩罚)                          | **0** (不给奖但也不罚，用于推进模型收敛)             |
-| 奖励值典型分布             | 离散 {-4, -2, +8} 且极其稀疏，多数为负 | **密集，并具备明确路径** {-1, 0, +4, +8}             |
-| 设计目的                   | 一刀切，难以提供有效梯度               | **提供多等级奖励**：先鼓励解析数字，再逐渐逼近准确值 |
+| Aspect               | Original                    | **Current Gradual Version**             |
+| -------------------- | --------------------------- | --------------------------------------- |
+| Base score           | -2                          | **0** (so positive feedback possible)   |
+| Tag existence reward | +1 per tag                  | +1 per tag (max +4)                     |
+| Missing tag penalty  | Already –2                  | none (just no reward)                   |
+| `reasoning` length   | ≥ 10 words else –1          | **≥ 6 words**                           |
+| Score clipping       | none                        | [-2, +4]                                |
+| Typical distribution | –2 ~ 0                      | **+1 ~ +2**                             |
+| Goal                 | Hard penalty, few positives | **Early positive signal, stable grads** |
 
-| 训练阶段        | 原始版本效果                             | **渐进式版本**（当前有效）效果                               |
-| --------------- | ---------------------------------------- | ------------------------------------------------------------ |
-| 早期(0~200步)   | 总reward≈ -5，几乎无正奖励，难以有效训练 | **总reward约0.3~1.0，明显正奖励，更易于策略梯度推进**        |
-| 中期(200~800步) | 标签可能学到，但总体仍是负奖励居多       | **开始得到“近似答案”奖励(+4)，总reward稳步提高**             |
-| 后期(>1000步)   | 少数样本+8，多数仍负，总reward低迷不前   | **reward_answer稳居0或正值区域，总reward轻易突破2+，稳步提高** |
+`reward_answer` (numeric answer reward)
 
-## 代码展示
+| Aspect                | Original              | **Current Gradual Version**                 |
+| --------------------- | --------------------- | ------------------------------------------- |
+| No `<SOLUTION>` block | -4                    | **-1**                                      |
+| Parse number failed   | -2                    | **-1**                                      |
+| Exactly correct       | +8                    | +8 (unchanged)                              |
+| Approximately correct | none                  | **+4** (error <1 % or <1e-2)                |
+| Parsed but wrong      | -2                    | **0**                                       |
+| Typical distribution  | {-4, -2, +8} (sparse) | **{-1, 0, +4, +8}** (dense, smooth path)    |
+| Goal                  | All-or-nothing        | **Multi-level reward, easier optimisation** |
 
-### 环境准备
+| Stage               | Original total reward       | **Gradual version total reward**         |
+| ------------------- | --------------------------- | ---------------------------------------- |
+| Early (0-200 steps) | ≈ -5, almost no positives   | **≈ 0.3-1.0**, clear positive signal     |
+| Mid (200-800)       | Tags learnt, still negative | **Near-correct +4 appears, reward ↑**    |
+| Late (>1000)        | Few +8, mostly negative     | **Reward stays ≥ 0, surpasses 2 easily** |
+
+------
+
+## Code Example
+
+### Environment Setup
 
 ```
-# 1. 创建新的虚拟环境
 python3 -m venv grpo-env
-
-# 2. 激活虚拟环境
 source grpo-env/bin/activate
-
-# 3. 升级pip并安装环境依赖(从导出的requirements.txt)
 pip install --upgrade pip
 pip install -r requirements.txt
 
 
 ```
 
-运行代码
+Run code
 
 ```
-# 纯 GRPO
+#  GRPO
 python qwen3_grpo_train3.py --grpo_steps 10 --print_every 1 --debug_every 1
 
-# 轻量 SFT(10%) + GRPO
+# LightWeight SFT(10%) + GRPO
 python qwen3_grpo_train3.py --do_sft --sft_epochs 1 --sft_sample_frac 0.1 \
        --grpo_steps 10 --print_every 1 --debug_every 1
        
@@ -397,7 +299,7 @@ python qwen3_grpo_train3.py --do_sft --sft_epochs 1  \
        --grpo_steps 10 --print_every 1 --debug_every 1
 ```
 
-训练中资源利用率：
+Resource Utilization During Training:
 
 ```
 root@a100vm:~# nvidia-smi
@@ -423,7 +325,7 @@ Mon Jun 23 02:58:48 2025
 +-----------------------------------------------------------------------------------------+
 ```
 
-主代码：
+Main Code:
 
 ```
 cat qwen3_grpo_train3.py
@@ -739,15 +641,15 @@ if __name__ == "__main__":
     main()
 ```
 
-执行代码：
+Run code:
 
 ```
 python qwen3_grpo_train3.py --do_sft --sft_epochs 2 --sft_sample_frac 0.3        --grpo_steps 1500 --print_every 1 --debug_every 1
 ```
 
-### 输出日志
+### Training log
 
-**SFT部分：**
+SFT part:
 
 ```
                   
@@ -782,16 +684,18 @@ Unsloth: Will smartly offload gradients to save VRAM!
 {'loss': 4.0856, 'grad_norm': 4.682467937469482, 'learning_rate': 5.928853754940711e-07, 'epoch': 0.99}
 ```
 
-SFT日志分析：
+### SFT Log Analysis
 
-起点 ≈ 5.05 → 终点 ≈ 4.03
-• 单位：token-level cross-entropy（对数损失）。
-• 换算 perplexity：exp(5.05)=156 → exp(4.03)=56，下降约 64 %。
-• 对于只训练 280 步、数据量 2.2 k、且 LoRA 只动 0.8 % 参数的场景，这属于“正常下降”。
+Start ≈ 5.05 → End ≈ 4.03
+• Unit: token-level cross-entropy (log loss)
+• Converted to perplexity: exp(5.05)=156 → exp(4.03)=56, a ≈ 64 % reduction
+• With only 280 training steps, a 2.2 k-sample dataset, and LoRA updating just 0.8 % of the parameters, this is considered a “normal” loss drop.
 
-**GRPO部分**
+------
 
-我们针对一个prompt模型生成了四个答案，然后进行群组优势打分。
+### GRPO Section
+
+For one prompt the model generated four candidate answers, after which we computed the group-advantage scores.
 
 ```
 PROMPT : [{'content': 'You are given a problem. Show reasoning between <start_working_out> and <end_working_out>. Then give the final numeric answer between <SOLUTION></SOLUTION>', 'role': 'system'}, {'content': 'Let $P_0(x) = x^3 + 313x^2 - 77x - 8$. For integers $n \\ge 1$, define $P_n(x) = P_{n - 1}(x - n)$. What is the coefficient of $x$ in $P_{20}(x)$?', 'role': 'user'}]
@@ -850,9 +754,9 @@ TARGET : 344
 {'loss': 0.0, 'grad_norm': 21.152080535888672, 'learning_rate': 4.083333333333334e-06, 'num_tokens': 1093764.0, 'completions/mean_length': 685.975, 'completions/min_length': 407.1, 'completions/max_length': 768.0, 'completions/clipped_ratio': 0.7125, 'completions/mean_terminated_length': 493.8016693115234, 'completions/min_terminated_length': 407.1, 'completions/max_terminated_length': 583.1, 'rewards/_dbg/mean': 0.0, 'rewards/_dbg/std': 0.0, 'rewards/reward_format_exact/mean': 1.6625, 'rewards/reward_format_exact/std': 1.2463318705558777, 'rewards/reward_answer/mean': -0.5125, 'rewards/reward_answer/std': 0.9666869312524795, 'reward': 1.15, 'reward_std': 1.7237172186374665, 'frac_reward_zero_std': 0.0, 'completion_length': 685.975, 'kl': 0.0, 'epoch': 0.02}
 ```
 
-推理验证：
+**Inference Validation:**
 
-推理脚本
+Inference script
 
 ```
 #!/usr/bin/env python
@@ -902,7 +806,7 @@ m=re.search(rf"{solution_start}\s*([^<\n ]+?)\s*{solution_end}",reply,re.S)
 print("Parsed answer:", m.group(1) if m else None)
 ```
 
-推理验证
+Run inference code:
 
 ```
 (grpo-env) root@a100vm:~# python mini_infer.py \
@@ -940,50 +844,48 @@ So, there are 19 positive integers less than 100 that are divisible by 6 or 15.<
 Parsed answer: 19
 ```
 
-答案回答正确，而且有solution tag。
+The answer is correct and the <SOLUTION> tag is present.
 
-##### **备注：训练结果指标解读**
+##### **Notes: How to Read Training Metrics**
 
- SFTTrainer 日志里出现字段：
+SFTTrainer log fields
 
-| 字段                     | 含义                                     | 典型范围          | 计算方式                        |
-| ------------------------ | ---------------------------------------- | ----------------- | ------------------------------- |
-| loss                     | teacher-forcing 交叉熵平均值（越低越好） | 0.7 → 0.3         | `CrossEntropy(outputs, labels)` |
-| mean_token_accuracy      | token 级 top-1 准确率                    | 0.65 → 0.80       | `1 - ppl` 近似值                |
-| num_tokens               | 当前 step 处理的 token 数                | batch×seq_len     | 统计 tokenizer 输入长度         |
-| train_runtime            | 整个 epoch 耗时 (最终行)                 | 280-300 s         | end_time - start_time           |
-| train_samples_per_second | 每秒处理样本数                           | ≈(batch/step)/sec | HF Trainer 统计                 |
-| train_steps_per_second   | 每秒更新步数                             | ≈1 / step_latency | HF Trainer 统计                 |
-| train_loss               | 全 epoch 的 loss 平均值（最终行）        | 0.85              | 所有 step loss 加权平均         |
+| Field                    | Meaning                                                | Typical Range          | Calculation                     |
+| ------------------------ | ------------------------------------------------------ | ---------------------- | ------------------------------- |
+| loss                     | Teacher-forcing average cross-entropy (lower = better) | 0.7 → 0.3              | `CrossEntropy(outputs, labels)` |
+| mean_token_accuracy      | Token-level top-1 accuracy                             | 0.65 → 0.80            | Approx. `1 − perplexity`        |
+| num_tokens               | Tokens processed in this step                          | batch × seq_len        | Length of tokenizer input       |
+| train_runtime            | Wall-clock time for the whole epoch (final row)        | 280–300 s              | `end_time − start_time`         |
+| train_samples_per_second | Samples processed per second                           | ≈ (batch / step) / sec | Reported by HF Trainer          |
+| train_steps_per_second   | Optimisation steps per second                          | ≈ 1 / step_latency     | Reported by HF Trainer          |
+| train_loss               | Epoch-wide average loss (final row)                    | 0.85                   | Weighted mean of step losses    |
 
-SFT、GRPO 通用字段
+Common fields for both SFT and GRPO
 
-| 字段          | 含义                           |
-| ------------- | ------------------------------ |
-| epoch         | 当前步对应的 epoch 比例        |
-| loss          | SFT：交叉熵；GRPO：KL − reward |
-| grad_norm     | 当前梯度 L2 范数，过大可能爆炸 |
-| learning_rate | 每 step 动态学习率             |
-| num_tokens    | step 内处理 token 数           |
-| logging_steps | n 步打印一次，决定日志行粒度   |
+| Field         | Meaning                                                      |
+| ------------- | ------------------------------------------------------------ |
+| epoch         | Fraction of the current epoch completed                      |
+| loss          | SFT: cross-entropy; GRPO: KL − reward                        |
+| grad_norm     | L2 norm of the current gradients (too large ⇒ risk of blow-up) |
+| learning_rate | Per-step learning rate                                       |
+| num_tokens    | Tokens processed in the step                                 |
+| logging_steps | Print every *n* steps; controls log granularity              |
 
-GRPOTrainer 特有字段
+GRPOTrainer-specific fields
 
-| 字段名 (日志 key)             | 含义                                           | 判读规则   |
-| ----------------------------- | ---------------------------------------------- | ---------- |
-| **rewards/cor_reward/mean**   | 数字奖励均值（+2 完全正确；+1 仅差 1；0 其余） | ↑ 越高越好 |
-| **rewards/fmt_reward/mean**   | XML 格式奖励均值（满足模板得 +1）              | ↑ 越高越好 |
-| **reward**                    | cor + fmt 的批均值 ∈ [0, 3]                    | ↑ 越高越好 |
-| **reward_std**                | 批内 reward 的标准差                           | 中等即可   |
-| **frac_reward_zero_std**      | reward＝0 的样本比例                           | ↓ 越低越好 |
-| **kl**                        | 策略与底座模型的 KL 散度                       | 中等最好   |
-| **loss**                      | β·KL – reward（GRPO 目标）                     | 趋势即可   |
-| **grad_norm**                 | 当前梯度 L2 范数                               | ↓ 避免爆   |
-| **completions/mean_length**   | 8 条回答平均 token 长度                        | 监控长度   |
-| **completions/clipped_ratio** | 回答被 `max_completion_length` 截断的比例      | ↓ 越低越好 |
-| **epoch**                     | 已训练进度 (0-1 = 0-100 %)                     | —          |
-
-
+| Log Key                   | Meaning                                                      | Heuristic          |
+| ------------------------- | ------------------------------------------------------------ | ------------------ |
+| rewards/cor_reward/mean   | Mean numeric-answer reward (+2 exact, +1 off-by-1, 0 otherwise) | ↑ higher is better |
+| rewards/fmt_reward/mean   | Mean XML-format reward (+1 if template satisfied)            | ↑ higher is better |
+| reward                    | Batch mean (cor + fmt), range [0 … 3]                        | ↑ higher is better |
+| reward_std                | Standard deviation of rewards within the batch               | medium is fine     |
+| frac_reward_zero_std      | Fraction of samples with reward = 0                          | ↓ lower is better  |
+| kl                        | KL divergence from the base model                            | moderate is best   |
+| loss                      | β·KL − reward (GRPO objective)                               | watch the trend    |
+| grad_norm                 | L2 norm of current gradients                                 | ↓ keep small       |
+| completions/mean_length   | Mean token length of the 8 generated answers                 | monitor length     |
+| completions/clipped_ratio | Ratio of answers truncated by `max_completion_length`        | ↓ lower is better  |
+| epoch                     | Training progress (0–1 = 0–100 %)                            | —                  |
 
 
 
