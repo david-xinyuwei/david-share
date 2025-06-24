@@ -165,8 +165,6 @@ Generate N candidates ─→  Reward  ─→  group mean  ─→ Advantage
 • Average = 75 → that is the *baseline*.
 • Compute (score – mean) for each answer; reinforce the positive ones, suppress the negative ones.
 
-------
-
 ## Training a Qwen Model with TRL (SFT + GRPO)
 
 ### SFT Stage
