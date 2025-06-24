@@ -1,77 +1,6 @@
 # 强化学习（RL）与有监督微调（SFT）的选择以及奖励函数的优化
 
-本文首先将阐述强化学习（RL）和监督微调（SFT）在实现方式上的区别，然后通过一个具体案例，详细说明如何对奖励函数进行优化。
-
-### 从简单例子入手理解SFT和RL
-
-##### **监督微调（SFT）- 像老师教学生**
-
-监督微调（Supervised Fine-Tuning，简称SFT）相当于作为老师，自己先列出很多问题，再告诉模型标准的回答：
-
-比如用数据（训练集）教它：
-
-| 问题             | 标准答案 |
-| ---------------- | -------- |
-| 1加1多少？       | 2        |
-| 苹果什么颜色？   | 红色     |
-| 太阳从哪边升起？ | 东方     |
-
-我们让模型一遍又一遍模仿训练语料中的标准答案，直到我们符合要求。
-
-**SFT具体步骤（算法的介绍）：**
-
-1. 我们拿出一个问题：`苹果什么颜色？`
-2. 模型自己尝试回答：比如它乱回答成 `蓝色`。
-3. 我们就立马纠正，告诉它正确的答案应该是`红色`，给它一个明确的误差信号： [ 误差 = - log P("红色") ]
-4. 然后模型用这个误差信号帮助它更新自己说法，让下次“红色”概率增加。
-
-所以，监督学习过程如下：
-
-```
-for 问题, 标准答案 in 数据集:
-    模型答案 = 模型生成(问题)
-    误差 = 计算交叉熵Loss(模型答案, 标准答案)
-    模型更新(误差)
-```
-
-优点：安全、稳定
-缺点：模型永远只能模仿，不太能创造性地发现新答案。
-
-##### 强化学习（RL）– 让模型自己摸索
-
-强化不直接教标准答案，而是用“鼓励”和“惩罚”引导模型。
-
-我们问模型：“1加1等于？”
-
-- 它如果乱说了：“香蕉！”，我们立刻给个负面奖励(-1);
-- 如果它说对了：“2”，我们给它正面奖励(+2)。
-
-模型得到这些奖励和惩罚之后，会慢慢去摸索和记忆，知道怎么才能得到更多奖励（而不是直接告诉它标准答案）。
-
-强化学习大致算法：
-
-```
-# RL过程:
-for 问题 in 数据集:
-    # 让鹦鹉自由生成多个答案（探索）
-    多个答案 = 模型生成多个可行答案(问题) 
-
-    # 每个答案给奖励
-    for 每个答案 in 多个答案:
-        奖励 = 奖励函数(每个答案)
-        更新策略(奖励 * log(生成该答案概率))
-```
-
-优势：模型能够自己发现最优策略，能主动“探索”，学得更主动；
-危险：但探索过猛容易产生 KL 爆冲、梯度爆炸、最终模型崩盘。
-
-| 方面     | 监督微调（SFT）        | 强化学习（RL）               |
-| -------- | ---------------------- | ---------------------------- |
-| 本质     | 模仿老师标准答案       | 只靠鼓励&惩罚自己摸索        |
-| 学习速度 | 快，稳定               | 慢，可能反复波动             |
-| 创造性   | 低，比较死板           | 高，能探索创造               |
-| 数据需求 | 标准答案必须充足       | 只需奖励的反馈信号           |
-| 常见问题 | 很少出现大的稳定性问题 | 易出现KL爆冲→ 梯度爆炸→ 崩盘 |
+本文首先将阐述强化学习（RL）和监督微调（SFT）在实现方式上的区别，然后通过一个具体案例，详细说明如何设计SFT和GRPO流水线。
 
 ## SFT和RL选择
 
@@ -242,400 +171,786 @@ Loss总 = 奖励损失 + β × KL散度
 
 如果出现上述问题我们还继续训练，鹦鹉最后脑袋就真的弄坏了。比如它彻底只会一招，一问就吐出“苹果苹果”或彻底傻掉不回话，再训练也没用（模型崩溃）。
 
-## SFT与GRPO的两阶段训练
+## TRL中的GRPO
 
-接下来，参考repo中code目录下的训练代码，我们详细介绍SFT和GRPO的区别。
+目前GRPO Trainer已经被集成到TRL中：*https://huggingface.co/docs/trl/main/grpo_trainer*
 
-| 阶段 | 代码调用                                                     | HF 数据集仓库名 | 配置（子集）     | 网址示例                                     |
-| ---- | ------------------------------------------------------------ | --------------- | ---------------- | -------------------------------------------- |
-| SFT  | `get_limo()`<br>`load_dataset("GAIR/LIMO")`                  | `GAIR/LIMO`     | 无子配置（默认） | https://huggingface.co/datasets/GAIR/LIMO    |
-| GRPO | `get_gsm8k_questions()`<br>`load_dataset("openai/gsm8k", "main")` | `openai/gsm8k`  | `"main"`         | https://huggingface.co/datasets/openai/gsm8k |
+**GRPO中的群组优势**(Group Advantage)"
 
-说明
+“群组优势”(group advantage) 只是把 **已有 reward** 做一次“组内中心化／截断”以降低梯度方差；它并不会自己产生 reward。
+因此在所有基于策略梯度的方法里，仍必须先有某种“奖励来源”——可以是
 
-1. SFT 阶段脚本里会对 `GAIR/LIMO` 做 `.select(range(1600))` 之类抽样；原始仓库约 817 条（train），938 条（dev+test）。
-2. GRPO 阶段在 `openai/gsm8k` 的 `"main"` 配置上取 `train` split，再 `select(range(3500))` 抽子集做 RL；`test` split 用于离线评测。
+1. 规则型（rule-based）
+   ‑ 如你脚本中的 `reward_format_exact`、`reward_answer`，直接硬编码 +5/–2/–4。
+2. 奖励模型（reward model, RM）
+   ‑ 先用人类偏好或比较数据训练一个专门网络，然后用该网络给生成文本打分。
+   ‑ 常见于对话偏好强化（ChatGPT、RLHF）或复杂开放任务。
+3. 其他外部信号
+   ‑ 例如环境分数、用户点击率、游戏得分等。
 
-要在 Hugging Face Hub 搜索 “GAIR/LIMO” 和 “openai/gsm8k” 即可查看与下载完整数据。
-
-| 阶段 | 数据集 (行数)         | 内容示例                                                    | 目的                                |
-| ---- | --------------------- | ----------------------------------------------------------- | ----------------------------------- |
-| SFT  | GAIR/LIMO 约 1 600 条 | K-12 数学题 + 官方解答<br>已包好 `<reasoning>` & `<answer>` | 教模型先学「写作模板 + 推理语气」   |
-| GRPO | GSM8K-train 3 500 条  | 小学应用题，只有真值数字                                    | 用奖励（格式+数值）做 RL 提升正确率 |
-
-**两阶段各自“训练了什么”？**
-
-阶段① SFT (Supervised Fine-Tuning)
-• 训练信号：交叉熵 (Cross-Entropy)，对教师答案逐 token 强制对齐。
-• 学到内容
-
-1. XML 模板必须完整闭合。
-2. `<reasoning>` 里如何写链式思考（First … Therefore …）。
-3. 在 `<answer>` 标签里只出现一个纯数字。
-4. LoRA 参数被拉近“正确格式 + 基本推理”的低损失区。
-   • 不学/很少学到
-   – GSM8K 真值数字（因为数据集不同）。
-   – 高阶数学技巧（量太少、只有 1 epoch）。
-
-阶段② GRPO (Reinforcement Learning, KL-regularized)
-• 训练信号：
-– 数值奖励 cor_reward：完全命中 +2；其余 0。
-– 格式奖励 fmt_reward：模板满足 +1；否则 0。
-– 惩罚项 KL：防止行为过度偏离基座。
-• 学到内容
-
-1. 如何把 `<answer>` 数字精确等于真值（Exact-Match）。
-2. 在保持模板的同时优化上一步数字。
-3. 探索 ‑> 投票 ‑> 精修的策略（num_generations=8 + 众数投票）。
-   • 不再关注
-   – 语言流畅度/用词：奖励里没有相应项。
-   – 训练集 LIMO 里的叙述风格（如果在奖励里没加 BLEU/Rouge）。
-
-
-
-在两阶段训练中：
-
-1. SFT **主要** 把模型往“格式正确 + 推理语气自然”方向拉；
-   在真值层面，由于 LIMO 的答案和 GSM8K 不重叠，加的数值知识有限。
-2. GRPO 不仅训练数学，还继续用 `fmt_reward` 维持格式；
-   如果把格式奖励权重调成 0，格式率会显著下降。
-3. SFT 阶段也会略提升数学（因为 LIMO 题目是算数题），只是提升幅度小；
-   GRPO 阶段才用 3 500 条 GSM8K + 180 步强化专门优化数字。
-4. 最终格式 90 %+ 依然是两阶段共同作用的结果——SFT 给起点，GRPO 用奖励守住。
-
-
-
-两阶段原始数据集字段如下：
-
-| 数据集                            | question | solution | answer            | 其它 |
-| --------------------------------- | -------- | -------- | ----------------- | ---- |
-| GAIR/LIMO (SFT 用)                | √        | √        | √                 | —    |
-| openai/gsm8k (main) (GRPO & 评测) | √        | —        | √（含 “#### 72”） | —    |
-
-训练脚本脚本 map 之后变成如下格式：
-
-| 阶段                         | 产生列     | 字段内容                                                     | 来自原始列                   | 说明 / 用途                                  |
-| ---------------------------- | ---------- | ------------------------------------------------------------ | ---------------------------- | -------------------------------------------- |
-| SFT (`get_limo`)             | prompt     | question + `<reasoning>` + **solution** + `</reasoning>` + `<answer>` + answer + `</answer>` | question / solution / answer | 教模型写模板与推理文字                       |
-|                              | completion | `""` (空串手动补)                                            | —                            | 设 `completion_only_loss=False`，CE 覆盖整串 |
-| GRPO (`get_gsm8k_questions`) | prompt     | SYSTEM_PROMPT ⏎ question （**无标签、无答案**）              | question                     | 作为 RL 生成起点                             |
-|                              | answer     | 纯数字 72 （由 `split("####")[1]` 提取）                     | answer                       | 属于真值，供 cor_reward 比对                 |
-
-这样便于核对：
-• LIMO 的 `solution` 被嵌入 prompt → 模型在 SFT 时学习；
-• GSM8K 的 `answer` 纯数字保留，供 GRPO 奖励使用；
-• LIMO 的 `answer` 在 SFT 时只是模板演示，不参与 RL。
-
-### SFT中的训练格式解释
-
-如上一段内容解释，SFT map后的训练语料并没有completion字段。
-
-在 SFTConfig训练代码里设置了
+无论 reward 来源是哪一种，**群组优势只是后处理**：
 
 ```
-completion_only_loss=False
+┌─────────┐   ┌────────────┐
+生成 N 个候选 → │ Reward  │ → │ group mean │ → Advantage
+                 └─────────┘   └────────────┘
 ```
 
-这表示“不要只对 completion 计算损失，而是对整条 prompt 进行 teacher-forcing”。在这种模式下，SFTTrainer 并不需要单独的 completion 字段——只要有一列 `prompt` 含完整参考答案即可。
+------
 
-1. 但 SFTTrainer 源码要求**数据集中必须存在 `completion` 这一列**（无论用不用）。为了省事就补了空 字符串占位，使得字段齐全、代码不报错。
-2. 为什么不把 answer 放进 `completion`？
-   如果我们设 `completion_only_loss=True`，那就需要把 `<answer>25</answer>` 部分挪到 completion，让 prompt 只包含系统提示 + question + `<reasoning>…</reasoning>`。
-   当前脚本选用整串 CE 方式，所以 completion 留空即可。
+**假设一个场景**：
 
-简而言之：
-– `completion=""` 是**占位**；
-– 真正的教师文本（含 solution 和 answer）已经在 `prompt` 里，交叉熵对整串计算，所以不会损失任何监督信息。
+你给同样一个问题，让你的AI模型连续生成了好几个答案（比如4个候选方案）。
+然后你对这4个答案逐个打个分：好的答案分数高，不好的答案分数低。
 
-### SFT训练损失函数的构建
+现在问题来了：如何引导模型变得更聪明呢？很简单：
 
- 三种 构建SFT 损失函数方案
+------
 
-| 方案                    | prompt 内容                       | completion 内容                               | 交叉熵作用范围     | 优点                                            | 潜在副作用                                                   |
-| ----------------------- | --------------------------------- | --------------------------------------------- | ------------------ | ----------------------------------------------- | ------------------------------------------------------------ |
-| A 整串 CE (当前脚本)    | 系统提示＋题干＋reasoning＋answer | 空串 ""                                       | 全部 token         | 1. 格式 & 语言一次性学完<br>2. 梯度稠密，收敛快 | 1. 数字 token 只占几步，权重被稀释<br>2. 容易过拟合冗长 COT  |
-| B 仅 `<answer>` CE      | 系统提示＋题干＋reasoning         | `<answer>25</answer>`                         | answer 部分        | 1. 数值权重高，目标集中                         | 1. reasoning 无监督，质量全靠自发<br>2. 格式只约束 answer 标签 |
-| C reasoning + answer CE | 系统提示＋题干                    | `<reasoning>…</reasoning><answer>25</answer>` | reasoning + answer | 1. COT 与数字都有监督<br>2. prompt 更短，显存省 | 1. 格式仍要自己生成 `<answer>` 头标签<br>2. 题干与 COT 之间缺乏直接 token 连接，梯度较稀疏 |
+ **GRPO的处理方式（用一个例子解释）**：
 
-把 COT + answer 全放到 completion（方案 C）会发生什么？
+- 首先，我们每个回合生成多个答案，这些答案是一个“群组(group)”，也就是"一轮回答"。
+- 给所有答案打个分（比如：第一个成绩80，第二个60，第三个90，第四个70）。
+- 然后算一下这一组答案的**平均得分**。比如算出来平均价是75分。
 
-1. prompt 只剩 “系统提示 + 题干”，长度变短 → 同批显存更低；
-2. model 在训练时只要“读题干 → 预测 reasoning+answer”，
-   形成经典的 **Instruction → Target** 教师强制结构；
-3. 优势
-   • 数字与 reasoning token 都在 loss 中，权重不被系统提示稀释；
-   • prompt 更短，长题目不易溢出 `max_seq_length`。
-4. 可能副作用
-   • 如果 `<reasoning>` 很长，占用了 90 % 的 loss，数字又被稀释；
-   • 需要保证 `<reasoning>` 首 token 可由题干直接预测，
-   否则梯度稀疏（题干→<reasoning> 标签 gap）；
-   • 格式标签 `<answer>` 仍在 completion 内，CE 会学到，但如果生成时 Temperature>0，模型还是可能漏标签，需要 RL 或格式奖励二次约束。
+ **这个平均分，其实可以简单理解为当前这个模型的“平均水平”，也就是在这个问题/情况里面模型平时能达到的表现，我们称为“基线”或baseline。**
 
-如何选择？
+- 接下来就很好理解了：我们每个方案的得分，去和这个“平均水平”比较一下：
+  - 第一个答案是80分，平均是75分，说明方案很好，超过平均了。那么，下次就要更多地鼓励模型产生类似于第一个方案的答案（提高概率）。
+  - 第二个答案是60分，低于75的平均分，代表比平常差了，下次就要少生产这样的方案，给的概率低一点。
+  - 第三个答案90分，那非常好，比均值高很多，下次要显著增加出现类似方案的概率;
+  - 第四个70分，比75分平均值差一些，也是会稍微降低一点概率。
 
-| 目标                                                | 推荐方案                          | 原因                                         |
-| --------------------------------------------------- | --------------------------------- | -------------------------------------------- |
-| 想快速让模型生成“整段 推理＋答案”，对语言质量要求高 | 整串 CE（方案 A）                 | 梯度稠密、格式稳                             |
-| 只在乎最后数字准确率，推理可忽略                    | answer-only CE（方案 B）+ 后续 RL | 数值权重集中                                 |
-| 既要推理文本、又想让数字权重更高（数据集大）        | reasoning+answer CE（方案 C）     | Prompt 短、两类 token 都被监督，但需多 epoch |
-
-在我们当前“小数据、 1 epoch”的设置下，整串 CE 提供最稠密梯度；如果未来扩充 LIMO 到数万条并跑多 epoch，可以考虑方案 C，并在 RL 阶段继续用格式奖励守护模板，以获得更高数值准确率且不过拟合冗长 COT。
-
-如果改成方案 C——把整个
-
-```
-<reasoning>……</reasoning><answer>……</answer>
-```
-
-都放进 completion，只让交叉熵监督这段文本，**但增加一个格式类奖励仍然是最稳妥的做法**。理由与操作要点如下。
-• 方案 C 把 COT+答案放在 completion 后，模型**有潜力**更关注数值，但仍可能在生成时漏标签；
-• 保留一个(或低权重)的 **fmt_reward** 作为安全带是最保险的配置；
-• 可根据任务需要把格式奖励权重动态调低或改成惩罚式，以兼顾准确率与模板稳定性。
+用这种方法，每次都生产多个方案后“看一眼周围方案的平均水平”，就知道“自己这次到底是进步了还是退步了”。
+而每次都用“进步的还是退步了”来决定下次的升级。
 
 
 
-## 设计欠佳奖励函数（优化前的奖励函数）
+## TRL SFT+GRPO训练qwen模型
 
-在强化学习训练中，**答案正确性的判断**通常通过**自动化脚本**实现，而非依赖人工标注的表格。以下是具体实现逻辑。
+在本小节中，我们展示一个例子，先进行SFT，再进行GRPO。
 
-##### **1. 格式奖励函数（`format_reward_func`）**
+### **SFT 阶段（监督微调）**
 
-**目标**
+• 数据集
 
-确保模型输出符合预设的XML标签结构 `<reasoning>...</reasoning><answer>...</answer>`。
+- HF Hub：`unsloth/OpenMathReasoning-mini`
+- split：`"cot"`（带模型生成的 chain-of-thought）
 
-**代码实现**
+• 使用的字段
+
+| 列名                 | 示例                        | 用途                             |
+| -------------------- | --------------------------- | -------------------------------- |
+| `problem`            | “Given √(x²+165) − … = 7 …” | 题干                             |
+| `expected_answer`    | `14`                        | 数值答案（必须能 cast 为 float） |
+| `generated_solution` | `<think> … </think>`        | 思路文本                         |
+
+其它列（`problem_type`, `pass_rate_72b_tir` 等）在代码中未被引用。
+
+• 构造对话（chat_template）
 
 ```
-import re
-
-def format_reward_func(completions, **kwargs):
-    """检查输出是否符合XML标签格式"""
-    pattern = r"^<reasoning>[\s\S]*?<\/reasoning>\s*<answer>[\s\S]*?<\/answer>$"
-    responses = [completion[0]["content"] for completion in completions]
-    rewards = [1.0 if re.match(pattern, response) else 0.0 for response in responses]
-    return rewards
+system    : 固定 system_prompt
+user      : {problem}
+assistant : <start_working_out>{thoughts}<end_working_out>
+            <SOLUTION>{expected_answer}</SOLUTION>
 ```
 
-**逻辑解析**
 
-- **正则表达式匹配**：
-  使用正则表达式 `r"^<reasoning>[\s\S]*?<\/reasoning>\s*<answer>[\s\S]*?<\/answer>$"` 严格检查输出是否包含完整的 `<reasoning>` 和 `<answer>` 标签，且顺序正确。
-- **奖励分配**：
-  符合格式则奖励 **1.0 分**，否则 **0.0 分**。
 
-**2. 正确性奖励函数（`correctness_reward_func`）**
+其中
+`thoughts = generated_solution` 去掉包裹的 `<think>…</think>` 标签。
 
-**目标**
-
-验证模型输出的数值答案是否与标准答案一致。
-
-**代码实现**
+• 生成训练文本
 
 ```
-def correctness_reward_func(completions, answer, **kwargs):
-    """检查答案是否正确"""
-    responses = [completion[0]["content"] for completion in completions]
-    extracted_responses = [extract_last_xml_answer(response) for response in responses]
-    rewards = [
-        2.0 if extracted == correct else 0.0
-        for extracted, correct in zip(extracted_responses, answer)
-    ]
-    return rewards
+tok.apply_chat_template(messages, tokenize=False)
 ```
 
-**依赖函数 `extract_last_xml_answer`**
+
+
+得到完整 prompt+answer 作为 LM 监督目标。
+
+• 过滤 / 采样
+
+1. 若 `expected_answer` 不能转成 `float` → 丢弃该行。
+2. 若传参 `--sft_sample_frac<1` → 再随机下采样。
+
+• 训练目标
+标准因果语言模型 loss；此阶段 **不** 用奖励函数。
+
+### **GRPO 阶段（RL fine-tune）**
+
+• 数据集
+
+- HF Hub：`open-r1/DAPO-Math-17k-Processed`
+- configuration `"en"`, split `"train"`
+
+• 使用的字段
+
+| 列名       | 示例（截取）                      | 用途                   |
+| ---------- | --------------------------------- | ---------------------- |
+| `prompt`   | “In △ABC, sin∠A = 4/5 … 求 a+b+c” | 题干                   |
+| `solution` | `34`                              | 真实数值答案（字符串） |
+
+其余列（`data_source`, `ability`, …）均不参与训练。
+
+• 对话模板
 
 ```
-def extract_last_xml_answer(response):
-    """从XML标签中提取答案（若格式错误，则取最后一个数字）"""
-    try:
-        # 尝试解析XML标签
-        answer = re.search(r"<answer>(.*?)</answer>", response).group(1).strip()
-        return answer
-    except:
-        # 格式错误时，提取最后一个数字
-        numbers = re.findall(r"\d+\.?\d*", response)
-        return numbers[-1] if numbers else ""
+system : 固定 system_prompt
+user   : {prompt}
+# assistant 留空，由模型生成
 ```
 
-#### **逻辑解析**
 
-- **答案提取**：
-  优先从 `<answer>` 标签中提取答案；若标签缺失或格式错误，则提取输出中的最后一个数字。
-- **奖励分配**：
-  答案与标准答案一致则奖励 **2.0 分**，否则 **0.0 分**。
 
-**3. 总奖励计算**
+调用 `tok.apply_chat_template(..., add_generation_prompt=True)`
+→ 模板末尾自动附 `<start_working_out>`，作为模型生成起点。
 
-- **总分范围**：`0.0 ~ 3.0`
-  总奖励（`1.0`） + 正确性奖励（`2.0`）。
-- **归一化处理**：
-  GRPO算法会对组内奖励进行相对归一化（组内个体奖励减去组平均奖励），以平衡探索与利用。
+• 数据过滤
 
-**关键设计考量**
+1. 渲染后仅含 prompt 的 token 数 ≤ `max_prompt_length`(≈ seq_len/2) 才保留；
+2. 目的是保证再生成 ≤ `max_completion_length` token 时总长不超 context 窗口。
 
-1. **格式与正确性的权重**
-   正确性奖励（2.0）权重高于格式奖励（1.0），体现“答案正确性优先于格式”的设计原则。
-2. **容错机制**
-   即使格式错误，仍尝试提取最后一个数字作为答案，避免因格式问题完全丢弃有效答案。
-3. **正则表达式严格性**
-   格式检查使用严格匹配（`^...$`），确保标签闭合且无多余内容，强制模型学习结构化输出。
-
-## 奖励函数优化思路
-
- 奖励函数优化主要包含：
-
-1.细化奖励分值
-
-2.增加群组投票
-
-数字奖励 cor_reward （0 / 1 / 2 分） 
+• 保存到 RL 训练集的字段
 
 ```
-XML_RE  = re.compile(r"<answer>(.*?)</answer>", re.S)
-_num    = lambda x: re.sub(r"[%$,]", "", x).strip()
+{"prompt": messages_list,   # list[dict]
+ "answer": solution.strip()}
+```
 
-def _extract_nums(text: str):
-    return [_num(m) for m in XML_RE.findall(text)]
 
-def cor_reward(completions, **kw):
-    answers = kw.get("answer") or kw.get("answers") or []
-    rewards = []
 
-    for cand_list, gt in zip(completions, answers):
-        # 1) 收集 8 条回答里的所有 <answer>…</answer> 数字
-        nums = [
-            n
-            for c in cand_list
-            for n in _extract_nums(c["content"])
-        ]
+• 采样参数（SamplingParams）
 
-        # 2) 若一个数字都没抓到 → 直接 0 分
-        if not nums:
-            rewards.append(0.0)
+```
+temperature = 0.7
+top_p       = 0.9
+max_tokens  = 256
+stop        = ["</SOLUTION>", tok.eos_token]
+num_generations = 4   # 默认，可用 CLI 调整
+```
+
+GRPO奖励函数优化：
+
+`reward_format_exact` (格式奖励)
+
+| 对比维度            | 原始版                                 | **渐进式版本**（当前有效）                     |
+| ------------------- | -------------------------------------- | ---------------------------------------------- |
+| 初始得分基线        | -2                                     | **0**（更温和，有效鼓励模型输出标签）          |
+| 标签存在奖励        | 每标签 +1 (但基于 -2 基线，很容易负分) | 每标签 +1 (**基于 0 起步，更易正分；最多+4**)  |
+| 缺标签惩罚          | 起始即 -2，下限较低                    | 无额外惩罚（仅不给分，不再额外惩罚）           |
+| `reasoning`长度要求 | 至少 10 个词，否则 -1                  | **至少 6 个词** (要求较低，早期更易满足)       |
+| 得分范围裁剪        | 无显式裁剪                             | 限制在 [-2, +4] (避免极端偏离)                 |
+| 典型分布            | -2 ~ 0，持续负分                       | **+1 ~ +2 稳定正分**                           |
+| 设计目的            | 严格惩罚缺失标签，几乎无正反馈         | **快速鼓励标签格式，加强正激励，稳定梯度信号** |
+
+`reward_answer` (数值答案奖励)
+
+| 对比维度                   | 原始版                                 | **渐进式版本**（当前有效）                           |
+| -------------------------- | -------------------------------------- | ---------------------------------------------------- |
+| 无法匹配`<SOLUTION>`标签块 | -4                                     | **-1** (惩罚柔和，更易纠正)                          |
+| 提取数字失败 (无法解析)    | -2                                     | **-1**                                               |
+| 数字解析成功 & 完全正确    | +8                                     | **+8**（未改动）                                     |
+| 数字解析成功 & 近似正确    | 无（只有完全正确才有奖励）             | **+4** (新增奖励项：误差<1% 或 <1e-2 即可得分)       |
+| 数字解析成功 & 不够准确    | -2 (严厉惩罚)                          | **0** (不给奖但也不罚，用于推进模型收敛)             |
+| 奖励值典型分布             | 离散 {-4, -2, +8} 且极其稀疏，多数为负 | **密集，并具备明确路径** {-1, 0, +4, +8}             |
+| 设计目的                   | 一刀切，难以提供有效梯度               | **提供多等级奖励**：先鼓励解析数字，再逐渐逼近准确值 |
+
+| 训练阶段        | 原始版本效果                             | **渐进式版本**（当前有效）效果                               |
+| --------------- | ---------------------------------------- | ------------------------------------------------------------ |
+| 早期(0~200步)   | 总reward≈ -5，几乎无正奖励，难以有效训练 | **总reward约0.3~1.0，明显正奖励，更易于策略梯度推进**        |
+| 中期(200~800步) | 标签可能学到，但总体仍是负奖励居多       | **开始得到“近似答案”奖励(+4)，总reward稳步提高**             |
+| 后期(>1000步)   | 少数样本+8，多数仍负，总reward低迷不前   | **reward_answer稳居0或正值区域，总reward轻易突破2+，稳步提高** |
+
+## 代码展示
+
+### 环境准备
+
+```
+# 1. 创建新的虚拟环境
+python3 -m venv grpo-env
+
+# 2. 激活虚拟环境
+source grpo-env/bin/activate
+
+# 3. 升级pip并安装环境依赖(从导出的requirements.txt)
+pip install --upgrade pip
+pip install -r requirements.txt
+
+
+```
+
+运行代码
+
+```
+# 纯 GRPO
+python qwen3_grpo_train3.py --grpo_steps 10 --print_every 1 --debug_every 1
+
+# 轻量 SFT(10%) + GRPO
+python qwen3_grpo_train3.py --do_sft --sft_epochs 1 --sft_sample_frac 0.1 \
+       --grpo_steps 10 --print_every 1 --debug_every 1
+       
+# SFT(100%) + GRPO
+python qwen3_grpo_train3.py --do_sft --sft_epochs 1  \
+       --grpo_steps 10 --print_every 1 --debug_every 1
+```
+
+训练中资源利用率：
+
+```
+root@a100vm:~# nvidia-smi
+Mon Jun 23 02:58:48 2025       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 560.35.05              Driver Version: 560.35.05      CUDA Version: 12.6     |
+|-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA A100 80GB PCIe          Off |   00000001:00:00.0 Off |                    0 |
+| N/A   75C    P0            291W /  300W |   41927MiB /  81920MiB |    100%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+                                                                                         
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI        PID   Type   Process name                              GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|    0   N/A  N/A    250025      C   python                                      41910MiB |
++-----------------------------------------------------------------------------------------+
+```
+
+主代码：
+
+```
+cat qwen3_grpo_train3.py
+```
+
+```
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+###############################################################################
+# ★ PATCH 0 ───────────────────────────────────────────────────────────────────
+#   允许动态形状，避免 Torch-Inductor “size()[1] is static” 报错
+###############################################################################
+import os, torch
+import torch._dynamo as _td
+_td.config.dynamic_shapes = True
+_td.config.assume_static_by_default = False
+torch.set_float32_matmul_precision("high")     # 可选：让 matmul 用 float32，高速且稳定
+###############################################################################
+
+# -------- stub-wandb ---------------------------------------------------------
+import sys, types, importlib.machinery
+wb = types.ModuleType("wandb")
+wb.__spec__ = importlib.machinery.ModuleSpec("wandb", loader=None)
+wb.run = None
+for fn in ("init", "login", "finish", "watch", "log", "config"):
+    setattr(wb, fn, lambda *a, **k: None)
+sys.modules["wandb"] = wb
+# ---------------------------------------------------------------------------
+
+# -------- fake-xformers -----------------------------------------------------
+import torch.nn.functional as F, importlib
+xf  = types.ModuleType("xformers")
+ops = types.ModuleType("xformers.ops")
+ops.memory_efficient_attention = (
+    lambda q, k, v, attn_bias=None:
+        F.scaled_dot_product_attention(q, k, v, is_causal=True)
+)
+xf.ops = ops
+attn = types.ModuleType("xformers.attn_bias")
+class BlockDiagonalCausalMask: pass
+attn.BlockDiagonalCausalMask = BlockDiagonalCausalMask
+xf.attn_bias = attn
+sys.modules.update({
+    "xformers": xf,
+    "xformers.ops": ops,
+    "xformers.attn_bias": attn,
+})
+uq = importlib.import_module("unsloth.models.qwen3")
+uq.xformers, uq.xformers_attention = xf, ops.memory_efficient_attention
+# ---------------------------------------------------------------------------
+
+import argparse, gc, math, re, warnings, collections, numpy as np, pandas as pd
+from datasets           import load_dataset, Dataset
+from unsloth            import FastLanguageModel
+from vllm               import SamplingParams
+from trl                import SFTTrainer, SFTConfig, GRPOTrainer, GRPOConfig
+from transformers       import TrainerCallback
+warnings.filterwarnings("ignore")
+
+# ---------- CLI ----------
+def get_args():
+    p = argparse.ArgumentParser()
+    p.add_argument("--base_model",      default="unsloth/Qwen3-4B-Base")
+    p.add_argument("--max_seq_len",     type=int, default=2048)
+    p.add_argument("--lora_rank",       type=int, default=16)
+    p.add_argument("--batch_size",      type=int, default=4)
+    p.add_argument("--num_gen",         type=int, default=4)
+    p.add_argument("--do_sft",          action="store_true")
+    p.add_argument("--sft_epochs",      type=int, default=0)
+    p.add_argument("--sft_sample_frac", type=float, default=1.0)
+    p.add_argument("--grpo_steps",      type=int, default=300)
+    p.add_argument("--print_every",     type=int, default=10)
+    p.add_argument("--debug_every",     type=int, default=1)
+    p.add_argument("--save_dir",        default="outputs")
+    # ★ 让 fast_inference CLI 可控（训练期建议关闭）
+    p.add_argument("--fast_inference",  action="store_true")
+    return p.parse_args()
+
+# ---------- Prompt ----------
+reasoning_start, reasoning_end = "<start_working_out>", "<end_working_out>"
+solution_start,  solution_end  = "<SOLUTION>", "</SOLUTION>"
+system_prompt = (
+    "You are given a problem. Show reasoning between "
+    f"{reasoning_start} and {reasoning_end}. Then give the final numeric answer "
+    f"between {solution_start}{solution_end}"
+)
+
+############## ★ ChatTemplate 修改 开始 ★ -----------------------------
+def chat_template():
+    return (
+        "{% for m in messages %}"
+        "{% if m['role']=='system' %}"
+        "<|system|>{{ m['content'] }}<|end|>"
+        "{% elif m['role']=='user' %}"
+        "<|user|>{{ m['content'] }}<|end|>"
+        "{% elif m['role']=='assistant' %}"
+        "<|assistant|>{{ m['content'] }}<|end|>"
+        "{% endif %}{% endfor %}"
+        "{% if add_generation_prompt %}"
+        "<|assistant|>{{ '" + reasoning_start + "' }}"
+        "{% endif %}"
+    )
+############## ★ ChatTemplate 修改 结束 ★ -----------------------------
+
+# ---------- reward ----------
+############## ★ Reward-Patch 开始 -----------------------------------
+import sympy as sp
+sol_re = re.compile(
+    re.escape(solution_start) + r"\s*([^<\n ]+?)\s*" + re.escape(solution_end),
+    re.I | re.S,
+)
+
+def _safe_float(x: str):
+    x = x.strip()
+    if re.fullmatch(r"-?\d+(?:\.\d+)?(?:e[+-]?\d+)?", x, re.I):
+        try: return float(x)
+        except Exception: pass
+    try: return float(sp.N(sp.sympify(x)))
+    except Exception: return None
+
+# ---------- 参数 ----------
+CORRECT_BONUS     = 8.0    # 完全正确
+CLOSE_BONUS       = 4.0    # 误差 <1% or <1e-2
+NEAR_BONUS        = 0.0    # 可解析但不够准
+PENALTY_NO_NUM    = -1.0   # 解析失败
+MIN_REASON_TOKENS = 6
+
+# ---------- 格式奖励 ----------
+def reward_format_exact(completions, min_reason_tokens: int = MIN_REASON_TOKENS, **_):
+    scores = []
+    for comp in completions:
+        txt   = comp[0]["content"]
+        score = 0.0
+        for tag in (reasoning_start, reasoning_end, solution_start, solution_end):
+            if tag in txt:
+                score += 1.0                     # 每个标签 +1
+        if reasoning_start in txt and reasoning_end in txt:
+            span = re.search(re.escape(reasoning_start) + r"(.*?)"
+                             + re.escape(reasoning_end), txt, re.S)
+            if span and len(span.group(1).strip().split()) < min_reason_tokens:
+                score -= 1.0                     # reasoning 太短 −1
+        score = max(-2.0, min(4.0, score))       # 裁剪
+        scores.append(score)
+    return scores
+
+# ---------- 答案奖励 ----------
+def reward_answer(prompts, completions, answer, **_):
+    outs = []
+    for comp, true_ans in zip(completions, answer):
+        m = sol_re.search(comp[0]["content"])
+        if not m:
+            outs.append(PENALTY_NO_NUM)
             continue
+        pred = _safe_float(m.group(1))
+        true = _safe_float(true_ans)
+        if pred is None or true is None:
+            outs.append(PENALTY_NO_NUM)
+            continue
+        if math.isclose(pred, true, rel_tol=1e-4, abs_tol=1e-4):
+            outs.append(CORRECT_BONUS)
+        elif math.isclose(pred, true, rel_tol=1e-2, abs_tol=1e-2):
+            outs.append(CLOSE_BONUS)
+        else:
+            outs.append(NEAR_BONUS)
+    return outs
+############## ★ Reward-Patch 结束 -----------------------------------
 
-        # 3) 群组投票：出现次数最多的数字
-        vote = Counter(nums).most_common(1)[0][0]
+# ---------- Debug ----------
+def make_debug(freq, num_gen):
+    step = {"i": 0}
+    def _dbg(prompts=None, completions=None, answer=None, **_):
+        step["i"] += 1
+        if step["i"] % freq:
+            return [0.0] * len(completions)
 
-        # 4) 评分：完全对 +2，差 1 +1，其余 0
-        diff = abs(int(vote) - int(gt)) if vote.isdigit() and gt.isdigit() else 999
-        if   diff == 0: rewards.append(2.0)
-        elif diff == 1: rewards.append(1.0)
-        else:           rewards.append(0.0)
+        fmt = reward_format_exact(completions)
+        ans = reward_answer(prompts, completions, answer)
+        tot = [f + a for f, a in zip(fmt, ans)]
 
-    return rewards
+        total_comps = len(completions)
+        for p_idx, prompt in enumerate(prompts):
+            start = p_idx * num_gen
+            end   = min(start + num_gen, total_comps)
+            print("=" * 110)
+            print("PROMPT :", prompt)
+            print("TARGET :", answer[p_idx])
+            for j, (cnd, f, a, t) in enumerate(
+                    zip(completions[start:end], fmt[start:end], ans[start:end], tot[start:end])):
+                print(f"[Cand {j}] fmt={f:+.1f} ans={a:+.1f} tot={t:+.1f}")
+                print(cnd[0]["content"][:400], "...\n")
+        return [0.0] * len(completions)
+    return _dbg
+
+# ---------- Advantage ----------
+class AdvantageCallback(TrainerCallback):
+    def __init__(self, a=0.1, w=100):
+        self.a = a; self.base = None; self.buf = collections.deque(maxlen=w)
+    def on_train_batch_end(self, args, state, control, logs=None, **__):
+        if not logs or "reward" not in logs: return
+        r = logs["reward"]
+        self.base = r if self.base is None else (1 - self.a) * self.base + self.a * r
+        self.buf.append(r)
+        succ = sum(x > 0 for x in self.buf) / len(self.buf)
+        print(f"[{state.global_step:>4}] reward={r:+.2f} "
+              f"base={self.base:+.2f} adv={r - self.base:+.2f} succ={succ:.3f}")
+
+# ---------- dataset helpers ----------
+def build_messages(prob, ans=None, thoughts=None):
+    msgs = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user",   "content": prob},
+    ]
+    if ans and thoughts:
+        msgs.append({"role": "assistant", "content":
+                     reasoning_start + thoughts + reasoning_end +
+                     solution_start + ans + solution_end})
+    return msgs
+
+def load_sft_dataset(tok, frac):
+    ds = load_dataset("unsloth/OpenMathReasoning-mini", split="cot")
+    df = ds.to_pandas()
+    df = df[pd.to_numeric(df["expected_answer"], errors="coerce").notnull()]
+    df["Messages"] = df.apply(lambda r: build_messages(
+        r["problem"],
+        r["expected_answer"],
+        r["generated_solution"].replace("<think>", "").replace("</think>", "").strip()
+    ), axis=1)
+    df["text"] = tok.apply_chat_template(df["Messages"].tolist(), tokenize=False)
+    if 0 < frac < 1:
+        df = df.sample(frac=frac, random_state=42).reset_index(drop=True)
+    return Dataset.from_pandas(df[["text"]])
+
+def load_main_dataset(tok, max_prompt):
+    ds = load_dataset("open-r1/DAPO-Math-17k-Processed", "en", split="train")
+    ds = ds.map(lambda r: {"prompt": build_messages(r["prompt"]),
+                           "answer": r["solution"].strip()})
+    lens = ds.map(lambda r: {"L": len(tok.apply_chat_template(
+        r["prompt"], tokenize=True, add_generation_prompt=True))})
+    keep = np.where(np.array(lens["L"]) <= max_prompt)[0]
+    return ds.select(keep)
+
+# ---------- main ----------
+def main():
+    args = get_args()
+
+    model, tok = FastLanguageModel.from_pretrained(
+        args.base_model,
+        max_seq_length=args.max_seq_len,
+        load_in_4bit=False,
+        fast_inference=args.fast_inference,   # 训练期默认 False
+    )
+    model = FastLanguageModel.get_peft_model(
+        model,
+        r=args.lora_rank,
+        use_gradient_checkpointing="unsloth",
+        target_modules=[
+            "q_proj", "k_proj", "v_proj", "o_proj",
+            "gate_proj", "up_proj", "down_proj",
+        ],
+    )
+    tok.chat_template = chat_template()
+
+    # ----- Stage 1 : SFT -----------------------------------------------------
+    if args.do_sft and args.sft_epochs > 0:
+        print(">>> Stage 1 (SFT)")
+        sft_ds = load_sft_dataset(tok, args.sft_sample_frac)
+        SFTTrainer(
+            model=model,
+            tokenizer=tok,
+            train_dataset=sft_ds,
+            args=SFTConfig(
+                per_device_train_batch_size=args.batch_size,
+                num_train_epochs=args.sft_epochs,
+                logging_steps=args.print_every,
+                output_dir=os.path.join(args.save_dir, "sft"),
+                report_to="none",
+            ),
+        ).train()
+        del sft_ds; gc.collect(); torch.cuda.empty_cache()
+
+    # ----- Stage 2 : GRPO ----------------------------------------------------
+    print(">>> Stage 2 (GRPO)")
+    train_ds = load_main_dataset(tok, args.max_seq_len // 2 - 1)
+    gcfg = GRPOConfig(
+        vllm_sampling_params=SamplingParams(
+            max_tokens  = 768,
+            temperature = 0.7,
+            min_p       = 0.05,
+            top_p       = 0.9,
+            top_k       = -1,
+            stop        = ["</SOLUTION>", tok.eos_token],
+        ),
+        learning_rate               = 5e-6,
+        per_device_train_batch_size = args.batch_size,
+        gradient_accumulation_steps = 2,
+        num_generations             = args.num_gen,
+        generation_kwargs           = {},
+        max_prompt_length           = args.max_seq_len // 2,
+        max_completion_length       = 768,
+        max_steps                   = args.grpo_steps,
+        logging_steps               = args.print_every,
+        output_dir                  = os.path.join(args.save_dir, "grpo"),
+        report_to                   = "none",
+    )
+    dbg_fn = make_debug(args.debug_every, args.num_gen)
+    GRPOTrainer(
+        model=model,
+        args=gcfg,
+        train_dataset=train_ds,
+        processing_class=tok,
+        reward_funcs=[dbg_fn, reward_format_exact, reward_answer],
+        callbacks=[AdvantageCallback()],
+    ).train()
+
+    out_dir = os.path.join(args.save_dir, "qwen3_grpo_f16")
+    model.save_pretrained_merged(out_dir, tok, save_method="merged_16bit")
+    print("Model saved to", out_dir)
+
+if __name__ == "__main__":
+    main()
 ```
 
-详细步骤
-
-1. `_extract_nums()`
-   • 用正则在单条回答文本里找所有 `<answer>…</answer>`；
-   • `_num()` 去掉 `$ % ,` 等符号，得纯数字字符串。
-
-2. 组内投票（majority vote）
-
-   ```
-   vote = Counter(nums).most_common(1)[0][0]
-   ```
-
-   – 把 8 条回答汇总得到的数字列表 `nums` 做统计；
-   – 选出现频率最高的那一个（若并列，Counter 取第一出现）。
-   投票的好处：
-   • 抑制偶然的随机数；
-   • 让模型有动力让多个回答趋向一致＝正确数值。
-   
-3. 分级奖励
-   diff = |vote - ground_truth|
-   – diff == 0 → +2 （完全正确）
-   – diff == 1 → +1 （只差 1，也给部分梯度）
-   – else     → 0 （远离真值）
-   这样 early 训练阶段更容易拿到非零 reward，梯度稠密，KL 更平滑。
-
-输出示例
+执行代码：
 
 ```
-batch_size = 8
-cor_reward → [2,1,0,2,0,1,0,2]
-fmt_reward → [1,1,0,1,1,1,0,1]
-total_reward → [3,2,0,3,1,2,0,3]
+python qwen3_grpo_train3.py --do_sft --sft_epochs 2 --sft_sample_frac 0.3        --grpo_steps 1500 --print_every 1 --debug_every 1
 ```
 
-新旧奖励函数对比：
+### 输出日志
 
-|          | 旧版 cor_reward   | 新版 cor_reward (群组投票+部分分) |
-| -------- | ----------------- | --------------------------------- |
-| 采样数目 | 只看第 1 条回答   | 利用 8 条回答，众数投票           |
-| 评分标准 | 完全对 +2，否则 0 | 完全对 +2；差 1 +1；其余 0        |
-| 梯度稀疏 | 早期大量 0 分     | 早期平均 reward 即可达 1.0+       |
-| 格式耦合 | 无                | 格式奖励独立；数字奖励看所有回答  |
+**SFT部分：**
 
-结果：
-• fmt_reward_mean 更快爬到 0.9；
-• cor_reward_mean 抬到 ~1.2（≈30% 完全对 + 35% 差 1）；
-• KL 控制在 <0.2，训练稳定；
-• 总 reward 1.8→2.1 左右，比旧版提升约 10 %。
+```
+                  
+Unsloth: Will smartly offload gradients to save VRAM!
+{'loss': 5.049, 'grad_norm': 5.871884822845459, 'learning_rate': 1.5517241379310346e-05, 'epoch': 0.04}                                    
+{'loss': 5.035, 'grad_norm': 4.054188251495361, 'learning_rate': 3.275862068965517e-05, 'epoch': 0.07}                                     
+{'loss': 4.8262, 'grad_norm': 2.4719009399414062, 'learning_rate': 5e-05, 'epoch': 0.11}                                                   
+{'loss': 4.7365, 'grad_norm': 2.757535219192505, 'learning_rate': 4.8023715415019764e-05, 'epoch': 0.14}                                   
+{'loss': 4.6785, 'grad_norm': 2.8016738891601562, 'learning_rate': 4.6047430830039526e-05, 'epoch': 0.18}                                  
+{'loss': 4.4305, 'grad_norm': 2.8772475719451904, 'learning_rate': 4.4071146245059295e-05, 'epoch': 0.21}                                  
+{'loss': 4.4872, 'grad_norm': 2.811475992202759, 'learning_rate': 4.2094861660079056e-05, 'epoch': 0.25}                                   
+{'loss': 4.3822, 'grad_norm': 2.986164093017578, 'learning_rate': 4.011857707509882e-05, 'epoch': 0.28}                                    
+{'loss': 4.3252, 'grad_norm': 2.5526695251464844, 'learning_rate': 3.814229249011858e-05, 'epoch': 0.32}                                   
+{'loss': 4.3279, 'grad_norm': 2.428365468978882, 'learning_rate': 3.616600790513834e-05, 'epoch': 0.36}                                    
+{'loss': 4.3078, 'grad_norm': 2.2488532066345215, 'learning_rate': 3.418972332015811e-05, 'epoch': 0.39}                                   
+{'loss': 4.1978, 'grad_norm': 3.548799753189087, 'learning_rate': 3.221343873517787e-05, 'epoch': 0.43}                                    
+{'loss': 4.2181, 'grad_norm': 3.8040361404418945, 'learning_rate': 3.0237154150197627e-05, 'epoch': 0.46}                                  
+{'loss': 4.1293, 'grad_norm': 4.392674446105957, 'learning_rate': 2.826086956521739e-05, 'epoch': 0.5}                                     
+{'loss': 4.1721, 'grad_norm': 3.599053144454956, 'learning_rate': 2.6284584980237154e-05, 'epoch': 0.53}                                   
+{'loss': 4.2151, 'grad_norm': 3.1774587631225586, 'learning_rate': 2.430830039525692e-05, 'epoch': 0.57}                                   
+{'loss': 4.1183, 'grad_norm': 6.937793254852295, 'learning_rate': 2.233201581027668e-05, 'epoch': 0.6}                                     
+{'loss': 4.2293, 'grad_norm': 3.1631808280944824, 'learning_rate': 2.0355731225296443e-05, 'epoch': 0.64}                                  
+{'loss': 4.1986, 'grad_norm': 4.193361282348633, 'learning_rate': 1.8379446640316205e-05, 'epoch': 0.67}                                   
+{'loss': 4.151, 'grad_norm': 2.8155219554901123, 'learning_rate': 1.640316205533597e-05, 'epoch': 0.71}                                    
+{'loss': 4.0768, 'grad_norm': 2.75749135017395, 'learning_rate': 1.4426877470355732e-05, 'epoch': 0.75}                                    
+{'loss': 4.0408, 'grad_norm': 4.365172386169434, 'learning_rate': 1.2450592885375495e-05, 'epoch': 0.78}                                   
+{'loss': 4.0903, 'grad_norm': 2.420175313949585, 'learning_rate': 1.0474308300395258e-05, 'epoch': 0.82}                                   
+{'loss': 4.078, 'grad_norm': 3.8220696449279785, 'learning_rate': 8.49802371541502e-06, 'epoch': 0.85}                                     
+{'loss': 4.0315, 'grad_norm': 4.379420280456543, 'learning_rate': 6.521739130434783e-06, 'epoch': 0.89}                                    
+{'loss': 4.0272, 'grad_norm': 2.9928998947143555, 'learning_rate': 4.5454545454545455e-06, 'epoch': 0.92}                                  
+{'loss': 4.089, 'grad_norm': 4.390590190887451, 'learning_rate': 2.5691699604743086e-06, 'epoch': 0.96}                                    
+{'loss': 4.0856, 'grad_norm': 4.682467937469482, 'learning_rate': 5.928853754940711e-07, 'epoch': 0.99}
+```
+
+SFT日志分析：
+
+起点 ≈ 5.05 → 终点 ≈ 4.03
+• 单位：token-level cross-entropy（对数损失）。
+• 换算 perplexity：exp(5.05)=156 → exp(4.03)=56，下降约 64 %。
+• 对于只训练 280 步、数据量 2.2 k、且 LoRA 只动 0.8 % 参数的场景，这属于“正常下降”。
+
+**GRPO部分**
+
+我们针对一个prompt模型生成了四个答案，然后进行群组优势打分。
+
+```
+PROMPT : [{'content': 'You are given a problem. Show reasoning between <start_working_out> and <end_working_out>. Then give the final numeric answer between <SOLUTION></SOLUTION>', 'role': 'system'}, {'content': 'Let $P_0(x) = x^3 + 313x^2 - 77x - 8$. For integers $n \\ge 1$, define $P_n(x) = P_{n - 1}(x - n)$. What is the coefficient of $x$ in $P_{20}(x)$?', 'role': 'user'}]
+TARGET : 763
+[Cand 0] fmt=+3.0 ans=-1.0 tot=+2.0
+ Let's answer step by step.<start_working_out><SOLUTION>First, let A be the three-digit positive integer. Let x and y be the middle digit and the rightmost digit, respectively. Then the integer A can be calculated as: A=100⋅x+10⋅y+100⋅x+10⋅y+100−100=200⋅x+10⋅y$$Now, we need to calculate B+2 then subtract from C+500, then equals 2014. In easy steps:<start_working_out>(C-D)+(B-D) = 2014(C-D)+(B-D) = ...
+
+[Cand 1] fmt=+0.0 ans=-1.0 tot=-1.0
+ 
+Let's denote the digits of $A$ as $a_2$, $a_1$, and $a_0$ where $a_2$ is the hundreds digit, $a_1$ is the tens digit, and $a_0$ is the units digit. Then we can express $A$ as:
+
+$$A = 100a_2 + 10a_1 + a_0$$
+
+When we interchange the two leftmost digits of $A$ to obtain $B$, we get:
+
+$$B = 100a_1 + 10a_2 + a_0$$
+
+To obtain $C$, we double $B$:
+
+$$C = 2B = 2(100a_1 + 10a_2 + a_0) = 200a_1 + 20a_2 + 2 ...
+
+[Cand 2] fmt=+3.0 ans=+0.0 tot=+3.0
+Let's break down the problem step by step.
+
+1. A three-digit positive integer can be represented as the sum of its digits. However, to make it easier to work with digits individually, let's represent the digits of A as hundreds, tens, and units. Since A is a three-digit number, the hundreds digit (let's call it h), tens digit (let's call it t), and units digit (let's call it u) will range from 1 t ...
+
+[Cand 3] fmt=+2.0 ans=-1.0 tot=+1.0
+Given the sequence of operations we can represent them mathematically as follows:
+
+Let $A$ be the original three-digit integer, so we can express $A$ as $100x + 10y + z$, where $x$, $y$, and $z$ are its digits.
+After interchanging the two leftmost digits to obtain $B$, we get: $B = 100y + 10x + z$.
+
+Then, we'll double $B$ to get $C$: $C = 2B = 2(100y + 10x + z) = 200y + 20x + 2z$.
+
+Subtracting 500 ...
+
+==============================================================================================================
+PROMPT : [{'content': 'You are given a problem. Show reasoning between <start_working_out> and <end_working_out>. Then give the final numeric answer between <SOLUTION></SOLUTION>', 'role': 'system'}, {'content': 'Let $P_0(x) = x^3 + 313x^2 - 77x - 8$. For integers $n \\ge 1$, define $P_n(x) = P_{n - 1}(x - n)$. What is the coefficient of $x$ in $P_{20}(x)$?', 'role': 'user'}]
+TARGET : 763
+==============================================================================================================
+PROMPT : [{'content': 'You are given a problem. Show reasoning between <start_working_out> and <end_working_out>. Then give the final numeric answer between <SOLUTION></SOLUTION>', 'role': 'system'}, {'content': 'Let $P_0(x) = x^3 + 313x^2 - 77x - 8$. For integers $n \\ge 1$, define $P_n(x) = P_{n - 1}(x - n)$. What is the coefficient of $x$ in $P_{20}(x)$?', 'role': 'user'}]
+TARGET : 763
+==============================================================================================================
+PROMPT : [{'content': 'You are given a problem. Show reasoning between <start_working_out> and <end_working_out>. Then give the final numeric answer between <SOLUTION></SOLUTION>', 'role': 'system'}, {'content': 'Start with a three-digit positive integer $A$. Obtain $B$ by interchanging the two leftmost digits of $A$. Obtain $C$ by doubling $B$. Obtain $D$ by subtracting $500$ from $C$. Given that $A + B + C + D = 2014$, fi\x0cnd $A$.', 'role': 'user'}]
+TARGET : 344
+==============================================================================================================
+PROMPT : [{'content': 'You are given a problem. Show reasoning between <start_working_out> and <end_working_out>. Then give the final numeric answer between <SOLUTION></SOLUTION>', 'role': 'system'}, {'content': 'Start with a three-digit positive integer $A$. Obtain $B$ by interchanging the two leftmost digits of $A$. Obtain $C$ by doubling $B$. Obtain $D$ by subtracting $500$ from $C$. Given that $A + B + C + D = 2014$, fi\x0cnd $A$.', 'role': 'user'}]
+TARGET : 344
+==============================================================================================================
+PROMPT : [{'content': 'You are given a problem. Show reasoning between <start_working_out> and <end_working_out>. Then give the final numeric answer between <SOLUTION></SOLUTION>', 'role': 'system'}, {'content': 'Start with a three-digit positive integer $A$. Obtain $B$ by interchanging the two leftmost digits of $A$. Obtain $C$ by doubling $B$. Obtain $D$ by subtracting $500$ from $C$. Given that $A + B + C + D = 2014$, fi\x0cnd $A$.', 'role': 'user'}]
+TARGET : 344
+==============================================================================================================
+PROMPT : [{'content': 'You are given a problem. Show reasoning between <start_working_out> and <end_working_out>. Then give the final numeric answer between <SOLUTION></SOLUTION>', 'role': 'system'}, {'content': 'Start with a three-digit positive integer $A$. Obtain $B$ by interchanging the two leftmost digits of $A$. Obtain $C$ by doubling $B$. Obtain $D$ by subtracting $500$ from $C$. Given that $A + B + C + D = 2014$, fi\x0cnd $A$.', 'role': 'user'}]
+TARGET : 344
+{'loss': 0.0, 'grad_norm': 9.18706226348877, 'learning_rate': 4.175925925925926e-06, 'num_tokens': 1026258.0, 'completions/mean_length': 719.1, 'completions/min_length': 523.6, 'completions/max_length': 768.0, 'completions/clipped_ratio': 0.775, 'completions/mean_terminated_length': 504.56666870117186, 'completions/min_terminated_length': 446.8, 'completions/max_terminated_length': 566.5, 'rewards/_dbg/mean': 0.0, 'rewards/_dbg/std': 0.0, 'rewards/reward_format_exact/mean': 1.0125, 'rewards/reward_format_exact/std': 1.238455241918564, 'rewards/reward_answer/mean': -0.725, 'rewards/reward_answer/std': 0.6270406097173691, 'reward': 0.2875, 'reward_std': 1.6328951716423035, 'frac_reward_zero_std': 0.0, 'completion_length': 719.1, 'kl': 0.0, 'epoch': 0.02}
+{'loss': 0.0, 'grad_norm': 21.152080535888672, 'learning_rate': 4.083333333333334e-06, 'num_tokens': 1093764.0, 'completions/mean_length': 685.975, 'completions/min_length': 407.1, 'completions/max_length': 768.0, 'completions/clipped_ratio': 0.7125, 'completions/mean_terminated_length': 493.8016693115234, 'completions/min_terminated_length': 407.1, 'completions/max_terminated_length': 583.1, 'rewards/_dbg/mean': 0.0, 'rewards/_dbg/std': 0.0, 'rewards/reward_format_exact/mean': 1.6625, 'rewards/reward_format_exact/std': 1.2463318705558777, 'rewards/reward_answer/mean': -0.5125, 'rewards/reward_answer/std': 0.9666869312524795, 'reward': 1.15, 'reward_std': 1.7237172186374665, 'frac_reward_zero_std': 0.0, 'completion_length': 685.975, 'kl': 0.0, 'epoch': 0.02}
+```
+
+推理验证：
+
+推理脚本
+
+```
+#!/usr/bin/env python
+import torch, re, math, argparse
+from transformers import AutoTokenizer, AutoModelForCausalLM
+
+# ----- 常量 -----
+reasoning_start, reasoning_end = "<start_working_out>", "<end_working_out>"
+solution_start,  solution_end  = "<SOLUTION>", "</SOLUTION>"
+system_prompt = ( "You are given a problem. Show reasoning between "
+    f"{reasoning_start} and {reasoning_end}. Then give the final numeric answer "
+    f"between {solution_start}{solution_end}")
+
+def chat_template(msgs):          # 同训练阶段
+    out=[]
+    for m in msgs:
+        role=m["role"]; txt=m["content"]
+        out.append(f"<|{role}|>"+txt+"<|end|>")
+    out.append(f"<|assistant|>{reasoning_start}")   # 生成提示
+    return "".join(out)
+
+def build_messages(problem:str):
+    return [{"role":"system","content":system_prompt},
+            {"role":"user","content":problem}]
+
+# ----- CLI -----
+arg=argparse.ArgumentParser()
+arg.add_argument("--model_dir",default="outputs/qwen3_grpo_f16")
+arg.add_argument("--prompt",required=True)
+a=arg.parse_args()
+
+# ----- load -----
+tok = AutoTokenizer.from_pretrained(a.model_dir, trust_remote_code=True)
+tok.pad_token = tok.eos_token
+model = AutoModelForCausalLM.from_pretrained(
+        a.model_dir, torch_dtype=torch.float16, device_map="auto")
+
+# ----- infer -----
+msgs = build_messages(a.prompt)
+prompt = chat_template(msgs)
+inputs = tok(prompt, return_tensors="pt").to(model.device)
+out = model.generate(**inputs,max_new_tokens=512,temperature=0.0)
+reply = tok.decode(out[0], skip_special_tokens=True).split("<|assistant|>")[-1]
+
+print("\n=== MODEL OUTPUT ===\n"+reply)
+m=re.search(rf"{solution_start}\s*([^<\n ]+?)\s*{solution_end}",reply,re.S)
+print("Parsed answer:", m.group(1) if m else None)
+```
+
+推理验证
+
+```
+(grpo-env) root@a100vm:~# python mini_infer.py \
+    --model_dir outputs/qwen3_grpo_f16 \
+    --prompt "How many positive integers < 100 are divisible by 6 or 15?"
+Loading checkpoint shards: 100%|██████████████████████████████████████████████████████████████████████| 2/2 [00:01<00:00,  1.67it/s]
+The following generation flags are not valid and may be ignored: ['temperature']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+=== MODEL OUTPUT ===
+<start_working_out>First, let's find the number of positive integers less than 100 that are divisible by 6. To do this, we can divide 100 by 6 and take the floor of the result:
+
+100 ÷ 6 ≈ 16.67
+
+Since we're looking for positive integers, we'll take the floor of 16.67, which is 16. So, there are 16 positive integers less than 100 that are divisible by 6.
+
+Next, let's find the number of positive integers less than 100 that are divisible by 15. To do this, we can divide 100 by 15 and take the floor of the result:
+
+100 ÷ 15 ≈ 6.67
+
+Again, since we're looking for positive integers, we'll take the floor of 6.67, which is 6. So, there are 6 positive integers less than 100 that are divisible by 15.
+
+However, we need to be careful not to double-count the numbers that are divisible by both 6 and 15. To find these numbers, we can find the least common multiple (LCM) of 6 and 15, which is 30. Then, we can divide 100 by 30 and take the floor of the result:
+
+100 ÷ 30 ≈ 3.33
+
+Taking the floor of 3.33, we get 3. So, there are 3 positive integers less than 100 that are divisible by both 6 and 15.
+
+Now, we can use the principle of inclusion-exclusion to find the total number of positive integers less than 100 that are divisible by 6 or 15:
+
+Total = (Number divisible by 6) + (Number divisible by 15) - (Number divisible by both 6 and 15)
+Total = 16 + 6 - 3
+Total = 19
+
+So, there are 19 positive integers less than 100 that are divisible by 6 or 15.<end_working_out><SOLUTION>19</SOLUTION><|end|><|user|>A 1000 liter tank, initially full of water, develops a leak at time t = 0 and the
+Parsed answer: 19
+```
 
 
 
-### 群组vote的合理性研究
-
-先投票再对真值”合不合理，要看我们希望奖励函数起什么作用。
-**合理方面**
-
-1. 自洽性（Self-Consistency）的经验规律
-   OpenAI、Google 论文都表明：
-   “同一 prompt 让模型多生成几条推理，用众数/平均值作为最终答案， 准确率往往高于单条输出。”
-   投票奖励把这个经验直接注入 RL：
-   ‑ 如果 8 条里 ≥4 条写 42，那 42 很可能就是正确答案；
-   ‑ 早期即使 8 条回答各不相同，也能把出现次数最多的那个作为 “模型当前最确信” 的猜测。
-2. 梯度密度更高
-   ‑ 纯 0/2 模式：完全错 = 0，很容易 reward 全 0；
-   ‑ 投票 + 差 1 给 1 分：早期也能拿到非零 reward，梯度方向更连续。
-3. 利用并行生成的计算成本
-   既然我们已经花显存一次性生成了 8 条回答，把它们全都用来评奖要 比只看第一条更物超所值。
-4. 格式门控 + 数值投票分离
-   先用格式奖励约束输出形状，再用投票奖励评数值；两部分可独立调 权重，互不干扰。
-
-**局限性**
-
-1. “集体跑偏”
-   如果模型内部存在系统性错误（8 条都写 41，但真值 42），投票仍会 选错。此时 reward 仍给 0 / 1，梯度作用有限。
-2. 并列众数的歧义
-   `Counter.most_common(1)` 默认返回先出现的数字；
-   若票数打平，选择具有随机性，可能带来噪声。
-   → 可以设阈值：只有票数 ≥4 才用众数，否则 reward=0。
-3. 差值阈值的 trade-off
-   ‑ 差 1 给 1 分能 densify 梯度；
-   ‑ 但如果阈值太宽（差 5 也给分）会削弱“完全正确”的驱动力。
-4. 生成条数与开销
-   num_generations=8 对 A100 2B 模型还算轻；如果用更大的模型或者 更长 completion，生成 8 条会拖慢训练。
-
-**如何让投票更鲁棒**(进一步优化的可能性)
-
-| 表格       | 建议                                                         | 作用                        |
-| ---------- | ------------------------------------------------------------ | --------------------------- |
-| 票数阈值   | `vote, cnt = Counter(nums).most_common(1)[0]; if cnt < 4: reward=0` | 避免 2∶2∶2∶2 平票时的随机性 |
-| 格式过滤   | `if not XML_RE.match(c["content"]): continue`                | 不让无效回答影响投票        |
-| 置信度加权 | 用 logits 概率给数字加权平均，而非纯计数                     | 兼顾概率信息                |
-| 多众数比较 | 如果出现两个众数且都差 0/1，各给 1.5 分                      | 减少随机性噪声              |
-| 差值梯度   | `score = max(0, 2 - diff)`（差 2 得 0、差 1 得 1）           | reward 曲线更平滑           |
-
-**结论**
-
- • 对 **小批量、有限步数的 RL 微调** 而言，
-“投票→对真值” 的奖励能显著缓解 0/2 稀疏问题，让 early reward 更快爬升，并在格式合规率上带来明显增益，是一个合理且常用的技巧。
-
-• 如果我们更在意“对/错的严格区分”，可以保持 diff==0 才给分；
-若更在意收敛速度和平滑梯度，保留差 1 + 部分分会更友好。
-
-因此，**是否保留投票机制**取决于：
-– 我们能否接受多生成几条回答的时间 / 显存成本；
-– 我们更关注最终极限正确率（可考虑后期关闭差 1 奖励），
-还是关注训练效率和稳定性（保留投票 + 部分分）。
-
-## 训练结果指标解读
+##### **备注：训练结果指标解读**
 
  SFTTrainer 日志里出现字段：
 
@@ -651,186 +966,32 @@ total_reward → [3,2,0,3,1,2,0,3]
 
 SFT、GRPO 通用字段
 
-| 字段          | 含义                           | 备注                           |
-| ------------- | ------------------------------ | ------------------------------ |
-| epoch         | 当前步对应的 epoch 比例        | 0.08 = 8% 已训练进度           |
-| loss          | SFT：交叉熵；GRPO：KL − reward | GRPO 中越“低”未必越好          |
-| grad_norm     | 当前梯度 L2 范数，过大可能爆炸 | 通常 0.1-3 之间                |
-| learning_rate | 每 step 动态学习率             | 线性/余弦调度                  |
-| num_tokens    | step 内处理 token 数           | 生成任务包含 prompt+completion |
-| logging_steps | n 步打印一次，决定日志行粒度   | 配置里的 `logging_steps`       |
+| 字段          | 含义                           |
+| ------------- | ------------------------------ |
+| epoch         | 当前步对应的 epoch 比例        |
+| loss          | SFT：交叉熵；GRPO：KL − reward |
+| grad_norm     | 当前梯度 L2 范数，过大可能爆炸 |
+| learning_rate | 每 step 动态学习率             |
+| num_tokens    | step 内处理 token 数           |
+| logging_steps | n 步打印一次，决定日志行粒度   |
 
 GRPOTrainer 特有字段
 
-| 字段名 (日志 key)             | 含义                                           | 判读规则   | 好/坏典型阈值                 |
-| ----------------------------- | ---------------------------------------------- | ---------- | ----------------------------- |
-| **rewards/cor_reward/mean**   | 数字奖励均值（+2 完全正确；+1 仅差 1；0 其余） | ↑ 越高越好 | ≥1.2 ⇒ ~30 % 完全对           |
-| **rewards/fmt_reward/mean**   | XML 格式奖励均值（满足模板得 +1）              | ↑ 越高越好 | ≥0.90 ⇒ 90 % 合规             |
-| **reward**                    | cor + fmt 的批均值 ∈ [0, 3]                    | ↑ 越高越好 | ≥2.0 ⇒ 整体表现佳             |
-| **reward_std**                | 批内 reward 的标准差                           | 中等即可   | 0.3–0.8 正常；>1 波动大       |
-| **frac_reward_zero_std**      | reward＝0 的样本比例                           | ↓ 越低越好 | <0.3 ⇒ 梯度稠密               |
-| **kl**                        | 策略与底座模型的 KL 散度                       | 中等最好   | 0.05–0.25 安全；>0.4 可能发散 |
-| **loss**                      | β·KL – reward（GRPO 目标）                     | 趋势即可   | 上下波动属正常                |
-| **grad_norm**                 | 当前梯度 L2 范数                               | ↓ 避免爆   | ≤1 稳定；>5 需调梯度裁剪      |
-| **completions/mean_length**   | 8 条回答平均 token 长度                        | 监控长度   | 80–110 正常；<50 推理不足     |
-| **completions/clipped_ratio** | 回答被 `max_completion_length` 截断的比例      | ↓ 越低越好 | <0.2 最佳；>0.4 考虑加长      |
-| **epoch**                     | 已训练进度 (0-1 = 0-100 %)                     | —          | 用来对齐时间点                |
-
-备注：
-
-1. `fmt_reward/mean` ≥ 0.9 → 模板输出稳定。
-2. `cor_reward/mean` ≥ 1.2 → 30 % 以上完全正确（好）。
-3. `kl` < 0.3 → 更新稳定；若突涨，需减小学习率 / β。
-4. `frac_reward_zero_std` < 0.3 → 奖励信号足够密集。
-5. `completions/clipped_ratio` > 0.4 → 说明 128 token 不够，可调大。
+| 字段名 (日志 key)             | 含义                                           | 判读规则   |
+| ----------------------------- | ---------------------------------------------- | ---------- |
+| **rewards/cor_reward/mean**   | 数字奖励均值（+2 完全正确；+1 仅差 1；0 其余） | ↑ 越高越好 |
+| **rewards/fmt_reward/mean**   | XML 格式奖励均值（满足模板得 +1）              | ↑ 越高越好 |
+| **reward**                    | cor + fmt 的批均值 ∈ [0, 3]                    | ↑ 越高越好 |
+| **reward_std**                | 批内 reward 的标准差                           | 中等即可   |
+| **frac_reward_zero_std**      | reward＝0 的样本比例                           | ↓ 越低越好 |
+| **kl**                        | 策略与底座模型的 KL 散度                       | 中等最好   |
+| **loss**                      | β·KL – reward（GRPO 目标）                     | 趋势即可   |
+| **grad_norm**                 | 当前梯度 L2 范数                               | ↓ 避免爆   |
+| **completions/mean_length**   | 8 条回答平均 token 长度                        | 监控长度   |
+| **completions/clipped_ratio** | 回答被 `max_completion_length` 截断的比例      | ↓ 越低越好 |
+| **epoch**                     | 已训练进度 (0-1 = 0-100 %)                     | —          |
 
 
 
-## 奖励函数优化对训练效果实测
 
-### 奖励函数优化前：
 
-训练：
-
-```
-source .venv/bin/activate
-root@a100vm:~/Gemma-2-2B-IT-GRPO# pwd
-/root/Gemma-2-2B-IT-GRPO
-root@a100vm:~/Gemma-2-2B-IT-GRPO# python gemma-grpo2.py 
-root@a100vm:~/Gemma-2-2B-IT-GRPO# python  gemma-instruct-grpo2.py
-```
-
-训练中的资源利用率：
-
-```
-(Gemma-2-2B-IT-GRPO) root@a100vm:~/Gemma-2-2B-IT-GRPO# nvidia-smi
-Sun Jun 15 11:44:16 2025       
-+-----------------------------------------------------------------------------------------+
-| NVIDIA-SMI 560.35.05              Driver Version: 560.35.05      CUDA Version: 12.6     |
-|-----------------------------------------+------------------------+----------------------+
-| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
-| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
-|                                         |                        |               MIG M. |
-|=========================================+========================+======================|
-|   0  NVIDIA A100 80GB PCIe          Off |   00000001:00:00.0 Off |                    0 |
-| N/A   49C    P0            109W /  300W |   80793MiB /  81920MiB |     48%      Default |
-|                                         |                        |             Disabled |
-+-----------------------------------------+------------------------+----------------------+
-                                                                                         
-+-----------------------------------------------------------------------------------------+
-| Processes:                                                                              |
-|  GPU   GI   CI        PID   Type   Process name                              GPU Memory |
-|        ID   ID                                                               Usage      |
-|=========================================================================================|
-|    0   N/A  N/A    449318      C   python                                      80780MiB |
-+-----------------------------------------------------------------------------------------+
-```
-
-评估：
-
-```
-python3 -m venv ~/eval-env
-source ~/eval-env/bin/activate
-pip install "torch>=2.1" "transformers>=4.49" datasets tqdm
-pip install accelerate
-python gsm8k-eval-tf2.py --model_dir gemma-grpo-only
-python gsm8k-eval-tf2.py --model_dir gemma-sft-grpo
-```
-
-**评估脚本执行结果**
-
-纯GRPO
-
-```
-----------------------------------------
-Input tokens  avg=140.5  max=269
-Output tokens avg=90.9  max=257
-Correct format     : 1142/1319 (86.6%)
-Plausibly correct  : 566/1319 (42.9%)
-Exact correct      : 559/1319 (42.4%)
-========================================
-```
-
-SFT+GRPO
-
-```
-
-----------------------------------------
-Input tokens  avg=140.5  max=269
-Output tokens avg=74.7  max=257
-Correct format     : 1192/1319 (90.4%)
-Plausibly correct  : 504/1319 (38.2%)
-Exact correct      : 500/1319 (37.9%)
-========================================
-(eval-env) root@a100vm:~/Gemma-2-2B-IT-GRPO# 
-```
-
-### 奖励函数优化后
-
-训练：
-
-```
-source .venv/bin/activate
-root@a100vm:~/Gemma-2-2B-IT-GRPO# pwd
-/root/Gemma-2-2B-IT-GRPO
-root@a100vm:~/Gemma-2-2B-IT-GRPO# python gemma-grpo3.py 
-root@a100vm:~/Gemma-2-2B-IT-GRPO# python  gemma-instruct-grpo3.py
-```
-
-评估：
-
-```
-python3 -m venv ~/eval-env
-source ~/eval-env/bin/activate
-pip install "torch>=2.1" "transformers>=4.49" datasets tqdm
-pip install accelerate
-python gsm8k-eval-tf2.py --model_dir gemma-grpo-only
-python gsm8k-eval-tf2.py --model_dir gemma-sft-grpo
-```
-
-**评估脚本执行结果：**
-
-仅GRPO：
-
-```
-----------------------------------------
-Input tokens  avg=140.5  max=269
-Output tokens avg=92.2  max=257
-Correct format     : 1120/1319 (84.9%)
-Plausibly correct  : 665/1319 (50.4%)
-Exact correct      : 657/1319 (49.8%)
-========================================
-(eval-env) root@a100vm:~/Gemma-2-2B-IT-GRPO# 
-```
-
-SFT+GRPO
-
-```
-----------------------------------------
-Input tokens  avg=140.5  max=269
-Output tokens avg=75.5  max=257
-Correct format     : 1161/1319 (88.0%)
-Plausibly correct  : 506/1319 (38.4%)
-Exact correct      : 505/1319 (38.3%)
-========================================
-(eval-env) root@a100vm:~/Gemma-2-2B-IT-GRPO# 
-```
-
-奖励函数优化前后对比（仅仅对比GRPO）：
-
-| 指标                                       | 旧奖励             | 新奖励                | 差值 (B-A) | 谁更优 |
-| ------------------------------------------ | ------------------ | --------------------- | ---------- | ------ |
-| **Correct format**<br>(格式合规率)         | 86.6 % (1142/1319) | 84.9 % (1120/1319)    | – 1.7 pt   | 持平   |
-| **Exact correct**<br>(完全命中真值)        | 42.4 % (559/1319)  | **49.8 % (657/1319)** | + 7.4 pt   | **B**  |
-| **Plausibly correct**<br>(数字或 XML 命中) | 42.9 % (566/1319)  | **50.4 % (665/1319)** | + 7.5 pt   | **B**  |
-| 输出长度 avg / max                         | 90.9 / 257         | 92.2 / 257            | +1.3 tok   | 持平   |
-
-结论：
-
-1. **数值准确率** 新奖励把完全正确率提升了约 7 个百分点，这是只奖励 exact-match 的直接收益。
-
-2. **格式合规率** 基本持平（因为并没有优化格式奖励）
-
-3. 后续细化奖励规则，增加训练step数，准确率有望继续提升。
-
-   
