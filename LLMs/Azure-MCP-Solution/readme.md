@@ -144,9 +144,9 @@ Example:
 
 
 
-## MCP Server Demonstrations
+## MCP Server 5 Demonstrations
 
-Below you will find a series of five interactive demos showcasing MCP Server usage in practical scenarios. Each demo highlights unique features and integration patterns, demonstrating how MCP Servers can enhance AI-driven workflows and simplify complex tasks.
+Below you will find a series of five interactive demos showcasing MCP Server usage in practical scenarios. Each demo highlights unique features and integration patterns, demonstrating how MCP Servers can enhance AI-driven workflows and simplify complex tasks
 
 1. **Playwright MCP Server Demo:**
    Demonstrates how an MCP Server can automate browser actions using Playwright, allowing AI agents to easily control browser behaviors directly from within VS Code.
@@ -391,14 +391,10 @@ if __name__ == "__main__":
     mcp.run(transport="stdio")
 ```
 
-
-
 **Prompt:**
 *"Compare the temperatures of San Diego, Chicago, and Boston for tomorrow to determine which city will have the highest temperature. Then create a file and write the result into it."*
 
 In this demonstration, the AI agent automatically interprets the given natural-language instruction and orchestrates the entire workflow. Specifically, the agent calls the custom Weather MCP Server three times (once for each city) to retrieve weather forecasts. It then compares these temperatures, identifies which city will be the warmest tomorrow, and invokes another MCP server (Filesystem MCP server) to create and write the final result into a local file.
-
-
 
 ***Please click below pictures to see my demo video on Youtube***:
 [![BitNet-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/BDVmIdW3H_0)
