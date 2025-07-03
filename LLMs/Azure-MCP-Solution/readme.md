@@ -728,10 +728,9 @@ INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 ```
 
-Wrap your SSE-based MCP Server using **MCPO (MCP OpenAPI Proxy)**. When wrapping your SSE-based MCP server with MCPO, you can specify an API key to enforce secure access and authentication. Below is how you can start MCPO on your local environment, forwarding securely authenticated traffic to your SSE MCP Server.
+Wrap your  streamable_http MCP Server using **MCPO (MCP OpenAPI Proxy)**. When wrapping your SSE-based MCP server with MCPO, you can specify an API key to enforce secure access and authentication. Below is how you can start MCPO on your local environment, forwarding securely authenticated traffic to your SSE MCP Server.
 
 ```
-ERROR:    Application startup failed. Exiting.
 (venv) (base) root@xinyuwei:~# mcpo --port 9000 --api-key "top-secret" \
      --server-type "streamable_http"    \
      -- http://127.0.0.1:8000/mcp
