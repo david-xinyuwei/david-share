@@ -1,6 +1,6 @@
 # 深度解析 Gemma 3n 与 MatFormer「同心圆」架构
 
-Gemma 3n 的MatFormer不确认是否能够普及起来。就是类似「同心圆」技术＝一份权重、多个体型：
+Gemma 3n的MatFormer架构虽然还很新，但它首次实现了一套权重即可支撑从小型设备到服务器端部署的能力，而无需额外微调训练，展现了良好的工程前景。就是类似「同心圆」技术＝一份权重、多个体型：
 
 - 把每层 FFN 做成同心矩形；只取前 8 k 行就是 2 B 子网，再加外圈变 4 B——随选随剪，无需再训练。
 - 推理时 GPU 只算/只存选中的那几行列，算力、显存线性缩；2 B 档 12 GB 卡就能跑。
@@ -62,8 +62,6 @@ Gemma 3n 的MatFormer不确认是否能够普及起来。就是类似「同心�
 **训练时随机组合，得到嵌套不同尺寸模型；使用时根据硬件自由选择，快速完成推理部署。**
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Gemma3n-MatFormer/images/2.png)
-
-
 
 ### 2.1 逐层同心切片（Matryoshka）
 
@@ -148,125 +146,7 @@ LoRA 与 MatFormer 所解决的问题、数学形式、推理开销都完全不�
 | E3.79B (layer) | 35×混合     | 3.79 B   | ≈ 18 GB                  | 75.7             |
 | E4B 官方       | 35×16 384   | 3.9 B    | ≈ 22 GB                  | 76.4             |
 
-## 6 端到端裁剪实操
-
-### 6.1 环境
-
-```
-python 3.10
-pip install "transformers>=4.53" timm safetensors pandas tqdm
-```
-
-
-
-GPU 可选；裁剪流程仅用 CPU I/O。
-
-### 6.2 关键变量
-
-```
-original_model_id = "google/gemma-3n-E4B-it"
-config_name       = "Config for E2.98B (block-level)"     # or custom
-local_output_path = "gemma3n-e2_98B-slice"
-push_hf_repo_id   = "yourname/gemma3n-e2_98B"
-```
-
-
-
-### 6.3 核心代码片段
-
-```
-from huggingface_hub import snapshot_download
-from safetensors import safe_open
-from safetensors.torch import save_file
-import pandas as pd, torch, os, re, gc, json
-
-# 1. 读取配方
-df = pd.read_csv("hf://datasets/google/gemma3n-slicing-configs/configs.csv")
-row = df.set_index("name").loc[config_name]
-layers_to_skip   = eval(row["Layers Skipped"])
-ffn_hidden_dims  = eval(row["FFN Hidden Dims"])
-
-# 2. 下载母模型 .safetensors
-src = snapshot_download(original_model_id, allow_patterns=["*.safetensors"])
-
-# 3. 流式切片 + 重写索引
-kept = [i for i in range(35) if i not in layers_to_skip]
-rename = {old:new for new,old in enumerate(kept)}
-out_sd, sz, sid, weight_map = {},0,1,{}
-os.makedirs(local_output_path, exist_ok=True)
-
-def flush():
-    global out_sd, sz, sid
-    fname=f"model-{sid:05d}-of-XXXXX.safetensors"
-    save_file(out_sd, f"{local_output_path}/{fname}", metadata={"format":"pt"})
-    weight_map.update({k:fname for k in out_sd}); out_sd.clear(); sz=0; sid+=1; gc.collect()
-
-for file in os.listdir(src):
-    if not file.endswith(".safetensors"): continue
-    with safe_open(f"{src}/{file}", framework="pt", device="cpu") as f:
-        for name in f.keys():
-            t = f.get_tensor(name); new = name
-            m=re.search(r"\.layers\.(\d+)\.",name)
-            if m:
-                old=int(m[1])
-                if old in layers_to_skip: continue
-                new_idx=rename[old]; new=new.replace(f".layers.{old}.",f".layers.{new_idx}.")
-                w=ffn_hidden_dims[new_idx]
-                if any(k in new for k in ["gate_proj","up_proj"]): t=t[:w,:]
-                elif "down_proj" in new:                           t=t[:,:w]
-            out_sd[new]=t; sz+=t.numel()*t.element_size()
-            if sz>4_000_000_000: flush()
-flush()
-
-# 4. 修正文件名、写 index.json
-total=sid-1
-for i in range(1,total+1):
-    old=f"model-{i:05d}-of-XXXXX.safetensors"
-    new=f"model-{i:05d}-of-{total:05d}.safetensors"
-    os.rename(f"{local_output_path}/{old}",f"{local_output_path}/{new}")
-    for k,v in weight_map.items(): 
-        if v==old: weight_map[k]=new
-json.dump({"weight_map":weight_map}, open(f"{local_output_path}/model.safetensors.index.json","w"), indent=2)
-```
-
-
-
-10 分钟即可产出裁剪版权重。
-
-### 6.4 在线验证
-
-```
-from transformers import AutoModelForCausalLM
-m = AutoModelForCausalLM.from_pretrained(local_output_path,
-                                         torch_dtype="bfloat16",
-                                         device_map="auto")
-print("有效参数:", m.language_model.num_parameters(exclude_embeddings=True))
-```
-
-
-
-------
-
-## 7 推理与微调实践
-
-1. **vLLM 推理**
-
-   ```
-   from vllm import LLM; llm = LLM(model=local_output_path)
-   print(llm.generate("用一句话解释 MatFormer 原理"))
-   ```
-
-   
-
-2. **LoRA 微调** (`TRL 0.19.0`)
-
-   - 依赖：`peft 0.15.2`
-   - 关键参数：`gradient_checkpointing_kwargs={"use_reentrant": False}`
-   - 推荐显存 ≥ 18 GB；LoRA rank = 16-32。
-
-------
-
-## 8 局限与未来方向
+## 6.局限与未来方向
 
 | 局限           | 说明                                                         |
 | -------------- | ------------------------------------------------------------ |
@@ -282,7 +162,7 @@ print("有效参数:", m.language_model.num_parameters(exclude_embeddings=True))
 
 ------
 
-## 9 总结
+## 7 总结
 
 Gemma 3n 把 MatFormer 理念首次落地到可商用的多模态 LLM：
 
