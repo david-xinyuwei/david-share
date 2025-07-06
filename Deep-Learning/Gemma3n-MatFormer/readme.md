@@ -1,4 +1,4 @@
-# 深度解析 Gemma 3n 与 MatFormer「同心圆」架构
+# 解析 Gemma 3n 与 MatFormer同心圆架构
 
 Gemma 3n的MatFormer架构虽然还很新，但它首次实现了一套权重即可支撑从小型设备到服务器端部署的能力，而无需额外微调训练，展现了良好的工程前景。就是类似「同心圆」技术＝一份权重、多个体型：
 
@@ -21,11 +21,11 @@ Gemma 3n的MatFormer架构虽然还很新，但它首次实现了一套权重即
    • **一次训练，覆盖多档**：不再为 2 B / 4 B 训练两套模型。
    • **保持多模态一致性**：外部裁剪不破坏统一语义空间。
 
-------
-
 ## 2 MatFormer 理论基础
 
 ### Gemma 3n模型参数加载情况说明
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Gemma3n-MatFormer/images/1.png)
 
 - 左图 (Standard execution) 是传统的方式，模型运行时会一次性全部加载5.44 B（54.4亿）参数到显存：
   - 文本参数 (Text)：1.91B
@@ -41,9 +41,11 @@ Gemma 3n的MatFormer架构虽然还很新，但它首次实现了一套权重即
 总结：
 **传统模式显存占用：5.44B → 优化后显存占用：1.91B（少了3倍），速度更快，显存更省。**
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Gemma3n-MatFormer/images/1.png)
+
 
 ### MatFormer（“同心圆”）如何实现多个模型尺寸
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Gemma3n-MatFormer/images/2.png)
 
 - 左侧方框是单个Transformer层（MatFormer Block）的结构：
   - 主要包含两部分：Attention(注意力层) 和 FFN(前馈网络)。
@@ -60,8 +62,6 @@ Gemma 3n的MatFormer架构虽然还很新，但它首次实现了一套权重即
 
 总结：
 **训练时随机组合，得到嵌套不同尺寸模型；使用时根据硬件自由选择，快速完成推理部署。**
-
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Gemma3n-MatFormer/images/2.png)
 
 ### 2.1 逐层同心切片（Matryoshka）
 
@@ -159,8 +159,6 @@ LoRA 与 MatFormer 所解决的问题、数学形式、推理开销都完全不�
 • 将同心切片扩展到 Q/K/V/O；
 • 训练更大母模型（E70B）以提供 5-10 B 级子网；
 • 将 MatFormer 与稀疏 MoE 组合，兼得“剪行列”和“剪专家”。
-
-------
 
 ## 7 总结
 
