@@ -301,4 +301,4 @@ DeepEP 把 All-to-All 这种“看似天生慢、不可并行”的通信拆成�
 - 推理：单 token 400 µs 以内，真正实时对话；
 - 工程：几行 Python API 即可迁移，几乎零侵入。
 
-> 因为 NCCL All-to-All 卡住吞吐或延迟，试着把那行代码换成 `deep_ep.Buffer.dispatch()` —— 也许这一小步，就能让你的 GPU 集群满血复活。
+> 因为 NCCL All-to-All 卡住吞吐或延迟，试着把那行代码换成 `deep_ep.Buffer.dispatch()`。
