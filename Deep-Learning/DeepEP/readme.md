@@ -231,8 +231,6 @@ NCCL all_to_all        DeepEP normal
 
 GPU Idle: 39 % → **4 %**
 
-------
-
 ## 6. DeepEP vs 其它通信库
 
 | 特性             | NCCL AllToAll | MPI_Alltoallw | OneCCL | **DeepEP** |
@@ -262,8 +260,6 @@ GPU Idle: 39 % → **4 %**
    - `tests/bench_normal.py --auto_tune`：给定 batch / hidden 自动算最佳 buffer。
    - `tests/profile_decode.py`：双 micro-batch overlap 示范。
 
-------
-
 ## 8. 真实案例
 
 ### 8.1 DeepSeek-V3 671 B 预训练
@@ -281,8 +277,6 @@ GPU Idle: 39 % → **4 %**
 - 两层解码 pipeline：attention→DeepEP→MLP。
 - 延迟 28 ms → 14 ms，QPS +85 %。
 
-------
-
 ## 9. Roadmap
 
 1. **兼容 Ampere / Ada**（不含自定义 PTX，带宽约降 20 %）。
@@ -290,8 +284,6 @@ GPU Idle: 39 % → **4 %**
 3. **拥堵控制**：集成 DCQCN 自动阈值。
 4. **Optical IB & CXL**：预研 800 Gb/s 互连。
 5. **统一稀疏 GEMM**：MoE-MLP 与通信 Buffer 直接零拷贝。
-
-------
 
 ## 10. 结语
 
