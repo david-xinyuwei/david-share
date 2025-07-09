@@ -32,7 +32,7 @@ python main.py --listen 0.0.0.0 --port 8188
 
 ### **Test 1: Do Image Impaint **
 
-**Using diffusion models/flux1-fill-dev.safetensors**
+**Using  models/flux1-fill-dev.safetensors**
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Flux.1-Solution-Test/images/3.png)
 
@@ -63,11 +63,12 @@ GPU usage during before action:
 
 ### **Test 2: Flux Kontext Dev(Grouped)**
 
-Using models:
+**Using models:**
 
-vae/ae.safetensors
-text encoders /t5xxl fp16.safetensors
-diffusion models /fux1-dev-kontext fp8 scaled.safetensors
+- vae/ae.safetensors
+
+- text encoders /t5xxl fp16.safetensors
+- diffusion models /fux1-dev-kontext fp8 scaled.safetensors
 
 [![BitNet-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/L7aDBOdz4_U)
 
