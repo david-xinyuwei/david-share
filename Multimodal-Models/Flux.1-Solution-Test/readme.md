@@ -30,7 +30,7 @@ pip install -r requirements.txt
 python main.py --listen 0.0.0.0 --port 8188
 ```
 
-### Test 1: Do Image Impaint 
+### Test 1: Do Image Inpaint 
 
 **Using  models/flux1-fill-dev.safetensors**
 
