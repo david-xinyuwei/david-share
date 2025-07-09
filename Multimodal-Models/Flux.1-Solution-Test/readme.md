@@ -36,7 +36,9 @@ python main.py --listen 0.0.0.0 --port 8188
 
 Detailed test process:
 
-![GIF image](https://i.imgur.com/FiggnZT.gif)
+<img src="https://i.imgur.com/FiggnZT.gif" width="10000"/>
+
+
 
 Image before backfill:
 
