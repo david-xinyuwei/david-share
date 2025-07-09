@@ -36,7 +36,7 @@ python main.py --listen 0.0.0.0 --port 8188
 
 Detailed test process:
 
-![images](https://i.imgur.com/FiggnZT.gif)
+![GIF image](https://i.imgur.com/FiggnZT.gif)
 
 Image before backfill:
 
