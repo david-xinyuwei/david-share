@@ -30,7 +30,9 @@ pip install -r requirements.txt
 python main.py --listen 0.0.0.0 --port 8188
 ```
 
-**Test 1: Do Image Inpaint**
+### **Test 1: Do Image Impaint **
+
+**Using diffusion models/flux1-fill-dev.safetensors**
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Flux.1-Solution-Test/images/3.png)
 
@@ -45,6 +47,12 @@ Image before backfill:
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Flux.1-Solution-Test/images/1.png)
 
+Prompt:
+
+``` 
+Please backfill the missing parts of the picture, only the natural landscape
+```
+
 Image after backfill:
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Flux.1-Solution-Test/images/2.png)
@@ -52,3 +60,13 @@ Image after backfill:
 GPU usage during before action:
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Flux.1-Solution-Test/images/4.png)
+
+### **Test 2: Flux Kontext Dev(Grouped)**
+
+Using models:
+
+vae/ae.safetensors
+text encoders /t5xxl fp16.safetensors
+diffusion models /fux1-dev-kontext fp8 scaled.safetensors
+
+[![BitNet-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/L7aDBOdz4_U)
