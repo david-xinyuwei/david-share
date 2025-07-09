@@ -70,3 +70,5 @@ text encoders /t5xxl fp16.safetensors
 diffusion models /fux1-dev-kontext fp8 scaled.safetensors
 
 [![BitNet-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/L7aDBOdz4_U)
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Flux.1-Solution-Test/images/1.jpg)
