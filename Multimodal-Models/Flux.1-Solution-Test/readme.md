@@ -36,7 +36,8 @@ python main.py --listen 0.0.0.0 --port 8188
 
 Detailed test process:
 
-<img src="https://i.imgur.com/FiggnZT.gif"/>
+***Please click below pictures to see my demo video on Youtube***:
+[![BitNet-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/D5Vt_lPIkNs)
 
 
 
