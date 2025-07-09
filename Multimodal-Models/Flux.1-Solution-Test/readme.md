@@ -36,7 +36,7 @@ python main.py --listen 0.0.0.0 --port 8188
 
 Detailed test process:
 
-<img src="https://i.imgur.com/FiggnZT.gif" width="10000"/>
+<img src="https://i.imgur.com/FiggnZT.gif"/>
 
 
 
