@@ -34,4 +34,18 @@ python main.py --listen 0.0.0.0 --port 8188
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Flux.1-Solution-Test/images/3.png)
 
-![images](https://imgur.com/a/qfnXrf9)
+Detailed test process:
+
+![images](https://i.imgur.com/FiggnZT.gif)
+
+Image before backfill:
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Flux.1-Solution-Test/images/1.png)
+
+Image after backfill:
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Flux.1-Solution-Test/images/2.png)
+
+GPU usage during before action:
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Flux.1-Solution-Test/images/3.png)
