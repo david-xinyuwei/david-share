@@ -48,4 +48,4 @@ Image after backfill:
 
 GPU usage during before action:
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Flux.1-Solution-Test/images/3.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Flux.1-Solution-Test/images/4.png)
