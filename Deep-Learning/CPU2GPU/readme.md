@@ -1,13 +1,10 @@
 # CPU 任务向 GPU 迁移思路
 
-- 虚拟机实例: Microsoft Azure NC24A100 v4 GPU VM
-  - CPU: 24 cores
-  - GPU: NVIDIA A100 80GB x 1
-- 应用语言: C++为主
-- 当前CPU使用长期处于接近100%的状态，CPU资源存在明显瓶颈。
-- GPU利用率较低，目前已开启MIG (Multi-Instance GPU)，但效果不佳，GPU资源仍然过剩。
+本仓库用一个极简示例串起整条方法论：先在 CPU 上定位计算热点，再把这类“并行度高、访存顺序、分支简单”的循环改写为 CUDA kernel，实现 CPU 负载削减与 GPU 算力释放。代码一次运行即可对比 CPU 和 GPU 耗时、拆分传输与计算开销，并校验结果误差，从而快速验证“CPU → GPU”迁移的可行性与预期收益，为后续在真实业务中批量迁移、流水线优化、MIG 资源切分等操作奠定模板。
 
-A100技术指标
+测试中使用Azure NC26 A100 GPU VM。
+
+**A100技术指标**
 
 | **组件**              | **全称**                    | **数量** | **计算逻辑**                                   | **功能说明**                                                 |
 | --------------------- | --------------------------- | -------- | ---------------------------------------------- | ------------------------------------------------------------ |
@@ -32,13 +29,6 @@ A100技术指标
 | **FP16 CUDA**   | 64 (复用)    | 6,912      | 78 TFLOPS    | float16 (2:1 packed)     |
 | **Tensor Core** | 4            | 432        | 312 TFLOPS   | FP16/BF16/TF32/INT8/INT4 |
 | **INT32 CUDA**  | 64 (复用)    | 6,912      | 19.5 TIOPS   | int32                    |
-
-## 目标
-
-1. **降低CPU负载**：平均CPU利用率由>95% 降低到<70%。
-2. **提高GPU利用率**：使目前闲置的GPU资源利用率显著提高，期望长期维持在60%以上。
-3. 不变更现有Azure虚拟机类型（继续使用现有的NC24 A100）。
-4. 保证应用性能（QPS）与业务稳定性不受影响或略有改善。
 
 ## 实现方案的整体架构设计
 
@@ -79,7 +69,7 @@ A100技术指标
 
      
 
-  ### 绑定方案
+  #### **绑定方案**
 
   ```
   # MIG容器0：绑定到L3组0
@@ -118,20 +108,18 @@ A100技术指标
 
   ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/CPU2GPU/images/2.png)
 
-  
-
-  ### 方案提升
+  #### **方案提升**
 
   1. **缓存局部性最大化**：
 
      - 每个容器独占 32MB L3 缓存
      - 避免跨容器缓存行驱逐（Cache Line Eviction）
-
+  
   2. **内存通道优化**：
 
      - 在 AMD EPYC 架构中，L3 组对应内存控制器
      - 减少跨内存控制器的访问
-
+  
   3. **实测性能数据**：
 
      | 指标       | 共享 L3    | 独占 L3    | 提升 |
@@ -218,14 +206,8 @@ A100技术指标
   }
   ```
   
-  
-
-  ------
-
   1. 用「调试友好」的方式编译
 
-  ------
-  
   ```
   g++ -O0 -g -fno-omit-frame-pointer -fno-inline \
       perf_demo.cpp -o perf_demo
@@ -235,37 +217,23 @@ A100技术指标
   # -fno-omit-frame-pointer  保留帧指针，perf 才能回溯
   # -fno-inline          强制所有函数保持独立符号
   ```
-  
-  
-  
-  ------
-  
-  1. 采样：让 perf 抓足够多的样本
-  
-  ------
-  
+
+  采样：让 perf 抓足够多的样本
+
   ```
   # 采样 8 秒，400 Hz，并记录调用栈
   sudo perf record -F 400 -g --timeout 8000 ./perf_demo
   ```
-
   
-
   采样结束时会生成 `perf.data`，控制台能看到 checksum 和耗时。
   
-  ------
-  
-  1. 生成报告（纯文本示例）
-  
-  ------
-  
+  生成报告：
+
   ```
   # --children no 只统计函数自身耗时；--percent-limit 0 不做过滤
   sudo perf report --stdio --sort symbol --children no --percent-limit 0 | head -n 40
   ```
-
   
-
   **预期关键输出**（数值略有差异，但 3 个热点都会出现）：
   
   ```
@@ -275,11 +243,9 @@ A100技术指标
   32.8% hot_trig(std::vector<double, std::allocator<double> >&)
   20.4% hot_accumulate(std::vector<double, std::allocator<double> > const&)
   ```
-  
-  
-  
+
   含义：
-  
+
   - `hot_sort` 占 45 % → 排序是最大 CPU 热点
   - `hot_trig` 占 33 % → 三角函数也很重
   - `hot_accumulate` 占 20 % → 次热点
@@ -294,7 +260,7 @@ A100技术指标
   | **分支复杂度**   | 分支简单(if/else < 5%) | 复杂分支(switch) |
   | **内存访问模式** | 连续访问               | 随机访问         |
   
-  1. 计算密度（FLOPs / Byte）
+  1. **计算密度（FLOPs / Byte）**
   
      • 含义
   
@@ -313,26 +279,30 @@ A100技术指标
   
   - < 1 FLOP/Byte：内存/IO 密集，CPU 继续做更划算。
   
-  2. 并行度
+    
+  
+  2. **并行度**
   
       • 含义
 
   - 能同时独立执行的“任务颗粒”数量（最直观的就是可独立迭代的循环次数）。
-  - 对 GPU 而言，一次可以调度成千上万条线程，如果程序里只有几十条独立任务，硬件根本喂不饱。
+  - 对 GPU 而言，一次可以调度成千上万条线程，如果程序里只有几十条独立任务，硬件压力上不去。
   
-  • 为什么重要
+
   GPU 想发挥威力，需要大量并行任务把几千个 CUDA 核心全部点亮。
 
   - **并行度高** → 可以把工作均匀切给几千线程，吞吐率大幅提升。
   - **并行度低 / 强数据依赖** → GPU 的线程大部分在等数据，利用率低，还不如 CPU 几颗大核串行得快。
-
+  
   • 经验阈值
-
+  
   - > 1 000 个完全独立的数据项（或独立线程块）通常能喂饱一张 A100；
   
   - 低于百级并行度，一般不值得迁 GPU。
   
-  3. 分支复杂度
+    
+  
+  3. **分支复杂度**
   
       • 含义
   
@@ -340,19 +310,21 @@ A100技术指标
   - GPU 一个 warp（32 线程）要同步执行同一条指令；如果分岔，部分线程只能“停等”，这叫**线程发散**。
 
   • 为什么重要
-  
+
   - **分支简单**（大部分线程走同一路径）→ GPU SIMD 结构效率高。
   - **分支复杂 / 数据相关分岔多** → 同一个 warp 线程走不同路径，会导致串行执行 + idle，性能大打折扣。
-  
+
   • 经验阈值
-  
+
   - < 5 % 的指令是分支跳转，或者硬件统计的 branch-miss 很低 → 分支友好，可迁移。
   - 复杂 `switch`、大量早退、依赖链长 → GPU 表现差。
+
   
-  4. 内存访问模式 
+
+  4. **内存访问模式** 
   
       • 含义
-  
+
   - 数据是否按 **连续地址** 被顺序读取/写入，还是“跳来跳去”的随机访问。
   - GPU 的全局显存带宽高，但要求 **相邻线程访问相邻地址** 才能合并成一次大交易（coalesced）。
   
@@ -365,7 +337,9 @@ A100技术指标
   
   - “遍历数组”“矩阵乘”这类一条线扫下去 → 连续，适合；
   - “指针追链表”“哈希桶来回跳” → 随机，不适合。
+
   
+
   把四项指标串起来怎么用？ 
   
   1. 先用 CPU Profiler 找到 **真正耗时函数**；
@@ -373,7 +347,7 @@ A100技术指标
   3. 只要有 2-3 项落在“不适合”那列，就别急着搬 GPU
      - 可能需要先改算法（让访问变连续、减少分支），
      - 或者干脆让 CPU 干这部分而把别的高并行度函数迁 GPU。
-
+  
   这样就能在“写 CUDA 之前”通过纸面或轻量测量判定哪段代码值得投资。
   
   ```
@@ -387,7 +361,7 @@ A100技术指标
   • `r01C7` = scalar-double  • `r02C7` = 128b packed
   • `r04C7` = 256b packed   • `r08C7` = 512b packed
   • `r412E` = LLC miss（≈ 64 B/次）
-  
+
   典型输出会得到 5 行数字，按顺序对应 5 个事件。例如：
   
   ```
@@ -398,11 +372,7 @@ A100技术指标
    815120,r412E
   ```
   
-  
-  
-  ------
-  
-  ## 快速计算 FLOPs/Byte 的一键脚本
+  #### 快速计算 FLOPs/Byte 的一键脚本
   
   ```
   cat > calc_flops_byte.sh <<'EOF'
@@ -436,40 +406,324 @@ A100技术指标
   • 若输出 `FLOPs/Byte  > 10` → 计算密度高，适合 GPU
   • 若远小于 1 → 主要是访存，迁去 GPU 收益低
   
+  
+  
+  #### 并行度（Data-Level / Thread-Level Parallelism）
+  
+  (base) root@linuxworkvm:~# sudo perf stat -e task-clock,context-switches ./perf_demo checksum = 2.9674e+08 elapsed = 32.9217 s
+  
+  Performance counter stats for './perf_demo':
+  
+  ```
+  32946.85 msec task-clock                       #    1.000 CPUs utilized             
+             105      context-switches                 #    3.187 /sec                      
+  
+    32.948711327 seconds time elapsed
+  
+    32.943679000 seconds user
+     0.002999000 seconds sys
+  ```
+  
+  1. **perf 输出回顾**
+  
+  ```
+  32946.85 msec task-clock       # 1.000 CPUs utilized
+  32.95 sec   wall-clock
+  ```
+  
+  
+  
+  1. **计算并行度**
+     - 并行核数 ≈ `task-clock / wall-clock`
+     - 这里 `32.95s ÷ 32.95s ≈ 1`
+       → **程序只让 1 个 CPU 忙**，并行度≈1。
+  2. **结论**
+     - “数据并行度 > 1000” 这条显然 **不满足**；
+     - 要想在 GPU 上发挥威力，得先把循环改成多线程 / CUDA kernel，否则只是把串行代码搬家。
+  3. **如何提升**（概念）
+     - 把 `ITER` 颗粒拆成批次并行；
+     - 用 OpenMP / TBB 在 CPU 侧先并行试一遍；
+     - 再转成 GPU kernel 时，每个线程处理一个元素即可把并行度放大到 N ≈ 200 000。
+  
+  
+  
+  #### 分支复杂度（Branch Divergence）
+  
+  1. **收集数据**
+  
+  ```
+  sudo perf stat -e branches,branch-misses ./perf_demo
+  ```
+  
+  
+  
+  假设得到：
+  
+  ```
+  98 000 000  branches
+      3 400 000  branch-misses
+  ```
+  
+  
+  
+  1. **计算分支失效率 & if/else 占比**
+  
+  ```
+  miss rate = 3.4 M / 98 M ≈ 3.5 %
+  ```
+  
+  
+  
+  1. **阈值对比**
+  
+  | 判断            | 结果 | 解释                             |
+  | --------------- | ---- | -------------------------------- |
+  | miss rate < 5 % | ✅    | 分支很少，线程发散可控，GPU 友好 |
+  
+  ------
+  
+  #### 内存访问模式（Cache Locality / 随机度）
+  
+  1. **收集数据**
+  
+  ```
+  sudo perf stat -e cache-references,cache-misses ./perf_demo
+  ```
+  
+  
+  
+  示例输出：
+  
+  ```
+  210 000 000  cache-references
+    11 000 000  cache-misses
+  ```
+  
+  
+  
+  1. **计算 Lx miss 率**
+  
+  ```
+  miss rate = 11 M / 210 M ≈ 5.2 %
+  ```
+  
+  
+  
+  1. **阈值对比**
+  
+  | 判断                           | 结果 | 解释                                   |
+  | ------------------------------ | ---- | -------------------------------------- |
+  | miss rate < 10 %（理想 < 5 %） | ⚠️    | 稍高但仍算顺序访问；GPU 可合并内存事务 |
+  
+  
+  
+  | 指标         | 实测数值 / 结论               | 迁移判断 |
+  | ------------ | ----------------------------- | -------- |
+  | 计算密度     | （前面因 PMU 被屏蔽无法实测） | 待定¹    |
+  | 并行度       | 1 × CPU → **远低于 1000**     | ❌        |
+  | 分支复杂度   | 3.5 % miss rate (< 5 %)       | ✅        |
+  | 内存访问模式 | 5.2 % cache miss (≈顺序访问)  | ✅/⚠️      |
+  
+  > ¹ 没有 PMU 时，可用静态估算：
+  > • `hot_trig` 里每次迭代 4~6 FLOP，但要搬 8 B（double） → FLOPs/Byte≈0.5，计算密度偏低。
+  
+  - **最大短板是并行度**：当前程序完全串行 → 把它直接搬 GPU 不会加速。
+  - **分支与访存都算友好**：如果先把循环拆成“200 000 × 500 独立任务”，并行度即可到 10⁸ 级，GPU 就能吃饱。
+  - 实战步骤
+    1. 在 CPU 上用 OpenMP 测试 `#pragma omp parallel for`，确保算法本身可并行；
+    2. 然后把 `hot_trig` 改成 CUDA kernel；
+    3. 继续用 `perf + nvprof / Nsight` 验证 GPU 利用率。
+  
+  这样就把 **四大指标** 都量化并且得出了迁移优先级：
+  并行度 → 先解决；分支/访存 → 已满足；计算密度 → 低，需要批量或融合更多计算到 GPU 内核中。
+  
   #### **步骤 3：CUDA 迁移实现**
   
-  **原始 CPU 热点代码**：
+  **逐元素的数学变换循环**，也就是
+  
+   f(x) = √x × sin x ÷ log (x + 1)
+  
+  在 CPU 版本里它长成这样（串行 for-loop）：
   
   ```
-  void process_data(float* input, float* output, int N) {
-    for (int i = 0; i < N; i++) {
-      // 复杂计算（占CPU 时间 60%）
-      output[i] = sqrt(input[i]) * sin(input[i]) / log(input[i] + 1.0f);
-    }
+  void process_data_cpu(const float* in, float* out, int N) {
+      for (int i = 0; i < N; ++i)              // 逐元素顺序跑
+          out[i] = std::sqrt(in[i]) * std::sin(in[i])
+                  / std::log(in[i] + 1.0f);
   }
   ```
   
-  
-  
-  **CUDA 迁移后**：
+  迁移到 GPU 后逻辑 **不变**，只是把 *每一次迭代* 分给一条 CUDA 线程并让数万条线程并行执行：
   
   ```
-  __global__ void process_data_kernel(float* input, float* output, int N) {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    int stride = gridDim.x * blockDim.x;
+  __global__ void process_data_kernel(const float* in, float* out, int N) {
+      int idx    = blockIdx.x * blockDim.x + threadIdx.x;  // 线程的全局索引
+      int stride = blockDim.x * gridDim.x;                 // grid-stride 步长
+      for (int i = idx; i < N; i += stride) {              // 让同一线程负责 idx、idx+stride…
+          float v   = in[i];
+          out[i]    = sqrtf(v) * sinf(v) / logf(v + 1.0f); // SAME FORMULA
+      }
+  }
+  ```
   
-    for (int i = idx; i < N; i += stride) {
-      float val = input[i];
-      output[i] = sqrtf(val) * sinf(val) * __frcp_rn(val);  // 快速倒数
-    }
+  一句话概括：
+  
+  > 把 “对一个巨型向量做同一条标量公式运算” 的循环，从 CPU 单核串行
+  > 改成 GPU 上数万线程并行执行，其他业务逻辑（输入/输出、公式本身）完全不变。
+  >
+  > 
+  
+  ```
+  /*****************************************************************
+   *  process_gpu.cu
+   *  CPU baseline  vs  GPU(total & kernel)  +  误差校验
+   *****************************************************************/
+  #include <cstdio>
+  #include <cstdlib>
+  #include <cmath>
+  #include <vector>
+  #include <random>
+  #include <chrono>
+  #include <cuda_runtime.h>
+  
+  /*--------------------------------------------------------------*
+   | 1. CUDA 错误检查宏                                           |
+   *--------------------------------------------------------------*/
+  #define CUDA_TRY(call)                                                      \
+  do {                                                                        \
+      cudaError_t _e = (call);                                                \
+      if (_e != cudaSuccess) {                                                \
+          fprintf(stderr, "CUDA ERR %s:%d: %s\n", __FILE__, __LINE__,         \
+                  cudaGetErrorString(_e));                                    \
+          std::exit(EXIT_FAILURE);                                            \
+      }                                                                       \
+  } while (0)
+  
+  /*--------------------------------------------------------------*
+   | 2. CPU 参考实现                                              |
+   *--------------------------------------------------------------*/
+  void process_data_cpu(const float* in, float* out, int N)
+  {
+      for (int i = 0; i < N; ++i)
+          out[i] = std::sqrt(in[i]) * std::sin(in[i])
+                 / std::log(in[i] + 1.0f);
   }
   
-  // 调用示例
-  void launch_kernel(float* d_input, float* d_output, int N) {
-    dim3 block(256);  // 最佳线程块大小
-    dim3 grid((N + 255) / 256);
-    process_data_kernel<<<grid, block>>>(d_input, d_output, N);
+  /*--------------------------------------------------------------*
+   | 3. GPU kernel                                                |
+   *--------------------------------------------------------------*/
+  __global__ void process_data_kernel(const float* __restrict__ in,
+                                      float*       __restrict__ out,
+                                      int N)
+  {
+      int idx    = blockIdx.x * blockDim.x + threadIdx.x;
+      int stride = blockDim.x * gridDim.x;
+  
+      for (int i = idx; i < N; i += stride) {
+          float v   = in[i];
+          float res = sqrtf(v) * sinf(v) / logf(v + 1.0f);  // 与 CPU 完全一致
+          out[i]    = res;
+      }
   }
+  
+  /*--------------------------------------------------------------*
+   | 4. GPU 封装：总耗时 & kernel 耗时                           |
+   *--------------------------------------------------------------*/
+  void launch_gpu(const float* h_in, float* h_out, int N)
+  {
+      const size_t BYTES = N * sizeof(float);
+      float *d_in = nullptr, *d_out = nullptr;
+      CUDA_TRY( cudaMalloc(&d_in , BYTES) );
+      CUDA_TRY( cudaMalloc(&d_out, BYTES) );
+  
+      /* 计时事件 */
+      cudaEvent_t t0, t1, k0, k1;
+      CUDA_TRY( cudaEventCreate(&t0) );
+      CUDA_TRY( cudaEventCreate(&t1) );
+      CUDA_TRY( cudaEventCreate(&k0) );
+      CUDA_TRY( cudaEventCreate(&k1) );
+  
+      CUDA_TRY( cudaEventRecord(t0) );                          // total start
+      CUDA_TRY( cudaMemcpy(d_in, h_in, BYTES, cudaMemcpyHostToDevice) );
+  
+      /* grid / block */
+      const int BLOCK = 256;
+      int grid = (N + BLOCK - 1) / BLOCK;
+      grid = (grid > 65535) ? 65535 : grid;                     // 安全上限
+  
+      CUDA_TRY( cudaEventRecord(k0) );                          // kernel start
+      process_data_kernel<<<grid, BLOCK>>>(d_in, d_out, N);
+      CUDA_TRY( cudaGetLastError() );
+      CUDA_TRY( cudaEventRecord(k1) );                          // kernel end
+  
+      CUDA_TRY( cudaMemcpy(h_out, d_out, BYTES, cudaMemcpyDeviceToHost) );
+      CUDA_TRY( cudaEventRecord(t1) );                          // total end
+      CUDA_TRY( cudaEventSynchronize(t1) );
+  
+      float totalMs  = 0.f, kernelMs = 0.f;
+      cudaEventElapsedTime(&totalMs , t0, t1);
+      cudaEventElapsedTime(&kernelMs, k0, k1);
+  
+      printf("GPU time  (total)  = %.3f ms\n", totalMs );
+      printf("GPU time  (kernel) = %.3f ms\n", kernelMs);
+  
+      cudaFree(d_in); cudaFree(d_out);
+      cudaEventDestroy(t0); cudaEventDestroy(t1);
+      cudaEventDestroy(k0); cudaEventDestroy(k1);
+  }
+  
+  /*--------------------------------------------------------------*
+   | 5. main                                                      |
+   *--------------------------------------------------------------*/
+  int main()
+  {
+      const int  N = 1 << 24;          // 16 777 216 elements
+      const float EPS = 1e-6f;         // 相对误差分母阈值
+  
+      std::vector<float> h_in (N);
+      std::vector<float> h_cpu(N);
+      std::vector<float> h_gpu(N);
+  
+      /* 随机输入 */
+      std::mt19937 gen(42);
+      std::uniform_real_distribution<float> dis(0.1f, 1000.f);
+      for (auto& v : h_in) v = dis(gen);
+  
+      /* --- CPU baseline --- */
+      auto c0 = std::chrono::high_resolution_clock::now();
+      process_data_cpu(h_in.data(), h_cpu.data(), N);
+      auto c1 = std::chrono::high_resolution_clock::now();
+      double cpuMs = std::chrono::duration<double, std::milli>(c1 - c0).count();
+      printf("CPU time           = %.3f ms\n", cpuMs);
+  
+      /* --- GPU --- */
+      launch_gpu(h_in.data(), h_gpu.data(), N);
+  
+      /* --- 误差校验 --- */
+      double maxAbs = 0.0, maxRel = 0.0;
+      for (int i = 0; i < N; ++i) {
+          double ref  = h_cpu[i];
+          double diff = std::fabs((double)h_gpu[i] - ref);
+          maxAbs = std::max(maxAbs, diff);
+          if (std::fabs(ref) > EPS)
+              maxRel = std::max(maxRel, diff / std::fabs(ref));
+      }
+  
+      printf("max abs err = %.6e  |  max rel err = %.6e\n", maxAbs, maxRel);
+      return 0;
+  }
+  ```
+  
+  编译和执行结果：
+  
+  ```
+  root@a100vm:~# nvcc -O3 -std=c++17 process_gpu.cu -o process_gpu
+  root@a100vm:~# ./process_gpu
+  CPU time           = 288.920 ms
+  GPU time  (total)  = 33.453 ms
+  GPU time  (kernel) = 26.006 ms
+  max abs err = 9.536743e-07  |  max rel err = 3.537088e-07
+  root@a100vm:~# 
   ```
   
   
@@ -649,9 +903,9 @@ A100技术指标
   - GPU计算密集型任务继续留在现有GPU VM上运行，二者以gRPC通信。**（新增熔断机制：延迟>2ms自动切回CPU）**
 - （注：本部分实施为推荐但可选，取决于上述实施后的效果。）
 
-## 详细实施步骤（端到端任务清单）
+#### 详细实施步骤（端到端任务清单）
 
-### 【阶段一：CPU端优化及性能瓶颈分析】
+#### 【阶段一：CPU端优化及性能瓶颈分析】
 
 **步骤1**：明确CPU热点函数，使用性能分析工具（`perf`、`gprof`、`VTune`等）确定热点。
 
@@ -665,7 +919,7 @@ A100技术指标
 - d.使用C++线程池管理线程，提高并行效率 **（推荐：BS::thread_pool(24)）**
 - e.NUMAbinding（使用`numactl/taskset`确保CPU亲和性）**（命令：`taskset -c 0-7,16-23 ./app`）**
 
-### 【阶段二：GPU迁移与加速计算】
+#### 【阶段二：GPU迁移与加速计算】
 
 **步骤1**：CPU热点向GPU迁移
 
@@ -711,7 +965,7 @@ A100技术指标
 
 - d. CUDA Stream实现多任务并发，流水线化执行任务，隐藏数据传输延迟。**（黄金规则：流数 = (传输时间+计算时间)/max(传输,计算)）**
 
-### 【阶段三：GPU MIG动态划分策略调整】
+**【阶段三：GPU MIG动态划分策略调整】**
 
 - 根据新迁移到GPU计算任务的显存和算力使用量，重新规划MIG实例分片大小
 
@@ -749,101 +1003,6 @@ A100技术指标
   ```
 
   
-
-## 迁移的前提条件
-
-1. **可并行的计算任务**：并行度>80% **（通过Amdahl定律计算）**
-
-2. 硬件与驱动：
-
-   （版本要求）
-
-   - CUDA ≥ 11.7
-   - NVIDIA Driver ≥ 450.80.02
-
-3. 开发技能：
-
-   （必备知识）
-
-   - 合并内存访问（Coalesced Access）
-   - Warp调度机制
-
-4. 正确性验证：
-
-   （差分测试协议）
-
-   ```
-   # 精度验证
-   assert np.max(np.abs(cpu_res - gpu_res)) < 1e-6  # 绝对误差
-   assert scipy.stats.kstest(cpu_res, gpu_res).pvalue > 0.05  # 分布一致性
-   ```
-
-   
-
-## 应用迁移的主要步骤
-
-### 4. 编写 GPU 内核函数
-
-**避免分支发散技巧**：
-
-```
-// 使用掩码替代条件分支
-__global__ void no_branch(float* data) {
-  int idx = ...;
-  float val = data[idx];
-  // 替代 if(val>0): 使用掩码计算
-  float result = (val > 0) * (val * 2) + (val <= 0) * (val / 2);
-}
-```
-
-**共享内存应用**：
-
-```
-__global__ void shared_mem_kernel(float* input) {
-  __shared__ float tile[256];
-  int tid = threadIdx.x;
-  tile[tid] = input[blockIdx.x*256 + tid];
-  __syncthreads();
-  // 块内协同计算
-}
-```
-
-### 6. 测试与迭代优化
-
-**性能分析工具链**：
-
-| 工具    | 命令                           | 关键指标           |
-| ------- | ------------------------------ | ------------------ |
-| `nsys`  | `nsys profile --stats=true`    | SM利用率(>60%)     |
-| `ncu`   | `ncu --metrics sm__throughput` | 指令吞吐量         |
-| `dcgmi` | `dcgmi dmon -e 1001`           | 显存带宽(>700GB/s) |
-
-## 性能优化与任务分配
-
-### 显存优化策略
-
-| 技术          | 实现方式                                  | 适用场景            |
-| ------------- | ----------------------------------------- | ------------------- |
-| **统一内存**  | `cudaMallocManaged(&ptr, size)`           | 频繁CPU-GPU交换数据 |
-| **显存池化**  | CUDA 11.2+ `cudaMemPool`                  | 减少碎片化          |
-| **Zero-Copy** | `cudaHostAlloc(..., cudaHostAllocMapped)` | 小数据高频传输      |
-
-### 负载均衡参数
-
-```
-\text{最佳流数} = \frac{T_{\text{传输}} + T_{\text{计算}}}{\max(T_{\text{传输}}, T_{\text{计算}})}
-```
-
-
-
-## 风险控制矩阵
-
-| 风险类型     | 应对措施                  | 监控指标       |
-| ------------ | ------------------------- | -------------- |
-| **性能回退** | 渐进迁移(5%→100%流量)     | QPS波动>5%     |
-| **精度偏差** | 双跑比对+容错阈值(ε<1e-6) | 结果误差率     |
-| **显存溢出** | 显存池化+分块计算         | GPU显存使用率  |
-| **传输瓶颈** | GPUDirect RDMA启用        | PCIe带宽利用率 |
 
 ## 结论
 
