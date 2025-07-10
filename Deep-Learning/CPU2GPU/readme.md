@@ -159,21 +159,287 @@ A100技术指标
   #   18.7%  your_app your_app       [.] data_preprocessing
   ```
 
+  `perf_demo.cpp`：
+
+  ```
+  #include <vector>
+  #include <random>
+  #include <cmath>
+  #include <algorithm>
+  #include <numeric>
+  #include <chrono>
+  #include <iostream>
+  
+  #define NOINLINE __attribute__((noinline))
+  
+  // 热点①：大量三角函数
+  NOINLINE void hot_trig(std::vector<double>& dst) {
+      for (double& v : dst) {
+          // 两次三角运算 + 开方，故意耗时
+          double t = std::sin(v);
+          v = t * std::cos(t) + std::sqrt(t);
+          v += std::sin(v) * std::cos(v);
+      }
+  }
+  
+  // 热点②：STL 排序
+  NOINLINE void hot_sort(std::vector<double>& dst) {
+      std::sort(dst.begin(), dst.end());
+  }
+  
+  // 热点③：向量累加
+  NOINLINE double hot_accumulate(const std::vector<double>& src) {
+      return std::accumulate(src.begin(), src.end(), 0.0);
+  }
+  
+  int main() {
+      constexpr std::size_t N     = 200'000;   // 数组规模
+      constexpr int          ITER = 500;       // 循环次数
+  
+      std::mt19937_64 rng(42);
+      std::uniform_real_distribution<> dist(0.0, 1000.0);
+      std::vector<double> data(N);
+      for (double& v : data) v = dist(rng);
+  
+      double checksum = 0.0;
+      auto t0 = std::chrono::high_resolution_clock::now();
+  
+      for (int i = 0; i < ITER; ++i) {
+          hot_trig(data);                 // ①
+          hot_sort(data);                 // ②
+          checksum += hot_accumulate(data);  // ③
+      }
+  
+      auto t1 = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<double> elaps = t1 - t0;
+      std::cout << "checksum = " << checksum << "\n"
+                << "elapsed  = " << elaps.count() << " s\n";
+      return 0;
+  }
+  ```
+  
   
 
-  #### **步骤 2：迁移可行性评估**
+  ------
 
+  1. 用「调试友好」的方式编译
+
+  ------
+  
+  ```
+  g++ -O0 -g -fno-omit-frame-pointer -fno-inline \
+      perf_demo.cpp -o perf_demo
+  # 说明:
+  # -O0                  关闭优化，保留行号/栈信息
+  # -g                   生成调试符号
+  # -fno-omit-frame-pointer  保留帧指针，perf 才能回溯
+  # -fno-inline          强制所有函数保持独立符号
+  ```
+  
+  
+  
+  ------
+  
+  1. 采样：让 perf 抓足够多的样本
+  
+  ------
+  
+  ```
+  # 采样 8 秒，400 Hz，并记录调用栈
+  sudo perf record -F 400 -g --timeout 8000 ./perf_demo
+  ```
+
+  
+
+  采样结束时会生成 `perf.data`，控制台能看到 checksum 和耗时。
+  
+  ------
+  
+  1. 生成报告（纯文本示例）
+  
+  ------
+  
+  ```
+  # --children no 只统计函数自身耗时；--percent-limit 0 不做过滤
+  sudo perf report --stdio --sort symbol --children no --percent-limit 0 | head -n 40
+  ```
+
+  
+
+  **预期关键输出**（数值略有差异，但 3 个热点都会出现）：
+  
+  ```
+  Self  Symbol
+  -----------------------------------------------
+  45.3% hot_sort(std::vector<double, std::allocator<double> >&)
+  32.8% hot_trig(std::vector<double, std::allocator<double> >&)
+  20.4% hot_accumulate(std::vector<double, std::allocator<double> > const&)
+  ```
+  
+  
+  
+  含义：
+  
+  - `hot_sort` 占 45 % → 排序是最大 CPU 热点
+  - `hot_trig` 占 33 % → 三角函数也很重
+  - `hot_accumulate` 占 20 % → 次热点
+    这些数字就能为 “先把哪个搬去 GPU” 提供量化依据。
+  
+  #### **步骤 2：迁移可行性评估**
+  
   | 指标             | 适合迁移               | 不适合迁移       |
   | ---------------- | ---------------------- | ---------------- |
   | **计算密度**     | FLOPs/byte > 10        | FLOPs/byte < 1   |
   | **并行度**       | 数据并行度 > 1000      | 强数据依赖       |
   | **分支复杂度**   | 分支简单(if/else < 5%) | 复杂分支(switch) |
   | **内存访问模式** | 连续访问               | 随机访问         |
+  
+  1. 计算密度（FLOPs / Byte）
+  
+     • 含义
+  
+  - 在执行过程中，平均每搬运 1 字节数据，要做多少次浮点运算（FLOP, floating-point operation）。
+  - 本质是 “算” 和 “搬” 的比值。
 
+  • 为什么重要
+  GPU 的强项是“算特别快，但搬数据到显存或 PCIe 也要时间”。
+  
+  - 如果 **FLOPs/Byte 很高**，说明搬同样多的数据能做大量计算 → 传输开销可以被计算时间“摊薄”，GPU 有利可图。
+  - 如果 **FLOPs/Byte 很低**，意味着主要耗时在访存，算得少；把数据挪到 GPU 反而只增加搬运时间，收益小甚至更慢。
+  
+  • 常用阈值
+  
+  - > 10 FLOPs/Byte：计算密集，GPU 通常能跑得比 CPU 快。
+  
+  - < 1 FLOP/Byte：内存/IO 密集，CPU 继续做更划算。
+  
+  2. 并行度
+  
+      • 含义
+
+  - 能同时独立执行的“任务颗粒”数量（最直观的就是可独立迭代的循环次数）。
+  - 对 GPU 而言，一次可以调度成千上万条线程，如果程序里只有几十条独立任务，硬件根本喂不饱。
+  
+  • 为什么重要
+  GPU 想发挥威力，需要大量并行任务把几千个 CUDA 核心全部点亮。
+
+  - **并行度高** → 可以把工作均匀切给几千线程，吞吐率大幅提升。
+  - **并行度低 / 强数据依赖** → GPU 的线程大部分在等数据，利用率低，还不如 CPU 几颗大核串行得快。
+
+  • 经验阈值
+
+  - > 1 000 个完全独立的数据项（或独立线程块）通常能喂饱一张 A100；
+  
+  - 低于百级并行度，一般不值得迁 GPU。
+  
+  3. 分支复杂度
+  
+      • 含义
+  
+  - 代码里 `if/else、switch` 之类条件分支有多少，并且不同数据是否走不同分支。
+  - GPU 一个 warp（32 线程）要同步执行同一条指令；如果分岔，部分线程只能“停等”，这叫**线程发散**。
+
+  • 为什么重要
+  
+  - **分支简单**（大部分线程走同一路径）→ GPU SIMD 结构效率高。
+  - **分支复杂 / 数据相关分岔多** → 同一个 warp 线程走不同路径，会导致串行执行 + idle，性能大打折扣。
+  
+  • 经验阈值
+  
+  - < 5 % 的指令是分支跳转，或者硬件统计的 branch-miss 很低 → 分支友好，可迁移。
+  - 复杂 `switch`、大量早退、依赖链长 → GPU 表现差。
+  
+  4. 内存访问模式 
+  
+      • 含义
+  
+  - 数据是否按 **连续地址** 被顺序读取/写入，还是“跳来跳去”的随机访问。
+  - GPU 的全局显存带宽高，但要求 **相邻线程访问相邻地址** 才能合并成一次大交易（coalesced）。
+  
+  • 为什么重要
+  
+  - **连续访问** → GPU 能把 32 线程一次性打包读写，效率最高；
+  - **随机 / 列表指针跳** → 每线程独立访存，合并失败，吞吐率骤降，还不如 CPU 的三级缓存快。
+  
+  • 判断方法（概念层面）
+  
+  - “遍历数组”“矩阵乘”这类一条线扫下去 → 连续，适合；
+  - “指针追链表”“哈希桶来回跳” → 随机，不适合。
+  
+  把四项指标串起来怎么用？ 
+  
+  1. 先用 CPU Profiler 找到 **真正耗时函数**；
+  2. 对每个候选函数，想想 / 简单量一下上述 4 个指标；
+  3. 只要有 2-3 项落在“不适合”那列，就别急着搬 GPU
+     - 可能需要先改算法（让访问变连续、减少分支），
+     - 或者干脆让 CPU 干这部分而把别的高并行度函数迁 GPU。
+
+  这样就能在“写 CUDA 之前”通过纸面或轻量测量判定哪段代码值得投资。
+  
+  ```
+  sudo perf stat -x, \
+    -e r01C7 -e r02C7 -e r04C7 -e r08C7 -e r412E \
+    ./perf_demo
+  ```
+  
+  
+  
+  • `r01C7` = scalar-double  • `r02C7` = 128b packed
+  • `r04C7` = 256b packed   • `r08C7` = 512b packed
+  • `r412E` = LLC miss（≈ 64 B/次）
+  
+  典型输出会得到 5 行数字，按顺序对应 5 个事件。例如：
+  
+  ```
+  6112340,r01C7
+  4502198,r02C7
+   842025,r04C7
+        0,r08C7
+   815120,r412E
+  ```
+  
+  
+  
+  ------
+  
+  ## 快速计算 FLOPs/Byte 的一键脚本
+  
+  ```
+  cat > calc_flops_byte.sh <<'EOF'
+  #!/usr/bin/env bash
+  BIN=./perf_demo
+  
+  read a b c d m <<<$(sudo perf stat -x, \
+    -e r01C7 -e r02C7 -e r04C7 -e r08C7 -e r412E \
+    $BIN 2>&1 | awk -F, '{print $1}')
+  
+  # 防止空值
+  a=${a:-0}; b=${b:-0}; c=${c:-0}; d=${d:-0}; m=${m:-0}
+  
+  FLOPS=$(( d + 2*b + 4*c + 8*a ))     # 注意顺序：r01C7 是 a
+  BYTES=$(( m * 64 ))
+  
+  echo "FLOPs       : $FLOPS"
+  echo "Bytes       : $BYTES"
+  if [ "$BYTES" -gt 0 ]; then
+    echo "FLOPs/Byte  : $(echo "scale=3; $FLOPS / $BYTES" | bc -l)"
+  else
+    echo "FLOPs/Byte  : N/A (0 Bytes)"
+  fi
+  EOF
+  chmod +x calc_flops_byte.sh
+  ./calc_flops_byte.sh
+  ```
+  
+  
+  
+  • 若输出 `FLOPs/Byte  > 10` → 计算密度高，适合 GPU
+  • 若远小于 1 → 主要是访存，迁去 GPU 收益低
+  
   #### **步骤 3：CUDA 迁移实现**
-
+  
   **原始 CPU 热点代码**：
-
+  
   ```
   void process_data(float* input, float* output, int N) {
     for (int i = 0; i < N; i++) {
@@ -182,11 +448,11 @@ A100技术指标
     }
   }
   ```
-
   
-
+  
+  
   **CUDA 迁移后**：
-
+  
   ```
   __global__ void process_data_kernel(float* input, float* output, int N) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -205,13 +471,13 @@ A100技术指标
     process_data_kernel<<<grid, block>>>(d_input, d_output, N);
   }
   ```
-
   
-
+  
+  
   #### **步骤 4：性能优化技巧**
-
+  
   1. **内存访问合并**：
-
+  
      ```
      // 低效：跨步访问
      value = data[row * width + col];
@@ -219,53 +485,53 @@ A100技术指标
      // 高效：连续访问
      value = data[col * height + row];  // 转置为列优先
      ```
-
+  
      
-
+  
   2. **使用快速数学函数**：
-
+  
      ```
      // 替换标准函数
      __sinf(x)  // 比 sinf() 快 4x，精度略低
      __frcp_rn(x) // 快速倒数
      ```
-
+  
      
-
+  
   3. **共享内存优化**：
-
+  
      ```
      __shared__ float tile[256];
      tile[threadIdx.x] = input[global_idx];
      __syncthreads();
      // 块内协同计算
      ```
-
+  
      
-
+  
   ### CUDA Stream 流水线架构
-
+  
   #### **1. 默认流（Default Stream）的本质**
-
+  
   - **所有 CUDA 程序自动拥有一个隐式默认流**（称为 stream 0）
-
+  
   - 关键限制：
-
+  
     ```
     graph LR
       A[操作1] --> B[操作2] --> C[操作3]
     ```
-
+  
     
-
+  
     - 所有操作使用异步 API（如 `cudaMemcpyAsync`）也**无法并行**
     - 核函数与内存拷贝**不能重叠执行**
     - 相当于**单车道高速路**，后车必须等前车通过
-
+  
   #### **2. 默认流的性能瓶颈（您的场景）**
-
+  
   在 CPU 100% + GPU 利用率低的场景下尤为严重：
-
+  
   ```
   timeline
       title 默认流执行过程
@@ -276,33 +542,33 @@ A100技术指标
       空闲等待  ： 20-25ms（CPU处理结果）
       H2D传输  ： 25-30ms
   ```
-
   
-
+  
+  
   - 关键问题
-
+  
     ：灰色空闲时段导致：
-
+  
     - GPU 利用率仅 50% 左右
     - CPU 和 GPU **交替空闲**，无法协同
-
+  
   #### **3. 多流技术的必要性**
-
+  
   ##### 以下场景必须显式使用多流：
-
+  
   | 场景                   | 默认流是否足够 | 多流必要性 |
   | ---------------------- | -------------- | ---------- |
   | 单任务简单计算         | ✅ 足够         | ❌ 不需要   |
   | **CPU-GPU 流水线处理** | ❌ 不足         | ✅ **必需** |
   | 多任务并行             | ❌ 不足         | ✅ 必需     |
   | 实时数据处理           | ❌ 不足         | ✅ 必需     |
-
+  
   **您的业务现状**：
-
+  
   - CPU 100% + GPU 利用率低 → **典型计算-传输未重叠**
-
+  
   - 需通过多流实现：
-
+  
     ```
     timeline
         title 多流优化后
@@ -316,29 +582,29 @@ A100技术指标
         计算    ： 8-18ms
         D2H传输 ： 18-23ms
     ```
-
+  
     
-
+  
   #### **4. 优势**
-
+  
   1. **解决核心问题**：
-
+  
      - 多流是提升 GPU 利用率到 60%+ 的**关键技术路径**
      - 直接针对您“CPU 高负载 + GPU 低利用”的痛点
-
+  
   2. **客户认知盲区**：
-
+  
      - 多数开发者误以为“CUDA 自动并行所有操作”
      - 实际需要**显式设计流水线架构**
-
+  
   3. **实施性价比高**：
-
+  
      - 代码改动量：< 50 行
      - 性能收益：提升 40-60% GPU 利用率
      - **无硬件成本**
-
+  
   4. **Azure A100 专属优化**：
-
+  
      ```
      // 为每个MIG实例创建独立流组
      cudaStream_t mig_streams[3];
@@ -347,11 +613,11 @@ A100技术指标
        cudaStreamCreate(&mig_streams[i]);
      }
      ```
-
+  
      
-
+  
   #### **5. 最低实现方案**
-
+  
   ```
   // 步骤1：创建2个额外流（共3流）
   cudaStream_t s1, s2;
@@ -373,7 +639,7 @@ A100技术指标
   cudaStreamSynchronize(s1);
   cudaStreamSynchronize(s2);
   ```
-
+  
   
 
 ### （三）应用架构拆分 (可选项)：
