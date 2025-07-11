@@ -534,8 +534,6 @@ miss rate = 3.4 M / 98 M ≈ 3.5 %
 | --------------- | ---- | -------------------------------- |
 | miss rate < 5 % | ✅    | 分支很少，线程发散可控，GPU 友好 |
 
-------
-
 ###### 内存访问模式（Cache Locality / 随机度）
 
 收集数据**
@@ -988,8 +986,6 @@ cudaStreamSynchronize(s2);
 >
 > 满足上述任意场景，就应考虑把 **CPU-密集逻辑** 与 **GPU-计算逻辑** 解耦为两个微服务。
 
-------
-
 ### 1. 拆分决策矩阵
 
 | 维度     | 候选逻辑 A (留 CPU) | 候选逻辑 B (留 GPU) | 判断标准                    |
@@ -1054,8 +1050,6 @@ CPU-Svc->>CPU-Svc: if latency>2 ms\n  switchToLocalFallback()
 | CPU-Svc | `cpu_util`, `req_qps`                    | HPA：CPU>70 % & QPS>阈值 → +1    |
 | GPU-Svc | `nvidia_gpu_utilization`, `mig_mem_used` | <50 % 缩容；>80 % 扩容或增 slice |
 | 链路    | `rpc_latency_p95`, `fallback_count`      | fallback 连续升高触发警报        |
-
-------
 
 ### 3. 典型落地案例
 
