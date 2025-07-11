@@ -2,7 +2,15 @@
 
 本仓库用一个极简示例串起整条方法论：先在 CPU 上定位计算热点，再把这类“并行度高、访存顺序、分支简单”的循环改写为 CUDA kernel，实现 CPU 负载削减与 GPU 算力释放。代码一次运行即可对比 CPU 和 GPU 耗时、拆分传输与计算开销，并校验结果误差，从而快速验证“CPU → GPU”迁移的可行性与预期收益，为后续在真实业务中批量迁移、流水线优化、MIG 资源切分等操作奠定模板。
 
-测试中使用Azure NC26 A100 GPU VM。
+### 整个方案的步骤
+
+整个方案一共分为四个步骤：**单机软件层优化、计算密集型任务CPU → GPU迁移、应用架构拆分、高层级弹性与容灾扩展**。
+
+接下来的内容将会针对四大部分进行说明。
+
+
+
+测试中使用Azure NC26 A100 GPU VM，指标分析如下。
 
 ### **A100技术指标**
 
@@ -20,24 +28,10 @@
 | Memory Controller       | HBM2e MC                    | 8                            | 固定                            | 每控制器 512-bit，总线 4 096-bit                             |
 | HBM2e Stacks            | High-BW Memory              | 6                            | 3D 堆叠                         | 80 GB，总带宽 1.55 TB/s                                      |
 | L2 Cache                | Level-2 Cache               | 40 MB                        | 全局共享                        | 所有 SM 共享                                                 |
-| **Max Resident Warp**   | 可同时驻留 warp             | **48 / SM；5 184 / 卡**      | 1 536 threads ÷ 32              | 动态并发上限①                                                |
-| **Max Resident Thread** | 可同时驻留线程              | **1 536 / SM；165 888 / 卡** | 108 SM × 1 536                  | 动态并发上限①                                                |
+| **Max Resident Warp**   | 可同时驻留 warp             | **48 / SM；5 184 / 卡**      | 1 536 threads ÷ 32              | 动态并发上限                                                 |
+| **Max Resident Thread** | 可同时驻留线程              | **1 536 / SM；165 888 / 卡** | 108 SM × 1 536                  | 动态并发上限                                                 |
 
-形象比喻：
-
-| 层级                           | 通俗易懂描述                                       | A100 GPU 数量                                                | 说明                                                         |
-| ------------------------------ | -------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
-| **GPU**                        | 整座大楼                                           | 1个                                                          | 整个计算芯片                                                 |
-| **GPC**                        | 楼层                                               | 7个                                                          | GPU第一级硬件划分单元，Graphics Processing Clusters          |
-| **TPC**                        | 楼层里的房间                                       | 56个（7 GPC × 8个TPC）                                       | GPC内的第二级单元，Texture Processing Cluster                |
-| **SM**                         | 房间内的教室                                       | 108个（56TPC × 2 SM，部分屏蔽）                              | GPU执行 CUDA 程序最基本单元，流式多处理器(Streaming MP)      |
-| **Warp Scheduler** (每SM有4个) | 教室里的“4个门(入口)”                              | 每个SM 4个调度器（全卡432个），每个周期可从驻留warp中选最多4个warp执行 | 每SM每周期最多启动4个warp，送入执行核心进行计算              |
-| **Warp**                       | 一个上课小组（32名学生）                           | 每SM最多驻留48个Warp                                         | GPU最小调度单位(每次指令执行时32个线程锁步)                  |
-| **线程(Thread)**               | 小组中的一个学生                                   | 每个warp固定为32线程，每SM最大共1536线程                     | 程序员的最小逻辑运算单元                                     |
-| **指令(Instruction)**          | 学生依次执行的具体任务（例如按键盘）               | 每个线程依次执行很多条指令                                   | 执行时最小的硬件操作单位(加法、乘法、访存等)                 |
-| **CUDA Core**                  | 教室里的普通电脑(FP32运算单元)                     | 每SM有64个CUDA Core，总计有6912个                            | 普通CUDA运算单元(单精度浮点/整数运算)，每个warp指令由调度器送入这里执行 |
-| **Tensor Core**                | 教室内的一些专用计算器（专门快速计算矩阵乘等运算） | 每SM有4个Tensor Core，共432个                                | 专为矩阵计算/AI推理加速的特殊高速计算单元                    |
-| **RT Core**                    | 教室里的光线追踪渲染专用设备                       | A100没有RT Core（RT core仅在专门支持光线追踪的GPU如RTX系列中存在） | 专为实时光线追踪(ray tracing)设计的硬件(A100并不配备)        |
+逻辑机构示意：
 
 ```
 GPU 芯片 (A100共1个)
@@ -63,32 +57,14 @@ GPU 芯片 (A100共1个)
 
 ```
 GPU > GPC > TPC > SM > Warp Scheduler(每周期4个Warp) > Warp(驻留48个) > Thread(线程) > Instruction(指令)
+线程Thread ────────（由每个warp的指令送到硬件执行单元）───────> CUDA Core或Tensor Core 执行具体计算
 ```
 
 - 每个SM有4个**warp调度器**（Warp Schedulers）。
 - 每个Warp调度器每个时钟周期，**最多只能选取一个就绪warp**，让这warp中的32个线程同时发射同一条指令到执行单元(CUDA Cores/Tensor Cores)执行。
 - 因此，每个SM在一个时钟周期内，最多启动4个warp同时执行指令。
 
-
-
-加上硬件单元级的核心（CUDA core 和 Tensor core）：
-
-```
-线程Thread ────────（由每个warp的指令送到硬件执行单元）───────> CUDA Core或Tensor Core 执行具体计算
-```
-
-### 表 2 关键计算单元性能 & 并发能力对比
-
-| 单元类型                | 每 SM 数量 | 全卡总量 | 峰值性能 (A100 80 GB)                                        | 备注 / 数据类型                  |
-| ----------------------- | ---------- | -------- | ------------------------------------------------------------ | -------------------------------- |
-| FP32 CUDA Core          | 64         | 6 912    | 19.5 TFLOPS                                                  | FP32                             |
-| FP16 CUDA Core          | 64 (复用)  | 6 912    | 78 TFLOPS                                                    | FP16 (2:1)                       |
-| INT32 CUDA Core         | 64 (复用)  | 6 912    | 19.5 TIOPS                                                   | INT32                            |
-| Tensor Core             | 4          | 432      | 312 TFLOPS (FP16/BF16)<br>156 TFLOPS (TF32)<br>624 TOPS (INT8) | FP16 / BF16 / TF32 / INT8 / INT4 |
-| **Max Resident Warp**   | 48         | 5 184    | —                                                            | 并发调度上限                     |
-| **Max Resident Thread** | 1 536      | 165 888  | —                                                            | 并发调度上限                     |
-
-
+单SM示意：
 
 ```
 ┌───────────────────── 1× SM (Streaming Multiprocessor) ─────────────────────┐
@@ -114,14 +90,6 @@ GPU > GPC > TPC > SM > Warp Scheduler(每周期4个Warp) > Warp(驻留48个) > T
   32 条线程 = 1 warp          48 warp/SM 可同时“挂起”(resident)
                                     └─ 1 536 线程/SM 上限
 ```
-
-
-
-### 整个方案的步骤
-
-整个方案一共分为四个步骤：**单机软件层优化、计算密集型任务CPU → GPU迁移、应用架构拆分、高层级弹性与容灾扩展**。
-
-接下来的内容将会针对四大部分进行说明。
 
 
 
@@ -162,10 +130,9 @@ GPU > GPC > TPC > SM > Warp Scheduler(每周期4个Warp) > Warp(驻留48个) > T
      MIG2 --> L3组2(CPU 16-23)
      ```
 
-     
-
+  
   #### **容器绑定方案**
-
+  
   ```
   # MIG容器0：绑定到L3组0
   docker run -d \
@@ -188,11 +155,11 @@ GPU > GPC > TPC > SM > Warp Scheduler(每周期4个Warp) > Warp(驻留48个) > T
     -e CUDA_VISIBLE_DEVICES=0 \
     your_image
   ```
-
   
-
+  
+  
   验证：
-
+  
   ```
   root@a100vm:~# docker run -it --rm --name gpu_test --gpus '"device=0"' --cpuset-cpus 0-7 -e CUDA_VISIBLE_DEVICES=0 ubuntu:22.04
   
@@ -200,23 +167,23 @@ GPU > GPC > TPC > SM > Warp Scheduler(每周期4个Warp) > Warp(驻留48个) > T
   
   root@61fbbea4c7be:/# lstopo --no-io --of txt 
   ```
-
+  
   ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/CPU2GPU/images/2.png)
-
+  
   ### **方案提升对性能的提升**
-
+  
   1. **缓存局部性最大化**：
-
+  
      - 每个容器独占 32MB L3 缓存
      - 避免跨容器缓存行驱逐（Cache Line Eviction）
-
+  
   2. **内存通道优化**：
-
+  
      - 在 AMD EPYC 架构中，L3 组对应内存控制器
      - 减少跨内存控制器的访问
-
+  
   3. **实测性能数据**：
-
+  
      | 指标       | 共享 L3    | 独占 L3    | 提升 |
      | ---------- | ---------- | ---------- | ---- |
      | L3 命中率  | 68%        | 96%        | 41%↑ |
