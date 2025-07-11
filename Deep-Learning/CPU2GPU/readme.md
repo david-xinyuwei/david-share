@@ -1,4 +1,4 @@
-# CPU 任务向 GPU 迁移思路
+# AI推理任务从CPU 向 GPU 迁移思路
 
 本仓库用一个极简示例串起整条方法论：先在 CPU 上定位计算热点，再把这类“并行度高、访存顺序、分支简单”的循环改写为 CUDA kernel，实现 CPU 负载削减与 GPU 算力释放。代码一次运行即可对比 CPU 和 GPU 耗时、拆分传输与计算开销，并校验结果误差，从而快速验证“CPU → GPU”迁移的可行性与预期收益，为后续在真实业务中批量迁移、流水线优化、MIG 资源切分等操作奠定模板。
 
@@ -10,9 +10,9 @@
 
 
 
-测试中使用Azure NC26 A100 GPU VM，指标分析如下。
-
 ### **A100技术指标**
+
+测试中使用Azure NC26 A100 GPU VM，该GPU VM指标分析如下。
 
 | 组件                    | 全称                        | 数量 / 规模                  | 计算逻辑                        | 主要功能或说明                                               |
 | ----------------------- | --------------------------- | ---------------------------- | ------------------------------- | ------------------------------------------------------------ |
@@ -158,7 +158,7 @@ GPU > GPC > TPC > SM > Warp Scheduler(每周期4个Warp) > Warp(驻留48个) > T
   
   
   
-  验证：
+  **验证：**
   
   ```
   root@a100vm:~# docker run -it --rm --name gpu_test --gpus '"device=0"' --cpuset-cpus 0-7 -e CUDA_VISIBLE_DEVICES=0 ubuntu:22.04
@@ -399,7 +399,7 @@ GPU 想发挥威力，需要大量并行任务把几千个 CUDA 核心全部点�
 
   
 
-把四项指标串起来怎么用？ 
+四项指标综合考虑：
 
 1. 先用 CPU Profiler 找到 **真正耗时函数**；
 2. 对每个候选函数，想想 / 简单量一下上述 4 个指标；
@@ -467,9 +467,13 @@ chmod +x calc_flops_byte.sh
 
 ###### 并行度（Data-Level / Thead-Level Parallelism）
 
+```
 (base) root@linuxworkvm:~# sudo perf stat -e task-clock,context-switches ./perf_demo checksum = 2.9674e+08 elapsed = 32.9217 s
 
 Performance counter stats for './perf_demo':
+```
+
+执行结果：
 
 ```
 32946.85 msec task-clock                       #    1.000 CPUs utilized             
@@ -563,12 +567,12 @@ miss rate = 11 M / 210 M ≈ 5.2 %
 
 | 指标         | 实测数值 / 结论               | 迁移判断 |
 | ------------ | ----------------------------- | -------- |
-| 计算密度     | （前面因 PMU 被屏蔽无法实测） | 待定¹    |
+| 计算密度     | （前面因 PMU 被屏蔽无法实测） | 待定     |
 | 并行度       | 1 × CPU → **远低于 1000**     | ❌        |
 | 分支复杂度   | 3.5 % miss rate (< 5 %)       | ✅        |
 | 内存访问模式 | 5.2 % cache miss (≈顺序访问)  | ✅/⚠️      |
 
-> ¹ 没有 PMU 时，可用静态估算：
+> 没有 PMU 时，可用静态估算：
 > • `hot_trig` 里每次迭代 4~6 FLOP，但要搬 8 B（double） → FLOPs/Byte≈0.5，计算密度偏低。
 
 - **最大短板是并行度**：当前程序完全串行 → 把它直接搬 GPU 不会加速。
