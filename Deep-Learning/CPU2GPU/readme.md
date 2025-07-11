@@ -1035,8 +1035,6 @@ cudaStreamSynchronize(s2);
 
 ≥ 3 项满足“拆分”倾向 → 进入微服务实施。
 
-------
-
 ### 2. 端到端实施流程
 
 #### 阶段 1：服务边界 & 技术选型
@@ -1110,8 +1108,6 @@ message InferenceResp { repeated int64 item_id = 1; repeated float score = 2; }
 service RecGPU { rpc Predict(InferenceReq) returns (InferenceResp); }
 ```
 
-
-
 CPU-侧熔断伪码
 
 ```
@@ -1143,17 +1139,11 @@ for(;;){
 }
 ```
 
-
-
-------
-
 ### 4. 熔断 / 回退策略表
 
 | 触发条件                                    | 回退动作                             | 恢复条件                            | 监控指标                                                     |
 | ------------------------------------------- | ------------------------------------ | ----------------------------------- | ------------------------------------------------------------ |
 | RTT > 2 ms 连续 3 次<br>或 error rate > 5 % | 调 CPU 版；请求入 Kafka `GPU_QUEUED` | 连续 30 s RTT < 1 ms 且 error < 1 % | `gpu_fallback_total`<br>`rpc_latency_p95`<br>`rpc_error_ratio` |
-
-------
 
 ### 5. Grafana 核心面板
 
@@ -1163,11 +1153,9 @@ for(;;){
 
 (1 × Heatmap + 2 × Time-series 足够诊断全链路)
 
-------
+### 6. 常见问题
 
-### 6. 常见坑 & 对策
-
-| 坑                  | 现象               | 对策                              |
+| 问题                | 现象               | 对策                              |
 | ------------------- | ------------------ | --------------------------------- |
 | gRPC 反序列化耗时高 | CPU-Svc 单次 1 ms+ | proto zero-copy + pinned 内存     |
 | 批量过大导致尾延迟  | P95 飙升           | 动态 batch，`target_latency=4 ms` |
@@ -1185,8 +1173,6 @@ W4  gRPC + 熔断 + Prometheus
 W5  GPU-Svc 灰度 10 % → 全量 → 关单体
 ```
 
-
-
 通过以上流程、矩阵与案例，您可以按需把参数替换到自己的业务中，即可快速落地 **CPU-GPU 微服务解耦 + 熔断保障 + 全链路监控**。
 
 ## 步骤四：高层级弹性与容灾扩展
@@ -1194,8 +1180,6 @@ W5  GPU-Svc 灰度 10 % → 全量 → 关单体
 > 目标：在已完成「CPU-VM ↔ GPU-VM 微服务解耦」的基础上，进一步把系统做成
 > ① 跨 Region 容灾 ② 灰度发布全链路可回滚 ③ CPU 后端按需 Serverless 弹出弹入。
 > 如无全球流量或极端可用性要求，本步骤可按需择其一实施。
-
-------
 
 ### 多 Region / 多集群容灾
 
@@ -1211,8 +1195,6 @@ W5  GPU-Svc 灰度 10 % → 全量 → 关单体
 2. GPU Model Checkpoint：对象存储 + `rsync --append-verify`；主→备延迟 < 60 s。
 3. 数据层：跨 Region 使用 Spanner / CockroachDB；或异步双写 Kafka → Debezium。
 4. 灾难演练：每月 1 次人工触发主 Region 黑洞 15 min，验证 RPO=0 / RTO<60 s。
-
-------
 
 ### GPU-VM & CPU-VM 混合灰度发布
 
