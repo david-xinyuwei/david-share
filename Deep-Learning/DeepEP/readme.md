@@ -198,7 +198,9 @@ Softmax / Sampling  →  next-token prediction
 2. MoE Block 4-61 replace the dense FFN with **Router + 1 shared + 256 routed experts**, and add two cross-GPU communications (Dispatch / Combine).
 3. Final LayerNorm normalizes the last hidden state; LM Head projects it to vocabulary logits (weights tied with the token embedding).
 
+整体逻辑示意图：
 
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/DeepEP/images/3.png)
 
 需要注意的是，模型中两类Head的区别。
 
