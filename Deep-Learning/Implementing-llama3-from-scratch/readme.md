@@ -18,6 +18,39 @@ git clone https://github.com/naklecha/llama3-from-scratch.git
 
 下图展示了 LLaMA 3 模型的整体架构示意。作为一个大型基于 Transformer 的语言模型，LLaMA 3 由多个核心模块组成，包括输入嵌入层、多个堆叠的 Transformer Block 以及输出预测层。每个 Transformer Block 内部包含多头自注意力机制和前馈神经网络，协同作用实现强大的语言理解与生成能力。
 
+### 查看 LLaMA 3 模型的参数配置
+
+```
+import json
+
+with open("Meta-Llama-3-8B/params.json", "r") as f:
+    config = json.load(f)
+
+print(config)
+```
+
+![Image](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXDxBIZznevtX3bCmAQSzfDrNrD9wDLcrBc80VibiaDIhCB07evn5fMSj7icEIcGJJrZIlkz7vFQCFJg/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1)
+
+1. 运行结果示例如下：
+   - **dim**: 4096
+     模型的隐藏层维度或特征维度，即每个token被表示成4096维的向量。
+   - **n_layers**: 32
+     Transformer层数，表示模型深度。
+   - **n_heads**: 32
+     注意力头的个数，多头机制使模型可以并行捕捉多方面的信息。
+   - **n_kv_heads**: 8
+     用于键（Key）和值（Value）的多头数量，LLaMA中常用的减少计算的优化设计。
+   - **vocab_size**: 128256
+     词汇表大小，代表模型可识别的单词或符号总数。
+   - **multiple_of**: 1024
+     模型参数维度通常设置为1024的倍数，保证硬件和算法的效率。
+   - **ffn_dim_multiplier**: 1.3
+     前馈网络隐藏层大小相对于特征维度的放大倍数。
+   - **norm_eps**: 1e-5
+     归一化层中防止除零的小常数，增强数值稳定性。
+   - **rope_theta**: 500000.0
+     RoPE（旋转位置编码）相关参数，控制位置信息编码方式。
+
 ![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Implementing-llama3-from-scratch/images/1.png)
 
 **Llama3的模型参数：**
@@ -164,39 +197,6 @@ print(json.dumps(list(model.keys())[:20], indent=4))
 
 总体来看，上面结果揭示了基于 Transformer 架构的深度学习模型的核心组成部分。此类模型广泛应用于自然语言处理任务，包括文本分类、机器翻译和问答系统等。模型的每一层结构基本一致，均包含注意力机制、前馈网络和归一化层，这样的设计有助于模型有效捕捉输入序列中的复杂特征。
 
-### 查看 LLaMA 3 模型的参数配置
-
-```
-import json
-
-with open("Meta-Llama-3-8B/params.json", "r") as f:
-    config = json.load(f)
-
-print(config)
-```
-
-![Image](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXDxBIZznevtX3bCmAQSzfDrNrD9wDLcrBc80VibiaDIhCB07evn5fMSj7icEIcGJJrZIlkz7vFQCFJg/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1)
-
-1. 运行结果示例如下：
-   - **dim**: 4096
-     模型的隐藏层维度或特征维度，即每个token被表示成4096维的向量。
-   - **n_layers**: 32
-     Transformer层数，表示模型深度。
-   - **n_heads**: 32
-     注意力头的个数，多头机制使模型可以并行捕捉多方面的信息。
-   - **n_kv_heads**: 8
-     用于键（Key）和值（Value）的多头数量，LLaMA中常用的减少计算的优化设计。
-   - **vocab_size**: 128256
-     词汇表大小，代表模型可识别的单词或符号总数。
-   - **multiple_of**: 1024
-     模型参数维度通常设置为1024的倍数，保证硬件和算法的效率。
-   - **ffn_dim_multiplier**: 1.3
-     前馈网络隐藏层大小相对于特征维度的放大倍数。
-   - **norm_eps**: 1e-5
-     归一化层中防止除零的小常数，增强数值稳定性。
-   - **rope_theta**: 500000.0
-     RoPE（旋转位置编码）相关参数，控制位置信息编码方式。
-
 
 
 ### **将Text转化为Token**
@@ -323,8 +323,6 @@ token_embeddings.shape
 - **描述**：将所有头得到的矩阵 Z 拼接，后乘以输出权重矩阵 W^O，生成整层的最终输出。
 - **解释**：各头独立计算后，其输出沿特征维度拼接成一整块大矩阵，再乘以 W^O，实现信息融合和映射，得到整层注意力的最终结果。
 
-------
-
 额外说明
 
 - **各权重矩阵形状**
@@ -365,7 +363,7 @@ model["layers.0.attention.wo.weight"].shape
 
 这种设计体现了模型架构上的权衡，键和值的维度缩小有助于降低计算复杂度和内存消耗，而查询和输出保持较高维度，则有利于保留更多信息。具体设置因模型结构和应用需求而异。
 
-### QKV权重矩阵的作用完整解析
+### 注意力层QKV权重矩阵的作用的理解
 
 假设你想使用 LLaMA-3 模型生成一句合适的文本，例如输入：
 
@@ -514,34 +512,9 @@ h_final(马斯克) = [2.5, 1.2] (假设，2 维举例)
 
 以上示例与解释，希望能够完整、清晰、直观地呈现 LLaMA-3 Transformer 的核心机制——**多头注意力机制中QKVZ的过程及其实际应用**：从一个短小例子如何扩展成完整文本生成全过程。
 
-### QKV的本质
 
-首先明确：
 
-Transformer 中的 Q、K、V 本身**并不是直接用来预测下一个 token 的**。它们只是 "注意力(Attention)" 机制计算中的临时中间产物，目的是更好地 **整合每个 token 周围的上下文信息**。
-
-那么，为什么 Transformer 用 QKV 来实现预测下一个 token？
-
-#### Transformer 是怎么理解一个句子的？
-
-传统模型理解句子，可能直接是一个字一个字或一个词一个词独立看过去，很难深刻理解上下文关系。
-
-而 Transformer 的方式是：
-
-- **Token自己制造查询 (Query, Q)**：
-  它会提出 "我应该关注句子的哪些部分？"
-- **Token同时也制造Key、Value**：
-  它同时也告诉别人："我这个Token有什么特征(K)，能贡献哪些信息(V)？"
-
-然后每个 Token 进行一轮内部“互动”：
-
-- 每个 Token 用 **自己的 Query(Q)** 去匹配 **句子中所有 Token 的 Key(K)**。
-- 根据匹配结果，决定它使用哪些 Token 的 Value(V) 信息，并组合这些信息形成新的表达向量 (`Z`)。
-- 这个新的向量 Z 就是一次上下文交互之后，更好、更明确地 "重新理解了上下文" 的向量描述。
-
-最后经过若干次这种交互（32层Transformer Block）后，每个词的向量逐渐融合了整个句子的更多信息，表达更精确、信息更丰富，使得后面的预测变得更加精准。
-
-#### 用简单的直观比喻理解（现实生活的类比）：
+#### 如果用更简单的直观比喻理解（现实生活的类比）：
 
 你把 Transformer 理解为一个“智慧专家论坛”：
 
@@ -607,8 +580,6 @@ q_layer0 = q_layer0.view(n_heads, head_dim, dim)        # [32, 128, 4096]
 print(q_layer0.shape)                                   # torch.Size([32, 128, 4096])
 ```
 
-
-
 | 维度 | 含义                                  |
 | ---- | ------------------------------------- |
 | 32   | 注意力头的数量 (`n_heads`)            |
@@ -625,8 +596,6 @@ print(q_layer0.shape)                                   # torch.Size([32, 128, 4
 
 ### 实现第一层的第一个注意力头
 
-### 实现第一层的第一个注意力头
-
 在上一节中，我们已经把整层查询权重 `wq.weight` reshape 成
 `q_layer0  →  [n_heads, head_dim, dim] = [32, 128, 4096]`。
 现在只需从中取出第 0 号头 (head-0) 的权重矩阵即可：
@@ -636,8 +605,6 @@ print(q_layer0.shape)                                   # torch.Size([32, 128, 4
 q_layer0_head0 = q_layer0[0]        # shape: [128, 4096]
 print(q_layer0_head0.shape)         # → torch.Size([128, 4096])
 ```
-
-
 
 解释：
 
@@ -652,8 +619,6 @@ print(q_layer0_head0.shape)         # → torch.Size([128, 4096])
 # token_embeddings 形状: [seq_len, 4096]
 q_head0_per_token = token_embeddings @ q_layer0_head0.T   # [seq_len, 128]
 ```
-
-
 
 这样就完成了“第一层 - 第 0 个注意力头”的 Q 向量生成步骤；
 后续步骤同理再取对应的 W K、W V，完成 K、V 的计算与注意力打分。
@@ -671,8 +636,6 @@ q_per_token = torch.matmul(token_embeddings, q_layer0_head0.T)
 
 print(q_per_token.shape)          # 结果：torch.Size([17, 128])
 ```
-
-
 
 #### 形状理解
 
@@ -726,8 +689,6 @@ head_dim = 4096 // 32            # 128
 WQ_heads = WQ.view(32, 128, 4096) # [头数, head_dim, dim]
 ```
 
-
-
 得到张量形状 `[32 , 128 , 4096]`：
 
 | 维度 | 含义                          |
@@ -763,8 +724,6 @@ Q_h0  = token_embeddings @ WQ_h0.T   # [seq_len, 128]
 
   - 其中 `seq_len = 3`（“我 欣赏 马斯克”）
   - 每个 token 得到 **128 维** 查询向量，专属于 head-0
-
-------
 
 #### 袖珍 4 头 × 4 维小算例
 
@@ -1095,20 +1054,138 @@ RoPE 做的事情，就是对每一个token的查询Q（以及键K），根据to
 
 ![Image](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXDxBIZznevtX3bCmAQSzfDia29Dua82HQIsmvB3RYFicwhb9c7mtJsM5ZzrsOMia3zen88Hcic89sictw/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1)
 
+上面这两行代码本身并没有直接进行位置编码（无论是绝对位置编码还是相对位置编码）。这行代码主要执行了两个操作：
 
+1. **类型转换**：`q_per_token.float()` 将 `q_per_token` 张量的数据类型转换为浮点数。这通常是为了确保后续的数学运算能够包含小数。
+
+2. **重塑张量**：`.view(q_per_token.shape[0], -1, 2)` 重新调整张量的形状。这里的操作是将原始的二维张量 `q_per_token`（形状为 `[17, 128]`）转换为一个三维张量，其中第一维保持不变（17），第二维自动计算以保持元素总数不变，第三维设置为 2。这种重塑操作通常用于准备数据以适应特定的算法需求，但它本身并不改变数据的内容或含义。
+
+   
+
+现在我们有了一个大小为 [17x64x2] 的向量，这是将长度为 128 的查询分成了每个提示符中的 64 对。这 64 对中的每一对都将旋转 m*(theta)，其中 m 是我们正在旋转查询的那个标记的位置！
 
 ![Image](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXDxBIZznevtX3bCmAQSzfDHk4kj62jvEmnyxHrOjyYiaibWtPesPVJTZQKiaeh5sZ2pf5HDicTh34RIg/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1)
 
+## 下一步：计算RoPE旋转使用的频率参数 (`freqs` 矩阵)
+
+上面我们已经完成了查询向量 (Q) 和键向量 (K) 的拆分与准备，并明确了位置旋转的目标。
+现在，我们就需要为每个查询向量的“小向量对”（也就是 `[17, 64, 2]` 张量的第二维维度为64）计算对应的旋转频率，以便实施旋转位置编码（RoPE）。
+
+具体而言，我们需要一组频率，来确定每一对小向量在旋转时的“角速度”——即它们究竟旋转多少角度。
+
+### 我们到底为什么需要这样一组频率数字？好处在哪里？
+
+在Transformer模型里，我们需要给每个token赋予位置信息（token在句中的前后位置）。
+RoPE(旋转位置嵌入)用不同的“旋转频率”实现了这种位置的编码：
+
+- 上面求出的这组频率数值，就是不同向量对子空间里旋转位置的频率；
+- 序列头部(位置靠前处，对应‘0’, ‘1/64’, ‘2/64’,...) 频率比较高，这意味着它们旋转得比较快——这样的子空间可以很好地区分较短距离内不同位置的区别；
+- 序列尾部(位置靠后，对应 `62/64, 63/64`)频率非常低，这意味着这些子空间旋转得非常慢——适合保留长距离关系的信息。
+
+换句话说：
+
+- 频率越高(数值越大)，适合体现token之间比较近（距离小）的位置关系；
+- 频率越低(数值越小)，适合体现token之间比较远（距离大）的位置关系。
+
+这样一来，模型中的位置关系既可以精细地区分近处token，也可以更平滑地考虑较远的token。
+
+------
+
+### ⭕️ 步骤1. 生成均匀采样序列 `zero_to_one_split_into_64_parts`
+
+我们首先定义一个在区间 [0, 1] 上均匀采样的序列，长度为64：
+
 ```
-zero_to_one_split_into_64_parts = torch.tensor(range(64))/64zero_to_one_split_into_64_parts
+zero_to_one_split_into_64_parts = torch.tensor(range(64)) / 64
 ```
+
+
+
+这样生成的序列为：
+
+```
+[0/64, 1/64, 2/64, ..., 62/64, 63/64]
+```
+
+
+
+这个数组的用途包含多个方面：
+
+- 可以用于均匀地采样区间 [0, 1] 上的值；
+- 可用于各种归一化操作；
+- 常用在机器学习模型中作为产生连续参数的基础。
+
+在RoPE旋转位置编码中，上面的这个序列被用来生成每一对向量所需要的旋转频率，以便给不同子维度赋予不同的旋转“位置”区分能力。
+
+------
+
+### ⭕️ 步骤2. 计算RoPE频率参数 `freqs`
+
+现在我们继续，根据预设的常量 rope_theta 和上述的均匀采样点序列，计算每个向量对的小频率参数：
+
+```
+freqs = 1.0 / (rope_theta ** zero_to_one_split_into_64_parts)
+```
+
+
+
+更清楚地说，这行代码等于逐元素执行下面的计算：
+
+[ freqs_i = \frac{1.0}{rope_\theta^{i/64}}, \quad 其中,i=0,1,2,...,63 ]
+
+- rope_theta 通常是设置一个较大的数值(比如：10000,500000等)，决定位置旋转嵌入中幅度尺度；
+- 指数 `i/64` 在区间0到1之间均匀增长，因此，生成的旋转频率参数连续平滑，从而使模型既能对短程距离敏感，也能顺利推广到长程距离关系。
+
+因此，`freqs` 张量的形状为：
+
+```
+freqs.shape  # torch.Size([64])
+```
+
+
+
+- 共64个频率，对应拆分后的64个二维向量对
+- 每个频率用以决定每个二维子向量进行旋转的位置特征
+- 旋转的角度则由 token 在句子中的位置 m 与频率 `freqs` 相乘计算得到
+
+------
+
+### ⭕️ 为什么要这样算？
+
+RoPE的核心思想是使用一系列频率，把token的位置用旋转方式“嵌入”到token的Q/K向量中：
+
+- 因此我们需要为每个Q、K的小维度对分别配备一个唯一的频率顺序旋转；
+- 上述代码生成的频率数组恰恰提供了这些频率值；
+- 这些频率体现了远近位置之间的相对关系，通过位置信息融入每个token的Q和K向量之中，最终帮助模型更精准地识别和处理长距离关系，同时也兼顾近距离关系的敏感性。
+
+------
+
+### 🚩 我们做一个直观的总结：
+
+1. 原本的Q/K向量还不知道位置关系
+   👇
+2. 通过拆分Q/K向量到多个2维对子向量
+   👇
+3. 计算专门的位置旋转频率 (`freqs`)
+   👇
+4. 根据 `freqs` 为每个子向量赋予独特的旋转方式，并按位置不同旋转不同角度
+   👇
+5. 旋转后Q/K向量自然地融入了位置信息
+
+这样通过精妙的RoPE，我们巧妙地使模型不仅知道“每个token自己是什么”，更能精准、自然地体现出每个token在句子内特定的位置差异。
+
+------
+
+⚡️ 换个形式的举例帮助理解：
+
+> 如果将原始的Q/K看成一个个“指南针”：
+> • `zero_to_one_split_into_64_parts` 就相当于确定每个指南针刻度(不同的旋转速度档位)；
+> • `freqs` 就相当于实际提供指南针针头转动的具体速度(转动力度)；
+> • RoPE的位置旋转编码则是给指南针指针调整到了由它自身位置决定的特定方向，让不同位置的相同单词（例如不同位置的"the "）变得能够轻易地区分开来。
 
 ![Image](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXDxBIZznevtX3bCmAQSzfDSSWiaU0my2WQsEO2YbOSPJPCvI9r7w1asrT2WzJlH3yicLPgAtkypmcQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1)
 
 这个张量 `zero_to_one_split_into_64_parts` 可以用于多种场景，比如需要在 [0, 1] 区间内均匀采样的情况。在机器学习和数据处理中，这样的序列常用于归一化处理或作为算法中的参数。
-
-- 
-- 
 
 ```
 freqs = 1.0 / (rope_theta ** zero_to_one_split_into_64_parts)freqs
@@ -1189,96 +1266,214 @@ q_per_token_rotated = q_per_token_split_into_pairs_rotated.view(q_per_token.shap
 
 ![Image](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nWh5lMF3XhC4RRattZsnktRKBmOFrVxVxkD0BIGVx4wYzjOselS6XmCnXiaHRn8HgtydPjRgoIWz0g/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1)
 
-**需要记住的是> 键生成的键向量的维数也是 128> 键的权重只有查询的 1/4，这是因为键的权重是由 4 个头共享的，以减少所需的计算量。> 由于同样的原因，键也会像查询一样被旋转以添加位置信息。 具体步骤不再展开。截止到目前，开头列出的七个步骤中，前两个步骤已经完成： 接下来完成如下步骤：**![Image](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nW5x5IHF3BzCe3DOrF9GqyU0fc2NCk6ibR0JcjPwHhmshIDn0vYGhd4IRsDtiaFBec8P35nLMzDuEVQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1) 
+****需要特别注意以下几点：**
 
-**三、多头注意力**
+- 键向量（K）生成后的维度，同样为 128维。这是因为在多头注意力机制中，每个“头”（head）都使用等同的子维度，这里都是128。
+- 但是，键（K）的权重矩阵维数比查询（Q）要小得多，只有查询权重的 1/4。这是因为在LLaMA中，为了降低计算复杂程度和显存需求，专门设计了键值共享机制，即**每4个查询头共用同一组键值头**。
+  换句话说，查询（Q）有 32 组（每组128维），但键（K）和值（V）只有8组，它们整体（8×128=1024维）只有Q整体（32×128=4096维）的1/4。
+- 同查询Q一样，键向量K也要应用RoPE旋转位置编码，以引入相对位置的上下文信息。
+  面对每个token不同的位置，键（K）的子向量也会根据所在位置进行相应的旋转，以体现token之间的空间关系。
+
+具体旋转位置编码的过程和Q的处理一致，在此不再重复详细步骤。
+
+------
+
+### 当前进展小结：
+
+截止到目前，我们在文章开头列出的七个“大步骤”中，前两个步骤刚刚完成：
+
+✔️ **步骤① Embedding**: 对输入prompt生成词嵌入向量完成。
+
+✔️ **步骤② 矩阵乘法 (获得Q/K/V)**: 通过权重矩阵和嵌入矩阵相乘，我们也已经得到了初步的 Q、K、V 向量（包括多头拆分）。
+
+------
+
+接下来，我们要继续进入后续的步骤：
+
+✅ 步骤③：RoPE位置更新（旋转Q和K）
+✅ 步骤④：Q与K点积，生成注意力分数矩阵
+✅ 步骤⑤：softmax归一化，获得注意力权重矩阵
+✅ 步骤⑥：应用掩码（mask），确保模型只能关注到之前或自身位置的token
+✅ 步骤⑦：用注意力权重加权V向量，得到最终的多头注意力输出Z
+
+我们将在下文继续详细梳理上述更为深入的步骤。![Image](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nW5x5IHF3BzCe3DOrF9GqyU0fc2NCk6ibR0JcjPwHhmshIDn0vYGhd4IRsDtiaFBec8P35nLMzDuEVQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1) 
+
+##  多头注意力的具体计算过程（接上文）
+
+
 
 ![Image](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nWh5lMF3XhC4RRattZsnktRV0tmIF0bMTc2TMM6K4YdYXv7gdryV714ZEgLDurnlY0jUYzJVaNKOw/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1)
 
+到如今为止，我们完成了第一层第一个注意力头的完整计算，包括生成查询（Q）、键（K）和值（V）的向量，而且对这些向量进行了相对位置旋转（RoPE），并通过点积与softmax获得了注意力分数。
 
+### 📌 接下来，我们基于完全相同的步骤，循环处理第一层的其余所有注意力头：
 
-我们现在拥有了第一层和第一个头的注意力值 ，现在我将运行一个循环，并对第一层中的每个头执行与上面单元格完全相同的数学运算。 
+**注意：** 键（Key）和值（Value）向量的权重在每4个头之间共享，这是Llama模型为了减少参数规模和计算量的设计方式。因此，相同的一组KV权重矩阵，会被4个不同的头复用：
+
+具体代码实现如下：
 
 ```
-
 qkv_attention_store = []
 
-
 for head in range(n_heads):
-q_layer0_head = q_layer0[head]
-k_layer0_head = k_layer0[head//4] # key weights are shared across 4 heads
-v_layer0_head = v_layer0[head//4] # value weights are shared across 4 heads
-q_per_token = torch.matmul(token_embeddings, q_layer0_head.T)
-k_per_token = torch.matmul(token_embeddings, k_layer0_head.T)
-v_per_token = torch.matmul(token_embeddings, v_layer0_head.T)
 
+    # 将权重矩阵根据当前头的索引取出
+    q_layer0_head = q_layer0[head]               # 第head个注意力头的查询权重矩阵
+    k_layer0_head = k_layer0[head//4]            # 每4个头共享同一组key权重
+    v_layer0_head = v_layer0[head//4]            # 每4个头共享同一组value权重
 
-q_per_token_split_into_pairs = q_per_token.float().view(q_per_token.shape[0], -1, 2)
-q_per_token_as_complex_numbers = torch.view_as_complex(q_per_token_split_into_pairs)
-q_per_token_split_into_pairs_rotated = torch.view_as_real(q_per_token_as_complex_numbers * freqs_cis[:len(tokens)])
-q_per_token_rotated = q_per_token_split_into_pairs_rotated.view(q_per_token.shape)
+    # 计算Q/K/V向量 (通过矩阵乘法)
+    q_per_token = torch.matmul(token_embeddings, q_layer0_head.T) # [17, 128]
+    k_per_token = torch.matmul(token_embeddings, k_layer0_head.T) # [17, 128]
+    v_per_token = torch.matmul(token_embeddings, v_layer0_head.T) # [17, 128]
 
+    # RoPE位置旋转 Q 向量
+    q_per_token_pairs = q_per_token.float().view(q_per_token.shape[0], -1, 2)
+    q_complex = torch.view_as_complex(q_per_token_pairs)
+    q_rotated_pairs = torch.view_as_real(q_complex * freqs_cis[:len(tokens)])
+    q_per_token_rotated = q_rotated_pairs.view(q_per_token.shape)
 
-k_per_token_split_into_pairs = k_per_token.float().view(k_per_token.shape[0], -1, 2)
-k_per_token_as_complex_numbers = torch.view_as_complex(k_per_token_split_into_pairs)
-k_per_token_split_into_pairs_rotated = torch.view_as_real(k_per_token_as_complex_numbers * freqs_cis[:len(tokens)])
-k_per_token_rotated = k_per_token_split_into_pairs_rotated.view(k_per_token.shape)
+    # RoPE位置旋转 K 向量 (与Q同样方法)
+    k_per_token_pairs = k_per_token.float().view(k_per_token.shape[0], -1, 2)
+    k_complex = torch.view_as_complex(k_per_token_pairs)
+    k_rotated_pairs = torch.view_as_real(k_complex * freqs_cis[:len(tokens)])
+    k_per_token_rotated = k_rotated_pairs.view(k_per_token.shape)
 
+    # 计算Q和K的点积（得到原始注意力分数)，除以sqrt(128)避免数值问题
+    qk_scores = torch.matmul(q_per_token_rotated, k_per_token_rotated.T) / (128)**0.5
 
-qk_per_token = torch.matmul(q_per_token_rotated, k_per_token_rotated.T)/(128)**0.5
-mask = torch.full((len(tokens), len(tokens)), float("-inf"), device=tokens.device)
-mask = torch.triu(mask, diagonal=1)
-qk_per_token_after_masking = qk_per_token + mask
-qk_per_token_after_masking_after_softmax = torch.nn.functional.softmax(qk_per_token_after_masking, dim=1).to(torch.bfloat16)
-qkv_attention = torch.matmul(qk_per_token_after_masking_after_softmax, v_per_token)
-qkv_attention = torch.matmul(qk_per_token_after_masking_after_softmax, v_per_token)
-qkv_attention_store.append(qkv_attention)
+    # 应用上三角掩码 (mask)，避免关注当前token之后位置的token
+    mask = torch.full((len(tokens), len(tokens)), float("-inf"), device=tokens.device)
+    mask = torch.triu(mask, diagonal=1)
+    qk_scores_masked = qk_scores + mask
 
+    # softmax规则化，得到注意力权重
+    attention_weights = torch.nn.functional.softmax(qk_scores_masked, dim=-1).to(torch.bfloat16)
 
-len(qkv_attention_store)
+    # 利用attention权重，加权求和所有的V向量，获得该头最终输出 (attention output)
+    qkv_attention = torch.matmul(attention_weights, v_per_token) # [17,128]
+
+    # 将每个头的输出存储在列表里备用
+    qkv_attention_store.append(qkv_attention)
+
+# 检查attention计算后是否获得所有头的结果  
+len(qkv_attention_store)  # 应输出32，即本层所有头输出
 ```
+
+
+
+完成这一步骤后，我们便获得了第一层全部32个注意力头的最终 `attention` 输出张量 `qkv_attention` 矩阵。
+
+------
+
+### 📌 多头拼接与输出投影 (线性变换)
+
+现在我们拥有了各个头的attention输出（每个头维度为128，共32头），下一步就是把这些头的输出拼起来，按照列的维度拼接，这样每个token就获取到了所有头的综合特征：
+
+```
+stacked_qkv_attention: torch.Size([17, 4096])
+```
+
+
+
+拼接后的形状为`[17, 4096]`：
+
+- 其中17表示总token个数；
+- 4096即 32头 × 每头128维；
+
+接着，是一个简单的线性变换（通过W_O权重矩阵）：
+
+```
+w_layer0 = model["layers.0.attention.wo.weight"] # [4096,4096]
+embedding_delta = torch.matmul(stacked_qkv_attention, w_layer0.T)  
+# embedding_delta 形状为 [17,4096]
+```
+
+
+
+注意，这里的`embedding_delta`矩阵不会改变token数量或维度，只是将各头拼接后的4096维特征映射到统一4096维输出空间里。
+
+------
+
+### 📌 残差连接与Layer Norm归一化
+
+得到`embedding_delta`后，我们需要将它与原有的(未经注意力层的)token嵌入（`token_embeddings_unnormalized`）相加，以保留原始token信息：
+
+```
+# 残差连接以保留原始嵌入信息
+embedding_after_edit = token_embeddings_unnormalized + embedding_delta # [17,4096]
+```
+
+
+
+接着应用一次归一化 (RMSNorm)，将数值尺度稳定下来：
+
+```
+embedding_after_edit_normalized = rms_norm(embedding_after_edit, model["layers.0.ffn_norm.weight"])
+# shape: torch.Size([17, 4096])
+```
+
+
+
+此时，每个token的embedding已经经过了一次注意力交互，获得更丰富、更具上下文信息的表达。
+
+------
+
+### 📌 前馈神经网络 (Feed-Forward Network, FFN)
+
+下一步，用feed-forward神经网络(FFN)进一步提取非线性上下文特征：
+
+- 首先，投射到稍微更高维度（如5325维，保持模型足够容量）；
+- 应用非线性激活函数（如SwiGLU）；
+- 再投射回原始维度(4096维)。
+
+最终，这个 FFN 输出与之前经过残差连接后得到的 embedding 再相加：
+
+```
+# FFN输出与embedding残差连接（具体细节稍略）
+embedding_after_ffn = embedding_after_edit_normalized + FFN(embedding_after_edit_normalized)
+```
+
+
+
+最终，这个张量就是 transformer 第0层处理之后的“最终token embedding”，具备了充分上下文信息：
+
+- **大小: [17,4096]**
+- 形状与最早输入的embedding保持一致，但含义已变得更加丰富。
+
+------
+
+### 📌 到这一步为止：本层transformer实现完整了：
+
+- Embedding → Attention(QKV多头计算) → 残差连接 → 归一化(RMSNorm) → FFN → 残差连接
+- 这些步骤重复32次后，我们得到最终transformer的特征表示H_final。
+- H_final最末的位置向量（例如句子最尾的token：“马斯克”）可用来预测句子下一个合理的token（如预测出：“特斯拉”）。
+
+------
+
+### 📝 总结以上完整详细的步骤逻辑链：
+
+- 从输入Embedding出发；
+- 分头计算QKV进行注意力计算；
+- 将结果线性映射 (W_O) 后通过残差、归一化和前馈网络提取更丰富特征；
+- 形成最终具有充足上下文表达的token表示；
+- 依靠这些特征精确地对prompt后续可能出现的token进行推测。
+
+
+
+
 
 ![Image](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nWh5lMF3XhC4RRattZsnktRdxoaiaQvEejsib19UvgiaQSxW6TU20e6iaiaxgPpvPKK69SI8LJU6icjtD9Q/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1)
 
-我们现在拥有了第一层所有32个头的qkv_attention矩阵，接下来我将把所有注意力分数合并成一个大小为[17x4096]的大矩阵
 
-![Image](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nWh5lMF3XhC4RRattZsnktRCpPZK7enicVDOYsXyZpUPHqfVWmXC8DRjhnkicpKxTcRt5yJrWIVamUQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1)
-
-\# 权重矩阵，最后步骤之一
-
-```
-w_layer0 = model["layers.0.attention.wo.weight"]w_layer0.shape
-```
-
-
-
-![Image](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nWh5lMF3XhC4RRattZsnktRhmmRHRU6w9CPatbyOMFQskbjYpHZdtm3xQ98r2gOsLDicUu3lupKwMQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1)
-
-这是一个简单的线性层，所以我们只需 Matmul
-
-```
-embedding_delta = torch.matmul(stacked_qkv_attention, w_layer0.T)embedding_delta.shape
-```
-
-![Image](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nWh5lMF3XhC4RRattZsnktRIWpode7f3rGKkVQ1SemicHf0cmW3mqCWdkMicDzDC3PMWTfoJk52INsg/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1)
 
 ![Image](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nWh5lMF3XhC4RRattZsnktR29QwjuC3h6RVWegUM7zIynVOCdL7Mc60hknM9Kt6omP9j5AABwmEFQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1)
 
-现在，我们得到了关注后embedding value after attention，这应该是对original token embeddings的加法。
 
-```
-embedding_after_edit = token_embeddings_unnormalized + embedding_deltaembedding_after_edit.shape
-```
 
 
 
 ![Image](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nWh5lMF3XhC4RRattZsnktRVLsH8bc7bjuO354ed9M3kfTXrskH43g9GHIJfeZia4tUqBsRhgl9avA/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1)
-
-我们对其进行归一化，然后通过嵌入差值运行一个前馈神经网络。
-
-```
-embedding_after_edit_normalized = rms_norm(embedding_after_edit, model["layers.0.ffn_norm.weight"])embedding_after_edit_normalized.shape
-```
 
 
 
@@ -1286,79 +1481,169 @@ embedding_after_edit_normalized = rms_norm(embedding_after_edit, model["layers.0
 
 ## ![Image](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nWh5lMF3XhC4RRattZsnktR3wayibCFvh7vqT08CHurUdvITVibe6wHdIHVo6kEVwrxlrojibzZmnrLQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1) 
 
-## 加载前馈权重并实现前馈网络
+## 加载前馈权重 (Feed-Forward Network，FFN) 并实现前馈网络
 
-llama3使用了SwiGLU前馈网络，这种网络架构非常擅长在模型需要时添加非线性。如今，在大型语言模型（LLMs）中使用这种前馈网络架构已经相当标准：
+在多头注意力层计算完成后，我们的注意力机制已经产生了一个嵌入变化矩阵。现在，我们需要完成Transformer中本层的最后一个关键步骤——**前馈神经网络**（Feed-Forward Network，简称FFN）。Transformer (包含 LLaMA-3) 中通常使用SwiGLU前馈网络，这一设计被大型语言模型广泛采用，它能够有效地在模型中引入必要的非线性激活，从而大幅提高模型表达能力。
 
-```
-w1 = model["layers.0.feed_forward.w1.weight"]w2 = model["layers.0.feed_forward.w2.weight"]w3 = model["layers.0.feed_forward.w3.weight"]output_after_feedforward = torch.matmul(torch.functional.F.silu(torch.matmul(embedding_after_edit_normalized, w1.T)) * torch.matmul(embedding_after_edit_normalized, w3.T), w2.T)output_after_feedforward.shape
-```
-
-![Image](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nWh5lMF3XhC4RRattZsnktRDUibAOeS3uu0hedwUA6ibWkDOa4VUicZmbkBSaHxSZUQuyD0nHCteTiaxQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1)
-
-**在第一层之后，我们终于为每个令牌获得了新的编辑过的嵌入**
-
-在完成之前还有31层要走（只差一个for循环） 。你可以将这个编辑过的嵌入想象为包含了第一层上所有询问的信息 <br> 现在，每一层都将对提出的问题编码更多更复杂的查询，直到我们得到一个关于我们需要的下一个令牌的所有信息的嵌入。
-
-
+我们加载前馈神经网络的三个权重矩阵并进行相关的计算：
 
 ```
-layer_0_embedding = embedding_after_edit+output_after_feedforwardlayer_0_embedding.shape
+# 加载当前层(第0层为例)的FFN权重
+w1 = model["layers.0.feed_forward.w1.weight"]  # 第一层FFN权重矩阵
+w2 = model["layers.0.feed_forward.w2.weight"]  # 第二层FFN权重矩阵（最终映射至原始维度）
+w3 = model["layers.0.feed_forward.w3.weight"]  # 第三层FFN权重矩阵
+
+# 通过FFN计算（SwiGLU激活非线性），获得FFN输出表示
+output_after_feedforward = torch.matmul(
+    torch.functional.F.silu(torch.matmul(embedding_after_edit_normalized, w1.T)) *
+    torch.matmul(embedding_after_edit_normalized, w3.T),
+    w2.T
+)
+
+print(output_after_feedforward.shape)
+# 输出为：[17, 4096]
 ```
 
 
 
-![Image](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nWh5lMF3XhC4RRattZsnktRI3R9tWwTxDyPJ0160s1gNbTzibX2S2Fx3zC88xcIodiaxLYU94AUeWHw/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1)
+经过上面步骤，第一层就完整地完成了一轮计算。
+现在，我们通过一个残差连接，把这个FFN层输出也加入到之前经过注意力与位置编码处理后的嵌入中：
 
-我们之前所做的一切，都一次完成，每一层都是。
+```
+# 残差连接，将FFN输出与注意力后的嵌入相加
+layer_0_embedding = embedding_after_edit + output_after_feedforward
+layer_0_embedding.shape
+# 输出为：[17, 4096]
+```
+
+
+
+此时，我们终于得到了第一层transformer对prompt中每个token的编辑过的新嵌入。
+
+> 到这里，我们只完成了Transformer的第1层（第一层）的计算内容，Transformer共有32层。
+> 每个层都会重复完全一样的步骤（从QKV计算到FFN输出的全套过程）。你现在可以把第一层的结果想象成仅仅初步得到了第一层对prompt内容更复杂、更丰富的理解，后续31层则会逐层叠加并强化这种理解，并逐层处理更加复杂的上下文特征。
+
+------
+
+## 🔗 使用for循环对所有32层Transformer重复上述处理过程
+
+接下来，我们可以使用一个简单的循环，连续处理transformer的每一层（共32层），每次的输入就是上一次得到的embedding：
 
 ```
 final_embedding = token_embeddings_unnormalized
+
 for layer in range(n_layers):
-qkv_attention_store = []
-layer_embedding_norm = rms_norm(final_embedding, model[f"layers.{layer}.attention_norm.weight"])
-q_layer = model[f"layers.{layer}.attention.wq.weight"]
-q_layer = q_layer.view(n_heads, q_layer.shape[0] // n_heads, dim)
-k_layer = model[f"layers.{layer}.attention.wk.weight"]
-k_layer = k_layer.view(n_kv_heads, k_layer.shape[0] // n_kv_heads, dim)
-v_layer = model[f"layers.{layer}.attention.wv.weight"]
-v_layer = v_layer.view(n_kv_heads, v_layer.shape[0] // n_kv_heads, dim)
-w_layer = model[f"layers.{layer}.attention.wo.weight"]
-for head in range(n_heads):
-q_layer_head = q_layer[head]
-k_layer_head = k_layer[head//4]
-v_layer_head = v_layer[head//4]
-q_per_token = torch.matmul(layer_embedding_norm, q_layer_head.T)
-k_per_token = torch.matmul(layer_embedding_norm, k_layer_head.T)
-v_per_token = torch.matmul(layer_embedding_norm, v_layer_head.T)
-q_per_token_split_into_pairs = q_per_token.float().view(q_per_token.shape[0], -1, 2)
-q_per_token_as_complex_numbers = torch.view_as_complex(q_per_token_split_into_pairs)
-q_per_token_split_into_pairs_rotated = torch.view_as_real(q_per_token_as_complex_numbers * freqs_cis)
-q_per_token_rotated = q_per_token_split_into_pairs_rotated.view(q_per_token.shape)
-k_per_token_split_into_pairs = k_per_token.float().view(k_per_token.shape[0], -1, 2)
-k_per_token_as_complex_numbers = torch.view_as_complex(k_per_token_split_into_pairs)
-k_per_token_split_into_pairs_rotated = torch.view_as_real(k_per_token_as_complex_numbers * freqs_cis)
-k_per_token_rotated = k_per_token_split_into_pairs_rotated.view(k_per_token.shape)
-qk_per_token = torch.matmul(q_per_token_rotated, k_per_token_rotated.T)/(128)**0.5
-mask = torch.full((len(token_embeddings_unnormalized), len(token_embeddings_unnormalized)), float("-inf"))
-mask = torch.triu(mask, diagonal=1)
-qk_per_token_after_masking = qk_per_token + mask
-qk_per_token_after_masking_after_softmax = torch.nn.functional.softmax(qk_per_token_after_masking, dim=1).to(torch.bfloat16)
-qkv_attention = torch.matmul(qk_per_token_after_masking_after_softmax, v_per_token)
-qkv_attention_store.append(qkv_attention)
+    qkv_attention_store = []
 
+    # 取出当前层的嵌入进行Layer Norm
+    layer_embedding_norm = rms_norm(final_embedding, model[f"layers.{layer}.attention_norm.weight"])
 
-stacked_qkv_attention = torch.cat(qkv_attention_store, dim=-1)
-w_layer = model[f"layers.{layer}.attention.wo.weight"]
-embedding_delta = torch.matmul(stacked_qkv_attention, w_layer.T)
-embedding_after_edit = final_embedding + embedding_delta
-embedding_after_edit_normalized = rms_norm(embedding_after_edit, model[f"layers.{layer}.ffn_norm.weight"])
-w1 = model[f"layers.{layer}.feed_forward.w1.weight"]
-w2 = model[f"layers.{layer}.feed_forward.w2.weight"]
-w3 = model[f"layers.{layer}.feed_forward.w3.weight"]
-output_after_feedforward = torch.matmul(torch.functional.F.silu(torch.matmul(embedding_after_edit_normalized, w1.T)) * torch.matmul(embedding_after_edit_normalized, w3.T), w2.T)
-final_embedding = embedding_after_edit+output_after_feedforward
+    # 从模型中取出当前层的Q、K、V权重矩阵
+    q_layer = model[f"layers.{layer}.attention.wq.weight"].view(n_heads, -1, dim)
+    k_layer = model[f"layers.{layer}.attention.wk.weight"].view(n_kv_heads, -1, dim)
+    v_layer = model[f"layers.{layer}.attention.wv.weight"].view(n_kv_heads, -1, dim)
+    w_layer = model[f"layers.{layer}.attention.wo.weight"]
+
+    # 对每个头分别计算
+    for head in range(n_heads):
+        q_layer_head = q_layer[head]
+        k_layer_head = k_layer[head//4]
+        v_layer_head = v_layer[head//4]
+
+        # 计算Q、K、V
+        q_per_token = torch.matmul(layer_embedding_norm, q_layer_head.T)
+        k_per_token = torch.matmul(layer_embedding_norm, k_layer_head.T)
+        v_per_token = torch.matmul(layer_embedding_norm, v_layer_head.T)
+
+        # RoPE编码Q、K
+        q_rotated = apply_rope(q_per_token, freqs_cis)
+        k_rotated = apply_rope(k_per_token, freqs_cis)
+
+        # 计算注意力得分
+        qk_scores = torch.matmul(q_rotated, k_rotated.T) / (128)**0.5
+        mask = torch.triu(torch.full(qk_scores.shape, float('-inf')), diagonal=1)
+        qk_masked = qk_scores + mask
+        attention_weights = torch.softmax(qk_masked, dim=1).to(torch.bfloat16)
+
+        # 计算attention输出
+        qkv_attention = torch.matmul(attention_weights, v_per_token)
+        qkv_attention_store.append(qkv_attention)
+
+    # 拼接32个头的输出
+    stacked_qkv_attention = torch.cat(qkv_attention_store, dim=-1)
+
+    # 映射回原始嵌入维度并进行残差连接、Norm处理
+    embedding_delta = torch.matmul(stacked_qkv_attention, w_layer.T)
+    embedding_after_edit = final_embedding + embedding_delta
+    embedding_after_edit_norm = rms_norm(embedding_after_edit, model[f"layers.{layer}.ffn_norm.weight"])
+
+    # 获取当前层FFN权重并做FFN计算
+    w1 = model[f"layers.{layer}.feed_forward.w1.weight"]
+    w2 = model[f"layers.{layer}.feed_forward.w2.weight"]
+    w3 = model[f"layers.{layer}.feed_forward.w3.weight"]
+    output_after_ffn = torch.matmul(
+        torch.functional.F.silu(torch.matmul(embedding_after_edit_norm, w1.T)) *
+        torch.matmul(embedding_after_edit_norm, w3.T),
+        w2.T
+    )
+
+    # FFN输出加入残差抵达当前层最终输出
+    final_embedding = embedding_after_edit + output_after_ffn
+
+# 最终得到的embedding即是模型对当前prompt最好的预测表示
+print(final_embedding.shape)  # 应输出[17,4096]
 ```
+
+
+
+经过完整32层transformer，我们获得了`final_embedding`，维度与初始相同，但信息内容更丰富、更复杂、更完整，体现了prompt中token间细致的上下文相互交互后的丰富结果。
+
+------
+
+## 🔎 预测prompt之后的下一个token
+
+获得最终的`final_embedding`后，我们用句子中最后一个token的 embedding 来预测下一个可能出现的token。
+
+```
+# 拿最终层最后一个token嵌入预测下个token
+logits = torch.matmul(final_embedding[-1], model["output.weight"].T)
+next_token = torch.argmax(logits, dim=-1)
+
+# 解码成文本
+predicted_token_text = tokenizer.decode([next_token.item()])
+```
+
+
+
+通常这里很多模型会预测 "42"这一经典回答（如《银河系漫游指南》中提到的生命、宇宙及一切问题终极答案），因为经典LLMs（LLaMA、ChatGPT等）多数经过训练后都学到这种幽默：
+
+```
+print(predicted_token_text)
+```
+
+
+
+如果预测结果是 `42`，则意味着模型成功理解prompt的经典文化内涵。
+
+------
+
+## 🚩 至此，整个Transformer第一层的多头注意力、前馈网络完整流程与预测下个token的全过程，就更明确、清晰地为你展示了一遍。
+
+- 逻辑步骤变得更顺畅、更易懂
+- 每层计算的步骤循环稳定且一致（多头注意力→前馈网络→残差连接）
+- 最终得到充分融合了prompt上下文的嵌入，用于精准高质量地预测下一个token
+
+希望这样梳理之后，整体逻辑更加清晰，能更方便地帮助你理解整个Transformer内部精妙的前馈、注意力机制和token预测过程。
+
+
+
+
+
+![Image](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nWh5lMF3XhC4RRattZsnktRDUibAOeS3uu0hedwUA6ibWkDOa4VUicZmbkBSaHxSZUQuyD0nHCteTiaxQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1)
+
+![Image](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nWh5lMF3XhC4RRattZsnktRI3R9tWwTxDyPJ0160s1gNbTzibX2S2Fx3zC88xcIodiaxLYU94AUeWHw/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1)
+
+
 
 **我们现在拥有了最终的嵌入，这是模型对下一个令牌所能做出的最佳猜测**
 
