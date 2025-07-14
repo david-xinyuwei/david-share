@@ -28,7 +28,7 @@ with open("Meta-Llama-3-8B/params.json", "r") as f:
 print(config)
 ```
 
-![Image](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXDxBIZznevtX3bCmAQSzfDrNrD9wDLcrBc80VibiaDIhCB07evn5fMSj7icEIcGJJrZIlkz7vFQCFJg/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1)
+![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Implementing-llama3-from-scratch/images/4.png)
 
 1. 运行结果示例如下：
    - **dim**: 4096
@@ -57,6 +57,10 @@ print(config)
 接下来，让我们详细查看 LLaMA 3 各关键参数的实际数值。透过这些参数，我们能够更好地理解模型的规模、复杂度及其运作机制。
 
 ![Image](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXduK3dyBoCWQGDLq1icleOPPyxLcZngK2DiajQPl7p2e8bYJJSNfKjX681XPcX6kiap2YB3IibQFYe6A/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+
+
+
+
 
 **[1] 上下文窗口（context-window）**
 在实例化LlaMa类时，变量max_seq_len定义了context-window。类中还有其他参数，但这个参数与transformer模型的关系最为直接。这里的max_seq_len是8K。
