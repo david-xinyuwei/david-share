@@ -28,7 +28,32 @@ with open("Meta-Llama-3-8B/params.json", "r") as f:
 print(config)
 ```
 
-![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Implementing-llama3-from-scratch/images/4.png)
+```
+[
+    "tok_embeddings.weight",
+    "layers.0.attention.wq.weight",
+    "layers.0.attention.wk.weight",
+    "layers.0.attention.wv.weight",
+    "layers.0.attention.wo.weight",
+    "layers.0.feed_forward.w1.weight",
+    "layers.0.feed_forward.w3.weight",
+    "layers.0.feed_forward.w2.weight",
+    "layers.0.attention_norm.weight",
+    "layers.0.ffn_norm.weight",
+    "layers.1.attention.wq.weight",
+    "layers.1.attention.wk.weight",
+    "layers.1.attention.wv.weight",
+    "layers.1.attention.wo.weight",
+    "layers.1.feed_forward.w1.weight",
+    "layers.1.feed_forward.w3.weight",
+    "layers.1.feed_forward.w2.weight",
+    "layers.1.attention_norm.weight",
+    "layers.1.ffn_norm.weight",
+    "layers.2.attention.wq.weight"
+]
+```
+
+
 
 1. 运行结果示例如下：
    - **dim**: 4096
