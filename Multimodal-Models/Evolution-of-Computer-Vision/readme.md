@@ -330,6 +330,73 @@ Qwen-VL（阿里 2024）用的不是原版 CLIP，而是自行预训练的 ViT-G
 | 视觉塔 + 交互层                         | ✅      | 新视觉域 + 新任务格式：如医学问诊对话                        | 训练开销中等；需平衡视觉与语言梯度                   |
 | 全参数 (视觉塔 + 解码器 + 交互层)       | ✅      | 高价值垂直场景、数据充足：自动驾驶多任务套件                 | 计算 / 显存最高，容易过拟合小数据                    |
 
+**代码参考：**
+
+https://github.com/xinyuwei-david/david-share/tree/master/Multimodal-Models/Phi3-vision-Fine-tuning
+
+从你贴出的 **Florence-2** 训练脚本看，模型实际被送进优化器的是 **整套参数（视觉塔 + 跨模态交互 + 文本解码器）**，即“全参数微调”。
+
+理由一览
+
+1. `model = AutoModelForCausalLM.from_pretrained(...)`
+   - 直接加载完整 Florence-2-base-ft 权重。
+2. 唯一想冻结视觉塔的代码
+
+```
+for param in model.vision_tower.parameters():
+    param.is_trainable = False
+```
+
+
+
+- 只是给参数打了 `is_trainable=False` 标记，**并没有把 `requires_grad` 设为 False**；
+- Hugging Face 的默认优化器构建逻辑并不会读取 `is_trainable` 字段。
+
+1. 优化器
+
+```
+optimizer = AdamW(model.parameters(), lr=1e-6)
+```
+
+
+
+- 直接把 `model.parameters()` 全部传入，等价于“只要 `requires_grad=True` 就更新”。
+- 因为前一步没有真正关闭梯度，视觉塔权重仍在参与反向传播。
+
+1. 训练循环
+   - 调用 `loss.backward()` 后无任何额外的梯度过滤；
+   - 因此视觉塔、Cross-Attention、文本解码器梯度都会被累积并更新。
+
+如何真的“只调语言侧 / 交互层”
+如果你只想微调文本解码器或交互层，需要显式冻结视觉塔，例如：
+
+```
+for name, param in model.named_parameters():
+    if name.startswith("vision_tower"):
+        param.requires_grad = False     # 真正冻结
+```
+
+
+
+或使用 PEFT/LoRA 只在指定层插低秩增量：
+
+```
+from peft import LoraConfig, get_peft_model
+lora_cfg = LoraConfig(
+        r=16, lora_alpha=32, target_modules=["cross_attn", "q_proj", "v_proj"])
+model = get_peft_model(model, lora_cfg)
+```
+
+
+
+总结
+– 现有脚本 = 全参数微调。
+– 若想对标“仅文本解码器”或“仅交互层”模式，需要把 `requires_grad` 设 False 或用 LoRA ，仅让目标层参与训练。
+
+
+
+
+
 
 
 ### Phi-3 Vision 微调选项
