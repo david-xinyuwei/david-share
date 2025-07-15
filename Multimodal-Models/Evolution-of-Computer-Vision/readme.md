@@ -343,5 +343,40 @@ Qwen-VL（阿里 2024）用的不是原版 CLIP，而是自行预训练的 ViT-G
 
 （Phi-3 Vision 架构无独立文本 Encoder，因此不存在 “只调文本 Encoder” 这一选项。）
 
+**代码参考：**
+
+*https://github.com/xinyuwei-david/david-share/tree/master/Multimodal-Models/Phi3-vision-Fine-tuning*
+
+上面链接的代码做的是 **“全参数微调”**——既没有冻结视觉塔（SigLIP-ViT），也没有冻结语言侧 Phi-3.5 LLM，更没有筛选投影 / 交互层；`optimizer = optim.AdamW(model.parameters(), …)` 把 **全部可训练参数** 都丢进了优化器。
+
+关键证据
+
+1. ```
+   model = AutoModelForCausalLM.from_pretrained(...)
+   ```
+
+   - 直接加载整套权重，没有任何 `requires_grad=False` 的过滤。
+
+2. 之后调用 `model.parameters()` 构建 `AdamW`，说明视觉塔、交互层、LLM 全部参与反向传播。
+
+3. 训练循环里 `loss.backward()` 后并未按名称筛选梯度，仅做梯度累积再 `optimizer.step()`。
+
+所以它实际上属于表格中的这一行：
+
+| 微调范围                       | 可行性 | 典型场景                   | 风险 / 成本                                        |
+| ------------------------------ | ------ | -------------------------- | -------------------------------------------------- |
+| **ViT + 投影层 + LLM（全参）** | ✅      | 高价值专域、电商多字段抽取 | 训练与显存成本最高；若数据单一易过拟合、破坏原对齐 |
+
+若想改成“只调视觉塔”或“只调 LLM / 投影层”，需要显式冻结其他部分，例如：
+
+```
+for name, param in model.named_parameters():
+    if name.startswith("vision_tower"):   # 只调视觉塔
+        param.requires_grad = True
+    else:
+        param.requires_grad = False
+```
 
 
+
+或用 PEFT/LoRA 方式仅在目标模块插入可训练增量。
