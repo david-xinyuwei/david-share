@@ -24,8 +24,6 @@ ResNet(属于CNN)／ViT／DaViT …
 
 Florence-2、BLIP-2、Qwen-VL …
 ↓（在已有**对齐机制**上，叠加文本解码器或跨模态 Transformer，引入**生成、对话、多任务**能力）
-
-───
 能力“叠加”说明
 • 第一层：模型仅需理解图像，输出视觉特征。
 • 第二层：通过跨模态对齐，让图像特征与文本语义互通，可直接比对或检索。
@@ -330,76 +328,76 @@ Qwen-VL（阿里 2024）用的不是原版 CLIP，而是自行预训练的 ViT-G
 | 视觉塔 + 交互层                         | ✅      | 新视觉域 + 新任务格式：如医学问诊对话                        | 训练开销中等；需平衡视觉与语言梯度                   |
 | 全参数 (视觉塔 + 解码器 + 交互层)       | ✅      | 高价值垂直场景、数据充足：自动驾驶多任务套件                 | 计算 / 显存最高，容易过拟合小数据                    |
 
-**代码参考：**
+**代码参考1：**
 
 https://github.com/xinyuwei-david/david-share/tree/master/Multimodal-Models/Phi3-vision-Fine-tuning
 
-从你贴出的 **Florence-2** 训练脚本看，模型实际被送进优化器的是 **整套参数（视觉塔 + 跨模态交互 + 文本解码器）**，即“全参数微调”。
+**代码参考2：**
 
-理由一览
-
-1. `model = AutoModelForCausalLM.from_pretrained(...)`
-   - 直接加载完整 Florence-2-base-ft 权重。
-2. 唯一想冻结视觉塔的代码
-
-```
-for param in model.vision_tower.parameters():
-    param.is_trainable = False
-```
+https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Florence-2-Inference-and-Fine-Tuning/Florence_2_Fine_tunning.ipynb
 
 
 
-- 只是给参数打了 `is_trainable=False` 标记，**并没有把 `requires_grad` 设为 False**；
-- Hugging Face 的默认优化器构建逻辑并不会读取 `is_trainable` 字段。
+**代码1（DocVQA 全参数微调）**
 
-1. 优化器
+1. 训练信号
+   A. 文本流
+   • 任务指令 token：<DocVQA>
+   • 普通文字 token：question 文本 + 纯文字答案
+   • 无坐标离散 token（<LOC_xxx> 不出现）
+   B. 图像流
+   • 扫描文档图片 → patch-embedding 序列
+2. 参与训练的组件
+   • 视觉塔（InternImage / Swin 等） ✅
+   • 图-文交互层（投影、Cross-Attention） ✅
+   • 文本解码器 + lm_head ✅
+   说明：for param in model.vision_tower.parameters(): param.is_trainable=False
+   只是打标记，没改 requires_grad，optimizer 拿到 **全部** 参数 ⇒ “全参数微调”。
+3. 实际强化的能力
+   • OCR：在文档场景识别文字
+   • 信息抽取 & 理解：根据问题生成文字答案
+   • 坐标 / 框 ✖（没有监督信号）
+   可能副作用：全参更新 → 其它原生能力（检测、caption 等）有被“洗掉”的风险。
 
-```
-optimizer = AdamW(model.parameters(), lr=1e-6)
-```
+**代码2（自制检测数据集 + LoRA 微调）**
+
+1. 训练信号
+   A. 文本流
+   • 任务指令 token：<OD> 或你自定义的 prompt
+   • 普通文字 token：类别名等
+   • 坐标离散 token：<LOC_000> … <LOC_999> （x₁ y₁ x₂ y₂）
+   B. 图像流
+   • 检测场景图片 → patch-embedding 序列
+2. 参与训练的组件
+   • 视觉塔      插 LoRA（Conv2d/Linear）
+   • 图-文交互层   插 LoRA（q/k/v/o_proj …）
+   • 文本解码器 + lm_head 插 LoRA（q/k/v/o_proj、fc2、lm_head）
+   • 基座参数 (≈99%) 全部 requires_grad=False
+   ⇒ 真正更新的只有 LoRA 的低秩矩阵和可能的 bias，属于“参数高效微调”。
+3. 实际强化的能力
+   • 目标检测 / 区域标注：输出类别 + `<LOC_xxx>` 坐标
+   • 因为基座冻结，Caption、VQA 等原生功能大概率被保留
+   • 资源占用大幅降低，易组合/卸载 LoRA
+
+**两个代码核心区别对比** 
+
+1. 数据监督
+   • 代码1：只有文字答案 → 训练“读文档答问”
+   • 代码2：文字 + 坐标 token → 训练“画框 + 打标签”
+2. 权重更新方式
+   • 代码1：全参数都改，显存 / 计算量高，易遗忘旧能力
+   • 代码2：只改 LoRA 小矩阵，显存 / 计算量低，旧能力保留
+3. 覆盖组件
+   • 两者都把视觉塔 + 交互层 + 解码器纳入“可调范围”
+   • 差别在于：脚本①直接改基座；脚本②在相同组件里挂 LoRA 增量
+4. 新增/强化的能力
+   • 代码1：文档 OCR + QA
+   • 代码2：坐标级目标检测
+   → 谁“能力更多”取决于业务：需要文档问答选代码1，需要检测选代码2；若想“增而不减”且资源有限，一般选 LoRA 方案代码2。
 
 
 
-- 直接把 `model.parameters()` 全部传入，等价于“只要 `requires_grad=True` 就更新”。
-- 因为前一步没有真正关闭梯度，视觉塔权重仍在参与反向传播。
-
-1. 训练循环
-   - 调用 `loss.backward()` 后无任何额外的梯度过滤；
-   - 因此视觉塔、Cross-Attention、文本解码器梯度都会被累积并更新。
-
-如何真的“只调语言侧 / 交互层”
-如果你只想微调文本解码器或交互层，需要显式冻结视觉塔，例如：
-
-```
-for name, param in model.named_parameters():
-    if name.startswith("vision_tower"):
-        param.requires_grad = False     # 真正冻结
-```
-
-
-
-或使用 PEFT/LoRA 只在指定层插低秩增量：
-
-```
-from peft import LoraConfig, get_peft_model
-lora_cfg = LoraConfig(
-        r=16, lora_alpha=32, target_modules=["cross_attn", "q_proj", "v_proj"])
-model = get_peft_model(model, lora_cfg)
-```
-
-
-
-总结
-– 现有脚本 = 全参数微调。
-– 若想对标“仅文本解码器”或“仅交互层”模式，需要把 `requires_grad` 设 False 或用 LoRA ，仅让目标层参与训练。
-
-
-
-
-
-
-
-### Phi-3 Vision 微调选项
+### Phi-3 Vision 微调
 
 | 微调范围               | 可行性 | 典型场景                                       | 风险 / 成本                          |
 | ---------------------- | ------ | ---------------------------------------------- | ------------------------------------ |
@@ -414,7 +412,13 @@ model = get_peft_model(model, lora_cfg)
 
 *https://github.com/xinyuwei-david/david-share/tree/master/Multimodal-Models/Phi3-vision-Fine-tuning*
 
-上面链接的代码做的是 **“全参数微调”**——既没有冻结视觉塔（SigLIP-ViT），也没有冻结语言侧 Phi-3.5 LLM，更没有筛选投影 / 交互层；`optimizer = optim.AdamW(model.parameters(), …)` 把 **全部可训练参数** 都丢进了优化器。
+上面链接的代码做的是 **“全参数微调”**
+
+- 没有冻结视觉塔（SigLIP-ViT）
+- 没有冻结语言侧 Phi-3.5 LLM
+- 没有筛选投影 / 交互层；`optimizer = optim.AdamW(model.parameters(), …)` 
+
+把 **全部可训练参数** 都丢进了优化器。
 
 关键证据
 
