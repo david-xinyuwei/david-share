@@ -10,17 +10,17 @@
 
 ## 视觉模型能力递进示意
 
-##### ① 纯视觉编码器
+##### 1.纯视觉编码器
 
 ResNet(属于CNN)／ViT／DaViT …
 ↓（图像预处理 → 视觉特征提取，输出**纯视觉表示**）
 
-##### ② CLIP-类双编码器跨模态对齐
+##### 2.CLIP-类双编码器跨模态对齐
 
 （视觉编码器 + 文本编码器 并列前向）
 ↓（对比学习将图像表示与文本表示映射到**统一语义嵌入空间**，支持零样本检索／分类）
 
-##### ③ 视觉语言模型（VLM）
+##### 3. 视觉语言模型（VLM）
 
 Florence-2、BLIP-2、Qwen-VL …
 ↓（在已有**对齐机制**上，叠加文本解码器或跨模态 Transformer，引入**生成、对话、多任务**能力）
@@ -246,17 +246,53 @@ ViT的架构图如下：
 
 ## VLM类别细分
 
-| 维度 / 等式示意            | Florence-2                                                   | Phi-3 Vision                                                 | LLaVA-1.5（CLIP-based VLM）                                  | CLIP                                                         | ViT（纯视觉）                                    |
-| -------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------ |
-| **核心等式**               | Florence-2 = 视觉编码器(InternImage-H / SwinV2-G …) + Cross-Attn + 文本Decoder + Prompt | Phi-3 Vision = SigLIP-ViT 视觉塔 → Prefix + 轻量 LLM Decoder + Cross-Attn + Prompt | LLaVA-1.5 = **CLIP 视觉塔** + 线性投影 + 大语言模型(LLM) + Cross-Attn + Prompt | CLIP = 视觉Encoder(ViT / ResNet / ConvNeXt) ∥ 文本Encoder(Transformer) + 对比损失 | ViT = 图像Patch + 位置编码 + Transformer Encoder |
-| 模型类别                   | 视觉语言生成 VLM                                             | 轻量生成/推理 VLM                                            | 生成式 VLM（直接继承 CLIP 视觉塔）                           | 双塔跨模态对齐模型                                           | 纯视觉编码器                                     |
-| **是否直接使用 CLIP 权重** | ❌                                                            | ✅（SigLIP 属 CLIP 家族）                                     | ✅（直接加载 OpenAI CLIP ViT-L/14 等权重）                    | 本体即 CLIP                                                  | ❌                                                |
-| 图像编码器（视觉塔）       | InternImage-H / SwinV2-G                                     | SigLIP-ViT                                                   | CLIP-ViT / CLIP-ResNet                                       | CLIP-ViT / CLIP-ResNet / ConvNeXt                            | ViT                                              |
-| 文本编码器（Encoder）      | 无独立 Encoder（Seq2Seq 统一编码）                           | 无独立 Encoder（视觉前缀接入 LLM）                           | 无独立 Encoder（视觉前缀接入 LLM）                           | Transformer 文本 Encoder                                     | —                                                |
-| 文本解码器（Decoder）      | ✅ Transformer                                                | ✅ LLM                                                        | ✅ LLM                                                        | —                                                            | —                                                |
-| 跨模态交互                 | ✅ Cross-Attention                                            | ✅ Cross-Attention                                            | ✅ Cross-Attention                                            | ❌（对比对齐）                                                | ❌                                                |
-| 训练范式                   | 图文多任务预训 + 指令微调                                    | 图文多任务预训 + 指令微调                                    | CLIP 视觉塔冻结/微调 + LLM 对齐 + 指令微调                   | 大规模图文对比学习                                           | 监督或自监督                                     |
-| 主要能力概览               | 描述 / VQA / 检测 / 分割 / 多轮对话                          | 描述 / VQA / 轻量推理                                        | 描述 / VQA / 多轮对话（依托 CLIP 视觉）                      | 零样本分类 / 图文检索                                        | 分类 / 检测特征提取                              |
+| 维度 / 等式示意              | Florence-2                                                   | Phi-3 Vision                                                 | LLaVA-1.5                                                    | CLIP                                                         | ViT-L/14-336（纯视觉）                                     |
+| ---------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ | ---------------------------------------------------------- |
+| **核心等式（组件逐级列出）** | **DaViT** (4-stage) → 1024-d 线性投影 → **Text-Encoder (12 层)** → **Text-Decoder (12 层)** + Decoder-Cross-Attn ← 视觉 patch | **CLIP ViT-L/14-336** → HD-Transform + MLP 1024→3072 → **Phi-3 Text-Decoder (32 层)** + Decoder-Cross-Attn ← 视觉 patch | **CLIP ViT-L/14-336** → 线性 / MLP projector (768→4096) → **Vicuna-7B Decoder**；视觉嵌入作为 **Prefix Token**（拼在自回归序列） | **视觉 Encoder** (ViT-L/14-336 或 ResNet-50/101) ∥ **文本 Encoder** (12 层 768 hid) + proj-head-768；<br>两塔输出做 **对比损失** | **ViT-L/14-336** 单塔；CLS/EOS 向量 1024-d 作为图像表征    |
+| **模型类别**                 | Seq2Seq 全功能视-文生成模型                                  | Decoder-only 轻量视-文生成模型                               | “CLIP 视觉塔 + LLM” 生成式 VLM                               | 双塔对比检索模型                                             | 纯视觉编码器                                               |
+| **视觉塔权重来源**           | DaViT 预训练（FLD-5B、COCO 等）                              | **直接复用 OpenAI CLIP** ViT-L/14-336 权重                   | **直接复用 OpenAI CLIP** ViT-L/14-336 权重                   | 本体即 CLIP 视觉 Encoder 权重                                | 可来自 ImageNet-21k / 自监督 (DINO, MAE …)，不含跨模态对齐 |
+| **文本 Encoder**             | ✅ 12 层 (d=1024, heads=16)                                   | —                                                            | —                                                            | ✅ 12 层 (d=768, heads=12)                                    | —                                                          |
+| **文本 Decoder**             | ✅ 12 层 (d=1024)                                             | ✅ 32 层 Phi-3 (d=3072)                                       | ✅ Vicuna-7B (32 层, d=4096)                                  | —                                                            | —                                                          |
+| **跨模态交互方式**           | Decoder-Side **Cross-Attention**（视觉 patch ←→ 文本 Decoder） | Decoder-Side **Cross-Attention**                             | **Prefix Token**（视觉嵌入直接拼接，依靠 Self-Attn）         | ❌ 无交互层（仅对比）                                         | ❌                                                          |
+| **训练范式**                 | 大规模多任务图文预训练 + 指令 SFT / RLHF                     | 复用 CLIP 视觉 + 多任务预训 + 指令 SFT                       | 视觉塔冻结/LoRA，LLM 对齐 + 指令 SFT                         | 4 亿图文对比学习 (InfoNCE)                                   | ImageNet 监督或自监督 (MAE, DINO …)                        |
+| **主要能力**                 | Caption / VQA / OD / 分割 / 多轮对话                         | Caption / VQA / 轻量推理                                     | Caption / VQA / 对话                                         | 零样本分类 / 图文检索                                        | 分类、检测特征提取                                         |
+
+🔍 CLIP 比“裸 ViT-L/14-336”多出的关键部件
+
+1. **文本 Encoder（CLIP TextModel）**：12 层 Transformer，词表 49 k，输出 768-d。
+2. **双投影头**：视觉 1024-d、文本 768-d 各接一条线性层映射到 **共同 768-d 嵌入空间**。
+3. **对比温度 (logit_scale)**：可训练标量；配合 InfoNCE 损失把同对图文拉近、不同对拉远。
+4. **对比预训练语义对齐**：赋予零样本分类、检索能力。
+
+单独的 ViT-L/14-336 只有视觉主干，并不具备 2-4 项，因此也就没有天然的跨模态对齐与零样本推理能力。
+
+
+
+主流生成式视觉-语言模型很少把 “CLIP 整机（视觉塔 + 文本 Encoder + 对比头）” 原封不动搬进来，通常只拿走它的视觉塔。背后的原因可以归结为 5 大类：
+
+1. 任务目标不匹配
+   • CLIP 的文本分支是一个 **77 token 上限、无解码能力的 Encoder**，训练目标是 InfoNCE 对比损失，只输出一句话的全局向量。
+   • 生成式 VLM 需要 **按 token 自回归解码**（Caption、VQA、对话…），必须配备一个能预测下一个词的 LLM Decoder。CLIP TextModel 根本不具备这个功能。
+2. 模型规模与知识储备差距
+   • CLIP Text Encoder 只有 ~63 M 参数（ViT-L/14 配套版本）。
+   • 现代 LLM（Llama / Vicuna / Phi-3 等）动辄数十亿参数，经过大规模语料预训和指令调优，拥有丰富的语言/世界知识。
+   → 若直接沿用 CLIP Text Encoder，生成质量、上下文长度和对话能力都会严重受限。
+3. 架构衔接更简单
+   • 把 **CLIP 视觉塔** 视作“高质量视觉特征提取器”，再通过线性投影 / Cross-Attention / Prefix Token 等方式接入现有 LLM，工程上最省事。
+   • 如果要连同 CLIP Text Encoder 一起保留，就得面对“三塔系统”（视觉塔 + CLIP 文本塔 + LLM Decoder）的接口设计与显存开销，性价比低。
+4. 训练范式不同
+   • CLIP 想继续优化就需要 **正/负图文对**，而生成式微调（SFT、RLHF）只要“图 + 参考答案”即可。
+   • 保留 CLIP 对比头 ⇢ 还得准备大批负样本；省去它 ⇢ 直接用交叉熵就能训练。
+5. 功能侧重点不同
+   • 检索 / 零样本分类——CLIP 双塔最强；
+   • 文本生成 / 多轮对话——LLM + 视觉桥更强。
+   多数应用更看重后者，于是“视觉塔继承自 CLIP、语言侧自己换”成为主流方案。
+
+补充：
+• 某些模型（CoCa、SigLIP、EVL 等）会在生成头之外 **保留或再挂一个对比头**，兼顾检索任务，但它们照样放弃 CLIP Text Encoder，改用更大的 LLM 来负责生成。
+• 如果纯粹做检索或零样本分类，直接用 CLIP 整机依然是最简洁且效果很好的选择。
+
+
 
 ### Florence-2和Phi-3 Vision对比
 
