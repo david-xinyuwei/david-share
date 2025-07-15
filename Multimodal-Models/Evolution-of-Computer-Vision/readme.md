@@ -496,7 +496,7 @@ for name, param in model.named_parameters():
 
 
 
-[![images](https://github.com/xinyuwei-david/david-share/raw/master/Multimodal-Models/VLM-vs-LLM/images/6.png)](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/VLM-vs-LLM/images/2.png)
+![images](https://github.com/xinyuwei-david/david-share/raw/master/Multimodal-Models/VLM-vs-LLM/images/6.png)
 
 1. – 对 7B 小模型来说，引入多模态后语言任务表现下降明显； – 对 72B 大模型来说，VLM 版本的语言任务表现优于纯语言模型，且量化 (AWQ) 后也仍然保持优势。
 2. 推理成本与内存占用比较 • VLM 模型的参数量会多出一部分（因为新增了视觉编码器和相关输入处理），但其实比同规模 LLM 只多占不到 1.5 GB 左右的显存；推理速度也没有明显差异。 • 对于有足够 GPU 资源的人来说，使用 VLM 替代 LLM 在纯文本任务上也许更好，因为它语言能力不减反增；而如果硬件资源有限或只使用小模型 (例如 7B)，则 VLM 可能拖慢语言任务的成绩。
@@ -521,7 +521,7 @@ for name, param in model.named_parameters():
 
 以Phi为例。
 
-[![images](![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Evolution-of-Computer-Vision/images/5.png)
+![images](![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Evolution-of-Computer-Vision/images/5.png)
 
 查看模型层级
 
