@@ -1,5 +1,7 @@
 # 使用 PyTorch 进行超大规模深度学习模型训练
 
+*https://medium.com/gitconnected/training-deep-learning-models-at-ultra-scale-using-pytorch-74c6cbaa814b*
+
 
 
 ![img](https://miro.medium.com/v2/resize:fit:1155/0*P3x3trJ1291XRI99)
@@ -27,33 +29,33 @@
 其示例实现可能如下所示：
 
 ```
-导入torch
-导入torch.nn作为nn
-导入torch.optim作为optim 
+import torch
+import torch.nn as nn
+import torch.optim as optim
 
-# 定义你的模型
-model = nn.Linear( 10 , 1 ) 
+# Define your model
+model = nn.Linear(10, 1)
 
-# 用 DataParallel 包装模型
-model = nn.DataParallel(model) 
+# Wrap the model with DataParallel
+model = nn.DataParallel(model)
 
-# 将模型移动到 GPU
- model = model.cuda() 
+# Move the model to GPU
+model = model.cuda()
 
-# 定义损失和优化器
-criterion = nn.MSELoss() 
-optimizer = optim.SGD(model.parameters(), lr= 0.01 ) 
+# Define loss and optimizer
+criterion = nn.MSELoss()
+optimizer = optim.SGD(model.parameters(), lr=0.01)
 
-# 虚拟数据
-input = torch.randn( 64 , 10 ).cuda() 
-targets = torch.randn( 64 , 1 ).cuda() 
+# Dummy data
+inputs = torch.randn(64, 10).cuda()
+targets = torch.randn(64, 1).cuda()
 
-# 正向传递
-output = model(inputs) 
-loss = criterion(outputs, targets) 
+# Forward pass
+outputs = model(inputs)
+loss = criterion(outputs, targets)
 
-# 反向传递和优化
-loss.backward() 
+# Backward pass and optimization
+loss.backward()
 optimizer.step()
 ```
 
@@ -82,26 +84,26 @@ optimizer.step()
 虽然 PyTorch 不提供对张量并行的开箱即用支持，但使用 PyTorch 灵活的张量运算和分布式通信原语可以轻松实现自定义实现。如果您想要更强大的解决方案，可以使用[DeepSpeed](https://www.deepspeed.ai/)和[Megatron-LM](https://github.com/NVIDIA/Megatron-LM)等框架扩展 PyTorch 来实现此功能。张量并行实现的简单代码片段如下：
 
 ```
-import torch 
-import torch.distributed as dist 
+import torch
+import torch.distributed as dist
 
-def  tensor_parallel_matmul ( a, b, devices ): 
-    # a 按行划分，b 跨设备共享
-    a_shard = a.chunk( len (devices), dim= 0 ) 
-    results = [] 
-    for i, dev in  enumerate (devices): 
-        a_device = a_shard[i].to(dev) 
-        b_device = b.to(dev) 
-        results.append(torch.matmul(a_device, b_device)) 
-    # 连接每个设备的结果
-    return torch.cat(results, dim= 0 ) 
+def tensor_parallel_matmul(a, b, devices):
+    # a is divided row-wise, b is shared across devices
+    a_shard = a.chunk(len(devices), dim=0)
+    results = []
+    for i, dev in enumerate(devices):
+        a_device = a_shard[i].to(dev)
+        b_device = b.to(dev)
+        results.append(torch.matmul(a_device, b_device))
+    # Concatenate results from each device
+    return torch.cat(results, dim=0)
 
-# 示例用法：
- a = torch.randn( 1000 , 512 )   # 假设这个张量对于一个 GPU 来说太大
-b = torch.randn( 512 , 256 ) 
-devices = [ 'cuda:0' , 'cuda:1' ] 
+# Example usage:
+a = torch.randn(1000, 512)  # Assume this tensor is too big for one GPU
+b = torch.randn(512, 256)
+devices = ['cuda:0', 'cuda:1']
 
-result = tensor_parallel_matmul（a，b，设备）
+result = tensor_parallel_matmul(a, b, devices)
 ```
 
 ## 关键要点
@@ -126,38 +128,38 @@ result = tensor_parallel_matmul（a，b，设备）
 下面是一个如何在自定义 Transformer 块中拆分上下文的示例。在此示例中，该块可能会并行处理长序列的不同段，然后合并输出以进行最终处理。
 
 ```
-import torch 
-import torch.nn as nn 
+import torch
+import torch.nn as nn
 
-class  ContextParallelTransformer (nn.Module): 
-    def  __init__ ( self, d_model, nhead, context_size ): 
-        super (ContextParallelTransformer, self).__init__() 
-        self.context_size = context_size 
-        self.transformer_layer = nn.TransformerEncoderLayer( 
-                                    d_model=d_model, nhead=nhead) 
+class ContextParallelTransformer(nn.Module):
+    def __init__(self, d_model, nhead, context_size):
+        super(ContextParallelTransformer, self).__init__()
+        self.context_size = context_size
+        self.transformer_layer = nn.TransformerEncoderLayer(
+                                    d_model=d_model, nhead=nhead)
     
-    def  forward ( self, x ): 
-        # x 形状：[batch, seq_len, d_model]
-         batch, seq_len, d_model = x.size() 
-        assert seq_len % self.context_size == 0 , 
-                "序列长度必须能被 context_size 整除" 
-        # 将序列维度划分为段
-        segments = x.view(batch, seq_len // self.context_size, 
-                          self.context_size, d_model) 
-        # 使用循环或并行映射并行处理每个段
-        processed_segments = [] 
-        for i in  range (segments.size( 1 )): 
-            segments = segments[:, i, :, :] 
-            processed_segment = self.transformer_layer( 
-                                segment.transpose( 0 , 1 )) 
-            processed_segments.append(processed_segment.transpose( 0 , 1 )) 
-        # 将处理后的段连接回完整序列
-        return torch.cat(processed_segments, dim= 1 ) 
+    def forward(self, x):
+        # x shape: [batch, seq_len, d_model]
+        batch, seq_len, d_model = x.size()
+        assert seq_len % self.context_size == 0,
+                "Sequence length must be divisible by context_size"
+        # Divide the sequence dimension into segments
+        segments = x.view(batch, seq_len // self.context_size,
+                          self.context_size, d_model)
+        # Process each segment in parallel using a loop or parallel map
+        processed_segments = []
+        for i in range(segments.size(1)):
+            segment = segments[:, i, :, :]
+            processed_segment = self.transformer_layer(
+                                segment.transpose(0, 1))
+            processed_segments.append(processed_segment.transpose(0, 1))
+        # Concatenate processed segments back to full sequence
+        return torch.cat(processed_segments, dim=1)
 
-# 使用示例：
- model = ContextParallelTransformer(d_model= 512 , nhead= 8 , context_size= 16 ) 
+# Example usage:
+model = ContextParallelTransformer(d_model=512, nhead=8, context_size=16)
 # [batch, sequence_length, embedding_dim]
- input_seq = torch.randn( 32 , 128 , 512 ) 
+input_seq = torch.randn(32, 128, 512)
 output = model(input_seq)
 ```
 
@@ -186,50 +188,56 @@ output = model(input_seq)
 有关如何使用此 API 的一个简单示例是：
 
 ```
-导入 torch.nn 作为 nn
-从 torch.distributed.pipeline.sync 导入 Pipe 
+import torch.nn as nn
+from torch.distributed.pipeline.sync import Pipe
 
-# 定义模型的两个连续段
-segments1 = nn.Sequential( 
-    nn.Linear(1024, 2048), 
-    nn.ReLU(), 
-    nn.Linear(2048, 2048) 
-) 
-
-segments2 = nn.Sequential( 
-    nn.Linear(2048, 2048), 
-    nn.ReLU(), 
-    nn.Linear(2048, 1024) 
-) 
-
-# 使用 Pipe 组合段
-# 如果提供了设备分配，则模块在设备之间的放置由 Pipe
-自动处理
-model = nn.Sequential(segment1, segments2) 
-model = Pipe(model, chunks=4) 
-
-# 现在，当您通过模型传递数据时，微批次将以
-流水线方式进行处理。
-输入 = torch.randn(16, 1024)
-输出 = model(inputs)导入 torch
-导入 torch.nn 作为 nn
-从 torch.distributed.pipeline.sync 导入 Pipe 
-
-# 定义模型段
-segment1 = nn.Sequential( 
-    nn.Linear(1024, 2048), 
-    nn.ReLU(), 
-    nn.Linear(2048, 2048) 
+# Define two sequential segments of a model
+segment1 = nn.Sequential(
+    nn.Linear(1024, 2048),
+    nn.ReLU(),
+    nn.Linear(2048, 2048)
 )
-段2 = nn.Sequential( 
-    nn.Linear(2048, 2048), 
-    nn.ReLU(), 
-    nn.Linear(2048, 1024) 
-) 
 
-# 使用 Pipe 将各段组合成一个模型
-model = nn.Sequential(segment1, segments2) # 将模型拆分为遍历设备“cuda:0”和“cuda:1”
-的微批次model = Pipe(model, devices=['cuda:0', 'cuda:1'], chunks=4) # 模拟输入批次inputs = torch.randn(16, 1024).to('cuda:0') outputs = model(inputs)
+segment2 = nn.Sequential(
+    nn.Linear(2048, 2048),
+    nn.ReLU(),
+    nn.Linear(2048, 1024)
+)
+
+# Combine the segments using Pipe
+# The placement of modules across devices is handled by Pipe
+# automatically if provided device assignments
+model = nn.Sequential(segment1, segment2)
+model = Pipe(model, chunks=4)
+
+# Now, when you pass data through the model, micro-batches are processed
+# in a pipelined fashion.
+inputs = torch.randn(16, 1024)
+outputs = model(inputs)import torch
+import torch.nn as nn
+from torch.distributed.pipeline.sync import Pipe
+
+# Define model segments
+segment1 = nn.Sequential(
+    nn.Linear(1024, 2048),
+    nn.ReLU(),
+    nn.Linear(2048, 2048)
+)
+segment2 = nn.Sequential(
+    nn.Linear(2048, 2048),
+    nn.ReLU(),
+    nn.Linear(2048, 1024)
+)
+
+# Combine segments into one model using Pipe
+model = nn.Sequential(segment1, segment2)
+# Split the model into micro-batches that traverse devices 'cuda:0'
+# and 'cuda:1'
+model = Pipe(model, devices=['cuda:0', 'cuda:1'], chunks=4)
+
+# Simulated input batch
+inputs = torch.randn(16, 1024).to('cuda:0')
+outputs = model(inputs)
 ```
 
 ## 关键要点
@@ -261,48 +269,48 @@ model = nn.Sequential(segment1, segments2) # 将模型拆分为遍历设备“cu
 在生产环境中，专家并行通常与其他并行策略相结合。例如，您可以同时使用数据并行和专家并行来处理大型数据集和海量模型参数，同时选择性地将计算路由到相应的专家。下图展示了一个简化的实现：
 
 ```
-导入torch
-导入torch.nn作为nn
-导入torch.nn. functional作为F 
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
-class  Expert (nn.Module): 
-    def  __init__ ( self, input_dim, output_dim ): 
-        super (Expert, self).__init__() 
-        self.fc = nn.Linear(input_dim, output_dim) 
+class Expert(nn.Module):
+    def __init__(self, input_dim, output_dim):
+        super(Expert, self).__init__()
+        self.fc = nn.Linear(input_dim, output_dim)
     
-    def  forward ( self, x ): 
-        return F.relu(self.fc(x)) 
+    def forward(self, x):
+        return F.relu(self.fc(x))
 
-class  MoE (nn.Module): 
-    def  __init__ ( self, input_dim, output_dim, num_experts, k= 2 ): 
-        super (MoE, self).__init__() 
-        self.num_experts = num_experts 
-        self.k = k   # 每个示例使用的专家数量
-        self.experts = nn.ModuleList([Expert(input_dim, output_dim) 
-                                      for _ in  range (num_experts)]) 
-        self.gate = nn.Linear(input_dim, num_experts) 
+class MoE(nn.Module):
+    def __init__(self, input_dim, output_dim, num_experts, k=2):
+        super(MoE, self).__init__()
+        self.num_experts = num_experts
+        self.k = k  # number of experts to use per example
+        self.experts = nn.ModuleList([Expert(input_dim, output_dim)
+                                      for _ in range(num_experts)])
+        self.gate = nn.Linear(input_dim, num_experts)
     
-    def  forward ( self, x ): 
-        # x 形状：[batch, input_dim]
-         gate_scores = self.gate(x)   # [batch, num_experts] 
-        # 为每个输入选择前 k 名专家
-        topk = torch.topk(gate_scores, self.k, dim= 1 )[ 1 ] 
-        output = [] 
-        for i in  range (x.size( 0 )): 
-            expert_output = 0 
-            for idx in topk[i]: 
-                expert_output += self.experts[idx](x[i]) 
-            output.append(expert_output / self.k) 
-        return torch.stack(outputs) 
+    def forward(self, x):
+        # x shape: [batch, input_dim]
+        gate_scores = self.gate(x)  # [batch, num_experts]
+        # Select top-k experts for each input
+        topk = torch.topk(gate_scores, self.k, dim=1)[1]
+        outputs = []
+        for i in range(x.size(0)):
+            expert_output = 0
+            for idx in topk[i]:
+                expert_output += self.experts[idx](x[i])
+            outputs.append(expert_output / self.k)
+        return torch.stack(outputs)
 
-# 使用示例：
- batch_size = 32
- input_dim = 512
- output_dim = 512
- num_experts = 4
- model = MoE(input_dim, output_dim, num_experts) 
-x = torch.randn(batch_size,输入维度）
-输出 = 模型（x）
+# Example usage:
+batch_size = 32
+input_dim = 512
+output_dim = 512
+num_experts = 4
+model = MoE(input_dim, output_dim, num_experts)
+x = torch.randn(batch_size, input_dim)
+output = model(x)
 ```
 
 ## 关键要点
@@ -357,48 +365,48 @@ ZeRO Offload 的架构 [[图片来源](https://syncedreview.com/2020/09/14/micro
 虽然 DeepSpeed 本身就是一个特性，但它与 PyTorch 的集成使其成为训练优化库中不可或缺的工具，能够促进高效的内存管理，并使之前无法训练的模型大小在现代硬件上变得可行。其虚拟实现如下：
 
 ```
-导入torch
-导入torch.nn作为nn
-导入deepspeed 
+import torch
+import torch.nn as nn
+import deepspeed
 
-class  LargeModel (nn.Module): 
-    def  __init__ ( self, input_dim, hidden_dim, output_dim ): 
-        super (LargeModel, self).__init__() 
-        self.fc1 = nn.Linear(input_dim, hidden_dim) 
-        self.relu = nn.ReLU() 
-        self.fc2 = nn.Linear(hidden_dim, output_dim) 
+class LargeModel(nn.Module):
+    def __init__(self, input_dim, hidden_dim, output_dim):
+        super(LargeModel, self).__init__()
+        self.fc1 = nn.Linear(input_dim, hidden_dim)
+        self.relu = nn.ReLU()
+        self.fc2 = nn.Linear(hidden_dim, output_dim)
 
-    def  forward ( self, x ): 
-        x = self.relu(self.fc1(x)) 
-        return self.fc2(x) 
+    def forward(self, x):
+        x = self.relu(self.fc1(x))
+        return self.fc2(x)
 
-model = LargeModel( 1024 , 4096 , 10 ) 
+model = LargeModel(1024, 4096, 10)
 
-# 使用 ZeRO 优化器设置的 DeepSpeed 配置
-ds_config = { 
-    "train_batch_size" : 32 , 
-    "optimizer" : { 
-        "type" : "Adam" , 
-        "params" : { 
-            "lr" : 0.001
-         } 
-    }, 
-    "zero_optimization" : { 
-        "stage" : 2 ,   # 第 2 阶段：梯度分区
-        "allgather_partitions" : True , 
-        "reduce_scatter" : True , 
-        "allgather_bucket_size" : 2e8 , 
-        "overlap_comm" : True
-     } 
-} 
+# DeepSpeed configuration with ZeRO optimizer settings
+ds_config = {
+    "train_batch_size": 32,
+    "optimizer": {
+        "type": "Adam",
+        "params": {
+            "lr": 0.001
+        }
+    },
+    "zero_optimization": {
+        "stage": 2,  # Stage 2: Gradient partitioning
+        "allgather_partitions": True,
+        "reduce_scatter": True,
+        "allgather_bucket_size": 2e8,
+        "overlap_comm": True
+    }
+}
 
-# 使用 ZeRO 为模型初始化 DeepSpeed
- model_engine,optimizer,_,_ = deepspeed.initialize(model=model, 
-                                                     config=ds_config) 
-inputs = torch.randn( 32 , 1024 ).to(model_engine.local_rank) 
-outputs = model_engine(inputs) 
-loss = output.mean()   # 简化损失计算
-model_engine.backward(loss) 
+# Initialize DeepSpeed with ZeRO for the model
+model_engine, optimizer, _, _ = deepspeed.initialize(model=model,
+                                                     config=ds_config)
+inputs = torch.randn(32, 1024).to(model_engine.local_rank)
+outputs = model_engine(inputs)
+loss = outputs.mean()  # Simplified loss computation
+model_engine.backward(loss)
 model_engine.step()
 ```
 
