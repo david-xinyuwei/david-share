@@ -4,8 +4,6 @@
 
 
 
-
-
 **DeepEP = 精确分桶 + 多路 P2P 并发 + 后台 DMA**
 在 H100-NVLink3 + IB-NDR400 环境下，只需一行
 
@@ -194,9 +192,115 @@ Softmax / Sampling  →  next-token prediction
 
 **Key notes:**
 
-1. Dense Block 1-3 are **dense “warm-up” layers**: identical pre-LN Transformer blocks that run full FFN to align features before MoE routing starts.
-2. MoE Block 4-61 replace the dense FFN with **Router + 1 shared + 256 routed experts**, and add two cross-GPU communications (Dispatch / Combine).
-3. Final LayerNorm normalizes the last hidden state; LM Head projects it to vocabulary logits (weights tied with the token embedding).
+1. Dense Block 1-3 为密集的 "warm-up layers"：完全的 dense transformer blocks，通过完整的前馈网络达到在 MoE 路由前稳定特征表达的目的。
+2. 从 MoE Block 4 开始直至第 61 层，每层都用 Router 和 MoE 专家（1 个共享专家+256 个路由专家）代替 dense FFN，同时引入跨 GPU 通信（两次跨卡通讯： Dispatch / Combine）。
+3. 最终的全局 LayerNorm 和 LM Head 将隐藏状态转为最终的词表 logits。LM Head 通常权重与初始 Embedding 层共享。
+
+### 推理的两个阶段与具体特点
+
+模型推理分为两个阶段：**Prefill 阶段** 和 **Decode 阶段**:
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/DeepEP/images/6.png)
+
+#### （1）Prefill 阶段：
+
+- 一次性并行处理所有输入 Token，生成每个 Token 的隐藏状态，用于后续生成阶段或其它任务。
+- 不需要读取 KV-Cache，但会为 Decode 阶段创建和存储 KV-Cache。
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/DeepEP/images/4.png)
+
+#### （2）Decode 阶段：
+
+- 自回归逐个生成输出 Token，每次仅输入一个新 Token，使用 Prefill 阶段的 KV-Cache 进行加速。
+- 每一层模型的 Self-Attention 会利用已有的 KV 缓存加速计算过程，减少重复计算开销。
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/DeepEP/images/5.png)
+
+#### Prefill 与 Decode 阶段均会完整通过 61 层
+
+无论 Prefill 阶段还是 Decode 阶段，都必须完整地依次流过**全部61层结构**：
+
+- **Prefill 阶段:**
+  一次性并行处理全部输入的 Prompt 序列，所有 Token 批量通过全部 61 层 (3 层 Dense + 58 层 MoE)，为每个 Token 生成隐藏状态，并创建和存储KV-Cache以用于 Decode 阶段。
+
+  Prefill 阶段特点：
+
+  - 可高效利用 GPU 并行加速。
+  - 对于每个 Token，**同样地只激活 8 个路由专家 + 1 个共享专家**（同样走稀疏MoE)，区别仅在于 Prefill 阶段通常 Prompt 序列较长，Token 数量较多，每批处理的 Token 数量可能更多。
+  - 在这个阶段，由于并行处理的序列较长，为提高负载均衡效率和吞吐，采用了 EP32 / DP32 配置（较少节点、较多专家冗余部署，每GPU 9 路由专家）。
+
+- **Decode 阶段:**
+  Decode 是逐个 Token 自回归生成的过程，每次仅产生 1 个 Token。但每生成一个新的 Token，都需完整经过所有 61 层计算(包含MoE层)，而且每次计算需要读取 Prefill 阶段存储的 KV-Cache，顺序按层执行。
+
+  Decode 阶段特点：
+
+  - 每次只处理少量 (通常仅1个）新 Token，实时逐步生成。 -**仍然只激活 8 个路由专家 + 1 个共享专家**（同样走稀疏MoE)。但每次只处理一个 Token 的情况与 Prefill 阶段的一大批 Token 并发不同，Token 数少，吞吐要求会更高，因此对专家进行了更分散的部署和更多节点的调度，因此使用了 EP144 / DP144 配置（较多节点，每 GPU 仅2个路由专家）。
+
+#### Prefill 与 Decode 环节都要使用 MoE 架构
+
+实际上，从计算架构层面来说，Prefill 与 Decode 两个阶段本质并无区别：
+
+- 都依次经过了完整的61层。
+- 每一个 MoE Block （第4至61层）内，都是通过门控路由选择 8 个路由专家+1 个共享专家去进行稀疏激活计算，无论你是一次处理很多 Token (Prefill)，还是每次只处理一个 Token (Decode)，流程都是如此。
+- 区别仅仅在于 Prefill 阶段一次性输入大量 Token，更注重高效“并行批处理”；Decode 一次少量 Token，更关注低延迟快速响应（逐步生成新词）。
+
+因此架构设计本身：
+**不用对 Prefill 和 Decode 阶段分别设计不同的 Transformer 层结构**。只需在不同阶段调整一下部署配置规模（专家冗余程度和节点数）即可实现高效推理。
+
+------
+
+#### “每层都有 Attention Head” 和 “LM Head 只在最后” 在两个阶段同样适用：
+
+- 每层中的 **Attention Head (128 head)**，无论 Prefill 还是 Decode，都是在每个层的 Attention 子模块中需要计算的。
+- **LM Head** 最终只出现在模型最后。此结论同样适用于 Prefill 和 Decode 两阶段。Prefill 后给出隐藏状态，无需LM Head；Decode阶段，每次完成一次全层计算后，经最后一层的 LM Head 投影 获得 logits 进行下一个预测。"**LM Head**" **不属于** Transformer 结构内的这**61层**，而恰好位于全部Transformer层都结束后的“额外投影层”；因此Prefill阶段不需要LM Head并不意味着少算了一层，仅表示“最后的额外投影不需要在Prefill做”。
+
+------
+
+## 总结
+
+回答你最初的问题：
+
+> **“MoE Block 4到61层在 Prefill 与 Decode 阶段是如何体现的？”**
+
+核心结论就是：
+
+- 在 **Prefill 阶段**，模型并行批量处理 Token，MoE Block 每层内对每个 Token 激活 8 个路由专家 + 1 个共享专家，然后生成缓存隐藏状态，批处理加速。
+- 在 **Decode 阶段**，每次生成1个 Token，同样经过全部 61层 MoE 层，并从此前缓存的KV Cache中加速计算，同样每层激活8个路由与1个共享专家，但更强调实时生成，采用更多节点、更分散的专家部署来提高吞吐和减少执行延迟。
+
+因此，模型的结构并没有在Prefill 和 Decode阶段区别对待，61 层 Transformer (1–3 Dense, 4–61 MoE)恒定不变，仅仅在阶段决定如何部署(EP/DP专家部署, GPU 数量，冗余程度、跨卡通信模式）有所不同。
+
+
+
+- 无论 Prefill 还是 Decode 阶段，都采用统一的 61 层 Transformer 结构，无需额外特殊处理。
+- 每层 Transformer 中都内置了 Mixture-of-Experts（MoE）模块，用于高效稀疏激活专家，降低计算开销同时提高扩展能力。
+
+
+
+
+
+## DeepSeek R1 模型的 MoE 架构与部署策略
+
+DeepSeek R1 每层 Transformer decoder 由以下专家结构构成：
+
+- 256 个路由专家+1 个共享专家：
+  - 每个 Token 实际只通过门控路由激活 8 个路由专家，以及固定的 1 个共享专家，即每 Token 实际参与计算的专家数量共为 9 个。
+
+### 高并发分布式部署方案
+
+- Prefill 阶段：EP32 / DP32
+  - 部署于 32 张 GPU（4节点 × 8 GPUs）
+  - 路由专家冗余部署：每张 GPU 托管 9 个专家，共 288 个专家副本（其中32 个为冗余）
+  - 每张 GPU 上额外部署了 1 个共享专家副本（数据并行）
+- Decode 阶段：EP144 / DP144
+  - 部署于 144 张 GPU（18节点 × 8 GPUs）
+  - 路由专家冗余部署：每 GPU 存放 2 个专家，共 288 个专家副本（32个冗余）
+  - 同样执行共享专家数据并行复制至每张 GPU
+
+### 激活专家与冗余专家间的关系：
+
+- 每个 Token 会依据门控得分从所有 GPU 上的专家副本中跨节点选出 8 个最佳路由专家，这种分布式路由能够最大化利用计算冗余，提高负载均衡效率与吞吐性能。
+
+
 
 整体逻辑示意图：
 
