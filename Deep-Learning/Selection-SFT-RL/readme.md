@@ -2,6 +2,210 @@
 
 This document first explains the implementation-level differences between RL and SFT, then walks through a concrete example that shows how to build an SFT-plus-GRPO pipeline.
 
+## **强化学习三种模式**
+
+![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Selection-SFT-RL/images/1.png)
+
+上面这三种强化学习训练大模型做推理的模式，可以简单理解为“最终只看答案给奖励”到“分步骤给奖励”的逐步演进。它们的主要区别如下：
+
+#### 直接强化学习 (Direct RL)
+
+• 核心思路：
+模型只输出一个答案，奖励模型(Reward Model)仅根据这最终答案是否正确或符合目标来给出奖励。
+• 特点：
+– 只在最后一步得到奖励信号。
+– 实现最简单，但无法直接指导模型中间的推理步骤对不对。
+– 如果中途思路错了，模型只能在最终答案“被扣分”时才知道哪里出了问题，学习速度慢。
+
+#### 多步强化学习 + 最终结果奖励 (Multi-Step RL with Outcome Reward Model, ORM)
+
+
+• 核心思路：
+模型在输出答案前，会先“显式地”或“隐式地”写下一系列中间推理步骤(Reasoning steps)，最后依然只看最终答案来给奖励。
+• 特点：
+– 明确地将思考过程拆分为多步，但奖励依旧只看最后结果。
+– 相比直接RL，模型在训练时可以学会更有条理的分步思考，但依旧无法从每一步是否正确获得即时反馈。
+– 如果中间步骤错误，但最终答案凑巧对了或者错了，模型依旧只能在最终才能得到一次奖惩信号。
+
+#### 多步强化学习 + 过程奖励 (Multi-Step RL with Process Reward Model, PRM)
+
+
+• 核心思路：
+模型同样会写下一系列的中间推理步骤，但现在在每个推理步骤上都进行评价。如果该推理步骤正确或对最终答案的正确性有帮助，则给一个正向奖励；如果出错则给负向反馈。最终得到答案后，也会有最终结果的整体奖励。
+• 特点：
+– 不仅关注最终答案，还关注模型的每一个中间步骤是否合理或正确。
+– 可以更细粒度地引导模型，让模型在每次思考时都更容易修正错误，提高推理的可控性和准确度。
+– 实现更复杂，因为需要额外的“过程奖励模型”去判断每一步是否正确或合理。
+
+
+
+#### 示例：用解简单方程来对比
+
+假设我们让模型解一个非常简单的方程：“2x + 3 = 7，求 x”。
+
+1. 直接强化学习 (Direct RL)
+   – 模型可能直接输出“x=2”，然后由奖励模型根据最终答案正确与否给予奖励。
+   – 如果它不小心算错了，比如输出“x=3”，它也只有在最终拿到负反馈后才知道错。
+   – 中间并没有显式推理或对中间过程打分。
+2. 多步RL + 最终结果奖励 (Multi-Step RL with Outcome RM)
+   – 模型的输出过程可能写成四步：
+   (1) 2x + 3 = 7
+   (2) 2x = 4 (减去3)
+   (3) x = 2 (再除以2)
+   (4) 最终答案：x=2
+   – 不过奖励还是只根据最后这个“x=2”对不对来评估。
+   – 如果中间推理哪一步错误导致答案最终错误，只有在最后才能知道。
+3. 多步RL + 过程奖励 (Multi-Step RL with Process RM)
+   – 同样会分四步：
+   (1) 2x + 3 = 7
+   (2) 减去3得到2x = 4 → 这一步如果正确就即时给一个正向奖励。
+   (3) 再除以2得到x = 2 → 继续给正向奖励。
+   (4) 最终答案：x=2 → 也会单独评估最终结果给一个奖励。
+   – 如果某一步过程出错(比方说“减去3”后误写成“2x = 5”)，在那一步就能得到负反馈，模型能迅速发现错误并修正。
+   – 在训练中，模型更容易学到正确的推理过程，因为每一步都能获得有针对性的指导。
+
+
+
+#### 总结
+
+• Direct RL：只关心最终答案，最简单，但难以给中间步骤提供反馈。
+• Multi-Step RL + Outcome RM：显式地把推理拆成多步，但仍只有最后的结果反馈。
+• Multi-Step RL + Process RM：每一步都可以得到奖励或惩罚，能大大提升推理过程的可控性与准确度，不过需要一个能评估过程正确性的模型，实施上也更复杂。
+
+对于初学者，可以把它想象成：
+• Direct RL：相当于只看考试最后得了多少分；
+• Multi-Step (Outcome) RL：考卷上虽然能看到你的解题步骤，但判卷时只给你最后答案对就打分；
+• Multi-Step (Process) RL：考官不仅看最终答对没，还会在每一步解题中批注你哪里做对、哪里做错，并给你相应的分数或扣分。
+
+
+
+
+
+## Test Time Scale模式
+
+![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Selection-SFT-RL/images/2.png)
+Test Time Scale：Majority Vote / Tree Search / Beam Search / Lookahead Search
+
+当大语言模型在“推理”或“回答”时，并不一定只用最朴素的“从左到右采样，直接得到答案”这一种方式。为了提升答案的准确度或稳健性，人们往往会在推理阶段引入各种“搜索”技巧，主要目的是从模型内在的多种可能生成路径中，找到或投票出最优的一条。下图中展示了几种常见策略的示意。
+
+1. Majority Vote
+   • 做法：让模型针对同一个问题多次独立生成答案(比如随机采样不同的种子或温度)，得到多个结果。然后对这些结果进行投票(多数/平均/打分)选出一个最可能正确的答案。
+   • 特点：
+   – 实现非常简单，只要多次采样，再投票。
+   – 没有显式地去搜索推理路径，而是通过多个候选答案来“集思广益”。
+   – 当模型在不同次采样下表现差异很大时，该方法有时会纠正随机错误；但若模型系统地倾向于某种错误，它也就相对失效。
+2. Tree Search
+   • 做法：把模型每一步可能的生成看成一个分支，在树状结构里扩展，选择更高分或更合理的分支继续扩展下去。
+   • 特点：
+   – 比Majority Vote更系统地去发掘可能的推理路径。
+   – 可以在初期就剪除一些看起来明显错误的分支(用打分或启发式规则)。
+   – 但纯粹的Tree Search如果分支数过多，计算开销会变得非常大。
+3. Beam Search
+   • 做法：可以视作对Tree Search的“简化版”，在每个生成步只保留前K条“最优”分支(即Beam宽度K)，其余分支被剪去。
+   • 特点：
+   – 是机器翻译、文本生成里经常用的解码算法。
+   – 相对树搜索更加高效，用有限的Beam宽度在“多个相对优质的分支”中寻找最佳答案。
+   – 如果K值太小，仍可能漏掉一些正确但处于相对次优概率路径的解法；如果K值很大，计算成本又会增加。
+4. Lookahead Search
+   • 做法：不仅在当前这一步做出选择，还会向后“多看几步”对每条可能路径的后续进行模拟或打分，并根据展望结果来决定当前该走哪条路。
+   • 特点：
+   – 更像在下棋时做的“多步预判”，以期提前排除后续可能导致错误或不优的分支。
+   – 效果通常比纯粹的Beam或Tree Search更好，但需要更多计算量或更复杂的启发式评价。
+   – 当问题本身层数多、分支巨大时，Lookahead也容易遇到“爆炸式”增长，需要做好剪枝。
+
+简化类比：
+• Majority Vote 像考场里你自己想几遍，然后合并这些想法，出现最多的答案就是输出。
+• Tree Search、Beam Search 和 Lookahead 则更像“全盘搜索”，经常在搜索树里做剪枝，逐步找出最优解，能相比多次瞎猜更在“每一步”进行评判，力图深入探索而不盲目。
+
+
+
+详细参考：
+
+
+
+[遗传算法在Test-Time Compute Scaling中的应用](https://mp.weixin.qq.com/s?__biz=MzAwMDc2NjQ4Nw==&mid=2663562950&idx=1&sn=99b0e304ba775f6814cc4dbfb9110c0d&scene=21#wechat_redirect)
+
+[SLM 如何在推理任务中击败大型模型](https://mp.weixin.qq.com/s?__biz=MzAwMDc2NjQ4Nw==&mid=2663562788&idx=1&sn=519f460e92f6998b3eff9dabd93873f8&scene=21#wechat_redirect)
+
+
+
+## 技术对比
+
+我们现在讨论的是两种不同的技术（分别用于训练阶段和推理测试阶段）：
+
+- **RL训练阶段模式** (给奖励的方式不同)
+  1. **Direct RL** ：只根据最终答案对错给奖励。
+  2. **多步RL+结果奖励 (Outcome RM)** ：模型会明确写出分步推理，但奖励仍然只看最终答案。
+  3. **多步RL+过程奖励 (Process RM)** ：模型明确写出分步推理，并对每一个步骤都给予奖励或惩罚。
+- **推理阶段搜索模式** (如何利用模型生成最佳答案)
+  1. **简单采样(Greedy/Temperature Sampling)**：不做特殊搜索，每一步直接从概率最高或一定随机程度的选项中采样。
+  2. **多数投票(Majority Vote)**：对同一问题独立生成多个答案，通过投票决定一个最佳答案。
+  3. **Beam或Tree Search**：通过搜索树构建多条生成路径，并对过程进行剪枝选择最佳路径。
+  4. **Look-ahead Search(MCTS类)**：向前“预看”几步后续选择再决定。
+
+
+
+####  **排列组合一览表** （行是RL训练模式，列是推理阶段模式）
+
+| RL训练模式 ↓ / 推理阶段模式 →                                | 简单采样<br>(Greedy/温度)  | 多数投票<br> (Majority Voting)             | Beam Search/<br>Tree Search               | Look-ahead <br> Search     |
+| ------------------------------------------------------------ | -------------------------- | ------------------------------------------ | ----------------------------------------- | -------------------------- |
+| **Direct RL**<br>只奖最终答案                                | ✅ 常⻅基础方案             | ✅ 可行，能弥补训练不足                     | ✅ 可行，但未广泛报道                      | ○ 技术可行，但计算开销大   |
+| **多步RL + 结果奖励 (Outcome RM)**<br>显式推理步, 只奖结果   | ✅ **DeepSeek-R1 默认方案** | ✅ DeepSeek-R1 离线数据生成阶段采用过此模式 | ✅ 可行，偶有研究使用                      | ○ 可行，但计算代价大       |
+| **多步RL + 过程奖励 (Process RM)** <br> 推理步明确，每步都奖惩 | ✅ 模型已强大，直接使用广泛 | ✅ 辅助提⾼稳健性，常见                     | ✅ 分步推理清晰，非常适合使用Beam/Tree搜索 | ○ 技术先进，有少量前沿研究 |
+
+------
+
+#### DeepSeek R1目前公开采用的策略（明确文献表示）：
+
+- **训练阶段 (RL模式)**：
+
+> **多步RL + 结果奖励 (Outcome RM，其中Outcome RM是基于规则的)**
+
+- DeepSeek目前公开信息显示，他们主要用显式推理步骤但只对最终答案做奖励（规则判定答案格式/准确）。
+- **推理阶段 (Search方法)**：
+
+> DeepSeek-R1 模型推理时默认采用简单采样(Greedy或温度采样)。
+> 在离线训练数据合成阶段则使用了"多数投票"(Majority Vote)+Rejection Sampling方法提升样本质量。
+
+> 当前DeepSeek-R1并未在公开资料中明确提及实时Beam Search、Tree Search或Look-ahead的使用情况。
+
+------
+
+#### 如何理解表格
+
+- 行（RL训练）代表模型的“先天能力”（通过训练阶段提高）。
+- 列（推理搜索）代表在实际使用模型时“答题/解题策略”（通过推理阶段提升精确度）。
+- 现实实际应用中，可以自由组合行列组合，例如：
+  - 训练很弱(Direct RL) → 推理更依赖多数投票、搜索补救。
+  - 训练很强(Process RM) → 推理阶段仍可额外做简单搜索和投票进一步提升稳健性。
+
+## **DS R1的范式**
+
+![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Selection-SFT-RL/images/3.png)
+
+![Image](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUicwxWRiaeB4ibaXAtuEMND1S8qSAklGF6vibbmueCyglkicVpfm73CgP8fst0sjk7uGZefPcMGg4rRAg/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1)
+
+![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Selection-SFT-RL/images/4.png)
+
+上面图展示了一个名为“DeepSeek R1”的大模型推理与训练方案。它包含以下几个关键要素：
+
+1. 多阶段数据及训练 (SFT → RL)：
+   • 首先会进行大规模的有监督微调(Supervised Fine-Tuning, SFT)，包括常规任务数据、链式思考(CoT)数据等。此时模型先学会基本的回答和格式。
+   • 接着进入强化学习阶段(RL)，使用“Reasoning Oriented RL (RORL)”，也就是额外鼓励模型在推理准确性或中间步骤合理性上表现更好。
+2. Rule-Based Outcome Reward Model (ORM)
+   • 在理想情况下，人们想采用前面讨论过的PRM(“每一步都打分”)模式，但往往需要昂贵的标注或更强大的过程评估模型。
+   • DeepSeek R1因为资源限制，无法完全复现PRM，于是采取了一个“基于规则”的Outcome Reward：即只要最终答案符合某些准确性、格式规则，就给正奖励，如果不符合就给负奖励。
+   • 结果表明，这种相对简单的做法在某些场景中也能取得不错的效果，尤其是搭配精心设计的训练数据和多阶段流程。
+3. GRPO 
+   • PPO(近端策略优化)是常见的RL微调方法。DeepSeek R1提出了一种“GRPO”思路，可以并行或分组地计算多个奖励，进而减少资源占用、加快收敛。
+   • 具体来说，他们会在同一个批次或分组内同时把多个样本送进ORM进行打分，然后聚合这些反馈信号对Policy Model进行更新，减少反复计算。
+4. 数据合成与Rejection Sampling
+   • 指的是在训练时，不仅使用人类标注的数据，还会用模型自我生成(包括中间推理步骤)的数据，再对其筛选。
+   • 筛选方式可能是“规则+模型判分”的组合：如果生成文本在逻辑上错误或不符合自定义的标准，就被拒绝；好的则被保留下来，当作新的训练样本。
+5. Distillation (知识蒸馏)
+   • 在最后阶段，往往会把体量更加庞大的模型(例如Qwen、Llama等)作为师模型，把它在推理和回答上的能力“蒸馏”出来，迁移到一个规模相对小或更高效的模型(DeepSeek R1 Distill版)。
+   • 这样做既能保留很多推理能力，又能降低推理时的算力需求。
+
 ## Choosing Between SFT and RL
 
 In most cases the safest and most efficient workflow is **“SFT first, RL afterwards”**—especially for small-capacity models or tasks that require strictly formatted outputs.
