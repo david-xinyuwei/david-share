@@ -134,9 +134,9 @@ Flux.1 has many Open-weight models:
 
  
 
-## Buildup PoC environment
+## 功能验证
 
-I did the test on Azure NC40 H100.
+I did the test on Azure NC40 H100 VM.
 
 ```
 conda create --name=FluxKontext  python=3.11
@@ -146,7 +146,23 @@ pip install -r requirements.txt
 python main.py --listen 0.0.0.0 --port 8188
 ```
 
-### Test 1: Do Image Inpaint 
+### Demo1: 基本的文生图
+
+***Refer to: code.ipynb***
+
+*image = generate_image("A Handsome chinese man with glasses is holding a book named LLM , the cover of the book is a Astronauts skiing on the moon， the book cover is blue stars in the background. ")*
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Flux.1-Solution-Test/images/8.png)
+
+image = generate_image("The most beautiful October in Beijing")
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Flux.1-Solution-Test/images/9.png)
+
+GPU consumed during image generation:
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Flux.1-Solution-Test/images/10.png)
+
+### Demo2: Do Image Inpaint 
 
 **Using  models/flux1-fill-dev.safetensors**
 
@@ -177,7 +193,7 @@ GPU usage during before action:
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Flux.1-Solution-Test/images/4.png)
 
-### **Test 2: Flux Kontext Dev(Grouped)**
+### **Demo3: Flux Kontext Dev(Grouped)**
 
 **Using models:**
 
