@@ -4,7 +4,7 @@ FLUX.1 是由 Black Forest Labs 开发的开源图像生成模型。它提供多
 
 ## FLUX.1 模型技术架构与处理流程
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Flux.1-Solution-Test/images/7.jpg)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Flux.1-Solution-Test/images/7.png)
 
 FLUX.1 模型是一种基于 Transformer 的文本-图像多模态生成模型，整体生成流程包括：
 
