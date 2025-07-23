@@ -143,6 +143,8 @@ conda create --name=FluxKontext  python=3.11
 git clone https://github.com/comfyanonymous/ComfyUI
 cd ComfyUI
 pip install -r requirements.txt
+cd ~/ComfyUI/custom_nodes 
+git clone https://github.com/ltdrdata/ComfyUI-Manager comfyui-manager  #用于安装缺失的node
 python main.py --listen 0.0.0.0 --port 8188
 ```
 
@@ -205,3 +207,16 @@ GPU usage during before action:
 [![BitNet-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/L7aDBOdz4_U)
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Flux.1-Solution-Test/images/1.jpg)
+
+
+
+### **Demo4: Change Background**
+
+Refer to：[flux-fill+++flux-redux]+Product+Background+Change.json
+
+***Please click below pictures to see my demo video on Youtube***:
+[![BitNet-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/PF1aiSYmUlQ)
+
+The test result is as following:
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Flux.1-Solution-Test/images/11.jpg)
