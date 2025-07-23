@@ -212,11 +212,11 @@ GPU usage during before action:
 
 ### **Demo4: Change Background**
 
-Refer to：[flux-fill+++flux-redux]+Product+Background+Change.json
+*Refer to：[flux-fill+++flux-redux]+Product+Background+Change.json*
 
 ***Please click below pictures to see my demo video on Youtube***:
 [![BitNet-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/PF1aiSYmUlQ)
 
 The test result is as following:
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Flux.1-Solution-Test/images/11.jpg)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Flux.1-Solution-Test/images/11.png)
