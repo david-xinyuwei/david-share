@@ -1,4 +1,4 @@
-# Fine-Tuning Sentence Embeddings for Domain-Specific RAG
+# Fine-Tuning a Sentence Embeddings Model for Domain-Specific RAG
 
 **End-to-end Pipeline: Training, Evaluation, and Hands-on Comparison**
 
