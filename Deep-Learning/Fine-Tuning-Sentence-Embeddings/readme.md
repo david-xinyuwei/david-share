@@ -112,11 +112,9 @@ Data Preparation                   Training                         Evaluation
 
    ```
    3-rag_batch_eval.py
-   # Outputs rag_compare_report.csv with per-query details
-   csvlook rag_compare_report.csv | less -S         # Pretty terminal view (requires csvkit)
    ```
-
    
+   ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Fine-Tuning-Sentence-Embeddings/images/1.png)
 
 ------
 
