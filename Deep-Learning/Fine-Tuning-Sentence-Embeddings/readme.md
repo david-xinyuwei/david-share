@@ -1,12 +1,6 @@
 # Fine-Tuning a Sentence Embeddings Model for Domain-Specific RAG
 
-**End-to-end Pipeline: Training, Evaluation, and Hands-on Comparison**
-
-------
-
-## Overview
-
-Semantic retrieval is the backbone of modern Retrieval-Augmented Generation (RAG) and search systems. While generic embedding models such as `all-mpnet-base-v2` and `text-embedding-3` are effective for many open-domain tasks, they often fall short when deployed in narrow, domain-specific scenarios. This results in:
+\Semantic retrieval is the backbone of modern Retrieval-Augmented Generation (RAG) and search systems. While generic embedding models such as `all-mpnet-base-v2` and `text-embedding-3` are effective for many open-domain tasks, they often fall short when deployed in narrow, domain-specific scenarios. This results in:
 
 - **Noisy Top-k recalls:** Unrelated documents frequently appear amongst the top search results.
 - **Wasted LLM tokens:** Large Language Models need to process poorly filtered context, increasing compute cost and often generating off-topic or imprecise answers.
