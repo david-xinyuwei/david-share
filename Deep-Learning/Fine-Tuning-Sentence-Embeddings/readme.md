@@ -108,6 +108,8 @@ Data Preparation                   Training                         Evaluation
    3-rag_batch_eval.py
    ```
    
+   Check the generated csv file:
+   
    ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Fine-Tuning-Sentence-Embeddings/images/1.png)
 
 ------
