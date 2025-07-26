@@ -414,7 +414,7 @@ https://huggingface.co/docs/trl/main/grpo_trainer
 
 
 
-## 栗子（Example）
+## Example
 
 • 你让模型回答一次，它生成四个候选答案。
 • 你给分：80、60、90、70。
