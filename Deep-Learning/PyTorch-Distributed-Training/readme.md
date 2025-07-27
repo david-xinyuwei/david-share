@@ -6,15 +6,13 @@
 
 ![img](https://miro.medium.com/v2/resize:fit:1155/0*P3x3trJ1291XRI99)
 
-​										3D并行范式[[图片来源](https://syncedreview.com/2020/09/14/microsoft-democratizes-deepspeed-with-four-new-technologies/)]
-
-日活跃用户）更快迭代和部署的关键驱动因素。
+​										3D并行范式
 
 # 1.数据并行
 
 ![img](https://miro.medium.com/v2/resize:fit:1155/1*nDV4X7Rbdgo0Y6EJGgFC7w.png)
 
-数据并行[[图片来源](https://papers.nips.cc/paper_files/paper/2012/hash/6aca97005c68f1206823815f66102863-Abstract.html)]
+数据并行
 
 数据并行是最直接、应用最广泛的并行技术。它涉及创建同一模型的多个副本，并在不同的数据子集上训练每个副本。在本地计算梯度后，这些梯度会被聚合（通常通过全归约运算）并用于更新模型的所有副本。
 
@@ -23,8 +21,6 @@
 `torch.nn.DataParallel`PyTorch 通过& （DDP）模块内置了对数据并行的支持`torch.nn.parallel.DistributedDataParallel`。其中，DDP 广受青睐，因为它在多节点设置下提供了更好的可扩展性和效率。NVIDIA 的 NeMo 框架很好地阐释了它的工作原理——
 
 ![img](https://miro.medium.com/v2/resize:fit:1155/0*N0oUz4CoUu_70X5K.gif)
-
-数据并行图解 [[图片来源](https://docs.nvidia.com/nemo-framework/user-guide/latest/_images/ddp.gif)]
 
 其示例实现可能如下所示：
 
@@ -74,8 +70,6 @@ optimizer.step()
 # 2. 张量并行
 
 ![img](https://miro.medium.com/v2/resize:fit:1018/1*0RX4G3YwVMe95N09xSwlTg.png)
-
-张量并行性[[图片来源](https://papers.nips.cc/paper_files/paper/2012/hash/6aca97005c68f1206823815f66102863-Abstract.html)]
 
 数据并行侧重于数据分割，而**张量并行**（或**模型并行**）则将模型 本身划分到多个设备上。这种方法对大型权重矩阵和中间张量进行划分，使每个设备能够处理一小部分计算。张量并行并非像数据并行那样在每个 GPU 上复制整个模型，而是将模型的层或张量划分到多个设备。每个设备负责计算模型前向和后向传播的一部分。
 
@@ -179,8 +173,6 @@ output = model(input_seq)
 
 ![img](https://miro.medium.com/v2/resize:fit:1155/0*DbBWp9kHM1ptPnyU.gif)
 
-流水线并行性图示 [[图片来源](https://docs.nvidia.com/nemo-framework/user-guide/latest/_images/pp.gif)]
-
 流水线并行引入了将神经网络划分为多个连续阶段的概念，每个阶段由不同的 GPU 处理。随着数据在网络中流动，中间结果会从一个阶段转移到下一个阶段，类似于流水线作业。这种交错执行允许计算和通信重叠，从而提高整体吞吐量。
 
 值得庆幸的是，PyTorch 确实有一个开箱即用的 API 支持此功能，`Pipe`可以使用它轻松创建分段模型。该 API 会自动将顺序模型划分为流经指定 GPU 的微批次。
@@ -256,8 +248,6 @@ outputs = model(inputs)
 
 ![img](https://miro.medium.com/v2/resize:fit:1155/0*NVxbRSN6t6XcMORt.png)
 
-专家并行性[[图片来源](https://docs.nvidia.com/nemo-framework/user-guide/latest/_images/ep.png)]
-
 **专家并行性是一种受混合专家 (MoE)**模型启发的技术，旨在扩展模型容量，同时保持计算成本可控。在此范式中，模型由多个专门的“专家”组成——这些子网络通过门控机制针对每个输入选择性地激活。只有一小部分专家参与处理特定样本，从而允许在不相应增加计算开销的情况下实现巨大的模型容量。
 
 ![img](https://miro.medium.com/v2/resize:fit:1155/1*6xkK-TxwPBG4671NttMlXA.png)
@@ -330,8 +320,6 @@ output = model(x)
 
 ![img](https://miro.medium.com/v2/resize:fit:1155/1*zW4JGv6pT6NXOMEBgMi-sg.png)
 
-分区策略和 GPU 性能 [[图片来源](https://nanotron-ultrascale-playbook.static.hf.space/assets/images/zero_memory.svg)]
-
 **ZeRO是****零冗余优化器**的缩写，代表了大规模训练内存优化领域的一项突破。ZeRO 作为 DeepSpeed 库的一部分开发，通过对优化器状态、梯度和模型参数进行分区，解决了分布式训练的内存限制问题。本质上，ZeRO 消除了每个 GPU 都保存所有副本时产生的冗余，从而显著节省了内存。
 
 它的工作原理是将优化器状态和梯度的存储空间分配给所有参与设备，而不是复制它们。这种策略不仅减少了内存占用，还能使模型训练更加高效，否则这些模型的内存容量将超出单个 GPU 的容量。ZeRO 通常分为三个不同的阶段实施，每个阶段分别处理内存冗余的不同方面：
@@ -357,8 +345,6 @@ output = model(x)
 - 需要在前向/后向传递过程中收集参数
 
 ![img](https://miro.medium.com/v2/resize:fit:1155/0*LS6Kzkq3QfLOz7Rc)
-
-ZeRO Offload 的架构 [[图片来源](https://syncedreview.com/2020/09/14/microsoft-democratizes-deepspeed-with-four-new-technologies/)]
 
 如上所示，ZeRO 结合了数据和模型并行的优势，提供了最大的灵活性。
 
@@ -424,8 +410,6 @@ model_engine.step()
 # 将它们整合在一起
 
 ![img](https://miro.medium.com/v2/resize:fit:1155/1*iRnQIyDQgMUDMnVmkr8f4w.png)
-
-各种混合并行方法[[图片来源](https://arxiv.org/pdf/2407.06204)]
 
 大规模训练深度学习模型通常需要采用混合方法——通常会结合使用上述技术。例如，最先进的 LLM 可能会使用数据并行性在节点之间分配批次，使用张量并行性来拆分海量权重矩阵，使用上下文并行性来处理长序列，使用流水线并行性来链接连续的模型阶段，使用专家并行性来动态分配计算资源，最后使用 ZeRO 来优化内存使用。这种协同作用确保即使参数数量庞大的模型也能保持可训练性和高效性。
 
