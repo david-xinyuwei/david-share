@@ -64,7 +64,7 @@
 
 `torch.nn.DataParallel`PyTorch 通过& （DDP）模块内置了对数据并行的支持`torch.nn.parallel.DistributedDataParallel`。其中，DDP 广受青睐，因为它在多节点设置下提供了更好的可扩展性和效率。NVIDIA 的 NeMo 框架很好地阐释了它的工作原理——
 
-![img](https://miro.medium.com/v2/resize:fit:1155/0*N0oUz4CoUu_70X5K.gif)
+![image](https://miro.medium.com/v2/resize:fit:1155/0*N0oUz4CoUu_70X5K.gif)
 
 其示例实现可能如下所示：
 
@@ -577,7 +577,7 @@ engine, optimizer, _, _ = deepspeed.initialize(model=model,
 
 #### **示意图1**
 
- 
+
 假设有 **4 个 GPU**，总共有 **8 个专家（Expert 0 - Expert 7）**，专家并行组大小为 **2**，数据并行组大小为 **2**。
 
 **GPU 分组：**
@@ -633,7 +633,7 @@ engine, optimizer, _, _ = deepspeed.initialize(model=model,
 
 #### **示意图3**
 
- 
+
 假设有 **4 个 GPU**，数据并行组大小为 **2**，专家并行组大小为 **2**。
 
 **GPU 分组：**
