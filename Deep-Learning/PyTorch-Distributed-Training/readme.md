@@ -64,7 +64,7 @@
 
 `torch.nn.DataParallel`PyTorch 通过& （DDP）模块内置了对数据并行的支持`torch.nn.parallel.DistributedDataParallel`。其中，DDP 广受青睐，因为它在多节点设置下提供了更好的可扩展性和效率。NVIDIA 的 NeMo 框架很好地阐释了它的工作原理——
 
-![image](https://miro.medium.com/v2/resize:fit:1155/0*N0oUz4CoUu_70X5K.gif)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/PyTorch-Distributed-Training/images/1.gif)
 
 实例代码如下所示：
 
