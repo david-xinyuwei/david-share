@@ -302,15 +302,11 @@ result = tensor_parallel_matmul(a, b, devices)
 – 同一 stage 的 k 张 GPU 需在反向结束后对本 stage 梯度做 **All-Reduce**，以保持副本参数一致。
 – 这一步与传统 DDP 相同，只是在流水线调度器内部触发。
 
-------
-
 ### 数据拆分
 
 • 将训练批次拆成若干微批次，按顺序送入 S₀。
 • 目的：让各 stage 同时工作，减少气泡（idle gap），提高 GPU 利用率。
 • 常见配置：micro-batch × stage ≥ 2 × stage （经验法则，可覆盖流水线启动/收尾气泡）。
-
-------
 
 ### All-Reduce 的角色
 
@@ -344,7 +340,7 @@ result = tensor_parallel_matmul(a, b, devices)
 
 
 
-![img](https://miro.medium.com/v2/resize:fit:1155/0*DbBWp9kHM1ptPnyU.gif)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/PyTorch-Distributed-Training/images/2.gif)
 
 流水线并行引入了将神经网络划分为多个连续阶段的概念，每个阶段由不同的 GPU 处理。随着数据在网络中流动，中间结果会从一个阶段转移到下一个阶段，类似于流水线作业。这种交错执行允许计算和通信重叠，从而提高整体吞吐量。
 
@@ -442,13 +438,9 @@ outputs = model(inputs)
    • 若开启梯度规范化、clip 或其它需要全量梯度 L2-norm 的操作，还会追加一次 **All-Gather / All-Reduce**。因此混合精度下往往是“两步通信”：
    ① Reduce-Scatter ② 可选 All-Gather / All-Reduce。
 
-------
-
 ### 数据拆分
 
 - 与普通数据并行相同：将训练集按批次切分到各 GPU；每张卡只处理自己的 mini-batch，从而在 **计算维度** 上继续做数据并行。
-
-------
 
 ### 通信逻辑
 
@@ -479,8 +471,6 @@ outputs = model(inputs)
 2. **并行挑战** 路由-All-to-All 与专家梯度同步带来高带宽需求；需与数据并行、张量并行、ZeRO 分片等技术混合，才能落地超大规模模型。
 3. **DeepSpeed** 提供了 MoE-Layer、Balanced-Gate、Expert-Parallel 以及 ZeRO-3 的一站式封装。
 
-------
-
 ### MoE 基本工作流
 
 | 步骤           | 过程                                                         | 主要通信                                 |
@@ -492,8 +482,6 @@ outputs = model(inputs)
 | ⑤ **参数更新** | 可叠加 ZeRO/FSDP，对参数分片各自更新                         | Reduce-Scatter / All-Gather（ZeRO-3）    |
 
 > ①、③ 的两次 All-to-All 是 MoE **最占网络带宽** 的环节；梯度同步次之。
-
-------
 
 ### 并行维度与组合
 
@@ -515,8 +503,6 @@ outputs = model(inputs)
 4. **E + D + Z**（DeepSpeed 推荐大规模配置）
    • 通信路径 = E+D 里的 All-to-All & All-Reduce + ZeRO-3 的 Gather/Scatter。
 
-------
-
 ### 数据与参数布局
 
 | 对象     | 布局                          | 共享需求                                    |
@@ -524,8 +510,6 @@ outputs = model(inputs)
 | 训练数据 | 按 D 组切分；各组首卡负责载入 | 需要共享文件系统或事先拷贝                  |
 | 专家参数 | 按 E 维度分片                 | **不**需全局共享；只在同名专家间同步梯度    |
 | 主干参数 | 可复制 (D) 或分片 (Z/FSDP)    | 若复制→每卡一份；若分片→训练期间动态 Gather |
-
-------
 
 ### 通信原语速查
 
@@ -535,8 +519,6 @@ outputs = model(inputs)
 | 专家梯度聚合        | `all_reduce` (按专家 tag)                |
 | 主干梯度            | `all_reduce` (按 DDP bucket)             |
 | ZeRO-3 参数         | 前向 `all_gather`，反向 `reduce_scatter` |
-
-------
 
 ### 示例代码片段（DeepSpeed-MoE）
 
@@ -796,4 +778,4 @@ model_engine.step()
 
 
 
-Refer to *https://medium.com/gitconnected/training-deep-learning-models-at-ultra-scale-using-pytorch-74c6cbaa814b*
+Refer to:  *https://medium.com/gitconnected/training-deep-learning-models-at-ultra-scale-using-pytorch-74c6cbaa814b*
