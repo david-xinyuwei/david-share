@@ -66,7 +66,7 @@
 
 ![image](https://miro.medium.com/v2/resize:fit:1155/0*N0oUz4CoUu_70X5K.gif)
 
-其示例实现可能如下所示：
+实例代码如下所示：
 
 ```
 import torch
