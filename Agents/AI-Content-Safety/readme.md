@@ -2,7 +2,7 @@
 This repo uses code from:
 *https://github.com/Azure-Samples/AzureAIContentSafety.git* and did a little modification for fast PoC.
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/AI-Content-Safety/images/5.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Content-Safety/images/5.png)
 
 Please also refer to my blog on Microsoft:
 
@@ -111,7 +111,7 @@ if __name__ == "__main__":
  ```
 Refer tro sample_data/2.mp4, following is one frame of the video:
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/AI-Content-Safety/images/1.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Content-Safety/images/1.png)
 
 I ran:
 ```
@@ -119,15 +119,15 @@ python3 sample_analyze_video.py
 ```
 The process is as following：
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/AI-Content-Safety/images/2.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Content-Safety/images/2.png)
 
 Results are：
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/AI-Content-Safety/images/3.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Content-Safety/images/3.png)
 
 We could observe which pictures have issue.
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/AI-Content-Safety/images/4.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Content-Safety/images/4.png)
 
 ## Image filter
 We could also use other scripts:
@@ -672,15 +672,15 @@ Some training data:
 {"text": "Discussions on the relationship between civil society and government"}
 ```
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/AI-Content-Safety/images/6.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Content-Safety/images/6.png)
 
 
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/AI-Content-Safety/images/7.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Content-Safety/images/7.png)
 
 
 
 Do test:
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/AI-Content-Safety/images/8.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Content-Safety/images/8.png)
 
