@@ -8,6 +8,8 @@
 
 KV-Cache（Key-Value Cache，键值缓存）是大模型推理过程中的一种加速机制。它的本质是“记住已经算过的东西，不再白白重算一遍”。如果能充分利用KV-Cache，可以极大降低响应时间和服务器成本，直接让AI和用户体验“飞起来”。
 
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/Agent-Design-Practice/images/1.png)
+
 ### 🎯 要解决的核心问题
 
 - **上下文越来越长**：Agent带着越来越多“历史”往前推，每一步都要把所有历史喂进大模型。
@@ -74,6 +76,8 @@ KV-Cache（Key-Value Cache，键值缓存）是大模型推理过程中的一种
 
 Logits掩码（Logits Masking）是一种“只让模型在解码时看到允许的选项，其它都相当于‘视而不见’”的技术。**不删除、不裁剪、不干扰物理内容，只在选择分数阶段就干掉不该出现的选项**。
 
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/Agent-Design-Practice/images/2.png)
+
 ### 🎯 要解决的核心问题
 
 - 随着Agent能力增强，工具数量爆炸，不同场景其实只应让模型见到一小部分工具。
@@ -119,6 +123,8 @@ Logits掩码（Logits Masking）是一种“只让模型在解码时看到允许
 
 大模型上下文再大，总有上线（如ChatGPT上下文128K token）。用户的输入和历史、抓取网页、读大PDF很容易突破限制。文件系统即上下文，就是**让模型通过工具主动将大文本存文件、只留下便于索引的路径在上下文里**。
 
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/Agent-Design-Practice/images/3.png)
+
 ### 🎯 要解决的核心问题
 
 - 遇到大文本，例如网页、PDF、代码，无法全都塞进prompt。
@@ -150,6 +156,8 @@ Logits掩码（Logits Masking）是一种“只让模型在解码时看到允许
 
 LLM做长任务时，注意力主要集中在输入的“尾部”；离输出越远，模型记忆力越差。“Recitation”就是让Agent**反复在上下文末尾“背诵”目标(todo)，把目标时刻推到模型记忆窗口“新鲜区”。**
 
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/Agent-Design-Practice/images/4.png)
+
 ### 🎯 要解决的核心问题
 
 - 长流程、复杂规划情况下，模型开始容易后面就丢三落四。
@@ -180,6 +188,8 @@ LLM做长任务时，注意力主要集中在输入的“尾部”；离输出�
 
 大循环、复杂任务一定会犯错。留痕的策略就是**不掩饰失败，而要让模型时刻“看到曾经摔过的坑”——让模型的“记忆”里包含错误与其后果，实现经验累积。**
 
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/Agent-Design-Practice/images/5.png)
+
 ### 🎯 要解决的核心问题
 
 - “无脑reset”导致同样的错误一犯再犯；不学习的AI=死板工程。
@@ -209,6 +219,8 @@ LLM做长任务时，注意力主要集中在输入的“尾部”；离输出�
 ### 🌟 介绍与目的
 
 Few-Shot本是模型“示范学习”。但批处理或流水线任务中，**过于统一/标准的上下文样例其实是给模型挖坑——它会过度模仿而忘了自我决策。**
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/Agent-Design-Practice/images/6.png)
 
 ### 🎯 要解决的核心问题
 
