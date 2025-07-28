@@ -21,14 +21,14 @@ Below are step-by-step instructions and examples for both methods.
 **Using VS Code Chat Panel**
 Open the Chat panel in VS Code, click the "**+**" button under the Tools section, and select "**Add MCP Server**":
 
-![images](https://github.com/xinyuwei-david/Backend-of-david-share/blob/main/LLMs/MCP-Server/images/1.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/Azure-MCP-Solution/images/1.png)
 
 **Using VS Code Settings UI**
 Alternatively, this configuration can also be done directly from the VS Code settings. Simply open the Settings page (`File` → `Preferences` → `Settings`), search for "**MCP Servers**," and configure your server details accordingly:
 
-![images](https://github.com/xinyuwei-david/Backend-of-david-share/blob/main/LLMs/MCP-Server/images/2.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/Azure-MCP-Solution/images/2.png)
 
-![images](https://github.com/xinyuwei-david/Backend-of-david-share/blob/main/LLMs/MCP-Server/images/4.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/Azure-MCP-Solution/images/4.png)
 
 Below is my current global MCP Server configuration example.
 
@@ -165,7 +165,7 @@ Each of these demos is accompanied by practical examples, step-by-step explanati
 
 Before running the demos below, it's recommended to enable the **"Autoprove"** option in VS Code. Turning on **Autoprove** helps reduce the number of manual confirmations required during MCP Server execution, providing a smoother and uninterrupted demonstration experience.
 
-![images](https://github.com/xinyuwei-david/Backend-of-david-share/blob/main/LLMs/MCP-Server/images/7.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/Azure-MCP-Solution/images/7.png)
 
 #### **Demo1：playwright-mcp-server**
 
@@ -195,7 +195,7 @@ pip install --upgrade "modelcontextprotocol[fast]" httpx
 
 These commands will create an isolated Python environment named `.venv`, activate it, and then install the necessary dependencies (FastMCP and HTTPX) specifically into that environment.
 
-![images](https://github.com/xinyuwei-david/Backend-of-david-share/blob/main/LLMs/MCP-Server/images/5.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/Azure-MCP-Solution/images/5.png)
 
 Contents of `C:\david-share\.vscode\settings.json`:
 
@@ -522,7 +522,7 @@ INFO:mcp.server.lowlevel.server:Processing request of type CallToolRequest
 
 On VScode：
 
-![images](https://github.com/xinyuwei-david/Backend-of-david-share/blob/main/LLMs/MCP-Server/images/8.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/Azure-MCP-Solution/images/8.png)
 
 ```
 {
@@ -621,21 +621,21 @@ http://localhost:8080/
 
 Next, you can securely connect and authenticate using the MCPO-generated URL as follows:
 
-![images](https://github.com/xinyuwei-david/Backend-of-david-share/blob/main/LLMs/MCP-Server/images/9.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/Azure-MCP-Solution/images/9.png)
 
-![images](https://github.com/xinyuwei-david/Backend-of-david-share/blob/main/LLMs/MCP-Server/images/10.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/Azure-MCP-Solution/images/10.png)
 
 Then, add this MCP server URL as an external tool within Open-WebUI. Input the MCPO URL and the previously set API key ("top-secret") into the tool configuration in Open-WebUI:
 
-![images](https://github.com/xinyuwei-david/Backend-of-david-share/blob/main/LLMs/MCP-Server/images/11.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/Azure-MCP-Solution/images/11.png)
 
 Once configured, your custom MCP Server becomes available as a callable tool during interactive conversations with large language models (LLMs) inside Open-WebUI:
 
-![images](https://github.com/xinyuwei-david/Backend-of-david-share/blob/main/LLMs/MCP-Server/images/14.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/Azure-MCP-Solution/images/14.png)
 
-![images](https://github.com/xinyuwei-david/Backend-of-david-share/blob/main/LLMs/MCP-Server/images/12.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/Azure-MCP-Solution/images/12.png)
 
-![images](https://github.com/xinyuwei-david/Backend-of-david-share/blob/main/LLMs/MCP-Server/images/13.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/Azure-MCP-Solution/images/13.png)
 
 ***Please click below pictures to see my demo video on Youtube***:
 [![BitNet-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/n0IjzgnrNHM)
