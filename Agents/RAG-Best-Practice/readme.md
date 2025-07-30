@@ -386,7 +386,7 @@ Embedding models are used to convert text into vector form to facilitate similar
 
 - **Model Performance and Effectiveness**: Choose a model with good performance and suitable effectiveness based on the specific application scenario.
 
-  ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/1.png)
+  ![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/RAG-Best-Practice/images/1.png)
 
 **New Embedding Models**: OpenAI has introduced two new embedding models: `text-embedding-3-small` and `text-embedding-3-large`.
 
@@ -424,7 +424,7 @@ To migrate from `text-embedding-ada-002` to `text-embedding-3-large`, you'll nee
 
 - **Query Optimization**: Retrieve only the required fields, limit the amount of data returned, and use search functions rather than complex filters.
 
-  ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/2.png)
+  ![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/RAG-Best-Practice/images/2.png)
 
   ### Tips for Improving Azure AI Search Performance
 
@@ -443,13 +443,13 @@ To migrate from `text-embedding-ada-002` to `text-embedding-3-large`, you'll nee
 
   - **L1 Hybrid Search+L2 Re-ranker**：Enhance search result
 
-    ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/9.png)
+    ![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/RAG-Best-Practice/images/9.png)
 
   - **Query Rewriting**: Improve recall rate and accuracy by rewriting user queries.
   
   - **Semantic Reranker**: Use cross-encoders to re-rank candidate results, enhancing result relevance.
   
-  ![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/8.png)
+  ![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/RAG-Best-Practice/images/8.png)
 
 ***Please click below pictures to see my Query Rewriting demo video on Yutube***:
 [![Query-Rwritting-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://www.youtube.com/watch?v=uMDOpPzFfsc)
@@ -562,11 +562,11 @@ I have a Lenovo ThinkPad product manual, and I want to build a RAG (Retrieval-Au
 4. **The problem of low search accuracy due to numerous similar products;**
 5. **The challenge of diverse questioning on the system's generalization ability.**
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/6.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/RAG-Best-Practice/images/6.png)
 
 In the end, I chunked the document based on the product models and set more effective prompts, so that the RAG (Retrieval-Augmented Generation) system can accurately answer questions.
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/7.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/RAG-Best-Practice/images/7.png)
 
 
 
@@ -578,13 +578,13 @@ Please be patient and try to answer your questions in as much detail as possible
 
 ```
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/3.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/RAG-Best-Practice/images/3.png)
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/4.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/RAG-Best-Practice/images/4.png)
 
 Index format is as following:
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/5.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/RAG-Best-Practice/images/5.png)
 
 
 
@@ -599,11 +599,11 @@ Final Result：
 
 There is a Microsoft D365 CSS support document.
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/10.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/RAG-Best-Practice/images/10.png)
 
 The doc has has words and images, I create 2 index for it, one is for whole doc, another is for images from this doc:
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/11.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/RAG-Best-Practice/images/11.png)
 
 Then I write a Python program, do hybrid search on 2 index
 
@@ -792,4 +792,4 @@ if __name__ == "__main__":
         print(url)  
 ```
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/RAG-Best-Practice/images/12.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/RAG-Best-Practice/images/12.png)
