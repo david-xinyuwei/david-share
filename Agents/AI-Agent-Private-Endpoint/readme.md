@@ -79,6 +79,8 @@ AI Agent and AOAI model could not be access by my laptop:
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Agent-Private-Endpoint/images/5.png)
 
+Do not allocate public IP for the VM:
+
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Agent-Private-Endpoint/images/6.png)
 
 
@@ -86,6 +88,8 @@ AI Agent and AOAI model could not be access by my laptop:
 ## Create a baston in different subnet but same vNet with AI Foundry
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Agent-Private-Endpoint/images/14.png)
+
+Check vNet cofiguration:
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Agent-Private-Endpoint/images/8.png)
 
@@ -168,6 +172,23 @@ Agent could be accessed within VM:
 AODI Model could be accessed within VM:
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Agent-Private-Endpoint/images/12.png)
+
+
+
+## Summary
+
+A single Virtual Network hosts everything: an AI Foundry project, a jump-host (Azure Bastion) and a workload VM.
+ By combining three native services—
+
+1. **Private Endpoint** for Foundry (ingress locked to VNet),
+2. **Azure Bastion** for admin access (RDP/SSH over HTTPS only)
+3. **Subnet-level NAT Gateway** for outbound-only Internet
+
+we achieve “secure-by-default” networking:
+
+• The Foundry project is visible only on the VNet’s RFC-1918 address; no public DNS/IP exists.
+ • The Windows 10 VM has **zero** public IPs yet can browse external sites (ai.azure.com) through the NAT Gateway.
+ • NSG keeps every inbound port closed; attackers on the Internet have no path to either resource.
 
 
 
