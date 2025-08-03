@@ -178,7 +178,7 @@ AODI Model could be accessed within VM:
 ## Summary
 
 A single Virtual Network hosts everything: an AI Foundry project, a jump-host (Azure Bastion) and a workload VM.
- By combining three native services—
+ By combining three native services:
 
 1. **Private Endpoint** for Foundry (ingress locked to VNet),
 2. **Azure Bastion** for admin access (RDP/SSH over HTTPS only)
