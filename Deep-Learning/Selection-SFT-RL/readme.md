@@ -1,6 +1,6 @@
-# Choosing Between Reinforcement Learning (RL) and Supervised Fine-Tuning (SFT) & Reward-Function Optimisation
+# RL与SFT的配合以及奖励函数的优化
 
-This document first explains the implementation-level differences between RL and SFT, then walks through a concrete example that shows how to build an SFT-plus-GRPO pipeline.
+本文首先说明了强化学习（RL）与监督微调（SFT）在实现层面的区别，然后通过一个具体示例演示如何搭建一条 SFT + GRPO 的训练流水线，并且针对奖励函数进行优化。
 
 ## **强化学习三种模式**
 
@@ -8,7 +8,7 @@ This document first explains the implementation-level differences between RL and
 
 上面这三种强化学习训练大模型做推理的模式，可以简单理解为“最终只看答案给奖励”到“分步骤给奖励”的逐步演进。它们的主要区别如下：
 
-#### 直接强化学习 (Direct RL)
+#### 1. 直接强化学习 (Direct RL)
 
 • 核心思路：
 模型只输出一个答案，奖励模型(Reward Model)仅根据这最终答案是否正确或符合目标来给出奖励。
@@ -17,7 +17,7 @@ This document first explains the implementation-level differences between RL and
 – 实现最简单，但无法直接指导模型中间的推理步骤对不对。
 – 如果中途思路错了，模型只能在最终答案“被扣分”时才知道哪里出了问题，学习速度慢。
 
-#### 多步强化学习 + 最终结果奖励 (Multi-Step RL with Outcome Reward Model, ORM)
+#### 2. 多步强化学习 + 最终结果奖励 (Multi-Step RL with Outcome Reward Model, ORM)
 
 
 • 核心思路：
@@ -27,7 +27,7 @@ This document first explains the implementation-level differences between RL and
 – 相比直接RL，模型在训练时可以学会更有条理的分步思考，但依旧无法从每一步是否正确获得即时反馈。
 – 如果中间步骤错误，但最终答案凑巧对了或者错了，模型依旧只能在最终才能得到一次奖惩信号。
 
-#### 多步强化学习 + 过程奖励 (Multi-Step RL with Process Reward Model, PRM)
+#### 3. 多步强化学习 + 过程奖励 (Multi-Step RL with Process Reward Model, PRM)
 
 
 • 核心思路：
@@ -79,7 +79,21 @@ This document first explains the implementation-level differences between RL and
 
 
 
+### DeepSeek R1的训练范式
 
+###  SFT + RL 的四阶段混合范式（DeepSeek-R1）
+
+1. **SFT-1**：少量高质量 CoT，教会格式→保证可读性。
+2. **RL-1**：R1-Zero 风格奖励→逼出长链条、提升正确率。
+3. **SFT-2**：混合“需要推理”与“无需推理”的数据→避免模型逢问必想。
+4. **RL-2 / RLHF**：再用人类偏好或安全奖励微调→提升对话体验。
+
+对照上文，可把 DeepSeek-R1 归入
+
+```
+训练：Multi-Step RL + Outcome RM  (+ 少量 SFT)
+推理：默认 Greedy，可选 Majority-Vote
+```
 
 ## Test Time Scale模式
 
