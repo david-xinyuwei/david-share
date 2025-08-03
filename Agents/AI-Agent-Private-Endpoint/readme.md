@@ -3,23 +3,38 @@
 Step-by-step network hardening workflow
 
 1. Create a Private Endpoint for the AI Foundry project.
+
     • Location: VNet `A100VM-vnet`, subnet `default`
+
     • Public network access for the Foundry resource is disabled.
+
 2. Deploy a Windows 10 VM in the same subnet `A100VM-vnet/default`.
+
     • No public IP is assigned.
+
     • Its NIC is attached to an NSG that blocks **all inbound** ports (default outbound remains allowed).
+
 3. Provision Azure Bastion.
+
     • Place the Bastion host in the dedicated subnet `A100VM-vnet/AzureBastionSubnet`.
+
     • Administrators connect to the VM through Bastion over HTTPS; RDP/SSH ports stay closed on the VM’s NSG.
+
 4. Add a subnet-level NAT Gateway.
+
     • Create a Standard static public IP for SNAT.
+
     • Create the NAT Gateway and attach the public IP.
+
     • Associate the NAT Gateway with subnet `A100VM-vnet/default`.
+
 5. Validate.
+
     • From the Win10 VM (via Bastion), browse to `ai.azure.com`—traffic egresses through the NAT Gateway.
+
     • External hosts cannot initiate inbound connections to either the VM or the AI Foundry project.
 
-Result: end-to-end private connectivity to the Foundry project, zero  public exposure for the VM, and controlled outbound Internet access via  NAT Gateway.
+**Result:** end-to-end private connectivity to the Foundry project, zero  public exposure for the VM, and controlled outbound Internet access via  NAT Gateway.
 
 ------
 
@@ -144,7 +159,13 @@ Test-NetConnection ai.azure.com -Port 443
 • Curl/Invoke-WebRequest to public sites succeeds.
  • Inbound `Test-NetConnection -Port 3389` from the Internet fails, proving the VM is not exposed
 
+Agent could be accessed within VM:
+
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Agent-Private-Endpoint/images/11.png)
+
+
+
+AODI Model could be accessed within VM:
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Agent-Private-Endpoint/images/12.png)
 
