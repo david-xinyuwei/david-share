@@ -144,20 +144,28 @@ Example:
 
 
 
-## MCP Server 5 Demonstrations
+## MCP Server 6 Demonstrations
 
 Below you will find a series of five interactive demos showcasing MCP Server usage in practical scenarios. Each demo highlights unique features and integration patterns, demonstrating how MCP Servers can enhance AI-driven workflows and simplify complex tasks
 
-1. **Playwright MCP Server Demo:**
+1. **Azure AI Agent MCP Server Demo**
+
+   Demonstrates how an Azure AI Agent work as a MCP server via Python or Azure container App.
+
+2. **Playwright MCP Server Demo:**
    Demonstrates how an MCP Server can automate browser actions using Playwright, allowing AI agents to easily control browser behaviors directly from within VS Code.
-2. **Weather and File MCP Server Demo:**
+
+3. **Weather and File MCP Server Demo:**
    A practical example illustrating how to create a custom local MCP server (in Python) to fetch weather data and then write this information automatically to local files, seamlessly managing the entire workflow with natural language prompt requests.
-3. **SSE-based MCP Server with Microsoft Learn:**
+
+4. **SSE-based MCP Server with Microsoft Learn:**
    Introduces how MCP Servers can be connected via Server-Sent Events (SSE), demonstrating an interactive integration with Microsoft Learn's API. Includes examples on filtering content topics and performing keyword searches from within VS Code.
-4. **Integrating SSE-based MCP Server with Open-WebUI:**
+
+5. **Integrating SSE-based MCP Server with Open-WebUI:**
    Extends the previous scenario by securely exposing the SSE-based MCP Server through MCPO (MCP OpenAPI Proxy), integrating it seamlessly into Open-WebUI as an external tool, enabling AI chat interfaces to invoke custom tools effectively and securely.
-5. **MCP Server via HTTP Streams with Open-WebUI:**
-   Showcases a more advanced, high-performance integration pattern by demonstrating MCP Server over HTTP Streams, and integrating it with Open-WebUI. Explains how the HTTP Streams integration method offers better performance and improved response times compared to SSE.
+
+6. **MCP Server via HTTP Streams with Open-WebUI:**
+   Showcases a more advanced, high-performance integration pattern by demonstrating MCP Server over HTTP Streams 1, and integrating it with Open-WebUI. 
 
 Each of these demos is accompanied by practical examples, step-by-step explanations, and thorough illustrations, helping developers quickly understand, replicate, and build upon these capabilities.
 
@@ -167,7 +175,171 @@ Before running the demos below, it's recommended to enable the **"Autoprove"** o
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/Azure-MCP-Solution/images/7.png)
 
-#### **Demo1：playwright-mcp-server**
+#### **Demo1:** **Azure AI Agent MCP Server Demo**
+
+This demo is based on the code from the following repository: *https://github.com/xinyuwei-david/FoundryAgent-MCP-Stub.git.* 
+
+The code in the repo uses DefaultAzureCredential to connect to Azure AI Foundry and retrieve a specified Agent. This Agent is then registered  as the only Tool in MCP and handed over to the MCP framework’s  StreamableHTTPSessionManager. The SessionManager streams the incremental text results from Tool calls in the Server-Sent Events (SSE) format,  segmenting and serving them under the /mcp/* route. In this way, the  entire file efficiently encapsulates both the semantic conversion from  Foundry Agent to MCP Tool, and the HTTP/SSE streaming output, into a  single standard MCP service. 
+
+There are two implementations in the repo: 
+
+-  Local mode: Using server.py, 
+- Runs the MCP server in Azure Container App. 
+
+For production environments, the second approach is recommended.
+
+##### Local
+
+```
+# 0 ) Login valid Azure account to access Azure AI Foundry
+az login
+
+# 1 ) Clone & install runtime dependencies
+pip install -r requirements.txt
+
+# 2 ) Configure environment (replace with your real values)
+export AZURE_AI_ENDPOINT="https://xxx.services.ai.azure.com/api/projects/yyy"
+export AZURE_AI_AGENT_ID="agent-123456"
+export API_KEY="replace-me"
+
+# 3 ) Launch the service
+python server.py  # listens on http://localhost:3000/mcp
+```
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/Azure-MCP-Solution/images/17.png)
+
+Here’s the Beijing weather forecast for this week:
+
+| Date         | High (°C/°F)  | Low (°C/°F)   | Conditions    |
+| ------------ | ------------- | ------------- | ------------- |
+| Aug 4, 2025  | 32 °C / 89 °F | 23 °C / 73 °F | Partly Cloudy |
+| Aug 5, 2025  | 32 °C / 89 °F | 23 °C / 73 °F | Sunny         |
+| Aug 6, 2025  | 32 °C / 89 °F | 23 °C / 73 °F | Sunny         |
+| Aug 7, 2025  | 31 °C / 88 °F | 23 °C / 73 °F | Partly Cloudy |
+| Aug 8, 2025  | 32 °C / 89 °F | 23 °C / 73 °F | Sunny         |
+| Aug 9, 2025  | 32 °C / 89 °F | 23 °C / 73 °F | Sunny         |
+| Aug 10, 2025 | 33 °C / 91 °F | 24 °C / 75 °F | Partly Cloudy |
+
+##### Container App
+
+deploy.sh
+
+```
+#!/usr/bin/env bash
+# ════════════════════════════════════════════════════════
+
+SUBSCRIPTION_ID=$(az account show --query id -o tsv)    # 当前订阅
+
+# ① 应用侧（Container App）
+APP_RG="aoai-eastus2"                 # 新建或已有的资源组名
+APP_LOCATION="eastus2"                # 部署区域
+ENV_NAME="david-container-eastus2"    # Container Apps Environment 名
+CONTAINERAPP_NAME="foundry-mcp-server-david"
+
+CONTAINER_IMAGE="ghcr.io/hatasaki/foundryagent-mcp-stub:latest"
+TARGET_PORT=3000
+
+SECRET_NAME="api-key"                 # 必须小写、数字、- 组成
+SECRET_VALUE="david"                  # 实际密钥内容
+
+# Azure AI Foundry（Cognitive Services 账户）
+AI_ACCOUNT_NAME="deepresearch-resource-xinyuwei"
+AI_ACCOUNT_RG="rg-admin-9097"         # AI 账户所在资源组
+AI_ROLE="Azure AI User"               # 也可用 "Cognitive Services OpenAI User"
+# ════════════════════════════════════════════════════════
+
+set -euo pipefail
+
+echo "==> 0. 确保 containerapp 扩展最新"
+az extension add -n containerapp --upgrade -y >/dev/null
+
+echo "==> 1. 创建/确认资源组 $APP_RG ($APP_LOCATION)"
+az group create -n "$APP_RG" -l "$APP_LOCATION" --output none
+
+echo "==> 2. 创建/确认 Container Apps Environment $ENV_NAME"
+az containerapp env show -g "$APP_RG" -n "$ENV_NAME" &>/dev/null || \
+az containerapp env create \
+    -g "$APP_RG" -n "$ENV_NAME" -l "$APP_LOCATION" \
+    --output none
+
+echo "==> 3. 部署 Container App $CONTAINERAPP_NAME"
+az containerapp create \
+  -g "$APP_RG" -n "$CONTAINERAPP_NAME" \
+  --environment "$ENV_NAME" \
+  --image "$CONTAINER_IMAGE" \
+  --target-port "$TARGET_PORT" \
+  --ingress external \
+  --system-assigned \
+  --secrets "$SECRET_NAME=$SECRET_VALUE" \
+  --env-vars \
+      AZURE_AI_ENDPOINT="https://deepresearch-resource-xinyuwei.services.ai.azure.com/api/projects/deepresearch" \
+      AZURE_AI_AGENT_ID="asst_3qWR***" \
+      PORT="$TARGET_PORT" \
+      API_KEY="secretref:$SECRET_NAME" \
+  --output none
+
+echo "==> 4. 读取托管身份 principalId"
+PRINCIPAL_ID=$(az containerapp show -g "$APP_RG" -n "$CONTAINERAPP_NAME" \
+                --query identity.principalId -o tsv)
+echo "    principalId: $PRINCIPAL_ID"
+
+echo "==> 5. 获取 Azure AI 账户资源 ID"
+AI_ACCOUNT_ID=$(az resource show \
+    -n "$AI_ACCOUNT_NAME" -g "$AI_ACCOUNT_RG" \
+    --resource-type Microsoft.CognitiveServices/accounts \
+    --query id -o tsv)
+echo "    accountId:   $AI_ACCOUNT_ID"
+
+echo "==> 6. 为托管身份授予角色 \"$AI_ROLE\"（数据权限）"
+az role assignment create \
+  --assignee "$PRINCIPAL_ID" \
+  --role "$AI_ROLE" \
+  --scope "$AI_ACCOUNT_ID" \
+  --only-show-errors
+
+echo "==> 7. 等待角色生效（大约 30~60 秒）"
+sleep 60
+
+echo "==> 8. 查询外网 URL"
+FQDN=$(az containerapp show -g "$APP_RG" -n "$CONTAINERAPP_NAME" \
+        --query properties.configuration.ingress.fqdn -o tsv)
+echo "    ✅ 部署完成： https://$FQDN"
+
+echo "==> 9. 查看最近日志（Ctrl-C 退出）"
+az containerapp logs show -g "$APP_RG" -n "$CONTAINERAPP_NAME" --follow
+```
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/Azure-MCP-Solution/images/18.png)
+
+```
+Input
+{
+  "query": "Check news of Microsoft this month"
+}
+
+Output
+MessageRole.USER: Check news of Microsoft this month
+MessageRole.AGENT: Here are some key updates about Microsoft in August 2025:
+
+1. **Windows 11 Updates**: Microsoft is rolling out new features for Windows 11, including "Copilot Vision," an AI assistant that interacts with your desktop, and an AI-powered settings agent for natural language commands. These features aim to enhance productivity and user experience【3:1†source】.
+
+2. **Sustainability Initiatives**: Microsoft introduced updates to its Sustainability Manager, including tools for calculating product carbon footprints and tracking social and governance data. These updates align with Microsoft's commitment to environmental and social governance【3:2†source】.
+
+3. **Microsoft 365 Changes**: Significant updates and retirements are happening in the Microsoft 365 ecosystem, including the introduction of AI-powered compliance tools. These changes are part of Microsoft's efforts to modernize its offerings【3:0†source】.
+
+Let me know if you'd like more details on any of these topics!
+
+
+Here are some key Microsoft news items for August 2025:
+
+Windows 11 “Copilot Vision” preview and AI settings agent
+Sustainability Manager updates (carbon footprint, ESG tracking)
+Microsoft 365 AI compliance tools rollout
+Let me know if you’d like deeper details on any item.
+
+```
+
+#### **Demo2：playwright-mcp-server**
 
 This demonstration showcases how to use MCP Server integrated with Playwright, a modern browser automation tool. In this demo, you will see how MCP enables AI agents (such as GitHub Copilot or other large-language models) to dynamically automate browser tasks—including navigating web pages, executing interactions, and running tests—directly from natural language prompts within VS Code.
 
@@ -176,7 +348,7 @@ This demonstration showcases how to use MCP Server integrated with Playwright, a
 
 
 
-#### **Demo2：weather and file mcp server**
+#### **Demo3：weather and file mcp server**
 
 This demonstration illustrates how to create and use a custom local MCP Server in Python, integrated seamlessly with VS Code. In the demo, we build a simple MCP server that fetches detailed weather information (such as forecasts or temperature predictions) via open APIs. Then, using natural language prompts, the AI agent invokes this MCP Server to retrieve weather data for multiple cities, compares temperatures, determines which city will have the highest temperature tomorrow, and automatically writes the results into a local file.
 
@@ -406,7 +578,7 @@ Chinese version demo:
 
 
 
-### Demo 3: Connecting MCP Server Using Server-Sent Events (SSE)
+### Demo 4: Connecting MCP Server Using Server-Sent Events (SSE)
 
 This demo demonstrates another important integration pattern—connecting MCP Servers using **Server-Sent Events (SSE)**. Utilizing the `learn-mcp` example ([reference repository](https://github.com/softchris/learn-mcp/tree/main)), we build and run an SSE-enabled MCP Server that interacts with the Microsoft Learn platform.
 
@@ -566,7 +738,7 @@ Please invoke the topic_search tool to search for learning modules under the con
 
 
 
-### Demo4: Integrating SSE-based MCP Server with Open-WebUI
+### Demo5: Integrating SSE-based MCP Server with Open-WebUI
 
 This demonstration builds upon the SSE-based MCP Server example from Demo 3, showcasing how to securely integrate the MCP Server with Open-WebUI—a popular conversational AI interface. Specifically, we take the local MCP server (running on your laptop) and expose it using MCPO (MCP OpenAPI Proxy), adding secure API access control via a specified API key. Once wrapped through MCPO, we add this secured MCP endpoint directly into Open-WebUI as an external tool. This integration allows Open-WebUI to seamlessly invoke your custom MCP Server within interactive AI chat sessions, directly via natural language instructions.
 
@@ -640,13 +812,13 @@ Once configured, your custom MCP Server becomes available as a callable tool dur
 ***Please click below pictures to see my demo video on Youtube***:
 [![BitNet-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/n0IjzgnrNHM)
 
-### Demo5: Integrating MCP Server via HTTP Streams with Open-WebUI
+### Demo6: Integrating MCP Server via HTTP Streams 1 with Open-WebUI
 
 In this demo, we expose a locally running MCP Server via HTTP Streams. We utilize **MCPO (MCP OpenAPI Proxy)** ([available here](https://github.com/open-webui/mcpo)) to wrap and securely expose the MCP Server over HTTP Streams.
 
 When configuring MCPO, you can set a secure API key for accessing the MCP Server. Afterward, add the generated MCPO URL as an external tool in Open-WebUI, entering the previously configured API key during setup for secure authentication.
 
-Once set up, you can easily invoke your MCP Server directly within Open-WebUI as a native tool. This HTTP Streams integration method delivers much faster response times and better overall performance compared to SSE-based approaches.
+Once set up, you can easily invoke your MCP Server directly within Open-WebUI as a native tool. 
 
 The demonstration below illustrates the full workflow and integration steps, highlighting the improved responsiveness and ease-of-use provided by MCP Servers running over HTTP Streams with Open-WebUI.
 
