@@ -306,48 +306,127 @@ Predicted Outputs 是 OpenAI（gpt-4o / 4.1 系列）提供的推理期加速能
  下面的 Python 代码调用 OpenAI GPT-4o-mini，并在 `prediction` 字段中直接提交整份旧 TypeScript 文件。模型先逐 token 校验这段代码；凡与预测一致的部分直接复用，仅生成把 `username` 改为 `email` 的少量新行，因此大幅缩短解码时间。执行后可通过 `accepted_prediction_tokens / rejected_prediction_tokens` 字段看到有多少预测 token 被采纳或打回。
 
 ```
-import openai
-import os
+# ========= 依赖（首次安装） =========
+# pip install --upgrade openai tiktoken
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# ========= 1. 个人配置（请改为环境变量更安全） =========
+OPENAI_API_KEY = "E*"           # ✅ 你的密钥
+AZURE_ENDPOINT = "https://ai-hubeastus956138673159.openai.azure.com/"  # ✅ 你的 Azure 端点
+DEPLOYMENT     = "gpt-4.1"                               # ✅ 部署名称
 
-# 原始代码文件（大部分将被复用）
-code = """
-class User {
-  firstName: string = "";
-  lastName:  string = "";
-  username:  string = "";
-}
+# ========= 2. 初始化客户端 =========
+from openai import AzureOpenAI
+import tiktoken
 
-export default User;
-""".strip()
-
-# 提示：告诉模型只是把 username 改成 email，且只返回代码
-refactor_prompt = (
-    'Replace the "username" property with an "email" property. '
-    "Respond only with code, and with no markdown formatting."
-)
-
-response = openai.chat.completions.create(
-    model="gpt-4o-mini",        # 仅 gpt-4o / 4o-mini / 4.1 系列支持 PO
-    messages=[
-        {"role": "user", "content": refactor_prompt},
-        {"role": "user", "content": code}
-    ],
-    # ★ 核心：把整份旧文件当作预测文本
-    prediction={
-        "type": "content",
-        "content": code
+client = AzureOpenAI(
+    azure_endpoint = AZURE_ENDPOINT,
+    api_key        = OPENAI_API_KEY,
+    api_version    = "2025-01-01-preview",
+    default_headers={
+        # 只比对前 6 个预测 token，可自行调整
+        "x-ms-oai-ev3-predictor_search_length": "6"
     }
 )
 
-print("=== 新文件 ===")
-print(response.choices[0].message.content)
+# ========= 3. 构造示例 =========
+old_code = """\
+class User:
+    first_name: str = ""
+    last_name: str  = ""
+    username:  str  = ""
+""".rstrip()
 
-usage = response.usage.completion_tokens_details
-print("\naccepted_prediction_tokens :", usage.accepted_prediction_tokens)
+prompt = '把 "username" 字段改名为 "email"，只回复代码，不要 Markdown。'
+
+# ========= 4. 调用带 Predicted Outputs 的接口 =========
+resp = client.chat.completions.create(
+    model      = DEPLOYMENT,
+    messages   = [
+        {"role": "user", "content": prompt},
+        {"role": "user", "content": old_code}
+    ],
+    prediction = {
+        "type": "content",
+        "content": old_code        # 整份旧文件作为预测
+    }
+)
+
+print("\n=== 模型返回的新文件 ===\n")
+print(resp.choices[0].message.content)
+
+usage = resp.usage.completion_tokens_details
+print("\n=== 预测命中统计 ===")
+print("accepted_prediction_tokens :", usage.accepted_prediction_tokens)
 print("rejected_prediction_tokens :", usage.rejected_prediction_tokens)
+
+# ========= 5. 方案 A：本地逐-token diff =========
+enc = tiktoken.encoding_for_model("gpt-4o-mini")
+
+pred_ids = enc.encode(old_code)
+gen_ids  = enc.encode(resp.choices[0].message.content)
+
+N = usage.accepted_prediction_tokens + usage.rejected_prediction_tokens
+print(f"\n=== 前 {N} 个预测 token 的命中明细 ===")
+for i in range(N):
+    p_tok = pred_ids[i] if i < len(pred_ids) else None
+    g_tok = gen_ids[i]  if i < len(gen_ids)  else None
+    status = "accepted ✅" if p_tok == g_tok else "rejected ❌"
+    pred_str = enc.decode([p_tok]) if p_tok is not None else "<None>"
+    gen_str  = enc.decode([g_tok]) if g_tok  is not None else "<None>"
+    print(f"{i:>3}: {status:11}  prediction='{pred_str}'   model='{gen_str}'")
 ```
+
+(st311) root@linuxworkvm:~# python pd1.py 
+
+```
+=== 模型返回的新文件 ===
+
+class User:
+    first_name: str = ""
+    last_name: str  = ""
+    email: str  = ""
+
+=== 预测命中统计 ===
+accepted_prediction_tokens : 18
+rejected_prediction_tokens : 7
+
+=== 前 25 个预测 token 的命中明细 ===
+  0: accepted ✅   prediction='class'   model='class'
+  1: accepted ✅   prediction=' User'   model=' User'
+  2: accepted ✅   prediction=':
+'   model=':
+'
+  3: accepted ✅   prediction='   '   model='   '
+  4: accepted ✅   prediction=' first'   model=' first'
+  5: accepted ✅   prediction='_name'   model='_name'
+  6: accepted ✅   prediction=':'   model=':'
+  7: accepted ✅   prediction=' str'   model=' str'
+  8: accepted ✅   prediction=' ='   model=' ='
+  9: accepted ✅   prediction=' ""
+'   model=' ""
+'
+ 10: accepted ✅   prediction='   '   model='   '
+ 11: accepted ✅   prediction=' last'   model=' last'
+ 12: accepted ✅   prediction='_name'   model='_name'
+ 13: accepted ✅   prediction=':'   model=':'
+ 14: accepted ✅   prediction=' str'   model=' str'
+ 15: accepted ✅   prediction=' '   model=' '
+ 16: accepted ✅   prediction=' ='   model=' ='
+ 17: accepted ✅   prediction=' ""
+'   model=' ""
+'
+ 18: accepted ✅   prediction='   '   model='   '
+ 19: rejected ❌   prediction=' username'   model=' email'
+ 20: accepted ✅   prediction=':'   model=':'
+ 21: rejected ❌   prediction=' '   model=' str'
+ 22: rejected ❌   prediction=' str'   model=' '
+ 23: rejected ❌   prediction=' '   model=' ='
+ 24: rejected ❌   prediction=' ='   model=' ""'
+```
+
+
+
+
 
 ***Refer to：***
 
