@@ -8,7 +8,7 @@ Acceleration (optional): NVIDIA GPU (2,000 series or newer), AMD GPU (6,000 seri
 
 *Refer to：https://learn.microsoft.com/en-us/azure/ai-foundry/foundry-local/get-started*
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Foundry-Local/images/1.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/Foundry-Local/images/1.png)
 
 ### Install and Run Foundry Local on my Surface Laptop
 
@@ -56,7 +56,7 @@ Access  http://localhost:8080/ of open-webui
 
 **Note:** The local models visible on Open-WebUI are models that have already been pulled locally using Foundry through PowerShell.
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Foundry-Local/images/2.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/Foundry-Local/images/2.png)
 
 ***Please click below pictures to see my demo video on Youtube***:
 [![BitNet-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/NpYDsGXFrAU)
