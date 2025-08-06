@@ -1,6 +1,8 @@
 ## OpenAI OSS Model on Azure 
 
-https://openai.com/index/introducing-gpt-oss/  
+Refer to:
+
+*https://openai.com/index/introducing-gpt-oss/*  
 
 The gpt-oss-120b model achieves near-parity with OpenAI o4-mini on core reasoning benchmarks, while running efficiently on **a single 80 GB GPU**. 
 
