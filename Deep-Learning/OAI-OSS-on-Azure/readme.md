@@ -12,7 +12,11 @@ In this repo, I will show 2 models performance on Azure NC A10/H100 GPU VM, incl
 
 ## Azure A10 GPU VM
 
-In GPT-OSS's inference logic, a sink token has been introduced. The sink token requires FlashAttention-3 for efficient execution  (FlashAttention-2 does not have the corresponding kernel), but FA3 is  better supported on Hopper, while there are issues on Ampere. Therefore, if you are using an A10, you can use the Ollama method or transformers. Ollama is the simplest. The Ollama version uses MXFP4 quantization. If  you don't do quantization and directly use HF transformers with BF16  inference, the A10's memory is insufficient.
+In GPT-OSS's inference logic, a sink token has been introduced. The sink token requires FlashAttention-3 for efficient execution  (FlashAttention-2 does not have the corresponding kernel), but FA3 is  better supported on Hopper, while there are issues on Ampere. 
+
+Therefore, if you are using an A10, you can use the Ollama method or transformers. Ollama is the simplest. The Ollama version  model uses MXFP4 quantization by default.
+
+If  you don't do quantization and directly use HF transformers with BF16  inference, the A10's memory is insufficient.
 
 
 
