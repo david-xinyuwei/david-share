@@ -10,7 +10,11 @@ In this repo, I will show 2 models performance on Azure NC A10/H100 GPU VM, incl
 
 ## Azure A10 GPU VM
 
-In this part of test, I only use one A10 GPU. Before load model:
+In GPT-OSS's inference logic, a sink token has been introduced. The sink token requires FlashAttention-3 for efficient execution  (FlashAttention-2 does not have the corresponding kernel), but FA3 is  better supported on Hopper, while there are issues on Ampere. Therefore, if you are using an A10, you can use the Ollama method or transformers. Ollama is the simplest. The Ollama version uses MXFP4 quantization. If  you don't do quantization and directly use HF transformers with BF16  inference, the A10's memory is insufficient.
+
+
+
+In this part of test, I only use one A10 GPU on ollama. Before load model:
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/1.png)
 
@@ -24,36 +28,21 @@ After I load the 20B model:
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/2.png)
 
-
-
-During inference:
+**During inference:**
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/3.png)
-
-
 
 ***Please click below pictures to see my demo video on Youtube***:
 [![BitNet-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/SuMhR0UZyOM)
 
-
-
-
-
-**vLLM**
-
-The  model requires quantization for efficient inference, specifically using the new MXFP4 quantization format. To run this model  successfully, it is necessary to use a version of vLLM that supports  MXFP4 quantization. The official vLLM 0.4.x branch (corresponding to  vLLM 0.10.0) does not recognize the "mxfp4" quantization method and will throw a validation error during configuration. Therefore, you need to  install the Astral branch of vLLM (version 0.10.1+gptoss or higher),  which adds support for MXFP4. 
+The approximate performance during inference with Ollama is:
 
 ```
-pip install --pre "vllm==0.10.1+gptoss" \
-  --extra-index-url https://wheels.vllm.ai/gpt-oss/ \
-  --extra-index-url https://download.pytorch.org/whl/nightly/cu118
+ TTFT < 1s
+ Throughput: 45~55 tokens/s
 ```
 
-```
-vllm serve openai/gpt-oss-20b --gpu-memory-utilization 0.6
-```
 
-After I load the 20B model:
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/2.png)
+## Azure H100 GPU VM
 
