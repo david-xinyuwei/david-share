@@ -385,7 +385,100 @@ TTFT (s)        p50=3.363 p90=4.269  p99=4.800
 Done.
 ```
 
+Real Inference case:
 
+```
+(gpt-oss) root@h100vm:~# python run_local_llm.py "Please write me a Python program that can run directly in the terminal. This program should be a Tetris game with a colorful interface, and allow the player to control the direction of the blocks, game screen should has a clear border, run without any error."
+```
+
+***Please click below pictures to see my demo video on Youtube***:
+[![BitNet-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/MQeVIcaIp1Y)
+
+**Code**
+
+```
+cat run_local_llm.py
+```
+
+Detailed:
+
+```
+#!/usr/bin/env python3
+"""
+简易命令行调用本地 vLLM (OpenAI 兼容) 的脚本
+用法:
+    python run_llm.py "你的 prompt ..."
+可选:
+    -m/--model      指定模型名称          (默认: 自动探测)
+    -u/--url        指定服务地址          (默认: http://127.0.0.1:8000)
+    -v/--verbose    显示完整 JSON 响应
+"""
+
+import argparse
+import sys
+import requests
+from openai import OpenAI
+from openai.types.chat import ChatCompletion
+
+def list_models(base_url: str):
+    """调用 /v1/models 获取当前加载的模型列表"""
+    try:
+        resp = requests.get(f"{base_url.rstrip('/')}/models", timeout=3)
+        resp.raise_for_status()
+        data = resp.json()
+        return [m["id"] for m in data.get("data", [])]
+    except Exception:
+        return []
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Run prompt on local vLLM server")
+    parser.add_argument("prompt", nargs="+", help="提示词")
+    parser.add_argument("-m", "--model", help="模型名称 (默认: 自动探测)")
+    parser.add_argument("-u", "--url", default="http://127.0.0.1:8000",
+                        help="服务器地址(不带 /v1)，默认 http://127.0.0.1:8000")
+    parser.add_argument("-v", "--verbose", action="store_true",
+                        help="打印完整 JSON")
+
+    args = parser.parse_args()
+    base_url = args.url.rstrip("/") + "/v1"
+
+    # 如果用户没指定模型，就到 /v1/models 去探测
+    model_name = args.model
+    if model_name is None:
+        models = list_models(base_url)
+        if not models:
+            print("❌ 无法从 /v1/models 获取模型列表，请检查 vLLM 是否在运行。", file=sys.stderr)
+            sys.exit(1)
+        if len(models) > 1:
+            print("⚠️  服务器上有多个模型，请用 -m 指定；当前可用：", ", ".join(models), file=sys.stderr)
+            sys.exit(1)
+        model_name = models[0]
+
+    prompt_text = " ".join(args.prompt)
+
+    client = OpenAI(base_url=base_url, api_key="EMPTY")
+
+    try:
+        resp: ChatCompletion = client.chat.completions.create(
+            model=model_name,
+            messages=[{"role": "user", "content": prompt_text}],
+            temperature=0.7
+        )
+    except Exception as e:
+        print("❌ 调用失败:", e, file=sys.stderr)
+        sys.exit(1)
+
+    # 输出
+    if args.verbose:
+        print("=== 完整 JSON ===")
+        print(resp.model_dump_json(indent=2, ensure_ascii=False))
+        print("\n=== 模型回答 ===")
+
+    print(resp.choices[0].message.content.strip())
+
+if __name__ == "__main__":
+    main()
+```
 
 
 
