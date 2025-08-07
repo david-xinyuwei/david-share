@@ -8,6 +8,11 @@ The **gpt-oss-120b** model achieves near-parity with OpenAI o4-mini on core reas
 
 The **gpt-oss-20b** model delivers similar results to OpenAI o3‑mini on common benchmarks and can run on edge devices with just **16 GB of memory**, making it ideal for on-device use cases, local inference, or rapid iteration without costly infrastructure. Both models also perform strongly on tool use, few-shot function calling, CoT reasoning (as seen in results on the Tau-Bench agentic evaluation suite) and HealthBench (even outperforming proprietary models like OpenAI o1 and GPT‑4o).
 
+| **Model**    | **Layers** | **Total Params** | **Active Params Per Token** | **Total Experts** | **Active Experts Per Token** | **Context Length** |
+| ------------ | ---------- | ---------------- | --------------------------- | ----------------- | ---------------------------- | ------------------ |
+| gpt-oss-120b | 36         | 117B             | 5.1B                        | 128               | 4                            | 128k               |
+| gpt-oss-20b  | 24         | 21B              | 3.6B                        | 32                | 4                            | 128k               |
+
 In this repo, I will show 2 models performance on Azure NC A10/H100 GPU VM, including TTFT, tokens/s etc.
 
 ## **gpt-oss-20b** on Azure NC A10 GPU VM
@@ -344,4 +349,43 @@ TTFT (s)        p50=2.271 p90=2.874  p99=3.775
 
 Done.
 ```
+
+
+
+## gpt-oss-120b Azure H100 GPU VM
+
+Load model via vLLM
+
+```
+(gpt-oss) root@h100vm:~# vllm serve openai/gpt-oss-120b
+```
+
+After model is loaded:
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/8.png)
+
+Use stress_test.py, only change  "model": "openai/gpt-oss-20b", to "model": "openai/gpt-oss-120b".
+
+```
+(gpt-oss) root@h100vm:~# python stress_test-120b.py --concurrency 256 --requests 2000     --prompt "Explain quantum mechanics in one paragraph."   --max-tokens 128
+```
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/9.png)
+
+Result:
+
+```
+RESULTS
+Total wall-clock time :    60.73  s
+Requests / second     :     32.9  req/s
+Tokens  / second      :   4215.6  tok/s
+Latency (s)     p50=8.254 p90=10.479  p99=11.782
+TTFT (s)        p50=3.363 p90=4.269  p99=4.800
+
+Done.
+```
+
+
+
+
 
