@@ -1,4 +1,4 @@
-# Secure-by-Default Networking for an AI Foundry Project
+# Secure-by-Default Networking and customer role for an AI Foundry Project
 
 Step-by-step network hardening workflow
 
@@ -191,6 +191,95 @@ we achieve “secure-by-default” networking:
  • NSG keeps every inbound port closed; attackers on the Internet have no path to either resource.
 
 
+
+## Define customer role of AI foundry
+
+This part shows you how to automate RBAC setup for Azure AI Foundry:
+
+1. upload or update a custom role “AI Developer without Compute”;
+2. assign that role to a chosen user, group, or service principal;
+3. (optionally) create a new Entra ID user with a temporary password and require MFA;
+4. verify the assignment.
+   After running it, the principal can explore and invoke existing AI resources but cannot deploy online endpoints or create managed compute, giving you fine-grained control over development privileges while keeping infrastructure changes restricted.
+
+```
+(base) root@linuxworkvm:~# cat role.json
+{
+  "Name": "AI Developer without Compute",
+  "IsCustom": true,
+  "Description": "Can perform all actions within an Azure AI resource besides managing the resource itself and deploying models",
+  "Actions": [
+    "Microsoft.MachineLearningServices/workspaces/*/read",
+    "Microsoft.MachineLearningServices/workspaces/*/action",
+    "Microsoft.MachineLearningServices/workspaces/*/delete",
+    "Microsoft.MachineLearningServices/workspaces/*/write",
+    "Microsoft.MachineLearningServices/locations/*/read",
+    "Microsoft.Authorization/*/read"
+  ],
+  "NotActions": [
+    "Microsoft.MachineLearningServices/workspaces/delete",
+    "Microsoft.MachineLearningServices/workspaces/write",
+    "Microsoft.MachineLearningServices/workspaces/listKeys/action",
+    "Microsoft.MachineLearningServices/workspaces/hubs/write",
+    "Microsoft.MachineLearningServices/workspaces/hubs/delete",
+    "Microsoft.MachineLearningServices/workspaces/featurestores/write",
+    "Microsoft.MachineLearningServices/workspaces/featurestores/delete",
+    "Microsoft.MachineLearningServices/workspaces/onlineEndpoints/*/write",
+    "Microsoft.MachineLearningServices/workspaces/onlineEndpoints/*/delete",
+    "Microsoft.MachineLearningServices/workspaces/onlineEndpoints/deployments/*/write",
+    "Microsoft.MachineLearningServices/workspaces/onlineEndpoints/deployments/*/delete",
+    "Microsoft.MachineLearningServices/workspaces/computes/*/write",
+    "Microsoft.MachineLearningServices/workspaces/computes/*/delete",
+    "Microsoft.Resources/deployments/*"
+  ],
+  "DataActions": [
+    "Microsoft.CognitiveServices/accounts/OpenAI/*",
+    "Microsoft.CognitiveServices/accounts/SpeechServices/*",
+    "Microsoft.CognitiveServices/accounts/ContentSafety/*"
+  ],
+  "NotDataActions": [],
+  "AssignableScopes": [
+    "/subscriptions/08f95cf**"
+  ]
+}
+```
+
+**Run steps:**
+
+```
+#——— 用户可自定义的 5 个变量 ———#
+SUBSCRIPTION_ID="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+ROLE_FILE="./role.json"                               # 若文件名不同请修改
+ROLE_NAME="AI Developer without Compute"
+USER_UPN="xinyuwei@mngenv183724.onmicrosoft.com"      # 目标用户或组/应用
+TENANT_ID="9812**"      # 可省略；多租户时指定
+
+#——— 登陆租户并切换订阅 ———#
+az login --tenant $TENANT_ID            # 已登录可跳过
+az account set --subscription $SUBSCRIPTION_ID
+
+#——— 创建或更新自定义角色 ———#
+az role definition create  --role-definition $ROLE_FILE \
+  || az role definition update --role-definition $ROLE_FILE
+
+#——— 获取主体对象 ID（用户 / 组 / 服务主体） ———#
+PRINCIPAL_ID=$(az ad user show --id $USER_UPN --query id -o tsv)  # 若是组则用 az ad group show; 应用用 az ad sp show
+echo "PrincipalId = $PRINCIPAL_ID"
+
+#——— 分配角色 ———#
+az role assignment create \
+  --assignee $PRINCIPAL_ID \
+  --role "$ROLE_NAME" \
+  --scope /subscriptions/$SUBSCRIPTION_ID
+```
+
+After login with AI foundry with xinyuwei@mngenv183724.onmicrosoft.com, user could only using existing models, rather than create models:
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Agent-Private-Endpoint/images/16.png)
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Agent-Private-Endpoint/images/17.png)
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Agent-Private-Endpoint/images/18.png)
 
 Refer to：
 
