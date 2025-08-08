@@ -63,9 +63,9 @@ Service Principal 名称 [deepresearch-sp-1754639663]:
 
 ....
 
-2025-08-08 07:55:00,566 - INFO - 凭据已保存到 deep_research_credentials.json
+2025-08-08 07:55:00,566 - INFO - Credentials have been saved to deep_research_credentials.json
 
-✅ 创建完成。下一步：运行 python deep_research_usage.py
+✅ Creation completed. Next step: Run python deep_research_usage.py
 ```
 
 
@@ -106,29 +106,24 @@ Assistant: [Model response here...]
 
 
 ```
-(st311) root@linuxworkvm:~/deepresearch# python deep_research_usage.py
-凭据已从 JSON 加载。
+(st311) root@linuxworkvm:~/deepresearch# python deep_research_usage.py Credentials loaded from JSON.
 
-💬 Deep-Research 多轮对话，输入 'exit' 退出
+💬 Deep-Research multi-turn conversation. Type 'exit' to quit.
 
-你: Please search MSFT news and give me some invest suggestions.
-状态: RunStatus.QUEUED – 0s
-最终状态: RunStatus.COMPLETED
+You: Please search MSFT news and give me some invest suggestions. Status: RunStatus.QUEUED – 0s Final Status: RunStatus.COMPLETED
 
-助手: Could you share more details about what you're looking for? For example:  
+Assistant: Could you share more details about what you're looking for? For example:
 
-- Timeframe: Are you looking for the most recent news or analysis over a longer period?  
-- Focus: Specific aspects like product updates, financial results, mergers/acquisitions, legal news, etc.?  
-- Investment goals: Short-term trading, long-term holding, or dividend-focused strategies?  
-- Risk tolerance: High-risk growth, medium-risk balanced, or safer blue-chip approach?  
+Timeframe: Are you looking for the most recent news or analysis over a longer period?
+Focus: Specific aspects like product updates, financial results, mergers/acquisitions, legal news, etc.?
+Investment goals: Short-term trading, long-term holding, or dividend-focused strategies?
+Risk tolerance: High-risk growth, medium-risk balanced, or safer blue-chip approach?
+This will help me provide more tailored suggestions!
 
-This will help me provide more tailored suggestions! 
+You: Timeframe 1 year; Focus: product updates Investment goals: long-term holding Risk tolerance: High-risk growth Status: RunStatus.IN_PROGRESS – 400s Final Status: RunStatus.COMPLETED
 
-你: Timeframe 1 year;  Focus:  product updates    Investment goals :  long-term holding  Risk tolerance: High-risk growth
-状态: RunStatus.IN_PROGRESS – 400s
-最终状态: RunStatus.COMPLETED
+Assistant: Final Report:
 
-助手: Final Report:
 # Microsoft’s 2024–2025 Product Updates & Investment Outlook
 
 ## Introduction  
