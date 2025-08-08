@@ -49,14 +49,23 @@ python setup_sp_and_auth.py
 Example prompts:
 
 ```
-Azure Subscription ID: 00000000-0000-0000-0000-000000000000
-Resource Group name [deepresearch-resource]:
-Azure ML Workspace / Project name [deepresearch]:
-Project Endpoint (e.g. https://<resource>.services.ai.azure.com/api/projects/<project>):
-Bing Grounding connection name [bing-connection]:
-Deep Research model deployment name [o3-deep-research]:
-Chat model deployment name [gpt-4o]:
-Service Principal name [deepresearch-sp-<timestamp>]:
+(st311) root@linuxworkvm:~/deepresearch# python setup_sp_and_auth.py 
+=== Deep-Research Service Principal 创建与授权工具 ===
+
+Azure Subscription ID: 08f***
+Resource Group 名称 [deepresearch-resource]: deepresearch-resource
+Azure ML Workspace / Project 名称 [deepresearch]: deepresearch
+Project Endpoint (例如: https://<resource>.services.ai.azure.com/api/projects/<project>): https://deepresearch-resource-xinyuwei.services.ai.azure.com/api/projects/deepresearch
+Bing Grounding 连接名称 [bing-connection]: bingxinyu
+Deep Research 模型部署名 [o3-deep-research]: o3-deep-research
+聊天模型部署名 [gpt-4o]: gpt-4o
+Service Principal 名称 [deepresearch-sp-1754639663]: 
+
+....
+
+2025-08-08 07:55:00,566 - INFO - 凭据已保存到 deep_research_credentials.json
+
+✅ 创建完成。下一步：运行 python deep_research_usage.py
 ```
 
 
@@ -201,8 +210,6 @@ That said, investors must remain vigilant about the challenges. Microsoft is mak
 
 **Sources:** Microsoft filings and press releases; industry analyses and news reports on product announcements and financial results,【37:3†source】,【37:1†source】,【37:5†source】,【37:11†source】; analyst commentary on growth prospects ,【37:10†source】; and market research on cloud and AI trends【37:10†source】. All data and citations are as of 2024–2025. 
 ```
-
-
 
 
 
