@@ -13,7 +13,7 @@ The **gpt-oss-20b** model delivers similar results to OpenAI o3‑mini on common
 | gpt-oss-120b | 36         | 117B             | 5.1B                        | 128               | 4                            | 128k               |
 | gpt-oss-20b  | 24         | 21B              | 3.6B                        | 32                | 4                            | 128k               |
 
-In this repo, I will show 2 models performance on Azure NC A10/H100 GPU VM, including TTFT, tokens/s etc.
+In this repo, I will show 2 models performance on Azure NC A10/H100 GPU VM and including TTFT, tokens/s etc.
 
 ## **gpt-oss-20b** on Azure NC A10 GPU VM
 
@@ -55,7 +55,7 @@ The approximate performance during inference with Ollama is:
 
 
 
-## gpt-oss-20b Azure H100 GPU VM
+## gpt-oss-20b on Azure H100 GPU VM
 
 On the NC H100, with the help of vLLM, we are able to achieve excellent inference performance with the OSS-20B model.
 
@@ -352,7 +352,7 @@ Done.
 
 
 
-## gpt-oss-120b Azure H100 GPU VM
+## gpt-oss-120b on Azure H100 GPU VM
 
 Load model via vLLM
 
@@ -482,3 +482,12 @@ if __name__ == "__main__":
 
 
 
+## gpt-oss-120b on Azure AI foundry
+
+OpenAI-oss-120b has been released on Azure AI Foundry and can be deployed in a very convenient one-click manner.
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/10.png)
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/11.png)
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/12.png)
