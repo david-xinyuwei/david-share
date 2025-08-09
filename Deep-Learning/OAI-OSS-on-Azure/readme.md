@@ -1,9 +1,5 @@
 ## OpenAI OSS Model on Azure 
 
-Refer to:
-
-*https://openai.com/index/introducing-gpt-oss/*  
-
 The **gpt-oss-120b** model achieves near-parity with OpenAI o4-mini on core reasoning benchmarks, while running efficiently on **a single 80 GB GPU**. 
 
 The **gpt-oss-20b** model delivers similar results to OpenAI o3‑mini on common benchmarks and can run on edge devices with just **16 GB of memory**, making it ideal for on-device use cases, local inference, or rapid iteration without costly infrastructure. Both models also perform strongly on tool use, few-shot function calling, CoT reasoning (as seen in results on the Tau-Bench agentic evaluation suite) and HealthBench (even outperforming proprietary models like OpenAI o1 and GPT‑4o).
@@ -638,3 +634,7 @@ OpenAI-oss-120b has been released on Azure AI Foundry and can be deployed in a v
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/11.png)
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/12.png)
+
+
+
+**Refer to**: *https://openai.com/index/introducing-gpt-oss/*  
