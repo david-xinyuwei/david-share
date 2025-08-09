@@ -15,6 +15,153 @@ The **gpt-oss-20b** model delivers similar results to OpenAI o3‑mini on common
 
 In this repo, I will show 2 models performance on Azure NC A10/H100 GPU VM and including TTFT, tokens/s etc.
 
+## MXFP4(**Microscaling**)
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/13.png)
+
+| Feature                   | MXFP4                                                        | Traditional INT4 (including GPTQ/AWQ/NF4)                   |
+| ------------------------- | ------------------------------------------------------------ | ----------------------------------------------------------- |
+| **Scale Factor**          | Fixed to a power of two, E8M0 encoding                       | Arbitrary real number (stored as FP16/FP32)                 |
+| **Element Type**          | 4-bit mini-float E2M1 (with exponent, mantissa, supports subnormals) | 4-bit integer (linear grid)                                 |
+| **Multiplication Cost**   | Shift operation only, highly efficient                       | Floating-point/fixed-point multiplication, higher cost      |
+| **Dynamic Range**         | Wide, small values less likely to vanish                     | Narrow, small values easily lost (especially with outliers) |
+| **Outlier Resistance**    | Stronger (due to floating-point properties)                  | Weaker (requires finer grouping/special algorithms)         |
+| **Hardware Optimization** | **Open Compute Project** standard, vendors can optimize kernels | Leverages existing INT8/INT4 SIMD cores                     |
+| **Deployment Ecosystem**  | Emerging standard, growing hardware support                  | Mature engineering, broad ecosystem                         |
+
+Assume we have 8 numbers (in practice MX uses 32, but here we use a small sample for demonstration):
+
+```
+[1.0, 0.9, 1.1, 0.95, 1.05, 1.0, 0.92, 100.0]
+```
+
+
+
+#### **Traditional INT4**
+
+- Find max = 100
+- Max INT4 integer = 15 → scale ≈ 100 / 15 = 6.67
+- Small numbers: 1.0 / 6.67 ≈ 0.15 → quantized to 0 → dequantized back to 0
+- Result:
+
+```
+[0, 0, 0, 0, 0, 0, 0, 100]
+```
+
+
+
+Small values are completely lost.
+
+------
+
+#### **MXFP4**
+
+- Maximum element representable = 6.0
+- X = 2^(floor(log2(100 / 6.0))) ≈ 16
+- After dividing by X:
+
+```
+[0.0625, ..., 6.25]
+```
+
+
+
+- Quantization:
+
+```
+P_i ≈ [0.0625, ..., 6.0 (saturated)]
+```
+
+
+
+- Dequantization:
+
+```
+[1.0, 1.0, ..., 96.0]
+```
+
+
+
+Small values retain approximate precision, while large value is only slightly clipped.
+
+| 特性               | MXFP4                                         | 传统 INT4（包括 GPTQ/AWQ/NF4） |
+| ------------------ | --------------------------------------------- | ------------------------------ |
+| **缩放因子 Scale** | 固定为 2 的幂，E8M0 编码                      | 任意实数（FP16/FP32 存）       |
+| **元素类型**       | 4 位小浮点 E2M1（有指数、尾数、支持次正规）   | 4 位整数（线性格子）           |
+| **乘法成本**       | 移位即可，高效                                | 浮点/定点乘法，成本高          |
+| **动态范围**       | 宽，小值不易消失                              | 窄，小值易丢失（尤其有离群值） |
+| **抗离群值能力**   | 更强（浮点属性）                              | 较弱（需分组更细/特殊算法）    |
+| **硬件优化**       | **Open Compute Project** 标准，各厂可优化内核 | 利用已有 INT8/INT4 SIMD 核     |
+| **落地生态**       | 新兴标准，支持硬件在扩展                      | 工程化成熟，生态广             |
+
+假设我们有 8 个数（实际 MX 是 32，为了演示用小样本）：
+
+```
+[1.0, 0.9, 1.1, 0.95, 1.05, 1.0, 0.92, 100.0]
+```
+
+
+
+#### **传统 INT4**
+
+- 找最大值 = 100
+- INT4 最大整数 = 15 → scale ≈ 100 / 15 = 6.67
+- 小数：1.0 / 6.67 ≈ 0.15 → 量化成 0 → 反量化回 0
+- 结果：
+
+```
+[0, 0, 0, 0, 0, 0, 0, 100]
+```
+
+小值全没了。
+
+------
+
+#### **MXFP4**
+
+- 元素最大可以表示 6.0
+- X = 2^(floor(log2(100 / 6.0))) ≈ 16
+- 除以 X 后：
+
+```
+[0.0625, ..., 6.25]
+```
+
+
+
+- 量化：
+
+```
+P_i ≈ [0.0625, ..., 6.0(饱和)]
+```
+
+- 反量化：
+
+```
+[1.0, 1.0, ..., 96.0]
+```
+
+小值全部保留大致精度，只有大值轻微截断。
+
+| 步骤     | INT4 结果     | MXFP4 结果        |
+| -------- | ------------- | ----------------- |
+| 缩放后值 | [0.15,...,15] | [0.0625,...,6.25] |
+| 量化后值 | [0,...,15]    | [0.0625,...,6.0]  |
+| 反量化   | [0,...,100]   | [1.0,...,96.0]    |
+
+```
+[ INT4 (无符号示例) ]                 [ E2M1 (FP4) ]
+
+┌───┬───┬───┬───┐                   ┌───┬───┬───┬───┐
+│b3 │b2 │b1 │b0 │  ← 4 bits         │ S │ E1│ E0│ M0│  ← 4 bits
+└───┴───┴───┴───┘                   └───┴───┴───┴───┘
+b3..b0 → 整数值 (0~15)               S: 符号位 (0=正, 1=负)
+                                     E1E0: 2-bit 指数（Exponent）
+                                     M0: 1-bit 尾数（Mantissa）
+```
+
+
+
 ## **gpt-oss-20b** on Azure NC A10 GPU VM
 
 In GPT-OSS's inference logic, a sink token has been introduced. The sink token requires FlashAttention-3 for efficient execution  (FlashAttention-2 does not have the corresponding kernel), but FA3 is  better supported on Hopper, while there are issues on Ampere. 
