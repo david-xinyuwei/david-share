@@ -158,6 +158,98 @@ b3..b0 → 整数值 (0~15)               S: 符号位 (0=正, 1=负)
 
 
 
+## **Sink Token Mechanism and Performance Impact**
+
+In GPT‑OSS, the sink token mechanism primarily improves **inference throughput and latency** in long‑context scenarios, while maintaining accuracy by preventing context loss — it does not inherently increase reasoning accuracy.
+
+### **What is a Sink Token?**
+
+In GPT‑OSS’s inference path (especially with `vLLM`), a **sink token** is a special token inserted at the very beginning of the input sequence.
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/14.png)
+
+It serves two key purposes:
+
+1. **Global Context Anchor** – The sink token is attended to by **all tokens** in the sequence, acting as a compressed, high‑dimensional summary of the entire prompt/context.
+2. **Long‑Context Efficiency** – While most tokens only attend to a *local sliding window* (recent N tokens), they can still query the sink token to retrieve global information without re‑processing the entire history.
+
+> Think of it as a “pinned global memory cell” in the KV cache — it never slides out, even when using long‑context attention mechanisms.
+
+------
+
+### **Required Attention Mechanism**
+
+To be effective, a sink token requires a **hybrid attention mask**:
+
+- **Sink token → Global attention**: attends to all tokens (prefix global attention)
+- **Other tokens → Local + sink attention**: attend to the sink token and their own sliding‑window neighbors
+
+This asymmetric attention layout requires:
+
+- Flexible attention masking
+- Pinning selected KV cache entries
+- Single‑pass execution for global + local tokens
+
+------
+
+### **Why FlashAttention‑3 (FA3) is Needed**
+
+- FA3 advantages:
+  - Native support for *prefix + local hybrid attention masks*
+  - Can process sink token’s global access **and** other tokens’ local attention **in the same kernel call**
+  - Hopper‑optimized (H100, L40S) → high throughput, low latency
+- FA2 limitations:
+  - No native hybrid attention support
+  - Would either:
+    1. Fallback to full O(N²) global attention (slow), or
+    2. Require multiple kernel launches (extra latency)
+
+**Conclusion:**
+
+- On **Hopper GPUs** (H100, L40S): vLLM + FA3 = optimal sink token performance
+- On **Ampere GPUs** (A10, A100): FA3 kernels may be incomplete/unsupported → slower or fail
+- Ollama bypasses this by **not** running true sink token logic (fixed attention pattern + MXFP4 quantization)
+
+------
+
+### **Performance Implications**
+
+| GPU Architecture        | Inference Runtime | Sink Token Support   | Attention Kernel  | Long‑Context Perf.    |
+| ----------------------- | ----------------- | -------------------- | ----------------- | --------------------- |
+| **H100 / Hopper**       | vLLM + FA3        | ✅ Full, efficient    | Hybrid FA3 kernel | **Best**              |
+| **A100 / A10 (Ampere)** | vLLM + FA3        | ⚠ Partial / unstable | FA3 (limited)     | May error or degrade  |
+| **A100 / A10**          | Ollama (MXFP4)    | ❌ Not executed       | llama.cpp style   | Stable, no sink boost |
+| **Any**                 | HF+BF16 (no FA3)  | ⚠ Possible via hacks | Default attention | High VRAM/latency     |
+
+------
+
+### **Key Takeaways**
+
+- Sink token improves **TTFT** and **throughput** for very long contexts (≥32k tokens) by turning expensive re‑scans into cheap “global memory lookups”.
+
+- FA3 is not just an optimization — it is practically a requirement for efficient sink token in vLLM.
+
+- If running on Ampere (A10/A100)
+
+  :
+
+  - Use Ollama (MXFP4) if you don’t need sink token long‑context speedups.
+  - Or disable sink token in vLLM to avoid FA3 issues.
+
+- If on Hopper (H100/L40S)
+
+  :
+
+  - Always leverage vLLM + FA3 with sink token for maximum performance.
+
+------
+
+If you want, I can also generate a **matching color diagram** showing:
+
+1. Sink token workflow
+2. FA3 hybrid mask
+3. H100 vs A10 kernel path differences
+
 ## **gpt-oss-20b** on Azure NC A10 GPU VM
 
 In GPT-OSS's inference logic, a sink token has been introduced. The sink token requires FlashAttention-3 for efficient execution  (FlashAttention-2 does not have the corresponding kernel), but FA3 is  better supported on Hopper, while there are issues on Ampere. 
