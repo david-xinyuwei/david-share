@@ -194,6 +194,8 @@ we achieve “secure-by-default” networking:
 
 ## Define customer role of AI foundry
 
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Agent-Private-Endpoint/images/11.png)
+
 This part shows you how to automate RBAC setup for Azure AI Foundry:
 
 1. upload or update a custom role “AI Developer without Compute”;
