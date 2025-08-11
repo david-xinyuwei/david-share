@@ -194,7 +194,7 @@ we achieve “secure-by-default” networking:
 
 ## Define customer role of AI foundry
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Agent-Private-Endpoint/images/11.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Agent-Private-Endpoint/images/19.png)
 
 This part shows you how to automate RBAC setup for Azure AI Foundry:
 
@@ -292,8 +292,6 @@ az role assignment create \
 After login with AI foundry with xinyuwei@mngenv183724.onmicrosoft.com, user could only using existing models, rather than create models:
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Agent-Private-Endpoint/images/16.png)
-
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Agent-Private-Endpoint/images/17.png)
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Agent-Private-Endpoint/images/18.png)
 
