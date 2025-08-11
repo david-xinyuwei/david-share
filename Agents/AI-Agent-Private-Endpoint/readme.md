@@ -291,7 +291,13 @@ az role assignment create \
 
 After login with AI foundry with xinyuwei@mngenv183724.onmicrosoft.com, user could only using existing models, rather than create models:
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Agent-Private-Endpoint/images/16.png)
+Could not create new deployment:
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Agent-Private-Endpoint/images/15.png) 
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Agent-Private-Endpoint/images/16.png) 
+
+Could use existing model:
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Agent-Private-Endpoint/images/18.png)
 
