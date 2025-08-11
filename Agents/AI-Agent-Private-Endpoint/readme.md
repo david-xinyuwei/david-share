@@ -246,6 +246,8 @@ This part shows you how to automate RBAC setup for Azure AI Foundry:
 
 **Run steps:**
 
+Set env：
+
 ```
 #——— 用户可自定义的 5 个变量 ———#
 SUBSCRIPTION_ID="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
@@ -253,25 +255,39 @@ ROLE_FILE="./role.json"                               # 若文件名不同请修
 ROLE_NAME="AI Developer without Compute"
 USER_UPN="xinyuwei@mngenv183724.onmicrosoft.com"      # 目标用户或组/应用
 TENANT_ID="9812**"      # 可省略；多租户时指定
+```
 
+Login azure:
+
+```
 #——— 登陆租户并切换订阅 ———#
 az login --tenant $TENANT_ID            # 已登录可跳过
 az account set --subscription $SUBSCRIPTION_ID
+```
 
+Define new role:
+
+```
 #——— 创建或更新自定义角色 ———#
 az role definition create  --role-definition $ROLE_FILE \
   || az role definition update --role-definition $ROLE_FILE
+  
+```
 
+Get SP and assign role to SP:
+
+```
 #——— 获取主体对象 ID（用户 / 组 / 服务主体） ———#
 PRINCIPAL_ID=$(az ad user show --id $USER_UPN --query id -o tsv)  # 若是组则用 az ad group show; 应用用 az ad sp show
 echo "PrincipalId = $PRINCIPAL_ID"
-
 #——— 分配角色 ———#
 az role assignment create \
   --assignee $PRINCIPAL_ID \
   --role "$ROLE_NAME" \
   --scope /subscriptions/$SUBSCRIPTION_ID
 ```
+
+
 
 After login with AI foundry with xinyuwei@mngenv183724.onmicrosoft.com, user could only using existing models, rather than create models:
 
@@ -281,7 +297,7 @@ After login with AI foundry with xinyuwei@mngenv183724.onmicrosoft.com, user cou
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Agent-Private-Endpoint/images/18.png)
 
-Refer to：
+**Refer to：**
 
 ***https://learn.microsoft.com/en-us/azure/ai-foundry/how-to/configure-private-link?tabs=azure-portal&pivots=fdp-project***
 
