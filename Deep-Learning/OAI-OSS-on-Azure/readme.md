@@ -9,7 +9,7 @@ The **gpt-oss-20b** model delivers similar results to OpenAI o3‑mini on common
 | gpt-oss-120b | 36         | 117B             | 5.1B                        | 128               | 4                            | 128k               |
 | gpt-oss-20b  | 24         | 21B              | 3.6B                        | 32                | 4                            | 128k               |
 
-In this repo, I will show 2 models performance on Azure NC A10/H100 GPU VM and including TTFT, tokens/s etc.
+In this repo, I will show 2 models performance on Azure NV A10 and NC H100 GPU VM and including TTFT, tokens/s etc.
 
 ## MXFP4(**Microscaling**)
 
@@ -250,7 +250,7 @@ If you want, I can also generate a **matching color diagram** showing:
 2. FA3 hybrid mask
 3. H100 vs A10 kernel path differences
 
-## **gpt-oss-20b** on Azure NC A10 GPU VM
+## **gpt-oss-20b** on Azure NV A10 GPU VM
 
 In GPT-OSS's inference logic, a sink token has been introduced. The sink token requires FlashAttention-3 for efficient execution  (FlashAttention-2 does not have the corresponding kernel), but FA3 is  better supported on Hopper, while there are issues on Ampere. 
 
