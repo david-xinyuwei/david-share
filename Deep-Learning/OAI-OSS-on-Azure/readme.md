@@ -9,7 +9,7 @@ The **gpt-oss-20b** model delivers similar results to OpenAI o3‑mini on common
 | gpt-oss-120b | 36         | 117B             | 5.1B                        | 128               | 4                            | 128k               |
 | gpt-oss-20b  | 24         | 21B              | 3.6B                        | 32                | 4                            | 128k               |
 
-In this repo, I will show 2 models performance on Azure NV A10 and NC H100 GPU VM and including TTFT, tokens/s etc.
+In this repo, I will show 2 models performance on Azure NV A10，Azure CPU VM and NC H100 GPU VM and including TTFT, tokens/s etc.
 
 ## MXFP4(**Microscaling**)
 
@@ -289,6 +289,15 @@ The approximate performance during inference with Ollama is:
 ```
 
 
+
+## **gpt-oss-20b** on Azure CPU VM
+
+The gpt-oss-20b model, with the help of Ollama, can also run on an Azure CPU VM. It requires more than 14 GB of memory and an 8-core CPU, as in the VM configuration shown below:
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/15.png)
+
+***Please click below pictures to see my demo video on Youtube***:
+[![BitNet-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/aAYb_v7wsEs)
 
 ## gpt-oss-20b on Azure H100 GPU VM
 
