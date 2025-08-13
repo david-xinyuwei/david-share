@@ -307,3 +307,61 @@ Could use existing model:
 
 
 
+## Control AI model deployment
+
+We know that there are a large number of models in the AI Foundry Model Catalog. Sometimes, enterprise IT administrators need to control which models can be deployed. This can be achieved by creating an Azure Policy to define a whitelist of allowed models. Any model that is not on this whitelist will be blocked from deployment.
+
+First, you need to create a custom policy：
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Agent-Private-Endpoint/images/20.png)
+
+```
+{
+  "parameters": {
+    "allowedModels": {
+      "type": "Array",
+      "metadata": {
+        "displayName": "Allowed AI models",
+        "description": "The list of allowed models to be deployed."
+      }
+    }
+  },
+  "policyRule": {
+    "if": {
+      "allOf": [
+        {
+          "field": "type",
+          "equals": "Microsoft.CognitiveServices/accounts/deployments"
+        },
+        {
+          "not": {
+            "field": "Microsoft.CognitiveServices/accounts/deployments/model.name",
+            "in": "[parameters('allowedModels')]"
+          }
+        }
+      ]
+    },
+    "then": {
+      "effect": "deny"
+    }
+  }
+}
+```
+
+Assign it to a target scope. Assigning it at the subscription level provides the broadest coverage. 
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Agent-Private-Endpoint/images/21.png)
+
+Next, configure the list of allowed models. 
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Agent-Private-Endpoint/images/22.png)
+
+```
+["gpt-4.1,2025-04-14", "gpt-4.1-mini,2025-04-14"]
+```
+
+Finally, validate the results to ensure that the configured policy is working as intended.
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Agent-Private-Endpoint/images/23.png)
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Agent-Private-Endpoint/images/24.png)
