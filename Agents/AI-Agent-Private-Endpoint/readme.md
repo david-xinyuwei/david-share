@@ -362,6 +362,10 @@ Next, configure the list of allowed models.
 
 Finally, validate the results to ensure that the configured policy is working as intended.
 
+Model which is not on the white list could not be deployed:
+
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Agent-Private-Endpoint/images/23.png)
+
+Model which is on the white list could be deployed:
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Agent-Private-Endpoint/images/24.png)
