@@ -236,9 +236,7 @@ This asymmetric attention layout requires:
   - Use Ollama (MXFP4) if you don’t need sink token long‑context speedups.
   - Or disable sink token in vLLM to avoid FA3 issues.
 
-- If on Hopper (H100/L40S)
-
-  :
+- If on Hopper (H100/L40S):
 
   - Always leverage vLLM + FA3 with sink token for maximum performance.
 
@@ -288,6 +286,41 @@ The approximate performance during inference with Ollama is:
  Throughput: 45~55 tokens/s
 ```
 
+Script during test：
+
+```
+import requests, time, json
+
+MODEL = "gpt-oss:20b"
+PROMPT = "Give me a 2000-word introduction to Ollama."
+
+url = "http://localhost:11434/api/generate"
+payload = {"model": MODEL, "prompt": PROMPT, "stream": True}
+
+t0 = time.time()
+first_token_time = None
+token_count = 0
+
+with requests.post(url, json=payload, stream=True, timeout=600) as resp:
+    for line in resp.iter_lines():
+        if not line:
+            continue
+        data = json.loads(line)
+        if data.get("done"):
+            break
+        chunk = data.get("response", "")
+        if not chunk:
+            continue
+        if first_token_time is None:
+            first_token_time = time.time()
+        token_count += len(chunk.split())   # 简化统计token，可用tiktoken更精确
+
+t1 = time.time()
+ttft = first_token_time - t0
+throughput = token_count/(t1-first_token_time) if first_token_time else 0
+print(f"TTFT: {ttft:.3f}s, Tokens: {token_count}, Throughput: {throughput:.2f} tokens/s")
+```
+
 
 
 ## **gpt-oss-20b** on Azure CPU VM
@@ -298,6 +331,14 @@ The gpt-oss-20b model, with the help of Ollama, can also run on an Azure CPU VM.
 
 ***Please click below pictures to see my demo video on Youtube***:
 [![BitNet-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/aAYb_v7wsEs)
+
+The approximate performance during inference with Ollama is:
+
+```
+ Throughput: < 10 tokens/s
+```
+
+
 
 ## gpt-oss-20b on Azure H100 GPU VM
 
