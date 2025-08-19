@@ -11,11 +11,11 @@ NLWeb (Natural Language Web) wraps a classic Retrieval-Augmented-Generation (RAG
 
 Inside AI Search index:
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Web-Agent/images/1.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/Web-Agent/images/1.png)
 
 Fields in the Index:
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Web-Agent/images/2.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/Web-Agent/images/2.png)
 
 ## How to start
 
