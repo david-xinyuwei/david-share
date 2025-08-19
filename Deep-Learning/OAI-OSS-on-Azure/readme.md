@@ -683,7 +683,7 @@ Done.
 
 
 
-## gpt-oss-120b on Azure H100 GPU VM
+## gpt-oss-120b inference on Azure H100 GPU VM
 
 Load model via vLLM
 
@@ -822,6 +822,183 @@ OpenAI-oss-120b has been released on Azure AI Foundry and can be deployed in a v
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/11.png)
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/12.png)
+
+
+
+## gpt-oss-20b Supervised Fine-Tuning 
+
+Overall SFT of gpt-oss is as：
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/20.png)
+
+In this part of demo, I will show as folllowing flow to do SFT on gpt-oss:
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/21.png)
+
+```
+pip install --upgrade transformers accelerate optimum
+
+```
+
+```
+import torch
+from transformers import AutoModelForCausalLM, Mxfp4Config
+
+quantization_config = Mxfp4Config(dequantize=True)
+
+model = AutoModelForCausalLM.from_pretrained(
+    "openai/gpt-oss-20b",
+    attn_implementation="eager",
+    torch_dtype=torch.bfloat16,
+    quantization_config=quantization_config,
+    use_cache=False,
+    device_map=None
+).to("cuda:0")
+```
+
+```
+messages = [
+    {"role": "user", "content": "¿Cuál es el capital de Australia?"},
+]
+
+input_ids = tokenizer.apply_chat_template(
+    messages,
+    add_generation_prompt=True,
+    return_tensors="pt",
+).to(model.device)
+
+output_ids = model.generate(input_ids, max_new_tokens=512)
+response = tokenizer.batch_decode(output_ids)[0]
+print(response)
+```
+
+```
+from peft import LoraConfig, get_peft_model
+
+peft_config = LoraConfig(
+    r=8,
+    lora_alpha=16,
+    target_modules="all-linear",
+    target_parameters=[
+        "7.mlp.experts.gate_up_proj",
+        "7.mlp.experts.down_proj",
+        "15.mlp.experts.gate_up_proj",
+        "15.mlp.experts.down_proj",
+        "23.mlp.experts.gate_up_proj",
+        "23.mlp.experts.down_proj",
+    ],
+)
+peft_model = get_peft_model(model, peft_config)
+peft_model.print_trainable_parameters()
+```
+
+```
+from trl import SFTConfig
+
+training_args = SFTConfig(
+    learning_rate=2e-4,
+    gradient_checkpointing=True,
+    num_train_epochs=1,
+    logging_steps=1,
+    per_device_train_batch_size=4,
+    gradient_accumulation_steps=4,
+    max_length=2048,
+    warmup_ratio=0.03,
+    lr_scheduler_type="cosine_with_min_lr",
+    lr_scheduler_kwargs={"min_lr_rate": 0.1},
+    output_dir="gpt-oss-20b-multilingual-reasoner",
+    report_to="trackio",
+    push_to_hub=True,
+)
+```
+
+```
+from trl import SFTTrainer
+
+trainer = SFTTrainer(
+    model=peft_model,
+    args=training_args,
+    train_dataset=dataset,
+    processing_class=tokenizer,
+)
+trainer.train()
+```
+
+```
+[63/63 17:08, Epoch 1/1]
+Step	Training Loss
+1	1.975800
+2	2.060100
+3	1.815100
+4	1.823500
+5	1.598900
+6	1.563900
+7	1.401600
+8	1.405500
+9	1.209600
+10	1.318000
+11	1.309800
+12	1.231300
+13	1.161000
+14	1.144500
+15	1.229000
+16	1.154300
+17	1.228000
+18	1.130400
+19	1.092700
+20	1.117900
+21	1.052200
+22	1.053300
+23	1.040400
+24	1.031400
+25	1.094900
+26	1.093800
+27	0.891500
+28	1.032500
+29	1.032100
+30	1.030200
+31	1.038400
+32	1.061200
+33	1.014500
+34	1.113900
+35	1.082300
+36	0.942400
+37	1.042100
+38	0.962500
+39	1.014300
+40	0.996600
+41	0.977500
+42	0.877100
+43	0.919200
+44	1.090500
+45	1.044600
+46	1.109000
+47	0.987300
+48	0.866800
+49	1.061900
+50	0.998900
+51	0.936400
+52	1.004800
+53	1.067200
+54	0.992500
+55	1.029600
+56	1.087800
+57	1.117300
+58	1.021500
+59	1.017900
+60	0.990300
+61	0.935400
+62	0.993400
+63	1.092800
+
+```
+
+```
+trainer.save_model(training_args.output_dir)
+trainer.push_to_hub(dataset_name="HuggingFaceH4/Multilingual-Thinking")
+```
+
+
 
 
 
