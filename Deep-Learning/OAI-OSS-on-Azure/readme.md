@@ -296,9 +296,13 @@ If you want, I can also generate a **matching color diagram** showing:
 
 ## **gpt-oss-20b** on Azure NV A10 GPU VM
 
-In GPT-OSS's inference logic, a sink token has been introduced. The sink token requires FlashAttention-3 for efficient execution  (FlashAttention-2 does not have the corresponding kernel), but FA3 is  better supported on Hopper, while there are issues on Ampere. 
+In GPT-OSS's inference logic, a sink token has been introduced. The sink token requires FlashAttention-3 for efficient execution  (FlashAttention-2 does not have the corresponding kernel), but FA3 is  better supported on Hopper. 
 
 Therefore, if you are using an A10, you can use the Ollama method or transformers. Ollama is the simplest. The Ollama version  model uses MXFP4 quantization by default.
+
+BWT， vLLM also support an new container image vllm/vllm-openai:gptoss, you could refer to it:
+
+*https://techcommunity.microsoft.com/blog/machinelearningblog/deploying-openai%E2%80%99s-first-open-source-model-on-azure-aks-with-kaito/4444234*
 
 If  you don't do quantization and directly use HF transformers with BF16  inference, the A10's memory is insufficient.
 
