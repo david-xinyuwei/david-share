@@ -9,9 +9,7 @@ The **gpt-oss-20b** model delivers similar results to OpenAI o3‑mini on common
 | gpt-oss-120b | 36         | 117B             | 5.1B                        | 128               | 4                            | 128k               |
 | gpt-oss-20b  | 24         | 21B              | 3.6B                        | 32                | 4                            | 128k               |
 
-
-
-gpt‑oss‑20b 和 gpt‑oss‑120b 都是在原始全精度训练完成之后做了后量化(Post‑Training Quantization, PTQ)。
+gpt-oss-20b and gpt-oss-120b both underwent Post-Training Quantization (PTQ) after the original full-precision training was completed.
 
 *https://huggingface.co/openai/gpt-oss-120b/blob/main/config.json*
 
@@ -41,12 +39,12 @@ https://huggingface.co/openai/gpt-oss-20b/blob/main/config.json
   },
 ```
 
-OAI-OSS模型加载方式：
+OAI-OSS Model Loading Methods:
 
-| 用法                                              | `dequantize` 参数 | 加载到 GPU 后权重形态                | 显存占用        | 推理计算方式                                        | 典型场景                                                    |
-| ------------------------------------------------- | ----------------- | ------------------------------------ | --------------- | --------------------------------------------------- | ----------------------------------------------------------- |
-| **存储压缩型**（Hugging Face 默认 LoRA 微调路径） | `True`            | **退量化**成 BF16/FP16 全精度 Tensor | 高（≈BF16）     | **高精度 kernel**（BF16 MatMul）                    | 模型微调（LoRA/全参），需全精度梯度计算，显存充足场景       |
-| **常驻计算型**（Ollama / vLLM‑gptoss 专用内核）   | `False`           | **保留** MXFP4 4bit 低比特权重       | 低（≈1/4 BF16） | **低比特 kernel**（4bit MatMul/Custom CUDA Kernel） | 低显存推理部署（本地 GPU、边缘推理、Hopper+FA3 Sink Token） |
+| Usage                                                        | `dequantize` Parameter | Weight Format After Loading to GPU                  | VRAM Consumption | Inference Computation Method                         | Typical Scenarios                                            |
+| ------------------------------------------------------------ | ---------------------- | --------------------------------------------------- | ---------------- | ---------------------------------------------------- | ------------------------------------------------------------ |
+| **Storage Compression Mode** (Hugging Face default LoRA fine-tuning path) | `True`                 | **Dequantized** to BF16/FP16 full‑precision tensors | High (≈ BF16)    | **High‑precision kernel** (BF16 MatMul)              | Model fine‑tuning (LoRA/full‑parameter), needs full‑precision gradient computation, VRAM‑abundant scenarios |
+| **Resident Computation Mode** (Ollama / vLLM‑gptoss dedicated kernels) | `False`                | **Retains** MXFP4 4‑bit low‑bit weights             | Low (≈ 1/4 BF16) | **Low‑bit kernel** (4‑bit MatMul/Custom CUDA Kernel) | Low‑VRAM inference deployment (local GPU, edge inference, Hopper+FA3 Sink Token) |
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/17.png)
 
@@ -126,70 +124,66 @@ P_i ≈ [0.0625, ..., 6.0 (saturated)]
 
 Small values retain approximate precision, while large value is only slightly clipped.
 
-| 特性               | MXFP4                                         | 传统 INT4（包括 GPTQ/AWQ/NF4） |
-| ------------------ | --------------------------------------------- | ------------------------------ |
-| **缩放因子 Scale** | 固定为 2 的幂，E8M0 编码                      | 任意实数（FP16/FP32 存）       |
-| **元素类型**       | 4 位小浮点 E2M1（有指数、尾数、支持次正规）   | 4 位整数（线性格子）           |
-| **乘法成本**       | 移位即可，高效                                | 浮点/定点乘法，成本高          |
-| **动态范围**       | 宽，小值不易消失                              | 窄，小值易丢失（尤其有离群值） |
-| **抗离群值能力**   | 更强（浮点属性）                              | 较弱（需分组更细/特殊算法）    |
-| **硬件优化**       | **Open Compute Project** 标准，各厂可优化内核 | 利用已有 INT8/INT4 SIMD 核     |
-| **落地生态**       | 新兴标准，支持硬件在扩展                      | 工程化成熟，生态广             |
+| Feature                   | MXFP4                                                        | Traditional INT4 (including GPTQ/AWQ/NF4)                   |
+| ------------------------- | ------------------------------------------------------------ | ----------------------------------------------------------- |
+| **Scale Factor**          | Fixed to a power of 2, E8M0 encoding                         | Arbitrary real number (stored in FP16/FP32)                 |
+| **Element Type**          | 4‑bit mini‑float E2M1 (with exponent, mantissa, supports subnormals) | 4‑bit integer (linear grid)                                 |
+| **Multiplication Cost**   | Shift operation only, highly efficient                       | Floating‑point/fixed‑point multiplication, higher cost      |
+| **Dynamic Range**         | Wide, small values less likely to vanish                     | Narrow, small values easily lost (especially with outliers) |
+| **Outlier Resistance**    | Stronger (floating‑point properties)                         | Weaker (requires finer grouping/special algorithms)         |
+| **Hardware Optimization** | **Open Compute Project** standard, kernel optimization possible by various vendors | Utilizes existing INT8/INT4 SIMD cores                      |
+| **Deployment Ecosystem**  | Emerging standard, hardware support expanding                | Mature engineering, widely adopted ecosystem                |
 
-假设我们有 8 个数（实际 MX 是 32，为了演示用小样本）：
+Suppose we have 8 numbers (in practice MX is 32, but we use a small sample here for demonstration):
 
 ```
 [1.0, 0.9, 1.1, 0.95, 1.05, 1.0, 0.92, 100.0]
 ```
 
+#### **Traditional INT4**
 
-
-#### **传统 INT4**
-
-- 找最大值 = 100
-- INT4 最大整数 = 15 → scale ≈ 100 / 15 = 6.67
-- 小数：1.0 / 6.67 ≈ 0.15 → 量化成 0 → 反量化回 0
-- 结果：
+- Find max value = 100
+- INT4 max integer = 15 → scale ≈ 100 / 15 = 6.67
+- Small number: 1.0 / 6.67 ≈ 0.15 → quantized to 0 → dequantized back to 0
+- Result:
 
 ```
 [0, 0, 0, 0, 0, 0, 0, 100]
 ```
 
-小值全没了。
+All small values are lost.
 
 ------
 
 #### **MXFP4**
 
-- 元素最大可以表示 6.0
+- Max representable element value = 6.0
 - X = 2^(floor(log2(100 / 6.0))) ≈ 16
-- 除以 X 后：
+- After dividing by X:
 
 ```
 [0.0625, ..., 6.25]
 ```
 
-
-
-- 量化：
+- Quantization:
 
 ```
-P_i ≈ [0.0625, ..., 6.0(饱和)]
+P_i ≈ [0.0625, ..., 6.0 (saturated)]
 ```
 
-- 反量化：
+- Dequantization:
 
 ```
 [1.0, 1.0, ..., 96.0]
 ```
 
-小值全部保留大致精度，只有大值轻微截断。
+All small values retain approximate precision, only large values are slightly clipped.
 
-| 步骤     | INT4 结果     | MXFP4 结果        |
-| -------- | ------------- | ----------------- |
-| 缩放后值 | [0.15,...,15] | [0.0625,...,6.25] |
-| 量化后值 | [0,...,15]    | [0.0625,...,6.0]  |
-| 反量化   | [0,...,100]   | [1.0,...,96.0]    |
+| Step        | INT4 Result     | MXFP4 Result        |
+| ----------- | --------------- | ------------------- |
+| Scaled Val. | [0.15, ..., 15] | [0.0625, ..., 6.25] |
+| Quantized   | [0, ..., 15]    | [0.0625, ..., 6.0]  |
+| Dequantized | [0, ..., 100]   | [1.0, ..., 96.0]    |
 
 ```
 [ INT4 (无符号示例) ]                 [ E2M1 (FP4) ]
@@ -815,8 +809,6 @@ if __name__ == "__main__":
     main()
 ```
 
-
-
 ## gpt-oss-120b on Azure AI foundry
 
 OpenAI-oss-120b has been released on Azure AI Foundry and can be deployed in a very convenient one-click manner.
@@ -827,17 +819,15 @@ OpenAI-oss-120b has been released on Azure AI Foundry and can be deployed in a v
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/12.png)
 
-
-
 ## gpt-oss-20b Supervised Fine-Tuning 
 
 Overall SFT of gpt-oss is as：
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/20.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/17.png)
 
 In this part of demo, I will show as folllowing flow to do SFT on gpt-oss:
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/21.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/18.png)
 
 Install required package
 
@@ -1081,7 +1071,7 @@ Loading checkpoint shards: 100%
 ✅ MXFP4 模型已保存到 ./merged_mxfp4_model
 ```
 
-
+Check quantized model：
 
 ```
 (base) root@h100vm:~# ls -al merged_mxfp4_model
@@ -1118,9 +1108,7 @@ drwx------ 84 root root       4096 Aug 19 06:16 ..
 -rw-r--r--  1 root root      33635 Aug 19 06:23 model.safetensors.index.json
 ```
 
-
-
-Compile GPU llama.cpp
+Compile  llama.cpp tool：
 
 ```
 sudo apt install -y git cmake build-essential
@@ -1133,7 +1121,7 @@ cmake .. -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=90
 make -j$(nproc)
 ```
 
-
+Compile result：
 
 ```
 [ 98%] Built target llama-tts
@@ -1163,7 +1151,7 @@ Writing: 100%|██████████████████████
 INFO:hf-to-gguf:Model successfully exported to merged_fp16.gguf
 ```
 
-
+Check merged_fp16.gguf：
 
 ```
 (gpt-oss) root@h100vm:~# ls -al merged_fp16.gguf 
@@ -1171,7 +1159,7 @@ INFO:hf-to-gguf:Model successfully exported to merged_fp16.gguf
 (gpt-oss) root@h100vm:~# 
 ```
 
-
+Use llama-quantize tool to quantize model from fp16.gguf  to MXFP4-MoE:
 
 ```
 (gpt-oss) root@h100vm:~/llama.cpp/build# ./bin/llama-quantize --help
@@ -1263,7 +1251,7 @@ main:    total time = 43510.50 ms
 (gpt-oss) root@h100vm:~# 
 ```
 
-
+Use llama.cpp to run the MXFP4-MoE gguf file:
 
 ```
 (gpt-oss) root@h100vm:~/llama.cpp/build# ./bin/llama-cli -m /root/merged_mxfp4.gguf  --gpu-layers 25  -p "Hello"
@@ -1304,6 +1292,155 @@ The sum of all integers from 1 to 100 is **5,050**.
 
 If you were expecting a different result or need help with another range, let me know!
 
+```
+
+**Check the SFT effect:**
+
+Start the server (be sure to disable the chat template):
+
+```
+pip install requests langdetect
+```
+
+Start server:
+
+```
+/root/llama.cpp/build/bin/llama-server \
+    -m /root/merged_mxfp4.gguf \
+    --gpu-layers 25 \
+    --port 8080 \
+    --chat-template "" \
+    --reasoning-format none
+```
+
+Run python as client:
+
+```
+# 保存为 batch_test_analysis_force.py
+# llama.cpp server 批量测试 reasoning language × question
+# 强制标签 + 降级捕获，保证 analysis_text 不为空
+
+import requests
+import csv
+import re
+from langdetect import detect
+
+# llama.cpp server 配置
+SERVER_URL = "http://localhost:8080/completion"
+
+# 推理语言与测试问题
+reasoning_langs = ["German", "Spanish", "French", "Chinese"]
+questions = [
+    "¿Cuál es el capital de Australia?",       # 西班牙语
+    "What is the capital of Australia?",       # 英语
+    "Quelle est la capitale de l'Australie ?", # 法语
+    "澳大利亚的首都是什么？",                     # 中文
+]
+
+# CSV 输出文件
+csv_file = "reasoning_language_test.csv"
+
+# llama.cpp server 启动（一次加载模型）：
+# ./bin/llama-server -m ./merged_mxfp4moe.gguf --gpu-layers 25 --port 8080 --chat-template "" --reasoning-format none
+
+def run_prompt(prompt):
+    payload = {
+        "prompt": prompt,
+        "n_predict": 512,
+        "temperature": 0.8,
+        "stop": []
+    }
+    try:
+        r = requests.post(SERVER_URL, json=payload)
+        if r.status_code == 200:
+            return r.json().get("content", "")
+        else:
+            print(f"[错误] 服务器返回 HTTP {r.status_code}")
+            return ""
+    except Exception as e:
+        print(f"[错误] 请求失败: {e}")
+        return ""
+
+def extract_analysis_final(text):
+    # 1. 尝试用标签匹配 analysis / final
+    analysis_match = re.search(r"<\|start\|>assistant<\|channel\|>analysis<\|message\|>(.*?)<\|end\|>", text, re.S)
+    final_match = re.search(r"<\|start\|>assistant<\|channel\|>final<\|message\|>(.*)", text, re.S)
+
+    analysis_text = analysis_match.group(1).strip() if analysis_match else ""
+    final_text = final_match.group(1).strip() if final_match else ""
+
+    # 2. 如果 analysis 标签不存在，降级捕获：取 final 标签/关键字前的第一段内容
+    if not analysis_text:
+        # 去掉可能的 final 部分
+        temp_text = text
+        if "<|start|>assistant<|channel|>final" in temp_text:
+            temp_text = temp_text.split("<|start|>assistant<|channel|>final")[0]
+        # 去掉 prompt 部分
+        temp_text = re.sub(r"^.*<\|start\|>assistant<\|channel\|>analysis<\|message\|>", "", temp_text, flags=re.S)
+        # 按段落分割
+        parts = re.split(r"\n\s*\n", temp_text.strip(), 1)
+        if parts and parts[0]:
+            analysis_text = parts[0].strip()
+
+    return analysis_text, final_text
+
+def detect_lang_safe(text):
+    try:
+        return detect(text) if text else ""
+    except:
+        return "unknown"
+
+rows = []
+for rlang in reasoning_langs:
+    for q in questions:
+        # 构造带强制规则的 Prompt
+        prompt = (
+            f"<|start|>system<|message|>"
+            f"reasoning language: {rlang}\n"
+            "You MUST first output your reasoning inside:\n"
+            "<|start|>assistant<|channel|>analysis<|message|> ... <|end|>\n"
+            "Then output your final answer inside:\n"
+            "<|start|>assistant<|channel|>final<|message|> ... <|end|>\n"
+            "<|end|> "
+            f"<|start|>user<|message|>{q}<|end|> "
+            f"<|start|>assistant<|channel|>analysis<|message|>"
+        )
+
+        output_text = run_prompt(prompt)
+        analysis_text, final_text = extract_analysis_final(output_text)
+        analysis_lang = detect_lang_safe(analysis_text)
+        final_lang = detect_lang_safe(final_text)
+
+        rows.append({
+            "reasoning_language": rlang,
+            "question": q,
+            "analysis_text": analysis_text,
+            "analysis_lang_detected": analysis_lang,
+            "final_text": final_text,
+            "final_lang_detected": final_lang
+        })
+
+        print(f"[完成] {rlang} | {q} => Analysis({analysis_lang}), Final({final_lang})")
+
+# 保存到 CSV
+with open(csv_file, "w", newline='', encoding="utf-8") as f:
+    writer = csv.DictWriter(f, fieldnames=[
+        "reasoning_language", "question",
+        "analysis_text", "analysis_lang_detected",
+        "final_text", "final_lang_detected"
+    ])
+    writer.writeheader()
+    writer.writerows(rows)
+
+print(f"[完成] 测试结果已保存到 {csv_file}")
+```
+
+Result:
+
+```
+Chinese,Quelle est la capitale de l'Australie ?,"The user is asking about the capital of Australia.  
+Key points to consider:",en,The capital of Australia is **Canberra**.,en
+Chinese,澳大利亚的首都是什么？,好的，用户问的是澳大利亚的首都。我先想一下我知道的。澳大利亚的首都是堪培拉（Canberra），是个小城市，位于澳大利亚东南部，靠近悉尼和墨尔本。堪培拉是澳大利亚联邦的政治中心，也是许多联邦政府机构所在地。用户可能只是想确认这个事实。为了确保答案准确无误，我再确认一下：堪培拉是澳大利亚的首都，而不是悉尼或墨尔本，它们只是大城市。堪培拉成立于1908年，作为澳大利亚首都而设。用户没有提到其他信息，所以只需回答这个问题即可。<|end|>,zh-cn,堪培拉（Canberra）是澳大利亚的首都。,no
 ```
 
 
