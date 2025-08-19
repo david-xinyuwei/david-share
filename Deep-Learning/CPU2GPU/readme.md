@@ -13,6 +13,8 @@ The overall approach is divided into four steps:
 3. Application architecture splitting  
 4. High-level elasticity and disaster recovery extension
 
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/CPU2GPU/images/4.png)
+
 The following content will explain these four parts in detail.
 
 ---
@@ -58,7 +60,9 @@ GPU Chip (Total: 1 A100)
 
 ```
 
+## Azure NC A100 vs HC H100
 
+  ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/CPU2GPU/images/3.png)
 
 ### Hierarchy view:
 

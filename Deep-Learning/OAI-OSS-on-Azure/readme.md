@@ -9,7 +9,53 @@ The **gpt-oss-20b** model delivers similar results to OpenAI o3‑mini on common
 | gpt-oss-120b | 36         | 117B             | 5.1B                        | 128               | 4                            | 128k               |
 | gpt-oss-20b  | 24         | 21B              | 3.6B                        | 32                | 4                            | 128k               |
 
-In this repo, I will show 2 models performance on Azure NV A10，Azure CPU VM and NC H100 GPU VM and including TTFT, tokens/s etc.
+
+
+gpt‑oss‑20b 和 gpt‑oss‑120b 都是在原始全精度训练完成之后做了后量化(Post‑Training Quantization, PTQ)。
+
+*https://huggingface.co/openai/gpt-oss-120b/blob/main/config.json*
+
+```
+  "quantization_config": {
+    "modules_to_not_convert": [
+      "model.layers.*.self_attn",
+      "model.layers.*.mlp.router",
+      "model.embed_tokens",
+      "lm_head"
+    ],
+    "quant_method": "mxfp4"
+  },
+```
+
+https://huggingface.co/openai/gpt-oss-20b/blob/main/config.json
+
+```
+  "quantization_config": {
+    "modules_to_not_convert": [
+      "model.layers.*.self_attn",
+      "model.layers.*.mlp.router",
+      "model.embed_tokens",
+      "lm_head"
+    ],
+    "quant_method": "mxfp4"
+  },
+```
+
+OAI-OSS模型加载方式：
+
+| 用法                                              | `dequantize` 参数 | 加载到 GPU 后权重形态                | 显存占用        | 推理计算方式                                        | 典型场景                                                    |
+| ------------------------------------------------- | ----------------- | ------------------------------------ | --------------- | --------------------------------------------------- | ----------------------------------------------------------- |
+| **存储压缩型**（Hugging Face 默认 LoRA 微调路径） | `True`            | **退量化**成 BF16/FP16 全精度 Tensor | 高（≈BF16）     | **高精度 kernel**（BF16 MatMul）                    | 模型微调（LoRA/全参），需全精度梯度计算，显存充足场景       |
+| **常驻计算型**（Ollama / vLLM‑gptoss 专用内核）   | `False`           | **保留** MXFP4 4bit 低比特权重       | 低（≈1/4 BF16） | **低比特 kernel**（4bit MatMul/Custom CUDA Kernel） | 低显存推理部署（本地 GPU、边缘推理、Hopper+FA3 Sink Token） |
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/17.png)
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/18.png)
+
+In this repo, I will show ：
+
+- 2 models performance on Azure NV A10，Azure CPU VM and NC H100 GPU VM and including TTFT, tokens/s etc.
+- Model Fine-Tuning
 
 ## MXFP4(**Microscaling**)
 
