@@ -835,10 +835,14 @@ In this part of demo, I will show as folllowing flow to do SFT on gpt-oss:
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/21.png)
 
+Install required package
+
 ```
 pip install --upgrade transformers accelerate optimum
 
 ```
+
+Add openai/gpt-oss-20b and do dequantize:
 
 ```
 import torch
@@ -872,6 +876,8 @@ response = tokenizer.batch_decode(output_ids)[0]
 print(response)
 ```
 
+Set SFT mode using LoRA:
+
 ```
 from peft import LoraConfig, get_peft_model
 
@@ -891,6 +897,8 @@ peft_config = LoraConfig(
 peft_model = get_peft_model(model, peft_config)
 peft_model.print_trainable_parameters()
 ```
+
+Set SFT training parameters:
 
 ```
 from trl import SFTConfig
@@ -923,6 +931,8 @@ trainer = SFTTrainer(
 )
 trainer.train()
 ```
+
+SFT result:
 
 ```
 [63/63 17:08, Epoch 1/1]
@@ -998,7 +1008,303 @@ trainer.save_model(training_args.output_dir)
 trainer.push_to_hub(dataset_name="HuggingFaceH4/Multilingual-Thinking")
 ```
 
+```
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from peft import PeftModel
 
+# 1. HF分词器
+tokenizer = AutoTokenizer.from_pretrained("openai/gpt-oss-20b")
+
+# 2. 加载基础模型（单卡 cuda:0）
+base_model = AutoModelForCausalLM.from_pretrained(
+    "openai/gpt-oss-20b",
+    attn_implementation="eager",
+    torch_dtype="auto",
+    use_cache=True
+).to("cuda:0")
+
+# 3. 本地 LoRA 路径
+peft_model_id = "./gpt-oss-20b-multilingual-reasoner"  # ← 这里改成你本地LoRA目录
+
+# 4. 加载 LoRA adapter 并合并
+model = PeftModel.from_pretrained(base_model, peft_model_id)
+model = model.merge_and_unload()
+
+# 5. 保存合并后模型
+output_dir = "merged_bf16_model"
+model.save_pretrained(output_dir)
+tokenizer.save_pretrained(output_dir)
+
+print(f"✅ 模型合并完成并保存到 {output_dir}")
+```
+
+
+
+```
+MXFP4 quantization requires triton >= 3.4.0 and kernels installed, we will default to dequantizing the model to bf16
+Loading checkpoint shards: 100%
+ 3/3 [02:56<00:00, 53.50s/it]
+/root/anaconda3/envs/gpt-oss/lib/python3.12/site-packages/peft/tuners/lora/layer.py:159: UserWarning: Unsupported layer type '<class 'transformers.models.gpt_oss.modeling_gpt_oss.GptOssExperts'>' encountered, proceed at your own risk.
+  warnings.warn(
+✅ 模型合并完成并保存到 merged_bf16_model
+```
+
+
+
+```
+from transformers import AutoModelForCausalLM, Mxfp4Config
+
+input_dir = "./merged_bf16_model"   # 全精度模型
+output_dir = "./merged_mxfp4_model" # 4bit MXFP4 模型
+
+# MXFP4 量化配置
+quant_config = Mxfp4Config(dequantize=False)
+
+# 加载全精度模型
+model = AutoModelForCausalLM.from_pretrained(input_dir)
+
+# 保存时量化为 MXFP4（保留在显存中为4bit）
+model.save_pretrained(output_dir, quantization_config=quant_config)
+
+print(f"✅ MXFP4 模型已保存到 {output_dir}")
+```
+
+
+
+```
+Loading checkpoint shards: 100%
+ 9/9 [07:02<00:00, 42.84s/it]
+✅ MXFP4 模型已保存到 ./merged_mxfp4_model
+```
+
+
+
+```
+(base) root@h100vm:~# ls -al merged_mxfp4_model
+total 81698556
+drwxr-xr-x  2 root root       4096 Aug 19 06:23 .
+drwx------ 84 root root       4096 Aug 19 06:16 ..
+-rw-r--r--  1 root root       1617 Aug 19 06:16 config.json
+-rw-r--r--  1 root root        172 Aug 19 06:16 generation_config.json
+-rw-r--r--  1 root root 4547208368 Aug 19 06:16 model-00001-of-00025.safetensors
+-rw-r--r--  1 root root 4461395728 Aug 19 06:16 model-00002-of-00025.safetensors
+-rw-r--r--  1 root root 3292749840 Aug 19 06:16 model-00003-of-00025.safetensors
+-rw-r--r--  1 root root 3292749840 Aug 19 06:16 model-00004-of-00025.safetensors
+-rw-r--r--  1 root root 3292749840 Aug 19 06:16 model-00005-of-00025.safetensors
+-rw-r--r--  1 root root 3292749840 Aug 19 06:16 model-00006-of-00025.safetensors
+-rw-r--r--  1 root root 3292749840 Aug 19 06:16 model-00007-of-00025.safetensors
+-rw-r--r--  1 root root 3292749840 Aug 19 06:16 model-00008-of-00025.safetensors
+-rw-r--r--  1 root root 3292749840 Aug 19 06:16 model-00009-of-00025.safetensors
+-rw-r--r--  1 root root 3292749800 Aug 19 06:16 model-00010-of-00025.safetensors
+-rw-r--r--  1 root root 3292749856 Aug 19 06:16 model-00011-of-00025.safetensors
+-rw-r--r--  1 root root 3292749856 Aug 19 06:16 model-00012-of-00025.safetensors
+-rw-r--r--  1 root root 3292749856 Aug 19 06:17 model-00013-of-00025.safetensors
+-rw-r--r--  1 root root 3292749856 Aug 19 06:17 model-00014-of-00025.safetensors
+-rw-r--r--  1 root root 3292749856 Aug 19 06:18 model-00015-of-00025.safetensors
+-rw-r--r--  1 root root 3292749856 Aug 19 06:18 model-00016-of-00025.safetensors
+-rw-r--r--  1 root root 3292749856 Aug 19 06:19 model-00017-of-00025.safetensors
+-rw-r--r--  1 root root 3292749856 Aug 19 06:19 model-00018-of-00025.safetensors
+-rw-r--r--  1 root root 3292749856 Aug 19 06:20 model-00019-of-00025.safetensors
+-rw-r--r--  1 root root 3292749856 Aug 19 06:20 model-00020-of-00025.safetensors
+-rw-r--r--  1 root root 3292749856 Aug 19 06:21 model-00021-of-00025.safetensors
+-rw-r--r--  1 root root 3292749856 Aug 19 06:22 model-00022-of-00025.safetensors
+-rw-r--r--  1 root root 3292749856 Aug 19 06:22 model-00023-of-00025.safetensors
+-rw-r--r--  1 root root 3186190904 Aug 19 06:23 model-00024-of-00025.safetensors
+-rw-r--r--  1 root root 2316533888 Aug 19 06:23 model-00025-of-00025.safetensors
+-rw-r--r--  1 root root      33635 Aug 19 06:23 model.safetensors.index.json
+```
+
+
+
+Compile GPU llama.cpp
+
+```
+sudo apt install -y git cmake build-essential
+pip install sentencepiece
+git clone https://github.com/ggerganov/llama.cpp.git
+cd llama.cpp
+pip install -r llama.cpp/requirements.txt
+mkdir build && cd build
+cmake .. -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=90
+make -j$(nproc)
+```
+
+
+
+```
+[ 98%] Built target llama-tts
+[ 99%] Linking CXX executable ../bin/test-chat
+[ 99%] Built target test-chat
+[ 99%] Linking CXX executable ../bin/test-backend-ops
+[ 99%] Built target test-backend-ops
+[100%] Linking CXX executable ../../bin/llama-server
+[100%] Built target llama-server
+(gpt-oss) root@h100vm:~/llama.cpp/build# 
+```
+
+convert  HF to  llama.cpp FP16 BIN  file:
+
+```
+(gpt-oss) root@h100vm:~# python3 ~/llama.cpp/convert_hf_to_gguf.py     ./merged_bf16_model     --outfile merged_fp16.gguf --outtype f16
+```
+
+```
+{#- Generation prompt #}
+{%- if add_generation_prompt -%}
+<|start|>assistant
+{%- endif -%}
+INFO:gguf.gguf_writer:Writing the following files:
+INFO:gguf.gguf_writer:merged_fp16.gguf: n_tensors = 459, total_size = 41.8G
+Writing: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████| 41.8G/41.8G [07:36<00:00, 91.7Mbyte/s]
+INFO:hf-to-gguf:Model successfully exported to merged_fp16.gguf
+```
+
+
+
+```
+(gpt-oss) root@h100vm:~# ls -al merged_fp16.gguf 
+-rw-r--r-- 1 root root 41860888000 Aug 19 07:38 merged_fp16.gguf
+(gpt-oss) root@h100vm:~# 
+```
+
+
+
+```
+(gpt-oss) root@h100vm:~/llama.cpp/build# ./bin/llama-quantize --help
+usage: ./bin/llama-quantize [--help] [--allow-requantize] [--leave-output-tensor] [--pure] [--imatrix] [--include-weights]
+       [--exclude-weights] [--output-tensor-type] [--token-embedding-type] [--tensor-type] [--prune-layers] [--keep-split] [--override-kv]
+       model-f32.gguf [model-quant.gguf] type [nthreads]
+
+  --allow-requantize: Allows requantizing tensors that have already been quantized. Warning: This can severely reduce quality compared to quantizing from 16bit or 32bit
+  --leave-output-tensor: Will leave output.weight un(re)quantized. Increases model size but may also increase quality, especially when requantizing
+  --pure: Disable k-quant mixtures and quantize all tensors to the same type
+  --imatrix file_name: use data in file_name as importance matrix for quant optimizations
+  --include-weights tensor_name: use importance matrix for this/these tensor(s)
+  --exclude-weights tensor_name: use importance matrix for this/these tensor(s)
+  --output-tensor-type ggml_type: use this ggml_type for the output.weight tensor
+  --token-embedding-type ggml_type: use this ggml_type for the token embeddings tensor
+  --tensor-type TENSOR=TYPE: quantize this tensor to this ggml_type. example: --tensor-type attn_q=q8_0
+      Advanced option to selectively quantize tensors. May be specified multiple times.
+  --prune-layers L0,L1,L2...comma-separated list of layer numbers to prune from the model
+      Advanced option to remove all tensors from the given layers
+  --keep-split: will generate quantized model in the same shards as input
+  --override-kv KEY=TYPE:VALUE
+      Advanced option to override model metadata by key in the quantized model. May be specified multiple times.
+Note: --include-weights and --exclude-weights cannot be used together
+
+Allowed quantization types:
+   2  or  Q4_0    :  4.34G, +0.4685 ppl @ Llama-3-8B
+   3  or  Q4_1    :  4.78G, +0.4511 ppl @ Llama-3-8B
+  38  or  MXFP4_MOE :  MXFP4 MoE
+   8  or  Q5_0    :  5.21G, +0.1316 ppl @ Llama-3-8B
+   9  or  Q5_1    :  5.65G, +0.1062 ppl @ Llama-3-8B
+  19  or  IQ2_XXS :  2.06 bpw quantization
+  20  or  IQ2_XS  :  2.31 bpw quantization
+  28  or  IQ2_S   :  2.5  bpw quantization
+  29  or  IQ2_M   :  2.7  bpw quantization
+  24  or  IQ1_S   :  1.56 bpw quantization
+  31  or  IQ1_M   :  1.75 bpw quantization
+  36  or  TQ1_0   :  1.69 bpw ternarization
+  37  or  TQ2_0   :  2.06 bpw ternarization
+  10  or  Q2_K    :  2.96G, +3.5199 ppl @ Llama-3-8B
+  21  or  Q2_K_S  :  2.96G, +3.1836 ppl @ Llama-3-8B
+  23  or  IQ3_XXS :  3.06 bpw quantization
+  26  or  IQ3_S   :  3.44 bpw quantization
+  27  or  IQ3_M   :  3.66 bpw quantization mix
+  12  or  Q3_K    : alias for Q3_K_M
+  22  or  IQ3_XS  :  3.3 bpw quantization
+  11  or  Q3_K_S  :  3.41G, +1.6321 ppl @ Llama-3-8B
+  12  or  Q3_K_M  :  3.74G, +0.6569 ppl @ Llama-3-8B
+  13  or  Q3_K_L  :  4.03G, +0.5562 ppl @ Llama-3-8B
+  25  or  IQ4_NL  :  4.50 bpw non-linear quantization
+  30  or  IQ4_XS  :  4.25 bpw non-linear quantization
+  15  or  Q4_K    : alias for Q4_K_M
+  14  or  Q4_K_S  :  4.37G, +0.2689 ppl @ Llama-3-8B
+  15  or  Q4_K_M  :  4.58G, +0.1754 ppl @ Llama-3-8B
+  17  or  Q5_K    : alias for Q5_K_M
+  16  or  Q5_K_S  :  5.21G, +0.1049 ppl @ Llama-3-8B
+  17  or  Q5_K_M  :  5.33G, +0.0569 ppl @ Llama-3-8B
+  18  or  Q6_K    :  6.14G, +0.0217 ppl @ Llama-3-8B
+   7  or  Q8_0    :  7.96G, +0.0026 ppl @ Llama-3-8B
+   1  or  F16     : 14.00G, +0.0020 ppl @ Mistral-7B
+  32  or  BF16    : 14.00G, -0.0050 ppl @ Mistral-7B
+   0  or  F32     : 26.00G              @ 7B
+          COPY    : only copy tensors, no quantizing
+(gpt-oss) root@h100vm:~/llama.cpp/build# 
+```
+
+
+
+```
+(gpt-oss) root@h100vm:~# ~/llama.cpp/build/bin/llama-quantize     merged_fp16.gguf     merged_mxfp4.gguf     MXFP4_MOE
+```
+
+
+
+```
+llama_model_quantize_impl: model size  = 39909.25 MB
+llama_model_quantize_impl: quant size  = 11536.18 MB
+
+main: quantize time = 43510.50 ms
+main:    total time = 43510.50 ms
+```
+
+
+
+```
+(gpt-oss) root@h100vm:~# ls -al merged_mxfp4.gguf 
+-rw-r--r-- 1 root root 12109566400 Aug 19 07:51 merged_mxfp4.gguf
+(gpt-oss) root@h100vm:~# ls -al merged_fp16.gguf
+-rw-r--r-- 1 root root 41860888000 Aug 19 07:38 merged_fp16.gguf
+(gpt-oss) root@h100vm:~# 
+```
+
+
+
+```
+(gpt-oss) root@h100vm:~/llama.cpp/build# ./bin/llama-cli -m /root/merged_mxfp4.gguf  --gpu-layers 25  -p "Hello"
+```
+
+```
+> the result add form 1 to 100
+<|channel|>analysis<|message|>The user wants the sum of the numbers from 1 to 100. I should calculate this using the formula for the sum of an arithmetic series: n(n+1)/2. For 1 to 100, n = 100, so the sum is 100*101/2 = 5050. The user might be confused by the result, so I should confirm what they expect and explain the formula.<|end|><|start|>assistant<|channel|>final<|message|>Sure! Let's calculate the sum of all integers from 1 to 100:
+
+### Formula for the Sum of an Arithmetic Series
+For a series of consecutive numbers from 1 to \( n \), the sum is given by:
+\[
+\text{Sum} = \frac{n(n+1)}{2}
+\]
+
+### Applying the Formula to 1 to 100
+Here, \( n = 100 \). Plugging it into the formula:
+\[
+\text{Sum} = \frac{100 \times 101}{2} = \frac{10{,}100}{2} = 5{,}050
+\]
+
+### Verification
+You can verify by adding the numbers in pairs:
+- 1 + 100 = 101
+- 2 + 99 = 101
+- ...
+- 50 + 51 = 101
+
+There are 50 pairs, each summing to 101:
+\[
+50 \times 101 = 5{,}050
+\]
+
+### Result
+The sum of all integers from 1 to 100 is **5,050**.
+
+---
+
+If you were expecting a different result or need help with another range, let me know!
+
+```
+
+
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/24.png)
 
 
 
