@@ -2,7 +2,7 @@
 
 * ***Deep-Learning: Includes content on LLM/SLM pre-training, inference, and fine-tuning.***
 * ***GPUs: Includes content on GPU hardware, IB, and RDMA.***
-* ***LLMs: Includes content on LLM and SLM solutions, such as RAG.***
+* ***Agents: Includes content on AI Agents.***
 * ***Multimodal-Models: Includes content on SFT and inference practices of Computer Vision.***
 * ***Code-of-Book: Includes content on code of the book "Principles, Training, and Applications of Large Language Models."***
 
