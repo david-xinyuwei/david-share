@@ -829,6 +829,12 @@ In this part of demo, I will show as folllowing flow to do SFT on gpt-oss:
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/18.png)
 
+**Note：**
+
+The method shown in the figure works fine and can be executed, but when  the model weight file is quantized from FP16 GGUF to MXFP4-MoE GGUF**(No way quantize back to MXFP4 )**,  there will be a significant loss of accuracy. According to the Unslotsh  documentation, a similar point is made. Therefore, after the model has  been fine-tuned, one can consider loading the base model with MXFP4 and  the adapter with FP16, which ensures accuracy while saving GPU memory.
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/25.png)
+
 Install required package
 
 ```
