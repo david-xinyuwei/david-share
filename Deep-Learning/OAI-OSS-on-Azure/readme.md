@@ -819,7 +819,7 @@ OpenAI-oss-120b has been released on Azure AI Foundry and can be deployed in a v
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/12.png)
 
-## gpt-oss-20b Supervised Fine-Tuning 
+## gpt-oss-20b Supervised Fine-Tuning - Bad Case
 
 Overall SFT of gpt-oss is as：
 
@@ -1449,9 +1449,832 @@ Key points to consider:",en,The capital of Australia is **Canberra**.,en
 Chinese,澳大利亚的首都是什么？,好的，用户问的是澳大利亚的首都。我先想一下我知道的。澳大利亚的首都是堪培拉（Canberra），是个小城市，位于澳大利亚东南部，靠近悉尼和墨尔本。堪培拉是澳大利亚联邦的政治中心，也是许多联邦政府机构所在地。用户可能只是想确认这个事实。为了确保答案准确无误，我再确认一下：堪培拉是澳大利亚的首都，而不是悉尼或墨尔本，它们只是大城市。堪培拉成立于1908年，作为澳大利亚首都而设。用户没有提到其他信息，所以只需回答这个问题即可。<|end|>,zh-cn,堪培拉（Canberra）是澳大利亚的首都。,no
 ```
 
-
+ **Although** the GGUF quantized to MXFP4-MoE can run, extensive testing has shown that the quantization process has significantly weakened the  effect of SFT. Therefore, in the following subsection, I will try other  quantization methods.
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/24.png)
+
+## gpt-oss-20b Supervised Fine-Tuning - Good Case
+
+In this part, I quantize model to different data type to chech the SFT effect.
+
+```
+cat ./quantize_all.sh
+```
+
+```
+#!/usr/bin/env bash
+set -euo pipefail
+
+LLAMA_BIN_DIR="${LLAMA_BIN_DIR:-/root/llama.cpp/build/bin}"
+LLAMA_QUANT="${LLAMA_QUANT:-$LLAMA_BIN_DIR/llama-quantize}"
+SRC_FP16="${SRC_FP16:-/root/merged_fp16.gguf}"
+OUTDIR="${OUTDIR:-./quant_models}"
+RQ_FLAG=""
+if [ "${ALLOW_REQUANTIZE:-0}" = "1" ]; then RQ_FLAG="--allow-requantize"; fi
+
+mkdir -p "$OUTDIR"
+
+"$LLAMA_QUANT" $RQ_FLAG "$SRC_FP16" "$OUTDIR/merged_fp16_Q4_K_M.gguf" Q4_K_M
+"$LLAMA_QUANT" $RQ_FLAG "$SRC_FP16" "$OUTDIR/merged_fp16_Q5_K_M.gguf" Q5_K_M
+"$LLAMA_QUANT" $RQ_FLAG "$SRC_FP16" "$OUTDIR/merged_fp16_Q6_K.gguf"   Q6_K
+"$LLAMA_QUANT" $RQ_FLAG "$SRC_FP16" "$OUTDIR/merged_fp16_Q8_0.gguf"   Q8_0
+
+"$LLAMA_QUANT" --help > /tmp/llq_help.txt || true
+MX_TYPE=""
+for T in MXFP4_MoE MXFP4; do
+  if grep -qiE "\b${T}\b" /tmp/llq_help.txt; then
+    MX_TYPE="$T"
+    break
+  fi
+done
+if [ -n "$MX_TYPE" ]; then
+  "$LLAMA_QUANT" $RQ_FLAG "$SRC_FP16" "$OUTDIR/merged_mxfp4.gguf" "$MX_TYPE"
+else
+  echo "[INFO] MXFP4/MoE quant type not found in this llama-quantize build; skip MXFP4 output."
+fi
+
+ls -lh "$OUTDIR" || true
+```
+
+quantized models:
+
+```
+(base) root@h100vm:~/gpt-oss# ls -al quant_models/
+total 75345216
+drwxr-xr-x  2 root root        4096 Aug 20 13:15 .
+drwxr-xr-x 10 root root        4096 Aug 21 06:08 ..
+-rw-r--r--  1 root root 15805136320 Aug 20 13:15 merged_fp16_Q4_K_M.gguf
+-rw-r--r--  1 root root 16893062080 Aug 20 13:15 merged_fp16_Q5_K_M.gguf
+-rw-r--r--  1 root root 22193344960 Aug 20 13:14 merged_fp16_Q6_K.gguf
+-rw-r--r--  1 root root 22261912000 Aug 20 13:13 merged_fp16_Q8_0.gguf
+```
+
+Check SFT performance:
+
+```
+(base) root@h100vm:~/gpt-oss#cat run_strict_eval_32.py
+```
+
+```
+#!/usr/bin/env python3
+import os
+import sys
+import json
+import csv
+import time
+import glob
+import signal
+import socket
+import shutil
+import subprocess
+from pathlib import Path
+
+def ensure_packages():
+    pkgs = ["requests", "langdetect"]
+    for p in pkgs:
+        try:
+            __import__(p)
+        except ImportError:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", p], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        __import__("pycld3")
+    except ImportError:
+        try:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "pycld3"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            pass
+
+ensure_packages()
+import requests
+from langdetect import detect, DetectorFactory
+DetectorFactory.seed = 42
+try:
+    from pycld3 import NNetLanguageIdentifier
+    _cld3_identifier = NNetLanguageIdentifier(min_num_bytes=0, max_num_bytes=1000)
+    CLD3_OK = True
+except Exception:
+    _cld3_identifier = None
+    CLD3_OK = False
+
+def find_llama_server():
+    env_path = os.environ.get("LLAMA_SERVER", "").strip()
+    if env_path and Path(env_path).is_file():
+        return env_path
+    bin_dir = os.environ.get("LLAMA_BIN_DIR", "").strip()
+    candidates = []
+    if bin_dir:
+        candidates.append(str(Path(bin_dir) / "llama-server"))
+    home = str(Path.home())
+    candidates += [
+        "/root/llama.cpp/build/bin/llama-server",
+        f"{home}/llama.cpp/build/bin/llama-server",
+        "/usr/local/bin/llama-server",
+        "/usr/bin/llama-server",
+    ]
+    for c in candidates:
+        if Path(c).is_file():
+            return c
+    return ""
+
+def pick_free_port(start_port):
+    p = start_port
+    while p < 65535:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(0.1)
+            try:
+                s.bind(("127.0.0.1", p))
+                return p
+            except OSError:
+                p += 1
+    raise RuntimeError("no free port found")
+
+def wait_server_ready_simple(port, timeout):
+    url = f"http://127.0.0.1:{port}/completion"
+    t0 = time.time()
+    while time.time() - t0 < timeout:
+        try:
+            r = requests.post(url, json={"prompt": "ping", "n_predict": 1}, timeout=2)
+            if r.status_code == 200:
+                return True
+        except requests.RequestException:
+            pass
+        time.sleep(1)
+    return False
+
+def start_server(llama_server, model_path, port, gpu_layers, log_path):
+    cmd = [
+        llama_server,
+        "-m", model_path,
+        "--gpu-layers", str(gpu_layers),
+        "--port", str(port),
+        "--chat-template", "",
+        "--reasoning-format", "none",
+    ]
+    extra = os.environ.get("LLAMA_SERVER_EXTRA", "").strip()
+    if extra:
+        cmd.extend(extra.split())
+    lf = open(log_path, "w")
+    proc = subprocess.Popen(cmd, stdout=lf, stderr=subprocess.STDOUT)
+    return proc, lf
+
+def stop_server(proc):
+    if proc.poll() is None:
+        try:
+            proc.send_signal(signal.SIGINT)
+            proc.wait(timeout=5)
+        except Exception:
+            try:
+                proc.kill()
+            except Exception:
+                pass
+
+def normalize_lang_name(name):
+    s = (name or "").strip().lower()
+    if s in ["zh", "zh-cn", "zh_tw", "zh-tw", "chinese", "中文", "汉语", "國語", "普通话", "cn"]:
+        return "Chinese"
+    if s in ["en", "english", "英文", "us", "gb"]:
+        return "English"
+    if s in ["es", "spanish", "español", "西班牙语"]:
+        return "Spanish"
+    if s in ["fr", "french", "français", "法语"]:
+        return "French"
+    if s in ["de", "german", "deutsch", "德语"]:
+        return "German"
+    if s:
+        return s.title()
+    return "unknown"
+
+def code_to_name(code):
+    c = (code or "").lower()
+    if c.startswith("zh"):
+        return "Chinese"
+    if c.startswith("en"):
+        return "English"
+    if c.startswith("es"):
+        return "Spanish"
+    if c.startswith("fr"):
+        return "French"
+    if c.startswith("de"):
+        return "German"
+    return "unknown"
+
+def detect_lang_cld3(text):
+    if not CLD3_OK or not text or not text.strip():
+        return "unknown"
+    try:
+        res = _cld3_identifier.FindLanguage(text)
+        return code_to_name(res.language)
+    except Exception:
+        return "unknown"
+
+def detect_lang_ld(text):
+    t = (text or "").strip()
+    if not t:
+        return "unknown"
+    try:
+        return code_to_name(detect(t))
+    except Exception:
+        return "unknown"
+
+def cjk_ratio(text):
+    if not text:
+        return 0.0
+    total = 0
+    cjk = 0
+    for ch in text:
+        total += 1
+        if "\u4e00" <= ch <= "\u9fff":
+            cjk += 1
+    return (cjk / total) if total else 0.0
+
+def heuristic_match(text, target_lang):
+    tgt = normalize_lang_name(target_lang)
+    t = (text or "").strip().lower()
+    if not t:
+        return False
+    if tgt == "Chinese":
+        return cjk_ratio(t) >= 0.3
+    if tgt == "Spanish":
+        sw = [" el ", " la ", " de ", " que ", " y ", " en ", " los ", " las ", " para ", " como ", " porque ", " del "]
+        return sum(1 for w in sw if w in f" {t} ") >= 2
+    if tgt == "French":
+        sw = [" le ", " la ", " les ", " de ", " des ", " et ", " en ", " pour ", " que ", " est ", " aux ", " du "]
+        return sum(1 for w in sw if w in f" {t} ") >= 2
+    if tgt == "German":
+        sw = [" und ", " der ", " die ", " das ", " ist ", " ein ", " eine ", " von ", " zu ", " mit ", " dem ", " den "]
+        return sum(1 for w in sw if w in f" {t} ") >= 2
+    if tgt == "English":
+        sw = [" the ", " and ", " is ", " are ", " of ", " to ", " in ", " for ", " that ", " with ", " on "]
+        return sum(1 for w in sw if w in f" {t} ") >= 2
+    return False
+
+def adherence_ok(analysis_text, target_lang, strict=True):
+    tgt = normalize_lang_name(target_lang)
+    det1 = detect_lang_cld3(analysis_text)
+    det2 = detect_lang_ld(analysis_text)
+    if strict:
+        if det1 == tgt and det1 != "unknown":
+            return 1, f"{det1}|{det2}"
+        if det2 == tgt and det2 != "unknown" and heuristic_match(analysis_text, tgt):
+            return 1, f"{det1}|{det2}"
+        return 0, f"{det1}|{det2}"
+    else:
+        if (det1 == tgt and det1 != "unknown") or (det2 == tgt and det2 != "unknown"):
+            return 1, f"{det1}|{det2}"
+        if heuristic_match(analysis_text, tgt):
+            return 1, f"{det1}|{det2}"
+        return 0, f"{det1}|{det2}"
+
+def build_analysis_prompt(rlang, question):
+    sys_part = (
+        f"<|start|>system<|message|>reasoning language: {rlang}\n"
+        f"You MUST first output your reasoning inside:\n"
+        f"<|start|>assistant<|channel|>analysis<|message|> ... <|end|>\n"
+        f"Then output your final answer inside:\n"
+        f"<|start|>assistant<|channel|>final<|message|> ... <|end|>\n"
+        f"<|end|>"
+    )
+    user_part = f" <|start|>user<|message|>{question}<|end|> "
+    start_analysis = "<|start|>assistant<|channel|>analysis<|message|>"
+    return sys_part + user_part + start_analysis
+
+def call_completion(port, prompt, n_predict, temperature, top_p, top_k, seed, timeout_s):
+    url = f"http://127.0.0.1:{port}/completion"
+    payload = {
+        "prompt": prompt,
+        "n_predict": n_predict,
+        "temperature": temperature,
+        "top_p": top_p,
+        "top_k": top_k,
+        "stop": ["<|end|>"]
+    }
+    if seed is not None:
+        payload["seed"] = seed
+    try:
+        r = requests.post(url, json=payload, timeout=timeout_s)
+        if r.status_code == 200:
+            data = r.json()
+            return data.get("content", "")
+        return ""
+    except Exception:
+        return ""
+
+def extract_analysis(text):
+    if not text:
+        return ""
+    parts = text.split("<|end|>")
+    return parts[0].strip() if parts else text.strip()
+
+def evaluate_model(model_path, tag, port, gpu_layers, run_dir, eval_items, n_predict, temp, top_p, top_k, seed, wait_timeout, per_req_timeout, strict_lang, verbose):
+    logs_dir = run_dir / "logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    log_path = logs_dir / f"server_{tag}.log"
+    llama_server = find_llama_server()
+    if not llama_server:
+        print("[ERROR] llama-server not found. Set LLAMA_SERVER or LLAMA_BIN_DIR.")
+        return None
+    proc, lf = start_server(llama_server, model_path, port, gpu_layers, str(log_path))
+    time.sleep(5)
+    ok_ready = wait_server_ready_simple(port, wait_timeout)
+    if not ok_ready:
+        try:
+            lf.flush()
+        except Exception:
+            pass
+        print(f"[ERROR] Server not ready for {tag}. Tail log:")
+        try:
+            with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
+                lines = f.readlines()[-200:]
+                for line in lines:
+                    sys.stdout.write(line)
+        except Exception:
+            pass
+        stop_server(proc)
+        try:
+            lf.close()
+        except Exception:
+            pass
+        return None
+    rows = []
+    mname = Path(model_path).name
+    csv_path = run_dir / f"{tag}.csv"
+    total = len(eval_items)
+    for idx, item in enumerate(eval_items, 1):
+        rlang = item.get("reasoning_language", "")
+        question = item.get("question", "")
+        prompt = build_analysis_prompt(rlang, question)
+        content_full = call_completion(port, prompt, n_predict, temp, top_p, top_k, seed, per_req_timeout)
+        analysis = extract_analysis(content_full)
+        ok, detected = adherence_ok(analysis, rlang, strict=strict_lang)
+        row = {
+            "model_name": mname,
+            "quant_type": tag,
+            "reasoning_language": rlang,
+            "question": question,
+            "analysis_text": analysis,
+            "analysis_lang_detected": detected,
+            "analysis_adherence": ok
+        }
+        rows.append(row)
+        if verbose:
+            print(f"[{tag}] {idx}/{total} Rlang={rlang} Detected={detected} OK={ok}")
+    if rows:
+        with open(csv_path, "w", newline="", encoding="utf-8") as f:
+            w = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
+            w.writeheader()
+            w.writerows(rows)
+    stop_server(proc)
+    try:
+        lf.close()
+    except Exception:
+        pass
+    return str(csv_path)
+
+def aggregate_dir(outdir):
+    files = sorted(glob.glob(str(Path(outdir) / "*.csv")))
+    files = [f for f in files if not f.endswith("summary_overview.csv")]
+    if not files:
+        print("[ERROR] No CSV files to aggregate.")
+        return None
+    summary = []
+    for fp in files:
+        try:
+            with open(fp, encoding="utf-8") as f:
+                rows = list(csv.DictReader(f))
+        except Exception:
+            rows = []
+        if not rows:
+            continue
+        model_name = rows[0].get("model_name", "")
+        quant_type = rows[0].get("quant_type", "")
+        by_lang = {}
+        for r in rows:
+            rl = r.get("reasoning_language", "")
+            by_lang.setdefault(rl, {"ok": 0, "tot": 0})
+            try:
+                by_lang[rl]["ok"] += int(r.get("analysis_adherence", "0"))
+            except Exception:
+                pass
+            by_lang[rl]["tot"] += 1
+        for lang, v in by_lang.items():
+            pct = 100.0 * v["ok"] / max(1, v["tot"])
+            summary.append({
+                "model_name": model_name,
+                "quant_type": quant_type,
+                "reasoning_language": lang,
+                "adherence_ok": v["ok"],
+                "adherence_total": v["tot"],
+                "adherence_pct": f"{pct:.1f}"
+            })
+    if not summary:
+        print("[ERROR] Empty summary.")
+        return None
+    out_csv = Path(outdir) / "summary_overview.csv"
+    with open(out_csv, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=list(summary[0].keys()))
+        w.writeheader()
+        w.writerows(summary)
+    totals = {}
+    for r in summary:
+        key = (r["model_name"], r["quant_type"])
+        totals.setdefault(key, {"ok": 0, "tot": 0})
+        totals[key]["ok"] += int(r["adherence_ok"])
+        totals[key]["tot"] += int(r["adherence_total"])
+    ranking = []
+    for k, v in totals.items():
+        pct = 100.0 * v["ok"] / max(1, v["tot"])
+        ranking.append((pct, v["ok"], v["tot"], k[0], k[1]))
+    ranking.sort(reverse=True, key=lambda x: x[0])
+    print("\n=== Per-language breakdown ===")
+    grouped = {}
+    for r in summary:
+        key = (r["model_name"], r["quant_type"])
+        grouped.setdefault(key, []).append(r)
+    for k, items in grouped.items():
+        print(f"{k[0]} | {k[1]}")
+        for it in sorted(items, key=lambda x: x["reasoning_language"]):
+            print(f"  {it['reasoning_language']}: {it['adherence_pct']}% ({it['adherence_ok']}/{it['adherence_total']})")
+        total_ok = sum(int(x["adherence_ok"]) for x in items)
+        total_tot = sum(int(x["adherence_total"]) for x in items)
+        total_pct = 100.0 * total_ok / max(1, total_tot)
+        print(f"  TOTAL: {total_pct:.1f}% ({total_ok}/{total_tot})\n")
+    print("=== Overall Ranking (by TOTAL adherence %) ===")
+    for pct, ok, tot, model_name, quant_type in ranking:
+        print(f"{model_name} | {quant_type}: {pct:.1f}% ({ok}/{tot})")
+    return str(out_csv)
+
+def default_eval_32():
+    zh = [
+        "中国最长的河流是什么？",
+        "太阳系中最大的行星是什么？",
+    ]
+    en = [
+        "What is the capital of Australia?",
+        "Who wrote 'Pride and Prejudice'?",
+    ]
+    es = [
+        "¿Cuál es la capital de Japón?",
+        "¿Cuál es el océano más grande del mundo?",
+    ]
+    fr = [
+        "Quelle est la capitale de l'Allemagne ?",
+        "Quel est l'océan le plus profond ?",
+    ]
+    de = [
+        "Was ist die Hauptstadt von Kanada?",
+        "Welcher Fluss ist der längste der Welt?",
+    ]
+    langs = ["Chinese", "Spanish", "French", "German"]
+    items = []
+    for q in zh + en + es + fr + de:
+        for rl in langs:
+            items.append({"reasoning_language": rl, "question": q})
+    return items[:32]
+
+def load_eval_set_exact(path_hint):
+    if path_hint and Path(path_hint).is_file():
+        with open(path_hint, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data[:32], path_hint
+    here = Path(__file__).resolve().parent
+    candidates = [
+        here / "eval_set.json",
+        here / "quant_eval_suite_strict" / "eval_set.json",
+        Path.cwd() / "eval_set.json",
+    ]
+    for c in candidates:
+        if c.is_file():
+            with open(c, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return data[:32], str(c)
+    data = default_eval_32()
+    tmp_path = Path.cwd() / "eval_set_autogen_32.json"
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    return data, str(tmp_path)
+
+def main():
+    models = [
+        ("/root/merged_fp16.gguf", "FP16"),
+        ("/root/merged_mxfp4.gguf", "MXFP4_MoE"),
+        ("./quant_models/merged_fp16_Q4_K_M.gguf", "Q4_K_M"),
+        ("./quant_models/merged_fp16_Q5_K_M.gguf", "Q5_K_M"),
+        ("./quant_models/merged_fp16_Q6_K.gguf", "Q6_K"),
+        ("./quant_models/merged_fp16_Q8_0.gguf", "Q8_0"),
+    ]
+    env_models = os.environ.get("MODELS", "").strip()
+    if env_models:
+        parsed = []
+        for part in env_models.split(","):
+            part = part.strip()
+            if not part:
+                continue
+            if ":" in part:
+                p, t = part.split(":", 1)
+                parsed.append((p.strip(), t.strip()))
+            else:
+                parsed.append((part, Path(part).stem))
+        if parsed:
+            models = parsed
+
+    outdir = os.environ.get("OUTDIR", "eval_results_strict")
+    gpu_layers = int(os.environ.get("GPU_LAYERS", "25"))
+    base_port = int(os.environ.get("BASE_PORT", "8081"))
+    mxfp4_port_env = int(os.environ.get("MXFP4_PORT", "8080"))
+    n_predict = int(os.environ.get("N_PREDICT", "480"))
+    wait_timeout = int(os.environ.get("WAIT_TIMEOUT", "300"))
+    per_req_timeout = int(os.environ.get("REQ_TIMEOUT", "180"))
+    temperature = float(os.environ.get("TEMPERATURE", "0.8"))
+    top_p = float(os.environ.get("TOP_P", "1.0"))
+    top_k = int(os.environ.get("TOP_K", "0"))
+    seed_env = os.environ.get("SEED", "").strip()
+    seed = int(seed_env) if seed_env else None
+    verbose = os.environ.get("VERBOSE", "1") != "0"
+    clean = os.environ.get("CLEAN", "1") == "1"
+    strict_lang = os.environ.get("STRICT_LANG", "1") == "1"
+    eval_hint = os.environ.get("EVAL_SET_JSON", "").strip()
+
+    eval_items, eval_path_used = load_eval_set_exact(eval_hint)
+    Path(outdir).mkdir(parents=True, exist_ok=True)
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    run_dir = Path(outdir) / f"run_{timestamp}"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    if clean:
+        for f in Path(outdir).glob("*.csv"):
+            try:
+                f.unlink()
+            except Exception:
+                pass
+
+    print(f"[INFO] Using eval set: {eval_path_used} ({len(eval_items)} items)")
+    print(f"[INFO] Output run dir: {run_dir}")
+
+    produced = []
+    used_ports = set()
+    for path, tag in models:
+        if not Path(path).is_file():
+            print(f"[WARN] Skip {tag}: file not found: {path}")
+            continue
+        if tag == "MXFP4_MoE":
+            port = mxfp4_port_env
+            if port in used_ports:
+                port = pick_free_port(mxfp4_port_env)
+        else:
+            port = pick_free_port(base_port)
+        used_ports.add(port)
+        print(f"[RUN] {tag}: starting llama-server on port {port} (gpu-layers={gpu_layers})")
+        csv_path = evaluate_model(path, tag, port, gpu_layers, run_dir, eval_items, n_predict, temperature, top_p, top_k, seed, wait_timeout, per_req_timeout, strict_lang, verbose)
+        if csv_path:
+            produced.append(csv_path)
+            print(f"[DONE] {tag}: results -> {csv_path}")
+        else:
+            print(f"[FAIL] {tag}: no results")
+
+    if not produced:
+        print("[ERROR] No CSV produced. Abort aggregation.")
+        return
+
+    summary_path = aggregate_dir(run_dir)
+    if summary_path:
+        latest_link = Path(outdir) / "latest"
+        try:
+            if latest_link.is_symlink() or latest_link.exists():
+                if latest_link.is_dir():
+                    shutil.rmtree(latest_link, ignore_errors=True)
+                else:
+                    latest_link.unlink()
+            os.symlink(run_dir.name, latest_link, target_is_directory=True)
+        except Exception:
+            pass
+        print(f"[INFO] Summary CSV: {summary_path}")
+        print(f"[INFO] Logs: {run_dir}/logs")
+        print(f"[INFO] Latest symlink: {Path(outdir) / 'latest'}")
+
+if __name__ == "__main__":
+    main()
+```
+
+Run script:
+
+```
+(gpt-oss) root@h100vm:~/gpt-oss# GPU_LAYERS=25 ./run_strict_eval_32.py
+```
+
+Result:
+
+```
+=== Per-language breakdown ===
+merged_fp16.gguf | FP16
+  Chinese: 37.5% (3/8)
+  French: 37.5% (3/8)
+  German: 50.0% (4/8)
+  Spanish: 37.5% (3/8)
+  TOTAL: 40.6% (13/32)
+
+merged_mxfp4.gguf | MXFP4_MoE
+  Chinese: 12.5% (1/8)
+  French: 25.0% (2/8)
+  German: 0.0% (0/8)
+  Spanish: 25.0% (2/8)
+  TOTAL: 15.6% (5/32)
+
+merged_fp16_Q4_K_M.gguf | Q4_K_M
+  Chinese: 37.5% (3/8)
+  French: 12.5% (1/8)
+  German: 12.5% (1/8)
+  Spanish: 50.0% (4/8)
+  TOTAL: 28.1% (9/32)
+
+merged_fp16_Q5_K_M.gguf | Q5_K_M
+  Chinese: 37.5% (3/8)
+  French: 50.0% (4/8)
+  German: 37.5% (3/8)
+  Spanish: 50.0% (4/8)
+  TOTAL: 43.8% (14/32)
+
+merged_fp16_Q6_K.gguf | Q6_K
+  Chinese: 50.0% (4/8)
+  French: 37.5% (3/8)
+  German: 37.5% (3/8)
+  Spanish: 37.5% (3/8)
+  TOTAL: 40.6% (13/32)
+
+merged_fp16_Q8_0.gguf | Q8_0
+  Chinese: 50.0% (4/8)
+  French: 37.5% (3/8)
+  German: 37.5% (3/8)
+  Spanish: 62.5% (5/8)
+  TOTAL: 46.9% (15/32)
+
+=== Overall Ranking (by TOTAL adherence %) ===
+merged_fp16_Q8_0.gguf | Q8_0: 46.9% (15/32)
+merged_fp16_Q5_K_M.gguf | Q5_K_M: 43.8% (14/32)
+merged_fp16.gguf | FP16: 40.6% (13/32)
+merged_fp16_Q6_K.gguf | Q6_K: 40.6% (13/32)
+merged_fp16_Q4_K_M.gguf | Q4_K_M: 28.1% (9/32)
+merged_mxfp4.gguf | MXFP4_MoE: 15.6% (5/32)
+```
+
+**Explaination of the evaluation result:** 
+
+1. Why some quantized models score higher than FP16 on your metric
+
+- Your metric is language adherence, not answer accuracy. It rewards “writing the analysis in the requested language,” not “being correct.”
+- Quantization changes the logit distribution. With the same sampling settings, quantized models often behave more conservative/template-like. They tend to produce high-frequency function words and stock phrases in the target language, which align well with stopword-based heuristics and language detectors.
+- Less code-mixing. FP16 is more fluent and more likely to mix English terms or named entities in the analysis; detectors then label the segment as English/unknown. Quantized models often output shorter, single-language sentences, which boosts adherence.
+- Detector/heuristic bias. Short or entity-heavy text hurts detectors; stock phrases help them. This inherently benefits models that produce template-like outputs (often the quantized ones).
+- Even with the same seed, decoding paths differ across models because logits differ; that can shift detection outcomes.
+
+1. Why MXFP4-MoE is so low
+
+- MoE is highly sensitive to quantization. Aggressive formats like MXFP4 without MoE-specific handling can degrade expert routing/gating, leading to unstable style and poor adherence to language instructions.
+- Inference stack support varies. Some builds can load MoE+MXFP4 but don’t fully exercise expert routing or handle caches/layout properly, effectively degrading the model into something that outputs short/English/empty analysis segments.
+- Protocol mismatch with your analysis extraction. If the model doesn’t reliably emit the analysis block and the <|end|> marker, your extraction returns empty/short segments → scored as 0.
+- Resource/param mismatch. High GPU offload, longer n_predict, and higher temperature can further destabilize an already fragile MoE-quantized model.
+
+
+
+
+
+Run individual model:
+
+```
+(gpt-oss) root@h100vm:~/gpt-oss# cat check_reasoning_cn.sh
+```
+
+```
+#!/usr/bin/env bash
+set -euo pipefail
+
+MODEL_PATH="${MODEL_PATH:-./quant_models/merged_fp16_Q5_K_M.gguf}"
+GPU_LAYERS="${GPU_LAYERS:-25}"
+PORT="${PORT:-8098}"
+QUESTION="${QUESTION:-What is the national symbol of Canada?}"
+TEMPERATURE="${TEMPERATURE:-0.2}"
+N_PREDICT="${N_PREDICT:-256}"
+WAIT_TIMEOUT=300
+LOG_FILE="check_cn.log"
+PID_FILE=".llama_check_cn.pid"
+
+find_llama_server() {
+  if [[ -n "${LLAMA_SERVER:-}" && -x "${LLAMA_SERVER}" ]]; then echo "${LLAMA_SERVER}" && return; fi
+  if [[ -n "${LLAMA_BIN_DIR:-}" && -x "${LLAMA_BIN_DIR}/llama-server" ]]; then echo "${LLAMA_BIN_DIR}/llama-server" && return; fi
+  for p in \
+    "/root/llama.cpp/build/bin/llama-server" \
+    "${HOME}/llama.cpp/build/bin/llama-server" \
+    "/usr/local/bin/llama-server" \
+    "/usr/bin/llama-server"; do
+    [[ -x "$p" ]] && { echo "$p"; return; }
+  done
+}
+
+probe_ready() {
+  local port="$1"
+  curl -fsS "http://127.0.0.1:${port}/healthz" >/dev/null 2>&1 && return 0
+  curl -fsS -X POST "http://127.0.0.1:${port}/completion" \
+    -H 'Content-Type: application/json' \
+    -d '{"prompt":"ping","n_predict":1}' >/dev/null 2>&1 && return 0
+  return 1
+}
+
+wait_server() {
+  local port="$1" timeout_s="$2" t0=$(date +%s)
+  while true; do
+    if probe_ready "$port"; then return 0; fi
+    sleep 2
+    (( $(date +%s) - t0 > timeout_s )) && return 1
+  done
+}
+
+detect_lang_py() {
+python3 - "$1" <<'PY'
+import sys
+from langdetect import detect
+try:
+    from pycld3 import NNetLanguageIdentifier
+    cld3 = NNetLanguageIdentifier(min_num_bytes=0, max_num_bytes=1000)
+except Exception:
+    cld3=None
+
+txt=sys.argv[1].strip()
+def code2(lang):
+    l=lang.lower()
+    if l.startswith("zh"): return "Chinese"
+    if l.startswith("en"): return "English"
+    if l.startswith("es"): return "Spanish"
+    if l.startswith("fr"): return "French"
+    if l.startswith("de"): return "German"
+    return lang
+
+ld=cld="unknown"
+if txt:
+    try: ld=code2(detect(txt))
+    except: pass
+    if cld3:
+        try: cld=code2(cld3.FindLanguage(txt).language)
+        except: pass
+print(f"langdetect={ld}, cld3={cld}")
+PY
+}
+
+# 1. 启动 server
+srv=$(find_llama_server)
+[[ -n "$srv" ]] || { echo "[ERROR] llama-server not found"; exit 1; }
+echo "[INFO] 启动: $MODEL_PATH (port=$PORT)"
+nohup "$srv" -m "$MODEL_PATH" --gpu-layers "$GPU_LAYERS" --port "$PORT" \
+  --chat-template "" --reasoning-format none >"$LOG_FILE" 2>&1 &
+echo $! > "$PID_FILE"
+sleep 5
+wait_server "$PORT" "$WAIT_TIMEOUT" || { echo "[ERROR] 启动失败"; tail -n 20 "$LOG_FILE"; kill $(cat "$PID_FILE"); exit; }
+
+# 2. 构造 prompt（analysis only）
+PROMPT="<|start|>system<|message|>reasoning language: Chinese
+You MUST first output your reasoning inside:
+<|start|>assistant<|channel|>analysis<|message|> ... <|end|>
+Then output your final answer inside:
+<|start|>assistant<|channel|>final<|message|> ... <|end|>
+<|end|> <|start|>user<|message|>${QUESTION}<|end|> <|start|>assistant<|channel|>analysis<|message|>"
+
+echo "[INFO] 发送问题: $QUESTION"
+resp=$(curl -s -X POST "http://127.0.0.1:${PORT}/completion" \
+  -H 'Content-Type: application/json' \
+  -d "$(jq -n --arg p "$PROMPT" --argjson t "$TEMPERATURE" \
+        --argjson n "$N_PREDICT" \
+        '{prompt:$p, temperature:$t, n_predict:$n, stop:["<|end|>"], stream:false}')")
+
+analysis=$(echo "$resp" | jq -r '.content // empty')
+echo
+echo "[Analysis 段输出]"
+echo "$analysis"
+echo
+lang_info=$(detect_lang_py "$analysis")
+echo "[语言检测] $lang_info"
+
+[[ "$lang_info" == *"Chinese"* ]] && echo "✅ 符合 REASONING_LANGUAGE: Chinese" || echo "❌ 不符合 REASONING_LANGUAGE: Chinese"
+
+# 3. 停止 server
+kill $(cat "$PID_FILE") >/dev/null 2>&1 || true
+rm -f "$PID_FILE"
+```
+
+```
+(gpt-oss) root@h100vm:~/gpt-oss# MODEL_PATH=./quant_models/merged_fp16_Q5_K_M.gguf GPU_LAYERS=25 ./check_reasoning_cn.sh
+```
+
+```
+(gpt-oss) root@h100vm:~/gpt-oss# MODEL_PATH=./quant_models/merged_fp16_Q5_K_M.gguf GPU_LAYERS=25 ./check_reasoning_cn.sh
+[INFO] 启动: ./quant_models/merged_fp16_Q5_K_M.gguf (port=8098)
+[INFO] 发送问题: What is the national symbol of Canada?
+
+[Analysis 段输出]
+先思考一下加拿大的国家象征。加拿大的国旗是红白相间的，中央有一片红色的枫叶。枫叶在加拿大的文化和历史中具有重要意义，象征着国家的自然环境和人民的团结。枫叶是加拿大的国旗、国徽和国歌中的主要元素。它也被广泛用于加拿大的官方文件、纪念品和标志中。加拿大的国旗和国徽上都以枫叶为主要图案，象征着加拿大的身份和价值观。加拿大的国旗和国徽也被视为国家的象征，代表着加拿大的历史、文化和人民的团结。
+
+[语言检测] langdetect=Chinese, cld3=unknown
+✅ 符合 REASONING_LANGUAGE: Chinese
+```
+
+***Please click below pictures to see my demo video on Youtube***:
+[![BitNet-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/iHVoLaIIihs)
 
 
 
