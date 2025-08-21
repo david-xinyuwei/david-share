@@ -46,10 +46,6 @@ OAI-OSS Model Loading Methods:
 | **Storage Compression Mode** (Hugging Face default LoRA fine-tuning path) | `True`                 | **Dequantized** to BF16/FP16 full‑precision tensors | High (≈ BF16)    | **High‑precision kernel** (BF16 MatMul)              | Model fine‑tuning (LoRA/full‑parameter), needs full‑precision gradient computation, VRAM‑abundant scenarios |
 | **Resident Computation Mode** (Ollama / vLLM‑gptoss dedicated kernels) | `False`                | **Retains** MXFP4 4‑bit low‑bit weights             | Low (≈ 1/4 BF16) | **Low‑bit kernel** (4‑bit MatMul/Custom CUDA Kernel) | Low‑VRAM inference deployment (local GPU, edge inference, Hopper+FA3 Sink Token) |
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/17.png)
-
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/18.png)
-
 In this repo, I will show ：
 
 - 2 models performance on Azure NV A10，Azure CPU VM and NC H100 GPU VM and including TTFT, tokens/s etc.
@@ -823,11 +819,9 @@ OpenAI-oss-120b has been released on Azure AI Foundry and can be deployed in a v
 
 Overall SFT of gpt-oss is as：
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/17.png)
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/28.png)
 
-In this part of demo, I will show as folllowing flow to do SFT on gpt-oss:
-
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/18.png)
+In this part of demo, I will show as folllowing flow to do SFT on gpt-oss.
 
 **Note：**
 
@@ -1456,6 +1450,8 @@ Chinese,澳大利亚的首都是什么？,好的，用户问的是澳大利亚�
 ## gpt-oss-20b Supervised Fine-Tuning - Good Case
 
 In this part, I quantize model to different data type to chech the SFT effect.
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/28.png)
 
 ```
 cat ./quantize_all.sh
