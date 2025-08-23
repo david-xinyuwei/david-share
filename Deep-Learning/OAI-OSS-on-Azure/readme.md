@@ -4,6 +4,8 @@ The **gpt-oss-120b** model achieves near-parity with OpenAI o4-mini on core reas
 
 The **gpt-oss-20b** model delivers similar results to OpenAI o3‑mini on common benchmarks and can run on edge devices with just **16 GB of memory**, making it ideal for on-device use cases, local inference, or rapid iteration without costly infrastructure. Both models also perform strongly on tool use, few-shot function calling, CoT reasoning (as seen in results on the Tau-Bench agentic evaluation suite) and HealthBench (even outperforming proprietary models like OpenAI o1 and GPT‑4o).
 
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/.png)
+
 | **Model**    | **Layers** | **Total Params** | **Active Params Per Token** | **Total Experts** | **Active Experts Per Token** | **Context Length** |
 | ------------ | ---------- | ---------------- | --------------------------- | ----------------- | ---------------------------- | ------------------ |
 | gpt-oss-120b | 36         | 117B             | 5.1B                        | 128               | 4                            | 128k               |
@@ -290,13 +292,7 @@ In GPT-OSS's inference logic, a sink token has been introduced. The sink token r
 
 Therefore, if you are using an A10, you can use the Ollama method or transformers. Ollama is the simplest. The Ollama version  model uses MXFP4 quantization by default.
 
-BWT， vLLM also support an new container image vllm/vllm-openai:gptoss, you could refer to it:
-
-*https://techcommunity.microsoft.com/blog/machinelearningblog/deploying-openai%E2%80%99s-first-open-source-model-on-azure-aks-with-kaito/4444234*
-
 If  you don't do quantization and directly use HF transformers with BF16  inference, the A10's memory is insufficient.
-
-
 
 In this part of test, I only use one A10 GPU on ollama. Before load model:
 
@@ -362,6 +358,314 @@ print(f"TTFT: {ttft:.3f}s, Tokens: {token_count}, Throughput: {throughput:.2f} t
 ```
 
 
+
+## gpt-oss-20b on Azure AKS Spot VM
+
+vLLM also support an new container image vllm/vllm-openai:gptoss, which could run on AKS + KAITO + Azure Spot VM.
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/29.png)
+
+**Why use KAITO on AKS?**
+
+• One-click GPU enablement
+– Installs and maintains the NVIDIA device-plugin and runtime class automatically.
+– No manual driver or privileged-pod setup.
+
+• Spot-friendly GPU orchestration
+– Adds the correct tolerations and reschedules workloads on eviction, keeping Spot A100 nodes usable with minimal downtime.
+
+• Workspace isolation
+– Each Workspace gets its own namespace, quotas, RBAC, and metrics, giving team-level separation without extra YAML.
+
+• Built-in lifecycle automation
+– Handles node provisioning, rolling upgrades, and GPU health checks; you focus on the model, not the plumbing.
+
+• Unified observability and security
+– Ships with metrics, logs, and policy hooks integrated into Azure AD and Prometheus/Grafana stacks.
+
+Without KAITO you must: install the device-plugin, patch tolerations, manage RuntimeClass, create quotas, handle Spot evictions, and wire up monitoring yourself—KAITO does all that out of the box.
+
+**Note:**
+
+Reasons this approach cannot use KAITO Workspace directly:
+
+- The Workspace CRD/controller does not support declaring Spot capacity in the manifest.
+- Subscription policies block NodeClaim creation: when the Workspace attempts to auto-provision a GPU pool via NodeClaim, Azure Policy denies it (RequestDisallowedByPolicy), causing the temporary VM Scale Set (VMSS) creation to fail and the Workspace to remain stuck (never reaches Running).
+- Device plugin Spot taint: KAITO’s built-in NVIDIA device-plugin DaemonSet does not include a Spot toleration by default, so it cannot schedule onto Spot nodes and those nodes will not register nvidia.com/gpu. This is addressed in the script below.The built-in KAITO DaemonSet `kaito-nvidia-device-plugin-daemonset` does not include a Spot VM toleration by default**Add the missing toleration (and a nodeSelector) so the plugin pod can be scheduled onto the Spot A100 nodes.
+
+Total script from scrash:
+
+```
+(base) root@linuxworkvm:~# cat deploy_aks_a100_spot.sh
+```
+
+```1
+#!/usr/bin/env bash
+set -euo pipefail
+
+RANDOM_ID=${RANDOM_ID:-$RANDOM}
+REGION=${REGION:-southeastasia}
+RG=${RG:-kaito-rg-$RANDOM_ID}
+CLUSTER=${CLUSTER:-kaito-aks-$RANDOM_ID}
+GPU_POOL=${GPU_POOL:-a100spot}
+GPU_SKU=${GPU_SKU:-Standard_NC24ads_A100_v4}
+SYS_NODE_COUNT=${SYS_NODE_COUNT:-1}
+GPU_NODE_COUNT=${GPU_NODE_COUNT:-1}
+MODEL=${MODEL:-openai/gpt-oss-20b}
+
+az group create --name "$RG" --location "$REGION" -o none
+az aks create --resource-group "$RG" --name "$CLUSTER" --location "$REGION" --node-count "$SYS_NODE_COUNT" --enable-ai-toolchain-operator --enable-oidc-issuer --generate-ssh-keys -o none
+az aks nodepool add --resource-group "$RG" --cluster-name "$CLUSTER" --name "$GPU_POOL" --node-vm-size "$GPU_SKU" --priority Spot --eviction-policy Delete --node-count "$GPU_NODE_COUNT" -o none
+az aks get-credentials --resource-group "$RG" --name "$CLUSTER" --overwrite-existing
+
+for i in $(seq 1 60); do
+  READY=$(kubectl get nodes --no-headers | awk '$2=="Ready"' | wc -l)
+  TOTAL=$(kubectl get nodes --no-headers | wc -l)
+  [ "$READY" -eq "$TOTAL" ] && [ "$TOTAL" -ge 2 ] && break
+  sleep 10
+done
+
+kubectl -n kube-system patch ds kaito-nvidia-device-plugin-daemonset --type=merge -p "{\"spec\":{\"template\":{\"spec\":{\"nodeSelector\":{\"kubernetes.azure.com/agentpool\":\"${GPU_POOL}\"},\"tolerations\":[{\"key\":\"kubernetes.azure.com/scalesetpriority\",\"operator\":\"Equal\",\"value\":\"spot\",\"effect\":\"NoSchedule\"},{\"key\":\"nvidia.com/gpu\",\"operator\":\"Exists\",\"effect\":\"NoSchedule\"},{\"key\":\"sku\",\"operator\":\"Equal\",\"value\":\"gpu\",\"effect\":\"NoSchedule\"}]}}}}"
+kubectl -n kube-system rollout status ds/kaito-nvidia-device-plugin-daemonset --timeout=5m || true
+
+cat <<EOF | kubectl apply -f -
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm-a100
+  labels: {app: vllm-a100}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: vllm-a100}}
+  template:
+    metadata: {labels: {app: vllm-a100}}
+    spec:
+      nodeSelector: {kubernetes.azure.com/agentpool: ${GPU_POOL}}
+      tolerations:
+      - {key: kubernetes.azure.com/scalesetpriority, operator: Equal, value: spot, effect: NoSchedule}
+      - {key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}
+      containers:
+      - name: vllm
+        image: vllm/vllm-openai:gptoss
+        args: ["--model", "${MODEL}", "--port", "5000", "--swap-space", "8", "--gpu-memory-utilization", "0.85"]
+        env:
+        - {name: VLLM_DISABLE_SINKS, value: "1"}
+        - {name: VLLM_ATTENTION_BACKEND, value: "TRITON_ATTN_VLLM_V1"}
+        ports: [{containerPort: 5000}]
+        resources:
+          limits: {nvidia.com/gpu: 1, cpu: "24", memory: "200Gi"}
+          requests: {nvidia.com/gpu: 1, cpu: "18", memory: "180Gi"}
+        startupProbe: {httpGet: {path: /health, port: 5000}, periodSeconds: 10, failureThreshold: 360}
+        readinessProbe: {httpGet: {path: /health, port: 5000}, periodSeconds: 5}
+        livenessProbe: {httpGet: {path: /health, port: 5000}, initialDelaySeconds: 900}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: vllm-a100-svc}
+spec:
+  type: LoadBalancer
+  selector: {app: vllm-a100}
+  ports: [{port: 5000, targetPort: 5000}]
+EOF
+
+kubectl rollout status deploy/vllm-a100 --timeout=30m || true
+
+for i in $(seq 1 120); do
+  IP=$(kubectl get svc vllm-a100-svc -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true)
+  [ -n "$IP" ] && break
+  sleep 5
+done
+
+curl -s "http://${IP}:5000/health"
+curl -s "http://${IP}:5000/v1/models" | jq -r '.'
+curl -s -X POST "http://${IP}:5000/v1/chat/completions" -H "Content-Type: application/json" -d "{\"model\":\"${MODEL}\",\"messages\":[{\"role\":\"user\",\"content\":\"What is Kubernetes?\"}],\"max_tokens\":80,\"temperature\":0}" | jq -r '.choices[0].message.content // .choices[0].message.reasoning_content // .choices[0].message'
+```
+
+Output of this script:
+
+```
+(base) root@linuxworkvm:~# bash deploy_aks_a100_spot.sh
+Merged "kaito-aks-54403" as current context in /root/.kube/config
+daemonset.apps/kaito-nvidia-device-plugin-daemonset patched
+Waiting for daemon set "kaito-nvidia-device-plugin-daemonset" rollout to finish: 0 of 1 updated pods are available...
+Waiting for daemon set "kaito-nvidia-device-plugin-daemonset" rollout to finish: 0 of 1 updated pods are available...
+daemon set "kaito-nvidia-device-plugin-daemonset" successfully rolled out
+deployment.apps/vllm-a100 created
+service/vllm-a100-svc created
+Waiting for deployment "vllm-a100" rollout to finish: 0 of 1 updated replicas are available...
+Waiting for deployment "vllm-a100" rollout to finish: 0 of 1 updated replicas are available...
+deployment "vllm-a100" successfully rolled out
+{
+  "object": "list",
+  "data": [
+    {
+      "id": "openai/gpt-oss-20b",
+      "object": "model",
+      "created": 1755913569,
+      "owned_by": "vllm",
+      "root": "openai/gpt-oss-20b",
+      "parent": null,
+      "max_model_len": 131072,
+      "permission": [
+        {
+          "id": "modelperm-efc884b7d31645f0a160edf38e014e4d",
+          "object": "model_permission",
+          "created": 1755913569,
+          "allow_create_engine": false,
+          "allow_sampling": true,
+          "allow_logprobs": true,
+          "allow_search_indices": false,
+          "allow_view": true,
+          "allow_fine_tuning": false,
+          "organization": "*",
+          "group": null,
+          "is_blocking": false
+        }
+      ]
+    }
+  ]
+}
+The user asks: "What is Kubernetes?" They want an explanation. We should provide a concise but thorough answer. Should mention it's an open-source container orchestration platform, originally from Google, now maintained by CNCF. It automates deployment, scaling, and operations of application containers across clusters of hosts. It provides mechanisms for service discovery, load balancing, storage orchestration, automated roll
+
+```
+
+Full test script:
+
+```
+(base) root@linuxworkvm:~# kubectl get svc
+NAME            TYPE           CLUSTER-IP     EXTERNAL-IP      PORT(S)          AGE
+kubernetes      ClusterIP      10.0.0.1       <none>           443/TCP          51m
+vllm-a100-svc   LoadBalancer   10.0.120.197   135.171.16.230   5000:31196/TCP   43m
+(base) root@linuxworkvm:~# IP=135.171.16.230 bash ./script.sh 
+```
+
+Test inference:
+
+```
+cat script.sh
+```
+
+```
+#!/usr/bin/env bash
+set -euo pipefail
+
+NS="${NS:-default}"
+APP_LABEL="${APP_LABEL:-app=gpt-oss-20b-vllm}"
+DEPLOY="${DEPLOY:-gptoss-vllm-a100}"
+SVC="${SVC:-gptoss-vllm-a100-pub}"
+PORT="${PORT:-5000}"
+MODEL="${MODEL:-openai/gpt-oss-20b}"
+QUESTION="${QUESTION:-Explain the future of human}"
+
+if ! command -v kubectl >/dev/null 2>&1; then echo "kubectl not found"; exit 1; fi
+if ! command -v curl >/dev/null 2>&1; then echo "curl not found"; exit 1; fi
+if ! command -v jq >/dev/null 2>&1; then echo "jq not found"; exit 1; fi
+
+if [ $# -ge 1 ]; then
+  EXTERNAL_IP="$1"
+else
+  EXTERNAL_IP="${IP:-}"
+fi
+if [ -z "${EXTERNAL_IP:-}" ]; then
+  EXTERNAL_IP="$(kubectl -n "$NS" get svc "$SVC" -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true)"
+fi
+if [ -z "${EXTERNAL_IP:-}" ]; then
+  echo "Unable to get Service external IP. Pass IP as arg or ensure $NS/$SVC has an EXTERNAL-IP"
+  exit 1
+fi
+
+echo "===== 0) Basics ====="
+date
+echo "Namespace: ${NS}"
+echo "App label: ${APP_LABEL}"
+echo "Deployment: ${DEPLOY}"
+echo "Service: ${SVC}"
+echo "Port: ${PORT}"
+echo "Model: ${MODEL}"
+echo "Endpoint: http://${EXTERNAL_IP}:${PORT}"
+echo
+
+echo "===== 1) Kaito components and CRDs ====="
+kubectl get crd | grep -i kaito || true
+kubectl -n kube-system get deploy | grep -i kaito || true
+kubectl -n kube-system get pods | egrep -i "kaito|device-plugin" || true
+echo
+
+echo "===== 2) Kaito Workspaces (if installed) ====="
+kubectl get workspace -A || true
+echo
+
+echo "===== 3) GPU nodes and device plugins ====="
+kubectl get nodes -o custom-columns=NAME:.metadata.name,GPUS:.status.allocatable.nvidia\.com/gpu,AGENTPOOL:.metadata.labels.kubernetes\.azure\.com/agentpool --no-headers || true
+kubectl -n kube-system get ds | grep -i device-plugin || true
+kubectl -n kube-system get pods -o wide | grep -i device-plugin || true
+echo
+
+echo "===== 4) Inference workload and Service ====="
+kubectl -n "${NS}" get deploy "${DEPLOY}" -o wide || true
+kubectl -n "${NS}" get pods -l "${APP_LABEL}" -o wide || true
+kubectl -n "${NS}" get svc "${SVC}" -o wide || true
+echo
+
+echo "===== 5) Run nvidia-smi in inference Pod ====="
+POD="$(kubectl -n "${NS}" get pod -l "${APP_LABEL}" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)"
+if [ -n "${POD:-}" ]; then
+  kubectl -n "${NS}" exec "${POD}" -- nvidia-smi || true
+else
+  echo "No Pod found for label ${APP_LABEL}"
+fi
+echo
+
+echo "===== 6) Health check ====="
+HTTP_CODE="$(curl -sS -o /dev/null -w "%{http_code}" "http://${EXTERNAL_IP}:${PORT}/health" || true)"
+echo "GET /health -> HTTP ${HTTP_CODE}"
+echo
+
+echo "===== 7) List models and run a test question ====="
+curl -sS "http://${EXTERNAL_IP}:${PORT}/v1/models" | jq -r '.' || true
+echo
+REQ="$(jq -n --arg m "$MODEL" --arg q "$QUESTION" '{model:$m,messages:[{role:"user",content:$q}],max_tokens:1000,temperature:1}')"
+RESP_JSON="$(curl -sS -X POST "http://${EXTERNAL_IP}:${PORT}/v1/chat/completions" -H "Content-Type: application/json" -d "$REQ" || true)"
+THOUGHT="$(echo "$RESP_JSON" | jq -r '.choices[0].message.reasoning_content // ""')"
+ANSWER="$(echo "$RESP_JSON" | jq -r '.choices[0].message.content // ""')"
+echo "Thought process:"
+echo "$THOUGHT"
+echo
+echo "Final answer:"
+echo "$ANSWER"
+if [ -z "$THOUGHT" ] && [ -z "$ANSWER" ]; then
+  echo
+  echo "Raw response:"
+  echo "$RESP_JSON"
+fi
+echo
+
+echo "===== 8) Summary ====="
+READY_CNT="$(kubectl -n "${NS}" get pods -l "${APP_LABEL}" -o jsonpath='{range .items[*]}{.status.containerStatuses[0].ready}{"\n"}{end}' 2>/dev/null | grep -c true || true)"
+echo "Ready inference Pods: ${READY_CNT}"
+echo "Health /health HTTP code: ${HTTP_CODE}"
+echo "Endpoint: http://${EXTERNAL_IP}:${PORT}"
+echo "Test question: ${QUESTION}"
+echo "Done"
+```
+
+Run script:
+
+```
+#kubectl get svc
+#IP=135.171.16.230 bash script.sh
+```
+
+
+
+***Please click below pictures to see my demo video on Youtube***:
+[![BitNet-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/oHPu2-ly9Y8)
+
+
+
+For Normal Azure GPU VM and sub，it is more easier, please refer to:
+
+*https://techcommunity.microsoft.com/blog/machinelearningblog/deploying-openai%E2%80%99s-first-open-source-model-on-azure-aks-with-kaito/4444234*
 
 ## **gpt-oss-20b** on Azure CPU VM
 
@@ -2274,4 +2578,8 @@ rm -f "$PID_FILE"
 
 
 
-**Refer to**: *https://openai.com/index/introducing-gpt-oss/*  
+**Refer to**: 
+
+*https://openai.com/index/introducing-gpt-oss/*  
+
+*https://techcommunity.microsoft.com/blog/machinelearningblog/deploying-openai%E2%80%99s-first-open-source-model-on-azure-aks-with-kaito/4444234*
