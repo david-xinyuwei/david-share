@@ -154,12 +154,6 @@ We welcome contributions from the AI/ML community! Please see our [Contributing 
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🔗 Connect & Learn
-
-- 💼 **Professional Network**: Connect for collaboration opportunities
-- 📧 **Technical Discussions**: Open to research partnerships
-- 🎓 **Educational Content**: Subscribe for latest AI research insights
-
 ---
 
 <div align="center">
