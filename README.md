@@ -62,26 +62,6 @@ Complete implementations and examples from the acclaimed book series on large la
 
 ---
 
-## 📚 Published Works
-
----
-
-## � Featured Projects
-
-<div align="center">
-
-### 🏆 Spotlight: Most Popular Projects
-
-| Project | Description | Technologies | Stars |
-|---------|-------------|-------------|-------|
-| [LLM Fine-tuning](./Deep-Learning/Best-Practice-LLM-Fine-Tuning/) | Production-ready LLM fine-tuning pipeline | PyTorch, DeepSpeed | ⭐ Popular |
-| [Multi-Agent RAG](./Agents/RAG-Best-Practice/) | Advanced RAG system with multi-agent orchestration | LangChain, Vector DB | 🔥 Trending |
-| [Model Quantization](./Deep-Learning/AutoRound-Quantize/) | State-of-the-art model compression techniques | ONNX, TensorRT | 🚀 Latest |
-
-</div>
-
----
-
 ## 🛠️ Technology Stack
 
 <div align="center">
