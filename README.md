@@ -9,25 +9,7 @@
 
 **🎯 A comprehensive repository dedicated to cutting-edge AI research, deep learning innovations, and practical implementations**
 
-![GitHub last commit](https://img.shields.io/github/last-commit/david-xinyuwei/david-share?style=flat-square)
-![GitHub contributors](https://img.shields.io/github/contributors/david-xinyuwei/david-share?style=flat-square)
-![GitHub repo size](https://img.shields.io/github/repo-size/david-xinyuwei/david-share?style=flat-square)
-
 </div>
-
----
-
-## 📋 Table of Contents
-
-- [🌟 Overview](#-overview)
-- [📚 Repository Structure](#-repository-structure)
-- [💡 Featured Projects](#-featured-projects)
-- [🛠️ Technology Stack](#️-technology-stack)
-- [📚 Published Works](#-published-works)
-- [🎯 Key Features](#-key-features)
-- [🚀 Quick Start](#-quick-start)
-- [🤝 Contributing](#-contributing)
-- [📞 Contact & Connect](#-contact--connect)
 
 ---
 
@@ -77,6 +59,10 @@ Welcome to a premier collection of advanced AI and machine learning research mat
 > **Source code and materials for published technical books**
 
 Complete implementations and examples from the acclaimed book series on large language models and AI systems.
+
+---
+
+## 📚 Published Works
 
 ---
 
@@ -171,34 +157,14 @@ Complete implementations and examples from the acclaimed book series on large la
 
 ```bash
 # Clone the repository
-$ git clone https://github.com/david-xinyuwei/david-share.git
+git clone https://github.com/david-xinyuwei/david-share.git
 
 # Navigate to a specific domain
-$ cd david-share/Deep-Learning
+cd david-share/Deep-Learning
 
 # Explore available projects
-$ ls -la
-
-# Install dependencies (example for a specific project)
-$ pip install -r requirements.txt
-
-# Run a sample training script
-$ python train_example.py
+ls -la
 ```
-
-### 📊 Repository Statistics
-
-<div align="center">
-
-| Category | Count | Description |
-|----------|-------|-------------|
-| 🧠 Deep Learning Projects | 70+ | Advanced neural networks and optimization |
-| 🤖 AI Agent Projects | 30+ | Intelligent autonomous systems |
-| 📚 Published Books | 5 | Technical publications and guides |
-| 🎨 Multimodal Projects | 20+ | Vision and cross-modal learning |
-| ⚙️ GPU Computing Guides | 15+ | Hardware optimization tutorials |
-
-</div>
 
 ## 🤝 Contributing
 
@@ -208,42 +174,18 @@ We welcome contributions from the AI/ML community! Please see our [Contributing 
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## � Contact & Connect
+## 🔗 Connect & Learn
 
-<div align="center">
-
-### 🌐 Let's Connect
-
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://linkedin.com/in/yourprofile)
-[![Twitter](https://img.shields.io/badge/Twitter-1DA1F2?style=for-the-badge&logo=twitter&logoColor=white)](https://twitter.com/yourhandle)
-[![Email](https://img.shields.io/badge/Email-D14836?style=for-the-badge&logo=gmail&logoColor=white)](mailto:your.email@example.com)
-[![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/david-xinyuwei)
-
-### 🎯 Collaboration Opportunities
-
-- � **Industry Partnerships**: Enterprise AI solutions and consulting
-- 🔬 **Research Collaboration**: Joint papers and open-source projects  
-- 🎓 **Academic Exchange**: Guest lectures and knowledge sharing
-- 📚 **Technical Writing**: Co-authoring and peer review
-
-</div>
+- 💼 **Professional Network**: Connect for collaboration opportunities
+- 📧 **Technical Discussions**: Open to research partnerships
+- 🎓 **Educational Content**: Subscribe for latest AI research insights
 
 ---
 
 <div align="center">
-
-### 📈 Repository Growth
-
-![GitHub Repo stars](https://img.shields.io/github/stars/david-xinyuwei/david-share?style=social)
-![GitHub forks](https://img.shields.io/github/forks/david-xinyuwei/david-share?style=social)
-![GitHub watchers](https://img.shields.io/github/watchers/david-xinyuwei/david-share?style=social)
 
 **⭐ Star this repository if you find it valuable for your AI/ML journey!**
 
 *Building the future of artificial intelligence, one implementation at a time.*
-
----
-
-<sub>© 2025 David Wei | This project is licensed under the MIT License</sub>
 
 </div>
