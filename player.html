@@ -1,0 +1,30 @@
+<!-- 文件：player.html  放在仓库根目录 或 docs 目录 -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>音频播放器</title>
+<style>
+  body {
+    font-family: sans-serif;
+    text-align: center;
+    padding: 50px;
+    background-color: #f9f9f9;
+  }
+  audio {
+    margin-top: 30px;
+    width: 80%;
+    max-width: 600px;
+  }
+</style>
+</head>
+<body>
+<h1>🎵 音频播放器</h1>
+<p>点击播放按钮收听：</p>
+<audio controls>
+  <source src="media/demo.mp3" type="audio/mpeg">
+  您的浏览器不支持音频播放，请下载：
+  <a href="media/demo.mp3">下载音频</a>
+</audio>
+</body>
+</html>
