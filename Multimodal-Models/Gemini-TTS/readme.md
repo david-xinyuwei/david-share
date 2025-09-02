@@ -5,3 +5,4 @@
 <audio controls>
   <source src="./Gemini-PodCast.m4a" type="audio/mpeg">
 </audio>
+ [联想-Speech](./Gemini-PodCast.m4a) 
