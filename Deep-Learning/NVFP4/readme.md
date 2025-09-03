@@ -58,6 +58,85 @@ NVFP4 的提出，核心在于“在 4-bit 存储与计算的同时，尽可能�
 - 吞吐优势：关键结论是 Blackwell 上 NVFP4 的硬件直通。权重与激活都为 NVFP4 时，计算链路无需反量化，Tensor Core 直接吃 NVFP4。实测吞吐相对 INT4 提升约 2.35 倍。
 - NVFP4A16 的代价：当仅权重量化、激活仍为 16-bit，运算中会发生数据类型转换或退化，NVFP4A16 的吞吐大多只比 INT4 略快，丢失了 NVFP4 的“全程 4-bit”护城河。
 
+
+
+#### 第一张图 —— 推理吞吐量对比（RTX 6000 Pro, vLLM v0.10.0）
+
+![images](https://github.com/david-xinyuwei/david-share/blob/master/Deep-Learning/NVFP4/images/1.png)
+
+**图表含义：**
+
+- 深绿色条（Speed Input）：输入侧 token 生成速率（tokens/sec）
+- 浅蓝色条（Speed Output）：输出侧 token 生成速率（tokens/sec）
+- 模型名左侧不同条目代表不同量化策略或来源的模型
+
+**结合上文解读关键点：**
+
+1. **NVFP4 / Custom NVFP4**（绿色箭头第二梯队）
+   - NVIDIA 官方 NVFP4 模型：Input 1692，Output 3342 tokens/s
+   - 作者自己量化的 Custom NVFP4：Input 1693，Output 3358，几乎完全一致
+   - 结论：无论官方还是自量化，只要是 **权重+激活全 NVFP4** 并在 Blackwell 上推理，吞吐比 INT4 系列 **提升约 2.3 倍**（AWQ/INT4 Output ≈ 1431-1437 tokens/s）。
+2. **NVFP4A16**（仅权重量化，激活保持 16-bit）
+   - Input ≈ 774，Output ≈ 1534
+   - 性能只略高于普通 INT4，验证了之前的结论：**吞吐优势主要来自激活也用 NVFP4，从而全程免反量化**。
+3. **INT4 系列（AWQ/OPEA GPTQ）**
+   - Input ≈ 720-723，Output ≈ 1431-1437
+   - 性能相近，说明这几种 INT4 优化在 vLLM 上的成熟度都很高，但因需要反量化，速度不及 NVFP4。
+4. **BNB 4bit（bitsandbytes）**
+   - 明显更慢：Input 585，Output 1150
+   - 推测为 kernel 与框架优化强度弱于 AWQ。
+5. **INT2**
+   - 因为位宽更低，理论上更节省显存，但吞吐未显著提高（甚至更低：Input 659，Output 1222），可能因为计算核未优化。
+
+**总结**：
+在 Blackwell 上，NVFP4（权重+激活）吞吐性能碾压其他方案（包括 INT4 变种），**速度翻倍以上**；NVFP4A16 失去大部分优势，接近 INT4；BNB4bit 和 INT2 进一步落后。
+
+------
+
+#### 第二张图 —— 精度 + 模型体积对比
+
+![images](https://github.com/david-xinyuwei/david-share/blob/master/Deep-Learning/NVFP4/images/2.png)
+
+**图表含义：**
+
+- 蓝色条（Score）：统一基准得分（涵盖指令跟随、常识知识、多语言三类能力）
+- 绿色数字（Size GB）：模型在磁盘的大小
+- 该图关注“量化精度保真度”与“存储占用”。
+
+**结合上文解读关键点：**
+
+1. **精度分布**
+   - NVFP4 / Custom NVFP4：Score ≈ 43.8，属于全场最高，与全精度极为接近
+   - NVFP4A16：Score ≈ 39.9，比全 NVFP4 略低
+   - AWQ / OPEA INT4：Score ≈ 36.8-37.1，精度比 NVFP4 略低
+   - BNB 4bit：Score ≈ 39.8，与 NVFP4A16 接近
+   - INT2：Score 仅 24.4，精度下降明显
+2. **模型体积**
+   - AWQ/INT4 ≈ 5900MB（约 5.9GB）
+   - NVFP4/NVFP4A16 ≈ 5854~5878MB
+   - BNB4bit ≈ 5814MB
+   - INT2 ≈ 5488MB
+   - **注意**：这里的“MB”疑似是笔误，应理解为 “MB 单位 * 千”，实为 5.x GB ~ 7GB 级别（根据之前文本背景，NVFP4 模型比 INT4 模型大约多 7GB）。
+3. **结合背景推断**
+   - 体积差异主要源自：
+     - NVFP4 block size 小（16 vs 128）→ 缩放因子数量更多
+     - 全 NVFP4 需要存储 FP8 缩放因子 + FP32 全局缩放
+     - INT4 系列缩放元数据更少，因而更省空间
+   - 精度上，NVFP4 系列强于 INT4，尤其全 NVFP4 比 NVFP4A16 更接近全精度。
+
+------
+
+## 两图综合结论（结合上下文）
+
+- **性能维度**（第一图）：
+  在 Blackwell 上，全 NVFP4 模型吞吐性能显著超过其它 4-bit 方案（~2.3x INT4），优势源于 **激活也量化为 NVFP4，避免反量化**。
+- **精度维度**（第二图）：
+  全 NVFP4 在精度上几乎等于 FP8，比 INT4 / MXFP4 常规实现略好，但模型文件更大。
+- **工程取舍**：
+  - 有 Blackwell → 全 NVFP4 = 最优速度 + 高精度
+  - 追求体积最小 → INT4 / MXFP4 更省存储，但速度取决于内核优化
+  - 旧 GPU → 用 NVFP4 权重可省显存，但速度无显著优势
+
 ### **四、MXFP4 是什么？与 NVFP4 的关键差异**
 
 MXFP4 是 OCP（Open Compute Project）提出的 Microscaling FP4 标准，核心特征是：
@@ -76,33 +155,25 @@ MXFP4 是 OCP（Open Compute Project）提出的 Microscaling FP4 标准，核�
 - NVFP4 的速度优势依赖 Blackwell 原生内核直通；MXFP4 的性能取决于厂商是否提供了针对 MXFP4 的 4-bit 内核（如 vLLM/Ollama 的专用路径）。
 - 在元数据与模型体积上，MXFP4 往往更省（微块 32 + 幂次缩放），而 NVFP4 在大模型上可能更“重”，但换来的是 Blackwell 上的极致吞吐。
 
-特性NVFP4（NVIDIA Blackwell 定制）MXFP4（OCP Microscaling 标准）元素格式FP4 E2M1（1符号位+2指数位+1尾数位）FP4 E2M1（1符号位+2指数位+1尾数位）| 微块大小        | 16                         | 32                         |
-
-| 微块缩放因子格式    | FP8 E4M3（支持非2的幂，小数缩放）         | E8M0（仅指数，2的幂缩放，移位友好）        |
-
-| 全局缩放因子      | 有，全局FP32缩放（Per-tensor）           | 无，仅微块缩放                   |
-
-| 重构公式        | x ≈ xq × s_block(FP8 E4M3) × s_tensor(FP32)    | x ≈ xq × 2^k（k来自E8M0）              |
-
-| 动态范围与鲁棒性    | 双层缩放+小微块，适应异质分布与异常值       | 幂次缩放，小值保持好，对异常值有抵抗力       |
-
-| 计算代价        | FP8缩放需乘法（Blackwell原生加速）        | 幂次缩放移位操作，极简高效             |
-
-| 硬件执行路径      | Blackwell Tensor Core原生支持，全程免反量化    | 依厂商内核支持，未必有原生直通           |
-
-| 是否需反量化      | 激活+权重量化为NVFP4无需反量化；NVFP4A16需     | 若无原生支持需转换到高精度             |
-
-| 吞吐表现（对INT4）   | ~2.3×（Blackwell+全NVFP4）             | 视实现情况，资料未提供               |
-
-| 精度表现        | 与FP8基本持平，误差≤1%               | 高于传统INT4，小值保留好；与NVFP4对比数据缺失   |
-
-| 平均存储开销      | 约4.5 bits/值                   | 通常更省（微块32，幂次缩放元数据更少）       |
-
-| 模型体积        | 比常见INT4模型大（如Llama3.3 +7GB）        | 小于NVFP4（依实现）                |
-
-| 校准需求        | 全量化需少量校准样本；NVFP4A16不需要        | 权重量化可少/无校准；激活量化通常需要       |
-
-| 工具与生态       | llm-compressor可量化，vLLM支持（Blackwell）    | OCP标准，llm-compressor暂不支持          |
+```
+| 特性               | NVFP4（NVIDIA Blackwell 定制）                          | MXFP4（OCP Microscaling 标准）                  |
+|--------------------|--------------------------------------------------------|-----------------------------------------------|
+| 元素格式           | FP4 E2M1（1符号位+2指数位+1尾数位）                     | FP4 E2M1（1符号位+2指数位+1尾数位）             |
+| 微块大小           | 16                                                    | 32                                            |
+| 微块缩放因子格式   | FP8 E4M3（支持非2的幂，小数缩放）                      | E8M0（仅指数，2的幂缩放，移位友好）             |
+| 全局缩放因子       | 有，全局FP32缩放（Per-tensor）                         | 无，仅微块缩放                                |
+| 重构公式           | x ≈ xq × s_block(FP8 E4M3) × s_tensor(FP32)           | x ≈ xq × 2^k（k来自E8M0）                     |
+| 动态范围与鲁棒性   | 双层缩放+小微块，适应异质分布与异常值                  | 幂次缩放，小值保持好，对异常值有抵抗力          |
+| 计算代价           | FP8缩放需乘法（Blackwell原生加速）                     | 幂次缩放移位操作，极简高效                     |
+| 硬件执行路径       | Blackwell Tensor Core原生支持，全程免反量化            | 依厂商内核支持，未必有原生直通                |
+| 是否需反量化       | 激活+权重量化为NVFP4无需反量化；NVFP4A16需             | 若无原生支持需转换到高精度                     |
+| 吞吐表现（对INT4） | ~2.3×（Blackwell+全NVFP4）                            | 视实现情况，资料未提供                         |
+| 精度表现           | 与FP8基本持平，误差≤1%                                | 高于传统INT4，小值保留好；与NVFP4对比数据缺失   |
+| 平均存储开销       | 约4.5 bits/值                                         | 通常更省（微块32，幂次缩放元数据更少）          |
+| 模型体积           | 比常见INT4模型大（如Llama3.3 +7GB）                   | 小于NVFP4（依实现）                           |
+| 校准需求           | 全量化需少量校准样本；NVFP4A16不需要                   | 权重量化可少/无校准；激活量化通常需要           |
+| 工具与生态         | llm-compressor可量化，vLLM支持（Blackwell）           | OCP标准，llm-compressor暂不支持               |
+```
 
 
 
@@ -184,7 +255,7 @@ MXFP4 是 OCP（Open Compute Project）提出的 Microscaling FP4 标准，核�
 - 你的任务是否长上下文或对小值保留敏感（如检索注意力、稀疏门控）？
   - 是：优先选择具备更细缩放与双层缩放的方案（NVFP4），或在 MXFP4 下保留关键模块为高精度。
 
-### 9、常见坑与排查建议
+### 9、常见问题
 
 - vLLM + FlashInfer：NVFP4 下可能崩溃，临时卸载或禁用；关注版本修复进展
 - Blackwell 上的 vLLM 安装：pip 版本可能不完整，优先源码编译
