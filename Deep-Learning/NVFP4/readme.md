@@ -181,7 +181,7 @@ MXFP4 是 OCP（Open Compute Project）提出的 Microscaling FP4 标准，核�
 
 #### 1. 量化流程
 
-- 量化工具：llm-compressor 已支持 NVFP4
+- 量化工具：llm-compressor 已支持 NVFP4。llm-compressor`（全名 LLM Compressor）是 **NVIDIA 推出的一个开源工具包**，专门用于对大语言模型（LLM）进行**压缩与推理加速**，特别是支持 **NVIDIA Blackwell 架构**新引入的低精度数据格式（例如 **NVFP4**、FP8、FP6 等）。它的核心用途就是帮你把全精度模型（比如 FP16、BF16）自动量化成更低精度的版本，同时生成可以直接在 NVIDIA GPU 上高效运行的权重格式，从而**减小显存占用、提高吞吐速度**。
 - 校准集规模：128～512 条通常足够，作者使用 512；理论上 1024 以上收益递减
 - 序列长度建议：不要低于 2048，若目标是长上下文推理，建议更长，但量化代价会显著增加，需要在质量与成本间权衡
 - 数据预处理要点：与模型训练时的输入格式一致（chat template）、避免重复注入 bos token
@@ -197,7 +197,7 @@ MXFP4 是 OCP（Open Compute Project）提出的 Microscaling FP4 标准，核�
   - Blackwell 环境下通过 pip 安装 vLLM 可能不完整，可以以源码编译方式解决，成功启用 NVFP4 推理路径。
 - 一句话建议：Blackwell 上跑 NVFP4，先准备源码编译 vLLM 的预案，并关注 FlashInfer 版本兼容性。
 
-### **3.老架构 GPU 的兼容性思考**
+### **3.旧架构 GPU 的兼容性思考**
 
 - 3090（Ampere）或更老架构没有 NVFP4 的硬件直通路径
 - 可以加载 NVFP4 量化权重以省显存，但推理时多半需要反量化到更高精度执行（例如 FP16 Tensor Core），速度优势会被抵消
@@ -245,7 +245,7 @@ MXFP4 是 OCP（Open Compute Project）提出的 Microscaling FP4 标准，核�
 - 现实中：目前常见框架对“NVFP4 上的 QLoRA”尚未提供现成支持；实现难度不大，但工具链需要打通
 - 建议：若你需要立刻做 LoRA/QLoRA，短期仍可选择 INT4 或 MXFP4 的成熟路径；若你瞄准 Blackwell 的极致吞吐，等待框架对 NVFP4 的训练/微调支持是合理的策略
 
-### 8、选型决策树（简明版）
+### 8、选型决策树
 
 - 你的线上推理是否部署在 Blackwell？
   - 是：优先 NVFP4（权重+激活）。若对精度有顾虑，先试 NVFP4；再降级 NVFP4A16 评估损失与吞吐反差。
@@ -264,9 +264,117 @@ MXFP4 是 OCP（Open Compute Project）提出的 Microscaling FP4 标准，核�
 - 模块忽略策略：若忽略列表未覆盖真正敏感模块，易出现局部崩坏；反之忽略过多，会降低压缩比与吞吐
 - 旧 GPU 跑 NVFP4：明白“能装下 ≠ 更快”，不要对速度抱过高期待
 
+## 五、Code
+
+```
+pip install llmcompressor datasets transformers
+```
+
+**权重与激活同时量化：**
+
+```
+from llmcompressor import oneshot
+from llmcompressor.modifiers.quantization import QuantizationModifier
+from transformers import AutoTokenizer, AutoModelForCausalLM
+
+MODEL_ID = "meta-llama/Llama-3.3-70B-Instruct"
+model = AutoModelForCausalLM.from_pretrained(MODEL_ID, torch_dtype="auto")
+tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
+
+from datasets import load_dataset
+NUM_CALIBRATION_SAMPLES=512
+MAX_SEQUENCE_LENGTH=2048
+# Load dataset.
+ds = load_dataset("HuggingFaceH4/ultrachat_200k", split=f"train_sft[:{NUM_CALIBRATION_SAMPLES}]")
+ds = ds.shuffle(seed=42)
+
+# Preprocess the data into the format the model is trained with.
+def preprocess(example):
+    return {"text": tokenizer.apply_chat_template(example["messages"], tokenize=False,)}
+ds = ds.map(preprocess)
+
+# Tokenize the data (be careful with bos tokens - we need add_special_tokens=False since the chat_template already added it).
+def tokenize(sample):
+    return tokenizer(sample["text"], padding=False, max_length=MAX_SEQUENCE_LENGTH, truncation=True, add_special_tokens=False)
+ds = ds.map(tokenize, remove_columns=ds.column_names)
+
+# Configure the quantization algorithm to run.
+recipe = QuantizationModifier(targets="Linear", scheme="NVFP4", ignore=["lm_head"])
+
+# Apply quantization.
+oneshot(
+    model=model,
+    dataset=ds,
+    recipe=recipe,
+    max_seq_length=MAX_SEQUENCE_LENGTH,
+    num_calibration_samples=NUM_CALIBRATION_SAMPLES,
+)
+
+# Save to disk compressed.
+SAVE_DIR = MODEL_ID.rstrip("/").split("/")[-1] + "-NVFP4"
+model.save_pretrained(SAVE_DIR, save_compressed=True)
+tokenizer.save_pretrained(SAVE_DIR)
+```
+
+**只量化权重**
+
+```
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from llmcompressor import oneshot
+from llmcompressor.modifiers.quantization import QuantizationModifier
+
+MODEL_ID = "meta-llama/Llama-3.3-70B-Instruct"
+
+# Load model.
+model = AutoModelForCausalLM.from_pretrained(MODEL_ID, torch_dtype="auto")
+tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
+
+# Configure the quantization algorithm and scheme.
+# In this case, we:
+#   * quantize the weights to fp4 with per group 16 via ptq
+recipe = QuantizationModifier(targets="Linear", scheme="NVFP4A16", ignore=["lm_head"])
+
+# Apply quantization.
+oneshot(model=model, recipe=recipe)
 
 
-## 五、结论
+# Save to disk in compressed-tensors format.
+SAVE_DIR = MODEL_ID.rstrip("/").split("/")[-1] + "-NVFP4A16"
+model.save_pretrained(SAVE_DIR, save_compressed=True)
+tokenizer.save_pretrained(SAVE_DIR)
+```
+
+量化LM Head
+
+```
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from llmcompressor import oneshot
+from llmcompressor.modifiers.quantization import QuantizationModifier
+
+MODEL_ID = "meta-llama/Llama-3.3-70B-Instruct"
+
+# Load model.
+model = AutoModelForCausalLM.from_pretrained(MODEL_ID, torch_dtype="auto")
+tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
+
+# Configure the quantization algorithm and scheme.
+# In this case, we:
+#   * quantize the weights to fp4 with per group 16 via ptq
+recipe = QuantizationModifier(targets="Linear", scheme="NVFP4A16")
+
+# Apply quantization.
+oneshot(model=model, recipe=recipe)
+
+
+# Save to disk in compressed-tensors format.
+SAVE_DIR = MODEL_ID.rstrip("/").split("/")[-1] + "-NVFP4A16LMH"
+model.save_pretrained(SAVE_DIR, save_compressed=True)
+tokenizer.save_pretrained(SAVE_DIR)
+```
+
+
+
+## 六、结论
 
 如果你有 Blackwell，NVFP4 是值得优先尝试的 4-bit 路线：在几乎不牺牲精度的前提下，以硬件直通拿到远超过 INT4 的吞吐。这一优势的关键在于“权重+激活全 NVFP4”，以及 dual-scaling（微块 FP8 + 全局 FP32）带来的稳健数值特性。
 
@@ -277,3 +385,6 @@ MXFP4 是 OCP（Open Compute Project）提出的 Microscaling FP4 标准，核�
 - 按你的业务基准（如工具调用、函数参数拟合、知识密集问答）设计一套 NVFP4 vs MXFP4 的评测脚本与报告模版；
 - 将本文整理为 Markdown 发布版（含目录、图示占位、参考链接位）；
 - 输出一个“落地手册版本”，按环境（Blackwell/非 Blackwell）分别列出安装、量化、推理、排错的命令清单与注意事项。
+
+
+
