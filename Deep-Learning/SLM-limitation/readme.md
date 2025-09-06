@@ -1,4 +1,4 @@
-## **Gemma 3 270M小模型能力上限检测**
+## **Gemma 3 270M小模型能力上限探测**
 
 ### 结论
 
@@ -246,3 +246,8 @@ def FT(model_name, pair):
 FT("google/gemma-3-270m", "en-fr")
 ```
 
+
+
+**Refer to:**
+
+*https://kaitchup.substack.com/p/gemma-3-270m-can-tiny-models-learn*
