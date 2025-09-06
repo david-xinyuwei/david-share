@@ -1,4 +1,4 @@
-## **Gemma 3 270M 工程化微调最佳实践：从零样本到可商用翻译模型**
+## **Gemma 3 270M小模型能力上限检测**
 
 ### 结论
 
@@ -119,3 +119,130 @@
 - 如果想双向都好，需要用双向数据（英→法 + 法→英）联合训练
 - BLEU 在训练过程中不仅用于“看涨”，也可以用于**发现性能损失和过拟合拐点**
 - 最佳停训点通常在 **验证集 BLEU 峰值出现的 epoch**（这里是第 3 轮）
+
+
+
+### 示例代码
+
+```
+pip install unsloth
+```
+
+```
+from unsloth import FastLanguageModel
+import torch, multiprocessing
+from datasets import load_dataset
+from peft import LoraConfig
+from transformers import set_seed, AutoTokenizer,DataCollatorForSeq2Seq
+
+from trl import SFTTrainer, SFTConfig
+
+set_seed(42)
+
+iso_language = dict()
+iso_language["en"] = "English"
+iso_language["de"] = "German"
+iso_language["es"] = "Spanish"
+iso_language["fr"] = "French"
+iso_language["it"] = "Italian"
+
+
+def FT(model_name, pair):
+
+    compute_dtype = torch.bfloat16
+
+    bs = 16 #Batch size per device (training and validation), bs = 1 *can* be faster
+    gas = 4 #Gradient accumulation steps
+    mseqlen = 4096 #Maximum sequence length; reduce if you run out of memory
+
+    lr = 5e-5
+
+    output_dir = "./SFT-OPUS/"
+
+   model, tokenizer = FastLanguageModel.from_pretrained(
+      model_name = model_name,
+      fix_tokenizer=False,
+      max_seq_length = mseqlen,
+      dtype = compute_dtype,
+      load_in_4bit=False,
+      full_finetuning=True
+    )
+
+
+    languages = pair.split("-")
+    src_lang = languages[0]
+    tgt_lang = languages[1]
+
+
+    ds = load_dataset("Helsinki-NLP/opus-100", pair, split="train").train_test_split(test_size=0.01)
+    ds_train = ds["train"]
+    ds_test = ds["test"]
+    def process(row):
+
+      source = row['translation'][src_lang]
+      target = row['translation'][tgt_lang]
+
+      row["text"] = "<start>You are a professional translator that translates messages from "+iso_language[src_lang]+" to "+iso_language[tgt_lang]+".<user>"+source+"<translator>"+target+tokenizer.eos_token
+      return row
+
+    ds_train = ds_train.map(
+      process,
+      num_proc= 10,
+      load_from_cache_file=False,
+    )
+    print(ds_train[0]['text'])
+
+
+    ds_test = ds_test.map(
+      process,
+      num_proc= 10,
+      load_from_cache_file=False,
+    )
+    print(ds_test[0]['text'])
+
+
+
+    from unsloth import UnslothTrainer, UnslothTrainingArguments
+
+    training_arguments = UnslothTrainingArguments(
+          output_dir=output_dir,
+          optim="adamw_8bit",
+          per_device_train_batch_size=bs,
+          gradient_accumulation_steps=gas,
+          log_level="debug",
+          save_strategy="steps",
+          save_steps=6000,
+          logging_steps=25,
+          learning_rate = lr,
+          bf16 = True,
+          num_train_epochs=1,
+          warmup_ratio=0.03,
+          report_to = "none",
+          lr_scheduler_type="linear",
+          max_length=mseqlen,
+          dataset_text_field='text',
+          dataset_num_proc=10,
+          #do_eval=True,
+          #per_device_eval_batch_size=bs,
+          #eval_steps=100,
+          #eval_strategy="steps",
+    )
+
+    trainer = UnslothTrainer(
+      model = model,
+      train_dataset=ds_train,
+      #eval_dataset=ds_test,
+      processing_class=tokenizer,
+      args = training_arguments
+    )
+
+
+
+    trainer_ = trainer.train()
+
+```
+
+```
+FT("google/gemma-3-270m", "en-fr")
+```
+
