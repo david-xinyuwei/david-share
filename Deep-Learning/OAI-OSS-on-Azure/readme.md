@@ -61,7 +61,7 @@ MXFP4 is a kind  Quantization Aware Training (QAT)  rather than  post-training q
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/32.png)
 
-| Upper image flow                                    | below image flow                                        | Meaning                                                      |
+| Upper image QAT flow                                | Below QAT image flow                                    | Meaning                                                      |
 | --------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------ |
 | **Model Init – Pretrained or Scratch**              | **Original MXFP4 ckpt + Master weights FP32**           | Start with an existing model (either high precision or already quantized). In QAT for low-precision weights, first dequantize to a high-precision “master copy” that will be updated during training. |
 | **Simulate Quantization in Forward Pass**           | **MXFP4 Fakequant (Forward Pass)**                      | Insert a fake quantization module in the forward pass to simulate the effects of the target low-precision format (FP4 here), exposing the model to quantization error during inference simulation. |
