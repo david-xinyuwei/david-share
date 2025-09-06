@@ -53,7 +53,24 @@ In this repo, I will show ：
 - 2 models performance on Azure NV A10，Azure CPU VM and NC H100 GPU VM and including TTFT, tokens/s etc.
 - Model Fine-Tuning
 
-## MXFP4(**Microscaling**)
+## QAT and PTQ
+
+MXFP4 is a kind  Quantization Aware Training (QAT)  rather than  post-training quantization (PTQ).
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/31.png)
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/32.png)
+
+| Upper image flow                                    | below image flow                                        | Meaning                                                      |
+| --------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------ |
+| **Model Init – Pretrained or Scratch**              | **Original MXFP4 ckpt + Master weights FP32**           | Start with an existing model (either high precision or already quantized). In QAT for low-precision weights, first dequantize to a high-precision “master copy” that will be updated during training. |
+| **Simulate Quantization in Forward Pass**           | **MXFP4 Fakequant (Forward Pass)**                      | Insert a fake quantization module in the forward pass to simulate the effects of the target low-precision format (FP4 here), exposing the model to quantization error during inference simulation. |
+| **Train or Fine-Tune with Quantization Simulation** | **Backward Pass with Straight-Through Estimator (STE)** | Use STE to propagate gradients through the fake quantization step, updating the high-precision master weights so they can adapt to quantization artifacts while also learning the downstream task. |
+| **Export Quantized Model**                          | **Exported MXFP4 QAT ckpt**                             | After fine-tuning, re-quantize the updated high-precision weights into the target low-precision format (MXFP4) for deployment. |
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/33.png)
+
+### MXFP4(**Microscaling**)
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/13.png)
 
@@ -2583,3 +2600,5 @@ rm -f "$PID_FILE"
 *https://openai.com/index/introducing-gpt-oss/*  
 
 *https://techcommunity.microsoft.com/blog/machinelearningblog/deploying-openai%E2%80%99s-first-open-source-model-on-azure-aks-with-kaito/4444234*
+
+*https://lmsys.org/blog/2025-08-28-gpt-oss-qat/*
