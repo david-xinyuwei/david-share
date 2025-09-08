@@ -37,6 +37,10 @@ python demo/gradio_demo.py --model_path vibevoice/VibeVoice-7B  --share
 
 
 
+
+
+
+
 ##### English Version Demo：
 
-*VibeVoice-English.mp4 in repo*
+https://github.com/david-xinyuwei/david-share/issues/5#issue-3393499509
