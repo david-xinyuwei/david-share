@@ -37,7 +37,7 @@ https://github.com/user-attachments/assets/10cc7ef9-616f-48ad-879c-a93ee53f3794
 
 ##### Chinese Version Demo：
 
-https://github.com/user-attachments/assets/d78d1a2e-e106-47a7-b95f-26bb92081669
+https://github.com/user-attachments/assets/59d67e41-1bdd-4d3f-b36b-4bb2008fdf66
 
 
 
