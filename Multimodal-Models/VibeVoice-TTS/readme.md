@@ -43,4 +43,4 @@ python demo/gradio_demo.py --model_path vibevoice/VibeVoice-7B  --share
 
 ##### English Version Demo：
 
-https://github.com/david-xinyuwei/david-share/discussions/7#discussion-8863944
+https://github.com/user-attachments/assets/7ecc7255-e7c3-405e-bf97-8e20861b9863
