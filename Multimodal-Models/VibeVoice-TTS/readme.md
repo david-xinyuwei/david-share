@@ -4,11 +4,17 @@ VibeVoice is a novel framework designed for generating **expressive, long-form, 
 
 These tokenizers efficiently preserve audio fidelity while significantly boosting computational efficiency for processing long sequences. VibeVoice employs a next-token diffusion framework, leveraging a Large Language Model (LLM) to understand textual context and dialogue flow, and a diffusion head to generate high-fidelity acoustic details. The model can synthesize speech up to 90 minutes long with up to 4 distinct speakers, surpassing the typical 1-2 speaker limits of many prior models.
 
+![images](https://github.com/david-xinyuwei/david-share/blob/master/Multimodal-Models/VibeVoice-TTS/images/2.png)
+
 ### Useful Link
+
+Model weights on HF
 
 *https://huggingface.co/microsoft/VibeVoice-1.5B*
 
 *https://huggingface.co/vibevoice/VibeVoice-7B*
+
+Github project：
 
 *https://microsoft.github.io/VibeVoice/*
 
@@ -31,7 +37,7 @@ python demo/gradio_demo.py --model_path vibevoice/VibeVoice-7B  --share
 
 ### Demo effect
 
-**English Version Demo:
+**English Version Demo**:
 
 https://github.com/user-attachments/assets/10cc7ef9-616f-48ad-879c-a93ee53f3794  
 
