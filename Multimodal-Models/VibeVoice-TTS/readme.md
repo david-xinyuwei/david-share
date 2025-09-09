@@ -35,10 +35,10 @@ python demo/gradio_demo.py --model_path vibevoice/VibeVoice-7B  --share
 
  https://github.com/user-attachments/assets/10cc7ef9-616f-48ad-879c-a93ee53f3794  
 
- [🔗 Click here to watch in new tab](https://github.com/user-attachments/assets/10cc7ef9-616f-48ad-879c-a93ee53f3794)
+ [🔗 Click here to watch in new tab](https://github.com/david-xinyuwei/david-share/discussions/13)
 
  ##### Chinese Version Demo：
 
  https://github.com/user-attachments/assets/59d67e41-1bdd-4d3f-b36b-4bb2008fdf66   
 
-[🔗 Click here to watch in new tab](https://github.com/user-attachments/assets/59d67e41-1bdd-4d3f-b36b-4bb2008fdf66)
+[🔗 Click here to watch in new tab](https://github.com/david-xinyuwei/david-share/discussions/14)
