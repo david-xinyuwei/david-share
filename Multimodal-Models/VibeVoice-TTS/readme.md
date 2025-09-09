@@ -31,14 +31,13 @@ python demo/gradio_demo.py --model_path vibevoice/VibeVoice-7B  --share
 
 ### Demo effect
 
-##### Chinese Version Demo：
-
-https://github.com/user-attachments/assets/242918c2-ea02-41b6-9373-e65ad16efa9c
-
-
-
-
-
 ##### English Version Demo：
 
-https://github.com/user-attachments/assets/7ecc7255-e7c3-405e-bf97-8e20861b9863
+https://github.com/user-attachments/assets/b480912d-efb8-4966-8c66-bf277aea3ecf
+
+##### Chinese Version Demo：
+
+https://github.com/user-attachments/assets/8ddf3d1c-a4cd-4385-8d82-28179a4e41f9
+
+
+
