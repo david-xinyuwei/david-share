@@ -119,8 +119,6 @@
 
 ![images](https://github.com/david-xinyuwei/david-share/blob/master/Multimodal-Models/VibeVoice-TTS/images/6.png)
 
-![images](https://github.com/david-xinyuwei/david-share/blob/master/Multimodal-Models/VibeVoice-TTS/images/7.png)
-
 ##### **0. 输入（User Input）**
 
 - **音色选择**：UI 中选择要使用的声音（Voice Profile）
