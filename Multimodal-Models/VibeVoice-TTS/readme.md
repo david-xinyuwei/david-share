@@ -87,21 +87,15 @@ https://github.com/user-attachments/assets/976c0bb7-98c3-4007-ad78-0f324d595fd4
 
 #### Refer to:
 
-```
-Model weights on HF
-
 *https://huggingface.co/microsoft/VibeVoice-1.5B*
 
 *https://huggingface.co/vibevoice/VibeVoice-7B*
-
-Github project：
 
 *https://microsoft.github.io/VibeVoice/*
 
 *https://github.com/microsoft/VibeVoice*
 
 
-```
 
 
 
