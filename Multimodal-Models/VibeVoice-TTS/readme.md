@@ -28,14 +28,29 @@ You could run VibeVoice model on Edge，if you run VibeVoice-7B, it will need ~2
 
 ```
 conda create --name=VibeVoice python=3.11
+conda activate VibeVoice
 git clone https://github.com/vibevoice-community/VibeVoice.git
+cd VibeVoice/
 pip install -e .
+apt-get install -y ffmpeg
 python demo/gradio_demo.py --model_path vibevoice/VibeVoice-7B  --share
 ```
 
-![images](https://github.com/david-xinyuwei/david-share/blob/master/Multimodal-Models/VibeVoice-TTS/images/1.png)
+Running on Azure A10 GPU VM：
 
-### Demo effect
+![images](https://github.com/david-xinyuwei/david-share/blob/master/Multimodal-Models/VibeVoice-TTS/images/3.png)
+
+## Demo on A10 with 3 speakers in Chinese
+
+https://github.com/user-attachments/assets/4023a592-666c-4e60-9352-60f6ace068af
+
+
+
+### Demo on A100 with  2 speakers in English and Chinese
+
+Running on Azure A100 GPU VM：
+
+![images](https://github.com/david-xinyuwei/david-share/blob/master/Multimodal-Models/VibeVoice-TTS/images/1.png)
 
 **English Version Demo**:
 
