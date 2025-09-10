@@ -1,4 +1,4 @@
-## Model Introduction: VibeVoice
+# Model Introduction: VibeVoice
 
 **VibeVoice** is a long-form, multi-speaker conversational speech generation framework proposed by Microsoft in 2025. It combines a Large Language Model (LLM) with a **Next-Token Diffusion** decoder and an ultra-low frame rate continuous acoustic tokenizer, capable of generating up to **90 minutes** of high-fidelity dialogue with up to **4 speakers** in a single context. It outperforms many existing systems in both perceived audio quality and speaker consistency.
 
