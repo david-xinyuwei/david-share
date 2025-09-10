@@ -206,11 +206,35 @@ Running on Azure A10 GPU VM during model inference：
 
 ![images](https://github.com/david-xinyuwei/david-share/blob/master/Multimodal-Models/VibeVoice-TTS/images/3.png)
 
-## Demo on A10 with 3 speakers in Chinese
+### Demo on A10 with 3 speakers in Chinese
 
 https://github.com/user-attachments/assets/4023a592-666c-4e60-9352-60f6ace068af
 
+### Demo on A10 with 2 speakers in Chinese with prompt emotion
 
+Script：
+
+```
+Speaker 1: 大家好,今天啊……可真是个好日子啊？！
+
+Speaker 2: 是啊是啊；天气这么好……心情也跟着亮堂起来啦～而且——我们今天要聊的，可是——超级有意思的东西呢……  
+
+Speaker 1: 嗯？真的假的——我可是——专门推了个会——就为了过来听你们的——“神秘话题”哦？！该不会是……什么……AI阴谋论吧？
+
+Speaker 2: 哎呀——别闹别闹！咳咳……其实啊——我们今天的主题，是……“微软全新的——VibeVoice 模型”！你们可知道吗？它呀——能让四个人——连说带唱——聊足九十分钟——不带重样的！啧——厉害吧？！  
+
+Speaker 1: 别急——我来补充两句……它的声音啊，可不只是——“像真的”那么简单哦……那种……你知道的——轻轻的颤音、细微的呼吸声、还有那种……嗯——就是——特别自然的感觉啦～  
+
+Speaker 2: 哇——你这么一说——我突然——鸡皮疙瘩都起来啦！那……能不能——让它模仿一下四声杜鹃的叫声 "咕咕咕咕"
+
+Speaker 1: David——你这也太假了吧？！ 不过啊——VibeVoice——还真就……能生动得——“以假乱真”哦？  
+
+Speaker 2: 嗯——不过啊——我们也得——提醒大家——科技很酷没错……但……也得负责任地——去用它呀……  
+
+Speaker 1: 对——就像今天……我们是为了——开心、学习、分享——而来——唉——这才是最棒的……  
+```
+
+https://github.com/user-attachments/assets/d308c5d1-b45f-4151-8dba-91f001a8d64f
 
 ### Demo on A100 with  2 speakers in English and Chinese
 
@@ -225,6 +249,12 @@ https://github.com/user-attachments/assets/26533ef2-ba0e-4fea-9a45-fd72ec5b0918
 **Chinese Version Demo:**
 
 https://github.com/user-attachments/assets/976c0bb7-98c3-4007-ad78-0f324d595fd4
+
+
+
+
+
+
 
 
 
