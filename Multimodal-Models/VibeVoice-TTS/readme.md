@@ -117,6 +117,10 @@
 
 ![images](https://github.com/david-xinyuwei/david-share/blob/master/Multimodal-Models/VibeVoice-TTS/images/5.png)
 
+![images](https://github.com/david-xinyuwei/david-share/blob/master/Multimodal-Models/VibeVoice-TTS/images/6.png)
+
+![images](https://github.com/david-xinyuwei/david-share/blob/master/Multimodal-Models/VibeVoice-TTS/images/7.png)
+
 ##### **0. 输入（User Input）**
 
 - **音色选择**：UI 中选择要使用的声音（Voice Profile）
@@ -128,8 +132,6 @@
   [角色A] Hi Bob, long time no see.
   [角色B] I’m good. Are you free this weekend?
   ```
-
-------
 
 ##### **1. 特征提取（左下角 → Start）**
 
@@ -144,8 +146,6 @@
    - 维度：128-d，帧率约 7.5 Hz
    - 描述“应该说什么”（语义结构、句子节奏）
 
-------
-
 ##### **2. 混合输入序列（Hybrid Sequence Assembly）**
 
 - 将 **角色ID + Acoustic Latent + Semantic Latent + 文本token** 按时间顺序拼接
@@ -154,14 +154,10 @@
   - 对应的内容（Semantic Latent）
   - 文本细节（token）
 
-------
-
 ##### **3. LLM 处理（中间 VibeVoice 模块）**
 
 - 核心：Qwen2 架构 LLM（28 层，1.5B/7B 参数，长上下文 32K–65K token）
 - 根据混合序列理解上下文，保持不同角色的发音一致、对话内容连贯
-
-------
 
 ##### **4. 扩散生成（右边虚线框）**
 
@@ -169,8 +165,6 @@
    在每个 token 位置预测本片段的 **Acoustic Latent 序列**
 - **Acoustic Decoder（A）**：
    将 Acoustic Latent 还原为 24 kHz 高保真波形输出
-
-------
 
 ##### **5. 循环生成至结束**
 
@@ -184,9 +178,7 @@
 - 片段生成完即可播放，支持流式输出
 - 持续到 <End> 标记，可长达 90 分钟
 
-------
-
-##### **一句话总结**
+##### **总结**
 
 ```
 音色 → Acoustic Latent（怎么说）
@@ -194,9 +186,7 @@
 Acoustic Latent + Semantic Latent + 文本 → LLM → Diffusion Head → Acoustic Decoder → 音频输出
 ```
 
-![images](https://github.com/david-xinyuwei/david-share/blob/master/Multimodal-Models/VibeVoice-TTS/images/6.png)
 
-![images](https://github.com/david-xinyuwei/david-share/blob/master/Multimodal-Models/VibeVoice-TTS/images/7.png)
 
 ### Fast PoC steps
 
