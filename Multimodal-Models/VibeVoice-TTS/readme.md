@@ -39,12 +39,9 @@ python demo/gradio_demo.py --model_path vibevoice/VibeVoice-7B  --share
 
 **English Version Demo**:
 
-https://github.com/user-attachments/assets/10cc7ef9-616f-48ad-879c-a93ee53f3794  
-
-> Video loading slowly? [Click here to watch in a new tab](https://github.com/user-attachments/assets/10cc7ef9-616f-48ad-879c-a93ee53f3794  )
+https://github.com/user-attachments/assets/26533ef2-ba0e-4fea-9a45-fd72ec5b0918
 
 **Chinese Version Demo:**
 
-https://github.com/user-attachments/assets/59d67e41-1bdd-4d3f-b36b-4bb2008fdf66  
+https://github.com/user-attachments/assets/976c0bb7-98c3-4007-ad78-0f324d595fd4
 
-> Video loading slowly? [Click here to watch in a new tab](https://github.com/user-attachments/assets/59d67e41-1bdd-4d3f-b36b-4bb2008fdf66 )
