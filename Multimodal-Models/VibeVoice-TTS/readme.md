@@ -59,7 +59,7 @@ apt-get install -y ffmpeg
 python demo/gradio_demo.py --model_path vibevoice/VibeVoice-7B  --share
 ```
 
-Running on Azure A10 GPU VM：
+Running on Azure A10 GPU VM during model inference：
 
 ![images](https://github.com/david-xinyuwei/david-share/blob/master/Multimodal-Models/VibeVoice-TTS/images/3.png)
 
@@ -71,7 +71,7 @@ https://github.com/user-attachments/assets/4023a592-666c-4e60-9352-60f6ace068af
 
 ### Demo on A100 with  2 speakers in English and Chinese
 
-Running on Azure A100 GPU VM：
+Running on Azure A100 GPU VM after load model to GPU：
 
 ![images](https://github.com/david-xinyuwei/david-share/blob/master/Multimodal-Models/VibeVoice-TTS/images/1.png)
 
