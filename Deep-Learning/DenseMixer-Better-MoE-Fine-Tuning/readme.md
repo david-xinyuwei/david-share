@@ -205,10 +205,402 @@ trainer.train()
 
 ```
 
-对照试验：
+## 对照试验：
 
 ```
-export DENSEMIXER_ENABLED=0
-python run_densemixer_qlora.py
+#!/usr/bin/env python3
+import os, json, argparse
+from pathlib import Path
+import torch
+from datasets import load_dataset
+from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig, set_seed
+from trl import SFTTrainer, SFTConfig
+from peft import LoraConfig, prepare_model_for_kbit_training
+from collections import Counter
+import matplotlib.pyplot as plt
+
+def parse_args():
+    p = argparse.ArgumentParser()
+    p.add_argument("--fast", action="store_true")
+    p.add_argument("--full", action="store_true")
+    p.add_argument("--output", type=str, default="./exp_ab_compare_expert_routerhook_clean")
+    p.add_argument("--seed", type=int, default=1234)
+    p.add_argument("--attn", type=str, default="eager")
+    p.add_argument("--lr", type=float, default=2e-5)
+    p.add_argument("--topk_override", type=int, default=0)
+    p.add_argument("--max_eval_batches", type=int, default=16)
+    p.add_argument("--max_steps", type=int, default=0)
+    return p.parse_args()
+
+def select_mode(args):
+    if args.full and not args.fast:
+        return {
+            "model_name": "Qwen/Qwen3-30B-A3B-Base",
+            "train_slice": "train_sft[:400]",
+            "eval_slice": "test_sft[:80]",
+            "batch_size": 1,
+            "grad_accum": 8,
+            "max_steps": 40 if args.max_steps <= 0 else args.max_steps,
+            "max_len": 1024,
+            "fast_mode": False,
+        }
+    return {
+        "model_name": "Qwen/Qwen1.5-MoE-A2.7B",
+        "train_slice": "train_sft[:120]",
+        "eval_slice": "test_sft[:24]",
+        "batch_size": 4,
+        "grad_accum": 2,
+        "max_steps": 10 if args.max_steps <= 0 else args.max_steps,
+        "max_len": 512,
+        "fast_mode": True,
+    }
+
+def ensure_tokenizer(tok):
+    if tok.pad_token is None and tok.eos_token is not None:
+        tok.pad_token = tok.eos_token
+    return tok
+
+def map_messages_to_text(ds, tok, max_len):
+    def to_text(ex):
+        msgs = ex.get("messages", None)
+        if msgs is None:
+            t = ex.get("text", "")
+            return {"text": str(t)[: max_len*4]}
+        try:
+            t = tok.apply_chat_template(msgs, tokenize=False, add_generation_prompt=False)
+        except Exception:
+            parts = []
+            for m in msgs:
+                role = str(m.get("role",""))
+                content = str(m.get("content",""))
+                parts.append(f"{role}: {content}")
+            t = "\n".join(parts)
+        return {"text": t[: max_len*4]}
+    cols = ds.column_names
+    return ds.map(to_text, remove_columns=cols, desc="Formatting to plain text")
+
+def load_model(model_name, attn_impl, dtype=torch.bfloat16):
+    bnb = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4", bnb_4bit_compute_dtype=dtype, bnb_4bit_use_double_quant=True)
+    model = AutoModelForCausalLM.from_pretrained(model_name, quantization_config=bnb, device_map={"": 0}, attn_implementation=attn_impl)
+    model = prepare_model_for_kbit_training(model, gradient_checkpointing_kwargs={"use_reentrant": False})
+    if hasattr(model, "config"):
+        try:
+            model.config.output_router_logits = True
+        except Exception:
+            pass
+    model.eval()
+    return model
+
+def lora_cfg():
+    return LoraConfig(
+        lora_alpha=16, lora_dropout=0.05, r=16, bias="none", task_type="CAUSAL_LM",
+        target_modules=['k_proj','q_proj','v_proj','gate','o_proj','gate_proj','down_proj','up_proj']
+    )
+
+def trainer_cfg(out_dir, bs, ga, lr, max_steps, max_len, seed, fast_mode):
+    return SFTConfig(
+        output_dir=str(out_dir),
+        optim="paged_adamw_8bit",
+        per_device_train_batch_size=bs,
+        gradient_accumulation_steps=ga,
+        per_device_eval_batch_size=bs,
+        log_level="info",
+        save_strategy="no",
+        logging_steps=1 if fast_mode else 5,
+        learning_rate=lr,
+        bf16=True,
+        max_steps=max_steps,
+        lr_scheduler_type="linear",
+        dataset_text_field="text",
+        max_length=max_len,
+        report_to="none",
+        seed=seed,
+        remove_unused_columns=False
+    )
+
+def determine_num_experts(cfg):
+    for k in ["num_local_experts","num_experts","n_experts"]:
+        if hasattr(cfg,k):
+            v = getattr(cfg,k)
+            if isinstance(v,int) and v>0:
+                return v
+    return 32
+
+def determine_topk(cfg, override=0):
+    if override and override>0:
+        return override
+    for k in ["num_experts_per_tok","num_experts_per_token","router_top_k","top_k","experts_per_token"]:
+        if hasattr(cfg,k):
+            v = getattr(cfg,k)
+            if isinstance(v,int) and v>0:
+                return v
+    return 4
+
+def get_router_tensors_from_outputs(out):
+    ts = []
+    def collect(obj):
+        res = []
+        if isinstance(obj, torch.Tensor):
+            res.append(obj)
+        elif isinstance(obj, (list, tuple)):
+            for x in obj:
+                res.extend(collect(x))
+        return res
+    rp = getattr(out, "router_probs", None)
+    rl = getattr(out, "router_logits", None)
+    if rp is not None:
+        ts.extend(collect(rp))
+    if rl is not None:
+        for t in collect(rl):
+            try:
+                ts.append(torch.softmax(t, dim=-1))
+            except Exception:
+                pass
+    return ts
+
+def list_router_modules(model):
+    names = []
+    for n, _ in model.named_modules():
+        last = n.split(".")[-1]
+        if last == "router" or n.endswith(".router"):
+            names.append(n)
+    return names
+
+def register_router_hooks(model, k, n_exp, out_dir):
+    handles = []
+    usage = Counter()
+    matched = list_router_modules(model)
+    if matched:
+        with open(Path(out_dir)/"router_modules.txt","w") as f:
+            f.write("\n".join(matched))
+    def hook(_, __, out):
+        try:
+            x = out
+            if isinstance(x, (list, tuple)):
+                x = x[-1]
+            if not isinstance(x, torch.Tensor):
+                return
+            if x.dim() > 2:
+                x = x.view(-1, x.shape[-1])
+            if x.dim() != 2:
+                return
+            if x.shape[-1] != n_exp:
+                return
+            kk = min(k, n_exp)
+            idx = torch.topk(x, k=kk, dim=-1).indices
+            for t in idx.view(-1):
+                usage[int(t.item())] += 1
+        except Exception:
+            return
+    for name, module in model.named_modules():
+        last = name.split(".")[-1]
+        if last == "router" or name.endswith(".router"):
+            try:
+                h = module.register_forward_hook(hook)
+                handles.append(h)
+            except Exception:
+                continue
+    return handles, usage
+
+def remove_hooks(handles):
+    for h in handles:
+        try:
+            h.remove()
+        except Exception:
+            pass
+
+def collect_expert_usage_via_outputs(model, ds, tok, k, n_exp, max_batches=16):
+    usage = Counter()
+    loader = torch.utils.data.DataLoader(ds, batch_size=1, shuffle=False)
+    device = model.device
+    it = 0
+    for batch in loader:
+        if it >= max_batches:
+            break
+        it += 1
+        text = batch["text"][0]
+        inputs = tok(text, return_tensors="pt", truncation=True, max_length=256).to(device)
+        try:
+            with torch.no_grad(), torch.autocast("cuda", dtype=torch.bfloat16):
+                out = model(**inputs, output_router_logits=True, return_dict=True, use_cache=False)
+            tensors = get_router_tensors_from_outputs(out)
+            for x in tensors:
+                if not isinstance(x, torch.Tensor):
+                    continue
+                if x.shape[-1] != n_exp:
+                    continue
+                if x.dim() == 2:
+                    x = x.unsqueeze(1)
+                if x.dim() != 3:
+                    continue
+                kk = min(k, n_exp)
+                idx = torch.topk(x, k=kk, dim=-1).indices
+                for t in idx.view(-1):
+                    usage[int(t.item())] += 1
+        except Exception:
+            continue
+    return usage
+
+def collect_expert_usage(model, ds, tok, k, n_exp, max_batches, out_dir):
+    usage = collect_expert_usage_via_outputs(model, ds, tok, k, n_exp, max_batches)
+    if len(usage) == 0:
+        handles, usage2 = register_router_hooks(model, k, n_exp, out_dir)
+        loader = torch.utils.data.DataLoader(ds, batch_size=1, shuffle=False)
+        device = model.device
+        core = getattr(model, "model", model)
+        it = 0
+        for batch in loader:
+            if it >= max_batches:
+                break
+            it += 1
+            text = batch["text"][0]
+            inputs = tok(text, return_tensors="pt", truncation=True, max_length=256).to(device)
+            try:
+                with torch.no_grad(), torch.autocast("cuda", dtype=torch.bfloat16):
+                    try:
+                        _ = core(**inputs, output_router_logits=True, return_dict=True, use_cache=False)
+                    except TypeError:
+                        _ = core(**inputs)
+            except Exception:
+                continue
+        remove_hooks(handles)
+        if len(usage2) > 0:
+            usage = usage2
+    return usage
+
+def run_one(tag, densemixer_enabled, cfg, tok, ds_train, ds_eval, lr, out_base):
+    os.environ["DENSEMIXER_ENABLED"] = "1" if densemixer_enabled else "0"
+    run_dir = Path(out_base) / tag
+    run_dir.mkdir(parents=True, exist_ok=True)
+    model = load_model(cfg["model_name"], cfg["attn_impl"])
+    peft = lora_cfg()
+    args = trainer_cfg(run_dir, cfg["batch_size"], cfg["grad_accum"], lr, cfg["max_steps"], cfg["max_len"], cfg["seed"], cfg["fast_mode"])
+    tr = SFTTrainer(model=model, train_dataset=ds_train, eval_dataset=ds_eval, peft_config=peft, processing_class=tok, args=args)
+    tr.train()
+    metrics = tr.evaluate()
+    eval_loss = float(metrics.get("eval_loss", float("nan")))
+    with open(run_dir/"eval_loss.json","w") as f:
+        json.dump({"eval_loss": eval_loss}, f, indent=2)
+    n_exp = determine_num_experts(model.config)
+    k = determine_topk(model.config, cfg["topk_override"])
+    usage = collect_expert_usage(model, ds_eval, tok, k, n_exp, max_batches=cfg["max_eval_batches"], out_dir=run_dir)
+    with open(run_dir/"expert_usage.json","w") as f:
+        json.dump({str(k2): int(v) for k2, v in usage.items()}, f, indent=2)
+    return eval_loss, str(run_dir/"expert_usage.json"), n_exp
+
+def plot_eval_loss(out_base, loss_a, loss_b):
+    fp = Path(out_base)/"eval_loss_comparison.png"
+    plt.figure(figsize=(5,4))
+    plt.bar(["Baseline","DenseMixer"], [loss_a,loss_b], color=["#ff7f0e","#1f77b4"])
+    plt.ylabel("Eval Loss")
+    plt.title("Eval Loss Comparison")
+    plt.grid(axis="y", linestyle="--", alpha=0.6)
+    plt.tight_layout()
+    plt.savefig(fp, dpi=120)
+    plt.close()
+    return str(fp)
+
+def plot_expert_usage(out_base, usage_a_path, usage_b_path, n_exp):
+    with open(usage_a_path) as f:
+        ua = json.load(f)
+    with open(usage_b_path) as f:
+        ub = json.load(f)
+    keys = list(range(n_exp))
+    counts_a = [int(ua.get(str(e),0)) for e in keys]
+    counts_b = [int(ub.get(str(e),0)) for e in keys]
+    x = range(len(keys))
+    fp = Path(out_base)/"expert_usage_comparison.png"
+    plt.figure(figsize=(max(10, len(keys)*0.30),5))
+    plt.bar([i-0.2 for i in x], counts_a, width=0.4, label="Baseline")
+    plt.bar([i+0.2 for i in x], counts_b, width=0.4, label="DenseMixer")
+    plt.xlabel("Expert ID")
+    plt.ylabel("Activation Count")
+    plt.title("Expert Usage Comparison (Top-K activation)")
+    plt.legend()
+    plt.grid(axis="y", linestyle="--", alpha=0.6)
+    plt.xticks(list(x), [str(k) for k in keys], rotation=0)
+    plt.tight_layout()
+    plt.savefig(fp, dpi=120)
+    plt.close()
+    return str(fp)
+
+def main():
+    args = parse_args()
+    mode = select_mode(args)
+    out_base = Path(args.output)
+    out_base.mkdir(parents=True, exist_ok=True)
+    set_seed(args.seed)
+    tok = AutoTokenizer.from_pretrained(mode["model_name"])
+    tok = ensure_tokenizer(tok)
+    ds_train_raw = load_dataset("HuggingFaceH4/ultrachat_200k", split=mode["train_slice"])
+    ds_eval_raw = load_dataset("HuggingFaceH4/ultrachat_200k", split=mode["eval_slice"])
+    ds_train = map_messages_to_text(ds_train_raw, tok, mode["max_len"])
+    ds_eval = map_messages_to_text(ds_eval_raw, tok, mode["max_len"])
+    cfg = {
+        "model_name": mode["model_name"],
+        "attn_impl": args.attn,
+        "batch_size": mode["batch_size"],
+        "grad_accum": mode["grad_accum"],
+        "max_steps": mode["max_steps"],
+        "max_len": mode["max_len"],
+        "seed": args.seed,
+        "topk_override": args.topk_override,
+        "max_eval_batches": max(1, args.max_eval_batches),
+        "fast_mode": mode["fast_mode"],
+    }
+    loss_base, usage_base, n_exp_a = run_one("baseline", False, cfg, tok, ds_train, ds_eval, args.lr, out_base)
+    loss_dm, usage_dm, n_exp_b = run_one("densemixer", True, cfg, tok, ds_train, ds_eval, args.lr, out_base)
+    n_exp = max(n_exp_a, n_exp_b)
+    fp1 = plot_eval_loss(out_base, loss_base, loss_dm)
+    fp2 = plot_expert_usage(out_base, usage_base, usage_dm, n_exp)
+    summary = {
+        "fast_mode": mode["fast_mode"],
+        "model_name": mode["model_name"],
+        "loss": {"baseline": loss_base, "densemixer": loss_dm},
+        "plots": {"eval_loss_png": fp1, "expert_usage_png": fp2},
+        "runs": {
+            "baseline": {"eval_loss_json": str(Path(out_base)/"baseline"/"eval_loss.json"),
+                         "expert_usage_json": usage_base},
+            "densemixer": {"eval_loss_json": str(Path(out_base)/"densemixer"/"eval_loss.json"),
+                           "expert_usage_json": usage_dm}
+        }
+    }
+    with open(Path(out_base)/"summary.json","w") as f:
+        json.dump(summary, f, indent=2)
+    print(json.dumps(summary, indent=2))
+
+if __name__ == "__main__":
+    main()
+```
+
+
+
+```
+(densemixer) root@a100vm:~# python  python run_densemixer_ab_expert_routerhook.py  --fast --fast
+```
+
+```
+  "fast_mode": true,
+  "model_name": "Qwen/Qwen1.5-MoE-A2.7B",
+  "loss": {
+    "baseline": 1.7469688653945923,
+    "densemixer": 1.7470684051513672
+  },
+  "plots": {
+    "eval_loss_png": "exp_ab_compare_expert_routerhook_fix/eval_loss_comparison.png",
+    "expert_usage_png": "exp_ab_compare_expert_routerhook_fix/expert_usage_comparison.png"
+  },
+  "runs": {
+    "baseline": {
+      "eval_loss_json": "exp_ab_compare_expert_routerhook_fix/baseline/eval_loss.json",
+      "expert_usage_json": "exp_ab_compare_expert_routerhook_fix/baseline/expert_usage.json"
+    },
+    "densemixer": {
+      "eval_loss_json": "exp_ab_compare_expert_routerhook_fix/densemixer/eval_loss.json",
+      "expert_usage_json": "exp_ab_compare_expert_routerhook_fix/densemixer/expert_usage.json"
+    }
+  }
+}
+(densemixer) root@a100vm:~# cat exp_ab_compare_expert_routerhook_fix/expert_usage_comparison.png
 ```
 
