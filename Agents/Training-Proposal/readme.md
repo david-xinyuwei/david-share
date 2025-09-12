@@ -1,11 +1,16 @@
 # Customer AI Training Proposal
 
-**Objective**
-The primary objective of this training program is to equip your technical teams with in‑depth knowledge and hands‑on skills in three critical areas of enterprise AI adoption:
+This training equips participants with practical expertise in secure Azure AI deployments, model fine‑tuning workflows, and advanced large model optimization on Azure infrastructure. The curriculum focuses on:
 
-1. **Secure Deployment of Azure AI Foundry** – ensuring that AI resources are protected with enterprise‑grade private networking, RBAC, and governance controls.
-2. **Fine‑Tuning of Azure OpenAI Models** – enabling the customization of state‑of‑the‑art language models to meet domain‑specific business requirements with improved accuracy, efficiency, and cost‑effectiveness.
-3. **Supervised and Reinforcement Fine‑Tuning for Multimodal Models on Azure GPU VMs** – providing practical knowledge in training and deploying advanced models such as *Phi‑4 multimodal*, which can process and reason over text, audio, and images.
+1. Implementing secure, private, and compliant AI Foundry environments.
+2. Performing supervised fine‑tuning on Azure OpenAI models with optimal dataset preparation and deployment practices.
+3. Training, quantizing, and deploying cutting‑edge multimodal and open‑source foundation models such as *Phi‑4‑multimodal* and *OpenAI GPT‑OSS* on Azure GPU and containerized environments with performance‑oriented techniques like LoRA, FlashAttention, MXFP4 quantization, and Sink Token optimization.
+
+Knowledge points in this course：
+
+![images](https://github.com/david-xinyuwei/david-share/blob/master/Agents/Training-Proposal/images/1.png)
+
+## **Takeaways**
 
 By the conclusion of the training, participants will be able to:
 
@@ -47,15 +52,23 @@ In this module, attendees will explore supervised and reinforcement fine‑tunin
 
 - [Full Code & Examples – Phi‑4 Multimodal SFT](https://github.com/david-xinyuwei/david-share/tree/master/Multimodal-Models/SFT-Phi-4-mm)
 
+
+
+In this module, attendees will explore deploy and optimize *gpt‑oss‑20B/120B* on Azure GPU and AKS with KAITO integration. Includes post‑training quantization, MXFP4 quantization‑aware training, Sink Token inference optimization with FlashAttention‑3, and performance tuning for Hopper vs. Ampere GPUs. Discuss fine‑tuning strategies and trade‑offs between quantized and FP16 deployments.
+
+**Reference:**
+
+- [Full Code & Examples – GPT-OSS SFT](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/OAI-OSS-on-Azure)
+
 ------
 
-**Format**
+## **Format**
 
 - Blended approach: theory sessions + hands‑on labs
 - Full command‑line examples and reference code provided
 - Real‑world enterprise scenarios tailored to your environment
 
-**Target Audience**
+## **Target Audience**
 
 - AI Engineers & Data Scientists
 - Enterprise Cloud & Security Architects
