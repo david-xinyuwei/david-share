@@ -54,6 +54,24 @@ In this module, attendees will explore supervised and reinforcement fine‑tunin
 
 
 
+**MediaTek** runs AI models natively to better facilitate real-time interactions by incorporating Phi-3.5 into its Dimensity 9400 chipsets. The Phi models offer advanced AI capabilities at a lower cost, provide high-quality training data, and include safety measures to yield accurate and reliable outputs. “Our customers use the Phi-3.5 mini model, which allows them to rapidly customize their product,” says Yannic Peng, Product Manager at MediaTek.
+
+**Reference:**
+
+[MediaTek boosts on-device AI speed by 50% using Phi models from Microsoft](https://www.microsoft.com/en/customers/story/23680-mediatek-azure-ai-model-catalog)
+
+​		
+
+| microsoft/Phi-3.5-mini-instruct     | 3.82B params |
+| ----------------------------------- | ------------ |
+| microsoft/Phi-4-multimodal-instruct | 5.57B params |
+
+​	
+
+
+
+
+
 In this module, attendees will explore deploy and optimize *gpt‑oss‑20B/120B* on Azure GPU and AKS with KAITO integration. Includes post‑training quantization, MXFP4 quantization‑aware training, Sink Token inference optimization with FlashAttention‑3, and performance tuning for Hopper vs. Ampere GPUs. Discuss fine‑tuning strategies and trade‑offs between quantized and FP16 deployments.
 
 **Reference:**
