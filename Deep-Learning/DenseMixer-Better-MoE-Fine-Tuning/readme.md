@@ -1,6 +1,6 @@
 ## DenseMixer: Better MoE Fine-Tuning
 
-DenseMixer 是一种面向 MoE（Mixture-of-Experts）模型的训练增强插件。它在保持推理 Top-K 稀疏前向的同时，通过直通估计器（STE）和敏感度信号，让路由器从 **所有专家** 获得梯度反馈，从而减少梯度偏置、提升专家利用率与训练稳定性。   兼容全参微调、LoRA、QLoRA，零侵入集成，工程落地简单。
+DenseMixer (*https://github.com/yaof20/DenseMixer*)是一种面向 MoE（Mixture-of-Experts）模型的训练增强插件。它在保持推理 Top-K 稀疏前向的同时，通过直通估计器（STE）和敏感度信号，让路由器从 **所有专家** 获得梯度反馈，从而减少梯度偏置、提升专家利用率与训练稳定性。   兼容全参微调、LoRA、QLoRA，零侵入集成，工程落地简单。
 
 
 
@@ -573,34 +573,22 @@ if __name__ == "__main__":
     main()
 ```
 
-
-
-```
-(densemixer) root@a100vm:~# python  python run_densemixer_ab_expert_routerhook.py  --fast --fast
-```
+快速验证
 
 ```
-  "fast_mode": true,
-  "model_name": "Qwen/Qwen1.5-MoE-A2.7B",
-  "loss": {
-    "baseline": 1.7469688653945923,
-    "densemixer": 1.7470684051513672
-  },
-  "plots": {
-    "eval_loss_png": "exp_ab_compare_expert_routerhook_fix/eval_loss_comparison.png",
-    "expert_usage_png": "exp_ab_compare_expert_routerhook_fix/expert_usage_comparison.png"
-  },
-  "runs": {
-    "baseline": {
-      "eval_loss_json": "exp_ab_compare_expert_routerhook_fix/baseline/eval_loss.json",
-      "expert_usage_json": "exp_ab_compare_expert_routerhook_fix/baseline/expert_usage.json"
-    },
-    "densemixer": {
-      "eval_loss_json": "exp_ab_compare_expert_routerhook_fix/densemixer/eval_loss.json",
-      "expert_usage_json": "exp_ab_compare_expert_routerhook_fix/densemixer/expert_usage.json"
-    }
-  }
-}
-(densemixer) root@a100vm:~# cat exp_ab_compare_expert_routerhook_fix/expert_usage_comparison.png
+(densemixer) root@a100vm:~# python  run_densemixer_ab_expert_routerhook.py --fast 
 ```
+
+完整验证：
+
+```
+
+(densemixer) root@a100vm:~# python  run_densemixer_ab_expert_routerhook.py --fast 
+```
+
+经过几次验证，densemixer微调的损失函数均低于传统微调。
+
+
+
+
 
