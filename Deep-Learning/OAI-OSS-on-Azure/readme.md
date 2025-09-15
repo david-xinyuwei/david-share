@@ -2595,6 +2595,176 @@ rm -f "$PID_FILE"
 
 
 
+## Function call of GPT-OSS
+
+###  **GPT-OSS Function Calling with Ollama** 
+
+```
+import os
+import json
+import random
+import subprocess
+import sys
+import traceback
+
+def ensure_openai():
+    try:
+        from openai import OpenAI  # noqa
+    except Exception:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "openai>=1.51.0"])
+    from openai import OpenAI
+    return OpenAI
+
+OpenAI = ensure_openai()
+
+# === 本地示例函数 ===
+def get_ingredients(dish: str):
+    print(f"[LOCAL FUNC] get_ingredients called with dish={dish}")
+    ingredients_data = {
+        "ingredients": ["flour", "sugar", "eggs", "milk"],
+        "dish": dish
+    }
+    return json.dumps(ingredients_data, ensure_ascii=False)
+
+def get_friends(location: str):
+    print(f"[LOCAL FUNC] get_friends called with location={location}")
+    n = 2 if location == "New York" else 3
+    friends = random.sample(["Harry", "Kim", "Joycelne", "Binky", "Eddy", "Holly"], k=n)
+    return json.dumps({"frens": friends, "location": location}, ensure_ascii=False)
+
+available_functions = {
+    "get_ingredients": get_ingredients,
+    "get_friends": get_friends
+}
+
+# === 工具定义 ===
+tools = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_friends",
+            "description": "Get the names of friends for a holiday trip",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "location": {"type": "string", "description": "Destination city"}
+                },
+                "required": ["location"]
+            },
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_ingredients",
+            "description": "Get the ingredients in a given recipe",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "dish": {"type": "string", "description": "Dish name"}
+                },
+                "required": ["dish"]
+            },
+        }
+    }
+]
+
+def main():
+    base_url = os.getenv("OPENAI_BASE_URL", "http://localhost:11434/v1")
+    api_key = os.getenv("OPENAI_API_KEY", "ollama")  # dummy
+    model = os.getenv("MODEL", "gpt-oss:20b")
+
+    client = OpenAI(base_url=base_url, api_key=api_key)
+
+    # 第一次请求，给模型提示
+    messages = [
+        {"role": "user", "content": "who should I bring as friends on a holiday trip to New York"}
+    ]
+    print("[DEBUG] ==== 第一次请求 ====")
+    resp1 = client.chat.completions.create(
+        model=model,
+        messages=messages,
+        tools=tools
+    )
+    msg1 = resp1.choices[0].message
+    print("[DEBUG] 模型第一次返回：", msg1)
+
+    tool_calls = msg1.tool_calls or []
+    print(f"[DEBUG] tool_calls: {tool_calls}")
+
+    if not tool_calls:
+        print("[RESULT] ❌ 模型没有返回任何 tool_calls，本地函数不会执行")
+        return
+
+    # 执行本地函数并回填 tool 消息
+    for tc in tool_calls:
+        fname = tc.function.name
+        fargs = {}
+        try:
+            fargs = json.loads(tc.function.arguments)
+        except Exception as e:
+            print(f"[WARN] 无法解析参数: {e}")
+        if fname in available_functions:
+            func_res = available_functions[fname](**fargs)
+            # 按文章里做法，加回 assistant 消息和 role=tool 消息
+            messages.append({
+                "role": "assistant",
+                "content": msg1.content or "",
+                "tool_calls": [tc.model_dump()]
+            })
+            messages.append({
+                "role": "tool",
+                "name": fname,
+                "content": func_res
+            })
+        else:
+            print(f"[WARN] {fname} 不在本地函数注册表里")
+
+    # 第二次请求，模型基于 tool 消息生成最终回答
+    print("[DEBUG] ==== 第二次请求 ====")
+    resp2 = client.chat.completions.create(
+        model=model,
+        messages=messages
+    )
+    msg2 = resp2.choices[0].message
+    print("[RESULT] ✅ 模型最终回答：")
+    print(msg2.content)
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception:
+        traceback.print_exc()
+        sys.exit(1)
+```
+
+Result:
+
+```
+ollama run gpt-oss:20b --verbose
+export OPENAI_BASE_URL=http://localhost:11434/v1
+export OPENAI_API_KEY=ollama
+```
+
+```
+root@a100vm:~/gpt-oss-function# python3 ollama_fc.py 
+[DEBUG] ==== 第一次请求 ====
+[DEBUG] 模型第一次返回： ChatCompletionMessage(content='', refusal=None, role='assistant', annotations=None, audio=None, function_call=None, tool_calls=[ChatCompletionMessageToolCall(id='call_klhsjhbl', function=Function(arguments='{"location":"New York"}', name='get_friends'), type='function', index=0)], reasoning='User asks: "who should I bring as friends on a holiday trip to New York". They want suggestions on which friends to bring. The tool get_friends expects location name. We can call get_friends with location "New York". We\'ll get list of names? It returns "any". We\'ll use that. Then we can suggest some general types: travel companion, foodie, etc. Provide friendly advice.\n\nWe need to use tool.')
+[DEBUG] tool_calls: [ChatCompletionMessageToolCall(id='call_klhsjhbl', function=Function(arguments='{"location":"New York"}', name='get_friends'), type='function', index=0)]
+[LOCAL FUNC] get_friends called with location=New York
+[DEBUG] ==== 第二次请求 ====
+[RESULT] ✅ 模型最终回答：
+Here are some friends you might consider bringing:
+
+- **Holly** – Great for exploring museums and enjoying the city vibe.
+- **Binky** – Perfect for food adventures and a good sense of humor.
+
+Enjoy your holiday trip to New York!
+root@a100vm:~/gpt-oss-function# 
+```
+
+
+
 **Refer to**: 
 
 *https://openai.com/index/introducing-gpt-oss/*  
