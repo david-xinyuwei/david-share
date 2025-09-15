@@ -2597,7 +2597,330 @@ rm -f "$PID_FILE"
 
 ## Function call of GPT-OSS
 
-###  **GPT-OSS Function Calling with Ollama** 
+### vLLM server function call via openai  Harmony
+
+```
+root@a100vm:~/gpt-oss-function# cat fc-vllm.py 
+```
+
+```
+#!/usr/bin/env python3
+import os
+import sys
+import json
+import asyncio
+import traceback
+import subprocess
+from typing import List, Dict, Any, Optional
+from contextlib import asynccontextmanager
+
+def ensure_pkgs():
+    pkgs = [
+        ("openai-harmony>=0.1.0", "openai_harmony"),
+        ("gpt-oss>=0.0.5", "gpt_oss"),
+        ("vllm>=0.10.2", "vllm"),
+        ("fastapi>=0.116.1", "fastapi"),
+        ("uvicorn>=0.35.0", "uvicorn"),
+        ("requests>=2.31.0", "requests"),
+    ]
+    for spec, mod in pkgs:
+        try:
+            __import__(mod)
+        except Exception:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", spec])
+
+ensure_pkgs()
+
+import requests
+from fastapi import FastAPI, Body
+from fastapi.responses import JSONResponse
+import uvicorn
+
+from openai_harmony import (
+    HarmonyEncodingName,
+    load_harmony_encoding,
+    Conversation,
+    Message,
+    Role,
+    SystemContent,
+)
+from gpt_oss.tools.python_docker.docker_tool import PythonTool
+from vllm import LLM, SamplingParams
+
+
+def build_final_text_from_entries(entries: List[Any]) -> str:
+    final_msgs = [
+        m for m in entries
+        if getattr(m, "role", "") == "assistant" and getattr(m, "channel", "") == "final"
+    ]
+    texts: List[str] = []
+    for m in final_msgs:
+        data = m.to_dict()
+        content = data.get("content")
+        if isinstance(content, list):
+            for block in content:
+                if isinstance(block, dict) and block.get("type") == "text":
+                    t = (block.get("text") or "").strip()
+                    if t:
+                        texts.append(t)
+        elif isinstance(content, str):
+            t = content.strip()
+            if t:
+                texts.append(t)
+    if texts:
+        return "\n".join(texts)
+    asst_msgs = [m for m in entries if getattr(m, "role", "") == "assistant"]
+    for m in asst_msgs:
+        data = m.to_dict()
+        content = data.get("content")
+        if isinstance(content, list):
+            for block in content:
+                if isinstance(block, dict) and block.get("type") == "text":
+                    t = (block.get("text") or "").strip()
+                    if t:
+                        texts.append(t)
+        elif isinstance(content, str):
+            t = content.strip()
+            if t:
+                texts.append(t)
+    return "\n".join(texts)
+
+
+class HarmonyServer:
+    def __init__(self):
+        self.model_id = os.environ.get("MODEL", "openai/gpt-oss-20b")
+        self.temperature = float(os.environ.get("TEMP", "0"))
+        self.max_new_tokens = int(os.environ.get("MAX_NEW_TOKENS", "256"))
+        self.gpu_util = float(os.environ.get("GPU_UTIL", "0.35"))
+        self.tp_size = int(os.environ.get("TP_SIZE", "1"))
+        self.max_tool_rounds = int(os.environ.get("MAX_TOOL_ROUNDS", "5"))
+
+        self.encoding = load_harmony_encoding(HarmonyEncodingName.HARMONY_GPT_OSS)
+        self.python_tool = PythonTool()
+
+        sys_content = SystemContent.new().with_tools(self.python_tool.tool_config)
+        self.system_msg = Message.from_role_and_content(Role.SYSTEM, sys_content)
+
+        self.llm = LLM(
+            model=self.model_id,
+            trust_remote_code=True,
+            tensor_parallel_size=self.tp_size,
+            gpu_memory_utilization=self.gpu_util,
+            disable_log_stats=True,
+        )
+        self.tokenizer = self.llm.get_tokenizer()
+        self.stop_token_ids = self.encoding.stop_tokens_for_assistant_actions()
+
+    def sampling_params(self, temperature: Optional[float], max_new_tokens: Optional[int]) -> SamplingParams:
+        return SamplingParams(
+            max_tokens=int(max_new_tokens if max_new_tokens is not None else self.max_new_tokens),
+            temperature=float(temperature if temperature is not None else self.temperature),
+            stop_token_ids=self.stop_token_ids,
+        )
+
+
+SERVER: Optional[HarmonyServer] = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global SERVER
+    SERVER = HarmonyServer()
+    yield
+
+app = FastAPI(title="Harmony FC Server", version="1.0.0", lifespan=lifespan)
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok", "model": SERVER.model_id if SERVER else None}
+
+
+@app.post("/fc")
+async def fc_endpoint(payload: Dict[str, Any] = Body(...)):
+    try:
+        if SERVER is None:
+            return JSONResponse({"error": "server not ready"}, status_code=503)
+
+        prompt: str = payload.get("prompt") or "Use python to compute sum([3, 5, 11, 7]) and explain briefly."
+        temperature = payload.get("temperature")
+        max_new_tokens = payload.get("max_new_tokens")
+        max_rounds = int(payload.get("max_rounds", SERVER.max_tool_rounds))
+
+        user_msg = Message.from_role_and_content(Role.USER, prompt)
+        messages_so_far: List[Any] = [SERVER.system_msg, user_msg]
+
+        steps: List[Dict[str, Any]] = []
+        last_entries: List[Any] = []
+
+        for _ in range(max_rounds):
+            convo = Conversation.from_messages(messages_so_far)
+            prefill_ids = SERVER.encoding.render_conversation_for_completion(convo, Role.ASSISTANT)
+            prefill_str = SERVER.tokenizer.decode(prefill_ids, skip_special_tokens=False)
+
+            outputs = SERVER.llm.generate(
+                prompts=[prefill_str],
+                sampling_params=SERVER.sampling_params(temperature, max_new_tokens),
+            )
+            gen = outputs[0].outputs[0]
+            token_ids = gen.token_ids
+            entries = SERVER.encoding.parse_messages_from_completion_tokens(token_ids, Role.ASSISTANT)
+            last_entries = entries
+
+            messages_so_far.extend(entries)
+
+            tool_reqs = [m for m in entries if getattr(m, "recipient", "") == "python"]
+            if not tool_reqs:
+                last_entries = entries
+                steps.append({
+                    "entries": [e.to_dict() for e in entries],
+                    "tool_responses": [],
+                })
+                break
+
+            tool_responses: List[Any] = []
+            async for item in SERVER.python_tool.process(tool_reqs[-1]):
+                tool_responses.append(item)
+
+            messages_so_far.extend(tool_responses)
+            steps.append({
+                "entries": [e.to_dict() for e in entries],
+                "tool_responses": [m.to_dict() for m in tool_responses],
+            })
+
+        final_text = build_final_text_from_entries(last_entries)
+        if not final_text:
+            final_text = build_final_text_from_entries(messages_so_far)
+
+        return {
+            "steps": steps,
+            "final": final_text,
+        }
+
+    except Exception as e:
+        traceback.print_exc()
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+def pick_final_from_steps(steps: List[Dict[str, Any]]) -> str:
+    for step in reversed(steps):
+        entries = step.get("entries") or []
+        for m in entries:
+            if isinstance(m, dict) and m.get("role") == "assistant" and m.get("channel") == "final":
+                texts: List[str] = []
+                content = m.get("content")
+                if isinstance(content, list):
+                    for block in content:
+                        if isinstance(block, dict) and block.get("type") == "text":
+                            t = (block.get("text") or "").strip()
+                            if t:
+                                texts.append(t)
+                elif isinstance(content, str):
+                    t = content.strip()
+                    if t:
+                        texts.append(t)
+                if texts:
+                    return "\n".join(texts)
+    return ""
+
+
+def client_call(server_url: str, prompt: str, temperature: float = 0.0, max_new_tokens: int = 256, max_rounds: int = 5):
+    url = server_url.rstrip("/") + "/fc"
+    data = {
+        "prompt": prompt,
+        "temperature": temperature,
+        "max_new_tokens": max_new_tokens,
+        "max_rounds": max_rounds,
+    }
+    resp = requests.post(url, json=data, timeout=900)
+    resp.raise_for_status()
+    out = resp.json()
+
+    final = out.get("final") or ""
+    steps = out.get("steps") or []
+
+    if not final:
+        final = pick_final_from_steps(steps)
+
+    print("\n" + "=" * 40)
+    print("✅ Final Answer")
+    print("=" * 40)
+    print(final if final else "(No final answer produced)")
+    print("=" * 40 + "\n")
+
+    if not steps:
+        print("(No steps returned)")
+        return
+
+    for idx, step in enumerate(steps, start=1):
+        print(f"\n------ Step {idx} ------")
+        entries = step.get("entries") or []
+        tool_resps = step.get("tool_responses") or []
+
+        print(f"[Entries] ({len(entries)} message(s))")
+        print(json.dumps(entries, ensure_ascii=False, indent=2))
+
+        if tool_resps:
+            print(f"\n[Tool Responses] ({len(tool_resps)} message(s))")
+            print(json.dumps(tool_resps, ensure_ascii=False, indent=2))
+        else:
+            print("[Tool Responses] None")
+
+    print("\n" + "=" * 40)
+    print("End of Steps")
+    print("=" * 40 + "\n")
+
+
+def main():
+    if len(sys.argv) < 2:
+        print("Usage:")
+        print("  python fc-vllm.py serve            # start persistent vLLM Harmony FC server")
+        print("  python fc-vllm.py call '<prompt>'  # call the server once")
+        sys.exit(1)
+
+    mode = sys.argv[1].lower().strip()
+
+    if mode == "serve":
+        port = int(os.environ.get("FC_PORT", "9001"))
+        host = os.environ.get("FC_HOST", "0.0.0.0")
+        try:
+            uvicorn.run(app, host=host, port=port, log_level="info")
+        except Exception:
+            traceback.print_exc()
+            sys.exit(1)
+
+    elif mode == "call":
+        if len(sys.argv) < 3:
+            prompt = "Use python to compute sum([3, 5, 11, 7]) and explain briefly."
+        else:
+            prompt = sys.argv[2]
+        server_url = os.environ.get("FC_SERVER_URL", "http://127.0.0.1:9001")
+        try:
+            client_call(
+                server_url,
+                prompt,
+                temperature=float(os.environ.get("TEMP", "0")),
+                max_new_tokens=int(os.environ.get("MAX_NEW_TOKENS", "256")),
+                max_rounds=int(os.environ.get("MAX_TOOL_ROUNDS", "5")),
+            )
+        except Exception:
+            traceback.print_exc()
+            sys.exit(1)
+    else:
+        print(f"Unknown mode: {mode}")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception:
+        traceback.print_exc()
+        sys.exit(1)
+```
+
+
+
+###  **GPT-OSS Function Calling with Ollama** via openai chat completions
 
 ```
 import os
@@ -2747,7 +3070,7 @@ export OPENAI_API_KEY=ollama
 ```
 
 ```
-root@a100vm:~/gpt-oss-function# python3 ollama_fc.py 
+    root@a100vm:~/gpt-oss-function# python3 ollama_fc.py 
 [DEBUG] ==== 第一次请求 ====
 [DEBUG] 模型第一次返回： ChatCompletionMessage(content='', refusal=None, role='assistant', annotations=None, audio=None, function_call=None, tool_calls=[ChatCompletionMessageToolCall(id='call_klhsjhbl', function=Function(arguments='{"location":"New York"}', name='get_friends'), type='function', index=0)], reasoning='User asks: "who should I bring as friends on a holiday trip to New York". They want suggestions on which friends to bring. The tool get_friends expects location name. We can call get_friends with location "New York". We\'ll get list of names? It returns "any". We\'ll use that. Then we can suggest some general types: travel companion, foodie, etc. Provide friendly advice.\n\nWe need to use tool.')
 [DEBUG] tool_calls: [ChatCompletionMessageToolCall(id='call_klhsjhbl', function=Function(arguments='{"location":"New York"}', name='get_friends'), type='function', index=0)]
@@ -2761,6 +3084,164 @@ Here are some friends you might consider bringing:
 
 Enjoy your holiday trip to New York!
 root@a100vm:~/gpt-oss-function# 
+```
+
+Run server:
+
+```
+root@a100vm:~/gpt-oss-function# GPU_UTIL=0.35 MODEL=openai/gpt-oss-20b python fc-vllm.py serve
+```
+
+Run client:
+
+```
+root@a100vm:~/gpt-oss-function# FC_SERVER_URL=http://127.0.0.1:9001 python fc-vllm.py call "Use the python tool to compute sum([3, 5, 11, 7]) and explain briefly."
+```
+
+output:
+
+```
+
+INFO 09-15 23:32:37 [__init__.py:216] Automatically detected platform cuda.
+
+========================================
+✅ Final Answer
+========================================
+The sum of the list `[3, 5, 11, 7]` is **26**.
+
+**Explanation**  
+The Python built‑in `sum()` function iterates over each element in the iterable and accumulates their total.  
+- Start with 0.  
+- Add 3 → 3  
+- Add 5 → 8  
+- Add 11 → 19  
+- Add 7 → 26  
+
+Thus, `sum([3, 5, 11, 7])` evaluates to 26.
+========================================
+
+
+------ Step 1 ------
+[Entries] (2 message(s))
+[
+  {
+    "role": "assistant",
+    "name": null,
+    "content": [
+      {
+        "type": "text",
+        "text": "We need to compute sum([3,5,11,7]) using python tool. Then explain briefly. Let's do that."
+      }
+    ],
+    "channel": "analysis"
+  },
+  {
+    "role": "assistant",
+    "name": null,
+    "content": [
+      {
+        "type": "text",
+        "text": "sum([3,5,11,7])\n"
+      }
+    ],
+    "channel": "commentary",
+    "recipient": "python",
+    "content_type": "code"
+  }
+]
+
+[Tool Responses] (1 message(s))
+[
+  {
+    "role": "tool",
+    "name": "python",
+    "content": [
+      {
+        "type": "text",
+        "text": ""
+      }
+    ],
+    "channel": "commentary",
+    "recipient": "assistant"
+  }
+]
+
+------ Step 2 ------
+[Entries] (2 message(s))
+[
+  {
+    "role": "assistant",
+    "name": null,
+    "content": [
+      {
+        "type": "text",
+        "text": "It returned nothing? Let's print."
+      }
+    ],
+    "channel": "analysis"
+  },
+  {
+    "role": "assistant",
+    "name": null,
+    "content": [
+      {
+        "type": "text",
+        "text": "print(sum([3,5,11,7]))\n"
+      }
+    ],
+    "channel": "analysis",
+    "recipient": "python",
+    "content_type": "code"
+  }
+]
+
+[Tool Responses] (1 message(s))
+[
+  {
+    "role": "tool",
+    "name": "python",
+    "content": [
+      {
+        "type": "text",
+        "text": "26\n"
+      }
+    ],
+    "channel": "analysis",
+    "recipient": "assistant"
+  }
+]
+
+------ Step 3 ------
+[Entries] (2 message(s))
+[
+  {
+    "role": "assistant",
+    "name": null,
+    "content": [
+      {
+        "type": "text",
+        "text": "So sum is 26. Explanation: sum function adds all elements. Provide brief explanation."
+      }
+    ],
+    "channel": "analysis"
+  },
+  {
+    "role": "assistant",
+    "name": null,
+    "content": [
+      {
+        "type": "text",
+        "text": "The sum of the list `[3, 5, 11, 7]` is **26**.\n\n**Explanation**  \nThe Python built‑in `sum()` function iterates over each element in the iterable and accumulates their total.  \n- Start with 0.  \n- Add 3 → 3  \n- Add 5 → 8  \n- Add 11 → 19  \n- Add 7 → 26  \n\nThus, `sum([3, 5, 11, 7])` evaluates to 26."
+      }
+    ],
+    "channel": "final"
+  }
+]
+[Tool Responses] None
+
+========================================
+End of Steps
+========================================
 ```
 
 
