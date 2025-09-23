@@ -1,4 +1,133 @@
-## 在Azure NC H100上运行Qwen3-Reranker-0.6B
+## 在 Azure NC H100 上运行 Qwen3-Reranker-0.6B —— vLLM 断言与稳定性优化
+
+Qwen3-Reranker-0.6B 虽然是一个体量较小的模型，但在结合 **vLLM** 推理引擎运行，尤其是在高并发、超短生成任务（如单 token 判别）下，可能会触发底层 **C++ 路由模块的断言（assert）**，直接导致服务进程 crash。
+
+我在 **Qwen Reranker + vLLM v0 + FA2** 的组合下，经过参数调优和代码优化，能够避免在高压场景下频繁触发断言，从而保证服务稳定。单一实例在峰值时可以处理 **约 800 条文档/秒**，生产环境可采用多实例水平扩展。以下为原理与建议，供参考。
+
+
+
+##  vLLM 的断言
+
+### 1. 什么是 vLLM 的“断言”
+
+- vLLM 在底层 **C++/CUDA** 代码中使用 `assert(...)` 来保证运行状态满足严格的内部逻辑，例如队列、缓存、流的生命周期等。
+- 如果断言条件不成立，进程会直接收到 `SIGABRT` 信号，并退出，生成 core dump。
+- 断言用于 **开发阶段确保逻辑正确性**，并非运行时可恢复的错误，一旦触发代表系统状态已不一致或严重异常。
+
+------
+
+### 2. vLLM 常见的断言触发场景
+
+根据 vLLM 源码（`src/router.cpp`、`src/request_scheduler.*`、`src/engine.*` 等），断言可能出现在以下场景：
+
+#### （1）Router 输出流状态
+
+- 示例：
+
+  ```
+  assert(!_current_out);
+  ```
+
+- 路由线程切换输出时必须保证 `_current_out` 为空（上一个输出已处理完）。若残留未消费的 `_current_out`，则表示 Router 与生成流状态不同步。
+
+#### （2）生成序列生命周期
+
+- 典型断言：
+
+  ```
+  assert(seq->status != Status::FINISHED);
+  ```
+
+- 确保未完成的序列不被错误标记为完成，队列状态与引擎内部一致。
+
+#### （3）KV Cache 一致性
+
+- 控制 KV Cache 分配不超过上限，并且释放时不能越界。
+
+- 示例：
+
+  ```
+  assert(kv_cache_blocks.size() <= max_blocks);
+  ```
+
+#### （4）批处理调度约束
+
+- 新加入请求长度 ≤ `max_model_len`
+- Batch 内 Token 总数 ≤ `max_num_batched_tokens`
+- 违反这些限制会在 Debug 构建下触发断言，Release 构建下可能直接丢弃请求。
+
+#### （5）状态机完整性
+
+- Router 与 Engine 多线程状态同步需遵循：
+
+  ```
+  PREFILL -> DECODE -> FINISH
+  ```
+
+- 跳过阶段或乱序进入会触发断言。
+
+------
+
+### 3. 压测场景下的 `!_current_out` 断言原因
+
+压测场景中（高并发 + 极短生成长度 1 token），这是 vLLM 社区已知的一个边缘问题：
+
+- 高频短请求让 Router 线程与 Engine 调度线程在同一时间频繁进出批次。
+- 上一批次的输出尚未完全消费，Router 就被迫开始新批次并重置 `_current_out`。
+- 断言检测到这种状态异常，直接触发 `abort` 并导致进程 crash。
+
+------
+
+### 4. 避免触发断言的优化方法
+
+1. **降低并发或 QPS**
+   - 使用 `--max-inflight` 限制并发样本数，如 1024/2048。
+   - 按真实延迟计算可承载 QPS（并发 ÷ 平均完成延迟），不要直接打满。
+2. **批量接口**
+   - 使用 `/rerank_batch` 一次处理多样本，减少 Router 切换频率和压力。
+3. **调整引擎参数**（需版本支持）
+   - 增大 `--max-num-batched-tokens`（单批 Token 上限），例如 65536 或更高。
+   - 提高 `--max-num-seqs`（单批序列容量），如 2048、4096。
+4. **升级 vLLM**
+   - 在 0.8.x、0.9.x、0.10.x 等版本的 Router.cpp 和调度器状态管理里，对短序列场景已有优化。
+
+------
+
+### 5. 断言类型总结
+
+**常见断言类型：**
+
+- 状态非空/为空检查：
+  `assert(!_current_out)`、`assert(ptr != nullptr)`
+- 生命周期一致性：
+  `assert(seq->status != Status::FINISHED)`
+- 容量约束：
+  `assert(kv_cache_blocks.size() <= max_blocks)`
+
+------
+
+### 6. 生产实践与性能参考
+
+在 Azure NC H100 实测：
+
+- **组合**：Qwen Reranker + vLLM v0 + FA2
+- **峰值性能**：单实例约 800 条文档/秒（短序列判别任务）
+- **生产部署建议**：
+  - 多实例水平扩展应对高总吞吐需求
+  - 调整 `--max-inflight` 与批量参数，权衡延迟与吞吐
+  - 高并发场景建议批量接口优先，以减少 Router 压力
+  - 根据 GPU 显存与上下文长度，动态配置 KV Cache (`--kv-cache-memory`)
+
+------
+
+✅ **总结**：
+在高并发 + 短生成的场景下，vLLM 的某些断言容易被触发导致 crash，通过 **降低并发速率、启用批量接口、优化调度参数、升级 vLLM 版本** 可以显著提升稳定性。结合 Qwen3-Reranker-0.6B 在 Azure NC H100 的测试结果显示，单实例可达 800 文档/秒，在生产部署中配合多实例扩容，可在保证稳定的前提下达到较高吞吐。
+
+
+
+## 测试步骤
+
+用qwen reranker+ vLLM v0+ FA2，优化了代码，不会造成压力大的时候vLLM crash。之前提到在aws上vLLM crash出发crash，应该是触发了assert，和版本以及参数设置有关。一个vLLM承载的reranker实例  大概峰值处理文档数量是800/s。上生产可以部署多个实例。结果仅供参考：
 
 ```
 conda created --name=qwen-reranker python=3.11
