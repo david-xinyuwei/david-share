@@ -5,15 +5,22 @@
 - **Effort 是决定 reasoning tokens 长度的核心变量**
   - `minimal` Effort 几乎不产生推理链（ratio≈0%），`low` Effort 约 0%~50%，`medium`/`high` 可达 70%~93%。
   - `"summary":"detailed"` 并不会增加 reasoning token 数量。推理长度主要由 Effort 控制。
+  
 - **`previous_response_id` 支持跨轮直接复用推理链**
-  - 当第二轮 Prompt 与第一轮差异较大（普通多轮问答），模型会复用部分逻辑，但仍生成补充推理链 → 节省有限。
-  - 在完全匹配或高度相关的 identical case 下，可直接套用 Round1 推理链：
-    - **identical_dialogue**（复述型问题）：低 Effort 可直接到 0 reasoning token，高 Effort 节省达 80%~95%。
-    - **identical_code**（代码小改）：节省 30%~65%，更贴近真实业务用例。
+  
+  reasoning token的复用条件
+  
+  1. 如果上一轮模型返回的是assistant类型的message，那在新一轮次的调用过程中，出现在这条assistant message前的所有reasoning token都会被responses api主动清零，此时cached token一定为0。
+  2. 如果是连续多次的function call调用, reasoning token可以一直保留，cached token会随着调用轮次的增加而增加。
+  3. 如果不同轮次的function call之间出现模态变化，比如前一轮是function_call_output提供的是纯文本，新的一轮带图片(以function_call_output:string + role:user type:input_image组合)，那么reasoning token还会复用，但cached token可能降为0（新的多模态请求可能路由到不同的endpoint）
+  
+  Refer to : *https://github.com/joeyzenghuan/AI-Learning-Samples/blob/main/Responses-API/reasoning_token_validation/reasoning_token_reuse_analysis_detailed.md*
+  
 - **Encrypted 模式加密的是推理链，不是最终输出**
   - `include=["reasoning.encrypted_content"]` 返回加密推理链 blob，业务可本地保存后回传复用。
   - `store=False`：服务端不保存明文，满足 ZDR/GDPR 合规，但无法在服务端统计 reasoning token。
   - `store=True`：服务端保留明文，可做完整 usage 统计；可同时返回加密版本供本地持久化。
+  
 - **Responses API 相对传统 Chat Completions API 的优势**
   - 原生推理链管理与复用（含加密链）
   - 推理链摘要观测（`concise` / `auto` / `detailed`）
