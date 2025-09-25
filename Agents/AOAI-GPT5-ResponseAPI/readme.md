@@ -58,6 +58,23 @@
 
 
 
+## **Responses API vs Chat Completions API**
+
+| 特性         | Chat Completions API | Responses API                                          |
+| ------------ | -------------------- | ------------------------------------------------------ |
+| 上下文管理   | 必须传回完整messages | `previous_response_id` 在服务端缓存推理链（自动续用）  |
+| 推理链复用   | 无法直接复用         | reasoning item 明文ID或加密blob，显式/自动复用         |
+| 推理链摘要   | 无内建               | `reasoning.summary`，安全可读，不暴露raw CoT           |
+| 推理链加密   | 无                   | store=False + encrypted_content，本地保存回传，ZDR合规 |
+| 工具调用输出 | 混在message里        | output结构分type=message/tool_call/reasoning           |
+| 多模态结构化 | 支持有限             | 原生结构化input/output，多type并行                     |
+
+**提升能力总结：**
+
+- 真正的推理链引用 + 自动/加密回传机制
+- 合规下的安全推理链复用
+- 更结构化的多模态与工具调用管理
+
 ## Prompt Cache的顺序
 
 ### **Prompt 构造顺序**
