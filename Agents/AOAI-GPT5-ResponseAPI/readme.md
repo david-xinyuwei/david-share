@@ -213,7 +213,7 @@ AB 测试要点
 
 综合分析结论（基于最新数据）
 
-1. previous_response_id 是你当前部署环境下稳定的 Prompt Cache 命中路径
+1. previous_response_id 是最稳定的 Prompt Cache 命中路径
    - R2 普遍出现 cached_tokens（多为 3456/3840），说明服务端对前缀缓存块命中成功，实际降低输入成本与延迟。
    - 即使 minimal Effort 推理几乎为 0，prev_id 仍能带来缓存命中（如 minimal/auto 与 minimal/detailed 的 R2）。
 2. Effort 决定推理链长度与复用空间
@@ -228,7 +228,7 @@ AB 测试要点
 5. 双指标联合解读（逻辑 vs 成本）
    - reasoning_tokens（逻辑复用） + cached_tokens（成本命中）需同时观察：如 FUNCTION_R2，reasoning=0 但 cached_tokens=3840，说明第二轮主要复述工具结果，前缀缓存仍显著命中，达到“逻辑简化 + 成本优化”。
 
-总之，基于本次实测，采用 previous_response_id + 长且稳定的 System Prompt（≥1024 tokens）+ 参数一致（tools、store、reasoning、parallel_tool_calls 等）是你当前环境中稳定命中 Prompt Cache 的最佳实践；在 identical_dialogue 与 identical_code 场景下，能够同时实现“推理链复用（逻辑一致）”与“缓存命中（成本与延迟优化）”的双赢效果。
+总之，基于本次实测，采用 previous_response_id + 长且稳定的 System Prompt（≥1024 tokens）+ 参数一致（tools、store、reasoning、parallel_tool_calls 等）是当前环境中稳定命中 Prompt Cache 的最佳实践；在 identical_dialogue 与 identical_code 场景下，能够同时实现“推理链复用（逻辑一致）”与“缓存命中（成本与延迟优化）”的双赢效果。
 
 ------
 
@@ -284,7 +284,7 @@ AB 测试要点
   - 无状态：客户端持有密文，在下一轮原样拼回 input，让服务端内存解密继续推。
 - 逻辑复用（CoT复用）：是否沿用上一轮推理链，实现少推/不重推、逻辑一致。
 - 缓存命中（cached_tokens）：是否命中提示词前缀缓存，降低输入成本与延迟；与 store/加密无直接因果，仅与前缀一致性、长度与路由有关。
-- 典型示例：使用你最新一次实测中的数据定位该组合的可观测表现。
+- 典型示例：使用最新一次实测中的数据定位该组合的可观测表现。
 
 ### 如何联合判读
 
@@ -305,7 +305,7 @@ AB 测试要点
 - 边界：
   - assistant → 紧接 user（非工具链）容易触发服务端清空历史推理；用 prev_id 可绕过这类清空并续接逻辑。
   - 多模态切换（text→image）可能导致路由变化、缓存失效，但逻辑复用仍可能成立。
-  - identical 两轮在你的环境不一定返回 cached_tokens（路由/策略差异），prev_id 更稳。
+  - identical 两轮不一定100%返回 cached_tokens（路由/策略差异），prev_id 更稳。
 
 ### 快速排查流程（建议按序走）
 
@@ -315,7 +315,7 @@ AB 测试要点
 - 步骤4（反事实对照）：移除 prev_id 重跑 R2，看逻辑与推理长度是否变化，作为复用的旁证。
 - 步骤5（结论输出）：同时给出“逻辑复用是否成立”“缓存是否命中”的双结论，并指出优化方向（如加长 System 前缀、稳定 Tools、参数一致、在生命周期内调用）。
 
-八、最佳实践（在你当前环境中已验证有效）
+### 最佳实践
 
 - 统一用 previous_response_id 续接 R2（逻辑复用最稳、缓存命中概率最高）。
 - 放一个长且稳定的 System Prompt 在最前（≥1024 tokens），把 Tools 定义放在其后且保持不变。
