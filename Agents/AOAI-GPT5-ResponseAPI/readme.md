@@ -1,4 +1,4 @@
-# 在 Azure OpenAI GPT‑5 中使用Responses API：推理链复用、加密、摘要与成本分析
+# 在 Azure OpenAI GPT‑5/Codex 中使用Responses API：推理链复用、加密、摘要与成本分析
 
 ## Refer to
 
@@ -770,11 +770,386 @@ high     | identical_code       | R1     | 3528         | 1816          | 1728  
 high     | identical_code       | R2     | 3640         | 670           | 576              | 94                | 3456          | 86.0%
 ```
 
+## GPT‑5/Codex性能对比
+
+### 场景与参数设置
+
+- API 与实例
+  - Responses API：2025-03-01-preview
+  - 两实例对比：GPT‑5 与 GPT‑5‑Codex 各自独立 endpoint/deployment
+- 前缀与缓存
+  - System：code-only 长前缀（≥1024 tokens），R1/R2 均显式传入；运行/模型/任务加盐，确保 R1 冷启动；Warmup 用不同前缀不污染 R1
+  - R2：previous_response_id + 与 R1 相同 system，稳定首前缀块以提高命中
+- 推理参数（全场景一致）：reasoning.effort=high，reasoning.summary=detailed
+- 运行：Repetitions=1（可增至3取中位数），max_output_tokens=none
+
+### 场景设计摘要
+
+| 场景     | 任务示例           | 能力                    | 主要判定指标（不是输出越多越好）           | 统一参数要点                                                 |
+| -------- | ------------------ | ----------------------- | ------------------------------------------ | ------------------------------------------------------------ |
+| small    | top_k_frequent     | 交互敏捷/短回合代码生成 | TTFT、tokens/sec、sec/1k                   | effort=high, summary=detailed；code-only；R1 冷启动；R2 prev_id+system |
+| refactor | normalize_refactor | 中等复杂重构与快速产出  | tokens/sec、sec/1k（单位效率）             | 同上                                                         |
+| review   | review_diff        | 评审要点的准确简洁度    | 要点质量与简洁性、TTFT、sec/1k             | 同上（R1 列问题要点，R2 给出修复代码）                       |
+| large    | cli_users          | 大产出/持续推进下的吞吐 | tokens/sec、sec/1k（在更长输出下更有意义） | 同上                                                         |
+
+三、本轮实测对比表（含“能力”列与关键指标） （单位均为秒；tokens/sec 为吞吐率；sec/1k 为单位产出时延）
+
+| 场景     | 能力     | 模型  | 轮次 | input | output | reasoning | cached |   TTFT |  total | tokens/sec | sec/1k | reasoning_ratio |
+| -------- | -------- | ----- | ---- | ----: | -----: | --------: | -----: | -----: | -----: | ---------: | -----: | --------------: |
+| small    | 交互敏捷 | GPT‑5 | R1   |  2138 |   2811 |      2368 |      0 |  36.88 |  38.33 |       73.3 |  13.64 |           84.2% |
+| small    | 交互敏捷 | GPT‑5 | R2   |  4708 |   3224 |      2944 |   2048 |  46.04 |  47.05 |       68.5 |  14.59 |           91.3% |
+| small    | 交互敏捷 | Codex | R1   |  2141 |   1148 |      1024 |      0 |  11.36 |  12.94 |       88.7 |  11.27 |           89.2% |
+| small    | 交互敏捷 | Codex | R2   |  4395 |   8173 |      7872 |      0 |  65.06 |  66.45 |      123.0 |   8.13 |           96.3% |
+| refactor | 重构效率 | GPT‑5 | R1   |  2151 |   5361 |      4928 |      0 | 111.14 | 114.32 |       46.9 |  21.32 |           91.9% |
+| refactor | 重构效率 | GPT‑5 | R2   |  4701 |   9287 |      8320 |   2048 | 194.92 | 204.37 |       45.4 |  22.01 |           89.6% |
+| refactor | 重构效率 | Codex | R1   |  2154 |   7164 |      6848 |      0 |  54.88 |  56.87 |      126.0 |   7.94 |           95.6% |
+| refactor | 重构效率 | Codex | R2   |  4590 |  21444 |     20864 |   2048 | 163.77 | 167.83 |      127.8 |   7.83 |           97.3% |
+| review   | 评审要点 | Codex | R1   |  2205 |     44 |         0 |      0 |   2.34 |   2.74 |       16.0 |  62.35 |            0.0% |
+| review   | 评审要点 | Codex | R2   |  4373 |    937 |       768 |   2048 |   6.66 |   8.27 |      113.3 |   8.83 |           82.0% |
+| review   | 评审要点 | GPT‑5 | R1   |  2202 |   2201 |      2048 |      0 |  50.44 |  51.40 |       42.8 |  23.35 |           93.0% |
+| review   | 评审要点 | GPT‑5 | R2   |  4476 |   2955 |      2816 |   2048 |  53.68 |  54.95 |       53.8 |  18.59 |           95.3% |
+| large    | 大吞吐   | GPT‑5 | R1   |  2138 |   7604 |      5376 |      0 |  97.10 | 119.70 |       63.5 |  15.74 |           70.7% |
+| large    | 大吞吐   | GPT‑5 | R2   |  6486 |   6566 |      2560 |   2048 |  47.75 |  74.86 |       87.7 |  11.40 |           39.0% |
+| large    | 大吞吐   | Codex | R1   |  2141 |   9120 |      7936 |      0 |  76.85 |  80.28 |      113.6 |   8.80 |           87.0% |
+| large    | 大吞吐   | Codex | R2   |  5448 |  11696 |      9216 |   2048 |  66.19 |  75.61 |      154.7 |   6.46 |           78.8% |
+
+### 如何解读测试结果
+
+- small/交互敏捷：目标是“更快更跟手”→ 看 TTFT（首字延迟）和 sec/1k、tokens/sec。Codex R1/R2 通常 TTFT 更低、单位效率更好，即使 R2 未命中缓存也能体现优势。
+- refactor/重构效率：目标是“单位时间高质量产出”→ 重点看 tokens/sec 和 sec/1k。Codex 在 R1/R2 均显著优于 GPT‑5，哪怕总输出更多、总时长更长，也说明“更快地写更多”。
+- review/评审要点：目标是“准确且简洁的关键问题”→ 输出越短不代表更差；看要点聚焦度与 TTFT。Codex R1 产出极简要点，R2 修复代码时单位效率显著更优。
+- large/大吞吐：目标是“在大产出下仍保持效率”→ 核心看 tokens/sec 和 sec/1k。Codex 输出更多但单位效率更高，符合“长期推进复杂任务”的定位。
 
 
-单独执行AB测试：
+
+### 测试代码
 
 ```
-(base) root@linuxworkvm:~# python responses_playbook4.py ab_summary
+(base) root@linuxworkvm:~# cat compare.py
+import os
+import sys
+import time
+import statistics
+import random
+import argparse
+from typing import Any, Dict, List, Optional, Tuple
+from openai import AzureOpenAI, BadRequestError
+
+# 资源1：GPT-5
+GPT5_API_KEY = os.environ.get("AZURE_OPENAI_API_KEY_GPT5", "Al*")
+GPT5_ENDPOINT = os.environ.get("AZURE_OPENAI_ENDPOINT_GPT5", "https://ai-xinyuwei8714ai888427144375.cognitiveservices.azure.com/")
+GPT5_API_VERSION = os.environ.get("AZURE_OPENAI_API_VERSION_GPT5", "2025-03-01-preview")
+GPT5_DEPLOYMENT = os.environ.get("AZURE_OPENAI_DEPLOYMENT_GPT5", "gpt-5")
+
+# 资源2：GPT-5-Codex
+CODEX_API_KEY = os.environ.get("AZURE_OPENAI_API_KEY_CODEX", "6V*")
+CODEX_ENDPOINT = os.environ.get("AZURE_OPENAI_ENDPOINT_CODEX", "https://ai-swedencentral955006659336.cognitiveservices.azure.com/")
+CODEX_API_VERSION = os.environ.get("AZURE_OPENAI_API_VERSION_CODEX", "2025-03-01-preview")
+CODEX_DEPLOYMENT = os.environ.get("AZURE_OPENAI_DEPLOYMENT_CODEX", "gpt-5-codex")
+
+REPETITIONS = int(os.environ.get("REPETITIONS", "1"))
+WARMUP = os.environ.get("WARMUP", "true").lower() in ("1", "true", "yes")
+MAX_OUTPUT_TOKENS = int(os.environ.get("MAX_OUTPUT_TOKENS", "0"))
+
+REASONING_ALWAYS = {"effort": "high", "summary": "detailed"}
+
+RUN_SALT = f"[[RUN-{int(time.time()*1000)}]]"
+FORCE_SYSTEM_IN_R2 = os.environ.get("FORCE_SYSTEM_IN_R2", "true").lower() in ("1", "true", "yes")
+
+BASE_SYSTEM_PROMPT = (
+    "You are a senior software engineer and code reviewer.\n"
+    "When asked to write code, return code only: no explanations, no prose, no comments unless explicitly requested.\n"
+    "Follow best practices, write robust, idiomatic, tested code, consider edge cases, performance, security, maintainability.\n"
+    "If asked to review, return concise bullet issues only.\n"
+)
+BASE_SYSTEM_PADDING = (" Code-quality, clarity, structure, tests. " * 200)
+
+def ensure_keys():
+    missing = []
+    if not GPT5_API_KEY or not GPT5_ENDPOINT or not GPT5_API_VERSION or not GPT5_DEPLOYMENT:
+        missing.append("GPT-5 (AZURE_OPENAI_*_GPT5)")
+    if not CODEX_API_KEY or not CODEX_ENDPOINT or not CODEX_API_VERSION or not CODEX_DEPLOYMENT:
+        missing.append("GPT-5-Codex (AZURE_OPENAI_*_CODEX)")
+    if missing:
+        print("Missing config: " + " ; ".join(missing))
+        sys.exit(1)
+
+def make_client(api_key: str, endpoint: str, api_version: str) -> AzureOpenAI:
+    return AzureOpenAI(api_key=api_key, azure_endpoint=endpoint, api_version=api_version)
+
+def build_system_prompt(model_name: str, task_tag: str) -> str:
+    prefix = f"{RUN_SALT} [[MODEL:{model_name}]] [[TASK:{task_tag}]] "
+    return prefix + BASE_SYSTEM_PROMPT + BASE_SYSTEM_PADDING
+
+def build_warmup_system_prompt(sys_prompt: str) -> str:
+    return f"[[WARMUP-{int(time.time()*1000)}]] " + sys_prompt
+
+def safe_usage(resp: Any) -> Dict[str, Any]:
+    try:
+        return resp.model_dump().get("usage", {}) if hasattr(resp, "model_dump") else (resp.get("usage", {}) if isinstance(resp, dict) else {})
+    except Exception:
+        return {}
+
+def metrics_from_usage(usage: Dict[str, Any]) -> Dict[str, Any]:
+    it = usage.get("input_tokens", 0)
+    ot = usage.get("output_tokens", 0)
+    rt = usage.get("output_tokens_details", {}).get("reasoning_tokens", 0)
+    cached = usage.get("input_tokens_details", {}).get("cached_tokens", 0)
+    ratio = (rt / ot * 100) if ot else 0.0
+    return {"input_tokens": it, "output_tokens": ot, "reasoning_tokens": rt, "cached_tokens": cached, "reasoning_ratio_pct": ratio}
+
+def print_row(tag: str, m: Dict[str, Any], ttft: Optional[float], total: float):
+    ttft_s = f"{ttft:.3f}s" if ttft is not None else "NA"
+    tput = (m["output_tokens"] / total) if total > 0 else 0.0
+    sec_per_1k = (total / (m["output_tokens"] / 1000.0)) if m["output_tokens"] > 0 else 0.0
+    print(f"{tag:<24} | in={m['input_tokens']:<6} out={m['output_tokens']:<7} reason={m['reasoning_tokens']:<7} | cached={m['cached_tokens']:<6} ratio={m['reasoning_ratio_pct']:.1f}% | TTFT={ttft_s} total={total:.3f}s tkn/s={tput:.1f}  sec/1k={sec_per_1k:.2f}")
+
+def try_stream(c: AzureOpenAI, req: Dict[str, Any]) -> Tuple[Any, Optional[float], float, str]:
+    ttft = None
+    output_text = ""
+    start = time.time()
+    with c.responses.stream(**req) as stream:
+        for event in stream:
+            etype = getattr(event, "type", None)
+            if etype in ("response.output_text.delta", "response.delta"):
+                delta = getattr(event, "delta", None)
+                if delta is None:
+                    try:
+                        delta = event.output_text.delta
+                    except Exception:
+                        delta = None
+                if delta:
+                    if ttft is None:
+                        ttft = time.time() - start
+                    output_text += delta
+        resp = stream.get_final_response()
+    total = time.time() - start
+    if not output_text:
+        try:
+            output_text = resp.output_text
+        except Exception:
+            output_text = ""
+    return resp, ttft, total, output_text
+
+def try_stream_or_create(c: AzureOpenAI, req: Dict[str, Any]) -> Tuple[Any, Optional[float], float, str]:
+    try:
+        return try_stream(c, req)
+    except Exception:
+        t0 = time.time()
+        resp = c.responses.create(**req)
+        total = time.time() - t0
+        text = ""
+        try:
+            text = resp.output_text
+        except Exception:
+            text = ""
+        return resp, None, total, text
+
+def sanitize_and_retry(c: AzureOpenAI, req: Dict[str, Any], e: BadRequestError) -> Tuple[Any, Optional[float], float, str]:
+    req2 = dict(req)
+    changed = False
+    for key in ("parallel_tool_calls", "max_output_tokens"):
+        if key in req2:
+            del req2[key]
+            changed = True
+    if not changed:
+        raise e
+    return try_stream_or_create(c, req2)
+
+def measure_round(c: AzureOpenAI, model: str, messages: List[Dict[str, Any]],
+                  previous_response_id: Optional[str],
+                  max_output_tokens: int) -> Dict[str, Any]:
+    req: Dict[str, Any] = {
+        "model": model,
+        "input": messages,
+        "store": True,
+        "reasoning": REASONING_ALWAYS
+    }
+    if previous_response_id:
+        req["previous_response_id"] = previous_response_id
+    req["parallel_tool_calls"] = False
+    if max_output_tokens > 0:
+        req["max_output_tokens"] = max_output_tokens
+    try:
+        resp, ttft, total, text = try_stream_or_create(c, req)
+    except BadRequestError as e:
+        resp, ttft, total, text = sanitize_and_retry(c, req, e)
+    usage = safe_usage(resp)
+    m = metrics_from_usage(usage)
+    return {"response": resp, "output_text": text, "usage": usage, "metrics": m, "ttft_s": ttft, "total_s": total}
+
+def median_of_runs(runs: List[Dict[str, Any]]) -> Dict[str, Any]:
+    if not runs:
+        return {"metrics": {"input_tokens": 0, "output_tokens": 0, "reasoning_tokens": 0, "cached_tokens": 0, "reasoning_ratio_pct": 0.0}, "ttft_s": None, "total_s": 0.0}
+    def med_num(getter, default=0.0):
+        arr = []
+        for r in runs:
+            try:
+                arr.append(float(getter(r)))
+            except Exception:
+                pass
+        return statistics.median(arr) if arr else default
+    return {
+        "metrics": {
+            "input_tokens": int(med_num(lambda r: r["metrics"]["input_tokens"])),
+            "output_tokens": int(med_num(lambda r: r["metrics"]["output_tokens"])),
+            "reasoning_tokens": int(med_num(lambda r: r["metrics"]["reasoning_tokens"])),
+            "cached_tokens": int(med_num(lambda r: r["metrics"]["cached_tokens"])),
+            "reasoning_ratio_pct": med_num(lambda r: r["metrics"]["reasoning_ratio_pct"])
+        },
+        "ttft_s": med_num(lambda r: r["ttft_s"], None),
+        "total_s": med_num(lambda r: r["total_s"], 0.0)
+    }
+
+def coding_tasks() -> List[Dict[str, Any]]:
+    return [
+        {
+            "type": "small",
+            "name": "top_k_frequent",
+            "r1": "Write a Python function `top_k_frequent(nums: List[int], k: int) -> List[int]` that returns the k most frequent integers in nums. Return code only.",
+            "r2": "Refactor previous solution to O(n) average using Counter or heap if needed, add minimal tests in code as strings. Return code only."
+        },
+        {
+            "type": "refactor",
+            "name": "normalize_refactor",
+            "r1": "Refactor the function and add tests. Return code only:\n\ndef normalize(s: str) -> str:\n    return s.strip().lower().replace('  ', ' ')\n# Fix: collapse any whitespace sequences to single space; keep newlines as-is.\n",
+            "r2": "Improve robustness of normalize (unicode whitespaces) and extend tests in code. Return code only."
+        },
+        {
+            "type": "review",
+            "name": "review_diff",
+            "r1": "You are code reviewer. The patch introduces a potential bug. Read the diff and list concise bullet issues only (no prose, no code):\n\n--- a/calc.py\n+++ b/calc.py\n@@\n-def safe_divide(a,b):\n-    return a/b if b!=0 else float('inf')\n+def safe_divide(a,b):\n+    if b == 0:\n+        return 0  # changed behavior: return 0 on div by zero\n+    return a/b\n",
+            "r2": "Now propose a concise corrected version of safe_divide in code only, and short inline tests in code (no explanations)."
+        },
+        {
+            "type": "large",
+            "name": "cli_users",
+            "r1": "Write a Python CLI (single file) that reads a CSV of users, validates emails and phone numbers, and prints a JSON summary. Use argparse and minimal tests at bottom. Return code only.",
+            "r2": "Refactor the CLI into modular functions, add structured logging, and extend tests inline at bottom. Return code only."
+        }
+    ]
+
+def warmup_call(c: AzureOpenAI, deployment: str, sys_prompt: str):
+    try:
+        warm_sys = build_warmup_system_prompt(sys_prompt)
+        _ = c.responses.create(
+            model=deployment,
+            input=[{"role": "system", "content": warm_sys}, {"role": "user", "content": "ping"}],
+            store=True,
+            reasoning=REASONING_ALWAYS
+        )
+    except Exception:
+        pass
+
+def run_compare():
+    ensure_keys()
+    client_gpt5 = make_client(GPT5_API_KEY, GPT5_ENDPOINT, GPT5_API_VERSION)
+    client_codex = make_client(CODEX_API_KEY, CODEX_ENDPOINT, CODEX_API_VERSION)
+
+    print("\n===== Coding Compare (Isolated clients; prev_id for R2) =====")
+    print(f"GPT-5   endpoint={GPT5_ENDPOINT}   api_version={GPT5_API_VERSION}   deployment={GPT5_DEPLOYMENT}")
+    print(f"Codex   endpoint={CODEX_ENDPOINT}  api_version={CODEX_API_VERSION}  deployment={CODEX_DEPLOYMENT}")
+    print(f"Run salt: {RUN_SALT} | Repetitions: {REPETITIONS} | Warmup: {WARMUP} | max_output_tokens: {MAX_OUTPUT_TOKENS if MAX_OUTPUT_TOKENS>0 else 'none'}\n")
+
+    tasks = coding_tasks()
+    models = [
+        {"name": "GPT-5", "client": client_gpt5, "deployment": GPT5_DEPLOYMENT},
+        {"name": "GPT-5-Codex", "client": client_codex, "deployment": CODEX_DEPLOYMENT},
+    ]
+
+    for t in tasks:
+        print(f"--- Task [{t['type']}] {t['name']} ---")
+        order = models[:]
+        random.shuffle(order)
+        task_tag = t["name"]
+
+        for m in order:
+            sys_prompt = build_system_prompt(m["name"], task_tag)
+
+            if WARMUP:
+                warmup_call(m["client"], m["deployment"], sys_prompt)
+
+            r1_runs = []
+            for _ in range(REPETITIONS):
+                messages_r1 = [
+                    {"role": "system", "content": sys_prompt},
+                    {"role": "user", "content": t["r1"]}
+                ]
+                r1 = measure_round(m["client"], m["deployment"], messages_r1, previous_response_id=None, max_output_tokens=MAX_OUTPUT_TOKENS)
+                r1_runs.append(r1)
+            r1_med = median_of_runs(r1_runs)
+            print_row(f"{m['name']}-R1", r1_med["metrics"], r1_med["ttft_s"], r1_med["total_s"])
+
+            r2_runs = []
+            for _ in range(REPETITIONS):
+                r1_resp = r1_runs[-1]["response"] if r1_runs else None
+                prev_id = r1_resp.id if r1_resp is not None else None
+                messages_r2 = [{"role": "user", "content": t["r2"]}]
+                if FORCE_SYSTEM_IN_R2:
+                    messages_r2 = [{"role": "system", "content": sys_prompt}] + messages_r2
+                r2 = measure_round(m["client"], m["deployment"], messages_r2, previous_response_id=prev_id, max_output_tokens=MAX_OUTPUT_TOKENS)
+                r2_runs.append(r2)
+            r2_med = median_of_runs(r2_runs)
+            print_row(f"{m['name']}-R2", r2_med["metrics"], r2_med["ttft_s"], r2_med["total_s"])
+
+        print("")
+
+def run_single(which: str):
+    ensure_keys()
+    if which == "gpt5":
+        client = make_client(GPT5_API_KEY, GPT5_ENDPOINT, GPT5_API_VERSION)
+        deployment = GPT5_DEPLOYMENT
+        mname = "GPT-5"
+    else:
+        client = make_client(CODEX_API_KEY, CODEX_ENDPOINT, CODEX_API_VERSION)
+        deployment = CODEX_DEPLOYMENT
+        mname = "GPT-5-Codex"
+
+    print(f"\n===== Single Model: {mname} =====")
+    print(f"endpoint={client.base_url} | deployment={deployment} | run_salt={RUN_SALT} | repetitions={REPETITIONS} | warmup={WARMUP} | max_output_tokens={MAX_OUTPUT_TOKENS if MAX_OUTPUT_TOKENS>0 else 'none'}\n")
+
+    tasks = coding_tasks()
+    for t in tasks:
+        task_tag = t["name"]
+        sys_prompt = build_system_prompt(mname, task_tag)
+
+        print(f"--- Task [{t['type']}] {t['name']} ---")
+        if WARMUP:
+            warmup_call(client, deployment, sys_prompt)
+
+        r1_runs = []
+        for _ in range(REPETITIONS):
+            messages_r1 = [{"role": "system", "content": sys_prompt}, {"role": "user", "content": t["r1"]}]
+            r1 = measure_round(client, deployment, messages_r1, previous_response_id=None, max_output_tokens=MAX_OUTPUT_TOKENS)
+            r1_runs.append(r1)
+        r1_med = median_of_runs(r1_runs)
+        print_row(f"{mname}-R1", r1_med["metrics"], r1_med["ttft_s"], r1_med["total_s"])
+
+        r2_runs = []
+        for _ in range(REPETITIONS):
+            r1_resp = r1_runs[-1]["response"] if r1_runs else None
+            prev_id = r1_resp.id if r1_resp is not None else None
+            messages_r2 = [{"role": "user", "content": t["r2"]}]
+            if FORCE_SYSTEM_IN_R2:
+                messages_r2 = [{"role": "system", "content": sys_prompt}] + messages_r2
+            r2 = measure_round(client, deployment, messages_r2, previous_response_id=prev_id, max_output_tokens=MAX_OUTPUT_TOKENS)
+            r2_runs.append(r2)
+        r2_med = median_of_runs(r2_runs)
+        print_row(f"{mname}-R2", r2_med["metrics"], r2_med["ttft_s"], r2_med["total_s"])
+        print("")
+
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument("mode", choices=["compare", "gpt5", "codex"])
+    args = p.parse_args()
+    if args.mode == "compare":
+        run_compare()
+    elif args.mode == "gpt5":
+        run_single("gpt5")
+    elif args.mode == "codex":
+        run_single("codex")
+
+if __name__ == "__main__":
+    main()
 ```
 

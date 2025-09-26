@@ -1,0 +1,73 @@
+flowchart TB
+    %% Prompt结构
+    subgraph Prompt_Structure["Azure Responses API Prompt 结构顺序（缓存按该顺序取前缀）"]
+        direction TB
+        S["System Prompt（长且稳定可缓存）"]
+        T["Tool Definitions（函数/工具 Schema）"]
+        M["Messages（对话历史 - 时间顺序）<br/>1. User 消息<br/>2. Assistant 消息（含隐藏 COT / Reasoning Tokens + 可见输出）<br/>3. Function Call<br/>4. Function Call Output"]
+    end
+
+    %% COT位置
+    subgraph COT_Position["COT（Reasoning Tokens）位置"]
+        direction TB
+        COT["嵌在 Assistant 消息内部的隐藏推理链（对用户不可见）"]
+    end
+
+    %% 缓存机制
+    subgraph Cache_Mechanism["Prompt Caching 命中条件（按前缀块匹配）"]
+        direction TB
+        LenCheck{"System Prompt 长度 ≥ 1024 tokens ?"}
+        OnlySys["首块只含 System Prompt → Tools/Msg 变化不影响首块"]
+        SysPlusTools["首块包含 System Prompt + Tools开头（凑满1024）→ Tools 变化易导致失效"]
+        SysPlusToolsMsg["若 Sys+Tools < 1024 → 首块包含 Messages（可能含 COT），动态内容变化易失效"]
+        NextBlocks["COT 在后续缓存块中 → 需前块命中且本块内容稳定"]
+
+        LenCheck -- 是 --> OnlySys
+        LenCheck -- 否 --> SysPlusTools --> SysPlusToolsMsg
+    end
+
+    %% Server行为
+    subgraph Server_Behavior["Responses API 服务端行为（默认语义）"]
+        direction TB
+        B1["连续 Function Call<br/>→ 保留 Reasoning Tokens<br/>→ Cached Tokens 逐轮↑"]
+        B2A["Assistant → 紧接 User<br/>→ 清空 Reasoning Tokens<br/>→ Cached Tokens = 0"]
+        B2B["Assistant → 紧接 Function Call<br/>→ 保留 Reasoning Tokens<br/>→ Cached Tokens 可能↑"]
+        B3["Function Call(纯文本) → 下一轮带图片<br/>→ Reasoning Tokens 逻辑保留<br/>→ Cached Tokens 可能 = 0（路由切换）"]
+    end
+
+    %% 外部重注入路径（覆盖默认清空）
+    subgraph Reinjection["外部重注入 COT（绕过默认清空）"]
+        direction TB
+        Rprev["previous_response_id（store=True）"]
+        Renc["回传 reasoning.encrypted_content（store=False）<br/>将上一轮 resp.output 原样拼回 input"]
+    end
+
+    %% 备注
+    subgraph Notes["注释"]
+        direction TB
+        MetricNote["cached_tokens>0 表示可观测的缓存命中；个别路由/部署可能不返回该指标。<br/>cached=0 ≠ 未复用，应结合 prev_id/加密链与 reasoning_tokens 变化判断"]
+    end
+
+    %% 链接关系
+    S --> T --> M
+    M --> COT
+    COT -->|可能进入首块或后续块| LenCheck
+
+    OnlySys --> C1(("Cached Tokens > 0<br/>=> 成本+延迟优化（但不含COT）"))
+    SysPlusToolsMsg -->|首块稳定命中时，含COT可缓存| C2(("COT被缓存"))
+    SysPlusToolsMsg -->|首块失效时| C3(("COT需重新计算"))
+    NextBlocks -->|命中| C2
+    NextBlocks -->|不命中| C3
+
+    Server_Behavior --> COT
+    Server_Behavior --> LenCheck
+
+    %% 重注入对默认清空的覆盖（虚线）
+    Rprev -.->|重注入上一轮 COT| COT
+    Renc  -.->|重注入上一轮 COT| COT
+    Rprev -.->|可绕过 B2A 默认清空| B2A
+    Renc  -.->|可绕过 B2A 默认清空| B2A
+
+    %% 说明指标可见性（虚线提示）
+    MetricNote -.-> C1
+    MetricNote -.-> C2
