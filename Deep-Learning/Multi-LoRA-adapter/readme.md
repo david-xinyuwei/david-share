@@ -4,43 +4,49 @@
 
 - vLLM supports multiple LoRA adapters loaded and resident in memory, switchable per request with ≈0 delay via `LoRARequest` (offline) or `--lora-modules` (server).
 - Chat Template is **not required** for adapter switching; its value is in keeping the prompt format consistent with each adapter’s fine-tuning data, improving output quality and maintainability.
-- LoRA adapters are resource-efficient for small/mid LLMs with fixed domain tasks; RAG suits larger LLMs needing real-time knowledge retrieval.
+- LoRA adapters are resource‑efficient for small/mid LLMs with fixed domain tasks; RAG suits larger LLMs needing real-time knowledge retrieval.
 
----
+------
 
 ## Background & Problem
-In extending an LLM's ability with external capabilities or domain knowledge, common approaches include:
-1. **Fine-tuning / LoRA adapters** — efficient, adjusts a small set of parameters.
+
+When extending an LLM's abilities with external capabilities or domain knowledge, common approaches include:
+
+1. **Fine‑tuning / LoRA adapters** — efficient, adjusts a small set of parameters.
 2. **Function calling** — integrate tool APIs.
-3. **RAG (Retrieval-Augmented Generation)** — external up-to-date knowledge retrieval.
+3. **RAG (Retrieval‑Augmented Generation)** — retrieves and uses up‑to‑date external knowledge.
 
 **Problems addressed:**
-- Naïve handling: Switching LoRA for different tasks → unload current adapter, load new one → multi-second delay.
-- In multi-task/multi-user environments, we need adapters resident in memory and selected per request with almost zero switch delay.
-- Models fine-tuned with specific prompt formats degrade when given mismatched prompts during inference.
 
----
+- Naïve handling: switching LoRA for different tasks → unload current adapter, load new one → multi‑second delay.
+- In multi‑task/multi‑user environments, we need adapters resident in memory and selected per request with near‑zero switch delay.
+- Models fine‑tuned with specific prompt formats degrade when given mismatched prompts during inference.
+
+------
 
 ## Method — Fully Reproducible Steps
 
 ### 1. Install vLLM and HuggingFace Hub
-```bash
+
+```
 pip install vllm huggingface_hub
 ```
 
 
 
+------
+
 ### 2. Prepare Base Model & Adapters
 
 Two example base models:
 
-- `Qwen/Qwen3-4B-Base` 
+- `Qwen/Qwen3-4B-Base`
 - `meta-llama/Meta-Llama-3-8B`
 
 Adapters:
 
 - Translation: English→French, English→Japanese
-- Task-specific: OASST assistant, xLAM tool invocation
+- Task‑specific: OASST assistant, xLAM tool invocation
 
 Download adapters:
 
@@ -55,7 +61,7 @@ huggingface-cli download kaitchup/Meta-Llama-3-8B-xLAM-Adapter --local-dir ./xla
 
 ### 3. [Optional] Prepare Jinja Chat Template
 
-Only needed if you want prompts to match fine-tuning format exactly.
+Only needed if you want prompts to match fine‑tuning format exactly.
 Example: `/workspace/chat_template_translator.jinja`
 
 ```
@@ -91,10 +97,8 @@ from huggingface_hub import snapshot_download
 import time
 import torch
 
-# Initialize base model
 llm = LLM(model="Qwen/Qwen3-4B-Base", enable_lora=True, max_lora_rank=32, max_model_len=2048)
 
-# Load adapters
 oasst_path = snapshot_download("kaitchup/Meta-Llama-3-8B-oasst-Adapter")
 oasstLR = LoRARequest("oasst", 1, oasst_path)
 
@@ -106,7 +110,6 @@ enja_adapter_path = "/workspace/SFT-OPUS-en-ja/checkpoint-15469"
 adapter_enfr = LoRARequest("enfr", 3, fr_adapter_path)
 adapter_enja = LoRARequest("enja", 4, enja_adapter_path)
 
-# Optional: load Chat Template
 try:
     with open("/workspace/chat_template_translator.jinja", "r", encoding="utf-8") as f:
         CHAT_TEMPLATE = f.read()
@@ -115,32 +118,23 @@ except FileNotFoundError:
 
 sampling_params = SamplingParams(temperature=0.8, top_p=0.95, max_tokens=512)
 
-# Simple benchmark function
 def benchmark_adapter(adapter_req, prompts, use_chat_template=False):
     print(f"\nAdapter: {adapter_req.adapter_name}")
-    start_t = time.time()
+    start_t = time.monotonic()
     if use_chat_template and CHAT_TEMPLATE:
         outputs = llm.chat(prompts, sampling_params, lora_request=adapter_req, chat_template=CHAT_TEMPLATE)
     else:
         outputs = llm.generate(prompts, sampling_params, lora_request=adapter_req)
-    end_t = time.time()
+    end_t = time.monotonic()
     total_time = end_t - start_t
-    tokens_total = sum(o.outputs[0].token_count for o in outputs)
-    tokens_sec = tokens_total / total_time if total_time > 0 else 0
-    ttft = min(o.outputs[0].first_token_time for o in outputs)
-    print(f"Tokens/sec: {tokens_sec:.2f}, TTFT: {ttft:.3f}s")
-    if torch.cuda.is_available():
-        print(f"GPU mem: {torch.cuda.memory_allocated()/1024/1024:.2f} MB")
+    total_tokens = sum(len(o.outputs[0].token_ids) for o in outputs if o.outputs and hasattr(o.outputs[0], "token_ids"))
+    tokens_sec = total_tokens / total_time if total_time > 0 else 0
+    ttft = None
+    gpu_mem = torch.cuda.memory_allocated()/1024/1024 if torch.cuda.is_available() else None
+    print(f"Tokens/sec: {tokens_sec:.2f}, TTFT: {ttft}, Time: {total_time:.3f}s, GPU Mem: {gpu_mem} MB")
 
-# Run with/without Chat Template
-benchmark_adapter(oasstLR, [
-    "### Human: Check if the numbers 8 and 1233 are powers of two.### Assistant:",
-], use_chat_template=False)
-
-benchmark_adapter(adapter_enfr, [
-    [ {"role": "system", "content": "You are a professional translator translating English to French."},
-      {"role": "user", "content": "I'm an English teacher."}]
-], use_chat_template=True)
+benchmark_adapter(oasstLR, ["### Human: Check if the numbers 8 and 1233 are powers of two.### Assistant:"], use_chat_template=False)
+benchmark_adapter(adapter_enfr, [[{"role": "system", "content": "You are a professional translator translating English to French."}, {"role": "user", "content": "I'm an English teacher."}]], use_chat_template=True)
 ```
 
 
@@ -161,7 +155,7 @@ vllm serve Qwen/Qwen3-4B-Base \
 
 
 
-Query via OpenAI client:
+OpenAI client query:
 
 ```
 from openai import OpenAI
@@ -176,17 +170,19 @@ completion = client.chat.completions.create(
 print(completion)
 ```
 
-
-
 ------
 
-## Engineering Recommendations 
+## Engineering Recommendations
 
--  Match `max_lora_rank` to highest adapter rank to avoid VRAM waste.
--  Keep safetensors limited to LoRA A/B matrices only.
--  Use Chat Template if multiple adapters have different training prompt formats.
--  Monitor tokens/sec & TTFT per adapter pre-production.
--  In small-scale/prototype, prompt can be hardcoded instead of templates.
+- Match `max_lora_rank` to highest adapter rank to avoid VRAM waste.
+- Keep safetensors limited to LoRA A/B matrices only.
+- Use Chat Template if multiple adapters have different training prompt formats.
+- Monitor tokens/sec & TTFT per adapter before production.
+- For prototypes with few adapters, hardcode prompt formats.
+- Optimize server flags: `--gpu-memory-utilization`, `--tensor-parallel-size`, `--max-num-batched-tokens`.
+- Multi-tenant safe: bind adapter names to tenant permissions.
+- Observability: integrate Prometheus/Grafana with vLLM metrics.
+- Gradual rollout: new adapters get low-traffic test before full release.
 
 ------
 
@@ -194,55 +190,70 @@ print(completion)
 
 **Env**:
 
-- GPU VRAM ≥ base + sum(adapter delta params)
+- GPU VRAM ≥ base model + sum(adapter delta params)
 - Python ≥3.9
 - vLLM latest release
 
 **Steps**:
 
 1. Download base + adapters.
-2. (Optional) Save Chat Template file for consistent formatting.
+2. Optional: save Chat Template file.
 3. Serve with `--lora-modules`.
 4. Query with matching `model` adapter name.
+
+**Example QLoRA Offline**:
+
+```
+llm = LLM(model="Qwen/Qwen3-4B-Base", quantization="bitsandbytes", qlora_adapter_name_or_path="/path/to/qlora_adapter", enable_lora=True, max_lora_rank=32)
+```
+
+
+
+**Example QLoRA Serve**:
+
+```
+vllm serve Qwen/Qwen3-4B-Base --quantization bitsandbytes --load-format bitsandbytes --qlora-adapter-name-or-path /path/to/qlora_adapter --enable-lora --max-lora-rank 32
+```
+
+
 
 ------
 
 ## Risks & Troubleshooting
 
-| Issue              | Cause                  | Fix                                                  |
-| ------------------ | ---------------------- | ---------------------------------------------------- |
-| OOM                | VRAM insufficient      | Reduce adapters or quantize base                     |
-| Poor output        | Prompt format mismatch | Use same template as fine-tuning or replicate format |
-| Wrong adapter used | Model name mismatch    | Ensure IDs match `--lora-modules` registration       |
-| Wasted VRAM        | max_lora_rank too high | Set exactly to highest adapter rank                  |
+| Issue                      | Cause                           | Fix                                    |
+| -------------------------- | ------------------------------- | -------------------------------------- |
+| OOM                        | VRAM insufficient               | Reduce adapters / quantize base        |
+| Poor output                | Prompt format mismatch          | Match training format                  |
+| Wrong adapter used         | Model name mismatch             | Ensure IDs match registration          |
+| Wasted VRAM                | max_lora_rank too high          | Set to highest adapter rank            |
+| Unsupported adapter format | Contains full modules           | Use LoRA A/B matrices only             |
+| Dimension mismatch         | Adapter not matching base model | Re-export from compatible base version |
 
 ------
 
 ## Conclusion & Next Steps
 
-1. Benchmark each adapter with provided script and fill performance table.
-2. Decide whether to use templates based on adapter diversity and maintenance needs.
-3. Deploy with monitoring and fallback logic.
+1. Benchmark each adapter and fill the table.
+2. Decide on template usage based on format diversity and ROI.
+3. Deploy with monitor/fallback mechanisms.
 
 ------
 
-## About Chat Template 
+## About Chat Template
 
-**Key understanding:**
+- Multi‑LoRA adapter switching **does not require** Chat Template.
+- It helps:
+  1. Ensure prompt format matches fine‑tuning data.
+  2. Map adapter IDs to specific formats without duplicating code.
+  3. Allow prompt format hot‑update without redeploying.
 
-- Multi-LoRA adapter switching **does not require** Chat Template. You can use `llm.generate(..., lora_request=AdapterX)` or `vllm serve --lora-modules` without it.
-- Chat Template’s value lies in:
-  1. Guaranteeing input format matches fine-tuning training format → preserves output quality.
-  2. In multi-adapter scenario, mapping adapter ID to its specific format without code duplication.
-  3. Maintainability: hot-update prompt formats without redeploying code.
+Single adapter: reduces hardcoding.
+Multi‑adapter: essential for correct adapter‑format mapping and quality stability.
 
-**Single adapter:** Template mainly reduces hardcoding, easier maintenance.
-**Multi adapter:** Template becomes central to correct format-to-adapter mapping and preventing quality drop across tasks.
+------
 
-**Bottom line:**
-If adapters share the same prompt structure, you can skip Chat Template. If they differ significantly, templates are a safe engineering practice to preserve quality and consistency.
-
-###  Chat Template Decision Tree
+### Chat Template Decision Tree
 
 ```
              +-------------------------------+
@@ -267,4 +278,8 @@ If adapters share the same prompt structure, you can skip Chat Template. If they
                                                (Format diff, high
                                                 maintainability gain)
 ```
+
+
+
+
 
