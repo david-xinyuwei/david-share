@@ -34,8 +34,8 @@ pip install vllm huggingface_hub
 
 Two example base models:
 
-- `Qwen/Qwen3-4B-Base` (Benjamin’s example)
-- `meta-llama/Meta-Llama-3-8B` (Your example)
+- `Qwen/Qwen3-4B-Base` 
+- `meta-llama/Meta-Llama-3-8B`
 
 Adapters:
 
@@ -226,7 +226,7 @@ print(completion)
 
 ------
 
-## About Chat Template — Addressing Your Concern
+## About Chat Template 
 
 **Key understanding:**
 
@@ -241,3 +241,30 @@ print(completion)
 
 **Bottom line:**
 If adapters share the same prompt structure, you can skip Chat Template. If they differ significantly, templates are a safe engineering practice to preserve quality and consistency.
+
+###  Chat Template Decision Tree
+
+```
+             +-------------------------------+
+             |  Are all adapters using the    |
+             |  same prompt format structure? |
+             +-----------------------+-------+
+                                     |
+                  YES                |              NO
+       +---------------------+       |       +------------------+
+       | Is the number of     |       |       | Do prompt formats |
+       | adapters <= 2 ?      |       |       | differ heavily or |
+       +----------+----------+       |       | are tasks highly  |
+                  |                  |       | format-sensitive? |
+       YES        |       NO         |       +---------+---------+
+   +--------------+----+  +----------+----+            |      
+   | Hardcode prompt   |  | Template optional, |    YES |    NO
+   | format in code.   |  | for easier future  |  +-----+----+   
+   |                   |  | maintenance.      |  | Use Chat |   
+   | (No Template)     |  | (Weigh ROI)        |  | Template |   
+   +-------------------+  +-------------------+  +----------+   
+                                                    |     
+                                               (Format diff, high
+                                                maintainability gain)
+```
+
