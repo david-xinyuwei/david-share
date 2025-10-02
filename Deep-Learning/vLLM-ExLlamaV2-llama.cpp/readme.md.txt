@@ -208,6 +208,8 @@ Python 脚本加载并运行。
 
 ------
 
+![images](https://github.com/david-xinyuwei/david-share/blob/master/Deep-Learning/vLLM-ExLlamaV2-llama.cpp/images/1.png)
+
 ## FAQ
 
 **Q1: ExLlamaV2 是 llama.cpp 演进版吗？**
