@@ -1,97 +1,285 @@
-# Multi LoRA adapter
-When enabling a base model to acquire external capabilities and knowledge, you can use fine-tuning, Function, or RAG (Retrieval-Augmented Generation). For large language models, RAG is more suitable. For smaller language models, fine-tuning is more effective. So, how can we conveniently call multiple Adapters? This article discusses this topic.
+# Multi‑LoRA Adapters in vLLM: Switching, Performance, and When You Really Need Chat Templates
 
-## The Significance of Multi-LoRA Adapter Invocation
+## TL;DR
 
- 
-In modern Natural Language Processing (NLP) tasks, large language models (LLMs) such as GPT-3 and Llama have demonstrated powerful capabilities. However, to further enhance the performance of these models in specific tasks or domains, we often need to fine-tune the models. LoRA (Low-Rank Adaptation) adapters are an efficient fine-tuning method that optimizes model performance by adjusting a small number of parameters. This article will introduce how to use the vLLM framework to achieve unified management and invocation of multiple LoRA adapters, and will explore its principles, methods, implementation, and advantages.
+- vLLM supports multiple LoRA adapters loaded and resident in memory, switchable per request with ≈0 delay via `LoRARequest` (offline) or `--lora-modules` (server).
+- Chat Template is **not required** for adapter switching; its value is in keeping the prompt format consistent with each adapter’s fine-tuning data, improving output quality and maintainability.
+- LoRA adapters are resource‑efficient for small/mid LLMs with fixed domain tasks; RAG suits larger LLMs needing real-time knowledge retrieval.
 
-LoRA adapters fine-tune pre-trained models through low-rank matrix decomposition techniques without adjusting all the model parameters. This method significantly reduces the computational resources and time required for fine-tuning. Multiple LoRA adapters can be fine-tuned for different tasks and dynamically switched during inference to optimize the model's performance in a multi-task environment.
+------
+
+## Background & Problem
+
+When extending an LLM's abilities with external capabilities or domain knowledge, common approaches include:
+
+1. **Fine‑tuning / LoRA adapters** — efficient, adjusts a small set of parameters.
+2. **Function calling** — integrate tool APIs.
+3. **RAG (Retrieval‑Augmented Generation)** — retrieves and uses up‑to‑date external knowledge.
+
+**Problems addressed:**
+
+- Naïve handling: switching LoRA for different tasks → unload current adapter, load new one → multi‑second delay.
+- In multi‑task/multi‑user environments, we need adapters resident in memory and selected per request with near‑zero switch delay.
+- Models fine‑tuned with specific prompt formats degrade when given mismatched prompts during inference.
+
+------
+
+## Method — Fully Reproducible Steps
+
+### 1. Install vLLM and HuggingFace Hub
 
 ```
-outputs = llm.generate(prompts_oasst, sampling_params_oasst, lora_request=oasstLR)  
+pip install vllm huggingface_hub
 ```
 
- 
 
-### Advantages of Using LoRA Adapters
 
-1. **Resource Efficiency**: LoRA adapters significantly reduce the computational resources and time required for fine-tuning by adjusting only a small number of parameters. In contrast, RAG may need to maintain and query a large external knowledge base, potentially increasing system complexity and resource demands.
-2. **Response Speed**: Since LoRA adapters are directly loaded into the model, the inference speed is usually faster. RAG requires both retrieval and generation steps, which may introduce some latency, especially in real-time applications.
-3. **Offline Application**: LoRA adapters can operate completely offline without relying on external knowledge bases, which is very useful in scenarios with network limitations or high data security requirements.
-4. **Task-Specific Optimization**: LoRA adapters can be finely tuned for specific tasks or data, enhancing the model's performance on these tasks. For example, by fine-tuning adapters, the model can perform better on specific types of questions.
+------
 
-## Memory Efficiency of Multiple LoRA Adapters
+### 2. Prepare Base Model & Adapters
 
-1. **Parameter-Efficient Fine-Tuning**: LoRA adapters fine-tune only a portion of the pre-trained model's parameters through low-rank matrix decomposition, rather than fully fine-tuning the entire model. This approach significantly reduces the number of parameters that need to be stored and updated, thereby reducing memory usage.
-2. **Shared Base Model**: Multiple LoRA adapters can share the parameters of a single base model. The base model's parameters only need to be loaded once, and each adapter only requires additional storage for a small number of fine-tuned parameters. This sharing mechanism greatly reduces memory redundancy.
-3. **Dynamic Loading and Unloading**: Although the vLLM framework supports loading multiple adapters simultaneously, it ensures minimal memory usage through efficient memory management. The parameters of the adapters are activated and used only when needed, and can remain in a low-memory state when not in use.
+Two example base models:
 
-## Comparison of Multi-Adapter and RAG Solutions
+- `Qwen/Qwen3-4B-Base`
+- `meta-llama/Meta-Llama-3-8B`
 
-1. **Dynamic Information Updates**: RAG can access and use the latest information in real-time, suitable for scenarios that require frequent data updates, such as product information and news. This dynamic capability is crucial for applications that need to handle real-time data.
+Adapters:
 
-2. **Rich Knowledge Base**: RAG can utilize large external knowledge bases to provide more extensive and detailed information. For issues requiring a large amount of background knowledge or long-tail information, RAG may be more effective.
+- Translation: English→French, English→Japanese
+- Task‑specific: OASST assistant, xLAM tool invocation
 
-3. **Flexibility**: The RAG method can flexibly integrate different information sources, such as documents, databases, and APIs, providing diverse information support.
+Download adapters:
 
-   In practical applications, the choice between using LoRA adapters or the RAG method depends on specific application needs and environments:
-
-- If your application requires efficient, fast responses and can significantly improve specific task performance through model fine-tuning, LoRA adapters may be more suitable.
-
-- If your application needs real-time access to and use of the latest external information or needs to handle a large amount of background knowledge, the RAG method may be more appropriate.
-
-  Of course, these two methods can also be used in combination. For example, LoRA adapters can be used to enhance the model's basic performance on specific tasks, while RAG can supplement and expand the model's knowledge base to achieve the best results. If dealing with edge small models, it is recommended to use the multi-adapter method. Fine-tune small models adapted to different scenarios and then invoke them according to the task.
-  
-  
-
-## Multi LoRA adapter Code
-Define base model:
 ```
-model_id = "meta-llama/Meta-Llama-3-8B"
-llm = LLM(model=model_id, enable_lora=True, max_lora_rank=16)
-```
-Load First LoRA Adapter
-```
-sampling_params_oasst = SamplingParams(temperature=0.7, top_p=0.9, max_tokens=500)
-oasst_lora_id = "kaitchup/Meta-Llama-3-8B-oasst-Adapter"
-oasst_lora_path = snapshot_download(repo_id=oasst_lora_id)
-oasstLR = LoRARequest("oasst", 1, oasst_lora_path)
-```
-Load Second LoRA Adaptor
-```
-sampling_params_xlam = SamplingParams(temperature=0.0, max_tokens=500)
-xlam_lora_id = "kaitchup/Meta-Llama-3-8B-xLAM-Adapter"
-xlam_lora_path = snapshot_download(repo_id=xlam_lora_id)
-xlamLR = LoRARequest("xlam", 2, xlam_lora_path)
-```
-Inference code
-```
-prompts_oasst = [
-    "### Human: Check if the numbers 8 and 1233 are powers of two.### Assistant:",
-    "### Human: What is the division result of 75 divided by 1555?### Assistant:",
-]
-
-outputs = llm.generate(prompts_oasst, sampling_params_oasst, lora_request=oasstLR)
-
-for output in outputs:
-    generated_text = output.outputs[0].text
-    print(generated_text)
-    print('------')
-    
-    
-prompts_xlam = [
-    "<user>Check if the numbers 8 and 1233 are powers of two.</user>\n\n<tools>",
-    "<user>What is the division result of 75 divided by 1555?</user>\n\n<tools>",
-]
-
-outputs = llm.generate(prompts_xlam, sampling_params_xlam, lora_request=xlamLR)
-
-for output in outputs:
-    generated_text = output.outputs[0].text
-    print(generated_text)
-    print('------')    
+huggingface-cli download kaitchup/Meta-Llama-3-8B-oasst-Adapter --local-dir ./oasst_adapter
+huggingface-cli download kaitchup/Meta-Llama-3-8B-xLAM-Adapter --local-dir ./xlam_adapter
 ```
 
-### Refer to : 
-*https://kaitchup.substack.com/p/serve-multiple-lora-adapters-with*
+
+
+------
+
+### 3. [Optional] Prepare Jinja Chat Template
+
+Only needed if you want prompts to match fine‑tuning format exactly.
+Example: `/workspace/chat_template_translator.jinja`
+
+```
+{# Messages: list of {role, content} #}
+{%- macro text_of(m) -%}
+  {%- if m.content is string -%}{{ m.content | trim }}
+  {%- else -%}{{ m.content | selectattr("type","equalto","text") | map(attribute="text") | join("\n") | trim }}
+  {%- endif -%}
+{%- endmacro -%}
+
+{%- set sys = (messages | selectattr("role","equalto","system") | map(attribute="content") | list | first) -%}
+{%- if sys %}<start>{{ sys | trim }}{% endif -%}
+
+{%- for m in messages if m.role != "system" -%}
+  {%- if m.role == "user" -%}<user>{{ text_of(m) }}
+  {%- elif m.role in ["assistant","translator"] -%}<translator>{{ text_of(m) }}
+  {%- endif -%}
+{%- endfor -%}
+
+{%- if add_generation_prompt %}<translator>{% endif -%}
+```
+
+
+
+------
+
+### 4. Offline Multi-LoRA Invocation
+
+```
+from vllm import LLM, SamplingParams
+from vllm.lora.request import LoRARequest
+from huggingface_hub import snapshot_download
+import time
+import torch
+
+llm = LLM(model="Qwen/Qwen3-4B-Base", enable_lora=True, max_lora_rank=32, max_model_len=2048)
+
+oasst_path = snapshot_download("kaitchup/Meta-Llama-3-8B-oasst-Adapter")
+oasstLR = LoRARequest("oasst", 1, oasst_path)
+
+xlam_path = snapshot_download("kaitchup/Meta-Llama-3-8B-xLAM-Adapter")
+xlamLR = LoRARequest("xlam", 2, xlam_path)
+
+fr_adapter_path = "/workspace/SFT-OPUS-en-fr/checkpoint-15469"
+enja_adapter_path = "/workspace/SFT-OPUS-en-ja/checkpoint-15469"
+adapter_enfr = LoRARequest("enfr", 3, fr_adapter_path)
+adapter_enja = LoRARequest("enja", 4, enja_adapter_path)
+
+try:
+    with open("/workspace/chat_template_translator.jinja", "r", encoding="utf-8") as f:
+        CHAT_TEMPLATE = f.read()
+except FileNotFoundError:
+    CHAT_TEMPLATE = None
+
+sampling_params = SamplingParams(temperature=0.8, top_p=0.95, max_tokens=512)
+
+def benchmark_adapter(adapter_req, prompts, use_chat_template=False):
+    print(f"\nAdapter: {adapter_req.adapter_name}")
+    start_t = time.monotonic()
+    if use_chat_template and CHAT_TEMPLATE:
+        outputs = llm.chat(prompts, sampling_params, lora_request=adapter_req, chat_template=CHAT_TEMPLATE)
+    else:
+        outputs = llm.generate(prompts, sampling_params, lora_request=adapter_req)
+    end_t = time.monotonic()
+    total_time = end_t - start_t
+    total_tokens = sum(len(o.outputs[0].token_ids) for o in outputs if o.outputs and hasattr(o.outputs[0], "token_ids"))
+    tokens_sec = total_tokens / total_time if total_time > 0 else 0
+    ttft = None
+    gpu_mem = torch.cuda.memory_allocated()/1024/1024 if torch.cuda.is_available() else None
+    print(f"Tokens/sec: {tokens_sec:.2f}, TTFT: {ttft}, Time: {total_time:.3f}s, GPU Mem: {gpu_mem} MB")
+
+benchmark_adapter(oasstLR, ["### Human: Check if the numbers 8 and 1233 are powers of two.### Assistant:"], use_chat_template=False)
+benchmark_adapter(adapter_enfr, [[{"role": "system", "content": "You are a professional translator translating English to French."}, {"role": "user", "content": "I'm an English teacher."}]], use_chat_template=True)
+```
+
+
+
+------
+
+### 5. Online Serve with Multiple Adapters
+
+```
+vllm serve Qwen/Qwen3-4B-Base \
+  --enable-lora \
+  --max-lora-rank 32 \
+  --lora-modules oasst=./oasst_adapter \
+                 xlam=./xlam_adapter \
+                 enfr=/workspace/SFT-OPUS-en-fr/checkpoint-15469 \
+                 enja=/workspace/SFT-OPUS-en-ja/checkpoint-15469
+```
+
+
+
+OpenAI client query:
+
+```
+from openai import OpenAI
+client = OpenAI(api_key="EMPTY", base_url="http://localhost:8000/v1")
+completion = client.chat.completions.create(
+    model="enfr",
+    messages=[
+        {"role": "system", "content": "You are a professional translator translating English to French."},
+        {"role": "user", "content": "I'm an English teacher."}
+    ]
+)
+print(completion)
+```
+
+------
+
+## Engineering Recommendations
+
+- Match `max_lora_rank` to highest adapter rank to avoid VRAM waste.
+- Keep safetensors limited to LoRA A/B matrices only.
+- Use Chat Template if multiple adapters have different training prompt formats.
+- Monitor tokens/sec & TTFT per adapter before production.
+- For prototypes with few adapters, hardcode prompt formats.
+- Optimize server flags: `--gpu-memory-utilization`, `--tensor-parallel-size`, `--max-num-batched-tokens`.
+- Multi-tenant safe: bind adapter names to tenant permissions.
+- Observability: integrate Prometheus/Grafana with vLLM metrics.
+- Gradual rollout: new adapters get low-traffic test before full release.
+
+------
+
+## Deployment Runbook
+
+**Env**:
+
+- GPU VRAM ≥ base model + sum(adapter delta params)
+- Python ≥3.9
+- vLLM latest release
+
+**Steps**:
+
+1. Download base + adapters.
+2. Optional: save Chat Template file.
+3. Serve with `--lora-modules`.
+4. Query with matching `model` adapter name.
+
+**Example QLoRA Offline**:
+
+```
+llm = LLM(model="Qwen/Qwen3-4B-Base", quantization="bitsandbytes", qlora_adapter_name_or_path="/path/to/qlora_adapter", enable_lora=True, max_lora_rank=32)
+```
+
+
+
+**Example QLoRA Serve**:
+
+```
+vllm serve Qwen/Qwen3-4B-Base --quantization bitsandbytes --load-format bitsandbytes --qlora-adapter-name-or-path /path/to/qlora_adapter --enable-lora --max-lora-rank 32
+```
+
+
+
+------
+
+## Risks & Troubleshooting
+
+| Issue                      | Cause                           | Fix                                    |
+| -------------------------- | ------------------------------- | -------------------------------------- |
+| OOM                        | VRAM insufficient               | Reduce adapters / quantize base        |
+| Poor output                | Prompt format mismatch          | Match training format                  |
+| Wrong adapter used         | Model name mismatch             | Ensure IDs match registration          |
+| Wasted VRAM                | max_lora_rank too high          | Set to highest adapter rank            |
+| Unsupported adapter format | Contains full modules           | Use LoRA A/B matrices only             |
+| Dimension mismatch         | Adapter not matching base model | Re-export from compatible base version |
+
+------
+
+## Conclusion & Next Steps
+
+1. Benchmark each adapter and fill the table.
+2. Decide on template usage based on format diversity and ROI.
+3. Deploy with monitor/fallback mechanisms.
+
+------
+
+## About Chat Template
+
+- Multi‑LoRA adapter switching **does not require** Chat Template.
+- It helps:
+  1. Ensure prompt format matches fine‑tuning data.
+  2. Map adapter IDs to specific formats without duplicating code.
+  3. Allow prompt format hot‑update without redeploying.
+
+Single adapter: reduces hardcoding.
+Multi‑adapter: essential for correct adapter‑format mapping and quality stability.
+
+------
+
+### Chat Template Decision Tree
+
+```
+             +-------------------------------+
+             |  Are all adapters using the    |
+             |  same prompt format structure? |
+             +-----------------------+-------+
+                                     |
+                  YES                |              NO
+       +---------------------+       |       +------------------+
+       | Is the number of     |       |       | Do prompt formats |
+       | adapters <= 2 ?      |       |       | differ heavily or |
+       +----------+----------+       |       | are tasks highly  |
+                  |                  |       | format-sensitive? |
+       YES        |       NO         |       +---------+---------+
+   +--------------+----+  +----------+----+            |      
+   | Hardcode prompt   |  | Template optional, |    YES |    NO
+   | format in code.   |  | for easier future  |  +-----+----+   
+   |                   |  | maintenance.      |  | Use Chat |   
+   | (No Template)     |  | (Weigh ROI)        |  | Template |   
+   +-------------------+  +-------------------+  +----------+   
+                                                    |     
+                                               (Format diff, high
+                                                maintainability gain)
+```
+
+
+
+
+
