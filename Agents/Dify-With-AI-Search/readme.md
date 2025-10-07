@@ -23,13 +23,13 @@ Till now, Dify could not integrate with Microsoft directly via default Dify web 
 
 Create index, make sure you could get the result from AI search index:
 
-<img src="https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/1.png" alt="images" style="width:80%;">  
+<img src="images/1.png" alt="images" style="width:80%;">  
 
 
 
 Run dify on VM via docker:
 
-<img src="https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/12.png" alt="images" style="width:80%;">  
+<img src="images/12.png" alt="images" style="width:80%;">  
 
 
 
@@ -39,7 +39,7 @@ Then Access dify portal via the URL of your dify container.
 
 
 
-<img src="https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/3.png" alt="images" style="width:80%;">  
+<img src="images/3.png" alt="images" style="width:80%;">  
 
 
 
@@ -119,13 +119,13 @@ Then Access dify portal via the URL of your dify container.
 
 #### **Set AI Search AI key:**
 
-<img src="https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/4.png" alt="images" style="width:80%;">  
+<img src="images/4.png" alt="images" style="width:80%;">  
 
 
 
 #### **Do search test:**
 
-<img src="https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/5.png" alt="images" style="width:80%;">  
+<img src="images/5.png" alt="images" style="width:80%;">  
 
 
 
@@ -133,7 +133,7 @@ Then Access dify portal via the URL of your dify container.
 
 
 
-<img src="https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/6.png" alt="images" style="width:80%;">  
+<img src="images/6.png" alt="images" style="width:80%;">  
 
 
 
@@ -141,7 +141,7 @@ Then Access dify portal via the URL of your dify container.
 
 
 
-<img src="https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/7.png" alt="images" style="width:80%;">  
+<img src="images/7.png" alt="images" style="width:80%;">  
 
 
 
@@ -149,7 +149,7 @@ Then Access dify portal via the URL of your dify container.
 
 
 
-<img src="https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/8.png" alt="images" style="width:80%;">  
+<img src="images/8.png" alt="images" style="width:80%;">  
 
 
 
@@ -157,16 +157,16 @@ Then Access dify portal via the URL of your dify container.
 
 
 
-<img src="https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/9.png" alt="images" style="width:80%;">  
+<img src="images/9.png" alt="images" style="width:80%;">  
 
 
 
 #### **Run workflow:**
 
-<img src="https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/10.png" alt="images" style="width:60%;">  
+<img src="images/10.png" alt="images" style="width:60%;">  
 
 #### **Get workflow result:**
 
-<img src="https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/11.png" alt="images" style="width:80%;">  
+<img src="images/11.png" alt="images" style="width:80%;">  
 
 At this point, we can clearly see that Dify can seamlessly integrate and work together with Microsoft's AI Search and Azure OpenAI GPT-4o, achieving an end-to-end Dify RAG workflow. 
