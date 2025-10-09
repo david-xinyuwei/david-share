@@ -1,307 +1,129 @@
-## NVFP4 解析与工程实践
+## NVFP4 Analysis and Engineering Practice
 
-### **摘要与要点**
+### **Abstract and Key Points**
 
-- NVFP4 是 NVIDIA 为 Blackwell Tensor Core 定制优化的 4-bit 浮点量化数据类型，采用 E2M1 元素格式与双层缩放（微块 FP8 E4M3 + 全局 FP32），在模型精度几乎不损失的前提下显著提升推理吞吐。来自第一篇的结论显示：在激活与权重均采用 NVFP4 时，吞吐可比 INT4 提升约 2.35 倍。
-- 与主流 4-bit INT4（AWQ、AutoRound、bitsandbytes）相比，NVFP4 在大模型上精度差异并不明显，但在 Blackwell 上具备“全程免反量化”的硬件直通优势。若只做权重量化（NVFP4A16），大多吞吐优势会流失。
-- MXFP4（OCP Microscaling 标准）采用 E2M1 元素、E8M0 幂次缩放、微块大小 32，无全局 FP32 缩放；计算以移位为主，元数据开销更小，更偏跨平台与部署简单性。第二篇中 OpenAI 的 gpt-oss-20b/120b 采用 MXFP4 做 PTQ，并在少量模块上保留高精度（modules_to_not_convert）。
-- 选型建议：Blackwell 优先 NVFP4（权重+激活）；跨平台或非 Blackwell 环境可选 MXFP4（如 OAI-OSS），以在较低显存中稳定运行，但速度优势主要取决于是否有匹配的低比特内核与硬件路径。
+- NVFP4 is a 4-bit floating-point quantization format optimized by NVIDIA for Blackwell Tensor Core, using an E2M1 element format with dual scaling (micro-block FP8 E4M3 + global FP32). This design significantly boosts inference throughput while maintaining near-lossless accuracy. The first paper’s conclusion shows that with both activations and weights in NVFP4, throughput can be ~2.35× higher than INT4.
+- Compared to mainstream 4-bit INT4 formats (AWQ, AutoRound, bitsandbytes), NVFP4 shows no obvious accuracy gap on large models but benefits from Blackwell’s “full direct pass without dequantization” advantage. If only weight quantization is applied (NVFP4A16), most throughput gains are lost.
+- MXFP4 (OCP Microscaling standard) also uses E2M1 elements but adopts E8M0 power scaling, a micro-block size of 32, and no global FP32 scaling. It relies mainly on shift operations, has smaller metadata overhead, and favors simplicity and cross-platform deployment. In the second paper, OpenAI’s gpt-oss-20b/120b use MXFP4 for PTQ, retaining high precision for certain modules (`modules_to_not_convert`).
+- Selection recommendation: On Blackwell, prioritize NVFP4 (weights + activations). Cross-platform or non-Blackwell environments may choose MXFP4 (OAI-OSS) to run stably with low VRAM, although speed advantages depend largely on matched low-bit kernels and hardware paths.
 
-### **一、背景：为什么需要 NVFP4？**
+### **1. Background: Why NVFP4?**
 
- 随着 LLM 参数规模不断爬升，哪怕是纯推理也越来越受限于显存带宽和内存容量。4-bit 量化是当下最具性价比的路径之一，但传统 INT4 路线会遇到两个现实瓶颈：
+As LLM parameter counts climb, even pure inference is constrained by VRAM bandwidth and capacity. 4-bit quantization is one of the most cost-effective paths today, but traditional INT4 faces two practical bottlenecks:
 
-- 反量化开销难以彻底消除：即便工程优化已很激进（如 vLLM、SGLang、TensorRT-LLM 的 kernel fusion、流水并行等），权重往往仍需在算子入口还原到 16-bit（或更高），才能利用通用的张量核心执行主计算。
-- 动态范围与保真度的博弈：INT4 常以较大的组（如 128）共享缩放因子，能减少元数据，但遇到强烈异质分布或离群值时，小值更容易丢失或被压扁，需要更精巧的分组策略和校准。
+- **Dequantization overhead:** Even with aggressive engineering optimizations (kernel fusion, pipeline parallel, etc.), weights are often restored to 16-bit or higher before main tensor core computation.
+- **Range vs. fidelity trade-off:** INT4 often shares scaling factors over large groups (e.g., 128 values), reducing metadata but risking loss of small values in heterogeneous distributions unless carefully grouped and calibrated.
 
-NVFP4 的提出，核心在于“在 4-bit 存储与计算的同时，尽可能减少反量化和精度损失”，并通过硬件原生支持，把这一设计变成实际可感知的吞吐红利。
+NVFP4 aims to store and compute in 4-bit while minimizing dequantization and accuracy loss, with hardware-native support turning this into observable throughput gains.
 
+### **2. Core Design of NVFP4**
 
+1. **Element format:** FP4 E2M1 (1 sign bit, 2 exponent bits, 1 mantissa bit)
+   Range per value: ~-6 to +6 — insufficient to cover real tensor distributions inside LLMs without scaling.
 
-### **二、NVFP4 的核心设计**
+2. **Dual Scaling:**
 
-1. 元素与数值范围
+   - **Micro-block scaling:**
+     - Block size: 16 elements
+     - Scaling factor type: FP8 E4M3 — supports fractional scaling close to local tensor magnitude.
+   - **Global scaling:**
+     - One FP32 scale per tensor — absorbs long-tail variance and cross-layer differences.
 
-- 元素格式：FP4 E2M1（1 符号位、2 指数位、1 尾数位）
-- 单值范围：约 -6 到 +6（数量级级别的有限覆盖） 仅有 4-bit 显然不足以直接覆盖 LLM 内部张量的真实分布，于是 NVFP4 引入“两层缩放”。
+   Reconstruction formula: `x ≈ xq × s_block(FP8 E4M3) × s_tensor(FP32)`
 
-1. 双层缩放（Dual Scaling）
+Key points: Smaller blocks (16 vs. MXFP4’s 32), flexible FP8 scaling, and the global FP32 scale allow NVFP4 to adapt well to heterogeneous value distributions and outliers.
 
-- 微块缩放（block-level）
-  - 粒度：16 个元素为一块（block size = 16）
-  - 缩放因子类型：FP8 E4M3
-  - 关键点：E4M3 允许非 2 的幂的“小数缩放”，即尺度可细粒度地贴近张量的真实局部幅值，不容易被离群值一棍子打死。
-- 全局缩放（tensor-level）
-  - 每个张量配一个高精度 FP32 缩放，用于吸收长尾范围与跨层差异，让每个微块的 FP8 缩放在更合适的区间内工作。
+### **3. Experimental Results and Engineering Significance**
 
-重构公式可写为： x ≈ xq × s_block(FP8 E4M3) × s_tensor(FP32)
+**Accuracy:**
 
-理解要点
+- NVFP4 ≈ FP8 (≤1% diff).
+- NVFP4 ≈ INT4 methods on large models (sometimes slightly better or worse depending on case).
+- NVFP4A16 (weights-only) has similar accuracy to full NVFP4 thanks to dual scaling.
 
-- 微块从 32（MXFP4）缩小到 16（NVFP4），意味着更细粒度地适应局部分布，弱化离群值对整个小分组的“拖拽”。
-- FP8 E4M3 比单纯幂次缩放更灵活，能够降低量化误差的系统性偏差。
-- 全局 FP32 缩放相当于再加一层安全气囊，保证模型在跨层、跨张量尺度不一致时依然能稳定工作。
+**Storage & Throughput:**
 
+- Storage ~4.5 bits/value; NVFP4 models can be ~7 GB larger than INT4 equivalents.
+- On Blackwell: NVFP4 weights+activations run directly on Tensor Core without dequantization, boosting throughput by ~2.35× vs. INT4.
+- NVFP4A16 loses most of this throughput benefit.
 
+*(Charts and detailed figure explanations omitted here for brevity in README)*
 
-### **三、NVFP4 的实验结论与工程意义**
+### **4. MXFP4 Overview and Differences from NVFP4**
 
-1. 精度
+MXFP4 (OCP Microscaling FP4) features:
 
-- 与 FP8 对比：多个基准上差异 ≤ 1%，个别基准（如 AIME 2024）NVFP4 看似更好，但作者提示这在统计波动范围内，结论应理解为“NVFP4≈FP8”。
-- 与 INT4（AWQ、AutoRound、bitsandbytes）对比：大模型（如 Llama 3.3）上，NVFP4 和优秀的 INT4 方法总体接近。有时 INT4 微幅更优，有时相当。作者指出更小模型（<10B）可能更能显露差异，这值得后续跟进。
-- NVFP4A16 与 NVFP4：即便 NVFP4 还量化激活，精度与 NVFP4A16（只量化权重）依然相近。这与双层缩放设计有关。
+- FP4 E2M1 elements, block size 32, scaling via E8M0 power-of-two (shift-friendly).
+- No global FP32 scaling — simpler and lighter metadata, better cross-platform potential.
+- Less flexible scaling than NVFP4, but simpler compute path.
+- Throughput depends on kernel support (e.g., vLLM/Ollama-specific paths).
+- Generally smaller model size than NVFP4.
 
-1. 存储与吞吐
+| Feature              | NVFP4 (NVIDIA Blackwell-optimized)       | MXFP4 (OCP standard)          |
+| -------------------- | ---------------------------------------- | ----------------------------- |
+| Element Format       | FP4 E2M1                                 | FP4 E2M1                      |
+| Block Size           | 16                                       | 32                            |
+| Block Scaling Format | FP8 E4M3 (fractional scaling)            | E8M0 (power-of-two scaling)   |
+| Global Scaling       | Yes, FP32 per tensor                     | No                            |
+| Formula              | x ≈ xq × FP8 × FP32                      | x ≈ xq × 2^k                  |
+| Compute Cost         | FP8 multiply (Blackwell HW acceleration) | Shift operations              |
+| HW Path              | Blackwell Tensor Core native pass        | Kernel-dependent              |
+| Storage Overhead     | More (smaller block size, extra scales)  | Less                          |
+| Typical Use          | Max throughput on Blackwell              | Cross-platform simplification |
 
-- 平均存储开销：约 4.5 bits/值（因为 block=16、每块 1 个 FP8 缩放 + 每张量 1 个 FP32 缩放），比典型 INT4（大多用 block=128）更高，Llama 3.3 的 NVFP4 模型比 INT4 大约多 7GB。
-- 吞吐优势：关键结论是 Blackwell 上 NVFP4 的硬件直通。权重与激活都为 NVFP4 时，计算链路无需反量化，Tensor Core 直接吃 NVFP4。实测吞吐相对 INT4 提升约 2.35 倍。
-- NVFP4A16 的代价：当仅权重量化、激活仍为 16-bit，运算中会发生数据类型转换或退化，NVFP4A16 的吞吐大多只比 INT4 略快，丢失了 NVFP4 的“全程 4-bit”护城河。
+### **5. Engineering Workflow**
 
+**Quantization Tools:**
+`llm-compressor` supports NVFP4. Calibration set size: 128–512 samples recommended. Sequence length: ≥2048 tokens. Preprocessing must match training format.
 
+**Inference Framework:**
+vLLM v0.10.0 works with NVFP4; source build recommended on Blackwell. Disable FlashInfer if unstable.
 
-#### 第一张图 —— 推理吞吐量对比（RTX 6000 Pro, vLLM v0.10.0）
+**Old GPU Compatibility:**
+No native NVFP4 path — can load NVFP4 weights to save VRAM but will likely require runtime dequantization.
 
-![images](https://github.com/david-xinyuwei/david-share/blob/master/Deep-Learning/NVFP4/images/1.png)
+**NVFP4 vs. INT4:**
 
-**图表含义：**
+- Accuracy: similar on large models.
+- Model size: NVFP4 slightly larger.
+- Throughput: NVFP4 faster only on Blackwell with activations also in NVFP4.
+- Ecosystem: INT4 more mature; NVFP4 smoother natively on Blackwell.
 
-- 深绿色条（Speed Input）：输入侧 token 生成速率（tokens/sec）
-- 浅蓝色条（Speed Output）：输出侧 token 生成速率（tokens/sec）
-- 模型名左侧不同条目代表不同量化策略或来源的模型
-
-**结合上文解读关键点：**
-
-1. **NVFP4 / Custom NVFP4**（绿色箭头第二梯队）
-   - NVIDIA 官方 NVFP4 模型：Input 1692，Output 3342 tokens/s
-   - 作者自己量化的 Custom NVFP4：Input 1693，Output 3358，几乎完全一致
-   - 结论：无论官方还是自量化，只要是 **权重+激活全 NVFP4** 并在 Blackwell 上推理，吞吐比 INT4 系列 **提升约 2.3 倍**（AWQ/INT4 Output ≈ 1431-1437 tokens/s）。
-2. **NVFP4A16**（仅权重量化，激活保持 16-bit）
-   - Input ≈ 774，Output ≈ 1534
-   - 性能只略高于普通 INT4，验证了之前的结论：**吞吐优势主要来自激活也用 NVFP4，从而全程免反量化**。
-3. **INT4 系列（AWQ/OPEA GPTQ）**
-   - Input ≈ 720-723，Output ≈ 1431-1437
-   - 性能相近，说明这几种 INT4 优化在 vLLM 上的成熟度都很高，但因需要反量化，速度不及 NVFP4。
-4. **BNB 4bit（bitsandbytes）**
-   - 明显更慢：Input 585，Output 1150
-   - 推测为 kernel 与框架优化强度弱于 AWQ。
-5. **INT2**
-   - 因为位宽更低，理论上更节省显存，但吞吐未显著提高（甚至更低：Input 659，Output 1222），可能因为计算核未优化。
-
-**总结**：
-在 Blackwell 上，NVFP4（权重+激活）吞吐性能碾压其他方案（包括 INT4 变种），**速度翻倍以上**；NVFP4A16 失去大部分优势，接近 INT4；BNB4bit 和 INT2 进一步落后。
-
-------
-
-#### 第二张图 —— 精度 + 模型体积对比
-
-![images](https://github.com/david-xinyuwei/david-share/blob/master/Deep-Learning/NVFP4/images/2.png)
-
-**图表含义：**
-
-- 蓝色条（Score）：统一基准得分（涵盖指令跟随、常识知识、多语言三类能力）
-- 绿色数字（Size GB）：模型在磁盘的大小
-- 该图关注“量化精度保真度”与“存储占用”。
-
-**结合上文解读关键点：**
-
-1. **精度分布**
-   - NVFP4 / Custom NVFP4：Score ≈ 43.8，属于全场最高，与全精度极为接近
-   - NVFP4A16：Score ≈ 39.9，比全 NVFP4 略低
-   - AWQ / OPEA INT4：Score ≈ 36.8-37.1，精度比 NVFP4 略低
-   - BNB 4bit：Score ≈ 39.8，与 NVFP4A16 接近
-   - INT2：Score 仅 24.4，精度下降明显
-2. **模型体积**
-   - AWQ/INT4 ≈ 5900MB（约 5.9GB）
-   - NVFP4/NVFP4A16 ≈ 5854~5878MB
-   - BNB4bit ≈ 5814MB
-   - INT2 ≈ 5488MB
-   - **注意**：这里的“MB”疑似是笔误，应理解为 “MB 单位 * 千”，实为 5.x GB ~ 7GB 级别（根据之前文本背景，NVFP4 模型比 INT4 模型大约多 7GB）。
-3. **结合背景推断**
-   - 体积差异主要源自：
-     - NVFP4 block size 小（16 vs 128）→ 缩放因子数量更多
-     - 全 NVFP4 需要存储 FP8 缩放因子 + FP32 全局缩放
-     - INT4 系列缩放元数据更少，因而更省空间
-   - 精度上，NVFP4 系列强于 INT4，尤其全 NVFP4 比 NVFP4A16 更接近全精度。
-
-------
-
-## 两图综合结论（结合上下文）
-
-- **性能维度**（第一图）：
-  在 Blackwell 上，全 NVFP4 模型吞吐性能显著超过其它 4-bit 方案（~2.3x INT4），优势源于 **激活也量化为 NVFP4，避免反量化**。
-- **精度维度**（第二图）：
-  全 NVFP4 在精度上几乎等于 FP8，比 INT4 / MXFP4 常规实现略好，但模型文件更大。
-- **工程取舍**：
-  - 有 Blackwell → 全 NVFP4 = 最优速度 + 高精度
-  - 追求体积最小 → INT4 / MXFP4 更省存储，但速度取决于内核优化
-  - 旧 GPU → 用 NVFP4 权重可省显存，但速度无显著优势
-
-### **四、MXFP4 是什么？与 NVFP4 的关键差异**
-
-MXFP4 是 OCP（Open Compute Project）提出的 Microscaling FP4 标准，核心特征是：
-
-- 元素类型：同为 FP4 E2M1
-- 微块大小：32（每 32 个值共享一套缩放元数据）
-- 缩放因子：E8M0，仅指数位，等效“2 的幂次缩放”，实现为高效移位
-- 无全局 FP32 缩放，全靠微块级别的幂次缩放 设计出发点
-- 幂次缩放计算极简（移位），实现路径短、对硬件和 kernel 的优化空间大
-- 微块更大，缩放元数据更少，存储更省
-- 小值保留相对较好，对离群值鲁棒性强（浮点指数的天然优势）
-
-与 NVFP4 的对比要点
-
-- NVFP4 的缩放更灵活（E4M3 + FP32），微块更小（16），更偏精度与吞吐的平衡；MXFP4 更偏通用性与工程简洁（幂次缩放、移位）。
-- NVFP4 的速度优势依赖 Blackwell 原生内核直通；MXFP4 的性能取决于厂商是否提供了针对 MXFP4 的 4-bit 内核（如 vLLM/Ollama 的专用路径）。
-- 在元数据与模型体积上，MXFP4 往往更省（微块 32 + 幂次缩放），而 NVFP4 在大模型上可能更“重”，但换来的是 Blackwell 上的极致吞吐。
-
-```
-| 特性               | NVFP4（NVIDIA Blackwell 定制）                          | MXFP4（OCP Microscaling 标准）                  |
-|--------------------|--------------------------------------------------------|-----------------------------------------------|
-| 元素格式           | FP4 E2M1（1符号位+2指数位+1尾数位）                     | FP4 E2M1（1符号位+2指数位+1尾数位）             |
-| 微块大小           | 16                                                    | 32                                            |
-| 微块缩放因子格式   | FP8 E4M3（支持非2的幂，小数缩放）                      | E8M0（仅指数，2的幂缩放，移位友好）             |
-| 全局缩放因子       | 有，全局FP32缩放（Per-tensor）                         | 无，仅微块缩放                                |
-| 重构公式           | x ≈ xq × s_block(FP8 E4M3) × s_tensor(FP32)           | x ≈ xq × 2^k（k来自E8M0）                     |
-| 动态范围与鲁棒性   | 双层缩放+小微块，适应异质分布与异常值                  | 幂次缩放，小值保持好，对异常值有抵抗力          |
-| 计算代价           | FP8缩放需乘法（Blackwell原生加速）                     | 幂次缩放移位操作，极简高效                     |
-| 硬件执行路径       | Blackwell Tensor Core原生支持，全程免反量化            | 依厂商内核支持，未必有原生直通                |
-| 是否需反量化       | 激活+权重量化为NVFP4无需反量化；NVFP4A16需             | 若无原生支持需转换到高精度                     |
-| 吞吐表现（对INT4） | ~2.3×（Blackwell+全NVFP4）                            | 视实现情况，资料未提供                         |
-| 精度表现           | 与FP8基本持平，误差≤1%                                | 高于传统INT4，小值保留好；与NVFP4对比数据缺失   |
-| 平均存储开销       | 约4.5 bits/值                                         | 通常更省（微块32，幂次缩放元数据更少）          |
-| 模型体积           | 比常见INT4模型大（如Llama3.3 +7GB）                   | 小于NVFP4（依实现）                           |
-| 校准需求           | 全量化需少量校准样本；NVFP4A16不需要                   | 权重量化可少/无校准；激活量化通常需要           |
-| 工具与生态         | llm-compressor可量化，vLLM支持（Blackwell）           | OCP标准，llm-compressor暂不支持               |
-```
-
-
-
-### 四、工程工作流与落地实践
-
-#### 1. 量化流程
-
-- 量化工具：llm-compressor 已支持 NVFP4。llm-compressor`（全名 LLM Compressor）是 **NVIDIA 推出的一个开源工具包**，专门用于对大语言模型（LLM）进行**压缩与推理加速**，特别是支持 **NVIDIA Blackwell 架构**新引入的低精度数据格式（例如 **NVFP4**、FP8、FP6 等）。它的核心用途就是帮你把全精度模型（比如 FP16、BF16）自动量化成更低精度的版本，同时生成可以直接在 NVIDIA GPU 上高效运行的权重格式，从而**减小显存占用、提高吞吐速度**。
-- 校准集规模：128～512 条通常足够，作者使用 512；理论上 1024 以上收益递减
-- 序列长度建议：不要低于 2048，若目标是长上下文推理，建议更长，但量化代价会显著增加，需要在质量与成本间权衡
-- 数据预处理要点：与模型训练时的输入格式一致（chat template）、避免重复注入 bos token
-- 量化方案选择：
-  - NVFP4：权重+激活均量化，牺牲极少精度换吞吐极大提升
-  - NVFP4A16：仅权重量化，激活保 16-bit，通常无需校准集，但大部分吞吐优势不再
-
-#### 2. 推理框架
-
-- vLLM v0.10.0 基本可用
-- 开发者遇到的两个实际坑：
-  - FlashInfer：默认启用会在 NVFP4 下导致崩溃，临时做法是卸载。待后续修复后可能进一步加速。
-  - Blackwell 环境下通过 pip 安装 vLLM 可能不完整，可以以源码编译方式解决，成功启用 NVFP4 推理路径。
-- 一句话建议：Blackwell 上跑 NVFP4，先准备源码编译 vLLM 的预案，并关注 FlashInfer 版本兼容性。
-
-### **3.旧架构 GPU 的兼容性思考**
-
-- 3090（Ampere）或更老架构没有 NVFP4 的硬件直通路径
-- 可以加载 NVFP4 量化权重以省显存，但推理时多半需要反量化到更高精度执行（例如 FP16 Tensor Core），速度优势会被抵消
-- 结论：NVFP4 的“速度红利”需要 Blackwell；在旧卡上主要价值是模型能“装得下”，而不是“跑得更快”
-
-### **4、NVFP4 与 INT4（AWQ/AutoRound/bitsandbytes）的取舍**
-
-- 精度：在大模型（如 Llama 3.3）上都很接近全精度；NVFP4 不显著优于最强的 INT4，但也没有明显劣势
-- 模型体积：NVFP4 通常略大（微块 16 + FP8 + FP32），INT4（微块多为 128 + FP16/FP32 缩放）更省存储
-- 吞吐：Blackwell 上 NVFP4 明显更快；而 INT4 再怎么优化，仍存在反量化或数据类型转换的路径阻抗
-- 易用性：INT4 已有成熟生态（AWQ、AutoRound、bitsandbytes、GPTQ 等），NVFP4 则在 Blackwell 上原生更顺滑
-
-工程建议
-
-- 有 Blackwell 并追求极致 TPS/TTFT：优先 NVFP4（权重+激活）
-- 无 Blackwell、但想压显存又不愿重写内核：成熟 INT4 更稳妥
-- 跨平台与简洁部署：MXFP4（若已有专用 kernel 或框架直通）是务实选择
-
-### 5、MXFP4 的两种加载/计算模式
-
-- 存储压缩模式（dequantize=True，Hugging Face 默认 LoRA 精调路径常见）
-  - 加载到 GPU 时解为 BF16/FP16 全精度张量
-  - 显存消耗高（接近 BF16），计算走高精度 matmul
-  - 适合做 LoRA/全参微调（需要全精度梯度），或显存充足的离线推理
-- 驻留计算模式（dequantize=False，Ollama / vLLM-gptoss 专用内核）
-  - 保持 MXFP4 低比特权重常驻 GPU
-  - 显存占用低（约 BF16 的 1/4），计算走低比特核/自定义 CUDA 核
-  - 适合低显存场景的高效部署、边缘推理或 Hopper 系列配合优化内核
-
-对工程的启示
-
-- 以 MXFP4 格式发布的模型是否“真 4-bit 推理”，取决于你使用的框架与 dequantize 开关；不正确的加载路径会让你失去 4-bit 的显存与吞吐优势。
-- OAI-OSS 的 mxfp4 PTQ 方案体现了“部分模块不转”的工程取舍：把最敏感/最关键路径保留为高精度，其余用 4-bit 浮点，兼顾压缩率与稳定性。
-
-### 6、校准与数据集选择的实践建议（基于第一篇的经验）
-
-- 样本量：128～512 条通常已足够，想追求极致保真可到 1024，但收益递减
-- 序列长度：建议 ≥2048；若业务目标是长上下文推理（32k/128k），校准时尽量覆盖更长序列，但计算开销会显著增加
-- 分布匹配：尽可能让校准样本贴近真实线上分布（指令型、代码、数学、对话、多轮等）
-- 模型输入一致性：保持与训练时的完整前处理管线（模板、分词、特殊符号），避免额外 bos token 导致分布飘移
-
-### 7、微调与增量训练：NVFP4 + QLoRA 的可行性
-
-- 理论上：NVFP4 是数据类型与格式，QLoRA 可作用于任何底座（第一篇也持此观点）
-- 现实中：目前常见框架对“NVFP4 上的 QLoRA”尚未提供现成支持；实现难度不大，但工具链需要打通
-- 建议：若你需要立刻做 LoRA/QLoRA，短期仍可选择 INT4 或 MXFP4 的成熟路径；若你瞄准 Blackwell 的极致吞吐，等待框架对 NVFP4 的训练/微调支持是合理的策略
-
-### 8、选型决策树
-
-- 你的线上推理是否部署在 Blackwell？
-  - 是：优先 NVFP4（权重+激活）。若对精度有顾虑，先试 NVFP4；再降级 NVFP4A16 评估损失与吞吐反差。
-  - 否：是否已有 MXFP4 的直通内核或使用 OAI-OSS 专用路径？有则优先 MXFP4；否则稳妥用 INT4（AWQ/AutoRound）。
-- 你的显存是否极为吃紧但对速度要求一般？
-  - 是：MXFP4 或 INT4（权重常驻、激活高精度）更好控成本；NVFP4A16 也可作为替代（主要省显存）。
-- 你的任务是否长上下文或对小值保留敏感（如检索注意力、稀疏门控）？
-  - 是：优先选择具备更细缩放与双层缩放的方案（NVFP4），或在 MXFP4 下保留关键模块为高精度。
-
-### 9、常见问题
-
-- vLLM + FlashInfer：NVFP4 下可能崩溃，临时卸载或禁用；关注版本修复进展
-- Blackwell 上的 vLLM 安装：pip 版本可能不完整，优先源码编译
-- NVFP4A16 的预期管理：吞吐不等于 NVFP4，只比 INT4 略快，不能套用 NVFP4 的速度宣传
-- 校准样本偏差：样本过短或分布不匹配会导致长上下文或特定能力上的劣化
-- 模块忽略策略：若忽略列表未覆盖真正敏感模块，易出现局部崩坏；反之忽略过多，会降低压缩比与吞吐
-- 旧 GPU 跑 NVFP4：明白“能装下 ≠ 更快”，不要对速度抱过高期待
-
-## 五、Code
+### **6. Example Code**
 
 ```
 pip install llmcompressor datasets transformers
 ```
 
-**权重与激活同时量化：**
+
+
+**Quantize weights + activations:**
 
 ```
 from llmcompressor import oneshot
 from llmcompressor.modifiers.quantization import QuantizationModifier
 from transformers import AutoTokenizer, AutoModelForCausalLM
+from datasets import load_dataset
+import torch
 
 MODEL_ID = "meta-llama/Llama-3.3-70B-Instruct"
 model = AutoModelForCausalLM.from_pretrained(MODEL_ID, torch_dtype="auto")
 tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
 
-from datasets import load_dataset
-NUM_CALIBRATION_SAMPLES=512
-MAX_SEQUENCE_LENGTH=2048
-# Load dataset.
-ds = load_dataset("HuggingFaceH4/ultrachat_200k", split=f"train_sft[:{NUM_CALIBRATION_SAMPLES}]")
-ds = ds.shuffle(seed=42)
+NUM_CALIBRATION_SAMPLES = 512
+MAX_SEQUENCE_LENGTH = 2048
+ds = load_dataset("HuggingFaceH4/ultrachat_200k", split=f"train_sft[:{NUM_CALIBRATION_SAMPLES}]").shuffle(seed=42)
 
-# Preprocess the data into the format the model is trained with.
 def preprocess(example):
-    return {"text": tokenizer.apply_chat_template(example["messages"], tokenize=False,)}
+    return {"text": tokenizer.apply_chat_template(example["messages"], tokenize=False)}
 ds = ds.map(preprocess)
 
-# Tokenize the data (be careful with bos tokens - we need add_special_tokens=False since the chat_template already added it).
 def tokenize(sample):
     return tokenizer(sample["text"], padding=False, max_length=MAX_SEQUENCE_LENGTH, truncation=True, add_special_tokens=False)
 ds = ds.map(tokenize, remove_columns=ds.column_names)
 
-# Configure the quantization algorithm to run.
 recipe = QuantizationModifier(targets="Linear", scheme="NVFP4", ignore=["lm_head"])
 
-# Apply quantization.
 oneshot(
     model=model,
     dataset=ds,
@@ -310,13 +132,14 @@ oneshot(
     num_calibration_samples=NUM_CALIBRATION_SAMPLES,
 )
 
-# Save to disk compressed.
-SAVE_DIR = MODEL_ID.rstrip("/").split("/")[-1] + "-NVFP4"
+SAVE_DIR = MODEL_ID.split("/")[-1] + "-NVFP4"
 model.save_pretrained(SAVE_DIR, save_compressed=True)
 tokenizer.save_pretrained(SAVE_DIR)
 ```
 
-**只量化权重**
+
+
+**Weights-only quantization (NVFP4A16):**
 
 ```
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -324,67 +147,20 @@ from llmcompressor import oneshot
 from llmcompressor.modifiers.quantization import QuantizationModifier
 
 MODEL_ID = "meta-llama/Llama-3.3-70B-Instruct"
-
-# Load model.
 model = AutoModelForCausalLM.from_pretrained(MODEL_ID, torch_dtype="auto")
 tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
 
-# Configure the quantization algorithm and scheme.
-# In this case, we:
-#   * quantize the weights to fp4 with per group 16 via ptq
 recipe = QuantizationModifier(targets="Linear", scheme="NVFP4A16", ignore=["lm_head"])
-
-# Apply quantization.
 oneshot(model=model, recipe=recipe)
 
-
-# Save to disk in compressed-tensors format.
-SAVE_DIR = MODEL_ID.rstrip("/").split("/")[-1] + "-NVFP4A16"
-model.save_pretrained(SAVE_DIR, save_compressed=True)
-tokenizer.save_pretrained(SAVE_DIR)
-```
-
-量化LM Head
-
-```
-from transformers import AutoModelForCausalLM, AutoTokenizer
-from llmcompressor import oneshot
-from llmcompressor.modifiers.quantization import QuantizationModifier
-
-MODEL_ID = "meta-llama/Llama-3.3-70B-Instruct"
-
-# Load model.
-model = AutoModelForCausalLM.from_pretrained(MODEL_ID, torch_dtype="auto")
-tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
-
-# Configure the quantization algorithm and scheme.
-# In this case, we:
-#   * quantize the weights to fp4 with per group 16 via ptq
-recipe = QuantizationModifier(targets="Linear", scheme="NVFP4A16")
-
-# Apply quantization.
-oneshot(model=model, recipe=recipe)
-
-
-# Save to disk in compressed-tensors format.
-SAVE_DIR = MODEL_ID.rstrip("/").split("/")[-1] + "-NVFP4A16LMH"
+SAVE_DIR = MODEL_ID.split("/")[-1] + "-NVFP4A16"
 model.save_pretrained(SAVE_DIR, save_compressed=True)
 tokenizer.save_pretrained(SAVE_DIR)
 ```
 
 
 
-## 六、结论
+### **7. Conclusion**
 
-如果你有 Blackwell，NVFP4 是值得优先尝试的 4-bit 路线：在几乎不牺牲精度的前提下，以硬件直通拿到远超过 INT4 的吞吐。这一优势的关键在于“权重+激活全 NVFP4”，以及 dual-scaling（微块 FP8 + 全局 FP32）带来的稳健数值特性。
-
-若你的环境跨平台或暂不具备 Blackwell，MXFP4 是成熟而务实的工程解法，尤其在 OAI-OSS 的实践中已给出可复用的 PTQ 配置范式（保留关键模块不转，其余用 4-bit 浮点）。在未来一段时间里，预计 NVFP4 的生态将持续完善（含微调路径与采样内核修复），MXFP4 的标准化与多厂商优化也会加速，这两条路线很可能将长期并存：一条在“硬件特化吞吐极致”，一条在“生态通用与部署简洁”。
-
-如果你需要，我可以：
-
-- 按你的业务基准（如工具调用、函数参数拟合、知识密集问答）设计一套 NVFP4 vs MXFP4 的评测脚本与报告模版；
-- 将本文整理为 Markdown 发布版（含目录、图示占位、参考链接位）；
-- 输出一个“落地手册版本”，按环境（Blackwell/非 Blackwell）分别列出安装、量化、推理、排错的命令清单与注意事项。
-
-
-
+If you have Blackwell GPUs, NVFP4 is the preferred 4-bit format for maximum throughput with minimal accuracy loss, thanks to hardware-native dual scaling and full 4-bit path for both weights and activations.
+If cross-platform or without Blackwell, MXFP4 offers a practical, standardized approach for low VRAM use, especially with OAI-OSS PTQ workflows.
