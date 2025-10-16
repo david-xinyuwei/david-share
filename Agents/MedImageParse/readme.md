@@ -1,6 +1,10 @@
 ![images](./images/2.png)
 
+## First time Deploy：
+
 ![images](./images/3.png)
+
+Error on Online Endpoint：
 
 ![images](./images/1.png)
 
@@ -1280,7 +1284,7 @@ time="2025-10-16T11:51:37Z" level=warning msg="DEPRECATION: CRI API v1alpha2 is 
 2025-10-16T11:57:33Z Startup task failed due to incorrect role assignments on storage account when mdc is enabled. Assign the role 'Storage Blob Data Contributor' on storage account to endpoint identity to collect model data. Please see troubleshooting guide, available here: https://aka.ms/oe-tsg#error-badargument
 ```
 
-## 关闭MDM  重新进行部署
+## Second deployment without MDM
 
 ![images](./images/5.png)
 
