@@ -4,32 +4,32 @@
 targetScope = 'subscription'
 
 @minLength(1)
-@description('Primary location for all resources')
-param location string
+@description('Azure region where all resources will be deployed (e.g., eastus, westeurope, polandcentral). Choose a region with GPU quota available.')
+param location string = 'eastus'
 
 @description('Id of the user or app to assign application roles')
 param principalId string = ''
 
+@description('Environment name - used as suffix for resource naming (e.g., dev, test, prod)')
+param environmentName string = 'dev'
+
 @description('Name of the resource group')
-param resourceGroupName string = 'rg-ai-foundry-perf'
+param resourceGroupName string = 'rg-ai-foundry-perf-${environmentName}'
 
 @description('Name of the Azure ML workspace')
-param mlWorkspaceName string = 'mlw-ai-foundry-perf'
+param mlWorkspaceName string = 'mlw-ai-foundry-perf-${environmentName}'
 
 @description('Name of the Application Insights instance')
-param appInsightsName string = 'appi-ai-foundry-perf'
+param appInsightsName string = 'appi-ai-foundry-perf-${environmentName}'
 
 @description('Name of the Log Analytics workspace')
-param logAnalyticsName string = 'log-ai-foundry-perf'
+param logAnalyticsName string = 'log-ai-foundry-perf-${environmentName}'
 
 @description('Name of the Key Vault')
 param keyVaultName string = 'kv-ai-foundry-${uniqueString(resourceGroupName)}'
 
 @description('Name of the Storage Account')
 param storageAccountName string = 'stai${uniqueString(resourceGroupName)}'
-
-@description('Environment name (dev, prod, etc.)')
-param environmentName string = 'dev'
 
 @description('Tags to apply to all resources')
 param tags object = {
