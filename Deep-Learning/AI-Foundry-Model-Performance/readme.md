@@ -61,87 +61,9 @@ Before you begin, ensure you have the following:
 - Ability to create and delete online endpoints
 - Access to Model Catalog
 
-## 🚀 Quick Start
-
-### Step 1: Clone the Repository
-
-```bash
-git clone https://github.com/xinyuwei-david/AI-Foundry-Model-Performance.git
-cd AI-Foundry-Model-Performance
-```
-
-### Step 2: Set Up Environment
-
-**For Linux/macOS:**
-
-```bash
-# Install Conda (if not already installed)
-wget https://repo.anaconda.com/archive/Anaconda3-2024.10-1-Linux-x86_64.sh
-bash Anaconda3-2024.10-1-Linux-x86_64.sh
-source ~/.bashrc
-conda init
-
-# Create and activate environment
-conda create -n aml_env python=3.9 -y
-conda activate aml_env
-pip install -r requirements.txt
-```
-
-**For Windows PowerShell:**
-
-```powershell
-# Download and install Conda from:
-# https://repo.anaconda.com/archive/Anaconda3-2024.10-1-Windows-x86_64.exe
-
-# Create and activate environment
-conda create -n aml_env python=3.9 -y
-conda activate aml_env
-pip install -r requirements.txt
-```
-
-### Step 3: Azure Login
-
-```bash
-# Install Azure CLI (if not already installed)
-curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-
-# Login to Azure
-az login --use-device
-```
-
-### Step 4: Deploy Your First Model
-
-**For Linux:**
-```bash
-python scripts/deployment/deploymodels-linux-20250405.py
-```
-
-**For Windows PowerShell:**
-```powershell
-python scripts/deployment/deploymodels-powershell-20250405.py
-```
-
-https://github.com/user-attachments/assets/cc9065e9-bbf1-4f59-a7b8-57b8c9703db3
-
-
-
-### Step 5: Run Performance Tests
-
-```bash
-# Example: Test Phi-4 model
-python scripts/testing/press-phi4-0403.py
-
-# Login to HuggingFace first
-huggingface-cli login
-```
-
-> 💡 **Tip**: Check the [model compatibility table](#fast-deploy-ai-model-on-model-catalog-via-azure-gpu-vm) to ensure your selected GPU VM supports your chosen model.
-
-
-
 ---
 
-## 🔧 Deploying Models Methods
+## 🚀 Deploying Models Methods
 
 In this repository, I focus on the performance of open-source AI models deployed using **Managed Compute** and **Azure AI Model Inference**.
 
@@ -265,6 +187,8 @@ Before running the script, you need to check the table above to confirm the type
 python scripts/deployment/deploymodels-linux-20250405.py
 ```
 
+https://github.com/user-attachments/assets/cc9065e9-bbf1-4f59-a7b8-57b8c9703db3
+
 **For Windows PowerShell:**
 
 ```powershell
@@ -349,6 +273,8 @@ Enter the number of instances (integer): 1
 
 After 3-5 minutes, you will get the final results:
 
+https://github.com/user-attachments/assets/69322f0c-913e-404c-a9d2-a7bae61d0b65
+
 ```text
 ----- Deployment Information -----
 ENDPOINT_NAME=custom-endpoint-1741863106
@@ -356,6 +282,8 @@ SCORING_URI=https://custom-endpoint-1741863106.polandcentral.inference.ml.azure.
 PRIMARY_KEY=DRxHMd1jbbSdNoXiYOaWRQ66erYZfejzKhdyDVRuh58v2hXILOcYJQQJ99BCAAAAAAAAAAAAINFRAZML3m1v
 SECONDARY_KEY=4dhy3og6WfVzkIijMU7FFUDLpz4WIWEYgIlXMGYUzgwafsW6GPrMJQQJ99BCAAAAAAAAAAAAINFRAZMLxOpO
 ```
+
+https://github.com/user-attachments/assets/8bd23c08-6937-4f3b-93d1-a7f3b3e2abd9
 
 ---
 
@@ -366,6 +294,8 @@ SECONDARY_KEY=4dhy3og6WfVzkIijMU7FFUDLpz4WIWEYgIlXMGYUzgwafsW6GPrMJQQJ99BCAAAAAA
 ```bash
 python scripts/deployment/delete-endpoint-20250327.py
 ```
+
+https://github.com/user-attachments/assets/8be25ceb-6c47-45b3-bfa6-34dbc79f6732
 
 ##### Delete Process Example
 
@@ -419,8 +349,6 @@ There is no doubt that AI models deployed using the Managed Compute approach rel
 
 ##### Performance Tuning Considerations
 
-##### Performance Tuning Considerations
-
 You can increase this value, for example, to 10. However, at the same time, you also need to increase the `request_settings.request_timeout_ms` (default is 90 seconds), because as concurrency increases, the response time will significantly rise. If the timeout duration is not increased, it may lead to a large number of HTTPError 424 errors. At the same time, you need to ensure that the timeout period set by the client (which is the stress testing script in the repo) is not less than the timeout period set by the server.
 
 Of course, increasing the values of these two parameters can boost peak throughput to some extent, but it will also increase TTFT (Time to First Token) and the total duration for processing requests. This adjustment depends on the SLA requirements of your business scenario (such as input/output tokens and TTFT requirements).
@@ -442,6 +370,8 @@ az ml online-deployment update \
 ```
 
 > 📌 **Note**: `custom-deployment` is the fixed deployment name value in my deployment script.
+
+https://github.com/user-attachments/assets/8bd23c08-6937-4f3b-93d1-a7f3b3e2abd9
 
 **Example:**
 
@@ -522,7 +452,7 @@ huggingface-cli login
 python scripts/testing/press-phi4-0403.py
 ```
 
-**Interactive Input Example:**
+https://github.com/user-attachments/assets/5560e1b8-22ea-4569-988e-7e361422ba0b
 **Interactive Input Example:**
 
 ```text
@@ -1493,6 +1423,8 @@ Run test script, after entering the following three variables, the stress test w
 ```bash
 python scripts/testing/callaiinference-20250406.py
 ```
+
+https://github.com/user-attachments/assets/bb9606b6-b114-40d1-bcb6-ae51d5de62bc
 
 ```text
 Please enter the Azure AI endpoint URL, such as https://xinyu.services.ai.azure.com/models format: https://ai-hubeastus869020590911.services.ai.azure.com/models
