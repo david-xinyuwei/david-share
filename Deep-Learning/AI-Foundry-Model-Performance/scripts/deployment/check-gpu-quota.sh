@@ -66,15 +66,22 @@ REGIONS_TO_CHECK=(
 
 echo -e "${BLUE}[INFO]${NC} Checking GPU quota for NC-series (A100/H100) in key regions..."
 echo ""
-echo "This may take 1-2 minutes..."
+echo "Using parallel execution to speed up checks (max 10 concurrent regions)..."
 echo ""
 
 # Results storage
 declare -A REGIONS_WITH_QUOTA
 declare -A REGIONS_QUOTA_DETAILS
 
-# Check each region
-for region in "${REGIONS_TO_CHECK[@]}"; do
+# Create temporary directory for parallel results
+TMP_DIR=$(mktemp -d)
+trap "rm -rf $TMP_DIR" EXIT
+
+# Function to check single region (will be called in parallel)
+check_region() {
+    local region="$1"
+    local tmp_dir="$2"
+    
     # Check VM quota usage for NC-series in this region
     quota_info=$(az vm list-usage \
         --location "$region" \
@@ -104,14 +111,42 @@ for region in "${REGIONS_TO_CHECK[@]}"; do
         done <<< "$quota_info"
         
         if [ "$has_available_quota" = true ]; then
-            REGIONS_WITH_QUOTA["$region"]="available"
-            REGIONS_QUOTA_DETAILS["$region"]="$quota_details"
-            echo -e "${GREEN}✓${NC} $region - GPU available"
+            # Save result to temp file
+            echo "AVAILABLE|$region|$quota_details" > "$tmp_dir/${region}.result"
         else
-            echo -e "${RED}✗${NC} $region - No quota available (limit is 0)"
+            echo "NO_QUOTA|$region" > "$tmp_dir/${region}.result"
         fi
     else
-        echo -e "${RED}✗${NC} $region - No GPU quota or restricted"
+        echo "RESTRICTED|$region" > "$tmp_dir/${region}.result"
+    fi
+}
+
+# Export function and variables for parallel execution
+export -f check_region
+export TMP_DIR
+
+# Run checks in parallel (10 concurrent jobs)
+printf '%s\n' "${REGIONS_TO_CHECK[@]}" | xargs -P 10 -I {} bash -c 'check_region "$@"' _ {} "$TMP_DIR"
+
+# Collect and display results
+echo ""
+for region in "${REGIONS_TO_CHECK[@]}"; do
+    result_file="$TMP_DIR/${region}.result"
+    if [ -f "$result_file" ]; then
+        result=$(cat "$result_file")
+        status=$(echo "$result" | cut -d'|' -f1)
+        region_name=$(echo "$result" | cut -d'|' -f2)
+        
+        if [ "$status" = "AVAILABLE" ]; then
+            quota_details=$(echo "$result" | cut -d'|' -f3-)
+            REGIONS_WITH_QUOTA["$region_name"]="available"
+            REGIONS_QUOTA_DETAILS["$region_name"]="$quota_details"
+            echo -e "${GREEN}✓${NC} $region_name - GPU available"
+        elif [ "$status" = "NO_QUOTA" ]; then
+            echo -e "${RED}✗${NC} $region_name - No quota available (limit is 0)"
+        else
+            echo -e "${RED}✗${NC} $region_name - No GPU quota or restricted"
+        fi
     fi
 done
 
