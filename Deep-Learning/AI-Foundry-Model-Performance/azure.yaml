@@ -9,12 +9,6 @@ infra:
   provider: bicep
   path: infra
 
-services:
-  ml-deployment:
-    language: python
-    host: azureml
-    project: ./scripts
-
 hooks:
   # Run before provisioning infrastructure
   preprovision:
