@@ -89,12 +89,24 @@ The fastest way to get started is using Azure Developer CLI for automated infras
 git clone https://github.com/xinyuwei-david/AI-Foundry-Model-Performance.git
 cd AI-Foundry-Model-Performance
 
-# 2. Login to Azure
+# 2. Install azd (if not already installed)
+# Windows: winget install microsoft.azd
+# macOS: brew tap azure/azd && brew install azd
+# Linux: curl -fsSL https://aka.ms/install-azd.sh | bash
+
+# 3. Login to Azure
+# For local machine (with browser):
 azd auth login
 
-# 3. One-click deploy infrastructure and setup environment
+# For remote server/SSH (without browser):
+azd auth login --use-device-code
+# This will show a code and URL. Open the URL on your local browser and enter the code.
+
+# 4. One-click deploy infrastructure and setup environment
 azd up
 ```
+
+> 💡 **Common Issue**: If you see `ERR_CONNECTION_REFUSED` or browser doesn't open, you're on a remote server. Use `azd auth login --use-device-code` instead.
 
 **What `azd up` does:**
 - ✅ Creates Azure Resource Group
@@ -136,7 +148,38 @@ python scripts/testing/press-phi4-0403.py
 azd down
 ```
 
-> 📖 **For detailed azd deployment documentation, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**
+#### Troubleshooting azd
+
+**Issue 1: Browser doesn't open / `ERR_CONNECTION_REFUSED`**
+```bash
+# You're on a remote server or SSH session
+# Use device code authentication:
+azd auth login --use-device-code
+```
+
+**Issue 2: Authentication failed**
+```bash
+# Use Azure CLI credentials instead:
+az login --use-device-code
+azd config set auth.useAzCliAuth true
+azd up
+```
+
+**Issue 3: Permission denied**
+```bash
+# Check you have Contributor role:
+az role assignment list --assignee $(az account show --query user.name -o tsv)
+```
+
+**Issue 4: Want to skip azd entirely**
+```bash
+# You can deploy with Azure CLI directly:
+az login --use-device-code
+az deployment sub create \
+  --location eastus \
+  --template-file infra/main.bicep \
+  --parameters infra/main.parameters.json
+```
 
 ---
 
