@@ -1,4 +1,4 @@
-targetScope = 'subscription'
+targetScope = 'resourceGroup'
 
 @minLength(1)
 @maxLength(64)
@@ -7,13 +7,10 @@ param environmentName string
 
 @minLength(1)
 @description('Primary location for all resources')
-param location string
+param location string = resourceGroup().location
 
 @description('Id of the user or app to assign application roles')
 param principalId string = ''
-
-// Deployment metadata
-metadata description = 'Creates an Azure App Service to host the LLM Memory Estimator Streamlit application.'
 
 // Tags that should be applied to all resources.
 var tags = {
@@ -21,17 +18,9 @@ var tags = {
   'app-name': 'llm-memory-estimator'
 }
 
-// Organize resources in a resource group
-resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
-  name: 'rg-${environmentName}'
-  location: location
-  tags: tags
-}
-
 // App Service Plan for hosting
 module appServicePlan 'core/host/appserviceplan.bicep' = {
   name: 'appserviceplan'
-  scope: rg
   params: {
     name: 'plan-${environmentName}'
     location: location
@@ -47,7 +36,6 @@ module appServicePlan 'core/host/appserviceplan.bicep' = {
 // Web App
 module web 'core/host/appservice.bicep' = {
   name: 'web'
-  scope: rg
   params: {
     name: 'app-${environmentName}'
     location: location
@@ -68,7 +56,6 @@ module web 'core/host/appservice.bicep' = {
 // Application Insights for monitoring
 module monitoring 'core/monitor/monitoring.bicep' = {
   name: 'monitoring'
-  scope: rg
   params: {
     location: location
     tags: tags
@@ -80,7 +67,7 @@ module monitoring 'core/monitor/monitoring.bicep' = {
 // Outputs
 output AZURE_LOCATION string = location
 output AZURE_TENANT_ID string = tenant().tenantId
-output AZURE_RESOURCE_GROUP string = rg.name
+output AZURE_RESOURCE_GROUP string = resourceGroup().name
 
 output WEB_URI string = web.outputs.uri
 output APPLICATIONINSIGHTS_CONNECTION_STRING string = monitoring.outputs.applicationInsightsConnectionString
