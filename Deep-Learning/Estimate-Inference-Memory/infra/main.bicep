@@ -52,6 +52,8 @@ module web 'core/host/appservice.bicep' = {
       SCM_DO_BUILD_DURING_DEPLOYMENT: 'true'
       ENABLE_ORYX_BUILD: 'true'
       WEBSITES_PORT: '8000'
+      SCM_COMMAND_IDLE_TIMEOUT: '3600'  // 60 minutes build timeout
+      ORYX_BUILD_TIMEOUT: '3600'
     }
   }
 }
