@@ -85,9 +85,11 @@ The fastest way to get started is using Azure Developer CLI for automated infras
 #### Deploy Everything with One Command
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/xinyuwei-david/AI-Foundry-Model-Performance.git
-cd AI-Foundry-Model-Performance
+# 1. Clone only the AI-Foundry-Model-Performance directory (sparse checkout)
+git clone --depth 1 --filter=blob:none --sparse https://github.com/david-xinyuwei/david-share.git
+cd david-share
+git sparse-checkout set Deep-Learning/AI-Foundry-Model-Performance
+cd Deep-Learning/AI-Foundry-Model-Performance
 
 # 2. Install azd (if not already installed)
 # Windows: winget install microsoft.azd
@@ -267,10 +269,15 @@ conda init
 ##### Clone Code and Prepare Environment
 
 ```bash
-git clone https://github.com/xinyuwei-david/AI-Foundry-Model-Performance.git
+# Clone only the AI-Foundry-Model-Performance directory
+git clone --depth 1 --filter=blob:none --sparse https://github.com/david-xinyuwei/david-share.git
+cd david-share
+git sparse-checkout set Deep-Learning/AI-Foundry-Model-Performance
+cd Deep-Learning/AI-Foundry-Model-Performance
+
+# Create Python environment and install dependencies
 conda create -n aml_env python=3.9 -y
 conda activate aml_env
-cd AI-Foundry-Model-Performance
 pip install -r requirements.txt
 ```
 
