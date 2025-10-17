@@ -283,8 +283,6 @@ PRIMARY_KEY=DRxHMd1jbbSdNoXiYOaWRQ66erYZfejzKhdyDVRuh58v2hXILOcYJQQJ99BCAAAAAAAA
 SECONDARY_KEY=4dhy3og6WfVzkIijMU7FFUDLpz4WIWEYgIlXMGYUzgwafsW6GPrMJQQJ99BCAAAAAAAAAAAAINFRAZMLxOpO
 ```
 
-https://github.com/user-attachments/assets/8bd23c08-6937-4f3b-93d1-a7f3b3e2abd9
-
 ---
 
 #### 🗑️ Fast Delete Endpoint
@@ -453,6 +451,9 @@ python scripts/testing/press-phi4-0403.py
 ```
 
 https://github.com/user-attachments/assets/5560e1b8-22ea-4569-988e-7e361422ba0b
+
+
+
 **Interactive Input Example:**
 
 ```text
