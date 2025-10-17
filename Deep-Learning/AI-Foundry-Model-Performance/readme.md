@@ -82,7 +82,7 @@ The fastest way to get started is using Azure Developer CLI for automated infras
 - Azure CLI installed and logged in
 - Active Azure subscription with appropriate permissions
 
-#### Deploy Everything with One Command
+#### Complete Deployment Steps
 
 ```bash
 # 1. Clone only the AI-Foundry-Model-Performance directory (sparse checkout)
@@ -104,8 +104,16 @@ azd auth login
 azd auth login --use-device-code
 # This will show a code and URL. Open the URL on your local browser and enter the code.
 
-# 4. One-click deploy infrastructure and setup environment
+# 4. ⭐ IMPORTANT: Check GPU quota BEFORE deploying infrastructure
+bash scripts/deployment/check-gpu-quota.sh
+# This script checks all Azure regions for GPU availability (A100/H100)
+# It will show you which regions have GPU quota available
+# Save the recommended region name for the next step
+
+# 5. Deploy infrastructure with azd
 azd up
+# When prompted for 'location', choose one of the regions from step 4
+# that has GPU quota available (e.g., westus2, eastus, polandcentral)
 ```
 
 > 💡 **Common Issue**: If you see `ERR_CONNECTION_REFUSED` or browser doesn't open, you're on a remote server. Use `azd auth login --use-device-code` instead.
