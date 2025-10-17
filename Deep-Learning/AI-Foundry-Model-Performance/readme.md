@@ -718,15 +718,17 @@ Full original test results are here:
       
 ```
 
-#### Llama-3.2-11B-Vision-Instruct (meta-llama/Llama-3.2-11B-Vision-Instruct)
+---
+
+#### 📊 Llama-3.2-11B-Vision-Instruct (meta-llama/Llama-3.2-11B-Vision-Instruct)
 
 **Run the test script:**
 
-```\
-#python press-llama3.211bv-20250407.py
+```bash
+python press-llama3.211bv-20250407.py
 ```
 
-Test result analyze：
+##### Test Result Analysis
 
 | Scenario           | Concurrency | VM Type       | Successful Requests | Failed Requests (429 errors) | Avg TTFT (s) | Avg Throughput per Request (tokens/s) | Total Throughput (tokens/s) | Batch Duration (s) |
 | ------------------ | ----------- | ------------- | ------------------- | ---------------------------- | ------------ | ------------------------------------- | --------------------------- | ------------------ |
@@ -1634,7 +1636,221 @@ The overall throughput averages 735.12 tokens/s, with a P90 of 1184.06 tokens/s.
 | 300         | 2048          | 10             | Non-Stream | 10            | 0          | 27.862              | 27.862           | 42.47                               | 348.38                        |
 | 300         | 2048          | 10             | Stream     | 10            | 0          | 27.356              | 0.439            | 36.49                               | 329.59                        |
 
+---
 
+## 💡 Best Practices
+
+### Performance Optimization Tips
+
+1. **Start with Default Settings**: Test with default endpoint parameters first before making adjustments
+2. **Balance Metrics**: Don't optimize for a single metric; consider TTFT, throughput, and success rate together
+3. **Monitor Costs**: Always delete endpoints after testing to avoid unexpected charges
+4. **Use Appropriate VM SKUs**: Match your model requirements with the correct GPU VM type
+5. **Test Incrementally**: Start with low concurrency and gradually increase to find optimal settings
+
+### Testing Recommendations
+
+1. **Use Real Prompts**: Test with prompts similar to your production use cases
+2. **Multiple Scenarios**: Cover different use cases (text generation, Q&A, code generation, etc.)
+3. **Vary Prompt Lengths**: Test with different input token lengths (128, 256, 512, 1024, 2048+)
+4. **Document Results**: Keep detailed logs of all test configurations and results
+5. **Consider Business SLAs**: Align performance targets with your application requirements
+
+### Security Best Practices
+
+1. **Protect API Keys**: Never commit API keys or secrets to version control
+2. **Use Environment Variables**: Store sensitive information in environment variables
+3. **Rotate Keys Regularly**: Change API keys periodically for security
+4. **Limit Access**: Use Azure RBAC to control who can deploy and manage models
+5. **Monitor Usage**: Track API calls and set up alerts for unusual activity
+
+---
+
+## 🔍 Troubleshooting
+
+### Common Issues and Solutions
+
+#### 429 Error (Too Many Requests)
+
+**Problem**: Receiving 429 errors during testing
+
+**Solutions**:
+- Reduce concurrency level
+- Increase `request_settings.max_concurrent_requests_per_instance`
+- Add retry logic with exponential backoff
+- Check your quota limits in Azure portal
+
+#### 424 Error (Timeout)
+
+**Problem**: Requests timing out
+
+**Solutions**:
+- Increase `request_settings.request_timeout_ms` on the endpoint
+- Increase client timeout settings in your test script
+- Reduce prompt length or max tokens
+- Consider using smaller models or more powerful VMs
+
+#### Deployment Failures
+
+**Problem**: Model deployment fails
+
+**Solutions**:
+- Verify GPU quota availability: `az ml compute list-usage`
+- Check model compatibility with selected VM SKU
+- Ensure workspace and resource group exist
+- Review Azure ML workspace logs for detailed error messages
+
+#### Low Throughput
+
+**Problem**: Lower than expected tokens/s
+
+**Solutions**:
+- Check if you're hitting quota limits
+- Verify VM SKU is appropriate for the model
+- Increase concurrency if TTFT is acceptable
+- Consider adjusting endpoint parameters
+- Monitor GPU utilization metrics
+
+#### HuggingFace Login Issues
+
+**Problem**: Cannot load tokenizer
+
+**Solutions**:
+```bash
+# Login to HuggingFace
+huggingface-cli login
+
+# Verify login
+huggingface-cli whoami
+```
+
+#### PowerShell vs Linux Script Issues
+
+**Problem**: Script fails on PowerShell
+
+**Solutions**:
+- Use `deploymodels-powershell-20250405.py` for Windows
+- Ensure Azure CLI is accessible as `az.cmd` in PowerShell
+- Check PATH environment variable includes Azure CLI
+
+---
+
+## ❓ FAQ
+
+### General Questions
+
+**Q: Which deployment method should I use?**
+
+A: It depends on your requirements:
+- **Managed Compute**: Best for open-source models with full control and dedicated resources
+- **Azure AI Model Inference**: Best for flagship models with pay-per-token pricing
+- **Serverless API**: Best for single provider models without infrastructure management
+- **Azure OpenAI**: Best if you only need OpenAI models
+
+**Q: How much do GPU VMs cost?**
+
+A: Costs vary by region and VM type:
+- NC24ads A100 v4: ~$3-4/hour
+- NC48ads A100 v4: ~$6-8/hour
+- NC96ads A100 v4: ~$12-16/hour
+- Always check [Azure Pricing Calculator](https://azure.microsoft.com/en-us/pricing/calculator/) for current rates
+
+**Q: Can I use H100 VMs?**
+
+A: As of March 2025, most models in this repo don't support H100 deployment. Check the compatibility table for your specific model.
+
+### Testing Questions
+
+**Q: What concurrency level should I start with?**
+
+A: Start with concurrency=1 to establish baseline metrics, then gradually increase to 2, 4, 8, etc., until you see degradation in success rate or TTFT.
+
+**Q: How long should tests run?**
+
+A: For reliable results:
+- Minimum 10 requests per concurrency level
+- Ideal: 50-100 requests per concurrency level
+- Run multiple iterations to account for variability
+
+**Q: Which metrics matter most?**
+
+A: It depends on your use case:
+- **Chatbots**: TTFT is critical (users hate waiting)
+- **Batch Processing**: Overall throughput matters most
+- **Real-time Apps**: Balance of TTFT and throughput
+- **Cost Optimization**: Maximize throughput per dollar
+
+### Configuration Questions
+
+**Q: Should I modify endpoint parameters?**
+
+A: Only if:
+- Default performance doesn't meet requirements
+- You understand the trade-offs (higher throughput = higher TTFT)
+- You've tested thoroughly with your workload
+- Your business SLAs allow for longer response times
+
+**Q: How do I choose between stream and non-stream mode?**
+
+A:
+- **Stream**: Better for user-facing applications (progressive display)
+- **Non-Stream**: Better for batch processing or when you need complete response
+- Test both to see which performs better for your scenario
+
+**Q: What's the best VM SKU for my model?**
+
+A: Check the [model compatibility table](#supported-models-and-vm-skus). Generally:
+- Small models (< 10B): NC24ads A100 v4
+- Medium models (10-50B): NC48ads A100 v4
+- Large models (50B+): NC96ads A100 v4 or larger
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! If you'd like to add:
+- New model test results
+- Additional test scenarios
+- Bug fixes or improvements
+- Documentation enhancements
+
+Please:
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
+
+---
+
+## 📄 License
+
+This project is provided as-is for educational and testing purposes. Please ensure compliance with:
+- Azure terms of service
+- Model-specific licenses
+- HuggingFace model licenses
+
+---
+
+## 📞 Support
+
+For issues or questions:
+- **GitHub Issues**: [Create an issue](https://github.com/xinyuwei-david/AI-Foundry-Model-Performance/issues)
+- **Azure Support**: Use Azure portal support for Azure-specific issues
+- **Model Issues**: Check respective model documentation on HuggingFace
+
+---
+
+## 🙏 Acknowledgments
+
+- Microsoft Azure AI Team for the model catalog
+- HuggingFace for model hosting and tokenizers
+- Open-source model creators and maintainers
+
+---
+
+**Last Updated**: March 2025
+
+> ⭐ If you find this repository helpful, please consider giving it a star!
 
 
 
