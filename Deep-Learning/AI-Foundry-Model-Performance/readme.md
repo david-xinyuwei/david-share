@@ -121,6 +121,10 @@ python scripts/deployment/deploymodels-linux-20250405.py
 python scripts/deployment/deploymodels-powershell-20250405.py
 ```
 
+https://github.com/user-attachments/assets/cc9065e9-bbf1-4f59-a7b8-57b8c9703db3
+
+
+
 ### Step 5: Run Performance Tests
 
 ```bash
