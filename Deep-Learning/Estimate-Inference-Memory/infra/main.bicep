@@ -12,6 +12,9 @@ param location string
 @description('Id of the user or app to assign application roles')
 param principalId string = ''
 
+// Deployment metadata
+metadata description = 'Creates an Azure App Service to host the LLM Memory Estimator Streamlit application.'
+
 // Tags that should be applied to all resources.
 var tags = {
   'azd-env-name': environmentName
