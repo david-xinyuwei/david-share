@@ -60,14 +60,11 @@ param appInsightsName string = 'appi-ai-foundry-perf-${environmentName}'
 @description('Name of the Log Analytics workspace')
 param logAnalyticsName string = 'log-ai-foundry-perf-${environmentName}'
 
-@description('Deployment timestamp for unique naming')
-param timestamp string = utcNow('yyyyMMddHHmmss')
+@description('Name of the Key Vault (uses uniqueString for global uniqueness)')
+param keyVaultName string = 'kv-${uniqueString(subscription().subscriptionId, resourceGroupName)}'
 
-@description('Name of the Key Vault')
-param keyVaultName string = 'kv-${uniqueString(subscription().subscriptionId, resourceGroupName, timestamp)}'
-
-@description('Name of the Storage Account')
-param storageAccountName string = 'stai${uniqueString(subscription().subscriptionId, resourceGroupName, timestamp)}'
+@description('Name of the Storage Account (uses uniqueString for global uniqueness)')
+param storageAccountName string = 'stai${uniqueString(subscription().subscriptionId, resourceGroupName)}'
 
 @description('Tags to apply to all resources')
 param tags object = {
