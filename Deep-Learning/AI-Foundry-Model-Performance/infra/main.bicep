@@ -3,8 +3,12 @@
 
 targetScope = 'subscription'
 
+@minLength(1)
 @description('Primary location for all resources')
-param location string = 'eastus'
+param location string
+
+@description('Id of the user or app to assign application roles')
+param principalId string = ''
 
 @description('Name of the resource group')
 param resourceGroupName string = 'rg-ai-foundry-perf'
