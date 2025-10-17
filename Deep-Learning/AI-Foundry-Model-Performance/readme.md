@@ -2,9 +2,12 @@
 
 [![Python Version](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
 [![Azure](https://img.shields.io/badge/Azure-AI%20Foundry-0078D4.svg)](https://azure.microsoft.com/en-us/products/ai-services)
+[![Azure Developer CLI](https://img.shields.io/badge/azd-supported-blue.svg)](https://learn.microsoft.com/azure/developer/azure-developer-cli/)
+[![Infrastructure as Code](https://img.shields.io/badge/IaC-Bicep-blue.svg)](https://learn.microsoft.com/azure/azure-resource-manager/bicep/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-> 🚀 **Comprehensive performance evaluation toolkit for Azure Machine Learning and AI Foundry Model Catalog**
+> 🚀 **Comprehensive performance evaluation toolkit for Azure Machine Learning and AI Foundry Model Catalog**  
+> 💡 **One-click deployment with Azure Developer CLI (azd) support**
 
 ## 📋 Table of Contents
 
@@ -12,6 +15,8 @@
 - [Features](#features)
 - [Prerequisites](#prerequisites)
 - [Quick Start](#quick-start)
+  - [Option 1: One-Click Deployment with azd](#option-1-one-click-deployment-with-azure-developer-cli-azd)
+  - [Option 2: Manual Setup](#option-2-manual-setup)
 - [Deploying Models Methods](#deploying-models-methods)
 - [Performance Test on Managed Compute](#performance-test-of-ai-models-deployed-on-managed-compute-in-aml-and-ai-foundry)
 - [Performance Test on Azure AI Model Inference](#performance-test-on-azure-ai-model-inference)
@@ -37,6 +42,9 @@ Rapidly evaluate the performance of these models on the corresponding AI infrast
 
 ## ✨ Features
 
+- ✅ **One-Click Deployment**: Azure Developer CLI (azd) support for automated infrastructure setup
+- ✅ **Infrastructure as Code**: Complete Bicep templates for reproducible deployments
+- ✅ **Observability Built-in**: Application Insights integration with correlation ID tracking
 - ✅ **Automated Deployment**: Quick deployment of AI models on Azure ML/AI Foundry
 - ✅ **Performance Testing**: Multi-scenario stress testing with real prompts
 - ✅ **Comprehensive Metrics**: TTFT, tokens/s, throughput analysis
@@ -60,6 +68,81 @@ Before you begin, ensure you have the following:
 - Contributor access to Azure ML Workspace
 - Ability to create and delete online endpoints
 - Access to Model Catalog
+
+---
+
+## 🚀 Quick Start
+
+### Option 1: One-Click Deployment with Azure Developer CLI (azd)
+
+The fastest way to get started is using Azure Developer CLI for automated infrastructure and environment setup.
+
+#### Prerequisites for azd
+- [Azure Developer CLI (azd)](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd) installed
+- Azure CLI installed and logged in
+- Active Azure subscription with appropriate permissions
+
+#### Deploy Everything with One Command
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/xinyuwei-david/AI-Foundry-Model-Performance.git
+cd AI-Foundry-Model-Performance
+
+# 2. Login to Azure
+azd auth login
+
+# 3. One-click deploy infrastructure and setup environment
+azd up
+```
+
+**What `azd up` does:**
+- ✅ Creates Azure Resource Group
+- ✅ Deploys Application Insights + Log Analytics for observability
+- ✅ Creates Storage Account for ML workspace
+- ✅ Deploys Key Vault for secure credential management
+- ✅ Sets up Azure ML Workspace
+- ✅ Creates Python virtual environment
+- ✅ Installs all required dependencies
+
+#### Verify Deployment
+
+```bash
+# Check deployed resources
+azd show
+
+# Get environment variables
+azd env get-values
+```
+
+#### Run Performance Tests
+
+```powershell
+# Activate Python environment
+.\venv\Scripts\Activate.ps1  # Windows
+# source venv/bin/activate   # Linux/macOS
+
+# Set environment variables from deployment
+$env:APPINSIGHTS_CONNECTION_STRING = azd env get-value APPINSIGHTS_CONNECTION_STRING
+
+# Run performance tests (see examples below)
+python scripts/testing/press-phi4-0403.py
+```
+
+#### Clean Up Resources
+
+```bash
+# Delete all Azure resources
+azd down
+```
+
+> 📖 **For detailed azd deployment documentation, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**
+
+---
+
+### Option 2: Manual Setup
+
+If you prefer manual setup or want more control over the deployment process, follow the detailed instructions in the sections below.
 
 ---
 
