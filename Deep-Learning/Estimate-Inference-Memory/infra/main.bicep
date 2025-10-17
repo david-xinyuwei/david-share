@@ -33,11 +33,14 @@ module appServicePlan 'core/host/appserviceplan.bicep' = {
   }
 }
 
+// Generate unique App Service name using hash
+var uniqueSuffix = uniqueString(resourceGroup().id, environmentName)
+
 // Web App
 module web 'core/host/appservice.bicep' = {
   name: 'web'
   params: {
-    name: 'app-${environmentName}'
+    name: 'llm-mem-${environmentName}-${uniqueSuffix}'
     location: location
     tags: union(tags, { 'azd-service-name': 'web' })
     appServicePlanId: appServicePlan.outputs.id
