@@ -4,7 +4,42 @@
 targetScope = 'subscription'
 
 @minLength(1)
-@description('Azure region where all resources will be deployed (e.g., eastus, westeurope, polandcentral). Choose a region with GPU quota available.')
+@description('Azure region where all resources will be deployed. Common regions: eastus, eastus2, westus, westus2, westeurope, northeurope, uksouth, japaneast, australiaeast, southeastasia, polandcentral. Choose a region with GPU quota available.')
+@allowed([
+  'eastus'
+  'eastus2'
+  'westus'
+  'westus2'
+  'westus3'
+  'centralus'
+  'southcentralus'
+  'northcentralus'
+  'westcentralus'
+  'westeurope'
+  'northeurope'
+  'uksouth'
+  'ukwest'
+  'francecentral'
+  'germanywestcentral'
+  'switzerlandnorth'
+  'norwayeast'
+  'polandcentral'
+  'swedencentral'
+  'japaneast'
+  'japanwest'
+  'koreacentral'
+  'australiaeast'
+  'australiasoutheast'
+  'southeastasia'
+  'eastasia'
+  'southafricanorth'
+  'brazilsouth'
+  'canadacentral'
+  'canadaeast'
+  'southindia'
+  'centralindia'
+  'westindia'
+])
 param location string = 'eastus'
 
 @description('Id of the user or app to assign application roles')
@@ -25,11 +60,14 @@ param appInsightsName string = 'appi-ai-foundry-perf-${environmentName}'
 @description('Name of the Log Analytics workspace')
 param logAnalyticsName string = 'log-ai-foundry-perf-${environmentName}'
 
+@description('Deployment timestamp for unique naming')
+param timestamp string = utcNow('yyyyMMddHHmmss')
+
 @description('Name of the Key Vault')
-param keyVaultName string = 'kv-ai-foundry-${uniqueString(resourceGroupName)}'
+param keyVaultName string = 'kv-${uniqueString(subscription().subscriptionId, resourceGroupName, timestamp)}'
 
 @description('Name of the Storage Account')
-param storageAccountName string = 'stai${uniqueString(resourceGroupName)}'
+param storageAccountName string = 'stai${uniqueString(subscription().subscriptionId, resourceGroupName, timestamp)}'
 
 @description('Tags to apply to all resources')
 param tags object = {
