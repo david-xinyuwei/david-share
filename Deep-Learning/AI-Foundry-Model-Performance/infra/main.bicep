@@ -4,7 +4,7 @@
 targetScope = 'subscription'
 
 @minLength(1)
-@description('Azure region where all resources will be deployed. Common regions: eastus, eastus2, westus, westus2, westeurope, northeurope, uksouth, japaneast, australiaeast, southeastasia, polandcentral. Choose a region with GPU quota available.')
+@description('Azure region where all resources will be deployed. IMPORTANT: Choose a region where you have GPU quota available (NC/ND/NV series). Common GPU regions: eastus, eastus2, westus2, westus3, westeurope, northeurope, uksouth, swedencentral, polandcentral, japaneast, australiaeast, southeastasia.')
 @allowed([
   'eastus'
   'eastus2'
@@ -40,7 +40,7 @@ targetScope = 'subscription'
   'centralindia'
   'westindia'
 ])
-param location string = 'eastus'
+param location string
 
 @description('Id of the user or app to assign application roles')
 param principalId string = ''
