@@ -8,7 +8,6 @@ metadata:
 infra:
   provider: bicep
   path: infra
-  module: main
 
 services:
   ml-deployment:
