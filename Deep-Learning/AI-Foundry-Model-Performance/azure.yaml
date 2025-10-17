@@ -4,6 +4,12 @@ name: ai-foundry-model-performance
 metadata:
   template: ai-foundry-model-performance@0.0.1-beta
 
+# Infrastructure configuration
+infra:
+  provider: bicep
+  path: infra
+  module: main
+
 services:
   ml-deployment:
     language: python
