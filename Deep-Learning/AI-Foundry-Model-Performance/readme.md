@@ -113,19 +113,19 @@ az login --use-device
 
 **For Linux:**
 ```bash
-python deploymodels-linux-20250405.py
+python scripts/deployment/deploymodels-linux-20250405.py
 ```
 
 **For Windows PowerShell:**
 ```powershell
-python deploymodels-powershell-20250405.py
+python scripts/deployment/deploymodels-powershell-20250405.py
 ```
 
 ### Step 5: Run Performance Tests
 
 ```bash
 # Example: Test Phi-4 model
-python press-phi4-0403.py
+python scripts/testing/press-phi4-0403.py
 
 # Login to HuggingFace first
 huggingface-cli login
@@ -258,13 +258,13 @@ Before running the script, you need to check the table above to confirm the type
 **For Linux:**
 
 ```bash
-python deploymodels-linux-20250405.py
+python scripts/deployment/deploymodels-linux-20250405.py
 ```
 
 **For Windows PowerShell:**
 
 ```powershell
-python deploymodels-powershell-20250405.py
+python scripts/deployment/deploymodels-powershell-20250405.py
 ```
 
 > 📌 **Note**: The difference between the two scripts, `deploymodels-linux.py` and `deploymodels-powershell.py`, is not significant. The only difference is that PowerShell sometimes cannot parse "az" and can only parse "az.cmd," as shown in the following code snippet:
@@ -360,7 +360,7 @@ SECONDARY_KEY=4dhy3og6WfVzkIijMU7FFUDLpz4WIWEYgIlXMGYUzgwafsW6GPrMJQQJ99BCAAAAAA
 > ⚠️ **Important**: GPU VMs are relatively expensive. Therefore, after completing performance testing, you should use the script below to delete the endpoint to avoid incurring excessive costs.
 
 ```bash
-python delete-endpoint-20250327.py
+python scripts/deployment/delete-endpoint-20250327.py
 ```
 
 ##### Delete Process Example
@@ -515,7 +515,7 @@ huggingface-cli login
 **Run the test script:**
 
 ```bash
-python press-phi4-0403.py
+python scripts/testing/press-phi4-0403.py
 ```
 
 **Interactive Input Example:**
@@ -590,7 +590,7 @@ Tokenizer loaded successfully: microsoft/phi-4
 #### 🖼️ Phi Vision Series (Phi-3.5-vision-instruct/Phi-3-vision-128k-instruct)
 
 ```bash
-python press-phi35and0v-20250323.py
+python scripts/testing/press-phi35and0v-20250323.py
 ```
 
 ##### Phi-3.5-vision-instruct with Single Image Input
@@ -629,8 +629,8 @@ python press-phi35and0v-20250323.py
 
 #### **financial-reports-analysis Series test**
 
-```
-#python press.financial-reports-analysis-20250321.py
+```bash
+python scripts/testing/press.financial-reports-analysis-20250321.py
 ```
 
 **1-nc48**
@@ -725,7 +725,7 @@ Full original test results are here:
 **Run the test script:**
 
 ```bash
-python press-llama3.211bv-20250407.py
+python scripts/testing/press-llama3.211bv-20250407.py
 ```
 
 ##### Test Result Analysis
@@ -792,8 +792,8 @@ python press-llama3.211bv-20250407.py
 
 #### microsoft-swinv2-base-patch4-window12-192-22k Series 
 
-```
-#python press-swinv2-20250322.py
+```bash
+python scripts/testing/press-swinv2-20250322.py
 ```
 
 Test result analyze：
@@ -853,8 +853,8 @@ Full original test results are here:
 
 #### mistralai-Mixtral-8x7B-Instruct-v01 Series 
 
-```
-#python press-Mixtral-8x7B-20250323.py
+```bash
+python scripts/testing/press-Mixtral-8x7B-20250323.py
 ```
 
 Test result analyze：
@@ -989,8 +989,8 @@ Full original test results are here:
 
 **On NC48 VM**
 
-```
-#python press-whisper-20250323.py
+```bash
+python scripts/testing/press-whisper-20250323.py
 ```
 
 Test result analyze：
@@ -1055,8 +1055,8 @@ Check eveny request's TTFT and completion time.
 
 #### Nemotron-3-8B-Chat-4k-SteerLM  Series
 
-```
-#python press-nemotron-3-8b-chat-4k-steerlm-20250324.py
+```bash
+python scripts/testing/press-nemotron-3-8b-chat-4k-steerlm-20250324.py
 ```
 
 **On 1 NC24 A100 VM**
@@ -1311,8 +1311,8 @@ Full original test results are here:
 
 #### microsoft-Orca-2-7b  Series
 
-```
-#python  press-orca-20250324.py
+```bash
+python scripts/testing/press-orca-20250324.py
 ```
 
 **On 1 NC24 A100 VM**
@@ -1486,11 +1486,11 @@ Prepare test env:
 
 Run test script, after entering the following three variables, the stress test will begin:
 
-```
-#python callaiinference-20250406.py 
+```bash
+python scripts/testing/callaiinference-20250406.py
 ```
 
-```
+```text
 Please enter the Azure AI endpoint URL, such as https://xinyu.services.ai.azure.com/models format: https://ai-hubeastus869020590911.services.ai.azure.com/models
 
 Please enter the Azure AI key: 4TSBez23vMtPSLPIXgye84oRznpvuYSTDKTr72t***RazJQQJ99BBACYeBjFXJ3w3AAAAACOGmXdu
@@ -1577,8 +1577,11 @@ The overall throughput averages 735.12 tokens/s, with a P90 of 1184.06 tokens/s,
 
 ![images](https://github.com/xinyuwei-david/AI-Foundry-Model-Performance/blob/main/images/13.png)
 
+```bash
+python scripts/testing/callaiinference-20250406.py
 ```
-(AIF) root@pythonvm:~/AIFperformance# python callaiinference-20250406.py
+
+```text
 Please enter the Azure AI key: G485wnXwMrAYQKMQPSYpzf7PNLm3sui8qgsXcYFv5Yd3HOmvzZ2GJQQJ99BCACPV0roXJ3w3AAAAACOG9kt1
 Please enter the Azure AI endpoint URL: https://xinyu-m7zxv3ow-germanywestcentra.services.ai.azure.com/models
 Please enter the deployment name: Phi-4
