@@ -71,21 +71,45 @@ echo ""
 
 # Results storage
 declare -A REGIONS_WITH_QUOTA
+declare -A REGIONS_QUOTA_DETAILS
 
 # Check each region
 for region in "${REGIONS_TO_CHECK[@]}"; do
-    # Check for NC-series VMs with A100/H100
-    quota_result=$(az vm list-skus \
+    # Check VM quota usage for NC-series in this region
+    quota_info=$(az vm list-usage \
         --location "$region" \
-        --size Standard_NC \
-        --all \
         --output json 2>/dev/null | \
-        jq -r '.[] | select(.name | contains("A100") or contains("H100")) | select(.restrictions | length == 0) | .name' | \
-        head -5)
+        jq -r '.[] | select(.name.value | contains("standardNCADSA100v4Family") or contains("standardNCADSH100v5Family")) | "\(.name.value)|\(.currentValue)|\(.limit)"' 2>/dev/null)
     
-    if [ -n "$quota_result" ]; then
-        REGIONS_WITH_QUOTA["$region"]="$quota_result"
-        echo -e "${GREEN}✓${NC} $region - GPU available"
+    if [ -n "$quota_info" ]; then
+        # Parse quota info
+        has_available_quota=false
+        quota_details=""
+        
+        while IFS='|' read -r family_name current_value limit; do
+            if [ "$limit" -gt 0 ]; then
+                available=$((limit - current_value))
+                has_available_quota=true
+                
+                # Translate family name to SKU names
+                if [[ "$family_name" == *"A100"* ]]; then
+                    sku_type="A100"
+                    quota_details+="  • Standard_NC24ads_A100_v4, NC48ads_A100_v4, NC96ads_A100_v4\n"
+                elif [[ "$family_name" == *"H100"* ]]; then
+                    sku_type="H100"
+                    quota_details+="  • Standard_NC40ads_H100_v5, NC80ads_H100_v5\n"
+                fi
+                quota_details+="    Quota: ${available}/${limit} cores available (${current_value} in use)\n"
+            fi
+        done <<< "$quota_info"
+        
+        if [ "$has_available_quota" = true ]; then
+            REGIONS_WITH_QUOTA["$region"]="available"
+            REGIONS_QUOTA_DETAILS["$region"]="$quota_details"
+            echo -e "${GREEN}✓${NC} $region - GPU available"
+        else
+            echo -e "${RED}✗${NC} $region - No quota available (limit is 0)"
+        fi
     else
         echo -e "${RED}✗${NC} $region - No GPU quota or restricted"
     fi
@@ -110,13 +134,13 @@ echo -e "${GREEN}Found ${#REGIONS_WITH_QUOTA[@]} region(s) with GPU quota availa
 echo ""
 
 for region in "${!REGIONS_WITH_QUOTA[@]}"; do
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${BLUE}Region:${NC} $region"
-    echo "Available SKUs:"
-    echo "${REGIONS_WITH_QUOTA[$region]}" | while read -r sku; do
-        [ -n "$sku" ] && echo "  • $sku"
-    done
     echo ""
+    echo -e "Available GPU SKUs and Quota:"
+    echo -e "${REGIONS_QUOTA_DETAILS[$region]}"
 done
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
 echo "=========================================================================="
 echo ""
@@ -145,9 +169,7 @@ EOF
 for region in "${!REGIONS_WITH_QUOTA[@]}"; do
     echo "" >> "$RESULTS_FILE"
     echo "Region: $region" >> "$RESULTS_FILE"
-    echo "${REGIONS_WITH_QUOTA[$region]}" | while read -r sku; do
-        [ -n "$sku" ] && echo "  • $sku" >> "$RESULTS_FILE"
-    done
+    echo -e "${REGIONS_QUOTA_DETAILS[$region]}" >> "$RESULTS_FILE"
 done
 
 echo -e "${GREEN}[INFO]${NC} Results saved to: $RESULTS_FILE"
