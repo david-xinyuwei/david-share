@@ -51,10 +51,10 @@ Deploy the Streamlit web application to Azure App Service with a single command.
 #### Prerequisites
 
 - **Azure Developer CLI** (azd)
+- **Azure CLI** (az) 
 - **Azure Subscription**
-- **Azure CLI** (az)
 
-#### Four-Step Deployment
+#### Five-Step Deployment
 
 **On Linux**:
 
@@ -68,10 +68,13 @@ cd Deep-Learning/Estimate-Inference-Memory
 # 2. Install Azure Developer CLI
 curl -fsSL https://aka.ms/install-azd.sh | bash
 
-# 3. Login to Azure (device code authentication)
+# 3. Login to Azure CLI (device code authentication)
 az login --use-device-code
 
-# 4. Deploy!
+# 4. Login to Azure Developer CLI (device code authentication)
+azd auth login --use-device-code
+
+# 5. Deploy!
 azd up
 ```
 
@@ -87,10 +90,13 @@ cd Deep-Learning\Estimate-Inference-Memory
 # 2. Install Azure Developer CLI
 winget install microsoft.azd
 
-# 3. Login to Azure (device code authentication)
+# 3. Login to Azure CLI (device code authentication)
 az login --use-device-code
 
-# 4. Deploy!
+# 4. Login to Azure Developer CLI (device code authentication)
+azd auth login --use-device-code
+
+# 5. Deploy!
 azd up
 ```
 
