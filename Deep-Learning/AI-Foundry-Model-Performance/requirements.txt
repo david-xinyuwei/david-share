@@ -6,3 +6,6 @@ tabulate
 torch
 transformers
 tiktoken
+opencensus-ext-azure
+applicationinsights
+python-dotenv

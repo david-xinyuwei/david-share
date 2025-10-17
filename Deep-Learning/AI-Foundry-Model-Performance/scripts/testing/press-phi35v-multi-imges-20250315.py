@@ -17,8 +17,9 @@ except ImportError:
     AutoTokenizer = None  
   
 # --------------------------- Global Variables ---------------------------  
-API_URL = "https://custom-endpoint-1742021907.polandcentral.inference.ml.azure.com/score"  
-API_KEY = "9Eo9xzYpxkY6KZOaSJT5QPeK9OaTBTW8SuMhz6yCfjPJ3yKS0PJeJQQJ99BCAAAAAAAAAAAAINFRAZML1W5R"  
+# Security: Load from environment variables instead of hardcoding
+API_URL = os.getenv("API_URL", "https://custom-endpoint-1742021907.polandcentral.inference.ml.azure.com/score")  
+API_KEY = os.getenv("API_KEY", "")  # Load from environment variable for security
 HEADERS = {}  
   
 BASE_PROMPT = "What are in these images? What is the difference between two images? Reply in 3000 tokens"  

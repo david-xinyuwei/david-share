@@ -1,0 +1,85 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+
+name: ai-foundry-model-performance
+metadata:
+  template: ai-foundry-model-performance@0.0.1-beta
+
+services:
+  ml-deployment:
+    language: python
+    host: azureml
+    project: ./scripts
+
+hooks:
+  # Run before provisioning infrastructure
+  preprovision:
+    posix:
+      shell: sh
+      run: |
+        echo "Preparing to provision Azure resources..."
+        echo "Checking Azure CLI version..."
+        az version
+    windows:
+      shell: pwsh
+      run: |
+        Write-Host "Preparing to provision Azure resources..."
+        Write-Host "Checking Azure CLI version..."
+        az version
+
+  # Run after provisioning infrastructure
+  postprovision:
+    posix:
+      shell: sh
+      run: |
+        echo "Infrastructure provisioned successfully"
+        echo "Setting up Python environment..."
+        python3 -m venv venv
+        source venv/bin/activate
+        pip install -r requirements.txt
+    windows:
+      shell: pwsh
+      run: |
+        Write-Host "Infrastructure provisioned successfully"
+        Write-Host "Setting up Python environment..."
+        python -m venv venv
+        .\venv\Scripts\Activate.ps1
+        pip install -r requirements.txt
+
+  # Run before deployment
+  predeploy:
+    posix:
+      shell: sh
+      run: |
+        echo "Preparing deployment..."
+        echo "Validating configuration..."
+    windows:
+      shell: pwsh
+      run: |
+        Write-Host "Preparing deployment..."
+        Write-Host "Validating configuration..."
+
+  # Run after deployment
+  postdeploy:
+    posix:
+      shell: sh
+      run: |
+        echo "Deployment completed successfully"
+        echo "You can now run performance tests"
+    windows:
+      shell: pwsh
+      run: |
+        Write-Host "Deployment completed successfully"
+        Write-Host "You can now run performance tests"
+
+  # Run before destroying resources
+  predestroy:
+    posix:
+      shell: sh
+      run: |
+        echo "Preparing to destroy resources..."
+        echo "This will delete all Azure resources"
+    windows:
+      shell: pwsh
+      run: |
+        Write-Host "Preparing to destroy resources..."
+        Write-Host "This will delete all Azure resources"
