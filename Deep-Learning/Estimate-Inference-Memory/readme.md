@@ -59,9 +59,11 @@ Deploy the Streamlit web application to Azure App Service with a single command.
 **On Linux**:
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/david-xinyuwei/david-share.git
-cd david-share/Deep-Learning/Estimate-Inference-Memory
+# 1. Clone only this project directory (sparse checkout)
+git clone --filter=blob:none --sparse https://github.com/david-xinyuwei/david-share.git
+cd david-share
+git sparse-checkout set Deep-Learning/Estimate-Inference-Memory
+cd Deep-Learning/Estimate-Inference-Memory
 
 # 2. Install Azure Developer CLI
 curl -fsSL https://aka.ms/install-azd.sh | bash
@@ -76,9 +78,11 @@ azd up
 **On Windows**:
 
 ```powershell
-# 1. Clone the repository
-git clone https://github.com/david-xinyuwei/david-share.git
-cd david-share\Deep-Learning\Estimate-Inference-Memory
+# 1. Clone only this project directory (sparse checkout)
+git clone --filter=blob:none --sparse https://github.com/david-xinyuwei/david-share.git
+cd david-share
+git sparse-checkout set Deep-Learning/Estimate-Inference-Memory
+cd Deep-Learning\Estimate-Inference-Memory
 
 # 2. Install Azure Developer CLI
 winget install microsoft.azd
