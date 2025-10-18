@@ -48,29 +48,17 @@ param principalId string = ''
 @description('Environment name - used as suffix for resource naming (e.g., dev, test, prod)')
 param environmentName string = 'dev'
 
-// Helper function to get short region code (max 6 chars)
-var locationCode = {
-  eastus: 'eus'
-  eastus2: 'eus2'
-  westus: 'wus'
-  westus2: 'wus2'
-  westus3: 'wus3'
-  centralus: 'cus'
-  southcentralus: 'scus'
-  northcentralus: 'ncus'
-  westeurope: 'weu'
-  northeurope: 'neu'
-  uksouth: 'uks'
-  japaneast: 'jpe'
-  australiaeast: 'aue'
-  southeastasia: 'sea'
-  eastasia: 'ea'
-  swedencentral: 'swe'
-  polandcentral: 'pol'
-  canadacentral: 'cac'
-  brazilsouth: 'brs'
-  southindia: 'sin'
-}[location]
+// Generate short location code automatically (first 3 chars + last 2 chars, max 6 chars)
+// This works for ANY Azure region without hardcoding
+var locationCode = length(location) <= 6 
+  ? location 
+  : '${substring(location, 0, 3)}${substring(location, length(location) - 2, 2)}'
+
+// Examples:
+//   eastus -> eastus (6 chars)
+//   francecentral -> fraal (3+2=5 chars) 
+//   southeastasia -> soua (3+2=5 chars)
+//   westeurope -> wespe (3+2=5 chars)
 
 // Computed resource names using location code
 var resourceGroupName = 'rg-aif-${locationCode}-${environmentName}'
