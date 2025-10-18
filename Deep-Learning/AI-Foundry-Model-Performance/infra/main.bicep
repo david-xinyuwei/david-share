@@ -49,22 +49,22 @@ param principalId string = ''
 param environmentName string = 'dev'
 
 @description('Name of the resource group')
-param resourceGroupName string = 'rg-ai-foundry-perf-${environmentName}'
+param resourceGroupName string = 'rg-ai-foundry-perf-${location}-${environmentName}'
 
 @description('Name of the Azure ML workspace')
-param mlWorkspaceName string = 'mlw-ai-foundry-perf-${environmentName}'
+param mlWorkspaceName string = 'mlw-ai-foundry-perf-${location}-${environmentName}'
 
 @description('Name of the Application Insights instance')
-param appInsightsName string = 'appi-ai-foundry-perf-${environmentName}'
+param appInsightsName string = 'appi-ai-foundry-perf-${location}-${environmentName}'
 
 @description('Name of the Log Analytics workspace')
-param logAnalyticsName string = 'log-ai-foundry-perf-${environmentName}'
+param logAnalyticsName string = 'log-ai-foundry-perf-${location}-${environmentName}'
 
 @description('Name of the Key Vault (uses uniqueString for global uniqueness)')
-param keyVaultName string = 'kv-${uniqueString(subscription().subscriptionId, resourceGroupName)}'
+param keyVaultName string = 'kv-${uniqueString(subscription().subscriptionId, resourceGroupName, location)}'
 
 @description('Name of the Storage Account (uses uniqueString for global uniqueness)')
-param storageAccountName string = 'stai${uniqueString(subscription().subscriptionId, resourceGroupName)}'
+param storageAccountName string = 'stai${uniqueString(subscription().subscriptionId, resourceGroupName, location)}'
 
 @description('Tags to apply to all resources')
 param tags object = {

@@ -18,42 +18,72 @@ hooks:
     posix:
       shell: sh
       run: |
-        echo "Preparing to provision Azure resources..."
-        echo "Checking Azure CLI version..."
-        az version
+        echo "========================================"
+        echo "  Preprovision Hook - Setting Location  "
+        echo "========================================"
         echo ""
-        echo "Setting deployment location from GPU quota check..."
-        if [ -f .recommended-region ]; then
-          RECOMMENDED_REGION=$(cat .recommended-region | tr -d '\n\r')
-          echo "Using recommended region: $RECOMMENDED_REGION"
-          # Set both location parameter and AZURE_LOCATION for consistency
-          azd env set location "$RECOMMENDED_REGION"
-          azd env set AZURE_LOCATION "$RECOMMENDED_REGION"
-          echo "Location parameter set to: $RECOMMENDED_REGION"
-        else
-          echo "WARNING: No .recommended-region file found. Run scripts/deployment/check-gpu-quota.sh first!"
+        
+        # Check if .recommended-region file exists
+        if [ ! -f .recommended-region ]; then
+          echo "❌ ERROR: .recommended-region file not found!"
+          echo "📝 Please run: bash scripts/deployment/check-gpu-quota.sh"
           exit 1
         fi
+        
+        # Read recommended region
+        RECOMMENDED_REGION=$(cat .recommended-region | tr -d '\n\r' | xargs)
+        echo "✅ Found recommended region: $RECOMMENDED_REGION"
+        echo ""
+        
+        # Set environment variables
+        echo "Setting azd environment variables..."
+        azd env set location "$RECOMMENDED_REGION"
+        azd env set AZURE_LOCATION "$RECOMMENDED_REGION"
+        
+        # Verify settings
+        echo ""
+        echo "Verifying environment configuration:"
+        echo "  - location: $(azd env get-value location)"
+        echo "  - AZURE_LOCATION: $(azd env get-value AZURE_LOCATION)"
+        echo ""
+        echo "✅ Location configuration complete!"
+        echo "========================================"
     windows:
       shell: pwsh
       run: |
-        Write-Host "Preparing to provision Azure resources..."
-        Write-Host "Checking Azure CLI version..."
-        az version
+        Write-Host "========================================"
+        Write-Host "  Preprovision Hook - Setting Location  "
+        Write-Host "========================================"
         Write-Host ""
-        Write-Host "Setting deployment location from GPU quota check..."
-        if (Test-Path .recommended-region) {
-          $recommendedRegion = Get-Content .recommended-region -Raw
-          $recommendedRegion = $recommendedRegion.Trim()
-          Write-Host "Using recommended region: $recommendedRegion"
-          # Set both location parameter and AZURE_LOCATION for consistency
-          azd env set location "$recommendedRegion"
-          azd env set AZURE_LOCATION "$recommendedRegion"
-          Write-Host "Location parameter set to: $recommendedRegion"
-        } else {
-          Write-Host "WARNING: No .recommended-region file found. Run scripts/deployment/check-gpu-quota.sh first!"
+        
+        # Check if .recommended-region file exists
+        if (-not (Test-Path .recommended-region)) {
+          Write-Host "❌ ERROR: .recommended-region file not found!" -ForegroundColor Red
+          Write-Host "📝 Please run: bash scripts/deployment/check-gpu-quota.sh"
           exit 1
         }
+        
+        # Read recommended region
+        $recommendedRegion = Get-Content .recommended-region -Raw
+        $recommendedRegion = $recommendedRegion.Trim()
+        Write-Host "✅ Found recommended region: $recommendedRegion" -ForegroundColor Green
+        Write-Host ""
+        
+        # Set environment variables
+        Write-Host "Setting azd environment variables..."
+        azd env set location "$recommendedRegion"
+        azd env set AZURE_LOCATION "$recommendedRegion"
+        
+        # Verify settings
+        Write-Host ""
+        Write-Host "Verifying environment configuration:"
+        $locationValue = azd env get-value location
+        $azureLocationValue = azd env get-value AZURE_LOCATION
+        Write-Host "  - location: $locationValue"
+        Write-Host "  - AZURE_LOCATION: $azureLocationValue"
+        Write-Host ""
+        Write-Host "✅ Location configuration complete!" -ForegroundColor Green
+        Write-Host "========================================"
 
   # Run after provisioning infrastructure
   postprovision:
