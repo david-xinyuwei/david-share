@@ -101,7 +101,53 @@ INSTANCE_TYPES = [
     "Standard_NC96ads_A100_v4",  
     "Standard_NC40ads_H100_v5",  
     "Standard_NC80ads_H100_v5"  
-]  
+]
+
+def check_current_region_quota(subscription_id, resource_group, workspace_name):
+    """Check quota in the workspace's region and return available SKU families."""
+    try:
+        # Get workspace location
+        result = subprocess.run(
+            ["az.cmd", "ml", "workspace", "show",
+             "--subscription", subscription_id,
+             "--resource-group", resource_group,
+             "--name", workspace_name,
+             "--query", "location", "-o", "tsv"],
+            stdout=subprocess.PIPE, text=True, check=True
+        )
+        region = result.stdout.strip()
+        
+        # Check quota in this region
+        quota_result = subprocess.run(
+            ["az.cmd", "ml", "compute", "list-usage",
+             "--subscription", subscription_id,
+             "--resource-group", resource_group,
+             "--workspace-name", workspace_name,
+             "--location", region,
+             "-o", "json"],
+            stdout=subprocess.PIPE, text=True, check=True
+        )
+        
+        quota_items = json.loads(quota_result.stdout)
+        available_families = []
+        
+        for item in quota_items:
+            name_dict = item.get("name", {})
+            resource_name = name_dict.get("value", "")
+            limit = item.get("limit", 0)
+            usage = item.get("currentValue", 0)
+            
+            if limit > 0:
+                # Map quota families to SKU types
+                if "NCADSA100v4" in resource_name:
+                    available_families.append(("A100", limit - usage, limit))
+                elif "NCADSH100v5" in resource_name:
+                    available_families.append(("H100", limit - usage, limit))
+        
+        return region, available_families
+    except Exception as e:
+        logger.warning(f"Could not check region quota: {e}")
+        return None, []
   
 ###############################################################################  
 # Model deployment  
@@ -358,8 +404,23 @@ def main():
   
     logger.info(f"User-specified model: name='{model_name}', version='{model_version}'")  
   
-    # 5) Display available SKU information (quota check removed for speed)  
-    print("\n========== A100 / H100 SKU Information ==========")  
+    # 5) Check current workspace region quota
+    region, available_families = check_current_region_quota(
+        subscription_id, resource_group, workspace_name
+    )
+  
+    # 6) Display available SKU information with quota hints
+    print("\n========== A100 / H100 SKU Information ==========")
+    if region:
+        print(f"📍 Workspace Location: {region}")
+    if available_families:
+        print(f"✅ Available GPU Quota in this region:")
+        for family, available, limit in available_families:
+            print(f"   - {family}: {available}/{limit} cores available")
+    else:
+        print("⚠️  Could not detect quota information")
+    print()
+    
     print(f"{'SKU Name':<35} {'GPU Count':<10} {'GPU Memory (VRAM)':<20} {'CPU Cores':<10}")  
     print(f"{'-'*35} {'-'*10} {'-'*20} {'-'*10}")  
     sku_table = [  
@@ -376,6 +437,21 @@ def main():
     print("💡 Tip: To check GPU quota across all regions, run:")
     print("   bash scripts/deployment/check-gpu-quota.sh")
     print()
+    
+    if available_families:
+        print("📌 Recommended SKUs based on your quota:")
+        for family, available, limit in available_families:
+            if family == "A100":
+                print("   - Standard_NC24ads_A100_v4 (requires 24 CPU cores)")
+                if available >= 48:
+                    print("   - Standard_NC48ads_A100_v4 (requires 48 CPU cores)")
+                if available >= 96:
+                    print("   - Standard_NC96ads_A100_v4 (requires 96 CPU cores)")
+            elif family == "H100":
+                print("   - Standard_NC40ads_H100_v5 (requires 40 CPU cores)")
+                if available >= 80:
+                    print("   - Standard_NC80ads_H100_v5 (requires 80 CPU cores)")
+        print()
     
     print("Available SKUs:")  
     for sku in INSTANCE_TYPES:  
