@@ -638,17 +638,27 @@ def main():
     
     print("Available SKUs (for reference):")  
     for sku in INSTANCE_TYPES:  
-        # Mark which ones are actually usable
+        # Check if this SPECIFIC SKU is in the model's supported list
+        is_in_model_list = supported_skus and sku in supported_skus
+        
+        # Check if we have enough quota for this SPECIFIC SKU
+        required_cores = sku_core_requirements.get(sku, 999)
         sku_family = "A100" if "A100" in sku else "H100" if "H100" in sku else "Unknown"
-        is_compatible = sku_family in model_compatible_families
-        has_quota = any(f[0] == sku_family and f[1] > 0 for f in available_families) if available_families else False
+        has_sufficient_quota = False
+        if available_families:
+            for family, available, limit in available_families:
+                if family == sku_family and available >= required_cores:
+                    has_sufficient_quota = True
+                    break
         
         marker = ""
-        if is_compatible and has_quota:
-            marker = " ✅ (Recommended)"
-        elif not is_compatible:
-            marker = " ⚠️ (Model incompatible)"
-        elif not has_quota:
+        if is_in_model_list and has_sufficient_quota:
+            marker = " ✅ (Recommended - model supports & quota sufficient)"
+        elif is_in_model_list and not has_sufficient_quota:
+            marker = f" ⚠️ (Model supports but need {required_cores} cores, only {available if available_families else 0} available)"
+        elif not is_in_model_list:
+            marker = " ❌ (Model does not support this SKU)"
+        elif not has_sufficient_quota:
             marker = " ❌ (No quota)"
             
         print(f" - {sku}{marker}")  
