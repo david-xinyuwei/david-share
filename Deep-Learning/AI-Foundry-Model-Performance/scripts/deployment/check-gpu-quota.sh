@@ -83,11 +83,11 @@ check_region() {
     local tmp_dir="$2"
     
     # Check VM quota usage for NC-series in this region
-    # Use case-insensitive matching for family names
+    # Match both StandardNCADSA100v4Family and StandardNCadsH100v5Family (note case differences)
     quota_info=$(az vm list-usage \
         --location "$region" \
         --output json 2>/dev/null | \
-        jq -r '.[] | select(.name.value | ascii_downcase | contains("ncadsa100v4family") or contains("ncadsh100v5family")) | "\(.name.value)|\(.currentValue)|\(.limit)"' 2>/dev/null)
+        jq -r '.[] | select(.name.value | test("Standard(NCADS|NCads)(A100v4|H100v5)Family"; "i")) | "\(.name.value)|\(.currentValue)|\(.limit)"' 2>/dev/null)
     
     if [ -n "$quota_info" ]; then
         # Parse quota info
