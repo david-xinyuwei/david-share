@@ -356,46 +356,58 @@ az deployment sub create \
 
 ---
 
-### Option 2: Manual Setup
+### 3️⃣ Performance Testing (Default Parameters)
 
-If you prefer manual setup or want more control over the deployment process, follow the detailed instructions in the sections below.
+> ⚠️ **Important Notes**:
+> 
+> - The test results in this section are for reference only. You need to use my script to conduct tests in your actual environment.
+> - In my performance testing script, timeout and retry mechanisms are configured. Specifically, if a task fails to complete within the timeout period (default is 90 seconds, which is same as the default value `request_settings.request_timeout_ms` in Endpoint), it will be marked as failed. Additionally, if a request encounters a 429 error during execution, it will trigger a backoff mechanism. If the 429 error occurs three consecutive times, the request will be marked as failed. When performing tests, you should adjust these parameters according to the requirements of your business scenario.
+> - When analyzing the test results, you need to consider multiple metrics, including request success rate, TTFT (Time to First Token), tokens/s, and TTFT again. You should not focus solely on a single indicator.
+> - All the tests in this section are based on the model-deployed Endpoint, without adjusting the `request_settings.max_concurrent_requests_per_instance` and `request_settings.request_timeout_ms` parameters.
+
+The primary goal of performance testing is to verify tokens/s and TTFT during the inference process. To better simulate real-world scenarios, I have set up several common LLM/SLM use cases in the test script. Additionally, to ensure tokens/s performance, the test script needs to load the corresponding model's tokenizer during execution (Refer to upper table of tokenizers name).
+
+#### Prerequisites for Testing
+
+Before officially starting the test, you need to log in to HuggingFace on your terminal.
+
+```bash
+huggingface-cli login
+```
 
 ---
 
-## 🚀 Deploying Models Methods
+<details>
+<summary><h4>📝 Phi Text2Text Series (Phi-4/Phi-3-small-8k-instruct)</h4></summary>
 
-In this repository, I focus on the performance of open-source AI models deployed using **Managed Compute** and **Azure AI Model Inference**.
+**Run the test script:**
 
-| Name                          | Azure OpenAI service                                         | Azure AI model inference                                     | Serverless API                                               | Managed compute                                              |
-| :---------------------------- | :----------------------------------------------------------- | :----------------------------------------------------------- | :----------------------------------------------------------- | :----------------------------------------------------------- |
-| Which models can be deployed? | [Azure OpenAI models](https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models) | [Azure OpenAI models and Models as a Service](https://learn.microsoft.com/en-us/azure/ai-foundry/model-inference/concepts/models) | [Models as a Service](https://learn.microsoft.com/en-us/azure/ai-foundry/how-to/model-catalog-overview#content-safety-for-models-deployed-via-serverless-apis) | [Open and custom models](https://learn.microsoft.com/en-us/azure/ai-foundry/how-to/model-catalog-overview#availability-of-models-for-deployment-as-managed-compute) |
-| Deployment resource           | Azure OpenAI resource                                        | Azure AI services resource                                   | AI project resource                                          | AI project resource                                          |
-| Best suited when              | You are planning to use only OpenAI models                   | You are planning to take advantage of the flagship models in Azure AI catalog, including OpenAI. | You are planning to use a single model from a specific provider (excluding OpenAI). | If you plan to use open models and you have enough compute quota available in your subscription. |
-| Billing bases                 | Token usage & PTU                                            | Token usage                                                  | Token usage                                                  | Compute core hours                                           |
-| Deployment instructions       | [Deploy to Azure OpenAI Service](https://learn.microsoft.com/en-us/azure/ai-foundry/how-to/deploy-models-openai) | [Deploy to Azure AI model inference](https://learn.microsoft.com/en-us/azure/ai-foundry/model-inference/how-to/create-model-deployments) | [Deploy to Serverless API](https://learn.microsoft.com/en-us/azure/ai-foundry/how-to/deploy-models-serverless) | [Deploy to Managed compute](https://learn.microsoft.com/en-us/azure/ai-foundry/how-to/deploy-models-managed) |
+```bash
+python scripts/testing/press-phi4-0403.py
+```
 
----
+https://github.com/user-attachments/assets/5560e1b8-22ea-4569-988e-7e361422ba0b
 
-## 📊 Performance Test of AI Models Deployed on Managed Compute in AML and AI Foundry
 
-In this section, we focus on the models deployed on Managed Compute in the Model Catalogue on AML and AI Foundry.
 
-![images](https://github.com/xinyuwei-david/AI-Foundry-Model-Performance/blob/main/images/19.png)
+**Interactive Input Example:**
 
-Next, we will use a Python script to automate the deployment of the model and use another program to evaluate the model's performance.
+```text
+Please enter the API service URL: https://david-workspace-westeurop-ldvdq.westeurope.inference.ml.azure.com/score
+Please enter the API Key: Ef9DFpATsXs4NiWyoVhEXeR4PWPvFy17xcws5ySCvV2H8uOUfgV4JQQJ99BCAAAAAAAAAAAAINFRAZML3eIO
+Please enter the full name of the HuggingFace model for tokenizer loading: microsoft/phi-4
+Tokenizer loaded successfully: microsoft/phi-4
+```
 
-### 🎯 Fast Deploy AI Model on Model Catalog via Azure GPU VM
+##### Test Result Analysis
 
-#### Supported Models and VM SKUs
+**microsoft/phi-4**
 
-By now, the AML names tested in this repo, their full names on Hugging Face, and the Azure GPU VM SKUs that can be deployed on AML are as follows.
+**Concurrency = 1**
 
-| **Model Name on AML**                         | **Model on HF** (tokenizers name)             | **Azure GPU VM SKU Support in AML**              |
-| --------------------------------------------- | --------------------------------------------- | ------------------------------------------------ |
-| Phi-4                                         | microsoft/phi-4                               | NC24/48/96 A100                                  |
-| Phi-3.5-vision-instruct                       | microsoft/Phi-3.5-vision-instruct             | NC24/48/96 A100                                  |
-| financial-reports-analysis                    |                                               | NC24/48/96 A100                                  |
-| Llama-3.2-11B-Vision-Instruct                 | meta-llama/Llama-3.2-11B-Vision-Instruct      | NC24/48/96 A100                                  |
+| Scenario                 | VM 1 (1-nc48) TTFT (s) | VM 2 (2-nc24) TTFT (s) | VM 3 (1-nc24) TTFT (s) | VM 1 (1-nc48) tokens/s | VM 2 (2-nc24) tokens/s | VM 3 (1-nc24) tokens/s |
+| ------------------------ | ---------------------- | ---------------------- | ---------------------- | ---------------------- | ---------------------- | ---------------------- |
+| **Text Generation**      | 12.473                 | 19.546                 | 19.497                 | 68.07                  | 44.66                  | 44.78                  |                 | meta-llama/Llama-3.2-11B-Vision-Instruct      | NC24/48/96 A100                                  |
 | Phi-3-small-8k-instruct                       | microsoft/Phi-3-small-8k-instruct             | NC24/48/96 A100                                  |
 | Phi-3-vision-128k-instruct                    | microsoft/Phi-3-vision-128k-instruct          | NC48 A100 or NC96 A100                           |
 | microsoft-swinv2-base-patch4-window12-192-22k | microsoft/swinv2-base-patch4-window12-192-22k | NC24/48/96 A100                                  |
