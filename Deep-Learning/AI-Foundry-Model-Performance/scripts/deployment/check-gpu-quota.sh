@@ -45,26 +45,26 @@ echo "  Name: $SUBSCRIPTION_NAME"
 echo "  ID:   $SUBSCRIPTION_ID"
 echo ""
 
-# Common GPU regions to check (based on deploymodels script)
-REGIONS_TO_CHECK=(
-    "eastus"
-    "eastus2"
-    "westus2"
-    "westus3"
-    "centralus"
-    "northcentralus"
-    "southcentralus"
-    "westeurope"
-    "northeurope"
-    "uksouth"
-    "japaneast"
-    "australiaeast"
-    "southeastasia"
-    "swedencentral"
-    "polandcentral"
-)
+# Dynamically get ALL available regions from Azure
+echo -e "${BLUE}[INFO]${NC} Fetching all available Azure regions..."
+ALL_REGIONS=$(az account list-locations --query "[].name" -o tsv 2>/dev/null)
 
-echo -e "${BLUE}[INFO]${NC} Checking GPU quota for NC-series (A100/H100) in key regions..."
+if [ -z "$ALL_REGIONS" ]; then
+    echo -e "${RED}[ERROR]${NC} Failed to fetch regions from Azure"
+    exit 1
+fi
+
+# Convert to array
+REGIONS_TO_CHECK=()
+while IFS= read -r region; do
+    REGIONS_TO_CHECK+=("$region")
+done <<< "$ALL_REGIONS"
+
+REGION_COUNT=${#REGIONS_TO_CHECK[@]}
+echo -e "${GREEN}[SUCCESS]${NC} Found $REGION_COUNT regions to check"
+echo ""
+
+echo -e "${BLUE}[INFO]${NC} Checking GPU quota for NC-series (A100/H100) in ALL Azure regions..."
 echo ""
 echo "Using parallel execution to speed up checks (max 10 concurrent regions)..."
 echo ""
