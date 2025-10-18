@@ -181,13 +181,6 @@ echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━�
 echo "=========================================================================="
 echo ""
 
-# Get the first region with GPU quota (for azd auto-configuration)
-FIRST_GPU_REGION=""
-for region in "${!REGIONS_WITH_QUOTA[@]}"; do
-    FIRST_GPU_REGION="$region"
-    break
-done
-
 # Save results to file for later reference
 RESULTS_FILE=".gpu-quota-check-results.txt"
 cat > "$RESULTS_FILE" <<EOF
@@ -207,17 +200,63 @@ done
 echo -e "${GREEN}[INFO]${NC} Results saved to: $RESULTS_FILE"
 echo ""
 
-# Save recommended region for azd
-if [ -n "$FIRST_GPU_REGION" ]; then
-    echo "$FIRST_GPU_REGION" > .recommended-region
-    echo -e "${GREEN}[INFO]${NC} Recommended region saved for azd: $FIRST_GPU_REGION"
-    echo ""
-    echo -e "${YELLOW}Next step:${NC}"
-    echo "  Run: azd up"
-    echo "  (Location will be auto-set to: $FIRST_GPU_REGION)"
-else
+# Determine recommended region based on number of regions with quota
+REGION_COUNT=${#REGIONS_WITH_QUOTA[@]}
+SELECTED_REGION=""
+
+if [ $REGION_COUNT -eq 0 ]; then
     echo -e "${RED}[ERROR]${NC} No GPU quota available. Cannot proceed with deployment."
     echo ""
+    exit 1
+elif [ $REGION_COUNT -eq 1 ]; then
+    # Only one region available - auto-select it
+    for region in "${!REGIONS_WITH_QUOTA[@]}"; do
+        SELECTED_REGION="$region"
+        break
+    done
+    echo -e "${GREEN}[INFO]${NC} Only one region with GPU quota available: $SELECTED_REGION"
+    echo -e "${GREEN}[INFO]${NC} Automatically selected for deployment"
+else
+    # Multiple regions available - let user choose
+    echo -e "${YELLOW}[SELECTION REQUIRED]${NC} Multiple regions have GPU quota available."
+    echo ""
+    echo "Available regions:"
+    
+    # Create indexed array of regions
+    AVAILABLE_REGIONS=()
+    INDEX=1
+    for region in "${!REGIONS_WITH_QUOTA[@]}"; do
+        AVAILABLE_REGIONS+=("$region")
+        echo "  $INDEX. $region"
+        INDEX=$((INDEX + 1))
+    done
+    
+    echo ""
+    echo -n "Enter the number of your preferred region (1-${#AVAILABLE_REGIONS[@]}): "
+    read -r REGION_CHOICE
+    
+    # Validate input
+    if [[ "$REGION_CHOICE" =~ ^[0-9]+$ ]] && [ "$REGION_CHOICE" -ge 1 ] && [ "$REGION_CHOICE" -le "${#AVAILABLE_REGIONS[@]}" ]; then
+        SELECTED_REGION="${AVAILABLE_REGIONS[$((REGION_CHOICE - 1))]}"
+        echo -e "${GREEN}[INFO]${NC} You selected: $SELECTED_REGION"
+    else
+        echo -e "${RED}[ERROR]${NC} Invalid selection. Using first region: ${AVAILABLE_REGIONS[0]}"
+        SELECTED_REGION="${AVAILABLE_REGIONS[0]}"
+    fi
+fi
+
+# Save selected region for azd
+if [ -n "$SELECTED_REGION" ]; then
+    echo "$SELECTED_REGION" > .recommended-region
+    echo ""
+    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${YELLOW}Next Step:${NC}"
+    echo ""
+    echo "  Run: ${GREEN}azd up${NC}"
+    echo ""
+    echo "  ✓ Location will be automatically set to: ${GREEN}$SELECTED_REGION${NC}"
+    echo "  ✓ No manual location selection needed"
+    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 fi
 
 echo "=========================================================================="
