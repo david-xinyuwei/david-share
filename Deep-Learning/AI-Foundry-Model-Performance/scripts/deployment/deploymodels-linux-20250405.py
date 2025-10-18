@@ -571,6 +571,7 @@ def main():
             "Standard_NC96ads_A100_v4": 96,
             "Standard_NC40ads_H100_v5": 40,
             "Standard_NC80ads_H100_v5": 80,
+            "Standard_NC80adis_H100_v5": 80,  # Note: Azure sometimes returns NC80adis instead of NC80ads
             "Standard_ND96isr_H100_v5": 96,
             "Standard_ND96asr_v4": 96,
             "Standard_ND96amsr_A100_v4": 96,
@@ -597,6 +598,7 @@ def main():
                             has_usable_sku = True
                         else:
                             print(f"   ❌ {sku} (requires {required_cores} cores, only {available} available)")
+                        break  # Found the matching family, stop searching
         
         if not has_usable_sku:
             print("\n   ⚠️  WARNING: No model-supported SKU has sufficient quota!")
@@ -639,26 +641,44 @@ def main():
     print("Available SKUs (for reference):")  
     for sku in INSTANCE_TYPES:  
         # Check if this SPECIFIC SKU is in the model's supported list
-        is_in_model_list = supported_skus and sku in supported_skus
+        # Note: Azure might return NC80adis instead of NC80ads, need fuzzy match
+        is_in_model_list = False
+        if supported_skus:
+            # Exact match first
+            if sku in supported_skus:
+                is_in_model_list = True
+            # Fuzzy match for NC80ads vs NC80adis variation
+            elif sku == "Standard_NC80ads_H100_v5" and "Standard_NC80adis_H100_v5" in supported_skus:
+                is_in_model_list = True
+            elif sku == "Standard_NC80adis_H100_v5" and "Standard_NC80ads_H100_v5" in supported_skus:
+                is_in_model_list = True
         
         # Check if we have enough quota for this SPECIFIC SKU
         required_cores = sku_core_requirements.get(sku, 999)
         sku_family = "A100" if "A100" in sku else "H100" if "H100" in sku else "Unknown"
         has_sufficient_quota = False
+        available_cores = 0
+        
         if available_families:
             for family, available, limit in available_families:
-                if family == sku_family and available >= required_cores:
-                    has_sufficient_quota = True
+                if family == sku_family:
+                    available_cores = available
+                    if available >= required_cores:
+                        has_sufficient_quota = True
                     break
         
         marker = ""
         if is_in_model_list and has_sufficient_quota:
             marker = " ✅ (Recommended - model supports & quota sufficient)"
         elif is_in_model_list and not has_sufficient_quota:
-            marker = f" ⚠️ (Model supports but need {required_cores} cores, only {available if available_families else 0} available)"
-        elif not is_in_model_list:
-            marker = " ❌ (Model does not support this SKU)"
-        elif not has_sufficient_quota:
+            marker = f" ⚠️ (Model supports but need {required_cores} cores, only {available_cores} available)"
+        elif not is_in_model_list and sku_family != "Unknown":
+            # Check if we have quota for this family
+            if available_cores > 0:
+                marker = f" ❌ (Not in model's supported SKU list, but {available_cores} {sku_family} cores available)"
+            else:
+                marker = " ❌ (Model does not support this SKU)"
+        else:
             marker = " ❌ (No quota)"
             
         print(f" - {sku}{marker}")  
