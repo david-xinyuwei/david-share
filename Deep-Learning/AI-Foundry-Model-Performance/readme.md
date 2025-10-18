@@ -122,14 +122,14 @@ This repository provides comprehensive performance evaluation tools for Azure AI
    ↓
 3. Quick Cleanup (Delete endpoints)
    ↓
-4. Performance Testing (Default parameters)
+4. Performance Testing 
    ↓
 5. Cleanup (Delete all resources)
 ```
 
 ---
 
-### 1️⃣ Infrastructure Setup
+### 1️ Infrastructure Setup
 
 #### Deploy with Azure Developer CLI (azd)
 
@@ -173,7 +173,7 @@ Skip `azd up` if you already have an Azure ML workspace. The deployment script w
 
 ---
 
-### 2️⃣ Model Deployment
+### 2️ Model Deployment
 
 | **Model Name on AML**                         | **Model on HF** (tokenizers name)             | **Azure GPU VM SKU Support in AML**              |
 | --------------------------------------------- | --------------------------------------------- | ------------------------------------------------ |
@@ -232,7 +232,7 @@ https://github.com/user-attachments/assets/8be25ceb-6c47-45b3-bfa6-34dbc79f6732
 
 ---
 
-### 4️⃣ Performance Testing 
+### 3 Parameters Tuning
 
 > ⚠️ **Notes**:
 > - Test results are for reference only. Use the provided scripts to test in your environment.
@@ -291,7 +291,7 @@ az ml online-deployment show \
 
 https://github.com/user-attachments/assets/8bd23c08-6937-4f3b-93d1-a7f3b3e2abd9
 
-#### 4️⃣ Performance Test
+#### 4️ Performance Test
 
 Before officially starting the test, you need to log in to HuggingFace on your terminal.
 
