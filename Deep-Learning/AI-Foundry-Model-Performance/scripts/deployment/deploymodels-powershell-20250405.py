@@ -103,6 +103,32 @@ INSTANCE_TYPES = [
     "Standard_NC80ads_H100_v5"  
 ]
 
+# Model SKU compatibility mapping
+# Based on actual Azure deployment constraints
+MODEL_SKU_COMPATIBILITY = {
+    "Phi-4": ["A100", "H100"],  # Supports both
+    "Phi-4-mini-instruct": ["A100"],  # Only A100
+    "Phi-3.5-vision-instruct": ["A100"],
+    "Phi-3-vision-128k-instruct": ["A100"],
+    "Phi-3-small-8k-instruct": ["A100", "H100"],
+    "financial-reports-analysis": ["A100"],
+    "Llama-3.2-11B-Vision-Instruct": ["A100"],
+    "mistralai-Mixtral-8x7B-Instruct-v01": ["A100"],
+    "Nemotron-3-8B-Chat-4k-SteerLM": ["A100"],
+    "microsoft-Orca-2-7b": ["A100"],
+    # Add more models as needed, default to A100 if not listed
+}
+
+def get_model_compatible_skus(model_name):
+    """Get compatible GPU families for a given model."""
+    # Check if model is in compatibility map
+    for key in MODEL_SKU_COMPATIBILITY:
+        if key.lower() in model_name.lower():
+            return MODEL_SKU_COMPATIBILITY[key]
+    # Default to A100 only if model not found
+    logger.warning(f"Model '{model_name}' not in compatibility map, defaulting to A100 only")
+    return ["A100"]
+
 def check_current_region_quota(subscription_id, resource_group, workspace_name):
     """Check quota in the workspace's region and return available SKU families."""
     try:
@@ -404,21 +430,56 @@ def main():
   
     logger.info(f"User-specified model: name='{model_name}', version='{model_version}'")  
   
-    # 5) Check current workspace region quota
+    # 5) Check model compatibility
+    model_compatible_families = get_model_compatible_skus(model_name)
+    logger.info(f"Model '{model_name}' is compatible with: {model_compatible_families}")
+  
+    # 6) Check current workspace region quota
     region, available_families = check_current_region_quota(
         subscription_id, resource_group, workspace_name
     )
+    
+    # 7) Find intersection: what the model supports AND what quota is available
+    compatible_and_available = []
+    if available_families:
+        available_family_names = [f[0] for f in available_families]
+        compatible_and_available = [
+            (family, avail, limit) 
+            for family, avail, limit in available_families 
+            if family in model_compatible_families
+        ]
   
-    # 6) Display available SKU information with quota hints
+    # 8) Display comprehensive SKU information
     print("\n========== A100 / H100 SKU Information ==========")
     if region:
         print(f"📍 Workspace Location: {region}")
+    
+    print(f"\n🔧 Model '{model_name}' supports: {', '.join(model_compatible_families)} GPUs")
+    
     if available_families:
-        print(f"✅ Available GPU Quota in this region:")
+        print(f"\n✅ Available GPU Quota in this region:")
         for family, available, limit in available_families:
+            compat_marker = "✅" if family in model_compatible_families else "⚠️ (not compatible with this model)"
+            print(f"   - {family}: {available}/{limit} cores available {compat_marker}")
+    else:
+        print("\n⚠️  Could not detect quota information")
+    
+    if compatible_and_available:
+        print(f"\n🎯 COMPATIBLE & AVAILABLE (recommended for this model):")
+        for family, available, limit in compatible_and_available:
             print(f"   - {family}: {available}/{limit} cores available")
     else:
-        print("⚠️  Could not detect quota information")
+        print(f"\n❌ WARNING: No GPU quota available that is compatible with model '{model_name}'!")
+        print(f"   Model needs: {', '.join(model_compatible_families)}")
+        if available_families:
+            available_names = [f[0] for f in available_families]
+            print(f"   Region has: {', '.join(available_names)}")
+        print("\n   Options:")
+        print("   1. Choose a different model that supports available GPUs")
+        print("   2. Request quota for compatible GPUs in this region")
+        print("   3. Deploy workspace to a region with compatible GPU quota")
+        print()
+    
     print()
     
     print(f"{'SKU Name':<35} {'GPU Count':<10} {'GPU Memory (VRAM)':<20} {'CPU Cores':<10}")  
@@ -438,24 +499,52 @@ def main():
     print("   bash scripts/deployment/check-gpu-quota.sh")
     print()
     
-    if available_families:
-        print("📌 Recommended SKUs based on your quota:")
+    # Show recommended SKUs based on BOTH quota availability AND model compatibility
+    if compatible_and_available:
+        print("📌 RECOMMENDED SKUs (compatible with model AND have quota):")
+        for family, available, limit in compatible_and_available:
+            if family == "A100":
+                if available >= 24:
+                    print("   ✅ Standard_NC24ads_A100_v4 (requires 24 CPU cores)")
+                if available >= 48:
+                    print("   ✅ Standard_NC48ads_A100_v4 (requires 48 CPU cores)")
+                if available >= 96:
+                    print("   ✅ Standard_NC96ads_A100_v4 (requires 96 CPU cores)")
+            elif family == "H100":
+                if available >= 40:
+                    print("   ✅ Standard_NC40ads_H100_v5 (requires 40 CPU cores)")
+                if available >= 80:
+                    print("   ✅ Standard_NC80ads_H100_v5 (requires 80 CPU cores)")
+        print()
+    elif available_families:
+        # Have quota but not compatible with model
+        print("⚠️  SKUs with available quota (but may NOT be compatible with this model):")
         for family, available, limit in available_families:
             if family == "A100":
-                print("   - Standard_NC24ads_A100_v4 (requires 24 CPU cores)")
-                if available >= 48:
-                    print("   - Standard_NC48ads_A100_v4 (requires 48 CPU cores)")
-                if available >= 96:
-                    print("   - Standard_NC96ads_A100_v4 (requires 96 CPU cores)")
+                print(f"   - Standard_NC24ads_A100_v4 (A100 - check model compatibility)")
+                print(f"   - Standard_NC48ads_A100_v4 (A100 - check model compatibility)")
+                print(f"   - Standard_NC96ads_A100_v4 (A100 - check model compatibility)")
             elif family == "H100":
-                print("   - Standard_NC40ads_H100_v5 (requires 40 CPU cores)")
-                if available >= 80:
-                    print("   - Standard_NC80ads_H100_v5 (requires 80 CPU cores)")
+                print(f"   - Standard_NC40ads_H100_v5 (H100 - check model compatibility)")
+                print(f"   - Standard_NC80ads_H100_v5 (H100 - check model compatibility)")
         print()
     
-    print("Available SKUs:")  
+    print("Available SKUs (for reference):")  
     for sku in INSTANCE_TYPES:  
-        print(f" - {sku}")  
+        # Mark which ones are actually usable
+        sku_family = "A100" if "A100" in sku else "H100" if "H100" in sku else "Unknown"
+        is_compatible = sku_family in model_compatible_families
+        has_quota = any(f[0] == sku_family and f[1] > 0 for f in available_families) if available_families else False
+        
+        marker = ""
+        if is_compatible and has_quota:
+            marker = " ✅ (Recommended)"
+        elif not is_compatible:
+            marker = " ⚠️ (Model incompatible)"
+        elif not has_quota:
+            marker = " ❌ (No quota)"
+            
+        print(f" - {sku}{marker}")  
     print()  
   
     instance_type = input("Enter the SKU to use: ").strip()  
