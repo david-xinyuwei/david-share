@@ -123,15 +123,19 @@ python scripts/deployment/deploymodels-linux-20250405.py
 #   ✓ Resource groups created by azd up
 #   ✓ ML workspaces in those resource groups
 # Just press 'Y' to confirm - no manual typing of long GUIDs or names!
+# ⚡ Optimized: Quota check removed from deployment script for faster execution
+#    (quota was already checked in step 4 by check-gpu-quota.sh)
 
-> 📝 **Important Note on GPU Quota Types**:
+> 📝 **Important Note on GPU Quota Checking**:
 > 
-> Azure has two types of GPU quotas that may show different results:
+> Azure has two types of GPU quotas:
 > 
-> 1. **VM Quota** (`az vm list-usage`) - Used by `check-gpu-quota.sh` for general VM deployment
-> 2. **ML Compute Quota** (`az ml compute list-usage`) - Used by deployment scripts for AML managed compute
+> 1. **VM Quota** (`az vm list-usage`) - For general VM deployment
+> 2. **ML Compute Quota** (`az ml compute list-usage`) - For AML managed compute
 > 
-> The `check-gpu-quota.sh` script now checks BOTH types and prioritizes ML Compute quota if ML workspaces exist. If you see different quotas between the two scripts, this is normal - they're checking different quota pools.
+> The `check-gpu-quota.sh` script (step 4) checks BOTH types across all regions in parallel.
+> The deployment script no longer checks quota to avoid 80-120 seconds of serial API calls.
+> If you need to verify quota again, simply run: `bash scripts/deployment/check-gpu-quota.sh`
 ```
 
 > 💡 **Common Issue**: If you see `ERR_CONNECTION_REFUSED` or browser doesn't open, you're on a remote server. Use `azd auth login --use-device-code` instead.

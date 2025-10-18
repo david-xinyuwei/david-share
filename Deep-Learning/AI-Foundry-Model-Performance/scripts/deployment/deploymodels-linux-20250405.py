@@ -358,10 +358,7 @@ def main():
   
     logger.info(f"User-specified model: name='{model_name}', version='{model_version}'")  
   
-    # 5) (Optional) Query GPU quotas  
-    check_gpu_quota(resource_group, workspace_name)  
-  
-    # 6) Display available SKU information  
+    # 5) Display available SKU information (quota check removed for speed)  
     print("\n========== A100 / H100 SKU Information ==========")  
     print(f"{'SKU Name':<35} {'GPU Count':<10} {'GPU Memory (VRAM)':<20} {'CPU Cores':<10}")  
     print(f"{'-'*35} {'-'*10} {'-'*20} {'-'*10}")  
@@ -375,6 +372,11 @@ def main():
     for sku, gpu_count, vram, cpu_cores in sku_table:  
         print(f"{sku:<35} {gpu_count:<10} {vram:<20} {cpu_cores:<10}")  
     print()  
+    
+    print("💡 Tip: To check GPU quota across all regions, run:")
+    print("   bash scripts/deployment/check-gpu-quota.sh")
+    print()
+    
     print("Available SKUs:")  
     for sku in INSTANCE_TYPES:  
         print(f" - {sku}")  
