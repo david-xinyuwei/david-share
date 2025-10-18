@@ -40,7 +40,7 @@ targetScope = 'subscription'
   'centralindia'
   'westindia'
 ])
-param location string
+param location string = readEnvironmentVariable('AZURE_LOCATION', 'eastus')
 
 @description('Id of the user or app to assign application roles')
 param principalId string = ''
