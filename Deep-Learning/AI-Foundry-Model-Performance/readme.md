@@ -114,6 +114,15 @@ bash scripts/deployment/check-gpu-quota.sh
 # 5. Deploy infrastructure with azd (location is auto-configured)
 azd up
 # The location is automatically set from step 4 - no manual selection needed!
+# This will create: resource group, workspace, storage, key vault, etc.
+
+# 6. Deploy models (with auto-detection of created resources)
+python scripts/deployment/deploymodels-linux-20250405.py
+# The script will automatically detect and list:
+#   ✓ Your subscription (from az login)
+#   ✓ Resource groups created by azd up
+#   ✓ ML workspaces in those resource groups
+# Just press 'Y' to confirm - no manual typing of long GUIDs or names!
 
 > 📝 **Important Note on GPU Quota Types**:
 > 
