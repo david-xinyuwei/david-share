@@ -149,18 +149,46 @@ cd Deep-Learning/AI-Foundry-Model-Performance
 # macOS: brew tap azure/azd && brew install azd
 # Linux: curl -fsSL https://aka.ms/install-azd.sh | bash
 
-# 3. Login to Azure
+# 3. Create Python environment and install dependencies
+conda create -n aml_env python=3.9 -y
+conda activate aml_env
+pip install -r requirements.txt
+
+# 4. Login to Azure
 az login
+
+# For interactive login (opens browser):
 azd auth login
 
-# 4. Check GPU quota (find regions with available GPU VMs)
-bash scripts/deployment/check-gpu-quota.sh
+# For remote server/SSH (without browser):
+azd auth login --use-device-code
+# This will show a code and URL. Open the URL on your local browser and enter the code.
 
-# 5. Deploy infrastructure (3-5 minutes)
+# 5. ⭐ IMPORTANT: Check GPU quota BEFORE deploying infrastructure
+bash scripts/deployment/check-gpu-quota.sh
+# This script checks all Azure regions for GPU availability (A100/H100)
+# It checks BOTH VM quota AND ML compute quota (if workspaces exist)
+# It will automatically save the recommended region
+# No need to manually select - azd will use it automatically!
+
+# 6. Deploy infrastructure with azd (location is auto-configured)
 azd up
+# The location is automatically set from step 5 - no manual selection needed!
+# This will create: resource group, workspace, storage, key vault, etc.
 ```
 
-**What gets deployed:**
+> 📝 **Important Note on GPU Quota Checking**:
+> 
+> Azure has two types of GPU quotas:
+> 
+> 1. **VM Quota** (`az vm list-usage`) - For general VM deployment
+> 2. **ML Compute Quota** (`az ml compute list-usage`) - For AML managed compute
+> 
+> The `check-gpu-quota.sh` script (step 5) checks BOTH types across all regions in parallel.
+> The deployment script no longer checks quota to avoid 80-120 seconds of serial API calls.
+> If you need to verify quota again, simply run: `bash scripts/deployment/check-gpu-quota.sh`
+
+**What `azd up` creates:**
 - ✅ Resource Group
 - ✅ Azure ML Workspace
 - ✅ Storage Account
@@ -174,7 +202,7 @@ azd up
 
 #### Alternative: Use Existing Workspace
 
-If you already have an Azure ML workspace, you can skip `azd up` and proceed directly to model deployment.
+If you already have an Azure ML workspace, you can skip `azd up` and proceed directly to [Model Deployment](#2️⃣-model-deployment).
 
 The deployment script will auto-detect your existing workspace!
 
@@ -842,7 +870,8 @@ huggingface-cli login
 
 ---
 
-#### 📝 Phi Text2Text Series (Phi-4/Phi-3-small-8k-instruct)
+<details>
+<summary><h4>📝 Phi Text2Text Series (Phi-4/Phi-3-small-8k-instruct)</h4></summary>
 
 **Run the test script:**
 
@@ -920,9 +949,12 @@ Tokenizer loaded successfully: microsoft/phi-4
 
 > 📊 **Full original test results**: [Phi-3-small-8k-instruct-test-results.md](https://github.com/xinyuwei-david/AI-Foundry-Model-Performance/blob/main/testlogs/Phi-3-small-8k-instruct-test-results.md)
 
+</details>
+
 ---
 
-#### 🖼️ Phi Vision Series (Phi-3.5-vision-instruct/Phi-3-vision-128k-instruct)
+<details>
+<summary><h4>🖼️ Phi Vision Series (Phi-3.5-vision-instruct/Phi-3-vision-128k-instruct)</h4></summary>
 
 ```bash
 python scripts/testing/press-phi35and0v-20250323.py
@@ -962,7 +994,12 @@ python scripts/testing/press-phi35and0v-20250323.py
 | 9           | 5                   | 4               | 2.321            | 36.79                                 | 183.96                      | 8.952              |
 | 10          | 5                   | 5               | 2.466            | 36.55                                 | 182.77                      | 8.950              |
 
-#### **financial-reports-analysis Series test**
+</details>
+
+---
+
+<details>
+<summary><h4>📊 financial-reports-analysis Series test</h4></summary>
 
 ```bash
 python scripts/testing/press.financial-reports-analysis-20250321.py
@@ -1053,9 +1090,12 @@ Full original test results are here:
       
 ```
 
+</details>
+
 ---
 
-#### 📊 Llama-3.2-11B-Vision-Instruct (meta-llama/Llama-3.2-11B-Vision-Instruct)
+<details>
+<summary><h4>📊 Llama-3.2-11B-Vision-Instruct (meta-llama/Llama-3.2-11B-Vision-Instruct)</h4></summary>
 
 **Run the test script:**
 
@@ -1125,7 +1165,12 @@ python scripts/testing/press-llama3.211bv-20250407.py
 | Chatbot            | 3           | VM2 (2-NC-24) | 2                   | 1                            | 15.016       | 38.02                                 | 76.03                       | 19.312             |
 | Chatbot            | 3           | VM3 (1-NC-48) | 2                   | 1                            | 14.847       | 38.43                                 | 76.85                       | 19.080             |
 
-#### microsoft-swinv2-base-patch4-window12-192-22k Series 
+</details>
+
+---
+
+<details>
+<summary><h4>🖼️ microsoft-swinv2-base-patch4-window12-192-22k Series</h4></summary>
 
 ```bash
 python scripts/testing/press-swinv2-20250322.py
@@ -1184,9 +1229,12 @@ Full original test results are here:
 
 *https://github.com/xinyuwei-david/AI-Foundry-Model-Performance/blob/main/testlogs/swinv2-base-results.txt*
 
+</details>
 
+---
 
-#### mistralai-Mixtral-8x7B-Instruct-v01 Series 
+<details>
+<parameter name="summary"><h4>💬 mistralai-Mixtral-8x7B-Instruct-v01 Series</h4></summary>
 
 ```bash
 python scripts/testing/press-Mixtral-8x7B-20250323.py
@@ -1320,7 +1368,12 @@ Full original test results are here:
 
 *https://github.com/xinyuwei-david/AI-Foundry-Model-Performance/blob/main/testlogs/Mixtral-8x7B-Instruct-v0.1-result.txt*
 
-#### openai-whisper-large Series
+</details>
+
+---
+
+<details>
+<parameter name="summary"><h4>🎧 openai-whisper-large Series</h4></summary>
 
 **On NC48 VM**
 
@@ -1388,7 +1441,12 @@ Check eveny request's TTFT and completion time.
 | 10          | 4         | 2.009    | 2.009               |
 | 10          | 5         | 2.755    | 2.755               |
 
-#### Nemotron-3-8B-Chat-4k-SteerLM  Series
+</details>
+
+---
+
+<details>
+<summary><h4>⚡ Nemotron-3-8B-Chat-4k-SteerLM Series</h4></summary>
 
 ```bash
 python scripts/testing/press-nemotron-3-8b-chat-4k-steerlm-20250324.py
@@ -1642,9 +1700,12 @@ Full original test results are here:
 
 *https://github.com/xinyuwei-david/AI-Foundry-Model-Performance/blob/main/testlogs/motron-3-8b-chat-4k-steerlm-result.txt*
 
+</details>
 
+---
 
-#### microsoft-Orca-2-7b  Series
+<details>
+<summary><h4>🐋 microsoft-Orca-2-7b Series</h4></summary>
 
 ```bash
 python scripts/testing/press-orca-20250324.py
@@ -1776,7 +1837,9 @@ Full original test results are here:
 
 *https://github.com/xinyuwei-david/AI-Foundry-Model-Performance/blob/main/testlogs/orca-result.txt*
 
+</details>
 
+---
 
 ## Performance test on Azure AI model inference
 
