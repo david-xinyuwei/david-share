@@ -607,23 +607,38 @@ def main():
                 print(f"   You have: {available} {family} cores available")
         print()
     elif available_families:
-        # Have quota but model SKU list not available (fallback to generic recommendation)
+        # Have quota but model SKU list not available OR no compatible quota
+        # Only show SKUs that match BOTH available quota AND model compatibility
         print("📌 RECOMMENDED SKUs (based on available quota, verify model compatibility):")
+        has_recommendation = False
         for family, available, limit in available_families:
+            # Only recommend if this family is compatible with the model
+            if family not in model_compatible_families:
+                continue
+            
             if family == "A100":
                 if available >= 24:
                     print(f"   - Standard_NC24ads_A100_v4 (requires 24 cores, {available} available)")
+                    has_recommendation = True
                 if available >= 48:
                     print(f"   - Standard_NC48ads_A100_v4 (requires 48 cores, {available} available)")
+                    has_recommendation = True
                 if available >= 96:
                     print(f"   - Standard_NC96ads_A100_v4 (requires 96 cores, {available} available)")
+                    has_recommendation = True
             elif family == "H100":
                 if available >= 40:
                     print(f"   - Standard_NC40ads_H100_v5 (requires 40 cores, {available} available)")
+                    has_recommendation = True
                 if available >= 80:
                     print(f"   - Standard_NC80ads_H100_v5 (requires 80 cores, {available} available)")
+                    has_recommendation = True
                 if available >= 96:
                     print(f"   - Standard_ND96isr_H100_v5 (requires 96 cores, {available} available)")
+                    has_recommendation = True
+        
+        if not has_recommendation:
+            print("   ⚠️  No recommendations - available quota not compatible with model")
         print()
     else:
         # Have quota but not compatible with model (shouldn't reach here with new logic)
@@ -672,14 +687,18 @@ def main():
             marker = " ✅ (Recommended - model supports & quota sufficient)"
         elif is_in_model_list and not has_sufficient_quota:
             marker = f" ⚠️ (Model supports but need {required_cores} cores, only {available_cores} available)"
-        elif not is_in_model_list and sku_family != "Unknown":
-            # Check if we have quota for this family
-            if available_cores > 0:
-                marker = f" ❌ (Not in model's supported SKU list, but {available_cores} {sku_family} cores available)"
+        elif not is_in_model_list:
+            # SKU not in model's supported list
+            if sku_family in model_compatible_families and available_cores > 0:
+                # Model supports this GPU family, but not this specific SKU
+                marker = f" ❌ (Model supports {sku_family} but not this specific SKU)"
+            elif sku_family not in model_compatible_families:
+                # Model doesn't support this GPU family at all
+                marker = f" ❌ (Model does not support {sku_family} GPUs)"
             else:
-                marker = " ❌ (Model does not support this SKU)"
+                marker = " ❌ (No quota for this GPU family)"
         else:
-            marker = " ❌ (No quota)"
+            marker = " ❌ (Unknown status)"
             
         print(f" - {sku}{marker}")  
     print()  
