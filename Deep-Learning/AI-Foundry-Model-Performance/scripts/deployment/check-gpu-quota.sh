@@ -40,8 +40,25 @@ echo -e "${GREEN}✓${NC} Subscription: ${CYAN}$SUBSCRIPTION_NAME${NC}"
 echo "  ID: $SUBSCRIPTION_ID"
 echo ""
 
+# Find workspace (needed for quota check)
+echo -e "${BLUE}[1/4]${NC} Finding Azure ML workspace..."
+WS_INFO=$(az ml workspace list --subscription "$SUBSCRIPTION_ID" --query "[0]" -o json 2>/dev/null)
+
+if [ -z "$WS_INFO" ] || [ "$WS_INFO" = "[]" ]; then
+    echo -e "${RED}[ERROR]${NC} No Azure ML workspace found in subscription"
+    echo "  Create one with: az ml workspace create"
+    exit 1
+fi
+
+WS_NAME=$(echo "$WS_INFO" | jq -r '.name')
+WS_RG=$(echo "$WS_INFO" | jq -r '.resource_group')
+
+echo -e "${GREEN}✓${NC} Using workspace: ${CYAN}$WS_NAME${NC}"
+echo "  Resource Group: $WS_RG"
+echo ""
+
 # Get all regions
-echo -e "${BLUE}[1/3]${NC} Fetching all Azure regions..."
+echo -e "${BLUE}[2/4]${NC} Fetching all Azure regions..."
 ALL_REGIONS=$(az account list-locations --query "[].name" -o tsv 2>/dev/null)
 
 if [ -z "$ALL_REGIONS" ]; then
@@ -59,7 +76,7 @@ TOTAL_REGIONS=${#REGIONS_TO_CHECK[@]}
 echo -e "${GREEN}✓${NC} Found $TOTAL_REGIONS regions to scan"
 echo ""
 
-echo -e "${BLUE}[2/3]${NC} Scanning for GPU quota (A100/H100)..."
+echo -e "${BLUE}[3/4]${NC} Scanning for GPU quota (A100/H100)..."
 echo "  Strategy: 30 parallel checks with 10s timeout per region"
 echo "  Time: ~60-90 seconds"
 echo ""
@@ -72,12 +89,16 @@ trap "rm -f $RESULTS_FILE" EXIT
 check_region() {
     local region=$1
     local subscription=$2
+    local ws_name=$3
+    local ws_rg=$4
     
     # 10-second timeout for fast scanning
+    # CRITICAL: Must include workspace parameters for quota visibility!
     quota=$(timeout 10s az ml compute list-usage \
+        --resource-group "$ws_rg" \
+        --workspace-name "$ws_name" \
         --location "$region" \
-        --subscription "$subscription" \
-        2>/dev/null | grep -E "Standard_NC|Standard_ND" || true)
+        2>&1 | grep -E "Standard_NC|Standard_ND" || true)
     
     if [ -z "$quota" ]; then
         return  # No GPU quota, skip silently
@@ -111,7 +132,7 @@ active_jobs=0
 checked=0
 
 for region in "${REGIONS_TO_CHECK[@]}"; do
-    check_region "$region" "$SUBSCRIPTION_ID" &
+    check_region "$region" "$SUBSCRIPTION_ID" "$WS_NAME" "$WS_RG" &
     ((active_jobs++))
     ((checked++))
     
@@ -135,7 +156,7 @@ echo -e "${BLUE}  Progress:${NC} $TOTAL_REGIONS/$TOTAL_REGIONS regions (100%)"
 echo ""
 
 # Display results
-echo -e "${BLUE}[3/3]${NC} Results - Regions with GPU quota:"
+echo -e "${BLUE}[4/4]${NC} Results - Regions with GPU quota:"
 echo "=========================================================================="
 
 if [ ! -s "$RESULTS_FILE" ]; then
