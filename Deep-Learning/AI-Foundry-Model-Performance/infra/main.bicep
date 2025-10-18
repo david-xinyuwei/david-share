@@ -48,17 +48,41 @@ param principalId string = ''
 @description('Environment name - used as suffix for resource naming (e.g., dev, test, prod)')
 param environmentName string = 'dev'
 
-@description('Name of the resource group')
-param resourceGroupName string = 'rg-ai-foundry-perf-${location}-${environmentName}'
+// Helper function to get short region code (max 6 chars)
+var locationCode = {
+  eastus: 'eus'
+  eastus2: 'eus2'
+  westus: 'wus'
+  westus2: 'wus2'
+  westus3: 'wus3'
+  centralus: 'cus'
+  southcentralus: 'scus'
+  northcentralus: 'ncus'
+  westeurope: 'weu'
+  northeurope: 'neu'
+  uksouth: 'uks'
+  japaneast: 'jpe'
+  australiaeast: 'aue'
+  southeastasia: 'sea'
+  eastasia: 'ea'
+  swedencentral: 'swe'
+  polandcentral: 'pol'
+  canadacentral: 'cac'
+  brazilsouth: 'brs'
+  southindia: 'sin'
+}[location]
 
-@description('Name of the Azure ML workspace')
-param mlWorkspaceName string = 'mlw-ai-foundry-perf-${location}-${environmentName}'
+@description('Name of the resource group')
+param resourceGroupName string = 'rg-aif-${locationCode}-${environmentName}'
+
+@description('Name of the Azure ML workspace - max 33 chars, uses short location code')
+param mlWorkspaceName string = 'mlw-aif-${locationCode}-${environmentName}'
 
 @description('Name of the Application Insights instance')
-param appInsightsName string = 'appi-ai-foundry-perf-${location}-${environmentName}'
+param appInsightsName string = 'appi-aif-${locationCode}-${environmentName}'
 
 @description('Name of the Log Analytics workspace')
-param logAnalyticsName string = 'log-ai-foundry-perf-${location}-${environmentName}'
+param logAnalyticsName string = 'log-aif-${locationCode}-${environmentName}'
 
 @description('Name of the Key Vault (uses uniqueString for global uniqueness)')
 param keyVaultName string = 'kv-${uniqueString(subscription().subscriptionId, resourceGroupName, location)}'
