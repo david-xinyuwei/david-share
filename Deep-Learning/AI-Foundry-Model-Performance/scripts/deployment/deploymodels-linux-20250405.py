@@ -560,25 +560,71 @@ def main():
     print("   bash scripts/deployment/check-gpu-quota.sh")
     print()
     
-    # Show recommended SKUs based on BOTH quota availability AND model compatibility
-    if compatible_and_available:
-        print("📌 RECOMMENDED SKUs (compatible with model AND have quota):")
-        for family, available, limit in compatible_and_available:
-            if family == "A100":
-                if available >= 24:
-                    print("   ✅ Standard_NC24ads_A100_v4 (requires 24 CPU cores)")
-                if available >= 48:
-                    print("   ✅ Standard_NC48ads_A100_v4 (requires 48 CPU cores)")
-                if available >= 96:
-                    print("   ✅ Standard_NC96ads_A100_v4 (requires 96 CPU cores)")
-            elif family == "H100":
-                if available >= 40:
-                    print("   ✅ Standard_NC40ads_H100_v5 (requires 40 CPU cores)")
-                if available >= 80:
-                    print("   ✅ Standard_NC80ads_H100_v5 (requires 80 CPU cores)")
+    # Show recommended SKUs based on actual model support AND quota availability
+    if supported_skus and compatible_and_available:
+        print("📌 RECOMMENDED SKUs (model supports AND have quota):")
+        
+        # Map of SKU to required cores
+        sku_core_requirements = {
+            "Standard_NC24ads_A100_v4": 24,
+            "Standard_NC48ads_A100_v4": 48,
+            "Standard_NC96ads_A100_v4": 96,
+            "Standard_NC40ads_H100_v5": 40,
+            "Standard_NC80ads_H100_v5": 80,
+            "Standard_ND96isr_H100_v5": 96,
+            "Standard_ND96asr_v4": 96,
+            "Standard_ND96amsr_A100_v4": 96,
+        }
+        
+        # Check each model-supported SKU against available quota
+        has_usable_sku = False
+        for sku in supported_skus:
+            required_cores = sku_core_requirements.get(sku, 999)  # Default to high number if unknown
+            
+            # Determine GPU family for this SKU
+            sku_family = None
+            if "A100" in sku:
+                sku_family = "A100"
+            elif "H100" in sku:
+                sku_family = "H100"
+            
+            # Check if we have quota for this family
+            if sku_family:
+                for family, available, limit in compatible_and_available:
+                    if family == sku_family:
+                        if available >= required_cores:
+                            print(f"   ✅ {sku} (requires {required_cores} cores, {available} available)")
+                            has_usable_sku = True
+                        else:
+                            print(f"   ❌ {sku} (requires {required_cores} cores, only {available} available)")
+        
+        if not has_usable_sku:
+            print("\n   ⚠️  WARNING: No model-supported SKU has sufficient quota!")
+            print(f"   Model needs one of: {', '.join(supported_skus[:3])}{'...' if len(supported_skus) > 3 else ''}")
+            for family, available, limit in compatible_and_available:
+                print(f"   You have: {available} {family} cores available")
         print()
     elif available_families:
-        # Have quota but not compatible with model
+        # Have quota but model SKU list not available (fallback to generic recommendation)
+        print("📌 RECOMMENDED SKUs (based on available quota, verify model compatibility):")
+        for family, available, limit in available_families:
+            if family == "A100":
+                if available >= 24:
+                    print(f"   - Standard_NC24ads_A100_v4 (requires 24 cores, {available} available)")
+                if available >= 48:
+                    print(f"   - Standard_NC48ads_A100_v4 (requires 48 cores, {available} available)")
+                if available >= 96:
+                    print(f"   - Standard_NC96ads_A100_v4 (requires 96 cores, {available} available)")
+            elif family == "H100":
+                if available >= 40:
+                    print(f"   - Standard_NC40ads_H100_v5 (requires 40 cores, {available} available)")
+                if available >= 80:
+                    print(f"   - Standard_NC80ads_H100_v5 (requires 80 cores, {available} available)")
+                if available >= 96:
+                    print(f"   - Standard_ND96isr_H100_v5 (requires 96 cores, {available} available)")
+        print()
+    else:
+        # Have quota but not compatible with model (shouldn't reach here with new logic)
         print("⚠️  SKUs with available quota (but may NOT be compatible with this model):")
         for family, available, limit in available_families:
             if family == "A100":
