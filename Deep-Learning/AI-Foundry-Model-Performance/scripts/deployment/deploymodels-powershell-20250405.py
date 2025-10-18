@@ -103,28 +103,83 @@ INSTANCE_TYPES = [
     "Standard_NC80ads_H100_v5"  
 ]
 
-# Model SKU compatibility mapping
-# Based on actual Azure deployment constraints
-MODEL_SKU_COMPATIBILITY = {
-    "Phi-4": ["A100", "H100"],  # Supports both
-    "Phi-4-mini-instruct": ["A100"],  # Only A100
-    "Phi-3.5-vision-instruct": ["A100"],
-    "Phi-3-vision-128k-instruct": ["A100"],
-    "Phi-3-small-8k-instruct": ["A100", "H100"],
-    "financial-reports-analysis": ["A100"],
-    "Llama-3.2-11B-Vision-Instruct": ["A100"],
-    "mistralai-Mixtral-8x7B-Instruct-v01": ["A100"],
-    "Nemotron-3-8B-Chat-4k-SteerLM": ["A100"],
-    "microsoft-Orca-2-7b": ["A100"],
-    # Add more models as needed, default to A100 if not listed
-}
+def query_model_supported_skus(model_name, model_version):
+    """Query Azure to get the list of SKUs supported by this model."""
+    try:
+        result = subprocess.run(
+            ["az.cmd", "ml", "model", "show",
+             "--name", model_name,
+             "--version", model_version,
+             "--registry-name", "AzureML",
+             "--query", "tags.inference_compute_allow_list",
+             "-o", "tsv"],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True
+        )
+        
+        # Parse the output: "['Standard_NC24ads_A100_v4', 'Standard_NC48ads_A100_v4', ...]"
+        sku_list_str = result.stdout.strip()
+        if sku_list_str and sku_list_str != "None":
+            # Remove brackets and quotes, split by comma
+            import ast
+            try:
+                supported_skus = ast.literal_eval(sku_list_str)
+                logger.info(f"Model '{model_name}' supports SKUs: {supported_skus}")
+                return supported_skus
+            except:
+                # Fallback: manual parsing
+                sku_list_str = sku_list_str.strip("[]'\"")
+                supported_skus = [s.strip().strip("'\"") for s in sku_list_str.split(",")]
+                logger.info(f"Model '{model_name}' supports SKUs (fallback parsing): {supported_skus}")
+                return supported_skus
+        else:
+            logger.warning(f"No SKU compatibility info found for model '{model_name}'")
+            return None
+    except subprocess.CalledProcessError as e:
+        logger.warning(f"Failed to query model SKU compatibility: {e}")
+        return None
 
-def get_model_compatible_skus(model_name):
-    """Get compatible GPU families for a given model."""
-    # Check if model is in compatibility map
+def get_model_compatible_skus(model_name, model_version=None, supported_skus=None):
+    """
+    Get compatible GPU families for a given model.
+    
+    Args:
+        model_name: Name of the model
+        model_version: Version of the model (optional, for dynamic query)
+        supported_skus: Pre-queried list of supported SKUs (optional)
+    
+    Returns:
+        List of compatible GPU families (e.g., ["A100"], ["A100", "H100"])
+    """
+    # If we have the actual supported SKU list, use it
+    if supported_skus:
+        families = set()
+        for sku in supported_skus:
+            if "A100" in sku:
+                families.add("A100")
+            elif "H100" in sku:
+                families.add("H100")
+        if families:
+            return sorted(list(families))
+    
+    # Fallback to static mapping for known models
+    MODEL_SKU_COMPATIBILITY = {
+        "Phi-4": ["A100", "H100"],  # Supports both
+        "Phi-4-mini-instruct": ["A100"],  # Only A100
+        "Phi-3.5-vision-instruct": ["A100"],
+        "Phi-3-vision-128k-instruct": ["A100"],
+        "Phi-3-small-8k-instruct": ["A100", "H100"],
+        "financial-reports-analysis": ["A100"],
+        "Llama-3.2-11B-Vision-Instruct": ["A100"],
+        "mistralai-Mixtral-8x7B-Instruct-v01": ["A100"],
+        "Nemotron-3-8B-Chat-4k-SteerLM": ["A100"],
+        "microsoft-Orca-2-7b": ["A100"],
+    }
+    
     for key in MODEL_SKU_COMPATIBILITY:
         if key.lower() in model_name.lower():
+            logger.info(f"Using static compatibility map for '{model_name}': {MODEL_SKU_COMPATIBILITY[key]}")
             return MODEL_SKU_COMPATIBILITY[key]
+    
     # Default to A100 only if model not found
     logger.warning(f"Model '{model_name}' not in compatibility map, defaulting to A100 only")
     return ["A100"]
@@ -430,9 +485,17 @@ def main():
   
     logger.info(f"User-specified model: name='{model_name}', version='{model_version}'")  
   
-    # 5) Check model compatibility
-    model_compatible_families = get_model_compatible_skus(model_name)
-    logger.info(f"Model '{model_name}' is compatible with: {model_compatible_families}")
+    # 5) Query model's supported SKUs from Azure
+    print("\n🔍 Querying model compatibility from Azure...")
+    supported_skus = query_model_supported_skus(model_name, model_version)
+    
+    # 5.1) Get model-compatible GPU families
+    model_compatible_families = get_model_compatible_skus(model_name, model_version, supported_skus)
+    
+    if supported_skus:
+        print(f"✅ Model supports these SKUs: {', '.join(supported_skus[:3])}{'...' if len(supported_skus) > 3 else ''}")
+    
+    logger.info(f"Model '{model_name}' is compatible with GPU families: {model_compatible_families}")
   
     # 6) Check current workspace region quota
     region, available_families = check_current_region_quota(
