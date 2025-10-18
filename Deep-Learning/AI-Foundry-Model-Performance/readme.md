@@ -81,8 +81,6 @@ This repository provides comprehensive performance evaluation tools for Azure AI
 - ✅ **Comprehensive Metrics**: TTFT, tokens/s, throughput analysis
 - ✅ **Easy Cleanup**: Fast endpoint deletion after PoC
 - ✅ **Model Support**: 15+ models including Phi-4, Llama, Mistral, DeepSeek, and more
-- ✅ **Easy Cleanup**: Fast endpoint deletion after PoC
-- ✅ **Model Support**: 15+ models including Phi-4, Llama, Mistral, DeepSeek, and more
 
 ## 📦 Prerequisites
 
@@ -109,7 +107,7 @@ This repository provides comprehensive performance evaluation tools for Azure AI
 
 ---
 
-## � Part 1: Managed Compute Performance Testing
+## 🖥️ Part 1: Managed Compute Performance Testing
 
 > Deploy and test open-source and custom models on Azure GPU VMs with full control
 
@@ -129,7 +127,7 @@ This repository provides comprehensive performance evaluation tools for Azure AI
 
 ---
 
-### 1️ Infrastructure Setup
+### 1️⃣ Infrastructure Setup
 
 #### Deploy with Azure Developer CLI (azd)
 
@@ -173,7 +171,7 @@ Skip `azd up` if you already have an Azure ML workspace. The deployment script w
 
 ---
 
-### 2️ Model Deployment
+### 2️⃣ Model Deployment
 
 | **Model Name on AML**                         | **Model on HF** (tokenizers name)             | **Azure GPU VM SKU Support in AML**              |
 | --------------------------------------------- | --------------------------------------------- | ------------------------------------------------ |
@@ -232,7 +230,7 @@ https://github.com/user-attachments/assets/8be25ceb-6c47-45b3-bfa6-34dbc79f6732
 
 ---
 
-### 3 Parameters Tuning
+### 3️⃣ Parameters Tuning
 
 > ⚠️ **Notes**:
 > - Test results are for reference only. Use the provided scripts to test in your environment.
@@ -291,7 +289,7 @@ az ml online-deployment show \
 
 https://github.com/user-attachments/assets/8bd23c08-6937-4f3b-93d1-a7f3b3e2abd9
 
-#### 4️ Performance Test
+#### 4️⃣ Performance Test
 
 Before officially starting the test, you need to log in to HuggingFace on your terminal.
 
@@ -1272,7 +1270,7 @@ Full original test results are here:
 
 ---
 
-## Performance test on Azure AI model inference
+## ☁️ Part 2: Azure AI Model Inference Performance Testing
 
 Currently, an increasing number of new flagship models in the Azure AI Foundry model catalog, including OpenAI, will be deployed using the Azure AI model inference method. 
 
@@ -1332,7 +1330,7 @@ Please enter concurrency levels separated by commas (e.g. 1,2,3): 10,300
 Received concurrency levels: [10, 300]
 ```
 
-### Performance on DS 671B
+### 1️⃣ Performance on DeepSeek-R1 (DS 671B)
 
 <details>
 <summary><h4>📊 DeepSeek-R1 Performance Results</h4></summary>
@@ -1404,7 +1402,7 @@ The overall throughput averages 735.12 tokens/s, with a P90 of 1184.06 tokens/s,
 
 ---
 
-### Performance Phi-4
+### 2️⃣ Performance on Phi-4
 
 <details>
 <summary><h4>📊 Phi-4 Performance Results</h4></summary>
