@@ -45,28 +45,59 @@ echo "  Name: $SUBSCRIPTION_NAME"
 echo "  ID:   $SUBSCRIPTION_ID"
 echo ""
 
-# Dynamically get ALL available regions from Azure
-echo -e "${BLUE}[INFO]${NC} Fetching all available Azure regions..."
-ALL_REGIONS=$(az account list-locations --query "[].name" -o tsv 2>/dev/null)
+# Priority regions: Known to support GPU and commonly used
+# This list includes regions where A100/H100 are typically available
+PRIORITY_REGIONS=(
+    # US regions
+    "eastus" "eastus2" "westus" "westus2" "westus3"
+    "centralus" "northcentralus" "southcentralus"
+    # Europe regions
+    "westeurope" "northeurope" "francecentral" "uksouth" "ukwest"
+    "germanywestcentral" "swedencentral" "norwayeast" "polandcentral"
+    "switzerlandnorth" "switzerlandwest" "italynorth" "spaincentral"
+    # Asia Pacific
+    "japaneast" "japanwest" "koreacentral" "australiaeast" "australiasoutheast"
+    "southeastasia" "eastasia" "centralindia" "southindia"
+    # Middle East & Africa
+    "uaenorth" "qatarcentral" "southafricanorth" "israelcentral"
+    # Americas (other)
+    "brazilsouth" "canadacentral" "canadaeast"
+)
 
-if [ -z "$ALL_REGIONS" ]; then
-    echo -e "${RED}[ERROR]${NC} Failed to fetch regions from Azure"
-    exit 1
+# Add other regions if user wants comprehensive check
+echo -e "${YELLOW}[OPTION]${NC} Quick check (recommended regions) or comprehensive check (all regions)?"
+echo "  1. Quick - Check ~35 GPU-capable regions (30-60 seconds)"
+echo "  2. Comprehensive - Check all 100+ regions (2-5 minutes)"
+read -p "Enter choice (1/2, default=1): " CHECK_MODE
+CHECK_MODE=${CHECK_MODE:-1}
+
+if [ "$CHECK_MODE" = "2" ]; then
+    echo -e "${BLUE}[INFO]${NC} Fetching all available Azure regions..."
+    ALL_REGIONS=$(az account list-locations --query "[].name" -o tsv 2>/dev/null)
+    
+    if [ -z "$ALL_REGIONS" ]; then
+        echo -e "${RED}[ERROR]${NC} Failed to fetch regions from Azure"
+        exit 1
+    fi
+    
+    # Convert to array
+    REGIONS_TO_CHECK=()
+    while IFS= read -r region; do
+        REGIONS_TO_CHECK+=("$region")
+    done <<< "$ALL_REGIONS"
+    
+    REGION_COUNT=${#REGIONS_TO_CHECK[@]}
+    echo -e "${GREEN}[SUCCESS]${NC} Will check all $REGION_COUNT regions"
+else
+    REGIONS_TO_CHECK=("${PRIORITY_REGIONS[@]}")
+    REGION_COUNT=${#REGIONS_TO_CHECK[@]}
+    echo -e "${GREEN}[SUCCESS]${NC} Will check $REGION_COUNT priority GPU regions"
 fi
 
-# Convert to array
-REGIONS_TO_CHECK=()
-while IFS= read -r region; do
-    REGIONS_TO_CHECK+=("$region")
-done <<< "$ALL_REGIONS"
-
-REGION_COUNT=${#REGIONS_TO_CHECK[@]}
-echo -e "${GREEN}[SUCCESS]${NC} Found $REGION_COUNT regions to check"
 echo ""
-
-echo -e "${BLUE}[INFO]${NC} Checking GPU quota for NC-series (A100/H100) in ALL Azure regions..."
+echo -e "${BLUE}[INFO]${NC} Checking GPU quota for NC-series (A100/H100)..."
 echo ""
-echo "Using parallel execution to speed up checks (max 10 concurrent regions)..."
+echo "Using parallel execution to speed up checks (max 15 concurrent regions)..."
 echo ""
 
 # Results storage
@@ -151,8 +182,8 @@ check_region() {
 export -f check_region
 export TMP_DIR
 
-# Run checks in parallel (10 concurrent jobs)
-printf '%s\n' "${REGIONS_TO_CHECK[@]}" | xargs -P 10 -I {} bash -c 'check_region "$@"' _ {} "$TMP_DIR"
+# Run checks in parallel (15 concurrent jobs for faster execution)
+printf '%s\n' "${REGIONS_TO_CHECK[@]}" | xargs -P 15 -I {} bash -c 'check_region "$@"' _ {} "$TMP_DIR"
 
 # Collect and display results
 echo ""
