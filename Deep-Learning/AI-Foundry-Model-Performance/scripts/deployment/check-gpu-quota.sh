@@ -252,10 +252,10 @@ if [ -n "$SELECTED_REGION" ]; then
     echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${YELLOW}Next Step:${NC}"
     echo ""
-    echo "  Run: ${GREEN}azd up${NC}"
+    echo -e "  Run: ${GREEN}azd up${NC}"
     echo ""
-    echo "  ✓ Location will be automatically set to: ${GREEN}$SELECTED_REGION${NC}"
-    echo "  ✓ No manual location selection needed"
+    echo -e "  ✓ Location will be automatically set to: ${GREEN}$SELECTED_REGION${NC}"
+    echo -e "  ✓ No manual location selection needed"
     echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 fi
 
