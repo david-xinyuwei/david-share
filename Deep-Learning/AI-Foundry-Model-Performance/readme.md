@@ -288,6 +288,19 @@ conda activate aml_env
 pip install -r requirements.txt
 ```
 
+> ⚠️ **Important**: If you encounter `ModuleNotFoundError: No module named 'azure.identity'` or similar errors when running deployment scripts, make sure you have installed all dependencies:
+> 
+> ```bash
+> # Ensure you're in the correct directory
+> cd ~/david-share/Deep-Learning/AI-Foundry-Model-Performance
+> 
+> # Install all required packages
+> pip install -r requirements.txt
+> 
+> # Verify installation
+> python -c "from azure.identity import DefaultAzureCredential; print('✅ Dependencies installed successfully')"
+> ```
+
 ##### Requirements.txt Contents
 
 ```text
