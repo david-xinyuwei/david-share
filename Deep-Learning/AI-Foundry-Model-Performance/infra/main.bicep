@@ -72,23 +72,13 @@ var locationCode = {
   southindia: 'sin'
 }[location]
 
-@description('Name of the resource group')
-param resourceGroupName string = 'rg-aif-${locationCode}-${environmentName}'
-
-@description('Name of the Azure ML workspace - max 33 chars, uses short location code')
-param mlWorkspaceName string = 'mlw-aif-${locationCode}-${environmentName}'
-
-@description('Name of the Application Insights instance')
-param appInsightsName string = 'appi-aif-${locationCode}-${environmentName}'
-
-@description('Name of the Log Analytics workspace')
-param logAnalyticsName string = 'log-aif-${locationCode}-${environmentName}'
-
-@description('Name of the Key Vault (uses uniqueString for global uniqueness)')
-param keyVaultName string = 'kv-${uniqueString(subscription().subscriptionId, resourceGroupName, location)}'
-
-@description('Name of the Storage Account (uses uniqueString for global uniqueness)')
-param storageAccountName string = 'stai${uniqueString(subscription().subscriptionId, resourceGroupName, location)}'
+// Computed resource names using location code
+var resourceGroupName = 'rg-aif-${locationCode}-${environmentName}'
+var mlWorkspaceName = 'mlw-aif-${locationCode}-${environmentName}'
+var appInsightsName = 'appi-aif-${locationCode}-${environmentName}'
+var logAnalyticsName = 'log-aif-${locationCode}-${environmentName}'
+var keyVaultName = 'kv-${uniqueString(subscription().subscriptionId, resourceGroupName, location)}'
+var storageAccountName = 'stai${uniqueString(subscription().subscriptionId, resourceGroupName, location)}'
 
 @description('Tags to apply to all resources')
 param tags object = {
