@@ -560,22 +560,22 @@ def main():
     print("   bash scripts/deployment/check-gpu-quota.sh")
     print()
     
+    # Map of SKU to required cores (needed for all quota checks below)
+    sku_core_requirements = {
+        "Standard_NC24ads_A100_v4": 24,
+        "Standard_NC48ads_A100_v4": 48,
+        "Standard_NC96ads_A100_v4": 96,
+        "Standard_NC40ads_H100_v5": 40,
+        "Standard_NC80ads_H100_v5": 80,
+        "Standard_NC80adis_H100_v5": 80,  # Note: Azure sometimes returns NC80adis instead of NC80ads
+        "Standard_ND96isr_H100_v5": 96,
+        "Standard_ND96asr_v4": 96,
+        "Standard_ND96amsr_A100_v4": 96,
+    }
+    
     # Show recommended SKUs based on actual model support AND quota availability
     if supported_skus and compatible_and_available:
         print("📌 RECOMMENDED SKUs (model supports AND have quota):")
-        
-        # Map of SKU to required cores
-        sku_core_requirements = {
-            "Standard_NC24ads_A100_v4": 24,
-            "Standard_NC48ads_A100_v4": 48,
-            "Standard_NC96ads_A100_v4": 96,
-            "Standard_NC40ads_H100_v5": 40,
-            "Standard_NC80ads_H100_v5": 80,
-            "Standard_NC80adis_H100_v5": 80,  # Note: Azure sometimes returns NC80adis instead of NC80ads
-            "Standard_ND96isr_H100_v5": 96,
-            "Standard_ND96asr_v4": 96,
-            "Standard_ND96amsr_A100_v4": 96,
-        }
         
         # Check each model-supported SKU against available quota
         has_usable_sku = False
