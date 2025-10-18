@@ -82,12 +82,36 @@ check_region() {
     local region="$1"
     local tmp_dir="$2"
     
-    # Check VM quota usage for NC-series in this region
-    # Match both StandardNCADSA100v4Family and StandardNCadsH100v5Family (note case differences)
-    quota_info=$(az vm list-usage \
+    # Check BOTH VM quota AND ML compute quota for this region
+    # First check VM quota (for general VM deployment capability)
+    vm_quota_info=$(az vm list-usage \
         --location "$region" \
         --output json 2>/dev/null | \
         jq -r '.[] | select(.name.value | test("Standard(NCADS|NCads)(A100v4|H100v5)Family"; "i")) | "\(.name.value)|\(.currentValue)|\(.limit)"' 2>/dev/null)
+    
+    # Then check ML compute quota (for AML managed compute - what deploymodels script uses)
+    # Note: This requires at least one workspace to exist, otherwise skip ML check
+    ml_quota_info=""
+    # Try to find any workspace in the subscription to check ML quota
+    workspace_info=$(az ml workspace list --output json 2>/dev/null | jq -r '.[0] | "\(.resource_group)|\(.name)"' 2>/dev/null)
+    if [ -n "$workspace_info" ]; then
+        IFS='|' read -r rg_name ws_name <<< "$workspace_info"
+        ml_quota_info=$(az ml compute list-usage \
+            --resource-group "$rg_name" \
+            --workspace-name "$ws_name" \
+            --location "$region" \
+            --output json 2>/dev/null | \
+            jq -r '.[] | select(.name.value | test("NCADSA100v4|NCADSH100v5"; "i")) | "\(.name.value)|\(.currentValue)|\(.limit)"' 2>/dev/null)
+    fi
+    
+    # Combine results - prioritize ML quota if available, fallback to VM quota
+    if [ -n "$ml_quota_info" ]; then
+        quota_info="$ml_quota_info"
+        quota_source="ML Compute"
+    else
+        quota_info="$vm_quota_info"
+        quota_source="VM"
+    fi
     
     if [ -n "$quota_info" ]; then
         # Parse quota info
@@ -107,6 +131,7 @@ check_region() {
                     sku_type="H100"
                     quota_details+="  • Standard_NC40ads_H100_v5, NC80ads_H100_v5\n"
                 fi
+                quota_details+="    Quota Source: ${quota_source}\n"
                 quota_details+="    Quota: ${available}/${limit} cores available (${current_value} in use)\n"
             fi
         done <<< "$quota_info"

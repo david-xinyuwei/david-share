@@ -107,12 +107,22 @@ azd auth login --use-device-code
 # 4. ⭐ IMPORTANT: Check GPU quota BEFORE deploying infrastructure
 bash scripts/deployment/check-gpu-quota.sh
 # This script checks all Azure regions for GPU availability (A100/H100)
+# It checks BOTH VM quota AND ML compute quota (if workspaces exist)
 # It will automatically save the recommended region
 # No need to manually select - azd will use it automatically!
 
 # 5. Deploy infrastructure with azd (location is auto-configured)
 azd up
 # The location is automatically set from step 4 - no manual selection needed!
+
+> 📝 **Important Note on GPU Quota Types**:
+> 
+> Azure has two types of GPU quotas that may show different results:
+> 
+> 1. **VM Quota** (`az vm list-usage`) - Used by `check-gpu-quota.sh` for general VM deployment
+> 2. **ML Compute Quota** (`az ml compute list-usage`) - Used by deployment scripts for AML managed compute
+> 
+> The `check-gpu-quota.sh` script now checks BOTH types and prioritizes ML Compute quota if ML workspaces exist. If you see different quotas between the two scripts, this is normal - they're checking different quota pools.
 ```
 
 > 💡 **Common Issue**: If you see `ERR_CONNECTION_REFUSED` or browser doesn't open, you're on a remote server. Use `azd auth login --use-device-code` instead.
@@ -327,10 +337,14 @@ az login --use-device
 
 Next, you need to execute a script for end-to-end model deployment. This script will: 
 
+- **Auto-detect** your current Azure subscription (if `az login` was done)
+- **List available** resource groups and ML workspaces for easy selection
 - Help you check the GPU VM quota for AML under your subscription
 - Prompt you to select the model you want to deploy
-- Specify the Azure GPU VM SKU and quantity to be used for deployment. 
-- Provide you with the endpoint and key of the successfully deployed model, allowing you to proceed with performance testing. 
+- Specify the Azure GPU VM SKU and quantity to be used for deployment
+- Provide you with the endpoint and key of the successfully deployed model, allowing you to proceed with performance testing
+
+> ✨ **NEW**: The script now automatically detects existing Azure resources created by `azd up` and lets you select them from a list instead of manual input!
 
 Before running the script, you need to check the table above to confirm the types of Azure GPU VMs supported by the AI model you plan to deploy.
 
@@ -355,6 +369,56 @@ python scripts/deployment/deploymodels-powershell-20250405.py
 > ```
 
 ##### Deployment Process Example
+
+**New Interactive Selection (After azd up):**
+
+```
+========== Azure ML Model Deployment ==========
+Detecting existing Azure resources...
+
+✓ Current Azure CLI subscription:
+  Name: My Azure Subscription
+  ID:   08f95cfd-64fe-4187-99bb-7b3e661c4cde
+
+Use this subscription? (Y/n): y
+
+Fetching resource groups...
+
+✓ Found 1 Resource Group: rg-aif-sea-david-aml
+Use this Resource Group? (Y/n): y
+
+Fetching ML workspaces...
+
+✓ Found 1 ML Workspace: mlw-aif-sea-david-aml
+Use this ML Workspace? (Y/n): y
+
+========== Selected Configuration ==========
+Subscription ID: 08f95cfd-64fe-4187-99bb-7b3e661c4cde
+Resource Group:  rg-aif-sea-david-aml
+Workspace:       mlw-aif-sea-david-aml
+==================================================
+```
+
+**If Multiple Resources Available:**
+
+```
+========== Available Resource Groups ==========
+1. rg-aif-sea-david-aml (Location: southeastasia)
+2. rg-test-westus (Location: westus)
+3. rg-prod-eastus (Location: eastus)
+==================================================
+
+Select Resource Group by number (1-3) or press Enter to input manually: 1
+
+========== Available ML Workspaces ==========
+1. mlw-aif-sea-david-aml (Location: southeastasia) (RG: rg-aif-sea-david-aml)
+2. mlw-test-workspace (Location: southeastasia) (RG: rg-aif-sea-david-aml)
+==================================================
+
+Select ML Workspace by number (1-2) or press Enter to input manually: 1
+```
+
+**Legacy Manual Input (Still Supported):**
 
 ```
 ========== Enter Basic Information ==========

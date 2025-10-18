@@ -187,21 +187,132 @@ print(response.json())'''
     return endpoint_name, scoring_uri, primary_key, secondary_key  
   
 ###############################################################################  
+# Auto-detect existing Azure resources
+###############################################################################  
+def get_current_subscription():
+    """Get current Azure CLI subscription information."""
+    try:
+        result = subprocess.run(
+            ["az.cmd", "account", "show", "--query", "{id:id, name:name}", "-o", "json"],
+            stdout=subprocess.PIPE, text=True, check=True
+        )
+        return json.loads(result.stdout)
+    except subprocess.CalledProcessError:
+        return None
+
+def list_resource_groups(subscription_id):
+    """List all resource groups in the subscription."""
+    try:
+        result = subprocess.run(
+            ["az.cmd", "group", "list", "--subscription", subscription_id, 
+             "--query", "[].{name:name, location:location}", "-o", "json"],
+            stdout=subprocess.PIPE, text=True, check=True
+        )
+        return json.loads(result.stdout)
+    except subprocess.CalledProcessError:
+        return []
+
+def list_ml_workspaces(subscription_id, resource_group=None):
+    """List all ML workspaces, optionally filtered by resource group."""
+    try:
+        cmd = ["az.cmd", "ml", "workspace", "list", "--subscription", subscription_id]
+        if resource_group:
+            cmd.extend(["--resource-group", resource_group])
+        cmd.extend(["--query", "[].{name:name, resourceGroup:resource_group, location:location}", "-o", "json"])
+        
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, text=True, check=True)
+        return json.loads(result.stdout)
+    except subprocess.CalledProcessError:
+        return []
+
+def select_from_list(items, item_type, key_field="name"):
+    """Helper to let user select from a list of items."""
+    if not items:
+        return None
+    
+    if len(items) == 1:
+        print(f"\n✓ Found 1 {item_type}: {items[0][key_field]}")
+        confirm = input(f"Use this {item_type}? (Y/n): ").strip().lower()
+        if confirm in ['', 'y', 'yes']:
+            return items[0]
+    
+    print(f"\n========== Available {item_type}s ==========")
+    for idx, item in enumerate(items, 1):
+        display_info = f"{idx}. {item[key_field]}"
+        if "location" in item:
+            display_info += f" (Location: {item['location']})"
+        if "resourceGroup" in item:
+            display_info += f" (RG: {item['resourceGroup']})"
+        print(display_info)
+    print("=" * 50)
+    
+    while True:
+        choice = input(f"\nSelect {item_type} by number (1-{len(items)}) or press Enter to input manually: ").strip()
+        if not choice:
+            return None  # User wants manual input
+        try:
+            idx = int(choice)
+            if 1 <= idx <= len(items):
+                return items[idx - 1]
+            else:
+                print(f"Please enter a number between 1 and {len(items)}")
+        except ValueError:
+            print("Please enter a valid number or press Enter")
+
+###############################################################################  
 # Main logic  
 ###############################################################################  
 def main():  
-    # 1) Collect subscription, resource group, and workspace information  
-    print("========== Enter Basic Information ==========")  
-    subscription_id = prompt_or_default("Subscription ID: ")  
-    resource_group = prompt_or_default("Resource Group: ")  
-    workspace_name = prompt_or_default("AML Workspace Name or AI Foundry Poject Name: ")  
-  
+    print("========== Azure ML Model Deployment ==========")
+    print("Detecting existing Azure resources...\n")
+    
+    # 1) Get current subscription
+    current_sub = get_current_subscription()
+    if current_sub:
+        print(f"✓ Current Azure CLI subscription:")
+        print(f"  Name: {current_sub['name']}")
+        print(f"  ID:   {current_sub['id']}")
+        use_current = input("\nUse this subscription? (Y/n): ").strip().lower()
+        if use_current in ['', 'y', 'yes']:
+            subscription_id = current_sub['id']
+        else:
+            subscription_id = input("Enter Subscription ID: ").strip()
+    else:
+        print("⚠ Could not detect current subscription. Please login with: az login")
+        subscription_id = input("Enter Subscription ID: ").strip()
+    
     # 2) Set CLI subscription  
     try:  
         subprocess.run(["az.cmd", "account", "set", "--subscription", subscription_id], check=True)  
     except subprocess.CalledProcessError as e:  
         logger.error(f"Failed to set subscription: {e}")  
-        sys.exit(1)  
+        sys.exit(1)
+    
+    # 3) List and select resource group
+    print("\nFetching resource groups...")
+    resource_groups = list_resource_groups(subscription_id)
+    selected_rg = select_from_list(resource_groups, "Resource Group")
+    
+    if selected_rg:
+        resource_group = selected_rg['name']
+    else:
+        resource_group = input("Enter Resource Group name: ").strip()
+    
+    # 4) List and select ML workspace
+    print("\nFetching ML workspaces...")
+    workspaces = list_ml_workspaces(subscription_id, resource_group)
+    selected_ws = select_from_list(workspaces, "ML Workspace")
+    
+    if selected_ws:
+        workspace_name = selected_ws['name']
+    else:
+        workspace_name = input("Enter AML Workspace or AI Foundry Project name: ").strip()
+    
+    print("\n========== Selected Configuration ==========")
+    print(f"Subscription ID: {subscription_id}")
+    print(f"Resource Group:  {resource_group}")
+    print(f"Workspace:       {workspace_name}")
+    print("=" * 50 + "\n")  
   
     # 3) Prompt user for model name and version  
     example_models = [  
