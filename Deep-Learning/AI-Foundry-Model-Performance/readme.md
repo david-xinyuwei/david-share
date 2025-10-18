@@ -107,13 +107,12 @@ azd auth login --use-device-code
 # 4. ⭐ IMPORTANT: Check GPU quota BEFORE deploying infrastructure
 bash scripts/deployment/check-gpu-quota.sh
 # This script checks all Azure regions for GPU availability (A100/H100)
-# It will show you which regions have GPU quota available
-# Save the recommended region name for the next step
+# It will automatically save the recommended region
+# No need to manually select - azd will use it automatically!
 
-# 5. Deploy infrastructure with azd
+# 5. Deploy infrastructure with azd (location is auto-configured)
 azd up
-# When prompted for 'location', choose one of the regions from step 4
-# that has GPU quota available (e.g., westus2, eastus, polandcentral)
+# The location is automatically set from step 4 - no manual selection needed!
 ```
 
 > 💡 **Common Issue**: If you see `ERR_CONNECTION_REFUSED` or browser doesn't open, you're on a remote server. Use `azd auth login --use-device-code` instead.

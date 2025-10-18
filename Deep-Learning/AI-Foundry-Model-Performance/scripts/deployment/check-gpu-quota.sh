@@ -180,17 +180,13 @@ echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━�
 
 echo "=========================================================================="
 echo ""
-echo -e "${YELLOW}Recommended next steps:${NC}"
-echo ""
-echo "1. Choose one of the regions above that has GPU quota"
-echo "2. Run: azd up"
-echo "3. When prompted for location, select the region you chose"
-echo ""
-echo "Example:"
-echo "  If you choose 'westus2', select 'westus2' when azd up asks for location"
-echo ""
-echo "=========================================================================="
-echo ""
+
+# Get the first region with GPU quota (for azd auto-configuration)
+FIRST_GPU_REGION=""
+for region in "${!REGIONS_WITH_QUOTA[@]}"; do
+    FIRST_GPU_REGION="$region"
+    break
+done
 
 # Save results to file for later reference
 RESULTS_FILE=".gpu-quota-check-results.txt"
@@ -209,4 +205,20 @@ for region in "${!REGIONS_WITH_QUOTA[@]}"; do
 done
 
 echo -e "${GREEN}[INFO]${NC} Results saved to: $RESULTS_FILE"
+echo ""
+
+# Save recommended region for azd
+if [ -n "$FIRST_GPU_REGION" ]; then
+    echo "$FIRST_GPU_REGION" > .recommended-region
+    echo -e "${GREEN}[INFO]${NC} Recommended region saved for azd: $FIRST_GPU_REGION"
+    echo ""
+    echo -e "${YELLOW}Next step:${NC}"
+    echo "  Run: azd up"
+    echo "  (Location will be auto-set to: $FIRST_GPU_REGION)"
+else
+    echo -e "${RED}[ERROR]${NC} No GPU quota available. Cannot proceed with deployment."
+    echo ""
+fi
+
+echo "=========================================================================="
 echo ""
