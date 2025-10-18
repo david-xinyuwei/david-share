@@ -1,4 +1,4 @@
-# AML and AI Foundry Model Catalog Models Performance Evaluation
+﻿# AML and AI Foundry Model Catalog Models Performance Evaluation
 
 [![Python Version](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
 [![Azure](https://img.shields.io/badge/Azure-AI%20Foundry-0078D4.svg)](https://azure.microsoft.com/en-us/products/ai-services)
@@ -163,6 +163,12 @@ bash scripts/deployment/check-gpu-quota.sh
 azd up
 ```
 
+**What `azd up` does:**
+- ✅ Creates Azure Resource Group
+- ✅ Deploys Application Insights + Log Analytics for observability
+- ✅ Creates Storage Account for ML workspace
+- ✅ Deploys Key Vault for secure credential management
+
 ---
 
 #### Alternative: Use Existing Workspace
@@ -192,11 +198,19 @@ By now, the AML names tested in this repo, their full names on Hugging Face, and
 
 > 💡 **Common Issue**: If you see `ERR_CONNECTION_REFUSED` or browser doesn't open, you're on a remote server. Use `azd auth login --use-device-code` instead.
 
-**What `azd up` does:**
-- ✅ Creates Azure Resource Group
-- ✅ Deploys Application Insights + Log Analytics for observability
-- ✅ Creates Storage Account for ML workspace
-- ✅ Deploys Key Vault for secure credential management
+---
+
+### 🧹 Quick Cleanup (Delete Endpoints)
+
+> ⚠️ **Important**: GPU endpoints are expensive! Delete them after testing to avoid unnecessary charges.
+
+```bash
+# Delete endpoint after testing
+python scripts/deployment/delete-endpoint-20250327.py
+
+# Or delete all Azure resources
+azd down
+```
 
 ---
 
@@ -1569,65 +1583,4 @@ A: Check the [model compatibility table](#supported-models-and-vm-skus). General
 
 ---
 
-## � Clean Up Resources
-
-After completing your tests, clean up Azure resources to avoid unnecessary charges:
-
-```bash
-# 1. Delete endpoints
-python scripts/deployment/delete-endpoint-20250327.py
-
-# 2. Delete all Azure resources
-azd down
-```
-
----
-
-## �🤝 Contributing
-
-Contributions are welcome! If you'd like to add:
-- New model test results
-- Additional test scenarios
-- Bug fixes or improvements
-- Documentation enhancements
-
-Please:
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
-
----
-
-## 📄 License
-
-This project is provided as-is for educational and testing purposes. Please ensure compliance with:
-- Azure terms of service
-- Model-specific licenses
-- HuggingFace model licenses
-
----
-
-## 📞 Support
-
-For issues or questions:
-- **GitHub Issues**: [Create an issue](https://github.com/xinyuwei-david/AI-Foundry-Model-Performance/issues)
-- **Azure Support**: Use Azure portal support for Azure-specific issues
-- **Model Issues**: Check respective model documentation on HuggingFace
-
----
-
-## 🙏 Acknowledgments
-
-- Microsoft Azure AI Team for the model catalog
-- HuggingFace for model hosting and tokenizers
-- Open-source model creators and maintainers
-
----
-
-**Last Updated**: March 2025
-
-> ⭐ If you find this repository helpful, please consider giving it a star!
-
-
-
+## 🤝 Contributing
