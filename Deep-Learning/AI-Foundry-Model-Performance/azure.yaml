@@ -8,6 +8,8 @@ metadata:
 infra:
   provider: bicep
   path: infra
+  parameters:
+    location: ${AZURE_LOCATION=eastus}
 
 hooks:
   # Run before provisioning infrastructure
