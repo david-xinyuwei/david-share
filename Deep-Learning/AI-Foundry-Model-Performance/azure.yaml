@@ -8,9 +8,6 @@ metadata:
 infra:
   provider: bicep
   path: infra
-  module: main
-  parameters:
-    location: "${AZURE_LOCATION}"
 
 hooks:
   # Run before provisioning infrastructure
@@ -24,11 +21,15 @@ hooks:
         echo ""
         echo "Setting deployment location from GPU quota check..."
         if [ -f .recommended-region ]; then
-          RECOMMENDED_REGION=$(cat .recommended-region)
+          RECOMMENDED_REGION=$(cat .recommended-region | tr -d '\n\r')
           echo "Using recommended region: $RECOMMENDED_REGION"
+          # Set both location parameter and AZURE_LOCATION for consistency
+          azd env set location "$RECOMMENDED_REGION"
           azd env set AZURE_LOCATION "$RECOMMENDED_REGION"
+          echo "Location parameter set to: $RECOMMENDED_REGION"
         else
           echo "WARNING: No .recommended-region file found. Run scripts/deployment/check-gpu-quota.sh first!"
+          exit 1
         fi
     windows:
       shell: pwsh
@@ -42,9 +43,13 @@ hooks:
           $recommendedRegion = Get-Content .recommended-region -Raw
           $recommendedRegion = $recommendedRegion.Trim()
           Write-Host "Using recommended region: $recommendedRegion"
+          # Set both location parameter and AZURE_LOCATION for consistency
+          azd env set location "$recommendedRegion"
           azd env set AZURE_LOCATION "$recommendedRegion"
+          Write-Host "Location parameter set to: $recommendedRegion"
         } else {
           Write-Host "WARNING: No .recommended-region file found. Run scripts/deployment/check-gpu-quota.sh first!"
+          exit 1
         }
 
   # Run after provisioning infrastructure
