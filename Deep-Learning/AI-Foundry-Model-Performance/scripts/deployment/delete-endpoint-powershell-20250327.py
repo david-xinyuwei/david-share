@@ -23,7 +23,7 @@ def get_current_subscription():
     """Get current Azure CLI subscription"""
     try:
         result = subprocess.run(
-            ["az", "account", "show", "--output", "json"],
+            ["az.cmd", "account", "show", "--output", "json"],
             capture_output=True,
             text=True,
             check=True
@@ -39,7 +39,7 @@ def get_resource_groups(subscription_id):
     """Get all resource groups in the subscription"""
     try:
         result = subprocess.run(
-            ["az", "group", "list", "--subscription", subscription_id, "--output", "json"],
+            ["az.cmd", "group", "list", "--subscription", subscription_id, "--output", "json"],
             capture_output=True,
             text=True,
             check=True
@@ -55,14 +55,14 @@ def get_ml_workspaces(subscription_id, resource_group=None):
     try:
         if resource_group:
             cmd = [
-                "az", "ml", "workspace", "list",
+                "az.cmd", "ml", "workspace", "list",
                 "--subscription", subscription_id,
                 "--resource-group", resource_group,
                 "--output", "json"
             ]
         else:
             cmd = [
-                "az", "ml", "workspace", "list",
+                "az.cmd", "ml", "workspace", "list",
                 "--subscription", subscription_id,
                 "--output", "json"
             ]

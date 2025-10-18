@@ -12,14 +12,19 @@
 ## 📋 Table of Contents
 
 - [Overview](#overview)
-- [Features](#features)
+- [Deployment Methods Comparison](#deployment-methods-comparison)
 - [Prerequisites](#prerequisites)
-- [Quick Start](#quick-start)
-  - [Option 1: One-Click Deployment with azd](#option-1-one-click-deployment-with-azure-developer-cli-azd)
-  - [Option 2: Manual Setup](#option-2-manual-setup)
-- [Deploying Models Methods](#deploying-models-methods)
-- [Performance Test on Managed Compute](#performance-test-of-ai-models-deployed-on-managed-compute-in-aml-and-ai-foundry)
-- [Performance Test on Azure AI Model Inference](#performance-test-on-azure-ai-model-inference)
+- [Part 1: Managed Compute Performance Testing](#part-1-managed-compute-performance-testing)
+  - [Infrastructure Setup](#1️⃣-infrastructure-setup)
+  - [Model Deployment](#2️⃣-model-deployment)
+  - [Performance Testing](#3️⃣-performance-testing-default-parameters)
+  - [Parameter Optimization (Optional)](#4️⃣-optional-parameter-optimization)
+  - [Cleanup](#6️⃣-cleanup)
+- [Part 2: Azure AI Model Inference Performance Testing](#part-2-azure-ai-model-inference-performance-testing)
+  - [What is AI Model Inference](#1️⃣-what-is-azure-ai-model-inference)
+  - [Quota and Limits](#2️⃣-supported-models--quota)
+  - [Performance Testing](#3️⃣-performance-testing)
+  - [Test Results](#4️⃣-test-results)
 - [Best Practices](#best-practices)
 - [Troubleshooting](#troubleshooting)
 - [FAQ](#faq)
@@ -27,18 +32,46 @@
 
 ## 🎯 Overview
 
-This repository is designed to test the performance of open-source models from the Azure Machine Learning and AI Foundry Model Catalog, includes:
+This repository provides comprehensive performance evaluation tools for Azure AI models, supporting **two deployment methods**:
 
-**Automatically deploy and delete AI models.**
+1. **Managed Compute** - Deploy open-source models on Azure GPU VMs (NC/ND series)
+2. **Azure AI Model Inference** - Test pre-deployed serverless models (OpenAI, DeepSeek, Phi, Mistral)
 
-- Quickly deploy open-source AI models on AML/AI Foundry.
-- Fast delete Endpoint after PoC
+### 📊 Deployment Methods Comparison
 
-Rapidly evaluate the performance of these models on the corresponding AI infrastructure and AI model inference quota.
+| Feature | **Managed Compute** | **AI Model Inference (Serverless)** |
+|---------|---------------------|-------------------------------------|
+| **Model Types** | Open models, custom models | Flagship models (OpenAI, DeepSeek, Phi, Mistral) |
+| **Infrastructure** | GPU VMs (NC/ND series) | No infrastructure needed |
+| **Deployment Resource** | AI project / AML workspace | Azure AI services resource |
+| **Billing** | VM hourly rate | Pay-per-token |
+| **Best For** | Custom models, full control, PoC | Production-ready models, quick testing |
+| **Quota Type** | VM cores quota | Token/request quota |
+| **Deployment Time** | 10-20 minutes | Instant (pre-deployed) |
+| **Testing Approach** | Deploy → Test → Delete | Test directly with endpoint |
 
-- Utilize real prompt models to initiate stress testing across multiple scenarios.
-- Evaluate performance metrics from multiple dimensions. 
-- To achieve more accurate metrics, use each model's own tokenizer (GPT-2 will be used if not specified).
+**Choose your path:**
+- 👉 [Part 1: Managed Compute](#part-1-managed-compute-performance-testing) - Full control over GPU resources
+- 👉 [Part 2: AI Model Inference](#part-2-azure-ai-model-inference-performance-testing) - Serverless testing
+
+---
+
+### 🎯 What This Repository Does
+
+**For Managed Compute (Part 1):**
+- ✅ Automated infrastructure deployment with `azd up`
+- ✅ Deploy 15+ open-source models from Model Catalog
+- ✅ Performance testing with real prompts
+- ✅ Metrics: TTFT, TPS, throughput, concurrency handling
+- ✅ Optional parameter optimization for better performance
+- ✅ Auto-cleanup after testing
+
+**For AI Model Inference (Part 2):**
+- ✅ Test pre-deployed serverless models (OpenAI, DeepSeek, Phi, etc.)
+- ✅ No infrastructure needed - just endpoint URL + API key
+- ✅ Same comprehensive performance metrics
+- ✅ Stream mode support
+- ✅ High-concurrency testing
 
 ## ✨ Features
 
@@ -50,42 +83,62 @@ Rapidly evaluate the performance of these models on the corresponding AI infrast
 - ✅ **Comprehensive Metrics**: TTFT, tokens/s, throughput analysis
 - ✅ **Easy Cleanup**: Fast endpoint deletion after PoC
 - ✅ **Model Support**: 15+ models including Phi-4, Llama, Mistral, DeepSeek, and more
+- ✅ **Easy Cleanup**: Fast endpoint deletion after PoC
+- ✅ **Model Support**: 15+ models including Phi-4, Llama, Mistral, DeepSeek, and more
 
 ## 📦 Prerequisites
 
-Before you begin, ensure you have the following:
+### Common Requirements (Both Parts)
 
 - **Azure Subscription** with active credits
-- **Azure ML Workspace** or **AI Foundry Project** created
-- **GPU Quota** available in your subscription (NC24/48/96 A100 or H100)
+- **Azure CLI** installed and logged in (`az login`)
 - **Python 3.9+** installed
-- **Conda** or **virtualenv** for environment management
-- **Azure CLI** installed and configured
 - **Git** for cloning the repository
 
-### Required Permissions
+### Additional for Part 1 (Managed Compute)
 
-- Contributor access to Azure ML Workspace
-- Ability to create and delete online endpoints
-- Access to Model Catalog
+- **GPU Quota** available in your subscription:
+  - NC24/48/96ads_A100_v4 (A100 GPUs)
+  - NC40/80ads_H100_v5 (H100 GPUs)
+- **Azure Developer CLI (azd)** - [Install azd](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd)
+- **Conda** or **virtualenv** for Python environment management
+
+### Additional for Part 2 (AI Model Inference)
+
+- **Azure AI Foundry** project or **Azure AI services** resource
+- **Deployed model endpoint** (DeepSeek, Phi, OpenAI, etc.)
+- **API Key** for the endpoint
 
 ---
 
-## 🚀 Quick Start
+## � Part 1: Managed Compute Performance Testing
 
-### Option 1: One-Click Deployment with Azure Developer CLI (azd)
+> Deploy and test open-source and custom models on Azure GPU VMs with full control
 
-The fastest way to get started is using Azure Developer CLI for automated infrastructure and environment setup.
+### Complete Workflow
 
-#### Prerequisites for azd
-- [Azure Developer CLI (azd)](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd) installed
-- Azure CLI installed and logged in
-- Active Azure subscription with appropriate permissions
+```
+1. Infrastructure Setup (azd up)
+   ↓
+2. Model Deployment (Python script)
+   ↓
+3. Performance Testing (Default parameters)
+   ↓
+4. [OPTIONAL] Parameter Optimization
+   ↓
+5. [OPTIONAL] Re-test with Optimized Parameters
+   ↓
+6. Cleanup (Delete endpoint)
+```
 
-#### Complete Deployment Steps
+---
+
+### 1️⃣ Infrastructure Setup
+
+#### Deploy with Azure Developer CLI (azd)
 
 ```bash
-# 1. Clone only the AI-Foundry-Model-Performance directory (sparse checkout)
+# 1. Clone repository (sparse checkout for this project only)
 git clone --depth 1 --filter=blob:none --sparse https://github.com/david-xinyuwei/david-share.git
 cd david-share
 git sparse-checkout set Deep-Learning/AI-Foundry-Model-Performance
@@ -97,7 +150,67 @@ cd Deep-Learning/AI-Foundry-Model-Performance
 # Linux: curl -fsSL https://aka.ms/install-azd.sh | bash
 
 # 3. Login to Azure
-# For local machine (with browser):
+az login
+azd auth login
+
+# 4. Check GPU quota (find regions with available GPU VMs)
+bash scripts/deployment/check-gpu-quota.sh
+
+# 5. Deploy infrastructure (3-5 minutes)
+azd up
+```
+
+**What gets deployed:**
+- ✅ Resource Group
+- ✅ Azure ML Workspace
+- ✅ Storage Account
+- ✅ Key Vault
+- ✅ Application Insights
+- ✅ Log Analytics Workspace
+
+**Deployment time**: 3-5 minutes
+
+---
+
+#### Alternative: Use Existing Workspace
+
+If you already have an Azure ML workspace, you can skip `azd up` and proceed directly to model deployment.
+
+The deployment script will auto-detect your existing workspace!
+
+---
+
+### 2️⃣ Model Deployment
+
+```bash
+# For Linux/macOS
+python scripts/deployment/deploymodels-linux-20250405.py
+
+# For Windows PowerShell
+python scripts/deployment/deploymodels-powershell-20250405.py
+```
+
+**What the script does:**
+
+1. ✅ Auto-detects your Azure subscription
+2. ✅ Lists available resource groups and ML workspaces
+3. ✅ Checks GPU quota availability across regions
+4. ✅ Prompts you to select:
+   - Model (Phi-4, Llama, Mixtral, etc.)
+   - Region (based on available quota)
+   - GPU SKU (NC24/48/96 A100 or NC40/80 H100)
+   - Instance count
+5. ✅ Creates managed online endpoint
+6. ✅ Deploys model to endpoint
+7. ✅ Returns endpoint URL + API key for testing
+
+**Deployment time**: 10-20 minutes
+
+---
+
+#### Supported Models and Azure GPU VM SKUs
+
+By now, the AML names tested in this repo, their full names on Hugging Face, and the Azure GPU VM SKUs that can be deployed on AML are as follows.
 azd auth login
 
 # For remote server/SSH (without browser):
@@ -520,31 +633,88 @@ SECONDARY_KEY=4dhy3og6WfVzkIijMU7FFUDLpz4WIWEYgIlXMGYUzgwafsW6GPrMJQQJ99BCAAAAAA
 > ⚠️ **Important**: GPU VMs are relatively expensive. Therefore, after completing performance testing, you should use the script below to delete the endpoint to avoid incurring excessive costs.
 
 ```bash
+# For Linux/macOS
 python scripts/deployment/delete-endpoint-20250327.py
+
+# For Windows PowerShell
+python scripts/deployment/delete-endpoint-powershell-20250327.py
 ```
+
+**What the script does:**
+
+1. ✅ Auto-detects your Azure subscription (from `az login`)
+2. ✅ Lists available resource groups
+3. ✅ Lists available ML workspaces
+4. ✅ Prompts you to select (or manually input if needed)
+5. ✅ Displays all endpoints in the workspace
+6. ✅ Allows you to select multiple endpoints to delete (e.g., 1, 2, 5)
 
 https://github.com/user-attachments/assets/8be25ceb-6c47-45b3-bfa6-34dbc79f6732
 
 ##### Delete Process Example
 
+**New Interactive Selection (Auto-Detection):**
+
 ```text
-Please enter your Azure Subscription ID: aaaaaaaaaaaaaaaa
-Please enter your Azure Resource Group name: A100VM_group
-Please enter your Azure ML Workspace name: aml-westus
+========== Azure ML Endpoint Deletion ==========
+Detecting existing Azure resources...
 
-Retrieving the list of online Endpoints in the Workspace...
+✓ Current Azure CLI subscription:
+  Name: My Azure Subscription
+  ID:   08f95cfd-64fe-4187-99bb-7b3e661c4cde
 
-List of online Endpoints:
+Use this subscription? (Y/n): y
+
+Fetching resource groups...
+
+✓ Found 1 Resource Group: rg-aif-sea-david-aml (Location: southeastasia)
+Use this Resource Group? (Y/n): y
+
+Fetching ML workspaces...
+
+✓ Found 1 ML Workspace: mlw-aif-sea-david-aml (Location: southeastasia) (RG: rg-aif-sea-david-aml)
+Use this ML Workspace? (Y/n): y
+
+========== Selected Configuration ==========
+Subscription ID: 08f95cfd-64fe-4187-99bb-7b3e661c4cde
+Resource Group:  rg-aif-sea-david-aml
+Workspace:       mlw-aif-sea-david-aml
+==================================================
+
+========== Available Endpoints ==========
+Retrieving the list of online Endpoints...
+
+Found 2 online Endpoint(s):
 1. aml-westus-takfp
 2. aml-westus-aflqs
+==================================================
 
-Enter the numbers of the Endpoints you want to delete (e.g., 1, 3, 4). Press Enter to skip: 1, 2
+Enter the numbers of the Endpoints you want to delete (e.g., 1, 3, 4).
+Press Enter to skip: 1, 2
+
+========== Deleting Endpoints ==========
 
 Deleting Endpoint: aml-westus-takfp...
-...Endpoint aml-westus-takfp deleted successfully.
+✓ Endpoint aml-westus-takfp deleted successfully.
 
 Deleting Endpoint: aml-westus-aflqs...
-...Endpoint aml-westus-aflqs deleted successfully.
+✓ Endpoint aml-westus-aflqs deleted successfully.
+
+========== Deletion Complete ==========
+All specified Endpoints have been processed. Exiting the script.
+```
+
+**If Multiple Resources Available:**
+
+```text
+========== Available Resource Groups ==========
+1. rg-aif-sea-david-aml (Location: southeastasia)
+2. rg-test-westus (Location: westus)
+3. rg-prod-eastus (Location: eastus)
+==================================================
+
+Select Resource Group by number (1-3) or press Enter to input manually: 1
+```
 
 The deletion process for all specified Endpoints has been completed. Exiting the script.
 ```
