@@ -144,10 +144,8 @@ cd david-share
 git sparse-checkout set Deep-Learning/AI-Foundry-Model-Performance
 cd Deep-Learning/AI-Foundry-Model-Performance
 
-# 2. Install azd (if not already installed)
-# Windows: winget install microsoft.azd
-# macOS: brew tap azure/azd && brew install azd
-# Linux: curl -fsSL https://aka.ms/install-azd.sh | bash
+# 2. Install azd
+curl -fsSL https://aka.ms/install-azd.sh | bash
 
 # 3. Create Python environment and install dependencies
 conda create -n aml_env python=3.9 -y
@@ -156,87 +154,39 @@ pip install -r requirements.txt
 
 # 4. Login to Azure
 az login
-
-# For interactive login (opens browser):
-azd auth login
-
-# For remote server/SSH (without browser):
 azd auth login --use-device-code
-# This will show a code and URL. Open the URL on your local browser and enter the code.
 
-# 5. ⭐ IMPORTANT: Check GPU quota BEFORE deploying infrastructure
+# 5. Check GPU quota
 bash scripts/deployment/check-gpu-quota.sh
-# This script checks all Azure regions for GPU availability (A100/H100)
-# It checks BOTH VM quota AND ML compute quota (if workspaces exist)
-# It will automatically save the recommended region
-# No need to manually select - azd will use it automatically!
 
-# 6. Deploy infrastructure with azd (location is auto-configured)
+# 6. Deploy infrastructure
 azd up
-# The location is automatically set from step 5 - no manual selection needed!
-# This will create: resource group, workspace, storage, key vault, etc.
 ```
-
-> 📝 **Important Note on GPU Quota Checking**:
-> 
-> Azure has two types of GPU quotas:
-> 
-> 1. **VM Quota** (`az vm list-usage`) - For general VM deployment
-> 2. **ML Compute Quota** (`az ml compute list-usage`) - For AML managed compute
-> 
-> The `check-gpu-quota.sh` script (step 5) checks BOTH types across all regions in parallel.
-> The deployment script no longer checks quota to avoid 80-120 seconds of serial API calls.
-> If you need to verify quota again, simply run: `bash scripts/deployment/check-gpu-quota.sh`
-
-**What `azd up` creates:**
-- ✅ Resource Group
-- ✅ Azure ML Workspace
-- ✅ Storage Account
-- ✅ Key Vault
-- ✅ Application Insights
-- ✅ Log Analytics Workspace
-
-**Deployment time**: 3-5 minutes
 
 ---
 
 #### Alternative: Use Existing Workspace
 
-If you already have an Azure ML workspace, you can skip `azd up` and proceed directly to [Model Deployment](#2️⃣-model-deployment).
-
-The deployment script will auto-detect your existing workspace!
+Skip `azd up` if you already have an Azure ML workspace. The deployment script will auto-detect it.
 
 ---
 
 ### 2️⃣ Model Deployment
 
 ```bash
-# For Linux/macOS
 python scripts/deployment/deploymodels-linux-20250405.py
-
-# For Windows PowerShell
-python scripts/deployment/deploymodels-powershell-20250405.py
 ```
 
-**What the script does:**
-
-1. ✅ Auto-detects your Azure subscription
-2. ✅ Lists available resource groups and ML workspaces
-3. ✅ Checks GPU quota availability across regions
-4. ✅ Prompts you to select:
-   - Model (Phi-4, Llama, Mixtral, etc.)
-   - Region (based on available quota)
-   - GPU SKU (NC24/48/96 A100 or NC40/80 H100)
-   - Instance count
-5. ✅ Creates managed online endpoint
-6. ✅ Deploys model to endpoint
-7. ✅ Returns endpoint URL + API key for testing
-
-**Deployment time**: 10-20 minutes
+**The script will:**
+- Auto-detect subscription, resource groups, and ML workspaces
+- Prompt for model selection (Phi-4, Llama, Mixtral, etc.)
+- Check GPU quota and suggest available regions
+- Deploy model to managed online endpoint
+- Return endpoint URL + API key
 
 ---
 
-#### Supported Models and Azure GPU VM SKUs
+#### Supported Models and VM SKUs
 
 By now, the AML names tested in this repo, their full names on Hugging Face, and the Azure GPU VM SKUs that can be deployed on AML are as follows.
 
@@ -247,84 +197,16 @@ By now, the AML names tested in this repo, their full names on Hugging Face, and
 - ✅ Deploys Application Insights + Log Analytics for observability
 - ✅ Creates Storage Account for ML workspace
 - ✅ Deploys Key Vault for secure credential management
-- ✅ Sets up Azure ML Workspace
-- ✅ Creates Python virtual environment
-- ✅ Installs all required dependencies
-
-#### Verify Deployment
-
-```bash
-# Check deployed resources
-azd show
-
-# Get environment variables
-azd env get-values
-```
-
-#### Run Performance Tests
-
-```powershell
-# Activate Python environment
-.\venv\Scripts\Activate.ps1  # Windows
-# source venv/bin/activate   # Linux/macOS
-
-# Set environment variables from deployment
-$env:APPINSIGHTS_CONNECTION_STRING = azd env get-value APPINSIGHTS_CONNECTION_STRING
-
-# Run performance tests (see examples below)
-python scripts/testing/press-phi4-0403.py
-```
-
-#### Clean Up Resources
-
-```bash
-# Delete all Azure resources
-azd down
-```
-
-#### Troubleshooting azd
-
-**Issue 1: Browser doesn't open / `ERR_CONNECTION_REFUSED`**
-```bash
-# You're on a remote server or SSH session
-# Use device code authentication:
-azd auth login --use-device-code
-```
-
-**Issue 2: Authentication failed**
-```bash
-# Use Azure CLI credentials instead:
-az login --use-device-code
-azd config set auth.useAzCliAuth true
-azd up
-```
-
-**Issue 3: Permission denied**
-```bash
-# Check you have Contributor role:
-az role assignment list --assignee $(az account show --query user.name -o tsv)
-```
-
-**Issue 4: Want to skip azd entirely**
-```bash
-# You can deploy with Azure CLI directly:
-az login --use-device-code
-az deployment sub create \
-  --location eastus \
-  --template-file infra/main.bicep \
-  --parameters infra/main.parameters.json
-```
 
 ---
 
 ### 3️⃣ Performance Testing (Default Parameters)
 
-> ⚠️ **Important Notes**:
-> 
-> - The test results in this section are for reference only. You need to use my script to conduct tests in your actual environment.
-> - In my performance testing script, timeout and retry mechanisms are configured. Specifically, if a task fails to complete within the timeout period (default is 90 seconds, which is same as the default value `request_settings.request_timeout_ms` in Endpoint), it will be marked as failed. Additionally, if a request encounters a 429 error during execution, it will trigger a backoff mechanism. If the 429 error occurs three consecutive times, the request will be marked as failed. When performing tests, you should adjust these parameters according to the requirements of your business scenario.
-> - When analyzing the test results, you need to consider multiple metrics, including request success rate, TTFT (Time to First Token), tokens/s, and TTFT again. You should not focus solely on a single indicator.
-> - All the tests in this section are based on the model-deployed Endpoint, without adjusting the `request_settings.max_concurrent_requests_per_instance` and `request_settings.request_timeout_ms` parameters.
+> ⚠️ **Notes**:
+> - Test results are for reference only. Use the provided scripts to test in your environment.
+> - Timeout default: 90s (same as `request_settings.request_timeout_ms`). Failed requests after 3x 429 errors.
+> - Analyze multiple metrics: success rate, TTFT, tokens/s. Don't focus on a single indicator.
+> - Tests use default Endpoint settings without adjusting `max_concurrent_requests_per_instance` or `request_timeout_ms`.
 
 The primary goal of performance testing is to verify tokens/s and TTFT during the inference process. To better simulate real-world scenarios, I have set up several common LLM/SLM use cases in the test script. Additionally, to ensure tokens/s performance, the test script needs to load the corresponding model's tokenizer during execution (Refer to upper table of tokenizers name).
 
@@ -702,7 +584,7 @@ Full original test results are here:
 ---
 
 <details>
-<parameter name="summary"><h4>💬 mistralai-Mixtral-8x7B-Instruct-v01 Series</h4></summary>
+<summary><h4>💬 mistralai-Mixtral-8x7B-Instruct-v01 Series</h4></summary>
 
 ```bash
 python scripts/testing/press-Mixtral-8x7B-20250323.py
@@ -841,7 +723,7 @@ Full original test results are here:
 ---
 
 <details>
-<parameter name="summary"><h4>🎧 openai-whisper-large Series</h4></summary>
+<summary><h4>🎧 openai-whisper-large Series</h4></summary>
 
 **On NC48 VM**
 
@@ -1373,6 +1255,9 @@ Received concurrency levels: [10, 300]
 
 ### Performance on DS 671B
 
+<details>
+<summary><h4>📊 DeepSeek-R1 Performance Results</h4></summary>
+
 I will use the test results of DeeSeek R1 on Azure AI model inference  as an example:
 
   **Max performance:**
@@ -1437,9 +1322,14 @@ The overall throughput averages 735.12 tokens/s, with a P90 of 1184.06 tokens/s,
 | 300             | 4096              | 40                 | 40                | 0              | 81.514                  | 1.740                | 24.17                                   | 710.79                            |
 | 300             | 4096              | 50                 | 50                | 0              | 91.253                  | 91.253               | 24.53                                   | 279.55                            |
 
+</details>
 
+---
 
 ### Performance Phi-4
+
+<details>
+<summary><h4>📊 Phi-4 Performance Results</h4></summary>
 
 ![images](https://github.com/xinyuwei-david/AI-Foundry-Model-Performance/blob/main/images/12.png)
 
@@ -1506,6 +1396,8 @@ The overall throughput averages 735.12 tokens/s, with a P90 of 1184.06 tokens/s.
 | 300         | 1024          | 50             | Stream     | 50            | 0          | 31.885              | 1.121            | 29.28                               | 1238.09                       |
 | 300         | 2048          | 10             | Non-Stream | 10            | 0          | 27.862              | 27.862           | 42.47                               | 348.38                        |
 | 300         | 2048          | 10             | Stream     | 10            | 0          | 27.356              | 0.439            | 36.49                               | 329.59                        |
+
+</details>
 
 ---
 
@@ -1677,7 +1569,21 @@ A: Check the [model compatibility table](#supported-models-and-vm-skus). General
 
 ---
 
-## 🤝 Contributing
+## � Clean Up Resources
+
+After completing your tests, clean up Azure resources to avoid unnecessary charges:
+
+```bash
+# 1. Delete endpoints
+python scripts/deployment/delete-endpoint-20250327.py
+
+# 2. Delete all Azure resources
+azd down
+```
+
+---
+
+## �🤝 Contributing
 
 Contributions are welcome! If you'd like to add:
 - New model test results
