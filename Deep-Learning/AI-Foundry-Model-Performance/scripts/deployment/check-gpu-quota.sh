@@ -45,6 +45,152 @@ echo "  Name: $SUBSCRIPTION_NAME"
 echo "  ID:   $SUBSCRIPTION_ID"
 echo ""
 
+# Let user choose how to check regions
+echo -e "${YELLOW}[OPTION]${NC} How would you like to check GPU quota?"
+echo "  1. Enter specific regions (FASTEST - recommended if you know which regions)"
+echo "  2. Quick check - ~35 common GPU regions (30-60 seconds)"
+echo "  3. Comprehensive - All 100+ Azure regions (2-5 minutes)"
+read -p "Enter choice (1/2/3, default=1): " CHECK_MODE
+CHECK_MODE=${CHECK_MODE:-1}
+
+if [ "$CHECK_MODE" = "1" ]; then
+    # User enters specific regions
+    echo ""
+    echo -e "${BLUE}[INFO]${NC} Enter the regions you want to check (space or comma separated)"
+    echo "  Examples: eastus westus francecentral"
+    echo "            EastUS, WestUS, FranceCentral"
+    echo "            eus wus fc (abbreviations supported)"
+    echo "  Hint: Check Azure Portal → Quotas to see where you have GPU quota"
+    echo ""
+    read -p "Regions to check: " USER_REGIONS
+    
+    if [ -z "$USER_REGIONS" ]; then
+        echo -e "${RED}[ERROR]${NC} No regions specified. Exiting."
+        exit 1
+    fi
+    
+    # Function to normalize region name (handle abbreviations and case)
+    normalize_region() {
+        local input="$1"
+        # Convert to lowercase and remove spaces/dashes
+        input=$(echo "$input" | tr '[:upper:]' '[:lower:]' | tr -d ' -')
+        
+        # Common abbreviations mapping
+        case "$input" in
+            # US regions
+            "eus"|"eastus1") echo "eastus" ;;
+            "eus2") echo "eastus2" ;;
+            "wus") echo "westus" ;;
+            "wus2") echo "westus2" ;;
+            "wus3") echo "westus3" ;;
+            "cus") echo "centralus" ;;
+            "ncus") echo "northcentralus" ;;
+            "scus") echo "southcentralus" ;;
+            "wcus") echo "westcentralus" ;;
+            
+            # Europe regions
+            "weu"|"weur") echo "westeurope" ;;
+            "neu"|"neur") echo "northeurope" ;;
+            "fc"|"frc") echo "francecentral" ;;
+            "uks") echo "uksouth" ;;
+            "ukw") echo "ukwest" ;;
+            "gwc"|"dewc") echo "germanywestcentral" ;;
+            "sec"|"swe") echo "swedencentral" ;;
+            "noe"|"nor") echo "norwayeast" ;;
+            "plc"|"pol") echo "polandcentral" ;;
+            
+            # Asia Pacific
+            "jpe"|"jpeast") echo "japaneast" ;;
+            "jpw"|"jpwest") echo "japanwest" ;;
+            "krc"|"kor") echo "koreacentral" ;;
+            "aue"|"aus") echo "australiaeast" ;;
+            "ause") echo "australiasoutheast" ;;
+            "sea"|"sg") echo "southeastasia" ;;
+            "ea") echo "eastasia" ;;
+            "inc"|"cin") echo "centralindia" ;;
+            "ins"|"sin") echo "southindia" ;;
+            
+            # Middle East & Africa
+            "uae") echo "uaenorth" ;;
+            "qat") echo "qatarcentral" ;;
+            "saf"|"za") echo "southafricanorth" ;;
+            "isr") echo "israelcentral" ;;
+            
+            # Americas (other)
+            "brs"|"br") echo "brazilsouth" ;;
+            "cac"|"canc") echo "canadacentral" ;;
+            "cae"|"cane") echo "canadaeast" ;;
+            
+            # Return as-is if no abbreviation match (assume full name)
+            *) echo "$input" ;;
+        esac
+    }
+    
+    # Parse user input (handle both space and comma separated)
+    USER_REGIONS=$(echo "$USER_REGIONS" | tr ',' ' ')
+    REGIONS_TO_CHECK=()
+    for region in $USER_REGIONS; do
+        # Trim whitespace and normalize
+        region=$(echo "$region" | xargs)
+        normalized=$(normalize_region "$region")
+        REGIONS_TO_CHECK+=("$normalized")
+    done
+    
+    REGION_COUNT=${#REGIONS_TO_CHECK[@]}
+    echo -e "${GREEN}[SUCCESS]${NC} Will check $REGION_COUNT region(s): ${REGIONS_TO_CHECK[*]}"
+    
+elif [ "$CHECK_MODE" = "2" ]; then
+    # Quick mode: Priority GPU regions
+    PRIORITY_REGIONS=(
+        # US regions
+        "eastus" "eastus2" "westus" "westus2" "westus3"
+        "centralus" "northcentralus" "southcentralus"
+        # Europe regions
+        "westeurope" "northeurope" "francecentral" "uksouth" "ukwest"
+        "germanywestcentral" "swedencentral" "norwayeast" "polandcentral"
+        "switzerlandnorth" "switzerlandwest" "italynorth" "spaincentral"
+        # Asia Pacific
+        "japaneast" "japanwest" "koreacentral" "australiaeast" "australiasoutheast"
+        "southeastasia" "eastasia" "centralindia" "southindia"
+        # Middle East & Africa
+        "uaenorth" "qatarcentral" "southafricanorth" "israelcentral"
+        # Americas (other)
+        "brazilsouth" "canadacentral" "canadaeast"
+    )
+    
+    REGIONS_TO_CHECK=("${PRIORITY_REGIONS[@]}")
+    REGION_COUNT=${#REGIONS_TO_CHECK[@]}
+    echo -e "${GREEN}[SUCCESS]${NC} Will check $REGION_COUNT priority GPU regions"
+    
+elif [ "$CHECK_MODE" = "3" ]; then
+    # Comprehensive mode: All regions
+    echo -e "${BLUE}[INFO]${NC} Fetching all available Azure regions..."
+    ALL_REGIONS=$(az account list-locations --query "[].name" -o tsv 2>/dev/null)
+    
+    if [ -z "$ALL_REGIONS" ]; then
+        echo -e "${RED}[ERROR]${NC} Failed to fetch regions from Azure"
+        exit 1
+    fi
+    
+    # Convert to array
+    REGIONS_TO_CHECK=()
+    while IFS= read -r region; do
+        REGIONS_TO_CHECK+=("$region")
+    done <<< "$ALL_REGIONS"
+    
+    REGION_COUNT=${#REGIONS_TO_CHECK[@]}
+    echo -e "${GREEN}[SUCCESS]${NC} Will check all $REGION_COUNT regions"
+else
+    echo -e "${RED}[ERROR]${NC} Invalid choice. Exiting."
+    exit 1
+fi
+
+echo ""
+echo -e "${BLUE}[INFO]${NC} Checking GPU quota for NC-series (A100/H100)..."
+echo ""
+echo "Using parallel execution to speed up checks (max 15 concurrent regions)..."
+echo ""
+
 # Priority regions: Known to support GPU and commonly used
 # This list includes regions where A100/H100 are typically available
 PRIORITY_REGIONS=(
