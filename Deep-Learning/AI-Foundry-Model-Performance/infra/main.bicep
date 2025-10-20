@@ -3,29 +3,70 @@
 
 targetScope = 'subscription'
 
-@description('Primary location for all resources')
-param location string = 'eastus'
+@minLength(1)
+@description('Azure region where all resources will be deployed. IMPORTANT: Choose a region where you have GPU quota available (NC/ND/NV series). Common GPU regions: eastus, eastus2, westus2, westus3, westeurope, northeurope, uksouth, swedencentral, polandcentral, japaneast, australiaeast, southeastasia.')
+@allowed([
+  'eastus'
+  'eastus2'
+  'westus'
+  'westus2'
+  'westus3'
+  'centralus'
+  'southcentralus'
+  'northcentralus'
+  'westcentralus'
+  'westeurope'
+  'northeurope'
+  'uksouth'
+  'ukwest'
+  'francecentral'
+  'germanywestcentral'
+  'switzerlandnorth'
+  'norwayeast'
+  'polandcentral'
+  'swedencentral'
+  'japaneast'
+  'japanwest'
+  'koreacentral'
+  'australiaeast'
+  'australiasoutheast'
+  'southeastasia'
+  'eastasia'
+  'southafricanorth'
+  'brazilsouth'
+  'canadacentral'
+  'canadaeast'
+  'southindia'
+  'centralindia'
+  'westindia'
+])
+param location string
 
-@description('Name of the resource group')
-param resourceGroupName string = 'rg-ai-foundry-perf'
+@description('Id of the user or app to assign application roles')
+param principalId string = ''
 
-@description('Name of the Azure ML workspace')
-param mlWorkspaceName string = 'mlw-ai-foundry-perf'
-
-@description('Name of the Application Insights instance')
-param appInsightsName string = 'appi-ai-foundry-perf'
-
-@description('Name of the Log Analytics workspace')
-param logAnalyticsName string = 'log-ai-foundry-perf'
-
-@description('Name of the Key Vault')
-param keyVaultName string = 'kv-ai-foundry-${uniqueString(resourceGroupName)}'
-
-@description('Name of the Storage Account')
-param storageAccountName string = 'stai${uniqueString(resourceGroupName)}'
-
-@description('Environment name (dev, prod, etc.)')
+@description('Environment name - used as suffix for resource naming (e.g., dev, test, prod)')
 param environmentName string = 'dev'
+
+// Generate short location code automatically (first 3 chars + last 2 chars, max 6 chars)
+// This works for ANY Azure region without hardcoding
+var locationCode = length(location) <= 6 
+  ? location 
+  : '${substring(location, 0, 3)}${substring(location, length(location) - 2, 2)}'
+
+// Examples:
+//   eastus -> eastus (6 chars)
+//   francecentral -> fraal (3+2=5 chars) 
+//   southeastasia -> soua (3+2=5 chars)
+//   westeurope -> wespe (3+2=5 chars)
+
+// Computed resource names using location code
+var resourceGroupName = 'rg-aif-${locationCode}-${environmentName}'
+var mlWorkspaceName = 'mlw-aif-${locationCode}-${environmentName}'
+var appInsightsName = 'appi-aif-${locationCode}-${environmentName}'
+var logAnalyticsName = 'log-aif-${locationCode}-${environmentName}'
+var keyVaultName = 'kv-${uniqueString(subscription().subscriptionId, resourceGroupName, location)}'
+var storageAccountName = 'stai${uniqueString(subscription().subscriptionId, resourceGroupName, location)}'
 
 @description('Tags to apply to all resources')
 param tags object = {

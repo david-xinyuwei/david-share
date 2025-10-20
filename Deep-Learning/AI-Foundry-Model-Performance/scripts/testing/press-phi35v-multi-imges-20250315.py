@@ -9,6 +9,14 @@ import ssl
 import time  
 import concurrent.futures  
 import sys  
+
+# Add current directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+try:
+    from model_config import get_tokenizer_from_url, MODEL_TOKENIZER_MAP
+except ImportError:
+    get_tokenizer_from_url = None
+    MODEL_TOKENIZER_MAP = {}
   
 try:  
     from transformers import AutoTokenizer  
@@ -49,12 +57,31 @@ def input_config():
     if key_in:  
         API_KEY = key_in  
   
-    model_name = input("Please enter the HuggingFace model name for loading the tokenizer (default: gpt2, leave blank to skip loading): ").strip()  
+    # Try auto-detect tokenizer from URL
+    default_tokenizer = "microsoft/Phi-3-vision-128k-instruct"
+    auto_detected = None
+    if get_tokenizer_from_url and API_URL:
+        auto_detected = get_tokenizer_from_url(API_URL)
+    
+    if auto_detected:
+        print(f"\n✅ Auto-detected tokenizer: {auto_detected}")
+        use_auto = input("Use this tokenizer? (Y/n): ").strip().lower()
+        model_name = auto_detected if use_auto in ['', 'y', 'yes'] else None
+    else:
+        model_name = None
+    
+    if not model_name:
+        model_name = input(f"Please enter the HuggingFace model name for tokenizer (default: {default_tokenizer}, leave blank to use default): ").strip()
+    
+    if not model_name:
+        model_name = default_tokenizer
+        print(f"Using default tokenizer: {model_name}")
+    
     if model_name:  
         if AutoTokenizer:  
             try:  
                 tokenizer = AutoTokenizer.from_pretrained(model_name)  
-                print("Tokenizer loaded successfully:", model_name)  
+                print(f"✅ Tokenizer loaded successfully: {model_name}")  
             except Exception as e:  
                 print("Failed to load tokenizer. Error:", e)  
                 tokenizer = None  
@@ -63,8 +90,8 @@ def input_config():
     else:  
         if AutoTokenizer:  
             try:  
-                tokenizer = AutoTokenizer.from_pretrained("gpt2")  
-                print("Default tokenizer gpt2 loaded successfully.")  
+                tokenizer = AutoTokenizer.from_pretrained(default_tokenizer)  
+                print(f"Default tokenizer {default_tokenizer} loaded successfully.")  
             except Exception as e:  
                 print("Failed to load default tokenizer. Error:", e)  
                 tokenizer = None  

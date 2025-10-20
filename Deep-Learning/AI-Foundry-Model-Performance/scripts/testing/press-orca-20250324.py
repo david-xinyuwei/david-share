@@ -9,6 +9,14 @@ import ssl
 import time  
 import concurrent.futures  
 import random  
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+try:
+    from config_helper import input_config_with_auto_tokenizer
+    USE_AUTO_CONFIG = True
+except ImportError:
+    USE_AUTO_CONFIG = False
   
 try:  
     from transformers import AutoTokenizer  
@@ -21,16 +29,22 @@ URL = None
 API_KEY = None  
 HEADERS = None  
 tokenizer = None  
-REQUEST_TIMEOUT = 90  # Timeout for each individual request (in seconds)  
+REQUEST_TIMEOUT = 90
+
+DEFAULT_TOKENIZER = "microsoft/Orca-2-7b"
   
 # --------------------------- Input Configuration ---------------------------  
 def input_config():  
     """  
     Prompt the user to input the API service URL, the API Key,  
-    and the HuggingFace model name for loading the tokenizer.  
+    and auto-detect tokenizer.  
     """  
     global URL, API_KEY, HEADERS, tokenizer  
   
+    if USE_AUTO_CONFIG:
+        URL, API_KEY, HEADERS, tokenizer = input_config_with_auto_tokenizer(DEFAULT_TOKENIZER)
+        return
+    
     URL = input("Please enter the Orca API service URL: ").strip()  
     if not URL:  
         raise Exception("URL cannot be empty!")  
@@ -39,9 +53,10 @@ def input_config():
     if not API_KEY:  
         raise Exception("API Key cannot be empty!")  
   
-    model_name = input("Please enter the model name for tokenizer loading: ").strip()  
+    model_name = input(f"Please enter the model name for tokenizer (default: {DEFAULT_TOKENIZER}): ").strip()  
     if not model_name:  
-        raise Exception("Model name cannot be empty!")  
+        model_name = DEFAULT_TOKENIZER
+        print(f"Using default: {model_name}")
   
     try:  
         tokenizer = AutoTokenizer.from_pretrained(model_name)  

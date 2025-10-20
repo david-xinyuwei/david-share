@@ -9,6 +9,17 @@ import ssl
 import time  
 import concurrent.futures  
 import random  
+import sys
+
+# Add parent directory to path to import model_config
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+try:
+    from model_config import get_tokenizer_from_url, get_tokenizer_name, MODEL_TOKENIZER_MAP
+except ImportError:
+    print("Warning: model_config.py not found. Auto-detection disabled.")
+    get_tokenizer_from_url = None
+    get_tokenizer_name = None
+    MODEL_TOKENIZER_MAP = {}
   
 try:  
     from transformers import AutoTokenizer  
@@ -27,7 +38,7 @@ REQUEST_TIMEOUT = 90  # Timeout for each individual request (in seconds)
 def input_config():  
     """  
     Prompt the user to input the API service URL, the API Key,  
-    and the HuggingFace model name for loading the tokenizer.  
+    and auto-detect or manually input the HuggingFace model name for tokenizer.  
     """  
     global URL, API_KEY, HEADERS, tokenizer  
   
@@ -39,15 +50,38 @@ def input_config():
     if not API_KEY:  
         raise Exception("API Key cannot be empty!")  
   
-    model_name = input("Please enter the model name for tokenizer loading: ").strip()  
-    if not model_name:  
-        raise Exception("Model name cannot be empty!")  
+    # Try to auto-detect tokenizer from URL
+    auto_detected_tokenizer = None
+    if get_tokenizer_from_url:
+        auto_detected_tokenizer = get_tokenizer_from_url(URL)
+    
+    if auto_detected_tokenizer:
+        print(f"\n✅ Auto-detected tokenizer: {auto_detected_tokenizer}")
+        use_auto = input("Use this tokenizer? (Y/n): ").strip().lower()
+        if use_auto in ['', 'y', 'yes']:
+            model_name = auto_detected_tokenizer
+        else:
+            model_name = input("Please enter the model name for tokenizer loading: ").strip()
+            if not model_name:
+                raise Exception("Model name cannot be empty!")
+    else:
+        print("\n⚠️  Could not auto-detect tokenizer from URL.")
+        print("Available models:")
+        for i, (aml_name, hf_name) in enumerate(MODEL_TOKENIZER_MAP.items(), 1):
+            if hf_name:
+                print(f"  {i}. {aml_name:50s} -> {hf_name}")
+        
+        model_name = input("\nPlease enter the model name for tokenizer loading: ").strip()
+        if not model_name:
+            # Default to Phi-4 for this script
+            model_name = "microsoft/phi-4"
+            print(f"Using default tokenizer: {model_name}")
   
     try:  
         tokenizer = AutoTokenizer.from_pretrained(model_name)  
-        print("Tokenizer loaded successfully:", model_name)  
+        print(f"✅ Tokenizer loaded successfully: {model_name}\n")  
     except Exception as e:  
-        print("Failed to load tokenizer. Please check the model name or dependencies. Error:", e)  
+        print(f"❌ Failed to load tokenizer. Please check the model name or dependencies. Error: {e}")  
         tokenizer = None  
   
     HEADERS = {  

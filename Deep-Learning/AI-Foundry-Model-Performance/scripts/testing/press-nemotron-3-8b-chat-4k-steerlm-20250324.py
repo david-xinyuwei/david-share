@@ -8,6 +8,14 @@ import os
 import ssl  
 import time  
 import concurrent.futures  
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+try:
+    from config_helper import input_config_with_auto_tokenizer
+    USE_AUTO_CONFIG = True
+except ImportError:
+    USE_AUTO_CONFIG = False
   
 try:  
     from transformers import AutoTokenizer  
@@ -20,17 +28,15 @@ URL = None
 API_KEY = None  
 HEADERS = None  
 tokenizer = None  
-REQUEST_TIMEOUT = 90  # Timeout for each individual request (in seconds)  
+REQUEST_TIMEOUT = 90
+
+DEFAULT_TOKENIZER = "nvidia/nemotron-3-8b-chat-4k-steerlm"
   
 # --------------------------- Input Configuration ---------------------------  
 def input_config():  
     """  
-    Prompts the user for:  
-      1) The base endpoint for Nemo Triton (e.g. https://xxx.inference.ml.azure.com/).  
-      2) An API Key string.  
-      3) A Hugging Face model name for loading the tokenizer.  
-  
-    Then it automatically appends /v2/models/ensemble/versions/1/infer to the base URL.  
+    Prompts the user for endpoint, API Key, and auto-detects tokenizer.
+    Automatically appends /v2/models/ensemble/versions/1/infer to the base URL.  
     """  
     global URL, API_KEY, HEADERS, tokenizer  
   
@@ -47,7 +53,12 @@ def input_config():
     if not API_KEY:  
         raise Exception("API Key cannot be empty!")  
   
-    model_name = input("Please enter the model name for tokenizer loading (e.g. gpt2): ").strip()  
+    # Try auto-detection or use default
+    if USE_AUTO_CONFIG:
+        from config_helper import load_tokenizer_auto
+        tokenizer = load_tokenizer_auto(base_url, DEFAULT_TOKENIZER)
+    else:
+        model_name = input(f"Please enter the model name for tokenizer (default: {DEFAULT_TOKENIZER}): ").strip()  
     if not model_name:  
         raise Exception("Model name cannot be empty!")  
   

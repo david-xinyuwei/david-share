@@ -12,14 +12,18 @@
 ## 📋 Table of Contents
 
 - [Overview](#overview)
-- [Features](#features)
+- [Deployment Methods Comparison](#deployment-methods-comparison)
 - [Prerequisites](#prerequisites)
-- [Quick Start](#quick-start)
-  - [Option 1: One-Click Deployment with azd](#option-1-one-click-deployment-with-azure-developer-cli-azd)
-  - [Option 2: Manual Setup](#option-2-manual-setup)
-- [Deploying Models Methods](#deploying-models-methods)
-- [Performance Test on Managed Compute](#performance-test-of-ai-models-deployed-on-managed-compute-in-aml-and-ai-foundry)
-- [Performance Test on Azure AI Model Inference](#performance-test-on-azure-ai-model-inference)
+- [Part 1: Managed Compute Performance Testing](#part-1-managed-compute-performance-testing)
+  - [Infrastructure Setup](#1️⃣-infrastructure-setup)
+  - [Model Deployment](#2️⃣-model-deployment)
+  - [Quick Cleanup](#🧹-quick-cleanup-delete-endpoints)
+  - [Performance Testing](#4️⃣-performance-testing)
+- [Part 2: Azure AI Model Inference Performance Testing](#part-2-azure-ai-model-inference-performance-testing)
+  - [What is AI Model Inference](#1️⃣-what-is-azure-ai-model-inference)
+  - [Quota and Limits](#2️⃣-supported-models--quota)
+  - [Performance Testing](#3️⃣-performance-testing)
+  - [Test Results](#4️⃣-test-results)
 - [Best Practices](#best-practices)
 - [Troubleshooting](#troubleshooting)
 - [FAQ](#faq)
@@ -27,18 +31,45 @@
 
 ## 🎯 Overview
 
-This repository is designed to test the performance of open-source models from the Azure Machine Learning and AI Foundry Model Catalog, includes:
+This repository provides comprehensive performance evaluation tools for Azure AI models, supporting **two deployment methods**:
 
-**Automatically deploy and delete AI models.**
+1. **Managed Compute** - Deploy open-source models on Azure GPU VMs (NC/ND series)
+2. **Azure AI Model Inference** - Test pre-deployed serverless models (OpenAI, DeepSeek, Phi, Mistral)
 
-- Quickly deploy open-source AI models on AML/AI Foundry.
-- Fast delete Endpoint after PoC
+### 📊 Deployment Methods Comparison
 
-Rapidly evaluate the performance of these models on the corresponding AI infrastructure and AI model inference quota.
+| Feature | **Managed Compute** | **AI Model Inference (Serverless)** |
+|---------|---------------------|-------------------------------------|
+| **Model Types** | Open models, custom models | Flagship models (OpenAI, DeepSeek, Phi, Mistral) |
+| **Infrastructure** | GPU VMs (NC/ND series) | No infrastructure needed |
+| **Deployment Resource** | AI project / AML workspace | Azure AI services resource |
+| **Billing** | VM hourly rate | Pay-per-token |
+| **Best For** | Custom models, full control, PoC | Production-ready models, quick testing |
+| **Quota Type** | VM cores quota | Token/request quota |
+| **Deployment Time** | 10-20 minutes | Instant (pre-deployed) |
+| **Testing Approach** | Deploy → Test → Delete | Test directly with endpoint |
 
-- Utilize real prompt models to initiate stress testing across multiple scenarios.
-- Evaluate performance metrics from multiple dimensions. 
-- To achieve more accurate metrics, use each model's own tokenizer (GPT-2 will be used if not specified).
+**Choose your path:**
+- 👉 [Part 1: Managed Compute](#part-1-managed-compute-performance-testing) - Full control over GPU resources
+- 👉 [Part 2: AI Model Inference](#part-2-azure-ai-model-inference-performance-testing) - Serverless testing
+
+---
+
+### 🎯 What This Repository Does
+
+**For Managed Compute (Part 1):**
+- ✅ Automated infrastructure deployment with `azd up`
+- ✅ Deploy 15+ open-source models from Model Catalog
+- ✅ Performance testing with real prompts
+- ✅ Metrics: TTFT, TPS, throughput, concurrency handling
+- ✅ Auto-cleanup after testing
+
+**For AI Model Inference (Part 2):**
+- ✅ Test pre-deployed serverless models (OpenAI, DeepSeek, Phi, etc.)
+- ✅ No infrastructure needed - just endpoint URL + API key
+- ✅ Same comprehensive performance metrics
+- ✅ Stream mode support
+- ✅ High-concurrency testing
 
 ## ✨ Features
 
@@ -53,46 +84,76 @@ Rapidly evaluate the performance of these models on the corresponding AI infrast
 
 ## 📦 Prerequisites
 
-Before you begin, ensure you have the following:
+### Common Requirements (Both Parts)
 
 - **Azure Subscription** with active credits
-- **Azure ML Workspace** or **AI Foundry Project** created
-- **GPU Quota** available in your subscription (NC24/48/96 A100 or H100)
+- **Azure CLI** installed and logged in (`az login`)
 - **Python 3.9+** installed
-- **Conda** or **virtualenv** for environment management
-- **Azure CLI** installed and configured
 - **Git** for cloning the repository
 
-### Required Permissions
+### Additional for Part 1 (Managed Compute)
 
-- Contributor access to Azure ML Workspace
-- Ability to create and delete online endpoints
-- Access to Model Catalog
+- **GPU Quota** available in your subscription:
+  - NC24/48/96ads_A100_v4 (A100 GPUs)
+  - NC40/80ads_H100_v5 (H100 GPUs)
+- **Azure Developer CLI (azd)** - [Install azd](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd)
+- **Conda** or **virtualenv** for Python environment management
+
+### Additional for Part 2 (AI Model Inference)
+
+- **Azure AI Foundry** project or **Azure AI services** resource
+- **Deployed model endpoint** (DeepSeek, Phi, OpenAI, etc.)
+- **API Key** for the endpoint
 
 ---
 
-## 🚀 Quick Start
+## 🖥️ Part 1: Managed Compute Performance Testing
 
-### Option 1: One-Click Deployment with Azure Developer CLI (azd)
+> Deploy and test open-source and custom models on Azure GPU VMs with full control
 
-The fastest way to get started is using Azure Developer CLI for automated infrastructure and environment setup.
+### Complete Workflow
 
-#### Prerequisites for azd
-- [Azure Developer CLI (azd)](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd) installed
-- Azure CLI installed and logged in
-- Active Azure subscription with appropriate permissions
+```
+1. Infrastructure Setup (azd up)
+   ↓
+2. Model Deployment (Python script)
+   ↓
+3. Quick Cleanup (Delete endpoints)
+   ↓
+4. Performance Testing 
+   ↓
+5. Cleanup (Delete all resources)
+```
 
-#### Deploy Everything with One Command
+---
+
+### 1️⃣ Infrastructure Setup
+
+#### Deploy with Azure Developer CLI (azd)
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/xinyuwei-david/AI-Foundry-Model-Performance.git
-cd AI-Foundry-Model-Performance
+# 1. Clone repository (sparse checkout for this project only)
+git clone --depth 1 --filter=blob:none --sparse https://github.com/david-xinyuwei/david-share.git
+cd david-share
+git sparse-checkout set Deep-Learning/AI-Foundry-Model-Performance
+cd Deep-Learning/AI-Foundry-Model-Performance
 
-# 2. Login to Azure
-azd auth login
+# 2. Install azd
+curl -fsSL https://aka.ms/install-azd.sh | bash
 
-# 3. One-click deploy infrastructure and setup environment
+# 3. Create Python environment and install dependencies
+conda create -n aml_env python=3.9 -y
+conda activate aml_env
+pip install -r requirements.txt
+
+# 4. Login to Azure
+az login
+azd auth login --use-device-code
+
+# 5. Check GPU quota
+bash scripts/deployment/check-gpu-quota.sh
+
+# 6. Deploy infrastructure
 azd up
 ```
 
@@ -101,78 +162,16 @@ azd up
 - ✅ Deploys Application Insights + Log Analytics for observability
 - ✅ Creates Storage Account for ML workspace
 - ✅ Deploys Key Vault for secure credential management
-- ✅ Sets up Azure ML Workspace
-- ✅ Creates Python virtual environment
-- ✅ Installs all required dependencies
-
-#### Verify Deployment
-
-```bash
-# Check deployed resources
-azd show
-
-# Get environment variables
-azd env get-values
-```
-
-#### Run Performance Tests
-
-```powershell
-# Activate Python environment
-.\venv\Scripts\Activate.ps1  # Windows
-# source venv/bin/activate   # Linux/macOS
-
-# Set environment variables from deployment
-$env:APPINSIGHTS_CONNECTION_STRING = azd env get-value APPINSIGHTS_CONNECTION_STRING
-
-# Run performance tests (see examples below)
-python scripts/testing/press-phi4-0403.py
-```
-
-#### Clean Up Resources
-
-```bash
-# Delete all Azure resources
-azd down
-```
-
-> 📖 **For detailed azd deployment documentation, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**
 
 ---
 
-### Option 2: Manual Setup
+#### Alternative: Use Existing Workspace
 
-If you prefer manual setup or want more control over the deployment process, follow the detailed instructions in the sections below.
-
----
-
-## 🚀 Deploying Models Methods
-
-In this repository, I focus on the performance of open-source AI models deployed using **Managed Compute** and **Azure AI Model Inference**.
-
-| Name                          | Azure OpenAI service                                         | Azure AI model inference                                     | Serverless API                                               | Managed compute                                              |
-| :---------------------------- | :----------------------------------------------------------- | :----------------------------------------------------------- | :----------------------------------------------------------- | :----------------------------------------------------------- |
-| Which models can be deployed? | [Azure OpenAI models](https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models) | [Azure OpenAI models and Models as a Service](https://learn.microsoft.com/en-us/azure/ai-foundry/model-inference/concepts/models) | [Models as a Service](https://learn.microsoft.com/en-us/azure/ai-foundry/how-to/model-catalog-overview#content-safety-for-models-deployed-via-serverless-apis) | [Open and custom models](https://learn.microsoft.com/en-us/azure/ai-foundry/how-to/model-catalog-overview#availability-of-models-for-deployment-as-managed-compute) |
-| Deployment resource           | Azure OpenAI resource                                        | Azure AI services resource                                   | AI project resource                                          | AI project resource                                          |
-| Best suited when              | You are planning to use only OpenAI models                   | You are planning to take advantage of the flagship models in Azure AI catalog, including OpenAI. | You are planning to use a single model from a specific provider (excluding OpenAI). | If you plan to use open models and you have enough compute quota available in your subscription. |
-| Billing bases                 | Token usage & PTU                                            | Token usage                                                  | Token usage                                                  | Compute core hours                                           |
-| Deployment instructions       | [Deploy to Azure OpenAI Service](https://learn.microsoft.com/en-us/azure/ai-foundry/how-to/deploy-models-openai) | [Deploy to Azure AI model inference](https://learn.microsoft.com/en-us/azure/ai-foundry/model-inference/how-to/create-model-deployments) | [Deploy to Serverless API](https://learn.microsoft.com/en-us/azure/ai-foundry/how-to/deploy-models-serverless) | [Deploy to Managed compute](https://learn.microsoft.com/en-us/azure/ai-foundry/how-to/deploy-models-managed) |
+Skip `azd up` if you already have an Azure ML workspace. The deployment script will auto-detect it.
 
 ---
 
-## 📊 Performance Test of AI Models Deployed on Managed Compute in AML and AI Foundry
-
-In this section, we focus on the models deployed on Managed Compute in the Model Catalogue on AML and AI Foundry.
-
-![images](https://github.com/xinyuwei-david/AI-Foundry-Model-Performance/blob/main/images/19.png)
-
-Next, we will use a Python script to automate the deployment of the model and use another program to evaluate the model's performance.
-
-### 🎯 Fast Deploy AI Model on Model Catalog via Azure GPU VM
-
-#### Supported Models and VM SKUs
-
-By now, the AML names tested in this repo, their full names on Hugging Face, and the Azure GPU VM SKUs that can be deployed on AML are as follows.
+### 2️⃣ Model Deployment
 
 | **Model Name on AML**                         | **Model on HF** (tokenizers name)             | **Azure GPU VM SKU Support in AML**              |
 | --------------------------------------------- | --------------------------------------------- | ------------------------------------------------ |
@@ -191,226 +190,57 @@ By now, the AML names tested in this repo, their full names on Hugging Face, and
 | stabilityai-stable-diffusion-xl-refiner-1-0   | stabilityai/stable-diffusion-xl-refiner-1.0   | Standard_ND96amsr_A100_v4 or Standard_ND96asr_v4 |
 | microsoft-Orca-2-7b                           | microsoft/Orca-2-7b                           | NC24/48/96 A100                                  |
 
-> ⚠️ **Note**: This repository primarily focuses on the inference performance of the aforementioned models on 1x NC24 A100, 2 x NC24 A100, 1 x NC48 A100, 1 x NC40 H100, and 1 x NC80 H100. However, these models currently do not support deployment on H100. Therefore, as of March 2025, all validations are conducted based on NC100.
-
----
-
-#### 📝 Clone Code and Prepare Shell Environment
-
-First, you need to create an Azure Machine Learning service in the Azure Portal. When selecting the region for the service, you should choose a region under the AML category in your subscription quota that has a GPU VM quota available.
-
-![images](https://github.com/xinyuwei-david/AI-Foundry-Model-Performance/blob/main/images/20.png)
-
-Next, find a shell environment where you can execute `az login` to log in to your Azure subscription.
-
-##### Install Conda
-
-**For Linux:**
-
-```bash
-wget https://repo.anaconda.com/archive/Anaconda3-2024.10-1-Linux-x86_64.sh
-bash Anaconda3-2024.10-1-Linux-x86_64.sh
-source ~/.bashrc
-conda init
-```
-
-**For Windows PowerShell:**
-
-```powershell
-# Download from Edge and install directly:
-# https://repo.anaconda.com/archive/Anaconda3-2024.10-1-Windows-x86_64.exe
-```
-
-##### Clone Code and Prepare Environment
-
-```bash
-git clone https://github.com/xinyuwei-david/AI-Foundry-Model-Performance.git
-conda create -n aml_env python=3.9 -y
-conda activate aml_env
-cd AI-Foundry-Model-Performance
-pip install -r requirements.txt
-```
-
-##### Requirements.txt Contents
-
-```text
-azure-ai-ml  
-azure-identity  
-requests  
-pyyaml  
-tabulate  
-torch
-transformers
-tiktoken
-```
-
-##### Login to Azure
-
-```bash
-curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-az login --use-device
-```
-
----
-
-#### 🚀 Deploy Model Automatically
-
-Next, you need to execute a script for end-to-end model deployment. This script will: 
-
-- Help you check the GPU VM quota for AML under your subscription
-- Prompt you to select the model you want to deploy
-- Specify the Azure GPU VM SKU and quantity to be used for deployment. 
-- Provide you with the endpoint and key of the successfully deployed model, allowing you to proceed with performance testing. 
-
-Before running the script, you need to check the table above to confirm the types of Azure GPU VMs supported by the AI model you plan to deploy.
-
-**For Linux:**
-
 ```bash
 python scripts/deployment/deploymodels-linux-20250405.py
 ```
 
 https://github.com/user-attachments/assets/cc9065e9-bbf1-4f59-a7b8-57b8c9703db3
 
-**For Windows PowerShell:**
+**The script will:**
 
-```powershell
-python scripts/deployment/deploymodels-powershell-20250405.py
-```
-
-> 📌 **Note**: The difference between the two scripts, `deploymodels-linux.py` and `deploymodels-powershell.py`, is not significant. The only difference is that PowerShell sometimes cannot parse "az" and can only parse "az.cmd," as shown in the following code snippet:
-> 
-> ```python
-> "az.cmd", "ml", "compute", "list-usage",
-> ```
-
-##### Deployment Process Example
-
-```
-========== Enter Basic Information ==========
-Subscription ID: 53039473-****-d046d4fa63b6
-Resource Group: AIrg1
-AML Workspace Name or AI Foundry Poject Name: aml-david-1
-
-========== Model Name Examples ==========
- - Phi-4
- - Phi-3.5-vision-instruct
- - financial-reports-analysis
- - databricks-dbrx-instruct
- - Llama-3.2-11B-Vision-Instruct
- - Phi-3-small-8k-instruct
- - Phi-3-vision-128k-instruct
- - microsoft-swinv2-base-patch4-window12-192-22k
- - mistralai-Mixtral-8x7B-Instruct-v01
- - Muse
- - openai-whisper-large
- - snowflake-arctic-base
- - Nemotron-3-8B-Chat-4k-SteerLM
- - stabilityai-stable-diffusion-xl-refiner-1-0
- - microsoft-Orca-2-7b
-==========================================
-
-Enter the model name to search (e.g., 'Phi-4'): Phi-4
-
-========== Matching Models ==========
-Name                       Description    Latest version
--------------------------  -------------  ----------------
-Phi-4-multimodal-instruct                 1
-Phi-4-mini-instruct                       1
-Phi-4                                     7
-
-Note: The above table is for reference only. Enter the exact model name below:
-Enter full model name (case-sensitive): Phi-4
-Enter model version (e.g., 7): 7
-2025-03-13 15:42:02,438 - INFO - User-specified model: name='Phi-4', version='7'
-
-========== GPU Quota (Limit > 1) ==========
-Region,ResourceName,LocalizedValue,Usage,Limit
-westeurope,standardNCADSH100v5Family,,0,100
-polandcentral,standardNCADSA100v4Family,,0,100
-
-========== A100 / H100 SKU Information ==========
-SKU Name                            GPU Count  GPU Memory (VRAM)    CPU Cores
------------------------------------ ---------- -------------------- ----------
-Standard_NC24ads_A100_v4            1          80 GB                24
-Standard_NC48ads_A100_v4            2          1600 GB (2x80 GB)    48
-Standard_NC96ads_A100_v4            4          320 GB (4x80 GB)     96
-Standard_NC40ads_H100_v5            1          80 GB                40
-Standard_NC80ads_H100_v5            2          160 GB (2x80 GB)     80
-
-Available SKUs:
- - Standard_NC24ads_A100_v4
- - Standard_NC48ads_A100_v4
- - Standard_NC96ads_A100_v4
- - Standard_NC40ads_H100_v5
- - Standard_NC80ads_H100_v5
-
-Enter the SKU to use: Standard_NC24ads_A100_v4
-Enter the number of instances (integer): 1
-2025-03-13 15:52:42,333 - INFO - Model ID: azureml://registries/AzureML/models/Phi-4/versions/7
-2025-03-13 15:52:42,333 - INFO - No environment configuration found.
-2025-03-13 15:52:42,366 - INFO - ManagedIdentityCredential will use IMDS
-2025-03-13 15:52:42,379 - INFO - Creating Endpoint: custom-endpoint-1741852362
-2025-03-13 15:52:43,008 - INFO - Request URL: 'http://169.254.169.254/metadata/identity/oauth2/token?api-version=REDACTED&resource=REDACTED'
-```
-
-After 3-5 minutes, you will get the final results:
-
-https://github.com/user-attachments/assets/69322f0c-913e-404c-a9d2-a7bae61d0b65
-
-```text
------ Deployment Information -----
-ENDPOINT_NAME=custom-endpoint-1741863106
-SCORING_URI=https://custom-endpoint-1741863106.polandcentral.inference.ml.azure.com/score
-PRIMARY_KEY=DRxHMd1jbbSdNoXiYOaWRQ66erYZfejzKhdyDVRuh58v2hXILOcYJQQJ99BCAAAAAAAAAAAAINFRAZML3m1v
-SECONDARY_KEY=4dhy3og6WfVzkIijMU7FFUDLpz4WIWEYgIlXMGYUzgwafsW6GPrMJQQJ99BCAAAAAAAAAAAAINFRAZMLxOpO
-```
+- Auto-detect subscription, resource groups, and ML workspaces
+- Prompt for model selection (Phi-4, Llama, Mixtral, etc.)
+- Check GPU quota and suggest available regions
+- Deploy model to managed online endpoint
+- Return endpoint URL + API key
 
 ---
 
-#### 🗑️ Fast Delete Endpoint
+#### Supported Models and VM SKUs
 
-> ⚠️ **Important**: GPU VMs are relatively expensive. Therefore, after completing performance testing, you should use the script below to delete the endpoint to avoid incurring excessive costs.
+By now, the AML names tested in this repo, their full names on Hugging Face, and the Azure GPU VM SKUs that can be deployed on AML are as follows.
+
+> 💡 **Common Issue**: If you see `ERR_CONNECTION_REFUSED` or browser doesn't open, you're on a remote server. Use `azd auth login --use-device-code` instead.
+
+---
+
+### 🧹 Quick Cleanup (Delete Endpoints)
+
+> ⚠️ **Important**: GPU endpoints are expensive! Delete them after testing to avoid unnecessary charges.
 
 ```bash
+# Delete endpoint after testing
 python scripts/deployment/delete-endpoint-20250327.py
+
+# Or delete all Azure resources
+azd down
 ```
 
 https://github.com/user-attachments/assets/8be25ceb-6c47-45b3-bfa6-34dbc79f6732
 
-##### Delete Process Example
-
-```text
-Please enter your Azure Subscription ID: aaaaaaaaaaaaaaaa
-Please enter your Azure Resource Group name: A100VM_group
-Please enter your Azure ML Workspace name: aml-westus
-
-Retrieving the list of online Endpoints in the Workspace...
-
-List of online Endpoints:
-1. aml-westus-takfp
-2. aml-westus-aflqs
-
-Enter the numbers of the Endpoints you want to delete (e.g., 1, 3, 4). Press Enter to skip: 1, 2
-
-Deleting Endpoint: aml-westus-takfp...
-...Endpoint aml-westus-takfp deleted successfully.
-
-Deleting Endpoint: aml-westus-aflqs...
-...Endpoint aml-westus-aflqs deleted successfully.
-
-The deletion process for all specified Endpoints has been completed. Exiting the script.
-```
-
 ---
 
-#### ⚙️ Maximally Exploit the Performance of the Endpoint
+### 3️⃣ Parameters Tuning
 
-> 💡 **Important Note**: If you feel the default performance without adjusting the parameters is sufficient, then there is no need to modify these settings. Every adjustment is a trade-off, and there is no perfect solution. 
+> ⚠️ **Notes**:
+> - Test results are for reference only. Use the provided scripts to test in your environment.
+> - Timeout default: 90s (same as `request_settings.request_timeout_ms`). Failed requests after 3x 429 errors.
+> - Analyze multiple metrics: success rate, TTFT, tokens/s. Don't focus on a single indicator.
+> - Tests use default Endpoint settings without adjusting `max_concurrent_requests_per_instance` or `request_timeout_ms`.
 
-There is no doubt that AI models deployed using the Managed Compute approach rely on the computational power of the underlying Azure GPU VM. But can we maximize its performance? Once the Endpoint is deployed, it runs as a container on the Azure GPU VM. Take the NC24 A100 as an example, its default `request_settings.max_concurrent_requests_per_instance` is set to 1. This means the model can only handle one concurrent request. If the concurrency exceeds this limit, a 429 error will be reported.
+The primary goal of performance testing is to verify tokens/s and TTFT during the inference process. To better simulate real-world scenarios, I have set up several common LLM/SLM use cases in the test script. Additionally, to ensure tokens/s performance, the test script needs to load the corresponding model's tokenizer during execution (Refer to upper table of tokenizers name).
 
-##### Endpoint Default Parameters
+​	Endpoint Default parameters value
 
 | Parameter                                             | Value |
 | ----------------------------------------------------- | ----- |
@@ -428,94 +258,38 @@ There is no doubt that AI models deployed using the Managed Compute approach rel
 | request_settings.max_concurrent_requests_per_instance | 1     |
 | request_settings.request_timeout_ms                   | 90000 |
 
-##### Performance Tuning Considerations
+ I will use Phi4 on Azure NC24 A100 as an example to demonstrate the performance changes after adjusting `request_settings.max_concurrent_requests_per_instance` to 10 and `request_settings.request_timeout_ms` to 180 seconds.
 
-You can increase this value, for example, to 10. However, at the same time, you also need to increase the `request_settings.request_timeout_ms` (default is 90 seconds), because as concurrency increases, the response time will significantly rise. If the timeout duration is not increased, it may lead to a large number of HTTPError 424 errors. At the same time, you need to ensure that the timeout period set by the client (which is the stress testing script in the repo) is not less than the timeout period set by the server.
+[![images](https://github.com/xinyuwei-david/AI-Foundry-Model-Performance/raw/main/images/22.png)](https://github.com/xinyuwei-david/AI-Foundry-Model-Performance/blob/main/images/22.png)
 
-Of course, increasing the values of these two parameters can boost peak throughput to some extent, but it will also increase TTFT (Time to First Token) and the total duration for processing requests. This adjustment depends on the SLA requirements of your business scenario (such as input/output tokens and TTFT requirements).
+Modify 2 parameters:
 
-Next, I will use Phi4 on Azure NC24 A100 as an example to demonstrate the performance changes after adjusting `request_settings.max_concurrent_requests_per_instance` to 10 and `request_settings.request_timeout_ms` to 180 seconds.
-
-![images](https://github.com/xinyuwei-david/AI-Foundry-Model-Performance/blob/main/images/22.png)
-
-##### Modify Parameters
-
-```bash
-az ml online-deployment update \
-  -g <resource-group> \
-  -w <workspace-name> \
-  -n <deployment-name> \
-  -e <endpoint-name> \
-  --set request_settings.max_concurrent_requests_per_instance=<value> \
-        request_settings.request_timeout_ms=<value>
+```
+az ml online-deployment update -g <resource-group> -w <workspace-name> -n <deployment-name> -e <endpoint-name> --set request_settings.max_concurrent_requests_per_instance=<value> request_settings.max_concurrent_requests_per_instance=<value> 
 ```
 
-> 📌 **Note**: `custom-deployment` is the fixed deployment name value in my deployment script.
+
+
+custom-deployment is fix deployment name value in my deployment script
+
+```
+xinyu [ ~ ]$  az ml online-deployment update -g A100VM_group -w xinyu-workspace-westus -n custom-deployment -e custom-endpoint-1743836288 --set request_settings.request_timeout_ms=180000 request_settings.max_concurrent_requests_per_instance=10
+```
+
+Check new parameters:
+
+```
+az ml online-deployment show \
+--name custom-deployment \
+--endpoint-name custom-endpoint-1743836288 \
+--resource-group A100VM_group \
+--workspace-name xinyu-workspace-westus \
+--output json
+```
 
 https://github.com/user-attachments/assets/8bd23c08-6937-4f3b-93d1-a7f3b3e2abd9
 
-**Example:**
-
-```bash
-az ml online-deployment update \
-  -g A100VM_group \
-  -w xinyu-workspace-westus \
-  -n custom-deployment \
-  -e custom-endpoint-1743836288 \
-  --set request_settings.request_timeout_ms=180000 \
-        request_settings.max_concurrent_requests_per_instance=10
-```
-
-##### Check New Parameters
-
-```bash
-az ml online-deployment show \
-  --name custom-deployment \
-  --endpoint-name custom-endpoint-1743836288 \
-  --resource-group A100VM_group \
-  --workspace-name xinyu-workspace-westus \
-  --output json
-```
-
-##### Test Results After Parameters Modification
-
-| Scenario  (Concurrency)            | Total Requests | Successful  Requests | Average TTFT  | Total Completion  Time (s) | Tokens/s  (Throughput) |
-| ---------------------------------- | -------------- | -------------------- | ------------- | -------------------------- | ---------------------- |
-| Text Generation, concurrency=1     | 1  (1+0)       | 1                    | 19.560  s     | 19.587  s                  | 44.63                  |
-| Text Generation, concurrency=2     | 2  (2+0)       | 2                    | 30.135  s     | 39.863  s                  | 78.24                  |
-| Text Generation, concurrency=3     | 3  (3+0)       | 3                    | 43.461  s     | 67.203  s                  | 86.36                  |
-| Text Generation, concurrency=4     | 4  (4+0)       | 4                    | 52.244  s     | 75.882  s                  | 72.48                  |
-| Text Generation, concurrency=5     | 5  (5+0)       | 5                    | 64.924  s     | 107.753  s                 | 103.56                 |
-| **Text Generation, concurrency=6** | **6  (6+0)**   | **6**                | **71.054  s** | **124.649  s**             | **112.44**             |
-| Text Generation, concurrency=7     | 7  (0+7)       | 0                    | nan           | 4.592  s                   | 0                      |
-| Text Generation, concurrency=8     | 8  (8+0)       | 8                    | 89.210  s     | 168.429  s                 | 129                    |
-| Text Generation, concurrency=9     | 9  (6+3)       | 6                    | 70.181  s     | 138.742  s                 | 111.47                 |
-| Text Generation, concurrency=10    | 10  (0+10)     | 0                    | nan           | 5.346  s                   | 0                      |
-
-##### Test Results Before Parameters Modification
-
-**Concurrency = 2**
-
-| Scenario            | VM 1 (1-nc48) Total TTT (s) | VM 2 (2-nc24) Total TTFT (s) | VM 3 (1-nc24) Total TTFT (s) | VM 1 (1-nc48) Total tokens/s | VM 2 (2-nc24) Total tokens/s | VM 3 (1-nc24) Total tokens/s |
-| ------------------- | --------------------------- | ---------------------------- | ---------------------------- | ---------------------------- | ---------------------------- | ---------------------------- |
-| **Text Generation** | 19.291                      | 19.978                       | **24.576**                   | 110.94                       | 90.13                        | **79.26**                    |
-
-We can see that after modifying the parameters, for the same model and GPU VM—and using the same prompt and completion length—the peak throughput increased by about 40%, but the TTFT is now three times what it was before. Therefore, you need to find a balance among these various performance metrics.
-
----
-
-### 🧪 Fast Performance Test AI Model on AML Model Catalog
-
-> ⚠️ **Important Notes**:
-> 
-> - The test results in this section are for reference only. You need to use my script to conduct tests in your actual environment.
-> - In my performance testing script, timeout and retry mechanisms are configured. Specifically, if a task fails to complete within the timeout period (default is 90 seconds, which is same as the default value `request_settings.request_timeout_ms` in Endpoint), it will be marked as failed. Additionally, if a request encounters a 429 error during execution, it will trigger a backoff mechanism. If the 429 error occurs three consecutive times, the request will be marked as failed. When performing tests, you should adjust these parameters according to the requirements of your business scenario.
-> - When analyzing the test results, you need to consider multiple metrics, including request success rate, TTFT (Time to First Token), tokens/s, and TTFT again. You should not focus solely on a single indicator.
-> - All the tests in this section are based on the model-deployed Endpoint, without adjusting the `request_settings.max_concurrent_requests_per_instance` and `request_settings.request_timeout_ms` parameters.
-
-The primary goal of performance testing is to verify tokens/s and TTFT during the inference process. To better simulate real-world scenarios, I have set up several common LLM/SLM use cases in the test script. Additionally, to ensure tokens/s performance, the test script needs to load the corresponding model's tokenizer during execution (Refer to upper table of tokenizers name).
-
-##### Prerequisites for Testing
+#### 4️⃣ Performance Test
 
 Before officially starting the test, you need to log in to HuggingFace on your terminal.
 
@@ -525,7 +299,8 @@ huggingface-cli login
 
 ---
 
-#### 📝 Phi Text2Text Series (Phi-4/Phi-3-small-8k-instruct)
+<details>
+<summary><h4>📝 Phi Text2Text Series (Phi-4/Phi-3-small-8k-instruct)</h4></summary>
 
 **Run the test script:**
 
@@ -556,7 +331,7 @@ Tokenizer loaded successfully: microsoft/phi-4
 | ------------------------ | ---------------------- | ---------------------- | ---------------------- | ---------------------- | ---------------------- | ---------------------- |
 | **Text Generation**      | 12.473                 | 19.546                 | 19.497                 | 68.07                  | 44.66                  | 44.78                  |
 | **Question Answering**   | 11.914                 | 15.552                 | 15.943                 | 72.10                  | 44.56                  | 46.04                  |
-| **Translation**          | 2.499                  | 3.241                  | 3.411                  | 47.62                  | 33.32                  | 34.59                  |
+| **Translation**          | 2.499                  | 3.241                  | 3.411                  | 47.62                  | 33.32                  | 34.59                  |          | 2.499                  | 3.241                  | 3.411                  | 47.62                  | 33.32                  | 34.59                  |
 | **Text Summarization**   | 2.811                  | 4.630                  | 3.369                  | 50.16                  | 37.36                  | 33.84                  |
 | **Code Generation**      | 20.441                 | 27.685                 | 26.504                 | 83.12                  | 51.58                  | 52.26                  |
 | **Chatbot**              | 5.035                  | 9.349                  | 8.366                  | 64.55                  | 43.96                  | 41.24                  |
@@ -603,9 +378,12 @@ Tokenizer loaded successfully: microsoft/phi-4
 
 > 📊 **Full original test results**: [Phi-3-small-8k-instruct-test-results.md](https://github.com/xinyuwei-david/AI-Foundry-Model-Performance/blob/main/testlogs/Phi-3-small-8k-instruct-test-results.md)
 
+</details>
+
 ---
 
-#### 🖼️ Phi Vision Series (Phi-3.5-vision-instruct/Phi-3-vision-128k-instruct)
+<details>
+<summary><h4>🖼️ Phi Vision Series (Phi-3.5-vision-instruct/Phi-3-vision-128k-instruct)</h4></summary>
 
 ```bash
 python scripts/testing/press-phi35and0v-20250323.py
@@ -645,7 +423,12 @@ python scripts/testing/press-phi35and0v-20250323.py
 | 9           | 5                   | 4               | 2.321            | 36.79                                 | 183.96                      | 8.952              |
 | 10          | 5                   | 5               | 2.466            | 36.55                                 | 182.77                      | 8.950              |
 
-#### **financial-reports-analysis Series test**
+</details>
+
+---
+
+<details>
+<summary><h4>📊 financial-reports-analysis Series test</h4></summary>
 
 ```bash
 python scripts/testing/press.financial-reports-analysis-20250321.py
@@ -736,9 +519,12 @@ Full original test results are here:
       
 ```
 
+</details>
+
 ---
 
-#### 📊 Llama-3.2-11B-Vision-Instruct (meta-llama/Llama-3.2-11B-Vision-Instruct)
+<details>
+<summary><h4>📊 Llama-3.2-11B-Vision-Instruct (meta-llama/Llama-3.2-11B-Vision-Instruct)</h4></summary>
 
 **Run the test script:**
 
@@ -808,7 +594,12 @@ python scripts/testing/press-llama3.211bv-20250407.py
 | Chatbot            | 3           | VM2 (2-NC-24) | 2                   | 1                            | 15.016       | 38.02                                 | 76.03                       | 19.312             |
 | Chatbot            | 3           | VM3 (1-NC-48) | 2                   | 1                            | 14.847       | 38.43                                 | 76.85                       | 19.080             |
 
-#### microsoft-swinv2-base-patch4-window12-192-22k Series 
+</details>
+
+---
+
+<details>
+<summary><h4>🖼️ microsoft-swinv2-base-patch4-window12-192-22k Series</h4></summary>
 
 ```bash
 python scripts/testing/press-swinv2-20250322.py
@@ -867,9 +658,12 @@ Full original test results are here:
 
 *https://github.com/xinyuwei-david/AI-Foundry-Model-Performance/blob/main/testlogs/swinv2-base-results.txt*
 
+</details>
 
+---
 
-#### mistralai-Mixtral-8x7B-Instruct-v01 Series 
+<details>
+<summary><h4>💬 mistralai-Mixtral-8x7B-Instruct-v01 Series</h4></summary>
 
 ```bash
 python scripts/testing/press-Mixtral-8x7B-20250323.py
@@ -1003,7 +797,12 @@ Full original test results are here:
 
 *https://github.com/xinyuwei-david/AI-Foundry-Model-Performance/blob/main/testlogs/Mixtral-8x7B-Instruct-v0.1-result.txt*
 
-#### openai-whisper-large Series
+</details>
+
+---
+
+<details>
+<summary><h4>🎧 openai-whisper-large Series</h4></summary>
 
 **On NC48 VM**
 
@@ -1071,7 +870,12 @@ Check eveny request's TTFT and completion time.
 | 10          | 4         | 2.009    | 2.009               |
 | 10          | 5         | 2.755    | 2.755               |
 
-#### Nemotron-3-8B-Chat-4k-SteerLM  Series
+</details>
+
+---
+
+<details>
+<summary><h4>⚡ Nemotron-3-8B-Chat-4k-SteerLM Series</h4></summary>
 
 ```bash
 python scripts/testing/press-nemotron-3-8b-chat-4k-steerlm-20250324.py
@@ -1325,9 +1129,12 @@ Full original test results are here:
 
 *https://github.com/xinyuwei-david/AI-Foundry-Model-Performance/blob/main/testlogs/motron-3-8b-chat-4k-steerlm-result.txt*
 
+</details>
 
+---
 
-#### microsoft-Orca-2-7b  Series
+<details>
+<summary><h4>🐋 microsoft-Orca-2-7b Series</h4></summary>
 
 ```bash
 python scripts/testing/press-orca-20250324.py
@@ -1459,9 +1266,11 @@ Full original test results are here:
 
 *https://github.com/xinyuwei-david/AI-Foundry-Model-Performance/blob/main/testlogs/orca-result.txt*
 
+</details>
 
+---
 
-## Performance test on Azure AI model inference
+## ☁️ Part 2: Azure AI Model Inference Performance Testing
 
 Currently, an increasing number of new flagship models in the Azure AI Foundry model catalog, including OpenAI, will be deployed using the Azure AI model inference method. 
 
@@ -1521,10 +1330,10 @@ Please enter concurrency levels separated by commas (e.g. 1,2,3): 10,300
 Received concurrency levels: [10, 300]
 ```
 
+### 1️⃣ Performance on DeepSeek-R1 (DS 671B)
 
-
-### Performance on DS 671B
-
+<details>
+<summary><h4>📊 DeepSeek-R1 Performance Results</h4></summary>
 I will use the test results of DeeSeek R1 on Azure AI model inference  as an example:
 
   **Max performance:**
@@ -1589,9 +1398,14 @@ The overall throughput averages 735.12 tokens/s, with a P90 of 1184.06 tokens/s,
 | 300             | 4096              | 40                 | 40                | 0              | 81.514                  | 1.740                | 24.17                                   | 710.79                            |
 | 300             | 4096              | 50                 | 50                | 0              | 91.253                  | 91.253               | 24.53                                   | 279.55                            |
 
+</details>
 
+---
 
-### Performance Phi-4
+### 2️⃣ Performance on Phi-4
+
+<details>
+<summary><h4>📊 Phi-4 Performance Results</h4></summary>
 
 ![images](https://github.com/xinyuwei-david/AI-Foundry-Model-Performance/blob/main/images/12.png)
 
@@ -1659,6 +1473,8 @@ The overall throughput averages 735.12 tokens/s, with a P90 of 1184.06 tokens/s.
 | 300         | 2048          | 10             | Non-Stream | 10            | 0          | 27.862              | 27.862           | 42.47                               | 348.38                        |
 | 300         | 2048          | 10             | Stream     | 10            | 0          | 27.356              | 0.439            | 36.49                               | 329.59                        |
 
+</details>
+
 ---
 
 ## 💡 Best Practices
@@ -1686,194 +1502,4 @@ The overall throughput averages 735.12 tokens/s, with a P90 of 1184.06 tokens/s.
 3. **Rotate Keys Regularly**: Change API keys periodically for security
 4. **Limit Access**: Use Azure RBAC to control who can deploy and manage models
 5. **Monitor Usage**: Track API calls and set up alerts for unusual activity
-
----
-
-## 🔍 Troubleshooting
-
-### Common Issues and Solutions
-
-#### 429 Error (Too Many Requests)
-
-**Problem**: Receiving 429 errors during testing
-
-**Solutions**:
-- Reduce concurrency level
-- Increase `request_settings.max_concurrent_requests_per_instance`
-- Add retry logic with exponential backoff
-- Check your quota limits in Azure portal
-
-#### 424 Error (Timeout)
-
-**Problem**: Requests timing out
-
-**Solutions**:
-- Increase `request_settings.request_timeout_ms` on the endpoint
-- Increase client timeout settings in your test script
-- Reduce prompt length or max tokens
-- Consider using smaller models or more powerful VMs
-
-#### Deployment Failures
-
-**Problem**: Model deployment fails
-
-**Solutions**:
-- Verify GPU quota availability: `az ml compute list-usage`
-- Check model compatibility with selected VM SKU
-- Ensure workspace and resource group exist
-- Review Azure ML workspace logs for detailed error messages
-
-#### Low Throughput
-
-**Problem**: Lower than expected tokens/s
-
-**Solutions**:
-- Check if you're hitting quota limits
-- Verify VM SKU is appropriate for the model
-- Increase concurrency if TTFT is acceptable
-- Consider adjusting endpoint parameters
-- Monitor GPU utilization metrics
-
-#### HuggingFace Login Issues
-
-**Problem**: Cannot load tokenizer
-
-**Solutions**:
-```bash
-# Login to HuggingFace
-huggingface-cli login
-
-# Verify login
-huggingface-cli whoami
-```
-
-#### PowerShell vs Linux Script Issues
-
-**Problem**: Script fails on PowerShell
-
-**Solutions**:
-- Use `deploymodels-powershell-20250405.py` for Windows
-- Ensure Azure CLI is accessible as `az.cmd` in PowerShell
-- Check PATH environment variable includes Azure CLI
-
----
-
-## ❓ FAQ
-
-### General Questions
-
-**Q: Which deployment method should I use?**
-
-A: It depends on your requirements:
-- **Managed Compute**: Best for open-source models with full control and dedicated resources
-- **Azure AI Model Inference**: Best for flagship models with pay-per-token pricing
-- **Serverless API**: Best for single provider models without infrastructure management
-- **Azure OpenAI**: Best if you only need OpenAI models
-
-**Q: How much do GPU VMs cost?**
-
-A: Costs vary by region and VM type:
-- NC24ads A100 v4: ~$3-4/hour
-- NC48ads A100 v4: ~$6-8/hour
-- NC96ads A100 v4: ~$12-16/hour
-- Always check [Azure Pricing Calculator](https://azure.microsoft.com/en-us/pricing/calculator/) for current rates
-
-**Q: Can I use H100 VMs?**
-
-A: As of March 2025, most models in this repo don't support H100 deployment. Check the compatibility table for your specific model.
-
-### Testing Questions
-
-**Q: What concurrency level should I start with?**
-
-A: Start with concurrency=1 to establish baseline metrics, then gradually increase to 2, 4, 8, etc., until you see degradation in success rate or TTFT.
-
-**Q: How long should tests run?**
-
-A: For reliable results:
-- Minimum 10 requests per concurrency level
-- Ideal: 50-100 requests per concurrency level
-- Run multiple iterations to account for variability
-
-**Q: Which metrics matter most?**
-
-A: It depends on your use case:
-- **Chatbots**: TTFT is critical (users hate waiting)
-- **Batch Processing**: Overall throughput matters most
-- **Real-time Apps**: Balance of TTFT and throughput
-- **Cost Optimization**: Maximize throughput per dollar
-
-### Configuration Questions
-
-**Q: Should I modify endpoint parameters?**
-
-A: Only if:
-- Default performance doesn't meet requirements
-- You understand the trade-offs (higher throughput = higher TTFT)
-- You've tested thoroughly with your workload
-- Your business SLAs allow for longer response times
-
-**Q: How do I choose between stream and non-stream mode?**
-
-A:
-- **Stream**: Better for user-facing applications (progressive display)
-- **Non-Stream**: Better for batch processing or when you need complete response
-- Test both to see which performs better for your scenario
-
-**Q: What's the best VM SKU for my model?**
-
-A: Check the [model compatibility table](#supported-models-and-vm-skus). Generally:
-- Small models (< 10B): NC24ads A100 v4
-- Medium models (10-50B): NC48ads A100 v4
-- Large models (50B+): NC96ads A100 v4 or larger
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! If you'd like to add:
-- New model test results
-- Additional test scenarios
-- Bug fixes or improvements
-- Documentation enhancements
-
-Please:
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
-
----
-
-## 📄 License
-
-This project is provided as-is for educational and testing purposes. Please ensure compliance with:
-- Azure terms of service
-- Model-specific licenses
-- HuggingFace model licenses
-
----
-
-## 📞 Support
-
-For issues or questions:
-- **GitHub Issues**: [Create an issue](https://github.com/xinyuwei-david/AI-Foundry-Model-Performance/issues)
-- **Azure Support**: Use Azure portal support for Azure-specific issues
-- **Model Issues**: Check respective model documentation on HuggingFace
-
----
-
-## 🙏 Acknowledgments
-
-- Microsoft Azure AI Team for the model catalog
-- HuggingFace for model hosting and tokenizers
-- Open-source model creators and maintainers
-
----
-
-**Last Updated**: March 2025
-
-> ⭐ If you find this repository helpful, please consider giving it a star!
-
-
 

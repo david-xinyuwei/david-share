@@ -9,6 +9,16 @@ import ssl
 import time  
 import concurrent.futures  
 import random  
+import sys
+
+# Add current directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+try:
+    from config_helper import input_config_with_auto_tokenizer
+    USE_AUTO_CONFIG = True
+except ImportError:
+    print("Warning: config_helper.py not found. Using manual configuration.")
+    USE_AUTO_CONFIG = False
   
 try:  
     from transformers import AutoTokenizer  
@@ -21,13 +31,21 @@ URL = None
 API_KEY = None  
 HEADERS = None  
 tokenizer = None  
-REQUEST_TIMEOUT = 90  # Timeout duration (seconds) for each request  
+REQUEST_TIMEOUT = 90  # Timeout duration (seconds) for each request
+
+# Default tokenizer for Mixtral-8x7B-Instruct-v0.1
+DEFAULT_TOKENIZER = "mistralai/Mixtral-8x7B-Instruct-v0.1"
   
 # --------------------------- Input Configuration: URL, API Key, and HF Model Name ---------------------------  
 def input_config():  
-    """Allow the user to input the API service URL, API Key, and the model name required for tokenizer loading."""  
+    """Allow the user to input the API service URL, API Key, and auto-detect tokenizer."""  
     global URL, API_KEY, HEADERS, tokenizer  
   
+    if USE_AUTO_CONFIG:
+        URL, API_KEY, HEADERS, tokenizer = input_config_with_auto_tokenizer(DEFAULT_TOKENIZER)
+        return
+    
+    # Fallback to manual configuration
     URL = input("Please enter the API service URL: ").strip()  
     if not URL:  
         raise Exception("URL cannot be empty!")  
@@ -36,15 +54,16 @@ def input_config():
     if not API_KEY:  
         raise Exception("API Key cannot be empty!")  
   
-    model_name = input("Please enter the full name of the HuggingFace model for tokenizer loading: ").strip()  
+    model_name = input(f"Please enter the model name for tokenizer (default: {DEFAULT_TOKENIZER}): ").strip()  
     if not model_name:  
-        raise Exception("Model name cannot be empty!")  
+        model_name = DEFAULT_TOKENIZER
+        print(f"Using default tokenizer: {model_name}")
   
     try:  
         tokenizer = AutoTokenizer.from_pretrained(model_name)  
-        print("Tokenizer loaded successfully:", model_name)  
+        print(f"✅ Tokenizer loaded successfully: {model_name}\n")  
     except Exception as e:  
-        print("Failed to load tokenizer. Please check the model name or dependencies. Error:", e)  
+        print(f"❌ Failed to load tokenizer. Error: {e}")  
         tokenizer = None  
   
     HEADERS = {  
