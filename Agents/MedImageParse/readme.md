@@ -172,20 +172,32 @@ azd auth login --use-device-code
 
 # Deploy infrastructure and application
 azd up
+
+# If deployment fails, check quota and region (see Troubleshooting section)
 ```
+
+**Important deployment notes:**
+
+⚠️ **Common deployment issues:**
+1. **Quota errors**: Your subscription may not have quota in all regions. Check actual quota using commands in Troubleshooting section.
+2. **Region selection**: Canada Central works well with Premium v3 SKU. East US/West US work with Basic/Standard.
+3. **First deployment**: Takes 5-7 minutes. Subsequent updates are faster.
 
 **What gets deployed:**
 
-| Azure Resource | Purpose |
-|----------------|---------|
-| Resource Group | Container for all resources |
-| App Service Plan (B1) | Linux hosting infrastructure |
-| App Service | Streamlit application (Python 3.11) |
-| Key Vault | Secure secret storage |
-| Application Insights | Monitoring and logs |
-| Log Analytics | Centralized logging |
-| Managed Identity | Passwordless Key Vault access |
-| Entra ID Auth | SSO security |
+| Azure Resource | Purpose | Notes |
+|----------------|---------|-------|
+| Resource Group | Container for all resources | |
+| App Service Plan | Linux hosting (Premium v3) | SKU can be changed in bicep |
+| App Service | Streamlit application (Python 3.11) | Public access, no auth |
+| Application Insights | Monitoring (optional) | Deployed but not used in code |
+| Log Analytics | Centralized logging | Deployed but not used in code |
+| Managed Identity | System-assigned identity | For future use |
+
+**Removed components** (to simplify deployment):
+- ❌ Key Vault - Use UI configuration instead
+- ❌ Entra ID authentication - Public access for demos
+- ❌ PowerShell post-provision hooks - Manual deployment
 
 ⏱️ **Deployment time**: 5-7 minutes
 
@@ -311,35 +323,109 @@ pip install -r src/requirements.txt --upgrade
 
 If you see errors like "InternalSubscriptionIsOverQuotaForSku", your subscription lacks quota for the selected region/SKU.
 
-**Check available SKUs by region:**
+**⚠️ IMPORTANT: Check ACTUAL quota, not just SKU availability!**
+
+Many users make this mistake:
 ```bash
-# Check which regions support Standard S1 SKU
+# ❌ WRONG: This only shows which regions SUPPORT the SKU (not your quota!)
 az appservice list-locations --sku S1 --linux-workers-enabled -o table
-
-# Check Basic B1 SKU availability
-az appservice list-locations --sku B1 --linux-workers-enabled -o table
-
-# Check Premium P1v2 SKU availability
-az appservice list-locations --sku P1v2 --linux-workers-enabled -o table
 ```
 
+**✅ Correct way to check YOUR actual quota:**
+```bash
+# Check your REAL quota in specific regions
+for region in canadacentral eastus westus northeurope southeastasia; do
+  echo "=== $region ==="
+  az rest --method get \
+    --uri "https://management.azure.com/subscriptions/YOUR_SUBSCRIPTION_ID/providers/Microsoft.Web/locations/$region/usages?api-version=2024-04-01" \
+    --query "value[?contains(name.localizedValue, 'Basic') || contains(name.localizedValue, 'Standard') || contains(name.localizedValue, 'Premium')].{SKU:name.localizedValue, Current:currentValue, Limit:limit}" \
+    -o table
+  echo ""
+done
+```
+
+**Understanding quota output:**
+- `Limit: 0` = No quota (cannot deploy)
+- `Limit: -1` = Unlimited quota (can deploy any number)
+- `Limit: 360` = Specific quota (e.g., 360 cores for Premium v3)
+- `Current: 2, Limit: 0` = Already using resources beyond quota (legacy/grandfathered)
+
 **Solution options:**
-1. **Change region**: Delete environment and redeploy to different region
+
+1. **Find region with quota** (recommended):
    ```bash
-   azd down --force --purge
-   azd up  # Choose different region (e.g., East US, West US, West Europe)
+   # Delete current environment
+   azd env delete your-env-name
+   
+   # Create new environment with working region
+   azd env new your-new-env
+   azd env set AZURE_LOCATION canadacentral  # Use region with quota
+   azd up
    ```
 
-2. **Change SKU**: Edit `infra/modules/app-service.bicep` line 14-19 to use different SKU:
-   - `F1` (Free) - Limited features, may have no quota
-   - `B1` (Basic) - ~$13/month, basic production use
-   - `S1` (Standard) - ~$70/month, recommended for production
-   - `P1v2` (Premium v2) - ~$146/month, high performance
+2. **Change SKU in bicep**:
+   Edit `infra/modules/app-service.bicep` line 13-18:
+   ```bicep
+   sku: {
+     name: 'P0v3'  // Change to SKU with quota
+     tier: 'PremiumV3'
+     size: 'P0v3'
+     family: 'Pv3'
+     capacity: 1
+   }
+   ```
+   
+   Common SKUs and pricing:
+   - `B1` (Basic) - ~$13/month, no Always On
+   - `S1` (Standard) - ~$70/month, Always On supported
+   - `P0v3` (Premium v3) - ~$100/month, best performance
+   - `P1v2` (Premium v2) - ~$146/month
 
-3. **Request quota increase**: 
+3. **Request quota increase**:
    - Visit [Azure Portal Quotas](https://portal.azure.com/#view/Microsoft_Azure_Capacity/QuotaMenuBlade/~/myQuotas)
    - Search for "App Service Plan"
    - Request increase for desired region/SKU
+   - Wait 1-3 business days for approval
+
+**Problem: Git LFS file not downloaded (shows "version https://git-lfs..." in file)**
+
+If `infra/main.parameters.json` shows LFS pointer instead of JSON:
+```bash
+# Install Git LFS
+sudo apt-get install git-lfs  # Ubuntu/Debian
+git lfs install
+git lfs pull
+```
+
+**Problem: "clientId cannot exceed 64 characters" error**
+
+This was fixed in recent versions. If you still see it:
+- Entra ID authentication has been removed from bicep
+- Application now allows public access
+- Pull latest code: `git pull origin master`
+
+**Problem: "resource not found: unable to find a resource tagged with 'azd-service-name: web'"**
+
+This means App Service is missing the deployment tag. Fixed in latest version:
+```bash
+git pull origin master
+azd provision  # Re-run to update tags
+azd deploy web
+```
+
+**Problem: PowerShell 7 warnings during deployment**
+
+This is safe to ignore on Linux systems. The warning appears because:
+- Post-provision hook requires PowerShell 7
+- Hook has been removed in latest version
+- If using old version: `git pull origin master`
+
+**Problem: Application Insights / Log Analytics not working**
+
+Current version deploys these resources but doesn't use them in application code:
+- Monitoring infrastructure is created for future use
+- Application doesn't send telemetry yet
+- You can safely ignore these resources or remove them to save cost
 
 ### Health Check
 
@@ -353,11 +439,16 @@ curl https://your-app.azurewebsites.net/healthz
 ## 🔒 Security Features
 
 - ✅ HTTPS-only (TLS 1.2+)
-- ✅ Azure Entra ID SSO authentication
-- ✅ No hardcoded secrets (Key Vault + Managed Identity)
-- ✅ RBAC for all Azure resources
-- ✅ Application Insights monitoring with correlation IDs
-- ✅ Audit logging enabled
+- ✅ No hardcoded secrets - all configuration via UI
+- ✅ Managed Identity for Azure resources
+- ✅ Configuration persistence in user directory
+- ⚠️ Public access (no authentication) - suitable for demos
+- 💡 For production: Add IP restrictions or authentication
+
+**Note**: Enterprise authentication (Entra ID) was removed to simplify deployment. For production use, consider adding:
+- IP whitelist in App Service networking
+- Application-level authentication
+- Azure Front Door with WAF
 
 ---
 
