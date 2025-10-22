@@ -8,9 +8,3 @@ services:
     project: .
     language: python
     host: appservice
-
-hooks:
-  postprovision:
-    shell: pwsh
-    run: ./infra/scripts/post-provision.ps1
-    continueOnError: false
