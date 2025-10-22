@@ -11,10 +11,10 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2022-03-01' = {
   location: location
   tags: tags
   sku: {
-    name: 'P0v3'  // Premium v3 tier (smallest/cheapest)
-    tier: 'PremiumV3'
-    size: 'P0v3'
-    family: 'Pv3'
+    name: 'B1'  // Basic tier - ~$13/month (change to P0v3 if region has no quota)
+    tier: 'Basic'
+    size: 'B1'
+    family: 'B'
     capacity: 1
   }
   kind: 'linux'
@@ -56,6 +56,10 @@ resource appService 'Microsoft.Web/sites@2022-03-01' = {
         {
           name: 'WEBSITE_HTTPLOGGING_RETENTION_DAYS'
           value: '7'
+        }
+        {
+          name: 'ADMIN_PASSWORD'
+          value: 'ChangeThisPassword123!'  // ⚠️ IMPORTANT: Change this after deployment!
         }
       ]
     }

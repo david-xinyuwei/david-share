@@ -10,36 +10,141 @@ import numpy as np
 import tempfile
 import matplotlib.pyplot as plt
 import matplotlib
+from user_auth import UserManager
 # 设置matplotlib支持中文
 matplotlib.rcParams['font.sans-serif'] = ['Microsoft YaHei', 'SimHei', 'Arial Unicode MS', 'DejaVu Sans']
 matplotlib.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
 
-# 配置文件路径
-CONFIG_FILE = Path.home() / ".medimageparse_config.json"
+# 初始化用户管理器
+user_manager = UserManager()
 
-# 加载保存的配置
-def load_config():
-    """从本地文件加载配置"""
-    if CONFIG_FILE.exists():
-        try:
-            with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except:
-            return {}
+# ===== 身份验证功能 =====
+def show_login_page():
+    """显示登录页面"""
+    st.markdown("## 🔐 用户登录 / User Login")
+    st.info("💡 默认管理员账户: **admin** / 密码: **admin123**")
+    
+    username = st.text_input("用户名 / Username", key="login_username")
+    password = st.text_input("密码 / Password", type="password", key="login_password")
+    
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        if st.button("登录 / Login", type="primary"):
+            if user_manager.authenticate(username, password):
+                st.session_state['authenticated'] = True
+                st.session_state['current_user'] = username
+                st.session_state['is_admin'] = user_manager.is_admin(username)
+                st.success(f"✅ 欢迎, {username}!")
+                st.rerun()
+            else:
+                st.error("❌ 用户名或密码错误 / Invalid username or password")
+    
+    st.markdown("---")
+    st.caption("首次使用请用管理员账户登录后创建自己的账户")
+
+def check_authentication():
+    """检查是否已认证"""
+    if 'authenticated' not in st.session_state:
+        st.session_state['authenticated'] = False
+    
+    if not st.session_state['authenticated']:
+        show_login_page()
+        return False
+    
+    return True
+
+def show_account_settings():
+    """显示账户设置页面"""
+    st.title("⚙️ 账户设置 / Account Settings")
+    
+    current_user = st.session_state.get('current_user')
+    is_admin = st.session_state.get('is_admin', False)
+    
+    tab1, tab2 = st.tabs(["🔑 修改密码 / Change Password", "👥 用户管理 / User Management"] if is_admin else ["🔑 修改密码 / Change Password"])
+    
+    with tab1:
+        st.subheader("修改密码 / Change Password")
+        
+        old_pass = st.text_input("原密码 / Old Password", type="password", key="old_pass")
+        new_pass = st.text_input("新密码 / New Password (至少6位)", type="password", key="new_pass")
+        confirm_pass = st.text_input("确认新密码 / Confirm New Password", type="password", key="confirm_pass")
+        
+        col1, col2 = st.columns([1, 3])
+        with col1:
+            if st.button("💾 提交修改", type="primary"):
+                if new_pass != confirm_pass:
+                    st.error("❌ 两次输入的新密码不一致 / Passwords do not match")
+                elif len(new_pass) < 6:
+                    st.error("❌ 新密码至少6位 / New password must be at least 6 characters")
+                else:
+                    success, message = user_manager.change_password(current_user, old_pass, new_pass)
+                    if success:
+                        st.success(f"✅ {message}")
+                    else:
+                        st.error(f"❌ {message}")
+        
+        with col2:
+            if st.button("🔙 返回主页"):
+                st.session_state['show_account_settings'] = False
+                st.rerun()
+    
+    if is_admin:
+        with tab2:
+            st.subheader("用户管理 / User Management")
+            
+            # 添加新用户
+            with st.expander("➕ 添加新用户 / Add New User"):
+                new_username = st.text_input("用户名 / Username (至少3位)", key="new_username")
+                new_user_pass = st.text_input("密码 / Password (至少6位)", type="password", key="new_user_pass")
+                new_user_role = st.selectbox("角色 / Role", ["user", "admin"], key="new_user_role")
+                
+                if st.button("➕ 创建用户 / Create User", type="primary"):
+                    success, message = user_manager.add_user(new_username, new_user_pass, new_user_role)
+                    if success:
+                        st.success(f"✅ {message}")
+                        st.rerun()
+                    else:
+                        st.error(f"❌ {message}")
+            
+            st.markdown("---")
+            
+            # 显示现有用户
+            st.subheader("现有用户列表 / Existing Users")
+            users = user_manager.list_users()
+            
+            for user in users:
+                col1, col2, col3 = st.columns([2, 1, 1])
+                with col1:
+                    role_badge = "🔑 管理员" if user['role'] == 'admin' else "👤 普通用户"
+                    st.write(f"**{user['username']}** - {role_badge}")
+                
+                with col2:
+                    if user['username'] == current_user:
+                        st.caption("(当前用户)")
+                    elif user['username'] != 'admin':
+                        if st.button(f"🗑️ 删除", key=f"del_{user['username']}"):
+                            success, message = user_manager.delete_user(user['username'])
+                            if success:
+                                st.success(f"✅ {message}")
+                                st.rerun()
+                            else:
+                                st.error(f"❌ {message}")
+
+# 加载当前用户的配置
+def load_user_config():
+    """加载当前用户的配置"""
+    if 'current_user' in st.session_state:
+        return user_manager.get_user_config(st.session_state['current_user'])
     return {}
 
-# 保存配置
-def save_config(config):
-    """保存配置到本地文件"""
-    try:
-        with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
-            json.dump(config, f, ensure_ascii=False, indent=2)
-        return True
-    except:
-        return False
+def save_user_config(config):
+    """保存当前用户的配置"""
+    if 'current_user' in st.session_state:
+        return user_manager.save_user_config(st.session_state['current_user'], config)
+    return False
 
 # 加载已保存的配置
-saved_config = load_config()
+saved_config = load_user_config()
 
 # ===== 3D NIfTI 解码函数 =====
 def decode_base64_to_nifti(base64_string: str):
@@ -143,6 +248,21 @@ def plot_3d_slices(segmentation_masks, max_slices=16):
 # 设置页面配置
 st.set_page_config(page_title="MedImageParse Model Caller", layout="wide")
 
+# ===== 身份验证检查（第一步执行）=====
+if not check_authentication():
+    st.stop()  # 未认证则停止执行
+
+# ===== 认证通过后的主界面 =====
+
+# 获取当前用户
+current_user = st.session_state.get('current_user', 'admin')
+is_admin = st.session_state.get('is_admin', False)
+
+# 检查是否显示账户设置页面
+if st.session_state.get('show_account_settings', False):
+    show_account_settings()
+    st.stop()
+
 # 语言选择（放在侧边栏顶部）
 language = st.sidebar.selectbox(
     "🌐 Language / 语言",
@@ -150,6 +270,38 @@ language = st.sidebar.selectbox(
     index=0,
     help="Select interface language / 选择界面语言"
 )
+
+# 根据语言设置界面文本
+if language == "中文":
+    txt_current_user = "当前用户"
+    txt_admin_role = "管理员"
+    txt_logout = "登出"
+    txt_account = "账户"
+else:
+    txt_current_user = "Current User"
+    txt_admin_role = "Administrator"
+    txt_logout = "Logout"
+    txt_account = "Account"
+
+# 显示当前用户和登出按钮
+st.sidebar.markdown(f"### 👤 {txt_current_user}: **{current_user}**")
+if is_admin:
+    st.sidebar.caption(f"🔑 {txt_admin_role}")
+
+col1, col2 = st.sidebar.columns(2)
+with col1:
+    if st.button(f"🚪 {txt_logout}", use_container_width=True):
+        st.session_state['authenticated'] = False
+        st.session_state['current_user'] = None
+        st.session_state['show_account_settings'] = False
+        st.rerun()
+
+with col2:
+    if st.button(f"👤 {txt_account}", use_container_width=True):
+        st.session_state['show_account_settings'] = True
+        st.rerun()
+
+st.sidebar.markdown("---")
 
 # 根据语言设置文本
 if language == "中文":
@@ -380,27 +532,27 @@ api_key = st.sidebar.text_input(
 # 保存配置按钮
 if st.sidebar.button(TEXTS["save_config"], type="primary"):
     if endpoint_url and api_key:
-        # 保存配置到本地文件（永久有效）
+        # 保存配置到用户专属文件（永久有效）
         config_to_save = {
             'endpoint_url': endpoint_url,
             'api_key': api_key,
             'model_type': model_type
         }
         
-        if save_config(config_to_save):
+        if save_user_config(config_to_save):
             # 同时保存到 session state，立即生效
             st.session_state['endpoint_url'] = endpoint_url
             st.session_state['api_key'] = api_key
             st.session_state['model_type'] = model_type
             
             st.sidebar.success(TEXTS["config_saved_persistent"])
-            st.sidebar.caption(f"{TEXTS['config_file']}: {CONFIG_FILE}")
+            st.sidebar.caption(f"✅ 配置已保存到您的账户 / Saved to your account")
             
             # 提示刷新页面或直接使用
             if language == "中文":
-                st.sidebar.info("✅ 配置已永久保存，下次打开自动加载")
+                st.sidebar.info("💡 配置仅对您可见，其他用户无法访问")
             else:
-                st.sidebar.info("✅ Configuration saved permanently, auto-loads next time")
+                st.sidebar.info("💡 Configuration is private to your account")
         else:
             st.sidebar.warning(TEXTS["config_saved_session"])
     else:

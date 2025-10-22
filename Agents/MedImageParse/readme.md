@@ -178,19 +178,37 @@ azd up
 
 **If deployment fails with quota errors**, see Troubleshooting section below for how to check your actual quota.
 
-**Step 3: Access your application**
+**Step 3: Configure Admin Password** 🔐
+
+⚠️ **IMPORTANT**: Change default password immediately after deployment!
+
+```powershell
+# Set a secure admin password
+az webapp config appsettings set `
+  --name <your-app-name> `
+  --resource-group <your-rg-name> `
+  --settings ADMIN_PASSWORD="YourSecurePassword@2025"
+
+# Restart app to apply changes
+az webapp restart --name <your-app-name> --resource-group <your-rg-name>
+```
+
+📖 See [SECURITY.md](./SECURITY.md) for detailed security configuration guide.
+
+**Step 4: Access your application**
 ```bash
 azd show
 ```
 Open the displayed URL in your browser.
 
-**Step 4: Configure ML endpoints in the UI**
+**Step 5: Login and configure ML endpoints**
 
-After deployment, open the application and enter your ML endpoints in the sidebar:
-1. Select language (Chinese/English)
-2. Enter MedImageParse 2D Endpoint URL and API Key
-3. Enter MedImageParse 3D Endpoint URL and API Key
-4. Start using the application
+1. **Login** with your admin password (default: `ChangeThisPassword123!`)
+2. Select language (Chinese/English)
+3. Enter MedImageParse 2D Endpoint URL and API Key
+4. Enter MedImageParse 3D Endpoint URL and API Key
+5. Click "Save Config"
+6. Start using the application
 
 ---
 
@@ -271,10 +289,70 @@ The application (`app_clean.py`) uses a **UI-based configuration** approach:
 
 ### Common Issues
 
-**Problem: Model deployment failed in Azure AI Foundry**
-- ✅ Verify "Azure AI Developer" role is assigned
-- ✅ Check storage account has public access enabled
-- ✅ Ensure using paid subscription (not free/trial)
+**Problem: Model deployment failed in Azure AI Foundry (No Error Message)**
+
+Common causes in order of likelihood:
+
+1. **Resource Providers Not Registered** ⭐ (Most Common)
+   
+   **Solution: Register via Azure Portal (Recommended)**
+   ```
+   Azure Portal → Subscriptions → [Your Subscription] 
+   → Settings → Resource providers → Register these:
+   
+   ⭐ Microsoft.PolicyInsights (Critical!)
+   ⭐ Microsoft.Cdn (Critical!)
+   - Microsoft.MachineLearningServices
+   - Microsoft.CognitiveServices
+   - Microsoft.Storage
+   - Microsoft.Compute
+   - Microsoft.Network
+   - Microsoft.KeyVault
+   ```
+   
+   **Or use PowerShell (batch registration)**:
+   ```powershell
+   # Register all required providers at once
+   $providers = @(
+       "Microsoft.PolicyInsights",
+       "Microsoft.Cdn",
+       "Microsoft.MachineLearningServices",
+       "Microsoft.CognitiveServices",
+       "Microsoft.Storage",
+       "Microsoft.Compute",
+       "Microsoft.Network",
+       "Microsoft.KeyVault",
+       "Microsoft.ContainerRegistry",
+       "Microsoft.ManagedIdentity"
+   )
+   
+   foreach ($provider in $providers) {
+       Write-Host "Registering $provider..." -ForegroundColor Yellow
+       az provider register --namespace $provider --wait
+   }
+   
+   # Verify all are registered
+   az provider list --query "[?namespace in ('Microsoft.PolicyInsights','Microsoft.Cdn','Microsoft.MachineLearningServices')].{Namespace:namespace, State:registrationState}" -o table
+   ```
+   
+   ⏱️ Wait 2-5 minutes after registration, then retry deployment.
+   
+   📖 Reference: https://learn.microsoft.com/en-us/answers/questions/2129910
+
+2. **Azure AI Developer Role Not Assigned**
+   - Assign to: **User, group, or service principal** (NOT Managed Identity)
+   - Scope: Resource Group or Hub level
+   - Wait 5-10 minutes after assignment
+
+3. **Storage Account Network Restrictions**
+   - If Configuration → "Allow Blob public access" is missing: **Policy restricted**
+   - Solution: Enable "Allow Azure services on trusted services list" in Networking
+   - Or contact admin for policy exemption
+
+4. **Subscription Type**
+   - ✅ Enterprise Agreement (MS-AZR-0017P) - Supported
+   - ✅ Pay-As-You-Go - Supported
+   - ❌ Free Trial / Student - Not supported
 
 **Problem: 401 Unauthorized error when calling ML endpoint**
 - ✅ Verify API key is correct
