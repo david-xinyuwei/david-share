@@ -14,19 +14,19 @@ param principalId string = ''
 
 @description('MedImageParse 2D Model Endpoint URL')
 @secure()
-param medImageParse2DEndpoint string
+param medImageParse2DEndpoint string = ''
 
 @description('MedImageParse 2D Model API Key')
 @secure()
-param medImageParse2DKey string
+param medImageParse2DKey string = ''
 
 @description('MedImageParse 3D Model Endpoint URL')
 @secure()
-param medImageParse3DEndpoint string
+param medImageParse3DEndpoint string = ''
 
 @description('MedImageParse 3D Model API Key')
 @secure()
-param medImageParse3DKey string
+param medImageParse3DKey string = ''
 
 // Tags for all resources
 var tags = {
