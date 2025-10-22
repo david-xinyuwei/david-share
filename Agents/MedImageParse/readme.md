@@ -92,12 +92,6 @@ azd auth login
 azd up
 ```
 
-During deployment, you'll be prompted for:
-- MedImageParse 2D Endpoint URL
-- MedImageParse 2D API Key
-- MedImageParse 3D Endpoint URL
-- MedImageParse 3D API Key
-
 **What gets deployed:**
 
 | Azure Resource | Purpose |
@@ -119,6 +113,14 @@ azd show
 ```
 Open the displayed URL in your browser.
 
+**Step 4: Configure ML endpoints in the UI**
+
+After deployment, open the application and enter your ML endpoints in the sidebar:
+1. Select language (Chinese/English)
+2. Enter MedImageParse 2D Endpoint URL and API Key
+3. Enter MedImageParse 3D Endpoint URL and API Key
+4. Start using the application
+
 ---
 
 ### Run Locally (Development)
@@ -127,15 +129,13 @@ Open the displayed URL in your browser.
 # Install dependencies
 pip install -r src/requirements.txt
 
-# Configure environment
-cp .env.example .env
-# Edit .env with your ML endpoints and keys
-
 # Run application
 streamlit run app_clean.py
 
 # Open browser: http://localhost:8501
 ```
+
+After the application starts, enter your ML endpoints in the UI sidebar.
 
 ---
 
@@ -179,24 +179,20 @@ streamlit run app_clean.py
 
 ## 🔧 Configuration
 
-### Environment Variables
+### ML Endpoint Configuration
 
-For local development, create a `.env` file:
+The application (`app_clean.py`) uses a **UI-based configuration** approach:
 
-```env
-# 2D Model
-AZURE_OPENAI_ENDPOINT_2D=https://your-endpoint-2d.inference.ml.azure.com/score
-AZURE_OPENAI_KEY_2D=your-api-key-2d
+1. After starting the application, open the sidebar
+2. Select your preferred language (Chinese/English)
+3. Enter the following information:
+   - **2D Model Endpoint URL**: Your MedImageParse 2D endpoint
+   - **2D Model API Key**: Your 2D model API key
+   - **3D Model Endpoint URL**: Your MedImageParse 3D endpoint
+   - **3D Model API Key**: Your 3D model API key
+4. Click "Save Configuration"
 
-# 3D Model
-AZURE_OPENAI_ENDPOINT_3D=https://your-endpoint-3d.inference.ml.azure.com/score
-AZURE_OPENAI_KEY_3D=your-api-key-3d
-
-# Application Insights (auto-configured in Azure)
-APPLICATIONINSIGHTS_CONNECTION_STRING=your-connection-string
-```
-
-In production (Azure), these are automatically retrieved from Key Vault using Managed Identity.
+**No hardcoded credentials needed** - all configuration is done through the UI at runtime.
 
 ---
 
