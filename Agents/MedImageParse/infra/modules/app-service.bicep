@@ -4,7 +4,6 @@ param tags object
 param appServicePlanName string
 param appServiceName string
 param applicationInsightsConnectionString string
-param keyVaultEndpoint string
 
 // App Service Plan (Linux, Python)
 resource appServicePlan 'Microsoft.Web/serverfarms@2022-03-01' = {
@@ -47,10 +46,6 @@ resource appService 'Microsoft.Web/sites@2022-03-01' = {
         {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
           value: applicationInsightsConnectionString
-        }
-        {
-          name: 'AZURE_KEY_VAULT_ENDPOINT'
-          value: keyVaultEndpoint
         }
         {
           name: 'SCM_DO_BUILD_DURING_DEPLOYMENT'

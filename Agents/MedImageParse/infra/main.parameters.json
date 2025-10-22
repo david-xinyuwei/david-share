@@ -7,21 +7,6 @@
     },
     "location": {
       "value": "${AZURE_LOCATION}"
-    },
-    "principalId": {
-      "value": "${AZURE_PRINCIPAL_ID}"
-    },
-    "medImageParse2DEndpoint": {
-      "value": ""
-    },
-    "medImageParse2DKey": {
-      "value": ""
-    },
-    "medImageParse3DEndpoint": {
-      "value": ""
-    },
-    "medImageParse3DKey": {
-      "value": ""
     }
   }
 }
