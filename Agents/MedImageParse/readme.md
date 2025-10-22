@@ -167,7 +167,10 @@ cd Agents/MedImageParse
 
 **Step 2: Login and deploy**
 ```bash
-azd auth login
+# Login to Azure (use device code for headless/SSH environments)
+azd auth login --use-device-code
+
+# Deploy infrastructure and application
 azd up
 ```
 
