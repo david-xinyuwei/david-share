@@ -148,7 +148,7 @@ graph TB
 
 ### 4. Test Images
 The repository includes sample images in `test_images/` for testing:
-- **2D Example**: `page_1_img_1.png_region_1.png` - Pathology image for 2D segmentation
+- **2D Example**: `heart.png` - Cardiac imaging for 2D segmentation
 - **3D Example**: `chris_t1.nii.gz` - Brain MRI volume for 3D segmentation
 
 ---
@@ -366,53 +366,6 @@ done
    - Search for "App Service Plan"
    - Request increase for desired region/SKU
    - Wait 1-3 business days for approval
-
-**Problem: Git LFS file not downloaded (shows "version https://git-lfs..." in file)**
-
-If `infra/main.parameters.json` shows LFS pointer instead of JSON:
-```bash
-# Install Git LFS
-sudo apt-get install git-lfs  # Ubuntu/Debian
-git lfs install
-git lfs pull
-```
-
-**Problem: "clientId cannot exceed 64 characters" error**
-
-This was fixed in recent versions. If you still see it:
-- Entra ID authentication has been removed from bicep
-- Application now allows public access
-- Pull latest code: `git pull origin master`
-
-**Problem: "resource not found: unable to find a resource tagged with 'azd-service-name: web'"**
-
-This means App Service is missing the deployment tag. Fixed in latest version:
-```bash
-git pull origin master
-azd provision  # Re-run to update tags
-azd deploy web
-```
-
-**Problem: PowerShell 7 warnings during deployment**
-
-This is safe to ignore on Linux systems. The warning appears because:
-- Post-provision hook requires PowerShell 7
-- Hook has been removed in latest version
-- If using old version: `git pull origin master`
-
-**Problem: Application Insights / Log Analytics not working**
-
-Current version deploys these resources but doesn't use them in application code:
-- Monitoring infrastructure is created for future use
-- Application doesn't send telemetry yet
-- You can safely ignore these resources or remove them to save cost
-
-### Health Check
-
-Test if your application is running:
-```bash
-curl https://your-app.azurewebsites.net/healthz
-```
 
 ---
 
