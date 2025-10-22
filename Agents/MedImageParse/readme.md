@@ -1,8 +1,21 @@
-# MedImageParse - Medical Image Segmentation Platform
+<div align="center">
+
+# 🏥 MedImageParse
+
+### Medical Image Segmentation Platform
 
 **Developed by Xinyuwei**
 
-An AI-powered medical image segmentation platform built on Azure, featuring 2D/3D medical imaging with natural language prompts.
+[![Azure](https://img.shields.io/badge/Azure-0078D4?style=for-the-badge&logo=microsoft-azure&logoColor=white)](https://azure.microsoft.com)
+[![Python](https://img.shields.io/badge/Python-3.9+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org)
+[![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://streamlit.io)
+
+An enterprise-grade medical image segmentation platform built on Azure AI Foundry.  
+Supports **2D/3D medical imaging** with **natural language prompts** for ophthalmology, radiology, and pathology applications.
+
+[🚀 Quick Start](#-quick-start) • [📖 Documentation](#-documentation) • [💡 Examples](#-how-to-use)
+
+</div>
 
 ---
 
