@@ -1,0 +1,16 @@
+# Minimal azd template
+name: MedImageParse
+metadata:
+  template: MedImageParse@1.0.0
+
+services:
+  web:
+    project: ./src
+    language: python
+    host: appservice
+
+hooks:
+  postprovision:
+    shell: pwsh
+    run: ./infra/scripts/post-provision.ps1
+    continueOnError: false
