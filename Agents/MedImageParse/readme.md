@@ -79,6 +79,11 @@ https://github.com/user-attachments/assets/7983ecb1-328d-421c-986f-8e22d7f9813d
 - [Azure Developer CLI (azd)](https://aka.ms/azure-dev/install)
 - [Python 3.9+](https://www.python.org/downloads/)
 
+### 4. Test Images
+The repository includes sample images in `test_images/` for testing:
+- **2D Example**: `page_1_img_1.png_region_1.png` - Pathology image for 2D segmentation
+- **3D Example**: `chris_t1.nii.gz` - Brain MRI volume for 3D segmentation
+
 ---
 
 ## 🚀 Quick Start
