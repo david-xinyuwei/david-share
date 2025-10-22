@@ -307,6 +307,40 @@ pip install -r src/requirements.txt --upgrade
 - ✅ Verify RBAC roles on Key Vault
 - ✅ Wait 5-10 minutes after deployment for permissions
 
+**Problem: Quota/SKU deployment errors**
+
+If you see errors like "InternalSubscriptionIsOverQuotaForSku", your subscription lacks quota for the selected region/SKU.
+
+**Check available SKUs by region:**
+```bash
+# Check which regions support Standard S1 SKU
+az appservice list-locations --sku S1 --linux-workers-enabled -o table
+
+# Check Basic B1 SKU availability
+az appservice list-locations --sku B1 --linux-workers-enabled -o table
+
+# Check Premium P1v2 SKU availability
+az appservice list-locations --sku P1v2 --linux-workers-enabled -o table
+```
+
+**Solution options:**
+1. **Change region**: Delete environment and redeploy to different region
+   ```bash
+   azd down --force --purge
+   azd up  # Choose different region (e.g., East US, West US, West Europe)
+   ```
+
+2. **Change SKU**: Edit `infra/modules/app-service.bicep` line 14-19 to use different SKU:
+   - `F1` (Free) - Limited features, may have no quota
+   - `B1` (Basic) - ~$13/month, basic production use
+   - `S1` (Standard) - ~$70/month, recommended for production
+   - `P1v2` (Premium v2) - ~$146/month, high performance
+
+3. **Request quota increase**: 
+   - Visit [Azure Portal Quotas](https://portal.azure.com/#view/Microsoft_Azure_Capacity/QuotaMenuBlade/~/myQuotas)
+   - Search for "App Service Plan"
+   - Request increase for desired region/SKU
+
 ### Health Check
 
 Test if your application is running:
