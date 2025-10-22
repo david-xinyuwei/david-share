@@ -60,37 +60,6 @@ resource appService 'Microsoft.Web/sites@2022-03-01' = {
   }
 }
 
-// Enable App Service authentication with Entra ID
-resource appServiceAuth 'Microsoft.Web/sites/config@2022-03-01' = {
-  parent: appService
-  name: 'authsettingsV2'
-  properties: {
-    globalValidation: {
-      requireAuthentication: true
-      unauthenticatedClientAction: 'RedirectToLoginPage'
-    }
-    identityProviders: {
-      azureActiveDirectory: {
-        enabled: true
-        registration: {
-          openIdIssuer: 'https://sts.windows.net/${tenant().tenantId}/v2.0'
-          clientId: appService.id  // Using app service as the client
-        }
-        validation: {
-          allowedAudiences: [
-            'api://${appService.name}'
-          ]
-        }
-      }
-    }
-    login: {
-      tokenStore: {
-        enabled: true
-      }
-    }
-  }
-}
-
 output appServiceId string = appService.id
 output appServiceName string = appService.name
 output appServiceUrl string = 'https://${appService.properties.defaultHostName}'
