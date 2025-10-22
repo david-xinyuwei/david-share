@@ -1,303 +1,604 @@
-# MedImageParse - AI Medical Image Segmentation Platform# MedImageParse - Medical Image Segmentation Platform
+# MedImageParse - AI Medical Image Segmentation Platform# MedImageParse - AI Medical Image Segmentation Platform# MedImageParse - Medical Image Segmentation Platform
 
 
 
-An AI-powered medical image segmentation platform built on Azure, featuring support for 2D/3D medical imaging with natural language prompts. **Developed by Xinyuwei**.[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fyour-repo%2FMedImageParse%2Fmain%2Finfra%2Fmain.json)
+**Developed by Xinyuwei**
 
 
 
-## 🎬 DemoAn AI-powered medical image segmentation platform built on Azure, featuring support for 2D/3D medical imaging with natural language prompts. Specialized for ophthalmology, pathology, and radiology applications.
+An AI-powered medical image segmentation platform built on Azure, featuring 2D/3D medical imaging with natural language prompts.An AI-powered medical image segmentation platform built on Azure, featuring support for 2D/3D medical imaging with natural language prompts. **Developed by Xinyuwei**.[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fyour-repo%2FMedImageParse%2Fmain%2Finfra%2Fmain.json)
 
 
 
-Watch the platform in action:## 🎬 Demo
+---
 
 
 
-https://github.com/user-attachments/assets/7983ecb1-328d-421c-986f-8e22d7f9813dWatch the platform in action:
+## 🎬 Demo Video## 🎬 DemoAn AI-powered medical image segmentation platform built on Azure, featuring support for 2D/3D medical imaging with natural language prompts. Specialized for ophthalmology, pathology, and radiology applications.
 
 
 
-*Real-time 2D/3D medical image segmentation with natural language prompts*https://github.com/user-attachments/assets/7983ecb1-328d-421c-986f-8e22d7f9813d
+https://github.com/user-attachments/assets/7983ecb1-328d-421c-986f-8e22d7f9813d
 
 
 
----*See real-time 2D/3D medical image segmentation with natural language prompts*
+---Watch the platform in action:## 🎬 Demo
 
 
 
-## 📋 Table of Contents## 🎯 Scenario
+## ✨ Features
 
 
 
-- [Features](#-features)MedImageParse enables healthcare professionals and researchers to perform advanced medical image segmentation using natural language descriptions. The platform leverages Azure's MedImageParse AI models to identify and segment anatomical structures, lesions, and abnormalities in medical images.
+- **2D & 3D Medical Imaging**: Process PNG/JPG images and NIfTI volumeshttps://github.com/user-attachments/assets/7983ecb1-328d-421c-986f-8e22d7f9813dWatch the platform in action:
 
-- [Architecture](#-architecture)
+- **Natural Language Prompts**: "segment the liver", "find the tumor", etc.
 
-- [Prerequisites](#-prerequisites)### Key Use Cases
+- **Interactive Visualization**: Real-time preview with 3D slice browsing
 
-- [Quick Start](#-quick-start)
+- **Bilingual UI**: Full Chinese and English support
 
-- [Usage](#-usage)- **👁️ Ophthalmology**: Retinal vessel segmentation, diabetic retinopathy detection, glaucoma screening
+- **Enterprise Security**: Azure Entra ID authentication, Key Vault, HTTPS-only*Real-time 2D/3D medical image segmentation with natural language prompts*https://github.com/user-attachments/assets/7983ecb1-328d-421c-986f-8e22d7f9813d
 
-- [Configuration](#-configuration)- **🔬 Pathology**: Tumor cell identification, tissue structure analysis
-
-- [Troubleshooting](#-troubleshooting)- **🏥 Radiology**: Organ segmentation (liver, lung, kidney), tumor detection, CT/MRI analysis
-
-- [Cost Estimate](#-cost-estimate)- **🧠 Neurology**: Brain anatomy segmentation, hemorrhage detection
+- **One-Click Deployment**: Deploy with `azd up`
 
 
-
----## ✨ Features
-
-
-
-## ✨ Features- **2D & 3D Support**: Process both 2D images (PNG, JPG) and 3D volumes (NIfTI format)
-
-- **Natural Language Prompts**: Describe segmentation targets in plain English
-
-- **2D & 3D Support**: Process 2D images (PNG, JPG) and 3D volumes (NIfTI format)- **Interactive Visualization**: Real-time preview with 3D slice browsing
-
-- **Natural Language Prompts**: Describe segmentation targets in plain English (e.g., "segment the liver")- **Multi-object Segmentation**: Segment multiple anatomical structures simultaneously
-
-- **Interactive Visualization**: Real-time preview with 3D slice browsing- **Bilingual UI**: Full Chinese and English language support
-
-- **Multi-object Segmentation**: Segment multiple anatomical structures simultaneously- **Secure Authentication**: Azure Entra ID integration
-
-- **Bilingual UI**: Full Chinese and English language support- **Observability**: Application Insights with correlation tracking
-
-- **Enterprise-Ready**: 
-
-  - Azure Entra ID authentication (SSO)## 🚀 Quick Start
-
-  - Key Vault for secure secret storage
-
-  - Application Insights monitoring with correlation IDs> 🎯 **First-time users**: See [QUICKSTART.md](./QUICKSTART.md) for a complete step-by-step checklist covering both model deployment and application deployment.
-
-  - One-click deployment with Azure Developer CLI
-
-### Prerequisites
 
 ### Use Cases
 
-- [Azure Developer CLI (azd)](https://aka.ms/azure-dev/install)
+---*See real-time 2D/3D medical image segmentation with natural language prompts*
 
-- **👁️ Ophthalmology**: Retinal vessel segmentation, diabetic retinopathy detection- [Python 3.9+](https://www.python.org/downloads/)
+| Domain | Applications |
 
-- **🔬 Pathology**: Tumor cell identification, tissue structure analysis- **Paid Azure subscription** (free/trial subscriptions are NOT supported)
+|--------|--------------|
 
-- **🏥 Radiology**: Organ segmentation (liver, lung, kidney), tumor detection- **MedImageParse models deployed in Azure AI Foundry** - See [Model Deployment Guide](./docs/model-deployment-guide.md) for detailed instructions
+| 👁️ **Ophthalmology** | Retinal vessel segmentation, diabetic retinopathy detection |
 
-- **🧠 Neurology**: Brain anatomy segmentation, hemorrhage detection
+| 🔬 **Pathology** | Tumor cell identification, tissue structure analysis |## 📋 Table of Contents## 🎯 Scenario
 
-> ⚠️ **Critical**: Before deploying this application, you must first deploy the MedImageParse 2D and 3D models in Azure AI Foundry. This requires:
+| 🏥 **Radiology** | Organ segmentation (liver, lung, kidney), tumor detection |
 
----> - ✅ Hub-based project (NOT standalone project)
+| 🧠 **Neurology** | Brain anatomy segmentation, hemorrhage detection |
 
-> - ✅ Azure AI Developer role assigned
 
-## 🏗️ Architecture> - ✅ Storage account with public network access enabled
 
-> 
+---- [Features](#-features)MedImageParse enables healthcare professionals and researchers to perform advanced medical image segmentation using natural language descriptions. The platform leverages Azure's MedImageParse AI models to identify and segment anatomical structures, lesions, and abnormalities in medical images.
 
-```mermaid> Read the [Model Deployment Guide](./docs/model-deployment-guide.md) carefully - these requirements are not obvious and cause the most common deployment failures.
+
+
+## 🏗️ Architecture- [Architecture](#-architecture)
+
+
+
+```mermaid- [Prerequisites](#-prerequisites)### Key Use Cases
 
 graph TB
 
-    subgraph "Client Layer"### Deploy to Azure
+    User[👤 User] -->|HTTPS + SSO| EntraID[Azure Entra ID]- [Quick Start](#-quick-start)
 
-        User[👤 Healthcare Professional]
+    EntraID -->|Auth| AppService[App Service<br/>Streamlit]
 
-    end1. **Clone this directory only** (Sparse Checkout)
+    AppService -->|Managed Identity| KeyVault[Key Vault<br/>Secrets]- [Usage](#-usage)- **👁️ Ophthalmology**: Retinal vessel segmentation, diabetic retinopathy detection, glaucoma screening
 
-       ```bash
+    AppService -->|API Calls| ML2D[ML Endpoint<br/>2D Model]
 
-    subgraph "Azure Cloud"   git clone --depth 1 --filter=blob:none --sparse https://github.com/david-xinyuwei/david-share.git
+    AppService -->|API Calls| ML3D[ML Endpoint<br/>3D Model]- [Configuration](#-configuration)- **🔬 Pathology**: Tumor cell identification, tissue structure analysis
 
-        subgraph "Identity & Access"   cd david-share
+    AppService -->|Telemetry| AppInsights[Application Insights]
 
-            EntraID[Azure Entra ID<br/>SSO Authentication]   git sparse-checkout set Agents/MedImageParse
+    - [Troubleshooting](#-troubleshooting)- **🏥 Radiology**: Organ segmentation (liver, lung, kidney), tumor detection, CT/MRI analysis
 
-        end   cd Agents/MedImageParse
+    style User fill:#e1f5ff
 
-           ```
+    style EntraID fill:#fff4e1- [Cost Estimate](#-cost-estimate)- **🧠 Neurology**: Brain anatomy segmentation, hemorrhage detection
 
-        subgraph "Application Layer"   
+    style AppService fill:#e8f5e9
 
-            AppService[Azure App Service<br/>Streamlit App<br/>Python 3.11]   > 💡 **Why sparse checkout?** This repository contains many other projects. Sparse checkout downloads only the MedImageParse directory, saving time and disk space.
+    style KeyVault fill:#fce4ec
 
-            ManagedIdentity[Managed Identity]
+    style ML2D fill:#f3e5f5
 
-        end2. **Initialize Azure Developer CLI**
-
-           ```bash
-
-        subgraph "Security Layer"   azd auth login
-
-            KeyVault[Key Vault<br/>API Keys & Secrets]   azd init
-
-        end   ```
-
-        
-
-        subgraph "AI/ML Layer"3. **Deploy infrastructure and application** (One-click deployment)
-
-            ML2D[Azure ML Endpoint<br/>MedImageParse 2D]   ```bash
-
-            ML3D[Azure ML Endpoint<br/>MedImageParse 3D]   azd up
-
-        end   ```
-
-           
-
-        subgraph "Observability"   **What does `azd up` install?**
-
-            AppInsights[Application Insights<br/>Monitoring & Logs]   
-
-        end   This single command automatically provisions and configures all Azure resources:
-
-    end   
-
-       | Resource | Description | Purpose |
-
-    User -->|HTTPS + SSO| EntraID   |----------|-------------|---------|
-
-    EntraID -->|Authenticated| AppService   | **Resource Group** | Container for all resources | Organizes and manages related Azure resources |
-
-    AppService -->|Managed Identity| KeyVault   | **App Service Plan** | Linux B1 (Basic tier) | Compute infrastructure for hosting |
-
-    AppService -->|API Calls| ML2D   | **App Service** | Python 3.11 runtime | Hosts the Streamlit web application |
-
-    AppService -->|API Calls| ML3D   | **Key Vault** | Secret management | Securely stores API keys and endpoints |
-
-    AppService -->|Telemetry| AppInsights   | **Application Insights** | APM & monitoring | Tracks performance, logs, and user analytics |
-
-       | **Log Analytics Workspace** | Centralized logging | Stores and queries application logs |
-
-    style User fill:#e1f5ff   | **Managed Identity** | System-assigned | Enables passwordless access to Key Vault |
-
-    style EntraID fill:#fff4e1   | **Entra ID Authentication** | SSO integration | Secures application access |
-
-    style AppService fill:#e8f5e9   
-
-    style KeyVault fill:#fce4ec   **Total deployment time**: ~5-7 minutes
-
-    style ML2D fill:#f3e5f5   
-
-    style ML3D fill:#f3e5f5   **Estimated monthly cost**: ~$18 USD (infrastructure only, excludes ML endpoint costs)
+    style ML3D fill:#f3e5f5---## ✨ Features
 
     style AppInsights fill:#e0f2f1
 
-```4. **Access the application**
-
-   ```bash
-
----   azd show
-
-   ```
-
-## 📦 Prerequisites   Open the displayed URL in your browser.
+```
 
 
 
-### 1. Azure Subscription### Local Development
-
-- ⚠️ **Paid subscription required** (free/trial subscriptions do NOT work)
-
-1. **Install dependencies**
-
-### 2. Azure AI Foundry Models (Critical!)   ```bash
-
-   pip install -r src/requirements.txt
-
-**You must deploy MedImageParse models BEFORE deploying this application.**   ```
+---## ✨ Features- **2D & 3D Support**: Process both 2D images (PNG, JPG) and 3D volumes (NIfTI format)
 
 
 
-#### Deployment Requirements:2. **Configure environment**
-
-- ✅ **Hub-based project** (NOT standalone project)   ```bash
-
-- ✅ **Azure AI Developer role** assigned to your account   cp .env.example .env
-
-- ✅ **Storage account** with public network access enabled   # Edit .env with your Azure ML endpoint credentials
-
-   ```
-
-#### Deployment Steps:
-
-3. **Run locally**
-
-1. **Go to Azure AI Foundry**: https://ai.azure.com   ```bash
-
-2. **Create Hub-based project**:   streamlit run src/app.py
-
-   - Create AI Hub first   ```
-
-   - Then create project under the hub
-
-3. **Assign Role**:## 📋 Configuration
-
-   - Go to Hub → Access Control (IAM)
-
-   - Add role assignment: "Azure AI Developer"### Azure ML Endpoints
-
-4. **Enable Storage Access**:
-
-   - Go to Storage Account → NetworkingThe application requires two Azure ML endpoints:
-
-   - Enable "Public network access"
-
-5. **Deploy Models**:1. **MedImageParse 2D**: For 2D image segmentation (1024x1024)
-
-   - Model Catalog → Search "MedImageParse"2. **MedImageParse 3D**: For 3D NIfTI volume segmentation
-
-   - Deploy both 2D and 3D versions
-
-   - Recommended VM: Standard_NC6s_v3 or higher**How to get these endpoints**:
-
-   - **Save endpoints and keys** - you'll need them!1. Follow the [Model Deployment Guide](./docs/model-deployment-guide.md) to deploy both models in Azure AI Foundry
-
-2. Copy the endpoint URLs and API keys from the Azure AI Foundry portal
-
-> 📖 **Detailed Guide**: See [docs/model-deployment-guide.md](./docs/model-deployment-guide.md) for step-by-step instructions with screenshots.3. Configure these in Azure Key Vault after deployment or in `.env` for local development
+## 📦 Prerequisites- **Natural Language Prompts**: Describe segmentation targets in plain English
 
 
 
-### 3. Development Tools> 💡 **First-time users**: The Model Deployment Guide includes critical prerequisites like hub-based projects, RBAC roles, and storage account configuration that are not obvious but required for successful deployment.
+### 1. Azure Subscription- **2D & 3D Support**: Process 2D images (PNG, JPG) and 3D volumes (NIfTI format)- **Interactive Visualization**: Real-time preview with 3D slice browsing
+
+⚠️ **Paid subscription required** (free/trial do NOT work)
+
+- **Natural Language Prompts**: Describe segmentation targets in plain English (e.g., "segment the liver")- **Multi-object Segmentation**: Segment multiple anatomical structures simultaneously
+
+### 2. Deploy ML Models First (Critical!)
+
+- **Interactive Visualization**: Real-time preview with 3D slice browsing- **Bilingual UI**: Full Chinese and English language support
+
+**Before deploying this app**, you must deploy MedImageParse models in Azure AI Foundry:
+
+- **Multi-object Segmentation**: Segment multiple anatomical structures simultaneously- **Secure Authentication**: Azure Entra ID integration
+
+#### Requirements:
+
+- ✅ **Hub-based project** (NOT standalone)- **Bilingual UI**: Full Chinese and English language support- **Observability**: Application Insights with correlation tracking
+
+- ✅ **Azure AI Developer role** assigned
+
+- ✅ **Storage account public access** enabled- **Enterprise-Ready**: 
+
+
+
+#### Steps:  - Azure Entra ID authentication (SSO)## 🚀 Quick Start
+
+1. Go to https://ai.azure.com
+
+2. Create AI Hub → Create project under hub  - Key Vault for secure secret storage
+
+3. Go to Hub → IAM → Add "Azure AI Developer" role
+
+4. Go to Storage Account → Networking → Enable public access  - Application Insights monitoring with correlation IDs> 🎯 **First-time users**: See [QUICKSTART.md](./QUICKSTART.md) for a complete step-by-step checklist covering both model deployment and application deployment.
+
+5. Model Catalog → Search "MedImageParse" → Deploy 2D and 3D
+
+6. **Save endpoints and keys** for deployment  - One-click deployment with Azure Developer CLI
+
+
+
+📖 **Detailed guide**: [docs/model-deployment-guide.md](./docs/model-deployment-guide.md)### Prerequisites
+
+
+
+### 3. Tools### Use Cases
 
 - [Azure Developer CLI (azd)](https://aka.ms/azure-dev/install)
 
-- [Python 3.9+](https://www.python.org/downloads/)### Environment Variables
+- [Python 3.9+](https://www.python.org/downloads/)- [Azure Developer CLI (azd)](https://aka.ms/azure-dev/install)
 
 
 
----| Variable | Description | Required |
+---- **👁️ Ophthalmology**: Retinal vessel segmentation, diabetic retinopathy detection- [Python 3.9+](https://www.python.org/downloads/)
 
-|----------|-------------|----------|
 
-## 🚀 Quick Start| `AZURE_OPENAI_ENDPOINT_2D` | 2D model endpoint URL | Yes |
 
-| `AZURE_OPENAI_KEY_2D` | 2D model API key | Yes |
+## 🚀 Quick Start- **🔬 Pathology**: Tumor cell identification, tissue structure analysis- **Paid Azure subscription** (free/trial subscriptions are NOT supported)
 
-### Option 1: Deploy to Azure (Recommended)| `AZURE_OPENAI_ENDPOINT_3D` | 3D model endpoint URL | Yes |
 
-| `AZURE_OPENAI_KEY_3D` | 3D model API key | Yes |
 
-**Clone this directory only** (Sparse Checkout):| `APPLICATIONINSIGHTS_CONNECTION_STRING` | App Insights connection string | Auto-configured |
+### Deploy to Azure- **🏥 Radiology**: Organ segmentation (liver, lung, kidney), tumor detection- **MedImageParse models deployed in Azure AI Foundry** - See [Model Deployment Guide](./docs/model-deployment-guide.md) for detailed instructions
+
+
+
+**1. Clone this directory** (sparse checkout):- **🧠 Neurology**: Brain anatomy segmentation, hemorrhage detection
 
 ```bash
 
-git clone --depth 1 --filter=blob:none --sparse https://github.com/david-xinyuwei/david-share.git## 🏗️ Architecture
+git clone --depth 1 --filter=blob:none --sparse https://github.com/david-xinyuwei/david-share.git> ⚠️ **Critical**: Before deploying this application, you must first deploy the MedImageParse 2D and 3D models in Azure AI Foundry. This requires:
 
 cd david-share
 
-git sparse-checkout set Agents/MedImageParseSee [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed architecture documentation.
+git sparse-checkout set Agents/MedImageParse---> - ✅ Hub-based project (NOT standalone project)
 
 cd Agents/MedImageParse
 
-```### High-Level Components
+```> - ✅ Azure AI Developer role assigned
 
+
+
+**2. Deploy**:## 🏗️ Architecture> - ✅ Storage account with public network access enabled
+
+```bash
+
+azd auth login> 
+
+azd up
+
+``````mermaid> Read the [Model Deployment Guide](./docs/model-deployment-guide.md) carefully - these requirements are not obvious and cause the most common deployment failures.
+
+
+
+You'll be prompted to enter:graph TB
+
+- MedImageParse 2D Endpoint URL
+
+- MedImageParse 2D API Key    subgraph "Client Layer"### Deploy to Azure
+
+- MedImageParse 3D Endpoint URL
+
+- MedImageParse 3D API Key        User[👤 Healthcare Professional]
+
+
+
+**What gets deployed?**    end1. **Clone this directory only** (Sparse Checkout)
+
+
+
+| Resource | Purpose |       ```bash
+
+|----------|---------|
+
+| Resource Group | Container for all resources |    subgraph "Azure Cloud"   git clone --depth 1 --filter=blob:none --sparse https://github.com/david-xinyuwei/david-share.git
+
+| App Service Plan (B1) | Linux compute for hosting |
+
+| App Service (Python 3.11) | Runs Streamlit application |        subgraph "Identity & Access"   cd david-share
+
+| Key Vault | Stores API keys securely |
+
+| Application Insights | Monitoring and logs |            EntraID[Azure Entra ID<br/>SSO Authentication]   git sparse-checkout set Agents/MedImageParse
+
+| Log Analytics Workspace | Centralized logging |
+
+| Managed Identity | Passwordless Key Vault access |        end   cd Agents/MedImageParse
+
+| Entra ID Auth | SSO security |
+
+           ```
+
+⏱️ **Deployment time**: 5-7 minutes
+
+        subgraph "Application Layer"   
+
+**3. Access**:
+
+```bash            AppService[Azure App Service<br/>Streamlit App<br/>Python 3.11]   > 💡 **Why sparse checkout?** This repository contains many other projects. Sparse checkout downloads only the MedImageParse directory, saving time and disk space.
+
+azd show
+
+```            ManagedIdentity[Managed Identity]
+
+Open the URL in your browser.
+
+        end2. **Initialize Azure Developer CLI**
+
+---
+
+           ```bash
+
+### Run Locally
+
+        subgraph "Security Layer"   azd auth login
+
+```bash
+
+# 1. Install dependencies            KeyVault[Key Vault<br/>API Keys & Secrets]   azd init
+
+pip install -r src/requirements.txt
+
+        end   ```
+
+# 2. Configure environment
+
+cp .env.example .env        
+
+# Edit .env with your endpoints and keys
+
+        subgraph "AI/ML Layer"3. **Deploy infrastructure and application** (One-click deployment)
+
+# 3. Run
+
+streamlit run app_clean.py            ML2D[Azure ML Endpoint<br/>MedImageParse 2D]   ```bash
+
+
+
+# 4. Open http://localhost:8501            ML3D[Azure ML Endpoint<br/>MedImageParse 3D]   azd up
+
+```
+
+        end   ```
+
+---
+
+           
+
+## 💡 How to Use
+
+        subgraph "Observability"   **What does `azd up` install?**
+
+### 2D Image Segmentation
+
+            AppInsights[Application Insights<br/>Monitoring & Logs]   
+
+1. Select language (Chinese/English)
+
+2. Choose "MedImageParse (2D)" model        end   This single command automatically provisions and configures all Azure resources:
+
+3. Upload PNG/JPG image
+
+4. Enter prompt: "segment retinal vessels" or "find tumor"    end   
+
+5. View results and download
+
+       | Resource | Description | Purpose |
+
+### 3D Volume Segmentation
+
+    User -->|HTTPS + SSO| EntraID   |----------|-------------|---------|
+
+1. Choose "MedImageParse 3D" model
+
+2. Upload NIfTI file (.nii or .nii.gz)    EntraID -->|Authenticated| AppService   | **Resource Group** | Container for all resources | Organizes and manages related Azure resources |
+
+3. Enter prompt: "segment brain" or "find liver"
+
+4. Browse slices with slider    AppService -->|Managed Identity| KeyVault   | **App Service Plan** | Linux B1 (Basic tier) | Compute infrastructure for hosting |
+
+5. Download 3D mask
+
+    AppService -->|API Calls| ML2D   | **App Service** | Python 3.11 runtime | Hosts the Streamlit web application |
+
+### Example Prompts
+
+    AppService -->|API Calls| ML3D   | **Key Vault** | Secret management | Securely stores API keys and endpoints |
+
+```
+
+Ophthalmology:    AppService -->|Telemetry| AppInsights   | **Application Insights** | APM & monitoring | Tracks performance, logs, and user analytics |
+
+- "segment retinal vessels"
+
+- "detect optic disc"       | **Log Analytics Workspace** | Centralized logging | Stores and queries application logs |
+
+- "find hemorrhages"
+
+    style User fill:#e1f5ff   | **Managed Identity** | System-assigned | Enables passwordless access to Key Vault |
+
+Radiology:
+
+- "segment liver"    style EntraID fill:#fff4e1   | **Entra ID Authentication** | SSO integration | Secures application access |
+
+- "segment left lung"
+
+- "find tumor"    style AppService fill:#e8f5e9   
+
+
+
+Neurology:    style KeyVault fill:#fce4ec   **Total deployment time**: ~5-7 minutes
+
+- "segment brain"
+
+- "segment gray matter"    style ML2D fill:#f3e5f5   
+
+- "detect lesions"
+
+```    style ML3D fill:#f3e5f5   **Estimated monthly cost**: ~$18 USD (infrastructure only, excludes ML endpoint costs)
+
+
+
+---    style AppInsights fill:#e0f2f1
+
+
+
+## 🔧 Configuration```4. **Access the application**
+
+
+
+### Environment Variables   ```bash
+
+
+
+```env---   azd show
+
+# 2D Model
+
+AZURE_OPENAI_ENDPOINT_2D=https://your-endpoint.inference.ml.azure.com/score   ```
+
+AZURE_OPENAI_KEY_2D=your-api-key
+
+## 📦 Prerequisites   Open the displayed URL in your browser.
+
+# 3D Model
+
+AZURE_OPENAI_ENDPOINT_3D=https://your-endpoint.inference.ml.azure.com/score
+
+AZURE_OPENAI_KEY_3D=your-api-key
+
+### 1. Azure Subscription### Local Development
+
+# Application Insights (auto-configured in Azure)
+
+APPLICATIONINSIGHTS_CONNECTION_STRING=your-connection-string- ⚠️ **Paid subscription required** (free/trial subscriptions do NOT work)
+
+```
+
+1. **Install dependencies**
+
+In production, these are automatically retrieved from Key Vault via Managed Identity.
+
+### 2. Azure AI Foundry Models (Critical!)   ```bash
+
+---
+
+   pip install -r src/requirements.txt
+
+## 🐛 Troubleshooting
+
+**You must deploy MedImageParse models BEFORE deploying this application.**   ```
+
+### Common Issues
+
+
+
+**Problem**: Model deployment failed  
+
+**Solution**: #### Deployment Requirements:2. **Configure environment**
+
+- Verify "Azure AI Developer" role assigned
+
+- Check storage public access enabled- ✅ **Hub-based project** (NOT standalone project)   ```bash
+
+- Ensure paid subscription (not free/trial)
+
+- ✅ **Azure AI Developer role** assigned to your account   cp .env.example .env
+
+**Problem**: 401 Unauthorized  
+
+**Solution**: - ✅ **Storage account** with public network access enabled   # Edit .env with your Azure ML endpoint credentials
+
+- Verify API key is correct
+
+- Check endpoint URL matches deployment   ```
+
+- Ensure Key Vault secrets are set
+
+#### Deployment Steps:
+
+**Problem**: Application won't start  
+
+**Solution**: 3. **Run locally**
+
+```bash
+
+pip install -r src/requirements.txt --upgrade1. **Go to Azure AI Foundry**: https://ai.azure.com   ```bash
+
+```
+
+2. **Create Hub-based project**:   streamlit run src/app.py
+
+**Problem**: NIfTI file won't load  
+
+**Solution**:    - Create AI Hub first   ```
+
+- Ensure valid NIfTI format (.nii or .nii.gz)
+
+- Check file size < 100MB   - Then create project under the hub
+
+- Verify file not corrupted
+
+3. **Assign Role**:## 📋 Configuration
+
+**Problem**: Key Vault access denied  
+
+**Solution**:    - Go to Hub → Access Control (IAM)
+
+- Verify Managed Identity assigned
+
+- Check RBAC roles on Key Vault   - Add role assignment: "Azure AI Developer"### Azure ML Endpoints
+
+- Wait 5-10 minutes for permissions to propagate
+
+4. **Enable Storage Access**:
+
+### Health Check
+
+   - Go to Storage Account → NetworkingThe application requires two Azure ML endpoints:
+
+```bash
+
+curl https://your-app.azurewebsites.net/healthz   - Enable "Public network access"
+
+```
+
+5. **Deploy Models**:1. **MedImageParse 2D**: For 2D image segmentation (1024x1024)
+
+### View Logs
+
+   - Model Catalog → Search "MedImageParse"2. **MedImageParse 3D**: For 3D NIfTI volume segmentation
+
+Azure Portal: App Service → Monitoring → Log stream
+
+   - Deploy both 2D and 3D versions
+
+CLI:
+
+```bash   - Recommended VM: Standard_NC6s_v3 or higher**How to get these endpoints**:
+
+az webapp log tail --name your-app-name --resource-group your-rg
+
+```   - **Save endpoints and keys** - you'll need them!1. Follow the [Model Deployment Guide](./docs/model-deployment-guide.md) to deploy both models in Azure AI Foundry
+
+
+
+---2. Copy the endpoint URLs and API keys from the Azure AI Foundry portal
+
+
+
+## 🔒 Security Features> 📖 **Detailed Guide**: See [docs/model-deployment-guide.md](./docs/model-deployment-guide.md) for step-by-step instructions with screenshots.3. Configure these in Azure Key Vault after deployment or in `.env` for local development
+
+
+
+- ✅ HTTPS-only (TLS 1.2+)
+
+- ✅ Azure Entra ID SSO authentication
+
+- ✅ No hardcoded secrets (Key Vault + Managed Identity)### 3. Development Tools> 💡 **First-time users**: The Model Deployment Guide includes critical prerequisites like hub-based projects, RBAC roles, and storage account configuration that are not obvious but required for successful deployment.
+
+- ✅ RBAC for all Azure resources
+
+- ✅ Application Insights monitoring with correlation IDs- [Azure Developer CLI (azd)](https://aka.ms/azure-dev/install)
+
+- ✅ Audit logging enabled
+
+- [Python 3.9+](https://www.python.org/downloads/)### Environment Variables
+
+---
+
+
+
+## 📚 Documentation
+
+---| Variable | Description | Required |
+
+- **Model Deployment Guide**: [docs/model-deployment-guide.md](./docs/model-deployment-guide.md) - **START HERE** if models not deployed
+
+- **Application Deployment Guide**: [docs/deployment-guide.md](./docs/deployment-guide.md)|----------|-------------|----------|
+
+- **Azure AI Foundry**: https://learn.microsoft.com/azure/ai-foundry/
+
+- **MedImageParse Research**: https://www.microsoft.com/research/project/medimageparse/## 🚀 Quick Start| `AZURE_OPENAI_ENDPOINT_2D` | 2D model endpoint URL | Yes |
+
+
+
+---| `AZURE_OPENAI_KEY_2D` | 2D model API key | Yes |
+
+
+
+## 📄 License### Option 1: Deploy to Azure (Recommended)| `AZURE_OPENAI_ENDPOINT_3D` | 3D model endpoint URL | Yes |
+
+
+
+MIT License - see [LICENSE](./LICENSE)| `AZURE_OPENAI_KEY_3D` | 3D model API key | Yes |
+
+
+
+---**Clone this directory only** (Sparse Checkout):| `APPLICATIONINSIGHTS_CONNECTION_STRING` | App Insights connection string | Auto-configured |
+
+
+
+## 👨‍💻 Contact```bash
+
+
+
+**Developed by Xinyuwei**git clone --depth 1 --filter=blob:none --sparse https://github.com/david-xinyuwei/david-share.git## 🏗️ Architecture
+
+
+
+For questions or issues, please open an issue on GitHub.cd david-share
+
+
+
+---git sparse-checkout set Agents/MedImageParseSee [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed architecture documentation.
+
+
+
+## 🙏 Acknowledgmentscd Agents/MedImageParse
+
+
+
+- Microsoft Azure AI team for MedImageParse models```### High-Level Components
+
+- Azure Machine Learning team
+
+- Streamlit community
 
 
 **Deploy with one command**:```mermaid
