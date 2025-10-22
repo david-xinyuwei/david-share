@@ -12,10 +12,10 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2022-03-01' = {
   location: location
   tags: tags
   sku: {
-    name: 'F1'  // Free tier - no quota required
-    tier: 'Free'
-    size: 'F1'
-    family: 'F'
+    name: 'S1'  // Standard tier
+    tier: 'Standard'
+    size: 'S1'
+    family: 'S'
     capacity: 1
   }
   kind: 'linux'
@@ -38,7 +38,7 @@ resource appService 'Microsoft.Web/sites@2022-03-01' = {
     httpsOnly: true
     siteConfig: {
       linuxFxVersion: 'PYTHON|3.11'
-      alwaysOn: false  // Free tier does not support Always On
+      alwaysOn: true
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'
       appCommandLine: 'python -m streamlit run app_clean.py --server.port=8000 --server.address=0.0.0.0'
