@@ -5,7 +5,7 @@ metadata:
 
 services:
   web:
-    project: ./src
+    project: .
     language: python
     host: appservice
 

@@ -41,7 +41,7 @@ resource appService 'Microsoft.Web/sites@2022-03-01' = {
       alwaysOn: true
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'
-      appCommandLine: 'python -m streamlit run app.py --server.port=8000 --server.address=0.0.0.0'
+      appCommandLine: 'python -m streamlit run app_clean.py --server.port=8000 --server.address=0.0.0.0'
       healthCheckPath: '/healthz'
       appSettings: [
         {
