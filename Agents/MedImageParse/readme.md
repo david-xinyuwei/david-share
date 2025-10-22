@@ -172,34 +172,11 @@ azd auth login --use-device-code
 
 # Deploy infrastructure and application
 azd up
-
-# If deployment fails, check quota and region (see Troubleshooting section)
 ```
 
-**Important deployment notes:**
-
-⚠️ **Common deployment issues:**
-1. **Quota errors**: Your subscription may not have quota in all regions. Check actual quota using commands in Troubleshooting section.
-2. **Region selection**: Canada Central works well with Premium v3 SKU. East US/West US work with Basic/Standard.
-3. **First deployment**: Takes 5-7 minutes. Subsequent updates are faster.
-
-**What gets deployed:**
-
-| Azure Resource | Purpose | Notes |
-|----------------|---------|-------|
-| Resource Group | Container for all resources | |
-| App Service Plan | Linux hosting (Premium v3) | SKU can be changed in bicep |
-| App Service | Streamlit application (Python 3.11) | Public access, no auth |
-| Application Insights | Monitoring (optional) | Deployed but not used in code |
-| Log Analytics | Centralized logging | Deployed but not used in code |
-| Managed Identity | System-assigned identity | For future use |
-
-**Removed components** (to simplify deployment):
-- ❌ Key Vault - Use UI configuration instead
-- ❌ Entra ID authentication - Public access for demos
-- ❌ PowerShell post-provision hooks - Manual deployment
-
 ⏱️ **Deployment time**: 5-7 minutes
+
+**If deployment fails with quota errors**, see Troubleshooting section below for how to check your actual quota.
 
 **Step 3: Access your application**
 ```bash
@@ -321,34 +298,37 @@ pip install -r src/requirements.txt --upgrade
 
 **Problem: Quota/SKU deployment errors**
 
-If you see errors like "InternalSubscriptionIsOverQuotaForSku", your subscription lacks quota for the selected region/SKU.
+Error: `InternalSubscriptionIsOverQuotaForSku` means your subscription lacks quota for the selected region/SKU.
 
-**⚠️ IMPORTANT: Check ACTUAL quota, not just SKU availability!**
+**How to check your actual App Service quota:**
 
-Many users make this mistake:
 ```bash
-# ❌ WRONG: This only shows which regions SUPPORT the SKU (not your quota!)
-az appservice list-locations --sku S1 --linux-workers-enabled -o table
-```
+# Replace YOUR_SUBSCRIPTION_ID with your subscription ID
+SUBSCRIPTION_ID="YOUR_SUBSCRIPTION_ID"
 
-**✅ Correct way to check YOUR actual quota:**
-```bash
-# Check your REAL quota in specific regions
-for region in canadacentral eastus westus northeurope southeastasia; do
+# Check quota for specific region and SKU
+REGION="eastus"  # Change to your target region
+az rest --method get \
+  --uri "https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/providers/Microsoft.Web/locations/$REGION/usages?api-version=2024-04-01" \
+  --query "value[?contains(name.localizedValue, 'Basic') || contains(name.localizedValue, 'Standard') || contains(name.localizedValue, 'Premium')].{SKU:name.localizedValue, Current:currentValue, Limit:limit}" \
+  -o table
+
+# Check multiple regions at once
+for region in canadacentral eastus westus northeurope; do
   echo "=== $region ==="
   az rest --method get \
-    --uri "https://management.azure.com/subscriptions/YOUR_SUBSCRIPTION_ID/providers/Microsoft.Web/locations/$region/usages?api-version=2024-04-01" \
+    --uri "https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/providers/Microsoft.Web/locations/$region/usages?api-version=2024-04-01" \
     --query "value[?contains(name.localizedValue, 'Basic') || contains(name.localizedValue, 'Standard') || contains(name.localizedValue, 'Premium')].{SKU:name.localizedValue, Current:currentValue, Limit:limit}" \
     -o table
   echo ""
 done
 ```
 
-**Understanding quota output:**
+**Understanding quota values:**
 - `Limit: 0` = No quota (cannot deploy)
-- `Limit: -1` = Unlimited quota (can deploy any number)
-- `Limit: 360` = Specific quota (e.g., 360 cores for Premium v3)
-- `Current: 2, Limit: 0` = Already using resources beyond quota (legacy/grandfathered)
+- `Limit: -1` = Unlimited quota ✅
+- `Limit: 360` = 360 cores available
+- `Current: 2, Limit: 0` = Legacy resources using expired quota
 
 **Solution options:**
 
