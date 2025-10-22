@@ -4,6 +4,14 @@
 
 An AI-powered medical image segmentation platform built on Azure, featuring support for 2D/3D medical imaging with natural language prompts. Specialized for ophthalmology, pathology, and radiology applications.
 
+## 🎬 Demo
+
+Watch the platform in action:
+
+https://github.com/user-attachments/assets/7983ecb1-328d-421c-986f-8e22d7f9813d
+
+*See real-time 2D/3D medical image segmentation with natural language prompts*
+
 ## 🎯 Scenario
 
 MedImageParse enables healthcare professionals and researchers to perform advanced medical image segmentation using natural language descriptions. The platform leverages Azure's MedImageParse AI models to identify and segment anatomical structures, lesions, and abnormalities in medical images.
@@ -61,16 +69,29 @@ MedImageParse enables healthcare professionals and researchers to perform advanc
    azd init
    ```
 
-3. **Deploy infrastructure and application**
+3. **Deploy infrastructure and application** (One-click deployment)
    ```bash
    azd up
    ```
    
-   This command will:
-   - Provision all Azure resources (App Service, Key Vault, Application Insights)
-   - Configure Entra ID authentication
-   - Deploy the Streamlit application
-   - Set up monitoring and logging
+   **What does `azd up` install?**
+   
+   This single command automatically provisions and configures all Azure resources:
+   
+   | Resource | Description | Purpose |
+   |----------|-------------|---------|
+   | **Resource Group** | Container for all resources | Organizes and manages related Azure resources |
+   | **App Service Plan** | Linux B1 (Basic tier) | Compute infrastructure for hosting |
+   | **App Service** | Python 3.11 runtime | Hosts the Streamlit web application |
+   | **Key Vault** | Secret management | Securely stores API keys and endpoints |
+   | **Application Insights** | APM & monitoring | Tracks performance, logs, and user analytics |
+   | **Log Analytics Workspace** | Centralized logging | Stores and queries application logs |
+   | **Managed Identity** | System-assigned | Enables passwordless access to Key Vault |
+   | **Entra ID Authentication** | SSO integration | Secures application access |
+   
+   **Total deployment time**: ~5-7 minutes
+   
+   **Estimated monthly cost**: ~$18 USD (infrastructure only, excludes ML endpoint costs)
 
 4. **Access the application**
    ```bash
