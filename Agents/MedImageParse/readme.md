@@ -1,13 +1,16 @@
-# 🏥 MedImageParse - Medical Image Segmentation Platform
+# 🤖 MedImageParse - AI Medical Imaging Agent
+
+## Intelligent Medical Image Analysis with Natural Language Understanding
 
 **Developed by Xinyuwei**
 
 [![Azure](https://img.shields.io/badge/Azure-0078D4?style=for-the-badge&logo=microsoft-azure&logoColor=white)](https://azure.microsoft.com)
 [![Python](https://img.shields.io/badge/Python-3.9+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org)
 [![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://streamlit.io)
+[![AI Agent](https://img.shields.io/badge/AI-Agent-blueviolet?style=for-the-badge&logo=openai&logoColor=white)](https://azure.microsoft.com/products/ai-services)
 
-An enterprise-grade medical image segmentation platform built on Azure AI Foundry.  
-Supports **2D/3D medical imaging** with **natural language prompts** for ophthalmology, radiology, and pathology applications.
+An enterprise-grade **AI Agent** for medical image segmentation powered by Azure AI Foundry.  
+Supports **2D/3D medical imaging** with **conversational natural language prompts** for ophthalmology, radiology, and pathology applications.
 
 **Quick Links**: [🚀 Quick Start](#-quick-start) • [📖 Documentation](#-documentation) • [💡 Examples](#-how-to-use)
 
@@ -21,12 +24,27 @@ https://github.com/user-attachments/assets/7983ecb1-328d-421c-986f-8e22d7f9813d
 
 ## ✨ Features
 
-- **2D & 3D Medical Imaging** - Process PNG/JPG images and NIfTI volumes
-- **Natural Language Prompts** - "segment the liver", "find the tumor", etc.
+### 🤖 AI Agent Capabilities
+- **Conversational Interface** - Interact with medical images using natural language
+- **Intelligent Understanding** - Automatically interprets medical terminology and context
+- **Multi-Modal Analysis** - Seamlessly handles 2D images and 3D volumes
+- **Autonomous Task Execution** - From prompt to segmentation, fully automated
+
+### 🔬 Medical Imaging Support
+- **2D Images** - PNG, JPG for pathology, X-rays, fundus photography
+- **3D Volumes** - NIfTI format for CT, MRI scans
 - **Interactive Visualization** - Real-time preview with 3D slice browsing
+- **Multiple Objects** - Segment multiple anatomical structures simultaneously
+
+### 🌐 User Experience
 - **Bilingual UI** - Full Chinese and English support
-- **Enterprise Security** - Azure Entra ID authentication, Key Vault, HTTPS-only
-- **One-Click Deployment** - Deploy with `azd up`
+- **Conversational Prompts** - "segment the liver", "find the tumor", "analyze retinal vessels"
+- **Visual Feedback** - Instant preview and result validation
+
+### 🔒 Enterprise Features
+- **Production-Ready** - Azure Entra ID authentication, Key Vault, HTTPS-only
+- **One-Click Deployment** - Deploy entire stack with `azd up`
+- **Observability** - Application Insights with distributed tracing
 
 ### Use Cases
 
