@@ -328,15 +328,16 @@ st.caption(TEXTS["subtitle"])
 # 侧边栏：配置端点和密钥
 st.sidebar.header(TEXTS["config"])
 
-# 预定义的模型配置 - 使用环境变量
+# 从环境变量读取（可选，主要用于服务器部署）
+# 本地运行时不需要设置环境变量，直接在UI输入即可
 MODEL_CONFIGS = {
     "MedImageParse (2D)": {
-        "url": os.getenv("AZURE_OPENAI_ENDPOINT_2D", ""),
-        "key": os.getenv("AZURE_OPENAI_KEY_2D", "")
+        "url": os.getenv("AI_FOUNDRY_MedImageParse2D_ENDPOINT", ""),
+        "key": os.getenv("AI_FOUNDRY_MedImageParse2D_KEY", "")
     },
     "MedImageParse 3D": {
-        "url": os.getenv("AZURE_OPENAI_ENDPOINT_3D", ""),
-        "key": os.getenv("AZURE_OPENAI_KEY_3D", "")
+        "url": os.getenv("AI_FOUNDRY_MedImageParse3D_ENDPOINT", ""),
+        "key": os.getenv("AI_FOUNDRY_MedImageParse3D_KEY", "")
     }
 }
 
@@ -344,45 +345,42 @@ MODEL_CONFIGS = {
 model_type = st.sidebar.radio(
     TEXTS["model_type"],
     ["MedImageParse (2D)", "MedImageParse 3D"],
-    help="Select the model type based on your deployment / 根据您部署的模型选择对应类型" if language == "English" else "根据您部署的模型选择对应类型",
+    help="根据您在 Azure AI Foundry 部署的模型选择对应类型" if language == "中文" else "Select the model type based on your Azure AI Foundry deployment",
     index=0 if saved_config.get('model_type', 'MedImageParse (2D)') == 'MedImageParse (2D)' else 1
 )
 
-# 根据选择的模型类型获取默认配置
-# 优先使用保存的配置，如果没有则使用预定义配置
+# 加载配置：优先使用本地保存的配置，其次是环境变量，最后是空字符串
 if saved_config.get('model_type') == model_type:
-    default_url = saved_config.get('endpoint_url', MODEL_CONFIGS[model_type]["url"])
-    default_key = saved_config.get('api_key', MODEL_CONFIGS[model_type]["key"])
+    # 使用保存的配置
+    default_url = saved_config.get('endpoint_url', '')
+    default_key = saved_config.get('api_key', '')
 else:
+    # 新模型类型，尝试从环境变量读取（服务器部署场景）
     default_url = MODEL_CONFIGS[model_type]["url"]
     default_key = MODEL_CONFIGS[model_type]["key"]
 
 st.sidebar.markdown("---")
 
-# 输入 REST endpoint
+# 输入配置信息
 endpoint_url = st.sidebar.text_input(
-    "REST Endpoint URL",
+    "REST Endpoint URL" if language == "English" else "REST 端点 URL",
     value=default_url,
-    help="输入 Azure ML 端点 URL"
+    placeholder="https://your-endpoint.swedencentral.inference.ml.azure.com/score",
+    help="从 Azure AI Foundry 部署详情中复制端点 URL" if language == "中文" else "Copy endpoint URL from Azure AI Foundry deployment details"
 )
 
-# 输入 API Key
 api_key = st.sidebar.text_input(
-    "Primary Key",
+    "Primary Key" if language == "English" else "主密钥",
     value=default_key,
     type="password",
-    help="输入 API 密钥"
+    placeholder="输入密钥 / Enter key",
+    help="从 Azure AI Foundry 部署详情中复制主密钥" if language == "中文" else "Copy primary key from Azure AI Foundry deployment details"
 )
 
 # 保存配置按钮
-if st.sidebar.button(TEXTS["save_config"]):
+if st.sidebar.button(TEXTS["save_config"], type="primary"):
     if endpoint_url and api_key:
-        # 保存到 session state
-        st.session_state['endpoint_url'] = endpoint_url
-        st.session_state['api_key'] = api_key
-        st.session_state['model_type'] = model_type
-        
-        # 保存到本地文件（持久化）
+        # 保存配置到本地文件（永久有效）
         config_to_save = {
             'endpoint_url': endpoint_url,
             'api_key': api_key,
@@ -390,98 +388,115 @@ if st.sidebar.button(TEXTS["save_config"]):
         }
         
         if save_config(config_to_save):
+            # 同时保存到 session state，立即生效
+            st.session_state['endpoint_url'] = endpoint_url
+            st.session_state['api_key'] = api_key
+            st.session_state['model_type'] = model_type
+            
             st.sidebar.success(TEXTS["config_saved_persistent"])
             st.sidebar.caption(f"{TEXTS['config_file']}: {CONFIG_FILE}")
+            
+            # 提示刷新页面或直接使用
+            if language == "中文":
+                st.sidebar.info("✅ 配置已永久保存，下次打开自动加载")
+            else:
+                st.sidebar.info("✅ Configuration saved permanently, auto-loads next time")
         else:
             st.sidebar.warning(TEXTS["config_saved_session"])
     else:
         st.sidebar.error(TEXTS["error_incomplete_config"])
 
-# 显示当前配置状态
-if 'endpoint_url' in st.session_state and 'api_key' in st.session_state:
-    st.sidebar.info(f"{TEXTS['config_loaded']}\n\n{TEXTS['current_model']}: **{st.session_state.get('model_type', 'MedImageParse (2D)')}**")
-elif saved_config:
-    st.sidebar.info(f"{TEXTS['use_saved_config']}\n\n{TEXTS['current_model']}: **{model_type}**")
-    # 自动加载到 session state
-    st.session_state['endpoint_url'] = endpoint_url
-    st.session_state['api_key'] = api_key
-    st.session_state['model_type'] = model_type
+# 显示配置状态
+if saved_config and saved_config.get('model_type') == model_type and saved_config.get('endpoint_url'):
+    # 有本地保存的配置，自动加载到 session state
+    if 'endpoint_url' not in st.session_state:
+        st.session_state['endpoint_url'] = saved_config.get('endpoint_url')
+        st.session_state['api_key'] = saved_config.get('api_key')
+        st.session_state['model_type'] = model_type
+    
+    st.sidebar.success(f"✅ {TEXTS['config_loaded']}")
+    st.sidebar.caption(f"{TEXTS['current_model']}: **{model_type}**")
+elif 'endpoint_url' in st.session_state and st.session_state.get('endpoint_url'):
+    # Session 中有配置
+    st.sidebar.success(f"✅ {TEXTS['config_loaded']}")
+    st.sidebar.caption(f"{TEXTS['current_model']}: **{st.session_state.get('model_type', model_type)}**")
 else:
-    st.sidebar.warning("⚠️ 请保存配置后再上传图片")
+    # 没有配置
+    if language == "中文":
+        st.sidebar.warning("⚠️ 请先输入并保存端点配置")
+    else:
+        st.sidebar.warning("⚠️ Please enter and save endpoint configuration first")
 
-# 侧边栏说明
+# 使用说明
 st.sidebar.markdown("---")
 if language == "中文":
     st.sidebar.markdown("""
 ### 📖 模型说明
 
 **MedImageParse (2D)**: 
-- 👁️ **眼科图像分割** ⭐ 视网膜、血管、病变等
-- 🔬 病理学图像分割
-- 🩻 X光、CT切片分割
-- 💊 支持多对象同时分割（用 & 分隔）
-- 📐 输入尺寸: 1024×1024
+- 👁️ 眼科图像（视网膜、血管、病变）
+- 🔬 病理切片
+- 🩻 X光、CT单层切片
+- 💊 可同时分割多个对象（用 & 分隔）
+- 📐 图像尺寸: 1024×1024
 
 **MedImageParse 3D**:
-- 🫁 3D医学影像分割
-- 🧠 CT、MRI体数据分析
-- ❤️ 器官和肿瘤分割
-- 📐 输入格式: NIfTI (.nii, .nii.gz)
+- 🫁 3D 医学影像
+- 🧠 CT、MRI 体数据
+- ❤️ 器官、肿瘤分割
+- 📐 文件格式: NIfTI (.nii, .nii.gz)
 
-### 👁️ 眼科应用重点
+### 👁️ 眼科常用场景
 
-**常用眼科分割**:
 - 视网膜病变检测
 - 糖尿病性视网膜病变
 - 视网膜血管分割
 - 视神经盘、黄斑定位
-- 青光眼筛查（视杯视盘比）
+- 青光眼筛查（视杯/视盘比）
 
-### 🎯 支持的分割类别
+### 🎯 支持的对象类别
 
-模型使用**自然语言理解**，可识别任何医学对象！
+可以用任何医学英文术语描述目标对象：
 
 **眼科**: retina, optic disc, macula, vessels, lesion  
 **器官**: liver, lung, kidney, pancreas, heart, spleen  
-**解剖结构**: brain/heart/eye anatomies  
+**解剖**: brain/heart/eye anatomies  
 **病变**: tumor, infection, lesion, abnormality  
 **其他**: vessel, fluid, histology structure
 
-**💡 重要**: 
-- ✅ 可以用**任何英文医学术语**
-- ✅ 不限于预设选项
-- ✅ 模型会理解并分割您输入的对象
-- ✅ 支持复杂描述，如 "diabetic retinopathy"
+**提示**: 
+- 使用英文医学术语
+- 不限于预设选项
+- 可以输入复杂描述，如 "diabetic retinopathy"
 """)
 else:
     st.sidebar.markdown("""
 ### 📖 Model Description
 
 **MedImageParse (2D)**: 
-- 👁️ **Ophthalmology Image Segmentation** ⭐ Retina, vessels, lesions, etc.
-- 🔬 Pathology image segmentation
-- 🩻 X-ray, CT slice segmentation
+- 👁️ Ophthalmology images (retina, vessels, lesions)
+- 🔬 Pathology slides
+- 🩻 X-ray, CT single slices
 - 💊 Multi-object segmentation (use & to separate)
-- 📐 Input size: 1024×1024
+- 📐 Image size: 1024×1024
 
 **MedImageParse 3D**:
-- 🫁 3D medical image segmentation
-- 🧠 CT, MRI volumetric data analysis
+- 🫁 3D medical images
+- 🧠 CT, MRI volumetric data
 - ❤️ Organ and tumor segmentation
-- 📐 Input format: NIfTI (.nii, .nii.gz)
+- 📐 File format: NIfTI (.nii, .nii.gz)
 
-### 👁️ Ophthalmology Focus
+### 👁️ Common Ophthalmology Use Cases
 
-**Common Ophthalmology Segmentation**:
 - Retinal lesion detection
 - Diabetic retinopathy
 - Retinal vessel segmentation
 - Optic disc & macula localization
 - Glaucoma screening (cup-to-disc ratio)
 
-### 🎯 Supported Segmentation Categories
+### 🎯 Supported Object Categories
 
-Model uses **natural language understanding** to recognize any medical object!
+Use any medical terminology in English to describe targets:
 
 **Ophthalmology**: retina, optic disc, macula, vessels, lesion  
 **Organs**: liver, lung, kidney, pancreas, heart, spleen  
@@ -489,63 +504,60 @@ Model uses **natural language understanding** to recognize any medical object!
 **Lesions**: tumor, infection, lesion, abnormality  
 **Others**: vessel, fluid, histology structure
 
-**💡 Important**: 
-- ✅ Can use **any medical terminology in English**
-- ✅ Not limited to preset options
-- ✅ Model understands and segments your input objects
-- ✅ Supports complex descriptions like "diabetic retinopathy"
+**Tips**: 
+- Use medical terminology in English
+- Not limited to preset options
+- Supports complex descriptions like "diabetic retinopathy"
 """)
 
-# 添加使用技巧
+# 使用技巧
 if language == "中文":
     with st.sidebar.expander("💡 使用技巧"):
         st.markdown("""
-**提示词技巧:**
-- 使用 `&` 分隔多个对象
-- 眼科示例: `optic disc & macula`
-- 眼科示例: `retinal vessels & hemorrhages`
-- 可以用任何医学英文术语！
-- 例如: `microaneurysms`, `exudates`, `neovascularization`
+**提示词:**
+- 用 `&` 分隔多个对象
+- 示例: `optic disc & macula`
+- 示例: `retinal vessels & hemorrhages`
+- 任何医学英文术语都可以
 
 **图像质量:**
-- 降低质量可减小文件大小
-- 建议: 85-95% 平衡质量和速度
-- 网络差时可降至 60-70%
+- 降低质量可减小传输大小
+- 推荐: 85-95%
+- 网络慢时可降至 60-70%
 
-**最佳实践:**
-- 图像会自动调整为1024×1024
-- 支持 PNG, JPG, JPEG 格式
-- 眼底照片推荐高分辨率
-- 可以尝试任何医学对象名称
+**注意事项:**
+- 2D 图像自动调整为 1024×1024
+- 支持 PNG, JPG, JPEG
+- 眼底照片建议高分辨率
+- 3D 数据使用 NIfTI 格式
 
-**配置持久化:**
-- 保存后，下次打开自动加载
-- 配置文件保存在用户目录
+**配置保存:**
+- 点保存后永久有效
+- 下次打开自动加载
 """)
 else:
     with st.sidebar.expander("💡 Usage Tips"):
         st.markdown("""
-**Prompt Tips:**
+**Prompts:**
 - Use `&` to separate multiple objects
-- Ophthalmology example: `optic disc & macula`
-- Ophthalmology example: `retinal vessels & hemorrhages`
-- Can use any medical terminology in English!
-- Examples: `microaneurysms`, `exudates`, `neovascularization`
+- Example: `optic disc & macula`
+- Example: `retinal vessels & hemorrhages`
+- Any medical terminology works
 
 **Image Quality:**
-- Lower quality reduces file size
-- Recommended: 85-95% for balance
+- Lower quality reduces transfer size
+- Recommended: 85-95%
 - Can go 60-70% for slow networks
 
-**Best Practices:**
-- Images auto-resized to 1024×1024
-- Supports PNG, JPG, JPEG formats
+**Notes:**
+- 2D images auto-resized to 1024×1024
+- Supports PNG, JPG, JPEG
 - High resolution recommended for fundus images
-- Try any medical object name
+- 3D data requires NIfTI format
 
-**Configuration Persistence:**
-- Saved config loads automatically
-- Config file stored in user directory
+**Configuration:**
+- Click save for permanent storage
+- Auto-loads next time
 """)
 
 st.markdown("---")
@@ -818,11 +830,14 @@ if uploaded_file is not None:
         if 'endpoint_url' not in st.session_state or 'api_key' not in st.session_state:
             st.warning(TEXTS["warning_save_config"])
         else:
-            # 文本提示输入
+            # 输入分割对象
             st.write(f"**{TEXTS['prompt_input']}:**")
             st.info(TEXTS["prompt_help"])
             
-            st.caption(TEXTS["model_categories"])
+            if language == "中文":
+                st.caption("💡 提示：模型会将识别的对象归类到16个生物医学类别")
+            else:
+                st.caption("💡 Tip: Model classifies objects into 16 biomedical categories")
             
             # 预设提示词模板 - 根据语言选择不同的选项列表
             if language == "中文":
