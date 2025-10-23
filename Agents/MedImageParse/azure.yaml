@@ -1,4 +1,4 @@
-# Minimal azd template
+﻿# Minimal azd template
 name: MedImageParse
 metadata:
   template: MedImageParse@1.0.0
@@ -8,3 +8,13 @@ services:
     project: .
     language: python
     host: appservice
+
+hooks:
+  postprovision:
+    shell: sh
+    run: |
+      echo "Applying azd-service-name tag to App Service..."
+      APP_NAME=$(azd env get-values | grep SERVICE_WEB_NAME | cut -d'=' -f2 | tr -d '\"')
+      RG_NAME=$(azd env get-values | grep AZURE_RESOURCE_GROUP | cut -d'=' -f2 | tr -d '\"')
+      az webapp update --name $APP_NAME --resource-group $RG_NAME --set tags.'azd-service-name'=web
+      echo "Tag applied successfully!"
