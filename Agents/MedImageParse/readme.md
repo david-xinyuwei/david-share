@@ -178,32 +178,15 @@ azd up
 
 **If deployment fails with quota errors**, see Troubleshooting section below for how to check your actual quota.
 
-**Step 3: Configure Admin Password** 🔐
-
-⚠️ **IMPORTANT**: Change default password immediately after deployment!
-
-```powershell
-# Set a secure admin password
-az webapp config appsettings set `
-  --name <your-app-name> `
-  --resource-group <your-rg-name> `
-  --settings ADMIN_PASSWORD="YourSecurePassword@2025"
-
-# Restart app to apply changes
-az webapp restart --name <your-app-name> --resource-group <your-rg-name>
-```
-
-📖 See [SECURITY.md](./SECURITY.md) for detailed security configuration guide.
-
-**Step 4: Access your application**
+**Step 3: Access your application**
 ```bash
 azd show
 ```
 Open the displayed URL in your browser.
 
-**Step 5: Login and configure ML endpoints**
+**Step 4: Login and configure ML endpoints**
 
-1. **Login** with your admin password (default: `ChangeThisPassword123!`)
+1. **Login** with your admin password (default: `admin123!`)
 2. Select language (Chinese/English)
 3. Enter MedImageParse 2D Endpoint URL and API Key
 4. Enter MedImageParse 3D Endpoint URL and API Key
