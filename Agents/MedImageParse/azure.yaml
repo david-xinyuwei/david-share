@@ -13,8 +13,20 @@ hooks:
   postprovision:
     shell: sh
     run: |
-      echo "Applying azd-service-name tag to App Service..."
-      APP_NAME=$(azd env get-values | grep SERVICE_WEB_NAME | cut -d'=' -f2 | tr -d '\"')
-      RG_NAME=$(azd env get-values | grep AZURE_RESOURCE_GROUP | cut -d'=' -f2 | tr -d '\"')
-      az webapp update --name $APP_NAME --resource-group $RG_NAME --set tags.'azd-service-name'=web
-      echo "Tag applied successfully!"
+      echo 'Applying azd-service-name tag to App Service...'
+      # Wait for environment to be ready
+      sleep 5
+      # Get values from azd environment
+      APP_NAME=$(azd env get-values 2>/dev/null | grep -i 'SERVICE_WEB_NAME' | cut -d'=' -f2 | tr -d '\"' | tr -d \"'\")
+      RG_NAME=$(azd env get-values 2>/dev/null | grep -i 'AZURE_RESOURCE_GROUP' | cut -d'=' -f2 | tr -d '\"' | tr -d \"'\")
+      
+      if [ -z \"$APP_NAME\" ] || [ -z \"$RG_NAME\" ]; then
+        echo 'Warning: Could not get app name or resource group from environment'
+        echo 'Tag will need to be applied manually or by running: azd deploy'
+        exit 0
+      fi
+      
+      echo \"App Name: $APP_NAME\"
+      echo \"Resource Group: $RG_NAME\"
+      az webapp update --name \"$APP_NAME\" --resource-group \"$RG_NAME\" --set tags.'azd-service-name'=web || true
+      echo 'Tag applied successfully!'
