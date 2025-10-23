@@ -309,74 +309,21 @@ Common causes in order of likelihood:
    - Microsoft.Network
    - Microsoft.KeyVault
    ```
-   
-   **Or use PowerShell (batch registration)**:
-   ```powershell
-   # Register all required providers at once
-   $providers = @(
-       "Microsoft.PolicyInsights",
-       "Microsoft.Cdn",
-       "Microsoft.MachineLearningServices",
-       "Microsoft.CognitiveServices",
-       "Microsoft.Storage",
-       "Microsoft.Compute",
-       "Microsoft.Network",
-       "Microsoft.KeyVault",
-       "Microsoft.ContainerRegistry",
-       "Microsoft.ManagedIdentity"
-   )
-   
-   foreach ($provider in $providers) {
-       Write-Host "Registering $provider..." -ForegroundColor Yellow
-       az provider register --namespace $provider --wait
-   }
-   
-   # Verify all are registered
-   az provider list --query "[?namespace in ('Microsoft.PolicyInsights','Microsoft.Cdn','Microsoft.MachineLearningServices')].{Namespace:namespace, State:registrationState}" -o table
-   ```
-   
-   ⏱️ Wait 2-5 minutes after registration, then retry deployment.
-   
-   📖 Reference: https://learn.microsoft.com/en-us/answers/questions/2129910
 
 2. **Azure AI Developer Role Not Assigned**
    - Assign to: **User, group, or service principal** (NOT Managed Identity)
-   - Scope: Resource Group or Hub level
-   - Wait 5-10 minutes after assignment
+   - Scope: Resource Group
 
 3. **Storage Account Network Restrictions**
    - If Configuration → "Allow Blob public access" is missing: **Policy restricted**
    - Solution: Enable "Allow Azure services on trusted services list" in Networking
    - Or contact admin for policy exemption
 
-4. **Subscription Type**
-   - ✅ Enterprise Agreement (MS-AZR-0017P) - Supported
-   - ✅ Pay-As-You-Go - Supported
-   - ❌ Free Trial / Student - Not supported
-
-**Problem: 401 Unauthorized error when calling ML endpoint**
-- ✅ Verify API key is correct
-- ✅ Check endpoint URL matches your deployment
-- ✅ Ensure Key Vault secrets are properly configured
-
-**Problem: Application won't start**
-```bash
-pip install -r src/requirements.txt --upgrade
-```
-
 **Problem: NIfTI file won't load**
 - ✅ Ensure valid NIfTI format (.nii or .nii.gz)
 - ✅ Check file size < 100MB
 - ✅ Verify file is not corrupted
 
-**Problem: Key Vault access denied**
-- ✅ Check Managed Identity is assigned to App Service
-- ✅ Verify RBAC roles on Key Vault
-- ✅ Wait 5-10 minutes after deployment for permissions
-
-**Problem: Quota/SKU deployment errors**
-
-Error: `InternalSubscriptionIsOverQuotaForSku` means your subscription lacks quota for the selected region/SKU.
 
 **How to check your actual App Service quota:**
 
