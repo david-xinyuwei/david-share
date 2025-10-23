@@ -59,3 +59,7 @@ output APPLICATIONINSIGHTS_NAME string = monitoring.outputs.applicationInsightsN
 output APP_SERVICE_NAME string = appService.outputs.appServiceName
 output APP_SERVICE_URL string = appService.outputs.appServiceUrl
 output APP_SERVICE_PLAN_NAME string = appService.outputs.appServicePlanName
+
+// Service outputs for azd (critical for deployment mapping)
+output SERVICE_WEB_NAME string = appService.outputs.appServiceName
+output SERVICE_WEB_RESOURCE_GROUP string = rg.name
