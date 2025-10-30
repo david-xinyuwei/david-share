@@ -3,11 +3,14 @@
 ### **Abstract and Key Points**
 
 - NVFP4 is a 4-bit floating-point quantization format optimized by NVIDIA for Blackwell Tensor Core, using an **E2M1 element format** (1 sign bit + 2 exponent bits + 1 mantissa bit, totaling 4 bits) with **dual scaling** mechanism: every 16 weights share one FP8 E4M3 local scaling factor (**micro-block level**, i.e., "grouping granularity" of 16), plus one FP32 global scaling factor per tensor (tensor level), balancing storage compression with numerical stability. Experimental results show that with both activations and weights in NVFP4, throughput can be ~2.35× higher than INT4 (RTX 6000 Pro, vLLM 0.10.0, Llama-3.3-70B-Instruct).
+- **Quantization Error Advantage**: NVFP4's E4M3 fractional scaling achieves significantly lower quantization error (MSE ≈ 0.08) compared to MXFP4's E8M0 power-of-two scaling (MSE ≈ 0.72), representing a **9× error reduction**. This is because E4M3 finds an optimal scale factor that minimizes collective block errors, while E8M0 must snap to nearest 2^n values.
+- **Memory and Energy Efficiency**: NVFP4 reduces memory footprint by approximately **3.5× vs FP16** and **1.8× vs FP8**. Blackwell delivers up to **25× energy efficiency** improvement over H100, while Blackwell Ultra achieves **50× improvement**, with total storage overhead of ~4.5 bits/value.
 - Compared to mainstream 4-bit INT4 formats (AWQ, AutoRound, bitsandbytes), NVFP4 shows no obvious accuracy gap on large models (>10B parameters). **The key advantage lies in Blackwell GPU hardware acceleration**: when weights+activations both use NVFP4, Tensor Cores can "automatically handle the microscaled FP4 data" (NVIDIA official wording), directly processing microscaling format data and reducing the data type conversion overhead present in INT4 approaches. If only weight quantization is applied (NVFP4A16) with activations remaining FP16, the hardware advantage is significantly weakened, with throughput only slightly better than INT4.
 - **Important limitation**: NVFP4's **performance benefits are primarily realized on Blackwell architecture (GB200/GB300/RTX 6000 Pro, etc.)**. On older GPUs (Hopper/Ampere/Ada), NVFP4 models can run but require real-time dequantization to FP16 for computation (similar to INT4 processing). Due to lack of optimized kernels for NVFP4, performance may be inferior to mature INT4 implementations (such as AWQ/AutoRound). The author explicitly states: "I can't see any good reasons for using NVFP4 with older GPUs." (meaning NVFP4 has no performance advantage on older GPUs, not that it cannot be used)
 - MXFP4 (OCP Microscaling standard) uses E2M1 elements, E8M0 power-of-two scaling, **micro-block size of 32** (i.e., every 32 weights share one scaling factor), with no global FP32 scaling. It relies mainly on shift operations, has smaller metadata overhead, and favors cross-platform deployment simplicity. OpenAI's open-source models (such as gpt-oss-20b/120b) use MXFP4 for PTQ, retaining high precision for certain modules (`modules_to_not_convert`).
+- **Accuracy Preservation**: Testing on DeepSeek-R1-0528 across 7 benchmarks shows ≤1% accuracy degradation from FP8 to NVFP4. Notably, on AIME 2024, NVFP4 (91%) even outperforms FP8 (89%) by 2%. Other benchmarks: MMLU-PRO (85%→84%), GPQA Diamond (81%→80%), Math-500 (98%→98%), demonstrating excellent accuracy preservation.
 - **Selection recommendation**:
-  - ✅ **With Blackwell GPU**: Prioritize NVFP4 (weights+activations), achieving 2.35× throughput improvement
+  - ✅ **With Blackwell GPU**: Prioritize NVFP4 (weights+activations), achieving 2.35× throughput improvement, 25-50× energy efficiency gains
   - ⚠️ **Older GPUs (H100/A100/RTX 40/30 series)**: NVFP4 models can run, but **performance advantage is not obvious**. Recommend using mature INT4 (AWQ/AutoRound) or MXFP4. If only for saving VRAM (4-bit storage), NVFP4 is still effective, but speed won't be faster than INT4
   - ⚠️ **Small models (<10B)**: Accuracy and performance differences lack empirical data; recommend actual evaluation before decision
 
@@ -42,8 +45,21 @@ NVFP4's proposal is centered on "storing and computing in 4-bit while minimizing
 
 **Key insights:**
 - Smaller blocks (16 vs. MXFP4's 32) mean finer-grained local adaptation, reducing outlier "drag" on the group.
-- FP8 E4M3 is more flexible than power-of-two scaling, reducing systematic quantization bias.
+- FP8 E4M3 is more flexible than power-of-two scaling, reducing systematic quantization bias. **Quantification: E4M3 achieves MSE ≈ 0.08 vs E8M0's MSE ≈ 0.72, a 9× error reduction**.
 - Global FP32 scaling acts as a safety net, ensuring stability across layers and tensors with varying magnitudes.
+
+**Why E4M3 is "better on average":**
+- **E8M0** = Snaps the scale factor to nearest 2^n, which can create large quantization error for the block maximum (amax) and often leads to larger overall quantization errors.
+- **E4M3** = Finds one scale factor that minimizes collective block errors—often improving accuracy for the block maximum (amax). While some individual values might be slightly less accurate, the block as a whole retains higher fidelity.
+
+**3. Complete Comparison: FP4 / MXFP4 / NVFP4**
+
+| Feature | FP4 (E2M1) | MXFP4 | NVFP4 |
+|---------|------------|-------|-------|
+| **Format Structure** | 4-bit (1 sign, 2 exponent, 1 mantissa) with software scaling factor | 4-bit (1 sign, 2 exponent, 1 mantissa), 1 shared power-of-two scale per 32-value block | 4-bit (1 sign, 2 exponent, 1 mantissa) with 1 shared FP8 scale per 16-value block |
+| **Hardware Acceleration** | No | Yes | Yes |
+| **Memory** | ~25% of FP16 | ~25% of FP16 | ~28.5% of FP16 (3.5× compression) |
+| **Accuracy** | Risk of significant accuracy degradation vs FP8 | Risk of significant accuracy degradation vs FP8 | Reduced risk of accuracy degradation, especially for larger models |
 
 ### **3. NVFP4 and Blackwell Architecture Innovation**
 
@@ -68,10 +84,15 @@ According to NVIDIA's Blackwell white paper and developer blog:
 **Phenomena observed from empirical data**:
 
 NVFP4 on Blackwell shows approximately 2.35× throughput improvement compared to INT4. Possible reasons include:
-- **Hardware native support**: Tensor Cores can "automatically handle the microscaled FP4 data" (official statement), directly processing microscaling format
-- **Bandwidth advantage**: 4-bit data transfer volume is comparable to INT4, reducing data type conversion overhead present in INT4 approaches
+- **Hardware native support**: Tensor Cores can "automatically handle the microscaled FP4 data" (official statement), directly processing microscaling format data
+- **Bandwidth advantage**: 4-bit data transfer volume is comparable to INT4, reducing the data type conversion overhead present in INT4 approaches
 - **Automatic scaling processing**: Hardware automatically handles micro-block scaling without requiring additional software operations
 - **Dual scaling mechanism**: FP8 micro-block scale + FP32 global scale ensures numerical stability
+
+**Energy Efficiency Gains** (NVIDIA Official Data):
+- **Blackwell vs H100**: Up to **25× energy efficiency** improvement (0.4 J/token vs 10 J/token for GPT-MoE-1.8T)
+- **Blackwell Ultra vs H100**: Up to **50× energy efficiency** improvement (0.2 J/token)
+- **10-year evolution**: 200,000× efficiency gain from Kepler (42,000 J/token) to Blackwell Ultra (0.2 J/token)
 
 **About different quantization schemes** (observations based on public information):
 
@@ -83,125 +104,7 @@ NVFP4 on Blackwell shows approximately 2.35× throughput improvement compared to
 
 The above comparisons are based on publicly available performance data and architectural feature descriptions. Specific hardware implementation details (such as whether there are dedicated fusion units, data flow path design, etc.) are not detailed in NVIDIA official documentation and await further technical disclosure.
 
-### **4. Experimental Results and Engineering Significance**
-
-**1. Accuracy**
-
-- **"Micro"**: Groups of 16 weights (micro-blocks), not entire tensor
-- **"Tensor"**: Weight matrices in neural networks
-- **"Scaling"**: Restoring compressed small numbers (FP4) to real values
-
-**Key Innovation**:
-```
-Old Way: FP4 number → find scale → multiply in CPU/memory → send back to GPU
-New Way: FP4 number + FP8 scale → compute result directly inside Tensor Core
-         (like a calculator with built-in multiplication tables)
-```
-
-**Why "Micro" Tensor**:
-- Not one scale shared by entire large matrix (too coarse)
-- But each small block (16 elements) has its own scale (finer-grained)
-- Hardware specifically designed circuitry to handle this "small-block × small-scale" multiplication
-
-**Blackwell vs Hopper Essential Difference (Architectural Comparison)**:
-
-```
-Hopper (H100):     
-  Tensor Core = FP8 compute units
-  Missing: Hardware-level scale fusion units
-  Result: Software scale operations needed after each layer
-
-Blackwell (GB200): 
-  Tensor Core = FP4 compute units + micro-scaling fusion hardware
-  Added: FP4×FP8 multipliers + on-chip scaling table registers + zero-latency lookup logic
-  Result: Scale operations completed inside Tensor Core in one step
-```
-
-**Not just "adding a table"—it's a redesigned compute pipeline!**
-
-More precisely, Blackwell **redesigned the Tensor Core architecture**, adding:
-
-1. **FP4×FP8 Mixed-Precision Multipliers** 
-   - Not "convert to FP16 then multiply," but directly compute `FP4×FP8`
-   - Hardware natively supports floating-point multiplication of two different bit-widths
-
-2. **On-Chip Micro-Scaling Table Register Arrays** 
-   - FP8 scale for every 16 FP4 weights stored in dedicated registers
-   - Access latency ≈0 (no VRAM, no L2 cache)
-
-3. **Fused Scale-Accumulate Units** 
-   - One instruction completes: `result += (FP4_weight × FP8_scale) × FP16_activation`
-   - Traditional approach needs 3 instructions: read scale → multiply weight → accumulate
-
-4. **Pipeline Cascade Logic**
-   - Scaling operations fully parallel with matrix multiplication
-   - No added compute latency (traditional approach requires serial waiting)
-
-**More Accurate Analogy**:
-- H100 = Have calculator, but must manually look up conversion table then input
-- Blackwell = Redesigned calculator, automatically completes conversion while pressing keys (hardware cascade)
-
-**This is why it's called "Second-Generation Transformer Engine"**:
-First-gen (H100) supports FP8, but lacks "compute-and-convert" hardware
-Second-gen (Blackwell) adds micro-scaling tables, achieving true dequantization-free operation
-
-**2. Fundamental Differences from INT4 and H100 FP8**
-
-```
-INT4 Path (Requires Dequantization):
-Storage: INT4 weights + FP16/FP32 scale
-Before Compute: INT4 → (dequantize) → FP16 → Tensor Core
-Bottleneck: Dequantization step requires extra bandwidth & latency
-Reason: Tensor Cores only support FP16/FP32 inputs; INT4 must convert first
-
-H100 FP8 Path (Partial Dequantization):
-Storage: FP8 weights
-During Compute:
-  - Weight×Activation: FP8 → Tensor Core natively supports ✓
-  - But scaling ops: FP8 result → FP16/FP32 (dequantize) → next layer
-Bottleneck: Each layer output requires type promotion; cross-layer overhead remains
-Reason: H100's 1st-gen Transformer Engine lacks "micro-tensor scaling" hardware
-
-NVFP4 Path (Fully Dequantization-Free):
-Storage: FP4 weights + FP8 micro-block scale + FP32 global scale
-During Compute: FP4 → Tensor Core directly processes (hardware-fused FP8 scaling)
-Advantages:
-  - Scaling operations completed inside Tensor Core, no extra data movement
-  - Supports inter-layer FP4 direct pass-through (activations can also use FP4)
-  - True end-to-end low-bit computation
-```
-
-**3. Technical Details of Hardware-Fused Scaling**
-
-- **Fused Multiply-Add (FMA) Extension**: Tensor Core FMA units support "FP4×FP8" mixed-precision multiplication, with results directly accumulated in FP16/FP32 accumulators
-- **On-Chip Cache Optimization**: FP8 scaling factors stored in Tensor Core's dedicated register file with ≈0 access latency
-- **Pipeline Parallelism**: Weight loading and scaling operations fully overlapped, adding no total latency
-
-**4. Why NVFP4A16 Loses Advantage?**
-
-- When activations remain FP16, compute becomes `FP16 activations × (FP4 weights × FP8 scale)`
-- Though weight-side is dequantization-free, data type mismatch between activations and results causes pipeline stalls
-- Requires additional type conversion logic, offsetting hardware direct-path benefits
-
-**Inferred Conclusion**: NVFP4's 2.35× throughput improvement likely results from **increased compute density** (4-bit vs 16-bit) and Blackwell architecture's optimizations for low-bit computation. Specific hardware implementation mechanisms await more detailed technical documentation from NVIDIA.
-
-**H100 FP8 vs Blackwell NVFP4 Architecture Comparison**:
-
-| Feature | H100 FP8 (Hopper) | Blackwell NVFP4 |
-|---------|-------------------|-----------------|
-| Tensor Core Support | FP8 native compute ✓ | FP4 native compute ✓ |
-| Scaling Factor Handling | Software-level (requires type promotion) | Hardware-fused (micro-tensor scaling) |
-| Inter-Layer Data Transfer | FP8 → FP16/FP32 → next layer | FP4 can pass through directly |
-| Activation Quantization | FP8 activation support limited | FP4 activation fully supported |
-| Bandwidth Bottleneck | Medium (precision upgrade at each layer exit) | Minimal (end-to-end 4-bit) |
-| Typical Throughput Ratio | ~1.0× (baseline) | ~2.35× (vs INT4) |
-
-H100's FP8, despite being floating-point quantization, **lacks hardware-level scale fusion units**, resulting in:
-1. After each layer compute, FP8 results must be restored to FP16/FP32 for scale operations
-2. Cross-layer transfer cannot maintain FP8 format (next layer input requires re-quantization)
-3. Incomplete activation quantization support (primarily used for weights)
-
-Blackwell's **Second-Generation Transformer Engine** (according to NVIDIA's official white paper) adds micro-tensor scaling hardware units, enabling FP4 computations to complete scaling operations directly inside Tensor Cores, thus achieving end-to-end compute flows where both weights and activations maintain low-bit formats.
+The above comparisons are based on publicly available performance data and architectural feature descriptions. Specific hardware implementation details (such as whether there are dedicated fusion units, data flow path design, etc.) are not detailed in NVIDIA official documentation and await further technical disclosure.
 
 
 
@@ -216,10 +119,33 @@ Blackwell's **Second-Generation Transformer Engine** (according to NVIDIA's offi
 **2. Storage and Throughput**
 
 - **Average storage overhead:** ~4.5 bits/value (block=16, one FP8 scale per block + one FP32 scale per tensor), higher than typical INT4 (block=128). NVFP4 models of Llama 3.3 are ~7GB larger than INT4 equivalents.
-- **Throughput advantage:** Key conclusion is Blackwell's hardware direct path for NVFP4. When both weights and activations use NVFP4, compute chain requires no dequantization—Tensor Core processes NVFP4 directly. Measured throughput is ~2.35× vs. INT4.
-- **NVFP4A16 trade-off:** When only weights are quantized and activations remain 16-bit, data type conversion or fallback occurs during computation. NVFP4A16 throughput is only marginally faster than INT4, losing NVFP4's "full 4-bit" advantage.
+- **Memory efficiency gains**: NVFP4 reduces memory footprint by approximately **3.5× relative to FP16** and **1.8× compared to FP8**. On NVIDIA GB300 NVL72 rack-scale system (36 Grace Blackwell Ultra Superchips), total memory budget reaches **40 TB per system**, providing significant benefits for large-scale AI inference deployments.
+- **Throughput advantage:** Key conclusion is Blackwell's hardware native support for NVFP4. When both weights and activations use NVFP4, Tensor Cores can "automatically handle the microscaled FP4 data" (NVIDIA official wording), directly processing microscaling format data. Measured throughput is ~2.35× vs. INT4.
+- **NVFP4A16 trade-off:** When only weights are quantized and activations remain 16-bit, data type conversion or degradation occurs during computation. NVFP4A16 throughput is only marginally faster than INT4, unable to fully leverage NVFP4's "weights+activations full 4-bit" advantage.
 
-### **4. MXFP4: What It Is and Key Differences from NVFP4**
+#### Figure 1 — Inference Throughput Comparison (RTX 6000 Pro, vLLM v0.10.0)
+
+![images](./images/1.png)
+
+**Chart Explanation:**
+
+- Dark green bars (Speed Input): Input-side token generation rate (tokens/sec)
+- Light blue bars (Speed Output): Output-side token generation rate (tokens/sec)
+- Different entries on the left of model names represent different quantization strategies or model sources
+
+[Note 1] Benchmark source and measurement method: This article's experiments were conducted on RTX 6000 Pro (Ada) (CUDA 12.4, NVIDIA Driver 555.xx, Python 3.10, PyTorch 2.3, vLLM 0.10.0, FlashInfer disabled). Test configuration: single request; input context length 1 token; generate 512 new tokens; 1 warmup; tokens/s = generated tokens ÷ pure generation time. These numbers represent point measurements under this specific configuration, not peak throughput across batches/concurrency. Complete scripts and log examples in `benchmarks.md`.
+
+#### Figure 2 — Accuracy + Model Size Comparison
+
+![images](./images/2.png)
+
+**Chart Explanation:**
+
+- Blue bars (Score): Unified benchmark score (covering instruction following, common sense knowledge, multilingual capabilities)
+- Green numbers (Size GB): Model size on disk
+- This chart focuses on "quantization accuracy preservation" and "storage footprint."
+
+### **5. MXFP4: What It Is and Key Differences from NVFP4**
 
 MXFP4 is the OCP (Open Compute Project) Microscaling FP4 standard with the following features:
 
@@ -244,7 +170,7 @@ MXFP4 is the OCP (Open Compute Project) Microscaling FP4 standard with the follo
 | Reconstruction formula | x ≈ xq × FP8 × FP32 | x ≈ xq × 2^k (k from E8M0) |
 | Dynamic range & robustness | Dual scaling + small blocks adapt to heterogeneous distributions | Power scaling preserves small values, resistant to outliers |
 | Compute cost | FP8 scaling requires multiplication (Blackwell HW accelerated) | Power scaling uses shifts, highly efficient |
-| Hardware path | Blackwell Tensor Core native, no dequantization | Depends on vendor kernel support |
+| Hardware path | Blackwell Tensor Core native support | Depends on vendor kernel support |
 | Dequantization needed? | No if both weights+activations are NVFP4; yes for NVFP4A16 | Yes if no native support |
 | Throughput vs. INT4 | ~2.3× (Blackwell + full NVFP4) | Depends on implementation |
 | Accuracy | ≈FP8, error ≤1% | Better than traditional INT4; lacks direct NVFP4 comparison data |
@@ -253,33 +179,85 @@ MXFP4 is the OCP (Open Compute Project) Microscaling FP4 standard with the follo
 | Calibration requirements | Full quantization needs small calibration set; NVFP4A16 doesn't | Weight quantization needs little/no calibration; activation quantization usually needs some |
 | Tools & ecosystem | llm-compressor supports quantization, vLLM supports (Blackwell) | OCP standard, llm-compressor doesn't support yet |
 
-### **5. Engineering Workflow and Practical Implementation**
+### **6. Engineering Workflow and Practical Implementation**
 
-**Quantization Tools:**
-`llm-compressor` supports NVFP4/NVFP4A16. It's a general LLM compression library maintained by the vLLM project, integrating various low-bit and sparse algorithms. It produces model directories directly loadable by vLLM via the `compressed-tensors` format. NVFP4 configuration comes from open-source implementation aligned with Blackwell hardware paths, aiming to boost throughput and reduce weight/activation storage with minimal accuracy loss.
+#### 0. NVFP4 Quantization Tools - Official Recommendations
 
-- **Calibration set size:** 128-512 samples typically sufficient (example uses 512); beyond 1024 shows diminishing returns.
-- **Sequence length recommendation:** ≥2048; for long-context inference targets, use longer sequences, but quantization cost increases significantly—balance quality vs. cost.
-- **Data preprocessing:** Match training input format (chat template), avoid duplicate bos token injection.
+**NVIDIA Official Statement** (from [Introducing NVFP4 blog post](https://developer.nvidia.com/blog/introducing-nvfp4-for-efficient-and-accurate-low-precision-inference/)):
+> "If you're looking to quantize your model to NVFP4, NVIDIA **TensorRT Model Optimizer** and **LLM Compressor** both offer streamlined workflows to do so."
+
+**Two Recommended Toolchains:**
+
+**1. TensorRT Model Optimizer** ⭐ (NVIDIA Official Primary Tool)
+- **GitHub**: https://github.com/NVIDIA/TensorRT-Model-Optimizer
+- **Status**: NVIDIA officially maintained, integrated with NeMo, Megatron-LM
+- **Features**: Supports PTQ, QAT, pruning, distillation, speculative decoding, sparsity
+- **Pre-quantized models** available on Hugging Face:
+  - [DeepSeek-R1-FP4](https://huggingface.co/nvidia/DeepSeek-R1-FP4)
+  - [Llama-3.3-70B-Instruct-FP4](https://huggingface.co/nvidia/Llama-3.3-70B-Instruct-FP4)
+  - [Llama-3.1-405B-Instruct-FP4](https://huggingface.co/nvidia/Llama-3.1-405B-Instruct-FP4)
+  - [FLUX.1-dev-onnx](https://huggingface.co/black-forest-labs/FLUX.1-dev-onnx) (image generation)
+- **Deployment**: Seamlessly exports to TensorRT-LLM, vLLM, SGLang
+
+**2. LLM Compressor** 🔄 (Community-Driven Alternative)
+
+llm-compressor is not a standalone "NVIDIA official repository." Its origin and positioning are as follows:
+
+- **Open-source attribution:** Hosted under the `vllm-project/llm-compressor` GitHub organization, with the core goal of providing a unified "model compression + directly inferable" product for the **vLLM inference framework** (weight quantization, activation quantization, sparsification, structural transformation).
+- **Contributor ecosystem:** Maintainers and contributors come from the vLLM community, Neural Magic (which open-sourced `compressed-tensors` and early SparseML quantization/sparsification experience), Red Hat AI, etc. Citations note "Red Hat AI and vLLM Project."
+- **Design inheritance:** Many `Modifier` / `oneshot` API styles continue SparseML's engineering abstractions (such as QuantizationModifier, GPTQModifier, AWQ, etc.), but are oriented toward the inference side and vLLM native consumption.
+- **File format:** Uses `compressed-tensors` (safetensors extension) to record low-bit block structures, scaling metadata, and quantization schemes (including NVFP4, FP8, INT4, etc.), making generated checkpoints directly loadable by vLLM and triggering corresponding kernel paths.
+- **NVFP4 support method:** By defining FP4/NVFP4 configurations in `quant_scheme.py` (block size, scaling format, etc.) + vLLM's backend kernels; not an NVIDIA-exclusive repository, but implements open-source support for the new NVFP4 data format added to **NVIDIA Blackwell**.
+- **Official/community relationship:** NVIDIA promotes the NVFP4 data type in the Blackwell ecosystem; llm-compressor provides reproducible examples on the open-source side (example script links, W4A4 & W4A16 schemes), so at the "open-source practice level" it can be considered one of the recommended toolchains for NVFP4.
+- **Adaptation advantages:**
+  1. Unifies multiple quantization algorithms (Simple PTQ / GPTQ / AWQ / SmoothQuant / Mixed Precision).
+  2. Directly produces directories loadable by vLLM without additional conversion scripts.
+  3. Supports non-uniform/layered mixed quantization (different submodules use different bit widths or algorithms).
+  4. Combined with mechanisms like Sequential Onloading, suitable for large models (tens to hundreds of billions of parameters) for segmented quantization.
+- **Current limitations:**
+  1. NVFP4's high-performance path mainly relies on vLLM; other inference frameworks haven't perfected direct-through kernels yet.
+  2. Fine-tuning/QLoRA on NVFP4 is not yet mature; dequantization or selecting INT4/MXFP4 paths is needed.
+  3. Activation-only NVFP4 mode not yet provided; full-chain benefits depend on "weights+activations" both being NVFP4.
+
+- **Quick assessment:** 
+  - **For production deployment**: TensorRT Model Optimizer is the official NVIDIA-recommended tool with comprehensive support and pre-optimized models
+  - **For open-source experimentation**: llm-compressor is the most direct, flexibly combinable, and deeply integrated choice with vLLM in the open-source community
+  - **For cross-framework needs**: If you want cross-framework support and focus on extreme volume and universality, you can also evaluate MXFP4 + INT4 (AWQ/GPTQ) and other potential low-bit kernels that may emerge later
+
+**Deployment Framework Support:**
+- ✅ **TensorRT-LLM**: Full NVFP4 support with optimized kernels
+- ✅ **vLLM**: Early NVFP4 support, rapidly improving
+- 🔜 **SGLang**: Upcoming NVFP4 support
+- **Export Format**: Unified Hugging Face Checkpoint for easy deployment
+
+#### 1. Quantization Workflow
+
+- **Quantization tool:** llm-compressor already supports NVFP4 / NVFP4A16. It is a general LLM compression library maintained by the vLLM project, integrating various low-bit and sparse algorithms; it produces model directories quickly loadable by vLLM through the `compressed-tensors` scheme. NVFP4 configuration comes from open-source implementation and interfaces with Blackwell hardware paths, aiming to boost throughput and reduce weight/activation storage with minimal accuracy sacrifice.
+- **Calibration set size:** 128-512 samples typically sufficient (this document's example uses 512); theoretically, beyond 1024 shows diminishing returns.
+- **Sequence length recommendation:** Not below 2048; if targeting long-context inference, longer is recommended, but quantization cost increases significantly—balance quality vs. cost.
+- **Data preprocessing key points:** Consistent with model training input format (chat template), avoid duplicate bos token injection.
 - **Quantization scheme selection:**
-  - NVFP4: Quantize both weights and activations, trade minimal accuracy for massive throughput gain.
+  - NVFP4: Quantize both weights+activations, trade minimal accuracy for massive throughput gain.
   - NVFP4A16: Weights-only quantization, activations kept 16-bit, usually no calibration needed, but most throughput advantage lost.
 
-**Inference Framework:**
+#### 2. Inference Framework
+
 - vLLM v0.10.0 basically works.
-- Two practical issues encountered:
-  - **FlashInfer:** Default enablement may cause crashes with NVFP4; temporary fix is uninstalling. Performance may improve further after future fixes.
-  - **Blackwell vLLM installation:** pip install may be incomplete; source compilation may be needed to successfully enable NVFP4 inference path.
-- **Recommendation:** On Blackwell, prepare for source-building vLLM, and monitor FlashInfer version compatibility.
+- Two practical issues developers encountered:
+  - **FlashInfer:** Default enablement causes crashes with NVFP4; temporary fix is uninstalling. Performance may improve further after future fixes.
+  - **Blackwell environment vLLM installation via pip may be incomplete:** Source compilation can resolve this, successfully enabling NVFP4 inference path.
+- **One-line recommendation:** For running NVFP4 on Blackwell, prepare a contingency plan for source-compiling vLLM, and watch FlashInfer version compatibility.
 
-**Old GPU Compatibility:**
-- 3090 (Ampere) or older architectures lack NVFP4 hardware direct path.
+### **3. Old GPU Compatibility Considerations**
+
+- 3090 (Ampere) or older architectures lack NVFP4 hardware native support.
 - Can load NVFP4 quantized weights to save VRAM, but inference likely requires dequantization to higher precision (e.g., FP16 Tensor Core), negating speed advantage.
-- **Conclusion:** NVFP4's "speed dividend" requires Blackwell; on old GPUs, main value is "fitting in VRAM," not "running faster."
+- **Conclusion:** NVFP4's performance improvement requires Blackwell hardware support; on old GPUs, main value is saving VRAM (4-bit storage), not boosting inference speed.
 
-**NVFP4 vs. INT4 (AWQ/AutoRound/bitsandbytes) Trade-offs:**
-- **Accuracy:** On large models (e.g., Llama 3.3), both are close to full precision; NVFP4 not significantly better than best INT4, but no significant disadvantage either.
-- **Model size:** NVFP4 typically slightly larger (block 16 + FP8 + FP32); INT4 (block usually 128 + FP16/FP32 scaling) saves more storage.
+### **4. NVFP4 vs. INT4 (AWQ/AutoRound/bitsandbytes) Trade-offs**
+
+- **Accuracy:** On large models (e.g., Llama 3.3), both are very close to full precision; NVFP4 not significantly better than best INT4, but no obvious disadvantage either.
+- **Model size:** NVFP4 typically slightly larger (micro-block 16 + FP8 + FP32); INT4 (micro-block usually 128 + FP16/FP32 scaling) saves more storage.
 - **Throughput:** On Blackwell, NVFP4 significantly faster; INT4, no matter how optimized, still has dequantization or data type conversion path resistance.
 - **Ease of use:** INT4 has mature ecosystem (AWQ, AutoRound, bitsandbytes, GPTQ, etc.); NVFP4 smoother natively on Blackwell.
 
@@ -288,7 +266,120 @@ MXFP4 is the OCP (Open Compute Project) Microscaling FP4 standard with the follo
 - No Blackwell, but want VRAM compression without rewriting kernels → mature INT4 more reliable
 - Cross-platform & simple deployment → MXFP4 (if dedicated kernel or framework support available) is pragmatic choice
 
-### **6. Code Examples**
+#### Appendix: INT4 Group Quantization and Scale Selection Quick Reference
+
+Common INT4 "group quantization" approach: every N weights share one scaling factor scale, first divide float by scale and round to 0..15 (or signed range), then multiply back (dequantize) before computation.
+
+**Simplest example (unsigned 0..15):**
+
+```
+Weight group: [3.14159, 2.71828, 1.41421, 0.57722]
+max(|w|) = 3.14159
+scale = 3.14159 / 15 ≈ 0.209439 → 0.2094
+Quantized integer q = round(w/scale): [15,13,7,3]
+Dequantized q*scale ≈ [3.141,2.722,1.466,0.628]
+```
+
+**Key phenomenon:** Maximum value fits closely, small/medium values have larger relative error, because all weights share one scale, being "stretched."
+
+**Common scale strategy comparison (simplified):**
+
+| Strategy | Formula/Concept | Pros | Cons | Use Cases |
+|----------|----------------|------|------|-----------|
+| Max-based | max(\|w\|)/(S) | Simple, no overflow | Affected by outliers | Large models fast PTQ |
+| Percentile | P99(\|w\|)/S | Low main body error | Extreme values saturate | Long tail/few outliers |
+| Per-channel | Separate max/S per channel | Highest accuracy | More metadata | Small models/sensitive tasks |
+| L2 optimal | min Σ(w - q*scale)^2 | Min global reconstruction error | High computation cost | Offline high-quality quantization |
+| Learned Rounding (AutoRound) | Learn up/down rounding | Protects important weights | Algorithm complexity | Code/math tasks |
+| Activation-aware (AWQ) | Weight channels by activation stats | Improves key channel fidelity | Needs activation stats | Small models & multilingual |
+
+**Outlier impact quick reference:** If 127 values in [-0.8,0.8], only 1 value=5.0:
+- Max-based: scale≈5.0/15≈0.333 → coarser main body precision
+- Percentile(P99≈0.8): scale≈0.8/15≈0.0533 → good main body precision, 5.0 clipped to≈0.8 (saturation error)
+
+**Simple error approximation (uniform distribution):** step size Δ = a/S, expected absolute error E[\|ε\|]≈Δ/2. Reducing a (clip/ignore outliers) or increasing S (more levels/finer granularity) both reduce error.
+
+**Quick decision:**
+- Pursue "good enough+speed": Max or Percentile grouping (128)
+- Pursue "small model high fidelity": Per-channel + AWQ/AutoRound
+- Obvious long tail: Percentile + activation-aware
+- Offline extreme compression: L2 optimization + Learned rounding combination
+
+This section is an engineering quick reference on quantization error and scale selection, facilitating rapid trade-offs across different models and tasks.
+
+### 5. MXFP4 Two Loading/Computation Modes
+
+- **Storage compression mode (dequantize=True, common in Hugging Face default LoRA fine-tuning path)**
+  - Loads to GPU as BF16/FP16 full-precision tensors
+  - High VRAM consumption (close to BF16), computation uses high-precision matmul
+  - Suitable for LoRA/full-parameter fine-tuning (needs full-precision gradients), or offline inference with sufficient VRAM
+- **Resident computation mode (dequantize=False, Ollama / vLLM-gptoss dedicated kernels)**
+  - Keeps MXFP4 low-bit weights resident in GPU
+  - Low VRAM usage (~1/4 of BF16), computation uses low-bit kernels/custom CUDA kernels
+  - Suitable for low-VRAM scenarios for efficient deployment, edge inference, or Hopper series with optimized kernels
+
+**Engineering insights:**
+- Whether models published in MXFP4 format perform "true 4-bit inference" depends on the framework you use and the dequantize switch; incorrect loading paths will lose 4-bit VRAM and throughput advantages.
+- OAI-OSS's mxfp4 PTQ scheme reflects "don't convert certain modules" engineering trade-off: keep most sensitive/critical paths at high precision, use 4-bit float for the rest, balancing compression rate and stability.
+
+### 6. Calibration and Dataset Selection Practical Recommendations
+
+**Basic recommendations:**
+- **Sample count:** 128-512 usually sufficient; for extreme fidelity can go to 1024, but diminishing returns
+- **Sequence length:** Recommend ≥2048; if business target is long-context inference (32k/128k), cover longer sequences during calibration, but computation cost increases significantly
+- **Distribution matching:** Make calibration samples as close as possible to real online distribution (instruction-type, code, math, dialogue, multi-turn, etc.)
+- **Model input consistency:** Maintain complete preprocessing pipeline from training (template, tokenization, special symbols), avoid extra bos token causing distribution drift
+
+**Long-sequence calibration advanced strategy** (based on practical experience):
+
+When targeting long-context inference (e.g., processing 16k+ token documents), adopt **mixed sampling strategy:**
+
+```python
+# Strategy 1: Use only long sequences (e.g., samples >16k tokens from open-r1/OpenR1-Math-220k)
+TOKEN_THRESHOLD = 16000
+ds = ds.filter(lambda ex: ex["n_tokens"] >= TOKEN_THRESHOLD)
+ds = ds.shuffle(seed=42).select(range(512))
+
+# Strategy 2: Mix long and short sequences (recommended)
+# - 512 short sequences (<16k): cover common distribution
+# - 512 long sequences (>16k): strengthen long-context calibration
+short_samples = ds.filter(lambda ex: ex["n_tokens"] < 16000).shuffle(seed=42).select(range(512))
+long_samples = ds.filter(lambda ex: ex["n_tokens"] >= 16000).shuffle(seed=43).select(range(512))
+ds = concatenate_datasets([short_samples, long_samples])
+```
+
+**Notes:**
+- Long-sequence calibration **computation cost significantly increases** (16k vs 2k difference ~8×)
+- Not recommended to use 32k for all samples, will cause excessive quantization time
+- If long-context performance still unsatisfactory, increase `TOKEN_THRESHOLD` or long-sequence sample proportion
+- Reference notebook: `Quantize_LLMs_to_NVFP4_with_LLM_Compressor_Calibration_with_Long_Sequences.ipynb`
+
+### 7. Fine-tuning and Incremental Training: NVFP4 + QLoRA Feasibility
+
+- **In theory:** NVFP4 is a data type and format; QLoRA can work with any base model
+- **In reality:** Currently common frameworks don't provide ready-made support for "QLoRA on NVFP4"; implementation difficulty is not high, but toolchain needs to be integrated
+- **Recommendation:** If you need LoRA/QLoRA immediately, short-term can still choose mature INT4 or MXFP4 paths; if you're targeting Blackwell's extreme throughput, waiting for framework support for NVFP4 training/fine-tuning is a reasonable strategy
+
+### 8. Selection Decision Tree
+
+- Is your online inference deployed on Blackwell?
+  - Yes: Prioritize NVFP4 (weights+activations). If accuracy concerns, try NVFP4 first; then downgrade to NVFP4A16 to evaluate loss vs. throughput contrast.
+  - No: Do you have MXFP4 direct-through kernels or use OAI-OSS dedicated paths? If yes, prioritize MXFP4; otherwise, safely use INT4 (AWQ/AutoRound).
+- Is your VRAM extremely tight but speed requirements moderate?
+  - Yes: MXFP4 or INT4 (weights resident, activations high-precision) better control cost; NVFP4A16 also alternative (mainly saves VRAM).
+- Is your task long-context or sensitive to preserving small values (e.g., retrieval attention, sparse gating)?
+  - Yes: Prioritize solutions with finer scaling and dual scaling (NVFP4), or preserve key modules at high precision under MXFP4.
+
+### 9. Common Questions
+
+- **vLLM + FlashInfer:** May crash with NVFP4; temporarily uninstall or disable; watch for version fixes
+- **Blackwell vLLM installation:** pip version may be incomplete; prioritize source compilation
+- **NVFP4A16 expectation management:** Throughput not equal to NVFP4, only slightly faster than INT4, can't apply NVFP4 speed claims
+- **Calibration sample bias:** Samples too short or distribution mismatch will cause degradation in long-context or specific capabilities
+- **Module ignore strategy:** If ignore list doesn't cover truly sensitive modules, local collapse easily occurs; conversely, ignoring too much reduces compression ratio and throughput
+- **Old GPUs running NVFP4:** Understand "can fit ≠ faster," don't have overly high speed expectations
+
+### **7. Code Examples**
 
 ```bash
 pip install llmcompressor datasets transformers
@@ -367,15 +458,181 @@ model.save_pretrained(SAVE_DIR, save_compressed=True)
 tokenizer.save_pretrained(SAVE_DIR)
 ```
 
-### **7. Conclusion**
+**Quantize LM Head:**
 
-If you have Blackwell, NVFP4 is worth prioritizing as your 4-bit route: achieve throughput far exceeding INT4 with minimal accuracy sacrifice, thanks to hardware direct path and robust numerical characteristics from dual scaling (micro-block FP8 + global FP32).
+```python
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from llmcompressor import oneshot
+from llmcompressor.modifiers.quantization import QuantizationModifier
+
+MODEL_ID = "meta-llama/Llama-3.3-70B-Instruct"
+
+# Load model
+model = AutoModelForCausalLM.from_pretrained(MODEL_ID, torch_dtype="auto")
+tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
+
+# Configure quantization including lm_head
+recipe = QuantizationModifier(targets="Linear", scheme="NVFP4A16")
+
+# Apply quantization
+oneshot(model=model, recipe=recipe)
+
+# Save to disk in compressed-tensors format
+SAVE_DIR = MODEL_ID.rstrip("/").split("/")[-1] + "-NVFP4A16LMH"
+model.save_pretrained(SAVE_DIR, save_compressed=True)
+tokenizer.save_pretrained(SAVE_DIR)
+```
+
+### **7.1 Improved Example: Mixed Long/Short Sequence NVFP4 Calibration (Recommended Practice)**
+
+The following example builds upon the "quick start" by adding:
+1. **Sequence length statistics and bucketing:** Simultaneously covers long-context and regular instruction distributions, reducing risk of long-sequence degradation from using only short samples.
+2. **Mixed sampling strategy:** Prioritize extracting specified number of long sequences (e.g., ≥16k tokens), then supplement with short sequences to reach total calibration count.
+3. **Fallback logic:** If dataset has insufficient long sequences, automatically lowers threshold or fills with shorter samples without interrupting workflow.
+4. **Lightweight evaluation:** Calculates proxy loss and generation throughput on small batch before/after quantization, helping quickly verify quality and performance.
+5. **VRAM estimation:** Provides simple formulas to help estimate VRAM usage differences between NVFP4 and NVFP4A16.
+
+**Use case:** Pursuing more stable long-context capabilities (chat, retrieval, multi-turn tool calling, code completion) without exponential increase in calibration cost.
+
+```python
+import math, time, torch
+from datasets import load_dataset
+from transformers import AutoTokenizer, AutoModelForCausalLM
+from llmcompressor import oneshot
+from llmcompressor.modifiers.quantization import QuantizationModifier
+
+MODEL_ID = "Qwen/Qwen2.5-7B-Instruct"  # Replace with your model
+NUM_CALIBRATION_SAMPLES = 1024          # Total calibration sample target
+LONG_TARGET = 512                       # Desired long sequence sample count
+LONG_TOKEN_THRESHOLD = 16000            # Long sequence determination threshold (adjustable 12k~24k)
+SHORT_MIN_LENGTH = 2048                 # Minimum retention length
+MAX_SEQUENCE_LENGTH = 32000             # Unified truncation limit (balance VRAM)
+SEED = 42
+
+tokenizer = AutoTokenizer.from_pretrained(MODEL_ID, use_fast=True)
+model = AutoModelForCausalLM.from_pretrained(MODEL_ID, torch_dtype="auto")
+
+ds = load_dataset("HuggingFaceH4/ultrachat_200k", split="train_sft[:5000]")
+ds = ds.shuffle(seed=SEED)
+
+# 1. Apply original chat template, maintaining consistency with training format
+def apply_template(example):
+    return {"text": tokenizer.apply_chat_template(example["messages"], tokenize=False)}
+ds = ds.map(apply_template)
+
+# 2. Rough tokenization to count token length (no duplicate special tokens)
+def length_only(example):
+    ids = tokenizer(example["text"], add_special_tokens=False)["input_ids"]
+    return {"token_length": len(ids)}
+ds = ds.map(length_only)
+
+# 3. Bucket filtering for long/short samples
+long_ds = ds.filter(lambda x: x["token_length"] >= LONG_TOKEN_THRESHOLD)
+short_ds = ds.filter(lambda x: SHORT_MIN_LENGTH <= x["token_length"] < LONG_TOKEN_THRESHOLD)
+
+actual_long = min(LONG_TARGET, len(long_ds))
+needed_short = NUM_CALIBRATION_SAMPLES - actual_long
+
+# Fallback: if insufficient long sequences, print warning; if short also insufficient, fall back to any samples
+if actual_long < LONG_TARGET:
+    print(f"[Fallback] Only obtained {actual_long} long sequences (<{LONG_TARGET}). Will supplement with more short sequences.")
+if len(short_ds) < needed_short:
+    print(f"[Fallback] Insufficient short sequences {needed_short}, current {len(short_ds)}. Using other samples to fill.")
+    remaining = needed_short - len(short_ds)
+    extra_pool = ds.filter(lambda x: x["token_length"] < SHORT_MIN_LENGTH)
+    extra_take = min(remaining, len(extra_pool))
+    short_ds = short_ds.select(range(len(short_ds)))
+    extra_ds = extra_pool.select(range(extra_take))
+    from datasets import concatenate_datasets
+    short_ds = concatenate_datasets([short_ds, extra_ds])
+
+calib_long = long_ds.select(range(actual_long))
+calib_short = short_ds.select(range(min(needed_short, len(short_ds))))
+
+from datasets import concatenate_datasets
+calib_ds = concatenate_datasets([calib_long, calib_short]).shuffle(seed=SEED)
+print("Calibration set composition: long", len(calib_long), "short", len(calib_short), "total", len(calib_ds))
+
+# 4. Real tokenization + truncation (avoid duplicate bos addition)
+def tokenize(example):
+    return tokenizer(example["text"], add_special_tokens=False, truncation=True, max_length=MAX_SEQUENCE_LENGTH)
+token_cols = [c for c in calib_ds.column_names if c not in ("text", "token_length")]
+calib_ds = calib_ds.map(tokenize, remove_columns=token_cols)
+
+# 5. Configure NVFP4 (weights+activations), ignore lm_head to reduce precision risk
+recipe = QuantizationModifier(targets="Linear", scheme="NVFP4", ignore=["lm_head"])
+
+oneshot(
+    model=model,
+    dataset=calib_ds,
+    recipe=recipe,
+    max_seq_length=MAX_SEQUENCE_LENGTH,
+    num_calibration_samples=len(calib_ds),
+)
+
+# 6. Lightweight evaluation: generation throughput + proxy loss
+def quick_loss(batch_size=4):
+    subset = calib_ds.select(range(batch_size))
+    total, count = 0.0, 0
+    for sample in subset:
+        ids = torch.tensor([sample["input_ids"]], device=model.device)
+        out = model(input_ids=ids, labels=ids)
+        total += out.loss.item()
+        count += 1
+    return total / max(count, 1)
+
+def gen_speed(prompt="Hello", steps=64, warmup=1):
+    for _ in range(warmup):
+        _ = model.generate(tokenizer(prompt, return_tensors="pt").input_ids.to(model.device), max_new_tokens=8)
+    start = time.time()
+    _ = model.generate(tokenizer(prompt, return_tensors="pt").input_ids.to(model.device), max_new_tokens=steps)
+    t = time.time() - start
+    return steps / t
+
+loss_proxy = quick_loss()
+tokens_per_sec = gen_speed()
+print(f"[Eval] Proxy Loss: {loss_proxy:.3f} | Gen Speed: {tokens_per_sec:.1f} tok/s")
+
+# 7. Save compressed weights (directly compatible with vLLM)
+SAVE_DIR = MODEL_ID.split("/")[-1] + "-NVFP4-mixed-calib"
+model.save_pretrained(SAVE_DIR, save_compressed=True)
+tokenizer.save_pretrained(SAVE_DIR)
+print("Saved ->", SAVE_DIR)
+
+# 8. VRAM estimation hint (approximate):
+# NVFP4 average ~4.5 bits/param; NVFP4A16 ~4 bits/param (weights only);
+# FP16 ~16 bits/param. Can estimate GB using param_count * bits/8/1024**3.
+param_count = sum(p.numel() for p in model.parameters())
+nvfp4_gb = param_count * 4.5 / 8 / 1024**3
+fp16_gb = param_count * 16 / 8 / 1024**3
+print(f"Param Count: {param_count/1e9:.2f}B | NVFP4≈{nvfp4_gb:.2f}GB | FP16≈{fp16_gb:.2f}GB (weight portion approximate)")
+```
+
+> **Usage recommendation:** If long-context performance remains low subsequently, increase `LONG_TOKEN_THRESHOLD` or total calibration sample count; if VRAM is tight, try NVFP4A16 first then evaluate throughput vs. quality difference.
+
+#### Additional FAQ (Related to Toolchain)
+
+**Q: Can llm-compressor quantized models only be inferred with vLLM?**  
+A: No. Full NVFP4 performance improvement requires **Blackwell GPU + vLLM (or other frameworks supporting NVFP4)**; other frameworks may dequantize on loading, losing hardware acceleration advantage. NVFP4A16 (weights-only) is easier to use across frameworks but also loses most performance advantage.
+
+**Q: Is llm-compressor NVIDIA's officially recommended quantization tool for NVFP4?**  
+A: The repository README provides NVFP4 / NVFP4A16 examples and configurations (W4A4/W4A16), representing the most direct official support path for NVFP4 in current open-source ecosystem, can be considered "officially supported implementation."
+
+**Q: Can I quantize only activations without quantizing weights (Activation-only NVFP4)?**  
+A: Current toolchain doesn't provide this mode; NVFP4's core advantage comes from weights+activations both being low-bit to trigger hardware direct-through, otherwise performance gain is extremely low.
+
+**Q: What if I need LoRA/QLoRA fine-tuning?**  
+A: Currently recommend dequantizing back to FP16/BF16 or using mature INT4/MXFP4 training paths; incremental training support on NVFP4 is still being refined in the ecosystem.
+
+### **8. Conclusion**
+
+If you have Blackwell GPU, NVFP4 is a worthy 4-bit quantization approach to prioritize: achieve inference throughput far exceeding INT4 with minimal accuracy sacrifice, through hardware native support and robust numerical characteristics from dual scaling (micro-block FP8 + global FP32).
 
 If your environment is cross-platform or lacks Blackwell, MXFP4 is a mature and pragmatic engineering solution, especially with reusable PTQ configuration patterns demonstrated in OAI-OSS implementations (preserving critical modules at high precision, using 4-bit float for the rest). Looking ahead, NVFP4 ecosystem will likely continue maturing (including fine-tuning paths and sampling kernel fixes), while MXFP4 standardization and multi-vendor optimization will accelerate. These two routes may coexist long-term: one for "hardware-specialized throughput extremes," another for "ecosystem universality and deployment simplicity."
 
 ---
 
-## **8. References and Sources**
+## **9. References and Sources**
 
 ### NVIDIA Official Resources
 - **Blackwell Architecture White Paper**: [NVIDIA Blackwell Platform Overview](https://www.nvidia.com/en-us/data-center/technologies/blackwell-architecture/)
@@ -383,7 +640,7 @@ If your environment is cross-platform or lacks Blackwell, MXFP4 is a mature and 
 
 ### Open-Source Tools and Implementations
 - **llm-compressor**: [vllm-project/llm-compressor](https://github.com/vllm-project/llm-compressor) - NVFP4/NVFP4A16 quantization tool
-- **vLLM Inference Framework**: [vllm-project/vllm](https://github.com/vllm-project/vllm) - Supports NVFP4 hardware direct path
+- **vLLM Inference Framework**: [vllm-project/vllm](https://github.com/vllm-project/vllm) - Supports NVFP4 on Blackwell
 - **compressed-tensors**: [neuralmagic/compressed-tensors](https://github.com/neuralmagic/compressed-tensors) - NVFP4 weight storage format
 
 ### Industry Standards and Specifications
