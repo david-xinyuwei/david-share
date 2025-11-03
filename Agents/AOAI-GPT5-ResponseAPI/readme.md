@@ -139,60 +139,52 @@ System Prompt → Tool Definitions → Messages
 - **Cache reuse**: reduces input cost + latency.
 
 #### **3.6 Observed Server Behaviors**
-- assistant → user: resets reasoning tokens. The `cached_tokens` becoming 0 is a common side-effect of client-side history management, not a direct rule of this transition.
-- assistant → function_call: reasoning kept; cached stable/increasing
-- function_call → function_call: reasoning kept; cached grows
-- Modality switch: reasoning kept; cached may drop to 0
+- assistant → user: Clears reasoning tokens. The observation that `cached_tokens` often become 0 is an indirect effect — it occurs when client code modifies conversation history to manage context length, which breaks the prefix stability required by Prompt Cache.
+- assistant → function_call: Reasoning preserved; cached tokens stable or increasing
+- Consecutive function_call: Reasoning preserved; cached tokens increase
+- Modality switch: Reasoning preserved; cached tokens may reset to 0
 
 ```mermaid
 flowchart TB
 		subgraph PromptStructure["Prompt Construction Order"]
 				direction TB
-				Sys["System Prompt (long & stable → cacheable)"]
+				Sys["System Prompt<br/>long & stable → cacheable"]
 				Tools["Tool Definitions"]
-				Msgs["Messages (User → Assistant[hidden reasoning] → Function Call → Function Call Output)"]
+				Msgs["Messages<br/>User → Assistant[hidden reasoning]<br/>→ Function Call → Output"]
 				Sys --> Tools --> Msgs
 		end
 
 		subgraph COTPosition["Reasoning Tokens Location"]
-				COT["Inside Assistant message hidden section (type=reasoning)"]
+				COT["Inside Assistant message<br/>hidden section<br/>type=reasoning"]
 		end
 		Msgs --> COT
 
 		subgraph CacheCondition["Prompt Cache Conditions"]
 				LenCheck{"First block ≥ 1024 tokens?"}
-				SysOnly["System ≥1024 → block = System only (stable, no reasoning)"]
-				SysShort["System <1024 → block spills into Tools/Messages (may include reasoning, fragile)"]
+				SysOnly["System ≥ 1024<br/>block = System only<br/>stable, no reasoning"]
+				SysShort["System < 1024<br/>block spills into Tools/Messages<br/>may include reasoning, fragile"]
 				LenCheck -- Yes --> SysOnly
 				LenCheck -- No --> SysShort
 		end
 		Sys --> LenCheck
 
 		subgraph CacheMeaning["Meaning of Caching"]
-				SaveCost["Cache hit: saves compute (including reasoning if inside block)"]
-				NoSave["Miss: logic reused but reasoning recomputed"]
+				SaveCost["Cache hit<br/>saves compute<br/>including reasoning if inside block"]
+				NoSave["Miss<br/>logic reused<br/>but reasoning recomputed"]
 		end
 		SysOnly --> SaveCost
 		SysShort --> SaveCost
 		SysShort --> NoSave
 
 		subgraph LogicVsCost["Logical vs Cost Reuse"]
-				LogicReuse["Logical reuse: previous_response_id preserves chain"]
-				CostReuse["Cost reuse: cache hit reduces cost & latency"]
-		end
-
-		subgraph ServerBehavior["Server Behavior by Transition"]
-				AtoU["Assistant → User: resets reasoning. Cached=0 is an indirect effect."]
-				AtoF["Assistant → Function Call: keep reasoning, cached stable/↑"]
-				FtoF["Function Call → Function Call: keep reasoning, cached ↑"]
-				ModalSwitch["Modality switch: keep reasoning, cached may reset"]
+				LogicReuse["Logical reuse<br/>previous_response_id<br/>preserves chain"]
+				CostReuse["Cost reuse<br/>cache hit reduces<br/>cost & latency"]
 		end
 
 		CacheCondition --> CacheMeaning
 		PromptStructure --> CacheCondition
 		COT --> CacheMeaning
 		CacheMeaning --> LogicVsCost
-		LogicVsCost --> ServerBehavior
 ```
 
 ### **4. Two Modes for Encrypted Reasoning Chains**

@@ -163,25 +163,26 @@ flowchart TB
     %% Prompt 构造顺序
     subgraph PromptStructure["Prompt 构造顺序"]
         direction TB
-        Sys["System Prompt（长且稳定可缓存）"]
-        Tools["Tool Definitions（函数 / 工具 Schema）"]
-        Msgs["Messages（按时间顺序：User → Assistant［含隐藏 Reasoning Tokens］ → Function Call → Function Call Output）"]
+        Sys["System Prompt<br/>长且稳定可缓存"]
+        Tools["Tool Definitions<br/>函数/工具 Schema"]
+        Msgs["Messages<br/>User→Assistant[含隐藏 Reasoning]
+              →Function Call→Output"]
         Sys --> Tools --> Msgs
     end
 
     %% Reasoning Tokens 位置
     subgraph COTPosition["Reasoning Tokens 位置"]
         direction TB
-        COT["位于 Assistant 消息的隐藏部分（type=reasoning），与可见输出文本并列，不是单独的消息项"]
+        COT["位于 Assistant 消息隐藏部分<br/>type=reasoning<br/>与可见输出并列"]
     end
     Msgs --> COT
 
     %% Prompt Cache 命中条件
     subgraph CacheCondition["Prompt Cache 命中条件"]
         direction TB
-        LenCheck{"首缓存块长度 ≥ 1024 tokens ?"}
-        SysOnly["System Prompt ≥ 1024 tokens → 首块只含 System Prompt（稳定，但不含 Reasoning Tokens）"]
-        SysShort["System Prompt < 1024 tokens → 首块拼入 Tools / Messages（可能含 Reasoning Tokens，但动态内容变动易失效）"]
+        LenCheck{"首缓存块 ≥ 1024 tokens?"}
+        SysOnly["System ≥ 1024<br/>首块=System only<br/>稳定但不含 Reasoning"]
+        SysShort["System < 1024<br/>首块拼入 Tools/Messages<br/>可能含 Reasoning<br/>但动态内容易失效"]
 
         LenCheck -- 是 --> SysOnly
         LenCheck -- 否 --> SysShort
@@ -189,10 +190,10 @@ flowchart TB
     Sys --> LenCheck
 
     %% 缓存意义
-    subgraph CacheMeaning["Messages / Reasoning Tokens 被缓存的意义"]
+    subgraph CacheMeaning["被缓存的意义"]
         direction TB
-        SaveCost["命中：可实际节约推理计算成本（含 Reasoning Tokens）"]
-        NoSave["未命中：逻辑可以复用，但推理链仍需重新计算"]
+        SaveCost["命中：节约推理计算成本<br/>含 Reasoning Tokens"]
+        NoSave["未命中：逻辑可复用<br/>但推理链需重算"]
     end
     SysOnly --> SaveCost
     SysShort --> SaveCost
@@ -201,17 +202,8 @@ flowchart TB
     %% 逻辑 vs 成本复用
     subgraph LogicVsCost["逻辑复用 vs 成本复用"]
         direction TB
-        LogicReuse["逻辑复用：使用 previous_response_id 保留 Reasoning Tokens，保证结论一致性"]
-        CostReuse["成本复用：Prompt Cache 命中，减少解码和推理计算成本"]
-    end
-
-    %% 服务端行为
-    subgraph ServerBehavior["不同衔接场景的服务端默认行为"]
-        direction TB
-        AtoU["Assistant → User：清空Reasoning Tokens。Cached=0是间接影响。"]
-        AtoF["Assistant → Function Call：保留 Reasoning Tokens，Cached Tokens 稳定或递增"]
-        FtoF["连续 Function Call：保留 Reasoning Tokens，Cached Tokens 递增"]
-        ModalSwitch["模态切换：保留 Reasoning Tokens，Cached Tokens 可能清零"]
+        LogicReuse["逻辑复用<br/>previous_response_id 保留推理链<br/>保证结论一致性"]
+        CostReuse["成本复用<br/>Prompt Cache 命中<br/>减少解码和推理成本"]
     end
 
     %% 链接关系
@@ -219,7 +211,6 @@ flowchart TB
     PromptStructure --> CacheCondition
     COT --> CacheMeaning
     CacheMeaning --> LogicVsCost
-    LogicVsCost --> ServerBehavior
 ```
 
 
