@@ -9,7 +9,7 @@
 - **`previous_response_id` enables direct cross-turn reuse of the reasoning chain** (see [Mechanism Details](#mechanism-deep-dive)).
 
 	Conditions for reusing reasoning tokens (three key scenarios):
-	1. **assistant → user scenario**: If the previous turn ended with an assistant type message, during the next turn the Responses API actively clears all reasoning tokens that appeared before that assistant message. In this case cached tokens will certainly be 0.
+	1. **assistant → user scenario**: If the previous turn ended with an assistant type message, the Responses API actively clears the reasoning chain. This is a rule of the CoT reuse mechanism. The observation that `cached tokens` often become 0 in this scenario is an indirect effect. It happens when the application code modifies the conversation history to manage context length, which breaks the stability of the input prefix required by the Prompt Cache.
 	2. **Consecutive function call scenario**: If multiple function calls happen in sequence, reasoning tokens can keep accumulating; cached tokens increase with each turn (stable prefix reuse).
 	3. **Modality switching scenario**: If there is a modality change between function call outputs (e.g., last turn function_call_output only text, next turn includes an image via function_call_output:string + role:user type:input_image combination), reasoning tokens are still reused, but cached tokens may reset to 0 (new multi-modal request may route to a different backend endpoint).
 
@@ -100,11 +100,11 @@ resp2 = client.responses.create(
 
 #### **2.2 Three Typical Reuse Behaviors**
 
-| Scenario Type               | Reasoning Token Behavior                  | Cached Token Behavior       | Typical Use Case                                 |
-| --------------------------- | ----------------------------------------- | --------------------------- | ------------------------------------------------ |
-| **assistant → user**        | Cleared (prior chain intentionally reset) | 0 (no reuse)                | New user question after assistant output        |
-| **consecutive function_call** | Preserved (chain extends)                 | Increases with each turn    | Tool pipelines (weather → parse → format)       |
-| **modality-switch function_call** | Preserved (logic intact)                   | May reset (routing changes) | Text tool output → next turn includes image     |
+| Scenario Type               | Reasoning Token Behavior                  | Cached Token Behavior (Indirect Effect)       | Typical Use Case                                 |
+| --------------------------- | ----------------------------------------- | --------------------------------------------- | ------------------------------------------------ |
+| **assistant → user**        | Cleared (prior chain intentionally reset) | Often 0 (due to client-side history modification) | New user question after assistant output         |
+| **consecutive function_call** | Preserved (chain extends)                 | Increases with each turn (stable prefix)      | Tool pipelines (weather → parse → format)        |
+| **modality-switch function_call** | Preserved (logic intact)                   | May reset (routing changes)                   | Text tool output → next turn includes image      |
 
 **Measured evidence (from Table 1):**
 - **FUNCTION_R2**: reasoning = 0 (no new chain needed), cached = 3840 (stable prefix cache)
@@ -139,7 +139,7 @@ System Prompt → Tool Definitions → Messages
 - **Cache reuse**: reduces input cost + latency.
 
 #### **3.6 Observed Server Behaviors**
-- assistant → user: reset reasoning tokens; cached tokens = 0
+- assistant → user: resets reasoning tokens. The `cached_tokens` becoming 0 is a common side-effect of client-side history management, not a direct rule of this transition.
 - assistant → function_call: reasoning kept; cached stable/increasing
 - function_call → function_call: reasoning kept; cached grows
 - Modality switch: reasoning kept; cached may drop to 0
@@ -182,7 +182,7 @@ flowchart TB
 		end
 
 		subgraph ServerBehavior["Server Behavior by Transition"]
-				AtoU["Assistant → User: reset reasoning, cached=0"]
+				AtoU["Assistant → User: resets reasoning. Cached=0 is an indirect effect."]
 				AtoF["Assistant → Function Call: keep reasoning, cached stable/↑"]
 				FtoF["Function Call → Function Call: keep reasoning, cached ↑"]
 				ModalSwitch["Modality switch: keep reasoning, cached may reset"]

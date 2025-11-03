@@ -11,7 +11,7 @@
 
   reasoning token的复用条件（三种关键场景）：
 
-  1. **assistant → user 场景**：如果上一轮模型返回的是assistant类型的message，那在新一轮次的调用过程中，出现在这条assistant message前的所有reasoning token都会被responses api主动清零，此时cached token一定为0。
+  1. **assistant → user 场景**：如果上一轮模型返回的是assistant类型的message，Responses API会主动清零其前的reasoning token。这是CoT推理链复用机制的规则。而`cached token`为0的现象，是由于客户端为了管理上下文长度而修改了会话历史，破坏了Prompt Cache所需的前缀稳定性，属于间接影响。
   2. **连续 function call 场景**：如果是连续多次的function call调用, reasoning token可以一直保留，cached token会随着调用轮次的增加而增加。
   3. **模态切换场景**：如果不同轮次的function call之间出现模态变化，比如前一轮是function_call_output提供的是纯文本，新的一轮带图片(以function_call_output:string + role:user type:input_image组合)，那么reasoning token还会复用，但cached token可能降为0（新的多模态请求可能路由到不同的endpoint）
 
@@ -108,11 +108,11 @@ resp2 = client.responses.create(
 
 根据实测数据，reasoning token 和 cached token 的复用行为因场景而异：
 
-| 场景类型                  | Reasoning Token 行为               | Cached Token 行为         | 典型应用                         |
-| ------------------------- | ---------------------------------- | ------------------------- | -------------------------------- |
-| **assistant → user**      | 清零（上一轮推理链被主动丢弃）     | 0（无法复用）             | 多轮对话中用户提出新问题         |
-| **连续 function_call**    | 保留（推理链持续累积）             | 递增（前缀稳定命中缓存）  | 工具链式调用（天气查询→解析→展示） |
-| **模态切换 function_call** | 保留（推理链逻辑仍延续）           | 可能清零（路由变化）      | 文本工具调用 → 图片输入续接      |
+| 场景类型                  | Reasoning Token 行为               | Cached Token 行为 (间接影响)       | 典型应用                         |
+| ------------------------- | ---------------------------------- | ---------------------------------- | -------------------------------- |
+| **assistant → user**      | 清零（上一轮推理链被主动丢弃）     | 通常为0 (因客户端修改历史导致)     | 多轮对话中用户提出新问题         |
+| **连续 function_call**    | 保留（推理链持续累积）             | 递增（前缀稳定命中缓存）           | 工具链式调用（天气查询→解析→展示） |
+| **模态切换 function_call** | 保留（推理链逻辑仍延续）           | 可能清零（路由变化）               | 文本工具调用 → 图片输入续接       |
 
 **实测证据（基于表1数据）：**
 - **FUNCTION_R2**：reasoning=0（工具结果复述无需重推），cached=3840（前缀稳定命中）
@@ -153,7 +153,7 @@ System Prompt → Tool Definitions → Messages
 
 #### **3.6 服务端行为规律**
 
-- assistant → user：清空 RT（reasoning token），CT（cached token）=0
+- assistant → user：清空 RT（reasoning token）。CT（cached token）变为0是客户端管理历史记录的常见副作用，而非此场景转换的直接规则。
 - assistant → function_call：保留 RT，CT 稳定或递增
 - 连续 function_call：RT保留 + CT递增
 - 模态切换：RT保留，CT可能清零
@@ -208,7 +208,7 @@ flowchart TB
     %% 服务端行为
     subgraph ServerBehavior["不同衔接场景的服务端默认行为"]
         direction TB
-        AtoU["Assistant → User：清空 Reasoning Tokens，Cached Tokens = 0"]
+        AtoU["Assistant → User：清空Reasoning Tokens。Cached=0是间接影响。"]
         AtoF["Assistant → Function Call：保留 Reasoning Tokens，Cached Tokens 稳定或递增"]
         FtoF["连续 Function Call：保留 Reasoning Tokens，Cached Tokens 递增"]
         ModalSwitch["模态切换：保留 Reasoning Tokens，Cached Tokens 可能清零"]
