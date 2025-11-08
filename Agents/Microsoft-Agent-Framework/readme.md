@@ -9,10 +9,20 @@
 - Depends on Azure OpenAI Chat Completions for model execution (defaults to the `gpt-5-chat` deployment).
 
 ## Solution Scenarios
-| Workflow | Primary Goal | Interaction Model | Demo Video |
-| --- | --- | --- | --- |
-| `hitl_*` | Multi-stage document creation with formal human approval gates | Users review and approve output at each stage from the terminal while DevUI renders the workflow graph | [Watch HITL Demo](https://github.com/user-attachments/assets/371de179-192b-411b-b388-e67c4a4563ab) |
-| `magentic_*` | Intelligent agent routing across weather, calculator, and travel personas | MagenticBuilder selects the appropriate agent automatically; DevUI surfaces orchestration state | [Watch Magentic Demo](https://github.com/user-attachments/assets/a3ab7aae-1594-4198-a462-d782a1195ab6) |
+| Workflow | Primary Goal | Interaction Model |
+| --- | --- | --- |
+| `hitl_*` | Multi-stage document creation with formal human approval gates | Users review and approve output at each stage from the terminal while DevUI renders the workflow graph |
+| `magentic_*` | Intelligent agent routing across weather, calculator, and travel personas | MagenticBuilder selects the appropriate agent automatically; DevUI surfaces orchestration state |
+
+### Demo Videos
+
+**Human-in-the-Loop (HITL) Workflow:**
+
+https://github.com/user-attachments/assets/371de179-192b-411b-b388-e67c4a4563ab
+
+**Magentic Dynamic Routing Workflow:**
+
+https://github.com/user-attachments/assets/a3ab7aae-1594-4198-a462-d782a1195ab6
 
 ## Architecture Overview
 - Workflow code uses Microsoft Agent Framework primitives (`WorkflowBuilder`, `MagenticBuilder`, executors, and agents).
