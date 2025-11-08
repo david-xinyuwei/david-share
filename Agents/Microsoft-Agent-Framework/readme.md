@@ -22,7 +22,8 @@ https://github.com/user-attachments/assets/371de179-192b-411b-b388-e67c4a4563ab
 
 **Magentic Dynamic Routing Workflow:**
 
-https://github.com/user-attachments/assets/a3ab7aae-1594-4198-a462-d782a1195ab6
+https://github.com/user-attachments/assets/3ed468f3-7af2-441c-a802-c82a51c4636e
+
 
 ## Architecture Overview
 - Workflow code uses Microsoft Agent Framework primitives (`WorkflowBuilder`, `MagenticBuilder`, executors, and agents).
