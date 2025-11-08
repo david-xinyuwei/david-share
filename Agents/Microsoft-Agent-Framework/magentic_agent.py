@@ -1,3 +1,6 @@
+﻿import logging
+logging.getLogger('agent_framework').setLevel(logging.ERROR)
+
 """
 🤖 Enhanced MagenticBuilder with User Interaction
 
@@ -382,3 +385,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+

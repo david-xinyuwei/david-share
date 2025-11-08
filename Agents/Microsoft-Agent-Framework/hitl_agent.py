@@ -1,13 +1,16 @@
+﻿import logging
+logging.getLogger('agent_framework').setLevel(logging.ERROR)
+
 # Copyright (c) Microsoft. All rights reserved.
 """
-真实的多步骤 Human-in-the-Loop 工作流
+Real Multi-Stage Human-in-the-Loop Workflow
 
-场景: 技术文档撰写流程
+Scenario: Technical Documentation Writing Process
 涉及: 多个专业 Agent + 多个人工审批点
 
 工作流程:
 1. 用户输入文档主题
-2. 研究员 Agent 收集相关资料
+2. Researcher Agent 收集相关资料
 3. 【人工审批点 1】审查研究资料，决定是否继续
 4. 大纲设计 Agent 设计文档结构
 5. 【人工审批点 2】审批大纲，提供修改意见
@@ -19,6 +22,7 @@
 
 import asyncio
 import os
+from dotenv import load_dotenv
 from dataclasses import dataclass
 from enum import Enum
 
@@ -42,7 +46,7 @@ from agent_framework.azure import AzureOpenAIChatClient
 
 
 class Stage(Enum):
-    """工作流阶段"""
+    """工作流Stage"""
     RESEARCH = "research"
     OUTLINE = "outline"
     WRITING = "writing"
@@ -51,7 +55,7 @@ class Stage(Enum):
 
 @dataclass
 class StageResult:
-    """阶段结果"""
+    """Stage结果"""
     stage: Stage
     content: str
     agent_id: str
@@ -76,7 +80,7 @@ class HumanReviewResponse:
 class WorkflowCoordinator(Executor):
     """
     工作流协调器
-    负责路由不同阶段的结果到相应的处理器
+    负责路由不同Stage的结果到相应的处理器
     """
     
     def __init__(self, id: str = "coordinator"):
@@ -92,18 +96,18 @@ class WorkflowCoordinator(Executor):
         topic: str,
         ctx: WorkflowContext
     ) -> None:
-        """启动工作流 - 发送给研究员"""
+        """启动工作流 - 发送给Researcher"""
         self._topic = topic
         
         print(f"\n{'='*70}")
-        print(f"🚀 工作流启动")
+        print(f"🚀 Workflow Started")
         print(f"{'='*70}")
-        print(f"📋 文档主题: {topic}")
+        print(f"📋 Document Topic: {topic}")
         print(f"{'='*70}\n")
-        print("📍 阶段 1: 研究资料收集")
+        print("📍 Stage 1: Research Data Collection")
         print("-" * 70)
         
-        # 发送给研究员
+        # 发送给Researcher
         request = AgentExecutorRequest(
             messages=[ChatMessage(
                 role=Role.USER,
@@ -119,7 +123,7 @@ class WorkflowCoordinator(Executor):
         result: StageResult,
         ctx: WorkflowContext
     ) -> None:
-        """处理阶段结果"""
+        """处理Stage结果"""
         # 保存结果
         if result.stage == Stage.RESEARCH:
             self._research_result = result.content
@@ -137,7 +141,7 @@ class WorkflowCoordinator(Executor):
         }
         
         questions = {
-            Stage.RESEARCH: "研究资料是否充分？是否需要补充？",
+            Stage.RESEARCH: "Is the research sufficient? Does it need supplementation?",
             Stage.OUTLINE: "文档结构是否合理？是否需要调整？",
             Stage.WRITING: "内容质量是否满意？是否需要修改？",
             Stage.EDITING: "最终版本是否可以发布？"
@@ -164,7 +168,7 @@ class WorkflowCoordinator(Executor):
         if not approved:
             # ✅ 验证点4: 拒绝后有真实的action
             print(f"\n{'='*70}")
-            print(f"✅ 验证点4: 拒绝后的真实Action - Agent将重新执行")
+            print(f"✅ Checkpoint 4: Real Action After Rejection - Agent Will Re-execute")
             print(f"{'='*70}")
             
             agent_map = {
@@ -175,31 +179,31 @@ class WorkflowCoordinator(Executor):
             
             agent_id = agent_map.get(stage)
             if agent_id:
-                print(f"❌ {stage.value} 阶段未通过审批，发回重做...")
-                print(f"💬 反馈: {feedback}")
-                print(f"🔄 正在调度 {agent_id} 重新执行...")
+                print(f"❌ {stage.value} stage not approved, sending back for revision...")
+                print(f"💬 Feedback: {feedback}")
+                print(f"🔄 Scheduling {agent_id} for re-execution...")
                 print(f"{'='*70}\n")
                 
                 request = AgentExecutorRequest(
                     messages=[ChatMessage(
                         role=Role.USER,
-                        text=f"上一次的输出未通过审批。\n\n反馈: {feedback}\n\n请根据反馈重新完成任务。"
+                        text=f"上一次的输出未通过审批。\n\nFeedback: {feedback}\n\n请根据反馈重新完成任务。"
                     )],
                     should_respond=True
                 )
                 await ctx.send_message(request, target_id=agent_id)
             return
         
-        # 批准 - 进入下一阶段
-        print(f"\n✅ {stage.value} 阶段已批准")
+        # 批准 - 进入下一Stage
+        print(f"\n✅ {stage.value} Stage已批准")
         if feedback:
-            print(f"💬 反馈: {feedback}")
+            print(f"💬 Feedback: {feedback}")
         print()
         
         if stage == Stage.RESEARCH:
             # ✅ 验证点2: Coordinator 调度不同的 agent
             print("✅ 验证点2: Coordinator调度 → 大纲设计Agent")
-            print("📍 阶段 2: 文档大纲设计")
+            print("📍 Stage 2: Document Outline Design")
             print("-" * 70)
             
             prompt = f"基于以下研究资料，设计一份详细的文档大纲：\n\n{self._research_result}\n\n要求：包含清晰的章节结构和每个部分的要点。"
@@ -221,7 +225,7 @@ class WorkflowCoordinator(Executor):
         elif stage == Stage.OUTLINE:
             # ✅ 验证点2: Coordinator 调度不同的 agent
             print("✅ 验证点2: Coordinator调度 → 撰写Agent")
-            print("📍 阶段 3: 正文撰写")
+            print("📍 Stage 3: 正文撰写")
             print("-" * 70)
             
             prompt = f"根据以下大纲撰写详细的文档内容：\n\n{self._outline_result}\n\n参考资料：\n{self._research_result}\n\n要求：内容详实、逻辑清晰、语言专业。"
@@ -243,7 +247,7 @@ class WorkflowCoordinator(Executor):
         elif stage == Stage.WRITING:
             # ✅ 验证点2: Coordinator 调度不同的 agent
             print("✅ 验证点2: Coordinator调度 → 编辑Agent")
-            print("📍 阶段 4: 编辑润色")
+            print("📍 Stage 4: 编辑润色")
             print("-" * 70)
             
             prompt = f"请对以下文档进行润色和格式化：\n\n{self._writing_result}\n\n要求：确保语言流畅、格式规范、无错别字。"
@@ -271,7 +275,7 @@ class WorkflowCoordinator(Executor):
 
 class StageExecutor(Executor):
     """
-    阶段执行器 - 包装 AgentExecutor
+    Stage执行器 - 包装 AgentExecutor
     """
     
     def __init__(self, agent_executor: AgentExecutor, stage: Stage, id: str):
@@ -323,13 +327,12 @@ class HumanReviewerExecutor(Executor):
         print(f"\n{'='*70}")
         print(f"🔍 {request.stage_name}完成 - 需要人工审批")
         print(f"{'='*70}")
-        print(f"📄 内容预览:")
+        print(f"📄 Content Preview:")
         print(request.content[:500] + ("..." if len(request.content) > 500 else ""))
         print(f"{'='*70}\n")
         
         await ctx.request_info(
             request_data=request,
-            request_type=HumanReviewRequest,
             response_type=HumanReviewResponse
         )
     
@@ -351,6 +354,9 @@ class HumanReviewerExecutor(Executor):
 
 
 async def main():
+    # Load environment variables from .env file
+    load_dotenv()
+    
     # 配置
     endpoint = os.environ.get("AZURE_OPENAI_ENDPOINT")
     api_key = os.environ.get("AZURE_OPENAI_API_KEY")
@@ -361,14 +367,14 @@ async def main():
         return
     
     print("="*70)
-    print("📝 技术文档撰写工作流 (多阶段 Human-in-the-Loop)")
+    print("📝 Technical Documentation Workflow (Multi-Stage HITL)")
     print("="*70)
     print()
-    print("💡 工作流包含 4 个阶段:")
-    print("   1️⃣  研究资料收集 → 人工审批")
-    print("   2️⃣  文档大纲设计 → 人工审批")
-    print("   3️⃣  正文内容撰写 → 人工审批")
-    print("   4️⃣  编辑润色完善 → 输出")
+    print("💡 Workflow contains 4 stages:")
+    print("   1️⃣  Research → Human Approval")
+    print("   2️⃣  Outline → Human Approval")
+    print("   3️⃣  Writing → Human Approval")
+    print("   4️⃣  Editing → Output")
     print()
     print("="*70)
     print()
@@ -384,31 +390,31 @@ async def main():
     
     # ✅ 验证点1: 创建4个不同的 Agents，每个有独立的instructions
     print("="*70)
-    print("✅ 验证点1: 创建不同的 Agents")
+    print("✅ Checkpoint 1: Create Different Agents")
     print("="*70)
     
-    print("🤖 Agent 1: 研究员")
-    print("   Instructions: 专业的研究员，负责收集和整理相关资料")
+    print("🤖 Agent 1: Researcher")
+    print("   Instructions: Professional researcher responsible for collecting and organizing materials")
     researcher_agent = chat_client.create_agent(
-        instructions="你是专业的研究员，负责收集和整理相关资料。提供详细、准确的信息。"
+        instructions="你是Professional researcher responsible for collecting and organizing materials。提供详细、准确的信息。"
     )
     
-    print("🤖 Agent 2: 文档架构师")
-    print("   Instructions: 负责设计清晰的文档结构和大纲")
+    print("🤖 Agent 2: Document Architect")
+    print("   Instructions: Responsible for designing clear document structure and outline")
     outline_agent = chat_client.create_agent(
-        instructions="你是文档架构师，负责设计清晰的文档结构和大纲。确保逻辑清晰、层次分明。"
+        instructions="你是Document Architect，Responsible for designing clear document structure and outline。确保逻辑清晰、层次分明。"
     )
     
-    print("🤖 Agent 3: 技术作家")
-    print("   Instructions: 负责撰写详细的文档内容")
+    print("🤖 Agent 3: Technical Writer")
+    print("   Instructions: Responsible for writing detailed document content")
     writer_agent = chat_client.create_agent(
-        instructions="你是专业的技术作家，负责撰写详细的文档内容。语言专业、内容充实。"
+        instructions="你是专业的Technical Writer，Responsible for writing detailed document content。语言专业、内容充实。"
     )
     
-    print("🤖 Agent 4: 专业编辑")
-    print("   Instructions: 负责润色和格式化文档")
+    print("🤖 Agent 4: Professional Editor")
+    print("   Instructions: Responsible for polishing and formatting documents")
     editor_agent = chat_client.create_agent(
-        instructions="你是专业编辑，负责润色和格式化文档。确保语言流畅、格式规范。"
+        instructions="你是Professional Editor，Responsible for polishing and formatting documents。确保语言流畅、格式规范。"
     )
     
     print("="*70)
@@ -460,8 +466,8 @@ async def main():
     )
     
     # 获取用户输入
-    print("🙋 请输入要撰写的技术文档主题:")
-    print("(例如: Docker 容器化技术入门指南)")
+    print("🙋 Please enter the technical document topic:")
+    print("(Example: Docker Containerization Getting Started Guide)")
     print()
     topic = input(">>> ").strip()  # noqa: ASYNC250
     
@@ -505,14 +511,14 @@ async def main():
                 print("="*70)
                 print()
                 
-                approved_input = input("是否批准? (y/n): ").strip().lower()  # noqa: ASYNC250
+                approved_input = input("Approve? (y/n): ").strip().lower()  # noqa: ASYNC250
                 approved = approved_input == "y"
                 
                 feedback = ""
                 if not approved:
-                    feedback = input("请提供修改意见: ").strip()  # noqa: ASYNC250
+                    feedback = input("Please provide feedback: ").strip()  # noqa: ASYNC250
                 else:
-                    feedback_input = input("是否有补充意见? (直接回车跳过): ").strip()  # noqa: ASYNC250
+                    feedback_input = input("Any additional comments? (Press Enter to skip): ").strip()  # noqa: ASYNC250
                     if feedback_input:
                         feedback = feedback_input
                 
@@ -538,3 +544,4 @@ async def main():
 if __name__ == "__main__":
     print()
     asyncio.run(main())
+

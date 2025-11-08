@@ -1,251 +1,124 @@
-# Multi-Stage Human-in-the-Loop (HITL) Workflow Solution
+# Microsoft Agent Framework Workflow Demos
 
-## 📋 概述
+> Dual workflow showcase combining a human-in-the-loop pipeline and a MagenticBuilder orchestration demo with shared DevUI tooling.
 
-本项目提供了一个完整的**多阶段人工参与工作流**解决方案，解决了 Microsoft Agent Framework 官方示例 `magentic_human_plan_update.py` 的局限性。
+## Overview
+- Demonstrates two production-style agent workflows built on Microsoft Agent Framework.
+- Includes a staged document authoring pipeline with human approvals and a dynamic agent routing experience.
+- Ships with DevUI launchers so runs can be inspected visually and from the terminal.
+- Depends on Azure OpenAI Chat Completions for model execution (defaults to the `gpt-5-chat` deployment).
 
-### 客户问题
-> "官方示例只能用来做 PlanReview，不能在执行过程中让用户补充信息"
+## Solution Scenarios
+| Workflow | Primary Goal | Interaction Model | Demo Video |
+| --- | --- | --- | --- |
+| `hitl_*` | Multi-stage document creation with formal human approval gates | Users review and approve output at each stage from the terminal while DevUI renders the workflow graph | [Watch HITL Demo](https://github.com/user-attachments/assets/371de179-192b-411b-b388-e67c4a4563ab) |
+| `magentic_*` | Intelligent agent routing across weather, calculator, and travel personas | MagenticBuilder selects the appropriate agent automatically; DevUI surfaces orchestration state | [Watch Magentic Demo](https://github.com/user-attachments/assets/a3ab7aae-1594-4198-a462-d782a1195ab6) |
 
-### 我们的解决方案
-✅ **在 Agent 执行过程中**插入多个人工审批点  
-✅ 查看每个 Agent 的**实际输出内容**  
-✅ 用户反馈**直接传递**给下一个 Agent  
-✅ 拒绝后单个 Agent **根据反馈重做**  
+## Architecture Overview
+- Workflow code uses Microsoft Agent Framework primitives (`WorkflowBuilder`, `MagenticBuilder`, executors, and agents).
+- DevUI launchers (`*_devui.py`, `*_start.py`) host Uvicorn to render the workflow graph in the browser and optionally open an interactive terminal mode.
+- Azure OpenAI Chat Completions provides the model backing; credentials are loaded via `.env`.
+- The architecture supports local execution only; no cloud deployment assets are provided yet.
 
----
+## Agent Framework Workload APIs
+The Agent Framework source (see `python/packages/core/agent_framework/_workflows/`) ships six workload builder APIs. The table below calls out where each builder lives, whether it produces a **static** graph (all paths are fixed before execution) or a **dynamic** graph (the orchestrator decides the next hop at runtime), and notes which of the demos in this folder exercise it.
 
-## 🎯 核心特性
+| Builder API (module) | Intended scenario | Graph behavior | Demo usage |
+| --- | --- | --- | --- |
+| `WorkflowBuilder` (`_workflow_builder.py`) | Low-level graph authoring with manual edge wiring | **Static** | `hitl_agent.py` builds its multi-stage approval flow with this builder |
+| `SequentialBuilder` (`_sequential.py`) | Straight-line pipelines with optional shared state adapters | **Static** | Not used in these demos |
+| `ConcurrentBuilder` (`_concurrent.py`) | Fan-out/fan-in orchestration across multiple agents | **Static** | Not used in these demos |
+| `GroupChatBuilder` (`_group_chat.py`) | Manager-directed round-robin or selector-driven group chats | **Dynamic** | Not used in these demos |
+| `HandoffBuilder` (`_handoff.py`) | Coordinator routes requests to specialists via handoff tool calls | **Dynamic** | Not used in these demos |
+| `MagenticBuilder` (`_magentic.py`) | Magentic manager plans and selects participants adaptively | **Dynamic** | `magentic_agent.py` constructs its demo workflow with this builder |
 
-### 1️⃣ 多阶段审批
-- 支持在工作流的**任意位置**插入审批点
-- 示例中实现了4个阶段的人工审批
-- 可扩展到任意多个审批点
+**Key takeaways**
+- The **HITL demo** relies on `WorkflowBuilder`, so all executors and edges are declared ahead of time (static graph).
+- The **Magentic demo** uses `MagenticBuilder`, where the Magentic manager evaluates the plan and chooses participant executors as the run progresses (dynamic graph).
+- Extend the samples with the remaining builders to cover additional patterns such as concurrent fan-out, sequential helper pipelines, or handoff-style routing.
 
-### 2️⃣ 真实输出审查
-- 不是审批"计划"，而是审批 Agent 的**实际输出**
-- 可以看到每个 Agent 生成的完整内容
-- 基于真实结果做决策
+### Demo Highlights
 
-### 3️⃣ 反馈传递机制
-- 用户在审批时提供的补充意见
-- 会自动添加到下一个 Agent 的 prompt 中
-- 确保用户需求贯穿整个流程
-
-### 4️⃣ 灵活的拒绝处理
-- 拒绝后只需重做当前阶段
-- 不用从头开始整个流程
-- Agent 根据用户反馈进行针对性改进
-
----
-
-## 📂 文件说明
-
-### 主要文件
-
-| 文件 | 说明 |
-|------|------|
-| **test_multi_stage_hitl.py** | 完整的4阶段HITL工作流示例（文档撰写场景） |
-| **SOLUTION_COMPARISON.md** | 详细的方案对比文档（官方示例 vs 我们的方案） |
-| **test_hitl_practical.py** | 简化的2阶段HITL示例（快速理解概念） |
-| **test_magentic.py** | MagenticBuilder基础用法（对比参考） |
-| **README.md** | 本文档 |
-
-### 推荐阅读顺序
-1. 📖 **README.md** - 快速了解方案
-2. 📄 **SOLUTION_COMPARISON.md** - 深入理解技术方案
-3. 💻 **test_multi_stage_hitl.py** - 运行完整示例
-
----
-
-## 🚀 快速开始
-
-### 前置要求
-- Python 3.8+
-- Microsoft Agent Framework (`agent-framework-core`)
-- Azure OpenAI 或 OpenAI API 访问权限
-
-### 配置环境变量
-
-```bash
-# Linux/Mac
-export AZURE_OPENAI_ENDPOINT="https://your-endpoint.openai.azure.com/"
-export AZURE_OPENAI_API_KEY="your-api-key-here"
-export AZURE_OPENAI_DEPLOYMENT_NAME="gpt-4"
-
-# Windows PowerShell
-$env:AZURE_OPENAI_ENDPOINT = "https://your-endpoint.openai.azure.com/"
-$env:AZURE_OPENAI_API_KEY = "your-api-key-here"
-$env:AZURE_OPENAI_DEPLOYMENT_NAME = "gpt-4"
-```
-
-### 运行示例
-
-```bash
-python test_multi_stage_hitl.py
-```
-
-### 交互流程
+| Demo | Builder API | Pain point addressed | Why it works well |
+| --- | --- | --- | --- |
+| Human-in-the-Loop (HITL) | `WorkflowBuilder` (static) | Teams need deterministic multi-stage document production with mandatory approvals at each gate. | Full graph is predeclared, so every stage, approval edge, and rework loop is explicit and observable. Easy to reason about compliance and rehearse sign-off scenarios. |
+| Magentic Planner | `MagenticBuilder` (dynamic) | Users ask open-ended questions that require routing to the best specialist (weather, math, travel) without hardcoding flow. | Magentic manager plans and selects participants adaptively, mixing tool calls and plan reviews. Enables flexible orchestration without redesigning the graph for every new skill. |
 
 ```
-1️⃣ 输入文档主题
-   例如: "如何学好AI" 或 "Docker容器化技术入门"
-
-2️⃣ 阶段1: 研究资料收集
-   → Agent 完成资料收集
-   → 【审批点】查看研究内容
-   → 操作: y批准 / n拒绝 / 提供补充意见
-
-3️⃣ 阶段2: 文档大纲设计
-   → Agent 设计文档结构（收到上一阶段的反馈）
-   → 【审批点】查看大纲
-   → 操作: y批准 / n拒绝 / 提供补充意见
-
-4️⃣ 阶段3: 正文撰写
-   → Agent 撰写完整内容
-   → 【审批点】查看正文
-   → 操作: y批准 / n拒绝 / 提供补充意见
-
-5️⃣ 阶段4: 编辑润色
-   → Agent 润色格式化
-   → 【审批点】最终审批
-   → 完成！输出最终文档
+┌─────────────┐      ┌────────────────────┐      ┌──────────────┐
+│ Start Script│ ───▶ │ Workflow Orchestrator │ ─▶ │ Azure OpenAI │
+└─────────────┘      └────────────────────┘      └──────────────┘
+        │                        │                         │
+        │                        └──▶ DevUI events ───────▶│
+        └──▶ Terminal I/O ◀──────┘                         │
 ```
 
----
+## Repository Layout
+- `hitl_agent.py` – Human-in-the-loop workflow definition with four stages.
+- `hitl_devui.py` – DevUI host for the HITL pipeline.
+- `hitl_start.py` – Combined launcher that starts DevUI and the terminal workflow together.
+- `magentic_agent.py` – MagenticBuilder agents and manager configuration.
+- `magentic_devui.py` – DevUI host for the Magentic workflow.
+- `magentic_start.py` – Launcher that boots the Magentic workflow and DevUI.
+- `.env.example` – Template for Azure OpenAI credentials.
 
-## 🆚 对比官方示例
+## Prerequisites
+- Azure subscription with access to [Azure OpenAI Service](https://learn.microsoft.com/azure/ai-services/openai/overview) and permission to deploy chat models.
+- Python 3.10 or later (scripts verified on 3.12).
+- `pip` access to install runtime dependencies (no requirements file is pinned).
+- Ability to open TCP port 8080 locally for DevUI.
 
-### 详细对比表格
+## Provisioning and Configuration
+1. Create an Azure OpenAI resource in the desired region. Deploy a chat-capable model; the scripts default to the `gpt-5-chat` deployment name (override via `AZURE_OPENAI_DEPLOYMENT_NAME`).
+2. Record the endpoint URL, API key, deployment name, and API version.
+3. Copy `.env.example` to `.env` and set:
+   ```env
+   AZURE_OPENAI_ENDPOINT="https://<resource>.openai.azure.com"
+   AZURE_OPENAI_API_KEY="<key>"
+   AZURE_OPENAI_DEPLOYMENT_NAME="<deployment>"
+   AZURE_OPENAI_API_VERSION="2024-08-01-preview"
+   ```
+   The checked-in `.env` uses `gpt-5-chat`; adjust if your deployment name differs.
+4. The project does not yet ship with Infrastructure-as-Code or `azd` automation. If cloud deployment is required, plan to author Bicep or Terraform modules that provision Azure OpenAI, optional storage, and monitoring resources.
 
-| 特性 | 官方示例 | 我们的方案 |
-|------|---------|-----------|
-| **HITL 时机** | ❌ 执行前 | ✅ 执行中 |
-| **审批内容** | ❌ 文本计划 | ✅ Agent 实际输出 |
-| **审批次数** | ❌ 1次 | ✅ N次（示例4次） |
-| **反馈作用** | ❌ 重新生成计划 | ✅ 影响下一个 Agent |
-| **拒绝行为** | ❌ 整体重来 | ✅ 单个 Agent 重做 |
-| **扩展性** | ❌ 受限于 Magentic | ✅ 完全自定义 |
+## Local Quickstart
+1. Set up a virtual environment (recommended):
+   ```pwsh
+   python -m venv .venv
+   .\.venv\Scripts\Activate.ps1
+   ```
+2. Install dependencies:
+   ```pwsh
+   pip install agent-framework agent-framework-devui --pre
+   pip install python-dotenv
+   ```
+3. Start the human-in-the-loop demo:
+   ```pwsh
+   python hitl_start.py
+   ```
+   - DevUI opens at `http://localhost:8080`.
+   - The terminal prompts for document topics and approval decisions (`y`, `n`, or feedback text).
+4. Start the Magentic workflow:
+   ```pwsh
+   python magentic_start.py
+   ```
+   - DevUI opens at `http://localhost:8080`.
+   - Interact via the terminal; the orchestrator routes to Weather, Calculator, or Travel agents automatically.
 
-详细对比见：[SOLUTION_COMPARISON.md](./SOLUTION_COMPARISON.md)
 
----
+## Identity and Access
+- Running locally requires only the Azure OpenAI API key stored in `.env`.
+- In production scenarios prefer managed identities or Azure Key Vault for secret storage.
+- Azure roles: Operators need `Cognitive Services OpenAI User` or `Cognitive Services Contributor` to manage deployments and fetch keys.
 
-## 💡 核心技术实现
+## Limitations and Known Issues
+- No automated provisioning (`azd`, Bicep, Terraform) is included. Infrastructure deployment must be scripted separately.
+- DevUI expects port 8080; adjust launchers manually if the port is occupied.
+- The Magentic workflow currently exposes only three sample agents; extending the registry requires code changes and testing.
+- Release automation, CI/CD, and evaluation harnesses are not provided.
 
-### 关键代码片段
 
-#### 1. 自定义审批类型
-
-```python
-@dataclass
-class HumanReviewRequest:
-    stage: Stage
-    stage_name: str
-    content: str      # Agent 的实际输出
-    question: str
-
-@dataclass
-class HumanReviewResponse:
-    approved: bool
-    feedback: str     # 用户反馈
-```
-
-#### 2. 在 Agent 执行后插入审批点
-
-```python
-@handler
-async def handle_stage_result(self, result: StageResult, ctx: WorkflowContext):
-    # 💡 关键：请求人工审批
-    await ctx.request_info(
-        request_data=HumanReviewRequest(
-            content=result.content  # Agent 的实际输出
-        ),
-        request_type=HumanReviewRequest,
-        response_type=HumanReviewResponse
-    )
-```
-
-#### 3. 反馈传递给下一个 Agent
-
-```python
-@handler
-async def handle_approval(self, approval, ctx: WorkflowContext):
-    stage, approved, feedback = approval
-    
-    if approved:
-        prompt = f"基于以下资料设计大纲：\n\n{self._research_result}"
-        
-        # 💡 关键：添加用户反馈
-        if feedback:
-            prompt += f"\n\n⚠️ 用户要求: {feedback}"
-        
-        await ctx.send_message(request, target_id="next_agent")
-```
-
----
-
-## 📊 实际运行效果
-
-### 示例：反馈生效
-
-```
-用户输入: "如何学好AI"
-
-阶段1 - 研究资料:
-输出: 通用的AI学习资料...
-反馈: "哲学和伦理学重点说" ✅
-
-阶段2 - 文档大纲:
-输出: 增加了"哲学与伦理视角"章节 ← 反馈生效！
-反馈: "重点谈从稳定高薪到资本增值" ✅
-
-阶段3 - 正文撰写:
-输出: 标题变为《从稳定高薪到资本增值》← 反馈生效！
-```
-
----
-
-## 🎯 适用场景
-
-### ✅ 非常适合
-
-- **文档撰写流程**：研究 → 大纲 → 撰写 → 编辑
-- **代码开发流程**：需求 → 设计 → 编码 → 测试
-- **内容创作流程**：选题 → 素材 → 初稿 → 终稿
-- **数据处理流程**：采集 → 清洗 → 分析 → 报告
-- **产品设计流程**：调研 → 原型 → UI → Review
-- **任何需要多阶段质量把关的流程**
-
----
-
-## 🐛 常见问题
-
-### Q1: 环境变量未设置
-**错误**: `❌ Error: 请设置环境变量`
-
-**解决**: 确保设置了 `AZURE_OPENAI_ENDPOINT`、`AZURE_OPENAI_API_KEY`、`AZURE_OPENAI_DEPLOYMENT_NAME`
-
-### Q2: 导入错误
-**错误**: `ModuleNotFoundError: No module named 'agent_framework'`
-
-**解决**: `pip install agent-framework-core`
-
----
-
-## 📚 相关资源
-
-- [Agent Framework GitHub](https://github.com/microsoft/agent-framework)
-- [Agent Framework 文档](https://microsoft.github.io/agent-framework/)
-- [官方 HITL 示例](https://github.com/microsoft/agent-framework/tree/main/python/samples/getting_started/workflows/human_in_the_loop)
-
----
-
-## 👤 作者
-
-**David Xinyuwei**
-- GitHub: [@david-xinyuwei](https://github.com/david-xinyuwei)
-
----
-
-**最后更新**: 2025年10月31日
+## Resources
+- [Microsoft Agent Framework repository](https://github.com/microsoft/agent-framework)
+- [Agent Framework DevUI package](https://pypi.org/project/agent-framework-devui/)
+- [Azure OpenAI Service documentation](https://learn.microsoft.com/azure/ai-services/openai/)
