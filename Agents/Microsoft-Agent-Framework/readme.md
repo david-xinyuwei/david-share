@@ -122,13 +122,6 @@ The Agent Framework source (see `python/packages/core/agent_framework/_workflows
 - In production scenarios prefer managed identities or Azure Key Vault for secret storage.
 - Azure roles: Operators need `Cognitive Services OpenAI User` or `Cognitive Services Contributor` to manage deployments and fetch keys.
 
-## Limitations and Known Issues
-- No automated provisioning (`azd`, Bicep, Terraform) is included. Infrastructure deployment must be scripted separately.
-- DevUI expects port 8080; adjust launchers manually if the port is occupied.
-- The Magentic workflow currently exposes only three sample agents; extending the registry requires code changes and testing.
-- Release automation, CI/CD, and evaluation harnesses are not provided.
-
-
 ## Resources
 - [Microsoft Agent Framework repository](https://github.com/microsoft/agent-framework)
 - [Agent Framework DevUI package](https://pypi.org/project/agent-framework-devui/)
