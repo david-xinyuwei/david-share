@@ -117,6 +117,49 @@ Precision: 2⁻⁷ ≈ 0.008 (≈0.8% relative error)
 
 ### Precision Analogy
 
+#### Visual Comparison: FP16 vs BF16
+
+```
+FP16 = Vernier Caliper (High Precision, Limited Range)
+┌─────────────────────────────────────────────────────────┐
+│  0.00   0.01   0.02   0.03   0.04   0.05   0.06  [mm]  │
+│   │      │      │      │      │      │      │           │
+│   ├──┼──┼┼──┼──┼┼──┼──┼┼──┼──┼┼──┼──┼┼──┼──┼┤          │
+│   │  │  ││  │  ││  │  ││  │  ││  │  ││  │  │           │
+│   └──┴──┴┴──┴──┴┴──┴──┴┴──┴──┴┴──┴──┴┴──┴──┴┘          │
+│     10 bits mantissa → 1024 fine divisions             │
+│     Can distinguish: 10.231 vs 10.237 ✓                │
+└─────────────────────────────────────────────────────────┘
+Range: 0–65 cm  |  Precision: 0.01 mm
+
+
+BF16 = Tape Measure (Wide Range, Coarse Precision)
+┌──────────────────────────────────────────────────────────┐
+│   0     10     20     30     40     50     60    [cm]   │
+│   │      │      │      │      │      │      │            │
+│   ├──────┼──────┼──────┼──────┼──────┼──────┤           │
+│   │      │      │      │      │      │      │            │
+│   └──────┴──────┴──────┴──────┴──────┴──────┘           │
+│      7 bits mantissa → 128 coarse divisions             │
+│      10.231 → 10.2  |  10.237 → 10.2  (same!) ✗        │
+└──────────────────────────────────────────────────────────┘
+Range: 0–100 m  |  Precision: 1 cm
+```
+
+#### Numeric Example: Logit Rounding
+
+```
+True Policy Logits:  [10.231, 10.237, 10.225]
+                           ↓         ↓         ↓
+FP16 (10-bit mantissa):  [10.2305, 10.2368, 10.2251]  ✓ Ranking preserved
+                           ↓         ↓         ↓
+BF16 (7-bit mantissa):   [10.234,  10.234,  10.234 ]  ✗ All collapsed!
+                           └─────────┴─────────┘
+                            Indistinguishable
+                         → Random action selection
+                         → Policy collapse
+```
+
 | Format | Analogy | Resolution | Range | Use Case |
 |--------|---------|------------|-------|----------|
 | **FP16** | Vernier caliper | 0.01 mm (1024 divisions) | 0–65 cm | Precision machining |
