@@ -583,48 +583,18 @@ Even with identical dtypes, different engines handle rounding/accumulation diffe
 
 ## Common Misconceptions
 
-### ❌ "BF16 = FP32 range → Always safer"
-
-**Reality**: RL doesn't need FP32's range. Policy logits live in [−10, 10]. BF16 sacrifices precision for unused headroom.
-
-### ❌ "Precision differences are negligible"
-
-**Reality**: In single-step inference, yes. Across 1000-step RL rollouts, rounding errors compound exponentially.
-
-### ❌ "Loss scaling fixes BF16 issues"
-
-**Reality**: Loss scaling prevents underflow, not precision loss. BF16's 7-bit mantissa cannot represent 10.231 ≠ 10.237 regardless of scaling.
-
-### ❌ "Switching optimizers compensates for dtype choice"
-
-**Reality**: Adam vs SGD affects convergence rate, not numerical precision. Optimizer choice cannot recover lost mantissa bits.
-
-### ❌ "BF16 trains faster than FP16"
-
-**Reality**: On modern GPUs (A100, H100), FP16 and BF16 have identical throughput. FP16 avoids mismatch-induced instability, **reducing total wall-clock time** to convergence.
-
-### ❌ "Multiple dtype casts don't hurt"
-
-**Reality**: Each FP32 → BF16 → FP16 cast introduces rounding. TRL + QLoRA pipelines suffer from 3–4 round-trip conversions before training even begins.
-
-### ❌ "FP16 always overflows"
-
-**Reality**: With loss scaling (standard in AMP), FP16 overflow is rare in RL. Monitor for `inf`/`NaN` in gradients; if persistent, investigate model architecture, not dtype.
-
-### ❌ "H100 makes dtype choice irrelevant"
-
-**Reality**: H100 accelerates BF16 ops but doesn't eliminate precision limitations. FP16 remains superior for RL on all hardware.
-
-### ❌ "Any 16-bit dtype works for inference if the model fits in memory"
-
-**Reality**: As shown by Gemma 3, loading BF16 weights as FP16 causes complete inference failure (only EOS tokens). **Dtype mismatch between training and inference is catastrophic**, not just a performance issue.
-
-### ❌ "AMP is only for training, not inference"
-
-**Reality**: AMP mixed-precision is a valid inference strategy when:
-- Hardware lacks native BF16 (e.g., V100, RTX 30xx)
-- Model was trained in BF16 but deployment GPU doesn't support it
-- You need to balance memory (FP16 storage) and stability (FP32 compute)
+| Misconception | Reality |
+|---------------|----------|
+| **"BF16 = FP32 range → Always safer"** | RL doesn't need FP32's range. Policy logits live in [−10, 10]. BF16 sacrifices precision for unused headroom. |
+| **"Precision differences are negligible"** | In single-step inference, yes. Across 1000-step RL rollouts, rounding errors compound exponentially. |
+| **"Loss scaling fixes BF16 issues"** | Loss scaling prevents underflow, not precision loss. BF16's 7-bit mantissa cannot represent 10.231 ≠ 10.237 regardless of scaling. |
+| **"Switching optimizers compensates for dtype choice"** | Adam vs SGD affects convergence rate, not numerical precision. Optimizer choice cannot recover lost mantissa bits. |
+| **"BF16 trains faster than FP16"** | On modern GPUs (A100, H100), FP16 and BF16 have identical throughput. FP16 avoids mismatch-induced instability, **reducing total wall-clock time** to convergence. |
+| **"Multiple dtype casts don't hurt"** | Each FP32 → BF16 → FP16 cast introduces rounding. TRL + QLoRA pipelines suffer from 3–4 round-trip conversions before training even begins. |
+| **"FP16 always overflows"** | With loss scaling (standard in AMP), FP16 overflow is rare in RL. Monitor for `inf`/`NaN` in gradients; if persistent, investigate model architecture, not dtype. |
+| **"H100 makes dtype choice irrelevant"** | H100 accelerates BF16 ops but doesn't eliminate precision limitations. FP16 remains superior for RL on all hardware. |
+| **"Any 16-bit dtype works for inference if the model fits in memory"** | As shown by Gemma 3, loading BF16 weights as FP16 causes complete inference failure (only EOS tokens). **Dtype mismatch between training and inference is catastrophic**, not just a performance issue. |
+| **"AMP is only for training, not inference"** | AMP mixed-precision is a valid inference strategy when:<br>• Hardware lacks native BF16 (e.g., V100, RTX 30xx)<br>• Model was trained in BF16 but deployment GPU doesn't support it<br>• You need to balance memory (FP16 storage) and stability (FP32 compute) |
 
 ---
 
