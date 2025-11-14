@@ -167,6 +167,184 @@ BF16 (7-bit mantissa):   [10.234,  10.234,  10.234 ]  ✗ All collapsed!
 
 **RL Implication**: Policy optimization requires **precision** (distinguishing 10.231 vs 10.237), not **range** (representing 10³⁸).
 
+### Two-Dimensional Understanding of Precision: Range vs Density
+
+**Precision** actually comprises two independent dimensions:
+
+#### 1️⃣ Measurement Range = Exponent Bits Determine
+
+| Format | Exponent Bits | Numerical Range | Analogy |
+|--------|--------------|-----------------|----------|
+| **FP16** | 5 bits | ±6.55×10⁴ (2¹⁵) | 0-150mm Vernier caliper |
+| **BF16** | 8 bits | ±3.4×10³⁸ (2¹²⁷) | 0-50m Steel tape measure |
+| **FP32** | 8 bits | ±3.4×10³⁸ (2¹²⁷) | 0-50m Laser rangefinder |
+
+**Meaning**: The **maximum/minimum representable value**
+
+#### 2️⃣ Numerical Density = Mantissa Bits Determine
+
+| Format | Mantissa Bits | Division Density | Minimum Distinguishable Difference |
+|--------|--------------|------------------|-----------------------------------|
+| **FP16** | 10 bits | 2⁻¹⁰ ≈ 0.001 | **1024 divisions** |
+| **BF16** | 7 bits | 2⁻⁷ ≈ 0.008 | **128 divisions** |
+| **FP32** | 23 bits | 2⁻²³ ≈ 0.00000012 | **8388608 divisions** |
+
+**Meaning**: **Number of tick marks** within the same length segment
+
+---
+
+#### Why RL Needs "High Density" Not "Large Range"?
+
+##### Actual Numerical Range Requirements:
+
+```python
+# Typical numerical ranges in RL training:
+logits = [-2.3, 1.5, 0.8]        # Typical range: [-10, 10]
+probs = softmax(logits)          # [0.01, 0.53, 0.46] → Fixed in [0, 1]
+advantage = 3.2                  # Typical range: [-20, 20]
+value_estimate = 15.7            # Typical range: [-50, 50]
+reward = 1.0                     # Usually in [-10, 10]
+
+# BF16's large range (±3.4×10³⁸) is completely wasted!
+# We will never compute π(a) = 10²⁰ or Q(s,a) = 10³⁰
+```
+
+**Conclusion**: FP16's range (±65,504) is more than sufficient for RL
+- Range redundancy = 65,504 / 100 = **655× margin**
+- RL never needs BF16's 10³⁸ range
+
+##### Actual Numerical Density Requirements:
+
+```python
+# Minimum probability difference that must be distinguished:
+π(a₁) = 0.312  # Action 1 probability
+π(a₂) = 0.308  # Action 2 probability
+Δπ = 0.004     # Must distinguish this difference!
+
+# BF16 density check:
+ε_bf16 = 2**(-7) = 0.0078
+0.0078 > 0.004  # ❌ Not fine enough, rounds both actions to same value
+
+# FP16 density check:
+ε_fp16 = 2**(-10) = 0.00098
+0.00098 < 0.004  # ✅ Fine enough to clearly distinguish both actions
+```
+
+---
+
+#### Measurement Tool Analogy: Distinguishing Part Lengths
+
+**Task**: Measure two parts, distinguish 31.2 mm vs 30.8 mm (0.4 mm difference)
+
+| Tool | Max Range | Minimum Division | Can Distinguish 0.4mm? | Corresponds To |
+|------|-----------|------------------|----------------------|----------------|
+| **Vernier Caliper** | 0-150 mm | 0.01 mm (1024 divisions) | ✅ Clearly measurable | **FP16** |
+| **Steel Tape** | 0-50 m | 1 mm (128 divisions) | ❌ Both "~31 mm", indistinguishable | **BF16** |
+| **Laser Rangefinder** | 0-100 m | 0.001 mm (8M divisions) | ✅ Over-precise (wasteful) | **FP32** |
+
+**RL Training Scenario**:
+- Like a precision machining workshop, needs **caliper's density**
+- Doesn't need construction site's **tape measure range**
+- Probability difference 0.004 is like part difference 0.4mm, must measure precisely
+
+---
+
+#### Probability Distribution Visualization Comparison
+
+```
+Scenario: Three-action probability distribution
+π(a₁)=0.312, π(a₂)=0.308, π(a₃)=0.380
+
+┌──────────────────────────────────────────────────────────┐
+│ FP16 (1024 divisions) - Vernier Caliper                  │
+├──────────────────────────────────────────────────────────┤
+│ 0.312 → Division 319 ✓                                   │
+│ 0.308 → Division 315 ✓  4 divisions apart, clearly distinct │
+│ 0.380 → Division 389 ✓                                   │
+│                                                          │
+│ Action ranking: a₃ > a₁ > a₂  ← Correct!                │
+└──────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────┐
+│ BF16 (128 divisions) - Steel Tape                        │
+├──────────────────────────────────────────────────────────┤
+│ 0.312 → Division 40 (actual 0.3125) ✗                    │
+│ 0.308 → Division 39 (actual 0.3047) ✗  Both blurred between 39-40 │
+│ 0.380 → Division 49 (actual 0.3828) ✗                    │
+│                                                          │
+│ Action ranking: May become a₃ ≈ a₁ ≈ a₂  ← Wrong! Random │
+└──────────────────────────────────────────────────────────┘
+```
+
+---
+
+#### Mathematical Proof: FP16 Range Sufficient + BF16 Density Insufficient
+
+##### 1. FP16 Range Verification ✅
+
+```python
+# Extreme values in RL:
+max_logit = 15.0      # Rarely exceeds ±10 in actual training
+max_prob = 1.0        # Probability naturally ≤ 1
+max_advantage = 100.0 # Advantage rarely > 100
+max_value = 1000.0    # Value function rarely > 1000
+
+# FP16 max value check:
+fp16_max = 65504
+margin = fp16_max / max_value  # 65504 / 1000 = 65.5× safety margin
+
+# Conclusion: FP16 range redundancy of 65-655×, completely sufficient!
+```
+
+##### 2. BF16 Density Verification ❌
+
+```python
+# Policy gradient formula: ∇J = E[∇log π(a|s) · A(s,a)]
+# Key: Need to precisely compute probability ratio π(a₁) vs π(a₂)
+
+# Real case:
+π_a1 = 0.312  # Action 1 probability
+π_a2 = 0.308  # Action 2 probability
+ratio = π_a1 / π_a2 = 1.013  # Importance sampling ratio
+
+# After BF16 rounding:
+π_a1_bf16 = 0.3125  # round(0.312 * 128) / 128
+π_a2_bf16 = 0.3125  # round(0.308 * 128) / 128
+ratio_bf16 = 0.3125 / 0.3125 = 1.000  # ❌ Ratio vanishes!
+
+# After FP16 rounding:
+π_a1_fp16 = 0.312012  # round(0.312 * 1024) / 1024
+π_a2_fp16 = 0.308105  # round(0.308 * 1024) / 1024
+ratio_fp16 = 0.312012 / 0.308105 = 1.0127  # ✅ Precision maintained!
+```
+
+---
+
+#### Summary Formula
+
+```
+RL Precision Requirement = Numerical Density (mantissa) >> Numerical Range (exponent)
+
+┌─────────┬──────────┬──────────┬────────────────┐
+│ Format  │  Range   │ Density  │ RL Suitability │
+├─────────┼──────────┼──────────┼────────────────┤
+│  FP16   │  2¹⁵     │  2⁻¹⁰    │ ✅ Perfect fit  │
+│         │ (enough) │ (needed) │   Range OK     │
+│         │          │          │   Density OK   │
+├─────────┼──────────┼──────────┼────────────────┤
+│  BF16   │  2¹²⁷    │  2⁻⁷     │ ❌ Mismatch     │
+│         │ (wasted) │(lacking) │   Range excess │
+│         │          │          │   Density poor │
+├─────────┼──────────┼──────────┼────────────────┤
+│  FP32   │  2¹²⁷    │  2⁻²³    │ ✅ Over-kill    │
+│         │ (wasted) │ (wasted) │   3× cost      │
+└─────────┴──────────┴──────────┴────────────────┘
+
+Key Insights:
+• Range requirement: RL values always in [-100, 100] → FP16's ±65504 more than enough
+• Density requirement: Need to distinguish Δπ ≈ 0.004 → Need ε < 0.001 → FP16 meets it, BF16 doesn't
+```
+
 ---
 
 ## Why RL Demands Mantissa Precision
@@ -609,23 +787,6 @@ Even with identical dtypes, different engines handle rounding/accumulation diffe
   month   = {October},
   url     = {https://arxiv.org/abs/2510.26788}
 }
-```
-
----
-
-## Acknowledgments
-
-This work synthesizes insights from:
-
-- **Original Research**: [arXiv:2510.26788](https://arxiv.org/abs/2510.26788)
-- **Standards**: IEEE 754-2019 Floating-Point Arithmetic
-- **Frameworks**: PyTorch AMP, TRL, bitsandbytes, DeepSpeed, vLLM
-- **Community Validation**: RL research community on X/Twitter, GitHub issues
-
-**Special Thanks**:
-- Benjamin Marie ([The Kaitchup](https://kaitchup.substack.com/)) for original article synthesis
-- VeRL, Oat development teams for experimental infrastructure
-- NVIDIA for A100/H100 technical documentation
 
 ---
 
