@@ -64,6 +64,8 @@ BF16 (7-bit mantissa) cannot reliably distinguish between close action logits (e
 
 ### Observed Behavior
 
+![images](./images/1.jpg)
+
 ```
 BF16 Training Curve (Reward Collapse):
 Reward  │    ╱╲
