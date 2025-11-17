@@ -1,30 +1,43 @@
-# Azure Sora-2 Video Generation and Remix SDK
+# Azure Sora-2 Video Generation and Remix Guide
 
-A Python client library for Azure OpenAI's Sora-2 video generation API, featuring video creation from text prompts and the powerful Remix capability to modify existing videos while preserving their core structure.
+## 📦 Installation
 
-https://github.com/user-attachments/assets/41ed7ab4-d299-4d43-abcc-e776085dd627
+```bash
+pip install requests
+```
 
-https://github.com/user-attachments/assets/d291077f-4a70-42cb-ae39-fb2098e1ee1e
+## 🔑 API Configuration
 
-https://github.com/user-attachments/assets/5710dba4-7adc-4188-baa1-8993ba2c09a3
+1. Get your Azure OpenAI resource information:
+   - API Key
+   - Endpoint URL
 
-https://github.com/user-attachments/assets/0c8e3d0a-fb03-4b35-a96b-7df86bc3b8b6
-## ✨ Features
-
-- **Video Creation**: Generate videos from text prompts with customizable resolution and duration
-- **Remix Videos**: Modify specific aspects of existing videos (lighting, colors, elements) while maintaining the original motion and composition
-- **Async Status Polling**: Automatic polling with progress tracking
-- **Simple Download**: Easy video file download and saving
+2. Configure in your code:
+```python
+client = SoraVideoClient(
+    api_key="YOUR_API_KEY",  # Replace with your API Key
+    base_url="https://your-resource.openai.azure.com/openai/v1"  # Replace with your endpoint
+)
+```
 
 ## 🚀 Quick Start
 
-### Installation
+### Running the Interactive Demo
 
 ```bash
-pip install -r requirements.txt
+python demo.py
 ```
 
-### Basic Usage
+The demo will guide you through:
+1. **API Configuration**: Enter your API key and base URL
+2. **Video Creation**: Input your prompt and select duration (4/8/12 seconds)
+3. **Video Remix**: Transform your video with a remix prompt
+
+Output files:
+- `original_video.mp4` - Your original video
+- `remixed_video.mp4` - The remixed version
+
+### 1️⃣ Creating Videos Programmatically
 
 ```python
 from sora_client import SoraVideoClient
@@ -35,29 +48,108 @@ client = SoraVideoClient(
     base_url="https://your-resource.openai.azure.com/openai/v1"
 )
 
-# Create a video
+# Create video
 result = client.create_video(
     prompt="A cute cat playing with a ball in a sunny garden",
-    size="720x1280",
-    seconds="4"
+    size="720x1280",  # Portrait, or "1280x720" for landscape
+    seconds="4"  # Options: "4", "8", "12"
 )
 
-# Wait for completion
 video_id = result["id"]
+
+# Wait for completion
 client.wait_until_complete(video_id)
 
-# Download the video
+# Download video
 client.download_video(video_id, "my_video.mp4")
 ```
 
-## 🎨 Remix Feature
-
-The Remix feature allows you to modify specific aspects of an existing video while preserving its core elements like motion, composition, and camera movement.
-
-### Example
+### 2️⃣ Remixing Videos
 
 ```python
-# Original video: A robot walking at night
+# Remix an existing video
+remixed = client.remix_video(
+    video_id="video_xxxxx",  # Original video ID
+    prompt="Change the background to a beach with sunset"  # Transformation instruction
+)
+
+remix_id = remixed["id"]
+
+# Wait for completion and download
+client.wait_until_complete(remix_id)
+client.download_video(remix_id, "remixed_video.mp4")
+```
+
+## 📝 API Parameters
+
+### `create_video()` Parameters
+
+| Parameter | Type | Description | Options |
+|-----------|------|-------------|---------|
+| `prompt` | string | Video description (English works best) | - |
+| `size` | string | Video resolution | `"720x1280"` (Portrait)<br>`"1280x720"` (Landscape) |
+| `seconds` | string | Video duration | `"4"`, `"8"`, `"12"` |
+
+### `remix_video()` Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `video_id` | string | Original video ID |
+| `prompt` | string | Transformation instruction (describe what to change) |
+
+**Remix Features:**
+- ✅ Preserves original composition, motion, and camera movement
+- ✅ Automatically inherits size and duration from original
+- ✨ Only modifies specified details (colors, lighting, specific elements, etc.)
+
+## 💡 Remix Best Practices
+
+### ✅ Recommended Remix Usage
+
+1. **Color Adjustments**
+   ```python
+   "Change the color palette to warm tones"
+   "Make everything more vibrant and colorful"
+   ```
+
+2. **Lighting Changes**
+   ```python
+   "Change from night to daytime with bright sunlight"
+   "Add dramatic sunset lighting"
+   ```
+
+3. **Element Replacement**
+   ```python
+   "Change the red car to a blue car"
+   "Replace the cat with a dog"
+   ```
+
+4. **Style Tweaks**
+   ```python
+   "Add cinematic film grain"
+   "Make it look like a watercolor painting"
+   ```
+
+### ⚠️ Important Notes
+
+- **Change one aspect at a time** for best results
+- **Avoid complete transformations** (e.g., changing entire scene layout)
+- More specific prompts yield more precise results
+
+## 📂 Complete Example
+
+### Creating and Remixing a Video
+
+```python
+from sora_client import SoraVideoClient
+
+client = SoraVideoClient(
+    api_key="YOUR_API_KEY",
+    base_url="https://your-resource.openai.azure.com/openai/v1"
+)
+
+# 1. Create original video (night scene)
+print("Creating original video...")
 original = client.create_video(
     prompt="A robot walking in a futuristic city at night",
     size="1280x720",
@@ -66,8 +158,10 @@ original = client.create_video(
 
 original_id = original["id"]
 client.wait_until_complete(original_id)
+client.download_video(original_id, "robot_night.mp4")
 
-# Remix: Change to daytime while keeping the robot's motion
+# 2. Remix to daytime scene
+print("\nRemixing to daytime scene...")
 remixed = client.remix_video(
     video_id=original_id,
     prompt="Change to bright daytime with blue sky and sunshine"
@@ -75,154 +169,31 @@ remixed = client.remix_video(
 
 remix_id = remixed["id"]
 client.wait_until_complete(remix_id)
-
-# Download both versions
-client.download_video(original_id, "robot_night.mp4")
 client.download_video(remix_id, "robot_day.mp4")
+
+print("\n✅ Complete!")
+print("Compare robot_night.mp4 and robot_day.mp4")
+print("The robot's motion is identical, but lighting is different")
 ```
 
-**What Remix preserves:**
-- ✅ Original motion and animation
-- ✅ Camera angles and movements
-- ✅ Scene composition and framing
-- ✅ Object positions and trajectories
-
-**What you can change:**
-- ✨ Lighting conditions (night → day, sunset, etc.)
-- ✨ Color palette and tones
-- ✨ Individual elements (colors, materials, objects)
-- ✨ Visual style (cinematic, artistic effects)
-
-## 📖 API Reference
-
-### SoraVideoClient
-
-#### `__init__(api_key, base_url)`
-
-Initialize the Sora video client.
-
-**Parameters:**
-- `api_key` (str): Your Azure OpenAI API key
-- `base_url` (str): API endpoint URL (e.g., `https://your-resource.openai.azure.com/openai/v1`)
-
-#### `create_video(prompt, size="720x1280", seconds="4")`
-
-Create a new video from a text prompt.
-
-**Parameters:**
-- `prompt` (str): Text description of the video to generate
-- `size` (str): Video resolution
-  - `"720x1280"` - Portrait (default)
-  - `"1280x720"` - Landscape
-- `seconds` (str): Video duration - `"4"`, `"8"`, or `"12"`
-
-**Returns:** dict with video information including `id`
-
-#### `remix_video(video_id, prompt)`
-
-Remix an existing video with modifications.
-
-**Parameters:**
-- `video_id` (str): ID of the original completed video
-- `prompt` (str): Description of the changes to apply
-
-**Returns:** dict with new video information
-
-#### `get_status(video_id)`
-
-Get the current status of a video generation job.
-
-**Parameters:**
-- `video_id` (str): Video ID
-
-**Returns:** dict with status information
-
-#### `wait_until_complete(video_id, check_interval=20)`
-
-Wait for a video to complete generation.
-
-**Parameters:**
-- `video_id` (str): Video ID to wait for
-- `check_interval` (int): Seconds between status checks (default: 20)
-
-**Returns:** dict with completion info, or None if failed
-
-#### `download_video(video_id, filename)`
-
-Download a completed video.
-
-**Parameters:**
-- `video_id` (str): Video ID
-- `filename` (str): Local filename to save to
-
-**Returns:** bool indicating success
-
-## 💡 Best Practices
-
-### For Creating Videos
-
-1. **Be specific**: Include details about subject, action, setting, lighting, and camera movement
-2. **Single focus**: Keep prompts focused on one main idea
-3. **Use English**: English prompts generally produce the best results
-
-### For Remixing Videos
-
-1. **One change at a time**: Modify one aspect (lighting, color, or single element) for best results
-2. **Be precise**: Clear, specific instructions yield better fidelity
-3. **Avoid drastic changes**: Don't try to completely restructure the scene
-4. **Good examples**:
-   - ✅ "Change to daytime with bright sunlight"
-   - ✅ "Make the car red instead of blue"
-   - ✅ "Add warm golden hour lighting"
-   - ❌ "Completely change the scene to a beach"
-
-## 🎬 Demo
-
-Run the included demo to see creation and remix in action:
-
-```bash
-# Edit demo.py to add your API credentials
-python demo.py
-```
-
-This will:
-1. Create a video of a puppy playing in snow
-2. Remix it to change the snow to a beach
-3. Download both versions for comparison
-
-## 📊 Video Status States
+## 🎯 Video Status Values
 
 | Status | Description |
 |--------|-------------|
-| `queued` | Job is queued for processing |
-| `in_progress` | Video is being generated |
-| `completed` | Video is ready for download |
-| `failed` | Generation failed |
-| `cancelled` | Job was cancelled |
+| `queued` | Waiting in queue |
+| `in_progress` | Generating |
+| `completed` | Finished |
+| `failed` | Failed |
+| `cancelled` | Cancelled |
 
-## ⚠️ Limitations
+## 📞 Support
 
-- Maximum 2 concurrent video generation jobs
-- Videos are available for download for 24 hours after creation
-- Remix requires the source video to be in `completed` status
-- Video size and duration are inherited from the original video when remixing
-
-## 📝 Examples
-
-See `sora_client.py` for complete examples including:
-- `example_create_video()` - Basic video creation
-- `example_remix_video()` - Remixing an existing video
-- `example_complete_workflow()` - Full creation + remix workflow
-
-## 🔗 Resources
-
+For questions, please refer to:
 - [Azure OpenAI Documentation](https://learn.microsoft.com/azure/ai-foundry/openai/concepts/video-generation)
 - [Sora API Reference](https://platform.openai.com/docs/guides/video-generation)
 
-## 📄 License
+## ⚖️ Limitations
 
-MIT License - Feel free to use this in your projects!
-
-## 🤝 Contributing
-
-Issues and pull requests are welcome!
+- Maximum 2 concurrent video generation tasks
+- Videos available for download for 24 hours after generation
+- Remix requires original video to be in `completed` status
