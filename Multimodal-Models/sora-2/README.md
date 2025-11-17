@@ -25,20 +25,6 @@ https://github.com/user-attachments/assets/d291077f-4a70-42cb-ae39-fb2098e1ee1e
 pip install requests
 ```
 
-## 🔑 API Configuration
-
-1. Get your Azure OpenAI resource information:
-   - API Key
-   - Endpoint URL
-
-2. Configure in your code:
-```python
-client = SoraVideoClient(
-    api_key="YOUR_API_KEY",  # Replace with your API Key
-    base_url="https://your-resource.openai.azure.com/openai/v1"  # Replace with your endpoint
-)
-```
-
 ## 🚀 Quick Start
 
 ### Running the Interactive Demo
