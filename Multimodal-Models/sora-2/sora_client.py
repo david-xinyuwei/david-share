@@ -1,17 +1,3 @@
-"""
-Azure Sora-2 视频生成和 Remix 功能示例代码
-
-功能：
-1. 创建视频 - 从文本提示词生成视频
-2. Remix 视频 - 修改已有视频的细节（保留核心结构）
-3. 查询状态 - 轮询视频生成进度
-4. 下载视频 - 保存生成的视频文件
-
-使用前准备：
-1. pip install requests
-2. 设置您的 API Key 和 Endpoint
-"""
-
 import requests
 import json
 import time
