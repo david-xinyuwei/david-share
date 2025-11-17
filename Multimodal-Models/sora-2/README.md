@@ -2,6 +2,10 @@
 
 A Python client library for Azure OpenAI's Sora-2 video generation API, featuring video creation from text prompts and the powerful Remix capability to modify existing videos while preserving their core structure.
 
+https://github.com/user-attachments/assets/41ed7ab4-d299-4d43-abcc-e776085dd627
+
+https://github.com/user-attachments/assets/d291077f-4a70-42cb-ae39-fb2098e1ee1e
+
 https://github.com/user-attachments/assets/5710dba4-7adc-4188-baa1-8993ba2c09a3
 
 https://github.com/user-attachments/assets/0c8e3d0a-fb03-4b35-a96b-7df86bc3b8b6
