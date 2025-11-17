@@ -7,7 +7,7 @@ This demo will:
 3. Download both versions for comparison
 """
 
-from sora_client_en import SoraVideoClient
+from sora_client import SoraVideoClient
 
 # ========== Configuration ==========
 # Replace with your actual credentials
