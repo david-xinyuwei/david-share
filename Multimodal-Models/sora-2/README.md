@@ -1,4 +1,19 @@
 # Azure Sora-2 Video Generation and Remix Guide
+A Python client library for Azure OpenAI's Sora-2 video generation API, featuring video creation from text prompts and the powerful Remix capability to modify existing videos while preserving their core structure.
+
+a beautiful gril in a car
+https://github.com/user-attachments/assets/1765d958-6e13-473c-aa0d-ef4052cee0ac
+
+Transform the scene to golden hour sunset with warm orange lighting
+https://github.com/user-attachments/assets/c5d0571b-2e3a-4d64-ba05-c8d057f16fdb
+
+A hot air balloon floating over mountains at sunset
+https://github.com/user-attachments/assets/41ed7ab4-d299-4d43-abcc-e776085dd627
+
+Change the sunset to early morning with soft sunrise light
+https://github.com/user-attachments/assets/d291077f-4a70-42cb-ae39-fb2098e1ee1e
+
+
 
 ## 📦 Installation
 
