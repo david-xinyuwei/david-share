@@ -1,16 +1,15 @@
 """
-Azure Sora-2 Video Generation and Remix Client
+Azure Sora-2 视频生成和 Remix 功能示例代码
 
-A Python SDK for Azure OpenAI's Sora-2 video generation API.
+功能：
+1. 创建视频 - 从文本提示词生成视频
+2. Remix 视频 - 修改已有视频的细节（保留核心结构）
+3. 查询状态 - 轮询视频生成进度
+4. 下载视频 - 保存生成的视频文件
 
-Features:
-1. Create videos from text prompts
-2. Remix existing videos (modify details while preserving structure)
-3. Poll generation status with progress tracking
-4. Download generated video files
-
-Requirements:
-pip install requests
+使用前准备：
+1. pip install requests
+2. 设置您的 API Key 和 Endpoint
 """
 
 import requests
@@ -19,15 +18,15 @@ import time
 
 
 class SoraVideoClient:
-    """Azure Sora-2 Video Generation Client"""
+    """Azure Sora-2 视频生成客户端"""
     
     def __init__(self, api_key, base_url):
         """
-        Initialize the Sora video client
+        初始化客户端
         
         Args:
             api_key: Azure OpenAI API Key
-            base_url: API Endpoint (e.g., https://your-resource.openai.azure.com/openai/v1)
+            base_url: API Endpoint (例如: https://your-resource.openai.azure.com/openai/v1)
         """
         self.api_key = api_key
         self.base_url = base_url.rstrip('/')
@@ -38,15 +37,15 @@ class SoraVideoClient:
     
     def create_video(self, prompt, size="720x1280", seconds="4"):
         """
-        Create a new video from text prompt
+        创建视频
         
         Args:
-            prompt: Text description of the desired video
-            size: Video resolution (options: "720x1280", "1280x720")
-            seconds: Video duration (options: "4", "8", "12")
+            prompt: 视频描述提示词
+            size: 视频分辨率 (可选: "720x1280", "1280x720")
+            seconds: 视频时长 (可选: "4", "8", "12")
         
         Returns:
-            dict: Response containing video_id and metadata
+            dict: 包含 video_id 的响应
         """
         url = f"{self.base_url}/videos"
         data = {
@@ -56,20 +55,32 @@ class SoraVideoClient:
             "seconds": seconds
         }
         
-        response = requests.post(url, headers=self.headers, json=data)
-        response.raise_for_status()
-        return response.json()
+        try:
+            response = requests.post(url, headers=self.headers, json=data)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.HTTPError:
+            # Print detailed error information
+            error_detail = ""
+            try:
+                error_detail = response.json()
+            except Exception:
+                error_detail = response.text
+            print("\n❌ API Error Details:")
+            print(f"   Status Code: {response.status_code}")
+            print(f"   Response: {error_detail}")
+            raise
     
     def remix_video(self, video_id, prompt):
         """
-        Remix an existing video - modify specific aspects while preserving core structure
+        Remix 视频 - 修改已有视频的细节
         
         Args:
-            video_id: ID of the source video (must be completed)
-            prompt: Description of the changes to apply
+            video_id: 原始视频 ID
+            prompt: 修改指令（描述要改变的内容）
         
         Returns:
-            dict: Response containing new video_id
+            dict: 包含新 video_id 的响应
         """
         url = f"{self.base_url}/videos/{video_id}/remix"
         data = {
@@ -82,13 +93,13 @@ class SoraVideoClient:
     
     def get_status(self, video_id):
         """
-        Query video generation status
+        查询视频生成状态
         
         Args:
-            video_id: Video ID to check
+            video_id: 视频 ID
         
         Returns:
-            dict: Status information including current state and progress
+            dict: 包含状态信息的响应
         """
         url = f"{self.base_url}/videos/{video_id}"
         response = requests.get(url, headers=self.headers)
@@ -97,43 +108,43 @@ class SoraVideoClient:
     
     def wait_until_complete(self, video_id, check_interval=20):
         """
-        Wait for video generation to complete
+        等待视频生成完成
         
         Args:
-            video_id: Video ID to wait for
-            check_interval: Seconds between status checks
+            video_id: 视频 ID
+            check_interval: 检查间隔（秒）
         
         Returns:
-            dict: Completion info if successful, None if failed
+            dict: 完成后的视频信息，失败返回 None
         """
-        print(f"⏳ Waiting for video generation... (ID: {video_id})")
+        print(f"⏳ 等待视频生成... (ID: {video_id})")
         
         while True:
             info = self.get_status(video_id)
             status = info.get("status")
             progress = info.get("progress", 0)
             
-            print(f"   Status: {status:15} | Progress: {progress}%")
+            print(f"   状态: {status:15} | 进度: {progress}%")
             
             if status == "completed":
-                print("✅ Generation completed!")
+                print("✅ 生成完成！")
                 return info
             elif status in ["failed", "cancelled"]:
-                print(f"❌ Generation failed: {status}")
+                print(f"❌ 生成失败: {status}")
                 return None
             
             time.sleep(check_interval)
     
     def download_video(self, video_id, filename):
         """
-        Download completed video to local file
+        下载视频
         
         Args:
-            video_id: Video ID to download
-            filename: Local filename to save as
+            video_id: 视频 ID
+            filename: 保存的文件名
         
         Returns:
-            bool: True if download successful
+            bool: 下载是否成功
         """
         url = f"{self.base_url}/videos/{video_id}/content"
         
@@ -144,23 +155,23 @@ class SoraVideoClient:
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
         
-        print(f"✅ Video saved: {filename}")
+        print(f"✅ 视频已保存: {filename}")
         return True
 
 
-# ========== Usage Examples ==========
+# ========== 使用示例 ==========
 
 def example_create_video():
-    """Example 1: Create a video"""
+    """示例 1: 创建视频"""
     
-    # Initialize client
+    # 初始化客户端
     client = SoraVideoClient(
         api_key="YOUR_API_KEY",
         base_url="https://your-resource.openai.azure.com/openai/v1"
     )
     
-    # Create video
-    print("【Creating Video】")
+    # 创建视频
+    print("【创建视频】")
     result = client.create_video(
         prompt="A cute cat playing with a ball in a sunny garden",
         size="720x1280",
@@ -168,57 +179,57 @@ def example_create_video():
     )
     
     video_id = result["id"]
-    print(f"Video ID: {video_id}\n")
+    print(f"视频 ID: {video_id}\n")
     
-    # Wait for completion
+    # 等待完成
     info = client.wait_until_complete(video_id)
     
     if info:
-        # Download video
+        # 下载视频
         client.download_video(video_id, "my_video.mp4")
 
 
 def example_remix_video():
-    """Example 2: Remix a video"""
+    """示例 2: Remix 视频"""
     
     client = SoraVideoClient(
         api_key="YOUR_API_KEY",
         base_url="https://your-resource.openai.azure.com/openai/v1"
     )
     
-    # Assume we have an existing video ID
+    # 假设已有一个视频 ID
     original_video_id = "video_xxxxx"
     
-    # Remix the video
-    print("【Remixing Video】")
+    # Remix 视频
+    print("【Remix 视频】")
     result = client.remix_video(
         video_id=original_video_id,
         prompt="Change the background to a beach with sunset"
     )
     
     remix_id = result["id"]
-    print(f"New Video ID: {remix_id}")
-    print(f"Source Video: {result.get('remixed_from_video_id')}\n")
+    print(f"新视频 ID: {remix_id}")
+    print(f"源视频 ID: {result.get('remixed_from_video_id')}\n")
     
-    # Wait for completion
+    # 等待完成
     info = client.wait_until_complete(remix_id)
     
     if info:
-        # Download remixed video
+        # 下载 Remix 视频
         client.download_video(remix_id, "remixed_video.mp4")
 
 
 def example_complete_workflow():
-    """Example 3: Complete workflow - Create + Remix"""
+    """示例 3: 完整工作流 - 创建 + Remix"""
     
     client = SoraVideoClient(
         api_key="YOUR_API_KEY",
         base_url="https://your-resource.openai.azure.com/openai/v1"
     )
     
-    # Step 1: Create original video
+    # 步骤 1: 创建原始视频
     print("="*60)
-    print("Step 1: Create Original Video")
+    print("步骤 1: 创建原始视频")
     print("="*60)
     
     original = client.create_video(
@@ -228,18 +239,18 @@ def example_complete_workflow():
     )
     
     original_id = original["id"]
-    print(f"Original Video ID: {original_id}\n")
+    print(f"原始视频 ID: {original_id}\n")
     
-    # Wait for original video
+    # 等待原始视频完成
     if not client.wait_until_complete(original_id):
         return
     
-    # Download original
+    # 下载原始视频
     client.download_video(original_id, "original.mp4")
     
-    # Step 2: Remix the video
+    # 步骤 2: Remix 视频
     print("\n" + "="*60)
-    print("Step 2: Remix Video")
+    print("步骤 2: Remix 视频")
     print("="*60)
     
     remixed = client.remix_video(
@@ -248,32 +259,32 @@ def example_complete_workflow():
     )
     
     remix_id = remixed["id"]
-    print(f"Remix Video ID: {remix_id}\n")
+    print(f"Remix 视频 ID: {remix_id}\n")
     
-    # Wait for remix
+    # 等待 Remix 完成
     if not client.wait_until_complete(remix_id):
         return
     
-    # Download remixed video
+    # 下载 Remix 视频
     client.download_video(remix_id, "remixed.mp4")
     
     print("\n" + "="*60)
-    print("✅ Complete!")
+    print("✅ 完成！")
     print("="*60)
-    print("Generated files:")
-    print("  - original.mp4 (night scene)")
-    print("  - remixed.mp4 (daytime scene)")
+    print("生成文件:")
+    print("  - original.mp4 (夜晚场景)")
+    print("  - remixed.mp4 (白天场景)")
 
 
 if __name__ == "__main__":
-    # Run examples
-    print("Choose an example to run:")
-    print("1. Create video")
-    print("2. Remix video")
-    print("3. Complete workflow (Create + Remix)")
-    print("\nPlease update API_KEY and base_url in the code before running")
+    # 运行示例
+    print("请选择要运行的示例:")
+    print("1. 创建视频")
+    print("2. Remix 视频")
+    print("3. 完整工作流（创建 + Remix）")
+    print("\n请修改代码中的 API_KEY 和 base_url 后运行相应的函数")
     
-    # Uncomment to run examples
+    # 取消注释以运行示例
     # example_create_video()
     # example_remix_video()
     # example_complete_workflow()
