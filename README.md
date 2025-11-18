@@ -88,7 +88,7 @@ Complete implementations and examples from the acclaimed book series on large la
 **"Principles, Training, and Applications of Large Language Models"**
 
 <div align="center">
-<img src="https://github.com/davidsajare/david-share/blob/master/IMAGES/5.png" width="300" height="400">
+<img src="https://raw.githubusercontent.com/david-xinyuwei/david-share/master/IMAGES/5.png" width="300" height="400">
 </div>
 
 - 🔗 **Repository**: [Code Examples](https://github.com/xinyuwei-david/david-share/tree/master/Code-of-Book)
@@ -98,28 +98,28 @@ Complete implementations and examples from the acclaimed book series on large la
 
 #### 🏦 Financial Services IT Construction (2022)
 <div align="center">
-<img src="https://github.com/davidsajare/david-share/blob/master/IMAGES/4.png" width="250" height="350">
+<img src="https://raw.githubusercontent.com/david-xinyuwei/david-share/master/IMAGES/4.png" width="250" height="350">
 </div>
 
 - 🔗 **Repository**: [FSI-IT-Construction](https://github.com/xinyuwei-david/FSI-IT-construction)
 
 #### ☁️ Microservices & DevOps (2021)
 <div align="center">
-<img src="https://github.com/davidsajare/david-share/blob/master/IMAGES/3.png" width="250" height="350">
+<img src="https://raw.githubusercontent.com/david-xinyuwei/david-share/master/IMAGES/3.png" width="250" height="350">
 </div>
 
 - 🔗 **Repository**: [MSA-DevOps](https://github.com/ocp-msa-devops/Version-2.git)
 
 #### 🐳 Cloud Native Applications with OpenShift (2020)
 <div align="center">
-<img src="https://github.com/davidsajare/david-share/blob/master/IMAGES/2.png" width="250" height="350">
+<img src="https://raw.githubusercontent.com/david-xinyuwei/david-share/master/IMAGES/2.png" width="250" height="350">
 </div>
 
 - 🔗 **Repository**: [OpenShift Applications](https://github.com/xinyuwei-david/Building-Cloud-Native-Applications-with-OpenShift.git)
 
 #### 🚀 Foundational Work (2019)
 <div align="center">
-<img src="https://github.com/davidsajare/david-share/blob/master/IMAGES/1.png" width="250" height="350">
+<img src="https://raw.githubusercontent.com/david-xinyuwei/david-share/master/IMAGES/1.png" width="250" height="350">
 </div>
 
 ---
