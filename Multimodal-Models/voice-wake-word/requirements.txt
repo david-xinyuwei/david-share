@@ -1,0 +1,16 @@
+# Core dependencies
+torch>=2.0.0
+numpy>=1.21.0
+librosa>=0.9.0
+matplotlib>=3.5.0
+scikit-learn>=1.0.0
+tqdm>=4.62.0
+
+# Optional: Jupyter notebook support
+jupyter>=1.0.0
+notebook>=6.4.0
+ipywidgets>=7.6.0
+
+# Optional: For audio processing
+soundfile>=0.11.0
+scipy>=1.7.0

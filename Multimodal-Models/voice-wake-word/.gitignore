@@ -1,0 +1,91 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+ENV/
+env/
+.env
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*_backup_*.ipynb
+Cheseka-training_models (1).ipynb
+training_models (1).ipynb
+training_models_clean.ipynb
+Cheseka-training_models_clean_backup_*.ipynb
+
+# Data files (too large for git)
+*.npy
+*.wav
+*.mp3
+*.flac
+data/
+datasets/
+
+# Model checkpoints
+*.pth
+*.pt
+*.ckpt
+models/*.pth
+
+# Results and outputs
+results/
+outputs/
+*.png
+!model_test_results.png
+*.jpg
+*.pdf
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+temp/
+tmp/
+
+# Deployment scripts (may contain sensitive info)
+deploy_to_gpu_vm.sh
+upload_to_vm.ps1
+restart_jupyter*.sh
+restart_jupyter*.ps1
+
+# Documentation in other languages
+数据集清单.md
+link.md
+MANUAL_SETUP.md
+QUICK_START.md
+README_DEPLOYMENT.md
