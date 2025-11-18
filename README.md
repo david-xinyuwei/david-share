@@ -3,7 +3,7 @@
 <div align="center">
 
 [![GitHub stars](https://img.shields.io/github/stars/david-xinyuwei/david-share?style=for-the-badge)](https://github.com/david-xinyuwei/david-share/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/david-xinyuwei/david-share?style=for-the-badge)](https://github.com/david-xinyuwei/david-share/network)
+[![GitHub issues](https://img.shields.io/github/issues/david-xinyuwei/david-share?style=for-the-badge)](https://github.com/david-xinyuwei/david-share/issues)
 [![GitHub issues](https://img.shields.io/github/issues/david-xinyuwei/david-share?style=for-the-badge)](https://github.com/david-xinyuwei/david-share/issues)
 [![License](https://img.shields.io/github/license/david-xinyuwei/david-share?style=for-the-badge)](LICENSE)
 
