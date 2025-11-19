@@ -100,10 +100,10 @@ The notebook requires three data files:
 - **Source**: Common Voice dataset, background noise, music, non-target speech
 
 ### 3. Test Audio
-- **File**: `santa_barbara_corpus_test_clip.wav`
+- **File**: `santa_barbara_corpus_test_clip.wav` (or any long-form speech audio)
 - **Content**: 49.2 minutes of natural English conversation (no wake word)
 - **Format**: 16kHz mono WAV
-- **Source**: [Santa Barbara Corpus of Spoken American English](https://www.linguistics.ucsb.edu/research/santa-barbara-corpus)
+- **Note**: Test audio not included in repository. Use any long-form speech recording without wake words for validation.
 
 ### Generating Your Own Data
 
