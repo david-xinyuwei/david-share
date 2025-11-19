@@ -62,8 +62,8 @@ Required packages:
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/yourusername/wake-word-hard-negatives.git
-cd wake-word-hard-negatives
+git clone https://github.com/david-xinyuwei/david-share.git
+cd Multimodal-Models/wake-word-hard-negatives
 ```
 
 2. **Prepare data files** (see [Data Requirements](#data-requirements))
@@ -332,26 +332,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Baseline Approach**: Inspired by [OpenWakeWord](https://github.com/dscripka/openWakeWord)
 - **Data Philosophy**: [Data-Centric AI](https://datacentricai.org/) by Andrew Ng
 
-## 📚 Citation
-
-If you use this work in your research, please cite:
-
-```bibtex
-@misc{wakeword_hardnegatives_2024,
-  title={Wake Word Detection: Hard Negative Mining Approach},
-  author={Your Name},
-  year={2024},
-  publisher={GitHub},
-  url={https://github.com/yourusername/wake-word-hard-negatives}
-}
-```
-
-## 📧 Contact
-
-For questions or collaborations:
-- Open an issue on GitHub
-- Email: your.email@example.com
-
----
-
-**Built with ❤️ demonstrating that data quality beats algorithmic complexity**
