@@ -1,0 +1,187 @@
+## 3. Git提交代码提示词（支持多仓库多目录）
+
+```markdown
+请将当前调试成功的代码及相关文件提交到GitHub仓库。
+
+---
+
+**第一步：选择目标仓库**
+
+询问用户选择要提交到哪个仓库：
+
+**选项A - 公有仓库：**
+- 仓库名称：`david-share`
+- 仓库URL：`https://github.com/david-xinyuwei/david-share.git`
+- 可选的一级目录：
+  - `Multimodal-Models/`
+  - `GPUs/`
+  - `Deep-Learning/`
+  - `Agents/`
+
+**选项B - 私有仓库：**
+- 仓库名称：`Backend-of-david-share`
+- 仓库URL：`https://github.com/david-xinyuwei/Backend-of-david-share.git`
+- 可选的一级目录：
+  - `Working-Projects/`
+  - `Multimodal-Models/`
+  - `GPUs/`
+  - `Deep-Learning/`
+  - `Agents/`
+
+---
+
+**第二步：确定项目路径**
+
+询问用户：
+1. 选择哪个一级目录？（从上述可选目录中选择）
+2. 二级项目目录名称是什么？（即具体项目名）
+
+**最终路径结构**：
+- 格式：`{一级目录}/{项目名}/`
+- 公有仓库示例：`GPUs/uniad-h100-validation/`
+- 私有仓库示例：`Working-Projects/backend-api/`
+
+---
+
+**第三步：确定要提交的文件**
+
+自动收集或询问用户：
+
+**必须包含**：
+1. 所有源代码文件
+2. `README.md`（项目说明文档）
+3. 依赖文件（如 `requirements.txt`、`package.json`、`requirements.in` 等）
+4. 配置文件（如 `config.json`、`.env.example`、`setup.sh` 等）
+
+**可选包含**：
+5. 文档文件（如测试报告、性能分析等 `.md` 文件）
+6. 资源文件（如数据集示例、图片等）
+7. `.gitignore` 文件（如果需要）
+
+**不要包含**：
+- ❌ 敏感信息（密钥、密码、API token等）
+- ❌ 大型数据文件（> 100MB）
+- ❌ 编译产物（如 `__pycache__`、`node_modules` 等）
+- ❌ 临时文件
+
+---
+
+**第四步：执行Git操作**
+
+使用 Git sparse-checkout 技术，避免克隆整个仓库：
+
+```powershell
+# 1. Sparse checkout 指定目录
+git clone --filter=blob:none --sparse {仓库URL} temp_repo
+cd temp_repo
+git sparse-checkout init --cone
+git sparse-checkout set {一级目录}
+
+# 2. 创建或进入项目目录
+mkdir -p {一级目录}/{项目名}
+cd {一级目录}/{项目名}
+
+# 3. 复制文件（从 workspace 复制到仓库目录）
+# 使用 copy 命令或 xcopy 复制所有需要的文件
+
+# 4. 验证文件结构
+ls -R
+
+# 5. 提交并推送
+git add .
+git commit -m "Add {项目名} - {功能描述} (YYYY-MM-DD)"
+git push origin main
+
+# 6. 清理临时目录
+cd ../../..
+rm -rf temp_repo
+```
+
+---
+
+**第五步：生成提交信息**
+
+**格式要求**：
+
+```
+Add {项目名} - {功能描述} (YYYY-MM-DD)
+```
+
+**示例**：
+
+- `Add uniad-h100-validation - H100单GPU性能验证指南 (2025-11-12)`
+- `Add bevformer-cuda12 - CUDA 12环境完整部署脚本 (2025-11-12)`
+- `Add backend-api - 实现用户认证功能 (2025-11-12)`
+
+**如果是更新现有项目**，使用 `Update` 代替 `Add`：
+
+- `Update uniad-h100-validation - 添加BF16加速测试 (2025-11-12)`
+
+---
+
+**第六步：验证提交成功**
+
+自动或指导用户验证：
+
+- ✅ 访问GitHub仓库页面
+- ✅ 检查目录结构：`{一级目录}/{项目名}/`
+- ✅ 验证 `README.md` 在GitHub上正常显示
+- ✅ 确认所有文件已成功上传
+- ✅ 检查提交记录和提交信息
+
+---
+
+**交互示例**：
+
+```
+AI: 请选择要提交到哪个仓库？
+    A. 公有仓库 (david-share)
+    B. 私有仓库 (Backend-of-david-share)
+
+用户: A
+
+AI: 您选择了公有仓库。请选择一级目录：
+    1. Multimodal-Models/
+    2. GPUs/
+    3. Deep-Learning/
+    4. Agents/
+
+用户: 2
+
+AI: 您选择了 GPUs/。请提供项目名称（二级目录名）：
+
+用户: uniad-h100-validation
+
+AI: 确认信息：
+    - 仓库：https://github.com/david-xinyuwei/david-share.git
+    - 路径：GPUs/uniad-h100-validation/
+    - 日期：2025-11-12
+    
+    需要提交哪些文件？（回复 "自动" 让我扫描，或列出文件清单）
+
+用户: 自动
+
+AI: 已扫描到以下文件：
+    - H100_UniAD_Quick_Validation.md
+    - UniAD_Training_Performance_Report.md
+    - setup_bevformer_cuda12_h200.sh
+    - README.md（需要创建）
+    
+    是否继续提交？(Y/N)
+
+用户: Y
+
+AI: [执行 git 操作...]
+    ✅ 提交成功！
+    查看地址：https://github.com/david-xinyuwei/david-share/tree/main/GPUs/uniad-h100-validation
+```
+
+---
+
+**注意事项**：
+
+1. ⚠️ **如果项目已存在**，会覆盖现有文件（请谨慎操作）
+2. ⚠️ **确保本地代码已调试成功**再提交
+3. 🔐 **私有仓库需要GitHub认证**（PAT 或 SSH密钥）
+4. 🧪 **提交前验证**：确保文件路径正确，代码可运行
+5. 📝 **README.md**：如果不存在，建议自动生成一个基础版本
