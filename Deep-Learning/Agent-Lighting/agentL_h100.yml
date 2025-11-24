@@ -1,0 +1,31 @@
+name: agentL
+channels:
+  - defaults
+  - https://repo.anaconda.com/pkgs/main
+  - https://repo.anaconda.com/pkgs/r
+dependencies:
+  - python=3.11.14
+  - pip=25.3
+  - pip:
+      - accelerate
+      - agentlightning
+      - agentops
+      - datasets
+      - flash-attn
+      - huggingface-hub
+      - hydra-core
+      - numpy
+      - openai
+      - pandas
+      - peft
+      - protobuf
+      - ray
+      - torch
+      - torchaudio
+      - torchvision
+      - transformers
+      - triton
+      - verl
+      - vllm
+      - wandb
+      - xformers
