@@ -1,42 +1,44 @@
-﻿# AI Super Agent: H100 训练验证项目
+﻿# Agent Lightning: End-to-End Deep Reasoning Training
 
-##  项目概述
+[中文文档](README-CN.md) | English
 
-本项目验证了在 **Azure H100 (80GB)** 环境下,使用 **Agent Lightning + GRPO 算法**训练数学推理Agent的完整流程。
+##  Project Overview
 
-**核心成果**:
--  使用 Azure OpenAI GPT-5.1 生成 5000+ 高质量数学训练数据
--  GRPO算法训练 Qwen2.5-3B 模型,节省50%显存
--  **MATH数据集(高中竞赛题): 69.0%  73.0% (+4.0%)**
--  GSM8K数据集(小学应用题): 81.0%  84.0% (+3.0%)
--  实现类似OpenAI o1的深度推理能力(Deep Thinking)
+This project demonstrates a complete end-to-end workflow for training a mathematical reasoning agent using **Agent Lightning + GRPO algorithm** on **Azure H100 (80GB)**. From data generation to model evaluation, all steps have been validated on production hardware.
+
+**Key Achievements**:
+-  Generated 5,000+ high-quality math problems using Azure OpenAI GPT-5.1
+-  Trained Qwen2.5-3B with GRPO algorithm, saving 50% GPU memory
+-  **MATH dataset (high school competition): 69.0%  73.0% (+4.0%)**
+-  GSM8K dataset (grade school): 81.0%  84.0% (+3.0%)
+-  Achieved OpenAI o1-like deep thinking capabilities
 
 ---
 
-##  端到端训练流程
+##  End-to-End Training Pipeline
 
 ```mermaid
 graph TB
-    subgraph stage1[" 阶段1: 数据生成 (Azure OpenAI)"]
-        env[环境变量<br/>AZURE_OPENAI_ENDPOINT<br/>AZURE_OPENAI_API_KEY<br/>AZURE_OPENAI_DEPLOYMENT]
+    subgraph stage1[" Stage 1: Data Generation (Azure OpenAI)"]
+        env[Environment Variables<br/>AZURE_OPENAI_ENDPOINT<br/>AZURE_OPENAI_API_KEY<br/>AZURE_OPENAI_DEPLOYMENT]
         gpt[GPT-5.1 Chat]
-        script1[generate_training_data_gpt5.py<br/> 生成5000+数学应用题<br/> 包含答案和详细解题步骤<br/> 保存为Parquet格式]
-        data1[ 训练数据<br/>train_gpt5_large.parquet 5000+<br/>test_gpt5_large.parquet 500]
+        script1[generate_training_data_gpt5.py<br/> Generate 5000+ math problems<br/> Include answers and reasoning steps<br/> Save as Parquet format]
+        data1[ Training Data<br/>train_gpt5_large.parquet 5000+<br/>test_gpt5_large.parquet 500]
         
         env -->|Azure OpenAI API| gpt
         gpt --> script1
         script1 --> data1
     end
 
-    subgraph stage2[" 阶段2: 强化学习训练 (GRPO + vLLM)"]
+    subgraph stage2["⚡ Stage 2: RL Training (GRPO + vLLM)"]
         script2[train_math_agent_vllm.py]
-        vllm[1 启动vLLM服务器<br/> Qwen2.5-3B-Instruct<br/> OpenAI兼容API :8000]
-        grpo[2 GRPO训练流程]
-        actor[Actor 策略模型<br/> 生成回答 4采样/题<br/> 包含<think>推理过程]
-        reward[Reward Function<br/> 结构奖励 +0.5<br/> 正确性奖励 +2.0<br/> 深度奖励 +0.5<br/> 长度奖励 0~1.0]
-        ref[Reference Model<br/> 冻结初始模型<br/> KL散度约束]
-        metrics[📈 训练指标<br/>reward: 2.88/4.0<br/>length: 395 tokens<br/>max_score: 4.0]
-        ckpt[💾 Checkpoint<br/>checkpoints/math_agent/<br/>global_step_100/<br/>包含LoRA权重]
+        vllm[1️⃣ Launch vLLM Server<br/>• Qwen2.5-3B-Instruct<br/> OpenAI-compatible API :8000]
+        grpo[2 GRPO Training Loop]
+        actor[Actor Policy Model<br/> Generate 4 samples/question<br/> Include think reasoning]
+        reward[Reward Function<br/> Structure reward +0.5<br/> Correctness reward +2.0<br/>✓ Depth reward +0.5<br/>✓ Length reward 0~1.0]
+        ref[Reference Model<br/>• Frozen initial model<br/>• KL divergence constraint]
+        metrics[ Training Metrics<br/>reward: 2.88/4.0<br/>length: 395 tokens<br/>max_score: 4.0]
+        ckpt[ Checkpoint<br/>checkpoints/math_agent/<br/>global_step_100/<br/>Contains LoRA weights]
         
         script2 --> vllm
         vllm --> grpo
@@ -47,26 +49,26 @@ graph TB
         metrics --> ckpt
     end
 
-    subgraph stage3[" 阶段3: 模型格式转换"]
-        script3[convert_checkpoint.py<br/> LoRA合并到Base Model<br/> 生成HuggingFace格式<br/> 可直接推理或部署]
-        merged[ 完整模型<br/>merged_model/<br/>pytorch_model.bin<br/>config.json<br/>tokenizer files]
+    subgraph stage3[" Stage 3: Model Conversion"]
+        script3[convert_checkpoint.py<br/> Merge LoRA into Base Model<br/> Generate HuggingFace format<br/> Ready for inference/deployment]
+        merged[ Full Model<br/>merged_model/<br/>pytorch_model.bin<br/>config.json<br/>tokenizer files]
         
         script3 --> merged
     end
 
-    subgraph stage4[" 阶段4: 双数据集评估"]
+    subgraph stage4[" Stage 4: Dual Dataset Evaluation"]
         script4[run_full_evaluation_v5.sh]
-        datasets[准备数据集]
-        gsm8k[ GSM8K 小学-初中<br/>1319题应用题]
-        math[ MATH 高中竞赛<br/>5000题难题]
+        datasets[Prepare Datasets]
+        gsm8k[ GSM8K Grade School<br/>1,319 word problems]
+        math[ MATH Competition<br/>5,000 hard problems]
         
-        eval_base[Base Model推理]
-        eval_trained[Trained Model推理]
-        judge[judge_with_llm.py<br/>GPT-5.1评判]
+        eval_base[Base Model Inference]
+        eval_trained[Trained Model Inference]
+        judge[judge_with_llm.py<br/>GPT-5.1 Judge]
         
-        results[ 评估结果]
-        result_gsm8k[GSM8K<br/>81.0%  84.0%<br/>提升 +3.0%]
-        result_math[ MATH<br/>69.0%  73.0%<br/>提升 +4.0%]
+        results[ Results]
+        result_gsm8k[GSM8K<br/>81.0%  84.0%<br/>+3.0% improvement]
+        result_math[ MATH<br/>69.0%  73.0%<br/>+4.0% improvement]
         
         script4 --> datasets
         datasets --> gsm8k
@@ -80,9 +82,9 @@ graph TB
         results --> result_math
     end
 
-    data1 ==>|训练数据| script2
-    ckpt ==>|LoRA权重| script3
-    merged ==>|完整模型| script4
+    data1 ==>|Training Data| script2
+    ckpt ==>|LoRA Weights| script3
+    merged ==>|Full Model| script4
 
     classDef stageClass fill:#e1f5ff,stroke:#0288d1,stroke-width:3px,color:#01579b
     classDef scriptClass fill:#fff3e0,stroke:#f57c00,stroke-width:2px
@@ -99,27 +101,27 @@ graph TB
     class result_math highlightClass
 ```
 
-> ** 核心亮点**: MATH数据集(高中竞赛级难题)准确率提升**4个百分点**(69%73%),证明Deep Thinking策略在复杂推理任务上效果显著!
+> ** Key Insight**: MATH dataset (high school competition problems) shows **4 percentage point improvement** (69%73%), proving Deep Thinking strategy excels at complex reasoning tasks!
 
 ---
 
-##  快速开始(4步完整流程)
+##  Quick Start (4 Steps)
 
-### 步骤1: 生成训练数据
+### Step 1: Generate Training Data
 ```bash
 python generate_training_data_gpt5.py
-# 输出: data/train_gpt5_large.parquet (5000+条)
-#      data/test_gpt5_large.parquet (500条)
+# Output: data/train_gpt5_large.parquet (5000+ samples)
+#         data/test_gpt5_large.parquet (500 samples)
 ```
 
-### 步骤2: 训练模型
+### Step 2: Train Model
 ```bash
 python train_math_agent_vllm.py
-# 训练时长: H100约2小时, A100约3小时
-# 输出: checkpoints/math_agent/global_step_100/
+# Duration: H100 ~2 hours, A100 ~3 hours
+# Output: checkpoints/math_agent/global_step_100/
 ```
 
-### 步骤3: 转换模型
+### Step 3: Convert Model
 ```bash
 python convert_checkpoint.py \
     --checkpoint_dir checkpoints/math_agent/global_step_100 \
@@ -127,289 +129,286 @@ python convert_checkpoint.py \
     --output_dir merged_model
 ```
 
-### 步骤4: 评估性能
+### Step 4: Evaluate Performance
 ```bash
-# 准备数据集
+# Prepare datasets
 python prepare_gsm8k.py
 python prepare_math.py
 
-# 一键评估
+# Run evaluation
 bash run_full_evaluation_v5.sh
-# 输出: validation_report.txt
+# Output: validation_report.txt
 ```
 
 ---
 
-##  实验结果详解
+##  Experimental Results
 
-### 双数据集对比评估
+### Dual Dataset Comparison
 
-| 数据集 | 难度等级 | 题目数量 | Base Model | Trained Model | **提升幅度** |
-|--------|---------|---------|-----------|---------------|------------|
-| GSM8K | 小学-初中应用题 | 1,319题 | 81.0% | 84.0% | **+3.0%**  |
-| **MATH** | **高中竞赛难题** | **5,000题** | **69.0%** | **73.0%** | **+4.0%**  |
+| Dataset | Difficulty | Problems | Base Model | Trained Model | **Improvement** |
+|---------|-----------|----------|-----------|---------------|----------------|
+| GSM8K | Grade School | 1,319 | 81.0% | 84.0% | **+3.0%**  |
+| **MATH** | **Competition** | **5,000** | **69.0%** | **73.0%** | **+4.0%**  |
 
-> **关键发现**: MATH数据集的提升幅度(+4.0%)大于GSM8K(+3.0%),说明**Deep Thinking策略在复杂推理任务上的优势更明显**。高难度题目需要更长的推理链,正是模型训练的重点提升方向。
+> **Key Finding**: MATH dataset improvement (+4.0%) exceeds GSM8K (+3.0%), demonstrating that **Deep Thinking strategy provides greater advantages on complex reasoning tasks**. High-difficulty problems require longer reasoning chains, which is precisely what the model training optimizes for.
 
-### 典型案例: MATH数据集 - 最小完美立方数
+### Case Study: Smallest Perfect Cube (MATH Dataset)
 
-**题目**: *Find the smallest perfect cube that is a multiple of 9.*  
-**难度**: 高中数论 | **类型**: 数论+几何
+**Question**: *Find the smallest perfect cube that is a multiple of 9.*  
+**Type**: Number Theory + Geometry
 
 | Base Model  | Trained Model  |
 |--------------|-----------------|
-| **答案**: 19683<br/>**问题**: 直接幻觉,未分析质因数分解 | **思考过程**:<br/>1 9的质因数分解: 3<br/>2 完美立方数要求指数是3的倍数<br/>3 需要至少3才能满足条件<br/>**答案**: 27  |
+| **Answer**: 19683<br/>**Issue**: Direct hallucination, no prime factorization analysis | **Reasoning**:<br/>1 Prime factorization of 9: 3<br/>2 Perfect cube requires exponents divisible by 3<br/>3 Need at least 3 to satisfy condition<br/>**Answer**: 27  |
 
-**提升原因**: Trained Model学会了使用<think>标签进行**结构化推理**,将复杂问题拆解为多个逻辑步骤。
-
----
-
-##  训练过程关键指标
-
-### GRPO训练日志分析 (Step 22为例)
-
-| 指标 | 数值 | 含义 | 目标达成度 |
-|-----|------|------|----------|
-| 	raining/reward | **2.88** | 平均奖励 | 72% (满分4.0)  |
-| critic/score/max | **4.0** | 最高得分 | 100% 达到理论上限  |
-| esponse_length/mean | **395.9** | 平均生成长度 | Base模型的8倍 (50396) |
-| kl_penalty | **0.108** | KL散度惩罚 | 适中,训练稳定  |
-
-**结论**: 
-1. 模型已掌握**结构化格式**(<think>+<answer>)
-2. 平均奖励2.88说明**大部分题目答对**
-3. 生成长度395证明模型在进行**深度思考**而非直接猜答案
-4. KL惩罚适中表明训练过程**稳定且未过拟合**
+**Why Better**: Trained model learned to use `<think>` tags for **structured reasoning**, breaking complex problems into logical steps.
 
 ---
 
-##  核心技术详解
+##  Training Metrics Analysis
 
-### 1. GRPO算法 - 节省50%显存
+### GRPO Training Logs (Step 22 Example)
 
-**传统PPO的问题**:
-- 需要Critic模型(价值函数)估计状态价值
-- Critic模型与Actor模型大小相当
-- 总显存需求: Actor + Reference + Critic  **3倍模型显存**
+| Metric | Value | Meaning | Target Achievement |
+|--------|-------|---------|-------------------|
+| `training/reward` | **2.88** | Average reward | 72% of max (4.0)  |
+| `critic/score/max` | **4.0** | Maximum score | 100% theoretical limit  |
+| `response_length/mean` | **395.9** | Avg generation length | 8 base model (50396) |
+| `kl_penalty` | **0.108** | KL divergence penalty | Moderate, stable training  |
 
-**GRPO的创新**:
-`python
-# 关键配置
+**Conclusion**: 
+1. Model mastered **structured format** (`<think>`+`<answer>`)
+2. Average reward 2.88 indicates **most questions answered correctly**
+3. Length 395 proves model performs **deep thinking** rather than guessing
+4. Moderate KL penalty shows training is **stable without overfitting**
+
+---
+
+##  Technical Deep Dive
+
+### 1. GRPO Algorithm - Saves 50% GPU Memory
+
+**Traditional PPO Issues**:
+- Requires Critic model (value function) for state value estimation
+- Critic model size comparable to Actor
+- Total memory: Actor + Reference + Critic  **3 model memory**
+
+**GRPO Innovation**:
+```python
+# Key configuration
 "algorithm": {
     "adv_estimator": "grpo",  # Group Relative Policy Optimization
     "use_kl_in_reward": True,
 },
 "actor_rollout_ref": {
-    "rollout": {"n": 4},  # 每题生成4个答案,组内对比
+    "rollout": {"n": 4},  # Generate 4 answers per question for group comparison
 }
-`
+```
 
-**原理**: 对同一题目采样4个答案,计算**组内相对优势**:
-- 好答案(正确): Advantage > 0  增强概率
-- 差答案(错误): Advantage < 0  降低概率
-- 无需Critic模型,节省**~50% GPU显存**
+**Principle**: Sample 4 answers per question, compute **group-relative advantage**:
+- Good answer (correct): Advantage > 0  Increase probability
+- Bad answer (wrong): Advantage < 0  Decrease probability
+- No Critic needed, saves **~50% GPU memory**
 
-### 2. Deep Thinking奖励函数
+### 2. Deep Thinking Reward Function
 
-**多维度奖励设计**:
+**Multi-dimensional Reward Design**:
 
-| 维度 | 奖励值 | 触发条件 | 设计意图 |
-|-----|--------|---------|---------|
-|  **正确性** | **+2.0** | 答案与标准答案一致 | 核心目标 |
-|  结构完整性 | +0.5 | 包含<think>和<answer>标签 | 规范格式 |
-|  深度思考 | +0.5 | 思考过程存在且答案正确 | 激励推理 |
-|  推理长度 | 0~1.0 | 根据<think>内容长度动态计算 | 防止过短 |
-|  格式惩罚 | -0.5 | 缺失必需标签 | 强制规范 |
+| Dimension | Reward | Trigger Condition | Design Intent |
+|-----------|--------|------------------|---------------|
+|  **Correctness** | **+2.0** | Answer matches ground truth | Core objective |
+|  Structure | +0.5 | Contains `<think>` and `<answer>` tags | Enforce format |
+|  Deep Thinking | +0.5 | Thinking process exists and answer correct | Encourage reasoning |
+|  Reasoning Length | 0~1.0 | Based on `<think>` content length | Prevent too short |
+|  Format Penalty | -0.5 | Missing required tags | Enforce compliance |
 
-**理论最高分**: 2.0 + 0.5 + 0.5 + 1.0 = **4.0分**
+**Theoretical Maximum**: 2.0 + 0.5 + 0.5 + 1.0 = **4.0 points**
 
-**实际表现**: Step 22达到最高分4.0,平均分2.88,说明奖励函数设计**有效且合理**。
+**Actual Performance**: Step 22 achieved max score 4.0, average 2.88, proving reward function **effective and reasonable**.
 
 ---
 
-##  硬件适配实战经验
+##  Hardware Adaptation Experience
 
-###  A10 (24GB) 失败案例
+###  A10 (24GB) Failure Case
 
-**测试配置**:
+**Test Config**:
 - GPU: NVIDIA A10 (24GB)
-- 模型: Qwen2.5-0.5B (最小)
-- 结果:  OOM in ef_init_model
+- Model: Qwen2.5-0.5B (smallest)
+- Result:  OOM in `ref_init_model`
 
-**失败原因分析**:
-`
+**Memory Breakdown**:
+```
 Actor Model:     ~6GB  (0.5B + LoRA)
 Reference Model: ~6GB  (0.5B frozen)
-vLLM KV Cache:   ~8GB  (预分配)
-Ray Framework:   ~2GB  (分布式开销)
+vLLM KV Cache:   ~8GB  (pre-allocated)
+Ray Framework:   ~2GB  (distributed overhead)
 PyTorch Context: ~2GB
 
-总需求:          ~24GB+  超出上限
-`
+Total Needed:    ~24GB+  Exceeds limit
+```
 
-###  H100 (80GB) 成功验证
+###  H100 (80GB) Success
 
-**测试配置**:
+**Test Config**:
 - GPU: NVIDIA H100 (80GB)
-- 模型: Qwen2.5-3B (标准)
-- 结果:  稳定训练2小时
+- Model: Qwen2.5-3B (standard)
+- Result:  Stable 2-hour training
 
-**显存分配**:
-`
+**Memory Allocation**:
+```
 Actor Model:     ~18GB  (3B + LoRA)
 Reference Model: ~18GB  (3B frozen)
-vLLM KV Cache:   ~25GB  (大batch)
+vLLM KV Cache:   ~25GB  (large batch)
 Ray Framework:   ~3GB
 PyTorch Context: ~5GB
 
-总使用:          ~69GB  充裕余量
-可支持更大模型:    7B可行
-`
+Total Used:      ~69GB  Comfortable margin
+Can support:     7B models feasible
+```
 
-**建议**:
-- **最低配置**: 40GB (A100/A6000)
-- **推荐配置**: 80GB (H100/A100-80G)
-- **生产部署**: 多卡并行 (4A100)
+**Recommendation**:
+- **Minimum**: 40GB (A100/A6000)
+- **Recommended**: 80GB (H100/A100-80G)
+- **Production**: Multi-GPU (4A100)
 
 ---
 
-##  核心文件说明
+##  Core Files
 
-`
+```
 Agent-Lighting/
- README.md                          # 本文档
- train_math_agent_vllm.py           #  核心训练脚本(GRPO+DeepThinking)
- generate_training_data_gpt5.py     # 数据生成(Azure OpenAI)
- judge_with_llm.py                  # LLM评判器(GPT-5.1)
- convert_checkpoint.py              # Checkpoint转换工具
- prepare_gsm8k.py                   # GSM8K数据集下载
- prepare_math.py                    # MATH数据集下载
- run_full_evaluation_v5.sh          #  一键评估脚本(双数据集)
- agentL_h100.yml                    # H100环境配置(已验证)
-`
+ README.md                          # This document
+ README-CN.md                       # Chinese version
+ train_math_agent_vllm.py           #  Core training script (GRPO+DeepThinking)
+ generate_training_data_gpt5.py     # Data generation (Azure OpenAI)
+ judge_with_llm.py                  # LLM judge (GPT-5.1)
+ convert_checkpoint.py              # Checkpoint conversion
+ prepare_gsm8k.py                   # GSM8K dataset download
+ prepare_math.py                    # MATH dataset download
+ run_full_evaluation_v5.sh          #  One-click evaluation (dual datasets)
+ agentL_h100.yml                    # H100 environment config (validated)
+```
 
 ---
 
-##  完整环境搭建
+##  Environment Setup
 
-### 硬件要求
-| 配置 | GPU | 显存 | 模型支持 | 状态 |
-|-----|-----|------|---------|-----|
-| 最低 | A10 | 24GB | 0.5B  | OOM风险高 |
-| 入门 | A100 | 40GB | 3B  | 小batch可行 |
-| **推荐** | **H100** | **80GB** | **7B ** | **已验证** |
-| 生产 | 4A100 | 160GB | 13B+ | 分布式 |
+### Hardware Requirements
+| Config | GPU | VRAM | Model Support | Status |
+|--------|-----|------|---------------|--------|
+| Minimum | A10 | 24GB | 0.5B  | High OOM risk |
+| Entry | A100 | 40GB | 3B  | Small batch OK |
+| **Recommended** | **H100** | **80GB** | **7B ** | **Validated** |
+| Production | 4A100 | 160GB | 13B+ | Distributed |
 
-### 快速安装
-`ash
-# 使用验证过的环境配置
+### Quick Install
+```bash
+# Use validated environment config
 conda env create -f agentL_h100.yml
 conda activate agentL
-`
+```
 
-### 手动安装(详细步骤)
-`ash
-# 1. 创建Python 3.11环境
+### Manual Installation
+```bash
+# 1. Create Python 3.11 environment
 conda create -n agentL python=3.11 -y
 conda activate agentL
 
-# 2. 安装PyTorch 2.5.1 (CUDA 12.1)
+# 2. Install PyTorch 2.5.1 (CUDA 12.1)
 pip install torch==2.5.1 torchvision torchaudio \
     --index-url https://download.pytorch.org/whl/cu121
 
-# 3. 安装核心RL框架
-pip install verl==0.5.0      # RL训练框架
-pip install vllm==0.7.0      # 高性能推理引擎
-pip install ray==2.10.0      # 分布式计算
+# 3. Install core RL frameworks
+pip install verl==0.5.0      # RL training framework
+pip install vllm==0.7.0      # High-performance inference
+pip install ray==2.10.0      # Distributed computing
 
-# 4. 安装Agent Lightning
+# 4. Install Agent Lightning
 git clone https://github.com/microsoft/agent-lightning.git
 cd agent-lightning
 pip install -e .
 
-# 5. 安装辅助库
+# 5. Install utilities
 pip install openai pandas pyarrow huggingface_hub hydra-core \
     datasets transformers accelerate
-`
+```
 
-### 环境变量配置
-`ash
-# Azure OpenAI (用于数据生成和评判)
+### Environment Variables
+```bash
+# Azure OpenAI (for data generation and judging)
 export AZURE_OPENAI_ENDPOINT="https://your-resource.openai.azure.com/"
 export AZURE_OPENAI_API_KEY="your-key-here"
 export AZURE_OPENAI_DEPLOYMENT="gpt-5.1-chat"
 export AZURE_OPENAI_API_VERSION="2025-01-01-preview"
 
-# HuggingFace加速(可选)
+# HuggingFace acceleration (optional)
 export HF_ENDPOINT=https://hf-mirror.com
-
-# 离线模式(已下载模型时)
-# export HF_HUB_OFFLINE=1
-# export TRANSFORMERS_OFFLINE=1
-`
+```
 
 ---
 
-##  关键学习要点
+##  Key Learnings
 
 1. **GRPO vs PPO**: 
-   - GRPO移除Critic,通过**组内对比**学习
-   - 节省50%显存,单卡可训练更大模型
-   - 特别适合有明确评判标准的任务(数学/代码)
+   - GRPO removes Critic, learns through **group comparison**
+   - Saves 50% memory, enables larger models on single GPU
+   - Ideal for tasks with clear evaluation criteria (math/code)
 
-2. **奖励函数是灵魂**: 
-   - 多维度奖励(结构+深度+正确性)引导深度思考
-   - 单一"对错"奖励无法激发推理能力
-   - MATH数据集+4.0%证明设计有效
+2. **Reward Function is Soul**: 
+   - Multi-dimensional rewards (structure+depth+correctness) guide deep thinking
+   - Single "right/wrong" reward insufficient for reasoning
+   - MATH +4.0% proves design effectiveness
 
-3. **硬件瓶颈不可忽视**: 
-   - RL训练需同时加载多个模型
-   - 24GB显存不足以支撑完整流程
-   - 建议至少40GB,推荐80GB
+3. **Hardware Bottleneck Critical**: 
+   - RL training requires loading multiple models simultaneously
+   - 24GB insufficient for full pipeline
+   - Recommend 40GB minimum, 80GB ideal
 
-4. **数据质量>数量**: 
-   - GPT-5.1生成的5000条高质量数据
-   - 效果优于大量低质数据
-   - 包含详细推理过程是关键
+4. **Data Quality > Quantity**: 
+   - 5,000 high-quality samples from GPT-5.1
+   - Better than large amounts of low-quality data
+   - Detailed reasoning steps are key
 
-5. **评估指标的选择**: 
-   - MATH数据集(高难度)更能体现提升
-   - 简单任务(算术)提升空间有限
-   - 选对评估集才能证明真实能力
+5. **Evaluation Metric Selection**: 
+   - MATH dataset (high difficulty) better demonstrates improvement
+   - Simple tasks (arithmetic) have limited improvement potential
+   - Right evaluation set proves real capability
 
 ---
 
-##  参考资源
+##  References
 
 - **Agent Lightning**: https://github.com/microsoft/agent-lightning
-- **VERL框架**: https://github.com/volcengine/verl
+- **VERL Framework**: https://github.com/volcengine/verl
 - **vLLM**: https://github.com/vllm-project/vllm
-- **GSM8K数据集**: https://github.com/openai/grade-school-math
-- **MATH数据集**: https://github.com/hendrycks/math
-- **Qwen2.5模型**: https://huggingface.co/Qwen
+- **GSM8K Dataset**: https://github.com/openai/grade-school-math
+- **MATH Dataset**: https://github.com/hendrycks/math
+- **Qwen2.5 Models**: https://huggingface.co/Qwen
 
 ---
 
-##  常见问题
+##  FAQ
 
-**Q: 为什么MATH数据集提升(+4.0%)比GSM8K(+3.0%)大?**  
-A: MATH是高中竞赛级难题,需要更复杂的推理链。Deep Thinking策略在复杂任务上优势更明显。简单题目Base Model已经做得不错,提升空间有限。
+**Q: Why does MATH (+4.0%) improve more than GSM8K (+3.0%)?**  
+A: MATH contains high school competition problems requiring complex reasoning chains. Deep Thinking strategy shows greater advantages on complex tasks. Simple problems already perform well with base model, leaving limited room for improvement.
 
-**Q: 可以在A10 24GB上训练吗?**  
-A: 不建议。即使0.5B模型也会OOM。如果必须使用,可以尝试: 只用Reference不用vLLM 减小batch_size到1 使用gradient checkpoint,但训练会非常慢。
+**Q: Can I train on A10 24GB?**  
+A: Not recommended. Even 0.5B models OOM. If must use: Use Reference without vLLM Reduce batch_size to 1 Use gradient checkpointing, but training will be very slow.
 
-**Q: 训练需要多长时间?**  
-A: H100: ~2小时 | A100: ~3小时 | 如果提前终止,至少跑50 steps才能看到效果。
+**Q: How long does training take?**  
+A: H100: ~2 hours | A100: ~3 hours | If early stopping, run at least 50 steps to see effects.
 
-**Q: 如何调整奖励函数?**  
-A: 编辑	rain_math_agent_vllm.py的math_reward_function_v4(),根据任务特点调整各维度权重。原则: 正确性权重最高(2.0),辅助奖励引导行为(0.5~1.0)。
+**Q: How to adjust reward function?**  
+A: Edit `math_reward_function_v4()` in `train_math_agent_vllm.py`. Adjust weights based on task characteristics. Principle: Correctness weight highest (2.0), auxiliary rewards guide behavior (0.5~1.0).
 
-**Q: 为什么要用GPT-5.1生成数据而不是直接用开源数据集?**  
-A: 可控性强,能指定题目类型和难度 包含详细解题步骤,适合Deep Thinking训练 数据质量高,5000条效果优于大量低质数据。
+**Q: Why use GPT-5.1 for data instead of open datasets?**  
+A: Strong controllability, can specify problem types and difficulty Includes detailed solution steps, suitable for Deep Thinking training High quality, 5,000 samples outperform large amounts of low-quality data.
 
 ---
 
-**项目维护**: David Wei  
-**最后更新**: 2025-11-24  
-**验证环境**: Azure H100 (80GB), Ubuntu 22.04, Python 3.11  
-**训练成本**: ~2小时  .90/h = .80 (H100 spot instance)
+**Project Maintainer**: David Wei  
+**Last Updated**: November 24, 2025  
+**Validated Environment**: Azure H100 (80GB), Ubuntu 22.04, Python 3.11  
+**Training Cost**: ~2 hours  $4.90/h = $9.80 (H100 spot instance)
