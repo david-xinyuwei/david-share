@@ -107,17 +107,17 @@ flowchart TB
     Trainer --> VERL
     Trainer --> APO
     
-    subgraph VERL["🔥 agl.VERL (RL Training)"]
+    subgraph VERL["🔥agl.VERL (RL Training)"]
         verl_algo["Wraps VERL Framework"]
     end
     
-    subgraph APO["✨ agl.APO (Prompt Optimization)"]
+    subgraph APO["✨agl.APO（Prompt Opt)"]
         apo_algo["Uses OpenAI-Compatible API"]
     end
     
     VERL --> VERLFramework
     
-    subgraph VERLFramework["⚡ VERL Framework (Volcengine)"]
+    subgraph VERLFramework["⚡VERL Framework"]
         direction LR
         rl["RL Algorithms<br/>• GRPO<br/>• PPO<br/>• DAPO<br/>• ReMax"]
         dist["Distributed Backend<br/>• FSDP/FSDP2<br/>• Megatron-LM<br/>• Ray"]
@@ -152,7 +152,7 @@ flowchart TB
 
 ---
 
-##  End-to-End Training Pipeline
+##  End-to-End Training Pipeline in my repo
 
 ```mermaid
 graph TB
@@ -581,26 +581,3 @@ export HF_ENDPOINT=https://hf-mirror.com
 
 ---
 
-## ❓ FAQ
-
-**Q: Why does MATH (+4.0%) improve more than GSM8K (+3.0%) **  
-A: MATH contains high school competition problems requiring complex reasoning chains. Deep Thinking strategy shows greater advantages on complex tasks. Simple problems already perform well with base model, leaving limited room for improvement.
-
-**Q: Can I train on A10 24GB **  
-A: Not recommended. Even 0.5B models OOM. If must use: ⚠️ Use Reference without vLLM ⚠️ Reduce batch_size to 1 ⚠️ Use gradient checkpointing, but training will be very slow.
-
-**Q: How long does training take **  
-A: H100: ~2 hours | A100: ~3 hours | If early stopping, run at least 50 steps to see effects.
-
-**Q: How to adjust reward function **  
-A: Edit `math_reward_function_v4()` in `train_math_agent_vllm.py`. Adjust weights based on task characteristics. Principle: Correctness weight highest (2.0), auxiliary rewards guide behavior (0.5~1.0).
-
-**Q: Why use GPT-5.1 for data instead of open datasets **  
-A: ✅ Strong controllability, can specify problem types and difficulty ✅ Includes detailed solution steps, suitable for Deep Thinking training ✅ High quality, 5,000 samples outperform large amounts of low-quality data.
-
----
-
-**Project Maintainer**: David Wei  
-**Last Updated**: November 24, 2025  
-**Validated Environment**: Azure H100 (80GB), Ubuntu 22.04, Python 3.11  
-**Training Cost**: ~2 hours × $4.90/h = $9.80 (H100 spot instance)

@@ -118,7 +118,7 @@ flowchart TB
     
     VERL --> VERLFramework
     
-    subgraph VERLFramework["⚡ VERL Framework (火山引擎)"]
+    subgraph VERLFramework["⚡ VERL Framework"]
         direction LR
         rl["RL 算法<br/>• GRPO<br/>• PPO<br/>• DAPO<br/>• ReMax"]
         dist["分布式后端<br/>• FSDP/FSDP2<br/>• Megatron-LM<br/>• Ray"]
@@ -153,7 +153,7 @@ flowchart TB
 
 ---
 
-##  端到端 Training Pipeline
+##  Repo中端到端 Training Pipeline
 
 ```mermaid
 graph TB
@@ -582,27 +582,3 @@ export HF_ENDPOINT=https://hf-mirror.com
 - **Qwen2.5模型**: https://huggingface.co/Qwen
 
 ---
-
-## ❓ 常见问题
-
-**Q: 为什么MATH数据集提升(+4.0%)比GSM8K(+3.0%)大 **  
-A: MATH是高中竞赛级难题,需要更复杂的推理链。Deep Thinking策略在复杂任务上优势更明显。简单题目Base Model已经做得不错,提升空间有限。
-
-**Q: 可以在A10 24GB上训练吗 **  
-A: 不建议。即使0.5B模型也会OOM。如果必须使用,可以尝试: ⚠️ 只用Reference不用vLLM ⚠️ 减小batch_size到1 ⚠️ 使用gradient checkpoint,但训练会非常慢。
-
-**Q: 训练需要多长时间 **  
-A: H100: ~2小时 | A100: ~3小时 | 如果提前终止,至少跑50 steps才能看到效果。
-
-**Q: 如何调整奖励函数 **  
-A: 编辑`train_math_agent_vllm.py`的`math_reward_function_v4()`,根据任务特点调整各维度权重。原则: 正确性权重最高(2.0),辅助奖励引导行为(0.5~1.0)。
-
-**Q: 为什么要用GPT-5.1生成数据而不是直接用开源数据集 **  
-A: ✅ 可控性强,能指定题目类型和难度 ✅ 包含详细解题步骤,适合Deep Thinking训练 ✅ 数据质量高,5000条效果优于大量低质数据。
-
----
-
-**项目维护**: David Wei  
-**最后更新**: 2025年11月24日  
-**验证环境**: Azure H100 (80GB), Ubuntu 22.04, Python 3.11  
-**训练成本**: ~2小时 × $4.90/h = $9.80 (H100 spot instance)
