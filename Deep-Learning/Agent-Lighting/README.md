@@ -163,6 +163,107 @@ flowchart TB
 
 **Example**: See `examples/unsloth/sft_algorithm.py` for the complete implementation.
 
+### Distributed Architecture: Ray + Parallelism Strategies
+
+Agent Lightning uses **Ray** as the distributed task scheduling framework, combined with different model parallelism strategies:
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                              DISTRIBUTED ARCHITECTURE                                   │
+│                                                                                        │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                        │
+│  ╔════════════════════════════════════════════════════════════════════════════════╗    │
+│  ║                     🎯 RAY (Distributed Scheduling) - Required                  ║    │
+│  ╠════════════════════════════════════════════════════════════════════════════════╣    │
+│  ║                                                                                ║    │
+│  ║   @ray.remote                RayWorkerGroup              ray.init()            ║    │
+│  ║   ┌──────────────┐          ┌──────────────┐          ┌──────────────┐         ║    │
+│  ║   │ Task Dispatch │          │Worker Manage │          │Cluster Init  │         ║    │
+│  ║   │ to Nodes      │          │CPU/GPU Alloc │          │Resource Pool │         ║    │
+│  ║   └──────────────┘          └──────────────┘          └──────────────┘         ║    │
+│  ║                                                                                ║    │
+│  ║   💡 Start Command: bash scripts/restart_ray.sh                                ║    │
+│  ║                                                                                ║    │
+│  ╚════════════════════════════════════════════════════════════════════════════════╝    │
+│                                          │                                             │
+│                                          ▼                                             │
+│  ┌────────────────────────────────────────────────────────────────────────────────┐    │
+│  │                 ⚙️ Parallelism Strategy (Configure via strategy)                │    │
+│  ├────────────────────────────────────────────────────────────────────────────────┤    │
+│  │                                                                                │    │
+│  │     ┌─────────────────────────────┐       ┌─────────────────────────────┐      │    │
+│  │     │      FSDP / FSDP2           │       │       Megatron-LM           │      │    │
+│  │     │        ⭐ Default            │       │         Optional            │      │    │
+│  │     ├─────────────────────────────┤       ├─────────────────────────────┤      │    │
+│  │     │                             │       │                             │      │    │
+│  │     │  ✓ Fully Sharded Data       │       │  ✓ Tensor Parallel (TP)     │      │    │
+│  │     │    Parallel (FSDP)          │       │  ✓ Pipeline Parallel (PP)   │      │    │
+│  │     │  ✓ Param Offload to CPU     │       │  ✓ Data Parallel (DP)       │      │    │
+│  │     │  ✓ Optimizer State Offload  │       │  ✓ For 70B+ Large Models    │      │    │
+│  │     │  ✓ For 7B ~ 70B Models      │       │                             │      │    │
+│  │     │                             │       │                             │      │    │
+│  │     │  strategy: "fsdp"           │       │  strategy: "megatron"       │      │    │
+│  │     │                             │       │                             │      │    │
+│  │     └─────────────────────────────┘       └─────────────────────────────┘      │    │
+│  │                                                                                │    │
+│  └────────────────────────────────────────────────────────────────────────────────┘    │
+│                                          │                                             │
+│                                          ▼                                             │
+│  ┌────────────────────────────────────────────────────────────────────────────────┐    │
+│  │                       🚀 Inference Engine (Rollout Phase)                       │    │
+│  ├────────────────────────────────────────────────────────────────────────────────┤    │
+│  │                                                                                │    │
+│  │     ┌─────────────────────────────┐       ┌─────────────────────────────┐      │    │
+│  │     │          vLLM               │       │         SGLang              │      │    │
+│  │     │        ⭐ Default            │       │         Optional            │      │    │
+│  │     ├─────────────────────────────┤       ├─────────────────────────────┤      │    │
+│  │     │                             │       │                             │      │    │
+│  │     │  ✓ PagedAttention          │       │  ✓ RadixAttention           │      │    │
+│  │     │  ✓ Continuous Batching     │       │  ✓ Structured Generation    │      │    │
+│  │     │  ✓ Tensor Parallel Infer   │       │  ✓ Prefix Caching           │      │    │
+│  │     │  ✓ OpenAI-Compatible API   │       │  ✓ Constrained Decoding     │      │    │
+│  │     │                             │       │                             │      │    │
+│  │     └─────────────────────────────┘       └─────────────────────────────┘      │    │
+│  │                                                                                │    │
+│  └────────────────────────────────────────────────────────────────────────────────┘    │
+│                                                                                        │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Configuration Examples
+
+```python
+# Default: Ray + FSDP
+"actor_rollout_ref": {
+    "actor": {
+        "strategy": "fsdp",  # or "fsdp2"
+        "fsdp_config": {
+            "param_offload": True,
+            "optimizer_offload": True
+        }
+    }
+}
+
+# Optional: Ray + Megatron-LM (for very large models)
+"actor_rollout_ref": {
+    "actor": {
+        "strategy": "megatron",
+        # Megatron supports TP/PP configuration
+    }
+}
+```
+
+#### Technology Stack Summary
+
+| Layer | Component | Role | Required |
+|-------|-----------|------|----------|
+| **Distributed Scheduling** | Ray | Task orchestration, Worker management | ✅ Required |
+| **Parallelism Strategy** | FSDP/FSDP2 | Model sharding, Memory optimization | Default |
+| **Parallelism Strategy** | Megatron-LM | TP/PP, Very large models | Optional |
+| **Inference Engine** | vLLM | Efficient Rollout inference | Default |
+| **Inference Engine** | SGLang | Structured generation | Optional |
+
 ### Components Used in This Project
 
 | Script | AGL Components Used |
