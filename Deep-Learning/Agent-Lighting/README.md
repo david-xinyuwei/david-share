@@ -3,7 +3,6 @@
 [中文文档](README-CN.md) | English
 
 ## 🎯 Project Overview
-
 This project demonstrates a complete end-to-end workflow for training a mathematical reasoning agent using **Agent Lightning + GRPO algorithm** on **Azure H100 (80GB)**. From data generation to model evaluation, all steps have been validated on production hardware.
 
 **Key Achievements**:
@@ -22,115 +21,117 @@ Agent Lightning is Microsoft's open-source framework for training AI agents. Thi
 ### Complete Architecture Diagram
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────────────────┐
-│                              Agent Lightning Framework                                   │
-│                              (Microsoft Open Source)                                     │
-├─────────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                         │
-│  ┌─────────────────────────────────────────────────────────────────────────────────┐   │
-│  │                           User Layer                                             │   │
-│  │                                                                                 │   │
-│  │   @agl.rollout              agl.emit_reward()           agl.LLM                │   │
-│  │   (Define Agent)            (Send Reward Signal)        (LLM Resource)          │   │
-│  └─────────────────────────────────────────────────────────────────────────────────┘   │
-│                                         │                                               │
-│                                         ▼                                               │
-│  ┌─────────────────────────────────────────────────────────────────────────────────┐   │
-│  │                         Trainer Layer                                            │   │
-│  │                            agl.Trainer                                          │   │
-│  │                     (Orchestrates training loop)                                │   │
-│  └─────────────────────────────────────────────────────────────────────────────────┘   │
-│                                         │                                               │
-│                                         ▼                                               │
-│  ┌─────────────────────────────────────────────────────────────────────────────────┐   │
-│  │                        Algorithm Layer                                           │   │
-│  │                                                                                 │   │
-│  │                              Algorithm (Base Class)                             │   │
-│  │                                     │                                           │   │
-│  │           ┌─────────────────────────┼─────────────────────────┐                │   │
-│  │           │                         │                         │                │   │
-│  │           ▼                         ▼                         ▼                │   │
-│  │   ┌─────────────┐          ┌─────────────┐          ┌─────────────────┐       │   │
-│  │   │  agl.VERL   │          │  agl.APO    │          │ agl.Baseline    │       │   │
-│  │   │(RL Training)│          │(Prompt Opt.)│          │ (Debug/Test)    │       │   │
-│  │   │             │          │             │          │                 │       │   │
-│  │   │ Wraps VERL  │          │ Uses OpenAI │          │ Simple logging  │       │   │
-│  │   │ Framework   │          │ Compatible  │          │ and validation  │       │   │
-│  │   │             │          │ API         │          │                 │       │   │
-│  │   │ Config:     │          │             │          │                 │       │   │
-│  │   │ • grpo      │          │ Config:     │          │ Config:         │       │   │
-│  │   │ • ppo       │          │ • beam_width│          │ • n_epochs      │       │   │
-│  │   │ • dapo      │          │ • beam_     │          │ • train_split   │       │   │
-│  │   │ • reinforce │          │   rounds    │          │                 │       │   │
-│  │   │   ++        │          │             │          │                 │       │   │
-│  │   └──────┬──────┘          └─────────────┘          └─────────────────┘       │   │
-│  │          │                                                                    │   │
-│  └──────────┼────────────────────────────────────────────────────────────────────┘   │
-│             │                                                                         │
-│             ▼                                                                         │
-│  ┌─────────────────────────────────────────────────────────────────────────────────┐ │
-│  │                     VERL Framework (Volcengine Open Source)                      │ │
-│  │                                                                                 │ │
-│  │   ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐                │ │
-│  │   │  RL Algorithms  │  │   Distributed   │  │    Inference    │                │ │
-│  │   │                 │  │    Backend      │  │     Engine      │                │ │
-│  │   │  • GRPO         │  │                 │  │                 │                │ │
-│  │   │  • PPO          │  │  • FSDP/FSDP2   │  │  • vLLM         │                │ │
-│  │   │  • DAPO         │  │  • Megatron-LM  │  │  • SGLang       │                │ │
-│  │   │  • ReMax        │  │  • Ray          │  │                 │                │ │
-│  │   │  • REINFORCE++  │  │                 │  │                 │                │ │
-│  │   └─────────────────┘  └─────────────────┘  └─────────────────┘                │ │
-│  └─────────────────────────────────────────────────────────────────────────────────┘ │
-│                                                                                         │
-│  ┌─────────────────────────────────────────────────────────────────────────────────┐   │
-│  │                        Runtime Components                                        │   │
-│  │                                                                                 │   │
-│  │   agl.LitAgentRunner      agl.InMemoryLightningStore      agl.OtelTracer       │   │
-│  │   (Agent Executor)        (Data Storage)                  (Tracing)             │   │
-│  └─────────────────────────────────────────────────────────────────────────────────┘   │
-│                                                                                         │
-└─────────────────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────────────────┐
+│                              AGENT LIGHTNING FRAMEWORK                                        │
+│                                (Microsoft Open Source)                                        │
+├──────────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                              │
+│  ┌────────────────────────────────────────────────────────────────────────────────────────┐  │
+│  │                                    USER LAYER                                          │  │
+│  │                                                                                        │  │
+│  │       @agl.rollout              agl.emit_reward()              agl.LLM                 │  │
+│  │       (Define Agent)            (Send Reward Signal)           (LLM Resource)          │  │
+│  └────────────────────────────────────────────┬───────────────────────────────────────────┘  │
+│                                               │                                              │
+│                                               ▼                                              │
+│  ┌────────────────────────────────────────────────────────────────────────────────────────┐  │
+│  │                                   TRAINER LAYER                                        │  │
+│  │                                     agl.Trainer                                        │  │
+│  │                              (Orchestrates training loop)                              │  │
+│  └────────────────────────────────────────────┬───────────────────────────────────────────┘  │
+│                                               │                                              │
+│                                               ▼                                              │
+│  ┌────────────────────────────────────────────────────────────────────────────────────────┐  │
+│  │                                  ALGORITHM LAYER                                       │  │
+│  │                                                                                        │  │
+│  │                                Algorithm (Base Class)                                  │  │
+│  │                                        │                                               │  │
+│  │            ┌───────────────────────────┼───────────────────────────┐                   │  │
+│  │            │                           │                           │                   │  │
+│  │            ▼                           ▼                           ▼                   │  │
+│  │   ┌────────────────┐          ┌────────────────┐          ┌────────────────┐           │  │
+│  │   │    agl.VERL    │          │    agl.APO     │          │  agl.Baseline  │           │  │
+│  │   │  (RL Training) │          │ (Prompt Optim) │          │  (Debug/Test)  │           │  │
+│  │   │                │          │                │          │                │           │  │
+│  │   │  Wraps VERL    │          │  Uses OpenAI   │          │ Simple logging │           │  │
+│  │   │  Framework     │          │  Compatible    │          │ and validation │           │  │
+│  │   │                │          │  API           │          │                │           │  │
+│  │   │  Config:       │          │                │          │                │           │  │
+│  │   │  • grpo        │          │  Config:       │          │  Config:       │           │  │
+│  │   │  • ppo         │          │  • beam_width  │          │  • n_epochs    │           │  │
+│  │   │  • dapo        │          │  • beam_rounds │          │  • train_split │           │  │
+│  │   │  • reinforce++ │          │                │          │                │           │  │
+│  │   └───────┬────────┘          └────────────────┘          └────────────────┘           │  │
+│  │           │                                                                            │  │
+│  └───────────┼────────────────────────────────────────────────────────────────────────────┘  │
+│              │                                                                               │
+│              ▼                                                                               │
+│  ┌────────────────────────────────────────────────────────────────────────────────────────┐  │
+│  │                          VERL FRAMEWORK (Volcengine Open Source)                       │  │
+│  │                                                                                        │  │
+│  │   ┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐                 │  │
+│  │   │   RL Algorithms  │    │   Distributed    │    │    Inference     │                 │  │
+│  │   │                  │    │     Backend      │    │      Engine      │                 │  │
+│  │   │   • GRPO         │    │                  │    │                  │                 │  │
+│  │   │   • PPO          │    │   • FSDP/FSDP2   │    │   • vLLM         │                 │  │
+│  │   │   • DAPO         │    │   • Megatron-LM  │    │   • SGLang       │                 │  │
+│  │   │   • ReMax        │    │   • Ray          │    │                  │                 │  │
+│  │   │   • REINFORCE++  │    │                  │    │                  │                 │  │
+│  │   └──────────────────┘    └──────────────────┘    └──────────────────┘                 │  │
+│  └────────────────────────────────────────────────────────────────────────────────────────┘  │
+│                                                                                              │
+│  ┌────────────────────────────────────────────────────────────────────────────────────────┐  │
+│  │                                 RUNTIME COMPONENTS                                     │  │
+│  │                                                                                        │  │
+│  │      agl.LitAgentRunner        agl.InMemoryLightningStore         agl.OtelTracer       │  │
+│  │      (Agent Executor)          (Data Storage)                     (Tracing)            │  │
+│  └────────────────────────────────────────────────────────────────────────────────────────┘  │
+│                                                                                              │
+└──────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Simplified Call Chain
 
-```
-                    ┌──────────────────────────────────────┐
-                    │           Your Code                  │
-                    │  @agl.rollout + agl.emit_reward()    │
-                    └──────────────────┬───────────────────┘
-                                       │
-                                       ▼
-                    ┌──────────────────────────────────────┐
-                    │            agl.Trainer               │
-                    └──────────────────┬───────────────────┘
-                                       │
-                    ┌──────────────────┴───────────────────┐
-                    │                                      │
-                    ▼                                      ▼
-        ┌───────────────────┐                  ┌───────────────────┐
-        │     agl.VERL      │                  │     agl.APO       │
-        │  (RL Training)    │                  │ (Prompt Optim.)   │
-        └─────────┬─────────┘                  └─────────┬─────────┘
-                  │                                      │
-                  ▼                                      ▼
-        ┌───────────────────┐                  ┌───────────────────┐
-        │  VERL Framework   │                  │  OpenAI-Compatible│
-        │  (Volcengine)     │                  │  API              │
-        └─────────┬─────────┘                  └───────────────────┘
-                  │
-     ┌────────────┼────────────┐
-     │            │            │
-     ▼            ▼            ▼
-┌─────────┐ ┌──────────┐ ┌──────────┐
-│   RL    │ │Distributed│ │ Inference│
-│Algorithm│ │  Backend  │ │  Engine  │
-├─────────┤ ├──────────┤ ├──────────┤
-│ • GRPO  │ │ • FSDP   │ │ • vLLM   │
-│ • PPO   │ │ • FSDP2  │ │ • SGLang │
-│ • DAPO  │ │ • Megatron│ │          │
-│ • ReMax │ │ • Ray    │ │          │
-└─────────┘ └──────────┘ └──────────┘
+```mermaid
+flowchart TB
+    subgraph UserCode["👨‍💻 Your Code"]
+        rollout["@agl.rollout + agl.emit_reward()"]
+    end
+    
+    subgraph Trainer["🎯 agl.Trainer"]
+        trainer["Orchestrates Training Loop"]
+    end
+    
+    UserCode --> Trainer
+    
+    Trainer --> VERL
+    Trainer --> APO
+    
+    subgraph VERL["🔥 agl.VERL (RL Training)"]
+        verl_algo["Wraps VERL Framework"]
+    end
+    
+    subgraph APO["✨ agl.APO (Prompt Optimization)"]
+        apo_algo["Uses OpenAI-Compatible API"]
+    end
+    
+    VERL --> VERLFramework
+    
+    subgraph VERLFramework["⚡ VERL Framework (Volcengine)"]
+        direction LR
+        rl["RL Algorithms<br/>• GRPO<br/>• PPO<br/>• DAPO<br/>• ReMax"]
+        dist["Distributed Backend<br/>• FSDP/FSDP2<br/>• Megatron-LM<br/>• Ray"]
+        infer["Inference Engine<br/>• vLLM<br/>• SGLang"]
+    end
+    
+    APO --> OpenAI["🌐 OpenAI-Compatible API"]
+
+    style UserCode fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    style Trainer fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    style VERL fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    style APO fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+    style VERLFramework fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style OpenAI fill:#e0f7fa,stroke:#0097a7,stroke-width:2px
 ```
 
 ### Algorithm Comparison
