@@ -15,6 +15,142 @@ This project demonstrates a complete end-to-end workflow for training a mathemat
 
 ---
 
+## 🏗️ Agent Lightning Framework Architecture
+
+Agent Lightning is Microsoft's open-source framework for training AI agents. This project uses **agl.VERL** as the core algorithm, which wraps the Volcengine VERL framework.
+
+### Complete Architecture Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                              Agent Lightning Framework                                   │
+│                              (Microsoft Open Source)                                     │
+├─────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────────────────────┐   │
+│  │                           User Layer                                             │   │
+│  │                                                                                 │   │
+│  │   @agl.rollout              agl.emit_reward()           agl.LLM                │   │
+│  │   (Define Agent)            (Send Reward Signal)        (LLM Resource)          │   │
+│  └─────────────────────────────────────────────────────────────────────────────────┘   │
+│                                         │                                               │
+│                                         ▼                                               │
+│  ┌─────────────────────────────────────────────────────────────────────────────────┐   │
+│  │                         Trainer Layer                                            │   │
+│  │                            agl.Trainer                                          │   │
+│  │                     (Orchestrates training loop)                                │   │
+│  └─────────────────────────────────────────────────────────────────────────────────┘   │
+│                                         │                                               │
+│                                         ▼                                               │
+│  ┌─────────────────────────────────────────────────────────────────────────────────┐   │
+│  │                        Algorithm Layer                                           │   │
+│  │                                                                                 │   │
+│  │                              Algorithm (Base Class)                             │   │
+│  │                                     │                                           │   │
+│  │           ┌─────────────────────────┼─────────────────────────┐                │   │
+│  │           │                         │                         │                │   │
+│  │           ▼                         ▼                         ▼                │   │
+│  │   ┌─────────────┐          ┌─────────────┐          ┌─────────────────┐       │   │
+│  │   │  agl.VERL   │          │  agl.APO    │          │ agl.Baseline    │       │   │
+│  │   │(RL Training)│          │(Prompt Opt.)│          │ (Debug/Test)    │       │   │
+│  │   │             │          │             │          │                 │       │   │
+│  │   │ Wraps VERL  │          │ Uses OpenAI │          │ Simple logging  │       │   │
+│  │   │ Framework   │          │ Compatible  │          │ and validation  │       │   │
+│  │   │             │          │ API         │          │                 │       │   │
+│  │   │ Config:     │          │             │          │                 │       │   │
+│  │   │ • grpo      │          │ Config:     │          │ Config:         │       │   │
+│  │   │ • ppo       │          │ • beam_width│          │ • n_epochs      │       │   │
+│  │   │ • dapo      │          │ • beam_     │          │ • train_split   │       │   │
+│  │   │ • reinforce │          │   rounds    │          │                 │       │   │
+│  │   │   ++        │          │             │          │                 │       │   │
+│  │   └──────┬──────┘          └─────────────┘          └─────────────────┘       │   │
+│  │          │                                                                    │   │
+│  └──────────┼────────────────────────────────────────────────────────────────────┘   │
+│             │                                                                         │
+│             ▼                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────────────────────┐ │
+│  │                     VERL Framework (Volcengine Open Source)                      │ │
+│  │                                                                                 │ │
+│  │   ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐                │ │
+│  │   │  RL Algorithms  │  │   Distributed   │  │    Inference    │                │ │
+│  │   │                 │  │    Backend      │  │     Engine      │                │ │
+│  │   │  • GRPO         │  │                 │  │                 │                │ │
+│  │   │  • PPO          │  │  • FSDP/FSDP2   │  │  • vLLM         │                │ │
+│  │   │  • DAPO         │  │  • Megatron-LM  │  │  • SGLang       │                │ │
+│  │   │  • ReMax        │  │  • Ray          │  │                 │                │ │
+│  │   │  • REINFORCE++  │  │                 │  │                 │                │ │
+│  │   └─────────────────┘  └─────────────────┘  └─────────────────┘                │ │
+│  └─────────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────────────────────┐   │
+│  │                        Runtime Components                                        │   │
+│  │                                                                                 │   │
+│  │   agl.LitAgentRunner      agl.InMemoryLightningStore      agl.OtelTracer       │   │
+│  │   (Agent Executor)        (Data Storage)                  (Tracing)             │   │
+│  └─────────────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                         │
+└─────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Simplified Call Chain
+
+```
+                    ┌──────────────────────────────────────┐
+                    │           Your Code                  │
+                    │  @agl.rollout + agl.emit_reward()    │
+                    └──────────────────┬───────────────────┘
+                                       │
+                                       ▼
+                    ┌──────────────────────────────────────┐
+                    │            agl.Trainer               │
+                    └──────────────────┬───────────────────┘
+                                       │
+                    ┌──────────────────┴───────────────────┐
+                    │                                      │
+                    ▼                                      ▼
+        ┌───────────────────┐                  ┌───────────────────┐
+        │     agl.VERL      │                  │     agl.APO       │
+        │  (RL Training)    │                  │ (Prompt Optim.)   │
+        └─────────┬─────────┘                  └─────────┬─────────┘
+                  │                                      │
+                  ▼                                      ▼
+        ┌───────────────────┐                  ┌───────────────────┐
+        │  VERL Framework   │                  │  OpenAI-Compatible│
+        │  (Volcengine)     │                  │  API              │
+        └─────────┬─────────┘                  └───────────────────┘
+                  │
+     ┌────────────┼────────────┐
+     │            │            │
+     ▼            ▼            ▼
+┌─────────┐ ┌──────────┐ ┌──────────┐
+│   RL    │ │Distributed│ │ Inference│
+│Algorithm│ │  Backend  │ │  Engine  │
+├─────────┤ ├──────────┤ ├──────────┤
+│ • GRPO  │ │ • FSDP   │ │ • vLLM   │
+│ • PPO   │ │ • FSDP2  │ │ • SGLang │
+│ • DAPO  │ │ • Megatron│ │          │
+│ • ReMax │ │ • Ray    │ │          │
+└─────────┘ └──────────┘ └──────────┘
+```
+
+### Algorithm Comparison
+
+| Algorithm | Purpose | Modifies Model Weights | Backend Dependency |
+|-----------|---------|----------------------|-------------------|
+| **agl.VERL** | Reinforcement Learning Training | ✅ Yes | VERL Framework (Volcengine) |
+| **agl.APO** | Automatic Prompt Optimization | ❌ No (Prompt only) | OpenAI-Compatible API |
+| **agl.Baseline** | Debug and Testing | ❌ No | Pure Python |
+
+### Components Used in This Project
+
+| Script | AGL Components Used |
+|--------|-------------------|
+| `generate_training_data_gpt5_agl.py` | `@agl.rollout`, `agl.LLM`, `agl.emit_reward()`, `agl.LitAgentRunner`, `agl.InMemoryLightningStore`, `agl.OtelTracer` |
+| `train_math_agent_vllm.py` | `@agl.rollout`, `agl.LLM`, `agl.emit_reward()`, `agl.VERL`, `agl.Trainer` |
+| `judge_with_llm_agl.py` | `@agl.rollout`, `agl.LLM`, `agl.emit_reward()`, `agl.LitAgentRunner`, `agl.InMemoryLightningStore`, `agl.OtelTracer` |
+
+---
+
 ##  End-to-End Training Pipeline
 
 ```mermaid
