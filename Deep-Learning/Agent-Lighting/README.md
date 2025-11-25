@@ -142,6 +142,27 @@ flowchart TB
 | **agl.APO** | Automatic Prompt Optimization | ❌ No (Prompt only) | OpenAI-Compatible API |
 | **agl.Baseline** | Debug and Testing | ❌ No | Pure Python |
 
+### Alternative Training Backend: Unsloth SFT
+
+> 💡 **Low VRAM Option**: If you don't have 40GB+ GPU for VERL/GRPO, Agent Lightning also supports **Unsloth + SFT** as an alternative training path!
+
+| Feature | VERL (RL) | Unsloth (SFT) |
+|---------|-----------|---------------|
+| **Training Method** | Reinforcement Learning | Supervised Fine-Tuning |
+| **Min GPU Memory** | 40GB+ | **16GB** ✅ |
+| **Modifies Weights** | ✅ Yes | ✅ Yes |
+| **Algorithm** | GRPO / PPO / DAPO | SFTTrainer + LoRA |
+| **Learning Source** | Reward signals | Trace data |
+| **Location** | `agl.VERL` (built-in) | `examples/unsloth/` |
+| **Quantization** | FP16/BF16 | **4-bit** supported |
+
+**When to use Unsloth SFT**:
+- GPU memory < 40GB (e.g., RTX 3090/4090, A10)
+- Want faster iteration with SFT
+- Learning from successful traces rather than reward optimization
+
+**Example**: See `examples/unsloth/sft_algorithm.py` for the complete implementation.
+
 ### Components Used in This Project
 
 | Script | AGL Components Used |

@@ -143,6 +143,27 @@ flowchart TB
 | **agl.APO** | 自动 Prompt 优化 | ❌ 否 (仅优化Prompt) | OpenAI 兼容 API |
 | **agl.Baseline** | 调试和测试 | ❌ 否 | 纯 Python |
 
+### 备选训练后端: Unsloth SFT
+
+> 💡 **低显存方案**: 如果你没有 40GB+ 的 GPU 来跑 VERL/GRPO，Agent Lightning 还支持 **Unsloth + SFT** 作为替代训练路径！
+
+| 特性 | VERL (RL) | Unsloth (SFT) |
+|------|-----------|---------------|
+| **训练方式** | 强化学习 | 监督微调 |
+| **最低显存** | 40GB+ | **16GB** ✅ |
+| **修改权重** | ✅ 是 | ✅ 是 |
+| **算法** | GRPO / PPO / DAPO | SFTTrainer + LoRA |
+| **学习来源** | 奖励信号 | Trace 数据 |
+| **位置** | `agl.VERL` (内置) | `examples/unsloth/` |
+| **量化支持** | FP16/BF16 | **4-bit** 支持 |
+
+**何时使用 Unsloth SFT**:
+- GPU 显存 < 40GB（如 RTX 3090/4090, A10）
+- 希望用 SFT 快速迭代
+- 从成功的 Trace 学习，而非奖励优化
+
+**示例**: 参见 `examples/unsloth/sft_algorithm.py` 获取完整实现。
+
 ### 本项目使用的组件
 
 | 脚本 | 使用的 AGL 组件 |
