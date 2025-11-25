@@ -144,14 +144,31 @@ python convert_checkpoint.py \
     --output_dir merged_model
 ```
 
-### 步骤4: 使用AGL追踪评判模型回答
+### 步骤4: 完整评估 (含AGL评判)
 
 ```bash
-python judge_with_llm_agl.py eval_results.parquet judged_results.parquet
+# 准备数据集
+python prepare_gsm8k.py
+python prepare_math.py
+
+# 一键评估 (自动调用 judge_with_llm_agl.py)
+bash run_full_evaluation_v5.sh
+# 输出: validation_report.txt, validation_llm_judged.parquet
 ```
 
 **执行日志示例 (展示AGL评判能力)**:
 ```text
+============================================================
+Agent Lightning Full Evaluation Pipeline
+============================================================
+
+Starting base model (Port 8000)...
+Starting trained model (Port 8001)...
+Both models started!
+
+Running comparative evaluation...
+Running LLM judge...
+
 ============================================================
 ⚖️ Agent Lightning Enhanced LLM Judge
 ============================================================
@@ -161,22 +178,11 @@ python judge_with_llm_agl.py eval_results.parquet judged_results.parquet
   2. Record judgment decisions as rewards
   3. OpenTelemetry integration for observability
 
-📂 Loaded 5 samples from data/judge_test_input.parquet
-
 [11/25/25 01:21:01] INFO  [Worker 0] Setting up OpenTelemetry tracer...
-                    INFO  [Worker 0] OpenTelemetry tracer provider initialized.
-⚖️ Judging with AGL:   0%|          | 0/5 [00:00< ,  it/s]
-[11/25/25 01:21:03] INFO  [Worker 0 | Rollout ro-1152b4409d01] Completed in 2.03s. 
-                          Collected 3 span(s). Final reward: 1.0
-⚖️ Judging with AGL:  20%|██        | 1/5 [00:02<00:10,  2.54s/it]
-[11/25/25 01:21:06] INFO  [Worker 0 | Rollout ro-387a34b755fc] Completed in 1.80s. 
-                          Collected 3 span(s). Final reward: 1.0
-...
 ⚖️ Judging with AGL: 100%|██████████| 5/5 [00:11<00:00,  2.36s/it]
-                    INFO  [Worker 0] Tearing down OpenTelemetry tracer...
 
 ============================================================
-✅ Judgment Complete!
+✅ Evaluation Complete!
 ============================================================
 
 📊 Results:
@@ -185,20 +191,9 @@ python judge_with_llm_agl.py eval_results.parquet judged_results.parquet
    Incorrect: 1
    Accuracy: 80.0%
 
-💾 Saved to: data/judge_test_output.parquet
-📝 Logs saved to: judge_execution.log
-```
-
-### 步骤5: 完整评估
-
-```bash
-# 准备数据集
-python prepare_gsm8k.py
-python prepare_math.py
-
-# 一键评估
-bash run_full_evaluation_v5.sh
-# 输出: validation_report.txt
+View results:
+   - Evaluation report: validation_report.txt
+   - Detailed data: validation_llm_judged.parquet
 ```
 
 ---

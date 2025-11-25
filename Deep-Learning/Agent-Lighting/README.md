@@ -143,14 +143,31 @@ python convert_checkpoint.py \
     --output_dir merged_model
 ```
 
-### Step 4: Judge Model Responses with AGL Tracing
+### Step 4: Full Evaluation (with AGL Judge)
 
 ```bash
-python judge_with_llm_agl.py eval_results.parquet judged_results.parquet
+# Prepare datasets
+python prepare_gsm8k.py
+python prepare_math.py
+
+# Run full evaluation pipeline (automatically calls judge_with_llm_agl.py)
+bash run_full_evaluation_v5.sh
+# Output: validation_report.txt, validation_llm_judged.parquet
 ```
 
 **Execution Log Example (Showing AGL Judge Capabilities)**:
 ```text
+============================================================
+Agent Lightning Full Evaluation Pipeline
+============================================================
+
+Starting base model (Port 8000)...
+Starting trained model (Port 8001)...
+Both models started!
+
+Running comparative evaluation...
+Running LLM judge...
+
 ============================================================
 ⚖️ Agent Lightning Enhanced LLM Judge
 ============================================================
@@ -160,22 +177,11 @@ python judge_with_llm_agl.py eval_results.parquet judged_results.parquet
   2. Record judgment decisions as rewards
   3. OpenTelemetry integration for observability
 
-📂 Loaded 5 samples from data/judge_test_input.parquet
-
 [11/25/25 01:21:01] INFO  [Worker 0] Setting up OpenTelemetry tracer...
-                    INFO  [Worker 0] OpenTelemetry tracer provider initialized.
-⚖️ Judging with AGL:   0%|          | 0/5 [00:00< ,  it/s]
-[11/25/25 01:21:03] INFO  [Worker 0 | Rollout ro-1152b4409d01] Completed in 2.03s. 
-                          Collected 3 span(s). Final reward: 1.0
-⚖️ Judging with AGL:  20%|██        | 1/5 [00:02<00:10,  2.54s/it]
-[11/25/25 01:21:06] INFO  [Worker 0 | Rollout ro-387a34b755fc] Completed in 1.80s. 
-                          Collected 3 span(s). Final reward: 1.0
-...
 ⚖️ Judging with AGL: 100%|██████████| 5/5 [00:11<00:00,  2.36s/it]
-                    INFO  [Worker 0] Tearing down OpenTelemetry tracer...
 
 ============================================================
-✅ Judgment Complete!
+✅ Evaluation Complete!
 ============================================================
 
 📊 Results:
@@ -184,20 +190,9 @@ python judge_with_llm_agl.py eval_results.parquet judged_results.parquet
    Incorrect: 1
    Accuracy: 80.0%
 
-💾 Saved to: data/judge_test_output.parquet
-📝 Logs saved to: judge_execution.log
-```
-
-### Step 5: Full Evaluation
-
-```bash
-# Prepare datasets
-python prepare_gsm8k.py
-python prepare_math.py
-
-# Run evaluation
-bash run_full_evaluation_v5.sh
-# Output: validation_report.txt
+View results:
+   - Evaluation report: validation_report.txt
+   - Detailed data: validation_llm_judged.parquet
 ```
 
 ---
