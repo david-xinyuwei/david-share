@@ -64,7 +64,7 @@ python inference_validation.py
 
 # 7. 运行 LLM 判分脚本
 echo "⚖️ Running LLM Judge..."
-python judge_with_llm.py
+python judge_with_llm_agl.py
 
 # 8. 清理
 echo "🧹 Cleaning up..."
