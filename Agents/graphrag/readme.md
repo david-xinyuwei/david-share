@@ -11,7 +11,7 @@ The final graph generated during the test is under ***results*** directory：
 
 This knowledge graph was created by using the Chinese novel *Romance of the Three Kingdoms* as the foundational data.
 
-![image](https://github.com/davidsajare/david-share/blob/master/LLMs/graphrag/images/1.png)
+![image](./images/1.png)
 
 ***Please click below pictures to see my demo vedios on Yutube***:
 [![GraphRAG-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/CvCONQzhrp8)
@@ -19,7 +19,7 @@ This knowledge graph was created by using the Chinese novel *Romance of the Thre
 
 ## graphrag implementation logic
 Global Query：
-![image](https://github.com/davidsajare/david-share/blob/master/LLMs/graphrag/images/5.png)
+![image](./images/5.png)
 
 ##### Input:
 - User Query
@@ -27,7 +27,7 @@ Global Query：
 
 ##### Processing Flow:
 
-![image](https://github.com/davidsajare/david-share/blob/master/LLMs/graphrag/images/12.png)
+![image](./images/12.png)
 
 The user query and conversation history are divided into multiple batches (Shuffled Community Report Batch 1, 2, ..., N).
 Each batch generates an intermediate response (Rated Intermediate Response 1, 2, ..., N).
@@ -43,7 +43,7 @@ Multiple intermediate responses need to be aggregated to generate the final resp
 Suitable for scenarios that require searching and aggregating information on a large scale.
 
 Local Query：
-![image](https://github.com/davidsajare/david-share/blob/master/LLMs/graphrag/images/6.png)
+![image](./images/6.png)
 
 ##### Input:
 - User Query
@@ -81,7 +81,7 @@ claim_extraction.txt  drift_search_system_prompt.txt  global_search_knowledge_sy
 community_report.txt  entity_extraction.txt           global_search_map_system_prompt.txt        local_search_system_prompt.txt          summarize_descriptions.txt
 ```
 
-![image](https://github.com/davidsajare/david-share/blob/master/LLMs/graphrag/images/11.png)
+![image](./images/11.png)
 
 ###  graphrag Search system input and output file
 
@@ -161,7 +161,7 @@ The main difference between global_search and local_search is the API endpoint t
 Graphrag is a rapidly developing open-source project with frequent version updates. If you want to quickly create a Proof of Concept (PoC) to understand its features, you can refer to: https://microsoft.github.io/graphrag/get_started/. With this deployment method, Parquet files won't be stored in the database but will exist on the local file system. However, in my PoC, I found that if you use AOAI GPT-4O, the query speed is also very fast. If you want to deploy Graphrag into a production environment, you need to consider high availability and storing Parquet files in a database. You can refer to: https://github.com/Azure-Samples/graphrag-accelerator.
 
 The architecture diagram is shown below:
-![image](https://github.com/davidsajare/david-share/blob/master/LLMs/graphrag/images/2.png)
+![image](./images/2.png)
 
 
 
@@ -640,9 +640,9 @@ Installation will take ~40-50 minutes to deploy.Don't worry that the installatio
 
 
 ####  Step2: Get the URL and key to APIM as an API for Graphrag.
-![image](https://github.com/davidsajare/david-share/blob/master/LLMs/graphrag/images/3.png)
+![image](./images/3.png)
 
-![image](https://github.com/davidsajare/david-share/blob/master/LLMs/graphrag/images/4.png)
+![image](./images/4.png)
 
 ####  Step3: run test
 Refer to following link to create a dataset:
@@ -767,11 +767,11 @@ The first segment is useful for obtaining a clear and structured overview of the
 
 
 ## In 2-Advanced_Getting_Started.ipynb
-![image](https://github.com/davidsajare/david-share/blob/master/LLMs/graphrag/images/7.png)
+![image](./images/7.png)
 
 In this ipynb, in addition to performing the comparison between global query and local query, the API was called to generate Graphrag knowledge.
 
-![image](https://github.com/davidsajare/david-share/blob/master/LLMs/graphrag/images/8.png)
+![image](./images/8.png)
 
 In this Jupyter notebook, the process of generating a GraphML file is implemented through the save_graphml_file function. This function retrieves knowledge graph data from the GraphRAG API and saves it as a GraphML file.
 ###  GraphML file generation logic
