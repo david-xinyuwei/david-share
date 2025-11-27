@@ -7,10 +7,81 @@
 本项目验证了 **Microsoft Fara-7B** 模型在 Azure H100 GPU 上的部署和运行效果，并提供了一个 Streamlit Web 界面用于演示。
 
 ### Fara-7B 模型简介
-- **参数量**: 7B
-- **许可证**: MIT (开源可商用)
-- **基座模型**: Qwen2.5-VL-7B
-- **核心能力**: 自主浏览网页、填写表单、提取信息、完成复杂任务
+
+Microsoft Fara-7B 是**首个专为计算机自动化操作设计的开源智能体小语言模型**。
+
+| 属性 | 详情 |
+|------|------|
+| **参数量** | 7.6B (76亿) |
+| **许可证** | MIT (开源可商用) |
+| **基座模型** | Qwen2.5-VL-7B-Instruct |
+| **架构** | Qwen2_5_VLForConditionalGeneration |
+| **上下文长度** | 128K tokens (max_position_embeddings) |
+| **滑动窗口** | 32K tokens |
+
+## 🧠 模型架构详解
+
+### 文本编码器 (LLM Backbone)
+| 组件 | 规格 |
+|------|------|
+| Hidden Size | 3584 |
+| Intermediate Size | 18944 |
+| 注意力头数 | 28 |
+| KV头数 | 4 (GQA分组查询注意力) |
+| 隐藏层数 | 28 |
+| 激活函数 | SiLU |
+| RoPE θ | 1,000,000 |
+| 归一化 | RMSNorm (eps=1e-6) |
+
+### 视觉编码器 (ViT)
+| 组件 | 规格 |
+|------|------|
+| 深度 | 32层 |
+| Hidden Size | 1280 |
+| 注意力头数 | 16 |
+| Patch Size | 14×14 |
+| 空间合并尺寸 | 2 |
+| 时间Patch尺寸 | 2 (支持视频) |
+| 全注意力层 | 第7、15、23、31层 |
+| 输出维度 | 3584 (投影到LLM维度) |
+
+## 🎮 智能体能力
+
+### 可用动作 (11种)
+Fara 实现了 `computer_use` 工具，支持以下动作：
+
+| 动作 | 描述 | 参数 |
+|------|------|------|
+| `left_click` | 鼠标左键点击 | `coordinate: [x, y]` |
+| `mouse_move` | 移动鼠标到坐标 | `coordinate: [x, y]` |
+| `type` | 键盘输入文本 | `text`, `press_enter`, `delete_existing_text` |
+| `key` | 按下键盘按键 | `keys: ["Enter", "Tab", ...]` |
+| `scroll` | 滚动鼠标滚轮 | `pixels` (正值向上，负值向下) |
+| `visit_url` | 访问URL | `url` |
+| `web_search` | 执行网页搜索 | `query` |
+| `history_back` | 浏览器后退 | - |
+| `wait` | 等待页面加载 | `time` (秒) |
+| `pause_and_memorize_fact` | 记忆信息 | `fact` |
+| `terminate` | 结束任务 | `status: "success" | "failure"` |
+
+### 核心Agent函数
+```
+FaraAgent
+├── initialize()              # 初始化浏览器和OpenAI客户端
+├── run()                     # 主执行循环
+├── generate_model_call()     # 调用视觉语言模型
+├── execute_action()          # 执行解析后的动作
+├── _get_scaled_screenshot()  # 截屏并缩放 (1440×900)
+├── _parse_thoughts_and_action()  # 提取推理和动作
+└── close()                   # 清理资源
+```
+
+### 智能体循环 (ReAct模式)
+```
+1. 截图 → 2. 模型推理 → 3. 解析思考/动作 → 4. 执行 → 5. 重复
+    ↑                                                      |
+    └──────────────────────────────────────────────────────┘
+```
 
 ## ✅ 验证成功案例
 

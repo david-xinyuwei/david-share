@@ -7,10 +7,81 @@ End-to-end validation of Microsoft's first open-source Computer Use Agent (CUA) 
 This project validates the deployment and performance of **Microsoft Fara-7B** on Azure H100 GPU, with a Streamlit web interface for demonstration.
 
 ### About Fara-7B
-- **Parameters**: 7B
-- **License**: MIT (Open source, commercially usable)
-- **Base Model**: Qwen2.5-VL-7B
-- **Core Capabilities**: Autonomous web browsing, form filling, information extraction, complex task completion
+
+Microsoft Fara-7B is the **first open-source agentic small language model** specifically designed for computer use automation.
+
+| Attribute | Details |
+|-----------|---------|
+| **Parameters** | 7.6B (7,615M) |
+| **License** | MIT (Open source, commercially usable) |
+| **Base Model** | Qwen2.5-VL-7B-Instruct |
+| **Architecture** | Qwen2_5_VLForConditionalGeneration |
+| **Context Length** | 128K tokens (max_position_embeddings) |
+| **Sliding Window** | 32K tokens |
+
+## 🧠 Model Architecture Details
+
+### Text Encoder (LLM Backbone)
+| Component | Specification |
+|-----------|---------------|
+| Hidden Size | 3584 |
+| Intermediate Size | 18944 |
+| Num Attention Heads | 28 |
+| Num Key-Value Heads | 4 (GQA) |
+| Num Hidden Layers | 28 |
+| Activation | SiLU |
+| RoPE θ | 1,000,000 |
+| Normalization | RMSNorm (eps=1e-6) |
+
+### Vision Encoder (ViT)
+| Component | Specification |
+|-----------|---------------|
+| Depth | 32 layers |
+| Hidden Size | 1280 |
+| Num Heads | 16 |
+| Patch Size | 14×14 |
+| Spatial Merge Size | 2 |
+| Temporal Patch Size | 2 (video support) |
+| Full Attention Blocks | Layers 7, 15, 23, 31 |
+| Output Hidden Size | 3584 (projects to LLM dim) |
+
+## 🎮 Agent Capabilities
+
+### Available Actions (11 types)
+Fara implements a `computer_use` tool with the following actions:
+
+| Action | Description | Parameters |
+|--------|-------------|------------|
+| `left_click` | Click the left mouse button | `coordinate: [x, y]` |
+| `mouse_move` | Move cursor to coordinates | `coordinate: [x, y]` |
+| `type` | Type text on keyboard | `text`, `press_enter`, `delete_existing_text` |
+| `key` | Press keyboard keys | `keys: ["Enter", "Tab", ...]` |
+| `scroll` | Scroll mouse wheel | `pixels` (positive=up, negative=down) |
+| `visit_url` | Navigate to URL | `url` |
+| `web_search` | Perform web search | `query` |
+| `history_back` | Browser back button | - |
+| `wait` | Wait for page load | `time` (seconds) |
+| `pause_and_memorize_fact` | Store information | `fact` |
+| `terminate` | End task | `status: "success" | "failure"` |
+
+### Core Agent Functions
+```
+FaraAgent
+├── initialize()              # Set up browser & OpenAI client
+├── run()                     # Main execution loop
+├── generate_model_call()     # Call vision-language model
+├── execute_action()          # Execute parsed action
+├── _get_scaled_screenshot()  # Capture & resize screen (1440×900)
+├── _parse_thoughts_and_action()  # Extract reasoning & action
+└── close()                   # Cleanup resources
+```
+
+### Agent Loop (ReAct Pattern)
+```
+1. Screenshot → 2. Model Inference → 3. Parse Thought/Action → 4. Execute → 5. Repeat
+     ↑                                                                           |
+     └───────────────────────────────────────────────────────────────────────────┘
+```
 
 ## ✅ Validated Demo Cases
 
