@@ -6,6 +6,15 @@ End-to-end validation of Microsoft's first open-source Computer Use Agent (CUA) 
 
 This project validates the deployment and performance of **Microsoft Fara-7B** on Azure H100 GPU, with a Streamlit web interface for demonstration.
 
+#### Demo 1
+
+https://github.com/user-attachments/assets/d7041c81-b2e4-4413-980e-428135f8f62c
+
+
+#### Demo 2
+
+https://github.com/user-attachments/assets/90e8acc2-d8db-447e-8e30-cb2b157229cd
+
 ### About Fara-7B
 
 Microsoft Fara-7B is the **first open-source agentic small language model** specifically designed for computer use automation.
@@ -274,3 +283,4 @@ This project code is under MIT License. Fara-7B model is also under MIT License.
 ---
 
 *Validation Date: 2025-11-27 | Validated by: Microsoft GBB AI Architect*
+
