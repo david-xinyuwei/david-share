@@ -1,4 +1,4 @@
-# Fara-7B Azure H100 Validation & Streamlit Demo
+# Fara-7B CUA on Azure NC40 H100 Validation & Streamlit Demo
 
 End-to-end validation of Microsoft's first open-source Computer Use Agent (CUA) model on Azure GPU VMs.
 
@@ -283,4 +283,5 @@ This project code is under MIT License. Fara-7B model is also under MIT License.
 ---
 
 *Validation Date: 2025-11-27 | Validated by: Microsoft GBB AI Architect*
+
 
