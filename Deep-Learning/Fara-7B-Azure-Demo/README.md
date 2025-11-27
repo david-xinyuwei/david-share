@@ -130,19 +130,30 @@ playwright install firefox
 apt install -y xvfb firefox
 ```
 
-### 2. Download Model
+### 2. Download Model (~16GB)
+
+The model must be downloaded before running the Streamlit app.
 
 ```bash
-# Using huggingface-cli (requires token)
+# Create model directory
+mkdir -p /root/fara/model_checkpoints
+
+# Option 1: Using huggingface-cli (requires HF token)
 huggingface-cli download microsoft/Fara-7B \
-    --local-dir ./model_checkpoints/fara-7b \
+    --local-dir /root/fara/model_checkpoints/fara-7b \
     --token YOUR_HF_TOKEN
 
-# Or use mirror site (for China)
+# Option 2: Use mirror site (for China, no token needed)
 export HF_ENDPOINT=https://hf-mirror.com
 huggingface-cli download microsoft/Fara-7B \
-    --local-dir ./model_checkpoints/fara-7b
+    --local-dir /root/fara/model_checkpoints/fara-7b
+
+# Verify download (~16GB total)
+ls -lh /root/fara/model_checkpoints/fara-7b/
+# Should see: config.json, model files, tokenizer files, etc.
 ```
+
+> **Note**: The Streamlit app (`app.py`) expects the model at `/root/fara/model_checkpoints/fara-7b`. Update `MODEL_PATH` in `app.py` if using a different location.
 
 ### 3. Start VLLM Server
 

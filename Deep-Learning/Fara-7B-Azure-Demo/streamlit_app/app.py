@@ -15,11 +15,18 @@ import re
 from pathlib import Path
 from datetime import datetime
 
-# Configuration - Local paths for H100 VM
-FARA_DIR = "/root/fara"
-VENV_PYTHON = "/root/fara/.venv/bin/python"
-SCREENSHOTS_DIR = "/root/fara/streamlit_screenshots"
-VLLM_PORT = 5000
+# Configuration - Local paths for H100 GPU VM
+# Update these paths according to your environment
+FARA_DIR = "/root/fara"                                    # Fara repo directory
+VENV_PYTHON = "/root/fara/.venv/bin/python"               # Python interpreter
+SCREENSHOTS_DIR = "/root/fara/streamlit_screenshots"       # Screenshot output
+VLLM_PORT = 5000                                            # VLLM server port
+
+# Model path - use local path if downloaded, otherwise HuggingFace ID
+# Option 1: Local path (faster startup, requires pre-download)
+MODEL_PATH = "/root/fara/model_checkpoints/fara-7b"
+# Option 2: HuggingFace ID (auto-downloads on first use)
+# MODEL_PATH = "microsoft/Fara-7B"
 
 # Page configuration
 st.set_page_config(
@@ -180,10 +187,13 @@ def start_vllm_server():
     """Start VLLM server if not running"""
     cmd = f"""
     cd {FARA_DIR} && source .venv/bin/activate && \
-    nohup vllm serve 'microsoft/Fara-7B' \
+    nohup vllm serve '{MODEL_PATH}' \
         --port {VLLM_PORT} \
         --dtype auto \
-        --max-model-len 8192 \
+        --max-model-len 32768 \
+        --gpu-memory-utilization 0.9 \
+        --served-model-name microsoft/Fara-7B \
+        --trust-remote-code \
         > /tmp/vllm.log 2>&1 &
     """
     subprocess.Popen(cmd, shell=True, executable='/bin/bash')
