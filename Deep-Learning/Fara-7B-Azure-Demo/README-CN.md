@@ -2,6 +2,14 @@
 
 微软首个开源 Computer Use Agent (CUA) 模型在 Azure GPU VM 上的端到端验证。
 
+#### Demo 1
+
+https://github.com/user-attachments/assets/d7041c81-b2e4-4413-980e-428135f8f62c
+
+#### Demo 2
+
+https://github.com/user-attachments/assets/90e8acc2-d8db-447e-8e30-cb2b157229cd
+
 ## 🎯 项目概述
 
 本项目验证了 **Microsoft Fara-7B** 模型在 Azure H100 GPU 上的部署和运行效果，并提供了一个 Streamlit Web 界面用于演示。
@@ -274,3 +282,4 @@ python -m fara.run_fara \
 ---
 
 *验证日期: 2025-11-27 | 验证者: Microsoft GBB AI Architect*
+
