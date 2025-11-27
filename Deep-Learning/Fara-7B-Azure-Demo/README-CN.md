@@ -20,6 +20,8 @@
 | Azure VM 定价 | 查找 NC A100 v4 系列价格 | **$3.673/hr** (按需) |
 | 北京住建委导航 | 找到存量房网签系统登录入口 | 成功定位"其他人员登录" |
 | 表单自动填写 | 填写并提交测试表单 | 成功提交并获取响应 |
+| GitHub 搜索 | 查找微软 Fara 仓库和 Star 数 | 成功导航并提取信息 |
+| 美国政府网站 | 浏览 usa.gov 住房信息 | 成功提取关键要点 |
 
 ## 🖥️ 硬件要求
 
@@ -111,28 +113,33 @@ python -m fara.run_fara \
 ### 文件结构
 ```
 streamlit_app/
-├── app.py              # 主应用 (远程 SSH 模式)
+├── app.py              # 主应用 (自动管理 VLLM 后端)
 ├── requirements.txt    # 依赖
 └── README.md           # 说明
 ```
 
 ### 部署 Streamlit
 
-```bash
-# 安装依赖
-pip install streamlit paramiko Pillow
+> **注意**: Streamlit 应用现在会自动管理 VLLM 后端。启动时会检查 VLLM 是否运行，如未运行会自动启动。
 
-# 启动服务
+```bash
+# 安装依赖 (无需 SSH 库 - 直接在 GPU VM 本地运行)
+pip install streamlit Pillow
+
+# 启动服务 (VLLM 未运行时会自动启动)
 streamlit run app.py \
     --server.address 0.0.0.0 \
     --server.port 8501
 ```
 
 ### 功能特性
-- 📊 实时 GPU 监控 (VRAM 使用、温度)
-- 🎬 任务执行可视化
-- 📸 自动截图展示
-- 🤖 模型推理状态显示
+- 🚀 **自动后端管理**: 自动检测并启动 VLLM 服务
+- 📊 实时 GPU 监控 (VRAM 使用、温度、推理吞吐量)
+- 🎬 任务执行可视化，结构化展示思考/动作/观察过程
+- 📸 自动截图画廊，每个动作独立标签页
+- 🤖 模型推理状态和实时 token 吞吐量显示
+- 🛑 人工介入支持 (验证码、人机验证等)
+- 🏠 内置示例任务 (GitHub、Hacker News、Wikipedia、US Housing 等)
 
 ## 📈 性能数据
 
@@ -184,4 +191,4 @@ python -m fara.run_fara \
 
 ---
 
-*验证日期: 2025-11-26 | 验证者: Microsoft GBB AI Architect*
+*验证日期: 2025-11-27 | 验证者: Microsoft GBB AI Architect*

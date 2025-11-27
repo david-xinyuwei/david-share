@@ -20,6 +20,8 @@ This project validates the deployment and performance of **Microsoft Fara-7B** o
 | Azure VM Pricing | Find NC A100 v4 series hourly price | **$3.673/hr** (on-demand) |
 | Beijing Housing Portal | Navigate to online signing system login | Successfully located "Other Users Login" |
 | Form Auto-Fill | Fill and submit test form | Successfully submitted with response |
+| GitHub Search | Find Microsoft Fara repo and star count | Successfully navigated and extracted |
+| US Government Sites | Browse usa.gov housing information | Successfully extracted key points |
 
 ## 🖥️ Hardware Requirements
 
@@ -111,28 +113,33 @@ python -m fara.run_fara \
 ### File Structure
 ```
 streamlit_app/
-├── app.py              # Main app (remote SSH mode)
+├── app.py              # Main app (auto-manages VLLM backend)
 ├── requirements.txt    # Dependencies
 └── README.md           # Documentation
 ```
 
 ### Deploy Streamlit
 
-```bash
-# Install dependencies
-pip install streamlit paramiko Pillow
+> **Note**: The Streamlit app now automatically manages the VLLM backend. When launched, it will check if VLLM is running and start it if needed.
 
-# Start server
+```bash
+# Install dependencies (no SSH libraries needed - runs locally on GPU VM)
+pip install streamlit Pillow
+
+# Start server (VLLM will be auto-started if not running)
 streamlit run app.py \
     --server.address 0.0.0.0 \
     --server.port 8501
 ```
 
 ### Features
-- 📊 Real-time GPU monitoring (VRAM usage, temperature)
-- 🎬 Task execution visualization
-- 📸 Automatic screenshot display
-- 🤖 Model inference status display
+- 🚀 **Auto Backend Management**: Automatically starts VLLM if not running
+- 📊 Real-time GPU monitoring (VRAM usage, temperature, throughput)
+- 🎬 Task execution visualization with structured thought/action/observation display
+- 📸 Automatic screenshot gallery with tabs for each action
+- 🤖 Model inference status and real-time token throughput
+- 🛑 Human intervention support for captchas and verification
+- 🏠 Built-in example tasks (GitHub, Hacker News, Wikipedia, US Housing, etc.)
 
 ## 📈 Performance Data
 
@@ -184,4 +191,4 @@ This project code is under MIT License. Fara-7B model is also under MIT License.
 
 ---
 
-*Validation Date: 2025-11-26 | Validated by: Microsoft GBB AI Architect*
+*Validation Date: 2025-11-27 | Validated by: Microsoft GBB AI Architect*
