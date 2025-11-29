@@ -266,7 +266,7 @@ class AgenticChunker:
         self.print_logging = True  
   
         # Azure OpenAI 配置信息  
-        self.endpoint = "https://eastus2xinyuwei.openai.azure.com/openai/deployments/eastus3xinyuwei/chat/completions?api-version=2024-02-15-preview"  
+        self.endpoint = "https://YOUR-ENDPOINT.openai.azure.com/openai/deployments/YOUR-DEPLOYMENT/chat/completions?api-version=2024-02-15-preview"  
         self.api_key = "***"  
   
     def _invoke_llm(self, prompt):  

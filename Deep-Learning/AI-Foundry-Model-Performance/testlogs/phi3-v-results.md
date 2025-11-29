@@ -2,7 +2,7 @@
 
 ```
 (aml_env) root@linuxworkvm:~/AIFperformance# python  press-phi3v-20250315.py
-Please enter the API service URL (default: https://custom-endpoint-1742021907.polandcentral.inference.ml.azure.com/score): 
+Please enter the API service URL (default: https://YOUR-ENDPOINT.inference.ml.azure.com/score): 
 Please enter the API Key (default is configured): 
 Please enter the HuggingFace model name for loading the tokenizer (default: gpt2, leave blank to skip loading): microsoft/Phi-3.5-vision-instruct
 Tokenizer loaded successfully: microsoft/Phi-3.5-vision-instruct
@@ -56,8 +56,8 @@ Summary for concurrency=2:
 
 ```
 (aml_env) root@linuxworkvm:~/AIFperformance# python  press-phi3v-20250315.py
-Please enter the API service URL (default: https://custom-endpoint-1742021907.polandcentral.inference.ml.azure.com/score): https://aml-david-2-nc24.polandcentral.inference.ml.azure.com/score
-Please enter the API Key (default is configured): EhKkIvwTiKCZkrmdIlTyqYlbypDWiikA2SSpNX5GBfGmNK1Xc5CGJQQJ99BCAAAAAAAAAAAAINFRAZML2etY
+Please enter the API service URL (default: https://YOUR-ENDPOINT.inference.ml.azure.com/score): https://YOUR-ENDPOINT.inference.ml.azure.com/score
+Please enter the API Key (default is configured): YOUR-API-KEY-HERE
 Please enter the HuggingFace model name for loading the tokenizer (default: gpt2, leave blank to skip loading): microsoft/Phi-3.5-vision-instruct
 Tokenizer loaded successfully: microsoft/Phi-3.5-vision-instruct
 
@@ -224,8 +224,8 @@ Summary for concurrency=5:
 
 ```
 (aml_env) root@linuxworkvm:~/AIFperformance# python  press-phi3v-20250315.py
-Please enter the API service URL (default: https://custom-endpoint-1742021907.polandcentral.inference.ml.azure.com/score): https://aml-david-1-nc48.polandcentral.inference.ml.azure.com/score
-Please enter the API Key (default is configured): 57GzZXHoZrTSurmU9ZuvA9gxmeo20Ee7jOHumXDb6KfnYlN1XAvMJQQJ99BCAAAAAAAAAAAAINFRAZML4DCW
+Please enter the API service URL (default: https://YOUR-ENDPOINT.inference.ml.azure.com/score): https://YOUR-ENDPOINT.inference.ml.azure.com/score
+Please enter the API Key (default is configured): YOUR-API-KEY-HERE
 Please enter the HuggingFace model name for loading the tokenizer (default: gpt2, leave blank to skip loading): microsoft/Phi-3.5-vision-instruct
 Tokenizer loaded successfully: microsoft/Phi-3.5-vision-instruct
 
@@ -381,8 +381,8 @@ Summary for concurrency=5:
   Batch duration (wall-clock)  : 11.309 s
 
 (aml_env) root@linuxworkvm:~/AIFperformance# python  press-phi3v-20250315.py
-Please enter the API service URL (default: https://custom-endpoint-1742021907.polandcentral.inference.ml.azure.com/score): https://aml-david-1-nc48.polandcentral.inference.ml.azure.com/score
-Please enter the API Key (default is configured): 57GzZXHoZrTSurmU9ZuvA9gxmeo20Ee7jOHumXDb6KfnYlN1XAvMJQQJ99BCAAAAAAAAAAAAINFRAZML4DCW
+Please enter the API service URL (default: https://YOUR-ENDPOINT.inference.ml.azure.com/score): https://YOUR-ENDPOINT.inference.ml.azure.com/score
+Please enter the API Key (default is configured): YOUR-API-KEY-HERE
 Please enter the HuggingFace model name for loading the tokenizer (default: gpt2, leave blank to skip loading): microsoft/Phi-3.5-vision-instruct
 Tokenizer loaded successfully: microsoft/Phi-3.5-vision-instruct
 

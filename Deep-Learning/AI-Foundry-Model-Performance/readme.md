@@ -315,8 +315,8 @@ https://github.com/user-attachments/assets/5560e1b8-22ea-4569-988e-7e361422ba0b
 **Interactive Input Example:**
 
 ```text
-Please enter the API service URL: https://david-workspace-westeurop-ldvdq.westeurope.inference.ml.azure.com/score
-Please enter the API Key: Ef9DFpATsXs4NiWyoVhEXeR4PWPvFy17xcws5ySCvV2H8uOUfgV4JQQJ99BCAAAAAAAAAAAAINFRAZML3eIO
+Please enter the API service URL: https://YOUR-ENDPOINT.inference.ml.azure.com/score
+Please enter the API Key: YOUR-API-KEY-HERE
 Please enter the full name of the HuggingFace model for tokenizer loading: microsoft/phi-4
 Tokenizer loaded successfully: microsoft/phi-4
 ```
@@ -1417,7 +1417,7 @@ python scripts/testing/callaiinference-20250406.py
 
 ```text
 Please enter the Azure AI key: G485wnXwMrAYQKMQPSYpzf7PNLm3sui8qgsXcYFv5Yd3HOmvzZ2GJQQJ99BCACPV0roXJ3w3AAAAACOG9kt1
-Please enter the Azure AI endpoint URL: https://xinyu-m7zxv3ow-germanywestcentra.services.ai.azure.com/models
+Please enter the Azure AI endpoint URL: https://YOUR-AZURE-OPENAI-RESOURCE.services.ai.azure.com/models
 Please enter the deployment name: Phi-4
 ```
 

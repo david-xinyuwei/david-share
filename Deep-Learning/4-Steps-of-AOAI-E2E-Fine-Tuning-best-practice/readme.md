@@ -16,7 +16,7 @@ At this stage, the dataset only contains the description of the Persona:
 The code I used: 1.generatedata.py
 
 ```
-(base) root@davidwei:/mnt/c/david-share/2# cat 1.generatedata.py
+(base) root@YOUR-VM:/mnt/c/david-share/2# cat 1.generatedata.py
 import sys
 from tqdm import tqdm
 from datasets import load_dataset

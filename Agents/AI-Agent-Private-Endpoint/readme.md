@@ -255,7 +255,7 @@ Set env：
 SUBSCRIPTION_ID="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 ROLE_FILE="./role.json"                               # 若文件名不同请修改
 ROLE_NAME="AI Developer without Compute"
-USER_UPN="xinyuwei@mngenv183724.onmicrosoft.com"      # 目标用户或组/应用
+USER_UPN="user@example.onmicrosoft.com"      # 目标用户或组/应用
 TENANT_ID="9812**"      # 可省略；多租户时指定
 ```
 
@@ -289,7 +289,7 @@ az role assignment create \
   --scope /subscriptions/$SUBSCRIPTION_ID
 ```
 
-After login with AI foundry with xinyuwei@mngenv183724.onmicrosoft.com, user could only using existing models, rather than create models:
+After login with AI foundry with user@example.onmicrosoft.com, user could only using existing models, rather than create models:
 
 Could not create new deployment:
 

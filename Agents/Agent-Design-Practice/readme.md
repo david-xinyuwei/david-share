@@ -311,7 +311,7 @@ Predicted Outputs 是 OpenAI（gpt-4o / 4.1 系列）提供的推理期加速能
 
 # ========= 1. 个人配置（请改为环境变量更安全） =========
 OPENAI_API_KEY = "E*"           # ✅ 你的密钥
-AZURE_ENDPOINT = "https://ai-hubeastus956138673159.openai.azure.com/"  # ✅ 你的 Azure 端点
+AZURE_ENDPOINT = "https://YOUR-ENDPOINT.openai.azure.com/"  # ✅ 你的 Azure 端点
 DEPLOYMENT     = "gpt-4.1"                               # ✅ 部署名称
 
 # ========= 2. 初始化客户端 =========

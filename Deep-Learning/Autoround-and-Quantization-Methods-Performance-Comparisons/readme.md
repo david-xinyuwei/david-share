@@ -64,7 +64,7 @@ autoround.save_quantized(output_dir)
 ```
 
 ```
-(Quantization-Methods-Performance-Comparisons) root@david1a100:~# ls -al ./AutoRound/GPTQ-sym/
+(Quantization-Methods-Performance-Comparisons) root@YOUR-VM:~# ls -al ./AutoRound/GPTQ-sym/
 total 5610252
 drwx------ 2 root root       4096 Aug 17 06:33 .
 drwx------ 4 root root       4096 Aug 17 06:30 ..
@@ -99,7 +99,7 @@ tokenizer.save_pretrained("./GPTQ/"+quant_path)
 ```
 
 ```
-(Quantization-Methods-Performance-Comparisons) root@david1a100:~# ls -al  ./GPTQ/Meta-Llama-3.1-8B-Instruct-gptq-4bit/
+(Quantization-Methods-Performance-Comparisons) root@YOUR-VM:~# ls -al  ./GPTQ/Meta-Llama-3.1-8B-Instruct-gptq-4bit/
 total 5607624
 drwx------ 2 root root       4096 Aug 17 06:54 .
 drwx------ 3 root root       4096 Aug 17 06:54 ..
@@ -143,7 +143,7 @@ tokenizer.save_pretrained("./BnB/"+quant_path)
 ```
 
 ```
-(Quantization-Methods-Performance-Comparisons) root@david1a100:~# ls -al ./BnB/Meta-Llama-3.1-8B-Instruct-bnb-4bit
+(Quantization-Methods-Performance-Comparisons) root@YOUR-VM:~# ls -al ./BnB/Meta-Llama-3.1-8B-Instruct-bnb-4bit
 total 5578184
 drwx------ 2 root root       4096 Aug 17 07:03 .
 drwx------ 3 root root       4096 Aug 17 07:02 ..
@@ -181,7 +181,7 @@ tokenizer.save_pretrained("./AWQ/"+quant_path)
 ```
 
 ```
-(Quantization-Methods-Performance-Comparisons) root@david1a100:~# ls -al ./AWQ/Meta-Llama-3.1-8B-Instruct-awq-4bit/
+(Quantization-Methods-Performance-Comparisons) root@YOUR-VM:~# ls -al ./AWQ/Meta-Llama-3.1-8B-Instruct-awq-4bit/
 total 5602720
 drwx------ 2 root root       4096 Aug 17 07:18 .
 drwx------ 3 root root       4096 Aug 17 07:18 ..

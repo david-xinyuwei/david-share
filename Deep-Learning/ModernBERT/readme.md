@@ -7,7 +7,7 @@ A new encoder-only small model has been released and has gained high download vo
 ## Inference task test
 
 ```
-(ModernBERT-large) root@davidgpt:~# cat 1.py
+(ModernBERT-large) root@YOUR-VM:~# cat 1.py
 from transformers import AutoTokenizer, AutoModelForMaskedLM
 
 model_id = "answerdotai/ModernBERT-base"
@@ -31,7 +31,7 @@ print("Predicted token:", predicted_token)
 ![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nVZbeZF4zhUdVdhBRUiaPcRe95t2icWwBDfyibrzicLr06DLvBxZaB4Z9RYDwvlic7daFoiaBBxeD9qA7eg/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
 
 ```
-(ModernBERT-large) root@davidgpt:~# cat 2.py
+(ModernBERT-large) root@YOUR-VM:~# cat 2.py
 from transformers import AutoTokenizer, AutoModelForMaskedLM
 import torch
 
@@ -80,7 +80,7 @@ for sentence in sentences:
 ![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nVZbeZF4zhUdVdhBRUiaPcRe4rPyreyXeSCStLhXUv6roHJPh65sCicR4arjMG5ia6pKSqed1mguG2MQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
 
 ```
-(ModernBERT-large) root@davidgpt:~# cat 3.py
+(ModernBERT-large) root@YOUR-VM:~# cat 3.py
 from transformers import AutoTokenizer, AutoModelForMaskedLM
 import torch
 

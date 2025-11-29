@@ -37,9 +37,9 @@ The code includes 3 parts:
 
 ### Part1：Env preparation
 ```
-(phi3rag) root@david1a100:~# cd Phi3-RAG/
+(phi3rag) root@YOUR-VM:~# cd Phi3-RAG/
 #pip install -r requirements
-(phi3rag) root@david1a100:~/Phi3-RAG# !ju
+(phi3rag) root@YOUR-VM:~/Phi3-RAG# !ju
 jupyter notebook --no-browser --port=8889 --allow-root --ip=0.0.0.0 --log-level=ERROR
 
 ```
@@ -212,7 +212,7 @@ The result is same as the in original pdf:
 Resource consumed in inference:
 
 ```
-root@david1a100:~# nvidia-smi
+root@YOUR-VM:~# nvidia-smi
 Wed Jul 24 01:04:40 2024
 +---------------------------------------------------------------------------------------+
 | NVIDIA-SMI 535.54.03              Driver Version: 535.54.03    CUDA Version: 12.2     |

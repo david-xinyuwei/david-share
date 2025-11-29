@@ -1,6 +1,6 @@
 (aml_env) root@linuxworkvm:~/AIFperformance# python 701.py 
-Please enter the Orca API service URL: https://aml-westus-nzzdv-orca-1-nc24.westus.inference.ml.azure.com/score
-Please enter the API Key (Bearer token) for Orca: DqkYGTQWC3pdJQZI1dz45G7TmPaQh8oo36qg9TO9UKnasytW1KWsJQQJ99BCAAAAAAAAAAAAINFRAZML1vxm
+Please enter the Orca API service URL: https://YOUR-ENDPOINT.region.inference.ml.azure.com/score
+Please enter the API Key (Bearer token) for Orca: YOUR-API-KEY-HERE
 Please enter the model name for tokenizer loading: microsoft/Orca-2-7b
 tokenizer_config.json: 100%|███████████████████████████████████████| 828/828 [00:00<00:00, 377kB/s]
 tokenizer.model: 100%|██████████████████████████████████████████| 500k/500k [00:00<00:00, 57.4MB/s]
@@ -682,8 +682,8 @@ KeyboardInterrupt:
 (aml_env) root@linuxworkvm:~/AIFperformance# vi 701.py 
 (aml_env) root@linuxworkvm:~/AIFperformance# vi 700.py ^C
 (aml_env) root@linuxworkvm:~/AIFperformance# python 701.py 
-Please enter the Orca API service URL: https://aml-westus-nzzdv-orca-1-nc24.westus.inference.ml.azure.com/score
-Please enter the API Key (Bearer token) for Orca: DqkYGTQWC3pdJQZI1dz45G7TmPaQh8oo36qg9TO9UKnasytW1KWsJQQJ99BCAAAAAAAAAAAAINFRAZML1vxm
+Please enter the Orca API service URL: https://YOUR-ENDPOINT.region.inference.ml.azure.com/score
+Please enter the API Key (Bearer token) for Orca: YOUR-API-KEY-HERE
 Please enter the model name for tokenizer loading: microsoft/Orca-2-7b
 Failed to load tokenizer. Please check the model name or dependencies. Error: 
  requires the protobuf library but it was not found in your environment. Checkout the instructions on the

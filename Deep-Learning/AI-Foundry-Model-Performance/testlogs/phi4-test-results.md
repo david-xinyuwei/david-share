@@ -2,8 +2,8 @@
 
 ```
 (aml_env) root@linuxworkvm:~/AIFperformance# python  press-phi4-0314.py
-Please enter the API service URL: https://aml-david-1-nc48.polandcentral.inference.ml.azure.com/score
-Please enter the API Key: EhVrLXKhMdlkUvvmgrORZDVP1Ki4z10PaOqdnwx3znxqQ3BHyNyqJQQJ99BCAAAAAAAAAAAAINFRAZML06ur
+Please enter the API service URL: https://YOUR-ENDPOINT.inference.ml.azure.com/score
+Please enter the API Key: YOUR-API-KEY-HERE
 Please enter the full name of the HuggingFace model for tokenizer loading: microsoft/phi-4
 Tokenizer loaded successfully: microsoft/phi-4
 
@@ -293,8 +293,8 @@ Scenario: Multi-turn Reasoning / Complex Tasks, Concurrency: 2
 
 ```
   (aml_env) root@linuxworkvm:~/AIFperformance# python  press-phi4-0314.py
-Please enter the API service URL: https://aml-david-2-nc24.polandcentral.inference.ml.azure.com/score
-Please enter the API Key: 4s9oKys5yetlZnmP1hMcYXNUOUj5rIDIl2tJfX1ULebvgxFotfulJQQJ99BCAAAAAAAAAAAAINFRAZML1pQg
+Please enter the API service URL: https://YOUR-ENDPOINT.inference.ml.azure.com/score
+Please enter the API Key: YOUR-API-KEY-HERE
 Please enter the full name of the HuggingFace model for tokenizer loading: microsoft/phi-4
 tokenizer_config.json: 100%|█████████████████████████| 17.7k/17.7k [00:00<00:00, 7.65MB/s]
 vocab.json: 100%|████████████████████████████████████| 1.61M/1.61M [00:00<00:00, 3.91MB/s]
@@ -594,8 +594,8 @@ Scenario: Multi-turn Reasoning / Complex Tasks, Concurrency: 2
 
 ```
 (aml_env) root@linuxworkvm:~/AIFperformance# python  press-phi4-0314.py
-Please enter the API service URL: https://aml-david-1-nc24.polandcentral.inference.ml.azure.com/score
-Please enter the API Key: 76WXPsoTlX02RIrijwJdUQtDL5K1iIuOqT9vRhOMtC4p2zwRlP9IJQQJ99BCAAAAAAAAAAAAINFRAZMLjTTD
+Please enter the API service URL: https://YOUR-ENDPOINT.inference.ml.azure.com/score
+Please enter the API Key: YOUR-API-KEY-HERE
 Please enter the full name of the HuggingFace model for tokenizer loading: microsoft/phi-4
 Tokenizer loaded successfully: microsoft/phi-4
 

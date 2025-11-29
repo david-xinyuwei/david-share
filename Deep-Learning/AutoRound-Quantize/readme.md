@@ -86,7 +86,7 @@ Qwen2ForCausalLM(
 Check quantized moel:
 
 ```
-(auto-round) root@h100vm:~# ls -al ./Qwen2.5-72B-Instruct-AutoRound-GPTQ-4bit
+(auto-round) root@YOUR-VM:~# ls -al ./Qwen2.5-72B-Instruct-AutoRound-GPTQ-4bit
 total 40533644
 drwxr-xr-x  2 root root       4096 Dec 10 16:50 .
 drwx------ 47 root root       4096 Dec 10 16:37 ..
@@ -109,7 +109,7 @@ drwx------ 47 root root       4096 Dec 10 16:37 ..
 -rw-r--r--  1 root root   11421896 Dec 11 09:48 tokenizer.json
 -rw-r--r--  1 root root       7336 Dec 11 09:48 tokenizer_config.json
 -rw-r--r--  1 root root    2776833 Dec 11 09:48 vocab.json
-(auto-round) root@h100vm:~#
+(auto-round) root@YOUR-VM:~#
 ```
 
 AutoRound can produce models in the same format as GPTQ, support TGI, vLLM, etc.

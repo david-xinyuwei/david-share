@@ -20,7 +20,7 @@ Please also refer to my blog on Microsoft:
 # export CONTENT_SAFETY_ENDPOINT="https://**cognitiveservices.azure.com/"
 ```
  ```
- (base) root@davidwei:/mnt/c/david-share/AzureAIContentSafety/python/1.0.0#
+ (base) root@YOUR-VM:/mnt/c/david-share/AzureAIContentSafety/python/1.0.0#
  
  ```
  ## Video filter
@@ -132,7 +132,7 @@ We could observe which pictures have issue.
 ## Image filter
 We could also use other scripts:
 ```
-(base) root@davidwei:/mnt/c/david-share/AzureAIContentSafety/python/1.0.0# cat sample_analyze_image.py
+(base) root@YOUR-VM:/mnt/c/david-share/AzureAIContentSafety/python/1.0.0# cat sample_analyze_image.py
 ```
 ```
 # coding: utf-8
@@ -195,7 +195,7 @@ if __name__ == "__main__":
     analyze_image()
 ```
 ```
-(base) root@davidwei:/mnt/c/david-share/AzureAIContentSafety/python/1.0.0# python sample_analyze_image.py
+(base) root@YOUR-VM:/mnt/c/david-share/AzureAIContentSafety/python/1.0.0# python sample_analyze_image.py
 ```
 ```
 Hate severity: 0
@@ -206,7 +206,7 @@ Violence severity: 0
 ## Text filter
 When we use text content fileter, we usually need customize blacklist of words.
 ```
-(base) root@davidwei:/mnt/c/david-share/AzureAIContentSafety/python/1.0.0# cat sample_manage_blocklist.py
+(base) root@YOUR-VM:/mnt/c/david-share/AzureAIContentSafety/python/1.0.0# cat sample_manage_blocklist.py
 ```
 ```
 # coding: utf-8
@@ -556,7 +556,7 @@ if __name__ == "__main__":
     delete_blocklist()
 ```
 ```
-(base) root@davidwei:/mnt/c/david-share/AzureAIContentSafety/python/1.0.0# python sample_manage_blocklist.py
+(base) root@YOUR-VM:/mnt/c/david-share/AzureAIContentSafety/python/1.0.0# python sample_manage_blocklist.py
 ```
 ```
 Blocklist created or updated:

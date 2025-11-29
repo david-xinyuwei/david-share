@@ -85,7 +85,7 @@ Open jupyter files via VScode, the use local laptop python as your runtime, set 
 ```
 # Azure Computer Vision 4 (Florence)
 azure_cv_key = *
-azure_cv_endpoint = https://davidcv.cognitiveservices.azure.com/
+azure_cv_endpoint = https://YOUR-ENDPOINT.cognitiveservices.azure.com/
 ```
 
 Then you could do the Lab.

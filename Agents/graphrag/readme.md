@@ -76,7 +76,7 @@ These two search methods have significant differences in their underlying implem
 The search process of GlobalSearch and LocalSearch primarily relies on a large language model (LLM) to generate answers. Below is how it guides the LLM in generating search results.
 
 ```
-(gg3) root@davidgpt:~/ragtest/prompts# ls
+(gg3) root@YOUR-VM:~/ragtest/prompts# ls
 claim_extraction.txt  drift_search_system_prompt.txt  global_search_knowledge_system_prompt.txt  global_search_reduce_system_prompt.txt  question_gen_system_prompt.txt
 community_report.txt  entity_extraction.txt           global_search_map_system_prompt.txt        local_search_system_prompt.txt          summarize_descriptions.txt
 ```
@@ -86,12 +86,12 @@ community_report.txt  entity_extraction.txt           global_search_map_system_p
 ###  graphrag Search system input and output file
 
 ```
-(gg3) root@davidgpt:~/ragtest# ls -al input/
+(gg3) root@YOUR-VM:~/ragtest# ls -al input/
 total 1784
 drwxr-xr-x 2 root root    4096 Dec 26 12:32 .
 drwxr-xr-x 7 root root    4096 Dec 27 13:55 ..
 -rw-r--r-- 1 root root 1806411 Dec 26 12:31 book.txt
-(gg3) root@davidgpt:~/ragtest# ls -al output/
+(gg3) root@YOUR-VM:~/ragtest# ls -al output/
 total 10124
 drwxr-xr-x 3 root root    4096 Dec 26 14:40 .
 drwxr-xr-x 7 root root    4096 Dec 27 13:55 ..
@@ -194,7 +194,7 @@ pip install graphrag
 ```
 
 ```
-(gg3) root@davidgpt:~/ragtest# pip show graphrag
+(gg3) root@YOUR-VM:~/ragtest# pip show graphrag
 Name: graphrag
 Version: 1.0.1
 Summary: GraphRAG: A graph-based retrieval-augmented generation (RAG) system.
@@ -224,7 +224,7 @@ Use the `iconv` tool to convert the file encoding:
 
 ```
 
-(gg3) root@davidgpt:~/ragtest/input# cat 2.py
+(gg3) root@YOUR-VM:~/ragtest/input# cat 2.py
 encodings = ['utf-8', 'gb18030', 'gbk', 'gb2312', 'big5']
 
 for enc in encodings:
@@ -237,8 +237,8 @@ for enc in encodings:
             break
     except Exception as e:
         print(f"使用编码 {enc} 读取失败：{e}")
-(gg3) root@davidgpt:~/ragtest/input#
-(gg3) root@davidgpt:~/ragtest/input# python 2.py
+(gg3) root@YOUR-VM:~/ragtest/input#
+(gg3) root@YOUR-VM:~/ragtest/input# python 2.py
 
 使用编码 utf-8 读取成功！
 文件内容预览：
@@ -257,12 +257,12 @@ graphrag init --root ./ragtest
 This will create two files: `.env` and `settings.yaml` in the `./ragtest` directory.
 
 ```
-(gg3) root@davidgpt:~/ragtest# cat  .env
+(gg3) root@YOUR-VM:~/ragtest# cat  .env
 GRAPHRAG_API_KEY=A***vw
 ```
 
 ```
-(gg3) root@davidgpt:~/ragtest# cat  settings.yaml
+(gg3) root@YOUR-VM:~/ragtest# cat  settings.yaml
 ### This config file contains required core defaults that must be set, along with a handful of common optional settings.
 ### For a full list of available settings, see https://microsoft.github.io/graphrag/config/yaml/
 
@@ -277,7 +277,7 @@ llm:
   model: gpt-4o
   model_supports_json: true # recommended if this is available for your model.
   # audience: "https://cognitiveservices.azure.com/.default"
-  api_base: https://ai-xinyuwei8714ai888427144375.cognitiveservices.azure.com/
+  api_base: https://YOUR-ENDPOINT.cognitiveservices.azure.com/
   api_version: '2024-08-01-preview'
   # organization: <organization_id>
   deployment_name: gpt-4o-1120
@@ -299,7 +299,7 @@ embeddings:
     api_key: ${GRAPHRAG_API_KEY}
     type: azure_openai_embedding
     model: text-embedding-3-small
-    api_base: https://ai-xinyuwei8714ai888427144375.cognitiveservices.azure.com/
+    api_base: https://YOUR-ENDPOINT.cognitiveservices.azure.com/
     api_version: '2023-05-15'
     # audience: "https://cognitiveservices.azure.com/.default"
     # organization: <organization_id>
@@ -406,7 +406,7 @@ I write a script to check the parquet file.
 inspect_parquet.py:
 
 ```
-(gg3) root@davidgpt:~/ragtest/output# cat inspect_parquet.py
+(gg3) root@YOUR-VM:~/ragtest/output# cat inspect_parquet.py
 import pyarrow.parquet as pq
 import pandas as pd
 
@@ -445,7 +445,7 @@ if __name__ == "__main__":
 ```
 
 ```
-(gg3) root@davidgpt:~/ragtest/output# python inspect_parquet.py
+(gg3) root@YOUR-VM:~/ragtest/output# python inspect_parquet.py
 正在检查文件：/root/ragtest/output/create_final_entities.parquet
 
 Parquet 文件的模式：
@@ -491,7 +491,7 @@ required group field_id=-1 schema {
 inspect_parquet2.py:
 
 ```
-(gg3) root@davidgpt:~/ragtest/output# cat inspect_parquet2.py
+(gg3) root@YOUR-VM:~/ragtest/output# cat inspect_parquet2.py
 import pyarrow.parquet as pq
 import pandas as pd
 
@@ -552,7 +552,7 @@ if __name__ == "__main__":
 ```
 
 ```
-(gg3) root@davidgpt:~/ragtest/output# python inspect_parquet2.py
+(gg3) root@YOUR-VM:~/ragtest/output# python inspect_parquet2.py
 正在检查文件：/root/ragtest/output/create_final_relationships.parquet
 
 Parquet 文件的模式：
@@ -624,7 +624,7 @@ Deploy guide:
 
 When onfigure deploy parameters, refer to following:
 ```
-(base) root@davidwei:~/graphrag-accelerator/infra# cat deploy.parameters.json
+(base) root@YOUR-VM:~/graphrag-accelerator/infra# cat deploy.parameters.json
 {
   "GRAPHRAG_API_BASE": "https://****.openai.azure.com/",
   "GRAPHRAG_API_VERSION": "2024-02-15-preview",

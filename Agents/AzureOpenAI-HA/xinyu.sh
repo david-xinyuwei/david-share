@@ -7,7 +7,7 @@ payload="{\"messages\":[{\"role\":\"system\",\"content\":[{\"type\":\"text\",\"t
 
 # 定义 Traffic Manager 的名称和资源组
 tm_profile="4vatm"
-tm_resource_group="davidai"
+tm_resource_group="YOUR-RESOURCE-GROUP"
 
 # 定义两个 URL 和它们在 Traffic Manager 中的名称
 endpoints1="apim-japan*.azure-api.net"

@@ -28,7 +28,7 @@ I wrote two pieces of code: one is responsible for the main code implementation 
 code.py code：
 
 ```
-(base) root@davidwei:~/cot# cat code.py
+(base) root@YOUR-VM:~/cot# cat code.py
 import os
 import openai
 from fastapi import FastAPI, HTTPException
@@ -157,7 +157,7 @@ if __name__ == "__main__":
 ui.py code：
 
 ```
-(base) root@davidwei:~/cot# cat ui.py
+(base) root@YOUR-VM:~/cot# cat ui.py
 import streamlit as st
 import requests
 

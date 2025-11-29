@@ -1,8 +1,8 @@
 Refer to: https://learn.microsoft.com/en-us/azure/machine-learning/how-to-deploy-with-triton?view=azureml-api-2&tabs=python%2Cendpoint
 
 (aml_env) root@linuxworkvm:~/AIFperformance# python 603.py 
-Please enter the base endpoint for Nemo Triton (e.g. https://xxx.inference.ml.azure.com/): https://aml-westus-bbwsa-nemo-1-nc24.westus.inference.ml.azure.com/
-Please enter the API Key: 44AtoR76XzaQJYt6STRD2c4UVZtlKJTTZQ8Hhk5dEpkUyQrLYX6zJQQJ99BCAAAAAAAAAAAAINFRAZML43Zx
+Please enter the base endpoint for Nemo Triton (e.g. https://xxx.inference.ml.azure.com/): https://YOUR-ENDPOINT.region.inference.ml.azure.com/
+Please enter the API Key: YOUR-API-KEY-HERE
 Please enter the model name for tokenizer loading (e.g. gpt2): gpt2
 Tokenizer loaded successfully: gpt2
 
@@ -2437,8 +2437,8 @@ Attempt 3: Received 429 Too Many Requests. Backing off 4s.
 
 =========================
 (aml_env) root@linuxworkvm:~/AIFperformance# python 603.py 
-Please enter the base endpoint for Nemo Triton (e.g. https://xxx.inference.ml.azure.com/): https://aml-westus-kxuol-2-nc24.westus.inference.ml.azure.com/
-Please enter the API Key: 1OR7jdevOjkZ5QJxYi5jI918bwqmlI8QwGj0quiTUBIDJsCrtWTTJQQJ99BCAAAAAAAAAAAAINFRAZML4WOi
+Please enter the base endpoint for Nemo Triton (e.g. https://xxx.inference.ml.azure.com/): https://YOUR-ENDPOINT.region.inference.ml.azure.com/
+Please enter the API Key: YOUR-API-KEY-HERE
 Please enter the model name for tokenizer loading (e.g. gpt2): gpt2
 Tokenizer loaded successfully: gpt2
 

@@ -267,8 +267,8 @@ python3 -c "import msamp; print(msamp.__version__)"
 
 
 ```
-root@h100vm:/workspace/MS-AMP# cd examples/
-root@h100vm:/workspace/MS-AMP/examples# python mnist.py --enable-msamp --opt-level=O2
+root@YOUR-VM:/workspace/MS-AMP# cd examples/
+root@YOUR-VM:/workspace/MS-AMP/examples# python mnist.py --enable-msamp --opt-level=O2
 ```
 
 
@@ -671,7 +671,7 @@ Test set: Average loss: 0.0343, Accuracy: 9879/10000 (99%)
 
 
 ```
-root@h100vm:/workspace/MS-AMP/examples# deepspeed cifar10_deepspeed.py --deepspeed --deepspeed_config ds_config.json
+root@YOUR-VM:/workspace/MS-AMP/examples# deepspeed cifar10_deepspeed.py --deepspeed --deepspeed_config ds_config.json
 [2024-09-23 10:10:13,831] [INFO] [real_accelerator.py:191:get_accelerator] Setting ds_accelerator to cuda (auto detect)
 ```
 
@@ -712,7 +712,7 @@ Accuracy of truck : 44 %
 
 
 ```
-root@h100vm:/workspace/MS-AMP/examples# deepspeed cifar10_deepspeed.py --deepspeed --deepspeed_config ds_config_msamp.json
+root@YOUR-VM:/workspace/MS-AMP/examples# deepspeed cifar10_deepspeed.py --deepspeed --deepspeed_config ds_config_msamp.json
 ```
 
 
@@ -1025,7 +1025,7 @@ Accuracy of truck : 49 %
 
 
 ```
-root@h100vm:/workspace/MS-AMP/examples# deepspeed cifar10_deepspeed.py --deepspeed --deepspeed_config ds_config_zero_msamp.json
+root@YOUR-VM:/workspace/MS-AMP/examples# deepspeed cifar10_deepspeed.py --deepspeed --deepspeed_config ds_config_zero_msamp.json
 ```
 
 
@@ -1345,7 +1345,7 @@ Accuracy of truck : 53 %
 
 
 ```
-root@h100vm:/workspace/MS-AMP/examples# deepspeed cifar10_deepspeed_te.py --deepspeed --deepspeed_config ds_config_zero_te_msamp.json
+root@YOUR-VM:/workspace/MS-AMP/examples# deepspeed cifar10_deepspeed_te.py --deepspeed --deepspeed_config ds_config_zero_te_msamp.json
 ```
 
 

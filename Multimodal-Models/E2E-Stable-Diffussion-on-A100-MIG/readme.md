@@ -8,7 +8,7 @@ I do the test on Azure NC A100 VM.
 Enable MIG on the first physical GPU.
 
 ```
-root@david1a100:~# nvidia-smi -i 0 -mig 1
+root@YOUR-VM:~# nvidia-smi -i 0 -mig 1
 ```
 
 After the VM reboot, MIG has been enabled.
@@ -28,7 +28,7 @@ At this moment, we need to calculate how to maximise utilize the GPU resource an
 I divide A100 to four parts: ID 14x3 and ID 20x1
 
 ```
-root@david1a100:~# sudo nvidia-smi mig -cgi 14,14,14,20 -C
+root@YOUR-VM:~# sudo nvidia-smi mig -cgi 14,14,14,20 -C
 Successfully created GPU instance ID  5 on GPU  0 using profile MIG 2g.20gb (ID 14)
 Successfully created compute instance ID  0 on GPU  0 GPU instance ID  5 using profile MIG 2g.20gb (ID  1)
 Successfully created GPU instance ID  3 on GPU  0 using profile MIG 2g.20gb (ID 14)
@@ -184,7 +184,7 @@ Check container is accessible from outside.
 In container, start 80 listener:
 
 ```
-root@david1a100:~# sudo docker exec -it mig1_tensorrt_container /bin/bash
+root@YOUR-VM:~# sudo docker exec -it mig1_tensorrt_container /bin/bash
 root@b6abf5bf48ae:/workspace# python3 -m http.server 80
 Serving HTTP on 0.0.0.0 port 80 (http://0.0.0.0:80/) ...
 167.220.233.184 - - [23/Aug/2024 10:54:47] "GET / HTTP/1.1" 200 -
@@ -211,7 +211,7 @@ Server: SimpleHTTP/0.6 Python/3.10.12
 In container, ping google.com:
 
 ```
-root@david1a100:~#sudo docker exec -it mig1_tensorrt_container /bin/bash
+root@YOUR-VM:~#sudo docker exec -it mig1_tensorrt_container /bin/bash
 root@b6abf5bf48ae:/workspace# pip install ping3
 root@b6abf5bf48ae:/workspace# ping3 www.google.com
 ping 'www.google.com' ... 2ms
@@ -228,7 +228,7 @@ Related useful commands.
 Check tensorrt version in container:
 
 ```
-root@david1a100:/workspace# pip show tensorrt
+root@YOUR-VM:/workspace# pip show tensorrt
 Name: tensorrt
 Version: 10.2.0
 Summary: A high performance deep learning inference library

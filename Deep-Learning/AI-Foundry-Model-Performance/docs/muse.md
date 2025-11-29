@@ -14,7 +14,7 @@ def muse_api_call(payload, headers, url): req = urllib.request.Request(url, json
 
 # 主调用函数 (多次迭代调用)
 
-def iterative_muse_call(total_iterations=10): url = "https://xinyu-workspace-westus-ntxgc.westus.inference.ml.azure.com/score" api_key = "1kooihlBtNZDZyUgXG1GVMdVu9BVZiJ07fyW4X5LaWRuVUkPbMbkJQQJ99BDAAAAAAAAAAAAINFRAZML3x65" if not api_key or api_key.startswith('<'): raise Exception("请替换为你的API信息")
+def iterative_muse_call(total_iterations=10): url = "https://YOUR-ENDPOINT.inference.ml.azure.com/score" api_key = "YOUR-API-KEY-HERE" if not api_key or api_key.startswith('<'): raise Exception("请替换为你的API信息")
 
 ```
 headers = {
@@ -237,8 +237,8 @@ def muse_api_call(payload, headers, url):
 
 # 主调用函数 (多次迭代调用，增加延迟以避免频率限制)
 def iterative_muse_call(total_iterations=10, delay_seconds=2):
-    url = "https://xinyu-workspace-westus-ntxgc.westus.inference.ml.azure.com/score"
-    api_key = "1kooihlBtNZDZyUgXG1GVMdVu9BVZiJ07fyW4X5LaWRuVUkPbMbkJQQJ99BDAAAAAAAAAAAAINFRAZML3x65"
+    url = "https://YOUR-ENDPOINT.inference.ml.azure.com/score"
+    api_key = "YOUR-API-KEY-HERE"
     if not api_key or api_key.startswith('<'):
         raise Exception("请替换为你的API信息")
 
@@ -656,8 +656,8 @@ def muse_api_call(payload, headers, url):
 
 # 主函数 (增强了强制图片resize功能)
 def iterative_muse_call(total_iterations=10, delay_seconds=3):
-    url = "https://xinyu-workspace-westus-ntxgc.westus.inference.ml.azure.com/score"
-    api_key = "1kooihlBtNZDZyUgXG1GVMdVu9BVZiJ07fyW4X5LaWRuVUkPbMbkJQQJ99BDAAAAAAAAAAAAINFRAZML3x65"
+    url = "https://YOUR-ENDPOINT.inference.ml.azure.com/score"
+    api_key = "YOUR-API-KEY-HERE"
     if not api_key or api_key.startswith('<'):
         raise Exception("请替换为你的API信息")
 
@@ -1082,8 +1082,8 @@ def muse_api_call(payload, headers, url):
 
 # 主调用函数(加入对actions完整处理)
 def iterative_muse_call(total_iterations=10, delay_seconds=3):
-    url = "https://xinyu-workspace-westus-ntxgc.westus.inference.ml.azure.com/score"
-    api_key = "1kooihlBtNZDZyUgXG1GVMdVu9BVZiJ07fyW4X5LaWRuVUkPbMbkJQQJ99BDAAAAAAAAAAAAINFRAZML3x65"
+    url = "https://YOUR-ENDPOINT.inference.ml.azure.com/score"
+    api_key = "YOUR-API-KEY-HERE"
     if not api_key or api_key.startswith('<'):
         raise Exception("请替换为你的正确API信息")
 
@@ -1389,8 +1389,8 @@ def muse_api_call(payload, headers, url):
 
 # 主调用函数 (完整修正版)
 def iterative_muse_call(total_iterations=10, delay_seconds=3):
-    url = "https://xinyu-workspace-westus-ntxgc.westus.inference.ml.azure.com/score"
-    api_key = "1kooihlBtNZDZyUgXG1GVMdVu9BVZiJ07fyW4X5LaWRuVUkPbMbkJQQJ99BDAAAAAAAAAAAAINFRAZML3x65"
+    url = "https://YOUR-ENDPOINT.inference.ml.azure.com/score"
+    api_key = "YOUR-API-KEY-HERE"
 
     if not api_key or api_key.startswith('<'):
         raise Exception("请替换为你的有效API密钥和URL")
@@ -1576,8 +1576,8 @@ def muse_api_call(payload, headers, url):
         raise
 
 def iterative_muse_call(total_iterations=10, delay_seconds=3):
-    url = "https://xinyu-workspace-westus-ntxgc.westus.inference.ml.azure.com/score"
-    api_key = "1kooihlBtNZDZyUgXG1GVMdVu9BVZiJ07fyW4X5LaWRuVUkPbMbkJQQJ99BDAAAAAAAAAAAAINFRAZML3x65"
+    url = "https://YOUR-ENDPOINT.inference.ml.azure.com/score"
+    api_key = "YOUR-API-KEY-HERE"
 
     if not api_key or api_key.startswith('<'):
         raise Exception("请替换为你的有效API密钥和URL")
@@ -1759,8 +1759,8 @@ def muse_api_call(payload, headers, url):
         raise
 
 def iterative_muse_call(total_iterations=10, delay_seconds=3):
-    url = "https://xinyu-workspace-westus-ntxgc.westus.inference.ml.azure.com/score"
-    api_key = "1kooihlBtNZDZyUgXG1GVMdVu9BVZiJ07fyW4X5LaWRuVUkPbMbkJQQJ99BDAAAAAAAAAAAAINFRAZML3x65"
+    url = "https://YOUR-ENDPOINT.inference.ml.azure.com/score"
+    api_key = "YOUR-API-KEY-HERE"
 
     if not api_key or api_key.startswith('<'):
         raise Exception("请替换为你的有效API密钥和URL")
@@ -1904,8 +1904,8 @@ def muse_api_call(payload, headers, url):
         raise
 
 def iterative_muse_call(total_iterations=10, delay_seconds=3):
-    url = "https://xinyu-workspace-westus-ntxgc.westus.inference.ml.azure.com/score"
-    api_key = "1kooihlBtNZDZyUgXG1GVMdVu9BVZiJ07fyW4X5LaWRuVUkPbMbkJQQJ99BDAAAAAAAAAAAAINFRAZML3x65"
+    url = "https://YOUR-ENDPOINT.inference.ml.azure.com/score"
+    api_key = "YOUR-API-KEY-HERE"
 
     headers = {
         'Content-Type': 'application/json',
@@ -2324,8 +2324,8 @@ def muse_api_call(payload, headers, url):
         raise
 
 def iterative_muse_call(total_iterations=10, delay_seconds=3):
-    url = "https://xinyu-workspace-westus-ntxgc.westus.inference.ml.azure.com/score"
-    api_key = "1kooihlBtNZDZyUgXG1GVMdVu9BVZiJ07fyW4X5LaWRuVUkPbMbkJQQJ99BDAAAAAAAAAAAAINFRAZML3x65"
+    url = "https://YOUR-ENDPOINT.inference.ml.azure.com/score"
+    api_key = "YOUR-API-KEY-HERE"
 
     headers = {
         'Content-Type': 'application/json',
@@ -2600,7 +2600,7 @@ def muse_api_call(payload, headers, url):
 TARGET_SIZE = (640, 360)
 
 def iterative_muse_call(total_iterations=10, delay_seconds=3):
-    url = "https://xinyu-workspace-westus-ntxgc.westus.inference.ml.azure.com/score"
+    url = "https://YOUR-ENDPOINT.inference.ml.azure.com/score"
     api_key = "你的真实API Key请替换在这里"
 
     headers = {
@@ -2786,7 +2786,7 @@ def muse_api_call(payload, headers, url):
 TARGET_SIZE = (640, 360)
 
 def iterative_muse_call(total_iterations=10, delay_seconds=3):
-    url = "https://xinyu-workspace-westus-ntxgc.westus.inference.ml.azure.com/score"
+    url = "https://YOUR-ENDPOINT.inference.ml.azure.com/score"
     api_key = "你的API密钥"
 
     headers = {
@@ -2969,7 +2969,7 @@ def muse_api_call(payload, headers, url):
 TARGET_SIZE = (640, 360)
 
 def iterative_muse_call(total_iterations=10, delay_seconds=3):
-    url = "https://xinyu-workspace-westus-ntxgc.westus.inference.ml.azure.com/score"
+    url = "https://YOUR-ENDPOINT.inference.ml.azure.com/score"
     api_key = "你的API密钥"
 
     headers = {
@@ -3372,8 +3372,8 @@ def muse_api_call(payload, headers, url):
         raise
 
 def iterative_muse_call(total_iterations=10, delay_seconds=3):
-    url = "https://xinyu-workspace-westus-ntxgc.westus.inference.ml.azure.com/score"
-    api_key = "1kooihlBtNZDZyUgXG1GVMdVu9BVZiJ07fyW4X5LaWRuVUkPbMbkJQQJ99BDAAAAAAAAAAAAINFRAZML3x65"
+    url = "https://YOUR-ENDPOINT.inference.ml.azure.com/score"
+    api_key = "YOUR-API-KEY-HERE"
 
     headers = {
         'Content-Type': 'application/json',

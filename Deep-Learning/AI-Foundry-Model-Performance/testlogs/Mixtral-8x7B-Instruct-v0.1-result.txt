@@ -1,6 +1,6 @@
 (aml_env) root@linuxworkvm:~/AIFperformance# python 303.py 
-Please enter the API service URL: https://aml-westus-pejwg.westus.inference.ml.azure.com/score
-Please enter the API Key: 540fZsZECWBYzePqCmPA4KMleO2CQ3ftNQWdsrZxoAd6mAPyrbZJJQQJ99BCAAAAAAAAAAAAINFRAZML2amY
+Please enter the API service URL: https://YOUR-ENDPOINT.region.inference.ml.azure.com/score
+Please enter the API Key: YOUR-API-KEY-HERE
 Please enter the full name of the HuggingFace model for tokenizer loading: mistralai/Mixtral-8x7B-Instruct-v0.1
 Tokenizer loaded successfully: mistralai/Mixtral-8x7B-Instruct-v0.1
 

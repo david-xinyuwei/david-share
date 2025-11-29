@@ -53,7 +53,7 @@ peft==0.13.2
 Run SFT script:
 
 ```
-(base) root@h100vm:~/phi4-mm# cat 3.py 
+(base) root@YOUR-VM:~/phi4-mm# cat 3.py 
 """
 finetune Phi-4-multimodal-instruct on an speech task
 
@@ -537,13 +537,13 @@ if __name__ == '__main__':
 If you want to train the model's ability to translate from English to Chinese, you can execute a CLI command similar to the one below.
 
 ```
-#(phi4-mm) root@h100vm:~/phi4-mm# python 3.py --common_voice_dir ./ --lang en_zh-CN --output_dir ./english2chinese
+#(phi4-mm) root@YOUR-VM:~/phi4-mm# python 3.py --common_voice_dir ./ --lang en_zh-CN --output_dir ./english2chinese
 ```
 
  Likewise, if you want to train the model's ability to translate from English to Slovenian, you can execute a CLI command similar to the one below.
 
 ```
-(phi4-mm) root@h100vm:~/phi4-mm# python 3.py --common_voice_dir ./ --lang en_sl
+(phi4-mm) root@YOUR-VM:~/phi4-mm# python 3.py --common_voice_dir ./ --lang en_sl
 ```
 
 During the training process, I have tried and validated both approaches, and they can achieve the expected results. 
@@ -590,9 +590,9 @@ After the training is completed, execute the following script to load the model:
 Fine-tuned adapter:
 
 ```
-(base) root@h100vm:~/phi4-mm/output# pwd
+(base) root@YOUR-VM:~/phi4-mm/output# pwd
 /root/phi4-mm/output
-(base) root@h100vm:~/phi4-mm/output# ls
+(base) root@YOUR-VM:~/phi4-mm/output# ls
 added_tokens.json        model-00001-of-00004.safetensors  special_tokens_map.json
 chat_template.json       model-00002-of-00004.safetensors  speech_conformer_encoder.py
 config.json              model-00003-of-00004.safetensors  tokenizer.json
@@ -1477,7 +1477,7 @@ if __name__ == '__main__':
 Run code:
 
 ```
-(phi4-mm) root@h100vm:~/phi4-mm# python 10.py --num_train_epochs 3 --output_dir "./sft-vqa"
+(phi4-mm) root@YOUR-VM:~/phi4-mm# python 10.py --num_train_epochs 3 --output_dir "./sft-vqa"
 ```
 
 Part of training process log:

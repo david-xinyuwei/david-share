@@ -50,7 +50,7 @@ david@h100vm:~$ source /home/david/stable-diffusion-webui/venv/bin/activate
 (venv) david@h100vm:~$ bash webui.sh --listen
 
 ```
-http://h100vm.eastus.cloudapp.azure.com:7860/
+http://YOUR-VM.region.cloudapp.azure.com:7860/
 
 ## Image to Image
 Run stable-diffusion-webui and verify the text-image.

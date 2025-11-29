@@ -1,12 +1,12 @@
 ======Backup cli for developing=============
 
 ```
-(aml_env) PS C:\Users\xinyuwei> az ml online-endpoint show --name "custom-endpoint-1741852362" --resource-group "AIrg1" --workspace-name "aml-david-1" --subscription "53039473-9bbd-499d-90d7-d046d4fa63b6" --query "scoring_uri" --output tsv
-https://custom-endpoint-1741852362.polandcentral.inference.ml.azure.com/score
-(aml_env) PS C:\Users\xinyuwei> az ml online-endpoint get-credentials --name "custom-endpoint-1741852362" --resource-group "AIrg1" --workspace-name "aml-david-1" --subscription "53039473-9bbd-499d-90d7-d046d4fa63b6" --output json
+(aml_env) PS C:\Users\xinyuwei> az ml online-endpoint show --name "custom-endpoint-1741852362" --resource-group "YOUR-RESOURCE-GROUP" --workspace-name "YOUR-WORKSPACE" --subscription "YOUR-SUBSCRIPTION-ID" --query "scoring_uri" --output tsv
+https://YOUR-ENDPOINT.inference.ml.azure.com/score
+(aml_env) PS C:\Users\xinyuwei> az ml online-endpoint get-credentials --name "custom-endpoint-1741852362" --resource-group "YOUR-RESOURCE-GROUP" --workspace-name "YOUR-WORKSPACE" --subscription "YOUR-SUBSCRIPTION-ID" --output json
 {
-  "primaryKey": "5RegBW6MoJ40EPa3FmAqCn2wx7tJnKEimWvoKkATDrGBx1qKcHtYJQQJ99BCAAAAAAAAAAAAINFRAZMLyndR",
-  "secondaryKey": "7H3hhLy65SKSikS5hlpsVMxCaTyI40WTTF7sukK5p3OHlBeRAPegJQQJ99BCAAAAAAAAAAAAINFRAZML20M1"
+  "primaryKey": "YOUR-API-KEY-HERE",
+  "secondaryKey": "YOUR-API-KEY-HERE"
 }
 (aml_env) PS C:\Users\xinyuwei>
 ```
@@ -90,8 +90,8 @@ pip install azure-ai-ml azure-identity requests azure-cli
 ```
 
 ```
-Please input RESOURCE_GROUP: A100VM_group
-Please inpu WORKSPACE_NAME: david-workspace-westeurope
+Please input RESOURCE_GROUP: YOUR-RESOURCE-GROUP
+Please inpu WORKSPACE_NAME: YOUR-WORKSPACE
 Region,ResourceName,LocalizedValue,Usage,Limit
 eastus,standardNCADSH100v5Family,,0,80
 eastus2,standardNCADSH100v5Family,,0,40
@@ -132,7 +132,7 @@ Next, deploy the "Phi-3-medium-4k-instruct" deployment using the VM SKU "Standar
 ![images](https://github.com/xinyuwei-david/AI-Foundry-Model-Performance/blob/main/images/15.png)
 
 ```
-# python deploy_infra.py "Phi-4-mini-instruct" "1" "08f95cfd-64fe-4187-99bb-7b3e661c4cde" "A100VM_group" "david-workspace-westeurope" "Standard_NC40ads_H100_v5" 1
+# python deploy_infra.py "Phi-4-mini-instruct" "1" "08f95cfd-64fe-4187-99bb-7b3e661c4cde" "YOUR-RESOURCE-GROUP" "YOUR-WORKSPACE" "Standard_NC40ads_H100_v5" 1
 ```
 
 
@@ -142,7 +142,7 @@ Next, deploy the "Phi-3-medium-4k-instruct" deployment using the VM SKU "Standar
 First, check the usage instructions of the `concurrency_test.py` program.
 
 ```
-(aml_env) root@davidwei:~/AML_MAAP_benchmark# python concurrency_test.py
+(aml_env) root@YOUR-VM:~/AML_MAAP_benchmark# python concurrency_test.py
 usage: concurrency_test.py [-h] --endpoint_url ENDPOINT_URL --api_key API_KEY [--initial_concurrency INITIAL_CONCURRENCY]
                            [--prompt_sizes PROMPT_SIZES [PROMPT_SIZES ...]] [--response_sizes RESPONSE_SIZES [RESPONSE_SIZES ...]] [--max_tests MAX_TESTS]
                            [--output_file OUTPUT_FILE] [--max_concurrency MAX_CONCURRENCY]
@@ -154,7 +154,7 @@ concurrency_test.py: error: the following arguments are required: --endpoint_url
 Invoke `concurrency_test.py` to stress test the deployment, configuring parameters such as input and output tokens.
 
 ```
-#python concurrency_test.py --endpoint_url "https://xinyuwei-9556-jyhjv.westeurope.inference.ml.azure.com/score" --api_key "A2ZdX5yDwbu11ZYKeuznMqoU69GHyRZvU7IbaDPZDkmYH2J1Ia6VJQQJ99BBAAAAAAAAAAAAINFRAZML5E10" --initial_concurrency 1 --prompt_sizes 64 128 1024 2048 4096 --response_sizes 64 128 1024 2048 4096  --max_tests 100 --output_file "results.csv" --max_concurrency 10
+#python concurrency_test.py --endpoint_url "https://YOUR-ENDPOINT.inference.ml.azure.com/score" --api_key "YOUR-API-KEY-HERE" --initial_concurrency 1 --prompt_sizes 64 128 1024 2048 4096 --response_sizes 64 128 1024 2048 4096  --max_tests 100 --output_file "results.csv" --max_concurrency 10
 
 
 --------------------------------------------------
@@ -294,7 +294,7 @@ Check the final test result：
 View the source code of the program.:
 
 ```
-(aml_env) root@davidwei:~/AML_MAAP_benchmark# cat concurrency_test.py
+(aml_env) root@YOUR-VM:~/AML_MAAP_benchmark# cat concurrency_test.py
 import os
 import json
 import ssl
@@ -576,7 +576,7 @@ if __name__ == '__main__':
 Phi-3-small-8k-instruct(7.39B) on Standard_NC24ads_A100_v4, results refer to : ***results-NC24-phi3.csv***
 
 ```
-python concurrency_test.py --endpoint_url "https://admin-0046-kslbq-48.eastus2.inference.ml.azure.com/score" --api_key "ENsUl1bg6BBj4ZxixddaQK1bz9ytFOhhnvqwfk2on9KzOGkLc4arJQQJ99BBAAAAAAAAAAAAINFRAZML4CVw" --initial_concurrency 1 --prompt_sizes 64 128 1024 2048 4096 --response_sizes 64 128 1024 2048 4096  --max_tests 100 --output_file "results.csv" --max_concurrency 10
+python concurrency_test.py --endpoint_url "https://YOUR-ENDPOINT.inference.ml.azure.com/score" --api_key "YOUR-API-KEY-HERE" --initial_concurrency 1 --prompt_sizes 64 128 1024 2048 4096 --response_sizes 64 128 1024 2048 4096  --max_tests 100 --output_file "results.csv" --max_concurrency 10
 
 ```
 
@@ -585,7 +585,7 @@ python concurrency_test.py --endpoint_url "https://admin-0046-kslbq-48.eastus2.i
 Phi-3-small-8k-instruct(7.39B) on  on Standard_NC24ads_A100_v4, results refer to : ***results-NC48-phi3.csv***
 
 ```
-python concurrency_test.py --endpoint_url "https://admin-0046-tlgxw.eastus2.inference.ml.azure.com/score" --api_key "6onqC7rYjmAI95zBymMPJTPFk3NtbdCqjav6S96WsxSWWDN0nLZqJQQJ99BBAAAAAAAAAAAAINFRAZML2X1J" --initial_concurrency 1 --prompt_sizes 64 128 1024 2048 4096 --response_sizes 64 128 1024 2048 4096  --max_tests 100 --output_file "results-24.csv" --max_concurrency 10
+python concurrency_test.py --endpoint_url "https://YOUR-ENDPOINT.inference.ml.azure.com/score" --api_key "YOUR-API-KEY-HERE" --initial_concurrency 1 --prompt_sizes 64 128 1024 2048 4096 --response_sizes 64 128 1024 2048 4096  --max_tests 100 --output_file "results-24.csv" --max_concurrency 10
 ```
 
 ![images](https://github.com/xinyuwei-david/AI-Foundry-Model-Performance/blob/main/images/6.png)
@@ -593,7 +593,7 @@ python concurrency_test.py --endpoint_url "https://admin-0046-tlgxw.eastus2.infe
 Phi-4(14.7B ) on  on Standard_NC24ads_A100_v4, results refer to : ***results-NC24-phi4.csv***
 
 ```
-python concurrency_test.py --endpoint_url "https://admin-0046-jerzt-24.eastus2.inference.ml.azure.com/score" --api_key "3hD2mSgz2LpriF9ZI4MhiCjjDlEihyFvLwvJZuugIGln2fz19KxhJQQJ99BBAAAAAAAAAAAAINFRAZML1bl3" --initial_concurrency 1 --prompt_sizes 64 128 1024 2048 4096 --response_sizes 64 128 1024 2048 4096  --max_tests 100 --output_file "results-24.csv" --max_concurrency 10
+python concurrency_test.py --endpoint_url "https://YOUR-ENDPOINT.inference.ml.azure.com/score" --api_key "YOUR-API-KEY-HERE" --initial_concurrency 1 --prompt_sizes 64 128 1024 2048 4096 --response_sizes 64 128 1024 2048 4096  --max_tests 100 --output_file "results-24.csv" --max_concurrency 10
 
 ```
 
@@ -602,7 +602,7 @@ Phi-4(14.7B ) on  on Standard_NC48ads_A100_v4, results refer to : ***results-NC4
 ![images](https://github.com/xinyuwei-david/AI-Foundry-Model-Performance/blob/main/images/10.png)
 
 ```
-python concurrency_test.py --endpoint_url "https://admin-0046-tvznu-48.eastus2.inference.ml.azure.com/score" --api_key "FfQh320Ggp8KuLhHiurDzRZhXcP6zLBsdl53ajQAPtbxFJMeIV6LJQQJ99BBAAAAAAAAAAAAINFRAZMLabJg" --initial_concurrency 1 --prompt_sizes 64 128 1024 2048 4096 --response_sizes 64 128 1024 2048 4096  --max_tests 100 --output_file "results-48-phi4.csv" --max_concurrency 10
+python concurrency_test.py --endpoint_url "https://YOUR-ENDPOINT.inference.ml.azure.com/score" --api_key "YOUR-API-KEY-HERE" --initial_concurrency 1 --prompt_sizes 64 128 1024 2048 4096 --response_sizes 64 128 1024 2048 4096  --max_tests 100 --output_file "results-48-phi4.csv" --max_concurrency 10
 
 ```
 

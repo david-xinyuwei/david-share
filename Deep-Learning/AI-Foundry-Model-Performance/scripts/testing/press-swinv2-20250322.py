@@ -28,7 +28,7 @@ except ImportError:
 # --------------------------- Global Variables ---------------------------  
   
 # 1) 可以将此默认值更改为你的 microsoft-swinv2-base-patch4-window12-192-192-22k 部署端点  
-API_URL = "https://aml-westus-1-nc24-a100.westus.inference.ml.azure.com/score"  
+API_URL = "https://YOUR-ENDPOINT.westus.inference.ml.azure.com/score"  
   
 # 2) 在此处填入实际的 Key，或者在输入阶段改为手动输入  
 API_KEY = "YOUR_API_KEY"  

@@ -34,7 +34,7 @@ import threading
   
 # Azure Computer Vision API 信息  
 subscription_key = "o"  
-endpoint = "https://cv-2.cognitiveservices.azure.com/"  
+endpoint = "https://YOUR-CV-ENDPOINT.cognitiveservices.azure.com/"  
   
 # 图像分析函数  
 def analyze_image(image_path):  

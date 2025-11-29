@@ -719,7 +719,7 @@ vllm serve openai/gpt-oss-20b
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/6.png)
 
-(oss-20b-tgi) root@h100vm:~# cat stress_test.py 
+(oss-20b-tgi) root@YOUR-VM:~# cat stress_test.py 
 
 ```
 #!/usr/bin/env python3
@@ -840,11 +840,11 @@ def main():
 
 if __name__ == "__main__":
     main()
-(oss-20b-tgi) root@h100vm:~# 
-(oss-20b-tgi) root@h100vm:~# 
-(oss-20b-tgi) root@h100vm:~# 
-(oss-20b-tgi) root@h100vm:~# 
-(oss-20b-tgi) root@h100vm:~# cat stress_test.py 
+(oss-20b-tgi) root@YOUR-VM:~# 
+(oss-20b-tgi) root@YOUR-VM:~# 
+(oss-20b-tgi) root@YOUR-VM:~# 
+(oss-20b-tgi) root@YOUR-VM:~# 
+(oss-20b-tgi) root@YOUR-VM:~# cat stress_test.py 
 #!/usr/bin/env python3
 # stress_test.py
 """
@@ -968,7 +968,7 @@ if __name__ == "__main__":
 During the test:
 
 ```
-x (oss-20b-tgi) root@h100vm:~# python stress_test.py --concurrency 256 --requests 2000     --prompt "Explain quantum mechanics in one paragraph."   --max-tokens 256
+x (oss-20b-tgi) root@YOUR-VM:~# python stress_test.py --concurrency 256 --requests 2000     --prompt "Explain quantum mechanics in one paragraph."   --max-tokens 256
 ```
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/7.png)
@@ -979,7 +979,7 @@ x (oss-20b-tgi) root@h100vm:~# python stress_test.py --concurrency 256 --reques
 
 
 ```
-(oss-20b-tgi) root@h100vm:~# python stress_test.py --concurrency 256 --requests 2000     --prompt "Explain quantum mechanics in one paragraph."   --max-tokens 256
+(oss-20b-tgi) root@YOUR-VM:~# python stress_test.py --concurrency 256 --requests 2000     --prompt "Explain quantum mechanics in one paragraph."   --max-tokens 256
 ```
 
 ```
@@ -1003,7 +1003,7 @@ Done.
 Load model via vLLM
 
 ```
-(gpt-oss) root@h100vm:~# vllm serve openai/gpt-oss-120b
+(gpt-oss) root@YOUR-VM:~# vllm serve openai/gpt-oss-120b
 ```
 
 After model is loaded:
@@ -1013,7 +1013,7 @@ After model is loaded:
 Use stress_test.py, only change  "model": "openai/gpt-oss-20b", to "model": "openai/gpt-oss-120b".
 
 ```
-(gpt-oss) root@h100vm:~# python stress_test-120b.py --concurrency 256 --requests 2000     --prompt "Explain quantum mechanics in one paragraph."   --max-tokens 128
+(gpt-oss) root@YOUR-VM:~# python stress_test-120b.py --concurrency 256 --requests 2000     --prompt "Explain quantum mechanics in one paragraph."   --max-tokens 128
 ```
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/OAI-OSS-on-Azure/images/9.png)
@@ -1034,7 +1034,7 @@ Done.
 Real Inference case:
 
 ```
-(gpt-oss) root@h100vm:~# python run_local_llm.py "Please write me a Python program that can run directly in the terminal. This program should be a Tetris game with a colorful interface, and allow the player to control the direction of the blocks, game screen should has a clear border, run without any error."
+(gpt-oss) root@YOUR-VM:~# python run_local_llm.py "Please write me a Python program that can run directly in the terminal. This program should be a Tetris game with a colorful interface, and allow the player to control the direction of the blocks, game screen should has a clear border, run without any error."
 ```
 
 ***Please click below pictures to see my demo video on Youtube***:
@@ -1395,7 +1395,7 @@ Loading checkpoint shards: 100%
 Check quantized model：
 
 ```
-(base) root@h100vm:~# ls -al merged_mxfp4_model
+(base) root@YOUR-VM:~# ls -al merged_mxfp4_model
 total 81698556
 drwxr-xr-x  2 root root       4096 Aug 19 06:23 .
 drwx------ 84 root root       4096 Aug 19 06:16 ..
@@ -1452,13 +1452,13 @@ Compile result：
 [ 99%] Built target test-backend-ops
 [100%] Linking CXX executable ../../bin/llama-server
 [100%] Built target llama-server
-(gpt-oss) root@h100vm:~/llama.cpp/build# 
+(gpt-oss) root@YOUR-VM:~/llama.cpp/build# 
 ```
 
 convert  HF to  llama.cpp FP16 BIN  file:
 
 ```
-(gpt-oss) root@h100vm:~# python3 ~/llama.cpp/convert_hf_to_gguf.py     ./merged_bf16_model     --outfile merged_fp16.gguf --outtype f16
+(gpt-oss) root@YOUR-VM:~# python3 ~/llama.cpp/convert_hf_to_gguf.py     ./merged_bf16_model     --outfile merged_fp16.gguf --outtype f16
 ```
 
 ```
@@ -1475,15 +1475,15 @@ INFO:hf-to-gguf:Model successfully exported to merged_fp16.gguf
 Check merged_fp16.gguf：
 
 ```
-(gpt-oss) root@h100vm:~# ls -al merged_fp16.gguf 
+(gpt-oss) root@YOUR-VM:~# ls -al merged_fp16.gguf 
 -rw-r--r-- 1 root root 41860888000 Aug 19 07:38 merged_fp16.gguf
-(gpt-oss) root@h100vm:~# 
+(gpt-oss) root@YOUR-VM:~# 
 ```
 
 Use llama-quantize tool to quantize model from fp16.gguf  to MXFP4-MoE:
 
 ```
-(gpt-oss) root@h100vm:~/llama.cpp/build# ./bin/llama-quantize --help
+(gpt-oss) root@YOUR-VM:~/llama.cpp/build# ./bin/llama-quantize --help
 usage: ./bin/llama-quantize [--help] [--allow-requantize] [--leave-output-tensor] [--pure] [--imatrix] [--include-weights]
        [--exclude-weights] [--output-tensor-type] [--token-embedding-type] [--tensor-type] [--prune-layers] [--keep-split] [--override-kv]
        model-f32.gguf [model-quant.gguf] type [nthreads]
@@ -1543,13 +1543,13 @@ Allowed quantization types:
   32  or  BF16    : 14.00G, -0.0050 ppl @ Mistral-7B
    0  or  F32     : 26.00G              @ 7B
           COPY    : only copy tensors, no quantizing
-(gpt-oss) root@h100vm:~/llama.cpp/build# 
+(gpt-oss) root@YOUR-VM:~/llama.cpp/build# 
 ```
 
 
 
 ```
-(gpt-oss) root@h100vm:~# ~/llama.cpp/build/bin/llama-quantize     merged_fp16.gguf     merged_mxfp4.gguf     MXFP4_MOE
+(gpt-oss) root@YOUR-VM:~# ~/llama.cpp/build/bin/llama-quantize     merged_fp16.gguf     merged_mxfp4.gguf     MXFP4_MOE
 ```
 
 
@@ -1565,17 +1565,17 @@ main:    total time = 43510.50 ms
 
 
 ```
-(gpt-oss) root@h100vm:~# ls -al merged_mxfp4.gguf 
+(gpt-oss) root@YOUR-VM:~# ls -al merged_mxfp4.gguf 
 -rw-r--r-- 1 root root 12109566400 Aug 19 07:51 merged_mxfp4.gguf
-(gpt-oss) root@h100vm:~# ls -al merged_fp16.gguf
+(gpt-oss) root@YOUR-VM:~# ls -al merged_fp16.gguf
 -rw-r--r-- 1 root root 41860888000 Aug 19 07:38 merged_fp16.gguf
-(gpt-oss) root@h100vm:~# 
+(gpt-oss) root@YOUR-VM:~# 
 ```
 
 Use llama.cpp to run the MXFP4-MoE gguf file:
 
 ```
-(gpt-oss) root@h100vm:~/llama.cpp/build# ./bin/llama-cli -m /root/merged_mxfp4.gguf  --gpu-layers 25  -p "Hello"
+(gpt-oss) root@YOUR-VM:~/llama.cpp/build# ./bin/llama-cli -m /root/merged_mxfp4.gguf  --gpu-layers 25  -p "Hello"
 ```
 
 ```
@@ -1816,7 +1816,7 @@ ls -lh "$OUTDIR" || true
 quantized models:
 
 ```
-(base) root@h100vm:~/gpt-oss# ls -al quant_models/
+(base) root@YOUR-VM:~/gpt-oss# ls -al quant_models/
 total 75345216
 drwxr-xr-x  2 root root        4096 Aug 20 13:15 .
 drwxr-xr-x 10 root root        4096 Aug 21 06:08 ..
@@ -1829,7 +1829,7 @@ drwxr-xr-x 10 root root        4096 Aug 21 06:08 ..
 Check SFT performance:
 
 ```
-(base) root@h100vm:~/gpt-oss#cat run_strict_eval_32.py
+(base) root@YOUR-VM:~/gpt-oss#cat run_strict_eval_32.py
 ```
 
 ```
@@ -2374,7 +2374,7 @@ if __name__ == "__main__":
 Run script:
 
 ```
-(gpt-oss) root@h100vm:~/gpt-oss# GPU_LAYERS=25 ./run_strict_eval_32.py
+(gpt-oss) root@YOUR-VM:~/gpt-oss# GPU_LAYERS=25 ./run_strict_eval_32.py
 ```
 
 Result:
@@ -2456,7 +2456,7 @@ merged_mxfp4.gguf | MXFP4_MoE: 15.6% (5/32)
 Run individual model:
 
 ```
-(gpt-oss) root@h100vm:~/gpt-oss# cat check_reasoning_cn.sh
+(gpt-oss) root@YOUR-VM:~/gpt-oss# cat check_reasoning_cn.sh
 ```
 
 ```
@@ -2575,11 +2575,11 @@ rm -f "$PID_FILE"
 ```
 
 ```
-(gpt-oss) root@h100vm:~/gpt-oss# MODEL_PATH=./quant_models/merged_fp16_Q5_K_M.gguf GPU_LAYERS=25 ./check_reasoning_cn.sh
+(gpt-oss) root@YOUR-VM:~/gpt-oss# MODEL_PATH=./quant_models/merged_fp16_Q5_K_M.gguf GPU_LAYERS=25 ./check_reasoning_cn.sh
 ```
 
 ```
-(gpt-oss) root@h100vm:~/gpt-oss# MODEL_PATH=./quant_models/merged_fp16_Q5_K_M.gguf GPU_LAYERS=25 ./check_reasoning_cn.sh
+(gpt-oss) root@YOUR-VM:~/gpt-oss# MODEL_PATH=./quant_models/merged_fp16_Q5_K_M.gguf GPU_LAYERS=25 ./check_reasoning_cn.sh
 [INFO] 启动: ./quant_models/merged_fp16_Q5_K_M.gguf (port=8098)
 [INFO] 发送问题: What is the national symbol of Canada?
 

@@ -81,8 +81,8 @@ KeyboardInterrupt
 (aml_env) root@linuxworkvm:~/AIFperformance# > 112.py 
 (aml_env) root@linuxworkvm:~/AIFperformance# vi 112.py 
 (aml_env) root@linuxworkvm:~/AIFperformance# python 112.py 
-Please enter the Azure ML Endpoint URL: https://aml-david-7-1-nc24.polandcentral.inference.ml.azure.com/score
-Please enter your Azure ML Endpoint Key or Token: 7o3bGIS6reAHSjAD3Vw0LD5hADDw4aiH7CTV2iuqYUBgNspBNaSbJQQJ99BCAAAAAAAAAAAAINFRAZML4NYU
+Please enter the Azure ML Endpoint URL: https://YOUR-ENDPOINT.region.inference.ml.azure.com/score
+Please enter your Azure ML Endpoint Key or Token: YOUR-API-KEY-HERE
 If you need to specify a Deployment Name, enter it now (or press Enter to skip): 
 Please enter a HuggingFace model name for token counting (e.g., 'gpt2'): gpt2
 Loading tokenizer for 'gpt2'...

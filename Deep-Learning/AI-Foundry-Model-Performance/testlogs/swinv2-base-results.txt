@@ -1,6 +1,6 @@
 (aml_env) root@linuxworkvm:~/AIFperformance# python press-swinv2-20250322.py
-Please enter the API service URL (default: https://aml-westus-1-nc24-a100.westus.inference.ml.azure.com/score): https://aml-westus-xjprw-1-nc48.westus.inference.ml.azure.com/score
-Please enter the API Key (default is configured): AeKQRDVLjqSkAufM4gwaW4xTdJ8CG2tazlGuck4nI7mih2jNuGaTJQQJ99BCAAAAAAAAAAAAINFRAZML47We
+Please enter the API service URL (default: https://YOUR-ENDPOINT.region.inference.ml.azure.com/score): https://YOUR-ENDPOINT.region.inference.ml.azure.com/score
+Please enter the API Key (default is configured): YOUR-API-KEY-HERE
 Please enter the HuggingFace model name for loading the tokenizer (default: gpt2, leave blank to skip loading): microsoft/swinv2-base-patch4-window12-192-22k
 Failed to load tokenizer. Error: <class 'transformers.models.swinv2.configuration_swinv2.Swinv2Config'>
 
@@ -696,8 +696,8 @@ Summary for concurrency=10:
   Batch duration (wall-clock)  : 8.969 s
 
 (aml_env) root@linuxworkvm:~/AIFperformance# python press-swinv2-20250322.py
-Please enter the API service URL (default: https://aml-westus-1-nc24-a100.westus.inference.ml.azure.com/score): https://aml-westus-xjprw-1-nc48.westus.inference.ml.azure.com/score
-Please enter the API Key (default is configured): AeKQRDVLjqSkAufM4gwaW4xTdJ8CG2tazlGuck4nI7mih2jNuGaTJQQJ99BCAAAAAAAAAAAAINFRAZML47We
+Please enter the API service URL (default: https://YOUR-ENDPOINT.region.inference.ml.azure.com/score): https://YOUR-ENDPOINT.region.inference.ml.azure.com/score
+Please enter the API Key (default is configured): YOUR-API-KEY-HERE
 Please enter the HuggingFace model name for loading the tokenizer (default: gpt2, leave blank to skip loading): microsoft/swinv2-base-patch4-window12-192-22k
 Failed to load tokenizer. Error: <class 'transformers.models.swinv2.configuration_swinv2.Swinv2Config'>
 
@@ -1403,8 +1403,8 @@ Last login: Sun Mar 23 01:11:00 2025 from 20.2.217.9
 conda activate aml_env
 (aml_env) root@linuxworkvm:~# cd AIFperformance/
 (aml_env) root@linuxworkvm:~/AIFperformance# python press-swinv2-20250322.py
-Please enter the API service URL (default: https://aml-westus-1-nc24-a100.westus.inference.ml.azure.com/score): https://aml-westus-mhxtc-2-nc24.westus.inference.ml.azure.com/score
-Please enter the API Key (default is configured): FBqxODcHTcppePtUTP7DxpMqVrKKtiCk8lRWyoy2ff7Yk9DMoRBVJQQJ99BCAAAAAAAAAAAAINFRAZML1bUx
+Please enter the API service URL (default: https://YOUR-ENDPOINT.region.inference.ml.azure.com/score): https://YOUR-ENDPOINT.region.inference.ml.azure.com/score
+Please enter the API Key (default is configured): YOUR-API-KEY-HERE
 Please enter the HuggingFace model name for loading the tokenizer (default: gpt2, leave blank to skip loading): microsoft/swinv2-base-patch4-window12-192-22k
 Failed to load tokenizer. Error: <class 'transformers.models.swinv2.configuration_swinv2.Swinv2Config'>
 
@@ -2184,8 +2184,8 @@ Summary for concurrency=10:
 
 
 (aml_env) root@linuxworkvm:~/AIFperformance# python press-swinv2-20250322.py 
-Please enter the API service URL (default: https://aml-westus-1-nc24-a100.westus.inference.ml.azure.com/score): https://aml-westus-otktt-1-nc24.westus.inference.ml.azure.com/score
-Please enter the API Key (default is configured): QDwQzRfVKVrA2ucSODy4pbRMdGNcQkMqIgUFjSl4rHhsYw0wOJjvJQQJ99BCAAAAAAAAAAAAINFRAZML10Uc
+Please enter the API service URL (default: https://YOUR-ENDPOINT.region.inference.ml.azure.com/score): https://YOUR-ENDPOINT.region.inference.ml.azure.com/score
+Please enter the API Key (default is configured): YOUR-API-KEY-HERE
 Please enter the HuggingFace model name for loading the tokenizer (default: gpt2, leave blank to skip loading): microsoft/swinv2-base-patch4-window12-192-22k
 Failed to load tokenizer. Error: <class 'transformers.models.swinv2.configuration_swinv2.Swinv2Config'>
 

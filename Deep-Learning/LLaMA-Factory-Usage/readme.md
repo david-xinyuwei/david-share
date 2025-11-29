@@ -215,7 +215,7 @@ cat train_llama3.json
 开始训练
 
 ```
-(llamafactory) root@h100vm:/content/LLaMA-Factory# llamafactory-cli train train_llama3.json
+(llamafactory) root@YOUR-VM:/content/LLaMA-Factory# llamafactory-cli train train_llama3.json
 ```
 
 训练日志：
@@ -574,7 +574,7 @@ Training completed. Do not forget to share your model on huggingface.co/models =
 
 推理验证
 
-(llamafactory) root@h100vm:/content/LLaMA-Factory# cat chat_llama3.json 
+(llamafactory) root@YOUR-VM:/content/LLaMA-Factory# cat chat_llama3.json 
 
 ```
 {
@@ -583,12 +583,12 @@ Training completed. Do not forget to share your model on huggingface.co/models =
   "template": "llama3",
   "finetuning_type": "lora"
 }
-(llamafactory) root@h100vm:/content/LLaMA-Factory# 
+(llamafactory) root@YOUR-VM:/content/LLaMA-Factory# 
 ```
 
 
 
-(llamafactory) root@h100vm:/content/LLaMA-Factory# llamafactory-cli chat chat_llama3.json
+(llamafactory) root@YOUR-VM:/content/LLaMA-Factory# llamafactory-cli chat chat_llama3.json
 
 ```
 

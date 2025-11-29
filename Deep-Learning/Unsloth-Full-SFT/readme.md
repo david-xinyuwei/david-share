@@ -77,7 +77,7 @@
 执行代码：
 
 ```
-(Unsloth) root@h100vmxinyu:~# python 1.py 
+(Unsloth) root@YOUR-VMxinyu:~# python 1.py 
 🦥 Unsloth: Will patch your computer to enable 2x faster free finetuning.
 Unsloth: Failed to patch Gemma3ForConditionalGeneration.
 🦥 Unsloth Zoo will now patch everything to make training faster!
@@ -107,7 +107,7 @@ Unsloth: Will smartly offload gradients to save VRAM!
 显存开销 58%：
 
 ```
-(py38_default) root@h100vmxinyu:~# nvidia-smi
+(py38_default) root@YOUR-VMxinyu:~# nvidia-smi
 Sat Apr 19 04:17:50 2025       
 +---------------------------------------------------------------------------------------+
 | NVIDIA-SMI 535.183.01             Driver Version: 535.183.01   CUDA Version: 12.2     |
@@ -133,7 +133,7 @@ Sat Apr 19 04:17:50 2025
 如果将模型换成14B microsoft/phi-4：
 
 ```
-(Unsloth) root@h100vmxinyu:~# python 2.py 
+(Unsloth) root@YOUR-VMxinyu:~# python 2.py 
 🦥 Unsloth: Will patch your computer to enable 2x faster free finetuning.
 Unsloth: Failed to patch Gemma3ForConditionalGeneration.
 🦥 Unsloth Zoo will now patch everything to make training faster!
@@ -177,7 +177,7 @@ Unsloth: Will smartly offload gradients to save VRAM!
 显存使用情况，显存开销96%：
 
 ```
-(py38_default) root@h100vmxinyu:~# nvidia-smi
+(py38_default) root@YOUR-VMxinyu:~# nvidia-smi
 Sat Apr 19 04:28:38 2025       
 +---------------------------------------------------------------------------------------+
 | NVIDIA-SMI 535.183.01             Driver Version: 535.183.01   CUDA Version: 12.2     |

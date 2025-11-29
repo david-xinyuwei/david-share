@@ -175,7 +175,7 @@ Output Vectors
 Next, I will conduct LoRA training tests for five scenarios, using the model microsoft/Phi-3-medium-128k-instruct. The training code can be found in the code directory. The training environment utilizes Azure NC H100 GPU VMs. 
 
 ```
-(headtraining) root@h100vm:~# nvidia-smi
+(headtraining) root@YOUR-VM:~# nvidia-smi
 Sat Jun 15 07:53:15 2024
 +---------------------------------------------------------------------------------------+
 | NVIDIA-SMI 535.54.03              Driver Version: 535.54.03    CUDA Version: 12.2     |

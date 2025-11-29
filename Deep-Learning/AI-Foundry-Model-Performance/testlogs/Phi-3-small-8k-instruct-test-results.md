@@ -1,6 +1,6 @@
 (aml_env) root@linuxworkvm:~/AIFperformance# python press-phi4-0314.py 
-Please enter the API service URL: https://aml-8-1-nc48.polandcentral.inference.ml.azure.com/score
-Please enter the API Key: 6d5PFMxmuiI50UqWu2PB8a1uPPL8TA79xY9gVPGmp9G0SS23bPwJJQQJ99BCAAAAAAAAAAAAINFRAZML2MJH
+Please enter the API service URL: https://YOUR-ENDPOINT.inference.ml.azure.com/score
+Please enter the API Key: YOUR-API-KEY-HERE
 Please enter the full name of the HuggingFace model for tokenizer loading: microsoft/Phi-3-small-8k-instruct
 The repository for microsoft/Phi-3-small-8k-instruct contains custom code which must be executed to correctly load the model. You can inspect the repository content at https://hf.co/microsoft/Phi-3-small-8k-instruct.
 You can avoid this prompt in future by passing the argument `trust_remote_code=True`.
@@ -292,8 +292,8 @@ Attempt 1 failed: The read operation timed out
 
 
 (aml_env) root@linuxworkvm:~/AIFperformance# python press-phi4-0314.py 
-Please enter the API service URL: https://aml-westus-2-nc24.westus.inference.ml.azure.com/score
-Please enter the API Key: 6uIyRD843vrZjlvLdUgxiOVy3DdB1Ma0JNpk8nGa3BRfo3Um44toJQQJ99BCAAAAAAAAAAAAINFRAZML4JqH
+Please enter the API service URL: https://YOUR-ENDPOINT.inference.ml.azure.com/score
+Please enter the API Key: YOUR-API-KEY-HERE
 Please enter the full name of the HuggingFace model for tokenizer loading: microsoft/Phi-3-small-8k-instruct
 The repository for microsoft/Phi-3-small-8k-instruct contains custom code which must be executed to correctly load the model. You can inspect the repository content at https://hf.co/microsoft/Phi-3-small-8k-instruct.
 You can avoid this prompt in future by passing the argument `trust_remote_code=True`.
@@ -588,8 +588,8 @@ Attempt 1 failed: The read operation timed out
 
 
 (aml_env) root@linuxworkvm:~/AIFperformance# python press-phi4-0314.py
-Please enter the API service URL: https://aml-westus-1-nc24.westus.inference.ml.azure.com/score
-Please enter the API Key: AQmp1nQw9UzjrBwprK1U4FNaMrJZgrJaGAXzx1hRwv1XuNHMkSYEJQQJ99BCAAAAAAAAAAAAINFRAZML1SSd
+Please enter the API service URL: https://YOUR-ENDPOINT.inference.ml.azure.com/score
+Please enter the API Key: YOUR-API-KEY-HERE
 Please enter the full name of the HuggingFace model for tokenizer loading: microsoft/Phi-3-small-8k-instruct
 The repository for microsoft/Phi-3-small-8k-instruct contains custom code which must be executed to correctly load the model. You can inspect the repository content at https://hf.co/microsoft/Phi-3-small-8k-instruct.
 You can avoid this prompt in future by passing the argument `trust_remote_code=True`.

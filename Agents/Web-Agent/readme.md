@@ -35,7 +35,7 @@ I use AI search and Azure OpenAI in NLWeb
 AZURE_VECTOR_SEARCH_ENDPOINT="https://aisearch-xinyu.search.windows.net" 
 AZURE_VECTOR_SEARCH_API_KEY="C*"
 
-AZURE_OPENAI_ENDPOINT="https://aoai1-xinyu.openai.azure.com/"
+AZURE_OPENAI_ENDPOINT="https://YOUR-ENDPOINT.openai.azure.com/"
 AZURE_OPENAI_API_KEY="B*"
 AZURE_OPENAI_API_VERSION="2025-01-01-preview"
 ANTHROPIC_API_KEY="<TODO>"

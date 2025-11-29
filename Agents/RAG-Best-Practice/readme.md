@@ -616,7 +616,7 @@ text_index_name = 'azureblob-index'
 image_index_name = 'vector-1734168453283'  
   
 # Azure OpenAI配置  
-openai_endpoint = 'https://aoai-eastus2111.openai.azure.com/openai/deployments/gpt-4o-2/chat/completions?api-version=2024-08-01-preview'  
+openai_endpoint = 'https://YOUR-ENDPOINT.openai.azure.com/openai/deployments/gpt-4o-2/chat/completions?api-version=2024-08-01-preview'  
 openai_api_key = '*'  # 替换为您的实际 OpenAI API 密钥  
   
 # Azure Blob Storage配置  

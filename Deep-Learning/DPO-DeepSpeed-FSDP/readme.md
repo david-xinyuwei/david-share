@@ -27,7 +27,7 @@ In my repo, I used both DeepSpeed ZeRO-3 technology and FSDP technology, and the
 In the following DeepSpeed and Accelerate FSDP training, I use an adapter from HF:
 
 ```
-(Multi-GPU-DPO-Training) root@h100vm:~# ls -al ./SFT_LoRA/
+(Multi-GPU-DPO-Training) root@YOUR-VM:~# ls -al ./SFT_LoRA/
 total 838112
 drwxr-xr-x  5 root root      4096 Dec 19 06:49 .
 drwx------ 48 root root      4096 Dec 19 11:24 ..
@@ -46,7 +46,7 @@ drwxr-xr-x  4 root root      4096 Dec 19 06:48 checkpoint-5
 -rw-r--r--  1 root root      5496 Dec 19 06:48 training_args.bin
 -rw-r--r--  1 root root   2776833 Dec 19 06:48 vocab.json
 
-(Multi-GPU-DPO-Training) root@h100vm:~/SFT_LoRA# cat adapter_config.json
+(Multi-GPU-DPO-Training) root@YOUR-VM:~/SFT_LoRA# cat adapter_config.json
 {
   "alpha_pattern": {},
   "auto_mapping": null,
@@ -286,7 +286,7 @@ Launch training
  Configuration file:
 
 ```
-(Multi-GPU-DPO-Training) root@h100vm:~# cat config_fsdp.yaml
+(Multi-GPU-DPO-Training) root@YOUR-VM:~# cat config_fsdp.yaml
 compute_environment: LOCAL_MACHINE
 debug: false
 distributed_type: FSDP
@@ -323,7 +323,7 @@ use_cpu: false
 Training code:
 
 ```
-(Multi-GPU-DPO-Training) root@h100vm:~# cat config_fsdp.yaml
+(Multi-GPU-DPO-Training) root@YOUR-VM:~# cat config_fsdp.yaml
 compute_environment: LOCAL_MACHINE
 debug: false
 distributed_type: FSDP
@@ -353,7 +353,7 @@ tpu_env: []
 tpu_use_cluster: false
 tpu_use_sudo: false
 use_cpu: false
-(Multi-GPU-DPO-Training) root@h100vm:~# cat fsdp+QLoRA.py
+(Multi-GPU-DPO-Training) root@YOUR-VM:~# cat fsdp+QLoRA.py
 import torch
 import os
 import multiprocessing

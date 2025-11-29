@@ -323,7 +323,7 @@ Then use evalscope to perform stress testing. This tool supports specifying conc
 In the test, I used a relatively extreme scenario with an input of 10,000 tokens.
 
 ```
-evalscope perf --url http://mi300x-xinyu.westus.cloudapp.azure.com:30000/v1/chat/completions --model "deepseek-ai/DeepSeek-R1" --parallel 1 --number 20 --api openai --min-prompt-length 10000 --dataset "longalpaca" --max-tokens 2048 --min-tokens 2048 --stream 
+evalscope perf --url http://YOUR-VM.region.cloudapp.azure.com:30000/v1/chat/completions --model "deepseek-ai/DeepSeek-R1" --parallel 1 --number 20 --api openai --min-prompt-length 10000 --dataset "longalpaca" --max-tokens 2048 --min-tokens 2048 --stream 
 ```
 
 Next, I will list test results for several scenarios with different concurrency levels and request counts.

@@ -57,10 +57,10 @@ In the following content, I will show how to create High Quality Dataset from WA
 ```
 #conda create --name=dataclean python=3.10  
 #conda activate dataclean  
-(dataclean) root@david1a100:~# cd dataclean/
+(dataclean) root@YOUR-VM:~# cd dataclean/
 
-(dataclean) root@david1a100:~/dataclean# hostname
-david1a100.australiaeast.cloudapp.azure.com
+(dataclean) root@YOUR-VM:~/dataclean# hostname
+YOUR-VM.region.cloudapp.azure.com
 
 #pip install datatrove xxhash faust-cchardet python-magic warcio fasteners tldextract trafilatura fasttext-wheel nltk awscli fasttext numpy==1.21.0  
 #pip install datatrove[all]  
@@ -83,7 +83,7 @@ crawl-data/CC-MAIN-2023-23/segments/1685224643388.45/warc/CC-MAIN-20230527223515
 ```
 Download files as follwing script:
 ```
-(dataclean) root@david1a100:~/dataclean# cat download_warc_file.py
+(dataclean) root@YOUR-VM:~/dataclean# cat download_warc_file.py
 import os
 import subprocess
 
@@ -115,7 +115,7 @@ After download 00000.warc.gz， I uses the local executor LocalPipelineExecutor 
 - writing the processed data to JSONL files.
 
 ```
-(dataclean) root@david1a100:~/dataclean# cat process_common_crawl_dump.py
+(dataclean) root@YOUR-VM:~/dataclean# cat process_common_crawl_dump.py
 ```
 ```
 import nltk
@@ -251,7 +251,7 @@ Total Runtime: 26 minutes and 36 seconds
 ### Check data processing results
 
 ```
-root@david1a100:~/dataclean/output/output/CC-MAIN-2023-23# zcat ./00000.jsonl.gz | head -n 2 | jq .
+root@YOUR-VM:~/dataclean/output/output/CC-MAIN-2023-23# zcat ./00000.jsonl.gz | head -n 2 | jq .
 ```
 Output:
 ```
@@ -318,7 +318,7 @@ I use the local executor `LocalPipelineExecutor` to execute the data deduplicati
 
 
 ```
-root@david1a100:~/dataclean# cat minhash_deduplication.py
+root@YOUR-VM:~/dataclean# cat minhash_deduplication.py
 ```
 ```
 from datatrove.executor.local import LocalPipelineExecutor
@@ -406,7 +406,7 @@ if __name__ == '__main__':
 ```
 Run code:
 ```
-(dataclean) root@david1a100:~/dataclean# python minhash_deduplication.py
+(dataclean) root@YOUR-VM:~/dataclean# python minhash_deduplication.py
 ```
 Results are as following:
 ```
@@ -464,21 +464,21 @@ Total Runtime: 1 second ± 2 seconds/task
 ```
 ### Check removed and final result in this part:
 ```
-(dataclean) root@david1a100:~/dataclean/minhash# ls -al removed/
+(dataclean) root@YOUR-VM:~/dataclean/minhash# ls -al removed/
 total 76
 drwx------ 2 root root  4096 Aug 14 07:20 .
 drwx------ 7 root root  4096 Aug 14 07:20 ..
 -rw------- 1 root root 65584 Aug 14 07:21 00000.jsonl.gz
-(dataclean) root@david1a100:~/dataclean/minhash# ls -al deduplicated_output/
+(dataclean) root@YOUR-VM:~/dataclean/minhash# ls -al deduplicated_output/
 total 7372
 drwx------ 2 root root    4096 Aug 14 07:20 .
 drwx------ 7 root root    4096 Aug 14 07:20 ..
 -rw------- 1 root root 7539420 Aug 14 07:21 00000.jsonl.gz
-(dataclean) root@david1a100:~/dataclean/minhash#
+(dataclean) root@YOUR-VM:~/dataclean/minhash#
 ```
 Check first intem in final output file:
 ```
-(dataclean) root@david1a100:~/dataclean/minhash/deduplicated_output# zcat ./00000.jsonl.gz | head -n 1 | jq .
+(dataclean) root@YOUR-VM:~/dataclean/minhash/deduplicated_output# zcat ./00000.jsonl.gz | head -n 1 | jq .
 {
   "text": "Buy Ambien Online Legally (Zolpidem) belongs to the imidazopyridines class of opioids. Ambien complements the exceptional of sleep via way of means of decreasing the time it takes to fall asleep, decreasing the frequency of nocturnal awakenings, and growing the general period of sleep. Lengthens the second one degree of sleep and the deep sleep degree (III and IV). It does now no longer make you sleepy throughout the day. If you’re seeking to Buy Ambien Online at an inexpensive cost, come to our on line pharmacy.",
   "id": "<urn:uuid:dd20979b-ada8-4c5b-b53e-4ade7274bc1b>",
@@ -527,7 +527,7 @@ My code uses the local executor `LocalPipelineExecutor` to execute the data dedu
     The pipeline is executed by running `executor_1.run()`, `executor_2.run()`, and `executor_3.run()`.
 
 ```
-(dataclean) root@david1a100:~/dataclean# cat sentence_deduplication.py
+(dataclean) root@YOUR-VM:~/dataclean# cat sentence_deduplication.py
 ```
 ```
 import nltk
@@ -707,7 +707,7 @@ if __name__ == '__main__':
 ```
 Run the script:
 ```
-(dataclean) root@david1a100:~/dataclean# python3 sentence_deduplication.py
+(dataclean) root@YOUR-VM:~/dataclean# python3 sentence_deduplication.py
 ```
 Some of the output:
 ```
@@ -800,7 +800,7 @@ PipelineStats(total_runtime=0, time_stats=TimeStats(global_mean=0, global_std_de
 Check the the first item of final outputs:
 
 ```
-(dataclean) root@david1a100:~/dataclean/final_deduplicated_output#  zcat ./00000.jsonl.gz | head -n 1 | jq .
+(dataclean) root@YOUR-VM:~/dataclean/final_deduplicated_output#  zcat ./00000.jsonl.gz | head -n 1 | jq .
 ```
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Make-High-Quality-Dataset-From-WARC/images/2.png)
 

@@ -170,7 +170,7 @@ tokenizer.save_pretrained(save_directory)
 **Generate genai_config.json**
 
 ```
-(phi3.5) root@h100vm:~/onnxruntime-genai/src/python/py/models# python3 builder.py -m  microsoft/Phi-3.5-mini-instruct -o /root/onnx4 -p fp16 -e cuda -c /root/onnx1 --extra_options config_only=true
+(phi3.5) root@YOUR-VM:~/onnxruntime-genai/src/python/py/models# python3 builder.py -m  microsoft/Phi-3.5-mini-instruct -o /root/onnx4 -p fp16 -e cuda -c /root/onnx1 --extra_options config_only=true
 ```
 
 ```
@@ -195,9 +195,9 @@ Saving processing files in /root/onnx4 for GenAI
 **Copy generated files to ONNX model file:**
 
 ```
-(phi3.5) root@h100vm:~/onnx4# ls
+(phi3.5) root@YOUR-VM:~/onnx4# ls
 added_tokens.json  genai_config.json  special_tokens_map.json  tokenizer.json  tokenizer.model  tokenizer_config.json
-(phi3.5) root@h100vm:~/onnx4# cp ./* /root/onnx1
+(phi3.5) root@YOUR-VM:~/onnx4# cp ./* /root/onnx1
 ```
 
 **Inference test with ONNX:**

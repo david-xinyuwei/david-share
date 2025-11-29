@@ -61,7 +61,7 @@ Next, I will showcase three demos, each utilizing the capabilities of different 
 When Magentic-One is performing tasks, its operating environment is Docker. 
 
 ```
-(python) (base) root@davidwei:~/autogen/python/packages/autogen-magentic-one# docker ps
+(python) (base) root@YOUR-VM:~/autogen/python/packages/autogen-magentic-one# docker ps
 CONTAINER ID   IMAGE           COMMAND     CREATED         STATUS         PORTS     NAMES
 40404f16de35   python:3-slim   "/bin/sh"   7 seconds ago   Up 7 seconds             autogen-code-exec-5bc62ef0-70ac-4d72-a5d0-ecffd366741f
 ```

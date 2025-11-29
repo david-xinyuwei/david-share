@@ -433,7 +433,7 @@ python ... --tensor-parallel-size 4          # 例：4 卡 TP 并行
 
 ### Llama 4 on AMD
 
-[https://rocm.blogs.amd.com/artificial-intelligence/llama4-day-0-support/README.html#how-to-run-llama4-on-line-inference-mode-with-vllm-on-amd-instinct-gpus](https://nam06.safelinks.protection.outlook.com/?url=https%3A%2F%2Frocm.blogs.amd.com%2Fartificial-intelligence%2Fllama4-day-0-support%2FREADME.html%23how-to-run-llama4-on-line-inference-mode-with-vllm-on-amd-instinct-gpus&data=05|02|xinyuwei@microsoft.com|fdee5bf483fa48c4a98a08dd8379530d|72f988bf86f141af91ab2d7cd011db47|1|0|638811279380317136|Unknown|TWFpbGZsb3d8eyJFbXB0eU1hcGkiOnRydWUsIlYiOiIwLjAuMDAwMCIsIlAiOiJXaW4zMiIsIkFOIjoiTWFpbCIsIldUIjoyfQ%3D%3D|0|||&sdata=ZatRWnNRXgUPy1e5ehNgLC1x5ST0DAd%2FjQrTFpxuLig%3D&reserved=0)
+[https://rocm.blogs.amd.com/artificial-intelligence/llama4-day-0-support/README.html#how-to-run-llama4-on-line-inference-mode-with-vllm-on-amd-instinct-gpus](https://nam06.safelinks.protection.outlook.com/?url=https%3A%2F%2Frocm.blogs.amd.com%2Fartificial-intelligence%2Fllama4-day-0-support%2FREADME.html%23how-to-run-llama4-on-line-inference-mode-with-vllm-on-amd-instinct-gpus&data=05|02|user@example.com|fdee5bf483fa48c4a98a08dd8379530d|72f988bf86f141af91ab2d7cd011db47|1|0|638811279380317136|Unknown|TWFpbGZsb3d8eyJFbXB0eU1hcGkiOnRydWUsIlYiOiIwLjAuMDAwMCIsIlAiOiJXaW4zMiIsIkFOIjoiTWFpbCIsIldUIjoyfQ%3D%3D|0|||&sdata=ZatRWnNRXgUPy1e5ehNgLC1x5ST0DAd%2FjQrTFpxuLig%3D&reserved=0)
 
 
 
