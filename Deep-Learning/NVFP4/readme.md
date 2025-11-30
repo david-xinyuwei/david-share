@@ -1044,6 +1044,32 @@ If your environment is cross-platform or lacks Blackwell, MXFP4 is a mature and 
 - **OCP MXFP4 Standard**: [Open Compute Project - Microscaling Formats](https://www.opencompute.org/documents/ocp-microscaling-formats-mx-v1-0-spec-final-pdf)
 - **OpenAI gpt-oss Implementation**: [openai/gpt-oss](https://github.com/openai/gpt-oss) - MXFP4 PTQ reference implementation
 
+### FP8 Quantization Origin and Standards
+- **Foundational Paper**: [FP8 Formats for Deep Learning](https://arxiv.org/abs/2209.05433) (arXiv:2209.05433, September 2022)
+- **Authors**: Joint effort by **NVIDIA, Intel, and ARM**
+  - Paulius Micikevicius (NVIDIA, lead author)
+  - Dusan Stosic (NVIDIA)
+  - Neil Burgess (ARM)
+  - Marius Cornea (Intel)
+  - Pradeep Dubey (Intel)
+  - Richard Grisenthwaite (ARM)
+  - And others from NVIDIA, Intel, ARM
+- **Key Contributions**:
+  - Proposed two FP8 encodings: **E4M3** (4-bit exponent + 3-bit mantissa) and **E5M2** (5-bit exponent + 2-bit mantissa)
+  - E4M3 for weights/activations, E5M2 for gradients
+  - Demonstrated FP8 training matches FP16 quality on models up to 175B parameters
+- **FP8-Dynamic vs FP8-Static**:
+  - **FP8-Static**: Both weight and activation scales are pre-calibrated
+  - **FP8-Dynamic**: Weights statically quantized, **activations dynamically quantized at inference time**
+  - Dynamic quantization adapts to input distribution, more robust to outliers, no calibration dataset required
+- **Hardware Support Timeline**:
+  - 2022.09: NVIDIA/Intel/ARM joint FP8 paper published
+  - 2022.09: NVIDIA Hopper (H100) released with native FP8 support
+  - 2023: Transformer Engine integrated FP8 training
+  - 2024: vLLM/LLM-Compressor added FP8-Dynamic inference support
+  - 2025: Blackwell further optimized FP8 performance
+
+
 ### INT4 Quantization Methods Comparison
 - **AWQ**: [mit-han-lab/llm-awq](https://github.com/mit-han-lab/llm-awq) - Activation-Aware Weight Quantization
 - **AutoRound**: [intel/auto-round](https://github.com/intel/auto-round) - Learned rounding optimization

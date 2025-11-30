@@ -1181,6 +1181,32 @@ W4A4:   5.62 GB   →  2.66× 压缩 ✅
 - **OCP MXFP4 标准**: [Open Compute Project - Microscaling Formats](https://www.opencompute.org/documents/ocp-microscaling-formats-mx-v1-0-spec-final-pdf)
 - **OpenAI gpt-oss 实现**: [openai/gpt-oss](https://github.com/openai/gpt-oss) - MXFP4 PTQ 参考实现
 
+### FP8 量化起源与标准
+- **奠基性论文**: [FP8 Formats for Deep Learning](https://arxiv.org/abs/2209.05433) (arXiv:2209.05433, 2022年9月)
+- **作者团队**: **NVIDIA、Intel、ARM 联合提出**
+  - Paulius Micikevicius (NVIDIA, 首席作者)
+  - Dusan Stosic (NVIDIA)
+  - Neil Burgess (ARM)
+  - Marius Cornea (Intel)
+  - Pradeep Dubey (Intel)
+  - Richard Grisenthwaite (ARM)
+  - 以及来自 NVIDIA、Intel、ARM 的其他研究人员
+- **核心贡献**:
+  - 提出两种 FP8 编码格式: **E4M3** (4位指数 + 3位尾数) 和 **E5M2** (5位指数 + 2位尾数)
+  - E4M3 用于权重/激活, E5M2 用于梯度
+  - 证明 FP8 训练在高达 175B 参数的模型上可匹配 FP16 精度
+- **FP8-Dynamic vs FP8-Static**:
+  - **FP8-Static**: 权重和激活的缩放因子都预先校准确定
+  - **FP8-Dynamic**: 权重静态量化, **激活在推理时动态量化**
+  - 动态量化可适应不同输入分布, 对异常值更鲁棒, 无需校准数据集
+- **硬件支持时间线**:
+  - 2022.09: NVIDIA/Intel/ARM 联合发布 FP8 论文
+  - 2022.09: NVIDIA Hopper (H100) 发布, 原生支持 FP8
+  - 2023: Transformer Engine 集成 FP8 训练支持
+  - 2024: vLLM/LLM-Compressor 添加 FP8-Dynamic 推理支持
+  - 2025: Blackwell 进一步优化 FP8 性能
+
+
 ### INT4 量化方法对比
 - **AWQ**: [mit-han-lab/llm-awq](https://github.com/mit-han-lab/llm-awq) - 激活感知权重量化
 - **AutoRound**: [intel/auto-round](https://github.com/intel/auto-round) - 学习型舍入优化
