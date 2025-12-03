@@ -46,19 +46,169 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    subgraph TargetModel["Target Model (Llama-3.1-8B)"]
-        TI["Input"] --> TL["32 Transformer Layers"]
-        TL --> HS["Hidden States (4096 dim)"]
+    subgraph Target["Target Model: Llama-3.1-8B"]
+        IN[Input Sequence] --> L0[Layer 0-1]
+        L0 --> L2[Layer 2]
+        L2 --> L3[Layer 3-15]
+        L3 --> L16[Layer 16]
+        L16 --> L17[Layer 17-28]
+        L17 --> L29[Layer 29]
+        L29 --> L30[Layer 30-31]
+        L30 --> TLMH[LM Head 128K]
+        TLMH --> OUT[Output Logits]
     end
-    
-    subgraph DraftModel["EAGLE3 Draft Head (~850MB)"]
-        HS --> FC["Feature Concat"]
-        FC --> DL["1 Decoder Layer"]
-        DL --> DT["Draft Tokens x64"]
+
+    subgraph Draft["EAGLE3 Draft Model: 223M params"]
+        L2 -->|4096d| CAT[Concat 12288d]
+        L16 -->|4096d| CAT
+        L29 -->|4096d| CAT
+        CAT --> FC[FC 12288→4096]
+        FC --> DEC[1 Decoder Layer]
+        DEC --> DLMH[LM Head 32K]
+        DLMH --> DRAFT[Draft Tokens]
     end
-    
-    DT --> V["Tree Verification"] --> Accept["Accept N tokens"]
+
+    DRAFT --> VER[Tree Verify]
+    OUT --> VER
+    VER --> ACC[Accept N Tokens]
+    ACC --> NEXT[Next Iteration]
+
+    style NEXT fill:#90EE90
 ```
+
+**Key Innovation: Multi-Layer Feature Extraction**
+
+Unlike traditional speculative decoding that uses a separate smaller model, EAGLE3 extracts features from **3 specific layers** of the target model during its forward pass:
+
+```
+Target Model (Llama-3.1-8B, 32 layers):
+
+Layer 0 → Layer 2 → ... → Layer 16 → ... → Layer 29 → Layer 30-31 → Output
+              ↓              ↓                ↓                        ↓
+         Hidden[0]      Hidden[1]        Hidden[2]              (for verification)
+          (4096)         (4096)           (4096)
+              └──────────────┼────────────────┘
+                             ↓
+                  Concatenate (4096 × 3 = 12288)
+                             ↓
+                    ┌─────────────────┐
+                    │   FC Layer      │  (12288 → 4096)
+                    │  + 1 Decoder    │  (independent weights)
+                    │  + LM Head      │  (4096 → 32000)
+                    └────────┬────────┘
+                             ↓
+                    Draft Token Predictions
+                             ↓
+              ┌──────────────┴──────────────┐
+              ↓                              ↓
+         Draft Tokens    +    Target Output Logits
+              └──────────────┬──────────────┘
+                             ↓
+                      Tree Verification
+                             ↓
+                    Accept N Tokens
+```
+
+**Feature Extraction Layers:**
+- **Layer 2**: Early features (syntax, basic patterns)
+- **Layer N//2 (16)**: Middle features (semantic understanding)  
+- **Layer N-3 (29)**: Late features (near-final representations)
+
+> Note: Features are extracted **during** target model forward pass. The target model output is used to **verify** draft tokens.
+
+**What is Tree Verification?**
+
+Tree Verification is how the target model validates draft tokens efficiently:
+
+```
+Draft Model generates a "tree" of candidate tokens:
+
+                    Token 1 (root)
+                   /      |      \
+              Token 2a  Token 2b  Token 2c
+               /    \      |
+          Token 3a  3b   Token 3c
+            |
+        Token 4a
+
+Target Model verifies ALL candidates in ONE forward pass:
+- Compare draft logits with target logits
+- Accept tokens where predictions match
+- Stop at first mismatch in each branch
+
+Result: Accept longest matching sequence (e.g., 1 → 2a → 3b → 4a)
+```
+
+**Why Tree Structure?**
+- **Parallel Verification**: All branches verified simultaneously
+- **Higher Acceptance**: Multiple candidates increase chance of matching
+- **Single Forward Pass**: Target model only runs ONCE to verify entire tree
+
+**Why Multi-Layer Concatenation?**
+
+1. **Richer Information**: Combines early, middle, and late layer features
+2. **Better Prediction**: Different layers capture different aspects of language
+3. **Minimal Overhead**: Only 1 decoder layer processes the concatenated features
+4. **All Independent**: FC layer, Decoder layer, and LM Head are all independently trained
+
+**Draft Model Components (All Independently Trained):**
+
+| Component | Parameters | Description |
+|-----------|------------|-------------|
+| FC Layer | ~50M | Projects 12288 → 4096 |
+| 1 Decoder Layer | ~67M | Attention + MLP (independent weights) |
+| LM Head | ~131M | Maps to 32K draft vocabulary |
+| **Total** | **~223M** | ~811MB in float16 |
+
+> ⚠️ **Important**: The Decoder layer structure is similar to Llama, but weights are **independently trained**.
+
+**EAGLE3 vs EAGLE/EAGLE-2**:
+
+| Aspect | EAGLE | EAGLE-2 | EAGLE3 |
+|--------|-------|---------|--------|
+| Draft Layers | 1-2 | 1 | 1 |
+| Feature Source | Last layer | Last layer | Multi-layer (2, N//2, N-3) |
+| Input Dimension | 4096 | 4096 | 12288 (4096 × 3) |
+| Vocab Mapping | Full | Full | Compressed (32K) |
+| Tree Structure | Static | Dynamic | Dynamic + Optimized |
+
+**Draft Model Configuration
+
+**Draft Model Configuration
+
+**Draft Model Configuration
+
+**Draft Model Configuration (llama3-8B-eagle3.json)**:
+```json
+{
+  "architectures": ["LlamaForCausalLMEagle3"],
+  "num_hidden_layers": 1,        // Only 1 decoder layer
+  "hidden_size": 4096,           // Same as target model
+  "vocab_size": 128256,          // Target model vocab
+  "draft_vocab_size": 32000      // Compressed draft vocab
+}
+```
+
+The draft model is extremely lightweight (~811MB vs 16GB for full model) because it only contains:
+- 1 Transformer decoder layer
+- Embedding layer (shared with target)
+- LM head with compressed vocabulary
+
+**Trained Draft Head File Layout**:
+```
+eagle3-llama31-8b/
+├── config.json          # 737 B  - Model configuration
+├── model.safetensors    # 811 MB - Draft model weights (inference only needs this)
+└── training_state.pt    # 3.2 GB - Optimizer state (not needed for inference)
+```
+
+**Parameter Breakdown (~223M total)**:
+| Component | Parameters | Size |
+|-----------|------------|------|
+| 1x Decoder Layer (Attention + MLP) | ~67M | ~134 MB |
+| LM Head (4096 → 32000) | ~131M | ~262 MB |
+| Vocab Mapping (d2t, t2d) | ~25M | ~50 MB |
+| LayerNorm + Others | <1M | ~2 MB |
 
 ---
 
@@ -155,6 +305,54 @@ The 4% difference in Knowledge Q&A is due to FP16 precision accumulation in long
 ---
 
 ## Phase 2: Self-Training EAGLE3 Draft Model
+
+### Data Preparation (Critical Step)
+
+EAGLE3 training requires high-quality conversation data. The SpecForge framework provides `prepare_data.py` script to process various datasets:
+
+**Supported Datasets:**
+- `sharegpt` - ShareGPT conversations (recommended for general use)
+- `ultrachat` - UltraChat dataset
+- `perfectblend` - PerfectBlend dataset (7M+ conversations)
+- `eaglechat` - EAGLE-specific chat data
+- `magpie-qwen2.5-pro-1m-v0.1` - Magpie Qwen dataset
+
+**Step 1: Prepare Training Data**
+
+```bash
+cd /root/SpecForge
+
+# Option 1: Use ShareGPT (Full dataset ~114K samples)
+python scripts/prepare_data.py \
+    --dataset sharegpt \
+    --output-path cache/dataset/sharegpt_train.jsonl
+
+# Option 2: Use ShareGPT with limited samples (for testing)
+python scripts/prepare_data.py \
+    --dataset sharegpt \
+    --sample-size 10000 \
+    --output-path cache/dataset/sharegpt_train.jsonl
+
+# Option 3: Use PerfectBlend (larger, higher quality)
+python scripts/prepare_data.py \
+    --dataset perfectblend \
+    --sample-size 50000 \
+    --output-path cache/dataset/perfectblend_train.jsonl
+```
+
+**Data Format (JSONL):**
+```json
+{
+  "id": "HneH6K5_0",
+  "conversations": [
+    {"role": "user", "content": "Write an article about..."},
+    {"role": "assistant", "content": "Title: The Benefits of..."}
+  ]
+}
+```
+
+**Critical Insight**: Data quality directly impacts draft model accuracy. Using raw ShareGPT with only 500 samples resulted in 6% accuracy. Using 114K ShareGPT samples or PerfectBlend dataset achieves 40-50% accuracy.
+
 
 ### Training Configuration
 
@@ -398,16 +596,43 @@ Check:
 
 ```
 Speculative-Decoding-EAGLE3/
-├── README.md
-├── README-CN.md
-├── requirements.txt
-├── test_performance.py
+├── README.md                              # English documentation
+├── README-CN.md                           # Chinese documentation
+├── requirements.txt                       # Python dependencies
+├── test_performance.py                    # Benchmark script
 ├── config/
-│   └── eagle3_llama31_8b.yaml
+│   ├── eagle3_llama31_8b.yaml            # Training configuration (YAML)
+│   └── llama3-8B-eagle3.json             # Draft model architecture config
+├── scripts/
+│   ├── prepare_data.py                   # Data preparation script
+│   ├── prepare_data.sh                   # Data preparation shell wrapper
+│   ├── train_eagle3.sh                   # Training launch script
+│   └── deploy_server.sh                  # Server deployment script
 └── logs/
-    ├── training_sample.log
-    └── server_startup.log
+    ├── training_sample.log               # Sample training output
+    └── server_startup.log                # Server startup log
 ```
+
+
+---
+
+## About EAGLE
+
+EAGLE (Extrapolation Algorithm for Greater Language-model Efficiency) is developed by:
+
+| Author | Affiliation |
+|--------|-------------|
+| **Yuhui Li (李宇辉)** | Peking University |
+| **Fangyun Wei (魏芳云)** | Microsoft Research Asia |
+| **Chao Zhang** | - |
+| **Hongyang Zhang** | SafeAI Lab (SAIL) |
+
+- **Organization**: [SafeAI Lab (SAIL)](https://github.com/SafeAILab)
+- **License**: Apache 2.0
+- **Publications**:
+  - EAGLE (ICML 2024)
+  - EAGLE-2 (EMNLP 2024)
+  - EAGLE-3 (NeurIPS 2025)
 
 ---
 

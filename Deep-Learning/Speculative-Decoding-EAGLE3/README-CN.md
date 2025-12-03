@@ -46,21 +46,170 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    subgraph 目标模型["目标模型 (Llama-3.1-8B)"]
-        TI["输入"] --> TL["32 层 Transformer"]
-        TL --> HS["隐藏状态 (4096 维)"]
+    subgraph Target["目标模型: Llama-3.1-8B"]
+        IN[输入序列] --> L0[Layer 0-1]
+        L0 --> L2[Layer 2]
+        L2 --> L3[Layer 3-15]
+        L3 --> L16[Layer 16]
+        L16 --> L17[Layer 17-28]
+        L17 --> L29[Layer 29]
+        L29 --> L30[Layer 30-31]
+        L30 --> TLMH[LM Head 128K]
+        TLMH --> OUT[输出 Logits]
     end
-    
-    subgraph Draft模型["EAGLE3 Draft Head (~850MB)"]
-        HS --> FC["特征拼接"]
-        FC --> DL["1 层 Decoder"]
-        DL --> DT["Draft Tokens x64"]
+
+    subgraph Draft["EAGLE3 Draft Model: 223M参数"]
+        L2 -->|4096维| CAT[拼接 12288维]
+        L16 -->|4096维| CAT
+        L29 -->|4096维| CAT
+        CAT --> FC[FC 12288→4096]
+        FC --> DEC[1个Decoder层]
+        DEC --> DLMH[LM Head 32K]
+        DLMH --> DRAFT[Draft Tokens]
     end
-    
-    DT --> V["树状验证"] --> Accept["接受 N tokens"]
+
+    DRAFT --> VER[树形验证]
+    OUT --> VER
+    VER --> ACC[接受N个Token]
+    ACC --> NEXT[继续下一轮迭代]
+
+    style NEXT fill:#90EE90
 ```
 
----
+**核心创新: 多层特征提取**
+
+与使用独立小模型的传统投机解码不同，EAGLE3 在目标模型前向传播过程中从**3个特定层**提取特征：
+
+```
+目标模型（Llama-3.1-8B，32层）：
+
+Layer 0 → Layer 2 → ... → Layer 16 → ... → Layer 29 → Layer 30-31 → 输出
+              ↓              ↓                ↓                        ↓
+         Hidden[0]      Hidden[1]        Hidden[2]               (用于验证)
+          (4096)         (4096)           (4096)
+              └──────────────┼────────────────┘
+                             ↓
+                   拼接 (4096 × 3 = 12288)
+                             ↓
+                    ┌─────────────────┐
+                    │    FC 层        │  (12288 → 4096)
+                    │  + 1个Decoder   │  (独立权重)
+                    │  + LM Head      │  (4096 → 32000)
+                    └────────┬────────┘
+                             ↓
+                      Draft Token 预测
+                             ↓
+              ┌──────────────┴──────────────┐
+              ↓                              ↓
+         Draft Tokens    +    目标模型输出 Logits
+              └──────────────┬──────────────┘
+                             ↓
+                         树形验证
+                             ↓
+                      接受 N 个 Token
+```
+
+**特征提取层：**
+- **Layer 2**: 早期特征（语法、基本模式）
+- **Layer N//2 (16)**: 中间特征（语义理解）
+- **Layer N-3 (29)**: 后期特征（接近最终表示）
+
+> 注意：特征在目标模型**前向传播过程中**提取。目标模型的输出用于**验证** Draft Tokens。
+
+**什么是树形验证 (Tree Verification)?**
+
+树形验证是目标模型高效验证 draft tokens 的方式：
+
+```
+Draft Model 生成候选 token 的"树"结构：
+
+                    Token 1 (根节点)
+                   /      |      \
+              Token 2a  Token 2b  Token 2c
+               /    \      |
+          Token 3a  3b   Token 3c
+            |
+        Token 4a
+
+目标模型在一次前向传播中验证所有候选：
+- 比较 draft logits 和 target logits
+- 接受预测匹配的 token
+- 在每个分支的第一个不匹配处停止
+
+结果：接受最长匹配序列（如 1 → 2a → 3b → 4a）
+```
+
+**为什么用树形结构？**
+- **并行验证**: 所有分支同时验证
+- **更高接受率**: 多个候选增加匹配概率
+- **单次前向传播**: 目标模型只需运行一次即可验证整棵树
+
+**为什么用多层拼接？**
+
+1. **更丰富的信息**: 结合早期、中期和后期层特征
+2. **更好的预测**: 不同层捕获语言的不同方面
+3. **最小开销**: 只需1个decoder层处理拼接后的特征
+4. **全部独立**: FC层、Decoder层和LM Head都是独立训练的
+
+**Draft Model 组件（全部独立训练）：**
+
+| 组件 | 参数量 | 说明 |
+|------|--------|------|
+| FC 层 | ~50M | 投影 12288 → 4096 |
+| 1个 Decoder 层 | ~67M | Attention + MLP（独立权重） |
+| LM Head | ~131M | 映射到 32K draft 词表 |
+| **总计** | **~223M** | float16下约811MB |
+
+> ⚠️ **重要**: Decoder层结构与Llama类似，但权重是**独立训练的**。
+
+**EAGLE3 vs EAGLE/EAGLE-2 对比**:
+
+| 方面 | EAGLE | EAGLE-2 | EAGLE3 |
+|------|-------|---------|--------|
+| Draft层数 | 1-2 | 1 | 1 |
+| 特征来源 | 最后一层 | 最后一层 | 多层 (2, N//2, N-3) |
+| 输入维度 | 4096 | 4096 | 12288 (4096 × 3) |
+| 词表映射 | 完整 | 完整 | 压缩 (32K) |
+| 树结构 | 静态 | 动态 | 动态 + 优化 |
+
+**Draft Model 配置
+
+**Draft Model 配置
+
+**Draft Model 配置
+
+**Draft 模型配置 (llama3-8B-eagle3.json)**：
+```json
+{
+  "architectures": ["LlamaForCausalLMEagle3"],
+  "num_hidden_layers": 1,        // 仅 1 个解码器层
+  "hidden_size": 4096,           // 与目标模型相同
+  "vocab_size": 128256,          // 目标模型词表
+  "draft_vocab_size": 32000      // 压缩的 draft 词表
+}
+```
+
+Draft 模型非常轻量（~811MB vs 完整模型 16GB），因为它仅包含：
+- 1 个 Transformer 解码器层
+- 嵌入层（与目标模型共享）
+- 带压缩词表的 LM head
+
+**训练后的 Draft Head 文件结构**：
+```
+eagle3-llama31-8b/
+├── config.json          # 737 B  - 模型配置
+├── model.safetensors    # 811 MB - Draft 模型权重（推理只需要这个）
+└── training_state.pt    # 3.2 GB - 优化器状态（推理不需要）
+```
+
+**参数分布（总计 ~223M）**：
+| 组件 | 参数量 | 大小 |
+|------|--------|------|
+| 1x 解码器层（Attention + MLP）| ~67M | ~134 MB |
+| LM Head (4096 → 32000) | ~131M | ~262 MB |
+| 词表映射 (d2t, t2d) | ~25M | ~50 MB |
+| LayerNorm + 其他 | <1M | ~2 MB |
+
 
 ## 阶段 1：验证官方 EAGLE3 模型
 
@@ -155,6 +304,54 @@ Run 20:  3.085s | 512 tokens |  166.0 tok/s
 ---
 
 ## 阶段 2：自训练 EAGLE3 Draft 模型
+
+### 数据准备（关键步骤）
+
+EAGLE3 训练需要高质量的对话数据。SpecForge 框架提供了 `prepare_data.py` 脚本来处理各种数据集：
+
+**支持的数据集：**
+- `sharegpt` - ShareGPT 对话（推荐用于通用场景）
+- `ultrachat` - UltraChat 数据集
+- `perfectblend` - PerfectBlend 数据集（7M+ 对话）
+- `eaglechat` - EAGLE 专用聊天数据
+- `magpie-qwen2.5-pro-1m-v0.1` - Magpie Qwen 数据集
+
+**步骤 1：准备训练数据**
+
+```bash
+cd /root/SpecForge
+
+# 选项 1：使用 ShareGPT（完整数据集 ~114K 样本）
+python scripts/prepare_data.py \
+    --dataset sharegpt \
+    --output-path cache/dataset/sharegpt_train.jsonl
+
+# 选项 2：使用 ShareGPT 限制样本数（用于测试）
+python scripts/prepare_data.py \
+    --dataset sharegpt \
+    --sample-size 10000 \
+    --output-path cache/dataset/sharegpt_train.jsonl
+
+# 选项 3：使用 PerfectBlend（更大、更高质量）
+python scripts/prepare_data.py \
+    --dataset perfectblend \
+    --sample-size 50000 \
+    --output-path cache/dataset/perfectblend_train.jsonl
+```
+
+**数据格式（JSONL）：**
+```json
+{
+  "id": "HneH6K5_0",
+  "conversations": [
+    {"role": "user", "content": "写一篇关于...的文章"},
+    {"role": "assistant", "content": "标题：...的好处"}
+  ]
+}
+```
+
+**关键洞察**：数据质量直接影响 draft 模型精度。使用仅 500 个样本的原始 ShareGPT 导致 6% 精度。使用 114K ShareGPT 样本或 PerfectBlend 数据集可达到 40-50% 精度。
+
 
 ### 训练配置
 
@@ -398,16 +595,23 @@ gradient_checkpointing: true
 
 ```
 Speculative-Decoding-EAGLE3/
-├── README.md
-├── README-CN.md
-├── requirements.txt
-├── test_performance.py
+├── README.md                              # 英文文档
+├── README-CN.md                           # 中文文档
+├── requirements.txt                       # Python 依赖
+├── test_performance.py                    # 性能测试脚本
 ├── config/
-│   └── eagle3_llama31_8b.yaml
+│   ├── eagle3_llama31_8b.yaml            # 训练配置（YAML）
+│   └── llama3-8B-eagle3.json             # Draft 模型架构配置
+├── scripts/
+│   ├── prepare_data.py                   # 数据准备脚本
+│   ├── prepare_data.sh                   # 数据准备 Shell 封装
+│   ├── train_eagle3.sh                   # 训练启动脚本
+│   └── deploy_server.sh                  # 服务器部署脚本
 └── logs/
-    ├── training_sample.log
-    └── server_startup.log
+    ├── training_sample.log               # 示例训练输出
+    └── server_startup.log                # 服务器启动日志
 ```
+
 
 ---
 
@@ -430,3 +634,24 @@ Speculative-Decoding-EAGLE3/
 3. 任务相关性：代码生成收益最大 (1.30x)，创意写作可能变慢
 4. 检查点选择：step_5000 (峰值精度) > step_7000 (最终)
 5. 使用 SGLang：vLLM 有兼容性问题
+
+## 关于 EAGLE
+
+EAGLE (Extrapolation Algorithm for Greater Language-model Efficiency) 由以下团队开发：
+
+| 作者 | 所属机构 |
+|------|----------|
+| **李宇辉 (Yuhui Li)** | 北京大学 |
+| **魏芳云 (Fangyun Wei)** | 微软亚洲研究院 |
+| **Chao Zhang** | - |
+| **Hongyang Zhang** | SafeAI Lab (SAIL) |
+
+- **组织**: [SafeAI Lab (SAIL)](https://github.com/SafeAILab)
+- **许可证**: Apache 2.0
+- **论文发表**:
+  - EAGLE (ICML 2024)
+  - EAGLE-2 (EMNLP 2024)
+  - EAGLE-3 (NeurIPS 2025)
+
+---
+
