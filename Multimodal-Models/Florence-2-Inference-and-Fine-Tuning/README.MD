@@ -500,3 +500,40 @@ GPU consumption during above inference:
 
 **Refer:**
 https://huggingface.co/blog/finetune-florence2
+---
+
+## LoRA Fine-tuning for Object Detection
+
+In addition to full fine-tuning, we also provide a **LoRA (Low-Rank Adaptation)** fine-tuning example for object detection tasks.
+
+### Comparison of Two Fine-tuning Methods
+
+| Aspect | Full Fine-tuning | LoRA Fine-tuning |
+|--------|-----------------|------------------|
+| **Notebook** | `Florence_2_Full_Fine_tunning.ipynb` | `Florence2_LoRA_ObjectDetection.ipynb` |
+| **Task** | Document VQA | Object Detection |
+| **Dataset** | HuggingFace DocumentVQA | Roboflow (wheel vs box) |
+| **Base Model** | Florence-2-large-ft | Florence-2-base-ft |
+| **Trainable Parameters** | All parameters | ~0.5% (LoRA adapters only) |
+| **GPU Memory** | Higher | Lower |
+| **Training Speed** | Slower | Faster |
+
+### LoRA Fine-tuning Highlights
+
+- **Parameter Efficient**: Only trains low-rank adapter matrices
+- **Uses PEFT library**: Easy integration with HuggingFace transformers
+- **Custom Dataset**: Downloads from Roboflow Universe
+- **Complete Pipeline**: Includes training, evaluation, and inference visualization
+
+### Quick Start for LoRA Fine-tuning
+
+1. Get your API keys:
+   - [HuggingFace Token](https://huggingface.co/settings/tokens)
+   - [Roboflow API Key](https://app.roboflow.com/settings/api)
+
+2. Open `Florence2_LoRA_ObjectDetection.ipynb` in Google Colab or Jupyter
+
+3. Replace `YOUR_ROBOFLOW_API_KEY` with your actual key
+
+4. Run all cells to train and evaluate
+
