@@ -245,7 +245,7 @@ streamlit run app.py \
 
 ## 🏠 业务场景示例
 
-### 房产交易自动化 (贝壳场景)
+### 房产交易自动化
 ```bash
 python -m fara.run_fara \
     --task "进入存量房网上签约系统，找到个人用户登录入口" \
@@ -282,4 +282,5 @@ python -m fara.run_fara \
 ---
 
 *验证日期: 2025-11-27 | 验证者: Microsoft GBB AI Architect*
+
 
