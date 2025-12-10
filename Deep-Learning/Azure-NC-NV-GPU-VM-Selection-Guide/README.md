@@ -417,7 +417,7 @@ nvjpegDecode() called on A10:
 
 | GPU       | NVJPG Hardware | Decode Path           | Relative Performance |
 | --------- | -------------- | --------------------- | -------------------- |
-| H100/A100 | ✅ Yes         | Hardware accelerated  | **100%**       |
+| H100/A100/RTX PRO 6000 BSE | ✅ Yes         | Hardware accelerated  | **100%**       |
 | A10       | ❌ No          | GPU software (HYBRID) | ~20-30%              |
 | CPU only  | -              | libjpeg               | ~5%                  |
 
@@ -459,8 +459,8 @@ nvjpegDecode() called on A10:
 ## Summary: Three Principles
 
 1. **Need video encoding output?** → Must have NVENC → **Exclude NC H100 / NC A100**
-2. **Need ray tracing?** → Must have RT Core → **Exclude NC H100 / NC A100** (NV A10 has RT Core)
-3. **Pure AI compute?** → Look at Tensor Core + VRAM → **NC H100 > NC A100 > RTX PRO 6000 BSE > NV A10**
+2. **Need ray tracing?** → Must have RT Core → **Exclude NC H100 / NC A100** RTX PRO 6000 BSE and NV A10 has RT Core)
+3. **Pure AI compute?** → Look at Tensor Core + VRAM
 
 ---
 

@@ -403,7 +403,7 @@ A10 调用 nvjpegDecode()：
 
 | GPU | NVJPG 硬件 | 解码路径 | 相对性能 |
 |-----|-----------|---------|----------|
-| H100/A100 | ✅ 有 | 硬件加速 | **100%** |
+| H100/A100/RTX PRO 6000 BSE | ✅ 有 | 硬件加速 | **100%** |
 | A10 | ❌ 无 | GPU 软件 (HYBRID) | ~20-30% |
 | 纯 CPU | - | libjpeg | ~5% |
 
@@ -444,8 +444,8 @@ A10 调用 nvjpegDecode()：
 ## 总结：三大原则
 
 1. **需要视频编码输出？** → 必须有 NVENC → **排除 NC H100 / NC A100**
-2. **需要光线追踪？** → 必须有 RT Core → **排除 NC H100 / NC A100**（NV A10 有 RT Core）
-3. **纯 AI 计算？** → 看 Tensor Core + 显存 → **NC H100 > NC A100 > RTX PRO 6000 BSE > NV A10**
+2. **需要光线追踪？** → 必须有 RT Core → **排除 NC H100 / NC A100**（RTX PRO 6000 BSE和NV A10 有 RT Core）
+3. **纯 AI 计算？** → 看 Tensor Core + 显存
 
 ---
 
