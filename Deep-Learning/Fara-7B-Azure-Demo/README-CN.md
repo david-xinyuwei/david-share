@@ -2,14 +2,6 @@
 
 微软首个开源 Computer Use Agent (CUA) 模型在 Azure GPU VM 上的端到端验证。
 
-#### Demo 1
-
-https://github.com/user-attachments/assets/d7041c81-b2e4-4413-980e-428135f8f62c
-
-#### Demo 2
-
-https://github.com/user-attachments/assets/90e8acc2-d8db-447e-8e30-cb2b157229cd
-
 ## 🎯 项目概述
 
 本项目验证了 **Microsoft Fara-7B** 模型在 Azure H100 GPU 上的部署和运行效果，并提供了一个 Streamlit Web 界面用于演示。
@@ -245,7 +237,7 @@ streamlit run app.py \
 
 ## 🏠 业务场景示例
 
-### 房产交易自动化
+### 房产交易自动化 (贝壳场景)
 ```bash
 python -m fara.run_fara \
     --task "进入存量房网上签约系统，找到个人用户登录入口" \
@@ -267,8 +259,6 @@ python -m fara.run_fara \
 2. **搜索频率**: 频繁使用 Bing 搜索会触发验证码
 3. **网络延迟**: 海外服务器访问中国网站较慢
 4. **隐私保护**: 模型会拒绝涉及真实个人隐私的操作
-
-
 
 ## 🔄 Human-in-the-Loop (HITL) 人机协作
 
@@ -297,33 +287,135 @@ Fara 模型内置了 "Critical Points" 机制 - 在敏感操作前自动停止�
 
 ### 框架级 HITL：暂停 → 输入 → 继续
 
-要实现真正的交互式 HITL（暂停、获取输入、继续），需要框架支持。我们使用 **Magentic-UI** 验证了此功能。
+要实现真正的交互式 HITL（暂停、获取输入、继续），需要框架支持。我们使用 **Magentic-UI** 验证了此功能，但需要修改代码。
 
-### Magentic-UI + Fara HITL 演示
+### Magentic-UI + Fara HITL 架构
 
-#### 架构图
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      Magentic-UI                            │
-│  ┌─────────────┐    ┌──────────────┐    ┌───────────────┐  │
-│  │   前端      │◄──►│  WebSocket   │◄──►│ FaraWebSurfer │  │
-│  │  (React)    │    │    连接      │    │    Agent      │  │
-│  └─────────────┘    └──────────────┘    └───────┬───────┘  │
-│                                                  │          │
-│                                          ┌──────▼──────┐   │
-│                                          │   vLLM      │   │
-│                                          │  Fara-7B    │   │
-│                                          └─────────────┘   │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                        Magentic-UI                              │
+│                                                                 │
+│  ┌─────────────┐    ┌──────────────────┐    ┌────────────────┐ │
+│  │   前端      │◄──►│  connection.py   │◄──►│ _fara_web_     │ │
+│  │  (React)    │    │  (WebSocket)     │    │  surfer.py     │ │
+│  └─────────────┘    └──────────────────┘    └───────┬────────┘ │
+│                                                      │          │
+│                                              ┌───────▼────────┐ │
+│                                              │  OpenAI API    │ │
+│                                              │    客户端       │ │
+│                                              └───────┬────────┘ │
+└──────────────────────────────────────────────────────┼──────────┘
+                                                       │
+                                               ┌───────▼────────┐
+                                               │     vLLM       │
+                                               │    Fara-7B     │
+                                               │  (port 5000)   │
+                                               └────────────────┘
 ```
 
-#### 配置 Magentic-UI 与 Fara
+**关键点**：
+- `connection.py` 和 `_fara_web_surfer.py` 在 **Magentic-UI 内部**（需要修改）
+- vLLM 在 **框架外部** 作为独立推理服务运行
+- Magentic-UI 通过 OpenAI 兼容 API 调用 vLLM
+
+### ⚠️ 必需的代码修改（3个文件）
+
+Magentic-UI 默认的 HITL 实现不完全支持 Fara 的 `pause_and_memorize_fact` 动作。需要修改 3 个文件：
+
+#### 1. `_fara_web_surfer.py`（2处修改）
+
+**文件**: `.venv/lib/python3.10/site-packages/magentic_ui/agents/web_surfer/fara/_fara_web_surfer.py`
+
+**问题**: 当 Fara 调用 `pause_and_memorize_fact` 时，agent 设置 `is_paused=True` 然后 `break`，导致任务结束。
+
+**如何定位**: 搜索 `self.is_paused = True`，会找到 2 处，都紧跟着 `break`。
+
+**修复**: 将两处都从：
+
+```python
+self.is_paused = True
+break
+```
+
+改为：
+
+```python
+self.is_paused = True
+while self.is_paused:
+    await asyncio.sleep(0.5)
+```
+
+#### 2. `connection.py` - 暂停时发送 input_request
+
+**文件**: `.venv/lib/python3.10/site-packages/magentic_ui/backend/web/managers/connection.py`
+
+**问题**: 前端只有收到 `type: "input_request"` 才显示输入框，但 FaraWebSurfer 发送的是 `type: "paused"`。
+
+**如何定位**: 搜索 `async for message in run_context` 或 WebSocket 消息处理循环。
+
+**修复**: 在消息处理循环内添加以下检测：
+
+```python
+async for message in run_context:
+    # ... 现有的消息处理 ...
+    
+    # 添加此代码块:
+    if '"type": "paused"' in str(message) or (hasattr(message, 'type') and getattr(message, 'type', None) == 'paused'):
+        await websocket.send_json({
+            "type": "input_request", 
+            "prompt": "Agent paused. Enter your instruction to continue:",
+            "run_id": run_id
+        })
+```
+
+#### 3. `connection.py` - 用户输入后恢复执行
+
+**文件**: 同上
+
+**问题**: 用户提交输入后，agent 不会从暂停状态恢复。
+
+**如何定位**: 搜索 `async def handle_input_response` 或 `handle_input_response`。
+
+**修复**: 在 `handle_input_response` 方法末尾添加：
+
+```python
+async def handle_input_response(self, run_id: str, response: str):
+    # ... 现有的保存响应代码 ...
+    
+    # 在末尾添加此行:
+    await self.resume_run(run_id)
+```
+
+### 前置条件
+
+配置 Magentic-UI HITL 前，确保：
+
+1. **vLLM 已启动** 并加载 Fara-7B 模型：
+```bash
+vllm serve /path/to/fara-7b \
+    --port 5000 \
+    --dtype auto \
+    --max-model-len 32768 \
+    --gpu-memory-utilization 0.9 \
+    --served-model-name microsoft/Fara-7B \
+    --trust-remote-code
+```
+
+2. **验证 vLLM 正常响应**：
+```bash
+curl http://localhost:5000/v1/models
+# 应返回: {"data":[{"id":"microsoft/Fara-7B",...}]}
+```
+
+### 配置 Magentic-UI 与 Fara
 
 ```bash
 # 克隆并安装
 git clone https://github.com/microsoft/magentic-ui.git
 cd magentic-ui
 pip install -e .
+
+# 应用上述 3 处代码修改
 
 # 创建 Fara 配置文件
 cat > fara_config.yaml << 'CONFIG'
@@ -339,7 +431,7 @@ export OPENAI_API_KEY=not-needed
 magentic ui --fara --port 8081 --config fara_config.yaml
 ```
 
-#### HITL 验证结果
+### HITL 验证结果
 
 | 步骤 | 动作 | 结果 |
 |------|------|------|
@@ -349,29 +441,14 @@ magentic ui --fara --port 8081 --config fara_config.yaml
 | 4 | 用户输入: "现在搜索 NVIDIA 股价" | 智能体继续执行新任务 |
 | 5 | 智能体找到 NVIDIA: $180.93 | 成功完成 |
 
-**截图说明**：
-- 智能体在找到微软股价后暂停
-- 输入框变为可用状态
-- 用户可以重新定向到新任务
-
 ### Learn Plan（学习计划）功能
 
-Magentic-UI 的 "Learn Plan" 可从任务执行中提取可复用的工作流：
+Magentic-UI 的 "Learn Plan" 可从任务执行中提取可复用的工作流。此功能需要配置中设置 `structured_output: true`。
 
-```yaml
-# 生成的 "在 stockanalysis.com 搜索股价" 计划
-steps:
-  - action: visit_url
-    url: "https://stockanalysis.com/stocks/{symbol}/"
-  - action: extract
-    selector: ".price-current"
-    save_as: "current_price"
-  - action: pause_and_memorize_fact
-    fact: "{symbol} 股价为 {current_price}"
-```
+## 📄 许可证
 
-此功能需要配置中设置 `structured_output: true`。
+本项目代码采用 MIT 许可证。Fara-7B 模型同样采用 MIT 许可证。
 
 ---
 
-*HITL 验证日期: 2025-12-12 | 验证者: Microsoft GBB AI Architect*
+*验证日期: 2025-11-27 | HITL 验证: 2025-12-12 | 验证者: Microsoft GBB AI Architect*

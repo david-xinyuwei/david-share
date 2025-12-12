@@ -1,19 +1,10 @@
-# Fara-7B CUA on Azure NC40 H100 Validation & Streamlit Demo
+# Fara-7B Azure H100 Validation & Streamlit Demo
 
 End-to-end validation of Microsoft's first open-source Computer Use Agent (CUA) model on Azure GPU VMs.
 
 ## 🎯 Project Overview
 
 This project validates the deployment and performance of **Microsoft Fara-7B** on Azure H100 GPU, with a Streamlit web interface for demonstration.
-
-#### Demo 1
-
-https://github.com/user-attachments/assets/d7041c81-b2e4-4413-980e-428135f8f62c
-
-
-#### Demo 2
-
-https://github.com/user-attachments/assets/90e8acc2-d8db-447e-8e30-cb2b157229cd
 
 ### About Fara-7B
 
@@ -265,14 +256,9 @@ python -m fara.run_fara \
 ## ⚠️ Known Limitations
 
 1. **Anti-scraping**: Some websites (Zillow, Realtor) block access
-
 2. **Search Rate Limiting**: Frequent Bing searches trigger captchas
-
 3. **Network Latency**: Overseas servers have slower access to Chinese websites
-
 4. **Privacy Protection**: Model refuses operations involving real personal information
-
-   
 
 ## 🔄 Human-in-the-Loop (HITL) with Magentic-UI
 
@@ -301,33 +287,135 @@ This is **task termination**, not pause-and-continue.
 
 ### Framework-Level HITL: Pause → Input → Continue
 
-For true interactive HITL (pause, get input, continue), you need framework support. We validated this with **Magentic-UI**.
+For true interactive HITL (pause, get input, continue), you need framework support. We validated this with **Magentic-UI**, but it requires code modifications.
 
-### Magentic-UI + Fara HITL Demo
+### Magentic-UI + Fara HITL Architecture
 
-#### Architecture
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      Magentic-UI                            │
-│  ┌─────────────┐    ┌──────────────┐    ┌───────────────┐  │
-│  │  Frontend   │◄──►│  WebSocket   │◄──►│ FaraWebSurfer │  │
-│  │  (React)    │    │  Connection  │    │    Agent      │  │
-│  └─────────────┘    └──────────────┘    └───────┬───────┘  │
-│                                                  │          │
-│                                          ┌──────▼──────┐   │
-│                                          │   vLLM      │   │
-│                                          │  Fara-7B    │   │
-│                                          └─────────────┘   │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                        Magentic-UI                              │
+│                                                                 │
+│  ┌─────────────┐    ┌──────────────────┐    ┌────────────────┐ │
+│  │  Frontend   │◄──►│  connection.py   │◄──►│ _fara_web_     │ │
+│  │  (React)    │    │  (WebSocket)     │    │  surfer.py     │ │
+│  └─────────────┘    └──────────────────┘    └───────┬────────┘ │
+│                                                      │          │
+│                                              ┌───────▼────────┐ │
+│                                              │  OpenAI API    │ │
+│                                              │  Client        │ │
+│                                              └───────┬────────┘ │
+└──────────────────────────────────────────────────────┼──────────┘
+                                                       │
+                                               ┌───────▼────────┐
+                                               │     vLLM       │
+                                               │    Fara-7B     │
+                                               │  (port 5000)   │
+                                               └────────────────┘
 ```
 
-#### Setup Magentic-UI with Fara
+**Key Points**:
+- `connection.py` and `_fara_web_surfer.py` are **inside Magentic-UI** (need modification)
+- vLLM runs **outside** as a standalone inference server
+- Magentic-UI calls vLLM via OpenAI-compatible API
+
+### ⚠️ Required Code Modifications (3 files)
+
+Magentic-UI's default HITL implementation doesn't fully support Fara's `pause_and_memorize_fact` action. You need to modify 3 files:
+
+#### 1. `_fara_web_surfer.py` (2 locations)
+
+**File**: `.venv/lib/python3.10/site-packages/magentic_ui/agents/web_surfer/fara/_fara_web_surfer.py`
+
+**Problem**: When Fara calls `pause_and_memorize_fact`, the agent sets `is_paused=True` then `break`, ending the task.
+
+**How to find**: Search for `self.is_paused = True` - you'll find 2 occurrences, both followed by `break`.
+
+**Fix**: Change both occurrences from:
+
+```python
+self.is_paused = True
+break
+```
+
+To:
+
+```python
+self.is_paused = True
+while self.is_paused:
+    await asyncio.sleep(0.5)
+```
+
+#### 2. `connection.py` - Send input_request on pause
+
+**File**: `.venv/lib/python3.10/site-packages/magentic_ui/backend/web/managers/connection.py`
+
+**Problem**: Frontend only shows input box when it receives `type: "input_request"`, but FaraWebSurfer sends `type: "paused"`.
+
+**How to find**: Search for `async for message in run_context` or the WebSocket message handling loop.
+
+**Fix**: Inside the message handling loop, add this check:
+
+```python
+async for message in run_context:
+    # ... existing message handling ...
+    
+    # ADD THIS BLOCK:
+    if '"type": "paused"' in str(message) or (hasattr(message, 'type') and getattr(message, 'type', None) == 'paused'):
+        await websocket.send_json({
+            "type": "input_request", 
+            "prompt": "Agent paused. Enter your instruction to continue:",
+            "run_id": run_id
+        })
+```
+
+#### 3. `connection.py` - Resume on user input
+
+**File**: Same file as above
+
+**Problem**: When user submits input, the agent doesn't resume from paused state.
+
+**How to find**: Search for `async def handle_input_response` or `handle_input_response`.
+
+**Fix**: At the end of the `handle_input_response` method, add:
+
+```python
+async def handle_input_response(self, run_id: str, response: str):
+    # ... existing code that stores the response ...
+    
+    # ADD THIS LINE at the end:
+    await self.resume_run(run_id)
+```
+
+### Pre-requisites
+
+Before setting up Magentic-UI HITL, ensure:
+
+1. **vLLM is running** with Fara-7B model:
+```bash
+vllm serve /path/to/fara-7b \
+    --port 5000 \
+    --dtype auto \
+    --max-model-len 32768 \
+    --gpu-memory-utilization 0.9 \
+    --served-model-name microsoft/Fara-7B \
+    --trust-remote-code
+```
+
+2. **Verify vLLM is responding**:
+```bash
+curl http://localhost:5000/v1/models
+# Should return: {"data":[{"id":"microsoft/Fara-7B",...}]}
+```
+
+### Setup Magentic-UI with Fara
 
 ```bash
 # Clone and install
 git clone https://github.com/microsoft/magentic-ui.git
 cd magentic-ui
 pip install -e .
+
+# Apply the 3 code modifications above
 
 # Create Fara config
 cat > fara_config.yaml << 'CONFIG'
@@ -343,7 +431,7 @@ export OPENAI_API_KEY=not-needed
 magentic ui --fara --port 8081 --config fara_config.yaml
 ```
 
-#### HITL Validation Result
+### HITL Validation Result
 
 | Step | Action | Result |
 |------|--------|--------|
@@ -353,29 +441,14 @@ magentic ui --fara --port 8081 --config fara_config.yaml
 | 4 | User inputs: "Now search NVIDIA price" | Agent continues with new task |
 | 5 | Agent finds NVIDIA: $180.93 | Successfully completed |
 
-**Screenshot**:
-- Agent pauses after finding Microsoft price
-- Input box becomes active
-- User can redirect to new task
-
 ### Learn Plan Feature
 
-Magentic-UI's "Learn Plan" extracts reusable workflows from task execution:
+Magentic-UI's "Learn Plan" extracts reusable workflows from task execution. This requires `structured_output: true` in config.
 
-```yaml
-# Generated plan for "Search stock price on stockanalysis.com"
-steps:
-  - action: visit_url
-    url: "https://stockanalysis.com/stocks/{symbol}/"
-  - action: extract
-    selector: ".price-current"
-    save_as: "current_price"
-  - action: pause_and_memorize_fact
-    fact: "{symbol} stock price is {current_price}"
-```
+## 📄 License
 
-This requires `structured_output: true` in config.
+This project code is under MIT License. Fara-7B model is also under MIT License.
 
 ---
 
-*HITL Validation Date: 2025-12-12 | Validated by: Microsoft GBB AI Architect*
+*Validation Date: 2025-11-27 | HITL Validation: 2025-12-12 | Validated by: Microsoft GBB AI Architect*
