@@ -265,28 +265,18 @@ python -m fara.run_fara \
 ## ⚠️ Known Limitations
 
 1. **Anti-scraping**: Some websites (Zillow, Realtor) block access
+
 2. **Search Rate Limiting**: Frequent Bing searches trigger captchas
+
 3. **Network Latency**: Overseas servers have slower access to Chinese websites
+
 4. **Privacy Protection**: Model refuses operations involving real personal information
 
-## 📚 References
-
-- [Microsoft Fara GitHub](https://github.com/microsoft/Fara)
-- [Fara-7B HuggingFace](https://huggingface.co/microsoft/Fara-7B)
-- [VLLM Documentation](https://docs.vllm.ai/)
-- [Azure GPU VM Pricing](https://azure.microsoft.com/pricing/details/virtual-machines/linux/)
-
-## 📄 License
-
-This project code is under MIT License. Fara-7B model is also under MIT License.
-
----
-
-*Validation Date: 2025-11-27 | Validated by: Microsoft GBB AI Architect*
-
-
+   
 
 ## 🔄 Human-in-the-Loop (HITL) with Magentic-UI
+
+https://github.com/user-attachments/assets/b62f7a34-aa41-4a69-8fdb-59a1c65eeb72
 
 ### What is HITL?
 

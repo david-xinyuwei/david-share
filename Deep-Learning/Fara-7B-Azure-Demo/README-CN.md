@@ -268,24 +268,11 @@ python -m fara.run_fara \
 3. **网络延迟**: 海外服务器访问中国网站较慢
 4. **隐私保护**: 模型会拒绝涉及真实个人隐私的操作
 
-## 📚 参考资源
-
-- [Microsoft Fara GitHub](https://github.com/microsoft/Fara)
-- [Fara-7B HuggingFace](https://huggingface.co/microsoft/Fara-7B)
-- [VLLM 文档](https://docs.vllm.ai/)
-- [Azure GPU VM 定价](https://azure.microsoft.com/pricing/details/virtual-machines/linux/)
-
-## 📄 许可证
-
-本项目代码采用 MIT 许可证。Fara-7B 模型同样采用 MIT 许可证。
-
----
-
-*验证日期: 2025-11-27 | 验证者: Microsoft GBB AI Architect*
-
 
 
 ## 🔄 Human-in-the-Loop (HITL) 人机协作
+
+https://github.com/user-attachments/assets/b62f7a34-aa41-4a69-8fdb-59a1c65eeb72
 
 ### 什么是 HITL？
 
