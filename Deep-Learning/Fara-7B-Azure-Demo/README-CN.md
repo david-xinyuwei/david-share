@@ -372,17 +372,6 @@ steps:
 
 此功能需要配置中设置 `structured_output: true`。
 
-## 🛠️ 独立 HITL CLI（实验性）
-
-对于不使用 Magentic-UI 的场景，我们提供了独立的 CLI 脚本：
-
-```bash
-# 在运行 vLLM 的 VM 上
-python fara_hitl_cli.py --task "search microsoft stock price" --max-steps 15
-```
-
-**注意**：独立 CLI 依赖模型主动调用 `pause_and_memorize_fact`。模型可能会选择直接 `terminate`。如需可靠的 HITL，建议使用 Magentic-UI。
-
 ---
 
 *HITL 验证日期: 2025-12-12 | 验证者: Microsoft GBB AI Architect*
