@@ -284,3 +284,118 @@ python -m fara.run_fara \
 *验证日期: 2025-11-27 | 验证者: Microsoft GBB AI Architect*
 
 
+
+## 🔄 Human-in-the-Loop (HITL) 人机协作
+
+### 什么是 HITL？
+
+HITL 允许智能体**暂停执行、请求用户输入、然后根据人类指导继续**。这对以下场景至关重要：
+- 确认敏感操作（购买、预订）
+- 任务中途获取额外信息
+- 智能体卡住时重新引导
+
+### Fara 原生 HITL：Critical Points（关键点）
+
+Fara 模型内置了 "Critical Points" 机制 - 在敏感操作前自动停止：
+
+```
+任务: "预订飞往纽约的机票"
+→ 智能体导航到预订网站
+→ 智能体填写表单
+→ 智能体到达支付页面
+→ 关键点: 智能体停止并报告 "准备进行支付"
+```
+
+这是**任务终止**，而非暂停后继续。
+
+### 框架级 HITL：暂停 → 输入 → 继续
+
+要实现真正的交互式 HITL（暂停、获取输入、继续），需要框架支持。我们使用 **Magentic-UI** 验证了此功能。
+
+### Magentic-UI + Fara HITL 演示
+
+#### 架构图
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      Magentic-UI                            │
+│  ┌─────────────┐    ┌──────────────┐    ┌───────────────┐  │
+│  │   前端      │◄──►│  WebSocket   │◄──►│ FaraWebSurfer │  │
+│  │  (React)    │    │    连接      │    │    Agent      │  │
+│  └─────────────┘    └──────────────┘    └───────┬───────┘  │
+│                                                  │          │
+│                                          ┌──────▼──────┐   │
+│                                          │   vLLM      │   │
+│                                          │  Fara-7B    │   │
+│                                          └─────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### 配置 Magentic-UI 与 Fara
+
+```bash
+# 克隆并安装
+git clone https://github.com/microsoft/magentic-ui.git
+cd magentic-ui
+pip install -e .
+
+# 创建 Fara 配置文件
+cat > fara_config.yaml << 'CONFIG'
+base_url: "http://127.0.0.1:5000/v1"
+api_key: "not-needed"
+model: "microsoft/Fara-7B"
+structured_output: true
+json_output: true
+CONFIG
+
+# 启动 (需要 vLLM 在 5000 端口运行)
+export OPENAI_API_KEY=not-needed
+magentic ui --fara --port 8081 --config fara_config.yaml
+```
+
+#### HITL 验证结果
+
+| 步骤 | 动作 | 结果 |
+|------|------|------|
+| 1 | 任务: "搜索微软股价" | 智能体导航到金融网站 |
+| 2 | 智能体找到价格: $483.47 | 智能体调用 `pause_and_memorize_fact` |
+| 3 | UI 显示输入提示 | 用户看到 "等待您的输入" |
+| 4 | 用户输入: "现在搜索 NVIDIA 股价" | 智能体继续执行新任务 |
+| 5 | 智能体找到 NVIDIA: $180.93 | 成功完成 |
+
+**截图说明**：
+- 智能体在找到微软股价后暂停
+- 输入框变为可用状态
+- 用户可以重新定向到新任务
+
+### Learn Plan（学习计划）功能
+
+Magentic-UI 的 "Learn Plan" 可从任务执行中提取可复用的工作流：
+
+```yaml
+# 生成的 "在 stockanalysis.com 搜索股价" 计划
+steps:
+  - action: visit_url
+    url: "https://stockanalysis.com/stocks/{symbol}/"
+  - action: extract
+    selector: ".price-current"
+    save_as: "current_price"
+  - action: pause_and_memorize_fact
+    fact: "{symbol} 股价为 {current_price}"
+```
+
+此功能需要配置中设置 `structured_output: true`。
+
+## 🛠️ 独立 HITL CLI（实验性）
+
+对于不使用 Magentic-UI 的场景，我们提供了独立的 CLI 脚本：
+
+```bash
+# 在运行 vLLM 的 VM 上
+python fara_hitl_cli.py --task "search microsoft stock price" --max-steps 15
+```
+
+**注意**：独立 CLI 依赖模型主动调用 `pause_and_memorize_fact`。模型可能会选择直接 `terminate`。如需可靠的 HITL，建议使用 Magentic-UI。
+
+---
+
+*HITL 验证日期: 2025-12-12 | 验证者: Microsoft GBB AI Architect*

@@ -285,3 +285,118 @@ This project code is under MIT License. Fara-7B model is also under MIT License.
 *Validation Date: 2025-11-27 | Validated by: Microsoft GBB AI Architect*
 
 
+
+## 🔄 Human-in-the-Loop (HITL) with Magentic-UI
+
+### What is HITL?
+
+HITL allows the agent to **pause execution, ask for user input, and continue** based on human guidance. This is critical for:
+- Confirming sensitive operations (purchases, bookings)
+- Getting additional information mid-task
+- Redirecting the agent when stuck
+
+### Fara's Native HITL: Critical Points
+
+Fara model has built-in "Critical Points" - it automatically stops before sensitive operations:
+
+```
+Task: "Book a flight to New York"
+→ Agent navigates to booking site
+→ Agent fills form
+→ Agent reaches payment page
+→ CRITICAL POINT: Agent stops and reports "Ready to proceed with payment"
+```
+
+This is **task termination**, not pause-and-continue.
+
+### Framework-Level HITL: Pause → Input → Continue
+
+For true interactive HITL (pause, get input, continue), you need framework support. We validated this with **Magentic-UI**.
+
+### Magentic-UI + Fara HITL Demo
+
+#### Architecture
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      Magentic-UI                            │
+│  ┌─────────────┐    ┌──────────────┐    ┌───────────────┐  │
+│  │  Frontend   │◄──►│  WebSocket   │◄──►│ FaraWebSurfer │  │
+│  │  (React)    │    │  Connection  │    │    Agent      │  │
+│  └─────────────┘    └──────────────┘    └───────┬───────┘  │
+│                                                  │          │
+│                                          ┌──────▼──────┐   │
+│                                          │   vLLM      │   │
+│                                          │  Fara-7B    │   │
+│                                          └─────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Setup Magentic-UI with Fara
+
+```bash
+# Clone and install
+git clone https://github.com/microsoft/magentic-ui.git
+cd magentic-ui
+pip install -e .
+
+# Create Fara config
+cat > fara_config.yaml << 'CONFIG'
+base_url: "http://127.0.0.1:5000/v1"
+api_key: "not-needed"
+model: "microsoft/Fara-7B"
+structured_output: true
+json_output: true
+CONFIG
+
+# Start (requires vLLM running on port 5000)
+export OPENAI_API_KEY=not-needed
+magentic ui --fara --port 8081 --config fara_config.yaml
+```
+
+#### HITL Validation Result
+
+| Step | Action | Result |
+|------|--------|--------|
+| 1 | Task: "Search Microsoft stock price" | Agent navigates to finance site |
+| 2 | Agent finds price: $483.47 | Agent calls `pause_and_memorize_fact` |
+| 3 | UI shows input prompt | User sees "Waiting for your input" |
+| 4 | User inputs: "Now search NVIDIA price" | Agent continues with new task |
+| 5 | Agent finds NVIDIA: $180.93 | Successfully completed |
+
+**Screenshot**:
+- Agent pauses after finding Microsoft price
+- Input box becomes active
+- User can redirect to new task
+
+### Learn Plan Feature
+
+Magentic-UI's "Learn Plan" extracts reusable workflows from task execution:
+
+```yaml
+# Generated plan for "Search stock price on stockanalysis.com"
+steps:
+  - action: visit_url
+    url: "https://stockanalysis.com/stocks/{symbol}/"
+  - action: extract
+    selector: ".price-current"
+    save_as: "current_price"
+  - action: pause_and_memorize_fact
+    fact: "{symbol} stock price is {current_price}"
+```
+
+This requires `structured_output: true` in config.
+
+## 🛠️ Standalone HITL CLI (Experimental)
+
+For scenarios without Magentic-UI, we provide a standalone CLI script:
+
+```bash
+# On VM with vLLM running
+python fara_hitl_cli.py --task "search microsoft stock price" --max-steps 15
+```
+
+**Note**: The standalone CLI depends on the model voluntarily calling `pause_and_memorize_fact`. The model may choose to `terminate` instead. For reliable HITL, use Magentic-UI.
+
+---
+
+*HITL Validation Date: 2025-12-12 | Validated by: Microsoft GBB AI Architect*
