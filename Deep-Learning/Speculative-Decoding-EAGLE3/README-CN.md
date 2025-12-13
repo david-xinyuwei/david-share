@@ -44,6 +44,23 @@ flowchart LR
 
 ### EAGLE3 架构
 
+
+
+![EAGLE3 架构](./images/eagle3-architecture.png)
+
+*图1: EAGLE3 Draft Model 架构与基于树的投机解码 (来源: [Benjamin Marie](https://kaitchup.substack.com/p/eagle-3-speculators-when-to-use-them))*
+
+**Draft Model 工作原理：**
+
+左侧展示了 **target LLM** 执行标准的自回归解码 - 每个 token 需要一次 forward pass。右侧展示了 EAGLE-3 的 **draft model** 如何工作：
+
+- Draft model 使用一个轻量级的 "**One Auto-regression Head**"，接收来自 target model 的特征
+- 它执行**多次低成本的 forward pass**（Forward 1, 2, 3...）来生成候选 draft tokens
+- **树形结构**（下方）展示了 draft tokens 如何分支：从 "I" → "make/help" → "a/our, with/you" → "the/your, to/feel"
+- Target model 随后**在单次 forward pass 中验证所有候选**，接受最长的匹配序列
+
+这种设计将计算从昂贵的 target model 转移到低成本的 draft model，当 draft 预测与 target 对齐良好时，可以实现显著的加速。
+
 ```mermaid
 flowchart TB
     subgraph Target["目标模型: Llama-3.1-8B"]
@@ -161,6 +178,24 @@ Draft Model 生成候选 token 的"树"结构：
 | **总计** | **~223M** | float16下约811MB |
 
 > ⚠️ **重要**: Decoder层结构与Llama类似，但权重是**独立训练的**。
+
+
+
+![EAGLE vs EAGLE-3 训练对比](./images/eagle3-training-comparison.png)
+
+*图2: EAGLE 与 EAGLE-3 训练和测试的差异 (来源: [Benjamin Marie](https://kaitchup.substack.com/p/eagle-3-speculators-when-to-use-them))*
+
+**训练-测试差距问题：**
+
+- **EAGLE（上）**：训练时，draft model 接收来自 target model 的 **ground-truth features**（f_t+1）。但在测试时，它必须使用自己的 **predicted features**（f̂_t+1）。这种不匹配造成了 "train-test gap"，限制了性能。
+
+- **EAGLE + l_fea removal（中）**：如果简单移除 feature prediction loss，模型在测试时会失败（t̂_t+3 ≠ t_t+3），因为它从未被训练处理自己的预测。
+
+- **EAGLE-3（下）**：引入 "**training-time test**" - 在训练期间，draft model 使用自己的 predicted features（â_t+1），与推理时完全一致。这消除了 train-test gap，使模型能够从更多训练数据和计算中受益。
+
+**为什么这很重要：**
+
+原始 EAGLE 难以从扩大训练数据中获益，因为训练设置与推理不匹配。EAGLE-3 的 training-time test 机制直接针对推理时真正重要的指标进行优化：长接受序列和高加速比，而不仅仅是单 token 准确率。
 
 **EAGLE3 vs EAGLE/EAGLE-2 对比**:
 
@@ -626,6 +661,90 @@ Speculative-Decoding-EAGLE3/
 | 推理引擎 | [sgl-project/sglang](https://github.com/sgl-project/sglang) |
 
 ---
+
+
+
+## EAGLE-3 何时真正有效？
+
+理解投机解码何时能带来真正收益对生产部署至关重要。基于实证分析 ([Benjamin Marie](https://kaitchup.substack.com/p/eagle-3-speculators-when-to-use-them))：
+
+### 高并发 (Continuous Batching) - ❌ 收益有限
+
+当使用 vLLM 的 continuous batching 运行高并发时（如 30 个活跃请求）：
+
+| 指标 | 无 EAGLE | 有 EAGLE |
+|------|----------|----------|
+| 引擎吞吐量 | ~550 tok/s | ~1000 tok/s |
+| **有效吞吐量** | ~550 tok/s | ~579 tok/s |
+| GPU KV Cache 使用率 | 26% | 98% |
+
+**关键洞察**："有效吞吐量"（实际出现在输出中的 tokens）几乎相同。使用 EAGLE 时，内部处理了更多 tokens（draft + verify），但*有用*的 token 速率基本不变。GPU 已经被 batching 饱和了 - 投机解码只是重新安排了工作。
+
+### 低并发 (Batch Size = 1) - ✅ 真正加速
+
+当服务单个请求时（batch size = 1）：
+
+| 指标 | 无 EAGLE | 有 EAGLE |
+|------|----------|----------|
+| 生成吞吐量 | ~21 tok/s | ~40-48 tok/s |
+| **有效吞吐量** | ~21 tok/s | ~25-28 tok/s |
+| 延迟降低 | - | **20-30%** |
+
+**关键洞察**：这里投机解码确实实现了它的承诺 - 它将每次昂贵的 forward pass 平均转化为几个被接受的 tokens，降低了单流的延迟。
+
+### 决策指南
+
+| 场景 | EAGLE-3 收益 | 建议 |
+|------|-------------|------|
+| 单用户交互式聊天 | ✅ 高 | 使用 EAGLE-3 |
+| 低并发 API (<5 并行) | ✅ 中-高 | 使用 EAGLE-3 |
+| 中等并发 (5-20 并行) | ⚠️ 需测试 | 先做 benchmark |
+| 高并发 (>20 并行) | ❌ 低/无 | 跳过 EAGLE-3 |
+| 批处理任务 | ❌ 无 | 跳过 EAGLE-3 |
+
+> **重要提示**：将投机解码视为需要针对特定工作负载验证的优化，而不是即插即用的加速。如果你的 GPU 已经通过 batching 得到充分利用，EAGLE-3 不会有帮助。
+
+
+
+## EAGLE-3 何时真正有效？
+
+理解投机解码何时能带来真正收益对生产部署至关重要。基于实证分析 ([Benjamin Marie](https://kaitchup.substack.com/p/eagle-3-speculators-when-to-use-them))：
+
+### 高并发 (Continuous Batching) - ❌ 收益有限
+
+当使用 vLLM 的 continuous batching 运行高并发时（如 30 个活跃请求）：
+
+| 指标 | 无 EAGLE | 有 EAGLE |
+|------|----------|----------|
+| 引擎吞吐量 | ~550 tok/s | ~1000 tok/s |
+| **有效吞吐量** | ~550 tok/s | ~579 tok/s |
+| GPU KV Cache 使用率 | 26% | 98% |
+
+**关键洞察**："有效吞吐量"（实际出现在输出中的 tokens）几乎相同。使用 EAGLE 时，内部处理了更多 tokens（draft + verify），但*有用*的 token 速率基本不变。GPU 已经被 batching 饱和了 - 投机解码只是重新安排了工作。
+
+### 低并发 (Batch Size = 1) - ✅ 真正加速
+
+当服务单个请求时（batch size = 1）：
+
+| 指标 | 无 EAGLE | 有 EAGLE |
+|------|----------|----------|
+| 生成吞吐量 | ~21 tok/s | ~40-48 tok/s |
+| **有效吞吐量** | ~21 tok/s | ~25-28 tok/s |
+| 延迟降低 | - | **20-30%** |
+
+**关键洞察**：这里投机解码确实实现了它的承诺 - 它将每次昂贵的 forward pass 平均转化为几个被接受的 tokens，降低了单流的延迟。
+
+### 决策指南
+
+| 场景 | EAGLE-3 收益 | 建议 |
+|------|-------------|------|
+| 单用户交互式聊天 | ✅ 高 | 使用 EAGLE-3 |
+| 低并发 API (<5 并行) | ✅ 中-高 | 使用 EAGLE-3 |
+| 中等并发 (5-20 并行) | ⚠️ 需测试 | 先做 benchmark |
+| 高并发 (>20 并行) | ❌ 低/无 | 跳过 EAGLE-3 |
+| 批处理任务 | ❌ 无 | 跳过 EAGLE-3 |
+
+> **重要提示**：将投机解码视为需要针对特定工作负载验证的优化，而不是即插即用的加速。如果你的 GPU 已经通过 batching 得到充分利用，EAGLE-3 不会有帮助。
 
 ## 核心结论
 

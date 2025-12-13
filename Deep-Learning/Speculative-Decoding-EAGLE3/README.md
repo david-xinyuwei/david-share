@@ -44,6 +44,23 @@ flowchart LR
 
 ### EAGLE3 Architecture
 
+
+
+![EAGLE3 Architecture](./images/eagle3-architecture.png)
+
+*Figure 1: EAGLE3 Draft Model Architecture and Tree-based Speculative Decoding (Source: [Benjamin Marie](https://kaitchup.substack.com/p/eagle-3-speculators-when-to-use-them))*
+
+**How the Draft Model Works:**
+
+The left side shows the **target LLM** performing standard autoregressive decoding - one forward pass per token. The right side shows how EAGLE-3's **draft model** works differently:
+
+- The draft model uses a lightweight "**One Auto-regression Head**" that takes features from the target model
+- It performs **multiple cheap forward passes** (Forward 1, 2, 3...) to generate draft token candidates
+- The **tree structure** (bottom) shows how draft tokens branch out: from "I" → "make/help" → "a/our, with/you" → "the/your, to/feel"
+- The target model then **verifies all candidates in a single forward pass**, accepting the longest matching sequence
+
+This design shifts computation from expensive target model passes to cheap draft model passes, achieving significant speedups when draft predictions align well with the target.
+
 ```mermaid
 flowchart TB
     subgraph Target["Target Model: Llama-3.1-8B"]
@@ -161,6 +178,24 @@ Result: Accept longest matching sequence (e.g., 1 → 2a → 3b → 4a)
 | **Total** | **~223M** | ~811MB in float16 |
 
 > ⚠️ **Important**: The Decoder layer structure is similar to Llama, but weights are **independently trained**.
+
+
+
+![EAGLE vs EAGLE-3 Training](./images/eagle3-training-comparison.png)
+
+*Figure 2: Training and Testing differences between EAGLE and EAGLE-3 (Source: [Benjamin Marie](https://kaitchup.substack.com/p/eagle-3-speculators-when-to-use-them))*
+
+**The Train-Test Gap Problem:**
+
+- **EAGLE (top)**: During training, the draft model receives **ground-truth features** (f_t+1) from the target model. But at test time, it must use its own **predicted features** (f̂_t+1). This mismatch creates a "train-test gap" that limits performance.
+
+- **EAGLE + l_fea removal (middle)**: If you simply remove the feature prediction loss, the model fails at test time (t̂_t+3 ≠ t_t+3) because it was never trained to handle its own predictions.
+
+- **EAGLE-3 (bottom)**: Introduces "**training-time test**" - during training, the draft model uses its own predicted features (â_t+1) just like at inference time. This eliminates the train-test gap and allows the model to benefit from more training data and compute.
+
+**Why This Matters:**
+
+The original EAGLE struggled to benefit from scaling up training data because the training setup didn't match inference. EAGLE-3's training-time test mechanism directly optimizes for what matters at inference: long accepted sequences and high speedups, not just per-token accuracy.
 
 **EAGLE3 vs EAGLE/EAGLE-2**:
 
@@ -647,6 +682,90 @@ EAGLE (Extrapolation Algorithm for Greater Language-model Efficiency) is develop
 | Inference Engine | [sgl-project/sglang](https://github.com/sgl-project/sglang) |
 
 ---
+
+
+
+## When Does EAGLE-3 Actually Help?
+
+Understanding when speculative decoding provides real benefits is crucial for production deployment. Based on empirical analysis ([Benjamin Marie](https://kaitchup.substack.com/p/eagle-3-speculators-when-to-use-them)):
+
+### High Concurrency (Continuous Batching) - ❌ Limited Benefit
+
+When running vLLM with continuous batching at high concurrency (e.g., 30 active requests):
+
+| Metric | Without EAGLE | With EAGLE |
+|--------|---------------|------------|
+| Engine Throughput | ~550 tok/s | ~1000 tok/s |
+| **Accepted Throughput** | ~550 tok/s | ~579 tok/s |
+| GPU KV Cache Usage | 26% | 98% |
+
+**Key Insight**: The "accepted throughput" (tokens that actually appear in output) is nearly identical. With EAGLE, you're processing many more tokens internally (draft + verify), but the rate of *useful* tokens is basically the same. The GPU is already saturated by batching alone - speculative decoding just rearranges the work.
+
+### Low Concurrency (Batch Size = 1) - ✅ Real Speedup
+
+When serving single requests (batch size = 1):
+
+| Metric | Without EAGLE | With EAGLE |
+|--------|---------------|------------|
+| Generation Throughput | ~21 tok/s | ~40-48 tok/s |
+| **Accepted Throughput** | ~21 tok/s | ~25-28 tok/s |
+| Latency Reduction | - | **20-30%** |
+
+**Key Insight**: Here speculative decoding does what it promises - it turns each heavy forward pass into a couple of accepted tokens on average, cutting latency for single streams.
+
+### Decision Guide
+
+| Scenario | EAGLE-3 Benefit | Recommendation |
+|----------|-----------------|----------------|
+| Single user, interactive chat | ✅ High | Use EAGLE-3 |
+| Low concurrency API (<5 parallel) | ✅ Medium-High | Use EAGLE-3 |
+| Medium concurrency (5-20 parallel) | ⚠️ Test needed | Benchmark first |
+| High concurrency (>20 parallel) | ❌ Low/None | Skip EAGLE-3 |
+| Batch processing | ❌ None | Skip EAGLE-3 |
+
+> **Important**: Treat speculative decoding as an optimization that must be validated for your specific workload, not as a drop-in speedup. If your GPU is already well-utilized through batching, EAGLE-3 won't help.
+
+
+
+## When Does EAGLE-3 Actually Help?
+
+Understanding when speculative decoding provides real benefits is crucial for production deployment. Based on empirical analysis ([Benjamin Marie](https://kaitchup.substack.com/p/eagle-3-speculators-when-to-use-them)):
+
+### High Concurrency (Continuous Batching) - ❌ Limited Benefit
+
+When running vLLM with continuous batching at high concurrency (e.g., 30 active requests):
+
+| Metric | Without EAGLE | With EAGLE |
+|--------|---------------|------------|
+| Engine Throughput | ~550 tok/s | ~1000 tok/s |
+| **Accepted Throughput** | ~550 tok/s | ~579 tok/s |
+| GPU KV Cache Usage | 26% | 98% |
+
+**Key Insight**: The "accepted throughput" (tokens that actually appear in output) is nearly identical. With EAGLE, you're processing many more tokens internally (draft + verify), but the rate of *useful* tokens is basically the same. The GPU is already saturated by batching alone - speculative decoding just rearranges the work.
+
+### Low Concurrency (Batch Size = 1) - ✅ Real Speedup
+
+When serving single requests (batch size = 1):
+
+| Metric | Without EAGLE | With EAGLE |
+|--------|---------------|------------|
+| Generation Throughput | ~21 tok/s | ~40-48 tok/s |
+| **Accepted Throughput** | ~21 tok/s | ~25-28 tok/s |
+| Latency Reduction | - | **20-30%** |
+
+**Key Insight**: Here speculative decoding does what it promises - it turns each heavy forward pass into a couple of accepted tokens on average, cutting latency for single streams.
+
+### Decision Guide
+
+| Scenario | EAGLE-3 Benefit | Recommendation |
+|----------|-----------------|----------------|
+| Single user, interactive chat | ✅ High | Use EAGLE-3 |
+| Low concurrency API (<5 parallel) | ✅ Medium-High | Use EAGLE-3 |
+| Medium concurrency (5-20 parallel) | ⚠️ Test needed | Benchmark first |
+| High concurrency (>20 parallel) | ❌ Low/None | Skip EAGLE-3 |
+| Batch processing | ❌ None | Skip EAGLE-3 |
+
+> **Important**: Treat speculative decoding as an optimization that must be validated for your specific workload, not as a drop-in speedup. If your GPU is already well-utilized through batching, EAGLE-3 won't help.
 
 ## Key Takeaways
 
