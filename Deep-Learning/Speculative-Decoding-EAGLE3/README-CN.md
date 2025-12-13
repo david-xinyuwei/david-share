@@ -50,16 +50,126 @@ flowchart LR
 
 *图1: EAGLE3 Draft Model 架构与基于树的投机解码 (来源: [Benjamin Marie](https://kaitchup.substack.com/p/eagle-3-speculators-when-to-use-them))*
 
-**Draft Model 工作原理：**
+**架构详解（逐步分析）：**
 
-左侧展示了 **target LLM** 执行标准的自回归解码 - 每个 token 需要一次 forward pass。右侧展示了 EAGLE-3 的 **draft model** 如何工作：
+**左侧 - Target LLM（标准解码）：**
 
-- Draft model 使用一个轻量级的 "**One Auto-regression Head**"，接收来自 target model 的特征
-- 它执行**多次低成本的 forward pass**（Forward 1, 2, 3...）来生成候选 draft tokens
-- **树形结构**（下方）展示了 draft tokens 如何分支：从 "I" → "make/help" → "a/our, with/you" → "the/your, to/feel"
-- Target model 随后**在单次 forward pass 中验证所有候选**，接受最长的匹配序列
+对于查询 "How can"，target model 执行标准自回归解码：
+1. 输入 tokens "How", "can" → **Embedding** 层 → e_how, e_can
+2. **Transformer Layers** 处理 embeddings → 隐藏特征 f_how, f_can
+3. **LM Head** 预测下一个 token → 输出 "can", "I"
+4. 每个 token 需要**完整的一次 forward pass** 通过所有层
 
-这种设计将计算从昂贵的 target model 转移到低成本的 draft model，当 draft 预测与 target 对齐良好时，可以实现显著的加速。
+**右侧 - EAGLE-3 Draft Model（投机解码）：**
+
+Draft model 更轻量、更快速：
+1. **Forward 1**：接收来自 target model 的 f_how, e_can + embedding e_I
+   - 通过 "**One Auto-regression Head**"（单个 decoder layer）
+   - **LM Head** 输出 f_I → 预测候选 "make/help"
+
+2. **Forward 2**：对每个候选（"make", "help"）：
+   - 输入：之前的特征 + 新的 embeddings（e_make, e_help）
+   - 输出：f_make, f_help → 预测 "a/our", "with/you"
+
+3. **Forward 3**：继续展开：
+   - 从 "with" → 预测 "the/your"
+   - 从 "you" → 预测 "to/feel"
+
+**图中的关键符号：**
+- `e_xxx`：token "xxx" 的 Embedding
+- `f_xxx`：token "xxx" 的隐藏特征/表示
+- 橙色框：来自 target model 的特征（f_how, f_can）
+- 红色框：draft model 的预测（f_make, f_help 等）
+
+**下方 - 树形结构（验证）：**
+
+Draft tokens 形成一棵树用于批量验证：
+```
+Query: "How can"
+         ↓
+    "I" (来自 target LLM, Forward 1)
+    ├── "make" ─┬── "a" ─── "the"
+    │           └── "our" ── "your"
+    └── "help" ─┬── "with" ─ "to"
+                └── "you" ── "feel"
+```
+
+Target model **在单次 forward pass 中验证所有分支**，接受最长匹配序列（如 "I" → "help" → "you" → "feel"）。
+
+**角色分工 - "Draft 负责猜，Target 负责判"：**
+
+| 角色 | 模型 | 任务 | 成本 |
+|------|------|------|------|
+| **预测者 (Draft)** | EAGLE-3 Draft Model (223M) | 快速生成候选 tokens | 低 |
+| **验证者 (Verify)** | Target LLM (8B) | 判断哪些候选是对的 | 高 |
+
+**具体流程示例：**
+```
+1. Target LLM 生成第一个 token "I"（必须，因为需要初始特征）
+
+2. Draft Model 快速预测（3 次低成本 forward pass）：
+   "I" → make, help
+   "make" → a, our
+   "help" → with, you
+   （每次只过 223M 参数）
+
+3. Target LLM 验证（1 次高成本 forward pass）：
+   并行批量验证所有候选分支
+   判断：哪些 draft tokens 和我自己会生成的一样？
+   
+4. 接受匹配的序列：
+   比如 "I" → "help" → "you" → "feel" 都对
+   一次性接受 4 个 tokens！
+```
+
+**为什么这样有效 - 成本分析：**
+
+*不用 EAGLE-3 时：*
+- 生成 4 个 tokens = 4 × Target LLM forward pass
+- 成本：4 × 8B = **32B 参数计算**
+
+*用 EAGLE-3 时：*
+- Draft 预测：3 × 223M = 669M 参数计算
+- Target 验证：1 × 8B = 8B 参数计算
+- 总计：**~8.7B**（比 32B 便宜约 3.7 倍）
+
+**关键洞察**：Target LLM 的验证是**并行的** - 不管 draft 生成了多少候选，验证都只需要 1 次 forward pass（利用 batch 并行）。Draft 负责"猜"，Target 负责"判"，猜对了就白赚，猜错了顶多浪费一点 draft 的计算。
+
+---
+
+### 为什么验证比生成便宜
+
+常见问题："验证不也要走一遍 Target 模型吗？那为什么不直接用 Target 生成？"
+
+答案在于**顺序 vs 并行**的计算方式：
+
+**生成（顺序执行）：**
+- 每个 token 都依赖前面所有 token
+- 必须等 token 1 生成 → 再生成 token 2 → 再生成 token 3...
+- **N 个 token = N 次 forward pass**（每次都是完整模型计算）
+- GPU 利用率：低（每次之间都在等待）
+
+**验证（并行执行）：**
+- 给定 N 个候选 token，一次性全部检查
+- Transformer 的 self-attention 天然支持：输入 `[x₁, x₂, ..., xₙ]`，输出 `[y₁, y₂, ..., yₙ]`，只需 1 次
+- **N 个 token = 1 次 forward pass**（batch 并行）
+- GPU 利用率：高（并行计算正是 GPU 的强项）
+
+**打个比方：**
+- 生成 = 考试答题：做完第 1 题，再做第 2 题，再做第 3 题...（顺序执行，每题依赖前一题）
+- 验证 = 老师批卷：所有答案同时批改（并行执行，各题独立判断）
+
+**具体数字：**
+| 操作 | 4 个 Token | 8 个 Token | 16 个 Token |
+|------|-----------|-----------|------------|
+| 生成 | 4 次 forward pass | 8 次 forward pass | 16 次 forward pass |
+| 验证 | 1 次 forward pass | 1 次 forward pass | 1 次 forward pass |
+
+这就是为什么 EAGLE-3 的"draft + verify"模式能赢：即使 draft 有些猜错了，但并行验证的成本太低了，猜对的部分带来的加速远超猜错的损失。
+
+---
+
+```mermaid
 
 ```mermaid
 flowchart TB

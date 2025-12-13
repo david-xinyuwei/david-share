@@ -50,16 +50,126 @@ flowchart LR
 
 *Figure 1: EAGLE3 Draft Model Architecture and Tree-based Speculative Decoding (Source: [Benjamin Marie](https://kaitchup.substack.com/p/eagle-3-speculators-when-to-use-them))*
 
-**How the Draft Model Works:**
+**Understanding the Architecture (Step by Step):**
 
-The left side shows the **target LLM** performing standard autoregressive decoding - one forward pass per token. The right side shows how EAGLE-3's **draft model** works differently:
+**Left Side - Target LLM (Standard Decoding):**
 
-- The draft model uses a lightweight "**One Auto-regression Head**" that takes features from the target model
-- It performs **multiple cheap forward passes** (Forward 1, 2, 3...) to generate draft token candidates
-- The **tree structure** (bottom) shows how draft tokens branch out: from "I" → "make/help" → "a/our, with/you" → "the/your, to/feel"
-- The target model then **verifies all candidates in a single forward pass**, accepting the longest matching sequence
+For the query "How can", the target model performs standard autoregressive decoding:
+1. Input tokens "How", "can" → **Embedding** layer → e_how, e_can
+2. **Transformer Layers** process embeddings → hidden features f_how, f_can  
+3. **LM Head** predicts next token → outputs "can", "I"
+4. Each token requires **one full forward pass** through all layers
 
-This design shifts computation from expensive target model passes to cheap draft model passes, achieving significant speedups when draft predictions align well with the target.
+**Right Side - EAGLE-3 Draft Model (Speculative Decoding):**
+
+The draft model is much lighter and faster:
+1. **Forward 1**: Takes f_how, e_can from target model + embedding e_I
+   - Passes through "**One Auto-regression Head**" (single decoder layer)
+   - **LM Head** outputs f_I → predicts candidates "make/help"
+
+2. **Forward 2**: For each candidate ("make", "help"):
+   - Input: previous features + new embeddings (e_make, e_help)
+   - Output: f_make, f_help → predicts "a/our", "with/you"
+
+3. **Forward 3**: Continue expanding:
+   - From "with" → predicts "the/your"  
+   - From "you" → predicts "to/feel"
+
+**Key Notation in the Figure:**
+- `e_xxx`: Embedding of token "xxx"
+- `f_xxx`: Hidden feature/representation of token "xxx"
+- Orange boxes: Features from target model (f_how, f_can)
+- Red boxes: Draft model predictions (f_make, f_help, etc.)
+
+**Bottom - Tree Structure (Verification):**
+
+The draft tokens form a tree for batch verification:
+```
+Query: "How can"
+         ↓
+    "I" (from target LLM, Forward 1)
+    ├── "make" ─┬── "a" ─── "the"
+    │           └── "our" ── "your"
+    └── "help" ─┬── "with" ─ "to"
+                └── "you" ── "feel"
+```
+
+The target model verifies **ALL branches in ONE forward pass**, accepting the longest matching sequence (e.g., "I" → "help" → "you" → "feel").
+
+**Role Division - "Draft Guesses, Target Judges":**
+
+| Role | Model | Task | Cost |
+|------|-------|------|------|
+| **Predictor (Draft)** | EAGLE-3 Draft Model (223M) | Quickly generate candidate tokens | Low |
+| **Verifier (Verify)** | Target LLM (8B) | Judge which candidates are correct | High |
+
+**Concrete Example:**
+```
+1. Target LLM generates first token "I" (required for initial features)
+
+2. Draft Model rapidly predicts (3 cheap forward passes):
+   "I" → make, help
+   "make" → a, our  
+   "help" → with, you
+   (Each pass only through 223M params)
+
+3. Target LLM verifies (1 expensive forward pass):
+   Batch-verify ALL candidate branches in parallel
+   Judge: which draft tokens match what I would generate?
+   
+4. Accept matching sequence:
+   e.g., "I" → "help" → "you" → "feel" all correct
+   Accept 4 tokens at once!
+```
+
+**Why This Works - Cost Analysis:**
+
+*Without EAGLE-3:*
+- Generate 4 tokens = 4 × Target LLM forward pass
+- Cost: 4 × 8B = **32B parameter computations**
+
+*With EAGLE-3:*
+- Draft prediction: 3 × 223M = 669M params
+- Target verification: 1 × 8B = 8B params  
+- Total: **~8.7B** (3.7x cheaper than 32B)
+
+**Key Insight**: Target LLM verification is **parallel** - no matter how many candidates draft generates, verification only needs ONE forward pass (leveraging batch parallelism). Draft guesses, Target judges - correct guesses are "free", wrong guesses only waste cheap draft computation.
+
+---
+
+### Why Verification is Cheaper than Generation
+
+A common question: "If verification still requires the Target model, why not just generate directly?"
+
+The answer lies in **sequential vs parallel** computation:
+
+**Generation (Sequential):**
+- Each token depends on all previous tokens
+- Must wait for token 1 → generate token 2 → generate token 3...
+- **N tokens = N forward passes** (each pass is full model computation)
+- GPU utilization: Low (waiting between passes)
+
+**Verification (Parallel):**
+- Given N candidate tokens, check all at once
+- Transformer's self-attention naturally supports this: input `[x₁, x₂, ..., xₙ]`, output `[y₁, y₂, ..., yₙ]` in ONE pass
+- **N tokens = 1 forward pass** (batch parallelism)
+- GPU utilization: High (parallel processing is GPU's strength)
+
+**Analogy:**
+- Generation = Taking an exam: answer Q1, then Q2, then Q3... (sequential, each depends on previous)
+- Verification = Teacher grading: check all answers simultaneously (parallel, independent judgments)
+
+**Concrete Numbers:**
+| Operation | 4 Tokens | 8 Tokens | 16 Tokens |
+|-----------|----------|----------|-----------|
+| Generation | 4 forward passes | 8 forward passes | 16 forward passes |
+| Verification | 1 forward pass | 1 forward pass | 1 forward pass |
+
+This is why EAGLE-3's "draft + verify" approach wins: even if some draft guesses are wrong, the parallel verification is so cheap that correct guesses provide significant net speedup.
+
+---
+
+```mermaid
 
 ```mermaid
 flowchart TB
