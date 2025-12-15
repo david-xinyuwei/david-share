@@ -1,12 +1,16 @@
+[![Azure OpenAI](https://img.shields.io/badge/Azure%20OpenAI-GPT--5-0078D4?style=flat&logo=microsoft-azure&logoColor=white)](https://learn.microsoft.com/azure/ai-services/openai/)
+[![API Version](https://img.shields.io/badge/API-2025--04--01--preview-green?style=flat)](https://learn.microsoft.com/azure/ai-services/openai/reference)
+[![Responses API](https://img.shields.io/badge/Responses%20API-Reasoning%20Reuse-purple?style=flat)](https://platform.openai.com/docs/api-reference/responses)
+
 # 在 Azure OpenAI GPT‑5/Codex 中使用Responses API：推理链复用、加密、摘要与成本分析
+
+> **快速导航**: [TL;DR](#tldr核心发现速览) | [背景与问题](#背景与问题) | [核心机制](#核心机制详解) | [实验数据](#实验场景设计与结果分析) | [操作手册](#判定清单操作手册) | [完整代码](#完整复现代码) | [GPT-5 vs Codex](#gpt-5-vs-gpt-5-codex-性能对比) | [最佳实践](#总结与最佳实践)
 
 ## **TL;DR（核心发现速览）**
 
-- **Effort 是决定 reasoning tokens 长度的核心变量**（详见 [表2：AB对比测试](#表2ab-对比测试数据r1-vs-r2r2-使用-previous_response_id)）
-
-  - `minimal` Effort 几乎不产生推理链（ratio≈0%），`low` Effort 约 0%~50%，`medium`/`high` 可达 70%~93%。
+- **Effort 是决定 reasoning tokens 长度的核心变量**（详见 [表2：AB 对比测试](#表2ab-对比测试数据r1-vs-r2r2-使用-previous_response_id)）
+  - `none` 完全禁用推理链（0 tokens）。`minimal` Effort 几乎不产生推理链（ratio≈0%），`low` Effort 约 0%~50%，`medium`/`high` 可达 70%~93%，`xhigh`（仅 gpt-5.1-codex-max）最大化推理深度。
   - `"summary":"detailed"` 并不会增加 reasoning token 数量。推理长度主要由 Effort 控制。
-
 - **`previous_response_id` 支持跨轮直接复用推理链**（详见 [核心机制详解](#核心机制详解)）
 
   reasoning token的复用条件（三种关键场景）：
