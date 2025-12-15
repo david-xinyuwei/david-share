@@ -1,6 +1,6 @@
 # Azure NC RTX Pro 6000 V6 BSE Complete Benchmark Report
 
-> Comprehensive comparison of NC RTX 6000 Pro Blackwell /NC H100 NVL /NC A100 PCIe /NV A10
+> Comprehensive comparison of NC RTX 6000 Pro Blackwell /NC H100 NVL /NC A100 PCIe /NV A10(For fairness, each test is performed using the same data type across all four GPUs.)
 
 ---
 
