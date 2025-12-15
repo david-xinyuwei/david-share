@@ -151,13 +151,6 @@ When you call the `/retrieve` API, the `activity` field reveals exactly how Agen
 | "queryReasoningEffort control" | ✅ `retrievalReasoningEffort: {kind: "low"}` |
 | "Synthesizes with citations" | ✅ `modelAnswerSynthesis` + `references` array |
 
-### Real-World Impact
-
-| Customer | Result |
-|----------|--------|
-| **AT&T** | 33% reduction in customer resolution times, 10% cut in handle time, scaled 71 AI solutions to 100,000 employees |
-| **Ontario Power Generation** | Unlocked 40+ years of nuclear operating experience for data-driven decision-making |
-
 ---
 
 ## 🧠 Technical Architecture
