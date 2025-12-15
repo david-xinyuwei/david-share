@@ -184,13 +184,6 @@ Foundry IQ 使用 **Agentic 检索引擎**，将检索视为**推理任务**，�
 | "queryReasoningEffort 控制" | ✅ `retrievalReasoningEffort: {kind: "low"}` |
 | "带引用综合答案" | ✅ `modelAnswerSynthesis` + `references` 数组 |
 
-### 实际效果
-
-| 客户 | 成果 |
-|------|------|
-| **AT&T** | 客户问题解决时间减少 33%，处理时间缩短 10%，将 71 个 AI 解决方案扩展到 10 万名员工 |
-| **安大略发电公司** | 解锁了 40 多年的核电运营经验，实现数据驱动决策 |
-
 ---
 
 ## 🧠 技术架构
