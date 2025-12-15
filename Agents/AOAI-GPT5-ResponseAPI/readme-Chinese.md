@@ -64,7 +64,7 @@
 - **Reasoning Token（推理 Token）**
   - 本质：模型内部 Chain-of-Thought 推理过程产生的 token
   - 位置：嵌入在 Assistant 消息的隐藏部分（`type=reasoning`），与可见的 `output_text` 并列
-  - 影响因素：主要由 `reasoning.effort` 参数控制（minimal/low/medium/high）
+  - 影响因素：主要由 `reasoning.effort` 参数控制（none/minimal/low/medium/high/xhigh）
   - 成本：按 output token 计费，但不直接呈现给用户
   - 复用机制：通过 `previous_response_id` 或加密推理链（`reasoning.encrypted_content`）在下一轮中复用
 
@@ -272,6 +272,46 @@ resp2 = client.responses.create(
 
 ------
 
+
+------
+
+## **GPT-5 系列新参数（2025-04-01-preview）**
+
+### reasoning.effort 参数值域更新
+
+| 值 | 说明 |
+|---|---|
+| `none` | 🆕 禁用推理链（ratio≈0%），适用于简单任务 |
+| `minimal` | 最小推理，几乎不产生推理链 |
+| `low` | 低推理，约 0%~50% reasoning ratio |
+| `medium` | 中等推理，约 50%~70% |
+| `high` | 高推理，约 70%~93% |
+| `xhigh` | 🆕 最高推理（仅 gpt-5.1-codex-max 支持） |
+
+### reasoning.summary 参数说明
+
+- `auto`：自动生成推理链摘要
+- `detailed`：详细摘要
+- ⚠️ **注意**：GPT-5 系列不支持 `concise`，使用会报错
+
+### text.verbosity 参数（新增）
+
+控制模型输出的详细程度：
+
+| 值 | 说明 |
+|---|---|
+| `low` | 简洁输出 |
+| `medium` | 中等详细度（默认） |
+| `high` | 详细输出 |
+
+```python
+response = client.responses.create(
+    model="gpt-5.2",
+    input="解释什么是机器学习",
+    text={"verbosity": "low"}  # 或 "medium", "high"
+)
+```
+
 ## **Responses API vs Chat Completions API**
 
 | 特性         | Chat Completions API | Responses API                                          |
@@ -315,7 +355,7 @@ resp2 = client.responses.create(
 
 ### **AB 测试子场景说明**
 
-AB 测试覆盖了 4 种 effort（minimal/low/medium/high）× 3 种 summary（none/auto/detailed）× 3 种任务类型：
+AB 测试覆盖了 4 种 effort（none/minimal/low/medium/high/xhigh）× 3 种 summary（none/auto/detailed）× 3 种任务类型：
 
 1. **normal**：普通问答（"Explain why the sky is blue"）
 2. **identical_dialogue**：对话复述型（"曹操厉害还是孙权厉害？" → "复述结论"）
@@ -586,7 +626,7 @@ from openai import AzureOpenAI
 
 GPT5_API_KEY = os.environ.get("AZURE_OPENAI_API_KEY", "AlP*")
 GPT5_ENDPOINT = os.environ.get("AZURE_OPENAI_ENDPOINT", "https://YOUR-ENDPOINT.cognitiveservices.azure.com/")
-GPT5_RESPONSES_API_VERSION = os.environ.get("AZURE_OPENAI_API_VERSION", "2025-03-01-preview")
+GPT5_RESPONSES_API_VERSION = os.environ.get("AZURE_OPENAI_API_VERSION", "2025-04-01-preview")
 GPT5_DEPLOYMENT_NAME = os.environ.get("AZURE_OPENAI_DEPLOYMENT", "gpt-5")
 
 COLOR_RESET = "\033[0m"
@@ -1033,7 +1073,7 @@ high     | identical_code       | R2     | 3640         | 670           | 576   
 ### **场景与参数设置**
 
 - API 与实例
-  - Responses API：2025-03-01-preview
+  - Responses API：2025-04-01-preview
   - 两实例对比：GPT‑5 与 GPT‑5‑Codex 各自独立 endpoint/deployment
 - 前缀与缓存
   - System：code-only 长前缀（≥1024 tokens），R1/R2 均显式传入；运行/模型/任务加盐，确保 R1 冷启动；Warmup 用不同前缀不污染 R1
@@ -1094,13 +1134,13 @@ from openai import AzureOpenAI, BadRequestError
 # 资源1：GPT-5
 GPT5_API_KEY = os.environ.get("AZURE_OPENAI_API_KEY_GPT5", "Al*")
 GPT5_ENDPOINT = os.environ.get("AZURE_OPENAI_ENDPOINT_GPT5", "https://YOUR-ENDPOINT.cognitiveservices.azure.com/")
-GPT5_API_VERSION = os.environ.get("AZURE_OPENAI_API_VERSION_GPT5", "2025-03-01-preview")
+GPT5_API_VERSION = os.environ.get("AZURE_OPENAI_API_VERSION_GPT5", "2025-04-01-preview")
 GPT5_DEPLOYMENT = os.environ.get("AZURE_OPENAI_DEPLOYMENT_GPT5", "gpt-5")
 
 # 资源2：GPT-5-Codex
 CODEX_API_KEY = os.environ.get("AZURE_OPENAI_API_KEY_CODEX", "6V*")
 CODEX_ENDPOINT = os.environ.get("AZURE_OPENAI_ENDPOINT_CODEX", "https://YOUR-ENDPOINT.cognitiveservices.azure.com/")
-CODEX_API_VERSION = os.environ.get("AZURE_OPENAI_API_VERSION_CODEX", "2025-03-01-preview")
+CODEX_API_VERSION = os.environ.get("AZURE_OPENAI_API_VERSION_CODEX", "2025-04-01-preview")
 CODEX_DEPLOYMENT = os.environ.get("AZURE_OPENAI_DEPLOYMENT_CODEX", "gpt-5-codex")
 
 REPETITIONS = int(os.environ.get("REPETITIONS", "1"))
