@@ -1,34 +1,40 @@
+[![Azure OpenAI](https://img.shields.io/badge/Azure%20OpenAI-GPT--5-0078D4?style=flat&logo=microsoft-azure&logoColor=white)](https://learn.microsoft.com/azure/ai-services/openai/)
+[![API Version](https://img.shields.io/badge/API-2025--04--01--preview-green?style=flat)](https://learn.microsoft.com/azure/ai-services/openai/reference)
+[![Responses API](https://img.shields.io/badge/Responses%20API-Reasoning%20Reuse-purple?style=flat)](https://platform.openai.com/docs/api-reference/responses)
+
 # Using the Responses API with Azure OpenAI GPT‑5 / Codex: Chain-of-Thought Reuse, Encryption, Summarization, and Cost Analysis
+
+> **Quick Navigation**: [TL;DR](#tldr-quick-core-findings) | [Background](#background--problems) | [Mechanism](#mechanism-deep-dive) | [Experiments](#experiment-scenarios-and-result-analysis) | [Operations Handbook](#decision-checklists--operations-handbook) | [Code](#full-reproduction-code) | [GPT-5 vs Codex](#gpt-5-vs-gpt-5-codex-performance-comparison) | [Best Practices](#summary--best-practices)
 
 ## **TL;DR (Quick Core Findings)**
 
 - **Effort is the decisive variable determining the length of reasoning tokens** (see [Table 2: AB Comparison](#table-2-ab-comparison-data-r1-vs-r2-r2-uses-previous_response_id)).
-	- `minimal` effort produces almost no chain-of-thought (ratio ≈ 0%), `low` effort roughly 0%–50%, while `medium` / `high` can reach 70%–93%.
-	- `"summary":"detailed"` does NOT increase reasoning token count. The length of reasoning is driven by Effort.
+  - `none` disables reasoning entirely (0 tokens). `minimal` effort produces almost no chain-of-thought (ratio ≈ 0%), `low` roughly 0%–50%, `medium` / `high` 70%–93%, and `xhigh` (gpt-5.1-codex-max only) maximizes reasoning depth.
+  - `"summary":"detailed"` does NOT increase reasoning token count. The length of reasoning is driven by Effort.
 
 - **`previous_response_id` enables direct cross-turn reuse of the reasoning chain** (see [Mechanism Details](#mechanism-deep-dive)).
 
-	Conditions for reusing reasoning tokens (three key scenarios):
-	1. **assistant → user scenario**: If the previous turn ended with an assistant type message, the Responses API actively clears the reasoning chain. This is a rule of the CoT reuse mechanism. The observation that `cached tokens` often become 0 in this scenario is an indirect effect. It happens when the application code modifies the conversation history to manage context length, which breaks the stability of the input prefix required by the Prompt Cache.
-	2. **Consecutive function call scenario**: If multiple function calls happen in sequence, reasoning tokens can keep accumulating; cached tokens increase with each turn (stable prefix reuse).
-	3. **Modality switching scenario**: If there is a modality change between function call outputs (e.g., last turn function_call_output only text, next turn includes an image via function_call_output:string + role:user type:input_image combination), reasoning tokens are still reused, but cached tokens may reset to 0 (new multi-modal request may route to a different backend endpoint).
+    Conditions for reusing reasoning tokens (three key scenarios):
+  1. **assistant → user scenario**: If the previous turn ended with an assistant type message, the Responses API actively clears the reasoning chain. This is a rule of the CoT reuse mechanism. The observation that `cached tokens` often become 0 in this scenario is an indirect effect. It happens when the application code modifies the conversation history to manage context length, which breaks the stability of the input prefix required by the Prompt Cache.
+  2. **Consecutive function call scenario**: If multiple function calls happen in sequence, reasoning tokens can keep accumulating; cached tokens increase with each turn (stable prefix reuse).
+  3. **Modality switching scenario**: If there is a modality change between function call outputs (e.g., last turn function_call_output only text, next turn includes an image via function_call_output:string + role:user type:input_image combination), reasoning tokens are still reused, but cached tokens may reset to 0 (new multi-modal request may route to a different backend endpoint).
 
 - **Encrypted mode encrypts the reasoning chain—not the final visible output** (see [Table 1: ENCRYPTED Scenarios](#table-1-multi-scenario-token-data-including-cache-hits) and [Two Encryption Modes](#4-two-modes-for-encrypted-reasoning-chains)).
-	- `include=["reasoning.encrypted_content"]` returns an encrypted reasoning blob the application can store locally and pass back for reuse.
-	- `store=False`: server does not persist plaintext—satisfies ZDR/GDPR style compliance—but the service cannot account plaintext reasoning tokens server-side.
-	- `store=True`: server retains plaintext—full usage statistics available; can simultaneously return encrypted version for local persistence.
+  - `include=["reasoning.encrypted_content"]` returns an encrypted reasoning blob the application can store locally and pass back for reuse.
+  - `store=False`: server does not persist plaintext—satisfies ZDR/GDPR style compliance—but the service cannot account plaintext reasoning tokens server-side.
+  - `store=True`: server retains plaintext—full usage statistics available; can simultaneously return encrypted version for local persistence.
 
 - **Advantages of Responses API over traditional Chat Completions API** (see [Responses API vs Chat Completions API](#responses-api-vs-chat-completions-api)):
-	- Native reasoning chain management & reuse (including encrypted chains)
-	- Reasoning chain summarization observability (`concise` / `auto` / `detailed`)
-	- Native multi-turn chain reuse + conditional invocation
-	- First-class function calling, multimodal IO, structured output aggregation
+  - Native reasoning chain management & reuse (including encrypted chains)
+  - Reasoning chain summarization observability (`concise` / `auto` / `detailed`)
+  - Native multi-turn chain reuse + conditional invocation
+  - First-class function calling, multimodal IO, structured output aggregation
 
 - **Experimental confirmations** (see [Full Experimental Data](#experiment-scenarios-and-result-analysis)):
-	- In identical_dialogue scenarios, high Effort saves up to **94.3%** reasoning tokens
-	- In identical_code scenarios, savings are **36%–66%** (matches realistic iterative coding)
-	- Prompt Cache hit requires: prefix ≥1024 tokens + identical params + stable `previous_response_id` reuse
-	- **Detailed decision checklist & best practices**: see [Operations Handbook](#decision-checklists--operations-handbook)
+  - In identical_dialogue scenarios, high Effort saves up to **94.3%** reasoning tokens
+  - In identical_code scenarios, savings are **36%–66%** (matches realistic iterative coding)
+  - Prompt Cache hit requires: prefix ≥1024 tokens + identical params + stable `previous_response_id` reuse
+  - **Detailed decision checklist & best practices**: see [Operations Handbook](#decision-checklists--operations-handbook)
 
 ------
 
@@ -37,15 +43,15 @@
 Typical engineering pain points when deploying LLMs in production:
 
 1. **Multi-turn reasoning chain loss**  
-	 Model cannot “remember” prior chain-of-thought across turns—must re-think from scratch each turn (wasted compute & inconsistent logic).
+     Model cannot “remember” prior chain-of-thought across turns—must re-think from scratch each turn (wasted compute & inconsistent logic).
 2. **High cost maintaining full context**  
-	 Chat Completions requires explicit full message history replay: high token cost, risk of exceeding context length.
+     Chat Completions requires explicit full message history replay: high token cost, risk of exceeding context length.
 3. **No direct access/reuse of reasoning chain**  
-	 Previous turn reasoning not retrievable or reusable (especially in encrypted, privacy-preserving form).
+     Previous turn reasoning not retrievable or reusable (especially in encrypted, privacy-preserving form).
 4. **Compliance & data sovereignty**  
-	 Under ZDR/GDPR style regimes, provider should not store plaintext reasoning, but business still wants local retention & reuse.
+     Under ZDR/GDPR style regimes, provider should not store plaintext reasoning, but business still wants local retention & reuse.
 5. **Reasoning observability & cost governance**  
-	 Need to inspect reasoning footprint (reasoning token share) without exposing raw chain-of-thought; need to validate whether `"summary":"detailed"` affects reasoning cost for optimization.
+     Need to inspect reasoning footprint (reasoning token share) without exposing raw chain-of-thought; need to validate whether `"summary":"detailed"` affects reasoning cost for optimization.
 
 ------
 
@@ -56,18 +62,18 @@ Typical engineering pain points when deploying LLMs in production:
 In the Responses API, understanding the difference is critical:
 
 - **Reasoning Tokens**  
-	- Nature: internal chain-of-thought tokens generated during inference
-	- Location: embedded inside the assistant message (hidden `type=reasoning`) alongside visible `output_text`
-	- Driven by: `reasoning.effort` (minimal / low / medium / high)
-	- Cost: billed as output tokens but invisible to end user
-	- Reuse: via `previous_response_id` or encrypted blob (`reasoning.encrypted_content`)
+  - Nature: internal chain-of-thought tokens generated during inference
+  - Location: embedded inside the assistant message (hidden `type=reasoning`) alongside visible `output_text`
+  - Driven by: `reasoning.effort` (none / minimal / low / medium / high / xhigh)
+  - Cost: billed as output tokens but invisible to end user
+  - Reuse: via `previous_response_id` or encrypted blob (`reasoning.encrypted_content`)
 
 - **Cached Tokens**  
-	- Nature: input tokens that hit Prompt Cache (already processed prefix)
-	- Location: `input_tokens_details.cached_tokens`
-	- Driven by: prefix length (≥1024 tokens), prefix stability, consistent routing
-	- Cost: discounted (often ≈10% of normal input token price)
-	- Hit conditions: exact match of prefix (System → Tool Definitions → initial Messages ordering)
+  - Nature: input tokens that hit Prompt Cache (already processed prefix)
+  - Location: `input_tokens_details.cached_tokens`
+  - Driven by: prefix length (≥1024 tokens), prefix stability, consistent routing
+  - Cost: discounted (often ≈10% of normal input token price)
+  - Hit conditions: exact match of prefix (System → Tool Definitions → initial Messages ordering)
 
 **Relationship:**
 - **Logical reuse (Reasoning Tokens)**: avoids recomputation of thinking, improves consistency.
@@ -83,18 +89,18 @@ In the Responses API, understanding the difference is critical:
 ```python
 # Round 1: generate reasoning chain
 resp1 = client.responses.create(
-		model="gpt-5",
-		input=[{"role": "user", "content": "Who was more formidable, Cao Cao or Sun Quan?"}],
-		reasoning={"effort": "high", "summary": "detailed"},
-		store=True  # Critical: server stores reasoning
+        model="gpt-5",
+        input=[{"role": "user", "content": "Who was more formidable, Cao Cao or Sun Quan?"}],
+        reasoning={"effort": "high", "summary": "detailed"},
+        store=True  # Critical: server stores reasoning
 )
 
 # Round 2: reuse reasoning chain
 resp2 = client.responses.create(
-		model="gpt-5",
-		input=[{"role": "user", "content": "Please restate your conclusion."}],
-		previous_response_id=resp1.id,
-		reasoning={"effort": "high", "summary": "detailed"}
+        model="gpt-5",
+        input=[{"role": "user", "content": "Please restate your conclusion."}],
+        previous_response_id=resp1.id,
+        reasoning={"effort": "high", "summary": "detailed"}
 )
 ```
 
@@ -146,45 +152,45 @@ System Prompt → Tool Definitions → Messages
 
 ```mermaid
 flowchart TB
-		subgraph PromptStructure["Prompt Construction Order"]
-				direction TB
-				Sys["System Prompt<br/>long & stable → cacheable"]
-				Tools["Tool Definitions"]
-				Msgs["Messages<br/>User → Assistant[hidden reasoning]<br/>→ Function Call → Output"]
-				Sys --> Tools --> Msgs
-		end
+        subgraph PromptStructure["Prompt Construction Order"]
+                direction TB
+                Sys["System Prompt<br/>long & stable → cacheable"]
+                Tools["Tool Definitions"]
+                Msgs["Messages<br/>User → Assistant[hidden reasoning]<br/>→ Function Call → Output"]
+                Sys --> Tools --> Msgs
+        end
 
-		subgraph COTPosition["Reasoning Tokens Location"]
-				COT["Inside Assistant message<br/>hidden section<br/>type=reasoning"]
-		end
-		Msgs --> COT
+        subgraph COTPosition["Reasoning Tokens Location"]
+                COT["Inside Assistant message<br/>hidden section<br/>type=reasoning"]
+        end
+        Msgs --> COT
 
-		subgraph CacheCondition["Prompt Cache Conditions"]
-				LenCheck{"First block ≥ 1024 tokens?"}
-				SysOnly["System ≥ 1024<br/>block = System only<br/>stable, no reasoning"]
-				SysShort["System < 1024<br/>block spills into Tools/Messages<br/>may include reasoning, fragile"]
-				LenCheck -- Yes --> SysOnly
-				LenCheck -- No --> SysShort
-		end
-		Sys --> LenCheck
+        subgraph CacheCondition["Prompt Cache Conditions"]
+                LenCheck{"First block ≥ 1024 tokens?"}
+                SysOnly["System ≥ 1024<br/>block = System only<br/>stable, no reasoning"]
+                SysShort["System < 1024<br/>block spills into Tools/Messages<br/>may include reasoning, fragile"]
+                LenCheck -- Yes --> SysOnly
+                LenCheck -- No --> SysShort
+        end
+        Sys --> LenCheck
 
-		subgraph CacheMeaning["Meaning of Caching"]
-				SaveCost["Cache hit<br/>saves compute<br/>including reasoning if inside block"]
-				NoSave["Miss<br/>logic reused<br/>but reasoning recomputed"]
-		end
-		SysOnly --> SaveCost
-		SysShort --> SaveCost
-		SysShort --> NoSave
+        subgraph CacheMeaning["Meaning of Caching"]
+                SaveCost["Cache hit<br/>saves compute<br/>including reasoning if inside block"]
+                NoSave["Miss<br/>logic reused<br/>but reasoning recomputed"]
+        end
+        SysOnly --> SaveCost
+        SysShort --> SaveCost
+        SysShort --> NoSave
 
-		subgraph LogicVsCost["Logical vs Cost Reuse"]
-				LogicReuse["Logical reuse<br/>previous_response_id<br/>preserves chain"]
-				CostReuse["Cost reuse<br/>cache hit reduces<br/>cost & latency"]
-		end
+        subgraph LogicVsCost["Logical vs Cost Reuse"]
+                LogicReuse["Logical reuse<br/>previous_response_id<br/>preserves chain"]
+                CostReuse["Cost reuse<br/>cache hit reduces<br/>cost & latency"]
+        end
 
-		CacheCondition --> CacheMeaning
-		PromptStructure --> CacheCondition
-		COT --> CacheMeaning
-		CacheMeaning --> LogicVsCost
+        CacheCondition --> CacheMeaning
+        PromptStructure --> CacheCondition
+        COT --> CacheMeaning
+        CacheMeaning --> LogicVsCost
 ```
 
 ### **4. Two Modes for Encrypted Reasoning Chains**
@@ -193,16 +199,16 @@ flowchart TB
 
 ```python
 resp1 = client.responses.create(
-		model="gpt-5",
-		input="Question",
-		store=True,  # Server keeps plaintext CoT
-		include=["reasoning.encrypted_content"]  # Optional: also return encrypted copy
+        model="gpt-5",
+        input="Question",
+        store=True,  # Server keeps plaintext CoT
+        include=["reasoning.encrypted_content"]  # Optional: also return encrypted copy
 )
 
 resp2 = client.responses.create(
-		model="gpt-5",
-		input="Follow-up",
-		previous_response_id=resp1.id  # Server auto-loads stored chain
+        model="gpt-5",
+        input="Follow-up",
+        previous_response_id=resp1.id  # Server auto-loads stored chain
 )
 ```
 
@@ -215,10 +221,10 @@ resp2 = client.responses.create(
 
 ```python
 resp1 = client.responses.create(
-		model="gpt-5",
-		input="Question",
-		store=False,  # Server does not retain plaintext
-		include=["reasoning.encrypted_content"]
+        model="gpt-5",
+        input="Question",
+        store=False,  # Server does not retain plaintext
+        include=["reasoning.encrypted_content"]
 )
 
 # Must pass encrypted reasoning blob back
@@ -226,10 +232,10 @@ context = [{"role": "user", "content": "Follow-up"}]
 context += resp1.output  # includes reasoning.encrypted_content
 
 resp2 = client.responses.create(
-		model="gpt-5",
-		input=context,  # Decrypted in-memory only
-		store=False,
-		include=["reasoning.encrypted_content"]
+        model="gpt-5",
+        input=context,  # Decrypted in-memory only
+        store=False,
+        include=["reasoning.encrypted_content"]
 )
 ```
 
@@ -257,6 +263,22 @@ resp2 = client.responses.create(
 - Compliance-safe reasoning reuse
 - Richer structured multimodal + tool orchestration
 
+
+### **GPT-5 Series New Parameters (2025-04-01-preview)**
+
+The GPT-5 series introduces several new parameters not available in previous models:
+
+| Parameter | Description | Supported Values | Notes |
+| --------- | ----------- | ---------------- | ----- |
+| `reasoning.effort` | Controls reasoning depth | `none`, `minimal`, `low`, `medium`, `high`, `xhigh` | `none` disables reasoning (faster). `xhigh` only for `gpt-5.1-codex-max` |
+| `reasoning.summary` | Controls reasoning summary output | `auto`, `detailed` | GPT-5 series does NOT support `concise` |
+| `text.verbosity` | 🆕 Controls output verbosity | `low`, `medium`, `high` | New in GPT-5, provides granular control over response length |
+
+**Additional GPT-5 features:**
+- **`lark_tool`**: Custom tool using Python Lark grammar for flexible output constraints
+- **`preamble` object**: Model can output planning steps before function calls (encourage via instructions)
+- **`allowed tools`**: Specify multiple tools under `tool_choice` instead of just one
+
 ------
 
 ## **Experiment Scenarios and Result Analysis**
@@ -281,7 +303,7 @@ Designed 6 scenario families to validate reasoning reuse, encryption handling, a
 | 6  | **AB TEST**        | Systematic variation of effort / summary / scenario type       | Token reduction %, ratio shifts      |
 
 ### **AB Sub-Scenario Matrix**
-Effort (minimal/low/medium/high) × Summary (none/auto/detailed) × Task types:
+Effort (none/minimal/low/medium/high/xhigh) × Summary (none/auto/detailed) × Task types:
 1. **normal**: generic prompt ("Explain why the sky is blue")
 2. **identical_dialogue**: restatement style (Q → restate conclusion)
 3. **identical_code**: iterative code modification
@@ -387,13 +409,13 @@ Two rounds per scenario; R2 always uses `previous_response_id`; all include long
 
 ### **Integrated Conclusions**
 1. `previous_response_id` is the most stable path to Prompt Cache hits.  
-	 Even when reasoning ≈0 (minimal), cache hits still appear (e.g., minimal/auto R2).  
+     Even when reasoning ≈0 (minimal), cache hits still appear (e.g., minimal/auto R2).  
 2. Effort governs reasoning length & reuse headroom.  
-	 High effort => large reuse savings potential (e.g., high identical_code 1728→576, -66.7%).  
+     High effort => large reuse savings potential (e.g., high identical_code 1728→576, -66.7%).  
 3. Task type affects savings scale:  
-	 identical_dialogue often yields near-zero R2 reasoning; identical_code retains partial recomputation.  
+     identical_dialogue often yields near-zero R2 reasoning; identical_code retains partial recomputation.  
 4. Encryption differences:  
-	 store=False still sees cache hits; store=True may not expose cached metrics (routing variance) but logical reuse holds.  
+     store=False still sees cache hits; store=True may not expose cached metrics (routing variance) but logical reuse holds.  
 5. Dual-metric interpretation required: reasoning_tokens (logic) + cached_tokens (cost). FUNCTION_R2 shows logical minimalism (reasoning=0) + cost optimization (cached large).
 
 ------
@@ -409,25 +431,25 @@ Three checklists:
 
 ### **Reasoning Reuse Checklist (Logical Continuity)**
 - Request-side hard signals (any one):
-	- Second turn passes `previous_response_id` (valid when `store=True` or default).
-	- Under `store=False`, first turn includes `include=["reasoning.encrypted_content"]`; second turn injects prior `resp.output` (with encrypted reasoning) into input.
+  - Second turn passes `previous_response_id` (valid when `store=True` or default).
+  - Under `store=False`, first turn includes `include=["reasoning.encrypted_content"]`; second turn injects prior `resp.output` (with encrypted reasoning) into input.
 - Metric-side supporting indicators:
-	- R2 reasoning_tokens sharply lower than R1 (e.g., FUNCTION_R1 192 → R2 0; SUMMARY_R1 1536 → R2 768; BASIC_R1 320 → R2 192).
-	- Exception: explanation tasks may increase reasoning (e.g., PREVIOUS_ID R1 128 → R2 256) while still logically contiguous.
+  - R2 reasoning_tokens sharply lower than R1 (e.g., FUNCTION_R1 192 → R2 0; SUMMARY_R1 1536 → R2 768; BASIC_R1 320 → R2 192).
+  - Exception: explanation tasks may increase reasoning (e.g., PREVIOUS_ID R1 128 → R2 256) while still logically contiguous.
 - Behavioral signals (tool chains):
-	- Consecutive function_call outputs: R2 reasoning≈0 yet returns coherent answer referencing prior tool outputs.
-	- Correct propagation of call_id across calls.
+  - Consecutive function_call outputs: R2 reasoning≈0 yet returns coherent answer referencing prior tool outputs.
+  - Correct propagation of call_id across calls.
 - Counterfactual test:
-	- Remove `previous_response_id` and rerun R2: if reasoning grows & style shifts, original reuse was effective.
+  - Remove `previous_response_id` and rerun R2: if reasoning grows & style shifts, original reuse was effective.
 
 ### **Prompt Cache Hit Checklist**
 - Direct indicator: `usage.input_tokens_details.cached_tokens > 0` in R2.
 - Preconditions (ideally all):
-	- Prefix length ≥1024 tokens (long stable System first).
-	- Prefix content exactly identical (System → Tools → Messages order; stable tool schema).
-	- Same routing / modality (avoid text→image sudden shift).
-	- Identical parameters (store, tools, parallel_tool_calls, reasoning config).
-	- Within cache lifetime (avoid large delay or eviction).
+  - Prefix length ≥1024 tokens (long stable System first).
+  - Prefix content exactly identical (System → Tools → Messages order; stable tool schema).
+  - Same routing / modality (avoid text→image sudden shift).
+  - Identical parameters (store, tools, parallel_tool_calls, reasoning config).
+  - Within cache lifetime (avoid large delay or eviction).
 - Note: Some deployments may suppress cached indicator; absence ≠ miss.
 
 ### **Combined Matrix: store × encryption × prev_id × reuse & caching**
@@ -441,17 +463,17 @@ Three checklists:
 
 **Interpretation Guidance:**
 - Independent axes: reasoning reuse ≠ cache reuse.  
-	- Cache=0 can still mean successful logical reuse.  
-	- Cache>0 with reasoning=0 may still be ideal (e.g., summarization turn).  
+  - Cache=0 can still mean successful logical reuse.  
+  - Cache>0 with reasoning=0 may still be ideal (e.g., summarization turn).  
 - Dual-win: prev_id + stable prefix → both reasoning down & cached up.  
 - Edge: explanation expansions may increase reasoning but still reuse chain logically.
 
 ### **Common Pitfalls & Boundaries**
 - Pitfall: Treating `cached_tokens=0` as “no reuse.” Fix: check prev_id / encrypted reasoning & output continuity.
 - Boundaries:
-	- assistant → immediate user resets reasoning unless prev_id used.
-	- Modality shift may invalidate cache while preserving reasoning.
-	- identical turns may not always expose cache stats (routing variance).
+  - assistant → immediate user resets reasoning unless prev_id used.
+  - Modality shift may invalidate cache while preserving reasoning.
+  - identical turns may not always expose cache stats (routing variance).
 
 ### **Quick Diagnostic Flow**
 1. Check if prev_id or encrypted reasoning blob used.
@@ -466,8 +488,8 @@ Three checklists:
 - Keep parameters identical between turns.
 - Reuse within cache lifetime; chain inside function_call loops when possible.
 - For ENCRYPTED:
-	- `store=False`: rely on `reasoning.encrypted_content` blob; cache can still hit.
-	- `store=True`: rely on prev_id; absence of cached metric ≠ failure.
+  - `store=False`: rely on `reasoning.encrypted_content` blob; cache can still hit.
+  - `store=True`: rely on prev_id; absence of cached metric ≠ failure.
 
 ------
 
@@ -506,7 +528,7 @@ from openai import AzureOpenAI
 
 GPT5_API_KEY = os.environ.get("AZURE_OPENAI_API_KEY", "AlP*")
 GPT5_ENDPOINT = os.environ.get("AZURE_OPENAI_ENDPOINT", "https://YOUR-ENDPOINT.cognitiveservices.azure.com/")
-GPT5_RESPONSES_API_VERSION = os.environ.get("AZURE_OPENAI_API_VERSION", "2025-03-01-preview")
+GPT5_RESPONSES_API_VERSION = os.environ.get("AZURE_OPENAI_API_VERSION", "2025-04-01-preview")
 GPT5_DEPLOYMENT_NAME = os.environ.get("AZURE_OPENAI_DEPLOYMENT", "gpt-5")
 
 COLOR_RESET = "\033[0m"
@@ -517,258 +539,258 @@ COLOR_RED = "\033[91m"
 LONG_SYSTEM = "This is a stable system instruction. " * 500
 
 def ensure_key():
-	if not GPT5_API_KEY or not GPT5_ENDPOINT or not GPT5_RESPONSES_API_VERSION or not GPT5_DEPLOYMENT_NAME:
-		print("Azure GPT-5 config missing")
-		sys.exit(1)
+    if not GPT5_API_KEY or not GPT5_ENDPOINT or not GPT5_RESPONSES_API_VERSION or not GPT5_DEPLOYMENT_NAME:
+        print("Azure GPT-5 config missing")
+        sys.exit(1)
 
 def client():
-	return AzureOpenAI(
-		api_key=GPT5_API_KEY,
-		azure_endpoint=GPT5_ENDPOINT,
-		api_version=GPT5_RESPONSES_API_VERSION
-	)
+    return AzureOpenAI(
+        api_key=GPT5_API_KEY,
+        azure_endpoint=GPT5_ENDPOINT,
+        api_version=GPT5_RESPONSES_API_VERSION
+    )
 
 usage_records_all = []
 usage_records_ab = []
 
 def print_usage_record(tag, usage, store_flag=None):
-	it = usage.get("input_tokens", 0)
-	ot = usage.get("output_tokens", 0)
-	rt = usage.get("output_tokens_details", {}).get("reasoning_tokens", 0)
-	completion = ot - rt
-	cached_in = usage.get("input_tokens_details", {}).get("cached_tokens", 0)
-	ratio = f"{(rt/ot*100):.1f}%" if ot else "0%"
-	store_info = f"(store={store_flag})" if store_flag is not None else ""
-	print(f"[{tag}] {store_info} TOKENS: input={it}, output={ot}, reasoning={rt}, completion={completion}, cached_in={cached_in}, ratio={ratio}")
+    it = usage.get("input_tokens", 0)
+    ot = usage.get("output_tokens", 0)
+    rt = usage.get("output_tokens_details", {}).get("reasoning_tokens", 0)
+    completion = ot - rt
+    cached_in = usage.get("input_tokens_details", {}).get("cached_tokens", 0)
+    ratio = f"{(rt/ot*100):.1f}%" if ot else "0%"
+    store_info = f"(store={store_flag})" if store_flag is not None else ""
+    print(f"[{tag}] {store_info} TOKENS: input={it}, output={ot}, reasoning={rt}, completion={completion}, cached_in={cached_in}, ratio={ratio}")
 
 def extract_call_id(resp_obj):
-	try:
-		for item in getattr(resp_obj, "output", []):
-			typ = getattr(item, "type", None)
-			if typ in ("function_call", "tool_call"):
-				cid = getattr(item, "call_id", None)
-				if cid:
-					return cid
-	except Exception:
-		pass
-	try:
-		out_list = resp_obj.model_dump().get("output", [])
-		for item in out_list:
-			if isinstance(item, dict) and item.get("type") in ("function_call", "tool_call"):
-				cid = item.get("call_id")
-				if cid:
-					return cid
-	except Exception:
-		pass
-	return None
+    try:
+        for item in getattr(resp_obj, "output", []):
+            typ = getattr(item, "type", None)
+            if typ in ("function_call", "tool_call"):
+                cid = getattr(item, "call_id", None)
+                if cid:
+                    return cid
+    except Exception:
+        pass
+    try:
+        out_list = resp_obj.model_dump().get("output", [])
+        for item in out_list:
+            if isinstance(item, dict) and item.get("type") in ("function_call", "tool_call"):
+                cid = item.get("call_id")
+                if cid:
+                    return cid
+    except Exception:
+        pass
+    return None
 
 def weather_tool():
-	return [{
-		"type": "function",
-		"name": "get_weather",
-		"description": "Get current temperature in Celsius.",
-		"parameters": {
-			"type": "object",
-			"properties": {
-				"latitude": {"type": "number"},
-				"longitude": {"type": "number"}
-			},
-			"required": ["latitude", "longitude"],
-			"additionalProperties": False
-		},
-		"strict": True
-	}]
+    return [{
+        "type": "function",
+        "name": "get_weather",
+        "description": "Get current temperature in Celsius.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "latitude": {"type": "number"},
+                "longitude": {"type": "number"}
+            },
+            "required": ["latitude", "longitude"],
+            "additionalProperties": False
+        },
+        "strict": True
+    }]
 
 def cmd_basic():
-	print("\n===== BASIC MODE (prev_id) =====")
-	c = client()
-	context1 = [{"role": "system", "content": LONG_SYSTEM}, {"role": "user", "content": "tell me a joke"}]
-	resp1 = c.responses.create(model=GPT5_DEPLOYMENT_NAME, input=context1, store=True, reasoning={"summary": "detailed", "effort": "high"}, parallel_tool_calls=False)
-	print("[BASIC] OUTPUT R1:", resp1.output_text)
-	usage1 = resp1.model_dump().get("usage", {})
-	print_usage_record("BASIC_R1", usage1)
-	resp2 = c.responses.create(model=GPT5_DEPLOYMENT_NAME, input=[{"role": "user", "content": "tell me one more"}], previous_response_id=resp1.id, store=True, reasoning={"summary": "detailed", "effort": "high"}, parallel_tool_calls=False)
-	print("[BASIC] OUTPUT R2:", resp2.output_text)
-	usage2 = resp2.model_dump().get("usage", {})
-	print_usage_record("BASIC_R2", usage2)
-	usage_records_all.append(("BASIC_R1", usage1))
-	usage_records_all.append(("BASIC_R2", usage2))
+    print("\n===== BASIC MODE (prev_id) =====")
+    c = client()
+    context1 = [{"role": "system", "content": LONG_SYSTEM}, {"role": "user", "content": "tell me a joke"}]
+    resp1 = c.responses.create(model=GPT5_DEPLOYMENT_NAME, input=context1, store=True, reasoning={"summary": "detailed", "effort": "high"}, parallel_tool_calls=False)
+    print("[BASIC] OUTPUT R1:", resp1.output_text)
+    usage1 = resp1.model_dump().get("usage", {})
+    print_usage_record("BASIC_R1", usage1)
+    resp2 = c.responses.create(model=GPT5_DEPLOYMENT_NAME, input=[{"role": "user", "content": "tell me one more"}], previous_response_id=resp1.id, store=True, reasoning={"summary": "detailed", "effort": "high"}, parallel_tool_calls=False)
+    print("[BASIC] OUTPUT R2:", resp2.output_text)
+    usage2 = resp2.model_dump().get("usage", {})
+    print_usage_record("BASIC_R2", usage2)
+    usage_records_all.append(("BASIC_R1", usage1))
+    usage_records_all.append(("BASIC_R2", usage2))
 
 def cmd_function():
-	print("\n===== FUNCTION MODE (prev_id) =====")
-	c = client()
-	tools = weather_tool()
-	context1 = [{"role": "system", "content": LONG_SYSTEM}, {"role": "user", "content": "What's the weather like in Paris today?"}]
-	resp1 = c.responses.create(model=GPT5_DEPLOYMENT_NAME, input=context1, tools=tools, store=True, reasoning={"summary": "detailed", "effort": "high"}, parallel_tool_calls=False)
-	usage1 = resp1.model_dump().get("usage", {})
-	print_usage_record("FUNCTION_R1", usage1)
-	call_id = extract_call_id(resp1)
-	if not call_id:
-		print(COLOR_RED + "[FUNCTION] No function_call id found in R1 output" + COLOR_RESET)
-		return
-	func_out = [{"type": "function_call_output", "call_id": call_id, "output": "15°C"}]
-	resp2 = c.responses.create(model=GPT5_DEPLOYMENT_NAME, input=func_out, tools=tools, previous_response_id=resp1.id, store=True, reasoning={"summary": "detailed", "effort": "high"}, parallel_tool_calls=False)
-	print("[FUNCTION] OUTPUT R2:", resp2.output_text)
-	usage2 = resp2.model_dump().get("usage", {})
-	print_usage_record("FUNCTION_R2", usage2)
-	usage_records_all.append(("FUNCTION_R1", usage1))
-	usage_records_all.append(("FUNCTION_R2", usage2))
+    print("\n===== FUNCTION MODE (prev_id) =====")
+    c = client()
+    tools = weather_tool()
+    context1 = [{"role": "system", "content": LONG_SYSTEM}, {"role": "user", "content": "What's the weather like in Paris today?"}]
+    resp1 = c.responses.create(model=GPT5_DEPLOYMENT_NAME, input=context1, tools=tools, store=True, reasoning={"summary": "detailed", "effort": "high"}, parallel_tool_calls=False)
+    usage1 = resp1.model_dump().get("usage", {})
+    print_usage_record("FUNCTION_R1", usage1)
+    call_id = extract_call_id(resp1)
+    if not call_id:
+        print(COLOR_RED + "[FUNCTION] No function_call id found in R1 output" + COLOR_RESET)
+        return
+    func_out = [{"type": "function_call_output", "call_id": call_id, "output": "15°C"}]
+    resp2 = c.responses.create(model=GPT5_DEPLOYMENT_NAME, input=func_out, tools=tools, previous_response_id=resp1.id, store=True, reasoning={"summary": "detailed", "effort": "high"}, parallel_tool_calls=False)
+    print("[FUNCTION] OUTPUT R2:", resp2.output_text)
+    usage2 = resp2.model_dump().get("usage", {})
+    print_usage_record("FUNCTION_R2", usage2)
+    usage_records_all.append(("FUNCTION_R1", usage1))
+    usage_records_all.append(("FUNCTION_R2", usage2))
 
 def cmd_encrypted(store_flag):
-	print(f"\n===== ENCRYPTED MODE (store={store_flag}) =====")
-	c = client()
-	context1 = [{"role": "system", "content": LONG_SYSTEM}, {"role": "user", "content": "What's the weather like in Paris today?"}]
-	resp1 = c.responses.create(model=GPT5_DEPLOYMENT_NAME, input=context1, store=store_flag, include=["reasoning.encrypted_content"], reasoning={"summary": "detailed", "effort": "high"}, parallel_tool_calls=False)
-	print("[ENCRYPTED] OUTPUT R1:", resp1.output_text)
-	usage1 = resp1.model_dump().get("usage", {})
-	print_usage_record("ENCRYPTED_R1", usage1, store_flag=store_flag)
-	if store_flag:
-		resp2 = c.responses.create(model=GPT5_DEPLOYMENT_NAME, input=[{"role": "user", "content": "Thanks, summarize briefly."}], previous_response_id=resp1.id, store=store_flag, include=["reasoning.encrypted_content"], reasoning={"summary": "detailed", "effort": "high"}, parallel_tool_calls=False)
-	else:
-		context2 = [{"role": "system", "content": LONG_SYSTEM}, {"role": "user", "content": "Thanks, summarize briefly."}]
-		context2 += resp1.output
-		resp2 = c.responses.create(model=GPT5_DEPLOYMENT_NAME, input=context2, store=store_flag, include=["reasoning.encrypted_content"], reasoning={"summary": "detailed", "effort": "high"}, parallel_tool_calls=False)
-	print("[ENCRYPTED] OUTPUT R2:", resp2.output_text)
-	usage2 = resp2.model_dump().get("usage", {})
-	print_usage_record("ENCRYPTED_R2", usage2, store_flag=store_flag)
-	usage_records_all.append((f"ENCRYPTED_R1_store_{store_flag}", usage1))
-	usage_records_all.append((f"ENCRYPTED_R2_store_{store_flag}", usage2))
+    print(f"\n===== ENCRYPTED MODE (store={store_flag}) =====")
+    c = client()
+    context1 = [{"role": "system", "content": LONG_SYSTEM}, {"role": "user", "content": "What's the weather like in Paris today?"}]
+    resp1 = c.responses.create(model=GPT5_DEPLOYMENT_NAME, input=context1, store=store_flag, include=["reasoning.encrypted_content"], reasoning={"summary": "detailed", "effort": "high"}, parallel_tool_calls=False)
+    print("[ENCRYPTED] OUTPUT R1:", resp1.output_text)
+    usage1 = resp1.model_dump().get("usage", {})
+    print_usage_record("ENCRYPTED_R1", usage1, store_flag=store_flag)
+    if store_flag:
+        resp2 = c.responses.create(model=GPT5_DEPLOYMENT_NAME, input=[{"role": "user", "content": "Thanks, summarize briefly."}], previous_response_id=resp1.id, store=store_flag, include=["reasoning.encrypted_content"], reasoning={"summary": "detailed", "effort": "high"}, parallel_tool_calls=False)
+    else:
+        context2 = [{"role": "system", "content": LONG_SYSTEM}, {"role": "user", "content": "Thanks, summarize briefly."}]
+        context2 += resp1.output
+        resp2 = c.responses.create(model=GPT5_DEPLOYMENT_NAME, input=context2, store=store_flag, include=["reasoning.encrypted_content"], reasoning={"summary": "detailed", "effort": "high"}, parallel_tool_calls=False)
+    print("[ENCRYPTED] OUTPUT R2:", resp2.output_text)
+    usage2 = resp2.model_dump().get("usage", {})
+    print_usage_record("ENCRYPTED_R2", usage2, store_flag=store_flag)
+    usage_records_all.append((f"ENCRYPTED_R1_store_{store_flag}", usage1))
+    usage_records_all.append((f"ENCRYPTED_R2_store_{store_flag}", usage2))
 
 def cmd_summary():
-	print("\n===== SUMMARY MODE (prev_id) =====")
-	c = client()
-	context1 = [{"role": "system", "content": LONG_SYSTEM}, {"role": "user", "content": "Explain differences between photosynthesis and respiration."}]
-	resp1 = c.responses.create(model=GPT5_DEPLOYMENT_NAME, input=context1, store=True, reasoning={"summary": "detailed", "effort": "high"}, parallel_tool_calls=False)
-	print("[SUMMARY] OUTPUT R1:", resp1.output_text[:200], "...")
-	usage1 = resp1.model_dump().get("usage", {})
-	print_usage_record("SUMMARY_R1", usage1)
-	resp2 = c.responses.create(model=GPT5_DEPLOYMENT_NAME, input=[{"role": "user", "content": "Summarize the key points in one sentence."}], previous_response_id=resp1.id, store=True, reasoning={"summary": "detailed", "effort": "high"}, parallel_tool_calls=False)
-	print("[SUMMARY] OUTPUT R2:", resp2.output_text[:200], "...")
-	usage2 = resp2.model_dump().get("usage", {})
-	print_usage_record("SUMMARY_R2", usage2)
-	usage_records_all.append(("SUMMARY_R1", usage1))
-	usage_records_all.append(("SUMMARY_R2", usage2))
+    print("\n===== SUMMARY MODE (prev_id) =====")
+    c = client()
+    context1 = [{"role": "system", "content": LONG_SYSTEM}, {"role": "user", "content": "Explain differences between photosynthesis and respiration."}]
+    resp1 = c.responses.create(model=GPT5_DEPLOYMENT_NAME, input=context1, store=True, reasoning={"summary": "detailed", "effort": "high"}, parallel_tool_calls=False)
+    print("[SUMMARY] OUTPUT R1:", resp1.output_text[:200], "...")
+    usage1 = resp1.model_dump().get("usage", {})
+    print_usage_record("SUMMARY_R1", usage1)
+    resp2 = c.responses.create(model=GPT5_DEPLOYMENT_NAME, input=[{"role": "user", "content": "Summarize the key points in one sentence."}], previous_response_id=resp1.id, store=True, reasoning={"summary": "detailed", "effort": "high"}, parallel_tool_calls=False)
+    print("[SUMMARY] OUTPUT R2:", resp2.output_text[:200], "...")
+    usage2 = resp2.model_dump().get("usage", {})
+    print_usage_record("SUMMARY_R2", usage2)
+    usage_records_all.append(("SUMMARY_R1", usage1))
+    usage_records_all.append(("SUMMARY_R2", usage2))
 
 def cmd_previous_id():
-	print("\n===== PREVIOUS_ID EXPLANATION SCENARIO (prev_id) =====")
-	c = client()
-	context1 = [{"role": "system", "content": LONG_SYSTEM}, {"role": "user", "content": "Is 2 less than 10? Answer True or False."}]
-	resp1 = c.responses.create(model=GPT5_DEPLOYMENT_NAME, input=context1, store=True, reasoning={"summary": "detailed", "effort": "high"}, parallel_tool_calls=False)
-	print("[PREVIOUS_ID] OUTPUT R1:", resp1.output_text)
-	usage1 = resp1.model_dump().get("usage", {})
-	print_usage_record("PREVIOUS_ID_R1", usage1)
-	resp2 = c.responses.create(model=GPT5_DEPLOYMENT_NAME, input=[{"role": "user", "content": "Explain your previous decision."}], previous_response_id=resp1.id, store=True, reasoning={"summary": "detailed", "effort": "high"}, parallel_tool_calls=False)
-	print("[PREVIOUS_ID] OUTPUT R2:", resp2.output_text)
-	usage2 = resp2.model_dump().get("usage", {})
-	print_usage_record("PREVIOUS_ID_R2", usage2)
-	usage_records_all.append(("PREVIOUS_ID_R1", usage1))
-	usage_records_all.append(("PREVIOUS_ID_R2", usage2))
+    print("\n===== PREVIOUS_ID EXPLANATION SCENARIO (prev_id) =====")
+    c = client()
+    context1 = [{"role": "system", "content": LONG_SYSTEM}, {"role": "user", "content": "Is 2 less than 10? Answer True or False."}]
+    resp1 = c.responses.create(model=GPT5_DEPLOYMENT_NAME, input=context1, store=True, reasoning={"summary": "detailed", "effort": "high"}, parallel_tool_calls=False)
+    print("[PREVIOUS_ID] OUTPUT R1:", resp1.output_text)
+    usage1 = resp1.model_dump().get("usage", {})
+    print_usage_record("PREVIOUS_ID_R1", usage1)
+    resp2 = c.responses.create(model=GPT5_DEPLOYMENT_NAME, input=[{"role": "user", "content": "Explain your previous decision."}], previous_response_id=resp1.id, store=True, reasoning={"summary": "detailed", "effort": "high"}, parallel_tool_calls=False)
+    print("[PREVIOUS_ID] OUTPUT R2:", resp2.output_text)
+    usage2 = resp2.model_dump().get("usage", {})
+    print_usage_record("PREVIOUS_ID_R2", usage2)
+    usage_records_all.append(("PREVIOUS_ID_R1", usage1))
+    usage_records_all.append(("PREVIOUS_ID_R2", usage2))
 
 def run_ab_case(effort, summary_mode):
-	c = client()
-	context1 = [{"role": "system", "content": LONG_SYSTEM}, {"role": "user", "content": "Explain why the sky is blue in a concise way."}]
-	reasoning_param = {"effort": effort}
-	if summary_mode != "none":
-		reasoning_param["summary"] = summary_mode
-	resp1 = c.responses.create(model=GPT5_DEPLOYMENT_NAME, input=context1, store=True, reasoning=reasoning_param, parallel_tool_calls=False)
-	usage1 = resp1.model_dump().get("usage", {})
-	print(f"[AB] effort={effort}, summary={summary_mode}, case=R1, OUTPUT:", resp1.output_text[:160])
-	print_usage_record(f"AB-{effort}-{summary_mode}-R1", usage1)
-	usage_records_ab.append((effort, summary_mode, "R1", usage1))
-	resp2 = c.responses.create(model=GPT5_DEPLOYMENT_NAME, input=[{"role": "user", "content": "Repeat briefly."}], previous_response_id=resp1.id, store=True, reasoning=reasoning_param, parallel_tool_calls=False)
-	usage2 = resp2.model_dump().get("usage", {})
-	print(f"[AB] effort={effort}, summary={summary_mode}, case=R2(prev_id), OUTPUT:", resp2.output_text[:160])
-	print_usage_record(f"AB-{effort}-{summary_mode}-R2", usage2)
-	usage_records_ab.append((effort, summary_mode, "R2", usage2))
+    c = client()
+    context1 = [{"role": "system", "content": LONG_SYSTEM}, {"role": "user", "content": "Explain why the sky is blue in a concise way."}]
+    reasoning_param = {"effort": effort}
+    if summary_mode != "none":
+        reasoning_param["summary"] = summary_mode
+    resp1 = c.responses.create(model=GPT5_DEPLOYMENT_NAME, input=context1, store=True, reasoning=reasoning_param, parallel_tool_calls=False)
+    usage1 = resp1.model_dump().get("usage", {})
+    print(f"[AB] effort={effort}, summary={summary_mode}, case=R1, OUTPUT:", resp1.output_text[:160])
+    print_usage_record(f"AB-{effort}-{summary_mode}-R1", usage1)
+    usage_records_ab.append((effort, summary_mode, "R1", usage1))
+    resp2 = c.responses.create(model=GPT5_DEPLOYMENT_NAME, input=[{"role": "user", "content": "Repeat briefly."}], previous_response_id=resp1.id, store=True, reasoning=reasoning_param, parallel_tool_calls=False)
+    usage2 = resp2.model_dump().get("usage", {})
+    print(f"[AB] effort={effort}, summary={summary_mode}, case=R2(prev_id), OUTPUT:", resp2.output_text[:160])
+    print_usage_record(f"AB-{effort}-{summary_mode}-R2", usage2)
+    usage_records_ab.append((effort, summary_mode, "R2", usage2))
 
 def run_prev_id_identical_dialogue(effort):
-	c = client()
-	q1 = "Who was more formidable, Cao Cao or Sun Quan? Give a brief reason."
-	q2 = "Restate your conclusion in one sentence."
-	context1 = [{"role": "system", "content": LONG_SYSTEM}, {"role": "user", "content": q1}]
-	resp1 = c.responses.create(model=GPT5_DEPLOYMENT_NAME, input=context1, store=True, reasoning={"summary": "detailed", "effort": effort}, parallel_tool_calls=False)
-	usage1 = resp1.model_dump().get("usage", {})
-	resp2 = c.responses.create(model=GPT5_DEPLOYMENT_NAME, input=[{"role": "user", "content": q2}], previous_response_id=resp1.id, store=True, reasoning={"summary": "detailed", "effort": effort}, parallel_tool_calls=False)
-	usage2 = resp2.model_dump().get("usage", {})
-	usage_records_ab.append((effort, "identical_dialogue", "R1", usage1))
-	usage_records_ab.append((effort, "identical_dialogue", "R2", usage2))
+    c = client()
+    q1 = "Who was more formidable, Cao Cao or Sun Quan? Give a brief reason."
+    q2 = "Restate your conclusion in one sentence."
+    context1 = [{"role": "system", "content": LONG_SYSTEM}, {"role": "user", "content": q1}]
+    resp1 = c.responses.create(model=GPT5_DEPLOYMENT_NAME, input=context1, store=True, reasoning={"summary": "detailed", "effort": effort}, parallel_tool_calls=False)
+    usage1 = resp1.model_dump().get("usage", {})
+    resp2 = c.responses.create(model=GPT5_DEPLOYMENT_NAME, input=[{"role": "user", "content": q2}], previous_response_id=resp1.id, store=True, reasoning={"summary": "detailed", "effort": effort}, parallel_tool_calls=False)
+    usage2 = resp2.model_dump().get("usage", {})
+    usage_records_ab.append((effort, "identical_dialogue", "R1", usage1))
+    usage_records_ab.append((effort, "identical_dialogue", "R2", usage2))
 
 def run_prev_id_identical_code(effort):
-	c = client()
-	q1 = "Write a Python function that, given a list, returns the squares of all even numbers."
-	q2 = "Modify your previous code to only keep squares of positive even numbers."
-	context1 = [{"role": "system", "content": LONG_SYSTEM}, {"role": "user", "content": q1}]
-	resp1 = c.responses.create(model=GPT5_DEPLOYMENT_NAME, input=context1, store=True, reasoning={"summary": "detailed", "effort": effort}, parallel_tool_calls=False)
-	usage1 = resp1.model_dump().get("usage", {})
-	resp2 = c.responses.create(model=GPT5_DEPLOYMENT_NAME, input=[{"role": "user", "content": q2}], previous_response_id=resp1.id, store=True, reasoning={"summary": "detailed", "effort": effort}, parallel_tool_calls=False)
-	usage2 = resp2.model_dump().get("usage", {})
-	usage_records_ab.append((effort, "identical_code", "R1", usage1))
-	usage_records_ab.append((effort, "identical_code", "R2", usage2))
+    c = client()
+    q1 = "Write a Python function that, given a list, returns the squares of all even numbers."
+    q2 = "Modify your previous code to only keep squares of positive even numbers."
+    context1 = [{"role": "system", "content": LONG_SYSTEM}, {"role": "user", "content": q1}]
+    resp1 = c.responses.create(model=GPT5_DEPLOYMENT_NAME, input=context1, store=True, reasoning={"summary": "detailed", "effort": effort}, parallel_tool_calls=False)
+    usage1 = resp1.model_dump().get("usage", {})
+    resp2 = c.responses.create(model=GPT5_DEPLOYMENT_NAME, input=[{"role": "user", "content": q2}], previous_response_id=resp1.id, store=True, reasoning={"summary": "detailed", "effort": effort}, parallel_tool_calls=False)
+    usage2 = resp2.model_dump().get("usage", {})
+    usage_records_ab.append((effort, "identical_code", "R1", usage1))
+    usage_records_ab.append((effort, "identical_code", "R2", usage2))
 
 def cmd_ab_summary():
-	print("\n===== AB TEST (all using prev_id) =====")
-	for eff in ["minimal", "low", "medium", "high"]:
-		for summ in ["none", "auto", "detailed"]:
-			run_ab_case(eff, summ)
-		run_prev_id_identical_dialogue(eff)
-		run_prev_id_identical_code(eff)
+    print("\n===== AB TEST (all using prev_id) =====")
+    for eff in ["minimal", "low", "medium", "high"]:
+        for summ in ["none", "auto", "detailed"]:
+            run_ab_case(eff, summ)
+        run_prev_id_identical_dialogue(eff)
+        run_prev_id_identical_code(eff)
 
 def print_table_all():
-	print("\n=== Table 1: ALL Scenario Token Data ===")
-	print("Scenario                 | input_tokens | output_tokens | reasoning_tokens | completion_tokens | cached_tokens | reasoning_ratio")
-	for name, usage in usage_records_all:
-		it = usage.get("input_tokens", 0)
-		ot = usage.get("output_tokens", 0)
-		rt = usage.get("output_tokens_details", {}).get("reasoning_tokens", 0)
-		completion = ot - rt
-		cached_in = usage.get("input_tokens_details", {}).get("cached_tokens", 0)
-		ratio = f"{(rt/ot*100):.1f}%" if ot else "0%"
-		print(f"{name:<23} | {it:<12} | {ot:<13} | {rt:<16} | {completion:<17} | {cached_in:<13} | {ratio}")
+    print("\n=== Table 1: ALL Scenario Token Data ===")
+    print("Scenario                 | input_tokens | output_tokens | reasoning_tokens | completion_tokens | cached_tokens | reasoning_ratio")
+    for name, usage in usage_records_all:
+        it = usage.get("input_tokens", 0)
+        ot = usage.get("output_tokens", 0)
+        rt = usage.get("output_tokens_details", {}).get("reasoning_tokens", 0)
+        completion = ot - rt
+        cached_in = usage.get("input_tokens_details", {}).get("cached_tokens", 0)
+        ratio = f"{(rt/ot*100):.1f}%" if ot else "0%"
+        print(f"{name:<23} | {it:<12} | {ot:<13} | {rt:<16} | {completion:<17} | {cached_in:<13} | {ratio}")
 
 def print_table_ab():
-	print("\n=== Table 2: AB Test Token Data ===")
-	print("effort   | summary              | case   | input_tokens | output_tokens | reasoning_tokens | completion_tokens | cached_tokens | reasoning_ratio")
-	for eff, summ, case, usage in usage_records_ab:
-		it = usage.get("input_tokens", 0)
-		ot = usage.get("output_tokens", 0)
-		rt = usage.get("output_tokens_details", {}).get("reasoning_tokens", 0)
-		completion = ot - rt
-		cached_in = usage.get("input_tokens_details", {}).get("cached_tokens", 0)
-		ratio = f"{(rt/ot*100):.1f}%" if ot else "0%"
-		print(f"{eff:<8} | {summ:<20} | {case:<6} | {it:<12} | {ot:<13} | {rt:<16} | {completion:<17} | {cached_in:<13} | {ratio}")
+    print("\n=== Table 2: AB Test Token Data ===")
+    print("effort   | summary              | case   | input_tokens | output_tokens | reasoning_tokens | completion_tokens | cached_tokens | reasoning_ratio")
+    for eff, summ, case, usage in usage_records_ab:
+        it = usage.get("input_tokens", 0)
+        ot = usage.get("output_tokens", 0)
+        rt = usage.get("output_tokens_details", {}).get("reasoning_tokens", 0)
+        completion = ot - rt
+        cached_in = usage.get("input_tokens_details", {}).get("cached_tokens", 0)
+        ratio = f"{(rt/ot*100):.1f}%" if ot else "0%"
+        print(f"{eff:<8} | {summ:<20} | {case:<6} | {it:<12} | {ot:<13} | {rt:<16} | {completion:<17} | {cached_in:<13} | {ratio}")
 
 def cmd_all():
-	cmd_basic()
-	cmd_function()
-	cmd_encrypted(store_flag=False)
-	cmd_encrypted(store_flag=True)
-	cmd_summary()
-	cmd_previous_id()
-	print_table_all()
-	cmd_ab_summary()
-	print_table_ab()
+    cmd_basic()
+    cmd_function()
+    cmd_encrypted(store_flag=False)
+    cmd_encrypted(store_flag=True)
+    cmd_summary()
+    cmd_previous_id()
+    print_table_all()
+    cmd_ab_summary()
+    print_table_ab()
 
 if __name__ == "__main__":
-	ensure_key()
-	p = argparse.ArgumentParser()
-	p.add_argument("mode", choices=["basic","function","encrypted_false","encrypted_true","summary","previous_id","ab_summary","all"])
-	args = p.parse_args()
-	if args.mode == "basic":
-		cmd_basic(); print_table_all()
-	elif args.mode == "function":
-		cmd_function(); print_table_all()
-	elif args.mode == "encrypted_false":
-		cmd_encrypted(store_flag=False); print_table_all()
-	elif args.mode == "encrypted_true":
-		cmd_encrypted(store_flag=True); print_table_all()
-	elif args.mode == "summary":
-		cmd_summary(); print_table_all()
-	elif args.mode == "previous_id":
-		cmd_previous_id(); print_table_all()
-	elif args.mode == "ab_summary":
-		cmd_ab_summary(); print_table_ab()
-	elif args.mode == "all":
-		cmd_all()
+    ensure_key()
+    p = argparse.ArgumentParser()
+    p.add_argument("mode", choices=["basic","function","encrypted_false","encrypted_true","summary","previous_id","ab_summary","all"])
+    args = p.parse_args()
+    if args.mode == "basic":
+        cmd_basic(); print_table_all()
+    elif args.mode == "function":
+        cmd_function(); print_table_all()
+    elif args.mode == "encrypted_false":
+        cmd_encrypted(store_flag=False); print_table_all()
+    elif args.mode == "encrypted_true":
+        cmd_encrypted(store_flag=True); print_table_all()
+    elif args.mode == "summary":
+        cmd_summary(); print_table_all()
+    elif args.mode == "previous_id":
+        cmd_previous_id(); print_table_all()
+    elif args.mode == "ab_summary":
+        cmd_ab_summary(); print_table_ab()
+    elif args.mode == "all":
+        cmd_all()
 ```
 
 **Full Execution Command:**
@@ -859,7 +881,7 @@ PREVIOUS_ID_R2          | 3540         | 310           | 256              | 54  
 > **Preview:** Codex outperforms GPT‑5 in unit efficiency (sec/1k) especially for refactor & large (e.g., 126 tokens/sec vs 46 tokens/sec).
 
 ### **Scenario & Parameters**
-- Responses API version: 2025-03-01-preview
+- Responses API version: 2025-04-01-preview
 - Separate deployments: GPT‑5 vs GPT‑5-Codex
 - Prefix & caching: Long code-only system prompt (≥1024 tokens); R1 cold start; R2 with prev_id + same system
 - Parameters: `reasoning.effort=high`, `reasoning.summary=detailed`, `parallel_tool_calls=False`
@@ -918,13 +940,13 @@ from openai import AzureOpenAI, BadRequestError
 # Resource 1: GPT-5
 GPT5_API_KEY = os.environ.get("AZURE_OPENAI_API_KEY_GPT5", "Al*")
 GPT5_ENDPOINT = os.environ.get("AZURE_OPENAI_ENDPOINT_GPT5", "https://YOUR-ENDPOINT.cognitiveservices.azure.com/")
-GPT5_API_VERSION = os.environ.get("AZURE_OPENAI_API_VERSION_GPT5", "2025-03-01-preview")
+GPT5_API_VERSION = os.environ.get("AZURE_OPENAI_API_VERSION_GPT5", "2025-04-01-preview")
 GPT5_DEPLOYMENT = os.environ.get("AZURE_OPENAI_DEPLOYMENT_GPT5", "gpt-5")
 
 # Resource 2: GPT-5-Codex
 CODEX_API_KEY = os.environ.get("AZURE_OPENAI_API_KEY_CODEX", "6V*")
 CODEX_ENDPOINT = os.environ.get("AZURE_OPENAI_ENDPOINT_CODEX", "https://YOUR-ENDPOINT.cognitiveservices.azure.com/")
-CODEX_API_VERSION = os.environ.get("AZURE_OPENAI_API_VERSION_CODEX", "2025-03-01-preview")
+CODEX_API_VERSION = os.environ.get("AZURE_OPENAI_API_VERSION_CODEX", "2025-04-01-preview")
 CODEX_DEPLOYMENT = os.environ.get("AZURE_OPENAI_DEPLOYMENT_CODEX", "gpt-5-codex")
 
 REPETITIONS = int(os.environ.get("REPETITIONS", "1"))
@@ -937,298 +959,298 @@ RUN_SALT = f"[[RUN-{int(time.time()*1000)}]]"
 FORCE_SYSTEM_IN_R2 = os.environ.get("FORCE_SYSTEM_IN_R2", "true").lower() in ("1", "true", "yes")
 
 BASE_SYSTEM_PROMPT = (
-	"You are a senior software engineer and code reviewer.\n"
-	"When asked to write code, return code only: no explanations, no prose, no comments unless explicitly requested.\n"
-	"Follow best practices, write robust, idiomatic, tested code, consider edge cases, performance, security, maintainability.\n"
-	"If asked to review, return concise bullet issues only.\n"
+    "You are a senior software engineer and code reviewer.\n"
+    "When asked to write code, return code only: no explanations, no prose, no comments unless explicitly requested.\n"
+    "Follow best practices, write robust, idiomatic, tested code, consider edge cases, performance, security, maintainability.\n"
+    "If asked to review, return concise bullet issues only.\n"
 )
 BASE_SYSTEM_PADDING = (" Code-quality, clarity, structure, tests. " * 200)
 
 def ensure_keys():
-	missing = []
-	if not GPT5_API_KEY or not GPT5_ENDPOINT or not GPT5_API_VERSION or not GPT5_DEPLOYMENT:
-		missing.append("GPT-5 (AZURE_OPENAI_*_GPT5)")
-	if not CODEX_API_KEY or not CODEX_ENDPOINT or not CODEX_API_VERSION or not CODEX_DEPLOYMENT:
-		missing.append("GPT-5-Codex (AZURE_OPENAI_*_CODEX)")
-	if missing:
-		print("Missing config: " + " ; ".join(missing))
-		sys.exit(1)
+    missing = []
+    if not GPT5_API_KEY or not GPT5_ENDPOINT or not GPT5_API_VERSION or not GPT5_DEPLOYMENT:
+        missing.append("GPT-5 (AZURE_OPENAI_*_GPT5)")
+    if not CODEX_API_KEY or not CODEX_ENDPOINT or not CODEX_API_VERSION or not CODEX_DEPLOYMENT:
+        missing.append("GPT-5-Codex (AZURE_OPENAI_*_CODEX)")
+    if missing:
+        print("Missing config: " + " ; ".join(missing))
+        sys.exit(1)
 
 def make_client(api_key: str, endpoint: str, api_version: str) -> AzureOpenAI:
-	return AzureOpenAI(api_key=api_key, azure_endpoint=endpoint, api_version=api_version)
+    return AzureOpenAI(api_key=api_key, azure_endpoint=endpoint, api_version=api_version)
 
 def build_system_prompt(model_name: str, task_tag: str) -> str:
-	prefix = f"{RUN_SALT} [[MODEL:{model_name}]] [[TASK:{task_tag}]] "
-	return prefix + BASE_SYSTEM_PROMPT + BASE_SYSTEM_PADDING
+    prefix = f"{RUN_SALT} [[MODEL:{model_name}]] [[TASK:{task_tag}]] "
+    return prefix + BASE_SYSTEM_PROMPT + BASE_SYSTEM_PADDING
 
 def build_warmup_system_prompt(sys_prompt: str) -> str:
-	return f"[[WARMUP-{int(time.time()*1000)}]] " + sys_prompt
+    return f"[[WARMUP-{int(time.time()*1000)}]] " + sys_prompt
 
 def safe_usage(resp: Any) -> Dict[str, Any]:
-	try:
-		return resp.model_dump().get("usage", {}) if hasattr(resp, "model_dump") else (resp.get("usage", {}) if isinstance(resp, dict) else {})
-	except Exception:
-		return {}
+    try:
+        return resp.model_dump().get("usage", {}) if hasattr(resp, "model_dump") else (resp.get("usage", {}) if isinstance(resp, dict) else {})
+    except Exception:
+        return {}
 
 def metrics_from_usage(usage: Dict[str, Any]) -> Dict[str, Any]:
-	it = usage.get("input_tokens", 0)
-	ot = usage.get("output_tokens", 0)
-	rt = usage.get("output_tokens_details", {}).get("reasoning_tokens", 0)
-	cached = usage.get("input_tokens_details", {}).get("cached_tokens", 0)
-	ratio = (rt / ot * 100) if ot else 0.0
-	return {"input_tokens": it, "output_tokens": ot, "reasoning_tokens": rt, "cached_tokens": cached, "reasoning_ratio_pct": ratio}
+    it = usage.get("input_tokens", 0)
+    ot = usage.get("output_tokens", 0)
+    rt = usage.get("output_tokens_details", {}).get("reasoning_tokens", 0)
+    cached = usage.get("input_tokens_details", {}).get("cached_tokens", 0)
+    ratio = (rt / ot * 100) if ot else 0.0
+    return {"input_tokens": it, "output_tokens": ot, "reasoning_tokens": rt, "cached_tokens": cached, "reasoning_ratio_pct": ratio}
 
 def print_row(tag: str, m: Dict[str, Any], ttft: Optional[float], total: float):
-	ttft_s = f"{ttft:.3f}s" if ttft is not None else "NA"
-	tput = (m["output_tokens"] / total) if total > 0 else 0.0
-	sec_per_1k = (total / (m["output_tokens"] / 1000.0)) if m["output_tokens"] > 0 else 0.0
-	print(f"{tag:<24} | in={m['input_tokens']:<6} out={m['output_tokens']:<7} reason={m['reasoning_tokens']:<7} | cached={m['cached_tokens']:<6} ratio={m['reasoning_ratio_pct']:.1f}% | TTFT={ttft_s} total={total:.3f}s tkn/s={tput:.1f}  sec/1k={sec_per_1k:.2f}")
+    ttft_s = f"{ttft:.3f}s" if ttft is not None else "NA"
+    tput = (m["output_tokens"] / total) if total > 0 else 0.0
+    sec_per_1k = (total / (m["output_tokens"] / 1000.0)) if m["output_tokens"] > 0 else 0.0
+    print(f"{tag:<24} | in={m['input_tokens']:<6} out={m['output_tokens']:<7} reason={m['reasoning_tokens']:<7} | cached={m['cached_tokens']:<6} ratio={m['reasoning_ratio_pct']:.1f}% | TTFT={ttft_s} total={total:.3f}s tkn/s={tput:.1f}  sec/1k={sec_per_1k:.2f}")
 
 def try_stream(c: AzureOpenAI, req: Dict[str, Any]) -> Tuple[Any, Optional[float], float, str]:
-	ttft = None
-	output_text = ""
-	start = time.time()
-	with c.responses.stream(**req) as stream:
-		for event in stream:
-			etype = getattr(event, "type", None)
-			if etype in ("response.output_text.delta", "response.delta"):
-				delta = getattr(event, "delta", None)
-				if delta is None:
-					try:
-						delta = event.output_text.delta
-					except Exception:
-						delta = None
-				if delta:
-					if ttft is None:
-						ttft = time.time() - start
-					output_text += delta
-		resp = stream.get_final_response()
-	total = time.time() - start
-	if not output_text:
-		try:
-			output_text = resp.output_text
-		except Exception:
-			output_text = ""
-	return resp, ttft, total, output_text
+    ttft = None
+    output_text = ""
+    start = time.time()
+    with c.responses.stream(**req) as stream:
+        for event in stream:
+            etype = getattr(event, "type", None)
+            if etype in ("response.output_text.delta", "response.delta"):
+                delta = getattr(event, "delta", None)
+                if delta is None:
+                    try:
+                        delta = event.output_text.delta
+                    except Exception:
+                        delta = None
+                if delta:
+                    if ttft is None:
+                        ttft = time.time() - start
+                    output_text += delta
+        resp = stream.get_final_response()
+    total = time.time() - start
+    if not output_text:
+        try:
+            output_text = resp.output_text
+        except Exception:
+            output_text = ""
+    return resp, ttft, total, output_text
 
 def try_stream_or_create(c: AzureOpenAI, req: Dict[str, Any]) -> Tuple[Any, Optional[float], float, str]:
-	try:
-		return try_stream(c, req)
-	except Exception:
-		t0 = time.time()
-		resp = c.responses.create(**req)
-		total = time.time() - t0
-		text = ""
-		try:
-			text = resp.output_text
-		except Exception:
-			text = ""
-		return resp, None, total, text
+    try:
+        return try_stream(c, req)
+    except Exception:
+        t0 = time.time()
+        resp = c.responses.create(**req)
+        total = time.time() - t0
+        text = ""
+        try:
+            text = resp.output_text
+        except Exception:
+            text = ""
+        return resp, None, total, text
 
 def sanitize_and_retry(c: AzureOpenAI, req: Dict[str, Any], e: BadRequestError) -> Tuple[Any, Optional[float], float, str]:
-	req2 = dict(req)
-	changed = False
-	for key in ("parallel_tool_calls", "max_output_tokens"):
-		if key in req2:
-			del req2[key]
-			changed = True
-	if not changed:
-		raise e
-	return try_stream_or_create(c, req2)
+    req2 = dict(req)
+    changed = False
+    for key in ("parallel_tool_calls", "max_output_tokens"):
+        if key in req2:
+            del req2[key]
+            changed = True
+    if not changed:
+        raise e
+    return try_stream_or_create(c, req2)
 
 def measure_round(c: AzureOpenAI, model: str, messages: List[Dict[str, Any]], previous_response_id: Optional[str], max_output_tokens: int) -> Dict[str, Any]:
-	req: Dict[str, Any] = {
-		"model": model,
-		"input": messages,
-		"store": True,
-		"reasoning": REASONING_ALWAYS
-	}
-	if previous_response_id:
-		req["previous_response_id"] = previous_response_id
-	req["parallel_tool_calls"] = False
-	if max_output_tokens > 0:
-		req["max_output_tokens"] = max_output_tokens
-	try:
-		resp, ttft, total, text = try_stream_or_create(c, req)
-	except BadRequestError as e:
-		resp, ttft, total, text = sanitize_and_retry(c, req, e)
-	usage = safe_usage(resp)
-	m = metrics_from_usage(usage)
-	return {"response": resp, "output_text": text, "usage": usage, "metrics": m, "ttft_s": ttft, "total_s": total}
+    req: Dict[str, Any] = {
+        "model": model,
+        "input": messages,
+        "store": True,
+        "reasoning": REASONING_ALWAYS
+    }
+    if previous_response_id:
+        req["previous_response_id"] = previous_response_id
+    req["parallel_tool_calls"] = False
+    if max_output_tokens > 0:
+        req["max_output_tokens"] = max_output_tokens
+    try:
+        resp, ttft, total, text = try_stream_or_create(c, req)
+    except BadRequestError as e:
+        resp, ttft, total, text = sanitize_and_retry(c, req, e)
+    usage = safe_usage(resp)
+    m = metrics_from_usage(usage)
+    return {"response": resp, "output_text": text, "usage": usage, "metrics": m, "ttft_s": ttft, "total_s": total}
 
 def median_of_runs(runs: List[Dict[str, Any]]) -> Dict[str, Any]:
-	if not runs:
-		return {"metrics": {"input_tokens": 0, "output_tokens": 0, "reasoning_tokens": 0, "cached_tokens": 0, "reasoning_ratio_pct": 0.0}, "ttft_s": None, "total_s": 0.0}
-	def med_num(getter, default=0.0):
-		arr = []
-		for r in runs:
-			try:
-				arr.append(float(getter(r)))
-			except Exception:
-				pass
-		return statistics.median(arr) if arr else default
-	return {
-		"metrics": {
-			"input_tokens": int(med_num(lambda r: r["metrics"]["input_tokens"])),
-			"output_tokens": int(med_num(lambda r: r["metrics"]["output_tokens"])),
-			"reasoning_tokens": int(med_num(lambda r: r["metrics"]["reasoning_tokens"])),
-			"cached_tokens": int(med_num(lambda r: r["metrics"]["cached_tokens"])),
-			"reasoning_ratio_pct": med_num(lambda r: r["metrics"]["reasoning_ratio_pct"])
-		},
-		"ttft_s": med_num(lambda r: r["ttft_s"], None),
-		"total_s": med_num(lambda r: r["total_s"], 0.0)
-	}
+    if not runs:
+        return {"metrics": {"input_tokens": 0, "output_tokens": 0, "reasoning_tokens": 0, "cached_tokens": 0, "reasoning_ratio_pct": 0.0}, "ttft_s": None, "total_s": 0.0}
+    def med_num(getter, default=0.0):
+        arr = []
+        for r in runs:
+            try:
+                arr.append(float(getter(r)))
+            except Exception:
+                pass
+        return statistics.median(arr) if arr else default
+    return {
+        "metrics": {
+            "input_tokens": int(med_num(lambda r: r["metrics"]["input_tokens"])),
+            "output_tokens": int(med_num(lambda r: r["metrics"]["output_tokens"])),
+            "reasoning_tokens": int(med_num(lambda r: r["metrics"]["reasoning_tokens"])),
+            "cached_tokens": int(med_num(lambda r: r["metrics"]["cached_tokens"])),
+            "reasoning_ratio_pct": med_num(lambda r: r["metrics"]["reasoning_ratio_pct"])
+        },
+        "ttft_s": med_num(lambda r: r["ttft_s"], None),
+        "total_s": med_num(lambda r: r["total_s"], 0.0)
+    }
 
 def coding_tasks() -> List[Dict[str, Any]]:
-	return [
-		{
-			"type": "small",
-			"name": "top_k_frequent",
-			"r1": "Write a Python function `top_k_frequent(nums: List[int], k: int) -> List[int]` that returns the k most frequent integers in nums. Return code only.",
-			"r2": "Refactor previous solution to O(n) average using Counter or heap if needed, add minimal tests in code as strings. Return code only."
-		},
-		{
-			"type": "refactor",
-			"name": "normalize_refactor",
-			"r1": "Refactor the function and add tests. Return code only:\n\ndef normalize(s: str) -> str:\n    return s.strip().lower().replace('  ', ' ')\n# Fix: collapse any whitespace sequences to single space; keep newlines as-is.\n",
-			"r2": "Improve robustness of normalize (unicode whitespaces) and extend tests in code. Return code only."
-		},
-		{
-			"type": "review",
-			"name": "review_diff",
-			"r1": "You are code reviewer. The patch introduces a potential bug. Read the diff and list concise bullet issues only (no prose, no code):\n\n--- a/calc.py\n+++ b/calc.py\n@@\n-def safe_divide(a,b):\n-    return a/b if b!=0 else float('inf')\n+def safe_divide(a,b):\n+    if b == 0:\n+        return 0  # changed behavior: return 0 on div by zero\n+    return a/b\n",
-			"r2": "Now propose a concise corrected version of safe_divide in code only, and short inline tests in code (no explanations)."
-		},
-		{
-			"type": "large",
-			"name": "cli_users",
-			"r1": "Write a Python CLI (single file) that reads a CSV of users, validates emails and phone numbers, and prints a JSON summary. Use argparse and minimal tests at bottom. Return code only.",
-			"r2": "Refactor the CLI into modular functions, add structured logging, and extend tests inline at bottom. Return code only."
-		}
-	]
+    return [
+        {
+            "type": "small",
+            "name": "top_k_frequent",
+            "r1": "Write a Python function `top_k_frequent(nums: List[int], k: int) -> List[int]` that returns the k most frequent integers in nums. Return code only.",
+            "r2": "Refactor previous solution to O(n) average using Counter or heap if needed, add minimal tests in code as strings. Return code only."
+        },
+        {
+            "type": "refactor",
+            "name": "normalize_refactor",
+            "r1": "Refactor the function and add tests. Return code only:\n\ndef normalize(s: str) -> str:\n    return s.strip().lower().replace('  ', ' ')\n# Fix: collapse any whitespace sequences to single space; keep newlines as-is.\n",
+            "r2": "Improve robustness of normalize (unicode whitespaces) and extend tests in code. Return code only."
+        },
+        {
+            "type": "review",
+            "name": "review_diff",
+            "r1": "You are code reviewer. The patch introduces a potential bug. Read the diff and list concise bullet issues only (no prose, no code):\n\n--- a/calc.py\n+++ b/calc.py\n@@\n-def safe_divide(a,b):\n-    return a/b if b!=0 else float('inf')\n+def safe_divide(a,b):\n+    if b == 0:\n+        return 0  # changed behavior: return 0 on div by zero\n+    return a/b\n",
+            "r2": "Now propose a concise corrected version of safe_divide in code only, and short inline tests in code (no explanations)."
+        },
+        {
+            "type": "large",
+            "name": "cli_users",
+            "r1": "Write a Python CLI (single file) that reads a CSV of users, validates emails and phone numbers, and prints a JSON summary. Use argparse and minimal tests at bottom. Return code only.",
+            "r2": "Refactor the CLI into modular functions, add structured logging, and extend tests inline at bottom. Return code only."
+        }
+    ]
 
 def warmup_call(c: AzureOpenAI, deployment: str, sys_prompt: str):
-	try:
-		warm_sys = build_warmup_system_prompt(sys_prompt)
-		_ = c.responses.create(
-			model=deployment,
-			input=[{"role": "system", "content": warm_sys}, {"role": "user", "content": "ping"}],
-			store=True,
-			reasoning=REASONING_ALWAYS
-		)
-	except Exception:
-		pass
+    try:
+        warm_sys = build_warmup_system_prompt(sys_prompt)
+        _ = c.responses.create(
+            model=deployment,
+            input=[{"role": "system", "content": warm_sys}, {"role": "user", "content": "ping"}],
+            store=True,
+            reasoning=REASONING_ALWAYS
+        )
+    except Exception:
+        pass
 
 def run_compare():
-	ensure_keys()
-	client_gpt5 = make_client(GPT5_API_KEY, GPT5_ENDPOINT, GPT5_API_VERSION)
-	client_codex = make_client(CODEX_API_KEY, CODEX_ENDPOINT, CODEX_API_VERSION)
+    ensure_keys()
+    client_gpt5 = make_client(GPT5_API_KEY, GPT5_ENDPOINT, GPT5_API_VERSION)
+    client_codex = make_client(CODEX_API_KEY, CODEX_ENDPOINT, CODEX_API_VERSION)
 
-	print("\n===== Coding Compare (Isolated clients; prev_id for R2) =====")
-	print(f"GPT-5   endpoint={GPT5_ENDPOINT}   api_version={GPT5_API_VERSION}   deployment={GPT5_DEPLOYMENT}")
-	print(f"Codex   endpoint={CODEX_ENDPOINT}  api_version={CODEX_API_VERSION}  deployment={CODEX_DEPLOYMENT}")
-	print(f"Run salt: {RUN_SALT} | Repetitions: {REPETITIONS} | Warmup: {WARMUP} | max_output_tokens: {MAX_OUTPUT_TOKENS if MAX_OUTPUT_TOKENS>0 else 'none'}\n")
+    print("\n===== Coding Compare (Isolated clients; prev_id for R2) =====")
+    print(f"GPT-5   endpoint={GPT5_ENDPOINT}   api_version={GPT5_API_VERSION}   deployment={GPT5_DEPLOYMENT}")
+    print(f"Codex   endpoint={CODEX_ENDPOINT}  api_version={CODEX_API_VERSION}  deployment={CODEX_DEPLOYMENT}")
+    print(f"Run salt: {RUN_SALT} | Repetitions: {REPETITIONS} | Warmup: {WARMUP} | max_output_tokens: {MAX_OUTPUT_TOKENS if MAX_OUTPUT_TOKENS>0 else 'none'}\n")
 
-	tasks = coding_tasks()
-	models = [
-		{"name": "GPT-5", "client": client_gpt5, "deployment": GPT5_DEPLOYMENT},
-		{"name": "GPT-5-Codex", "client": client_codex, "deployment": CODEX_DEPLOYMENT},
-	]
+    tasks = coding_tasks()
+    models = [
+        {"name": "GPT-5", "client": client_gpt5, "deployment": GPT5_DEPLOYMENT},
+        {"name": "GPT-5-Codex", "client": client_codex, "deployment": CODEX_DEPLOYMENT},
+    ]
 
-	for t in tasks:
-		print(f"--- Task [{t['type']}] {t['name']} ---")
-		order = models[:]
-		random.shuffle(order)
-		task_tag = t["name"]
+    for t in tasks:
+        print(f"--- Task [{t['type']}] {t['name']} ---")
+        order = models[:]
+        random.shuffle(order)
+        task_tag = t["name"]
 
-		for m in order:
-			sys_prompt = build_system_prompt(m["name"], task_tag)
+        for m in order:
+            sys_prompt = build_system_prompt(m["name"], task_tag)
 
-			if WARMUP:
-				warmup_call(m["client"], m["deployment"], sys_prompt)
+            if WARMUP:
+                warmup_call(m["client"], m["deployment"], sys_prompt)
 
-			r1_runs = []
-			for _ in range(REPETITIONS):
-				messages_r1 = [
-					{"role": "system", "content": sys_prompt},
-					{"role": "user", "content": t["r1"]}
-				]
-				r1 = measure_round(m["client"], m["deployment"], messages_r1, previous_response_id=None, max_output_tokens=MAX_OUTPUT_TOKENS)
-				r1_runs.append(r1)
-			r1_med = median_of_runs(r1_runs)
-			print_row(f"{m['name']}-R1", r1_med["metrics"], r1_med["ttft_s"], r1_med["total_s"])
+            r1_runs = []
+            for _ in range(REPETITIONS):
+                messages_r1 = [
+                    {"role": "system", "content": sys_prompt},
+                    {"role": "user", "content": t["r1"]}
+                ]
+                r1 = measure_round(m["client"], m["deployment"], messages_r1, previous_response_id=None, max_output_tokens=MAX_OUTPUT_TOKENS)
+                r1_runs.append(r1)
+            r1_med = median_of_runs(r1_runs)
+            print_row(f"{m['name']}-R1", r1_med["metrics"], r1_med["ttft_s"], r1_med["total_s"])
 
-			r2_runs = []
-			for _ in range(REPETITIONS):
-				r1_resp = r1_runs[-1]["response"] if r1_runs else None
-				prev_id = r1_resp.id if r1_resp is not None else None
-				messages_r2 = [{"role": "user", "content": t["r2"]}]
-				if FORCE_SYSTEM_IN_R2:
-					messages_r2 = [{"role": "system", "content": sys_prompt}] + messages_r2
-				r2 = measure_round(m["client"], m["deployment"], messages_r2, previous_response_id=prev_id, max_output_tokens=MAX_OUTPUT_TOKENS)
-				r2_runs.append(r2)
-			r2_med = median_of_runs(r2_runs)
-			print_row(f"{m['name']}-R2", r2_med["metrics"], r2_med["ttft_s"], r2_med["total_s"])
+            r2_runs = []
+            for _ in range(REPETITIONS):
+                r1_resp = r1_runs[-1]["response"] if r1_runs else None
+                prev_id = r1_resp.id if r1_resp is not None else None
+                messages_r2 = [{"role": "user", "content": t["r2"]}]
+                if FORCE_SYSTEM_IN_R2:
+                    messages_r2 = [{"role": "system", "content": sys_prompt}] + messages_r2
+                r2 = measure_round(m["client"], m["deployment"], messages_r2, previous_response_id=prev_id, max_output_tokens=MAX_OUTPUT_TOKENS)
+                r2_runs.append(r2)
+            r2_med = median_of_runs(r2_runs)
+            print_row(f"{m['name']}-R2", r2_med["metrics"], r2_med["ttft_s"], r2_med["total_s"])
 
-		print("")
+        print("")
 
 def run_single(which: str):
-	ensure_keys()
-	if which == "gpt5":
-		client = make_client(GPT5_API_KEY, GPT5_ENDPOINT, GPT5_API_VERSION)
-		deployment = GPT5_DEPLOYMENT
-		mname = "GPT-5"
-	else:
-		client = make_client(CODEX_API_KEY, CODEX_ENDPOINT, CODEX_API_VERSION)
-		deployment = CODEX_DEPLOYMENT
-		mname = "GPT-5-Codex"
+    ensure_keys()
+    if which == "gpt5":
+        client = make_client(GPT5_API_KEY, GPT5_ENDPOINT, GPT5_API_VERSION)
+        deployment = GPT5_DEPLOYMENT
+        mname = "GPT-5"
+    else:
+        client = make_client(CODEX_API_KEY, CODEX_ENDPOINT, CODEX_API_VERSION)
+        deployment = CODEX_DEPLOYMENT
+        mname = "GPT-5-Codex"
 
-	print(f"\n===== Single Model: {mname} =====")
-	print(f"endpoint={client.base_url} | deployment={deployment} | run_salt={RUN_SALT} | repetitions={REPETITIONS} | warmup={WARMUP} | max_output_tokens={MAX_OUTPUT_TOKENS if MAX_OUTPUT_TOKENS>0 else 'none'}\n")
+    print(f"\n===== Single Model: {mname} =====")
+    print(f"endpoint={client.base_url} | deployment={deployment} | run_salt={RUN_SALT} | repetitions={REPETITIONS} | warmup={WARMUP} | max_output_tokens={MAX_OUTPUT_TOKENS if MAX_OUTPUT_TOKENS>0 else 'none'}\n")
 
-	tasks = coding_tasks()
-	for t in tasks:
-		task_tag = t["name"]
-		sys_prompt = build_system_prompt(mname, task_tag)
+    tasks = coding_tasks()
+    for t in tasks:
+        task_tag = t["name"]
+        sys_prompt = build_system_prompt(mname, task_tag)
 
-		print(f"--- Task [{t['type']}] {t['name']} ---")
-		if WARMUP:
-			warmup_call(client, deployment, sys_prompt)
+        print(f"--- Task [{t['type']}] {t['name']} ---")
+        if WARMUP:
+            warmup_call(client, deployment, sys_prompt)
 
-		r1_runs = []
-		for _ in range(REPETITIONS):
-			messages_r1 = [{"role": "system", "content": sys_prompt}, {"role": "user", "content": t["r1"]}]
-			r1 = measure_round(client, deployment, messages_r1, previous_response_id=None, max_output_tokens=MAX_OUTPUT_TOKENS)
-			r1_runs.append(r1)
-		r1_med = median_of_runs(r1_runs)
-		print_row(f"{mname}-R1", r1_med["metrics"], r1_med["ttft_s"], r1_med["total_s"])
+        r1_runs = []
+        for _ in range(REPETITIONS):
+            messages_r1 = [{"role": "system", "content": sys_prompt}, {"role": "user", "content": t["r1"]}]
+            r1 = measure_round(client, deployment, messages_r1, previous_response_id=None, max_output_tokens=MAX_OUTPUT_TOKENS)
+            r1_runs.append(r1)
+        r1_med = median_of_runs(r1_runs)
+        print_row(f"{mname}-R1", r1_med["metrics"], r1_med["ttft_s"], r1_med["total_s"])
 
-		r2_runs = []
-		for _ in range(REPETITIONS):
-			r1_resp = r1_runs[-1]["response"] if r1_runs else None
-			prev_id = r1_resp.id if r1_resp is not None else None
-			messages_r2 = [{"role": "user", "content": t["r2"]}]
-			if FORCE_SYSTEM_IN_R2:
-				messages_r2 = [{"role": "system", "content": sys_prompt}] + messages_r2
-			r2 = measure_round(client, deployment, messages_r2, previous_response_id=prev_id, max_output_tokens=MAX_OUTPUT_TOKENS)
-			r2_runs.append(r2)
-		r2_med = median_of_runs(r2_runs)
-		print_row(f"{mname}-R2", r2_med["metrics"], r2_med["ttft_s"], r2_med["total_s"])
-		print("")
+        r2_runs = []
+        for _ in range(REPETITIONS):
+            r1_resp = r1_runs[-1]["response"] if r1_runs else None
+            prev_id = r1_resp.id if r1_resp is not None else None
+            messages_r2 = [{"role": "user", "content": t["r2"]}]
+            if FORCE_SYSTEM_IN_R2:
+                messages_r2 = [{"role": "system", "content": sys_prompt}] + messages_r2
+            r2 = measure_round(client, deployment, messages_r2, previous_response_id=prev_id, max_output_tokens=MAX_OUTPUT_TOKENS)
+            r2_runs.append(r2)
+        r2_med = median_of_runs(r2_runs)
+        print_row(f"{mname}-R2", r2_med["metrics"], r2_med["ttft_s"], r2_med["total_s"])
+        print("")
 
 def main():
-	p = argparse.ArgumentParser()
-	p.add_argument("mode", choices=["compare", "gpt5", "codex"])
-	args = p.parse_args()
-	if args.mode == "compare":
-		run_compare()
-	elif args.mode == "gpt5":
-		run_single("gpt5")
-	elif args.mode == "codex":
-		run_single("codex")
+    p = argparse.ArgumentParser()
+    p.add_argument("mode", choices=["compare", "gpt5", "codex"])
+    args = p.parse_args()
+    if args.mode == "compare":
+        run_compare()
+    elif args.mode == "gpt5":
+        run_single("gpt5")
+    elif args.mode == "codex":
+        run_single("codex")
 
 if __name__ == "__main__":
-	main()
+    main()
 ```
 
 ------
@@ -1250,56 +1272,56 @@ SYSTEM_PROMPT = "You are an expert..." * 300  # Ensure >1024 tokens
 
 # Round 1
 resp1 = client.responses.create(
-		model="gpt-5",
-		input=[
-				{"role": "system", "content": SYSTEM_PROMPT},
-				{"role": "user", "content": "Question"}
-		],
-		tools=TOOLS,
-		store=True,
-		reasoning={"effort": "high", "summary": "detailed"},
-		parallel_tool_calls=False
+        model="gpt-5",
+        input=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": "Question"}
+        ],
+        tools=TOOLS,
+        store=True,
+        reasoning={"effort": "high", "summary": "detailed"},
+        parallel_tool_calls=False
 )
 
 # Round 2 (reuse reasoning + hit cache)
 resp2 = client.responses.create(
-		model="gpt-5",
-		input=[
-				{"role": "system", "content": SYSTEM_PROMPT},
-				{"role": "user", "content": "Follow-up"}
-		],
-		previous_response_id=resp1.id,
-		tools=TOOLS,
-		store=True,
-		reasoning={"effort": "high", "summary": "detailed"},
-		parallel_tool_calls=False
+        model="gpt-5",
+        input=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": "Follow-up"}
+        ],
+        previous_response_id=resp1.id,
+        tools=TOOLS,
+        store=True,
+        reasoning={"effort": "high", "summary": "detailed"},
+        parallel_tool_calls=False
 )
 ```
 
 #### **2. Compliance (Stateless) Encrypted Reuse**
 ```python
 resp1 = client.responses.create(
-		model="gpt-5",
-		input=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": "Question"}],
-		store=False,
-		include=["reasoning.encrypted_content"],
-		reasoning={"effort": "high", "summary": "detailed"}
+        model="gpt-5",
+        input=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": "Question"}],
+        store=False,
+        include=["reasoning.encrypted_content"],
+        reasoning={"effort": "high", "summary": "detailed"}
 )
 
 encrypted_blob = resp1.output  # persist locally
 
 context = [
-		{"role": "system", "content": SYSTEM_PROMPT},
-		{"role": "user", "content": "Follow-up"},
-		*encrypted_blob
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": "Follow-up"},
+        *encrypted_blob
 ]
 
 resp2 = client.responses.create(
-		model="gpt-5",
-		input=context,
-		store=False,
-		include=["reasoning.encrypted_content"],
-		reasoning={"effort": "high", "summary": "detailed"}
+        model="gpt-5",
+        input=context,
+        store=False,
+        include=["reasoning.encrypted_content"],
+        reasoning={"effort": "high", "summary": "detailed"}
 )
 ```
 
