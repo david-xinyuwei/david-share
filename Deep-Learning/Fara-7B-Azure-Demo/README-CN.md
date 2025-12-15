@@ -104,6 +104,8 @@ FaraAgent
 | 内存 | 64GB | 128GB |
 
 > ⚠️ A10 (24GB) 显存不足，无法运行 Fara-7B
+
+
 https://github.com/user-attachments/assets/90e8acc2-d8db-447e-8e30-cb2b157229cd
 
 https://github.com/user-attachments/assets/d7041c81-b2e4-4413-980e-428135f8f62c
@@ -455,4 +457,5 @@ Magentic-UI 的 "Learn Plan" 可从任务执行中提取可复用的工作流。
 ---
 
 *验证日期: 2025-11-27 | HITL 验证: 2025-12-12 | 验证者: Microsoft GBB AI Architect*
+
 
