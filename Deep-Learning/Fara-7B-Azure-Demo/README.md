@@ -105,6 +105,11 @@ FaraAgent
 
 > ⚠️ A10 (24GB) has insufficient VRAM for Fara-7B
 
+
+https://github.com/user-attachments/assets/90e8acc2-d8db-447e-8e30-cb2b157229cd
+
+https://github.com/user-attachments/assets/d7041c81-b2e4-4413-980e-428135f8f62c
+
 ## 🚀 Quick Deployment
 
 ### 1. Environment Setup
@@ -452,3 +457,4 @@ This project code is under MIT License. Fara-7B model is also under MIT License.
 ---
 
 *Validation Date: 2025-11-27 | HITL Validation: 2025-12-12 | Validated by: Microsoft GBB AI Architect*
+
