@@ -1,6 +1,8 @@
 # Azure NC RTX Pro 6000 V6 BSE 完整对比测试报告
 
-> 全面对比NC RTX 6000 Pro Blackwell /NC H100 NVL /NC A100 PCIe /NV A10 四款 GPU（所有测试基于相同数据类型完成）
+> 全面对比NC RTX 6000 Pro Blackwell /NC H100 NVL /NC A100 PCIe /NV A10 四款 GPU
+>
+> For fairness, each test is performed using the same data type across all four GPUs.
 
 ---
 
