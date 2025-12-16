@@ -1,0 +1,9 @@
+# FlashInfer vs FlashAttention Benchmark Requirements
+# Tested on CUDA 12.4, Python 3.10
+
+torch==2.4.0
+flash-attn==2.8.3
+flashinfer-python>=0.5.3
+
+# For development
+numpy
