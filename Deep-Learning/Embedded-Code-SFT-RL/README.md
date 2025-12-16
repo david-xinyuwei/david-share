@@ -383,3 +383,90 @@ MIT License
 ---
 
 *Last Updated: 2025-12-16*
+
+---
+
+## 📖 附录：SFT 调参最佳实践
+
+> 本节总结了通过 **7 轮参数优化** 将模型准确率从 0% 提升到 100% 的经验。
+
+### 常见问题诊断
+
+| 症状 | 原因 | 解决方案 |
+|------|------|----------|
+| 训练后回答完全无关 | 数据集太小 / 格式错误 | 检查数据格式，扩充数据集 |
+| Validation loss 下降太慢 | 过拟合 | 增加 dropout、扩充数据 |
+| 训练正常但答案错误 | 模型没学到知识 | 添加 CoT、改用英文语料 |
+| 同一问题答案不一致 | 采样随机性 | 推理时设 `temperature=0` |
+
+### 7 轮调参经验
+
+| 轮次 | 调整内容 | 效果 |
+|------|----------|------|
+| 1 | 基础训练 | ❌ 回答完全无关 |
+| 2 | `lora_dropout=0.05`, epochs 30→100 | ❌ 仍过拟合 |
+| 3 | 数据集 30→3000 条，train/val=0.7/0.3 | ⚠️ 过拟合解决，但答案仍错 |
+| 4 | 添加 **Chain of Thought (CoT)**，改全英文语料 | ⚠️ 50% 准确率 |
+| 5 | **数据增强**：随机插入/交换/删除/回译 | ⚠️ 准确率 +10% |
+| 6 | LoRA → **Full Fine-tuning** | ⚠️ 大幅提升，但答案不稳定 |
+| 7 | `learning_rate=5e-4`, 推理 `temperature=0` | ✅ 100% 准确率 |
+
+### 关键参数设置
+
+```python
+# 训练参数
+training_args = TrainingArguments(
+    num_train_epochs=100,
+    learning_rate=5e-4,           # 比默认 5e-5 高 10 倍
+    gradient_accumulation_steps=32,
+    per_device_train_batch_size=1,
+    warmup_steps=100,
+    eval_strategy="steps",
+    eval_steps=25,
+)
+
+# 推理参数 - 确保答案一致性
+output = model.generate(
+    inputs,
+    do_sample=False,              # 禁用随机采样
+    temperature=0.0,              # 最确定性的生成
+    max_new_tokens=512,
+)
+```
+
+### 数据增强技巧
+
+为单条知识生成多条训练数据：
+
+| 方法 | 说明 | 示例 |
+|------|------|------|
+| **随机插入** | 在句子中插入无关词 | "初始化 GPIO" → "初始化 **端口** GPIO" |
+| **随机交换** | 交换相邻词顺序 | "配置 UART 波特率" → "配置 波特率 UART" |
+| **随机删除** | 删除非关键词 | "请初始化一个 GPIO 引脚" → "初始化 GPIO 引脚" |
+| **回译** | 中→英→中 | "初始化串口" → "Initialize serial" → "初始化串行端口" |
+
+### CoT (Chain of Thought) 示例
+
+```
+Prompt: How to initialize UART for .NET Framework?
+
+Completion:
+**Step-by-Step Analysis:**
+1. **Define Purpose**: Initialize UART peripheral for serial communication
+2. **Code Structure**: Import HAL namespace, configure baud rate
+3. **Key Parameters**: Baud=115200, WordLength=8, StopBits=1
+
+**Code Sample**:
+void UART_Init() {
+    huart1.Instance = USART1;
+    huart1.Init.BaudRate = 115200;
+    HAL_UART_Init(&huart1);
+}
+```
+
+### 核心教训
+
+1. **数据量 > 参数调优**：从 30 条扩到 3000 条是关键转折点
+2. **CoT 对代码生成有效**：让模型先分析再写代码
+3. **Full Fine-tuning > LoRA**：复杂任务需要更大调整幅度
+4. **推理参数很重要**：`temperature=0` 确保输出稳定

@@ -384,3 +384,90 @@ MIT License
 ---
 
 *Last Updated: 2025-12-16*
+
+---
+
+## �� Appendix: SFT Tuning Best Practices
+
+> This section summarizes experience from **7 rounds of parameter optimization** that improved model accuracy from 0% to 100%.
+
+### Common Problem Diagnosis
+
+| Symptom | Cause | Solution |
+|---------|-------|----------|
+| Completely irrelevant answers after training | Dataset too small / format error | Check data format, expand dataset |
+| Validation loss decreasing too slowly | Overfitting | Increase dropout, expand data |
+| Training normal but answers wrong | Model didn't learn knowledge | Add CoT, use English corpus |
+| Inconsistent answers for same question | Sampling randomness | Set `temperature=0` during inference |
+
+### 7 Rounds of Tuning Experience
+
+| Round | Adjustment | Result |
+|-------|------------|--------|
+| 1 | Baseline training | ❌ Completely irrelevant answers |
+| 2 | `lora_dropout=0.05`, epochs 30→100 | ❌ Still overfitting |
+| 3 | Dataset 30→3000 samples, train/val=0.7/0.3 | ⚠️ Overfitting solved, but answers still wrong |
+| 4 | Added **Chain of Thought (CoT)**, switched to English corpus | ⚠️ 50% accuracy |
+| 5 | **Data augmentation**: random insert/swap/delete/back-translation | ⚠️ Accuracy +10% |
+| 6 | LoRA → **Full Fine-tuning** | ⚠️ Big improvement, but unstable answers |
+| 7 | `learning_rate=5e-4`, inference `temperature=0` | ✅ 100% accuracy |
+
+### Key Parameter Settings
+
+```python
+# Training parameters
+training_args = TrainingArguments(
+    num_train_epochs=100,
+    learning_rate=5e-4,           # 10x higher than default 5e-5
+    gradient_accumulation_steps=32,
+    per_device_train_batch_size=1,
+    warmup_steps=100,
+    eval_strategy="steps",
+    eval_steps=25,
+)
+
+# Inference parameters - ensure answer consistency
+output = model.generate(
+    inputs,
+    do_sample=False,              # Disable random sampling
+    temperature=0.0,              # Most deterministic generation
+    max_new_tokens=512,
+)
+```
+
+### Data Augmentation Techniques
+
+Generate multiple training samples from single knowledge:
+
+| Method | Description | Example |
+|--------|-------------|---------|
+| **Random Insert** | Insert unrelated words | "Initialize GPIO" → "Initialize **port** GPIO" |
+| **Random Swap** | Swap adjacent words | "Configure UART baud" → "Configure baud UART" |
+| **Random Delete** | Remove non-critical words | "Please initialize a GPIO pin" → "Initialize GPIO pin" |
+| **Back-translation** | EN→CN→EN | "Initialize serial" → "初始化串口" → "Initialize serial port" |
+
+### CoT (Chain of Thought) Example
+
+```
+Prompt: How to initialize UART for .NET Framework?
+
+Completion:
+**Step-by-Step Analysis:**
+1. **Define Purpose**: Initialize UART peripheral for serial communication
+2. **Code Structure**: Import HAL namespace, configure baud rate
+3. **Key Parameters**: Baud=115200, WordLength=8, StopBits=1
+
+**Code Sample**:
+void UART_Init() {
+    huart1.Instance = USART1;
+    huart1.Init.BaudRate = 115200;
+    HAL_UART_Init(&huart1);
+}
+```
+
+### Key Lessons
+
+1. **Data quantity > parameter tuning**: Expanding from 30 to 3000 samples was the turning point
+2. **CoT works for code generation**: Let model analyze before writing code
+3. **Full Fine-tuning > LoRA**: Complex tasks need larger adjustment capacity
+4. **Inference parameters matter**: `temperature=0` ensures stable output
