@@ -1,0 +1,243 @@
+# H100 vs A100 FP8 推理性能对比
+
+> 证明 H100 原生 FP8 Tensor Core 在 compute-bound 场景下的加速优势
+
+## 🎯 概述
+
+本测试对比 **H100 原生 FP8 Tensor Core** 与 **A100 Marlin 内核 (weight-only FP8)** 在不同负载模式下的表现。核心发现：**H100 FP8 在 compute-bound 场景下实现 41% 加速，优于 A100 的 29%**。
+
+### 核心结果
+
+| 场景 | H100 FP8 加速 | A100 FP8 加速 | 胜出 |
+|------|---------------|---------------|------|
+| Memory-bound (单请求 Prefill) | +30% | +54% | A100 |
+| **Compute-bound (50 并发)** | **+41%** | +29% | **H100** |
+| **H100 强制 Marlin** | **-44%** | N/A | ❌ 比 BF16 更慢 |
+
+---
+
+## 🧠 技术架构
+
+### FP8 实现差异
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  H100: 原生 FP8 Tensor Core (W8A8)                           │
+│  ┌─────────┐    ┌──────────────┐    ┌─────────┐             │
+│  │ 权重    │ -> │ FP8 Tensor   │ -> │ 输出    │             │
+│  │ (FP8)   │    │ Core GEMM    │    │ (BF16)  │             │
+│  └─────────┘    └──────────────┘    └─────────┘             │
+│  ✓ 真正的低精度计算 (W8A8)                                    │
+│  ✓ 算力翻倍: FP8 TFLOPS > BF16 TFLOPS                        │
+├──────────────────────────────────────────────────────────────┤
+│  A100: Marlin 内核 (Weight-Only FP8 动态反量化)               │
+│  ┌─────────┐    ┌──────────────┐    ┌─────────┐             │
+│  │ 权重    │ -> │ 动态反量化 + │ -> │ 输出    │             │
+│  │ (FP8)   │    │ BF16 GEMM    │    │ (BF16)  │             │
+│  └─────────┘    └──────────────┘    └─────────┘             │
+│  ✓ 仅节省显存带宽，计算仍是 BF16                              │
+│  ✗ A100 没有 FP8 Tensor Core 硬件                            │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### 关键概念: 动态反量化 (Dynamic Dequantization)
+
+**Marlin** 是 IST-DASLab 开发的高性能 CUDA kernel，核心做的是**动态反量化**：
+
+```
+存储阶段: FP8 权重 (压缩态，节省显存带宽)
+    ↓
+运行时: 动态反量化 → BF16 (on-the-fly)
+    ↓
+计算阶段: BF16 GEMM (不是 FP8 计算!)
+```
+
+| 术语 | 含义 | Marlin 的角色 |
+|------|------|---------------|
+| 动态量化 | 推理时把激活值 高精度→低精度 | ❌ 不是这个 |
+| **动态反量化** | 推理时把权重 低精度→高精度 | ✅ 正是这个 |
+| Weight-only | 只压缩权重，激活保持高精度 | ✅ 也是这个 |
+
+### 为什么结果不同？
+
+| 瓶颈类型 | H100 优势 | A100 优势 |
+|----------|-----------|-----------|
+| Memory-bound | - | Marlin 节省 50% 带宽 |
+| Compute-bound | 原生 FP8 算力翻倍 | - |
+
+---
+
+## 🚀 快速开始
+
+### 环境要求
+
+| 依赖 | 版本 |
+|------|------|
+| vLLM | ≥ 0.12.0 |
+| CUDA | ≥ 12.0 |
+| GPU | H100 或 A100 |
+
+### 运行测试
+
+```bash
+# 克隆仓库
+git clone https://github.com/xinyuwei/H100-A100-FP8-Benchmark.git
+cd H100-A100-FP8-Benchmark
+
+# 启动 vLLM 服务 (BF16 基准)
+vllm serve Qwen/Qwen2.5-14B-Instruct --port 8080 --max-model-len 4096
+
+# 运行测试
+python benchmark.py --mode prefill   # 单请求 prefill
+python benchmark.py --mode decode    # 50 并发 decode
+
+# 重启为 FP8 模式
+pkill -f vllm
+vllm serve Qwen/Qwen2.5-14B-Instruct --port 8080 --max-model-len 4096 --quantization fp8
+
+# 再次运行测试
+python benchmark.py --mode prefill
+python benchmark.py --mode decode
+```
+
+---
+
+## 📊 详细结果
+
+### 测试环境
+
+| 配置 | H100 | A100 |
+|------|------|------|
+| GPU 型号 | NVIDIA H100 NVL 96GB | NVIDIA A100 80GB |
+| 驱动版本 | 570.195.03 | 535.x |
+| vLLM 版本 | 0.1.dev (源码编译) | 0.12.0 |
+| 测试模型 | Qwen/Qwen2.5-14B-Instruct | 相同 |
+
+### 场景1: Memory-Bound (~4K Token Prefill)
+
+| GPU | BF16 | FP8 | 加速比 |
+|-----|------|-----|--------|
+| H100 (原生 FP8) | 14,157 tok/s | 18,392 tok/s | 1.30x |
+| H100 (强制 Marlin) | 14,157 tok/s | 7,936 tok/s | **0.56x** |
+| A100 | 2,759 tok/s | 4,253 tok/s | 1.54x |
+
+### 场景2: Compute-Bound (50 并发 Decode) ⭐
+
+| GPU | BF16 | FP8 | 加速比 |
+|-----|------|-----|--------|
+| **H100** | 2,901 tok/s | **4,094 tok/s** | **1.41x** |
+| A100 | 1,683 tok/s | 2,169 tok/s | 1.29x |
+
+### 绝对性能对比
+
+| 指标 | H100 FP8 | A100 FP8 | H100/A100 |
+|------|----------|----------|-----------|
+| Prefill | 18,392 tok/s | 4,253 tok/s | **4.3x** |
+| Decode | 4,094 tok/s | 2,169 tok/s | **1.9x** |
+
+---
+
+## 🔬 NVIDIA 官方量化推荐
+
+### 按 GPU 架构的官方推荐
+
+| GPU 架构 | 推荐量化方式 | 说明 |
+|----------|-------------|------|
+| **Blackwell (B100/B200)** | NVFP4 | 最新 4-bit 浮点格式 |
+| **Hopper (H100/H200)** | **FP8 (W8A8)** | 原生 FP8 Tensor Core |
+| **Ampere (A100/A10)** | INT8 SmoothQuant | A100 没有 FP8 硬件! |
+| 通用/旧卡 | INT4 Weight-Only | 节省显存 |
+
+> ⚠️ **重要**: NVIDIA 官方 TensorRT-LLM 文档明确标注 "FP8 (Hopper)"，A100 上的 FP8 不是官方推荐方案。
+
+### A100 的官方量化选项
+
+| 方案 | 精度 | 计算方式 | 官方支持 |
+|------|------|----------|----------|
+| INT8 SmoothQuant | W8A8 | INT8 Tensor Core | ✅ 推荐 |
+| INT8 Weight-Only | W8A16 | BF16 GEMM | ✅ 支持 |
+| INT4 Weight-Only | W4A16 | BF16 GEMM | ✅ 支持 |
+| GPTQ/AWQ | W4A16 | BF16 GEMM | ✅ 支持 |
+| **FP8** | W8A8 | - | ❌ **仅 Hopper+** |
+
+### vLLM 的 A100 FP8 实现 (非官方)
+
+```
+vLLM A100 + --quantization fp8 = Marlin kernel 实现的 FP8 动态反量化
+
+这是社区方案，不是 NVIDIA 官方推荐:
+- 用 Marlin 做 FP8 → BF16 反量化
+- 计算还是 BF16 GEMM
+- 在 memory-bound 场景有效
+```
+
+### 动态反量化 vs 静态量化
+
+| 类型 | 代表 | 权重来源 | 量化时机 | 特点 |
+|------|------|----------|----------|------|
+| **动态反量化** | Marlin FP8 | 原始 BF16 模型 | 推理时动态转换 | 无需预处理，开箱即用 |
+| **静态量化** | GPTQ, AWQ | 预量化模型 | 离线校准后固定 | 需下载专门的量化版模型 |
+
+### 类似 Marlin 的动态反量化技术
+
+| 技术 | 来源 | 支持精度 | 特点 |
+|------|------|----------|------|
+| **Marlin** | IST-DASLab | FP8, INT4 | 最快之一，vLLM 默认 |
+| ExLlamaV2 | turboderp | INT4 (GPTQ) | 消费级 GPU 优化 |
+| bitsandbytes | Tim Dettmers | INT8, INT4 | 简单易用 |
+| TensorRT-LLM | NVIDIA | FP8, INT8, INT4 | 官方极致优化 |
+
+---
+
+## ⚠️ 踩坑记录
+
+### 问题1: H100 强制 Marlin 比 BF16 慢 44%
+- **原因**: Marlin 需要 dequant 开销，且无法使用原生 FP8 Tensor Core
+- **解决**: 不要在 H100 上强制 Marlin，让 vLLM 自动选择原生 FP8
+- **如何强制 (仅测试)**: `export VLLM_TEST_FORCE_FP8_MARLIN=1`
+
+### 问题2: 预量化 FP8 模型显示 A100 加速比更高
+- **原因**: 预量化 FP8 (compressed-tensors) 使用 weight-only 压缩，H100 不走原生 FP8 Tensor Core
+- **解决**: 使用 `--quantization fp8` 动态量化触发原生 FP8
+
+### 问题3: Prefix cache 导致结果不准
+- **原因**: vLLM 默认开启 prefix caching，重复 prompt 命中缓存
+- **解决**: 每个请求使用随机前缀
+
+### 问题4: H100 FP8 加速比低于 A100
+- **原因**: 测试的是 memory-bound 场景，Marlin 的带宽节省更有效
+- **解决**: 测试 compute-bound 场景（高并发、长 context）
+
+---
+
+## 💡 选型建议
+
+| 使用场景 | 推荐方案 | 理由 |
+|----------|----------|------|
+| 高并发服务 (>50 QPS) | H100 + FP8 | Compute-bound，原生 FP8 优势明显 |
+| 长 context (32K+) | H100 + FP8 | Attention O(n²)，compute-bound |
+| 低并发场景 | 两者均可 + FP8 | 都能从 FP8 受益 |
+| 成本敏感 | A100 + FP8 | 性价比高 |
+
+---
+
+## 📚 参考资料
+
+### 官方文档
+- [NVIDIA TensorRT-LLM 量化指南](https://nvidia.github.io/TensorRT-LLM/reference/precision.html) - 官方量化推荐
+- [NVIDIA Transformer Engine FP8 指南](https://docs.nvidia.com/deeplearning/transformer-engine/user-guide/examples/fp8_primer.html)
+- [vLLM FP8 量化文档](https://docs.vllm.ai/en/latest/quantization/fp8.html)
+
+### 硬件架构
+- [NVIDIA H100 Tensor Core GPU](https://www.nvidia.com/en-us/data-center/h100/)
+- [NVIDIA A100 Tensor Core GPU](https://www.nvidia.com/en-us/data-center/a100/)
+
+### 量化技术
+- [Marlin: 混合精度 LLM 内核](https://github.com/IST-DASLab/marlin) - 动态反量化 kernel
+- [SmoothQuant 论文](https://arxiv.org/abs/2211.10438) - INT8 W8A8 量化
+- [GPTQ 论文](https://arxiv.org/abs/2210.17323) - INT4 权重量化
+- [AWQ 论文](https://arxiv.org/abs/2306.00978) - 激活感知量化
+
+---
+
+*作者: 魏新宇 (Microsoft GBB AI Architect) | 验证日期: 2025-12-18*
