@@ -1,6 +1,6 @@
-# H100 vs A100 FP8 推理性能对比
+# FP8 Validation On 3 GPUs
 
-> 证明 H100 原生 FP8 Tensor Core 在 compute-bound 场景下的加速优势
+> 跨 GPU 架构的 FP8 推理性能验证：H100、A100 和 RTX PRO 6000
 
 ## 🎯 概述
 
@@ -221,6 +221,88 @@ vLLM A100 + --quantization fp8 = Marlin kernel 实现的 FP8 动态反量化
 
 ---
 
+## �� RTX PRO 6000 (Blackwell) SGLang 测试
+
+> 测试日期: 2025-12-19 | 框架: SGLang 0.5.6 + FlashInfer 0.5.3
+
+### 测试环境
+
+| 配置 | 值 |
+|------|-----|
+| GPU | NVIDIA RTX PRO 6000 48GB vGPU (Blackwell) |
+| VM SKU | Azure NC RTX PRO 6000 |
+| 驱动 | 580.105.08 (vGPU R580) |
+| CUDA | 13.0 |
+| 框架 | SGLang 0.5.6.post2 |
+| FlashInfer | 0.5.3 |
+
+### 测试模型
+
+| 模型 | 精度 | 大小 |
+|------|------|------|
+| Qwen/Qwen2.5-14B-Instruct | BF16 | ~28GB |
+| RedHatAI/Qwen2.5-14B-Instruct-FP8-dynamic | FP8 | ~15GB |
+
+### 测试命令
+
+```bash
+# 启动 SGLang 服务 (最优配置)
+python -m sglang.launch_server \
+    --model-path RedHatAI/Qwen2.5-14B-Instruct-FP8-dynamic \
+    --attention-backend triton \
+    --kv-cache-dtype fp8_e5m2 \
+    --tp 1 --port 30000
+
+# 运行测试
+python -m sglang.bench_serving --backend sglang \
+    --num-prompts 200 --random-input-len 512 --random-output-len 128 \
+    --random-range-ratio 0.0 --host 127.0.0.1 --port 30000
+```
+
+### 配置矩阵测试结果
+
+| # | 模型 | Attention Backend | KV Cache | Output tok/s | 相对基准 |
+|---|------|-------------------|----------|-------------:|:--------:|
+| 1 | BF16 | FlashInfer | auto | 1,579.49 | baseline |
+| 2 | BF16 | Triton | auto | 1,584.47 | +0.3% |
+| 3 | BF16 | FlashInfer | fp8_e5m2 | 1,622.54 | +2.7% |
+| 4 | BF16 | Triton | fp8_e5m2 | 1,618.93 | +2.5% |
+| 5 | FP8 | FlashInfer | auto | 2,257.79 | +42.9% |
+| 6 | FP8 | Triton | auto | 2,262.62 | +43.3% |
+| 7 | FP8 | FlashInfer | fp8_e5m2 | 2,337.92 | +48.0% |
+| 8 | **FP8** | **Triton** | **fp8_e5m2** | **2,352.61** | **+49.0%** 🏆 |
+
+### 核心发现
+
+| 因素 | 性能影响 |
+|------|----------|
+| **FP8 预量化模型** | **+43%** (最显著!) |
+| KV Cache FP8 | +2-4% |
+| FlashInfer vs Triton | <1% (Blackwell 上几乎无差异) |
+
+### RTX PRO 6000 vs H100 vs A100 汇总
+
+| GPU | 架构 | FP8 支持 | 框架 | BF16 tok/s | FP8 tok/s | 加速比 |
+|-----|------|----------|------|------------|-----------|--------|
+| **H100** | Hopper | ✅ 原生 | vLLM | 2,901 | 4,094 | **+41%** |
+| **RTX PRO 6000** | Blackwell | ✅ 原生 | SGLang | 1,579 | 2,353 | **+49%** |
+| A100 | Ampere | ❌ Marlin | vLLM | 1,683 | 2,169 | +29% |
+
+> ⚠️ 注意: H100/A100 使用 vLLM 测试，RTX PRO 6000 使用 SGLang 测试。直接对比需考虑框架差异。
+
+### RTX PRO 6000 最佳实践
+
+```bash
+# 🏆 RTX PRO 6000 最优配置 (2,353 tok/s)
+python -m sglang.launch_server \
+    --model-path RedHatAI/Qwen2.5-14B-Instruct-FP8-dynamic \
+    --attention-backend triton \
+    --kv-cache-dtype fp8_e5m2 \
+    --tp 1
+```
+
+---
+
 ## 📚 参考资料
 
 ### 官方文档
@@ -240,4 +322,4 @@ vLLM A100 + --quantization fp8 = Marlin kernel 实现的 FP8 动态反量化
 
 ---
 
-*作者: 魏新宇 (Microsoft GBB AI Architect) | 验证日期: 2025-12-18*
+*作者: 魏新宇 (Microsoft AI and Apps GBB Architect) | 验证日期: 2025-12-19*

@@ -1,6 +1,6 @@
-# H100 vs A100 FP8 Inference Benchmark
+# FP8 Validation On 3 GPUs
 
-> Proving H100's native FP8 Tensor Core advantage in compute-bound scenarios
+> Validating FP8 inference performance across GPU architectures: H100, A100, and RTX PRO 6000
 
 ## 🎯 Overview
 
@@ -221,6 +221,88 @@ This is a community solution, NOT NVIDIA official:
 
 ---
 
+## 🆕 RTX PRO 6000 (Blackwell) Benchmark with SGLang
+
+> Test Date: 2025-12-19 | Framework: SGLang 0.5.6 + FlashInfer 0.5.3
+
+### Test Environment
+
+| Config | Value |
+|--------|-------|
+| GPU | NVIDIA RTX PRO 6000 48GB vGPU (Blackwell) |
+| VM SKU | Azure NC RTX PRO 6000 |
+| Driver | 580.105.08 (vGPU R580) |
+| CUDA | 13.0 |
+| Framework | SGLang 0.5.6.post2 |
+| FlashInfer | 0.5.3 |
+
+### Test Models
+
+| Model | Precision | Size |
+|-------|-----------|------|
+| Qwen/Qwen2.5-14B-Instruct | BF16 | ~28GB |
+| RedHatAI/Qwen2.5-14B-Instruct-FP8-dynamic | FP8 | ~15GB |
+
+### Test Command
+
+```bash
+# Start SGLang server (best config)
+python -m sglang.launch_server \
+    --model-path RedHatAI/Qwen2.5-14B-Instruct-FP8-dynamic \
+    --attention-backend triton \
+    --kv-cache-dtype fp8_e5m2 \
+    --tp 1 --port 30000
+
+# Run benchmark
+python -m sglang.bench_serving --backend sglang \
+    --num-prompts 200 --random-input-len 512 --random-output-len 128 \
+    --random-range-ratio 0.0 --host 127.0.0.1 --port 30000
+```
+
+### Configuration Matrix Results
+
+| # | Model | Attention Backend | KV Cache | Output tok/s | vs Baseline |
+|---|-------|-------------------|----------|-------------:|:-----------:|
+| 1 | BF16 | FlashInfer | auto | 1,579.49 | baseline |
+| 2 | BF16 | Triton | auto | 1,584.47 | +0.3% |
+| 3 | BF16 | FlashInfer | fp8_e5m2 | 1,622.54 | +2.7% |
+| 4 | BF16 | Triton | fp8_e5m2 | 1,618.93 | +2.5% |
+| 5 | FP8 | FlashInfer | auto | 2,257.79 | +42.9% |
+| 6 | FP8 | Triton | auto | 2,262.62 | +43.3% |
+| 7 | FP8 | FlashInfer | fp8_e5m2 | 2,337.92 | +48.0% |
+| 8 | **FP8** | **Triton** | **fp8_e5m2** | **2,352.61** | **+49.0%** 🏆 |
+
+### Key Findings
+
+| Factor | Performance Impact |
+|--------|-------------------|
+| **FP8 Pre-quantized Model** | **+43%** (most significant!) |
+| KV Cache FP8 | +2-4% |
+| FlashInfer vs Triton | <1% (negligible on Blackwell) |
+
+### RTX PRO 6000 vs H100 vs A100 Summary
+
+| GPU | Architecture | FP8 Support | Framework | BF16 tok/s | FP8 tok/s | Speedup |
+|-----|--------------|-------------|-----------|------------|-----------|---------|
+| **H100** | Hopper | ✅ Native | vLLM | 2,901 | 4,094 | **+41%** |
+| **RTX PRO 6000** | Blackwell | ✅ Native | SGLang | 1,579 | 2,353 | **+49%** |
+| A100 | Ampere | ❌ Marlin | vLLM | 1,683 | 2,169 | +29% |
+
+> ⚠️ Note: H100/A100 tested with vLLM, RTX PRO 6000 with SGLang. Direct comparison should consider framework differences.
+
+### RTX PRO 6000 Best Practice
+
+```bash
+# 🏆 Optimal config for RTX PRO 6000 (2,353 tok/s)
+python -m sglang.launch_server \
+    --model-path RedHatAI/Qwen2.5-14B-Instruct-FP8-dynamic \
+    --attention-backend triton \
+    --kv-cache-dtype fp8_e5m2 \
+    --tp 1
+```
+
+---
+
 ## 📚 References
 
 ### Official Documentation
@@ -240,4 +322,4 @@ This is a community solution, NOT NVIDIA official:
 
 ---
 
-*Author: Xinyu Wei (Microsoft GBB AI Architect) | Verified: 2025-12-18*
+*Author: Xinyu Wei (Microsoft AI and Apps GBB Architect) | Verified: 2025-12-19*
