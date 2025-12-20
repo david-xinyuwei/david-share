@@ -66,63 +66,137 @@ Compute: BF16 GEMM (NOT FP8 compute!)
 | Compute-bound | Native FP8 doubles FLOPS | - |
 
 ---
-## 🔧 FP8 Inference Deep Dive: Two Backend Types
+## 🔧 FP8 Inference Deep Dive: Components and Backends
 
-### FP8 Inference Has THREE Independently Controllable Components
+### Transformer Self-Attention: Where GEMM and Attention Happen
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        FP8 Inference Pipeline                    │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────────────┐ │
-│  │   Weight    │    │  Activation │    │      KV Cache       │ │
-│  │  (模型权重)  │    │ (运行时激活) │    │    (键值缓存)       │ │
-│  └──────┬──────┘    └──────┬──────┘    └──────────┬──────────┘ │
-│         │                  │                      │             │
-│         ▼                  ▼                      ▼             │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────────────┐ │
-│  │ Pre-quant   │    │--quantization│   │ --kv-cache-dtype    │ │
-│  │ model file  │    │    fp8      │    │    fp8_e5m2         │ │
-│  │ or --dtype  │    │  (NOT rec!) │    │ (recommended)       │ │
-│  └─────────────┘    └─────────────┘    └─────────────────────┘ │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-| Component | What It Is | When Decided | How to Control |
-|-----------|------------|--------------|----------------|
-| **Weight** | Model weight precision | Model file (pre-quantized) | Use FP8 model from HuggingFace |
-| **Activation** | Runtime activation precision | Runtime | `--quantization fp8` (⚠️ causes OOM!) |
-| **KV Cache** | Attention cache precision | Runtime | `--kv-cache-dtype fp8_e5m2` ✅ |
-
-> ⚠️ **Critical Lesson**: Runtime quantization (`--quantization fp8`) causes OOM and high error rate. Always use **pre-quantized FP8 models**!
-
-### Two Types of Backends: Attention vs GEMM
-
-```
-┌────────────────────────────────────────────────────────────────┐
-│                    Transformer Layer Compute Flow               │
-├────────────────────────────────────────────────────────────────┤
-│                                                                │
-│  Input ──► [Linear Q/K/V] ──► [Attention] ──► [Linear O] ──► Out
-│                 │                  │                │          │
-│                 ▼                  ▼                ▼          │
-│           ┌─────────┐        ┌─────────┐      ┌─────────┐     │
-│           │  GEMM   │        │Attention│      │  GEMM   │     │
-│           │ Backend │        │ Backend │      │ Backend │     │
-│           └─────────┘        └─────────┘      └─────────┘     │
-│                                                                │
-│  Weight × Activation       Q × K^T + softmax     Weight × Act │
-│  (Matrix multiplication)       + V retrieval    (Matrix mult) │
-│                                                                │
-└────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph INPUT["Input X"]
+        X["X [batch, seq_len, hidden_dim]"]
+    end
+    
+    subgraph GEMM_QKV["① GEMM Backend (Linear Layers)"]
+        Q_proj["Q = X × W_q^T"]
+        K_proj["K = X × W_k^T"]
+        V_proj["V = X × W_v^T"]
+    end
+    
+    subgraph KV_CACHE["KV Cache Storage"]
+        KC["K Cache"]
+        VC["V Cache"]
+    end
+    
+    subgraph ATTENTION["② Attention Backend (FlashInfer/Triton)"]
+        ATT1["Scores = Q × K^T / √d"]
+        ATT2["Weights = softmax(Scores)"]
+        ATT3["Output = Weights × V"]
+    end
+    
+    subgraph GEMM_O["① GEMM Backend (Output Projection)"]
+        O_proj["Final = Attn_Out × W_o^T"]
+    end
+    
+    X --> Q_proj & K_proj & V_proj
+    K_proj --> KC
+    V_proj --> VC
+    Q_proj --> ATT1
+    KC --> ATT1
+    ATT1 --> ATT2 --> ATT3
+    VC --> ATT3
+    ATT3 --> O_proj
+    
+    style GEMM_QKV fill:#e1f5fe
+    style GEMM_O fill:#e1f5fe
+    style ATTENTION fill:#fff3e0
+    style KV_CACHE fill:#f3e5f5
 ```
 
-| Backend Type | What It Computes | Precision Sensitivity | Implementations |
-|--------------|------------------|----------------------|-----------------|
-| **GEMM Backend** | Weight × Activation | Medium | cuBLAS, CUTLASS |
-| **Attention Backend** | Q×K^T, softmax, ×V | High | FlashInfer, FlashAttention, Triton |
+### What Is GEMM? (General Matrix Multiply)
+
+**GEMM = Weight × Activation (矩阵乘法)**
+
+In a Linear layer: `Output = Input × Weight^T + Bias`
+
+```
+Example (Qwen2.5-14B, hidden_dim=5120):
+
+Input (Activation): [1, 512, 5120]     ← 1 sample, 512 tokens
+      ×
+Weight:             [5120, 5120]^T     ← W_q (or W_k, W_v, W_o)
+      =
+Output:             [1, 512, 5120]     ← becomes Q (or K, V)
+```
+
+| Term | Meaning | Examples in Transformer |
+|------|---------|------------------------|
+| **Weight** | Model parameters | W_q, W_k, W_v, W_o, FFN weights |
+| **Activation** | Input/intermediate values | X, Q, K, V, attention output |
+| **GEMM** | Weight × Activation | Q=X×W_q, K=X×W_k, V=X×W_v |
+
+### Three Independently Controllable FP8 Components
+
+```mermaid
+flowchart LR
+    subgraph WEIGHT["① Weight Precision"]
+        W1["Use pre-quantized FP8 model"]
+        W2["from HuggingFace ✅"]
+    end
+    
+    subgraph ACT["② Activation Precision"]
+        A1["--quantization fp8"]
+        A2["⚠️ Causes OOM!"]
+    end
+    
+    subgraph KV["③ KV Cache Precision"]
+        K1["--kv-cache-dtype fp8_e5m2"]
+        K2["✅ Recommended"]
+    end
+    
+    WEIGHT --> GEMM["GEMM Backend"]
+    ACT --> GEMM
+    KV --> ATT["Attention Backend"]
+    
+    style ACT fill:#ffcdd2
+    style KV fill:#c8e6c9
+    style WEIGHT fill:#c8e6c9
+```
+
+| Component | What It Is | Affects Which Backend | How to Control |
+|-----------|------------|----------------------|----------------|
+| **Weight** | Model weights (W_q, W_k, W_v, W_o...) | GEMM | Use pre-quantized FP8 model ✅ |
+| **Activation** | Runtime values (X, Q, K, V...) | GEMM | `--quantization fp8` ⚠️ OOM! |
+| **KV Cache** | Stored K and V for decoding | Attention | `--kv-cache-dtype fp8_e5m2` ✅ |
+
+> ⚠️ **Critical Lesson**: Runtime quantization (`--quantization fp8`) causes OOM and high error rate. Always use **pre-quantized FP8 models** instead!
+
+### Two Backend Types: GEMM vs Attention
+
+| Backend | What It Computes | Operations | Control Parameter |
+|---------|------------------|------------|-------------------|
+| **GEMM Backend** | Linear layer projections | Q=X×W_q, K=X×W_k, V=X×W_v, Out×W_o | `--fp8-gemm-backend cutlass/cublas` |
+| **Attention Backend** | Self-attention mechanism | Q×K^T, softmax, ×V | `--attention-backend flashinfer/triton` |
+
+**Key Insight**: 
+- **GEMM** uses **Weight × Activation** → affected by model precision and `--quantization`
+- **Attention** uses **Q × K^T × V** → affected by `--kv-cache-dtype`
+
+### H100 Native FP8 vs A100 Marlin: The Real Difference
+
+| GPU | Weight | Activation | Actual GEMM Compute |
+|-----|--------|------------|---------------------|
+| **H100 (Native FP8)** | FP8 | FP8 | **FP8 × FP8 → FP8 Tensor Core** (2x FLOPS!) |
+| **A100 (Marlin)** | FP8→dequant→BF16 | BF16 | BF16 × BF16 → BF16 GEMM (no speedup) |
+
+```
+H100 Native FP8:
+  Weight(FP8) × Activation(FP8) = FP8 Tensor Core GEMM
+  → True low-precision compute, FLOPS doubled!
+
+A100 Marlin (Weight-Only FP8):
+  Weight(FP8) → Dequant → BF16 × Activation(BF16) = BF16 GEMM
+  → Only saves memory bandwidth, compute is still BF16
+```
 
 ### SGLang vs vLLM Parameter Reference (Source Code Verified)
 
@@ -151,11 +225,11 @@ Compute: BF16 GEMM (NOT FP8 compute!)
 | **Type** | GPU programming language | Inference server |
 | **Purpose** | Write custom CUDA kernels | Model deployment & serving |
 | **Code** | `@triton.jit` decorator | Docker container |
-| **Used in SGLang** | ✅ For attention kernel | ❌ |
+| **Used in SGLang** | ✅ For attention kernel | ❌ Not related |
 
 ### Internal Compute Precision
 
-> **Key Finding**: Even with FP8/FP16 input, **ALL backends use FP32 for intermediate computation**!
+> **Key Finding**: Even with FP8/FP16 input, **ALL backends use FP32 for intermediate computation** (e.g., softmax, accumulation)!
 
 Source code evidence (from SGLang's `triton_flashinfer_cudnn.py`):
 ```python
@@ -165,7 +239,6 @@ attn_logits = torch.empty(
     device="cuda",
 )
 ```
-
 ---
 
 

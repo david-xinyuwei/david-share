@@ -66,63 +66,137 @@
 | Compute-bound | 原生 FP8 算力翻倍 | - |
 
 ---
-## 🔧 FP8 推理深度解析：两类 Backend
+## 🔧 FP8 推理深度解析：组件与 Backend
 
-### FP8 推理包含三个独立可控组件
+### Transformer Self-Attention：GEMM 和 Attention 发生在哪里
+
+```mermaid
+flowchart TB
+    subgraph INPUT["输入 X"]
+        X["X [batch, seq_len, hidden_dim]"]
+    end
+    
+    subgraph GEMM_QKV["① GEMM Backend (Linear 层)"]
+        Q_proj["Q = X × W_q^T"]
+        K_proj["K = X × W_k^T"]
+        V_proj["V = X × W_v^T"]
+    end
+    
+    subgraph KV_CACHE["KV Cache 存储"]
+        KC["K Cache"]
+        VC["V Cache"]
+    end
+    
+    subgraph ATTENTION["② Attention Backend (FlashInfer/Triton)"]
+        ATT1["Scores = Q × K^T / √d"]
+        ATT2["Weights = softmax(Scores)"]
+        ATT3["Output = Weights × V"]
+    end
+    
+    subgraph GEMM_O["① GEMM Backend (输出投影)"]
+        O_proj["Final = Attn_Out × W_o^T"]
+    end
+    
+    X --> Q_proj & K_proj & V_proj
+    K_proj --> KC
+    V_proj --> VC
+    Q_proj --> ATT1
+    KC --> ATT1
+    ATT1 --> ATT2 --> ATT3
+    VC --> ATT3
+    ATT3 --> O_proj
+    
+    style GEMM_QKV fill:#e1f5fe
+    style GEMM_O fill:#e1f5fe
+    style ATTENTION fill:#fff3e0
+    style KV_CACHE fill:#f3e5f5
+```
+
+### 什么是 GEMM？(通用矩阵乘法)
+
+**GEMM = Weight × Activation (权重 × 激活值)**
+
+Linear 层计算公式：`Output = Input × Weight^T + Bias`
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        FP8 推理流程                              │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────────────┐ │
-│  │   Weight    │    │  Activation │    │      KV Cache       │ │
-│  │  (模型权重)  │    │ (运行时激活) │    │    (键值缓存)       │ │
-│  └──────┬──────┘    └──────┬──────┘    └──────────┬──────────┘ │
-│         │                  │                      │             │
-│         ▼                  ▼                      ▼             │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────────────┐ │
-│  │ 预量化模型   │    │--quantization│   │ --kv-cache-dtype    │ │
-│  │ 或 --dtype  │    │    fp8      │    │    fp8_e5m2         │ │
-│  │             │    │  (不推荐!)   │    │   (推荐)            │ │
-│  └─────────────┘    └─────────────┘    └─────────────────────┘ │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+示例 (Qwen2.5-14B, hidden_dim=5120):
+
+Input (Activation): [1, 512, 5120]     ← 1个样本，512个 token
+      ×
+Weight:             [5120, 5120]^T     ← W_q (或 W_k, W_v, W_o)
+      =
+Output:             [1, 512, 5120]     ← 成为 Q (或 K, V)
 ```
 
-| 组件 | 含义 | 何时确定 | 控制方式 |
-|------|------|----------|----------|
-| **Weight** | 模型权重精度 | 模型文件 (预量化) | 使用 HuggingFace 上的 FP8 模型 |
-| **Activation** | 运行时激活值精度 | 运行时 | `--quantization fp8` (⚠️ 会 OOM!) |
-| **KV Cache** | 注意力缓存精度 | 运行时 | `--kv-cache-dtype fp8_e5m2` ✅ |
+| 术语 | 含义 | Transformer 中的例子 |
+|------|------|---------------------|
+| **Weight (权重)** | 模型参数 | W_q, W_k, W_v, W_o, FFN 权重 |
+| **Activation (激活值)** | 输入/中间值 | X, Q, K, V, attention 输出 |
+| **GEMM** | Weight × Activation | Q=X×W_q, K=X×W_k, V=X×W_v |
+
+### 三个独立可控的 FP8 组件
+
+```mermaid
+flowchart LR
+    subgraph WEIGHT["① Weight 精度"]
+        W1["使用预量化 FP8 模型"]
+        W2["从 HuggingFace 下载 ✅"]
+    end
+    
+    subgraph ACT["② Activation 精度"]
+        A1["--quantization fp8"]
+        A2["⚠️ 会导致 OOM!"]
+    end
+    
+    subgraph KV["③ KV Cache 精度"]
+        K1["--kv-cache-dtype fp8_e5m2"]
+        K2["✅ 推荐使用"]
+    end
+    
+    WEIGHT --> GEMM["GEMM Backend"]
+    ACT --> GEMM
+    KV --> ATT["Attention Backend"]
+    
+    style ACT fill:#ffcdd2
+    style KV fill:#c8e6c9
+    style WEIGHT fill:#c8e6c9
+```
+
+| 组件 | 含义 | 影响哪个 Backend | 控制方式 |
+|------|------|-----------------|----------|
+| **Weight** | 模型权重 (W_q, W_k, W_v, W_o...) | GEMM | 使用预量化 FP8 模型 ✅ |
+| **Activation** | 运行时激活值 (X, Q, K, V...) | GEMM | `--quantization fp8` ⚠️ 会 OOM! |
+| **KV Cache** | 存储的 K 和 V (用于解码) | Attention | `--kv-cache-dtype fp8_e5m2` ✅ |
 
 > ⚠️ **关键教训**：Runtime quantization (`--quantization fp8`) 会导致 OOM 和高错误率。务必使用**预量化 FP8 模型**！
 
-### 两类 Backend：Attention vs GEMM
+### 两类 Backend：GEMM vs Attention
+
+| Backend | 计算内容 | 具体操作 | 控制参数 |
+|---------|---------|----------|----------|
+| **GEMM Backend** | Linear 层投影 | Q=X×W_q, K=X×W_k, V=X×W_v, Out×W_o | `--fp8-gemm-backend cutlass/cublas` |
+| **Attention Backend** | Self-attention 机制 | Q×K^T, softmax, ×V | `--attention-backend flashinfer/triton` |
+
+**核心洞察**: 
+- **GEMM** 使用 **Weight × Activation** → 受模型精度和 `--quantization` 影响
+- **Attention** 使用 **Q × K^T × V** → 受 `--kv-cache-dtype` 影响
+
+### H100 原生 FP8 vs A100 Marlin：本质区别
+
+| GPU | Weight | Activation | 实际 GEMM 计算 |
+|-----|--------|------------|---------------|
+| **H100 (原生 FP8)** | FP8 | FP8 | **FP8 × FP8 → FP8 Tensor Core** (算力翻倍!) |
+| **A100 (Marlin)** | FP8→解压→BF16 | BF16 | BF16 × BF16 → BF16 GEMM (无算力提升) |
 
 ```
-┌────────────────────────────────────────────────────────────────┐
-│                    Transformer 层计算流程                       │
-├────────────────────────────────────────────────────────────────┤
-│                                                                │
-│  Input ──► [Linear Q/K/V] ──► [Attention] ──► [Linear O] ──► Out
-│                 │                  │                │          │
-│                 ▼                  ▼                ▼          │
-│           ┌─────────┐        ┌─────────┐      ┌─────────┐     │
-│           │  GEMM   │        │Attention│      │  GEMM   │     │
-│           │ Backend │        │ Backend │      │ Backend │     │
-│           └─────────┘        └─────────┘      └─────────┘     │
-│                                                                │
-│  Weight × Activation       Q × K^T + softmax     Weight × Act │
-│  (矩阵乘法)                    + V 检索          (矩阵乘法)    │
-│                                                                │
-└────────────────────────────────────────────────────────────────┘
-```
+H100 原生 FP8：
+  Weight(FP8) × Activation(FP8) = FP8 Tensor Core GEMM
+  → 真正的低精度计算，FLOPS 翻倍！
 
-| Backend 类型 | 计算内容 | 精度敏感度 | 代表实现 |
-|--------------|----------|------------|----------|
-| **GEMM Backend** | Weight × Activation | 中 | cuBLAS, CUTLASS |
-| **Attention Backend** | Q×K^T, softmax, ×V | 高 | FlashInfer, FlashAttention, Triton |
+A100 Marlin (Weight-Only FP8)：
+  Weight(FP8) → 解压 → BF16 × Activation(BF16) = BF16 GEMM
+  → 只节省显存带宽，计算仍是 BF16
+```
 
 ### SGLang vs vLLM 参数对照表（源码验证）
 
@@ -151,11 +225,11 @@
 | **类型** | GPU 编程语言 | 推理服务器 |
 | **用途** | 写自定义 CUDA kernel | 模型部署和服务 |
 | **代码** | `@triton.jit` 装饰器 | Docker 容器 |
-| **SGLang 用的是** | ✅ 用于 attention kernel | ❌ |
+| **SGLang 用的是** | ✅ 用于 attention kernel | ❌ 无关 |
 
 ### 中间计算精度
 
-> **关键发现**：即使输入是 FP8/FP16，**所有 backend 的中间计算都用 FP32**！
+> **关键发现**：即使输入是 FP8/FP16，**所有 backend 的中间计算都用 FP32**（如 softmax、累加）！
 
 源码证据 (from SGLang's `triton_flashinfer_cudnn.py`):
 ```python
@@ -165,7 +239,6 @@ attn_logits = torch.empty(
     device="cuda",
 )
 ```
-
 ---
 
 
