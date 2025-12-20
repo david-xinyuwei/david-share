@@ -66,6 +66,108 @@
 | Compute-bound | 原生 FP8 算力翻倍 | - |
 
 ---
+## 🔧 FP8 推理深度解析：两类 Backend
+
+### FP8 推理包含三个独立可控组件
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        FP8 推理流程                              │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────────────┐ │
+│  │   Weight    │    │  Activation │    │      KV Cache       │ │
+│  │  (模型权重)  │    │ (运行时激活) │    │    (键值缓存)       │ │
+│  └──────┬──────┘    └──────┬──────┘    └──────────┬──────────┘ │
+│         │                  │                      │             │
+│         ▼                  ▼                      ▼             │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────────────┐ │
+│  │ 预量化模型   │    │--quantization│   │ --kv-cache-dtype    │ │
+│  │ 或 --dtype  │    │    fp8      │    │    fp8_e5m2         │ │
+│  │             │    │  (不推荐!)   │    │   (推荐)            │ │
+│  └─────────────┘    └─────────────┘    └─────────────────────┘ │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+| 组件 | 含义 | 何时确定 | 控制方式 |
+|------|------|----------|----------|
+| **Weight** | 模型权重精度 | 模型文件 (预量化) | 使用 HuggingFace 上的 FP8 模型 |
+| **Activation** | 运行时激活值精度 | 运行时 | `--quantization fp8` (⚠️ 会 OOM!) |
+| **KV Cache** | 注意力缓存精度 | 运行时 | `--kv-cache-dtype fp8_e5m2` ✅ |
+
+> ⚠️ **关键教训**：Runtime quantization (`--quantization fp8`) 会导致 OOM 和高错误率。务必使用**预量化 FP8 模型**！
+
+### 两类 Backend：Attention vs GEMM
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│                    Transformer 层计算流程                       │
+├────────────────────────────────────────────────────────────────┤
+│                                                                │
+│  Input ──► [Linear Q/K/V] ──► [Attention] ──► [Linear O] ──► Out
+│                 │                  │                │          │
+│                 ▼                  ▼                ▼          │
+│           ┌─────────┐        ┌─────────┐      ┌─────────┐     │
+│           │  GEMM   │        │Attention│      │  GEMM   │     │
+│           │ Backend │        │ Backend │      │ Backend │     │
+│           └─────────┘        └─────────┘      └─────────┘     │
+│                                                                │
+│  Weight × Activation       Q × K^T + softmax     Weight × Act │
+│  (矩阵乘法)                    + V 检索          (矩阵乘法)    │
+│                                                                │
+└────────────────────────────────────────────────────────────────┘
+```
+
+| Backend 类型 | 计算内容 | 精度敏感度 | 代表实现 |
+|--------------|----------|------------|----------|
+| **GEMM Backend** | Weight × Activation | 中 | cuBLAS, CUTLASS |
+| **Attention Backend** | Q×K^T, softmax, ×V | 高 | FlashInfer, FlashAttention, Triton |
+
+### SGLang vs vLLM 参数对照表（源码验证）
+
+**SGLang 参数：**
+
+| 组件 | 参数 | 可选值 | 源码位置 |
+|------|------|--------|----------|
+| Weight | `--dtype` | `auto`, `float16`, `bfloat16`, `float8_e4m3fn` | server_args.py |
+| KV Cache | `--kv-cache-dtype` | `auto`, `fp8_e5m2`, `fp8_e4m3` | server_args.py |
+| Attention | `--attention-backend` | `flashinfer`, `triton`, `torch_native`, `fa3` | server_args.py |
+| GEMM | `--fp8-gemm-backend` | `cutlass`, `cublas` | server_args.py |
+
+**vLLM 参数：**
+
+| 组件 | 参数 | 可选值 | 源码位置 |
+|------|------|--------|----------|
+| Weight | `--dtype` | `auto`, `float16`, `bfloat16`, `float8_e4m3fn` | engine_args.py |
+| KV Cache | `--kv-cache-dtype` | `auto`, `fp8`, `fp8_e5m2`, `fp8_e4m3` | engine_args.py |
+| Attention | `VLLM_ATTENTION_BACKEND` (环境变量) | `FLASH_ATTN`, `FLASHINFER`, `XFORMERS`, `TRITON_ATTN` | selector.py |
+| 执行模式 | `--enforce-eager` | `True`/`False` | engine_args.py |
+
+### Triton 澄清：OpenAI Triton ≠ NVIDIA Triton！
+
+| 项目 | OpenAI Triton | NVIDIA Triton |
+|------|---------------|---------------|
+| **类型** | GPU 编程语言 | 推理服务器 |
+| **用途** | 写自定义 CUDA kernel | 模型部署和服务 |
+| **代码** | `@triton.jit` 装饰器 | Docker 容器 |
+| **SGLang 用的是** | ✅ 用于 attention kernel | ❌ |
+
+### 中间计算精度
+
+> **关键发现**：即使输入是 FP8/FP16，**所有 backend 的中间计算都用 FP32**！
+
+源码证据 (from SGLang's `triton_flashinfer_cudnn.py`):
+```python
+attn_logits = torch.empty(
+    (batch_size, head_num_q, num_kv_splits, head_dim + 1),
+    dtype=torch.float32,  # ← 强制 FP32 保证数值稳定性
+    device="cuda",
+)
+```
+
+---
+
 
 ## 🚀 快速开始
 

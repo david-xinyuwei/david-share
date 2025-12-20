@@ -66,6 +66,108 @@ Compute: BF16 GEMM (NOT FP8 compute!)
 | Compute-bound | Native FP8 doubles FLOPS | - |
 
 ---
+## 🔧 FP8 Inference Deep Dive: Two Backend Types
+
+### FP8 Inference Has THREE Independently Controllable Components
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        FP8 Inference Pipeline                    │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────────────┐ │
+│  │   Weight    │    │  Activation │    │      KV Cache       │ │
+│  │  (模型权重)  │    │ (运行时激活) │    │    (键值缓存)       │ │
+│  └──────┬──────┘    └──────┬──────┘    └──────────┬──────────┘ │
+│         │                  │                      │             │
+│         ▼                  ▼                      ▼             │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────────────┐ │
+│  │ Pre-quant   │    │--quantization│   │ --kv-cache-dtype    │ │
+│  │ model file  │    │    fp8      │    │    fp8_e5m2         │ │
+│  │ or --dtype  │    │  (NOT rec!) │    │ (recommended)       │ │
+│  └─────────────┘    └─────────────┘    └─────────────────────┘ │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+| Component | What It Is | When Decided | How to Control |
+|-----------|------------|--------------|----------------|
+| **Weight** | Model weight precision | Model file (pre-quantized) | Use FP8 model from HuggingFace |
+| **Activation** | Runtime activation precision | Runtime | `--quantization fp8` (⚠️ causes OOM!) |
+| **KV Cache** | Attention cache precision | Runtime | `--kv-cache-dtype fp8_e5m2` ✅ |
+
+> ⚠️ **Critical Lesson**: Runtime quantization (`--quantization fp8`) causes OOM and high error rate. Always use **pre-quantized FP8 models**!
+
+### Two Types of Backends: Attention vs GEMM
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│                    Transformer Layer Compute Flow               │
+├────────────────────────────────────────────────────────────────┤
+│                                                                │
+│  Input ──► [Linear Q/K/V] ──► [Attention] ──► [Linear O] ──► Out
+│                 │                  │                │          │
+│                 ▼                  ▼                ▼          │
+│           ┌─────────┐        ┌─────────┐      ┌─────────┐     │
+│           │  GEMM   │        │Attention│      │  GEMM   │     │
+│           │ Backend │        │ Backend │      │ Backend │     │
+│           └─────────┘        └─────────┘      └─────────┘     │
+│                                                                │
+│  Weight × Activation       Q × K^T + softmax     Weight × Act │
+│  (Matrix multiplication)       + V retrieval    (Matrix mult) │
+│                                                                │
+└────────────────────────────────────────────────────────────────┘
+```
+
+| Backend Type | What It Computes | Precision Sensitivity | Implementations |
+|--------------|------------------|----------------------|-----------------|
+| **GEMM Backend** | Weight × Activation | Medium | cuBLAS, CUTLASS |
+| **Attention Backend** | Q×K^T, softmax, ×V | High | FlashInfer, FlashAttention, Triton |
+
+### SGLang vs vLLM Parameter Reference (Source Code Verified)
+
+**SGLang Parameters:**
+
+| Component | Parameter | Values | Source |
+|-----------|-----------|--------|--------|
+| Weight | `--dtype` | `auto`, `float16`, `bfloat16`, `float8_e4m3fn` | server_args.py |
+| KV Cache | `--kv-cache-dtype` | `auto`, `fp8_e5m2`, `fp8_e4m3` | server_args.py |
+| Attention | `--attention-backend` | `flashinfer`, `triton`, `torch_native`, `fa3` | server_args.py |
+| GEMM | `--fp8-gemm-backend` | `cutlass`, `cublas` | server_args.py |
+
+**vLLM Parameters:**
+
+| Component | Parameter | Values | Source |
+|-----------|-----------|--------|--------|
+| Weight | `--dtype` | `auto`, `float16`, `bfloat16`, `float8_e4m3fn` | engine_args.py |
+| KV Cache | `--kv-cache-dtype` | `auto`, `fp8`, `fp8_e5m2`, `fp8_e4m3` | engine_args.py |
+| Attention | `VLLM_ATTENTION_BACKEND` (env var) | `FLASH_ATTN`, `FLASHINFER`, `XFORMERS`, `TRITON_ATTN` | selector.py |
+| Execution | `--enforce-eager` | `True`/`False` | engine_args.py |
+
+### Triton Clarification: OpenAI Triton ≠ NVIDIA Triton!
+
+| Project | OpenAI Triton | NVIDIA Triton |
+|---------|---------------|---------------|
+| **Type** | GPU programming language | Inference server |
+| **Purpose** | Write custom CUDA kernels | Model deployment & serving |
+| **Code** | `@triton.jit` decorator | Docker container |
+| **Used in SGLang** | ✅ For attention kernel | ❌ |
+
+### Internal Compute Precision
+
+> **Key Finding**: Even with FP8/FP16 input, **ALL backends use FP32 for intermediate computation**!
+
+Source code evidence (from SGLang's `triton_flashinfer_cudnn.py`):
+```python
+attn_logits = torch.empty(
+    (batch_size, head_num_q, num_kv_splits, head_dim + 1),
+    dtype=torch.float32,  # ← Forced FP32 for numerical stability
+    device="cuda",
+)
+```
+
+---
+
 
 ## 🚀 Quick Start
 
