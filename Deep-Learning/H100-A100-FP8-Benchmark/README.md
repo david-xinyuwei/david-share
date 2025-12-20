@@ -361,18 +361,24 @@ python -m sglang.bench_serving --backend sglang \
     --random-range-ratio 0.0 --host 127.0.0.1 --port 30000
 ```
 
-### Configuration Matrix Results
+### Configuration Matrix Results (Full Metrics)
 
-| # | Model | Attention Backend | KV Cache | Output tok/s | vs Baseline |
-|---|-------|-------------------|----------|-------------:|:-----------:|
-| 1 | BF16 | FlashInfer | auto | 1,579.49 | baseline |
-| 2 | BF16 | Triton | auto | 1,584.47 | +0.3% |
-| 3 | BF16 | FlashInfer | fp8_e5m2 | 1,622.54 | +2.7% |
-| 4 | BF16 | Triton | fp8_e5m2 | 1,618.93 | +2.5% |
-| 5 | FP8 | FlashInfer | auto | 2,257.79 | +42.9% |
-| 6 | FP8 | Triton | auto | 2,262.62 | +43.3% |
-| 7 | FP8 | FlashInfer | fp8_e5m2 | 2,337.92 | +48.0% |
-| 8 | **FP8** | **Triton** | **fp8_e5m2** | **2,352.61** | **+49.0%** 🏆 |
+| # | Model | Attention | KV Cache | Output tok/s | Peak tok/s | TTFT (ms) | ITL (ms) | vs Best |
+|---|-------|-----------|----------|-------------:|----------:|----------:|--------:|--------:|
+| 1 | BF16 | FlashInfer | auto | 1,579.49 | 4,605 | 2,502.87 | 33.47 | 67.1% |
+| 2 | BF16 | Triton | auto | 1,584.47 | 4,761 | 2,609.91 | 33.38 | 67.4% |
+| 3 | BF16 | FlashInfer | fp8_e5m2 | 1,622.54 | 5,081 | 2,579.67 | 31.33 | 69.0% |
+| 4 | BF16 | Triton | fp8_e5m2 | 1,618.93 | 4,938 | 2,229.31 | 31.25 | 68.8% |
+| 5 | **FP8** | FlashInfer | auto | 2,257.79 | 5,651 | 1,672.62 | 25.53 | 96.0% |
+| 6 | **FP8** | Triton | auto | 2,262.62 | 5,651 | 1,473.74 | 25.44 | 96.2% |
+| 7 | **FP8** | FlashInfer | fp8_e5m2 | 2,337.92 | 6,121 | 1,699.20 | 22.88 | 99.4% |
+| 8 | **FP8** | **Triton** | **fp8_e5m2** | **2,352.61** | **6,225** | 1,519.09 | **22.87** | **100%** 🏆 |
+
+> **Metrics Explained**: 
+> - **Output tok/s**: Average output throughput (main comparison metric)
+> - **Peak tok/s**: Maximum observed throughput during test
+> - **TTFT**: Time To First Token (prefill latency in milliseconds)
+> - **ITL**: Inter-Token Latency (per-token generation time in milliseconds)
 
 ### Key Findings
 
