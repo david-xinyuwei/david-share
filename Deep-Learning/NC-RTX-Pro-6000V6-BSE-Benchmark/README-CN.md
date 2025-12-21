@@ -168,6 +168,190 @@ A10 24GB        ███████▎                                    563.
 
 ---
 
+
+## 4.1 NVFP4 (W4A4) 量化推理 Benchmark (RTX PRO 6000 Blackwell 专属)
+
+> ⚠️ **Blackwell 独占功能**: NVFP4 需要 SM120 原生 FP4 Tensor Core，仅 RTX PRO 6000 Blackwell 支持
+
+### 测试背景
+
+NVFP4 (NV FP4 W4A4) 是 NVIDIA Blackwell 架构的独特优势：
+- **W4A4**: 权重 4-bit + 激活 4-bit，比 FP8 (W8A8) 更激进的量化
+- **仅 Blackwell 支持**: 需要 SM100/SM120 的原生 FP4 Tensor Core
+- **显存节省**: 模型体积比 FP8 小约 35% (9.9GB vs 15.3GB for 14B)
+
+### 测试配置
+
+| 参数 | 值 |
+|------|-----|
+| **模型** | Qwen3-14B-NVFP4 (RedHatAI 预量化) vs Qwen3-14B-FP8 |
+| **量化格式** | NVFP4 W4A4 (compressed-tensors) |
+| **测试工具** | vLLM 0.12.0 (原生 CUTLASS NVFP4 kernel) |
+| **负载** | 200 prompts, 512 input tokens, 128 output tokens |
+| **测试条件** | 完全相同的 input/output tokens，公平对比 |
+
+### 测试结果
+
+| 精度 | 模型 | Input Tokens | Output Tokens | Time | Output TPS |
+|------|------|--------------|---------------|------|------------|
+| **NVFP4 (W4A4)** | Qwen3-14B-NVFP4 | 102,400 | 25,600 | 9.22s | **2,777 tok/s** |
+| **FP8 (W8A8)** | Qwen3-14B-FP8 | 102,400 | 25,600 | 12.75s | **2,009 tok/s** |
+
+### 性能对比
+
+```
+NVFP4 vs FP8 (Qwen3-14B, RTX PRO 6000 Blackwell)
+════════════════════════════════════════════════════════════
+NVFP4 (W4A4)    ██████████████████████████████████████████  2,777 tok/s (+38%)
+FP8 (W8A8)      ██████████████████████████████              2,009 tok/s (基准)
+════════════════════════════════════════════════════════════
+```
+
+### 关键指标对比
+
+| 指标 | NVFP4 (W4A4) | FP8 (W8A8) | 差异 |
+|------|--------------|------------|------|
+| **Output TPS** | **2,777** | 2,009 | **+38%** |
+| **模型体积** | **9.9 GB** | 15.3 GB | **-35%** |
+| **KV Cache 可用** | 65.5 GiB | 60.1 GiB | +9% |
+| **推理时间** | **9.22s** | 12.75s | **-28%** |
+
+### 踩坑记录 ⚠️
+
+| 问题 | 原因 | 解决方案 |
+|------|------|----------|
+| NVFP4 模型加载为 BF16 | SGLang 0.5.x 不识别 NVFP4 格式 | 改用 vLLM |
+| vLLM 0.13.0 显示 "platform does not support cutlass NVFP4" | vLLM 0.13.0 移除了 SM120 NVFP4 支持 | **降级到 vLLM 0.12.0** |
+| FlashInfer 0.5.3 无 fp4 模块 | 版本太旧 | 编译 FlashInfer 0.6.0rc2 |
+| 首次测试 input tokens 不一致 | 不同 tokenizer 编码差异 | 使用固定 token IDs 确保公平 |
+
+### 环境要求
+
+```bash
+# 必须使用 vLLM 0.12.0 (0.13.0 不支持 SM120 NVFP4)
+pip install vllm==0.12.0
+
+# 验证 NVFP4 支持
+python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'NVFP4 support: {cutlass_scaled_mm_supports_fp4(120)}')"
+# 预期输出: NVFP4 support: True
+```
+
+### 结论
+
+1. **NVFP4 比 FP8 快 38%** - Blackwell 原生 FP4 Tensor Core 加速显著
+2. **显存占用更低** - 更小的模型体积 = 更大的 KV Cache = 更高并发
+3. **Blackwell 独占优势** - H100/A100 无法使用 NVFP4，只有 RTX PRO 6000 Blackwell 支持
+4. **版本敏感** - 必须使用 vLLM 0.12.0，0.13.0 已移除 SM120 支持
+
+> 💡 **推荐**: 在 RTX PRO 6000 Blackwell 上，优先使用 NVFP4 量化模型，可获得比 FP8 额外 38% 的性能提升。
+
+---
+
+
+## 4.2 SGLang BF16/FP8 三卡对比 (200 并发)
+
+> 测试日期: 2025-12 | 框架: SGLang 0.5.6.post2 + FlashInfer 0.5.3
+
+### 测试背景
+
+对比 H100、RTX PRO 6000、A100 三款 GPU 在 **高并发 (200 prompts)** 场景下的 BF16 与 FP8 推理性能差异：
+
+- **BF16**: 原始精度，无量化
+- **FP8**: 预量化模型 (RedHatAI/Qwen2.5-14B-Instruct-FP8-dynamic)
+- **原生 FP8 Tensor Core**: H100 (Hopper) 和 RTX PRO 6000 (Blackwell) 支持原生 FP8，A100 需要 Marlin fallback
+
+### 测试配置
+
+| 参数 | 值 |
+|------|-----|
+| **框架** | SGLang 0.5.6.post2 |
+| **FlashInfer** | 0.5.3 |
+| **模型 (BF16)** | Qwen/Qwen2.5-14B-Instruct |
+| **模型 (FP8)** | RedHatAI/Qwen2.5-14B-Instruct-FP8-dynamic |
+| **并发** | 200 prompts |
+| **输入** | 512 tokens |
+| **输出** | 128 tokens |
+| **request_rate** | inf (压力测试) |
+| **random_range_ratio** | 0.0 (固定长度) |
+
+### 测试结果
+
+| GPU | BF16 (tok/s) | FP8 (tok/s) | FP8 vs BF16 | FP8 实现 |
+|-----|-------------:|------------:|:-----------:|:--------:|
+| **H100 NVL 96GB** | 2,197 | 2,681 | **+22%** | 原生 FP8 Tensor Core |
+| **RTX PRO 6000 96GB** | 1,579 | 2,353 | **+49%** | 原生 FP8 Tensor Core |
+| **A100 80GB PCIe** | 1,196 | - | - | Marlin fallback |
+
+> ⚠️ **A100 说明**: A100 SGLang 200 并发仅有 BF16 测试数据，FP8 测试未保存。A100 无原生 FP8 Tensor Core，需要 Marlin kernel fallback。
+
+### 可视化
+
+```
+SGLang 200 并发 BF16 吞吐量 (tok/s)
+═════════════════════════════════════════════════════════════
+H100 NVL        ████████████████████████████████████████████  2,197 tok/s
+RTX PRO 6000    ████████████████████████████████              1,579 tok/s
+A100 PCIe       ████████████████████████                      1,196 tok/s
+═════════════════════════════════════════════════════════════
+
+SGLang 200 并发 FP8 吞吐量 (tok/s)
+═════════════════════════════════════════════════════════════
+H100 NVL        ████████████████████████████████████████████  2,681 tok/s
+RTX PRO 6000    ████████████████████████████████████████      2,353 tok/s
+A100 PCIe       (未测试)
+═════════════════════════════════════════════════════════════
+```
+
+### 测试方法
+
+```bash
+# SGLang 服务启动 (BF16)
+python -m sglang.launch_server \
+  --model-path Qwen/Qwen2.5-14B-Instruct \
+  --dtype bfloat16 \
+  --tp 1 --port 30000
+
+# SGLang 服务启动 (FP8, RTX PRO 6000 最佳配置)
+python -m sglang.launch_server \
+  --model-path RedHatAI/Qwen2.5-14B-Instruct-FP8-dynamic \
+  --attention-backend triton \
+  --kv-cache-dtype fp8_e4m3 \
+  --tp 1 --port 30000
+
+# Benchmark 命令
+python -m sglang.bench_serving --backend sglang \
+  --dataset-name random --num-prompts 200 \
+  --random-input-len 512 --random-output-len 128 \
+  --random-range-ratio 0.0 \
+  --host 127.0.0.1 --port 30000
+```
+
+### 踩坑记录 ⚠️
+
+| 问题 | 原因 | 解决方案 |
+|------|------|----------|
+| **吞吐量差 3 倍** | `--random-range-ratio` 默认 1.0 (随机长度) | 对标测试用 **0.0** (固定长度) |
+| **Runtime 量化 OOM** | `--quantization fp8` 启动时 OOM | 必须用 **预量化 FP8 模型** |
+| **FlashInfer 版本** | v0.2.0 比 FA2 慢 1.5x | 用 **v0.5.3+** |
+| **复现结果不一致** | total_input_tokens 不同 | **先对比 JSON 输出的 total_input_tokens** |
+
+### 关键发现
+
+1. **FP8 原生支持差异显著**
+   - H100/RTX PRO 6000: 原生 FP8 Tensor Core，加速比 22-49%
+   - A100: Marlin fallback，加速比约 29% (基于 vLLM 50 并发数据)
+
+2. **RTX PRO 6000 FP8 加速比最高 (+49%)**
+   - Blackwell 架构 FP8 优化更激进
+   - 从 1,579 提升到 2,353 tok/s
+
+3. **测试参数影响巨大**
+   - `random_range_ratio=0.0`: 测缓存友好极限 (Radix Cache 命中)
+   - `random_range_ratio=1.0`: 测真实负载场景 (无缓存)
+
+---
+
+
 ## 5. SFT 全参微调测试
 
 ### 测试配置
