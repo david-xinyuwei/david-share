@@ -297,6 +297,95 @@ vllm bench serve \
 
 ---
 
+
+## 4.1.1 Tensor Parallel (TP=1 vs TP=2) Benchmark
+
+> ⚠️ **RTX PRO 6000 Dual GPU**: Testing when TP=2 provides benefits over TP=1
+
+### Background
+
+When a single RTX PRO 6000 cannot fully utilize both GPUs for a small model, or when a large model benefits from tensor parallelism across 2 GPUs:
+- **TP=1**: Single GPU inference, model fits in one GPU
+- **TP=2**: Tensor parallel across 2 GPUs, model weights split across GPUs
+
+### Test Configuration
+
+| Parameter | Value |
+|-----------|-------|
+| **Framework** | vLLM 0.12.0 |
+| **Small Model** | Qwen3-14B-FP8 (for TP overhead comparison) |
+| **Large Model** | Qwen2.5-VL-72B-Instruct-FP8-dynamic |
+| **Benchmark Tool** | vllm bench serve |
+| **Workload** | 64 prompts, 512 input tokens, 256 output tokens, concurrency=16 |
+| **KV Cache** | FP8 |
+
+### Small Model Results (Qwen3-14B-FP8)
+
+| Configuration | Output Throughput | TTFT | TPOT |
+|---------------|------------------:|-----:|-----:|
+| **TP=1** | **276.02 tok/s** | 1036 ms | 49.40 ms |
+| **TP=2** | 266.19 tok/s | 1252 ms | 52.16 ms |
+| **Difference** | **-3.6%** | +21% slower | +5.6% slower |
+
+> ⚠️ **14B model is too small for TP=2 benefit** - The communication overhead between GPUs outweighs the parallelism benefit.
+
+### Large Model Results (Qwen2.5-VL-72B-FP8)
+
+| Configuration | Output Throughput | TTFT | TPOT |
+|---------------|------------------:|-----:|-----:|
+| **TP=1** | 232.02 tok/s | 1695 ms | 62.57 ms |
+| **TP=2** | **294.77 tok/s** | 1801 ms | 47.42 ms |
+| **Difference** | **+27.0%** | +6.3% slower | **-24.2% faster** |
+
+### Visualization
+
+```
+TP=1 vs TP=2 Output Throughput Comparison
+═════════════════════════════════════════════════════════════
+Qwen3-14B (Small Model - TP overhead dominates)
+  TP=1    ██████████████████████████████████████████  276.02 tok/s (baseline)
+  TP=2    ████████████████████████████████████████▌   266.19 tok/s (-3.6%)
+
+Qwen2.5-VL-72B (Large Model - TP benefit realized)
+  TP=1    ██████████████████████████████████████      232.02 tok/s (baseline)
+  TP=2    ████████████████████████████████████████████████  294.77 tok/s (+27%)
+═════════════════════════════════════════════════════════════
+```
+
+### Comparison with Community Results (Teo's 72B Test)
+
+| Source | TP=1 | TP=2 | Improvement |
+|--------|-----:|-----:|:-----------:|
+| **Teo's Test** | 260 tok/s | 348 tok/s | **+34%** |
+| **Our Test** | 232 tok/s | 295 tok/s | **+27%** |
+
+> Both tests confirm **~30% throughput improvement** with TP=2 for 72B models.
+
+### Key Findings
+
+1. **Model size determines TP benefit**
+   - Small models (<30B): TP=2 adds overhead, **use TP=1**
+   - Large models (>70B): TP=2 provides **25-35% speedup**
+
+2. **TPOT (Time per Output Token) improves significantly with TP=2**
+   - 72B model: 62.57ms → 47.42ms (**24% faster per token**)
+   - This is due to parallel matrix operations across 2 GPUs
+
+3. **TTFT (Time to First Token) slightly increases with TP=2**
+   - Cross-GPU synchronization adds ~100ms latency
+   - Acceptable tradeoff for higher throughput
+
+### Recommendations
+
+| Model Size | Recommended Config | Reason |
+|------------|-------------------|--------|
+| **<30B parameters** | **TP=1** | Communication overhead > parallelism benefit |
+| **30B-70B parameters** | Test both | Depends on specific model architecture |
+| **>70B parameters** | **TP=2** | 25-35% throughput improvement |
+
+> 💡 **Rule of thumb**: Only use TP=2 when a single GPU cannot fit the model comfortably, or when the model is large enough (>70B) to benefit from parallel computation.
+
+---
 ## 4.2 SGLang BF16/FP8 Three-GPU Comparison (200 Concurrent)
 
 > Test Date: 2025-12 | Framework: SGLang 0.5.6.post2 + FlashInfer 0.5.3

@@ -1,0 +1,33 @@
+# BiomedParse Fine-Tuning Dependencies
+# Tested on CUDA 12.4 + Python 3.10
+
+# Core ML Framework
+torch>=2.0.0
+torchvision>=0.15.0
+
+# BiomedParse Dependencies (from official repo)
+# Install BiomedParse first: pip install -e . (in BiomedParse directory)
+
+# Image Processing
+opencv-python>=4.8.0
+Pillow>=10.0.0
+albumentations>=1.3.0
+
+# Data Handling
+numpy>=1.24.0
+scipy>=1.10.0
+
+# Configuration
+hydra-core>=1.3.0
+omegaconf>=2.3.0
+
+# Visualization & Logging
+matplotlib>=3.7.0
+tqdm>=4.65.0
+
+# Metrics
+scikit-learn>=1.2.0
+
+# Optional: For 3D volume processing
+# nibabel>=5.0.0
+# SimpleITK>=2.2.0

@@ -27,9 +27,45 @@ We conducted **4 fine-tuning experiments** to validate BiomedParse's adaptabilit
 
 ---
 
+## 🚀 Quick Start
+
+### 2D Fine-tuning
+
+```bash
+# Clone BiomedParse
+git clone https://github.com/microsoft/BiomedParse.git
+cd BiomedParse
+
+# Run 2D fine-tuning
+python finetune_2d_strong_fast.py \
+    --biomedparse_dir . \
+    --data_dir /path/to/your/2d_data \
+    --output_dir ./output \
+    --checkpoint biomedparse_v2.ckpt \
+    --epochs 100 \
+    --lr 1e-5 \
+    --batch_size 8
+```
+
+### 3D Fine-tuning
+
+```bash
+python finetune_3d_strong_v3.py \
+    --biomedparse_dir . \
+    --data_file /path/to/CT_volume.npz \
+    --output_dir ./output \
+    --checkpoint biomedparse_v2.ckpt \
+    --epochs 100 \
+    --organ_ids 1,2,3,4,5,6 \
+    --start_slice 20 \
+    --num_slices 16
+```
+
+---
+
 ## 🏗️ Architecture
 
-\`\`\`
+```
 ┌─────────────────────────────────────────────────────────────┐
 │                    BiomedParse v2 (371M params)             │
 ├─────────────────────────────────────────────────────────────┤
@@ -45,7 +81,7 @@ We conducted **4 fine-tuning experiments** to validate BiomedParse's adaptabilit
 │  │              │    │  the spleen" │                     │
 │  └──────────────┘    └──────────────┘                     │
 └─────────────────────────────────────────────────────────────┘
-\`\`\`
+```
 
 ---
 
@@ -61,7 +97,7 @@ We conducted **4 fine-tuning experiments** to validate BiomedParse's adaptabilit
 
 ### Software Setup
 
-\`\`\`bash
+```bash
 # Clone BiomedParse
 git clone https://github.com/microsoft/BiomedParse.git
 cd BiomedParse
@@ -74,112 +110,102 @@ conda activate biomedparse
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
 pip install -r requirements.txt
 
-# Download pretrained weights
-# biomedparse_v2.ckpt (~1.4GB)
-\`\`\`
+# Download pretrained weights (~1.4GB)
+# Place biomedparse_v2.ckpt in the BiomedParse directory
+```
 
 ---
 
-## 📊 Experiment 1: 2D Single-Target Fine-Tuning (Tumor)
+## 📊 Data Format
 
-### Dataset Format
-\`\`\`
-tumor_data/
-├── train/
-│   ├── img_001.png
-│   ├── img_002.png
-│   └── ...
-├── train_mask/
-│   ├── img_001.png
-│   ├── img_002.png
-│   └── ...
-├── test/
-├── test_mask/
-├── train.json
-└── test.json
-\`\`\`
+### 2D Dataset Structure
 
-### JSON Format
-\`\`\`json
+```
+data_dir/
+├── train/           # Training images (PNG, 1024×1024)
+│   ├── slice_001_liver.png
+│   ├── slice_002_spleen.png
+│   └── ...
+├── train_mask/      # Binary masks (PNG, same size as images)
+│   ├── slice_001_liver.png
+│   ├── slice_002_spleen.png
+│   └── ...
+├── test/            # Test images
+├── test_mask/       # Test masks
+├── train.json       # Training annotations
+└── test.json        # Test annotations
+```
+
+### JSON Annotation Format
+
+```json
 {
   "annotations": [
     {
-      "file_name": "img_001.png",
-      "mask_file": "img_001.png",
-      "sentences": [{"sent": "CT scan showing tumor in the abdomen"}]
+      "file_name": "slice_001_liver.png",
+      "mask_file": "slice_001_liver.png",
+      "sentences": [{"sent": "CT scan of the liver"}]
+    },
+    {
+      "file_name": "slice_002_spleen.png",
+      "mask_file": "slice_002_spleen.png",
+      "sentences": [{"sent": "CT scan of the spleen"}]
     }
   ]
 }
-\`\`\`
+```
 
-### Training Script
-\`\`\`python
-# See finetune_2d_simple.py for full code
-NUM_EPOCHS = 50
-LEARNING_RATE = 1e-5
-BATCH_SIZE = 1
+### 3D NPZ Format
 
-# Key settings
-optimizer = AdamW(model.parameters(), lr=1e-5, weight_decay=0.01)
-scheduler = CosineAnnealingLR(optimizer, T_max=NUM_EPOCHS)
-loss_fn = BCE_Loss + Dice_Loss
-\`\`\`
-
-### Results
-| Test Image | Original Dice | Fine-tuned Dice | Improvement |
-|:---:|:---:|:---:|:---:|
-| Image 1 | 14.25% | 97.66% | +83.41% |
-| Image 2 | 17.79% | 97.66% | +79.87% |
-| **Average** | **16.02%** | **97.66%** | **+81.64%** |
+```python
+# Expected structure
+{
+    "imgs": np.array,           # Shape: (D, H, W), e.g., (63, 512, 512)
+    "gts": np.array,            # Shape: (D, H, W), values = organ IDs (1,2,3...)
+    "text_prompts": {           # Dict mapping organ ID to text
+        "1": "CT scan of spleen",
+        "2": "CT scan of right kidney",
+        "3": "CT scan of left kidney",
+        ...
+    }
+}
+```
 
 ---
 
-## 📊 Experiment 2: 3D Multi-Organ Fine-Tuning (Small Sample)
+## 🛠️ Training Configuration
 
-### Dataset
-- **Source**: CT_AMOS NPZ format
-- **Training**: 16 slices (indices 22-37)
-- **Testing**: 8 slices (indices 38-45)
-- **Organs**: Spleen, Right Kidney, Left Kidney
+### Command Line Arguments
 
-### Training Script
-\`\`\`python
-# Load 3D volume
-img_data = np.load("CT_AMOS_amos_0018.npz", allow_pickle=True)
-image = img_data["imgs"]  # (63, 512, 512)
-text_prompts = img_data["text_prompts"].item()
+| Argument | Default | Description |
+|---|---|---|
+| `--biomedparse_dir` | `.` | Path to BiomedParse repository |
+| `--data_dir` / `--data_file` | Required | Path to training data |
+| `--output_dir` | `./output` | Path to save checkpoints |
+| `--checkpoint` | `biomedparse_v2.ckpt` | Pretrained weights |
+| `--epochs` | `100` | Number of training epochs |
+| `--lr` | `1e-5` | Learning rate |
+| `--batch_size` | `8` | Batch size (2D only) |
+| `--organ_ids` | `1,2,3,4,5,6` | Comma-separated organ IDs (3D only) |
 
-# Multiple organs via [SEP] token
-text = "[SEP]".join([text_prompts[str(i)] for i in organ_ids])
-\`\`\`
+### Recommended Hyperparameters
 
-### Results
-| Organ | Original Dice | Fine-tuned Dice | Improvement |
-|:---:|:---:|:---:|:---:|
-| Spleen | 0.00% | 25.77% | **+25.77%** |
-| Right Kidney | 0.00% | 6.38% | +6.38% |
-| Left Kidney | 0.00% | 14.12% | +14.12% |
-| **Overall** | **0.00%** | **16.70%** | **+16.70%** |
+| Parameter | Value | Reason |
+|---|---|---|
+| Learning Rate | 1e-5 | Prevent catastrophic forgetting |
+| Optimizer | AdamW | Standard choice with weight decay |
+| Weight Decay | 0.01 | Regularization |
+| Scheduler | CosineAnnealingLR | Smooth convergence |
+| Loss | BCE + Dice | Best for medical segmentation |
+| Epochs | 50-100 | Small data needs more iterations |
+| Precision | FP16 | Save memory, faster training |
 
 ---
 
-## 📊 Experiment 3: 2D Multi-Organ Fine-Tuning (Large Sample)
+## 📈 Detailed Results
 
-### Dataset
-- **Source**: CT_AMOS 3D volume slices
-- **Training**: 122 images (1024×1024)
-- **Testing**: 48 images
-- **Organs**: spleen, kidney, liver, stomach, aorta, pancreas
+### Experiment 3: 2D Multi-Organ (Large Sample)
 
-### Training Script
-See \`finetune_2d_strong_fast.py\`:
-\`\`\`python
-NUM_EPOCHS = 100
-BATCH_SIZE = 8  # DataLoader with multi-worker
-NUM_WORKERS = 4
-\`\`\`
-
-### Results
 | Organ | Original Dice | Fine-tuned Dice | Improvement |
 |------|----------|----------|----------|
 | aorta | 0.52% | 0.73% | +0.21% |
@@ -188,32 +214,8 @@ NUM_WORKERS = 4
 | stomach | 2.56% | 6.23% | +3.67% |
 | **Overall** | **4.75%** | **25.68%** | **+20.93%** |
 
-### Loss Curve
-\`\`\`
-Epoch   1: 1.3420
-Epoch  10: 1.0419
-Epoch  50: 0.9025
-Epoch 100: 0.5986
-\`\`\`
+### Experiment 4: 3D Multi-Organ (6 Organs)
 
----
-
-## 📊 Experiment 4: 3D Multi-Organ Fine-Tuning (6 Organs)
-
-### Dataset
-- **Source**: CT_AMOS_amos_0018.npz
-- **Volume**: 16 slices × 512 × 512 (slices 20-35)
-- **Organs**: spleen, right_kidney, left_kidney, gallbladder, esophagus, liver
-
-### Training Script
-See \`finetune_3d_strong_v3.py\`:
-\`\`\`python
-NUM_EPOCHS = 100
-organ_ids = [1, 2, 3, 4, 5, 6]
-slice_batch_size = 2  # Process slices in batches
-\`\`\`
-
-### Results
 | Organ | Original Dice | Fine-tuned Dice | Improvement |
 |------|----------|----------|----------|
 | liver | 0.00% | 81.24% | **+81.24%** 🏆 |
@@ -221,7 +223,6 @@ slice_batch_size = 2  # Process slices in batches
 | left_kidney | 0.00% | 76.75% | **+76.75%** |
 | spleen | 0.00% | 0.00% | 0.00% |
 | gallbladder | 0.00% | 0.00% | 0.00% |
-| esophagus | 100.00% | 100.00% | 0.00% |
 | **Overall** | **16.67%** | **55.80%** | **+39.13%** |
 
 ### Why Some Organs Didn't Improve?
@@ -229,127 +230,70 @@ slice_batch_size = 2  # Process slices in batches
 | Organ | GT Pixels | Analysis |
 |------|----------|------|
 | right_kidney | 32,494 | ✅ Sufficient data |
-| left_kidney | 30,104 | ✅ Sufficient data |
 | liver | 23,728 | ✅ Sufficient data |
-| spleen | 7,265 | ⚠️ Medium, not learned |
-| gallbladder | 967 | ❌ Too few pixels |
-| esophagus | **0** | ❌ Not present in selected slices |
-
----
-
-## 🛠️ Training Configuration
-
-### Recommended Hyperparameters
-
-| Parameter | Value | Reason |
-|---|---|---|
-| Learning Rate | 1e-5 | Prevent catastrophic forgetting |
-| Optimizer | AdamW | Standard choice |
-| Weight Decay | 0.01 | Regularization |
-| Scheduler | CosineAnnealingLR | Smooth convergence |
-| Loss | BCE + Dice | Best for segmentation |
-| Epochs | 50-100 | Small data needs more iterations |
-| Batch Size | 1-8 | GPU memory limited |
-| Precision | FP16 | Save memory, faster training |
-
-### Code Template
-
-\`\`\`python
-import torch
-from torch.optim import AdamW
-from torch.optim.lr_scheduler import CosineAnnealingLR
-from torch.cuda.amp import autocast, GradScaler
-
-# Model setup
-model = load_biomedparse_model()
-model = model.cuda()
-
-# Optimizer
-optimizer = AdamW(model.parameters(), lr=1e-5, weight_decay=0.01)
-scheduler = CosineAnnealingLR(optimizer, T_max=100)
-scaler = GradScaler()
-
-# Training loop
-for epoch in range(100):
-    model.train()
-    for images, masks, prompts in dataloader:
-        optimizer.zero_grad()
-        
-        with autocast():
-            output = model({"image": images, "text": prompts}, mode="train")
-            pred = output["predictions"]["pred_gmasks"]
-            loss = bce_dice_loss(pred, masks)
-        
-        scaler.scale(loss).backward()
-        scaler.step(optimizer)
-        scaler.update()
-    
-    scheduler.step()
-\`\`\`
+| spleen | 7,265 | ⚠️ Medium, may need more data |
+| gallbladder | 967 | ❌ Too few pixels to learn |
+| esophagus | 0 | ❌ Not present in selected slices |
 
 ---
 
 ## ⚠️ Troubleshooting
 
 ### Issue 1: GPU OOM
-\`\`\`bash
+```bash
 RuntimeError: CUDA out of memory
-\`\`\`
+```
 **Solution**:
-\`\`\`python
-batch_size = 1
-torch.cuda.amp.autocast(dtype=torch.float16)
+```python
+# Reduce batch size
+--batch_size 1
+
+# Enable memory optimization
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
-\`\`\`
+```
 
 ### Issue 2: Hydra Already Initialized
-\`\`\`bash
+```bash
 GlobalHydra is already initialized
-\`\`\`
+```
 **Solution**:
-\`\`\`python
+```python
 from hydra.core.global_hydra import GlobalHydra
 GlobalHydra.instance().clear()
 initialize(config_path="configs/model", job_name="finetune")
-\`\`\`
+```
 
 ### Issue 3: Weight Loading Mismatch
-\`\`\`bash
+```bash
 0/1050 params loaded
-\`\`\`
+```
 **Solution**:
-\`\`\`python
-# Use strict=False
-model.load_state_dict(checkpoint, strict=False)
-# Or use official API
+```python
+# Use official API
 model.load_pretrained("biomedparse_v2.ckpt")
-\`\`\`
+```
 
 ### Issue 4: 3D Data Key Error
-\`\`\`bash
+```bash
 KeyError: 'prompts'
-\`\`\`
+```
 **Solution**:
-\`\`\`python
-# 3D NPZ has different structure
+```python
+# 3D NPZ uses different key structure
 text_prompts = img_data["text_prompts"].item()
 prompt = text_prompts[str(organ_id)]  # Keys are strings "1", "2", etc.
-\`\`\`
+```
 
 ---
 
 ## 📁 File Structure
 
-\`\`\`
+```
 BiomedParse-Fine-Tuning/
-├── README.md                    # This file
+├── README.md                    # This documentation
 ├── finetune_2d_strong_fast.py   # 2D multi-organ training script
-├── finetune_3d_strong_v3.py     # 3D multi-organ training script
-├── images/
-│   └── architecture.png         # Model architecture diagram
-└── sample_data/
-    └── data_format.md           # Data format documentation
-\`\`\`
+└── finetune_3d_strong_v3.py     # 3D multi-organ training script
+```
 
 ---
 
@@ -358,6 +302,12 @@ BiomedParse-Fine-Tuning/
 - [BiomedParse GitHub](https://github.com/microsoft/BiomedParse)
 - [BiomedParse Paper](https://aka.ms/biomedparse-paper) - Nature Methods, 2024
 - [CT_AMOS Dataset](https://amos22.grand-challenge.org/)
+
+---
+
+## 🔗 Related Projects
+
+- **[MedImageParse Agent](../../Agents/MedImageParse/)** - After fine-tuning your model, use this AI Agent application to build an end-to-end medical imaging solution with Streamlit UI and Azure deployment.
 
 ---
 
