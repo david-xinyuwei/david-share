@@ -38,7 +38,7 @@ export function BarChart({ data }: BarChartProps) {
     const modelData = data.filter(d => d.model === model)
     const avg = modelData.reduce((sum, d) => sum + d.overall, 0) / modelData.length
     return {
-      model: model.replace('grok-', ''),
+      model: model,
       fullModel: model,
       score: Number(avg.toFixed(2)),
       count: modelData.length,

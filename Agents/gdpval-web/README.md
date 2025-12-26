@@ -123,9 +123,9 @@ Create environment variables or use the UI to configure:
 | Parameter | Description | Example |
 |-----------|-------------|---------|
 | `GROK_ENDPOINT` | Azure AI Foundry endpoint | `https://models.inference.ai.azure.com` |
-| `GROK_API_KEY` | GitHub token for Grok API | `YOUR-API-KEY` |
+| `GROK_API_KEY` | GitHub token for Grok API | `ghp_xxxxx` |
 | `JUDGE_ENDPOINT` | Azure OpenAI endpoint | `https://YOUR-RESOURCE.openai.azure.com` |
-| `JUDGE_API_KEY` | Azure OpenAI API key | `YOUR-API-KEY` |
+| `JUDGE_API_KEY` | Azure OpenAI API key | `xxxxx` |
 | `JUDGE_MODEL` | Judge model deployment name | `gpt-5.2-chat` |
 
 ### Running
@@ -137,9 +137,9 @@ Create environment variables or use the UI to configure:
 cd backend
 uvicorn main:app --host 0.0.0.0 --port 8000
 
-# Terminal 2 - Frontend (port 3000)
+# Terminal 2 - Frontend (port 54402)
 cd frontend
-npm start
+npm start -- -p 54402
 ```
 
 **Option 2: One-click start**
@@ -151,7 +151,7 @@ chmod +x start.sh
 
 ### Access
 
-- **Web UI**: http://localhost:3000
+- **Web UI**: http://localhost:54402
 - **API Docs**: http://localhost:8000/docs
 
 ---
@@ -214,9 +214,9 @@ chmod +x start.sh
 
 **Solution**: Use `self.config.judge_model` (configured value like `gpt-5.2-chat`) instead of hardcoded string
 
-### Issue 2: Grok responses show variable reference error
+### Issue 2: Grok responses show `[ERROR] local variable referenced before assignment`
 
-**Symptom**: All Grok model responses are error messages `[ERROR] local variable referenced before assignment`
+**Symptom**: All Grok model responses are error messages
 
 **Cause**: Variable scope issue in streaming code after adding GPT-5.2 baseline branch
 
@@ -233,7 +233,7 @@ chmod +x start.sh
 pkill -9 -f node
 rm -rf .next
 npm run build
-npm start
+npm start -p 54402
 ```
 
 ---
@@ -245,6 +245,7 @@ gdpval-web/
 ├── backend/
 │   ├── main.py              # FastAPI + WebSocket server
 │   ├── requirements.txt     # Python dependencies
+│   └── __pycache__/
 ├── frontend/
 │   ├── src/
 │   │   ├── app/
@@ -284,6 +285,7 @@ gdpval-web/
 
 - [Azure AI Foundry - Grok Models](https://ai.azure.com/)
 - [Azure OpenAI - GPT-5.2](https://learn.microsoft.com/azure/ai-services/openai/)
+- [GDPVAL Dataset](https://github.com/YOUR-USERNAME/gdpval-dataset)
 - [Next.js Documentation](https://nextjs.org/docs)
 - [FastAPI Documentation](https://fastapi.tiangolo.com/)
 
@@ -299,4 +301,4 @@ gdpval-web/
 
 ---
 
-*Author: Xinyu Wei (Microsoft AI and Apps GBB Architect) | Verified: 2025-12-21*
+*Author: 魏新宇 (Xinyu Wei, Microsoft AI and Apps GBB Architect) | Verified: 2025-12-21*

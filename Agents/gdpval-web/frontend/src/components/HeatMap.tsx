@@ -124,7 +124,7 @@ export function HeatMap({ data }: HeatMapProps) {
           {models.map((model, i) => (
             <tr key={model}>
               <td className="p-2 text-dark-text border-b border-dark-border whitespace-nowrap">
-                {model.replace('grok-', '')}
+                {model}
               </td>
               {sectors.map((sector, j) => {
                 const score = matrix[i][j]

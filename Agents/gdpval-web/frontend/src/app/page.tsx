@@ -29,12 +29,26 @@ interface TaskResult {
   actionability: number
   overall: number
   latency: number
+  input_tokens?: number
+  output_tokens?: number
+  cached_tokens?: number
   response?: string
   judge_summary?: string
   judge_strengths?: string
   judge_weaknesses?: string
   human_score?: number | null
   notes?: string
+}
+
+// 模型定价 (per 1M tokens) - cached 是缓存命中的输入价格
+const MODEL_PRICING: { [key: string]: { input: number; cached: number; output: number; context: number } } = {
+  'grok-3': { input: 3.00, cached: 0.30, output: 15.00, context: 1000000 },
+  'grok-3-mini': { input: 0.25, cached: 0.025, output: 1.27, context: 1000000 },
+  'grok-4': { input: 3.00, cached: 0.30, output: 15.00, context: 200000 },
+  'grok-4-fast-reasoning': { input: 0.20, cached: 0.02, output: 0.50, context: 200000 },
+  'grok-4-fast-non-reasoning': { input: 0.20, cached: 0.02, output: 0.50, context: 200000 },
+  'grok-code-fast-1': { input: 0.20, cached: 0.02, output: 1.50, context: 200000 },
+  'gpt-5.1-chat-baseline': { input: 1.50, cached: 0.375, output: 6.00, context: 200000 },  // GPT-5.1 pricing
 }
 
 interface EvalReasons {
@@ -76,11 +90,19 @@ const L = {
   exportJson: 'Export JSON',
   exportExcel: 'Export Excel',
   exportReport: '📊 Export Report',
-  version: 'Developed by Xinyuwei | V0.3',
+  version: 'Developed by Xinyuwei | V0.4',
   regenerateCharts: '🔄 Regenerate Charts',
   changes: 'changes',
   correctionsApplied: '✅ Corrections Applied',
   tasks: 'tasks',
+  keyInsights: '💡 Key Insights',
+  costLatency: '💰 Cost & Latency',
+  noInsightsYet: 'Run benchmark to see insights',
+  bestModel: 'Best Overall',
+  fastestModel: 'Fastest',
+  cheapestModel: 'Most Cost-Effective',
+  totalCost: 'Total Cost',
+  avgLatency: 'Avg Latency',
 }
 
 const GROK_MODELS = [
@@ -90,7 +112,7 @@ const GROK_MODELS = [
   'grok-4-fast-reasoning',
   'grok-4-fast-non-reasoning',
   'grok-code-fast-1',
-  'gpt-5.2-chat-baseline'
+  'gpt-5.1-chat-baseline'
 ]
 
 export default function Home() {
@@ -100,11 +122,11 @@ export default function Home() {
   const [selectedModels, setSelectedModels] = useState<string[]>(['grok-3-mini', 'grok-4-fast-non-reasoning'])
   const [tasksPerSector, setTasksPerSector] = useState(2)
   
-  // API 配置 - 默认值
+  // API 配置 - 默认值 (请在界面中填写实际的 API Key)
   const [showApiConfig, setShowApiConfig] = useState(false)
-  const [grokEndpoint, setGrokEndpoint] = useState('https://ai-xinyuwei5486ai435454090941.services.ai.azure.com/openai/v1')
+  const [grokEndpoint, setGrokEndpoint] = useState('')
   const [grokApiKey, setGrokApiKey] = useState('')
-  const [judgeEndpoint, setJudgeEndpoint] = useState('https://ai-swedencentral955006659336.openai.azure.com/')
+  const [judgeEndpoint, setJudgeEndpoint] = useState('')
   const [judgeApiKey, setJudgeApiKey] = useState('')
   const [judgeModel, setJudgeModel] = useState('gpt-5.2-chat')
   const [judgeApiVersion, setJudgeApiVersion] = useState('2025-04-01-preview')
@@ -196,8 +218,9 @@ export default function Home() {
       currentTask: ''
     })
     
-    // 建立 WebSocket 连接
-    const ws = new WebSocket('ws://linuxworkvm1.eastasia.cloudapp.azure.com:54402/ws/benchmark')
+    // 建立 WebSocket 连接 - 自动检测主机名
+    const wsHost = typeof window !== 'undefined' ? window.location.hostname : 'localhost'
+    const ws = new WebSocket(`ws://${wsHost}:8000/ws/benchmark`)
     wsRef.current = ws
     
     ws.onopen = () => {
@@ -885,6 +908,174 @@ export default function Home() {
             >
               {L.stop}
             </button>
+          </div>
+          
+          {/* Key Insights Panel */}
+          <div className="card">
+            <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+              {L.keyInsights}
+            </h2>
+            {chartData.length === 0 ? (
+              <p className="text-dark-muted text-sm">{L.noInsightsYet}</p>
+            ) : (() => {
+              // 计算各模型统计
+              const modelStats: { [key: string]: { scores: number[], latencies: number[], inputTokens: number, outputTokens: number } } = {}
+              chartData.forEach(r => {
+                if (!modelStats[r.model]) {
+                  modelStats[r.model] = { scores: [], latencies: [], inputTokens: 0, outputTokens: 0 }
+                }
+                modelStats[r.model].scores.push(r.overall)
+                modelStats[r.model].latencies.push(r.latency || 0)
+                modelStats[r.model].inputTokens += r.input_tokens || 1000
+                modelStats[r.model].outputTokens += r.output_tokens || 500
+              })
+              
+              const modelRanks = Object.entries(modelStats).map(([model, data]) => ({
+                model,
+                avgScore: data.scores.reduce((a, b) => a + b, 0) / data.scores.length,
+                avgLatency: data.latencies.reduce((a, b) => a + b, 0) / data.latencies.length,
+                inputTokens: data.inputTokens,
+                outputTokens: data.outputTokens,
+                cost: (data.inputTokens / 1000000) * (MODEL_PRICING[model]?.input || 1) + 
+                      (data.outputTokens / 1000000) * (MODEL_PRICING[model]?.output || 1)
+              }))
+              
+              const bestModel = [...modelRanks].sort((a, b) => b.avgScore - a.avgScore)[0]
+              const fastestModel = [...modelRanks].sort((a, b) => a.avgLatency - b.avgLatency)[0]
+              const cheapestModel = [...modelRanks].sort((a, b) => a.cost - b.cost)[0]
+              
+              // 检查 Grok 是否在某些方面领先
+              const grokWins: string[] = []
+              if (bestModel?.model.startsWith('grok')) grokWins.push('Best Score')
+              if (fastestModel?.model.startsWith('grok')) grokWins.push('Fastest')
+              if (cheapestModel?.model.startsWith('grok')) grokWins.push('Cheapest')
+              
+              return (
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between items-center p-2 bg-green-900/30 rounded">
+                    <span className="text-green-400">🏆 {L.bestModel}</span>
+                    <span className="font-bold text-green-300">{bestModel?.model} ({bestModel?.avgScore.toFixed(1)})</span>
+                  </div>
+                  <div className="flex justify-between items-center p-2 bg-blue-900/30 rounded">
+                    <span className="text-blue-400">⚡ {L.fastestModel}</span>
+                    <span className="font-bold text-blue-300">{fastestModel?.model} ({fastestModel?.avgLatency.toFixed(1)}s)</span>
+                  </div>
+                  <div className="flex justify-between items-center p-2 bg-yellow-900/30 rounded">
+                    <span className="text-yellow-400">💵 {L.cheapestModel}</span>
+                    <span className="font-bold text-yellow-300">{cheapestModel?.model} (${cheapestModel?.cost.toFixed(4)})</span>
+                  </div>
+                  {grokWins.length > 0 && (
+                    <div className="mt-2 p-2 bg-purple-900/30 rounded border border-purple-500">
+                      <span className="text-purple-400">✨ Grok Advantages: </span>
+                      <span className="text-purple-300 font-bold">{grokWins.join(', ')}</span>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+          </div>
+          
+          {/* Cost & Latency Panel */}
+          <div className="card">
+            <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+              {L.costLatency}
+            </h2>
+            {chartData.length === 0 ? (
+              <p className="text-dark-muted text-sm">{L.noInsightsYet}</p>
+            ) : (() => {
+              // 按模型汇总 (包含 cached tokens)
+              const modelCosts: { [key: string]: { inputTokens: number, outputTokens: number, cachedTokens: number, latencies: number[], count: number } } = {}
+              chartData.forEach(r => {
+                if (!modelCosts[r.model]) {
+                  modelCosts[r.model] = { inputTokens: 0, outputTokens: 0, cachedTokens: 0, latencies: [], count: 0 }
+                }
+                modelCosts[r.model].inputTokens += r.input_tokens || 1000
+                modelCosts[r.model].outputTokens += r.output_tokens || 500
+                modelCosts[r.model].cachedTokens += r.cached_tokens || 0
+                modelCosts[r.model].latencies.push(r.latency || 0)
+                modelCosts[r.model].count++
+              })
+              
+              return (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-dark-border">
+                        <th className="text-left py-2 px-1">Model</th>
+                        <th className="text-right py-2 px-1">Input</th>
+                        <th className="text-right py-2 px-1">Cached</th>
+                        <th className="text-right py-2 px-1">Output</th>
+                        <th className="text-right py-2 px-1">Cost</th>
+                        <th className="text-right py-2 px-1">Latency</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.entries(modelCosts).map(([model, data]) => {
+                        const pricing = MODEL_PRICING[model] || { input: 1, cached: 0.1, output: 1 }
+                        // 非缓存 input = total input - cached
+                        const uncachedInput = data.inputTokens - data.cachedTokens
+                        const inputCost = (uncachedInput / 1000000) * pricing.input
+                        const cachedCost = (data.cachedTokens / 1000000) * pricing.cached
+                        const outputCost = (data.outputTokens / 1000000) * pricing.output
+                        const totalCost = inputCost + cachedCost + outputCost
+                        const avgLatency = data.latencies.reduce((a, b) => a + b, 0) / data.latencies.length
+                        
+                        return (
+                          <tr key={model} className="border-b border-dark-border/50 hover:bg-dark-bg">
+                            <td className="py-2 px-1 font-medium truncate max-w-[100px]" title={model}>
+                              {model.replace('grok-', '').replace('-baseline', '')}
+                            </td>
+                            <td className="text-right py-2 px-1 text-dark-muted">
+                              {(data.inputTokens / 1000).toFixed(1)}K
+                            </td>
+                            <td className="text-right py-2 px-1 text-cyan-400">
+                              {data.cachedTokens > 0 ? `${(data.cachedTokens / 1000).toFixed(1)}K` : '-'}
+                            </td>
+                            <td className="text-right py-2 px-1 text-dark-muted">
+                              {(data.outputTokens / 1000).toFixed(1)}K
+                            </td>
+                            <td className="text-right py-2 px-1 text-green-400 font-mono">
+                              ${totalCost.toFixed(4)}
+                            </td>
+                            <td className="text-right py-2 px-1 text-blue-400">
+                              {avgLatency.toFixed(1)}s
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t border-dark-border">
+                        <td className="py-2 px-1 font-bold">Total</td>
+                        <td className="text-right py-2 px-1 text-dark-muted">
+                          {(Object.values(modelCosts).reduce((sum, d) => sum + d.inputTokens, 0) / 1000).toFixed(1)}K
+                        </td>
+                        <td className="text-right py-2 px-1 text-cyan-400">
+                          {(() => {
+                            const totalCached = Object.values(modelCosts).reduce((sum, d) => sum + d.cachedTokens, 0)
+                            return totalCached > 0 ? `${(totalCached / 1000).toFixed(1)}K` : '-'
+                          })()}
+                        </td>
+                        <td className="text-right py-2 px-1 text-dark-muted">
+                          {(Object.values(modelCosts).reduce((sum, d) => sum + d.outputTokens, 0) / 1000).toFixed(1)}K
+                        </td>
+                        <td className="text-right py-2 px-1 text-green-400 font-bold">
+                          ${Object.entries(modelCosts).reduce((sum, [model, data]) => {
+                            const pricing = MODEL_PRICING[model] || { input: 1, cached: 0.1, output: 1 }
+                            const uncachedInput = data.inputTokens - data.cachedTokens
+                            return sum + (uncachedInput / 1000000) * pricing.input + (data.cachedTokens / 1000000) * pricing.cached + (data.outputTokens / 1000000) * pricing.output
+                          }, 0).toFixed(4)}
+                        </td>
+                        <td className="text-right py-2 px-1 text-blue-400">-</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                  <div className="mt-2 text-xs text-dark-muted">
+                    💡 Pricing ($/1M): grok-4-fast $0.20/$0.50 | grok-3-mini $0.25/$1.27 | gpt-5.2 $1.75(cached $0.44)/$14.00
+                  </div>
+                </div>
+              )
+            })()}
           </div>
         </div>
         

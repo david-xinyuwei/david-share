@@ -78,7 +78,7 @@ export function ResultsTable({ results, evalReasons, humanScores, onHumanScoreCh
                 key={idx} 
                 className="border-b border-dark-border/50 hover:bg-dark-card/50 transition-colors"
               >
-                <td className="py-2 px-2 text-purple-400">{result.model.replace('grok-', '')}</td>
+                <td className="py-2 px-2 text-purple-400">{result.model}</td>
                 <td className="py-2 px-2 text-dark-muted text-xs">{result.sector.slice(0, 15)}...</td>
                 <td className="py-2 px-2 text-dark-text text-xs">{result.occupation.slice(0, 20)}...</td>
                 <td className="py-2 px-2 text-center">{result.completeness}</td>

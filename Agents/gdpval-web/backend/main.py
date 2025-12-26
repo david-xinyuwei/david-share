@@ -27,7 +27,7 @@ class BenchmarkConfig(BaseModel):
     tasks_per_sector: int = 2
     grok_endpoint: str = "https://models.inference.ai.azure.com"
     grok_api_key: str = ""
-    judge_endpoint: str = "https://xinyuwei-aoai.openai.azure.com"
+    judge_endpoint: str = "https://your-aoai-endpoint.openai.azure.com"
     judge_api_key: str = ""
     judge_model: str = "gpt-4.1"
     judge_api_version: str = "2024-12-01-preview"
@@ -43,6 +43,9 @@ class TaskResult(BaseModel):
     actionability: float
     overall: float
     latency: float
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cached_tokens: int = 0
     response: str = ""
     judge_summary: str = ""
     judge_strengths: str = ""
@@ -54,11 +57,17 @@ class TaskResult(BaseModel):
 # 加载 GDPVAL 数据
 # ============================================================
 
-DATA_PATH = Path(__file__).parent.parent.parent / "gdpval.json"
+DATA_PATH = Path(__file__).parent.parent.parent / "gdpval_enhanced.json"
+DATA_PATH_FALLBACK = Path(__file__).parent.parent.parent / "gdpval.json"
 
 def load_gdpval_data():
+    """加载 GDPVAL 增强数据集（含附件内容）"""
     if DATA_PATH.exists():
         with open(DATA_PATH, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    # 回退到原始数据
+    if DATA_PATH_FALLBACK.exists():
+        with open(DATA_PATH_FALLBACK, 'r', encoding='utf-8') as f:
             return json.load(f)
     return []
 
@@ -81,7 +90,7 @@ GROK_MODELS = [
     "grok-4-fast-reasoning",
     "grok-4-fast-non-reasoning",
     "grok-code-fast-1",
-    "gpt-5.2-chat-baseline"
+    "gpt-5.1-chat-baseline"
 ]
 
 # ============================================================
@@ -191,16 +200,19 @@ class BenchmarkRunner:
             api_version=self.config.judge_api_version
         )
     
-    async def run_grok_task(self, model: str, prompt: str) -> tuple[str, float]:
-        """调用 Grok 模型，流式输出"""
+    async def run_grok_task(self, model: str, prompt: str) -> tuple[str, float, int, int, int]:
+        """调用 Grok 模型，流式输出，返回 (response, latency, input_tokens, output_tokens, cached_tokens)"""
         start_time = time.time()
         full_response = ""
+        input_tokens = 0
+        output_tokens = 0
+        cached_tokens = 0
         
         try:
-            # GPT-5.2 baseline: use judge_client without eval prompt (as contestant)
-            if model == "gpt-5.2-chat-baseline":
+            # GPT-5.1 baseline: use judge_client with gpt-5.1-chat (not judge model)
+            if model == "gpt-5.1-chat-baseline":
                 response = self.judge_client.responses.create(
-                    model=self.config.judge_model,  # Use same model as judge but without eval prompt
+                    model="gpt-5.1-chat",  # Use gpt-5.1-chat as baseline contestant
                     input=prompt,
                     reasoning={"effort": "medium"}
                 )
@@ -210,13 +222,29 @@ class BenchmarkRunner:
                             if block.type == "output_text":
                                 full_response = block.text
                                 await self.send("stream", {"content": full_response})
+                # 从 GPT-5.1 response 获取实际 usage
+                if hasattr(response, 'usage') and response.usage:
+                    input_tokens = response.usage.input_tokens
+                    output_tokens = response.usage.output_tokens
+                    if hasattr(response.usage, 'input_tokens_details') and response.usage.input_tokens_details:
+                        cached_tokens = getattr(response.usage.input_tokens_details, 'cached_tokens', 0)
+                    print(f"[TOKEN] GPT-5.2 usage: input={input_tokens}, output={output_tokens}, cached={cached_tokens}")
+                else:
+                    # 估算 token 数
+                    input_tokens = len(prompt) // 4
+                    output_tokens = len(full_response) // 4
+                    print(f"[TOKEN] GPT-5.2 estimated: input={input_tokens}, output={output_tokens}")
             else:
                 # Grok models: use grok_client with streaming
+                # grok-3-mini 是 reasoning 模型，需要更大的 max_tokens（reasoning + content）
+                max_tokens = 16384 if "mini" in model else 4096
                 stream = self.grok_client.chat.completions.create(
                     model=model,
                     messages=[{"role": "user", "content": prompt}],
                     stream=True,
-                    max_tokens=2000
+                    stream_options={"include_usage": True},  # 请求返回 usage
+                    max_tokens=max_tokens,
+                    temperature=0.7  # 平衡创造性和一致性
                 )
                 
                 for chunk in stream:
@@ -226,14 +254,30 @@ class BenchmarkRunner:
 
                         # 实时推送流式内容
                         await self.send("stream", {"content": content})
+                    
+                    # 从最后一个 chunk 获取 usage
+                    if hasattr(chunk, 'usage') and chunk.usage:
+                        input_tokens = getattr(chunk.usage, 'prompt_tokens', 0)
+                        output_tokens = getattr(chunk.usage, 'completion_tokens', 0)
+                    
                     await asyncio.sleep(0)  # 让出控制权
+                
+                # 如果没有获取到 usage，使用估算
+                if input_tokens == 0:
+                    input_tokens = len(prompt) // 4
+                    print(f"[TOKEN] Estimated input_tokens from prompt length: {input_tokens}")
+                if output_tokens == 0:
+                    output_tokens = len(full_response) // 4
+                    print(f"[TOKEN] Estimated output_tokens from response length: {output_tokens}")
+                else:
+                    print(f"[TOKEN] Got actual usage: input={input_tokens}, output={output_tokens}")
                     
         except Exception as e:
             full_response = f"[ERROR] {str(e)}"
             await self.send("error", {"message": str(e)})
         
         latency = time.time() - start_time
-        return full_response, latency
+        return full_response, latency, input_tokens, output_tokens, cached_tokens
     
     def judge_response(self, task_prompt: str, response: str) -> dict:
         """GPT-5.2 评估 - 使用 responses API"""
@@ -340,13 +384,18 @@ class BenchmarkRunner:
                     "task": task['occupation']
                 })
                 
-                response, latency = await self.run_grok_task(model, task['prompt'])
+                # 使用 enhanced_prompt（包含附件内容），回退到原始 prompt
+                prompt_to_use = task.get('enhanced_prompt', task['prompt'])
+                response, latency, input_tokens, output_tokens, cached_tokens = await self.run_grok_task(model, prompt_to_use)
                 
                 test_results.append({
                     'model': model,
                     'task': task,
                     'response': response,
-                    'latency': latency
+                    'latency': latency,
+                    'input_tokens': input_tokens,
+                    'output_tokens': output_tokens,
+                    'cached_tokens': cached_tokens
                 })
                 
                 await self.send("phase1_complete", {
@@ -370,7 +419,9 @@ class BenchmarkRunner:
                 "occupation": tr['task']['occupation']
             })
             
-            eval_result = self.judge_response(tr['task']['prompt'], tr['response'])
+            # Judge 也使用 enhanced_prompt 进行评估（完整上下文）
+            prompt_for_judge = tr['task'].get('enhanced_prompt', tr['task']['prompt'])
+            eval_result = self.judge_response(prompt_for_judge, tr['response'])
             
             if 'error' not in eval_result:
                 result = TaskResult(
@@ -384,6 +435,9 @@ class BenchmarkRunner:
                     actionability=eval_result.get('actionability', 0),
                     overall=eval_result.get('overall', 0),
                     latency=round(tr['latency'], 1),
+                    input_tokens=tr.get('input_tokens', 0),
+                    output_tokens=tr.get('output_tokens', 0),
+                    cached_tokens=tr.get('cached_tokens', 0),
                     response=tr['response'][:500],
                     judge_summary=eval_result.get('summary', ''),
                     judge_strengths=eval_result.get('strengths', ''),
@@ -410,6 +464,9 @@ class BenchmarkRunner:
                     completeness=0, accuracy=0, professionalism=0,
                     clarity=0, actionability=0, overall=0,
                     latency=round(tr['latency'], 1),
+                    input_tokens=tr.get('input_tokens', 0),
+                    output_tokens=tr.get('output_tokens', 0),
+                    cached_tokens=tr.get('cached_tokens', 0),
                     response=tr['response'][:500],
                     notes=f"❌ {eval_result.get('error', 'Unknown')[:50]}"
                 )
