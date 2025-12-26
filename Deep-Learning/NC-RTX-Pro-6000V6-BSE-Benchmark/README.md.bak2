@@ -271,32 +271,6 @@ vllm bench serve \
 
 ---
 
-# Run benchmark
-vllm bench serve \
-  --backend openai-chat \
-  --base-url http://localhost:8000 \
-  --endpoint /v1/chat/completions \
-  --model /path/to/model \
-  --dataset-name random \
-  --random-input-len 1024 \
-  --random-output-len 256 \
-  --num-prompts 100 \
-  --max-concurrency 16 \
-  --request-rate inf
-\`\`\`
-
-### Conclusions
-
-1. **NVFP4 is 51.5% faster than FP8** - Blackwell native FP4 Tensor Core acceleration is significant
-2. **Lower latency across the board** - TTFT 40% faster, TPOT 33% faster
-3. **Lower memory usage** - Smaller model = larger KV Cache = higher concurrency potential
-4. **Blackwell exclusive advantage** - H100/A100 cannot use NVFP4, only RTX PRO 6000 Blackwell supports it
-5. **Version sensitive** - Must use vLLM 0.12.0, 0.13.0 removed SM120 support
-
-> 💡 **Recommendation**: On RTX PRO 6000 Blackwell, prefer NVFP4 quantized models for **50%+ extra performance** over FP8.
-
----
-
 ## 4.2 SGLang BF16/FP8 Three-GPU Comparison (200 Concurrent)
 
 > Test Date: 2025-12 | Framework: SGLang 0.5.6.post2 + FlashInfer 0.5.3
@@ -539,5 +513,4 @@ python -m sglang.bench_serving --backend sglang \
 | **H100** | Pure AI Compute | Strongest Tensor Core, 94GB HBM3, NVLink | **No NVENC, No RT Core** |
 | **A100** | AI Training/Inference | Mature ecosystem, 80GB HBM2e, NVLink | **No NVENC, No RT Core** |
 | **A10** | Inference/Graphics/VDI | Has NVENC + RT Core, supports GPU partitioning, 440GB memory | Small VRAM (24GB) |
-
 
