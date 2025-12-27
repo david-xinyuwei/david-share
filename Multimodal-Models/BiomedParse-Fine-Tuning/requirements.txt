@@ -31,3 +31,6 @@ scikit-learn>=1.2.0
 # Optional: For 3D volume processing
 # nibabel>=5.0.0
 # SimpleITK>=2.2.0
+
+# Visualization
+matplotlib>=3.7.0

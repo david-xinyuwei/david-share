@@ -25,6 +25,25 @@ We conducted **4 fine-tuning experiments** to validate BiomedParse's adaptabilit
 - 📈 **3D mode** outperforms 2D for multi-organ segmentation (+39% vs +21%)
 - 💡 **Large organs** (liver +81%, kidney +77%) benefit more than small organs
 
+
+### Visual Comparison
+
+**2D CT Segmentation: Original vs Fine-tuned**
+
+![2D Comparison](./images/2d_comparison.png)
+
+*Original model achieves 0% Dice on custom CT data, fine-tuned model reaches 50-80% Dice on spleen/liver segmentation.*
+
+![2D Dice Comparison](./images/2d_dice_comparison.png)
+
+**3D CT Segmentation: Original vs Fine-tuned**
+
+![3D Comparison](./images/3d_comparison.png)
+
+*3D visualization showing segmentation masks for liver, spleen, and kidneys.*
+
+![3D Dice Comparison](./images/3d_dice_comparison.png)
+
 ---
 
 ## 🚀 Quick Start
@@ -290,6 +309,7 @@ prompt = text_prompts[str(organ_id)]  # Keys are strings "1", "2", etc.
 
 ```
 BiomedParse-Fine-Tuning/
+├── inference.py                 # Inference & visualization script
 ├── README.md                    # This documentation
 ├── finetune_2d_strong_fast.py   # 2D multi-organ training script
 └── finetune_3d_strong_v3.py     # 3D multi-organ training script
@@ -314,3 +334,48 @@ BiomedParse-Fine-Tuning/
 ## 📜 License
 
 This project follows the BiomedParse license. See the [official repository](https://github.com/microsoft/BiomedParse) for details.
+
+---
+
+## 🔬 Inference & Visualization
+
+After fine-tuning, use `inference.py` to generate comparison visualizations between original and fine-tuned models.
+
+### 2D Comparison
+
+```bash
+python inference.py --mode 2d \
+    --biomedparse_dir /path/to/BiomedParse \
+    --image /path/to/test_image.png \
+    --mask /path/to/ground_truth.png \
+    --prompts "liver,spleen,kidney" \
+    --original_ckpt biomedparse_v2.ckpt \
+    --finetuned_ckpt ./output/best_model.ckpt \
+    --output_dir ./results
+```
+
+### 3D Comparison
+
+```bash
+python inference.py --mode 3d \
+    --biomedparse_dir /path/to/BiomedParse \
+    --data_file /path/to/CT_volume.npz \
+    --original_ckpt biomedparse_v2.ckpt \
+    --finetuned_ckpt ./output/best_model.ckpt \
+    --output_dir ./results
+```
+
+### Output Files
+
+The script generates:
+- `2d_comparison_<organ>.png` - Side-by-side comparison (Input | GT | Original | Fine-tuned)
+- `3d_comparison.png` - Multi-slice visualization with contour overlays
+- `*_dice_comparison.png` - Bar chart comparing Dice scores
+
+### Visualization Legend
+
+| Color | Meaning |
+|-------|---------|
+| 🟡 Yellow | Ground Truth contour |
+| 🔴 Red | Original model prediction |
+| 🟢 Green | Fine-tuned model prediction |

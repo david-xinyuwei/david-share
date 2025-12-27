@@ -25,6 +25,25 @@
 - 📈 **3D 模式**在多器官分割上优于 2D (+39% vs +21%)
 - 💡 **大器官**（肝脏 +81%，肾脏 +77%）比小器官收益更大
 
+
+### 可视化对比
+
+**2D CT 分割：原始模型 vs 微调模型**
+
+![2D 对比](./images/2d_comparison.png)
+
+*原始模型在自定义 CT 数据上 Dice 为 0%，微调后模型在脾脏/肝脏分割上达到 50-80% Dice。*
+
+![2D Dice 对比](./images/2d_dice_comparison.png)
+
+**3D CT 分割：原始模型 vs 微调模型**
+
+![3D 对比](./images/3d_comparison.png)
+
+*3D 可视化显示肝脏、脾脏、肾脏的分割掩码效果。*
+
+![3D Dice 对比](./images/3d_dice_comparison.png)
+
 ---
 
 ## 🚀 快速开始
@@ -255,3 +274,48 @@ python finetune_2d_strong_fast.py --batch_size 4
 ---
 
 *[English Version](README.md)*
+
+---
+
+## 🔬 推理与可视化
+
+微调完成后，使用 `inference.py` 生成原始模型与微调模型的对比可视化图。
+
+### 2D 对比
+
+```bash
+python inference.py --mode 2d \
+    --biomedparse_dir /path/to/BiomedParse \
+    --image /path/to/test_image.png \
+    --mask /path/to/ground_truth.png \
+    --prompts "liver,spleen,kidney" \
+    --original_ckpt biomedparse_v2.ckpt \
+    --finetuned_ckpt ./output/best_model.ckpt \
+    --output_dir ./results
+```
+
+### 3D 对比
+
+```bash
+python inference.py --mode 3d \
+    --biomedparse_dir /path/to/BiomedParse \
+    --data_file /path/to/CT_volume.npz \
+    --original_ckpt biomedparse_v2.ckpt \
+    --finetuned_ckpt ./output/best_model.ckpt \
+    --output_dir ./results
+```
+
+### 输出文件
+
+脚本生成以下文件：
+- `2d_comparison_<器官>.png` - 并排对比图（输入 | GT | 原始 | 微调）
+- `3d_comparison.png` - 多切片可视化（轮廓叠加）
+- `*_dice_comparison.png` - Dice 分数柱状对比图
+
+### 可视化图例
+
+| 颜色 | 含义 |
+|------|------|
+| 🟡 黄色 | Ground Truth 轮廓 |
+| 🔴 红色 | 原始模型预测 |
+| 🟢 绿色 | 微调模型预测 |
