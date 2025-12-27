@@ -1,4 +1,4 @@
-]633;E;head -171 /mnt/g/github/david-share/Deep-Learning/NC-RTX-Pro-6000V6-BSE-Benchmark/README.md.bak;]633;C# Azure NC RTX Pro 6000 V6 BSE Complete Benchmark Report
+# Azure NC RTX Pro 6000 V6 BSE Complete Benchmark Report
 
 > Comprehensive comparison of NC RTX 6000 Pro Blackwell /NC H100 NVL /NC A100 PCIe /NV A10
 
@@ -187,24 +187,23 @@ NVFP4 (NV FP4 W4A4) is a unique advantage of NVIDIA Blackwell architecture:
 | **Model** | Qwen3-14B-NVFP4 vs Qwen3-14B-FP8 (Local pre-quantized) |
 | **Quantization** | NVFP4 W4A4 (compressed-tensors) |
 | **Framework** | vLLM 0.12.0 (native CUTLASS NVFP4 kernel) |
-| **Benchmark Tool** | vllm bench serve |
-| **Workload** | 100 prompts, 1024 input tokens, 256 output tokens, concurrency=16 |
+| **Benchmark Tool** | vLLM 0.12.0 (native CUTLASS NVFP4 kernel) |
+| **Workload** | 200 prompts, 512 input tokens, 128 output tokens |
 
-### Test Results (vLLM Serving Benchmark)
+### Test Results
 
-| Precision | Output Throughput | Total Throughput | Mean TTFT | Mean TPOT |
-|-----------|------------------:|----------------:|----------:|----------:|
-| **NVFP4 (W4A4)** | **227.61 tok/s** | **1138.07 tok/s** | **1234 ms** | **59.54 ms** |
-| **FP8 (W8A8)** | 150.21 tok/s | 751.03 tok/s | 2066 ms | 88.54 ms |
-| **Improvement** | **+51.5%** | **+51.5%** | **-40%** | **-33%** |
+| Precision | Model | Input Tokens | Output Tokens | Time | Output TPS |
+|-----------|-------|-------------:|-------------:|-----:|----------:|
+| **NVFP4 (W4A4)** | Qwen3-14B-NVFP4 | 102,400 | 25,600 | 9.22s | **2,777 tok/s** |
+| **FP8 (W8A8)** | Qwen3-14B-FP8 | 102,400 | 25,600 | 12.75s | **2,009 tok/s** |
 
 ### Performance Comparison
 
 \`\`\`
 NVFP4 vs FP8 Output Throughput (Qwen3-14B, RTX PRO 6000 Blackwell)
 ═════════════════════════════════════════════════════════════
-NVFP4 (W4A4)    ███████████████████████████████████████████  227.61 tok/s (+51.5%)
-FP8 (W8A8)      ████████████████████████████                 150.21 tok/s (baseline)
+NVFP4 (W4A4)    ███████████████████████████████████████████  2,777 tok/s (+38%)
+FP8 (W8A8)      ████████████████████████████                 2,009 tok/s (baseline)
 ═════════════════════════════════════════════════════════════
 \`\`\`
 
@@ -212,20 +211,10 @@ FP8 (W8A8)      █████████████████████�
 
 | Metric | NVFP4 (W4A4) | FP8 (W8A8) | Difference |
 |--------|--------------|------------|------------|
-| **Output Throughput** | **227.61 tok/s** | 150.21 tok/s | **+51.5%** |
-| **Total Throughput** | **1138.07 tok/s** | 751.03 tok/s | **+51.5%** |
-| **Model Size** | **~9.9 GB** | ~15.3 GB | **-35%** |
-| **Time to First Token (TTFT)** | **1234 ms** | 2066 ms | **-40% (faster)** |
-| **Time per Output Token (TPOT)** | **59.54 ms** | 88.54 ms | **-33% (faster)** |
-
-### Comparison with Community Results (Teo's Qwen3-32B Test)
-
-| Model | NVFP4 | FP8 | Improvement |
-|-------|-------|-----|-------------|
-| Qwen3-14B (Our Test) | 227.61 tok/s | 150.21 tok/s | **+51.5%** |
-| Qwen3-32B (Teo's Test) | 606 tok/s | 382 tok/s | **+59%** |
-
-> Both tests confirm NVFP4 provides **50-60% speedup** over FP8 on Blackwell architecture.
+| **Output TPS** | **2,777** | 2,009 | **+38%** |
+| **Model Size** | **9.9 GB** | 15.3 GB | **-35%** |
+| **KV Cache Available** | 65.5 GiB | 60.1 GiB | +9% |
+| **Inference Time** | **9.22s** | 12.75s | **-28%** |
 
 ### Pitfalls ⚠️
 
@@ -261,13 +250,13 @@ vllm bench serve \
 
 ### Conclusions
 
-1. **NVFP4 is 51.5% faster than FP8** - Blackwell native FP4 Tensor Core acceleration is significant
+1. **NVFP4 is 38% faster than FP8** - Blackwell native FP4 Tensor Core acceleration is significant
 2. **Lower latency across the board** - TTFT 40% faster, TPOT 33% faster
 3. **Lower memory usage** - Smaller model = larger KV Cache = higher concurrency potential
 4. **Blackwell exclusive advantage** - H100/A100 cannot use NVFP4, only RTX PRO 6000 Blackwell supports it
 5. **Version sensitive** - Must use vLLM 0.12.0, 0.13.0 removed SM120 support
 
-> 💡 **Recommendation**: On RTX PRO 6000 Blackwell, prefer NVFP4 quantized models for **50%+ extra performance** over FP8.
+> 💡 **Recommendation**: On RTX PRO 6000 Blackwell, prefer NVFP4 quantized models for **38% extra performance** over FP8.
 
 ---
 
@@ -287,13 +276,13 @@ vllm bench serve \
 
 ### Conclusions
 
-1. **NVFP4 is 51.5% faster than FP8** - Blackwell native FP4 Tensor Core acceleration is significant
+1. **NVFP4 is 38% faster than FP8** - Blackwell native FP4 Tensor Core acceleration is significant
 2. **Lower latency across the board** - TTFT 40% faster, TPOT 33% faster
 3. **Lower memory usage** - Smaller model = larger KV Cache = higher concurrency potential
 4. **Blackwell exclusive advantage** - H100/A100 cannot use NVFP4, only RTX PRO 6000 Blackwell supports it
 5. **Version sensitive** - Must use vLLM 0.12.0, 0.13.0 removed SM120 support
 
-> 💡 **Recommendation**: On RTX PRO 6000 Blackwell, prefer NVFP4 quantized models for **50%+ extra performance** over FP8.
+> 💡 **Recommendation**: On RTX PRO 6000 Blackwell, prefer NVFP4 quantized models for **38% extra performance** over FP8.
 
 ---
 
@@ -315,7 +304,7 @@ When a single RTX PRO 6000 cannot fully utilize both GPUs for a small model, or 
 | **Framework** | vLLM 0.12.0 |
 | **Small Model** | Qwen3-14B-FP8 (for TP overhead comparison) |
 | **Large Model** | Qwen2.5-VL-72B-Instruct-FP8-dynamic |
-| **Benchmark Tool** | vllm bench serve |
+| **Benchmark Tool** | vLLM 0.12.0 (native CUTLASS NVFP4 kernel) |
 | **Workload** | 64 prompts, 512 input tokens, 256 output tokens, concurrency=16 |
 | **KV Cache** | FP8 |
 
@@ -337,6 +326,31 @@ When a single RTX PRO 6000 cannot fully utilize both GPUs for a small model, or 
 | **TP=2** | **294.77 tok/s** | 1801 ms | 47.42 ms |
 | **Difference** | **+27.0%** | +6.3% slower | **-24.2% faster** |
 
+
+### Robustness Verification (Day 2 Retest)
+
+To verify the stability and reproducibility of benchmark results, we re-ran the same tests on Day 2:
+
+| Metric | Day 1 TP=1 | Day 2 TP=1 | Variance | Day 1 TP=2 | Day 2 TP=2 | Variance |
+|--------|-----------|-----------|----------|-----------|-----------|----------|
+| **Output Throughput** | 232.02 tok/s | 231.50 tok/s | **-0.2%** | 294.77 tok/s | 296.46 tok/s | **+0.6%** |
+| **TPOT** | 62.57 ms | 62.40 ms | -0.3% | 47.42 ms | 46.76 ms | -1.4% |
+| **TTFT** | 1695 ms | 1779 ms | +5.0% | 1801 ms | 1891 ms | +5.0% |
+
+> ✅ **Conclusion: Results are highly stable** - Throughput variance <1%, demonstrating excellent reproducibility.
+
+### GPU-to-GPU Communication Bandwidth (PCIe Gen5, No NVLink)
+
+During TP=2 inference, the two GPUs communicate via PCIe. Measured P2P bandwidth:
+
+| Direction | Bandwidth | Notes |
+|-----------|-----------|-------|
+| **GPU0 → GPU1** | **41.26 GB/s** | PCIe Gen5 x16 |
+| **GPU1 → GPU0** | **44.46 GB/s** | PCIe Gen5 x16 |
+| **NCCL AllReduce** | **~43.5 GB/s** | Bidirectional aggregate |
+
+> ⚠️ **PCIe Gen5 (~43 GB/s unidirectional) bandwidth is limited** - NVLink provides ~450 GB/s unidirectional (~10x faster). PCIe is the bottleneck for TP>1. 72B models still achieve 27% improvement, but larger models or TP>2 may be constrained.
+
 ### Visualization
 
 ```
@@ -351,15 +365,6 @@ Qwen2.5-VL-72B (Large Model - TP benefit realized)
   TP=2    ████████████████████████████████████████████████  294.77 tok/s (+27%)
 ═════════════════════════════════════════════════════════════
 ```
-
-### Comparison with Community Results (Teo's 72B Test)
-
-| Source | TP=1 | TP=2 | Improvement |
-|--------|-----:|-----:|:-----------:|
-| **Teo's Test** | 260 tok/s | 348 tok/s | **+34%** |
-| **Our Test** | 232 tok/s | 295 tok/s | **+27%** |
-
-> Both tests confirm **~30% throughput improvement** with TP=2 for 72B models.
 
 ### Key Findings
 
@@ -568,55 +573,19 @@ python -m sglang.bench_serving --backend sglang \
 
 ## Four GPU Comprehensive Comparison
 
-### 📊 Performance Summary Table
 
-| Test Item | RTX 6000 | H100 NVL | A100 PCIe | A10 | RTX 6000 Assessment |
-|----------|----------|----------|-----------|-----|---------------|
-| **LLM Inference** (tok/s) | 2835.4 | **3083.6** | 2119.6 | 563.1 | 92% of H100 |
-| **SFT Fine-tuning** (s/step) | 15.09 | **11.84** | 22.19 | N/A | 47% faster than A100 |
-| **FLUX Image Gen** (img/min) | 42.3 | **47.8** | 27.8 | ❌ OOM | 52% faster than A100 |
-| **Blender Rendering** | **~2.15s** | ❌ No RT | ❌ No RT | ~8.08s | 3.76x of A10 |
-| **NVENC Multi-stream** | **~350 fps** | ❌ None | ❌ None | 87 fps | 4x of A10 |
-| **VRAM Capacity** | 96 GB | 94 GB | 80 GB | 24 GB | Largest |
 
-### 💻 Azure VM Configuration Comparison (Single GPU)
-
-| VM SKU | GPU | vCPU | Memory | GPU VRAM |
-|--------|-----|------|------|----------|
-| **Standard_NC128lds_xl_RTXPRO6000BSE_v6** | RTX 6000 Pro Blackwell | 128 | 256 GB | 96 GB GDDR7 |
-| **NC40ads H100 v5** | H100 NVL | 40 | 320 GB | 94 GB HBM3 |
-| **NC24ads A100 v4** | A100 PCIe | 24 | 220 GB | 80 GB HBM2e |
-| **NV36ads A10 v5** | A10 | 36 | 440 GB | 24 GB GDDR6 |
-
-### 💰 Price-Performance Analysis
-
-> Price-performance index based on Azure Pay-As-You-Go single-GPU VM pricing, **A100 as baseline (1.00)**
-
-| Metric | RTX 6000 | H100 NVL | A100 PCIe | A10 |
-|------|----------|----------|-----------|-----|
-| **LLM Inference Price-Perf** | **1.15** | 0.78 | 1.00 | 0.30 |
-| **SFT Fine-tuning Price-Perf** | **1.18** | 0.86 | 1.00 | N/A |
-| **FLUX Image Gen Price-Perf** | **1.14** | 0.90 | 1.00 | N/A |
-
-**Analysis:**
-- **RTX 6000 best price-performance**: LLM inference price-perf 15% higher than A100, 47% higher than H100
-- **RTX 6000 most vCPUs**: 128 vCPU, suitable for data preprocessing, CPU parallel tasks
-- **H100 strongest performance but average price-perf**: High price, suitable for maximum performance scenarios
-- **A100 balanced price-performance**: Mature ecosystem, moderate price-perf
 ### 🏆 Scenario Recommendations
 
 | Use Case | Recommended GPU | Reason |
 |----------|----------|------|
 | **3D Rendering/Animation** | 🥇 **RTX 6000** | RT Core crushing advantage, H100/A100 not supported |
 | **AI Image Gen (Performance)** | 🥇 H100 > 🥈 RTX 6000 > 🥉 A100 | H100 fastest, RTX 6000 52% faster than A100 |
-| **AI Image Gen (Price-Perf)** | 🥇 **RTX 6000** > 🥈 A100 > 🥉 H100 | RTX 6000 best price-perf (1.14) |
 | **Video Transcode (Multi-stream)** | 🥇 **RTX 6000** > 🥈 A10 | 4x throughput advantage, H100/A100 not supported |
 | **AI Video Generation (Includes MP4 Output)** | 🥇 **RTX 6000** > 🥈 A10 | H100/A100 None NVENC，Could not output vedio |
 | **LLM Reasoning (Performance Focus)** | 🥇 H100 > 🥈 RTX 6000 > 🥉 A100 | H100 is fastest ，RTX 6000 is 92% |
-| **LLM Inference (Price-Perf)** | 🥇 **RTX 6000** > 🥈 A100 > 🥉 H100 | RTX 6000 best price-perf (1.15) |
 | **LLM Training (>70B)** | 🥇 H100 > 🥈 A100 | Requires NVLink multi-GPU, RTX 6000 not supported |
 | **SFT Fine-tuning (Performance)** | 🥇 H100 > 🥈 RTX 6000 > 🥉 A100 | H100 fastest, RTX 6000 47% faster than A100 |
-| **SFT Fine-tuning (Price-Perf)** | 🥇 **RTX 6000** > 🥈 A100 > 🥉 H100 | RTX 6000 best price-perf (1.18) |
 | **Cloud Gaming/VDI** | 🥇 **RTX 6000** > 🥈 A10 | RT Core + NVENC, H100/A100 not supported |
 | **Live Streaming** | 🥇 **RTX 6000** > 🥈 A10 | NVENC Gen9 vs Gen7, H100/A100 no NVENC |
 
@@ -630,3 +599,72 @@ python -m sglang.bench_serving --backend sglang \
 | **A10** | Inference/Graphics/VDI | Has NVENC + RT Core, supports GPU partitioning, 440GB memory | Small VRAM (24GB) |
 
 
+
+---
+
+## 📦 Repository Structure
+
+```
+NC-RTX-Pro-6000V6-BSE-Benchmark/
+├── README.md                      # English documentation (this file)
+├── README-CN.md                   # 中文文档
+├── benchmark_tp_comparison.py     # TP=1 vs TP=2 benchmark script
+├── gpu_p2p_bandwidth_test.py      # GPU P2P bandwidth test
+└── requirements.txt               # Python dependencies
+```
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+```bash
+# Create conda environment (recommended)
+conda create -n vllm012 python=3.11
+conda activate vllm012
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+### Run TP Benchmark
+
+Compare Tensor Parallel performance (TP=1 vs TP=2):
+
+```bash
+# TP=1 test (single GPU)
+python benchmark_tp_comparison.py \
+    --model Qwen/Qwen2.5-VL-72B-Instruct-FP8 \
+    --tp 1 \
+    --port 8000
+
+# TP=2 test (dual GPU)
+python benchmark_tp_comparison.py \
+    --model Qwen/Qwen2.5-VL-72B-Instruct-FP8 \
+    --tp 2 \
+    --port 8001
+```
+
+### Test GPU P2P Bandwidth
+
+Measure GPU-to-GPU communication bandwidth:
+
+```bash
+python gpu_p2p_bandwidth_test.py
+```
+
+Expected output on RTX PRO 6000 (PCIe Gen5, no NVLink):
+- GPU0 → GPU1: ~41-44 GB/s
+- GPU1 → GPU0: ~41-44 GB/s
+
+---
+
+## 📊 Scripts Description
+
+| Script | Purpose | Key Metrics |
+|--------|---------|-------------|
+| `benchmark_tp_comparison.py` | Compare TP=1 vs TP=2 inference performance | Output throughput (tok/s), TTFT, TPOT |
+| `gpu_p2p_bandwidth_test.py` | Measure GPU P2P bandwidth | Bandwidth (GB/s), NVLink/PCIe detection |
+
+---
