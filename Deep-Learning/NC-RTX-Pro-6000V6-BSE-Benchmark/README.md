@@ -258,34 +258,6 @@ vllm bench serve \
 
 > 💡 **Recommendation**: On RTX PRO 6000 Blackwell, prefer NVFP4 quantized models for **38% extra performance** over FP8.
 
----
-
-# Run benchmark
-vllm bench serve \
-  --backend openai-chat \
-  --base-url http://localhost:8000 \
-  --endpoint /v1/chat/completions \
-  --model /path/to/model \
-  --dataset-name random \
-  --random-input-len 1024 \
-  --random-output-len 256 \
-  --num-prompts 100 \
-  --max-concurrency 16 \
-  --request-rate inf
-```
-
-### Conclusions
-
-1. **NVFP4 is 38% faster than FP8** - Blackwell native FP4 Tensor Core acceleration is significant
-2. **Lower latency across the board** - TTFT 40% faster, TPOT 33% faster
-3. **Lower memory usage** - Smaller model = larger KV Cache = higher concurrency potential
-4. **Blackwell exclusive advantage** - H100/A100 cannot use NVFP4, only RTX PRO 6000 Blackwell supports it
-5. **Version sensitive** - Must use vLLM 0.12.0, 0.13.0 removed SM120 support
-
-> 💡 **Recommendation**: On RTX PRO 6000 Blackwell, prefer NVFP4 quantized models for **38% extra performance** over FP8.
-
----
-
 
 ## 4.1.1 Tensor Parallel (TP=1 vs TP=2) Benchmark
 
@@ -296,6 +268,7 @@ vllm bench serve \
 When a single RTX PRO 6000 cannot fully utilize both GPUs for a small model, or when a large model benefits from tensor parallelism across 2 GPUs:
 - **TP=1**: Single GPU inference, model fits in one GPU
 - **TP=2**: Tensor parallel across 2 GPUs, model weights split across GPUs
+![images](./images/1.png)
 
 ### Test Configuration
 
