@@ -500,7 +500,7 @@ python -m sglang.bench_serving --backend sglang \
 
 | Parameter | Value |
 |------|-----|
-| **Model** | Qwen/Qwen3-8B-Base (8.19B 参数) |
+| **Model** | Qwen/Qwen3-8B-Base (8.19B params) |
 | **Training Type** | Full Fine-Tuning |
 | **Precision** | BF16 |
 
@@ -520,7 +520,7 @@ python -m sglang.bench_serving --backend sglang \
 
 | Parameter | Value |
 |------|-----|
-| **Model** | FLUX.1 schnell (12B 参数) |
+| **Model** | FLUX.1 schnell (12B params) |
 | **Resolution** | 1024×1024 |
 | **Inference Steps** | 4 steps |
 
@@ -562,9 +562,9 @@ python -m sglang.bench_serving --backend sglang \
 
 | Parallel Streams | RTX 6000 | A10 | Ratio |
 |---------|----------|-----|------|
-| 1 流 | 98 fps | 87 fps | 1.13x |
-| 4 流 | **313 fps** | 87 fps* | **3.6x** |
-| 12 流 | **348 fps** | 87 fps* | **4.0x** |
+| 1 stream | 98 fps | 87 fps | 1.13x |
+| 4 streams | **313 fps** | 87 fps* | **3.6x** |
+| 12 streams | **348 fps** | 87 fps* | **4.0x** |
 
 > *A10 vGPU mode only supports single stream parallel  
 > **Note**: H100/A100 have no NVENC, cannot perform this test
@@ -607,7 +607,7 @@ python -m sglang.bench_serving --backend sglang \
 ```
 NC-RTX-Pro-6000V6-BSE-Benchmark/
 ├── README.md                      # English documentation (this file)
-├── README-CN.md                   # 中文文档
+├── README-CN.md                   # Chinese Documentation
 ├── benchmark_tp_comparison.py     # TP=1 vs TP=2 benchmark script
 ├── gpu_p2p_bandwidth_test.py      # GPU P2P bandwidth test
 └── requirements.txt               # Python dependencies
