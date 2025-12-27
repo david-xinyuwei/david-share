@@ -259,6 +259,12 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 - **TP=1**: 单卡推理，模型完全放在一张 GPU 上
 - **TP=2**: 张量并行跨 2 张 GPU，模型权重分布在两张卡上
 
+```
+
+```
+
+
+
 ### 测试配置
 
 | 参数 | 值 |

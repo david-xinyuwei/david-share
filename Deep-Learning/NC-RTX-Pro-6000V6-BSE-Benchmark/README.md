@@ -105,7 +105,7 @@
 
 | Item | Standard_NC256ds_xl_RTXPRO6000BSE_v6 |
 |------|---------------|
-| **nvidia-smi topo -p2p** | OK (Hardware level supported) |
+| `nvidia-smi topo -p2p` | OK (Hardware level supported) |
 | **PyTorch can_device_access_peer()** | **False** (Still achieves ~43 GB/s) |
 | **GPU0 → GPU1 BW** | **41.26 GB/s** |
 | **GPU1 → GPU0 BW** | **44.46 GB/s** |
@@ -199,13 +199,13 @@ NVFP4 (NV FP4 W4A4) is a unique advantage of NVIDIA Blackwell architecture:
 
 ### Performance Comparison
 
-\`\`\`
+```
 NVFP4 vs FP8 Output Throughput (Qwen3-14B, RTX PRO 6000 Blackwell)
 ═════════════════════════════════════════════════════════════
 NVFP4 (W4A4)    ███████████████████████████████████████████  2,777 tok/s (+38%)
 FP8 (W8A8)      ████████████████████████████                 2,009 tok/s (baseline)
 ═════════════════════════════════════════════════════════════
-\`\`\`
+```
 
 ### Key Metrics Comparison
 
@@ -226,7 +226,7 @@ FP8 (W8A8)      █████████████████████�
 
 ### Environment Requirements
 
-\`\`\`bash
+```bash
 # Must use vLLM 0.12.0 (0.13.0 doesn't support SM120 NVFP4)
 pip install vllm==0.12.0
 
@@ -246,7 +246,7 @@ vllm bench serve \
   --num-prompts 100 \
   --max-concurrency 16 \
   --request-rate inf
-\`\`\`
+```
 
 ### Conclusions
 
@@ -272,7 +272,7 @@ vllm bench serve \
   --num-prompts 100 \
   --max-concurrency 16 \
   --request-rate inf
-\`\`\`
+```
 
 ### Conclusions
 
