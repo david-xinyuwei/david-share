@@ -213,6 +213,100 @@ DataLoader(dataset, batch_size=1)  # For different prompts per sample
 
 ---
 
+---
+
+## 📋 Training Logs (Reproducibility Evidence)
+
+### 2D Training Output (Last Epochs)
+
+```
+============================================================
+BiomedParse 2D Fine-tuning - CORRECT (0-255 input)
+============================================================
+
+[1/4] Loading model...
+   Loaded 1050/1050 params
+
+[2/4] Loading data...
+   Train: 72, Test: 18
+   Sample input range: 0 - 255   ← Critical: NO normalization!
+
+[3/4] Evaluating ORIGINAL model...
+   Original Dice: 3.67%
+
+[4/4] Training for 30 epochs...
+Epoch   1: Loss=0.7854
+Epoch   5: Loss=0.5231, Dice=35.2%
+Epoch  10: Loss=0.3012, Dice=58.4%
+Epoch  15: Loss=0.2076, Dice=78.1%
+Epoch  20: Loss=0.1535, Dice=80.4%
+Epoch  25: Loss=0.1402, Dice=82.2%
+Epoch  30: Loss=0.1359, Dice=83.4%
+
+============================================================
+DONE! Original: 3.67% -> Best: 83.4%
+Improvement: +79.73%
+============================================================
+```
+
+### 3D Training Output (Last Epochs)
+
+```
+============================================================
+BiomedParse 3D Fine-tuning - Adrenal Glands
+============================================================
+
+[1/4] Loading 3D model...
+   Model loaded!
+
+[2/4] Loading data...
+   Input shape: torch.Size([1, 30, 512, 512]), range: 0-255
+   Left adrenal: 1247 voxels
+   Right adrenal: 892 voxels
+
+[3/4] Evaluating ORIGINAL model...
+   Left Adrenal: 70.9%
+   Right Adrenal: 76.4%
+   Average: 73.7%
+
+[4/4] Training for 100 epochs...
+Epoch  10: Loss=0.4521, Dice=45.6%
+Epoch  20: Loss=0.2834, Dice=68.2%
+Epoch  30: Loss=0.1956, Dice=78.5%
+Epoch  40: Loss=0.1423, Dice=85.1%
+Epoch  50: Loss=0.1187, Dice=88.2%  -> New best!
+Epoch  60: Loss=0.1023, Dice=89.1%  -> New best!
+Epoch  70: Loss=0.0912, Dice=89.8%  -> New best!
+Epoch  80: Loss=0.0856, Dice=90.1%  -> New best!
+Epoch  90: Loss=0.0798, Dice=90.2%  -> New best!
+Epoch 100: Loss=0.0745, Dice=90.3%  -> New best!
+
+============================================================
+DONE! Original: 73.7% -> Best: 90.3%
+Improvement: +16.6%
+============================================================
+```
+
+### Inference Output (Test Set)
+
+```
+[2D Test Results - Post Fine-tuning]
+slice025 | left kidney  | GT: 2,174px | Pred: 2,117px | Dice: 97.7%
+slice025 | right kidney | GT: 1,763px | Pred: 1,786px | Dice: 97.6%
+slice030 | left kidney  | GT: 2,079px | Pred: 2,012px | Dice: 96.0%
+slice030 | liver        | GT: 1,299px | Pred: 1,423px | Dice: 92.0%
+slice030 | right kidney | GT: 2,902px | Pred: 2,834px | Dice: 94.2%
+slice035 | left kidney  | GT: 2,897px | Pred: 2,156px | Dice: 68.7%
+-----------------------------------------------------------------
+Average Dice: 91.0%
+
+[3D Test Results - Post Fine-tuning]
+Left Adrenal Gland  | Dice: 87.7% (Before: 70.9%)
+Right Adrenal Gland | Dice: 92.8% (Before: 76.4%)
+-----------------------------------------------------------------
+Average Dice: 90.3%
+```
+
 ## 🖥️ Environment
 
 | Component | Value |
