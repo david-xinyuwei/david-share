@@ -4,45 +4,55 @@ Fine-tuning Microsoft's BiomedParse medical image segmentation model for custom 
 
 **Author**: Xinyu Wei (Microsoft AI and Apps GBB)  
 **Model**: [microsoft/BiomedParse](https://github.com/microsoft/BiomedParse)  
-**Paper**: [Nature Methods 2024](https://aka.ms/biomedparse-paper)
+**Paper**: [Nature Methods 2024](https://aka.ms/biomedparse-paper)  
+**Test Environment**: NVIDIA A10 24GB GPU
 
 ---
 
 ## 🎯 Results Summary
 
-We conducted **4 fine-tuning experiments** to validate BiomedParse's adaptability on custom medical imaging data.
-
-| Experiment | Mode | Task | Data Size | Original Dice | Fine-tuned Dice | **Improvement** |
-|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **Exp 1** | 2D | CT Tumor | 5 train / 2 test | 16.02% | 97.66% | **+81.64%** 🏆 |
-| **Exp 2** | 3D | CT Organs (3) | 16 train / 8 test | 0.00% | 16.70% | **+16.70%** |
-| **Exp 3** | 2D | CT Organs (7) | 122 train / 48 test | 4.75% | 25.68% | **+20.93%** |
-| **Exp 4** | 3D | CT Organs (6) | 16 slices × 6 organs | 16.67% | 55.80% | **+39.13%** |
+| Experiment | Mode | Task | Before Dice | After Dice | **Improvement** |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| **2D CT Organs** | 2D | left/right kidney, liver | 0.6% | **91.0%** | 🏆 **+90.4%** |
+| **3D Adrenal Glands** | 3D | left/right adrenal gland | 73.7% | **90.3%** | **+16.6%** |
 
 ### Key Findings
 
-- 🏆 **Single-target tasks** (e.g., tumor) achieve the best fine-tuning results (+81.64%)
-- 📈 **3D mode** outperforms 2D for multi-organ segmentation (+39% vs +21%)
-- 💡 **Large organs** (liver +81%, kidney +77%) benefit more than small organs
+- 🏆 **Correct prompt extraction is critical**: Using "left kidney" instead of "kidney" improved Dice from 0% to 97%
+- 📈 **3D mode works well for small organs**: Adrenal glands achieved 90%+ Dice
+- ⚠️ **Input must be 0-255 range**: Do NOT normalize to 0-1
 
+---
 
-### Visual Comparison
+## 📊 Detailed Results
 
-**2D CT Segmentation: Original vs Fine-tuned**
+### 2D CT Organ Segmentation
 
-![2D Comparison](./images/2d_comparison.png)
+![2D Comparison](./images/2d_comparison_final.png)
 
-*Original model achieves 0% Dice on custom CT data, fine-tuned model reaches 50-80% Dice on spleen/liver segmentation.*
+*GT=Green, Before=Orange, After=Cyan. The "Before" model predicts both kidneys when asked for "left kidney", while "After" correctly segments only the target organ.*
 
-![2D Dice Comparison](./images/2d_dice_comparison.png)
+| Test Image | Prompt | Before | After | Improvement |
+|------------|--------|--------|-------|-------------|
+| slice025 | left kidney | 0.0% | **97.7%** | +97.7% |
+| slice025 | right kidney | 0.0% | **97.6%** | +97.6% |
+| slice030 | left kidney | 0.0% | **96.0%** | +96.0% |
+| slice030 | liver | 3.0% | **92.0%** | +89.0% |
+| slice030 | right kidney | 0.0% | **94.2%** | +94.2% |
+| slice035 | left kidney | 0.4% | **68.7%** | +68.3% |
+| **Average** | - | **0.6%** | **91.0%** | **+90.4%** |
 
-**3D CT Segmentation: Original vs Fine-tuned**
+### 3D Adrenal Gland Segmentation
 
-![3D Comparison](./images/3d_comparison.png)
+![3D Comparison](./images/3d_finetune_comparison_v4.png)
 
-*3D visualization showing segmentation masks for liver, spleen, and kidneys.*
+*Green=Correct, Red=False Positive, Orange=Missed region*
 
-![3D Dice Comparison](./images/3d_dice_comparison.png)
+| Organ | Before | After | Improvement |
+|-------|--------|-------|-------------|
+| Left Adrenal | 70.9% | **87.7%** | +16.8% |
+| Right Adrenal | 76.4% | **92.8%** | +16.4% |
+| **Average** | **73.7%** | **90.3%** | **+16.6%** |
 
 ---
 
@@ -55,253 +65,171 @@ We conducted **4 fine-tuning experiments** to validate BiomedParse's adaptabilit
 git clone https://github.com/microsoft/BiomedParse.git
 cd BiomedParse
 
+# Set environment variable
+export BIOMEDPARSE_ROOT=$(pwd)
+
 # Run 2D fine-tuning
-python finetune_2d_strong_fast.py \
-    --biomedparse_dir . \
+python finetune_2d_prompt_fix.py \
     --data_dir /path/to/your/2d_data \
     --output_dir ./output \
-    --checkpoint biomedparse_v2.ckpt \
-    --epochs 100 \
-    --lr 1e-5 \
-    --batch_size 8
+    --epochs 30 \
+    --lr 1e-5
 ```
 
 ### 3D Fine-tuning
 
 ```bash
-python finetune_3d_strong_v3.py \
-    --biomedparse_dir . \
-    --data_file /path/to/CT_volume.npz \
+python finetune_3d_adrenal.py \
+    --data_path /path/to/CT_volume.npz \
     --output_dir ./output \
-    --checkpoint biomedparse_v2.ckpt \
     --epochs 100 \
-    --organ_ids 1,2,3,4,5,6 \
-    --start_slice 20 \
-    --num_slices 16
+    --lr 1e-5
+```
+
+---
+
+## 📁 Data Format
+
+### 2D Dataset Structure
+
+```
+data_dir/
+├── train/
+│   ├── slice001_left_kidney.png      # Filename = prompt
+│   ├── slice001_right_kidney.png
+│   └── ...
+├── train_mask/
+│   ├── slice001_left_kidney_mask.png
+│   └── ...
+├── test/
+└── test_mask/
+```
+
+**Important**: The filename (minus extension) becomes the text prompt!
+- `slice001_left_kidney.png` → prompt = `"left kidney"`
+- `slice002_liver.png` → prompt = `"liver"`
+
+### 3D NPZ Format
+
+```python
+{
+    "volume": np.array,           # Shape: (D, H, W), 0-255 range
+    "left_adrenal_gland": np.array,  # Binary mask
+    "right_adrenal_gland": np.array  # Binary mask
+}
 ```
 
 ---
 
 ## 🏗️ Architecture
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    BiomedParse v2 (371M params)             │
-├─────────────────────────────────────────────────────────────┤
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐  │
-│  │ Image Encoder│───▶│  Decoder     │───▶│ Mask Head    │  │
-│  │ (SAM-based)  │    │ (Transformer)│    │ (Per-pixel)  │  │
-│  └──────────────┘    └──────────────┘    └──────────────┘  │
-│         ▲                   ▲                              │
-│         │                   │                              │
-│  ┌──────┴───────┐    ┌──────┴───────┐                     │
-│  │ Text Encoder │    │ Text Prompts │                     │
-│  │ (BiomedCLIP) │◀───│ "CT scan of  │                     │
-│  │              │    │  the spleen" │                     │
-│  └──────────────┘    └──────────────┘                     │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+graph TD
+    subgraph BiomedParse["BiomedParse v2 (371M params)"]
+        IMG[CT Image<br/>1024×1024] --> ENC[Image Encoder<br/>SAM-based]
+        TXT[Text Prompt<br/>'left kidney'] --> TENC[Text Encoder<br/>BiomedCLIP]
+        ENC --> DEC[Transformer Decoder]
+        TENC --> DEC
+        DEC --> HEAD[Mask Head]
+        HEAD --> OUT[Segmentation Mask<br/>1024×1024]
+    end
+    
+    style IMG fill:#e1f5fe
+    style TXT fill:#fff3e0
+    style OUT fill:#e8f5e9
 ```
 
----
+### 2D vs 3D Mode
 
-## 🖥️ Environment Setup
-
-### Hardware Requirements
-
-| Component | Minimum | Recommended |
-|---|---|---|
-| GPU | 24GB VRAM | NVIDIA A100 80GB |
-| RAM | 32GB | 64GB+ |
-| Storage | 50GB | 100GB |
-
-### Software Setup
-
-```bash
-# Clone BiomedParse
-git clone https://github.com/microsoft/BiomedParse.git
-cd BiomedParse
-
-# Create conda environment
-conda create -n biomedparse python=3.10 -y
-conda activate biomedparse
-
-# Install dependencies
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
-pip install -r requirements.txt
-
-# Download pretrained weights (~1.4GB)
-# Place biomedparse_v2.ckpt in the BiomedParse directory
+```mermaid
+graph LR
+    subgraph 2D["2D Mode"]
+        A1[Single Slice] --> B1[1024×1024 RGB]
+        B1 --> C1[Per-slice Prediction]
+    end
+    
+    subgraph 3D["3D Mode"]
+        A2[Volume Stack] --> B2[D×H×W Grayscale]
+        B2 --> C2[Volumetric Prediction]
+    end
 ```
 
 ---
 
-## 📊 Data Format
+## ⚠️ Known Issues & Solutions
 
-### 2D Dataset Structure
+### Issue 1: Image Normalization
 
-```
-data_dir/
-├── train/           # Training images (PNG, 1024×1024)
-│   ├── slice_001_liver.png
-│   ├── slice_002_spleen.png
-│   └── ...
-├── train_mask/      # Binary masks (PNG, same size as images)
-│   ├── slice_001_liver.png
-│   ├── slice_002_spleen.png
-│   └── ...
-├── test/            # Test images
-├── test_mask/       # Test masks
-├── train.json       # Training annotations
-└── test.json        # Test annotations
-```
+**Symptom**: Model outputs empty or incorrect masks
 
-### JSON Annotation Format
-
-```json
-{
-  "annotations": [
-    {
-      "file_name": "slice_001_liver.png",
-      "mask_file": "slice_001_liver.png",
-      "sentences": [{"sent": "CT scan of the liver"}]
-    },
-    {
-      "file_name": "slice_002_spleen.png",
-      "mask_file": "slice_002_spleen.png",
-      "sentences": [{"sent": "CT scan of the spleen"}]
-    }
-  ]
-}
-```
-
-### 3D NPZ Format
+**Root Cause**: BiomedParse expects input in **0-255 range**, not 0-1
 
 ```python
-# Expected structure
-{
-    "imgs": np.array,           # Shape: (D, H, W), e.g., (63, 512, 512)
-    "gts": np.array,            # Shape: (D, H, W), values = organ IDs (1,2,3...)
-    "text_prompts": {           # Dict mapping organ ID to text
-        "1": "CT scan of spleen",
-        "2": "CT scan of right kidney",
-        "3": "CT scan of left kidney",
-        ...
-    }
-}
+# ❌ INCORRECT
+img = img / 255.0
+
+# ✅ CORRECT
+img = img.astype(np.float32)  # Keep 0-255 range
 ```
 
----
+### Issue 2: Prompt Mismatch
 
-## 🛠️ Training Configuration
+**Symptom**: Model predicts both kidneys when asked for "left kidney"
 
-### Command Line Arguments
+**Root Cause**: Prompt extraction returns "kidney" instead of "left kidney"
 
-| Argument | Default | Description |
-|---|---|---|
-| `--biomedparse_dir` | `.` | Path to BiomedParse repository |
-| `--data_dir` / `--data_file` | Required | Path to training data |
-| `--output_dir` | `./output` | Path to save checkpoints |
-| `--checkpoint` | `biomedparse_v2.ckpt` | Pretrained weights |
-| `--epochs` | `100` | Number of training epochs |
-| `--lr` | `1e-5` | Learning rate |
-| `--batch_size` | `8` | Batch size (2D only) |
-| `--organ_ids` | `1,2,3,4,5,6` | Comma-separated organ IDs (3D only) |
-
-### Recommended Hyperparameters
-
-| Parameter | Value | Reason |
-|---|---|---|
-| Learning Rate | 1e-5 | Prevent catastrophic forgetting |
-| Optimizer | AdamW | Standard choice with weight decay |
-| Weight Decay | 0.01 | Regularization |
-| Scheduler | CosineAnnealingLR | Smooth convergence |
-| Loss | BCE + Dice | Best for medical segmentation |
-| Epochs | 50-100 | Small data needs more iterations |
-| Precision | FP16 | Save memory, faster training |
-
----
-
-## 📈 Detailed Results
-
-### Experiment 3: 2D Multi-Organ (Large Sample)
-
-| Organ | Original Dice | Fine-tuned Dice | Improvement |
-|------|----------|----------|----------|
-| aorta | 0.52% | 0.73% | +0.21% |
-| liver | 12.95% | 52.93% | **+39.98%** |
-| spleen | 2.36% | 61.09% | **+58.73%** 🏆 |
-| stomach | 2.56% | 6.23% | +3.67% |
-| **Overall** | **4.75%** | **25.68%** | **+20.93%** |
-
-### Experiment 4: 3D Multi-Organ (6 Organs)
-
-| Organ | Original Dice | Fine-tuned Dice | Improvement |
-|------|----------|----------|----------|
-| liver | 0.00% | 81.24% | **+81.24%** 🏆 |
-| right_kidney | 0.00% | 76.78% | **+76.78%** |
-| left_kidney | 0.00% | 76.75% | **+76.75%** |
-| spleen | 0.00% | 0.00% | 0.00% |
-| gallbladder | 0.00% | 0.00% | 0.00% |
-| **Overall** | **16.67%** | **55.80%** | **+39.13%** |
-
-### Why Some Organs Didn't Improve?
-
-| Organ | GT Pixels | Analysis |
-|------|----------|------|
-| right_kidney | 32,494 | ✅ Sufficient data |
-| liver | 23,728 | ✅ Sufficient data |
-| spleen | 7,265 | ⚠️ Medium, may need more data |
-| gallbladder | 967 | ❌ Too few pixels to learn |
-| esophagus | 0 | ❌ Not present in selected slices |
-
----
-
-## ⚠️ Troubleshooting
-
-### Issue 1: GPU OOM
-```bash
-RuntimeError: CUDA out of memory
-```
-**Solution**:
 ```python
-# Reduce batch size
---batch_size 1
+# ❌ INCORRECT: Returns "kidney"
+organ = fname.split("_")[-1].replace(".png", "")
 
-# Enable memory optimization
-os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+# ✅ CORRECT: Returns "left kidney"
+def get_prompt(fname):
+    base = fname.replace(".png", "")
+    parts = base.split("_")[1:]  # Skip slice number
+    return " ".join(parts)
 ```
 
-### Issue 2: Hydra Already Initialized
-```bash
-GlobalHydra is already initialized
-```
-**Solution**:
+### Issue 3: Hydra Configuration Conflict
+
+**Symptom**: `GlobalHydra is already initialized` error on second model load
+
+**Solution**: Clear Hydra state before reinitializing
+
 ```python
 from hydra.core.global_hydra import GlobalHydra
 GlobalHydra.instance().clear()
-initialize(config_path="configs/model", job_name="finetune")
+initialize(config_path="configs/model", ...)
 ```
 
-### Issue 3: Weight Loading Mismatch
-```bash
-0/1050 params loaded
-```
-**Solution**:
+### Issue 4: Batch Size with Different Prompts
+
+**Symptom**: Inconsistent predictions when batch contains different prompts
+
+**Solution**: Use `batch_size=1` when prompts vary per sample
+
 ```python
-# Use official API
-model.load_pretrained("biomedparse_v2.ckpt")
+DataLoader(dataset, batch_size=1)  # For different prompts per sample
 ```
 
-### Issue 4: 3D Data Key Error
-```bash
-KeyError: 'prompts'
-```
-**Solution**:
-```python
-# 3D NPZ uses different key structure
-text_prompts = img_data["text_prompts"].item()
-prompt = text_prompts[str(organ_id)]  # Keys are strings "1", "2", etc.
-```
+---
+
+## 🖥️ Environment
+
+| Component | Value |
+|-----------|-------|
+| GPU | NVIDIA A10 24GB |
+| Framework | PyTorch 2.0+ |
+| Model | BiomedParse v2 (371M params) |
+| Precision | FP16 (AMP) |
+
+### Training Configuration
+
+| Parameter | Value | Rationale |
+|-----------|-------|-----------|
+| Learning Rate | 1e-5 | Prevents catastrophic forgetting |
+| Optimizer | AdamW | weight_decay=0.01 for regularization |
+| Loss | Dice Loss | Optimal for segmentation tasks |
+| Scheduler | CosineAnnealingLR | Smooth convergence |
 
 ---
 
@@ -309,10 +237,15 @@ prompt = text_prompts[str(organ_id)]  # Keys are strings "1", "2", etc.
 
 ```
 BiomedParse-Fine-Tuning/
-├── inference.py                 # Inference & visualization script
-├── README.md                    # This documentation
-├── finetune_2d_strong_fast.py   # 2D multi-organ training script
-└── finetune_3d_strong_v3.py     # 3D multi-organ training script
+├── README.md                    # This file (English)
+├── README-CN.md                 # Chinese version
+├── finetune_2d_prompt_fix.py    # 2D training with correct prompt
+├── finetune_3d_adrenal.py       # 3D adrenal gland training
+├── visualize_2d.py              # 2D comparison generator
+├── visualize_3d.py              # 3D comparison generator
+└── images/
+    ├── 2d_comparison_final.png  # 2D results
+    └── 3d_finetune_comparison_v4.png  # 3D results
 ```
 
 ---
@@ -321,61 +254,14 @@ BiomedParse-Fine-Tuning/
 
 - [BiomedParse GitHub](https://github.com/microsoft/BiomedParse)
 - [BiomedParse Paper](https://aka.ms/biomedparse-paper) - Nature Methods, 2024
-- [CT_AMOS Dataset](https://amos22.grand-challenge.org/)
+- [CT-AMOS Dataset](https://amos22.grand-challenge.org/)
 
 ---
 
 ## 🔗 Related Projects
 
-- **[MedImageParse Agent](../../Agents/MedImageParse/)** - After fine-tuning your model, use this AI Agent application to build an end-to-end medical imaging solution with Streamlit UI and Azure deployment.
+- **[MedImageParse Agent](../../Agents/MedImageParse/)** - AI Agent application with Streamlit UI
 
 ---
 
-## 📜 License
-
-This project follows the BiomedParse license. See the [official repository](https://github.com/microsoft/BiomedParse) for details.
-
----
-
-## 🔬 Inference & Visualization
-
-After fine-tuning, use `inference.py` to generate comparison visualizations between original and fine-tuned models.
-
-### 2D Comparison
-
-```bash
-python inference.py --mode 2d \
-    --biomedparse_dir /path/to/BiomedParse \
-    --image /path/to/test_image.png \
-    --mask /path/to/ground_truth.png \
-    --prompts "liver,spleen,kidney" \
-    --original_ckpt biomedparse_v2.ckpt \
-    --finetuned_ckpt ./output/best_model.ckpt \
-    --output_dir ./results
-```
-
-### 3D Comparison
-
-```bash
-python inference.py --mode 3d \
-    --biomedparse_dir /path/to/BiomedParse \
-    --data_file /path/to/CT_volume.npz \
-    --original_ckpt biomedparse_v2.ckpt \
-    --finetuned_ckpt ./output/best_model.ckpt \
-    --output_dir ./results
-```
-
-### Output Files
-
-The script generates:
-- `2d_comparison_<organ>.png` - Side-by-side comparison (Input | GT | Original | Fine-tuned)
-- `3d_comparison.png` - Multi-slice visualization with contour overlays
-- `*_dice_comparison.png` - Bar chart comparing Dice scores
-
-### Visualization Legend
-
-| Color | Meaning |
-|-------|---------|
-| 🟡 Yellow | Ground Truth contour |
-| 🔴 Red | Original model prediction |
-| 🟢 Green | Fine-tuned model prediction |
+*Verified on NVIDIA A10 24GB | December 2024*

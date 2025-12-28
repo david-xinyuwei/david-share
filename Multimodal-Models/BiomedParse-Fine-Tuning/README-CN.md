@@ -1,48 +1,58 @@
 # BiomedParse 微调指南
 
-微调微软 BiomedParse 医学图像分割模型以适配自定义数据集。
+微软 BiomedParse 医学图像分割模型的微调实战指南。
 
 **作者**: 魏新宇 (Microsoft AI and Apps GBB)  
 **模型**: [microsoft/BiomedParse](https://github.com/microsoft/BiomedParse)  
-**论文**: [Nature Methods 2024](https://aka.ms/biomedparse-paper)
+**论文**: [Nature Methods 2024](https://aka.ms/biomedparse-paper)  
+**测试环境**: NVIDIA A10 24GB GPU
 
 ---
 
-## 🎯 实验结果
+## 🎯 结果总结
 
-我们进行了 **4 组微调实验**，验证 BiomedParse 在自定义医学影像数据上的适应性。
-
-| 实验 | 模式 | 任务 | 数据量 | 原始 Dice | 微调后 Dice | **提升** |
-|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **实验1** | 2D | CT 肿瘤 | 5训练/2测试 | 16.02% | 97.66% | **+81.64%** 🏆 |
-| **实验2** | 3D | CT 器官(3个) | 16训练/8测试 | 0.00% | 16.70% | **+16.70%** |
-| **实验3** | 2D | CT 器官(7个) | 122训练/48测试 | 4.75% | 25.68% | **+20.93%** |
-| **实验4** | 3D | CT 器官(6个) | 16切片×6器官 | 16.67% | 55.80% | **+39.13%** |
+| 实验 | 模式 | 任务 | 微调前 Dice | 微调后 Dice | **提升** |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| **2D CT 器官** | 2D | 左/右肾、肝脏 | 0.6% | **91.0%** | 🏆 **+90.4%** |
+| **3D 肾上腺** | 3D | 左/右肾上腺 | 73.7% | **90.3%** | **+16.6%** |
 
 ### 核心发现
 
-- 🏆 **单目标任务**（如肿瘤）获得最佳微调效果 (+81.64%)
-- 📈 **3D 模式**在多器官分割上优于 2D (+39% vs +21%)
-- 💡 **大器官**（肝脏 +81%，肾脏 +77%）比小器官收益更大
+- 🏆 **正确的 prompt 提取至关重要**：使用 "left kidney" 而非 "kidney"，Dice 从 0% 提升到 97%
+- 📈 **3D 模式适合小器官**：肾上腺达到 90%+ Dice
+- ⚠️ **输入必须是 0-255 范围**：不要归一化到 0-1
 
+---
 
-### 可视化对比
+## 📊 详细结果
 
-**2D CT 分割：原始模型 vs 微调模型**
+### 2D CT 器官分割
 
-![2D 对比](./images/2d_comparison.png)
+![2D Comparison](./images/2d_comparison_final.png)
 
-*原始模型在自定义 CT 数据上 Dice 为 0%，微调后模型在脾脏/肝脏分割上达到 50-80% Dice。*
+*GT=绿色，微调前=橙色，微调后=青色。"微调前"模型在查询"left kidney"时预测了双侧肾脏，而"微调后"正确分割了目标器官。*
 
-![2D Dice 对比](./images/2d_dice_comparison.png)
+| 测试图像 | 提示词 | 微调前 | 微调后 | 提升 |
+|----------|--------|--------|--------|------|
+| slice025 | left kidney | 0.0% | **97.7%** | +97.7% |
+| slice025 | right kidney | 0.0% | **97.6%** | +97.6% |
+| slice030 | left kidney | 0.0% | **96.0%** | +96.0% |
+| slice030 | liver | 3.0% | **92.0%** | +89.0% |
+| slice030 | right kidney | 0.0% | **94.2%** | +94.2% |
+| slice035 | left kidney | 0.4% | **68.7%** | +68.3% |
+| **平均** | - | **0.6%** | **91.0%** | **+90.4%** |
 
-**3D CT 分割：原始模型 vs 微调模型**
+### 3D 肾上腺分割
 
-![3D 对比](./images/3d_comparison.png)
+![3D Comparison](./images/3d_finetune_comparison_v4.png)
 
-*3D 可视化显示肝脏、脾脏、肾脏的分割掩码效果。*
+*绿色=正确，红色=假阳性，橙色=漏检区域*
 
-![3D Dice 对比](./images/3d_dice_comparison.png)
+| 器官 | 微调前 | 微调后 | 提升 |
+|------|--------|--------|------|
+| 左肾上腺 | 70.9% | **87.7%** | +16.8% |
+| 右肾上腺 | 76.4% | **92.8%** | +16.4% |
+| **平均** | **73.7%** | **90.3%** | **+16.6%** |
 
 ---
 
@@ -55,267 +65,187 @@
 git clone https://github.com/microsoft/BiomedParse.git
 cd BiomedParse
 
+# 设置环境变量
+export BIOMEDPARSE_ROOT=$(pwd)
+
 # 运行 2D 微调
-python finetune_2d_strong_fast.py \
-    --biomedparse_dir . \
+python finetune_2d_prompt_fix.py \
     --data_dir /path/to/your/2d_data \
     --output_dir ./output \
-    --checkpoint biomedparse_v2.ckpt \
-    --epochs 100 \
-    --lr 1e-5 \
-    --batch_size 8
+    --epochs 30 \
+    --lr 1e-5
 ```
 
 ### 3D 微调
 
 ```bash
-python finetune_3d_strong_v3.py \
-    --biomedparse_dir . \
-    --data_file /path/to/CT_volume.npz \
+python finetune_3d_adrenal.py \
+    --data_path /path/to/CT_volume.npz \
     --output_dir ./output \
-    --checkpoint biomedparse_v2.ckpt \
     --epochs 100 \
-    --organ_ids 1,2,3,4,5,6 \
-    --start_slice 20 \
-    --num_slices 16
-```
-
----
-
-## 🏗️ 模型架构
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                  BiomedParse v2 (371M 参数)                  │
-├─────────────────────────────────────────────────────────────┤
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐  │
-│  │ 图像编码器    │───▶│  解码器       │───▶│ 掩码头       │  │
-│  │ (SAM-based)  │    │ (Transformer)│    │ (逐像素)     │  │
-│  └──────────────┘    └──────────────┘    └──────────────┘  │
-│         ▲                   ▲                              │
-│         │                   │                              │
-│  ┌──────┴───────┐    ┌──────┴───────┐                      │
-│  │ 文本编码器    │    │ 文本提示     │                      │
-│  │ (BiomedCLIP) │◀───│ "CT scan of  │                      │
-│  │              │    │  liver"      │                      │
-│  └──────────────┘    └──────────────┘                      │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**关键组件：**
-- **图像编码器**: 基于 SAM 的视觉 Transformer
-- **文本编码器**: BiomedCLIP 用于医学术语
-- **解码器**: 跨注意力融合图像-文本特征
-- **掩码头**: 逐像素分割预测
-
----
-
-## 🔧 环境配置
-
-### 前置条件
-
-- Python 3.10+
-- CUDA 12.0+ (推荐 A100 80GB)
-- PyTorch 2.0+
-
-### 安装
-
-```bash
-# 克隆 BiomedParse
-git clone https://github.com/microsoft/BiomedParse.git
-cd BiomedParse
-
-# 安装依赖
-pip install -r requirements.txt
-
-# 下载预训练权重
-# 参考官方 README 获取 biomedparse_v2.ckpt
+    --lr 1e-5
 ```
 
 ---
 
 ## 📁 数据格式
 
-### 2D 格式
+### 2D 数据结构
 
 ```
-data_2d/
+data_dir/
 ├── train/
-│   ├── images/
-│   │   ├── case001.png      # 512x512 灰度图
-│   │   └── case002.png
-│   └── annotations/
-│       ├── case001.json     # COCO 格式标注
-│       └── case002.json
-└── test/
-    ├── images/
-    └── annotations/
+│   ├── slice001_left_kidney.png      # 文件名 = 提示词
+│   ├── slice001_right_kidney.png
+│   └── ...
+├── train_mask/
+│   ├── slice001_left_kidney_mask.png
+│   └── ...
+├── test/
+└── test_mask/
 ```
 
-**JSON 标注格式：**
-```json
-{
-  "shapes": [
-    {
-      "label": "liver",
-      "points": [[x1,y1], [x2,y2], ...],
-      "shape_type": "polygon"
-    }
-  ]
-}
+**重要**：文件名（去掉扩展名后）会成为文本提示词！
+- `slice001_left_kidney.png` → 提示词 = `"left kidney"`
+- `slice002_liver.png` → 提示词 = `"liver"`
+
+---
+
+## 🏗️ 架构
+
+```mermaid
+graph TD
+    subgraph BiomedParse["BiomedParse v2 (3.71亿参数)"]
+        IMG[CT 图像<br/>1024×1024] --> ENC[图像编码器<br/>SAM-based]
+        TXT[文本提示<br/>'left kidney'] --> TENC[文本编码器<br/>BiomedCLIP]
+        ENC --> DEC[Transformer 解码器]
+        TENC --> DEC
+        DEC --> HEAD[掩码头]
+        HEAD --> OUT[分割掩码<br/>1024×1024]
+    end
+    
+    style IMG fill:#e1f5fe
+    style TXT fill:#fff3e0
+    style OUT fill:#e8f5e9
 ```
 
-### 3D 格式 (NPZ)
+### 2D vs 3D 模式
+
+```mermaid
+graph LR
+    subgraph 2D["2D 模式"]
+        A1[单张切片] --> B1[1024×1024 RGB]
+        B1 --> C1[逐切片预测]
+    end
+    
+    subgraph 3D["3D 模式"]
+        A2[体积堆叠] --> B2[D×H×W 灰度]
+        B2 --> C2[体积预测]
+    end
+```
+
+---
+
+## ⚠️ 已知问题与解决方案
+
+### 问题 1：图像归一化
+
+**现象**：模型输出空白或错误的掩码
+
+**根本原因**：BiomedParse 输入范围是 **0-255**，不是 0-1
 
 ```python
-import numpy as np
+# ❌ 错误
+img = img / 255.0
 
-# 创建 3D 数据文件
-np.savez('CT_volume.npz',
-    imgs=images,           # [N, H, W] uint8 切片
-    gts=ground_truths,     # [N, H, W] int 掩码 (0=背景, 1,2,3...=器官ID)
-    text_prompts=prompts   # [N] 字符串列表
-)
+# ✅ 正确
+img = img.astype(np.float32)  # 保持 0-255 范围
 ```
 
-**器官 ID 映射 (AMOS 数据集)：**
-| ID | 器官 | ID | 器官 |
-|:---:|:---|:---:|:---|
-| 1 | 脾脏 | 6 | 右肾 |
-| 2 | 右肾 | 7 | 左肾 |
-| 3 | 左肾 | 8 | 胆囊 |
-| 4 | 胆囊 | 9 | 食道 |
-| 5 | 肝脏 | 10 | 胃 |
+### 问题 2：Prompt 不匹配
 
----
+**现象**：查询 "left kidney" 时模型预测双侧肾脏
 
-## ⚙️ 配置选项
+**根本原因**：Prompt 提取返回 "kidney" 而非 "left kidney"
 
-### 2D 微调参数
+```python
+# ❌ 错误：返回 "kidney"
+organ = fname.split("_")[-1].replace(".png", "")
 
-| 参数 | 默认值 | 说明 |
-|:---|:---:|:---|
-| `--epochs` | 100 | 训练轮数 |
-| `--lr` | 1e-5 | 学习率 |
-| `--batch_size` | 8 | 批大小 |
-| `--img_size` | 1024 | 输入图像尺寸 |
-| `--save_freq` | 10 | 检查点保存频率 |
-
-### 3D 微调参数
-
-| 参数 | 默认值 | 说明 |
-|:---|:---:|:---|
-| `--organ_ids` | "1,2,3,4,5,6" | 要分割的器官 ID |
-| `--start_slice` | 0 | 起始切片索引 |
-| `--num_slices` | 16 | 训练切片数量 |
-| `--num_test_slices` | 8 | 测试切片数量 |
-
----
-
-## 📊 详细实验结果
-
-### 实验4: 3D 六器官分割 (最佳 3D 结果)
-
-| 器官 | 原始 Dice | 微调后 Dice | **提升** |
-|:---:|:---:|:---:|:---:|
-| 脾脏 | 0.00% | 28.59% | +28.59% |
-| 右肾 | 0.00% | 77.79% | +77.79% |
-| 左肾 | 0.00% | 77.33% | +77.33% |
-| 胆囊 | 0.00% | 18.02% | +18.02% |
-| 肝脏 | 100.00% | 81.15% | -18.85% |
-| 胃 | 0.00% | 51.91% | +51.91% |
-| **平均** | 16.67% | 55.80% | **+39.13%** |
-
----
-
-## 🔍 常见问题
-
-### 1. CUDA 内存不足
-
-```bash
-# 减小批大小
-python finetune_2d_strong_fast.py --batch_size 4
-
-# 或使用梯度累积（需修改代码）
+# ✅ 正确：返回 "left kidney"
+def get_prompt(fname):
+    base = fname.replace(".png", "")
+    parts = base.split("_")[1:]  # 跳过切片编号
+    return " ".join(parts)
 ```
 
-### 2. 训练损失不下降
+### 问题 3：Hydra 配置冲突
 
-- 检查数据标注质量
-- 降低学习率至 1e-6
-- 增加训练轮数
+**现象**：第二次加载模型时报错 `GlobalHydra is already initialized`
 
-### 3. Dice 分数低
+**解决方案**：重新初始化前清除 Hydra 状态
 
-- 确保文本提示与训练数据匹配
-- 小器官可能需要更多数据
-- 尝试数据增强
-
----
-
-## 📚 参考文献
-
-1. **BiomedParse**: Zhao et al., "A biomedical foundation segmentation model via knowledge distillation and language grounding", Nature Methods, 2024
-2. **SAM**: Kirillov et al., "Segment Anything", ICCV 2023
-3. **BiomedCLIP**: Zhang et al., "BiomedCLIP: A Multimodal Biomedical Foundation Model", 2023
-
----
-
-## 🔗 相关项目
-
-- [MedImageParse](../../Agents/MedImageParse) - 基于 AutoGen 的医学影像分析 Agent，使用 BiomedParse 进行智能分割
-
----
-
-## 📄 许可证
-
-本项目仅用于研究目的。BiomedParse 模型遵循 [微软研究许可证](https://github.com/microsoft/BiomedParse/blob/main/LICENSE)。
-
----
-
-*[English Version](README.md)*
-
----
-
-## 🔬 推理与可视化
-
-微调完成后，使用 `inference.py` 生成原始模型与微调模型的对比可视化图。
-
-### 2D 对比
-
-```bash
-python inference.py --mode 2d \
-    --biomedparse_dir /path/to/BiomedParse \
-    --image /path/to/test_image.png \
-    --mask /path/to/ground_truth.png \
-    --prompts "liver,spleen,kidney" \
-    --original_ckpt biomedparse_v2.ckpt \
-    --finetuned_ckpt ./output/best_model.ckpt \
-    --output_dir ./results
+```python
+from hydra.core.global_hydra import GlobalHydra
+GlobalHydra.instance().clear()
+initialize(config_path="configs/model", ...)
 ```
 
-### 3D 对比
+### 问题 4：批次大小与不同 Prompt
 
-```bash
-python inference.py --mode 3d \
-    --biomedparse_dir /path/to/BiomedParse \
-    --data_file /path/to/CT_volume.npz \
-    --original_ckpt biomedparse_v2.ckpt \
-    --finetuned_ckpt ./output/best_model.ckpt \
-    --output_dir ./results
+**现象**：批次包含不同 prompt 时预测结果不一致
+
+**解决方案**：当每个样本 prompt 不同时使用 `batch_size=1`
+
+```python
+DataLoader(dataset, batch_size=1)  # 不同 prompt 时使用
 ```
 
-### 输出文件
+---
 
-脚本生成以下文件：
-- `2d_comparison_<器官>.png` - 并排对比图（输入 | GT | 原始 | 微调）
-- `3d_comparison.png` - 多切片可视化（轮廓叠加）
-- `*_dice_comparison.png` - Dice 分数柱状对比图
+## 🖥️ 测试环境
 
-### 可视化图例
+| 组件 | 值 |
+|------|-----|
+| GPU | NVIDIA A10 24GB |
+| 框架 | PyTorch 2.0+ |
+| 模型 | BiomedParse v2 (3.71亿参数) |
+| 精度 | FP16 (AMP) |
 
-| 颜色 | 含义 |
-|------|------|
-| 🟡 黄色 | Ground Truth 轮廓 |
-| 🔴 红色 | 原始模型预测 |
-| 🟢 绿色 | 微调模型预测 |
+### 训练配置
+
+| 参数 | 值 | 原因 |
+|------|-----|------|
+| 学习率 | 1e-5 | 防止灾难性遗忘 |
+| 优化器 | AdamW | weight_decay=0.01 用于正则化 |
+| 损失函数 | Dice Loss | 分割任务最优 |
+| 调度器 | CosineAnnealingLR | 平滑收敛 |
+
+---
+
+## 📁 文件结构
+
+```
+BiomedParse-Fine-Tuning/
+├── README.md                    # 英文版
+├── README-CN.md                 # 本文件（中文）
+├── finetune_2d_prompt_fix.py    # 2D 训练（正确 prompt）
+├── finetune_3d_adrenal.py       # 3D 肾上腺训练
+├── visualize_2d.py              # 2D 对比图生成
+├── visualize_3d.py              # 3D 对比图生成
+└── images/
+    ├── 2d_comparison_final.png  # 2D 结果
+    └── 3d_finetune_comparison_v4.png  # 3D 结果
+```
+
+---
+
+## 📚 参考资料
+
+- [BiomedParse GitHub](https://github.com/microsoft/BiomedParse)
+- [BiomedParse 论文](https://aka.ms/biomedparse-paper) - Nature Methods, 2024
+- [CT-AMOS 数据集](https://amos22.grand-challenge.org/)
+
+---
+
+*在 NVIDIA A10 24GB 上验证 | 2024年12月*
