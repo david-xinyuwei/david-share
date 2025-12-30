@@ -131,6 +131,10 @@ def main():
         for img, mask, organ in train_loader:
             img, mask = img.to(device), mask.to(device)
             
+            if epoch == 0 and epoch_loss == 0:
+                print(f"\n[DEBUG] Real 2D Input Tensor Shape: {img.shape}")
+                print(f"[DEBUG] Real 2D Input Tensor Range: {img.min().item()} - {img.max().item()}")
+
             optimizer.zero_grad()
             with torch.amp.autocast("cuda"):
                 results = model({"image": img, "text": organ[0]}, mode="train")

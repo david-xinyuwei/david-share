@@ -346,6 +346,55 @@ BiomedParse-Fine-Tuning/
 
 ---
 
+## 🧠 Technical Deep Dive: How It Works
+
+### 1. What the Model "Sees" (Input Data)
+Contrary to common belief, the model doesn't see "images" like humans do. It sees **4D Tensors**.
+
+| Mode | Input Tensor Shape | Meaning | Value Range |
+| :--- | :--- | :--- | :--- |
+| **2D** | `[1, 3, H, W]` | Batch=1, **RGB Channels**, Height, Width | **0.0 - 255.0** (Float32) |
+| **3D** | `[1, D, H, W]` | Batch=1, **Depth (Slices)**, Height, Width | **0.0 - 255.0** (Float32) |
+
+> **Critical Note**: The input is **NOT normalized** to 0-1. It keeps the raw pixel intensity (0-255).
+
+<div align="center">
+  <img src="./images/doc_tensor_view.png" width="200" alt="Simulated Tensor View" />
+  <p><em>Figure: What the model sees (Simulated Tensor View, 0-255 range)</em></p>
+</div>
+
+### 2. The "Drawing" Process (Segmentation)
+Segmentation is essentially a **pixel-level classification** task.
+*   **The Task**: The model receives a blank canvas (zeros) and a prompt (e.g., "left kidney").
+*   **The Action**: It uses a "white pen" (value 1) to color the pixels it believes belong to the kidney.
+*   **The Output**: A probability map where `0` = Background and `1` = Organ.
+
+### 3. The Training Loop
+1.  **Input**: Model receives the **Raw Image** + **Text Prompt**.
+2.  **Prediction**: Model "draws" its best guess.
+3.  **Ground Truth**: We compare it with the **Doctor's Annotation** (Mask).
+    *   *Source*: CT-AMOS dataset (hand-labeled by radiologists).
+4.  **Correction**:
+    *   High overlap (Dice ↑) -> Reward.
+    *   Low overlap (Dice ↓) -> Penalty (Loss).
+
+<div align="center">
+  <table>
+    <tr>
+      <td align="center"><img src="./images/doc_real_input.png" width="250" alt="Real Input" /><br/><b>1. Input (Raw CT)</b></td>
+      <td align="center"><img src="./images/doc_real_mask.png" width="250" alt="Real Mask" /><br/><b>2. Ground Truth (Mask)</b></td>
+    </tr>
+  </table>
+  <p><em>Real Training Pair: The model learns to map the Input (Left) to the Mask (Right)</em></p>
+</div>
+
+### 4. Why BiomedParse Matters?
+Medical data annotation is **scarce and expensive** because it requires senior radiologists to spend hours manually tracing organs.
+*   **Traditional AI**: Needs 1000+ labeled cases.
+*   **BiomedParse**: Because it has "read" millions of biomedical papers/images, it is a **Foundation Model**. It only needs **~20-50 examples** (Few-Shot) to adapt to a new task (like finding the adrenal gland), drastically reducing the cost of AI development.
+
+---
+
 ## 📚 References
 
 - [BiomedParse GitHub](https://github.com/microsoft/BiomedParse)
