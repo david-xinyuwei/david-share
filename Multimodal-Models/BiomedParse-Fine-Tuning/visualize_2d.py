@@ -69,14 +69,20 @@ def get_organ_prompt(fname):
 
 def main():
     # os.chdir("/root/BiomedParse") # Removed for portability
-    output_dir = "comparison_results"
+    output_dir = "images"
     os.makedirs(output_dir, exist_ok=True)
 
     print("Loading models...")
     model_orig = load_model()
     # Update this path to your fine-tuned model
-    # Found at: /root/finetune_output/biomedparse_2d_v2_best.pt
-    model_ft = load_model("/root/finetune_output/biomedparse_2d_v2_best.pt")
+    # Default: output/finetune_2d/biomedparse_2d_correct_best.pt
+    ft_path = "output/finetune_2d/biomedparse_2d_correct_best.pt"
+    if not os.path.exists(ft_path):
+        print(f"⚠️ Warning: Fine-tuned model not found at {ft_path}")
+        print("Please update the path in visualize_2d.py or run finetune_2d.py first.")
+        model_ft = model_orig # Fallback to compare same model (or exit)
+    else:
+        model_ft = load_model(ft_path)
 
     # TODO: Update these paths to your dataset
     test_dir = "biomedparse_datasets/ct_2d_data/test"
@@ -131,7 +137,7 @@ def main():
     fig.suptitle("2D BiomedParse Fine-tuning: CT Organ Segmentation\n(GT=Green, Before=Orange, After=Cyan)", 
                  fontsize=14, fontweight="bold", y=0.995)
     plt.tight_layout(rect=[0, 0, 1, 0.97])
-    output_path = f"{output_dir}/2d_comparison_final.png"
+    output_path = f"{output_dir}/biomedparse_2d_comparison.png"
     plt.savefig(output_path, dpi=150, bbox_inches="tight", facecolor="white")
     plt.close()
     print(f"\n✅ Saved: {output_path}")

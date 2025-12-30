@@ -85,8 +85,14 @@ def main():
     
     print("\nLoading fine-tuned model...")
     # Update this path to your fine-tuned model
-    # Found at: /root/finetune_output/biomedparse_3d_adrenal_best.pt
-    model_ft = load_model("/root/finetune_output/biomedparse_3d_adrenal_best.pt")
+    # Default: output/finetune_3d/biomedparse_3d_adrenal_best.pt
+    ft_path = "output/finetune_3d/biomedparse_3d_adrenal_best.pt"
+    if not os.path.exists(ft_path):
+        print(f"⚠️ Warning: Fine-tuned model not found at {ft_path}")
+        print("Please update the path in visualize_3d.py or run finetune_3d.py first.")
+        model_ft = model_orig
+    else:
+        model_ft = load_model(ft_path)
     
     # Create figure
     fig, axes = plt.subplots(2, 4, figsize=(16, 9))
@@ -162,8 +168,10 @@ def main():
     plt.suptitle("3D BiomedParse Fine-tuning: Adrenal Glands\nGreen=Correct, Red=False Positive, Orange=Missed", 
                  fontsize=14, color="white")
     plt.tight_layout()
-    plt.savefig("3d_finetune_comparison_v4.png", dpi=150, bbox_inches="tight", facecolor="black")
-    print("\n✅ Saved: 3d_finetune_comparison_v4.png")
+    output_path = "images/biomedparse_3d_comparison.png"
+    os.makedirs("images", exist_ok=True)
+    plt.savefig(output_path, dpi=150, bbox_inches="tight", facecolor="black")
+    print(f"\n✅ Saved: {output_path}")
 
 if __name__ == "__main__":
     main()
