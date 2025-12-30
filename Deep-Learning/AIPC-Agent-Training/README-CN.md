@@ -228,29 +228,50 @@ flowchart TB
 
 ## 🚀 快速开始
 
-### 1. 启动推理服务
+### 0. 安装依赖
 
 ```bash
-cd /root/aipc-flywheel
-/root/miniconda3/envs/agentL2/bin/python -m vllm.entrypoints.openai.api_server \
-    --model exported_model_v3 \
+pip install -r requirements.txt
+```
+
+### 1. 训练 V3 模型（推荐）
+
+```bash
+# 设置环境变量
+export BASE_MODEL="Qwen/Qwen2.5-3B-Instruct"  # 或本地路径
+export DATA_FILE="./data/v3_good_samples.jsonl"
+export OUTPUT_DIR="./output/v3_model"
+
+# 运行训练
+python train_v3_simple.py
+
+# 或使用命令行参数
+python train_v3_simple.py --model Qwen/Qwen2.5-3B-Instruct --data ./data/v3_good_samples.jsonl --output ./output
+```
+
+### 2. 启动推理服务
+
+```bash
+python -m vllm.entrypoints.openai.api_server \
+    --model ./output/v3_model \
     --port 8000 \
     --dtype bfloat16
 ```
 
-### 2. 测试模型
+### 3. 测试模型
 
 ```bash
 curl http://localhost:8000/v1/chat/completions \
     -H "Content-Type: application/json" \
-    -d '{"model": "exported_model_v3", "messages": [{"role": "user", "content": "什么是 AI PC？"}]}'
+    -d '{"model": "v3_model", "messages": [{"role": "user", "content": "什么是 AI PC？"}]}'
 ```
 
-### 3. 运行评估
+### 4. 运行评估
 
 ```bash
 python3 final_eval.py
 ```
+
 
 ## 💡 数据飞轮迭代周期
 

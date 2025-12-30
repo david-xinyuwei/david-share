@@ -1,0 +1,24 @@
+# AIPC Agent Training Requirements
+# Tested on NVIDIA A100 80GB, CUDA 12.4
+
+# Core ML Framework
+torch>=2.1.0
+transformers>=4.40.0
+datasets>=2.18.0
+accelerate>=0.28.0
+
+# Inference Engine (for V2 data generation)
+vllm>=0.4.0
+
+# Azure OpenAI (for GPT-5.2 Judge)
+openai>=1.12.0
+
+# Training Utilities
+peft>=0.10.0
+trl>=0.8.0
+
+# Gradio Demo
+gradio>=4.0.0
+
+# Optional: Agent Lightning (for GRPO training)
+# pip install agentlightning>=0.3.0

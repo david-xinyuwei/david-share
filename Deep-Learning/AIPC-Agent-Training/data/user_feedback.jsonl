@@ -1,0 +1,22 @@
+{"prompt": "什么是 AI PC？", "response": "AI PC 是配备了 NPU 的个人电脑，可以本地运行 AI 任务。", "feedback": "positive", "user_comment": "简洁明了"}
+{"prompt": "NPU 是什么？", "response": "NPU 是神经网络处理单元，专门用于 AI 计算加速。", "feedback": "positive", "user_comment": ""}
+{"prompt": "AI PC 能做什么？", "response": "AI PC 可以运行 Windows Copilot、本地大模型、实时翻译等。", "feedback": "positive", "user_comment": "很实用"}
+{"prompt": "哪些厂商做 AI PC？", "response": "Intel、AMD、Qualcomm 都有 AI PC 芯片方案。", "feedback": "positive", "user_comment": ""}
+{"prompt": "什么是 TOPS？", "response": "TOPS 是每秒万亿次操作，用于衡量 AI 算力。", "feedback": "positive", "user_comment": ""}
+{"prompt": "AI PC 和普通 PC 有什么区别？", "response": "AI PC 内置 NPU，可以高效运行 AI 任务，功耗更低。", "feedback": "positive", "user_comment": "说清楚了"}
+{"prompt": "Intel 的 AI PC 芯片是什么？", "response": "Intel Core Ultra 系列，代号 Meteor Lake。", "feedback": "positive", "user_comment": ""}
+{"prompt": "AMD 有 AI PC 产品吗？", "response": "有，AMD Ryzen AI 系列处理器内置 NPU。", "feedback": "positive", "user_comment": ""}
+{"prompt": "高通的 AI PC 芯片叫什么？", "response": "Snapdragon X Elite/Plus 系列。", "feedback": "positive", "user_comment": ""}
+{"prompt": "AI PC 需要多少 TOPS？", "response": "微软 Copilot+ PC 要求至少 40 TOPS。", "feedback": "positive", "user_comment": ""}
+{"prompt": "Windows Copilot 需要 AI PC 吗？", "response": "部分功能需要 NPU 支持才能本地运行。", "feedback": "positive", "user_comment": ""}
+{"prompt": "AI PC 能省电吗？", "response": "NPU 比 GPU 功耗低很多，处理 AI 任务更省电。", "feedback": "positive", "user_comment": ""}
+{"prompt": "AI PC 价格贵吗？", "response": "比同配置普通笔记本贵 500-1000 元左右。", "feedback": "positive", "user_comment": ""}
+{"prompt": "AI PC 能跑 Stable Diffusion 吗？", "response": "可以，但需要 GPU 配合，NPU 主要处理轻量任务。", "feedback": "positive", "user_comment": ""}
+{"prompt": "NPU 和 GPU 有什么区别？", "response": "NPU 专为 AI 推理优化，功耗低；GPU 通用性更强。", "feedback": "positive", "user_comment": ""}
+{"prompt": "什么是 Copilot+ PC？", "response": "微软定义的 AI PC 标准，要求 40+ TOPS NPU。", "feedback": "positive", "user_comment": ""}
+{"prompt": "AI PC 能离线用 AI 吗？", "response": "可以，NPU 支持本地推理，不需要联网。", "feedback": "positive", "user_comment": "这点很重要"}
+{"prompt": "如何检查电脑有没有 NPU？", "response": "设备管理器里找神经网络处理器，或任务管理器看 NPU 使用率。", "feedback": "positive", "user_comment": ""}
+{"prompt": "AI PC 的摄像头有什么 AI 功能？", "response": "背景虚化、眼神矫正、美颜、自动取景等。", "feedback": "positive", "user_comment": ""}
+{"prompt": "AI PC 能做实时翻译吗？", "response": "可以，Windows 11 有实时字幕和翻译功能。", "feedback": "positive", "user_comment": ""}
+{"prompt": "AI PC 适合编程吗？", "response": "适合，可以本地运行 GitHub Copilot 等 AI 编程助手。", "feedback": "positive", "user_comment": ""}
+{"prompt": "买 AI PC 要注意什么？", "response": "注意 NPU 算力(TOPS)、内存大小、应用生态支持。", "feedback": "positive", "user_comment": ""}

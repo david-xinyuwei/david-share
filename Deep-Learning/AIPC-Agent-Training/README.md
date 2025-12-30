@@ -223,25 +223,47 @@ aipc-flywheel/
 ```
 
 ## 🚀 Quick Start
+## 🚀 Quick Start
 
-### 1. Start Inference Service
+### 0. Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 1. Train V3 Model (Recommended)
+
+```bash
+# Set environment variables
+export BASE_MODEL="Qwen/Qwen2.5-3B-Instruct"  # or local path
+export DATA_FILE="./data/v3_good_samples.jsonl"
+export OUTPUT_DIR="./output/v3_model"
+
+# Run training
+python train_v3_simple.py
+
+# Or use command line arguments
+python train_v3_simple.py --model Qwen/Qwen2.5-3B-Instruct --data ./data/v3_good_samples.jsonl --output ./output
+```
+
+### 2. Start Inference Service
 
 ```bash
 python -m vllm.entrypoints.openai.api_server \
-    --model exported_model_v3 \
+    --model ./output/v3_model \
     --port 8000 \
     --dtype bfloat16
 ```
 
-### 2. Test the Model
+### 3. Test the Model
 
 ```bash
 curl http://localhost:8000/v1/chat/completions \
     -H "Content-Type: application/json" \
-    -d '{"model": "exported_model_v3", "messages": [{"role": "user", "content": "What is AI PC?"}]}'
+    -d '{"model": "v3_model", "messages": [{"role": "user", "content": "What is AI PC?"}]}'
 ```
 
-### 3. Run Evaluation
+### 4. Run Evaluation
 
 ```bash
 python3 final_eval.py
