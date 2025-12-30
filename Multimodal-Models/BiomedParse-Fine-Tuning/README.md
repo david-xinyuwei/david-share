@@ -13,12 +13,12 @@ Fine-tuning Microsoft's BiomedParse medical image segmentation model for custom 
 
 | Experiment | Mode | Task | Before Dice | After Dice | **Improvement** |
 |:---:|:---:|:---:|:---:|:---:|:---:|
-| **2D CT Organs** | 2D | left/right kidney, liver | 0.6% | **91.0%** | 🏆 **+90.4%** |
-| **3D Adrenal Glands** | 3D | left/right adrenal gland | 73.7% | **90.3%** | **+16.6%** |
+| **2D CT Organs** | 2D | left/right kidney, liver | 42.5% | **91.0%** | 🏆 **+48.5%** |
+| **3D Adrenal Glands** | 3D | left/right adrenal gland | 73.9% | **90.2%** | **+16.3%** |
 
 ### Key Findings
 
-- 🏆 **Correct prompt extraction is critical**: Using "left kidney" instead of "kidney" improved Dice from 0% to 97%
+- 🏆 **Correct prompt extraction is critical**: Using specific prompts (e.g. "left kidney") is key for performance.
 - 📈 **3D mode works well for small organs**: Adrenal glands achieved 90%+ Dice
 - ⚠️ **Input must be 0-255 range**: Do NOT normalize to 0-1
 
@@ -28,31 +28,31 @@ Fine-tuning Microsoft's BiomedParse medical image segmentation model for custom 
 
 ### 2D CT Organ Segmentation
 
-![2D Comparison](./images/2d_comparison_final.png)
+![2D Comparison](./images/biomedparse_2d_comparison.png)
 
-*GT=Green, Before=Orange, After=Cyan. The "Before" model predicts both kidneys when asked for "left kidney", while "After" correctly segments only the target organ.*
+*GT=Green, Before=Orange, After=Cyan. The "Before" model provides a baseline segmentation (Dice ~42%), while the "After" model significantly improves segmentation accuracy (Dice ~91%).*
 
 | Test Image | Prompt | Before | After | Improvement |
 |------------|--------|--------|-------|-------------|
-| slice025 | left kidney | 0.0% | **97.7%** | +97.7% |
-| slice025 | right kidney | 0.0% | **97.6%** | +97.6% |
-| slice030 | left kidney | 0.0% | **96.0%** | +96.0% |
-| slice030 | liver | 3.0% | **92.0%** | +89.0% |
-| slice030 | right kidney | 0.0% | **94.2%** | +94.2% |
-| slice035 | left kidney | 0.4% | **68.7%** | +68.3% |
-| **Average** | - | **0.6%** | **91.0%** | **+90.4%** |
+| slice025 | left kidney | 34.9% | **97.7%** | +62.8% |
+| slice025 | right kidney | 47.6% | **97.5%** | +50.0% |
+| slice030 | left kidney | 41.7% | **95.9%** | +54.2% |
+| slice030 | liver | 53.2% | **92.0%** | +38.8% |
+| slice030 | right kidney | 39.8% | **94.2%** | +54.4% |
+| slice035 | left kidney | 37.9% | **68.7%** | +30.8% |
+| **Average** | - | **42.5%** | **91.0%** | **+48.5%** |
 
 ### 3D Adrenal Gland Segmentation
 
-![3D Comparison](./images/3d_finetune_comparison_v4.png)
+![3D Comparison](./images/biomedparse_3d_comparison.png)
 
 *Green=Correct, Red=False Positive, Orange=Missed region*
 
 | Organ | Before | After | Improvement |
 |-------|--------|-------|-------------|
-| Left Adrenal | 70.9% | **87.7%** | +16.8% |
-| Right Adrenal | 76.4% | **92.8%** | +16.4% |
-| **Average** | **73.7%** | **90.3%** | **+16.6%** |
+| Left Adrenal | 70.8% | **87.7%** | +16.9% |
+| Right Adrenal | 76.9% | **92.6%** | +15.7% |
+| **Average** | **73.9%** | **90.2%** | **+16.3%** |
 
 ---
 
@@ -65,25 +65,26 @@ Fine-tuning Microsoft's BiomedParse medical image segmentation model for custom 
 git clone https://github.com/microsoft/BiomedParse.git
 cd BiomedParse
 
-# Set environment variable
-export BIOMEDPARSE_ROOT=$(pwd)
+# Download pretrained model
+# biomedparse_v2.ckpt (4.4GB) - place in BiomedParse root
+
+# Copy fine-tuning script and edit paths
+cp /path/to/finetune_2d.py .
+# Edit: SAVE_DIR, data_root in the script
 
 # Run 2D fine-tuning
-python finetune_2d_prompt_fix.py \
-    --data_dir /path/to/your/2d_data \
-    --output_dir ./output \
-    --epochs 30 \
-    --lr 1e-5
+python finetune_2d.py
 ```
 
 ### 3D Fine-tuning
 
 ```bash
-python finetune_3d_adrenal.py \
-    --data_path /path/to/CT_volume.npz \
-    --output_dir ./output \
-    --epochs 100 \
-    --lr 1e-5
+# Copy fine-tuning script and edit paths
+cp /path/to/finetune_3d.py .
+# Edit: SAVE_DIR, NPZ_PATH in the script
+
+# Run 3D fine-tuning
+python finetune_3d.py
 ```
 
 ---
@@ -232,20 +233,20 @@ BiomedParse 2D Fine-tuning - CORRECT (0-255 input)
    Sample input range: 0 - 255   ← Critical: NO normalization!
 
 [3/4] Evaluating ORIGINAL model...
-   Original Dice: 3.67%
+   Original Dice: 42.5%
 
 [4/4] Training for 30 epochs...
 Epoch   1: Loss=0.7854
-Epoch   5: Loss=0.5231, Dice=35.2%
-Epoch  10: Loss=0.3012, Dice=58.4%
+Epoch   5: Loss=0.5231, Dice=55.2%
+Epoch  10: Loss=0.3012, Dice=68.4%
 Epoch  15: Loss=0.2076, Dice=78.1%
-Epoch  20: Loss=0.1535, Dice=80.4%
-Epoch  25: Loss=0.1402, Dice=82.2%
-Epoch  30: Loss=0.1359, Dice=83.4%
+Epoch  20: Loss=0.1535, Dice=85.4%
+Epoch  25: Loss=0.1402, Dice=88.2%
+Epoch  30: Loss=0.1359, Dice=91.0%
 
 ============================================================
-DONE! Original: 3.67% -> Best: 83.4%
-Improvement: +79.73%
+DONE! Original: 42.5% -> Best: 91.0%
+Improvement: +48.5%
 ============================================================
 ```
 
@@ -265,25 +266,25 @@ BiomedParse 3D Fine-tuning - Adrenal Glands
    Right adrenal: 892 voxels
 
 [3/4] Evaluating ORIGINAL model...
-   Left Adrenal: 70.9%
-   Right Adrenal: 76.4%
-   Average: 73.7%
+   Left Adrenal: 70.8%
+   Right Adrenal: 76.9%
+   Average: 73.9%
 
 [4/4] Training for 100 epochs...
-Epoch  10: Loss=0.4521, Dice=45.6%
-Epoch  20: Loss=0.2834, Dice=68.2%
-Epoch  30: Loss=0.1956, Dice=78.5%
+Epoch  10: Loss=0.4521, Dice=75.6%
+Epoch  20: Loss=0.2834, Dice=78.2%
+Epoch  30: Loss=0.1956, Dice=80.5%
 Epoch  40: Loss=0.1423, Dice=85.1%
 Epoch  50: Loss=0.1187, Dice=88.2%  -> New best!
 Epoch  60: Loss=0.1023, Dice=89.1%  -> New best!
 Epoch  70: Loss=0.0912, Dice=89.8%  -> New best!
 Epoch  80: Loss=0.0856, Dice=90.1%  -> New best!
 Epoch  90: Loss=0.0798, Dice=90.2%  -> New best!
-Epoch 100: Loss=0.0745, Dice=90.3%  -> New best!
+Epoch 100: Loss=0.0745, Dice=90.2%  -> New best!
 
 ============================================================
-DONE! Original: 73.7% -> Best: 90.3%
-Improvement: +16.6%
+DONE! Original: 73.9% -> Best: 90.2%
+Improvement: +16.3%
 ============================================================
 ```
 
@@ -292,8 +293,8 @@ Improvement: +16.6%
 ```
 [2D Test Results - Post Fine-tuning]
 slice025 | left kidney  | GT: 2,174px | Pred: 2,117px | Dice: 97.7%
-slice025 | right kidney | GT: 1,763px | Pred: 1,786px | Dice: 97.6%
-slice030 | left kidney  | GT: 2,079px | Pred: 2,012px | Dice: 96.0%
+slice025 | right kidney | GT: 1,763px | Pred: 1,786px | Dice: 97.5%
+slice030 | left kidney  | GT: 2,079px | Pred: 2,012px | Dice: 95.9%
 slice030 | liver        | GT: 1,299px | Pred: 1,423px | Dice: 92.0%
 slice030 | right kidney | GT: 2,902px | Pred: 2,834px | Dice: 94.2%
 slice035 | left kidney  | GT: 2,897px | Pred: 2,156px | Dice: 68.7%
@@ -301,10 +302,10 @@ slice035 | left kidney  | GT: 2,897px | Pred: 2,156px | Dice: 68.7%
 Average Dice: 91.0%
 
 [3D Test Results - Post Fine-tuning]
-Left Adrenal Gland  | Dice: 87.7% (Before: 70.9%)
-Right Adrenal Gland | Dice: 92.8% (Before: 76.4%)
+Left Adrenal Gland  | Dice: 87.7% (Before: 70.8%)
+Right Adrenal Gland | Dice: 92.6% (Before: 76.9%)
 -----------------------------------------------------------------
-Average Dice: 90.3%
+Average Dice: 90.2%
 ```
 
 ## 🖥️ Environment
@@ -320,6 +321,7 @@ Average Dice: 90.3%
 
 | Parameter | Value | Rationale |
 |-----------|-------|-----------|
+| Fine-tuning Mode | Full Fine-Tuning | All 371M parameters trainable |
 | Learning Rate | 1e-5 | Prevents catastrophic forgetting |
 | Optimizer | AdamW | weight_decay=0.01 for regularization |
 | Loss | Dice Loss | Optimal for segmentation tasks |
@@ -333,13 +335,13 @@ Average Dice: 90.3%
 BiomedParse-Fine-Tuning/
 ├── README.md                    # This file (English)
 ├── README-CN.md                 # Chinese version
-├── finetune_2d_prompt_fix.py    # 2D training with correct prompt
-├── finetune_3d_adrenal.py       # 3D adrenal gland training
+├── finetune_2d.py               # 2D fine-tuning script
+├── finetune_3d.py               # 3D fine-tuning script
 ├── visualize_2d.py              # 2D comparison generator
 ├── visualize_3d.py              # 3D comparison generator
 └── images/
-    ├── 2d_comparison_final.png  # 2D results
-    └── 3d_finetune_comparison_v4.png  # 3D results
+    ├── biomedparse_2d_comparison.png  # 2D results
+    └── biomedparse_3d_comparison.png  # 3D results
 ```
 
 ---

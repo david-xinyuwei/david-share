@@ -1,285 +1,169 @@
 #!/usr/bin/env python3
 """
-BiomedParse 3D Visualization Script
-
-Generate before/after comparison images for 3D fine-tuning results.
-Shows volumetric segmentation with multi-slice visualization.
-
-Usage:
-    python visualize_3d.py \
-        --data_path /path/to/volume.npz \
-        --checkpoint /path/to/best_model_3d.pt \
-        --output comparison_3d.png
-
-Color Scheme:
-    - Green: True Positive (correctly segmented)
-    - Red: False Positive (over-segmentation)
-    - Orange: False Negative (missed region)
-
-Author: Xinyu Wei
-Date: 2025-12-28
+3D BiomedParse Fine-tuning: Before vs After Comparison
+Shows Input | GT | Before (Original) | After (Fine-tuned)
 """
+import os, sys
+# Assuming running from BiomedParse root
+sys.path.append(os.getcwd())
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
-import os
-import sys
-import argparse
-import numpy as np
 import torch
+import torch.nn.functional as F
+import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.patches import Patch
-from scipy.ndimage import zoom
-
-# Add BiomedParse to path
-BIOMEDPARSE_ROOT = os.environ.get('BIOMEDPARSE_ROOT', '/path/to/BiomedParse')
-sys.path.insert(0, BIOMEDPARSE_ROOT)
-
-from hydra import initialize, compose
+import hydra
+from hydra import compose, initialize
 from hydra.core.global_hydra import GlobalHydra
-from inference_utils.inference import build_model
 
+device = torch.device("cuda")
 
-def build_biomedparse_model_3d(checkpoint_path=None, device='cuda'):
-    """Build BiomedParse 3D model."""
+def load_model(checkpoint_path=None):
+    """Load 3D model, optionally with fine-tuned weights"""
     GlobalHydra.instance().clear()
+    job_name = "ft" if checkpoint_path else "orig"
+    initialize(config_path="configs/model", job_name=job_name, version_base=None)
+    cfg = compose(config_name="biomedparse_3D")
+    model = hydra.utils.instantiate(cfg, _convert_="object")
+    model.load_pretrained("biomedparse_v2.ckpt")
     
-    config_path = os.path.join(BIOMEDPARSE_ROOT, 'configs/model')
-    initialize(config_path=config_path, version_base=None)
-    cfg = compose(config_name='biomedparse_3D')
-    cfg_dict = {
-        'STROKE_SAMPLER': {'MAX_CANDIDATE': 1},
-        'MODEL': {
-            'BACKBONE_DIM': 768,
-            'IMAGE_ENCODER': {'PRETRAINED': True}
-        }
-    }
+    if checkpoint_path:
+        ckpt = torch.load(checkpoint_path, map_location="cuda")
+        model.load_state_dict(ckpt)
+        print(f"Loaded fine-tuned: {checkpoint_path}")
     
-    model = build_model(cfg, cfg_dict)
-    
-    if checkpoint_path and os.path.exists(checkpoint_path):
-        state = torch.load(checkpoint_path, map_location='cpu')
-        if 'model' in state:
-            model.load_state_dict(state['model'], strict=False)
-        else:
-            model.load_state_dict(state, strict=False)
-    
-    return model.to(device)
+    return model.to(device).eval()
 
+def predict_3d(model, imgs_tensor, text):
+    """Run 3D inference - imgs_tensor should be (1, D, H, W) NOT normalized"""
+    with torch.no_grad(), torch.amp.autocast("cuda"):
+        results = model({"image": imgs_tensor, "text": text}, mode="eval")
+        pred = results["predictions"]["pred_gmasks"][0]
+        pred_resized = F.interpolate(
+            pred.unsqueeze(0).unsqueeze(0),
+            size=(imgs_tensor.shape[1], 512, 512),
+            mode="trilinear",
+            align_corners=False
+        ).squeeze()
+        pred_mask = (torch.sigmoid(pred_resized) > 0.5).cpu().numpy()
+    return pred_mask
 
-def resize_3d_volume(volume, target_size, order=1):
-    """Resize 3D volume."""
-    D, H, W = volume.shape
-    scale = (target_size / D, target_size / H, target_size / W)
-    return zoom(volume, scale, order=order)
-
-
-def compute_dice_3d(pred, gt):
-    """Compute 3D Dice coefficient."""
-    pred = pred.flatten()
-    gt = gt.flatten()
-    intersection = (pred * gt).sum()
-    return (2. * intersection) / (pred.sum() + gt.sum() + 1e-6) * 100
-
-
-def predict_3d(model, volume, prompt, device='cuda', target_size=128):
-    """Run 3D inference."""
-    model.eval()
-    
-    # Resize and prepare volume
-    vol_resized = resize_3d_volume(volume.astype(np.float32), target_size)
-    vol_tensor = torch.from_numpy(vol_resized).unsqueeze(0).to(device)
-    
-    with torch.no_grad():
-        outputs = model.forward_3d(vol_tensor, [prompt])
-        pred = torch.sigmoid(outputs['pred_masks'])
-        pred_binary = (pred > 0.5).float()
-    
-    return pred_binary.squeeze().cpu().numpy()
-
-
-def create_3d_overlay(slice_img, gt_mask, pred_mask, alpha=0.4):
-    """
-    Create overlay for a single slice with TP/FP/FN coloring.
-    
-    Colors:
-        - Green: True Positive
-        - Red: False Positive  
-        - Orange: False Negative
-    """
-    # Normalize image
-    img_norm = (slice_img - slice_img.min()) / (slice_img.max() - slice_img.min() + 1e-6)
-    overlay = np.stack([img_norm, img_norm, img_norm], axis=-1)
-    
-    gt_bool = gt_mask > 0.5
-    pred_bool = pred_mask > 0.5
-    
-    # True Positive - Green
-    tp = gt_bool & pred_bool
-    overlay[tp] = overlay[tp] * (1-alpha) + np.array([0, 1, 0]) * alpha
-    
-    # False Positive - Red
-    fp = ~gt_bool & pred_bool
-    overlay[fp] = overlay[fp] * (1-alpha) + np.array([1, 0, 0]) * alpha
-    
-    # False Negative - Orange
-    fn = gt_bool & ~pred_bool
-    overlay[fn] = overlay[fn] * (1-alpha) + np.array([1, 0.6, 0]) * alpha
-    
-    return np.clip(overlay, 0, 1)
-
+def compute_dice(pred, gt):
+    intersection = np.logical_and(pred, gt).sum()
+    total = pred.sum() + gt.sum()
+    return 2 * intersection / total if total > 0 else 1.0
 
 def main():
-    parser = argparse.ArgumentParser(description='Generate 3D comparison visualization')
-    parser.add_argument('--data_path', type=str, required=True,
-                        help='Path to NPZ file with volume and masks')
-    parser.add_argument('--checkpoint', type=str, required=True,
-                        help='Path to fine-tuned checkpoint')
-    parser.add_argument('--pretrained', type=str, default=None,
-                        help='Path to pretrained checkpoint (for "before")')
-    parser.add_argument('--output', type=str, default='comparison_3d.png',
-                        help='Output image path')
-    parser.add_argument('--target_size', type=int, default=128,
-                        help='Target volume size')
-    parser.add_argument('--n_slices', type=int, default=6,
-                        help='Number of slices to display')
-    parser.add_argument('--device', type=str, default='cuda',
-                        help='Device to use')
-    args = parser.parse_args()
+    # os.chdir("/root/BiomedParse") # Removed for portability
     
-    device = torch.device(args.device if torch.cuda.is_available() else 'cpu')
+    print("Loading 3D data...")
+    # TODO: Update these paths to your dataset
+    img_data = np.load("examples/imgs/CT_AMOS_amos_0018.npz", allow_pickle=True)
+    gt_data = np.load("examples/gts/CT_AMOS_amos_0018.npz", allow_pickle=True)
     
-    # Load data
-    print(f"Loading data from: {args.data_path}")
-    data = np.load(args.data_path)
-    volume = data['volume']
+    image_full = img_data["imgs"]
+    gts_full = gt_data["gts"]
+    text_prompts = img_data["text_prompts"].item()
     
-    # Find organ masks
-    organs = []
-    for key in data.files:
-        if key != 'volume':
-            organs.append({
-                'name': key.replace('_', ' '),
-                'mask': data[key]
-            })
+    # Use same slice range as fine-tuning script
+    start_slice, end_slice = 15, 45
+    image = image_full[start_slice:end_slice]
+    gts = gts_full[start_slice:end_slice]
     
-    print(f"Volume shape: {volume.shape}")
-    print(f"Organs: {[o['name'] for o in organs]}")
+    # NO normalization - keep original range!
+    imgs_tensor = torch.from_numpy(image.astype(np.float32)).unsqueeze(0).to(device)
+    print(f"Volume shape: {image.shape}, range: {image.min():.0f}-{image.max():.0f}")
     
-    # Build models
-    print("Loading fine-tuned model...")
-    model_after = build_biomedparse_model_3d(args.checkpoint, device)
+    # Adrenal glands - what we fine-tuned on
+    organs = {
+        "Left Adrenal Gland": (11, text_prompts.get("11", "Left Adrenal Gland")),
+        "Right Adrenal Gland": (12, text_prompts.get("12", "Right Adrenal Gland")),
+    }
     
-    print("Loading pretrained model...")
-    GlobalHydra.instance().clear()
-    model_before = build_biomedparse_model_3d(args.pretrained, device)
+    print("\nLoading original model...")
+    model_orig = load_model()
     
-    # Resize volume and masks
-    vol_resized = resize_3d_volume(volume, args.target_size, order=1)
+    print("\nLoading fine-tuned model...")
+    # Update this path to your fine-tuned model
+    # Found at: /root/finetune_output/biomedparse_3d_adrenal_best.pt
+    model_ft = load_model("/root/finetune_output/biomedparse_3d_adrenal_best.pt")
     
-    results = []
-    for organ in organs:
-        mask_resized = resize_3d_volume(organ['mask'], args.target_size, order=0)
-        mask_resized = (mask_resized > 0.5).astype(np.float32)
+    # Create figure
+    fig, axes = plt.subplots(2, 4, figsize=(16, 9))
+    
+    for row, (organ_name, (organ_id, text)) in enumerate(organs.items()):
+        print(f"\n{organ_name} (ID={organ_id}, text='{text}')...")
         
-        # Predict
-        pred_before = predict_3d(model_before, volume, organ['name'], device, args.target_size)
-        pred_after = predict_3d(model_after, volume, organ['name'], device, args.target_size)
+        # Get GT for this organ
+        gt_vol = (gts == organ_id).astype(np.uint8)
+        slice_counts = gt_vol.sum(axis=(1, 2))
+        best_slice = np.argmax(slice_counts)
+        print(f"  Best slice: {best_slice} (global {best_slice+start_slice}), {slice_counts[best_slice]} GT pixels")
         
-        # Compute Dice
-        dice_before = compute_dice_3d(pred_before, mask_resized)
-        dice_after = compute_dice_3d(pred_after, mask_resized)
+        # Run both models
+        print("  Original model...")
+        pred_orig = predict_3d(model_orig, imgs_tensor, text)
+        dice_orig = compute_dice(pred_orig, gt_vol) * 100
         
-        results.append({
-            'name': organ['name'],
-            'gt_mask': mask_resized,
-            'pred_before': pred_before,
-            'pred_after': pred_after,
-            'dice_before': dice_before,
-            'dice_after': dice_after
-        })
+        print("  Fine-tuned model...")
+        pred_ft = predict_3d(model_ft, imgs_tensor, text)
+        dice_ft = compute_dice(pred_ft, gt_vol) * 100
         
-        print(f"  {organ['name']}: Before {dice_before:.1f}% -> After {dice_after:.1f}%")
+        improvement = dice_ft - dice_orig
+        print(f"  Dice: {dice_orig:.1f}% -> {dice_ft:.1f}% (Δ{improvement:+.1f}%)")
+        
+        # Get slices for visualization
+        img_slice = image[best_slice]
+        gt_slice = gt_vol[best_slice]
+        pred_orig_slice = pred_orig[best_slice]
+        pred_ft_slice = pred_ft[best_slice]
+        
+        # Normalize image for display only
+        img_disp = (img_slice - img_slice.min()) / (img_slice.max() - img_slice.min() + 1e-8)
+        img_rgb = np.stack([img_disp]*3, axis=-1)
+        
+        # Col 0: Input image
+        axes[row, 0].imshow(img_disp, cmap="gray")
+        axes[row, 0].set_title(f"Input (slice {best_slice+start_slice})", fontsize=11)
+        axes[row, 0].axis("off")
+        
+        # Col 1: Ground Truth (green overlay)
+        gt_ov = img_rgb.copy()
+        gt_ov[gt_slice > 0] = [0, 1, 0]
+        axes[row, 1].imshow(gt_ov)
+        axes[row, 1].set_title(f"GT: {organ_name}", fontsize=11)
+        axes[row, 1].axis("off")
+        
+        # Col 2: Before (Original model)
+        # Green=correct, Red=FP, Orange=missed
+        ov_before = img_rgb.copy()
+        correct = (pred_orig_slice > 0) & (gt_slice > 0)
+        fp = (pred_orig_slice > 0) & (gt_slice == 0)
+        missed = (pred_orig_slice == 0) & (gt_slice > 0)
+        ov_before[correct] = [0, 0.8, 0]   # Green
+        ov_before[fp] = [1, 0, 0]          # Red
+        ov_before[missed] = [1, 0.5, 0]    # Orange
+        axes[row, 2].imshow(ov_before)
+        axes[row, 2].set_title(f"Before: {dice_orig:.1f}%", fontsize=12, color="red", fontweight="bold")
+        axes[row, 2].axis("off")
+        
+        # Col 3: After (Fine-tuned model)
+        ov_after = img_rgb.copy()
+        correct = (pred_ft_slice > 0) & (gt_slice > 0)
+        fp = (pred_ft_slice > 0) & (gt_slice == 0)
+        missed = (pred_ft_slice == 0) & (gt_slice > 0)
+        ov_after[correct] = [0, 0.8, 0]
+        ov_after[fp] = [1, 0, 0]
+        ov_after[missed] = [1, 0.5, 0]
+        axes[row, 3].imshow(ov_after)
+        axes[row, 3].set_title(f"After: {dice_ft:.1f}%", fontsize=12, color="green", fontweight="bold")
+        axes[row, 3].axis("off")
     
-    # Select slices with organ presence
-    all_masks = np.stack([r['gt_mask'] for r in results]).sum(axis=0)
-    slice_presence = all_masks.sum(axis=(1, 2))
-    valid_slices = np.where(slice_presence > 0)[0]
-    
-    if len(valid_slices) >= args.n_slices:
-        # Sample evenly
-        indices = np.linspace(0, len(valid_slices)-1, args.n_slices, dtype=int)
-        selected_slices = valid_slices[indices]
-    else:
-        selected_slices = valid_slices
-    
-    # Create visualization
-    n_organs = len(results)
-    n_slices = len(selected_slices)
-    
-    fig, axes = plt.subplots(n_organs * 2, n_slices, figsize=(3 * n_slices, 4 * n_organs))
-    
-    if n_organs == 1:
-        axes = axes.reshape(2, -1)
-    
-    for org_idx, res in enumerate(results):
-        for slice_idx, z in enumerate(selected_slices):
-            # Get slice data
-            slice_img = vol_resized[z]
-            gt_slice = res['gt_mask'][z]
-            before_slice = res['pred_before'][z]
-            after_slice = res['pred_after'][z]
-            
-            # Before (top rows)
-            row_before = org_idx * 2
-            overlay_before = create_3d_overlay(slice_img, gt_slice, before_slice)
-            axes[row_before, slice_idx].imshow(overlay_before)
-            axes[row_before, slice_idx].axis('off')
-            
-            if slice_idx == 0:
-                axes[row_before, slice_idx].set_ylabel(
-                    f"{res['name']}\nBefore: {res['dice_before']:.1f}%",
-                    fontsize=10
-                )
-            
-            if org_idx == 0:
-                axes[row_before, slice_idx].set_title(f"z={z}", fontsize=10)
-            
-            # After (bottom rows)
-            row_after = org_idx * 2 + 1
-            overlay_after = create_3d_overlay(slice_img, gt_slice, after_slice)
-            axes[row_after, slice_idx].imshow(overlay_after)
-            axes[row_after, slice_idx].axis('off')
-            
-            if slice_idx == 0:
-                axes[row_after, slice_idx].set_ylabel(
-                    f"After: {res['dice_after']:.1f}%",
-                    fontsize=10
-                )
-    
-    # Add legend
-    legend_elements = [
-        Patch(facecolor='green', alpha=0.5, label='True Positive'),
-        Patch(facecolor='red', alpha=0.5, label='False Positive'),
-        Patch(facecolor='orange', alpha=0.5, label='False Negative (Missed)')
-    ]
-    fig.legend(handles=legend_elements, loc='lower center', ncol=3, fontsize=10)
-    
-    plt.suptitle('BiomedParse 3D Fine-tuning Results', fontsize=14, fontweight='bold')
-    plt.tight_layout(rect=[0, 0.05, 1, 0.95])
-    plt.savefig(args.output, dpi=150, bbox_inches='tight')
-    plt.close()
-    
-    print(f"\n✓ Saved comparison image to: {args.output}")
-    
-    # Print summary
-    print(f"\n=== Summary ===")
-    for res in results:
-        improvement = res['dice_after'] - res['dice_before']
-        print(f"{res['name']}: {res['dice_before']:.1f}% -> {res['dice_after']:.1f}% (+{improvement:.1f}%)")
-    
-    avg_before = np.mean([r['dice_before'] for r in results])
-    avg_after = np.mean([r['dice_after'] for r in results])
-    print(f"\nAverage: {avg_before:.1f}% -> {avg_after:.1f}% (+{avg_after - avg_before:.1f}%)")
+    plt.suptitle("3D BiomedParse Fine-tuning: Adrenal Glands\nGreen=Correct, Red=False Positive, Orange=Missed", 
+                 fontsize=14, color="white")
+    plt.tight_layout()
+    plt.savefig("3d_finetune_comparison_v4.png", dpi=150, bbox_inches="tight", facecolor="black")
+    print("\n✅ Saved: 3d_finetune_comparison_v4.png")
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -1,0 +1,10 @@
+{"prompt": "什么是 AI PC？", "source": "seed", "priority": "normal"}
+{"prompt": "AI PC 里的 NPU 是什么？", "source": "seed", "priority": "normal"}
+{"prompt": "NPU 和 GPU 有什么区别？", "source": "seed", "priority": "normal"}
+{"prompt": "为什么 AI PC 需要 NPU？", "source": "seed", "priority": "normal"}
+{"prompt": "Intel Core Ultra 有什么特点？", "source": "error", "priority": "high"}
+{"prompt": "AMD Ryzen AI 是什么？", "source": "error", "priority": "high"}
+{"prompt": "Qualcomm Snapdragon X 系列是什么？", "source": "error", "priority": "high"}
+{"prompt": "什么是 Copilot+ PC？", "source": "error", "priority": "high"}
+{"prompt": "AI PC 能做什么？", "source": "seed", "priority": "normal"}
+{"prompt": "AI PC 支持实时翻译吗？", "source": "seed", "priority": "normal"}
