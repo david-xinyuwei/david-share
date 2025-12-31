@@ -9,6 +9,20 @@ Fine-tuning Microsoft's BiomedParse medical image segmentation model for custom 
 
 ---
 
+## 🌟 Microsoft Biomedical AI: The Three Pillars
+
+Before diving into fine-tuning, it's helpful to understand where **BiomedParse** fits in Microsoft's broader biomedical AI landscape.
+
+| Model | Modality | Core Task | Analogy | GitHub Repo |
+| :--- | :--- | :--- | :--- | :--- |
+| **BioGPT** | **Text** | Text Generation & Mining | "Medical ChatGPT" | [microsoft/BioGPT](https://github.com/microsoft/BioGPT) |
+| **LLaVA-Med** | **Image + Text** | Visual QA (VQA) | "Doctor, what's in this X-ray?" | [microsoft/LLaVA-Med](https://github.com/microsoft/LLaVA-Med) |
+| **BiomedParse** | **Image (Pixel)** | **Segmentation & Detection** | **"The Scalpel" (Precise Extraction)** | [microsoft/BiomedParse](https://github.com/microsoft/BiomedParse) |
+
+> **BiomedParse's Unique Role**: While LLaVA-Med can *talk* about an image, BiomedParse can *act* on it by precisely delineating the anatomy. This repo focuses on fine-tuning **BiomedParse**.
+
+---
+
 ## 🎯 Results Summary
 
 | Experiment | Mode | Task | Before Dice | After Dice | **Improvement** |
@@ -392,6 +406,27 @@ Segmentation is essentially a **pixel-level classification** task.
 Medical data annotation is **scarce and expensive** because it requires senior radiologists to spend hours manually tracing organs.
 *   **Traditional AI**: Needs 1000+ labeled cases.
 *   **BiomedParse**: Because it has "read" millions of biomedical papers/images, it is a **Foundation Model**. It only needs **~20-50 examples** (Few-Shot) to adapt to a new task (like finding the adrenal gland), drastically reducing the cost of AI development.
+
+### 5. The "Secret Sauce": Dice Loss vs. Pixel Accuracy
+You might ask: *"Is it just simple Supervised Fine-Tuning (SFT)?"*
+**Yes!** But the magic lies in **how we calculate the error**.
+
+*   **The Problem**: In a CT scan, **99% is background (black)** and only **1% is the organ**.
+*   **The Trap**: If we used standard accuracy, the model could just guess "All Black" and get 99% accuracy!
+*   **The Solution (Dice Loss)**:
+    *   We use **Dice Loss**, which measures the **overlap** between the prediction and the ground truth.
+    *   Formula: $Loss = 1 - \frac{2 \times |Pred \cap GT|}{|Pred| + |GT|}$
+    *   It forces the model to focus strictly on that 1% organ pixels. If it misses the organ, the penalty is huge, even if the background is perfect.
+
+### 6. 2D vs 3D: The "Sliced Bread" Analogy
+The logic for 2D and 3D fine-tuning is **identical** (SFT + Dice Loss). The only difference is the dimension.
+
+*   **The Analogy**:
+    *   **3D (Volume)**: A whole loaf of sliced bread.
+    *   **2D (Slice)**: A single slice taken from the loaf.
+*   **The Advantage of 3D**:
+    *   **2D Model**: Is "myopic". It only sees the current slice. It doesn't know if the organ shape makes sense in the context of the whole body.
+    *   **3D Model**: Has "God's Eye View". It sees the **continuity** between slices. It knows a kidney is a 3D sphere and won't randomly disappear in the middle, leading to more consistent results.
 
 ---
 
