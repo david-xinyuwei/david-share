@@ -13,10 +13,10 @@ Florence-2-large-ft[HF]	0.77B	Finetuned model on a colletion of downstream tasks
 In this blog, I am going to test via Florence-2-Large-ft
 check memory need of loading model:
 
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Florence-2-Inference-and-Fine-Tuning/images/2.png)
+![image](./images/2.png)
 
 After I finished all the tests in this blog, the GPU memory assumption is:
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Florence-2-Inference-and-Fine-Tuning/images/gpu.jpg)
+![image](./images/gpu.jpg)
 
 
 
@@ -74,11 +74,11 @@ image5 = Image.open(local_image_path)
 image5.show()  
 
 ```
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Florence-2-Inference-and-Fine-Tuning/images/bee.jpg)
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Florence-2-Inference-and-Fine-Tuning/images/city.jpg)
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Florence-2-Inference-and-Fine-Tuning/images/zhou.jpeg)
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Florence-2-Inference-and-Fine-Tuning/images/4.jpg)
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Florence-2-Inference-and-Fine-Tuning/images/letter.jpg)
+![image](./images/bee.jpg)
+![image](./images/city.jpg)
+![image](./images/zhou.jpeg)
+![image](./images/4.jpg)
+![image](./images/letter.jpg)
 
 ## CV Scenarios test
 ### Genarate CAPTION from the images
@@ -142,7 +142,7 @@ results = run_example(task_prompt,image1)
 print(results)
 plot_bbox(image1, results['<DENSE_REGION_CAPTION>'])
 ```
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Florence-2-Inference-and-Fine-Tuning/images/bee2.jpg)
+![image](./images/bee2.jpg)
 
 
 ```
@@ -152,7 +152,7 @@ print(results)
 plot_bbox(image3, results['<REGION_PROPOSAL>'])
 ```
 
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Florence-2-Inference-and-Fine-Tuning/images/zhou2.jpeg)
+![image](./images/zhou2.jpeg)
 
 
 ### Caption to Phrase Grounding
@@ -206,7 +206,7 @@ bboxes = results['<CAPTION_TO_PHRASE_GROUNDING>']['bboxes']
 labels = results['<CAPTION_TO_PHRASE_GROUNDING>']['labels']  
 draw_bboxes(image, bboxes, labels)  
 ```
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Florence-2-Inference-and-Fine-Tuning/images/car.jpg)
+![image](./images/car.jpg)
 
 ### Bounding boxes
 To process the location tokens and render them on the image, the following method will be called to plot bounding boxes.
@@ -245,14 +245,14 @@ plot_bbox(image3, results['<OD>'])
 ```
 {'<OD>': {'bboxes': [[220.4290008544922, 84.06000518798828, 312.9389953613281, 197.82000732421875], [69.86100006103516, 24.660001754760742, 363.34100341796875, 359.46002197265625], [71.13700103759766, 162.1800079345703, 358.875, 359.46002197265625], [222.34300231933594, 207.54000854492188, 279.76300048828125, 239.94000244140625]], 'labels': ['human face', 'person', 'suit', 'tie']}}
 ```
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Florence-2-Inference-and-Fine-Tuning/images/zhou1.jpeg)
+![image](./images/zhou1.jpeg)
 
 ```
 results = run_example(task_prompt,image2)
 print(results)
 plot_bbox(image2, results['<OD>'])
 ```
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Florence-2-Inference-and-Fine-Tuning/images/city1.jpg)
+![image](./images/city1.jpg)
 
 
 
@@ -285,7 +285,7 @@ print(results)
 output_image5 = copy.deepcopy(image5)
 draw_ocr_bboxes(output_image5, results['<OCR_WITH_REGION>'])
 ```
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Florence-2-Inference-and-Fine-Tuning/images/letter1.jpg)
+![image](./images/letter1.jpg)
 
 ##  Fine Tuning Florence2
 Load dataset on HF:
@@ -441,7 +441,7 @@ Model saved at /root/models/florence2
 ```
 Resource comsumed in training:
 
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Florence-2-Inference-and-Fine-Tuning/images/gpu2.jpg)
+![image](./images/gpu2.jpg)
 Then load trained model from local and do Inference
 ```
 from transformers import AutoModelForCausalLM, AutoProcessor, AutoConfig  
@@ -492,10 +492,10 @@ print(f"Question: {question}")
 print(f"Answer: {answer}")  
 ```
 The output is as following:
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Florence-2-Inference-and-Fine-Tuning/images/arch.jpg)
+![image](./images/arch.jpg)
 
 GPU consumption during above inference:
-![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Florence-2-Inference-and-Fine-Tuning/images/infergpu.jpg)
+![image](./images/infergpu.jpg)
 
 
 **Refer:**
