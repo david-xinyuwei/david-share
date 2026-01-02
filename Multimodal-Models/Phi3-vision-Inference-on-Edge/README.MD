@@ -169,3 +169,118 @@ From the results, it can be seen that even though I wrote a very detailed prompt
 ![image](https://github.com/davidsajare/david-share/blob/master/Multimodal-Models/Phi3-vision-Inference-on-Edge/images/onnxgpu.png)
 #### Note：
 Perhaps the test results are related to the library versions or configurations I used, which requires further investigation.
+---
+
+## VLM Comparison for Passport OCR (2026-01 Update)
+
+Is Phi-3-Vision's 85% accuracy the best we can achieve? To answer this, we conducted a systematic comparison with mainstream open-source VLMs including Qwen2-VL series and Phi-4-multimodal.
+
+### Test Setup
+
+- **Test Task**: Extract 13 fields from US passport image
+- **Key Metric**: Surname field accuracy (critical for identity verification)
+- **Ground Truth**: Surname = "GUPTA", Given Names = "RAHUL RAM"
+- **Hardware**: NVIDIA A100 80GB GPU
+- **Test Date**: January 2026
+
+### Benchmark Results
+
+| Model | Params | Quantization | VRAM | Latency | Accuracy | Surname Output | Status |
+|-------|--------|--------------|------|---------|----------|----------------|--------|
+| **Qwen2-VL-7B FP16** | 7B | None | 15.49GB | 32.94s | **13/13 (100%)** | GUPTA ✓ | **Only 100%** |
+| Qwen2-VL-7B-AWQ | 7B | 4-bit | 6.49GB | 1.27s | 11/13 (85%) | USAGUPTA ✗ | Quantization loss |
+| Qwen2-VL-2B | 2B | None | ~5GB | 6.36s | 11/13 (85%) | RAM ✗ | Name confusion |
+| Phi-4-multimodal | 5.6B | None | ~12GB | 11.34s | 11/13 (85%) | USAGUPTA ✗ | MRZ parse error |
+| Phi-3-Vision | 4.2B | None | ~8GB | ~8s | 11/13 (85%) | GUPTA ✓ | Format issue |
+
+### Key Findings
+
+#### 1. MRZ Country Code Confusion is Common
+
+The passport MRZ format is: `P<USAGUPTA<<RAHUL<RAM<<<`
+
+Where `USA` is the country code, NOT part of the surname. Most models incorrectly merged "USA" with "GUPTA" to output "USAGUPTA".
+
+Only **Qwen2-VL-7B FP16** correctly distinguished the country code from the surname.
+
+#### 2. 4-bit Quantization Impacts OCR Accuracy
+
+| Metric | FP16 | AWQ 4-bit | Change |
+|--------|------|-----------|--------|
+| Surname Accuracy | ✓ GUPTA | ✗ USAGUPTA | **Degraded** |
+| Inference Time | 32.94s | 1.27s | **26x faster** |
+| VRAM Usage | 15.49GB | 6.49GB | **58% reduction** |
+
+AWQ quantization works well for general tasks but loses critical precision for character-level OCR tasks.
+
+#### 3. Model Size ≠ Accuracy
+
+| Model | Parameters | Accuracy |
+|-------|------------|----------|
+| Qwen2-VL-7B | 7B | 100% |
+| Phi-4-multimodal | 5.6B | 85% |
+| Phi-3-Vision | 4.2B | 85% |
+| Qwen2-VL-2B | 2B | 85% |
+
+Only Qwen2-VL-7B achieved 100%. The others all scored 85% regardless of size. This suggests passport OCR requires specific training data and architecture design.
+
+#### 4. Results are Deterministic
+
+All models produced identical outputs across 3 test runs (with `do_sample=False`), confirming:
+- Errors are **systematic**, not random noise
+- Cannot rely on multiple sampling to get correct answers
+
+### Deployment Recommendations
+
+| Scenario | Recommended Model | Configuration | Reason |
+|----------|-------------------|---------------|--------|
+| **Identity Verification (Accuracy First)** | Qwen2-VL-7B | FP16 | Only 100% accurate |
+| **Batch Processing (Can Tolerate Errors)** | Phi-3-Vision | FP16 | 8GB VRAM, moderate speed |
+| **Real-time Response (Latency First)** | Qwen2-VL-7B-AWQ | vLLM | 1.3s ultra-fast, needs post-validation |
+| **Edge Device (Resource Limited)** | Qwen2-VL-2B | FP16 | 5GB VRAM, needs name validation |
+| **Not Recommended** | BitsAndBytes INT4 | - | Severe OCR quality degradation |
+
+### Post-Processing Workaround
+
+For models that output "USAGUPTA":
+```python
+def fix_mrz_country_code(surname: str) -> str:
+    """Remove MRZ country code prefix if detected"""
+    country_codes = ["USA", "GBR", "CAN", "AUS", "DEU", "FRA", "JPN", "CHN"]
+    for code in country_codes:
+        if surname.startswith(code) and len(surname) > len(code):
+            return surname[len(code):]
+    return surname
+```
+
+### Test Scripts
+
+All test scripts are available in the `scripts/` directory:
+
+```bash
+# Test Qwen2-VL-7B FP16 (100% accuracy)
+python scripts/test_qwen2vl_7b.py images/usa-passport.jpg
+
+# Test Qwen2-VL-7B-AWQ with vLLM (fast but 85%)
+python scripts/test_qwen2vl_7b_awq.py images/usa-passport.jpg
+
+# Test Qwen2-VL-2B (lightweight but 85%)
+python scripts/test_qwen2vl_2b.py images/usa-passport.jpg
+
+# Test Phi-4-multimodal (85%)
+python scripts/test_phi4mm.py images/usa-passport.jpg
+```
+
+### Environment Setup
+
+```bash
+# For Qwen2-VL models
+pip install transformers torch accelerate qwen-vl-utils pillow
+
+# For AWQ models with vLLM
+pip install vllm
+```
+
+---
+
+*Author: Xinyu Wei (Microsoft AI GBB) | Updated: 2026-01*
