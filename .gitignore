@@ -6,7 +6,7 @@
 **/AI-Super-Agent/
 **/*Meta-Prompt*
 **/*SOP-*
-**/[CHAT]_*.md
+**/\[CHAT\]_*.md
 **/.copilot/
 **/.github/copilot/
 **/chat-history/
