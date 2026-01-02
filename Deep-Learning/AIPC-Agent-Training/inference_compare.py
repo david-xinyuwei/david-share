@@ -19,7 +19,7 @@ DEFAULT_TRAINED_LOCAL_PATH = os.environ.get(
 # 可通过环境变量覆盖模型来源
 BASE_MODEL_REPO = os.environ.get(
     "BASE_MODEL_REPO",
-    "Qwen/Qwen2.5-0.5B-Instruct",
+    "microsoft/Phi-3-mini-4k-instruct",
 )
 TRAINED_MODEL_REPO = os.environ.get("TRAINED_MODEL_REPO")
 
@@ -29,7 +29,18 @@ API_KEY = os.environ.get("VLLM_API_KEY", "EMPTY")
 LAUNCH_TIMEOUT = int(os.environ.get("VLLM_LAUNCH_TIMEOUT", "180"))
 
 VLLM_URL = f"http://127.0.0.1:{PORT}/v1"
-SYSTEM_PROMPT = "You are a math assistant. Output ONLY the final number."
+# 修正 System Prompt，引导模型输出思考过程和标准格式
+SYSTEM_PROMPT = """You are a helpful math assistant.
+1. First, think through the problem step by step within <think>...</think> tags.
+2. Then, provide your final answer within <answer>...</answer> tags.
+Example:
+<think>
+To calculate 1+1, I know that...
+</think>
+<answer>
+2
+</answer>
+"""
 
 # 测试题目
 TEST_QUESTIONS = [
@@ -162,8 +173,8 @@ async def run_inference(model_name: str):
                     },
                     {"role": "user", "content": q}
                 ],
-                temperature=0.1,
-                max_tokens=50
+                temperature=0.6, # 稍微增加温度以鼓励多样化的思考
+                max_tokens=1024  # 增加 token 限制以容纳思考过程
             )
             pred = response.choices[0].message.content.strip()
         except Exception as e:
@@ -222,17 +233,27 @@ async def main():
     print("\n" + "="*90)
     print(
         f"{'Question':<35} | {'Answer':<8} | "
-        f"{'Base Model':<15} | {'Trained Model':<15} | {'Status'}"
+        f"{'Base Model':<15} | {'Trained Model':<15} | {'Status'} | {'Thinking'}"
     )
-    print("-" * 90)
+    print("-" * 110)
     
     correct_base = 0
     correct_trained = 0
     
     def extract_num(text):
         if text == "N/A": return None
-        matches = re.findall(r'-?\d+\.?\d*', text)
+        # 优先尝试提取 <answer> 标签内的内容
+        answer_match = re.search(r'<answer>(.*?)</answer>', text, re.DOTALL)
+        if answer_match:
+            text_to_parse = answer_match.group(1)
+        else:
+            text_to_parse = text
+            
+        matches = re.findall(r'-?\d+\.?\d*', text_to_parse)
         return float(matches[-1]) if matches else None
+
+    def has_thinking(text):
+        return "<think>" in text and "</think>" in text
 
     for i, item in enumerate(TEST_QUESTIONS):
         q = item["question"]
@@ -264,12 +285,19 @@ async def main():
         else:
             status = "❌ 下降"
 
+        # 检查是否有思考过程
+        thinking_status = "🧠 有思考" if has_thinking(res_trained) else "⚪ 无思考"
+
+        # 格式化输出，截断过长的结果以便显示
+        disp_base = str(val_base) if val_base is not None else "Error"
+        disp_trained = str(val_trained) if val_trained is not None else "Error"
+
         print(
-            f"{q:<35} | {ans:<8} | {res_base:<15} | "
-            f"{res_trained:<15} | {status}"
+            f"{q:<35} | {ans:<8} | {disp_base:<15} | "
+            f"{disp_trained:<15} | {status} | {thinking_status}"
         )
         
-    print("-" * 90)
+    print("-" * 110)
     print(f"准确率: Base Model = {correct_base/len(TEST_QUESTIONS):.1%}")
     print(f"准确率: Trained Model = {correct_trained/len(TEST_QUESTIONS):.1%}")
     print("="*90)

@@ -1,4 +1,3 @@
-import os
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import json
@@ -7,7 +6,7 @@ import ast
 import re
 
 # Load V1.3 (The "IT Pro" model)
-MODEL_PATH = os.getenv("MODEL_PATH", "./checkpoints/aipc_dpo_v1.3")
+MODEL_PATH = "checkpoints/aipc_dpo_v1.3"
 print(f"Loading V1.3 from {MODEL_PATH}...")
 tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, trust_remote_code=False)
 model = AutoModelForCausalLM.from_pretrained(
@@ -33,15 +32,14 @@ prompts = [
 
 def has_valid_python(text):
     """Check if text contains valid python code blocks"""
-    if "```python" not in text:
+    code_blocks = re.findall(r'', text, re.DOTALL)
+    if not code_blocks:
         return False, 0
     
-    code_blocks = text.split("```python")[1:]
     valid_blocks = 0
     for block in code_blocks:
-        code = block.split("```")[0]
         try:
-            ast.parse(code)
+            ast.parse(block)
             valid_blocks += 1
         except:
             pass
@@ -59,7 +57,7 @@ def generate_response(prompt, temperature):
     )
     return tokenizer.decode(outputs[0][input_ids.shape[1]:], skip_special_tokens=True)
 
-output_file = os.getenv("OUTPUT_FILE", "./data/aipc_code_feedback_v1.4.jsonl")
+output_file = "data/aipc_code_feedback_v1.4.jsonl"
 print(f"Generating Code DPO data to {output_file}...")
 
 with open(output_file, "w", encoding="utf-8") as f:

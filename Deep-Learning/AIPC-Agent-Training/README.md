@@ -1,399 +1,473 @@
-# Agent Lightning Flywheel: Evolutionary AI on AIPC
+# AI Agent Training Flywheel
 
-**Author**: Xinyu Wei (Microsoft AI and Apps GBB Architect)  
-**Date**: 2026-01-01  
-**Status**: Completed (V1.4)
+> **"DevOps for AI"** — A complete, reproducible training pipeline demonstrating how to incrementally improve domain-specific AI agents through **SFT → GRPO → DPO** stages.
 
----
+## 🎯 Overview
 
-## 1. Project Overview
+This repository implements an **AI Agent Flywheel** training methodology, where each model version builds upon the previous one through targeted training strategies. Starting from `microsoft/Phi-3-mini-4k-instruct`, we incrementally train a specialized **AI PC Expert** agent through 5 stages.
 
-This project demonstrates the **"AI Agent Flywheel"** concept: continuously evolving an AI model's capabilities through incremental Reinforcement Learning (RL) and Direct Preference Optimization (DPO), without catastrophic forgetting.
-
-We successfully evolved a model from **V1.0 (Pre-trained)** to **V1.4 (Code Specialist)** using a hybrid AIPC (Local GPU) and Cloud architecture.
-
-### Key Achievements
-
-| Transition | Technique | Result |
-|------------|-----------|--------|
-| V1.0 → V1.1 | SFT + GRPO | Mastered math reasoning with deep thinking |
-| V1.1 → V1.2 | DPO | Learned concise expression style |
-| V1.2 → V1.3 | Incremental DPO | Evolved into IT Operations Expert |
-| V1.3 → V1.4 | Incremental DPO | **Code Specialist** - production-grade code |
+**Key Results:**
+| Version | Training Method | Focus | Improvement |
+|---------|-----------------|-------|-------------|
+| V1.0 | - | Base Model | Pre-trained `Phi-3-mini-4k-instruct` |
+| V1.1 | SFT + GRPO | Domain Knowledge | AI PC terminology + structured answers |
+| V1.2 | DPO (Style) | Concise Output | 60% shorter responses, same quality |
+| V1.3 | DPO (Feedback) | Practical Guidance | Step-by-step instructions preferred |
+| V1.4 | DPO (Code) | Code Generation | AST-validated Python code |
 
 ---
 
-## 2. Evolution Matrix
+## 🧠 Technical Architecture
 
-| Version | Base | Technique | Objective | Key Params | Data Source | Training Time |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **V1.0** | - | Pre-trained | General | - | HuggingFace (Qwen2.5-3B-Instruct) | - |
-| **V1.1** | V1.0 | SFT + GRPO | Math Reasoning | LR=1e-6, Steps=500 | GSM8K + Azure OpenAI | ~30 min |
-| **V1.2** | V1.1 | DPO | Concise Style | Beta=0.1 | Synthetic Pairs | ~5 min |
-| **V1.3** | V1.2 | Incremental DPO | IT Pro | LR=1e-6, Beta=0.1 | IT Forum Data | ~10 min |
-| **V1.4** | V1.3 | Incremental DPO | Code Gen | **LR=5e-7**, Beta=0.1 | AST Filtered | **37 sec** |
-
-> **Critical Parameter**: V1.4 uses **LR=5e-7** (10x lower than V1.3) to prevent catastrophic forgetting while learning new code patterns.
-
----
-
-## 3. System Architecture
+### Training Flywheel Diagram
 
 ```mermaid
-graph TD
-    subgraph "Cold Start"
-        V1_0[V1.0: Qwen2.5-3B-Instruct<br/>Pre-trained]
+graph TB
+    subgraph "Stage 1: Knowledge Injection"
+        V0[V1.0: Phi-3-mini-4k-instruct<br/>Pre-trained Base]
+        SFT[SFT Training<br/>896 domain QA pairs]
+        V1[V1.1: SFT Model<br/>Domain Knowledge]
+        V0 --> SFT --> V1
     end
     
-    subgraph "Evolution Chain"
-        V1_0 -->|SFT + GRPO<br/>GSM8K Data| V1_1[V1.1: Math Agent]
-        V1_1 -->|DPO<br/>Concise vs Verbose| V1_2[V1.2: Concise Agent]
-        V1_2 -->|Incremental DPO<br/>IT Forum Data| V1_3[V1.3: IT Pro]
-        V1_3 -->|Incremental DPO<br/>AST Filtered Code| V1_4[V1.4: Code Specialist]
+    subgraph "Stage 2: Reinforcement"
+        GRPO[GRPO Training<br/>4 candidates/prompt<br/>Reward Function]
+        V1_GRPO[V1.1: GRPO Model<br/>Quality Improved]
+        V1 --> GRPO --> V1_GRPO
     end
-
-    subgraph "Flywheel Cycle"
-        V1_4 -->|Generate| Data[Synthetic Code Q&A]
-        Data -->|AST Filter| Filtered[Valid Code Pairs]
-        Filtered -->|Train| V1_5[V1.5: Next Gen...]
+    
+    subgraph "Stage 3: Style Optimization"
+        DPO1[DPO Training<br/>50 style pairs<br/>Concise vs Verbose]
+        V2[V1.2: Style Model<br/>Concise Output]
+        V1_GRPO --> DPO1 --> V2
     end
-
-    style V1_4 fill:#f9f,stroke:#333,stroke-width:4px
-    style V1_0 fill:#bbf,stroke:#333
+    
+    subgraph "Stage 4: IT Feedback"
+        DPO2[DPO Training<br/>10 feedback pairs<br/>Practical vs Theoretical]
+        V3[V1.3: IT Pro Model<br/>Step-by-step]
+        V2 --> DPO2 --> V3
+    end
+    
+    subgraph "Stage 5: Code Specialist"
+        DPO3[DPO Training<br/>10 code pairs<br/>Valid vs Invalid AST]
+        V4[V1.4: Code Model<br/>Python Expert]
+        V3 --> DPO3 --> V4
+    end
+    
+    style V0 fill:#e1f5fe
+    style V4 fill:#c8e6c9
 ```
 
----
+### Core Methodology
 
-## 4. Environment Setup
+| Method | Description | When to Use |
+|--------|-------------|-------------|
+| **SFT** (Supervised Fine-Tuning) | Learn from labeled (prompt, completion) pairs | Initial domain knowledge injection |
+| **GRPO** (Group Relative Policy Optimization) | Generate N candidates, rank by reward function, update policy | When you have quality metrics but no preference data |
+| **DPO** (Direct Preference Optimization) | Learn from (prompt, chosen, rejected) triples | When you have preference pairs |
 
-### 4.1 Hardware Requirements
+### GRPO Reward Function
 
-| Component | Training | Inference |
-|-----------|----------|-----------|
-| **GPU** | NVIDIA A100 80GB | RTX 4090 / Any CUDA GPU |
-| **VRAM** | ≥40GB (DPO needs 2x model) | ≥8GB |
-| **RAM** | ≥64GB | ≥16GB |
+The GRPO stage uses a custom reward function with 4 dimensions:
 
-### 4.2 Software Dependencies
-
-```
-torch==2.9.0
-transformers==4.57.3
-trl==0.26.1
-datasets==4.1.1
-accelerate==1.6.0
-peft==0.18.0
-vllm==0.11.2  # For inference
-```
-
-Install:
-```bash
-pip install torch transformers trl datasets accelerate peft vllm
-```
-
----
-
-## 5. Quick Start
-
-### 5.1 Phase 1: Data Generation
-
-Generate synthetic code Q&A pairs using V1.3, filtered by Python AST:
-
-```bash
-export MODEL_PATH="./checkpoints/aipc_dpo_v1.3"
-export OUTPUT_FILE="./data/aipc_code_feedback_v1.4.jsonl"
-python simulate_code_feedback.py
-```
-
-**Key Logic** - AST-based quality scoring:
 ```python
-def score_response(response_text):
-    try:
-        code = extract_code(response_text)
-        if not code: return 0.1  # Text only → low score
-        ast.parse(code)          # Syntax check
-        return 1.0               # Valid code → high score
-    except SyntaxError:
-        return 0.0               # Syntax error → zero
+def reward_function(completions, **kwargs):
+    """
+    AI PC Expert Reward Function (V1.1 GRPO Training)
+    
+    Dimensions:
+    1. Keywords (+0.3): Contains AI PC terminology
+    2. Length (+0.2): Optimal 100-500 characters
+    3. Structure (+0.2): Uses numbered lists or bullet points
+    4. No Hallucination (+0.3): Avoids server/datacenter terms
+    """
+    keywords = ['NPU', 'Intel Core Ultra', 'Snapdragon X', 'AI PC', 
+                'AIPC', 'Copilot', 'DirectML', 'ONNX', 'OpenVINO']
+    
+    hallucination_words = ['服务器', 'GPU集群', '云端训练', 
+                           'A100', 'H100', '数据中心']
+    
+    rewards = []
+    for completion in completions:
+        score = 0.0
+        
+        # Keyword coverage
+        keyword_count = sum(1 for kw in keywords if kw.lower() in completion.lower())
+        score += min(0.3, keyword_count * 0.05)
+        
+        # Length penalty
+        length = len(completion)
+        if 100 <= length <= 500:
+            score += 0.2
+        elif 50 <= length < 100 or 500 < length <= 800:
+            score += 0.1
+        
+        # Structure bonus
+        if any(marker in completion for marker in ['1.', '2.', '•', '-', '首先', '其次']):
+            score += 0.2
+        
+        # Hallucination penalty
+        if not any(hw in completion for hw in hallucination_words):
+            score += 0.3
+        
+        rewards.append(score)
+    return rewards
 ```
 
-### 5.2 Phase 2: Incremental DPO Training
+---
+
+## 🖥️ Environment
+
+| Component | Specification |
+|-----------|---------------|
+| **GPU** | NVIDIA A100 80GB PCIe |
+| **PyTorch** | 2.9.0 |
+| **Transformers** | 4.44.0 |
+| **TRL** | 0.26.1 |
+| **Base Model** | `microsoft/Phi-3-mini-4k-instruct` (3.8B params) |
+
+### Model Architecture (Phi-3-mini-4k-instruct)
+
+```json
+{
+  "architectures": ["Phi3ForCausalLM"],
+  "hidden_size": 3072,
+  "intermediate_size": 8192,
+  "num_attention_heads": 32,
+  "num_hidden_layers": 32,
+  "max_position_embeddings": 4096,
+  "vocab_size": 32064
+}
+```
+
+---
+
+## 📁 Repository Structure
+
+```
+├── Training Scripts (执行顺序)
+│   ├── train_sft_aipc.py          # Step 1: V1.0 → V1.1 SFT
+│   ├── train_grpo_aipc.py         # Step 2: V1.1 GRPO reinforcement
+│   ├── train_dpo_style.py         # Step 3: V1.1 → V1.2 Style DPO
+│   ├── train_dpo_v1.3.py          # Step 4: V1.2 → V1.3 Feedback DPO
+│   └── train_dpo_v1.4.py          # Step 5: V1.3 → V1.4 Code DPO
+│
+├── Data Generation Scripts
+│   ├── generate_aipc_new_data.py  # Generate SFT data via Azure OpenAI
+│   ├── generate_style_dpo_data.py # Generate style preference pairs
+│   ├── generate_feedback_v1.3.py  # Simulate customer feedback
+│   └── generate_feedback_v1.4.py  # Generate code preference with AST validation
+│
+├── Sample Data (data/)
+│   ├── sample_sft.jsonl           # 3 SFT examples
+│   ├── sample_style_dpo.jsonl     # 3 Style DPO examples
+│   ├── sample_feedback_v1.3.jsonl # 2 Feedback DPO examples
+│   └── sample_code_feedback_v1.4.jsonl # 2 Code DPO examples
+│
+├── Inference & Evaluation
+│   ├── inference_aipc_sft.py      # Basic inference
+│   ├── inference_compare.py       # Multi-version comparison
+│   ├── compare_v1.2_v1.3.py       # A/B test: V1.2 vs V1.3
+│   └── compare_v1.3_v1.4.py       # A/B test: V1.3 vs V1.4
+│
+└── Utilities
+    └── convert_checkpoint.py      # Checkpoint format conversion
+```
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
 
 ```bash
-export MODEL_PATH="./checkpoints/aipc_dpo_v1.3"
-export OUTPUT_PATH="./checkpoints/aipc_dpo_v1.4"
-export DATASET_PATH="./data/aipc_code_feedback_v1.4.jsonl"
+pip install -r requirements.txt
+# Or manually:
+pip install torch>=2.0.0 transformers>=4.40.0 trl>=0.8.0 datasets accelerate
+pip install openai  # For data generation only
+```
+
+### Step 1: Supervised Fine-Tuning (V1.0 → V1.1)
+
+```bash
+# Generate training data (requires Azure OpenAI API key)
+export AZURE_OPENAI_API_KEY="<your-api-key>"
+export AZURE_OPENAI_ENDPOINT="<your-endpoint>"
+python generate_aipc_new_data.py --num 500 --output data/aipc_sft_train.jsonl
+
+# Run SFT training
+python train_sft_aipc.py \
+    --model_name_or_path microsoft/Phi-3-mini-4k-instruct \
+    --train_file data/aipc_sft_train.jsonl \
+    --val_file data/aipc_sft_val.jsonl \
+    --output_dir checkpoints/aipc_sft_v1
+```
+
+**Training Data Format (SFT):**
+```json
+{"prompt": "在 Windows Studio Effects 中启用背景虚化后视频会议出现掉帧...", "completion": "针对 Windows Studio Effects 视频掉帧问题，建议按以下步骤排查..."}
+```
+
+**Expected Output:**
+```
+🚀 Starting SFT Training...
+[Epoch 1/3] Loss: 1.234 | Eval Loss: 1.156
+[Epoch 2/3] Loss: 0.876 | Eval Loss: 0.823
+[Epoch 3/3] Loss: 0.654 | Eval Loss: 0.612
+✅ Training complete. Model saved to checkpoints/aipc_sft_v1
+```
+
+### Step 2: GRPO Reinforcement (V1.1)
+
+```bash
+python train_grpo_aipc.py
+# Input:  checkpoints/aipc_sft_v1
+# Output: checkpoints/aipc_grpo_v1.1
+```
+
+**GRPO Configuration:**
+| Parameter | Value | Explanation |
+|-----------|-------|-------------|
+| `num_generations` | 4 | Candidates per prompt |
+| `temperature` | 0.7 | Sampling diversity |
+| `learning_rate` | 1e-6 | Conservative for RL |
+| `per_device_batch_size` | 2 | A100 80GB optimized |
+| `gradient_accumulation` | 8 | Effective batch = 16 |
+
+### Step 3: DPO Style Optimization (V1.1 → V1.2)
+
+```bash
+# Generate style preference pairs
+python generate_style_dpo_data.py
+# Creates: data/aipc_style_dpo.jsonl (50 pairs)
+
+# Train DPO
+python train_dpo_style.py
+# Input:  checkpoints/aipc_grpo_v1.1_final
+# Output: checkpoints/aipc_dpo_v1.2
+```
+
+**DPO Data Format:**
+```json
+{
+  "prompt": "什么是 AI PC？",
+  "chosen": [
+    {"role": "user", "content": "什么是 AI PC？"},
+    {"role": "assistant", "content": "AI PC 是集成了 NPU 的个人电脑，支持本地 AI 推理..."}
+  ],
+  "rejected": [
+    {"role": "user", "content": "什么是 AI PC？"},
+    {"role": "assistant", "content": "AI PC（人工智能 PC）是指具备高性能计算... [300+ 字冗长回答]"}
+  ]
+}
+```
+
+### Step 4: DPO IT Feedback (V1.2 → V1.3)
+
+```bash
+# Simulate customer feedback
+python generate_feedback_v1.3.py
+# Creates: data/aipc_feedback_v1.3.jsonl (10 pairs)
+
+# Train DPO
+python train_dpo_v1.3.py
+# Input:  checkpoints/aipc_dpo_v1.2
+# Output: checkpoints/aipc_dpo_v1.3
+```
+
+**Customer Preference Signals:**
+- ✅ Contains numbered steps: `1.`, `2.`, `3.`
+- ✅ Includes specific numbers: `32GB`, `INT8`, `pip install`
+- ✅ Practical instructions over theory
+- ❌ Rejects overly long responses (>600 chars)
+
+### Step 5: DPO Code Specialist (V1.3 → V1.4)
+
+```bash
+# Generate code preference data with AST validation
+python generate_feedback_v1.4.py
+# Creates: data/aipc_code_feedback_v1.4.jsonl (10 pairs)
+
+# Train DPO
 python train_dpo_v1.4.py
+# Input:  checkpoints/aipc_dpo_v1.3
+# Output: checkpoints/aipc_dpo_v1.4
 ```
 
-**Training Configuration**:
-| Parameter | Value | Reason |
-|-----------|-------|--------|
-| `learning_rate` | **5e-7** | Prevent forgetting (10x lower than SFT) |
-| `beta` | 0.1 | Standard DPO temperature |
-| `num_epochs` | 5 | Sufficient for 10 samples |
-| `batch_size` | 1 | Stability on small dataset |
-| `gradient_accumulation` | 4 | Effective batch = 4 |
+**AST Validation Logic:**
+```python
+import ast
+import re
 
-### 5.3 Phase 3: Validation
+def has_valid_python(text):
+    """Check if text contains syntactically valid Python code blocks"""
+    code_blocks = re.findall(r'```python(.*?)```', text, re.DOTALL)
+    if not code_blocks:
+        return False, 0
+    
+    valid_blocks = 0
+    for block in code_blocks:
+        try:
+            ast.parse(block)
+            valid_blocks += 1
+        except SyntaxError:
+            pass
+    return valid_blocks > 0, valid_blocks
+```
+
+---
+
+## 📊 Training Data Summary
+
+| Stage | Dataset | Size | Format |
+|-------|---------|------|--------|
+| V1.1 SFT | `aipc_sft_train.jsonl` | 896 | `{prompt, completion}` |
+| V1.1 SFT Val | `aipc_sft_val.jsonl` | 47 | `{prompt, completion}` |
+| V1.2 DPO | `aipc_style_dpo.jsonl` | 50 | `{prompt, chosen, rejected}` |
+| V1.3 DPO | `aipc_feedback_v1.3.jsonl` | 10 | `{prompt, chosen, rejected}` |
+| V1.4 DPO | `aipc_code_feedback_v1.4.jsonl` | 10 | `{prompt, chosen, rejected}` |
+
+---
+
+## 🔍 Inference & Comparison
+
+### Basic Inference
 
 ```bash
-python inference_compare.py
+python inference_aipc_sft.py \
+    --model checkpoints/aipc_dpo_v1.4 \
+    --prompt "如何在 AI PC 上部署 Llama 3 8B 模型？"
 ```
 
----
+### Version Comparison
 
-## 6. Training Logs
-
-### 6.1 V1.4 DPO Training (A100 80GB)
-
-```
-Loading dataset from ./data/aipc_code_feedback_v1.4.jsonl...
-Dataset size: 10
-Loading model: ./checkpoints/aipc_dpo_v1.3...
-Loading checkpoint shards: 100%|██████████| 2/2 [00:01<00:00, 1.98it/s]
-
-Starting V1.4 Training...
-100%|██████████| 15/15 [00:37<00:00, 2.48s/it]
-```
-
-**Training Metrics by Epoch**:
-
-| Epoch | Loss | Accuracy | Margin | Interpretation |
-|-------|------|----------|--------|----------------|
-| 1.0 | 0.6681 | 50% | 0.056 | Learning starts |
-| 2.0 | 0.6227 | **100%** | 0.146 | Model distinguishes chosen/rejected |
-| 3.0 | 0.7132 | 0% | -0.040 | Temporary regression (normal) |
-| 4.0 | 0.6409 | **100%** | 0.111 | Recovery |
-| **5.0** | **0.6020** | **100%** | **0.200** | **Converged** |
-
-**Final Summary**:
-```
-{'train_runtime': 37.14s, 'train_samples_per_second': 1.346, 'train_loss': 0.677}
-Saving model to ./checkpoints/aipc_dpo_v1.4...
-Done.
-```
-
-**Key Observations**:
-- ✅ **Final Loss**: 0.602 (well converged)
-- ✅ **Final Accuracy**: 100% (perfect preference learning)
-- ✅ **Final Margin**: 0.200 (healthy gap between chosen/rejected)
-- ✅ **Training Time**: 37 seconds (10 samples, 5 epochs, A100)
-
----
-
-## 7. Results: V1.3 vs V1.4 Comparison
-
-### 7.1 Quality Metrics
-
-| Dimension | V1.3 (IT Pro) | V1.4 (Code Specialist) | Winner |
-|-----------|---------------|------------------------|--------|
-| Code Completeness | Basic | Full + Exception handling | **V1.4** |
-| Boundary Checks | ❌ None | ✅ Assert, null checks | **V1.4** |
-| Production Ready | Needs fixes | Direct use | **V1.4** |
-| Comments | Simple | Detailed + formulas | **V1.4** |
-
-### 7.2 Case Study: Cosine Similarity Function
-
-**Task**: "Write a function to calculate cosine similarity between two vectors."
-
-**V1.3 Output** (IT Pro):
-```python
-def cosine_similarity(vec1, vec2):
-    vec1_normalized = vec1 / np.linalg.norm(vec1)
-    vec2_normalized = vec2 / np.linalg.norm(vec2)
-    cos_sim = np.dot(vec1_normalized, vec2_normalized)
-    return cos_sim
-```
-⚠️ **Issues**: No dimension check, no zero vector handling, may crash or return NaN.
-
-**V1.4 Output** (Code Specialist):
-```python
-def cosine_similarity(vec1, vec2):
-    # Dimension validation
-    assert vec1.shape[0] == vec2.shape[0], "Vector length mismatch"
-    
-    dot_product = np.dot(vec1, vec2)
-    norm_vec1 = np.linalg.norm(vec1)
-    norm_vec2 = np.linalg.norm(vec2)
-    
-    # Zero vector protection
-    if norm_vec1 == 0 or norm_vec2 == 0:
-        return 0.0
-    
-    cos_sim = dot_product / (norm_vec1 * norm_vec2)
-    
-    # Numerical stability
-    cos_sim = np.clip(cos_sim, -1.0, 1.0)
-    
-    return cos_sim
-```
-✅ **Improvements**: Assert check, zero vector handling, np.clip for numerical stability.
-
-### 7.3 Case Study: ONNX Runtime Script
-
-**Task**: "Write a Python script to load ResNet50 with ONNX Runtime."
-
-Both V1.3 and V1.4 produced functional code, but V1.4 added:
-- ✅ Execution provider selection
-- ✅ Input shape inspection
-- ✅ More detailed comments
-
----
-
-## 8. Known Issues & Solutions
-
-### Issue 1: DPO Loss Not Decreasing
-
-**Symptom**: Loss stays at ~0.693 (random guess level)
-
-**Root Cause**: Learning rate too high, model oscillates
-
-**Solution**: 
-```python
-learning_rate = 5e-7  # Not 1e-6 or higher
-```
-
-### Issue 2: Catastrophic Forgetting
-
-**Symptom**: V1.4 loses V1.3's IT knowledge
-
-**Root Cause**: Learning rate too high or too many epochs
-
-**Solution**:
-- Use very low LR (5e-7)
-- Limit epochs (5 is enough for small dataset)
-- Use incremental approach (train on V1.3, not V1.0)
-
-### Issue 3: AST Filter Too Strict
-
-**Symptom**: All generated samples get score 0
-
-**Root Cause**: Code extraction regex misses code blocks
-
-**Solution**: Check `extract_code()` handles various markdown formats:
-```python
-# Handle ```python, ```, and indented blocks
-```
-
----
-
-## 9. Deployment Recommendations
-
-| Use Case | Recommended Version | Reason |
-|----------|---------------------|--------|
-| Code Generation | **V1.4** | Production-grade defensive code |
-| IT Troubleshooting | V1.3 | Rich hardware/system knowledge |
-| Math Problems | V1.1 | Deep thinking, step-by-step |
-| General Chat | V1.0 | Fastest, most general |
-
-**Inference Example** (vLLM):
 ```bash
-vllm serve ./checkpoints/aipc_dpo_v1.4 \
-    --host 0.0.0.0 --port 8000 \
-    --max-model-len 2048
+# Compare V1.2 vs V1.3
+python compare_v1.2_v1.3.py
+
+# Compare V1.3 vs V1.4
+python compare_v1.3_v1.4.py
+```
+
+**Sample Comparison Output (Actual):**
+
+```
+============================================================
+ V1.1 GRPO Final Responses
+============================================================
+
+Q: 如何选购一台适合开发 AI 应用的 AI PC？
+A: 选购 AI PC 时，核心是要把"AI 算力与续航"放在最高位，而"整机性能"与"电池生命"则下沉。
+建议按以下流程：
+
+1) 明确目标与应用场景
+- 目标：是轻薄、强劲 AI 推理（如 NPU/GPU/CPU 协同）、还能维持"一台电池长时间"的电池供电能力？
+- 场景：游戏/视频/语音/端侧生态（如摄像头推理、语音助手、企业应用）。
+
+2) 选型要点
+- 主要选择：搭载 NPU（如 Intel Core Ultra 笔记本、Snapdragon X Elite）
+
+Q: 在笔记本上运行 7B 模型需要多少内存？
+A: 7B 模型的推理对内存的需求取决于推理算子优化、量化、输入形状...
+以优化后的 INT8/INT4 算子执行为例，可预计在 10~16 GB 内存下推理启动。
+
+============================================================
+ V1.4 Code Specialist Responses
+============================================================
+
+Q: 如何选购一台适合开发 AI 应用的 AI PC？
+A: 选购一台适合开发 AI 应用的 AI PC 时，需要关注以下几个核心要素：
+显卡、内存、存储、处理器、电池/续航、热管理与系统支持。
+
+1) 显卡：
+- 选择 NPU/AI 加速卡（如 Snapdragon X Elite、Intel Core Ultra 笔记本/客户端）
+- 评估带宽与功耗：确保 GPU/NPU 能够高效运行常用模型
+
+Q: 在笔记本上运行 7B 模型需要多少内存？
+A: 笔记本在"7B 模型"上的要求依赖以下几点：推理方式、内存压力、精度。
+
+1) 精度与推理方式
+- FP16/BF16：通常需要 16GB-24GB
+- INT8/INT4（量化）：可能降低到 8GB-16GB，但需要对模型做校准与评估
+```
+具体配置：pip install onnxruntime-directml 测试 NPU 是否可用。
 ```
 
 ---
 
+## ⚠️ Known Issues & Solutions
 
----
+### Issue 1: GRPO OOM on Small GPUs
 
-## 10. Agent Lightning Components Used
+**Symptom:** `OutOfMemoryError` during GRPO training with `num_generations=4`
 
-This project leverages **Microsoft Agent Lightning** framework throughout the evolution pipeline. Below is a detailed mapping of which Agent Lightning APIs are used in each phase:
-
-| Phase | Script | Agent Lightning Components | Purpose |
-|-------|--------|---------------------------|---------|
-| **V1.0→V1.1 Training** | `train_v1.1_sft_grpo.py` | `@agl.rollout`, `agl.LLM`, `agl.emit_reward()`, `agl.VERL`, `agl.Trainer` | GRPO training with reward emission |
-| **Data Generation** | `generate_training_data_gpt5_agl.py` | `@agl.rollout`, `agl.emit_reward()`, `agl.InMemoryLightningStore`, `agl.OtelTracer`, `agl.LitAgentRunner`, `agl.logging` | Tracing wrapper for Azure OpenAI SDK calls |
-| **LLM Evaluation** | `judge_with_llm_agl.py` | `@agl.rollout`, `agl.LLM`, `agl.emit_reward()`, `agl.InMemoryLightningStore`, `agl.OtelTracer`, `agl.LitAgentRunner`, `agl.logging` | LLM-as-Judge with full observability |
-
-### Component Reference
-
-| Component | Import | Description |
-|-----------|--------|-------------|
-| `@agl.rollout` | `import agentlightning as agl` | Decorator for async agent functions with automatic tracing |
-| `agl.LLM` | `agl.LLM(endpoint, model, api_key)` | LLM resource configuration for injection |
-| `agl.emit_reward(float)` | Direct call | Emit reward signal for RL training or metrics |
-| `agl.VERL` | `agl.VERL(config)` | VERL algorithm wrapper (GRPO/PPO) |
-| `agl.Trainer` | `agl.Trainer(algorithm, n_runners)` | Distributed training orchestrator |
-| `agl.InMemoryLightningStore` | `agl.InMemoryLightningStore()` | In-memory storage for traces and rollouts |
-| `agl.OtelTracer` | `agl.OtelTracer()` | OpenTelemetry-based tracing |
-| `agl.LitAgentRunner` | `agl.LitAgentRunner(tracer)` | Agent execution runner with tracing |
-| `agl.logging.setup()` | `agl.logging.setup(files, level)` | Framework logging configuration |
-
-### Code Examples
-
-**1. Training with GRPO** (`train_v1.1_sft_grpo.py`):
+**Solution:**
 ```python
-import agentlightning as agl
-
-@agl.rollout
-async def math_agent(task, llm: agl.LLM):
-    response = await llm.chat(messages=[...])
-    reward = calculate_reward(response, task['answer'])
-    agl.emit_reward(reward)  # Send reward to VERL
-    return response
-
-# Initialize VERL training
-algorithm = agl.VERL(config)
-trainer = agl.Trainer(algorithm=algorithm, n_runners=2)
-trainer.fit(math_agent, train_dataset)
+# Reduce generations and batch size
+GRPO_CONFIG = {
+    "num_generations": 2,  # Reduced from 4
+    "per_device_train_batch_size": 1,  # Reduced from 2
+    "gradient_accumulation_steps": 16,  # Increased to maintain effective batch
+}
 ```
 
-**2. Traced Data Generation** (`generate_training_data_gpt5_agl.py`):
+### Issue 2: DPO Loss Not Decreasing
+
+**Symptom:** DPO loss stays flat or increases
+
+**Root Cause:** Learning rate too high for incremental training
+
+**Solution:**
 ```python
-import agentlightning as agl
-
-@agl.rollout
-async def gpt5_data_generator(task: GenerationTask, llm: agl.LLM) -> float:
-    # ... generate data ...
-    agl.emit_reward(success_rate)
-    return success_rate
-
-# Setup tracing infrastructure
-store = agl.InMemoryLightningStore()
-tracer = agl.OtelTracer()
-runner = agl.LitAgentRunner(tracer=tracer)
-
-with runner.run_context(agent=gpt5_data_generator, store=store):
-    await runner.step(input=task, resources={"llm": llm_resource})
+# Use very small LR for incremental DPO
+training_args = DPOConfig(
+    learning_rate=1e-7,  # Very conservative
+    beta=0.1,  # Standard DPO beta
+    num_train_epochs=5,  # More epochs at lower LR
+)
 ```
 
-**3. LLM-as-Judge Evaluation** (`judge_with_llm_agl.py`):
-```python
-import agentlightning as agl
+### Issue 3: Generated Code Has Syntax Errors
 
-@agl.rollout
-async def judge_answer_agl(task: JudgeTask, llm: agl.LLM) -> float:
-    # ... call LLM to judge ...
-    reward = 1.0 if correct else 0.0
-    agl.emit_reward(reward)
-    return reward
-```
+**Symptom:** V1.4 generates code that fails `ast.parse()`
 
-## 11. File Structure
+**Root Cause:** Insufficient code preference data
 
-```
-AIPC-Agent-Training/
-├── README.md                          # This file (English)
-├── README-CN.md                       # Chinese version
-├── train_v1.1_sft_grpo.py            # V1.0→V1.1 cold start training
-├── generate_training_data_gpt5_agl.py # Azure OpenAI data generation
-├── simulate_code_feedback.py          # V1.4 AST-filtered data gen
-├── train_dpo_v1.4.py                  # V1.4 incremental DPO training
-├── inference_compare.py               # Version comparison
-├── judge_with_llm_agl.py             # LLM-based evaluation
-└── convert_checkpoint.py              # Checkpoint format conversion
-```
+**Solution:** Increase `generate_feedback_v1.4.py` sample size and ensure clear chosen/rejected distinction.
 
 ---
 
-## 12. License
+## 💡 Design Decisions
 
-MIT License
+### Why Incremental DPO Instead of One Big DPO?
+
+| Approach | Pros | Cons |
+|----------|------|------|
+| **One Big DPO** | Simpler pipeline | Catastrophic forgetting, hard to debug |
+| **Incremental DPO** | Targeted improvements, easier rollback | More stages to manage |
+
+We chose incremental DPO because:
+1. Each stage has **clear success criteria** (style → feedback → code)
+2. **Easier debugging**: if V1.4 code quality drops, check V1.3→V1.4 stage only
+3. **Rollback friendly**: can deploy V1.3 if V1.4 has issues
+
+### Why GRPO Before DPO?
+
+GRPO establishes a **quality baseline** before preference learning:
+- GRPO teaches "what makes a good AI PC answer" (keywords, structure, no hallucination)
+- DPO then teaches "which style/format is preferred"
+
+Without GRPO, DPO would try to learn content quality AND style simultaneously.
 
 ---
 
-*Tested on: NVIDIA A100 80GB, Ubuntu 22.04, Python 3.10, PyTorch 2.9.0*
+## 📚 References
+
+- **Base Model**: [microsoft/Phi-3-mini-4k-instruct](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct)
+- **TRL Library**: [Transformer Reinforcement Learning](https://github.com/huggingface/trl)
+- **GRPO Paper**: [DeepSeekMath: Pushing the Limits of Mathematical Reasoning](https://arxiv.org/abs/2402.03300)
+- **DPO Paper**: [Direct Preference Optimization](https://arxiv.org/abs/2305.18290)
+
+---
+
+*Author: Xinyu Wei (Microsoft AI and Apps GBB Architect) | Verified: 2026-01-02*
