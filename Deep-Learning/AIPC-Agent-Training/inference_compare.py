@@ -13,7 +13,7 @@ from openai import AsyncOpenAI
 # --- 配置 ---
 DEFAULT_TRAINED_LOCAL_PATH = os.environ.get(
     "DEFAULT_TRAINED_MODEL_PATH",
-    os.path.join(os.getcwd(), "checkpoints/AgentLightningTutorial/math_agent_robust/global_step_125/actor/huggingface_converted"),
+    os.path.join(os.getcwd(), "checkpoints/trained_model"),
 )
 
 # 可通过环境变量覆盖模型来源

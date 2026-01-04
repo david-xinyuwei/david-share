@@ -4,7 +4,7 @@
 
 ## 🎯 项目概述
 
-本项目展示了在 **Azure H100 (80GB)** 环境下,使用 **Agent Lightning + GRPO 算法**训练数学推理Agent的完整端到端流程。从数据生成、模型训练到性能评估,所有步骤均已在生产环境硬件上验证成功。
+本项目展示了在 **Azure A100 (80GB)** 环境下,使用 **Agent Lightning + GRPO 算法**训练数学推理Agent的完整端到端流程。从数据生成、模型训练到性能评估,所有步骤均已在生产环境硬件上验证成功。
 
 **核心成果**:
 - ✅ 使用 Azure OpenAI GPT-5.1 生成 5000+ 高质量数学训练数据
@@ -21,74 +21,58 @@ Agent Lightning 是微软开源的 AI Agent 训练框架。本项目使用 **agl
 
 ### 完整架构图
 
-```
-┌──────────────────────────────────────────────────────────────────────────────────────────────┐
-│                              AGENT LIGHTNING FRAMEWORK                                        │
-│                                    (微软开源)                                                 │
-├──────────────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                              │
-│  ┌────────────────────────────────────────────────────────────────────────────────────────┐  │
-│  │                                    用户层 (USER LAYER)                                 │  │
-│  │                                                                                        │  │
-│  │       @agl.rollout              agl.emit_reward()              agl.LLM                 │  │
-│  │       (定义 Agent)              (发送奖励信号)                  (LLM 资源)              │  │
-│  └────────────────────────────────────────────┬───────────────────────────────────────────┘  │
-│                                               │                                              │
-│                                               ▼                                              │
-│  ┌────────────────────────────────────────────────────────────────────────────────────────┐  │
-│  │                                 训练器层 (TRAINER LAYER)                               │  │
-│  │                                     agl.Trainer                                        │  │
-│  │                                   (编排训练循环)                                        │  │
-│  └────────────────────────────────────────────┬───────────────────────────────────────────┘  │
-│                                               │                                              │
-│                                               ▼                                              │
-│  ┌────────────────────────────────────────────────────────────────────────────────────────┐  │
-│  │                                算法层 (ALGORITHM LAYER)                                │  │
-│  │                                                                                        │  │
-│  │                                  Algorithm (基类)                                      │  │
-│  │                                        │                                               │  │
-│  │            ┌───────────────────────────┼───────────────────────────┐                   │  │
-│  │            │                           │                           │                   │  │
-│  │            ▼                           ▼                           ▼                   │  │
-│  │   ┌────────────────┐          ┌────────────────┐          ┌────────────────┐           │  │
-│  │   │    agl.VERL    │          │    agl.APO     │          │  agl.Baseline  │           │  │
-│  │   │   (强化学习)    │          │  (Prompt优化)  │          │   (调试/测试)   │           │  │
-│  │   │                │          │                │          │                │           │  │
-│  │   │  封装 VERL     │          │  使用 OpenAI   │          │  简单日志      │           │  │
-│  │   │  Framework     │          │  兼容 API      │          │  和验证        │           │  │
-│  │   │                │          │                │          │                │           │  │
-│  │   │  配置项:       │          │                │          │                │           │  │
-│  │   │  • grpo        │          │  配置项:       │          │  配置项:       │           │  │
-│  │   │  • ppo         │          │  • beam_width  │          │  • n_epochs    │           │  │
-│  │   │  • dapo        │          │  • beam_rounds │          │  • train_split │           │  │
-│  │   │  • reinforce++ │          │                │          │                │           │  │
-│  │   └───────┬────────┘          └────────────────┘          └────────────────┘           │  │
-│  │           │                                                                            │  │
-│  └───────────┼────────────────────────────────────────────────────────────────────────────┘  │
-│              │                                                                               │
-│              ▼                                                                               │
-│  ┌────────────────────────────────────────────────────────────────────────────────────────┐  │
-│  │                          VERL FRAMEWORK (火山引擎开源)                                  │  │
-│  │                                                                                        │  │
-│  │   ┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐                 │  │
-│  │   │     RL 算法      │    │    分布式后端     │    │     推理引擎      │                 │  │
-│  │   │                  │    │                  │    │                  │                 │  │
-│  │   │   • GRPO         │    │   • FSDP/FSDP2   │    │   • vLLM         │                 │  │
-│  │   │   • PPO          │    │   • Megatron-LM  │    │   • SGLang       │                 │  │
-│  │   │   • DAPO         │    │   • Ray          │    │                  │                 │  │
-│  │   │   • ReMax        │    │                  │    │                  │                 │  │
-│  │   │   • REINFORCE++  │    │                  │    │                  │                 │  │
-│  │   └──────────────────┘    └──────────────────┘    └──────────────────┘                 │  │
-│  └────────────────────────────────────────────────────────────────────────────────────────┘  │
-│                                                                                              │
-│  ┌────────────────────────────────────────────────────────────────────────────────────────┐  │
-│  │                             运行时组件 (RUNTIME COMPONENTS)                            │  │
-│  │                                                                                        │  │
-│  │      agl.LitAgentRunner        agl.InMemoryLightningStore         agl.OtelTracer       │  │
-│  │      (Agent 执行器)             (数据存储)                         (追踪)              │  │
-│  └────────────────────────────────────────────────────────────────────────────────────────┘  │
-│                                                                                              │
-└──────────────────────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph AGL["AGENT LIGHTNING FRAMEWORK (微软开源)"]
+        direction TB
+        
+        subgraph UserLayer["👤 用户层 (USER LAYER)"]
+            direction LR
+            U1["@agl.rollout<br/>(定义 Agent)"]
+            U2["agl.emit_reward()<br/>(发送奖励信号)"]
+            U3["agl.LLM<br/>(LLM 资源)"]
+        end
+        
+        subgraph TrainerLayer["🎯 训练器层 (TRAINER LAYER)"]
+            T1["agl.Trainer<br/>(编排训练循环)"]
+        end
+        
+        subgraph AlgoLayer["⚙️ 算法层 (ALGORITHM LAYER)"]
+            direction LR
+            A0["Algorithm (基类)"]
+            A1["agl.VERL<br/>强化学习<br/>• grpo / ppo<br/>• dapo / reinforce++"]
+            A2["agl.APO<br/>Prompt优化<br/>• beam_width<br/>• beam_rounds"]
+            A3["agl.Baseline<br/>调试/测试<br/>• n_epochs<br/>• train_split"]
+            A0 --> A1
+            A0 --> A2
+            A0 --> A3
+        end
+        
+        subgraph VERL["🔥 VERL FRAMEWORK (火山引擎开源)"]
+            direction LR
+            V1["RL 算法<br/>• GRPO / PPO<br/>• DAPO / ReMax<br/>• REINFORCE++"]
+            V2["分布式后端<br/>• FSDP/FSDP2<br/>• Megatron-LM<br/>• Ray"]
+            V3["推理引擎<br/>• vLLM<br/>• SGLang"]
+        end
+        
+        subgraph Runtime["🔧 运行时组件 (RUNTIME COMPONENTS)"]
+            direction LR
+            R1["agl.LitAgentRunner<br/>(Agent 执行器)"]
+            R2["agl.InMemoryLightningStore<br/>(数据存储)"]
+            R3["agl.OtelTracer<br/>(追踪)"]
+        end
+        
+        UserLayer --> TrainerLayer
+        TrainerLayer --> AlgoLayer
+        A1 --> VERL
+        AlgoLayer --> Runtime
+    end
+    
+    style UserLayer fill:#e3f2fd
+    style TrainerLayer fill:#fff3e0
+    style AlgoLayer fill:#f3e5f5
+    style VERL fill:#ffebee
+    style Runtime fill:#e8f5e9
 ```
 
 ### 简化调用链
@@ -168,67 +152,39 @@ flowchart TB
 
 Agent Lightning 使用 **Ray** 作为分布式任务调度框架，配合不同的模型并行策略：
 
-```
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│                              DISTRIBUTED ARCHITECTURE                                   │
-│                                    分布式架构层次                                        │
-├────────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                        │
-│  ╔════════════════════════════════════════════════════════════════════════════════╗    │
-│  ║                        🎯 RAY (分布式调度层) - 必须                             ║    │
-│  ╠════════════════════════════════════════════════════════════════════════════════╣    │
-│  ║                                                                                ║    │
-│  ║   @ray.remote                RayWorkerGroup              ray.init()            ║    │
-│  ║   ┌──────────────┐          ┌──────────────┐          ┌──────────────┐         ║    │
-│  ║   │ 任务分发     │          │ Worker 管理  │          │ 集群初始化   │         ║    │
-│  ║   │ 到集群节点   │          │ CPU/GPU 分配 │          │ 资源池配置   │         ║    │
-│  ║   └──────────────┘          └──────────────┘          └──────────────┘         ║    │
-│  ║                                                                                ║    │
-│  ║   💡 启动命令: bash scripts/restart_ray.sh                                     ║    │
-│  ║                                                                                ║    │
-│  ╚════════════════════════════════════════════════════════════════════════════════╝    │
-│                                          │                                             │
-│                                          ▼                                             │
-│  ┌────────────────────────────────────────────────────────────────────────────────┐    │
-│  │                    ⚙️ 并行策略层 (通过 strategy 配置选择)                       │    │
-│  ├────────────────────────────────────────────────────────────────────────────────┤    │
-│  │                                                                                │    │
-│  │     ┌─────────────────────────────┐       ┌─────────────────────────────┐      │    │
-│  │     │      FSDP / FSDP2           │       │       Megatron-LM           │      │    │
-│  │     │        ⭐ 默认               │       │         可选                │      │    │
-│  │     ├─────────────────────────────┤       ├─────────────────────────────┤      │    │
-│  │     │                             │       │                             │      │    │
-│  │     │  ✓ 全分片数据并行 (FSDP)    │       │  ✓ 张量并行 (TP)            │      │    │
-│  │     │  ✓ 参数 Offload 到 CPU      │       │  ✓ 流水线并行 (PP)          │      │    │
-│  │     │  ✓ 优化器状态 Offload       │       │  ✓ 数据并行 (DP)            │      │    │
-│  │     │  ✓ 适合 7B ~ 70B 模型       │       │  ✓ 适合 70B+ 超大模型       │      │    │
-│  │     │                             │       │                             │      │    │
-│  │     │  strategy: "fsdp"           │       │  strategy: "megatron"       │      │    │
-│  │     │                             │       │                             │      │    │
-│  │     └─────────────────────────────┘       └─────────────────────────────┘      │    │
-│  │                                                                                │    │
-│  └────────────────────────────────────────────────────────────────────────────────┘    │
-│                                          │                                             │
-│                                          ▼                                             │
-│  ┌────────────────────────────────────────────────────────────────────────────────┐    │
-│  │                       🚀 推理引擎 (Rollout 阶段)                                │    │
-│  ├────────────────────────────────────────────────────────────────────────────────┤    │
-│  │                                                                                │    │
-│  │     ┌─────────────────────────────┐       ┌─────────────────────────────┐      │    │
-│  │     │          vLLM               │       │         SGLang              │      │    │
-│  │     │        ⭐ 默认               │       │          可选               │      │    │
-│  │     ├─────────────────────────────┤       ├─────────────────────────────┤      │    │
-│  │     │                             │       │                             │      │    │
-│  │     │  ✓ PagedAttention          │       │  ✓ RadixAttention           │      │    │
-│  │     │  ✓ Continuous Batching     │       │  ✓ 结构化生成优化           │      │    │
-│  │     │  ✓ Tensor Parallel 推理    │       │  ✓ 前缀缓存                 │      │    │
-│  │     │  ✓ OpenAI 兼容 API         │       │  ✓ 高效约束解码             │      │    │
-│  │     │                             │       │                             │      │    │
-│  │     └─────────────────────────────┘       └─────────────────────────────┘      │    │
-│  │                                                                                │    │
-│  └────────────────────────────────────────────────────────────────────────────────┘    │
-│                                                                                        │
-└────────────────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph DIST["DISTRIBUTED ARCHITECTURE 分布式架构层次"]
+        direction TB
+        
+        subgraph Ray["🎯 RAY (分布式调度层) - 必须"]
+            direction LR
+            R1["@ray.remote<br/>任务分发到集群节点"]
+            R2["RayWorkerGroup<br/>Worker 管理<br/>CPU/GPU 分配"]
+            R3["ray.init()<br/>集群初始化<br/>资源池配置"]
+        end
+        
+        subgraph Strategy["⚙️ 并行策略层 (通过 strategy 配置选择)"]
+            direction LR
+            S1["FSDP / FSDP2 ⭐默认<br/>━━━━━━━<br/>✓ 全分片数据并行 (FSDP)<br/>✓ 参数 Offload 到 CPU<br/>✓ 优化器状态 Offload<br/>✓ 适合 7B ~ 70B 模型<br/>strategy: fsdp"]
+            S2["Megatron-LM 可选<br/>━━━━━━━<br/>✓ 张量并行 (TP)<br/>✓ 流水线并行 (PP)<br/>✓ 数据并行 (DP)<br/>✓ 适合 70B+ 超大模型<br/>strategy: megatron"]
+        end
+        
+        subgraph Inference["🚀 推理引擎 (Rollout 阶段)"]
+            direction LR
+            I1["vLLM ⭐默认<br/>━━━━━━━<br/>✓ PagedAttention<br/>✓ Continuous Batching<br/>✓ Tensor Parallel 推理<br/>✓ OpenAI 兼容 API"]
+            I2["SGLang 可选<br/>━━━━━━━<br/>✓ RadixAttention<br/>✓ 结构化生成优化<br/>✓ 前缀缓存<br/>✓ 高效约束解码"]
+        end
+        
+        Ray --> Strategy
+        Strategy --> Inference
+    end
+    
+    note["💡 启动命令: bash scripts/restart_ray.sh"]
+    
+    style Ray fill:#e3f2fd
+    style Strategy fill:#fff3e0
+    style Inference fill:#e8f5e9
 ```
 
 #### 配置示例
@@ -364,6 +320,165 @@ graph TB
 
 ---
 
+
+---
+
+## 🔄 AIPC 训练飞轮（闭环迭代）
+
+本章节展示了使用 Agent Lightning 框架构建**领域专用 AI Agent 闭环训练流程**的完整方案。
+
+### 概述
+
+训练飞轮实现了 5 阶段迭代改进流程：
+
+```mermaid
+flowchart LR
+    subgraph Stage1["🗂️ 阶段 1"]
+        D["数据生成"]
+    end
+    
+    subgraph Stage2["🎯 阶段 2"]
+        S["SFT 冷启动"]
+    end
+    
+    subgraph Stage3["⚡ 阶段 3"]
+        G["GRPO 训练"]
+    end
+    
+    subgraph Stage4["📊 阶段 4"]
+        E["模型评估"]
+    end
+    
+    subgraph Stage5["🔄 阶段 5"]
+        F["反馈迭代"]
+    end
+    
+    Stage1 --> Stage2 --> Stage3 --> Stage4 --> Stage5
+    Stage5 -.->|"下一轮迭代"| Stage3
+```
+
+### 核心特性
+
+| 特性 | 说明 |
+|------|------|
+| **领域专用** | AIPC (AI PC) 领域自定义奖励函数 |
+| **闭环迭代** | 从评估失败案例自动生成反馈训练数据 |
+| **Agent Lightning 原生** | 使用 `@agl.rollout` 和 `agl.emit_reward()` |
+| **生产级代码** | argparse 参数化、日志记录、检查点保存 |
+
+### 目录结构
+
+```
+aipc_flywheel/
+├── __init__.py                   # 包初始化
+├── ARCHITECTURE.md               # 详细架构文档
+├── generate_aipc_data_agl.py     # 阶段 1: 数据生成 (GPT-4o 教师模型)
+├── train_sft_agl.py              # 阶段 2: SFT 冷启动训练
+├── train_grpo_agl.py             # 阶段 3: 使用 @agl.rollout 的 GRPO 训练
+├── evaluate_agl.py               # 阶段 4: LLM Judge 评估
+├── generate_feedback_agl.py      # 阶段 5a: 生成修正数据
+├── train_feedback_agl.py         # 阶段 5b: 基于 GRPO 的偏好学习
+├── reward_functions.py           # AIPC 领域奖励函数
+└── run_flywheel.sh               # 一键运行脚本
+```
+
+### 快速开始
+
+```bash
+# 运行完整飞轮，迭代 3 次
+cd aipc_flywheel
+bash run_flywheel.sh --iterations 3
+
+# 或者单独运行各阶段
+python generate_aipc_data_agl.py --output data/aipc_train.jsonl --num_samples 1000
+python train_sft_agl.py --data data/aipc_train.jsonl --output checkpoints/aipc_sft_v1
+python train_grpo_agl.py --model checkpoints/aipc_sft_v1 --output checkpoints/aipc_grpo_v1
+python evaluate_agl.py --model checkpoints/aipc_grpo_v1 --output results/eval_v1.json
+```
+
+### AIPC 领域奖励函数
+
+自定义奖励函数从 4 个维度评估响应：
+
+```python
+def compute_aipc_reward(response: str) -> float:
+    """
+    评分维度:
+        - 关键词覆盖: 0-0.4 (AIPC 领域术语)
+        - 结构分数: 0-0.3 (Markdown 格式化)
+        - 无幻觉: 0-0.3 (惩罚虚构参数)
+        - 长度奖励: -0.1 到 +0.1
+    """
+```
+
+### 预期迭代效果
+
+```
+V1: SFT → GRPO → 评估 (78% 通过率)
+         ↓
+V2: 反馈训练 → 评估 (85% 通过率)
+         ↓
+V3: 反馈训练 → 评估 (91% 通过率)
+```
+
+📖 **详细文档**: 参见 [`aipc_flywheel/ARCHITECTURE.md`](aipc_flywheel/ARCHITECTURE.md)
+
+### 🧪 实验验证：AIPC Flywheel 实测结果
+
+> **实验日期**: 2026年1月3日-4日 | **硬件**: Azure A100 80GB | **基座模型**: Phi-3.5-mini (3.8B)
+
+#### 测试结果对比
+
+| 模型版本 | 训练方法 | 数据量 | GPT-5.2 评估通过率 | 平均分 |
+|----------|----------|--------|-------------------|--------|
+| V1.3 | DPO | 50 | 0/10 (0%) | 6.7/20 |
+| V1.4 | DPO + Code | 50 | 0/10 (0%) | 6.2/20 |
+| Distill V1 | SFT (知识蒸馏) | 50 | 0/10 (0%) | 8.2/20 |
+| **GRPO V1** | **GRPO + GPT-5.2 Reward** | 50 | **2/10 (20%)** ✅ | 6.4/20 |
+| GRPO V2 | GRPO + GPT-5.2 Reward | 115 | 1/10 (10%) | 5.0/20 |
+
+#### 关键发现
+
+1. **原始奖励函数的局限性**: 基于关键词的奖励函数导致模型"堆砌术语"但答案不准确
+2. **LLM-as-Judge 有效**: 使用 GPT-5.2 作为奖励模型，首次突破 0% 通过率瓶颈
+3. **数据质量 > 数据数量**: 盲目扩充数据（50→115）反而导致性能下降
+
+#### 改进的奖励函数
+
+```python
+from aipc_flywheel.reward_functions import create_gpt52_reward_function
+
+# 创建 GPT-5.2 奖励函数
+reward_fn = create_gpt52_reward_function(
+    azure_endpoint="https://your-endpoint.openai.azure.com",
+    api_key="YOUR_API_KEY"
+)
+
+# 在 GRPO 训练中使用
+trainer = GRPOTrainer(
+    model=model,
+    reward_funcs=reward_fn,  # 使用 GPT-5.2 评估
+    args=config,
+    train_dataset=dataset,
+    processing_class=tokenizer,
+)
+```
+
+#### 评估标准 (5 维度)
+
+| 维度 | 权重 | 说明 |
+|------|------|------|
+| 准确性 | 1-4分 | 技术信息是否正确 |
+| 完整性 | 1-4分 | 是否全面回答问题 |
+| 专业性 | 1-4分 | 术语使用是否规范 |
+| 实用性 | 1-4分 | 对用户是否有帮助 |
+| 代码质量 | 1-4分 | 代码可运行性 (如适用) |
+
+**通过标准**: 总分 ≥ 60%
+
+📖 **完整实验报告**: 参见 [`aipc_flywheel/EXPERIMENT-REPORT.md`](aipc_flywheel/EXPERIMENT-REPORT.md)
+
+
 ## 🚀 快速开始(4步完整流程)
 
 ### 步骤1: 使用Agent Lightning Tracing生成训练数据
@@ -390,7 +505,7 @@ python generate_training_data_gpt5_agl.py
 
 ```bash
 python train_math_agent_vllm.py
-# 训练时长: H100约2小时, A100约3小时
+# 训练时长: A100约2-3小时
 # 输出: checkpoints/math_agent/global_step_100/
 ```
 
@@ -564,10 +679,10 @@ PyTorch Context: ~2GB
 总需求:          ~24GB+ → 超出上限
 ```
 
-### ✅ H100 (80GB) 成功验证
+### ✅ A100 (80GB) 成功验证
 
 **测试配置**:
-- GPU: NVIDIA H100 (80GB)
+- GPU: NVIDIA A100 (80GB)
 - 模型: Qwen2.5-3B (标准)
 - 结果: ✅ 稳定训练2小时
 
@@ -603,7 +718,7 @@ Agent-Lighting/
 ├── prepare_gsm8k.py                   # GSM8K数据集下载
 ├── prepare_math.py                    # MATH数据集下载
 ├── run_full_evaluation_v5.sh          # 🚀 一键评估脚本(双数据集)
-└── agentL_h100.yml                    # H100环境配置(已验证)
+└── agentL_h100.yml                    # A100/H100环境配置(已在A100验证)
 ```
 
 ---
@@ -615,7 +730,7 @@ Agent-Lighting/
 |-----|-----|------|---------|-----|
 | 最低 | A10 | 24GB | 0.5B ❌ | OOM风险高 |
 | 入门 | A100 | 40GB | 3B ⚠️ | 小batch可行 |
-| **推荐** | **H100** | **80GB** | **7B ✅** | **已验证** |
+| **推荐** | **A100** | **80GB** | **7B ✅** | **已验证** |
 | 生产 | 4×A100 | 160GB | 13B+ | 分布式 |
 
 ### 快速安装

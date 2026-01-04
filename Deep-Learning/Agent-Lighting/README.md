@@ -3,7 +3,7 @@
 [中文文档](README-CN.md) | English
 
 ## 🎯 Project Overview
-This project demonstrates a complete end-to-end workflow for training a mathematical reasoning agent using **Agent Lightning + GRPO algorithm** on **Azure H100 (80GB)**. From data generation to model evaluation, all steps have been validated on production hardware.
+This project demonstrates a complete end-to-end workflow for training a mathematical reasoning agent using **Agent Lightning + GRPO algorithm** on **Azure A100 (80GB)**. From data generation to model evaluation, all steps have been validated on production hardware.
 
 **Key Achievements**:
 - ✅ Generated 5,000+ high-quality math problems using Azure OpenAI GPT-5.1
@@ -363,6 +363,109 @@ graph TB
 > ** Key Insight**: MATH dataset (high school competition problems) shows **4 percentage point improvement** (69%73%), proving Deep Thinking strategy excels at complex reasoning tasks!
 ---
 
+
+---
+
+## 🔄 AIPC Training Flywheel (Closed-Loop Iteration)
+
+This section demonstrates a **complete closed-loop training flywheel** for domain-specific AI agents using Agent Lightning.
+
+### Overview
+
+The training flywheel implements a 5-stage iterative improvement process:
+
+```mermaid
+flowchart LR
+    subgraph Stage1["🗂️ Stage 1"]
+        D["Data Generation"]
+    end
+    
+    subgraph Stage2["🎯 Stage 2"]
+        S["SFT Cold Start"]
+    end
+    
+    subgraph Stage3["⚡ Stage 3"]
+        G["GRPO Training"]
+    end
+    
+    subgraph Stage4["📊 Stage 4"]
+        E["Evaluation"]
+    end
+    
+    subgraph Stage5["🔄 Stage 5"]
+        F["Feedback Loop"]
+    end
+    
+    Stage1 --> Stage2 --> Stage3 --> Stage4 --> Stage5
+    Stage5 -.->|"Next Iteration"| Stage3
+```
+
+### Key Features
+
+| Feature | Description |
+|---------|-------------|
+| **Domain-Specific** | AIPC (AI PC) domain with custom reward functions |
+| **Closed-Loop** | Automatic feedback training from evaluation failures |
+| **Agent Lightning Native** | Uses `@agl.rollout` and `agl.emit_reward()` |
+| **Production-Ready** | argparse parameters, logging, checkpointing |
+
+### Directory Structure
+
+```
+aipc_flywheel/
+├── __init__.py                   # Package init
+├── ARCHITECTURE.md               # Detailed architecture documentation
+├── generate_aipc_data_agl.py     # Stage 1: Data generation (GPT-4o teacher)
+├── train_sft_agl.py              # Stage 2: SFT cold start
+├── train_grpo_agl.py             # Stage 3: GRPO with @agl.rollout
+├── evaluate_agl.py               # Stage 4: LLM Judge evaluation
+├── generate_feedback_agl.py      # Stage 5a: Generate correction data
+├── train_feedback_agl.py         # Stage 5b: Preference learning via GRPO
+├── reward_functions.py           # AIPC domain reward functions
+└── run_flywheel.sh               # One-click pipeline script
+```
+
+### Quick Start
+
+```bash
+# Run complete flywheel with 3 iterations
+cd aipc_flywheel
+bash run_flywheel.sh --iterations 3
+
+# Or run individual stages
+python generate_aipc_data_agl.py --output data/aipc_train.jsonl --num_samples 1000
+python train_sft_agl.py --data data/aipc_train.jsonl --output checkpoints/aipc_sft_v1
+python train_grpo_agl.py --model checkpoints/aipc_sft_v1 --output checkpoints/aipc_grpo_v1
+python evaluate_agl.py --model checkpoints/aipc_grpo_v1 --output results/eval_v1.json
+```
+
+### AIPC Domain Reward Function
+
+The custom reward function evaluates responses on 4 dimensions:
+
+```python
+def compute_aipc_reward(response: str) -> float:
+    """
+    Components:
+        - Keyword coverage: 0-0.4 (AIPC domain terms)
+        - Structure score: 0-0.3 (Markdown formatting)
+        - No hallucination: 0-0.3 (Penalize fake specs)
+        - Length bonus: -0.1 to +0.1
+    """
+```
+
+### Expected Iteration Results
+
+```
+V1: SFT → GRPO → Eval (78% pass)
+         ↓
+V2: Feedback Training → Eval (85% pass)
+         ↓
+V3: Feedback Training → Eval (91% pass)
+```
+
+📖 **Detailed documentation**: See [`aipc_flywheel/ARCHITECTURE.md`](aipc_flywheel/ARCHITECTURE.md)
+
 ## 🚀 Quick Start (4 Steps)
 
 ### Step 1: Generate Training Data with Agent Lightning Tracing
@@ -389,7 +492,7 @@ python generate_training_data_gpt5_agl.py
 
 ```bash
 python train_math_agent_vllm.py
-# Duration: H100 ~2 hours, A100 ~3 hours
+# Duration: A100 ~2-3 hours
 # Output: checkpoints/math_agent/global_step_100/
 ```
 
@@ -563,10 +666,10 @@ PyTorch Context: ~2GB
 Total Needed:    ~24GB+ → Exceeds limit
 ```
 
-### ✅ H100 (80GB) Success
+### ✅ A100 (80GB) Success
 
 **Test Config**:
-- GPU: NVIDIA H100 (80GB)
+- GPU: NVIDIA A100 (80GB)
 - Model: Qwen2.5-3B (standard)
 - Result: ✅ Stable 2-hour training
 
@@ -602,7 +705,7 @@ Agent-Lighting/
 ├── prepare_gsm8k.py                   # GSM8K dataset download
 ├── prepare_math.py                    # MATH dataset download
 ├── run_full_evaluation_v5.sh          # 🚀 One-click evaluation (dual datasets)
-└── agentL_h100.yml                    # H100 environment config (validated)
+└── agentL_h100.yml                    # A100/H100 environment config (validated on A100)
 ```
 
 ---
@@ -614,7 +717,7 @@ Agent-Lighting/
 |--------|-----|------|---------------|--------|
 | Minimum | A10 | 24GB | 0.5B ❌ | High OOM risk |
 | Entry | A100 | 40GB | 3B ⚠️ | Small batch OK |
-| **Recommended** | **H100** | **80GB** | **7B ✅** | **Validated** |
+| **Recommended** | **A100** | **80GB** | **7B ✅** | **Validated** |
 | Production | 4×A100 | 160GB | 13B+ | Distributed |
 
 ### Quick Install

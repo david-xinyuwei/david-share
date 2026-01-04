@@ -40,28 +40,142 @@ Both are optimized attention kernel implementations for transformer models:
 
 ### Why CUDAGraph Matters
 
-```mermaid
-sequenceDiagram
-    participant CPU
-    participant GPU
-    
-    Note over CPU,GPU: Without CUDAGraph (Eager Mode)
-    CPU->>GPU: Launch Kernel 1
-    GPU-->>CPU: Done
-    CPU->>GPU: Launch Kernel 2
-    GPU-->>CPU: Done
-    CPU->>GPU: Launch Kernel 3
-    GPU-->>CPU: Done
-    Note over CPU,GPU: High CPU-GPU sync overhead
+#### CPU-GPU Kernel Launch Overhead Analysis
 
-    Note over CPU,GPU: With CUDAGraph
-    CPU->>GPU: Launch Captured Graph
-    GPU->>GPU: Execute K1 → K2 → K3 continuously
-    GPU-->>CPU: All Done
-    Note over CPU,GPU: Minimal overhead, maximum GPU utilization
+In traditional Eager execution mode, each CUDA kernel call requires the complete launch process:
+
+| Phase | CPU Operation | GPU State | Overhead |
+|-------|--------------|-----------|----------|
+| 1 | Prepare kernel args | Wait | ~1μs |
+| 2 | Call CUDA API | Receive command | ~2μs |
+| 3 | Synchronize | Execute kernel | ~2μs |
+| **Total** | | | **~5μs/kernel** |
+
+**Quantitative Impact**: Llama-7B single Decode involves 300+ kernel calls, launch overhead = 5μs × 300 = 1.5ms, while actual computation only takes 2-3ms, **launch overhead accounts for 30-40%**.
+
+#### CUDAGraph Working Principle
+
+```mermaid
+flowchart LR
+    subgraph Eager["Eager Mode"]
+        E1[Kernel1] -->|"sync 5μs"| E2[Kernel2] -->|"sync 5μs"| E3[Kernel3]
+    end
+    
+    subgraph Graph["CUDAGraph Mode"]
+        G1["Capture Phase<br/>(one-time)"] --> G2["Graph Object"]
+        G2 --> G3["Replay<br/>(per inference)"]
+        G3 -->|"single launch ~10μs"| K["K1→K2→K3<br/>continuous"]
+    end
 ```
 
+#### Key Constraints
+
+| Constraint | Description | LLM Inference Compatibility |
+|------------|-------------|----------------------------|
+| **Static Topology** | Compute graph structure must be fixed | ✅ Transformer forward pass is fixed |
+| **Fixed Shape** | Tensor shapes determined at capture | ⚠️ vLLM handles via bucketing |
+| **No Dynamic Branches** | No if/while runtime branches | ✅ No dynamic branches in inference |
+| **Memory Binding** | Tensor addresses fixed during graph lifetime | ✅ vLLM pre-allocates memory pools |
+
+#### Performance Benefits
+
+| Metric | Eager Mode | CUDAGraph | Improvement |
+|--------|-----------|-----------|-------------|
+| Kernel launches | N × 5μs | 1 × 10μs | **N:1** |
+| Decode latency | ~4ms | ~1.5ms | **2.5x** |
+| GPU utilization | 60-70% | 85-95% | +25% |
+
 FlashInfer is specifically optimized for CUDAGraph capture, which is why it outperforms FlashAttention when CUDAGraph is enabled.
+
+---
+
+## 🔧 Eager vs Graph Execution Modes
+
+### Execution Paradigm Comparison
+
+| Feature | Eager Execution | Graph Execution |
+|---------|----------------|-----------------|
+| **Timing** | Per-operator immediate | Pre-compiled batch |
+| **Debug Support** | ✅ Full stack trace | ⚠️ Graph-level errors only |
+| **Dynamic Control Flow** | ✅ Supports if/while | ❌ Not supported |
+| **Launch Overhead** | High (per-op sync) | Low (graph-level sync) |
+
+### vLLM Configuration
+
+```python
+from vllm import LLM
+
+# Graph mode (default, recommended for production)
+llm = LLM(model="Qwen/Qwen2.5-7B-Instruct")
+
+# Eager mode (for debugging)
+llm = LLM(model="Qwen/Qwen2.5-7B-Instruct", enforce_eager=True)
+```
+
+---
+
+## 🔗 Execution Mode and Attention Backend Combinations
+
+### Architecture Layers
+
+```mermaid
+flowchart TB
+    subgraph Layer1["Execution Mode Layer"]
+        Eager["Eager Mode<br/>Per-operator execution"]
+        Graph["Graph Mode<br/>CUDAGraph batch execution"]
+    end
+    
+    subgraph Layer2["Attention Backend Layer"]
+        FA["FlashAttention<br/>Stanford"]
+        FI["FlashInfer<br/>CMU/UW"]
+    end
+    
+    Layer1 -->|"Orthogonal combination"| Layer2
+```
+
+**Key Concept**: Execution mode and attention backend are **orthogonal dimensions** that can be freely combined.
+
+### Four Combinations Performance (A100 Measured)
+
+```mermaid
+quadrantChart
+    title Execution Mode × Attention Backend Performance Matrix
+    x-axis Low Throughput --> High Throughput
+    y-axis Hard to Debug --> Easy to Debug
+    quadrant-1 Development
+    quadrant-2 Not Recommended
+    quadrant-3 Production Offline
+    quadrant-4 Online Serving Optimal
+    "Eager+FA": [0.25, 0.85]
+    "Eager+FI": [0.20, 0.80]
+    "Graph+FA": [0.70, 0.25]
+    "Graph+FI": [0.85, 0.20]
+```
+
+| Combination | Throughput (tok/s) | vs Baseline | Use Case |
+|-------------|-------------------|-------------|----------|
+| Eager + FA | 682 | Baseline | Development |
+| Eager + FI | 675 | -1% | Not recommended |
+| Graph + FA | 1,522 | +123% | Production (batch offline) |
+| **Graph + FI** | **1,757** | **+158%** | **Production (online serving)** ✅ |
+
+### vLLM Configuration Examples
+
+```python
+import os
+from vllm import LLM
+
+# Combination 1: Eager + FA (Development)
+os.environ["VLLM_ATTENTION_BACKEND"] = "FLASH_ATTN"
+llm = LLM(model="Qwen/Qwen2.5-7B-Instruct", enforce_eager=True)
+
+# Combination 2: Graph + FA (Production - batch offline)
+os.environ["VLLM_ATTENTION_BACKEND"] = "FLASH_ATTN"
+llm = LLM(model="Qwen/Qwen2.5-7B-Instruct")
+
+# Combination 3: Graph + FI (Production - online serving) ✅ vLLM default
+llm = LLM(model="Qwen/Qwen2.5-7B-Instruct")
+```
 
 ---
 

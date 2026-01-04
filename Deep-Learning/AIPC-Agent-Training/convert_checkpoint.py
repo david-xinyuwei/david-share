@@ -63,7 +63,7 @@ def convert_checkpoint(checkpoint_path, output_path):
     new_state_dict = {}
     removed_keys = []
     for k, v in state_dict.items():
-        # Filter out AgentLightning/Verl specific keys like '_snapshot'
+        # Filter out training framework internal keys like '_snapshot'
         if "_snapshot" in k or "optimizer" in k:
             removed_keys.append(k)
         else:

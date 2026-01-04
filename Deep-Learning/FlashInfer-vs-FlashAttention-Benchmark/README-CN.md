@@ -40,28 +40,143 @@
 
 ### 为什么 CUDAGraph 很重要
 
-```mermaid
-sequenceDiagram
-    participant CPU
-    participant GPU
-    
-    Note over CPU,GPU: 没有 CUDAGraph (Eager 模式)
-    CPU->>GPU: 启动内核 1
-    GPU-->>CPU: 完成
-    CPU->>GPU: 启动内核 2
-    GPU-->>CPU: 完成
-    CPU->>GPU: 启动内核 3
-    GPU-->>CPU: 完成
-    Note over CPU,GPU: CPU-GPU 同步开销大
+#### CPU-GPU 内核启动开销分析
 
-    Note over CPU,GPU: 使用 CUDAGraph
-    CPU->>GPU: 启动捕获的图
-    GPU->>GPU: 连续执行 K1 → K2 → K3
-    GPU-->>CPU: 全部完成
-    Note over CPU,GPU: 开销最小，GPU 利用率最大
+在传统 Eager 执行模式下，每个 CUDA 内核调用都需要完整的启动流程：
+
+| 阶段 | CPU 操作 | GPU 状态 | 开销 |
+|------|---------|---------|------|
+| 1 | 准备内核参数 | 等待 | ~1μs |
+| 2 | 调用 CUDA API | 接收指令 | ~2μs |
+| 3 | 同步等待 | 执行内核 | ~2μs |
+| **合计** | | | **~5μs/内核** |
+
+**量化影响**：Llama-7B 单次 Decode 涉及 300+ 内核调用，启动开销 = 5μs × 300 = 1.5ms，而实际计算仅需 2-3ms，**启动开销占比 30-40%**。
+
+#### CUDAGraph 工作原理
+
+```mermaid
+flowchart LR
+    subgraph Eager["Eager 模式"]
+        E1[内核1] -->|"同步 5μs"| E2[内核2] -->|"同步 5μs"| E3[内核3]
+    end
+    
+    subgraph Graph["CUDAGraph 模式"]
+        G1["捕获阶段<br/>(一次性)"] --> G2["Graph 对象"]
+        G2 --> G3["Replay<br/>(每次推理)"]
+        G3 -->|"单次启动 ~10μs"| K["K1→K2→K3<br/>连续执行"]
+    end
 ```
 
+#### 关键约束条件
+
+| 约束 | 说明 | LLM 推理兼容性 |
+|------|------|---------------|
+| **静态拓扑** | 计算图结构必须固定 | ✅ Transformer 前向传播拓扑固定 |
+| **固定 Shape** | 张量形状在录制时确定 | ⚠️ vLLM 通过分桶处理 |
+| **无动态分支** | 禁止 if/while 运行时分支 | ✅ 推理无动态分支 |
+| **内存绑定** | 张量地址在图生命周期内固定 | ✅ vLLM 预分配内存池 |
+
+#### 性能收益
+
+| 指标 | Eager 模式 | CUDAGraph | 改善 |
+|------|-----------|-----------|------|
+| 内核启动 | N 次 × 5μs | 1 次 × 10μs | **N:1** |
+| Decode 延迟 | ~4ms | ~1.5ms | **2.5x** |
+| GPU 利用率 | 60-70% | 85-95% | +25% |
+
 FlashInfer 专门为 CUDAGraph 捕获进行了优化，这就是为什么启用 CUDAGraph 时它比 FlashAttention 更快。
+
+---
+
+## 🔧 Eager vs Graph 执行模式
+
+### 执行范式对比
+
+| 特性 | Eager 执行 | Graph 执行 |
+|------|-----------|-----------|
+| **执行时机** | 逐算子即时执行 | 预编译后批量执行 |
+| **调试支持** | ✅ 完整堆栈追踪 | ⚠️ 仅图级错误 |
+| **动态控制流** | ✅ 支持 if/while | ❌ 不支持 |
+| **启动开销** | 高（每算子同步） | 低（整图同步） |
+
+### vLLM 配置
+
+```python
+from vllm import LLM
+
+# Graph 模式（默认，生产推荐）
+llm = LLM(model="Qwen/Qwen2.5-7B-Instruct")
+
+# Eager 模式（调试时使用）
+llm = LLM(model="Qwen/Qwen2.5-7B-Instruct", enforce_eager=True)
+```
+
+---
+
+## 🔗 执行模式与注意力后端的组合关系
+
+### 架构分层
+
+```mermaid
+flowchart TB
+    subgraph Layer1["执行模式层"]
+        Eager["Eager Mode<br/>逐算子执行"]
+        Graph["Graph Mode<br/>CUDAGraph 批量执行"]
+    end
+    
+    subgraph Layer2["注意力后端层"]
+        FA["FlashAttention<br/>Stanford"]
+        FI["FlashInfer<br/>CMU/UW"]
+    end
+    
+    Layer1 -->|"正交组合"| Layer2
+```
+
+**关键概念**：执行模式和注意力后端是**正交维度**，可自由组合。
+
+### 四种组合性能（A100 实测）
+
+```mermaid
+quadrantChart
+    title Execution Mode x Attention Backend
+    x-axis Low Throughput --> High Throughput
+    y-axis Hard to Debug --> Easy to Debug
+    quadrant-1 Development
+    quadrant-2 Not Recommended
+    quadrant-3 Production Offline
+    quadrant-4 Online Serving Optimal
+    "Eager+FA": [0.25, 0.85]
+    "Eager+FI": [0.20, 0.80]
+    "Graph+FA": [0.70, 0.25]
+    "Graph+FI": [0.85, 0.20]
+```
+
+| 组合 | 吞吐量 (tok/s) | vs 基准 | 适用场景 |
+|------|---------------|---------|----------|
+| Eager + FA | 682 | 基准 | 开发调试 |
+| Eager + FI | 675 | -1% | 不推荐 |
+| Graph + FA | 1,522 | +123% | 生产（离线批处理） |
+| **Graph + FI** | **1,757** | **+158%** | **生产（在线服务）** ✅ |
+
+### vLLM 配置示例
+
+```python
+import os
+from vllm import LLM
+
+# 组合 1: Eager + FA（开发调试）
+os.environ["VLLM_ATTENTION_BACKEND"] = "FLASH_ATTN"
+llm = LLM(model="Qwen/Qwen2.5-7B-Instruct", enforce_eager=True)
+
+# 组合 2: Graph + FA（生产-离线批处理）
+os.environ["VLLM_ATTENTION_BACKEND"] = "FLASH_ATTN"
+llm = LLM(model="Qwen/Qwen2.5-7B-Instruct")
+
+# 组合 3: Graph + FI（生产-在线服务）✅ vLLM 默认
+llm = LLM(model="Qwen/Qwen2.5-7B-Instruct")
+```
+
 ---
 
 ## 🖥️ 测试环境

@@ -1,506 +1,671 @@
-# FP8 Validation On 3 GPUs
+# FP8 Performance Validation Across GPU Architectures
 
-> Validating FP8 inference performance across GPU architectures: H100, A100, and RTX PRO 6000
+> Comprehensive FP8 inference performance validation across GPU architectures: H100 (Hopper), A100 (Ampere), and RTX PRO 6000 (Blackwell)
 
 ## 🎯 Overview
 
-This benchmark compares **H100 native FP8 Tensor Core** vs **A100 Marlin kernel (weight-only FP8)** across different workload patterns. Key finding: **H100 FP8 achieves 41% speedup in compute-bound scenarios, outperforming A100's 29%**.
+This benchmark provides quantitative analysis of **FP8 vs BF16 inference performance** across three GPU generations with fundamentally different FP8 implementation strategies.
 
-### Key Results
+### Technical Architecture
 
-| Scenario | H100 FP8 Speedup | A100 FP8 Speedup | Winner |
-|----------|------------------|------------------|--------|
-| Memory-bound (Single Prefill) | +30% | +54% | A100 |
-| **Compute-bound (50 Concurrent)** | **+41%** | +29% | **H100** |
-| **H100 Forced Marlin** | **-44%** | N/A | ❌ Slower than BF16 |
+| GPU | Architecture | FP8 Execution Path | Key Feature |
+|-----|--------------|-------------------|-------------|
+| **A100** | Ampere SM80 | FP8 weights → **Marlin Dequant** → BF16 → BF16 GEMM | ⚠️ Dequantization overhead |
+| **H100** | Hopper SM90 | FP8 weights → FP8 activations → **Native FP8 GEMM** | ✅ 2x FLOPS (1979 TFLOPS) |
+| **RTX 6000** | Blackwell SM120 | FP8 weights → **Native FP8 GEMM** | ✅ Next-gen + Native FP8 |
 
----
-
-## 🧠 Technical Architecture
-
-### FP8 Implementation Difference
+**Execution Flow Comparison:**
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│  H100: Native FP8 Tensor Core (W8A8)                         │
-│  ┌─────────┐    ┌──────────────┐    ┌─────────┐             │
-│  │ Weight  │ -> │ FP8 Tensor   │ -> │ Output  │             │
-│  │ (FP8)   │    │ Core GEMM    │    │ (BF16)  │             │
-│  └─────────┘    └──────────────┘    └─────────┘             │
-│  ✓ True low-precision compute (W8A8)                         │
-│  ✓ Doubled FLOPS: FP8 TFLOPS > BF16 TFLOPS                   │
-├──────────────────────────────────────────────────────────────┤
-│  A100: Marlin Kernel (Weight-Only FP8 Dynamic Dequant)       │
-│  ┌─────────┐    ┌──────────────┐    ┌─────────┐             │
-│  │ Weight  │ -> │ Dynamic      │ -> │ Output  │             │
-│  │ (FP8)   │    │ Dequant+GEMM │    │ (BF16)  │             │
-│  └─────────┘    └──────────────┘    └─────────┘             │
-│  ✓ Memory bandwidth saving only, compute still BF16          │
-│  ✗ A100 lacks FP8 Tensor Core hardware                       │
-└──────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ A100 (Ampere SM80) - No Native FP8                                          │
+│ FP8 Weights ──→ [Marlin Dequant] ──→ BF16 ──→ [BF16 Tensor Core] ──→ Output │
+│                 ⚠️ Extra step                                                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ H100 (Hopper SM90) - Native FP8                                             │
+│ FP8 Weights ──→ FP8 Activations ──→ [FP8 Tensor Core] ──→ Output            │
+│                                     ✅ Direct execution                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ RTX 6000 (Blackwell SM120) - Native FP8                                     │
+│ FP8 Weights ──→ [FP8 Tensor Core] ──→ Output                                │
+│                 ✅ Direct execution, next-gen architecture                   │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Key Concept: Dynamic Dequantization
+### 🔥 Key Findings Summary
 
-**Marlin** is a high-performance CUDA kernel developed by IST-DASLab. Its core function is **dynamic dequantization**:
+| GPU | Architecture | FP8 Prefill vs BF16 | FP8 Decode vs BF16 | Recommendation |
+|-----|--------------|---------------------|--------------------|--------------------|
+| **RTX 6000** | Blackwell SM120 | **+59~65%** ✅ | **+11~26%** ✅ | **FP8 for ALL scenarios** |
+| **H100** | Hopper SM90 | **+29~38%** ✅ | **+36~43%** ✅ | **FP8 for ALL scenarios** |
+| **A100** | Ampere SM80 | **-20~26%** ⚠️ | **+17~56%** ✅ | FP8 only for decode-heavy workloads |
+
+> ⚠️ **Major Discovery**: 
+> - **RTX 6000 Blackwell** shows the highest FP8 prefill improvement (+65%), demonstrating next-gen architecture benefits
+> - **H100 Hopper** delivers consistent 30-40% speedup across all scenarios with native FP8 Tensor Core
+> - **A100 Ampere** without native FP8 shows 20-26% slowdown on prefill due to Marlin dequantization overhead
+
+## 📊 Test Results
+
+### RTX 6000 Blackwell Two-Way Comparison (2026-01-04)
+
+> **Test Configuration**: NVIDIA RTX PRO 6000 Blackwell (96GB vGPU), vLLM 0.13.0rc2+cu130, CUDA 13.0
+> 
+> ⚠️ **Note**: Runtime FP8 (`--quantization fp8`) is not yet supported on Blackwell SM120 architecture in vLLM 0.13.0rc2. Only pre-quantized FP8 models work.
+
+| Scenario | BF16 | FP8 Pre-quant | FP8 vs BF16 |
+|----------|------|---------------|-------------|
+| **Prefill Single** | 9,860 tok/s | 16,309 tok/s | **+65.4%** ✅ |
+| **Prefill 50 Concurrent** | 12,250 tok/s | 19,461 tok/s | **+58.9%** ✅ |
+| **Decode Single** | 44 tok/s | 48 tok/s | **+10.6%** ✅ |
+| **Decode 50 Concurrent** | 1,777 tok/s | 2,235 tok/s | **+25.8%** ✅ |
+
+**Memory Usage (RTX 6000)**:
+| Configuration | Model Memory | Notes |
+|---------------|--------------|-------|
+| BF16 | 27.57 GiB | Full precision weights |
+| FP8 Pre-quant | 15.39 GiB | **44% reduction** |
+
+### H100 Three-Way Comparison (2026-01-04)
+
+> **Test Configuration**: NVIDIA H100 NVL 96GB, vLLM 0.13.0, PyTorch 2.9.0+cu128
+
+| Scenario | BF16 | FP8 Runtime | FP8 Pre-quant | FP8 vs BF16 |
+|----------|------|-------------|---------------|-------------|
+| **Prefill Single** | 14,298 tok/s | 19,703 tok/s | 19,655 tok/s | **+37.8%** ✅ |
+| **Prefill 50 Concurrent** | 14,415 tok/s | 18,647 tok/s | 18,720 tok/s | **+29.4%** ✅ |
+| **Decode Single** | 89 tok/s | 127 tok/s | 126 tok/s | **+42.7%** ✅ |
+| **Decode 50 Concurrent** | 3,044 tok/s | 4,140 tok/s | 4,110 tok/s | **+36.0%** ✅ |
+
+**Memory Usage (H100)**:
+| Configuration | Model Memory | Available KV Cache |
+|---------------|--------------|-------------------|
+| BF16 | 27.57 GiB | 50.44 GiB |
+| FP8 Runtime | 15.36 GiB | 62.64 GiB |
+| FP8 Pre-quant | 15.39 GiB | 62.62 GiB |
+
+### A100 Three-Way Comparison (2026-01-03)
+
+> **Test Configuration**: NVIDIA A100 80GB PCIe, vLLM 0.11.2
+
+| Scenario | BF16 | FP8 Runtime | FP8 Pre-quant | FP8 vs BF16 |
+|----------|------|-------------|---------------|-------------|
+| **Prefill Single** | 6,555 tok/s | 5,251 tok/s | 5,277 tok/s | **-19.8%** ⚠️ |
+| **Prefill 50 Concurrent** | 7,221 tok/s | 5,335 tok/s | 5,352 tok/s | **-26.1%** ⚠️ |
+| **Decode Single** | 47 tok/s | 73 tok/s | 73 tok/s | **+55.3%** ✅ |
+| **Decode 50 Concurrent** | 1,702 tok/s | 1,999 tok/s | 2,031 tok/s | **+17.4%** ✅ |
+
+### Cross-GPU Performance Comparison
+
+| Scenario | A100 BF16 | H100 BF16 | RTX 6000 BF16 | H100 vs A100 | RTX 6000 vs A100 |
+|----------|-----------|-----------|---------------|--------------|------------------|
+| Prefill Single | 6,555 tok/s | 14,298 tok/s | 9,860 tok/s | **2.18x** | **1.50x** |
+| Prefill 50 Conc | 7,221 tok/s | 14,415 tok/s | 12,250 tok/s | **2.00x** | **1.70x** |
+| Decode Single | 47 tok/s | 89 tok/s | 44 tok/s | **1.89x** | 0.94x |
+| Decode 50 Conc | 1,702 tok/s | 3,044 tok/s | 1,777 tok/s | **1.79x** | **1.04x** |
+
+> 📝 **Note**: RTX 6000 results are from a vGPU environment (96GB partition), which may have different performance characteristics than bare-metal.
+
+## 🔬 Technical Analysis
+
+### Why Different GPUs Show Different FP8 Behavior?
+
+**FP8 Execution Path by GPU Generation:**
 
 ```
-Storage: FP8 weights (compressed, saves memory bandwidth)
-    ↓
-Runtime: Dynamic dequantization → BF16 (on-the-fly)
-    ↓
-Compute: BF16 GEMM (NOT FP8 compute!)
+RTX 6000 (Blackwell SM120):
+  FP8 Weights → [FP8 Tensor Core] → Native FP8 GEMM → Output
+               ✅ Direct execution, next-gen architecture
+
+H100 (Hopper SM90):  
+  FP8 Weights → [FP8 Tensor Core] → Direct FP8 GEMM → Output
+               ✅ Native support, 1979 TFLOPS
+
+A100 (Ampere SM80):
+  FP8 Weights → [Marlin Kernel] → FP8→BF16 Dequant → BF16 GEMM → Output
+               ⚠️ Extra dequantization step, 312 TFLOPS
 ```
 
-| Term | Meaning | Marlin's Role |
-|------|---------|---------------|
-| Dynamic Quantization | Convert activation high→low precision at inference | ❌ Not this |
-| **Dynamic Dequantization** | Convert weights low→high precision at inference | ✅ Exactly this |
-| Weight-only Quantization | Only compress weights, keep activation high precision | ✅ Also this |
+| Factor | RTX 6000 (Blackwell) | H100 (Hopper) | A100 (Ampere) |
+|--------|----------------------|---------------|---------------|
+| Architecture | SM120 | SM90 | SM80 |
+| FP8 Tensor Core | ✅ Native (5th Gen) | ✅ Native (4th Gen) | ❌ Not available |
+| CUDA Compute | 13.0 | 12.8 | 12.6 |
+| FP8 Execution | Direct FP8 GEMM | Direct FP8 GEMM | FP8→BF16 dequant + BF16 GEMM |
+| Prefill (compute-bound) | **FP8 +65% faster** | FP8 +38% faster | FP8 20-26% slower |
+| Decode (memory-bound) | FP8 +26% faster | FP8 +36% faster | FP8 +17-56% faster |
+| Runtime FP8 Support | ❌ Not yet in vLLM | ✅ Supported | ✅ Supported |
 
-### Why Different Results?
+### Marlin Kernel: Why Dequantization Overhead Matters
 
-| Bottleneck | H100 Advantage | A100 Advantage |
-|------------|----------------|----------------|
-| Memory-bound | - | Marlin saves 50% bandwidth |
-| Compute-bound | Native FP8 doubles FLOPS | - |
+> 📚 **Reference**: Benjamin Marie, *"The Kaitchup: LLMs on a Budget"* (Chapter 3.4.3)
 
----
-## 🔧 FP8 Inference Deep Dive: Components and Backends
+Our A100 test results align with theoretical analysis from the LLM quantization community:
 
-### Transformer Self-Attention: Where GEMM and Attention Happen
+**Key insight from Benjamin Marie:**
+> "Even for a batch size of 1, Marlin is faster than all existing frameworks/formats, including standard GPTQ and AWQ which both already use custom kernels for fast inference. **Even more remarkable, from a batch size of 8, these frameworks are slower than FP16 inference** while Marlin remains almost 4x faster. If you use vLLM for inference, the GPTQ and AWQ are automatically converted to the Marlin format for faster inference."
+
+**How this applies to our FP8 findings:**
+
+| Observation | Benjamin (INT4 Quantization) | Our Test (FP8 Quantization) | Consistency |
+|-------------|------------------------------|-----------------------------|----|
+| Dequant overhead exists | ✅ batch≥8: INT4 slower than FP16 | ✅ A100 Prefill: FP8 -26% vs BF16 | ✅ |
+| Memory-bound benefits | ✅ Marlin still 4x faster | ✅ A100 Decode: FP8 +17-56% | ✅ |
+| vLLM auto-optimization | ✅ Auto-converts to Marlin | ✅ Uses Marlin for FP8→BF16 | ✅ |
+
+**Why A100 shows different behavior for Prefill vs Decode:**
 
 ```mermaid
 flowchart TB
-    subgraph INPUT["Input X"]
-        X["X [batch, seq_len, hidden_dim]"]
+    subgraph Prefill["⚠️ Prefill (compute-bound) - FP8 20-26% slower"]
+        direction LR
+        P1["FP8 Weights"] --> P2["Marlin Dequant"]
+        P2 --> P3["BF16"]
+        P3 --> P4["BF16 GEMM"]
+        P4 --> P5["Output"]
     end
     
-    subgraph GEMM_QKV["① GEMM Backend (Linear Layers)"]
-        Q_proj["Q = X × W_q^T"]
-        K_proj["K = X × W_k^T"]
-        V_proj["V = X × W_v^T"]
+    subgraph Decode["✅ Decode (memory-bound) - FP8 17-56% faster"]
+        direction LR
+        D1["FP8 Weights"] --> D2["Marlin Dequant"]
+        D2 --> D3["BF16"]
+        D3 --> D4["BF16 GEMM"]
+        D4 --> D5["Output"]
     end
     
-    subgraph KV_CACHE["KV Cache Storage"]
-        KC["K Cache"]
-        VC["V Cache"]
-    end
-    
-    subgraph ATTENTION["② Attention Backend (FlashInfer/Triton)"]
-        ATT1["Scores = Q × K^T / √d"]
-        ATT2["Weights = softmax(Scores)"]
-        ATT3["Output = Weights × V"]
-    end
-    
-    subgraph GEMM_O["① GEMM Backend (Output Projection)"]
-        O_proj["Final = Attn_Out × W_o^T"]
-    end
-    
-    X --> Q_proj & K_proj & V_proj
-    K_proj --> KC
-    V_proj --> VC
-    Q_proj --> ATT1
-    KC --> ATT1
-    ATT1 --> ATT2 --> ATT3
-    VC --> ATT3
-    ATT3 --> O_proj
-    
-    style GEMM_QKV fill:#e1f5fe
-    style GEMM_O fill:#e1f5fe
-    style ATTENTION fill:#fff3e0
-    style KV_CACHE fill:#f3e5f5
+    style Prefill fill:#ffebee
+    style Decode fill:#e8f5e9
+    style P2 fill:#ffcdd2
+    style D1 fill:#c8e6c9
 ```
 
-### What Is GEMM? (General Matrix Multiply)
+> **Key Difference**: Prefill is compute-bound where dequant overhead exceeds bandwidth savings; Decode is memory-bound where 50% memory reduction provides bandwidth savings that exceed dequant cost.
 
-**GEMM = Weight × Activation (矩阵乘法)**
+This validates Benjamin's theory: **dequantization overhead is real**, but whether it hurts or helps depends on whether the workload is compute-bound (prefill) or memory-bound (decode).
 
-In a Linear layer: `Output = Input × Weight^T + Bias`
+<details>
+<summary>📋 <b>A100 Test Log Evidence</b> (click to expand)</summary>
 
-```
-Example (Qwen2.5-14B, hidden_dim=5120):
+**Test Environment**: NVIDIA A100 80GB PCIe, Driver 590.44.01, CUDA 12.6, vLLM 0.11.2
 
-Input (Activation): [1, 512, 5120]     ← 1 sample, 512 tokens
-      ×
-Weight:             [5120, 5120]^T     ← W_q (or W_k, W_v, W_o)
-      =
-Output:             [1, 512, 5120]     ← becomes Q (or K, V)
-```
-
-| Term | Meaning | Examples in Transformer |
-|------|---------|------------------------|
-| **Weight** | Model parameters | W_q, W_k, W_v, W_o, FFN weights |
-| **Activation** | Input/intermediate values | X, Q, K, V, attention output |
-| **GEMM** | Weight × Activation | Q=X×W_q, K=X×W_k, V=X×W_v |
-
-### Three Independently Controllable FP8 Components
-
-```mermaid
-flowchart LR
-    subgraph WEIGHT["① Weight Precision"]
-        W1["Use pre-quantized FP8 model"]
-        W2["from HuggingFace ✅"]
-    end
-    
-    subgraph ACT["② Activation Precision"]
-        A1["--quantization fp8"]
-        A2["⚠️ Causes OOM!"]
-    end
-    
-    subgraph KV["③ KV Cache Precision"]
-        K1["--kv-cache-dtype fp8_e5m2"]
-        K2["✅ Recommended"]
-    end
-    
-    WEIGHT --> GEMM["GEMM Backend"]
-    ACT --> GEMM
-    KV --> ATT["Attention Backend"]
-    
-    style ACT fill:#ffcdd2
-    style KV fill:#c8e6c9
-    style WEIGHT fill:#c8e6c9
+```json
+// From results/a100_comparison_summary.json
+{
+  "results": {
+    "prefill_single": {
+      "bf16": 6555.03,        // BF16 baseline
+      "fp8_runtime": 5250.79, // FP8 19.9% slower
+      "fp8_prequant": 5277.27 // FP8 19.5% slower
+    },
+    "prefill_concurrent": {
+      "bf16": 7220.65,        // BF16 baseline  
+      "fp8_runtime": 5334.67, // FP8 26.1% slower ⚠️
+      "fp8_prequant": 5352.13 // FP8 25.9% slower ⚠️
+    },
+    "decode_single": {
+      "bf16": 47.06,          // BF16 baseline
+      "fp8_runtime": 73.21,   // FP8 55.6% faster ✅
+      "fp8_prequant": 73.24   // FP8 55.6% faster ✅
+    },
+    "decode_concurrent": {
+      "bf16": 1701.91,        // BF16 baseline
+      "fp8_runtime": 1999.06, // FP8 17.5% faster ✅
+      "fp8_prequant": 2030.53 // FP8 19.3% faster ✅
+    }
+  },
+  "key_finding": "Runtime FP8 and Pre-quantized FP8 show nearly identical 
+    inference performance on A100. The main overhead comes from Marlin 
+    kernel FP8→BF16 dequantization, which is the same for both methods."
+}
 ```
 
-| Component | What It Is | Affects Which Backend | How to Control |
-|-----------|------------|----------------------|----------------|
-| **Weight** | Model weights (W_q, W_k, W_v, W_o...) | GEMM | Use pre-quantized FP8 model ✅ |
-| **Activation** | Runtime values (X, Q, K, V...) | GEMM | `--quantization fp8` ⚠️ OOM! |
-| **KV Cache** | Stored K and V for decoding | Attention | `--kv-cache-dtype fp8_e5m2` ✅ |
+**Data Interpretation**:
+- ⚠️ **Prefill (compute-bound)**: FP8 20-26% slower than BF16, validates Marlin dequant overhead
+- ✅ **Decode (memory-bound)**: FP8 17-56% faster than BF16, bandwidth savings > dequant cost
+- 🔄 **Runtime vs Pre-quant**: Nearly identical performance, proving overhead is from inference-time dequant, not loading
 
-> ⚠️ **Critical Lesson**: Runtime quantization (`--quantization fp8`) causes OOM and high error rate. Always use **pre-quantized FP8 models** instead!
+</details>
 
-### Two Backend Types: GEMM vs Attention
+<details>
+<summary>📋 <b>A100 Test Log Evidence</b> (click to expand)</summary>
 
-| Backend | What It Computes | Operations | Control Parameter |
-|---------|------------------|------------|-------------------|
-| **GEMM Backend** | Linear layer projections | Q=X×W_q, K=X×W_k, V=X×W_v, Out×W_o | `--fp8-gemm-backend cutlass/cublas` |
-| **Attention Backend** | Self-attention mechanism | Q×K^T, softmax, ×V | `--attention-backend flashinfer/triton` |
+**Test Environment**: NVIDIA A100 80GB PCIe, Driver 590.44.01, CUDA 12.6, vLLM 0.11.2
 
-**Key Insight**: 
-- **GEMM** uses **Weight × Activation** → affected by model precision and `--quantization`
-- **Attention** uses **Q × K^T × V** → affected by `--kv-cache-dtype`
-
-### H100 Native FP8 vs A100 Marlin: The Real Difference
-
-| GPU | Weight | Activation | Actual GEMM Compute |
-|-----|--------|------------|---------------------|
-| **H100 (Native FP8)** | FP8 | FP8 | **FP8 × FP8 → FP8 Tensor Core** (2x FLOPS!) |
-| **A100 (Marlin)** | FP8→dequant→BF16 | BF16 | BF16 × BF16 → BF16 GEMM (no speedup) |
-
-```
-H100 Native FP8:
-  Weight(FP8) × Activation(FP8) = FP8 Tensor Core GEMM
-  → True low-precision compute, FLOPS doubled!
-
-A100 Marlin (Weight-Only FP8):
-  Weight(FP8) → Dequant → BF16 × Activation(BF16) = BF16 GEMM
-  → Only saves memory bandwidth, compute is still BF16
-```
-
-### SGLang vs vLLM Parameter Reference (Source Code Verified)
-
-**SGLang Parameters:**
-
-| Component | Parameter | Values | Source |
-|-----------|-----------|--------|--------|
-| Weight | `--dtype` | `auto`, `float16`, `bfloat16`, `float8_e4m3fn` | server_args.py |
-| KV Cache | `--kv-cache-dtype` | `auto`, `fp8_e5m2`, `fp8_e4m3` | server_args.py |
-| Attention | `--attention-backend` | `flashinfer`, `triton`, `torch_native`, `fa3` | server_args.py |
-| GEMM | `--fp8-gemm-backend` | `cutlass`, `cublas` | server_args.py |
-
-**vLLM Parameters:**
-
-| Component | Parameter | Values | Source |
-|-----------|-----------|--------|--------|
-| Weight | `--dtype` | `auto`, `float16`, `bfloat16`, `float8_e4m3fn` | engine_args.py |
-| KV Cache | `--kv-cache-dtype` | `auto`, `fp8`, `fp8_e5m2`, `fp8_e4m3` | engine_args.py |
-| Attention | `VLLM_ATTENTION_BACKEND` (env var) | `FLASH_ATTN`, `FLASHINFER`, `XFORMERS`, `TRITON_ATTN` | selector.py |
-| Execution | `--enforce-eager` | `True`/`False` | engine_args.py |
-
-### Triton Clarification: OpenAI Triton ≠ NVIDIA Triton!
-
-| Project | OpenAI Triton | NVIDIA Triton |
-|---------|---------------|---------------|
-| **Type** | GPU programming language | Inference server |
-| **Purpose** | Write custom CUDA kernels | Model deployment & serving |
-| **Code** | `@triton.jit` decorator | Docker container |
-| **Used in SGLang** | ✅ For attention kernel | ❌ Not related |
-
-### Internal Compute Precision
-
-> **Key Finding**: Even with FP8/FP16 input, **ALL backends use FP32 for intermediate computation** (e.g., softmax, accumulation)!
-
-Source code evidence (from SGLang's `triton_flashinfer_cudnn.py`):
-```python
-attn_logits = torch.empty(
-    (batch_size, head_num_q, num_kv_splits, head_dim + 1),
-    dtype=torch.float32,  # ← Forced FP32 for numerical stability
-    device="cuda",
-)
-```
----
-
-
-## 🚀 Quick Start
-
-### Requirements
-
-| Dependency | Version |
-|------------|---------|
-| vLLM | ≥ 0.12.0 |
-| CUDA | ≥ 12.0 |
-| GPU | H100 or A100 |
-
-### Run Benchmark
-
-```bash
-# Clone this repo
-git clone https://github.com/xinyuwei/H100-A100-FP8-Benchmark.git
-cd H100-A100-FP8-Benchmark
-
-# Start vLLM server (BF16 baseline)
-vllm serve Qwen/Qwen2.5-14B-Instruct --port 8080 --max-model-len 4096
-
-# Run benchmark
-python benchmark.py --mode prefill   # Single request prefill
-python benchmark.py --mode decode    # 50 concurrent decode
-
-# Restart with FP8
-pkill -f vllm
-vllm serve Qwen/Qwen2.5-14B-Instruct --port 8080 --max-model-len 4096 --quantization fp8
-
-# Run benchmark again
-python benchmark.py --mode prefill
-python benchmark.py --mode decode
+```json
+// From results/a100_comparison_summary.json
+{
+  "results": {
+    "prefill_single": {
+      "bf16": 6555.03,        // BF16 baseline
+      "fp8_runtime": 5250.79, // FP8 19.9% slower
+      "fp8_prequant": 5277.27 // FP8 19.5% slower
+    },
+    "prefill_concurrent": {
+      "bf16": 7220.65,        // BF16 baseline  
+      "fp8_runtime": 5334.67, // FP8 26.1% slower ⚠️
+      "fp8_prequant": 5352.13 // FP8 25.9% slower ⚠️
+    },
+    "decode_single": {
+      "bf16": 47.06,          // BF16 baseline
+      "fp8_runtime": 73.21,   // FP8 55.6% faster ✅
+      "fp8_prequant": 73.24   // FP8 55.6% faster ✅
+    },
+    "decode_concurrent": {
+      "bf16": 1701.91,        // BF16 baseline
+      "fp8_runtime": 1999.06, // FP8 17.5% faster ✅
+      "fp8_prequant": 2030.53 // FP8 19.3% faster ✅
+    }
+  },
+  "key_finding": "Runtime FP8 and Pre-quantized FP8 show nearly identical 
+    inference performance on A100. The main overhead comes from Marlin 
+    kernel FP8→BF16 dequantization, which is the same for both methods."
+}
 ```
 
----
+**Data Interpretation**:
+- ⚠️ **Prefill (compute-bound)**: FP8 20-26% slower than BF16, validates Marlin dequant overhead
+- ✅ **Decode (memory-bound)**: FP8 17-56% faster than BF16, bandwidth savings > dequant cost
+- 🔄 **Runtime vs Pre-quant**: Nearly identical performance, proving overhead is from inference-time dequant, not loading
 
-## 📊 Detailed Results
+</details>
 
-### Test Environment
-
-| Config | H100 | A100 |
-|--------|------|------|
-| GPU Model | NVIDIA H100 NVL 96GB | NVIDIA A100 80GB |
-| Driver | 535.274.02 | 535.x |
-| vLLM | 0.12.0 | 0.12.0 |
-| Model | Qwen/Qwen2.5-14B-Instruct | Same |
-
-### Scenario 1: Memory-Bound (~4K Token Prefill)
-
-| GPU | BF16 | FP8 | Speedup |
-|-----|------|-----|--------|
-| H100 (Native) | 14,157 tok/s | 18,392 tok/s | 1.30x |
-| H100 (Forced Marlin) | 14,157 tok/s | 7,936 tok/s | **0.56x** |
-| A100 | 2,759 tok/s | 4,253 tok/s | 1.54x |
-
-### Scenario 2: Compute-Bound (50 Concurrent Decode) ⭐
-
-| GPU | BF16 | FP8 | Speedup |
-|-----|------|-----|---------|
-| **H100** | 2,901 tok/s | **4,094 tok/s** | **1.41x** |
-| A100 | 1,683 tok/s | 2,169 tok/s | 1.29x |
-
-### Absolute Performance
-
-| Metric | H100 FP8 | A100 FP8 | H100/A100 |
-|--------|----------|----------|-----------|  
-| Prefill | 18,392 tok/s | 4,253 tok/s | **4.3x** |
-| Decode | 4,094 tok/s | 2,169 tok/s | **1.9x** |
-
----
-
-## 🔬 NVIDIA Official Quantization Recommendations
-
-### Recommendations by GPU Architecture
-
-| GPU Architecture | Recommended Quantization | Notes |
-|------------------|--------------------------|-------|
-| **Blackwell (B100/B200)** | NVFP4 | Latest 4-bit floating point |
-| **Hopper (H100/H200)** | **FP8 (W8A8)** | Native FP8 Tensor Core |
-| **Ampere (A100/A10)** | INT8 SmoothQuant | No FP8 hardware! |
-| General/Older GPUs | INT4 Weight-Only | Save memory |
-
-> ⚠️ **Important**: NVIDIA's official TensorRT-LLM documentation explicitly labels "FP8 (Hopper)". FP8 on A100 is NOT an officially recommended solution.
-
-### Official Quantization Options for A100
-
-| Method | Precision | Compute Type | Official Support |
-|--------|-----------|--------------|------------------|
-| INT8 SmoothQuant | W8A8 | INT8 Tensor Core | ✅ Recommended |
-| INT8 Weight-Only | W8A16 | BF16 GEMM | ✅ Supported |
-| INT4 Weight-Only | W4A16 | BF16 GEMM | ✅ Supported |
-| GPTQ/AWQ | W4A16 | BF16 GEMM | ✅ Supported |
-| **FP8** | W8A8 | - | ❌ **Hopper+ only** |
-
-### vLLM's A100 FP8 Implementation (Unofficial)
+### Why Runtime and Pre-quantized FP8 Have Same Speed?
 
 ```
-vLLM A100 + --quantization fp8 = Marlin kernel FP8 dynamic dequantization
+Runtime FP8:
+  BF16 Weights → [Runtime BF16→FP8 Quantization] → FP8 → [Inference Kernel] → Output
+                 ↑ Happens at model loading time
 
-This is a community solution, NOT NVIDIA official:
-- Uses Marlin for FP8 → BF16 dequantization
-- Compute is still BF16 GEMM
-- Effective in memory-bound scenarios
+Pre-quantized FP8:
+  FP8 Weights → FP8 → [Inference Kernel] → Output
+               ↑ Already quantized on disk
+               
+                    ║
+                    ↓
+         Same Inference Path! ✅
 ```
 
-### Dynamic Dequantization vs Static Quantization
+**Key insight**: The inference kernel execution is identical regardless of how weights were quantized. Pre-quantization only saves model loading time and disk space.
 
-| Type | Representative | Weight Source | Quantization Timing | Characteristics |
-|------|---------------|---------------|---------------------|----------------|
-| **Dynamic Dequant** | Marlin FP8 | Original BF16 model | Runtime conversion | No preprocessing needed |
-| **Static Quantization** | GPTQ, AWQ | Pre-quantized model | Offline calibration | Need specialized quantized models |
-
-### Dynamic Dequantization Technologies (Similar to Marlin)
-
-| Technology | Source | Supported Precision | Features |
-|------------|--------|---------------------|----------|
-| **Marlin** | IST-DASLab | FP8, INT4 | Fastest, vLLM default |
-| ExLlamaV2 | turboderp | INT4 (GPTQ) | Consumer GPU optimized |
-| bitsandbytes | Tim Dettmers | INT8, INT4 | Simple and easy to use |
-| TensorRT-LLM | NVIDIA | FP8, INT8, INT4 | Official, highly optimized |
-
----
-
-## ⚠️ Pitfalls
-
-### Issue 1: H100 forced Marlin is 44% SLOWER than BF16
-- **Cause**: Marlin adds dequant overhead, doesn't use native FP8 Tensor Core
-- **Solution**: Never force Marlin on H100, let vLLM auto-select native FP8
-- **How to force (for testing only)**: `export VLLM_TEST_FORCE_FP8_MARLIN=1`
-
-### Issue 2: Pre-quantized FP8 model shows A100 with higher speedup
-- **Cause**: Pre-quantized FP8 (compressed-tensors) uses weight-only compression, H100 doesn't use native FP8 Tensor Core
-- **Solution**: Use `--quantization fp8` for dynamic quantization to trigger native FP8
-
-### Issue 3: Prefix cache causes misleading results
-- **Cause**: vLLM enables prefix caching by default, repeated prompts hit cache
-- **Solution**: Use random prefix for each request
-
-### Issue 4: H100 shows lower FP8 speedup ratio than A100
-- **Cause**: Testing memory-bound scenario where Marlin's bandwidth saving is more effective
-- **Solution**: Test compute-bound scenarios (high concurrency, long context)
-
----
+**Pre-quantized advantages** (not inference speed):
+- 🚀 Faster model loading (50% smaller files)
+- 💾 Lower disk storage requirements
+- 🧠 Same VRAM usage during inference
 
 ## 💡 Recommendations
 
-| Use Case | Recommendation | Reason |
-|----------|----------------|--------|
-| High-concurrency service (>50 QPS) | H100 + FP8 | Compute-bound, native FP8 shines |
-| Long context (32K+) | H100 + FP8 | Attention O(n²), compute-bound |
-| Low concurrency | Either + FP8 | Both benefit from FP8 |
-| Cost-sensitive | A100 + FP8 | Good price-performance |
+### GPU Selection Guide
 
----
+```mermaid
+quadrantChart
+    title FP8 Recommendation by GPU and Workload
+    x-axis Prefill Heavy --> Decode Heavy
+    y-axis Older Gen --> Newer Gen
+    quadrant-1 "Blackwell/Hopper FP8: Best"
+    quadrant-2 "Blackwell/Hopper FP8: Best"
+    quadrant-3 "Ampere BF16: Safe"
+    quadrant-4 "Ampere FP8: Good"
+    "RAG on Blackwell": [0.25, 0.95]
+    "Chat on Blackwell": [0.82, 0.92]
+    "RAG on Hopper": [0.25, 0.75]
+    "Chat on Hopper": [0.82, 0.78]
+    "RAG on Ampere": [0.22, 0.18]
+    "Chat on Ampere": [0.85, 0.15]
+```
 
-## 🆕 RTX PRO 6000 (Blackwell) Benchmark with SGLang
+### Decision Matrix
 
-> Test Date: 2025-12-19 | Framework: SGLang 0.5.6 + FlashInfer 0.5.3
+| Workload Type | RTX 6000 (Blackwell) | H100 (Hopper) | A100 (Ampere) |
+|---------------|----------------------|---------------|---------------|
+| **RAG / Long Context** | ✅ FP8 (+59-65%) | ✅ FP8 (+30%) | ⚠️ BF16 (FP8 is -26% slower) |
+| **Chatbot / Streaming** | ✅ FP8 (+26%) | ✅ FP8 (+36%) | ✅ FP8 (+17~56%) |
+| **Batch Processing** | ✅ FP8 (+59%) | ✅ FP8 (+29%) | ⚠️ BF16 (FP8 is -26% slower) |
+| **Memory Constrained** | ✅ FP8 (44% less VRAM) | ✅ FP8 (44% less VRAM) | ✅ FP8 (50% less VRAM) |
 
-### Test Environment
+### Performance Summary by Use Case
 
-| Config | Value |
-|--------|-------|
-| GPU | NVIDIA RTX PRO 6000 48GB vGPU (Blackwell) |
-| VM SKU | Azure NC RTX PRO 6000 |
-| Driver | 580.105.08 (vGPU R580) |
+| Use Case | GPU | Quantization | Expected Gain |
+|----------|-----|--------------|---------------|
+| Long Prompt/RAG | **RTX 6000** | FP8 | **+59-65%** (Prefill) |
+| Long Prompt/RAG | **H100** | FP8 | **+30%** (Prefill) |
+| Long Prompt/RAG | A100 | **BF16** | Avoid 20-26% slowdown |
+| Chat/Streaming | RTX 6000 | FP8 | **+26%** (Decode) |
+| Chat/Streaming | H100 | FP8 | **+36%** (Decode) |
+| Chat/Streaming | A100 | FP8 | **+17~56%** (Decode) |
+| Memory-constrained | All | FP8 | **44-50% VRAM reduction** |
+
+## 🚀 Reproducible Benchmarking
+
+### Environment Setup
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Verify environment
+python -c "import vllm; print(f'vLLM: {vllm.__version__}')"
+nvidia-smi --query-gpu=name,driver_version --format=csv
+```
+
+### Fair Testing Protocol
+
+```bash
+# Clone repository
+git clone https://github.com/davidsajare/H100-A100-RTX6000-FP8-Benchmark.git
+cd H100-A100-RTX6000-FP8-Benchmark
+
+# Phase 1: BF16 Baseline
+vllm serve Qwen/Qwen2.5-14B-Instruct \
+    --port 8080 --max-model-len 4096
+
+python benchmark_fair.py --output results/bf16_results.json
+
+# Phase 2: FP8 Runtime Quantization (H100/A100 only)
+pkill -f vllm && sleep 5
+vllm serve Qwen/Qwen2.5-14B-Instruct \
+    --port 8080 --max-model-len 4096 \
+    --quantization fp8
+
+python benchmark_fair.py --output results/fp8_runtime_results.json
+
+# Phase 3: FP8 Pre-quantized Model
+pkill -f vllm && sleep 5
+vllm serve neuralmagic/Qwen2.5-14B-Instruct-FP8-dynamic \
+    --port 8080 --max-model-len 4096
+
+python benchmark_fair.py --model "neuralmagic/Qwen2.5-14B-Instruct-FP8-dynamic" \
+    --output results/fp8_prequant_results.json
+```
+
+## 📁 Test Environments
+
+### RTX 6000 Blackwell Test Environment (2026-01-04)
+
+| Component | Specification |
+|-----------|---------------|
+| GPU | NVIDIA RTX PRO 6000 Blackwell DC-4-96Q (vGPU) |
+| Architecture | Blackwell SM120 |
+| VRAM | 96 GB (vGPU partition) |
+| Driver | 580.105.08 |
 | CUDA | 13.0 |
-| Framework | SGLang 0.5.6.post2 |
-| FlashInfer | 0.5.3 |
+| vLLM | 0.13.0rc2.dev259+cu130 |
+| PyTorch | 2.9.0.dev20250526+cu130 |
+| Model (BF16) | Qwen/Qwen2.5-14B-Instruct |
+| Model (FP8 Pre-quant) | /root/models/Qwen2.5-14B-Instruct-FP8 |
 
-### Test Models
+### H100 Test Environment (2026-01-04)
 
-| Model | Precision | Size |
-|-------|-----------|------|
-| Qwen/Qwen2.5-14B-Instruct | BF16 | ~28GB |
-| RedHatAI/Qwen2.5-14B-Instruct-FP8-dynamic | FP8 | ~15GB |
+| Component | Specification |
+|-----------|---------------|
+| GPU | NVIDIA H100 NVL 96GB |
+| Architecture | Hopper SM90 |
+| Driver | 570.195.03 |
+| CUDA | 12.8 |
+| vLLM | 0.13.0 |
+| PyTorch | 2.9.0+cu128 |
+| Model (BF16) | Qwen/Qwen2.5-14B-Instruct |
+| Model (FP8 Pre-quant) | RedHatAI/Qwen2.5-14B-Instruct-FP8-dynamic |
 
-### Test Command
+### A100 Test Environment (2026-01-03)
 
-```bash
-# Start SGLang server (best config)
-python -m sglang.launch_server \
-    --model-path RedHatAI/Qwen2.5-14B-Instruct-FP8-dynamic \
-    --attention-backend triton \
-    --kv-cache-dtype fp8_e5m2 \
-    --tp 1 --port 30000
+| Component | Specification |
+|-----------|---------------|
+| GPU | NVIDIA A100 80GB PCIe |
+| Architecture | Ampere SM80 |
+| Driver | 590.44.01 |
+| CUDA | 12.6 |
+| vLLM | 0.11.2 |
+| Model (BF16) | Qwen/Qwen2.5-14B-Instruct |
+| Model (FP8 Pre-quant) | neuralmagic/Qwen2.5-14B-Instruct-FP8-dynamic |
 
-# Run benchmark
-python -m sglang.bench_serving --backend sglang \
-    --num-prompts 200 --random-input-len 512 --random-output-len 128 \
-    --random-range-ratio 0.0 --host 127.0.0.1 --port 30000
+## 📋 Raw Test Logs
+
+All raw benchmark data is available in `results/` directory:
+
+| File | Description |
+|------|-------------|
+| [`rtx6000_bf16.json`](results/rtx6000_bf16.json) | RTX 6000 Blackwell BF16 baseline raw data |
+| [`rtx6000_fp8_prequant.json`](results/rtx6000_fp8_prequant.json) | RTX 6000 Blackwell FP8 Pre-quant raw data |
+| [`h100_bf16.json`](results/h100_bf16.json) | H100 BF16 baseline raw data |
+| [`h100_fp8_runtime.json`](results/h100_fp8_runtime.json) | H100 FP8 Runtime raw data |
+| [`h100_fp8_prequant.json`](results/h100_fp8_prequant.json) | H100 FP8 Pre-quant raw data |
+| [`h100_comparison_summary.json`](results/h100_comparison_summary.json) | H100 three-way comparison |
+| [`a100_fair_test_results.json`](results/a100_fair_test_results.json) | A100 BF16 baseline raw data |
+| [`a100_fp8_prequant.json`](results/a100_fp8_prequant.json) | A100 FP8 Pre-quant raw data |
+| [`a100_comparison_summary.json`](results/a100_comparison_summary.json) | A100 three-way comparison |
+
+<details>
+<summary>📋 Click to view RTX 6000 Blackwell BF16 raw test output</summary>
+
+```json
+{
+  "model": "Qwen/Qwen2.5-14B-Instruct",
+  "gpu": "RTX PRO 6000 Blackwell (96GB vGPU)",
+  "prefill_single": {
+    "runs": [6248.92, 11655.36, 11676.90],
+    "average": 9860.39,
+    "unit": "tok/s"
+  },
+  "prefill_concurrent": {
+    "runs": [12277.02, 12248.91, 12225.47],
+    "average": 12250.47,
+    "unit": "tok/s"
+  },
+  "decode_single": {
+    "runs": [43.75, 43.85, 43.43],
+    "average": 43.68,
+    "unit": "tok/s"
+  },
+  "decode_concurrent": {
+    "runs": [1775.79, 1779.16, 1775.45],
+    "average": 1776.80,
+    "unit": "tok/s"
+  }
+}
 ```
 
-### Configuration Matrix Results (Full Metrics)
+</details>
 
-| # | Model | Attention | KV Cache | Output tok/s | Peak tok/s | TTFT (ms) | ITL (ms) | vs Best |
-|---|-------|-----------|----------|-------------:|----------:|----------:|--------:|--------:|
-| 1 | BF16 | FlashInfer | auto | 1,579.49 | 4,605 | 2,502.87 | 33.47 | 67.1% |
-| 2 | BF16 | Triton | auto | 1,584.47 | 4,761 | 2,609.91 | 33.38 | 67.4% |
-| 3 | BF16 | FlashInfer | fp8_e5m2 | 1,622.54 | 5,081 | 2,579.67 | 31.33 | 69.0% |
-| 4 | BF16 | Triton | fp8_e5m2 | 1,618.93 | 4,938 | 2,229.31 | 31.25 | 68.8% |
-| 5 | **FP8** | FlashInfer | auto | 2,257.79 | 5,651 | 1,672.62 | 25.53 | 96.0% |
-| 6 | **FP8** | Triton | auto | 2,262.62 | 5,651 | 1,473.74 | 25.44 | 96.2% |
-| 7 | **FP8** | FlashInfer | fp8_e5m2 | 2,337.92 | 6,121 | 1,699.20 | 22.88 | 99.4% |
-| 8 | **FP8** | **Triton** | **fp8_e5m2** | **2,352.61** | **6,225** | 1,519.09 | **22.87** | **100%** 🏆 |
+<details>
+<summary>📋 Click to view RTX 6000 Blackwell FP8 Pre-quantized raw test output</summary>
 
-> **Metrics Explained**: 
-> - **Output tok/s**: Average output throughput (main comparison metric)
-> - **Peak tok/s**: Maximum observed throughput during test
-> - **TTFT**: Time To First Token (prefill latency in milliseconds)
-> - **ITL**: Inter-Token Latency (per-token generation time in milliseconds)
-
-### Key Findings
-
-| Factor | Performance Impact |
-|--------|-------------------|
-| **FP8 Pre-quantized Model** | **+43%** (most significant!) |
-| KV Cache FP8 | +2-4% |
-| FlashInfer vs Triton | <1% (negligible on Blackwell) |
-
-### RTX PRO 6000 vs H100 vs A100 Summary
-
-| GPU | Architecture | FP8 Support | Framework | BF16 tok/s | FP8 tok/s | Speedup |
-|-----|--------------|-------------|-----------|------------|-----------|---------|
-| **H100** | Hopper | ✅ Native | vLLM | 2,901 | 4,094 | **+41%** |
-| **RTX PRO 6000** | Blackwell | ✅ Native | SGLang | 1,579 | 2,353 | **+49%** |
-| A100 | Ampere | ❌ Marlin | vLLM | 1,683 | 2,169 | +29% |
-
-> ⚠️ Note: H100/A100 tested with vLLM, RTX PRO 6000 with SGLang. Direct comparison should consider framework differences.
-
-### RTX PRO 6000 Best Practice
-
-```bash
-# 🏆 Optimal config for RTX PRO 6000 (2,353 tok/s)
-python -m sglang.launch_server \
-    --model-path RedHatAI/Qwen2.5-14B-Instruct-FP8-dynamic \
-    --attention-backend triton \
-    --kv-cache-dtype fp8_e5m2 \
-    --tp 1
+```json
+{
+  "model": "/root/models/Qwen2.5-14B-Instruct-FP8",
+  "gpu": "RTX PRO 6000 Blackwell (96GB vGPU)",
+  "prefill_single": {
+    "runs": [12802.21, 17975.23, 18149.01],
+    "average": 16308.82,
+    "unit": "tok/s"
+  },
+  "prefill_concurrent": {
+    "runs": [19463.53, 19488.59, 19429.57],
+    "average": 19460.56,
+    "unit": "tok/s"
+  },
+  "decode_single": {
+    "runs": [48.47, 48.13, 48.30],
+    "average": 48.30,
+    "unit": "tok/s"
+  },
+  "decode_concurrent": {
+    "runs": [2247.93, 2216.13, 2241.57],
+    "average": 2235.21,
+    "unit": "tok/s"
+  }
+}
 ```
+
+</details>
+
+<details>
+<summary>📋 Click to view H100 BF16 raw test output</summary>
+
+```json
+{
+  "prefill_single": {
+    "runs": [11871.30, 15581.87, 15439.46],
+    "average": 14297.55,
+    "unit": "tok/s"
+  },
+  "prefill_concurrent": {
+    "runs": [14431.96, 14404.43, 14408.21],
+    "average": 14414.87,
+    "unit": "tok/s"
+  },
+  "decode_single": {
+    "runs": [88.92, 89.52, 89.55],
+    "average": 89.33,
+    "unit": "tok/s"
+  },
+  "decode_concurrent": {
+    "runs": [3033.34, 3046.80, 3052.26],
+    "average": 3044.13,
+    "unit": "tok/s"
+  }
+}
+```
+
+</details>
+
+<details>
+<summary>📋 Click to view H100 FP8 Runtime raw test output</summary>
+
+```json
+{
+  "prefill_single": {
+    "runs": [18808.08, 20098.74, 20203.42],
+    "average": 19703.41,
+    "unit": "tok/s"
+  },
+  "prefill_concurrent": {
+    "runs": [18661.07, 18651.44, 18627.58],
+    "average": 18646.70,
+    "unit": "tok/s"
+  },
+  "decode_single": {
+    "runs": [125.58, 127.46, 127.48],
+    "average": 126.84,
+    "unit": "tok/s"
+  },
+  "decode_concurrent": {
+    "runs": [4142.20, 4109.55, 4167.08],
+    "average": 4139.61,
+    "unit": "tok/s"
+  }
+}
+```
+
+</details>
+
+<details>
+<summary>📋 Click to view H100 FP8 Pre-quantized raw test output</summary>
+
+```json
+{
+  "model": "RedHatAI/Qwen2.5-14B-Instruct-FP8-dynamic",
+  "prefill_single": {
+    "runs": [18878.68, 20060.40, 20026.24],
+    "average": 19655.11,
+    "unit": "tok/s"
+  },
+  "prefill_concurrent": {
+    "runs": [18792.58, 18781.51, 18587.15],
+    "average": 18720.41,
+    "unit": "tok/s"
+  },
+  "decode_single": {
+    "runs": [124.89, 126.62, 126.67],
+    "average": 126.06,
+    "unit": "tok/s"
+  },
+  "decode_concurrent": {
+    "runs": [4094.85, 4129.49, 4107.12],
+    "average": 4110.49,
+    "unit": "tok/s"
+  }
+}
+```
+
+</details>
+
+<details>
+<summary>📋 Click to view A100 BF16 raw test output</summary>
+
+```json
+{
+  "prefill_single": {
+    "runs": [5354.49, 7137.71, 7172.88],
+    "average": 6555.03,
+    "unit": "tok/s"
+  },
+  "prefill_concurrent": {
+    "runs": [7300.52, 7215.19, 7146.24],
+    "average": 7220.65,
+    "unit": "tok/s"
+  },
+  "decode_single": {
+    "runs": [46.94, 47.10, 47.13],
+    "average": 47.06,
+    "unit": "tok/s"
+  },
+  "decode_concurrent": {
+    "runs": [1703.24, 1704.96, 1697.53],
+    "average": 1701.91,
+    "unit": "tok/s"
+  }
+}
+```
+
+</details>
+
+<details>
+<summary>📋 Click to view A100 FP8 Pre-quantized raw test output</summary>
+
+```json
+{
+  "model": "neuralmagic/Qwen2.5-14B-Instruct-FP8-dynamic",
+  "prefill_single": {
+    "runs": [5177.91, 5321.54, 5332.36],
+    "average": 5277.27,
+    "unit": "tok/s"
+  },
+  "prefill_concurrent": {
+    "runs": [5426.41, 5344.06, 5285.93],
+    "average": 5352.13,
+    "unit": "tok/s"
+  },
+  "decode_single": {
+    "runs": [73.06, 73.26, 73.39],
+    "average": 73.24,
+    "unit": "tok/s"
+  },
+  "decode_concurrent": {
+    "runs": [2018.94, 2031.90, 2040.74],
+    "average": 2030.53,
+    "unit": "tok/s"
+  }
+}
+```
+
+</details>
+
+## 📝 Changelog
+
+| Date | Update |
+|------|--------|
+| 2026-01-04 | **Added Marlin kernel analysis**: Benjamin Marie's theory validates our A100 dequantization overhead findings |
+| 2026-01-04 | **RTX 6000 Blackwell benchmark added**: FP8 shows **+65% prefill, +26% decode** improvement |
+| 2026-01-04 | Key finding: Blackwell SM120 has highest FP8 prefill gain across all tested GPUs |
+| 2026-01-04 | Note: Runtime FP8 not yet supported on Blackwell in vLLM 0.13.0rc2 |
+| 2026-01-04 | **H100 benchmark added**: FP8 shows +30-40% improvement across ALL scenarios |
+| 2026-01-04 | Key finding: H100 native FP8 Tensor Core eliminates dequantization overhead |
+| 2026-01-04 | Updated recommendations: H100 should always use FP8 |
+| 2026-01-03 | A100 three-way comparison: BF16 vs FP8 Runtime vs FP8 Pre-quantized |
+| 2026-01-03 | Key finding: Marlin dequant overhead dominates on A100 |
+| 2026-01-03 | Added raw test logs in collapsible sections |
 
 ---
 
-## 📚 References
-
-### Official Documentation
-- [NVIDIA TensorRT-LLM Quantization Guide](https://nvidia.github.io/TensorRT-LLM/reference/precision.html) - Official quantization recommendations
-- [NVIDIA Transformer Engine FP8 Guide](https://docs.nvidia.com/deeplearning/transformer-engine/user-guide/examples/fp8_primer.html)
-- [vLLM FP8 Quantization](https://docs.vllm.ai/en/latest/quantization/fp8.html)
-
-### Hardware Architecture
-- [NVIDIA H100 Tensor Core GPU](https://www.nvidia.com/en-us/data-center/h100/)
-- [NVIDIA A100 Tensor Core GPU](https://www.nvidia.com/en-us/data-center/a100/)
-
-### Quantization Technologies
-- [Marlin: Mixed-Precision LLM Kernel](https://github.com/IST-DASLab/marlin) - Dynamic dequantization kernel
-- [SmoothQuant Paper](https://arxiv.org/abs/2211.10438) - INT8 W8A8 quantization
-- [GPTQ Paper](https://arxiv.org/abs/2210.17323) - INT4 weight quantization
-- [AWQ Paper](https://arxiv.org/abs/2306.00978) - Activation-aware quantization
-
----
-
-*Author: Xinyu Wei (Microsoft AI and Apps GBB Architect) | Verified: 2025-12-19*
+**Author**: Xinyu Wei (Microsoft AI and Apps GBB Architect)  
+**Last Updated**: 2026-01-04
