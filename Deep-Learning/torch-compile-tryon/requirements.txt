@@ -1,0 +1,11 @@
+# Core dependencies
+torch>=2.5.0
+diffusers>=0.37.0
+transformers>=4.40.0
+accelerate>=0.30.0
+
+# Image processing
+Pillow>=10.0.0
+
+# Utilities
+tqdm>=4.66.0
