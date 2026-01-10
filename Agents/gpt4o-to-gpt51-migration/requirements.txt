@@ -1,0 +1,8 @@
+# GPT-4o to GPT-5.1 Migration Benchmark Dependencies
+# Versions locked for reproducibility (Rule 10)
+
+# Core dependencies
+openai==1.60.0          # Azure OpenAI Responses API client
+python-dotenv==1.0.1    # Environment variable management (optional)
+
+# Note: python-dotenv is optional. You can also use system environment variables.

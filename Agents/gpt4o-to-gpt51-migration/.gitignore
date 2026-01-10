@@ -1,0 +1,31 @@
+# Ignore
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Environment
+.env
+.env.local
+*.pem
+*credentials*
+*secret*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs (keep structure, ignore content)
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test outputs (generated files)
+benchmark_report_*.md
+benchmark_results.json
