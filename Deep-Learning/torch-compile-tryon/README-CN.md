@@ -20,6 +20,7 @@
 ## 目录
 
 - [测试图片](#测试图片)
+- [**提示词优化以保留细节**](#测试3提示词优化以保留细节) 🆕
 - [关于 Qwen-Image-Edit-2511](#关于-qwen-image-edit-2511)
 - [GPU 优化三层框架](#gpu-优化三层框架)
 - [torch.compile 工作原理](#torchcompile-工作原理)
@@ -71,6 +72,90 @@
 两种模式的输出在视觉上完全一致，证明 torch.compile 不影响生成质量。
 
 > **📷 图片来源**：测试图片来自 Seunghwan Choi 等人发布的 [VITON-HD 数据集](https://github.com/shadow2496/VITON-HD)，采用 [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) 许可证。图片仅用于研究和基准测试目的。
+
+### 测试3：提示词优化以保留细节
+
+我们发现扩散模型在虚拟试穿生成过程中经常丢失细节。我们进行了系统的提示词优化实验，以最大化细节保留（如扣子数量）。
+
+#### 问题
+
+| 问题 | 原始服装 | 生成输出 |
+|------|----------|----------|
+| 扣子数量丢失 | 8 个扣子 | 只有 6-7 个扣子 |
+| 细节退化 | 均匀分布 | 不均匀合并 |
+
+这是扩散模型的已知局限——它们理解语义但难以精确计数。
+
+#### 提示词演进
+
+| 版本 | 策略 | 结果 | 分析 |
+|------|------|------|------|
+| V1 | 基础中文提示词 | 6 个扣子 | ❌ 无计数意识 |
+| V2 | 中文 + 强调计数 "必须保留8个扣子" | 7 个扣子 | ⚠️ 有改善但不精确 |
+| **V3** | **英文 + 明确数量 + 负面提示词** | **8 个扣子** | **✅ 最佳** |
+| V4 | 泛化 "保留精确数量" | 7 个扣子 | ❌ 缺乏具体性 |
+
+#### 最佳提示词 (V3)
+
+```python
+# 优化的提示词以最大化细节保留
+prompt = """Virtual try-on: Replace clothing on model with the garment from second image. 
+CRITICAL: The garment has EXACTLY 8 BUTTONS in a vertical line - output MUST show all 8 buttons 
+clearly visible, evenly spaced, same size and color. 
+Preserve fabric texture, patterns, material details. Natural lighting. Ultra HD 8K quality."""
+
+negative_prompt = """wrong button count, missing buttons, fewer than 8 buttons, only 6 buttons, 
+only 7 buttons, merged buttons, blurry buttons, different size buttons, uneven spacing, 
+low quality, blurry fabric, incorrect shadows"""
+```
+
+#### 测试3结果
+
+![优化提示词结果](images/tryon_comparison_v3_8buttons.png)
+
+*从左到右：模特（换装前）→ 服装（8个扣子）→ 结果（8个扣子）✅*
+
+![images](./images/07124_00.jpg)
+
+![images](./images/tryon_result_v3_8buttons.png))
+
+| 指标 | 数值 |
+|------|------|
+| **扣子保留率** | 8/8 (100%) ✅ |
+| **推理时间** | 142s (torch.compile) |
+| **相比基线加速** | 快 16.2% |
+
+#### 关键发现
+
+```mermaid
+flowchart TB
+    subgraph PROBLEM["问题：扩散模型计数"]
+        P1[语义理解 ✅] --> P2[无法精确计数 ❌]
+    end
+
+    subgraph SOLUTION["解决方案：显式提示"]
+        S1[英文语言] --> S2[硬编码数字]
+        S2 --> S3[负面提示词]
+        S3 --> S4[8/8 扣子保留 ✅]
+    end
+
+    PROBLEM --> |"变通方法"| SOLUTION
+
+    style PROBLEM fill:#ffcccc
+    style SOLUTION fill:#ccffcc
+```
+
+| 发现 | 解释 |
+|------|------|
+| **英文 > 中文** | 英文提示词遵循指令更精确 |
+| **需要明确数量** | "8 BUTTONS" 有效；"保留精确数量" 无效 |
+| **负面提示词有帮助** | 明确禁止常见错误（6个扣子、7个扣子）|
+| **泛化性折衷** | 硬编码数字对不同服装缺乏灵活性 |
+
+#### 局限性
+
+> ⚠️ **泛化性 vs 准确性折衷**：获胜的 V3 提示词硬编码了 "8 BUTTONS"——对于这件服装完美有效，但对不同扣子数量的服装需要修改。泛化的提示词如"保留精确扣子数量"无法达到相同准确性。这是当前扩散模型计数能力的根本局限。
+
 
 ## 关于 Qwen-Image-Edit-2511
 

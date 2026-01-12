@@ -20,6 +20,7 @@ A benchmark study demonstrating **16-24% inference speedup** on virtual try-on d
 ## Table of Contents
 
 - [Test Images](#test-images)
+- [**Prompt Optimization for Detail Preservation**](#test3-prompt-optimization-for-detail-preservation) 🆕
 - [About Qwen-Image-Edit-2511](#about-qwen-image-edit-2511)
 - [Three-Layer GPU Optimization Framework](#three-layer-gpu-optimization-framework)
 - [How torch.compile Works](#how-torchcompile-works)
@@ -69,6 +70,90 @@ A benchmark study demonstrating **16-24% inference speedup** on virtual try-on d
 Both outputs are visually identical, confirming torch.compile preserves generation quality.
 
 > **📷 Image Source**: Test images are from the [VITON-HD dataset](https://github.com/shadow2496/VITON-HD) by Seunghwan Choi et al., licensed under [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/). Images used for research and benchmark purposes only.
+
+### Test3: Prompt Optimization for Detail Preservation
+
+We discovered that diffusion models often lose fine details during virtual try-on generation. A systematic prompt optimization experiment was conducted to maximize detail preservation (e.g., button count).
+
+#### The Challenge
+
+| Issue | Original Garment | Generated Output |
+|-------|------------------|------------------|
+| Button count loss | 8 buttons | Only 6-7 buttons |
+| Detail degradation | Evenly spaced | Unevenly merged |
+
+This is a known limitation of diffusion models - they understand semantics but struggle with precise counting.
+
+#### Prompt Evolution
+
+| Version | Strategy | Result | Analysis |
+|---------|----------|--------|----------|
+| V1 | Basic Chinese prompt | 6 buttons | ❌ No counting awareness |
+| V2 | Chinese + counting emphasis "必须保留8个扣子" | 7 buttons | ⚠️ Improved but not exact |
+| **V3** | **English + explicit count + negative prompt** | **8 buttons** | **✅ BEST** |
+| V4 | Generalized "preserve exact count" | 7 buttons | ❌ Lacks specificity |
+
+#### Winning Prompt (V3)
+
+```python
+# Optimized prompt for maximum detail preservation
+prompt = """Virtual try-on: Replace clothing on model with the garment from second image. 
+CRITICAL: The garment has EXACTLY 8 BUTTONS in a vertical line - output MUST show all 8 buttons 
+clearly visible, evenly spaced, same size and color. 
+Preserve fabric texture, patterns, material details. Natural lighting. Ultra HD 8K quality."""
+
+negative_prompt = """wrong button count, missing buttons, fewer than 8 buttons, only 6 buttons, 
+only 7 buttons, merged buttons, blurry buttons, different size buttons, uneven spacing, 
+low quality, blurry fabric, incorrect shadows"""
+```
+
+#### Test3 Results
+
+![Optimized Prompt Result](images/tryon_comparison_v3_8buttons.png)
+
+*Left to right: Model (Before) → Garment (8 Buttons) → Result (8 Buttons) ✅*
+
+![images](./images/07124_00.jpg)
+
+![images](./images/tryon_result_v3_8buttons.png)
+
+| Metric | Value |
+|--------|-------|
+| **Button Preservation** | 8/8 (100%) ✅ |
+| **Inference Time** | 142s (torch.compile) |
+| **Speedup vs Baseline** | 16.2% faster |
+
+#### Key Findings
+
+```mermaid
+flowchart TB
+    subgraph PROBLEM["Problem: Diffusion Model Counting"]
+        P1[Semantic Understanding ✅] --> P2[Cannot Count Precisely ❌]
+    end
+
+    subgraph SOLUTION["Solution: Explicit Prompting"]
+        S1[English Language] --> S2[Hardcoded Numbers]
+        S2 --> S3[Negative Prompts]
+        S3 --> S4[8/8 Buttons Preserved ✅]
+    end
+
+    PROBLEM --> |"Workaround"| SOLUTION
+
+    style PROBLEM fill:#ffcccc
+    style SOLUTION fill:#ccffcc
+```
+
+| Finding | Explanation |
+|---------|-------------|
+| **English > Chinese** | English prompts follow instructions more precisely |
+| **Explicit counts required** | "8 BUTTONS" works; "preserve exact count" doesn't |
+| **Negative prompts help** | Explicitly forbid common errors (6 buttons, 7 buttons) |
+| **Trade-off: Generalization** | Hardcoded numbers lack flexibility for different garments |
+
+#### Limitation
+
+> ⚠️ **Generalization vs Accuracy Trade-off**: The winning V3 prompt hardcodes "8 BUTTONS" - it works perfectly for this garment but requires modification for different button counts. Generalized prompts like "preserve exact button count" do not achieve the same accuracy. This is a fundamental limitation of current diffusion models' counting ability.
+
 
 ## About Qwen-Image-Edit-2511
 

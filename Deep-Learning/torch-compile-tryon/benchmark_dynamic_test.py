@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+ #!/usr/bin/env python3
 """
 torch.compile Dynamic Shape Parameter Comparison Test
 
@@ -36,8 +36,8 @@ CONFIG = {
     "model_id": "Qwen/Qwen-Image-Edit-2511",
     "input_resolution": (768, 1024),
     "output_resolution": (768, 1024),
-    "num_inference_steps": 40,
-    "guidance_scale": 1.0,
+    "num_inference_steps": 50,
+    "guidance_scale": 6.0,
     "true_cfg_scale": 4.0,
 }
 
@@ -63,6 +63,7 @@ def run_single_test(
     model_img: Image.Image,
     garment_img: Image.Image,
     prompt: str,
+    negative_prompt: str,
     output_res: tuple,
     num_steps: int,
     cfg: float,
@@ -87,6 +88,7 @@ def run_single_test(
         t0 = time.time()
         _ = pipe(
             prompt=prompt,
+            negative_prompt=negative_prompt,
             image=[model_img, garment_img],
             height=output_res[1],
             width=output_res[0],
@@ -111,6 +113,7 @@ def run_single_test(
         t0 = time.time()
         output = pipe(
             prompt=prompt,
+            negative_prompt=negative_prompt,
             image=[model_img, garment_img],
             height=output_res[1],
             width=output_res[0],
@@ -245,7 +248,9 @@ def main():
         garment_img = garment_img.resize(input_res, Image.LANCZOS)
     print(f"  After resize: Model {model_img.size}, Garment {garment_img.size}")
 
-    prompt = "Change the clothes on the person in the first image to the clothes in the second image"
+    # Customer-optimized prompts for better quality (SHEIN requirement)
+    prompt = "将主图中模特身上的衣服替换为第二张图的衣服，要求一致性，保持光影细节阴影细节。8K高清晰图片"
+    negative_prompt = "不正确的手, 模糊的图像, 低质量的图片, 模糊的手, 多个手指, 多个腿, 不正确的光影, 不正确的阴影, 缺少细节, 模糊的织物, 低清晰的织物材质"
 
     all_results = {}
 
@@ -275,6 +280,7 @@ def main():
             model_img=model_img,
             garment_img=garment_img,
             prompt=prompt,
+            negative_prompt=negative_prompt,
             output_res=output_res,
             num_steps=num_steps,
             cfg=cfg,
@@ -327,6 +333,7 @@ def main():
             model_img=model_img,
             garment_img=garment_img,
             prompt=prompt,
+            negative_prompt=negative_prompt,
             output_res=output_res,
             num_steps=num_steps,
             cfg=cfg,
@@ -379,6 +386,7 @@ def main():
             model_img=model_img,
             garment_img=garment_img,
             prompt=prompt,
+            negative_prompt=negative_prompt,
             output_res=output_res,
             num_steps=num_steps,
             cfg=cfg,
