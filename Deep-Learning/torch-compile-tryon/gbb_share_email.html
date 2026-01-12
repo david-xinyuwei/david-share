@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: 'Segoe UI', Calibri, Arial, sans-serif; font-size: 11pt; line-height: 1.5; color: #333; }
+        h2 { color: #0078d4; margin-bottom: 10px; }
+        .repo-link { background: #f0f0f0; padding: 8px 12px; border-radius: 4px; display: inline-block; margin: 10px 0; }
+        .repo-link a { color: #0078d4; text-decoration: none; font-weight: bold; }
+        .section { margin: 15px 0; }
+        .section-title { font-weight: bold; color: #333; margin-bottom: 8px; }
+        ul { margin: 5px 0 15px 20px; }
+        li { margin: 5px 0; }
+        .highlight { background: #fff3cd; padding: 12px; border-left: 4px solid #ffc107; margin: 15px 0; }
+        .highlight-title { font-weight: bold; color: #856404; margin-bottom: 8px; }
+        .env { color: #666; font-size: 10pt; margin: 15px 0; }
+        .signature { margin-top: 20px; color: #666; }
+    </style>
+</head>
+<body>
+
+<p>Hi Team,</p>
+
+<p>I'd like to share a benchmark study on <strong>accelerating virtual try-on inference</strong> using PyTorch's <code>torch.compile</code>:</p>
+
+<div class="repo-link">
+    📂 <a href="https://github.com/xinyuwei-david/david-share/tree/master/Deep-Learning/torch-compile-tryon">https://github.com/xinyuwei-david/david-share/tree/master/Deep-Learning/torch-compile-tryon</a>
+</div>
+
+<div class="section">
+    <div class="section-title">🔬 Key Findings:</div>
+    <ul>
+        <li><strong>16% inference speedup</strong> on Qwen-Image-Edit-2511 (20B MMDiT model) using <code>torch.compile</code></li>
+        <li>Deep analysis of PyTorch's <strong>three-layer optimization framework</strong> (TorchDynamo → TorchInductor → CUDA Graphs)</li>
+        <li><strong>Critical bug discovered</strong>: <code>dynamic=True</code> causes NaN output due to TorchInductor complex64 bug</li>
+        <li><strong>Production recommendation</strong>: <code>dynamic=None</code> + <code>suppress_errors=True</code> for safe partial compilation</li>
+    </ul>
+</div>
+
+<div class="highlight">
+    <div class="highlight-title">🇨🇳 Customer Requirements from China Market:</div>
+    <p>Our Chinese e-commerce customers (fashion/retail industry) have <strong>very strict requirements</strong> for virtual try-on quality:</p>
+    <ol>
+        <li><strong>Garment detail preservation</strong> – Button count must remain exactly the same (e.g., 8 buttons → 8 buttons, not 6 or 7)</li>
+        <li><strong>Model pose consistency</strong> – The model's posture, head position, and body alignment must stay identical before and after clothing replacement</li>
+    </ol>
+    <p>These requirements pushed us to conduct extensive <strong>prompt engineering experiments</strong> to maximize detail preservation. The repo documents our findings: explicit English prompts with hardcoded counts ("EXACTLY 8 BUTTONS") work better than generic prompts, revealing a <strong>fundamental limitation in current diffusion models' counting ability</strong>.</p>
+</div>
+
+<div class="env">
+    <strong>Test Environment:</strong> NVIDIA A100-80GB PCIe, PyTorch 2.5.0, diffusers 0.37.0
+</div>
+
+<p>The README includes detailed technical analysis with Mermaid diagrams, bilingual documentation (EN/CN), and reproducible benchmark scripts.</p>
+
+<p>Feel free to reach out if you have questions!</p>
+
+<div class="signature">
+    Best,<br>
+    <strong>Xinyu Wei</strong>
+</div>
+
+</body>
+</html>
