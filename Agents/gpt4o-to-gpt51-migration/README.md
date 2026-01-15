@@ -134,6 +134,37 @@ python benchmark.py --quick
 | 6 | Customer Service Reply | Long | Generate empathetic support response |
 | 7 | Product Description | Long | Write marketing copy for product |
 
+
+### Per-Scenario Results
+
+| Scenario | GPT-4o | GPT-5.1 | Accuracy |
+|----------|--------|---------|----------|
+| 1. Intent Classification (CN) | ✅ 投诉 | ✅ 投诉 | Both Correct |
+| 2. Sentiment Analysis | ✅ positive | ✅ positive | Both Correct |
+| 3. RAG Number Extraction | ✅ 2767亿/26% | ✅ 2767亿/26% | Both Correct |
+| 4. RAG Fact Extraction | ✅ 2018/Beijing | ✅ 2018/Beijing | Both Correct |
+| 5. Code Explanation | ✅ Fibonacci | ✅ Fibonacci | Both Correct |
+| 6. Customer Service Reply | ✅ 含道歉+方案 | ✅ 含道歉+方案 | Both Correct |
+| 7. Product Description | ✅ hydration/track | ✅ hydration/track | Both Correct |
+
+**Summary**: 7/7 scenarios passed for both models. No quality degradation with GPT-5.1 (`reasoning_effort="none"`).
+
+### Per-Scenario Cost Breakdown
+
+| # | Scenario | Input | Output (4o/5.1) | Cache% (4o/5.1) | Cost (4o) | Cost (5.1) | Savings |
+|---|----------|-------|-----------------|-----------------|-----------|------------|---------|
+| 1 | Intent Classification (CN) | 1,232 | 2/11 | 94%/94% | $4.98 | $1.08 | -78.4% |
+| 2 | Sentiment Analysis | 1,234 | 3/12 | 93%/62% | $5.03 | $2.40 | -52.2% |
+| 3 | RAG Number Extraction | 1,258 | 4/13 | 92%/92% | $5.24 | $1.23 | -76.4% |
+| 4 | RAG Fact Extraction | 1,246 | 13/22 | 92%/92% | $5.42 | $1.46 | -73.1% |
+| 5 | Code Explanation | 1,239 | 2/11 | 93%/93% | $5.03 | $1.10 | -78.1% |
+| 6 | Customer Service Reply | 1,244 | 4/13 | 93%/62% | $5.13 | $2.47 | -51.8% |
+| 7 | Product Description | 1,235 | 5/11 | 93%/93% | $5.10 | $1.09 | -78.7% |
+| **Total** | **7 scenarios** | **8,688** | **33/93** | - | **$35.92** | **$10.83** | **-69.9%** |
+
+> 💡 **Note**: Cost shown as $/1M tokens equivalent. Input includes ~1,150 padding tokens for Azure Prompt Cache. GPT-5.1 maintains 100% accuracy with `reasoning_effort="none"`.
+
+
 ## Example Output Log
 
 ```
