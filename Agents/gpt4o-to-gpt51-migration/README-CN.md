@@ -15,8 +15,6 @@
 | **缓存成本** | $1.25/百万 | $0.13/百万 | **-90%** |
 | **输出成本** | $10.00/百万 | $10.00/百万 | 相同 |
 | **缓存命中率** | 63% | 84% | +33% |
-| **TPS** | 39.8 | 54.6 | **+37%** |
-| **TTFT** | 464ms | 1102ms | +138% |
 | **总成本** | $0.0153 | $0.0054 | **-64.8%** |
 
 > **年度节省：$10,267/年**（基于月 10 亿 tokens，84% 缓存命中率）
@@ -24,7 +22,6 @@
 ## 功能特性
 
 - ✅ **公平对比**：两模型使用完全相同的测试条件
-- ✅ **流式指标**：真实环境下的 TTFT 和 TPS 测量
 - ✅ **Prompt 缓存**：测试 Azure OpenAI 的 Prompt 缓存功能
 - ✅ **企业场景**：客服、RAG、情感分析等实际业务场景
 - ✅ **成本分析**：详细的定价明细
@@ -38,25 +35,25 @@ flowchart TB
         S2[中场景<br/>RAG/代码]
         S3[长场景<br/>客服回复]
     end
-    
+
     subgraph Padding[静态 Padding 层]
         P[1030+ tokens<br/>触发 Azure Prompt 缓存]
     end
-    
+
     subgraph API[Azure OpenAI Responses API]
         G4[GPT-4o<br/>基准]
         G5[GPT-5.1<br/>effort=none]
     end
-    
+
     S1 --> P
     S2 --> P
     S3 --> P
     P --> G4
     P --> G5
-    
+
     G4 --> R1[结果]
     G5 --> R2[结果]
-    R1 --> Compare[对比指标<br/>成本/延迟/准确率]
+    R1 --> Compare[对比指标<br/>成本/准确率]
     R2 --> Compare
 ```
 
@@ -150,16 +147,16 @@ python benchmark.py --quick
 [预热完成]
 
 📋 [1/7] 意图分类-中文 (短)
-   gpt-4o: In=1092 Out=8 Cache=98%🔥 TTFT=320ms TPS=45.2 $29/1M ✅
-   gpt-5.1 (none): In=1092 Out=18 Cache=98%🔥 TTFT=890ms TPS=62.1 $10/1M ✅
+   gpt-4o: In=1092 Out=8 Cache=98%🔥 $29/1M ✅
+   gpt-5.1 (none): In=1092 Out=18 Cache=98%🔥 $10/1M ✅
 
 📋 [2/7] 情感分析 (短)
-   gpt-4o: In=1075 Out=5 Cache=97%🔥 TTFT=285ms TPS=38.5 $22/1M ✅
-   gpt-5.1 (none): In=1075 Out=15 Cache=97%🔥 TTFT=850ms TPS=55.3 $8/1M ✅
+   gpt-4o: In=1075 Out=5 Cache=97%🔥 $22/1M ✅
+   gpt-5.1 (none): In=1075 Out=15 Cache=97%🔥 $8/1M ✅
 
 📋 [3/7] RAG数字提取 (中)
-   gpt-4o: In=1156 Out=42 Cache=94%🔥 TTFT=445ms TPS=41.2 $156/1M ✅
-   gpt-5.1 (none): In=1156 Out=52 Cache=94%🔥 TTFT=1250ms TPS=58.7 $92/1M ✅
+   gpt-4o: In=1156 Out=42 Cache=94%🔥 $156/1M ✅
+   gpt-5.1 (none): In=1156 Out=52 Cache=94%🔥 $92/1M ✅
 
 ... (后续场景)
 
@@ -173,8 +170,6 @@ python benchmark.py --quick
 | 总 Input | 7644 | 7644 | +0.0% |
 | 总 Output | 312 | 382 | +22.4% |
 | Cache% | 63% | 84% | 🔥 |
-| 平均 TTFT | 464ms | 1102ms | +137.7% |
-| 平均 TPS | 39.8 | 54.6 | +37.1% |
 | **总成本** | **$0.015348** | **$0.005409** | **-64.8%** 💰 |
 
 🎉 **实测成本节省: 64.8%**
@@ -192,11 +187,10 @@ python benchmark.py --quick
 | 维度 | GPT-4o | GPT-5.1 | 对齐 |
 |------|--------|---------|------|
 | API | Responses API | Responses API | ✅ |
-| 流式传输 | stream=True | stream=True | ✅ |
 | Cache Key | 相同 | 相同 | ✅ |
 | Padding | 1030+ tokens | 1030+ tokens | ✅ |
 | 测试用例 | 7 个场景 | 7 个场景 | ✅ |
-| max_output_tokens | 300 | 300 | ✅ |
+| max_output_tokens | 100 | 100 | ✅ |
 | 每场景运行次数 | 3 | 3 | ✅ |
 
 ### GPT-5.1 配置
@@ -233,12 +227,7 @@ Azure OpenAI Prompt 缓存需要：
 - **90% 更便宜的缓存输入**（$0.13 vs $1.25）
 - 更高的缓存命中率（84% vs 63%）
 
-### 2. 性能表现
-- **37% 更快的 TPS**（吞吐量）
-- **138% 更慢的 TTFT**（首 token 延迟）
-- 权衡：更好的吞吐量，更差的延迟
-
-### 3. 质量保证
+### 2. 质量保证
 - **100% 准确率持平**（所有场景）
 - 未观察到质量下降
 - `reasoning_effort="none"` 匹配 GPT-4o 行为
@@ -251,19 +240,15 @@ Azure OpenAI Prompt 缓存需要：
 - 高流量生产工作负载
 - 成本敏感型应用
 - 批处理任务
-- TTFT < 2s 可接受的应用
 
 ⚠️ **谨慎考虑：**
-- 有严格延迟要求的实时聊天
-- 需要 TTFT < 500ms 的应用
 - 复杂推理任务（保持启用推理）
 
 ### 迁移步骤
 
 1. **在预发布环境测试** `reasoning_effort="none"`
 2. **验证准确率** 针对您的特定用例
-3. **监控延迟** 生产环境中的指标
-4. **渐进式发布** 使用金丝雀部署
+3. **渐进式发布** 使用金丝雀部署
 
 ## 项目结构
 

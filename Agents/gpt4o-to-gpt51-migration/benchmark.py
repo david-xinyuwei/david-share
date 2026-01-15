@@ -7,8 +7,8 @@ Production-grade benchmark for comparing GPT-4o and GPT-5.1 performance.
 Designed for enterprise migration decision support.
 
 Features:
-- Fair 7-dimension aligned comparison (same API, streaming, cache, padding, etc.)
-- Streaming metrics measurement (TTFT, TPS)
+- Fair 7-dimension aligned comparison (same API, cache, padding, etc.)
+- Cost and accuracy measurement
 - Prompt caching support with Azure OpenAI
 - Enterprise scenario coverage (intent, sentiment, RAG, code, customer service)
 

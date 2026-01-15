@@ -15,8 +15,6 @@ Production-grade benchmark comparing **GPT-4o** vs **GPT-5.1** for enterprise mi
 | **Cached Cost** | $1.25/1M | $0.13/1M | **-90%** |
 | **Output Cost** | $10.00/1M | $10.00/1M | Same |
 | **Cache Hit Rate** | 63% | 84% | +33% |
-| **TPS** | 39.8 | 54.6 | **+37%** |
-| **TTFT** | 464ms | 1102ms | +138% |
 | **Total Cost** | $0.0153 | $0.0054 | **-64.8%** |
 
 > **Annual Savings: $10,267/year** (at 1B tokens/month, 84% cache hit rate)
@@ -24,7 +22,6 @@ Production-grade benchmark comparing **GPT-4o** vs **GPT-5.1** for enterprise mi
 ## Features
 
 - ✅ **Fair Comparison**: Both models use identical test conditions
-- ✅ **Streaming Metrics**: Real-world TTFT and TPS measurements
 - ✅ **Prompt Caching**: Tests Azure OpenAI's prompt cache feature
 - ✅ **Enterprise Scenarios**: Customer service, RAG, sentiment analysis
 - ✅ **Cost Analysis**: Detailed pricing breakdown
@@ -38,25 +35,25 @@ flowchart TB
         S2[Medium<br/>RAG/Code]
         S3[Long<br/>Customer Service]
     end
-    
+
     subgraph Padding[Static Padding Layer]
         P[1030+ tokens<br/>Azure Prompt Cache Eligible]
     end
-    
+
     subgraph API[Azure OpenAI Responses API]
         G4[GPT-4o<br/>baseline]
         G5[GPT-5.1<br/>effort=none]
     end
-    
+
     S1 --> P
     S2 --> P
     S3 --> P
     P --> G4
     P --> G5
-    
+
     G4 --> R1[Results]
     G5 --> R2[Results]
-    R1 --> Compare[Compare Metrics<br/>Cost/Latency/Accuracy]
+    R1 --> Compare[Compare Metrics<br/>Cost/Accuracy]
     R2 --> Compare
 ```
 
@@ -150,16 +147,16 @@ python benchmark.py --quick
 [Warmup Complete]
 
 📋 [1/7] Intent Classification (CN) (Short)
-   gpt-4o: In=1092 Out=8 Cache=98%🔥 TTFT=320ms TPS=45.2 $29/1M ✅
-   gpt-5.1 (none): In=1092 Out=18 Cache=98%🔥 TTFT=890ms TPS=62.1 $10/1M ✅
+   gpt-4o: In=1092 Out=8 Cache=98%🔥 $29/1M ✅
+   gpt-5.1 (none): In=1092 Out=18 Cache=98%🔥 $10/1M ✅
 
 📋 [2/7] Sentiment Analysis (Short)
-   gpt-4o: In=1075 Out=5 Cache=97%🔥 TTFT=285ms TPS=38.5 $22/1M ✅
-   gpt-5.1 (none): In=1075 Out=15 Cache=97%🔥 TTFT=850ms TPS=55.3 $8/1M ✅
+   gpt-4o: In=1075 Out=5 Cache=97%🔥 $22/1M ✅
+   gpt-5.1 (none): In=1075 Out=15 Cache=97%🔥 $8/1M ✅
 
 📋 [3/7] RAG Number Extraction (Medium)
-   gpt-4o: In=1156 Out=42 Cache=94%🔥 TTFT=445ms TPS=41.2 $156/1M ✅
-   gpt-5.1 (none): In=1156 Out=52 Cache=94%🔥 TTFT=1250ms TPS=58.7 $92/1M ✅
+   gpt-4o: In=1156 Out=42 Cache=94%🔥 $156/1M ✅
+   gpt-5.1 (none): In=1156 Out=52 Cache=94%🔥 $92/1M ✅
 
 ... (remaining scenarios)
 
@@ -173,8 +170,6 @@ python benchmark.py --quick
 | Total Input | 7644 | 7644 | +0.0% |
 | Total Output | 312 | 382 | +22.4% |
 | Cache% | 63% | 84% | 🔥 |
-| Avg TTFT | 464ms | 1102ms | +137.7% |
-| Avg TPS | 39.8 | 54.6 | +37.1% |
 | **Total Cost** | **$0.015348** | **$0.005409** | **-64.8%** 💰 |
 
 🎉 **Measured Cost Savings: 64.8%**
@@ -192,11 +187,10 @@ python benchmark.py --quick
 | Dimension | GPT-4o | GPT-5.1 | Aligned |
 |-----------|--------|---------|---------|
 | API | Responses API | Responses API | ✅ |
-| Streaming | stream=True | stream=True | ✅ |
 | Cache Key | Same | Same | ✅ |
 | Padding | 1030+ tokens | 1030+ tokens | ✅ |
 | Test Cases | 7 scenarios | 7 scenarios | ✅ |
-| max_output_tokens | 300 | 300 | ✅ |
+| max_output_tokens | 100 | 100 | ✅ |
 | Runs per scenario | 3 | 3 | ✅ |
 
 ### GPT-5.1 Configuration
@@ -233,12 +227,7 @@ Azure OpenAI prompt caching requires:
 - **90% cheaper cached input** ($0.13 vs $1.25)
 - Higher cache hit rate (84% vs 63%)
 
-### 2. Performance
-- **37% faster TPS** (throughput)
-- **138% slower TTFT** (first token latency)
-- Trade-off: Better throughput, worse latency
-
-### 3. Quality
+### 2. Quality
 - **100% accuracy parity** on all scenarios
 - No quality degradation observed
 - `reasoning_effort="none"` matches GPT-4o behavior
@@ -251,19 +240,15 @@ Azure OpenAI prompt caching requires:
 - High-volume production workloads
 - Cost-sensitive applications
 - Batch processing tasks
-- Applications where TTFT < 2s is acceptable
 
 ⚠️ **Consider carefully for:**
-- Real-time chat with strict latency requirements
-- Applications requiring TTFT < 500ms
 - Complex reasoning tasks (keep reasoning enabled)
 
 ### Migration Steps
 
 1. **Test in staging** with `reasoning_effort="none"`
 2. **Validate accuracy** on your specific use cases
-3. **Monitor latency** metrics in production
-4. **Gradual rollout** using canary deployment
+3. **Gradual rollout** using canary deployment
 
 ## Project Structure
 

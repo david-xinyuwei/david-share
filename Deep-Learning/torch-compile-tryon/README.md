@@ -991,6 +991,68 @@ Flash Attention 2 was successfully enabled (`Active attention backend: flash`), 
 | Result | Runtime error |
 | Root Cause | @lru_cache conflicts with CUDA Graphs |
 
+#### What is @lru_cache?
+
+`@lru_cache` is a decorator from Python's `functools` module that **caches function return values**:
+
+```python
+from functools import lru_cache
+
+@lru_cache(maxsize=128)
+def get_rope_embedding(seq_len, dim):
+    # Compute position encoding (expensive operation)
+    return cos, sin
+
+# First call: actual computation, result cached
+result1 = get_rope_embedding(512, 64)
+
+# Second call: returns cached result, skips computation
+result2 = get_rope_embedding(512, 64)  # instant return
+```
+
+**LRU** = Least Recently Used - evicts least recently used entries when cache is full.
+
+#### Why Does It Conflict with CUDA Graphs?
+
+| Technology | Requirement |
+|------------|-------------|
+| **CUDA Graphs** | All tensor **memory addresses must be fixed** during recording |
+| **@lru_cache** | Cached tensors may have **different addresses** each time |
+
+```python
+# Conflict example
+@lru_cache
+def get_position_encoding(seq_len):
+    return torch.randn(seq_len, 64)  # tensor gets cached
+
+# CUDA Graphs recording: tensor address = 0x1234
+# Replay: lru_cache may return address = 0x5678
+# → 💥 CUDA Graphs crashes!
+```
+
+#### Is This a Common Problem?
+
+**Yes, very common**, especially in Diffusion / Transformer models:
+
+| Model Type | Common @lru_cache Usage | Problem Frequency |
+|------------|-------------------------|-------------------|
+| **Diffusion (DiT/UNet)** | Position encoding (RoPE/Sinusoidal) | ⭐⭐⭐ High |
+| **LLM (LLaMA/Qwen)** | RoPE, Attention mask | ⭐⭐⭐ High |
+| **Vision Transformer** | Position embedding | ⭐⭐ Medium |
+| **Traditional CNN** | Rarely used | ⭐ Low |
+
+Model authors use `@lru_cache` to cache position encodings in Eager mode as a **reasonable optimization**, but don't consider CUDA Graphs compatibility. This issue has been repeatedly reported in HuggingFace transformers/diffusers repositories.
+
+#### Solutions
+
+| Solution | Approach | Use Case |
+|----------|----------|----------|
+| **Abandon reduce-overhead** | Use `mode="default"` | ✅ Simplest, recommended |
+| **Modify model code** | Remove `@lru_cache`, use `register_buffer` | Requires source modification |
+| **Wrap with `torch.no_grad()`** | Prevent cached tensors from being traced | Sometimes works |
+
+In our tests, we chose the first approach — abandoned `reduce-overhead`, used `mode="default"` + `dynamic=None`, and still achieved **16% speedup**.
+
 See the detailed explanation in the [Deep Dive: dynamic Parameter Testing](#deep-dive-dynamic-parameter-testing) section above.
 
 ### dynamic=None (Static Tracing) ❌

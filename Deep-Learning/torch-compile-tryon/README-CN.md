@@ -993,6 +993,68 @@ Flash Attention 2 已成功启用（`Active attention backend: flash`），但�
 | 测试结果 | 运行时错误 |
 | 失败原因 | @lru_cache 与 CUDA Graphs 冲突 |
 
+#### 什么是 @lru_cache？
+
+`@lru_cache` 是 Python 标准库 `functools` 中的装饰器，用于**缓存函数返回值**：
+
+```python
+from functools import lru_cache
+
+@lru_cache(maxsize=128)
+def get_rope_embedding(seq_len, dim):
+    # 计算位置编码（耗时操作）
+    return cos, sin
+
+# 第一次调用：实际计算，结果被缓存
+result1 = get_rope_embedding(512, 64)
+
+# 第二次调用：直接返回缓存，跳过计算
+result2 = get_rope_embedding(512, 64)  # 瞬间返回
+```
+
+**LRU** = Least Recently Used（最近最少使用），缓存满时淘汰最久未用的条目。
+
+#### 为什么与 CUDA Graphs 冲突？
+
+| 技术 | 要求 |
+|------|------|
+| **CUDA Graphs** | 录制时所有张量的**内存地址必须固定** |
+| **@lru_cache** | 缓存返回的张量，地址可能**每次不同** |
+
+```python
+# 冲突示例
+@lru_cache
+def get_position_encoding(seq_len):
+    return torch.randn(seq_len, 64)  # 张量被缓存
+
+# CUDA Graphs 录制时：tensor 地址 = 0x1234
+# 回放时：lru_cache 返回地址可能变成 = 0x5678
+# → 💥 CUDA Graphs 崩溃！
+```
+
+#### 这是常见问题吗？
+
+**是的，非常常见**，尤其在 Diffusion / Transformer 模型中：
+
+| 模型类型 | @lru_cache 常见用途 | 遇到问题概率 |
+|----------|---------------------|---------------|
+| **Diffusion (DiT/UNet)** | 位置编码 (RoPE/Sinusoidal) | ⭐⭐⭐ 高 |
+| **LLM (LLaMA/Qwen)** | RoPE、Attention mask | ⭐⭐⭐ 高 |
+| **Vision Transformer** | Position embedding | ⭐⭐ 中 |
+| **传统 CNN** | 很少使用 | ⭐ 低 |
+
+模型作者在 Eager 模式下使用 `@lru_cache` 缓存位置编码是**合理的优化**，但没有考虑到 CUDA Graphs 的兼容性。这个问题在 HuggingFace transformers/diffusers 仓库中反复被报告。
+
+#### 解决方案
+
+| 方案 | 做法 | 适用场景 |
+|------|------|----------|
+| **放弃 reduce-overhead** | 使用 `mode="default"` | ✅ 最简单，推荐 |
+| **改模型代码** | 移除 `@lru_cache`，改用 `register_buffer` | 需要修改源码 |
+| **包裹 `torch.no_grad()`** | 避免缓存张量被追踪 | 有时有效 |
+
+我们的测试选择了第一种方案 — 放弃 `reduce-overhead`，使用 `mode="default"` + `dynamic=None`，照样获得 **16% 加速**。
+
 详细解释请参见上方 [dynamic 参数深入测试](#dynamic-参数深入测试) 章节。
 
 ### dynamic=None (静态追踪) ❌
