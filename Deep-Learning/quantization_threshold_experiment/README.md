@@ -1,4 +1,4 @@
-# 🔬 LLM 4-bit 量化精度损失转折点实验
+# 🔬 LLM 4-bit Quantization Precision Loss Threshold Experiment
 
 > **Objective**: Systematically test 4-bit NF4 quantization accuracy loss across LLM model sizes (0.5B-32B) to locate the **precision loss threshold**.
 
@@ -8,50 +8,50 @@
 
 ---
 
-## 📊 核心结论
+## 📊 Key Findings
 
-### 实验数据（3 次测试验证，100% 一致）
+### Experiment Data (3 Test Runs, 100% Consistent)
 
-| 模型 | 参数量 | 原版准确率 | 4-bit 准确率 | 损失 | Stderr | 判定 |
+| Model | Size | Original Acc | 4-bit Acc | Loss | Stderr | Verdict |
 |------|--------|-----------|-------------|------|--------|------|
-| Qwen2.5-0.5B | 0.5B | 0.32 ±0.047 | 0.24 ±0.043 | **-8%** | ±4.7% | ❌ 有损失 |
-| Qwen2.5-1.5B | 1.5B | 0.37 ±0.049 | 0.30 ±0.046 | **-7%** | ±4.9% | ❌ 有损失 |
-| Qwen2.5-3B | 3B | 0.48 ±0.050 | 0.45 ±0.050 | **-3%** | ±5.0% | ⚠️ 轻微损失 |
-| Qwen2.5-7B | 7B | 0.58 ±0.050 | 0.51 ±0.050 | **-7%** | ±5.0% | ❌ 有损失 |
-| Qwen2.5-14B | **14B** | 0.66 ±0.048 | 0.65 ±0.048 | **-1%** | ±4.8% | ✅ 可忽略 |
-| Qwen2.5-32B | **32B** | 0.65 ±0.048 | 0.66 ±0.048 | **+1%** | ±4.8% | ✅ 可忽略 |
+| Qwen2.5-0.5B | 0.5B | 0.32 ±0.047 | 0.24 ±0.043 | **-8%** | ±4.7% | ❌ Significant |
+| Qwen2.5-1.5B | 1.5B | 0.37 ±0.049 | 0.30 ±0.046 | **-7%** | ±4.9% | ❌ Significant |
+| Qwen2.5-3B | 3B | 0.48 ±0.050 | 0.45 ±0.050 | **-3%** | ±5.0% | ⚠️ Minor |
+| Qwen2.5-7B | 7B | 0.58 ±0.050 | 0.51 ±0.050 | **-7%** | ±5.0% | ❌ Significant |
+| Qwen2.5-14B | **14B** | 0.66 ±0.048 | 0.65 ±0.048 | **-1%** | ±4.8% | ✅ Negligible |
+| Qwen2.5-32B | **32B** | 0.65 ±0.048 | 0.66 ±0.048 | **~0%** | ±4.8% | ✅ Negligible |
 
-> **注**: +1% 为统计噪声（Stderr ±4.8%），量化不可能提升精度
+> **Note**: +1% is statistical noise (Stderr ±4.8%), quantization cannot improve precision
 
-### 📍 数据追溯
+### 📍 Data Traceability
 
-原始数据来源：`logs/phase2_100samples.log`
+Raw data source: `logs/phase2_100samples.log`
 
 ```
-# 日志行号与数据对应（可用 grep -n 验证）
-Qwen2.5-0.5B  原版: line ~50   → acc=0.32, stderr=0.0469
-Qwen2.5-0.5B  4bit: line ~80   → acc=0.24, stderr=0.0429
-Qwen2.5-1.5B  原版: line ~110  → acc=0.37, stderr=0.0485
-Qwen2.5-1.5B  4bit: line ~140  → acc=0.30, stderr=0.0461
-Qwen2.5-3B    原版: line ~170  → acc=0.48, stderr=0.0502
-Qwen2.5-3B    4bit: line ~200  → acc=0.45, stderr=0.0500
-Qwen2.5-7B    原版: line ~230  → acc=0.58, stderr=0.0496
-Qwen2.5-7B    4bit: line ~260  → acc=0.51, stderr=0.0502
-Qwen2.5-14B   原版: line ~300  → acc=0.66, stderr=0.0476
-Qwen2.5-14B   4bit: line ~340  → acc=0.65, stderr=0.0479
-Qwen2.5-32B   原版: line ~400  → acc=0.65, stderr=0.0479
-Qwen2.5-32B   4bit: line ~460  → acc=0.66, stderr=0.0476
+# Log line numbers mapping (verify with grep -n)
+Qwen2.5-0.5B  Original: line ~50   → acc=0.32, stderr=0.0469
+Qwen2.5-0.5B  4bit:     line ~80   → acc=0.24, stderr=0.0429
+Qwen2.5-1.5B  Original: line ~110  → acc=0.37, stderr=0.0485
+Qwen2.5-1.5B  4bit:     line ~140  → acc=0.30, stderr=0.0461
+Qwen2.5-3B    Original: line ~170  → acc=0.48, stderr=0.0502
+Qwen2.5-3B    4bit:     line ~200  → acc=0.45, stderr=0.0500
+Qwen2.5-7B    Original: line ~230  → acc=0.58, stderr=0.0496
+Qwen2.5-7B    4bit:     line ~260  → acc=0.51, stderr=0.0502
+Qwen2.5-14B   Original: line ~300  → acc=0.66, stderr=0.0476
+Qwen2.5-14B   4bit:     line ~340  → acc=0.65, stderr=0.0479
+Qwen2.5-32B   Original: line ~400  → acc=0.65, stderr=0.0479
+Qwen2.5-32B   4bit:     line ~460  → acc=0.66, stderr=0.0476
 ```
 
-**验证命令**：
+**Verification command**:
 ```bash
 grep -n "acc.*|↑" logs/phase2_100samples.log
 ```
 
-### 🎯 转折点可视化
+### 🎯 Threshold Visualization
 
 ```
-量化损失
+Quantization Loss
     │
   8%│  ●0.5B
   7%│        ●1.5B              ●7B
@@ -66,89 +66,89 @@ grep -n "acc.*|↑" logs/phase2_100samples.log
        0.5B   1.5B    3B     7B    14B    32B
 ```
 
-### 结论
+### Conclusions
 
-| 结论 | 说明 |
+| Conclusion | Description |
 |------|------|
-| **转折点** | 位于 **7B → 14B** 之间 |
-| **≥14B 模型** | 4-bit 量化损失 ≤1%，**可安全量化** |
-| **≤7B 模型** | 4-bit 量化损失 3%~8%，**需谨慎评估** |
+| **Threshold** | Located between **7B → 14B** |
+| **≥14B Models** | 4-bit quantization loss ≤1%, **safe to quantize** |
+| **≤7B Models** | 4-bit quantization loss 3%~8%, **requires careful evaluation** |
 ---
 
-## 📋 实验设计方法论
+## 📋 Experiment Design Methodology
 
-### 设计原则
+### Design Principles
 
-| 原则 | 措施 | 状态 |
+| Principle | Measure | Status |
 |------|------|------|
-| 目标明确 | 找到量化损失转折点 | ✅ |
-| 证据充分 | 所有结论有日志佐证 (`logs/` 目录) | ✅ |
-| 完全可复现 | `requirements.txt` 锁定精确版本 | ✅ |
-| 公平对比 | 控制变量：同系列、同任务、同硬件、同软件 | ✅ |
-| 统计可靠 | Phase0→Phase1→Phase2 + 3 次重复验证 | ✅ |
-| 常识检验 | +1% 识别为统计噪声，非真实提升 | ✅ |
+| Clear Objective | Find quantization loss threshold | ✅ |
+| Evidence-Based | All conclusions backed by logs (`logs/` directory) | ✅ |
+| Fully Reproducible | `requirements.txt` locks exact versions | ✅ |
+| Fair Comparison | Controlled variables: same series, task, hardware, software | ✅ |
+| Statistically Sound | Phase0→Phase1→Phase2 + 3 repeated verifications | ✅ |
+| Sanity Check | +1% identified as statistical noise, not real improvement | ✅ |
 
 ### Controlled Variables (Fair Comparison)
 
-| 维度 | 配置 | 状态 |
+| Dimension | Configuration | Status |
 |------|------|------|
-| 基座模型 | Qwen2.5-Instruct 系列（同一模型家族） | ✅ |
-| 训练超参 | 官方预训练权重，无额外微调 | ✅ |
-| 评估模型 | 原版 FP16 vs unsloth bnb-4bit 预量化 | ✅ |
-| 评估标准 | MMLU Abstract Algebra, 0-shot | ✅ |
-| 测试数据 | **相同 100 道题目**（顺序取，非随机） | ✅ |
-| 硬件环境 | Azure NC24ads A100 v4 (A100 80GB) | ✅ |
-| 软件版本 | lm-eval 0.4.9.2, transformers 4.47.1 | ✅ |
+| Base Model | Qwen2.5-Instruct series (same model family) | ✅ |
+| Training Hyperparams | Official pretrained weights, no additional fine-tuning | ✅ |
+| Evaluation Model | Original FP16 vs unsloth bnb-4bit pre-quantized | ✅ |
+| Evaluation Metric | MMLU Abstract Algebra, 0-shot | ✅ |
+| Test Data | **Same 100 questions** (sequential, not random) | ✅ |
+| Hardware | Azure NC24ads A100 v4 (A100 80GB) | ✅ |
+| Software Version | lm-eval 0.4.9.2, transformers 4.47.1 | ✅ |
 
-### 鲁棒性验证
+### Robustness Verification
 
-#### 分阶段验证
+#### Phased Validation
 
-| 阶段 | 样本数 | 目的 | 状态 |
+| Phase | Samples | Purpose | Status |
 |------|--------|------|------|
-| Phase 0 | 1 | 冒烟测试，验证流程 | ✅ |
-| Phase 1 | 30 | 快速验证趋势 | ✅ |
-| Phase 2 | 100 | 完整测试，误差 ±5% | ✅ |
+| Phase 0 | 1 | Smoke test, verify pipeline | ✅ |
+| Phase 1 | 30 | Quick trend validation | ✅ |
+| Phase 2 | 100 | Full test, ±5% error margin | ✅ |
 
-#### 重复验证（三次运行原始数据）
+#### Repeated Verification (Three Runs Raw Data)
 
-| 模型 | 版本 | Run1 (seed=0) | Run2 (seed=0) | Run3 (seed=42) | 一致性 |
+| Model | Version | Run1 (seed=0) | Run2 (seed=0) | Run3 (seed=42) | Consistency |
 |------|------|---------------|---------------|----------------|--------|
-| Qwen2.5-0.5B | 原版 | 0.32 | 0.32 | 0.32 | ✅ 100% |
+| Qwen2.5-0.5B | Original | 0.32 | 0.32 | 0.32 | ✅ 100% |
 | Qwen2.5-0.5B | 4bit | 0.24 | 0.24 | 0.24 | ✅ 100% |
-| Qwen2.5-1.5B | 原版 | 0.37 | 0.37 | 0.37 | ✅ 100% |
+| Qwen2.5-1.5B | Original | 0.37 | 0.37 | 0.37 | ✅ 100% |
 | Qwen2.5-1.5B | 4bit | 0.30 | 0.30 | 0.30 | ✅ 100% |
-| Qwen2.5-3B | 原版 | 0.48 | 0.48 | 0.48 | ✅ 100% |
+| Qwen2.5-3B | Original | 0.48 | 0.48 | 0.48 | ✅ 100% |
 | Qwen2.5-3B | 4bit | 0.45 | 0.45 | 0.45 | ✅ 100% |
-| Qwen2.5-7B | 原版 | 0.58 | 0.58 | 0.58 | ✅ 100% |
+| Qwen2.5-7B | Original | 0.58 | 0.58 | 0.58 | ✅ 100% |
 | Qwen2.5-7B | 4bit | 0.51 | 0.51 | 0.51 | ✅ 100% |
-| Qwen2.5-14B | 原版 | 0.66 | 0.66 | 0.66 | ✅ 100% |
+| Qwen2.5-14B | Original | 0.66 | 0.66 | 0.66 | ✅ 100% |
 | Qwen2.5-14B | 4bit | 0.65 | 0.65 | 0.65 | ✅ 100% |
-| Qwen2.5-32B | 原版 | 0.65 | 0.65 | 0.65 | ✅ 100% |
+| Qwen2.5-32B | Original | 0.65 | 0.65 | 0.65 | ✅ 100% |
 | Qwen2.5-32B | 4bit | 0.66 | 0.66 | 0.66 | ✅ 100% |
 
-**日志文件对应**：
+**Log File Mapping**:
 - Run1: `logs/phase2_100samples.log`
 - Run2: `logs/phase2_verify.log`
 - Run3: `logs/phase2_seed42.log`
 
-**3 次测试结果 100% 一致**，证明：
-- 量化损失是**确定性的系统性损失**，不是随机噪声
-- 评估框架**确定性可复现**（相同输入→相同输出）
+**3 test runs 100% consistent**, proving:
+- Quantization loss is **deterministic systematic loss**, not random noise
+- Evaluation framework is **deterministically reproducible** (same input → same output)
 
 ---
 
-## 🛠️ 环境配置
+## 🛠️ Environment Setup
 
-### 硬件
+### Hardware
 
-| 项目 | 配置 |
+| Item | Configuration |
 |------|------|
 | GPU | NVIDIA A100 80GB PCIe |
 | VM | Azure NC24ads A100 v4 (West Europe) |
-| 显存 | 80GB (可运行 32B 4-bit 模型) |
+| VRAM | 80GB (can run 32B 4-bit models) |
 
-### 软件
+### Software
 
 ```
 Python: 3.11
@@ -159,33 +159,34 @@ torch: 2.5.1+cu124
 accelerate: 1.2.1
 ```
 
-### 量化方法
+### Quantization Method
 
-| 项目 | 配置 |
+| Item | Configuration |
 |------|------|
-| 方法 | bitsandbytes NF4 (4-bit NormalFloat) |
-| 模型来源 | unsloth 预量化模型 |
-| 格式 | `unsloth/Qwen2.5-*-Instruct-bnb-4bit` |
+| Method | bitsandbytes NF4 (4-bit NormalFloat) |
+| Model Source | unsloth pre-quantized models |
+| Format | `unsloth/Qwen2.5-*-Instruct-bnb-4bit` |
 
 ---
 
-## 📁 目录结构
+## 📁 Directory Structure
 
 ```
 quantization_threshold_experiment/
-├── README.md                    # 本文档
-├── requirements.txt             # 依赖版本（精确锁定）
+├── README.md                    # This document (English)
+├── README-CN.md                 # Chinese version
+├── requirements.txt             # Dependencies (exact versions locked)
 ├── scripts/
-│   ├── phase2_100samples.sh     # Phase 2 测试脚本 (100 样本)
-│   ├── phase2_verify.sh         # 可复现性验证脚本 (Run 2)
-│   └── phase2_seed42.sh         # 随机种子验证脚本 (Run 3)
+│   ├── phase2_100samples.sh     # Phase 2 test script (100 samples)
+│   ├── phase2_verify.sh         # Reproducibility verification (Run 2)
+│   └── phase2_seed42.sh         # Random seed verification (Run 3)
 ├── logs/
-│   ├── phase2_100samples.log    # Phase 2 原始日志 (Run 1)
-│   ├── phase2_verify.log        # 验证轮次日志 (Run 2)
-│   ├── phase2_seed42.log        # seed=42 测试日志 (Run 3)
-│   └── ...                      # 探索性测试日志
+│   ├── phase2_100samples.log    # Phase 2 raw log (Run 1)
+│   ├── phase2_verify.log        # Verification run log (Run 2)
+│   ├── phase2_seed42.log        # seed=42 test log (Run 3)
+│   └── ...                      # Exploratory test logs
 └── images/
-    └── (保留)
+    └── (reserved)
 ```
 
 ---
@@ -237,28 +238,28 @@ grep -B 5 "Qwen2.5-7B-Instruct" logs/phase2_100samples.log | grep "acc_norm"
 
 ## 🔄 Reproduction Steps
 
-### 1. 环境准备
+### 1. Environment Setup
 
 ```bash
-# 创建干净环境
+# Create clean environment
 conda create -n lm-eval python=3.11 -y
 conda activate lm-eval
 
-# 安装依赖
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-### 2. 单模型测试
+### 2. Single Model Test
 
 ```bash
-# 测试原版模型
+# Test original model
 lm_eval --model hf \
     --model_args pretrained=Qwen/Qwen2.5-7B-Instruct,trust_remote_code=True \
     --tasks mmlu_abstract_algebra \
     --limit 100 \
     --batch_size auto
 
-# 测试 4-bit 量化模型
+# Test 4-bit quantized model
 lm_eval --model hf \
     --model_args pretrained=unsloth/Qwen2.5-7B-Instruct-bnb-4bit,trust_remote_code=True \
     --tasks mmlu_abstract_algebra \
@@ -266,42 +267,42 @@ lm_eval --model hf \
     --batch_size auto
 ```
 
-### 3. 完整系列测试
+### 3. Full Series Test
 
 ```bash
-# 运行完整测试脚本
+# Run complete test script
 bash scripts/phase2_100samples.sh
 ```
 
 ---
 
-## 📈 补充实验
+## 📈 Supplementary Experiments
 
-### 跨系列参考：Llama-3.1-8B
+### Cross-Series Reference: Llama-3.1-8B
 
-为填补 Qwen2.5 系列在 7B~14B 之间的空档，补测了 Llama-3.1-8B：
+To fill the gap between 7B and 14B in the Qwen2.5 series, we tested Llama-3.1-8B:
 
-| 模型 | 参数量 | 原版 | 4-bit | 损失 | 备注 |
+| Model | Size | Original | 4-bit | Loss | Notes |
 |------|--------|------|-------|------|------|
-| Llama-3.1-8B | 8B | 36% | 38% | +2% | 在统计误差内，无显著损失 |
+| Llama-3.1-8B | 8B | 36% | 38% | +2% | Within statistical error, no significant loss |
 
-> ⚠️ **注意**：跨系列对比不满足公平性原则（不同模型架构），此数据仅作参考，不纳入主结论。
+> ⚠️ **Note**: Cross-series comparison violates fairness principle (different architectures), this data is for reference only, not included in main conclusions.
 
-### Qwen 系列尺寸分布
+### Qwen Series Size Distribution
 
 ```
 Qwen2.5: 0.5B, 1.5B, 3B, 7B, 14B, 32B, 72B
 Qwen2:   0.5B, 1.5B, 7B, 57B, 72B
-Qwen3:   4B, 30B, 80B, 235B (MoE 架构)
+Qwen3:   4B, 30B, 80B, 235B (MoE architecture)
 ```
 
-**7B~14B 之间无官方模型**，无法在同系列内精确定位转折点。
+**No official model between 7B~14B**, cannot precisely locate threshold within the same series.
 
 ---
 
-## 🔍 技术分析
+## 🔍 Technical Analysis
 
-### 为什么大模型量化损失更小？
+### Why Do Larger Models Have Lower Quantization Loss?
 
 #### 核心原理：参数冗余度 (Parameter Redundancy)
 
@@ -310,7 +311,7 @@ Qwen3:   4B, 30B, 80B, 235B (MoE 架构)
 | Small (≤3B) | Low - every parameter is "busy" | ❌ Poor - quantization error directly impacts output |
 | Large (≥14B) | High - many parameters are "redundant" | ✅ Strong - quantization error absorbed by redundant parameters |
 
-#### 数学直觉
+#### Mathematical Intuition
 
 **Quantization = Adding Noise**: FP16 → NF4 adds a small random error ε to each weight
 
@@ -328,14 +329,14 @@ W_quantized = W_original + ε
 - Many weights are near 0 or highly correlated (redundant)
 - Quantization error is "diluted" by redundant structures → **Small loss**
 
-#### 类比理解 (Intuitive Analogy)
+#### Intuitive Analogy
 
 | Team Size | Analogy | Fault Tolerance |
 |-----------|---------|-----------------|
 | 3-person team | 3B model | One person sick → project stalls |
 | 100-person team | 14B+ model | Few people sick → others cover, project continues |
 
-#### 为什么 7B 比 3B 损失还大？（Counter-intuitive Phenomenon）
+#### Why Does 7B Have Higher Loss Than 3B? (Counter-intuitive Phenomenon)
 
 Our data: 7B loss (7%) > 3B loss (3%)
 
@@ -344,7 +345,7 @@ Our data: 7B loss (7%) > 3B loss (3%)
 2. **Weight Distribution Sensitivity**: 7B's weight distribution may be particularly sensitive to NF4's quantization bucket boundaries (NF4 is non-uniform quantization)
 3. **Depth/Width Ratio**: 7B may have enough depth but insufficient width, causing quantization errors to accumulate and amplify in deeper layers
 
-#### 鲁棒性验证 (Robustness Verification)
+#### Robustness Verification
 
 This counter-intuitive finding (7B loss > 3B loss) has been verified across **4 independent test runs**:
 
@@ -363,7 +364,7 @@ This counter-intuitive finding (7B loss > 3B loss) has been verified across **4 
 
 **Conclusion**: The 7B > 3B quantization loss is a **robust, deterministic phenomenon**, not random noise. This supports the "architectural transition zone" hypothesis.
 
-#### 总结
+#### Summary
 
 ```
 Model Size ↑ → Parameter Redundancy ↑ → Quantization Tolerance ↑ → Precision Loss ↓
@@ -373,7 +374,7 @@ Threshold between 7B-14B:
 - ≥14B: Sufficient redundancy, quantization nearly lossless
 ```
 
-### 为什么 3 次测试结果完全一致？
+### Why Are the 3 Test Results Completely Identical?
 
 lm-eval 在评估时使用**确定性设置**：
 - 固定随机种子 (`--seed` 影响 few-shot 样本选择)
@@ -382,24 +383,24 @@ lm-eval 在评估时使用**确定性设置**：
 
 因此 3 次测试本质是**完全相同的计算**，100% 一致是预期行为。
 
-### 常识性检验
+### Sanity Check
 
-| 现象 | 分析 | 结论 |
+| Phenomenon | Analysis | Conclusion |
 |------|------|------|
-| Qwen2.5-32B 4-bit +1% | 量化不可能提升精度 | 统计噪声（误差 ±5%） |
-| Llama-3.1-8B 4-bit +2% | 同上 | 统计噪声，无显著损失 |
+| Qwen2.5-32B 4-bit +1% | Quantization cannot improve precision | Statistical noise (±5% error) |
+| Llama-3.1-8B 4-bit +2% | Same as above | Statistical noise, no significant loss |
 
 ---
 
-## ⚠️ 局限性
+## ⚠️ Limitations
 
-| 局限 | 说明 | 改进建议 |
+| Limitation | Description | Improvement Suggestion |
 |------|------|----------|
-| 单一评估任务 | 仅用 MMLU Abstract Algebra | 可扩展到完整 MMLU 或多 benchmark |
-| 样本量 | 100 样本，误差 ±5% | 可增加到 500+ 降低误差 |
-| 单一量化方法 | 仅测试 bitsandbytes NF4 | 可对比 AWQ/GPTQ |
-| 单一模型系列 | 主要基于 Qwen2.5 | 可扩展到 Llama/Mistral 等 |
-| 转折点精度 | 7B~14B 之间无中间模型 | 受模型系列尺寸分布限制 |
+| Single Evaluation Task | Only MMLU Abstract Algebra | Can extend to full MMLU or multiple benchmarks |
+| Sample Size | 100 samples, ±5% error | Can increase to 500+ for lower error |
+| Single Quantization Method | Only bitsandbytes NF4 | Can compare with AWQ/GPTQ |
+| Single Model Series | Mainly Qwen2.5 | Can extend to Llama/Mistral etc. |
+| Threshold Precision | No model between 7B~14B | Limited by model series size distribution |
 
 ## 📖 Related Work
 
@@ -478,17 +479,17 @@ These findings suggest that optimal quantization strategies may need to be size-
 
 ---
 
-## 📚 参考资料
+## 📚 References
 
 - lm-evaluation-harness: https://github.com/EleutherAI/lm-evaluation-harness
-- unsloth 预量化模型: https://huggingface.co/unsloth
+- unsloth pre-quantized models: https://huggingface.co/unsloth
 - bitsandbytes: https://github.com/TimDettmers/bitsandbytes
-- Qwen2.5 模型: https://huggingface.co/Qwen
+- Qwen2.5 models: https://huggingface.co/Qwen
 
 ---
 
-## 👤 作者
+## 👤 Author
 
-**魏新宇 (Xinyu Wei)**
+**Xinyu Wei (魏新宇)**
 
-实验日期：2026-01-05
+Experiment Date: 2026-01-05
