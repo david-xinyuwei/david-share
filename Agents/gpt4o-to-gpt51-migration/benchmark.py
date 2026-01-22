@@ -283,7 +283,8 @@ def check_answer(response: str, correct_variants: list) -> bool:
 
 
 def test_with_cache_key(client, model: str, instructions: str, question: str, 
-                        cache_key: str, reasoning_effort: str = None) -> dict:
+                        cache_key: str, reasoning_effort: str = None,
+                        stream: bool = False) -> dict:
     """
     Test a model using Responses API with prompt_cache_key.
     
@@ -294,6 +295,7 @@ def test_with_cache_key(client, model: str, instructions: str, question: str,
         question: User question
         cache_key: Prompt cache key for cache routing
         reasoning_effort: For GPT-5.1, set to "none", "low", "medium", or "high"
+        stream: Whether to use streaming mode
     
     Returns:
         dict with latency, tokens, content, and success status
@@ -311,48 +313,101 @@ def test_with_cache_key(client, model: str, instructions: str, question: str,
         if reasoning_effort and "5.1" in model:
             params["reasoning"] = {"effort": reasoning_effort}
         
+        # Add streaming
+        if stream:
+            params["stream"] = True
+        
         start = time.time()
-        response = client.responses.create(**params)
-        latency = time.time() - start
         
-        # Extract token usage
-        usage = response.usage
-        input_tokens = usage.input_tokens
-        output_tokens = usage.output_tokens
-        cached_tokens = getattr(usage, 'input_tokens_details', {})
-        cached_tokens = getattr(cached_tokens, 'cached_tokens', 0) if cached_tokens else 0
-        
-        # Extract content
-        content = ""
-        if response.output:
-            for item in response.output:
-                if hasattr(item, 'content'):
-                    for c in item.content:
-                        if hasattr(c, 'text'):
-                            content += c.text
-        
-        return {
-            "success": True,
-            "latency": latency,
-            "input_tokens": input_tokens,
-            "output_tokens": output_tokens,
-            "cached_tokens": cached_tokens,
-            "content": content
-        }
+        if stream:
+            # Streaming mode - collect chunks
+            response_stream = client.responses.create(**params)
+            content = ""
+            input_tokens = 0
+            output_tokens = 0
+            cached_tokens = 0
+            first_token_time = None
+            
+            for event in response_stream:
+                # Record time to first token
+                if first_token_time is None and hasattr(event, 'type'):
+                    if event.type in ['response.output_item.added', 'response.content_part.added', 'response.output_text.delta']:
+                        first_token_time = time.time() - start
+                
+                # Extract text from delta events
+                if hasattr(event, 'type') and event.type == 'response.output_text.delta':
+                    if hasattr(event, 'delta'):
+                        content += event.delta
+                
+                # Extract usage from completed event
+                if hasattr(event, 'type') and event.type == 'response.completed':
+                    if hasattr(event, 'response') and hasattr(event.response, 'usage'):
+                        usage = event.response.usage
+                        input_tokens = usage.input_tokens
+                        output_tokens = usage.output_tokens
+                        cached_details = getattr(usage, 'input_tokens_details', None)
+                        if cached_details:
+                            cached_tokens = getattr(cached_details, 'cached_tokens', 0)
+            
+            latency = time.time() - start
+            
+            return {
+                "success": True,
+                "latency": latency,
+                "first_token_time": first_token_time or latency,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "cached_tokens": cached_tokens,
+                "content": content,
+                "stream": True
+            }
+        else:
+            # Non-streaming mode
+            response = client.responses.create(**params)
+            latency = time.time() - start
+            
+            # Extract token usage
+            usage = response.usage
+            input_tokens = usage.input_tokens
+            output_tokens = usage.output_tokens
+            cached_tokens = getattr(usage, 'input_tokens_details', {})
+            cached_tokens = getattr(cached_tokens, 'cached_tokens', 0) if cached_tokens else 0
+            
+            # Extract content
+            content = ""
+            if response.output:
+                for item in response.output:
+                    if hasattr(item, 'content'):
+                        for c in item.content:
+                            if hasattr(c, 'text'):
+                                content += c.text
+            
+            return {
+                "success": True,
+                "latency": latency,
+                "first_token_time": latency,  # Same as latency for non-streaming
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "cached_tokens": cached_tokens,
+                "content": content,
+                "stream": False
+            }
         
     except Exception as e:
         return {
             "success": False,
             "error": str(e),
             "latency": 0,
+            "first_token_time": 0,
             "input_tokens": 0,
             "output_tokens": 0,
             "cached_tokens": 0,
-            "content": ""
+            "content": "",
+            "stream": stream
         }
 
 
-def run_benchmark(num_runs: int = 3):
+def run_benchmark(num_runs: int = 3, stream: bool = False):
     """
     Run the benchmark comparing GPT-4o and GPT-5.1.
     
@@ -365,6 +420,7 @@ def run_benchmark(num_runs: int = 3):
     
     Args:
         num_runs: Number of runs per scenario (default: 3)
+        stream: Whether to use streaming mode (default: False)
     
     Returns:
         Path to generated report file
@@ -390,13 +446,14 @@ def run_benchmark(num_runs: int = 3):
     
     print(f"Static prefix: ~1030 tokens (>1024 for cache eligibility)")
     print(f"Cache key: {cache_key}")
+    print(f"Streaming: {'✅ Enabled' if stream else '❌ Disabled'}")
     
     # Results storage
     scenario_results = []
     results = {
-        "gpt-4o": {"latency": [], "input_tokens": [], "output_tokens": [], 
+        "gpt-4o": {"latency": [], "first_token_time": [], "input_tokens": [], "output_tokens": [], 
                    "cached_tokens": [], "correct": 0, "total": 0, "cost": 0},
-        "gpt-5.1": {"latency": [], "input_tokens": [], "output_tokens": [], 
+        "gpt-5.1": {"latency": [], "first_token_time": [], "input_tokens": [], "output_tokens": [], 
                     "cached_tokens": [], "correct": 0, "total": 0, "cost": 0},
     }
     
@@ -446,6 +503,7 @@ def run_benchmark(num_runs: int = 3):
         
         for display_name, actual_model, effort in models_to_test:
             run_latencies = []
+            run_first_token = []
             run_input = []
             run_output = []
             run_cached = []
@@ -453,16 +511,18 @@ def run_benchmark(num_runs: int = 3):
             
             for run in range(num_runs):
                 result = test_with_cache_key(
-                    client, actual_model, instructions, question, cache_key, effort
+                    client, actual_model, instructions, question, cache_key, effort, stream
                 )
                 
                 if result["success"]:
                     run_latencies.append(result["latency"])
+                    run_first_token.append(result.get("first_token_time", result["latency"]))
                     run_input.append(result["input_tokens"])
                     run_output.append(result["output_tokens"])
                     run_cached.append(result["cached_tokens"])
                     
                     results[display_name]["latency"].append(result["latency"])
+                    results[display_name]["first_token_time"].append(result.get("first_token_time", result["latency"]))
                     results[display_name]["input_tokens"].append(result["input_tokens"])
                     results[display_name]["output_tokens"].append(result["output_tokens"])
                     results[display_name]["cached_tokens"].append(result["cached_tokens"])
@@ -478,6 +538,7 @@ def run_benchmark(num_runs: int = 3):
             
             # Calculate scenario metrics
             avg_latency = sum(run_latencies) / len(run_latencies) if run_latencies else 0
+            avg_first_token = sum(run_first_token) / len(run_first_token) if run_first_token else 0
             avg_input = sum(run_input) / len(run_input) if run_input else 0
             avg_output = sum(run_output) / len(run_output) if run_output else 0
             avg_cached = sum(run_cached) / len(run_cached) if run_cached else 0
@@ -489,6 +550,7 @@ def run_benchmark(num_runs: int = 3):
             
             scenario_data[display_name] = {
                 "avg_latency": round(avg_latency, 3),
+                "avg_first_token_time": round(avg_first_token, 3),
                 "avg_input_tokens": round(avg_input, 0),
                 "avg_output_tokens": round(avg_output, 0),
                 "avg_cached_tokens": round(avg_cached, 0),
@@ -499,7 +561,9 @@ def run_benchmark(num_runs: int = 3):
             
             status = "✅" if accuracy == 100 else "⚠️" if accuracy >= 50 else "❌"
             effort_label = f" (effort={effort})" if effort else ""
-            print(f"    {display_name}{effort_label}: {avg_latency:.3f}s | in:{avg_input:.0f} out:{avg_output:.0f} cache:{cache_pct:.1f}% | acc:{accuracy:.0f}% {status}")
+            stream_label = " [stream]" if stream else ""
+            ttft_info = f" TTFT:{avg_first_token:.3f}s" if stream else ""
+            print(f"    {display_name}{effort_label}{stream_label}: {avg_latency:.3f}s{ttft_info} | in:{avg_input:.0f} out:{avg_output:.0f} cache:{cache_pct:.1f}% | acc:{accuracy:.0f}% {status}")
         
         scenario_results.append(scenario_data)
     
@@ -513,6 +577,7 @@ def run_benchmark(num_runs: int = 3):
         r = results[model]
         if r["latency"]:
             r["avg_latency"] = sum(r["latency"]) / len(r["latency"])
+            r["avg_first_token"] = sum(r["first_token_time"]) / len(r["first_token_time"]) if r["first_token_time"] else r["avg_latency"]
             r["avg_input"] = sum(r["input_tokens"]) / len(r["input_tokens"])
             r["avg_output"] = sum(r["output_tokens"]) / len(r["output_tokens"])
             r["avg_cached"] = sum(r["cached_tokens"]) / len(r["cached_tokens"])
@@ -541,10 +606,11 @@ def run_benchmark(num_runs: int = 3):
             "cache_key": cache_key,
             "runs_per_scenario": num_runs,
             "total_scenarios": len(TEST_SCENARIOS),
+            "streaming": stream,
         },
         "summary": {
-            "gpt-4o": {k: v for k, v in r4o.items() if k not in ["latency", "input_tokens", "output_tokens", "cached_tokens"]},
-            "gpt-5.1": {k: v for k, v in r51.items() if k not in ["latency", "input_tokens", "output_tokens", "cached_tokens"]},
+            "gpt-4o": {k: v for k, v in r4o.items() if k not in ["latency", "first_token_time", "input_tokens", "output_tokens", "cached_tokens"]},
+            "gpt-5.1": {k: v for k, v in r51.items() if k not in ["latency", "first_token_time", "input_tokens", "output_tokens", "cached_tokens"]},
         },
         "scenarios": scenario_results
     }
@@ -562,6 +628,8 @@ def run_benchmark(num_runs: int = 3):
     cost_savings = (r4o["cost"] - r51["cost"]) / r4o["cost"] * 100 if r4o["cost"] > 0 else 0
     
     print(f"\n  📊 Latency:     GPT-4o {r4o['avg_latency']:.3f}s vs GPT-5.1 {r51['avg_latency']:.3f}s ({lat_diff:+.1f}%)")
+    if stream:
+        print(f"  ⏱️  TTFT:        GPT-4o {r4o.get('avg_first_token', r4o['avg_latency']):.3f}s vs GPT-5.1 {r51.get('avg_first_token', r51['avg_latency']):.3f}s")
     print(f"  🎯 Accuracy:    GPT-4o {r4o['accuracy']:.1f}% vs GPT-5.1 {r51['accuracy']:.1f}%")
     print(f"  📦 Cache Hit:   GPT-4o {r4o['cache_pct']:.1f}% vs GPT-5.1 {r51['cache_pct']:.1f}%")
     print(f"  💰 Total Cost:  GPT-4o ${r4o['cost']:.6f} vs GPT-5.1 ${r51['cost']:.6f}")
@@ -683,4 +751,21 @@ def generate_report(scenario_results, r4o, r51, padding_tokens, cache_key, num_r
 
 
 if __name__ == "__main__":
-    run_benchmark(num_runs=3)
+    parser = argparse.ArgumentParser(
+        description="GPT-4o vs GPT-5.1 Migration Benchmark",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+    python benchmark.py                    # Default: 3 runs, no streaming
+    python benchmark.py --runs 5           # 5 runs per scenario
+    python benchmark.py --stream           # Enable streaming mode
+    python benchmark.py --runs 5 --stream  # 5 runs with streaming
+"""
+    )
+    parser.add_argument("--runs", "-n", type=int, default=3,
+                        help="Number of runs per scenario (default: 3)")
+    parser.add_argument("--stream", "-s", action="store_true",
+                        help="Enable streaming mode (measures TTFT)")
+    
+    args = parser.parse_args()
+    run_benchmark(num_runs=args.runs, stream=args.stream)

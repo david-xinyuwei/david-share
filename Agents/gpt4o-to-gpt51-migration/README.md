@@ -8,21 +8,32 @@ Production-grade benchmark comparing **GPT-4o** vs **GPT-5.1** for enterprise mi
 
 ## Quick Results
 
+### Non-Streaming Mode
+
 | Metric | GPT-4o | GPT-5.1 | Difference |
 |--------|--------|---------|------------|
 | **Accuracy** | 7/7 (100%) | 7/7 (100%) | **Equal ✅** |
-| **Input Cost** | $2.50/1M | $1.25/1M | **-50%** |
-| **Cached Cost** | $1.25/1M | $0.13/1M | **-90%** |
-| **Output Cost** | $10.00/1M | $10.00/1M | Same |
-| **Cache Hit Rate** | 63% | 84% | +33% |
-| **Total Cost** | $0.0153 | $0.0054 | **-64.8%** |
+| **Avg Latency** | 1.418s | 1.751s | +23.4% |
+| **Cache Hit Rate** | 86.7% | 64.0% | -22.7% |
+| **Total Cost** | $0.0389 | $0.0212 | **-45.4%** |
 
-> **Annual Savings: $10,267/year** (at 1B tokens/month, 84% cache hit rate)
+### Streaming Mode (with TTFT)
+
+| Metric | GPT-4o | GPT-5.1 | Difference |
+|--------|--------|---------|------------|
+| **Accuracy** | 7/7 (100%) | 7/7 (100%) | **Equal ✅** |
+| **Avg Latency** | 1.451s | 1.723s | +18.7% |
+| **TTFT (Time to First Token)** | **0.536s** | 0.974s | +81.7% |
+| **Cache Hit Rate** | 95.9% | 74.3% | -21.6% |
+| **Total Cost** | $0.0603 | $0.0258 | **-57.3%** |
+
+> **Key Finding**: GPT-5.1 saves **45-57% cost** with acceptable latency trade-off. GPT-4o has faster TTFT for real-time chat scenarios.
 
 ## Features
 
 - ✅ **Fair Comparison**: Both models use identical test conditions
 - ✅ **Prompt Caching**: Tests Azure OpenAI's prompt cache feature
+- ✅ **Streaming Support**: Measures TTFT (Time to First Token)
 - ✅ **Enterprise Scenarios**: Customer service, RAG, sentiment analysis
 - ✅ **Cost Analysis**: Detailed pricing breakdown
 
@@ -103,23 +114,21 @@ AZURE_OPENAI_API_KEY=your-api-key
 python benchmark.py
 ```
 
+### Run with Streaming Mode
+
+```bash
+# Enable streaming (measures TTFT - Time to First Token)
+python benchmark.py --stream
+
+# Streaming with more runs for robustness
+python benchmark.py --stream --runs 5
+```
+
 ### Run with Custom Settings
 
 ```bash
 # Specify number of runs per scenario
 python benchmark.py --runs 5
-
-# Test specific scenarios only
-python benchmark.py --scenarios "intent,sentiment,rag"
-
-# Output results to JSON
-python benchmark.py --output results.json
-```
-
-### Quick Validation Test
-
-```bash
-python benchmark.py --quick
 ```
 
 ## Test Scenarios
@@ -169,35 +178,52 @@ python benchmark.py --quick
 
 ```
 ================================================================================
- GPT-4o vs GPT-5.1 Benchmark
+ GPT-4o vs GPT-5.1 MIGRATION BENCHMARK
+ (RAG, Customer Service, Enterprise scenarios)
 ================================================================================
-⏰ 2026-01-10 21:15:32
-📋 Scenarios: 7 | Runs per scenario: 3 | Cache Key: benchmark_v1
 
-[Warmup]...
-[Warmup Complete]
+Started: 2026-01-22 16:34:14
+Total scenarios: 7
+Runs per scenario: 5
+Static prefix: ~1030 tokens (>1024 for cache eligibility)
+Cache key: benchmark_migration_v2
+Streaming: ✅ Enabled
 
-📋 [1/7] Intent Classification (CN) (Short)
-   gpt-4o: In=1092 Out=8 Cache=98%🔥 $29/1M ✅
-   gpt-5.1 (none): In=1092 Out=18 Cache=98%🔥 $10/1M ✅
+================================================================================
+ PHASE 1: CACHE WARMUP
+================================================================================
 
-📋 [2/7] Sentiment Analysis (Short)
-   gpt-4o: In=1075 Out=5 Cache=97%🔥 $22/1M ✅
-   gpt-5.1 (none): In=1075 Out=15 Cache=97%🔥 $8/1M ✅
+  Warming up gpt-4o... done
+  Warming up gpt-5.1... done
+  Waiting 2s for cache to stabilize...
 
-📋 [3/7] RAG Number Extraction (Medium)
-   gpt-4o: In=1156 Out=42 Cache=94%🔥 $156/1M ✅
-   gpt-5.1 (none): In=1156 Out=52 Cache=94%🔥 $92/1M ✅
+================================================================================
+ PHASE 2: BENCHMARK MEASUREMENT
+================================================================================
+
+  [1/7] Short - Intent Classification (CN) (ZH)
+    gpt-4o [stream]: 1.125s TTFT:0.539s | in:1073 out:2 cache:95.4% | acc:100% ✅
+    gpt-5.1 (effort=none) [stream]: 1.287s TTFT:0.898s | in:1072 out:11 cache:95.5% | acc:100% ✅
+
+  [2/7] Short - Sentiment Analysis (EN)
+    gpt-4o [stream]: 0.868s TTFT:0.520s | in:1063 out:2 cache:96.3% | acc:100% ✅
+    gpt-5.1 (effort=none) [stream]: 1.479s TTFT:1.047s | in:1062 out:11 cache:96.4% | acc:100% ✅
 
 ... (remaining scenarios)
 
 ================================================================================
- 📊 Summary
+ SUMMARY
 ================================================================================
 
-| Metric | GPT-4o | GPT-5.1 | Difference |
-|--------|--------|---------|------------|
-| **Accuracy** | **7/7 (100%)** | **7/7 (100%)** | **Equal ✅** |
+  📊 Latency:     GPT-4o 1.451s vs GPT-5.1 1.723s (+18.7%)
+  ⏱️  TTFT:        GPT-4o 0.536s vs GPT-5.1 0.974s
+  🎯 Accuracy:    GPT-4o 100.0% vs GPT-5.1 100.0%
+  📦 Cache Hit:   GPT-4o 95.9% vs GPT-5.1 74.3%
+  💰 Total Cost:  GPT-4o $0.060332 vs GPT-5.1 $0.025770
+  💵 Savings:     57.3% with GPT-5.1 (effort=none)
+
+Completed: 2026-01-22 16:36:30
+```
 | Total Input | 7644 | 7644 | +0.0% |
 | Total Output | 312 | 382 | +22.4% |
 | Cache% | 63% | 84% | 🔥 |
@@ -254,26 +280,30 @@ Azure OpenAI prompt caching requires:
 ## Key Findings
 
 ### 1. Cost Efficiency
-- **64.8% cost reduction** with GPT-5.1 (measured)
+- **45-57% cost reduction** with GPT-5.1 (measured across 4 tests)
 - **90% cheaper cached input** ($0.13 vs $1.25)
-- Higher cache hit rate (84% vs 63%)
+- Consistent savings across streaming and non-streaming modes
 
-### 2. Quality
+### 2. Latency & TTFT
+- **GPT-4o is 10-23% faster** in total latency
+- **GPT-4o TTFT is 40-85% faster** (important for chat UX)
+- Streaming mode reduces perceived latency difference
+
+### 3. Quality
 - **100% accuracy parity** on all scenarios
 - No quality degradation observed
 - `reasoning_effort="none"` matches GPT-4o behavior
 
 ## Migration Recommendations
 
-### When to Migrate
+### When to Use Each Model
 
-✅ **Recommended for:**
-- High-volume production workloads
-- Cost-sensitive applications
-- Batch processing tasks
-
-⚠️ **Consider carefully for:**
-- Complex reasoning tasks (keep reasoning enabled)
+| Scenario | Recommended | Reason |
+|----------|-------------|--------|
+| **Cost-sensitive batch processing** | GPT-5.1 | 45-57% cost savings |
+| **High-volume production** | GPT-5.1 | Best cost efficiency |
+| **Real-time chat (TTFT critical)** | GPT-4o | 40-85% faster first token |
+| **Streaming applications** | Either | Latency gap narrows to ~10% |
 
 ### Migration Steps
 
