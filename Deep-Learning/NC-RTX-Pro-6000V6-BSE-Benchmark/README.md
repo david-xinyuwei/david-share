@@ -1,8 +1,26 @@
 # Azure NC RTX Pro 6000 V6 BSE Complete Benchmark Report
 
-> Comprehensive comparison of NC RTX 6000 Pro Blackwell /NC H100 NVL /NC A100 PCIe /NV A10
+> Comprehensive comparison of NC RTX 6000 Pro Blackwell / NC H100 NVL / NC A100 PCIe / NV A10
 
 > For fairness, each test is performed using the same data type across all four GPUs.
+
+---
+
+## Table of Contents
+
+1. [Test Environment](#test-environment)
+2. [Scientific Computing & Numeric Precision](#scientific-computing--numeric-precision)
+3. [Network Configuration Test](#1-network-configuration-test)
+4. [GPU P2P Interconnect Test](#2-gpu-p2p-interconnect-test)
+5. [FP32 Compute Test](#3-fp32-compute-test)
+6. [LLM Inference Test](#4-llm-inference-test)
+7. [SFT Full Fine-tuning Test](#5-sft-full-fine-tuning-test)
+8. [FLUX Image Generation Test](#6-flux-image-generation-test)
+9. [Blender Rendering Test](#7-blender-rendering-test)
+10. [NVENC Video Encoding Test](#8-nvenc-video-encoding-test)
+11. [Deployment Guide](#9-deployment-guide)
+12. [Four GPU Comprehensive Comparison](#four-gpu-comprehensive-comparison)
+13. [Repository Structure & Quick Start](#-repository-structure)
 
 ---
 
@@ -30,13 +48,106 @@
 ### Hardware Unit Configuration Matrix
 
 | Hardware Unit | RTX 6000 Pro Blackwell | H100 NVL | A100 PCIe | A10 |
-|----------|------------------------|----------|-----------|-----|
+|----------|-----------------------|----------|-----------|-----|
 | **NVDEC** (Decoder) | ✅ 4 (Gen6) | ✅ 7 | ✅ 5 | ✅ 2 |
 | **NVENC** (Encoder) | ✅ **4 (Gen9, AV1)** | ❌ **None** | ❌ **None** | ✅ 1 (Gen7) |
 | **NVJPG** | ✅ Yes | ✅ 7 | ✅ 5 | ❌ No |
 | **Tensor Core** | ✅ Gen5 | ✅ Gen4 | ✅ Gen3 | ✅ Gen3 |
 | **RT Core** | ✅ **188 (Gen4)** | ❌ **None** | ❌ **None** | ✅ 72 (Gen2) |
 | **NVLink** | ❌ None | ✅ Yes | ✅ Yes | ❌ None |
+
+---
+
+## Scientific Computing & Numeric Precision
+
+> **NEW**: This section explains the precision hierarchy and execution units - essential for understanding benchmark results.
+
+### Precision Quick Reference (FP64/FP32/TF32/BF16/FP16/FP8/FP4)
+
+#### CUDA Core vs Tensor Core Precision Comparison
+
+| Precision | Execution Unit | Primary Use Case | RTX 6000 Performance |
+|---|---|---|---|
+| **FP64** | CUDA Core (FP64 ALU) | HPC scientific computing (double precision) | ~2 TFLOPS |
+| **FP32** | CUDA Core (FP32 ALU) | Traditional rendering, scalar ops, gaming | **125 TFLOPS** |
+| **TF32** | Tensor Core | AI training (transparent FP32 API optimization) | ~500 TFLOPS |
+| **BF16/FP16** | Tensor Core | AI training/inference mixed precision | ~1000 TFLOPS |
+| **FP8** | Tensor Core | AI inference optimization | ~2000 TFLOPS |
+| **NVFP4** | Tensor Core (Gen5) | AI inference extreme optimization | **4000 TOPS** |
+
+> **Key Understanding**:
+> - FP64 and FP32 are **physically separate ALU units** (Datacenter: FP64:FP32 = 1:2, RTX: 1:64)
+> - TF32/BF16/FP16/FP8/NVFP4 **share the same Tensor Core hardware**, just different precision configs
+
+### TF32 Transparent Optimization
+
+> **One-liner**: TF32 is not a data type, it's Tensor Core's "stealth acceleration mode" — you write FP32, hardware secretly computes in TF32, 8-10× faster, <0.1% precision loss.
+
+**How it works**:
+```
+torch.float32 → Ampere+ auto-truncates to TF32 (19-bit) for multiply → Result back to FP32
+```
+
+| Format | Bits | Notes |
+|--------|------|-------|
+| FP32 | 1+8+23=32 | User API, storage, accumulation precision |
+| TF32 | 1+8+10=19 | Tensor Core multiply instant (same exponent as FP32, truncated mantissa) |
+
+**PyTorch default enabled** (Ampere+):
+```python
+torch.backends.cuda.matmul.allow_tf32  # True by default
+torch.backends.cudnn.allow_tf32        # True by default
+```
+
+### CUDA Core vs Tensor Core: Who Computes What
+
+```mermaid
+sequenceDiagram
+    participant I as Input
+    participant TC as Tensor Core
+    participant CC as CUDA Core
+    participant O as Output
+
+    I->>TC: Q/K/V Projection (matmul)
+    TC->>CC: Softmax (reduction+elemwise)
+    CC->>TC: Attention·V (matmul)
+    TC->>CC: LayerNorm (reduction+elemwise)
+    CC->>TC: FFN Linear (matmul)
+    TC->>CC: GELU (elemwise)
+    CC->>TC: FFN Linear (matmul)
+    TC->>O: Output
+```
+
+**Simple Rule**:
+- **Matrix multiply → Tensor Core** (Linear, Conv, Attention QK and V multiply)
+- **Everything else → CUDA Core** (Activation, Normalization, Softmax)
+
+| Operation Type | Execution Unit | Examples |
+|----------------|----------------|----------|
+| **Matrix Multiplication** | Tensor Core | `torch.mm`, `torch.bmm`, `nn.Linear`, `nn.Conv2d` |
+| **Element-wise Ops** | CUDA Core | `torch.add`, `torch.mul`, `torch.exp`, activation functions |
+| **Reduction Ops** | CUDA Core | `torch.sum`, `torch.mean`, `softmax` |
+| **Memory Ops** | CUDA Core | `torch.cat`, `torch.reshape`, indexing |
+
+> **Common Misconception**: "BF16 training uses Tensor Core for everything"
+> 
+> **Reality**: Even in BF16 training, only ~40-60% of compute time is Tensor Core (matmul). The rest is CUDA Core (element-wise, reductions).
+
+
+### GPU Performance Quick Reference
+
+| Scenario | Key Metric | RTX 6000 | H100 NVL | Winner |
+|----------|------------|----------|----------|--------|
+| **AI Inference/Training** | Tensor Core (BF16) | ~504 TFLOPS | **~836 TFLOPS** | H100 |
+| **AI Inference (FP8)** | Tensor Core (FP8) | ~1,010 TFLOPS | **~1,671 TFLOPS** | H100 |
+| **AI Inference (FP4)** | Tensor Core (NVFP4) | **~2,000 TFLOPS** | ❌ N/A | RTX 6000 |
+| **HPC Scientific** | CUDA Core (FP64) | ~2 TFLOPS | **30 TFLOPS** | H100 |
+| **3D Rendering** | FP32 + RT Core | **125T + 380T RT** | 60T + ❌ | RTX 6000 |
+
+> **Quick Selection Guide**:
+> - AI performance → Look at **Tensor Core** (BF16/FP8/FP4)
+> - HPC performance → Look at **FP64 only** - H100 dominates (30 vs 2 TFLOPS)
+> - Rendering → Look at **FP32 + RT Core** - RTX 6000 exclusive (H100 has no RT Core)
 
 ---
 
@@ -79,7 +190,7 @@
 
 ---
 
-## 1. Network Configuration Test 
+## 1. Network Configuration Test
 
 ### Test Results
 
@@ -115,7 +226,7 @@
 
 | GPU Config | P2P Bandwidth | Notes |
 |----------|----------|------|
-| **RTX 6000 MIG** | ~43 GB/s | PCIe Gen5 |
+| **RTX 6000** | ~43 GB/s | PCIe Gen5 |
 | **H100 NVL** | ~450 GB/s | NVLink 4.0 direct |
 | **A100 PCIe** | ~25 GB/s | PCIe Gen4 |
 
@@ -125,8 +236,8 @@
 
 ### Test Results
 
-| Metric | RTX 6000 Pro Blackwell (MIG) |
-|------|------------------------------|
+| Metric | RTX 6000 Pro Blackwell |
+|------|-------------------------|
 | **Theoretical FP32** | 116.95 TFLOPS |
 | **Measured Peak** | **109.20 TFLOPS** |
 | **Efficiency** | **93.4%** |
@@ -148,66 +259,42 @@
 ### Test Results
 
 | GPU | Output Tokens/s | Relative Performance |
-|-----|-----------------|----------|
-| **H100 NVL** | **3083.6** | **100%** (Baseline) |
-| **RTX 6000 Blackwell MIG** | **2835.4** | **92.0%** |
-| **A100 PCIe** | **2119.6** | **68.7%** |
-| **A10 24GB** | **563.1** | **18.3%** |
+|-----|-----------------|---------------------|
+| **H100 NVL** | **3083.6** | **100%** |
+| **RTX 6000** | **2835.4** | **92%** |
+| **A100 PCIe** | **2119.6** | **69%** |
+| **A10** | **563.1** | **18%** |
 
-### Visualization
+### 4.1 NVFP4 Quantization - Blackwell Exclusive
 
-```
-Output Tokens/s (Higher is Better)
-════════════════════════════════════════════════════════════
-H100 NVL        ██████████████████████████████████████████  3083.6 tok/s (100%)
-RTX 6000 BW     ██████████████████████████████████████▌     2835.4 tok/s (92%)
-A100 PCIe       ███████████████████████████▍                2119.6 tok/s (69%)
-A10 24GB        ███████▎                                    563.1 tok/s (18%)
-════════════════════════════════════════════════════════════
-```
+> **Blackwell-only feature**: NVFP4 (4-bit floating point) requires SM100/SM120 native FP4 Tensor Core
+> - **Memory Savings**: Model size ~35% smaller than FP8 (9.9GB vs 15.3GB for 14B)
 
----
-
-
-## 4.1 NVFP4 (W4A4) Quantized Inference Benchmark (RTX PRO 6000 Blackwell Exclusive)
-
-> ⚠️ **Blackwell Exclusive**: NVFP4 requires SM120 native FP4 Tensor Core, only supported on RTX PRO 6000 Blackwell
-
-### Background
-
-NVFP4 (NV FP4 W4A4) is a unique advantage of NVIDIA Blackwell architecture:
-- **W4A4**: 4-bit weights + 4-bit activations, more aggressive quantization than FP8 (W8A8)
-- **Blackwell Only**: Requires SM100/SM120 native FP4 Tensor Core
-- **Memory Savings**: Model size ~35% smaller than FP8 (9.9GB vs 15.3GB for 14B)
-
-### Test Configuration
+#### Test Configuration
 
 | Parameter | Value |
 |-----------|-------|
 | **Model** | Qwen3-14B-NVFP4 vs Qwen3-14B-FP8 (Local pre-quantized) |
 | **Quantization** | NVFP4 W4A4 (compressed-tensors) |
 | **Framework** | vLLM 0.12.0 (native CUTLASS NVFP4 kernel) |
-| **Benchmark Tool** | vLLM 0.12.0 (native CUTLASS NVFP4 kernel) |
 | **Workload** | 200 prompts, 512 input tokens, 128 output tokens |
 
-### Test Results
+#### Test Results
 
 | Precision | Model | Input Tokens | Output Tokens | Time | Output TPS |
 |-----------|-------|-------------:|-------------:|-----:|----------:|
 | **NVFP4 (W4A4)** | Qwen3-14B-NVFP4 | 102,400 | 25,600 | 9.22s | **2,777 tok/s** |
 | **FP8 (W8A8)** | Qwen3-14B-FP8 | 102,400 | 25,600 | 12.75s | **2,009 tok/s** |
 
-### Performance Comparison
-
 ```
 NVFP4 vs FP8 Output Throughput (Qwen3-14B, RTX PRO 6000 Blackwell)
-═════════════════════════════════════════════════════════════
-NVFP4 (W4A4)    ███████████████████████████████████████████  2,777 tok/s (+38%)
-FP8 (W8A8)      ████████████████████████████                 2,009 tok/s (baseline)
-═════════════════════════════════════════════════════════════
+══════════════════════════════════════════════════════════════════
+NVFP4 (W4A4)    ██████████████████████████████████████████  2,777 tok/s (+38%)
+FP8 (W8A8)      ██████████████████████████████              2,009 tok/s (baseline)
+══════════════════════════════════════════════════════════════════
 ```
 
-### Key Metrics Comparison
+#### Key Metrics Comparison
 
 | Metric | NVFP4 (W4A4) | FP8 (W8A8) | Difference |
 |--------|--------------|------------|------------|
@@ -216,7 +303,7 @@ FP8 (W8A8)      █████████████████████�
 | **KV Cache Available** | 65.5 GiB | 60.1 GiB | +9% |
 | **Inference Time** | **9.22s** | 12.75s | **-28%** |
 
-### Pitfalls ⚠️
+#### NVFP4 Known Issues ⚠️
 
 | Issue | Cause | Solution |
 |-------|-------|----------|
@@ -224,7 +311,7 @@ FP8 (W8A8)      █████████████████████�
 | vLLM 0.13.0 shows "platform does not support cutlass NVFP4" | vLLM 0.13.0 removed SM120 NVFP4 support | **Downgrade to vLLM 0.12.0** |
 | FlashInfer 0.5.3 has no fp4 module | Version too old | Compile FlashInfer 0.6.0rc2 |
 
-### Environment Requirements
+#### NVFP4 Environment Requirements
 
 ```bash
 # Must use vLLM 0.12.0 (0.13.0 doesn't support SM120 NVFP4)
@@ -233,55 +320,15 @@ pip install vllm==0.12.0
 # Verify NVFP4 support
 python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'NVFP4 support: {cutlass_scaled_mm_supports_fp4(120)}')"
 # Expected output: NVFP4 support: True
-
-# Run benchmark
-vllm bench serve \
-  --backend openai-chat \
-  --base-url http://localhost:8000 \
-  --endpoint /v1/chat/completions \
-  --model /path/to/model \
-  --dataset-name random \
-  --random-input-len 1024 \
-  --random-output-len 256 \
-  --num-prompts 100 \
-  --max-concurrency 16 \
-  --request-rate inf
 ```
-
-### Conclusions
-
-1. **NVFP4 is 38% faster than FP8** - Blackwell native FP4 Tensor Core acceleration is significant
-2. **Lower latency across the board** - TTFT 40% faster, TPOT 33% faster
-3. **Lower memory usage** - Smaller model = larger KV Cache = higher concurrency potential
-4. **Blackwell exclusive advantage** - H100/A100 cannot use NVFP4, only RTX PRO 6000 Blackwell supports it
-5. **Version sensitive** - Must use vLLM 0.12.0, 0.13.0 removed SM120 support
 
 > 💡 **Recommendation**: On RTX PRO 6000 Blackwell, prefer NVFP4 quantized models for **38% extra performance** over FP8.
 
-
-## 4.1.1 Tensor Parallel (TP=1 vs TP=2) Benchmark
+### 4.2 Tensor Parallel (TP=1 vs TP=2) Benchmark
 
 > ⚠️ **RTX PRO 6000 Dual GPU**: Testing when TP=2 provides benefits over TP=1
 
-### Background
-
-When a single RTX PRO 6000 cannot fully utilize both GPUs for a small model, or when a large model benefits from tensor parallelism across 2 GPUs:
-- **TP=1**: Single GPU inference, model fits in one GPU
-- **TP=2**: Tensor parallel across 2 GPUs, model weights split across GPUs
-![images](./images/1.png)
-
-### Test Configuration
-
-| Parameter | Value |
-|-----------|-------|
-| **Framework** | vLLM 0.12.0 |
-| **Small Model** | Qwen3-14B-FP8 (for TP overhead comparison) |
-| **Large Model** | Qwen2.5-VL-72B-Instruct-FP8-dynamic |
-| **Benchmark Tool** | vLLM 0.12.0 (native CUTLASS NVFP4 kernel) |
-| **Workload** | 64 prompts, 512 input tokens, 256 output tokens, concurrency=16 |
-| **KV Cache** | FP8 |
-
-### Small Model Results (Qwen3-14B-FP8)
+#### Small Model Results (Qwen3-14B-FP8)
 
 | Configuration | Output Throughput | TTFT | TPOT |
 |---------------|------------------:|-----:|-----:|
@@ -291,7 +338,7 @@ When a single RTX PRO 6000 cannot fully utilize both GPUs for a small model, or 
 
 > ⚠️ **14B model is too small for TP=2 benefit** - The communication overhead between GPUs outweighs the parallelism benefit.
 
-### Large Model Results (Qwen2.5-VL-72B-FP8)
+#### Large Model Results (Qwen2.5-VL-72B-FP8)
 
 | Configuration | Output Throughput | TTFT | TPOT |
 |---------------|------------------:|-----:|-----:|
@@ -299,102 +346,20 @@ When a single RTX PRO 6000 cannot fully utilize both GPUs for a small model, or 
 | **TP=2** | **294.77 tok/s** | 1801 ms | 47.42 ms |
 | **Difference** | **+27.0%** | +6.3% slower | **-24.2% faster** |
 
-
-(base) root@rtx6000vm:~# nvidia-smi
-Sat Dec 27 01:34:21 2025       
-+-----------------------------------------------------------------------------------------+
-| NVIDIA-SMI 580.105.08             Driver Version: 580.105.08     CUDA Version: 13.0     |
-+-----------------------------------------+------------------------+----------------------+
-| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
-| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
-|                                         |                        |               MIG M. |
-|=========================================+========================+======================|
-|   0  NVIDIA RTX Pro 6000 Blac...    On  |   00000002:00:00.0 Off |                   On |
-| N/A   N/A    P0            N/A  /  N/A  |   93716MiB /  98304MiB |     N/A      Default |
-|                                         |                        |              Enabled |
-+-----------------------------------------+------------------------+----------------------+
-|   1  NVIDIA RTX Pro 6000 Blac...    On  |   00000003:00:00.0 Off |                   On |
-| N/A   N/A    P0            N/A  /  N/A  |   93716MiB /  98304MiB |     N/A      Default |
-|                                         |                        |              Enabled |
-+-----------------------------------------+------------------------+----------------------+
-
-+-----------------------------------------------------------------------------------------+
-| MIG devices:                                                                            |
-+------------------+----------------------------------+-----------+-----------------------+
-| GPU  GI  CI  MIG |              Shared Memory-Usage |        Vol|        Shared         |
-|      ID  ID  Dev |                Shared BAR1-Usage | SM     Unc| CE ENC  DEC  OFA  JPG |
-|                  |                                  |        ECC|                       |
-|==================+==================================+===========+=======================|
-|  0    0   0   0  |           93716MiB / 94895MiB    |188      0 |  4   4    4    1    4 |
-|                  |               3MiB /   256MiB    |           |                       |
-+------------------+----------------------------------+-----------+-----------------------+
-|  1    0   0   0  |           93716MiB / 94895MiB    |188      0 |  4   4    4    1    4 |
-|                  |               3MiB /   256MiB    |           |                       |
-+------------------+----------------------------------+-----------+-----------------------+
-
-+-----------------------------------------------------------------------------------------+
-| Processes:                                                                              |
-|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
-|        ID   ID                                                               Usage      |
-|=========================================================================================|
-|    0    0    0            10078      C   VLLM::Worker_TP0                      93712MiB |
-|    1    0    0            10079      C   VLLM::Worker_TP1                      93712MiB |
-+-----------------------------------------------------------------------------------------+
-
-### Robustness Verification (Day 2 Retest)
-
-To verify the stability and reproducibility of benchmark results, we re-ran the same tests on Day 2:
-
-| Metric | Day 1 TP=1 | Day 2 TP=1 | Variance | Day 1 TP=2 | Day 2 TP=2 | Variance |
-|--------|-----------|-----------|----------|-----------|-----------|----------|
-| **Output Throughput** | 232.02 tok/s | 231.50 tok/s | **-0.2%** | 294.77 tok/s | 296.46 tok/s | **+0.6%** |
-| **TPOT** | 62.57 ms | 62.40 ms | -0.3% | 47.42 ms | 46.76 ms | -1.4% |
-| **TTFT** | 1695 ms | 1779 ms | +5.0% | 1801 ms | 1891 ms | +5.0% |
-
-> ✅ **Conclusion: Results are highly stable** - Throughput variance <1%, demonstrating excellent reproducibility.
-
-### GPU-to-GPU Communication Bandwidth (PCIe Gen5, No NVLink)
-
-During TP=2 inference, the two GPUs communicate via PCIe. Measured P2P bandwidth:
-
-| Direction | Bandwidth | Notes |
-|-----------|-----------|-------|
-| **GPU0 → GPU1** | **41.26 GB/s** | PCIe Gen5 x16 |
-| **GPU1 → GPU0** | **44.46 GB/s** | PCIe Gen5 x16 |
-| **NCCL AllReduce** | **~43.5 GB/s** | Bidirectional aggregate |
-
-> ⚠️ **PCIe Gen5 (~43 GB/s unidirectional) bandwidth is limited** - NVLink provides ~450 GB/s unidirectional (~10x faster). PCIe is the bottleneck for TP>1. 72B models still achieve 27% improvement, but larger models or TP>2 may be constrained.
-
-### Visualization
-
 ```
 TP=1 vs TP=2 Output Throughput Comparison
-═════════════════════════════════════════════════════════════
+══════════════════════════════════════════════════════════════════
 Qwen3-14B (Small Model - TP overhead dominates)
-  TP=1    ██████████████████████████████████████████  276.02 tok/s (baseline)
-  TP=2    ████████████████████████████████████████▌   266.19 tok/s (-3.6%)
+  TP=1    ███████████████████████████████████████████  276.02 tok/s (baseline)
+  TP=2    █████████████████████████████████████████▌   266.19 tok/s (-3.6%)
 
 Qwen2.5-VL-72B (Large Model - TP benefit realized)
-  TP=1    ██████████████████████████████████████      232.02 tok/s (baseline)
-  TP=2    ████████████████████████████████████████████████  294.77 tok/s (+27%)
-═════════════════════════════════════════════════════════════
+  TP=1    ███████████████████████████████████████      232.02 tok/s (baseline)
+  TP=2    ███████████████████████████████████████████████████  294.77 tok/s (+27%)
+══════════════════════════════════════════════════════════════════
 ```
 
-### Key Findings
-
-1. **Model size determines TP benefit**
-   - Small models (<30B): TP=2 adds overhead, **use TP=1**
-   - Large models (>70B): TP=2 provides **25-35% speedup**
-
-2. **TPOT (Time per Output Token) improves significantly with TP=2**
-   - 72B model: 62.57ms → 47.42ms (**24% faster per token**)
-   - This is due to parallel matrix operations across 2 GPUs
-
-3. **TTFT (Time to First Token) slightly increases with TP=2**
-   - Cross-GPU synchronization adds ~100ms latency
-   - Acceptable tradeoff for higher throughput
-
-### Recommendations
+#### TP Recommendations
 
 | Model Size | Recommended Config | Reason |
 |------------|-------------------|--------|
@@ -404,34 +369,11 @@ Qwen2.5-VL-72B (Large Model - TP benefit realized)
 
 > 💡 **Rule of thumb**: Only use TP=2 when a single GPU cannot fit the model comfortably, or when the model is large enough (>70B) to benefit from parallel computation.
 
----
-## 4.2 SGLang BF16/FP8 Three-GPU Comparison (200 Concurrent)
+### 4.3 SGLang BF16/FP8 Three-GPU Comparison (200 Concurrent)
 
 > Test Date: 2025-12 | Framework: SGLang 0.5.6.post2 + FlashInfer 0.5.3
 
-### Background
-
-Comparing H100, RTX PRO 6000, and A100 GPUs under **high concurrency (200 prompts)** for BF16 vs FP8 inference performance:
-
-- **BF16**: Original precision, no quantization
-- **FP8**: Pre-quantized model (RedHatAI/Qwen2.5-14B-Instruct-FP8-dynamic)
-- **Native FP8 Tensor Core**: H100 (Hopper) and RTX PRO 6000 (Blackwell) support native FP8, A100 requires Marlin fallback
-
-### Test Configuration
-
-| Parameter | Value |
-|-----------|-------|
-| **Framework** | SGLang 0.5.6.post2 |
-| **FlashInfer** | 0.5.3 |
-| **Model (BF16)** | Qwen/Qwen2.5-14B-Instruct |
-| **Model (FP8)** | RedHatAI/Qwen2.5-14B-Instruct-FP8-dynamic |
-| **Concurrency** | 200 prompts |
-| **Input** | 512 tokens |
-| **Output** | 128 tokens |
-| **request_rate** | inf (stress test) |
-| **random_range_ratio** | 0.0 (fixed length) |
-
-### Test Results
+#### Test Results
 
 | GPU | BF16 (tok/s) | FP8 (tok/s) | FP8 vs BF16 | FP8 Implementation |
 |-----|-------------:|------------:|:-----------:|:------------------:|
@@ -439,72 +381,15 @@ Comparing H100, RTX PRO 6000, and A100 GPUs under **high concurrency (200 prompt
 | **RTX PRO 6000 96GB** | 1,579 | 2,353 | **+49%** | Native FP8 Tensor Core |
 | **A100 80GB PCIe** | 1,196 | - | - | Marlin fallback |
 
-> ⚠️ **A100 Note**: A100 SGLang 200 concurrent only has BF16 test data, FP8 test not saved. A100 lacks native FP8 Tensor Core, requires Marlin kernel fallback.
+> ⚠️ **A100 Note**: A100 lacks native FP8 Tensor Core, requires Marlin kernel fallback.
 
-### Visualization
-
-```
-SGLang 200 Concurrent BF16 Throughput (tok/s)
-═════════════════════════════════════════════════════════════
-H100 NVL        ████████████████████████████████████████████  2,197 tok/s
-RTX PRO 6000    ████████████████████████████████              1,579 tok/s
-A100 PCIe       ████████████████████████                      1,196 tok/s
-═════════════════════════════════════════════════════════════
-
-SGLang 200 Concurrent FP8 Throughput (tok/s)
-═════════════════════════════════════════════════════════════
-H100 NVL        ████████████████████████████████████████████  2,681 tok/s
-RTX PRO 6000    ████████████████████████████████████████      2,353 tok/s
-A100 PCIe       (not tested)
-═════════════════════════════════════════════════════════════
-```
-
-### Test Method
-
-```bash
-# SGLang server start (BF16)
-python -m sglang.launch_server \
-  --model-path Qwen/Qwen2.5-14B-Instruct \
-  --dtype bfloat16 \
-  --tp 1 --port 30000
-
-# SGLang server start (FP8, RTX PRO 6000 best config)
-python -m sglang.launch_server \
-  --model-path RedHatAI/Qwen2.5-14B-Instruct-FP8-dynamic \
-  --attention-backend triton \
-  --kv-cache-dtype fp8_e4m3 \
-  --tp 1 --port 30000
-
-# Benchmark command
-python -m sglang.bench_serving --backend sglang \
-  --dataset-name random --num-prompts 200 \
-  --random-input-len 512 --random-output-len 128 \
-  --random-range-ratio 0.0 \
-  --host 127.0.0.1 --port 30000
-```
-
-### Pitfalls ⚠️
+#### SGLang Known Issues ⚠️
 
 | Issue | Cause | Solution |
 |-------|-------|----------|
 | **3x throughput difference** | `--random-range-ratio` defaults to 1.0 (random length) | Use **0.0** for benchmark (fixed length) |
 | **Runtime quantization OOM** | `--quantization fp8` OOM at startup | Must use **pre-quantized FP8 model** |
 | **FlashInfer version** | v0.2.0 is 1.5x slower than FA2 | Use **v0.5.3+** |
-| **Cannot reproduce results** | total_input_tokens differs | **Compare JSON output total_input_tokens first** |
-
-### Key Findings
-
-1. **Native FP8 support makes a significant difference**
-   - H100/RTX PRO 6000: Native FP8 Tensor Core, 22-49% speedup
-   - A100: Marlin fallback, ~29% speedup (based on vLLM 50 concurrent data)
-
-2. **RTX PRO 6000 has the highest FP8 speedup (+49%)**
-   - Blackwell architecture has more aggressive FP8 optimization
-   - From 1,579 to 2,353 tok/s
-
-3. **Test parameters have huge impact**
-   - `random_range_ratio=0.0`: Tests cache-friendly limit (Radix Cache hit)
-   - `random_range_ratio=1.0`: Tests real workload scenario (no cache)
 
 ---
 
@@ -523,8 +408,17 @@ python -m sglang.bench_serving --backend sglang \
 | GPU | Training Time | Speed (s/step) | vs H100 |
 |-----|---------|--------------|-----------|
 | **H100 NVL** | **19.74 min** | **11.84** | **100%** |
-| **RTX 6000 MIG** | 25.14 min | 15.09 | 78.5% |
+| **RTX 6000** | 25.14 min | 15.09 | 78.5% |
 | **A100 PCIe** | 36.98 min | 22.19 | 53.4% |
+
+```
+Training Speed (s/step, Lower is Faster)
+════════════════════════════════════════════════════════════════
+H100 NVL          ████████████ 11.84s (100%)
+RTX 6000          ███████████████ 15.09s (78.5%)
+A100 80GB         ███████████████████████ 22.19s (53.4%)
+════════════════════════════════════════════════════════════════
+```
 
 ---
 
@@ -541,11 +435,13 @@ python -m sglang.bench_serving --backend sglang \
 ### Test Results
 
 | GPU | Avg Time | Images/min | Relative Performance |
-|-----|---------|-----------|----------|
-| **H100 NVL** | **1.25s** | **47.8 ** | **100%** |
-| **RTX 6000** | **1.42s** | **42.3 ** | **88%** |
-| **A100 PCIe** | **2.16s** | **27.8 ** | **58%** |
+|-----|---------|------------|----------|
+| **H100 NVL** | **1.25s** | **47.8** | **100%** |
+| **RTX 6000** | **1.42s** | **42.3** | **88%** |
+| **A100 PCIe** | **2.16s** | **27.8** | **58%** |
 | **A10 24GB** | ❌ **OOM** | - | - |
+
+> ⚠️ A10 cannot run FLUX.1 - requires ~34GB VRAM, A10 only has 24GB
 
 ---
 
@@ -554,7 +450,7 @@ python -m sglang.bench_serving --backend sglang \
 ### Test Results
 
 | GPU | **Pure Render Time** | Relative Performance |
-|-----|---------------|----------|
+|-----|---------------|--------|
 | **RTX 6000** | **~2.15s** | **3.76x** ✅ |
 | **A10** | **~8.08s** | 1.00x (Baseline) |
 
@@ -567,8 +463,8 @@ python -m sglang.bench_serving --backend sglang \
 ### Single Stream Test Results (H.264)
 
 | Preset | RTX 6000 | A10 | Winner |
-|--------|----------|-----|------|
-| **P1 (Fastted)** | 167 fps | 197 fps | A10 +18% |
+|--------|----------|-----|-----|
+| **P1 (Fastest)** | 167 fps | 197 fps | A10 +18% |
 | **P4 (Balance)** | **129 fps** | 97 fps | **RTX 6000 +33%** ✅ |
 | **P7 (High quality)** | **87 fps** | 60 fps | **RTX 6000 +45%** ✅ |
 
@@ -580,14 +476,69 @@ python -m sglang.bench_serving --backend sglang \
 | 4 streams | **313 fps** | 87 fps* | **3.6x** |
 | 12 streams | **348 fps** | 87 fps* | **4.0x** |
 
-> *A10 vGPU mode only supports single stream parallel  
+> *A10 vGPU mode only supports single stream parallel
 > **Note**: H100/A100 have no NVENC, cannot perform this test
 
 ---
 
+## 9. Deployment Guide
+
+### Azure vGPU Driver Installation
+
+**Critical**: Must use Azure-specific vGPU driver
+
+| Driver Version | Type | Result | Reason |
+|----------------|------|--------|--------|
+| CUDA 12.6 (560.35.05) | Standard CUDA | ❌ Failed | PCI ID not in support list |
+| Tesla 580.105.08 standard | Datacenter driver | ❌ Failed | "vGPU not supported by open nvidia.ko" |
+| Azure GRID 550.144.06 | Old vGPU | ❌ Failed | Blackwell too new |
+| **580.105.08-grid-azure** | **Azure vGPU** | ✅ **Success** | Azure custom driver |
+
+**Installation**:
+```bash
+# Download
+wget https://download.microsoft.com/download/85beffdc-8361-4df4-a823-dcb1b230a7aa/NVIDIA-Linux-x86_64-580.105.08-grid-azure.run
+
+# Install
+sudo sh NVIDIA-Linux-x86_64-580.105.08-grid-azure.run --silent --dkms
+
+# Verify
+nvidia-smi
+```
+
+### vGPU Monitoring Solution
+
+**Problem**: Standard `nvidia-smi` shows N/A for GPU utilization in vGPU environment
+
+| Metric | Standard nvidia-smi | Reason |
+|--------|---------------------|--------|
+| GPU Utilization | ❌ **N/A** | vGPU isolation, cannot access physical SM |
+| Memory Usage | ✅ Normal | Virtualization passthrough |
+| Temperature/Power | ❌ **N/A** | Physical metrics blocked |
+
+**Solution**: Use GPM (GPU Performance Metrics)
+
+```bash
+# Get SM utilization and occupancy
+nvidia-smi dmon --gpm-metrics 2,3 --gpm-options m -c 4
+```
+
+| Metric ID | Name | Description |
+|-----------|------|-------------|
+| 2 | SM Activity (smutil) | **SM Utilization** ✅ |
+| 3 | SM Occupancy (smocc) | **SM Occupancy** ✅ |
+
+### OS Compatibility Status
+
+| OS | NCv6 Status | Notes |
+|----|-------------|-------|
+| **Ubuntu 24.04** | ✅ Verified Working | Recommended |
+| **Rocky Linux 9.6** | ⚠️ Requires validation | Check NVIDIA driver support |
+| **Debian 12** | ⚠️ Unverified | NV driver claims support, not tested on Azure |
+
+---
+
 ## Four GPU Comprehensive Comparison
-
-
 
 ### 🏆 Scenario Recommendations
 
@@ -596,10 +547,10 @@ python -m sglang.bench_serving --backend sglang \
 | **3D Rendering/Animation** | 🥇 **RTX 6000** | RT Core crushing advantage, H100/A100 not supported |
 | **AI Image Gen (Performance)** | 🥇 H100 > 🥈 RTX 6000 > 🥉 A100 | H100 fastest, RTX 6000 52% faster than A100 |
 | **Video Transcode (Multi-stream)** | 🥇 **RTX 6000** > 🥈 A10 | 4x throughput advantage, H100/A100 not supported |
-| **AI Video Generation (Includes MP4 Output)** | 🥇 **RTX 6000** > 🥈 A10 | H100/A100 None NVENC，Could not output vedio |
-| **LLM Reasoning (Performance Focus)** | 🥇 H100 > 🥈 RTX 6000 > 🥉 A100 | H100 is fastest ，RTX 6000 is 92% |
+| **AI Video Generation (Includes MP4 Output)** | 🥇 **RTX 6000** > 🥈 A10 | H100/A100 have no NVENC, cannot output video |
+| **LLM Inference (Performance Focus)** | 🥇 H100 > 🥈 RTX 6000 > 🥉 A100 | H100 is fastest, RTX 6000 is 92% |
 | **LLM Training (>70B)** | 🥇 H100 > 🥈 A100 | Requires NVLink multi-GPU, RTX 6000 not supported |
-| **SFT Fine-tuning (Performance)** | 🥇 H100 > 🥈 RTX 6000 > 🥉 A100 | H100 fastest, RTX 6000 47% faster than A100 |
+| **SFT Fine-tuning (Performance)** | 🥇 H100 > 🥈 RTX 6000 > 🥉 A100 | H100 fastest, RTX 6000 1.47x faster than A100 |
 | **Cloud Gaming/VDI** | 🥇 **RTX 6000** > 🥈 A10 | RT Core + NVENC, H100/A100 not supported |
 | **Live Streaming** | 🥇 **RTX 6000** > 🥈 A10 | NVENC Gen9 vs Gen7, H100/A100 no NVENC |
 
@@ -607,12 +558,10 @@ python -m sglang.bench_serving --backend sglang \
 
 | GPU | Positioning | Advantages | Limitations |
 |-----|------|------|------|
-| **RTX 6000** | All-round Professional | Complete hardware units, full pipeline, 96GB GDDR7, 128 vCPU | No NVLink |
+| **RTX 6000** | All-round Professional | Complete hardware units, full pipeline, 96GB GDDR7 | No NVLink |
 | **H100** | Pure AI Compute | Strongest Tensor Core, 94GB HBM3, NVLink | **No NVENC, No RT Core** |
 | **A100** | AI Training/Inference | Mature ecosystem, 80GB HBM2e, NVLink | **No NVENC, No RT Core** |
-| **A10** | Inference/Graphics/VDI | Has NVENC + RT Core, supports GPU partitioning, 440GB memory | Small VRAM (24GB) |
-
-
+| **A10** | Inference/Graphics/VDI | Has NVENC + RT Core, supports GPU partitioning | Small VRAM (24GB) |
 
 ---
 
@@ -682,3 +631,14 @@ Expected output on RTX PRO 6000 (PCIe Gen5, no NVLink):
 | `gpu_p2p_bandwidth_test.py` | Measure GPU P2P bandwidth | Bandwidth (GB/s), NVLink/PCIe detection |
 
 ---
+
+## Document History
+
+| Date | Version | Changes |
+|------|---------|---------|
+| 2026-01-24 | 2.0 | Added: Precision theory, torch.compile optimization, vGPU monitoring, deployment guide |
+| 2025-12-28 | 1.0 | Initial release with benchmark results |
+
+---
+
+*Report Author: Xinyu Wei*
