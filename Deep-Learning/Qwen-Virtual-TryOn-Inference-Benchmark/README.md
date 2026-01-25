@@ -297,7 +297,7 @@ flowchart TB
   </tr>
   <tr>
     <td><img src="images/model_input.jpg" width="300"/></td>
-    <td><img src="images/garment_input.jpg" width="300"/></td>
+    <td><img src="images/00736_00.jpg" width="300"/></td>
   </tr>
 </table>
 
