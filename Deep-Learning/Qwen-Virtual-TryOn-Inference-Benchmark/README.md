@@ -18,6 +18,8 @@ Comprehensive benchmark comparing inference engines for **Qwen-Image-Edit-2511**
 
 > **Key Finding**: vLLM-Omni delivers **3.1x speedup** while maintaining or improving output quality. Cache-DiT provides **6.8x speedup** but with visible quality degradation.
 
+![images](./images/vllm_omni_comparison.png)
+
 ## Table of Contents
 
 - [Technical Background](#technical-background)
