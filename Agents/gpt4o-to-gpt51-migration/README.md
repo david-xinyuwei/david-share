@@ -294,6 +294,52 @@ Azure OpenAI prompt caching requires:
 - No quality degradation observed
 - `reasoning_effort="none"` matches GPT-4o behavior
 
+
+## CoT Abuse Safety Guide
+
+### What is CoT Abuse?
+
+**Chain-of-Thought (CoT) Abuse** refers to prompts that excessively trigger the model's internal reasoning process.
+
+### Risky Phrases
+
+The following phrases are known to trigger reasoning processes in reasoning-capable models:
+
+| # | Phrase | Risk Level | Why Risky |
+|---|--------|------------|-----------|
+| 1 | "think step by step" | 🔴 High | Explicitly triggers chain-of-thought |
+| 2 | "explain your reasoning" | 🔴 High | Requests internal reasoning output |
+| 3 | "show me your thought process" | 🔴 High | Attempts to expose internal CoT |
+| 4 | "detailed reasoning process" | 🟡 Medium | May trigger extended reasoning |
+| 5 | "enhance your reasoning process" | 🟡 Medium | Requests reasoning amplification |
+
+
+### Code Example
+
+```python
+from openai import AzureOpenAI
+
+client = AzureOpenAI(...)
+
+# ✅ Recommended: Significantly reduces CoT Abuse risk
+response = client.responses.create(
+    model="gpt-5.1",
+    input="Your prompt (even with 'think step by step')",
+    reasoning={"effort": "none"},  # Critical setting!
+)
+
+# Verify reasoning_tokens (should be 0)
+print(f"reasoning_tokens: {response.usage.reasoning_tokens}")  # Expected: 0
+```
+
+### Important Notes
+
+1. **CoT Abuse detection is async** - API requests are not rejected in real-time; violations are detected by backend monitoring
+2. **`reasoning_effort=none` significantly reduces risk** - generates 0 reasoning_tokens, minimizing abuse pattern signals
+3. **This is not a guarantee** - always review your prompts and monitor usage patterns
+
+
+
 ## Migration Recommendations
 
 ### When to Use Each Model

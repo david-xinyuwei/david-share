@@ -282,6 +282,53 @@ Azure OpenAI Prompt 缓存需要：
 - 未观察到质量下降
 - `reasoning_effort="none"` 匹配 GPT-4o 行为
 
+
+
+## CoT Abuse 安全指南
+
+### 什么是 CoT Abuse？
+
+**Chain-of-Thought (CoT) Abuse（思维链滥用）** 是指提示词过度触发模型内部推理过程。
+
+### 高风险短语
+
+以下短语已知会在具备推理能力的模型中触发推理过程：
+
+| # | 短语 | 风险等级 | 为何有风险 |
+|---|------|----------|-----------|
+| 1 | "think step by step" | 🔴 高 | 明确触发思维链 |
+| 2 | "explain your reasoning" | 🔴 高 | 请求输出内部推理 |
+| 3 | "show me your thought process" | 🔴 高 | 尝试暴露内部 CoT |
+| 4 | "detailed reasoning process" | 🟡 中 | 可能触发扩展推理 |
+| 5 | "enhance your reasoning process" | 🟡 中 | 请求推理增强 |
+
+
+
+### 代码示例
+
+```python
+from openai import AzureOpenAI
+
+client = AzureOpenAI(...)
+
+# ✅ 推荐：大大降低 CoT Abuse 风险
+response = client.responses.create(
+    model="gpt-5.1",
+    input="您的提示词（即使包含 'think step by step'）",
+    reasoning={"effort": "none"},  # 关键配置！
+)
+
+# 验证 reasoning_tokens（应为 0）
+print(f"reasoning_tokens: {response.usage.reasoning_tokens}")  # 预期: 0
+```
+
+### 重要说明
+
+1. **CoT Abuse 检测是异步的** - API 请求不会被实时拒绝；违规由后台监控检测
+2. **`reasoning_effort=none` 大大降低风险** - 产生 0 个 reasoning_tokens，最小化滥用模式信号
+3. **这不是绝对保证** - 请始终审查您的提示词并监控使用模式
+
+
 ## 迁移建议
 
 ### 何时使用各模型
