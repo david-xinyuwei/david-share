@@ -10,15 +10,18 @@
 
 | 引擎 | 耗时 | vs 基线 | 加速比 | 质量 | 状态 |
 |------|------|---------|--------|------|------|
-| diffusers 基线 | 88.67s | - | 1.0x | ✅ 参考 | 基线 |
+| diffusers 基线 (无 CFG) | **70.31s** | - | 1.0x | ✅ 参考 | 基线 |
+| diffusers 基线 (有 CFG=4.0) | 142.47s | +102.6% | 0.49x | ✅ 参考 | CFG 启用 |
 | diffusers + torch.compile | 73.74s | -16.8% | **1.2x** | ✅ 一致 | ✅ 稳定 |
 | SGLang | 67.81s | -23.5% | **1.3x** | ✅ 良好 | ✅ 稳定 |
 | **vLLM-Omni** | **28.96s** | **-67.3%** | **3.1x** | **✅ 更好** | **✅ 推荐** |
+| vLLM-Omni (有 CFG=4.0) | 58.90s | -16.2% | **1.2x** | ✅ 更好 | ✅ CFG 启用 |
+| **vLLM-Omni TP=2** | **17.85s** | **-74.6%** | **3.9x** | **✅ 更好** | **✅ 多 GPU** |
+| **vLLM-Omni TP=2 + CFG** | **35.59s** | **-49.4%** | **2.0x** | **✅ 更好** | **✅ 多 GPU + CFG** |
 | vLLM-Omni + Cache-DiT | 12.99s | -85.3% | **6.8x** | ⚠️ 有损 | ⚠️ 质量折中 |
+| ComfyUI-GGUF (Q4) | 115.11s | +29.8% | 0.8x | ✅ 良好 | ⚠️ 缓慢 (仅限边缘端) |
 
 > **核心发现**: vLLM-Omni 实现 **3.1 倍加速**，同时保持或提升输出质量。Cache-DiT 可实现 **6.8 倍加速**，但有可见的质量下降。
-
-![images](./images/vllm_omni_comparison.png)
 
 ## 目录
 
@@ -64,6 +67,66 @@ flowchart LR
 | **VAE (Variational Autoencoder，变分自编码器)** | 压缩/解压图像 | 潜空间 ↔ 像素空间 |
 
 **为什么 Diffusers 重要**：它是行业标准框架。当我们说"基线"时，指的是直接通过 diffusers 运行模型，不加额外优化。
+
+
+### ViT vs DiT：理解 vs 生成
+
+在深入优化技术之前，先理解 Qwen-Image-Edit 中两个核心 Transformer 架构：
+
+| | **ViT** | **DiT** |
+|---|---------|---------|
+| **全称** | Vision Transformer（视觉 Transformer） | Diffusion Transformer（扩散 Transformer） |
+| **用途** | 👀 **理解**图像 | 🎨 **生成**图像 |
+| **任务方向** | 图像 → 语义 | 语义 → 图像 |
+| **在 Qwen-Image-Edit 中的角色** | Qwen2.5-VL（语义编码器） | MMDiT（生成骨干网络） |
+
+**记忆口诀**：
+- **V**iT = **V**iew（看）= 理解
+- **D**iT = **D**raw（画）= 生成
+
+```mermaid
+flowchart TB
+    subgraph INPUT["输入处理 ViT 风格"]
+        I1["模特图"] --> VL["Qwen2.5-VL"]
+        I2["衣服图"] --> VL
+        I3["文字提示"] --> VL
+        I1 --> VAE["VAE 编码器"]
+        I2 --> VAE
+    end
+
+    subgraph CORE["MMDiT 核心 DiT 风格"]
+        VL --> |"语义特征"| DIT["DiT Transformer 20B"]
+        VAE --> |"潜空间 Tokens"| DIT
+    end
+
+    subgraph OUTPUT["输出生成"]
+        DIT --> |"40步去噪"| DECODE["VAE 解码器"]
+        DECODE --> RESULT["换装结果"]
+    end
+
+    style INPUT fill:#e3f2fd
+    style CORE fill:#fff3e0
+    style OUTPUT fill:#c8e6c9
+```
+
+**Qwen-Image-Edit 的双编码架构**：
+
+| 组件 | 架构类型 | 功能 |
+|------|----------|------|
+| **Qwen2.5-VL** | ViT 风格 | 理解"模特长什么样"和"衣服是什么款式" |
+| **VAE Encoder** | CNN | 将图像压缩到潜空间 |
+| **MMDiT** | DiT（200亿参数） | 通过去噪生成换装结果 |
+| **VAE Decoder** | CNN | 从潜空间重建最终图像 |
+
+**为什么需要 ViT 和 DiT 结合？**
+
+| 只用 ViT | 只用 DiT | **ViT + DiT** |
+|----------|----------|---------------|
+| 能理解，不能生成 | 能生成，理解能力弱 | ✅ 既能理解又能生成 |
+| 无法创建新内容 | 条件控制不够精准 | ✅ 精准的语义控制 |
+
+> **核心洞察**：本 Benchmark 中的优化技术（vLLM-Omni、Cache-DiT、torch.compile）主要针对 **DiT 组件**，因为它占据了约 90% 的推理计算量。
+
 
 ### 什么是 vLLM-Omni？
 
@@ -131,8 +194,18 @@ flowchart LR
 
 **代码示例**：
 ```python
-# 对于 Qwen-Image-Edit，使用 true_cfg_scale（不是 guidance_scale）
-pipe(..., true_cfg_scale=4.0)
+# ⚠️ 重要：Qwen-Image-Edit-2511 不是 guidance-distilled 模型
+# `guidance_scale` 参数会被忽略！
+
+# ❌ 错误 - 这个参数不起作用：
+pipe(..., guidance_scale=4.0)  # 会被静默忽略！
+
+# ✅ 正确 - 要启用真正的 CFG，必须同时使用两个参数：
+pipe(..., 
+     negative_prompt=" ",      # 必须！即使是空格也行
+     true_cfg_scale=4.0        # 这样 CFG 才真正生效
+)
+# 注意：真正的 CFG 会使推理时间翻倍（2次前向传播）
 ```
 
 ### 什么是推理步数（Steps）？
@@ -163,7 +236,18 @@ flowchart LR
 
 **代码示例**：
 ```python
-pipe(..., num_inference_steps=40)
+# ⚠️ 重要：Qwen-Image-Edit-2511 不是 guidance-distilled 模型
+# `guidance_scale` 参数会被忽略！
+
+# ❌ 错误 - 这个参数不起作用：
+pipe(..., guidance_scale=4.0)  # 会被静默忽略！
+
+# ✅ 正确 - 要启用真正的 CFG，必须同时使用两个参数：
+pipe(..., 
+     negative_prompt=" ",      # 必须！即使是空格也行
+     true_cfg_scale=4.0        # 这样 CFG 才真正生效
+)
+# 注意：真正的 CFG 会使推理时间翻倍（2次前向传播）
 ```
 
 ### 什么是 Cache-DiT？
@@ -204,8 +288,8 @@ flowchart TB
 ```python
 # Cache-DiT 配置
 cache_config = {
-    "max_warmup_steps": <tuned>,  # 联系获取优化值           # 前 N 步完整计算
-    "residual_diff_threshold": <tuned>  # 联系获取优化值  # 变化 < 阈值时跳过块
+    "max_warmup_steps": 4,           # 前 N 步完整计算
+    "residual_diff_threshold": 0.24  # 变化 < 阈值时跳过块
 }
 ```
 
@@ -237,7 +321,18 @@ flowchart TB
 
 **代码示例**：
 ```python
-pipe.transformer = torch.compile(pipe.transformer, mode="default")
+# ⚠️ 重要：Qwen-Image-Edit-2511 不是 guidance-distilled 模型
+# `guidance_scale` 参数会被忽略！
+
+# ❌ 错误 - 这个参数不起作用：
+pipe(..., guidance_scale=4.0)  # 会被静默忽略！
+
+# ✅ 正确 - 要启用真正的 CFG，必须同时使用两个参数：
+pipe(..., 
+     negative_prompt=" ",      # 必须！即使是空格也行
+     true_cfg_scale=4.0        # 这样 CFG 才真正生效
+)
+# 注意：真正的 CFG 会使推理时间翻倍（2次前向传播）
 ```
 
 ### 综合运用
@@ -284,7 +379,7 @@ flowchart TB
 | **均衡** | vLLM-Omni | 29秒（3.1x）⭐ |
 | **速度优先** | vLLM-Omni + Cache-DiT | 13秒（6.8x）|
 
-## 可视化对比
+## 可视化对比	
 
 ### 输入图像
 
@@ -301,11 +396,6 @@ flowchart TB
 
 
 
-
-​    
-
-
-
 ### 输出对比
 
 <table>
@@ -317,9 +407,10 @@ flowchart TB
   <tr>
     <td><img src="images/output_baseline.png" width="250"/></td>
     <td><img src="images/output_compile.png" width="250"/></td>
-    <td><img src="images/output_vllm_omni.png" width="250"/></td>
+    <td><img src="images/output_compile.png" width="250"/></td>
   </tr>
 </table>
+
 
 <table>
   <tr>
@@ -331,6 +422,30 @@ flowchart TB
     <td><img src="images/output_vllm_cache_dit.png" width="250"/></td>
   </tr>
 </table>
+
+
+### CFG 模式对比
+
+> CFG (Classifier-Free Guidance，无分类器引导) 会使计算量翻倍，但可以提升输出质量。
+>
+> **Attention Backend 对比**：FlashInfer 0.5.3 与 Flash Attention 2.8.3 性能**完全一致**（差异 <0.5%）。
+
+
+
+
+### 张量并行 (TP=2) 性能
+
+> 使用 2× H100 NVL GPU 进行张量并行，进一步加速。
+
+
+| 配置 | 耗时 | vs TP=1 | vs diffusers | 说明 |
+|------|------|---------|--------------|------|
+| vLLM TP=1 无 CFG | 28.98s | - | 2.43x | 单 GPU 基线 |
+| **vLLM TP=2 无 CFG** | **17.85s** | **1.62x** | **3.94x** | 2× H100 NVL |
+| vLLM TP=1 有 CFG | 58.90s | - | 2.42x | 单 GPU 启用 CFG |
+| **vLLM TP=2 有 CFG** | **35.59s** | **1.65x** | **4.00x** | 2× H100 NVL 启用 CFG |
+
+**关键发现**：张量并行相比单 GPU vLLM-Omni 提供约 **1.6 倍额外加速**，相比 diffusers 基线实现近 **4 倍加速**。
 
 ## 三层优化框架
 
@@ -440,6 +555,45 @@ flowchart TB
 
 ## 关键发现
 
+### ⚠️ 发现 0：CFG 参数陷阱 - `guidance_scale` 被忽略！
+
+**这是使用 Qwen-Image-Edit-2511 时最常见的坑！**
+
+| 参数 | 效果 | 时间影响 |
+|------|------|----------|
+| `guidance_scale=4.0` | ❌ **被忽略** - 不起作用！ | 无 |
+| 只设 `true_cfg_scale=4.0` | ❌ 仍无效（会显示警告） | 无 |
+| `negative_prompt=" "` + `true_cfg_scale=4.0` | ✅ **CFG 生效** | **慢 2 倍** |
+
+**根本原因**：Qwen-Image-Edit-2511 **不是 guidance-distilled 模型**。`guidance_scale` 参数被 pipeline 静默忽略。
+
+**实测验证 (H100, 40 步, 1340×1785 分辨率)**：
+
+| 模式 | 配置 | 耗时 | 说明 |
+|------|------|------|------|
+| **无 CFG** | 不设 `negative_prompt`，不设 `true_cfg_scale` | **70.31s** | 单次前向传播 |
+| **有 CFG** | `negative_prompt=" "` + `true_cfg_scale=4.0` | **142.47s** | 2 倍时间（符合预期）|
+
+**代码示例**：
+```python
+# ❌ 错误 - guidance_scale 不起作用：
+result = pipe(prompt=prompt, image=images, guidance_scale=4.0)  # 被忽略！
+
+# ✅ 正确 - 无 CFG（最快）：
+result = pipe(prompt=prompt, image=images, num_inference_steps=40)
+
+# ✅ 正确 - 有 CFG（慢 2 倍，但可能提升质量）：
+result = pipe(
+    prompt=prompt,
+    image=images, 
+    num_inference_steps=40,
+    negative_prompt=" ",       # 必须！触发 CFG 模式
+    true_cfg_scale=4.0         # 现在 CFG 才真正生效
+)
+```
+
+> **血泪教训**：如果你的 Benchmark 显示 CFG=4.0 和 CFG=1.0 耗时一样，**说明你的 CFG 根本没生效**！
+
 ### ⚠️ 发现 1: torch.compile dynamic=True 的 NaN Bug
 
 使用 `torch.compile(mode="reduce-overhead", dynamic=True)` 时，输出图像会被 NaN 值损坏。
@@ -483,9 +637,15 @@ vLLM-Omni 的加速可能导致**脚部位置和鞋子**等细节发生意外变
 | 简单提示词 | 28.34s | ❌ 位置改变 |
 | **优化提示词** | **28.22s** | **✅ 保持一致** |
 
-**关键洞察**: 精心设计的提示词可以引导模型保留特定细节，同时保持 3.1 倍加速。该技术涉及明确的要求和规避语句。
+**优化提示词模板:**
 
-> 💡 *提示词工程细节可应企业客户要求提供。*
+```
+Replace the clothing on the model in image 1 with the garment shown in image 2.
+Requirements: Keep model pose, feet position, shoes exactly same. Maintain lighting, shadows, fine details.
+Avoid: Changed feet position, swapped legs, different shoes, blurry output.
+```
+
+**关键洞察**: 在正向提示词中明确包含 "Avoid" 语句（而不是使用 negative_prompt 参数），可以有效引导模型保持细节，同时保持 3.1 倍加速。
 
 ![完整对比](images/full_comparison.png)
 
@@ -502,18 +662,34 @@ vLLM-Omni 的加速可能导致**脚部位置和鞋子**等细节发生意外变
 | 纽扣数量 | ❌ 可能改变 | ✅ 精确数量 |
 | 肩带图案 | ❌ 被简化 | ✅ 保持原样 |
 
-**关键技巧**（概要）:
+**效果展示 - vLLM-Omni 保留蝴蝶结 (28.96秒):**
 
-| 技巧 | 用途 |
-|------|------|
-| **明确提及** | 告诉模型服装上有什么 |
-| **负向引导** | 告诉模型不要添加什么 |
-| **计数** | 确保数量准确 |
+<img src="images/bow_preserved_vllm_omni.png" width="800"/>
+
+*左: 模特输入 | 中: 带肩带蝴蝶结的服装 | 右: vLLM-Omni 输出，蝴蝶结完整保留 ✅*
+
+**服装细节优化提示词模板:**
+
+```
+Replace clothing on the model with the garment shown.
+CRITICAL - Preserve garment details exactly:
+- The garment has a BOW/RIBBON on the shoulder strap - KEEP IT exactly as shown
+- Shoulder strap is PLAIN BLACK with NO additional decorations - DO NOT add beads or pearls
+- Count and preserve ALL buttons exactly as shown in garment image
+Requirements: Maintain exact garment details, preserve model pose and face.
+```
+
+**关键技巧:**
+
+| 技巧 | 用途 | 示例 |
+|------|------|------|
+| **明确提及** | 告诉模型什么存在 | "has a BOW on shoulder strap" |
+| **负向引导** | 告诉模型不要添加什么 | "DO NOT add beads or pearls" |
+| **计数** | 确保数量准确 | "preserve ALL 8 buttons" |
 
 **根因**: 扩散模型在去噪过程中倾向于"幻觉"或"简化"小细节。明确的提示词可以锚定模型的注意力，保留特定特征。
 
-> 💡 *详细的提示词模板和可视化示例可应企业客户要求提供。*
-
+![images](./images/vllm_omni_comparison.png)
 
 ## 我们尝试过的方案（及失败原因）
 
@@ -533,6 +709,53 @@ vLLM-Omni 的加速可能导致**脚部位置和鞋子**等细节发生意外变
 |------|------|
 | 20B 模型 OOM | CUDA Graphs 需要额外显存捕获计算图 |
 | @lru_cache 不兼容 | MSRoPE (Multi-Scale Rotary Position Embedding，多尺度旋转位置编码) 位置编码破坏了图捕获 |
+
+### ❌ GGUF 量化 (ComfyUI)
+
+| 引擎 | 格式 | 耗时 | vs vLLM | 显存 |
+|------|------|------|---------|------|
+| vLLM-Omni | BF16 | **28.96s** | 基准 | ~32GB |
+| ComfyUI-GGUF | Q4_K_M | 115.11s | **慢 4 倍** | ~12GB |
+
+**根因：反量化瓶颈 (Dequantization Bottleneck)**
+
+GGUF（原 GGML）的设计目标是通过 Int4/Q4 存储权重来**降低内存带宽压力**。这在带宽受限的设备上很有效：
+
+```mermaid
+flowchart LR
+    subgraph EDGE["边缘设备 CPU/Mac"]
+        E1["带宽小"] --> E2["Q4 节省 IO"]
+        E2 --> E3["反量化开销可接受"]
+        E3 --> E4["✅ 更快"]
+    end
+    
+    subgraph DC["数据中心 H100"]
+        D1["带宽巨大 3.35TB/s"] --> D2["BF16 IO 无压力"]
+        D3["Q4 每次 MatMul 都要反量化"] --> D4["❌ 算力浪费"]
+    end
+```
+
+- **CPU/低显存 GPU**：带宽是瓶颈。读取小体积的 Q4 并展开成 FP16，比读取大体积的 FP16 更快。
+- **H100**：带宽充裕（3.35 TB/s）。**每次矩阵乘法都要 Q4→FP16 转换的计算开销**成为新瓶颈。
+
+**NVFP4 硬件支持缺口**
+
+我们调研了 NVIDIA Blackwell 的 **NVFP4** 能否解决这个问题：
+
+| 格式 | 支持情况 | 硬件加速 |
+|------|----------|----------|
+| MXFP4 (Block Scaling) | ✅ llama.cpp 支持 | ❌ 纯软件实现 |
+| **NVFP4** | ❌ llama.cpp 不支持 | ✅ 需要 TensorRT-LLM/vLLM |
+
+**部署场景推荐**
+
+| 场景 | 推荐方案 | 原因 |
+|------|----------|------|
+| **数据中心 (H100/A100)** | vLLM/SGLang (BF16/FP8) | 最大化算力；显存不是约束 |
+| **消费级 GPU (4090/3090)** | AutoGPTQ/AWQ | 平衡显存与速度 |
+| **边缘端 (MacBook/低显存)** | GGUF | 唯一能塞下模型的方案；速度是次要的 |
+
+**结论**：GGUF 非常适合显存受限的边缘设备，但在高端数据中心 GPU 上会引入巨大的性能开销。
 
 ### ❌ SGLang 默认配置
 
@@ -566,7 +789,10 @@ pip install torch>=2.5.0 transformers accelerate Pillow
 
 ### 运行基准测试
 
-> 💡 *基准测试脚本可应企业客户要求提供。*
+```bash
+cd benchmarks
+bash run_all.sh
+```
 
 ## 运行日志示例
 
@@ -641,8 +867,8 @@ Qwen Virtual Try-On Benchmark - vLLM-Omni + Cache-DiT
 Device: cuda (NVIDIA H100 NVL)
 Model: Qwen/Qwen-Image-Edit-2511
 Cache Backend: cache_dit
-  - max_warmup_steps: <tuned>
-  - residual_diff_threshold: <tuned>
+  - max_warmup_steps: 4
+  - residual_diff_threshold: 0.24
 Steps: 40, CFG: 4.0, Seed: 42
 ------------------------------------------------------------
 Starting vLLM-Omni server with Cache-DiT...
@@ -665,6 +891,86 @@ Speedup vs Baseline: 6.83x 🚀🚀
 ⚠️ Note: Cache-DiT may cause quality degradation
 ============================================================
 ✅ Saved: ../images/output_vllm_cache_dit.png
+```
+
+
+### vLLM-Omni TP=2 (张量并行)
+
+```
+============================================================
+vLLM-Omni TP=2 Benchmark - NO CFG
+============================================================
+vllm-omni: 0.14.0rc1
+GPU 0: NVIDIA H100 NVL
+GPU 1: NVIDIA H100 NVL
+Model: Qwen/Qwen-Image-Edit-2511
+Steps: 40, Seed: 1, TP: 2, CFG: DISABLED
+------------------------------------------------------------
+Garment: (1340, 1785), Model: (1340, 1785)
+
+Loading vLLM-Omni with TP=2...
+Loaded in 45.2s
+
+Warmup: 2 runs
+  Warmup 1: 18.12s
+  Warmup 2: 17.89s
+
+Benchmark: 5 runs
+  Run 1: 17.63s
+  Run 2: 17.74s
+  Run 3: 17.82s
+  Run 4: 17.98s
+  Run 5: 18.11s
+
+Saved: output_vllm_tp2_nocfg.png (896x1184)
+
+============================================================
+All runs: [17.63, 17.74, 17.82, 17.98, 18.11]
+Trimmed (drop min/max): [17.74, 17.82, 17.98]
+RESULT (TP=2, NO CFG): 17.85s ± 0.100s
+Speedup vs TP=1 (28.98s): 1.62x
+Speedup vs diffusers (70.31s): 3.94x 🚀
+============================================================
+```
+
+
+### vLLM-Omni TP=2 (张量并行)
+
+```
+============================================================
+vLLM-Omni TP=2 Benchmark - NO CFG
+============================================================
+vllm-omni: 0.14.0rc1
+GPU 0: NVIDIA H100 NVL
+GPU 1: NVIDIA H100 NVL
+Model: Qwen/Qwen-Image-Edit-2511
+Steps: 40, Seed: 1, TP: 2, CFG: DISABLED
+------------------------------------------------------------
+Garment: (1340, 1785), Model: (1340, 1785)
+
+Loading vLLM-Omni with TP=2...
+Loaded in 45.2s
+
+Warmup: 2 runs
+  Warmup 1: 18.12s
+  Warmup 2: 17.89s
+
+Benchmark: 5 runs
+  Run 1: 17.63s
+  Run 2: 17.74s
+  Run 3: 17.82s
+  Run 4: 17.98s
+  Run 5: 18.11s
+
+Saved: output_vllm_tp2_nocfg.png (896x1184)
+
+============================================================
+All runs: [17.63, 17.74, 17.82, 17.98, 18.11]
+Trimmed (drop min/max): [17.74, 17.82, 17.98]
+RESULT (TP=2, NO CFG): 17.85s ± 0.100s
+Speedup vs TP=1 (28.98s): 1.62x
+Speedup vs diffusers (70.31s): 3.94x 🚀
+============================================================
 ```
 
 ## 基准测试方法论
@@ -707,9 +1013,14 @@ Qwen-Virtual-TryOn-Inference-Benchmark/
 ├── README-CN.md              # 中文文档（本文件）
 ├── requirements.txt          # 依赖
 ├── LICENSE                   # MIT 许可证
+├── benchmarks/               # 示例代码（精简版）
+│   ├── diffusers_baseline.py # diffusers 基线示例
+│   ├── diffusers_compile.py  # torch.compile 示例
+│   ├── vllm_omni_baseline.py # vLLM-Omni 示例
+│   └── sglang_test.py        # SGLang 示例
 └── images/
-    ├── model_input.jpg       # 测试模特图
-    ├── 00736_00.jpg          # 测试服装图
+    ├── model_input.jpg       # 测试模特图 (576x1024)
+    ├── garment.jpg           # 测试服装图 (1340x1785)
     └── output_*.png          # 基准测试输出
 ```
 
@@ -725,7 +1036,7 @@ Qwen-Virtual-TryOn-Inference-Benchmark/
 **魏新宇 (Xinyu Wei)**
 
 - GitHub: [@xinyuwei-david](https://github.com/xinyuwei-david)
-- 职位: Microsoft GBB AI TSP
+- 职位: Microsoft AI and Apps Global Black Belt (GBB) Senior System Engineer
 
 ## 许可证
 

@@ -13,12 +13,16 @@ Comprehensive benchmark comparing inference engines for **Qwen-Image-Edit-2511**
 | diffusers Baseline | 88.67s | - | 1.0x | ✅ Reference | Baseline |
 | diffusers + torch.compile | 73.74s | -16.8% | **1.2x** | ✅ Identical | ✅ Stable |
 | SGLang | 67.81s | -23.5% | **1.3x** | ✅ Good | ✅ Stable |
-| **vLLM-Omni** | **28.96s** | **-67.3%** | **3.1x** | **✅ Better** | **✅ Recommended** |
+| **vLLM-Omni** (FlashInfer) | **28.98s** | **-58.8%** | **2.4x** | **✅ Better** | **✅ Recommended** |
+| **vLLM-Omni** (FlashAttn 2) | **28.89s** | **-58.9%** | **2.4x** | **✅ Better** | **✅ Recommended** |
+| vLLM-Omni + CFG (FlashInfer) | 58.90s | -16.2% | **1.2x** | ✅ Better | ✅ CFG enabled |
+| vLLM-Omni + CFG (FlashAttn 2) | 58.66s | -16.5% | **1.2x** | ✅ Better | ✅ CFG enabled |
+| **vLLM-Omni TP=2** | **17.85s** | **-74.6%** | **3.9x** | **✅ Better** | **✅ Multi-GPU** |
+| **vLLM-Omni TP=2 + CFG** | **35.59s** | **-49.4%** | **2.0x** | **✅ Better** | **✅ Multi-GPU + CFG** |
 | vLLM-Omni + Cache-DiT | 12.99s | -85.3% | **6.8x** | ⚠️ Lossy | ⚠️ Quality Trade-off |
+| ComfyUI-GGUF (Q4) | 115.11s | +29.8% | 0.8x | ✅ Good | ⚠️ Slow (Edge Only) |
 
 > **Key Finding**: vLLM-Omni delivers **3.1x speedup** while maintaining or improving output quality. Cache-DiT provides **6.8x speedup** but with visible quality degradation.
-
-![images](./images/vllm_omni_comparison.png)
 
 ## Table of Contents
 
@@ -64,6 +68,66 @@ flowchart LR
 | **VAE (Variational Autoencoder)** | Compresses/decompresses images | Latent space ↔ Pixel space |
 
 **Why Diffusers matters**: It's the standard framework. When we say "baseline", we mean running the model through diffusers without extra optimizations.
+
+
+### ViT vs DiT: Understanding vs Generating
+
+Before diving into optimization, it's crucial to understand the two fundamental Transformer architectures in Qwen-Image-Edit:
+
+| | **ViT** | **DiT** |
+|---|---------|---------|
+| **Full Name** | Vision Transformer | Diffusion Transformer |
+| **Purpose** | 👀 **Understanding** images | 🎨 **Generating** images |
+| **Task Direction** | Image → Semantics | Semantics → Image |
+| **Role in Qwen-Image-Edit** | Qwen2.5-VL (semantic encoder) | MMDiT (generation backbone) |
+
+**Memory trick**:
+- **V**iT = **V**iew = Understanding
+- **D**iT = **D**raw = Generating
+
+```mermaid
+flowchart TB
+    subgraph INPUT["Input Processing (ViT-style)"]
+        I1[Model Image] --> VL["Qwen2.5-VL"]
+        I2[Garment Image] --> VL
+        I3[Text Prompt] --> VL
+        I1 --> VAE[VAE Encoder]
+        I2 --> VAE
+    end
+
+    subgraph CORE["MMDiT Core (DiT-style)"]
+        VL --> |"Semantic Features"| DIT[DiT Transformer 20B]
+        VAE --> |"Latent Tokens"| DIT
+    end
+
+    subgraph OUTPUT["Output Generation"]
+        DIT --> |"40 Denoising Steps"| DECODE[VAE Decoder]
+        DECODE --> RESULT[Try-On Result]
+    end
+
+    style INPUT fill:#e3f2fd
+    style CORE fill:#fff3e0
+    style OUTPUT fill:#c8e6c9
+```
+
+**Qwen-Image-Edit's Dual-Encoding Architecture**:
+
+| Component | Architecture Type | Function |
+|-----------|------------------|----------|
+| **Qwen2.5-VL** | ViT-style | Understands "what the model looks like" and "what garment style is" |
+| **VAE Encoder** | CNN | Compresses images to latent space |
+| **MMDiT** | DiT (20B params) | Generates the try-on result through denoising |
+| **VAE Decoder** | CNN | Reconstructs final image from latents |
+
+**Why both ViT and DiT?**
+
+| ViT Only | DiT Only | **ViT + DiT** |
+|----------|----------|---------------|
+| Can understand, cannot generate | Can generate, weak understanding | ✅ Understands AND generates |
+| No new content creation | Imprecise condition control | ✅ Precise semantic control |
+
+> **Key Insight**: The optimization techniques in this benchmark (vLLM-Omni, Cache-DiT, torch.compile) primarily target the **DiT component** since it dominates computation (~90% of inference time).
+
 
 ### What is vLLM-Omni?
 
@@ -202,14 +266,12 @@ flowchart TB
 
 **Parameters**:
 ```python
-# Cache-DiT configuration (parameters tuned for quality-speed balance)
+# Cache-DiT configuration
 cache_config = {
-    "max_warmup_steps": <tuned>,           # Contact for optimized values
-    "residual_diff_threshold": <tuned>     # Contact for optimized values
+    "max_warmup_steps": 4,           # Full computation for first N steps
+    "residual_diff_threshold": 0.24  # Skip block if change < threshold
 }
 ```
-
-> 💡 *Optimized Cache-DiT parameters are available for enterprise customers.*
 
 ### What is torch.compile?
 
@@ -312,9 +374,10 @@ flowchart TB
   <tr>
     <td><img src="images/output_baseline.png" width="250"/></td>
     <td><img src="images/output_compile.png" width="250"/></td>
-    <td><img src="images/output_vllm_omni.png" width="250"/></td>
+    <td><img src="images/output_compile.png" width="250"/></td>
   </tr>
 </table>
+
 
 <table>
   <tr>
@@ -326,6 +389,26 @@ flowchart TB
     <td><img src="images/output_vllm_cache_dit.png" width="250"/></td>
   </tr>
 </table>
+
+
+### CFG Mode Comparison
+
+> CFG (Classifier-Free Guidance) doubles the computation but can improve output quality.
+> 
+> **Attention Backend Comparison**: FlashInfer 0.5.3 vs Flash Attention 2.8.3 show **identical performance** (<0.5% difference).
+
+### Tensor Parallel (TP=2) Performance
+
+> Using 2× H100 NVL GPUs with Tensor Parallelism for further acceleration.
+
+| Configuration | Time | vs TP=1 | vs diffusers | Note |
+|---------------|------|---------|--------------|------|
+| vLLM TP=1 NO CFG | 28.98s | - | 2.43x | Single GPU baseline |
+| **vLLM TP=2 NO CFG** | **17.85s** | **1.62x** | **3.94x** | 2× H100 NVL |
+| vLLM TP=1 WITH CFG | 58.90s | - | 2.42x | Single GPU with CFG |
+| **vLLM TP=2 WITH CFG** | **35.59s** | **1.65x** | **4.00x** | 2× H100 NVL with CFG |
+
+**Key Insight**: Tensor Parallelism provides **~1.6x additional speedup** over single-GPU vLLM-Omni, achieving nearly **4x speedup** compared to diffusers baseline.
 
 ## Three-Layer Optimization Framework
 
@@ -435,6 +518,47 @@ flowchart TB
 
 ## Critical Findings
 
+### ⚠️ Finding 0: CFG Parameter Trap - `guidance_scale` is IGNORED!
+
+**This is the most common pitfall when using Qwen-Image-Edit-2511!**
+
+| Parameter | Effect | Time Impact |
+|-----------|--------|-------------|
+| `guidance_scale=4.0` | ❌ **IGNORED** - Does nothing! | None |
+| Only `true_cfg_scale=4.0` | ❌ Still ineffective (shows warning) | None |
+| `negative_prompt=" "` + `true_cfg_scale=4.0` | ✅ **CFG works** | **2x slower** |
+
+**Root Cause**: Qwen-Image-Edit-2511 is **NOT a guidance-distilled model**. The `guidance_scale` parameter is silently ignored by the pipeline.
+
+**Verified Test (H100, 40 steps, 1340×1785 resolution)**:
+
+| Mode | Configuration | Time | Note |
+|------|---------------|------|------|
+| **NO CFG** | No `negative_prompt`, no `true_cfg_scale` | **70.31s** | Single forward pass |
+| **WITH CFG** | `negative_prompt=" "` + `true_cfg_scale=4.0` | **142.47s** | 2x time (as expected) |
+
+**Code Example**:
+
+```python
+# ❌ WRONG - guidance_scale does nothing:
+result = pipe(prompt=prompt, image=images, guidance_scale=4.0)  # IGNORED!
+
+# ✅ CORRECT - NO CFG (fastest):
+result = pipe(prompt=prompt, image=images, num_inference_steps=40)
+
+# ✅ CORRECT - WITH CFG (2x slower, but may improve quality):
+result = pipe(
+    prompt=prompt,
+    image=images,
+    num_inference_steps=40,
+    negative_prompt=" ",       # Required! Triggers CFG mode
+    true_cfg_scale=4.0         # Now CFG actually works
+)
+```
+
+> **Lesson Learned**: If your benchmark shows CFG=4.0 and CFG=1.0 take the same time, **your CFG is not working at all**!
+
+
 ### ⚠️ Finding 1: NaN Bug in torch.compile dynamic=True
 
 When using `torch.compile(mode="reduce-overhead", dynamic=True)`, output images are corrupted with NaN values.
@@ -478,9 +602,15 @@ vLLM-Omni's acceleration may cause unintended changes to details like **feet pos
 | Simple prompt | 28.34s | ❌ Changed position |
 | **Optimized prompt** | **28.22s** | **✅ Preserved** |
 
-**Key Insight**: Carefully designed prompts can guide the model to preserve specific details while maintaining the 3.1x speedup. The technique involves explicit requirements and avoidance statements.
+**Optimized Prompt Template:**
 
-> 💡 *Prompt engineering details are available upon request for enterprise customers.*
+```
+Replace the clothing on the model in image 1 with the garment shown in image 2.
+Requirements: Keep model pose, feet position, shoes exactly same. Maintain lighting, shadows, fine details.
+Avoid: Changed feet position, swapped legs, different shoes, blurry output.
+```
+
+**Key Insight**: Including explicit "Avoid" statements in the positive prompt (instead of using negative_prompt parameter) effectively guides the model to preserve details while maintaining the 3.1x speedup.
 
 ![Full Comparison](images/full_comparison.png)
 
@@ -497,17 +627,35 @@ Diffusion models may fail to preserve small but important garment details like *
 | Button count | ❌ May change | ✅ Exact count |
 | Strap pattern | ❌ Simplified | ✅ Maintained |
 
-**Key Techniques** (high-level):
+**Visual Proof - Bow Preserved with vLLM-Omni (28.96s):**
 
-| Technique | Purpose |
-|-----------|---------|
-| **Explicit mention** | Tell model what EXISTS in the garment |
-| **Negative guidance** | Tell model what NOT to add |
-| **Counting** | Ensure quantity accuracy |
+<img src="images/bow_preserved_vllm_omni.png" width="800"/>
+
+*Left: Model input | Middle: Garment with bow on shoulder strap | Right: vLLM-Omni output with bow preserved ✅*
+
+**Optimized Prompt Template for Garment Details:**
+
+```
+Replace clothing on the model with the garment shown.
+CRITICAL - Preserve garment details exactly:
+- The garment has a BOW/RIBBON on the shoulder strap - KEEP IT exactly as shown
+- Shoulder strap is PLAIN BLACK with NO additional decorations - DO NOT add beads or pearls
+- Count and preserve ALL buttons exactly as shown in garment image
+Requirements: Maintain exact garment details, preserve model pose and face.
+```
+
+**Key Techniques:**
+
+| Technique | Purpose | Example |
+|-----------|---------|---------|
+| **Explicit mention** | Tell model what EXISTS | "has a BOW on shoulder strap" |
+| **Negative guidance** | Tell model what NOT to add | "DO NOT add beads or pearls" |
+| **Counting** | Ensure quantity accuracy | "preserve ALL 8 buttons" |
 
 **Root Cause**: Diffusion models tend to "hallucinate" or "simplify" small details during the denoising process. Explicit prompts anchor the model's attention to preserve specific features.
 
-> 💡 *Detailed prompt templates and visual examples are available for enterprise customers.*
+![vLLM-Omni Comparison](./images/vllm_omni_comparison.png)
+
 
 
 ## What We Tried (and Why They Failed)
@@ -528,6 +676,53 @@ Diffusion models may fail to preserve small but important garment details like *
 |-------|--------|
 | OOM on 20B model | CUDA Graphs need extra VRAM for graph capture |
 | @lru_cache incompatible | MSRoPE (Multi-Scale Rotary Position Embedding) position encoding breaks graph capture |
+
+### ❌ GGUF Quantization (via ComfyUI)
+
+| Engine | Format | Time | vs vLLM | VRAM |
+|--------|--------|------|---------|------|
+| vLLM-Omni | BF16 | **28.96s** | Baseline | ~32GB |
+| ComfyUI-GGUF | Q4_K_M | 115.11s | **4x slower** | ~12GB |
+
+**Root Cause: Dequantization Bottleneck**
+
+GGUF (formerly GGML) is designed to reduce memory bandwidth pressure by storing weights in Int4/Q4. This works well on bandwidth-limited devices:
+
+```mermaid
+flowchart LR
+    subgraph EDGE["Edge Device (CPU/Mac)"]
+        E1[Small Bandwidth] --> E2[Q4 Saves IO]
+        E2 --> E3[Dequant Cost OK]
+        E3 --> E4["✅ Faster"]
+    end
+    
+    subgraph DC["Data Center (H100)"]
+        D1[Huge Bandwidth 3.35TB/s] --> D2[BF16 IO is Fine]
+        D3[Q4 Dequant Every MatMul] --> D4["❌ Compute Wasted"]
+    end
+```
+
+- **On CPU/Low-VRAM GPU**: Bandwidth is the bottleneck. Reading small Q4 and expanding to FP16 is faster than reading massive FP16.
+- **On H100**: Bandwidth is abundant (3.35 TB/s). The **computational cost of Q4→FP16 conversion for every matrix multiplication** becomes the new bottleneck.
+
+**NVFP4 Hardware Gap**
+
+We investigated if NVIDIA Blackwell's **NVFP4** would fix this:
+
+| Format | Support | Hardware Acceleration |
+|--------|---------|----------------------|
+| MXFP4 (Block Scaling) | ✅ llama.cpp | ❌ Software only |
+| **NVFP4** | ❌ llama.cpp | ✅ Requires TensorRT-LLM/vLLM |
+
+**Recommendation by Deployment Scenario**
+
+| Scenario | Recommendation | Reason |
+|----------|----------------|--------|
+| **Data Center (H100/A100)** | vLLM/SGLang (BF16/FP8) | Maximize compute; VRAM is not a constraint |
+| **Consumer GPU (4090/3090)** | AutoGPTQ/AWQ | Balance VRAM and speed |
+| **Edge (MacBook/Low VRAM)** | GGUF | Only way to fit model; speed secondary |
+
+**Conclusion**: GGUF is excellent for VRAM-constrained edge devices but introduces massive overhead on high-end Data Center GPUs.
 
 ### ❌ SGLang Default Configuration
 
@@ -561,7 +756,10 @@ pip install torch>=2.5.0 transformers accelerate Pillow
 
 ### Run Benchmarks
 
-> 💡 *Benchmark scripts available for enterprise customers upon request.*
+```bash
+cd benchmarks
+bash run_all.sh
+```
 
 ## Example Output Log
 
@@ -636,8 +834,8 @@ Qwen Virtual Try-On Benchmark - vLLM-Omni + Cache-DiT
 Device: cuda (NVIDIA H100 NVL)
 Model: Qwen/Qwen-Image-Edit-2511
 Cache Backend: cache_dit
-  - max_warmup_steps: <tuned>
-  - residual_diff_threshold: <tuned>
+  - max_warmup_steps: 4
+  - residual_diff_threshold: 0.24
 Steps: 40, CFG: 4.0, Seed: 42
 ------------------------------------------------------------
 Starting vLLM-Omni server with Cache-DiT...
@@ -661,6 +859,47 @@ Speedup vs Baseline: 6.83x 🚀🚀
 ============================================================
 ✅ Saved: ../images/output_vllm_cache_dit.png
 ```
+
+
+### vLLM-Omni TP=2 (Tensor Parallel)
+
+```
+============================================================
+vLLM-Omni TP=2 Benchmark - NO CFG
+============================================================
+vllm-omni: 0.14.0rc1
+GPU 0: NVIDIA H100 NVL
+GPU 1: NVIDIA H100 NVL
+Model: Qwen/Qwen-Image-Edit-2511
+Steps: 40, Seed: 1, TP: 2, CFG: DISABLED
+------------------------------------------------------------
+Garment: (1340, 1785), Model: (1340, 1785)
+
+Loading vLLM-Omni with TP=2...
+Loaded in 45.2s
+
+Warmup: 2 runs
+  Warmup 1: 18.12s
+  Warmup 2: 17.89s
+
+Benchmark: 5 runs
+  Run 1: 17.63s
+  Run 2: 17.74s
+  Run 3: 17.82s
+  Run 4: 17.98s
+  Run 5: 18.11s
+
+Saved: output_vllm_tp2_nocfg.png (896x1184)
+
+============================================================
+All runs: [17.63, 17.74, 17.82, 17.98, 18.11]
+Trimmed (drop min/max): [17.74, 17.82, 17.98]
+RESULT (TP=2, NO CFG): 17.85s ± 0.100s
+Speedup vs TP=1 (28.98s): 1.62x
+Speedup vs diffusers (70.31s): 3.94x 🚀
+============================================================
+```
+
 
 ## Benchmark Methodology
 
@@ -702,9 +941,14 @@ Qwen-Virtual-TryOn-Inference-Benchmark/
 ├── README-CN.md              # Chinese documentation
 ├── requirements.txt          # Dependencies
 ├── LICENSE                   # MIT License
+├── benchmarks/               # Example code (simplified)
+│   ├── diffusers_baseline.py # diffusers baseline example
+│   ├── diffusers_compile.py  # torch.compile example
+│   ├── vllm_omni_baseline.py # vLLM-Omni example
+│   └── sglang_test.py        # SGLang example
 └── images/
     ├── model_input.jpg       # Test model image
-    ├── 00736_00.jpg          # Test garment image
+    ├── garment.jpg           # Test garment image
     └── output_*.png          # Benchmark outputs
 ```
 
@@ -720,7 +964,7 @@ Qwen-Virtual-TryOn-Inference-Benchmark/
 **Xinyu Wei (魏新宇)**
 
 - GitHub: [@xinyuwei-david](https://github.com/xinyuwei-david)
-- Role: GBB AI TSP @ Microsoft
+- Role: Microsoft AI and Apps Global Black Belt (GBB) Senior System Engineer
 
 ## License
 
