@@ -12,57 +12,7 @@
 
 ### 架构
 
-<table style="margin: 20px 0; border-collapse: collapse;">
-    <tr>
-        <td style="text-align: center; padding: 10px; background: #e8f4ff; border: 2px solid #0078D4; border-radius: 5px;">
-            <strong>用户 Prompt</strong>
-        </td>
-        <td style="padding: 0 15px;"></td>
-    </tr>
-    <tr>
-        <td style="text-align: center; font-size: 18px; color: #0078D4;">▼</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td style="text-align: center; padding: 12px 20px; background: #fff3e0; border: 2px solid #FF8C00; border-radius: 5px;">
-            <strong>Content Safety API</strong><br/>
-            <span style="font-size: 10pt;">+ Blocklist (赌博)</span>
-        </td>
-        <td style="padding-left: 15px; color: #666;">← 输入检测（文本）<br/><span style="font-size: 10pt;">阻止仇恨/暴力/赌博</span></td>
-    </tr>
-    <tr>
-        <td style="text-align: center; font-size: 18px; color: #107C10;">▼ 通过</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td style="text-align: center; padding: 12px 20px; background: #e8ffe8; border: 2px solid #107C10; border-radius: 5px;">
-            <strong>FLUX.2-pro (512x512)</strong><br/>
-            <span style="font-size: 10pt;">内置安全已关闭</span>
-        </td>
-        <td style="padding-left: 15px; color: #666;">← 图像生成（约6秒）</td>
-    </tr>
-    <tr>
-        <td style="text-align: center; font-size: 18px; color: #0078D4;">▼</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td style="text-align: center; padding: 12px 20px; background: #fff3e0; border: 2px solid #FF8C00; border-radius: 5px;">
-            <strong>Content Safety API</strong><br/>
-            <span style="font-size: 10pt;">图像分析</span>
-        </td>
-        <td style="padding-left: 15px; color: #666;">← 输出检测（图像）</td>
-    </tr>
-    <tr>
-        <td style="text-align: center; font-size: 18px; color: #107C10;">▼ 通过</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td style="text-align: center; padding: 10px; background: #e8f4ff; border: 2px solid #0078D4; border-radius: 5px;">
-            <strong>返回图像给用户</strong>
-        </td>
-        <td></td>
-    </tr>
-</table>
+![架构](images/architecture.png)
 
 ### 有害内容类别
 

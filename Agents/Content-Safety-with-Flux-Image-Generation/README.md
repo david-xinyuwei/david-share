@@ -12,57 +12,7 @@ This project demonstrates how to:
 
 ### Architecture
 
-<table style="margin: 20px 0; border-collapse: collapse;">
-    <tr>
-        <td style="text-align: center; padding: 10px; background: #e8f4ff; border: 2px solid #0078D4; border-radius: 5px;">
-            <strong>User Prompt</strong>
-        </td>
-        <td style="padding: 0 15px;"></td>
-    </tr>
-    <tr>
-        <td style="text-align: center; font-size: 18px; color: #0078D4;">▼</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td style="text-align: center; padding: 12px 20px; background: #fff3e0; border: 2px solid #FF8C00; border-radius: 5px;">
-            <strong>Content Safety API</strong><br/>
-            <span style="font-size: 10pt;">+ Blocklist (gambling)</span>
-        </td>
-        <td style="padding-left: 15px; color: #666;">← Input Check (Text)<br/><span style="font-size: 10pt;">Block Hate/Violence/Gambling</span></td>
-    </tr>
-    <tr>
-        <td style="text-align: center; font-size: 18px; color: #107C10;">▼ Pass</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td style="text-align: center; padding: 12px 20px; background: #e8ffe8; border: 2px solid #107C10; border-radius: 5px;">
-            <strong>FLUX.2-pro (512x512)</strong><br/>
-            <span style="font-size: 10pt;">Built-in Safety DISABLED</span>
-        </td>
-        <td style="padding-left: 15px; color: #666;">← Image Generation (~6s)</td>
-    </tr>
-    <tr>
-        <td style="text-align: center; font-size: 18px; color: #0078D4;">▼</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td style="text-align: center; padding: 12px 20px; background: #fff3e0; border: 2px solid #FF8C00; border-radius: 5px;">
-            <strong>Content Safety API</strong><br/>
-            <span style="font-size: 10pt;">Image Analyze</span>
-        </td>
-        <td style="padding-left: 15px; color: #666;">← Output Check (Image)</td>
-    </tr>
-    <tr>
-        <td style="text-align: center; font-size: 18px; color: #107C10;">▼ Pass</td>
-        <td></td>
-    </tr>
-    <tr>
-        <td style="text-align: center; padding: 10px; background: #e8f4ff; border: 2px solid #0078D4; border-radius: 5px;">
-            <strong>Return Image to User</strong>
-        </td>
-        <td></td>
-    </tr>
-</table>
+![Architecture](images/architecture.png)
 
 ### Harmful Content Categories
 
