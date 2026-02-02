@@ -12,30 +12,57 @@ This project demonstrates how to:
 
 ### Architecture
 
-```
-User Prompt
-     │
-     ▼
-┌─────────────────────────────┐
-│  Content Safety API         │  ◄── Input Check (Text)
-│  (Text Analyze)             │
-└─────────────────────────────┘
-     │ Pass
-     ▼
-┌─────────────────────────────┐
-│  FLUX.2-pro (512x512)       │  ◄── Image Generation (~6s)
-│  (Built-in Safety OFF)      │
-└─────────────────────────────┘
-     │
-     ▼
-┌─────────────────────────────┐
-│  Content Safety API         │  ◄── Output Check (Image)
-│  (Image Analyze)            │
-└─────────────────────────────┘
-     │ Pass
-     ▼
-Return Image to User
-```
+<table style="margin: 20px 0; border-collapse: collapse;">
+    <tr>
+        <td style="text-align: center; padding: 10px; background: #e8f4ff; border: 2px solid #0078D4; border-radius: 5px;">
+            <strong>User Prompt</strong>
+        </td>
+        <td style="padding: 0 15px;"></td>
+    </tr>
+    <tr>
+        <td style="text-align: center; font-size: 18px; color: #0078D4;">▼</td>
+        <td></td>
+    </tr>
+    <tr>
+        <td style="text-align: center; padding: 12px 20px; background: #fff3e0; border: 2px solid #FF8C00; border-radius: 5px;">
+            <strong>Content Safety API</strong><br/>
+            <span style="font-size: 10pt;">(Text Analyze + Blocklist)</span>
+        </td>
+        <td style="padding-left: 15px; color: #666;">← Input Check (Text)</td>
+    </tr>
+    <tr>
+        <td style="text-align: center; font-size: 18px; color: #107C10;">▼ Pass</td>
+        <td></td>
+    </tr>
+    <tr>
+        <td style="text-align: center; padding: 12px 20px; background: #e8ffe8; border: 2px solid #107C10; border-radius: 5px;">
+            <strong>FLUX.2-pro (512x512)</strong><br/>
+            <span style="font-size: 10pt;">Built-in Safety DISABLED</span>
+        </td>
+        <td style="padding-left: 15px; color: #666;">← Image Generation (~6s)</td>
+    </tr>
+    <tr>
+        <td style="text-align: center; font-size: 18px; color: #0078D4;">▼</td>
+        <td></td>
+    </tr>
+    <tr>
+        <td style="text-align: center; padding: 12px 20px; background: #fff3e0; border: 2px solid #FF8C00; border-radius: 5px;">
+            <strong>Content Safety API</strong><br/>
+            <span style="font-size: 10pt;">(Image Analyze)</span>
+        </td>
+        <td style="padding-left: 15px; color: #666;">← Output Check (Image)</td>
+    </tr>
+    <tr>
+        <td style="text-align: center; font-size: 18px; color: #107C10;">▼ Pass</td>
+        <td></td>
+    </tr>
+    <tr>
+        <td style="text-align: center; padding: 10px; background: #e8f4ff; border: 2px solid #0078D4; border-radius: 5px;">
+            <strong>Return Image to User</strong>
+        </td>
+        <td></td>
+    </tr>
+</table>
 
 ### Harmful Content Categories
 
@@ -299,28 +326,6 @@ if blocklist_matches:
 - [Content Safety REST API](https://learn.microsoft.com/en-us/rest/api/contentsafety/)
 - [Harm Categories](https://learn.microsoft.com/en-us/azure/ai-services/content-safety/concepts/harm-categories)
 - [FLUX.2-pro on Azure AI Foundry](https://ai.azure.com/)
-
----
-
-## 🐛 Troubleshooting
-
-### MCAPS Subscription Policy Issue
-
-If deploying in MCAPS subscription, `disableLocalAuth=true` policy may block API key authentication:
-
-```
-Error: Azure Policy 'Cognitive Services accounts should disable local auth methods'
-```
-
-**Solution**: Use managed identity or deploy in a different subscription.
-
-### FLUX Generation Timeout
-
-```
-Error: ReadTimeout
-```
-
-**Solution**: Use 512x512 size (6s) instead of 1024x1024 (19s). Set timeout to 60 seconds.
 
 ---
 

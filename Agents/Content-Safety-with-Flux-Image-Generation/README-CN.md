@@ -12,30 +12,57 @@
 
 ### 架构
 
-```
-用户 Prompt
-     │
-     ▼
-┌─────────────────────────────┐
-│  Content Safety API         │  ◄── 输入检测（文本）
-│  (Text Analyze)             │
-└─────────────────────────────┘
-     │ 通过
-     ▼
-┌─────────────────────────────┐
-│  FLUX.2-pro (512x512)       │  ◄── 图像生成（约6秒）
-│  (内置安全已关闭)            │
-└─────────────────────────────┘
-     │
-     ▼
-┌─────────────────────────────┐
-│  Content Safety API         │  ◄── 输出检测（图像）
-│  (Image Analyze)            │
-└─────────────────────────────┘
-     │ 通过
-     ▼
-返回图像给用户
-```
+<table style="margin: 20px 0; border-collapse: collapse;">
+    <tr>
+        <td style="text-align: center; padding: 10px; background: #e8f4ff; border: 2px solid #0078D4; border-radius: 5px;">
+            <strong>用户 Prompt</strong>
+        </td>
+        <td style="padding: 0 15px;"></td>
+    </tr>
+    <tr>
+        <td style="text-align: center; font-size: 18px; color: #0078D4;">▼</td>
+        <td></td>
+    </tr>
+    <tr>
+        <td style="text-align: center; padding: 12px 20px; background: #fff3e0; border: 2px solid #FF8C00; border-radius: 5px;">
+            <strong>Content Safety API</strong><br/>
+            <span style="font-size: 10pt;">(文本分析 + Blocklist)</span>
+        </td>
+        <td style="padding-left: 15px; color: #666;">← 输入检测（文本）</td>
+    </tr>
+    <tr>
+        <td style="text-align: center; font-size: 18px; color: #107C10;">▼ 通过</td>
+        <td></td>
+    </tr>
+    <tr>
+        <td style="text-align: center; padding: 12px 20px; background: #e8ffe8; border: 2px solid #107C10; border-radius: 5px;">
+            <strong>FLUX.2-pro (512x512)</strong><br/>
+            <span style="font-size: 10pt;">内置安全已关闭</span>
+        </td>
+        <td style="padding-left: 15px; color: #666;">← 图像生成（约6秒）</td>
+    </tr>
+    <tr>
+        <td style="text-align: center; font-size: 18px; color: #0078D4;">▼</td>
+        <td></td>
+    </tr>
+    <tr>
+        <td style="text-align: center; padding: 12px 20px; background: #fff3e0; border: 2px solid #FF8C00; border-radius: 5px;">
+            <strong>Content Safety API</strong><br/>
+            <span style="font-size: 10pt;">(图像分析)</span>
+        </td>
+        <td style="padding-left: 15px; color: #666;">← 输出检测（图像）</td>
+    </tr>
+    <tr>
+        <td style="text-align: center; font-size: 18px; color: #107C10;">▼ 通过</td>
+        <td></td>
+    </tr>
+    <tr>
+        <td style="text-align: center; padding: 10px; background: #e8f4ff; border: 2px solid #0078D4; border-radius: 5px;">
+            <strong>返回图像给用户</strong>
+        </td>
+        <td></td>
+    </tr>
+</table>
 
 ### 有害内容类别
 
@@ -299,28 +326,6 @@ if blocklist_matches:
 - [Content Safety REST API](https://learn.microsoft.com/zh-cn/rest/api/contentsafety/)
 - [有害内容类别](https://learn.microsoft.com/zh-cn/azure/ai-services/content-safety/concepts/harm-categories)
 - [Azure AI Foundry 上的 FLUX.2-pro](https://ai.azure.com/)
-
----
-
-## 🐛 故障排查
-
-### MCAPS 订阅策略问题
-
-如果在 MCAPS 订阅中部署，`disableLocalAuth=true` 策略可能会阻止 API Key 认证：
-
-```
-Error: Azure Policy 'Cognitive Services accounts should disable local auth methods'
-```
-
-**解决方案**：使用托管标识或在其他订阅（如私人订阅）中部署。
-
-### FLUX 生成超时
-
-```
-Error: ReadTimeout
-```
-
-**解决方案**：使用 512x512 尺寸（6秒）而非 1024x1024（19秒）。将超时时间设为 60 秒。
 
 ---
 
