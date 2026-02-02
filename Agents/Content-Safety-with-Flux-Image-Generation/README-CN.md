@@ -26,9 +26,9 @@
     <tr>
         <td style="text-align: center; padding: 12px 20px; background: #fff3e0; border: 2px solid #FF8C00; border-radius: 5px;">
             <strong>Content Safety API</strong><br/>
-            <span style="font-size: 10pt;">(文本分析 + Blocklist)</span>
+            <span style="font-size: 10pt;">+ Blocklist (赌博)</span>
         </td>
-        <td style="padding-left: 15px; color: #666;">← 输入检测（文本）</td>
+        <td style="padding-left: 15px; color: #666;">← 输入检测（文本）<br/><span style="font-size: 10pt;">阻止仇恨/暴力/赌博</span></td>
     </tr>
     <tr>
         <td style="text-align: center; font-size: 18px; color: #107C10;">▼ 通过</td>
@@ -48,7 +48,7 @@
     <tr>
         <td style="text-align: center; padding: 12px 20px; background: #fff3e0; border: 2px solid #FF8C00; border-radius: 5px;">
             <strong>Content Safety API</strong><br/>
-            <span style="font-size: 10pt;">(图像分析)</span>
+            <span style="font-size: 10pt;">图像分析</span>
         </td>
         <td style="padding-left: 15px; color: #666;">← 输出检测（图像）</td>
     </tr>

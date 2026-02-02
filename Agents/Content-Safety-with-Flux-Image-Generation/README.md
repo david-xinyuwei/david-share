@@ -26,9 +26,9 @@ This project demonstrates how to:
     <tr>
         <td style="text-align: center; padding: 12px 20px; background: #fff3e0; border: 2px solid #FF8C00; border-radius: 5px;">
             <strong>Content Safety API</strong><br/>
-            <span style="font-size: 10pt;">(Text Analyze + Blocklist)</span>
+            <span style="font-size: 10pt;">+ Blocklist (gambling)</span>
         </td>
-        <td style="padding-left: 15px; color: #666;">← Input Check (Text)</td>
+        <td style="padding-left: 15px; color: #666;">← Input Check (Text)<br/><span style="font-size: 10pt;">Block Hate/Violence/Gambling</span></td>
     </tr>
     <tr>
         <td style="text-align: center; font-size: 18px; color: #107C10;">▼ Pass</td>
@@ -48,7 +48,7 @@ This project demonstrates how to:
     <tr>
         <td style="text-align: center; padding: 12px 20px; background: #fff3e0; border: 2px solid #FF8C00; border-radius: 5px;">
             <strong>Content Safety API</strong><br/>
-            <span style="font-size: 10pt;">(Image Analyze)</span>
+            <span style="font-size: 10pt;">Image Analyze</span>
         </td>
         <td style="padding-left: 15px; color: #666;">← Output Check (Image)</td>
     </tr>
