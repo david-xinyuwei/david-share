@@ -27,6 +27,7 @@
 
 - [技术背景](#技术背景)
 - [可视化对比](#可视化对比)
+- [FlashAttention-3 基准测试](#flashattention-3-fa3-attention-backend-基准测试)
 - [三层优化框架](#三层优化框架)
 - [为什么 vLLM-Omni 能快 3.1 倍](#为什么-vllm-omni-能快-31-倍)
 - [关键发现](#关键发现)
@@ -428,10 +429,74 @@ flowchart TB
 
 > CFG (Classifier-Free Guidance，无分类器引导) 会使计算量翻倍，但可以提升输出质量。
 >
-> **Attention Backend 对比**：FlashInfer 0.5.3 与 Flash Attention 2.8.3 性能**完全一致**（差异 <0.5%）。
+> **Attention Backend 对比**：FlashInfer 0.5.3 与 FlashAttention 2.8.3 性能**完全一致**（差异 <0.5%）。**新增**：FA3 相比 SDPA 提供 **27% 加速**。详见 [FA3 基准测试](#flashattention-3-fa3-attention-backend-基准测试)。
 
 
 
+
+### FlashAttention-3 (FA3) Attention Backend 基准测试
+
+> **新发现 (2026-02-03)**：vLLM-Omni 通过 `fa3_fwd` 包使用 FlashAttention-3（针对推理优化的前向传播内核），相比 PyTorch SDPA 提供 **27% 的加速**。
+
+**技术背景**：
+- vLLM-Omni 的 `FLASH_ATTN` 后端从 `fa3_fwd_interface` 导入
+- `fa3_fwd` 提供针对推理优化的前向传播内核（无需反向传播）
+- 使用 Hopper sm90 内核（通过 CUDA 符号检查确认）
+
+| Backend | 环境变量 | 时间 | vs FA3 | 说明 |
+|---------|---------|------|--------|------|
+| **FA3 (FLASH_ATTN)** | `DIFFUSION_ATTENTION_BACKEND=FLASH_ATTN` | **29.68s** | - | ✅ 默认，推荐 |
+| TORCH_SDPA | `DIFFUSION_ATTENTION_BACKEND=TORCH_SDPA` | 37.65s | 慢 27% | PyTorch 原生 SDPA |
+
+**鲁棒性验证**（2 轮，seed=1）：
+
+| Backend | 第 1 轮 | 第 2 轮 | 平均 | 标准差 |
+|---------|--------|--------|------|-------|
+| FA3 | 29.41s | 29.94s | 29.68s | ±0.27s |
+| SDPA | 37.37s | 37.93s | 37.65s | ±0.28s |
+
+**图像质量**：PSNR **45.38 dB**（视觉上完全相同），76.78% 像素相同。
+
+<table>
+  <tr>
+    <td align="center"><b>FA3 (FLASH_ATTN)</b><br/>(平均 29.68s)</td>
+    <td align="center"><b>TORCH_SDPA</b><br/>(平均 37.65s，慢 27%)</td>
+  </tr>
+  <tr>
+    <td><img src="images/output_fa3.png" width="300"/></td>
+    <td><img src="images/output_sdpa.png" width="300"/></td>
+  </tr>
+</table>
+
+**结论**：FA3 提供 **27% 更快的推理速度**，质量完全相同。推荐用于 H100 GPU。
+
+#### FA3 实现验证
+
+> **发现 (2026-02-03)**：vLLM-Omni 中的 **ViT** 和 **DiT** 组件在 H100 GPU 上都使用 **FlashAttention-3**。
+
+| 组件 | Attention 后端 | 源包 | FA 版本 |
+|------|---------------|------|---------|
+| **DiT (扩散)** | `FLASH_ATTN` | `fa3_fwd` 0.0.1 | **FA3** ✅ |
+| **ViT (vLLM LLM)** | `vllm_flash_attn` | `_vllm_fa3_C` | **FA3** ✅ |
+
+**关键证据**：
+
+1. **DiT 后端**：vLLM-Omni 从 `fa3_fwd_interface` 导入，而非 `flash_attn`：
+   ```python
+   # vllm_omni/diffusion/attention/backends/flash_attn.py
+   from fa3_fwd_interface import flash_attn_func, flash_attn_varlen_func
+   ```
+
+2. **fa3_fwd 包**：`pip show fa3-fwd` 显示 `Summary: FlashAttention-3 forward`
+
+3. **ViT (vLLM LLM)**：`get_flash_attn_version()` 在 H100 (sm90) 上返回 `3`
+
+**导入链**：
+```
+vLLM-Omni
+├── DiT → fa3_fwd_interface → fa3_fwd (FA3)
+└── ViT → vllm_flash_attn._vllm_fa3_C (FA3)
+```
 
 ### 张量并行 (TP=2) 性能
 

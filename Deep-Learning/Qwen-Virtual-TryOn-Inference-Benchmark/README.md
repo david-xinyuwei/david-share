@@ -28,6 +28,7 @@ Comprehensive benchmark comparing inference engines for **Qwen-Image-Edit-2511**
 
 - [Technical Background](#technical-background)
 - [Visual Comparison](#visual-comparison)
+- [FlashAttention-3 Benchmark](#flashattention-3-fa3-attention-backend-benchmark)
 - [Three-Layer Optimization Framework](#three-layer-optimization-framework)
 - [Why vLLM-Omni is 3.1x Faster](#why-vllm-omni-is-31x-faster)
 - [Critical Findings](#critical-findings)
@@ -395,7 +396,71 @@ flowchart TB
 
 > CFG (Classifier-Free Guidance) doubles the computation but can improve output quality.
 > 
-> **Attention Backend Comparison**: FlashInfer 0.5.3 vs Flash Attention 2.8.3 show **identical performance** (<0.5% difference).
+> **Attention Backend Comparison**: FlashInfer 0.5.3 vs FlashAttention 2.8.3 show **identical performance** (<0.5% difference). **NEW**: FA3 provides **27% speedup** over SDPA. See [FA3 Benchmark](#flashattention-3-fa3-attention-backend-benchmark).
+
+### FlashAttention-3 (FA3) Attention Backend Benchmark
+
+> **New Finding (2026-02-03)**: vLLM-Omni uses FlashAttention-3 via the `fa3_fwd` package (forward-only kernels optimized for inference), providing **27% speedup** over PyTorch SDPA.
+
+**Technical Background**:
+- vLLM-Omni's `FLASH_ATTN` backend imports from `fa3_fwd_interface`, not `flash_attn`
+- `fa3_fwd` provides forward-only FA3 kernels (no backward pass needed for inference)
+- Uses Hopper sm90 kernels confirmed via CUDA symbol inspection
+
+| Backend | Environment Variable | Time | vs FA3 | Note |
+|---------|---------------------|------|--------|------|
+| **FA3 (FLASH_ATTN)** | `DIFFUSION_ATTENTION_BACKEND=FLASH_ATTN` | **29.68s** | - | ✅ Default, Recommended |
+| TORCH_SDPA | `DIFFUSION_ATTENTION_BACKEND=TORCH_SDPA` | 37.65s | +27% slower | PyTorch native SDPA |
+
+**Robustness Validation** (2 rounds, seed=1):
+
+| Backend | Round 1 | Round 2 | Avg | Std |
+|---------|---------|---------|-----|-----|
+| FA3 | 29.41s | 29.94s | 29.68s | ±0.27s |
+| SDPA | 37.37s | 37.93s | 37.65s | ±0.28s |
+
+**Image Quality**: PSNR **45.38 dB** (visually identical), 76.78% identical pixels.
+
+<table>
+  <tr>
+    <td align="center"><b>FA3 (FLASH_ATTN)</b><br/>(29.68s avg)</td>
+    <td align="center"><b>TORCH_SDPA</b><br/>(37.65s avg, 27% slower)</td>
+  </tr>
+  <tr>
+    <td><img src="images/output_fa3.png" width="300"/></td>
+    <td><img src="images/output_sdpa.png" width="300"/></td>
+  </tr>
+</table>
+
+**Conclusion**: FA3 delivers **27% faster inference** with identical quality. Recommended for H100 GPUs.
+
+#### FA3 Implementation Verification
+
+> **Finding (2026-02-03)**: Both **ViT** and **DiT** components in vLLM-Omni use **FlashAttention-3** on H100 GPUs.
+
+| Component | Attention Backend | Source Package | FA Version |
+|-----------|------------------|----------------|------------|
+| **DiT (Diffusion)** | `FLASH_ATTN` | `fa3_fwd` 0.0.1 | **FA3** ✅ |
+| **ViT (vLLM LLM)** | `vllm_flash_attn` | `_vllm_fa3_C` | **FA3** ✅ |
+
+**Key Evidence**:
+
+1. **DiT Backend**: vLLM-Omni imports from `fa3_fwd_interface`, not `flash_attn`:
+   ```python
+   # vllm_omni/diffusion/attention/backends/flash_attn.py
+   from fa3_fwd_interface import flash_attn_func, flash_attn_varlen_func
+   ```
+
+2. **fa3_fwd Package**: `pip show fa3-fwd` shows `Summary: FlashAttention-3 forward`
+
+3. **ViT (vLLM LLM)**: `get_flash_attn_version()` returns `3` for H100 (sm90)
+
+**Import Chain**:
+```
+vLLM-Omni
+├── DiT → fa3_fwd_interface → fa3_fwd (FA3)
+└── ViT → vllm_flash_attn._vllm_fa3_C (FA3)
+```
 
 ### Tensor Parallel (TP=2) Performance
 
