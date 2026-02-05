@@ -87,6 +87,42 @@
 
 ---
 
+## 🐳 为什么用 Docker 而不是 pip install？
+
+### 依赖冲突问题
+
+尝试通过 pip 安装 vLLM 0.11.2 时，遇到了**依赖冲突**：
+
+\`\`\`bash
+# ❌ pip install 失败
+pip install vllm==0.11.2
+
+# 错误: huggingface_hub 0.32.0 要求 transformers>=4.45.0，
+# 但 vllm 0.11.2 要求 transformers==4.51.3
+\`\`\`
+
+**根本原因**: vLLM 0.11.2 发布于 2025 年底，Python 生态已经演进。较新的 \`huggingface_hub\` 版本与 vLLM 0.11.2 所需的旧版 \`transformers\` 不兼容。
+
+### 解决方案：使用官方 Docker 镜像
+
+官方 Docker 镜像 \`vllm/vllm-openai:v0.11.2\` **已预锁定并测试所有依赖**：
+
+| 组件 | 版本 (Docker 内锁定) |
+|------|---------------------|
+| vLLM | 0.11.2 |
+| PyTorch | 2.9.0+cu128 |
+| transformers | 4.51.3 |
+| huggingface_hub | (兼容版本) |
+| FlashAttention | 2.8.3 |
+| FlashInfer | 0.5.2 |
+
+### 经验教训
+
+> **测试旧版 vLLM 时，务必使用 Docker 镜像以避免依赖冲突。**
+> pip install 在全新环境可能成功，但如果已安装较新的包则会失败。
+
+---
+
 ## 📈 基准测试结果 (vLLM 0.11.2 公平对比)
 
 ### FlashAttention 2 结果
@@ -143,31 +179,31 @@
 
 ### 运行基准测试
 
-```bash
+\`\`\`bash
 # 启动 vLLM 服务器 (FlashAttention 2 默认)
-docker run -d --gpus all \
-  -v <your-model-path>:/models/Qwen3-32B-FP8 \
-  -p 8088:8000 \
-  --name vllm-fa2 \
-  vllm/vllm-openai:v0.11.2 \
-  --model /models/Qwen3-32B-FP8 \
-  --max-model-len 4096 \
+docker run -d --gpus all \\
+  -v <your-model-path>:/models/Qwen3-32B-FP8 \\
+  -p 8088:8000 \\
+  --name vllm-fa2 \\
+  vllm/vllm-openai:v0.11.2 \\
+  --model /models/Qwen3-32B-FP8 \\
+  --max-model-len 4096 \\
   --gpu-memory-utilization 0.95
 
 # 启动 vLLM 服务器 (FlashInfer)
-docker run -d --gpus all \
-  -e VLLM_ATTENTION_BACKEND=FLASHINFER \
-  -v <your-model-path>:/models/Qwen3-32B-FP8 \
-  -p 8088:8000 \
-  --name vllm-fi \
-  vllm/vllm-openai:v0.11.2 \
-  --model /models/Qwen3-32B-FP8 \
-  --max-model-len 4096 \
+docker run -d --gpus all \\
+  -e VLLM_ATTENTION_BACKEND=FLASHINFER \\
+  -v <your-model-path>:/models/Qwen3-32B-FP8 \\
+  -p 8088:8000 \\
+  --name vllm-fi \\
+  vllm/vllm-openai:v0.11.2 \\
+  --model /models/Qwen3-32B-FP8 \\
+  --max-model-len 4096 \\
   --gpu-memory-utilization 0.95
 
 # 运行基准测试
 python scripts/bench_0112.py
-```
+\`\`\`
 
 ---
 
@@ -176,7 +212,7 @@ python scripts/bench_0112.py
 ### 对于 vLLM 0.11.2 用户
 
 1. **使用默认 FlashAttention 2** — vLLM 的默认选择对 H100 + FP8 是最优的
-2. **不要强制使用 FlashInfer** — 设置 `VLLM_ATTENTION_BACKEND=FLASHINFER` 会降低 7% 性能
+2. **不要强制使用 FlashInfer** — 设置 \`VLLM_ATTENTION_BACKEND=FLASHINFER\` 会降低 7% 性能
 3. **关注其他优化** — Chunked prefill、CUDA graph 等
 
 ### 性能总结
@@ -186,6 +222,12 @@ python scripts/bench_0112.py
 | **低并发 (1-128)** | 均可 | <3% 差异，可忽略 |
 | **高并发 (256-512)** | **FlashAttention 2** | 快 5-7%，TTFT 低 40% |
 
+### 为什么 FA2 在 H100 + FP8 上更快？
+
+1. **FP8 Tensor Core 优化** — FA2 针对 H100 有更好的 FP8 内核实现
+2. **已知 FlashInfer 问题** — FlashInfer 的 \`use_tensor_cores\` 启发式在 FP8 下不适用 (GitHub Issue #9471)
+3. **vLLM 的默认选择** — vLLM 在 H100 上默认选择 FA2 正是因为它更快
+
 ---
 
 ## 📚 参考资料
@@ -193,6 +235,7 @@ python scripts/bench_0112.py
 - [vLLM 文档](https://docs.vllm.ai/)
 - [FlashInfer GitHub Issue #9471](https://github.com/vllm-project/vllm/issues/9471) - FP8 tensor cores 启发式问题
 - [FlashAttention 2 论文](https://arxiv.org/abs/2307.08691)
+- [vLLM Docker Hub](https://hub.docker.com/r/vllm/vllm-openai)
 
 ---
 

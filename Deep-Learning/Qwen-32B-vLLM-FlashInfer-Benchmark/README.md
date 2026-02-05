@@ -87,6 +87,42 @@ This benchmark compares **FlashAttention 2 (FA2)** vs **FlashInfer** attention b
 
 ---
 
+## 🐳 Why Docker Instead of pip install?
+
+### The Dependency Conflict Problem
+
+When trying to install vLLM 0.11.2 via pip, we encountered **dependency conflicts**:
+
+\`\`\`bash
+# ❌ pip install failed
+pip install vllm==0.11.2
+
+# Error: huggingface_hub 0.32.0 requires transformers>=4.45.0,
+# but vllm 0.11.2 requires transformers==4.51.3
+\`\`\`
+
+**Root Cause**: vLLM 0.11.2 was released in late 2025, and the Python ecosystem has evolved. Newer \`huggingface_hub\` versions are incompatible with the older \`transformers\` version that vLLM 0.11.2 requires.
+
+### Solution: Use Official Docker Image
+
+The official Docker image \`vllm/vllm-openai:v0.11.2\` has **all dependencies pre-locked and tested**:
+
+| Component | Version (Locked in Docker) |
+|-----------|---------------------------|
+| vLLM | 0.11.2 |
+| PyTorch | 2.9.0+cu128 |
+| transformers | 4.51.3 |
+| huggingface_hub | (compatible version) |
+| FlashAttention | 2.8.3 |
+| FlashInfer | 0.5.2 |
+
+### Lesson Learned
+
+> **When testing older vLLM versions, always use Docker images to avoid dependency conflicts.**
+> pip install may work on a fresh environment, but will fail if you have newer packages installed.
+
+---
+
 ## 📈 Benchmark Results (vLLM 0.11.2 Fair Comparison)
 
 ### FlashAttention 2 Results
@@ -143,31 +179,31 @@ This benchmark compares **FlashAttention 2 (FA2)** vs **FlashInfer** attention b
 
 ### Running the Benchmark
 
-```bash
+\`\`\`bash
 # Start vLLM server with FlashAttention 2 (default)
-docker run -d --gpus all \
-  -v <your-model-path>:/models/Qwen3-32B-FP8 \
-  -p 8088:8000 \
-  --name vllm-fa2 \
-  vllm/vllm-openai:v0.11.2 \
-  --model /models/Qwen3-32B-FP8 \
-  --max-model-len 4096 \
+docker run -d --gpus all \\
+  -v <your-model-path>:/models/Qwen3-32B-FP8 \\
+  -p 8088:8000 \\
+  --name vllm-fa2 \\
+  vllm/vllm-openai:v0.11.2 \\
+  --model /models/Qwen3-32B-FP8 \\
+  --max-model-len 4096 \\
   --gpu-memory-utilization 0.95
 
 # Start vLLM server with FlashInfer
-docker run -d --gpus all \
-  -e VLLM_ATTENTION_BACKEND=FLASHINFER \
-  -v <your-model-path>:/models/Qwen3-32B-FP8 \
-  -p 8088:8000 \
-  --name vllm-fi \
-  vllm/vllm-openai:v0.11.2 \
-  --model /models/Qwen3-32B-FP8 \
-  --max-model-len 4096 \
+docker run -d --gpus all \\
+  -e VLLM_ATTENTION_BACKEND=FLASHINFER \\
+  -v <your-model-path>:/models/Qwen3-32B-FP8 \\
+  -p 8088:8000 \\
+  --name vllm-fi \\
+  vllm/vllm-openai:v0.11.2 \\
+  --model /models/Qwen3-32B-FP8 \\
+  --max-model-len 4096 \\
   --gpu-memory-utilization 0.95
 
 # Run benchmark
 python scripts/bench_0112.py
-```
+\`\`\`
 
 ---
 
@@ -176,7 +212,7 @@ python scripts/bench_0112.py
 ### For vLLM 0.11.2 Users
 
 1. **Use default FlashAttention 2** - vLLM's default choice is optimal for H100 + FP8
-2. **Don't force FlashInfer** - Setting `VLLM_ATTENTION_BACKEND=FLASHINFER` will reduce performance by 7%
+2. **Don't force FlashInfer** - Setting \`VLLM_ATTENTION_BACKEND=FLASHINFER\` will reduce performance by 7%
 3. **Focus on other optimizations** - Chunked prefill, CUDA graph, etc.
 
 ### Performance Summary
@@ -186,6 +222,12 @@ python scripts/bench_0112.py
 | **Low Concurrency (1-128)** | Either | <3% difference, negligible |
 | **High Concurrency (256-512)** | **FlashAttention 2** | 5-7% faster, 40% lower TTFT |
 
+### Why FA2 is Faster on H100 + FP8?
+
+1. **FP8 Tensor Core Optimization** - FA2 has better FP8 kernel implementations for H100
+2. **Known FlashInfer Issue** - FlashInfer's \`use_tensor_cores\` heuristic doesn't work well with FP8 (GitHub Issue #9471)
+3. **vLLM's Default Selection** - vLLM chooses FA2 as default on H100 precisely because it's faster
+
 ---
 
 ## 📚 References
@@ -193,6 +235,7 @@ python scripts/bench_0112.py
 - [vLLM Documentation](https://docs.vllm.ai/)
 - [FlashInfer GitHub Issue #9471](https://github.com/vllm-project/vllm/issues/9471) - FP8 tensor cores heuristic
 - [FlashAttention 2 Paper](https://arxiv.org/abs/2307.08691)
+- [vLLM Docker Hub](https://hub.docker.com/r/vllm/vllm-openai)
 
 ---
 
