@@ -596,6 +596,14 @@ flowchart LR
 | **PagedAttention** | ~10% | 内存高效的 KV 缓存管理 |
 | **异步调度** | ~15% | 重叠 CPU/GPU 工作，减少空闲时间 |
 
+
+> **说明 (2026-02-03)**：vLLM V1 **默认启用 `torch.compile`**（`optimization_level=O2` → `CompilationMode.VLLM_COMPILE`）。无需手动配置。源码位置：`vllm/config/vllm.py`：
+> ```python
+> if self.compilation_config.mode is None:
+>     if self.optimization_level > OptimizationLevel.O0:
+>         self.compilation_config.mode = CompilationMode.VLLM_COMPILE  # 默认启用！
+> ```
+
 ### 为什么单独的 torch.compile 只能达到 1.2 倍
 
 ```mermaid

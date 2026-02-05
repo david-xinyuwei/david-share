@@ -559,6 +559,14 @@ flowchart LR
 | **PagedAttention** | ~10% | Memory-efficient KV cache management |
 | **Async Scheduling** | ~15% | Overlaps CPU/GPU work, reduces idle time |
 
+
+> **Note (2026-02-03)**: vLLM V1 **enables `torch.compile` by default** (`optimization_level=O2` → `CompilationMode.VLLM_COMPILE`). No manual configuration needed. Source: `vllm/config/vllm.py`:
+> ```python
+> if self.compilation_config.mode is None:
+>     if self.optimization_level > OptimizationLevel.O0:
+>         self.compilation_config.mode = CompilationMode.VLLM_COMPILE  # Default!
+> ```
+
 ### Why torch.compile Alone Only Gets 1.2x
 
 ```mermaid
