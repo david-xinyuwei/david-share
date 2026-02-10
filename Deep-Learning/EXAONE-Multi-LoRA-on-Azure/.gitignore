@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Environment
+.env
+*.pem
+*credentials*
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Chat history
+[CHAT]_*.md
+
+# Private README (contains VM credentials)
+README-PRIVATE.md
+
+# Model weights (too large for git)
+*.safetensors
+*.bin
+*.pt
+*.ckpt
+
+# Email source
+*.eml
