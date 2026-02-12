@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Create 4 domain-specific dummy LoRA adapters for EXAONE Multi-LoRA testing.
 
-Author: Xinyu Wei (David)
+Author: Xinyu Wei
 Usage: python3 create_lora_adapters.py --base-model /data/EXAONE-3.5-2.4B-Instruct --output-dir /data
 """
 import torch

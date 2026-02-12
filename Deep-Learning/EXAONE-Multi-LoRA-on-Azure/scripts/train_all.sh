@@ -2,7 +2,7 @@
 # Train all 4 domain-specific LoRA adapters for EXAONE
 # Usage: bash scripts/train_all.sh [BASE_MODEL_PATH]
 #
-# Author: Xinyu Wei (Xinyu Wei)
+# Author: Xinyu Wei
 
 set -e
 export PYTHONUNBUFFERED=1

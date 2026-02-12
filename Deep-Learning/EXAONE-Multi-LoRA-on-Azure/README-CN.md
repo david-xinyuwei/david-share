@@ -41,7 +41,7 @@
 1. **EXAONE 可在 vLLM 上运行** — 架构 `ExaoneForCausalLM` 原生支持，需 `trust_remote_code=True`
 2. **Multi-LoRA 热切换** — 单个 vLLM 实例同时服务多个 LoRA adapter
 3. **零开销 adapter 路由** — 通过 API 请求的 `model` 字段路由到不同 adapter
-4. **生产级吞吐量** — 基座模型 346 tok/s，LoRA adapter 209 tok/s（H100）
+4. **生产级吞吐量** — 基座模型 346 tok/s，LoRA adapter ~210 tok/s（H100, gpu_memory_utilization=0.9）
 
 ## 架构
 
@@ -57,7 +57,7 @@ flowchart TB
     end
 ```
 
-> **服务器参数**：`--enable-lora --max-lora-rank 64`
+> **服务器参数**：`--enable-lora --max-lora-rank 32`
 
 ## EXAONE 模型在 vLLM 中的支持
 
@@ -336,7 +336,7 @@ flowchart LR
 
 ## 性能基准测试
 
-**测试环境**：NVIDIA H100 NVL 95.8GB, vLLM 0.15.1, EXAONE 3.5 2.4B-Instruct, bfloat16, max_model_len=4096
+**测试环境**：NVIDIA H100 NVL 95.8GB, vLLM 0.15.1, EXAONE 3.5 2.4B-Instruct, bfloat16, max_model_len=4096, gpu_memory_utilization=0.9
 
 ### 测试 1：顺序单请求性能
 
@@ -465,6 +465,8 @@ flowchart LR
 | 法律 | 256 tok / 0.74s | 121 tok / 0.58s | **256 tok / 1.21s** | 232 tok / 1.10s | 100 tok / 0.48s |
 | 客服 | 256 tok / 0.74s | 168 tok / 0.80s | 190 tok / 0.90s | **173 tok / 0.82s** | 42 tok / 0.21s |
 | 代码 | 256 tok / 0.74s | 256 tok / 1.21s | 256 tok / 1.21s | 256 tok / 1.21s | **222 tok / 1.05s** |
+
+> **注意**：Base 模型在所有领域 prompt 中的输出均被 `max_tokens=256` 截断。领域专业化 adapter 通常产生更简洁、结构化的回答，在达到 token 上限前就已完成。
 
 > **关键发现**：领域专业化 adapter 产生的输出具有**质的差异** — 不仅是速度快慢，而是术语、结构和语气的根本性不同。法律 adapter 在被问及韩国法律时会**自动切换为韩语作答**，客服 adapter 会生成 base 模型从不产生的**工单化工作流程**。
 

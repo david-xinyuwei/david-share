@@ -3,7 +3,7 @@
 Generate expanded training data for EXAONE Multi-LoRA domains using Azure OpenAI.
 Outputs ShareGPT-format JSONL files (80 samples per domain).
 
-Author: Xinyu Wei (Xinyu Wei)
+Author: Xinyu Wei
 """
 
 import json

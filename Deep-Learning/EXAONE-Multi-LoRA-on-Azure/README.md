@@ -41,7 +41,7 @@ This repository provides a **complete validation** of running LG AI Research's *
 1. **EXAONE runs on vLLM** — Architecture `ExaoneForCausalLM` is natively supported with `trust_remote_code=True`
 2. **Multi-LoRA hot-switching** — Multiple LoRA adapters served simultaneously from a single vLLM instance
 3. **Zero-overhead adapter routing** — Requests routed to different adapters via the `model` field in API requests
-4. **Production-grade throughput** — Base model 346 tok/s, LoRA adapters ~210 tok/s on H100
+4. **Production-grade throughput** — Base model 346 tok/s, LoRA adapters ~210 tok/s on H100 (gpu_memory_utilization=0.9)
 
 ## Architecture
 
@@ -57,7 +57,7 @@ flowchart TB
     end
 ```
 
-> **Server flags**: `--enable-lora --max-lora-rank 64`
+> **Server flags**: `--enable-lora --max-lora-rank 32`
 
 ## EXAONE Model Support in vLLM
 
@@ -336,7 +336,7 @@ When the server starts with 4 LoRA modules, the `/v1/models` endpoint returns 5 
 
 ## Performance Benchmarks
 
-**Test Environment**: NVIDIA H100 NVL 95.8GB, vLLM 0.15.1, EXAONE 3.5 2.4B-Instruct, bfloat16, max_model_len=4096
+**Test Environment**: NVIDIA H100 NVL 95.8GB, vLLM 0.15.1, EXAONE 3.5 2.4B-Instruct, bfloat16, max_model_len=4096, gpu_memory_utilization=0.9
 
 ### Benchmark 1: Sequential Single-Request Performance
 
@@ -465,6 +465,8 @@ To validate that each LoRA adapter genuinely specializes in its trained domain, 
 | Legal | 256 tok / 0.74s | 121 tok / 0.58s | **256 tok / 1.21s** | 232 tok / 1.10s | 100 tok / 0.48s |
 | Customer Support | 256 tok / 0.74s | 168 tok / 0.80s | 190 tok / 0.90s | **173 tok / 0.82s** | 42 tok / 0.21s |
 | Code | 256 tok / 0.74s | 256 tok / 1.21s | 256 tok / 1.21s | 256 tok / 1.21s | **222 tok / 1.05s** |
+
+> **Note**: Base model outputs are truncated at `max_tokens=256` in all domain prompts. Domain-specific adapters often produce more concise, structured answers and finish before hitting the token limit.
 
 > **Key Observation**: Domain-specific adapters produce **qualitatively different outputs** — not just faster/slower, but fundamentally different in terminology, structure, and tone. The legal adapter uniquely responds in Korean when asked about Korean law, and the customer support adapter generates ticket-based workflows that the base model never produces.
 

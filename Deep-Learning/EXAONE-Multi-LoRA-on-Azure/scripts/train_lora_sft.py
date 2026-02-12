@@ -18,7 +18,7 @@ Usage:
         --lora_alpha 32 \
         --num_epochs 3
 
-Author: Xinyu Wei (Xinyu Wei)
+Author: Xinyu Wei
 """
 
 import argparse
