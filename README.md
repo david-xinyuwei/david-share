@@ -59,14 +59,6 @@ Welcome to a premier collection of advanced AI and machine learning research mat
 - **🎬 Video Understanding**: Temporal modeling and video analysis
 - **🏗️ Production Deployment**: Scalable multimodal system architectures
 
-### ⚙️ [GPU Computing](./GPUs/)
-> **High-performance computing infrastructure and optimization**
-
-- **🖥️ Hardware Architecture**: GPU specifications and performance analysis
-- **🌐 Network Infrastructure**: InfiniBand and RDMA configurations
-- **📈 Performance Optimization**: Memory management and throughput maximization
-- **🔧 System Tuning**: Configuration best practices for AI workloads
-
 ### 📖 [Book Implementations](./Code-of-Book/)
 > **Source code and materials for published technical books**
 
