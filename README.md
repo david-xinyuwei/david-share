@@ -17,6 +17,8 @@
 
 Welcome to a premier collection of advanced AI and machine learning research materials, featuring state-of-the-art implementations, comprehensive tutorials, and production-ready solutions. This repository serves as a bridge between theoretical AI research and practical industry applications.
 
+> 🆕 **New Section**: [DL Algorithm Insights](./DL-Algorithm-Insights/) — Deep learning algorithms explained with real H100/A100 experiments and runnable demos. Each topic is self-contained: theory, intuition, benchmark data, and a minimal demo script.
+
 ## 📚 Repository Structure
 
 ### 🧠 [Deep Learning](./Deep-Learning/)
@@ -28,6 +30,16 @@ Welcome to a premier collection of advanced AI and machine learning research mat
 - **📊 Performance Benchmarking**: Comprehensive evaluation frameworks and metrics
 
 > 🔥 **70+ cutting-edge projects** covering latest LLM training, inference optimization, quantization techniques, and more...
+
+### 🔬 [DL Algorithm Insights](./DL-Algorithm-Insights/)
+> **Deep learning algorithms explained with real experiments and runnable demos**
+
+- **📐 Algorithm Fundamentals**: Core concepts in training, inference, optimization, and evaluation — one topic at a time, explained in depth
+- **🧪 Real Benchmark Data**: Every concept backed by H100/A100 experiment results, not textbook theory
+- **▶️ Minimal Runnable Demos**: Each topic includes a CPU-friendly demo script you can run locally
+- **🔗 Theory-Practice Bridge**: Understand *why* algorithms work, then verify with code
+
+> 🔬 **A growing series** of self-contained algorithm deep-dives — from image quality metrics to inference optimization internals...
 
 ### 🤖 [AI Agents](./Agents/)
 > **Intelligent autonomous systems and multi-agent frameworks**
