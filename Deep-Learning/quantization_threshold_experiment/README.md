@@ -1,6 +1,6 @@
 # 🔬 LLM 4-bit Quantization Precision Loss Threshold Experiment
 
-> **Objective**: Systematically test 4-bit NF4 quantization accuracy loss across LLM model sizes (0.5B-32B) to locate the **precision loss threshold**.
+> **Objective**: Verify Benjamin Marie's conclusion ("Your model can (likely) be safely quantized to 4-bit" — [The Kaitchup](https://kaitchup.substack.com/)) that ≥10B models can be safely 4-bit quantized, and systematically locate the **precision loss threshold** across LLM model sizes (0.5B-32B).
 
 [![Experiment Status](https://img.shields.io/badge/status-completed-green)]()
 [![Hardware](https://img.shields.io/badge/GPU-A100%2080GB-blue)]()
@@ -481,6 +481,9 @@ These findings suggest that optimal quantization strategies may need to be size-
 
 ## 📚 References
 
+- **Benjamin Marie, "Your model can (likely) be safely quantized to 4-bit"** — The Kaitchup newsletter: https://kaitchup.substack.com/ (This experiment was inspired by and designed to verify Benjamin Marie's conclusion that ≥10B models can be safely 4-bit quantized)
+- Marie, B. (2025). "The Uneven Impact of Post-Training Quantization in Machine Translation." arXiv:2508.20893
+- Dettmers, T. & Zettlemoyer, L. (2022). "The case for 4-bit precision: k-bit Inference Scaling Laws." arXiv:2212.09720
 - lm-evaluation-harness: https://github.com/EleutherAI/lm-evaluation-harness
 - unsloth pre-quantized models: https://huggingface.co/unsloth
 - bitsandbytes: https://github.com/TimDettmers/bitsandbytes

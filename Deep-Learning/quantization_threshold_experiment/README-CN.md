@@ -480,6 +480,9 @@ flowchart TB
 
 ## 📚 参考资料
 
+- **Benjamin Marie，「Your model can (likely) be safely quantized to 4-bit」** — The Kaitchup 付费 newsletter：https://kaitchup.substack.com/（本实验的灵感来源，旨在验证 Benjamin Marie 关于「≥10B 模型可安全进行 4-bit 量化」的结论）
+- Marie, B. (2025). "The Uneven Impact of Post-Training Quantization in Machine Translation." arXiv:2508.20893
+- Dettmers, T. & Zettlemoyer, L. (2022). "The case for 4-bit precision: k-bit Inference Scaling Laws." arXiv:2212.09720
 - lm-evaluation-harness: https://github.com/EleutherAI/lm-evaluation-harness
 - unsloth 预量化模型: https://huggingface.co/unsloth
 - bitsandbytes: https://github.com/TimDettmers/bitsandbytes
