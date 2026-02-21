@@ -18,18 +18,17 @@ Each topic in this series takes **one algorithm concept** from real-world GPU ex
 
 Core concepts in training, inference, optimization, and evaluation:
 
-| # | Topic | Status |
-|---|-------|:------:|
-| 01 | **SSIM** — Structural Similarity Index | ⏳ |
-| 02 | **LoRA** — Low-Rank Adaptation | ⏳ |
-| 03 | **BF16 Numerical Accumulation** — Precision vs Performance | ⏳ |
-| 04 | **Diffusion Distillation** — Trajectory & Progressive | ⏳ |
-| 05 | **FlashAttention** — IO-Aware Exact Attention | ⏳ |
-| 06 | **CFG** — Classifier-Free Guidance | ⏳ |
-| 07 | **KV Cache & PagedAttention** — Memory-Efficient Inference | ⏳ |
-| 08 | **Speculative Decoding** — Draft-Verify Acceleration | ⏳ |
-| 09 | **FP8 Quantization** — Next-Gen Precision | ⏳ |
-| 10 | **LPIPS** — Learned Perceptual Image Patch Similarity | ⏳ |
+| Topic | Status |
+|-------|:------:|
+| **[Image Similarity Metrics](Image-Similarity-Metrics/)** — SSIM vs LPIPS | ✅ |
+| **LoRA** — Low-Rank Adaptation | ⏳ |
+| **BF16 Numerical Accumulation** — Precision vs Performance | ⏳ |
+| **Diffusion Distillation** — Trajectory & Progressive | ⏳ |
+| **FlashAttention** — IO-Aware Exact Attention | ⏳ |
+| **CFG** — Classifier-Free Guidance | ⏳ |
+| **KV Cache & PagedAttention** — Memory-Efficient Inference | ⏳ |
+| **Speculative Decoding** — Draft-Verify Acceleration | ⏳ |
+| **FP8 Quantization** — Next-Gen Precision | ⏳ |
 
 ---
 
@@ -38,7 +37,7 @@ Core concepts in training, inference, optimization, and evaluation:
 Each topic follows a consistent structure:
 
 ```
-XX-Topic-Name/
+Topic-Name/
 ├── README.md          # English explanation
 ├── README-CN.md       # Chinese version
 ├── xxx_demo.py        # Minimal runnable demo (CPU-friendly)
@@ -53,7 +52,7 @@ XX-Topic-Name/
 Every demo is designed to run on your laptop:
 
 ```bash
-cd XX-Topic-Name/
+cd Topic-Name/
 pip install -r requirements.txt  # if exists
 python xxx_demo.py
 ```
