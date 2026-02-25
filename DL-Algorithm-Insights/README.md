@@ -23,7 +23,7 @@ Core concepts in training, inference, optimization, and evaluation:
 | **[Image Similarity Metrics](Image-Similarity-Metrics/)** — SSIM vs LPIPS | ✅ |
 | **LoRA** — Low-Rank Adaptation | ⏳ |
 | **BF16 Numerical Accumulation** — Precision vs Performance | ⏳ |
-| **Diffusion Distillation** — Trajectory & Progressive | ⏳ |
+| **[Diffusion Distillation](Diffusion-Distillation/)** — Trajectory & Progressive | ✅ |
 | **FlashAttention** — IO-Aware Exact Attention | ⏳ |
 | **CFG** — Classifier-Free Guidance | ⏳ |
 | **KV Cache & PagedAttention** — Memory-Efficient Inference | ⏳ |
