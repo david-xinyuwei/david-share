@@ -365,4 +365,4 @@ For questions or issues, please open an issue on GitHub.
 
 ## 🔗 Related Projects
 
-- **[BiomedParse Fine-Tuning Guide](../../Multimodal-Models/BiomedParse-Fine-Tuning/)** - If the pre-trained model doesn't meet your accuracy requirements, follow this guide to fine-tune BiomedParse on your custom medical imaging data. Includes 2D/3D training scripts and experiment results showing up to +81% Dice improvement.
+- **[BiomedParse Fine-Tuning Guide](../BiomedParse-Fine-Tuning/)** - If the pre-trained model doesn't meet your accuracy requirements, follow this guide to fine-tune BiomedParse on your custom medical imaging data. Includes 2D/3D training scripts and experiment results showing up to +81% Dice improvement.

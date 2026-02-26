@@ -2,10 +2,9 @@
 
 <div align="center">
 
-[![GitHub stars](https://img.shields.io/github/stars/david-xinyuwei/david-share?style=for-the-badge)](https://github.com/david-xinyuwei/david-share/stargazers)
-[![GitHub issues](https://img.shields.io/github/issues/david-xinyuwei/david-share?style=for-the-badge)](https://github.com/david-xinyuwei/david-share/issues)
-[![GitHub issues](https://img.shields.io/github/issues/david-xinyuwei/david-share?style=for-the-badge)](https://github.com/david-xinyuwei/david-share/issues)
-[![License](https://img.shields.io/github/license/david-xinyuwei/david-share?style=for-the-badge)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/xinyuwei-david/david-share?style=for-the-badge)](https://github.com/xinyuwei-david/david-share/stargazers)
+[![GitHub issues](https://img.shields.io/github/issues/xinyuwei-david/david-share?style=for-the-badge)](https://github.com/xinyuwei-david/david-share/issues)
+[![License](https://img.shields.io/github/license/xinyuwei-david/david-share?style=for-the-badge)](LICENSE)
 
 **🎯 A comprehensive repository dedicated to cutting-edge AI research, deep learning innovations, and practical implementations**
 
@@ -29,7 +28,7 @@ Welcome to a premier collection of advanced AI and machine learning research mat
 - **🔬 Research Implementations**: Latest papers and cutting-edge methods in practice
 - **📊 Performance Benchmarking**: Comprehensive evaluation frameworks and metrics
 
-> 🔥 **70+ cutting-edge projects** covering latest LLM training, inference optimization, quantization techniques, and more...
+> 🔥 **106 projects** organized into 7 categories: quantization, fine-tuning, RLHF, inference optimization, training parallelism, GPU benchmarks, and model architecture
 
 ### 🔬 [DL Algorithm Insights](./DL-Algorithm-Insights/)
 > **Deep learning algorithms explained with real experiments and runnable demos**
@@ -49,7 +48,7 @@ Welcome to a premier collection of advanced AI and machine learning research mat
 - **📝 RAG Systems**: Retrieval-Augmented Generation implementations
 - **🛡️ AI Safety & Content Moderation**: Responsible AI practices
 
-> 🤖 **30+ intelligent agent projects** ranging from single agents to multi-agent collaboration systems, covering RAG, safety, and core technologies...
+> 🤖 **26 intelligent agent projects** ranging from single agents to multi-agent collaboration systems, covering RAG, safety, and core technologies
 
 ### 🎨 [Multimodal Models](./Multimodal-Models/)
 > **Computer vision and cross-modal learning systems**
@@ -92,7 +91,7 @@ Complete implementations and examples from the acclaimed book series on large la
 **"Principles, Training, and Applications of Large Language Models"**
 
 <div align="center">
-<img src="https://raw.githubusercontent.com/david-xinyuwei/david-share/master/IMAGES/5.png" width="300" height="400">
+<img src="https://raw.githubusercontent.com/xinyuwei-david/david-share/master/IMAGES/5.png" width="300" height="400">
 </div>
 
 - 🔗 **Repository**: [Code Examples](https://github.com/xinyuwei-david/david-share/tree/master/Code-of-Book)
@@ -102,28 +101,28 @@ Complete implementations and examples from the acclaimed book series on large la
 
 #### 🏦 Financial Services IT Construction (2022)
 <div align="center">
-<img src="https://raw.githubusercontent.com/david-xinyuwei/david-share/master/IMAGES/4.png" width="250" height="350">
+<img src="https://raw.githubusercontent.com/xinyuwei-david/david-share/master/IMAGES/4.png" width="250" height="350">
 </div>
 
 - 🔗 **Repository**: [FSI-IT-Construction](https://github.com/xinyuwei-david/FSI-IT-construction)
 
 #### ☁️ Microservices & DevOps (2021)
 <div align="center">
-<img src="https://raw.githubusercontent.com/david-xinyuwei/david-share/master/IMAGES/3.png" width="250" height="350">
+<img src="https://raw.githubusercontent.com/xinyuwei-david/david-share/master/IMAGES/3.png" width="250" height="350">
 </div>
 
 - 🔗 **Repository**: [MSA-DevOps](https://github.com/ocp-msa-devops/Version-2.git)
 
 #### 🐳 Cloud Native Applications with OpenShift (2020)
 <div align="center">
-<img src="https://raw.githubusercontent.com/david-xinyuwei/david-share/master/IMAGES/2.png" width="250" height="350">
+<img src="https://raw.githubusercontent.com/xinyuwei-david/david-share/master/IMAGES/2.png" width="250" height="350">
 </div>
 
 - 🔗 **Repository**: [OpenShift Applications](https://github.com/xinyuwei-david/Building-Cloud-Native-Applications-with-OpenShift.git)
 
 #### 🚀 Foundational Work (2019)
 <div align="center">
-<img src="https://raw.githubusercontent.com/david-xinyuwei/david-share/master/IMAGES/1.png" width="250" height="350">
+<img src="https://raw.githubusercontent.com/xinyuwei-david/david-share/master/IMAGES/1.png" width="250" height="350">
 </div>
 
 ---
@@ -141,7 +140,7 @@ Complete implementations and examples from the acclaimed book series on large la
 
 ```bash
 # Clone the repository
-git clone https://github.com/david-xinyuwei/david-share.git
+git clone https://github.com/xinyuwei-david/david-share.git
 
 # Navigate to a specific domain
 cd david-share/Deep-Learning

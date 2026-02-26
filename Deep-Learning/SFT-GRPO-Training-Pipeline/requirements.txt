@@ -164,3 +164,33 @@ xgrammar==0.1.19
 xxhash==3.5.0
 yarl==1.20.1
 zipp==3.23.0
+# From Embedded-Code-SFT-RL
+# Embedded C++ SFT + GRPO Training Requirements
+# For H100 GPU training environment
+
+# Core ML frameworks
+torch>=2.1.0
+transformers>=4.40.0
+datasets>=2.16.0
+accelerate>=0.25.0
+
+# Training libraries
+trl>=0.8.0
+peft>=0.10.0
+unsloth>=2024.1
+
+# Inference
+vllm>=0.4.0
+
+# Utilities
+numpy>=1.24.0
+pandas>=2.0.0
+sympy>=1.12
+
+# Tokenizers
+sentencepiece>=0.1.99
+tiktoken>=0.5.0
+
+# For reward functions (code checking)
+# Note: cppcheck and arm-none-eabi-gcc are system packages, install via apt
+

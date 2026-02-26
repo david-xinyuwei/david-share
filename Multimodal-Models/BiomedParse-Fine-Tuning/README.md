@@ -440,7 +440,7 @@ The logic for 2D and 3D fine-tuning is **identical** (SFT + Dice Loss). The only
 
 ## 🔗 Related Projects
 
-- **[MedImageParse Agent](../../Agents/MedImageParse/)** - AI Agent application with Streamlit UI
+- **[MedImageParse Agent](../MedImageParse/)** - AI Agent application with Streamlit UI
 
 ---
 

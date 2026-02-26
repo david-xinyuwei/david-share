@@ -302,4 +302,4 @@ When using FSDP with `accelerate`, other parallel strategies can be combined to 
 
 For an example of FSDP with `accelerate`, refer to:
 
-*https://github.com/davidsajare/david-share/tree/master/Deep-Learning/Llama-3.1-70B-FSDP-Fine-Tuning*
+*https://github.com/xinyuwei-david/david-share/tree/master/Deep-Learning/Llama-3.1-Fine-Tuning-Guide*
