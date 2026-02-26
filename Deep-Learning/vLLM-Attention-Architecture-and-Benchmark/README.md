@@ -542,7 +542,7 @@ Most production benchmarks should **NOT** use `enforce_eager=True`.
 ## 📁 Repository Structure
 
 ```
-flashinfer-vs-flashattention-benchmark/
+vLLM-Attention-Architecture-and-Benchmark/
 ├── README.md                      # English documentation
 ├── README-CN.md                   # Chinese documentation
 ├── scripts/

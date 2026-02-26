@@ -542,7 +542,7 @@ llm = LLM(model="your-model", enforce_eager=True)
 ## 📁 仓库结构
 
 ```
-flashinfer-vs-flashattention-benchmark/
+vLLM-Attention-Architecture-and-Benchmark/
 ├── README.md                      # 英文文档
 ├── README-CN.md                   # 中文文档
 ├── scripts/
