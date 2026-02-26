@@ -28,7 +28,7 @@ Welcome to a premier collection of advanced AI and machine learning research mat
 - **🔬 Research Implementations**: Latest papers and cutting-edge methods in practice
 - **📊 Performance Benchmarking**: Comprehensive evaluation frameworks and metrics
 
-> 🔥 **106 projects** organized into 7 categories: quantization, fine-tuning, RLHF, inference optimization, training parallelism, GPU benchmarks, and model architecture
+> 🔥 **76 projects** organized into 7 categories: quantization, fine-tuning, RLHF, inference optimization, training parallelism, GPU benchmarks, and model architecture
 
 ### 🔬 [DL Algorithm Insights](./DL-Algorithm-Insights/)
 > **Deep learning algorithms explained with real experiments and runnable demos**
