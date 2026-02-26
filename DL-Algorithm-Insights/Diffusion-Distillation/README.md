@@ -558,11 +558,11 @@ For practitioners looking to reproduce or adapt this work, the recommended start
 
 ---
 
-## Pitfalls in Practice
+## Known Issues and Troubleshooting
 
 ### 1. Training-Inference Conditioning Mismatch
 
-**This is the most dangerous pitfall** — easy to introduce when copying code between scripts, nearly impossible to spot from loss curves alone.
+**This is the most commonly overlooked issue** — easy to introduce when copying code between scripts, nearly impossible to spot from loss curves alone.
 
 **Scenario**: You copy a helper function from a *visualization script* (which used `prompt=""` for simplicity) into your *training script*. The function runs fine. The loss converges normally. But the trained LoRA only learned to denoise under empty-prompt conditioning.
 
