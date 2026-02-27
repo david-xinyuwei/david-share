@@ -1,6 +1,6 @@
 # Deep Learning
 
-A comprehensive collection of 76 projects covering quantization, fine-tuning, inference optimization, training parallelism, GPU benchmarks, and more.
+A comprehensive collection of 75 projects covering quantization, fine-tuning, inference optimization, training parallelism, GPU benchmarks, and more.
 
 > Projects marked with ⭐ were consolidated from multiple related projects during the 2026-02 restructuring.
 
@@ -127,8 +127,7 @@ Performance benchmarks, GPU selection guides, and hardware-specific tests.
 | [AI-Foundry-Model-Performance](AI-Foundry-Model-Performance/) | AI Foundry model performance testing |
 | [AI-on-PC](AI-on-PC/) | Running AI models on PC hardware |
 | ⭐ [Azure-AMD-MI300X-Guide](Azure-AMD-MI300X-Guide/) | AMD MI300X benchmarks + inference + PoC deployment handbook |
-| ⭐ [Azure-GPU-Benchmark-H100-A100-RTX6000](Azure-GPU-Benchmark-H100-A100-RTX6000/) | H100/A100/RTX6000 FP8 benchmark + NC RTX Pro 6000 BSE benchmark |
-| [Azure-NC-NV-GPU-VM-Selection-Guide](Azure-NC-NV-GPU-VM-Selection-Guide/) | Azure GPU VM selection guide |
+| ⭐ [NC-RTX-Pro-6000V6-BSE-Benchmark](NC-RTX-Pro-6000V6-BSE-Benchmark/) | Azure GPU VM selection guide + H100/A100/RTX6000/A10 FP8 benchmark + NC RTX Pro 6000 BSE benchmark |
 | [CPU2GPU](CPU2GPU/) | CPU to GPU migration guide |
 | [Install-CUDA](Install-CUDA/) | CUDA installation guide |
 | [Qwen3-235B-Multi-Node-vLLM-Benchmark](Qwen3-235B-Multi-Node-vLLM-Benchmark/) | Qwen3 235B multi-node vLLM benchmark |

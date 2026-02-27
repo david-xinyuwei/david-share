@@ -1,0 +1,33 @@
+#
+# 安装命令:
+# 或使用 conda 环境:
+# 推荐使用 vLLM 0.12.0+ 以获得 NVFP4 支持
+# API & HTTP
+# conda activate vllm012
+# conda create -n vllm012 python=3.11
+# Core Framework
+# Data Processing
+# Monitoring
+# Optional: NCCL Test
+# pip install -r requirements.txt
+# pip install vllm>=0.12.0
+# RTX PRO 6000 Blackwell Benchmark Requirements
+# torch 已包含 NCCL 支持
+accelerate==0.33.0
+aiohttp>=3.9.0
+matplotlib==3.7.1
+numpy==1.24.3
+numpy>=1.24.0
+nvidia-ml-py>=12.0.0
+pandas==2.0.3
+pandas>=2.0.0
+psutil==5.9.0
+requests==2.31.0
+requests>=2.31.0
+seaborn==0.12.2
+torch==2.1.0
+torch>=2.5.0
+tqdm==4.65.0
+transformers==4.44.2
+vllm==0.13.0
+vllm>=0.12.0
