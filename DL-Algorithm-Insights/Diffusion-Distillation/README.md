@@ -1,6 +1,6 @@
-# Diffusion Distillation — From 50 Steps to 8 Steps
+# Diffusion Distillation — From 40 Steps to 8 Steps
 
-> **Train a student model to reproduce what a teacher model does in 50 steps — in just 8 steps.**
+> **Train a student model to reproduce what a teacher model does in 40 steps — in just 8 steps.**
 
 ## What Is It?
 
@@ -42,32 +42,19 @@ This sequence of latent states is the **trajectory** — the denoising path thro
 
 Key insight: the trajectory is not a straight line. Different steps carry different information:
 
-| Denoising Phase | Steps (example 50-step) | What Happens |
+| Denoising Phase | Steps (example 40-step) | What Happens |
 |:---------------:|:-----------------------:|--------------|
 | Noise-dominant | 1–5 | Random Gaussian — no structure |
-| Color emergence | 5–15 | Global color tones form, rough outlines appear |
-| Structure formation | 15–30 | Body shapes, object boundaries become clear |
-| Detail refinement | 30–45 | Textures, fine edges, patterns sharpen |
-| Micro-adjustment | 45–50 | Subtle lighting/sharpness corrections |
+| Color emergence | 5–12 | Global color tones form, rough outlines appear |
+| Structure formation | 12–25 | Body shapes, object boundaries become clear |
+| Detail refinement | 25–35 | Textures, fine edges, patterns sharpen |
+| Micro-adjustment | 35–40 | Subtle lighting/sharpness corrections |
 
-This visualization of a 50-step denoising trajectory (13 keyframes):
+The following visualization shows the actual 40-step teacher denoising process, with intermediate latents decoded through the VAE decoder at key steps:
 
-![50-step trajectory](images/trajectory_grid.jpg)
+![40-step denoising trajectory](images/decoded_steps_40vs8.png)
 
-Compact view (6 keyframes), clearly showing the noise→structure→detail progression:
-
-![Compact trajectory](images/trajectory_compact.jpg)
-
-The JPEG file sizes tell the same story:
-
-| Step | JPEG Size | What It Means |
-|:----:|:---------:|---------------|
-| 1 | ~410 KB | High-entropy noise — incompressible |
-| 20 | ~310 KB | Structure emerging, still noisy |
-| 40 | ~240 KB | Clean image with fine detail |
-| 50 | ~199 KB | Final clean image — highly compressible |
-
-Monotonically decreasing JPEG size = progressively cleaner image.
+Top row: Teacher denoising at steps 0→10→20→30→40 — progressing from pure noise to a clean image. Bottom row: Distilled student achieving visually identical results in just 8 steps (0→2→4→6→8).
 
 ---
 
@@ -78,7 +65,7 @@ The field has evolved through three generations, each trading storage/complexity
 | Generation | Method | Supervision Signal | Teacher on GPU | Step Compression | Representative |
 |:----------:|--------|:-----------------:|:--------------:|:----------------:|---------------|
 | **1st — Online** | Teacher + student co-train | **Final output only** (clean latent/image) | ✅ Full time | 40→15 (~2.7×) | Progressive Distillation |
-| **2nd — Offline (Trajectory)** | Teacher runs once, stores trajectories | **Every intermediate latent** at K timesteps | Pre-compute only | 50→8 (6.25×) | TwinFlow |
+| **2nd — Offline (Trajectory)** | Teacher runs once, stores trajectories | **Every intermediate latent** at K timesteps | Pre-compute only | 40→8 (5×) | TwinFlow |
 | **3rd — Teacher-free** | No separate teacher | Math interpolation (no teacher output) | ❌ Never | Variable | IMM, Consistency Models |
 
 > **1st gen — what the teacher provides**: runs N denoising steps → produces the **final clean latent** → student is trained to match that endpoint in N/2 steps. No intermediate states are stored or used.
@@ -192,7 +179,7 @@ This is more robust than pure MSE, which can cause "mode-averaging" artifacts. L
 | **Supervision signal** | Final output only | Every intermediate checkpoint |
 | **Student freedom** | Can take any path to the endpoint | Must follow the teacher's route |
 | **Risk** | "Shortcut" paths that bypass key intermediate representations | Forced to learn the semantically meaningful stages |
-| **Step compression** | 40→15 (2.7×) typical | 50→8 (6.25×) achievable |
+| **Step compression** | 40→15 (2.7×) typical | 40→8 (5×) achieved |
 | **Storage** | ~50GB (final images) | ~320GB (trajectory tensors) |
 | **Complexity** | Low | High |
 
