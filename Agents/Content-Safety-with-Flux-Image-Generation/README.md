@@ -1,9 +1,20 @@
-# ⚠️ This project has moved
+# 🚚 This Project Has Moved
 
-This project has been migrated to **[Multimodal-Models/Content-Safety-with-Flux-Image-Generation](../../Multimodal-Models/Content-Safety-with-Flux-Image-Generation/)**.
+> **This project has been relocated during repository restructuring.**
 
-Please visit the new location:
+<table>
+<tr>
+<td>📍 <b>Old Location</b></td>
+<td><code>Agents/Content-Safety-with-Flux-Image-Generation</code></td>
+</tr>
+<tr>
+<td>📍 <b>New Location</b></td>
+<td><a href="../../Multimodal-Models/Content-Safety-with-Flux-Image-Generation/"><b>Multimodal-Models/Content-Safety-with-Flux-Image-Generation</b></a></td>
+</tr>
+</table>
 
-👉 **[Multimodal-Models/Content-Safety-with-Flux-Image-Generation](../../Multimodal-Models/Content-Safety-with-Flux-Image-Generation/)**
+### 👉 [Click here to go to the new location](../../Multimodal-Models/Content-Safety-with-Flux-Image-Generation/)
 
-> This project was moved from Agents/ to Multimodal-Models/ during repository restructuring.
+---
+
+*This redirect was created to preserve backward compatibility with existing links.*

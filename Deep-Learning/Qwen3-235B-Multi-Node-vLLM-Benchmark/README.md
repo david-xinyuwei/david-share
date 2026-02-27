@@ -1,9 +1,22 @@
-# ⚠️ This project has moved
+# 🚚 This Project Has Moved
 
-This project has been merged into **[Qwen3-Inference-Benchmark](../Qwen3-Inference-Benchmark/)**.
+> **This project has been merged into a unified benchmark project.**
 
-Please visit the new location:
+<table>
+<tr>
+<td>📍 <b>Old Location</b></td>
+<td><code>Deep-Learning/Qwen3-235B-Multi-Node-vLLM-Benchmark</code></td>
+</tr>
+<tr>
+<td>📍 <b>New Location</b></td>
+<td><a href="../Qwen3-Inference-Benchmark/"><b>Deep-Learning/Qwen3-Inference-Benchmark</b></a></td>
+</tr>
+</table>
 
-👉 **[Deep-Learning/Qwen3-Inference-Benchmark](../Qwen3-Inference-Benchmark/)**
+### 👉 [Click here to go to the new location](../Qwen3-Inference-Benchmark/)
 
-> The Qwen3-235B multi-node vLLM benchmark content is now part of the unified Qwen3 Inference Benchmark project, which covers both Qwen3-32B and Qwen3-235B benchmarks.
+The Qwen3-235B multi-node vLLM benchmark content is now part of the unified Qwen3 Inference Benchmark project, which covers both Qwen3-32B and Qwen3-235B benchmarks.
+
+---
+
+*This redirect was created to preserve backward compatibility with existing links.*
