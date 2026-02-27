@@ -308,6 +308,8 @@ The above recommendation is **narrowly scoped**. Do NOT generalize:
 
 ### SGLang Benchmark (Current Production - 2026-02-11)
 
+> **Test Config**: Input 1024 tokens → Output 1024 tokens, stream=True
+
 | Concurrency | Throughput (t/s) | TTFT (ms) | QPS |
 |:-----------:|:----------------:|:---------:|:---:|
 | 1 | 70.1 | 140 | 0.07 |
@@ -389,6 +391,8 @@ Production-scale load test by customer engineering team (11 min 22 sec session):
 ### vLLM V1 Benchmark (v0.11.2)
 
 V1 engine uses Ray compiled DAG for optimized PP communication. V0 engine was removed in v0.11.0 (PR #15256), so v0.11.2 only supports V1. Tested on 2026-02-05.
+
+> **Test Config**: Input 1024 tokens → Output 1024 tokens, stream=True
 
 #### Run 1 (Initial Test)
 
