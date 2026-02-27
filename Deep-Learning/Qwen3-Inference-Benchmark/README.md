@@ -302,27 +302,7 @@ The above recommendation is **narrowly scoped**. Do NOT generalize:
 
 ### End-to-End Request Flow
 
-```
-Client (HTTP :8000)
-       │
-       ▼
-vLLM/SGLang API Server (node0)
-       │
-       ▼
-┌─── PP Stage 0 (node0) ───────────────┐
-│  GPU0 ◄──NCCL/NVLink──► GPU1         │  TP=2: All-reduce every layer
-│  (Layers 0-39)                        │  Bandwidth: 600 GB/s
-└──────────────┬────────────────────────┘
-               │ NCCL over TCP/eth0 (~10 Gbps)
-               ▼
-┌─── PP Stage 1 (node1) ───────────────┐
-│  GPU2 ◄──NCCL/NVLink──► GPU3         │  TP=2: All-reduce every layer
-│  (Layers 40-79)                       │  Bandwidth: 600 GB/s
-└──────────────┬────────────────────────┘
-               │ NCCL over TCP/eth0 (result back)
-               ▼
-API Server → HTTP Response → Client
-```
+![Request Flow](images/request-flow.png)
 
 ### SGLang Benchmark (Current Production - 2026-02-11)
 

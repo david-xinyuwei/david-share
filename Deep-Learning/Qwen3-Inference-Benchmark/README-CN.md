@@ -302,27 +302,7 @@ Docker 镜像 `vllm/vllm-openai:v0.11.2` 已锁定所有依赖 — 无冲突。
 
 ### 端到端请求流程
 
-```
-Client (HTTP :8000)
-       │
-       ▼
-vLLM/SGLang API Server (node0)
-       │
-       ▼
-┌─── PP Stage 0 (node0) ───────────────┐
-│  GPU0 ◄──NCCL/NVLink──► GPU1         │  TP=2: 每层 All-reduce
-│  (Layers 0-39)                        │  带宽: 600 GB/s
-└──────────────┬────────────────────────┘
-               │ NCCL over TCP/eth0 (~10 Gbps)
-               ▼
-┌─── PP Stage 1 (node1) ───────────────┐
-│  GPU2 ◄──NCCL/NVLink──► GPU3         │  TP=2: 每层 All-reduce
-│  (Layers 40-79)                       │  带宽: 600 GB/s
-└──────────────┬────────────────────────┘
-               │ NCCL over TCP/eth0（结果返回）
-               ▼
-API Server → HTTP 响应 → Client
-```
+![Request Flow](images/request-flow.png)
 
 ### SGLang 基准测试（当前生产 - 2026-02-11）
 
