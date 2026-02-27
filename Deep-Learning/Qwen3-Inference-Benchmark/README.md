@@ -274,6 +274,8 @@ The above recommendation is **narrowly scoped**. Do NOT generalize:
 | **Function Calling** | ✅ 5/5 tests | ✅ Working | ✅ Working |
 | **Max Tested Concurrency** | C=128 stable | C=91 stable | C=64 (C=128 crash) |
 
+> **Data Sources**: SGLang — standard benchmark (2026-02-11). vLLM V0 — customer production validation (2026-02-06, v0.10.1). vLLM V1 — standard benchmark (2026-02-05, v0.11.2).
+
 ### Multi-Node Architecture: TP=2 + PP=2
 
 ![Architecture](images/architecture.png)
@@ -384,22 +386,9 @@ Production-scale load test by customer engineering team (11 min 22 sec session):
 | Max throughput | 20~30 | 30~120s | 80~95% |
 | Overload (observed) | 40+ | 100~140s | 95~98% |
 
-### vLLM V1 Benchmark (v0.11.2 - Unstable)
+### vLLM V1 Benchmark (v0.11.2)
 
-| Concurrency | Run 1 (t/s) | Run 2 (t/s) | Variance | Status |
-|:-----------:|:-----------:|:-----------:|:--------:|:------:|
-| 1 | 17.2 | 17.2 | 0% | ✅ |
-| 2 | 31.6 | 31.6 | 0% | ✅ |
-| 4 | 50.7 | 56.5 | +11% | ✅ |
-| 8 | 102.9 | 89.4 | -13% | ✅ |
-| 16 | 171.1 | 170.3 | -0.5% | ✅ |
-| 32 | 314.5 | 314.7 | +0.1% | ✅ |
-| **64** | **553.0** | **610.4** | **+10%** | **Peak** |
-| 128 | Crash | Stall | — | ❌ |
-
-### vLLM V0 Benchmark (v0.10.1 - Stable Fallback)
-
-V0 engine uses `RayGPUExecutor` (traditional Ray task scheduling), completely bypassing the compiled DAG code path that crashes V1:
+V1 engine uses Ray compiled DAG for optimized PP communication. V0 engine was removed in v0.11.0 (PR #15256), so v0.11.2 only supports V1. Tested on 2026-02-05.
 
 #### Run 1 (Initial Test)
 
@@ -439,6 +428,14 @@ V0 engine uses `RayGPUExecutor` (traditional Ray task scheduling), completely by
 | 16-32 | <1% | Very stable |
 | **64** | **+10%** | **NCCL fix benefit** |
 
+**Critical Issue**: V1 crashes or stalls at C≥128 due to Ray compiled DAG bugs with PP>1. This instability led to downgrading to v0.10.1 V0 engine for customer production.
+
+### vLLM V0 Production (v0.10.1 - Stable Fallback)
+
+After V1 proved unstable with PP>1 (crashes at C≥128), the service was downgraded to v0.10.1 with `VLLM_USE_V1=0` for customer production. V0 engine uses `RayGPUExecutor` (traditional Ray task scheduling), completely bypassing the compiled DAG code path that crashes V1.
+
+> **Note**: No standard concurrency benchmark was performed on V0. All V0 performance data below comes from customer production validation only.
+
 #### V0 vs V1 Performance Comparison
 
 | Metric | V1 Engine (v0.11.2) | V0 Engine (v0.10.1) | Delta |
@@ -450,7 +447,9 @@ V0 engine uses `RayGPUExecutor` (traditional Ray task scheduling), completely by
 | Stability (PP>1) | ❌ Crashes min~hours | ✅ 1,801 req, zero crashes | — |
 | Max tested concurrency | C=64 (C=128 crash) | C=91 stable | — |
 
-**Conclusion**: V0 single-request throughput is significantly lower than V1, but it scales well under concurrent load. The critical trade-off is **stability over raw speed**.
+**Data Sources**: V1 data from standard benchmark (2026-02-05, v0.11.2). V0 data from customer production validation (2026-02-06, v0.10.1).
+
+**Conclusion**: V0 is ~60% slower at single-request due to Ray per-step task dispatch overhead, but provides the stability required for production PP>1 deployment. The critical trade-off is **stability over raw speed**.
 
 #### Customer Real-World Validation (V0 Engine, 1,801 Requests)
 
