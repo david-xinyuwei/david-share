@@ -1,9 +1,9 @@
 # ⚠️ This project has moved
 
-This project has been merged into **[AI-Content-Safety](../AI-Content-Safety/)**.
+This project has been migrated to **[Multimodal-Models/Content-Safety-with-Flux-Image-Generation](../../Multimodal-Models/Content-Safety-with-Flux-Image-Generation/)**.
 
 Please visit the new location:
 
-👉 **[Agents/AI-Content-Safety](../AI-Content-Safety/)**
+👉 **[Multimodal-Models/Content-Safety-with-Flux-Image-Generation](../../Multimodal-Models/Content-Safety-with-Flux-Image-Generation/)**
 
-> The Content Safety with Flux Image Generation content is now part of the unified AI Content Safety project.
+> This project was moved from Agents/ to Multimodal-Models/ during repository restructuring.
