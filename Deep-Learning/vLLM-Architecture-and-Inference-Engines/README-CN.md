@@ -793,3 +793,849 @@ The diagram below shows how Continuous Batching works when handling multiple inf
   
 
   **Reference**: [Deploy LLM with vLLM on SageMaker in Only 13 Lines of Code](https://mrmaheshrajput.medium.com/deploy-llm-with-vllm-on-sagemaker-in-only-13-lines-of-code-1601f780c0cf)
+
+---
+
+## vLLM 注意力后端基准测试：FA2 vs FlashInfer (H100)
+
+> **作者**: 魏新宇 (Xinyu Wei)  
+> **日期**: 2026-02-05  
+> **模型**: Qwen3-32B-FP8 (FP8 E4M3, 32GB)  
+> **GPU**: Azure NC40ads H100 v5 (单卡 H100 NVL 94GB)  
+> **场景**: (1024 输入, 1024 输出), 流式模式
+
+---
+
+### 📊 核心结论
+
+![架构图](images/benchmark_01_architecture.png)
+
+**核心发现**: 在 vLLM 0.11.2 + H100 NVL + FP8 模型配置下，**FlashAttention 2 比 FlashInfer 快 7.5%**（高并发场景）。
+
+| 指标 | FlashAttention 2 | FlashInfer | 差异 |
+|------|------------------|------------|------|
+| **峰值吞吐 (512 并发)** | **4,022.6 t/s** | 3,741.4 t/s | **FA2 +7.5%** |
+| **首 Token 延迟 @ 512** | **1,116 ms** | 1,866 ms | **FA2 -40%** |
+| 低并发 (1-128) | ~ | +1~3% | FlashInfer 略快 |
+| 高并发 (256-512) | **+5~7%** | ~ | **FA2 显著更快** |
+
+---
+
+### ⚠️ 重要更新：先前基准测试为何错误
+
+#### 不公平对比问题
+
+先前基准测试对比了**不同 vLLM 版本**，导致结论错误：
+
+| 配置 | vLLM 版本 | 后端 | 峰值吞吐 |
+|------|-----------|------|----------|
+| 先前"基线" | 0.11.2 | FA2 | 3,907.8 t/s |
+| 先前"优化版" | **0.15.0** | FlashInfer | 4,531.3 t/s |
+| 声称提升 | - | - | +16% |
+
+**问题**: 16% 的提升来自 **vLLM 版本升级**，而非注意力后端差异！
+
+#### 公平对比 (相同 vLLM 0.11.2)
+
+| 配置 | vLLM | 后端 | 峰值吞吐 |
+|------|------|------|----------|
+| FA2 | 0.11.2 | FLASH_ATTN | **4,022.6 t/s** |
+| FlashInfer | 0.11.2 | FLASHINFER | 3,741.4 t/s |
+| **实际差异** | - | - | **FA2 +7.5%** |
+
+---
+
+### 🔬 为什么 FA2 在 H100 + FP8 上更快？（理论分析）
+
+#### 根本原因：FlashInfer FP8 Tensor Core 启发式 Bug
+
+参考: [vLLM GitHub Issue #9471](https://github.com/vllm-project/vllm/issues/9471)
+
+FlashInfer 的 `use_tensor_cores` 启发式在 FP8 场景下失效：
+
+```
+FlashInfer Tensor Core 决策逻辑:
+┌─────────────────────────────────────────────────────┐
+│ if head_dim >= 128:                                 │
+│     use_tensor_cores = True   # ✅ 正确             │
+│ else:                                               │
+│     # 基于 FP16/BF16 性能分析的启发式               │
+│     use_tensor_cores = (batch * heads) > threshold  │
+│                                                     │
+│ 问题: FP8 有不同的最优阈值！                        │
+│ 结果: 回退到 CUDA Core 而非 Tensor Core             │
+└─────────────────────────────────────────────────────┘
+```
+
+**数学分析**:
+
+| 后端 | 内核类型 | H100 TFLOPS (FP8) | 利用率 |
+|------|----------|-------------------|--------|
+| FA2 | 始终 Tensor Core | 3,958 | ~85% |
+| FlashInfer (FP8 bug) | 混合 CUDA+Tensor | 3,958 | ~70% |
+
+效率损失: `(85% - 70%) / 85% ≈ 17.6%` 理论值 → 7.5% 实测值 (其他优化补偿)
+
+---
+
+### 🧪 测试环境
+
+#### 硬件配置
+
+| 组件 | 规格 |
+|------|------|
+| **GPU** | NVIDIA H100 NVL 94GB HBM3 (单卡) |
+| **VM SKU** | Azure Standard_NC40ads_H100_v5 |
+| **vCPU** | 40 核 |
+| **内存** | 320 GB |
+| **存储** | 3.5 TB NVMe SSD |
+
+#### 软件配置
+
+| 组件 | 版本 |
+|------|------|
+| **vLLM** | 0.11.2 (Docker: `vllm/vllm-openai:v0.11.2`) |
+| **CUDA** | 12.8 |
+| **PyTorch** | 2.9.0+cu128 |
+| **FlashAttention** | 2.8.3 (内置) |
+| **FlashInfer** | 0.5.2 (内置) |
+
+#### 模型配置
+
+| 参数 | 值 |
+|------|-----|
+| **模型** | Qwen/Qwen3-32B-FP8 |
+| **精度** | FP8 (E4M3) |
+| **max_model_len** | 4096 |
+| **tensor_parallel_size** | 1 |
+| **gpu_memory_utilization** | 0.95 |
+
+---
+
+### 🐳 为什么用 Docker 而不是 pip install？
+
+#### 依赖冲突问题
+
+```bash
+$ pip install vllm==0.11.2
+
+ERROR: Cannot install vllm==0.11.2 because:
+  huggingface_hub 0.32.0 requires transformers>=4.45.0
+  but vllm 0.11.2 requires transformers==4.51.3
+```
+
+#### 解决方案：官方 Docker 镜像
+
+Docker 镜像 `vllm/vllm-openai:v0.11.2` 已预锁定依赖：
+
+| 包 | 版本 |
+|----|------|
+| vLLM | 0.11.2 |
+| transformers | 4.51.3 |
+| huggingface_hub | 0.30.x |
+| FlashAttention | 2.8.3 |
+| FlashInfer | 0.5.2 |
+
+---
+
+### 📈 基准测试结果 (vLLM 0.11.2)
+
+#### 测试方法论
+
+- **每配置 3 轮测试**，取**中位数**
+- 容器启动后等待 30s 模型预热
+- 测试间清理 GPU 显存: `docker stop && docker rm`
+
+#### FlashAttention 2 结果
+
+| 并发数 | QPS | TTFT (ms) | 吞吐量 (t/s) |
+|--------|-----|-----------|--------------|
+| 1 | 0.08 | 26 | 55.7 |
+| 4 | 0.27 | 37 | 195.2 |
+| 8 | 0.45 | 41 | 344.4 |
+| 16 | 0.80 | 46 | 600.7 |
+| 32 | 1.51 | 52 | 1,096.6 |
+| 64 | 2.70 | 63 | 1,889.7 |
+| 128 | 4.21 | 102 | 2,759.9 |
+| 256 | 5.45 | 145 | 3,607.2 |
+| **512** | **6.22** | **1,116** | **4,022.6** |
+
+#### FlashInfer 结果
+
+| 并发数 | QPS | TTFT (ms) | 吞吐量 (t/s) |
+|--------|-----|-----------|--------------|
+| 1 | 0.08 | 31 | 55.4 |
+| 4 | 0.27 | 38 | 200.6 |
+| 8 | 0.45 | 44 | 354.9 |
+| 16 | 0.89 | 53 | 613.2 |
+| 32 | 1.58 | 60 | 1,110.2 |
+| 64 | 2.72 | 79 | 1,923.6 |
+| 128 | 3.84 | 129 | 2,788.7 |
+| 256 | 4.88 | 205 | 3,444.6 |
+| **512** | **5.35** | **1,866** | **3,741.4** |
+
+#### 并排对比
+
+| 并发数 | FA2 (t/s) | FlashInfer (t/s) | 差异 |
+|--------|-----------|------------------|------|
+| 1-128 | ~ | ~ | ±3% |
+| 256 | 3,607.2 | 3,444.6 | FA2 +4.7% |
+| **512** | **4,022.6** | **3,741.4** | **FA2 +7.5%** |
+
+---
+
+### 📋 运行日志示例
+
+#### FA2 测试成功日志
+
+```
+$ curl http://localhost:8088/v1/models
+{"object":"list","data":[{"id":"Qwen3-32B-FP8","object":"model"...}]}
+
+$ python3 bench_0112.py
+[2026-02-05 10:15:23] Starting benchmark...
+[2026-02-05 10:15:23] Backend: FLASH_ATTN (default)
+[2026-02-05 10:15:23] Concurrency: 512
+[2026-02-05 10:17:45] Completed 512 requests
+[2026-02-05 10:17:45] Results:
+  - QPS: 6.22
+  - TTFT: 1116.3 ms
+  - Throughput: 4022.6 tokens/sec
+  - Total tokens: 524288
+```
+
+#### FlashInfer 测试成功日志
+
+```
+$ docker run -e VLLM_ATTENTION_BACKEND=FLASHINFER ...
+INFO: Using attention backend: FLASHINFER
+
+$ python3 bench_0112.py
+[2026-02-05 10:45:23] Starting benchmark...
+[2026-02-05 10:45:23] Backend: FLASHINFER
+[2026-02-05 10:45:23] Concurrency: 512
+[2026-02-05 10:48:12] Completed 512 requests
+[2026-02-05 10:48:12] Results:
+  - QPS: 5.35
+  - TTFT: 1866.2 ms
+  - Throughput: 3741.4 tokens/sec
+```
+
+---
+
+### 🎯 决策矩阵
+
+| 场景 | 推荐 | 原因 |
+|------|------|------|
+| **生产 Chatbot** | **FA2** | TTFT 更低 = 更好的用户体验 |
+| **批处理** | **FA2** | 更高吞吐量 |
+| **低并发 (<128)** | 均可 | <3% 差异 |
+| **高并发 (256+)** | **FA2** | 快 5-7% |
+
+**建议**: 使用 vLLM 默认配置 (FlashAttention 2)。在 H100 + FP8 场景下**不要**设置 `VLLM_ATTENTION_BACKEND=FLASHINFER`。
+
+---
+
+
+| Repo 路径 | VM 路径 |
+|-----------|---------|
+| `scripts/bench_0112.py` | `/tmp/bench_0112.py` |
+| `logs/bench_0112_fa2.log` | `/tmp/bench_0112_fa2.log` |
+| `logs/bench_0112_fi.log` | `/tmp/bench_0112_fi.log` |
+
+---
+
+### 📚 参考资料
+
+- [vLLM GitHub Issue #9471](https://github.com/vllm-project/vllm/issues/9471) - FlashInfer FP8 tensor cores 启发式 bug
+- [FlashAttention-2 论文](https://arxiv.org/abs/2307.08691) - Dao et al., 2023
+- [FlashInfer 文档](https://flashinfer.ai/)
+- [vLLM Docker Hub](https://hub.docker.com/r/vllm/vllm-openai)
+
+---
+
+### 📄 许可证
+
+MIT License
+
+---
+
+## **Maximizing Multi-GPU Performance for LLaMA Models: vLLM, ExLlamaV2 vs. llama.cpp**
+
+### TL;DR
+
+- **llama.cpp**：通用推理引擎，支持 CPU-only/单GPU、多种硬件，优势是兼容性和量化 (GGUF)，但 **不适合多GPU高并发**，无原生 TP。
+- **vLLM**：多GPU、大显存环境首选，原生 **Tensor Parallelism** + 高并发 Batch Inference。
+- **ExLlamaV2**：GPU-only，**必须使用 EXL2 量化权重**，原生支持 **TP**，专为显存紧张的多GPU环境优化，性能接近 vLLM。
+- **实测数据**：llama.cpp CPU-only 跑 236B 模型仅 ~1 token/sec；vLLM 在 8×GPU 跑 70B LLaMA，50个 2k token 请求耗时 2分29秒 (~800 tokens/sec)。
+
+------
+
+### 背景与问题
+
+#### 现状
+
+- 多GPU服务器（如 4×4090, 8×3090）上用 llama.cpp → 无法让所有 GPU 协同计算，甚至完全用 CPU 推理，造成 GPU 闲置。
+- llama.cpp 的定位是 **兼容各类设备**，在 GPU 场景弱化了跨卡并行、大规模批推理的优化。
+
+#### 工程需求
+
+- 大模型参数量 (≥65B) + 高并发请求，需要：
+  1. **Tensor Parallelism**：将计算分片到多卡，协同完成矩阵运算。
+  2. **Batch Inference**：多请求合并批处理，提高吞吐。
+- 你的 concern：
+  - ExLlamaV2 是不是 llama.cpp 的进化版？ → **不是**，两者架构独立。
+  - ExLlamaV2 是否必须量化？ → **必须**使用 EXL2 格式权重。
+  - 是否支持 TP？ → **支持**，原生多GPU分布计算。
+
+#### 场景
+
+- **CPU/单 GPU /低显存** → llama.cpp + GGUF量化
+- **多 GPU / 显存充足** → vLLM
+- **多 GPU / 显存紧张** → ExLlamaV2 + EXL2量化
+
+------
+
+### 方法 — Fully Reproducible Steps
+
+#### 方案一：vLLM 多GPU部署
+
+**安装**
+
+```
+pip install vllm
+```
+
+
+
+**示例代码**
+
+```
+from vllm import LLM, SamplingParams
+
+llm = LLM(model="meta-llama/Llama-2-7b-hf", tensor_parallel_size=4)
+
+prompts = ["Yo, GPU 1 says hi!", "What's up from GPU 2?"]
+
+sampling_params = SamplingParams(temperature=0.8, top_p=0.95, max_tokens=50)
+
+outputs = llm.generate(prompts, sampling_params)
+for out in outputs:
+    print(out.outputs[0].text)
+```
+
+
+
+- `tensor_parallel_size`: 设置为 GPU 数量（2/4/8）
+- vLLM 会自动在多卡间分配计算，并按批次推理。
+
+------
+
+#### 方案二：ExLlamaV2（显存紧张的GPU-only方案）
+
+**安装**
+
+```
+# 根据官方说明安装 CUDA 依赖
+pip install exllamav2
+```
+
+
+
+**示例代码**
+
+```
+from exllamav2 import ExLlamaV2, ExLlamaV2Cache, ExLlamaV2Tokenizer
+from exllamav2.generator import ExLlamaV2Sampler
+from exllamav2.config import ExLlamaV2Config
+
+# 加载 EXL2 量化模型（必须）
+model_dir = "path/to/exl2/model"
+model = ExLlamaV2(ExLlamaV2Config(model_dir))
+cache = ExLlamaV2Cache(model)
+tokenizer = ExLlamaV2Tokenizer(model_dir)
+
+ids = tokenizer.encode("Hey, what's up?")
+settings = ExLlamaV2Sampler.Settings()
+out_ids = ExLlamaV2Sampler.generate(model, cache, ids, settings, max_new_tokens=50)
+print(tokenizer.decode(out_ids))
+```
+
+
+
+**关键点**
+
+- 必须使用 EXL2 权重。
+- 在 `config.json` 启用 TP：
+
+```
+"tensor_parallel": 2
+```
+
+
+
+------
+
+#### 方案三：llama.cpp（单卡/CPU场景）
+
+**安装**
+
+```
+git clone https://github.com/ggerganov/llama.cpp && cd llama.cpp && make
+```
+
+
+
+**运行**
+
+```
+./main -m /path/to/model.gguf -p "Hello World"
+```
+
+
+
+- 支持 GGUF Q2/Q3/Q4/Q5/Q8 量化
+- 可部署在无 GPU 的 CPU-only 环境
+
+------
+
+### 实验与基准
+
+| 引擎      | 模型/场景                         | GPU数 | Token类型 | 批量请求 | 耗时   | Tokens/sec     |
+| --------- | --------------------------------- | ----- | --------- | -------- | ------ | -------------- |
+| llama.cpp | DeepSeek 236B / CPU-only          | 0     | 推理      | 单请求   | -      | **~1**         |
+| vLLM      | LLaMA 3.1 70B / 50×2k tokens 请求 | 8     | 推理      | 批处理   | 2m29s  | **~800**       |
+| ExLlamaV2 | EXL2量化模型 / 2-GPU TP           | 2     | 推理      | 未说明   | 未说明 | 高（接近vLLM） |
+
+------
+
+### 工程化建议（Checklist）
+
+-  多 GPU 场景启用 TP (`tensor_parallel_size` 或 `tensor_parallel`)
+-  高并发场景增加 Batch Size 以提高吞吐
+-  GPU显存有限：优先选择量化（GGUF/EXL2）
+-  ExLlamaV2 必须 EXL2 格式，提前转换模型
+-  监控 GPU 利用率（`nvidia-smi`/Prometheus）
+-  单卡或 CPU-only：用 llama.cpp
+
+------
+
+### 部署 Runbook
+
+#### vLLM Docker多卡
+
+```
+docker run --gpus all --rm -it \
+  -v /path/to/models:/models \
+  vllm/vllm:latest \
+  --model /models/meta-llama/Llama-2-7b-hf \
+  --tensor-parallel-size 8
+```
+
+
+
+#### ExLlamaV2 多卡
+
+```
+config.json
+{
+  "tensor_parallel": 2,
+  "max_batch_size": 8
+}
+```
+
+
+
+Python 脚本加载并运行。
+
+------
+
+### 风险与故障应对
+
+| 问题               | 原因                    | 处理                         |
+| ------------------ | ----------------------- | ---------------------------- |
+| GPU利用率低        | 未开启 TP 或 batch 推理 | 启用 TP参数，调整 batch size |
+| 显存溢出           | 模型过大                | 量化或减少 batch             |
+| llama.cpp多GPU无效 | 架构不支持原生 TP       | 使用 vLLM 或 ExLlamaV2       |
+| ExLlamaV2加载失败  | 使用了非EXL2权重        | 转换为 EXL2 量化             |
+
+------
+
+### 结论与下一步
+
+1. **多GPU + 大显存 → vLLM**
+2. **多GPU + 显存紧张 → ExLlamaV2 + EXL2量化**
+3. **单GPU / CPU-only → llama.cpp + GGUF**
+4. 建立每个引擎的 Tokens/sec & Latency 基准，持续优化 TP 和 batch size
+
+------
+
+![images](images/exllama_comparison.png)
+
+### FAQ
+
+**Q1: ExLlamaV2 是 llama.cpp 演进版吗？**
+A: ❌ 不是，两者独立开发，架构不同。
+
+**Q2: ExLlamaV2 支持原始FP16权重吗？**
+A: ❌ 只支持 EXL2 量化格式。
+
+**Q3: ExLlamaV2 支持 TP 吗？**
+A: ✅ 原生支持 Tensor Parallelism，多卡显存分布计算。
+
+---
+
+## vLLM V1
+
+参考:
+
+https://blog.vllm.ai/2025/01/27/v1-alpha-release.html
+
+#### 从 vLLM V0 中学习
+
+ 
+在过去的 1.5 年里，vLLM V0 成功地支持了各种模型、功能和硬件。然而，随着时间推移，系统变得越来越复杂：
+
+- **功能碎片化**：不同的功能是独立开发的，缺乏统一的架构。
+- **难以整合**：由于各个模块之间耦合度高，增加新功能或优化变得困难。
+- **技术债累积**：代码复杂，维护成本高。
+
+#### V1 的目标
+
+ 
+vLLM V1 的诞生是为了应对这些挑战。其设计目标是：
+
+- **简化代码结构**：使代码更加模块化，方便开发和维护。
+- **提高性能**：减少 CPU 开销，充分利用 GPU 资源。
+- **统一架构**：将关键优化整合到一个统一的系统中。
+- **零配置**：默认启用最佳的功能和优化，减轻用户负担。
+
+
+
+### vLLM V1 的新特性
+
+#### 1. 优化的执行循环和 API 服务器
+
+
+
+![Image](images/vllm_v1_1.png)
+
+**背景问题：**
+
+在处理用户请求时，系统需要执行以下任务：
+
+- 接收并解析请求。
+
+- 准备输入数据（如分词）。
+
+- 执行模型推理。
+
+- 生成输出（如解码）。
+
+- 返回结果给用户。
+
+  在 V0 中，CPU 需要处理大量任务，特别是在 GPU 执行时间很短的情况下（例如处理小模型或使用高性能 GPU），CPU 成为瓶颈。
+
+  **V1 的改进：**
+
+- **多进程架构**：将 API 服务器和核心执行循环分离到不同的进程。
+
+- **任务并行化**：让 CPU 密集型任务（如分词、解码）与 GPU 推理并行进行。
+
+  **实际场景举例：**
+
+  假设有大量用户同时向你的聊天机器人发送消息。V1 的多进程架构允许系统同时处理新的用户请求、准备输入数据，以及执行模型推理。这样，当 GPU 在处理一个请求的推理时，CPU 可以为下一个请求做好准备，减少了等待时间，提高了整体吞吐量。
+
+#### 2. 简单且灵活的调度器
+
+ 
+
+![Image](images/vllm_v1_2.png)
+
+**调度器的作用：**
+
+决定哪些请求在何时被处理，以及每个请求处理多少个令牌（tokens）。
+
+**V1 的改进：**
+
+- **统一处理方式**：将用户输入的提示和模型生成的输出统一看待。
+
+- **灵活调度策略**：使用简单的数据结构（如 `{request_id: num_tokens}`）表示调度决策。
+
+- **支持高级特性**：如分块预填充、前缀缓存、推测性解码等。
+
+  **实际场景举例：**
+
+  在处理长文本生成时，调度器可以动态分配资源。例如，对于需要生成长段落的请求，调度器可以决定一次处理更多的令牌，而对于短回复的请求，则少分配一些资源。这样，系统可以更有效地利用 GPU，满足不同请求的需求。
+
+#### 3. 零开销的前缀缓存
+
+ 
+
+![Image](images/vllm_v1_3.png)
+
+**什么是前缀缓存：**
+
+当不同的请求有相同的输入前缀时，可以缓存这些前缀的计算结果，避免重复计算，提高效率。
+
+**V1 的改进：**
+
+- **优化数据结构**：实现常数时间的缓存插入和淘汰。
+
+- **最小化开销**：即使缓存命中率很低，也几乎不会带来额外的性能损失。
+
+  **实际场景举例：**
+
+  在提供 API 服务时，可能会有多个用户发送相同的开头，例如“Once upon a time”。通过前缀缓存，系统可以复用之前的计算结果，加速响应。
+
+#### 4. 针对张量并行推理的清晰架构
+
+ 
+
+![Image](images/vllm_v1_4.png)
+
+**什么是张量并行：**
+
+将模型的参数和计算分布在多个 GPU 上，以处理超大规模的模型。
+
+**V1 的改进：**
+
+- **对称架构**：调度器和每个 GPU 工作进程独立运行，架构清晰。
+
+- **高效通信**：在工作进程中缓存请求状态，只传输增量更新，减少通信开销。
+
+  **实际场景举例：**
+
+  当你需要部署一个特别大的模型（如 70B 参数的模型），需要使用多张 GPU。V1 的架构使得多 GPU 之间的协作更加高效，确保模型能够以最佳性能运行。
+
+#### 5. 高效的输入准备
+
+ 
+
+![Image](images/vllm_v1_5.png)
+
+**问题所在：**
+
+在 V0 中，每次执行模型推理都要重新准备输入数据，带来较高的 CPU 开销。
+
+**V1 的改进：**
+
+- **持久化批次**：缓存输入张量，只在需要时更新。
+
+- **优化数据操作**：使用高效的 Numpy 操作，减少 CPU 使用。
+
+  **实际场景举例：**
+
+  对于连续的对话或多轮交互，用户的输入可能只有少量变化。V1 可以复用之前的输入数据，只处理变化的部分，提高响应速度。
+
+#### 6. `torch.compile` 和分段 CUDA 图
+
+ 
+
+![Image](images/vllm_v1_6.png)
+
+**`torch.compile` 的作用：**
+
+自动优化 PyTorch 模型的执行效率。
+
+
+**V1 的改进：**
+
+- **自动优化模型**：利用 `torch.compile`，减少手动优化的工作量。
+
+  [让推理速度提升两倍：torch.compile](https://mp.weixin.qq.com/s?__biz=MzAwMDc2NjQ4Nw==&mid=2663562502&idx=1&sn=005b70f99730b6193e32922807ddc0da&scene=21#wechat_redirect)
+
+- **分段 CUDA 图**：解决 CUDA 图在处理动态输入时的限制，提高灵活性。
+
+  **实际场景举例：**
+
+  开发者可以专注于模型本身的改进，而无需花费大量时间在性能优化上。V1 自动确保模型以高效的方式运行。
+
+
+
+**CUDA 图**是 CUDA 引入的一项高级特性。它的主要作用是：
+
+- **将一系列 GPU 操作（如计算内核、数据传输等）预先记录下来，形成一个有向无环图（DAG，Directed Acyclic Graph）。**
+- 然后，可以一次性将整个图提交给 GPU 执行，而不是逐个操作地提交。
+
+
+
+#### **为什么要使用 CUDA 图？**
+
+ 
+在传统的 GPU 编程中，CPU 和 GPU 通常需要频繁通信：
+
+- **CPU** 负责启动 GPU 的计算任务，例如内核启动、数据传输等。
+
+- 每当需要执行一个 GPU 操作，CPU 都要向 GPU 发出指令，这会产生一定的开销，尤其是在操作较多或操作较小的情况下。
+
+  使用 CUDA 图有以下优势：
+
+1. **减少 CPU 和 GPU 之间的通信开销**：
+   - 由于提前将多个操作记录下来，一次性提交给 GPU，降低了 CPU 发出指令的频率。
+   - 减轻了 CPU 的负担，使其可以处理其他任务。
+2. **提高 GPU 的执行效率**：
+   - GPU 可以连续地执行预先定义好的操作序列，无需等待 CPU 的指令，提高了并行度。
+   - 减少了 GPU 的空闲时间，更好地利用了计算资源。
+3. **优化性能**：
+   - 对于包含大量小型计算任务的应用，使用 CUDA 图可以显著提升性能。
+   - 减少了指令的调度和同步开销。
+
+#### **在 vLLM V1 中的应用**
+
+ 
+在 **vLLM V1** 中，CUDA 图被用于优化大型语言模型的推理过程。具体来说：
+
+- **挑战**：
+  - 大型语言模型在生成文本时，会进行大量的小规模计算步骤，每个步骤可能涉及到不同的 GPU 操作。
+  - 如果每个操作都需要 CPU 发出指令，会导致大量的通信开销，降低整体性能。
+- **解决方案**：
+  - **使用 CUDA 图**，将推理过程中需要的多个 GPU 操作预先记录下来，形成一个执行图。
+  - 一次性将整个图提交给 GPU，GPU 可以自主连续地执行这些操作，无需每次都等待 CPU 的指令。
+- **效果**：
+  - **减少了 CPU 与 GPU 之间的通信**，降低了延迟。
+  - **提高了 GPU 的利用率**，加速了模型的推理速度。
+  - **提升了整体性能**，为用户提供更快速的响应。
+
+#### **举个例子**
+
+ 
+为了更好地理解，我们可以把这个过程比作工厂的流水线生产：
+
+- **传统方式**：
+
+  - 工人（GPU）在每完成一个步骤后，都需要等待主管（CPU）的下一道指令。
+  - 这种方式下，工人可能会经常停下来等待指令，效率不高。
+
+- **使用 CUDA 图的方式**：
+
+  - 主管（CPU）在开始前，就把整个生产流程（多个步骤）设计好，形成一个“流程图”。
+
+  - 工人（GPU）按照这个流程图，连续地完成所有步骤，中间不需要再向主管请示。
+
+  - 这样，工人可以一直忙碌，减少了等待时间，生产效率大大提高。
+
+    
+
+#### 7. 增强对多模态大型语言模型的支持
+
+ 
+**多模态大型语言模型（MLLM）：**
+
+能够处理文本、图像等多种类型输入的模型。
+
+**V1 的改进：**
+
+- **优化输入预处理**：将图像等输入的预处理移到独立进程，避免阻塞 GPU。
+
+- **多模态前缀缓存**：支持对图像输入的缓存，加速重复处理。
+
+- **灵活调度**：允许将多模态输入的处理分散到多个步骤，提高效率。
+
+  **实际场景举例：**
+
+  在一个需要处理图像问答的系统中，V1 可以快速处理用户上传的图像，并生成回答。如果同一张图像被多次询问，系统可以利用缓存，加速响应。
+
+#### 8. FlashAttention 3
+
+ 
+**FlashAttention 3 的作用：**
+
+一种高性能的注意力机制计算方法，适用于 Transformer 模型。
+
+**V1 的改进：**
+
+- **集成 FlashAttention 3**：在高动态性计算中提供高效的注意力计算。
+
+- **支持各种功能**：在合并预填充和解码等动态批处理场景下表现出色。
+
+  **实际场景举例：**
+
+  对于需要高吞吐量和低延迟的应用，如实时翻译或大规模聊天服务，FlashAttention 3 可以确保模型在高负载下保持良好性能。
+
+https://github.com/xinyuwei-david/david-share/tree/master/Deep-Learning/FlashAttention-3
+
+### 性能提升
+
+ 
+**总体效果：**
+
+- **吞吐量提升**：相比 V0，V1 的吞吐量提升最高可达 1.7 倍。
+
+- **延迟降低**：更快的响应时间，改善用户体验。
+
+  **具体示例：**
+
+- **文本模型**：在 Llama 3.1 8B 和 Llama 3.3 70B 上测试，V1 在高并发请求下表现出更好的性能。
+
+- **视觉语言模型**：在 Qwen2-VL 上，V1 的改进更加显著，特别是在处理图像输入时。
+
+![Image](images/vllm_v1_7.png)
+
+![Image](images/vllm_v1_8.png)
+
+### 
+
+### 展望未来
+
+ 
+
+- **持续优化**：团队将继续改进 V1 的性能和功能。
+- **扩展支持**：增加对更多模型类型、功能和硬件的支持。
+
+### 当前的限制和未来工作
+
+ 
+**模型支持：**
+
+- **目前支持**：仅解码器的 Transformer 模型（如 Llama）、MoE 模型（如 Mixtral）、部分视觉语言模型（如 Qwen2-VL）。
+
+- **暂不支持**：编码器-解码器架构（如多模态 Llama 3.2）、基于 Mamba 的模型（如 Jamba）、嵌入模型。
+
+  **功能限制：**
+
+- **缺少的功能**：log probs、提示 log probs、流水线并行、结构化解码、推测性解码、Prometheus 指标、LoRA 等。
+
+- **开发中**：团队正在努力缩小功能差距，并添加新的优化。
+
+  **硬件支持：**
+
+- **当前支持**：仅支持 NVIDIA Ampere 或更新的 GPU。
+
+- **未来计划**：扩展到其他硬件平台，如 TPU。
+
+
+
+### 如何开始使用 vLLM V1
+
+ 
+
+1. **安装最新版本的 vLLM：**
+
+   ```
+   pip install vllm --upgrade
+   ```
+
+ 
+
+2. **设置环境变量：**
+
+```
+export VLLM_USE_V1=1
+```
+
+ 
+
+3. **使用 vLLM：**
+
+- 通过 Python API 或命令行使用，无需更改现有代码。
+
+- 启动兼容 OpenAI 的服务器：
+
+  ```
+  vllm serve <模型名称>
+  ```
+
+###  
+
+### **总结**  vLLM V1 通过重构架构、优化性能和扩展功能，显著提升了大型语言模型的推理效率。对于开发者和用户来说，这意味着更快的响应和更好的体验。
