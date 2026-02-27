@@ -323,6 +323,8 @@ The above recommendation is **narrowly scoped**. Do NOT generalize:
 
 #### Stability Test (516 requests, zero failures)
 
+> **Test Config**: Input 1024 tokens → Output 512 tokens, stream=True. Throughput numbers differ from Performance Benchmark above due to shorter output length.
+
 | Concurrency | Requests | Completed | Failed | Throughput (t/s) |
 |:-----------:|:--------:|:---------:|:------:|:----------------:|
 | 1 | 10 | 10 | 0 | 37.2 |
@@ -345,6 +347,8 @@ The above recommendation is **narrowly scoped**. Do NOT generalize:
 | Weather (streaming) | required | Tool call (stream) | ✅ `get_weather(city="Tokyo")` |
 
 #### ITL Precision Test
+
+> **Test Config**: Each scenario uses different input→output lengths (shown in parentheses), single request, stream=True.
 
 | Scenario | TTFT (ms) | ITL avg (ms) | ITL P50 (ms) | ITL P99 (ms) | TPS |
 |----------|:---------:|:------------:|:------------:|:------------:|:---:|
