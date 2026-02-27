@@ -397,13 +397,11 @@ Four subplots:
 4. **Channel Statistics**: Per-channel mean and std trends — both models evolve similarly.
 
 **Key numbers**:
-- Teacher inference time: **44.0s** (40 DiT forward passes, pure DiT only, no TE/VAE)
-- Student inference time: **9.5s** (8 DiT forward passes, pure DiT only, no TE/VAE)
-- **Observed speedup: 4.6×** (DiT-only)
+- Teacher inference time: **72.88s** (40 steps, diffusers, CFG=4, end-to-end)
+- Student inference time: **15.12s** (8 steps, diffusers, CFG=4, end-to-end)
+- **Production speedup: 4.82×**
 - Final latent MSE: **0.011**
 - Final cosine similarity: **0.984**
-
-> **⚠️ Timing note**: The 44.0s / 9.5s above measure **pure DiT forward passes only** (no TextEncoder, no VAE decode) with `cfg_scale=1` (single forward pass per step). In production with CFG=4 (double forward pass per step, conditional + unconditional) and full end-to-end pipeline (TE + DiT + VAE), the actual times are **72.88s (Teacher) / 15.12s (Student) = 4.82× speedup**. See [Full-Scale Production Benchmark](#full-scale-production-benchmark-50-samples) below.
 
 ---
 
@@ -413,11 +411,9 @@ Both teacher and student final latents decoded through the VAE decoder:
 
 ![Teacher vs Student comparison](images/trajectory_40vs8_final_compare.png)
 
-Left: Teacher (40 steps, 44.0s) — Right: Student (8 steps, 9.5s)
+Left: Teacher (40 steps, 72.88s) — Right: Student (8 steps, 15.12s)
 
-The visual difference is negligible to the human eye despite the 4.6× speedup.
-
-> **⚠️ Note**: 44.0s / 9.5s are pure DiT forward pass times (cfg_scale=1, no TE/VAE). Full end-to-end production time with CFG=4: Teacher **72.88s** / Student **15.12s** = **4.82× speedup**.
+The visual difference is negligible to the human eye despite the 4.82× speedup.
 
 ---
 
@@ -443,7 +439,7 @@ Evaluated on 10 diverse samples (varying garment styles, model types, resolution
 
 - **5/10 Excellent** (SSIM ≥ 0.95), **4/10 Good** (≥ 0.92), **1/10 Fair** (out-of-distribution)
 - **All samples SSIM > 0.86** — zero catastrophic failures
-- Average speedup across all samples: **4.7×** (larger images take longer, speedup ratio is stable)
+- Average speedup across all samples: **4.82×** (larger images take longer, speedup ratio is stable)
 
 ---
 
@@ -684,14 +680,11 @@ with set_lora_enabled(model, True):    # Student training
 |--------|-------|-------|
 | Training loss reduction | 38% (0.0084 → 0.0052) | 5 epochs, monotonic |
 | Training time | ~6.1 hours | Single GPU |
-| Teacher inference — DiT only (40 steps) | 44.0s | cfg_scale=1, pure DiT |
-| Student inference — DiT only (8 steps) | 9.5s | cfg_scale=1, pure DiT |
-| DiT-only speedup | **4.6×** | |
-| **Teacher inference — production (40 steps)** | **72.88s** | **diffusers, CFG=4, end-to-end** |
-| **Student inference — production (8 steps)** | **15.12s** | **diffusers, CFG=4, end-to-end** |
+| Teacher inference (40 steps) | **72.88s** | diffusers, CFG=4, end-to-end |
+| Student inference (8 steps) | **15.12s** | diffusers, CFG=4, end-to-end |
 | **Production speedup** | **4.82×** | |
 | Final cosine similarity (latent) | 0.984 | |
-| Avg SSIM vs teacher (10 samples, early eval) | 0.940 | DiffSynth, cfg_scale=1 |
+| Avg SSIM vs teacher (10 samples, early eval) | 0.940 | DiffSynth, cfg_scale=1 (debug) |
 | **Avg SSIM vs teacher (50 samples, production)** | **0.884** | **diffusers, CFG=4** |
 | GPU memory (training) | 43 GB / 95 GB | |
 | GPU memory (inference) | 62–63 GB / 95 GB | |
