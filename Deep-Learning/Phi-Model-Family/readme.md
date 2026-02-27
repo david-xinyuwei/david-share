@@ -1,4 +1,6 @@
-# Phi-4 quantization Fine-Tuning and inference speedup
+# Phi Model Family
+
+## Phi-4 Quantization, Fine-Tuning and Inference Speedup
 
 If a model requires both quantization and fine-tuning, it is usually fine-tuned first and then quantized. There may be three possible approaches:
 
@@ -869,3 +871,802 @@ Phi-4's success demonstrates the importance of data quality and training strateg
 
 
 #### **Refer to：***https://kaitchup.substack.com/p/phi-4-whats-new-and-how-to-fine-tune*
+
+---
+
+## Phi-3.5 MoE and Mini Fine-Tuning
+
+﻿
+
+New release 3 Phi 3.5 models:
+
+- microsoft/Phi-3.5-mini-instruct: 3.82B params
+
+- microsoft/Phi-3.5-MoE-instruct: 41.9B params
+
+- microsoft/Phi-3.5-vision-instruct: 4.15B params
+
+### Phi-3.5 MOE Introduction
+
+Phi-3.5 MOE is a newly released model by Microsoft with 41.9 billion parameters. The model includes 16 experts, with two decoder experts running simultaneously.
+
+**Model Analysis: Phi-3.5-MoE-instruct**
+
+**Basic Information**
+
+- **Model Name:** Phi-3.5-MoE-instruct
+
+- **Architecture:** PhiMoEForCausalLM
+
+- **Model Type:** phimoe
+
+- **Transformer Version:** 4.43.3
+
+  **Configuration Parameters**
+
+- **attention_bias:** true
+
+- **attention_dropout:** 0.0
+
+- **hidden_act:** silu (Swish activation function)
+
+- **hidden_dropout:** 0.0
+
+- **hidden_size:** 4096
+
+- **initializer_range:** 0.02
+
+- **input_jitter_noise:** 0.01
+
+- **intermediate_size:** 6400
+
+- **lm_head_bias:** true
+
+- **max_position_embeddings:** 131072
+
+- **num_attention_heads:** 32
+
+- **num_experts_per_tok:** 2
+
+- **num_hidden_layers:** 32
+
+- **num_key_value_heads:** 8
+
+- **num_local_experts:** 16
+
+- **original_max_position_embeddings:** 4096
+
+- **output_router_logits:** false
+
+- **rms_norm_eps:** 1e-05
+
+- **rope_theta:** 10000.0
+
+- **router_aux_loss_coef:** 0.0
+
+- **router_jitter_noise:** 0.01
+
+- **sliding_window:** 131072
+
+- **tie_word_embeddings:** false
+
+- **torch_dtype:** bfloat16
+
+- **vocab_size:** 32064
+
+  **Special Configuration**
+
+- auto_map:
+
+   
+
+  Automatic mapping configuration
+
+  - **AutoConfig:** configuration_phimoe.PhiMoEConfig
+
+  - **AutoModelForCausalLM:** modeling_phimoe.PhiMoEForCausalLM
+
+    **Token Configuration**
+
+- **bos_token_id:** 1
+
+- **eos_token_id:** 32000
+
+  **ROPE (Rotary Position Embedding) Scaling**
+
+- **long_factor** and **short_factor:** These parameters are used to adjust the scaling of long and short position embeddings.
+
+- **long_mscale** and **short_mscale:** These parameters are used to adjust the scaling of long and short position embeddings.
+
+- **type:** longrope
+
+  **Key Features**
+
+- **Mixture of Experts (MoE):** The model uses a mixture of experts mechanism, with 2 experts per token and a total of 16 local experts.
+
+- **Large-Scale Position Embedding:** Maximum position embedding is 131072, supporting long text processing.
+
+- **High-Dimensional Hidden Layers:** Hidden layer size is 4096, with 32 hidden layers.
+
+- **Multi-Head Attention Mechanism:** Utilizes 32 attention heads and 8 key-value heads.
+
+- **Low Dropout Rates:** Both attention_dropout and hidden_dropout are 0.0, indicating no dropout is used during training.
+
+- **Efficient Initialization:** Uses an initializer range of 0.02 to ensure stability of model parameters in the early stages of training.
+
+- **bfloat16 Data Type:** Uses bfloat16 data type, balancing computational efficiency and precision.
+
+  **Application Scenarios**
+
+- **Text Generation:** Suitable for generating natural language text.
+
+- **Multilingual Support:** Due to its multilingual tags, the model can handle text in multiple languages.
+
+- **Dialogue Systems:** Suitable for building dialogue systems and chatbots.
+
+- **Code Generation:** Due to its code tags, the model can also be used to generate code snippets.
+
+  **Summary**
+  Phi-3.5-MoE-instruct is a powerful mixture of experts model with high-dimensional hidden layers and a multi-head attention mechanism, suitable for various natural language processing tasks. Its large-scale position embedding and low dropout rates make it excel in handling long texts and complex tasks.
+
+  **So, what GPU is needed to fine-tune Phi-3.5 MOE?**
+  With QLoRA, it can be done on a single H100 GPU.
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nWFRBou752icFdNSurEI87dsK4zgoG1Mbb4EGPQxrsWBeuZU97xsic3aibxuLVknwibqSLxkEo4p5c5aQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+
+### Phi-3.5 MOE SFT Code
+
+```
+model_name = "microsoft/Phi-3.5-MoE-instruct"
+
+tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True, add_eos_token=True, use_fast=True)
+tokenizer.pad_token = tokenizer.unk_token
+tokenizer.pad_token_id = tokenizer.convert_tokens_to_ids(tokenizer.pad_token)
+tokenizer.padding_side = 'left'
+
+ds = load_dataset("timdettmers/openassistant-guanaco")
+
+bnb_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_compute_dtype=compute_dtype,
+        bnb_4bit_use_double_quant=True,
+)
+model = AutoModelForCausalLM.from_pretrained(
+          model_name, torch_dtype=compute_dtype, trust_remote_code=True, quantization_config=bnb_config, device_map={"": 0}, attn_implementation=attn_implementation
+)
+print(model)
+print(model.get_memory_footprint())
+
+
+model = prepare_model_for_kbit_training(model,gradient_checkpointing_kwargs={'use_reentrant':True})
+
+peft_config = LoraConfig(
+        lora_alpha=16,
+        lora_dropout=0.05,
+        r=16,
+        bias="none",
+        task_type="CAUSAL_LM",
+        target_modules= ['k_proj', 'q_proj', 'v_proj', 'o_proj', "gate_proj", "down_proj", "up_proj","gate","w1","w2","w3"]
+)
+
+
+training_arguments = SFTConfig(
+        output_dir="./Phi-3.5/Phi-3.5-MoE_QLoRA",
+        eval_strategy="steps",
+        do_eval=True,
+        optim="paged_adamw_8bit",
+        per_device_train_batch_size=1,
+        gradient_accumulation_steps=32,
+        per_device_eval_batch_size=1,
+        log_level="debug",
+        save_strategy="epoch",
+        logging_steps=25,
+        learning_rate=1e-4,
+        fp16 = not torch.cuda.is_bf16_supported(),
+        bf16 = torch.cuda.is_bf16_supported(),
+        eval_steps=25,
+        num_train_epochs=1,
+        warmup_ratio=0.1,
+        lr_scheduler_type="linear",
+        dataset_text_field="text",
+        max_seq_length=512 ,
+          report_to=["none"]  # Disable wandb  
+)
+
+trainer = SFTTrainer(
+        model=model,
+        train_dataset=ds['train'],
+        eval_dataset=ds['test'],
+        peft_config=peft_config,
+        tokenizer=tokenizer,
+        args=training_arguments,
+)
+
+trainer.train()
+```
+
+In above code, W1/2/3 are the linear modules of each expert.
+
+### Phi-3.5 Mini SFT Code
+
+```
+model_name = "microsoft/Phi-3.5-Mini-instruct"
+
+tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True, add_eos_token=True, use_fast=True)
+tokenizer.pad_token = tokenizer.unk_token
+tokenizer.pad_token_id = tokenizer.convert_tokens_to_ids(tokenizer.pad_token)
+tokenizer.padding_side = 'left'
+
+ds = load_dataset("timdettmers/openassistant-guanaco")
+
+bnb_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_compute_dtype=compute_dtype,
+        bnb_4bit_use_double_quant=True,
+)
+model = AutoModelForCausalLM.from_pretrained(
+          model_name, torch_dtype=compute_dtype, trust_remote_code=True, quantization_config=bnb_config, device_map={"": 0}, attn_implementation=attn_implementation
+)
+
+model = prepare_model_for_kbit_training(model,gradient_checkpointing_kwargs={'use_reentrant':True})
+
+peft_config = LoraConfig(
+        lora_alpha=16,
+        lora_dropout=0.05,
+        r=16,
+        bias="none",
+        task_type="CAUSAL_LM",
+        target_modules= ['k_proj', 'q_proj', 'v_proj', 'o_proj', "gate_proj", "down_proj", "up_proj"]
+)
+
+
+training_arguments = SFTConfig(
+        output_dir="./Phi-3.5/Phi-3.5-Mini_QLoRA",
+        eval_strategy="steps",
+        do_eval=True,
+        optim="paged_adamw_8bit",
+        per_device_train_batch_size=8,
+        gradient_accumulation_steps=4,
+        per_device_eval_batch_size=8,
+        log_level="debug",
+        save_strategy="epoch",
+        logging_steps=25,
+        learning_rate=1e-4,
+        fp16 = not torch.cuda.is_bf16_supported(),
+        bf16 = torch.cuda.is_bf16_supported(),
+        eval_steps=25,
+        num_train_epochs=1,
+        warmup_ratio=0.1,
+        lr_scheduler_type="linear",
+        dataset_text_field="text",
+        max_seq_length=512,
+        report_to=["none"]  # Disable wandb  
+)
+
+trainer = SFTTrainer(
+        model=model,
+        train_dataset=ds['train'],
+        eval_dataset=ds['test'],
+        peft_config=peft_config,
+        tokenizer=tokenizer,
+        args=training_arguments,
+)
+
+trainer.train()
+```
+
+### Phi-3.5 Mini Coding ability SFT code
+```
+model_name = "microsoft/Phi-3.5-Mini-instruct"  
+tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True, add_eos_token=True, use_fast=True)  
+tokenizer.pad_token = tokenizer.unk_token  
+tokenizer.pad_token_id = tokenizer.convert_tokens_to_ids(tokenizer.pad_token)  
+tokenizer.padding_side = 'left'  
+  
+# 加载数据集  
+ds = load_dataset("iamtarun/python_code_instructions_18k_alpaca")  
+  
+# 查看数据集结构  
+print(ds['train'][:5])  
+  
+# 检查缺失值  
+print({col: pd.isnull(ds['train'][col]).sum() for col in ds['train'].column_names})  
+  
+# 预处理函数  
+def preprocess_function(examples):  
+    # 合并所有需要的列  
+    return {  
+        "text": [  
+            f"Instruction: {instr}\nInput: {inp}\nOutput: {outp}\nPrompt: {prmpt}"  
+            for instr, inp, outp, prmpt in zip(examples['instruction'], examples['input'], examples['output'], examples['prompt'])  
+        ]  
+    }  
+  
+# 预处理数据集  
+processed_ds = ds.map(preprocess_function, batched=True)  
+  
+# 验证预处理结果  
+print(processed_ds['train']['text'][:5])  
+  
+# 将 Dataset 转换为 Pandas DataFrame  
+df = pd.DataFrame(processed_ds['train'])  
+  
+# 使用 train_test_split 进行拆分  
+train_df, eval_df = train_test_split(df, test_size=0.1, random_state=42)  
+  
+# 将 DataFrame 转换回 Dataset  
+train_data = Dataset.from_pandas(train_df)  
+eval_data = Dataset.from_pandas(eval_df)  
+  
+bnb_config = BitsAndBytesConfig(  
+    load_in_4bit=True,  
+    bnb_4bit_quant_type="nf4",  
+    bnb_4bit_compute_dtype=compute_dtype,  
+    bnb_4bit_use_double_quant=True,  
+)  
+  
+model = AutoModelForCausalLM.from_pretrained(  
+    model_name, torch_dtype=compute_dtype, trust_remote_code=True, quantization_config=bnb_config, device_map={"": 0}, attn_implementation=attn_implementation  
+)  
+  
+model = prepare_model_for_kbit_training(model, gradient_checkpointing_kwargs={'use_reentrant': True})  
+  
+peft_config = LoraConfig(  
+    lora_alpha=16,  
+    lora_dropout=0.05,  
+    r=16,  
+    bias="none",  
+    task_type="CAUSAL_LM",  
+    target_modules=['k_proj', 'q_proj', 'v_proj', 'o_proj', "gate_proj", "down_proj", "up_proj"]  
+)  
+  
+training_arguments = SFTConfig(  
+    output_dir="./Phi-3.5/Phi-3.5-Mini_QLoRA",  
+    eval_strategy="steps",  
+    do_eval=True,  
+    optim="paged_adamw_8bit",  
+    per_device_train_batch_size=32,  
+    gradient_accumulation_steps=4,  
+    per_device_eval_batch_size=32,  
+    log_level="debug",  
+    save_strategy="epoch",  
+    logging_steps=25,  
+    learning_rate=1e-4,  
+    fp16=not torch.cuda.is_bf16_supported(),  
+    bf16=torch.cuda.is_bf16_supported(),  
+    eval_steps=25,  
+    num_train_epochs=3,  
+    warmup_ratio=0.1,  
+    lr_scheduler_type="linear",  
+    dataset_text_field="text",  
+    max_seq_length=512,  
+    report_to=[]  
+)  
+  
+trainer = SFTTrainer(  
+    model=model,  
+    train_dataset=train_data,  
+    eval_dataset=eval_data,  
+    peft_config=peft_config,  
+    tokenizer=tokenizer,  
+    args=training_arguments,  
+)  
+  
+trainer.train()  
+```
+GPU resource during the SFT:
+![images](images/phi35_sft_gpu.png)
+
+
+SFT results:
+
+![images](images/phi35_sft_results.png)
+
+
+
+Inference code
+```
+# 设置模型名称和适配器路径  
+model_name = "microsoft/Phi-3.5-Mini-instruct"  
+adapter_path = "/root/Phi-3.5/Phi-3.5-Mini_QLoRA/checkpoint-393"  
+  
+# 加载 tokenizer  
+tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True, use_fast=True)  
+  
+# 加载模型  
+model = AutoModelForCausalLM.from_pretrained(model_name, trust_remote_code=True)  
+  
+# 加载适配器  
+model = PeftModel.from_pretrained(model, adapter_path)  
+  
+# 设置模型为评估模式  
+model.eval()  
+  
+# 定义推理函数  
+def generate_text(prompt, max_length=500):  
+    inputs = tokenizer(prompt, return_tensors="pt")  
+    attention_mask = inputs['attention_mask']  
+    with torch.no_grad():  
+        outputs = model.generate(  
+            inputs.input_ids,  
+            attention_mask=attention_mask,  
+            max_length=max_length,  
+            num_return_sequences=1,  
+            do_sample=True,  
+            top_k=50,  
+            top_p=0.95  
+        )  
+    return tokenizer.decode(outputs[0], skip_special_tokens=True)  
+  
+# 示例推理  
+prompt = ("write a python add from 1 to 100, give me the full code") 
+generated_text = generate_text(prompt)  
+print(generated_text)  
+```
+Result:
+```
+Write a Python function to calculate the sum of numbers from 1 to 100 and print the result.
+
+def sum_of_numbers():
+    # initialize the sum
+    total = 0
+
+    # loop through the numbers
+    for num in range(1, 101):
+        # add each number to the sum
+        total += num
+
+    # print the sum
+    print("Sum of numbers from 1 to 100 is:", total)
+
+# call the function
+sum_of_numbers()
+Prompt:
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+
+#### Instruction:
+
+Write a Python function to calculate the sum of numbers from 1 to 100 and print the result.
+
+#### Input:
+
+No input
+
+#### Output:
+
+def sum_of_numbers():
+    # initialize the sum
+    total = 0
+
+    # loop through the numbers
+    for num in range(1, 101):
+        # add each number to the sum
+        total += num
+
+    # print the sum
+    prompt = ("Write a Python function to calculate the sum of numbers from 1 to 100 and print the result.") 
+
+# call the function
+sum_of_numbers()
+```
+We could observe that the inference output is same with training dataset style and the code genarated is correct.
+![images](images/phi35_sft_inference.png)
+
+---
+
+## Phi-3 Quantization and Fine-Tuning
+
+The fine-tuning and quantization of Phi3 are not fundamentally different from those of Phi2. However, there are minor differences in the details, which will be discussed in this article.  
+  
+### 1. Static and Runtime States of Neural Network Models  
+  
+A neural network model can be viewed from two perspectives: the static part and the runtime state.  
+  
+#### Static Part  
+  
+1. **Model Weight File (model_weights.h5 or model_weights.pt)**:  
+   - **Content**: Stores the model's weights and biases, which are learned through optimization algorithms during training.  
+   - **Loading Process**:  
+     1. **Read File**: The model weight file (e.g., .h5 or .pt file) is read into memory.  
+     2. **Parse and Decode**: The binary data in the file is parsed and decoded into the model's weight matrices and bias vectors.  
+     3. **Assign to Model**: The parsed weights and biases are assigned to the various layers and nodes of the model, initializing the model's parameters.  
+  
+2. **Configuration File (config.json)**:  
+   - **Definition**: Defines the model's architecture, including the number of layers, the type of each layer (e.g., convolutional layer, fully connected layer), and the parameters of each layer (e.g., filter size, stride).  
+  
+3. **Vocabulary File (vocab.txt)**:  
+   - **Purpose**: Used in processing text data, storing the vocabulary and their indices, which are used to convert text into numerical forms that the model can process.  
+  
+4. **Additional Tools and Scripts (preprocess.py, postprocess.py)**:  
+   - **Purpose**: Used for data preprocessing and postprocessing, such as resizing and normalizing images, or tokenizing text.  
+  
+5. **Training/Fine-Tuning Scripts (train.py, finetune.py)**:  
+   - **Content**: Contains the code for training or fine-tuning the model. These scripts define the training process, including the choice of loss function, optimizer configuration, and training epochs.  
+  
+#### Runtime Part  
+  
+1. **Input (input_data)**:  
+   - **Content**: The raw data received by the model, which can be in various forms such as images, text, or audio.  
+  
+2. **Activation (activations)**:  
+   - **Content**: The output values processed by the activation function of each layer, which serve as the input for the next layer.  
+  
+3. **Intermediate States (layer_outputs)**:  
+   - **Content**: Other forms of output that each layer may produce, such as feature maps in convolutional layers.  
+  
+4. **Gradients (gradients)**:  
+   - **Content**: The gradients of each parameter calculated during training through the backpropagation algorithm.  
+  
+5. **Loss Value (loss_value)**:  
+   - **Content**: The difference value between the current model output and the true labels, calculated by the loss function.  
+  
+6. **State Updates (weight_updates, optimizer_states)**:  
+   - **Content**: The updated weights based on the gradients and learning rate, as well as the states maintained by the optimizer (e.g., momentum and adaptive learning rate information).  
+  
+7. **Caches (forward_cache)**:  
+   - **Content**: Certain values cached during forward propagation, used for efficiently calculating gradients during backpropagation.  
+  
+These components together ensure the correct operation and performance of the model during training and inference. The static part defines the model's structure and initial state, while the runtime part involves the model's dynamic behavior and state updates when processing data.  
+  
+### 2. Quantization Methods  
+  
+From a higher-level classification, model quantization methods can generally be divided into two categories: Quantization-Aware Training (QAT) and Post-Training Quantization (PTQ).  
+  
+#### Quantization-Aware Training (QAT)  
+  
+- **Characteristics**: Simulates the effects of quantization during model training, allowing the model to account for quantization errors during training.  
+- **Advantages**: Typically produces higher precision quantized models because the model parameters adapt to the quantization constraints during training.  
+  
+#### Post-Training Quantization (PTQ)  
+  
+- **Characteristics**: A quantization method applied after model training is completed, without the need to retrain the model.  
+- **Popular Methods**: GPTQ, bitsandbytes, and AWQ, all of which belong to post-training quantization (PTQ).  
+  
+In deep learning model quantization, the primary focus is on the runtime part of the model, especially the quantization of weights and activation values. This is because the main goal of quantization is to reduce the computational complexity and memory usage during inference, thereby speeding up model execution and reducing power consumption, which is particularly important for deployment on resource-constrained devices.  
+  
+#### Focus of Quantization  
+  
+1. **Weight Quantization**:  
+   - **Content**: Weights are the static part of the model, stored in the model file. Weight quantization involves converting floating-point weights to lower precision formats (e.g., int8 or int16).  
+   - **Purpose**: Performed before model deployment, it can significantly reduce model size and speed up model loading time.  
+  
+2. **Activation Quantization**:  
+   - **Content**: Activation values are generated during model runtime, representing the data passed between layers. Activation quantization usually occurs during model inference, i.e., dynamic quantization.  
+   - **Purpose**: Reduces computational requirements and memory usage during runtime.  
+  
+#### Static File and Runtime Quantization  
+  
+- **Static File Quantization**: Mainly involves weight quantization, which is completed before model deployment to reduce the model file size.  
+- **Runtime Quantization**: Involves the quantization of activation values, performed during model execution to optimize inference performance.  
+  
+In summary, quantization involves both the static part of the model (e.g., weights) and the runtime part (e.g., activation values). Both types of quantization aim to optimize the storage and execution efficiency of the model, especially in resource-constrained environments.  
+  
+### 3. Specific Implementation of Quantization Methods  
+  
+#### BitsandBytes  
+  
+- **Main Quantization Part**: Primarily quantizes the model's weights.  
+- **Characteristics**: Uses a special 4-bit data type called NormalFloat (NF) to achieve weight quantization. This method focuses on reducing the storage and computational requirements of model weights, thereby optimizing model size and inference speed while maintaining performance.  
+  
+#### GPTQ (Gradient-based Post-Training Quantization)  
+  
+- **Main Quantization Part**: Primarily quantizes the model's weights but may also involve activation quantization, especially in lower bit-width settings.  
+- **Characteristics**: Provides more flexibility, supporting the reduction of model precision to 8-bit, 4-bit, 3-bit, or even 2-bit. This method uses gradient information to optimize the quantization process, reducing the impact of quantization on model performance.  
+  
+#### AWQ (Activation-aware Weight Quantization)  
+  
+- **Quantization Type**: Dynamic quantization  
+- **Quantization Part**: Primarily quantizes weights.  
+- **Characteristics**:  
+  - **Activation-Aware**: Considers the distribution and characteristics of activation values when quantizing weights. This means that AWQ adaptively adjusts quantization parameters based on the statistical properties of activation values during the quantization process, reducing the negative impact of quantization on model performance.  
+  - **Adaptive Quantization**: Adjusts quantization parameters adaptively based on the statistical properties of weights, which can change dynamically during different training stages or data batches.  
+  - **Quantization During Training**: Unlike static quantization, AWQ can be applied during model training, allowing the model to optimize while considering quantization effects.  
+  
+#### QAT (Quantization-Aware Training)  
+  
+- **Quantization Type**: Mixed quantization  
+- **Quantization Part**: Quantizes both weights and activations.  
+- **Characteristics**:  
+  - **Simulates Quantization During Training**: Simulates the effects of quantization throughout the training process, helping to train models that maintain high performance even after quantization.  
+  - **Reduces Quantization-Induced Accuracy Loss**: By considering the impact of quantization during training, QAT can significantly reduce the negative impact of quantization on model accuracy.  
+  
+In summary, BitsandBytes and GPTQ primarily focus on weight quantization because weight quantization can significantly reduce model size and improve computational efficiency with relatively minor impact on model performance. Both methods aim to improve model deployment efficiency and runtime speed by optimizing weight storage and computation. AWQ, on the other hand, considers the distribution and characteristics of activation values when quantizing weights, further reducing the negative impact of quantization on model performance. Among various mainstream quantization techniques, AWQ currently achieves relatively high precision (compared to GPTQ, bitsandbytes, etc.) and fast inference speed for quantized models.  
+  
+### 4. Example of AWQ Quantization Parameters  
+  
+Below is a configuration example for quantization using AWQ:  
+```  
+quant_config = {  
+    "zero_point": True,  
+    "q_group_size": 128,  
+    "w_bit": 4,  
+    "version": "GEMM"  
+}  
+```
+
+#### Parameter Explanation:
+
+#### `zero_point`
+
+- **Type**: Boolean (True or False)
+- **Description**: Determines whether to use zero point during the quantization process. A zero point is an offset used to align floating-point numbers with their integer representation during quantization.
+- **Benefits**: Using a zero point can improve the accuracy of quantization, especially when dealing with tensors that have negative values.
+- **Overhead**: Using a zero point increases computational complexity because each quantization and dequantization operation needs to account for this offset.
+
+#### `q_group_size`
+
+- **Type**: Integer
+- **Description**: Specifies the size of groups during the quantization process. Quantization grouping involves dividing weights or activations into multiple groups, with each group being quantized independently.
+- **Benefits**: Smaller group sizes can enhance the flexibility and accuracy of quantization but also increase computational overhead. A group size of 128 is common, balancing precision and computational efficiency.
+- **Overhead**: Smaller group sizes increase computational and storage overhead as each group requires independent quantization parameters. Larger group sizes reduce these overheads but may decrease quantization accuracy.
+
+#### `w_bit`
+
+- **Type**: Integer
+- **Description**: Specifies the bit-width used during quantization. The bit-width determines the precision of the quantized values.
+- **Benefits**: Higher bit-width can improve quantization accuracy but also increases storage and computational overhead. 4-bit quantization (i.e., `w_bit=4`) is a common low-bit quantization method that significantly reduces model size and computation while maintaining high accuracy.
+- **Overhead**: Higher bit-width increases storage and computational overhead as each quantized value requires more bits for representation. Lower bit-widths (like 4-bit or 2-bit) can significantly reduce model size and computation but may introduce more quantization error.
+
+#### `version`
+
+- **Type**: String
+
+- **Description**: Specifies the version or implementation of the quantization algorithm. "GEMM" typically refers to an implementation optimized using General Matrix Multiplication.
+
+- **Benefits**: Using optimized versions can enhance computational efficiency, especially on hardware accelerators.
+
+- **Overhead**: Different implementations may have varying hardware and software requirements, necessitating selection based on the specific application scenario and hardware platform.
+
+  For example, `int4-awq-block-128` refers to a quantization result with `w_bit=4` and `q_group_size=128`.
+
+
+
+### 5.Quantization Code Implementation
+
+#### bnb
+```
+model_name = "microsoft/Phi-3-mini-4k-instruct"
+quant_path = 'Phi-3-mini-4k-instruct-bnb-4bit'
+
+# 加载分词器
+tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+
+# 配置 BitsAndBytesConfig
+bnb_config = BitsAndBytesConfig(
+    load_in_4bit=True,
+    bnb_4bit_quant_type="nf4",
+    bnb_4bit_compute_dtype=compute_dtype,
+    bnb_4bit_use_double_quant=True,
+)
+
+# 加载模型
+model = AutoModelForCausalLM.from_pretrained(
+    model_name, quantization_config=bnb_config, trust_remote_code=True
+)
+
+# 保存模型和分词器
+model.save_pretrained("./" + quant_path, safetensors=True)
+tokenizer.save_pretrained("./" + quant_path)
+```
+
+#### GPTQ
+
+```
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from optimum.gptq import GPTQQuantizer
+import torch
+model_path = 'microsoft/Phi-3-mini-4k-instruct'
+w = 4 #quantization to 4-bit. Change to 2, 3, or 8 to quantize with another precision
+
+quant_path = 'Phi-3-mini-4k-instruct-gptq-'+str(w)+'bit'
+
+# Load model and tokenizer
+tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True, trust_remote_code=True)
+model = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype=torch.float16, device_map="auto", trust_remote_code=True)
+quantizer = GPTQQuantizer(bits=w, dataset="c4", model_seqlen = 2048)
+quantized_model = quantizer.quantize_model(model, tokenizer)
+
+quantized_model.save_pretrained("./"+quant_path, safetensors=True)
+tokenizer.save_pretrained("./"+quant_path)
+```
+
+#### AWQ
+```
+from awq import AutoAWQForCausalLM
+from transformers import AutoTokenizer
+
+model_path = 'microsoft/Phi-3-mini-128k-instruct'
+quant_path = 'Phi-3-mini-128k-instruct-awq-4bit'
+quant_config = { "zero_point": True, "q_group_size": 128, "w_bit": 4, "version": "GEMM" }
+
+# Load model and tokenizer
+model = AutoAWQForCausalLM.from_pretrained(model_path, safetensors=True)
+tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True)
+
+# Quantize
+model.quantize(tokenizer, quant_config=quant_config)
+
+# Save quantized model with safetensors
+model.save_quantized("./"+quant_path, safetensors=True)
+tokenizer.save_pretrained("./"+quant_path)
+```
+### 6. Fine Tuning
+Training code:
+
+```
+model_name = "microsoft/Phi-3-mini-4k-instruct"
+
+tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True, add_eos_token=True, use_fast=True)
+tokenizer.pad_token = tokenizer.unk_token
+tokenizer.pad_token_id = tokenizer.convert_tokens_to_ids(tokenizer.pad_token)
+tokenizer.padding_side = 'left'
+
+ds = load_dataset("timdettmers/openassistant-guanaco")
+
+bnb_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_compute_dtype=compute_dtype,
+        bnb_4bit_use_double_quant=True,
+)
+model = AutoModelForCausalLM.from_pretrained(
+          model_name, torch_dtype=compute_dtype, trust_remote_code=True, quantization_config=bnb_config, device_map={"": 0}, attn_implementation=attn_implementation
+)
+
+model = prepare_model_for_kbit_training(model)
+
+peft_config = LoraConfig(
+        lora_alpha=16,
+        lora_dropout=0.05,
+        r=16,
+        bias="none",
+        task_type="CAUSAL_LM",
+        target_modules= ['k_proj', 'q_proj', 'v_proj', 'o_proj', "gate_proj", "down_proj", "up_proj"]
+)
+
+
+from trl import SFTConfig
+
+training_arguments = SFTConfig(
+        output_dir="./Phi-3_QLoRA",
+        evaluation_strategy="steps",
+        do_eval=True,
+        optim="paged_adamw_8bit",
+        per_device_train_batch_size=64,
+        #gradient_accumulation_steps=8,
+        per_device_eval_batch_size=4,
+        log_level="debug",
+        save_strategy="epoch",
+        logging_steps=100,
+        learning_rate=1e-4,
+        fp16 = not torch.cuda.is_bf16_supported(),
+        bf16 = torch.cuda.is_bf16_supported(),
+        eval_steps=100,
+        num_train_epochs=3,
+        warmup_ratio=0.1,
+        lr_scheduler_type="linear",
+)
+
+trainer = SFTTrainer(
+        model=model,
+        train_dataset=ds['train'],
+        eval_dataset=ds['test'],
+        peft_config=peft_config,
+        dataset_text_field="text",
+        max_seq_length=512,
+        tokenizer=tokenizer,
+        args=training_arguments,
+)
+
+trainer.train()
+```
+Training results:
+```
+Step	Training Loss	Validation Loss
+100	1.269000	1.282623
+200	1.170900	1.269450
+300	1.165900	1.263883
+400	1.162900	1.262569
+```

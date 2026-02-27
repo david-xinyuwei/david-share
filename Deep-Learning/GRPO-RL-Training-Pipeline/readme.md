@@ -1150,7 +1150,8 @@ GRPOTrainer-specific fields
 
 # Part 2: Embedded C++ Code Generation  SFT + GRPO
 
-> *Merged from the original Embedded-Code-SFT-RL project. Scripts: embedded_grpo_train.py, embedded_infer.py, un_train.sh*
+> *Merged from the original Embedded-Code-SFT-RL project. Scripts: embedded_grpo_train.py, embedded_infer.py, 
+un_train.sh*
 
 本项目演示如何使用 **SFT + GRPO** 训练一个嵌入式 C++ 代码生成模型，适用于白色家电厂商等有大量嵌入式代码库的客户场景。
 
@@ -1622,3 +1623,716 @@ void UART_Init() {
 2. **CoT 对代码生成有效**：让模型先分析再写代码
 3. **Full Fine-tuning > LoRA**：复杂任务需要更大调整幅度
 4. **推理参数很重要**：`temperature=0` 确保输出稳定
+
+---
+
+# Part 3: GRPO Phi-4 实战训练 (Unsloth)
+
+***Please click below pictures to see my demo video on Youtube about GRPO of Microsoft/phi-4:***
+[![BitNet-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/WXjJdsV2cbU)
+
+
+
+## Phi-4 GRPO 训练代码
+
+```
+from unsloth import FastLanguageModel, PatchFastRL
+PatchFastRL("GRPO", FastLanguageModel)
+```
+
+```
+max_seq_length = 1024
+lora_rank = 16
+
+model, tokenizer = FastLanguageModel.from_pretrained(
+    model_name = "microsoft/phi-4",
+    max_seq_length = max_seq_length,
+    load_in_4bit = True, 
+    fast_inference = True, 
+    max_lora_rank = lora_rank,
+    gpu_memory_utilization = 0.6, 
+)
+```
+
+```
+model = FastLanguageModel.get_peft_model(
+    model,
+    r = lora_rank,
+    target_modules = [
+        "q_proj", "k_proj", "v_proj", "o_proj",
+        "gate_proj", "up_proj", "down_proj",
+    ],
+    lora_alpha = lora_rank,
+    use_gradient_checkpointing = "unsloth",
+    random_state = 3407,
+)
+```
+
+```
+SYSTEM_PROMPT = """
+Respond in the following format:
+<reasoning>
+...
+</reasoning>
+<answer>
+...
+</answer>
+<aha>
+No no no, this is my real answer:
+...
+</aha>
+"""
+import re
+
+def very_loose_format_reward_func(completions, **kwargs) -> list[float]:
+    """Reward function that checks if the completion has a specific format."""
+    responses = [completion[0]["content"] for completion in completions]
+    return [0.5 if "<reasoning>" in r and "</reasoning>" in r else 0.0 for r in responses]
+
+def strict_format_reward_func(completions, **kwargs) -> list[float]:
+    """Reward function that checks if the completion has a specific format."""
+    pattern = r"^<reasoning>.*?</reasoning>\s*<answer>.*?</answer>\s*<aha>.*?</aha>$"
+    responses = [completion[0]["content"] for completion in completions]
+    matches = [re.match(pattern, r) for r in responses]
+    return [0.5 if match else 0.0 for match in matches]
+
+def aha_reward_func(completions, **kwargs) -> list[float]:
+    """Reward function that checks if the completion contains "aha" times, 2 for the tags, and one more, wherever it wants."""
+    responses = [completion[0]["content"] for completion in completions]
+    matches = [re.findall(r'\baha\b', r, re.IGNORECASE) for r in responses]
+    return [0.5 if len(match) == 3 else 0.0 for match in matches]
+```
+
+```
+from datasets import load_dataset
+import multiprocessing
+ds = load_dataset("cognitivecomputations/dolphin-r1", "reasoning-deepseek", split="train[:10000]")
+ds = ds.rename_columns({'messages':'prompt'})
+
+def process(row):
+  row['prompt'][0]['content'] += '\n'+SYSTEM_PROMPT
+  return row
+
+ds= ds.map(
+    process,
+    num_proc= multiprocessing.cpu_count(),
+    load_from_cache_file=False,
+)
+
+def tokenize_with_template(example):
+    """Tokenizes input text using the chat template of the tokenizer."""
+    chat_template = tokenizer.apply_chat_template(example['prompt'], tokenize=False, add_generation_prompt=True)
+    tokens = tokenizer(chat_template, truncation=False, add_special_tokens=True)["input_ids"]
+    return {"token_length": len(tokens)}
+
+ds = ds.map(tokenize_with_template,
+    #num_proc= multiprocessing.cpu_count(),
+    load_from_cache_file=False)
+ds = ds.filter(lambda example: example["token_length"] <= max_seq_length)
+ds = ds.remove_columns(["token_length"])
+```
+
+```
+from trl import GRPOConfig, GRPOTrainer
+training_args = GRPOConfig(
+    use_vllm = True, # use vLLM for fast inference!
+    learning_rate = 1e-6,
+    warmup_ratio = 0.1,
+    lr_scheduler_type = "linear",
+    optim = "paged_adamw_8bit",
+    logging_steps = 5,
+    bf16 = True,
+    per_device_train_batch_size = 2,
+    gradient_accumulation_steps = 4, # Increase to 4 for smoother training
+    num_generations = 6, # Decrease if out of memory (but avoid below 4)
+    max_prompt_length = 256,
+    max_completion_length = 512,
+    # num_train_epochs = 1, # Set to 1 for a full training run
+    max_steps = 250,
+    save_steps = 250,
+    report_to = "none", # Can use Weights & Biases
+    output_dir = "outputs",
+)
+```
+
+```
+trainer = GRPOTrainer(
+    model = model,
+    processing_class = tokenizer,
+    reward_funcs = [
+        aha_reward_func,
+        strict_format_reward_func,
+        very_loose_format_reward_func
+    ],
+    args = training_args,
+    train_dataset = ds,
+)
+trainer.train()
+```
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/GRPO-RL-Training-Pipeline/images/phi4_training_result.png)
+
+```
+from transformers import AutoTokenizer, AutoModelForCausalLM
+from peft import PeftModel
+import torch
+model = AutoModelForCausalLM.from_pretrained(
+    "microsoft/phi-4",
+    device_map="cuda",
+)
+
+tokenizer = AutoTokenizer.from_pretrained("microsoft/phi-4")
+model = PeftModel.from_pretrained(model, "outputs/checkpoint-50")
+```
+
+```
+SYSTEM_PROMPT = """
+Respond in the following format:
+<reasoning>
+...
+</reasoning>
+<answer>
+...
+</answer>
+<aha>
+No no no, this is my real answer:
+...
+</aha>
+"""
+
+messages = [{"role":"system", "content":"You are an expert who knows the location of all pandas in China."+SYSTEM_PROMPT},
+    {"role": "user", "content": "Make 10 possible equations to compute the number of panda in China."},
+]
+
+seq = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+print(seq)
+
+encoded_input = tokenizer(seq, return_tensors="pt").to(model.device)
+outputs = model.generate(
+  encoded_input['input_ids'],
+  max_new_tokens=2048,
+  do_sample=True,
+  temperature=0.6,
+  top_p=0.9,
+)
+
+
+response = outputs[0][encoded_input['input_ids'].shape[-1]:]
+print(tokenizer.decode(response))
+```
+
+Phi-4 GRPO 推理结果：
+
+```
+<|im_start|>system<|im_sep|>You are an expert who knows the location of all pandas in China.
+Respond in the following format:
+<reasoning>
+...
+</reasoning>
+<answer>
+...
+</answer>
+<aha>
+No no no, this is my real answer:
+...
+</aha>
+<|im_end|><|im_start|>user<|im_sep|>Make 10 possible equations to compute the number of panda in China.<|im_end|><|im_start|>assistant<|im_sep|>
+<reasoning>
+To create equations that could theoretically compute the number of pandas in China, we need to consider various factors that might influence the panda population. These factors could include birth rates, death rates, conservation efforts, habitat changes, and more. Here are some conceptual equations:
+
+1. **Basic Population Model**:
+   \[
+   P(t) = P_0 + (B - D) \times t
+   \]
+   Where \( P(t) \) is the population at time \( t \), \( P_0 \) is the initial population, \( B \) is the average number of births per year, and \( D \) is the average number of deaths per year.
+
+2. **Logistic Growth Model**:
+   \[
+   P(t) = \frac{K}{1 + \left(\frac{K - P_0}{P_0}\right) e^{-rt}}
+   \]
+   Where \( K \) is the carrying capacity of the environment, \( r \) is the intrinsic growth rate, and \( e \) is the base of the natural logarithm.
+
+3. **Conservation Impact Model**:
+   \[
+   P(t) = P_0 + (B - D + C) \times t
+   \]
+   Where \( C \) represents the net effect of conservation efforts (e.g., increased births or decreased deaths due to conservation).
+
+4. **Habitat Change Model**:
+   \[
+   P(t) = P_0 + (B - D) \times t - H(t)
+   \]
+   Where \( H(t) \) is the negative impact on the population due to habitat loss or degradation over time.
+
+5. **Predation and Disease Model**:
+   \[
+   P(t) = P_0 + (B - D - P_d - P_c) \times t
+   \]
+   Where \( P_d \) is the number of deaths due to disease, and \( P_c \) is the number of deaths due to predation.
+
+6. **Migration Model**:
+   \[
+   P(t) = P_0 + (B - D) \times t + M(t)
+   \]
+   Where \( M(t) \) is the net migration (immigration minus emigration) of pandas over time.
+
+7. **Human Impact Model**:
+   \[
+   P(t) = P_0 + (B - D - H_i) \times t
+   \]
+   Where \( H_i \) is the impact of human activities (e.g., poaching, deforestation) on the panda population.
+
+8. **Climate Change Model**:
+   \[
+   P(t) = P_0 + (B - D - C_c) \times t
+   \]
+   Where \( C_c \) is the impact of climate change on the panda population.
+
+9. **Genetic Diversity Model**:
+   \[
+   P(t) = P_0 + (B - D) \times t + G(t)
+   \]
+   Where \( G(t) \) is the effect of genetic diversity on population growth (e.g., increased resilience).
+
+10. **Combined Model**:
+    \[
+    P(t) = P_0 + (B - D + C - H - P_d - P_c + M - H_i - C_c + G) \times t
+    \]
+    This equation combines multiple factors to provide a more comprehensive model.
+
+These equations are hypothetical and would require specific data to be accurately applied.
+</reasoning>
+
+<answer>
+1. \( P(t) = P_0 + (B - D) \times t \)
+
+2. \( P(t) = \frac{K}{1 + \left(\frac{K - P_0}{P_0}\right) e^{-rt}} \)
+
+3. \( P(t) = P_0 + (B - D + C) \times t \)
+
+4. \( P(t) = P_0 + (B - D) \times t - H(t) \)
+
+5. \( P(t) = P_0 + (B - D - P_d - P_c) \times t \)
+
+6. \( P(t) = P_0 + (B - D) \times t + M(t) \)
+
+7. \( P(t) = P_0 + (B - D - H_i) \times t \)
+
+8. \( P(t) = P_0 + (B - D - C_c) \times t \)
+
+9. \( P(t) = P_0 + (B - D) \times t + G(t) \)
+
+10. \( P(t) = P_0 + (B - D + C - H - P_d - P_c + M - H_i - C_c + G) \times t \)
+</answer>
+
+<aha>
+No no no, this is my real answer: The exact number of pandas in China is determined through surveys and research conducted by wildlife authorities and conservation organizations. These numbers are updated periodically and are based on field data rather than equations.
+</aha><|im_end|>
+```
+
+
+
+## GRPO 方法详解
+
+### 1. GRPO 核心概念
+
+
+GRPO（Generative Relative Policy Optimization，生成式相对策略优化）的主要目标是通过在线、自生成的方式来优化模型的策略，使其无需依赖大量外部数据或人工反馈即可提升性能。其核心概念包括：
+
+- **在线生成与学习**：训练过程中模型自行生成样本并即时学习。
+- **相对优势评估**：通过计算生成样本的相对优势，引导模型向最优方向优化。
+- **策略正则化**：约束新策略与参考策略之间的差异，防止模型偏离原始知识结构。
+
+### 2. GRPO 工作流程
+
+#### **Step 1: 样本生成**
+
+
+对于每个输入（如提示或问题），模型生成多个可能的输出（称为"completions"）。例如给定一个问题，模型可能生成 8 个不同的答案。
+
+#### **Step 2: 奖励评估**
+
+
+对每个生成的输出，定义奖励函数来评估其质量。奖励函数可以根据任务需求设计，例如根据输出的格式、内容准确性等进行打分。
+
+#### **Step 3: 计算相对优势**
+
+
+对每个生成的输出，使用以下公式计算其相对于同组其他输出的相对优势（Advantage）：
+
+```
+A_i = (r_i - r̄) / σ(r)  
+```
+
+
+其中：
+
+- `A_i`：第 `i` 个输出的相对优势。
+
+- `r_i`：第 `i` 个输出的奖励值。
+
+- `r̄`：组内所有输出奖励值的均值。
+
+- `σ(r)`：组内奖励值的标准差。
+
+  **示例:**
+
+  假设模型生成了 4 个输出，奖励值分别为 `[0.6, 0.8, 0.4, 0.7]`。
+
+  计算均值：
+
+```
+r̄ = (0.6 + 0.8 + 0.4 + 0.7) / 4 = 0.625  
+```
+
+
+计算标准差：
+
+```
+σ(r) = sqrt( [(0.6 - 0.625)² + (0.8 - 0.625)² + (0.4 - 0.625)² + (0.7 - 0.625)²] / 4 )  
+     ≈ sqrt( [0.000625 + 0.030625 + 0.050625 + 0.005625] / 4 )  
+     ≈ sqrt(0.0875 / 4) ≈ 0.148  
+```
+
+
+各输出的相对优势：
+
+```
+A_1 = (0.6 - 0.625) / 0.148 ≈ -0.169  
+A_2 = (0.8 - 0.625) / 0.148 ≈ 1.182  
+A_3 = (0.4 - 0.625) / 0.148 ≈ -1.519  
+A_4 = (0.7 - 0.625) / 0.148 ≈ 0.507  
+```
+
+
+相对优势反映了每个输出相对于平均水平的表现。正值表示高于平均，负值表示低于平均。
+
+#### **Step 4: 策略更新**
+
+
+使用相对优势来更新模型策略。为防止策略偏离过大，引入 KL 散度作为正则化项：
+
+```
+L = - E[ A_i * log π_θ(a_i | x_i) ] + β * D_KL [ π_θ || π_ref ]  
+```
+
+
+其中：
+
+- `L`：损失函数。
+
+- `E`：所有样本的期望。
+
+- `A_i`：第 `i` 个样本的相对优势。
+
+- `π_θ(a_i | x_i)`：策略 `π_θ` 下模型对输入 `x_i` 生成输出 `a_i` 的概率。
+
+- `β`：正则化系数，控制策略更新的强度。
+
+- `D_KL [ π_θ || π_ref ]`：新策略 `π_θ` 与参考策略 `π_ref` 之间的 KL 散度。
+
+  **说明:**
+
+- **第一项**：通过用 `A_i` 对对数概率加权，鼓励模型对相对优势较高的输出赋予更高概率。
+
+- **第二项**：使用 KL 散度限制新策略与参考策略之间的差异，防止模型遗忘先前知识。
+
+### 3. GRPO 的优势
+
+#### 减少对外部数据的依赖
+
+- **自我生成训练数据**：模型通过在线生成样本进行学习，减少对大规模标注数据的需求。
+- **降低人工成本**：无需大量人工反馈或标注，降低训练成本。
+
+#### 提升训练效率
+
+- **快速收敛**：通过评估相对优势，模型能更高效地识别和学习高质量策略。
+- **策略稳定性**：引入策略正则化防止模型策略剧烈变化，确保训练过程稳定。
+
+### 4. 实践中的关键技术分析
+
+#### 相对优势的计算与应用
+
+
+计算相对优势使模型能在一组生成输出中识别哪些更优，从而集中学习这些高质量输出。
+
+**示例:**
+
+假设在一个训练步骤中，模型对一个输入生成了多个输出：
+
+- **输出 A**：奖励值 0.9
+
+- **输出 B**：奖励值 0.5
+
+- **输出 C**：奖励值 0.7
+
+  计算均值：
+
+```
+r̄ = (0.9 + 0.5 + 0.7) / 3 ≈ 0.7  
+```
+
+
+计算标准差：
+
+```
+σ(r) = sqrt( [(0.9 - 0.7)² + (0.5 - 0.7)² + (0.7 - 0.7)²] / 3 )  
+     = sqrt( [0.04 + 0.04 + 0] / 3 ) ≈ 0.163  
+```
+
+
+各输出的相对优势：
+
+```
+A_A = (0.9 - 0.7) / 0.163 ≈ 1.225  
+A_B = (0.5 - 0.7) / 0.163 ≈ -1.225  
+A_C = (0.7 - 0.7) / 0.163 = 0  
+```
+
+
+模型由此知道输出 A 高于平均水平，在策略更新时应赋予更大权重。
+
+#### 策略正则化的重要性
+
+
+引入 KL 散度作为正则化项，防止模型在更新过程中偏离原始策略过远，避免过拟合或遗忘先前学到的知识。
+
+#### 奖励函数设计
+
+
+奖励函数的设计对 GRPO 的成功至关重要。良好的奖励函数应满足：
+
+- **与任务目标紧密相关**：确保奖励值真实反映输出质量。
+
+- **计算简单**：避免过于复杂的计算以节省训练时间。
+
+- **具有区分度**：对高质量和低质量输出提供显著不同的奖励。
+
+### 5. 实践中的挑战与解决方案
+
+| 挑战 | 解决方案 |
+|------|---------|
+| 奖励函数设计困难 | 从简单奖励函数开始，根据训练结果迭代优化；结合多维指标（格式、准确性、流畅度） |
+| 模型训练不稳定 | 调整学习率、正则化系数 β 等超参数寻找最优平衡点；增加输入数据多样性 |
+| 资源限制 | 模型量化（8bit/4bit）降低显存使用；使用 LoRA 等参数高效微调技术 |
+
+### 6. 未来展望
+
+
+GRPO 方法为在有限资源下训练大语言模型提供了新途径。未来研究方向包括：
+
+- **自动化奖励函数生成**：利用机器学习技术自动设计和优化奖励函数，减少人工干预。
+- **与其他优化方法结合**：将 GRPO 与强化学习、元学习等方法结合，进一步提升模型性能。
+- **扩展应用领域**：探索 GRPO 在图像、语音等其他类型模型中的应用。
+
+GRPO 的优势在于减少对昂贵硬件和大量人工标注数据的依赖，使更多研究者和开发者能参与大模型的训练和应用。通过合理的奖励函数设计和策略正则化，模型能在有限资源下达到期望性能。
+
+***Refer to: https://kaitchup.substack.com/p/grpo-train-llms-with-deepseek-r1s***
+
+---
+
+# Part 4: GSPO vs GRPO — 为 MoE 模型打造的序列级优化
+
+## 1. 背景
+
+在大语言模型（LLM）的训练后期，强化学习（RLHF / RLAIF）起到至关重要的作用。
+常用的 RL 优化方法 PPO（Proximal Policy Optimization）在工业界存在多种改进版本，其中 **GRPO（Group Relative Policy Optimization）** 是 DeepSeek 等团队推行的工程化方案。
+
+但在 **MoE（Mixture of Experts）** 模型中，GRPO 的 **token 级优化** 容易遇到问题：
+
+- 对专家路由波动敏感 → 训练信号噪声大
+- 需要 Routing Replay（重放路由）来稳定训练
+- 长时间训练可能崩溃或难以扩展
+
+Qwen 团队在升级 **Qwen3 MoE 系列** 时，提出了新方法
+**GSPO（Group Sequence Policy Optimization）**：
+
+✅ 改进点：从 **token-level** 转为 **sequence-level** 优化
+✅ 目标：减少 MoE 路由带来的训练不稳定性，提升效率与可扩展性
+
+## 2. Dense 模型 vs MoE 模型
+
+### Dense 模型
+
+- 每次前向计算都用全量参数
+- 训练信号稳定
+- 无路由问题
+- 例子：GPT-3、LLaMA、BERT
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/GRPO-RL-Training-Pipeline/images/gspo_dense_model.png)
+
+### MoE 模型
+
+- 部分层替换为多个"专家网络"（Experts）
+- 每个 token 仅激活少数专家
+- 参数总量大，但每次计算量相对较低
+- 不同 token 路由可能不同 → 波动大
+- 例子：Mixtral 8x7B、Qwen3 MoE
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/GRPO-RL-Training-Pipeline/images/gspo_moe_architecture.png)
+
+**直观对比**：
+
+| 模型类型 | 参数参与度 | 路由波动 | 稳定性 |
+| -------- | ---------- | -------- | ------ |
+| Dense    | 100%       | 无       | 高     |
+| MoE      | 部分       | 有       | 低     |
+
+## 3. GRPO 与 GSPO 核心差异
+
+| 类别           | GRPO                | GSPO             |
+| -------------- | ------------------- | ---------------- |
+| 优化粒度       | Token-level         | Sequence-level   |
+| Ratio 计算     | 每个 token 单独     | 整条序列一次     |
+| Clip 操作      | 每个 token 独立剪切 | 整条序列统一剪切 |
+| 对路由波动敏感 | 高                  | 低               |
+| Routing Replay | 必需                | 不需要           |
+| 稳定性（MoE）  | 中等                | 高               |
+| Dense 提升     | 几乎无              | 几乎无           |
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/GRPO-RL-Training-Pipeline/images/gspo_comparison.png)
+
+## 4. GSPO 原理
+
+### Importance Ratio（重要性比）
+
+```
+ratio = P_cur / P_ref
+```
+
+
+
+衡量当前策略（P_cur）与参考策略（P_ref）对同一输出的倾向变化幅度。
+
+- GRPO：逐 token 比例
+- GSPO：整段序列比例
+
+### Clipping（剪切）
+
+- 限制 ratio 在 [1-ε, 1+ε]
+- 防止一次更新过大导致不稳定
+- GRPO：token 级 clip
+- GSPO：序列级 clip
+
+## 5. "Hello world" 计算示例
+
+假设：
+
+```
+token1 = "Hello", token2 = "world"
+P_ref: Hello=0.20, world=0.10
+P_cur: Hello=0.25, world=0.30
+ε=0.2
+```
+
+
+
+**GRPO：**
+
+```
+ratio_t1 = 0.25/0.20 = 1.25 → clip=1.2
+ratio_t2 = 0.30/0.10 = 3.0 → clip=1.2
+各 token 独立更新
+```
+
+
+
+**GSPO：**
+
+```
+P_ref_seq = 0.20×0.10 = 0.02
+P_cur_seq = 0.25×0.30 = 0.075
+ratio_seq = 3.75 → clip=1.2
+整句一次更新
+```
+
+## 6. 实验结果（Qwen 团队）
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/GRPO-RL-Training-Pipeline/images/gspo_experiment_results.png)
+
+### MoE 模型：
+
+- GSPO 收敛更快
+- 奖励优化更高
+- 样本效率更好
+- Clip 比例更高也能稳定训练
+- 长序列和算力扩展时性能平稳提升
+
+### Dense 模型：
+
+- 无明显提升
+
+## 7. 训练时使用的模型结构
+
+无论 GRPO 还是 GSPO，都至少需要：
+
+- **策略模型**（Policy, 会更新）
+- **参考模型**（Reference, 冻结或延迟更新）
+- **奖励模型**（Reward model）
+- （可选）价值网络（Critic）
+
+**参考模型**注意：
+
+- 一般是 SFT 模型拷贝
+- 固定不更新，或定期更新
+- 不能直接用当前策略的即时参数作参考（ratio 永远=1 无意义）
+
+## 8. 适用场景
+
+**适合：**
+
+- 大规模 MoE 模型
+- 长序列 RL 微调
+- 奖励信号稳定、信息密度高
+
+**不适合或收益低：**
+
+- Dense 模型
+- 奖励信号噪声高、分辨率低的任务
+- 对单 token 精度极高的场景（token优化粒度更粗）
+
+## 9. 优缺点总结
+
+**优势**：
+
+- MoE 稳定性显著提升
+- 样本效率高
+- 移除 Routing Replay
+- 可扩展性好
+
+**劣势**：
+
+- Dense 模型提升有限
+- 优化粒度粗
+- 对奖励函数依赖高
+- Token 级可解释性下降
+
+## 10. 常见误区
+
+- **GSPO 是推理算法？** ❌
+  → 只在训练时使用，推理不执行 ratio/clip 逻辑
+- **GRPO 不支持多 token 推理？** ❌
+  → 多 token 推理是解码优化策略，和训练算法无关
+- **GSPO 推理直接计算整句概率？** ❌
+  → 推理依然是逐 token（或并行批量）生成
+
+## 11. Hugging Face TRL 接入
+
+```
+SFTConfig(
+    importance_sampling_level="sequence"
+)
+```
+
+- 需要 `TRL >= 0.20`
+- Unsloth 截至 2025-07-30 仅支持 `TRL 0.19.1`
+
+## 12. 总结
+
+- **GRPO**：token-level 优化信号，适用于 Dense & MoE，但在 MoE 稳定性差
+- **GSPO**：sequence-level 优化信号，显著优化 MoE 稳定性与效率
+- Dense 模型用 GSPO 不会有明显提升
+
+**一句话**：
+
+> GSPO 是为 MoE 做的定向优化，训练更稳、更快、更可扩展，推理性能也因此受益，但它本身不是推理算法。

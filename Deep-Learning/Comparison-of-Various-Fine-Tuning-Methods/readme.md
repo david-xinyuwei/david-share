@@ -965,6 +965,176 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
 - **过程**：在 SFT 的基础上，引入**思维生成**，即模型在输出回答前生成内部的思维过程。然后，使用 DPO 方法，结合**参考模型**，直接优化模型参数，偏好数据来自**AI 判别模型的反馈**。
 - **评估方式**：利用**AI 判别模型**对模型输出的**回答部分**进行评价，形成偏好对（优选和劣选）。结合**参考模型**，使用 DPO 方法构建损失函数，直接优化模型参数，提升模型性能。
 
+## LoRA/QLoRA 微调机制与 Adapter 合并策略
+
+### LoRA 的原理
+
+LoRA（Low-Rank Adaptation）的核心思想是：给预训练权重 W 增加一个低秩的增量 BA，而不是直接修改所有参数。
+
+QLoRA 在此基础上进一步优化——将大型预训练模型先量化成较低精度（通常是4-bit），再在其之上训练规模很小的适配器（adapter）参数，从而在显著减少显存占用的同时，仍能对模型进行有效的微调。
+
+其关键要素包括：
+
+1. **预训练权重 (Pretrained Weights)**：原始预训练模型的权重 W，QLoRA 会将这些预训练权重量化到4-bit，大幅缩小模型体积并减少显存占用。
+
+2. **适配器 (Adapter) 参数 (A 和 B)**：LoRA/QLoRA 中用到的两组小矩阵 A 和 B，以16-bit的形式存储和训练。适配器的参数规模远小于全部模型权重，训练时只需为这小部分参数保存梯度和优化器状态。在最初训练时，B 被初始化为 0 矩阵，A 则随机初始化。
+
+3. **前向计算 (Forward Pass)**：h = W x + B A x，模型的输出不仅包含原来预训练权重 W 的贡献，也会额外加上由适配器 B A 乘以输入 x 得到的增量。
+
+4. **权重合并 (Merged Weights)**：在推理阶段可以将 W 与 B A 合并成一个新的权重矩阵 W_merged 进行计算。
+
+![images](images/qlora_perf_1.png)
+
+### 低秩矩阵表示的数学示例
+
+以 4×4 小矩阵为例说明 LoRA 的低秩更新原理：
+
+**原始权重** W（4×4）：
+```
+W = [[1, 2, 3, 4],
+     [2, 3, 4, 5],
+     [3, 4, 5, 6],
+     [4, 5, 6, 7]]
+```
+
+选择 r=2（低秩），则 B 为 (4×2)，A 为 (2×4)：
+```
+B = [[0.1, 0.2],    A = [[2.0, 0.0, 0.0, 1.5],
+     [0.0, 0.3],         [0.0, 1.0, 2.0, 1.0]]
+     [0.1, 0.1],
+     [0.0, 0.2]]
+```
+
+BA 结果为 4×4 矩阵（秩不超过2）：
+```
+BA = [[0.2, 0.1, 0.4, 0.3],
+      [0.0, 0.3, 0.6, 0.3],
+      [0.2, 0.1, 0.4, 0.3],
+      [0.0, 0.2, 0.4, 0.2]]
+```
+
+微调后权重 W_merged = W + BA，通过两个小矩阵的乘积完成对原始权重的修正。当 r 比 d 小很多时，B 和 A 的参数量远小于 d×d，节省大量训练开销与存储。
+
+### Adapter 合并策略与量化对精度的影响
+
+![images](images/qlora_perf_2.png)
+
+以下是四种不同的 Adapter 部署策略及其效果对比：
+
+| 策略 | 做法 | 困惑度(PPL) | 说明 |
+|------|------|:-----------:|------|
+| **不合并 Adapter** | 基础模型 4-bit + Adapter 16-bit | **3.55** | 效果最好，需额外管理 Adapter 文件 |
+| **合并后 AWQ 量化** | 合并 → 16-bit → AWQ 4-bit | 3.88 | 部署简洁，效果略逊 |
+| **合并后不量化** | 合并 → 保持 16-bit | 3.60 | 需 16-bit 显存，与不合并效果相当 |
+| **合并后 BnB 量化** | 合并 → bitsandbytes 4-bit | 4.33 | **不推荐**，退回未微调水平 |
+
+**结论**：
+- 追求最佳效果 → 基础模型 4-bit + 不合并的 Adapter (16-bit)
+- 追求部署简洁 → 合并后用 AWQ/AutoRound 量化到 4-bit
+- 显存充足 → 合并后直接 16-bit 推理
+- **避免**合并后再用 bitsandbytes 4-bit 量化
+
+## GaLore 全量微调实验
+
+GaLore（Gradient Low-Rank）支持全量微调（Full Fine-tuning），即调整模型所有参数。与 LoRA 等参数效率微调（PEFT）不同，GaLore 通过创新的梯度低秩投影技术，在内存受限条件下也能进行大型模型的全量微调。
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXBUWiajIRkWDFnAIVQEYeVKcOCQgbecLaUwicOjXicJPWzZnlJ0B2MvaJ83J8iaID7iclibMISIRNeISKg/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+
+GaLore 性能对比：
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXBUWiajIRkWDFnAIVQEYeVKwz1guKATOUib2rJ114icJYIBLtzK9CUBULRSgIMdp47GURH0B9a4iaWhg/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+
+GaLore 引入额外超参数：Rank r、Scale factor α、Subspace change frequency T。
+
+### GaLore 优化器选项
+
+| 优化器 | 显存需求 (Mistral 7B, BS=8) | 说明 |
+|--------|:---------------------------:|------|
+| galore_adamw | 较高 | 标准 GaLore，float32 参数 |
+| galore_adamw_8bit | ~35 GB (rank=512), ~30 GB (rank=128) | 8位量化优化器 |
+| galore_adamw_8bit_layerwise | ~22.5 GB | 分层更新，可在 24GB 消费级 GPU 运行 |
+
+### 实验记录
+
+以下在单 H100 上对 Mistral-7B 进行全量微调（trainable parameters = 7,241,732,096），使用 openassistant-guanaco 数据集。
+
+**实验一**：BS=128, lr=1e-5, optim=galore_adamw_8bit_layerwise, rank=512
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXBUWiajIRkWDFnAIVQEYeVK6nTib0DBbecicLia529j7hxFIaciaqDzFjbXA8h5b8dcR25GT2Kd1ICaTA/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXBUWiajIRkWDFnAIVQEYeVKKDPJiaQicKH5It9EiboXtAB5DWgwA4R14Qoyur8rLjawAHk3KZ58OibMPw/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXBUWiajIRkWDFnAIVQEYeVKicCibC0EJTsYSyauzvIWy6PUXMpFNLFlm7rMp7bGQ7I8q4mnpyNtd80w/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXBUWiajIRkWDFnAIVQEYeVKuus30PiaOVDticlEeFo7uPXGfHw17W9j6ywvLhZToOtgQiakfdD4FkzOw/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+
+从损失函数看，训练效果不理想。
+
+**实验二**：BS=64, lr=2e-5, optim=galore_adamw_8bit_layerwise, rank=512
+
+将学习率增加一倍，将 BS 减少一半：
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXBUWiajIRkWDFnAIVQEYeVKic9ezNVcbayBiazsy7fmZdkdLMADYlb6GlkXI6u8yKX4Uf2CUqicBwuhA/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXBUWiajIRkWDFnAIVQEYeVK8ibY7S3R9COHhOIIOtic0UfGZmRpk7sc7hyrdzQOuVh6rxibotETHTyMw/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXBUWiajIRkWDFnAIVQEYeVKX29mtlRIPkUT8yLOjxjy6cQQRvC4BvqPsAEydSiasyhVrXuZT92Yia3A/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+
+效果好些，但依然不理想。
+
+**实验三**：BS=128, lr=1e-5, optim=galore_adamw_8bit, rank=512
+
+换用 galore_adamw_8bit（非 layerwise）优化器后，GPU 显存利用率更高：
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUTickEPG2OjjIKXgp96IsODW2BibS0jEEuOuw1xm0pZ4EH4d572ScuXvnfaxia4mAN95hpKJAdGcNyw/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUTickEPG2OjjIKXgp96IsODd4BtwnZQ3cIlicqaI6nnM36r8FUhwHOUlt3yXG1IHK382MTCh7209lQ/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+
+训练效果比上次好太多了，结果理想。
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUTickEPG2OjjIKXgp96IsODEvAprYC3GDe1rFK91cb9HtF94rrzesJZub0gwEz6bfIOx0d3DNWPRw/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+
+**实验四**：BS=128, lr=1e-5, optim=galore_adamw_8bit, rank=1024
+
+保持 BS=128 和 galore_adamw_8bit 优化器，将 rank 从 512 提升到 1024：
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUTickEPG2OjjIKXgp96IsODB3HGFPZcWR12jjWKiaolqDvuT8weWZicUxow2AOhAUCjwUr3c2t8yU1w/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+
+训练中，GPU 显存利用率飙升到87GB，但没有 OOM，充分体现大显存的好处：
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUTickEPG2OjjIKXgp96IsODNfN4zibDVvMJIUHib1vPUHpFN9lib6DsyRRVUr6LzZ3Bmvop7MsUCPjfQ/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+
+查看训练结果，比实验三更理想，损失函数在 step50 直接降到 0.825400，且在 Step100 时降低到 0.71：
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUTickEPG2OjjIKXgp96IsODkYRCfA3jyHotAtpa2pmibcquFauYqJlwotvIzOl2ib6ank3AmNd51wJw/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+
+上图展示随着训练过程，损失函数正常下降，但 Validation Loss 上升，说明出现过拟合。
+
+**实验五**：BS=128, lr=1e-6, optim=galore_adamw, rank=1024, weight_decay=0.05, warmup_ratio=0.2
+
+针对实验四的过拟合，降低学习率，增加 weight_decay 和 warmup_ratio：
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXYro4VNFxnL6o7LHiaDJL6QB6YGDsBAjVGqJ6gYHPtL1RX0pImFaPxhTLkIQHdEggnF0Ngq6UicbpA/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+
+查看训练效果，过拟合问题解决：
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXYro4VNFxnL6o7LHiaDJL6QG3Btgib4WkPCmPGwibyKCBkwGpdSDU8m1ibyBJgOwJBOkibDIn6tGAYK7Q/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+
+### GaLore 实验总结
+
+| 实验 | BS | LR | 优化器 | Rank | 结果 |
+|:----:|:--:|:--:|--------|:----:|------|
+| 1 | 128 | 1e-5 | galore_adamw_8bit_layerwise | 512 | 不理想 |
+| 2 | 64 | 2e-5 | galore_adamw_8bit_layerwise | 512 | 稍好但不理想 |
+| 3 | 128 | 1e-5 | galore_adamw_8bit | 512 | **理想** |
+| 4 | 128 | 1e-5 | galore_adamw_8bit | 1024 | 更理想但过拟合 |
+| 5 | 128 | 1e-6 | galore_adamw | 1024 | **最佳**（解决过拟合）|
+
+关键发现：
+- `galore_adamw_8bit` 优于 `galore_adamw_8bit_layerwise`
+- 更高的 rank（1024 vs 512）产生更好的结果
+- 过拟合可通过降低学习率、增加 weight_decay 和 warmup_ratio 解决
+
 ## DPO详解
 
 ### RLHF与DPO

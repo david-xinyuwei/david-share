@@ -331,3 +331,246 @@ Throughput: 7.93 requests/s, 2774.51 tokens/s
 
 
 *Refer to: https://kaitchup.substack.com/p/the-best-quantization-methods-to*
+
+---
+
+## AutoRound 量化 70B/72B 大模型实践
+
+This section focuses on quantizing large 70B/72B models with AutoRound on Azure NC40ads_H100_v5 (single H100 GPU, 40 CPU cores, 320GB host memory).
+
+### Quantization Result of Qwen-72B
+
+Load Model:
+
+```
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
+model_name = "Qwen/Qwen2.5-72B-Instruct"
+model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16)
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+```
+
+CPU Utilization When Loading the Model:
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nVlTpOQYOKicPNz6pyHpuV8ficpSuGv3tFjOm9ga3nqq2K5A59rhJCGEKjffItFNy7EjSico8AK1ib5Hg/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+
+4-bit Quantization:
+
+```
+from auto_round import AutoRound
+bits, group_size, sym = 4, 128, True
+autoround = AutoRound(model, tokenizer, nsamples=128, iters=512, low_gpu_mem_usage=True, batch_size=1, graddient_accumulation_steps=8, bits=bits, group_size=group_size, sym=sym)
+autoround.quantize()
+output_dir = "./Qwen2.5-72B-Instruct-AutoRound-GPTQ-4bit"
+autoround.save_quantized(output_dir, format='auto_gptq', inplace=True)
+```
+
+GPU Memory Utilization During Model Quantization:
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nVlTpOQYOKicPNz6pyHpuV8fudsKjibAY1d8PDiajficM6PZE0gt66hGAicOnFjlfib7476QHG9KzIcdsMQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+
+The quantization action is layer by layer:
+
+``` 
+Quantizing model.layers.61:  76%|███████▋  | 61/80 [1:03:33<20:01, 63.23s/it]
+```
+
+```
+Quantizing model.layers.79: 100%|██████████| 80/80 [1:23:37<00:00, 63.50s/it]
+2024-12-11 09:48:59 INFO autoround.py L340: quantization tuning time 5037.20
+2024-12-11 09:48:59 INFO autoround.py L356: Summary: quantized 560/561 in the model,  ['lm_head'] have not been quantized
+```
+
+AutoRound can produce models in the same format as GPTQ, supporting TGI, vLLM, etc.
+
+Inference with vLLM:
+
+```
+batch_sizes = [1, 2, 4, 8, 16, 32, 64, 128]  
+p = """You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  
+Tell me about gravity."""  
+  
+sampling_params = SamplingParams(max_tokens=1000)  
+  
+loading_start = time.time()  
+llm = LLM(model="/root/Qwen2.5-72B-Instruct-AutoRound-GPTQ-4bit")  
+print("--- Loading time: %s seconds ---" % (time.time() - loading_start))  
+  
+for b in batch_sizes:  
+    prompts = [p] * b  
+    generation_time = time.time()  
+    outputs = llm.generate(prompts, sampling_params)  
+    duration = time.time() - generation_time  
+    total_tokens = 0  
+    for output in outputs:  
+        total_tokens += len(output.prompt_token_ids) + len(output.outputs[0].token_ids)  
+    print('\nBatch size: ' + str(b))  
+    print("--- Speed: %s tokens/second ---" % (round(total_tokens/duration, 2)))  
+```
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Quantization-Methods-Comparison-and-Practice/images/autoround_72b_inference.png)
+
+GPU consumption during inference:
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Quantization-Methods-Comparison-and-Practice/images/autoround_72b_gpu.png)
+
+### Quantization of Llama3-70B
+
+```
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
+model_name = "meta-llama/Llama-3.3-70B-Instruct"
+model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.bfloat16)
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+```
+
+```
+from auto_round import AutoRound
+bits, group_size, sym = 4, 128, True
+autoround = AutoRound(model, tokenizer, nsamples=128, iters=256, low_gpu_mem_usage=False, gradient_accumulate_steps=1, batch_size=8, bits=bits, group_size=group_size, sym=sym)
+autoround.quantize()
+output_dir = "Llama-3.3-70B-Instruct-AutoRound-GPTQ-4bit"
+autoround.save_quantized(output_dir, format='auto_gptq', inplace=True)
+```
+
+### AutoRound 参数详解
+
+| Parameter | Value | Description |
+|-----------|-------|-------------|
+| `bits` | 4 | Quantize parameters to 4 bits |
+| `group_size` | 128 | Every 128 parameters form a group |
+| `sym` | True/False | Symmetric vs asymmetric quantization |
+| `nsamples` | 128/512 | Number of calibration samples |
+| `iters` | 256/512/1000 | Optimization iterations |
+| `low_gpu_mem_usage` | True/False | Offload computation to CPU |
+
+**Impact of `group_size`**:
+- Small (128): Better accuracy, captures local features, more storage overhead
+- Large (1024): Less storage, potentially lower accuracy
+
+**Impact of `sym`**:
+- Symmetric (`True`): Simpler computation, works well for symmetrically distributed parameters
+- Asymmetric (`False`): Better for asymmetrically distributed parameters, higher accuracy
+
+### AutoRound 自动舍入优化原理
+
+"AutoRound" = "Automatic Rounding" — automatically converting high-precision weights (e.g., 32-bit float) to low-precision representations (e.g., 4-bit, 2-bit) while preserving model performance.
+
+**Traditional Quantization vs. AutoRound:**
+
+| Aspect | Traditional | AutoRound |
+|--------|------------|-----------|
+| Rounding | Independent per weight | Global optimization |
+| Scope | Local optimality per weight | Considers impact on model output |
+| Error | Accumulated quantization error | Minimized overall error |
+| Strategy | Uniform for all parameters | Adaptive per parameter importance |
+
+**Working Principle:**
+
+1. **Treats Quantization as an Optimization Problem**: Minimizes output difference between quantized and original model
+2. **Continuous Relaxation**: Converts discrete quantization into continuous optimization problem
+3. **Parameter Importance Analysis**: Evaluates sensitivity of each parameter on model output
+4. **Iterative Optimization**: Multiple iterations to gradually approach optimal solution
+
+**Example** — Quantizing parameters `[2.3, -1.7, 0.5, -0.2]` to 2-bit:
+
+| Parameter | Traditional (simple round) | AutoRound (global optimization) |
+|-----------|---------------------------|--------------------------------|
+| 2.3 | → 2 | → 3 (better for overall model) |
+| -1.7 | → -2 | → -1 (smaller overall error) |
+| 0.5 | → 1 | → 1 or 0 (optimized choice) |
+| -0.2 | → 0 | → 0 |
+
+Through intelligent decisions, AutoRound achieves smaller overall error and less performance degradation.
+
+---
+
+## 校准数据集对模型量化的影响
+
+The calibration dataset is used to help quantization algorithms compute the distribution of weights and activations to determine quantization parameters (scale and zero point).
+
+### 各量化方法对校准数据集的依赖程度
+
+| Method | Calibration Dependency | Recommendation |
+|--------|----------------------|----------------|
+| **GPTQ** | High — may overfit calibration data | Use task-specific calibration dataset |
+| **AWQ** | Low — stable across different calibration sets | Default dataset usually sufficient |
+| **AutoRound** | Lowest — highest robustness | Default dataset sufficient; target-language data may help for non-English tasks |
+| **bitsandbytes** | None — no calibration needed | No calibration required; uses NormalFloat4 format |
+
+### GPTQ 的校准数据集依赖性
+
+GPTQ requires computing the Hessian matrix using calibration data. If the calibration dataset is too domain-specific, the quantized model's performance in other domains may decline significantly. Therefore, GPTQ should use calibration datasets matching the model's application scenario.
+
+### AWQ 与 AutoRound 的鲁棒性
+
+- **AWQ**: By considering activation sensitivity, it reduces calibration dependency. Results remain stable across different calibration datasets.
+- **AutoRound**: Exhibits the highest robustness with minimal performance differences across different calibration datasets.
+
+![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nWic4X8iadAZcHdjIK2rNOfTomoHk2x5aicPXJ21lggiav7nibOTbbicDuNYgV6XXBq3e1zHCBjxKap3k7g/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+
+### AutoRound 使用默认校准数据集量化
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Quantization-Methods-Comparison-and-Practice/images/dataset_quant_default_calib.png)
+
+```
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
+n = "Qwen2.5-7B-Instruct"
+model_name = "Qwen/"+n
+model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.bfloat16)
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+from auto_round import AutoRound
+bits, group_size, sym = 4, 128, False
+autoround = AutoRound(model, tokenizer, nsamples=512, iters=1000, low_gpu_mem_usage=True, bits=bits, group_size=group_size, sym=sym)
+autoround.quantize()
+output_dir = "./autoround/"
+autoround.save_quantized(output_dir+"/"+n+"_gptq", format='auto_gptq', inplace=True)
+```
+
+Quantization process:
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Quantization-Methods-Comparison-and-Practice/images/dataset_quant_process.png)
+
+### AutoRound 使用自定义校准数据集量化
+
+```
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
+n = "Qwen2.5-7B"
+model_name = "Qwen/"+n
+model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.bfloat16)
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+from auto_round import AutoRound
+bits, group_size, sym, dataset = 4, 128, False, "wikipedia-20220301-fr-sample-10k"
+autoround = AutoRound(model, tokenizer, nsamples=512, iters=1000, dataset=dataset, bits=bits, group_size=group_size, sym=sym)
+autoround.quantize()
+output_dir = "./autoround/"
+autoround.save_quantized(output_dir+"/"+n+"_wikipedia-20220301-fr_gptq", format='auto_gptq', inplace=True)
+```
+
+### AWQ 使用自定义校准数据集量化
+
+```
+from awq import AutoAWQForCausalLM
+from transformers import AutoTokenizer
+
+n = "Qwen2.5-7B"
+model_path = "Qwen/"+n
+quant_path = 'Qwen2.5-7B-wikipedia-20220301-fr-AWQ'
+quant_config = { "zero_point": True, "q_group_size": 128, "w_bit": 4, "version": "GEMM" }
+
+model = AutoAWQForCausalLM.from_pretrained(model_path, low_cpu_mem_usage=True, use_cache=False, device_map="cuda")
+tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+model.quantize(tokenizer, quant_config=quant_config, calib_data="kaitchup/wikipedia-20220301-fr-sample-10k")
+model.save_quantized(quant_path)
+tokenizer.save_pretrained(quant_path)
+```
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Quantization-Methods-Comparison-and-Practice/images/dataset_quant_awq.png)
+
+AWQ inference:
+
+![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Quantization-Methods-Comparison-and-Practice/images/dataset_quant_awq_inference.png)

@@ -396,12 +396,25 @@ Four subplots:
 
 4. **Channel Statistics**: Per-channel mean and std trends — both models evolve similarly.
 
-**Key numbers**:
-- Teacher inference time: **72.88s** (40 steps, diffusers, CFG=4, end-to-end)
-- Student inference time: **15.12s** (8 steps, diffusers, CFG=4, end-to-end)
-- **Production speedup: 4.82×**
+**Key latent metrics**:
 - Final latent MSE: **0.011**
 - Final cosine similarity: **0.984**
+
+#### Latent Space Heatmaps
+
+Per-channel latent tensor heatmaps at each denoising step, showing the spatial structure evolution:
+
+![Latent heatmaps](images/latent_heatmaps_40vs8.png)
+
+Each column represents a key denoising step. Top row: Teacher (40-step). Bottom row: Student (8-step). The color maps show per-channel mean values of the latent tensor — both models converge to nearly identical spatial patterns by the final step.
+
+#### VAE-Decoded Intermediate Steps
+
+To visualize what the model actually "sees" at each stage, we decode each intermediate latent through the VAE decoder into pixel space:
+
+![Decoded steps comparison](images/decoded_steps_40vs8.png)
+
+Top row: Teacher at steps 0→10→20→30→40. Bottom row: Student at steps 0→2→4→6→8. Both start from the same random noise and converge to visually identical final images — the student successfully learns to skip intermediate steps while preserving output quality.
 
 ---
 
@@ -411,9 +424,7 @@ Both teacher and student final latents decoded through the VAE decoder:
 
 ![Teacher vs Student comparison](images/trajectory_40vs8_final_compare.png)
 
-Left: Teacher (40 steps, 72.88s) — Right: Student (8 steps, 15.12s)
-
-The visual difference is negligible to the human eye despite the 4.82× speedup.
+The visual difference is negligible to the human eye.
 
 ---
 
