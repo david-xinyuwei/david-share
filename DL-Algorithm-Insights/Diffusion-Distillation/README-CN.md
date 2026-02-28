@@ -28,6 +28,30 @@
 
 ---
 
+## 在 Azure 上运行
+
+本实验从头完成一个 200 亿参数扩散模型的蒸馏训练，全程运行在**单台 [Standard_NC40ads_H100_v5](https://learn.microsoft.com/zh-cn/azure/virtual-machines/ncads-h100-v5)** 虚拟机上。
+
+| 资源 | 规格 | 在本实验中的作用 |
+|------|------|----------------|
+| GPU | 1 × NVIDIA H100 NVL，94 GB 显存 | 模型权重 + 激活值显存 |
+| vCPU | 40 × AMD EPYC Genoa | 数据预处理、CPU offload 目标 |
+| 系统内存 | 320 GiB | Text Encoder CPU offload 缓冲区 |
+| 系统盘 | Azure Premium SSD | 训练脚本、checkpoint、日志 |
+
+**"单台 VM"在实践中意味着什么**：
+
+- 无需 InfiniBand、无需多节点 NCCL 通信、无需 Kubernetes 编排
+- 无需张量并行代码——同一份模型权重同时承担教师和学生两个角色
+- 5 个 epoch 的 20B 模型完整训练耗时：**约 6.1 小时**
+- 成本模型：开一台 VM、跑一个任务、跑完关机——无需维护常驻集群
+
+[为什么学生有梯度显存也够](#为什么学生有梯度显存也够) 章节介绍的三项工程手段，正是单实例训练可行的根本原因。缺少其中任何一项的组合，这个训练任务都需要多卡环境。
+
+希望复现或改造本工作的读者，推荐从 Azure East US 区域的 `Standard_NC40ads_H100_v5` SKU 起步。[NCads H100 v5 系列文档](https://learn.microsoft.com/zh-cn/azure/virtual-machines/ncads-h100-v5) 涵盖驱动安装、Gen2 VM 要求和存储配置。
+
+---
+
 ## 原理详解
 
 ### 去噪轨迹
@@ -525,30 +549,6 @@ SSIM 最低的 3 个样本：
 | #18 | 0.559 | 17.19 dB | 复杂姿势导致局部发散 |
 
 > 这些异常值代表真正的高难度样本。它们在所有评估方法中始终得分最低，表明这是输入复杂度问题而非模型系统性失败。
-
----
-
-## 在 Azure 上运行
-
-本实验从头完成一个 200 亿参数扩散模型的蒸馏训练，全程运行在**单台 [Standard_NC40ads_H100_v5](https://learn.microsoft.com/zh-cn/azure/virtual-machines/ncads-h100-v5)** 虚拟机上。
-
-| 资源 | 规格 | 在本实验中的作用 |
-|------|------|----------------|
-| GPU | 1 × NVIDIA H100 NVL，94 GB 显存 | 模型权重 + 激活值显存 |
-| vCPU | 40 × AMD EPYC Genoa | 数据预处理、CPU offload 目标 |
-| 系统内存 | 320 GiB | Text Encoder CPU offload 缓冲区 |
-| 系统盘 | Azure Premium SSD | 训练脚本、checkpoint、日志 |
-
-**"单台 VM"在实践中意味着什么**：
-
-- 无需 InfiniBand、无需多节点 NCCL 通信、无需 Kubernetes 编排
-- 无需张量并行代码——同一份模型权重同时承担教师和学生两个角色
-- 5 个 epoch 的 20B 模型完整训练耗时：**约 6.1 小时**
-- 成本模型：开一台 VM、跑一个任务、跑完关机——无需维护常驻集群
-
-[为什么学生有梯度显存也够](#为什么学生有梯度显存也够) 章节介绍的三项工程手段，正是单实例训练可行的根本原因。缺少其中任何一项的组合，这个训练任务都需要多卡环境。
-
-希望复现或改造本工作的读者，推荐从 Azure East US 区域的 `Standard_NC40ads_H100_v5` SKU 起步。[NCads H100 v5 系列文档](https://learn.microsoft.com/zh-cn/azure/virtual-machines/ncads-h100-v5) 涵盖驱动安装、Gen2 VM 要求和存储配置。
 
 ---
 

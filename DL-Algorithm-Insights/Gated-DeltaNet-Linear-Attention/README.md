@@ -120,6 +120,31 @@ This "winner-takes-most" property lets the model **sharply focus** on the most r
 
 **But here's the problem**: if there are 100,000 pages (128K context), flipping through all of them every time is just too slow.
 
+### Interlude: What Exactly Is "Linear" About Linear Attention?
+
+Before moving on, a key question needs answering — **QKV projections themselves are always linear operations**:
+
+```
+Q = x · W_Q    ← matrix multiplication, linear
+K = x · W_K    ← matrix multiplication, linear
+V = x · W_V    ← matrix multiplication, linear
+```
+
+Whether it's "standard attention" or "linear attention," Q, K, V are computed exactly the same way. **The difference is 100% about what happens AFTER Q, K, V are computed**:
+
+| | Operation after QKV | Where is the non-linearity? |
+|---|---|---|
+| **Standard Attention** | `Softmax(Q×K^T/√d) × V` | **Softmax's e^x is non-linear** |
+| **Linear Attention** | Use K, V to update state matrix S; use Q to query S | **No Softmax** — only matrix multiply and addition |
+
+So "linear attention" means: **removing the only non-linear operation (Softmax) that comes after QKV**.
+
+This isn't just a naming detail — it determines whether the "notebook" approach is even possible:
+- **With Softmax** → attention scores depend on global normalization across all tokens (the denominator `Σe^(q·k_i)` requires looking at every single page) → must store all KV Cache → O(n²)
+- **Without Softmax** → everything remaining is linear → can be merged and compressed into a fixed-size state matrix → O(n)
+
+With this understood, the next step follows naturally —
+
 ### Step 2: Linear Attention — Fast but Blurry
 
 **Analogy: Replacing 1,000 pages with a single note card**

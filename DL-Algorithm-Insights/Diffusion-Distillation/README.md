@@ -28,6 +28,30 @@ Distillation solves this properly: teach the model *how to make large jumps* by 
 
 ---
 
+## Running on Azure
+
+This entire experiment — training a 20B-parameter diffusion model distillation from scratch — ran on a **single [Standard_NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/ncads-h100-v5)** VM instance.
+
+| Resource | Spec | Role in this experiment |
+|----------|------|------------------------|
+| GPU | 1 × NVIDIA H100 NVL, 94 GB VRAM | Model weights + activation memory |
+| vCPU | 40 × AMD EPYC Genoa | Data preprocessing, CPU offload target |
+| System RAM | 320 GiB | Text encoder CPU offload buffer |
+| OS disk | Azure Premium SSD | Training scripts, checkpoints, logs |
+
+**What "single VM" means in practice**:
+
+- No InfiniBand, no NCCL multi-node setup, no Kubernetes orchestration
+- No tensor parallelism code — the same model weights run in both teacher and student roles
+- Total training wall-clock time: **~6.1 hours** for a 5-epoch run on a 20B model
+- Cost model: pay for one VM, run one job, shut it down — no standing cluster
+
+The memory engineering described in [Why the Student Fits in VRAM](#why-the-student-fits-in-vram-despite-having-gradients) is precisely what makes single-instance training viable. Without those three techniques combined, this workload would require a multi-GPU setup.
+
+For practitioners looking to reproduce or adapt this work, the recommended starting point is the `Standard_NC40ads_H100_v5` SKU available in Azure East US. The [NCads H100 v5 series documentation](https://learn.microsoft.com/en-us/azure/virtual-machines/ncads-h100-v5) covers driver setup, Gen2 VM requirements, and storage configuration.
+
+---
+
 ## How It Works
 
 ### The Denoising Trajectory
@@ -525,30 +549,6 @@ The 3 lowest-SSIM samples:
 | #18 | 0.559 | 17.19 dB | Complex pose causing local divergence |
 
 > These outliers represent genuinely difficult samples. They consistently score lowest across all evaluation methods, indicating input complexity rather than systematic model failure.
-
----
-
-## Running on Azure
-
-This entire experiment — training a 20B-parameter diffusion model distillation from scratch — ran on a **single [Standard_NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/ncads-h100-v5)** VM instance.
-
-| Resource | Spec | Role in this experiment |
-|----------|------|------------------------|
-| GPU | 1 × NVIDIA H100 NVL, 94 GB VRAM | Model weights + activation memory |
-| vCPU | 40 × AMD EPYC Genoa | Data preprocessing, CPU offload target |
-| System RAM | 320 GiB | Text encoder CPU offload buffer |
-| OS disk | Azure Premium SSD | Training scripts, checkpoints, logs |
-
-**What "single VM" means in practice**:
-
-- No InfiniBand, no NCCL multi-node setup, no Kubernetes orchestration
-- No tensor parallelism code — the same model weights run in both teacher and student roles
-- Total training wall-clock time: **~6.1 hours** for a 5-epoch run on a 20B model
-- Cost model: pay for one VM, run one job, shut it down — no standing cluster
-
-The memory engineering described in [Why the Student Fits in VRAM](#why-the-student-fits-in-vram-despite-having-gradients) is precisely what makes single-instance training viable. Without those three techniques combined, this workload would require a multi-GPU setup.
-
-For practitioners looking to reproduce or adapt this work, the recommended starting point is the `Standard_NC40ads_H100_v5` SKU available in Azure East US. The [NCads H100 v5 series documentation](https://learn.microsoft.com/en-us/azure/virtual-machines/ncads-h100-v5) covers driver setup, Gen2 VM requirements, and storage configuration.
 
 ---
 
