@@ -550,6 +550,37 @@ The 3 lowest-SSIM samples:
 
 > These outliers represent genuinely difficult samples. They consistently score lowest across all evaluation methods, indicating input complexity rather than systematic model failure.
 
+### CFG ROI is Extremely Poor at Low Step Counts
+
+Distillation's core value is reducing step counts. A natural question arises: **is enabling CFG worthwhile for the student model (8 steps)?** We ran a full steps×CFG cross-experiment on H100 with the LoRA-fused model (40-step + CFG=4 output as reference baseline, SSIM=1.0):
+
+| Steps | CFG=1 SSIM | CFG=4 SSIM | CFG Gain | CFG=1 Time | CFG=4 Time | Time Multiplier |
+|:-----:|:----------:|:----------:|:--------:|:----------:|:----------:|:---------------:|
+| 4 | 0.662 | 0.670 | **+0.008** | 4.28s | 8.08s | 1.89× |
+| 8 | 0.788 | 0.804 | **+0.016** | 7.97s | 15.44s | 1.94× |
+| 20 | 0.859 | 0.913 | **+0.054** | 19.01s | 37.58s | 1.98× |
+| 40 | 0.902 | 1.000 | **+0.098** | 37.46s | 74.47s | 1.99× |
+
+**Key conclusions**:
+- **CFG consistently adds ~2× time** (conditional + unconditional dual forward pass)
+- **CFG gains are negligible at low step counts (4/8 steps)**: only +0.016 SSIM at 8 steps
+- **At equal time budget, adding steps vastly outperforms adding CFG**: 4→8 steps gives SSIM +0.126 vs enabling CFG at 4 steps gives only +0.008 — **step gains are 15.75× the CFG gains**
+- **Physical reason**: At low step counts each step takes a large stride with insufficient guidance accumulation; CFG benefits become perceptible only above 20 steps
+
+![CFG and Step Count Comparison Grid](images/cfg_batch_comparison_grid.png)
+
+**Implication for distillation**: The ROI of enabling CFG with a student model at 8 steps is extremely low (+0.016 SSIM for +94% time). If latency is the primary goal, **running the distilled student without CFG (CFG=1) is a reasonable choice**, reducing latency from 15.12s to ~7.97s with only 0.016 SSIM loss.
+
+#### diffusers Batch Throughput is Completely Flat
+
+| Batch Size | Total Time | Throughput (img/s) | vs B=1 |
+|:----------:|:----------:|:------------------:|:------:|
+| 1 | 7.97s | 0.1254 | 1.00× |
+| 2 | 15.93s | 0.1256 | 1.00× |
+| 4 | 31.90s | 0.1254 | 1.00× |
+
+Diffusers pipeline-level batching is pure sequential looping — batch=4 time = batch=1 × 4. Throughput improvement requires engine-level optimization (e.g., continuous batching).
+
 ---
 
 ## Known Issues and Troubleshooting
