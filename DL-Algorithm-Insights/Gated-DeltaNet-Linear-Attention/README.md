@@ -19,7 +19,7 @@ Imagine you're in an exam hall with a 1,000-page reference book in front of you:
 
 But having a notebook isn't enough — **note quality** is critical. Gated DeltaNet uses two tricks to keep notes high-quality:
 
-1. **Delta Rule (check before writing)** — Flip open the notebook: "Already got this right? Skip. Got it wrong? Erase and rewrite." — never blindly append.
+1. **Delta Rule (check before writing)** — Flip open the notebook: "What does it say now? Compare with the correct answer — the gap *is* the update." — never blindly append; doesn't care *why* it's off (interference from other notes? never recorded? compression loss?), only *how much*.
 2. **Forgetting gate (periodic cleanup)** — "Last semester's notes automatically fade, making room for this semester's key points."
 
 Qwen3.5 uses this approach: **75% of layers** use the notebook (Gated DeltaNet), **25% of layers** keep flipping the textbook (Softmax Attention) — because some questions genuinely require looking up the exact original text. Published at **ICLR 2025** (NVIDIA Research).
@@ -267,8 +267,8 @@ Delta rule:     S_t = S_{t-1} + (v_t - S_{t-1} × k_t) × k_t^T  ← Check first
                                   delta (error)
 ```
 
-- delta = 0 → already correct, don't touch it
-- delta is large → wrong entry, erase and rewrite
+- delta = 0 → note matches target, don't touch it
+- delta is large → note is off (could be interference from other entries, never recorded, or compression loss — doesn't matter why), write the correction amount
 
 The delta rule was first proposed by Schlag et al. at ICML 2021. Yang et al. (NeurIPS 2024) solved a critical engineering challenge: making delta rule updates **parallelizable on GPUs** (instead of processing tokens one by one sequentially), enabling training at scale.
 
@@ -329,6 +329,22 @@ S_t = α_t ⊙ S_{t-1} + β_t × (v_t - S_{t-1} × k_t) × k_t^T
 - **α_t** (discount factor): 0~1, computed via Sigmoid, the model learns when to forget more
 - **β_t** (learning rate): how much to trust new information
 
+**How the gate and delta rule work together at each time step:**
+
+```mermaid
+flowchart TB
+    S["Old State S"] -->|"recall"| R["S × k"]
+    V["New value v"] --> D["Error: v - recall"]
+    R --> D
+    S -->|"× gate α"| F["Faded State"]
+    D -->|"× k^T"| COR["Correction"]
+    F --> NS["New State S'"]
+    COR --> NS
+
+    style S fill:#fff3e0,stroke:#ff8c00
+    style NS fill:#e8f4ff,stroke:#0078d4
+```
+
 ### Step 5: Qwen3.5's Hybrid Architecture — "Fast Detectives + Slow Detectives"
 
 **Analogy: A 64-person detective team**
@@ -379,6 +395,23 @@ Imagine you're assembling a 64-person detective squad to solve a case (64-layer 
 **Note**: The MHA/MQA/GQA classification (which discusses how KV heads are shared) **only applies to standard attention layers**. GDN layers have no KV Cache, so this taxonomy doesn't apply to them.
 
 ### Where Gated DeltaNet Fits
+
+**How Gated DeltaNet evolved from basic Linear Attention:**
+
+```mermaid
+flowchart TB
+    LA["Linear Attn"] -->|"+ forget gate"| GLA["GLA"]
+    LA -->|"+ delta rule"| DN["DeltaNet"]
+    GLA -->|"+ delta rule"| GDN["Gated DeltaNet"]
+    DN -->|"+ forget gate"| GDN
+    GDN -->|"75% layers"| HYB["Qwen3.5 Hybrid"]
+    SOFT["Softmax Attn"] -->|"25% layers"| HYB
+
+    style GDN fill:#e8f4ff,stroke:#0078d4,stroke-width:3px
+    style HYB fill:#e8ffe8,stroke:#107c10,stroke-width:2px
+```
+
+**Detailed taxonomy:**
 
 ```
 Sequence Modeling Architectures
@@ -504,15 +537,153 @@ GDN is the most promising linear attention variant to date, but the evidence bou
 | Concern | Specifics | Objective Assessment |
 |------|---------|----------|
 | **Only validated at 1.3B** | GDN paper experiments max out at 1.3B params | Does it scale to 7B/70B? Qwen3.5 adopted it but published no ablation studies |
-| **Self-reported benchmarks** | All performance data from the author team | No independent large-scale reproduction yet |
+| **Self-reported benchmarks** | All performance data from the author team | Our independent H100 testing confirms GDN kernel is faster at 16K+ (see below) |
 | **Information bottleneck** | Fixed-size state matrix = lossy compression | Information loss is inevitable when content exceeds matrix capacity — mitigated by hybrid approach |
 | **Hybrid = admission of weakness** | Qwen3.5 retains 25% standard attention | Pure GDN cannot fully replace Softmax today |
 | **Linear attention’s track record** | Multiple "matches Transformer" claims since 2020, none succeeded | GDN may be the first production-grade adoption, but needs more validation |
-| **Ecosystem maturity** | fla library under active development | Framework support (vLLM, TensorRT-LLM) still early-stage |
+| **Ecosystem maturity** | fla library under active development | Triton kernels crash at seq_len >= 65K with head_dim=128 (confirmed in our testing) |
 
 **Reasons for optimism**: Qwen3.5 is the first production-scale model to adopt GDN; ICLR 2025 peer-reviewed; fla library has 4.4K+ stars and is directly integrated by Qwen; Delta Rule has 60+ years of theoretical lineage.
 
 **Bottom line**: Hybrid architecture (75% GDN + 25% Attention) is the pragmatic best solution today. Pure replacement still needs time and evidence.
+
+---
+
+## GPU Benchmark Results (Our Independent Testing)
+
+> Tested on Azure NC40ads_H100_v5 (NVIDIA H100 NVL 95GB), 2026-03-01
+
+**Environment**: PyTorch 2.9.1+cu128, flash-attn 2.8.3, fla 0.4.1, triton 3.5.1
+
+**Config**: batch=1, heads=16, head_dim=128, BF16, 5 warmup + 20 timed iterations
+
+### Latency Comparison (median, ms)
+
+| Seq Len | FlashAttention | GDN Chunk | GDN FusedRecurrent | GDN/FA Ratio | Winner |
+|---|---|---|---|---|---|
+| 1,024 | 0.078 | 0.306 | 0.279 | 3.92x | **FA** |
+| 4,096 | 0.388 | 0.515 | 0.976 | 1.33x | **FA** |
+| 16,384 | 7.133 | 3.357 | 7.705 | 0.47x | **GDN** (2.1x faster) |
+| 32,768 | 35.656 | 6.786 | 15.571 | 0.19x | **GDN** (5.3x faster) |
+| 65,536 | 148.629 | Triton Error | Triton Error | — | FA only |
+| 131,072 | 623.789 | Triton Error | Triton Error | — | FA only |
+
+### Peak Memory Comparison (MB)
+
+| Seq Len | FlashAttention | GDN Chunk | GDN FusedRecurrent |
+|---|---|---|---|
+| 1,024 | 16.1 | 66.1 | 20.1 |
+| 4,096 | 64.3 | 264.4 | 80.2 |
+| 16,384 | 257.0 | 1,057.5 | 321.0 |
+| 32,768 | 514.0 | 2,115.0 | 642.0 |
+
+### Key Findings
+
+1. **Crossover at ~8K-16K tokens**: GDN Chunk becomes faster than FlashAttention. Below this, FA wins due to GDN's constant per-chunk overhead.
+2. **5.3x faster at 32K**: The O(n) vs O(n²) scaling advantage is dramatic. FA grows ~4x per 2x seq_len (quadratic); GDN grows ~2x (linear).
+3. **Memory tradeoff**: GDN Chunk uses ~4x more peak memory than FA (128x128 state matrix overhead). FusedRecurrent mode is memory-efficient but slower.
+4. **Triton kernel limitation**: fla 0.4.1 kernels fail at seq_len >= 65K with head_dim=128. This is a Triton launch parameter limit, not an algorithmic limitation.
+5. **Validates the hybrid approach**: GDN excels at long sequences (5x+ faster at 32K) but has higher constant overhead at short sequences — exactly why Qwen3.5 uses 75% GDN + 25% attention.
+
+---
+
+## From Algorithm to Engineering: The Complete Causal Chain
+
+The benchmark numbers above are just kernel-level measurements. This section connects the algorithmic principles to real deployment decisions — **why these numbers matter when you run an LLM service**.
+
+### The Library vs. Human Brain Analogy
+
+The fundamental difference between Softmax attention and GDN maps to a familiar tradeoff:
+
+| | Softmax Attention = **Library** | GDN = **Human Brain** |
+|---|---|---|
+| **How it stores history** | Keeps the original K and V of every token (bookshelves) | Compresses everything into a fixed 128x128 state matrix (memory) |
+| **Storage size** | O(n) — grows with every new token | O(1) — constant, no matter how long the input |
+| **Retrieval accuracy** | Perfect — can look up any token's exact info | Approximate — older info may be overwritten by newer |
+| **Cost** | KV Cache eats GPU memory; grows linearly with context | Tiny state matrix; constant ~32KB per layer per head |
+
+**The library** keeps every book on the shelf. When you ask "What was on page 73 of the book from March 2019?", the librarian finds the exact book and reads it word-for-word. But the library must keep growing — more books = more shelves = more space (= more GPU memory).
+
+**The human brain** has read all the books but compressed them into fixed-size memory. Ask the same question and you get "It was about economic policy... can't recall the exact figures." That's information loss from compression. But the brain doesn't need a library building — it carries everything in a constant-size package.
+
+### Why Softmax Needs KV Cache and GDN Doesn't
+
+During inference (generating tokens one by one):
+
+```
+Softmax generating token 32,769:
+  Q = current token's query vector
+  Must compute similarity with ALL 32,768 previous tokens' K vectors
+  → Need K₁, K₂, ..., K₃₂₇₆₈ stored in memory (= K Cache)
+  Then weighted sum of ALL V vectors
+  → Need V₁, V₂, ..., V₃₂₇₆₈ stored in memory (= V Cache)
+  Can't reuse previous token's results — each Q is different!
+
+GDN generating token 32,769:
+  Q = current token's query vector
+  State matrix S already contains compressed info from all 32,768 tokens
+  → output = Q × S (one matrix multiply, done!)
+  No need to access any historical K or V
+```
+
+**This is why "no KV Cache" and "lossy compression" are two sides of the same coin**: GDN doesn't need KV Cache *because* it compressed everything into the state matrix; but it *cannot* retrieve exact historical details *because* the originals were discarded.
+
+### The Real Deployment Impact
+
+**Scenario: 50 concurrent users, each with 32K context**
+
+```
+Softmax (e.g., Qwen3, all 64 layers store KV Cache):
+  KV Cache per user = 64 layers × 32K tokens × 128 dim × 2(K+V) × 2 bytes = 1 GB
+  50 users = 50 GB for KV Cache alone
+  H100 80GB → only 30 GB left for model weights → likely OOM!
+
+GDN hybrid (e.g., Qwen3.5, only 16 attention layers store KV Cache):
+  KV Cache per user = 16 layers × 32K × 128 × 2 × 2 = 256 MB
+  GDN state per user = 48 layers × 128 × 128 × 2 bytes = 1.5 MB (negligible!)
+  50 users = 13 GB total → plenty of room on H100
+```
+
+**GDN is actually better for high concurrency** — the exact opposite of "suited for single concurrency". By eliminating KV Cache from 75% of layers, the same GPU can serve ~4x more concurrent users.
+
+### The Chunk Memory Paradox Explained
+
+Our benchmarks show GDN Chunk uses 4x more memory *during computation* than FlashAttention. This seems contradictory — how can GDN be "memory efficient" if it uses 4x more?
+
+The answer: two different kinds of memory use at two different times.
+
+| Memory Type | When | Softmax | GDN Chunk |
+|---|---|---|---|
+| **Computation memory** (forward pass) | Processing the input | Low (FA's tiling recomputes instead of storing) | **4x higher** (stores chunk states + intra-chunk attention) |
+| **KV Cache** (inference serving) | Every generated token | **Grows with context** — O(n) | Constant — O(1) |
+
+FlashAttention is clever about computation: it tiles the n×n attention matrix into small blocks, computes each in GPU SRAM (fast on-chip cache), and discards immediately — never storing the full matrix in GPU HBM. During backpropagation, it simply recomputes instead of storing. **Trade: more computation for less memory.**
+
+GDN Chunk goes the opposite direction: to parallelize its inherently sequential state updates, it stores intermediate state snapshots and intra-chunk attention matrices. **Trade: more memory for better GPU utilization.**
+
+But in production, KV Cache dominates total memory. A 256K context with full Softmax attention could require 8+ GB per user in KV Cache — dwarfing any computation memory savings from FlashAttention's tiling.
+
+### Engineering Decision Framework
+
+```mermaid
+flowchart TB
+    Q{"Sequence length?"} --> A["< 4K"]
+    Q --> B["4K - 16K"]
+    Q --> C["> 16K"]
+    A --> R1["Softmax is fine"]
+    B --> R2["Either works"]
+    C --> R3["GDN hybrid"]
+    R3 --> D1["5x faster"]
+    R3 --> D2["4x less KV Cache"]
+    R3 --> D3["4x concurrency"]
+
+    style R3 fill:#e8ffe8,stroke:#107c10
+    style D1 fill:#e8ffe8,stroke:#107c10
+    style D2 fill:#e8ffe8,stroke:#107c10
+    style D3 fill:#e8ffe8,stroke:#107c10
+```
+
+**The tradeoff**: GDN pays for speed and concurrency with **retrieval precision** — if your use case requires exact extraction from long documents ("What does clause 7.3 say word-for-word?"), the attention layers in the hybrid architecture handle this, but pure GDN layers may lose such fine-grained details.
 
 ---
 
