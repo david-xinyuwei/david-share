@@ -20,6 +20,17 @@ After I finished all the tests in this blog, the GPU memory assumption is:
 
 
 
+
+## Running on Azure
+
+This project can be deployed on **Azure Virtual Machines** with GPU support.
+
+| Item | Details |
+|---|---|
+| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
+| **Compute** | Select VM size based on model requirements |
+
+
 ## Load Model
 ```
 model_id = 'microsoft/Florence-2-large-ft'

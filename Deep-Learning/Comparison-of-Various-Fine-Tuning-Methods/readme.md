@@ -4,6 +4,18 @@
 
 
 
+
+## Running on Azure
+
+All experiments in this project were conducted on an **Azure GPU VM**.
+
+| Item | Details |
+|---|---|
+| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU** | NVIDIA H100 80GB |
+| **Frameworks** | LoRA/PEFT |
+
+
 ## 几种技术之间的关系
 
 如果把复杂的问题简单理解，这些技术之间的关系大概是：

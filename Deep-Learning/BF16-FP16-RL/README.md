@@ -7,6 +7,18 @@
 
 ---
 
+
+## Running on Azure
+
+All experiments in this project were conducted on an **Azure GPU VM**.
+
+| Item | Details |
+|---|---|
+| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU** | NVIDIA H100 80GB |
+| **Frameworks** | vLLM, DeepSpeed, LoRA/PEFT, TensorRT-LLM |
+
+
 ## Abstract
 
 **BF16's reduced mantissa precision introduces subtle rounding errors during autoregressive generation that compound catastrophically in reinforcement learning pipelines.** When rollouts (inference) and training execute on different engines—e.g., vLLM vs PyTorch FSDP—BF16 rounding inconsistencies cause **policy divergence, biased gradients, and reward collapse**.

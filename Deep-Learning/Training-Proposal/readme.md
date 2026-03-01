@@ -10,6 +10,18 @@ Knowledge points in this course：
 
 ![images](https://github.com/david-xinyuwei/david-share/blob/master/Agents/Training-Proposal/images/1.png)
 
+
+## Running on Azure
+
+All experiments in this project were conducted on an **Azure GPU VM**.
+
+| Item | Details |
+|---|---|
+| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU** | NVIDIA H100 80GB |
+| **Frameworks** | LoRA/PEFT |
+
+
 ## **Takeaways**
 
 By the conclusion of the training, participants will be able to:

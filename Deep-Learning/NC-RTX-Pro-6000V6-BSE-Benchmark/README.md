@@ -6,6 +6,18 @@
 
 ---
 
+
+## Running on Azure
+
+This benchmark was conducted across multiple **Azure GPU VM** SKUs.
+
+| Item | Details |
+|---|---|
+| **Azure VMs** | [NC H100 v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series), [NC A100 v4](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-a100-v4-series), [NC RTX Pro 6000V6 BSE](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
+| **GPUs** | NVIDIA H100, A100, RTX 6000 Ada, GB200 |
+| **Frameworks** | vLLM, SGLang, torch.compile, Diffusers |
+
+
 ## 📖 Table of Contents
 
 **Part I: GPU Hardware & Selection**

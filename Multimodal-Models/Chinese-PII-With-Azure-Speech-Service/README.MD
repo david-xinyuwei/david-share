@@ -5,6 +5,17 @@ Reference Link：
 
 *https://huggingface.co/spaces/presidio/presidio_demo/tree/main*
 
+
+## Running on Azure
+
+This project can be deployed on **Azure Virtual Machines** with GPU support.
+
+| Item | Details |
+|---|---|
+| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
+| **Compute** | Select VM size based on model requirements |
+
+
 ## 需求描述
 
 在生成式AI中，数据脱敏是一个很关键的步骤，而PII是最核心的部分。也就是说，我们发给LLM云服务的信息，应该是不包含敏感和隐私信息的。

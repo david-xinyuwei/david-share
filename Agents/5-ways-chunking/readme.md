@@ -1,6 +1,16 @@
 # Five Levels of Chunking 
 This article will first introduce the principles of five chunking methods, followed by the implementation of the code.
 
+## Running on Azure
+
+The chunking techniques demonstrated here are designed for use with **Azure AI Search** indexing pipelines.
+
+| Item | Details |
+|---|---|
+| **Azure Service** | [Azure AI Search](https://learn.microsoft.com/en-us/azure/search/) |
+| **Use Case** | Document chunking strategies for RAG / vector search |
+| **Compute** | No GPU VM required — runs on any machine with Python |
+
 
 ## Five Levels of Chunking Implementation principle
 

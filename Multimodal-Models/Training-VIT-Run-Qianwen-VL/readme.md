@@ -4,6 +4,17 @@ As of now, CV models are primarily based on convolutional neural networks. Howev
 
 Next, let's look at mainstream CV implementations and their characteristics.
 
+
+## Running on Azure
+
+This project can be deployed on **Azure Virtual Machines** with GPU support.
+
+| Item | Details |
+|---|---|
+| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
+| **Compute** | Select VM size based on model requirements |
+
+
 ##  CV Architecture
 
 **U-Net**

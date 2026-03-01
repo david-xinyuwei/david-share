@@ -1,3 +1,14 @@
+## 在 Azure 上运行
+
+本项目使用 **Azure OpenAI 服务** 的 GPT-4 进行机器翻译测试。
+
+| 项目 | 详情 |
+|---|---|
+| **Azure 服务** | [Azure OpenAI Service](https://learn.microsoft.com/en-us/azure/ai-services/openai/) |
+| **模型** | GPT-4 |
+| **应用场景** | 多语言机器翻译 + Prompt 优化 |
+| **计算资源** | 无需 GPU VM — API 调用模式，按 Token 付费 |
+
 用GPT做机器翻译，比传统的翻译工具如何呢？这方面有很多测试报告，但大多数是2023年上半年做的，而GPT的能力提升很快，因此不进行列举。
 
 从我实测的效果看，可以得出如下的结论。

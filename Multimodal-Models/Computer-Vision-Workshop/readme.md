@@ -14,6 +14,17 @@
 
 •Azure AI Vision
 
+
+## Running on Azure
+
+This project uses **Azure OpenAI Service**.
+
+| Item | Details |
+|---|---|
+| **Azure Service** | [Azure OpenAI Service](https://learn.microsoft.com/en-us/azure/ai-services/openai/) |
+| **Compute** | No GPU VM required — API-based, pay-per-token |
+
+
 ## Hands-on reference
 
 You must login https://portal.azure.com  with your account, create a resource group in East US, then create AOAI, computer vision service under the RG you created before:

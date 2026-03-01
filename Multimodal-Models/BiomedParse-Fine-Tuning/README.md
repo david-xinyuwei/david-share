@@ -9,6 +9,18 @@ Fine-tuning Microsoft's BiomedParse medical image segmentation model for custom 
 
 ---
 
+
+## Running on Azure
+
+All experiments in this project were conducted on an **Azure GPU VM**.
+
+| Item | Details |
+|---|---|
+| **Azure VM** | [Standard_NV36ads_A10_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nva10v5-series) |
+| **GPU** | NVIDIA A10 24GB |
+| **Frameworks** | PyTorch |
+
+
 ## 🌟 Microsoft Biomedical AI: The Three Pillars
 
 Before diving into fine-tuning, it's helpful to understand where **BiomedParse** fits in Microsoft's broader biomedical AI landscape.

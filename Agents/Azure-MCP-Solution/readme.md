@@ -2,6 +2,16 @@
 
 This repository provides a practical, hands-on guide to using and integrating MCP (Model-Context Protocol) Servers. Through clear step-by-step examples, you will learn how to set up MCP Servers within VS Code, interact with AI models and tools (such as Open-WebUI and GitHub Copilot), and enhance AI workflows by creating custom MCP servers. Additionally, this guide will cover advanced integration patterns, including exposing MCP services securely via Azure API Management (APIM). The security-related scenarios, particularly the use of APIM to safely expose MCP Servers, will be detailed in an upcoming update to this guide.
 
+## Running on Azure
+
+This project integrates with multiple Azure services for MCP server hosting and security.
+
+| Item | Details |
+|---|---|
+| **Azure Services** | [Azure API Management](https://learn.microsoft.com/en-us/azure/api-management/), [Azure OpenAI Service](https://learn.microsoft.com/en-us/azure/ai-services/openai/) |
+| **Integration** | MCP Servers exposed securely via Azure APIM |
+| **Compute** | No GPU VM required — runs locally with VS Code or on Azure-hosted endpoints |
+
 ## Integrating MCP Server into VS Code
 
 There are several simple ways to integrate MCP Servers into VS Code, enabling you to easily connect AI models and custom tools into your IDE workflows. VS Code supports two main methods:

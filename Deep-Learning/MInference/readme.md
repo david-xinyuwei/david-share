@@ -4,6 +4,17 @@
 
 Refer to: *https://github.com/microsoft/MInference*
 
+
+## Running on Azure
+
+This project can be deployed on **Azure Virtual Machines** with GPU support.
+
+| Item | Details |
+|---|---|
+| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
+| **Compute** | Select VM size based on model requirements |
+
+
 ## 一、引言：从算力危机到长上下文时代的挑战
 
 随着生成式AI与大语言模型（LLM）的飞速发展，我们从“短文本交互”逐渐迈入了“长上下文”场景：

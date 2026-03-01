@@ -6,6 +6,17 @@
 
 > **Quick Navigation**: [TL;DR](#tldr-quick-core-findings) | [Background](#background--problems) | [Mechanism](#mechanism-deep-dive) | [Experiments](#experiment-scenarios-and-result-analysis) | [Operations Handbook](#decision-checklists--operations-handbook) | [Code](#full-reproduction-code) | [GPT-5 vs Codex](#gpt-5-vs-gpt-5-codex-performance-comparison) | [Best Practices](#summary--best-practices)
 
+## Running on Azure
+
+All experiments use **Azure OpenAI Service** with GPT-5 and Codex deployments.
+
+| Item | Details |
+|---|---|
+| **Azure Service** | [Azure OpenAI Service](https://learn.microsoft.com/en-us/azure/ai-services/openai/) |
+| **Models** | GPT-5 (`gpt-5`), GPT-5.1-Codex (`gpt-5.1-codex-max`) |
+| **API** | Responses API (`2025-04-01-preview`) |
+| **Compute** | No GPU VM required — API-based, pay-per-token |
+
 ## **TL;DR (Quick Core Findings)**
 
 - **Effort is the decisive variable determining the length of reasoning tokens** (see [Table 2: AB Comparison](#table-2-ab-comparison-data-r1-vs-r2-r2-uses-previous_response_id)).

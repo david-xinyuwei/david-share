@@ -1,6 +1,17 @@
 ## A2A Demo on Azure
 
 This repository contains a minimal end-to-end demo that shows how multiple A2A-compatible micro-agents can cooperate behind a single LLM-based router while being protected by the same fixed Bearer-Token.
+
+### Running on Azure
+
+The LLM Router in this demo uses an **Azure-hosted LLM** for intent classification.
+
+| Item | Details |
+|---|---|
+| **Azure Service** | [Azure OpenAI Service](https://learn.microsoft.com/en-us/azure/ai-services/openai/) |
+| **Use Case** | A2A (Agent-to-Agent) multi-agent orchestration with Bearer-Token security |
+| **Compute** | No GPU VM required — API-based; agents run as local HTTP services |
+
 You will spin up four independent HTTP services:
 
 • Calendar-Workday – manages weekday events

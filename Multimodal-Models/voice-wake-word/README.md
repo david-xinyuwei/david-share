@@ -6,6 +6,17 @@
 
 A data-centric approach to wake word detection that achieves **100% false positive reduction** using hard negative mining with a simple 3-layer neural network.
 
+
+## Running on Azure
+
+This project can be deployed on **Azure Virtual Machines** with GPU support.
+
+| Item | Details |
+|---|---|
+| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
+| **Compute** | Select VM size based on model requirements |
+
+
 ## 🎯 Key Results
 
 | Model | Training Data | Loss Function | False Positives @ 0.3 | Recall | Training Time |

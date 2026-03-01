@@ -1,5 +1,16 @@
 # Multi‑LoRA Adapters in vLLM: Switching, Performance, and When You Really Need Chat Templates
 
+
+## Running on Azure
+
+This project can be deployed on **Azure Virtual Machines** with GPU support.
+
+| Item | Details |
+|---|---|
+| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
+| **Compute** | Select VM size based on model requirements |
+
+
 ## TL;DR
 
 - vLLM supports multiple LoRA adapters loaded and resident in memory, switchable per request with ≈0 delay via `LoRARequest` (offline) or `--lora-modules` (server).

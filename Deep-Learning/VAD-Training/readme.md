@@ -9,6 +9,17 @@ Vectorized Scene Representation for Efficient Autonomous Driving
 
 
 
+
+## Running on Azure
+
+This project can be deployed on **Azure Virtual Machines** with GPU support.
+
+| Item | Details |
+|---|---|
+| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
+| **Compute** | Select VM size based on model requirements |
+
+
 ## 1.三大流派的核心理念
 
 ### 视觉派（Tesla Vision 的故事）

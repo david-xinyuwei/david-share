@@ -9,6 +9,18 @@ This article covers two popular fine-tuning tools for large language models: **A
 
 ---
 
+
+## Running on Azure
+
+All experiments in this project were conducted on an **Azure GPU VM**.
+
+| Item | Details |
+|---|---|
+| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU** | NVIDIA H100 80GB |
+| **Frameworks** | vLLM, DeepSpeed, LoRA/PEFT, Unsloth, Axolotl, torch.compile |
+
+
 ## Part I: Fine-Tuning with Axolotl and Inference with vLLM/Transformers
 
 ### Axolotl Overview

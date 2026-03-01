@@ -2,6 +2,17 @@
 
 Although models like GPT-4 and GPT-3.5 are powerful, their knowledge cannot be the most up-to-date. Previously, we often introduced engineering techniques in the use of LLMs by treating prompt engineering, RAG, and fine-tuning as parallel methods. In fact, these three technologies can be combined.
 
+## Running on Azure
+
+This project demonstrates RAG best practices using **Azure AI Search** and **Azure OpenAI Service**.
+
+| Item | Details |
+|---|---|
+| **Azure Services** | [Azure AI Search](https://learn.microsoft.com/en-us/azure/search/), [Azure OpenAI Service](https://learn.microsoft.com/en-us/azure/ai-services/openai/) |
+| **Models** | GPT-4, GPT-3.5 |
+| **Use Case** | Four-stage RAG pipeline with prompt engineering and fine-tuning |
+| **Compute** | No GPU VM required — API-based |
+
 ##  Four stages of RAG
 
  The thinking in the paper I read is excellent—it divides RAG into four stages. 

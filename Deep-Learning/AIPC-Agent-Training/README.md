@@ -2,6 +2,18 @@
 
 > **"DevOps for AI"** — A complete, reproducible training pipeline demonstrating how to incrementally improve domain-specific AI agents through **SFT → GRPO → DPO** stages.
 
+
+## Running on Azure
+
+All experiments in this project were conducted on an **Azure GPU VM**.
+
+| Item | Details |
+|---|---|
+| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU** | NVIDIA H100 80GB |
+| **Frameworks** | ONNX Runtime |
+
+
 ## 🎯 Overview
 
 This repository implements an **AI Agent Flywheel** training methodology, where each model version builds upon the previous one through targeted training strategies. Starting from `microsoft/Phi-3-mini-4k-instruct`, we incrementally train a specialized **AI PC Expert** agent through 5 stages.

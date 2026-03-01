@@ -6,6 +6,18 @@
 
 ---
 
+
+## 在 Azure 上运行
+
+本基准测试在多个 **Azure GPU 虚拟机** SKU 上进行。
+
+| 项目 | 详情 |
+|---|---|
+| **Azure VM** | [NC H100 v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series), [NC A100 v4](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-a100-v4-series), [NC RTX Pro 6000V6 BSE](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
+| **GPU** | NVIDIA H100、A100、RTX 6000 Ada、GB200 |
+| **框架** | vLLM, SGLang, torch.compile, Diffusers |
+
+
 ## 📖 目录
 
 **第一部分：GPU 硬件与选型**

@@ -2,6 +2,18 @@
 
 大语言模型（LLM）最近发展得非常快，一动就是好几亿甚至上百亿的参数，让很多AI工程师在微调这些大模型时犯了难。Unsloth这个框架，原本主要是靠支持LoRA、QLoRA等Adapter微调而出名，重点就是省内存、训练快。现在它又更进一步，支持了全参数微调（Full Fine-tuning），也就是说，单卡环境就能搞定大规模模型的完整训练。接下来我想聊一聊Unsloth全微调的背景、它用到的关键技术，以及在实际工程中怎么把它用好。
 
+
+## Running on Azure
+
+All experiments in this project were conducted on an **Azure GPU VM**.
+
+| Item | Details |
+|---|---|
+| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU** | NVIDIA H100 NVL 94GB |
+| **Frameworks** | LoRA/PEFT, Unsloth |
+
+
 **一、从 LoRA/QLoRA 到 Full Fine-tuning：Unsloth 的进化历程**
 
 1. 初期聚焦：LoRA & QLoRA 早期的 Unsloth 仅支持基于 LoRA/QLoRA 的适配器微调（Adapter Fine-tuning）。它通过动态量化、稀疏优化、梯度检查点等技术手段，大幅减少显存占用，让工程师能在单卡或少卡环境下，对 LLM 进行有效训练。

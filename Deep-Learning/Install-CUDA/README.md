@@ -2,6 +2,17 @@
 
 https://medium.com/virtual-force-inc/a-step-by-step-guide-to-install-nvidia-drivers-and-cuda-toolkit-855c75efcdb6
 
+
+## Running on Azure
+
+This project can be deployed on **Azure Virtual Machines** with GPU support.
+
+| Item | Details |
+|---|---|
+| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
+| **Compute** | Select VM size based on model requirements |
+
+
 A complete guide to setup GPU for ML development.
 
 This article takes you step-by-step to enable your GPU machine for any kind of development tasks, especially for machine learning and data science.

@@ -11,6 +11,18 @@ This guide provides comprehensive guidance and resources for deploying, benchmar
 
 ---
 
+
+## Running on Azure
+
+All experiments in this project were conducted on an **Azure GPU VM**.
+
+| Item | Details |
+|---|---|
+| **Azure VM** | [Standard_ND96isr_MI300X_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nd-mi300x-v5-series) |
+| **GPU** | AMD MI300X 192GB |
+| **Frameworks** | vLLM, SGLang, LoRA/PEFT |
+
+
 ## Table of Contents
 
 - [Part 1: Azure ND MI300X GPU VM Environment Setup](#part-1-azure-nd-mi300x-gpu-vm-environment-setup)

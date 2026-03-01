@@ -29,6 +29,40 @@
 - 结果：diffusers eager vs compile SSIM ≈ 0.93（优秀——compile 没有降低质量）
 - 跨引擎 SSIM ≈ 0.91（修正分辨率不匹配后）
 
+---
+
+## 在 Azure 上运行
+
+附带的 Demo 可以在**任何有 Python 的机器**上运行（纯 CPU，约 30 秒）。无需 GPU 或 Azure 订阅即可学习和实验。
+
+在生产环境中，我们用这些指标在 Azure GPU VM 上评估扩散模型推理质量：
+
+| 项目 | 详情 |
+|---|---|
+| **SKU** | [Standard_NC80adis_H100_v5](https://learn.microsoft.com/zh-cn/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU** | 1× NVIDIA H100 NVL 94 GB |
+| **工作负载** | 虚拟试衣推理（50 个样本 × 4 种引擎配置） |
+| **SSIM/LPIPS 的角色** | 自动化质量门控 — 无需人工审查即可跨引擎对比输出 |
+
+### 为什么用 Azure GPU VM 做质量评估
+
+- **扩散模型推理**生成图片；SSIM/LPIPS **衡量**质量
+- 在云端 GPU（H100/A100）上运行推理，可以批量评估：每种配置 50–200 个样本
+- 按需付费：开机跑推理 + 质量对比，跑完关机
+- 指标计算本身很轻量 — SSIM 是纯数学，LPIPS 只需一个小型 VGG 模型
+
+### 我们在 Azure 上验证了什么
+
+| 对比组 | SSIM | 结论 |
+|---|:---:|---|
+| 同引擎，eager vs `torch.compile` | ~0.93 | compile 不降低质量 |
+| 跨引擎，同分辨率 | ~0.91 | 微小数值差异，可接受 |
+| 跨引擎，分辨率不匹配 | ~0.88 | resize 伪影拉低分数 — 应先对齐分辨率 |
+
+这些数据让我们有信心向生产环境推荐 `torch.compile` 和替代引擎在 Azure 上部署。
+
+---
+
 ## 原理
 
 ![SSIM vs LPIPS 计算管线](images/ssim_vs_lpips_pipeline.png)

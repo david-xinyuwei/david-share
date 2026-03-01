@@ -6,6 +6,18 @@
 
 A comprehensive tool for estimating memory consumption of Large Language Models (LLMs) during inference. Supports multiple interfaces (CLI, Web, Notebook) and one-click deployment to Azure.
 
+
+## Running on Azure
+
+All experiments in this project were conducted on an **Azure GPU VM**.
+
+| Item | Details |
+|---|---|
+| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU** | NVIDIA H100 80GB |
+| **Frameworks** | vLLM, DeepSpeed, LoRA/PEFT, Axolotl, TensorRT-LLM, ONNX Runtime |
+
+
 ## Table of Contents
 
 - [Scenario](#scenario)

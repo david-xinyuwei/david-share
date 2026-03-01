@@ -4,6 +4,17 @@
 > ["How to Give Your RTX GPU Nearly Infinite Memory for LLM Inference"](https://medium.com/data-science-collective/how-to-give-your-rtx-gpu-nearly-infinite-memory-for-llm-inference-de2c57af1e82) by Natalia Trifonova.  
 > The content here is adapted for GitHub, with additional reproducible scripts, diagrams, and generalized implementation notes.
 
+
+## Running on Azure
+
+This project can be deployed on **Azure Virtual Machines** with GPU support.
+
+| Item | Details |
+|---|---|
+| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
+| **Compute** | Select VM size based on model requirements |
+
+
 ## 💡 Overview
 Running large language models (LLMs) on RTX GPUs often hits a **KV cache memory bottleneck**.  
 By **offloading KV cache to fast NVMe storage** (local or network-attached, with RDMA/GPUDirect), you can:

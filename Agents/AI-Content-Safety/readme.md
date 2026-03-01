@@ -8,6 +8,16 @@ Please also refer to my blog on Microsoft:
 
 *https://techcommunity.microsoft.com/t5/ai-azure-ai-services-blog/ai-content-safety-fast-poc/ba-p/4265310*
 
+## Running on Azure
+
+This project uses **Azure AI Content Safety** service for content moderation.
+
+| Item | Details |
+|---|---|
+| **Azure Service** | [Azure AI Content Safety](https://learn.microsoft.com/en-us/azure/ai-services/content-safety/) |
+| **Compute** | No GPU VM required — fully managed cloud API |
+| **Reference** | [AI Content Safety Fast PoC](https://techcommunity.microsoft.com/t5/ai-azure-ai-services-blog/ai-content-safety-fast-poc/ba-p/4265310) |
+
 ## Prepare env
 
 ```

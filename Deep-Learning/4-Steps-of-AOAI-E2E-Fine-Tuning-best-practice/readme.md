@@ -2,6 +2,17 @@
 
 In this repository, I will start by introducing the process of synthesizing training data from Personas and then proceed step by step to fine-tune GPT-3.5 or other open-source models. This article will also discuss how to improve the fine-tuning results by adjusting the fine-tuning parameters.
 
+
+## Running on Azure
+
+This project uses **Azure OpenAI Service**.
+
+| Item | Details |
+|---|---|
+| **Azure Service** | [Azure OpenAI Service](https://learn.microsoft.com/en-us/azure/ai-services/openai/) |
+| **Compute** | No GPU VM required — API-based, pay-per-token |
+
+
 ## Step1: Obtain character description information from HF
 
 argilla/FinePersonas-v0.1 is a high-quality, open dataset on HF (Hugging Face) containing 21 million detailed character descriptions, designed for generating diverse and controllable synthetic text.

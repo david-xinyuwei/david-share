@@ -7,6 +7,18 @@
 
 ---
 
+## 在 Azure 上运行
+
+本项目完全基于 **Azure AI Search** 的 **Foundry IQ** 知识层构建。
+
+| 项目 | 详情 |
+|---|---|
+| **Azure 服务** | [Azure AI Search](https://learn.microsoft.com/en-us/azure/search/) — Foundry IQ (Knowledge Store API) |
+| **API 版本** | `2025-11-01-preview` |
+| **计算资源** | 无需 GPU VM — 全托管云服务，按查询付费 |
+
+---
+
 ## 🎯 Foundry IQ 概述（核心概念）
 
 ### 痛点：每个项目都要交 RAG 税

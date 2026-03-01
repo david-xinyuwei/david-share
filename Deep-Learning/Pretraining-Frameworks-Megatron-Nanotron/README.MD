@@ -4,6 +4,18 @@ This repo demonstrates two popular pretraining frameworks for transformer models
 
 ---
 
+
+## Running on Azure
+
+All experiments in this project were conducted on an **Azure GPU VM**.
+
+| Item | Details |
+|---|---|
+| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU** | NVIDIA H100 80GB |
+| **Frameworks** | DeepSpeed |
+
+
 ## Part I: Megatron+DeepSpeed — Pretrain GPT-2
 
 The pretraining of GPT-2 refers to training the GPT model using a large amount of unlabeled text data, enabling it to learn the patterns and knowledge of the language, thereby acquiring the ability to understand and generate natural language. In this stage, the GPT model needs to encode the text, which means converting the text into numbers for computation and operation. This process involves the use of a vocabulary and merging rules, which are the tokenization tools of the GPT model. These tools can segment the text into optimal subwords and then represent these subwords with numbers.

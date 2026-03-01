@@ -2,6 +2,18 @@
 
 > **"AI 的 DevOps"** — 一个完整、可复现的训练流程，展示如何通过 **SFT → GRPO → DPO** 阶段逐步改进领域专用 AI Agent。
 
+
+## 在 Azure 上运行
+
+本项目的所有实验均在 **Azure GPU 虚拟机**上完成。
+
+| 项目 | 详情 |
+|---|---|
+| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU** | NVIDIA H100 80GB |
+| **框架** | ONNX Runtime |
+
+
 ## 🎯 概述
 
 本仓库实现了 **AI Agent 飞轮** 训练方法论，每个模型版本在前一版本基础上通过针对性训练策略进行优化。从 `microsoft/Phi-3-mini-4k-instruct` 出发，我们通过 5 个阶段增量训练一个专业的 **AI PC 专家** Agent。

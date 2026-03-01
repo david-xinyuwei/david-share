@@ -29,6 +29,40 @@ Without objective metrics, you'd need humans to compare thousands of image pairs
 - Result: diffusers eager vs compile SSIM ≈ 0.93 (excellent — compile doesn't degrade quality)
 - Cross-engine SSIM ≈ 0.91 (after correcting for resolution mismatch)
 
+---
+
+## Running on Azure
+
+The included demo runs on **any machine with Python** (CPU only, ~30 seconds). No GPU or Azure subscription required to learn and experiment.
+
+In production, we used these metrics to evaluate diffusion model inference quality on Azure GPU VMs:
+
+| Item | Details |
+|---|---|
+| **SKU** | [Standard_NC80adis_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU** | 1× NVIDIA H100 NVL 94 GB |
+| **Workload** | Virtual Try-On inference (50 samples × 4 engine configs) |
+| **Role of SSIM/LPIPS** | Automated quality gate — compare outputs across engines without human review |
+
+### Why Azure GPU VMs for Quality Evaluation
+
+- **Diffusion model inference** generates the images; SSIM/LPIPS **measure** the quality
+- Running inference on cloud GPUs (H100/A100) lets you benchmark at scale: 50–200 samples per config
+- Pay-as-you-go: spin up, run inference + quality comparison, shut down
+- The metrics themselves are lightweight — SSIM is pure math, LPIPS needs only a small VGG model
+
+### What We Validated on Azure
+
+| Comparison | SSIM | Conclusion |
+|---|:---:|---|
+| Same engine, eager vs `torch.compile` | ~0.93 | Compile does not degrade quality |
+| Cross-engine, same resolution | ~0.91 | Minor numerical differences, acceptable |
+| Cross-engine, resolution mismatch | ~0.88 | Resize artifacts lower score — fix resolution first |
+
+These numbers gave us confidence to recommend `torch.compile` and alternative engines for production deployment on Azure.
+
+---
+
 ## How It Works
 
 ![SSIM vs LPIPS Pipeline](images/ssim_vs_lpips_pipeline.png)

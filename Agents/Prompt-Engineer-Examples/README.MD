@@ -1,3 +1,13 @@
+## 在 Azure 上运行
+
+本项目使用 **Azure OpenAI 服务**进行 Prompt Engineering 实践。
+
+| 项目 | 详情 |
+|---|---|
+| **Azure 服务** | [Azure OpenAI Service](https://learn.microsoft.com/en-us/azure/ai-services/openai/) |
+| **应用场景** | Prompt 工程优化实践（多语言处理、分类、摘要） |
+| **计算资源** | 无需 GPU VM — API 调用模式，按 Token 付费 |
+
 之前看过一些Prompt Engineer优化的文档，理论结合实践试一下。**本文中使用的数据是我造出来的，不是客户数据。**
 
 假设我是微软的800工程师，我要针对客户提的各种问题进行处理，生成的一个excel表格，表格的列包含Case ID、keywords、Summary、Category。

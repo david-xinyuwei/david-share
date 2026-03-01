@@ -8,6 +8,17 @@
 
 近年来，多种 VLM 模型（如 CLIP、Florence-2、Qwen2-VL）取得了优秀成绩，使计算机视觉逐步迈入多模态交互与智能推理的新阶段。以下我们将详细梳理 CV 的演化路径，并分析代表性技术和模型的应用特点。
 
+
+## Running on Azure
+
+This project can be deployed on **Azure Virtual Machines** with GPU support.
+
+| Item | Details |
+|---|---|
+| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
+| **Compute** | Select VM size based on model requirements |
+
+
 ## 视觉模型能力递进示意
 
 ##### 1.纯视觉编码器

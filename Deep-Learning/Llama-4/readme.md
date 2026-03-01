@@ -2,6 +2,18 @@
 
 Refer to：
 
+
+## Running on Azure
+
+All experiments in this project were conducted on an **Azure GPU VM**.
+
+| Item | Details |
+|---|---|
+| **Azure VM** | [Standard_ND96isr_MI300X_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nd-mi300x-v5-series) |
+| **GPU** | AMD MI300X 192GB |
+| **Frameworks** | PyTorch |
+
+
 *https://ai.meta.com/blog/llama-4-multimodal-intelligence/*
 
 

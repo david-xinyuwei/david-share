@@ -2,6 +2,17 @@
 
 **一、推理中模型什么时候停止生成token**
 
+
+## Running on Azure
+
+This project can be deployed on **Azure Virtual Machines** with GPU support.
+
+| Item | Details |
+|---|---|
+| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
+| **Compute** | Select VM size based on model requirements |
+
+
 - 输出token达到最大生成长度 (max_tokens) 
 - 没达到max_tokens，模型提前输出停用标记 (stop token/EOS token)
 

@@ -71,6 +71,17 @@ training_arguments = TrainingArguments(
 
 实验表明，即使在批量大小为32的情况下，也能获得较好的损失结果。但是，这会增加内存的使用量，在一些情况下，如16GB内存的GPU上，如果不采用如梯度累积等技术，实现这样的批量大小是不现实的。因此，而不是单纯追求更大的批量，应综合考虑硬件限制并通过实验确定最佳的批量大小。这种方法保证了在可用资源范围内，模型训练既高效又实用。
 
+
+## Running on Azure
+
+This project can be deployed on **Azure Virtual Machines** with GPU support.
+
+| Item | Details |
+|---|---|
+| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
+| **Compute** | Select VM size based on model requirements |
+
+
 ## **二、最大Sequence Length、Padding、Truncating**
 
 在批处理中，需要对训练样本进行填充，以确保每一批数据中所有样本的形状或大小一致，这是并行处理数据的机器学习模型的基本要求。特别是在执行序列任务，如语言生成时，这种数据的统一性变得尤为重要。  在准备数据批次时，需要对较短的序列进行填充，增加一些无关紧要的值，以确保它们的长度与批次中最长序列相匹配。这种填充可以是在序列的前端（左填充），或者是尾端（右填充），有时还可能两端同时进行，这取决于具体的模型设计和任务需求。需要注意的是，并不是所有的技术都能适应任意一端的填充方式。例如，在使用**FlashAttention技术时，必须进行左填充。**  为了更好地控制批次大小，建议设定一个最长序列限制。例如，我们如果将这个最大长度设置为1,024个令牌，那么批次中的每个样本都会被处理到恰好有1,024个令牌。如果某个样本原本只有512个令牌，那么就会追加512个填充令牌。相反，如果某个样本的令牌数超过了1,024个，那么超出的部分就会被截断。通过这种方式，我们不仅能保证处理过程的一致性，也有助于优化内存的使用，从而提升训练的效率。

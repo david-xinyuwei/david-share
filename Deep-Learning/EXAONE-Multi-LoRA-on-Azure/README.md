@@ -2,6 +2,18 @@
 
 This repository provides a **complete validation** of running LG AI Research's **EXAONE 3.5** model with **Multi-LoRA adapter serving** on Azure GPU VMs using vLLM. It covers model loading, LoRA adapter creation, multi-adapter concurrent serving, and performance benchmarking.
 
+
+## Running on Azure
+
+All experiments in this project were conducted on an **Azure GPU VM**.
+
+| Item | Details |
+|---|---|
+| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU** | NVIDIA H100 80GB |
+| **Frameworks** | vLLM, LoRA/PEFT |
+
+
 ## Table of Contents
 
 - [Overview](#overview)

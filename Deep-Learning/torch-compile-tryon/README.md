@@ -6,6 +6,18 @@
 
 A benchmark study demonstrating **16-24% inference speedup** on virtual try-on diffusion models using `torch.compile`, with in-depth analysis of PyTorch's three-layer optimization framework.
 
+
+## Running on Azure
+
+All experiments in this project were conducted on an **Azure GPU VM**.
+
+| Item | Details |
+|---|---|
+| **Azure VM** | [Standard_NC24ads_A100_v4](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-a100-v4-series) |
+| **GPU** | NVIDIA A100 80GB PCIe |
+| **Frameworks** | TensorRT-LLM, torch.compile, Diffusers |
+
+
 ## Key Results
 
 | Configuration | Time (40 steps) | Speedup | Status | Notes |

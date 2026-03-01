@@ -1,6 +1,18 @@
 # SDXL and LoRA test
 
 
+
+## Running on Azure
+
+All experiments in this project were conducted on an **Azure GPU VM**.
+
+| Item | Details |
+|---|---|
+| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU** | NVIDIA H100 80GB |
+| **Frameworks** | LoRA/PEFT, Diffusers |
+
+
 ## Stability AI Models
 Stability AI is a company focused on developing deep learning models, with products that include a range of models for generating images and videos. Here is an overview of the development and evolution of Stability AI's models:
 

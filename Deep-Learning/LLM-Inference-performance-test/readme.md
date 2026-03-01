@@ -18,6 +18,18 @@ Based on the tool's parameters, I have created a reference table for the perform
 
 Follow *https://github.com/neuralmagic/guidellm* to prepare env.
 
+
+## Running on Azure
+
+All experiments in this project were conducted on an **Azure GPU VM**.
+
+| Item | Details |
+|---|---|
+| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU** | NVIDIA H100 80GB |
+| **Frameworks** | vLLM |
+
+
 ## Meta-Llama-3.1-8B-Instruct-quantized.w4a16 with vLLM on A100
 
 Open 2 terminal:

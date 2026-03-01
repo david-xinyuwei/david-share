@@ -2,6 +2,17 @@
 
 完整演示如何将 Azure Content Safety API 与第三方图像生成模型 (FLUX.2-pro) 集成，实现自定义输入/输出内容过滤。
 
+
+## 在 Azure 上运行
+
+本项目可部署在支持 GPU 的 **Azure 虚拟机**上。
+
+| 项目 | 详情 |
+|---|---|
+| **Azure VM** | [GPU 优化型 VM](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
+| **计算资源** | 根据模型需求选择 VM 规格 |
+
+
 ## 📋 概述
 
 本项目演示如何：

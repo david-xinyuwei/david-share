@@ -2,6 +2,18 @@
 
 *参考链接：https://medium.com/@jrodthoughts/understanding-flashattention-3-one-of-the-most-important-algortihms-to-make-transformers-fast-7d21b0f6e6a4*
 
+
+## Running on Azure
+
+All experiments in this project were conducted on an **Azure GPU VM**.
+
+| Item | Details |
+|---|---|
+| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU** | NVIDIA H100 80GB |
+| **Frameworks** | PyTorch |
+
+
 来自Meta、普林斯顿大学、NVIDIA和其他AI实验室的一组AI研究人员发布了FlashAttention-3的论文和开源代码。新版本的方法使用了几种技术来加速H100 GPU中的注意力机制，利用了张量核心的异步性。结果很简单：FlashAttention-3非常快。新模型在H100中实现了75%的理论最大FLOP利用率，实际性能提高了1.5到2倍。新算法还能够使用更低精度的数字，从而减少了内存占用。
 
 让我们深入了解一些细节，但在此之前，让我们回顾一下FlashAttention的一些细节。

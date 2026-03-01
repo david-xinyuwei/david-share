@@ -18,6 +18,17 @@ Hugging Face has launched a series of miniatures: the SmolLM, including 135M, 36
 
       In total, 252B training tokens were used, distributed across the SmolLM corpus.
 
+
+## Running on Azure
+
+This project can be deployed on **Azure Virtual Machines** with GPU support.
+
+| Item | Details |
+|---|---|
+| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
+| **Compute** | Select VM size based on model requirements |
+
+
 ## Training Architecture and Hyperparameters
 
  

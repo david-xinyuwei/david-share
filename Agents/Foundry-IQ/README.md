@@ -7,6 +7,18 @@
 
 ---
 
+## Running on Azure
+
+This project is built entirely on **Azure AI Search** with the **Foundry IQ** knowledge layer.
+
+| Item | Details |
+|---|---|
+| **Azure Service** | [Azure AI Search](https://learn.microsoft.com/en-us/azure/search/) — Foundry IQ (Knowledge Store API) |
+| **API Version** | `2025-11-01-preview` |
+| **Compute** | No GPU VM required — fully managed cloud service, pay-per-query |
+
+---
+
 ## 🎯 Foundry IQ Overview (Concepts)
 
 **Foundry IQ** (Knowledge Store API) is a new feature layer of Azure AI Search, introduced in API version `2025-11-01-preview`:

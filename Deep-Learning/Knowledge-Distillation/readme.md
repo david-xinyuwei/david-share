@@ -2,6 +2,17 @@
 
 This repository  introduces the differences between distillation and several other techniques, as well as the implementation architecture and code for distillation.
 
+
+## Running on Azure
+
+This project can be deployed on **Azure Virtual Machines** with GPU support.
+
+| Item | Details |
+|---|---|
+| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
+| **Compute** | Select VM size based on model requirements |
+
+
 ## Distillation/SFT/Quantization/Pruning
 
 | Method       | Characteristics                                              | Advantages                                                   | Disadvantages                                                | Differences                                                  | Use Cases                                                    |

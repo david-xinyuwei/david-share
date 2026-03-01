@@ -3,6 +3,16 @@
 想让Agent 既 **跑得快、花得少、还不翻车**，光有“大模型能力”远远不够，更关键的是：你如何给它喂上下文、喂工具、喂反馈。
  这就是所谓 **Context Engineering**。
 
+## 在 Azure 上运行
+
+本文中的 Agent 设计实践基于 **Azure OpenAI 服务**。
+
+| 项目 | 详情 |
+|---|---|
+| **Azure 服务** | [Azure OpenAI Service](https://learn.microsoft.com/en-us/azure/ai-services/openai/) |
+| **应用场景** | Agent Context Engineering 最佳实践（KV-Cache 复用、Logits 掩码等） |
+| **计算资源** | 无需 GPU VM — API 调用模式，按 Token 付费 |
+
 7 条可立即落地的工程原则：
 
 | #    | 技术关键词                                    | 一句话价值                                                   |

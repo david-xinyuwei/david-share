@@ -2,6 +2,16 @@
 
 In recent years, the field of generative artificial intelligence has been experiencing a surge in "multi-agent" systems, including Microsoft's AutoGen and the latest Magentic-One, OpenAI's Swarm, LangChain's LangGraph, CrewAI, and others. This repository mainly introduces the architecture and implementation effects of Magentic-One.
 
+## Running on Azure
+
+Magentic-One is built on **Microsoft AutoGen** and can use **Azure OpenAI Service** as the LLM backend.
+
+| Item | Details |
+|---|---|
+| **Framework** | [Magentic-One](https://github.com/microsoft/autogen/tree/main/python/packages/autogen-magentic-one) (Microsoft AutoGen) |
+| **LLM Backend** | Azure OpenAI Service (optional) or other OpenAI-compatible endpoints |
+| **Compute** | Runs locally via Docker; no dedicated GPU VM required |
+
 ## Framework Overview
 
 As Microsoft's latest multi-agent framework, Magentic-One is a simplification and optimization based on AutoGen. It aims to lower the threshold for use, allowing more users to conveniently build multi-agent systems.

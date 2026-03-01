@@ -1,5 +1,17 @@
 # Automatic Mixed Precision (AMP) in AI
 
+
+## Running on Azure
+
+All experiments in this project were conducted on an **Azure GPU VM**.
+
+| Item | Details |
+|---|---|
+| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU** | NVIDIA H100 80GB |
+| **Frameworks** | DeepSpeed |
+
+
 ## Introduction to AMP
 
 AMP (Automatic Mixed Precision) refers to a mixed training method that uses both single precision (FP32) and half precision (FP16) during the training process. Specifically, Automatic Mixed Precision (AMP) is a method that uses 32-bit (float32), 16-bit, and 8-bit data types. Specifically:

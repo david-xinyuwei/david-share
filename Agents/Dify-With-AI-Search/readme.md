@@ -6,6 +6,16 @@ Dify offers various types of tools, including first-party and custom tools. Thes
 
 In the repo, we are going to show how could Dify work with Azure AI Search and Azure OpenAI to achieve RAG
 
+## Running on Azure
+
+This project integrates **Dify** with Azure cloud services to build a RAG solution.
+
+| Item | Details |
+|---|---|
+| **Azure Services** | [Azure AI Search](https://learn.microsoft.com/en-us/azure/search/), [Azure OpenAI Service](https://learn.microsoft.com/en-us/azure/ai-services/openai/) |
+| **Use Case** | RAG (Retrieval-Augmented Generation) via Dify platform |
+| **Compute** | No GPU VM required — API-based integration |
+
 ## Dify works with AI Search Demo
 
 Till now, Dify could not integrate with Microsoft directly via default Dify web portal. Let me show how to achieve it.

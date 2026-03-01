@@ -1,5 +1,15 @@
 # Perplexity-test
 
+## Running on Azure
+
+Perplexity evaluation can run on any machine with a GPU. This project uses **HuggingFace Transformers** locally.
+
+| Item | Details |
+|---|---|
+| **Compute** | Any machine with GPU support (can also run on Azure GPU VMs such as [NC-series](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-series)) |
+| **Framework** | HuggingFace Transformers |
+| **Models** | Open-source LLMs from HuggingFace Hub |
+
 Perplexity is one of the key metrics for evaluating large language models (LLMs). It measures the model's ability to predict a given sequence. Mathematically, perplexity is the exponentiated average of the negative log-likelihood. During training, the objective of an LLM is to minimize this negative log-likelihood, making perplexity an intuitive choice for assessing LLM performance. It is important to note that lower perplexity is better.
 
 ![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXnMW358QMMjsZA9BGOzyIaibP2yOlPDPvUBQDRvrBRTUM6sft4FMiccHWKaG7sg96lOpXxARf8Z1ibg/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)

@@ -9,6 +9,18 @@
 > 🚀 **Comprehensive performance evaluation toolkit for Azure Machine Learning and AI Foundry Model Catalog**  
 > 💡 **One-click deployment with Azure Developer CLI (azd) support**
 
+
+## Running on Azure
+
+All experiments in this project were conducted on an **Azure GPU VM**.
+
+| Item | Details |
+|---|---|
+| **Azure VMs** | [NC A100 v4](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-a100-v4-series), [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **GPUs** | NVIDIA A100 80GB, H100 80GB |
+| **Frameworks** | Diffusers |
+
+
 ## 📋 Table of Contents
 
 - [Overview](#overview)

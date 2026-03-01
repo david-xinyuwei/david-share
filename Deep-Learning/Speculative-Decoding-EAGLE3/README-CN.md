@@ -7,6 +7,18 @@
 [![SGLang](https://img.shields.io/badge/Inference-SGLang-blue.svg)](https://github.com/sgl-project/sglang)
 [![SpecForge](https://img.shields.io/badge/Training-SpecForge-green.svg)](https://github.com/SafeAILab/SpecForge)
 
+
+## 在 Azure 上运行
+
+本项目的所有实验均在 **Azure GPU 虚拟机**上完成。
+
+| 项目 | 详情 |
+|---|---|
+| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU** | NVIDIA H100 80GB |
+| **框架** | vLLM, SGLang |
+
+
 ## 核心成果
 
 本项目记录了 EAGLE3 推测解码的完整研究流程：

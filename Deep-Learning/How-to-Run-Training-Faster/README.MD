@@ -2,6 +2,17 @@
 
 ### Factors Affecting AI Training Time
 
+
+## Running on Azure
+
+This project can be deployed on **Azure Virtual Machines** with GPU support.
+
+| Item | Details |
+|---|---|
+| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
+| **Compute** | Select VM size based on model requirements |
+
+
 In deep learning training, the calculation of training time involves multiple factors, including the number of epochs, global batch size, micro batch size, and the number of computing devices, among others. Below is a basic formula illustrating the relationship between these parameters (note that this is just a basic illustrative formula, mainly explaining proportional and inversely proportional relationships; actual training may require considering more factors):
 
 ![thumbnail image 2 of blog post titled  	 	 	  	 	 	 				 		 			 				 						 							How to make AI training faster 							 						 					 			 		 	 			 	 	 	 	 	 ](https://techcommunity.microsoft.com/t5/image/serverpage/image-id/613633i23E2C72E457C6514/image-size/medium?v=v2&px=400)

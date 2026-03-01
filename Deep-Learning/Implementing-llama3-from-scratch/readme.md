@@ -13,6 +13,17 @@ https://github.com/wdndev/llama3-from-scratch-zh?tab=readme-ov-file
 
 本文主要参考上述文章并增加了备注，以便在关键点进行理解。
 
+
+## Running on Azure
+
+This project can be deployed on **Azure Virtual Machines** with GPU support.
+
+| Item | Details |
+|---|---|
+| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
+| **Compute** | Select VM size based on model requirements |
+
+
 ## Llama3的整体架构
 
 下图展示了 LLaMA 3 模型的整体架构示意。作为一个大型基于 Transformer 的语言模型，LLaMA 3 由多个核心模块组成，包括输入嵌入层、多个堆叠的 Transformer Block 以及输出预测层。每个 Transformer Block 内部包含多头自注意力机制和前馈神经网络，协同作用实现强大的语言理解与生成能力。

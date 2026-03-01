@@ -2,6 +2,18 @@
 
 > vLLM 注意力优化技术栈全面指南 — PagedAttention、FlashAttention、FlashInfer、CUDAGraph 和连续批处理 — 附多 GPU 实测数据。
 
+
+## 在 Azure 上运行
+
+本项目的所有实验均在 **Azure GPU 虚拟机**上完成。
+
+| 项目 | 详情 |
+|---|---|
+| **Azure VM** | [NC RTX Pro 6000V6 BSE](https://learn.microsoft.com/en-us/azure/virtual-machines/ncv3-series) |
+| **GPU** | NVIDIA RTX 6000 Ada 48GB |
+| **框架** | vLLM |
+
+
 ## 🎯 核心发现
 
 | 条件 | 胜出 | 差距 | 建议 |

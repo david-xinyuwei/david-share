@@ -2,6 +2,18 @@
 
 > Comprehensive guide to vLLM's attention optimization stack — PagedAttention, FlashAttention, FlashInfer, CUDAGraph, and Continuous Batching — with real-world benchmarks across multiple GPUs.
 
+
+## Running on Azure
+
+All experiments in this project were conducted on an **Azure GPU VM**.
+
+| Item | Details |
+|---|---|
+| **Azure VM** | [NC RTX Pro 6000V6 BSE](https://learn.microsoft.com/en-us/azure/virtual-machines/ncv3-series) |
+| **GPU** | NVIDIA RTX 6000 Ada 48GB |
+| **Frameworks** | vLLM |
+
+
 ## 🎯 Key Findings
 
 | Condition | Winner | Margin | Recommendation |

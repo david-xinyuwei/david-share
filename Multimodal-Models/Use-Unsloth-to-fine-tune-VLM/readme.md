@@ -6,6 +6,17 @@ In this article, I will introduce the challenges of fine-tuning VLM and how to u
 
  The free version of Unsloth only supports single GPU operation. If you need multi-GPU support, you will need to upgrade Unsloth to the Pro version or the Enterprise version.
 
+
+## Running on Azure
+
+This project can be deployed on **Azure Virtual Machines** with GPU support.
+
+| Item | Details |
+|---|---|
+| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
+| **Compute** | Select VM size based on model requirements |
+
+
 ## Understanding the Challenges of Fine-tuning Visual Language Models
 
 1. **Model Parameter Size**

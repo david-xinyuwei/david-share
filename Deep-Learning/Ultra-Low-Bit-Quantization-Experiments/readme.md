@@ -6,6 +6,18 @@ In the current field of artificial intelligence, **Large Language Models (LLMs)*
 [![BitNet-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://www.youtube.com/watch?v=el7edql4Xug)
 
 
+
+## Running on Azure
+
+All experiments in this project were conducted on an **Azure GPU VM**.
+
+| Item | Details |
+|---|---|
+| **Azure VM** | [Standard_NC24ads_A100_v4](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-a100-v4-series) |
+| **GPU** | NVIDIA A100 80GB PCIe |
+| **Frameworks** | LoRA/PEFT, Unsloth |
+
+
 ## I. What Are 1-Bit LLMs?
 
 

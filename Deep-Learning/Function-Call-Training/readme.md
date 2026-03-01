@@ -4,6 +4,17 @@ Some models inherently have function call capabilities, such as OpenAI and Phi3.
 
 In this repo, I will fine-tune Microsoft's Phi3 using the xlam-function-calling-60k dataset to enhance its native function call capabilities. The training method employed will be Q-LoRA
 
+
+## Running on Azure
+
+This project can be deployed on **Azure Virtual Machines** with GPU support.
+
+| Item | Details |
+|---|---|
+| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
+| **Compute** | Select VM size based on model requirements |
+
+
 ## Training Dataset Analysis
 The labeled data in the training set is shown in the figure below. In the 'answers' column, 'name' represents the name of the function.
 

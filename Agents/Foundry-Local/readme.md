@@ -1,5 +1,15 @@
 # Foundry Local Functionality Verification
 
+## Running on Azure
+
+**Azure AI Foundry Local** runs AI models directly on your local machine — no cloud GPU required.
+
+| Item | Details |
+|---|---|
+| **Azure Product** | [Azure AI Foundry Local](https://learn.microsoft.com/en-us/azure/ai-foundry/foundry-local/get-started) |
+| **Compute** | Local CPU/GPU (Windows, macOS) — supports NVIDIA, AMD, Qualcomm, Apple Silicon |
+| **Network** | Internet for initial model download only; supports offline use |
+
 Your system must meet the following requirements to run Foundry Local:
 Operating System: Windows 10 (x64), Windows 11 (x64/ARM), Windows Server 2025, macOS.
 Hardware: Minimum 8GB RAM, 3GB free disk space. Recommended 16GB RAM, 15GB free disk space.

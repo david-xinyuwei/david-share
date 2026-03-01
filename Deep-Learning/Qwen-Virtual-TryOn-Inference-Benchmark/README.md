@@ -6,6 +6,18 @@
 
 Comprehensive benchmark comparing inference engines for **Qwen-Image-Edit-2511** virtual try-on model on NVIDIA H100 GPU, achieving up to **6.8x speedup** with quality analysis.
 
+
+## Running on Azure
+
+All experiments in this project were conducted on an **Azure GPU VM**.
+
+| Item | Details |
+|---|---|
+| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU** | NVIDIA H100 80GB |
+| **Frameworks** | vLLM, SGLang, LoRA/PEFT, TensorRT-LLM, torch.compile, Diffusers |
+
+
 ## Key Results
 
 | Engine | Time | vs Baseline | Speedup | Quality | Status |

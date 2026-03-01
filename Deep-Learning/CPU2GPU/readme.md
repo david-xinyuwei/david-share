@@ -4,6 +4,18 @@ This repository ties together the entire methodology with a minimalistic example
 
 ---
 
+
+## Running on Azure
+
+All experiments in this project were conducted on an **Azure GPU VM**.
+
+| Item | Details |
+|---|---|
+| **Azure VM** | [Standard_NC24ads_A100_v4](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-a100-v4-series) |
+| **GPU** | NVIDIA A100 80GB |
+| **Frameworks** | PyTorch |
+
+
 ## Overall Approach Steps
 
 The overall approach is divided into four steps:

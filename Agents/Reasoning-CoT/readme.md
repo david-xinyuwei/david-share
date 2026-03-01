@@ -2,6 +2,16 @@
 
 After the release of OpenAI o1, its training methods and reasoning approaches have garnered a lot of attention. I utilized the Prompt method to simulate Reasoning CoT based on 4o. Although its generalization ability and accuracy are certainly not as good as o1, it can still provide some help for everyone to understand reasoning.
 
+## Running on Azure
+
+This project uses **Azure OpenAI Service** with GPT-4o to simulate reasoning Chain-of-Thought.
+
+| Item | Details |
+|---|---|
+| **Azure Service** | [Azure OpenAI Service](https://learn.microsoft.com/en-us/azure/ai-services/openai/) |
+| **Model** | GPT-4o (`2024-05-13`) |
+| **Compute** | No GPU VM required — API-based, pay-per-token |
+
 ## Basic AOAI 4o
 
 Using the default AOAI 4o(2024-05-13), I asked "How many 'r' letters are in the word strawberry?" three times, and the answer was wrong each time.

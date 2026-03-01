@@ -6,6 +6,16 @@
 
 面向企业迁移决策的 **GPT-4o** vs **GPT-5.1** 生产级基准测试。
 
+## 在 Azure 上运行
+
+本项目中的所有基准测试均使用 **Azure OpenAI 服务**完成。
+
+| 项目 | 详情 |
+|---|---|
+| **Azure 服务** | [Azure OpenAI Service](https://learn.microsoft.com/en-us/azure/ai-services/openai/) |
+| **模型** | GPT-4o (`2024-08-06`)、GPT-5.1 (Responses API) |
+| **计算资源** | 无需 GPU VM — API 调用模式，按 Token 付费 |
+
 ## 测试结果速览
 
 ### 非 Streaming 模式

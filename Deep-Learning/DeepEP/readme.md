@@ -2,6 +2,18 @@
 
 
 
+
+## Running on Azure
+
+All experiments in this project were conducted on an **Azure GPU VM**.
+
+| Item | Details |
+|---|---|
+| **Azure VM** | [Standard_ND96isr_MI300X_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nd-mi300x-v5-series) |
+| **GPU** | AMD MI300X 192GB |
+| **Frameworks** | vLLM, DeepSpeed, LoRA/PEFT |
+
+
 ## 浅析DeepSeek-R1的强化学习思路
 
 DeepSeek AI 快速地使用一个简单的强化学习（RL）流程对 DeepSeek-V3（基础版本）进行了后训练，创建了一个新模型，称为 DeepSeek-R1。该模型现在在各种基准测试中的评分很高，参数量为 6850 亿参数。

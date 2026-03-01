@@ -2,6 +2,17 @@
 
 > Dual workflow showcase combining a human-in-the-loop pipeline and a MagenticBuilder orchestration demo with shared DevUI tooling.
 
+## Running on Azure
+
+This project runs on **Azure OpenAI Service** with the Microsoft Agent Framework.
+
+| Item | Details |
+|---|---|
+| **Azure Service** | [Azure OpenAI Service](https://learn.microsoft.com/en-us/azure/ai-services/openai/) |
+| **Model** | `gpt-5-chat` (Azure OpenAI Chat Completions) |
+| **Framework** | [Microsoft Agent Framework](https://github.com/microsoft/agents) with DevUI |
+| **Compute** | No GPU VM required — API-based, pay-per-token |
+
 ## Overview
 - Demonstrates two production-style agent workflows built on Microsoft Agent Framework.
 - Includes a staged document authoring pipeline with human approvals and a dynamic agent routing experience.

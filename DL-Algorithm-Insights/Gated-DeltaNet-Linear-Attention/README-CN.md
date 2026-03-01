@@ -45,6 +45,45 @@ Qwen3.5 用了这个方法：**75% 的层**用笔记本（Gated DeltaNet），**
 
 ---
 
+## 在 Azure 上运行
+
+### 推荐 Azure VM
+
+| 项目 | 详情 |
+|---|---|
+| **SKU** | [Standard_NC40ads_H100_v5](https://learn.microsoft.com/zh-cn/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU** | 1x NVIDIA H100 80GB NVLink |
+| **vCPU** | 40 |
+| **内存** | 320 GB |
+| **推荐区域** | East US, West US 3, Sweden Central |
+
+### 为什么选这个 SKU
+
+- **Qwen3.5-27B（Dense）**：FP16 约 54 GB → 单块 H100 80 GB 轻松容纳
+- **fla 库**：需要 Triton 内核，针对 NVIDIA Hopper 架构优化
+- **单机即够**：无需多节点部署，推理和 benchmark 单 VM 即可完成
+
+### 部署 Qwen3.5-27B
+
+```bash
+pip install vllm flash-linear-attention
+
+python -m vllm.entrypoints.openai.api_server \
+    --model Qwen/Qwen3.5-27B \
+    --tensor-parallel-size 1 \
+    --max-model-len 131072 \
+    --port 8000
+```
+
+### "单机"对从业者意味着什么
+
+- 无需集群编排（Ray、Kubernetes）
+- 按需付费：NC40ads H100 v5 约 USD 3.37/小时（East US）
+- 开机测试、关机走人——无闲置成本
+- 估算：8 小时 benchmark ≈ USD 27
+
+---
+
 ## 工作原理
 
 本节从基础概念开始，逐层构建理解。
@@ -395,45 +434,6 @@ S_t = α_t ⊙ S_{t-1} + β_t × (v_t - S_{t-1} × k_t) × k_t^T
 KV Cache 减少量：**约 75%**（64 层中只有 16 层需要标准 KV Cache）。
 
 在 RULER 长上下文基准测试中，混合模型在 256K 以内的表现超越纯注意力模型。
-
----
-
-## 在 Azure 上运行
-
-### 推荐 Azure VM
-
-| 项目 | 详情 |
-|---|---|
-| **SKU** | [Standard_NC40ads_H100_v5](https://learn.microsoft.com/zh-cn/azure/virtual-machines/nc-h100-v5-series) |
-| **GPU** | 1x NVIDIA H100 80GB NVLink |
-| **vCPU** | 40 |
-| **内存** | 320 GB |
-| **推荐区域** | East US, West US 3, Sweden Central |
-
-### 为什么选这个 SKU
-
-- **Qwen3.5-27B（Dense）**：FP16 约 54 GB → 单块 H100 80 GB 轻松容纳
-- **fla 库**：需要 Triton 内核，针对 NVIDIA Hopper 架构优化
-- **单机即够**：无需多节点部署，推理和 benchmark 单 VM 即可完成
-
-### 部署 Qwen3.5-27B
-
-```bash
-pip install vllm flash-linear-attention
-
-python -m vllm.entrypoints.openai.api_server \
-    --model Qwen/Qwen3.5-27B \
-    --tensor-parallel-size 1 \
-    --max-model-len 131072 \
-    --port 8000
-```
-
-### "单机"对从业者意味着什么
-
-- 无需集群编排（Ray、Kubernetes）
-- 按需付费：NC40ads H100 v5 约 USD 3.37/小时（East US）
-- 开机测试、关机走人——无闲置成本
-- 估算：8 小时 benchmark ≈ USD 27
 
 ---
 

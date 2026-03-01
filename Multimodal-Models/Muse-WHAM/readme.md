@@ -72,6 +72,18 @@ The corresponding **action list** (16‑D vectors) for those 50 frames is printe
 
 
 
+
+## Running on Azure
+
+All experiments in this project were conducted on an **Azure GPU VM**.
+
+| Item | Details |
+|---|---|
+| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU** | NVIDIA H100 80GB |
+| **Frameworks** | PyTorch |
+
+
 ## Background & Motivation
 
 - ### Why 3‑D Games Need a World Model

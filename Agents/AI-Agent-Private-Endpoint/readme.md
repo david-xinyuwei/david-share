@@ -38,6 +38,18 @@ Step-by-step network hardening workflow
 
 ------
 
+## Running on Azure
+
+This project demonstrates private network connectivity for **Azure AI Foundry** using VNet integration and Private Endpoints.
+
+| Item | Details |
+|---|---|
+| **Azure Services** | [Azure AI Foundry](https://learn.microsoft.com/en-us/azure/ai-studio/), Azure VNet, Private Endpoint, Azure Bastion |
+| **Network** | Fully private — no public exposure; inbound via Bastion, outbound via NAT Gateway |
+| **Region** | Australia East (example deployment) |
+
+------
+
 ## Architecture Overview
 
 ```

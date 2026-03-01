@@ -3,6 +3,18 @@
 A100/H100 are High end Training GPU, which could also work as Inference. In order to save compute power and GPU memory, We could use NVIDIA Multi-Instance GPU (MIG), then we could run Stable Diffusion on MIG.
 I do the test on Azure NC A100 VM.
 
+
+## Running on Azure
+
+All experiments in this project were conducted on an **Azure GPU VM** with A100 MIG.
+
+| Item | Details |
+|---|---|
+| **Azure VM** | [Standard_NC24ads_A100_v4](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-a100-v4-series) |
+| **GPU** | NVIDIA A100 80GB PCIe (MIG partitioning) |
+| **Frameworks** | TensorRT-LLM, ONNX Runtime, Diffusers |
+
+
 ## Config MIG
 
 Enable MIG on the first physical GPU.

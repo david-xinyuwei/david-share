@@ -5,6 +5,17 @@
 • System 1（快思考）：反应迅速、几乎不经显式推演或分析，主要依靠直觉或经验。
 • System 2（慢思考）：执行有意识的逻辑分解与推理，需要投入更多思考资源和时间。
 
+
+## Running on Azure
+
+This project can be deployed on **Azure Virtual Machines** with GPU support.
+
+| Item | Details |
+|---|---|
+| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
+| **Compute** | Select VM size based on model requirements |
+
+
 当前大部分知名模型（如 GPT-3.5、Llama2 等）往往只展现出“快思考”的特征——它们在接收输入后直接给出完整回答，速度极快，却不一定具备在内部展开多轮逻辑检验或搜索的能力。如果遇到大型逻辑题、复杂数学运算或需要高准确度的推断场景，缺乏“慢思考”的设计常会导致不可靠的回答。此外，随着互联网上高质量文本数据逐渐被各种团队大规模获取和清洗，预训练阶段也正全面面临“数据匮乏”的难题。在此背景下，如何平衡“思考的快与慢”——即在维持基础对话流畅度的同时，让模型在必要时切换到更深层次的推理模式，成为了新一阶段的研究重点。
 
 **二、训练环节：两条主要 Scaling Law 流派的比较**

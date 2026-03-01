@@ -8,6 +8,17 @@ Gemma 3n的MatFormer架构虽然还很新，但它首次实现了一套权重即
 
 一句话：一份 Gemma 3n 权重，从手机到云端都能按需“变身”。
 
+
+## Running on Azure
+
+This project can be deployed on **Azure Virtual Machines** with GPU support.
+
+| Item | Details |
+|---|---|
+| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
+| **Compute** | Select VM size based on model requirements |
+
+
 ## 1 模型与背景
 
 1. Gemma 3n

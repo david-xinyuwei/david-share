@@ -6,6 +6,17 @@ Under normal circumstances, the memory occupation of activations during inferenc
 As for the KV-cache, its size will rapidly increase as the context seq lengthens and batch size . This is particularly prominent for systems that handle long contexts, such as RAG systems.
 
 Reference Link: https://kaitchup.substack.com/p/kv-cache-quantization-for-memory
+
+## Running on Azure
+
+This project can be deployed on **Azure Virtual Machines** with GPU support.
+
+| Item | Details |
+|---|---|
+| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
+| **Compute** | Select VM size based on model requirements |
+
+
 ##  Models support
 The models that support KV cache are for now as following:
 

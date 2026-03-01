@@ -2,6 +2,17 @@
 
 ***Refer to: https://github.com/microsoft/NLWeb***
 
+## Running on Azure
+
+This project uses **Azure AI Search** as the vector store backend for NLWeb.
+
+| Item | Details |
+|---|---|
+| **Azure Services** | [Azure AI Search](https://learn.microsoft.com/en-us/azure/search/), [Azure OpenAI Service](https://learn.microsoft.com/en-us/azure/ai-services/openai/) |
+| **Framework** | [NLWeb](https://github.com/microsoft/NLWeb) (Microsoft) |
+| **Use Case** | Conversational RAG over RSS/JSON-LD feeds via MCP protocol |
+| **Compute** | No GPU VM required — API-based |
+
 
 
 NLWeb (Natural Language Web) wraps a classic Retrieval-Augmented-Generation (RAG) loop in a production-ready service. During ingestion a one-line `tools.db_load` command converts RSS, JSON-LD, or schema.org feeds into vector embeddings and stores them in the configured back-end (Azure AI Search, Qdrant, Milvus, Snowflake Cortex, etc.). At query time the `/mcp/ask` endpoint—defined by the open Model-Context-Protocol—retrieves relevant chunks, passes them to an LLM, and returns a schema.org Answer JSON-LD object, complete with citations and rendering instructions. Additional MCP tools (`list_tools`, `get_sites`, `get_prompt`, …) let agent frameworks discover NLWeb automatically. Out of the box the repo also ships several front-end templates (full chat page, streaming mini-widget, dropdown search bar) that consume the same API and stream answers via Server-Sent Events. With those layers in place, any site that exposes an RSS feed can be turned into a conversational, agent-friendly endpoint in minutes.

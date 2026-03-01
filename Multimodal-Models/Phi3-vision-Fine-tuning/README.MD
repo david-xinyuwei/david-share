@@ -5,6 +5,18 @@ In this test, I use Burberry's data to fine-tune Phi3.5-Vision comprehensively. 
  I ran the code on Azure NC H100 GPU VM.
 ![image](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Phi3-vision-Fine-tuning/images/4.png)
 
+
+## Running on Azure
+
+All experiments in this project were conducted on an **Azure GPU VM**.
+
+| Item | Details |
+|---|---|
+| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU** | NVIDIA H100 80GB |
+| **Frameworks** | PyTorch |
+
+
 ## Base Model capability before SFT
 
 Phi-3-v base model gives wrong answer based on text question "1.what is the price in 6.5? 2.What is the good?" and image.

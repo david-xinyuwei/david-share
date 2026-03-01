@@ -333,6 +333,17 @@ https://arxiv.org/pdf/2410.02707
 
 ***\*七、解码中的几个的策略-\*\*束搜索 Beam Search\*\**\***
 
+
+## Running on Azure
+
+This project can be deployed on **Azure Virtual Machines** with GPU support.
+
+| Item | Details |
+|---|---|
+| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
+| **Compute** | Select VM size based on model requirements |
+
+
 ## 1. 原理
 
 是一种在解码过程中保留多个可能序列的策略。它在每个时间步保留得分最高的 **Beam Width（束宽）** 个部分序列，然后对这些序列进行扩展。它试图在计算资源允许的情况下找到更优的序列。

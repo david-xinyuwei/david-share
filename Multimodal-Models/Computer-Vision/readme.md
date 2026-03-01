@@ -21,6 +21,17 @@ Currently, the background removal API of Azure CV has been discontinued. In the 
 ***Please click below pictures to see my demo vedio on Yutube***:
 [![CV2-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/6x49D3YUTGA)
 
+
+## Running on Azure
+
+This project can be deployed on **Azure Virtual Machines** with GPU support.
+
+| Item | Details |
+|---|---|
+| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
+| **Compute** | Select VM size based on model requirements |
+
+
 ## **Code for Object detection and image segmentation**
 
 

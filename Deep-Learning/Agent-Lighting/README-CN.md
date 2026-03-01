@@ -2,6 +2,18 @@
 
 中文文档 | [English](README.md)
 
+
+## 在 Azure 上运行
+
+本项目的所有实验均在 **Azure GPU 虚拟机**上完成。
+
+| 项目 | 详情 |
+|---|---|
+| **Azure VM** | [Standard_NC24ads_A100_v4](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-a100-v4-series) |
+| **GPU** | NVIDIA A100 80GB |
+| **框架** | vLLM, SGLang, LoRA/PEFT, Unsloth |
+
+
 ## 🎯 项目概述
 
 本项目展示了在 **Azure A100 (80GB)** 环境下,使用 **Agent Lightning + GRPO 算法**训练数学推理Agent的完整端到端流程。从数据生成、模型训练到性能评估,所有步骤均已在生产环境硬件上验证成功。

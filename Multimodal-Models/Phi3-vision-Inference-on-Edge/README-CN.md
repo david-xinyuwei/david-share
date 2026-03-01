@@ -7,6 +7,18 @@
 - 已上传 Jupyter 文件 Phi3-vision-Inference-on-Edge.ipynb，代码在 Azure NC A100 GPU VM 上运行测试
 - 本测试评估 Phi3-Vision 边缘端推理方案，包括 GPU/CPU 推理和不同推理框架的性能对比
 
+
+## 在 Azure 上运行
+
+本项目的所有实验均在 **Azure GPU 虚拟机**上完成。
+
+| 项目 | 详情 |
+|---|---|
+| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU** | NVIDIA H100 80GB |
+| **框架** | vLLM, TensorRT-LLM, ONNX Runtime |
+
+
 ## Phi3-Vision 基准评分
 
 此前 AI 计算机视觉主要使用 Llava 和 GPT-4o 等模型。Phi3-Vision 于 2024 年 5 月发布后，在多个方面超越了 Llava：

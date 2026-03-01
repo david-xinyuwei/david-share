@@ -4,6 +4,18 @@
 
 ---
 
+
+## 在 Azure 上运行
+
+本项目的所有实验均在 **Azure GPU 虚拟机**上完成。
+
+| 项目 | 详情 |
+|---|---|
+| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU** | NVIDIA H100 80GB |
+| **框架** | PyTorch |
+
+
 ## 🎯 写作目标
 
 - 解释：LLM 在数学推理中为何"规则奖励"与"LLM-as-Judge"会并存

@@ -6,6 +6,18 @@
 
 在 NVIDIA H100 GPU 上对 **Qwen-Image-Edit-2511** 虚拟试穿模型进行的推理引擎对比基准测试，实现最高 **6.8 倍加速**，附质量分析。
 
+
+## 在 Azure 上运行
+
+本项目的所有实验均在 **Azure GPU 虚拟机**上完成。
+
+| 项目 | 详情 |
+|---|---|
+| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU** | NVIDIA H100 80GB |
+| **框架** | vLLM, SGLang, TensorRT-LLM, torch.compile, Diffusers |
+
+
 ## 核心结果
 
 | 引擎 | 耗时 | vs 基线 | 加速比 | 质量 | 状态 |

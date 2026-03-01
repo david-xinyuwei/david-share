@@ -2,6 +2,18 @@
 
 FLUX.1 是由 Black Forest Labs 开发的开源图像生成模型。它提供多个版本以满足不同用户需求，包括 [pro]、[dev] 和 [schnell]。本文使用 FLUX.1 的 dev 版本进行了验证。FLUX.1 支持最高可达 2K 分辨率（2048 x 2048 像素）。
 
+
+## Running on Azure
+
+All experiments in this project were conducted on an **Azure GPU VM**.
+
+| Item | Details |
+|---|---|
+| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU** | NVIDIA H100 80GB |
+| **Frameworks** | LoRA/PEFT, Diffusers |
+
+
 ## FLUX.1 模型技术架构与处理流程
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Flux.1-Solution-Test/images/7.png)

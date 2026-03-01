@@ -4,6 +4,16 @@
 graphrag is a Microsoft opensource project, link:
 ***https://github.com/microsoft/graphrag.git***
 
+## Running on Azure
+
+This project uses **Azure OpenAI Service** to power Microsoft GraphRAG knowledge graph construction.
+
+| Item | Details |
+|---|---|
+| **Azure Service** | [Azure OpenAI Service](https://learn.microsoft.com/en-us/azure/ai-services/openai/) |
+| **Framework** | [Microsoft GraphRAG](https://github.com/microsoft/graphrag) |
+| **Use Case** | Knowledge graph construction and querying |
+| **Compute** | No GPU VM required — API-based |
 
 ## Result show
 The final graph generated during the test is under ***results*** directory：

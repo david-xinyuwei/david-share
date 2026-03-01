@@ -34,6 +34,18 @@ Above code means full fine-tuning of the Embedding layers and the Language Model
 
 Besides that, we could also LoRA training fc1 and fc2.
 
+
+## Running on Azure
+
+All experiments in this project were conducted on an **Azure GPU VM**.
+
+| Item | Details |
+|---|---|
+| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU** | NVIDIA H100 80GB |
+| **Frameworks** | LoRA/PEFT |
+
+
 ## LM-Modules Relationship
 
 Let's take a look at the schematic diagram of the general relationships among these components.

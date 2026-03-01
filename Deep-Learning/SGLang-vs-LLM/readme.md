@@ -2,6 +2,18 @@
 
 随着大语言模型（Large Language Models，简称 LLM）持续快速发展，推理引擎逐渐成为模型生产部署的关键基石。在诸多开源推理引擎中，SGLang 和 vLLM 无疑是近期社区瞩目的焦点。本文旨在从底层架构与核心技术角度，对二者进行全面、准确的对比和解析。
 
+
+## Running on Azure
+
+All experiments in this project were conducted on an **Azure GPU VM**.
+
+| Item | Details |
+|---|---|
+| **Azure VM** | [Standard_NC24ads_A100_v4](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-a100-v4-series) |
+| **GPU** | NVIDIA A100 80GB PCIe |
+| **Frameworks** | vLLM, SGLang, torch.compile |
+
+
 ## 一、核心架构差异解析
 
 大语言模型规模庞大（如 DeepSeek-V3、GPT 系列模型），通常拥有数百亿至千亿参数。模型在真实生产环境中运行时需要高效管理 GPU 显存与计算资源，并通过优化程序（Kernel）与调度策略实现低延迟、高吞吐。这便是推理引擎的作用——高效调度用户请求并优化模型计算，支撑 LLM 应用高效运行。

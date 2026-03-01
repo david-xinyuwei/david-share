@@ -1,6 +1,18 @@
-﻿# RL与SFT的配合以及奖励函数的优化
+# RL与SFT的配合以及奖励函数的优化
 
 本文首先说明了强化学习（RL）与监督微调（SFT）在实现层面的区别，然后通过一个具体示例演示如何搭建一条 SFT + GRPO 的训练流水线，并且针对奖励函数进行优化。
+
+
+## Running on Azure
+
+All experiments in this project were conducted on an **Azure GPU VM**.
+
+| Item | Details |
+|---|---|
+| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU** | NVIDIA H100 80GB |
+| **Frameworks** | vLLM, LoRA/PEFT, Unsloth |
+
 
 ## **强化学习三种模式**
 

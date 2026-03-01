@@ -45,6 +45,45 @@ Qwen3.5 uses this approach: **75% of layers** use the notebook (Gated DeltaNet),
 
 ---
 
+## Running on Azure
+
+### Recommended Azure VM
+
+| Item | Details |
+|---|---|
+| **SKU** | [Standard_NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU** | 1x NVIDIA H100 80GB NVLink |
+| **vCPU** | 40 |
+| **Memory** | 320 GB |
+| **Best Regions** | East US, West US 3, Sweden Central |
+
+### Why This SKU
+
+- **Qwen3.5-27B (Dense)**: ~54 GB in FP16 → fits comfortably on a single H100 80 GB
+- **fla library**: Requires Triton kernels, optimized for NVIDIA Hopper architecture
+- **Single VM sufficient**: No multi-node setup needed for inference and benchmarking
+
+### Deploying Qwen3.5-27B
+
+```bash
+pip install vllm flash-linear-attention
+
+python -m vllm.entrypoints.openai.api_server \
+    --model Qwen/Qwen3.5-27B \
+    --tensor-parallel-size 1 \
+    --max-model-len 131072 \
+    --port 8000
+```
+
+### What "Single VM" Means for Practitioners
+
+- No cluster orchestration (Ray, Kubernetes) required
+- Pay-as-you-go: ~USD 3.37/hour for NC40ads H100 v5 (East US)
+- Spin up, benchmark, shut down — no idle costs
+- Estimated: 8 hours of benchmarking ≈ USD 27
+
+---
+
 ## How It Works
 
 This section builds understanding from the ground up, one layer at a time.
@@ -406,45 +445,6 @@ Inference throughput comparison at different context lengths:
 KV cache reduction: **~75%** (only 16 out of 64 layers need standard KV cache).
 
 On the RULER long-context benchmark, the hybrid model outperforms pure attention models up to 256K context length.
-
----
-
-## Running on Azure
-
-### Recommended Azure VM
-
-| Item | Details |
-|---|---|
-| **SKU** | [Standard_NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
-| **GPU** | 1x NVIDIA H100 80GB NVLink |
-| **vCPU** | 40 |
-| **Memory** | 320 GB |
-| **Best Regions** | East US, West US 3, Sweden Central |
-
-### Why This SKU
-
-- **Qwen3.5-27B (Dense)**: ~54 GB in FP16 → fits comfortably on a single H100 80 GB
-- **fla library**: Requires Triton kernels, optimized for NVIDIA Hopper architecture
-- **Single VM sufficient**: No multi-node setup needed for inference and benchmarking
-
-### Deploying Qwen3.5-27B
-
-```bash
-pip install vllm flash-linear-attention
-
-python -m vllm.entrypoints.openai.api_server \
-    --model Qwen/Qwen3.5-27B \
-    --tensor-parallel-size 1 \
-    --max-model-len 131072 \
-    --port 8000
-```
-
-### What "Single VM" Means for Practitioners
-
-- No cluster orchestration (Ray, Kubernetes) required
-- Pay-as-you-go: ~USD 3.37/hour for NC40ads H100 v5 (East US)
-- Spin up, benchmark, shut down — no idle costs
-- Estimated: 8 hours of benchmarking ≈ USD 27
 
 ---
 

@@ -1,6 +1,18 @@
 # Llama3.1-8B Fine Tuning
 Llama 3.1 and Llama 3 do not differ significantly in terms of fine-tuning implementation. In this article, I will first introduce the differences between the two models and then present the code for QLoRA and LoRA
 
+
+## Running on Azure
+
+All experiments in this project were conducted on an **Azure GPU VM**.
+
+| Item | Details |
+|---|---|
+| **Azure VM** | [Standard_NC24ads_A100_v4](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-a100-v4-series) |
+| **GPU** | NVIDIA A100 80GB PCIe |
+| **Frameworks** | DeepSpeed, LoRA/PEFT |
+
+
 ## Detailed Technical Differences Between Llama 3 and Llama 3.1
 
 ### 1. Language Support

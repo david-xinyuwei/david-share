@@ -4,6 +4,18 @@
 
 This guide provides clear, diagram-driven explanations of all major parallelism strategies, their PyTorch/DeepSpeed implementations, and the underlying NCCL communication mechanisms. It answers the most frequently confused questions: *What exactly do TP, PP, and ZeRO each split? How does NCCL coordinate GPUs? When should you use which strategy?*
 
+
+## Running on Azure
+
+All experiments in this project were conducted on an **Azure GPU VM**.
+
+| Item | Details |
+|---|---|
+| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU** | NVIDIA H100 80GB |
+| **Frameworks** | vLLM, DeepSpeed |
+
+
 ## Table of Contents
 
 ### Part I: Parallelism Strategies

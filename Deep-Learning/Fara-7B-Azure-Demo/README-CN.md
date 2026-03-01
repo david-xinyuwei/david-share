@@ -2,6 +2,18 @@
 
 微软首个开源 Computer Use Agent (CUA) 模型在 Azure GPU VM 上的端到端验证。
 
+
+## 在 Azure 上运行
+
+本项目的所有实验均在 **Azure GPU 虚拟机**上完成。
+
+| 项目 | 详情 |
+|---|---|
+| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU** | NVIDIA H100 80GB |
+| **框架** | vLLM |
+
+
 ## 🎯 项目概述
 
 本项目验证了 **Microsoft Fara-7B** 模型在 Azure H100 GPU 上的部署和运行效果，并提供了一个 Streamlit Web 界面用于演示。

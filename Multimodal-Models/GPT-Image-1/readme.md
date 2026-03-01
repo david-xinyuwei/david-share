@@ -8,3 +8,14 @@ Request ID: 69c90bbc-95a8-4f63-9fb3-32b42af772ab
 (base) root@linuxworkvm:~#
 ```
 
+
+## Running on Azure
+
+This project can be deployed on **Azure Virtual Machines** with GPU support.
+
+| Item | Details |
+|---|---|
+| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
+| **Compute** | Select VM size based on model requirements |
+
+

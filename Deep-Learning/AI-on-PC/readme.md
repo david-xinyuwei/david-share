@@ -2,6 +2,17 @@
 
 # AI Model on PC的验证
 
+
+## Running on Azure
+
+This project can be deployed on **Azure Virtual Machines** with GPU support.
+
+| Item | Details |
+|---|---|
+| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
+| **Compute** | Select VM size based on model requirements |
+
+
 ## TL;DR
 
 - 在纯CPU环境下，通过 Llama.cpp + 量化GGUF模型（4-bit 或 FP16），可在16GB RAM 的笔记本上获得最高 **16 tokens/sec** 性能。

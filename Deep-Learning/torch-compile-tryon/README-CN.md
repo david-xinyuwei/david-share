@@ -6,6 +6,18 @@
 
 本项目展示了使用 `torch.compile` 为虚拟试穿扩散模型实现 **16-24% 推理加速**的基准测试研究，并深入分析了 PyTorch 优化的三个层次。
 
+
+## 在 Azure 上运行
+
+本项目的所有实验均在 **Azure GPU 虚拟机**上完成。
+
+| 项目 | 详情 |
+|---|---|
+| **Azure VM** | [Standard_NC24ads_A100_v4](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-a100-v4-series) |
+| **GPU** | NVIDIA A100 80GB PCIe |
+| **框架** | TensorRT-LLM, torch.compile, Diffusers |
+
+
 ## 核心结果
 
 | 配置 | 耗时 (40步) | 加速比 | 状态 | 说明 |

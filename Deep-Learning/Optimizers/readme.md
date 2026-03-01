@@ -8,6 +8,18 @@ Common optimizers include but are not limited to:
 - **Adam (Adaptive Moment Estimation):** Combines momentum and adaptive learning rates, widely used.  
 - **AdamW:** An improved version of Adam that addresses weight decay issues.  
   
+
+## Running on Azure
+
+All experiments in this project were conducted on an **Azure GPU VM**.
+
+| Item | Details |
+|---|---|
+| **Azure VM** | [Standard_NC24ads_A100_v4](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-a100-v4-series) |
+| **GPU** | NVIDIA A100 80GB PCIe |
+| **Frameworks** | PyTorch |
+
+
 ## Principles and Memory Consumption of AdamW Optimizer 
 
 During training, AdamW tracks two key parameters:  

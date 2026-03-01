@@ -9,6 +9,18 @@
 
 ---
 
+
+## 在 Azure 上运行
+
+本项目的所有实验均在 **Azure GPU 虚拟机**上完成。
+
+| 项目 | 详情 |
+|---|---|
+| **Azure VM** | [Standard_NV36ads_A10_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nva10v5-series) |
+| **GPU** | NVIDIA A10 24GB |
+| **框架** | PyTorch |
+
+
 ## 🌟 微软医疗 AI 的"三驾马车"
 
 在开始微调之前，了解 BiomedParse 在微软医疗 AI 版图中的定位非常有帮助。它们构成了覆盖不同模态的**"三驾马车"**：

@@ -1029,6 +1029,18 @@ If your environment is cross-platform or lacks Blackwell, MXFP4 is a mature and 
 
 ---
 
+
+## Running on Azure
+
+All experiments in this project were conducted on an **Azure GPU VM**.
+
+| Item | Details |
+|---|---|
+| **Azure VM** | [ND GB200 v6](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/nd-gb200-v6-series) |
+| **GPU** | NVIDIA GB200 192GB |
+| **Frameworks** | vLLM, LoRA/PEFT |
+
+
 ## **9. References and Sources**
 
 ### NVIDIA Official Resources

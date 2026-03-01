@@ -6,6 +6,18 @@ Qwen3-Reranker-0.6B 虽然是一个体量较小的模型，但在结合 **vLLM**
 
 
 
+
+## Running on Azure
+
+All experiments in this project were conducted on an **Azure GPU VM**.
+
+| Item | Details |
+|---|---|
+| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU** | NVIDIA H100 80GB |
+| **Frameworks** | vLLM |
+
+
 ##  vLLM 的断言
 
 ### 1. 什么是 vLLM 的“断言”

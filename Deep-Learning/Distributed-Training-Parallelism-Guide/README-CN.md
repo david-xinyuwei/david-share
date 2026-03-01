@@ -4,6 +4,18 @@
 
 本指南以图表驱动的方式清晰讲解所有主流并行策略、PyTorch/DeepSpeed 实现以及底层 NCCL 通信机制。它回答了最容易混淆的问题：*TP、PP 和 ZeRO 各切分了什么？NCCL 如何协调 GPU？何时该使用哪种策略？*
 
+
+## 在 Azure 上运行
+
+本项目的所有实验均在 **Azure GPU 虚拟机**上完成。
+
+| 项目 | 详情 |
+|---|---|
+| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU** | NVIDIA H100 80GB |
+| **框架** | vLLM, DeepSpeed |
+
+
 ## 目录
 
 ### 第一部分：并行策略

@@ -2,6 +2,18 @@
 
 本仓库提供了在 Azure GPU VM 上使用 vLLM 运行 LG AI Research 的 **EXAONE 3.5** 模型并实现 **Multi-LoRA adapter 并发服务** 的完整验证方案，涵盖模型加载、LoRA adapter 创建、多 adapter 并发服务及性能基准测试。
 
+
+## 在 Azure 上运行
+
+本项目的所有实验均在 **Azure GPU 虚拟机**上完成。
+
+| 项目 | 详情 |
+|---|---|
+| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU** | NVIDIA H100 80GB |
+| **框架** | vLLM, LoRA/PEFT |
+
+
 ## 目录
 
 - [概述](#概述)

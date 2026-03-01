@@ -6,7 +6,15 @@ This repository contains two Python scripts that help you:
 2. **`deep_research_usage.py`** — Load credentials from JSON and run multi-turn conversations with Azure's Deep Research service.
 
 These scripts simplify the process of connecting to Azure AI Projects with programmatic authentication, and support **robust retries** with proper conversation context handling.
+## Running on Azure
 
+This project uses **Azure AI Projects** with the Deep Research capability.
+
+| Item | Details |
+|---|---|
+| **Azure Service** | [Azure AI Projects](https://learn.microsoft.com/en-us/azure/ai-studio/) — Deep Research |
+| **Auth** | Service Principal with role-based access control (RBAC) |
+| **Compute** | No GPU VM required — cloud-hosted AI service, pay-per-use |
 ---
 
 ## 📋 Prerequisites

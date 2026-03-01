@@ -1,5 +1,16 @@
 # LLM Alignment: DPO、PPO 与 CPO
 
+
+## Running on Azure
+
+This project can be deployed on **Azure Virtual Machines** with GPU support.
+
+| Item | Details |
+|---|---|
+| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
+| **Compute** | Select VM size based on model requirements |
+
+
 ## Part I: 解读 DPO 和 PPO：从偏好反馈中学习的最佳实践解析
 
 ***Refer to ：Unpacking DPO and PPO: Disentangling Best Practices for Learning from Preference Feedback***

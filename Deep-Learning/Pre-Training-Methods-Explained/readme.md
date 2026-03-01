@@ -4,6 +4,18 @@ This article provides a comprehensive guide to pre-training methods for large la
 
 ---
 
+
+## Running on Azure
+
+All experiments in this project were conducted on an **Azure GPU VM**.
+
+| Item | Details |
+|---|---|
+| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU** | NVIDIA H100 80GB |
+| **Frameworks** | vLLM, DeepSpeed, LoRA/PEFT, Unsloth, Axolotl, Diffusers |
+
+
 ## Table of Contents
 
 - [Part I: Pre-Training, Continuous Pre-Training, and Fine-Tuning — Core Concepts](#part-i-pre-training-continuous-pre-training-and-fine-tuning--core-concepts)

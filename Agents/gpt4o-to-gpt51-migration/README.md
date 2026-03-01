@@ -6,6 +6,16 @@
 
 Production-grade benchmark comparing **GPT-4o** vs **GPT-5.1** for enterprise migration decisions.
 
+## Running on Azure
+
+All benchmarks in this project were conducted using **Azure OpenAI Service**.
+
+| Item | Details |
+|---|---|
+| **Azure Service** | [Azure OpenAI Service](https://learn.microsoft.com/en-us/azure/ai-services/openai/) |
+| **Models** | GPT-4o (`2024-08-06`), GPT-5.1 (Responses API) |
+| **Compute** | No GPU VM required — API-based, pay-per-token |
+
 ## Quick Results
 
 ### Non-Streaming Mode

@@ -3,6 +3,17 @@
 In the following subsections, we will explain each step involved in generating High Qualit dataset Pre-training
 
 
+
+## Running on Azure
+
+This project can be deployed on **Azure Virtual Machines** with GPU support.
+
+| Item | Details |
+|---|---|
+| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
+| **Compute** | Select VM size based on model requirements |
+
+
 ## How to evaluate the quality of training data?
 
 ### Using a "clean" corpus and perplexity check

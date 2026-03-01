@@ -2,6 +2,16 @@
 
 *An effective evaluation method providing rapid feedback and monitoring*
 
+## Running on Azure
+
+This project uses **Azure OpenAI Service** (GPT-4) as the judge model for LLM evaluation.
+
+| Item | Details |
+|---|---|
+| **Azure Service** | [Azure OpenAI Service](https://learn.microsoft.com/en-us/azure/ai-services/openai/) |
+| **Model** | GPT-4 (as judge) |
+| **Compute** | No GPU VM required — API-based, pay-per-token |
+
 In today's rapidly evolving field of artificial intelligence, evaluating large language models (LLMs) is becoming increasingly complex. These models possess a wide range of capabilities, making it challenging to establish clear and simple criteria for judging their generated responses. For instance, an LLM's answer might lack context, contain repetitions, grammatical errors, be overly verbose, or sometimes even be illogical.
 
 To address this issue, an effective approach is to have large language models evaluate other large language models, known as the "LLM as Judge" method. This approach has already been applied in popular benchmarks like Chatbot Arena. By allowing one LLM to score or rank the responses of other models, we can reduce human involvement while obtaining valuable feedback. Since this process is automated, it enables us to evaluate and improve these models more easily without heavily relying on human reviewers. Additionally, compared to traditional public benchmarks (like MMLU) that the models might have already seen during training, using LLMs as judges is also an excellent alternative.
