@@ -84,6 +84,149 @@ python -m vllm.entrypoints.openai.api_server \
 
 ---
 
+## 全局视角：Transformer 完整流水线
+
+在深入具体机制之前，先看 Transformer 如何从原始文本一步步走到预测结果。经典例子：给定 "the answer to the ultimate question of life, the universe, and everything is ..."，模型预测出 **42**。
+
+**三个阶段：**
+
+1. **分词 + 嵌入** — 把文本切成 token（"the"、"answer"、"to"、...），每个转成一个稠密向量（如 4096 维）
+2. **Transformer Block × N** — N 个结构相同的 Block 堆叠。每个 Block：LayerNorm → Self Attention → Add → LayerNorm → Feed Forward → Add
+3. **输出头** — 最后一个 LayerNorm → Linear 层 → Logits（词表中每个词一个分数）→ 分数最高的词胜出
+
+### 替换前：标准 Softmax Attention（被替换的部分）
+
+把 Self Attention 方框打开——以下是**原版** Transformer 内部的计算流程：
+
+```mermaid
+flowchart TB
+    subgraph EMBED ["1 - 分词 + 嵌入"]
+        T["输入 Tokens"] --> E["Embedding"]
+        E --> V["Token 向量"]
+    end
+
+    subgraph BLOCK ["2 - Transformer Block x N"]
+        BI["Block 输入"] --> N1["LayerNorm"]
+
+        subgraph ATTN ["Self Attention（Softmax 版）"]
+            direction TB
+            QKV["Linear → Q, K, V"] --> MM["Q × Kᵀ / √d"]
+            MM --> SM["Softmax"]
+            SM --> WV["× V（加权求和）"]
+        end
+
+        N1 --> QKV
+        BI -.-> A1["Add"]
+        WV --> A1
+        A1 --> N2["LayerNorm"]
+        N2 --> FFN["Feed Forward"]
+        A1 -.-> A2["Add"]
+        FFN --> A2
+    end
+
+    subgraph OUT ["3 - 输出"]
+        N3["LayerNorm"] --> FL["Linear"]
+        FL --> LG["Logits"]
+        LG --> PR["下一个 Token"]
+    end
+
+    V --> BI
+    A2 --> N3
+
+    style ATTN fill:#ffe0e0,stroke:#c0392b
+    style QKV fill:#ff6b6b,stroke:#c0392b,color:#fff
+    style MM fill:#ff6b6b,stroke:#c0392b,color:#fff
+    style SM fill:#ff6b6b,stroke:#c0392b,color:#fff
+    style WV fill:#ff6b6b,stroke:#c0392b,color:#fff
+```
+
+**红色步骤**是 Softmax Attention 的内部——每个 token 要跟**所有**其他 token 算分数（O(n²)）：
+
+| 步骤 | 操作 | 干什么 |
+|:---:|---|---|
+| 1 | Linear → Q, K, V | 从输入做三个线性投影 |
+| 2 | Q × Kᵀ / √d | 算 n×n 分数矩阵（每个 token 跟每个 token 比） |
+| 3 | Softmax | 把分数归一化成概率（每行和=1） |
+| 4 | × V | 用概率对 Value 加权求和 |
+
+### 替换后：Gated DeltaNet
+
+同一条流水线，但注意力方框**换成了 GDN**（绿色）：
+
+```mermaid
+flowchart TB
+    subgraph EMBED ["1 - 分词 + 嵌入"]
+        T["输入 Tokens"] --> E["Embedding"]
+        E --> V["Token 向量"]
+    end
+
+    subgraph BLOCK ["2 - Transformer Block x N"]
+        BI["Block 输入"] --> N1["LayerNorm"]
+
+        subgraph GDN ["Gated DeltaNet（替换 Self Attention）"]
+            direction TB
+            QKV2["Linear → Q, K, V"] --> GATE["门控：α = sigmoid(...)"]
+            GATE --> FADE["旧记忆衰减：S ← α ⊙ S"]
+            FADE --> DELTA["Delta 更新：S += 纠错"]
+            DELTA --> OUT2["输出 = S × Q"]
+        end
+
+        N1 --> QKV2
+        BI -.-> A1["Add"]
+        OUT2 --> A1
+        A1 --> N2["LayerNorm"]
+        N2 --> FFN["Feed Forward"]
+        A1 -.-> A2["Add"]
+        FFN --> A2
+    end
+
+    subgraph OUT ["3 - 输出"]
+        N3["LayerNorm"] --> FL["Linear"]
+        FL --> LG["Logits"]
+        LG --> PR["下一个 Token"]
+    end
+
+    V --> BI
+    A2 --> N3
+
+    style GDN fill:#e0ffe0,stroke:#107c10
+    style QKV2 fill:#2ecc71,stroke:#107c10,color:#fff
+    style GATE fill:#2ecc71,stroke:#107c10,color:#fff
+    style FADE fill:#2ecc71,stroke:#107c10,color:#fff
+    style DELTA fill:#2ecc71,stroke:#107c10,color:#fff
+    style OUT2 fill:#2ecc71,stroke:#107c10,color:#fff
+```
+
+**绿色步骤**是 GDN 的内部——它维护一个固定大小的状态矩阵 S，而非计算 n×n 分数矩阵：
+
+| 步骤 | 操作 | 干什么 |
+|:---:|---|---|
+| 1 | Linear → Q, K, V | 同样三个投影（外加门控投影） |
+| 2 | 门控：α = sigmoid(...) | 算逐头遗忘门（0=忘掉，1=保留） |
+| 3 | 衰减：S ← α ⊙ S | 旧记忆褪色——给新信息腾空间 |
+| 4 | Delta：S += 纠错 | "差多少补多少"——Delta Rule |
+| 5 | 输出 = S × Q | 从状态矩阵中查询答案 |
+
+### 改了什么，没改什么
+
+| 组件 | Softmax Attention | Gated DeltaNet | 改了？ |
+|---|---|---|:---:|
+| **Embedding** | token → 向量 | token → 向量 | 没改 |
+| **LayerNorm** | 稳定数值 | 稳定数值 | 没改 |
+| **🔴→🟢 注意力** | n×n 分数矩阵（O(n²)） | 固定大小状态矩阵（O(n)） | **改了** |
+| **Add** | 残差连接 | 残差连接 | 没改 |
+| **Feed Forward** | 逐 token MLP | 逐 token MLP | 没改 |
+| **Linear → Logits** | 向量 → 词表分数 | 向量 → 词表分数 | 没改 |
+
+**Qwen3.5 的混合策略** — 不是所有 N 个 Block 都换：
+
+- **~75% 的 Block**：Self Attention → **Gated DeltaNet**（线性复杂度，擅长局部模式）
+- **~25% 的 Block**：保留 **Softmax Attention**（二次方但精确，处理长距离依赖）
+
+这就是为什么 GDN 是"即插即用的替换"——它只改变注意力层内部的搜索策略，不触碰流水线中的任何其他组件。
+
+---
+
 ## 工作原理
 
 本节从基础概念开始，逐层构建理解。

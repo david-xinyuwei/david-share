@@ -84,6 +84,149 @@ python -m vllm.entrypoints.openai.api_server \
 
 ---
 
+## The Big Picture: Full Transformer Pipeline
+
+Before diving into specific mechanisms, here is how a Transformer goes from raw text to a prediction. The classic example: given "the answer to the ultimate question of life, the universe, and everything is ...", the model predicts **42**.
+
+**Three stages:**
+
+1. **Tokenize + Embed** — Split text into tokens ("the", "answer", "to", ...), convert each to a dense vector (e.g., 4096 dimensions)
+2. **Transformer Block × N** — N identical blocks stacked. Each block: LayerNorm → Self Attention → Add → LayerNorm → Feed Forward → Add
+3. **Output Head** — Final LayerNorm → Linear layer → Logits (one score per vocabulary word) → the highest score wins
+
+### Before: Standard Softmax Attention (what gets replaced)
+
+Zooming into the Self Attention box — here is what happens inside the **original** Transformer:
+
+```mermaid
+flowchart TB
+    subgraph EMBED ["1 - Tokenize + Embed"]
+        T["Input Tokens"] --> E["Embedding"]
+        E --> V["Token Vectors"]
+    end
+
+    subgraph BLOCK ["2 - Transformer Block x N"]
+        BI["Block Input"] --> N1["LayerNorm"]
+
+        subgraph ATTN ["Self Attention (Softmax version)"]
+            direction TB
+            QKV["Linear → Q, K, V"] --> MM["Q × Kᵀ / √d"]
+            MM --> SM["Softmax"]
+            SM --> WV["× V (weighted sum)"]
+        end
+
+        N1 --> QKV
+        BI -.-> A1["Add"]
+        WV --> A1
+        A1 --> N2["LayerNorm"]
+        N2 --> FFN["Feed Forward"]
+        A1 -.-> A2["Add"]
+        FFN --> A2
+    end
+
+    subgraph OUT ["3 - Output"]
+        N3["LayerNorm"] --> FL["Linear"]
+        FL --> LG["Logits"]
+        LG --> PR["Next Token"]
+    end
+
+    V --> BI
+    A2 --> N3
+
+    style ATTN fill:#ffe0e0,stroke:#c0392b
+    style QKV fill:#ff6b6b,stroke:#c0392b,color:#fff
+    style MM fill:#ff6b6b,stroke:#c0392b,color:#fff
+    style SM fill:#ff6b6b,stroke:#c0392b,color:#fff
+    style WV fill:#ff6b6b,stroke:#c0392b,color:#fff
+```
+
+The **red steps** are the Softmax Attention internals — every token computes scores against **all** other tokens (O(n²)):
+
+| Step | Operation | What It Does |
+|:---:|---|---|
+| 1 | Linear → Q, K, V | Three linear projections from input |
+| 2 | Q × Kᵀ / √d | Compute n×n score matrix (every token vs every token) |
+| 3 | Softmax | Normalize scores to probabilities (each row sums to 1) |
+| 4 | × V | Weighted sum of Values using those probabilities |
+
+### After: Gated DeltaNet Replacement
+
+Now the same pipeline, but with the attention box **swapped to GDN** (green):
+
+```mermaid
+flowchart TB
+    subgraph EMBED ["1 - Tokenize + Embed"]
+        T["Input Tokens"] --> E["Embedding"]
+        E --> V["Token Vectors"]
+    end
+
+    subgraph BLOCK ["2 - Transformer Block x N"]
+        BI["Block Input"] --> N1["LayerNorm"]
+
+        subgraph GDN ["Gated DeltaNet (replaces Self Attention)"]
+            direction TB
+            QKV2["Linear → Q, K, V"] --> GATE["Gating: α = sigmoid(...)"]
+            GATE --> FADE["Fade old state: S ← α ⊙ S"]
+            FADE --> DELTA["Delta update: S += error correction"]
+            DELTA --> OUT2["Output = S × Q"]
+        end
+
+        N1 --> QKV2
+        BI -.-> A1["Add"]
+        OUT2 --> A1
+        A1 --> N2["LayerNorm"]
+        N2 --> FFN["Feed Forward"]
+        A1 -.-> A2["Add"]
+        FFN --> A2
+    end
+
+    subgraph OUT ["3 - Output"]
+        N3["LayerNorm"] --> FL["Linear"]
+        FL --> LG["Logits"]
+        LG --> PR["Next Token"]
+    end
+
+    V --> BI
+    A2 --> N3
+
+    style GDN fill:#e0ffe0,stroke:#107c10
+    style QKV2 fill:#2ecc71,stroke:#107c10,color:#fff
+    style GATE fill:#2ecc71,stroke:#107c10,color:#fff
+    style FADE fill:#2ecc71,stroke:#107c10,color:#fff
+    style DELTA fill:#2ecc71,stroke:#107c10,color:#fff
+    style OUT2 fill:#2ecc71,stroke:#107c10,color:#fff
+```
+
+The **green steps** are the GDN internals — it maintains a fixed-size state matrix S instead of computing an n×n score matrix:
+
+| Step | Operation | What It Does |
+|:---:|---|---|
+| 1 | Linear → Q, K, V | Same three projections (plus extra gate projection) |
+| 2 | Gating: α = sigmoid(...) | Compute per-head forgetting gate (0 = forget, 1 = keep) |
+| 3 | Fade: S ← α ⊙ S | Old memories decay — making room for new information |
+| 4 | Delta: S += error correction | "How far off? Fix by that much." — the Delta Rule |
+| 5 | Output = S × Q | Query the state matrix for the answer |
+
+### What Changed, What Didn't
+
+| Component | Softmax Attention | Gated DeltaNet | Changed? |
+|---|---|---|:---:|
+| **Embedding** | token → vector | token → vector | No |
+| **LayerNorm** | stabilize numbers | stabilize numbers | No |
+| **🔴→🟢 Attention** | n×n score matrix (O(n²)) | fixed-size state matrix (O(n)) | **Yes** |
+| **Add** | residual connection | residual connection | No |
+| **Feed Forward** | per-token MLP | per-token MLP | No |
+| **Linear → Logits** | vector → vocabulary scores | vector → vocabulary scores | No |
+
+**Qwen3.5's Hybrid Strategy** — not all N blocks get swapped:
+
+- **~75% of blocks**: Self Attention → **Gated DeltaNet** (linear complexity, efficient for local patterns)
+- **~25% of blocks**: Keep **Softmax Attention** (quadratic but precise, for long-range dependencies)
+
+This is why GDN is a "drop-in replacement" — it only changes the search strategy inside the attention layer, without touching any other component in the pipeline.
+
+---
+
 ## How It Works
 
 This section builds understanding from the ground up, one layer at a time.
