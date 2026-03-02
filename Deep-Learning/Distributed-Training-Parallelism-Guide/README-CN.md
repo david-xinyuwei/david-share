@@ -113,7 +113,7 @@ GPU 3: 完整模型副本 → 处理 B3 (256 个样本) → 本地梯度 G3
 
 ### 通信模式
 
-- **何时**：反向传播后（每个训练步骤一次）
+- **何时**：Backward Pass（反向传播）后（每个训练步骤一次）
 - **内容**：AllReduce 梯度
 - **传输量**：每步 2M（M = 模型大小，ring AllReduce）
 - **带宽需求**：中等
@@ -161,11 +161,11 @@ optimizer = optim.SGD(model.parameters(), lr=0.01)
 inputs = torch.randn(64, 10).cuda()
 targets = torch.randn(64, 1).cuda()
 
-# 前向传播
+# Forward Pass（前向传播）
 outputs = model(inputs)
 loss = criterion(outputs, targets)
 
-# 反向传播和优化
+# Backward Pass（反向传播）和优化
 loss.backward()
 optimizer.step()
 ```
@@ -438,7 +438,7 @@ vs. 标准 DP：每 GPU 16M → Stage 1 节省约 56% 内存
 
 **通信**：与 DDP 相同（AllReduce 梯度）+ AllGather 更新后的参数
 
-在幕后，ZeRO 将优化器状态分为 N 份。每个设备只负责更新 1/N 的优化器状态和对应的 1/N 参数。每个训练步结束时，通过 all-gather 同步参数。对于混合精度训练，内存需求变为 `4P + 12P/N`，当 N 很大时趋近于 `4P` — 相比标准 DP 的 `16P` 减少了 4 倍。
+在幕后，ZeRO 将优化器状态分为 N 份。每个设备只负责更新 1/N 的优化器状态和对应的 1/N 参数。每个训练步结束时，通过 all-gather 同步参数。对于 Mixed Precision（混合精度）训练，内存需求变为 `4P + 12P/N`，当 N 很大时趋近于 `4P` — 相比标准 DP 的 `16P` 减少了 4 倍。
 
 ### ZeRO Stage 2：+ 梯度分区
 
@@ -485,7 +485,7 @@ vs. 标准 DP：每 GPU 16M → Stage 3 节省约 75% 内存
   4. 移至下一层
 ```
 
-### 为什么 ZeRO 不能分片激活值
+### 为什么 ZeRO 不能分片 Activation（激活值）
 
 虽然 ZeRO 可以分区梯度、优化器状态和参数，但它**不能分片激活值**。这是一个根本区别：
 
@@ -784,11 +784,11 @@ PP 阶段 1     │ GPU2(TP0) GPU3(TP1)│      │ GPU6(TP0) GPU7(TP1)│
 
 ---
 
-## 训练 vs 推理：不同的优先级
+## Training vs Inference（训练 vs 推理）：不同的优先级
 
 | 方面 | 训练 | 推理 |
 |------|------|------|
-| **主要目标** | 最大化吞吐量（样本/秒） | 最小化延迟（毫秒/token） |
+| **主要目标** | 最大化 Throughput（吞吐量）（样本/秒） | 最小化 Latency（延迟）（毫秒/token） |
 | **并行优先级** | DP > TP > PP | TP > PP > DP |
 | **为什么训练首选 DP** | 通信最少，线性扩展 | 不适用（单个输入） |
 | **为什么推理首选 TP** | — | 减少每 GPU 计算量，降低延迟 |

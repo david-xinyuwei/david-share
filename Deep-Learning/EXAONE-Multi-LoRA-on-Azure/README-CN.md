@@ -266,7 +266,7 @@ python scripts/train_lora_sft.py \
   --learning_rate 2e-4
 ```
 
-### LoRA 超参数指南
+### LoRA Hyperparameter（超参数）指南
 
 | 参数 | 推荐值 | 说明 |
 |------|--------|------|
@@ -346,7 +346,7 @@ flowchart LR
 | LoRA adapter (4×168 MB) | ~0.66 GiB |
 | **合计** | **~50.7 GiB / 95.8 GiB** |
 
-## 性能基准测试
+## Performance Benchmark（性能基准测试）
 
 **测试环境**：NVIDIA H100 NVL 95.8GB, vLLM 0.15.1, EXAONE 3.5 2.4B-Instruct, bfloat16, max_model_len=4096, gpu_memory_utilization=0.9
 
@@ -354,7 +354,7 @@ flowchart LR
 
 每个模型接收 15 个顺序请求（128 max tokens, temperature=0）：
 
-| 模型 | 平均 TTFT | 平均延迟 | P50 TTFT | P95 延迟 | 吞吐量 (tok/s) |
+| 模型 | 平均 TTFT | Avg Latency（平均延迟） | P50 TTFT | P95 Latency（延迟） | Throughput（吞吐量）(tok/s) |
 |------|-----------|---------|----------|---------|----------------|
 | 基座（无 LoRA） | 11.6ms | 0.370s | 11.5ms | 0.374s | **346.3** |
 | medical (r=32) | 12.9ms | 0.613s | 12.7ms | 0.619s | 208.5 |
@@ -371,7 +371,7 @@ flowchart LR
 
 所有 5 个模型（基座 + 4 LoRA）同时并发请求（3 轮，共 15 个请求）：
 
-| 模型 | 平均 TTFT | 平均延迟 | 平均吞吐量 (tok/s) |
+| 模型 | 平均 TTFT | Avg Latency（平均延迟） | Avg Throughput（平均吞吐量）(tok/s) |
 |------|-----------|---------|---------------------|
 | 基座 | 19.8ms | 0.708s | 180.9 |
 | medical | 19.8ms | 0.707s | 180.8 |

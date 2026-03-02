@@ -1,4 +1,4 @@
-# Qwen-Image-Edit-2511 虚拟试穿推理基准测试
+# Qwen-Image-Edit-2511 虚拟试穿 Inference Benchmark（推理基准测试）
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch 2.5+](https://img.shields.io/badge/pytorch-2.5+-red.svg)](https://pytorch.org/)
@@ -128,7 +128,7 @@ flowchart TB
 |------|----------|------|
 | **Qwen2.5-VL** | ViT 风格 | 理解"模特长什么样"和"衣服是什么款式" |
 | **VAE Encoder** | CNN | 将图像压缩到潜空间 |
-| **MMDiT** | DiT（200亿参数） | 通过去噪生成换装结果 |
+| **MMDiT** | DiT（200亿参数） | 通过 Denoising（去噪）生成换装结果 |
 | **VAE Decoder** | CNN | 从潜空间重建最终图像 |
 
 **为什么需要 ViT 和 DiT 结合？**
@@ -221,7 +221,7 @@ pipe(...,
 # 注意：真正的 CFG 会使推理时间翻倍（2次前向传播）
 ```
 
-### 什么是推理步数（Steps）？
+### 什么是 Inference Steps（推理步数）？
 
 **Steps** = 去噪迭代次数。步数越多 = 图像越清晰，但速度越慢。
 
@@ -446,7 +446,7 @@ flowchart TB
 
 
 
-### FlashAttention-3 (FA3) Attention Backend 基准测试
+### FlashAttention-3 (FA3) Attention Backend Benchmark（基准测试）
 
 > **新发现 (2026-02-03)**：vLLM-Omni 通过 `fa3_fwd` 包使用 FlashAttention-3（针对推理优化的前向传播内核），相比 PyTorch SDPA 提供 **27% 的加速**。
 

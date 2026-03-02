@@ -1,4 +1,4 @@
-# GPT-4o 到 GPT-5.1 迁移基准测试
+# GPT-4o 到 GPT-5.1 Migration Benchmark（迁移基准测试）
 
 [![Azure OpenAI](https://img.shields.io/badge/Azure-OpenAI-blue)](https://azure.microsoft.com/products/ai-services/openai-service)
 [![Responses API](https://img.shields.io/badge/API-Responses-green)](https://learn.microsoft.com/azure/ai-services/openai/reference)
@@ -23,7 +23,7 @@
 | 指标 | GPT-4o | GPT-5.1 | 差异 |
 |------|--------|---------|------|
 | **准确率** | 7/7 (100%) | 7/7 (100%) | **持平 ✅** |
-| **平均延迟** | 1.418s | 1.751s | +23.4% |
+| **Avg Latency（平均延迟）** | 1.418s | 1.751s | +23.4% |
 | **缓存命中率** | 86.7% | 64.0% | -22.7% |
 | **总成本** | $0.0389 | $0.0212 | **-45.4%** |
 
@@ -32,7 +32,7 @@
 | 指标 | GPT-4o | GPT-5.1 | 差异 |
 |------|--------|---------|------|
 | **准确率** | 7/7 (100%) | 7/7 (100%) | **持平 ✅** |
-| **平均延迟** | 1.451s | 1.723s | +18.7% |
+| **Avg Latency（平均延迟）** | 1.451s | 1.723s | +18.7% |
 | **TTFT (首 Token 时间)** | **0.536s** | 0.974s | +81.7% |
 | **缓存命中率** | 95.9% | 74.3% | -21.6% |
 | **总成本** | $0.0603 | $0.0258 | **-57.3%** |

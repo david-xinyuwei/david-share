@@ -1,4 +1,4 @@
-# EAGLE3 推测解码：从验证到自训练
+# EAGLE3 Speculative Decoding（推测解码）：从验证到自训练
 
 [English](README.md) | 中文文档
 
@@ -21,7 +21,7 @@
 
 ## 核心成果
 
-本项目记录了 EAGLE3 推测解码的完整研究流程：
+本项目记录了 EAGLE3 Speculative Decoding（推测解码）的完整研究流程：
 
 | 阶段 | 模型 | 加速比 | 训练时间 | 关键洞察 |
 |------|------|--------|----------|----------|
@@ -35,11 +35,11 @@
 
 ---
 
-## 背景：什么是推测解码？
+## 背景：什么是 Speculative Decoding（推测解码）？
 
 LLM 推理是显存带宽受限的，而非计算受限。每次生成 token 都需要从 GPU 显存加载完整模型权重，但只输出一个 token。
 
-推测解码使用快速的 draft 模型预测多个 token，然后用主模型并行验证：
+推测解码（Speculative Decoding）使用快速的 draft 模型预测多个 token，然后用主模型并行验证：
 
 ```mermaid
 flowchart LR
@@ -60,19 +60,19 @@ flowchart LR
 
 ![EAGLE3 架构](./images/eagle3-architecture.png)
 
-*图1: EAGLE3 Draft Model 架构与基于树的投机解码 (来源: [Benjamin Marie](https://kaitchup.substack.com/p/eagle-3-speculators-when-to-use-them))*
+*图1: EAGLE3 Draft Model 架构与基于树的 Speculative Decoding (来源: [Benjamin Marie](https://kaitchup.substack.com/p/eagle-3-speculators-when-to-use-them))*
 
 **架构详解（逐步分析）：**
 
 **左侧 - Target LLM（标准解码）：**
 
-对于查询 "How can"，target model 执行标准自回归解码：
+对于查询 "How can"，target model 执行标准 Autoregressive Decoding（自回归解码）：
 1. 输入 tokens "How", "can" → **Embedding** 层 → e_how, e_can
 2. **Transformer Layers** 处理 embeddings → 隐藏特征 f_how, f_can
 3. **LM Head** 预测下一个 token → 输出 "can", "I"
 4. 每个 token 需要**完整的一次 forward pass** 通过所有层
 
-**右侧 - EAGLE-3 Draft Model（投机解码）：**
+**右侧 - EAGLE-3 Draft Model（Speculative Decoding）：**
 
 Draft model 更轻量、更快速：
 1. **Forward 1**：接收来自 target model 的 f_how, e_can + embedding e_I
@@ -217,7 +217,7 @@ flowchart TB
 
 **核心创新: 多层特征提取**
 
-与使用独立小模型的传统投机解码不同，EAGLE3 在目标模型前向传播过程中从**3个特定层**提取特征：
+与使用独立小模型的传统 Speculative Decoding 不同，EAGLE3 在目标模型 Forward Pass（前向传播）过程中从**3个特定层**提取特征：
 
 ```
 目标模型（Llama-3.1-8B，32层）：
@@ -339,7 +339,7 @@ Draft Model 生成候选 token 的"树"结构：
 ```json
 {
   "architectures": ["LlamaForCausalLMEagle3"],
-  "num_hidden_layers": 1,        // 仅 1 个解码器层
+  "num_hidden_layers": 1,        // 仅 1 个 Decoder Layer（解码器层）
   "hidden_size": 4096,           // 与目标模型相同
   "vocab_size": 128256,          // 目标模型词表
   "draft_vocab_size": 32000      // 压缩的 draft 词表
@@ -347,8 +347,8 @@ Draft Model 生成候选 token 的"树"结构：
 ```
 
 Draft 模型非常轻量（~811MB vs 完整模型 16GB），因为它仅包含：
-- 1 个 Transformer 解码器层
-- 嵌入层（与目标模型共享）
+- 1 个 Transformer Decoder Layer（解码器层）
+- Embedding Layer（嵌入层，与目标模型共享）
 - 带压缩词表的 LM head
 
 **训练后的 Draft Head 文件结构**：
@@ -362,7 +362,7 @@ eagle3-llama31-8b/
 **参数分布（总计 ~223M）**：
 | 组件 | 参数量 | 大小 |
 |------|--------|------|
-| 1x 解码器层（Attention + MLP）| ~67M | ~134 MB |
+| 1x Decoder Layer（Attention + MLP）| ~67M | ~134 MB |
 | LM Head (4096 → 32000) | ~131M | ~262 MB |
 | 词表映射 (d2t, t2d) | ~25M | ~50 MB |
 | LayerNorm + 其他 | <1M | ~2 MB |
@@ -409,7 +409,7 @@ Loading safetensors checkpoint shards: 100% | 1/1 [00:00<00:00, 12.28it/s]
 [2025-12-02 12:01:35] The server is fired up and ready to roll!
 ```
 
-### 基线服务器（无推测解码）
+### 基线服务器（无 Speculative Decoding）
 
 ```bash
 python -m sglang.launch_server \
@@ -652,7 +652,7 @@ Baseline:     2.843s | 512 tokens | 180.2 tok/s
 加速: 0.84x (慢了 16%)
 ```
 
-创意写作变慢是因为高熵输出导致 draft 接受率低。
+创意写作变慢是因为高熵输出导致 draft Acceptance Rate（接受率）低。
 
 ### 为什么 1.30x 很有意义
 
@@ -739,7 +739,7 @@ gradient_accumulation: 16  # 从 8 增加
 gradient_checkpointing: true
 ```
 
-### 推测解码变慢
+### Speculative Decoding 变慢
 
 检查：
 1. 任务是否高熵？(创意写作)
@@ -788,7 +788,7 @@ Speculative-Decoding-EAGLE3/
 
 ## EAGLE-3 何时真正有效？
 
-理解投机解码何时能带来真正收益对生产部署至关重要。基于实证分析 ([Benjamin Marie](https://kaitchup.substack.com/p/eagle-3-speculators-when-to-use-them))：
+理解Speculative Decoding何时能带来真正收益对生产部署至关重要。基于实证分析 ([Benjamin Marie](https://kaitchup.substack.com/p/eagle-3-speculators-when-to-use-them))：
 
 ### 高并发 (Continuous Batching) - ❌ 收益有限
 
@@ -800,7 +800,7 @@ Speculative-Decoding-EAGLE3/
 | **有效吞吐量** | ~550 tok/s | ~579 tok/s |
 | GPU KV Cache 使用率 | 26% | 98% |
 
-**关键洞察**："有效吞吐量"（实际出现在输出中的 tokens）几乎相同。使用 EAGLE 时，内部处理了更多 tokens（draft + verify），但*有用*的 token 速率基本不变。GPU 已经被 batching 饱和了 - 投机解码只是重新安排了工作。
+**关键洞察**："有效吞吐量"（实际出现在输出中的 tokens）几乎相同。使用 EAGLE 时，内部处理了更多 tokens（draft + verify），但*有用*的 token 速率基本不变。GPU 已经被 batching 饱和了 - Speculative Decoding只是重新安排了工作。
 
 ### 低并发 (Batch Size = 1) - ✅ 真正加速
 
@@ -812,7 +812,7 @@ Speculative-Decoding-EAGLE3/
 | **有效吞吐量** | ~21 tok/s | ~25-28 tok/s |
 | 延迟降低 | - | **20-30%** |
 
-**关键洞察**：这里投机解码确实实现了它的承诺 - 它将每次昂贵的 forward pass 平均转化为几个被接受的 tokens，降低了单流的延迟。
+**关键洞察**：这里Speculative Decoding确实实现了它的承诺 - 它将每次昂贵的 forward pass 平均转化为几个被接受的 tokens，降低了单流的延迟。
 
 ### 决策指南
 
@@ -824,13 +824,13 @@ Speculative-Decoding-EAGLE3/
 | 高并发 (>20 并行) | ❌ 低/无 | 跳过 EAGLE-3 |
 | 批处理任务 | ❌ 无 | 跳过 EAGLE-3 |
 
-> **重要提示**：将投机解码视为需要针对特定工作负载验证的优化，而不是即插即用的加速。如果你的 GPU 已经通过 batching 得到充分利用，EAGLE-3 不会有帮助。
+> **重要提示**：将Speculative Decoding视为需要针对特定工作负载验证的优化，而不是即插即用的加速。如果你的 GPU 已经通过 batching 得到充分利用，EAGLE-3 不会有帮助。
 
 
 
 ## EAGLE-3 何时真正有效？
 
-理解投机解码何时能带来真正收益对生产部署至关重要。基于实证分析 ([Benjamin Marie](https://kaitchup.substack.com/p/eagle-3-speculators-when-to-use-them))：
+理解Speculative Decoding何时能带来真正收益对生产部署至关重要。基于实证分析 ([Benjamin Marie](https://kaitchup.substack.com/p/eagle-3-speculators-when-to-use-them))：
 
 ### 高并发 (Continuous Batching) - ❌ 收益有限
 
@@ -842,7 +842,7 @@ Speculative-Decoding-EAGLE3/
 | **有效吞吐量** | ~550 tok/s | ~579 tok/s |
 | GPU KV Cache 使用率 | 26% | 98% |
 
-**关键洞察**："有效吞吐量"（实际出现在输出中的 tokens）几乎相同。使用 EAGLE 时，内部处理了更多 tokens（draft + verify），但*有用*的 token 速率基本不变。GPU 已经被 batching 饱和了 - 投机解码只是重新安排了工作。
+**关键洞察**："有效吞吐量"（实际出现在输出中的 tokens）几乎相同。使用 EAGLE 时，内部处理了更多 tokens（draft + verify），但*有用*的 token 速率基本不变。GPU 已经被 batching 饱和了 - Speculative Decoding只是重新安排了工作。
 
 ### 低并发 (Batch Size = 1) - ✅ 真正加速
 
@@ -854,7 +854,7 @@ Speculative-Decoding-EAGLE3/
 | **有效吞吐量** | ~21 tok/s | ~25-28 tok/s |
 | 延迟降低 | - | **20-30%** |
 
-**关键洞察**：这里投机解码确实实现了它的承诺 - 它将每次昂贵的 forward pass 平均转化为几个被接受的 tokens，降低了单流的延迟。
+**关键洞察**：这里Speculative Decoding确实实现了它的承诺 - 它将每次昂贵的 forward pass 平均转化为几个被接受的 tokens，降低了单流的延迟。
 
 ### 决策指南
 
@@ -866,7 +866,7 @@ Speculative-Decoding-EAGLE3/
 | 高并发 (>20 并行) | ❌ 低/无 | 跳过 EAGLE-3 |
 | 批处理任务 | ❌ 无 | 跳过 EAGLE-3 |
 
-> **重要提示**：将投机解码视为需要针对特定工作负载验证的优化，而不是即插即用的加速。如果你的 GPU 已经通过 batching 得到充分利用，EAGLE-3 不会有帮助。
+> **重要提示**：将Speculative Decoding视为需要针对特定工作负载验证的优化，而不是即插即用的加速。如果你的 GPU 已经通过 batching 得到充分利用，EAGLE-3 不会有帮助。
 
 ## 核心结论
 

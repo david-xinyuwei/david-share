@@ -585,7 +585,24 @@ The 3 lowest-SSIM samples:
 
 ### CFG ROI is Extremely Poor at Low Step Counts
 
+> **Test framework: diffusers** (standard pipeline, production config). See environment details below.
+
 Distillation's core value is reducing step counts. A natural question arises: **is enabling CFG worthwhile for the student model (8 steps)?** We ran a full steps×CFG cross-experiment on H100 with the LoRA-fused model (40-step + CFG=4 output as reference baseline, SSIM=1.0):
+
+**Test Environment**:
+
+| Item | Detail |
+|------|--------|
+| Framework | diffusers (standard `DiffusionPipeline`) |
+| Model | 20B-parameter DiT-based diffusion model, LoRA-fused (student) |
+| Attention Backend | SDPA (PyTorch default) |
+| Precision | BF16 |
+| Hardware | 1× NVIDIA H100 NVL (94 GB VRAM) |
+| CFG Implementation | True CFG — conditional + unconditional dual forward pass |
+| `true_cfg_scale` | 1.0 (CFG=1 row) / 4.0 (CFG=4 row) |
+| Prompt | Real production text instructions (not empty prompt) |
+| Timing | End-to-end wall-clock (TextEncoder + DiT + VAE), single-image, no batching |
+| Samples | 5 image pairs, median reported |
 
 | Steps | CFG=1 SSIM | CFG=4 SSIM | CFG Gain | CFG=1 Time | CFG=4 Time | Time Multiplier |
 |:-----:|:----------:|:----------:|:--------:|:----------:|:----------:|:---------------:|

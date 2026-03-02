@@ -4,7 +4,7 @@
 
 ## 什么是扩散模型蒸馏？
 
-**扩散模型蒸馏（Diffusion Distillation）** 是一种将扩散模型的多步去噪过程压缩到极少步数的技术，无需从头重新训练模型。大型预训练模型（教师）运行完整的去噪循环并生成监督信号；轻量级适配器（学生，通常是 LoRA）学习跳过大多数步骤，同时保持输出质量。
+**扩散模型蒸馏（Diffusion Distillation）** 是一种将扩散模型的多步 Denoising（去噪）过程压缩到极少步数的技术，无需从头重新训练模型。大型预训练模型（教师）运行完整的去噪循环并生成监督信号；轻量级适配器（学生，通常是 LoRA）学习跳过大多数步骤，同时保持输出质量。
 
 结果：相同的模型架构，大幅减少的推理步数，接近的视觉质量。
 
@@ -34,7 +34,7 @@
 
 | 资源 | 规格 | 在本实验中的作用 |
 |------|------|----------------|
-| GPU | 1 × NVIDIA H100 NVL，94 GB 显存 | 模型权重 + 激活值显存 |
+| GPU | 1 × NVIDIA H100 NVL，94 GB 显存 | 模型权重 + Activation（激活值）显存 |
 | vCPU | 40 × AMD EPYC Genoa | 数据预处理、CPU offload 目标 |
 | 系统内存 | 320 GiB | Text Encoder CPU offload 缓冲区 |
 | 系统盘 | Azure Premium SSD | 训练脚本、checkpoint、日志 |
@@ -87,7 +87,7 @@
 
 ## 原理详解
 
-### 去噪轨迹
+### Denoising Trajectory（去噪轨迹）
 
 扩散模型通过从纯高斯噪声张量（即 *latent*）中反复去噪来生成图像。每步 t 产生一个中间 latent z_t：
 
@@ -99,7 +99,7 @@ z_T（纯噪声）→ z_{T-1} → z_{T-2} → ... → z_0（干净图像）
 
 关键洞察：轨迹不是直线。不同步骤承载不同信息：
 
-| 去噪阶段 | 步骤（40步示例） | 发生了什么 |
+| Denoising（去噪）阶段 | 步骤（40步示例） | 发生了什么 |
 |:-------:|:------------:|----------|
 | 噪声主导 | 1–5 | 随机高斯噪声 — 无任何结构 |
 | 颜色浮现 | 5–12 | 全局色调形成，粗略轮廓出现 |
@@ -246,7 +246,7 @@ latent 空间可视化揭示了为什么密集监督很重要：大多数语义�
 
 ---
 
-## 真实实验
+## Real-World Experiment（真实实验）
 
 ### 实验配置
 
@@ -304,7 +304,7 @@ latent 空间可视化揭示了为什么密集监督很重要：大多数语义�
 layer1激活 + layer2激活 + ... + layer60激活（60 层同时存在显存）
 ```
 
-**Block-level Gradient Checkpointing 的含义**：20B MMDiT 模型由 60 个 Transformer Block 组成。每个 Block 作为一个 checkpoint 单元——只保存每个 Block 的*输入*；Block *内部*计算的内容（注意力分数、MLP 中间值）前向完成后立即丢弃，backward 需要时从该 Block 的输入重新计算。
+**Block-level Gradient Checkpointing 的含义**：20B MMDiT 模型由 60 个 Transformer Block 组成。每个 Block 作为一个 checkpoint 单元——只保存每个 Block 的*输入*；Block *内部*计算的内容（Attention Score（注意力分数）、MLP 中间值）前向完成后立即丢弃，backward 需要时从该 Block 的输入重新计算。
 
 ```
 Block 1           Block 2           Block 3     ...   Block 60
@@ -410,7 +410,7 @@ Step N：
 
 ### 训练 Loss 曲线
 
-5 个 epoch 持续收敛，无过拟合：
+5 个 epoch 持续收敛，无 Overfitting（过拟合）：
 
 | Epoch | 平均 Loss | 变化 | 耗时 |
 |:-----:|:--------:|:----:|:---:|
@@ -498,9 +498,9 @@ Step N：
 
 ---
 
-### 50 样本生产基准测试
+### 50 样本 Production Benchmark（生产基准测试）
 
-上述轨迹分析使用了 debug 模式流水线（DiffSynth，cfg_scale=1，纯 DiT 计时）。为验证**生产条件**下的性能，我们使用标准 diffusers 流水线和生产超参（CFG=4, true_cfg_scale=4, 真实文本 prompt）运行了 50 样本全量基准测试。
+上述轨迹分析使用了 debug 模式流水线（DiffSynth，cfg_scale=1，纯 DiT 计时）。为验证**生产条件**下的性能，我们使用标准 diffusers 流水线和生产 Hyperparameter（超参）（CFG=4, true_cfg_scale=4, 真实文本 prompt）运行了 50 样本全量 Benchmark。
 
 #### 测试设计
 
@@ -523,13 +523,13 @@ Step N：
 
 | 指标 | 教师（40 步） | 学生（8 步） | 变化 |
 |------|:--------:|:--------:|:----:|
-| **平均延迟** | 72.88s | 15.12s | **-79.3%** |
+| **Mean Latency（平均延迟）** | 72.88s | 15.12s | **-79.3%** |
 | 标准差 | 0.87s | 0.17s | — |
 | P50 | 73.32s | 15.20s | **-79.3%** |
 | P95 | 73.46s | 15.25s | — |
 | **加速比** | 1.0x | **4.82x** | — |
 | 显存占用（分配） | 62.33 GB | 62.80 GB | +0.5 GB |
-| 吞吐量 | 0.014 sample/s | 0.066 sample/s | **4.82x** |
+| Throughput（吞吐量） | 0.014 sample/s | 0.066 sample/s | **4.82x** |
 
 > 端到端延迟包含 TextEncoder 编码 + DiT 去噪 + VAE 解码。CFG=4 时 DiT 每步执行 **2 次前向传播**（条件 + 无条件），因此生产时间约为纯 DiT 计时的 ~1.65×。
 
@@ -558,7 +558,7 @@ Step N：
 
 **为什么 50 样本 SSIM（0.884）低于 10 样本 SSIM（0.940）？** 10 样本评估使用了筛选子集；50 样本基准测试包含所有测试对，包括高难度样本（复杂纹理、特殊姿势），这些样本天然产生较低 SSIM。这是对生产质量更真实的估计。
 
-#### 去噪轨迹对比（生产流水线）
+#### Denoising Trajectory（去噪轨迹）对比（生产流水线）
 
 通过 debug 插桩捕获生产流水线下的每步 latent 统计（均值 / 标准差）：
 
@@ -585,7 +585,24 @@ SSIM 最低的 3 个样本：
 
 ### CFG 在低步数下 ROI 极差
 
+> **测试框架：diffusers**（标准推理 Pipeline，生产配置）。详见下方测试环境。
+
 蒸馏的核心是减少步数。一个自然的问题是：**学生模型（8步）开启 CFG 值得吗？** 我们在 H100 上对 LoRA 融合模型进行了完整的步数×CFG 交叉实验（以 40 步 + CFG=4 输出为参考基准，SSIM=1.0）：
+
+**测试环境**：
+
+| 项目 | 详情 |
+|------|------|
+| 推理框架 | diffusers（标准 `DiffusionPipeline`） |
+| 模型 | 20B 参数 DiT 扩散模型，LoRA 已融合（学生模型） |
+| Attention Backend（注意力后端） | SDPA（PyTorch 默认） |
+| 精度 | BF16 |
+| 硬件 | 1× NVIDIA H100 NVL（94 GB VRAM） |
+| CFG 实现 | True CFG — conditional + unconditional 双前向传播 |
+| `true_cfg_scale` | 1.0（CFG=1 行）/ 4.0（CFG=4 行） |
+| Prompt | 真实生产文本指令（非空 prompt） |
+| 计时方式 | 端到端 wall-clock（TextEncoder + DiT + VAE），单张图，无批处理 |
+| 样本数 | 5 个图片对，取中位数 |
 
 | 步数 | CFG=1 SSIM | CFG=4 SSIM | CFG 增益 | CFG=1 耗时 | CFG=4 耗时 | 时间倍数 |
 |:----:|:----------:|:----------:|:--------:|:----------:|:----------:|:--------:|
@@ -604,9 +621,9 @@ SSIM 最低的 3 个样本：
 
 **对蒸馏的启示**：学生模型使用 8 步时开启 CFG 的 ROI 极低（+0.016 SSIM 换 +94% 时间）。如果延迟是首要目标，**蒸馏后的学生不开 CFG（CFG=1）是合理选择**，从 15.12s 降至 ~7.97s，仅损失 0.016 SSIM。
 
-#### diffusers Batch 吞吐量完全扁平
+#### diffusers Batch Throughput（吞吐量）完全扁平
 
-| Batch Size | 总时间 | 吞吐量 (img/s) | vs B=1 |
+| Batch Size | 总时间 | Throughput（吞吐量）(img/s) | vs B=1 |
 |:----------:|:------:|:--------------:|:------:|
 | 1 | 7.97s | 0.1254 | 1.00× |
 | 2 | 15.93s | 0.1256 | 1.00× |

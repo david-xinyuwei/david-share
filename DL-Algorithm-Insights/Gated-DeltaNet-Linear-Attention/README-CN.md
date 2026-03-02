@@ -1,4 +1,4 @@
-# Gated DeltaNet：从 Softmax 注意力到基于 Delta Rule 的线性注意力
+# Gated DeltaNet：从 Softmax 注意力到基于 Delta Rule 的 Linear Attention（线性注意力）
 
 > **系列**: DL-Algorithm-Insights | **作者**: 魏新宇 (Xinyu Wei)
 
@@ -20,7 +20,7 @@
 光有笔记本不够——**笔记质量**很关键。Gated DeltaNet 用两招保持笔记高质量：
 
 1. **Delta Rule（先查再改）**——翻一下笔记本："现在写的啥？跟正确答案比一下——差多少补多少。"——不盲目追加；不管*为什么*不对（被别的笔记挤兑了？从没记过？压缩丢了？），只看差值大小。
-2. **遗忘门（定期大扫除）**——"上学期的笔记自动褪色，给这学期的重点腾地方。"
+2. **Forget Gate（遗忘门，定期大扫除）**——"上学期的笔记自动褪色，给这学期的重点腾地方。"
 
 Qwen3.5 用了这个方法：**75% 的层**用笔记本（Gated DeltaNet），**25% 的层**保留翻书（Softmax 注意力）——因为有些题确实需要翻原文找精确答案。发表于 **ICLR 2025**（NVIDIA Research）。
 
@@ -90,7 +90,7 @@ python -m vllm.entrypoints.openai.api_server \
 
 **三个阶段：**
 
-1. **分词 + 嵌入** — 把文本切成 token（"the"、"answer"、"to"、...），每个转成一个稠密向量（如 4096 维）
+1. **Tokenization + Embedding（分词 + 嵌入）** — 把文本切成 token（"the"、"answer"、"to"、...），每个转成一个稠密向量（如 4096 维）
 2. **Transformer Block × N** — N 个结构相同的 Block 堆叠。每个 Block：LayerNorm → Self Attention → Add → LayerNorm → Feed Forward → Add
 3. **输出头** — 最后一个 LayerNorm → Linear 层 → Logits（词表中每个词一个分数）→ 分数最高的词胜出
 
@@ -206,7 +206,7 @@ flowchart TB
 | 步骤 | 操作 | 干什么 |
 |:---:|---|---|
 | 1 | Linear → Q, K, V | 同样三个投影（外加门控投影） |
-| 2 | 门控：α = sigmoid(...) | 算逐头遗忘门（0=忘掉，1=保留） |
+| 2 | 门控：α = sigmoid(...) | 算逐头 Forget Gate（0=忘掉，1=保留） |
 | 3 | 衰减：S ← α ⊙ S | 旧记忆褪色——给新信息腾空间 |
 | 4 | Delta：S += 纠错 | "差多少补多少"——Delta Rule |
 | 5 | 输出 = S × Q | 从状态矩阵中查询答案 |
@@ -218,7 +218,7 @@ flowchart TB
 | **Embedding** | token → 向量 | token → 向量 | 没改 |
 | **LayerNorm** | 稳定数值 | 稳定数值 | 没改 |
 | **🔴→🟢 注意力** | n×n 分数矩阵（O(n²)） | 固定大小状态矩阵（O(n)） | **改了** |
-| **Add** | 残差连接 | 残差连接 | 没改 |
+| **Add** | Residual Connection（残差连接） | Residual Connection（残差连接） | 没改 |
 | **Feed Forward** | 逐 token MLP | 逐 token MLP | 没改 |
 | **Linear → Logits** | 向量 → 词表分数 | 向量 → 词表分数 | 没改 |
 
@@ -242,7 +242,7 @@ Transformer 里有四种经常搞混的函数。**它们长得不一样，出现
 | 函数 | 像什么 | 用在哪里 | 干什么 |
 |---|---|---|---|
 | **Softmax** | 选举投票 | 注意力层 | 一组候选人打分 → 先用 e^x **放大差距** → 归一化成百分比（总和=1） |
-| **Sigmoid** | 水龙头旋钮 | 门控机制 | 一个数字 → 压到 0~1 → 当"开多大"的控制信号（0=关死，1=全开） |
+| **Sigmoid** | 水龙头旋钮 | Gating Mechanism（门控） | 一个数字 → 压到 0~1 → 当"开多大"的控制信号（0=关死，1=全开） |
 | **ReLU / SiLU** | 电路开关 | FFN 层 | 负数信号 → 关掉（不让通过）；正数信号 → 放行 |
 | **LayerNorm** | 调音台 | 每层之间 | 一组数字 → 拉到均值=0、方差=1 → 防止数字越来越大爆掉 |
 
@@ -269,7 +269,7 @@ AI 回答你的问题，就像考试翻书——面前有 1000 页文本，每�
 Attention(Q, K, V) = Softmax(Q × K^T / sqrt(d)) × V
 ```
 
-对于每个新 token，模型会计算它与**所有**历史 token 的注意力分数，经过 Softmax 后，对 Value 做加权求和。
+对于每个新 token，模型会计算它与**所有**历史 token 的 Attention Score（注意力分数），经过 Softmax 后，对 Value 做加权求和。
 
 **举个例子**——你问 AI"法国的首都是什么？"，AI 面前有 5 页资料：
 
@@ -306,7 +306,7 @@ e^4 = 54.6   （又多 2.7 倍）
 
 **但问题是**：如果有 10 万页资料（128K 上下文），每次回答都要翻 10 万页——太慢了。
 
-### 插曲："线性注意力"到底"线性"在哪？
+### 插曲：Linear Attention（线性注意力）到底"线性"在哪？
 
 在继续之前，有一个关键问题需要先搞清楚——**QKV 投影本身永远是线性运算**：
 
@@ -321,7 +321,7 @@ V = x · W_V    ← 矩阵乘法，线性
 | | QKV 之后的操作 | 哪一步引入了非线性？ |
 |---|---|---|
 | **标准注意力** | `Softmax(Q×K^T/√d) × V` | **Softmax 里的 e^x 是非线性的** |
-| **线性注意力** | 用 K、V 更新状态矩阵 S，用 Q 查 S | **没有 Softmax**，全是矩阵乘法和加法 |
+| **Linear Attention** | 用 K、V 更新状态矩阵 S，用 Q 查 S | **没有 Softmax**，全是矩阵乘法和加法 |
 
 所以"线性注意力"这个名字的含义是：**去掉了 QKV 之后唯一的非线性操作（Softmax）**。
 
@@ -331,7 +331,7 @@ V = x · W_V    ← 矩阵乘法，线性
 
 理解了这一点，下一步就自然了——
 
-### 第二步：线性注意力——快但是糊
+### 第二步：Linear Attention（线性注意力）——快但是糊
 
 **类比：用一张小纸条代替 1000 页课本**
 
@@ -432,7 +432,7 @@ Delta Rule 解决了"精准修正"，但还有一个问题：**过时的信息�
 
 Gated DeltaNet 用两个机制**同时**解决：
 
-**遗忘门 α（大扫除）**——给所有旧记忆统一"打折"：
+**Forget Gate α（遗忘门，大扫除）**——给所有旧记忆统一"打折"：
 
 ```
 场景1: α = 0.95（和朋友正在聊同一个话题）
@@ -561,18 +561,18 @@ flowchart TB
 
 | 流派 | 方法 | 关键特点 | 代表模型 |
 |------|------|---------|----------|
-| **翻课本派** | MHA（多头注意力） | 每个头各翻一遍 | GPT-3 |
+| **翻课本派** | MHA（Multi-Head Attention） | 每个头各翻一遍 | GPT-3 |
 | | MQA（多查询注意力） | 共用一本课本 | PaLM, Falcon |
 | | GQA（分组查询注意力） | 几个头合看一本 | Qwen3, Llama3, GPT-4 |
 | **滤波器派** | Mamba | 选择性状态空间 | Mamba-1 |
 | | Mamba2 / SSD | 与线性注意力对偶 | Mamba-2 |
 | **笔记本派** ★ | Linear Transformer | 纯加法笔记本（太平） | — |
-| | GLA | +遗忘门 | ICML 2024 |
+| | GLA | +Forget Gate（遗忘门） | ICML 2024 |
 | | DeltaNet | +先查再改 | NeurIPS 2024 |
-| | **★ Gated DeltaNet** | **遗忘 + 先查再改** | **ICLR 2025** |
+| | **★ Gated DeltaNet** | **Forget Gate + Delta Rule** | **ICLR 2025** |
 | **循环记忆派** | RWKV, Griffin | 循环更新隐状态 | — |
 
-注：Mamba2 的 SSD（State Space Duality）数学形式与线性注意力存在对偶关系。Gated DeltaNet 处于**线性注意力与 SSM 的交汇点**，吸收了 Mamba2 的门控机制和经典联想记忆理论的 delta rule。
+注：Mamba2 的 SSD（State Space Duality）数学形式与线性注意力存在对偶关系。Gated DeltaNet 处于**线性注意力与 SSM 的交汇点**，吸收了 Mamba2 的 Gating Mechanism（门控机制）和经典联想记忆理论的 Delta Rule。
 
 ---
 
@@ -580,7 +580,7 @@ flowchart TB
 
 | 代际 | 论文 | 会议 | arXiv | 核心贡献 |
 |---|---|---|---|---|
-| 第一代 | *Linear Transformers Are Secretly Fast Weight Programmers* | ICML 2021 | [2102.11174](https://arxiv.org/abs/2102.11174) | 首次将 delta rule 引入线性注意力 |
+| 第一代 | *Linear Transformers Are Secretly Fast Weight Programmers* | ICML 2021 | [2102.11174](https://arxiv.org/abs/2102.11174) | 首次将 Delta Rule 引入 Linear Attention |
 | 第二代 | *Parallelizing Linear Transformers with the Delta Rule* | NeurIPS 2024 | [2406.06484](https://arxiv.org/abs/2406.06484) | 硬件友好的并行训练算法；1.3B 模型超越 Mamba 和 GLA |
 | **第三代** | ***Gated Delta Networks: Improving Mamba2 with Delta Rule*** | **ICLR 2025** | [2412.06464](https://arxiv.org/abs/2412.06464) | 门控 + delta rule；在所有基准上超越 Mamba2 |
 
@@ -597,9 +597,9 @@ flowchart TB
 | 模型 | 类型 | 相对 Mamba 的零样本准确率 |
 |---|---|---|
 | Mamba | SSM | 基线 |
-| GLA | 线性注意力 + 门控 | +1.2% |
-| DeltaNet | 线性注意力 + Delta Rule | +2.1% |
-| **Gated DeltaNet** | 线性注意力 + 门控 + Delta | **+3.5%** |
+| GLA | Linear Attention + Gating | +1.2% |
+| DeltaNet | Linear Attention + Delta Rule | +2.1% |
+| **Gated DeltaNet** | Linear Attention + Gating + Delta | **+3.5%** |
 | GDN + SWA 混合 | + 滑动窗口注意力 | **+5.8%** |
 
 ### Qwen3.5 官方博客数据
@@ -641,12 +641,12 @@ KV Cache 减少量：**约 75%**（64 层中只有 16 层需要标准 KV Cache�
 
 **原因**：MHA/MQA/GQA 是在讨论"多个侦探合看几本课本"（KV 头共享方式）。但快侦探（GDN 层）根本不用课本（没有 KV Cache），只用笔记本。所以这套分类对 GDN 层**不适用**。
 
-### 4. 遗忘门和 Delta Rule 不是一回事
+### 4. Forget Gate（遗忘门）和 Delta Rule 不是一回事
 
 **容易搞混**：都是"控制记忆的"，有啥区别？
 
 **区别**：
-- **遗忘门**：控制**保留多少**——"把整本通讯录所有人的重要性打折"（大面积操作）
+- **Forget Gate（遗忘门）**：控制**保留多少**——"把整本通讯录所有人的重要性打折"（大面积操作）
 - **Delta Rule**：控制**改什么**——"张三换号了，只改张三的记录"（定点操作）
 - 缺了任何一个性能都会下降。不冗余，是互补。
 
@@ -658,7 +658,7 @@ KV Cache 减少量：**约 75%**（64 层中只有 16 层需要标准 KV Cache�
 |---|---|---|
 | **作者** | Tri Dao (Princeton) | Songlin Yang 等 |
 | **优化对象** | 标准 **Softmax** 注意力（O(n²)） | **线性**注意力（含 GDN）（O(n)） |
-| **核心思想** | IO-aware tiling，减少 GPU 显存读写次数 | 借鉴 FA 的 tiling 思路，给线性注意力写高效 CUDA 内核 |
+| **核心思想** | IO-aware tiling，减少 GPU 显存读写次数 | 借鉴 FA 的 tiling 思路，给 Linear Attention 写高效 CUDA 内核 |
 | **算法复杂度** | 仍然是 O(n²)，只是常数项大幅优化 | O(n)，算法本质不同 |
 | **"flash" 含义** | 首创概念 | 致敬 FA 的 tiling 方法论 |
 
@@ -668,7 +668,7 @@ KV Cache 减少量：**约 75%**（64 层中只有 16 层需要标准 KV Cache�
 
 ## 局限性与开放问题
 
-GDN 是目前最有前景的线性注意力变体，但需要诚实审视现有证据的边界：
+GDN 是目前最有前景的 Linear Attention 变体，但需要诚实审视现有证据的边界：
 
 | 关切 | 具体情况 | 客观评估 |
 |------|---------|----------|
@@ -676,7 +676,7 @@ GDN 是目前最有前景的线性注意力变体，但需要诚实审视现有�
 | **自报 benchmark** | 性能数据来自作者团队 | 我们在 H100 上独立测试确认 GDN 内核在 16K+ 时更快（见下文） |
 | **信息瓶颈** | 固定大小状态矩阵 = 有损压缩 | 超过矩阵容量时必然丢信息，靠混合方案补救 |
 | **混合 = 承认不足** | Qwen3.5 保留 25% 标准注意力 | 纯 GDN 目前不能完全替代 Softmax |
-| **线性注意力"前科"** | 2020 年至今多次宣称"媲美 Transformer"均未成功 | GDN 可能是首个生产级采纳，但需更多验证 |
+| **Linear Attention 历史** | 2020 年至今多次宣称"媲美 Transformer"均未成功 | GDN 可能是首个生产级采纳，但需更多验证 |
 | **生态成熟度** | fla 库活跃开发中 | Triton 内核在 seq_len >= 65K 且 head_dim=128 时崩溃（经测试确认） |
 
 **乐观理由**：Qwen3.5 是首个生产级采用 GDN 的大模型；ICLR 2025 同行评审通过；fla 库 4.4K+ stars 被 Qwen 直接集成；Delta Rule 有 60+ 年理论传承。
@@ -831,7 +831,7 @@ flowchart TB
 | **注意力计算量** | O(n²d) | O(nd²) |
 | **长上下文速度** | 随长度下降 | **恒定** |
 | **精确检索** | 优秀 | 较弱（需混合架构） |
-| **核心机制** | e^x 放大分数差距 | Delta rule + 遗忘门 |
+| **核心机制** | e^x 放大分数差距 | Delta Rule + Forget Gate（遗忘门） |
 | **Qwen3.5 用法** | 25% 的层（GQA，16 层） | 75% 的层（48 层） |
 | **256K 吞吐** | 基线 | **快 19 倍**（Qwen3.5 vs Qwen3-Max） |
 | **硬件支持** | FlashAttention（成熟） | fla 库（Triton，活跃开发中） |
@@ -846,6 +846,6 @@ flowchart TB
 
 3. Yang, S., Kautz, J., & Hatamizadeh, A. (2025). *Gated Delta Networks: Improving Mamba2 with Delta Rule*. ICLR 2025. [arXiv:2412.06464](https://arxiv.org/abs/2412.06464)
 
-4. [flash-linear-attention (fla)](https://github.com/fla-org/flash-linear-attention) — Gated DeltaNet 及其他线性注意力变体的 Triton 实现。
+4. [flash-linear-attention (fla)](https://github.com/fla-org/flash-linear-attention) — Gated DeltaNet 及其他 Linear Attention 变体的 Triton 实现。
 
 5. [Qwen3.5 官方博客](https://qwenlm.github.io/blog/) — 模型架构细节和性能基准数据。

@@ -1,4 +1,4 @@
-# Azure GPU VM 选型指南与性能基准测试
+# Azure GPU VM 选型指南与 Performance Benchmark（性能基准测试）
 
 > 全面的 GPU 硬件分析、VM 选型指南和跨 RTX PRO 6000 BSE (Blackwell)、H100 NVL (Hopper)、A100 PCIe (Ampere)、A10 (Ampere) 性能基准测试
 
@@ -318,7 +318,7 @@
 | **FP64** | CUDA Core (FP64 ALU) | HPC 科学计算（双精度）| ~2 TFLOPS |
 | **FP32** | CUDA Core (FP32 ALU) | 传统渲染、标量运算、游戏 | **125 TFLOPS** |
 | **TF32** | Tensor Core | AI 训练（透明 FP32 API 优化）| ~500 TFLOPS |
-| **BF16/FP16** | Tensor Core | AI 训练/推理混合精度 | ~1000 TFLOPS |
+| **BF16/FP16** | Tensor Core | AI 训练/推理 Mixed Precision（混合精度） | ~1000 TFLOPS |
 | **FP8** | Tensor Core | AI 推理优化 | ~2000 TFLOPS |
 | **NVFP4** | Tensor Core (第5代) | AI 推理极致优化 | **4000 TOPS** |
 
@@ -820,13 +820,13 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 
 > 💡 **建议**: 在 RTX PRO 6000 Blackwell 上，优先使用 NVFP4 量化模型，比 FP8 **额外提升 38%** 性能。
 
-### 4.2 张量并行 (TP=1 vs TP=2) 基准测试
+### 4.2 Tensor Parallelism（张量并行）(TP=1 vs TP=2) 基准测试
 
 > ⚠️ **RTX PRO 6000 双卡**: 测试 TP=2 何时比 TP=1 有优势
 
 #### 小模型结果 (Qwen3-14B-FP8)
 
-| 配置 | 输出吞吐量 | TTFT | TPOT |
+| 配置 | Output Throughput（输出吞吐量） | TTFT | TPOT |
 |---|---:|---:|---:|
 | **TP=1** | **276.02 tok/s** | 1036 ms | 49.40 ms |
 | **TP=2** | 266.19 tok/s | 1252 ms | 52.16 ms |
@@ -836,7 +836,7 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 
 #### 大模型结果 (Qwen2.5-VL-72B-FP8)
 
-| 配置 | 输出吞吐量 | TTFT | TPOT |
+| 配置 | Output Throughput（输出吞吐量） | TTFT | TPOT |
 |---|---:|---:|---:|
 | **TP=1** | 232.02 tok/s | 1695 ms | 62.57 ms |
 | **TP=2** | **294.77 tok/s** | 1801 ms | 47.42 ms |
@@ -979,7 +979,7 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 |---|---|---|---|
 | NC H100 × 2 | 188GB | ✅ | **好选择** |
 | NC A100 × 4 | 320GB | ✅ | **好选择** |
-| RTX PRO 6000 BSE | 96GB | ❌ 无 | 无法高效做张量并行 |
+| RTX PRO 6000 BSE | 96GB | ❌ 无 | 无法高效做 Tensor Parallelism |
 | NV A10 | 24GB | ❌ 无 | **不适合** |
 
 ### 案例四：视频监控 AI 分析（100 路摄像头）

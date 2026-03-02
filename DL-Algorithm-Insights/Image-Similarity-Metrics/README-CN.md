@@ -126,7 +126,7 @@ VGG 每层捕获不同层次的视觉信息：
 
 ### VGG-16 — 特征提取器
 
-VGG-16（Visual Geometry Group，牛津大学，2014 年）是一个经典的 16 层 CNN。虽然现在已经没人用它做图像分类了（被 ResNet、ViT 等取代），但它中间层的特征对视觉内容的表示非常优秀。所以 LPIPS 把它当作"特征提取器"使用——就像把退休侦探的调查直觉拿来复用。
+VGG-16（Visual Geometry Group，牛津大学，2014 年）是一个经典的 16 层 CNN。虽然现在已经没人用它做图像分类了（被 ResNet、ViT 等取代），但它中间层的特征对视觉内容的表示非常优秀。所以 LPIPS 把它当作 Feature Extractor（特征提取器）使用——就像把退休侦探的调查直觉拿来复用。
 
 ## 实测数据
 
@@ -189,14 +189,14 @@ JPEG质量10           0.8573   0.1915  两者都惩罚压缩伪影
 
 不同推理引擎可能参考不同的输入图片来确定输出尺寸，导致输出分辨率不一致。计算 SSIM 前需要 resize，而 resize 引入的插值伪影会人为拉低分数（最差情况可降低 0.4）。务必确保分辨率匹配，或标记哪些样本做过 resize 并单独统计。
 
-### LPIPS 在蒸馏训练中的应用
+### LPIPS 在 Distillation（蒸馏）训练中的应用
 
-扩散模型蒸馏（将推理步数从 50 步减到 8 步）中，LPIPS 作为训练损失函数：
+扩散模型 Distillation（蒸馏，将推理步数从 50 步减到 8 步）中，LPIPS 作为 Training Loss Function（训练损失函数）：
 
 ```python
 lpips_loss = LPIPS(net='vgg')
 
-# 蒸馏训练过程中：
+# 蒸馏（Distillation）训练过程中：
 image_8step = student_model(noise, 8_steps)    # 学生：8 步
 image_50step = teacher_model(noise, 50_steps)  # 教师：50 步
 
@@ -204,7 +204,7 @@ loss = lpips_loss(image_8step, image_50step)   # 最小化感知差异
 loss.backward()  # 更新学生（LoRA）参数
 ```
 
-为什么蒸馏用 LPIPS 而不是 MSE？
+为什么 Distillation 用 LPIPS 而不是 MSE？
 - MSE 会强制像素级精确匹配 → 学生学会复制伪影
 - LPIPS 允许学生生成"看起来一样"但像素可能不同的图片
 - 这给了学生更多自由度去找到高效的 8 步去噪路径

@@ -337,11 +337,11 @@ slice035 | left kidney  | GT: 2,897px | Pred: 2,156px | Dice: 68.7%
 
 | 参数 | 值 | 原因 |
 |------|-----|------|
-| 微调模式 | 全参数微调 | 全部 3.71 亿参数可训练 |
-| 学习率 | 1e-5 | 防止灾难性遗忘 |
+| 微调模式 | Full Fine-tuning（全参数微调） | 全部 3.71 亿参数可训练 |
+| 学习率 | 1e-5 | 防止 Catastrophic Forgetting（灾难性遗忘） |
 | 优化器 | AdamW | weight_decay=0.01 用于正则化 |
-| 损失函数 | Dice Loss | 分割任务最优 |
-| 调度器 | CosineAnnealingLR | 平滑收敛 |
+| Loss Function（损失函数） | Dice Loss | 分割任务最优 |
+| Scheduler（调度器） | CosineAnnealingLR | 平滑收敛 |
 
 ---
 

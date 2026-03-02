@@ -1,4 +1,4 @@
-# Qwen3 推理基准测试 (Azure H100)
+# Qwen3 Inference Benchmark（推理基准测试）(Azure H100)
 
 > **作者**: 魏新宇 (Xinyu Wei)  
 > **日期**: 2026-02-06 (32B), 2026-02-11 (235B SGLang)  
@@ -255,7 +255,7 @@ Docker 镜像 `vllm/vllm-openai:v0.11.2` 已锁定所有依赖 — 无冲突。
 
 ---
 
-## Part 2: 多节点 MoE 模型 (235B) — 推理引擎基准测试
+## Part 2: 多节点 MoE 模型 (235B) — Inference Engine Benchmark（推理引擎基准测试）
 
 > **模型**: Qwen/Qwen3-235B-A22B-Instruct-2507-FP8 (235B MoE, 每 token 激活 22B 参数)  
 > **硬件**: 2× Azure NC80adis_H100_v5 (4× H100 NVL, 总计 376GB VRAM)  
