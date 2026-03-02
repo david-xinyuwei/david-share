@@ -94,6 +94,10 @@ Before diving into specific mechanisms, here is how a Transformer goes from raw 
 2. **Transformer Block × N** — N identical blocks stacked. Each block: LayerNorm → Self Attention → Add → LayerNorm → Feed Forward → Add
 3. **Output Head** — Final LayerNorm → Linear layer → Logits (one score per vocabulary word) → the highest score wins
 
+The following diagram illustrates this complete pipeline — from raw tokens all the way to the predicted output "42":
+
+![Transformer Full Pipeline](images/transformer-full-pipeline.png)
+
 ### Before: Standard Softmax Attention (what gets replaced)
 
 Zooming into the Self Attention box — here is what happens inside the **original** Transformer:

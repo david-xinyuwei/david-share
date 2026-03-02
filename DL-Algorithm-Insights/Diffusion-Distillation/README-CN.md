@@ -39,6 +39,39 @@
 | 系统内存 | 320 GiB | Text Encoder CPU offload 缓冲区 |
 | 系统盘 | Azure Premium SSD | 训练脚本、checkpoint、日志 |
 
+### 技术栈全景
+
+下表汇总了在单张 H100 上完成 200 亿参数扩散模型蒸馏所用到的**全部关键技术**：
+
+| 类别 | 技术 | 作用 | 使用位置 | 详细章节 |
+|------|------|------|:--------:|:--------:|
+| **算法** | Trajectory Distillation（轨迹蒸馏，2nd-gen） | 学生跳过 5× 教师步数，通过匹配中间 latent 学习 | 核心训练循环 | [深度解析](#深度解析轨迹蒸馏) |
+| **算法** | IMM Loss（矩匹配损失） | 匹配分布（μ+σ²）而非点估计 → 避免 Mode Averaging | 损失函数 | [IMM 损失](#imm-损失矩匹配) |
+| **参数效率** | LoRA (rank=32) | 200 亿参数中仅 ~4.5 亿可训练 → 优化器状态极小（~2 GB） | 学生适配器 | [第二步](#第二步训练学生lora-作为适配器) |
+| **精度** | BF16 (bfloat16) | 相比 FP32 节省一半显存；200 亿模型 = ~40 GB 而非 ~80 GB | 全部模型权重 | [实验配置](#实验配置) |
+| **显存—教师** | `torch.no_grad()` | 避免存储 40 步教师前向的激活值 → 节省 ~50 GB | 教师前向传播 | [显存分析](#为什么学生有梯度显存也够) |
+| **显存—学生** | Gradient Checkpointing（块级梯度检查点） | 仅保存 60 个 block 输入；反向时重算内部 → 节省 ~40 GB | 学生前向/反向 | [显存分析](#为什么学生有梯度显存也够) |
+| **显存—学生** | Per-step Backward（逐步反向传播） | 每个学生步骤后立即 `.backward()` + `.detach()` → 节省 ~30 GB | 学生反向传播 | [逐步 backward](#2-逐步-backward-避免-oom) |
+| **显存—卸载** | Text Encoder CPU Offload | 编码后将 ~14 GB 文本编码器移到 CPU → 释放 GPU 给 DiT | 文本条件 | [显存分析](#为什么学生有梯度显存也够) |
+| **架构** | Serial Execution（教师→学生串行） | 教师和学生不同时占用显存——教师先跑完缓存 8 个 latent 后退出 | 训练流水线 | [串行执行](#教师与学生串行而非并发) |
+
+### 显存分布（训练峰值）
+
+```
+94 GB H100 NVL 显存
+┌──────────────────────────────────────────────────────────────┐
+│ 模型权重 (BF16, 200亿参数)                 │  ~40 GB (43%)  │
+│ 学生激活值 (8步 + Gradient Checkpointing)  │  ~10 GB (11%)  │
+│ LoRA 优化器状态 (AdamW, rank=32)           │   ~2 GB  (2%)  │
+│ 教师 latent 缓存 (8 个 latent)             │   ~1 GB  (1%)  │
+│ ─────────────────────────────────────────── │ ────────────── │
+│ 合计使用                                   │  ~43 GB (46%)  │
+│ 剩余空间                                   │  ~51 GB (54%)  │
+└──────────────────────────────────────────────────────────────┘
+```
+
+> 如果不组合使用以上技术，同样 200 亿模型的朴素训练需要 **~170+ GB** 显存（约 2 张 H100）。上表展示了每项技术如何共同将训练塞入单张 94 GB GPU。
+
 **"单台 VM"在实践中意味着什么**：
 
 - 无需 InfiniBand、无需多节点 NCCL 通信、无需 Kubernetes 编排
@@ -88,9 +121,9 @@ z_T（纯噪声）→ z_{T-1} → z_{T-2} → ... → z_0（干净图像）
 
 | 代际 | 方法 | 监督信号 | 教师在 GPU 上 | 步数压缩 | 代表 |
 |:---:|------|:-------:|:-----------:|:-------:|------|
-| **第一代 — 在线蒸馏** | 教师和学生同时训练 | **仅最终输出**（干净 latent / 图像）| ✅ 全程 | 40→15（~2.7×） | Progressive Distillation |
-| **第二代 — 离线（轨迹）蒸馏** | 教师跑一次存轨迹后下线 | **K 个中间 latent 检查点**（逐步对齐）| 仅预计算阶段 | 40→8（5×） | TwinFlow |
-| **第三代 — 无教师蒸馏** | 不需要独立的教师模型 | 数学插值（无教师输出）| ❌ 完全不需要 | 可变 | IMM、Consistency Models |
+| **1st-gen — Online Distillation（在线蒸馏）** | 教师和学生同时训练 | **仅最终输出**（干净 latent / 图像）| ✅ 全程 | 40→15（~2.7×） | Progressive Distillation |
+| **2nd-gen — Offline Trajectory Distillation（离线轨迹蒸馏）** | 教师跑一次存轨迹后下线 | **K 个中间 latent 检查点**（逐步对齐）| 仅预计算阶段 | 40→8（5×） | TwinFlow |
+| **3rd-gen — Teacher-free Distillation（无教师蒸馏）** | 不需要独立的教师模型 | 数学插值（无教师输出）| ❌ 完全不需要 | 可变 | IMM、Consistency Models |
 
 > **第一代教师提供什么**：教师跑 N 步去噪 → 产出**最终干净 latent** → 学生被训练成用 N/2 步匹配该终点。没有存储或使用任何中间状态。
 
@@ -161,10 +194,10 @@ for step in range(training_steps):
     optimizer.step()                         # 只更新 LoRA 参数
 ```
 
-为什么选 LoRA 而非全量微调？
+为什么选 LoRA 而非 Full Fine-tuning（全量微调）？
 - 去噪的*方向*已经正确 — LoRA 只需调整*幅度*
-- 全量微调有灾难性遗忘的风险
-- rank=32 足够：速度场的修正本质上是低秩的
+- Full Fine-tuning 有 Catastrophic Forgetting（灾难性遗忘）的风险
+- rank=32 足够：速度场的修正本质上是 low-rank 的
 
 #### 概念可视化：Latent Norm 轨迹
 
@@ -192,13 +225,13 @@ IMM loss = 匹配 μ（均值）+ 匹配 σ²（方差）
          ≈ 使学生轨迹分布 ≈ 教师分布
 ```
 
-这比纯 MSE 更鲁棒——MSE 可能导致"模式平均"伪影。实践中 LPIPS（感知损失）也常被使用。
+这比纯 MSE 更鲁棒——MSE 可能导致 Mode Averaging（模式平均）伪影。实践中 LPIPS（Perceptual Loss，感知损失）也常被使用。
 
 ---
 
 ### 为什么轨迹蒸馏优于端到端蒸馏
 
-| | 端到端 | 轨迹蒸馏 |
+| | End-to-end（端到端） | Trajectory Distillation（轨迹蒸馏） |
 |---|---|---|
 | **监督信号** | 仅最终输出 | 每个中间检查点 |
 | **学生自由度** | 可以走任意路径到终点 | 必须跟随教师的路线 |
@@ -230,7 +263,7 @@ latent 空间可视化揭示了为什么密集监督很重要：大多数语义�
 | 训练轮次 | 5 |
 | 训练样本 | 50 对图像 |
 | 优化器 | AdamW，lr=1e-4 |
-| 梯度检查点 | Block 级别（60 个 blocks） |
+| Gradient Checkpointing（梯度检查点） | Block-level（60 blocks） |
 | GPU 显存占用 | ~43 GB / 95 GB |
 
 **显存优化四重奏**：
@@ -238,8 +271,8 @@ latent 空间可视化揭示了为什么密集监督很重要：大多数语义�
 | 技术 | 作用对象 | 节省显存 | 原理 |
 |------|:--------:|:-------:|------|
 | 教师前向 `torch.no_grad()` | 教师（40 步） | ~50 GB | 不加时 PyTorch 会把 40 步激活值全部存着等 backward；`no_grad` 让每层算完立即释放 |
-| Block 级梯度检查点 | 学生（8 步） | ~40 GB | backward 时重计算激活值，无需提前存储 |
-| 逐步 backward | 学生（8 步） | ~30 GB | 每步学生推理后立即释放该步计算图 |
+| Gradient Checkpointing（梯度检查点） | 学生（8 步） | ~40 GB | backward 时重计算激活值，无需提前存储 |
+| Per-step Backward（逐步反向传播） | 学生（8 步） | ~30 GB | 每步学生推理后立即释放该步计算图 |
 | Text Encoder CPU offload | 两者 | ~14 GB | 编码后将 TE 移到 CPU，需要时再加载 |
 
 综合效果：**单张** Azure NC40ads H100 v5 即可训练 200 亿参数模型，无 OOM。
@@ -263,7 +296,7 @@ latent 空间可视化揭示了为什么密集监督很重要：大多数语义�
 
 仅凭步数之差，学生的激活值起点就只有教师的 1/5。
 
-**原因二：Block 级梯度检查点**
+**原因二：Block-level Gradient Checkpointing（梯度检查点）**
 
 普通带梯度训练会把 60 个 Transformer Block 的每层输出全部存着：
 
@@ -271,7 +304,7 @@ latent 空间可视化揭示了为什么密集监督很重要：大多数语义�
 layer1激活 + layer2激活 + ... + layer60激活（60 层同时存在显存）
 ```
 
-**"Block 级别"的含义**：20B MMDiT 模型由 60 个 Transformer Block 组成。每个 Block 作为一个检查点单元——只保存每个 Block 的*输入*；Block *内部*计算的内容（注意力分数、MLP 中间值）前向完成后立即丢弃，backward 需要时从该 Block 的输入重新计算。
+**Block-level Gradient Checkpointing 的含义**：20B MMDiT 模型由 60 个 Transformer Block 组成。每个 Block 作为一个 checkpoint 单元——只保存每个 Block 的*输入*；Block *内部*计算的内容（注意力分数、MLP 中间值）前向完成后立即丢弃，backward 需要时从该 Block 的输入重新计算。
 
 ```
 Block 1           Block 2           Block 3     ...   Block 60
@@ -296,7 +329,7 @@ Block 级是针对该架构验证过的最优平衡点：粗到足以节省大�
 
 代价：约多 30% 计算时间。收益：节省 60–80% 的激活值显存。
 
-**原因三：逐步 backward**
+**原因三：Per-step Backward（逐步反向传播）**
 
 不优化的写法等 8 步全跑完再调一次 `backward()`——8 步的计算图同时在显存里：
 
@@ -320,7 +353,7 @@ for i in range(8):
 | 组件 | 显存占用 |
 |------|:------:|
 | 20B 模型权重（BF16） | ~40 GB |
-| 学生激活值（8 步 + 梯度检查点） | ~10 GB |
+| 学生激活值（8 步 + Gradient Checkpointing） | ~10 GB |
 | 优化器状态（仅 LoRA 参数，非全量） | ~2 GB |
 | 教师 latent 缓存（8 个中间 latent） | ~1 GB |
 | **合计** | **~43 GB / 94 GB** |
@@ -688,14 +721,14 @@ with set_lora_enabled(model, True):    # 学生训练步骤
 
 | 需求 | 推荐 |
 |------|------|
-| 需要 < 10 步推理 | 轨迹蒸馏（第二代） |
-| 需要 < 20 步的良好质量 | 端到端蒸馏（第一代） |
-| 没有训练预算 | 无教师 / Consistency Model |
+| 需要 < 10 步推理 | Trajectory Distillation（轨迹蒸馏，2nd-gen） |
+| 需要 < 20 步的良好质量 | End-to-end Distillation（端到端蒸馏，1st-gen） |
+| 没有训练预算 | Teacher-free / Consistency Model |
 | 需要绝对最高质量，无延迟限制 | 不蒸馏，使用完整步数 |
 
 ### 三代蒸馏一览
 
-| | 第一代（在线） | 第二代（轨迹） | 第三代（无教师） |
+| | 1st-gen (Online) | 2nd-gen (Trajectory) | 3rd-gen (Teacher-free) |
 |---|:---:|:---:|:---:|
 | 教师 GPU 时间 | 全程训练 | 仅预计算一次 | 无 |
 | 步数压缩 | ~2.7× | **>6×** | 可变 |

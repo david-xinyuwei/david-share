@@ -39,6 +39,39 @@ This entire experiment — training a 20B-parameter diffusion model distillation
 | System RAM | 320 GiB | Text encoder CPU offload buffer |
 | OS disk | Azure Premium SSD | Training scripts, checkpoints, logs |
 
+### Technology Stack at a Glance
+
+This table summarizes **every technique** that makes it possible to distill a 20B-parameter diffusion model on a single H100 GPU:
+
+| Category | Technique | What It Does | Where Used | Detail Section |
+|----------|-----------|-------------|:----------:|:--------------:|
+| **Algorithm** | Trajectory Distillation (2nd-gen) | Student learns to skip 5× teacher steps by matching intermediate latents | Core training loop | [Deep Dive](#deep-dive-trajectory-distillation) |
+| **Algorithm** | IMM Loss (Moment Matching) | Matches distribution (μ+σ²) not just point estimates → avoids mode-averaging | Loss function | [IMM Loss](#the-imm-loss-moment-matching) |
+| **Parameter Efficiency** | LoRA (rank=32) | Only ~450M trainable params out of 20B → optimizer states stay tiny (~2 GB) | Student adapter | [Step 2](#step-2-train-the-student-lora-as-the-adapter) |
+| **Precision** | BF16 (bfloat16) | Half the memory vs FP32; 20B model = ~40 GB instead of ~80 GB | All model weights | [Setup](#setup) |
+| **Memory — Teacher** | `torch.no_grad()` | Prevents storing activations for 40 teacher steps → saves ~50 GB | Teacher forward pass | [VRAM Analysis](#why-the-student-fits-in-vram-despite-having-gradients) |
+| **Memory — Student** | Block-level Gradient Checkpointing | Only saves 60 block inputs; recomputes internals during backward → saves ~40 GB | Student forward/backward | [VRAM Analysis](#why-the-student-fits-in-vram-despite-having-gradients) |
+| **Memory — Student** | Per-step Backward | Calls `.backward()` after each of 8 steps, then `.detach()` → saves ~30 GB | Student backward pass | [Per-Step Backward](#2-per-step-backward-to-avoid-oom) |
+| **Memory — Offload** | Text Encoder CPU Offload | Moves ~14 GB text encoder to CPU after encoding → frees GPU for DiT | Text conditioning | [VRAM Analysis](#why-the-student-fits-in-vram-despite-having-gradients) |
+| **Architecture** | Serial Teacher→Student | Teacher and student never coexist in VRAM — teacher runs first, caches 8 latents, then exits | Training pipeline | [Serial Execution](#teacher-and-student-serial-not-concurrent) |
+
+### VRAM Distribution (Peak Usage During Training)
+
+```
+94 GB H100 NVL VRAM
+┌──────────────────────────────────────────────────────────────┐
+│ Model Weights (BF16, 20B params)           │  ~40 GB (43%)  │
+│ Student Activations (8 steps + GC)         │  ~10 GB (11%)  │
+│ LoRA Optimizer States (AdamW, rank=32)     │   ~2 GB  (2%)  │
+│ Teacher Latent Cache (8 latents)           │   ~1 GB  (1%)  │
+│ ─────────────────────────────────────────── │ ────────────── │
+│ Total Used                                 │  ~43 GB (46%)  │
+│ Free Headroom                              │  ~51 GB (54%)  │
+└──────────────────────────────────────────────────────────────┘
+```
+
+> Without these techniques combined, naive training of the same 20B model would require **~170+ GB** VRAM (roughly 2× H100). The table above shows how each technique contributes to fitting everything into a single 94 GB GPU.
+
 **What "single VM" means in practice**:
 
 - No InfiniBand, no NCCL multi-node setup, no Kubernetes orchestration

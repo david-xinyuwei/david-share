@@ -94,6 +94,10 @@ python -m vllm.entrypoints.openai.api_server \
 2. **Transformer Block × N** — N 个结构相同的 Block 堆叠。每个 Block：LayerNorm → Self Attention → Add → LayerNorm → Feed Forward → Add
 3. **输出头** — 最后一个 LayerNorm → Linear 层 → Logits（词表中每个词一个分数）→ 分数最高的词胜出
 
+下图展示了这条完整流水线——从原始 token 一路到预测输出 "42"：
+
+![Transformer 完整流水线](images/transformer-full-pipeline.png)
+
 ### 替换前：标准 Softmax Attention（被替换的部分）
 
 把 Self Attention 方框打开——以下是**原版** Transformer 内部的计算流程：
