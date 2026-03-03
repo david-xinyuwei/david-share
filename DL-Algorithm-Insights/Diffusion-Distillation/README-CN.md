@@ -57,20 +57,9 @@
 
 ### 显存分布（训练峰值）
 
-```
-94 GB H100 NVL 显存
-┌──────────────────────────────────────────────────────────────┐
-│ 模型权重 (BF16, 200亿参数)                 │  ~40 GB (43%)  │
-│ 学生激活值 (8步 + Gradient Checkpointing)  │  ~10 GB (11%)  │
-│ LoRA 优化器状态 (AdamW, rank=32)           │   ~2 GB  (2%)  │
-│ 教师 latent 缓存 (8 个 latent)             │   ~1 GB  (1%)  │
-│ ─────────────────────────────────────────── │ ────────────── │
-│ 合计使用                                   │  ~43 GB (46%)  │
-│ 剩余空间                                   │  ~51 GB (54%)  │
-└──────────────────────────────────────────────────────────────┘
-```
+训练峰值 ~43 GB / 94 GB（46%），详细的逐组件显存预算表见下方 [为什么学生有梯度显存也够？](#为什么学生有梯度显存也够) 章节。
 
-> 如果不组合使用以上技术，同样 200 亿模型的朴素训练需要 **~170+ GB** 显存（约 2 张 H100）。上表展示了每项技术如何共同将训练塞入单张 94 GB GPU。
+> 如果不组合使用以上技术，同样 200 亿模型的朴素训练需要 **~170+ GB** 显存（约 2 张 H100）。
 
 **"单台 VM"在实践中意味着什么**：
 
@@ -266,14 +255,7 @@ latent 空间可视化揭示了为什么密集监督很重要：大多数语义�
 | Gradient Checkpointing（梯度检查点） | Block-level（60 blocks） |
 | GPU 显存占用 | ~43 GB / 95 GB |
 
-**显存优化四重奏**：
-
-| 技术 | 作用对象 | 节省显存 | 原理 |
-|------|:--------:|:-------:|------|
-| 教师前向 `torch.no_grad()` | 教师（40 步） | ~50 GB | 不加时 PyTorch 会把 40 步激活值全部存着等 backward；`no_grad` 让每层算完立即释放 |
-| Gradient Checkpointing（梯度检查点） | 学生（8 步） | ~40 GB | backward 时重计算激活值，无需提前存储 |
-| Per-step Backward（逐步反向传播） | 学生（8 步） | ~30 GB | 每步学生推理后立即释放该步计算图 |
-| Text Encoder CPU offload | 两者 | ~14 GB | 编码后将 TE 移到 CPU，需要时再加载 |
+四项显存优化技术（`torch.no_grad()`、Gradient Checkpointing、Per-step Backward、Text Encoder CPU offload）的详细原理与节省量，参见下方 [为什么学生有梯度显存也够？](#为什么学生有梯度显存也够) 章节。
 
 综合效果：**单张** Azure NC40ads H100 v5 即可训练 200 亿参数模型，无 OOM。
 
@@ -454,11 +436,7 @@ Step N：
 
 #### VAE 解码的中间步骤
 
-为直观展示模型在每个阶段实际"看到"的内容，我们将每个中间 latent 通过 VAE 解码器解码为像素空间的真实图像：
-
-![解码步骤对比](images/decoded_steps_40vs8.png)
-
-上行：教师在步骤 0→10→20→30→40 的输出。下行：学生在步骤 0→2→4→6→8 的输出。两者均从相同的随机噪声出发，收敛到视觉上几乎一致的最终图像 — 学生成功学会了跳过中间步骤同时保持输出质量。
+VAE 解码可视化参见上方 [去噪轨迹](#去噪轨迹可视化与分析) 小节中的 decoded_steps_40vs8.png 图：教师 40 步 vs 学生 8 步的逐步解码对比。
 
 ---
 
@@ -672,23 +650,7 @@ diffusers 管线级 batch 为纯串行循环，batch=4 时间 = batch=1 × 4。�
 
 **原因**：8 步顺序推理的计算图把所有中间激活值都保留在显存中。
 
-**修复**：在每个学生步之后立即 backward：
-
-```python
-# ❌ 大模型会 OOM
-total_loss = 0
-for i in range(8):
-    z_student = student(z, ...)
-    total_loss += loss(z_student, z_teacher_i)
-total_loss.backward()  # 8 步的完整计算图 = OOM
-
-# ✅ 正确：逐步 backward
-for i in range(8):
-    z_student = student(z, ...)
-    step_loss = loss(z_student, z_teacher_i)
-    step_loss.backward()    # 只有这一步的图，立即释放
-    z = z_student.detach()  # detach 防止跨步梯度
-```
+**修复**：每步推理后立即调用 `backward()` 并 `detach()`，只保留 1 步计算图。代码示例见上方 [原因三：Per-step Backward](#为什么学生有梯度显存也够)。
 
 ---
 

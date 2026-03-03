@@ -55,22 +55,7 @@ This table summarizes **every technique** that makes it possible to distill a 20
 | **Memory — Offload** | Text Encoder CPU Offload | Moves ~14 GB text encoder to CPU after encoding → frees GPU for DiT | Text conditioning | [VRAM Analysis](#why-the-student-fits-in-vram-despite-having-gradients) |
 | **Architecture** | Serial Teacher→Student | Teacher and student never coexist in VRAM — teacher runs first, caches 8 latents, then exits | Training pipeline | [Serial Execution](#teacher-and-student-serial-not-concurrent) |
 
-### VRAM Distribution (Peak Usage During Training)
-
-```
-94 GB H100 NVL VRAM
-┌──────────────────────────────────────────────────────────────┐
-│ Model Weights (BF16, 20B params)           │  ~40 GB (43%)  │
-│ Student Activations (8 steps + GC)         │  ~10 GB (11%)  │
-│ LoRA Optimizer States (AdamW, rank=32)     │   ~2 GB  (2%)  │
-│ Teacher Latent Cache (8 latents)           │   ~1 GB  (1%)  │
-│ ─────────────────────────────────────────── │ ────────────── │
-│ Total Used                                 │  ~43 GB (46%)  │
-│ Free Headroom                              │  ~51 GB (54%)  │
-└──────────────────────────────────────────────────────────────┘
-```
-
-> Without these techniques combined, naive training of the same 20B model would require **~170+ GB** VRAM (roughly 2× H100). The table above shows how each technique contributes to fitting everything into a single 94 GB GPU.
+> Without these memory optimization techniques combined, naive training of the same 20B model would require **~170+ GB** VRAM (roughly 2× H100). See the [VRAM budget table](#why-the-student-fits-in-vram-despite-having-gradients) for the detailed breakdown of how each technique contributes to fitting everything into a single 94 GB GPU.
 
 **What "single VM" means in practice**:
 
@@ -266,18 +251,7 @@ All experiments run on a **single [Azure Standard_NC40ads_H100_v5](https://learn
 | Gradient checkpointing | Block-level (60 blocks) |
 | GPU memory usage | ~43 GB / 95 GB |
 
-**Memory optimization breakdown**:
-
-| Technique | Applies To | Memory Saved | Principle |
-|-----------|:----------:|:-----------:|-----------|
-| `torch.no_grad()` on teacher forward | Teacher (40 steps) | ~50 GB | Without it, PyTorch stores activations for all 40 steps waiting for a backward that never happens; `no_grad` frees each layer immediately |
-| Block-level gradient checkpointing | Student (8 steps) | ~40 GB | Recompute activations during backward instead of storing them |
-| Per-step backward | Student (8 steps) | ~30 GB | Release computation graph after each individual student step |
-| Text encoder CPU offload | Both | ~14 GB | Move TE to CPU after encoding, reload when needed |
-
-Combined, these allow training a 20B-parameter model on a **single** Azure NC40ads H100 v5 GPU without OOM.
-
-> **Key takeaway**: No multi-GPU cluster, no tensor parallelism, no NVLink scale-out — just one standard Azure GPU VM. Modern memory optimization techniques make large-scale diffusion distillation accessible on a single cloud instance.
+The four memory optimization techniques (see [Technology Stack](#technology-stack-at-a-glance) for summary, [VRAM Analysis](#why-the-student-fits-in-vram-despite-having-gradients) for deep dive) allow training a 20B-parameter model on a **single** Azure NC40ads H100 v5 GPU without OOM.
 
 ---
 
@@ -454,11 +428,7 @@ Each column represents a key denoising step. Top row: Teacher (40-step). Bottom 
 
 #### VAE-Decoded Intermediate Steps
 
-To visualize what the model actually "sees" at each stage, we decode each intermediate latent through the VAE decoder into pixel space:
-
-![Decoded steps comparison](images/decoded_steps_40vs8.png)
-
-Top row: Teacher at steps 0→10→20→30→40. Bottom row: Student at steps 0→2→4→6→8. Both start from the same random noise and converge to visually identical final images — the student successfully learns to skip intermediate steps while preserving output quality.
+The VAE-decoded intermediate steps are shown in the [Denoising Trajectory section](#the-denoising-trajectory) above — Teacher (40 steps) and Student (8 steps) start from the same random noise and converge to visually identical final images.
 
 ---
 
@@ -668,27 +638,7 @@ Checklist — train vs infer must match:
 
 ### 2. Per-Step Backward to Avoid OOM
 
-Naive implementation: accumulate the full 8-step student computation graph, then call `loss.backward()` once. This works on small models but on a 20B DiT it will OOM.
-
-**Why**: the computation graph of 8 sequential student steps keeps all intermediate activations in memory.
-
-**Fix**: backward *after each individual student step*:
-
-```python
-# ❌ OOM on large models
-total_loss = 0
-for i in range(8):
-    z_student = student(z, ...)
-    total_loss += loss(z_student, z_teacher_i)
-total_loss.backward()  # graph of all 8 steps = OOM
-
-# ✅ Correct: per-step backward
-for i in range(8):
-    z_student = student(z, ...)
-    step_loss = loss(z_student, z_teacher_i)
-    step_loss.backward()    # graph of this step only, released immediately
-    z = z_student.detach()  # detach to prevent cross-step gradients
-```
+Naive implementation accumulates the full 8-step computation graph, then calls `backward()` once — OOM on 20B models. The fix is backward after each individual step with `.detach()` to cut cross-step gradients. See [Reason 3 — Per-step backward](#why-the-student-fits-in-vram-despite-having-gradients) for the detailed explanation and code example.
 
 ---
 
