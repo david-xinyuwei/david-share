@@ -4,14 +4,14 @@
 [![SAM 2.1](https://img.shields.io/badge/SAM-2.1-orange.svg)](https://github.com/facebookresearch/sam2)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-跨风格工程图纸实体检测 using **SAM 2.1 + Auto-Tuned Flood Fill** hybrid architecture. 已在多种公开建筑平面图风格上完成验证。
+跨风格工程图纸实体检测 using **SAM 2.1 + 自动调优连通域白区分支**。已在多种公开建筑平面图风格上完成验证。
 
 ![Detection Results](images/v13_4in1_comparison.png)
 
 ## 功能特性
 
 - **跨风格检测**：支持灰色填充结构图、线条围合平面图和彩色图纸
-- **SAM 2.1 + Flood Fill 混合**：SAM 分割有纹理实体，Flood Fill 检测墙线围合房间
+- **SAM 2.1 + 连通域白区分支混合**：SAM 分割有纹理实体，自适应形态学 + 连通域分支检测墙线围合房间
 - **自动调优形态学**：每张图遍历 36 种参数组合，选最优
 - **建筑轮廓过滤**：自动检测建筑占地范围，移除外部噪声
 - **JSON 输出**：实体坐标、面积和中心点
@@ -64,7 +64,7 @@ python detect_v13.py input.png -o output/ -m checkpoints/sam2.1_hiera_large.pt
 
 ### 为什么 A10 就够了
 
-- SAM 2.1 hiera_large（224M 参数）+ Flood Fill 需约 12GB GPU 内存
+- SAM 2.1 hiera_large（224M 参数）+ 连通域白区分支需约 12GB GPU 内存
 - 单块 A10（24GB）可运行完整流水线并有余量
 - 处理时间：2000px 分辨率下 12-20 秒/张
 - 纯 CPU 环境下同样代码可运行（较慢）
@@ -106,7 +106,7 @@ flowchart TB
     end
 
     subgraph PARAM["Stage 1: Parameter Selection"]
-        S1A[Select SAM / Flood Fill / NMS thresholds]
+        S1A[Select SAM / CC / NMS thresholds]
     end
 
     subgraph OUTLINE["Stage 2: Building Outline Detection"]
@@ -121,10 +121,10 @@ flowchart TB
         C1 --> C2
     end
 
-    subgraph FLOOD["Stage 3b: Auto-Tuned Flood Fill"]
+    subgraph FLOOD["Stage 3b: Auto-Tuned Connected Components White-Space Branch"]
         D1[Adaptive threshold to detect wall lines]
         D2[Try 36 morphology parameter combos]
-        D3[Select combo producing best room count]
+        D3[对白色空间做连通域分析\n选择房间数最优组合]
         D1 --> D2 --> D3
     end
 
@@ -149,8 +149,10 @@ flowchart TB
 | Component | Strength | Weakness |
 |-----------|----------|----------|
 | **SAM 2.1** | 分割有纹理区域（家具、洁具、小结构） | 无法分割无特征的白色围合空间 |
-| **Flood Fill** | 检测墙线围合的房间（白色空间） | 对墙线间隙敏感，可能过度分割 |
+| **连通域白区分支** | 检测墙线围合的房间（白色空间） | 对墙线间隙敏感，可能过度分割 |
 | **Combined** | **互补覆盖 → 接近完整的房间检测** | |
+
+实现说明：房间分支实际采用的是 adaptive threshold + morphology + `cv2.connectedComponentsWithStats(...)`，不是直接调用 `cv2.floodFill()`。
 
 ## 输出示例
 
@@ -161,10 +163,10 @@ flowchart TB
    Size: 4344x3266 -> 2000x1503 (scale=0.46)
    [SAM 2.1] Segmenting...
    [SAM 2.1] 282 masks -> 100 entities
-   [Flood Fill] Auto-tuning...
-   [Flood Fill] 16 entities
+    [CC White-Space] Auto-tuning...
+    [CC White-Space] 16 entities
 
-📊 Total: 31 entities (SAM:100 + Flood:16) in 16.1s
+📊 Total: 31 entities (SAM:100 + CC:16) in 16.1s
    ✅ Saved: output/floor_plan_v13.png
    ✅ Saved: output/floor_plan_v13.json
 ```
@@ -195,7 +197,7 @@ flowchart TB
 
 - **检测到 12 个实体**，耗时 20 秒
 - 干净的黑白平面图，粗墙线
-- Flood Fill 有效检测围合的房间空间
+- 连通域白区分支可有效检测围合的房间空间
 
 ### 汇总
 
@@ -211,7 +213,7 @@ flowchart TB
 |---------|-------|-------------|--------|
 | v2-v6 | SAM 1 ViT-B/H | SAM + OpenCV CC | 仅灰色填充 |
 | v11 | SAM 1 ViT-H | Two-stage (SAM + CC) | 灰色填充生产版 |
-| **v13** | **SAM 2.1 hiera_large** | **SAM 2.1 + Auto Flood Fill** | **当前最佳跨风格基线** |
+| **v13** | **SAM 2.1 hiera_large** | **SAM 2.1 + 自动调优连通域白区分支** | **当前最佳跨风格基线** |
 
 ### v11 → v13 关键提升
 
@@ -227,9 +229,9 @@ flowchart TB
 ## 局限性
 
 - 检测质量因图纸复杂度而异（不同风格 7-9/10）
-- 白色无特征房间依赖 Flood Fill 质量（墙线完整度）
+- 白色无特征房间依赖连通域白区分支质量（墙线完整度）
 - 极小房间（<3% 图像面积）可能漏检
-- SAM 和 Flood Fill 检测同一区域时可能出现重叠框
+- SAM 和连通域白区分支检测同一区域时可能出现重叠框
 
 ## 精度与诚实评估
 
@@ -244,7 +246,7 @@ flowchart TB
 
 **表现好的**：墙线边界清晰的房间、家具/洁具、结构元素。
 
-**表现不好的**：SAM 无法分割的大面积无特征白色房间（已用 Flood Fill 缓解）、极小功能空间（<3% 图像面积）、文字标注偶尔被误检为实体。
+**表现不好的**：SAM 无法分割的大面积无特征白色房间（已用连通域白区分支缓解）、极小功能空间（<3% 图像面积）、文字标注偶尔被误检为实体。
 
 ## 已探索方案与经验教训
 
@@ -253,7 +255,7 @@ flowchart TB
 | Approach | Result | Why |
 |----------|:------:|-----|
 | **SAM 1 ViT-H (v11)** | ✅ 适用于灰色填充 | 仅灰色填充结构图；线条围合平面图上 0 entities |
-| **SAM 2.1 (v13)** | ✅ 当前最佳 | 比 SAM 1 快 15 倍；配合 Flood Fill 跨风格工作 |
+| **SAM 2.1 (v13)** | ✅ 当前最佳 | 比 SAM 1 快 15 倍；配合连通域白区分支实现跨风格工作 |
 | **SAM 3 text-prompt** | ❌ 访问被拒 | HuggingFace 受限模型；访问申请被 Meta 拒绝 |
 | **Grounded-SAM2 (DINO + SAM 2.1)** | ❌ 失败 | Grounding DINO 无法理解工程图纸；仅检测到 4 个覆盖整张图的对象 |
 | **Florence-2** | ❌ 不适用 | 坐标量化（1000-bin）精度不足，无法精确定位中心点 |
@@ -284,13 +286,13 @@ flowchart TB
 | **工业质检** | 制造缺陷检测 | 产品检测图像 | 缺陷位置 + 分类 |
 | **零售 / 仓储** | 货架商品检测 | 门店/仓库照片 | 商品位置 + 数量 |
 
-本项目展示的 SAM 2.1 + Flood Fill 混合架构可通过调整检测和过滤参数适配上述任何场景。
+本项目展示的 SAM 2.1 + 连通域白区混合架构可通过调整检测和过滤参数适配上述任何场景。
 
 ## 未来方向
 
 | Phase | Approach | 预期效果 |
 |-------|---------|-----------------|
-| **Current (v13)** | SAM 2.1 + Auto Flood Fill | 7-9/10 across styles |
+| **Current (v13)** | SAM 2.1 + 自动调优连通域白区分支 | 7-9/10 across styles |
 | **Phase 3** | SAM 3 文本提示分割 (`text="room"`) | 可能达到 9-10/10，一行代码 |
 | **Phase 4** | 在 CubiCasa5K 上微调 SAM 2.1（5000 张标注图） | 更高的领域稳定性与质量 |
 | **Phase 5** | VLM 集成（GPT-4o 预分析 → 引导检测） | 无限风格适配 |

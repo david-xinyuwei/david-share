@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Blueprint Region Detector v13 — Cross-Style CLI
-SAM 2.1 + Auto-Tuned Flood Fill + Image-Statistics-Guided Parameters
+SAM 2.1 + Auto-Tuned Connected Components White-Space Branch + Image-Statistics-Guided Parameters
 
 Usage:
   python detect_v13.py input.png -o output/ -m sam2.1_hiera_large.pt
@@ -9,8 +9,8 @@ Usage:
 Features:
     - Estimates blueprint style from image statistics (gray-fill / line-enclosed)
     - Applies style-guided parameter presets per image
-  - SAM 2.1 for texture/structure detection
-  - Auto-tuned Flood Fill for wall-enclosed room detection
+    - SAM 2.1 for texture/structure detection
+    - Auto-tuned connected-components white-space detection for wall-enclosed rooms
   - Building outline filtering + aggressive NMS
 
 Author: Xinyu Wei
@@ -158,10 +158,10 @@ def sam_detect(img_r, gray, bmask, img_area, mask_generator, params):
 
 
 # ============================================================
-# Stage 3b: Auto-Tuned Flood Fill
+# Stage 3b: Auto-Tuned Connected Components White-Space Detection
 # ============================================================
-def flood_fill_detect(gray, bmask, img_area, params):
-    """Try multiple morphology parameter combos, pick best."""
+def cc_whitespace_detect(gray, bmask, img_area, params):
+    """Auto-tuned white-space detection using morphology + connected components."""
     best = []
     best_score = -1
     p = params
@@ -207,7 +207,7 @@ def flood_fill_detect(gray, bmask, img_area, params):
 # Stage 4: Merge + NMS
 # ============================================================
 def merge_and_nms(sam_rooms, flood_rooms, params, building_bbox):
-    """Merge SAM + Flood Fill, NMS, boundary filter."""
+    """Merge SAM + CC white-space detections, then apply NMS and boundary filtering."""
     p = params
     bx0, by0, bbw, bbh = building_bbox
 
@@ -313,13 +313,13 @@ def main():
     sam_rooms, total_masks = sam_detect(img_r, gray, bmask, img_area, mg, params)
     print(f"   [SAM 2.1] {total_masks} masks -> {len(sam_rooms)} entities")
 
-    # Stage 3b: Flood Fill
-    print(f"   [Flood Fill] Auto-tuning...")
-    flood_rooms = flood_fill_detect(gray, bmask, img_area, params)
-    print(f"   [Flood Fill] {len(flood_rooms)} entities")
+    # Stage 3b: Connected components white-space branch
+    print(f"   [CC White-Space] Auto-tuning...")
+    cc_rooms = cc_whitespace_detect(gray, bmask, img_area, params)
+    print(f"   [CC White-Space] {len(cc_rooms)} entities")
 
     # Stage 4: Merge + NMS
-    final_tuples = merge_and_nms(sam_rooms, flood_rooms, params, building_bbox)
+    final_tuples = merge_and_nms(sam_rooms, cc_rooms, params, building_bbox)
 
     # Scale back to original coords
     entities = []
@@ -333,7 +333,7 @@ def main():
         })
 
     elapsed = time.time() - t0
-    print(f"\n📊 Total: {len(entities)} entities (SAM:{len(sam_rooms)} + Flood:{len(flood_rooms)}) in {elapsed:.1f}s")
+    print(f"\n📊 Total: {len(entities)} entities (SAM:{len(sam_rooms)} + CC:{len(cc_rooms)}) in {elapsed:.1f}s")
 
     # Save
     os.makedirs(args.output, exist_ok=True)
@@ -348,7 +348,7 @@ def main():
     with open(out_json, "w") as f:
         json.dump({"style": style, "entities": entities, "stats": {
             "total": len(entities), "sam": len(sam_rooms),
-            "flood": len(flood_rooms), "time_sec": round(elapsed, 1)
+            "cc": len(cc_rooms), "time_sec": round(elapsed, 1)
         }}, f, indent=2)
     print(f"   ✅ Saved: {out_json}")
 
