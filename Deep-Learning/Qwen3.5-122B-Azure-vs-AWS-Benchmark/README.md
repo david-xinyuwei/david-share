@@ -67,6 +67,8 @@ Startup takes ~10 min (DeepGEMM warmup + CUDA graph capture). Wait for `"The ser
 
 ## 5. Run Benchmark
 
+> **Run on the GPU server itself** (SSH into the machine, then run these commands locally). If running from a remote client, replace `localhost` with the server's IP/FQDN.
+
 ```bash
 # Full test: ITL + concurrency 1→512 + Function Calling + stability
 python3 scripts/sglang_bench_122b.py --url http://localhost:8000 --mode all --max-concurrency 512 --runs 3
