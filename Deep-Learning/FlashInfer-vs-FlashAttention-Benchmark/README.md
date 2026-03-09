@@ -442,27 +442,13 @@ llm = LLM(model="Qwen/Qwen2.5-7B-Instruct")
 
 ## 🔬 Analysis
 
-### Why FlashInfer Wins with CUDAGraph
+### Summary
 
-1. **Optimized Graph Capture**: FlashInfer kernels are designed to be CUDAGraph-friendly
-2. **Paged Attention**: Better memory access patterns during graph replay
-3. **Kernel Fusion**: More operations fused into fewer kernel launches
+- CUDAGraph mode: FlashInfer benefits more (2.44-2.65x speedup) than FlashAttention (2.27-2.39x)
+- Eager mode: FlashAttention has slightly lower per-launch overhead
+- The performance gap is **architecture-dependent** — results may vary across different GPU generations
 
-### Why FlashAttention Wins in Eager Mode
-
-1. **Lower Kernel Launch Overhead**: FlashAttention kernels may have slightly lower per-launch cost
-2. **Simpler Execution Path**: Without graph capture overhead
-
-### CUDAGraph Speedup Factor
-
-| Config | Eager | CUDAGraph | Speedup |
-|--------|-------|-----------|---------|
-| FlashInfer (short) | 675 | 1,647 | **2.44x** |
-| FlashInfer (long) | 663 | 1,757 | **2.65x** |
-| FlashAttention (short) | 682 | 1,628 | 2.39x |
-| FlashAttention (long) | 671 | 1,522 | 2.27x |
-
-FlashInfer benefits more from CUDAGraph (2.44-2.65x) than FlashAttention (2.27-2.39x).
+> For detailed root cause analysis and cross-architecture insights, further investigation is recommended with your specific hardware setup.
 
 ---
 

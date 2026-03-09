@@ -153,24 +153,24 @@ The model must be downloaded before running the Streamlit app.
 
 ```bash
 # Create model directory
-mkdir -p /root/fara/model_checkpoints
+mkdir -p ~/fara/model_checkpoints
 
 # Option 1: Using huggingface-cli (requires HF token)
 huggingface-cli download microsoft/Fara-7B \
-    --local-dir /root/fara/model_checkpoints/fara-7b \
+    --local-dir ~/fara/model_checkpoints/fara-7b \
     --token YOUR_HF_TOKEN
 
 # Option 2: Use mirror site (for China, no token needed)
 export HF_ENDPOINT=https://hf-mirror.com
 huggingface-cli download microsoft/Fara-7B \
-    --local-dir /root/fara/model_checkpoints/fara-7b
+    --local-dir ~/fara/model_checkpoints/fara-7b
 
 # Verify download (~16GB total)
-ls -lh /root/fara/model_checkpoints/fara-7b/
+ls -lh ~/fara/model_checkpoints/fara-7b/
 # Should see: config.json, model files, tokenizer files, etc.
 ```
 
-> **Note**: The Streamlit app (`app.py`) expects the model at `/root/fara/model_checkpoints/fara-7b`. Update `MODEL_PATH` in `app.py` if using a different location.
+> **Note**: The Streamlit app (`app.py`) expects the model at `~/fara/model_checkpoints/fara-7b`. Update `MODEL_PATH` in `app.py` if using a different location.
 
 ### 3. Start VLLM Server
 

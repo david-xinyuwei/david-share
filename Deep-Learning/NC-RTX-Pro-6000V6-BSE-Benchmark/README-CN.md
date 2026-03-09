@@ -523,7 +523,7 @@ sequenceDiagram
 
 ```json
 {
-  "model": "/root/models/Qwen2.5-14B-Instruct-FP8",
+  "model": "<your-model-path>/Qwen2.5-14B-Instruct-FP8",
   "gpu": "RTX PRO 6000 Blackwell (96GB vGPU)",
   "prefill_single": { "runs": [12802.21, 17975.23, 18149.01], "average": 16308.82, "unit": "tok/s" },
   "prefill_concurrent": { "runs": [19463.53, 19488.59, 19429.57], "average": 19460.56, "unit": "tok/s" },
@@ -1227,7 +1227,7 @@ python gpu_p2p_bandwidth_test.py
 | vLLM | 0.13.0rc2.dev259+cu130 |
 | PyTorch | 2.9.0.dev20250526+cu130 |
 | 模型 (BF16) | Qwen/Qwen2.5-14B-Instruct |
-| 模型 (FP8 预量化) | /root/models/Qwen2.5-14B-Instruct-FP8 |
+| 模型 (FP8 预量化) | <your-model-path>/Qwen2.5-14B-Instruct-FP8 |
 
 ### H100 测试环境 (2026-01-04)
 

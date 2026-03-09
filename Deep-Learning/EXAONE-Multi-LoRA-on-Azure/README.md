@@ -714,7 +714,7 @@ After=network.target
 Type=simple
 User=root
 WorkingDirectory=/data
-ExecStart=/root/miniconda3/envs/exaone-lora/bin/python -m vllm.entrypoints.openai.api_server \
+ExecStart=python -m vllm.entrypoints.openai.api_server \
   --model /data/EXAONE-3.5-2.4B-Instruct \
   --trust-remote-code \
   --enable-lora \

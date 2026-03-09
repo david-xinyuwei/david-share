@@ -476,7 +476,7 @@ EAGLE3 训练需要高质量的对话数据。SpecForge 框架提供了 `prepare
 **步骤 1：准备训练数据**
 
 ```bash
-cd /root/SpecForge
+cd ~/SpecForge
 
 # 选项 1：使用 ShareGPT（完整数据集 ~114K 样本）
 python scripts/prepare_data.py \

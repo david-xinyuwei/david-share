@@ -177,7 +177,7 @@ The answer lies in **sequential vs parallel** computation:
 | Generation | 4 forward passes | 8 forward passes | 16 forward passes |
 | Verification | 1 forward pass | 1 forward pass | 1 forward pass |
 
-This is why EAGLE-3's "draft + verify" approach wins: even if some draft guesses are wrong, the parallel verification is so cheap that correct guesses provide significant net speedup.
+EAGLE-3's "draft + verify" approach is effective because verification of multiple tokens can be done in a single parallel forward pass, while generation requires sequential passes.
 
 ---
 
@@ -477,7 +477,7 @@ EAGLE3 training requires high-quality conversation data. The SpecForge framework
 **Step 1: Prepare Training Data**
 
 ```bash
-cd /root/SpecForge
+cd ~/SpecForge
 
 # Option 1: Use ShareGPT (Full dataset ~114K samples)
 python scripts/prepare_data.py \
@@ -686,10 +686,7 @@ Step 500: loss=3.87, acc=0.06  ← Only 6% accuracy!
 !!!!!!! Segfault encountered !!!!!!!
 ```
 
-**Root Cause Analysis**:
-1. **Insufficient Data**: Only 500 samples cannot capture token distribution
-2. **Vocab Mapping Mismatch**: Draft model predictions did not align with target model output distribution
-3. **Token Frequency Problem**: Training data did not represent real inference token patterns
+**Root Cause Analysis**: Training failed due to insufficient and mismatched training data.
 
 **Solution**: Regenerate training data using the Target Model itself with larger, representative dataset:
 

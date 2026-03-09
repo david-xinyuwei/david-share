@@ -139,28 +139,7 @@ FlashInfer 内部实现了 FlashAttention 算法 + PagedAttention 内存管理�
 
 ### 根因：FlashInfer FP8 Tensor Core 启发式 Bug
 
-参考：[vLLM GitHub Issue #9471](https://github.com/vllm-project/vllm/issues/9471)
-
-FlashInfer 的 `use_tensor_cores` 启发式在 FP8 下失效：
-
-```
-FlashInfer Tensor Core 决策逻辑:
-if head_dim >= 128:
-    use_tensor_cores = True       # 正确
-else:
-    # 基于 FP16/BF16 性能分析的启发式
-    use_tensor_cores = (batch * heads) > threshold
-
-    问题: FP8 有不同的最优阈值!
-    结果: 回退到 CUDA Core 而非 Tensor Core
-```
-
-| 后端 | 内核类型 | H100 TFLOPS (FP8) | 利用率 |
-|------|:--------:|:------------------:|:------:|
-| FA2 | 始终 Tensor Core | 3,958 | ~85% |
-| FlashInfer (FP8 Bug) | 混合 CUDA+Tensor | 3,958 | ~70% |
-
-效率损失：`(85% - 70%) / 85% = 17.6%` 理论值 → 实测 7.5%（其他优化补偿）。
+一个已知的 FlashInfer FP8 启发式 bug（[vLLM GitHub Issue #9471](https://github.com/vllm-project/vllm/issues/9471)）导致在 H100 + FP8 下次优的内核选择，使得 FA2 比 FlashInfer 快约 7.5%。此问题可能在新版本中修复。
 
 ### 测试环境 (Part 1)
 
@@ -488,15 +467,7 @@ V1 在 PP>1 场景下不稳定（C≥128 崩溃）后，生产服务降级到 v0
 
 ### SGLang 为何比 vLLM V0 快 10 倍
 
-| 根因 | vLLM V0 的影响 | SGLang 的方案 |
-|:-----|:--------------:|:-------------:|
-| 调度开销 | V0 `RayGPUExecutor` 每步使用 Ray 任务（~4-5ms/token） | 自定义基于 NCCL 的 PP，无逐步 Ray 开销 |
-| PP 通信 | NCCL over TCP 经 Ray 中介 | 直接 NCCL P2P + 重叠调度 |
-| 批处理调度 | 缺乏连续批处理优化 | RadixAttention + 连续批处理 |
-| 内核优化 | 旧版注意力内核 | FlashAttention 3 + FlashInfer 采样 |
-| 预填充策略 | V0 无 Chunked Prefill | Chunked Prefill 减少排队 |
-
-**vLLM V0 ITL 分解 (PP=2)**：每个解码步骤作为 Ray 任务调度。每 token：Ray 调度 (~1ms) → GPU Stage 0 (~3ms) → NCCL 发送 (~2ms) → GPU Stage 1 (~3ms) → NCCL 返回 (~2ms) → Ray 回调 (~1ms) = ~12ms GPU 周期，但受 Ray 调度抖动影响，实际 ITL ≈ 158ms。SGLang 完全消除了 Ray 逐步开销。
+在我们的测试中，SGLang 相比 vLLM V0 显示出显著的延迟改善，主要归功于更高效的调度、直接 NCCL 通信（无逐步 Ray 开销）以及优化的注意力内核。
 
 ### V1 引擎 + PP 崩溃（vLLM v0.11.x）— 已知问题
 

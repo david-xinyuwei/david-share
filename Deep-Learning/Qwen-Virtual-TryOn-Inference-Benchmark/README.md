@@ -412,30 +412,18 @@ flowchart TB
 
 ### FlashAttention-3 (FA3) Attention Backend Benchmark
 
-> **New Finding (2026-02-03)**: vLLM-Omni uses FlashAttention-3 via the `fa3_fwd` package (forward-only kernels optimized for inference), providing **27% speedup** over PyTorch SDPA.
+> **Finding (2026-02-03)**: Using FA3 attention backend provides **27% speedup** over PyTorch SDPA on H100.
 
-**Technical Background**:
-- vLLM-Omni's `FLASH_ATTN` backend imports from `fa3_fwd_interface`, not `flash_attn`
-- `fa3_fwd` provides forward-only FA3 kernels (no backward pass needed for inference)
-- Uses Hopper sm90 kernels confirmed via CUDA symbol inspection
+| Backend | Time | vs FA3 | Note |
+|---------|------|--------|------|
+| **FA3** | **29.68s** | - | ✅ Default, Recommended |
+| TORCH_SDPA | 37.65s | +27% slower | PyTorch native SDPA |
 
-| Backend | Environment Variable | Time | vs FA3 | Note |
-|---------|---------------------|------|--------|------|
-| **FA3 (FLASH_ATTN)** | `DIFFUSION_ATTENTION_BACKEND=FLASH_ATTN` | **29.68s** | - | ✅ Default, Recommended |
-| TORCH_SDPA | `DIFFUSION_ATTENTION_BACKEND=TORCH_SDPA` | 37.65s | +27% slower | PyTorch native SDPA |
-
-**Robustness Validation** (2 rounds, seed=1):
-
-| Backend | Round 1 | Round 2 | Avg | Std |
-|---------|---------|---------|-----|-----|
-| FA3 | 29.41s | 29.94s | 29.68s | ±0.27s |
-| SDPA | 37.37s | 37.93s | 37.65s | ±0.28s |
-
-**Image Quality**: PSNR **45.38 dB** (visually identical), 76.78% identical pixels.
+**Image Quality**: PSNR **45.38 dB** (visually identical).
 
 <table>
   <tr>
-    <td align="center"><b>FA3 (FLASH_ATTN)</b><br/>(29.68s avg)</td>
+    <td align="center"><b>FA3</b><br/>(29.68s avg)</td>
     <td align="center"><b>TORCH_SDPA</b><br/>(37.65s avg, 27% slower)</td>
   </tr>
   <tr>
@@ -443,36 +431,6 @@ flowchart TB
     <td><img src="images/output_sdpa.png" width="300"/></td>
   </tr>
 </table>
-
-**Conclusion**: FA3 delivers **27% faster inference** with identical quality. Recommended for H100 GPUs.
-
-#### FA3 Implementation Verification
-
-> **Finding (2026-02-03)**: Both **ViT** and **DiT** components in vLLM-Omni use **FlashAttention-3** on H100 GPUs.
-
-| Component | Attention Backend | Source Package | FA Version |
-|-----------|------------------|----------------|------------|
-| **DiT (Diffusion)** | `FLASH_ATTN` | `fa3_fwd` 0.0.1 | **FA3** ✅ |
-| **ViT (vLLM LLM)** | `vllm_flash_attn` | `_vllm_fa3_C` | **FA3** ✅ |
-
-**Key Evidence**:
-
-1. **DiT Backend**: vLLM-Omni imports from `fa3_fwd_interface`, not `flash_attn`:
-   ```python
-   # vllm_omni/diffusion/attention/backends/flash_attn.py
-   from fa3_fwd_interface import flash_attn_func, flash_attn_varlen_func
-   ```
-
-2. **fa3_fwd Package**: `pip show fa3-fwd` shows `Summary: FlashAttention-3 forward`
-
-3. **ViT (vLLM LLM)**: `get_flash_attn_version()` returns `3` for H100 (sm90)
-
-**Import Chain**:
-```
-vLLM-Omni
-├── DiT → fa3_fwd_interface → fa3_fwd (FA3)
-└── ViT → vllm_flash_attn._vllm_fa3_C (FA3)
-```
 
 ### Tensor Parallel (TP=2) Performance
 
@@ -537,69 +495,9 @@ flowchart TB
 
 ## Why vLLM-Omni is 3.1x Faster
 
-### Architecture Overview
+vLLM-Omni achieves 3.1x speedup through a combination of compiler optimization (torch.compile), CUDA Graphs execution, PagedAttention memory management, and async scheduling. Multiple optimization techniques contribute to the overall speedup. Results vary by model and hardware configuration.
 
-```mermaid
-flowchart LR
-    subgraph VLLM["vLLM-Omni Architecture"]
-        A[Request Queue] --> B[Async Scheduler]
-        B --> C[PagedAttention]
-        C --> D[Compiled DiT Blocks]
-        D --> E[CUDA Graphs Executor]
-        E --> F[Output]
-    end
-    
-    subgraph OPT["Optimizations"]
-        O1[torch.compile built-in]
-        O2[CUDA Graphs for diffusion]
-        O3[Continuous batching ready]
-        O4[Memory-efficient attention]
-    end
-    
-    VLLM -.-> OPT
-    
-    style VLLM fill:#e3f2fd
-    style OPT fill:#fff3e0
-```
-
-### Key Optimizations
-
-| Optimization | Contribution | Technical Detail |
-|--------------|--------------|------------------|
-| **Built-in torch.compile** | ~17% | TorchDynamo + Inductor, diffusion-aware settings |
-| **Full CUDA Graphs** | ~25% | Unlike torch.compile alone, handles timestep variations |
-| **PagedAttention** | ~10% | Memory-efficient KV cache management |
-| **Async Scheduling** | ~15% | Overlaps CPU/GPU work, reduces idle time |
-
-
-> **Note (2026-02-03)**: vLLM V1 **enables `torch.compile` by default** (`optimization_level=O2` → `CompilationMode.VLLM_COMPILE`). No manual configuration needed. Source: `vllm/config/vllm.py`:
-> ```python
-> if self.compilation_config.mode is None:
->     if self.optimization_level > OptimizationLevel.O0:
->         self.compilation_config.mode = CompilationMode.VLLM_COMPILE  # Default!
-> ```
-
-### Why torch.compile Alone Only Gets 1.2x
-
-```mermaid
-flowchart TB
-    subgraph PROBLEM["torch.compile Limitations"]
-        P1["MSRoPE @lru_cache"] --> P2[Incompatible with CUDA Graphs]
-        P3[dynamic=True causes NaN] --> P4[Must use dynamic=None]
-        P4 --> P5[Partial compile only]
-    end
-    
-    subgraph SOLUTION["vLLM-Omni Solution"]
-        S1[Custom RoPE implementation]
-        S2[Pre-allocated tensor pools]
-        S3[Full CUDA Graphs capture]
-    end
-    
-    PROBLEM --> |"Workaround"| SOLUTION
-    
-    style PROBLEM fill:#ffcdd2
-    style SOLUTION fill:#c8e6c9
-```
+> **Note (2026-02-03)**: vLLM V1 **enables `torch.compile` by default** (`optimization_level=O2`). No manual configuration needed.
 
 ## Critical Findings
 
@@ -707,7 +605,7 @@ Cache-DiT achieves 6.8x speedup but with **visible quality loss**:
 | 0.37.0.dev0 (original) | ❌ 55% slower | ✅ Normal | Performance regression |
 | **PR #12987** | ✅ Fast | ✅ Normal | **Recommended** |
 
-**Root Cause**: PR #12702 fixed face quality but broke attention mask optimization, causing SDPA (Scaled Dot-Product Attention) to fall back from flash attention (a memory-efficient attention algorithm).
+**Root Cause**: A regression in attention mask handling caused a performance fallback in certain diffusers versions.
 
 ### ⚠️ Finding 4: Prompt Engineering for Detail Preservation
 
@@ -768,7 +666,7 @@ Requirements: Maintain exact garment details, preserve model pose and face.
 | **Negative guidance** | Tell model what NOT to add | "DO NOT add beads or pearls" |
 | **Counting** | Ensure quantity accuracy | "preserve ALL 8 buttons" |
 
-**Root Cause**: Diffusion models tend to "hallucinate" or "simplify" small details during the denoising process. Explicit prompts anchor the model's attention to preserve specific features.
+**Root Cause**: Small details may be lost during the denoising process. Explicit prompts help preserve them.
 
 ![vLLM-Omni Comparison](./images/vllm_omni_comparison.png)
 
@@ -800,26 +698,7 @@ Requirements: Maintain exact garment details, preserve model pose and face.
 | vLLM-Omni | BF16 | **28.96s** | Baseline | ~32GB |
 | ComfyUI-GGUF | Q4_K_M | 115.11s | **4x slower** | ~12GB |
 
-**Root Cause: Dequantization Bottleneck**
-
-GGUF (formerly GGML) is designed to reduce memory bandwidth pressure by storing weights in Int4/Q4. This works well on bandwidth-limited devices:
-
-```mermaid
-flowchart LR
-    subgraph EDGE["Edge Device (CPU/Mac)"]
-        E1[Small Bandwidth] --> E2[Q4 Saves IO]
-        E2 --> E3[Dequant Cost OK]
-        E3 --> E4["✅ Faster"]
-    end
-    
-    subgraph DC["Data Center (H100)"]
-        D1[Huge Bandwidth 3.35TB/s] --> D2[BF16 IO is Fine]
-        D3[Q4 Dequant Every MatMul] --> D4["❌ Compute Wasted"]
-    end
-```
-
-- **On CPU/Low-VRAM GPU**: Bandwidth is the bottleneck. Reading small Q4 and expanding to FP16 is faster than reading massive FP16.
-- **On H100**: Bandwidth is abundant (3.35 TB/s). The **computational cost of Q4→FP16 conversion for every matrix multiplication** becomes the new bottleneck.
+**Root Cause**: On high-bandwidth GPUs like H100, dequantization overhead outweighs memory savings, making GGUF slower than native BF16.
 
 **NVFP4 Hardware Gap**
 

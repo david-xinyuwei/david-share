@@ -139,28 +139,7 @@ FlashInfer internally implements FlashAttention algorithm + PagedAttention memor
 
 ### Root Cause: FlashInfer FP8 Tensor Core Heuristic Bug
 
-Reference: [vLLM GitHub Issue #9471](https://github.com/vllm-project/vllm/issues/9471)
-
-FlashInfer's `use_tensor_cores` heuristic fails with FP8:
-
-```
-FlashInfer Tensor Core Decision Logic:
-if head_dim >= 128:
-    use_tensor_cores = True       # Correct
-else:
-    # Heuristic based on FP16/BF16 profiling
-    use_tensor_cores = (batch * heads) > threshold
-
-    Problem: FP8 has different optimal threshold!
-    Result: Falls back to CUDA cores instead of Tensor Cores
-```
-
-| Backend | Kernel Type | H100 TFLOPS (FP8) | Utilization |
-|---------|:-----------:|:------------------:|:-----------:|
-| FA2 | Always Tensor Core | 3,958 | ~85% |
-| FlashInfer (FP8 bug) | Mixed CUDA+Tensor | 3,958 | ~70% |
-
-Efficiency loss: `(85% - 70%) / 85% = 17.6%` theoretical → 7.5% observed (other optimizations compensate).
+A known FlashInfer FP8 heuristic bug ([vLLM GitHub Issue #9471](https://github.com/vllm-project/vllm/issues/9471)) causes suboptimal kernel selection with FP8 on H100, leading to FA2 outperforming FlashInfer by ~7.5%. This may be fixed in newer versions.
 
 ### Test Environment (Part 1)
 
@@ -488,15 +467,7 @@ Customer tested on v0.10.1 V0 engine with production traffic (2026-02-06):
 
 ### Why SGLang Is 10x Faster Than vLLM V0
 
-| Root Cause | vLLM V0 Impact | SGLang Solution |
-|:-----------|:--------------:|:---------------:|
-| Scheduling overhead | V0 `RayGPUExecutor` uses Ray task per step (~4-5ms/token) | Custom NCCL-based PP, no per-step Ray overhead |
-| PP communication | NCCL over TCP with Ray intermediary | Direct NCCL P2P with overlap scheduling |
-| Batch scheduling | Lacks continuous batching optimization | RadixAttention + continuous batching |
-| Kernel optimization | Older attention kernels | FlashAttention 3 + FlashInfer sampling |
-| Prefill strategy | No chunked prefill in V0 | Chunked prefill reduces queuing |
-
-**vLLM V0 ITL Breakdown (PP=2)**: Each decode step dispatched as a Ray task. Per token: Ray dispatch (~1ms) → GPU stage 0 (~3ms) → NCCL send (~2ms) → GPU stage 1 (~3ms) → NCCL return (~2ms) → Ray callback (~1ms) = ~12ms GPU cycle, but with Ray scheduling jitter, actual ITL ≈ 158ms. SGLang eliminates the Ray per-step overhead entirely.
+SGLang shows significant latency improvements over vLLM V0 in our tests, primarily due to more efficient scheduling, direct NCCL communication without per-step Ray overhead, and optimized attention kernels.
 
 ### V1 Engine + PP Crash (vLLM v0.11.x) — Known Issue
 
