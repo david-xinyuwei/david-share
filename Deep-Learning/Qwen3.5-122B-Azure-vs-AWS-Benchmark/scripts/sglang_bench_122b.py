@@ -45,9 +45,36 @@ def parse_args():
 
 
 def generate_prompt(tokens: int) -> str:
-    """Generate prompt of approximately `tokens` tokens."""
-    base_text = "The quick brown fox jumps over the lazy dog. "
-    return (base_text * ((tokens * 4) // len(base_text) + 1))[:tokens * 4]
+    """
+    Generate a realistic prompt of approximately `tokens` tokens.
+    Uses a mix of technical paragraphs to simulate real-world workload.
+    English averages ~1 token per 4 characters for most tokenizers.
+    """
+    paragraphs = [
+        "Large language models have revolutionized natural language processing by demonstrating remarkable capabilities in text generation, translation, summarization, and reasoning tasks. These models, typically based on the Transformer architecture, leverage self-attention mechanisms to capture long-range dependencies in text sequences. The scaling laws observed in recent years suggest that model performance improves predictably with increases in model size, dataset size, and compute budget. ",
+        "Mixture-of-Experts architectures represent a significant advancement in efficient model scaling. Instead of activating all parameters for every input token, MoE models route each token to a subset of specialized expert networks. This approach allows models to maintain a large total parameter count while keeping the computational cost per token manageable. For example, a 122B parameter MoE model might only activate 10B parameters per token, achieving quality comparable to much larger dense models at a fraction of the inference cost. ",
+        "Modern inference optimization techniques include continuous batching, paged attention for efficient KV cache management, quantization to lower precision formats like FP8, and speculative decoding for faster token generation. The choice of serving framework significantly impacts throughput, latency, and resource utilization. Tensor parallelism splits model layers across multiple GPUs, while pipeline parallelism distributes different layers to different devices. The optimal parallelism strategy depends on the model architecture, hardware topology, and workload characteristics. ",
+        "Key performance metrics for LLM inference include Time to First Token measuring initial response latency, Inter-Token Latency capturing the delay between successive tokens, throughput measured in tokens per second, and Queries Per Second indicating how many requests the system can handle simultaneously. Memory bandwidth is often the primary bottleneck during the decode phase, as each token generation requires reading the model weights from GPU memory. High Bandwidth Memory technologies like HBM3 provide significantly higher bandwidth compared to GDDR alternatives. ",
+        "Function calling capabilities enable language models to interact with external tools and APIs, making them suitable for building AI agents and complex applications. The model generates structured tool call requests in a predefined format, which the application framework can parse and execute. This capability is essential for enterprise chatbot deployments where the model needs to query databases, invoke business logic, or interact with third-party services. Proper evaluation of function calling requires testing various scenarios including automatic tool selection, required tool usage, and streaming responses. ",
+    ]
+    # Repeat paragraphs to reach target character count (~4 chars per token)
+    target_chars = tokens * 4
+    full_text = ""
+    while len(full_text) < target_chars:
+        for p in paragraphs:
+            full_text += p
+            if len(full_text) >= target_chars:
+                break
+    return full_text[:target_chars]
+
+
+# System prompt to ensure model generates long output close to max_tokens
+BENCH_SYSTEM_PROMPT = (
+    "You are a helpful technical writing assistant. "
+    "When asked to write about a topic, provide a thorough, detailed response. "
+    "Write comprehensive content that fully explores the subject. "
+    "Do not stop early or summarize briefly."
+)
 
 
 def single_request(
@@ -61,7 +88,13 @@ def single_request(
     endpoint = f"{url}/v1/chat/completions"
     data = {
         "model": model,
-        "messages": [{"role": "user", "content": generate_prompt(input_tokens)}],
+        "messages": [
+            {"role": "system", "content": BENCH_SYSTEM_PROMPT},
+            {"role": "user", "content": generate_prompt(input_tokens) +
+             "\n\nBased on the above context, write a detailed and comprehensive "
+             "technical analysis covering all aspects mentioned. Be thorough and "
+             "provide in-depth explanations."}
+        ],
         "max_tokens": max_output,
         "stream": stream,
         "stream_options": {"include_usage": True},
