@@ -6,7 +6,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from safetensors.torch import load_file
 
 # Configuration
-BASE_MODEL_PATH = "microsoft/Phi-3-mini-4k-instruct"
+BASE_MODEL_PATH = "meta-llama/Llama-3.2-3B-Instruct"
 
 def convert_checkpoint(checkpoint_path, output_path):
     print(f"🚀 Starting checkpoint conversion...")

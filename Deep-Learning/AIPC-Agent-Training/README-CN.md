@@ -16,12 +16,12 @@
 
 ## 🎯 概述
 
-本仓库实现了 **AI Agent 飞轮** 训练方法论，每个模型版本在前一版本基础上通过针对性训练策略进行优化。从 `microsoft/Phi-3-mini-4k-instruct` 出发，我们通过 5 个阶段增量训练一个专业的 **AI PC 专家** Agent。
+本仓库实现了 **AI Agent 飞轮** 训练方法论，每个模型版本在前一版本基础上通过针对性训练策略进行优化。从 `meta-llama/Llama-3.2-3B-Instruct` 出发，我们通过 5 个阶段增量训练一个专业的 **AI PC 专家** Agent。
 
 **核心成果：**
 | 版本 | 训练方法 | 优化目标 | 改进效果 |
 |------|---------|---------|---------|
-| V1.0 | - | 基础模型 | 预训练 `Phi-3-mini-4k-instruct` |
+| V1.0 | - | 基础模型 | 预训练 `Llama-3.2-3B-Instruct` |
 | V1.1 | SFT + GRPO | 领域知识 | AI PC 专业术语 + 结构化回答 |
 | V1.2 | DPO (风格) | 简洁输出 | 回答长度减少 60%，质量不变 |
 | V1.3 | DPO (反馈) | 实用指导 | 偏好分步骤指令 |
@@ -36,7 +36,7 @@
 ```mermaid
 graph TB
     subgraph "阶段 1: 知识注入"
-        V0[V1.0: Phi-3-mini-4k-instruct<br/>预训练基座]
+        V0[V1.0: Llama-3.2-3B-Instruct<br/>预训练基座]
         SFT[SFT 训练<br/>896 条领域问答]
         V1[V1.1: SFT 模型<br/>领域知识]
         V0 --> SFT --> V1
@@ -136,19 +136,19 @@ def reward_function(completions, **kwargs):
 | **PyTorch** | 2.9.0 |
 | **Transformers** | 4.56.1+ |
 | **TRL** | 0.26.1 |
-| **基座模型** | `microsoft/Phi-3-mini-4k-instruct` (3.8B 参数) |
+| **基座模型** | `meta-llama/Llama-3.2-3B-Instruct` (3.2B 参数) |
 
-### 模型架构 (Phi-3-mini-4k-instruct)
+### 模型架构 (Llama-3.2-3B-Instruct)
 
 ```json
 {
-  "architectures": ["Phi3ForCausalLM"],
+  "architectures": ["LlamaForCausalLM"],
   "hidden_size": 3072,
   "intermediate_size": 8192,
   "num_attention_heads": 32,
   "num_hidden_layers": 32,
   "max_position_embeddings": 4096,
-  "vocab_size": 32064
+  "vocab_size": 128256
 }
 ```
 
@@ -209,7 +209,7 @@ python generate_aipc_new_data.py --num 500 --output data/aipc_sft_train.jsonl
 
 # 运行 SFT 训练
 python train_sft_aipc.py \
-    --model_name_or_path microsoft/Phi-3-mini-4k-instruct \
+    --model_name_or_path meta-llama/Llama-3.2-3B-Instruct \
     --train_file data/aipc_sft_train.jsonl \
     --val_file data/aipc_sft_val.jsonl \
     --output_dir checkpoints/aipc_sft_v1
@@ -473,7 +473,7 @@ GRPO 在偏好学习之前建立**质量基线**：
 
 ## 📚 参考资料
 
-- **基座模型**: [microsoft/Phi-3-mini-4k-instruct](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct)
+- **基座模型**: [meta-llama/Llama-3.2-3B-Instruct](https://huggingface.co/meta-llama/Llama-3.2-3B-Instruct)
 - **TRL 库**: [Transformer Reinforcement Learning](https://github.com/huggingface/trl)
 - **GRPO 论文**: [DeepSeekMath: Pushing the Limits of Mathematical Reasoning](https://arxiv.org/abs/2402.03300)
 - **DPO 论文**: [Direct Preference Optimization](https://arxiv.org/abs/2305.18290)

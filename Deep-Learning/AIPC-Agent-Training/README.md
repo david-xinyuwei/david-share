@@ -16,12 +16,12 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 
 ## 🎯 Overview
 
-This repository implements an **AI Agent Flywheel** training methodology, where each model version builds upon the previous one through targeted training strategies. Starting from `microsoft/Phi-3-mini-4k-instruct`, we incrementally train a specialized **AI PC Expert** agent through 5 stages.
+This repository implements an **AI Agent Flywheel** training methodology, where each model version builds upon the previous one through targeted training strategies. Starting from `meta-llama/Llama-3.2-3B-Instruct`, we incrementally train a specialized **AI PC Expert** agent through 5 stages.
 
 **Key Results:**
 | Version | Training Method | Focus | Improvement |
 |---------|-----------------|-------|-------------|
-| V1.0 | - | Base Model | Pre-trained `Phi-3-mini-4k-instruct` |
+| V1.0 | - | Base Model | Pre-trained `Llama-3.2-3B-Instruct` |
 | V1.1 | SFT + GRPO | Domain Knowledge | AI PC terminology + structured answers |
 | V1.2 | DPO (Style) | Concise Output | 60% shorter responses, same quality |
 | V1.3 | DPO (Feedback) | Practical Guidance | Step-by-step instructions preferred |
@@ -36,7 +36,7 @@ This repository implements an **AI Agent Flywheel** training methodology, where 
 ```mermaid
 graph TB
     subgraph "Stage 1: Knowledge Injection"
-        V0[V1.0: Phi-3-mini-4k-instruct<br/>Pre-trained Base]
+        V0[V1.0: Llama-3.2-3B-Instruct<br/>Pre-trained Base]
         SFT[SFT Training<br/>896 domain QA pairs]
         V1[V1.1: SFT Model<br/>Domain Knowledge]
         V0 --> SFT --> V1
@@ -136,19 +136,19 @@ def reward_function(completions, **kwargs):
 | **PyTorch** | 2.8.0+ |
 | **Transformers** | 4.56.1+ |
 | **TRL** | 0.26.1 |
-| **Base Model** | `microsoft/Phi-3-mini-4k-instruct` (3.8B params) |
+| **Base Model** | `meta-llama/Llama-3.2-3B-Instruct` (3.2B params) |
 
 ### Model Architecture (Phi-3-mini-4k-instruct)
 
 ```json
 {
-  "architectures": ["Phi3ForCausalLM"],
+  "architectures": ["LlamaForCausalLM"],
   "hidden_size": 3072,
   "intermediate_size": 8192,
-  "num_attention_heads": 32,
-  "num_hidden_layers": 32,
-  "max_position_embeddings": 4096,
-  "vocab_size": 32064
+  "num_attention_heads": 24,
+  "num_hidden_layers": 28,
+  "max_position_embeddings": 131072,
+  "vocab_size": 128256
 }
 ```
 
@@ -209,7 +209,7 @@ python generate_aipc_new_data.py --num 500 --output data/aipc_sft_train.jsonl
 
 # Run SFT training
 python train_sft_aipc.py \
-    --model_name_or_path microsoft/Phi-3-mini-4k-instruct \
+    --model_name_or_path meta-llama/Llama-3.2-3B-Instruct \
     --train_file data/aipc_sft_train.jsonl \
     --val_file data/aipc_sft_val.jsonl \
     --output_dir checkpoints/aipc_sft_v1
@@ -475,7 +475,7 @@ Without GRPO, DPO would try to learn content quality AND style simultaneously.
 
 ## 📚 References
 
-- **Base Model**: [microsoft/Phi-3-mini-4k-instruct](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct)
+- **Base Model**: [meta-llama/Llama-3.2-3B-Instruct](https://huggingface.co/meta-llama/Llama-3.2-3B-Instruct)
 - **TRL Library**: [Transformer Reinforcement Learning](https://github.com/huggingface/trl)
 - **GRPO Paper**: [DeepSeekMath: Pushing the Limits of Mathematical Reasoning](https://arxiv.org/abs/2402.03300)
 - **DPO Paper**: [Direct Preference Optimization](https://arxiv.org/abs/2305.18290)

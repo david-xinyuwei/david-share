@@ -19,7 +19,7 @@ DEFAULT_TRAINED_LOCAL_PATH = os.environ.get(
 # 可通过环境变量覆盖模型来源
 BASE_MODEL_REPO = os.environ.get(
     "BASE_MODEL_REPO",
-    "microsoft/Phi-3-mini-4k-instruct",
+    "meta-llama/Llama-3.2-3B-Instruct",
 )
 TRAINED_MODEL_REPO = os.environ.get("TRAINED_MODEL_REPO")
 

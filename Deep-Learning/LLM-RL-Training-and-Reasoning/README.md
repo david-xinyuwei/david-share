@@ -1,6 +1,6 @@
 # LLM RL Training and Reasoning Enhancement
 
-本文是一份 LLM 强化学习训练与推理增强的完整技术指南，涵盖 RL 基础（PPO/GRPO）、奖励函数设计、DeepSeek R1 & DeepSeekMath-V2 训练架构、数学推理 RL、Test-time Compute Scaling、SLM 微调实验，以及 GSPO 等前沿方法。
+This article is a comprehensive technical guide to LLM reinforcement learning training and reasoning enhancement, covering RL fundamentals (PPO/GRPO), reward function design, the DeepSeek R1 & DeepSeekMath-V2 training architectures, mathematical reasoning RL, Test-time Compute Scaling, SLM fine-tuning experiments, and cutting-edge methods such as GSPO.
 
 > *This guide consolidates content from multiple previously separate articles into a single coherent resource.*
 
@@ -15,204 +15,199 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 | **Frameworks** | vLLM, LoRA/PEFT, Unsloth, PyTorch |
 
 ---
+# Part 1: Three Reinforcement Learning Training Modes
+
+> *Originally from GRPO-RL-Training-Pipeline*
 
 
-# Part 1: 强化学习三种训练模式
-
-> *原文来自 GRPO-RL-Training-Pipeline*
-
-
-## **强化学习三种模式**
+## **Three Reinforcement Learning Modes**
 
 ![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/1.png)
 
-上面这三种强化学习训练大模型做推理的模式，可以简单理解为“最终只看答案给奖励”到“分步骤给奖励”的逐步演进。它们的主要区别如下：
+The three reinforcement learning modes above for training large models to perform reasoning can be intuitively seen as an evolution from “rewarding only the final answer” to “rewarding step-by-step.” Their main differences are as follows:
 
-#### 1. 直接强化学习 (Direct RL)
+#### 1. Direct Reinforcement Learning (Direct RL)
 
-• 核心思路：
-模型只输出一个答案，奖励模型(Reward Model)仅根据这最终答案是否正确或符合目标来给出奖励。
-• 特点：
-– 只在最后一步得到奖励信号。
-– 实现最简单，但无法直接指导模型中间的推理步骤对不对。
-– 如果中途思路错了，模型只能在最终答案“被扣分”时才知道哪里出了问题，学习速度慢。
+• Core idea:
+The model outputs only a single answer, and the reward model (Reward Model) assigns reward solely based on whether this final answer is correct or meets the objective.
+• Characteristics:
+– The reward signal is received only at the final step.
+– Easiest to implement, but cannot directly guide whether intermediate reasoning steps are correct.
+– If the reasoning goes wrong midway, the model only finds out when the final answer is penalized, making learning slower.
 
-#### 2. 多步强化学习 + 最终结果奖励 (Multi-Step RL with Outcome Reward Model, ORM)
-
-
-• 核心思路：
-模型在输出答案前，会先“显式地”或“隐式地”写下一系列中间推理步骤(Reasoning steps)，最后依然只看最终答案来给奖励。
-• 特点：
-– 明确地将思考过程拆分为多步，但奖励依旧只看最后结果。
-– 相比直接RL，模型在训练时可以学会更有条理的分步思考，但依旧无法从每一步是否正确获得即时反馈。
-– 如果中间步骤错误，但最终答案凑巧对了或者错了，模型依旧只能在最终才能得到一次奖惩信号。
-
-#### 3. 多步强化学习 + 过程奖励 (Multi-Step RL with Process Reward Model, PRM)
+#### 2. Multi-Step Reinforcement Learning + Outcome Reward (Multi-Step RL with Outcome Reward Model, ORM)
 
 
-• 核心思路：
-模型同样会写下一系列的中间推理步骤，但现在在每个推理步骤上都进行评价。如果该推理步骤正确或对最终答案的正确性有帮助，则给一个正向奖励；如果出错则给负向反馈。最终得到答案后，也会有最终结果的整体奖励。
-• 特点：
-– 不仅关注最终答案，还关注模型的每一个中间步骤是否合理或正确。
-– 可以更细粒度地引导模型，让模型在每次思考时都更容易修正错误，提高推理的可控性和准确度。
-– 实现更复杂，因为需要额外的“过程奖励模型”去判断每一步是否正确或合理。
+• Core idea:
+Before producing the answer, the model “explicitly” or “implicitly” writes out a series of intermediate reasoning steps. The reward is still based only on the final answer.
+• Characteristics:
+– The thinking process is explicitly broken into multiple steps, but the reward still depends only on the final result.
+– Compared with direct RL, the model can learn more structured step-by-step reasoning during training, yet still cannot receive immediate feedback on the correctness of each step.
+– If a mistake occurs in the middle but the final answer happens to be correct or incorrect, the model still gets a single reward/punishment signal only at the end.
+
+#### 3. Multi-Step Reinforcement Learning + Process Reward (Multi-Step RL with Process Reward Model, PRM)
+
+
+• Core idea:
+The model still writes out a sequence of intermediate reasoning steps, but now each step is evaluated. If a step is correct or contributes to the correctness of the final answer, it receives a positive reward; if it is wrong, it gets negative feedback. There is also an overall reward for the final result.
+• Characteristics:
+– Focuses not only on the final answer, but also on whether each intermediate step is reasonable or correct.
+– Provides more fine-grained guidance, enabling the model to correct errors more easily at each thought step, improving controllability and accuracy of reasoning.
+– More complex to implement, as it requires an additional process reward model to judge each step’s correctness or reasonableness.
 
 
 
-#### 示例：用解简单方程来对比
+#### Example: Using a simple equation to compare
 
-假设我们让模型解一个非常简单的方程：“2x + 3 = 7，求 x”。
+Suppose we ask the model to solve a very simple equation: “2x + 3 = 7, solve for x.”
 
-1. 直接强化学习 (Direct RL)
-   – 模型可能直接输出“x=2”，然后由奖励模型根据最终答案正确与否给予奖励。
-   – 如果它不小心算错了，比如输出“x=3”，它也只有在最终拿到负反馈后才知道错。
-   – 中间并没有显式推理或对中间过程打分。
-2. 多步RL + 最终结果奖励 (Multi-Step RL with Outcome RM)
-   – 模型的输出过程可能写成四步：
+1. Direct Reinforcement Learning (Direct RL)
+   – The model might directly output “x=2,” and the reward model would grant reward based on whether the final answer is correct.
+   – If it miscalculates and outputs “x=3,” it only learns of the error upon receiving negative feedback at the end.
+   – There is no explicit reasoning or scoring of intermediate steps.
+2. Multi-Step RL + Outcome Reward (Multi-Step RL with Outcome RM)
+   – The model’s output process might be written in four steps:
    (1) 2x + 3 = 7
-   (2) 2x = 4 (减去3)
-   (3) x = 2 (再除以2)
-   (4) 最终答案：x=2
-   – 不过奖励还是只根据最后这个“x=2”对不对来评估。
-   – 如果中间推理哪一步错误导致答案最终错误，只有在最后才能知道。
-3. 多步RL + 过程奖励 (Multi-Step RL with Process RM)
-   – 同样会分四步：
+   (2) 2x = 4 (subtract 3)
+   (3) x = 2 (then divide by 2)
+   (4) Final answer: x=2
+   – However, the reward is still evaluated solely based on whether the final “x=2” is correct.
+   – If an error in an intermediate step causes the final answer to be wrong, this is only discovered at the end.
+3. Multi-Step RL + Process Reward (Multi-Step RL with Process RM)
+   – Similarly, it would have four steps:
    (1) 2x + 3 = 7
-   (2) 减去3得到2x = 4 → 这一步如果正确就即时给一个正向奖励。
-   (3) 再除以2得到x = 2 → 继续给正向奖励。
-   (4) 最终答案：x=2 → 也会单独评估最终结果给一个奖励。
-   – 如果某一步过程出错(比方说“减去3”后误写成“2x = 5”)，在那一步就能得到负反馈，模型能迅速发现错误并修正。
-   – 在训练中，模型更容易学到正确的推理过程，因为每一步都能获得有针对性的指导。
+   (2) Subtract 3 to get 2x = 4 → If this step is correct, give an immediate positive reward.
+   (3) Then divide by 2 to get x = 2 → Continue with a positive reward.
+   (4) Final answer: x=2 → The final result is also evaluated for a reward.
+   – If a step is wrong (e.g., after “subtract 3” it mistakenly writes “2x = 5”), a negative feedback is given at that step, enabling the model to quickly detect and correct the error.
+   – During training, the model more easily learns the correct reasoning process because each step receives targeted guidance.
 
 
 
-#### 总结
+#### Summary
 
-• Direct RL：只关心最终答案，最简单，但难以给中间步骤提供反馈。
-• Multi-Step RL + Outcome RM：显式地把推理拆成多步，但仍只有最后的结果反馈。
-• Multi-Step RL + Process RM：每一步都可以得到奖励或惩罚，能大大提升推理过程的可控性与准确度，不过需要一个能评估过程正确性的模型，实施上也更复杂。
+• Direct RL: Focuses only on the final answer; simplest, but hard to provide feedback on intermediate steps.
+• Multi-Step RL + Outcome RM: Explicitly breaks reasoning into multiple steps, but still only the final result gets feedback.
+• Multi-Step RL + Process RM: Each step can receive reward or penalty, greatly improving controllability and accuracy of the reasoning process, but requires a model capable of evaluating step-wise correctness, making implementation more complex.
 
-对于初学者，可以把它想象成：
-• Direct RL：相当于只看考试最后得了多少分；
-• Multi-Step (Outcome) RL：考卷上虽然能看到你的解题步骤，但判卷时只给你最后答案对就打分；
-• Multi-Step (Process) RL：考官不仅看最终答对没，还会在每一步解题中批注你哪里做对、哪里做错，并给你相应的分数或扣分。
+For beginners, you can think of it as:
+• Direct RL: Equivalent to only looking at the final exam score.
+• Multi-Step (Outcome) RL: The exam shows your solution steps, but grading is based only on whether the final answer is correct.
+• Multi-Step (Process) RL: The examiner not only checks the final answer, but also annotates each step of your solution to indicate what’s right or wrong, giving corresponding points or deductions.
 
 
 
 
 
 ---
+# Part 2: DeepSeek R1 Training Paradigm and Technical Comparison
 
-# Part 2: DeepSeek R1 训练范式与技术对比
-
-> *原文来自 GRPO-RL-Training-Pipeline*
+> *Originally from GRPO-RL-Training-Pipeline*
 
 
-### DeepSeek R1的训练范式
+### DeepSeek R1 Training Paradigm
 
-###  SFT + RL 的四阶段混合范式（DeepSeek-R1）
+###  SFT + RL Four-Stage Hybrid Paradigm (DeepSeek-R1)
 
-1. **SFT-1**：少量高质量 CoT，教会格式→保证可读性。
-2. **RL-1**：R1-Zero 风格奖励→逼出长链条、提升正确率。
-3. **SFT-2**：混合“需要推理”与“无需推理”的数据→避免模型逢问必想。
-4. **RL-2 / RLHF**：再用人类偏好或安全奖励微调→提升对话体验。
+1. **SFT-1**: A small amount of high-quality CoT, teach the format → ensure readability.
+2. **RL-1**: R1-Zero-style rewards → elicit long chains, improve accuracy.
+3. **SFT-2**: Mix data that “requires reasoning” and “does not require reasoning” → avoid the model overthinking every query.
+4. **RL-2 / RLHF**: Further fine-tune with human preference or safety rewards → improve conversational experience.
 
-对照上文，可把 DeepSeek-R1 归入
+In line with the above, DeepSeek-R1 can be categorized as
 
 ```
 训练：Multi-Step RL + Outcome RM  (+ 少量 SFT)
 推理：默认 Greedy，可选 Majority-Vote
 ```
 
-## Test Time Scale模式
+## Test Time Scale Mode
 
 ![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/2.png)
 Test Time Scale：Majority Vote / Tree Search / Beam Search / Lookahead Search
 
-当大语言模型在“推理”或“回答”时，并不一定只用最朴素的“从左到右采样，直接得到答案”这一种方式。为了提升答案的准确度或稳健性，人们往往会在推理阶段引入各种“搜索”技巧，主要目的是从模型内在的多种可能生成路径中，找到或投票出最优的一条。下图中展示了几种常见策略的示意。
+When a large language model is “reasoning” or “answering,” it does not necessarily have to use only the simplest approach of “left-to-right sampling to directly obtain the answer.” To improve the accuracy or robustness of answers, people often introduce various “search” techniques during the inference phase, with the main goal of finding or voting for the optimal path among the model’s many potential generation paths. The following schematic shows several common strategies.
 
 1. Majority Vote
-   • 做法：让模型针对同一个问题多次独立生成答案(比如随机采样不同的种子或温度)，得到多个结果。然后对这些结果进行投票(多数/平均/打分)选出一个最可能正确的答案。
-   • 特点：
-   – 实现非常简单，只要多次采样，再投票。
-   – 没有显式地去搜索推理路径，而是通过多个候选答案来“集思广益”。
-   – 当模型在不同次采样下表现差异很大时，该方法有时会纠正随机错误；但若模型系统地倾向于某种错误，它也就相对失效。
+   • Approach: Have the model independently generate answers to the same question multiple times (e.g., by sampling with different seeds or temperatures) to obtain multiple results. Then vote across these results (majority/averaging/scoring) to select the most likely correct answer.
+   • Characteristics:
+   – Very easy to implement: just sample multiple times, then vote.
+   – Does not explicitly search the reasoning path; instead, it “brainstorms” via multiple candidate answers.
+   – When the model’s outputs vary greatly under different samples, this method can sometimes correct random errors; but if the model systematically leans toward a certain error, it is relatively ineffective.
 2. Tree Search
-   • 做法：把模型每一步可能的生成看成一个分支，在树状结构里扩展，选择更高分或更合理的分支继续扩展下去。
-   • 特点：
-   – 比Majority Vote更系统地去发掘可能的推理路径。
-   – 可以在初期就剪除一些看起来明显错误的分支(用打分或启发式规则)。
-   – 但纯粹的Tree Search如果分支数过多，计算开销会变得非常大。
+   • Approach: Treat each possible token generation step as a branch, expand in a tree structure, and continue expanding higher-scoring or more plausible branches.
+   • Characteristics:
+   – More systematic than Majority Vote in exploring potential reasoning paths.
+   – Can prune obviously incorrect branches early (via scoring or heuristic rules).
+   – Pure Tree Search can become very expensive if the branching factor is large.
 3. Beam Search
-   • 做法：可以视作对Tree Search的“简化版”，在每个生成步只保留前K条“最优”分支(即Beam宽度K)，其余分支被剪去。
-   • 特点：
-   – 是机器翻译、文本生成里经常用的解码算法。
-   – 相对树搜索更加高效，用有限的Beam宽度在“多个相对优质的分支”中寻找最佳答案。
-   – 如果K值太小，仍可能漏掉一些正确但处于相对次优概率路径的解法；如果K值很大，计算成本又会增加。
+   • Approach: A “simplified” version of Tree Search: at each generation step, keep only the top K “best” branches (Beam width K), pruning the rest.
+   • Characteristics:
+   – A commonly used decoding algorithm in machine translation and text generation.
+   – More efficient than full tree search, seeking the best answer among “multiple relatively high-quality branches” with limited beam width.
+   – If K is too small, it may miss correct solutions that lie on relatively suboptimal probability paths; if K is too large, computation increases.
 4. Lookahead Search
-   • 做法：不仅在当前这一步做出选择，还会向后“多看几步”对每条可能路径的后续进行模拟或打分，并根据展望结果来决定当前该走哪条路。
-   • 特点：
-   – 更像在下棋时做的“多步预判”，以期提前排除后续可能导致错误或不优的分支。
-   – 效果通常比纯粹的Beam或Tree Search更好，但需要更多计算量或更复杂的启发式评价。
-   – 当问题本身层数多、分支巨大时，Lookahead也容易遇到“爆炸式”增长，需要做好剪枝。
+   • Approach: Not only choose at the current step, but also “look ahead” several steps by simulating or scoring the subsequent trajectory of each possible path; decide current choices based on this forecast.
+   • Characteristics:
+   – Similar to “multi-move foresight” in board games, aiming to eliminate branches that may lead to errors or suboptimal outcomes early.
+   – Usually more effective than pure Beam or Tree Search, but requires more computation or more complex heuristic evaluation.
+   – When the problem has many layers and huge branching, Lookahead faces “explosive” growth and requires strong pruning.
 
-简化类比：
-• Majority Vote 像考场里你自己想几遍，然后合并这些想法，出现最多的答案就是输出。
-• Tree Search、Beam Search 和 Lookahead 则更像“全盘搜索”，经常在搜索树里做剪枝，逐步找出最优解，能相比多次瞎猜更在“每一步”进行评判，力图深入探索而不盲目。
-
-
-
-## 技术对比
-
-我们现在讨论的是两种不同的技术（分别用于训练阶段和推理测试阶段）：
-
-- **RL训练阶段模式** (给奖励的方式不同)
-  1. **Direct RL** ：只根据最终答案对错给奖励。
-  2. **多步RL+结果奖励 (Outcome RM)** ：模型会明确写出分步推理，但奖励仍然只看最终答案。
-  3. **多步RL+过程奖励 (Process RM)** ：模型明确写出分步推理，并对每一个步骤都给予奖励或惩罚。
-- **推理阶段搜索模式** (如何利用模型生成最佳答案)
-  1. **简单采样(Greedy/Temperature Sampling)**：不做特殊搜索，每一步直接从概率最高或一定随机程度的选项中采样。
-  2. **多数投票(Majority Vote)**：对同一问题独立生成多个答案，通过投票决定一个最佳答案。
-  3. **Beam或Tree Search**：通过搜索树构建多条生成路径，并对过程进行剪枝选择最佳路径。
-  4. **Look-ahead Search(MCTS类)**：向前“预看”几步后续选择再决定。
+Simplified analogy:
+• Majority Vote is like thinking through the problem several times yourself and merging those thoughts, then outputting the most frequent answer.
+• Tree Search, Beam Search, and Lookahead are more like “global searches,” frequently pruning the search tree to gradually find the optimal solution, evaluating “each step” rather than guessing blindly multiple times, aiming for deeper but non-blind exploration.
 
 
 
-####  **排列组合一览表** （行是RL训练模式，列是推理阶段模式）
+## Technical Comparison
 
-| RL训练模式 ↓ / 推理阶段模式 →                                | 简单采样<br>(Greedy/温度)  | 多数投票<br> (Majority Voting)             | Beam Search/<br>Tree Search               | Look-ahead <br> Search     |
-| ------------------------------------------------------------ | -------------------------- | ------------------------------------------ | ----------------------------------------- | -------------------------- |
-| **Direct RL**<br>只奖最终答案                                | ✅ 常⻅基础方案             | ✅ 可行，能弥补训练不足                     | ✅ 可行，但未广泛报道                      | ○ 技术可行，但计算开销大   |
-| **多步RL + 结果奖励 (Outcome RM)**<br>显式推理步, 只奖结果   | ✅ **DeepSeek-R1 默认方案** | ✅ DeepSeek-R1 离线数据生成阶段采用过此模式 | ✅ 可行，偶有研究使用                      | ○ 可行，但计算代价大       |
-| **多步RL + 过程奖励 (Process RM)** <br> 推理步明确，每步都奖惩 | ✅ 模型已强大，直接使用广泛 | ✅ 辅助提⾼稳健性，常见                     | ✅ 分步推理清晰，非常适合使用Beam/Tree搜索 | ○ 技术先进，有少量前沿研究 |
+We are now discussing two different techniques (used during the training phase and the inference/testing phase respectively):
+
+- **RL training-phase modes** (different ways of giving rewards)
+  1. **Direct RL**: Reward only based on the correctness of the final answer.
+  2. **Multi-step RL + Outcome Reward (Outcome RM)**: The model explicitly writes step-by-step reasoning, but rewards still depend only on the final answer.
+  3. **Multi-step RL + Process Reward (Process RM)**: The model explicitly writes step-by-step reasoning, and each step is rewarded or penalized.
+- **Inference-phase search modes** (how to leverage the model to generate the best answer)
+  1. **Simple sampling (Greedy/Temperature Sampling)**: No special search; at each step sample directly from the highest-probability option or with some randomness.
+  2. **Majority Vote**: Independently generate multiple answers for the same question and use voting to pick the best.
+  3. **Beam or Tree Search**: Build multiple generation paths via a search tree and prune to select the best path.
+  4. **Look-ahead Search (MCTS-like)**: Look ahead a few steps before making current decisions.
+
+####  **Overview of combinations** (rows are RL training modes, columns are inference-phase modes)
+
+| RL Training Modes ↓ / Inference-Phase Modes →                | Simple Sampling<br>(Greedy/Temperature) | Majority Vote<br>(Majority Voting)        | Beam Search/<br>Tree Search               | Look-ahead <br> Search     |
+| ------------------------------------------------------------ | --------------------------------------- | ------------------------------------------ | ----------------------------------------- | -------------------------- |
+| **Direct RL**<br>Reward only the final answer                | ✅ Common baseline                       | ✅ Feasible, can compensate for training shortcomings | ✅ Feasible, but not widely reported        | ○ Technically feasible, but computationally expensive |
+| **Multi-step RL + Outcome Reward (Outcome RM)**<br>Explicit reasoning steps, reward only the outcome | ✅ **DeepSeek-R1 default scheme**        | ✅ Used by DeepSeek-R1 during offline data generation | ✅ Feasible, occasionally used in research | ○ Feasible, but costly to compute |
+| **Multi-step RL + Process Reward (Process RM)** <br> Reasoning steps explicit, reward/penalize each step | ✅ Model already strong; widely used directly | ✅ Helps improve robustness, common         | ✅ Clear stepwise reasoning, very suitable for Beam/Tree search | ○ Advanced technique, limited cutting-edge research |
 
 ------
 
-#### DeepSeek R1目前公开采用的策略（明确文献表示）：
+#### Strategies currently publicly used by DeepSeek R1 (explicitly stated in the literature):
 
-- **训练阶段 (RL模式)**：
+- **Training phase (RL mode)**:
 
-> **多步RL + 结果奖励 (Outcome RM，其中Outcome RM是基于规则的)**
+> **Multi-step RL + Outcome Reward (Outcome RM, where the Outcome RM is rule-based)**
 
-- DeepSeek目前公开信息显示，他们主要用显式推理步骤但只对最终答案做奖励（规则判定答案格式/准确）。
-- **推理阶段 (Search方法)**：
+- Public information from DeepSeek indicates they mainly use explicit reasoning steps but reward only the final answer (rules evaluate answer format/accuracy).
+- **Inference phase (Search methods)**:
 
-> DeepSeek-R1 模型推理时默认采用简单采样(Greedy或温度采样)。
-> 在离线训练数据合成阶段则使用了"多数投票"(Majority Vote)+Rejection Sampling方法提升样本质量。
+> The DeepSeek-R1 model defaults to simple sampling (Greedy or temperature sampling) at inference time.
+> In the offline training data synthesis phase, "Majority Vote" + Rejection Sampling is used to improve sample quality.
 
-> 当前DeepSeek-R1并未在公开资料中明确提及实时Beam Search、Tree Search或Look-ahead的使用情况。
+> As of now, DeepSeek-R1 has not explicitly mentioned the use of real-time Beam Search, Tree Search, or Look-ahead in public materials.
 
 ------
 
-#### 如何理解表格
+#### How to interpret the table
 
-- 行（RL训练）代表模型的“先天能力”（通过训练阶段提高）。
-- 列（推理搜索）代表在实际使用模型时“答题/解题策略”（通过推理阶段提升精确度）。
-- 现实实际应用中，可以自由组合行列组合，例如：
-  - 训练很弱(Direct RL) → 推理更依赖多数投票、搜索补救。
-  - 训练很强(Process RM) → 推理阶段仍可额外做简单搜索和投票进一步提升稳健性。
+- Rows (RL training) represent the model’s “innate ability” (improved during training).
+- Columns (inference search) represent the “answering/solving strategy” when using the model (improve accuracy during inference).
+- In practical applications, rows and columns can be freely combined, for example:
+  - Weak training (Direct RL) → inference relies more on majority voting and search as a remedy.
+  - Strong training (Process RM) → inference can still add simple search and voting to further improve robustness.
 
-## **DS R1的范式**
+## **DS R1 Paradigm**
 
 ![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/3.png)
 
@@ -220,38 +215,37 @@ Test Time Scale：Majority Vote / Tree Search / Beam Search / Lookahead Search
 
 ![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/4.png)
 
-上面图展示了一个名为“DeepSeek R1”的大模型推理与训练方案。它包含以下几个关键要素：
+The figures above show the reasoning and training scheme for a large model named “DeepSeek R1.” It includes the following key elements:
 
-1. 多阶段数据及训练 (SFT → RL)：
-   • 首先会进行大规模的有监督微调(Supervised Fine-Tuning, SFT)，包括常规任务数据、链式思考(CoT)数据等。此时模型先学会基本的回答和格式。
-   • 接着进入强化学习阶段(RL)，使用“Reasoning Oriented RL (RORL)”，也就是额外鼓励模型在推理准确性或中间步骤合理性上表现更好。
+1. Multi-stage data and training (SFT → RL):
+   • First, large-scale Supervised Fine-Tuning (SFT) is performed, including standard task data and Chain-of-Thought (CoT) data, so the model first learns basic responses and formatting.
+   • Then it enters the Reinforcement Learning (RL) stage, using “Reasoning-Oriented RL (RORL),” which additionally encourages better performance in reasoning accuracy or the soundness of intermediate steps.
 2. Rule-Based Outcome Reward Model (ORM)
-   • 在理想情况下，人们想采用前面讨论过的PRM(“每一步都打分”)模式，但往往需要昂贵的标注或更强大的过程评估模型。
-   • DeepSeek R1因为资源限制，无法完全复现PRM，于是采取了一个“基于规则”的Outcome Reward：即只要最终答案符合某些准确性、格式规则，就给正奖励，如果不符合就给负奖励。
-   • 结果表明，这种相对简单的做法在某些场景中也能取得不错的效果，尤其是搭配精心设计的训练数据和多阶段流程。
+   • Ideally, one would adopt the previously discussed PRM (“score each step”) scheme, but it often requires expensive annotation or a stronger process evaluator.
+   • Due to resource constraints, DeepSeek R1 could not fully implement PRM, so it adopted a “rule-based” Outcome Reward: as long as the final answer meets certain accuracy/formatting rules, it receives a positive reward; otherwise, a negative reward.
+   • Results show that this relatively simple approach can also achieve good performance in some scenarios, especially when paired with carefully designed training data and multi-stage pipelines.
 3. GRPO 
-   • PPO(近端策略优化)是常见的RL微调方法。DeepSeek R1提出了一种“GRPO”思路，可以并行或分组地计算多个奖励，进而减少资源占用、加快收敛。
-   • 具体来说，他们会在同一个批次或分组内同时把多个样本送进ORM进行打分，然后聚合这些反馈信号对Policy Model进行更新，减少反复计算。
-4. 数据合成与Rejection Sampling
-   • 指的是在训练时，不仅使用人类标注的数据，还会用模型自我生成(包括中间推理步骤)的数据，再对其筛选。
-   • 筛选方式可能是“规则+模型判分”的组合：如果生成文本在逻辑上错误或不符合自定义的标准，就被拒绝；好的则被保留下来，当作新的训练样本。
-5. Distillation (知识蒸馏)
-   • 在最后阶段，往往会把体量更加庞大的模型(例如Qwen、Llama等)作为师模型，把它在推理和回答上的能力“蒸馏”出来，迁移到一个规模相对小或更高效的模型(DeepSeek R1 Distill版)。
-   • 这样做既能保留很多推理能力，又能降低推理时的算力需求。
+   • PPO (Proximal Policy Optimization) is a common RL fine-tuning method. DeepSeek R1 proposes a “GRPO” approach that can compute multiple rewards in parallel or by grouping, thereby reducing resource usage and speeding up convergence.
+   • Specifically, multiple samples are fed into the ORM simultaneously within the same batch or group for scoring, and these feedback signals are aggregated to update the Policy Model, reducing redundant computations.
+4. Data synthesis and Rejection Sampling
+   • During training, not only human-annotated data but also model self-generated data (including intermediate reasoning steps) are used, followed by filtering.
+   • Filtering may combine “rules + model scoring”: if the generated text is logically wrong or fails custom criteria, it is rejected; otherwise, it is kept as new training samples.
+5. Distillation (knowledge distillation)
+   • In the final stage, larger models (e.g., Qwen, Llama, etc.) are often used as teacher models, and their reasoning and answering capabilities are “distilled” into a smaller or more efficient model (DeepSeek R1 Distill).
+   • This retains much of the reasoning capability while reducing compute requirements at inference time.
 
-## 强化学习的一个范例 法律文书RL奖励函数设计精华与性能跃升解析
+## An RL Example: Key Design of RL Reward Functions for Legal Documents and Analysis of Performance Leap
 
 *Refer to：https://zhuanlan.zhihu.com/p/25423170224*
 
-**核心技巧：分层奖励 + 强解析机制**
+**Core techniques: hierarchical rewards + strong parsing mechanisms**
 
 
 
 ---
+# Part 3: PPO/RLHF Role Breakdown —— "Film Crew" Analogy
 
-# Part 3: PPO/RLHF 角色详解 —— "Film Crew" 类比
-
-> *原文来自 LLM-Math-Reasoning-RL*
+> *Originally from LLM-Math-Reasoning-RL*
 
 ## 🎯 Objectives
 
@@ -311,7 +305,7 @@ Prompt x
                   └──> Update Critic ψ (make v closer to r)
 ```
 
-**Key Point**: Reward Model and Critic compute **in parallel**, both based on generated (x, y), then jointly compute Advantage.
+**Key Point**: Reward Model and Critic compute in parallel, both based on generated (x, y), then jointly compute Advantage.
 
 #### Why Must Critic Be "Trained Together"?
 
@@ -323,10 +317,10 @@ Prompt x
 
 ### 1.2 GRPO: Remove the "Coach", Use "Group Comparison" as Baseline
 
-Both DeepSeek-R1 and DeepSeekMath-V2 emphasize **GRPO**. Intuitively:
+Both DeepSeek-R1 and DeepSeekMath-V2 emphasize GRPO. Intuitively:
 
 - PPO needs Critic to estimate baseline
-- GRPO samples a group of responses for the same prompt, using **relative performance within the group** as baseline, eliminating the need to separately train a Critic
+- GRPO samples a group of responses for the same prompt, using relative performance within the group as baseline, eliminating the need to separately train a Critic
 
 #### GRPO Update Intuition (Pseudocode)
 
@@ -356,67 +350,66 @@ Advantage: Ai = ri - r̄
 
 
 ---
+# Part 4: GRPO Method Details
 
-# Part 4: GRPO 方法详解
-
-> *原文来自 GRPO-RL-Training-Pipeline*
-
-
-## GRPO 方法详解
-
-### 1. GRPO 核心概念
+> *Originally from GRPO-RL-Training-Pipeline*
 
 
-GRPO（Generative Relative Policy Optimization，生成式相对策略优化）的主要目标是通过在线、自生成的方式来优化模型的策略，使其无需依赖大量外部数据或人工反馈即可提升性能。其核心概念包括：
+## GRPO Method Details
 
-- **在线生成与学习**：训练过程中模型自行生成样本并即时学习。
-- **相对优势评估**：通过计算生成样本的相对优势，引导模型向最优方向优化。
-- **策略正则化**：约束新策略与参考策略之间的差异，防止模型偏离原始知识结构。
-
-### 2. GRPO 工作流程
-
-#### **Step 1: 样本生成**
+### 1. GRPO Core Concepts
 
 
-对于每个输入（如提示或问题），模型生成多个可能的输出（称为"completions"）。例如给定一个问题，模型可能生成 8 个不同的答案。
+The main goal of GRPO (Generative Relative Policy Optimization) is to optimize the model’s policy in an online, self-generated manner, allowing it to improve performance without relying on large amounts of external data or human feedback. Its core concepts include:
 
-#### **Step 2: 奖励评估**
+- **Online generation and learning**: The model generates samples by itself during training and learns immediately.
+- **Relative advantage evaluation**: Guide the model toward optimal behavior by computing the relative advantage of generated samples.
+- **Policy regularization**: Constrain the divergence between the new policy and the reference policy to prevent the model from drifting away from its original knowledge structure.
+
+### 2. GRPO Workflow
+
+#### **Step 1: Sample generation**
 
 
-对每个生成的输出，定义奖励函数来评估其质量。奖励函数可以根据任务需求设计，例如根据输出的格式、内容准确性等进行打分。
+For each input (e.g., prompt or question), the model generates multiple possible outputs (called "completions"). For example, given a question, the model may generate 8 different answers.
 
-#### **Step 3: 计算相对优势**
+#### **Step 2: Reward evaluation**
 
 
-对每个生成的输出，使用以下公式计算其相对于同组其他输出的相对优势（Advantage）：
+For each generated output, define a reward function to evaluate its quality. The reward function can be designed based on task requirements, such as scoring according to output format and content accuracy.
+
+#### **Step 3: Compute relative advantage**
+
+
+For each generated output, compute its relative advantage compared to other outputs in the same group using:
 
 ```
 A_i = (r_i - r̄) / σ(r)  
 ```
 
 
-其中：
+Where:
 
-- `A_i`：第 `i` 个输出的相对优势。
+- `A_i`: The relative advantage of the `i`-th output.
 
-- `r_i`：第 `i` 个输出的奖励值。
+- `r_i`: The reward value of the `i`-th output.
 
-- `r̄`：组内所有输出奖励值的均值。
+- `r̄`: The mean reward of all outputs in the group.
 
-- `σ(r)`：组内奖励值的标准差。
+- `σ(r)`: The standard deviation of rewards within the group.
 
-  **示例:**
+  **Example:**
 
-  假设模型生成了 4 个输出，奖励值分别为 `[0.6, 0.8, 0.4, 0.7]`。
+  Suppose the model generates 4 outputs with rewards `[0.6, 0.8, 0.4, 0.7]`.
 
-  计算均值：
+  Compute the mean:
 
 ```
 r̄ = (0.6 + 0.8 + 0.4 + 0.7) / 4 = 0.625  
 ```
 
 
-计算标准差：
+Compute the standard deviation:
 
 ```
 σ(r) = sqrt( [(0.6 - 0.625)² + (0.8 - 0.625)² + (0.4 - 0.625)² + (0.7 - 0.625)²] / 4 )  
@@ -425,7 +418,7 @@ r̄ = (0.6 + 0.8 + 0.4 + 0.7) / 4 = 0.625
 ```
 
 
-各输出的相对优势：
+Relative advantages for each output:
 
 ```
 A_1 = (0.6 - 0.625) / 0.148 ≈ -0.169  
@@ -435,75 +428,75 @@ A_4 = (0.7 - 0.625) / 0.148 ≈ 0.507
 ```
 
 
-相对优势反映了每个输出相对于平均水平的表现。正值表示高于平均，负值表示低于平均。
+Relative advantage reflects how each output performs compared to the average. Positive values indicate above average, negative values indicate below average.
 
-#### **Step 4: 策略更新**
+#### **Step 4: Policy update**
 
 
-使用相对优势来更新模型策略。为防止策略偏离过大，引入 KL 散度作为正则化项：
+Use the relative advantage to update the model policy. To prevent excessive drift, introduce KL divergence as a regularization term:
 
 ```
 L = - E[ A_i * log π_θ(a_i | x_i) ] + β * D_KL [ π_θ || π_ref ]  
 ```
 
 
-其中：
+Where:
 
-- `L`：损失函数。
+- `L`: Loss function.
 
-- `E`：所有样本的期望。
+- `E`: Expectation over all samples.
 
-- `A_i`：第 `i` 个样本的相对优势。
+- `A_i`: The relative advantage of the `i`-th sample.
 
-- `π_θ(a_i | x_i)`：策略 `π_θ` 下模型对输入 `x_i` 生成输出 `a_i` 的概率。
+- `π_θ(a_i | x_i)`: Under policy `π_θ`, the probability of the model generating output `a_i` given input `x_i`.
 
-- `β`：正则化系数，控制策略更新的强度。
+- `β`: Regularization coefficient controlling the strength of the policy update.
 
-- `D_KL [ π_θ || π_ref ]`：新策略 `π_θ` 与参考策略 `π_ref` 之间的 KL 散度。
+- `D_KL [ π_θ || π_ref ]`: KL divergence between the new policy `π_θ` and the reference policy `π_ref`.
 
-  **说明:**
+  **Explanation:**
 
-- **第一项**：通过用 `A_i` 对对数概率加权，鼓励模型对相对优势较高的输出赋予更高概率。
+- **First term**: By weighting the log probability with `A_i`, encourage the model to assign higher probability to outputs with higher relative advantage.
 
-- **第二项**：使用 KL 散度限制新策略与参考策略之间的差异，防止模型遗忘先前知识。
+- **Second term**: Use KL divergence to restrict the difference between the new policy and the reference policy, preventing the model from forgetting prior knowledge.
 
-### 3. GRPO 的优势
+### 3. Advantages of GRPO
 
-#### 减少对外部数据的依赖
+#### Reduce dependence on external data
 
-- **自我生成训练数据**：模型通过在线生成样本进行学习，减少对大规模标注数据的需求。
-- **降低人工成本**：无需大量人工反馈或标注，降低训练成本。
+- **Self-generated training data**: The model learns by generating samples online, reducing the need for large-scale labeled data.
+- **Lower human cost**: Eliminates the need for extensive human feedback or labeling, lowering training costs.
 
-#### 提升训练效率
+#### Improve training efficiency
 
-- **快速收敛**：通过评估相对优势，模型能更高效地识别和学习高质量策略。
-- **策略稳定性**：引入策略正则化防止模型策略剧烈变化，确保训练过程稳定。
+- **Fast convergence**: By evaluating relative advantage, the model can more efficiently identify and learn high-quality policies.
+- **Policy stability**: Introducing policy regularization prevents drastic changes to the policy, ensuring training stability.
 
-### 4. 实践中的关键技术分析
+### 4. Key technical analysis in practice
 
-#### 相对优势的计算与应用
+#### Computing and applying relative advantage
 
 
-计算相对优势使模型能在一组生成输出中识别哪些更优，从而集中学习这些高质量输出。
+Computing relative advantage enables the model to identify which outputs are better within a group of generated candidates, focusing learning on these high-quality outputs.
 
-**示例:**
+**Example:**
 
-假设在一个训练步骤中，模型对一个输入生成了多个输出：
+Suppose in one training step, the model generates multiple outputs for an input:
 
-- **输出 A**：奖励值 0.9
+- **Output A**: Reward 0.9
 
-- **输出 B**：奖励值 0.5
+- **Output B**: Reward 0.5
 
-- **输出 C**：奖励值 0.7
+- **Output C**: Reward 0.7
 
-  计算均值：
+  Compute the mean:
 
 ```
 r̄ = (0.9 + 0.5 + 0.7) / 3 ≈ 0.7  
 ```
 
 
-计算标准差：
+Compute the standard deviation:
 
 ```
 σ(r) = sqrt( [(0.9 - 0.7)² + (0.5 - 0.7)² + (0.7 - 0.7)²] / 3 )  
@@ -511,7 +504,7 @@ r̄ = (0.9 + 0.5 + 0.7) / 3 ≈ 0.7
 ```
 
 
-各输出的相对优势：
+Relative advantages:
 
 ```
 A_A = (0.9 - 0.7) / 0.163 ≈ 1.225  
@@ -520,64 +513,62 @@ A_C = (0.7 - 0.7) / 0.163 = 0
 ```
 
 
-模型由此知道输出 A 高于平均水平，在策略更新时应赋予更大权重。
+The model thus recognizes that output A is above average and should be assigned greater weight during policy updates.
 
-#### 策略正则化的重要性
-
-
-引入 KL 散度作为正则化项，防止模型在更新过程中偏离原始策略过远，避免过拟合或遗忘先前学到的知识。
-
-#### 奖励函数设计
+#### Importance of policy regularization
 
 
-奖励函数的设计对 GRPO 的成功至关重要。良好的奖励函数应满足：
+Introducing KL divergence as a regularization term prevents the model from deviating too far from the original policy during updates, avoiding overfitting or catastrophic forgetting.
 
-- **与任务目标紧密相关**：确保奖励值真实反映输出质量。
+#### Reward function design
 
-- **计算简单**：避免过于复杂的计算以节省训练时间。
 
-- **具有区分度**：对高质量和低质量输出提供显著不同的奖励。
+The design of the reward function is critical to GRPO’s success. A good reward function should:
 
-### 5. 实践中的挑战与解决方案
+- **Be closely aligned with task objectives**: Ensure the reward truly reflects output quality.
 
-| 挑战 | 解决方案 |
+- **Be simple to compute**: Avoid overly complex computations to save training time.
+
+- **Be discriminative**: Provide clearly different rewards for high- and low-quality outputs.
+
+### 5. Challenges and solutions in practice
+
+| Challenge | Solution |
 |------|---------|
-| 奖励函数设计困难 | 从简单奖励函数开始，根据训练结果迭代优化；结合多维指标（格式、准确性、流畅度） |
-| 模型训练不稳定 | 调整学习率、正则化系数 β 等超参数寻找最优平衡点；增加输入数据多样性 |
-| 资源限制 | 模型量化（8bit/4bit）降低显存使用；使用 LoRA 等参数高效微调技术 |
+| Difficulty designing reward functions | Start with simple reward functions and iterate based on training results; combine multi-dimensional metrics (format, accuracy, fluency) |
+| Unstable model training | Tune learning rate, regularization coefficient β, and other hyperparameters to find an optimal balance; increase input data diversity |
+| Resource constraints | Model quantization (8bit/4bit) to reduce VRAM usage; use LoRA and other parameter-efficient fine-tuning techniques |
 
-### 6. 未来展望
+### 6. Future outlook
 
 
-GRPO 方法为在有限资源下训练大语言模型提供了新途径。未来研究方向包括：
+The GRPO method provides a new approach for training large language models under limited resources. Future research directions include:
 
-- **自动化奖励函数生成**：利用机器学习技术自动设计和优化奖励函数，减少人工干预。
-- **与其他优化方法结合**：将 GRPO 与强化学习、元学习等方法结合，进一步提升模型性能。
-- **扩展应用领域**：探索 GRPO 在图像、语音等其他类型模型中的应用。
+- **Automated reward function generation**: Use machine learning to automatically design and optimize reward functions, reducing human intervention.
+- **Combining with other optimization methods**: Integrate GRPO with reinforcement learning, meta-learning, etc., to further improve model performance.
+- **Broaden application domains**: Explore GRPO in other modalities such as image and speech models.
 
-GRPO 的优势在于减少对昂贵硬件和大量人工标注数据的依赖，使更多研究者和开发者能参与大模型的训练和应用。通过合理的奖励函数设计和策略正则化，模型能在有限资源下达到期望性能。
+The advantage of GRPO lies in reducing dependence on expensive hardware and large amounts of human-labeled data, enabling more researchers and developers to participate in the training and application of large models. With well-designed reward functions and policy regularization, models can achieve the desired performance under limited resources.
 
 ***Refer to: https://kaitchup.substack.com/p/grpo-train-llms-with-deepseek-r1s***
-
 ---
 
-## GSPO vs GRPO — 为 MoE 模型打造的序列级优化
+## GSPO vs GRPO — Sequence-level optimization tailored for MoE models
 
-### 1. 背景
+### 1. Background
 
 
 ---
+# Part 5: Reward Function Design in Practice
 
-# Part 5: 奖励函数设计实战
-
-> *原文来自 GRPO-RL-Training-Pipeline*
+> *Originally from GRPO-RL-Training-Pipeline*
 
 
-## 强化学习的一个范例 法律文书RL奖励函数设计精华与性能跃升解析
+## A Reinforcement Learning Case Study Essence of Legal Document RL Reward Function Design and Performance Leap Analysis
 
 *Refer to：https://zhuanlan.zhihu.com/p/25423170224*
 
-**核心技巧：分层奖励 + 强解析机制**
+**Core techniques: Hierarchical rewards + robust parsing mechanism**
 
 ```
 # ===== 分层奖励架构 =====
@@ -594,17 +585,17 @@ def legal_reward(pred, judge_out, gold_ans):
         return fmt + (-int(match[1])/240 if match else -2) 
 ```
 
-以下表格清晰展示奖励函数设计如何驱动性能跃升，每项均对应代码实现：
+The table below clearly shows how reward function design drives performance gains, with each item mapping to a code implementation:
 
-| **优化策略**       | **解决的核心问题**       | **性能提升**                 | **代码实现位置**                                 |
-| ------------------ | ------------------------ | ---------------------------- | ------------------------------------------------ |
-| **格式优先验证**   | 早期输出混乱导致信号丢失 | 格式错误率从>50%降至0.3%     | `format_reward()`函数：<br>`all(tag in pred...)` |
-| **三级分类奖励**   | “部分正确”样本无正向反馈 | 罪名准确率突破70%瓶颈→93.2%  | `task_reward()`中：<br>`{"0":-2, "1":1, "2":2}`  |
-| **刑期梯度惩罚**   | 数值预测缺乏渐进优化路径 | 刑期误差中位数从11.5月→0.8月 | `-int(match[1])/240`                             |
-| **抗噪正则解析**   | 判分模型输出变异干扰信号 | 奖励计算失败率<0.3%          | `re.search(r"误差[:：]?\s*(\d+)\s*个月")`        |
-| **金标有效性校验** | 无效标注污染训练过程     | 无效样本处理速度提升5倍      | `if "个月" not in gold_ans: return 0`            |
+| **Optimization strategy** | **Core issue solved**                 | **Performance gain**                        | **Code implementation location**                     |
+| ------------------------- | ------------------------------------- | ------------------------------------------- | ---------------------------------------------------- |
+| **Format-first validation** | Early output chaos leads to signal loss | Format error rate reduced from >50% to 0.3% | `format_reward()` function:<br>`all(tag in pred...)` |
+| **Three-level classification rewards** | Samples with "partially correct" get no positive feedback | Charge accuracy broke through the 70% bottleneck → 93.2% | in `task_reward()`:<br>`{"0":-2, "1":1, "2":2}`      |
+| **Sentence-length gradient penalty** | Numeric prediction lacks a gradual optimization path | Median sentence error from 11.5 months → 0.8 months | `-int(match[1])/240`                                 |
+| **Noise-robust regex parsing** | Scoring model output variations interfere with the signal | Reward computation failure rate <0.3%       | `re.search(r"误差[:：]?\s*(\d+)\s*个月")`            |
+| **Gold label validity check** | Invalid annotations pollute training   | Invalid-sample handling speed improved 5x   | `if "个月" not in gold_ans: return 0`                |
 
-### 训练阶段性能演进（可视化）
+### Performance evolution during training (visual)
 
 ```
 # 刑期预测能力进阶过程（奖励驱动）
@@ -615,96 +606,96 @@ def legal_reward(pred, judge_out, gold_ans):
 | 300-400步 | 2.4月    | ![+0.31]  | 法条精准引用   |
 ```
 
-注：![±X] 表示奖励值，负值为惩罚，正值为激励
+Note: ![±X] denotes reward values; negatives are penalties, positives are incentives
 
-**技术实现注释**
+**Technical implementation notes**
 
-1. 格式验证确保早期收敛：
+1. Format validation ensures early convergence:
 
    ```
    # 检查4个必需标签（前100步贡献78%准确率提升）
    if all(tag in pred for tag in ["<think>","</think>","<answer>","</answer>"]): ...
    ```
 
-2. 刑期梯度惩罚实现线性优化：
+2. Sentence-length gradient penalty enables linear optimization:
 
    ```
    penalty = -error_months / 240  # 每减少1个月误差，奖励提升0.004
    ```
 
-3. 正则容错保障稳定性：
+3. Regex fault tolerance ensures stability:
 
    ```
    # 兼容7种判分输出变体（如“误差6月”、“误差： 6个月”）
    r"误差[:：]?\s*(\d+)\s*个月"
    ```
 
-## 选择 SFT 还是 RL
+## Choosing SFT or RL
 
-在绝大多数情况下，最安全且最高效的流程是 **“先 SFT，后 RL”** —— 尤其是对于容量较小的模型，或需要严格输出格式的任务。
-此原则并非绝对，下列速查可帮助你判断。
+In the vast majority of cases, the safest and most efficient pipeline is “SFT first, then RL” — especially for smaller-capacity models or tasks requiring strict output formats.
+This is not absolute; the following quick reference can help you decide.
 
-### 1. 为什么 “SFT → RL” 通常更好
+### 1. Why “SFT → RL” is usually better
 
-1. 训练稳定性
-   • 直接做 RL（小模型尤甚）很容易触发 KL 激增、梯度爆炸，甚至整体崩溃。
-   • SFT 先把策略锚定在“基本正确且符合格式”的区间，再用 RL 微调；KL 跳变更小，收敛更平稳。
-2. 数据效率
-   • SFT 相当于“先把答案喂给模型，教会基础”；RL 更像“学完基础后做泛化练习”。
-   • 直接 RL 会在大量无用探索上浪费步数。
-3. 人工标注成本
-   • SFT 可以复制少量高质量标注（或合成标注）；RL 只需奖励信号即可放大效果。二者结合能节省标注工作。
+1. Training stability
+   • Doing RL directly (especially for small models) easily triggers KL spikes, gradient explosions, and even total collapse.
+   • SFT first anchors the policy in the “basically correct and format-compliant” regime, then RL fine-tunes; KL jumps are smaller and convergence is smoother.
+2. Data efficiency
+   • SFT is like “feeding answers to teach the basics”; RL is like “doing generalization exercises after learning the basics”.
+   • Direct RL wastes many steps on useless exploration.
+3. Human annotation cost
+   • SFT can leverage a small set of high-quality annotations (or synthetic labels); RL only needs reward signals to amplify effects. Combined, they reduce labeling effort.
 
-### 2. 何时直上 RL 更合适
+### 2. When going straight to RL is more suitable
 
-1. 几乎没有标注数据，但奖励可自动计算
-   例：解数独、玩 Atari——得分由环境直接给出。
-2. 基础模型已非常强大
-   GPT-4 / Claude-3-Sonnet 级别的模型格式和推理都稳定，可接受直接 RL（或 RLAIF）。
-3. 任务鼓励高多样性且没有单一“标准答案”
-   例：创意写作、对话风格调优——仅凭偏好得分即可。
+1. Little to no labeled data, but rewards can be computed automatically
+   Example: solving Sudoku, playing Atari — the score is provided directly by the environment.
+2. The base model is already very strong
+   Models at the GPT-4 / Claude-3-Sonnet level have stable formatting and reasoning and can accept direct RL (or RLAIF).
+3. Tasks that encourage high diversity and have no single “standard answer”
+   Example: creative writing, dialogue style tuning — preference scores alone suffice.
 
-### 3. 速查表
+### 3. Quick reference
 
-| 场景                  | 建议策略           | 备注                          |
-| --------------------- | ------------------ | ----------------------------- |
-| 一批高质量标注        | SFT → RL           | 主流 RLHF/GRPO 流水线         |
-| 仅有弱标签（合成）    | 短 SFT → RL        | 先对齐格式，再放大能力        |
-| 纯交互式 / 环境内奖励 | 直接 / 在线 RL     | 游戏、机器人等                |
-| 预算极低，模型极小    | 小规模 SFT，再评估 | RL 计算量通常是 SFT 的 2–4 倍 |
+| Scenario                 | Recommended strategy | Notes                              |
+| ------------------------ | -------------------- | ---------------------------------- |
+| A batch of high-quality labels | SFT → RL           | Mainstream RLHF/GRPO pipeline      |
+| Only weak labels (synthetic)   | Short SFT → RL     | Align format first, then amplify capability |
+| Purely interactive / in-environment rewards | Direct / online RL | Games, robotics, etc.              |
+| Very low budget, very small model | Small-scale SFT, then evaluate | RL compute is typically 2–4× that of SFT |
 
-关键问题：
+Key questions:
 
-1. 奖励是否完全依赖 “answer == gold answer”？
-   • 是 → 显然已有标签 → 先做 SFT，更便宜。
-2. GPU/TPU 预算多少？
-   • RL（尤其 GRPO/PPO）计算量通常是 SFT 的 2–4 倍。
-3. 是否需要可解释的 “思维链”？
-   • 先用 SFT 教格式，再用 RL 提精度，可生成更易解释的输出。
+1. Does the reward rely entirely on “answer == gold answer”?
+   • Yes → you clearly have labels → do SFT first; it's cheaper.
+2. What is the GPU/TPU budget?
+   • RL (especially GRPO/PPO) typically costs 2–4× the compute of SFT.
+3. Do you need an interpretable “chain-of-thought”?
+   • Teach the format with SFT first, then improve accuracy with RL to produce more interpretable outputs.
 
-结论
-“先 SFT 后 RL” 并非强制，但对大多数标签充足且输出结构化的任务，它是最省心、最稳妥的路径。
-只有在标签稀缺或任务本身可直接计算奖励时，才考虑 “只做 RL”。
+Conclusion
+“SFT first, RL later” is not mandatory, but for most tasks with sufficient labels and structured outputs, it is the least effort and most reliable path.
+Only consider “RL only” when labels are scarce or the task’s reward can be computed directly.
 
-## 常见 RL 坑点
+## Common RL pitfalls
 
-前文提到的 KL 激增、梯度爆炸与模型坍塌详解如下。
-
-
-
-## 嵌入式代码的奖励函数设计
+Detailed explanations of the previously mentioned KL spikes, gradient explosions, and model collapse are as follows.
 
 
-## 🎯 核心问题：代码训练如何验证正确性？
 
-### 数学题 vs 代码生成
+## Reward function design for embedded code
 
-| 任务类型 | 答案形式 | 验证方式 |
-|---------|---------|---------|
-| 数学题 | 唯一数值 | `answer == gold_answer` |
-| 代码题 | **多种实现** | `pass_all_tests(code)` |
 
-**同一个功能可能有 100 种不同但都正确的实现！**
+## 🎯 Core question: How to verify correctness in code training?
+
+### Math problems vs code generation
+
+| Task type | Answer form | Verification method |
+|----------|-------------|---------------------|
+| Math problems | Unique numeric value | `answer == gold_answer` |
+| Code problems | **Multiple implementations** | `pass_all_tests(code)` |
+
+**The same functionality can have 100 different yet correct implementations!**
 
 ```
 训练数学题时：
@@ -718,13 +709,13 @@ def legal_reward(pred, judge_out, gold_ans):
 
 ---
 
-## 📊 DeepSeek-R1 的代码训练方案
+## 📊 DeepSeek-R1's code training approach
 
-DeepSeek-R1 论文明确说明了代码训练的方法：
+The DeepSeek-R1 paper explicitly describes the method for code training:
 
 > *"For coding problems, we utilize a compiler to verify the correctness of the generated code based on predefined test cases."*
 
-**核心方法：Rule-Based Rewards（基于规则的奖励）**
+**Core method: Rule-Based Rewards (rule-based rewards)**
 
 ```python
 def reward_code(generated_code, test_cases):
@@ -751,7 +742,7 @@ def reward_code(generated_code, test_cases):
     return passed / len(test_cases)  # 0.0 ~ 1.0
 ```
 
-### 关键洞察：**RL 阶段不需要标准答案！**
+### Key insight: **The RL stage does not need standard answers!**
 
 ```
 传统 SFT 思路：
@@ -761,21 +752,20 @@ R1 的 RL 思路：
   问题 → 模型生成代码 → 编译执行 → 测试通过？ → 奖励
 ```
 
-**只要测试通过，不管代码怎么写都给奖励！**
+**As long as the tests pass, reward regardless of how the code is written!**
 
 ---
 
-## 🔧 嵌入式代码的奖励函数设计
+## 🔧 Reward function design for embedded code
 
-| 验证方式 | 适用场景 | 奖励分数 |
-|---------|---------|---------|
-| **语法检查** | 所有代码 | +3 (通过) / -2 (失败) |
-| **编译通过** | 可编译代码 | +5 (通过) / -1 (失败) |
-| **静态分析** | 代码质量 | +1 (无警告) |
-| **单元测试** | 有测试用例 | +10 × 通过率 |
-| **硬件状态验证** | 嵌入式专用 | +5 (状态正确) |
-
-### 本项目的奖励函数
+| Verification method | Applicable scenario | Reward score |
+|--------------------|---------------------|--------------|
+| **Syntax check** | All code | +3 (pass) / -2 (fail) |
+| **Compilation success** | Compilable code | +5 (pass) / -1 (fail) |
+| **Static analysis** | Code quality | +1 (no warnings) |
+| **Unit tests** | With test cases | +10 × pass rate |
+| **Hardware state verification** | Embedded-specific | +5 (state correct) |
+### Reward functions of this project
 
 ```python
 # 1. 格式奖励 - 检查必要标记
@@ -801,11 +791,11 @@ def reward_static_analysis(completions):
 
 ---
 
-## 📋 训练流程
+## 📋 Training workflow
 
-### 阶段 1：SFT（监督微调）
+### Phase 1: SFT (Supervised Fine-Tuning)
 
-**目的**：教模型代码格式和风格
+Purpose: teach the model code formatting and style
 
 ```json
 {
@@ -814,11 +804,11 @@ def reward_static_analysis(completions):
 }
 ```
 
-**这里需要示例代码，但只是教模型"怎么写"，不是唯一正确答案。**
+Examples are needed here, but only to teach the model "how to write", not the only correct answer.
 
-### 阶段 2：RL/GRPO（强化学习）
+### Phase 2: RL/GRPO (Reinforcement Learning)
 
-**目的**：用可验证奖励提升代码正确性
+Purpose: improve code correctness with verifiable rewards
 
 | 训练阶段 | 需要标准答案？ | 验证方式 |
 |---------|--------------|---------|
@@ -827,14 +817,14 @@ def reward_static_analysis(completions):
 
 ---
 
-## 🚀 快速开始
+## 🚀 Quick Start
 
-### 环境要求
+### Environment requirements
 
-- GPU: H100 / A100 (推荐 80GB 显存)
-- 工具链: `arm-none-eabi-gcc`, `clang`, `cppcheck`
+- GPU: H100 / A100 (80GB VRAM recommended)
+- Toolchain: `arm-none-eabi-gcc`, `clang`, `cppcheck`
 
-### 安装依赖
+### Install dependencies
 
 ```bash
 # 系统依赖
@@ -844,7 +834,7 @@ apt-get install -y clang cppcheck gcc-arm-none-eabi
 pip install unsloth trl transformers datasets accelerate peft vllm
 ```
 
-### 运行训练
+### Run training
 
 ```bash
 # 快速测试（5 步 GRPO）
@@ -863,7 +853,7 @@ pip install unsloth trl transformers datasets accelerate peft vllm
 ./run_train.sh full_compile
 ```
 
-### 推理测试
+### Inference test
 
 ```bash
 python embedded_infer.py \
@@ -873,7 +863,7 @@ python embedded_infer.py \
 
 ---
 
-## 📁 项目结构
+## 📁 Project structure
 
 ```
 embedded_sft_rl/
@@ -886,9 +876,9 @@ embedded_sft_rl/
 
 ---
 
-## 📊 训练效果
+## 📊 Training results
 
-### 测试环境
+### Test environment
 
 | 配置 | 规格 |
 |------|------|
@@ -897,9 +887,9 @@ embedded_sft_rl/
 | 训练框架 | Unsloth + TRL (GRPOTrainer) |
 | 总训练时间 | ~6 分钟 |
 
-### SFT 阶段
+### SFT phase
 
-| Epoch | Loss | 下降幅度 |
+| Epoch | Loss | Decrease |
 |-------|------|----------|
 | Step 10 | 1.36 | - |
 | Step 20 | 0.56 | -59% |
@@ -907,29 +897,29 @@ embedded_sft_rl/
 | Step 40 | 0.07 | -95% |
 | Step 50 | 0.03 | **-98%** |
 
-**SFT 耗时**: 44 秒
+SFT duration: 44 seconds
 
-### GRPO 阶段
+### GRPO phase
 
-| Step | Total Reward | Format | Syntax | 说明 |
+| Step | Total Reward | Format | Syntax | Notes |
 |------|--------------|--------|--------|------|
-| 10 | 1.75 | 1.75 | 0.0 | 初始阶段 |
-| 20 | 3.50 | 3.50 | 0.0 | 格式学习中 |
-| 30 | 3.88 | 3.50 | 0.38 | 开始通过语法 |
-| 40 | **4.95** | 3.50 | 1.45 | 峰值奖励 |
-| 50 | 3.88 | 3.50 | 0.38 | 稳定 |
+| 10 | 1.75 | 1.75 | 0.0 | Initial phase |
+| 20 | 3.50 | 3.50 | 0.0 | Learning the format |
+| 30 | 3.88 | 3.50 | 0.38 | Starting to pass syntax |
+| 40 | **4.95** | 3.50 | 1.45 | Peak reward |
+| 50 | 3.88 | 3.50 | 0.38 | Stable |
 
-**GRPO 耗时**: 333 秒 (50 steps)
+GRPO duration: 333 seconds (50 steps)
 
-### 关键指标
+### Key metrics
 
-| 指标 | 初始值 | 最终值 | 变化 |
+| Metric | Initial | Final | Change |
 |------|--------|--------|------|
 | SFT Loss | 1.36 | 0.03 | ↓98% |
 | Total Reward | 1.75 | 3.88 | ↑122% |
-| KL Divergence | - | 0.39 | 正常范围 |
+| KL Divergence | - | 0.39 | Normal range |
 
-### 推理验证
+### Inference validation
 
 ```
 任务: Initialize GPIO PA5 as output for LED control
@@ -950,18 +940,18 @@ void GPIO_Init(void) {
 
 ---
 
-## ⚠️ 踩坑记录
+## ⚠️ Pitfall log
 
-### 问题 1: `stm32f4xx_hal.h` 找不到
+### Issue 1: `stm32f4xx_hal.h` not found
 
-**症状**:
+Symptoms:
 ```
 fatal error: 'stm32f4xx_hal.h' file not found
 ```
 
-**原因**: 嵌入式代码依赖 STM32 HAL 库头文件，但训练环境没有安装完整的 STM32 SDK。
+Cause: Embedded code depends on STM32 HAL header files, but the training environment does not have the full STM32 SDK installed.
 
-**解决方案**: 使用 stub 头文件，只定义必要的类型和宏：
+Solution: Use stub headers that only define the necessary types and macros:
 
 ```c
 // stub 头文件示例
@@ -971,27 +961,26 @@ typedef struct { uint32_t Pin; uint32_t Mode; ... } GPIO_InitTypeDef;
 void HAL_GPIO_Init(void* port, GPIO_InitTypeDef* init);
 ```
 
-### 问题 2: `GPIO_PIN_RESET` 未定义
+### Issue 2: `GPIO_PIN_RESET` is undefined
 
-**症状**:
+Symptoms:
 ```
 error: use of undeclared identifier 'GPIO_PIN_RESET'
 ```
+**Cause**: The generated code uses enum values from the HAL library, but the stub header file omitted them.
 
-**原因**: 生成的代码使用了 HAL 库的枚举值，但 stub 头文件遗漏了。
-
-**解决方案**: 在 stub 头文件中添加宏定义：
+**Solution**: Add macro definitions in the stub header file:
 
 ```c
 #define GPIO_PIN_RESET 0
 #define GPIO_PIN_SET 1
 ```
 
-### 问题 3: 生成代码缺少 `#include`
+### Issue 3: Generated code is missing `#include`
 
-**症状**: 模型有时生成的代码不包含头文件引用，导致语法检查失败。
+**Symptom**: The model sometimes generates code without header file includes, causing syntax checks to fail.
 
-**解决方案**: 在推理脚本中自动 prepend stub 头文件：
+**Solution**: Automatically prepend the stub header file in the inference script:
 
 ```python
 # embedded_infer.py
@@ -1000,7 +989,7 @@ full_code = STM32_STUB_HEADERS + "\n" + extracted_code
 
 ---
 
-## 🎯 客户场景实操建议
+## 🎯 Practical recommendations for customer scenarios
 
 ```
 Step 1: 收集客户的代码库
@@ -1014,7 +1003,7 @@ Step 4: SFT 教模型格式和风格
 Step 5: RL 用测试通过率作为奖励，提升功能正确性
 ```
 
-### 嵌入式代码测试用例格式
+### Embedded code test case format
 
 ```json
 {
@@ -1032,7 +1021,7 @@ Step 5: RL 用测试通过率作为奖励，提升功能正确性
 }
 ```
 
-### 使用 QEMU 模拟验证（高级）
+### Verification using QEMU emulation (advanced)
 
 ```python
 def reward_hardware_state(code, expected_state):
@@ -1049,19 +1038,19 @@ def reward_hardware_state(code, expected_state):
 
 ---
 
-## ⚠️ 常见问题
+## ⚠️ Common issues
 
-1. **开放式任务**：对于难以定义测试用例的任务，可以使用 LLM-as-Judge 作为奖励
-2. **长代码处理**：拆分成小函数，每个函数单独测试
-3. **编译依赖**：确保 STM32 HAL 头文件可用（本项目使用 stub 头文件）
+1. **Open-ended tasks**: For tasks where test cases are hard to define, you can use LLM-as-Judge as a reward
+2. **Handling long code**: Split into small functions and test each function individually
+3. **Build dependencies**: Ensure STM32 HAL headers are available (this project uses stub headers)
 
 ---
 
-## 📚 参考资料
+## 📚 References
 
 - [DeepSeek-R1 论文](https://arxiv.org/abs/2401.02954) - Rule-based rewards for code
-- [TRL GRPO Trainer](https://huggingface.co/docs/trl/main/grpo_trainer) - GRPO 训练框架
-- [Unsloth](https://github.com/unslothai/unsloth) - 高效微调框架
+- [TRL GRPO Trainer](https://huggingface.co/docs/trl/main/grpo_trainer) - GRPO training framework
+- [Unsloth](https://github.com/unslothai/unsloth) - Efficient fine-tuning framework
 
 ---
 
@@ -1069,10 +1058,9 @@ def reward_hardware_state(code, expected_state):
 
 
 ---
+# Part 6: DeepSeekMath-V2 Self-Verifiable Proof Training Architecture
 
-# Part 6: DeepSeekMath-V2 自验证证明训练架构
-
-> *原文来自 LLM-Math-Reasoning-RL*
+> *Originally from LLM-Math-Reasoning-RL*
 
 
 ## 🧠 Chapter 2: Two Types of Math Tasks Determine Two Types of Rewards
@@ -1270,7 +1258,6 @@ For each proof:
 │                                                                     │
 └─────────────────────────────────────────────────────────────────────┘
 ```
-
 **But what's the cost? Look at the paper's inference configuration:**
 
 | Config | Value | Description |
@@ -1658,106 +1645,106 @@ Stage 1: Train Verifier (needs human-labeled proof quality)
 
 ---
 
-# Part 7: SFT + GRPO 实操（代码与训练日志）
+# Part 7: SFT + GRPO Hands-on (Code and Training Logs)
 
-> *原文来自 GRPO-RL-Training-Pipeline*
+> *Originally from GRPO-RL-Training-Pipeline*
 
 
-## 选择 SFT 还是 RL
+## Choose SFT or RL
 
-在绝大多数情况下，最安全且最高效的流程是 **“先 SFT，后 RL”** —— 尤其是对于容量较小的模型，或需要严格输出格式的任务。
-此原则并非绝对，下列速查可帮助你判断。
+In most cases, the safest and most efficient process is "SFT first, then RL" — especially for smaller-capacity models or tasks requiring strict output formats.
+This is not absolute; the following quick reference can help you decide.
 
-### 1. 为什么 “SFT → RL” 通常更好
+### 1. Why "SFT → RL" is usually better
 
-1. 训练稳定性
-   • 直接做 RL（小模型尤甚）很容易触发 KL 激增、梯度爆炸，甚至整体崩溃。
-   • SFT 先把策略锚定在“基本正确且符合格式”的区间，再用 RL 微调；KL 跳变更小，收敛更平稳。
-2. 数据效率
-   • SFT 相当于“先把答案喂给模型，教会基础”；RL 更像“学完基础后做泛化练习”。
-   • 直接 RL 会在大量无用探索上浪费步数。
-3. 人工标注成本
-   • SFT 可以复制少量高质量标注（或合成标注）；RL 只需奖励信号即可放大效果。二者结合能节省标注工作。
+1. Training stability
+   • Going straight to RL (especially for small models) can easily trigger KL surges, gradient explosions, and even total collapse.
+   • SFT first anchors the policy in a "basically correct and format-compliant" region, then RL fine-tunes; KL jumps are smaller and convergence is smoother.
+2. Data efficiency
+   • SFT is like "feeding answers to the model to teach basics"; RL is more like "generalization practice after learning the basics."
+   • Direct RL wastes many steps on useless exploration.
+3. Human labeling cost
+   • SFT can replicate a small amount of high-quality labels (or synthetic labels); RL only needs reward signals to amplify effects. Combining the two saves labeling effort.
 
-### 2. 何时直上 RL 更合适
+### 2. When is it more appropriate to go straight to RL
 
-1. 几乎没有标注数据，但奖励可自动计算
-   例：解数独、玩 Atari——得分由环境直接给出。
-2. 基础模型已非常强大
-   GPT-4 / Claude-3-Sonnet 级别的模型格式和推理都稳定，可接受直接 RL（或 RLAIF）。
-3. 任务鼓励高多样性且没有单一“标准答案”
-   例：创意写作、对话风格调优——仅凭偏好得分即可。
+1. Little to no labeled data, but rewards are automatically computable
+   e.g., solving Sudoku, playing Atari — the score is provided directly by the environment.
+2. The base model is already very strong
+   GPT-4 / Claude-3-Sonnet-level models have stable format and reasoning, can accept direct RL (or RLAIF).
+3. The task encourages high diversity and has no single "standard answer"
+   e.g., creative writing, dialogue style tuning — preference scores alone suffice.
 
-### 3. 速查表
+### 3. Quick Reference
 
-| 场景                  | 建议策略           | 备注                          |
-| --------------------- | ------------------ | ----------------------------- |
-| 一批高质量标注        | SFT → RL           | 主流 RLHF/GRPO 流水线         |
-| 仅有弱标签（合成）    | 短 SFT → RL        | 先对齐格式，再放大能力        |
-| 纯交互式 / 环境内奖励 | 直接 / 在线 RL     | 游戏、机器人等                |
-| 预算极低，模型极小    | 小规模 SFT，再评估 | RL 计算量通常是 SFT 的 2–4 倍 |
+| Scenario              | Recommended Strategy | Notes                              |
+| --------------------- | -------------------- | ---------------------------------- |
+| A batch of high-quality labels | SFT → RL           | Mainstream RLHF/GRPO pipeline      |
+| Only weak labels (synthetic)    | Short SFT → RL     | Align format first, then amplify ability |
+| Purely interactive / in-environment reward | Direct/online RL     | Games, robotics, etc.              |
+| Extremely low budget, very small model    | Small-scale SFT, then evaluate | RL compute is typically 2–4× SFT   |
 
-关键问题：
+Key questions:
 
-1. 奖励是否完全依赖 “answer == gold answer”？
-   • 是 → 显然已有标签 → 先做 SFT，更便宜。
-2. GPU/TPU 预算多少？
-   • RL（尤其 GRPO/PPO）计算量通常是 SFT 的 2–4 倍。
-3. 是否需要可解释的 “思维链”？
-   • 先用 SFT 教格式，再用 RL 提精度，可生成更易解释的输出。
+1. Does the reward rely entirely on "answer == gold answer"?
+   • Yes → Labels clearly exist → Do SFT first, cheaper.
+2. How much GPU/TPU budget?
+   • RL (especially GRPO/PPO) compute is typically 2–4× that of SFT.
+3. Do you need an interpretable chain-of-thought?
+   • First use SFT to teach format, then use RL to improve accuracy; can produce more interpretable outputs.
 
-结论
-“先 SFT 后 RL” 并非强制，但对大多数标签充足且输出结构化的任务，它是最省心、最稳妥的路径。
-只有在标签稀缺或任务本身可直接计算奖励时，才考虑 “只做 RL”。
+Conclusion
+"SFT first, then RL" is not mandatory, but for most tasks with sufficient labels and structured outputs, it is the most worry-free and reliable path.
+Only consider "RL only" when labels are scarce or when rewards can be directly computed from the task itself.
 
-## 常见 RL 坑点
+## Common RL Pitfalls
 
-前文提到的 KL 激增、梯度爆炸与模型坍塌详解如下。
+Details on the previously mentioned KL surge, gradient explosion, and model collapse are as follows.
 
-| 术语     | 本质问题                   | 概念类别         | 可观测症状（学术描述）                                       |
-| -------- | -------------------------- | ---------------- | ------------------------------------------------------------ |
-| KL 激增  | 输出分布突变过大           | 分布层面问题     | KL 发散飙升（如 >10）；<br>策略快速偏离参考；<br>文本混乱、重复或碎片化 |
-| 梯度爆炸 | 参数更新数值过大           | 训练稳定性问题   | 梯度范数爆到极大或 ∞/NaN；<br>loss 跳到 ∞/NaN；<br>权重溢出或劣化 |
-| 模型坍塌 | 输出只剩单一模式，失去泛化 | 生成质量终态问题 | 输出熵骤降；<br>模式坍塌——总是同一答案；<br>分布外性能崩溃   |
+| Term      | Root Issue                    | Category            | Observable Symptoms (academic)                                  |
+| --------- | ----------------------------- | ------------------- | ---------------------------------------------------------------- |
+| KL surge  | Output distribution shifts too much | Distribution-level issue | KL divergence spikes (e.g., >10);<br>policy rapidly deviates from reference;<br>text becomes chaotic, repetitive, or fragmented |
+| Gradient explosion | Parameter update magnitudes too large | Training stability issue | Gradient norm shoots to huge/∞/NaN;<br>loss jumps to ∞/NaN;<br>weights overflow or degrade |
+| Model collapse | Outputs degenerate to a single mode, lose generalization | Generation quality end-state issue | Output entropy drops sharply;<br>mode collapse — always the same answer;<br>out-of-distribution performance crashes |
 
-三者常串联发生：
+The three often occur in sequence:
 
 ```
-奖励设计差 / 超参数错误
+Reward design issues / bad hyperparameters
       ↓↓
-   KL 激增 → 梯度爆炸 → 权重 NaN / 巨大
+   KL surge → gradient explosion → weights NaN / huge
       ↓↓
-   模型坍塌（单一且低质输出）
+   Model collapse (single and low-quality outputs)
 ```
 
 
 
-### ① KL 激增
+### ① KL surge
 
-KL divergence（Kullback–Leibler Divergence）度量两分布距离——此处为参考模型与策略模型。
+KL divergence (Kullback–Leibler Divergence) measures the distance between two distributions — here, the reference model and the policy model.
 
-简单玩具示例
+Simple toy example
 
-假设一只鹦鹉只能说三句话：
+Suppose a parrot can only say three sentences:
 
-| 当前分布 P | 概率 |
+| Current distribution P | Probability |
 | ---------- | ---- |
 | Hello      | 0.6  |
 | Thank you  | 0.3  |
 | Bye        | 0.1  |
 
-期望的新分布 Q：
+Target distribution Q:
 
-| 目标分布 Q | 概率 |
+| Target distribution Q | Probability |
 | ---------- | ---- |
 | Hello      | 0.2  |
 | Thank you  | 0.7  |
 | Bye        | 0.1  |
 
-KL 小 ⇒ P≈Q；KL 大 ⇒ P 离 Q 远。
-若给“说 Thank you”+20 的巨大奖励，模型几步内就只输出 “Thank you!!!” → KL 爆掉。
+Small KL ⇒ P≈Q; large KL ⇒ P is far from Q.
+If you give a huge +20 reward for "saying Thank you", within a few steps the model will only output "Thank you!!!" → KL explodes.
 
-解决方式：在 loss 中加入 KL 惩罚 β
+Solution: add a KL penalty β to the loss
 
 ```
 TotalLoss = -reward + β × KL
@@ -1765,80 +1752,80 @@ TotalLoss = -reward + β × KL
 
 
 
-调大 β（如 0.01 → 0.1）限制策略跳跃。
+Increase β (e.g., 0.01 → 0.1) to limit policy jumps.
 
-### ② 梯度爆炸
+### ② Gradient explosion
 
-常见原因
-• 学习率过高（1e-2 而不是 1e-5）
-• 奖励尺度过大（数百而非 ±1）
-• 初始化或优化器配置不当
-• 无 / 剪裁无效
+Common causes
+• Learning rate too high (1e-2 instead of 1e-5)
+• Reward scale too large (hundreds rather than ±1)
+• Improper initialization or optimizer configuration
+• No clipping / ineffective clipping
 
-结果：梯度范数 → ∞ 或 NaN；loss → ∞/NaN。
+Result: gradient norm → ∞ or NaN; loss → ∞/NaN.
 
-### ③ 模型坍塌
+### ③ Model collapse
 
-含义
-• 参数过度优化到单一或少数模式（mode collapse）。
-• 熵 ↓，多样性消失，泛化失败。
+Meaning
+• Parameters over-optimized to a single or few modes (mode collapse).
+• Entropy ↓, diversity vanishes, generalization fails.
 
-典型指标
-• 输出熵由 ~8-10 降到 ~1-2。
-• 永远重复同一答案。
-• 分布外性能骤降。
+Typical indicators
+• Output entropy drops from ~8–10 to ~1–2.
+• Always repeats the same answer.
+• Out-of-distribution performance drops sharply.
 
-主要原因：奖励过简单、KL 问题长期未解、梯度反复爆炸、数据质量差等。
+Main causes: overly simple rewards, long-standing KL issues, recurring gradient explosions, poor data quality, etc.
 
-## TRL 中的 GRPO
+## GRPO in TRL
 
-`GRPOTrainer` 已集成在 TRL：
+`GRPOTrainer` is already integrated in TRL:
 https://huggingface.co/docs/trl/main/grpo_trainer
 
-### 什么是 “Group Advantage”？
+### What is "Group Advantage"?
 
-“Group Advantage” 只是一个 **后处理步骤**：在组内对 *已有* 奖励做中心化 / 裁剪，降低梯度方差。
-你仍需一个真正的 **奖励来源**：
+"Group Advantage" is just a post-processing step: within a group, it centralizes/clips the existing rewards to reduce gradient variance.
+You still need a real reward source:
 
-1. 规则制定
-   • 例：`reward_format_exact`、`reward_answer`（+5 / –2 / –4）。
-2. 奖励模型（RM）
-   • 训练独立网络学人类偏好，然后给文本打分。
-3. 外部信号
-   • 环境得分、CTR、游戏分等。
+1. Rule design
+   • e.g., `reward_format_exact`, `reward_answer` (+5 / –2 / –4).
+2. Reward model (RM)
+   • Train a separate network to learn human preferences, then score text.
+3. External signal
+   • Environment score, CTR, game points, etc.
 
-流程：
+Process:
 
 ```
-生成 N 个候选 ─→ 评分 ─→ 组内均值 ─→ Advantage
+Generate N candidates ─→ score ─→ group mean ─→ Advantage
 ```
 
 
 
 ## Example
 
-• 你让模型回答一次，它生成四个候选答案。
-• 你给分：80、60、90、70。
-• 平均值 = 75 → 这是 *baseline*。
-• 对每个答案算 (score – mean)；正的强化，负的抑制。
+• You ask the model once, it generates four candidate answers.
+• You score them: 80, 60, 90, 70.
+• Mean = 75 → this is the baseline.
+• For each answer compute (score – mean); positive reinforced, negative suppressed.
 
-## 用 TRL 训练 Qwen（SFT + GRPO）
+## Train Qwen with TRL (SFT + GRPO)
 
-### SFT 阶段
+### SFT stage
 
-数据集
+Dataset
 • HF Hub: `unsloth/OpenMathReasoning-mini`
-• 划分: `"cot"`（含 chain-of-thought）
+• Split: `"cot"` (includes chain-of-thought)
 
-字段
+Fields
 
-| 列名                 | 示例                        | 用途                   |
+| Column               | Example                     | Use                    |
 | -------------------- | --------------------------- | ---------------------- |
-| `problem`            | “Given √(x²+165) − … = 7 …” | 题干                   |
-| `expected_answer`    | `14`                        | 数值答案（可转 float） |
-| `generated_solution` | `<think> … </think>`        | 推理过程               |
+| `problem`            | “Given √(x²+165) − … = 7 …” | Problem statement      |
+| `expected_answer`    | `14`                        | Numerical answer (convertible to float) |
+| `generated_solution` | `<think> … </think>`        | Reasoning process      |
 
-聊天模板
+Chat template
 
 ```
 system    : <fixed system_prompt>
@@ -1849,31 +1836,31 @@ assistant : <start_working_out>{thoughts}<end_working_out>
 
 
 
-`thoughts` = `generated_solution` 去掉 `<think>` 标签。
-训练目标 = 常规 causal-LM loss（此阶段无奖励）。
+`thoughts` = `generated_solution` with the `<think>` tags removed.
+Training objective = standard causal-LM loss (no rewards at this stage).
 
-### GRPO 阶段
+### GRPO stage
 
-数据集
+Dataset
 • HF Hub: `open-r1/DAPO-Math-17k-Processed`
-• 配置 `"en"`，划分 `"train"`
+• Config `"en"`, split `"train"`
 
-| 列名       | 示例（截断）             | 用途   |
+| Column     | Example (truncated)      | Use   |
 | ---------- | ------------------------ | ------ |
-| `prompt`   | “In △ABC, sin∠A = 4/5 …” | 题干   |
-| `solution` | `34`                     | 金标准 |
+| `prompt`   | “In △ABC, sin∠A = 4/5 …” | Problem statement |
+| `solution` | `34`                     | Gold standard |
 
-聊天模板
+Chat template
 
 ```
 system : <fixed system_prompt>
 user   : {prompt}
-# assistant – 模型生成
+# assistant – model generation
 ```
 
 
 
-采样参数
+Sampling parameters
 
 ```
 temperature = 0.7
@@ -1885,37 +1872,37 @@ num_generations = 4
 
 
 
-#### 奖励函数
+#### Reward function
 
-`reward_format_exact`（格式奖励）
+`reward_format_exact` (format reward)
 
-| 维度             | 原始版本        | **渐进式版本**           |
-| ---------------- | --------------- | ------------------------ |
-| 基础得分         | -2              | **0**（允许正反馈）      |
-| 标签存在奖励     | +1 / 标签       | +1 / 标签（最多 +4）     |
-| 缺失标签惩罚     | 已有 –2         | 无（仅无奖励）           |
-| `reasoning` 长度 | ≥10 词，否则 –1 | **≥6 词**                |
-| 分数裁剪         | 无              | [-2, +4]                 |
-| 常见分布         | –2 ~ 0          | **+1 ~ +2**              |
-| 目标             | 严罚，正分少    | **早期正信号，梯度稳定** |
+| Dimension        | Original version  | **Progressive version**   |
+| ---------------- | ----------------- | ------------------------- |
+| Base score       | -2                | **0** (allow positive feedback) |
+| Tag presence reward | +1 / tag       | +1 / tag (up to +4)       |
+| Missing tag penalty | already –2     | None (just no reward)     |
+| `reasoning` length | ≥10 words, else –1 | **≥6 words**              |
+| Score clipping   | None              | [-2, +4]                  |
+| Typical distribution | –2 ~ 0        | **+1 ~ +2**               |
+| Goal             | Heavy penalties, few positives | **Early positive signal, stable gradients** |
 
-`reward_answer`（数值答案奖励）
+`reward_answer` (numeric answer reward)
 
-| 维度               | 原始版本             | **渐进式版本**                        |
-| ------------------ | -------------------- | ------------------------------------- |
-| 无 `<SOLUTION>` 块 | -4                   | **-1**                                |
-| 解析数字失败       | -2                   | **-1**                                |
-| 完全正确           | +8                   | +8（不变）                            |
-| 近似正确           | 无                   | **+4**（误差 <1% 或 <1e-2）           |
-| 解析成功但错误     | -2                   | **0**                                 |
-| 常见分布           | {-4, -2, +8}（稀疏） | **{-1, 0, +4, +8}**（密集，梯度顺滑） |
-| 目标               | 全或无               | **多级奖励，易于优化**                |
+| Dimension           | Original version           | **Progressive version**                   |
+| ------------------ | -------------------------- | ----------------------------------------- |
+| No `<SOLUTION>` block | -4                       | **-1**                                    |
+| Failed to parse number | -2                      | **-1**                                    |
+| Exactly correct     | +8                         | +8 (unchanged)                            |
+| Approximately correct | None                    | **+4** (error <1% or <1e-2)               |
+| Parsed successfully but wrong | -2              | **0**                                     |
+| Typical distribution | {-4, -2, +8} (sparse)    | **{-1, 0, +4, +8}** (dense, smooth gradients) |
+| Goal                | All-or-nothing             | **Multi-level rewards, easier to optimize** |
 
-| 阶段            | 原始总奖励       | **渐进式总奖励**          |
-| --------------- | ---------------- | ------------------------- |
-| 早期 (0–200 步) | ≈ -5，几乎无正分 | **≈ 0.3–1.0**，正信号明显 |
-| 中期 (200–800)  | 标签学会，仍偏负 | **出现 +4，奖励升高**     |
-| 后期 (>1000)    | 少量 +8，多为负  | **奖励保持 ≥0，轻松超 2** |
+| Stage           | Original total reward | **Progressive total reward** |
+| --------------- | --------------------- | ---------------------------- |
+| Early (0–200 steps) | ≈ -5, almost no positive scores | **≈ 0.3–1.0**, clear positive signal |
+| Mid (200–800)   | Tags learned, still slightly negative | **+4 appears, reward rises**     |
+| Late (>1000)    | Few +8, mostly negative | **Rewards stay ≥0, easily exceed 2** |
 
 ## Code Example
 
@@ -1926,8 +1913,7 @@ python3 -m venv grpo-env
 source grpo-env/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
-
-
+```
 ```
 
 Run code
@@ -2131,7 +2117,7 @@ def reward_answer(prompts, completions, answer, **_):
             outs.append(NEAR_BONUS)
     return outs
 ############## Reward-Patch 结束 -----------------------------------
-
+```
 # ---------- Debug ----------
 def make_debug(freq, num_gen):
     step = {"i": 0}
@@ -2333,20 +2319,20 @@ Unsloth: Will smartly offload gradients to save VRAM!
 ### SFT Log Analysis
 
 Start ≈ 5.05 → End ≈ 4.03
-• 单位：token 级交叉熵（log loss）
-• 换算为困惑度：exp(5.05)=156 → exp(4.03)=56，约下降 64%
-• 仅用 280 个训练步、2.2k 条样本，而且 LoRA 只更新 0.8% 的参数，这样的 loss 下降属于“正常”范围。
+• Unit: token-level cross-entropy (log loss)
+• Converted to perplexity: exp(5.05)=156 → exp(4.03)=56, a decrease of about 64%
+• With only 280 training steps, 2.2k samples, and LoRA updating just 0.8% of the parameters, this magnitude of loss reduction is within the "normal" range.
 
 ### GRPO Section
 
-对同一个提示，模型生成了四个候选答案，随后我们计算了它们的组优势得分。
+For the same prompt, the model generated four candidate answers, and we then computed their group advantage scores.
 
 ```
 PROMPT : [{'content': 'You are given a problem. Show reasoning between <start_working_out> and <end_working_out>. Then give the final numeric answer between <SOLUTION></SOLUTION>', 'role': 'system'}, {'content': 'Let $P_0(x) = x^3 + 313x^2 - 77x - 8$. For integers $n \\ge 1$, define $P_n(x) = P_{n - 1}(x - n)$. What is the coefficient of $x$ in $P_{20}(x)$?', 'role': 'user'}]
 TARGET : 763
 [Cand 0] fmt=+3.0 ans=-1.0 tot=+2.0
  Let's answer step by step.<start_working_out><SOLUTION>First, let A be the three-digit positive integer. Let x and y be the middle digit and the rightmost digit, respectively. Then the integer A can be calculated as: A=100⋅x+10⋅y+100⋅x+10⋅y+100−100=200⋅x+10⋅y$$Now, we need to calculate B+2 then subtract from C+500, then equals 2014. In easy steps:<start_working_out>(C-D)+(B-D) = 2014(C-D)+(B-D) = ...
-
+```
 [Cand 1] fmt=+0.0 ans=-1.0 tot=-1.0
  
 Let's denote the digits of $A$ as $a_2$, $a_1$, and $a_0$ where $a_2$ is the hundreds digit, $a_1$ is the tens digit, and $a_0$ is the units digit. Then we can express $A$ as:
@@ -2394,8 +2380,9 @@ TARGET : 344
 ==============================================================================================================
 PROMPT : [{'content': 'You are given a problem. Show reasoning between <start_working_out> and <end_working_out>. Then give the final numeric answer between <SOLUTION></SOLUTION>', 'role': 'system'}, {'content': 'Start with a three-digit positive integer $A$. Obtain $B$ by interchanging the two leftmost digits of $A$. Obtain $C$ by doubling $B$. Obtain $D$ by subtracting $500$ from $C$. Given that $A + B + C + D = 2014$, fi\x0cnd $A$.', 'role': 'user'}]
 TARGET : 344
-{'loss': 0.0, 'grad_norm': 9.18706226348877, 'learning_rate': 4.175925925925926e-06, 'num_tokens': 1026258.0, 'completions/mean_length': 719.1, 'completions/min_length': 523.6, 'completions/max_length': 768.0, 'completions/clipped_ratio': 0.775, 'completions/mean_terminated_length': 504.56666870117186, 'completions/min_terminated_length': 446.8, 'completions/max_terminated_length': 566.5, 'rewards/_dbg/mean': 0.0, 'rewards/_dbg/std': 0.0, 'rewards/reward_format_exact/mean': 1.0125, 'rewards/reward_format_exact/std': 1.238455241918564, 'rewards/reward_answer/mean': -0.725, 'rewards/reward_answer/std': 0.6270406097173691, 'reward': 0.2875, 'reward_std': 1.6328951716423035, 'frac_reward_zero_std': 0.0, 'completion_length': 719.1, 'kl': 0.0, 'epoch': 0.02}
-{'loss': 0.0, 'grad_norm': 21.152080535888672, 'learning_rate': 4.083333333333334e-06, 'num_tokens': 1093764.0, 'completions/mean_length': 685.975, 'completions/min_length': 407.1, 'completions/max_length': 768.0, 'completions/clipped_ratio': 0.7125, 'completions/mean_terminated_length': 493.8016693115234, 'completions/min_terminated_length': 407.1, 'completions/max_terminated_length': 583.1, 'rewards/_dbg/mean': 0.0, 'rewards/_dbg/std': 0.0, 'rewards/reward_format_exact/mean': 1.6625, 'rewards/reward_format_exact/std': 1.2463318705558777, 'rewards/reward_answer/mean': -0.5125, 'rewards/reward_answer/std': 0.9666869312524795, 'reward': 1.15, 'reward_std': 1.7237172186374665, 'frac_reward_zero_std': 0.0, 'completion_length': 685.975, 'kl': 0.0, 'epoch': 0.02}
+==============================================================================================================
+PROMPT : [{'content': 'You are given a problem. Show reasoning between <start_working_out> and <end_working_out>. Then give the final numeric answer between <SOLUTION></SOLUTION>', 'role': 'system'}, {'content': 'Start with a three-digit positive integer $A$. Obtain $B$ by interchanging the two leftmost digits of $A$. Obtain $C$ by doubling $B$. Obtain $D$ by subtracting $500$ from $C$. Given that $A + B + C + D = 2014$, fi\x0cnd $A$.', 'role': 'user'}]
+TARGET : 344
 ```
 
 **Inference Validation:**
@@ -2492,44 +2479,44 @@ The answer is correct and the <SOLUTION> tag is present.
 
 ##### **Notes: How to Read Training Metrics**
 
-SFTTrainer 日志字段
+SFTTrainer log fields
 
-| 日志键 (Field)           | 含义 (Meaning)                                 | 典型范围 (Typical Range) | 计算方式 (Calculation)          |
-| ------------------------ | ---------------------------------------------- | ------------------------ | ------------------------------- |
-| loss                     | Teacher-forcing 条件下的平均交叉熵（越低越好） | 0.7 → 0.3                | `CrossEntropy(outputs, labels)` |
-| mean_token_accuracy      | token 级 top-1 准确率                          | 0.65 → 0.80              | 近似 `1 − perplexity`           |
-| num_tokens               | 当前步处理的 token 数                          | batch × seq_len          | tokenizer 输入长度              |
-| train_runtime            | 整个 epoch 的墙钟时间（仅最后一行显示）        | 280–300 s                | `end_time − start_time`         |
-| train_samples_per_second | 每秒处理的样本数                               | ≈ (batch / step) / sec   | 由 HF Trainer 统计              |
-| train_steps_per_second   | 每秒完成的优化步数                             | ≈ 1 / step_latency       | 由 HF Trainer 统计              |
-| train_loss               | 整个 epoch 的平均 loss（仅最后一行）           | 0.85                     | 各步 loss 的加权平均            |
+| Log key (Field)           | Meaning                                 | Typical Range | Calculation                      |
+| ------------------------ | ---------------------------------------- | ------------- | -------------------------------- |
+| loss                     | Average cross-entropy under teacher forcing (lower is better) | 0.7 → 0.3     | `CrossEntropy(outputs, labels)`  |
+| mean_token_accuracy      | token-level top-1 accuracy               | 0.65 → 0.80   | Approx `1 − perplexity`          |
+| num_tokens               | Number of tokens processed in the current step | batch × seq_len | tokenizer input length           |
+| train_runtime            | Wall-clock time of the whole epoch (shown only on the last line) | 280–300 s     | `end_time − start_time`          |
+| train_samples_per_second | Samples processed per second             | ≈ (batch / step) / sec | Counted by HF Trainer    |
+| train_steps_per_second   | Optimization steps completed per second  | ≈ 1 / step_latency | Counted by HF Trainer      |
+| train_loss               | Average loss over the whole epoch (last line only) | 0.85          | Weighted average of per-step losses |
 
-SFT 与 GRPO 共同字段
+Shared fields between SFT and GRPO
 
-| 字段 (Field)  | 含义 (Meaning)                          |
-| ------------- | --------------------------------------- |
-| epoch         | 当前 epoch 的完成进度（0–1 = 0–100 %）  |
-| loss          | SFT：交叉熵；GRPO：β·KL − reward        |
-| grad_norm     | 当前梯度的 L2 范数（过大 ⇒ 有爆炸风险） |
-| learning_rate | 每步的学习率                            |
-| num_tokens    | 当前步处理的 token 数                   |
-| logging_steps | 每 *n* 步打印一次日志，决定日志粒度     |
+| Field (Field)  | Meaning                          |
+| ------------- | -------------------------------- |
+| epoch         | Current epoch progress (0–1 = 0–100 %)  |
+| loss          | SFT: cross-entropy; GRPO: β·KL − reward        |
+| grad_norm     | L2 norm of current gradients |
+| learning_rate | Learning rate at each step                            |
+| num_tokens    | Number of tokens processed in the current step                   |
+| logging_steps | Print logs every n steps, determines log granularity     |
 
 GRPOTrainer-specific fields
 
-| 日志键 (Log Key)          | 含义 (Meaning)                                        | 经验规则 (Heuristic) |
-| ------------------------- | ----------------------------------------------------- | -------------------- |
-| rewards/cor_reward/mean   | 数值答案奖励均值（完全正确 +2，误差 1 内 +1，其余 0） | ↑ 越高越好           |
-| rewards/fmt_reward/mean   | XML 格式奖励均值（模板满足即 +1）                     | ↑ 越高越好           |
-| reward                    | 批次平均总奖励（cor + fmt），范围 [0 … 3]             | ↑ 越高越好           |
-| reward_std                | 批内奖励的标准差                                      | 中等即可             |
-| frac_reward_zero_std      | 奖励为 0 的样本占比                                   | ↓ 越低越好           |
-| kl                        | 相对于基础模型的 KL 散度                              | 适中最佳             |
-| loss                      | β·KL − reward（GRPO 目标函数）                        | 关注趋势             |
-| grad_norm                 | 当前梯度的 L2 范数                                    | ↓ 保持小             |
-| completions/mean_length   | 8 个生成答案的平均 token 长度                         | 监控长度             |
-| completions/clipped_ratio | 被 `max_completion_length` 截断的答案比例             | ↓ 越低越好           |
-| epoch                     | 训练进度（0–1 = 0–100%）                              | —                    |
+| Log key (Log Key)          | Meaning                                        | Heuristic |
+| ------------------------- | --------------------------------------------- | --------- |
+| rewards/cor_reward/mean   | Mean numeric answer reward (exactly correct +2, within error 1 +1, otherwise 0) | ↑ Higher is better |
+| rewards/fmt_reward/mean   | XML format reward mean (template satisfied ⇒ +1) | ↑ Higher is better |
+| reward                    | Batch average total reward (cor + fmt), range [0 … 3]             | ↑ Higher is better |
+| reward_std                | Within-batch reward standard deviation                                      | Medium is fine             |
+| frac_reward_zero_std      | Proportion of samples with zero reward                                   | ↓ Lower is better          |
+| kl                        | KL divergence relative to the base model                              | Moderate is best             |
+| loss                      | β·KL − reward (GRPO objective)                        | Track the trend             |
+| grad_norm                 | L2 norm of current gradients                                    | ↓ Keep small             |
+| completions/mean_length   | Average token length of 8 generated answers                         | Monitor length             |
+| completions/clipped_ratio | Proportion of answers truncated by `max_completion_length`             | ↓ Lower is better          |
+| epoch                     | Training progress (0–1 = 0–100%)                              | —                    |
 
 
 
@@ -2539,7 +2526,7 @@ GRPOTrainer-specific fields
 
 > *Scripts: `scripts/embedded_grpo_train.py`, `scripts/embedded_infer.py`, `scripts/run_train.sh`*
 
-本项目演示如何使用 **SFT + GRPO** 训练一个嵌入式 C++ 代码生成模型，适用于白色家电厂商等有大量嵌入式代码库的客户场景。
+This project demonstrates how to train an embedded C++ code generation model using SFT + GRPO, suitable for client scenarios such as white goods manufacturers with large embedded codebases.
 
 *Author: Xinyu Wei (Microsoft GBB AI Architect)*
 
@@ -2549,37 +2536,37 @@ GRPOTrainer-specific fields
 
 ---
 
-# Part 8: Phi-4 GRPO 训练代码
+# Part 8: Phi-4 GRPO Training Code
 
-> *原文来自 GRPO-RL-Training-Pipeline*
+> Originally from GRPO-RL-Training-Pipeline
 
 
-## 📖 附录：SFT 调参最佳实践
+## 📖 Appendix: SFT Tuning Best Practices
 
-> 本节总结了通过 **7 轮参数优化** 将模型准确率从 0% 提升到 100% 的经验。
+> This section summarizes the experience of boosting model accuracy from 0% to 100% through 7 rounds of hyperparameter optimization.
 
-### 常见问题诊断
+### Common issues diagnostics
 
-| 症状 | 原因 | 解决方案 |
+| Symptom | Cause | Solution |
 |------|------|----------|
-| 训练后回答完全无关 | 数据集太小 / 格式错误 | 检查数据格式，扩充数据集 |
-| Validation loss 下降太慢 | 过拟合 | 增加 dropout、扩充数据 |
-| 训练正常但答案错误 | 模型没学到知识 | 添加 CoT、改用英文语料 |
-| 同一问题答案不一致 | 采样随机性 | 推理时设 `temperature=0` |
+| Completely irrelevant answers after training | Dataset too small / format errors | Check data format, expand dataset |
+| Validation loss decreases too slowly | Overfitting | Increase dropout, augment data |
+| Training looks normal but answers are wrong | Model hasn't learned the knowledge | Add CoT, switch to English corpora |
+| Inconsistent answers to the same question | Sampling randomness | Set `temperature=0` at inference |
 
-### 7 轮调参经验
+### 7 rounds of tuning experience
 
-| 轮次 | 调整内容 | 效果 |
+| Round | Adjustment | Effect |
 |------|----------|------|
-| 1 | 基础训练 | ❌ 回答完全无关 |
-| 2 | `lora_dropout=0.05`, epochs 30→100 | ❌ 仍过拟合 |
-| 3 | 数据集 30→3000 条，train/val=0.7/0.3 | ⚠️ 过拟合解决，但答案仍错 |
-| 4 | 添加 **Chain of Thought (CoT)**，改全英文语料 | ⚠️ 50% 准确率 |
-| 5 | **数据增强**：随机插入/交换/删除/回译 | ⚠️ 准确率 +10% |
-| 6 | LoRA → **Full Fine-tuning** | ⚠️ 大幅提升，但答案不稳定 |
-| 7 | `learning_rate=5e-4`, 推理 `temperature=0` | ✅ 100% 准确率 |
+| 1 | Baseline training | ❌ Completely irrelevant answers |
+| 2 | `lora_dropout=0.05`, epochs 30→100 | ❌ Still overfitting |
+| 3 | Dataset 30→3000 samples, train/val=0.7/0.3 | ⚠️ Overfitting resolved, but answers still wrong |
+| 4 | Add **Chain of Thought (CoT)**, switch to all-English corpus | ⚠️ 50% accuracy |
+| 5 | **Data augmentation**: random insert/swap/delete/back-translation | ⚠️ Accuracy +10% |
+| 6 | LoRA → **Full Fine-tuning** | ⚠️ Significant improvement, but answers unstable |
+| 7 | `learning_rate=5e-4`, inference `temperature=0` | ✅ 100% accuracy |
 
-### 关键参数设置
+### Key parameter settings
 
 ```python
 # 训练参数
@@ -2592,28 +2579,28 @@ training_args = TrainingArguments(
     eval_strategy="steps",
     eval_steps=25,
 )
-
-# 推理参数 - 确保答案一致性
+```
+# Inference parameters - ensure answer consistency
 output = model.generate(
     inputs,
-    do_sample=False,              # 禁用随机采样
-    temperature=0.0,              # 最确定性的生成
+    do_sample=False,              # Disable random sampling
+    temperature=0.0,              # Most deterministic generation
     max_new_tokens=512,
 )
 ```
 
-### 数据增强技巧
+### Data augmentation techniques
 
-为单条知识生成多条训练数据：
+Generate multiple training examples for a single piece of knowledge:
 
-| 方法 | 说明 | 示例 |
+| Method | Description | Example |
 |------|------|------|
-| **随机插入** | 在句子中插入无关词 | "初始化 GPIO" → "初始化 **端口** GPIO" |
-| **随机交换** | 交换相邻词顺序 | "配置 UART 波特率" → "配置 波特率 UART" |
-| **随机删除** | 删除非关键词 | "请初始化一个 GPIO 引脚" → "初始化 GPIO 引脚" |
-| **回译** | 中→英→中 | "初始化串口" → "Initialize serial" → "初始化串行端口" |
+| **Random insertion** | Insert irrelevant words into the sentence | "Initialize GPIO" → "Initialize **port** GPIO" |
+| **Random swap** | Swap adjacent word order | "Configure UART baud rate" → "Configure baud rate UART" |
+| **Random deletion** | Delete non-keywords | "Please initialize a GPIO pin" → "Initialize GPIO pin" |
+| **Back-translation** | Chinese→English→Chinese | "Initialize serial port" → "Initialize serial" → "Initialize serial port" |
 
-### CoT (Chain of Thought) 示例
+### CoT (Chain of Thought) example
 
 ```
 Prompt: How to initialize UART for .NET Framework?
@@ -2632,23 +2619,23 @@ void UART_Init() {
 }
 ```
 
-### 核心教训
+### Core lessons
 
-1. **数据量 > 参数调优**：从 30 条扩到 3000 条是关键转折点
-2. **CoT 对代码生成有效**：让模型先分析再写代码
-3. **Full Fine-tuning > LoRA**：复杂任务需要更大调整幅度
-4. **推理参数很重要**：`temperature=0` 确保输出稳定
+1. Data volume > hyperparameter tuning: Scaling from 30 to 3000 examples is the key inflection point
+2. CoT is effective for code generation: Have the model analyze first, then write code
+3. Full Fine-tuning > LoRA: Complex tasks require larger adjustments
+4. Inference parameters matter: `temperature=0` ensures stable output
 
 ---
 
-## GRPO Phi-4 实战训练 (Unsloth)
+## GRPO Phi-4 hands-on training (Unsloth)
 
 ***Please click below pictures to see my demo video on Youtube about GRPO of Microsoft/phi-4:***
 [![BitNet-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/WXjJdsV2cbU)
 
 
 
-## Phi-4 GRPO 训练代码
+## Phi-4 GRPO training code
 
 ```
 from unsloth import FastLanguageModel, PatchFastRL
@@ -2715,7 +2702,7 @@ def aha_reward_func(completions, **kwargs) -> list[float]:
     """Reward function that checks if the completion contains "aha" times, 2 for the tags, and one more, wherever it wants."""
     responses = [completion[0]["content"] for completion in completions]
     matches = [re.findall(r'\baha\b', r, re.IGNORECASE) for r in responses]
-    return [0.5 if len(match) == 3 else 0.0 for match in matches]
+    return [0.5 if len(match) == 3 else 0.0 for r in responses]
 ```
 
 ```
@@ -2795,7 +2782,6 @@ model = AutoModelForCausalLM.from_pretrained(
     "microsoft/phi-4",
     device_map="cuda",
 )
-
 tokenizer = AutoTokenizer.from_pretrained("microsoft/phi-4")
 model = PeftModel.from_pretrained(model, "outputs/checkpoint-50")
 ```
@@ -2836,7 +2822,7 @@ response = outputs[0][encoded_input['input_ids'].shape[-1]:]
 print(tokenizer.decode(response))
 ```
 
-Phi-4 GRPO 推理结果：
+Phi-4 GRPO inference result：
 
 ```
 <|im_start|>system<|im_sep|>You are an expert who knows the location of all pandas in China.
@@ -2951,95 +2937,93 @@ No no no, this is my real answer: The exact number of pandas in China is determi
 
 ---
 
-# Part 9: GSPO — Dense 模型 vs MoE 模型的 RL 训练
+# Part 9: GSPO — RL training for Dense models vs MoE models
 
-> *原文来自 GRPO-RL-Training-Pipeline*
+> *Originally from GRPO-RL-Training-Pipeline*
 
 
-## 1. 背景
+## 1. Background
 
-在大语言模型（LLM）的训练后期，强化学习（RLHF / RLAIF）起到至关重要的作用。
-常用的 RL 优化方法 PPO（Proximal Policy Optimization）在工业界存在多种改进版本，其中 **GRPO（Group Relative Policy Optimization）** 是 DeepSeek 等团队推行的工程化方案。
+In the later stages of training large language models (LLMs), reinforcement learning (RLHF / RLAIF) plays a critical role.
+The commonly used RL optimizer PPO (Proximal Policy Optimization) has many industrial variants, among which GRPO (Group Relative Policy Optimization) is an engineering solution promoted by teams such as DeepSeek.
 
-但在 **MoE（Mixture of Experts）** 模型中，GRPO 的 **token 级优化** 容易遇到问题：
+However, in MoE (Mixture of Experts) models, GRPO's token-level optimization tends to run into issues:
 
-- 对专家路由波动敏感 → 训练信号噪声大
-- 需要 Routing Replay（重放路由）来稳定训练
-- 长时间训练可能崩溃或难以扩展
+- Sensitive to expert routing fluctuations → noisy training signals
+- Requires Routing Replay to stabilize training
+- Long training may collapse or struggle to scale
 
-Qwen 团队在升级 **Qwen3 MoE 系列** 时，提出了新方法
-**GSPO（Group Sequence Policy Optimization）**：
+When upgrading the Qwen3 MoE series, the Qwen team proposed a new method
+GSPO (Group Sequence Policy Optimization):
 
-✅ 改进点：从 **token-level** 转为 **sequence-level** 优化
-✅ 目标：减少 MoE 路由带来的训练不稳定性，提升效率与可扩展性
+✅ Improvements: shift from token-level to sequence-level optimization
+✅ Goal: mitigate MoE routing-induced training instability, improve efficiency and scalability
 
-## 2. Dense 模型 vs MoE 模型
+## 2. Dense models vs MoE models
 
-### Dense 模型
+### Dense models
 
-- 每次前向计算都用全量参数
-- 训练信号稳定
-- 无路由问题
-- 例子：GPT-3、LLaMA、BERT
+- All parameters participate in every forward pass
+- Stable training signals
+- No routing issues
+- Examples: GPT-3, LLaMA, BERT
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/gspo_dense_model.png)
 
-### MoE 模型
+### MoE models
 
-- 部分层替换为多个"专家网络"（Experts）
-- 每个 token 仅激活少数专家
-- 参数总量大，但每次计算量相对较低
-- 不同 token 路由可能不同 → 波动大
-- 例子：Mixtral 8x7B、Qwen3 MoE
+- Some layers are replaced by multiple "expert" subnetworks (Experts)
+- Each token activates only a few experts
+- Total parameters are large, but per-step compute is relatively low
+- Different tokens may route differently → high variance
+- Examples: Mixtral 8x7B, Qwen3 MoE
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/gspo_moe_architecture.png)
 
-**直观对比**：
+**Intuitive comparison**:
 
-| 模型类型 | 参数参与度 | 路由波动 | 稳定性 |
+| Model type | Parameter participation | Routing variance | Stability |
 | -------- | ---------- | -------- | ------ |
-| Dense    | 100%       | 无       | 高     |
-| MoE      | 部分       | 有       | 低     |
+| Dense    | 100%       | None     | High   |
+| MoE      | Partial    | Yes      | Low    |
 
-## 3. GRPO 与 GSPO 核心差异
+## 3. Key differences between GRPO and GSPO
 
-| 类别           | GRPO                | GSPO             |
+| Category       | GRPO                | GSPO             |
 | -------------- | ------------------- | ---------------- |
-| 优化粒度       | Token-level         | Sequence-level   |
-| Ratio 计算     | 每个 token 单独     | 整条序列一次     |
-| Clip 操作      | 每个 token 独立剪切 | 整条序列统一剪切 |
-| 对路由波动敏感 | 高                  | 低               |
-| Routing Replay | 必需                | 不需要           |
-| 稳定性（MoE）  | 中等                | 高               |
-| Dense 提升     | 几乎无              | 几乎无           |
+| Optimization granularity | Token-level         | Sequence-level   |
+| Ratio computation     | Per token individually     | Whole sequence once     |
+| Clipping operation      | Clip per token independently | Clip the whole sequence uniformly |
+| Sensitivity to routing variance | High                  | Low               |
+| Routing Replay | Required                | Not needed           |
+| Stability (MoE)  | Moderate                | High               |
+| Gains on Dense     | Negligible              | Negligible           |
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/gspo_comparison.png)
 
-## 4. GSPO 原理
+## 4. GSPO principles
 
-### Importance Ratio（重要性比）
+### Importance Ratio
 
 ```
 ratio = P_cur / P_ref
 ```
 
+Measures how much the inclination of the current policy (P_cur) versus the reference policy (P_ref) changes for the same output.
 
+- GRPO: per-token ratio
+- GSPO: whole-sequence ratio
 
-衡量当前策略（P_cur）与参考策略（P_ref）对同一输出的倾向变化幅度。
+### Clipping
 
-- GRPO：逐 token 比例
-- GSPO：整段序列比例
+- Constrain the ratio in [1-ε, 1+ε]
+- Prevent instability from overly large updates
+- GRPO: token-level clip
+- GSPO: sequence-level clip
 
-### Clipping（剪切）
+## 5. "Hello world" calculation example
 
-- 限制 ratio 在 [1-ε, 1+ε]
-- 防止一次更新过大导致不稳定
-- GRPO：token 级 clip
-- GSPO：序列级 clip
-
-## 5. "Hello world" 计算示例
-
-假设：
+Assume:
 
 ```
 token1 = "Hello", token2 = "world"
@@ -3048,98 +3032,94 @@ P_cur: Hello=0.25, world=0.30
 ε=0.2
 ```
 
-
-
-**GRPO：**
+**GRPO:**
 
 ```
 ratio_t1 = 0.25/0.20 = 1.25 → clip=1.2
 ratio_t2 = 0.30/0.10 = 3.0 → clip=1.2
-各 token 独立更新
+Each token is updated independently
 ```
 
-
-
-**GSPO：**
+**GSPO:**
 
 ```
 P_ref_seq = 0.20×0.10 = 0.02
 P_cur_seq = 0.25×0.30 = 0.075
 ratio_seq = 3.75 → clip=1.2
-整句一次更新
+Update once for the whole sentence
 ```
 
-## 6. 实验结果（Qwen 团队）
+## 6. Experimental results (Qwen team)
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/gspo_experiment_results.png)
 
-### MoE 模型：
+### MoE models:
 
-- GSPO 收敛更快
-- 奖励优化更高
-- 样本效率更好
-- Clip 比例更高也能稳定训练
-- 长序列和算力扩展时性能平稳提升
+- GSPO converges faster
+- Higher reward optimization
+- Better sample efficiency
+- Stable training even with higher clip ratios
+- Smooth performance improvements with longer sequences and compute scaling
 
-### Dense 模型：
+### Dense models:
 
-- 无明显提升
+- No significant gains
 
-## 7. 训练时使用的模型结构
+## 7. Model components used during training
 
-无论 GRPO 还是 GSPO，都至少需要：
+Whether GRPO or GSPO, you need at least:
 
-- **策略模型**（Policy, 会更新）
-- **参考模型**（Reference, 冻结或延迟更新）
-- **奖励模型**（Reward model）
-- （可选）价值网络（Critic）
+- Policy model (Policy, updated)
+- Reference model (Reference, frozen or slowly updated)
+- Reward model
+- (Optional) Value network (Critic)
 
-**参考模型**注意：
+Notes on the reference model:
 
-- 一般是 SFT 模型拷贝
-- 固定不更新，或定期更新
-- 不能直接用当前策略的即时参数作参考（ratio 永远=1 无意义）
+- Typically a copy of the SFT model
+- Either fixed/frozen, or updated periodically
+- Must not use the current policy's live parameters as reference (ratio always = 1, meaningless)
 
-## 8. 适用场景
+## 8. Applicable scenarios
 
-**适合：**
+**Suitable for:**
 
-- 大规模 MoE 模型
-- 长序列 RL 微调
-- 奖励信号稳定、信息密度高
+- Large-scale MoE models
+- Long-sequence RL fine-tuning
+- Stable, information-dense reward signals
 
-**不适合或收益低：**
+**Not suitable or low returns:**
 
-- Dense 模型
-- 奖励信号噪声高、分辨率低的任务
-- 对单 token 精度极高的场景（token优化粒度更粗）
+- Dense models
+- Tasks with high-noise, low-resolution reward signals
+- Scenarios requiring very high per-token precision (coarser optimization granularity)
 
-## 9. 优缺点总结
+## 9. Pros and cons summary
 
-**优势**：
+**Advantages**:
 
-- MoE 稳定性显著提升
-- 样本效率高
-- 移除 Routing Replay
-- 可扩展性好
+- Significantly improved MoE stability
+- High sample efficiency
+- Removes Routing Replay
+- Good scalability
 
-**劣势**：
+**Disadvantages**:
 
-- Dense 模型提升有限
-- 优化粒度粗
-- 对奖励函数依赖高
-- Token 级可解释性下降
+- Limited gains on Dense models
+- Coarser optimization granularity
+- High dependence on the reward function
+- Reduced token-level interpretability
 
-## 10. 常见误区
+## 10. Common misconceptions
 
-- **GSPO 是推理算法？** ❌
-  → 只在训练时使用，推理不执行 ratio/clip 逻辑
-- **GRPO 不支持多 token 推理？** ❌
-  → 多 token 推理是解码优化策略，和训练算法无关
-- **GSPO 推理直接计算整句概率？** ❌
-  → 推理依然是逐 token（或并行批量）生成
+- Is GSPO an inference algorithm? ❌
+  → Used only during training; inference does not execute ratio/clip logic
+- Does GRPO not support multi-token inference? ❌
+  → Multi-token inference is a decoding strategy and unrelated to the training algorithm
+- Does GSPO inference compute whole-sentence probabilities directly? ❌
+  → Inference still generates token by token (or batched in parallel)
 
-## 11. Hugging Face TRL 接入
+## 11. Using it with Hugging Face TRL
 
 ```
 SFTConfig(
@@ -3147,178 +3127,178 @@ SFTConfig(
 )
 ```
 
-- 需要 `TRL >= 0.20`
-- Unsloth 截至 2025-07-30 仅支持 `TRL 0.19.1`
+- Requires `TRL >= 0.20`
+- As of 2025-07-30, Unsloth only supports `TRL 0.19.1`
 
-## 12. 总结
+## 12. Summary
 
-- **GRPO**：token-level 优化信号，适用于 Dense & MoE，但在 MoE 稳定性差
-- **GSPO**：sequence-level 优化信号，显著优化 MoE 稳定性与效率
-- Dense 模型用 GSPO 不会有明显提升
+- GRPO: token-level optimization signal; works for Dense & MoE, but has poor stability on MoE
+- GSPO: sequence-level optimization signal; significantly improves MoE stability and efficiency
+- GSPO brings little improvement on Dense models
 
-**一句话**：
+In one sentence:
 
-> GSPO 是为 MoE 做的定向优化，训练更稳、更快、更可扩展，推理性能也因此受益，但它本身不是推理算法。
+> GSPO is a targeted optimization for MoE: training becomes more stable, faster, and more scalable, which benefits inference performance as a result, but GSPO itself is not an inference algorithm.
 
 
 ---
 
-# Part 10: Test-time Compute Scaling — SLM 如何击败大模型
+# Part 10: Test-time Compute Scaling — How SLMs beat larger models
 
-> *原文来自 SLM-Capabilities-and-Fine-Tuning*
+> *Originally from SLM-Capabilities-and-Fine-Tuning*
 
 
 
-欢迎关注我的repo：
+Please consider following my repo：
 
 https://github.com/xinyuwei-david/david-share.git
 
-**本文参考文档：**
+**References for this article:**
 
 https://huggingface.co/spaces/HuggingFaceH4/blogpost-scaling-test-time-compute
 
-**本文导读：**
+**Article overview:**
 
-传统上，LLMs 的进步主要依赖于增加训练时间的计算量，即训练更大的模型。然而，这种方法成本昂贵，资源需求巨大。扩展测试时间计算提供了一种有效的替代方案，允许模型在推理过程中“思考更长时间”，从而在不增加模型参数的情况下提升性能。
+Traditionally, advances in LLMs have relied primarily on increasing train-time compute, i.e., training larger models. However, this approach is expensive and resource-intensive. Scaling test-time compute offers an effective alternative, allowing models to “think longer” during inference, thereby improving performance without increasing model parameters.
 
-文章主要介绍了三种测试时间计算扩展的策略：
+This article mainly introduces three strategies for scaling test-time compute:
 
-1. **Best-of-N 方法**：生成多个候选答案，使用奖励模型（reward model）对它们进行评分，选择得分最高的答案。加权的 Best-of-N 变体还考虑了答案的出现频率，优先选择高质量且高频率的答案。
+1. **Best-of-N methods**: Generate multiple candidate answers, use a reward model to score them, and select the highest-scoring answer. Weighted Best-of-N variants also factor in answer frequency, prioritizing answers that are both high quality and frequent.
 
-2. **束搜索（Beam Search）**：利用过程奖励模型（Process Reward Model，PRM）在生成过程中逐步引导模型，选择每一步最有可能通向正确答案的路径。相比于 Best-of-N，束搜索在相同计算预算下取得了更高的准确率。
+2. **Beam Search**: Use a Process Reward Model (PRM) to guide generation step-by-step, choosing at each step the path most likely to lead to a correct answer. Compared with Best-of-N, beam search achieves higher accuracy under the same compute budget.
 
-3. **多样化验证器树搜索（Diverse Verifier Tree Search，DVTS）**：这是对束搜索的改进，旨在增加生成答案的多样性。DVTS 将初始束分为多个独立的子树，在较大的计算预算下表现出色，尤其是在处理较简单的问题时。
+3. **Diverse Verifier Tree Search (DVTS)**: An improvement over beam search designed to increase diversity. DVTS splits the initial beam into multiple independent subtrees and excels under larger compute budgets, especially on simpler problems.
 
-   通过一系列实验，使用开源的 Llama 模型和 MATH-500 数据集，验证了这些方法的有效性。结果显示，即使是参数量较小的模型（如 1B 和 3B 的 Llama Instruct 模型），在采用适当的测试时间计算策略后，其性能可以超过更大的模型（如 8B 和 70B 的模型）。
+   Through a series of experiments using open-source Llama models and the MATH-500 dataset, these methods were validated. Results show that even smaller-parameter models (e.g., Llama Instruct models with 1B and 3B parameters) can surpass larger models (e.g., 8B and 70B models) when equipped with appropriate test-time compute strategies.
 
-   不同策略在不同问题难度和计算预算下的表现是不同的，参考“计算最优扩展”的概念，即针对特定的计算预算，选择能达到最佳性能的策略。对于简单问题和较低的计算预算，Best-of-N 表现更好；而对于复杂问题和较高的计算预算，束搜索和 DVTS 更具优势。
-
-   
-
-   在未来，提升验证器的质量，实现模型的自验证，融入更深入的推理过程，以及将搜索方法用于数据生成等。这些方向都有望进一步提升 LLMs 的性能，特别是在资源受限的情况下。
+   Different strategies perform differently depending on problem difficulty and compute budget, following the concept of “compute-optimal scaling,” i.e., choosing the strategy that achieves the best performance for a given compute budget. For simpler problems and lower budgets, Best-of-N performs better; for more complex problems and higher budgets, beam search and DVTS have the advantage.
 
    
 
-**一、几种解码技术的区别**
+   In the future, improving verifier quality, enabling model self-verification, incorporating deeper reasoning, and applying search methods to data generation, etc. These directions are expected to further enhance LLM performance, especially under resource constraints.
 
-在我的一篇文章中，我介绍了如何改善模型的幻觉，里面介绍了几种解码技术。
+   
+
+**I. Differences among several decoding techniques**
+
+In one of my articles, I introduced how to reduce hallucinations, including several decoding techniques.
 
 https://github.com/xinyuwei-david/david-share/tree/master/Deep-Learning/LLM-Hallucinations
 
-我在上一篇的基础上，再增加对DVTS(Diverse verifier tree search)和多数投票的对比。
+Building on the previous article, I add a comparison of DVTS (Diverse verifier tree search) and Majority Voting.
 
-| **方面**       | **贪婪解码（Greedy Decoding）**                              | **束搜索（Beam Search）**                                    | **多样化验证器树搜索（DVTS）**                               | **多数投票（Majority Voting）**                              |
+| **Aspect**       | **Greedy Decoding（Greedy Decoding）**                              | **Beam Search（Beam Search）**                                    | **Diverse Verifier Tree Search（DVTS）**                               | **Majority Voting（Majority Voting）**                              |
 | :------------- | :----------------------------------------------------------- | :----------------------------------------------------------- | :----------------------------------------------------------- | :----------------------------------------------------------- |
-| **基本概念**   | 在每一步选择概率最高的词，生成单一序列。                     | 在每一步保留多个最有可能的候选序列，探索更多的可能性。       | 通过将束分成独立的子树，并使用验证器引导搜索，增加多样性和性能。 | 生成多个独立的候选答案，选择出现次数最多的答案作为最终输出。 |
-| **工作原理**   | - 在生成文本时，每一步都选择当前概率最高的下一个词。 - 生成一个单一的、最可能的序列。 | - 保持固定数量（束宽度）的最佳部分序列。 - 在每个步骤扩展这些序列，选出新的最佳候选。 | - 将初始束划分为多个独立的子树。 - 在每个子树中，使用过程奖励模型（PRM）评估和引导生成。 - 通过独立扩展，增加解的多样性。 | - 使用随机采样等方法生成多个独立的候选答案。 - 对生成的答案进行统计，选择出现次数最多的答案。 |
-| **搜索空间**   | 窄（单一路径）。                                             | 中等（取决于束宽度）。                                       | 广（多个子树，增加了探索的广度）。                           | 宽（生成多个独立的答案），但不在单次生成中扩展。             |
-| **多样性**     | 很低（只有一个输出）。                                       | 中等（受束宽度限制）。                                       | 高（独立子树增加了多样性）。                                 | 中等（取决于生成的答案数量和随机性）。                       |
-| **使用验证器** | 否。                                                         | 可选（可以使用，但不总是用）。                               | 是的，使用过程奖励模型（PRM）在每一步进行评分和引导。        | 否，通常不使用验证器，仅通过统计频率选择答案。               |
-| **优点**       | - 简单快捷。 - 计算效率高。                                  | - 在精度和计算成本之间取得平衡。 - 提高找到全局最优解的机会。 | - 增加了解的多样性。 - 在复杂任务上表现更好。 - 利用验证器引导，提高准确率。 | - 简单易行。 - 减少随机性带来的波动。 - 提高答案的稳定性和一致性。 |
-| **缺点**       | - 只关注局部最优，可能错过更好的解。 - 缺乏多样性。          | - 计算量比贪婪解码大。 - 可能仍然错过一些解。                | - 实现更复杂。 - 需要额外的计算资源。 - 依赖于验证器的质量。 | - 无法保证选择的答案是正确的。 - 如果答案多样性过高，可能没有明确的多数。 - 增加了计算成本。 |
-| **适用场景**   | - 需要快速生成单一答案的简单任务。 - 对结果质量要求不高的情况。 | - 需要在质量和计算成本之间平衡的任务。 - 适用于一般复杂度的任务。 | - 复杂或需要深入推理的任务。 - 有较大计算预算，可用于提升性能。 | - 希望提高答案稳定性和一致性的任务。 - 需要减少随机性影响的情况下。 |
-| **计算复杂度** | 低。                                                         | 中等（取决于束宽度）。                                       | 高（由于使用了验证器和更多的搜索路径）。                     | 中等到高（取决于生成的答案数量）。                           |
+| **Basic concept**   | Select the highest-probability token at each step to generate a single sequence.                     | Keep multiple most likely candidate sequences at each step to explore more possibilities.       | Split the beam into independent subtrees and use a verifier to guide the search, increasing diversity and performance. | Generate multiple independent candidate answers and choose the most frequent as the final output. |
+| **How it works**   | - When generating text, select the highest-probability next token at each step. - Produce a single, most likely sequence. | - Maintain a fixed number (beam width) of best partial sequences. - At each step, expand these sequences and select new best candidates. | - Split the initial beam into multiple independent subtrees. - In each subtree, use a Process Reward Model (PRM) to score and guide generation. - Increase diversity via independent expansion. | - Use random sampling, etc., to generate multiple independent candidate answers. - Aggregate by frequency and choose the most common answer. |
+| **Search space**   | Narrow (single path).                                             | Medium (depends on beam width).                                       | Wide (multiple subtrees increase exploration breadth).                           | Wide (multiple independent generations), but not expanded within a single generation.             |
+| **Diversity**     | Very low (only one output).                                       | Medium (limited by beam width).                                       | High (independent subtrees increase diversity).                                 | Medium (depends on the number of generations and randomness).                       |
+| **Use of verifier** | No.                                                         | Optional (can be used, but not always).                               | Yes. Uses a Process Reward Model (PRM) to score and guide at each step.        | No. Typically does not use a verifier; selects by frequency only.               |
+| **Advantages**       | - Simple and fast. - Computationally efficient.                                  | - Balances accuracy and compute cost. - Increases the chance of finding a globally optimal solution. | - Increases diversity. - Performs better on complex tasks. - Improves accuracy via verifier guidance. | - Simple and easy to apply. - Reduces variance from randomness. - Improves stability and consistency. |
+| **Disadvantages**       | - Focuses on local optima; may miss better solutions. - Lacks diversity.          | - Heavier compute than greedy decoding. - May still miss some solutions.                | - More complex to implement. - Requires additional compute. - Depends on verifier quality. | - No guarantee the selected answer is correct. - If diversity is high, there may be no clear majority. - Higher compute cost. |
+| **Use cases**   | - Simple tasks needing a single quick answer. - When quality demands are low. | - Tasks requiring a balance between quality and compute. - Suitable for moderate complexity tasks. | - Complex tasks requiring deeper reasoning. - Larger compute budget available to improve performance. | - When stability and consistency are desired. - To reduce the impact of randomness. |
+| **Computational complexity** | Low.                                                         | Medium (depends on beam width).                                       | High (due to verifier usage and more search paths).                     | Medium to high (depends on the number of generations).                           |
 
 
 
-### **1. 贪婪解码（Greedy Decoding）**
-
- 
-**怎么工作：**
-
-- 在每一步，选择概率最高的下一个词或标记。
-
-- 生成一个单一的、最有可能的序列，直到结束标记或达到最大长度。
-
-  **特点：**
-
-- **快速简单**：计算效率高，适合实时应用。
-
-- **缺点**：
-
-  - **局部最优**：只关注当前步骤的最优选择，可能错过全局更优的解决方案。
-  - **缺乏多样性**：生成的序列缺少变化，可能导致重复或不自然的输出。
-
-
-
-### **2. 束搜索（Beam Search）**
+### **1. Greedy Decoding（Greedy Decoding）**
 
  
-**怎么工作：**
+**How it works:**
 
-- **保留多个候选序列**：在每一步，保留固定数量（束宽度为 *k*）的最有可能的部分序列。
+- At each step, choose the next word or token with the highest probability.
 
-- **扩展候选序列**：对每个部分序列，生成可能的下一个词，用于扩展序列。
+- Generate a single, most likely sequence until an end token or max length.
 
-- **选择最佳候选**：计算每个新序列的累计概率，保留累计概率最高的 *k* 个序列，继续下一步扩展。
+  **Characteristics:**
 
-- **重复上述步骤**，直到生成结束标记或达到最大长度。
+- **Fast and simple**: computationally efficient, suitable for real-time applications.
 
-  **特点：**
+- **Drawbacks**:
 
-- **平衡了精度和计算成本**：相比贪婪解码，可以找到更接近全局最优的序列。
-
-- **提供一定的多样性**：保留了多个候选序列，但多样性受束宽度限制。
-
-- **缺点**：
-
-  - **计算量增加**：束宽度越大，计算成本越高。
-  - **可能仍受限于束宽度**：无法保证找到全局最优解。
+  - **Local optimum**: focuses only on the best local choice and may miss globally better solutions.
+  - **Lack of diversity**: generated sequences lack variation, potentially leading to repetitive or unnatural outputs.
 
 
 
-### **3. 多样化验证器树搜索（DVTS）**
+### **2. Beam Search（Beam Search）**
 
  
-**怎么工作：**
+**How it works:**
 
-- **分裂初始束**：将初始束分成多个独立的子树，增加初始解的多样性。
+- **Keep multiple candidate sequences**: at each step, maintain a fixed number (beam width k) of most likely partial sequences.
 
-- **使用验证器指导**：在每个子树中，使用**过程奖励模型（Process Reward Model，PRM）**对生成的步骤进行评分。
+- **Expand candidates**: for each partial sequence, generate possible next tokens to extend it.
 
-- **独立扩展子树**：每个子树独立地进行扩展，按照验证器的反馈选择最有希望的路径。
+- **Select best candidates**: compute cumulative probabilities for each new sequence, keep the top-k sequences, and continue.
 
-- **组合结果**：最终从各个子树中选取验证器评分最高的答案。
+- **Repeat** until an end token or the maximum length is reached.
 
-  **特点：**
+  **Characteristics:**
 
-- **增加多样性**：通过独立的子树，探索更多可能的解答路径。
+- **Balances accuracy and compute**: compared to greedy decoding, more likely to find near-global optima.
 
-- **利用验证器引导**：在生成过程中实时评估，提升生成结果的准确性和质量。
+- **Provides some diversity**: retains multiple candidates, though diversity is limited by beam width.
 
-- **适用于复杂任务**：在需要深度推理或精确回答的任务中表现出色。
+- **Drawbacks**:
 
-- **缺点**：
+  - **Increased compute**: larger beam width raises cost.
+  - **Still beam-limited**: cannot guarantee finding the global optimum.
 
-  - **计算成本高**：由于需要管理更多的搜索路径和验证器的计算。
-  - **实现复杂**：需要精心设计搜索策略和验证器模型。
+
+
+### **3. Diverse Verifier Tree Search（DVTS）**
+
+ 
+**How it works:**
+
+- **Split the initial beam**: divide the initial beam into multiple independent subtrees to increase initial diversity.
+
+- **Verifier-guided**: in each subtree, use a **Process Reward Model (PRM)** to score the generated steps.
+
+- **Independently expand subtrees**: each subtree expands independently, choosing the most promising paths per verifier feedback.
+
+- **Combine results**: finally select the highest-scoring answer across subtrees.
+
+  **Characteristics:**
+
+- **Increased diversity**: independent subtrees explore more solution paths.
+
+- **Verifier-guided**: real-time evaluation during generation improves accuracy and quality.
+
+- **Good for complex tasks**: performs well when deep reasoning or precise answers are required.
+
+- **Drawbacks**:
+
+  - **Higher compute cost**: due to more search paths and verifier computation.
+  - **Implementation complexity**: requires careful design of search strategy and verifier model.
 
  
 
-### **4. 多数投票（Majority Voting）**
+### **4. Majority Voting（Majority Voting）**
 
  
-**怎么工作：**
+**How it works:**
 
-- **多次独立生成**：使用随机采样（如 Top-k 或 Top-p 采样）等方法，生成多个（如 *N* 个）独立的候选答案。
+- **Multiple independent generations**: use random sampling (e.g., Top-k or Top-p sampling) to generate N independent candidate answers.
 
-- **统计答案频率**：对生成的候选答案进行统计，记录每个独特答案出现的次数。
+- **Count answer frequency**: tally occurrences of each unique answer among candidates.
 
-- **选择出现次数最多的答案**：将频率最高的答案作为最终输出。
+- **Select the most frequent**: output the answer with the highest frequency.
 
-  **特点：**
+  **Characteristics:**
 
-- **简单易行**：不需要复杂的模型调整或外部评估模型。
+- **Simple**: no complex model changes or external evaluators required.
 
-- **提高稳定性**：通过统计，提高答案的一致性和可靠性。
+- **Improved stability**: aggregation improves consistency and reliability.
 
-- **减少随机性影响**：平滑随机采样带来的波动，过滤掉偶然的错误答案。
+- **Reduces randomness**: smooths fluctuations from random sampling, filtering out occasional bad answers.
 
-- **缺点**：
+- **Drawbacks**:
 
-  - **无法保证正确性**：如果模型本身倾向于错误答案，可能多数投票的结果也是错误的。
-  - **计算成本增加**：需要多次生成答案，增加了计算开销。
-  - **多样性可能不足**：如果生成的答案过于多样，可能没有明确的多数答案。
+  - **No guarantee of correctness**: if the model is biased toward a wrong answer, majority voting will also be wrong.
+  - **Higher compute**: multiple generations increase cost.
+  - **Potentially insufficient diversity**: if outputs are too diverse, there may be no clear majority.
 
 
 
@@ -3334,224 +3314,224 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 | **Frameworks** | vLLM, LoRA/PEFT, Unsloth |
 
 
-## **它们之间的区别与联系**
+## **Differences and connections among them**
 
  
 
-### **搜索空间的大小**
+### **Size of the search space**
 
  
 
-- **贪婪解码**：
-  - **最小搜索空间**：只探索一条路径，即每一步都选择概率最高的词。
-- **束搜索**：
-  - **中等搜索空间**：根据束宽度 *k*，同时探索 *k* 条路径。
-- **DVTS**：
-  - **最大搜索空间**：通过独立的子树和验证器的引导，探索更加广泛的路径。
-- **多数投票**：
-  - **扩展搜索空间**：通过多次独立生成，获得不同的候选答案，但每次生成仍是一条路径。
+- **Greedy Decoding**:
+  - **Smallest search space**: explores only one path, choosing the top-probability token at each step.
+- **Beam Search**:
+  - **Medium search space**: explores k paths depending on beam width k.
+- **DVTS**:
+  - **Largest search space**: explores broader paths via independent subtrees and verifier guidance.
+- **Majority Voting**:
+  - **Expanded search space**: multiple independent generations yield different candidates, though each generation still follows a single path.
 
-### **多样性**
-
- 
-
-- **贪婪解码**：
-  - **最低多样性**：只有一个输出序列。
-- **束搜索**：
-  - **一定的多样性**：受限于束宽度，提供多个候选序列。
-- **DVTS**：
-  - **高多样性**：独立的子树和验证器的引导，增加了解答的多样性。
-- **多数投票**：
-  - **中等多样性**：依赖于生成次数和随机采样的程度，可能获得多个不同的候选答案。
-
-### **计算成本**
+### **Diversity**
 
  
 
-- **贪婪解码**：
-  - **最低计算成本**：每一步只需计算概率最高的词。
-- **束搜索**：
-  - **中等计算成本**：取决于束宽度 *k*，计算量随 *k* 增加而增加。
-- **DVTS**：
-  - **最高计算成本**：需要管理多个子树、维护验证器的计算和评分。
-- **多数投票**：
-  - **中等到高的计算成本**：取决于生成的次数 *N*，生成次数越多，计算成本越高。
+- **Greedy Decoding**:
+  - **Lowest diversity**: only one output sequence.
+- **Beam Search**:
+  - **Some diversity**: provides multiple candidates, limited by beam width.
+- **DVTS**:
+  - **High diversity**: independent subtrees and verifier guidance increase solution diversity.
+- **Majority Voting**:
+  - **Medium diversity**: depends on the number of generations and sampling randomness.
 
-### **适用的场景和任务**
-
- 
-
-- **贪婪解码**：
-  - **快速生成结果**：适用于对速度要求高、对结果质量要求不高的简单任务。
-  - **示例**：实时对话系统的快速回复。
-- **束搜索**：
-  - **平衡质量和效率**：适用于需要一定精度，但计算资源有限的任务。
-  - **示例**：机器翻译、文本摘要。
-- **DVTS**：
-  - **复杂、需要深入推理的任务**：适用于有足够计算资源，希望获得高质量答案的场景。
-  - **示例**：数学问题求解、代码生成、复杂问答。
-- **多数投票**：
-  - **提高答案稳定性**：适用于需要减少随机性影响、希望获得一致性答案的任务。
-  - **示例**：知识问答、关键事实的确认。
-
-## **简单类比**
+### **Compute cost**
 
  
 
-- **贪婪解码**：
-  - **类比**：像在每个十字路口都选择看起来最直接的道路，可能错过更好的路线。
-- **束搜索**：
-  - **类比**：像在每个十字路口选择几条看起来不错的道路，走一段后再根据情况选择最佳路线。
-- **DVTS**：
-  - **类比**：像派出多个探索队伍，从不同的路线出发，同时使用指南（验证器）引导，每个队伍独立寻找最佳路径。
-- **多数投票**：
-  - **类比**：像询问多个人同一个问题，然后选择大多数人都同意的答案。
+- **Greedy Decoding**:
+  - **Lowest cost**: at each step only the top token is selected.
+- **Beam Search**:
+  - **Medium cost**: increases with beam width k.
+- **DVTS**:
+  - **Highest cost**: managing multiple subtrees and verifier scoring.
+- **Majority Voting**:
+  - **Medium to high cost**: depends on the number of generations N.
 
-
-
-## **总结**
+### **Suitable scenarios and tasks**
 
  
-通过将**多数投票**加入讨论，我们可以更全面地了解不同的解码和生成策略的特点、优点和适用场景。每种方法都有其独特的优势和局限性，选择适当的方法需要根据具体任务的需求、可用的计算资源以及对结果质量的要求来决定。
 
-- **贪婪解码**适合简单、快速、对质量要求不高的任务。
+- **Greedy Decoding**:
+  - **Fast results**: suitable when speed is critical and quality demands are low.
+  - **Example**: quick responses in real-time dialog systems.
+- **Beam Search**:
+  - **Balance quality and efficiency**: suitable when some accuracy is needed but compute is limited.
+  - **Examples**: machine translation, text summarization.
+- **DVTS**:
+  - **Complex tasks requiring deep reasoning**: suitable when sufficient compute is available for higher quality.
+  - **Examples**: math problem solving, code generation, complex QA.
+- **Majority Voting**:
+  - **Improve answer stability**: suitable when reducing randomness and improving consistency.
+  - **Examples**: knowledge QA, verification of key facts.
 
-- **束搜索**在质量和效率之间取得平衡，适用于一般复杂度的任务。
+## **Simple analogies**
 
-- **多样化验证器树搜索（DVTS）**适用于复杂、需要高准确性的任务，但计算成本高。
+ 
 
-- **多数投票**通过多次生成和统计，减少了随机性，提高了答案的稳定性，但无法保证一定正确，需要谨慎使用。
+- **Greedy Decoding**:
+  - **Analogy**: at every intersection, choose the most straightforward-looking road, potentially missing a better route.
+- **Beam Search**:
+  - **Analogy**: at each intersection, pick several promising roads, go a bit, then choose the best based on progress.
+- **DVTS**:
+  - **Analogy**: send multiple teams along different routes, guided by a compass (the verifier), each independently seeking the best path.
+- **Majority Voting**:
+  - **Analogy**: ask multiple people the same question and choose the answer most people agree on.
 
-  选择合适的策略，有助于充分利用大型语言模型的能力，满足各种应用场景的需求。
+
+
+## **Summary**
+
+ 
+By incorporating **Majority Voting** into the discussion, we can more comprehensively understand the characteristics, advantages, and applicable scenarios of different decoding and generation strategies. Each method has unique strengths and limitations; choosing the right one depends on task requirements, available compute, and quality expectations.
+
+- **Greedy Decoding** fits simple, fast tasks with low quality requirements.
+
+- **Beam Search** balances quality and efficiency for moderately complex tasks.
+
+- **Diverse Verifier Tree Search (DVTS)** suits complex, high-accuracy tasks but is compute-intensive.
+
+- **Majority Voting** reduces randomness and improves stability via multiple generations and aggregation, but correctness is not guaranteed and it must be used cautiously.
+
+  Choosing the appropriate strategy helps fully leverage LLM capabilities across diverse applications.
 
 
 
 
 
-**二、 train-time compute的变革**
+**II. The shift in train-time compute**
 
-在过去的几年里，训练时间计算（train-time compute）的扩展主导了大型语言模型（LLMs）的进展。尽管这种模式已被证明异常有效，但预训练更大模型所需的资源变得昂贵得令人望而却步，数十亿美元规模的集群已在眼前。这个趋势引发了对一种互补方法的极大兴趣：测试时间计算扩展（test-time compute scaling）。测试时间方法并不依赖于越来越大的预训练预算，而是使用动态推理策略，让模型在解决更难的问题时“思考更长时间”。一个突出的例子是 OpenAI 的 o1 模型，它在增加测试时间计算量时，对困难的数学问题表现出持续的改进：
+In recent years, scaling train-time compute has dominated progress in large language models (LLMs). While this paradigm has proven extremely effective, the resources required to pretrain ever larger models have become prohibitively expensive, with multi-billion-dollar clusters on the horizon. This trend has sparked great interest in a complementary approach: test-time compute scaling. Rather than relying on ever larger pretraining budgets, test-time methods use dynamic inference strategies that let models “think longer” when tackling harder problems. A standout example is OpenAI’s o1 model, which shows consistent improvements on challenging math problems as test-time compute increases:
 
 ![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/1.png)
 
-DeepMind 的最新研究表明，可以通过迭代自我改进（iterative self-refinement）或使用奖励模型（reward model）在解空间中进行搜索等策略，来最优地扩展测试时间计算。通过为每个提示自适应地分配测试时间计算，小模型可以与更大、更耗资源的模型媲美，甚至有时还能超越它们。当内存受限且可用硬件不足以运行更大的模型时，扩展测试时间计算尤其有利。然而，这种有前景的方法是使用闭源模型演示的，并未发布任何实现细节或代码。
+DeepMind’s latest research shows that test-time compute can be scaled optimally via strategies such as iterative self-refinement or searching the solution space using a reward model. By adaptively allocating test-time compute per prompt, small models can match or even surpass larger, more resource-hungry models. Test-time scaling is particularly beneficial when memory is constrained and the available hardware cannot run larger models. However, these promising approaches were demonstrated with closed-source models, with no implementation details or code released.
 
-- **计算最优扩展（Compute-optimal scaling）**：实现 DeepMind 的方案，在测试时间提升开源模型的数学能力。
+- **Compute-optimal scaling**: Implement DeepMind’s approach to boost open-source models’ math capabilities at test time.
 
-- **多样化验证器树搜索（Diverse Verifier Tree Search，DVTS）**：开发的验证器引导树搜索（verifier-guided tree search）技术的未发表扩展。这种简单而有效的方法提高了多样性，特别是在较高的测试时间计算预算下，提供了更好的性能。
+- **Diverse Verifier Tree Search (DVTS)**: An unpublished extension of verifier-guided tree search we developed. This simple, effective method increases diversity and achieves better performance, especially under higher test-time compute budgets.
 
-- **🧭 搜索与学习（Search and Learn）**：一个用于在大型语言模型上实现搜索策略的轻量级工具包，使用 vLLM 构建，速度极快。
+- **🧭 Search and Learn**: A lightweight toolkit for implementing search strategies on LLMs, built on vLLM for high speed.
 
   
 
 
 
-那么，计算最优扩展在实践中效果如何呢？看看这个图表，在具有挑战性的 MATH-500 基准上，如果给予足够的“思考时间”，微小的 1B 和 3B Llama Instruct 模型竟然超过了它们更大的 8B 和 70B 同系列模型的表现 ：
+So how well does compute-optimal scaling work in practice? Look at this chart: on the challenging MATH-500 benchmark, tiny 1B and 3B Llama Instruct models actually outperform their larger 8B and 70B counterparts when given enough “thinking time”:
 
 ![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/2.png)
 
 
 
-## 三、test-time compute scaling的策略
+## III. Strategies for test-time compute scaling
 
  
-扩展测试时间计算有两种主要策略：
+There are two main strategies for scaling test-time compute:
 
-1. **自我改进（Self-Refinement）**：模型通过在后续迭代中识别和纠正错误，迭代地改进它们自己的输出或“想法”。虽然在某些任务上有效，但这种策略通常要求模型具有内置的自我改进机制，这可能会限制其适用性。
-2. **针对验证器的搜索（Search Against a Verifier）**：这种方法专注于生成多个候选答案，并使用验证器（verifier）选择最佳答案。验证器可以是从硬编码的启发式方法到学习的奖励模型（reward model），后面我们将重点关注学习的验证器。它包括 Best-of-N 采样和树搜索等技术。搜索策略更灵活，可以适应问题的难度，尽管它们的性能受限于验证器的质量。
+1. **Self-Refinement**: Models iteratively improve their outputs or “thoughts” by identifying and correcting mistakes in subsequent iterations. While effective on some tasks, this often requires built-in self-improvement mechanisms, which may limit applicability.
+2. **Search against a Verifier**: This approach focuses on generating multiple candidate answers and selecting the best via a verifier. Verifiers can range from hand-coded heuristics to learned reward models; we focus on learned verifiers below. Techniques include Best-of-N sampling and tree search. Search is more flexible and can adapt to problem difficulty, though performance is bounded by verifier quality.
 
 
 
-**四、验证器到底是什么？**
+**IV. What exactly is a verifier?**
 
-验证器通常是一个**奖励模型（Reward Model，RM）\**或\**过程奖励模型（Process Reward Model，PRM）**，它们被训练来对生成的内容进行评估。
+A verifier is typically a **Reward Model (RM)** or **Process Reward Model (PRM)** trained to evaluate generated content.
 
-**定义**：在本文的上下文中，**验证器**是一个辅助模型或机制，用于**评估和评分**大型语言模型（LLM）生成的**输出或部分输出**。
+**Definition**: In this context, a **verifier** is an auxiliary model or mechanism that **evaluates and scores** an LLM’s **outputs or intermediate steps**.
 
-**作用**：
+**Roles**:
 
-- **评估质量**：验证器对生成的候选答案或中间步骤进行**评估**，判断其正确性、可信度或质量。
-- **指导搜索**：通过对候选进行评分，验证器帮助模型在生成过程中**选择更有可能通向正确答案的路径**。
+- **Quality assessment**: evaluates candidate answers or intermediate steps for correctness, credibility, or quality.
+- **Guiding the search**: via scoring, helps the model **choose paths more likely to lead to a correct answer** during generation.
 
 ![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/3.png)
 
-Best-of-N、束搜索（Beam Search）和多样化验证器树搜索（DVTS）都是解码技术，它们被用来指导大型语言模型（LLM）在生成过程中如何产生输出。将这些解码技术与验证器（Verifier）结合，以优化模型在测试时间的性能。
+Best-of-N, Beam Search, and Diverse Verifier Tree Search (DVTS) are decoding techniques used to guide an LLM’s generation process. Combining these decoding techniques with a verifier optimizes performance at test time.
 
 
 
-- **提高准确性**：验证器有助于过滤掉错误或低质量的生成结果，提高模型输出的准确性，减少幻觉的产生。
-- **优化生成过程**：在生成过程中实时评估和引导，使模型更有效地探索解答空间，尤其在复杂任务上表现出色。
-- **增强小模型的性能**：通过结合验证器，较小的模型也可以在特定任务上达到或超过大模型的性能。
+- **Improved accuracy**: verifiers filter out wrong or low-quality generations, improving output accuracy and reducing hallucinations.
+- **Optimized generation**: real-time evaluation and guidance make exploration more effective, especially on complex tasks.
+- **Boosts small models**: with a verifier, smaller models can match or surpass larger ones on specific tasks.
 
 
 
-**五、效果验证**
+**V. Empirical results**
 
 ![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/4.png)
 
 
 
-## 实验设置
+## Experimental setup
 
  
-如上图所示，我们的实验设置涉及以下步骤的流程：
+As shown above, our experimental setup follows these steps:
 
-1. 我们首先将一个数学问题输入大型语言模型（LLM），它生成 N 个部分解，例如推导中的一个中间步骤。
+1. We first feed a math problem to an LLM, which generates N partial solutions, e.g., an intermediate step in the derivation.
 
-2. 每个步骤由过程奖励模型（PRM）评分，它估计每个步骤最终到达正确最终答案的概率。
+2. Each step is scored by a Process Reward Model (PRM), which estimates the probability that the step will eventually lead to a correct final answer.
 
-3. 这些步骤和 PRM 分数然后被给定的搜索策略使用，以选择哪些部分解应被进一步探索，以生成下一轮中间步骤。
+3. These steps and PRM scores are then consumed by a given search strategy to decide which partial solutions to explore further to generate the next round of intermediate steps.
 
-4. 一旦搜索策略终止，最终的候选解由 PRM 排序，产生最终答案。
+4. Once the search strategy terminates, the final candidate solutions are ranked by the PRM to produce the final answer.
 
-   为了比较各种搜索策略，我们使用了以下开源模型和数据集：
+   To compare strategies, we used the following open-source models and datasets:
 
-- **模型**：我们使用了 `meta-llama/Llama-3.2-1B-Instruct` 作为扩展测试时间计算的主要模型。由于其 10 亿参数的轻量级特性，可以实现快速迭代，其在数学基准测试中的未饱和性能使其成为突出扩展优势的理想选择。
-- **过程奖励模型（PRM）**：为了指导我们的搜索策略，我们使用了 `RLHFlow/Llama3.1-8B-PRM-Deepseek-Data`，这是一个使用过程监督（process supervision）训练的 80 亿参数的奖励模型。过程监督是一种训练方法，模型在推理过程的每个步骤（而不仅仅是最终结果）都能收到反馈。我们选择这个模型是因为它属于与我们的策略相同的模型家族，并且在我们测试的这个参数量级中，比我们测试的其他 PRM（如 Math-Shepherd）给出了更好的结果。
-- **数据集**：我们在 MATH 基准的 MATH-500 子集上进行了评估，这是 OpenAI 作为其过程监督研究的一部分发布的数据集。这些数学问题涵盖了七个学科，对人类和大多数大型语言模型来说都具有挑战性。看看下面的数据集浏览器，感受一下问题的难度吧！我们在从每个提示生成 1 到 256 个生成的计算预算上测试了每个搜索策略，并使用五个随机种子运行数据生成流程，以估计运行间的方差。你可以在这个集合中找到我们分析的模型和数据集。
+- **Model**: We used `meta-llama/Llama-3.2-1B-Instruct` as the primary model for scaling test-time compute. Its lightweight 1B size enables rapid iteration, and its unsaturated math benchmark performance makes it ideal for highlighting scaling benefits.
+- **Process Reward Model (PRM)**: To guide the search, we used `RLHFlow/Llama3.1-8B-PRM-Deepseek-Data`, an 8B reward model trained with process supervision. In process supervision, the model receives feedback at each reasoning step (not just the final result). We chose this model because it’s from the same family as our policy and outperformed other PRMs we tried at this scale (e.g., Math-Shepherd).
+- **Dataset**: We evaluated on the MATH benchmark’s MATH-500 subset released by OpenAI for process supervision research. These math problems span seven disciplines and are challenging for humans and most LLMs. Check the dataset browser below to get a feel for the difficulty! For each prompt we tested each search strategy at compute budgets from 1 to 256 generations, and ran the data-gen pipeline with five random seeds to estimate variance across runs. You can find the models and datasets we analyzed in this collection.
 
 ![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/5.png)
 
 
 
-为了热身，我们将从一个简单的基线开始，并逐步加入其他技术来提高性能。
+To warm up, we start with a simple baseline and incrementally add techniques to improve performance.
 
-## 多数投票：一个简单的基线
+## Majority voting: a simple baseline
 
  
-多数投票——或者如果你想用更高端的说法，可以称为自一致性解码（self-consistency decoding）——是聚合大型语言模型输出的最直接方法。顾名思义，对于给定的数学问题，我们生成 N 个候选解并选择最频繁的答案。在我们所有的实验中，我们以温度 T = 0.8 采样了最多 N = 256 个候选解，每个问题生成最多 2048 个标记。
+Majority voting—aka self-consistency decoding—is the most straightforward way to aggregate LLM outputs. As the name implies, for a given math problem we generate N candidate solutions and select the most frequent answer. In all experiments, we sampled up to N = 256 candidates with temperature T = 0.8 and generated up to 2048 tokens per problem.
 
-MATH 基准有一个独特之处，即答案必须以 LaTeX 盒子的形式格式化，如 `\boxed{answer}`。我们最初为 Llama 3.2 1B 尝试了以下简单的系统提示：
+The MATH benchmark has a quirk: answers must be formatted in a LaTeX box like `\boxed{answer}`. We initially tried the following simple system prompt for Llama 3.2 1B:
 
 ```
 请逐步思考，并将你的最终答案放在 \boxed{} 中。
 ```
 
  
-但发现使用贪婪解码（T = 0）得到的准确率远低于 Meta 在其发布中报告的 30.6%。幸运的是，Meta 也发布了他们用于评估的提示，切换我们的系统提示到他们的后，效果发生了巨大变化：
+But with greedy decoding (T = 0) the accuracy was far below the 30.6% Meta reported in their release. Fortunately, Meta also released the prompts they used for evaluation, and switching our system prompt to theirs made a huge difference:
 
 ```
 高效而清晰地解决以下数学问题：
+```
+- For simple problems (2 steps or fewer):
+  Provide a concise solution with minimal explanation.
   
-- 对于简单的问题（2 步或更少）：
-  提供简洁的解答，尽量减少解释。
+- For complex problems (3 steps or more):
+  Use the following step-by-step format:
   
-- 对于复杂的问题（3 步或更多）：
-  使用以下的逐步格式：
+  ## Step 1: [Concise description]  
+  [Brief explanation and calculation]  
   
-  ## 第 1 步：[简洁的描述]  
-  [简短的解释和计算]  
-  
-  ## 第 2 步：[简洁的描述]  
-  [简短的解释和计算]  
+  ## Step 2: [Concise description]  
+  [Brief explanation and calculation]  
   
   ...  
   
-无论采用何种方法，总是以以下内容结束：
+Regardless of the method, always end with:
   
-因此，最终答案是：$\boxed{answer}$。我希望这是正确的。
+Therefore, the final answer is: $\boxed{answer}$. I hope this is correct.
   
-其中 [answer] 是解决问题的最终数字或表达式。
+where [answer] is the final number or expression that solves the problem.
 ```
 
  
@@ -3574,701 +3554,701 @@ MATH 基准有一个独特之处，即答案必须以 LaTeX 盒子的形式格�
 ## Best-of-N
 
  
-Best-of-N 是多数投票的一个简单但有效的扩展，它使用奖励模型来确定最可能的答案。该方法有两种主要变体：
+Best-of-N is a simple but effective extension of majority voting that uses a reward model to determine the most likely answer. There are two main variants:
 
-1. **原始的 Best-of-N**：生成 N 个独立的回复，选择奖励模型（RM）得分最高的作为最终答案。这确保选择最自信的单个回复，但不考虑答案之间的一致性。
+1. **Original Best-of-N**: Generate N independent responses and select the one with the highest reward model (RM) score as the final answer. This ensures choosing the single most confident response but does not account for consistency across answers.
 
-2. **加权的 Best-of-N**：汇总所有相同回复的分数，选择总奖励最高的答案。这种方法通过重复出现来提升分数，优先考虑高质量的答案。数学上，对答案 (a_i) 的加权如下：
+2. **Weighted Best-of-N**: Aggregate the scores of all identical responses and choose the answer with the highest total reward. This method boosts the score through repeated occurrences, prioritizing high-quality answers. Mathematically, the weighting for answers (a_i) is:
 
    [
    a_{\text{weighted}} = \arg\max_{a} \sum_{i=1}^{N} I(a_i = a) \cdot RM(p, s_i),
    ]
 
-   其中 (RM(p, s_i)) 是问题 (p) 的第 (i) 个解 (s_i) 的奖励模型得分。
+   where (RM(p, s_i)) is the reward model score for the i-th solution (s_i) to problem (p).
 
-   通常，人们使用结果奖励模型（ORM）来获得单个解决方案级别的得分。但为了与后面讨论的其他搜索策略进行公平比较，我们将使用相同的 PRM 来对 Best-of-N 的解决方案进行评分。如下面所示，PRM 对每个解决方案产生一个累积的步骤级别的得分序列，因此我们需要对步骤进行归约以获得单个解决方案级别的得分：
+   Typically, people use an Outcome Reward Model (ORM) to obtain a single solution-level score. But for a fair comparison with other search strategies discussed later, we will use the same PRM to score Best-of-N solutions. As shown below, a PRM produces a cumulative sequence of step-level scores for each solution, so we need to reduce over steps to obtain a single solution-level score:
 
    ![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/7.png)
-   在文献中，最常见的归约方法如下：
+   The most common reduction methods in the literature are:
 
-- **最小值（Min）**：使用所有步骤中的最小得分。
+- **Min**: Use the minimum score across all steps.
 
-- **乘积（Prod）**：使用步骤级别得分的乘积。
+- **Prod**: Use the product of the step-level scores.
 
-- **最后（Last）**：使用步骤中的最终得分。这个得分包含了所有先前步骤的累积信息，因此有效地将 PRM 视为能够对部分解进行评分的 ORM。
+- **Last**: Use the final score in the steps. This score incorporates cumulative information from all previous steps, effectively treating the PRM as an ORM that can score partial solutions.
 
-  我们对每种归约方法进行了实验，发现在我们的任务和 PRM 选择中表现最佳。我们在所有实验中都使用了这种聚合，你可以展开下面的细节，看看我们如何实现它，以及上述的加权过程。
+  We experimented with each reduction method and found that Last performed best for our tasks and PRM choice. We used this aggregation in all experiments; you can expand the details below to see how we implemented it and the weighting process above.
 
-  这里是应用 Best-of-N 两种变体得到的结果：
+  Here are the results from applying the two Best-of-N variants:
 
   ![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/8.png)
-  结果显示了明显的优势：加权的 Best-of-N 在更大的生成预算下，一直优于原始的 Best-of-N。它能够对相同的回复汇总分数，确保即使是出现频率较低但质量更高的答案也能被有效地优先考虑。
+  The results show a clear advantage: Weighted Best-of-N consistently outperforms the original Best-of-N under larger generation budgets. By aggregating scores for identical responses, it ensures that even less frequent but higher-quality answers are effectively prioritized.
 
-然而，尽管有这些改进，我们仍然无法达到 Llama 8B 模型的性能，而且 Best-of-N 方法在 N = 256 代时开始趋于平稳。我们能否通过逐步监督搜索过程来进一步突破边界？
+However, despite these improvements, we still could not reach the performance of the Llama 8B model, and Best-of-N began to plateau around N = 256 generations. Can we push further by supervising the search process step by step?
 
-## 使用过程奖励模型的束搜索
-
- 
-束搜索（Beam search）是一种系统地探索解空间的结构化搜索方法，使其成为在测试时间改进模型输出的强大工具。当与过程奖励模型（PRM）结合使用时，束搜索可以同时优化问题解决中间步骤的生成和评估。其工作方式如下：
-
-1. 通过保持固定数量的“束”或活动路径 N，迭代地生成多个候选解。
-
-2. 在第一次迭代中，以温度 T 从 LLM 采样 N 个独立的步骤，以引入回复的多样性。这些步骤通常由停止条件定义，如在新行 `\n` 或双新行 `\n\n` 处终止。
-
-3. 使用 PRM 对每个步骤进行评分，选择前 N / M 个步骤作为下一轮生成的候选。在这里，M 表示给定活动路径的“束宽度”（beam width）。与 Best-of-N 一样，我们在每次迭代中使用“最后”归约来对部分解进行评分。
-
-4. 从步骤（3）中选定的节点生成 M 个新步骤，并选择 PRM 得分最高的步骤。
-
-5. 重复步骤（3）和（4），直到到达 EOS 标记或超过最大搜索深度。
-
-   通过允许 PRM 评估中间步骤的正确性，束搜索可以在过程的早期识别和优先考虑有希望的路径。这种逐步评估对于像数学这样需要复杂推理的任务特别有益，其中验证部分解可以显著提高最终结果。
-
-   **实现细节**
-
-   在我们的实验中，我们遵循了 DeepMind 的超参数选择，使用以下设置运行束搜索：
-
-- 在计算扩展为 4、16、64、256 时，使用 N 个束
-- 固定束宽 M = 4
-- 以温度 T = 0.8 进行采样
-- 最多 40 次迭代，即最大深度为 40 步的树如下面所示，结果非常惊人：在测试时间预算为 N = 4 时，束搜索实现了与 Best-of-N 在 N = 16 时相同的准确率，即计算效率提高了 4 倍！此外，束搜索仅用每个问题 N = 32 个解就匹配了 Llama 3.1 8B 的性能。计算机科学博士生在 MATH 上的平均表现约为 40%，所以对于一个 10 亿参数的模型达到近 55% 并不算太差。
-
-## 束搜索最擅长解决哪些问题？
+## Beam search with a process reward model
 
  
-虽然总体来看，束搜索显然是比 Best-of-N 或多数投票更好的搜索策略，但 DeepMind 的论文表明，每种策略都有取舍，取决于问题难度和测试时间计算预算。
+Beam search is a structured search method that systematically explores the solution space, making it a powerful tool for improving model outputs at test time. When combined with a Process Reward Model (PRM), beam search can jointly optimize the generation and evaluation of intermediate steps in problem solving. Here's how it works:
 
-为了了解哪种策略最适合哪些问题，DeepMind 计算了估计的问题难度分布，然后将结果分成五分位数。换句话说，每个问题被分配到 5 个级别之一，其中级别 1 表示较容易的问题，级别 5 表示最难的问题。为了估计问题难度，DeepMind 为每个问题以标准采样生成了 2048 个候选解，然后提出了以下启发式方法：
+1. Iteratively generate multiple candidate solutions by maintaining a fixed number of “beams” or active paths N.
 
-- **Oracle**：使用真实标签来估计每个问题的 pass@1 得分。对 pass@1 得分的分布进行分箱以确定五分位数。
+2. In the first iteration, sample N independent steps from the LLM at temperature T to introduce diversity in responses. These steps are typically defined by stopping conditions, such as terminating at a newline `\n` or a double newline `\n\n`.
 
-- **模型**：使用每个问题的平均 PRM 得分分布来确定五分位数。直观地说，较难的问题得分会较低。
+3. Score each step with the PRM and select the top N / M steps as candidates for the next round of generation. Here, M denotes the “beam width” for each active path. As with Best-of-N, we use the “Last” reduction at each iteration to score partial solutions.
 
-  以下是在四个测试时间计算预算 N = [4, 16, 64, 256] 和 pass@1 得分下，各种方法的表现：
+4. Generate M new steps from the nodes selected in step (3) and choose the steps with the highest PRM scores.
+
+5. Repeat steps (3) and (4) until reaching the EOS token or exceeding the maximum search depth.
+
+   By allowing the PRM to evaluate the correctness of intermediate steps, beam search can identify and prioritize promising paths early in the process. This step-wise evaluation is especially beneficial for tasks like mathematics that require complex reasoning, where validating partial solutions can substantially improve final outcomes.
+
+   **Implementation details**
+
+   In our experiments, we followed DeepMind’s hyperparameter choices and ran beam search with the following settings:
+
+- Use N beams as compute scales to 4, 16, 64, 256
+- Fix beam width M = 4
+- Sample with temperature T = 0.8
+- Up to 40 iterations, i.e., a maximum tree depth of 40 steps As shown below, the results are remarkable: at a test-time budget of N = 4, beam search matched the accuracy of Best-of-N at N = 16, giving a 4x compute efficiency gain! Moreover, with just N = 32 solutions per problem, beam search matched the performance of Llama 3.1 8B. Computer science PhD students average around 40% on MATH, so nearly 55% for a 1B-parameter model is not bad.
+
+## What problems does beam search excel at?
+
+ 
+While beam search is clearly a better search strategy than Best-of-N or majority voting overall, DeepMind’s paper shows that each strategy involves trade-offs depending on problem difficulty and test-time compute budget.
+
+To understand which strategy suits which problems, DeepMind estimated the distribution of problem difficulties and then split the results into quintiles. In other words, each problem is assigned to one of 5 levels, where level 1 denotes easier problems and level 5 denotes the hardest. To estimate problem difficulty, DeepMind generated 2048 candidate solutions per problem using standard sampling, and then proposed the following heuristics:
+
+- **Oracle**: Use ground-truth labels to estimate each problem’s pass@1. Bin the distribution of pass@1 scores to determine quintiles.
+
+- **Model**: Use the distribution of average PRM scores per problem to determine quintiles. Intuitively, harder problems will have lower scores.
+
+  Below is the performance of various methods at four test-time compute budgets N = [4, 16, 64, 256] in terms of pass@1:
 
   
-  在这个图中，每个柱状图表示一个测试时间计算预算，在每个柱状图内，我们显示每种方法的相对准确率。例如，在难度级别 2 的四个柱状图中，我们看到：
+  In this figure, each bar represents a test-time compute budget; within each bar, we show the relative accuracy of each method. For example, in the four bars for difficulty level 2, we see:
 
   ![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/9.png)
 
-- 多数投票在所有计算预算下都是表现最差的，除了 N = 256 时，束搜索最差。
+- Majority voting is the worst across all compute budgets, except at N = 256 where beam search is worst.
 
-- 束搜索在 N = [4, 16, 64] 情况下最好，但在 N = 256 时，Best-of-N 最好。
+- Beam search is best at N = [4, 16, 64], but at N = 256, Best-of-N is best.
 
-  虽然我们看到束搜索在中等和困难问题（级别 3-5）中提供了持续的增益，但在较简单的问题上（尤其是在大的计算预算下），它的表现往往比 Best-of-N更差。
+  While we see beam search providing consistent gains on medium and hard problems (levels 3–5), on simpler problems (especially with large compute budgets) it often underperforms Best-of-N.
 
-  通过查看束搜索生成的结果树，我们意识到，如果一个步骤被赋予高奖励，那么整个树就会收敛到该路径，从而影响多样性。这促使我们探索一种扩展束搜索的方法，以最大化多样性——让我们来看看！
+  By inspecting the result trees generated by beam search, we realized that if a step receives a high reward, the entire tree collapses onto that path, hurting diversity. This motivated us to explore an extension of beam search that maximizes diversity—let’s take a look!
 
-## DVTS：通过多样性提升性能
+## DVTS: Boosting performance via diversity
 
  
-正如我们上面所见，束搜索在 Best-of-N 上表现出色，但在较简单的问题和较大的测试时间计算预算下往往表现不佳。为了解决这个问题，我们开发了一种扩展，称为多样化验证器树搜索（Diverse Verifier Tree Search，DVTS），旨在在较大的 N 值下最大化多样性。
+As seen above, beam search outperforms Best-of-N but tends to fare worse on simpler problems under large test-time compute budgets. To address this, we developed an extension called Diverse Verifier Tree Search (DVTS), designed to maximize diversity at larger N.
 
-DVTS 的工作方式与束搜索类似，但有以下修改：
+DVTS works similarly to beam search, with the following modifications:
 
-1. 对于给定的 N 和 M，将初始束集合扩展为 N / M 个独立的子树。
+1. For given N and M, expand the initial beam set into N / M independent subtrees.
 
-2. 对于每个子树，选择 PRM 得分最高的步骤。
+2. For each subtree, select the step with the highest PRM score.
 
-3. 从步骤（2）中选定的节点生成 M 个新步骤，选择 PRM 得分最高的步骤。
+3. From the nodes selected in step (2), generate M new steps and select the ones with the highest PRM scores.
 
-4. 重复步骤（3），直到到达 EOS 标记或最大树深度。
+4. Repeat step (3) until reaching the EOS token or the maximum tree depth.
 
-   以下是将 DVTS 应用于 Llama 1B 的结果：
+   Below are the results of applying DVTS to Llama 1B:
 
 ![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/10.png)
 
 
-如我们所见，DVTS 为束搜索提供了一种补充策略：在较小的 N 值下，束搜索更有效地找到正确的解，但在较大的 N 值下，DVTS 候选解的多样性开始发挥作用，我们获得了更好的性能。
+As we can see, DVTS provides a complementary strategy to beam search: at smaller N, beam search is more effective at finding the correct solution, but at larger N the diversity of DVTS candidates begins to pay off, yielding better performance.
 
-我们还可以从问题难度的分解中看到这一点，DVTS 在大的 N 值下增强了在简单/中等问题上的性能，而束搜索在小的 N 值下在各种问题难度上表现最佳：
+We can also see this from the breakdown by problem difficulty: at large N, DVTS boosts performance on easy/medium problems, whereas beam search is best across difficulties at small N:
 
 
 
 ![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/11.png)
 
-**六、总结**
+**Six, Summary**
 
-**总结：测试时计算扩展的最佳策略**
+**Summary: Best strategies for test-time compute scaling**
 
-1. **计算最优的扩展策略（Compute-Optimal Scaling）**
+1. **Compute-Optimal Scaling**
 
-   **核心思想：**
+   **Core idea:**
 
-   在给定的计算预算下，选择能够实现最佳性能的搜索方法和超参数组合。
+   Given a compute budget, choose the combination of search method and hyperparameters that achieves the best performance.
 
-   **公式表示：**
+   **Formula:**
 
    θ*(N) = argmax_θ [ E_{y ∼ Target(θ, N, q)} [ 1_{y = y*(q)} ] ]
 
-   挑战：直接计算 θ*(N) 较为困难。
+   Challenge: Directly computing θ*(N) is difficult.
 
-   **解决方案：**
+   **Solution:**
 
-   DeepMind 提出了基于问题难度的近似方法，根据不同难度级别，确定最佳的搜索策略和计算资源分配：
+   DeepMind proposed a difficulty-based approximation method to determine the best search strategy and compute allocation by problem difficulty:
 
-   - **简单问题、低计算预算：**使用 Best-of-N 等简单方法。
-   - **复杂问题、高计算预算：**使用束搜索（Beam Search）等高级方法。
+   - **Simple problems, low compute budget:** Use simple methods like Best-of-N.
+   - **Complex problems, high compute budget:** Use advanced methods like Beam Search.
 
-2. **θ\*(N)**：给定计算预算 N 的最优参数和策略组合。
+2. **θ\*(N)**: The optimal combination of parameters and strategy for a given compute budget N.
 
-   **y\*(q)**：问题 q 的真实答案。
+   **y\*(q)**: The ground-truth answer to problem q.
 
-   **θ**：搜索方法和超参数的组合。
+   **θ**: The combination of search method and hyperparameters.
 
-3. **向更大模型的扩展**
+3. **Scaling to larger models**
 
-   **目的：**探究计算最优策略在更大模型上的效果，以及过程奖励模型（PRM）在较大模型中是否仍然有益。
+   **Goal:** Explore the effect of compute-optimal strategies on larger models, and whether Process Reward Models (PRMs) remain beneficial for larger models.
 
-   **发现：**
+   **Findings:**
 
-   - 计算最优扩展策略效果显著。
-   - 即使在大型模型上，使用计算最优策略的较小模型（如 Llama 13B）性能可超过更大的模型（如 Llama 2 70B Instruct）。
+   - Compute-optimal scaling works remarkably well.
+   - Even on larger models, a smaller model (e.g., Llama 13B) using compute-optimal strategies can outperform larger models (e.g., Llama 2 70B Instruct).
 
-4. **未来方向和挑战**
+4. **Future directions and challenges**
 
-   - **增强验证器的能力：提升验证器的鲁棒性和泛化能力，对于改进模型性能至关重要。
+   - **Enhance validator capability: Improve validator robustness and generalization, which is crucial for better performance.
 
-   - 实现自我验证（Self-Verification）：使模型能够自主验证输出，提高可靠性，需要比标准监督微调更复杂的策略。
+   - Achieve Self-Verification: Enable models to verify outputs autonomously to improve reliability; this requires strategies more sophisticated than standard SFT.
 
-   - 融入“思考”过程：**在生成过程中加入显式的中间步骤或推理过程，增强模型的推理能力。
+   - Incorporate “thinking” processes:** Introduce explicit intermediate steps or reasoning during generation to enhance reasoning ability.
 
-   - 搜索作为数据生成工具：利用搜索方法生成高质量训练数据，进一步微调和改进模型。
+   - Search as a data-generation tool: Use search methods to generate high-quality training data for further fine-tuning and improvement.
 
-   - 开发更多过程奖励模型（PRMs）：丰富的 PRM 有助于提升不同领域的模型性能。
+   - Develop more Process Reward Models (PRMs): A richer set of PRMs helps improve performance across domains.
 
-   - **扩展至非可验证领域：\**将方法应用于结构较弱或主观性较强的任务，需要新的策略。
+   - **Extend to non-verifiable domains:\** Apply these methods to tasks with weaker structure or higher subjectivity, which requires new strategies.
 
-     \*\*结论：\*\*
+     \*\*Conclusion:\*\*
 
-     找到合适的解码方式并结合强大的验证器，是提升大型语言模型性能的关键。最佳解码策略取决于问题难度和计算预算，没有一种通用的方法。优化模型性能需要综合考虑任务需求和可用资源。\****
+     Finding the right decoding method and combining it with a strong validator is key to improving LLM performance. The best decoding strategy depends on problem difficulty and compute budget; there is no one-size-fits-all. Optimizing performance requires considering task needs and available resources.\****
 
 5. 
 
-6. 解码方法可以单独使用，也可以结合使用，具体取决于任务需求和目标。以下是一些常见的情况：
+6. Decoding methods can be used alone or in combination, depending on task needs and goals. Common cases include:
 
-7. 单独使用：
+7. Used alone:
 
-   - 贪婪解码：适用于简单任务，计算效率高。
-   - 束搜索：适用于需要生成高质量文本的任务，尽管计算复杂度较高。
-   - 温度采样、Top-k 采样、Top-p 采样：用于控制生成文本的随机性和多样性。
+   - Greedy decoding: Suitable for simple tasks, highly efficient.
+   - Beam search: Suitable for tasks that require high-quality text generation, albeit with higher computational complexity.
+   - Temperature sampling, Top-k sampling, Top-p sampling: Used to control randomness and diversity in generated text.
 
-   结合使用：
+   Used in combination:
 
-   - 在一些复杂任务中，可能会结合多种解码方法。例如，先使用束搜索生成多个候选，然后再用温度采样或Top-p采样从中选择最优解。
-   - 结合使用可以在保证生成质量的同时，增加文本的多样性和创意性。
+   - For some complex tasks, multiple decoding methods may be combined. For example, first use beam search to generate multiple candidates, then use temperature sampling or Top-p sampling to select the best solution among them.
+   - Combining methods can ensure generation quality while increasing diversity and creativity.
 
 8. ***\*
    \****
 
-**总结：**
+**Summary:**
 
-在追求最佳性能的过程中，应根据具体任务和资源限制，选择最合适的解码方法，并视情况决定是否结合验证器。针对任务特点，择优选择解码策略，而非同时使用多种方法。
+In pursuit of the best performance, choose the most appropriate decoding method based on the specific task and resource constraints, and decide whether to pair it with a validator. Select decoding strategies according to task characteristics rather than using many methods simultaneously.
 
 
 
-**一、前情回顾**
+**I. Background recap**
 
-在之前文章[SLM 如何在推理任务中击败大型模型](https://mp.weixin.qq.com/s?__biz=MzAwMDc2NjQ4Nw==&mid=2663562788&idx=1&sn=519f460e92f6998b3eff9dabd93873f8&scene=21#wechat_redirect)中，我介绍了test-time compute scaling的实现，大致的实现图：
+In the previous article [SLM 如何在推理任务中击败大型模型](https://mp.weixin.qq.com/s?__biz=MzAwMDc2NjQ4Nw==&mid=2663562788&idx=1&sn=519f460e92f6998b3eff9dabd93873f8&scene=21#wechat_redirect), I introduced the implementation of test-time compute scaling. A rough implementation diagram:
 
 ![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/12.png)
 
 
 
-1. 我们首先将一个数学问题输入大型语言模型（LLM），它生成 N 个部分解，例如推导中的一个中间步骤。
+1. We first feed a math problem into a large language model (LLM), which generates N partial solutions, such as an intermediate step in the derivation.
 
-2. 每个步骤由过程奖励模型（PRM）评分，它估计每个步骤最终到达正确最终答案的概率。
+2. Each step is scored by a Process Reward Model (PRM), which estimates the probability that each step will lead to the correct final answer.
 
-3. 这些步骤和 PRM 分数然后被给定的搜索策略使用，以选择哪些部分解应被进一步探索，以生成下一轮中间步骤。
+3. These steps and PRM scores are then used by a given search strategy to select which partial solutions should be further explored to generate the next round of intermediate steps.
 
-4. 一旦搜索策略终止，最终的候选解由 PRM 排序，产生最终答案。
+4. Once the search strategy terminates, final candidate solutions are ranked by the PRM to produce the final answer.
 
-   为了比较各种搜索策略，我们使用了以下开源模型和数据集：
+   To compare various search strategies, we used the following open-source models and datasets:
 
-- **模型**：我们使用了 `meta-llama/Llama-3.2-1B-Instruct` 作为扩展测试时间计算的主要模型。由于其 10 亿参数的轻量级特性，可以实现快速迭代，其在数学基准测试中的未饱和性能使其成为突出扩展优势的理想选择。
-- **过程奖励模型（PRM）**：为了指导我们的搜索策略，我们使用了 `RLHFlow/Llama3.1-8B-PRM-Deepseek-Data`，这是一个使用过程监督（process supervision）训练的 80 亿参数的奖励模型。过程监督是一种训练方法，模型在推理过程的每个步骤（而不仅仅是最终结果）都能收到反馈。我们选择这个模型是因为它属于与我们的策略相同的模型家族，并且在我们测试的这个参数量级中，比我们测试的其他 PRM（如 Math-Shepherd）给出了更好的结果。
-- **数据集**：我们在 MATH 基准的 MATH-500 子集上进行了评估，这是 OpenAI 作为其过程监督研究的一部分发布的数据集。这些数学问题涵盖了七个学科，对人类和大多数大型语言模型来说都具有挑战性。看看下面的数据集浏览器，感受一下问题的难度吧！我们在从每个提示生成 1 到 256 个生成的计算预算上测试了每个搜索策略，并使用五个随机种子运行数据生成流程，以估计运行间的方差。你可以在这个集合中找到我们分析的模型和数据集。
-
-
-
-而几种常见的生成候选者的方法包含：
-
-| 方面           | 贪婪解码（Greedy Decoding）                                  | 束搜索（Beam Search）                                        | 多样化验证器树搜索（DVTS）                                   | 多数投票（Majority Voting）                                  |
-| :------------- | :----------------------------------------------------------- | :----------------------------------------------------------- | :----------------------------------------------------------- | :----------------------------------------------------------- |
-| **基本概念**   | 在每一步选择概率最高的词，生成单一序列。                     | 在每一步保留多个最有可能的候选序列，探索更多的可能性。       | 通过将束分成独立的子树，并使用验证器引导搜索，增加多样性和性能。 | 生成多个独立的候选答案，选择出现次数最多的答案作为最终输出。 |
-| **工作原理**   | - 在生成文本时，每一步都选择当前概率最高的下一个词。 - 生成一个单一的、最可能的序列。 | - 保持固定数量（束宽度）的最佳部分序列。 - 在每个步骤扩展这些序列，选出新的最佳候选。 | - 将初始束划分为多个独立的子树。 - 在每个子树中，使用过程奖励模型（PRM）评估和引导生成。 - 通过独立扩展，增加解的多样性。 | - 使用随机采样等方法生成多个独立的候选答案。 - 对生成的答案进行统计，选择出现次数最多的答案。 |
-| **搜索空间**   | 窄（单一路径）。                                             | 中等（取决于束宽度）。                                       | 广（多个子树，增加了探索的广度）。                           | 宽（生成多个独立的答案），但不在单次生成中扩展。             |
-| **多样性**     | 很低（只有一个输出）。                                       | 中等（受束宽度限制）。                                       | 高（独立子树增加了多样性）。                                 | 中等（取决于生成的答案数量和随机性）。                       |
-| **使用验证器** | 否。                                                         | 可选（可以使用，但不总是用）。                               | 是的，使用过程奖励模型（PRM）在每一步进行评分和引导。        | 否，通常不使用验证器，仅通过统计频率选择答案。               |
-| **优点**       | - 简单快捷。 - 计算效率高。                                  | - 在精度和计算成本之间取得平衡。 - 提高找到全局最优解的机会。 | - 增加了解的多样性。 - 在复杂任务上表现更好。 - 利用验证器引导，提高准确率。 | - 简单易行。 - 减少随机性带来的波动。 - 提高答案的稳定性和一致性。 |
-| **缺点**       | - 只关注局部最优，可能错过更好的解。 - 缺乏多样性。          | - 计算量比贪婪解码大。 - 可能仍然错过一些解。                | - 实现更复杂。 - 需要额外的计算资源。 - 依赖于验证器的质量。 | - 无法保证选择的答案是正确的。 - 如果答案多样性过高，可能没有明确的多数。 - 增加了计算成本。 |
-| **适用场景**   | - 需要快速生成单一答案的简单任务。 - 对结果质量要求不高的情况。 | - 需要在质量和计算成本之间平衡的任务。 - 适用于一般复杂度的任务。 | - 复杂或需要深入推理的任务。 - 有较大计算预算，可用于提升性能。 | - 希望提高答案稳定性和一致性的任务。 - 需要减少随机性影响的情况下。 |
-| **计算复杂度** | 低。                                                         | 中等（取决于束宽度）。                                       | 高（由于使用了验证器和更多的搜索路径）。                     | 中等到高（取决于生成的答案数量）。                           |
+- **Model**: We used `meta-llama/Llama-3.2-1B-Instruct` as the main model for scaling test-time compute. Its lightweight 1B-parameter size enables rapid iteration, and its unsaturated math benchmark performance makes it ideal for highlighting scaling advantages.
+- **Process Reward Model (PRM)**: To guide our search strategies, we used `RLHFlow/Llama3.1-8B-PRM-Deepseek-Data`, an 8B-parameter reward model trained with process supervision. Process supervision is a training method where the model receives feedback at each step of the reasoning process (not just the final result). We chose this model because it is from the same family as our strategy and, at this parameter scale, gave better results than other PRMs we tested (e.g., Math-Shepherd).
+- **Dataset**: We evaluated on the MATH benchmark’s MATH-500 subset, released by OpenAI as part of their process supervision research. These math problems span seven subjects and are challenging for humans and most LLMs. Check out the dataset browser below to get a feel for the difficulty! We tested each search strategy at compute budgets generating from 1 to 256 generations per prompt and ran the data-generation pipeline with five random seeds to estimate inter-run variance. You can find the models and datasets we analyzed in this collection.
 
 
 
-**二、遗传算法的优势**
+And several common methods for generating candidates include:
+
+| Aspect         | Greedy Decoding                                           | Beam Search                                                   | Diverse Verifier Tree Search (DVTS)                           | Majority Voting                                               |
+| :------------- | :--------------------------------------------------------- | :------------------------------------------------------------ | :------------------------------------------------------------ | :------------------------------------------------------------ |
+| **Basic concept**   | Choose the highest-probability token at each step to generate a single sequence. | Keep multiple most likely candidate sequences at each step to explore more possibilities. | Split beams into independent subtrees and use a validator to guide the search, increasing diversity and performance. | Generate multiple independent candidate answers and select the one that appears most frequently as the final output. |
+| **How it works**   | - Choose the next token with the highest probability at each generation step. - Produce a single, most likely sequence. | - Maintain a fixed number (beam width) of best partial sequences. - Expand these sequences at each step, selecting new best candidates. | - Partition the initial beams into multiple independent subtrees. - In each subtree, use a PRM to evaluate and guide generation. - Increase solution diversity via independent expansion. | - Use random sampling and other methods to generate multiple independent candidate answers. - Aggregate and select the most frequent answer. |
+| **Search space**   | Narrow (single path).                                   | Moderate (depends on beam width).                             | Wide (multiple subtrees increase exploration breadth).        | Wide (many independent answers) but no expansion within a single generation. |
+| **Diversity**     | Very low (only one output).                              | Moderate (limited by beam width).                             | High (independent subtrees increase diversity).               | Moderate (depends on the number of answers and randomness).   |
+| **Use of validator** | No.                                                     | Optional (can be used but not always).                        | Yes, uses a PRM to score and guide at each step.              | No, usually does not use a validator; selection is by frequency only. |
+| **Advantages**     | - Simple and fast. - Computationally efficient.         | - Balances accuracy and compute cost. - Improves chances of finding a global optimum. | - Increases solution diversity. - Better performance on complex tasks. - Guided by a validator for higher accuracy. | - Simple and easy to implement. - Reduces variance from randomness. - Improves stability and consistency. |
+| **Disadvantages**  | - Greedy local choices may miss better solutions. - Lacks diversity. | - More compute than greedy decoding. - May still miss some solutions. | - More complex to implement. - Requires extra compute. - Depends on validator quality. | - No guarantee the selected answer is correct. - If answers are too diverse, there may be no clear majority. - Increased compute cost. |
+| **Use cases**      | - Simple tasks requiring a quick single answer. - Cases with low quality requirements. | - Tasks needing a balance between quality and compute cost. - Suitable for general-complexity tasks. | - Complex tasks or those requiring deep reasoning. - Larger compute budgets available for performance gains. | - When stability and consistency are desired. - Situations needing reduced randomness. |
+| **Computational complexity** | Low.                                              | Moderate (depends on beam width).                             | High (due to validator use and more search paths).            | Moderate to high (depends on number of generated answers).    |
+
+
+
+**II. Advantages of genetic algorithms**
 
 
 ---
 
-# Part 11: Mind Evolution 与遗传算法
+# Part 11: Mind Evolution and Genetic Algorithms
 
-> *原文来自 SLM-Capabilities-and-Fine-Tuning*
+> *Originally from SLM-Capabilities-and-Fine-Tuning*
 
 
-## **遗传算法（Genetic Algorithm）** 是一种用于解决优化和搜索问题的自适应启发式算法，模拟了自然选择和遗传变异的过程。它的核心思想是“适者生存”，通过选择、交叉和变异等操作，让优秀的个体（解）在种群中得以保留，并生成新的更优的解。 
-
- 
-
- **为什么引入遗传算法？**
+## **Genetic Algorithm** is an adaptive heuristic used to solve optimization and search problems, simulating natural selection and genetic variation. Its core idea is “survival of the fittest.” Through selection, crossover, and mutation, high-quality individuals (solutions) are retained in the population and generate new, better solutions. 
 
  
-在 DeepMind 的 **Mind Evolution** 方法中，遗传算法被引入是为了：
 
-- **增强搜索能力**：通过模拟生物进化的过程，更有效地探索复杂问题的解空间。
-- **避免局部最优**：遗传算法能够避免陷入局部最优解，增加找到全局最优解的机会。
-- **提高方案质量**：通过迭代地优化候选方案，使得最终的解决方案质量更高。
-
-
-
-**遗传算法的关键步骤**
+ **Why introduce genetic algorithms?**
 
  
-**（1）初始化种群**
+In DeepMind’s **Mind Evolution** method, genetic algorithms are introduced to:
 
-- **种群**：由多个候选方案（个体）组成。
-
-- **初始化**：使用大型语言模型（LLM）生成初始的候选方案集。
-
-  **（2）评估适应度**
-
-- **适应度函数**：评估每个候选方案的优劣程度。
-
-- **评估**：根据任务要求和约束条件，对每个方案进行打分。
-
-  **（3）选择（Selection）**
-
-- **目的**：选出优秀的候选方案作为“父代”。
-
-- **方法**：根据适应度分数，使用概率性方法从种群中选择个体。
-
-  **（4）交叉（Crossover）**
-
-- **目的**：组合两个或多个父代方案的特征，生成新的候选方案（子代）。
-
-- **方法**：使用 LLM，将父代方案的优点融合，生成新的方案。
-
-  **（5）变异（Mutation）**
-
-- **目的**：在候选方案中引入随机变化，增加多样性。
-
-- **方法**：对候选方案进行随机的微小修改。
-
-  **（6）产生新一代**
-
-- **循环**：将新生成的候选方案加入种群，重复评估和选择的过程。
+- **Enhance search capability**: More effectively explore complex solution spaces via biological evolution mechanisms.
+- **Avoid local optima**: Reduce the chance of getting stuck in local optima and increase the chance of finding the global optimum.
+- **Improve solution quality**: Iteratively optimize candidate solutions to produce higher-quality final plans.
 
 
 
-### **遗传算法在 Mind Evolution 中的应用**
+**Key steps of genetic algorithms**
 
  
-**示例任务**：为用户规划一个满足特定要求的旅行计划。
+**(1) Initialize population**
 
-**步骤示意**：
+- **Population**: Composed of multiple candidate solutions (individuals).
 
-1. **生成初始方案**：LLM 生成多个初始旅行计划。
-2. **评估方案**：计算每个计划的适应度分数，例如根据是否满足预算、行程安排、用户偏好等。
-3. **选择优秀方案**：根据适应度分数，选择几个较好的旅行计划作为父代。
-4. **交叉生成新方案**：使用 LLM，将父代计划的优点结合，生成新的旅行计划。例如，结合父代 A 的酒店安排和父代 B 的景点选择。
-5. **变异引入新元素**：在新方案中，随机调整一些细节，例如更改用餐地点或增加新的景点。
-6. **评估新方案并重复**：对新生成的方案再次评估适应度，继续选择和生成，迭代多次，直到找到最优的旅行计划。 
+- **Initialization**: Use an LLM to generate the initial set of candidates.
+
+  **(2) Fitness evaluation**
+
+- **Fitness function**: Evaluates the quality of each candidate.
+
+- **Evaluation**: Score each plan according to task requirements and constraints.
+
+  **(3) Selection**
+
+- **Purpose**: Choose high-quality candidates as “parents.”
+
+- **Method**: Probabilistically select individuals from the population based on fitness scores.
+
+  **(4) Crossover**
+
+- **Purpose**: Combine features of two or more parent solutions to generate new candidates (offspring).
+
+- **Method**: Use an LLM to merge the strengths of parent solutions and generate new ones.
+
+  **(5) Mutation**
+
+- **Purpose**: Introduce random changes to candidates to increase diversity.
+
+- **Method**: Apply small random modifications to candidates.
+
+  **(6) Produce the next generation**
+
+- **Loop**: Add newly generated candidates to the population and repeat evaluation and selection.
+
+
+
+### **Application of genetic algorithms in Mind Evolution**
+
+ 
+**Example task**: Plan a trip that meets specific requirements for a user.
+
+**Steps overview**:
+
+1. **Generate initial plans**: The LLM generates multiple initial itineraries.
+2. **Evaluate plans**: Compute a fitness score for each plan, e.g., whether it meets budget, scheduling, user preferences, etc.
+3. **Select high-quality plans**: Choose several good plans as parents based on fitness.
+4. **Crossover to generate new plans**: Use the LLM to combine strengths of parents to generate new itineraries. For example, combine parent A’s hotel arrangements with parent B’s attractions.
+5. **Mutation to introduce new elements**: Randomly tweak details in the new plan, such as changing a restaurant or adding a new attraction.
+6. **Evaluate new plans and repeat**: Re-evaluate fitness of the new plans and continue selection and generation for multiple iterations until the optimal plan is found. 
 
 ###  
 
-### **遗传算法的优势、**
+### **Advantages of genetic algorithms,**
 
-- **全球优化能力强**：能够在广阔的解空间中寻找最优解。
+- **Strong global optimization**: Can search for optimal solutions in a vast solution space.
 
-- **适应性强**：对于复杂、多约束的问题，能够有效处理。
+- **High adaptability**: Effective for complex, multi-constraint problems.
 
-- **并行化**：遗传算法的过程可以并行执行，提升计算效率。
-
-  
+- **Parallelization**: The process can be parallelized to improve efficiency.
 
   
 
-**三、\**Mind Evolution的实现\****
+  
 
-在DeepMind新的论文**《Evolving Deeper LLM Thinking》**中，介绍了新的实现。
+  **Three、\**Implementation of Mind Evolution\****
 
-**Mind Evolution** 是一种结合了**大型语言模型（LLM）\**和\**进化算法**的搜索方法，旨在提高 LLM 在解决复杂问题（如自然语言规划任务）时的能力。这个方法模拟了生物进化的过程，通过生成、评估、选择、交叉、变异和改进等步骤，迭代地优化候选方案，最终找到最佳解决方案。 
+In DeepMind’s new paper **《Evolving Deeper LLM Thinking》**, a new implementation is introduced.
+
+**Mind Evolution** is a search method that combines **Large Language Models (LLMs)\** and \**evolutionary algorithms**, designed to improve LLMs’ ability on complex problems (e.g., natural language planning). It simulates biological evolution and iteratively optimizes candidates through generation, evaluation, selection, crossover, mutation, and refinement to ultimately find the best solution. 
 
  
 
 ![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/14.png)
 
-### **Mind Evolution 的七个主要步骤**
+### **Seven main steps of Mind Evolution**
 
-1. **候选方案的生成（初始化）**
+1. **Candidate generation (initialization)**
 
-2. **方案的评估（Fitness Evaluation）**
+2. **Plan evaluation (Fitness Evaluation)**
 
-3. **批判性对话下的改进（Refinement through Critical Conversation，RCC）**
+3. **Refinement through Critical Conversation (RCC)**
 
-4. **选择（Selection）**
+4. **Selection**
 
-5. **交叉和变异（Crossover and Mutation）**
+5. **Crossover and Mutation**
 
-6. **迭代与进化（Iteration and Evolution）**
+6. **Iteration and Evolution**
 
-7. **岛屿模型的应用（Island Model - Migration and Reset）**
+7. **Island Model - Migration and Reset**
 
    
-   下面，我将逐一解释每个步骤，以及其中涉及的算法和概念，并举例说明。
+   Below, I will explain each step, the algorithms and concepts involved, with examples.
 
-### **步骤 1：候选方案的生成（初始化）**
-
- 
-**由谁完成**：大型语言模型（LLM）
-
-**解释**：
-
-- **目的**：根据给定的任务或问题描述，生成一组初始的候选解决方案。
-
-- **使用的算法/方法**：**大型语言模型（LLM）**的生成能力。
-
-- **如何完成**：使用 LLM，结合问题的描述、相关信息和指示，生成多个可能的解决方案。这些方案以自然语言形式表达，直接针对问题本身。
-
-  **举例**：
-
-  **任务场景**：假设我们需要为用户规划一次旅行，满足以下条件：
-
-- 从**北京**出发，计划一个**5 天的旅行**。
-
-- 想要去的城市有**上海**、**杭州**、**苏州**。
-
-- 预算是**5000 元**。
-
-- 希望**第一天**在上海，**最后一天**返回北京。
-
-  **LLM 生成的初始候选方案**：
-
-- **方案 1**：
-
-  - 第一天：北京 -> 上海，游览外滩和南京路，住宿上海。
-  - 第二天：上海 -> 杭州，游览西湖，住宿杭州。
-  - 第三天：杭州 -> 苏州，游览拙政园和虎丘，住宿苏州。
-  - 第四天：苏州，游览寒山寺和狮子林，住宿苏州。
-  - 第五天：苏州 -> 北京，结束行程。
-
-- **方案 2**：
-
-  - 第一天：北京 -> 上海，游览迪士尼乐园，住宿上海。
-  - 第二天：上海，游览东方明珠和豫园，住宿上海。
-  - 第三天：上海 -> 杭州，游览灵隐寺，住宿杭州。
-  - 第四天：杭州，游览西湖和雷峰塔，住宿杭州。
-  - 第五天：杭州 -> 北京，结束行程。
-
-- **方案 3**：
-
-  - 第一天：北京 -> 苏州，游览拙政园，住宿苏州。
-  - 第二天：苏州 -> 杭州，游览西湖，住宿杭州。
-  - 第三天：杭州 -> 上海，游览外滩，住宿上海。
-  - 第四天：上海，游览东方明珠，住宿上海。
-  - 第五天：上海 -> 北京，结束行程。
-
-
-
-### **步骤 2：方案的评估（Fitness Evaluation）**
+### **Step 1: Candidate generation (initialization)**
 
  
-**由谁完成**：**评估函数（程序化的评价器）**
+**Who performs it**: Large Language Model (LLM)
 
-**解释**：
+**Explanation**:
 
-- **目的**：对每个候选方案进行评分，判断其质量，并检查是否满足问题的约束和目标。
+- **Purpose**: Generate an initial set of candidate solutions based on the task/problem description.
 
-- **使用的算法/方法**：**评估函数**，这是一个程序化实现的函数，用于评估方案的好坏。它不属于某种复杂的算法，但在设计上需要考虑如何客观、公正地评估方案。
+- **Algorithm/method used**: **LLM** generation capability.
 
-- **如何完成**：编写一个评估函数，解析每个方案，检查其是否满足以下条件：
+- **How it’s done**: Use the LLM, along with the problem description, relevant information, and instructions, to generate multiple potential solutions. These are expressed in natural language and directly target the problem.
 
-  - 是否覆盖了所有必须去的城市？
+  **Example**:
 
-  - 是否遵循了时间安排（第一天在上海，最后一天返回北京）？
+  **Task scenario**: Plan a trip for a user with the following constraints:
 
-  - 是否在预算之内？
+- Depart from **Beijing** for a **5-day trip**.
 
-  - 是否有任何冲突或不合理之处？
+- Target cities: **Shanghai**, **Hangzhou**, **Suzhou**.
 
-    **举例**：
+- Budget: **5000 RMB**.
 
-    **评估方案 1**：
+- Prefer **Day 1** in Shanghai and **last day** returning to Beijing.
 
-- **检查结果**：
+  **Initial candidate plans generated by the LLM**:
 
-  - 覆盖了所有必须去的城市：是。
+- **Plan 1**:
 
-  - 时间安排：第一天在上海，最后一天返回北京，符合要求。
+  - Day 1: Beijing -> Shanghai, visit the Bund and Nanjing Road, stay in Shanghai.
+  - Day 2: Shanghai -> Hangzhou, visit West Lake, stay in Hangzhou.
+  - Day 3: Hangzhou -> Suzhou, visit Humble Administrator’s Garden and Tiger Hill, stay in Suzhou.
+  - Day 4: Suzhou, visit Hanshan Temple and Lion Grove Garden, stay in Suzhou.
+  - Day 5: Suzhou -> Beijing, end of trip.
 
-  - 预算：需要计算总费用，假设总费用为 4800 元（符合预算）。
+- **Plan 2**:
 
-  - 评价：方案合理，满足所有要求。
+  - Day 1: Beijing -> Shanghai, visit Disneyland, stay in Shanghai.
+  - Day 2: Shanghai, visit Oriental Pearl Tower and Yuyuan Garden, stay in Shanghai.
+  - Day 3: Shanghai -> Hangzhou, visit Lingyin Temple, stay in Hangzhou.
+  - Day 4: Hangzhou, visit West Lake and Leifeng Pagoda, stay in Hangzhou.
+  - Day 5: Hangzhou -> Beijing, end of trip.
 
-    **评估方案 2**：
+- **Plan 3**:
 
-- **检查结果**：
+  - Day 1: Beijing -> Suzhou, visit Humble Administrator’s Garden, stay in Suzhou.
+  - Day 2: Suzhou -> Hangzhou, visit West Lake, stay in Hangzhou.
+  - Day 3: Hangzhou -> Shanghai, visit the Bund, stay in Shanghai.
+  - Day 4: Shanghai, visit Oriental Pearl Tower, stay in Shanghai.
+  - Day 5: Shanghai -> Beijing, end of trip.
 
-  - 覆盖了所有必须去的城市：缺少苏州。
 
-  - 时间安排：第一天在上海，最后一天返回北京，符合要求。
 
-  - 预算：假设总费用为 5200 元（超出预算）。
-
-  - 评价：未包含苏州，预算超标。
-
-    **评估方案 3**：
-
-- **检查结果**：
-
-  - 覆盖了所有必须去的城市：是。
-
-  - 时间安排：第一天在苏州，未在第一天到达上海，不符合要求。
-
-  - 时间安排：最后一天从上海返回北京，符合要求。
-
-  - 预算：假设总费用为 4500 元（符合预算）。
-
-  - 评价：未在第一天到达上海。
-
-    **提供反馈**：
-
-- 对于方案 2：建议加入苏州，并控制总费用在预算内。
-
-- 对于方案 3：建议调整行程，使得第一天在上海。
-
-### **步骤 3：批判性对话下的改进（Refinement through Critical Conversation，RCC）**
+### **Step 2: Plan evaluation (Fitness Evaluation)**
 
  
-**由谁完成**：大型语言模型（LLM）
+**Who performs it**: **Evaluation function (programmatic evaluator)**
 
-**解释**：
+**Explanation**:
 
-- **目的**：通过模拟**批评者**和**作者**之间的对话，对候选方案进行深入分析和改进。
+- **Purpose**: Score each candidate solution, assess its quality, and check whether it satisfies the constraints and goals.
 
-- **使用的算法/方法**：利用 LLM 的生成和理解能力，扮演不同的角色，进行对话式的方案改进。
+- **Algorithm/method used**: **Evaluation function**, a programmatic function to assess solution quality. Not a complex algorithm per se, but its design must ensure objective, fair evaluation.
 
-- **如何完成**：
+- **How it’s done**: Implement an evaluation function that parses each plan and checks:
 
-  - 根据批评者的反馈，对方案进行修改，提出改进后的方案。
+  - Does it cover all required cities?
 
-    **举例**：
+  - Does it follow the schedule (Day 1 in Shanghai, last day back in Beijing)?
 
-    **对于方案 2 的批判性对话**：
+  - Is it within budget?
 
-  - 分析方案，结合评估函数的反馈，指出方案中的问题。
+  - Any conflicts or unreasonable arrangements?
 
-  - 提出改进的建议。
+    **Example**:
 
-  - **批评者（Critic）**角色：
+    **Evaluating Plan 1**:
 
-  - **作者（Author）**角色：
+- **Check results**:
 
-- **批评者**：
+  - Covers all required cities: Yes.
 
-  - “该方案未包含苏州，导致未满足用户想去的所有城市的要求。此外，预算超出了 5000 元的限制。建议在行程中加入苏州，并适当调整游览项目，控制总费用。”
+  - Scheduling: Day 1 in Shanghai, last day back in Beijing — meets requirements.
 
-- **作者**：
+  - Budget: Assume total cost is 4800 RMB (within budget).
 
-  - “好的，我将调整方案。在第三天，增加前往苏州的行程，游览拙政园，住宿苏州。并在上海的游览项目中选择性地减少一些景点，以控制预算。”
+  - Evaluation: Reasonable and meets all requirements.
 
-    **改进后的方案**：
+    **Evaluating Plan 2**:
 
-- 第一天：北京 -> 上海，游览迪士尼乐园，住宿上海。
+- **Check results**:
 
-- 第二天：上海，游览东方明珠，住宿上海。
+  - Covers all required cities: Missing Suzhou.
 
-- 第三天：上海 -> 苏州，游览拙政园，住宿苏州。
+  - Scheduling: Day 1 in Shanghai, last day back in Beijing — meets requirements.
 
-- 第四天：苏州 -> 杭州，游览西湖，住宿杭州。
+  - Budget: Assume total cost is 5200 RMB (over budget).
 
-- 第五天：杭州 -> 北京，结束行程。
+  - Evaluation: Missing Suzhou and over budget.
 
-  **重新评估**：
+    **Evaluating Plan 3**:
 
-- 方案现在包含了所有必须去的城市，预算控制在 5000 元以内。
+- **Check results**:
+
+  - Covers all required cities: Yes.
+
+  - Scheduling: Day 1 in Suzhou, not in Shanghai — does not meet the requirement.
+
+  - Scheduling: Last day returns from Shanghai to Beijing — meets requirement.
+
+  - Budget: Assume total cost is 4500 RMB (within budget).
+
+  - Evaluation: Does not arrive in Shanghai on Day 1.
+
+    **Provide feedback**:
+
+- For Plan 2: Suggest adding Suzhou and keeping the total cost within budget.
+
+- For Plan 3: Suggest adjusting the itinerary so Day 1 is in Shanghai.
+
+### **Step 3: Refinement through Critical Conversation (RCC)**
+
+ 
+**Who performs it**: Large Language Model (LLM)
+
+**Explanation**:
+
+- **Purpose**: Use a simulated dialog between a **critic** and an **author** to deeply analyze and refine candidate solutions.
+
+- **Algorithm/method used**: Leverage the LLM’s generation and understanding to play different roles and perform dialog-based refinement.
+
+- **How it’s done**:
+
+  - Based on critic feedback, modify the plan and propose an improved version.
+
+    **Example**:
+
+    **Critical conversation for Plan 2**:
+
+  - Analyze the plan, incorporate evaluation feedback, and point out issues.
+
+  - Give improvement suggestions.
+
+  - **Critic** role:
+
+  - **Author** role:
+
+- **Critic**:
+
+  - “This plan excludes Suzhou, failing to meet the user’s requirement for all desired cities. Additionally, the budget exceeds the 5000 RMB limit. Please include Suzhou and adjust attractions to stay within budget.”
+
+- **Author**:
+
+  - “Understood. I’ll adjust the plan. On Day 3, I’ll add a trip to Suzhou to visit the Humble Administrator’s Garden and stay in Suzhou. I’ll also trim some Shanghai attractions to control cost.”
+
+    **Refined plan**:
+
+- Day 1: Beijing -> Shanghai, visit Disneyland, stay in Shanghai.
+
+- Day 2: Shanghai, visit Oriental Pearl Tower, stay in Shanghai.
+
+- Day 3: Shanghai -> Suzhou, visit Humble Administrator’s Garden, stay in Suzhou.
+
+- Day 4: Suzhou -> Hangzhou, visit West Lake, stay in Hangzhou.
+
+- Day 5: Hangzhou -> Beijing, end of trip.
+
+  **Re-evaluation**:
+
+- The plan now includes all required cities and stays within the 5000 RMB budget.
 
 - 
 
-### **步骤 4：选择（Selection）**
+### **Step 4: Selection**
 
  
-**由谁完成**：算法流程（程序控制）
+**Who performs it**: Algorithmic flow (program control)
 
-**解释**：
+**Explanation**:
 
-- **目的**：根据评估得分，从当前的候选方案中选择优质的方案作为“父代”。
+- **Purpose**: Select high-quality plans from current candidates as “parents” based on evaluation scores.
 
-- **使用的算法/方法**：**博尔兹曼选择（Boltzmann Selection）**，这是一种基于概率的选择策略。
+- **Algorithm/method used**: **Boltzmann Selection**, a probabilistic selection strategy.
 
-- **如何完成**：
+- **How it’s done**:
 
-  - 计算每个方案的适应度得分。
+  - Compute each plan’s fitness score.
 
-  - 使用**软最大化（softmax）**函数，将适应度得分转换为选择概率。
+  - Use a **softmax** to convert fitness scores into selection probabilities.
 
-  - 根据概率随机抽样，选择一些方案作为父代。
+  - Sample according to probabilities to choose some plans as parents.
 
-    **举例**：
+    **Example**:
 
-- 假设有 4 个方案，适应度得分分别为 0.9、0.8、0.5、0.2。
+- Suppose four plans have fitness scores 0.9, 0.8, 0.5, 0.2.
 
-- 通过 softmax 转换，计算出每个方案被选中的概率。
+- Convert them via softmax to selection probabilities.
 
-- 可能最终选出方案 1 和方案 2 作为父代。
-
-
-
-### **步骤 5：交叉和变异（Crossover and Mutation）**
-
-**由谁完成**：大型语言模型（LLM）与算法流程（程序控制）
-
-**解释**：
-
-- **目的**：通过组合和修改父代方案，生成新的候选方案（子代），从而探索新的解决方案空间。
-
-- **使用的算法/方法**：交叉和变异是遗传算法的核心操作。
-
-  **交叉（Crossover）**：
-
-- **如何完成**：
-
-  - 从选定的父代方案中，挑选部分内容进行组合。
-  - 使用 LLM，根据父代方案，生成新的方案。
-
-**举例**：
-
-- **父代方案 A**：
-- 第一天：北京 -> 上海，游览外滩，住宿上海。
-- 第二天：上海 -> 杭州，游览西湖，住宿杭州。
-- 第三天：杭州，游览灵隐寺，住宿杭州。
-- 第四天：杭州 -> 苏州，游览拙政园，住宿苏州。
-- 第五天：苏州 -> 北京，结束行程。
-
-- **父代方案 B**：
-  - 第一天：北京 -> 上海，游览迪士尼乐园，住宿上海。
-  - 第二天：上海，游览东方明珠，住宿上海。
-  - 第三天：上海 -> 苏州，游览寒山寺，住宿苏州。
-  - 第四天：苏州 -> 杭州，游览雷峰塔，住宿杭州。
-  - 第五天：杭州 -> 北京，结束行程。
-
-**交叉生成子代方案**：
-
-- 第一天：北京 -> 上海，游览外滩和迪士尼乐园，住宿上海。
-- 第二天：上海 -> 苏州，游览寒山寺和拙政园，住宿苏州。
-- 第三天：苏州 -> 杭州，游览西湖和雷峰塔，住宿杭州。
-- 第四天：杭州，游览灵隐寺和其他景点，住宿杭州。
-- 第五天：杭州 -> 北京，结束行程。
+- Plans 1 and 2 may be chosen as parents.
 
 
 
-- **变异（Mutation）**：
-- **如何完成**：
-  - 对新生成的子代方案，进行随机的小幅修改。
-  - 使用 LLM，引入新的元素或调整行程细节。
-- **举例**：
-  - 在子代方案中，随机将第四天的行程从杭州改为再次返回上海，或者增加新的景点。
+### **Step 5: Crossover and Mutation**
 
-### **步骤 6：迭代与进化（Iteration and Evolution）**
+**Who performs it**: Large Language Model (LLM) and algorithmic flow (program control)
 
- 
-**由谁完成**：算法流程（程序控制）
+**Explanation**:
 
-**解释**：
+- **Purpose**: Combine and modify parent plans to generate new candidates (offspring), exploring new solution space.
 
-- **目的**：重复执行前面的步骤（生成、评估、选择、交叉、变异和改进），经过多代迭代，逐步提升方案质量。
+- **Algorithm/method used**: Crossover and mutation are core GA operations.
 
-- **使用的算法/方法**：迭代循环，直到满足终止条件。
+  **Crossover**:
 
-- **如何完成**：
+- **How it’s done**:
 
-  - 在每一代，生成新的候选方案，对其进行评估和改进。
+  - Select portions from parent plans to combine.
+  - Use the LLM to generate new plans from parents.
 
-  - 持续进行多次迭代，观察方案质量的提升。
+**Example**:
 
-    **举例**：
+- **Parent Plan A**:
+- Day 1: Beijing -> Shanghai, visit the Bund, stay in Shanghai.
+- Day 2: Shanghai -> Hangzhou, visit West Lake, stay in Hangzhou.
+- Day 3: Hangzhou, visit Lingyin Temple, stay in Hangzhou.
+- Day 4: Hangzhou -> Suzhou, visit Humble Administrator’s Garden, stay in Suzhou.
+- Day 5: Suzhou -> Beijing, end of trip.
 
-- **第 1 代**：初始生成的候选方案，可能只有一部分满足要求。
+- **Parent Plan B**:
+  - Day 1: Beijing -> Shanghai, visit Disneyland, stay in Shanghai.
+  - Day 2: Shanghai, visit Oriental Pearl Tower, stay in Shanghai.
+  - Day 3: Shanghai -> Suzhou, visit Hanshan Temple, stay in Suzhou.
+  - Day 4: Suzhou -> Hangzhou, visit Leifeng Pagoda, stay in Hangzhou.
+  - Day 5: Hangzhou -> Beijing, end of trip.
 
-- **第 2 代**：经过交叉、变异和改进，方案质量有所提升，更多的方案满足要求。
+**Offspring via crossover**:
 
-- **第 3 代**：继续优化，可能接近找到最佳方案。
+- Day 1: Beijing -> Shanghai, visit the Bund and Disneyland, stay in Shanghai.
+- Day 2: Shanghai -> Suzhou, visit Hanshan Temple and Humble Administrator’s Garden, stay in Suzhou.
+- Day 3: Suzhou -> Hangzhou, visit West Lake and Leifeng Pagoda, stay in Hangzhou.
+- Day 4: Hangzhou, visit Lingyin Temple and other attractions, stay in Hangzhou.
+- Day 5: Hangzhou -> Beijing, end of trip.
 
-- **迭代终止条件**：找到满足所有要求的方案，或者达到预设的最大迭代次数。
 
 
+- **Mutation**:
+- **How it’s done**:
+  - Apply small random changes to offspring.
+  - Use the LLM to introduce new elements or tweak itinerary details.
+- **Example**:
+  - Randomly change Day 4 from Hangzhou to a return to Shanghai, or add new attractions.
 
-### **步骤 7：岛屿模型的应用（Island Model - Migration and Reset）**
+### **Step 6: Iteration and Evolution**
 
  
+**Who performs it**: Algorithmic flow (program control)
 
-**由谁完成**：算法流程（程序控制）
+**Explanation**:
 
-**解释**：
+- **Purpose**: Repeat the previous steps (generation, evaluation, selection, crossover, mutation, and refinement) for multiple generations to progressively improve solution quality.
 
-- **目的**：通过引入岛屿模型，保持方案的多样性，避免过早收敛到次优解。
-- **使用的算法/方法**：**岛屿模型**，包括**迁移（Migration）**和**重置（Reset）**操作。
-- **如何完成**：
-- **划分岛屿**：
-  - 将候选方案的种群分为多个独立的子群体，称为岛屿。
-  - 每个岛屿独立地进行进化，避免相互干扰。
-- **迁移（Migration）**：
-  - 在预定的迭代代数后，将一些优秀的方案从一个岛屿迁移到另一个岛屿。
-  - 促进优秀基因的传播，丰富其他岛屿的方案多样性。
-- **重置（Island Reset）**：
-  - 定期评估各个岛屿的整体表现。
-  - 对于表现较差的岛屿，将其种群替换为全局最优的方案或重新生成新的方案。
-  - 避免陷入局部最优，重新探索新的解空间。
+- **Algorithm/method used**: Iterative loop until termination conditions are satisfied.
+
+- **How it’s done**:
+
+  - In each generation, generate new candidates, evaluate, and refine them.
+
+  - Continue multiple iterations and observe quality improvements.
+
+    **Example**:
+
+- **Generation 1**: Initial candidates; only some may meet requirements.
+
+- **Generation 2**: After crossover, mutation, and refinement, quality improves; more plans meet requirements.
+
+- **Generation 3**: Further optimization, approaching the best plan.
+
+- **Termination conditions**: A plan that meets all requirements is found, or a maximum number of iterations is reached.
+
+
+
+### **Step 7: Island Model - Migration and Reset**
+
+ 
+
+**Who performs it**: Algorithmic flow (program control)
+
+**Explanation**:
+
+- **Purpose**: Maintain diversity and avoid premature convergence to suboptimal solutions by introducing the island model.
+- **Algorithm/method used**: **Island model**, including **Migration** and **Reset** operations.
+- **How it’s done**:
+- **Partition islands**:
+  - Split the candidate population into multiple independent sub-populations (“islands”).
+  - Each island evolves independently to avoid interference.
+- **Migration**:
+  - After a fixed number of generations, migrate some top plans from one island to another.
+  - Spread good “genes” and enrich diversity on other islands.
+- **Reset (Island Reset)**:
+  - Periodically evaluate overall performance of islands.
+  - For poorly performing islands, replace their populations with globally best plans or regenerate new ones.
+  - Avoid local optima and explore new solution space.
 - 
-- **举例**：
-- **假设有 4 个岛屿**（Island 1、Island 2、Island 3、Island 4）。
-- **迁移操作**：
-  - 在每隔 3 代后，将 Island 1 中最优秀的 5 个方案迁移到 Island 2，替换其种群中最差的 5 个方案。
-  - 同时，Island 2 的优秀方案迁移到 Island 3，以此类推。
-- **重置操作**：
-  - 如果 Island 4 在连续多代中方案质量较差，决定对其进行重置。
-  - 从全局最优的方案中选取一些，替换 Island 4 的种群。
+- **Example**:
+- **Assume 4 islands** (Island 1, Island 2, Island 3, Island 4).
+- **Migration operation**:
+  - Every 3 generations, migrate the top 5 plans from Island 1 to Island 2, replacing the worst 5 on Island 2.
+  - Similarly, migrate top plans from Island 2 to Island 3, and so on.
+- **Reset operation**:
+  - If Island 4 performs poorly for many generations, reset it.
+  - Seed Island 4 with some of the globally best plans.
 
 ### 
 
-### **总结**
+### **Summary**
 
  
-**Mind Evolution 方法**通过以上七个步骤，结合了大型语言模型（LLM）的生成和理解能力，以及进化算法（包括遗传算法和岛屿模型）的全局优化策略，成功地在自然语言规划任务中实现了高效的方案优化。
+The **Mind Evolution** method combines the generation and understanding capabilities of LLMs with the global optimization of evolutionary algorithms (including genetic algorithms and the island model) to achieve efficient plan optimization in natural language planning tasks.
 
-- **LLM 的作用**：
-  - 生成初始候选方案。
-  - 扮演批评者和作者的角色，进行方案的批判性对话和改进。
-  - 在交叉和变异操作中，生成新的方案。
-- **评估函数**：
-  - 对方案进行客观的评估，提供反馈。
-  - 指导方案的优化方向。
-- **遗传算法的操作**：
-  - 选择、交叉、变异，探索新的解空间。
-  - 通过迭代，逐步提升方案质量。
-- **岛屿模型的应用**：
-  - 通过划分岛屿、迁移和重置，保持方案的多样性。
-  - 避免过早收敛，提高全局优化能力。
-
----
-
-
+- **Role of LLMs**:
+  - Generate initial candidates.
+  - Play critic and author to perform critical conversation and refinement.
+  - Generate new plans during crossover and mutation.
+- **Evaluation function**:
+  - Objectively evaluate plans and provide feedback.
+  - Guide the direction of optimization.
+- **Genetic algorithm operations**:
+  - Selection, crossover, mutation to explore new solution space.
+  - Iteratively improve solution quality.
+- **Island model**:
+  - Maintain diversity via partitioning, migration, and reset.
+  - Avoid premature convergence and improve global optimization.
 
 ---
 
-# Part 12: SLM 微调实验
 
-> *原文来自 SLM-Capabilities-and-Fine-Tuning*
+
+---
+
+# Part 12: SLM fine-tuning experiments
+
+> *Originally from SLM-Capabilities-and-Fine-Tuning*
 
 
 ## Phi-4 Thinks as DeepSeek-R1
@@ -4542,7 +4522,6 @@ To obtain exactly 3 liters of water using a 5-liter jug and a 6-liter jug, follo
 8. Pour the 2 liters from the 6-liter jug into the 5-liter jug. (0, 2)
 9. Fill the 6-liter jug again. (6, 2)
 10. Pour water from the 6-liter jug into the 5-liter jug until the 5-liter jug is full. (3, 5)
-
 After step 10, the 6-liter jug will contain exactly 3 liters of water. Alternatively, you can also end up with 3 liters in the 5-liter jug by following a different sequence:
 
 1. Fill the 5-liter jug completely. (5, 0)
@@ -4599,133 +4578,133 @@ https://kaitchup.substack.com/p/fine-tuning-your-llm-to-think-like-r1
 
 ---
 
-## Gemma 3 270M 小模型能力上限探测
+## Gemma 3 270M Small Model Capability Upper Bound Exploration
 
-﻿## **Gemma 3 270M小模型能力上限探测**
+﻿## **Gemma 3 270M Small Model Capability Upper Bound Exploration**
 
-#### 结论
+#### Conclusion
 
-1. **模型选型上**：对于纯任务型（翻译、抽取等），270M Base > 270M Instruct，因为 Instruct 会保留安全规避和对话习惯，不利于目标任务收敛。
-2. **训练轮次**：验证集 BLEU 和 Loss 在第 3 轮左右是最佳点 → 应用早停策略，避免第 4 轮开始的性能回落（过拟合）。
-3. **任务方向性**：如果数据方向匹配度差（法→英），即使训练 Loss 下降，BLEU 也不会提升，提示需要换更匹配的数据集。
-4. **训练动态**：Base 模型在训练集 Loss 和验证集 Loss 上同时优于 Instruct，说明它不仅记得住，还能更好泛化。
-5. **工程建议**：
-   - 低资源场景优先 Base 模型全量微调
-   - 在监控 BLEU 变化的同时用验证集 Loss 作为早停指标
-   - 数据方向和领域匹配比纯 epochs 增加更重要
+1. Model selection: For pure task-oriented (translation, extraction, etc.), 270M Base > 270M Instruct, because Instruct preserves safety avoidance and conversational habits, which hinders convergence on the target task.
+2. Training epochs: Validation BLEU and Loss peak around epoch 3 → apply early stopping to avoid the performance drop starting at epoch 4 (overfitting).
+3. Task directionality: If the data direction is poorly matched (FR→EN), even if training loss decreases, BLEU will not improve, indicating that a more appropriate dataset is needed.
+4. Training dynamics: The Base model outperforms Instruct on both training and validation loss, indicating it not only memorizes but also generalizes better.
+5. Engineering recommendations:
+   - In low-resource settings, prefer full-parameter fine-tuning of the Base model
+   - Monitor BLEU changes and use validation loss as the early stopping criterion
+   - Data direction and domain match are more important than simply increasing epochs
 
 | 要素         | 细节                                                         | 工程化手段（方法）                                           | 工程意义                                               |
 | ------------ | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------ |
-| **问题**     | 微型模型（270M）开箱即用性能差，跨语言任务几乎不可用（BLEU≈2.23），长上下文和复杂指令跟随能力弱 | —                                                            | 小模型通用性不足、稳定性低，零样本不具备上线条件       |
-| **工程目标** | 在单卡 6~12GB 显存条件下，让小模型在特定任务（英→法翻译）上达到可用精度 | —                                                            | 为边缘部署、低资源场景提供大模型替代路径               |
-| **解决方案** | 针对 270M 小模型的低成本优化组合                             | ① 全量微调（包含嵌入层）<br>② 缩小领域（高一致性任务数据）<br>③ 精简模板减少 token<br>④ 一次性喂入大规模、去重数据 | 全量微调+领域聚焦+模板优化，确保小模型任务性能最大化   |
-| **实施条件** | 硬件：6GB 可行，12GB 舒适<br>框架：Unsloth + AdamW-8bit<br>数据：OPUS-100、news_commentary<br>时长：RTX4090 数小时 | ⑤ AdamW-8bit 优化器<br>⑥ 梯度累积<br>⑦ BF16 精度推理         | 明确资源与参数配置，降低尝试门槛                       |
-| **结果**     | BLEU 从 2.23 提升到 ≈18（可达 30）<br>base 版优于 instruct 版（避免安全层干扰）<br>推理速度快、显存低 | —                                                            | 小模型能接近大模型效果，部署成本极低                   |
-| **经验结论** | 小模型零样本弱，微调后可作高可靠组件；数据多样性优于重复训练；全量微调优于高冻结率方法 | —                                                            | 为低预算工程师提供模型选型、数据策略、训练方法决策参考 |
+| **问题**     | Micro models (270M) have poor out-of-the-box performance, cross-lingual tasks are nearly unusable (BLEU≈2.23), weak long-context and complex instruction-following ability | —                                                            | Small models lack generality and stability; zero-shot is not production-ready |
+| **工程目标** | Under single-GPU 6–12 GB VRAM, achieve usable accuracy on a specific task (EN→FR translation) | —                                                            | Provide a large-model alternative path for edge deployment and low-resource scenarios |
+| **解决方案** | Low-cost optimization bundle for the 270M small model        | ① Full-parameter fine-tuning (including embedding layer)<br>② Narrow the domain (high-consistency task data)<br>③ Streamline templates to reduce tokens<br>④ Feed a large, deduplicated dataset in one go | Full fine-tuning + domain focus + template optimization to maximize small-model task performance |
+| **实施条件** | Hardware: 6 GB feasible, 12 GB comfortable<br>Framework: Unsloth + AdamW-8bit<br>Data: OPUS-100, news_commentary<br>Duration: several hours on RTX 4090 | ⑤ AdamW-8bit optimizer<br>⑥ Gradient accumulation<br>⑦ BF16 inference precision | Clarify resource and parameter settings, lowering the barrier to experimentation |
+| **结果**     | BLEU improved from 2.23 to ≈18 (up to 30)<br>base beats instruct (avoids safety layer interference)<br>fast inference, low VRAM | —                                                            | Small models can approach large-model performance with very low deployment cost |
+| **经验结论** | Small models are weak zero-shot, but after fine-tuning they can serve as high-reliability components; data diversity beats repeated training; full fine-tuning outperforms high-freeze approaches | —                                                            | Provide decision guidance on model selection, data strategy, and training methods for low-budget engineers |
 
 ![images](images/gemma3_summary.png)
 
 
 
-### Training Loss分析
+### Training Loss Analysis
 
 ![images](images/gemma3_bleu.png)
 
-- **横轴**：Epoch（轮次）
-- **纵轴**：BLEU（翻译质量，越高越好）
-- **颜色含义**：
-  - 红色：Base 模型（英→法）
-  - 蓝色：Instruct 模型（英→法）
-  - 黄色：Instruct（法→英）
-  - 绿色：Base（法→英）
+- X-axis: Epoch
+- Y-axis: BLEU (translation quality, higher is better)
+- Color legend:
+  - Red: Base model (EN→FR)
+  - Blue: Instruct model (EN→FR)
+  - Yellow: Instruct (FR→EN)
+  - Green: Base (FR→EN)
 
-#### 现象
+#### Observations
 
-1. **英→法任务**里，Base 模型（红线）BLEU 全程高于 Instruct（蓝线），并在第 3 轮达到峰值（≈11），之后略有回落；Instruct 模型峰值略低（≈9.5）。
-2. **法→英任务**几乎没提升（绿线、黄线）——BLEU 全程低且在第 1 轮后反而下降，说明训练数据或任务定义对该方向支持不足。
-3. 两个方向都在第 3 轮出现峰值，**第 4 轮开始出现下降** → 典型的过拟合信号（训练集拟合更好，但泛化能力变差）。
+1. In the EN→FR task, the Base model (red) has BLEU higher than Instruct (blue) throughout, peaking at epoch 3 (≈11) and then slightly falling back; the Instruct model peaks slightly lower (≈9.5).
+2. The FR→EN task barely improves (green, yellow)—BLEU remains low and actually drops after epoch 1, indicating the training data or task definition is insufficiently supportive for that direction.
+3. Both directions show a peak at epoch 3, and a decline starting at epoch 4 → a classic overfitting signal (better fit on the training set but worse generalization).
 
-#### 含义
+#### Implications
 
-- Base 模型在翻译任务学习速度和质量上明显优于 Instruct，这是因为 Instruct 的安全/助手调优干扰了直接翻译目标。
-- 最佳训练 Epoch ≈ 3，再往后会损失效果，要早停。
-- 数据和任务方向的匹配度差时（法→英）即使反复训练也无显著提高。
+- The Base model clearly outpaces Instruct in learning speed and quality for translation because Instruct’s safety/assistant tuning interferes with the direct translation objective.
+- Best training epoch ≈ 3; training beyond that hurts performance—apply early stopping.
+- When data and task direction are mismatched (FR→EN), repeated training yields no significant gains.
 
 
 
-#### Validation Loss分析
+#### Validation Loss Analysis
 
 ![images](images/gemma3_val_loss.png)
 
-- **横轴**：训练步数
-- **纵轴**：验证集 Loss（越低越好）
-- **红线 = Base 模型，蓝线 = Instruct 模型**
+- X-axis: Training steps
+- Y-axis: Validation loss (lower is better)
+- Red line = Base model, Blue line = Instruct model
 
-#### 现象
+#### Observations
 
-1. Base 模型（红线）从头到尾验证集 Loss 都更低，并且下降更平稳。
-2. Instruct 模型（蓝线）收敛到一个更高的 Loss 水平，中间波动小，但没再持续下降。
-3. 训练后半程两条曲线趋于平稳 → 模型学习接近饱和。
+1. The Base model (red) maintains lower validation loss from start to finish and decreases more smoothly.
+2. The Instruct model (blue) converges to a higher loss level; it fluctuates little but does not continue decreasing.
+3. In the latter half of training, both curves flatten → the model’s learning approaches saturation.
 
-#### 含义
+#### Implications
 
-- Base 模型在泛化能力上确实优于 Instruct，与 BLEU 结论一致。
+- The Base model is indeed better at generalization than Instruct, consistent with BLEU.
 
-- Instruct 模型可能受安全指令或原有对话模式约束，对“翻译”这种单一任务无法充分优化。
+- The Instruct model may be constrained by safety instructions or its original dialog mode, preventing full optimization for a single task like “translation”.
 
   
 
-#### 效果评估
+#### Evaluation
 
 ![images](images/gemma3_evaluation.png)
 
-先看图里的变化趋势
+First, look at the trends in the figure
 
-**英→法（红=Base，蓝=Instruct）**
+**EN→FR (red=Base, blue=Instruct)**
 
-- Epoch 0：BLEU 很低（Base ≈ 6，Instruct ≈ 2）
-- Epoch 1~3：BLEU 持续提升，第 3 轮达到峰值（Base ≈ 11，Instruct ≈ 9.5）
-- Epoch 4：两者 BLEU 都下降
-  ✅ 说明模型在第 3 轮学到的能力最强，之后出现**过拟合**（在训练集上更准，但在测试集上泛化差了）
-
-------
-
-**法→英（绿=Base，黄=Instruct）**
-
-- Epoch 0：BLEU 有个初始值（黄线甚至接近 8）
-- Epoch 1 开始：BLEU 直接大幅下降，并且后续几轮一直下滑 ❌ 原因：
-  - 训练数据是 **News-Commentary EN→FR**，因此模型接受到的是“英语→法语”映射数据
-  - 对 “法语→英语” 没有直接监督训练，反而学到的权重更新损害了原本的法→英能力 → **灾难性遗忘（catastrophic forgetting）**
+- Epoch 0: BLEU is low (Base ≈ 6, Instruct ≈ 2)
+- Epoch 1–3: BLEU rises steadily, peaking at epoch 3 (Base ≈ 11, Instruct ≈ 9.5)
+- Epoch 4: BLEU drops for both
+  ✅ This indicates the model’s capability is strongest at epoch 3; afterward, **overfitting** emerges (more accurate on the training set but worse generalization on the test set)
 
 ------
 
-为什么会出现 “有的任务 BLEU 高了，有的低了”
+**FR→EN (green=Base, yellow=Instruct)**
 
-1. **数据方向不匹配**
-   - 英→法任务是训练目标 → 权重更新直接优化了它 → BLEU 上升
-   - 法→英是非训练方向 → 权重更新不断覆盖原本的参数 → BLEU 下降
-2. **过拟合效应**
-   - 英→法在 Epoch 3 后开始掉分 → 虽然训练 Loss 会继续下降，但模型在验证集 BLEU 开始下滑
-   - 原因是模型开始记住训练数据的细节，而不是学习可泛化的翻译规律
-3. **模型容量限制（270M 小模型）**
-   - 小模型参数有限，无法同时在两个方向保留高水平性能
-   - 在单一方向训练时，会偏向牺牲另一个方向的表现来“腾出容量”
-4. **初始 BLEU 高的那条黄线（法→英 Instruct）为什么骤降**
-   - 可能原本依赖于广泛的多语言知识（预训练阶段获得）
-   - 但微调阶段用大量单方向数据训练，破坏了这种知识平衡 → 灾难性遗忘的典型信号
+- Epoch 0: BLEU has an initial value (the yellow line even approaches 8)
+- From epoch 1: BLEU drops sharply and keeps declining in subsequent epochs ❌ Reasons:
+  - The training data is **News-Commentary EN→FR**, so the model receives “English→French” mapping data
+  - There is no direct supervised training for “French→English”; instead, the learned weight updates damage the original FR→EN capability → **catastrophic forgetting**
 
 ------
 
-工程意义
+Why does BLEU go up for some tasks and down for others
 
-- 如果你只在一个翻译方向微调，**要接受另一个方向性能下降的风险**
-- 如果想双向都好，需要用双向数据（英→法 + 法→英）联合训练
-- BLEU 在训练过程中不仅用于“看涨”，也可以用于**发现性能损失和过拟合拐点**
-- 最佳停训点通常在 **验证集 BLEU 峰值出现的 epoch**（这里是第 3 轮）
+1. Data direction mismatch
+   - EN→FR is the training objective → weight updates directly optimize it → BLEU increases
+   - FR→EN is not trained → weight updates keep overwriting original parameters → BLEU decreases
+2. Overfitting effect
+   - EN→FR starts to lose points after epoch 3 → although training loss keeps decreasing, validation BLEU starts to drop
+   - Because the model begins to memorize training details rather than learn generalizable translation patterns
+3. Model capacity limits (270M small model)
+   - Limited parameters prevent maintaining high performance in both directions simultaneously
+   - Training in a single direction tends to sacrifice the other direction to “free up capacity”
+4. Why did the yellow line with initially high BLEU (FR→EN Instruct) plummet
+   - It may have relied on broad multilingual knowledge (acquired during pretraining)
+   - But fine-tuning with large amounts of single-direction data disrupts this balance → a classic sign of catastrophic forgetting
+
+------
+
+Engineering implications
+
+- If you fine-tune only in one translation direction, you must accept the risk of performance degradation in the other direction
+- If you want both directions to be strong, train jointly with bidirectional data (EN→FR + FR→EN)
+- During training, BLEU is not only for “watching gains”; it also helps detect performance loss and the overfitting inflection point
+- The best stop point is usually the epoch where **validation BLEU peaks** (epoch 3 here)
 
 
 
-#### 示例代码
+#### Example code
 
 ```
 pip install unsloth
@@ -4748,8 +4727,7 @@ iso_language["de"] = "German"
 iso_language["es"] = "Spanish"
 iso_language["fr"] = "French"
 iso_language["it"] = "Italian"
-
-
+```
 def FT(model_name, pair):
 
     compute_dtype = torch.bfloat16
@@ -4858,9 +4836,9 @@ FT("google/gemma-3-270m", "en-fr")
 
 ---
 
-# Part 13: 三种 RL 训练方法对比
+# Part 13: Three RL Training Methods Compared
 
-> *原文来自 LLM-Math-Reasoning-RL*
+> *Originally from LLM-Math-Reasoning-RL*
 
 
 ## 🔄 Chapter 8: Three RL Training Approaches Compared
@@ -4961,7 +4939,7 @@ def compute_reward(response, ground_truth):
     },
     "calculate_output": "correctness * 0.6 + format * 0.2 + quality * 0.2"
 }
-
+```
 # Key: Flexible composition, supports LLM-as-Judge, managed execution
 ```
 
