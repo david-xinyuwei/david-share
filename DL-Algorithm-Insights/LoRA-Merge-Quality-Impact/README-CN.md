@@ -85,6 +85,42 @@ PEFT 框架向模型注入 adapter 模块
 代码路径：PEFT adapter 注入 → 依赖兼容性
 ```
 
+### 代码路径图
+
+```mermaid
+flowchart TB
+    subgraph LOAD["load_lora_weights"]
+        L1["加载 LoRA B,A"]
+        L2["PEFT 注入 480 模块"]
+        L1 --> L2
+    end
+
+    LOAD --> FUSE
+    LOAD --> ADAPT
+
+    subgraph FUSE["fuse_lora 路径"]
+        direction TB
+        F1["W' = W + BA<br/>(1 次 BF16 舍入)"]
+        F2["推理: x * W'<br/>(每层 1 次矩阵乘)"]
+        F1 --> F2
+    end
+
+    subgraph ADAPT["set_adapters 路径"]
+        direction TB
+        A1["Scale = 1.0"]
+        A2["每步: xW + x(BA)<br/>(每层 2 次矩阵乘)"]
+        A3["x16 步 = 7680<br/>额外矩阵乘法"]
+        A1 --> A2 --> A3
+    end
+
+    F2 -->|"SSIM = 1.000"| R["生成图片"]
+    A3 -->|"SSIM = 0.978"| R
+
+    style FUSE fill:#e8f5e9,stroke:#4caf50
+    style ADAPT fill:#ffebee,stroke:#f44336
+    style R fill:#fff9c4,stroke:#fbc02d
+```
+
 ### 关键差异
 
 来自 [diffusers 官方文档](https://huggingface.co/docs/diffusers/main/en/using-diffusers/merge_loras)：

@@ -85,6 +85,42 @@ Every forward pass: output = x×W + x×(B×A)  (computed on-the-fly)
 Code path: PEFT adapter injection → compatibility dependent
 ```
 
+### Code Path Diagram
+
+```mermaid
+flowchart TB
+    subgraph LOAD["load_lora_weights"]
+        L1[Load LoRA B,A]
+        L2[PEFT injects 480 modules]
+        L1 --> L2
+    end
+
+    LOAD --> FUSE
+    LOAD --> ADAPT
+
+    subgraph FUSE["fuse_lora path"]
+        direction TB
+        F1["W' = W + BA<br/>(1 BF16 rounding)"]
+        F2["Inference: x * W'<br/>(1 matmul/layer)"]
+        F1 --> F2
+    end
+
+    subgraph ADAPT["set_adapters path"]
+        direction TB
+        A1["Scale = 1.0"]
+        A2["Each step: xW + x(BA)<br/>(2 matmuls/layer)"]
+        A3["x16 steps = 7680<br/>extra matmuls"]
+        A1 --> A2 --> A3
+    end
+
+    F2 -->|"SSIM = 1.000"| R[Generated Image]
+    A3 -->|"SSIM = 0.978"| R
+
+    style FUSE fill:#e8f5e9,stroke:#4caf50
+    style ADAPT fill:#ffebee,stroke:#f44336
+    style R fill:#fff9c4,stroke:#fbc02d
+```
+
 ### The Critical Difference
 
 From the [official diffusers documentation](https://huggingface.co/docs/diffusers/main/en/using-diffusers/merge_loras):
