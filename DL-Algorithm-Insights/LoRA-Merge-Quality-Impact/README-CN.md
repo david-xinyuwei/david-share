@@ -37,7 +37,7 @@ LoRA（Low-Rank Adaptation）是微调大型 Diffusion 模型的标准方法。�
 |------|------|------|------|
 | 框架 | diffusers 0.37.0.dev0 | HuggingFace Diffusion Pipeline | 标准推理框架 |
 | 适配器 | PEFT（LoRA） | 20B 模型低秩适配 | 451MB adapter vs 39GB 基模 |
-| 精度 | BF16 | 16 位脑浮点 | 显存节省约 50% |
+| 精度 | BF16 | 模型原生 16 位精度（约 7 位尾数） | 有限精度 → 两条路径舍入累积不同 |
 | 合并 | fuse_lora / set_adapters | 两种 LoRA 应用方式 | **5.8% 质量差异** |
 
 ### 资源分布
@@ -59,7 +59,20 @@ H100 NVL 95,830 MiB 总容量
 
 ### 两条路径，一个模型
 
-diffusers 库提供两种本质不同的 LoRA 应用方式：
+diffusers 库提供两种本质不同的 LoRA 应用方式。
+
+**符号说明** — 本文使用的变量：
+
+| 符号 | 含义 | 典型规模 |
+|:----:|------|----------|
+| **W** | 预训练基模权重矩阵（Pre-trained Weight） | d × k（20B 模型共 39GB） |
+| **B** | LoRA 上投影矩阵（Up-projection） | d × r（r = rank = 32） |
+| **A** | LoRA 下投影矩阵（Down-projection） | r × k |
+| **BA** | B × A = LoRA 权重增量 ΔW | d × k（低秩，仅 451MB） |
+| **x** | 当前层的输入激活（Input Activation） | batch × seq × d |
+| **W'** | 融合后权重 = W + BA | d × k（与 W 同形状） |
+
+> **LoRA 核心思想**：不直接训练巨大的基模权重 W（39GB），而是训练两个小矩阵 B 和 A（共 451MB）。它们的乘积 BA ≈ ΔW 以极低的成本近似表达权重更新。
 
 **路径 1：`fuse_lora`（权重融合）**
 
@@ -258,7 +271,7 @@ BF16 有 ~7 位 Mantissa（尾数）。每次运算后都舍入。不同运算�
 
 > "PEFT config contained these additional target modules: transformer_blocks.0.attn.to_k, ..."
 
-在我们的 20B 模型测试中：**240 个 Attention（注意力）目标报告不匹配**。这意味着这些层的 LoRA 权重在推理时未被正确应用。
+在我们的 20B 模型测试中：**240 个 Attention（注意力）目标报告为额外模块**。这只是说明 LoRA **训练时**没有产出这些层的权重（config 声明了但 state_dict 为空）。`fuse_lora` 和 `set_adapters` 面对同样的缺口 — 这是训练端问题，不是加载失败。
 
 ### 2. `set_adapters` 只缩放 Attention 权重
 
@@ -266,7 +279,7 @@ BF16 有 ~7 位 Mantissa（尾数）。每次运算后都舍入。不同运算�
 
 > `set_adapters()` **only supports scaling attention weights**. If a LoRA has other parts (e.g., resnets or down-/upsamplers), they will keep a scale of 1.0.
 
-我们的逐层权重分析确认：`fuse_lora` 修改了 477 层（238 个 attention + 239 个非 attention），而 `set_adapters` 实际上遗漏了非 attention 层。
+然而，E8 三角测试表明 `set_adapters` 施加了 `fuse_lora` **103%** 的 LoRA 总效果 — 所有可访问的层都正确工作。质量差距来自 BF16 精度累积，而非层注入遗漏。
 
 ### 3. `unfuse_lora` 引入舍入误差
 
@@ -282,7 +295,7 @@ W'' ≠ W           （BF16 舍入：W'' - W ≈ 1e-3）
 
 ### 4. FP32 解决不了
 
-"如果是精度问题，用 FP32 就行了！" — 20B 模型 FP32 需要 80GB+ 显存，即使 H100（95GB）也 OOM。而且根因并非精度，而是 PEFT 注入兼容性。
+“如果是精度问题，用 FP32 就行了！” — 20B 模型 FP32 需要 80GB+ 显存，即使 H100（95GB）也 OOM。BF16 精度确实是根因，但实际解法是改用 `fuse_lora`（只舍入 1 次），而非尝试 FP32 推理。
 
 ## 速查卡
 

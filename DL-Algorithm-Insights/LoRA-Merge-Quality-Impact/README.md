@@ -37,7 +37,7 @@ All experiments were conducted on a single Azure VM:
 |----------|-----------|-------------|--------|
 | Framework | diffusers 0.37.0.dev0 | HuggingFace diffusion pipeline | Standard inference framework |
 | Adapter | PEFT (LoRA) | Low-rank adaptation for 20B model | 451MB adapter vs 39GB base model |
-| Precision | BF16 | Brain floating-point 16-bit | ~50% VRAM savings vs FP32 |
+| Precision | BF16 | Model's native 16-bit precision (~7-bit mantissa) | Limited precision → rounding divergence between two paths |
 | Merging | fuse_lora / set_adapters | Two LoRA application methods | **5.8% quality difference** |
 
 ### Resource Distribution
@@ -59,7 +59,20 @@ Without BF16: ~78,000 MiB model alone → needs 2× H100
 
 ### Two Paths, One Model
 
-The diffusers library provides two fundamentally different approaches for applying LoRA:
+The diffusers library provides two fundamentally different approaches for applying LoRA.
+
+**Notation** — symbols used throughout this article:
+
+| Symbol | Meaning | Typical Size |
+|:------:|---------|-------------|
+| **W** | Pre-trained base model weight matrix | d × k (39GB total for 20B model) |
+| **B** | LoRA up-projection matrix | d × r (r = rank = 32) |
+| **A** | LoRA down-projection matrix | r × k |
+| **BA** | B × A = LoRA weight delta (ΔW) | d × k (low-rank, only 451MB) |
+| **x** | Input activation to the current layer | batch × seq × d |
+| **W'** | Fused weight = W + BA | d × k (same shape as W) |
+
+> **LoRA core idea**: Instead of training the full W (39GB), train two small matrices B and A (451MB total). Their product BA ≈ ΔW approximates the weight update at a fraction of the cost.
 
 **Path 1: `fuse_lora` (Weight Fusion)**
 
@@ -258,7 +271,7 @@ When loading LoRA via `set_adapters`, PEFT may report warnings like:
 
 > "PEFT config contained these additional target modules: transformer_blocks.0.attn.to_k, ..."
 
-In our test with a 20B model: **240 attention targets reported as mismatched**. This means LoRA weights for these layers are not properly applied during inference.
+In our test with a 20B model: **240 attention targets reported as additional**. This simply means the LoRA **training** didn't produce weights for those layers (config declared them but state_dict was empty). Both `fuse_lora` and `set_adapters` face the same gap — it's a training-side issue, not a loading failure.
 
 ### 2. `set_adapters` Only Scales Attention
 
@@ -266,7 +279,7 @@ From the official [diffusers documentation on LoRA loading](https://huggingface.
 
 > `set_adapters()` **only supports scaling attention weights**. If a LoRA has other parts (e.g., resnets or down-/upsamplers), they will keep a scale of 1.0.
 
-Our weight-level analysis confirmed: `fuse_lora` modifies 477 layers total (238 attention + 239 non-attention), while `set_adapters` effectively misses the non-attention layers.
+However, our E8 triangle test showed that `set_adapters` applies **103%** of `fuse_lora`'s total LoRA effect — indicating all accessible layers work correctly. The quality gap comes from BF16 precision accumulation, not missing layer injection.
 
 ### 3. `unfuse_lora` Introduces Rounding Error
 
@@ -282,7 +295,7 @@ Our experiment confirmed: `fuse → unfuse → fuse` gives SSIM=0.944 (not 1.0).
 
 ### 4. FP32 Won't Help
 
-"If it's a precision issue, just use FP32!" — The 20B model in FP32 needs ~80GB+ VRAM, causing OOM even on H100 (95GB). And the root cause isn't precision anyway — it's PEFT injection compatibility.
+"If it's a precision issue, just use FP32!" — The 20B model in FP32 needs ~80GB+ VRAM, causing OOM even on H100 (95GB). While BF16 precision IS the root cause, the practical solution is simply to use `fuse_lora` (which rounds only once) rather than attempting FP32 inference.
 
 ## Quick Reference
 
