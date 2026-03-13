@@ -425,7 +425,7 @@ Step 100: reward=0.266  std=0.102  ← new high at end
 | NPU vs GPU benefits | 4 | **5** |
 | Check NPU utilization | 2 | 2 |
 | Windows update install | 4 | **6** |
-| Reset AD password | 4 | **7** |
+| Reset AD account | 4 | **7** |
 | CPU diagnosis | 4 | **7** |
 | **Average** | **4.0** | **5.0 (+25%)** |
 

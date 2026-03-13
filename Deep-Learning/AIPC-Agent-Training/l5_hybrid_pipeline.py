@@ -22,7 +22,7 @@ print("=" * 70)
 # Hybrid Reward: rule-based baseline + GPT quality adjustment
 # ============================================================
 KEYWORDS = ["support", "ticket", "help", "issue", "resolve", "troubleshoot",
-            "password", "reset", "network", "VPN", "account", "install",
+            "credentials", "reset", "network", "VPN", "account", "install",
             "error", "update", "configuration", "service", "permission"]
 
 def rule_reward(completion):
@@ -151,7 +151,7 @@ test_qs = [
     "What are the benefits of NPU over GPU for AI inference?",
     "How to check if Intel Core Ultra NPU is being utilized?",
     "I cannot install the latest Windows update. What should I do?",
-    "How to reset a user password in Active Directory?",
+    "How to reset a user account in Active Directory?",
     "What causes high CPU usage and how to diagnose it?",
 ]
 

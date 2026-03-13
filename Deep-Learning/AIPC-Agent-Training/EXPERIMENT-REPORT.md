@@ -147,11 +147,11 @@ Step 100: reward = 0.266  ↑ new high (epoch 2 done)
 | NPU vs GPU benefits | 4 | **5** | +1 |
 | Check NPU utilization | 2 | 2 | 0 |
 | Windows update install | 4 | **6** | +2 |
-| Reset AD password | 4 | **7** | +3 |
+| Reset AD account | 4 | **7** | +3 |
 | CPU usage diagnosis | 4 | **7** | +3 |
 | **Average** | **4.0** | **5.0** | **+1.0 (+25%)** |
 
-**Analysis**: V1.4 shows clear improvement on IT support tasks (password reset +3, CPU diagnosis +3, AI PC +3) but degradation on some domain-specific questions (Deploy 7B model -3). This is expected: the training data (bitext customer support) is heavy on general IT tasks but light on AI PC-specific content.
+**Analysis**: V1.4 shows clear improvement on IT support tasks (account reset +3, CPU diagnosis +3, AI PC +3) but degradation on some domain-specific questions (Deploy 7B model -3). This is expected: the training data (bitext customer support) is heavy on general IT tasks but light on AI PC-specific content.
 
 ---
 
