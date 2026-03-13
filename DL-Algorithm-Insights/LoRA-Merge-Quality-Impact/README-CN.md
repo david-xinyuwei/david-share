@@ -326,8 +326,8 @@ pipe.fuse_lora(lora_scale=1.0, adapter_names=["my_lora"])
 | set_adapters SSIM vs 离线合并 | **0.978**（↓2.2%） | **0.949**（↓5.1%） |
 | fuse 融合时间 | 11.28s | ~11s |
 | set_adapters 设置时间 | 0.01s | ~0.01s |
-| fuse_lora 推理时间 | 15.10s | 16.6s |
-| set_adapters 推理时间 | 15.68s | 23.5s |
+| fuse_lora 推理时间 | 15.10s | 30.3s |
+| set_adapters 推理时间 | 15.68s | 30.9s |
 | BF16 单层最大差异 | 0.3125 | 同左 |
 | LoRA 层数（两种方式相同） | 480 | 480 |
 | set_adapters LoRA Effectiveness（效果量） | fuse 的 103% | 同左 |

@@ -326,8 +326,8 @@ pipe.fuse_lora(lora_scale=1.0, adapter_names=["my_lora"])
 | set_adapters SSIM vs offline | **0.978** (↓2.2%) | **0.949** (↓5.1%) |
 | fuse merge time | 11.28s | ~11s |
 | set_adapters set time | 0.01s | ~0.01s |
-| fuse inference time | 15.10s | 16.6s |
-| set_adapters inference time | 15.68s | 23.5s |
+| fuse inference time | 15.10s | 30.3s |
+| set_adapters inference time | 15.68s | 30.9s |
 | BF16 single-layer max diff | 0.3125 | same |
 | LoRA layers (both methods) | 480 | 480 |
 | set_adapters LoRA effectiveness | 103% of fuse | same |
