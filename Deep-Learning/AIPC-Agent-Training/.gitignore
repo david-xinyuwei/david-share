@@ -50,6 +50,9 @@ checkpoints/
 # data/*.jsonl is tracked, but generated outputs are not
 data/v3_bad_samples.jsonl
 
+# Test scripts (not part of the pipeline)
+test_*.py
+
 # OS
 .DS_Store
 Thumbs.db

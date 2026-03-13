@@ -1,0 +1,181 @@
+/root/miniconda3/envs/aipc_test/lib/python3.11/site-packages/requests/__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (7.1.0)/charset_normalizer (3.4.5) doesn't match a supported version!
+  warnings.warn(
+============================================================
+🚀 AIPC SFT Model Inference Test
+============================================================
+Loading model from checkpoints/aipc_dpo_v1.4...
+The tokenizer you are loading from 'checkpoints/aipc_dpo_v1.4' with an incorrect regex pattern: https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Instruct-2503/discussions/84#69121093e8b480e709447d5e. This will lead to incorrect tokenization. You should set the `fix_mistral_regex=True` flag when loading this tokenizer to fix this issue.
+`torch_dtype` is deprecated! Use `dtype` instead!
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  1.45it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.47it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.24it/s]
+
+📊 Testing 5 questions...
+
+
+============================================================
+Question 1: 什么是 AI PC？它和普通笔记本电脑有什么区别？
+------------------------------------------------------------
+[SFT Model Response]:
+AI PC（Artificial Intelligence Personal Computer）是一种特殊的计算机，注重在人工智能（AI）和人机交互方面的创新。它不仅具备了普通笔记本电脑的基本功能，也具备了多种人工智能技术，如自然语言处理、人脸识别、语音识别等。
+
+与普通笔记本电脑相比，AI PC 的主要区别在于：
+
+1. **人工智能能力**: AI PC 能够自主学习、自我改进和适应环境的能力，使其能够完成更复杂的任务和任务。
+2. **人机交互**: AI PC 有更好的人机交互体验，能够识别和理解用户的语音、手势、表情等，提供更自然的互动方式。
+3. **数据分析**: AI PC 能够快速分析和处理大量的数据，提供更准确的预测和建议。
+4. **智能应用**: AI PC 能够运行更高性能的应用程序和智能应用，例如智能助手、智能视频编辑、智能图像识别等。
+
+然而，AI PC 也有一些限制和挑战，例如：
+
+1. **成本**: AI PC 的成本相对较高，尤其是高端的 AI PC。
+2. **硬件需求**: AI PC 需要高性能的硬件，例如高效的处理器、显卡和内存。
+3. **安全性**: AI PC 的安全性是一个重要的挑战，需要通过加密技术和其他安全措施来保护数据和系统。
+
+总之，AI PC 是一种具有人工智能能力和人机交互能力的高性能计算机，注重在人工智能和人机交互方面的创新。
+Loading model from /root/Llama-3.2-3B-Instruct...
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  1.46it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.47it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.24it/s]
+
+[Base Model Response]:
+AI PC（Artificial Intelligence PC）是指配备了高-performance GPU和AI处理器的专门用于大型计算和机器学习任务的计算机。它比普通笔记本电脑具有更强大的处理能力和特定任务的性能。
+
+AI PC通常具有以下特点：
+
+1. 高性能 GPU：AI PC通常配备高性能的GPU（Graphics Processing Unit），可以进行大量的计算和处理，例如机器学习和深度学习。
+2. 强大的处理器：AI PC通常使用高性能的处理器（CPU），可以处理复杂的计算和任务。
+3. 丰富的内存和存储：AI PC通常具有大量的内存和存储空间，能够支持大型数据集和模型。
+4. 高性能网络接口：AI PC通常具有高性能的网络接口，能够快速传输数据和计算结果。
+
+AI PC的应用场景包括：
+
+1. 机器学习和深度学习：AI PC用于训练和评估大型模型，例如图像识别、自然语言处理和语音识别。
+2. 数据分析和预测：AI PC用于处理大型数据集，进行数据分析和预测。
+3. 机器人和 robotics：AI PC用于控制和控制机器人和robotics系统。
+4. 语音和视频处理：AI PC用于语音和视频处理，例如语音识别和语音合成。
+
+相比之下，普通笔记本电脑通常用于日常使用，如办公、浏览网页、玩游戏等，不具有足够的性能和资源来进行大型计算和机器学习任务。
+
+在选择AI PC时，需要考虑以下几点：
+
+1. 性能需求：确定需要的性能水平和任务类型。
+2. 成本：AI PC通常更加昂贵。
+3. 空间需求：考虑到AI PC通常较大和重量较重。
+4. 使用场景：确定是否需要 AI PC的特定功能和应用场景。
+
+============================================================
+Question 2: Intel Core Ultra 处理器的 NPU 有什么作用？
+------------------------------------------------------------
+[SFT Model Response]:
+Intel Core Ultra 处理器的 NPU（Neural Processing Unit，神经处理单元）是专门用于处理机器学习（ML）和神经网络（NN）运算的加速器。NPU用于加速在 AI、计算机视觉、自然语言处理等领域的计算，例如：
+
+1.  **机器学习：** NPU用于加速神经网络的前向传播、反向传播和优化过程，从而提高 AI 模型的训练效率。
+2.  **计算机视觉：** NPU用于加速像素化、检测、分辨率增加和边缘检测等计算，提高图像处理效率。
+3.  **自然语言处理：** NPU用于加速语言模型的训练和推断，提高语言理解和生成能力。
+
+NPU 的存在可以显著提高处理器的整体性能，降低能耗和提高实时性。
+Loading model from /root/Llama-3.2-3B-Instruct...
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  1.44it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.48it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.24it/s]
+
+[Base Model Response]:
+Intel Core Ultra 处理器的 NPU（Neural Processing Unit）是一个专门用于处理大型图像和视频数据的加速处理单元。NPU设计用于提高计算效率和性能，尤其是在图像和视频处理、人工智能和深度学习等领域。
+
+============================================================
+Question 3: 在 AI PC 上运行本地大语言模型需要什么配置？
+------------------------------------------------------------
+[SFT Model Response]:
+AI PC上的本地大语言模型的配置因具体的模型和应用场景而有所不同，但以下是一般性的建议：
+
+1. **CPU：** 多核CPU是必要的，至少为 8 核心，推荐使用 16 核或以上。 Intel Core i9 或 AMD Ryzen 9 等高端 CPU 是不错的选择。
+2. **内存（RAM）:** 32 GB 或 64 GB 的内存是推荐的，甚至更高的内存也会有所帮助。
+3. **硬盘存储:** 1 TB 或更大的 SSD（solid-state drive）存储用于存储模型和数据， SSD 是更快的选择。
+4. **显卡（GPU）：** 如果你需要高性能的图形处理，可以使用 NVIDIA V100 或更好的 GPU，如 NVIDIA A100 或 AMD Radeon Instinct MI600。对于大语言模型，GPU 可以加速前向传递和后向传递。
+5. **操作系统:** 64 位 Linux 或 Windows 10/11 是推荐的操作系统，特别是 Linux，例如 Ubuntu、CentOS 或 Red Hat Enterprise Linux。
+6. **Python 和其他依赖项:** 确保你有 latest 的 Python 和依赖项（如 PyTorch、TensorFlow 或 JAX），并确保它们是 latest 的版本。
+7. **网络连接:** 充足的网络带宽和延迟低的网络是必要的，特别是当模型需要大量数据和计算时。
+8. **电源和冷却:** 一个足够大的电源和有效的冷却系统是必要的，以确保机器不 overheated。
+
+请注意，这些是基本建议，具体的配置可能会因具体的模型和应用场景而有所不同。
+Loading model from /root/Llama-3.2-3B-Instruct...
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  1.45it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.47it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.23it/s]
+
+[Base Model Response]:
+在 AI PC 上运行本地大语言模型需要相对高效的配置，以下是一些常见的要求：
+
+1. **CPU：** 高性能 CPU，例如 Intel Core i9 或 AMD Ryzen Threadripper，处理器的核心数和 threads 数量越大越好，例如 16 核或以上。
+2. **GPU：** NVIDIA 的 GeForce 或 AMD 的 Radeon GPU，特别是那些有大量 GPU 内存（VRAM）的模型，如 A100 或 A6000 series。GPU 的内存量越大越好，例如 16 GB 或以上。
+3. **内存（RAM）:** 64 GB 或以上的内存，尤其是 DDR4 或 DDR5 RAM。更高的内存可显著提高模型的训练速度和可用性。
+4. **存储:** 快速 SSD（solid-state drive）作为主要存储设备，例如 NVMe SSD。这种存储速度比 traditional 硬盘快得多，能够显著提高模型的训练速度。
+5. **网络连接:** 高速度的网络连接，例如 10 GbE 或更快的网络连接，来减少网络带宽限制。
+6. **电源：** 可靠的电源，能够提供足够的电力来驱动高性能设备。
+7. **环境控制：** 一个干净、干燥的环境，避免干扰和干扰，可以影响模型的训练效果。
+8. **硬件驱动程序：** 硬件驱动程序，例如 CUDA 或 ROCm，能够优化 GPU 的性能和效率。
+9. **软件：** 专业的深度学习框架，例如 PyTorch 或 TensorFlow，能够有效地利用 GPU 和 CPU 的资源。
+10. **硬件维护：** 定期检查和维护硬件，确保所有设备都处于良好的状态，能够保持高性能。
+
+请注意，具体的需求可能根据特定的语言模型和应用场景不同而有所不同。
+
+============================================================
+Question 4: Snapdragon X Elite 和 Intel Core Ultra 哪个更适合 AI 应用？
+------------------------------------------------------------
+[SFT Model Response]:
+Snapdragon X Elite 和 Intel Core Ultra 是两个不同的处理器系列，分别由不同公司开发，具有不同的设计原理和优势。 Snapdragon X Elite 是一系列高性能处理器，主要用于智能手机和其他移动设备，例如小米、 oppo 等品牌的 flagship 设备。Intel Core Ultra 则是 Intel 处理器系列的一部分，主要用于 desktop 和 laptop 处理器，包括 gaming PC 和内容创作者。
+
+在 AI 应用方面，Snapdragon X Elite 的优势在于：
+
+1. **移动化的 AI 功能**：Snapdragon X Elite 处理器内置了移动化的 AI 功能，可以实现实时推理和处理，适合移动设备的 AI 应用。
+2. **低功耗**：Snapdragon X Elite 处理器设计以低功耗为目标，可以在移动设备上提供长时间的使用时间。
+3. **高性能**：Snapdragon X Elite 处理器具有高性能，适合 demanding 的 AI 应用，如图像处理和语音识别。
+
+Intel Core Ultra 处理器的优势在于：
+
+1. **高性能**：Intel Core Ultra 处理器具有高性能，适合 CPU 导向的 AI 应用，如计算机视觉和深度学习。
+2. **高效的加速器**：Intel Core Ultra 处理器内置了高效的加速器，可以加速 AI 应用中的特定任务。
+3. **可扩展性**：Intel Core Ultra 处理器具有可扩展性，可以通过插卡方式增加处理能力。
+
+综上所述，Snapdragon X Elite 和 Intel Core Ultra 都有各自的优点，但 Snapdragon X Elite 更适合移动化的 AI 应用，而 Intel Core Ultra 更适合 CPU 导向的 AI 应用。
+Loading model from /root/Llama-3.2-3B-Instruct...
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  1.47it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.49it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.25it/s]
+
+[Base Model Response]:
+Snapdragon X Elite 和 Intel Core Ultra 都是各自领域专有的高性能处理器，但它们的特性和适用场景有所不同。以下是对这两者的比较：
+
+1. **Snapdragon X Elite**：
+   - 适用于：移动设备、边缘设备和IoT 设备
+   - 特点：高性能、低功耗、专门设计用于移动设备和边缘设备的处理器
+   - 主要优势：低功耗、高效的多核处理、专门设计的图形处理单元和高效的存储解决方案
+   - 主要劣势：可能不适合大型主机或高端 PC
+
+2. **Intel Core Ultra**：
+   - 适用于：主机、 Servers 和高端 PC
+   - 特点：高性能、多核处理、专门设计用于主机和高端 PC 的处理器
+   - 主要优势：高性能、多核处理、高频率、专门设计的处理单元
+   - 主要劣势：功耗较大、成本较高
+
+综上所述，Snapdragon X Elite 适合用于移动设备、边缘设备和IoT 设备，而 Intel Core Ultra 适合用于主机、Servers 和高端 PC。
+
+============================================================
+Question 5: NPU、GPU、CPU 在 AI 推理任务中各自的优势是什么？
+------------------------------------------------------------
+[SFT Model Response]:
+NPU（Neural Processing Unit）、GPU（Graphics Processing Unit）和CPU（Central Processing Unit）都是计算机处理器，但它们在不同领域有不同的优势。
+
+1.  **NPU（Neural Processing Unit）**：NPU专门用于深度学习（DL）和神经网络的加速。它通过优化神经网络计算的数据流、减少通信开销和提高计算效率来实现加速。NPU适合于那些需要大量计算和快速处理神经网络计算的应用，如人工智能、计算机视觉、自然语言处理等。例如，NPU可以在处理图像识别、语音识别、机器学习等任务时提供显著的性能提升。
+
+2.  **GPU（Graphics Processing Unit）**：GPU是用于图形处理的专用处理器，主要用于3D图形渲染、游戏开发、科学计算等应用。GPU具有大量的计算核心和内存，能够并行处理大量的任务，从而提供高效的计算性能。GPU在深度学习和神经网络中也被广泛使用，因为它可以加速神经网络的计算和存储。例如，GPU可以在处理大型神经网络模型时提供显著的性能提升。
+
+3.  **CPU（Central Processing Unit）**：CPU是计算机的主处理器，负责执行程序和处理数据。虽然CPU不能提供GPU或NPU的加速能力，但它仍然是计算机的核心。CPU通常负责执行应用程序的逻辑运算、管理数据和控制系统的流程。例如，CPU可以在处理应用程序的逻辑运算和管理数据时提供高效的性能。
+
+综上所述，NPU、GPU和CPU各有其特点和应用场景。NPU适合于深度学习和神经网络的加速，GPU适合于图形处理和大型计算任务，CPU适合于应用程序的逻辑运算和管理数据。
+Loading model from /root/Llama-3.2-3B-Instruct...
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  1.45it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.48it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.24it/s]
+
+[Base Model Response]:
+NPU（Neural Processing Unit）、GPU（Graphics Processing Unit）和CPU（Central Processing Unit）都是计算机组成部分，但它们在不同领域有不同的优势。下面是一些主要的优势：
+
+1.  NPU（神经处理单元）：NPU主要用于深度学习和人工神经网络的加速，特别是在边界神经网络、视觉处理和语音处理等领域。它可以执行神经网络的前向传播和反向传播，并且能与其他处理器相互接口，提供高效的数据处理和计算能力。NPU的优势在于其高效的神经网络处理能力，能有效地减少计算资源的使用，提高AI模型的实时性和可靠性。
+2.  GPU（图形处理单元）：GPU主要用于图形 rendering、计算机视觉和深度学习等领域。它具有大量的并行处理能力，可以同时执行多个计算任务，从而显著提高处理速度。GPU的优势在于其高并行度、高性能和低成本，适合于需要大量计算资源的任务，如图像处理、自然语言处理和大型深度学习模型的训练。
+3.  CPU（中枢处理单元）：CPU是计算机的主处理器，主要负责执行常规计算、控制输入/输出设备和管理系统资源。它具有高频率和高效的执行能力，可以执行单个任务的处理，但其并行度相对有限。CPU的优势在于其可靠性、可扩展性和低成本，适合于需要高精度和可靠性计算的任务，如计算机编程、科学计算和数据分析。
+
+综上所述，NPU、GPU和CPU在不同领域都有其独特的优势，选择合适的处理器取决于具体的应用场景和需求。
+
+============================================================
+✅ Inference test complete!
+============================================================
