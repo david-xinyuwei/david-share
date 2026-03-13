@@ -9,8 +9,8 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from trl import GRPOConfig, GRPOTrainer, DPOTrainer, DPOConfig
 from datasets import Dataset, load_dataset
 
-APIM_ENDPOINT = "https://apim-xinyuwei-aoai.azure-api.net/openai"
-APIM_KEY = "5d53b5a146014b6aac460171fc71d7b4"
+APIM_ENDPOINT = os.environ.get("AZURE_OPENAI_ENDPOINT", "https://<your-apim-or-aoai-endpoint>/openai")
+APIM_KEY = os.environ.get("AZURE_OPENAI_API_KEY", "<your-api-key>")
 API_VERSION = "2025-04-01-preview"
 JUDGE_MODEL = "gpt-5.2"
 SFT_MODEL = "checkpoints/aipc_sft_v1"
