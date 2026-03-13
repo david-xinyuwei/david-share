@@ -181,7 +181,7 @@ The accumulation scales with forward passes:
 
 More forward passes → more rounding → larger gap. This confirms BF16 precision as the root cause.
 
-**Layer 3: PEFT Injection — Innocent**
+**Layer 3: PEFT Injection — Not the Root Cause**
 
 We initially suspected PEFT failed to inject some LoRA layers (240 warning messages). Our triangle test proved this wrong: `set_adapters` applies **103%** of fuse_lora's LoRA effect — all layers work correctly.
 
@@ -263,7 +263,7 @@ We tested every available online method against the offline merge baseline:
 
 **Only `fuse_lora` matches offline merge exactly.**
 
-## Pitfalls in Practice
+## Known Limitations
 
 ### 1. PEFT Target Module Mismatch
 
@@ -292,10 +292,6 @@ W'' ≠ W           (BF16 rounding: W'' - W ≈ 1e-3)
 ```
 
 Our experiment confirmed: `fuse → unfuse → fuse` gives SSIM=0.944 (not 1.0). For LoRA switching, reload the base model instead.
-
-### 4. FP32 Won't Help
-
-"If it's a precision issue, just use FP32!" — The 20B model in FP32 needs ~80GB+ VRAM, causing OOM even on H100 (95GB). While BF16 precision IS the root cause, the practical solution is simply to use `fuse_lora` (which rounds only once) rather than attempting FP32 inference.
 
 ## Quick Reference
 
