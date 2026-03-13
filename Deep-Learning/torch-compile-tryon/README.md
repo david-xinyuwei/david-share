@@ -433,11 +433,7 @@ flowchart TB
 
 ### Optimization Sources
 
-| Optimization | Contribution | Mechanism |
-|-------------|--------------|-----------|
-| Kernel Fusion | ~8-10% | Merge multiple ops into single kernel, reduce memory I/O |
-| Memory Optimization | ~4-5% | Better memory layout, reduced allocation overhead |
-| Python Overhead Removal | ~2-3% | Eliminate interpreter overhead via graph compilation |
+torch.compile optimizes through kernel fusion, memory layout improvements, and Python overhead removal. The relative contribution varies by model and hardware.
 
 ## Deep Dive: dynamic Parameter Testing
 
@@ -522,7 +518,7 @@ DYNAMIC = {config.get("dynamic", "None")}
 # Load model
 from diffusers import FluxPipeline
 pipe = FluxPipeline.from_pretrained(
-    "/root/.cache/modelscope/hub/models/Qwen/Qwen-Image-Edit-2511",
+    "~/.cache/modelscope/hub/models/Qwen/Qwen-Image-Edit-2511",
     torch_dtype=torch.bfloat16
 ).to("cuda")
 
@@ -652,65 +648,7 @@ During production testing, we discovered that **`dynamic=True` produces NaN (cor
 
 ### Root Cause Analysis
 
-The NaN bug originates from the `apply_rotary_emb_qwen()` function in `transformer_qwenimage.py`:
-
-```python
-# File: diffusers/models/transformers/transformer_qwenimage.py
-# Lines 138-140
-
-def apply_rotary_emb_qwen(x: torch.Tensor, freqs_cis: torch.Tensor) -> torch.Tensor:
-    x_rotated = torch.view_as_complex(x.float().reshape(*x.shape[:-1], -1, 2))  # ← complex64 conversion
-    freqs_cis = freqs_cis.unsqueeze(1)
-    x_out = torch.view_as_real(x_rotated * freqs_cis).flatten(3)  # ← complex multiplication causes NaN
-    return x_out.type_as(x)
-```
-
-**The Problem**: TorchInductor does not properly support code generation for complex operators (`complex64` multiplication).
-
-### Evidence Chain
-
-| Check Point | Input | Output | Status |
-|-------------|-------|--------|--------|
-| MSRoPE output | ✅ Normal | ✅ Normal | OK |
-| Block 0 input | ✅ Normal | - | OK |
-| Block 0 output | - | **100% NaN** | ❌ FAIL |
-| Final latents | - | **100% NaN** | ❌ FAIL |
-
-**PyTorch Warning Log**:
-```
-[WARNING] Torchinductor does not support code generation for complex operators.
-```
-
-### Why dynamic=None Works
-
-With `dynamic=None` and `suppress_errors=True`, TorchDynamo encounters the complex operator issue but **gracefully falls back to Eager mode** for the problematic functions:
-
-**dynamic=True (Buggy) ❌**
-```mermaid
-flowchart TB
-    DT1[Complex64 Operation] --> DT2[TorchInductor Code Gen]
-    DT2 --> DT3[Buggy Kernel Generated]
-    DT3 --> DT4[NaN Output ❌]
-
-    style DT1 fill:#ffcccc
-    style DT4 fill:#ff6666
-```
-
-**dynamic=None + suppress_errors=True (Safe) ✅**
-```mermaid
-flowchart TB
-    DN1[Complex64 Operation] --> DN2[Compilation Error]
-    DN2 --> DN3[Fallback to Eager]
-    DN3 --> DN4[Correct Output ✅]
-
-    style DN1 fill:#ccffcc
-    style DN4 fill:#66ff66
-```
-
-**Partial Compilation Behavior**:
-- `MSRoPE3D.forward()` (line 207) → Falls back to Eager
-- `QwenTransformer2DModel.forward()` (line 743) → Falls back to Eager  
-- **Core Attention/FFN layers** → Still compiled! → 16% speedup achieved
+The NaN bug is caused by TorchInductor's incomplete support for `complex64` operators used in RoPE position encoding. With `dynamic=True`, TorchInductor generates buggy kernels for complex multiplication, producing NaN outputs. With `dynamic=None` + `suppress_errors=True`, the problematic functions gracefully fall back to Eager mode while core Attention/FFN layers remain compiled, achieving 16% speedup.
 
 ### Production Recommendation
 
@@ -976,7 +914,7 @@ We systematically tested multiple acceleration approaches. Here's what didn't wo
 | Metric | Value |
 |--------|-------|
 | Result | No speedup (75.08s vs 75.36s baseline) |
-| Root Cause | DiT architecture uses Complex RoPE (complex64) which TensorRT doesn't support |
+| Root Cause | Compatibility issue with model architecture |
 
 **Error logs:**
 ```
@@ -992,7 +930,7 @@ TensorRT failed to compile the DiT Transformer blocks due to complex number oper
 | Metric | Value |
 |--------|-------|
 | Result | No speedup (75.60s vs 75.36s baseline) |
-| Root Cause | Bottleneck is NOT in attention computation |
+| Root Cause | Known limitation |
 
 Flash Attention 2 was successfully enabled (`Active attention backend: flash`), but provided no performance improvement. This indicates the inference bottleneck lies in other DiT Transformer components, not the attention layers.
 
@@ -1001,7 +939,7 @@ Flash Attention 2 was successfully enabled (`Active attention backend: flash`), 
 | Metric | Value |
 |--------|-------|
 | Result | Runtime error |
-| Root Cause | @lru_cache conflicts with CUDA Graphs |
+| Root Cause | Known limitation |
 
 #### What is @lru_cache?
 
@@ -1072,7 +1010,7 @@ See the detailed explanation in the [Deep Dive: dynamic Parameter Testing](#deep
 | Metric | Value |
 |--------|-------|
 | Result | Compilation error |
-| Root Cause | MSRoPE contains dynamic shape dependencies |
+| Root Cause | Compatibility issue |
 
 **Error logs:**
 ```

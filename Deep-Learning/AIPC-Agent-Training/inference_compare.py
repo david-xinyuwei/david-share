@@ -19,7 +19,7 @@ DEFAULT_TRAINED_LOCAL_PATH = os.environ.get(
 # 可通过环境变量覆盖模型来源
 BASE_MODEL_REPO = os.environ.get(
     "BASE_MODEL_REPO",
-    "microsoft/Phi-3-mini-4k-instruct",
+    "meta-llama/Llama-3.2-3B-Instruct",
 )
 TRAINED_MODEL_REPO = os.environ.get("TRAINED_MODEL_REPO")
 
@@ -29,28 +29,18 @@ API_KEY = os.environ.get("VLLM_API_KEY", "EMPTY")
 LAUNCH_TIMEOUT = int(os.environ.get("VLLM_LAUNCH_TIMEOUT", "180"))
 
 VLLM_URL = f"http://127.0.0.1:{PORT}/v1"
-# 修正 System Prompt，引导模型输出思考过程和标准格式
-SYSTEM_PROMPT = """You are a helpful math assistant.
-1. First, think through the problem step by step within <think>...</think> tags.
-2. Then, provide your final answer within <answer>...</answer> tags.
-Example:
-<think>
-To calculate 1+1, I know that...
-</think>
-<answer>
-2
-</answer>
-"""
+# System Prompt for AI PC Expert evaluation
+SYSTEM_PROMPT = """You are an AI PC technical expert. Answer questions about AI PCs, NPUs, local AI inference, and related technologies. Provide accurate, structured, and practical responses in Chinese."""
 
-# 测试题目
+# AI PC domain test questions
 TEST_QUESTIONS = [
-    {"question": "Calculate 25 * 4 + 10", "answer": "110"},
-    {"question": "What is 15% of 200?", "answer": "30"},
-    {"question": "Solve 3x = 12", "answer": "4"},
-    {"question": "100 divided by 5 plus 8", "answer": "28"},
-    {"question": "Square root of 144", "answer": "12"},
-    {"question": "Calculate 50 * 2 - 10", "answer": "90"},
-    {"question": "What is 20% of 500?", "answer": "100"}
+    {"question": "什么是 AI PC？它和普通笔记本有什么区别？", "answer": "NPU"},
+    {"question": "Intel Core Ultra 处理器的 NPU 有什么作用？", "answer": "NPU"},
+    {"question": "在 AI PC 上运行本地大语言模型需要什么配置？", "answer": "内存"},
+    {"question": "NPU、GPU、CPU 在 AI 推理任务中各自的优势是什么？", "answer": "NPU"},
+    {"question": "如何在 AI PC 上部署 Llama 3 8B 模型？", "answer": "量化"},
+    {"question": "AI PC 上的本地 AI 推理相比云端推理有什么优势？", "answer": "隐私"},
+    {"question": "如何用 Python 调用本地 NPU 进行推理？", "answer": "ONNX"}
 ]
 
 
@@ -232,45 +222,31 @@ async def main():
     # --- 3. 输出对比结果 ---
     print("\n" + "="*90)
     print(
-        f"{'Question':<35} | {'Answer':<8} | "
-        f"{'Base Model':<15} | {'Trained Model':<15} | {'Status'} | {'Thinking'}"
+        f"{'Question':<40} | {'Keyword':<8} | "
+        f"{'Base Model':<15} | {'Trained Model':<15} | {'Status'} | {'Structure'}"
     )
-    print("-" * 110)
+    print("-" * 120)
     
     correct_base = 0
     correct_trained = 0
     
-    def extract_num(text):
-        if text == "N/A": return None
-        # 优先尝试提取 <answer> 标签内的内容
-        answer_match = re.search(r'<answer>(.*?)</answer>', text, re.DOTALL)
-        if answer_match:
-            text_to_parse = answer_match.group(1)
-        else:
-            text_to_parse = text
-            
-        matches = re.findall(r'-?\d+\.?\d*', text_to_parse)
-        return float(matches[-1]) if matches else None
+    def contains_keyword(text, keyword):
+        """Check if response contains the expected keyword (case-insensitive)"""
+        if text == "N/A": return False
+        return keyword.lower() in text.lower()
 
-    def has_thinking(text):
-        return "<think>" in text and "</think>" in text
+    def has_structure(text):
+        """Check if response has structured format (numbered lists, bullet points)"""
+        return any(marker in text for marker in ['1.', '2.', '•', '-', '首先', '其次'])
 
     for i, item in enumerate(TEST_QUESTIONS):
         q = item["question"]
-        ans = item["answer"]
+        ans = item["answer"]  # Expected keyword
         res_base = base_results[i]
         res_trained = trained_results[i]
         
-        val_ans = extract_num(ans)
-        val_base = extract_num(res_base)
-        val_trained = extract_num(res_trained)
-        
-        if val_ans is not None:
-            is_base_correct = (val_base is not None and abs(val_base - val_ans) < 1e-6)
-            is_trained_correct = (val_trained is not None and abs(val_trained - val_ans) < 1e-6)
-        else:
-            is_base_correct = (res_base == ans)
-            is_trained_correct = (res_trained == ans)
+        is_base_correct = contains_keyword(res_base, ans)
+        is_trained_correct = contains_keyword(res_trained, ans)
         
         if is_base_correct:
             correct_base += 1
@@ -285,21 +261,21 @@ async def main():
         else:
             status = "❌ 下降"
 
-        # 检查是否有思考过程
-        thinking_status = "🧠 有思考" if has_thinking(res_trained) else "⚪ 无思考"
+        # 检查是否有结构化输出
+        struct_status = "📋 有结构" if has_structure(res_trained) else "⚪ 无结构"
 
         # 格式化输出，截断过长的结果以便显示
-        disp_base = str(val_base) if val_base is not None else "Error"
-        disp_trained = str(val_trained) if val_trained is not None else "Error"
+        disp_base = "✓" if is_base_correct else "✗"
+        disp_trained = "✓" if is_trained_correct else "✗"
 
         print(
-            f"{q:<35} | {ans:<8} | {disp_base:<15} | "
-            f"{disp_trained:<15} | {status} | {thinking_status}"
+            f"{q:<40} | {ans:<8} | {disp_base:<15} | "
+            f"{disp_trained:<15} | {status} | {struct_status}"
         )
         
-    print("-" * 110)
-    print(f"准确率: Base Model = {correct_base/len(TEST_QUESTIONS):.1%}")
-    print(f"准确率: Trained Model = {correct_trained/len(TEST_QUESTIONS):.1%}")
+    print("-" * 120)
+    print(f"关键词命中率: Base Model = {correct_base/len(TEST_QUESTIONS):.1%}")
+    print(f"关键词命中率: Trained Model = {correct_trained/len(TEST_QUESTIONS):.1%}")
     print("="*90)
 
 if __name__ == "__main__":

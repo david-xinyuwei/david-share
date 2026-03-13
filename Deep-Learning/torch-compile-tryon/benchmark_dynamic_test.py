@@ -248,7 +248,7 @@ def main():
         garment_img = garment_img.resize(input_res, Image.LANCZOS)
     print(f"  After resize: Model {model_img.size}, Garment {garment_img.size}")
 
-    # Customer-optimized prompts for better quality (SHEIN requirement)
+    # Customer-optimized prompts for better quality
     prompt = "将主图中模特身上的衣服替换为第二张图的衣服，要求一致性，保持光影细节阴影细节。8K高清晰图片"
     negative_prompt = "不正确的手, 模糊的图像, 低质量的图片, 模糊的手, 多个手指, 多个腿, 不正确的光影, 不正确的阴影, 缺少细节, 模糊的织物, 低清晰的织物材质"
 

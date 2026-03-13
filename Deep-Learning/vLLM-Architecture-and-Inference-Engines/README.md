@@ -444,14 +444,11 @@ llm = LLM(model="Qwen/Qwen2.5-7B-Instruct")
 
 ### Why FlashInfer Wins with CUDAGraph
 
-1. **Optimized Graph Capture**: FlashInfer kernels are designed to be CUDAGraph-friendly
-2. **Paged Attention**: Better memory access patterns during graph replay
-3. **Kernel Fusion**: More operations fused into fewer kernel launches
+FlashInfer is optimized for CUDAGraph capture scenarios.
 
 ### Why FlashAttention Wins in Eager Mode
 
-1. **Lower Kernel Launch Overhead**: FlashAttention kernels may have slightly lower per-launch cost
-2. **Simpler Execution Path**: Without graph capture overhead
+FlashAttention has lower per-launch overhead in Eager mode.
 
 ### CUDAGraph Speedup Factor
 
@@ -859,34 +856,7 @@ Previous benchmark compared **different vLLM versions**, leading to incorrect co
 
 ### 🔬 Why FA2 is Faster on H100 + FP8? (Theoretical Analysis)
 
-#### Root Cause: FlashInfer FP8 Tensor Core Heuristic Bug
-
-Reference: [vLLM GitHub Issue #9471](https://github.com/vllm-project/vllm/issues/9471)
-
-FlashInfer's `use_tensor_cores` heuristic fails with FP8:
-
-```
-FlashInfer Tensor Core Decision Logic:
-┌─────────────────────────────────────────────────────┐
-│ if head_dim >= 128:                                 │
-│     use_tensor_cores = True   # ✅ Correct          │
-│ else:                                               │
-│     # Heuristic based on FP16/BF16 profiling        │
-│     use_tensor_cores = (batch * heads) > threshold  │
-│                                                     │
-│ Problem: FP8 has different optimal threshold!       │
-│ Result: Falls back to CUDA cores instead of Tensor  │
-└─────────────────────────────────────────────────────┘
-```
-
-**Mathematical Analysis**:
-
-| Backend | Kernel Type | H100 TFLOPS (FP8) | Utilization |
-|---------|-------------|-------------------|-------------|
-| FA2 | Always Tensor Core | 3,958 | ~85% |
-| FlashInfer (FP8 bug) | Mixed CUDA+Tensor | 3,958 | ~70% |
-
-Efficiency loss: `(85% - 70%) / 85% ≈ 17.6%` theoretical → 7.5% observed (other optimizations compensate)
+Performance differences are observed between FA2 and FlashInfer on H100 with FP8. The gap is architecture-dependent and related to a [known FlashInfer FP8 heuristic bug](https://github.com/vllm-project/vllm/issues/9471) that may cause suboptimal kernel selection.
 
 ---
 

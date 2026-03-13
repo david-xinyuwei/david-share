@@ -18,13 +18,13 @@ Distillation solves this properly: teach the model *how to make large jumps* by 
 
 **Production motivation (Virtual Try-On example)**:
 
-| Mode | Steps | Time per Image | Quality |
-|:----:|:-----:|:--------------:|:-------:|
-| Teacher (no distillation) | 40–50 | ~45–75s | Baseline |
-| End-to-end distillation | 15 | ~20s | Good |
-| **Trajectory distillation** | **8** | **~15s** | **Better** |
+| Mode | Steps | Relative Time | Quality |
+|:----:|:-----:|:-------------:|:-------:|
+| Teacher (no distillation) | 40–50 | 1.0× (baseline) | Baseline |
+| End-to-end distillation | ~15 | ~0.4× | Good |
+| **Trajectory distillation** | **~8** | **~0.2×** | **Better** |
 
-> Times are end-to-end inference (TextEncoder + DiT + VAE) with CFG=4 on a single H100 GPU. See [Full-Scale Production Benchmark](#full-scale-production-benchmark-50-samples) for detailed measurements.
+> Times are end-to-end inference (TextEncoder + DiT + VAE) with CFG on a single H100 GPU. See [Full-Scale Production Benchmark](#full-scale-production-benchmark) for detailed measurements.
 
 ---
 
@@ -47,21 +47,21 @@ This table summarizes **every technique** that makes it possible to distill a 20
 |----------|-----------|-------------|:----------:|:--------------:|
 | **Algorithm** | Trajectory Distillation (2nd-gen) | Student learns to skip 5× teacher steps by matching intermediate latents | Core training loop | [Deep Dive](#deep-dive-trajectory-distillation) |
 | **Algorithm** | IMM Loss (Moment Matching) | Matches distribution (μ+σ²) not just point estimates → avoids mode-averaging | Loss function | [IMM Loss](#the-imm-loss-moment-matching) |
-| **Parameter Efficiency** | LoRA (rank=32) | Only ~450M trainable params out of 20B → optimizer states stay tiny (~2 GB) | Student adapter | [Step 2](#step-2-train-the-student-lora-as-the-adapter) |
+| **Parameter Efficiency** | LoRA (low rank) | Only a small fraction of params are trainable → optimizer states stay tiny | Student adapter | [Step 2](#step-2-train-the-student-lora-as-the-adapter) |
 | **Precision** | BF16 (bfloat16) | Half the memory vs FP32; 20B model = ~40 GB instead of ~80 GB | All model weights | [Setup](#setup) |
 | **Memory — Teacher** | `torch.no_grad()` | Prevents storing activations for 40 teacher steps → saves ~50 GB | Teacher forward pass | [VRAM Analysis](#why-the-student-fits-in-vram-despite-having-gradients) |
-| **Memory — Student** | Block-level Gradient Checkpointing | Only saves 60 block inputs; recomputes internals during backward → saves ~40 GB | Student forward/backward | [VRAM Analysis](#why-the-student-fits-in-vram-despite-having-gradients) |
+| **Memory — Student** | Block-level Gradient Checkpointing | Only saves block inputs; recomputes internals during backward → significant memory saving | Student forward/backward | [VRAM Analysis](#why-the-student-fits-in-vram-despite-having-gradients) |
 | **Memory — Student** | Per-step Backward | Calls `.backward()` after each of 8 steps, then `.detach()` → saves ~30 GB | Student backward pass | [Per-Step Backward](#2-per-step-backward-to-avoid-oom) |
 | **Memory — Offload** | Text Encoder CPU Offload | Moves ~14 GB text encoder to CPU after encoding → frees GPU for DiT | Text conditioning | [VRAM Analysis](#why-the-student-fits-in-vram-despite-having-gradients) |
 | **Architecture** | Serial Teacher→Student | Teacher and student never coexist in VRAM — teacher runs first, caches 8 latents, then exits | Training pipeline | [Serial Execution](#teacher-and-student-serial-not-concurrent) |
 
-> Without these memory optimization techniques combined, naive training of the same 20B model would require **~170+ GB** VRAM (roughly 2× H100). See the [VRAM budget table](#why-the-student-fits-in-vram-despite-having-gradients) for the detailed breakdown of how each technique contributes to fitting everything into a single 94 GB GPU.
+> Without these memory optimization techniques combined, naive training of the same 20B model would require significantly more VRAM than a single GPU provides. See the [VRAM analysis](#why-the-student-fits-in-vram-despite-having-gradients) for how each technique contributes to fitting everything into a single GPU.
 
 **What "single VM" means in practice**:
 
 - No InfiniBand, no NCCL multi-node setup, no Kubernetes orchestration
 - No tensor parallelism code — the same model weights run in both teacher and student roles
-- Total training wall-clock time: **~6.1 hours** for a 5-epoch run on a 20B model
+- Total training wall-clock time: **a few hours** for a multi-epoch run on a 20B model
 - Cost model: pay for one VM, run one job, shut it down — no standing cluster
 
 The memory engineering described in [Why the Student Fits in VRAM](#why-the-student-fits-in-vram-despite-having-gradients) is precisely what makes single-instance training viable. Without those three techniques combined, this workload would require a multi-GPU setup.
@@ -149,16 +149,17 @@ The student is the same base model + a LoRA adapter. LoRA modifies the attention
 
 ```python
 # Student = base model + trainable LoRA
-# LoRA is added to: attention Q/K/V, cross-attention, modulation layers
+# LoRA is added to key attention and modulation layers
 lora_config = LoraConfig(
-    r=32,
+    r=<rank>,
     target_modules=[
-        "attn.to_q", "attn.to_k", "attn.to_v", "attn.to_out.0",
-        "attn.add_q_proj", "attn.add_k_proj", "attn.add_v_proj",
-        "attn.to_add_out", "img_mod.1", "txt_mod.1", "net.2"
+        # attention Q/K/V projections
+        # cross-attention projections  
+        # modulation layers
+        # ... (model-specific target modules)
     ]
-    # Everything else stays frozen — ~20B base params unchanged
-    # Only ~450M LoRA params are updated
+    # Everything else stays frozen — base params unchanged
+    # Only LoRA params are updated
 )
 
 for step in range(training_steps):
@@ -182,7 +183,7 @@ for step in range(training_steps):
 Why LoRA instead of full fine-tuning?
 - The denoising *direction* is already correct — LoRA only adjusts the *magnitude*
 - Full fine-tuning risks catastrophic forgetting of the base model's understanding
-- LoRA rank=32 is sufficient: the velocity field correction is low-rank
+- A moderate LoRA rank is sufficient: the velocity field correction is low-rank
 
 #### Conceptual Visualization: Latent Norm Trajectory
 
@@ -242,14 +243,14 @@ All experiments run on a **single [Azure Standard_NC40ads_H100_v5](https://learn
 | Cloud VM | [Azure Standard_NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/ncads-h100-v5) |
 | GPU | 1 × NVIDIA H100 NVL (94 GB VRAM) |
 | Base model | 20B MMDiT DiT (BF16) |
-| LoRA rank / alpha | 32 / 32 |
-| Teacher steps | 40 |
-| Student steps | 8 |
-| Training epochs | 5 |
-| Training samples | 50 image pairs |
-| Optimizer | AdamW, lr=1e-4 |
-| Gradient checkpointing | Block-level (60 blocks) |
-| GPU memory usage | ~43 GB / 95 GB |
+| LoRA rank / alpha | Low-rank adapter |
+| Teacher steps | Full denoising schedule |
+| Student steps | Reduced schedule |
+| Training epochs | Multiple |
+| Training samples | Small dataset of image pairs |
+| Optimizer | AdamW |
+| Gradient checkpointing | Block-level |
+| GPU memory usage | Well within single-GPU capacity |
 
 The four memory optimization techniques (see [Technology Stack](#technology-stack-at-a-glance) for summary, [VRAM Analysis](#why-the-student-fits-in-vram-despite-having-gradients) for deep dive) allow training a 20B-parameter model on a **single** Azure NC40ads H100 v5 GPU without OOM.
 
@@ -264,8 +265,8 @@ A natural question: if the student keeps gradients and the teacher does not, why
 Activation memory scales linearly with the number of denoising steps processed. Without any optimizations:
 
 ```
-Teacher (no_grad OFF): 40 steps × per-step activations → ~50 GB
-Student (gradients ON): 8 steps × per-step activations → ~10 GB baseline
+Teacher (no_grad OFF): 40 steps × per-step activations → very large
+Student (gradients ON): 8 steps × per-step activations → much smaller baseline
 ```
 
 The student starts at 1/5 the activation footprint just from having fewer steps.
@@ -327,12 +328,12 @@ for i in range(8):
 | Component | VRAM |
 |-----------|:----:|
 | 20B model weights (BF16) | ~40 GB |
-| Student activations (8 steps + GC) | ~10 GB |
-| Optimizer states (LoRA only, not full model) | ~2 GB |
-| Teacher latent cache (8 latents) | ~1 GB |
-| **Total** | **~43 GB / 94 GB** |
+| Student activations (with GC) | Modest |
+| Optimizer states (LoRA only, not full model) | Minimal |
+| Teacher latent cache | Minimal |
+| **Total** | **Well within 94 GB** |
 
-The optimizer only tracks LoRA parameters (a few hundred million, not 20B), which is why optimizer state is negligible.
+The optimizer only tracks LoRA parameters (a small fraction of 20B), which is why optimizer state is negligible.
 
 ---
 
@@ -384,17 +385,9 @@ The student runs only 8 steps (far fewer than the teacher's 40) and uses gradien
 
 ### Training Loss Curve
 
-Training converged steadily across all 5 epochs with no overfitting:
+Training converged steadily across all epochs with no overfitting. The loss decreased monotonically, indicating stable learning.
 
-| Epoch | Avg Loss | Change | Duration |
-|:-----:|:--------:|:------:|:--------:|
-| 1 | 0.0084 | — | ~73 min |
-| 2 | 0.0071 | ↓15.5% | ~73 min |
-| 3 | 0.0065 | ↓8.5% | ~73 min |
-| 4 | 0.0060 | ↓7.7% | ~73 min |
-| 5 | **0.0052** | ↓13.3% | ~73 min |
-
-**Total: ~6.1 hours. Loss dropped 38% (0.0084 → 0.0052). Monotonic decrease, no overfitting.**
+**Training completed in a few hours on a single GPU. Loss dropped significantly with monotonic decrease and no overfitting.**
 
 ---
 
@@ -415,8 +408,8 @@ Four subplots:
 4. **Channel Statistics**: Per-channel mean and std trends — both models evolve similarly.
 
 **Key latent metrics**:
-- Final latent MSE: **0.011**
-- Final cosine similarity: **0.984**
+- Final latent MSE: Very low
+- Final cosine similarity: Very high (>0.98)
 
 #### Latent Space Heatmaps
 
@@ -448,94 +441,57 @@ The visual difference is negligible to the human eye.
 
 Evaluated on 10 diverse samples (varying garment styles, model types, resolutions):
 
-| Sample | SSIM | PSNR | Quality |
-|:------:|:----:|:----:|:-------:|
-| 0 | 0.975 | 25.6 | Excellent |
-| 1 | 0.927 | 19.5 | Good |
-| 2 | 0.957 | 24.9 | Excellent |
-| 3 | 0.967 | 25.8 | Excellent |
-| 4 | 0.951 | 27.4 | Excellent |
-| 5 | 0.930 | 23.3 | Good |
-| 6 | 0.959 | 25.6 | Excellent |
-| 7 | 0.930 | 23.3 | Good |
-| 8 | 0.868 | 16.1 | Fair (OOD) |
-| 9 | 0.942 | 22.7 | Good |
-| **AVG** | **0.940** | **23.4** | |
-
-- **5/10 Excellent** (SSIM ≥ 0.95), **4/10 Good** (≥ 0.92), **1/10 Fair** (out-of-distribution)
+Across the test samples:
+- **Most samples rated Excellent** (SSIM ≥ 0.95) or **Good** (≥ 0.92)
 - **All samples SSIM > 0.86** — zero catastrophic failures
-- Average speedup across all samples: **4.82×** (larger images take longer, speedup ratio is stable)
+- Average speedup across all samples: **~5×** (larger images take longer, speedup ratio is stable)
 
 ---
 
-### Full-Scale Production Benchmark (50 Samples)
+### Full-Scale Production Benchmark
 
-The trajectory analysis above used a debug-mode pipeline (DiffSynth, cfg_scale=1, pure DiT-only timing). To validate under **production conditions**, we ran a full 50-sample benchmark using the standard diffusers pipeline with production hyperparameters (CFG=4, true_cfg_scale=4, real text prompt).
+The trajectory analysis above used a debug-mode pipeline. To validate under **production conditions**, we ran a larger benchmark using the standard diffusers pipeline with production hyperparameters.
 
 #### Test Design
 
-| Parameter | Teacher (40 steps) | Student (8 steps) |
-|-----------|:------------------:|:-----------------:|
+| Parameter | Teacher | Student |
+|-----------|:-------:|:-------:|
 | Framework | diffusers | diffusers |
-| Inference steps | 40 | 8 |
-| `true_cfg_scale` | 4 | 4 |
-| `guidance_scale` | 1.0 (default) | 1.0 |
+| Inference steps | Full schedule | Reduced schedule |
+| CFG | Enabled | Enabled |
 | Prompt | Real text prompt | Same |
-| Seed | 1 | 1 |
-| Samples | 50 | 50 |
-| LoRA | None | Epoch 5, `fuse_lora` |
+| LoRA | None | Distilled adapter, fused |
 | Scheduler | FlowMatchEulerDiscrete | Same |
 | Precision | BF16 | BF16 |
 
-**Only variable changed**: step count (40→8) and LoRA loading. Everything else held constant for fair comparison.
+**Only variable changed**: step count and LoRA loading. Everything else held constant for fair comparison.
 
 #### Performance Results
 
-| Metric | Teacher (40 steps) | Student (8 steps) | Change |
-|--------|:------------------:|:-----------------:|:------:|
-| **Mean latency** | 72.88s | 15.12s | **-79.3%** |
-| Std | 0.87s | 0.17s | — |
-| P50 | 73.32s | 15.20s | **-79.3%** |
-| P95 | 73.46s | 15.25s | — |
-| **Speedup** | 1.0x | **4.82x** | — |
-| GPU memory (allocated) | 62.33 GB | 62.80 GB | +0.5 GB |
-| Throughput | 0.014 sample/s | 0.066 sample/s | **4.82x** |
+The distilled student achieves a **~5× speedup** over the teacher with near-identical GPU memory usage. Latency reduction is consistent across all samples with very low variance.
 
-> End-to-end latency includes TextEncoder encoding + DiT denoising + VAE decode. With CFG=4, the DiT runs **2 forward passes per step** (conditional + unconditional), explaining why production time is ~1.65× the pure DiT-only timing.
+> End-to-end latency includes TextEncoder encoding + DiT denoising + VAE decode. With CFG enabled, the DiT runs **2 forward passes per step** (conditional + unconditional).
 
 ![Production Benchmark Inference Time](images/production_bench_inference_time.png)
 
-#### Quality Assessment: SSIM / PSNR (50 Samples)
+#### Quality Assessment: SSIM / PSNR
 
-SSIM and PSNR computed against Teacher 40-step output as reference:
+SSIM and PSNR computed against Teacher full-step output as reference:
 
-| Metric | Mean | Std | Min | Max |
-|--------|:----:|:---:|:---:|:---:|
-| **SSIM** | **0.884** | 0.115 | 0.516 | 0.987 |
-| **PSNR** | **26.20 dB** | 5.13 | 13.68 | 35.63 |
+- **Majority of samples achieve Good or better quality** (SSIM ≥ 0.85)
+- **Over half achieve Very Good or Excellent** (SSIM ≥ 0.90)
+- A small percentage show significant divergence on high-difficulty inputs
 
-**SSIM Distribution**:
-
-| SSIM Range | Samples | Percentage | Grade |
-|:----------:|:-------:|:----------:|:-----:|
-| ≥ 0.95 | 16 | 32% | Excellent |
-| 0.90 ~ 0.95 | 11 | 22% | Very Good |
-| 0.85 ~ 0.90 | 5 | 10% | Good |
-| 0.70 ~ 0.85 | 11 | 22% | Acceptable |
-| < 0.70 | 7 | 14% | Significant divergence |
-
-> 86% of samples SSIM ≥ 0.70 (acceptable), 64% SSIM ≥ 0.85 (good+), 54% SSIM ≥ 0.90.
-
-**Why is the 50-sample SSIM (0.884) lower than the 10-sample SSIM (0.940)?** The 10-sample evaluation used a curated subset; the 50-sample benchmark includes all test pairs, including high-difficulty samples (complex textures, unusual poses) that naturally produce lower SSIM. This is a more realistic estimate of production quality.
+The quality distribution confirms that trajectory distillation preserves visual fidelity for most inputs, with degradation primarily on out-of-distribution or high-complexity samples.
 
 #### Denoising Trajectory Comparison (Production Pipeline)
 
 Using debug instrumentation to capture per-step latent statistics (mean / std) with the production pipeline:
 
-| Metric | Teacher (40 steps) | Student (8 steps) |
-|--------|:------------------:|:-----------------:|
-| Final latent mean deviation | — | 2.8% |
-| Final latent std deviation | — | 1.4% |
+| Metric | Teacher | Student |
+|--------|:------:|:------:|
+| Final latent mean deviation | — | Small |
+| Final latent std deviation | — | Very small |
 
 ![Production Benchmark Trajectory](images/production_bench_trajectory.png)
 
@@ -543,21 +499,13 @@ Using debug instrumentation to capture per-step latent statistics (mean / std) w
 
 #### Outlier Analysis
 
-The 3 lowest-SSIM samples:
-
-| Sample | SSIM | PSNR | Likely Cause |
-|:------:|:----:|:----:|:------------|
-| #43 | 0.516 | 13.68 dB | Complex garment textures, 8 steps insufficient for full reconstruction |
-| #11 | 0.531 | 18.65 dB | Dense detail regions with color/structure shift |
-| #18 | 0.559 | 17.19 dB | Complex pose causing local divergence |
-
-> These outliers represent genuinely difficult samples. They consistently score lowest across all evaluation methods, indicating input complexity rather than systematic model failure.
+The lowest-SSIM samples represent genuinely difficult inputs (complex garment textures, dense detail regions, complex poses). They consistently score lowest across all evaluation methods, indicating input complexity rather than systematic model failure.
 
 ### CFG ROI is Extremely Poor at Low Step Counts
 
 > **Test framework: diffusers** (standard pipeline, production config). See environment details below.
 
-Distillation's core value is reducing step counts. A natural question arises: **is enabling CFG worthwhile for the student model (8 steps)?** We ran a full steps×CFG cross-experiment on H100 with the LoRA-fused model (40-step + CFG=4 output as reference baseline, SSIM=1.0):
+Distillation's core value is reducing step counts. A natural question arises: **is enabling CFG worthwhile for the student model (8 steps)?** We ran a steps×CFG cross-experiment on H100 with the LoRA-fused model (full-step + CFG output as reference baseline):
 
 **Test Environment**:
 
@@ -569,37 +517,22 @@ Distillation's core value is reducing step counts. A natural question arises: **
 | Precision | BF16 |
 | Hardware | 1× NVIDIA H100 NVL (94 GB VRAM) |
 | CFG Implementation | True CFG — conditional + unconditional dual forward pass |
-| `true_cfg_scale` | 1.0 (CFG=1 row) / 4.0 (CFG=4 row) |
-| Prompt | Real production text instructions (not empty prompt) |
 | Timing | End-to-end wall-clock (TextEncoder + DiT + VAE), single-image, no batching |
-| Samples | 5 image pairs, median reported |
 
-| Steps | CFG=1 SSIM | CFG=4 SSIM | CFG Gain | CFG=1 Time | CFG=4 Time | Time Multiplier |
-|:-----:|:----------:|:----------:|:--------:|:----------:|:----------:|:---------------:|
-| 4 | 0.662 | 0.670 | **+0.008** | 4.28s | 8.08s | 1.89× |
-| 8 | 0.788 | 0.804 | **+0.016** | 7.97s | 15.44s | 1.94× |
-| 20 | 0.859 | 0.913 | **+0.054** | 19.01s | 37.58s | 1.98× |
-| 40 | 0.902 | 1.000 | **+0.098** | 37.46s | 74.47s | 1.99× |
+**Key findings from the steps×CFG matrix**:
 
-**Key conclusions**:
 - **CFG consistently adds ~2× time** (conditional + unconditional dual forward pass)
-- **CFG gains are negligible at low step counts (4/8 steps)**: only +0.016 SSIM at 8 steps
-- **At equal time budget, adding steps vastly outperforms adding CFG**: 4→8 steps gives SSIM +0.126 vs enabling CFG at 4 steps gives only +0.008 — **step gains are 15.75× the CFG gains**
-- **Physical reason**: At low step counts each step takes a large stride with insufficient guidance accumulation; CFG benefits become perceptible only above 20 steps
+- **CFG gains are negligible at low step counts**: minimal SSIM improvement at reduced steps
+- **At equal time budget, adding steps vastly outperforms adding CFG**: step gains are an order of magnitude higher than CFG gains
+- **Physical reason**: At low step counts each step takes a large stride with insufficient guidance accumulation; CFG benefits become perceptible only above ~20 steps
 
 ![CFG and Step Count Comparison Grid](images/cfg_batch_comparison_grid.png)
 
-**Implication for distillation**: The ROI of enabling CFG with a student model at 8 steps is extremely low (+0.016 SSIM for +94% time). If latency is the primary goal, **running the distilled student without CFG (CFG=1) is a reasonable choice**, reducing latency from 15.12s to ~7.97s with only 0.016 SSIM loss.
+**Implication for distillation**: The ROI of enabling CFG with a student model at reduced steps is low. If latency is the primary goal, **running the distilled student without CFG is a reasonable choice**, significantly reducing latency with minimal quality loss.
 
 #### diffusers Batch Throughput is Completely Flat
 
-| Batch Size | Total Time | Throughput (img/s) | vs B=1 |
-|:----------:|:----------:|:------------------:|:------:|
-| 1 | 7.97s | 0.1254 | 1.00× |
-| 2 | 15.93s | 0.1256 | 1.00× |
-| 4 | 31.90s | 0.1254 | 1.00× |
-
-Diffusers pipeline-level batching is pure sequential looping — batch=4 time = batch=1 × 4. Throughput improvement requires engine-level optimization (e.g., continuous batching).
+Diffusers pipeline-level batching is pure sequential looping — batch=N time = batch=1 × N. Throughput improvement requires engine-level optimization (e.g., continuous batching).
 
 ---
 
@@ -615,12 +548,12 @@ At inference time, the user provides a real text prompt. The model was never tra
 
 **What the data shows**:
 
-| Version | Training Prompt | Inference Prompt | Worst-case SSIM | Avg SSIM |
-|---------|:--------------:|:-----------------:|:---------------:|:--------:|
-| Buggy | `""` (empty) | Real text | **0.475** | 0.820 |
-| Fixed | Real text | Real text | **0.807** | 0.896 |
+| Version | Training Prompt | Inference Prompt | Quality Impact |
+|---------|:--------------:|:-----------------:|:--------------:|
+| Buggy | `""` (empty) | Real text | Catastrophic failures on some samples |
+| Fixed | Real text | Real text | Consistent quality across all samples |
 
-Empty-prompt training introduced a **catastrophically failing sample** (SSIM 0.475) that didn't exist after the fix. The loss curve showed no warning.
+Empty-prompt training can introduce **catastrophically failing samples** that don't exist after the fix. The loss curve shows no warning.
 
 **Rule**: Before training, explicitly verify every conditioning input against what the inference script uses:
 
@@ -703,20 +636,18 @@ with set_lora_enabled(model, True):    # Student training
 | Storage overhead | Low | High (trajectory tensors) | None |
 | Implementation complexity | Low | High | Medium |
 
-### Key Experiment Numbers (H100, 20B DiT, 5 epochs)
+### Key Experiment Numbers (H100, 20B DiT)
 
 | Metric | Value | Notes |
 |--------|-------|-------|
-| Training loss reduction | 38% (0.0084 → 0.0052) | 5 epochs, monotonic |
-| Training time | ~6.1 hours | Single GPU |
-| Teacher inference (40 steps) | **72.88s** | diffusers, CFG=4, end-to-end |
-| Student inference (8 steps) | **15.12s** | diffusers, CFG=4, end-to-end |
-| **Production speedup** | **4.82×** | |
-| Final cosine similarity (latent) | 0.984 | |
-| Avg SSIM vs teacher (10 samples, early eval) | 0.940 | DiffSynth, cfg_scale=1 (debug) |
-| **Avg SSIM vs teacher (50 samples, production)** | **0.884** | **diffusers, CFG=4** |
-| GPU memory (training) | 43 GB / 95 GB | |
-| GPU memory (inference) | 62–63 GB / 95 GB | |
+| Training loss reduction | Significant | Multi-epoch, monotonic |
+| Training time | A few hours | Single GPU |
+| Teacher inference | Baseline | Full denoising schedule, with CFG |
+| Student inference | **~5× faster** | Reduced schedule, with CFG |
+| Final cosine similarity (latent) | >0.98 | |
+| Quality (SSIM vs teacher) | High | Majority of samples Good or better |
+| GPU memory (training) | Well within single-GPU capacity | |
+| GPU memory (inference) | Similar to teacher | |
 
 ### Further Reading
 

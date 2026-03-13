@@ -4,14 +4,14 @@
 [![SAM 2.1](https://img.shields.io/badge/SAM-2.1-orange.svg)](https://github.com/facebookresearch/sam2)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Cross-style blueprint entity detection using **SAM 2.1 + Auto-Tuned Flood Fill** hybrid architecture. Validated on multiple public architectural floor plan styles.
+Cross-style blueprint entity detection using **SAM 2.1 + an auto-tuned connected-components white-space branch**. Validated on multiple public architectural floor plan styles.
 
 ![Detection Results](images/v13_4in1_comparison.png)
 
 ## Features
 
 - **Cross-style detection**: Works on gray-fill structural drawings, line-enclosed floor plans, and colored blueprints
-- **SAM 2.1 + Flood Fill hybrid**: SAM segments textured entities, Flood Fill detects wall-enclosed rooms
+- **SAM 2.1 + CC white-space hybrid**: SAM segments textured entities, while an adaptive morphology + connected-components branch detects wall-enclosed rooms
 - **Auto-tuned morphology**: Tries 36 parameter combos per image, picks best
 - **Building outline filter**: Automatically detects building footprint, removes outside noise
 - **JSON output**: Entity coordinates, areas, and center points
@@ -64,7 +64,7 @@ This project was developed and tested on **Azure GPU Virtual Machines**.
 
 ### Why A10 Is Sufficient
 
-- SAM 2.1 hiera_large (224M params) + Flood Fill requires ~12GB GPU memory
+- SAM 2.1 hiera_large (224M params) + the CC white-space branch requires ~12GB GPU memory
 - Single A10 (24GB) handles the full pipeline with headroom
 - Processing time: 12-20 seconds per blueprint at 2000px resolution
 - For CPU-only environments, SAM 2.1 runs without modification (slower)
@@ -106,7 +106,7 @@ flowchart TB
     end
 
     subgraph PARAM["Stage 1: Parameter Selection"]
-        S1A[Select SAM / Flood Fill / NMS thresholds]
+        S1A[Select SAM / CC / NMS thresholds]
     end
 
     subgraph OUTLINE["Stage 2: Building Outline Detection"]
@@ -121,10 +121,10 @@ flowchart TB
         C1 --> C2
     end
 
-    subgraph FLOOD["Stage 3b: Auto-Tuned Flood Fill"]
+    subgraph FLOOD["Stage 3b: Auto-Tuned Connected Components White-Space Branch"]
         D1[Adaptive threshold to detect wall lines]
         D2[Try 36 morphology parameter combos]
-        D3[Select combo producing best room count]
+        D3[Connected components on white-space regions\nselect combo producing best room count]
         D1 --> D2 --> D3
     end
 
@@ -149,8 +149,10 @@ flowchart TB
 | Component | Strength | Weakness |
 |-----------|----------|----------|
 | **SAM 2.1** | Segments textured regions (furniture, fixtures, small structures) | Cannot segment featureless white enclosed spaces |
-| **Flood Fill** | Detects wall-enclosed rooms (white spaces) | Sensitive to wall line gaps, may over-segment |
+| **CC white-space branch** | Detects wall-enclosed rooms (white spaces) | Sensitive to wall line gaps, may over-segment |
 | **Combined** | **Complementary coverage → near-complete room detection** | |
+
+Implementation note: the room branch is implemented with adaptive thresholding + morphology + `cv2.connectedComponentsWithStats(...)`, not direct `cv2.floodFill()`.
 
 ## Example Output
 
@@ -161,10 +163,10 @@ flowchart TB
    Size: 4344x3266 -> 2000x1503 (scale=0.46)
    [SAM 2.1] Segmenting...
    [SAM 2.1] 282 masks -> 100 entities
-   [Flood Fill] Auto-tuning...
-   [Flood Fill] 16 entities
+    [CC White-Space] Auto-tuning...
+    [CC White-Space] 16 entities
 
-📊 Total: 31 entities (SAM:100 + Flood:16) in 16.1s
+📊 Total: 31 entities (SAM:100 + CC:16) in 16.1s
    ✅ Saved: output/floor_plan_v13.png
    ✅ Saved: output/floor_plan_v13.json
 ```
@@ -195,7 +197,7 @@ Tested on [CubiCasa5K](https://zenodo.org/record/2613548) public dataset — **s
 
 - **12 entities detected** in 20 seconds
 - Clean black-and-white floor plan with thick wall lines
-- Flood Fill effectively detects enclosed room spaces
+- The CC white-space branch effectively detects enclosed room spaces
 
 ### Summary
 
@@ -211,7 +213,7 @@ Tested on [CubiCasa5K](https://zenodo.org/record/2613548) public dataset — **s
 |---------|-------|-------------|--------|
 | v2-v6 | SAM 1 ViT-B/H | SAM + OpenCV CC | Gray-fill only |
 | v11 | SAM 1 ViT-H | Two-stage (SAM + CC) | Production for gray-fill |
-| **v13** | **SAM 2.1 hiera_large** | **SAM 2.1 + Auto Flood Fill** | **Current best cross-style baseline** |
+| **v13** | **SAM 2.1 hiera_large** | **SAM 2.1 + Auto-Tuned CC white-space branch** | **Current best cross-style baseline** |
 
 ### Key Improvements v11 → v13
 
@@ -227,9 +229,9 @@ Tested on [CubiCasa5K](https://zenodo.org/record/2613548) public dataset — **s
 ## Limitations
 
 - Detection quality varies by blueprint complexity (7-9/10 range across styles)
-- White featureless rooms depend on Flood Fill quality (wall line completeness)
+- White featureless rooms depend on CC white-space branch quality (wall line completeness)
 - Very small rooms (<3% of image area) may be missed
-- Overlapping bounding boxes may occur when SAM and Flood Fill detect same region
+- Overlapping bounding boxes may occur when SAM and the CC white-space branch detect the same region
 
 ## Accuracy & Honest Assessment
 
@@ -244,7 +246,7 @@ This is our measured performance on CubiCasa5K public dataset (eagle-eye GPT-4o 
 
 **What works well**: Rooms with clear wall boundaries, furniture/fixtures, structural elements.
 
-**What doesn't work well**: Large featureless white rooms that SAM cannot segment (mitigated by Flood Fill), very small utility spaces (<3% image area), and text annotations occasionally detected as entities.
+**What doesn't work well**: Large featureless white rooms that SAM cannot segment (mitigated by the CC white-space branch), very small utility spaces (<3% image area), and text annotations occasionally detected as entities.
 
 ## Approaches Explored & Lessons Learned
 
@@ -253,7 +255,7 @@ During development, we systematically evaluated multiple approaches. We document
 | Approach | Result | Why |
 |----------|:------:|-----|
 | **SAM 1 ViT-H (v11)** | ✅ Works for gray-fill | Gray-fill structural drawings only; 0 entities on line-enclosed floor plans |
-| **SAM 2.1 (v13)** | ✅ Current best | 15x faster than SAM 1; works across styles with Flood Fill |
+| **SAM 2.1 (v13)** | ✅ Current best | 15x faster than SAM 1; works across styles with the CC white-space branch |
 | **SAM 3 text-prompt** | ❌ Access denied | HuggingFace gated model; access request rejected by Meta |
 | **Grounded-SAM2 (DINO + SAM 2.1)** | ❌ Failed | Grounding DINO cannot understand architectural drawings; detected only 4 objects covering entire image |
 | **Florence-2** | ❌ Not suitable | Coordinate quantization (1000-bin) too coarse for precise center point localization |
@@ -284,13 +286,13 @@ The core pattern — **detect regions in technical drawings and output center po
 | **Industrial QC** | Defect detection in manufacturing | Product inspection images | Defect positions + classifications |
 | **Retail / Warehouse** | Shelf product detection | Store/warehouse photos | Product positions + counts |
 
-The SAM 2.1 + Flood Fill hybrid architecture demonstrated here can be adapted to any of these scenarios by adjusting the detection and filtering parameters.
+The SAM 2.1 + connected-components white-space hybrid architecture demonstrated here can be adapted to any of these scenarios by adjusting the detection and filtering parameters.
 
 ## Future Direction
 
 | Phase | Approach | Expected Impact |
 |-------|---------|-----------------|
-| **Current (v13)** | SAM 2.1 + Auto Flood Fill | 7-9/10 across styles |
+| **Current (v13)** | SAM 2.1 + Auto-Tuned CC white-space branch | 7-9/10 across styles |
 | **Phase 3** | SAM 3 text-prompt segmentation (`text="room"`) | Potentially 9-10/10, one-line detection |
 | **Phase 4** | Fine-tune SAM 2.1 on CubiCasa5K (5000 labeled images) | Higher domain-specific quality and stability |
 | **Phase 5** | VLM integration (GPT-4o pre-analysis → guided detection) | Unlimited style adaptation |

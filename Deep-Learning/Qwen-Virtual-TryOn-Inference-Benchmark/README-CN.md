@@ -207,18 +207,8 @@ flowchart LR
 
 **代码示例**：
 ```python
-# ⚠️ 重要：Qwen-Image-Edit-2511 不是 guidance-distilled 模型
-# `guidance_scale` 参数会被忽略！
-
-# ❌ 错误 - 这个参数不起作用：
-pipe(..., guidance_scale=4.0)  # 会被静默忽略！
-
-# ✅ 正确 - 要启用真正的 CFG，必须同时使用两个参数：
-pipe(..., 
-     negative_prompt=" ",      # 必须！即使是空格也行
-     true_cfg_scale=4.0        # 这样 CFG 才真正生效
-)
-# 注意：真正的 CFG 会使推理时间翻倍（2次前向传播）
+# 对于 Qwen-Image-Edit，使用 true_cfg_scale（而非 guidance_scale）
+pipe(..., true_cfg_scale=4.0)
 ```
 
 ### 什么是 Inference Steps（推理步数）？
@@ -249,18 +239,7 @@ flowchart LR
 
 **代码示例**：
 ```python
-# ⚠️ 重要：Qwen-Image-Edit-2511 不是 guidance-distilled 模型
-# `guidance_scale` 参数会被忽略！
-
-# ❌ 错误 - 这个参数不起作用：
-pipe(..., guidance_scale=4.0)  # 会被静默忽略！
-
-# ✅ 正确 - 要启用真正的 CFG，必须同时使用两个参数：
-pipe(..., 
-     negative_prompt=" ",      # 必须！即使是空格也行
-     true_cfg_scale=4.0        # 这样 CFG 才真正生效
-)
-# 注意：真正的 CFG 会使推理时间翻倍（2次前向传播）
+pipe(..., num_inference_steps=40)
 ```
 
 ### 什么是 Cache-DiT？
@@ -334,18 +313,7 @@ flowchart TB
 
 **代码示例**：
 ```python
-# ⚠️ 重要：Qwen-Image-Edit-2511 不是 guidance-distilled 模型
-# `guidance_scale` 参数会被忽略！
-
-# ❌ 错误 - 这个参数不起作用：
-pipe(..., guidance_scale=4.0)  # 会被静默忽略！
-
-# ✅ 正确 - 要启用真正的 CFG，必须同时使用两个参数：
-pipe(..., 
-     negative_prompt=" ",      # 必须！即使是空格也行
-     true_cfg_scale=4.0        # 这样 CFG 才真正生效
-)
-# 注意：真正的 CFG 会使推理时间翻倍（2次前向传播）
+pipe.transformer = torch.compile(pipe.transformer, mode="default")
 ```
 
 ### 综合运用
@@ -448,30 +416,18 @@ flowchart TB
 
 ### FlashAttention-3 (FA3) Attention Backend Benchmark（基准测试）
 
-> **新发现 (2026-02-03)**：vLLM-Omni 通过 `fa3_fwd` 包使用 FlashAttention-3（针对推理优化的前向传播内核），相比 PyTorch SDPA 提供 **27% 的加速**。
+> **新发现 (2026-02-03)**：在 H100 上使用 FA3 注意力后端相比 PyTorch SDPA 提供 **27% 的加速**。
 
-**技术背景**：
-- vLLM-Omni 的 `FLASH_ATTN` 后端从 `fa3_fwd_interface` 导入
-- `fa3_fwd` 提供针对推理优化的前向传播内核（无需反向传播）
-- 使用 Hopper sm90 内核（通过 CUDA 符号检查确认）
+| Backend | 时间 | vs FA3 | 说明 |
+|---------|------|--------|------|
+| **FA3** | **29.68s** | - | ✅ 默认，推荐 |
+| TORCH_SDPA | 37.65s | 慢 27% | PyTorch 原生 SDPA |
 
-| Backend | 环境变量 | 时间 | vs FA3 | 说明 |
-|---------|---------|------|--------|------|
-| **FA3 (FLASH_ATTN)** | `DIFFUSION_ATTENTION_BACKEND=FLASH_ATTN` | **29.68s** | - | ✅ 默认，推荐 |
-| TORCH_SDPA | `DIFFUSION_ATTENTION_BACKEND=TORCH_SDPA` | 37.65s | 慢 27% | PyTorch 原生 SDPA |
-
-**鲁棒性验证**（2 轮，seed=1）：
-
-| Backend | 第 1 轮 | 第 2 轮 | 平均 | 标准差 |
-|---------|--------|--------|------|-------|
-| FA3 | 29.41s | 29.94s | 29.68s | ±0.27s |
-| SDPA | 37.37s | 37.93s | 37.65s | ±0.28s |
-
-**图像质量**：PSNR **45.38 dB**（视觉上完全相同），76.78% 像素相同。
+**图像质量**：PSNR **45.38 dB**（视觉上完全相同）。
 
 <table>
   <tr>
-    <td align="center"><b>FA3 (FLASH_ATTN)</b><br/>(平均 29.68s)</td>
+    <td align="center"><b>FA3</b><br/>(平均 29.68s)</td>
     <td align="center"><b>TORCH_SDPA</b><br/>(平均 37.65s，慢 27%)</td>
   </tr>
   <tr>
@@ -479,36 +435,6 @@ flowchart TB
     <td><img src="images/output_sdpa.png" width="300"/></td>
   </tr>
 </table>
-
-**结论**：FA3 提供 **27% 更快的推理速度**，质量完全相同。推荐用于 H100 GPU。
-
-#### FA3 实现验证
-
-> **发现 (2026-02-03)**：vLLM-Omni 中的 **ViT** 和 **DiT** 组件在 H100 GPU 上都使用 **FlashAttention-3**。
-
-| 组件 | Attention 后端 | 源包 | FA 版本 |
-|------|---------------|------|---------|
-| **DiT (扩散)** | `FLASH_ATTN` | `fa3_fwd` 0.0.1 | **FA3** ✅ |
-| **ViT (vLLM LLM)** | `vllm_flash_attn` | `_vllm_fa3_C` | **FA3** ✅ |
-
-**关键证据**：
-
-1. **DiT 后端**：vLLM-Omni 从 `fa3_fwd_interface` 导入，而非 `flash_attn`：
-   ```python
-   # vllm_omni/diffusion/attention/backends/flash_attn.py
-   from fa3_fwd_interface import flash_attn_func, flash_attn_varlen_func
-   ```
-
-2. **fa3_fwd 包**：`pip show fa3-fwd` 显示 `Summary: FlashAttention-3 forward`
-
-3. **ViT (vLLM LLM)**：`get_flash_attn_version()` 在 H100 (sm90) 上返回 `3`
-
-**导入链**：
-```
-vLLM-Omni
-├── DiT → fa3_fwd_interface → fa3_fwd (FA3)
-└── ViT → vllm_flash_attn._vllm_fa3_C (FA3)
-```
 
 ### 张量并行 (TP=2) 性能
 
@@ -574,69 +500,9 @@ flowchart TB
 
 ## 为什么 vLLM-Omni 能快 3.1 倍
 
-### 架构概览
+vLLM-Omni 通过编译器优化（torch.compile）、CUDA Graphs 执行、PagedAttention 显存管理和异步调度的组合实现 3.1 倍加速。多种优化技术共同贡献了整体加速效果。结果因模型和硬件配置而异。
 
-```mermaid
-flowchart LR
-    subgraph VLLM["vLLM-Omni 架构"]
-        A[请求队列] --> B[异步调度器]
-        B --> C[PagedAttention]
-        C --> D[编译后的 DiT 块]
-        D --> E[CUDA Graphs 执行器]
-        E --> F[输出]
-    end
-    
-    subgraph OPT["优化项"]
-        O1[内置 torch.compile]
-        O2[Diffusion 专用 CUDA Graphs]
-        O3[连续批处理就绪]
-        O4[内存高效的注意力]
-    end
-    
-    VLLM -.-> OPT
-    
-    style VLLM fill:#e3f2fd
-    style OPT fill:#fff3e0
-```
-
-### 关键优化项
-
-| 优化项 | 贡献 | 技术细节 |
-|--------|------|----------|
-| **内置 torch.compile** | ~17% | TorchDynamo + Inductor，diffusion 感知设置 |
-| **完整 CUDA Graphs** | ~25% | 不同于单独的 torch.compile，能处理时间步变化 |
-| **PagedAttention** | ~10% | 内存高效的 KV 缓存管理 |
-| **异步调度** | ~15% | 重叠 CPU/GPU 工作，减少空闲时间 |
-
-
-> **说明 (2026-02-03)**：vLLM V1 **默认启用 `torch.compile`**（`optimization_level=O2` → `CompilationMode.VLLM_COMPILE`）。无需手动配置。源码位置：`vllm/config/vllm.py`：
-> ```python
-> if self.compilation_config.mode is None:
->     if self.optimization_level > OptimizationLevel.O0:
->         self.compilation_config.mode = CompilationMode.VLLM_COMPILE  # 默认启用！
-> ```
-
-### 为什么单独的 torch.compile 只能达到 1.2 倍
-
-```mermaid
-flowchart TB
-    subgraph PROBLEM["torch.compile 的限制"]
-        P1["MSRoPE @lru_cache"] --> P2[与 CUDA Graphs 不兼容]
-        P3[dynamic=True 导致 NaN] --> P4[必须使用 dynamic=None]
-        P4 --> P5[只能部分编译]
-    end
-    
-    subgraph SOLUTION["vLLM-Omni 的解决方案"]
-        S1[自定义 RoPE 实现]
-        S2[预分配的张量池]
-        S3[完整 CUDA Graphs 捕获]
-    end
-    
-    PROBLEM --> |"绕过方案"| SOLUTION
-    
-    style PROBLEM fill:#ffcdd2
-    style SOLUTION fill:#c8e6c9
-```
+> **说明 (2026-02-03)**：vLLM V1 **默认启用 `torch.compile`**（`optimization_level=O2`）。无需手动配置。
 
 ## 关键发现
 
@@ -742,7 +608,7 @@ Cache-DiT 实现 6.8 倍加速，但有**可见的质量损失**：
 | 0.37.0.dev0 (原版) | ❌ 慢 55% | ✅ 正常 | 性能回退 |
 | **PR #12987** | ✅ 快 | ✅ 正常 | **推荐** |
 
-**根因**: PR #12702 修复了脸部质量，但破坏了 attention mask 优化，导致 SDPA (Scaled Dot-Product Attention，缩放点积注意力) 从 flash attention (闪存注意力，一种内存高效的注意力算法) 回退。
+**根因**：注意力 mask 处理的回退导致某些 diffusers 版本出现性能下降。
 
 ### ⚠️ 发现 4: 提示词工程保持细节一致性
 
@@ -803,7 +669,7 @@ Requirements: Maintain exact garment details, preserve model pose and face.
 | **负向引导** | 告诉模型不要添加什么 | "DO NOT add beads or pearls" |
 | **计数** | 确保数量准确 | "preserve ALL 8 buttons" |
 
-**根因**: 扩散模型在去噪过程中倾向于"幻觉"或"简化"小细节。明确的提示词可以锚定模型的注意力，保留特定特征。
+**根因**：去噪过程中小细节可能丢失。明确的提示词有助于保留它们。
 
 ![images](./images/vllm_omni_comparison.png)
 
@@ -833,26 +699,7 @@ Requirements: Maintain exact garment details, preserve model pose and face.
 | vLLM-Omni | BF16 | **28.96s** | 基准 | ~32GB |
 | ComfyUI-GGUF | Q4_K_M | 115.11s | **慢 4 倍** | ~12GB |
 
-**根因：反量化瓶颈 (Dequantization Bottleneck)**
-
-GGUF（原 GGML）的设计目标是通过 Int4/Q4 存储权重来**降低内存带宽压力**。这在带宽受限的设备上很有效：
-
-```mermaid
-flowchart LR
-    subgraph EDGE["边缘设备 CPU/Mac"]
-        E1["带宽小"] --> E2["Q4 节省 IO"]
-        E2 --> E3["反量化开销可接受"]
-        E3 --> E4["✅ 更快"]
-    end
-    
-    subgraph DC["数据中心 H100"]
-        D1["带宽巨大 3.35TB/s"] --> D2["BF16 IO 无压力"]
-        D3["Q4 每次 MatMul 都要反量化"] --> D4["❌ 算力浪费"]
-    end
-```
-
-- **CPU/低显存 GPU**：带宽是瓶颈。读取小体积的 Q4 并展开成 FP16，比读取大体积的 FP16 更快。
-- **H100**：带宽充裕（3.35 TB/s）。**每次矩阵乘法都要 Q4→FP16 转换的计算开销**成为新瓶颈。
+**根因**：在 H100 等高带宽 GPU 上，反量化开销超过了内存节省，使 GGUF 比原生 BF16 更慢。
 
 **NVFP4 硬件支持缺口**
 
@@ -1007,46 +854,6 @@ Speedup vs Baseline: 6.83x 🚀🚀
 ⚠️ Note: Cache-DiT may cause quality degradation
 ============================================================
 ✅ Saved: ../images/output_vllm_cache_dit.png
-```
-
-
-### vLLM-Omni TP=2 (张量并行)
-
-```
-============================================================
-vLLM-Omni TP=2 Benchmark - NO CFG
-============================================================
-vllm-omni: 0.14.0rc1
-GPU 0: NVIDIA H100 NVL
-GPU 1: NVIDIA H100 NVL
-Model: Qwen/Qwen-Image-Edit-2511
-Steps: 40, Seed: 1, TP: 2, CFG: DISABLED
-------------------------------------------------------------
-Garment: (1340, 1785), Model: (1340, 1785)
-
-Loading vLLM-Omni with TP=2...
-Loaded in 45.2s
-
-Warmup: 2 runs
-  Warmup 1: 18.12s
-  Warmup 2: 17.89s
-
-Benchmark: 5 runs
-  Run 1: 17.63s
-  Run 2: 17.74s
-  Run 3: 17.82s
-  Run 4: 17.98s
-  Run 5: 18.11s
-
-Saved: output_vllm_tp2_nocfg.png (896x1184)
-
-============================================================
-All runs: [17.63, 17.74, 17.82, 17.98, 18.11]
-Trimmed (drop min/max): [17.74, 17.82, 17.98]
-RESULT (TP=2, NO CFG): 17.85s ± 0.100s
-Speedup vs TP=1 (28.98s): 1.62x
-Speedup vs diffusers (70.31s): 3.94x 🚀
-============================================================
 ```
 
 

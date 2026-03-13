@@ -45,7 +45,7 @@ def main():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", default="checkpoints/aipc_sft_v1", help="Model path")
-    parser.add_argument("--base_model", default="microsoft/Phi-3-mini-4k-instruct", help="Base model for comparison")
+    parser.add_argument("--base_model", default="meta-llama/Llama-3.2-3B-Instruct", help="Base model for comparison")
     parser.add_argument("--compare", action="store_true", help="Compare with base model")
     args = parser.parse_args()
     

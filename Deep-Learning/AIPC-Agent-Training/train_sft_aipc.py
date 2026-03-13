@@ -14,7 +14,7 @@ from datasets import load_dataset
 
 @dataclass
 class ModelArguments:
-    model_name_or_path: str = field(default="microsoft/Phi-3-mini-4k-instruct")
+    model_name_or_path: str = field(default="meta-llama/Llama-3.2-3B-Instruct")
 
 @dataclass
 class DataArguments:
@@ -23,7 +23,7 @@ class DataArguments:
 
 @dataclass
 class TrainingArguments(TrainingArguments):
-    output_dir: str = field(default="checkpoints/aipc_sft")
+    output_dir: str = field(default="checkpoints/aipc_sft_v1")
     num_train_epochs: float = field(default=3.0)
     per_device_train_batch_size: int = field(default=4)
     gradient_accumulation_steps: int = field(default=4)
@@ -77,7 +77,7 @@ def main():
         args=training_args,
         train_dataset=tokenized_datasets["train"],
         eval_dataset=tokenized_datasets["validation"],
-        tokenizer=tokenizer,
+        processing_class=tokenizer,
         data_collator=DataCollatorForSeq2Seq(tokenizer, padding=True, pad_to_multiple_of=8),
     )
 

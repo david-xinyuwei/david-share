@@ -1,16 +1,16 @@
 # AI Agent Training Flywheel - Dependencies
-# Tested on: Python 3.10, CUDA 12.x, A100 80GB
+# Tested on: Python 3.11, CUDA 12.x, A100 80GB
 
 # Core ML Framework
 torch>=2.0.0
-transformers>=4.40.0
+transformers>=4.56.1
 
-# Reinforcement Learning
-trl>=0.8.0
+# Reinforcement Learning (install with [all] for full dependency resolution)
+trl[all]>=0.26.0
 
 # Data Processing
 datasets>=2.14.0
-accelerate>=0.21.0
+accelerate>=1.4.0
 
 # Data Generation (Optional - only for generate_aipc_new_data.py)
 openai>=1.0.0

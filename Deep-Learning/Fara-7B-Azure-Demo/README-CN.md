@@ -153,24 +153,24 @@ apt install -y xvfb firefox
 
 ```bash
 # 创建模型目录
-mkdir -p /root/fara/model_checkpoints
+mkdir -p ~/fara/model_checkpoints
 
 # 方式1: 使用 huggingface-cli (需要 HF token)
 huggingface-cli download microsoft/Fara-7B \
-    --local-dir /root/fara/model_checkpoints/fara-7b \
+    --local-dir ~/fara/model_checkpoints/fara-7b \
     --token YOUR_HF_TOKEN
 
 # 方式2: 使用镜像站 (中国大陆，无需token)
 export HF_ENDPOINT=https://hf-mirror.com
 huggingface-cli download microsoft/Fara-7B \
-    --local-dir /root/fara/model_checkpoints/fara-7b
+    --local-dir ~/fara/model_checkpoints/fara-7b
 
 # 验证下载 (约16GB)
-ls -lh /root/fara/model_checkpoints/fara-7b/
+ls -lh ~/fara/model_checkpoints/fara-7b/
 # 应看到: config.json, 模型文件, tokenizer 文件等
 ```
 
-> **注意**: Streamlit 应用 (`app.py`) 默认使用 `/root/fara/model_checkpoints/fara-7b` 路径。如使用其他位置，请修改 `app.py` 中的 `MODEL_PATH` 变量。
+> **注意**: Streamlit 应用 (`app.py`) 默认使用 `~/fara/model_checkpoints/fara-7b` 路径。如使用其他位置，请修改 `app.py` 中的 `MODEL_PATH` 变量。
 
 ### 3. 启动 VLLM 服务
 

@@ -524,7 +524,7 @@ DYNAMIC = {config.get("dynamic", "None")}
 # Load model
 from diffusers import FluxPipeline
 pipe = FluxPipeline.from_pretrained(
-    "/root/.cache/modelscope/hub/models/Qwen/Qwen-Image-Edit-2511",
+    "~/.cache/modelscope/hub/models/Qwen/Qwen-Image-Edit-2511",
     torch_dtype=torch.bfloat16
 ).to("cuda")
 
@@ -654,65 +654,7 @@ flowchart TB
 
 ### 根因分析
 
-NaN bug 源于 `transformer_qwenimage.py` 中的 `apply_rotary_emb_qwen()` 函数：
-
-```python
-# 文件: diffusers/models/transformers/transformer_qwenimage.py
-# 行号 138-140
-
-def apply_rotary_emb_qwen(x: torch.Tensor, freqs_cis: torch.Tensor) -> torch.Tensor:
-    x_rotated = torch.view_as_complex(x.float().reshape(*x.shape[:-1], -1, 2))  # ← complex64 转换
-    freqs_cis = freqs_cis.unsqueeze(1)
-    x_out = torch.view_as_real(x_rotated * freqs_cis).flatten(3)  # ← 复数乘法导致 NaN
-    return x_out.type_as(x)
-```
-
-**问题本质**：TorchInductor 不正确支持复数运算符（`complex64` 乘法）的代码生成。
-
-### 证据链
-
-| 检查点 | 输入 | 输出 | 状态 |
-|--------|------|------|------|
-| MSRoPE 输出 | ✅ 正常 | ✅ 正常 | OK |
-| Block 0 输入 | ✅ 正常 | - | OK |
-| Block 0 输出 | - | **100% NaN** | ❌ 失败 |
-| 最终 latents | - | **100% NaN** | ❌ 失败 |
-
-**PyTorch 警告日志**：
-```
-[WARNING] Torchinductor does not support code generation for complex operators.
-```
-
-### 为什么 dynamic=None 能工作
-
-使用 `dynamic=None` 和 `suppress_errors=True` 时，TorchDynamo 遇到复数运算问题后会**优雅地回退到 Eager 模式**执行有问题的函数：
-
-**dynamic=True (有 Bug) ❌**
-```mermaid
-flowchart TB
-    DT1[Complex64 运算] --> DT2[TorchInductor 代码生成]
-    DT2 --> DT3[生成有 Bug 的 Kernel]
-    DT3 --> DT4[输出 NaN ❌]
-
-    style DT1 fill:#ffcccc
-    style DT4 fill:#ff6666
-```
-
-**dynamic=None + suppress_errors=True (安全) ✅**
-```mermaid
-flowchart TB
-    DN1[Complex64 运算] --> DN2[检测到编译错误]
-    DN2 --> DN3[回退 Eager 模式]
-    DN3 --> DN4[输出正确 ✅]
-
-    style DN1 fill:#ccffcc
-    style DN4 fill:#66ff66
-```
-
-**部分编译行为**：
-- `MSRoPE3D.forward()` (第 207 行) → 回退到 Eager
-- `QwenTransformer2DModel.forward()` (第 743 行) → 回退到 Eager
-- **核心 Attention/FFN 层** → 仍然被编译！→ 实现 16% 加速
+NaN bug 由 TorchInductor 对 RoPE 位置编码中 `complex64` 运算符的不完整支持导致。使用 `dynamic=True` 时，TorchInductor 为复数乘法生成有 bug 的内核，产生 NaN 输出。使用 `dynamic=None` + `suppress_errors=True` 时，有问题的函数优雅地回退到 Eager 模式，而核心 Attention/FFN 层仍被编译，实现 16% 的加速。
 
 ### 生产环境建议
 
@@ -978,7 +920,7 @@ print(f"重编译次数: {dynamo.utils.counters['graph_breaks']}")
 | 指标 | 结果 |
 |------|------|
 | 测试结果 | 无加速 (75.08s vs 基线 75.36s) |
-| 失败原因 | DiT 架构使用复数 RoPE (complex64)，TensorRT 不支持 |
+| 失败原因 | 与模型架构的兼容性问题 |
 
 **错误日志：**
 ```
@@ -994,7 +936,7 @@ TypeError: Unsupported numpy dtype (bfloat16)
 | 指标 | 结果 |
 |------|------|
 | 测试结果 | 无加速 (75.60s vs 基线 75.36s) |
-| 失败原因 | 瓶颈不在注意力计算层 |
+| 失败原因 | 已知限制 |
 
 Flash Attention 2 已成功启用（`Active attention backend: flash`），但没有带来性能提升。这表明推理瓶颈在 DiT Transformer 的其他组件，而非注意力层。
 
@@ -1003,7 +945,7 @@ Flash Attention 2 已成功启用（`Active attention backend: flash`），但�
 | 指标 | 结果 |
 |------|------|
 | 测试结果 | 运行时错误 |
-| 失败原因 | @lru_cache 与 CUDA Graphs 冲突 |
+| 失败原因 | 已知限制 |
 
 #### 什么是 @lru_cache？
 
@@ -1074,7 +1016,7 @@ def get_position_encoding(seq_len):
 | 指标 | 结果 |
 |------|------|
 | 测试结果 | 编译时错误 |
-| 失败原因 | MSRoPE 包含动态形状依赖 |
+| 失败原因 | 兼容性问题 |
 
 **错误日志：**
 ```

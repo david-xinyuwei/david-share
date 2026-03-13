@@ -443,15 +443,11 @@ llm = LLM(model="Qwen/Qwen2.5-7B-Instruct")
 ## 🔬 分析
 
 ### 为什么 FlashInfer 在 CUDAGraph 下胜出
-
-1. **优化的图捕获**: FlashInfer 内核专为 CUDAGraph 友好设计
-2. **Paged Attention**: 图重放时更好的内存访问模式
-3. **内核融合**: 更多操作融合到更少的内核启动中
+FlashInfer 针对 CUDAGraph 捕获场景进行了优化。
 
 ### 为什么 FlashAttention 在 Eager 模式下胜出
 
-1. **更低的内核启动开销**: FlashAttention 内核可能有稍低的单次启动成本
-2. **更简单的执行路径**: 没有图捕获开销
+FlashAttention 在 Eager 模式下每次启动的开销更低。
 
 ### CUDAGraph 加速倍数
 
@@ -859,34 +855,7 @@ The diagram below shows how Continuous Batching works when handling multiple inf
 
 ### 🔬 为什么 FA2 在 H100 + FP8 上更快？（理论分析）
 
-#### 根本原因：FlashInfer FP8 Tensor Core 启发式 Bug
-
-参考: [vLLM GitHub Issue #9471](https://github.com/vllm-project/vllm/issues/9471)
-
-FlashInfer 的 `use_tensor_cores` 启发式在 FP8 场景下失效：
-
-```
-FlashInfer Tensor Core 决策逻辑:
-┌─────────────────────────────────────────────────────┐
-│ if head_dim >= 128:                                 │
-│     use_tensor_cores = True   # ✅ 正确             │
-│ else:                                               │
-│     # 基于 FP16/BF16 性能分析的启发式               │
-│     use_tensor_cores = (batch * heads) > threshold  │
-│                                                     │
-│ 问题: FP8 有不同的最优阈值！                        │
-│ 结果: 回退到 CUDA Core 而非 Tensor Core             │
-└─────────────────────────────────────────────────────┘
-```
-
-**数学分析**:
-
-| 后端 | 内核类型 | H100 TFLOPS (FP8) | 利用率 |
-|------|----------|-------------------|--------|
-| FA2 | 始终 Tensor Core | 3,958 | ~85% |
-| FlashInfer (FP8 bug) | 混合 CUDA+Tensor | 3,958 | ~70% |
-
-效率损失: `(85% - 70%) / 85% ≈ 17.6%` 理论值 → 7.5% 实测值 (其他优化补偿)
+FA2 和 FlashInfer 在 H100 + FP8 上存在性能差异。该差距与架构相关，与一个[已知的 FlashInfer FP8 启发式 bug](https://github.com/vllm-project/vllm/issues/9471) 有关，可能导致次优的内核选择。
 
 ---
 
