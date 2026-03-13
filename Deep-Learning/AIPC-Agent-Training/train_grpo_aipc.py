@@ -25,12 +25,12 @@ TRAIN_DATA = "data/aipc_sft_train.jsonl"
 # GRPO 配置 - 针对 A100 80GB 优化
 GRPO_CONFIG = {
     "num_train_epochs": 2,
-    "per_device_train_batch_size": 2,
-    "gradient_accumulation_steps": 8,  # 有效 batch size = 16
+    "per_device_train_batch_size": 4,
+    "gradient_accumulation_steps": 4,  # 有效 batch size = 16
     "learning_rate": 1e-6,  # GRPO 用更小的学习率
     "max_completion_length": 512,
     "max_prompt_length": 256,
-    "num_generations": 4,  # 每个 prompt 生成 4 个候选
+    "num_generations": 4,  # 每个 prompt 生成 4 个候选 (batch_size must be divisible by this)
     "temperature": 0.7,
     "logging_steps": 10,
     "save_steps": 100,

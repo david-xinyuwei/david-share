@@ -23,7 +23,7 @@ class DataArguments:
 
 @dataclass
 class TrainingArguments(TrainingArguments):
-    output_dir: str = field(default="checkpoints/aipc_sft")
+    output_dir: str = field(default="checkpoints/aipc_sft_v1")
     num_train_epochs: float = field(default=3.0)
     per_device_train_batch_size: int = field(default=4)
     gradient_accumulation_steps: int = field(default=4)

@@ -1,0 +1,71 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Output files
+outputs/
+*.png
+*.jpg
+*.jpeg
+!images/*.png
+!images/*.jpg
+
+# Model files (too large for git)
+*.bin
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Credentials (NEVER commit these!)
+.env
+*.pem
+*credentials*
+*secret*
+
+# Temporary files
+tmp/
+temp/
+*.tmp

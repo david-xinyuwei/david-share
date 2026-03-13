@@ -9,9 +9,9 @@
 
 | 项目 | 详情 |
 |---|---|
-| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
-| **GPU** | NVIDIA H100 80GB |
-| **框架** | ONNX Runtime |
+| **Azure VM** | [Standard_NC24ads_A100_v4](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-a100-v4-series) |
+| **GPU** | NVIDIA A100 80GB PCIe |
+| **框架** | PyTorch + HuggingFace TRL |
 
 
 ## 🎯 概述
@@ -134,7 +134,7 @@ def reward_function(completions, **kwargs):
 |------|------|
 | **GPU** | NVIDIA A100 80GB PCIe |
 | **PyTorch** | 2.9.0 |
-| **Transformers** | 4.44.0 |
+| **Transformers** | 4.56.1+ |
 | **TRL** | 0.26.1 |
 | **基座模型** | `microsoft/Phi-3-mini-4k-instruct` (3.8B 参数) |
 
@@ -195,7 +195,7 @@ def reward_function(completions, **kwargs):
 ```bash
 pip install -r requirements.txt
 # 或手动安装：
-pip install torch>=2.0.0 transformers>=4.40.0 trl>=0.8.0 datasets accelerate
+pip install torch>=2.0.0 transformers>=4.56.1 "trl[all]>=0.26.0" datasets accelerate
 pip install openai  # 仅数据生成需要
 ```
 
@@ -243,7 +243,7 @@ python train_grpo_aipc.py
 | `num_generations` | 4 | 每个 prompt 的候选数 |
 | `temperature` | 0.7 | 采样多样性 |
 | `learning_rate` | 1e-6 | RL 保守学习率 |
-| `per_device_batch_size` | 2 | A100 80GB 优化 |
+| `per_device_batch_size` | 4 | A100 80GB 优化 (需能被 num_generations 整除) |
 | `gradient_accumulation` | 8 | 有效 batch = 16 |
 
 ### 步骤 3: DPO 风格优化 (V1.1 → V1.2)
@@ -255,7 +255,7 @@ python generate_style_dpo_data.py
 
 # 训练 DPO
 python train_dpo_style.py
-# 输入:  checkpoints/aipc_grpo_v1.1_final
+# 输入:  checkpoints/aipc_grpo_v1.1
 # 输出: checkpoints/aipc_dpo_v1.2
 ```
 

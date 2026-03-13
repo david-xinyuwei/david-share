@@ -1,0 +1,6 @@
+torch==2.5.1
+diffusers==0.32.2
+transformers==4.47.1
+accelerate==1.2.1
+Pillow>=10.0.0
+numpy>=1.24.0

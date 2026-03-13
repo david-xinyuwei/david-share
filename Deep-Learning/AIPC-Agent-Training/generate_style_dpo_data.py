@@ -5,7 +5,7 @@ import random
 from tqdm import tqdm
 
 # V1.1 模型路径
-MODEL_PATH = "checkpoints/aipc_grpo_v1.1_final"
+MODEL_PATH = "checkpoints/aipc_grpo_v1.1"
 OUTPUT_FILE = "data/aipc_style_dpo.jsonl"
 
 print(f"Loading model from {MODEL_PATH}...")

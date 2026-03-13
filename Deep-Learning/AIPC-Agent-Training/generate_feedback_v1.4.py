@@ -32,7 +32,7 @@ prompts = [
 
 def has_valid_python(text):
     """Check if text contains valid python code blocks"""
-    code_blocks = re.findall(r'', text, re.DOTALL)
+    code_blocks = re.findall(r'```python(.*?)```', text, re.DOTALL)
     if not code_blocks:
         return False, 0
     

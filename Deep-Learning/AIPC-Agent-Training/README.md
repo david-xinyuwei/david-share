@@ -9,9 +9,9 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 
 | Item | Details |
 |---|---|
-| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
-| **GPU** | NVIDIA H100 80GB |
-| **Frameworks** | ONNX Runtime |
+| **Azure VM** | [Standard_NC24ads_A100_v4](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-a100-v4-series) |
+| **GPU** | NVIDIA A100 80GB PCIe |
+| **Frameworks** | PyTorch + HuggingFace TRL |
 
 
 ## 🎯 Overview
@@ -133,8 +133,8 @@ def reward_function(completions, **kwargs):
 | Component | Specification |
 |-----------|---------------|
 | **GPU** | NVIDIA A100 80GB PCIe |
-| **PyTorch** | 2.9.0 |
-| **Transformers** | 4.44.0 |
+| **PyTorch** | 2.8.0+ |
+| **Transformers** | 4.56.1+ |
 | **TRL** | 0.26.1 |
 | **Base Model** | `microsoft/Phi-3-mini-4k-instruct` (3.8B params) |
 
@@ -195,7 +195,7 @@ def reward_function(completions, **kwargs):
 ```bash
 pip install -r requirements.txt
 # Or manually:
-pip install torch>=2.0.0 transformers>=4.40.0 trl>=0.8.0 datasets accelerate
+pip install torch>=2.0.0 transformers>=4.56.1 "trl[all]>=0.26.0" datasets accelerate
 pip install openai  # For data generation only
 ```
 
@@ -243,8 +243,8 @@ python train_grpo_aipc.py
 | `num_generations` | 4 | Candidates per prompt |
 | `temperature` | 0.7 | Sampling diversity |
 | `learning_rate` | 1e-6 | Conservative for RL |
-| `per_device_batch_size` | 2 | A100 80GB optimized |
-| `gradient_accumulation` | 8 | Effective batch = 16 |
+| `per_device_batch_size` | 4 | A100 80GB optimized (must be divisible by num_generations) |
+| `gradient_accumulation` | 4 | Effective batch = 16 |
 
 ### Step 3: DPO Style Optimization (V1.1 → V1.2)
 
@@ -255,7 +255,7 @@ python generate_style_dpo_data.py
 
 # Train DPO
 python train_dpo_style.py
-# Input:  checkpoints/aipc_grpo_v1.1_final
+# Input:  checkpoints/aipc_grpo_v1.1
 # Output: checkpoints/aipc_dpo_v1.2
 ```
 

@@ -5,7 +5,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 def main():
     # Paths
-    model_path = "checkpoints/aipc_grpo_v1.1_final"
+    model_path = "checkpoints/aipc_grpo_v1.1"
     data_path = "data/aipc_style_dpo.jsonl"
     output_dir = "checkpoints/aipc_dpo_v1.2"
 
