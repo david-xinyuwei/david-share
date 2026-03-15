@@ -45,8 +45,8 @@ This table summarizes **every technique** that makes it possible to distill a 20
 
 | Category | Technique | What It Does | Where Used | Detail Section |
 |----------|-----------|-------------|:----------:|:--------------:|
-| **Algorithm** | Trajectory Distillation (2nd-gen) | Student learns to skip 5× teacher steps by matching intermediate latents | Core training loop | [Deep Dive](#deep-dive-trajectory-distillation) |
-| **Algorithm** | IMM Loss (Moment Matching) | Matches distribution (μ+σ²) not just point estimates → avoids mode-averaging | Loss function | [IMM Loss](#the-imm-loss-moment-matching) |
+| **Algorithm** | Trajectory Distillation (2nd-gen) | Student learns to skip 5x teacher steps by matching intermediate checkpoints | Core training loop | [Deep Dive](#deep-dive-trajectory-distillation) |
+| **Algorithm** | Velocity Matching Loss | Loss built in velocity (vector field) space, not latent (position) space | Loss function | [Loss Functions](#loss-functions-latent-matching-vs-velocity-matching) |
 | **Parameter Efficiency** | LoRA (low rank) | Only a small fraction of params are trainable → optimizer states stay tiny | Student adapter | [Step 2](#step-2-train-the-student-lora-as-the-adapter) |
 | **Precision** | BF16 (bfloat16) | Half the memory vs FP32; 20B model = ~40 GB instead of ~80 GB | All model weights | [Setup](#setup) |
 | **Memory — Teacher** | `torch.no_grad()` | Prevents storing activations for 40 teacher steps → saves ~50 GB | Teacher forward pass | [VRAM Analysis](#why-the-student-fits-in-vram-despite-having-gradients) |
@@ -55,7 +55,11 @@ This table summarizes **every technique** that makes it possible to distill a 20
 | **Memory — Offload** | Text Encoder CPU Offload | Moves ~14 GB text encoder to CPU after encoding → frees GPU for DiT | Text conditioning | [VRAM Analysis](#why-the-student-fits-in-vram-despite-having-gradients) |
 | **Architecture** | Serial Teacher→Student | Teacher and student never coexist in VRAM — teacher runs first, caches 8 latents, then exits | Training pipeline | [Serial Execution](#teacher-and-student-serial-not-concurrent) |
 
-> Without these memory optimization techniques combined, naive training of the same 20B model would require significantly more VRAM than a single GPU provides. See the [VRAM analysis](#why-the-student-fits-in-vram-despite-having-gradients) for how each technique contributes to fitting everything into a single GPU.
+### VRAM Budget (Training Peak)
+
+Training peak within single-GPU capacity. See [VRAM analysis](#why-the-student-fits-in-vram-despite-having-gradients) for per-component breakdown.
+
+> Without these memory optimization techniques combined, naive training of the same 20B model would require significantly more VRAM than a single GPU provides.
 
 **What "single VM" means in practice**:
 
@@ -71,6 +75,48 @@ For practitioners looking to reproduce or adapt this work, the recommended start
 ---
 
 ## How It Works
+
+### Core Terminology: ODE, SDE, Velocity, Flow Matching
+
+Before diving into distillation, these four concepts are essential.
+
+#### ODE vs SDE — Two Ways to Model Denoising
+
+| | ODE (Ordinary Differential Equation) | SDE (Stochastic Differential Equation) |
+|---|---|---|
+| **In plain English** | **Deterministic navigation** — direction and step size fully determined | **Navigation + random jitter** — deterministic direction plus random noise |
+| **Analogy** | Bullet train: fixed rails, same start = same end | Sailboat: right heading but wind blows, each trip slightly different |
+| **Formula** | dz/dt = v(z, t) | dz = v(z,t)dt + g(t)dW |
+| **Same start, run twice** | **Identical** | **Slightly different** |
+| **Representatives** | DDIM, **Flow Matching** | DDPM |
+| **Distillation friendliness** | **High** — deterministic path can be precisely imitated | Low — path varies each time |
+
+> All distillation discussed below uses the **ODE (Flow Matching)** framework.
+
+#### Velocity — The "Speed" in Latent Space
+
+```
+dz/dt = v_θ(z_t, t)
+```
+
+- z_t = latent state at time t (**position**)
+- v_θ = model-predicted velocity (**speed** = derivative of position w.r.t. time)
+
+Velocity is the **tangent direction + rate** of the latent trajectory. Latent differences z_{t-1} - z_t mix in scheduler step-size scaling and differ from velocity by an order of magnitude — **cannot substitute latent differences for velocity**.
+
+#### Flow Matching — Learning the Shortest Path
+
+**Flow Matching** directly trains a velocity field: learn the rate field of the shortest path from noise to data. Compared to "predict noise → subtract", "predict velocity → follow" is more direct and naturally distillation-friendly.
+
+| Method | Model Predicts | Distillation Approach |
+|------|:---:|---------|
+| **DDPM (SDE)** | noise epsilon | Difficult: path varies each time |
+| **DDIM (ODE)** | noise epsilon | Possible but indirect |
+| **Flow Matching (ODE)** | **velocity v** | **Naturally friendly: velocity MSE directly usable as distillation loss** |
+
+> **This is why distillation loss is built in velocity space, and diagnosis must also be in velocity space.**
+
+---
 
 ### The Denoising Trajectory
 
@@ -107,12 +153,21 @@ The field has evolved through three generations, each trading storage/complexity
 | Generation | Method | Supervision Signal | Teacher on GPU | Step Compression | Representative |
 |:----------:|--------|:-----------------:|:--------------:|:----------------:|---------------|
 | **1st — Online** | Teacher + student co-train | **Final output only** (clean latent/image) | ✅ Full time | 40→15 (~2.7×) | Progressive Distillation |
-| **2nd — Offline (Trajectory)** | Teacher runs once, stores trajectories | **Every intermediate latent** at K timesteps | Pre-compute only | 40→8 (5×) | TwinFlow |
+| **2nd — Offline (Trajectory)** | Teacher runs once, stores trajectories | **K intermediate checkpoints** (stepwise alignment) | Pre-compute only | 40→8 (5×) | TwinFlow |
 | **3rd — Teacher-free** | No separate teacher | Math interpolation (no teacher output) | ❌ Never | Variable | IMM, Consistency Models |
 
 > **1st gen — what the teacher provides**: runs N denoising steps → produces the **final clean latent** → student is trained to match that endpoint in N/2 steps. No intermediate states are stored or used.
 
-**Why the 2nd generation achieves better compression**: by supervising *every intermediate latent checkpoint* (not just the final output), the student gets much denser guidance — it must match the teacher's path, not just its destination. This is what enables the jump from 2.7× to 6×.
+**Why the 2nd generation achieves better compression**: by supervising every intermediate checkpoint (not just the final output), the student gets much denser guidance.
+
+> **⚠️ Key distinction: 2nd-gen trajectory distillation has two variants**
+>
+> | Variant | Supervision Signal | Loss Domain | Representative |
+> |---------|-------------------|------------|---------------|
+> | **Latent Matching** | Teacher's latent states z_t at K timesteps | `MSE(z_student, z_teacher)` — in **latent (position) space** | TwinFlow |
+> | **Velocity Matching** | Teacher's velocity v_t at each step | `MSE(v_student, v_teacher)` — in **velocity (vector field) space** | DiffSynth Trajectory Imitation |
+>
+> The key difference: Latent Matching requires "reaching the same position", Velocity Matching requires "predicting the same direction". **When loss is built in velocity space, diagnosis must also be in velocity space (see Three-Layer Framework below).**
 
 ---
 
@@ -172,7 +227,11 @@ for step in range(training_steps):
         z_student = step(z, v, large_dt)     # large jump: 5 teacher-steps
         z_teacher = traj[t_teacher]          # teacher's ground truth
 
-        loss += perception_loss(z_student, z_teacher)  # match each checkpoint
+        loss += perception_loss(z_student, z_teacher)  # Approach A: Latent Matching
+        # Approach B: Velocity Matching (more common in production)
+        # v_teacher = teacher(z, t_now, condition)
+        # v_student = model(z, t_now, condition)
+        # loss += MSE(v_student, v_teacher) + LPIPS(decode(z_student), decode(z_teacher))
         z = z_student                        # continue from student's output
         loss.backward()                      # backward immediately — avoids accumulating 8-step graph
         loss = 0
@@ -200,18 +259,29 @@ The following diagrams illustrate the core idea — how a student model with onl
 - **Top row (blue, Teacher)**: Full 40-step denoising sequence, σ_max → Clean
 - **Bottom row (orange, Student)**: 8-step denoising, each step spanning 5 teacher-steps
 - **Purple dashed arrows**: Alignment between teacher and student steps
-- **Distillation objective**: LoRA is trained so the student's latent at each alignment point is as close as possible to the teacher's at the corresponding position (via IMM moment matching loss)
+- **Distillation objective**: LoRA is trained so the student's latent or velocity at each alignment point matches the teacher's
 
-#### The IMM Loss: Moment Matching
+#### Loss Functions: Latent Matching vs Velocity Matching
 
-The Improved Multistep Matching (IMM) loss matches the *distribution* of student latents to teacher latents at each checkpoint, not just the point estimate:
+Trajectory distillation loss functions fall into two camps:
 
+**Approach A — Latent Matching (position alignment)**:
 ```
-IMM loss = match μ (mean) + match σ² (variance)
-         ≈ ensures student trajectory distribution ≈ teacher distribution
+L = MSE(z_student_t, z_teacher_t) + LPIPS(decode(z_student), decode(z_teacher))
 ```
+Matches **latent states** (positions). Variants include IMM (moment matching: mu+sigma distribution).
 
-This is more robust than pure MSE, which can cause "mode-averaging" artifacts. LPIPS (perceptual) loss is also commonly used in practice.
+**Approach B — Velocity Matching (vector field alignment)**:
+```
+L = MSE(v_student_t, v_teacher_t) + LPIPS(decode(z_student), decode(z_teacher))
+```
+Matches **velocity** (model-predicted denoising direction).
+
+**Key difference**:
+- Latent Matching requires "reaching the same position" — latent-space diagnosis is valid
+- Velocity Matching requires "predicting the same direction" — **diagnosis must be in velocity space**
+
+> **In practice, Velocity Matching is more common**: flow matching models have DiT outputs that directly predict velocity (noise_pred). Velocity MSE can be computed directly from model outputs.
 
 ---
 
@@ -391,37 +461,85 @@ Training converged steadily across all epochs with no overfitting. The loss decr
 
 ---
 
-### Trajectory Analysis: What Actually Happens in Latent Space
+### Distillation Quality Analysis: Three-Layer Framework
+
+> **Core methodology: Evaluate distillation in pixel space, diagnose in velocity space, idempotency check across all three layers.**
+>
+> The diagnosis domain must match the loss function domain. If loss is built in velocity space, diagnosis must also be in velocity space. "Alignment" observed in latent space can be misleading — endpoints being close does not mean the path is correct.
+
+```
+┌──────────────────────────────────────────────────┐
+│  Layer 3: Pixel Space (Evaluation)               │
+│  SSIM / FID / LPIPS / Visual Inspection          │
+│  Answers: How good is the final output?          │
+├──────────────────────────────────────────────────┤
+│  Layer 2: Velocity Space (Diagnosis)             │
+│  PCA trajectory / L2 norm / Teacher-Student      │
+│  Answers: Where did velocity learning fail?      │
+│  ✅ Matches velocity loss domain                 │
+├──────────────────────────────────────────────────┤
+│  Layer 1: Latent Space (Reference)               │
+│  Latent Norm / Cosine / Heatmaps                 │
+│  Answers: Did endpoints converge? (necessary,    │
+│           not sufficient)                        │
+│  ⚠️ Shows "did it arrive" not "how it got there"│
+└──────────────────────────────────────────────────┘
+```
+
+**Idempotency check**: Findings across all three layers must be consistent. When velocity diagnosis reveals a problem, pixel evaluation should show corresponding degradation.
+
+#### Layer 1: Latent Space Analysis (Endpoint Reference)
+
+> **⚠️ Note**: Latent metrics reflect **endpoint convergence** — necessary but not sufficient for quality diagnosis. Same endpoint does not mean same path.
 
 This figure shows GPU-measured latent space metrics — Teacher (40 steps) vs Student (8 steps):
 
 ![Trajectory analysis](images/trajectory_40vs8_analysis.png)
 
 Four subplots:
+1. **Latent Norm decay**: Teacher's smooth curve vs Student's 8-point jumps
+2. **MSE**: Per-step latent difference. Lower = better alignment
+3. **Cosine Similarity**: Final cosine similarity > 0.98
+4. **Channel Statistics**: Both models evolve similarly
 
-1. **Latent Norm decay**: Teacher's 40-step smooth curve vs Student's 8-point jump curve. The student's trajectory closely tracks the teacher's at each of the 8 mapped timesteps.
+> These metrics confirm good endpoint convergence but cannot diagnose velocity field learning quality.
 
-2. **MSE (Mean Squared Error)**: Per-step latent difference between teacher and student. Lower = better alignment.
+#### Layer 2: Velocity Space Diagnosis (Matches Loss Domain)
 
-3. **Cosine Similarity**: Direction agreement between student and teacher latents at each step. **Final cosine similarity = 0.984** — effectively the same direction.
+> When the loss function is built in velocity space (`MSE(v_student, v_teacher)`), diagnosis must also be in velocity space. Velocity capture: monkey-patch `scheduler.step` to intercept `noise_pred` (= velocity after CFG rescaling). Latent differences (`z_{t-1} - z_t`) mix scheduler sigma scaling and differ from true velocity by an order of magnitude.
 
-4. **Channel Statistics**: Per-channel mean and std trends — both models evolve similarly.
+**Method**:
+1. Monkey-patch `scheduler.step` to intercept `noise_pred` (= velocity)
+2. PCA-reduce Teacher's velocity vectors to 2D
+3. Project Student's velocity vectors onto Teacher's PCA basis
+4. Plot overlay comparison
 
-**Key latent metrics**:
-- Final latent MSE: Very low
-- Final cosine similarity: Very high (>0.98)
+**Core finding — the "Missing Turn" phenomenon**:
+1. **Student hugs Teacher's right arc** — velocity directions match, LoRA learned the velocity field direction
+2. **Teacher's unique left arc** — corresponds to mid-timesteps, completely skipped by Student
+3. **CFG does not affect trajectory shape** — changes magnitude not direction
+4. **Teacher L2 norm range >> Student** — Student lacks mid-timestep low-norm phase
 
-#### Latent Space Heatmaps
+**Velocity Overlay — Teacher (blue) vs Student (red/yellow), projected onto Teacher PCA basis:**
 
-Per-channel latent tensor heatmaps at each denoising step, showing the spatial structure evolution:
+![E12d Velocity Overlay](images/E12d_velocity_overlay_comparison.png)
 
-![Latent heatmaps](images/latent_heatmaps_40vs8.png)
+> Student 8-step hugs Teacher's right arc (direction matched), but Teacher's unique left arc (mid-timestep turning region) is entirely skipped.
 
-Each column represents a key denoising step. Top row: Teacher (40-step). Bottom row: Student (8-step). The color maps show per-channel mean values of the latent tensor — both models converge to nearly identical spatial patterns by the final step.
+**Joint PCA: Teacher + Student CFG=2 in same coordinate system:**
 
-#### VAE-Decoded Intermediate Steps
+![Joint PCA CFG=2](images/E12d_velocity_joint_pca_cfg2.png)
 
-The VAE-decoded intermediate steps are shown in the [Denoising Trajectory section](#the-denoising-trajectory) above — Teacher (40 steps) and Student (8 steps) start from the same random noise and converge to visually identical final images.
+**Conclusion**: 8-step distillation learns the velocity direction but timestep sampling is too sparse — the critical mid-timestep turning region is skipped. This is **invisible to latent-space metrics**.
+
+**Improvement directions**:
+- Multi-NFE distillation (4+8+16 steps) → cover more mid-timesteps
+- Dense sampling near t=0 → terminal timesteps are critical for details
+- Adaptive timestep schedule → allocate more steps where velocity changes rapidly
+
+#### Layer 3: Pixel Space Evaluation (Ultimate Standard)
+
+Pixel evaluation is the final arbiter — regardless of loss domain, the goal is good images. Idempotency check: velocity diagnosis predicts detail degradation → SSIM < 1.0 confirms it.
 
 ---
 

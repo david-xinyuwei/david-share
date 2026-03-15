@@ -171,15 +171,47 @@ Example (4 significant digits):
 
 Our per-layer measurement confirmed: single-layer BF16 arithmetic diff = max **0.3125** across 480 layers.
 
-The accumulation scales with forward passes:
+**Impact of inference steps and CFG (opposite directions)**:
 
-| | CFG=1 | CFG=4 |
-|--|:-:|:-:|
-| Forward passes (16 steps) | 16 | 32 |
-| BF16 roundings (set_adapters) | 16 | 32 |
-| **SSIM gap** | **2.2%** | **5.1%** |
+| Factor | When increased | Reason |
+|--------|:---:|--------|
+| **Inference steps** ↑ | **Gap decreases** | ODE solver more precise → both paths converge toward correct solution |
+| **CFG** ↑ | **Gap increases** | CFG multiplier amplifies BF16 differences |
 
-More forward passes → more rounding → larger gap. This confirms BF16 precision as the root cause.
+Step count impact (CFG=4 fixed):
+
+| Steps | fuse↔adapt SSIM | Gap |
+|:-----:|:---------:|:-------:|
+| 1 | 0.824 | 17.6% |
+| 8 | 0.906 | 9.4% |
+| 40 | 0.962 | 3.8% |
+| 200 | 0.991 | 0.9% |
+
+CFG impact (8 steps fixed):
+
+| CFG | fuse↔adapt SSIM | Gap |
+|:---:|:---------:|:-------:|
+| 1 | 0.944 | 5.6% |
+| 4 | 0.906 | 9.4% |
+| 8 | 0.861 | 13.9% |
+
+> Distilled models (8~16 steps + CFG=4) sit in the zone where the gap is most significant (5~14%).
+
+Error composition (8 steps, CFG=4): merge-time BF16 rounding ~27% + inference path accumulation ~73%.
+
+This confirms BF16 precision as the root cause.
+
+**Steps vs SSIM visualization**:
+
+![E13d Steps vs SSIM](images/E13d_steps_vs_ssim.png)
+
+**CFG impact + cross-validation visualization**:
+
+![E13f CFG and Cross Comparison](images/E13f_cfg_and_cross_comparison.png)
+
+**Error source decomposition + scenario comparison**:
+
+![Error Source and Scenario](images/error_source_and_scenario_comparison.png)
 
 **Layer 3: PEFT Injection — Not the Root Cause**
 
@@ -332,7 +364,73 @@ pipe.fuse_lora(lora_scale=1.0, adapter_names=["my_lora"])
 | LoRA layers (both methods) | 480 | 480 |
 | set_adapters LoRA effectiveness | 103% of fuse | same |
 
-**Root cause**: BF16 arithmetic path difference. `fuse_lora` rounds once (at merge time), `set_adapters` rounds every step (×16). Higher CFG = more forward passes = more rounding = larger gap.
+**Root cause**: BF16 arithmetic path difference. The gap is affected by two opposing factors: more steps → ODE more precise → gap decreases; higher CFG → amplifies BF16 differences → gap increases. Error composition: ~27% from merge-time BF16 rounding + ~73% from inference path accumulation.
+
+## Extension: LLM Scenarios
+
+> All experiments above are for Diffusion models. LLM (chat/text generation) behaves fundamentally differently.
+
+### Diffusion vs LLM: Core Difference
+
+| | Diffusion | LLM |
+|---|---|---|
+| **Output type** | Continuous (latent → pixels) | Discrete (logits → argmax token) |
+| **More steps → better precision?** | **Yes** — ODE solver more precise | **No** — each token is independent |
+| **BF16 difference protection** | **None** — any tiny diff shows in pixels | **Possible** — argmax may absorb small logit diffs |
+
+### Experimental Data
+
+**Model size impact** (200 tokens, BF16, self-built LoRA rank=32):
+
+| Model | Greedy match | Diverge at | Sampling(t=0.7) match |
+|:-----:|:-----------:|:----------:|:--------------------:|
+| **0.5B** | **100%** ✅ | None | 18% (diverge at token 36) |
+| **1.5B** | **23%** ❌ | token 26 | 100% (coincidence) |
+| **7B** | **16%** ❌ | token 33 | 24% |
+
+![E14 LLM Model Size Comparison](images/E14_llm_model_size_comparison.png)
+
+### Analysis
+
+#### Why more Diffusion steps → smaller gap, but more LLM tokens → larger gap?
+
+**Diffusion**: More steps = more precise ODE → both paths converge toward correct solution → gap shrinks. adapter accumulates BF16 rounding each step, but ODE precision improvement dominates.
+
+**LLM**: 200 tokens is not "more accurate" than 10 — no "correct solution" for both paths to converge toward. BF16 differences have no convergence mechanism, so once diverged, outputs become completely different.
+
+#### Divergence mechanism in detail
+
+**Greedy divergence condition**: BF16 two-path logit difference only needs to be larger than the gap between top-1 and top-2 tokens → argmax ranking flips → different token selected.
+
+```
+Before divergence (token 35):  fuse → "data"(8.52)  adapter → "data"(8.51)  → same ✅
+Divergence point (token 36):   fuse → "and"(7.203)  adapter → "to"(7.202)   → different!
+```
+
+**Larger models diverge more easily**: More layers + larger hidden dim → BF16 path difference propagates through more layers → logit offset covers more top-1/top-2 gaps.
+
+**Butterfly effect after divergence**: Once one token differs, subsequent context is completely different. The divergence isn't from BF16 continuing to drift — it's because the context itself has changed.
+
+#### Sampling (temperature>0) additional impact
+
+Temperature dilutes top-1's advantage → BF16 perturbation more likely to flip sampling → earlier divergence. 0.5B measured: Greedy 200 tokens 100% identical, Sampling(t=0.7) diverges at token 36, only 18% match.
+
+#### Does "divergence" equal "quality degradation"?
+
+**Diffusion: Yes.** Pixel differences measurable via SSIM, adapter version objectively worse.
+
+**LLM: No.** Both texts after divergence are valid answers. "data and patterns" and "data to make predictions" are both correct. No "fuse is more accurate" claim applies.
+
+### Practical Recommendations
+
+| Scenario | temperature | Recommendation | Reason |
+|----------|:-----------:|:--------------:|--------|
+| **Code generation** (determinism required) | 0 | **fuse** | Large model greedy also diverges, logic may differ |
+| **Translation/QA** (standard answers) | 0~0.3 | Either | Minor wording variation |
+| **Casual chat/creative writing** | 0.7~1.0 | adapter acceptable | Content diverges but both valid |
+| **Multi-LoRA hot-switching** | Any | **adapter** | Flexibility priority |
+
+**Core principle**: Need **reproducible deterministic output** (CI tests, compliance) → fuse. Accept "slightly different each time" → adapter's flexibility is more valuable.
 
 ## Author
 
