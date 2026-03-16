@@ -85,23 +85,23 @@ training_arguments = TrainingArguments(
 
 对于批量大小为 1 的情况：
 
-![images](images/ext_01.png)
+<img src="images/ext_01.png" width="600">
 
 对于批量大小为 2 的情况：
 
-![images](images/ext_02.png)
+<img src="images/ext_02.png" width="600">
 
 对于批量大小为 4 的情况：
 
-![images](images/ext_03.png)
+<img src="images/ext_03.png" width="600">
 
 对于批量大小为 8 的情况：
 
-![images](images/ext_04.png)
+<img src="images/ext_04.png" width="600">
 
 比较：
 
-![images](images/ext_05.png)
+<img src="images/ext_05.png" width="600">
 
 
 
@@ -210,7 +210,7 @@ print(input)
 
 假设在使用openassistant-guanaco训练TinyLlama模型时，若步骤总数为9,846，批量大小定为8，则一个epoch将包含大约1,231个训练步骤。如果仅在这个数据集上训练一个epoch，模型通常能够学到有效信息。然而，如果继续训练更多的epoch，就可能导致模型过度拟合，也就是它对训练数据过于敏感，可能影响其在新数据上的表现。如果观察到模型在两个epoch后的训练情况，就能发现这一过度拟合的迹象。
 
-![images](images/ext_06.png)
+<img src="images/ext_06.png" width="600">
 
 
 即使没有观察验证损失，也可以注意到训练损失下降得异常迅速。如在下一节中所述，通过调整学习率和采用适当的预热比例，可以有效地解决这一问题。这种调整有助于模型学习得更为平稳，避免过拟合，同时保证模型在未知数据上的泛化能力。
@@ -374,7 +374,7 @@ AdaFactor是为了减少内存使用和提升训练效率而设计的另一优�
 
 In the application of large language models (LLMs), fine-tuning is a critical step. Fine-tuning allows the model to better adapt to specific tasks or datasets. However, with the development of LLMs, two main versions have emerged: base LLMs and instruct LLMs. This article will explore the differences between these two versions and discuss which version should be chosen for fine-tuning in practical applications.
 
-![images](images/ext_07.png)
+<img src="images/ext_07.png" width="600">
 
 ## 什么是 Base LLM 和 Instruct LLM？
 
@@ -589,7 +589,7 @@ trainer.train()
 
 **RLHF（Reinforcement Learning from Human Feedback，基于人类反馈的强化学习）：**
 
-![images](images/ext_08.png)
+<img src="images/ext_08.png" width="600">
 
 - **组成**：RLHF = SFT + PPO + 人类反馈
 - **过程**：在 SFT 的基础上，使用 PPO 进行强化学习，奖励信号来自**人类反馈**。
@@ -603,7 +603,7 @@ trainer.train()
 
 **RLAIF（Reinforcement Learning from AI Feedback，基于 AI 反馈的强化学习）：**
 
-![images](images/ext_09.png)
+<img src="images/ext_09.png" width="600">
 
 - **组成**：RLAIF = SFT + PPO + AI 反馈
 - **过程**：在 SFT 的基础上，使用 PPO 进行强化学习，奖励信号来自**AI 模型的反馈**。
@@ -711,7 +711,7 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
 
  
 
-![images](images/ext_10.png)
+<img src="images/ext_10.png" width="600">
 
 #### **1. 关键组成部分**
 
@@ -1145,23 +1145,23 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
 
 训练数据范例如下，训练中，并不把答案直接放入到训练集。
 
-![images](images/3.png)
+<img src="images/3.png" width="600">
 
 训练过程中，模型可能包含或者不包含正确答案：
 
-![images](images/4.png)
+<img src="images/4.png" width="600">
 
 创建训练集和校验集的jsonal文件：
 
-![images](images/5.png)
+<img src="images/5.png" width="600">
 
-![images](images/6.png)
+<img src="images/6.png" width="600">
 
 构建奖励函数：
 
-![images](images/7.png)
+<img src="images/7.png" width="600">
 
-![images](images/8.png)
+<img src="images/8.png" width="600">
 
 这个JSON文件（grader.json）的内容定义了一个评分系统的配置。具体来说，这个配置文件定义了如何对某个对象进行评分。让我们逐行解析这个文件的内容：
 
@@ -1191,21 +1191,21 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
 
 设置训练超参：
 
-![images](images/9.png)
+<img src="images/9.png" width="600">
 
 训练结果：
 
-![images](images/10.png)
+<img src="images/10.png" width="600">
 
-![images](images/11.png)
+<img src="images/11.png" width="600">
 
-![images](images/12.png)
+<img src="images/12.png" width="600">
 
 ### 字节的ReFT
 
 先看ReFT论文中的流程图：
 
-![images](images/ext_11.png)
+<img src="images/ext_11.png" width="600">
 
 如上图所示，ReFT，该框架结合了监督微调（Supervised Fine-Tuning, SFT）和强化微调（Reinforced Fine-Tuning, ReFT）的方法。以下是对图中各部分的详细解释：
 
@@ -1233,7 +1233,7 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
 
 先看Thought Preference Optimization（TPO）的流程：
 
-![images](images/ext_12.png)
+<img src="images/ext_12.png" width="600">
 
 - TPO 方法由三个主要部分组成：
   1. SFT（有监督微调）：提供了模型的基础。
@@ -1582,7 +1582,7 @@ QLoRA 在此基础上进一步优化——将大型预训练模型先量化成�
 
 4. **权重合并 (Merged Weights)**：在推理阶段可以将 W 与 B A 合并成一个新的权重矩阵 W_merged 进行计算。
 
-![images](images/qlora_perf_1.png)
+<img src="images/qlora_perf_1.png" width="600">
 
 ### 低秩矩阵表示的数学示例
 
@@ -1616,7 +1616,7 @@ BA = [[0.2, 0.1, 0.4, 0.3],
 
 ### Adapter 合并策略与量化对精度的影响
 
-![images](images/qlora_perf_2.png)
+<img src="images/qlora_perf_2.png" width="600">
 
 以下是四种不同的 Adapter 部署策略及其效果对比：
 
@@ -1637,11 +1637,11 @@ BA = [[0.2, 0.1, 0.4, 0.3],
 
 GaLore（Gradient Low-Rank）支持全量微调（Full Fine-tuning），即调整模型所有参数。与 LoRA 等参数效率微调（PEFT）不同，GaLore 通过创新的梯度低秩投影技术，在内存受限条件下也能进行大型模型的全量微调。
 
-![images](images/ext_13.png)
+<img src="images/ext_13.png" width="600">
 
 GaLore 性能对比：
 
-![images](images/ext_14.png)
+<img src="images/ext_14.png" width="600">
 
 GaLore 引入额外超参数：Rank r、Scale factor α、Subspace change frequency T。
 
@@ -1659,13 +1659,13 @@ GaLore 引入额外超参数：Rank r、Scale factor α、Subspace change freque
 
 **实验一**：BS=128, lr=1e-5, optim=galore_adamw_8bit_layerwise, rank=512
 
-![images](images/ext_15.png)
+<img src="images/ext_15.png" width="600">
 
-![images](images/ext_16.png)
+<img src="images/ext_16.png" width="600">
 
-![images](images/ext_17.png)
+<img src="images/ext_17.png" width="600">
 
-![images](images/ext_18.png)
+<img src="images/ext_18.png" width="600">
 
 从损失函数看，训练效果不理想。
 
@@ -1673,11 +1673,11 @@ GaLore 引入额外超参数：Rank r、Scale factor α、Subspace change freque
 
 将学习率增加一倍，将 BS 减少一半：
 
-![images](images/ext_19.png)
+<img src="images/ext_19.png" width="600">
 
-![images](images/ext_20.png)
+<img src="images/ext_20.png" width="600">
 
-![images](images/ext_21.png)
+<img src="images/ext_21.png" width="600">
 
 效果好些，但依然不理想。
 
@@ -1685,27 +1685,27 @@ GaLore 引入额外超参数：Rank r、Scale factor α、Subspace change freque
 
 换用 galore_adamw_8bit（非 layerwise）优化器后，GPU 显存利用率更高：
 
-![images](images/ext_22.png)
+<img src="images/ext_22.png" width="600">
 
-![images](images/ext_23.png)
+<img src="images/ext_23.png" width="600">
 
 训练效果比上次好太多了，结果理想。
 
-![images](images/ext_24.png)
+<img src="images/ext_24.png" width="600">
 
 **实验四**：BS=128, lr=1e-5, optim=galore_adamw_8bit, rank=1024
 
 保持 BS=128 和 galore_adamw_8bit 优化器，将 rank 从 512 提升到 1024：
 
-![images](images/ext_25.png)
+<img src="images/ext_25.png" width="600">
 
 训练中，GPU 显存利用率飙升到87GB，但没有 OOM，充分体现大显存的好处：
 
-![images](images/ext_26.png)
+<img src="images/ext_26.png" width="600">
 
 查看训练结果，比实验三更理想，损失函数在 step50 直接降到 0.825400，且在 Step100 时降低到 0.71：
 
-![images](images/ext_27.png)
+<img src="images/ext_27.png" width="600">
 
 上图展示随着训练过程，损失函数正常下降，但 Validation Loss 上升，说明出现过拟合。
 
@@ -1713,11 +1713,11 @@ GaLore 引入额外超参数：Rank r、Scale factor α、Subspace change freque
 
 针对实验四的过拟合，降低学习率，增加 weight_decay 和 warmup_ratio：
 
-![images](images/ext_28.png)
+<img src="images/ext_28.png" width="600">
 
 查看训练效果，过拟合问题解决：
 
-![images](images/ext_29.png)
+<img src="images/ext_29.png" width="600">
 
 ### GaLore 实验总结
 
@@ -1747,7 +1747,7 @@ GaLore 引入额外超参数：Rank r、Scale factor α、Subspace change freque
 
 ***Refer to ：Unpacking DPO and PPO: Disentangling Best Practices for Learning from Preference Feedback***
 
-![images](images/6.png)
+<img src="images/6.png" width="600">
 
 这篇论文再次证实了 PPO 显著优于 DPO。值得注意的是，最初的 DPO 论文声称在结合强化学习与人类反馈（RLHF）的情况下，DPO 比 PPO 更好。然而，经过大量的实际测试、社区反馈以及后续研究，很明显事实并非如此。
 
@@ -1759,7 +1759,7 @@ DPO 的运行成本显著低于 PPO，因为它不需要奖励模型。其更简
 
  PPO 训练架构中，四个主要模型（Policy Model、Reference Model、Reward Model、Value Model）各自承担着不同的职责，简要说明如下：
 
-![images](images/7.png)
+<img src="images/7.png" width="600">
 
 1. Policy Model（策略模型）
    • 这是我们真正想要训练和更新的"生成模型"或"策略"，它给定输入（q）后，会输出某种动作（如下一步的文本 tokens）。
@@ -1886,7 +1886,7 @@ PPO 与 DPO 都基于偏好数据进行模型训练，但过程并不相同：
 • DPO：直接在偏好数据（prompt, chosen response, rejected response）上进行离线优化。
 • PPO：先训练一个"奖励模型（reward model）"，再用该奖励模型在线给策略模型的输出打分，并通过强化学习更新策略。
 
-![images](images/1.png)
+<img src="images/1.png" width="600">
 
 因此，我们将这类偏好学习过程拆解为四部分：
 1）偏好数据
@@ -1900,7 +1900,7 @@ PPO 与 DPO 都基于偏好数据进行模型训练，但过程并不相同：
 
 本节先简要介绍 PPO 与 DPO 的概念与原理，然后描述我们在实验与评测中的具体做法。呈现了 PPO 与 DPO 间的结构化对比。  
 
-![images](images/2.png)
+<img src="images/2.png" width="600">
 
 **PPO 与 DPO（PPO and DPO）**
 (1) PPO
@@ -1937,7 +1937,7 @@ PPO 与 DPO 都基于偏好数据进行模型训练，但过程并不相同：
 • 部分 Arena 数据在安全性上较差。
 
 **学习算法：DPO 与 PPO**
-![images](images/3.png)
+<img src="images/3.png" width="600">
 
 在偏好数据相同、模型规模相同（13B）的条件下：
 • PPO 整体略优于 DPO，优势约 0.7 个点。
@@ -1951,7 +1951,7 @@ PPO 与 DPO 都基于偏好数据进行模型训练，但过程并不相同：
 
 **策略训练提示（Policy Training Prompts）**
 
-![images](images/4.png)
+<img src="images/4.png" width="600">
 
 • 针对性提示可大幅提升单一领域（如数学：46% → 62%）。
 • 但混合提示对多任务综合性能改善有限。
@@ -1961,7 +1961,7 @@ PPO 与 DPO 都基于偏好数据进行模型训练，但过程并不相同：
 
 综合上述分析，推荐的最佳实践：
 
-![images](images/5.png)
+<img src="images/5.png" width="600">
 
 - 偏好数据：使用高质量的合成偏好数据（如 UltraFeedback）。
 - 学习算法：在大多数场景下，PPO 的性能普遍优于 DPO。
@@ -2023,7 +2023,7 @@ RLAIF 试图通过使用另一个大型语言模型（LLM）生成反馈来解�
 1. **参考模型（Reference Model）**：使用 SFT 在指令数据集上精调得到的模型。
 2. **基础模型（Base Model）**：我们希望通过 DPO 训练的模型。
 
-![images](images/ext_30.png)
+<img src="images/ext_30.png" width="600">
 
 **参考模型与基础模型的区别：**
 
@@ -2115,9 +2115,9 @@ dataset_test_dpo = load_dataset("HuggingFaceH4/ultrafeedback_binarized", split="
 
 两个数据集示意：
 
-![images](images/ext_31.png)
+<img src="images/ext_31.png" width="600">
 
-![images](images/ext_32.png)
+<img src="images/ext_32.png" width="600">
 
 **模型加载与适配器配置**
 
@@ -2144,43 +2144,43 @@ model.load_adapter("kaitchup/Mistral-7B-v0.1-SFT-ultrachat-v2", adapter_name="re
 
 **第一步：SFT 训练参考模型**（使用 HuggingFaceH4/ultrachat_200k）
 
-![images](images/ext_33.png)
+<img src="images/ext_33.png" width="600">
 
-![images](images/ext_34.png)
+<img src="images/ext_34.png" width="600">
 
-![images](images/ext_35.png)
+<img src="images/ext_35.png" width="600">
 
 微调过程中的资源消耗：
 
-![images](images/ext_36.png)
+<img src="images/ext_36.png" width="600">
 
 **第二步：DPO 训练基础模型**（使用 SFT 后的模型作为参考模型）
 
-![images](images/ext_37.png)
+<img src="images/ext_37.png" width="600">
 
-![images](images/ext_38.png)
+<img src="images/ext_38.png" width="600">
 
-![images](images/ext_39.png)
+<img src="images/ext_39.png" width="600">
 
-![images](images/ext_40.png)
+<img src="images/ext_40.png" width="600">
 
 **DPO 训练过程中的资源开销**
 
 bs=4:
 
-![images](images/ext_41.png)
+<img src="images/ext_41.png" width="600">
 
 bs=16：
 
-![images](images/ext_42.png)
+<img src="images/ext_42.png" width="600">
 
 bs=32：
 
-![images](images/ext_43.png)
+<img src="images/ext_43.png" width="600">
 
-![images](images/ext_44.png)
+<img src="images/ext_44.png" width="600">
 
-![images](images/ext_45.png)
+<img src="images/ext_45.png" width="600">
 
 **DPO 训练指标解读**
 
@@ -2237,7 +2237,7 @@ dataset = load_dataset("UltraFeedback-prompt-chosen-rejected")
 
 查看数据集的第一条，在数据集中，`chosen` 和 `rejected` 标签可以用于训练模型理解什么是好的回复，什么是不好的回复，从而优化模型的输出质量。
 
-![images](images/1.png)
+<img src="images/1.png" width="600">
 
 ```
 bnb_config = BitsAndBytesConfig(
@@ -2305,7 +2305,7 @@ trainer.train()
 
 查看训练结果：
 
-![images](images/2.png)
+<img src="images/2.png" width="600">
 
 ## 对DPO训练结果的解释
 
@@ -2624,7 +2624,7 @@ To address the above challenges, we could use PyTorch's **Fully Sharded Data Par
 
 In my repo, I used both DeepSpeed ZeRO-3 technology and FSDP technology, and the training results were the same. I will showcase the scripts and configuration files for both training methods. 
 
- ![images](images/ext_46.png)
+ <img src="images/ext_46.png" width="600">
 
 In the following DeepSpeed and Accelerate FSDP training, I use an adapter from HF:
 
@@ -2881,7 +2881,7 @@ Launch training
  20%|████████████████████████████▊   
 ```
 
-![images](images/1.png)
+<img src="images/1.png" width="600">
 
 ## Accelerate FSDP training
 
@@ -3166,11 +3166,11 @@ The training data includes:
 
   Sometimes in the data, the **"prompt"** and **"question"** may be identical, which can serve as the starting point for the conversation in certain training settings.
 
-  ![images](images/ext_47.png)
+  <img src="images/ext_47.png" width="600">
 
   Training results are as following:
 
-  ![images](images/ext_48.png)
+  <img src="images/ext_48.png" width="600">
 
 Next, I will combine the training data to roughly introduce the DPO training process and results.
 

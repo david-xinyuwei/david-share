@@ -82,23 +82,23 @@ First we show the learning curves, then discuss the results.
 
 For batch size 1:
 
-![images](images/ext_01.png)
+<img src="images/ext_01.png" width="600">
 
 For batch size 2:
 
-![images](images/ext_02.png)
+<img src="images/ext_02.png" width="600">
 
 For batch size 4:
 
-![images](images/ext_03.png)
+<img src="images/ext_03.png" width="600">
 
 For batch size 8:
 
-![images](images/ext_04.png)
+<img src="images/ext_04.png" width="600">
 
 Comparison:
 
-![images](images/ext_05.png)
+<img src="images/ext_05.png" width="600">
 
 
 
@@ -207,7 +207,7 @@ When num_train_epochs is set, max_steps is overridden. In this configuration, tr
 
 Suppose we train TinyLlama on openassistant-guanaco, with a total of 9,846 steps and a batch size of 8; one epoch will contain about 1,231 training steps. If we train for just one epoch on this dataset, the model typically learns useful information. However, continuing for more epochs may lead to overfitting—becoming overly tuned to the training data and potentially hurting performance on new data. If we examine training after two epochs on this dataset, we can observe signs of such overfitting.
 
-![images](images/ext_06.png)
+<img src="images/ext_06.png" width="600">
 
 
 Even without observing validation loss, you can notice the training loss decreasing unusually fast. As discussed in the next section, this can be effectively mitigated by adjusting the learning rate and adopting an appropriate warmup ratio. Such adjustments help the model learn more smoothly, avoid overfitting, and maintain generalization to unseen data.
@@ -368,7 +368,7 @@ In such cases, while checkpoints are critical to enable resuming training from i
 
 In the application of large language models (LLMs), fine-tuning is a critical step. Fine-tuning allows the model to better adapt to specific tasks or datasets. However, with the development of LLMs, two main versions have emerged: base LLMs and instruct LLMs. This article will explore the differences between these two versions and discuss which version should be chosen for fine-tuning in practical applications.
 
-![images](images/ext_07.png)
+<img src="images/ext_07.png" width="600">
 
 ## What are Base LLMs and Instruct LLMs?
 
@@ -582,7 +582,7 @@ If we take a simplified view of a complex topic, the relationships between these
 
 **RLHF (Reinforcement Learning from Human Feedback):**
 
-![images](images/ext_08.png)
+<img src="images/ext_08.png" width="600">
 
 - **Components**: RLHF = SFT + PPO + human feedback
 - **Process**: Based on SFT, apply PPO for reinforcement learning, with reward signals derived from **human feedback**.
@@ -596,7 +596,7 @@ If we take a simplified view of a complex topic, the relationships between these
 
 **RLAIF (Reinforcement Learning from AI Feedback):**
 
-![images](images/ext_09.png)
+<img src="images/ext_09.png" width="600">
 
 - **Components**: RLAIF = SFT + PPO + AI feedback
 - **Process**: Based on SFT, apply PPO for reinforcement learning, with reward signals coming from **feedback of an AI model**.
@@ -703,7 +703,7 @@ Reinforcement Learning (RL) is a process in which an agent interacts with an env
 
  
 
-![images](images/ext_10.png)
+<img src="images/ext_10.png" width="600">
 
 #### **1. Key components**
 
@@ -1133,23 +1133,23 @@ We summarize the differences with this table:
 
 Training data examples are as follows; in training, the answers are not directly included in the training set.
 
-![images](images/3.png)
+<img src="images/3.png" width="600">
 
 During training, the model may or may not include the correct answer:
 
-![images](images/4.png)
+<img src="images/4.png" width="600">
 
 Create jsonal files for the training set and validation set:
 
-![images](images/5.png)
+<img src="images/5.png" width="600">
 
-![images](images/6.png)
+<img src="images/6.png" width="600">
 
 Construct the reward function:
 
-![images](images/7.png)
+<img src="images/7.png" width="600">
 
-![images](images/8.png)
+<img src="images/8.png" width="600">
 
 This JSON file (grader.json) defines the configuration of a scoring system. Specifically, this configuration file defines how to score an object. Let’s parse the file line by line:
 
@@ -1179,21 +1179,21 @@ This JSON file (grader.json) defines the configuration of a scoring system. Spec
 
 Set training hyperparameters:
 
-![images](images/9.png)
+<img src="images/9.png" width="600">
 
 Training results:
 
-![images](images/10.png)
+<img src="images/10.png" width="600">
 
-![images](images/11.png)
+<img src="images/11.png" width="600">
 
-![images](images/12.png)
+<img src="images/12.png" width="600">
 
 ### ByteDance's ReFT
 
 First, see the flowchart from the ReFT paper:
 
-![images](images/ext_11.png)
+<img src="images/ext_11.png" width="600">
 
 As shown above, ReFT combines Supervised Fine-Tuning (SFT) and Reinforced Fine-Tuning (ReFT). Below is a detailed explanation of each part in the figure:
 
@@ -1221,7 +1221,7 @@ As shown above, ReFT combines Supervised Fine-Tuning (SFT) and Reinforced Fine-T
 
 First, look at the Thought Preference Optimization (TPO) process:
 
-![images](images/ext_12.png)
+<img src="images/ext_12.png" width="600">
 
 - The TPO method consists of three main components:
   1. SFT (Supervised Fine-Tuning): provides the model foundation.
@@ -1563,7 +1563,7 @@ Key components include:
 
 4. Merged weights: during inference, W and BA can be merged into a new weight matrix W_merged for computation.
 
-![images](images/qlora_perf_1.png)
+<img src="images/qlora_perf_1.png" width="600">
 
 ### Mathematical example of low-rank matrix representation
 
@@ -1597,7 +1597,7 @@ After fine-tuning, the weights are W_merged = W + BA, correcting the original we
 
 ### Adapter merge strategies and the impact of quantization on accuracy
 
-![images](images/qlora_perf_2.png)
+<img src="images/qlora_perf_2.png" width="600">
 
 Below are four different adapter deployment strategies and their comparative effects:
 
@@ -1618,11 +1618,11 @@ Below are four different adapter deployment strategies and their comparative eff
 
 GaLore (Gradient Low-Rank) supports full fine-tuning, i.e., updating all model parameters. Unlike parameter-efficient fine-tuning (PEFT) methods such as LoRA, GaLore uses a novel low-rank projection of gradients to enable full fine-tuning of large models under memory constraints.
 
-![images](images/ext_13.png)
+<img src="images/ext_13.png" width="600">
 
 GaLore performance comparison:
 
-![images](images/ext_14.png)
+<img src="images/ext_14.png" width="600">
 
 GaLore introduces additional hyperparameters: rank r, scale factor α, and subspace change frequency T.
 
@@ -1640,13 +1640,13 @@ Below are full fine-tuning runs of Mistral-7B on a single H100 (trainable parame
 
 **Experiment 1**: BS=128, lr=1e-5, optim=galore_adamw_8bit_layerwise, rank=512
 
-![images](images/ext_15.png)
+<img src="images/ext_15.png" width="600">
 
-![images](images/ext_16.png)
+<img src="images/ext_16.png" width="600">
 
-![images](images/ext_17.png)
+<img src="images/ext_17.png" width="600">
 
-![images](images/ext_18.png)
+<img src="images/ext_18.png" width="600">
 
 Judging from the loss curve, the training is suboptimal.
 
@@ -1654,11 +1654,11 @@ Judging from the loss curve, the training is suboptimal.
 
 Double the learning rate and halve the BS:
 
-![images](images/ext_19.png)
+<img src="images/ext_19.png" width="600">
 
-![images](images/ext_20.png)
+<img src="images/ext_20.png" width="600">
 
-![images](images/ext_21.png)
+<img src="images/ext_21.png" width="600">
 
 Some improvement, but still suboptimal.
 
@@ -1666,27 +1666,27 @@ Some improvement, but still suboptimal.
 
 After switching to the galore_adamw_8bit (non-layerwise) optimizer, GPU memory utilization is higher:
 
-![images](images/ext_22.png)
+<img src="images/ext_22.png" width="600">
 
-![images](images/ext_23.png)
+<img src="images/ext_23.png" width="600">
 
 Training performs much better than before; results are satisfactory.
 
-![images](images/ext_24.png)
+<img src="images/ext_24.png" width="600">
 
 **Experiment 4**: BS=128, lr=1e-5, optim=galore_adamw_8bit, rank=1024
 
 Keep BS=128 and the galore_adamw_8bit optimizer, increase rank from 512 to 1024:
 
-![images](images/ext_25.png)
+<img src="images/ext_25.png" width="600">
 
 During training, GPU memory usage spikes to 87 GB, but there is no OOM, highlighting the benefit of large VRAM:
 
-![images](images/ext_26.png)
+<img src="images/ext_26.png" width="600">
 
 Examining the training results, it is better than Experiment 3; the loss drops directly to 0.825400 at step 50 and decreases to 0.71 at step 100:
 
-![images](images/ext_27.png)
+<img src="images/ext_27.png" width="600">
 
 The above shows that while the training loss decreases as expected, the validation loss rises, indicating overfitting.
 
@@ -1694,11 +1694,11 @@ The above shows that while the training loss decreases as expected, the validati
 
 To address the overfitting in Experiment 4, lower the learning rate and increase weight_decay and warmup_ratio:
 
-![images](images/ext_28.png)
+<img src="images/ext_28.png" width="600">
 
 Looking at the training results, the overfitting issue is resolved:
 
-![images](images/ext_29.png)
+<img src="images/ext_29.png" width="600">
 
 ### Summary of GaLore experiments
 
@@ -1727,7 +1727,7 @@ Key findings:
 
 ***Refer to ：Unpacking DPO and PPO: Disentangling Best Practices for Learning from Preference Feedback***
 
-![images](images/6.png)
+<img src="images/6.png" width="600">
 
 This paper again confirms that PPO significantly outperforms DPO. Notably, the original DPO paper claimed that in the context of reinforcement learning with human feedback (RLHF), DPO is better than PPO. However, after extensive practical tests, community feedback, and follow-up research, it has become clear that this is not the case.
 
@@ -1739,7 +1739,7 @@ DPO’s operational cost is significantly lower than PPO because it does not req
 
  In the PPO training architecture, the four main models（Policy Model, Reference Model, Reward Model, Value Model）each play different roles, briefly described below:
 
-![images](images/7.png)
+<img src="images/7.png" width="600">
 
 1. Policy Model（policy model）
    • This is the "generative model" or "policy" we actually want to train and update; given an input（q）, it outputs some action (such as the next text tokens).
@@ -1866,7 +1866,7 @@ Both PPO and DPO are trained on preference data, but their processes differ:
 • DPO: performs offline optimization directly on preference data (prompt, chosen response, rejected response).
 • PPO: first trains a "reward model," then uses it online to score the policy model’s outputs and update the policy via reinforcement learning.
 
-![images](images/1.png)
+<img src="images/1.png" width="600">
 
 Therefore, we decompose this preference learning pipeline into four parts:
 1）Preference data
@@ -1880,7 +1880,7 @@ If we take the same trained (Supervised Fine-Tuned) model and vary any one of th
 
 This section first briefly introduces the concepts and principles of PPO and DPO, then describes our experimental and evaluation procedures. It presents a structured comparison between PPO and DPO.  
 
-![images](images/2.png)
+<img src="images/2.png" width="600">
 
 **PPO and DPO（PPO and DPO）**
 (1) PPO
@@ -1917,7 +1917,7 @@ We collected 14 representative preference datasets, trained with DPO on each, an
 • Some Arena data is relatively poor in safety.
 
 **Learning Algorithms: DPO and PPO**
-![images](images/3.png)
+<img src="images/3.png" width="600">
 Under the conditions of identical preference data and model size (13B):
 • PPO is overall slightly better than DPO, with an advantage of about 0.7 points.
 • In reasoning, coding, and safety, PPO delivers more pronounced gains.
@@ -1930,7 +1930,7 @@ Under the conditions of identical preference data and model size (13B):
 
 **Policy Training Prompts**
 
-![images](images/4.png)
+<img src="images/4.png" width="600">
 
 • Targeted prompts can substantially improve a single domain (e.g., Math: 46% → 62%).
 • But mixed prompts offer limited improvements to overall multi-task performance.
@@ -1940,7 +1940,7 @@ Under the conditions of identical preference data and model size (13B):
 
 Combining the above analysis, recommended best practices:
 
-![images](images/5.png)
+<img src="images/5.png" width="600">
 
 - Preference data: Use high-quality synthetic preference data (e.g., UltraFeedback).
 - Learning algorithm: In most scenarios, PPO generally outperforms DPO.
@@ -2002,7 +2002,7 @@ DPO (Direct Preference Optimization) training requires two models:
 1. Reference Model: A model fine-tuned with SFT on an instruct dataset.
 2. Base Model: The model we aim to train using DPO.
 
-![images](images/ext_30.png)
+<img src="images/ext_30.png" width="600">
 
 Differences between the Reference Model and the Base Model:
 
@@ -2086,9 +2086,9 @@ dataset_test_dpo = load_dataset("HuggingFaceH4/ultrafeedback_binarized", split="
 
 Illustration of the two datasets:
 
-![images](images/ext_31.png)
+<img src="images/ext_31.png" width="600">
 
-![images](images/ext_32.png)
+<img src="images/ext_32.png" width="600">
 
 **Model Loading and Adapter Configuration**
 
@@ -2112,43 +2112,43 @@ In DPO, the reference model serves as the standard against which the trained mod
 
 **Step 1: SFT training for the reference model** (using HuggingFaceH4/ultrachat_200k)
 
-![images](images/ext_33.png)
+<img src="images/ext_33.png" width="600">
 
-![images](images/ext_34.png)
+<img src="images/ext_34.png" width="600">
 
-![images](images/ext_35.png)
+<img src="images/ext_35.png" width="600">
 
 Resource consumption during fine-tuning:
 
-![images](images/ext_36.png)
+<img src="images/ext_36.png" width="600">
 
 **Step 2: DPO training for the base model** (using the model after SFT as the reference model)
 
-![images](images/ext_37.png)
+<img src="images/ext_37.png" width="600">
 
-![images](images/ext_38.png)
+<img src="images/ext_38.png" width="600">
 
-![images](images/ext_39.png)
+<img src="images/ext_39.png" width="600">
 
-![images](images/ext_40.png)
+<img src="images/ext_40.png" width="600">
 
 **Resource overhead during DPO training**
 
 bs=4:
 
-![images](images/ext_41.png)
+<img src="images/ext_41.png" width="600">
 
 bs=16：
 
-![images](images/ext_42.png)
+<img src="images/ext_42.png" width="600">
 
 bs=32：
 
-![images](images/ext_43.png)
+<img src="images/ext_43.png" width="600">
 
-![images](images/ext_44.png)
+<img src="images/ext_44.png" width="600">
 
-![images](images/ext_45.png)
+<img src="images/ext_45.png" width="600">
 
 **Interpretation of DPO training metrics**
 
@@ -2204,7 +2204,7 @@ dataset = load_dataset("UltraFeedback-prompt-chosen-rejected")
 
 Inspect the first entry of the dataset; in the dataset, the `chosen` and `rejected` labels can be used to train the model to understand what constitutes a good response and a poor response, thereby improving the output quality.
 
-![images](images/1.png)
+<img src="images/1.png" width="600">
 
 ```
 bnb_config = BitsAndBytesConfig(
@@ -2272,7 +2272,7 @@ trainer.train()
 
 View the training results:
 
-![images](images/2.png)
+<img src="images/2.png" width="600">
 
 ## Interpreting DPO training results
 
@@ -2589,7 +2589,7 @@ To address the above challenges, we could use PyTorch's **Fully Sharded Data Par
 
 In my repo, I used both DeepSpeed ZeRO-3 technology and FSDP technology, and the training results were the same. I will showcase the scripts and configuration files for both training methods. 
 
- ![images](images/ext_46.png)
+ <img src="images/ext_46.png" width="600">
 
 In the following DeepSpeed and Accelerate FSDP training, I use an adapter from HF:
 
@@ -2845,7 +2845,7 @@ Launch training
  20%|████████████████████████████▊   
 ```
 
-![images](images/1.png)
+<img src="images/1.png" width="600">
 
 ## Accelerate FSDP training
 
@@ -3130,11 +3130,11 @@ The training data includes:
 
   Sometimes in the data, the "prompt" and "question" may be identical, which can serve as the starting point for the conversation in certain training settings.
 
-  ![images](images/ext_47.png)
+  <img src="images/ext_47.png" width="600">
 
   Training results are as following:
 
-  ![images](images/ext_48.png)
+  <img src="images/ext_48.png" width="600">
 
 Next, I will combine the training data to roughly introduce the DPO training process and results.
 
