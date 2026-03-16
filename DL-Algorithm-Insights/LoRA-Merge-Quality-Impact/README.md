@@ -1,5 +1,62 @@
 # LoRA Merge Methods: fuse_lora vs set_adapters — Quality Impact on Diffusion Models
 
+## Key Conclusions (Executive Summary)
+
+> **One-liner**: Diffusion models must use `fuse_lora` (quality gap 2~18%). LLM chat models can use either (no quality difference).
+
+### Diffusion Models (Image Generation/Editing)
+
+| Metric | fuse_lora | set_adapters |
+|--------|:---------:|:-----------:|
+| **Inference quality** | = offline merge (SSIM=1.0) | **↓2~18%** (depends on steps and CFG) |
+| Distilled 8~16 steps + CFG=4 | **SSIM=1.0** | **SSIM=0.88~0.91** |
+| 40 steps + CFG=4 | SSIM=1.0 | SSIM=0.96 |
+| Fusion time | ~11s | <0.01s |
+| Hot-swap LoRA | Requires model reload | ✅ Instant switch |
+
+**Gap source**: Different BF16 rounding paths (see detailed analysis below).
+
+**Fewer steps → larger gap** — Diffusion inference is essentially solving an ODE (Ordinary Differential Equation). Fewer steps = coarser ODE discretization = more sensitive to BF16 perturbation. Distilled models use 8~16 steps, sitting in the most significant gap zone.
+
+### LLM (Chat/Text Generation Models)
+
+| Metric | fuse | adapter |
+|--------|:----:|:-------:|
+| **Inference quality** | No difference | No difference |
+| BF16 logit divergence | — | KL ~10-12 (constant noise floor, independent of model size) |
+| Token match | Unpredictable (depends on specific LoRA and input) | Same |
+| Does divergence affect quality? | — | **No** (both outputs are valid answers) |
+
+**Why LLM doesn't matter**: LLM output is discrete (token selection). BF16 logit differences are either absorbed by argmax or only lead to equivalent answers with different wording. Unlike Diffusion's continuous pixel output where any rounding difference directly manifests.
+
+### Quick Terminology Reference
+
+| Term | Meaning |
+|------|---------|
+| **LoRA** | Low-Rank Adaptation — approximate weight updates with two small matrices B×A |
+| **fuse_lora** | Merge LoRA into base model: W' = W + B×A, inference uses W' directly |
+| **set_adapters** | Don't merge, compute separately: output = x×W + x×(B×A) |
+| **BF16** | bfloat16 — 7-bit mantissa floating point format, standard for large models |
+| **SSIM** | Structural Similarity — measures image similarity (1.0=identical, 0=different) |
+| **ODE** | Ordinary Differential Equation — Diffusion generates images by "walking the ODE from noise to image" |
+| **CFG** | Classifier-Free Guidance — enhances generation by contrasting prompted vs unprompted predictions |
+| **argmax** | Pick the highest value — LLM selects highest-probability token each step |
+| **KL divergence** | Quantifies difference between two probability distributions |
+
+**Derivatives of Successive Orders**:
+
+| Order | Name | Formula | Meaning | Application |
+|:-----:|------|---------|---------|-------------|
+| 0th | Position | x | Where you are | — |
+| **1st** | **Velocity** | dx/dt | How fast position changes | **Diffusion model: velocity = denoising speed** |
+| 2nd | Acceleration | d²x/dt² | How fast velocity changes | Newton's F=ma |
+| 3rd | Jerk | d³x/dt³ | How fast acceleration changes | Elevator / roller coaster smoothness |
+| 4th | Snap | d⁴x/dt⁴ | How fast jerk changes | Precision engineering |
+| 5th | Crackle | d⁵x/dt⁵ | How fast snap changes | Rarely used |
+| 6th | Pop | d⁶x/dt⁶ | How fast crackle changes | Theoretical only |
+
+> Diffusion models only use **1st order (velocity)**.
+
 ## What Is It?
 
 > When using LoRA adapters for inference, diffusers provides two main APIs: `fuse_lora()` (weight fusion) and `set_adapters()` (dynamic adapter). They produce **different inference results** — and the difference matters in production.

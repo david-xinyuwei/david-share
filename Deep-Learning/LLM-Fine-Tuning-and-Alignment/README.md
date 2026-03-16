@@ -4,6 +4,17 @@ This article is a comprehensive technical guide to LLM fine-tuning and alignment
 
 > *This guide consolidates content from multiple previously separate articles into a single coherent resource.*
 
+## Table of Contents
+
+- [Part 1: SFT Hyperparameter Tuning Best Practices](#part-1-sft-hyperparameter-tuning-best-practices)
+- [Part 2: A Panoramic Comparison of Various Fine-Tuning Methods](#part-2-a-panoramic-comparison-of-various-fine-tuning-methods)
+- [Part 3: The Essential Difference Between Reinforcement Learning and Fine-Tuning](#part-3-the-essential-difference-between-reinforcement-learning-and-fine-tuning)
+- [Part 4: Comparison Table of Seven Fine-Tuning Techniques](#part-4-comparison-table-of-seven-fine-tuning-techniques)
+- [Part 5: LoRA/QLoRA Fine-Tuning Mechanisms and GaLore Full Fine-Tuning](#part-5-loraqlorafine-tuning-mechanisms-and-galore-full-fine-tuning)
+- [Part 6: In-Depth DPO Theory and Alignment Practice](#part-6-in-depth-dpo-theory-and-alignment-practice)
+- [Part 7: DPO Fine-Tuning Code and Training Results Analysis](#part-7-dpo-fine-tuning-code-and-training-results-analysis)
+- [Part 8: Large Model DPO Distributed Training (DeepSpeed & FSDP)](#part-8-large-model-dpo-distributed-training-deepspeed--fsdp)
+
 ## Running on Azure
 
 All experiments in this project were conducted on **Azure GPU VMs**.
@@ -71,17 +82,23 @@ First we show the learning curves, then discuss the results.
 
 For batch size 1:
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXbkq6buj5ThXTAegKtDOcbC6TK0DIiaK8y5SpOcxviaHyPAM1wJJwzV0qLAM8rfBtmt0ztcuH5m5nw/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)For batch size 2:
+![images](images/ext_01.png)
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXbkq6buj5ThXTAegKtDOcbkVuaSWk3NXTmjK3559BBfTp31fIMY3H6XabjdNTCUqy2o4UicZkjSrw/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)For batch size 4:
+For batch size 2:
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXbkq6buj5ThXTAegKtDOcbwFqlM10maysPA4ySFnE27yXZzmbiaQhmPb1T704bm3ljraxblEsl0ZA/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)For batch size 8:
+![images](images/ext_02.png)
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXbkq6buj5ThXTAegKtDOcbibmM6YO2yRByoGt2LLb1p6Gdfk3KH0Nf0XXUDVAQ9wic4X7QHJgmn3LQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+For batch size 4:
+
+![images](images/ext_03.png)
+
+For batch size 8:
+
+![images](images/ext_04.png)
 
 Comparison:
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXbkq6buj5ThXTAegKtDOcbwPOZ58wOd20QGkG3cR0mj46iciaQMlDOTHquywjAfeIicEmr1ZEftXzFw/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![images](images/ext_05.png)
 
 
 
@@ -91,17 +108,7 @@ Batch size has a significant impact on both training quality and efficiency. Lar
 Experiments show that good loss can be achieved even with a batch size of 32. However, this increases memory usage, and in some cases—for example, on GPUs with 16 GB of memory—it’s impractical to reach such batch sizes without techniques like gradient accumulation. Therefore, rather than blindly pursuing larger batches, you should factor in hardware constraints and determine the optimal batch size through experimentation. This ensures training is both efficient and practical within available resources.
 
 
-## Running on Azure
-
-This project can be deployed on **Azure Virtual Machines** with GPU support.
-
-| Item | Details |
-|---|---|
-| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
-| **Compute** | Select VM size based on model requirements |
-
-
-## **II. MaximumSequence Length、Padding、Truncating**
+## II. Maximum Sequence Length, Padding, Truncating
 
 In batching, training samples need to be padded to ensure all samples within a batch have the same shape or size, which is a basic requirement for machine learning models that process data in parallel. This is especially important for sequence tasks such as language generation. When preparing batches, shorter sequences are padded by adding some inconsequential values so that their length matches the longest sequence in the batch. Padding can be applied to the front of the sequence (left padding), the end (right padding), or sometimes both, depending on the model design and task requirements. Note that not all techniques support padding on arbitrary sides. For example, when using the FlashAttention technique, left padding is required. To better control batch size, it’s recommended to set a maximum sequence length. For example, if we set this maximum length to 1,024 tokens, then each sample in the batch will be processed to exactly 1,024 tokens. If a sample originally has only 512 tokens, 512 padding tokens will be appended. Conversely, if a sample exceeds 1,024 tokens, the excess will be truncated. This approach not only ensures consistency during processing but also helps optimize memory usage, thereby improving training efficiency.
 
@@ -178,7 +185,7 @@ Now many “0”s appear at the beginning (left side) of the sequences; these re
 
 Ideally, the maximum length should match the longest sequence in the training examples. If GPU memory is limited, this length can be reduced accordingly. Typically, values above 4,096 are uncommon except for RAG applications and summarization tasks; for most language generation tasks, the minimum recommended length is 512. This strikes a balance between model effectiveness and avoiding unnecessary memory consumption.
 
-## **III. EpochsandSteps**
+## III. Epochs and Steps
 
 After processing a batch of data, the model updates its weights; this is called a training step. For example, if a dataset has 1,000 examples and the batch size is 100, then one complete pass over the dataset requires 10 such training steps (1,000 divided by 100 equals 10). Each step involves a forward pass (data through the model), loss computation (the discrepancy between predictions and ground truth), and weight updates via backpropagation to try to reduce the loss. When every example in the dataset has been processed exactly once by the model, one training cycle—an epoch—is completed. Therefore, the number of steps per epoch depends on the dataset size and batch size. Continuing the example, if the dataset has 1,000 examples and the batch size is 100, then one epoch requires 10 steps. Training for multiple epochs means the model sees the same data multiple times, with the expectation that it adjusts its weights for more accurate predictions; the model may learn and improve with each epoch.
 
@@ -200,12 +207,12 @@ When num_train_epochs is set, max_steps is overridden. In this configuration, tr
 
 Suppose we train TinyLlama on openassistant-guanaco, with a total of 9,846 steps and a batch size of 8; one epoch will contain about 1,231 training steps. If we train for just one epoch on this dataset, the model typically learns useful information. However, continuing for more epochs may lead to overfitting—becoming overly tuned to the training data and potentially hurting performance on new data. If we examine training after two epochs on this dataset, we can observe signs of such overfitting.
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXyvuzhK1CR7Kb6yeGQvrdSaJNYpaLIictddYwEudrjpvzSZlzQCENnG277AChJEgtFmuI46t24Z8w/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![images](images/ext_06.png)
 
 
 Even without observing validation loss, you can notice the training loss decreasing unusually fast. As discussed in the next section, this can be effectively mitigated by adjusting the learning rate and adopting an appropriate warmup ratio. Such adjustments help the model learn more smoothly, avoid overfitting, and maintain generalization to unseen data.
 
-## **IV. Gradient accumulation stepsGradient Accumulation Steps**
+## IV. Gradient Accumulation Steps
 
 Gradient accumulation simulates large-batch training by splitting data into smaller micro-batches. Instead of updating model weights after each micro-batch, it accumulates gradients over a specified number of steps. A weight update only occurs once the accumulated gradients correspond to the target larger batch size. For example, if the target batch size is 1,024 but the device can only process 256 samples per step, you can accumulate the gradients from four steps of 256 samples each to simulate one update with a batch of 1,024 samples.
 
@@ -217,7 +224,7 @@ This method balances the need for large batches under limited memory, enabling m
         gradient_accumulation_steps=2,
 [...]
 ```
-## **V, Gradient CheckpointingGradient Checkpointing**
+## V. Gradient Checkpointing
 
 In standard training, all intermediate activations are kept in memory to compute gradients during backpropagation. However, given the memory limits of most hardware (e.g., GPUs), this quickly becomes impractical for very deep networks. Gradient checkpointing addresses this by saving activations only at selected layers in the network. For layers whose activations are not saved, they are recomputed during backpropagation when gradients are needed.
 
@@ -237,7 +244,7 @@ Or
 model.gradient_checkpointing_enable()
 ```
 
-## **VI, Learning RateLearning Rate**
+## VI. Learning Rate
 
 The learning rate is a key hyperparameter that determines how the model updates its weights during training. It affects the step size the model takes in parameter space to minimize the loss function. A properly set learning rate ensures that the model improves predictive performance efficiently without overshooting or stalling before reaching optimality.
 
@@ -253,7 +260,7 @@ Set the learning rate in TrainingArguments as follows:
 [...]
 ```
 
-## **VII, Learning Rate SchedulerLearning Rate Scheduler**
+## VII. Learning Rate Scheduler
 
 The purpose of a learning rate scheduler is to adjust the learning rate during training according to a predefined schedule. This helps avoid getting trapped in local minima early in training or skipping over minima when approaching the optimum. For large language models (LLMs), the most common type is a scheduler with a warmup phase. Such schedulers start from a low learning rate and gradually ramp up to the target value after several epochs or steps. This strategy is particularly useful when fine-tuning from large-scale pretrained models, as it helps prevent large early weight updates that can harm stability. In most scenarios, I recommend a linear scheduler with warmup, as it is at least as effective as other types, as demonstrated in the paper “When, Why, and How Much? Refining Adaptive Learning Rate Scheduling.” After warmup, the linear scheduler gradually reduces the learning rate, which helps the model converge more stably in the later stages of training.
 
@@ -265,7 +272,7 @@ This is configured in TrainingArguments as follows:
 [...]
 ```
 
-## **VIII, Warmup Steps and Warmup Ratio、**
+## VIII. Warmup Steps and Warmup Ratio
 
 Warmup steps refer to the initial phase of training during which the learning rate increases from a lower starting value to a predefined target according to the learning rate schedule. For example, if 1,000 warmup steps are set, the learning rate starts low and increases step by step, reaching the target at step 1,000. After that point, the learning rate may be adjusted according to another schedule, such as remaining constant or decaying proportionally.
 
@@ -281,7 +288,7 @@ Set the warmup ratio in TrainingArguments as follows:
 [...]
 ```
 
-## **IX, Weight DecayWeight Decay**
+## IX. Weight Decay
 
 Weight decay is a technique that encourages the model to maintain smaller weight values, thereby regularizing the model to avoid excessive complexity. It is implemented by adding the squared sum of the weights multiplied by a regularization parameter to the loss function. The effect is to gently push weights toward zero, helping the model avoid over-reliance on any single input feature, which would typically manifest as a large weight for that feature.
 
@@ -297,7 +304,7 @@ Set weight decay in TrainingArguments as follows:
 [...]
 ```
 
-## **X, OptimizerOptimizer**
+## X. Optimizer
 
 The optimizer guides the training process by minimizing error or improving accuracy during fine-tuning. Among many optimizers, AdamW (a variant of Adam) is currently the most widely used. Additionally, AdaFactor is an interesting option that is more memory-efficient.
 
@@ -319,7 +326,7 @@ Set the optimizer in TrainingArguments as follows:
 
 For better models, I recommend setting it to the non-quantized "adamw_torch". If you run out of memory, try "adamw_8bit". Then, as a last resort, try "paged_adamw_8bit". It will be slower than 8-bit AdamW but will further reduce memory usage.
 
-## **XI, Float16 and Bfloat16**
+## XI. Float16 and Bfloat16
 
 Traditionally, machine learning models are trained with the float32 data type, where each parameter occupies 4 bytes (32 bits) of memory. For a model with 7 billion (7B) parameters, using float32 alone requires at least a GPU with 28 GB of memory (7 times 4 equals 28). For larger models, this memory requirement becomes prohibitive. As a result, half-precision training has become popular, using float16 or bfloat16 to halve memory usage. The main difference between float16 and bfloat16 lies in how bits are allocated between exponent and mantissa. bfloat16 is designed to handle a wider numeric range without significantly sacrificing computational precision, giving it an advantage for fast and memory-efficient deep learning operations. Although bfloat16 is generally superior in performance, it is only supported on Ampere or newer GPUs. If your GPU supports bfloat16, prefer it. If not, choose float16; however, if you encounter overflow issues during training (e.g., loss suddenly becomes 0.0 or NaN), you may need to fall back to float32. You can automatically set these parameters based on your hardware, configured as follows: [Assuming the original provides specific code or configuration steps].
 
@@ -328,7 +335,7 @@ Traditionally, machine learning models are trained with the float32 data type, w
         bf16= torch.cuda.is_bf16_supported(),
 ```
 
-## **XII, Evaluation and save stepsEvaluation and save steps**
+## XII. Evaluation and Save Steps
 
 Evaluation is a key part of the training process in which the model is periodically assessed on unseen data. This is crucial for ensuring the model is not overfitting the training data. If training loss decreases but validation loss remains unchanged or increases, it usually indicates overfitting.
 
@@ -361,7 +368,7 @@ In such cases, while checkpoints are critical to enable resuming training from i
 
 In the application of large language models (LLMs), fine-tuning is a critical step. Fine-tuning allows the model to better adapt to specific tasks or datasets. However, with the development of LLMs, two main versions have emerged: base LLMs and instruct LLMs. This article will explore the differences between these two versions and discuss which version should be chosen for fine-tuning in practical applications.
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nV2OasoxzlibKMkawNmnVETPsicGxQagJ5rklAAOJoUic5qYuCr0vEeoSiaNAicCvag9SHhXxVGLZpdq1Q/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![images](images/ext_07.png)
 
 ## What are Base LLMs and Instruct LLMs?
 
@@ -563,20 +570,6 @@ trainer.train()
 
 This article compares the following fine-tuning techniques: SFT, ReFT, RHLF, RLAIF, DPO, PPO, TPO.
 
-
-
-
-## Running on Azure
-
-All experiments in this project were conducted on an **Azure GPU VM**.
-
-| Item | Details |
-|---|---|
-| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
-| **GPU** | NVIDIA H100 80GB |
-| **Frameworks** | LoRA/PEFT |
-
-
 ## Relationships among the techniques
 
 If we take a simplified view of a complex topic, the relationships between these techniques are roughly as follows:
@@ -589,7 +582,7 @@ If we take a simplified view of a complex topic, the relationships between these
 
 **RLHF (Reinforcement Learning from Human Feedback):**
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUZtF6XYK9EpTpg40XvUeRCHQFd39MdyIIIbGaFjQKZ8PDxic6faSnOGnITqdpvbznWY1Sp2aqIIcw/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![images](images/ext_08.png)
 
 - **Components**: RLHF = SFT + PPO + human feedback
 - **Process**: Based on SFT, apply PPO for reinforcement learning, with reward signals derived from **human feedback**.
@@ -603,7 +596,7 @@ If we take a simplified view of a complex topic, the relationships between these
 
 **RLAIF (Reinforcement Learning from AI Feedback):**
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUZtF6XYK9EpTpg40XvUeRCxfjelLwiaed6DNmzrv9LKwPYwaPAqFJ0qc9ddesiaDzsU9wgaEmettJg/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![images](images/ext_09.png)
 
 - **Components**: RLAIF = SFT + PPO + AI feedback
 - **Process**: Based on SFT, apply PPO for reinforcement learning, with reward signals coming from **feedback of an AI model**.
@@ -710,7 +703,7 @@ Reinforcement Learning (RL) is a process in which an agent interacts with an env
 
  
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUmuCC75DMa6J6ZShqhcHx0wRmzErG3eIKhpxmNeHU4GyAm491eAhwXhibweP4qAHWqH4kuPLOIQSA/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![images](images/ext_10.png)
 
 #### **1. Key components**
 
@@ -1116,7 +1109,7 @@ Background:
 
 
 
-## **ReFT简介**
+## Introduction to ReFT
 
 ### OpenAI's ReFT
 
@@ -1140,23 +1133,23 @@ We summarize the differences with this table:
 
 Training data examples are as follows; in training, the answers are not directly included in the training set.
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/3.png)
+![images](images/3.png)
 
 During training, the model may or may not include the correct answer:
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/4.png)
+![images](images/4.png)
 
 Create jsonal files for the training set and validation set:
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/5.png)
+![images](images/5.png)
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/6.png)
+![images](images/6.png)
 
 Construct the reward function:
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/7.png)
+![images](images/7.png)
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/8.png)
+![images](images/8.png)
 
 This JSON file (grader.json) defines the configuration of a scoring system. Specifically, this configuration file defines how to score an object. Let’s parse the file line by line:
 
@@ -1186,21 +1179,21 @@ This JSON file (grader.json) defines the configuration of a scoring system. Spec
 
 Set training hyperparameters:
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/9.png)
+![images](images/9.png)
 
 Training results:
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/10.png)
+![images](images/10.png)
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/11.png)
+![images](images/11.png)
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/12.png)
+![images](images/12.png)
 
 ### ByteDance's ReFT
 
 First, see the flowchart from the ReFT paper:
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUpgIIJic3v3UHiaRriaapjX2omaoJWqB4dr3dQyGEkDMjjR5JeI8LibRVX9icuCAiarOA0kMgPfWhoqiamg/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![images](images/ext_11.png)
 
 As shown above, ReFT combines Supervised Fine-Tuning (SFT) and Reinforced Fine-Tuning (ReFT). Below is a detailed explanation of each part in the figure:
 
@@ -1224,11 +1217,11 @@ As shown above, ReFT combines Supervised Fine-Tuning (SFT) and Reinforced Fine-T
 
      The legend illustrates an example of a question (x), chain-of-thought (e), and answer (y) on the GSM8K dataset. The training data is iterated over multiple SFT epochs, and ReFT is used with warm-up from SFT, followed by reinforcement learning on the same data.
 
-## **TPO的流程**
+## TPO Workflow
 
 First, look at the Thought Preference Optimization (TPO) process:
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUpgIIJic3v3UHiaRriaapjX2obrFTylPby9mlhw3NUiaJicSIAianv6WrYjTbaCe24w2nic8xrHLOUo4VLg/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![images](images/ext_12.png)
 
 - The TPO method consists of three main components:
   1. SFT (Supervised Fine-Tuning): provides the model foundation.
@@ -1274,7 +1267,7 @@ It is important to note that the DPO method (Direct Preference Optimization) typ
 - **Construct preference pairs:** Based on evaluation results, select the best and worst answers to form preference pairs (Chosen and Rejected).
 - **Optimize with DPO:** Use these preference pairs together with the reference model to construct a loss via DPO and directly optimize model parameters.
 
-## **PPO和DPO的本质区别**
+## Essential Differences Between PPO and DPO
 
 ### 1. The essence of reinforcement learning
 
@@ -1545,77 +1538,6 @@ In the description of DPO, the model needs to generate multiple answers, and the
 - **Process**: On top of SFT, introduce **Thought Generation**, i.e., the model generates an internal thinking process before producing the answer. Then, use DPO combined with a **reference model** to directly optimize parameters; preference data comes from **AI discriminator feedback**.
 - **Evaluation approach**: Use an **AI discriminator** to evaluate the **answer part** of the model output and form preference pairs (preferred vs. dispreferred). Combined with the **reference model**, use DPO to construct a loss and directly optimize parameters to improve performance.
 
-## LoRA/QLoRA fine-tuning mechanism and adapter merge strategy
-
-### Principle of LoRA
-
-The core idea of LoRA (Low-Rank Adaptation) is: add a low-rank increment BA to the pretrained weights W, rather than directly modifying all parameters.
-
-QLoRA further optimizes this—first quantizing the large pretrained model to lower precision (typically 4-bit), then training very small adapter parameters on top, thereby significantly reducing VRAM usage while still enabling effective fine-tuning.
-
-Its key components include:
-
-1. **Pretrained Weights**: The original pretrained weights W. QLoRA quantizes these weights to 4-bit, greatly shrinking the model size and reducing VRAM consumption.
-
-2. **Adapter parameters (A and B)**: Two small matrices A and B used in LoRA/QLoRA, stored and trained in 16-bit. The adapter parameter count is far smaller than the full model weights; during training only this small set needs gradients and optimizer states. At the start of training, B is initialized to the zero matrix, and A is randomly initialized.
-
-3. **Forward Pass**: h = W x + B A x. The model output includes the contribution from the original pretrained weights W and an extra increment from the adapter BA times the input x.
-
-4. **Merged Weights**: At inference time, W and BA can be merged into a new weight matrix W_merged for computation.
-
-![images](images/qlora_perf_1.png)
-
-### Mathematical example of low-rank matrix representation
-
-Illustrate the low-rank update principle of LoRA with a 4×4 small matrix example:
-
-**Original weights** W (4×4):
-```
-W = [[1, 2, 3, 4],
-     [2, 3, 4, 5],
-     [3, 4, 5, 6],
-     [4, 5, 6, 7]]
-```
-
-Choose r=2 (low rank), then B is (4×2), A is (2×4):
-```
-B = [[0.1, 0.2],    A = [[2.0, 0.0, 0.0, 1.5],
-     [0.0, 0.3],         [0.0, 1.0, 2.0, 1.0]]
-     [0.1, 0.1],
-     [0.0, 0.2]]
-```
-
-BA results in a 4×4 matrix (rank no greater than 2):
-```
-BA = [[0.2, 0.1, 0.4, 0.3],
-      [0.0, 0.3, 0.6, 0.3],
-      [0.2, 0.1, 0.4, 0.3],
-      [0.0, 0.2, 0.4, 0.2]]
-```
-
-After fine-tuning, the weights W_merged = W + BA; the product of the two small matrices provides a correction to the original weights. When r is much smaller than d, the number of parameters in B and A is far less than d×d, saving substantial training cost and storage.
-
-### Adapter merge strategies and the impact of quantization on accuracy
-
-![images](images/qlora_perf_2.png)
-
-Below are four different adapter deployment strategies and their effect comparison:
-
-| Strategy | Approach | Perplexity (PPL) | Notes |
-|------|------|:-----------:|------|
-| **Do not merge adapter** | Base model 4-bit + adapter 16-bit | **3.55** | Best performance; requires managing separate adapter files |
-| **Merge then AWQ quantization** | Merge → 16-bit → AWQ 4-bit | 3.88 | Simple deployment; slightly worse performance |
-| **Merge then no quantization** | Merge → keep 16-bit | 3.60 | Requires 16-bit VRAM; comparable to not merging |
-| **Merge then BnB quantization** | Merge → bitsandbytes 4-bit | 4.33 | **Not recommended**; regresses to pre-fine-tuning level |
-
-**Conclusion**:
-- Aim for best performance → Base model 4-bit + unmerged adapter (16-bit)
-- Prefer simple deployment → Merge then quantize to 4-bit with AWQ/AutoRound
-- VRAM ample → Merge then run 16-bit inference directly
-- **Avoid** using bitsandbytes 4-bit quantization after merging
-
-## GaLore full-parameter fine-tuning experiments
-
 
 ---
 # Part 5: LoRA/QLoRA Fine-tuning Mechanisms and GaLore Full Fine-tuning
@@ -1696,11 +1618,11 @@ Below are four different adapter deployment strategies and their comparative eff
 
 GaLore (Gradient Low-Rank) supports full fine-tuning, i.e., updating all model parameters. Unlike parameter-efficient fine-tuning (PEFT) methods such as LoRA, GaLore uses a novel low-rank projection of gradients to enable full fine-tuning of large models under memory constraints.
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXBUWiajIRkWDFnAIVQEYeVKcOCQgbecLaUwicOjXicJPWzZnlJ0B2MvaJ83J8iaID7iclibMISIRNeISKg/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+![images](images/ext_13.png)
 
 GaLore performance comparison:
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXBUWiajIRkWDFnAIVQEYeVKwz1guKATOUib2rJ114icJYIBLtzK9CUBULRSgIMdp47GURH0B9a4iaWhg/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+![images](images/ext_14.png)
 
 GaLore introduces additional hyperparameters: rank r, scale factor α, and subspace change frequency T.
 
@@ -1718,13 +1640,13 @@ Below are full fine-tuning runs of Mistral-7B on a single H100 (trainable parame
 
 **Experiment 1**: BS=128, lr=1e-5, optim=galore_adamw_8bit_layerwise, rank=512
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXBUWiajIRkWDFnAIVQEYeVK6nTib0DBbecicLia529j7hxFIaciaqDzFjbXA8h5b8dcR25GT2Kd1ICaTA/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+![images](images/ext_15.png)
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXBUWiajIRkWDFnAIVQEYeVKKDPJiaQicKH5It9EiboXtAB5DWgwA4R14Qoyur8rLjawAHk3KZ58OibMPw/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+![images](images/ext_16.png)
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXBUWiajIRkWDFnAIVQEYeVKicCibC0EJTsYSyauzvIWy6PUXMpFNLFlm7rMp7bGQ7I8q4mnpyNtd80w/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+![images](images/ext_17.png)
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXBUWiajIRkWDFnAIVQEYeVKuus30PiaOVDticlEeFo7uPXGfHw17W9j6ywvLhZToOtgQiakfdD4FkzOw/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+![images](images/ext_18.png)
 
 Judging from the loss curve, the training is suboptimal.
 
@@ -1732,11 +1654,11 @@ Judging from the loss curve, the training is suboptimal.
 
 Double the learning rate and halve the BS:
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXBUWiajIRkWDFnAIVQEYeVKic9ezNVcbayBiazsy7fmZdkdLMADYlb6GlkXI6u8yKX4Uf2CUqicBwuhA/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+![images](images/ext_19.png)
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXBUWiajIRkWDFnAIVQEYeVK8ibY7S3R9COHhOIIOtic0UfGZmRpk7sc7hyrdzQOuVh6rxibotETHTyMw/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+![images](images/ext_20.png)
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXBUWiajIRkWDFnAIVQEYeVKX29mtlRIPkUT8yLOjxjy6cQQRvC4BvqPsAEydSiasyhVrXuZT92Yia3A/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+![images](images/ext_21.png)
 
 Some improvement, but still suboptimal.
 
@@ -1744,27 +1666,27 @@ Some improvement, but still suboptimal.
 
 After switching to the galore_adamw_8bit (non-layerwise) optimizer, GPU memory utilization is higher:
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUTickEPG2OjjIKXgp96IsODW2BibS0jEEuOuw1xm0pZ4EH4d572ScuXvnfaxia4mAN95hpKJAdGcNyw/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+![images](images/ext_22.png)
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUTickEPG2OjjIKXgp96IsODd4BtwnZQ3cIlicqaI6nnM36r8FUhwHOUlt3yXG1IHK382MTCh7209lQ/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+![images](images/ext_23.png)
 
 Training performs much better than before; results are satisfactory.
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUTickEPG2OjjIKXgp96IsODEvAprYC3GDe1rFK91cb9HtF94rrzesJZub0gwEz6bfIOx0d3DNWPRw/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+![images](images/ext_24.png)
 
 **Experiment 4**: BS=128, lr=1e-5, optim=galore_adamw_8bit, rank=1024
 
 Keep BS=128 and the galore_adamw_8bit optimizer, increase rank from 512 to 1024:
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUTickEPG2OjjIKXgp96IsODB3HGFPZcWR12jjWKiaolqDvuT8weWZicUxow2AOhAUCjwUr3c2t8yU1w/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+![images](images/ext_25.png)
 
 During training, GPU memory usage spikes to 87 GB, but there is no OOM, highlighting the benefit of large VRAM:
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUTickEPG2OjjIKXgp96IsODNfN4zibDVvMJIUHib1vPUHpFN9lib6DsyRRVUr6LzZ3Bmvop7MsUCPjfQ/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+![images](images/ext_26.png)
 
 Examining the training results, it is better than Experiment 3; the loss drops directly to 0.825400 at step 50 and decreases to 0.71 at step 100:
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUTickEPG2OjjIKXgp96IsODkYRCfA3jyHotAtpa2pmibcquFauYqJlwotvIzOl2ib6ank3AmNd51wJw/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+![images](images/ext_27.png)
 
 The above shows that while the training loss decreases as expected, the validation loss rises, indicating overfitting.
 
@@ -1772,11 +1694,11 @@ The above shows that while the training loss decreases as expected, the validati
 
 To address the overfitting in Experiment 4, lower the learning rate and increase weight_decay and warmup_ratio:
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXYro4VNFxnL6o7LHiaDJL6QB6YGDsBAjVGqJ6gYHPtL1RX0pImFaPxhTLkIQHdEggnF0Ngq6UicbpA/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![images](images/ext_28.png)
 
 Looking at the training results, the overfitting issue is resolved:
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXYro4VNFxnL6o7LHiaDJL6QG3Btgib4WkPCmPGwibyKCBkwGpdSDU8m1ibyBJgOwJBOkibDIn6tGAYK7Q/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![images](images/ext_29.png)
 
 ### Summary of GaLore experiments
 
@@ -1801,11 +1723,11 @@ Key findings:
 > *Originally from LLM-Alignment-DPO-PPO-CPO*
 
 
-## Part I: Interpreting DPO and PPO: Best Practices for Learning from Preference Feedback
+## 6.1 Interpreting DPO and PPO: Best Practices for Learning from Preference Feedback
 
 ***Refer to ：Unpacking DPO and PPO: Disentangling Best Practices for Learning from Preference Feedback***
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/6.png)
+![images](images/6.png)
 
 This paper again confirms that PPO significantly outperforms DPO. Notably, the original DPO paper claimed that in the context of reinforcement learning with human feedback (RLHF), DPO is better than PPO. However, after extensive practical tests, community feedback, and follow-up research, it has become clear that this is not the case.
 
@@ -1817,7 +1739,7 @@ DPO’s operational cost is significantly lower than PPO because it does not req
 
  In the PPO training architecture, the four main models（Policy Model, Reference Model, Reward Model, Value Model）each play different roles, briefly described below:
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/7.png)
+![images](images/7.png)
 
 1. Policy Model（policy model）
    • This is the "generative model" or "policy" we actually want to train and update; given an input（q）, it outputs some action (such as the next text tokens).
@@ -1902,7 +1824,7 @@ Finally, these signals are "jointly integrated" by our training logic (PPO), for
 
 
 
-### Abstract（Abstract）
+### Abstract
 
 Learning from preference feedback has become a key approach for modern large language models (LMs) to improve generation quality and performance across tasks. Simply put, "preference feedback" typically has humans (or simulated systems) compare two different model outputs and choose which one they prefer, thereby guiding the model toward better responses.
 
@@ -1934,7 +1856,7 @@ We open-sourced all training and evaluation code, as well as the corresponding m
 • "Instruction following" and "truthfulness": If the system specifies "first list the solution steps, then give the final answer," a model with strong instruction following and truthfulness will provide correct and complete reasoning and avoid unfounded fabrication.
 
 
-### Introduction（Introduction）
+### Introduction
 
 In modern large language model (LM) development pipelines, an additional stage—**learning from preference feedback (sometimes called RLHF, reinforcement learning from human feedback)—is often added before deployment.** Prior work has shown that this stage can significantly enhance models, including substantial improvements in instruction following, code generation, math problem solving, and summarization.
 
@@ -1944,7 +1866,7 @@ Both PPO and DPO are trained on preference data, but their processes differ:
 • DPO: performs offline optimization directly on preference data (prompt, chosen response, rejected response).
 • PPO: first trains a "reward model," then uses it online to score the policy model’s outputs and update the policy via reinforcement learning.
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/1.png)
+![images](images/1.png)
 
 Therefore, we decompose this preference learning pipeline into four parts:
 1）Preference data
@@ -1954,11 +1876,11 @@ Therefore, we decompose this preference learning pipeline into four parts:
 
 If we take the same trained (Supervised Fine-Tuned) model and vary any one of the above components, what happens to downstream performance? In our experiments, each component indeed has an effect, but their importance and impact differ.
 
-### Setup（Setup）
+### Setup
 
 This section first briefly introduces the concepts and principles of PPO and DPO, then describes our experimental and evaluation procedures. It presents a structured comparison between PPO and DPO.  
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/2.png)
+![images](images/2.png)
 
 **PPO and DPO（PPO and DPO）**
 (1) PPO
@@ -1995,7 +1917,7 @@ We collected 14 representative preference datasets, trained with DPO on each, an
 • Some Arena data is relatively poor in safety.
 
 **Learning Algorithms: DPO and PPO**
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/3.png)
+![images](images/3.png)
 Under the conditions of identical preference data and model size (13B):
 • PPO is overall slightly better than DPO, with an advantage of about 0.7 points.
 • In reasoning, coding, and safety, PPO delivers more pronounced gains.
@@ -2008,7 +1930,7 @@ Under the conditions of identical preference data and model size (13B):
 
 **Policy Training Prompts**
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/4.png)
+![images](images/4.png)
 
 • Targeted prompts can substantially improve a single domain (e.g., Math: 46% → 62%).
 • But mixed prompts offer limited improvements to overall multi-task performance.
@@ -2018,7 +1940,7 @@ Under the conditions of identical preference data and model size (13B):
 
 Combining the above analysis, recommended best practices:
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/5.png)
+![images](images/5.png)
 
 - Preference data: Use high-quality synthetic preference data (e.g., UltraFeedback).
 - Learning algorithm: In most scenarios, PPO generally outperforms DPO.
@@ -2046,7 +1968,7 @@ Overall, with a stronger reward model and effective online sampling, PPO trainin
 ---
 
 
-## Part II: DPO Deep Dive and Practice
+## 6.2 DPO Deep Dive and Practice
 
 ### Bias Issues in RLHF, RLAIF, and DPO
 
@@ -2080,7 +2002,7 @@ DPO (Direct Preference Optimization) training requires two models:
 1. Reference Model: A model fine-tuned with SFT on an instruct dataset.
 2. Base Model: The model we aim to train using DPO.
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nWkavyXUFb7YmV633SNtwPQA9RorrzDeH5NiaBm0TQC2qZukibcdrjLFB2M3aAW5ibLhOXjDwiaTVEGvw/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![images](images/ext_30.png)
 
 Differences between the Reference Model and the Base Model:
 
@@ -2164,9 +2086,9 @@ dataset_test_dpo = load_dataset("HuggingFaceH4/ultrafeedback_binarized", split="
 
 Illustration of the two datasets:
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUXuFTxdR1SWPoED75CVM31Qg16gInAqzxm4XSQHf94ib3WaQTfbRKHYQXEpMOu2pJ7HUKBqbumvDA/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![images](images/ext_31.png)
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUXuFTxdR1SWPoED75CVM31vBXuMoJbd2icF70YePHZpdBedtLx0oUTTIyKjVicMaOdG7ibKhB2SGP6Q/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![images](images/ext_32.png)
 
 **Model Loading and Adapter Configuration**
 
@@ -2190,43 +2112,43 @@ In DPO, the reference model serves as the standard against which the trained mod
 
 **Step 1: SFT training for the reference model** (using HuggingFaceH4/ultrachat_200k)
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUXuFTxdR1SWPoED75CVM31TRnRNZ1KTQBNQmFJvLiaNgtQ2sGFTEDzU8v83dRkYKxib3xpTeNONxuQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![images](images/ext_33.png)
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUXuFTxdR1SWPoED75CVM31PuTVUk3nlGATuQOy5PRE5FibmVIyJ7EADxOzVafzS2n068OotrWv9ow/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![images](images/ext_34.png)
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUXuFTxdR1SWPoED75CVM31sAhNG7fQ2pNpHRn8578j4VHmM6WuVdRSa5QzlqicfAXgYAmoCppia5wg/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![images](images/ext_35.png)
 
 Resource consumption during fine-tuning:
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUXuFTxdR1SWPoED75CVM31DXj7XpFcgfGCcwkkkhCPgkwClsOicg7PmyZibnibvO9ic8vuiaR3DjDEUvQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![images](images/ext_36.png)
 
 **Step 2: DPO training for the base model** (using the model after SFT as the reference model)
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUXuFTxdR1SWPoED75CVM31tcnFcDhJ60icpRHzVaknNPT9UVo2Xwqo5I2Uq2EX0gvM6mpIBokHQDQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![images](images/ext_37.png)
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUXuFTxdR1SWPoED75CVM31qFmelfEAkT4xrcqkAmxICxbmROJnicGbUTto7LAYvyfGhJ7WHqoMMrQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![images](images/ext_38.png)
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUXuFTxdR1SWPoED75CVM31hQmrMLYvVxIibPNibVqJ2MNbEKM6lkJLOoxZ4sADSTm8yROVuBMUF10w/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![images](images/ext_39.png)
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUXuFTxdR1SWPoED75CVM31EibScDruPpInR1dnjgYSvKFoSwfm1ZWE2dyHXqLo4Akz3Fq1IoRW5vA/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![images](images/ext_40.png)
 
 **Resource overhead during DPO training**
 
 bs=4:
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUXuFTxdR1SWPoED75CVM31PLGFDxOAm0ZvUSyEADqs8IfyF60Dl7W7Ae6F3quo8Mex2BiaRkxNVvQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![images](images/ext_41.png)
 
 bs=16：
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUXuFTxdR1SWPoED75CVM311icJ9J9XMMtia73zuKkJGvnZ4UY9mmtjicvGnFxbWcxXVx7m6fewqAFsw/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![images](images/ext_42.png)
 
 bs=32：
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUXuFTxdR1SWPoED75CVM31JiaDvRWfI53axaYC2IZBIFejPkhr5ibIRy3X4x8ozt6auGsXicbZ3fAfQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![images](images/ext_43.png)
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUXuFTxdR1SWPoED75CVM31yGktkn5WIczClZnJyoM9GDjicHFHJzFib3ZGCgAiav7fMIgBFhUyklhvQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![images](images/ext_44.png)
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUXuFTxdR1SWPoED75CVM31Y0okm1V2QqAjsUnkl2LhuzsR0QFKmxWfJWlC0VP1a5h8XibmWcO4sgA/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![images](images/ext_45.png)
 
 **Interpretation of DPO training metrics**
 
@@ -2282,7 +2204,7 @@ dataset = load_dataset("UltraFeedback-prompt-chosen-rejected")
 
 Inspect the first entry of the dataset; in the dataset, the `chosen` and `rejected` labels can be used to train the model to understand what constitutes a good response and a poor response, thereby improving the output quality.
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/1.png)
+![images](images/1.png)
 
 ```
 bnb_config = BitsAndBytesConfig(
@@ -2350,7 +2272,7 @@ trainer.train()
 
 View the training results:
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/2.png)
+![images](images/2.png)
 
 ## Interpreting DPO training results
 
@@ -2659,17 +2581,6 @@ For example, suppose we want to perform DPO training on a 70 billion-parameter m
   Thus, just the model parameters alone consume 280 GB of VRAM, approximately 43.75% of the total VRAM. In addition, there are optimizer states. For example, using the AdamW optimizer, each parameter has two additional state variables. If these state variables are stored in 16-bit precision, they will take up an extra 280 GB of VRAM. Adding it all up, we've used 560 GB of VRAM, leaving only 80 GB. This remaining VRAM is needed to store activations and gradients. Without special methods, it's unlikely to train on a single machine.
 
 
-## Running on Azure
-
-All experiments in this project were conducted on an **Azure GPU VM**.
-
-| Item | Details |
-|---|---|
-| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
-| **GPU** | NVIDIA H100 80GB |
-| **Frameworks** | DeepSpeed, LoRA/PEFT |
-
-
 ## Distributed training technology 
 
 To address the above challenges, we could use PyTorch's **Fully Sharded Data Parallel (FSDP)** technology, combined with parameter-efficient fine-tuning methods like LoRA and QLoRA. 
@@ -2678,7 +2589,7 @@ To address the above challenges, we could use PyTorch's **Fully Sharded Data Par
 
 In my repo, I used both DeepSpeed ZeRO-3 technology and FSDP technology, and the training results were the same. I will showcase the scripts and configuration files for both training methods. 
 
- ![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXVG8MCygzbO12sANWDsyJAcwEYpAcnqXWdicELzh4cFtibVKK8HonEFffN03MKhIluSb7lD8kxvmVA/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+ ![images](images/ext_46.png)
 
 In the following DeepSpeed and Accelerate FSDP training, I use an adapter from HF:
 
@@ -2934,7 +2845,7 @@ Launch training
  20%|████████████████████████████▊   
 ```
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/1.png)
+![images](images/1.png)
 
 ## Accelerate FSDP training
 
@@ -3219,11 +3130,11 @@ The training data includes:
 
   Sometimes in the data, the "prompt" and "question" may be identical, which can serve as the starting point for the conversation in certain training settings.
 
-  ![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXVG8MCygzbO12sANWDsyJAl6sIF5iaooXZPcDtkfNgmDaYiczO6Kb9VMHuia3KzFAkEUTrUZGTRSmYg/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+  ![images](images/ext_47.png)
 
   Training results are as following:
 
-  ![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXVG8MCygzbO12sANWDsyJAG0lGSUZEgnusjGQ4IIkqWJtvKJa6r42TJcKXguutu2xuuEATUibY3sg/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+  ![images](images/ext_48.png)
 
 Next, I will combine the training data to roughly introduce the DPO training process and results.
 

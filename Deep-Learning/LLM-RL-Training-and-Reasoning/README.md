@@ -1,8 +1,35 @@
 # LLM RL Training and Reasoning Enhancement
 
+**Author: Xinyu Wei (魏新宇)**
+
 This article is a comprehensive technical guide to LLM reinforcement learning training and reasoning enhancement, covering RL fundamentals (PPO/GRPO), reward function design, the DeepSeek R1 & DeepSeekMath-V2 training architectures, mathematical reasoning RL, Test-time Compute Scaling, SLM fine-tuning experiments, and cutting-edge methods such as GSPO.
 
-> *This guide consolidates content from multiple previously separate articles into a single coherent resource.*
+## Table of Contents
+
+### I. RL Foundation
+- [Part 1: Three Reinforcement Learning Training Modes](#part-1-three-reinforcement-learning-training-modes)
+- [Part 2: DeepSeek R1 Training Paradigm and Technical Comparison](#part-2-deepseek-r1-training-paradigm-and-technical-comparison)
+- [Part 3: PPO/RLHF Role Breakdown — "Film Crew" Analogy](#part-3-pporldhf-role-breakdown--film-crew-analogy)
+
+### II. GRPO and Reward Design
+- [Part 4: GRPO Method Details](#part-4-grpo-method-details)
+- [Part 5: Reward Function Design in Practice](#part-5-reward-function-design-in-practice)
+
+### III. Advanced Training Architectures
+- [Part 6: DeepSeekMath-V2 Self-Verifiable Proof Training Architecture](#part-6-deepseekmath-v2-self-verifiable-proof-training-architecture)
+- [Part 9: GSPO — RL Training for Dense Models vs MoE Models](#part-9-gspo--rl-training-for-dense-models-vs-moe-models)
+
+### IV. Hands-on Training
+- [Part 7: SFT + GRPO Hands-on (Code and Training Logs)](#part-7-sft--grpo-hands-on-code-and-training-logs)
+- [Part 8: Phi-4 GRPO Training Code](#part-8-phi-4-grpo-training-code)
+
+### V. Inference-time Scaling
+- [Part 10: Test-time Compute Scaling — How SLMs Beat Larger Models](#part-10-test-time-compute-scaling--how-slms-beat-larger-models)
+- [Part 11: Mind Evolution and Genetic Algorithms](#part-11-mind-evolution-and-genetic-algorithms)
+
+### VI. SLM Experiments and Comparison
+- [Part 12: SLM Fine-tuning Experiments](#part-12-slm-fine-tuning-experiments)
+- [Part 13: Three RL Training Methods Compared](#part-13-three-rl-training-methods-compared)
 
 ## Running on Azure
 
@@ -15,49 +42,45 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 | **Frameworks** | vLLM, LoRA/PEFT, Unsloth, PyTorch |
 
 ---
+
+# I. RL Foundation
+
 # Part 1: Three Reinforcement Learning Training Modes
 
-> *Originally from GRPO-RL-Training-Pipeline*
-
-
-## **Three Reinforcement Learning Modes**
+## Three Reinforcement Learning Modes
 
 ![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/1.png)
 
 The three reinforcement learning modes above for training large models to perform reasoning can be intuitively seen as an evolution from “rewarding only the final answer” to “rewarding step-by-step.” Their main differences are as follows:
 
-#### 1. Direct Reinforcement Learning (Direct RL)
+### 1. Direct Reinforcement Learning (Direct RL)
 
-• Core idea:
+- Core idea:
 The model outputs only a single answer, and the reward model (Reward Model) assigns reward solely based on whether this final answer is correct or meets the objective.
-• Characteristics:
+- Characteristics:
 – The reward signal is received only at the final step.
 – Easiest to implement, but cannot directly guide whether intermediate reasoning steps are correct.
 – If the reasoning goes wrong midway, the model only finds out when the final answer is penalized, making learning slower.
 
-#### 2. Multi-Step Reinforcement Learning + Outcome Reward (Multi-Step RL with Outcome Reward Model, ORM)
+### 2. Multi-Step Reinforcement Learning + Outcome Reward (Multi-Step RL with Outcome Reward Model, ORM)
 
-
-• Core idea:
+- Core idea:
 Before producing the answer, the model “explicitly” or “implicitly” writes out a series of intermediate reasoning steps. The reward is still based only on the final answer.
-• Characteristics:
+- Characteristics:
 – The thinking process is explicitly broken into multiple steps, but the reward still depends only on the final result.
 – Compared with direct RL, the model can learn more structured step-by-step reasoning during training, yet still cannot receive immediate feedback on the correctness of each step.
 – If a mistake occurs in the middle but the final answer happens to be correct or incorrect, the model still gets a single reward/punishment signal only at the end.
 
-#### 3. Multi-Step Reinforcement Learning + Process Reward (Multi-Step RL with Process Reward Model, PRM)
+### 3. Multi-Step Reinforcement Learning + Process Reward (Multi-Step RL with Process Reward Model, PRM)
 
-
-• Core idea:
+- Core idea:
 The model still writes out a sequence of intermediate reasoning steps, but now each step is evaluated. If a step is correct or contributes to the correctness of the final answer, it receives a positive reward; if it is wrong, it gets negative feedback. There is also an overall reward for the final result.
-• Characteristics:
+- Characteristics:
 – Focuses not only on the final answer, but also on whether each intermediate step is reasonable or correct.
 – Provides more fine-grained guidance, enabling the model to correct errors more easily at each thought step, improving controllability and accuracy of reasoning.
 – More complex to implement, as it requires an additional process reward model to judge each step’s correctness or reasonableness.
 
-
-
-#### Example: Using a simple equation to compare
+### Example: Using a simple equation to compare
 
 Suppose we ask the model to solve a very simple equation: “2x + 3 = 7, solve for x.”
 
@@ -82,32 +105,23 @@ Suppose we ask the model to solve a very simple equation: “2x + 3 = 7, solve f
    – If a step is wrong (e.g., after “subtract 3” it mistakenly writes “2x = 5”), a negative feedback is given at that step, enabling the model to quickly detect and correct the error.
    – During training, the model more easily learns the correct reasoning process because each step receives targeted guidance.
 
+### Summary
 
-
-#### Summary
-
-• Direct RL: Focuses only on the final answer; simplest, but hard to provide feedback on intermediate steps.
-• Multi-Step RL + Outcome RM: Explicitly breaks reasoning into multiple steps, but still only the final result gets feedback.
-• Multi-Step RL + Process RM: Each step can receive reward or penalty, greatly improving controllability and accuracy of the reasoning process, but requires a model capable of evaluating step-wise correctness, making implementation more complex.
+- Direct RL: Focuses only on the final answer; simplest, but hard to provide feedback on intermediate steps.
+- Multi-Step RL + Outcome RM: Explicitly breaks reasoning into multiple steps, but still only the final result gets feedback.
+- Multi-Step RL + Process RM: Each step can receive reward or penalty, greatly improving controllability and accuracy of the reasoning process, but requires a model capable of evaluating step-wise correctness, making implementation more complex.
 
 For beginners, you can think of it as:
-• Direct RL: Equivalent to only looking at the final exam score.
-• Multi-Step (Outcome) RL: The exam shows your solution steps, but grading is based only on whether the final answer is correct.
-• Multi-Step (Process) RL: The examiner not only checks the final answer, but also annotates each step of your solution to indicate what’s right or wrong, giving corresponding points or deductions.
-
-
-
-
+- Direct RL: Equivalent to only looking at the final exam score.
+- Multi-Step (Outcome) RL: The exam shows your solution steps, but grading is based only on whether the final answer is correct.
+- Multi-Step (Process) RL: The examiner not only checks the final answer, but also annotates each step of your solution to indicate what’s right or wrong, giving corresponding points or deductions.
 
 ---
 # Part 2: DeepSeek R1 Training Paradigm and Technical Comparison
 
-> *Originally from GRPO-RL-Training-Pipeline*
+## DeepSeek R1 Training Paradigm
 
-
-### DeepSeek R1 Training Paradigm
-
-###  SFT + RL Four-Stage Hybrid Paradigm (DeepSeek-R1)
+### SFT + RL Four-Stage Hybrid Paradigm (DeepSeek-R1)
 
 1. **SFT-1**: A small amount of high-quality CoT, teach the format → ensure readability.
 2. **RL-1**: R1-Zero-style rewards → elicit long chains, improve accuracy.
@@ -117,8 +131,8 @@ For beginners, you can think of it as:
 In line with the above, DeepSeek-R1 can be categorized as
 
 ```
-训练：Multi-Step RL + Outcome RM  (+ 少量 SFT)
-推理：默认 Greedy，可选 Majority-Vote
+Training: Multi-Step RL + Outcome RM  (+ small amount of SFT)
+Inference: Default Greedy, optional Majority-Vote
 ```
 
 ## Test Time Scale Mode
@@ -129,35 +143,33 @@ Test Time Scale：Majority Vote / Tree Search / Beam Search / Lookahead Search
 When a large language model is “reasoning” or “answering,” it does not necessarily have to use only the simplest approach of “left-to-right sampling to directly obtain the answer.” To improve the accuracy or robustness of answers, people often introduce various “search” techniques during the inference phase, with the main goal of finding or voting for the optimal path among the model’s many potential generation paths. The following schematic shows several common strategies.
 
 1. Majority Vote
-   • Approach: Have the model independently generate answers to the same question multiple times (e.g., by sampling with different seeds or temperatures) to obtain multiple results. Then vote across these results (majority/averaging/scoring) to select the most likely correct answer.
-   • Characteristics:
+   - Approach: Have the model independently generate answers to the same question multiple times (e.g., by sampling with different seeds or temperatures) to obtain multiple results. Then vote across these results (majority/averaging/scoring) to select the most likely correct answer.
+   - Characteristics:
    – Very easy to implement: just sample multiple times, then vote.
    – Does not explicitly search the reasoning path; instead, it “brainstorms” via multiple candidate answers.
    – When the model’s outputs vary greatly under different samples, this method can sometimes correct random errors; but if the model systematically leans toward a certain error, it is relatively ineffective.
 2. Tree Search
-   • Approach: Treat each possible token generation step as a branch, expand in a tree structure, and continue expanding higher-scoring or more plausible branches.
-   • Characteristics:
+   - Approach: Treat each possible token generation step as a branch, expand in a tree structure, and continue expanding higher-scoring or more plausible branches.
+   - Characteristics:
    – More systematic than Majority Vote in exploring potential reasoning paths.
    – Can prune obviously incorrect branches early (via scoring or heuristic rules).
    – Pure Tree Search can become very expensive if the branching factor is large.
 3. Beam Search
-   • Approach: A “simplified” version of Tree Search: at each generation step, keep only the top K “best” branches (Beam width K), pruning the rest.
-   • Characteristics:
+   - Approach: A “simplified” version of Tree Search: at each generation step, keep only the top K “best” branches (Beam width K), pruning the rest.
+   - Characteristics:
    – A commonly used decoding algorithm in machine translation and text generation.
    – More efficient than full tree search, seeking the best answer among “multiple relatively high-quality branches” with limited beam width.
    – If K is too small, it may miss correct solutions that lie on relatively suboptimal probability paths; if K is too large, computation increases.
 4. Lookahead Search
-   • Approach: Not only choose at the current step, but also “look ahead” several steps by simulating or scoring the subsequent trajectory of each possible path; decide current choices based on this forecast.
-   • Characteristics:
+   - Approach: Not only choose at the current step, but also “look ahead” several steps by simulating or scoring the subsequent trajectory of each possible path; decide current choices based on this forecast.
+   - Characteristics:
    – Similar to “multi-move foresight” in board games, aiming to eliminate branches that may lead to errors or suboptimal outcomes early.
    – Usually more effective than pure Beam or Tree Search, but requires more computation or more complex heuristic evaluation.
    – When the problem has many layers and huge branching, Lookahead faces “explosive” growth and requires strong pruning.
 
 Simplified analogy:
-• Majority Vote is like thinking through the problem several times yourself and merging those thoughts, then outputting the most frequent answer.
-• Tree Search, Beam Search, and Lookahead are more like “global searches,” frequently pruning the search tree to gradually find the optimal solution, evaluating “each step” rather than guessing blindly multiple times, aiming for deeper but non-blind exploration.
-
-
+- Majority Vote is like thinking through the problem several times yourself and merging those thoughts, then outputting the most frequent answer.
+- Tree Search, Beam Search, and Lookahead are more like “global searches,” frequently pruning the search tree to gradually find the optimal solution, evaluating “each step” rather than guessing blindly multiple times, aiming for deeper but non-blind exploration.
 
 ## Technical Comparison
 
@@ -173,7 +185,7 @@ We are now discussing two different techniques (used during the training phase a
   3. **Beam or Tree Search**: Build multiple generation paths via a search tree and prune to select the best path.
   4. **Look-ahead Search (MCTS-like)**: Look ahead a few steps before making current decisions.
 
-####  **Overview of combinations** (rows are RL training modes, columns are inference-phase modes)
+### Overview of combinations (rows are RL training modes, columns are inference-phase modes)
 
 | RL Training Modes ↓ / Inference-Phase Modes →                | Simple Sampling<br>(Greedy/Temperature) | Majority Vote<br>(Majority Voting)        | Beam Search/<br>Tree Search               | Look-ahead <br> Search     |
 | ------------------------------------------------------------ | --------------------------------------- | ------------------------------------------ | ----------------------------------------- | -------------------------- |
@@ -183,7 +195,7 @@ We are now discussing two different techniques (used during the training phase a
 
 ------
 
-#### Strategies currently publicly used by DeepSeek R1 (explicitly stated in the literature):
+### Strategies currently publicly used by DeepSeek R1
 
 - **Training phase (RL mode)**:
 
@@ -199,7 +211,7 @@ We are now discussing two different techniques (used during the training phase a
 
 ------
 
-#### How to interpret the table
+### How to interpret the table
 
 - Rows (RL training) represent the model’s “innate ability” (improved during training).
 - Columns (inference search) represent the “answering/solving strategy” when using the model (improve accuracy during inference).
@@ -207,32 +219,32 @@ We are now discussing two different techniques (used during the training phase a
   - Weak training (Direct RL) → inference relies more on majority voting and search as a remedy.
   - Strong training (Process RM) → inference can still add simple search and voting to further improve robustness.
 
-## **DS R1 Paradigm**
+## DS R1 Paradigm
 
 ![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/3.png)
 
-![Image](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUicwxWRiaeB4ibaXAtuEMND1S8qSAklGF6vibbmueCyglkicVpfm73CgP8fst0sjk7uGZefPcMGg4rRAg/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1)
+![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/5.png)
 
 ![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/4.png)
 
 The figures above show the reasoning and training scheme for a large model named “DeepSeek R1.” It includes the following key elements:
 
 1. Multi-stage data and training (SFT → RL):
-   • First, large-scale Supervised Fine-Tuning (SFT) is performed, including standard task data and Chain-of-Thought (CoT) data, so the model first learns basic responses and formatting.
-   • Then it enters the Reinforcement Learning (RL) stage, using “Reasoning-Oriented RL (RORL),” which additionally encourages better performance in reasoning accuracy or the soundness of intermediate steps.
+   - First, large-scale Supervised Fine-Tuning (SFT) is performed, including standard task data and Chain-of-Thought (CoT) data, so the model first learns basic responses and formatting.
+   - Then it enters the Reinforcement Learning (RL) stage, using “Reasoning-Oriented RL (RORL),” which additionally encourages better performance in reasoning accuracy or the soundness of intermediate steps.
 2. Rule-Based Outcome Reward Model (ORM)
-   • Ideally, one would adopt the previously discussed PRM (“score each step”) scheme, but it often requires expensive annotation or a stronger process evaluator.
-   • Due to resource constraints, DeepSeek R1 could not fully implement PRM, so it adopted a “rule-based” Outcome Reward: as long as the final answer meets certain accuracy/formatting rules, it receives a positive reward; otherwise, a negative reward.
-   • Results show that this relatively simple approach can also achieve good performance in some scenarios, especially when paired with carefully designed training data and multi-stage pipelines.
+   - Ideally, one would adopt the previously discussed PRM (“score each step”) scheme, but it often requires expensive annotation or a stronger process evaluator.
+   - Due to resource constraints, DeepSeek R1 could not fully implement PRM, so it adopted a “rule-based” Outcome Reward: as long as the final answer meets certain accuracy/formatting rules, it receives a positive reward; otherwise, a negative reward.
+   - Results show that this relatively simple approach can also achieve good performance in some scenarios, especially when paired with carefully designed training data and multi-stage pipelines.
 3. GRPO 
-   • PPO (Proximal Policy Optimization) is a common RL fine-tuning method. DeepSeek R1 proposes a “GRPO” approach that can compute multiple rewards in parallel or by grouping, thereby reducing resource usage and speeding up convergence.
-   • Specifically, multiple samples are fed into the ORM simultaneously within the same batch or group for scoring, and these feedback signals are aggregated to update the Policy Model, reducing redundant computations.
+   - PPO (Proximal Policy Optimization) is a common RL fine-tuning method. DeepSeek R1 proposes a “GRPO” approach that can compute multiple rewards in parallel or by grouping, thereby reducing resource usage and speeding up convergence.
+   - Specifically, multiple samples are fed into the ORM simultaneously within the same batch or group for scoring, and these feedback signals are aggregated to update the Policy Model, reducing redundant computations.
 4. Data synthesis and Rejection Sampling
-   • During training, not only human-annotated data but also model self-generated data (including intermediate reasoning steps) are used, followed by filtering.
-   • Filtering may combine “rules + model scoring”: if the generated text is logically wrong or fails custom criteria, it is rejected; otherwise, it is kept as new training samples.
+   - During training, not only human-annotated data but also model self-generated data (including intermediate reasoning steps) are used, followed by filtering.
+   - Filtering may combine “rules + model scoring”: if the generated text is logically wrong or fails custom criteria, it is rejected; otherwise, it is kept as new training samples.
 5. Distillation (knowledge distillation)
-   • In the final stage, larger models (e.g., Qwen, Llama, etc.) are often used as teacher models, and their reasoning and answering capabilities are “distilled” into a smaller or more efficient model (DeepSeek R1 Distill).
-   • This retains much of the reasoning capability while reducing compute requirements at inference time.
+   - In the final stage, larger models (e.g., Qwen, Llama, etc.) are often used as teacher models, and their reasoning and answering capabilities are “distilled” into a smaller or more efficient model (DeepSeek R1 Distill).
+   - This retains much of the reasoning capability while reducing compute requirements at inference time.
 
 ## An RL Example: Key Design of RL Reward Functions for Legal Documents and Analysis of Performance Leap
 
@@ -240,12 +252,8 @@ The figures above show the reasoning and training scheme for a large model named
 
 **Core techniques: hierarchical rewards + strong parsing mechanisms**
 
-
-
 ---
 # Part 3: PPO/RLHF Role Breakdown —— "Film Crew" Analogy
-
-> *Originally from LLM-Math-Reasoning-RL*
 
 ## 🎯 Objectives
 
@@ -269,7 +277,7 @@ Let's first clarify "who is who" in training—this makes all subsequent paper d
 | **Reference Model** | 📜 Original Script | Prevents actor from "deforming" for high scores (KL constraint) | ❌ Frozen |
 | **Critic / Value Model** | 🎓 Sparring Coach | Practices alongside while learning "roughly what score this performance will get" | ✅ Trained (synchronized with Actor) |
 
-#### How Do Training Signals Flow? (PPO Architecture Diagram)
+### How Do Training Signals Flow? (PPO Architecture Diagram)
 
 ```text
 Prompt x
@@ -307,7 +315,7 @@ Prompt x
 
 **Key Point**: Reward Model and Critic compute in parallel, both based on generated (x, y), then jointly compute Advantage.
 
-#### Why Must Critic Be "Trained Together"?
+### Why Must Critic Be "Trained Together"?
 
 - As Actor improves (policy distribution changes), reward distribution also changes
 - If Critic doesn't learn along, its "score prediction" becomes increasingly inaccurate
@@ -322,7 +330,7 @@ Both DeepSeek-R1 and DeepSeekMath-V2 emphasize GRPO. Intuitively:
 - PPO needs Critic to estimate baseline
 - GRPO samples a group of responses for the same prompt, using relative performance within the group as baseline, eliminating the need to separately train a Critic
 
-#### GRPO Update Intuition (Pseudocode)
+### GRPO Update Intuition (Pseudocode)
 
 ```text
 Given prompt x:
@@ -348,17 +356,13 @@ Advantage: Ai = ri - r̄
 
 ---
 
+# II. GRPO and Reward Design
 
----
 # Part 4: GRPO Method Details
-
-> *Originally from GRPO-RL-Training-Pipeline*
-
 
 ## GRPO Method Details
 
 ### 1. GRPO Core Concepts
-
 
 The main goal of GRPO (Generative Relative Policy Optimization) is to optimize the model’s policy in an online, self-generated manner, allowing it to improve performance without relying on large amounts of external data or human feedback. Its core concepts include:
 
@@ -368,25 +372,21 @@ The main goal of GRPO (Generative Relative Policy Optimization) is to optimize t
 
 ### 2. GRPO Workflow
 
-#### **Step 1: Sample generation**
-
+### Step 1: Sample generation**
 
 For each input (e.g., prompt or question), the model generates multiple possible outputs (called "completions"). For example, given a question, the model may generate 8 different answers.
 
-#### **Step 2: Reward evaluation**
-
+### Step 2: Reward evaluation**
 
 For each generated output, define a reward function to evaluate its quality. The reward function can be designed based on task requirements, such as scoring according to output format and content accuracy.
 
-#### **Step 3: Compute relative advantage**
-
+### Step 3: Compute relative advantage**
 
 For each generated output, compute its relative advantage compared to other outputs in the same group using:
 
 ```
 A_i = (r_i - r̄) / σ(r)  
 ```
-
 
 Where:
 
@@ -408,7 +408,6 @@ Where:
 r̄ = (0.6 + 0.8 + 0.4 + 0.7) / 4 = 0.625  
 ```
 
-
 Compute the standard deviation:
 
 ```
@@ -416,7 +415,6 @@ Compute the standard deviation:
      ≈ sqrt( [0.000625 + 0.030625 + 0.050625 + 0.005625] / 4 )  
      ≈ sqrt(0.0875 / 4) ≈ 0.148  
 ```
-
 
 Relative advantages for each output:
 
@@ -427,18 +425,15 @@ A_3 = (0.4 - 0.625) / 0.148 ≈ -1.519
 A_4 = (0.7 - 0.625) / 0.148 ≈ 0.507  
 ```
 
-
 Relative advantage reflects how each output performs compared to the average. Positive values indicate above average, negative values indicate below average.
 
-#### **Step 4: Policy update**
-
+### Step 4: Policy update**
 
 Use the relative advantage to update the model policy. To prevent excessive drift, introduce KL divergence as a regularization term:
 
 ```
 L = - E[ A_i * log π_θ(a_i | x_i) ] + β * D_KL [ π_θ || π_ref ]  
 ```
-
 
 Where:
 
@@ -462,20 +457,19 @@ Where:
 
 ### 3. Advantages of GRPO
 
-#### Reduce dependence on external data
+### Reduce dependence on external data
 
 - **Self-generated training data**: The model learns by generating samples online, reducing the need for large-scale labeled data.
 - **Lower human cost**: Eliminates the need for extensive human feedback or labeling, lowering training costs.
 
-#### Improve training efficiency
+### Improve training efficiency
 
 - **Fast convergence**: By evaluating relative advantage, the model can more efficiently identify and learn high-quality policies.
 - **Policy stability**: Introducing policy regularization prevents drastic changes to the policy, ensuring training stability.
 
 ### 4. Key technical analysis in practice
 
-#### Computing and applying relative advantage
-
+### Computing and applying relative advantage
 
 Computing relative advantage enables the model to identify which outputs are better within a group of generated candidates, focusing learning on these high-quality outputs.
 
@@ -495,14 +489,12 @@ Suppose in one training step, the model generates multiple outputs for an input:
 r̄ = (0.9 + 0.5 + 0.7) / 3 ≈ 0.7  
 ```
 
-
 Compute the standard deviation:
 
 ```
 σ(r) = sqrt( [(0.9 - 0.7)² + (0.5 - 0.7)² + (0.7 - 0.7)²] / 3 )  
      = sqrt( [0.04 + 0.04 + 0] / 3 ) ≈ 0.163  
 ```
-
 
 Relative advantages:
 
@@ -512,16 +504,13 @@ A_B = (0.5 - 0.7) / 0.163 ≈ -1.225
 A_C = (0.7 - 0.7) / 0.163 = 0  
 ```
 
-
 The model thus recognizes that output A is above average and should be assigned greater weight during policy updates.
 
-#### Importance of policy regularization
-
+### Importance of policy regularization
 
 Introducing KL divergence as a regularization term prevents the model from deviating too far from the original policy during updates, avoiding overfitting or catastrophic forgetting.
 
-#### Reward function design
-
+### Reward function design
 
 The design of the reward function is critical to GRPO’s success. A good reward function should:
 
@@ -541,7 +530,6 @@ The design of the reward function is critical to GRPO’s success. A good reward
 
 ### 6. Future outlook
 
-
 The GRPO method provides a new approach for training large language models under limited resources. Future research directions include:
 
 - **Automated reward function generation**: Use machine learning to automatically design and optimize reward functions, reducing human intervention.
@@ -557,12 +545,8 @@ The advantage of GRPO lies in reducing dependence on expensive hardware and larg
 
 ### 1. Background
 
-
 ---
 # Part 5: Reward Function Design in Practice
-
-> *Originally from GRPO-RL-Training-Pipeline*
-
 
 ## A Reinforcement Learning Case Study Essence of Legal Document RL Reward Function Design and Performance Leap Analysis
 
@@ -571,17 +555,17 @@ The advantage of GRPO lies in reducing dependence on expensive hardware and larg
 **Core techniques: Hierarchical rewards + robust parsing mechanism**
 
 ```
-# ===== 分层奖励架构 =====
+# ===== Hierarchical Reward Architecture =====
 def legal_reward(pred, judge_out, gold_ans):
-    # 1. 格式层：强制思维链规范
+    # 1. Format layer: enforce chain-of-thought formatting
     fmt = 0 if all(tag in pred for tag in ["<think>","</think>","<answer>","</answer>"]) else -1
 
-    # 2. 任务层：动态路由任务类型
-    if "刑期" not in gold_ans:  # 非刑期任务
-        return fmt + {-2:"0", 1:"1", 2:"2"}.get(judge_out, 0)  # 异常→0
-    else:  # 刑期任务
-        if "个月" not in gold_ans: return fmt + 0  # 金标校验（原文边界条件）
-        match = re.search(r"误差[:：]?\s*(\d+)\s*个月", judge_out)  # 强解析正则
+    # 2. Task layer: dynamic routing by task type
+    if "刑期" not in gold_ans:  # non-sentence task
+        return fmt + {-2:"0", 1:"1", 2:"2"}.get(judge_out, 0)  # anomaly→0
+    else:  # sentence-length task
+        if "个月" not in gold_ans: return fmt + 0  # gold label validation (boundary condition)
+        match = re.search(r"误差[:：]?\s*(\d+)\s*个月", judge_out)  # robust regex parsing
         return fmt + (-int(match[1])/240 if match else -2) 
 ```
 
@@ -598,12 +582,12 @@ The table below clearly shows how reward function design drives performance gain
 ### Performance evolution during training (visual)
 
 ```
-# 刑期预测能力进阶过程（奖励驱动）
-| 训练阶段   | 平均误差 | 平均奖励  | 学习行为       |
+# Sentence prediction progression (reward-driven)
+| Training Phase | Avg Error | Avg Reward | Learning Behavior |
 |------------|----------|-----------|----------------|
-| 0-100步   | 11.5月   | ![-0.48]  | 基础错误规避   |
-| 100-300步 | 5.2月    | ![-0.02]  | 逻辑优化       |
-| 300-400步 | 2.4月    | ![+0.31]  | 法条精准引用   |
+| 0-100 steps  | 11.5 months | ![-0.48]  | Basic error avoidance |
+| 100-300 steps| 5.2 months  | ![-0.02]  | Logic optimization    |
+| 300-400 steps| 2.4 months  | ![+0.31]  | Precise legal citation|
 ```
 
 Note: ![±X] denotes reward values; negatives are penalties, positives are incentives
@@ -613,14 +597,14 @@ Note: ![±X] denotes reward values; negatives are penalties, positives are incen
 1. Format validation ensures early convergence:
 
    ```
-   # 检查4个必需标签（前100步贡献78%准确率提升）
+   # Check 4 required tags (contributed 78% accuracy improvement in first 100 steps)
    if all(tag in pred for tag in ["<think>","</think>","<answer>","</answer>"]): ...
    ```
 
 2. Sentence-length gradient penalty enables linear optimization:
 
    ```
-   penalty = -error_months / 240  # 每减少1个月误差，奖励提升0.004
+   penalty = -error_months / 240  # Each 1-month reduction in error increases reward by 0.004
    ```
 
 3. Regex fault tolerance ensures stability:
@@ -638,13 +622,13 @@ This is not absolute; the following quick reference can help you decide.
 ### 1. Why “SFT → RL” is usually better
 
 1. Training stability
-   • Doing RL directly (especially for small models) easily triggers KL spikes, gradient explosions, and even total collapse.
-   • SFT first anchors the policy in the “basically correct and format-compliant” regime, then RL fine-tunes; KL jumps are smaller and convergence is smoother.
+   - Doing RL directly (especially for small models) easily triggers KL spikes, gradient explosions, and even total collapse.
+   - SFT first anchors the policy in the “basically correct and format-compliant” regime, then RL fine-tunes; KL jumps are smaller and convergence is smoother.
 2. Data efficiency
-   • SFT is like “feeding answers to teach the basics”; RL is like “doing generalization exercises after learning the basics”.
-   • Direct RL wastes many steps on useless exploration.
+   - SFT is like “feeding answers to teach the basics”; RL is like “doing generalization exercises after learning the basics”.
+   - Direct RL wastes many steps on useless exploration.
 3. Human annotation cost
-   • SFT can leverage a small set of high-quality annotations (or synthetic labels); RL only needs reward signals to amplify effects. Combined, they reduce labeling effort.
+   - SFT can leverage a small set of high-quality annotations (or synthetic labels); RL only needs reward signals to amplify effects. Combined, they reduce labeling effort.
 
 ### 2. When going straight to RL is more suitable
 
@@ -667,11 +651,11 @@ This is not absolute; the following quick reference can help you decide.
 Key questions:
 
 1. Does the reward rely entirely on “answer == gold answer”?
-   • Yes → you clearly have labels → do SFT first; it's cheaper.
+   - Yes → you clearly have labels → do SFT first; it's cheaper.
 2. What is the GPU/TPU budget?
-   • RL (especially GRPO/PPO) typically costs 2–4× the compute of SFT.
+   - RL (especially GRPO/PPO) typically costs 2–4× the compute of SFT.
 3. Do you need an interpretable “chain-of-thought”?
-   • Teach the format with SFT first, then improve accuracy with RL to produce more interpretable outputs.
+   - Teach the format with SFT first, then improve accuracy with RL to produce more interpretable outputs.
 
 Conclusion
 “SFT first, RL later” is not mandatory, but for most tasks with sufficient labels and structured outputs, it is the least effort and most reliable path.
@@ -681,10 +665,7 @@ Only consider “RL only” when labels are scarce or the task’s reward can be
 
 Detailed explanations of the previously mentioned KL spikes, gradient explosions, and model collapse are as follows.
 
-
-
 ## Reward function design for embedded code
-
 
 ## 🎯 Core question: How to verify correctness in code training?
 
@@ -698,13 +679,13 @@ Detailed explanations of the previously mentioned KL spikes, gradient explosions
 **The same functionality can have 100 different yet correct implementations!**
 
 ```
-训练数学题时：
-  问题：2x + 3 = 7，求 x
-  答案：x = 2  ← 唯一正确答案，可以精确匹配
+When training math problems:
+  Problem: 2x + 3 = 7, solve for x
+  Answer: x = 2  ← unique correct answer, exact match possible
 
-训练代码生成时：
-  问题：写一个 GPIO 初始化函数
-  答案：??? ← 有无数种正确写法！
+When training code generation:
+  Problem: Write a GPIO initialization function
+  Answer: ??? ← countless correct implementations!
 ```
 
 ---
@@ -720,15 +701,15 @@ The DeepSeek-R1 paper explicitly describes the method for code training:
 ```python
 def reward_code(generated_code, test_cases):
     """
-    DeepSeek-R1 的代码奖励函数
+    DeepSeek-R1 code reward function
     """
-    # 1. 编译代码
+    # 1. Compile code
     try:
         compiled = compile_code(generated_code)
     except:
-        return 0.0  # 编译失败，奖励 0
+        return 0.0  # Compilation failed, reward 0
     
-    # 2. 运行测试用例
+    # 2. Run test cases
     passed = 0
     for test in test_cases:
         try:
@@ -736,20 +717,20 @@ def reward_code(generated_code, test_cases):
             if result == test["expected_output"]:
                 passed += 1
         except:
-            pass  # 运行时错误
+            pass  # Runtime error
     
-    # 3. 计算通过率作为奖励
+    # 3. Compute pass rate as reward
     return passed / len(test_cases)  # 0.0 ~ 1.0
 ```
 
 ### Key insight: **The RL stage does not need standard answers!**
 
 ```
-传统 SFT 思路：
-  问题 → 标准答案 → 交叉熵 loss
+Traditional SFT approach:
+  Problem → Standard answer → Cross-entropy loss
 
-R1 的 RL 思路：
-  问题 → 模型生成代码 → 编译执行 → 测试通过？ → 奖励
+R1 RL approach:
+  Problem → Model generates code → Compile & run → Tests pass? → Reward
 ```
 
 **As long as the tests pass, reward regardless of how the code is written!**
@@ -768,24 +749,24 @@ R1 的 RL 思路：
 ### Reward functions of this project
 
 ```python
-# 1. 格式奖励 - 检查必要标记
+# 1. Format reward - check required markers
 def reward_format(completions):
-    # 检查 <think>...</think> 和 <code>...</code> 标记
+    # Check <think>...</think> and <code>...</code> markers
     ...
 
-# 2. 语法奖励 - 快速语法检查（毫秒级）
+# 2. Syntax reward - fast syntax check (millisecond-level)
 def reward_syntax(completions):
-    # 使用 clang -fsyntax-only 检查
+    # Use clang -fsyntax-only
     ...
 
-# 3. 编译奖励 - 完整交叉编译
+# 3. Compilation reward - full cross-compilation
 def reward_compile(completions):
-    # 使用 arm-none-eabi-gcc 交叉编译
+    # Use arm-none-eabi-gcc cross-compilation
     ...
 
-# 4. 静态分析奖励
+# 4. Static analysis reward
 def reward_static_analysis(completions):
-    # 使用 cppcheck 检查代码质量
+    # Use cppcheck for code quality
     ...
 ```
 
@@ -799,8 +780,8 @@ Purpose: teach the model code formatting and style
 
 ```json
 {
-  "instruction": "初始化 UART1，波特率 115200",
-  "output": "<think>需要配置 UART 外设...</think>\n<code>\nvoid UART1_Init() {...}\n</code>"
+  "instruction": "Initialize UART1, baud rate 115200",
+  "output": "<think>Need to configure UART peripheral...</think>\n<code>\nvoid UART1_Init() {...}\n</code>"
 }
 ```
 
@@ -810,10 +791,10 @@ Examples are needed here, but only to teach the model "how to write", not the on
 
 Purpose: improve code correctness with verifiable rewards
 
-| 训练阶段 | 需要标准答案？ | 验证方式 |
+| Training Phase | Standard Answer Needed? | Verification Method |
 |---------|--------------|---------|
-| **SFT** | ✅ 需要示例 | 交叉熵 loss |
-| **RL** | ❌ 不需要 | 可验证奖励（编译/测试） |
+| **SFT** | ✅ Need examples | Cross-entropy loss |
+| **RL** | ❌ Not needed | Verifiable rewards (compile/test) |
 
 ---
 
@@ -827,29 +808,29 @@ Purpose: improve code correctness with verifiable rewards
 ### Install dependencies
 
 ```bash
-# 系统依赖
+# System dependencies
 apt-get install -y clang cppcheck gcc-arm-none-eabi
 
-# Python 依赖
+# Python dependencies
 pip install unsloth trl transformers datasets accelerate peft vllm
 ```
 
 ### Run training
 
 ```bash
-# 快速测试（5 步 GRPO）
+# Quick test (5 GRPO steps)
 ./run_train.sh test
 
-# 仅 SFT
+# SFT only
 ./run_train.sh sft
 
-# 仅 GRPO
+# GRPO only
 ./run_train.sh grpo
 
-# 完整 SFT + GRPO
+# Full SFT + GRPO
 ./run_train.sh full
 
-# 完整训练（含编译验证，较慢）
+# Full training (with compile verification, slower)
 ./run_train.sh full_compile
 ```
 
@@ -867,11 +848,11 @@ python embedded_infer.py \
 
 ```
 embedded_sft_rl/
-├── embedded_grpo_train.py   # 主训练脚本
-├── embedded_infer.py        # 推理脚本
-├── run_train.sh             # 训练启动脚本
-├── requirements.txt         # Python 依赖
-└── README.md                # 本文档
+├── embedded_grpo_train.py   # Main training script
+├── embedded_infer.py        # Inference script
+├── run_train.sh             # Training launch script
+├── requirements.txt         # Python dependencies
+└── README.md                # This document
 ```
 
 ---
@@ -880,12 +861,12 @@ embedded_sft_rl/
 
 ### Test environment
 
-| 配置 | 规格 |
+| Config | Spec |
 |------|------|
 | GPU | NVIDIA H100 80GB |
-| 基座模型 | Qwen2.5-Coder-7B |
-| 训练框架 | Unsloth + TRL (GRPOTrainer) |
-| 总训练时间 | ~6 分钟 |
+| Base Model | Qwen2.5-Coder-7B |
+| Framework | Unsloth + TRL (GRPOTrainer) |
+| Total Training Time | ~6 minutes |
 
 ### SFT phase
 
@@ -922,9 +903,9 @@ GRPO duration: 333 seconds (50 steps)
 ### Inference validation
 
 ```
-任务: Initialize GPIO PA5 as output for LED control
+Task: Initialize GPIO PA5 as output for LED control
 
-生成代码:
+Generated code:
 void GPIO_Init(void) {
     __HAL_RCC_GPIOA_CLK_ENABLE();
     GPIO_InitTypeDef GPIO_InitStruct = {0};
@@ -935,7 +916,7 @@ void GPIO_Init(void) {
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 }
 
-语法检查: ✅ PASSED
+Syntax check: ✅ PASSED
 ```
 
 ---
@@ -954,7 +935,7 @@ Cause: Embedded code depends on STM32 HAL header files, but the training environ
 Solution: Use stub headers that only define the necessary types and macros:
 
 ```c
-// stub 头文件示例
+// Stub header example
 typedef struct { uint32_t Pin; uint32_t Mode; ... } GPIO_InitTypeDef;
 #define GPIO_PIN_5 0x0020
 #define GPIO_MODE_OUTPUT_PP 0x01
@@ -992,29 +973,29 @@ full_code = STM32_STUB_HEADERS + "\n" + extracted_code
 ## 🎯 Practical recommendations for customer scenarios
 
 ```
-Step 1: 收集客户的代码库
+Step 1: Collect customer codebase
        ↓
-Step 2: 从代码库提取 "任务-代码" 对（用于 SFT）
+Step 2: Extract "task-code" pairs from codebase (for SFT)
        ↓
-Step 3: 为常见任务编写测试用例（用于 RL 奖励）
+Step 3: Write test cases for common tasks (for RL rewards)
        ↓
-Step 4: SFT 教模型格式和风格
+Step 4: SFT teaches model format and style
        ↓
-Step 5: RL 用测试通过率作为奖励，提升功能正确性
+Step 5: RL uses test pass rate as reward to improve correctness
 ```
 
 ### Embedded code test case format
 
 ```json
 {
-  "task": "实现一个 LED 闪烁函数",
+  "task": "Implement an LED blink function",
   "test_cases": [
     {
-      "description": "LED 初始化后应为低电平",
+      "description": "LED should be low after init",
       "expected_state": {"PA5": 0}
     },
     {
-      "description": "调用 toggle 后应为高电平",
+      "description": "LED should be high after toggle",
       "expected_state": {"PA5": 1}
     }
   ]
@@ -1025,7 +1006,7 @@ Step 5: RL 用测试通过率作为奖励，提升功能正确性
 
 ```python
 def reward_hardware_state(code, expected_state):
-    """在模拟器中运行代码，验证硬件状态"""
+    """Run code in emulator to verify hardware state"""
     emulator = QEMUEmulator("stm32f4")
     emulator.load_code(code)
     emulator.run(timeout=1000)
@@ -1048,7 +1029,7 @@ def reward_hardware_state(code, expected_state):
 
 ## 📚 References
 
-- [DeepSeek-R1 论文](https://arxiv.org/abs/2401.02954) - Rule-based rewards for code
+- [DeepSeek-R1 Paper](https://arxiv.org/abs/2401.02954) - Rule-based rewards for code
 - [TRL GRPO Trainer](https://huggingface.co/docs/trl/main/grpo_trainer) - GRPO training framework
 - [Unsloth](https://github.com/unslothai/unsloth) - Efficient fine-tuning framework
 
@@ -1056,12 +1037,11 @@ def reward_hardware_state(code, expected_state):
 
 ## 📝 License
 
-
 ---
+
+# III. Advanced Training Architectures
+
 # Part 6: DeepSeekMath-V2 Self-Verifiable Proof Training Architecture
-
-> *Originally from LLM-Math-Reasoning-RL*
-
 
 ## 🧠 Chapter 2: Two Types of Math Tasks Determine Two Types of Rewards
 
@@ -1642,13 +1622,11 @@ DeepSeekMath-V2 Training Pipeline (Complex):
 Stage 1: Train Verifier (needs human-labeled proof quality)
    │
 
-
 ---
 
+# IV. Hands-on Training
+
 # Part 7: SFT + GRPO Hands-on (Code and Training Logs)
-
-> *Originally from GRPO-RL-Training-Pipeline*
-
 
 ## Choose SFT or RL
 
@@ -1658,13 +1636,13 @@ This is not absolute; the following quick reference can help you decide.
 ### 1. Why "SFT → RL" is usually better
 
 1. Training stability
-   • Going straight to RL (especially for small models) can easily trigger KL surges, gradient explosions, and even total collapse.
-   • SFT first anchors the policy in a "basically correct and format-compliant" region, then RL fine-tunes; KL jumps are smaller and convergence is smoother.
+   - Going straight to RL (especially for small models) can easily trigger KL surges, gradient explosions, and even total collapse.
+   - SFT first anchors the policy in a "basically correct and format-compliant" region, then RL fine-tunes; KL jumps are smaller and convergence is smoother.
 2. Data efficiency
-   • SFT is like "feeding answers to the model to teach basics"; RL is more like "generalization practice after learning the basics."
-   • Direct RL wastes many steps on useless exploration.
+   - SFT is like "feeding answers to the model to teach basics"; RL is more like "generalization practice after learning the basics."
+   - Direct RL wastes many steps on useless exploration.
 3. Human labeling cost
-   • SFT can replicate a small amount of high-quality labels (or synthetic labels); RL only needs reward signals to amplify effects. Combining the two saves labeling effort.
+   - SFT can replicate a small amount of high-quality labels (or synthetic labels); RL only needs reward signals to amplify effects. Combining the two saves labeling effort.
 
 ### 2. When is it more appropriate to go straight to RL
 
@@ -1687,11 +1665,11 @@ This is not absolute; the following quick reference can help you decide.
 Key questions:
 
 1. Does the reward rely entirely on "answer == gold answer"?
-   • Yes → Labels clearly exist → Do SFT first, cheaper.
+   - Yes → Labels clearly exist → Do SFT first, cheaper.
 2. How much GPU/TPU budget?
-   • RL (especially GRPO/PPO) compute is typically 2–4× that of SFT.
+   - RL (especially GRPO/PPO) compute is typically 2–4× that of SFT.
 3. Do you need an interpretable chain-of-thought?
-   • First use SFT to teach format, then use RL to improve accuracy; can produce more interpretable outputs.
+   - First use SFT to teach format, then use RL to improve accuracy; can produce more interpretable outputs.
 
 Conclusion
 "SFT first, then RL" is not mandatory, but for most tasks with sufficient labels and structured outputs, it is the most worry-free and reliable path.
@@ -1716,8 +1694,6 @@ Reward design issues / bad hyperparameters
       ↓↓
    Model collapse (single and low-quality outputs)
 ```
-
-
 
 ### ① KL surge
 
@@ -1750,30 +1726,28 @@ Solution: add a KL penalty β to the loss
 TotalLoss = -reward + β × KL
 ```
 
-
-
 Increase β (e.g., 0.01 → 0.1) to limit policy jumps.
 
 ### ② Gradient explosion
 
 Common causes
-• Learning rate too high (1e-2 instead of 1e-5)
-• Reward scale too large (hundreds rather than ±1)
-• Improper initialization or optimizer configuration
-• No clipping / ineffective clipping
+- Learning rate too high (1e-2 instead of 1e-5)
+- Reward scale too large (hundreds rather than ±1)
+- Improper initialization or optimizer configuration
+- No clipping / ineffective clipping
 
 Result: gradient norm → ∞ or NaN; loss → ∞/NaN.
 
 ### ③ Model collapse
 
 Meaning
-• Parameters over-optimized to a single or few modes (mode collapse).
-• Entropy ↓, diversity vanishes, generalization fails.
+- Parameters over-optimized to a single or few modes (mode collapse).
+- Entropy ↓, diversity vanishes, generalization fails.
 
 Typical indicators
-• Output entropy drops from ~8–10 to ~1–2.
-• Always repeats the same answer.
-• Out-of-distribution performance drops sharply.
+- Output entropy drops from ~8–10 to ~1–2.
+- Always repeats the same answer.
+- Out-of-distribution performance drops sharply.
 
 Main causes: overly simple rewards, long-standing KL issues, recurring gradient explosions, poor data quality, etc.
 
@@ -1788,11 +1762,11 @@ https://huggingface.co/docs/trl/main/grpo_trainer
 You still need a real reward source:
 
 1. Rule design
-   • e.g., `reward_format_exact`, `reward_answer` (+5 / –2 / –4).
+   - e.g., `reward_format_exact`, `reward_answer` (+5 / –2 / –4).
 2. Reward model (RM)
-   • Train a separate network to learn human preferences, then score text.
+   - Train a separate network to learn human preferences, then score text.
 3. External signal
-   • Environment score, CTR, game points, etc.
+   - Environment score, CTR, game points, etc.
 
 Process:
 
@@ -1800,22 +1774,20 @@ Process:
 Generate N candidates ─→ score ─→ group mean ─→ Advantage
 ```
 
-
-
 ## Example
 
-• You ask the model once, it generates four candidate answers.
-• You score them: 80, 60, 90, 70.
-• Mean = 75 → this is the baseline.
-• For each answer compute (score – mean); positive reinforced, negative suppressed.
+- You ask the model once, it generates four candidate answers.
+- You score them: 80, 60, 90, 70.
+- Mean = 75 → this is the baseline.
+- For each answer compute (score – mean); positive reinforced, negative suppressed.
 
 ## Train Qwen with TRL (SFT + GRPO)
 
 ### SFT stage
 
 Dataset
-• HF Hub: `unsloth/OpenMathReasoning-mini`
-• Split: `"cot"` (includes chain-of-thought)
+- HF Hub: `unsloth/OpenMathReasoning-mini`
+- Split: `"cot"` (includes chain-of-thought)
 
 Fields
 
@@ -1834,16 +1806,14 @@ assistant : <start_working_out>{thoughts}<end_working_out>
             <SOLUTION>{expected_answer}</SOLUTION>
 ```
 
-
-
 `thoughts` = `generated_solution` with the `<think>` tags removed.
 Training objective = standard causal-LM loss (no rewards at this stage).
 
 ### GRPO stage
 
 Dataset
-• HF Hub: `open-r1/DAPO-Math-17k-Processed`
-• Config `"en"`, split `"train"`
+- HF Hub: `open-r1/DAPO-Math-17k-Processed`
+- Config `"en"`, split `"train"`
 
 | Column     | Example (truncated)      | Use   |
 | ---------- | ------------------------ | ------ |
@@ -1858,8 +1828,6 @@ user   : {prompt}
 # assistant – model generation
 ```
 
-
-
 Sampling parameters
 
 ```
@@ -1869,8 +1837,6 @@ max_tokens  = 256
 stop        = ["</SOLUTION>", tok.eos_token]
 num_generations = 4
 ```
-
-
 
 #### Reward function
 
@@ -2039,7 +2005,7 @@ system_prompt = (
     f"between {solution_start}{solution_end}"
 )
 
-############## ★ ChatTemplate 修改 开始 ★ -----------------------------
+############## ★ ChatTemplate Patch START ★ -----------------------------
 def chat_template():
     return (
         "{% for m in messages %}"
@@ -2054,7 +2020,7 @@ def chat_template():
         "<|assistant|>{{ '" + reasoning_start + "' }}"
         "{% endif %}"
     )
-############## ★ ChatTemplate 修改 结束 ★ -----------------------------
+############## ★ ChatTemplate Patch END ★ -----------------------------
 
 # ---------- reward ----------
 import sympy as sp
@@ -2071,14 +2037,14 @@ def _safe_float(x: str):
     try: return float(sp.N(sp.sympify(x)))
     except Exception: return None
 
-# ---------- 参数 ----------
-CORRECT_BONUS     = 8.0    # 完全正确
-CLOSE_BONUS       = 4.0    # 误差 <1% or <1e-2
-NEAR_BONUS        = 0.0    # 可解析但不够准
-PENALTY_NO_NUM    = -1.0   # 解析失败
+# ---------- Parameters ----------
+CORRECT_BONUS     = 8.0    # Exactly correct
+CLOSE_BONUS       = 4.0    # Error <1% or <1e-2
+NEAR_BONUS        = 0.0    # Parsable but not close enough
+PENALTY_NO_NUM    = -1.0   # Parse failed
 MIN_REASON_TOKENS = 6
 
-# ---------- 格式奖励 ----------
+# ---------- Format Reward ----------
 def reward_format_exact(completions, min_reason_tokens: int = MIN_REASON_TOKENS, **_):
     scores = []
     for comp in completions:
@@ -2086,17 +2052,17 @@ def reward_format_exact(completions, min_reason_tokens: int = MIN_REASON_TOKENS,
         score = 0.0
         for tag in (reasoning_start, reasoning_end, solution_start, solution_end):
             if tag in txt:
-                score += 1.0                     # 每个标签 +1
+                score += 1.0                     # +1 per tag
         if reasoning_start in txt and reasoning_end in txt:
             span = re.search(re.escape(reasoning_start) + r"(.*?)"
                              + re.escape(reasoning_end), txt, re.S)
             if span and len(span.group(1).strip().split()) < min_reason_tokens:
-                score -= 1.0                     # reasoning 太短 −1
-        score = max(-2.0, min(4.0, score))       # 裁剪
+                score -= 1.0                     # reasoning too short -1
+        score = max(-2.0, min(4.0, score))       # Clip
         scores.append(score)
     return scores
 
-# ---------- 答案奖励 ----------
+# ---------- Answer Reward ----------
 def reward_answer(prompts, completions, answer, **_):
     outs = []
     for comp, true_ans in zip(completions, answer):
@@ -2116,7 +2082,7 @@ def reward_answer(prompts, completions, answer, **_):
         else:
             outs.append(NEAR_BONUS)
     return outs
-############## Reward-Patch 结束 -----------------------------------
+############## Reward-Patch END -----------------------------------
 ```
 # ---------- Debug ----------
 def make_debug(freq, num_gen):
@@ -2200,7 +2166,7 @@ def main():
         args.base_model,
         max_seq_length=args.max_seq_len,
         load_in_4bit=False,
-        fast_inference=args.fast_inference,   # 训练期默认 False
+        fast_inference=args.fast_inference,   # Default False during training
     )
     model = FastLanguageModel.get_peft_model(
         model,
@@ -2319,9 +2285,9 @@ Unsloth: Will smartly offload gradients to save VRAM!
 ### SFT Log Analysis
 
 Start ≈ 5.05 → End ≈ 4.03
-• Unit: token-level cross-entropy (log loss)
-• Converted to perplexity: exp(5.05)=156 → exp(4.03)=56, a decrease of about 64%
-• With only 280 training steps, 2.2k samples, and LoRA updating just 0.8% of the parameters, this magnitude of loss reduction is within the "normal" range.
+- Unit: token-level cross-entropy (log loss)
+- Converted to perplexity: exp(5.05)=156 → exp(4.03)=56, a decrease of about 64%
+- With only 280 training steps, 2.2k samples, and LoRA updating just 0.8% of the parameters, this magnitude of loss reduction is within the "normal" range.
 
 ### GRPO Section
 
@@ -2394,19 +2360,19 @@ Inference script
 import torch, re, math, argparse
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
-# ----- 常量 -----
+# ----- Constants -----
 reasoning_start, reasoning_end = "<start_working_out>", "<end_working_out>"
 solution_start,  solution_end  = "<SOLUTION>", "</SOLUTION>"
 system_prompt = ( "You are given a problem. Show reasoning between "
     f"{reasoning_start} and {reasoning_end}. Then give the final numeric answer "
     f"between {solution_start}{solution_end}")
 
-def chat_template(msgs):          # 同训练阶段
+def chat_template(msgs):          # Same as training phase
     out=[]
     for m in msgs:
         role=m["role"]; txt=m["content"]
         out.append(f"<|{role}|>"+txt+"<|end|>")
-    out.append(f"<|assistant|>{reasoning_start}")   # 生成提示
+    out.append(f"<|assistant|>{reasoning_start}")   # Generation prompt
     return "".join(out)
 
 def build_messages(problem:str):
@@ -2518,8 +2484,6 @@ GRPOTrainer-specific fields
 | completions/clipped_ratio | Proportion of answers truncated by `max_completion_length`             | ↓ Lower is better          |
 | epoch                     | Training progress (0–1 = 0–100%)                              | —                    |
 
-
-
 ---
 
 ## Embedded C++ Code Generation: SFT + GRPO
@@ -2532,14 +2496,7 @@ This project demonstrates how to train an embedded C++ code generation model usi
 
 ---
 
-
-
----
-
 # Part 8: Phi-4 GRPO Training Code
-
-> Originally from GRPO-RL-Training-Pipeline
-
 
 ## 📖 Appendix: SFT Tuning Best Practices
 
@@ -2569,10 +2526,10 @@ This project demonstrates how to train an embedded C++ code generation model usi
 ### Key parameter settings
 
 ```python
-# 训练参数
+# Training parameters
 training_args = TrainingArguments(
     num_train_epochs=100,
-    learning_rate=5e-4,           # 比默认 5e-5 高 10 倍
+    learning_rate=5e-4,           # 10x higher than default 5e-5
     gradient_accumulation_steps=32,
     per_device_train_batch_size=1,
     warmup_steps=100,
@@ -2632,8 +2589,6 @@ void UART_Init() {
 
 ***Please click below pictures to see my demo video on Youtube about GRPO of Microsoft/phi-4:***
 [![BitNet-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/WXjJdsV2cbU)
-
-
 
 ## Phi-4 GRPO training code
 
@@ -2817,7 +2772,6 @@ outputs = model.generate(
   top_p=0.9,
 )
 
-
 response = outputs[0][encoded_input['input_ids'].shape[-1]:]
 print(tokenizer.decode(response))
 ```
@@ -2931,16 +2885,9 @@ No no no, this is my real answer: The exact number of pandas in China is determi
 </aha><|im_end|>
 ```
 
-
-
-
-
 ---
 
 # Part 9: GSPO — RL training for Dense models vs MoE models
-
-> *Originally from GRPO-RL-Training-Pipeline*
-
 
 ## 1. Background
 
@@ -3140,14 +3087,11 @@ In one sentence:
 
 > GSPO is a targeted optimization for MoE: training becomes more stable, faster, and more scalable, which benefits inference performance as a result, but GSPO itself is not an inference algorithm.
 
-
 ---
 
-# Part 10: Test-time Compute Scaling — How SLMs beat larger models
+# V. Inference-time Scaling
 
-> *Originally from SLM-Capabilities-and-Fine-Tuning*
-
-
+# Part 10: Test-time Compute Scaling — How SLMs Beat Larger Models
 
 Please consider following my repo：
 
@@ -3199,9 +3143,7 @@ Building on the previous article, I add a comparison of DVTS (Diverse verifier t
 | **Use cases**   | - Simple tasks needing a single quick answer. - When quality demands are low. | - Tasks requiring a balance between quality and compute. - Suitable for moderate complexity tasks. | - Complex tasks requiring deeper reasoning. - Larger compute budget available to improve performance. | - When stability and consistency are desired. - To reduce the impact of randomness. |
 | **Computational complexity** | Low.                                                         | Medium (depends on beam width).                                       | High (due to verifier usage and more search paths).                     | Medium to high (depends on the number of generations).                           |
 
-
-
-### **1. Greedy Decoding（Greedy Decoding）**
+### 1. Greedy Decoding（Greedy Decoding）
 
  
 **How it works:**
@@ -3219,9 +3161,7 @@ Building on the previous article, I add a comparison of DVTS (Diverse verifier t
   - **Local optimum**: focuses only on the best local choice and may miss globally better solutions.
   - **Lack of diversity**: generated sequences lack variation, potentially leading to repetitive or unnatural outputs.
 
-
-
-### **2. Beam Search（Beam Search）**
+### 2. Beam Search（Beam Search）
 
  
 **How it works:**
@@ -3245,9 +3185,7 @@ Building on the previous article, I add a comparison of DVTS (Diverse verifier t
   - **Increased compute**: larger beam width raises cost.
   - **Still beam-limited**: cannot guarantee finding the global optimum.
 
-
-
-### **3. Diverse Verifier Tree Search（DVTS）**
+### 3. Diverse Verifier Tree Search（DVTS）
 
  
 **How it works:**
@@ -3275,7 +3213,7 @@ Building on the previous article, I add a comparison of DVTS (Diverse verifier t
 
  
 
-### **4. Majority Voting（Majority Voting）**
+### 4. Majority Voting（Majority Voting）
 
  
 **How it works:**
@@ -3300,9 +3238,6 @@ Building on the previous article, I add a comparison of DVTS (Diverse verifier t
   - **Higher compute**: multiple generations increase cost.
   - **Potentially insufficient diversity**: if outputs are too diverse, there may be no clear majority.
 
-
-
-
 ## Running on Azure
 
 All experiments in this project were conducted on an **Azure GPU VM**.
@@ -3313,12 +3248,11 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 | **GPU** | NVIDIA H100 80GB |
 | **Frameworks** | vLLM, LoRA/PEFT, Unsloth |
 
-
-## **Differences and connections among them**
+## Differences and connections among them
 
  
 
-### **Size of the search space**
+### Size of the search space
 
  
 
@@ -3331,7 +3265,7 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 - **Majority Voting**:
   - **Expanded search space**: multiple independent generations yield different candidates, though each generation still follows a single path.
 
-### **Diversity**
+### Diversity
 
  
 
@@ -3344,7 +3278,7 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 - **Majority Voting**:
   - **Medium diversity**: depends on the number of generations and sampling randomness.
 
-### **Compute cost**
+### Compute cost
 
  
 
@@ -3357,7 +3291,7 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 - **Majority Voting**:
   - **Medium to high cost**: depends on the number of generations N.
 
-### **Suitable scenarios and tasks**
+### Suitable scenarios and tasks
 
  
 
@@ -3374,7 +3308,7 @@ All experiments in this project were conducted on an **Azure GPU VM**.
   - **Improve answer stability**: suitable when reducing randomness and improving consistency.
   - **Examples**: knowledge QA, verification of key facts.
 
-## **Simple analogies**
+## Simple analogies
 
  
 
@@ -3387,9 +3321,7 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 - **Majority Voting**:
   - **Analogy**: ask multiple people the same question and choose the answer most people agree on.
 
-
-
-## **Summary**
+## Summary
 
  
 By incorporating **Majority Voting** into the discussion, we can more comprehensively understand the characteristics, advantages, and applicable scenarios of different decoding and generation strategies. Each method has unique strengths and limitations; choosing the right one depends on task requirements, available compute, and quality expectations.
@@ -3403,10 +3335,6 @@ By incorporating **Majority Voting** into the discussion, we can more comprehens
 - **Majority Voting** reduces randomness and improves stability via multiple generations and aggregation, but correctness is not guaranteed and it must be used cautiously.
 
   Choosing the appropriate strategy helps fully leverage LLM capabilities across diverse applications.
-
-
-
-
 
 **II. The shift in train-time compute**
 
@@ -3424,13 +3352,9 @@ DeepMind’s latest research shows that test-time compute can be scaled optimall
 
   
 
-
-
 So how well does compute-optimal scaling work in practice? Look at this chart: on the challenging MATH-500 benchmark, tiny 1B and 3B Llama Instruct models actually outperform their larger 8B and 70B counterparts when given enough “thinking time”:
 
 ![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/2.png)
-
-
 
 ## III. Strategies for test-time compute scaling
 
@@ -3439,8 +3363,6 @@ There are two main strategies for scaling test-time compute:
 
 1. **Self-Refinement**: Models iteratively improve their outputs or “thoughts” by identifying and correcting mistakes in subsequent iterations. While effective on some tasks, this often requires built-in self-improvement mechanisms, which may limit applicability.
 2. **Search against a Verifier**: This approach focuses on generating multiple candidate answers and selecting the best via a verifier. Verifiers can range from hand-coded heuristics to learned reward models; we focus on learned verifiers below. Techniques include Best-of-N sampling and tree search. Search is more flexible and can adapt to problem difficulty, though performance is bounded by verifier quality.
-
-
 
 **IV. What exactly is a verifier?**
 
@@ -3457,19 +3379,13 @@ A verifier is typically a **Reward Model (RM)** or **Process Reward Model (PRM)*
 
 Best-of-N, Beam Search, and Diverse Verifier Tree Search (DVTS) are decoding techniques used to guide an LLM’s generation process. Combining these decoding techniques with a verifier optimizes performance at test time.
 
-
-
 - **Improved accuracy**: verifiers filter out wrong or low-quality generations, improving output accuracy and reducing hallucinations.
 - **Optimized generation**: real-time evaluation and guidance make exploration more effective, especially on complex tasks.
 - **Boosts small models**: with a verifier, smaller models can match or surpass larger ones on specific tasks.
 
-
-
 **V. Empirical results**
 
 ![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/4.png)
-
-
 
 ## Experimental setup
 
@@ -3492,8 +3408,6 @@ As shown above, our experimental setup follows these steps:
 
 ![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/5.png)
 
-
-
 To warm up, we start with a simple baseline and incrementally add techniques to improve performance.
 
 ## Majority voting: a simple baseline
@@ -3504,14 +3418,14 @@ Majority voting—aka self-consistency decoding—is the most straightforward wa
 The MATH benchmark has a quirk: answers must be formatted in a LaTeX box like `\boxed{answer}`. We initially tried the following simple system prompt for Llama 3.2 1B:
 
 ```
-请逐步思考，并将你的最终答案放在 \boxed{} 中。
+Please think step by step and put your final answer in \boxed{}.
 ```
 
  
 But with greedy decoding (T = 0) the accuracy was far below the 30.6% Meta reported in their release. Fortunately, Meta also released the prompts they used for evaluation, and switching our system prompt to theirs made a huge difference:
 
 ```
-高效而清晰地解决以下数学问题：
+Solve the following math problem efficiently and clearly:
 ```
 - For simple problems (2 steps or fewer):
   Provide a concise solution with minimal explanation.
@@ -3535,21 +3449,19 @@ where [answer] is the final number or expression that solves the problem.
 ```
 
  
-评估数学问题的答案有一个细微之处，即像 `1/3` 和 `3/3` 这样的字符串是不同的，但代表数学上等价的答案。处理这种情况的标准方法是将一对答案转换为 SymPy 对象，然后检查减去两个对象并应用 `sympy.simplify` 是否得到零。
+There is a subtlety in evaluating math problem answers: strings like `1/3` and `3/3` are different but represent mathematically equivalent answers. The standard approach is to convert a pair of answers to SymPy objects, then check whether subtracting the two objects and applying `sympy.simplify` yields zero.
 
-虽然这种方法在比较少量候选答案时效果很好，但我们发现当在一个包含 N 个候选答案的列表中比较许多对时，非常慢；在某些情况下，比最初生成候选答案还要慢！为了解决这个问题，我们首先将每个答案简化为其规范形式，然后计算每种形式的频率来确定多数投票。如果你对代码如何实现感兴趣，可以展开下面的细节。
+While this approach works well when comparing a small number of candidate answers, we found that comparing many pairs in a list of N candidates is very slow — in some cases, even slower than generating the candidates in the first place! To address this, we first simplify each answer to its canonical form, then count the frequency of each form to determine the majority vote. If you are interested in how this is implemented, expand the details below.
 
-**实现细节**
+**Implementation details**
 
-这里是将多数投票应用于 Llama 3.2 1B Instruct 的生成时的表现：
-
-
+Here is the performance when applying majority voting to Llama 3.2 1B Instruct generations:
 
 ![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/6.png)
 
-结果表明，多数投票相比于贪婪解码基线的确带来了显著的改进，但其增益在大约 N = 64 代之后开始趋于平稳。这种限制的出现是因为多数投票在需要细致推理或错误在代际间一致的任务上表现不佳。如果你也想知道为什么当 N = 1 和 2 时，多数投票的准确率比零次提示链式思考（0-shot CoT）基线更差，那是因为我们以 T = 0.8 进行采样，这使得在少数候选中产生正确答案的可能性较小。
+The results show that majority voting does bring significant improvement over the greedy decoding baseline, but the gains start to plateau after about N = 64 generations. This limitation arises because majority voting performs poorly on tasks requiring nuanced reasoning or where errors are consistent across generations. If you also wonder why at N = 1 and 2 the majority voting accuracy is worse than the 0-shot CoT baseline, it is because we sample at T = 0.8, which makes it less likely to produce the correct answer among few candidates.
 
-基于多数投票的局限性，让我们看看引入奖励模型如何提升性能。
+Given the limitations of majority voting, let us see how introducing a reward model can boost performance.
 
 ## Best-of-N
 
@@ -3657,12 +3569,9 @@ DVTS works similarly to beam search, with the following modifications:
 
 ![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/10.png)
 
-
 As we can see, DVTS provides a complementary strategy to beam search: at smaller N, beam search is more effective at finding the correct solution, but at larger N the diversity of DVTS candidates begins to pay off, yielding better performance.
 
 We can also see this from the breakdown by problem difficulty: at large N, DVTS boosts performance on easy/medium problems, whereas beam search is best across difficulties at small N:
-
-
 
 ![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/11.png)
 
@@ -3744,15 +3653,11 @@ We can also see this from the breakdown by problem difficulty: at large N, DVTS 
 
 In pursuit of the best performance, choose the most appropriate decoding method based on the specific task and resource constraints, and decide whether to pair it with a validator. Select decoding strategies according to task characteristics rather than using many methods simultaneously.
 
-
-
 **I. Background recap**
 
-In the previous article [SLM 如何在推理任务中击败大型模型](https://mp.weixin.qq.com/s?__biz=MzAwMDc2NjQ4Nw==&mid=2663562788&idx=1&sn=519f460e92f6998b3eff9dabd93873f8&scene=21#wechat_redirect), I introduced the implementation of test-time compute scaling. A rough implementation diagram:
+In the previous article [How SLMs Beat Larger Models in Reasoning Tasks](https://mp.weixin.qq.com/s?__biz=MzAwMDc2NjQ4Nw==&mid=2663562788&idx=1&sn=519f460e92f6998b3eff9dabd93873f8&scene=21#wechat_redirect), I introduced the implementation of test-time compute scaling. A rough implementation diagram:
 
 ![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/12.png)
-
-
 
 1. We first feed a math problem into a large language model (LLM), which generates N partial solutions, such as an intermediate step in the derivation.
 
@@ -3768,8 +3673,6 @@ In the previous article [SLM 如何在推理任务中击败大型模型](https:/
 - **Process Reward Model (PRM)**: To guide our search strategies, we used `RLHFlow/Llama3.1-8B-PRM-Deepseek-Data`, an 8B-parameter reward model trained with process supervision. Process supervision is a training method where the model receives feedback at each step of the reasoning process (not just the final result). We chose this model because it is from the same family as our strategy and, at this parameter scale, gave better results than other PRMs we tested (e.g., Math-Shepherd).
 - **Dataset**: We evaluated on the MATH benchmark’s MATH-500 subset, released by OpenAI as part of their process supervision research. These math problems span seven subjects and are challenging for humans and most LLMs. Check out the dataset browser below to get a feel for the difficulty! We tested each search strategy at compute budgets generating from 1 to 256 generations per prompt and ran the data-generation pipeline with five random seeds to estimate inter-run variance. You can find the models and datasets we analyzed in this collection.
 
-
-
 And several common methods for generating candidates include:
 
 | Aspect         | Greedy Decoding                                           | Beam Search                                                   | Diverse Verifier Tree Search (DVTS)                           | Majority Voting                                               |
@@ -3784,19 +3687,15 @@ And several common methods for generating candidates include:
 | **Use cases**      | - Simple tasks requiring a quick single answer. - Cases with low quality requirements. | - Tasks needing a balance between quality and compute cost. - Suitable for general-complexity tasks. | - Complex tasks or those requiring deep reasoning. - Larger compute budgets available for performance gains. | - When stability and consistency are desired. - Situations needing reduced randomness. |
 | **Computational complexity** | Low.                                              | Moderate (depends on beam width).                             | High (due to validator use and more search paths).            | Moderate to high (depends on number of generated answers).    |
 
-
-
 **II. Advantages of genetic algorithms**
-
 
 ---
 
 # Part 11: Mind Evolution and Genetic Algorithms
 
-> *Originally from SLM-Capabilities-and-Fine-Tuning*
+## What Is a Genetic Algorithm?
 
-
-## **Genetic Algorithm** is an adaptive heuristic used to solve optimization and search problems, simulating natural selection and genetic variation. Its core idea is “survival of the fittest.” Through selection, crossover, and mutation, high-quality individuals (solutions) are retained in the population and generate new, better solutions. 
+**Genetic Algorithm** is an adaptive heuristic used to solve optimization and search problems, simulating natural selection and genetic variation. Its core idea is “survival of the fittest.” Through selection, crossover, and mutation, high-quality individuals (solutions) are retained in the population and generate new, better solutions. 
 
  
 
@@ -3808,8 +3707,6 @@ In DeepMind’s **Mind Evolution** method, genetic algorithms are introduced to:
 - **Enhance search capability**: More effectively explore complex solution spaces via biological evolution mechanisms.
 - **Avoid local optima**: Reduce the chance of getting stuck in local optima and increase the chance of finding the global optimum.
 - **Improve solution quality**: Iteratively optimize candidate solutions to produce higher-quality final plans.
-
-
 
 **Key steps of genetic algorithms**
 
@@ -3848,9 +3745,7 @@ In DeepMind’s **Mind Evolution** method, genetic algorithms are introduced to:
 
 - **Loop**: Add newly generated candidates to the population and repeat evaluation and selection.
 
-
-
-### **Application of genetic algorithms in Mind Evolution**
+### Application of genetic algorithms in Mind Evolution
 
  
 **Example task**: Plan a trip that meets specific requirements for a user.
@@ -3866,7 +3761,7 @@ In DeepMind’s **Mind Evolution** method, genetic algorithms are introduced to:
 
 ###  
 
-### **Advantages of genetic algorithms,**
+### Advantages of genetic algorithms,
 
 - **Strong global optimization**: Can search for optimal solutions in a vast solution space.
 
@@ -3888,7 +3783,7 @@ In DeepMind’s new paper **《Evolving Deeper LLM Thinking》**, a new implemen
 
 ![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/14.png)
 
-### **Seven main steps of Mind Evolution**
+### Seven main steps of Mind Evolution
 
 1. **Candidate generation (initialization)**
 
@@ -3907,7 +3802,7 @@ In DeepMind’s new paper **《Evolving Deeper LLM Thinking》**, a new implemen
    
    Below, I will explain each step, the algorithms and concepts involved, with examples.
 
-### **Step 1: Candidate generation (initialization)**
+### Step 1: Candidate generation (initialization)
 
  
 **Who performs it**: Large Language Model (LLM)
@@ -3958,9 +3853,7 @@ In DeepMind’s new paper **《Evolving Deeper LLM Thinking》**, a new implemen
   - Day 4: Shanghai, visit Oriental Pearl Tower, stay in Shanghai.
   - Day 5: Shanghai -> Beijing, end of trip.
 
-
-
-### **Step 2: Plan evaluation (Fitness Evaluation)**
+### Step 2: Plan evaluation (Fitness Evaluation)
 
  
 **Who performs it**: **Evaluation function (programmatic evaluator)**
@@ -4027,7 +3920,7 @@ In DeepMind’s new paper **《Evolving Deeper LLM Thinking》**, a new implemen
 
 - For Plan 3: Suggest adjusting the itinerary so Day 1 is in Shanghai.
 
-### **Step 3: Refinement through Critical Conversation (RCC)**
+### Step 3: Refinement through Critical Conversation (RCC)
 
  
 **Who performs it**: Large Language Model (LLM)
@@ -4080,7 +3973,7 @@ In DeepMind’s new paper **《Evolving Deeper LLM Thinking》**, a new implemen
 
 - 
 
-### **Step 4: Selection**
+### Step 4: Selection
 
  
 **Who performs it**: Algorithmic flow (program control)
@@ -4107,9 +4000,7 @@ In DeepMind’s new paper **《Evolving Deeper LLM Thinking》**, a new implemen
 
 - Plans 1 and 2 may be chosen as parents.
 
-
-
-### **Step 5: Crossover and Mutation**
+### Step 5: Crossover and Mutation
 
 **Who performs it**: Large Language Model (LLM) and algorithmic flow (program control)
 
@@ -4150,8 +4041,6 @@ In DeepMind’s new paper **《Evolving Deeper LLM Thinking》**, a new implemen
 - Day 4: Hangzhou, visit Lingyin Temple and other attractions, stay in Hangzhou.
 - Day 5: Hangzhou -> Beijing, end of trip.
 
-
-
 - **Mutation**:
 - **How it’s done**:
   - Apply small random changes to offspring.
@@ -4159,7 +4048,7 @@ In DeepMind’s new paper **《Evolving Deeper LLM Thinking》**, a new implemen
 - **Example**:
   - Randomly change Day 4 from Hangzhou to a return to Shanghai, or add new attractions.
 
-### **Step 6: Iteration and Evolution**
+### Step 6: Iteration and Evolution
 
  
 **Who performs it**: Algorithmic flow (program control)
@@ -4186,9 +4075,7 @@ In DeepMind’s new paper **《Evolving Deeper LLM Thinking》**, a new implemen
 
 - **Termination conditions**: A plan that meets all requirements is found, or a maximum number of iterations is reached.
 
-
-
-### **Step 7: Island Model - Migration and Reset**
+### Step 7: Island Model - Migration and Reset
 
  
 
@@ -4221,7 +4108,7 @@ In DeepMind’s new paper **《Evolving Deeper LLM Thinking》**, a new implemen
 
 ### 
 
-### **Summary**
+### Summary
 
  
 The **Mind Evolution** method combines the generation and understanding capabilities of LLMs with the global optimization of evolutionary algorithms (including genetic algorithms and the island model) to achieve efficient plan optimization in natural language planning tasks.
@@ -4242,14 +4129,9 @@ The **Mind Evolution** method combines the generation and understanding capabili
 
 ---
 
+# VI. SLM Experiments and Comparison
 
-
----
-
-# Part 12: SLM fine-tuning experiments
-
-> *Originally from SLM-Capabilities-and-Fine-Tuning*
-
+# Part 12: SLM Fine-tuning Experiments
 
 ## Phi-4 Thinks as DeepSeek-R1
 
@@ -4260,7 +4142,7 @@ I tried fine-tuning Microsoft's Phi-4 model using the open-source R1 dataset. Be
 ***Please click below pictures to see my demo video on Youtube***:
 [![SLM-DS-R1-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/9CVKR0YcdKU)
 
-### **Dataset Used**
+### Dataset Used
 
 **Why Choose This Dataset?** 
 
@@ -4269,7 +4151,6 @@ I used the **`reasoning-deepseek`** subset from the `cognitivecomputations/dolph
 ![images](images/deepseek_r1_dataset.png)
 
 The dataset contains the model's reasoning process, wrapped with special `<think>` tags, which can help our model learn how to think and reason. 
-
 
 **Data Preprocessing**
 
@@ -4299,8 +4180,6 @@ During the fine-tuning process, I chose the **LoRA (Low-Rank Adaptation)** metho
 
 ![images](images/deepseek_r1_gpu.png)
 
-
-
 ### Full code
 
 Training code：
@@ -4315,24 +4194,24 @@ from trl import SFTConfig, SFTTrainer
 compute_dtype = torch.bfloat16    
 # attn_implementation = 'flash_attention_2' 
   
-# 加载 tokenizer  
+# Load tokenizer  
 tokenizer = AutoTokenizer.from_pretrained("microsoft/phi-4")  
 tokenizer.pad_token = "<|finetune_right_pad_id|>"  
 tokenizer.pad_token_id = 100257  
 tokenizer.padding_side = 'right'  
   
-# 添加新标记 '<think>' 和 '</think>'  
+# Add new tokens '<think>' and '</think>'  
 new_tokens = ['<think>', '</think>']  
 tokenizer.add_tokens(new_tokens)  
   
-# 加载数据集  
+# Load dataset  
 ds = load_dataset("cognitivecomputations/dolphin-r1", 'reasoning-deepseek', split='train[:30000]').train_test_split(test_size=0.1)  
   
-# 处理数据集  
+# Process dataset  
 def process(row):  
     assistant_message = "<think>" + row['reasoning'] + "</think>\n\n" + row['answer']  
     row['messages'].append({'role': 'assistant', 'content': assistant_message})  
-    # 手动拼接消息内容  
+    # Manually concatenate message content  
     conversations = ''  
     for message in row['messages']:  
         conversations += f"{message['role']}: {message['content']}\n"  
@@ -4370,7 +4249,7 @@ def fine_tune(model_name, batch_size=1, gradient_accumulation_steps=32, LoRA=Fal
         )  
         model.gradient_checkpointing_enable()  
   
-    # **调整模型的嵌入矩阵以匹配新的词汇表大小**  
+    # **Resize model embedding matrix to match new vocabulary size**  
     model.resize_token_embeddings(len(tokenizer))  
   
     if LoRA or QLoRA:  
@@ -4570,8 +4449,6 @@ The results were satisfying! The model successfully generated a reasoning proces
 
 By using datasets provided by the community, we can fine-tune models like **Phi-4** enabling smaller models to possess certain "thinking" and reasoning abilities.
 
-
-
 **Refer to：**
 
 https://kaitchup.substack.com/p/fine-tuning-your-llm-to-think-like-r1
@@ -4593,18 +4470,16 @@ https://kaitchup.substack.com/p/fine-tuning-your-llm-to-think-like-r1
    - Monitor BLEU changes and use validation loss as the early stopping criterion
    - Data direction and domain match are more important than simply increasing epochs
 
-| 要素         | 细节                                                         | 工程化手段（方法）                                           | 工程意义                                               |
-| ------------ | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------ |
-| **问题**     | Micro models (270M) have poor out-of-the-box performance, cross-lingual tasks are nearly unusable (BLEU≈2.23), weak long-context and complex instruction-following ability | —                                                            | Small models lack generality and stability; zero-shot is not production-ready |
-| **工程目标** | Under single-GPU 6–12 GB VRAM, achieve usable accuracy on a specific task (EN→FR translation) | —                                                            | Provide a large-model alternative path for edge deployment and low-resource scenarios |
-| **解决方案** | Low-cost optimization bundle for the 270M small model        | ① Full-parameter fine-tuning (including embedding layer)<br>② Narrow the domain (high-consistency task data)<br>③ Streamline templates to reduce tokens<br>④ Feed a large, deduplicated dataset in one go | Full fine-tuning + domain focus + template optimization to maximize small-model task performance |
-| **实施条件** | Hardware: 6 GB feasible, 12 GB comfortable<br>Framework: Unsloth + AdamW-8bit<br>Data: OPUS-100, news_commentary<br>Duration: several hours on RTX 4090 | ⑤ AdamW-8bit optimizer<br>⑥ Gradient accumulation<br>⑦ BF16 inference precision | Clarify resource and parameter settings, lowering the barrier to experimentation |
-| **结果**     | BLEU improved from 2.23 to ≈18 (up to 30)<br>base beats instruct (avoids safety layer interference)<br>fast inference, low VRAM | —                                                            | Small models can approach large-model performance with very low deployment cost |
-| **经验结论** | Small models are weak zero-shot, but after fine-tuning they can serve as high-reliability components; data diversity beats repeated training; full fine-tuning outperforms high-freeze approaches | —                                                            | Provide decision guidance on model selection, data strategy, and training methods for low-budget engineers |
+| Element          | Details                                                      | Engineering Methods                                          | Engineering Significance                               |
+| ---------------- | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------ |
+| **Problem**      | Micro models (270M) have poor out-of-the-box performance, cross-lingual tasks are nearly unusable (BLEU≈2.23), weak long-context and complex instruction-following ability | —                                                            | Small models lack generality and stability; zero-shot is not production-ready |
+| **Goal**         | Under single-GPU 6–12 GB VRAM, achieve usable accuracy on a specific task (EN→FR translation) | —                                                            | Provide a large-model alternative path for edge deployment and low-resource scenarios |
+| **Solution**     | Low-cost optimization bundle for the 270M small model        | ① Full-parameter fine-tuning (including embedding layer)<br>② Narrow the domain (high-consistency task data)<br>③ Streamline templates to reduce tokens<br>④ Feed a large, deduplicated dataset in one go | Full fine-tuning + domain focus + template optimization to maximize small-model task performance |
+| **Setup**        | Hardware: 6 GB feasible, 12 GB comfortable<br>Framework: Unsloth + AdamW-8bit<br>Data: OPUS-100, news_commentary<br>Duration: several hours on RTX 4090 | ⑤ AdamW-8bit optimizer<br>⑥ Gradient accumulation<br>⑦ BF16 inference precision | Clarify resource and parameter settings, lowering the barrier to experimentation |
+| **Results**      | BLEU improved from 2.23 to ≈18 (up to 30)<br>base beats instruct (avoids safety layer interference)<br>fast inference, low VRAM | —                                                            | Small models can approach large-model performance with very low deployment cost |
+| **Lessons**      | Small models are weak zero-shot, but after fine-tuning they can serve as high-reliability components; data diversity beats repeated training; full fine-tuning outperforms high-freeze approaches | —                                                            | Provide decision guidance on model selection, data strategy, and training methods for low-budget engineers |
 
 ![images](images/gemma3_summary.png)
-
-
 
 ### Training Loss Analysis
 
@@ -4629,8 +4504,6 @@ https://kaitchup.substack.com/p/fine-tuning-your-llm-to-think-like-r1
 - The Base model clearly outpaces Instruct in learning speed and quality for translation because Instruct’s safety/assistant tuning interferes with the direct translation objective.
 - Best training epoch ≈ 3; training beyond that hurts performance—apply early stopping.
 - When data and task direction are mismatched (FR→EN), repeated training yields no significant gains.
-
-
 
 #### Validation Loss Analysis
 
@@ -4702,8 +4575,6 @@ Engineering implications
 - During training, BLEU is not only for “watching gains”; it also helps detect performance loss and the overfitting inflection point
 - The best stop point is usually the epoch where **validation BLEU peaks** (epoch 3 here)
 
-
-
 #### Example code
 
 ```
@@ -4749,11 +4620,9 @@ def FT(model_name, pair):
       full_finetuning=True
     )
 
-
     languages = pair.split("-")
     src_lang = languages[0]
     tgt_lang = languages[1]
-
 
     ds = load_dataset("Helsinki-NLP/opus-100", pair, split="train").train_test_split(test_size=0.01)
     ds_train = ds["train"]
@@ -4773,15 +4642,12 @@ def FT(model_name, pair):
     )
     print(ds_train[0]['text'])
 
-
     ds_test = ds_test.map(
       process,
       num_proc= 10,
       load_from_cache_file=False,
     )
     print(ds_test[0]['text'])
-
-
 
     from unsloth import UnslothTrainer, UnslothTrainingArguments
 
@@ -4817,8 +4683,6 @@ def FT(model_name, pair):
       args = training_arguments
     )
 
-
-
     trainer_ = trainer.train()
 
 ```
@@ -4827,19 +4691,13 @@ def FT(model_name, pair):
 FT("google/gemma-3-270m", "en-fr")
 ```
 
-
-
 **Refer to:**
 
 *https://kaitchup.substack.com/p/gemma-3-270m-can-tiny-models-learn*
 
-
 ---
 
 # Part 13: Three RL Training Methods Compared
-
-> *Originally from LLM-Math-Reasoning-RL*
-
 
 ## 🔄 Chapter 8: Three RL Training Approaches Compared
 
@@ -4993,7 +4851,4 @@ Step 2: Define Grader (JSON config)
 Step 3: Submit training job (Azure Portal / API)
 ─────────────────────────────────────────────────────
 ```
-
-
-
 

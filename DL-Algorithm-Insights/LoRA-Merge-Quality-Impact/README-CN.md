@@ -1,5 +1,62 @@
 # LoRA 合并方式对推理质量的影响：fuse_lora vs set_adapters 实测对比
 
+## 核心结论（一页纸版）
+
+> **一句话**：Diffusion 模型必须用 `fuse_lora`（质量差 2~18%），LLM 聊天模型用哪个都行（无质量差异）。
+
+### Diffusion 模型（图像生成/编辑）
+
+| 指标 | fuse_lora | set_adapters |
+|------|:---------:|:-----------:|
+| **推理质量** | = 离线合并（SSIM=1.0） | **↓2~18%**（取决于步数和 CFG） |
+| 蒸馏 8~16 步 + CFG=4 | **SSIM=1.0** | **SSIM=0.88~0.91** |
+| 40 步 + CFG=4 | SSIM=1.0 | SSIM=0.96 |
+| 融合时间 | ~11s | <0.01s |
+| 热切换 LoRA | 需重载模型 | ✅ 秒级切换 |
+
+**差距来源**：BF16 浮点精度下两条运算路径的舍入不同（见下方详细分析）。
+
+**步数越少差距越大**——因为 Diffusion 推理本质上是求解 ODE（常微分方程），步数少时 ODE 离散化粗糙，对 BF16 微扰更敏感。蒸馏模型用 8~16 步，正好处于差距最显著的区间。
+
+### LLM（聊天/文本生成模型）
+
+| 指标 | fuse | adapter |
+|------|:----:|:-------:|
+| **推理质量** | 无差异 | 无差异 |
+| BF16 logit 差异 | — | KL ~10-12（恒定底噪，不随模型大小变化） |
+| Token 是否一致 | 不可预测（取决于具体 LoRA 和输入） | 同左 |
+| 分叉是否影响质量 | — | **不影响**（分叉后两边都是合理回答） |
+
+**为什么 LLM 无所谓**：LLM 输出是离散的（选 token），BF16 微小 logit 差异被 argmax 吸收或仅导致不同措辞的等价回答。不像 Diffusion 输出的连续像素值对任何舍入差异都有直接体现。
+
+### 术语快速参考
+
+| 术语 | 含义 |
+|------|------|
+| **LoRA** | Low-Rank Adaptation — 用两个小矩阵 B×A 近似权重更新，不改原模型 |
+| **fuse_lora** | 把 LoRA 权重合进基模：W' = W + B×A，推理时直接用 W' |
+| **set_adapters** | 不合并，推理时分开算：output = x×W + x×(B×A) |
+| **BF16** | bfloat16 — 7 位有效精度的浮点格式，大模型标配 |
+| **SSIM** | 结构相似度 — 衡量两张图有多像（1.0=完全一样，0=完全不同） |
+| **ODE** | 常微分方程 — Diffusion 生图本质上是"沿 ODE 从噪声走到图片" |
+| **CFG** | Classifier-Free Guidance — 通过对比"有提示"和"无提示"的预测来增强生成效果 |
+| **argmax** | 取最大值 — LLM 每步选概率最高的 token |
+| **KL divergence** | 量化两个概率分布的差异（越小越接近） |
+
+**多阶导数（Derivatives of Successive Orders）**：
+
+| Order | Name | Formula | Meaning | Application |
+|:-----:|------|---------|---------|-------------|
+| 0th | Position | x | Where you are | — |
+| **1st** | **Velocity** | dx/dt | How fast position changes | **Diffusion model: velocity = denoising speed** |
+| 2nd | Acceleration | d²x/dt² | How fast velocity changes | Newton's F=ma |
+| 3rd | Jerk | d³x/dt³ | How fast acceleration changes | Elevator / roller coaster smoothness |
+| 4th | Snap | d⁴x/dt⁴ | How fast jerk changes | Precision engineering |
+| 5th | Crackle | d⁵x/dt⁵ | How fast snap changes | Rarely used |
+| 6th | Pop | d⁶x/dt⁶ | How fast crackle changes | Theoretical only |
+
+> Diffusion 模型只用到 **1st order（velocity）**。
+
 ## 这是什么？
 
 > 使用 LoRA 适配器推理时，diffusers 提供两种主要 API：`fuse_lora()`（权重融合）和 `set_adapters()`（动态适配器）。两者推理结果**不同** — 且差异在生产中有影响。
