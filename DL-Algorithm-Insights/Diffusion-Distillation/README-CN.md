@@ -759,6 +759,26 @@ with set_lora_enabled(model, True):    # 学生训练步骤
 
 ---
 
+### 5. Scheduler Shift 对轨迹覆盖率的影响
+
+`FlowMatchEulerDiscreteScheduler` 的 `base_shift` 参数控制 timestep→sigma 映射的非线性程度。shift 越大，timestep 越被压向后段（精修阶段），前段（大结构形成阶段）被跳过越多。
+
+**实测（控制变量消融，H100）**：
+
+| base_shift | 8步覆盖率 | 16步覆盖率 |
+|:---------:|:---------:|:---------:|
+| **1.0986** (=log(3)) | **~30%** | ~80% |
+| **0.5** | **~100%** | ~100% |
+
+同一模型 + 同一 LoRA + 同一输入图片，只换 scheduler 配置 → 覆盖率从 30% 变到 100%。
+
+**工程建议**：
+- 蒸馏的训练和推理**必须使用相同的 scheduler 配置**
+- 诊断蒸馏质量时，先检查 scheduler 的 shift 参数 — 其影响比 loss 函数选择、padding 方式大一个数量级
+- 如果 shift 值较大（>1.0），增加推理步数（8→16）可以部分补偿覆盖不足
+
+---
+
 ## 速查卡
 
 ### 应该用蒸馏吗？

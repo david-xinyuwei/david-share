@@ -733,6 +733,26 @@ with set_lora_enabled(model, True):    # Student training
 
 ---
 
+### 5. Scheduler Shift's Impact on Trajectory Coverage
+
+`FlowMatchEulerDiscreteScheduler`'s `base_shift` parameter controls the nonlinearity of timestep→sigma mapping. Higher shift compresses timesteps toward the tail (refinement phase), skipping the head (structure formation phase).
+
+**Measured (controlled ablation, H100)**:
+
+| base_shift | 8-step coverage | 16-step coverage |
+|:---------:|:---------:|:---------:|
+| **1.0986** (=log(3)) | **~30%** | ~80% |
+| **0.5** | **~100%** | ~100% |
+
+Same model + same LoRA + same input image, only scheduler config changed → coverage 30% vs 100%.
+
+**Engineering advice**:
+- Training and inference **must use the same scheduler config**
+- When diagnosing distillation quality, check scheduler shift first — its impact is an order of magnitude larger than loss function choice or padding
+- If shift is high (>1.0), increasing inference steps (8→16) partially compensates
+
+---
+
 ## Quick Reference
 
 ### Should You Use Distillation?

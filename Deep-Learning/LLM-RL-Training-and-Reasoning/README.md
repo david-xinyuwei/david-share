@@ -49,7 +49,7 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 
 ## Three Reinforcement Learning Modes
 
-![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/1.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/1.png" width="800">
 
 The three reinforcement learning modes above for training large models to perform reasoning can be intuitively seen as an evolution from “rewarding only the final answer” to “rewarding step-by-step.” Their main differences are as follows:
 
@@ -137,7 +137,7 @@ Inference: Default Greedy, optional Majority-Vote
 
 ## Test Time Scale Mode
 
-![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/2.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/2.png" width="800">
 Test Time Scale：Majority Vote / Tree Search / Beam Search / Lookahead Search
 
 When a large language model is “reasoning” or “answering,” it does not necessarily have to use only the simplest approach of “left-to-right sampling to directly obtain the answer.” To improve the accuracy or robustness of answers, people often introduce various “search” techniques during the inference phase, with the main goal of finding or voting for the optimal path among the model’s many potential generation paths. The following schematic shows several common strategies.
@@ -221,11 +221,11 @@ We are now discussing two different techniques (used during the training phase a
 
 ## DS R1 Paradigm
 
-![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/3.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/3.png" width="800">
 
-![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/5.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/5.png" width="800">
 
-![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/4.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/4.png" width="800">
 
 The figures above show the reasoning and training scheme for a large model named “DeepSeek R1.” It includes the following key elements:
 
@@ -3340,7 +3340,7 @@ By incorporating **Majority Voting** into the discussion, we can more comprehens
 
 In recent years, scaling train-time compute has dominated progress in large language models (LLMs). While this paradigm has proven extremely effective, the resources required to pretrain ever larger models have become prohibitively expensive, with multi-billion-dollar clusters on the horizon. This trend has sparked great interest in a complementary approach: test-time compute scaling. Rather than relying on ever larger pretraining budgets, test-time methods use dynamic inference strategies that let models “think longer” when tackling harder problems. A standout example is OpenAI’s o1 model, which shows consistent improvements on challenging math problems as test-time compute increases:
 
-![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/1.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/1.png" width="800">
 
 DeepMind’s latest research shows that test-time compute can be scaled optimally via strategies such as iterative self-refinement or searching the solution space using a reward model. By adaptively allocating test-time compute per prompt, small models can match or even surpass larger, more resource-hungry models. Test-time scaling is particularly beneficial when memory is constrained and the available hardware cannot run larger models. However, these promising approaches were demonstrated with closed-source models, with no implementation details or code released.
 
@@ -3354,7 +3354,7 @@ DeepMind’s latest research shows that test-time compute can be scaled optimall
 
 So how well does compute-optimal scaling work in practice? Look at this chart: on the challenging MATH-500 benchmark, tiny 1B and 3B Llama Instruct models actually outperform their larger 8B and 70B counterparts when given enough “thinking time”:
 
-![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/2.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/2.png" width="800">
 
 ## III. Strategies for test-time compute scaling
 
@@ -3375,7 +3375,7 @@ A verifier is typically a **Reward Model (RM)** or **Process Reward Model (PRM)*
 - **Quality assessment**: evaluates candidate answers or intermediate steps for correctness, credibility, or quality.
 - **Guiding the search**: via scoring, helps the model **choose paths more likely to lead to a correct answer** during generation.
 
-![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/3.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/3.png" width="800">
 
 Best-of-N, Beam Search, and Diverse Verifier Tree Search (DVTS) are decoding techniques used to guide an LLM’s generation process. Combining these decoding techniques with a verifier optimizes performance at test time.
 
@@ -3385,7 +3385,7 @@ Best-of-N, Beam Search, and Diverse Verifier Tree Search (DVTS) are decoding tec
 
 **V. Empirical results**
 
-![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/4.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/4.png" width="800">
 
 ## Experimental setup
 
@@ -3406,7 +3406,7 @@ As shown above, our experimental setup follows these steps:
 - **Process Reward Model (PRM)**: To guide the search, we used `RLHFlow/Llama3.1-8B-PRM-Deepseek-Data`, an 8B reward model trained with process supervision. In process supervision, the model receives feedback at each reasoning step (not just the final result). We chose this model because it’s from the same family as our policy and outperformed other PRMs we tried at this scale (e.g., Math-Shepherd).
 - **Dataset**: We evaluated on the MATH benchmark’s MATH-500 subset released by OpenAI for process supervision research. These math problems span seven disciplines and are challenging for humans and most LLMs. Check the dataset browser below to get a feel for the difficulty! For each prompt we tested each search strategy at compute budgets from 1 to 256 generations, and ran the data-gen pipeline with five random seeds to estimate variance across runs. You can find the models and datasets we analyzed in this collection.
 
-![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/5.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/5.png" width="800">
 
 To warm up, we start with a simple baseline and incrementally add techniques to improve performance.
 
@@ -3457,7 +3457,7 @@ While this approach works well when comparing a small number of candidate answer
 
 Here is the performance when applying majority voting to Llama 3.2 1B Instruct generations:
 
-![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/6.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/6.png" width="800">
 
 The results show that majority voting does bring significant improvement over the greedy decoding baseline, but the gains start to plateau after about N = 64 generations. This limitation arises because majority voting performs poorly on tasks requiring nuanced reasoning or where errors are consistent across generations. If you also wonder why at N = 1 and 2 the majority voting accuracy is worse than the 0-shot CoT baseline, it is because we sample at T = 0.8, which makes it less likely to produce the correct answer among few candidates.
 
@@ -3480,7 +3480,7 @@ Best-of-N is a simple but effective extension of majority voting that uses a rew
 
    Typically, people use an Outcome Reward Model (ORM) to obtain a single solution-level score. But for a fair comparison with other search strategies discussed later, we will use the same PRM to score Best-of-N solutions. As shown below, a PRM produces a cumulative sequence of step-level scores for each solution, so we need to reduce over steps to obtain a single solution-level score:
 
-   ![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/7.png)
+   <img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/7.png" width="800">
    The most common reduction methods in the literature are:
 
 - **Min**: Use the minimum score across all steps.
@@ -3493,7 +3493,7 @@ Best-of-N is a simple but effective extension of majority voting that uses a rew
 
   Here are the results from applying the two Best-of-N variants:
 
-  ![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/8.png)
+  <img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/8.png" width="800">
   The results show a clear advantage: Weighted Best-of-N consistently outperforms the original Best-of-N under larger generation budgets. By aggregating scores for identical responses, it ensures that even less frequent but higher-quality answers are effectively prioritized.
 
 However, despite these improvements, we still could not reach the performance of the Llama 8B model, and Best-of-N began to plateau around N = 256 generations. Can we push further by supervising the search process step by step?
@@ -3540,7 +3540,7 @@ To understand which strategy suits which problems, DeepMind estimated the distri
   
   In this figure, each bar represents a test-time compute budget; within each bar, we show the relative accuracy of each method. For example, in the four bars for difficulty level 2, we see:
 
-  ![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/9.png)
+  <img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/9.png" width="800">
 
 - Majority voting is the worst across all compute budgets, except at N = 256 where beam search is worst.
 
@@ -3567,13 +3567,13 @@ DVTS works similarly to beam search, with the following modifications:
 
    Below are the results of applying DVTS to Llama 1B:
 
-![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/10.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/10.png" width="800">
 
 As we can see, DVTS provides a complementary strategy to beam search: at smaller N, beam search is more effective at finding the correct solution, but at larger N the diversity of DVTS candidates begins to pay off, yielding better performance.
 
 We can also see this from the breakdown by problem difficulty: at large N, DVTS boosts performance on easy/medium problems, whereas beam search is best across difficulties at small N:
 
-![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/11.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/11.png" width="800">
 
 **Six, Summary**
 
@@ -3657,7 +3657,7 @@ In pursuit of the best performance, choose the most appropriate decoding method 
 
 In the previous article [How SLMs Beat Larger Models in Reasoning Tasks](https://mp.weixin.qq.com/s?__biz=MzAwMDc2NjQ4Nw==&mid=2663562788&idx=1&sn=519f460e92f6998b3eff9dabd93873f8&scene=21#wechat_redirect), I introduced the implementation of test-time compute scaling. A rough implementation diagram:
 
-![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/12.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/12.png" width="800">
 
 1. We first feed a math problem into a large language model (LLM), which generates N partial solutions, such as an intermediate step in the derivation.
 
@@ -3781,7 +3781,7 @@ In DeepMind’s new paper **《Evolving Deeper LLM Thinking》**, a new implemen
 
  
 
-![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/14.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/14.png" width="800">
 
 ### Seven main steps of Mind Evolution
 

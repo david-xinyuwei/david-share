@@ -49,7 +49,7 @@
 
 ## 强化学习三种模式
 
-![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/1.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/1.png" width="800">
 
 上面这三种强化学习训练大模型做推理的模式，可以简单理解为“最终只看答案给奖励”到“分步骤给奖励”的逐步演进。它们的主要区别如下：
 
@@ -138,7 +138,7 @@
 
 ## Test-time Compute Scaling 模式
 
-![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/2.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/2.png" width="800">
 Test Time Scale：Majority Vote / Tree Search / Beam Search / Lookahead Search
 
 当大语言模型在“推理”或“回答”时，并不一定只用最朴素的“从左到右采样，直接得到答案”这一种方式。为了提升答案的准确度或稳健性，人们往往会在推理阶段引入各种“搜索”技巧，主要目的是从模型内在的多种可能生成路径中，找到或投票出最优的一条。下图中展示了几种常见策略的示意。
@@ -222,11 +222,11 @@ Test Time Scale：Majority Vote / Tree Search / Beam Search / Lookahead Search
 
 ## DS R1的范式
 
-![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/3.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/3.png" width="800">
 
-![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/5.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/5.png" width="800">
 
-![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/4.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/4.png" width="800">
 
 上面图展示了一个名为“DeepSeek R1”的大模型推理与训练方案。它包含以下几个关键要素：
 
@@ -255,31 +255,31 @@ Test Time Scale：Majority Vote / Tree Search / Beam Search / Lookahead Search
 
 ---
 
-# Part 3: PPO/RLHF 角色详解 —— "Film Crew" 类比
+# Part 3: PPO/RLHF 角色详解 —— "剧组" 类比
 
-## 🎯 Objectives
+## 🎯 目标
 
-- Explain: Why "rule-based rewards" and "LLM-as-Judge" coexist in LLM mathematical reasoning
-- Clarify: What Actor / Reward / Reference / Critic(Value) do in RLHF, which get trained, and why
-- Present: Training architectures and key algorithms for DeepSeek-R1 and DeepSeekMath-V2 (with diagrams)
-- Compare: When to use verifiable rewards vs. when to train a verifier
+- 解释：为什么 "基于规则的奖励" 和 "LLM-as-Judge" 在 LLM 数学推理中共存
+- 厘清：RLHF 中 Actor / Reward / Reference / Critic(Value) 各自做什么、哪些被训练、为什么
+- 介绍：DeepSeek-R1 和 DeepSeekMath-V2 的训练架构与核心算法（附图）
+- 对比：何时使用可验证奖励 vs. 何时需要训练验证器
 
 ---
 
-## 🎭 Chapter 1: Understanding RL Roles Through a "Film Crew" Analogy (Core Intuition)
+## 🎭 第一章：通过"剧组"类比理解 RL 角色（核心直觉）
 
-Let's first clarify "who is who" in training—this makes all subsequent paper details much clearer.
+在深入论文细节之前，先弄清训练中"谁是谁"——后续所有内容都会更清晰。
 
-### 1.1 PPO/RLHF: A "Four-Role" Film Crew
+### 1.1 PPO/RLHF："四角色"剧组
 
-| Component | Film Crew Analogy | One-Line Responsibility | Parameters Updated During Training? |
+| 组件 | 剧组类比 | 一句话职责 | 训练中是否更新参数？ |
 |---|---|---|---|
-| **Actor (policy)** | 🎬 Actor | Responsible for "performing"—generating responses | ✅ Trained |
-| **Reward Model (RM)** | 👨‍⚖️ Judge | Scores the performance (preference/quality) | ✅ Pre-trained; usually frozen during PPO |
-| **Reference Model** | 📜 Original Script | Prevents actor from "deforming" for high scores (KL constraint) | ❌ Frozen |
-| **Critic / Value Model** | 🎓 Sparring Coach | Practices alongside while learning "roughly what score this performance will get" | ✅ Trained (synchronized with Actor) |
+| **Actor（策略）** | 🎬 演员 | 负责"表演"——生成回答 | ✅ 被训练 |
+| **Reward Model（RM）** | 👨‍⚖️ 评委 | 给表演打分（偏好/质量） | ✅ 预训练完成；PPO 阶段通常冻结 |
+| **Reference Model** | 📜 原始剧本 | 防止演员为了高分"走形"（KL 约束） | ❌ 冻结 |
+| **Critic / Value Model** | 🎓 陪练教练 | 边陪练边学习"这次表演大概能拿几分" | ✅ 被训练（与 Actor 同步更新） |
 
-### How Do Training Signals Flow? (PPO Architecture Diagram)
+### 训练信号如何流动？（PPO 架构图）
 
 ```text
 Prompt x
@@ -315,24 +315,24 @@ Prompt x
                   └──> Update Critic ψ (make v closer to r)
 ```
 
-**Key Point**: Reward Model and Critic compute **in parallel**, both based on generated (x, y), then jointly compute Advantage.
+**关键点**：Reward Model 和 Critic **并行计算**，都基于生成的 (x, y)，然后联合计算 Advantage。
 
-### Why Must Critic Be "Trained Together"?
+### 为什么 Critic 必须"一起训练"？
 
-- As Actor improves (policy distribution changes), reward distribution also changes
-- If Critic doesn't learn along, its "score prediction" becomes increasingly inaccurate
-- More accurate Critic → more stable Actor updates (lower variance)
+- 随着 Actor 提升（策略分布变化），奖励分布也随之变化
+- 如果 Critic 不跟着学，它的"分数预测"就会越来越不准
+- Critic 越准确 → Actor 更新越稳定（方差更低）
 
-> This is why I compare Critic to a "sparring coach": it's not a bystander—it must constantly calibrate itself.
+> 这就是为什么我把 Critic 比作"陪练教练"：它不是旁观者——必须不断校准自己。
 
-### 1.2 GRPO: Remove the "Coach", Use "Group Comparison" as Baseline
+### 1.2 GRPO：去掉"教练"，用"组内对比"作为基线
 
-Both DeepSeek-R1 and DeepSeekMath-V2 emphasize **GRPO**. Intuitively:
+DeepSeek-R1 和 DeepSeekMath-V2 都强调 **GRPO**。直觉上：
 
-- PPO needs Critic to estimate baseline
-- GRPO samples a group of responses for the same prompt, using **relative performance within the group** as baseline, eliminating the need to separately train a Critic
+- PPO 需要 Critic 来估计基线
+- GRPO 对同一提示采样一组回答，用**组内相对表现**作为基线，不需要单独训练 Critic
 
-### GRPO Update Intuition (Pseudocode)
+### GRPO 更新直觉（伪代码）
 
 ```text
 Given prompt x:
@@ -343,7 +343,7 @@ Given prompt x:
   5) Can still add KL(Actor || Reference) constraint
 ```
 
-Visualization:
+可视化：
 
 ```text
 Same problem x
@@ -1049,30 +1049,30 @@ def reward_hardware_state(code, expected_state):
 
 # Part 6: DeepSeekMath-V2 自验证证明训练架构
 
-## 🧠 Chapter 2: Two Types of Math Tasks Determine Two Types of Rewards
+## 🧠 第二章：两种数学任务决定两种奖励
 
-### 2.1 "Fill-in-the-Blank" vs "Proof Problems"
+### 2.1 "填空题" vs "证明题"
 
-| Task Type | Typical Competitions | Output | Verification Difficulty | Suitable Reward |
+| 任务类型 | 典型竞赛 | 输出 | 验证难度 | 适合的奖励 |
 |---|---|---|---|---|
-| **Verifiable Final Answer** | AIME/HMMT etc. | A number / A choice | ✅ Very Low | Rule-based reward (exact match / unit tests) |
-| **Proof/Reasoning Process** | IMO/Putnam | Long proof chain | ❌ Very High | Trained verifier (LLM-as-Judge) |
+| **可验证最终答案** | AIME/HMMT 等 | 一个数字 / 一个选项 | ✅ 极低 | 基于规则的奖励（精确匹配 / 单元测试） |
+| **证明/推理过程** | IMO/Putnam | 长推理链 | ❌ 极高 | 训练验证器（LLM-as-Judge） |
 
-**Core Contradiction** (from the paper):
+**核心矛盾**（来自论文）：
 
-> *"Pursuing higher final answer accuracy doesn't address a key issue: correct answers don't guarantee correct reasoning."*
+> *"追求更高的最终答案准确率并不能解决一个关键问题：正确的答案不保证正确的推理。"*
 
-Intuition:
-- Fill-in-the-blank: reward is "right/wrong"
-- Proof problems: reward is "rigor/completeness/presence of fatal flaws"
+直觉：
+- 填空题：奖励是"对/错"
+- 证明题：奖励是"严谨性/完整性/是否有致命缺陷"
 
 ---
 
-## 🔧 Chapter 3: DeepSeek-R1—How "Verifiable Rewards" Boost Reasoning Ability
+## 🔧 第三章：DeepSeek-R1——"可验证奖励"如何提升推理能力
 
-> Key Point: R1 heavily uses **rule-based rewards** (verifiable) for math/code tasks, only introducing more subjective model scoring for general tasks.
+> 要点：R1 大量使用**基于规则的奖励**（可验证）来处理数学/代码任务，仅在通用任务中引入更主观的模型评分。
 
-### 3.1 What Does R1's "Rule Reward" Look Like?
+### 3.1 R1 的"规则奖励"长什么样？
 
 ```python
 def rule_reward(answer, ground_truth):
@@ -1084,56 +1084,56 @@ def rule_reward(answer, ground_truth):
     return 1.0 if extract_boxed(answer) == ground_truth else 0.0
 ```
 
-### 3.2 Engineering Advantages of Rule-Based Rewards
+### 3.2 基于规则奖励的工程优势
 
-- **Reliable**: Almost no noise
-- **Cheap**: No need to call additional LLM
-- **Scalable**: Can run massive rollouts
-- **Anti reward-hacking**: Clear alignment objective
+- **可靠**：几乎没有噪声
+- **低成本**：不需要调用额外的 LLM
+- **可扩展**：可以大规模 rollout
+- **防奖励黑客**：目标对齐清晰
 
-### 3.3 But Its Ceiling Is Also Clear
+### 3.3 但它的天花板也很明显
 
-- Correct final answer ≠ correct reasoning
-- Completely inapplicable to proof problems (no "uniquely decidable" ground truth)
+- 最终答案正确 ≠ 推理正确
+- 完全不适用于证明题（没有"唯一可判定"的标准答案）
 
 ---
 
-## 🔬 Chapter 4: DeepSeekMath-V2—"Self-Verifiable Proof" Training Architecture (with Meta-Verification)
+## 🔬 第四章：DeepSeekMath-V2——"自验证证明"训练架构（含 Meta-Verification）
 
-This section is from the DeepSeekMath-V2 paper (verified against local `DeepSeekMath_V2.pdf`).
+本节内容来自 DeepSeekMath-V2 论文（已与本地 `DeepSeekMath_V2.pdf` 核对）。
 
-### 4.1 Verifier: First Train "Judges" to Find Issues and Score
+### 4.1 Verifier：先训练"评审"来找问题并打分
 
-Verifier's objective (Paper Section 2.1.1): For given problem X and proof Y, output analysis + score s ∈ {0, 0.5, 1}.
+Verifier 的目标（论文第 2.1.1 节）：给定问题 X 和证明 Y，输出分析 + 分数 s ∈ {0, 0.5, 1}。
 
-**Scoring Criteria** (Three-tier system):
-- **1 point**: Completely correct, all steps rigorous and clear
-- **0.5 points**: Overall logic correct, but with minor omissions or errors
-- **0 points**: Contains fatal logical errors or severe gaps
+**评分标准**（三级体系）：
+- **1 分**：完全正确，所有步骤严谨清晰
+- **0.5 分**：整体逻辑正确，但有小疏漏或错误
+- **0 分**：包含致命逻辑错误或严重缺口
 
-**Verifier's RL Reward** (paper formula):
-- R_format: Check if output includes required "evaluation + boxed score"
-- R_score(s', s) = 1 - |s' - s|: Distance between predicted score and expert-labeled score
+**Verifier 的 RL 奖励**（论文公式）：
+- R_format：检查输出是否包含必需的"评价 + boxed 分数"
+- R_score(s', s) = 1 - |s' - s|：预测分数与专家标注分数的距离
 
-### 4.2 Meta-Verifier: Specifically Preventing "Judges Making Up Issues"
+### 4.2 Meta-Verifier：专防"评审编造问题"
 
-Key insight from Paper Section 2.1.2:
+论文第 2.1.2 节的关键洞察：
 
 > *"When evaluating flawed proofs during training, the verifier can receive full reward by predicting the correct scores while hallucinating non-existent issues, undermining its trustworthiness."*
 
-Problem: If Verifier is only supervised on "whether score is correct", it might use "fabricated flaws" to explain low scores.
+问题：如果 Verifier 仅在"分数是否正确"上做监督，它可能用"编造的缺陷"来解释低分。
 
-**Solution**: Introduce meta-verification—have another model audit whether the verifier's analysis is **real, reasonable, and sufficient to support that score**.
+**解决方案**：引入 Meta-Verification——让另一个模型审计 Verifier 的分析是否**真实、合理、且足以支撑该分数**。
 
-**Enhanced Verifier Reward** (paper formula):
+**增强后的 Verifier 奖励**（论文公式）：
 
 R_V = R_format · R_score · R_meta
 
-Where R_meta comes from meta-verifier's quality score for the "review text".
+其中 R_meta 来自 Meta-Verifier 对"审查文本"的质量评分。
 
-**Effect**: Verification analysis quality score improved from **0.85 to 0.96**, while maintaining score prediction accuracy.
+**效果**：验证分析质量分从 **0.85 提升到 0.96**，同时保持分数预测准确率。
 
-#### Two-Layer Verification Architecture (Proof → Verifier → Meta-Verifier)
+#### 双层验证架构（证明 → Verifier → Meta-Verifier）
 
 ```text
 Problem X + Proof Y
@@ -1157,26 +1157,26 @@ Problem X + Proof Y
 Trustworthy review for training/filtering
 ```
 
-### 4.3 Generator: Initialize from Verifier Checkpoint, Then Learn "Write Proof + Self-Evaluate"
+### 4.3 Generator：从 Verifier 检查点初始化，再学习"写证明 + 自评"
 
-Key approach from Paper Section 2.2.2:
-- Generator outputs two parts: proof Y + self-evaluation Z
-- Let Verifier score the proof, while meta-verifying the self-evaluation
+论文第 2.2.2 节的核心方法：
+- Generator 输出两部分：证明 Y + 自评 Z
+- 让 Verifier 给证明打分，同时 Meta-Verify 自评
 
-**Reward Function** (paper provides coefficients):
+**奖励函数**（论文提供系数）：
 
 R = R_format(Y,Z) · (α · R_Y + β · R_Z)
 
-Where (intuitive explanation):
-- R_Y: Whether the proof is actually good
-- R_Z: Whether your self-evaluation is honest and accurate (needs verifier + meta-verifier to check)
-- Paper settings: α = 0.76, β = 0.24
+其中（直觉解释）：
+- R_Y：证明实际好不好
+- R_Z：自评是否诚实准确（需要 Verifier + Meta-Verifier 检查）
+- 论文设定：α = 0.76, β = 0.24
 
-**Incentive Mechanism** (paper quotes):
-- *"Faithful acknowledgment of errors is rewarded over false claims of correctness."*
-- *"A good strategy to obtain high rewards is to identify and resolve as many issues as possible before finalizing the response."*
+**激励机制**（论文引用）：
+- *"诚实承认错误比错误声称正确获得更高奖励。"*
+- *"获得高奖励的好策略是在定稿前尽可能多地找到并解决问题。"*
 
-#### "Self-Verifiable Proof" Closed Loop (Generate→Self-Evaluate→External Verify→Training Signal)
+#### "自验证证明"闭环（生成→自评→外部验证→训练信号）
 
 ```text
 Prompt X
@@ -1202,32 +1202,32 @@ Prompt X
 Reward R = α·(proof score) + β·(self-review fidelity)
 ```
 
-### 4.4 Verification-Generation Co-Evolution
+### 4.4 验证-生成协同进化
 
-The **automated closed loop** described in Paper Section 2.3 is the biggest highlight:
+论文第 2.3 节描述的**自动闭环**是最大亮点：
 
-1. **Verifier → Generator**: Use verifier as reward model to train generator
-2. **Generator → Verifier**: As generator improves, it produces harder-to-verify proofs, challenging the verifier
-3. **Automatic Labeling**: For each proof, generate n verification analyses, filter using meta-verification, auto-label difficult problems
+1. **Verifier → Generator**：用 Verifier 作为奖励模型来训练 Generator
+2. **Generator → Verifier**：随着 Generator 提升，它产生更难验证的证明，反过来挑战 Verifier
+3. **自动标注**：对每个证明生成 n 条验证分析，用 Meta-Verification 筛选，自动标注困难问题
 
 ```text
-For each proof:
-  1) Generate n independent verification analyses
-  2) For analyses with score 0 or 0.5:
-     - Generate m meta-verification assessments
-     - Valid if majority confirms findings
-  3) If ≥k valid analyses give lowest score → label with that score
-  4) If no legitimate issues → label with 1
-  5) Otherwise → discard or route to human
+对每个证明：
+  1) 生成 n 条独立验证分析
+  2) 对分数为 0 或 0.5 的分析：
+     - 生成 m 条 Meta-Verification 评估
+     - 多数确认则视为有效
+  3) 如果 ≥k 条有效分析给出最低分 → 以该分数标注
+  4) 如果没有合理问题 → 标注为 1
+  5) 其他情况 → 丢弃或转交人工
 ```
 
-> **In the last two training iterations, the fully automated pipeline completely replaced human annotation.**
+> **在最后两轮训练迭代中，全自动流水线完全取代了人工标注。**
 
-### 4.5 Inference Time: One Model, Massive Compute Overhead
+### 4.5 推理阶段：单一模型，巨大计算开销
 
-**Key Finding**: The paper explicitly states—
+**关键发现**：论文明确指出——
 
-> "All experiments used a **single model**, our final proof generator, which performs **both proof generation and verification**."
+> "所有实验使用了**单一模型**，即我们最终的证明生成器，它**同时执行证明生成和验证**。"
 
 **Not two model weights—one model switching roles via prompts!**
 
@@ -1245,39 +1245,39 @@ For each proof:
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-**But what's the cost? Look at the paper's inference configuration:**
+**但代价是什么？看论文的推理配置：**
 
-| Config | Value | Description |
+| 配置 | 值 | 描述 |
 |--------|-------|-------------|
-| Initial proof samples | **64** | Generate 64 candidate proofs per problem |
-| Verification analyses/proof | **64** | Run 64 verifications per proof |
-| Parallel threads | **32** | Best@32 selection |
-| Refinement iterations | **Up to 16** | refinement iterations |
-| Per iteration | **64 proofs × 8 analyses** | Select highest-scoring pairs |
+| 初始证明样本 | **64** | 每个问题生成 64 个候选证明 |
+| 每个证明的验证分析 | **64** | 对每个证明运行 64 次验证 |
+| 并行线程 | **32** | Best@32 选择 |
+| 精炼迭代 | **最多 16 轮** | 精炼迭代 |
+| 每轮 | **64 证明 × 8 分析** | 选择最高分配对 |
 
-**Inference Overhead Estimate** (single IMO problem):
+**推理开销估算**（单个 IMO 题目）：
 ```
-Initial: 64 proofs × 64 verifications = 4,096 inferences
-Iteration: 16 rounds × 64 pairs = 1,024 refinements
-Total: ~5,000+ model calls/problem
+初始：64 证明 × 64 验证 = 4,096 次推理
+迭代：16 轮 × 64 对 = 1,024 次精炼
+总计：每题约 5,000+ 次模型调用
 ```
 
-**This is what "scaling test-time compute" really means!**
+**这就是"test-time compute scaling"的真正含义！**
 
-Paper quote: "By scaling test-time compute under verifier guidance, our model solves problems that **require hours of effort from human competitors**."
+论文引用："通过在 Verifier 指导下扩展测试时计算，我们的模型解决了**需要人类选手数小时努力**的问题。"
 
-**So this is not a time-saving approach—it's "trading compute for accuracy":**
-- ✅ **Advantage**: Only need one model weight, simple deployment
-- ❌ **Disadvantage**: Massive inference overhead, suitable for offline competition scenarios
-- 🎯 **Applicable**: IMO/CMO/Putnam scenarios where "you have hours per problem"
+**所以这不是一种省时的方法——而是"用算力换准确率"：**
+- ✅ **优势**：只需一组模型权重，部署简单
+- ❌ **劣势**：推理开销巨大，适合离线竞赛场景
+- 🎯 **适用**：IMO/CMO/Putnam 等"每道题有数小时时间"的场景
 
 ---
 
-## 📝 Chapter 5: Core Prompt Templates (Paper Essence)
+## 📝 第五章：核心 Prompt 模板（论文精华）
 
-### 5.1 Proof Generation Prompt (Complete Version)
+### 5.1 证明生成 Prompt（完整版）
 
-This prompt enables the model to **generate proof + self-evaluate**, key to implementing "self-verification":
+该 Prompt 使模型能够**生成证明 + 自评**，是实现"自验证"的关键：
 
 ```text
 Your task is to solve a given problem. The problem may ask you to
@@ -1501,27 +1501,27 @@ itself is actually accurate, you should still consider its analysis reasonable.
 
 ---
 
-## 🔄 Chapter 8: Three RL Training Approaches Compared
+## 🔄 第八章：三种 RL 训练方法对比
 
-Beyond the DeepSeekMath-V2 paper's method, there are two mainstream engineering approaches: **Agent Lightning** (local training) and **Azure RFT** (cloud managed).
+除了 DeepSeekMath-V2 论文的方法，还有两种主流工程方案：**Agent Lightning**（本地训练）和 **Azure RFT**（云端托管）。
 
-### 8.1 Full Comparison of Three Approaches
+### 8.1 三种方法全面对比
 
-| Dimension | DeepSeekMath-V2 (Paper) | Agent Lightning (Local) | Azure RFT (Cloud) |
+| 维度 | DeepSeekMath-V2（论文） | Agent Lightning（本地） | Azure RFT（云端） |
 |-----------|-------------------------|------------------------|-------------------|
-| **Goal** | Mathematical proofs (theorem proving) | Math reasoning (word problems) | General reasoning |
-| **Training Algorithm** | GRPO + Verifier RL | GRPO / PPO / DAPO | Managed RFT (undisclosed) |
-| **Reward Source** | Trained Verifier + Meta-Verifier | Custom functions (rules+structure) | Graders (rules/models/code) |
-| **Self-Verification** | ✅ Model learns to self-evaluate | ❌ External reward only | ❌ External reward only |
-| **Inference Iteration** | ✅ ~5000+ calls/problem | ❌ Single generation | ❌ Single generation |
-| **Supported Models** | DeepSeek series | Open-source (Qwen, LLaMA) | OpenAI (o4-mini, GPT-5) |
-| **Hardware Requirement** | Large-scale cluster | 40GB+ GPU (H100/A100) | No local GPU needed |
-| **Open Source** | Paper public, code not released | Fully open source | Managed service |
-| **Use Case** | IMO/Putnam competition proofs | Engineering-grade math reasoning | Quick prototyping/OpenAI ecosystem |
+| **目标** | 数学证明（定理证明） | 数学推理（应用题） | 通用推理 |
+| **训练算法** | GRPO + Verifier RL | GRPO / PPO / DAPO | Managed RFT (undisclosed) |
+| **奖励来源** | Trained Verifier + Meta-Verifier | Custom functions (rules+structure) | Graders (rules/models/code) |
+| **自验证** | ✅ Model learns to self-evaluate | ❌ External reward only | ❌ External reward only |
+| **推理迭代** | ✅ ~5000+ calls/problem | ❌ Single generation | ❌ Single generation |
+| **支持模型** | DeepSeek series | Open-source (Qwen, LLaMA) | OpenAI (o4-mini, GPT-5) |
+| **硬件要求** | Large-scale cluster | 40GB+ GPU (H100/A100) | No local GPU needed |
+| **开源** | Paper public, code not released | Fully open source | Managed service |
+| **适用场景** | IMO/Putnam competition proofs | Engineering-grade math reasoning | Quick prototyping/OpenAI ecosystem |
 
-### 8.2 Reward Function Design Comparison
+### 8.2 奖励函数设计对比
 
-All three approaches need to define "what makes a good answer", but implement it differently:
+三种方法都需要定义什么是好答案，但实现方式不同：
 
 #### DeepSeekMath-V2: Three-Layer Verification Reward
 
@@ -1603,16 +1603,16 @@ def compute_reward(response, ground_truth):
 # Key: Flexible composition, supports LLM-as-Judge, managed execution
 ```
 
-### 8.3 Key Difference: Self-Verification vs External Reward
+### 8.3 核心差异：自验证 vs 外部奖励
 
-| Feature | DeepSeekMath-V2 | Agent Lightning / Azure RFT |
+| 特性 | DeepSeekMath-V2 | Agent Lightning / Azure RFT |
 |---------|-----------------|----------------------------|
-| **Does model know reward function?** | ✅ Yes, learned verification rules during training | ❌ No, only knows reward signal |
-| **Can self-improve?** | ✅ Self-evaluates + iteratively fixes at inference | ❌ Cannot self-correct after generation |
-| **Inference overhead** | 🔴 Extremely high (~5000 calls/problem) | 🟢 Low (single generation) |
-| **Suitable for real-time?** | ❌ Offline competitions | ✅ Online services |
+| **模型是否知道奖励函数？** | ✅ Yes, learned verification rules during training | ❌ No, only knows reward signal |
+| **能否自我改进？** | ✅ Self-evaluates + iteratively fixes at inference | ❌ Cannot self-correct after generation |
+| **推理开销** | 🔴 Extremely high (~5000 calls/problem) | 🟢 Low (single generation) |
+| **适合实时？** | ❌ Offline competitions | ✅ Online services |
 
-**Core Insight**:
+**核心洞察**：
 
 DeepSeekMath-V2's "self-verification" means **teaching the model verification ability during training**, enabling it at inference to:
 1. Generate answer AND self-evaluation simultaneously
@@ -1621,7 +1621,7 @@ DeepSeekMath-V2's "self-verification" means **teaching the model verification ab
 
 Agent Lightning / Azure RFT use **pure external rewards**—the model doesn't know "why this answer is good", only that "this answer got a high score".
 
-### 8.4 Training Complexity Comparison
+### 8.4 训练复杂度对比
 
 ```text
 DeepSeekMath-V2 Training Pipeline (Complex):
@@ -3347,7 +3347,7 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 
 在过去的几年里，训练时间计算（train-time compute）的扩展主导了大型语言模型（LLMs）的进展。尽管这种模式已被证明异常有效，但预训练更大模型所需的资源变得昂贵得令人望而却步，数十亿美元规模的集群已在眼前。这个趋势引发了对一种互补方法的极大兴趣：测试时间计算扩展（test-time compute scaling）。测试时间方法并不依赖于越来越大的预训练预算，而是使用动态推理策略，让模型在解决更难的问题时“思考更长时间”。一个突出的例子是 OpenAI 的 o1 模型，它在增加测试时间计算量时，对困难的数学问题表现出持续的改进：
 
-![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/1.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/1.png" width="800">
 
 DeepMind 的最新研究表明，可以通过迭代自我改进（iterative self-refinement）或使用奖励模型（reward model）在解空间中进行搜索等策略，来最优地扩展测试时间计算。通过为每个提示自适应地分配测试时间计算，小模型可以与更大、更耗资源的模型媲美，甚至有时还能超越它们。当内存受限且可用硬件不足以运行更大的模型时，扩展测试时间计算尤其有利。然而，这种有前景的方法是使用闭源模型演示的，并未发布任何实现细节或代码。
 
@@ -3361,7 +3361,7 @@ DeepMind 的最新研究表明，可以通过迭代自我改进（iterative self
 
 那么，计算最优扩展在实践中效果如何呢？看看这个图表，在具有挑战性的 MATH-500 基准上，如果给予足够的“思考时间”，微小的 1B 和 3B Llama Instruct 模型竟然超过了它们更大的 8B 和 70B 同系列模型的表现 ：
 
-![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/2.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/2.png" width="800">
 
 ## 三、test-time compute scaling的策略
 
@@ -3382,7 +3382,7 @@ DeepMind 的最新研究表明，可以通过迭代自我改进（iterative self
 - **评估质量**：验证器对生成的候选答案或中间步骤进行**评估**，判断其正确性、可信度或质量。
 - **指导搜索**：通过对候选进行评分，验证器帮助模型在生成过程中**选择更有可能通向正确答案的路径**。
 
-![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/3.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/3.png" width="800">
 
 Best-of-N、束搜索（Beam Search）和多样化验证器树搜索（DVTS）都是解码技术，它们被用来指导大型语言模型（LLM）在生成过程中如何产生输出。将这些解码技术与验证器（Verifier）结合，以优化模型在测试时间的性能。
 
@@ -3392,7 +3392,7 @@ Best-of-N、束搜索（Beam Search）和多样化验证器树搜索（DVTS）�
 
 **五、效果验证**
 
-![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/4.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/4.png" width="800">
 
 ## 实验设置
 
@@ -3413,7 +3413,7 @@ Best-of-N、束搜索（Beam Search）和多样化验证器树搜索（DVTS）�
 - **过程奖励模型（PRM）**：为了指导我们的搜索策略，我们使用了 `RLHFlow/Llama3.1-8B-PRM-Deepseek-Data`，这是一个使用过程监督（process supervision）训练的 80 亿参数的奖励模型。过程监督是一种训练方法，模型在推理过程的每个步骤（而不仅仅是最终结果）都能收到反馈。我们选择这个模型是因为它属于与我们的策略相同的模型家族，并且在我们测试的这个参数量级中，比我们测试的其他 PRM（如 Math-Shepherd）给出了更好的结果。
 - **数据集**：我们在 MATH 基准的 MATH-500 子集上进行了评估，这是 OpenAI 作为其过程监督研究的一部分发布的数据集。这些数学问题涵盖了七个学科，对人类和大多数大型语言模型来说都具有挑战性。看看下面的数据集浏览器，感受一下问题的难度吧！我们在从每个提示生成 1 到 256 个生成的计算预算上测试了每个搜索策略，并使用五个随机种子运行数据生成流程，以估计运行间的方差。你可以在这个集合中找到我们分析的模型和数据集。
 
-![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/5.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/5.png" width="800">
 
 为了热身，我们将从一个简单的基线开始，并逐步加入其他技术来提高性能。
 
@@ -3464,7 +3464,7 @@ MATH 基准有一个独特之处，即答案必须以 LaTeX 盒子的形式格�
 
 这里是将多数投票应用于 Llama 3.2 1B Instruct 的生成时的表现：
 
-![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/6.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/6.png" width="800">
 
 结果表明，多数投票相比于贪婪解码基线的确带来了显著的改进，但其增益在大约 N = 64 代之后开始趋于平稳。这种限制的出现是因为多数投票在需要细致推理或错误在代际间一致的任务上表现不佳。如果你也想知道为什么当 N = 1 和 2 时，多数投票的准确率比零次提示链式思考（0-shot CoT）基线更差，那是因为我们以 T = 0.8 进行采样，这使得在少数候选中产生正确答案的可能性较小。
 
@@ -3487,7 +3487,7 @@ Best-of-N 是多数投票的一个简单但有效的扩展，它使用奖励模�
 
    通常，人们使用结果奖励模型（ORM）来获得单个解决方案级别的得分。但为了与后面讨论的其他搜索策略进行公平比较，我们将使用相同的 PRM 来对 Best-of-N 的解决方案进行评分。如下面所示，PRM 对每个解决方案产生一个累积的步骤级别的得分序列，因此我们需要对步骤进行归约以获得单个解决方案级别的得分：
 
-   ![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/7.png)
+   <img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/7.png" width="800">
    在文献中，最常见的归约方法如下：
 
 - **最小值（Min）**：使用所有步骤中的最小得分。
@@ -3500,7 +3500,7 @@ Best-of-N 是多数投票的一个简单但有效的扩展，它使用奖励模�
 
   这里是应用 Best-of-N 两种变体得到的结果：
 
-  ![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/8.png)
+  <img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/8.png" width="800">
   结果显示了明显的优势：加权的 Best-of-N 在更大的生成预算下，一直优于原始的 Best-of-N。它能够对相同的回复汇总分数，确保即使是出现频率较低但质量更高的答案也能被有效地优先考虑。
 
 然而，尽管有这些改进，我们仍然无法达到 Llama 8B 模型的性能，而且 Best-of-N 方法在 N = 256 代时开始趋于平稳。我们能否通过逐步监督搜索过程来进一步突破边界？
@@ -3547,7 +3547,7 @@ Best-of-N 是多数投票的一个简单但有效的扩展，它使用奖励模�
   
   在这个图中，每个柱状图表示一个测试时间计算预算，在每个柱状图内，我们显示每种方法的相对准确率。例如，在难度级别 2 的四个柱状图中，我们看到：
 
-  ![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/9.png)
+  <img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/9.png" width="800">
 
 - 多数投票在所有计算预算下都是表现最差的，除了 N = 256 时，束搜索最差。
 
@@ -3574,13 +3574,13 @@ DVTS 的工作方式与束搜索类似，但有以下修改：
 
    以下是将 DVTS 应用于 Llama 1B 的结果：
 
-![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/10.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/10.png" width="800">
 
 如我们所见，DVTS 为束搜索提供了一种补充策略：在较小的 N 值下，束搜索更有效地找到正确的解，但在较大的 N 值下，DVTS 候选解的多样性开始发挥作用，我们获得了更好的性能。
 
 我们还可以从问题难度的分解中看到这一点，DVTS 在大的 N 值下增强了在简单/中等问题上的性能，而束搜索在小的 N 值下在各种问题难度上表现最佳：
 
-![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/11.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/11.png" width="800">
 
 **六、总结**
 
@@ -3664,7 +3664,7 @@ DVTS 的工作方式与束搜索类似，但有以下修改：
 
 在之前文章[SLM 如何在推理任务中击败大型模型](https://mp.weixin.qq.com/s?__biz=MzAwMDc2NjQ4Nw==&mid=2663562788&idx=1&sn=519f460e92f6998b3eff9dabd93873f8&scene=21#wechat_redirect)中，我介绍了test-time compute scaling的实现，大致的实现图：
 
-![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/12.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/12.png" width="800">
 
 1. 我们首先将一个数学问题输入大型语言模型（LLM），它生成 N 个部分解，例如推导中的一个中间步骤。
 
@@ -3788,7 +3788,7 @@ DVTS 的工作方式与束搜索类似，但有以下修改：
 
  
 
-![Image](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/14.png)
+<img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/14.png" width="800">
 
 ### Mind Evolution 的七个主要步骤
 
@@ -4140,50 +4140,50 @@ DVTS 的工作方式与束搜索类似，但有以下修改：
 
 # Part 12: SLM 微调实验
 
-## Phi-4 Thinks as DeepSeek-R1
+## Phi-4 仿 DeepSeek-R1 思考
 
 ﻿
 
-I tried fine-tuning Microsoft's Phi-4 model using the open-source R1 dataset. Below, I'll share my steps with everyone. 
+我尝试用开源 R1 数据集对 Microsoft 的 Phi-4 模型进行微调。以下分享我的步骤。
 
-***Please click below pictures to see my demo video on Youtube***:
+***请点击下方图片观看 YouTube 演示视频***：
 [![SLM-DS-R1-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/9CVKR0YcdKU)
 
-### Dataset Used
+### 使用的数据集
 
-**Why Choose This Dataset?** 
+**为什么选择该数据集？**
 
-I used the **`reasoning-deepseek`** subset from the `cognitivecomputations/dolphin-r1` dataset. This dataset was generated by the large model **DeepSeek-R1** and contains **30,000** training samples, focusing on reasoning and question-answering capabilities.  
+我使用了 `cognitivecomputations/dolphin-r1` 数据集中的 **`reasoning-deepseek`** 子集。该数据集由大模型 **DeepSeek-R1** 生成，包含 **30,000** 条训练样本，专注于推理和问答能力。
 
 ![images](images/deepseek_r1_dataset.png)
 
-The dataset contains the model's reasoning process, wrapped with special `<think>` tags, which can help our model learn how to think and reason. 
+该数据集包含模型的推理过程，用特殊的 `<think>` 标签包裹，可以帮助模型学习如何思考和推理。
 
-**Data Preprocessing**
+**数据预处理**
 
-Before using this dataset, we need to do some preprocessing:
+在使用该数据集之前，我们需要做一些预处理：
 
-- **Merge Fields**: Combine the `reasoning` and `answer` fields in the dataset into a new `assistant_message`, and add it to the `messages` column. This way, our model can learn the complete question-answering and reasoning process.
-- **Handle Special Tokens**: Since the data uses `<think>` tags, we need to add these special tokens to the tokenizer so that the model can correctly understand and generate them.
+- **合并字段**：将数据集中的 `reasoning` 和 `answer` 字段合并为新的 `assistant_message`，并添加到 `messages` 列中。这样模型可以学习完整的问答和推理过程。
+- **处理特殊 Token**：由于数据使用了 `<think>` 标签，我们需要将这些特殊 Token 添加到 tokenizer 中，以便模型能正确理解和生成它们。
 
-### Fine-tuning the Phi-4 Model
+### 微调 Phi-4 模型
 
-During the fine-tuning process, I chose the **LoRA (Low-Rank Adaptation)** method. This is a parameter-efficient fine-tuning technique that allows the model to learn new capabilities without significantly increasing the number of parameters.
+在微调过程中，我选择了 **LoRA（Low-Rank Adaptation）** 方法。这是一种参数高效的微调技术，可以在不显著增加参数量的情况下让模型学习新能力。
 
-**Main Steps of Fine-tuning Include:**
+**微调的主要步骤包括：**
 
-1. **Load Model and Tokenizer**: Use `microsoft/phi-4` as the base model and load the corresponding tokenizer.
+1. **加载模型与 Tokenizer**：使用 `microsoft/phi-4` 作为基座模型，加载对应的 Tokenizer。
 
-2. **Add Special Tokens to Tokenizer**: Add `<think>` and `</think>` to the tokenizer's special tokens and adjust the model's embedding layer to accommodate the new vocabulary size.
+2. **向 Tokenizer 添加特殊 Token**：将 `<think>` 和 `</think>` 添加到 Tokenizer 的特殊 Token 中，并调整模型的 Embedding 层以适应新的词汇表大小。
 
-3. **Set Up LoRA Configuration**: Specify the model modules to train, such as `q_proj`, `k_proj`, `v_proj`, `o_proj`, etc.
+3. **配置 LoRA**：指定要训练的模型模块，如 `q_proj`、`k_proj`、`v_proj`、`o_proj` 等。
 
-4. **Start Training**: Fine-tune the model using the preprocessed dataset.
+4. **开始训练**：使用预处理后的数据集对模型进行微调。
 
-5. **Resource Consumption**
+5. **资源消耗**
 
-- **GPU Memory**: Approximately 72149MiB of GPU memory is needed.
-- **Training Time**: It took about 4 hours on a H100
+- **GPU 显存**：约需 72149MiB GPU 显存。
+- **训练时间**：在 H100 上约需 4 小时。
 
 ![images](images/deepseek_r1_gpu.png)
 
@@ -4453,11 +4453,11 @@ Therefore, the answer is that there is no advantage to switching or sticking. Bo
 In this scenario, the host's offer to switch to door No. 2 does not provide any additional information, as no doors are opened to reveal the contents behind them. Therefore, the probabilities remain the same as the initial choice. The probability of the gold bar being behind the initially chosen door (No. 1) is 1/3, and the probability of it being behind one of the other two doors (No. 2 or No. 3) is 2/3. However, since the host is offering to switch specifically to door No. 2, the probability of winning by switching to door No. 2 is 1/3, and the probability of winning by sticking with door No. 1 is also 1/3. Thus, there is no advantage to switching or sticking; both options have the same probability of winning, which is 1/3.<|im_end|>
 ```
 
-The results were satisfying! The model successfully generated a reasoning process containing `<think>` tags, demonstrating a certain level of logical thinking ability. 
+结果令人满意！模型成功生成了包含 `<think>` 标签的推理过程，展现了一定水平的逻辑思考能力。
 
-By using datasets provided by the community, we can fine-tune models like **Phi-4** enabling smaller models to possess certain "thinking" and reasoning abilities.
+利用社区提供的数据集，我们可以对 **Phi-4** 等模型进行微调，使小模型具备一定的"思考"和推理能力。
 
-**Refer to：**
+**参考：**
 
 https://kaitchup.substack.com/p/fine-tuning-your-llm-to-think-like-r1
 
@@ -4707,27 +4707,27 @@ FT("google/gemma-3-270m", "en-fr")
 
 # Part 13: 三种 RL 训练方法对比
 
-## 🔄 Chapter 8: Three RL Training Approaches Compared
+## 🔄 第八章：三种 RL 训练方法对比
 
-Beyond the DeepSeekMath-V2 paper's method, there are two mainstream engineering approaches: **Agent Lightning** (local training) and **Azure RFT** (cloud managed).
+除了 DeepSeekMath-V2 论文的方法，还有两种主流工程方案：**Agent Lightning**（本地训练）和 **Azure RFT**（云端托管）。
 
-### 8.1 Full Comparison of Three Approaches
+### 8.1 三种方法全面对比
 
-| Dimension | DeepSeekMath-V2 (Paper) | Agent Lightning (Local) | Azure RFT (Cloud) |
+| 维度 | DeepSeekMath-V2（论文） | Agent Lightning（本地） | Azure RFT（云端） |
 |-----------|-------------------------|------------------------|-------------------|
-| **Goal** | Mathematical proofs (theorem proving) | Math reasoning (word problems) | General reasoning |
-| **Training Algorithm** | GRPO + Verifier RL | GRPO / PPO / DAPO | Managed RFT (undisclosed) |
-| **Reward Source** | Trained Verifier + Meta-Verifier | Custom functions (rules+structure) | Graders (rules/models/code) |
-| **Self-Verification** | ✅ Model learns to self-evaluate | ❌ External reward only | ❌ External reward only |
-| **Inference Iteration** | ✅ ~5000+ calls/problem | ❌ Single generation | ❌ Single generation |
-| **Supported Models** | DeepSeek series | Open-source (Qwen, LLaMA) | OpenAI (o4-mini, GPT-5) |
-| **Hardware Requirement** | Large-scale cluster | 40GB+ GPU (H100/A100) | No local GPU needed |
-| **Open Source** | Paper public, code not released | Fully open source | Managed service |
-| **Use Case** | IMO/Putnam competition proofs | Engineering-grade math reasoning | Quick prototyping/OpenAI ecosystem |
+| **目标** | 数学证明（定理证明） | 数学推理（应用题） | 通用推理 |
+| **训练算法** | GRPO + Verifier RL | GRPO / PPO / DAPO | Managed RFT (undisclosed) |
+| **奖励来源** | Trained Verifier + Meta-Verifier | Custom functions (rules+structure) | Graders (rules/models/code) |
+| **自验证** | ✅ Model learns to self-evaluate | ❌ External reward only | ❌ External reward only |
+| **推理迭代** | ✅ ~5000+ calls/problem | ❌ Single generation | ❌ Single generation |
+| **支持模型** | DeepSeek series | Open-source (Qwen, LLaMA) | OpenAI (o4-mini, GPT-5) |
+| **硬件要求** | Large-scale cluster | 40GB+ GPU (H100/A100) | No local GPU needed |
+| **开源** | Paper public, code not released | Fully open source | Managed service |
+| **适用场景** | IMO/Putnam competition proofs | Engineering-grade math reasoning | Quick prototyping/OpenAI ecosystem |
 
-### 8.2 Reward Function Design Comparison
+### 8.2 奖励函数设计对比
 
-All three approaches need to define "what makes a good answer", but implement it differently:
+三种方法都需要定义什么是好答案，但实现方式不同：
 
 #### DeepSeekMath-V2: Three-Layer Verification Reward
 
@@ -4809,16 +4809,16 @@ def compute_reward(response, ground_truth):
 # Key: Flexible composition, supports LLM-as-Judge, managed execution
 ```
 
-### 8.3 Key Difference: Self-Verification vs External Reward
+### 8.3 核心差异：自验证 vs 外部奖励
 
-| Feature | DeepSeekMath-V2 | Agent Lightning / Azure RFT |
+| 特性 | DeepSeekMath-V2 | Agent Lightning / Azure RFT |
 |---------|-----------------|----------------------------|
-| **Does model know reward function?** | ✅ Yes, learned verification rules during training | ❌ No, only knows reward signal |
-| **Can self-improve?** | ✅ Self-evaluates + iteratively fixes at inference | ❌ Cannot self-correct after generation |
-| **Inference overhead** | 🔴 Extremely high (~5000 calls/problem) | 🟢 Low (single generation) |
-| **Suitable for real-time?** | ❌ Offline competitions | ✅ Online services |
+| **模型是否知道奖励函数？** | ✅ Yes, learned verification rules during training | ❌ No, only knows reward signal |
+| **能否自我改进？** | ✅ Self-evaluates + iteratively fixes at inference | ❌ Cannot self-correct after generation |
+| **推理开销** | 🔴 Extremely high (~5000 calls/problem) | 🟢 Low (single generation) |
+| **适合实时？** | ❌ Offline competitions | ✅ Online services |
 
-**Core Insight**:
+**核心洞察**：
 
 DeepSeekMath-V2's "self-verification" means **teaching the model verification ability during training**, enabling it at inference to:
 1. Generate answer AND self-evaluation simultaneously
@@ -4827,7 +4827,7 @@ DeepSeekMath-V2's "self-verification" means **teaching the model verification ab
 
 Agent Lightning / Azure RFT use **pure external rewards**—the model doesn't know "why this answer is good", only that "this answer got a high score".
 
-### 8.4 Training Complexity Comparison
+### 8.4 训练复杂度对比
 
 ```text
 DeepSeekMath-V2 Training Pipeline (Complex):

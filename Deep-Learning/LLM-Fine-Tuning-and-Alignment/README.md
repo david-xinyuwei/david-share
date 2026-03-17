@@ -3197,7 +3197,7 @@ Next, I will combine the training data to roughly introduce the DPO training pro
 
 **Step 1: Calculate Log Probabilities**
 
- 
+
 **For the trained model (parameters θ):**
 
 - **Log probability of the chosen reply:**
@@ -3214,7 +3214,7 @@ Next, I will combine the training data to roughly introduce the DPO training pro
   log_p_model(rejected | prompt) = log( π_θ(rejected | prompt) )  
   ```
 
- 
+
 **For the reference model (fixed parameters):**
 
 - **Log probability of the chosen reply:**
@@ -3309,7 +3309,7 @@ exp(Δ_chosen / β) + exp(Δ_rejected / β) = exp(1) + exp(-1) ≈ 2.718 + 0.368
 loss = -log( 2.718 / 3.086 ) = -log(0.880) ≈ 0.127  
 ```
 
- 
+
 **Result Analysis:**
 
 - **The loss value is relatively small (approximately 0.127), indicating that the model tends to prefer the "chosen" reply.**
@@ -3320,7 +3320,7 @@ loss = -log( 2.718 / 3.086 ) = -log(0.880) ≈ 0.127
 
 #### Explanation of Training Log Fields
 
- 
+
 Based on the DPO training process, here's a detailed explanation of each field in the training log and their importance in evaluating training effectiveness:
 
 **Example Training Log:**
@@ -3526,7 +3526,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
 
 #### **Step 1: Compute log probabilities**
 
- 
+
 **For the model being trained (parameters θ):**
 
 - **Log probability of the chosen response:**
@@ -3543,7 +3543,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
   log_p_model(rejected | prompt) = log( π_θ(rejected | prompt) )  
   ```
 
- 
+
 **For the reference model (parameters fixed):**
 
 - **Log probability of the chosen response:**
@@ -3600,7 +3600,7 @@ Based on the DPO training process, here's a detailed explanation of each field i
 
 ### **Training process example**
 
- 
+
 **Assumed values (for illustration):**
 
 - `log_p_model(chosen | prompt) = -5`
@@ -3641,7 +3641,7 @@ exp(Δ_chosen / β) + exp(Δ_rejected / β) = exp(1) + exp(-1) ≈ 2.718 + 0.368
 loss = -log( 2.718 / 3.086 ) = -log(0.880) ≈ 0.127  
 ```
 
- 
+
 **Result analysis:**
 
 - **The loss is relatively small (≈ 0.127), indicating the model tends to prefer the “chosen” response.**
@@ -3650,7 +3650,7 @@ loss = -log( 2.718 / 3.086 ) = -log(0.880) ≈ 0.127
 
 ### **Explanation of training log fields**
 
- 
+
 In conjunction with the above DPO training process, below is a detailed explanation of each field in the training logs and their importance in evaluating training effectiveness. We also illustrate the trends of these metrics using examples from actual training.
 
 **Training log example:**
