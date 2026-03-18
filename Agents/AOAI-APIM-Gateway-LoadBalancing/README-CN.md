@@ -4,34 +4,51 @@
 
 本指南演示如何使用 **Azure API Management (APIM) AI Gateway** 对多个 Azure OpenAI endpoint 实现负载均衡，结合 **Priority/Weight 路由**、**Circuit Breaker** 和 **Backend Pool** — 生产级 GenAI 高可用推荐架构。
 
+## 背景：PTU 与 Spillover
+
+### 什么是 PTU？
+
+**Provisioned Throughput Unit (PTU，预置吞吐量)** 是 Azure OpenAI 的预留容量方案。与按量付费 (PAYGO) 不同，PTU 提供：
+- **保证吞吐量**：固定的 tokens-per-minute (TPM) 配额，延迟可预测
+- **成本可控**：按小时固定费率计费，不受实际用量影响
+- **更低延迟**：专用算力，无共享租户排队
+
+代价：当 PTU 配额耗尽时，Azure OpenAI 返回 **HTTP 429** (Too Many Requests)。没有网关层时，该区域所有用户都会遇到失败。
+
+### 什么是 Spillover？
+
+**Spillover** 是 Azure OpenAI 的原生溢出机制。当 PTU deployment 饱和 (429/400/500) 时，流量自动回退到**同一 Azure OpenAI 资源**内的 Standard (PAYGO) deployment：
+
+```
+┌──────────────────────────┐
+│  Azure OpenAI 资源       │
+│                          │
+│  PTU Deployment          │ ← 主力（低延迟，固定成本）
+│     │ on 429/400/500     │
+│     ▼ spillover          │
+│  Standard Deployment     │ ← 溢出（PAYGO，延迟较高）
+│  (PAYGO)                 │
+└──────────────────────────┘
+```
+
+Spillover 在 Azure AI Foundry Portal 配置，无需网关。文档：[Spillover Traffic Management](https://learn.microsoft.com/en-us/azure/foundry/openai/how-to/spillover-traffic-management)
+
+### 为什么还需要 APIM？
+
+Spillover 处理**区域内**溢出（PTU→Standard）。但生产环境需要**跨区域**故障切换 — 当整个区域饱和或不可用时。这就是 APIM 的价值：
+
+| 层级 | 范围 | 机制 | 处理场景 |
+|------|------|------|---------|
+| **APIM** | 跨区域 | Backend Pool + Circuit Breaker | 区域 A 饱和 → 路由到区域 B |
+| **Spillover** | 区域内 | Azure OpenAI 原生 | PTU 饱和 → 溢出到 Standard |
+
+### 关于本 Demo
+
+> **重要说明**：本 Demo 使用 **GlobalStandard (PAYGO)** deployment 模拟 PTU 场景。我们**没有**部署实际的 PTU 实例（PTU 会产生按小时预留费用）。APIM 网关配置 — backend pool、circuit breaker、priority 路由、token 限流、动态 weight 调整 — 无论后端使用 PTU 还是 PAYGO **配置完全相同**。以下所有测试结果均为 Azure 真实部署的实测数据。
+
 ## 架构
 
 ![架构图](images/architecture.png)
-
-<details>
-<summary>文本版（点击展开）</summary>
-
-```
-  客户端应用 ────────────►│                                 │
-  (单一 endpoint)         │  • Backend Pool (负载均衡)      │
-                          │  • Circuit Breaker (429/5xx)    │
-                          │  • MI 或 API Key 认证           │
-                          │  • Subscription Key 鉴权         │
-                          └──────────┬──────────────────────┘
-                                     │  Priority + Weight
-                         ┌───────────┴───────────┐
-                         ▼                       ▼
-                ┌─────────────────┐     ┌─────────────────┐
-                │  Backend 1      │     │  Backend 2      │
-                │  AOAI 区域 A    │     │  AOAI 区域 B    │
-                │  (P1, Weight=5) │     │  (P1, Weight=5) │
-                │                 │     │                 │
-                │ Circuit Breaker │     │ Circuit Breaker │
-                │ 3次/10s→断路30s │     │ 3次/10s→断路30s │
-                └─────────────────┘     └─────────────────┘
-```
-
-</details>
 
 ### 核心设计决策
 

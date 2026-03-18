@@ -484,9 +484,9 @@ Step N：
 │  SSIM / FID / LPIPS / 目视                        │
 │  回答：蒸馏最终效果好不好？                         │
 ├──────────────────────────────────────────────────┤
-│  Layer 2: Velocity 空间（诊断层）                  │
+│  Layer 2: Velocity 空间（机制理解层）                  │
 │  PCA 轨迹 / L2 norm 分布 / Teacher-Student overlay│
-│  回答：velocity field 哪里没学好？                  │
+│  回答：velocity field 的行为特征是什么？          │
 │  ✅ 与 velocity loss domain 匹配                  │
 ├──────────────────────────────────────────────────┤
 │  Layer 1: Latent 空间（参考层）                    │
@@ -496,7 +496,7 @@ Step N：
 └──────────────────────────────────────────────────┘
 ```
 
-**幂等校验**：三层结论必须一致。当 velocity 诊断发现问题（如 mid-timestep 被跳过），像素评价应该观察到对应劣化。如果某层指标"看起来好"但另一层指标差，说明该层指标不可靠。
+**幂等校验**：三层结论必须一致。但要注意：**Layer 2（velocity）和 Layer 1/3 测量的是不同的东西** — velocity PCA coverage 低并不预示像素空间劣化。Velocity PCA 测量的是“方向多样性”，不是“去噪质量”。质量判定来自 Layer 1（latent 终点）和 Layer 3（像素评价）。
 
 #### Layer 1: Latent 空间分析（终态参考，非诊断充分条件）
 
@@ -550,10 +550,21 @@ Step N：
 
 ![Joint PCA CFG=2](images/E12d_velocity_joint_pca_cfg2.png)
 
-**结论**：蒸馏 8 步学到了 velocity field 的方向，但 timestep 采样太稀疏——mid-timestep 的关键转折区域被完全跳过。这是 **latent 空间指标完全看不到的问题**。
+**结论 — “Missing Turn” 是正常现象，不是蒸馏失败**：
 
-**改进方向**（基于 velocity 诊断）：
-- 多 NFE 蒸馏（4+8+16 步联合训练）→ 覆盖更多中间 timestep
+蒸馏 8 步在 velocity 空间中走了一条更直接的路径 — Teacher 的 mid-timestep 转折区域被跳过，因为 Student 只在 velocity field 中采样了 8 个点（vs Teacher 的 40 个）。这是**步数减少的数学必然**，不是蒸馏质量问题。
+
+**关键证据**（控制变量实验，2026-03-18）：
+- Base model（无 LoRA），8 步 → velocity PCA coverage = **61.1%**（纯步数效应）
+- LoRA 蒸馏模型，8 步 → velocity PCA coverage = **31.5%**（步数效应 + LoRA 轨迹集中）
+- 两个模型 → Latent PCA coverage = **98.6%**（终点精度优秀）
+
+Velocity PCA 测量的是“方向多样性”，**不是**去噪完成度。Latent PCA 测量的是“终点精度” — 98.6% 证明 Student 到达了正确的最终位置。
+
+> ⚠️ **常见误解**：“60%+ 的 velocity 空间未被覆盖”听起来很严重，但这混淆了“路径多样性”和“质量”。
+
+**探索方向**（研究方向，不是必须的修复）：
+- 多 NFE 蒸馏（4+8+16 步联合训练）→ 增加 velocity 方向多样性
 - t 接近 0 时加密采样 → 末端 timestep 是图像细节的关键区域
 - 自适应 timestep schedule → 在 velocity 变化剧烈的区域分配更多步数
 
@@ -561,7 +572,7 @@ Step N：
 
 像素空间评价是蒸馏效果的最终裁判——不管 loss 在什么域构建，最终目的都是生成高质量图像。
 
-**幂等校验**：velocity 诊断发现 Student 跳过了 mid-timestep 转折区域 → 预测像素空间应有细节劣化 → SSIM < 1.0 确认了这一预测。高难度样本（复杂纹理/姿势）正好对应 mid-timestep 细节最敏感的区域。
+**跨层验证**：Velocity PCA 显示 Student 走了一条更直接的路径。Latent PCA 确认终点正确（98.6%）。SSIM < 1.0 反映的是步数减少的影响，而非 velocity coverage 不足。
 
 ---
 

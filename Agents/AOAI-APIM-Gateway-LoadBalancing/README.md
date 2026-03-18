@@ -4,34 +4,51 @@
 
 This guide demonstrates how to set up **Azure API Management (APIM) AI Gateway** to load-balance across multiple Azure OpenAI endpoints with **priority/weight-based routing**, **circuit breaker**, and **backend pool** — the recommended architecture for production GenAI workloads requiring high availability.
 
+## Background: PTU and Spillover
+
+### What is PTU?
+
+**Provisioned Throughput Unit (PTU)** is Azure OpenAI's reserved capacity offering. Unlike pay-as-you-go (PAYGO), PTU provides:
+- **Guaranteed throughput**: Fixed tokens-per-minute (TPM) quota with predictable latency
+- **Cost predictability**: Hourly billing at a fixed rate, regardless of actual usage
+- **Lower latency**: Dedicated compute, no shared-tenant queuing
+
+The tradeoff: when PTU quota is exhausted, Azure OpenAI returns **HTTP 429** (Too Many Requests). Without a gateway layer, this means all users in that region experience failures.
+
+### What is Spillover?
+
+**Spillover** is Azure OpenAI's native overflow mechanism. When a PTU deployment is saturated (429/400/500), traffic automatically falls back to a Standard (PAYGO) deployment **in the same Azure OpenAI resource**:
+
+```
+┌──────────────────────────┐
+│  Azure OpenAI Resource   │
+│                          │
+│  PTU Deployment          │ ← Primary (low latency, fixed cost)
+│     │ on 429/400/500     │
+│     ▼ spillover          │
+│  Standard Deployment     │ ← Overflow (PAYGO, higher latency)
+│  (PAYGO)                 │
+└──────────────────────────┘
+```
+
+Spillover is configured in Azure AI Foundry Portal — no gateway needed. See: [Spillover Traffic Management](https://learn.microsoft.com/en-us/azure/foundry/openai/how-to/spillover-traffic-management)
+
+### Why APIM on Top of Spillover?
+
+Spillover handles **within-region** overflow (PTU→Standard). But production workloads need **cross-region** failover — when an entire region is saturated or down. That's where APIM comes in:
+
+| Layer | Scope | Mechanism | Handles |
+|-------|-------|-----------|---------|
+| **APIM** | Cross-region | Backend Pool + Circuit Breaker | Region A saturated → route to Region B |
+| **Spillover** | Within-region | Native Azure OpenAI | PTU saturated → overflow to Standard |
+
+### About This Demo
+
+> **Important**: This demo uses **GlobalStandard (PAYGO)** deployments to simulate the PTU scenario. We did **not** deploy actual PTU instances (which would incur hourly reserved charges). The APIM gateway configuration — backend pool, circuit breaker, priority routing, token rate limiting, dynamic weight adjustment — is **identical** regardless of whether backends use PTU or PAYGO. All test results below are real data from live Azure deployments.
+
 ## Architecture
 
 ![APIM AI Gateway Architecture](images/architecture.png)
-
-<details>
-<summary>Text version (click to expand)</summary>
-
-```
-  Client App ────────────►│                                 │
-  (single endpoint)       │  • Backend Pool (LB)            │
-                          │  • Circuit Breaker (429/5xx)    │
-                          │  • Managed Identity or API Key  │
-                          │  • Subscription-Key Auth        │
-                          └──────────┬──────────────────────┘
-                                     │  Priority + Weight
-                         ┌───────────┴───────────┐
-                         ▼                       ▼
-                ┌─────────────────┐     ┌─────────────────┐
-                │  Backend 1      │     │  Backend 2      │
-                │  AOAI Region A  │     │  AOAI Region B  │
-                │  (P1, Weight=5) │     │  (P1, Weight=5) │
-                │                 │     │                 │
-                │ Circuit Breaker │     │ Circuit Breaker │
-                │ 3 fails/10s→30s │     │ 3 fails/10s→30s │
-                └─────────────────┘     └─────────────────┘
-```
-
-</details>
 
 ### Key Design Decisions
 
