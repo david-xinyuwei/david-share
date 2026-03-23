@@ -1,18 +1,61 @@
-# Image Similarity Metrics — SSIM, LPIPS & FID
+# Image Similarity Metrics — MSE, SSIM, LPIPS, FID & CLIP Score
 
-> **Three ways to answer "How similar are these images?" — math, AI perception, and statistical distribution.**
+> **Five ways to compare images — pixel difference, structural matching, AI perception, statistical distribution, and semantic alignment.**
 
 ## What Is It?
 
-**SSIM**, **LPIPS**, and **FID** are metrics for comparing images. They answer the same question — "how similar?" — but from fundamentally different angles:
+Imagine you bought a piece of clothing online, and the seller used AI to generate a photo of "you wearing this outfit." Now the seller wants to upgrade the AI engine for faster generation, but worries the new engine might produce "lower quality" images. How do you judge? Manually comparing thousands of images is too slow, so we need **automated image quality metrics**.
 
-| | SSIM | LPIPS | FID |
-|---|---|---|---|
-| **Approach** | Mathematical formula (2004) | Neural network (2018) | Statistical distance (2017) |
-| **Compares** | Luminance + Contrast + Structure | Deep features from VGG | Feature distributions via Inception |
-| **Granularity** | **Per-image pair** | **Per-image pair** | **Batch-level** (set vs set) |
-| **Score direction** | **Higher = more similar** (1.0 = identical) | **Lower = more similar** (0.0 = identical) | **Lower = more similar** (0.0 = identical) |
-| **Analogy** | Engineer with a ruler | Art critic with trained eyes | Statistician comparing populations |
+The five metrics below do exactly this. Each independently answers "how similar are these two images (or two batches)?" but from completely different angles:
+
+| | MSE | SSIM | LPIPS | FID | CLIP Score |
+|---|---|---|---|---|---|
+| **Approach** | Element-wise squared diff | Sliding window stats (2004) | VGG deep features (2018) | Inception feature dist. (2017) | CLIP cosine distance |
+| **Compares** | Raw numerical diff | Luminance+Contrast+Structure | Multi-layer visual features | Feature distribution distance | Text-image semantic alignment |
+| **Granularity** | Per-pixel/element | Per-image paired | Per-image paired | **Batch-level** (set vs set) | Per-image (text-image) |
+| **Score direction** | **Low=similar** | **High=similar** (1.0=identical) | **Low=similar** (0.0=identical) | **Low=better** | **High=better** |
+| **Needs neural net?** | ❌ Pure math | ❌ Pure math | ✅ VGG-16 | ✅ InceptionV3 | ✅ CLIP |
+
+### Relationship Between Metrics
+
+These five metrics are **independently implemented** (SSIM's formula contains no MSE, LPIPS doesn't call SSIM, FID doesn't call LPIPS), but they exist on an **abstraction spectrum from concrete to abstract**:
+
+```
+Pixel(MSE) → Structural(SSIM) → Perceptual(LPIPS) → Distribution(FID) → Semantic(CLIP)
+  Concrete                                                                   Abstract
+```
+
+They are not hierarchically nested (higher levels don't depend on lower levels). They are five independent observation angles on the same question, but these angles have a progression from surface-level to deep-level — like a blood test, CT scan, and MRI: each independent, but progressing from surface to depth.
+
+### Cross-Space Applicability (Core Decision Constraint)
+
+Before looking at this chart, understand one key background: images exist in different "forms" inside a computer.
+
+- **Pixel Space [H×W×3]**: The RGB image you see. Each pixel has 3 numbers (Red/Green/Blue, each 0-255), giving 256³ = 16.7 million possible colors.
+- **Latent Space [h×w×4]**: A compressed "summary" after passing through a VAE encoder. Spatial dimensions shrink 8x (1024×1024 → 128×128), channels become 4. Humans can't interpret it, but it preserves the image's core information. Diffusion model training and inference happen in this space.
+- **Velocity Field [h×w×4]**: The model's predicted "direction and speed from noise to image." Same shape as latent. The fine-tuning loss compares predicted velocity against ground truth velocity.
+
+Here's the key: LPIPS, FID, and CLIP's backbone networks (VGG/Inception/CLIP) **only accept 3-channel RGB images**. Feed them a 4-channel latent tensor, and their first convolution layer crashes — channel count mismatch. MSE, being pure math, doesn't care about channel count and works everywhere.
+
+The chart below makes this crystal clear:
+
+![Cross-Space Applicability](images/cross_space_applicability.png)
+
+**This chart determines which metrics can be used at each stage of Diffusion model development** — not a preference, but a hard physical-space constraint (see the "Cross-Space Applicability" section below for details).
+
+### One Example That Explains All Metrics
+
+The image below shows the same real diffusion model image generation image with four different modifications, evaluated by MSE, SSIM, and LPIPS. Each metric reacts completely differently — this is why you need to combine them, not rely on just one:
+
+
+| Modification | Human Perception | MSE | SSIM | LPIPS | Who Got Fooled? |
+|-------------|-----------------|:---:|:----:|:-----:|----------------|
+| Brightness +30 | Can't tell | **0.0138**(⬆️) | 0.922 | 0.029 | MSE over-reacts |
+| Slight blur | Obviously blurry | 0.0009 | 0.853 | **0.329**(⬆️) | MSE misses it |
+| 1px shift | Can't tell | 0.0019 | **0.803**(⬇️) | 0.055 | SSIM over-reacts |
+| Color shift R+20 | Noticeable | 0.0041 | **0.939**(⬆️) | 0.141 | SSIM is fooled |
+
+**Conclusion**: Every metric has blind spots. MSE alone is fooled by brightness, SSIM alone is fooled by color shifts. **Combine them to avoid being fooled.**
 
 ## Why It Matters
 
@@ -23,9 +66,9 @@ Without objective metrics, you'd need humans to compare thousands of image pairs
 - **SSIM** → Quick engineering check: "Did my code change introduce pixel-level differences?"
 - **LPIPS** → Quality assurance: "Does the output still look good to human eyes?"
 
-**Real-world example (Virtual Try-On Benchmark)**:
+**Real-world example (diffusion model image generation Benchmark)**:
 - Compared 4 inference configurations (diffusers eager/compile × vLLM eager/compile)
-- Each produced 50 try-on images from identical inputs
+- Each produced 50 generation images from identical inputs
 - SSIM measured: are the outputs pixel-consistent across engines?
 - Result: diffusers eager vs compile SSIM ≈ 0.93 (excellent — compile doesn't degrade quality)
 - Cross-engine SSIM ≈ 0.91 (after correcting for resolution mismatch)
@@ -42,7 +85,7 @@ In production, we used these metrics to evaluate diffusion model inference quali
 |---|---|
 | **SKU** | [Standard_NC80adis_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
 | **GPU** | 1× NVIDIA H100 NVL 94 GB |
-| **Workload** | Virtual Try-On inference (50 samples × 4 engine configs) |
+| **Workload** | diffusion model image generation inference (50 samples × 4 engine configs) |
 | **Role of SSIM/LPIPS** | Automated quality gate — compare outputs across engines without human review |
 
 ### Why Azure GPU VMs for Quality Evaluation
@@ -65,6 +108,41 @@ These numbers gave us confidence to recommend `torch.compile` and alternative en
 ---
 
 ## How It Works
+
+Above, we used a chart and a table to see the big picture: "who can work where" and "what role each plays." Now let's open each one up and understand **how it computes internally**. We go from simplest to most complex:
+
+1. **MSE** — Simplest, pure math, one-line formula
+2. **SSIM** — One step beyond MSE, uses sliding windows to examine local structure
+3. **LPIPS** — Lets a neural network simulate human visual judgment
+4. **FID** — Doesn't look at individual images, compares statistical distributions of batches
+
+### MSE — The All-Space Player
+
+MSE (Mean Squared Error) is the most fundamental metric:
+
+> **MSE = (1/n) × Σ(yᵢ - ŷᵢ)²**
+
+Computes the squared difference for each element, then averages. Squaring penalizes large errors more heavily (a difference of 10 contributes 100, a difference of 1 contributes just 1).
+
+**MSE's Core Role in Diffusion Models**:
+
+During training, the model predicts noise or velocity, with the loss:
+
+> **L = E[||ε_θ(xₜ, t) - ε||²]**
+
+This is not an arbitrary choice — it's a **mathematical necessity derived from the variational lower bound (ELBO)**: maximizing the log-likelihood variational lower bound → minimizing per-step KL divergence → under Gaussian noise assumption → reduces exactly to MSE.
+
+**Why not MAE (L1 Loss)?**
+
+| | MSE (L2) | MAE (L1) |
+|---|---------|---------|
+| Gradient | Larger gradients for large errors, faster convergence | Constant gradient, slow convergence on large errors |
+| Generation quality | Smoother, better detail | Can produce blur |
+| Theory | Directly derived from ELBO | No variational inference support |
+
+**MSE's unique advantage — works in all spaces**: MSE is pure math (element-wise squared difference), agnostic to input format. This makes it the only metric that works in all spaces (see Cross-Space Applicability below).
+
+MSE is simple but has blind spots — it only measures how much the numbers differ, but "large numerical difference" does NOT mean "looks different." Example: uniformly brightening an image by 30 gives a high MSE (every pixel differs by 30), but humans can barely tell; conversely, slight blur gives a low MSE (pixel values change little), but humans clearly see the blur. SSIM and LPIPS address this: one examines structure mathematically, the other simulates human vision with a neural network. The diagram below compares their computation pipelines:
 
 ![SSIM vs LPIPS Pipeline](images/ssim_vs_lpips_pipeline.png)
 
@@ -204,10 +282,115 @@ FID measures "how similar to the reference set," but **"similar to reference" �
 
 - [ ] Are reference and generated sets the **same sample size**? (≥100, ideally ≥50K)
 - [ ] Is the **preprocessing identical** on both sides? (resize method, normalization)
-- [ ] Does the reference set **represent your domain**? (ImageNet ≠ fashion try-on)
+- [ ] Does the reference set **represent your domain**? (ImageNet ≠ fashion generation)
 - [ ] Are you **cross-validating** with other metrics? (SSIM + LPIPS + human review)
 
 **Bottom line**: FID is a good **screening tool** ("is training converging?"), not a **judge** ("which model is best"). For fair evaluation, always combine FID with per-image metrics and human review.
+
+---
+
+## Cross-Space Applicability — The Core Decision Constraint
+
+This is the most critical constraint when choosing metrics — **not a preference, but a hard physical-space limitation**:
+
+| Metric | Pixel Space [H×W×3] | Latent Space [h×w×4] | Velocity Field [h×w×4] | Reason |
+|--------|:---:|:---:|:---:|--------|
+| **MSE** | ✅ | ✅ | ✅ | Pure math, works on any tensor |
+| **SSIM** | ✅ | ⚠️ Computable but meaningless | ⚠️ Computable but meaningless | "Luminance/Contrast/Structure" designed for pixels; latent mean ≠ "luminance" |
+| **LPIPS** | ✅ | ❌ | ❌ | VGG-16 only accepts 3-channel RGB input; latent is 4/16 channels with range [-3,3] |
+| **FID** | ✅ | ❌ | ❌ | InceptionV3 only accepts 3-channel 299×299 RGB input |
+| **CLIP Score** | ✅ | ❌ | ❌ | CLIP visual encoder only accepts 3-channel 224×224 RGB input |
+
+**This table directly determines the loss/metric choice at each stage of Diffusion model development**:
+
+| Stage | Working Space | Available Metrics |
+|-------|--------------|-------------------|
+| Fine-tuning (LoRA) | Latent/Velocity | MSE only (the only all-space player) |
+| Distillation | Pixel space* | LPIPS (needs VAE decode to pixel space) |
+| Inference quality evaluation | Pixel space | SSIM + LPIPS + FID (complementary) |
+| Text-image alignment | Pixel space | CLIP Score |
+
+*Distillation can use LPIPS because it adds a VAE decode step to convert latent back to RGB. But decode is expensive (memory + compute), making distillation more costly than regular fine-tuning.
+
+**Supplementary metrics for velocity fields**:
+
+In velocity space, Cosine Similarity complements MSE:
+- MSE measures velocity **magnitude difference**
+- Cosine Similarity measures velocity **directional consistency** (ignoring magnitude)
+- Edge case: velocity direction correct but magnitude off by 10x → MSE spikes but Cosine ≈ 1
+
+## Cross-Space Verification Experiments (H100 GPU, Real generation Images)
+
+Validated every conclusion in the cross-space applicability table on Azure H100 NVL (NC40ads_H100_v5) with real diffusion model image generation images. Scripts: `cross_space_experiment.py` + `e5_blind_spots.py`.
+
+### E1: LPIPS on 4-Channel Latent — Crash
+
+```
+[PIXEL]  LPIPS score: 0.6928  ✅ Works
+[LATENT] Feeding [1, 4, 32, 32] to LPIPS...
+[LATENT] CRASHED! ✅
+Error: RuntimeError: size of tensor a (4) must match size of tensor b (3)
+```
+
+**Verdict**: VGG-16 Conv1 only accepts 3-channel input. 4-channel latent crashes immediately. Hard constraint, not preference.
+
+### E2: SSIM on Latent — Computable but Meaningless
+
+```
+[PIXEL]  SSIM(cloth, model):          0.1608  (meaningful)
+[LATENT] SSIM(lat_cloth, lat_model):  0.1221  (computable but meaningless)
+[LATENT] SSIM(lat_cloth, +noise):     0.1376
+[PIXEL]  SSIM(cloth, +noise):         0.2962
+```
+
+**Verdict**: SSIM's "luminance/contrast/structure" have no physical meaning in latent space. Noise response patterns differ completely from pixel space.
+
+### E3: MSE Works in All Spaces
+
+```
+[PIXEL]    MSE(cloth, model):  0.165405  ✅
+[LATENT]   MSE(lat_c, lat_m):  0.065193  ✅
+[VELOCITY] MSE(vel_a, vel_b):  0.010035  ✅
+```
+
+**Verdict**: MSE is pure math — works on any tensor regardless of channel count or semantics.
+
+### E4: Cosine vs MSE Complementarity
+
+| Scenario | MSE | Cosine | Interpretation |
+|----------|:---:|:------:|----------------|
+| Identical velocity | 0.000000 | 1.0000 | Baseline |
+| **Same direction, 10x magnitude** | **82.19** | **1.0000** | MSE explodes 8190x, Cosine unchanged! |
+| Opposite direction | 4.059 | -1.0000 | Both detect |
+| Slight perturbation | 0.010 | 0.9951 | Realistic scenario |
+
+**Verdict**: MSE catches magnitude errors, Cosine catches direction errors. Together = complete velocity field quality assessment.
+
+### E5: Real Image Blind Spot Comparison (H100, Real generation 256×256)
+
+| Distortion | MSE | SSIM | LPIPS | Blind Spot |
+|------------|:---:|:----:|:-----:|------------|
+| D0: Identical | 0.0000 | 1.0000 | 0.0000 | Baseline |
+| **D1: 1px shift** | 0.0058 | **0.1622** | 0.0821 | ⚠️ SSIM crashes to 0.16! Humans can't tell |
+| D2: Slight blur | 0.0017 | 0.6614 | **0.3520** | LPIPS catches texture loss |
+| D3: Heavy blur | 0.0052 | 0.5059 | 0.5735 | All agree |
+| **D4: Brightness +30** | **0.0136** | **0.9345** | **0.0315** | MSE highest, but SSIM/LPIPS say "humans can't tell" |
+| D5: Noise σ=15 | 0.0034 | 0.5356 | 0.2925 | All agree |
+| **D6: Color shift R+20** | 0.0041 | **0.9581** | **0.1182** | ⚠️ SSIM fooled (0.96), LPIPS catches color change |
+| D7: JPEG q=10 | 0.0022 | 0.5498 | 0.5535 | Both agree |
+
+**Conclusion**: Every metric has blind spots. Combined use avoids being fooled. SSIM 0.93 + LPIPS 0.01 = safe. SSIM 0.96 + LPIPS 0.12 = SSIM fooled by color shift.
+
+### E6: Three-Metric Difference Heatmaps (Teacher vs Student, Real generation 1024×1024)
+
+The three metrics "see" completely different things on the same image pair:
+
+
+- **MSE Map** (left): Only a few bright spots at garment edges and body contours — MSE sees "which pixels differ most in raw value"
+- **SSIM Map** (center): The entire body and garment area lights up — SSIM is extremely sensitive to structural changes
+- **LPIPS Map** (right): Garment folds, body contours, and background textures highlighted — most aligned with where human eyes focus
+
+---
 
 ## Real-World Experiment
 
@@ -310,7 +493,7 @@ FID estimates a 2048-dimensional covariance matrix. Fewer samples than dimension
 
 **Takeaway**: With only 10 samples, repeating the exact same experiment yields FID values ranging from ~107 to ~135 — enough variance to reverse rankings between two models. Use ≥100 samples for meaningful comparisons.
 
-### Production Observations (GPU, Virtual Try-On, 50 samples)
+### Production Observations (GPU, diffusion model image generation, 50 samples)
 
 From our diffusion model inference benchmarks on H100:
 
@@ -334,7 +517,7 @@ When comparing outputs from different engines, output resolution may differ if t
 
 ### Cross-Engine Validation with Three Metrics (Seed Alignment Discovery)
 
-In a cross-engine virtual try-on validation (comparing Diffusers vs an alternative inference engine), we used all three metrics together and discovered that **random seed is the dominant factor** in output differences:
+In a cross-engine diffusion model image generation validation (comparing Diffusers vs an alternative inference engine), we used all three metrics together and discovered that **random seed is the dominant factor** in output differences:
 
 | Comparison | LPIPS | SSIM | FID | Conclusion |
 |------------|:-----:|:----:|:---:|------------|
