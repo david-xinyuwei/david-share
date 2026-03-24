@@ -531,23 +531,39 @@ All three metrics independently confirmed the same conclusion: with seed alignme
 
 ### LPIPS in Distillation Training
 
-In diffusion model distillation (reducing inference steps from 50 to 8), LPIPS serves as the training loss function:
+In diffusion model distillation (reducing inference steps from 40 to 8), the actual loss function is **MSE + LPIPS hybrid**, not pure LPIPS. Like having an "art teacher + art critic" working together:
 
 ```python
-lpips_loss = LPIPS(net='vgg')
+# Actual distillation loss structure (from source code analysis):
+loss_1 = align_trajectory()       # MSE (art teacher)
+  # Compares student vs teacher velocity step-by-step in latent space
+  # velocity = (teacher_next_latent - current_latent) / Δσ
+  # Full gradient chain → precise guidance for each step
 
-# During distillation training:
-image_8step = student_model(noise, 8_steps)    # Student: 8 steps
-image_50step = teacher_model(noise, 50_steps)  # Teacher: 50 steps
+loss_2 = compute_regularization()  # LPIPS (art critic)
+  # After student runs 8 steps, VAE decode to pixel space
+  # LPIPS(AlexNet) compares student image vs teacher image
+  # .detach() cuts intermediate gradients → only checks final result, saves memory
 
-loss = lpips_loss(image_8step, image_50step)   # Minimize perceptual difference
-loss.backward()  # Update student (LoRA) parameters
+loss = loss_1 + loss_2  # 1:1 direct sum
 ```
 
-Why LPIPS instead of MSE for distillation loss?
-- MSE forces pixel-perfect matching → student learns to copy artifacts
-- LPIPS allows the student to produce images that "look the same" even if pixels differ
-- This gives the student more freedom to find efficient 8-step denoising paths
+**Why MSE + LPIPS instead of just one?**
+
+| Scenario | Painting Analogy | Problem |
+|----------|-----------------|--------|
+| MSE only | Teacher watches each stroke, no one checks final painting | Each stroke is correct but painting lacks soul |
+| LPIPS only | Critic only sees finished painting, can't tell which stroke went wrong | Knows it's bad but not how to fix it |
+| **MSE + LPIPS** | **Teacher guides each stroke + critic checks final result** | **Each stroke correct + painting looks good** |
+
+**Why LPIPS uses .detach() (doesn't backprop through each step)?**
+
+If LPIPS also backpropped through every step, memory usage would double (need to store entire gradient chain), and MSE is already precisely guiding each step. Using .detach() to only check the final result = minimum cost for quality assurance.
+
+**Key details**:
+- LPIPS only compares the **final images**, not per-step. VAE decode is called only 2 times per training step (student once + teacher once), LPIPS computed only once.
+- LPIPS reference image is the teacher model's generated image (`trajectory_teacher[-1]` via VAE decode).
+- Although .detach() cuts intermediate gradients, LPIPS's numerical value still participates in the total loss. The optimizer learns through LPIPS value trends across training rounds to indirectly determine "which direction to adjust parameters makes the final image look better."
 
 ## Pitfalls in Practice
 

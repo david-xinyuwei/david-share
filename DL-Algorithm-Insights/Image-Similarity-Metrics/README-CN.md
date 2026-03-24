@@ -529,23 +529,39 @@ FID 需要估计 2048 维的协方差矩阵。样本数少于特征维度时，�
 
 ### LPIPS 在 Distillation（蒸馏）训练中的应用
 
-扩散模型 Distillation（蒸馏，将推理步数从 50 步减到 8 步）中，LPIPS 作为 Training Loss Function（训练损失函数）：
+扩散模型蒸馏（将推理步数从 40 步减到 8 步）中，实际使用的是 **MSE + LPIPS 混合损失函数**，而非纯 LPIPS。类似“美术老师 + 美术评委”的分工：
 
 ```python
-lpips_loss = LPIPS(net='vgg')
+# 蒸馏训练的实际 loss 结构（源码分析）：
+loss_1 = align_trajectory()      # MSE（美术老师）
+  # 在 latent 空间逜步比较学生和教师的 velocity
+  # velocity = (教师下一步latent - 当前latent) / Δσ
+  # 每一步都保留梯度 → 精确指导每一步怎么走
 
-# 蒸馏（Distillation）训练过程中：
-image_8step = student_model(noise, 8_steps)    # 学生：8 步
-image_50step = teacher_model(noise, 50_steps)  # 教师：50 步
+loss_2 = compute_regularization() # LPIPS（美术评委）
+  # 学生跑完 8 步后，VAE decode 回像素空间
+  # LPIPS(AlexNet) 比较学生图 vs 教师图
+  # .detach() 切断中间步梯度 → 只看最终结果好不好，省显存
 
-loss = lpips_loss(image_8step, image_50step)   # 最小化感知差异
-loss.backward()  # 更新学生（LoRA）参数
+loss = loss_1 + loss_2  # 1:1 直接相加
 ```
 
-为什么 Distillation 用 LPIPS 而不是 MSE？
-- MSE 会强制像素级精确匹配 → 学生学会复制伪影
-- LPIPS 允许学生生成"看起来一样"但像素可能不同的图片
-- 这给了学生更多自由度去找到高效的 8 步去噪路径
+**为什么是 MSE + LPIPS 而不是只用一个？**
+
+| 场景 | 学练画类比 | 问题 |
+|------|---------|------|
+| 只有 MSE | 美术老师盯着每一笔，没人看最终效果 | 每笔都像达芬奇，但整幅画缺灵魂 |
+| 只有 LPIPS | 评委等画完才看，不知道哪一笔错 | 知道不好但不知道怎么改，训练慢 |
+| **MSE + LPIPS** | **老师管每笔 + 评委管最终效果** | **每笔像 + 整幅也好看** |
+
+**LPIPS 为什么用 .detach()（不回传每步梯度）？**
+
+如果 LPIPS 也回传每一步的梯度，显存翻倍（需保存整条链路），而且 MSE 已经在精确指导每一步了，不需要 LPIPS 重复做。用 .detach() 只看最终结果 = 最小代价换取质量保底。
+
+**关键细节**：
+- LPIPS 只对比**最终图片**，不是每步都对比。VAE decode 整个训练步只调用 2 次（学生一次 + 教师一次），LPIPS 只算 1 次。
+- LPIPS 的参考图是教师模型生成的图片（`trajectory_teacher[-1]` 经 VAE decode）。
+- 虽然 .detach() 切断了中间步梯度，但 LPIPS 的数值仍然参与 total loss。优化器通过多轮训练中 LPIPS 值的变化趋势，间接学到“朝哪个方向调参数能让最终图片更好看”。
 
 ## 工程实践中的坑
 
