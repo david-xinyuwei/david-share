@@ -1,4 +1,4 @@
-# 组织 the assistant — 模型迁移 Benchmark 与 PTU 流量管理
+# Azure OpenAI 模型迁移 Benchmark 与 PTU 流量管理
 ## gpt-4o-mini → gpt-5.4-nano | Spillover vs APIM 主动路由
 
 **Author**: Xinyu Wei (魏新宇) | **Date**: 2026-03-28
@@ -44,7 +44,7 @@
 
 ### the assistant 产品
 
-the assistant 是组织的**系统级跨设备 AI 助手**（a major tech event），嵌入 ThinkPad PC、平板和 mobile 手机，将 AI features、the organization AI Now、Creator Zone 统一为一个体验。
+the assistant 是一个**系统级跨设备 AI 助手**（a major tech event），嵌入 ThinkPad PC、平板和 mobile 手机，将 AI features、AI Now、Creator Zone 统一为一个体验。
 
 **6 大功能**：Next Move（意图分类）、Chat Mode（问答）、Write For Me（内容生成）、Live Mode（实时对话）、Catch Me Up（活动摘要）、Pay Attention（会议记录）。另加 **Bing Grounding** 用于网络搜索。
 
@@ -92,7 +92,7 @@ flowchart LR
 
 ### Region 可用性
 
-组织需要：East US 2 / Sweden Central / Southeast Asia
+团队需要：East US 2 / Sweden Central / Southeast Asia
 
 | 模型 | East US 2 | Sweden Central | Southeast Asia |
 |------|:---------:|:-------------:|:--------------:|
@@ -184,9 +184,9 @@ API：`responses.create(model=..., stream=True)` | 40 样本/格（5 轮合并�
 
 ### 3.2 web_search_preview + GUARDRAILS — 客户生产路径
 
-> **这是主要 benchmark** — 测试组织实际使用的架构。
+> **这是主要 benchmark** — 测试团队实际使用的架构。
 
-组织确认 the assistant 使用 `web_search_preview`（Responses API 内置工具）而非 Foundry Agent + BingGroundingAgentTool。本节测试客户实际架构。
+生产环境 the assistant 使用 `web_search_preview`（Responses API 内置工具）而非 Foundry Agent + BingGroundingAgentTool。本节测试客户实际架构。
 
 **与 Section 3.3（Foundry+Bing）的关键差异**：
 - 无 Foundry Agent 编排层 — 直连 AOAI + `tools=[{"type": "web_search_preview"}]`
@@ -224,7 +224,7 @@ API：`responses.create(model=..., stream=True)` | 40 样本/格（5 轮合并�
 
 ### 3.3 Foundry Agent V2 + Bing Grounding（备选路径）
 
-> 以下章节测试通过 Foundry Agent 集成 Bing 的备选路径。组织当前未使用此路径，但包含在内用于交叉验证。
+> 以下章节测试通过 Foundry Agent 集成 Bing 的备选路径。团队当前未使用此路径，但包含在内用于交叉验证。
 
 #### 3.3.1 Foundry Agent — 无 Bing（Agent 编排开销）
 
@@ -639,8 +639,6 @@ KQL: AzureDiagnostics | where Category == 'RequestResponse'
 - 1 台服务器在线，141 MB 内存，0% CPU
 
 ![Application Insights Live Metrics 仪表盘](images/live_metrics_dashboard.png)
-
-![Azure Monitor Metrics Portal](images/azure_monitor_metrics_portal.png)
 
 #### 路由逻辑 E2E 测试（6/6 通过）
 
