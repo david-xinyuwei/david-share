@@ -7,7 +7,7 @@
 
 **gpt-5.4-nano** 是 gpt-4o-mini 在 the assistant AI 助手中的推荐替代模型。
 
-使用**组织实际架构**（Responses API + `web_search_preview` + streaming）和备选路径（Foundry Agent + BingGroundingAgentTool）对 5 个候选模型进行测试。gpt-5.4-nano 在两种架构下均实现**等效的 Bing 延迟**（~2s），且是 gpt-4o-mini 退役（2026-10-01）后唯一可用的继任者。
+使用**客户实际架构**（Responses API + `web_search_preview` + streaming）和备选路径（Foundry Agent + BingGroundingAgentTool）对 5 个候选模型进行测试。gpt-5.4-nano 在两种架构下均实现**等效的 Bing 延迟**（~2s），且是 gpt-4o-mini 退役（2026-10-01）后唯一可用的继任者。
 
 | 指标 | gpt-4o-mini（当前） | gpt-5.4-nano（推荐） | 测试条件 |
 |------|:-------------------:|:--------------------:|----------|
@@ -18,9 +18,9 @@
 | **Output 单价** (每 1M tokens) | $0.60 | $1.25 | — |
 | **缓存 Input** (每 1M tokens) | $0.075 | $0.02 | — |
 
-> 所有 TTFT 为 P50（中位数），基于**每模型每场景 120 个样本**（5 轮独立测试）。测试环境：东亚 → East US 2（PAYGO GlobalStandard）。组织 PTU 环境 TTFT 将更低。
+> 所有 TTFT 为 P50（中位数），基于**每模型每场景 120 个样本**（5 轮独立测试）。测试环境：东亚 → East US 2（PAYGO GlobalStandard）。客户 PTU 环境 TTFT 将更低。
 
-**web_search 路径生产配置**（组织实际架构）：
+**web_search 路径生产配置**（客户实际架构）：
 
 | # | 设置 | 值 | 用途 |
 |:-:|------|-----|------|
@@ -44,7 +44,7 @@
 
 ### the assistant 产品
 
-the assistant 是组织的**系统级跨设备 AI 助手**（a major tech event），嵌入 ThinkPad PC、平板和 手机，将 多个 AI 功能 统一为一个体验。
+the assistant 是组织的**系统级跨设备 AI 助手**（a major tech event），嵌入 ThinkPad PC、平板和 mobile 手机，将 AI features、the organization AI Now、Creator Zone 统一为一个体验。
 
 **6 大功能**：Next Move（意图分类）、Chat Mode（问答）、Write For Me（内容生成）、Live Mode（实时对话）、Catch Me Up（活动摘要）、Pay Attention（会议记录）。另加 **Bing Grounding** 用于网络搜索。
 
@@ -128,7 +128,7 @@ Total TTFT = [模型推理] + [Foundry 编排] + [Bing 搜索]
 - `reasoning_effort` 设到模型最低：gpt-5.4 用 `none`，gpt-5 用 `minimal`
 - S3 系统指令：`"Perform exactly ONE search. Do NOT refine or repeat searches."`
 - SDK：`openai==2.14.0`，`azure-ai-projects==2.0.0b2`
-- **测试环境**：Windows VM（东亚）→ East US 2 部署。跨太平洋网络增加 ~100-200ms RTT。组织生产环境（美国组织端 → East US 2）RTT ~30-50ms，TTFT 将比本报告低 ~70-170ms。
+- **测试环境**：Windows VM（东亚）→ East US 2 部署。跨太平洋网络增加 ~100-200ms RTT。客户生产环境（美国客户端 → East US 2）RTT ~30-50ms，TTFT 将比本报告低 ~70-170ms。
 
 ### TTFT 组成
 
@@ -142,7 +142,7 @@ Total TTFT = [模型推理] + [Foundry 编排] + [Bing 搜索]
 | 首 token 生成 | ~50-100ms | 生成第一个输出 token |
 | **总计（观测 P50）** | **~0.57-0.69s** | 与组件估算一致 |
 
-> **注**：本测试使用 **GlobalStandard (PAYGO)** 部署。PTU（Provisioned Throughput）部署消除排队延迟，TTFT 会更低。组织生产环境的 PTU 部署预计延迟更优。
+> **注**：本测试使用 **GlobalStandard (PAYGO)** 部署。PTU（Provisioned Throughput）部署消除排队延迟，TTFT 会更低。客户生产环境的 PTU 部署预计延迟更优。
 
 ### 为什么使用 Responses API？
 
@@ -182,11 +182,11 @@ API：`responses.create(model=..., stream=True)` | 40 样本/格（5 轮合并�
 | gpt-5-nano | 1.25/2.31s | 1.05/3.20s | 1.11/2.09s | 1.14s |
 | gpt-5-mini | 1.33/4.23s | 1.29/5.21s | 1.15/2.95s | 1.26s |
 
-### 3.2 web_search_preview + GUARDRAILS — 组织生产路径
+### 3.2 web_search_preview + GUARDRAILS — 客户生产路径
 
 > **这是主要 benchmark** — 测试组织实际使用的架构。
 
-组织确认 the assistant 使用 `web_search_preview`（Responses API 内置工具）而非 Foundry Agent + BingGroundingAgentTool。本节测试组织实际架构。
+组织确认 the assistant 使用 `web_search_preview`（Responses API 内置工具）而非 Foundry Agent + BingGroundingAgentTool。本节测试客户实际架构。
 
 **与 Section 3.3（Foundry+Bing）的关键差异**：
 - 无 Foundry Agent 编排层 — 直连 AOAI + `tools=[{"type": "web_search_preview"}]`
@@ -411,7 +411,7 @@ Azure OpenAI PTU 提供内置 **spillover（溢出）** 功能，当 PTU 部署�
 
 ```mermaid
 flowchart LR
-    A["组织端请求<br/>持续涌入"] --> B["PTU 利用率<br/>攻到 100%"]
+    A["客户端请求<br/>持续涌入"] --> B["PTU 利用率<br/>攻到 100%"]
     B --> C["延迟增加<br/>（排队）"]
     C --> D["HTTP 429<br/>Too Many Requests"]
     D --> E["等待<br/>retry-after-ms<br/>(1-10s)"]
@@ -505,7 +505,7 @@ Azure OpenAI 流式响应包含实时容量 header：
 | `x-ratelimit-remaining-requests` | 剩余 RPM 容量 | `941` |
 | `x-ratelimit-limit-requests` | 部署的 RPM 总限额 | `950` |
 
-> **已在 PAYGO 验证**（300 请求，50 并发，100% header 可用）。组织需在 PTU 上运行 `scripts/stress_test_tpm_utilization.py` 确认。
+> **已在 PAYGO 验证**（300 请求，50 并发，100% header 可用）。客户需在 PTU 上运行 `scripts/stress_test_tpm_utilization.py` 确认。
 
 **APIM Policy**（生产就绪，见本 repo `apim-policy-ptu-routing.xml`）：
 
@@ -638,6 +638,10 @@ KQL: AzureDiagnostics | where Category == 'RequestResponse'
 - Sample Telemetry：实时 "AOAI request completed" traces 带 trace_id
 - 1 台服务器在线，141 MB 内存，0% CPU
 
+![Application Insights Live Metrics 仪表盘](images/live_metrics_dashboard.png)
+
+![Azure Monitor Metrics Portal](images/azure_monitor_metrics_portal.png)
+
 #### 路由逻辑 E2E 测试（6/6 通过）
 
 | # | 测试 | 预期 | 实际 | 状态 |
@@ -679,7 +683,7 @@ pip install -r requirements.txt
 
 ### 8.3 运行 Benchmark
 
-**web_search + GUARDRAILS benchmark**（组织生产路径）：
+**web_search + GUARDRAILS benchmark**（客户生产路径）：
 
 ```bash
 python scripts/benchmark_websearch_guardrails.py \
@@ -754,11 +758,11 @@ python scripts/stress_test_tpm_utilization.py \
 | `data/benchmark_cached_3s_20260325_095451.json` | Cached Run 2 — 1066-token 系统提示词（24 samples/cell） |
 | `scripts/benchmark_3s_detective.py` | Benchmark 脚本（Foundry Agent，未缓存版本） |
 | `scripts/benchmark_3s_cached.py` | Benchmark 脚本（Prompt Caching 版本） |
-| `scripts/benchmark_websearch.py` | Benchmark 脚本（web_search_preview — 组织路径） |
+| `scripts/benchmark_websearch.py` | Benchmark 脚本（web_search_preview — 客户路径） |
 | `scripts/benchmark_intent_classification.py` | 意图分类成本 Benchmark |
 | `data/benchmark_websearch_20260327_230815.json` | web_search Run（短 prompt，24 样本/cell） |
 | `data/benchmark_websearch_guardrails_*.json` | web_search + GUARDRAILS 5 轮（120 样本/cell，搜索已验证） |
-| `scripts/benchmark_websearch_guardrails.py` | web_search + GUARDRAILS benchmark（组织路径，argparse） |
+| `scripts/benchmark_websearch_guardrails.py` | web_search + GUARDRAILS benchmark（客户路径，argparse） |
 | `scripts/stress_test_tpm_utilization.py` | PTU/PAYGO TPM 利用率压测（并发流式，header 捕获） |
 
 ### D. Prompt Caching 自洽性分析
@@ -778,7 +782,7 @@ gpt-5-mini 在 Bing 场景中 σ=6.27s — 比其他模型（σ=0.60-1.05s）高
 
 `web_search_preview` 配合 `tool_choice="required"` 会导致 gpt-4o-mini（128K context）**context window 溢出**。全部 3 个 query 均报错 "Your input exceeds the context window"。根因：`required` 模式注入搜索结果更激进，超过 4o-mini 上下文限制。gpt-5.4 系列（1M context）不受影响。
 
-组织使用 `tool_choice` 默认值（`auto`）— 通过系统提示词 "Search the web for current information" 引导搜索，经 `response.web_search_call.searching` streaming event 验证，搜索触发率 100%（24 样本/模型，0% 跳过率）。
+客户使用 `tool_choice` 默认值（`auto`）— 通过系统提示词 "Search the web for current information" 引导搜索，经 `response.web_search_call.searching` streaming event 验证，搜索触发率 100%（24 样本/模型，0% 跳过率）。
 
 ### G. gpt-5 系列 + web_search 兼容性
 

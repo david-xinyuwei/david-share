@@ -1,4 +1,4 @@
-# the assistant — Model Migration Benchmark & PTU Traffic Management
+# the organization the assistant — Model Migration Benchmark & PTU Traffic Management
 ## gpt-4o-mini → gpt-5.4-nano | Spillover vs APIM Proactive Routing
 
 **Author**: Xinyu Wei (魏新宇) | **Date**: 2026-03-28
@@ -44,7 +44,7 @@ Tested across 5 candidate models using the **customer's actual architecture** (R
 
 ### the assistant Product
 
-the assistant is the **system-level, cross-device AI assistant** (a major tech event), embedded across ThinkPad PCs, tablets, and mobile phones. It unifies multiple AI features into one experience.
+the assistant is the organization's **system-level, cross-device AI assistant** (a major tech event), embedded across ThinkPad PCs, tablets, and mobile phones. It unifies AI features, the organization AI Now, and Creator Zone into one experience.
 
 **6 Core Features**: Next Move (intent classification), Chat Mode (Q&A), Write For Me (content generation), Live Mode (real-time conversation), Catch Me Up (activity summary), Pay Attention (meeting transcription). Plus **Bing Grounding** for web search.
 
@@ -684,6 +684,10 @@ Results:
 - Request/Dependency Failure Rate: 0/s
 - Sample Telemetry: real-time "AOAI request completed" traces with trace_id
 - 1 server online, 141 MB committed memory, 0% CPU
+
+![Application Insights Live Metrics Dashboard](images/live_metrics_dashboard.png)
+
+![Azure Monitor Metrics Portal](images/azure_monitor_metrics_portal.png)
 
 #### Routing Logic E2E Test (6/6 Passed)
 
