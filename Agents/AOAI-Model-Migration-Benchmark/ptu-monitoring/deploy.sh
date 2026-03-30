@@ -4,7 +4,7 @@
 # ============================================================
 # Usage:
 #   ./deploy.sh \
-#     --resource-group rg-lenovo-qira \
+#     --resource-group rg-<your-resource-group> \
 #     --aoai-name my-aoai-resource \
 #     --ptu-endpoint https://xxx.openai.azure.com \
 #     --paygo-endpoint https://yyy.openai.azure.com \
