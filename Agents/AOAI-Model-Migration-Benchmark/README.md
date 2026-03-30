@@ -687,8 +687,6 @@ Results:
 
 ![Application Insights Live Metrics Dashboard](images/live_metrics_dashboard.png)
 
-![Azure Monitor Metrics Portal](images/azure_monitor_metrics_portal.png)
-
 #### Routing Logic E2E Test (6/6 Passed)
 
 | # | Test | Expected | Actual | Status |
