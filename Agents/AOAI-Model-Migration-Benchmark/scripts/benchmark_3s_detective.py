@@ -46,8 +46,8 @@ MODELS = [
     ("gpt-5.4-nano",  "gpt-5.4-nano", "gpt-54-nano",  "none"),
 ]
 
-SYSTEM_MSG = "You are Qira, a helpful AI assistant. Answer concisely."
-BING_INSTRUCTION = """You are Qira, a helpful AI assistant. Answer concisely.
+SYSTEM_MSG = "You are a helpful AI assistant. Answer concisely."
+BING_INSTRUCTION = """You are a helpful AI assistant. Answer concisely.
 CRITICAL: Perform exactly ONE search. Do NOT refine or repeat searches. Use first results immediately. Speed > completeness."""
 
 QUERIES = [

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Qira Model Migration: Bing Grounding (Web Search) Benchmark
+Model Migration: Bing Grounding (Web Search) Benchmark
 ============================================================
 Uses Azure OpenAI Responses API with built-in web_search tool
 to measure real Bing Grounding E2E latency across candidate models.
@@ -36,13 +36,13 @@ MODELS = [
     {"deployment": "gpt-5.4-nano", "display": "gpt-5.4-nano"},
 ]
 
-# Qira Bing Grounding test scenarios
+# AOAI Bing Grounding test scenarios
 SCENARIOS = [
     {
         "id": "bing-1",
-        "name": "Product Pricing (Lenovo ThinkPad)",
+        "name": "Product Pricing (ThinkPad)",
         "feature": "Pay Attention + Bing",
-        "input": "What's the current price and availability of the Lenovo ThinkPad X1 Carbon Gen 13 in the US? Include any ongoing deals.",
+        "input": "What's the current price and availability of the ThinkPad X1 Carbon Gen 13 in the US? Include any ongoing deals.",
         "max_tokens": 200,
     },
     {
@@ -167,7 +167,7 @@ def run_single_test(client, model_deployment, scenario, stream=True):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Qira Bing Grounding Benchmark")
+    parser = argparse.ArgumentParser(description="AOAI Bing Grounding Benchmark")
     parser.add_argument("--region", default="eastus2", help="Azure region")
     parser.add_argument("--iterations", type=int, default=3, help="Iterations per scenario")
     parser.add_argument("--models", nargs="+", help="Model deployments to test")
@@ -198,7 +198,7 @@ def main():
     models_to_test = args.models or [m["deployment"] for m in MODELS]
 
     print(f"{'='*70}")
-    print(f"Qira Bing Grounding Benchmark (Responses API + web_search)")
+    print(f"AOAI Bing Grounding Benchmark (Responses API + web_search)")
     print(f"{'='*70}")
     print(f"Region:     {args.region}")
     print(f"Endpoint:   {region_config['base_url']}")
@@ -273,7 +273,7 @@ def main():
 
     # Save results
     output_data = {
-        "benchmark": "Qira Bing Grounding (Responses API + web_search)",
+        "benchmark": "AOAI Bing Grounding (Responses API + web_search)",
         "timestamp": datetime.now().isoformat(),
         "config": {
             "region": args.region,

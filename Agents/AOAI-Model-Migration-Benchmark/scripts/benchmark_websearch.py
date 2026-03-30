@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Qira web_search Benchmark — Direct AOAI + Responses API + web_search_preview
+the AI assistant web_search Benchmark — Direct AOAI + Responses API + web_search_preview
 =============================================================================
 Tests the ACTUAL customer architecture: Responses API with built-in web_search
 (NOT Foundry Agent + BingGroundingAgentTool).
@@ -31,9 +31,9 @@ MODELS = [
     ("gpt-5.4-nano",  "gpt-5.4-nano",  "none",    "none"),
 ]
 
-SYSTEM_MSG = "You are Qira, a helpful AI assistant. Answer concisely."
+SYSTEM_MSG = "You are a helpful AI assistant. Answer concisely."
 BING_INSTRUCTION = (
-    "You are Qira, a helpful AI assistant. Answer concisely. "
+    "You are a helpful AI assistant. Answer concisely. "
     "CRITICAL: Perform exactly ONE search. Do NOT refine or repeat searches. "
     "Use first results immediately."
 )

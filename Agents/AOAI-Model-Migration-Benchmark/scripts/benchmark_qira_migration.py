@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Lenovo Qira Model Migration Benchmark
+the vendor Model Migration Benchmark
 gpt-4o-mini vs gpt-5.4-mini vs gpt-5.4-nano
 
-Scenarios based on Qira's 6 core features (CES 2026 PPT):
+Scenarios based on the AI assistant's 6 core features (CES 2026 PPT):
 1. Next Move — Intent classification, proactive suggestions
 2. Chat Mode — Multi-turn conversation, device Q&A
 3. Write For Me — Document continuation, email draft
@@ -33,7 +33,7 @@ REGIONS = {
 API_VERSION = "2025-04-01-preview"
 RUNS = 3
 
-# ═══ Qira Scenarios (based on CES PPT + Chris's real usage) ═══
+# ═══ the AI assistant Scenarios (based on CES PPT + Chris's real usage) ═══
 
 SCENARIOS = [
     # --- 1. Next Move: Intent Classification (proactive suggestions) ---
@@ -41,7 +41,7 @@ SCENARIOS = [
         "id": "1a",
         "feature": "Next Move",
         "name": "Intent Classification - Device Setup",
-        "system": "You are Qira, Lenovo's personal AI assistant. Classify the user's intent into one of: [device_setup, troubleshoot, purchase, information, calendar, communication]. Respond with ONLY the intent label.",
+        "system": "You are the AI assistant, the vendor's personal AI assistant. Classify the user's intent into one of: [device_setup, troubleshoot, purchase, information, calendar, communication]. Respond with ONLY the intent label.",
         "user": "I just got my new ThinkPad X1 Carbon and need to get it connected to my office Wi-Fi",
         "max_tokens": 10,
         "latency_target": "< 0.5s",
@@ -50,7 +50,7 @@ SCENARIOS = [
         "id": "1b",
         "feature": "Next Move",
         "name": "Intent Classification - Schedule",
-        "system": "You are Qira, Lenovo's personal AI assistant. Classify the user's intent into one of: [device_setup, troubleshoot, purchase, information, calendar, communication]. Respond with ONLY the intent label.",
+        "system": "You are the AI assistant, the vendor's personal AI assistant. Classify the user's intent into one of: [device_setup, troubleshoot, purchase, information, calendar, communication]. Respond with ONLY the intent label.",
         "user": "What's my schedule for tomorrow? I think I have a meeting with the Shanghai team",
         "max_tokens": 10,
         "latency_target": "< 0.5s",
@@ -61,7 +61,7 @@ SCENARIOS = [
         "id": "2a",
         "feature": "Chat Mode",
         "name": "Device Knowledge Q&A",
-        "system": "You are Qira, Lenovo's cross-device AI assistant. Answer questions about Lenovo products and user's devices. Be concise and helpful.",
+        "system": "You are the AI assistant, the vendor's cross-device AI assistant. Answer questions about the products and user's devices. Be concise and helpful.",
         "user": "How do I extend the battery life on my ThinkPad? I'm getting only 6 hours but it's supposed to last 10.",
         "max_tokens": 80,
         "latency_target": "< 2s",
@@ -70,7 +70,7 @@ SCENARIOS = [
         "id": "2b",
         "feature": "Chat Mode",
         "name": "Multi-turn Follow-up",
-        "system": "You are Qira, Lenovo's AI assistant. The user previously asked about VPN setup. Continue the conversation naturally.",
+        "system": "You are the AI assistant, the vendor's AI assistant. The user previously asked about VPN setup. Continue the conversation naturally.",
         "user": "I followed the steps you gave me but it's still showing 'connection timeout'. The error code is VPN-ERR-4012.",
         "max_tokens": 100,
         "latency_target": "< 2s",
@@ -81,7 +81,7 @@ SCENARIOS = [
         "id": "3a",
         "feature": "Write For Me",
         "name": "Email Draft - IT Request",
-        "system": "You are Qira, helping the user draft a professional email. Match the user's tone and be concise.",
+        "system": "You are the AI assistant, helping the user draft a professional email. Match the user's tone and be concise.",
         "user": "Write a short email to IT requesting a second monitor for my home office setup. Mention I need it for the upcoming quarterly review presentations.",
         "max_tokens": 120,
         "latency_target": "< 3s",
@@ -90,7 +90,7 @@ SCENARIOS = [
         "id": "3b",
         "feature": "Write For Me",
         "name": "Document Continuation",
-        "system": "You are Qira, helping the user continue a document. Write in the same style and tone.",
+        "system": "You are the AI assistant, helping the user continue a document. Write in the same style and tone.",
         "user": "Continue this paragraph: 'The Q3 results showed a 15% increase in customer satisfaction scores across APAC markets. Key drivers included'",
         "max_tokens": 80,
         "latency_target": "< 2s",
@@ -101,7 +101,7 @@ SCENARIOS = [
         "id": "4a",
         "feature": "Live Mode",
         "name": "Quick Response - Presentation Help",
-        "system": "You are Qira in Live Mode. The user is giving a presentation RIGHT NOW. Give extremely brief, instant answers. No more than 1-2 sentences.",
+        "system": "You are the AI assistant in Live Mode. The user is giving a presentation RIGHT NOW. Give extremely brief, instant answers. No more than 1-2 sentences.",
         "user": "What was our APAC revenue last quarter?",
         "max_tokens": 30,
         "latency_target": "< 1s ⚡",
@@ -110,7 +110,7 @@ SCENARIOS = [
         "id": "4b",
         "feature": "Live Mode",
         "name": "Quick Response - Translation",
-        "system": "You are Qira in Live Mode. Translate instantly. No explanation, just the translation.",
+        "system": "You are the AI assistant in Live Mode. Translate instantly. No explanation, just the translation.",
         "user": "Translate to Mandarin: 'We expect to close this deal by end of March'",
         "max_tokens": 30,
         "latency_target": "< 1s ⚡",
@@ -121,7 +121,7 @@ SCENARIOS = [
         "id": "5a",
         "feature": "Catch Me Up",
         "name": "Cross-device Activity Summary",
-        "system": "You are Qira. Summarize the user's recent activities across devices. Be structured: use bullet points for key items, highlight action items.",
+        "system": "You are the AI assistant. Summarize the user's recent activities across devices. Be structured: use bullet points for key items, highlight action items.",
         "user": "Summarize: [Phone] 3 missed calls from John, 12 new emails (2 urgent from CFO about budget), WeChat message from Shanghai team. [Laptop] VS Code session with 5 unsaved files, Teams meeting invite for tomorrow 9am. [Tablet] PDF annotation on 'Q4 Strategy' doc half-finished.",
         "max_tokens": 120,
         "latency_target": "< 3s",
@@ -132,8 +132,8 @@ SCENARIOS = [
         "id": "6a",
         "feature": "Pay Attention",
         "name": "Meeting Summary + Action Items",
-        "system": "You are Qira. Summarize the meeting transcript. Output: 1) Key decisions, 2) Action items with owners, 3) Next steps. Be structured and concise.",
-        "user": "Meeting notes: Discussed Q2 product roadmap. Decision: prioritize Qira mobile app for Android launch in June. Budget: approved $2M for 3 new ML engineers. Timeline: MVP by April 15, beta by May 1. Action: Sarah to draft job descriptions by Friday. Mark to coordinate with Motorola team on API integration. Next review meeting in 2 weeks. Risk: GPU availability for fine-tuning may delay training phase.",
+        "system": "You are the AI assistant. Summarize the meeting transcript. Output: 1) Key decisions, 2) Action items with owners, 3) Next steps. Be structured and concise.",
+        "user": "Meeting notes: Discussed Q2 product roadmap. Decision: prioritize the AI assistant mobile app for Android launch in June. Budget: approved $2M for 3 new ML engineers. Timeline: MVP by April 15, beta by May 1. Action: Sarah to draft job descriptions by Friday. Mark to coordinate with the vendor team on API integration. Next review meeting in 2 weeks. Risk: GPU availability for fine-tuning may delay training phase.",
         "max_tokens": 150,
         "latency_target": "< 3s",
     },
@@ -143,7 +143,7 @@ SCENARIOS = [
         "id": "7a",
         "feature": "Bing Grounding",
         "name": "Web-grounded Q&A (simulated)",
-        "system": "You are Qira with web search capability. Answer using your knowledge. In production, this would use Bing Search for grounding. Cite sources if possible.",
+        "system": "You are the AI assistant with web search capability. Answer using your knowledge. In production, this would use Bing Search for grounding. Cite sources if possible.",
         "user": "What's the latest ThinkPad X1 Carbon Gen 13 pricing and availability in the US?",
         "max_tokens": 80,
         "latency_target": "< 2s (+ 700ms Bing)",
@@ -199,7 +199,7 @@ def call_model(endpoint, key, model, scenario):
 MODELS = ["gpt-4o-mini", "gpt-5.4-mini", "gpt-5.4-nano"]
 
 print("=" * 75)
-print("  Lenovo Qira — Model Migration Benchmark (6 Features + Bing Grounding)")
+print("  the vendor the AI assistant — Model Migration Benchmark (6 Features + Bing Grounding)")
 print(f"  Models: {', '.join(MODELS)}")
 print(f"  Scenarios: {len(SCENARIOS)} × {RUNS} runs")
 print(f"  Time: {datetime.now():%Y-%m-%d %H:%M:%S}")
@@ -307,7 +307,7 @@ output = {
     "scenarios": [{k: v for k, v in sc.items() if k != "system"} for sc in SCENARIOS],
     "results": all_results,
 }
-outpath = "/mnt/g/AI-Super-Agent/Qira-Go-Live-Lenovo-PTU/outputs/benchmark_qira_migration_20260323.json"
+outpath = "/mnt/g/AI-Super-Agent/the AI assistant-Go-Live-the vendor-PTU/outputs/benchmark_qira_migration_20260323.json"
 with open(outpath, "w") as f:
     json.dump(output, f, indent=2, ensure_ascii=False)
 print(f"\nResults saved: {outpath}")
