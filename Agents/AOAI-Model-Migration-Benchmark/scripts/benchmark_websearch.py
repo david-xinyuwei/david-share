@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-the AI assistant web_search Benchmark — Direct AOAI + Responses API + web_search_preview
+the assistant web_search Benchmark — Direct AOAI + Responses API + web_search_preview
 =============================================================================
 Tests the ACTUAL customer architecture: Responses API with built-in web_search
 (NOT Foundry Agent + BingGroundingAgentTool).
