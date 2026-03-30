@@ -1,4 +1,4 @@
-# the organization the assistant — Model Migration Benchmark & PTU Traffic Management
+# Azure OpenAI Model Migration Benchmark & PTU Traffic Management
 ## gpt-4o-mini → gpt-5.4-nano | Spillover vs APIM Proactive Routing
 
 **Author**: Xinyu Wei (魏新宇) | **Date**: 2026-03-28
@@ -44,7 +44,7 @@ Tested across 5 candidate models using the **customer's actual architecture** (R
 
 ### the assistant Product
 
-the assistant is the organization's **system-level, cross-device AI assistant** (a major tech event), embedded across ThinkPad PCs, tablets, and mobile phones. It unifies AI features, the organization AI Now, and Creator Zone into one experience.
+the assistant is A **system-level, cross-device AI assistant** (a major tech event), embedded across ThinkPad PCs, tablets, and mobile phones. It unifies AI features, AI Now, and Creator Zone into one experience.
 
 **6 Core Features**: Next Move (intent classification), Chat Mode (Q&A), Write For Me (content generation), Live Mode (real-time conversation), Catch Me Up (activity summary), Pay Attention (meeting transcription). Plus **Bing Grounding** for web search.
 
@@ -92,7 +92,7 @@ flowchart LR
 
 ### Region Availability
 
-the organization requires: East US 2, Sweden Central, Southeast Asia.
+Required regions: East US 2, Sweden Central, Southeast Asia.
 
 | Model | East US 2 | Sweden Central | Southeast Asia |
 |-------|:---------:|:-------------:|:--------------:|
@@ -184,9 +184,9 @@ API: `responses.create(model=..., stream=True)` | 40 samples per cell (5 runs me
 
 ### 3.2 web_search_preview + GUARDRAILS — Customer's Production Path
 
-> **This is the primary benchmark** — testing the exact architecture the organization uses in production.
+> **This is the primary benchmark** — testing the exact architecture is used in production.
 
-the organization confirmed that the assistant uses `web_search_preview` (Responses API built-in tool) instead of Foundry Agent + BingGroundingAgentTool. This section tests the actual customer architecture.
+The production environment uses `web_search_preview` (Responses API built-in tool) instead of Foundry Agent + BingGroundingAgentTool. This section tests the actual customer architecture.
 
 **Key differences from Section 3.3 (Foundry+Bing)**:
 - No Foundry Agent orchestration layer — direct AOAI call with `tools=[{"type": "web_search_preview"}]`
@@ -224,7 +224,7 @@ the organization confirmed that the assistant uses `web_search_preview` (Respons
 
 ### 3.3 Foundry Agent V2 + Bing Grounding (Alternative Path)
 
-> The following sections test an alternative Bing integration path via Foundry Agent. the organization does not currently use this path, but it is included for completeness and cross-validation.
+> The following sections test an alternative Bing integration path via Foundry Agent. This alternative path is not currently used in production, but this path, but it is included for completeness and cross-validation.
 
 #### 3.3.1 Foundry Agent — No Bing (Agent orchestration overhead)
 
@@ -723,8 +723,8 @@ Results:
 ### 8.2 Setup
 
 ```bash
-git clone https://github.com/xinyuwei-david/the organization-the assistant-Model-Migration.git
-cd the organization-the assistant-Model-Migration
+git clone https://github.com/xinyuwei-david/david-share.git
+cd david-share/Agents/AOAI-Model-Migration-Benchmark
 pip install -r requirements.txt
 ```
 
