@@ -1,5 +1,5 @@
 """
-the AI assistant Migration Benchmark — Streaming Mode
+the assistant Migration Benchmark — Streaming Mode
 Measures REAL TTFT (time to first SSE token) and E2E latency
 reasoning_effort=none for 5.4 models
 """
@@ -14,13 +14,13 @@ RUNS = 3
 MODELS = ["gpt-4o-mini", "gpt-5.4-mini", "gpt-5.4-nano"]
 
 SCENARIOS = [
-    {"id":"1a","feat":"Next Move","name":"Intent Classification","system":"You are the AI assistant. Classify intent into: [device_setup, troubleshoot, purchase, information, calendar, communication]. Reply with ONLY the label.","user":"I just got my new ThinkPad and need Wi-Fi setup","max":10},
-    {"id":"2a","feat":"Chat Mode","name":"Device Q&A","system":"You are the AI assistant. Be concise and helpful.","user":"How do I extend battery life on my ThinkPad? Getting only 6 hours.","max":80},
-    {"id":"3a","feat":"Write For Me","name":"Email Draft","system":"You are the AI assistant. Draft a professional email. Be concise.","user":"Write a short email to IT requesting a second monitor for presentations.","max":120},
-    {"id":"4a","feat":"Live Mode","name":"Quick Response","system":"You are the AI assistant in Live Mode. Ultra brief, 1-2 sentences max.","user":"What was our APAC revenue last quarter?","max":30},
-    {"id":"5a","feat":"Catch Me Up","name":"Activity Summary","system":"You are the AI assistant. Summarize with bullet points.","user":"Summarize: Phone: 3 missed calls, 12 emails (2 urgent from CFO). Laptop: 5 unsaved files, Teams meeting tomorrow 9am. Tablet: PDF annotation half-done.","max":120},
-    {"id":"6a","feat":"Pay Attention","name":"Meeting Summary","system":"You are the AI assistant. Output: 1) Key decisions 2) Action items 3) Next steps.","user":"Meeting: Q2 roadmap, prioritize the AI assistant mobile Android launch June. Budget $2M for 3 ML engineers. MVP April 15, beta May 1. Sarah: job descriptions by Friday. Mark: the vendor API integration.","max":150},
-    {"id":"7a","feat":"Bing Grounding","name":"Web Q&A","system":"You are the AI assistant with web search. Answer using your knowledge.","user":"What's the latest ThinkPad X1 Carbon Gen 13 pricing in the US?","max":80},
+    {"id":"1a","feat":"Next Move","name":"Intent Classification","system":"You are the assistant. Classify intent into: [device_setup, troubleshoot, purchase, information, calendar, communication]. Reply with ONLY the label.","user":"I just got my new ThinkPad and need Wi-Fi setup","max":10},
+    {"id":"2a","feat":"Chat Mode","name":"Device Q&A","system":"You are the assistant. Be concise and helpful.","user":"How do I extend battery life on my ThinkPad? Getting only 6 hours.","max":80},
+    {"id":"3a","feat":"Write For Me","name":"Email Draft","system":"You are the assistant. Draft a professional email. Be concise.","user":"Write a short email to IT requesting a second monitor for presentations.","max":120},
+    {"id":"4a","feat":"Live Mode","name":"Quick Response","system":"You are the assistant in Live Mode. Ultra brief, 1-2 sentences max.","user":"What was our APAC revenue last quarter?","max":30},
+    {"id":"5a","feat":"Catch Me Up","name":"Activity Summary","system":"You are the assistant. Summarize with bullet points.","user":"Summarize: Phone: 3 missed calls, 12 emails (2 urgent from CFO). Laptop: 5 unsaved files, Teams meeting tomorrow 9am. Tablet: PDF annotation half-done.","max":120},
+    {"id":"6a","feat":"Pay Attention","name":"Meeting Summary","system":"You are the assistant. Output: 1) Key decisions 2) Action items 3) Next steps.","user":"Meeting: Q2 roadmap, prioritize the assistant mobile Android launch June. Budget $2M for 3 ML engineers. MVP April 15, beta May 1. Sarah: job descriptions by Friday. Mark: the organization API integration.","max":150},
+    {"id":"7a","feat":"Bing Grounding","name":"Web Q&A","system":"You are the assistant with web search. Answer using your knowledge.","user":"What's the latest ThinkPad X1 Carbon Gen 13 pricing in the US?","max":80},
 ]
 
 def call_streaming(model, scenario):
@@ -102,7 +102,7 @@ def call_streaming(model, scenario):
         return {"ok": False, "error": str(e)[:80]}
 
 print("=" * 75)
-print("  the AI assistant Migration Benchmark — STREAMING MODE (TTFT + E2E)")
+print("  the assistant Migration Benchmark — STREAMING MODE (TTFT + E2E)")
 print(f"  Models: {', '.join(MODELS)}")
 print(f"  Region: East US 2  |  Stream: ON  |  reasoning_effort: none (5.4)")
 print(f"  Time: {datetime.now():%Y-%m-%d %H:%M:%S}")

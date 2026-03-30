@@ -1,13 +1,13 @@
-# 客户 the AI assistant — 模型迁移 Benchmark 与 PTU 流量管理
+# 组织 the assistant — 模型迁移 Benchmark 与 PTU 流量管理
 ## gpt-4o-mini → gpt-5.4-nano | Spillover vs APIM 主动路由
 
 **Author**: Xinyu Wei (魏新宇) | **Date**: 2026-03-28
 
 ## Executive Summary
 
-**gpt-5.4-nano** 是 gpt-4o-mini 在 the AI assistant AI 助手中的推荐替代模型。
+**gpt-5.4-nano** 是 gpt-4o-mini 在 the assistant AI 助手中的推荐替代模型。
 
-使用**客户实际架构**（Responses API + `web_search_preview` + streaming）和备选路径（Foundry Agent + BingGroundingAgentTool）对 5 个候选模型进行测试。gpt-5.4-nano 在两种架构下均实现**等效的 Bing 延迟**（~2s），且是 gpt-4o-mini 退役（2026-10-01）后唯一可用的继任者。
+使用**组织实际架构**（Responses API + `web_search_preview` + streaming）和备选路径（Foundry Agent + BingGroundingAgentTool）对 5 个候选模型进行测试。gpt-5.4-nano 在两种架构下均实现**等效的 Bing 延迟**（~2s），且是 gpt-4o-mini 退役（2026-10-01）后唯一可用的继任者。
 
 | 指标 | gpt-4o-mini（当前） | gpt-5.4-nano（推荐） | 测试条件 |
 |------|:-------------------:|:--------------------:|----------|
@@ -18,9 +18,9 @@
 | **Output 单价** (每 1M tokens) | $0.60 | $1.25 | — |
 | **缓存 Input** (每 1M tokens) | $0.075 | $0.02 | — |
 
-> 所有 TTFT 为 P50（中位数），基于**每模型每场景 120 个样本**（5 轮独立测试）。测试环境：东亚 → East US 2（PAYGO GlobalStandard）。客户 PTU 环境 TTFT 将更低。
+> 所有 TTFT 为 P50（中位数），基于**每模型每场景 120 个样本**（5 轮独立测试）。测试环境：东亚 → East US 2（PAYGO GlobalStandard）。组织 PTU 环境 TTFT 将更低。
 
-**web_search 路径生产配置**（客户实际架构）：
+**web_search 路径生产配置**（组织实际架构）：
 
 | # | 设置 | 值 | 用途 |
 |:-:|------|-----|------|
@@ -36,15 +36,15 @@
 | PTU Spillover（内置） | HTTP 429 触发 — 请求必须先失败 | +1-10s/溢出请求 | ⚠️ 仅作安全网 |
 | **APIM 主动路由** | 读取 `x-ratelimit-remaining-tokens` header，>95% 利用率时路由 | **零** | ✅ **推荐** — 保持一致的 P50/P99 延迟 |
 
-> PTU spillover 是被动的（失败后重试）。对于 the AI assistant 的实时功能（P50 TTFT 目标 1-2s），APIM 主动路由消除了 429 引发的尾延迟。详见第 7 节压测验证结果。
+> PTU spillover 是被动的（失败后重试）。对于 the assistant 的实时功能（P50 TTFT 目标 1-2s），APIM 主动路由消除了 429 引发的尾延迟。详见第 7 节压测验证结果。
 
 ---
 
 ## 1. 背景
 
-### the AI assistant 产品
+### the assistant 产品
 
-the AI assistant 是客户的**系统级跨设备 AI 助手**（CES 2026），嵌入 ThinkPad PC、平板和 手机，将 多个 AI 功能 统一为一个体验。
+the assistant 是组织的**系统级跨设备 AI 助手**（a major tech event），嵌入 ThinkPad PC、平板和 手机，将 多个 AI 功能 统一为一个体验。
 
 **6 大功能**：Next Move（意图分类）、Chat Mode（问答）、Write For Me（内容生成）、Live Mode（实时对话）、Catch Me Up（活动摘要）、Pay Attention（会议记录）。另加 **Bing Grounding** 用于网络搜索。
 
@@ -52,7 +52,7 @@ the AI assistant 是客户的**系统级跨设备 AI 助手**（CES 2026），�
 
 **关键：各模型系列的 `reasoning_effort` 差异**：
 
-| 模型系列 | 最低 `reasoning_effort` | 对 the AI assistant 的影响 |
+| 模型系列 | 最低 `reasoning_effort` | 对 the assistant 的影响 |
 |---------|:-------------------------:|----------------|
 | gpt-4o-mini | N/A（非推理模型） | 无推理开销 |
 | **gpt-5.4-mini / nano** | **`none`** | 零推理开销 — 非推理任务的理想选择 |
@@ -92,7 +92,7 @@ flowchart LR
 
 ### Region 可用性
 
-客户需要：East US 2 / Sweden Central / Southeast Asia
+组织需要：East US 2 / Sweden Central / Southeast Asia
 
 | 模型 | East US 2 | Sweden Central | Southeast Asia |
 |------|:---------:|:-------------:|:--------------:|
@@ -128,7 +128,7 @@ Total TTFT = [模型推理] + [Foundry 编排] + [Bing 搜索]
 - `reasoning_effort` 设到模型最低：gpt-5.4 用 `none`，gpt-5 用 `minimal`
 - S3 系统指令：`"Perform exactly ONE search. Do NOT refine or repeat searches."`
 - SDK：`openai==2.14.0`，`azure-ai-projects==2.0.0b2`
-- **测试环境**：Windows VM（东亚）→ East US 2 部署。跨太平洋网络增加 ~100-200ms RTT。客户生产环境（美国客户端 → East US 2）RTT ~30-50ms，TTFT 将比本报告低 ~70-170ms。
+- **测试环境**：Windows VM（东亚）→ East US 2 部署。跨太平洋网络增加 ~100-200ms RTT。组织生产环境（美国组织端 → East US 2）RTT ~30-50ms，TTFT 将比本报告低 ~70-170ms。
 
 ### TTFT 组成
 
@@ -142,7 +142,7 @@ Total TTFT = [模型推理] + [Foundry 编排] + [Bing 搜索]
 | 首 token 生成 | ~50-100ms | 生成第一个输出 token |
 | **总计（观测 P50）** | **~0.57-0.69s** | 与组件估算一致 |
 
-> **注**：本测试使用 **GlobalStandard (PAYGO)** 部署。PTU（Provisioned Throughput）部署消除排队延迟，TTFT 会更低。客户生产环境的 PTU 部署预计延迟更优。
+> **注**：本测试使用 **GlobalStandard (PAYGO)** 部署。PTU（Provisioned Throughput）部署消除排队延迟，TTFT 会更低。组织生产环境的 PTU 部署预计延迟更优。
 
 ### 为什么使用 Responses API？
 
@@ -160,7 +160,7 @@ Total TTFT = [模型推理] + [Foundry 编排] + [Bing 搜索]
 
 ### 测试 Query
 
-三个场景使用相同的 3 条 query（系统指令：`"You are the AI assistant, a helpful AI assistant. Answer concisely."`）：
+三个场景使用相同的 3 条 query（系统指令：`"You are the assistant, a helpful AI assistant. Answer concisely."`）：
 
 | Query | Prompt | max_tokens |
 |-------|--------|:----------:|
@@ -182,11 +182,11 @@ API：`responses.create(model=..., stream=True)` | 40 样本/格（5 轮合并�
 | gpt-5-nano | 1.25/2.31s | 1.05/3.20s | 1.11/2.09s | 1.14s |
 | gpt-5-mini | 1.33/4.23s | 1.29/5.21s | 1.15/2.95s | 1.26s |
 
-### 3.2 web_search_preview + GUARDRAILS — 客户生产路径
+### 3.2 web_search_preview + GUARDRAILS — 组织生产路径
 
-> **这是主要 benchmark** — 测试客户实际使用的架构。
+> **这是主要 benchmark** — 测试组织实际使用的架构。
 
-客户确认 the AI assistant 使用 `web_search_preview`（Responses API 内置工具）而非 Foundry Agent + BingGroundingAgentTool。本节测试客户实际架构。
+组织确认 the assistant 使用 `web_search_preview`（Responses API 内置工具）而非 Foundry Agent + BingGroundingAgentTool。本节测试组织实际架构。
 
 **与 Section 3.3（Foundry+Bing）的关键差异**：
 - 无 Foundry Agent 编排层 — 直连 AOAI + `tools=[{"type": "web_search_preview"}]`
@@ -224,7 +224,7 @@ API：`responses.create(model=..., stream=True)` | 40 样本/格（5 轮合并�
 
 ### 3.3 Foundry Agent V2 + Bing Grounding（备选路径）
 
-> 以下章节测试通过 Foundry Agent 集成 Bing 的备选路径。客户当前未使用此路径，但包含在内用于交叉验证。
+> 以下章节测试通过 Foundry Agent 集成 Bing 的备选路径。组织当前未使用此路径，但包含在内用于交叉验证。
 
 #### 3.3.1 Foundry Agent — 无 Bing（Agent 编排开销）
 
@@ -293,7 +293,7 @@ API：`responses.create(agent_reference=..., tool_choice="required", stream=True
 
 Azure OpenAI 在输入前缀 ≥1024 tokens 且跨请求重复相同前缀时，自动触发 [Prompt Caching](https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/prompt-caching)。**被缓存的 input tokens 按标准价格的 50% 计费。**
 
-the AI assistant 生产场景中，GUARDRAILS 系统提示词（12 个行为规范章节，~1066 tokens）持续超过缓存阈值，每次 the AI assistant 请求均可触发 Prompt Caching。
+the assistant 生产场景中，GUARDRAILS 系统提示词（12 个行为规范章节，~1066 tokens）持续超过缓存阈值，每次 the assistant 请求均可触发 Prompt Caching。
 
 ### 4.1 TTFT 影响：无
 
@@ -323,7 +323,7 @@ Prompt Caching 降低**计费成本**，不影响**延迟**。TTFT 主要由网�
 | gpt-5.4-mini | $0.750/1M | $0.075/1M | $4.500/1M | [OpenAI](https://developers.openai.com/api/docs/pricing) |
 | **gpt-5.4-nano** | **$0.200/1M** | **$0.020/1M** | **$1.250/1M** | [OpenAI](https://developers.openai.com/api/docs/pricing) |
 
-**完整 TCO 估算** — 每月 1 亿 input tokens + 2000 万 output tokens（the AI assistant 估算规模）：
+**完整 TCO 估算** — 每月 1 亿 input tokens + 2000 万 output tokens（the assistant 估算规模）：
 
 | 模型 | Input（缓存） | Output | **月总成本** | vs 4o-mini |
 |------|:---:|:---:|:---:|:---:|
@@ -335,7 +335,7 @@ Prompt Caching 降低**计费成本**，不影响**延迟**。TTFT 主要由网�
 
 ### 4.3 短输出场景：意图分类（gpt-5.4-nano 便宜 48%）
 
-上述 TCO 假设每月 2000 万 output tokens（~200 tokens/响应）。但 the AI assistant 的 **Next Move** 功能（意图分类）输出极短（~4-7 tokens/响应，只返回一个标签如 "ChatMode" 或 "BingSearch"）。
+上述 TCO 假设每月 2000 万 output tokens（~200 tokens/响应）。但 the assistant 的 **Next Move** 功能（意图分类）输出极短（~4-7 tokens/响应，只返回一个标签如 "ChatMode" 或 "BingSearch"）。
 
 Benchmark：10 个意图查询 × 10 轮，GUARDRAILS 系统提示词（596 input tokens），`max_output_tokens=30`：
 
@@ -411,7 +411,7 @@ Azure OpenAI PTU 提供内置 **spillover（溢出）** 功能，当 PTU 部署�
 
 ```mermaid
 flowchart LR
-    A["客户端请求<br/>持续涌入"] --> B["PTU 利用率<br/>攻到 100%"]
+    A["组织端请求<br/>持续涌入"] --> B["PTU 利用率<br/>攻到 100%"]
     B --> C["延迟增加<br/>（排队）"]
     C --> D["HTTP 429<br/>Too Many Requests"]
     D --> E["等待<br/>retry-after-ms<br/>(1-10s)"]
@@ -424,7 +424,7 @@ flowchart LR
 
 > 请求必须先**失败**（429）才会触发 spillover。每个溢出请求都要付出 `retry-after-ms` 惩罚（通常 1-10s）。
 
-对于 the AI assistant 的实时功能（Live Mode、Chat Mode），P50 TTFT 目标为 1-2s，即使一次 429 重试也会带来不可接受的延迟。
+对于 the assistant 的实时功能（Live Mode、Chat Mode），P50 TTFT 目标为 1-2s，即使一次 429 重试也会带来不可接受的延迟。
 
 ### 7.2 三层 PTU 监控架构
 
@@ -505,7 +505,7 @@ Azure OpenAI 流式响应包含实时容量 header：
 | `x-ratelimit-remaining-requests` | 剩余 RPM 容量 | `941` |
 | `x-ratelimit-limit-requests` | 部署的 RPM 总限额 | `950` |
 
-> **已在 PAYGO 验证**（300 请求，50 并发，100% header 可用）。客户需在 PTU 上运行 `scripts/stress_test_tpm_utilization.py` 确认。
+> **已在 PAYGO 验证**（300 请求，50 并发，100% header 可用）。组织需在 PTU 上运行 `scripts/stress_test_tpm_utilization.py` 确认。
 
 **APIM Policy**（生产就绪，见本 repo `apim-policy-ptu-routing.xml`）：
 
@@ -672,14 +672,14 @@ KQL: AzureDiagnostics | where Category == 'RequestResponse'
 ### 8.2 环境搭建
 
 ```bash
-git clone https://github.com/xinyuwei-david/the customer-the AI assistant-Model-Migration.git
-cd the customer-the AI assistant-Model-Migration
+git clone https://github.com/xinyuwei-david/the organization-the assistant-Model-Migration.git
+cd the organization-the assistant-Model-Migration
 pip install -r requirements.txt
 ```
 
 ### 8.3 运行 Benchmark
 
-**web_search + GUARDRAILS benchmark**（客户生产路径）：
+**web_search + GUARDRAILS benchmark**（组织生产路径）：
 
 ```bash
 python scripts/benchmark_websearch_guardrails.py \
@@ -723,7 +723,7 @@ python scripts/stress_test_tpm_utilization.py \
 
 ## Appendix
 
-### A. the AI assistant 功能级 Benchmark（3 模型，Chat Completions API）
+### A. the assistant 功能级 Benchmark（3 模型，Chat Completions API）
 
 | 功能 | 场景 | 4o-mini TTFT/E2E | 5.4-mini TTFT/E2E | 5.4-nano TTFT/E2E |
 |------|------|:---:|:---:|:---:|
@@ -754,11 +754,11 @@ python scripts/stress_test_tpm_utilization.py \
 | `data/benchmark_cached_3s_20260325_095451.json` | Cached Run 2 — 1066-token 系统提示词（24 samples/cell） |
 | `scripts/benchmark_3s_detective.py` | Benchmark 脚本（Foundry Agent，未缓存版本） |
 | `scripts/benchmark_3s_cached.py` | Benchmark 脚本（Prompt Caching 版本） |
-| `scripts/benchmark_websearch.py` | Benchmark 脚本（web_search_preview — 客户路径） |
+| `scripts/benchmark_websearch.py` | Benchmark 脚本（web_search_preview — 组织路径） |
 | `scripts/benchmark_intent_classification.py` | 意图分类成本 Benchmark |
 | `data/benchmark_websearch_20260327_230815.json` | web_search Run（短 prompt，24 样本/cell） |
 | `data/benchmark_websearch_guardrails_*.json` | web_search + GUARDRAILS 5 轮（120 样本/cell，搜索已验证） |
-| `scripts/benchmark_websearch_guardrails.py` | web_search + GUARDRAILS benchmark（客户路径，argparse） |
+| `scripts/benchmark_websearch_guardrails.py` | web_search + GUARDRAILS benchmark（组织路径，argparse） |
 | `scripts/stress_test_tpm_utilization.py` | PTU/PAYGO TPM 利用率压测（并发流式，header 捕获） |
 
 ### D. Prompt Caching 自洽性分析
@@ -778,7 +778,7 @@ gpt-5-mini 在 Bing 场景中 σ=6.27s — 比其他模型（σ=0.60-1.05s）高
 
 `web_search_preview` 配合 `tool_choice="required"` 会导致 gpt-4o-mini（128K context）**context window 溢出**。全部 3 个 query 均报错 "Your input exceeds the context window"。根因：`required` 模式注入搜索结果更激进，超过 4o-mini 上下文限制。gpt-5.4 系列（1M context）不受影响。
 
-客户使用 `tool_choice` 默认值（`auto`）— 通过系统提示词 "Search the web for current information" 引导搜索，经 `response.web_search_call.searching` streaming event 验证，搜索触发率 100%（24 样本/模型，0% 跳过率）。
+组织使用 `tool_choice` 默认值（`auto`）— 通过系统提示词 "Search the web for current information" 引导搜索，经 `response.web_search_call.searching` streaming event 验证，搜索触发率 100%（24 样本/模型，0% 跳过率）。
 
 ### G. gpt-5 系列 + web_search 兼容性
 
