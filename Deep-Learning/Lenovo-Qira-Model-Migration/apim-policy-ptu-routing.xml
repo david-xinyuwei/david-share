@@ -1,0 +1,101 @@
+<!--
+  APIM Policy: Proactive PTU → PAYGO Routing
+  ============================================
+  Reads x-ratelimit-remaining-tokens from PTU response headers.
+  When utilization exceeds threshold, routes next request to PAYGO backend.
+  
+  Prerequisites:
+  - Two APIM backends configured: "ptu-backend" and "paygo-backend"
+  - Named value: "ptu-routing-threshold" = "95" (percent)
+  - Named value: "ptu-deployment" = deployment name (e.g. "gpt-5.4-nano")
+  
+  How it works:
+  1. APIM reads a cached variable "ptu-utilization" (set by previous response)
+  2. If utilization > threshold → route to PAYGO; else → route to PTU
+  3. After receiving PTU response, extract rate-limit headers and update cache
+  4. If PTU returns 429 → retry on PAYGO (safety net)
+-->
+
+<policies>
+    <inbound>
+        <base />
+        
+        <!-- Read last known PTU utilization from APIM cache -->
+        <cache-lookup-value key="ptu-utilization" variable-name="cachedUtilization" default-value="0" />
+        
+        <!-- Routing decision -->
+        <choose>
+            <when condition="@(double.Parse((string)context.Variables["cachedUtilization"]) >= double.Parse("{{ptu-routing-threshold}}"))">
+                <!-- Utilization above threshold → route to PAYGO -->
+                <set-backend-service backend-id="paygo-backend" />
+                <set-header name="X-Routing-Decision" exists-action="override">
+                    <value>paygo-proactive</value>
+                </set-header>
+            </when>
+            <otherwise>
+                <!-- Utilization below threshold → route to PTU -->
+                <set-backend-service backend-id="ptu-backend" />
+                <set-header name="X-Routing-Decision" exists-action="override">
+                    <value>ptu</value>
+                </set-header>
+            </otherwise>
+        </choose>
+    </inbound>
+    
+    <backend>
+        <base />
+    </backend>
+    
+    <outbound>
+        <base />
+        
+        <!-- Extract rate-limit headers from AOAI response -->
+        <set-variable name="remainingTokens" value="@(context.Response.Headers.GetValueOrDefault("x-ratelimit-remaining-tokens", "0"))" />
+        <set-variable name="limitTokens" value="@(context.Response.Headers.GetValueOrDefault("x-ratelimit-limit-tokens", "1"))" />
+        
+        <!-- Calculate utilization percentage -->
+        <set-variable name="currentUtilization" value="@{
+            double remaining = double.Parse((string)context.Variables["remainingTokens"]);
+            double limit = double.Parse((string)context.Variables["limitTokens"]);
+            if (limit == 0) return "0";
+            double utilization = ((limit - remaining) / limit) * 100;
+            return utilization.ToString("F2");
+        }" />
+        
+        <!-- Cache utilization for next request (TTL 60s) -->
+        <cache-store-value key="ptu-utilization" value="@((string)context.Variables["currentUtilization"])" duration="60" />
+        
+        <!-- Add monitoring headers to client response -->
+        <set-header name="X-PTU-Utilization" exists-action="override">
+            <value>@((string)context.Variables["currentUtilization"])%</value>
+        </set-header>
+        <set-header name="X-PTU-Remaining-Tokens" exists-action="override">
+            <value>@((string)context.Variables["remainingTokens"])</value>
+        </set-header>
+        
+        <!-- Emit custom metric to App Insights -->
+        <emit-metric name="PTU Utilization" value="@(double.Parse((string)context.Variables["currentUtilization"]))" namespace="AOAI-PTU">
+            <dimension name="deployment" value="{{ptu-deployment}}" />
+            <dimension name="backend" value="@(context.Response.Headers.GetValueOrDefault("X-Routing-Decision", "unknown"))" />
+        </emit-metric>
+    </outbound>
+    
+    <on-error>
+        <base />
+        
+        <!-- If PTU returns 429, retry on PAYGO (safety net) -->
+        <choose>
+            <when condition="@(context.Response != null && context.Response.StatusCode == 429)">
+                <!-- Update cache: mark PTU as full -->
+                <cache-store-value key="ptu-utilization" value="100" duration="60" />
+                
+                <!-- Retry on PAYGO -->
+                <set-backend-service backend-id="paygo-backend" />
+                <set-header name="X-Routing-Decision" exists-action="override">
+                    <value>paygo-429-retry</value>
+                </set-header>
+                <forward-request />
+            </when>
+        </choose>
+    </on-error>
+</policies>
