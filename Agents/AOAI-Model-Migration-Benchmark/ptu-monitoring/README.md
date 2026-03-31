@@ -90,7 +90,7 @@ If you only need monitoring + alerting (no proactive routing):
 # Deploy everything with one command
 chmod +x deploy.sh
 ./deploy.sh \
-  --resource-group rg-lenovo-qira \
+  --resource-group rg-<your-resource-group> \
   --aoai-name your-aoai-resource \
   --ptu-endpoint https://your-ptu.openai.azure.com \
   --paygo-endpoint https://your-paygo.openai.azure.com \

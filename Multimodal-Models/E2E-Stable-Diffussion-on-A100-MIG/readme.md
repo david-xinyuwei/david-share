@@ -199,7 +199,7 @@ In container, start 80 listener:
 root@YOUR-VM:~# sudo docker exec -it mig1_tensorrt_container /bin/bash
 root@b6abf5bf48ae:/workspace# python3 -m http.server 80
 Serving HTTP on 0.0.0.0 port 80 (http://0.0.0.0:80/) ...
-167.220.233.184 - - [23/Aug/2024 10:54:47] "GET / HTTP/1.1" 200 -
+<your-vm-public-ip> - - [23/Aug/2024 10:54:47] "GET / HTTP/1.1" 200 -
 ```
 
 Curl from my laptop:

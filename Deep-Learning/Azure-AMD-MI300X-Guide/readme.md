@@ -77,7 +77,7 @@ Consider upgrading security for your workloads using Azure Trusted Launch VMs. T
   "macAddress": "60-45-BD-01-4B-AF",
   "powerState": "VM running",
   "privateIpAddress": "10.0.0.4",
-  "publicIpAddress": "13.64.8.207",
+  "publicIpAddress": "<your-vm-public-ip>",
   "resourceGroup": "amdrg",
   "zones": ""
 }

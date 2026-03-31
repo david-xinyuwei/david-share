@@ -22,12 +22,12 @@ import requests
 # Keys
 KEY_EUS2 = open("/tmp/key_eus2.txt").read().strip()
 KEY_SWE  = open("/tmp/key_swe.txt").read().strip()
-KEY_SEA  = open("/tmp/key_sea.txt").read().strip()
+"<your-api-key>"  = open("/tmp/key_sea.txt").read().strip()
 
 REGIONS = {
     "eastus2": ("https://<your-endpoint>.openai.azure.com", KEY_EUS2),
     "swedencentral": ("https://admin-m3n3cb54-swedencentral.openai.azure.com", KEY_SWE),
-    "southeastasia": ("https://aoai-southeastasia-qira.openai.azure.com", KEY_SEA),
+    "southeastasia": ("https://<your-aoai-endpoint>.openai.azure.com", "<your-api-key>"),
 }
 
 API_VERSION = "2025-04-01-preview"
@@ -307,7 +307,7 @@ output = {
     "scenarios": [{k: v for k, v in sc.items() if k != "system"} for sc in SCENARIOS],
     "results": all_results,
 }
-outpath = "/mnt/g/AI-Super-Agent/the assistant-Go-Live-the organization-PTU/outputs/benchmark_qira_migration_20260323.json"
+outpath = "./outputs/benchmark_model_migration_20260323.json"
 with open(outpath, "w") as f:
     json.dump(output, f, indent=2, ensure_ascii=False)
 print(f"\nResults saved: {outpath}")
