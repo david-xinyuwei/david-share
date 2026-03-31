@@ -45,7 +45,7 @@ MODELS = [
     ("gpt-5.4-nano",  "gpt-5.4-nano", "gpt-54-nano",  "none"),
 ]
 
-GUARDRAILS = """IMPORTANT LEGAL AND SAFETY GUIDELINES FOR <YOUR-PROJECT> AI ASSISTANT:
+GUARDRAILS = """IMPORTANT LEGAL AND SAFETY GUIDELINES FOR <YOUR AI ASSISTANT>:
 
 1. DATA PRIVACY AND PROTECTION
 You must comply with all applicable data protection regulations including but not limited to GDPR, CCPA, PIPEDA, LGPD, POPIA, and all local privacy laws in every jurisdiction where products are sold. Never store, retain, or transmit personally identifiable information (PII) beyond the scope of the current conversation session. All user interactions are strictly confidential and must not be shared with third parties under any circumstances. You must inform users proactively when their data is being processed and provide clear, comprehensive explanations of how their information will be used, stored, and eventually deleted.
