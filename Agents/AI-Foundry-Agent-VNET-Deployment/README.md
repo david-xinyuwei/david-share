@@ -133,6 +133,60 @@ git clone https://github.com/microsoft-foundry/foundry-samples.git
 
 > ⚠️ **Cost warning**: AI Search Standard SKU costs ~$8/day. Delete resources promptly after testing.
 
+### Validated Drill Results
+
+The following are actual outputs from independent deployment drills:
+
+**Drill 1 — Sweden Central, Class C (end-to-end with jumpbox)**:
+```
+drill2mas.cognitiveservices.azure.com -> 192.168.1.8 [PRIVATE]
+drill2mas.openai.azure.com -> 192.168.1.9 [PRIVATE]
+Token: OK
+Create Agent: HTTP 200
+ID: asst_URPw1iZyFgpFGAcECD2ahQVM
+ALL TESTS PASSED
+```
+
+**Drill 2 — Korea Central, Class C (deployment verification)**:
+```
+All 16 sub-deployments Succeeded (including CapabilityHost)
+VNet: 192.168.0.0/24 (agent-subnet) + 192.168.1.0/24 (pe-subnet)
+Private Endpoints: 4/4 Succeeded
+Private DNS Zones: 6/6 Configured
+```
+
+**Drill 3 — Korea Central, Class A (falsification test)**:
+```
+CapabilityHost: FAILED
+Error: "Provided subnet must be of the proper address space.
+        Please provide a subnet which has address space in the range of 172 or 192."
+VNet: 10.0.0.0/24 — created successfully
+AI Account — FAILED at CapabilityHost creation
+```
+
+**Drill 4 — Korea Central, Class B (exhaustive verification)**:
+```
+All 16 sub-deployments Succeeded (including CapabilityHost)
+VNet: 172.16.0.0/24 (agent-subnet) + 172.16.1.0/24 (pe-subnet)
+main: Succeeded
+```
+
+**Bugs found and fixed during testing**:
+| Bug | Root Cause | Fix |
+|-----|-----------|-----|
+| `deploy.sh` quota check matched too many models | Fuzzy string match | Changed to exact match `name == f'OpenAI.{sku}.{model}'` |
+| `verify.sh` Agent creation returned 401 PermissionDenied | `Cognitive Services Contributor` lacks `assistants/write` data action | Added `Cognitive Services OpenAI Contributor` role at Account scope |
+
+---
+
+## Common Deployment Scenarios & Troubleshooting
+
+| Scenario | Template | Typical Result | Root Cause & Fix |
+|----------|---------|:--------------:|-----------------|
+| **Community/3rd-party Bicep template** | Non-official | Agent creation fails — missing permissions | RBAC roles not auto-assigned. Switch to [official template](https://github.com/microsoft-foundry/foundry-samples/tree/main/infrastructure/infrastructure-setup-bicep/15-private-network-standard-agent-setup) + ensure `Owner` or `RBAC Administrator` |
+| **Official BYO VNET** | `15-private-network-standard-agent-setup` | ✅ Succeeds | Recommended path for production |
+| **Official Managed VNET (Preview)** | `18-managed-virtual-network-preview` | ❌ `InternalServerError` on Project connections | Preview product bug — connections to AI Search/Cosmos DB fail even with feature flag registered |
+
 ---
 
 ## Common Deployment Pitfalls
