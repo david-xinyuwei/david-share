@@ -8,7 +8,6 @@ Unified script - both models tested with IDENTICAL parameters:
   - Response format: b64_json
   - Prompts: same 11 from CSV
 """
-import csv
 import json
 import base64
 import time
@@ -18,7 +17,19 @@ from pathlib import Path
 
 # === Config ===
 API_KEY = "<your-api-key>"
-CSV_PATH = Path(__file__).parent.parent / "微软2个接口测试(Surreal).csv"
+PROMPTS = [
+    "Chrome kimono, a maiden surrounded by metallic flowers, earrings, ornate, dark blue, exquisite realism, high exposure, Canon 5D, cinematic lighting, metallic luster, blurred foreground, depth of field, light",
+    "a portal into a mythical forest on the wall of my small messy bedroom",
+    "a tiny astronaut hatching from an egg on the moon",
+    "Photo realistic scene inspired by LOTR: [A tiny red dragon in a nest on a medieval wizard's table]. Shot with a macro lens (f/2.8, 50mm) and a Canon EOSR5, the soft focus captures [the cozy morning light filtering through a near by window]. The pastel colors and whimsical steam shapes enhance the serene atmosphere, evoking a DnD RPG setting. The image is rendered in 16K and 8K, highlighting [the intricate details and medieval charm].",
+    "Cute and adorable fluffy cute creature fantasy, dreamlike, surrealism, super cute, trending on artstation",
+    "A hidden cenote in the heart of a lush jungle beckons with crystalline turquoise waters. Vibrant emerald vines cascade down weathered limestone walls, their tendrils barely kissing the water's surface. Shafts of golden sunlight pierce through a natural skylight above, creating a mystical interplay of light and shadow on the cavern walls. Iridescent butterflies flit between exotic orchids clinging to rocky outcrops. A partially submerged Mayan ruin, its intricate carvings softened by time, stand",
+    "A charming, tech-savvy [girl with short, silver pixie-cut] hair and vibrant [blue] eyes, wearing a casual yet futuristic outfit. She's focused on a holographic interface while working in a sleek, high-tech workshop.",
+    "Universe, LSD, Fractal Worlds, Giant Eyes",
+    "close up dof render of a mythical creature made of detailed spiraling fractals and tendrils, detailed recursive skin texture",
+    "an angry cat playing drums",
+    "A monkey playing music",
+]
 
 # GPT-Image-1.5
 GPT_URL = "https://<your-resource-name>.openai.azure.com/openai/deployments/gpt-image-1-5/images/generations?api-version=2025-04-01-preview"
@@ -94,10 +105,7 @@ def main():
     print("Unified params: 1024x1024, quality=high, b64_json", flush=True)
     print("=" * 70, flush=True)
 
-    with open(CSV_PATH, "r", encoding="utf-8") as f:
-        reader = csv.reader(f)
-        next(reader)
-        prompts = [row[0].strip() for row in reader if row and row[0].strip()]
+    prompts = PROMPTS
 
     print(f"Prompts: {len(prompts)}", flush=True)
     token = get_entra_token()

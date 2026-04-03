@@ -5,7 +5,7 @@
 
 ## Executive Summary
 
-**gpt-5.4-nano** is the recommended successor for gpt-4o-mini in the the assistant AI assistant.
+**gpt-5.4-nano** is the recommended successor for gpt-4o-mini in the AI assistant.
 
 Tested across 5 candidate models using the **customer's actual architecture** (Responses API + `web_search_preview` + streaming) and an alternative path (Foundry Agent + BingGroundingAgentTool). gpt-5.4-nano delivers **equivalent Bing latency** (~2s) in both architectures while being the only viable successor after gpt-4o-mini retirement (2026-10-01).
 

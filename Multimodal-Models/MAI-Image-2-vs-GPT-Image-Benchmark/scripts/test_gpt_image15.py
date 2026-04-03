@@ -12,7 +12,6 @@ Uses identical prompts from CSV to ensure fair comparison.
   6. Response format: b64_json
   7. Model: the only variable (gpt-image-1.5)
 """
-import csv
 import json
 import base64
 import time
@@ -31,7 +30,19 @@ API_PATH = f"/openai/deployments/{DEPLOYMENT_NAME}/images/generations"
 OUTPUT_DIR = Path(__file__).parent.parent / "GPT-Image-1.5-Test-Result" / "outputs"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-CSV_PATH = Path(__file__).parent.parent / "微软2个接口测试(Surreal).csv"
+PROMPTS = [
+    "Chrome kimono, a maiden surrounded by metallic flowers, earrings, ornate, dark blue, exquisite realism, high exposure, Canon 5D, cinematic lighting, metallic luster, blurred foreground, depth of field, light",
+    "a portal into a mythical forest on the wall of my small messy bedroom",
+    "a tiny astronaut hatching from an egg on the moon",
+    "Photo realistic scene inspired by LOTR: [A tiny red dragon in a nest on a medieval wizard's table]. Shot with a macro lens (f/2.8, 50mm) and a Canon EOSR5, the soft focus captures [the cozy morning light filtering through a near by window]. The pastel colors and whimsical steam shapes enhance the serene atmosphere, evoking a DnD RPG setting. The image is rendered in 16K and 8K, highlighting [the intricate details and medieval charm].",
+    "Cute and adorable fluffy cute creature fantasy, dreamlike, surrealism, super cute, trending on artstation",
+    "A hidden cenote in the heart of a lush jungle beckons with crystalline turquoise waters. Vibrant emerald vines cascade down weathered limestone walls, their tendrils barely kissing the water's surface. Shafts of golden sunlight pierce through a natural skylight above, creating a mystical interplay of light and shadow on the cavern walls. Iridescent butterflies flit between exotic orchids clinging to rocky outcrops. A partially submerged Mayan ruin, its intricate carvings softened by time, stand",
+    "A charming, tech-savvy [girl with short, silver pixie-cut] hair and vibrant [blue] eyes, wearing a casual yet futuristic outfit. She's focused on a holographic interface while working in a sleek, high-tech workshop.",
+    "Universe, LSD, Fractal Worlds, Giant Eyes",
+    "close up dof render of a mythical creature made of detailed spiraling fractals and tendrils, detailed recursive skin texture",
+    "an angry cat playing drums",
+    "A monkey playing music",
+]
 
 
 def generate_image(prompt, filename, size="1024x1024"):
@@ -107,13 +118,9 @@ def main():
     print(f"Resolution: 1024x1024", flush=True)
     print("=" * 60, flush=True)
 
-    # Read prompts from CSV
-    with open(CSV_PATH, "r", encoding="utf-8") as f:
-        reader = csv.reader(f)
-        next(reader)  # skip header
-        prompts = [row[0].strip() for row in reader if row and row[0].strip()]
+    prompts = PROMPTS
 
-    print(f"\nTotal: {len(prompts)} prompts from CSV", flush=True)
+    print(f"\nTotal: {len(prompts)} prompts", flush=True)
     print("=" * 60, flush=True)
 
     results = []
