@@ -1,11 +1,11 @@
-# Azure OpenAI Model Migration Benchmark & PTU Traffic Management
+# the AI assistant — Model Migration Benchmark & PTU Traffic Management
 ## gpt-4o-mini → gpt-5.4-nano | Spillover vs APIM Proactive Routing
 
 **Author**: Xinyu Wei (魏新宇) | **Date**: 2026-03-28
 
 ## Executive Summary
 
-**gpt-5.4-nano** is the recommended successor for gpt-4o-mini in the AI assistant.
+**gpt-5.4-nano** is the recommended successor for gpt-4o-mini in the the assistant AI assistant.
 
 Tested across 5 candidate models using the **customer's actual architecture** (Responses API + `web_search_preview` + streaming) and an alternative path (Foundry Agent + BingGroundingAgentTool). gpt-5.4-nano delivers **equivalent Bing latency** (~2s) in both architectures while being the only viable successor after gpt-4o-mini retirement (2026-10-01).
 
@@ -44,7 +44,7 @@ Tested across 5 candidate models using the **customer's actual architecture** (R
 
 ### the assistant Product
 
-the assistant is A **system-level, cross-device AI assistant** (a major tech event), embedded across ThinkPad PCs, tablets, and mobile phones. It unifies AI features, AI Now, and Creator Zone into one experience.
+the assistant is the team's **system-level, cross-device AI assistant** (a major tech event), embedded across ThinkPad PCs, tablets, and mobile phones. It unifies Moto AI, the team AI Now, and Creator Zone into one experience.
 
 **6 Core Features**: Next Move (intent classification), Chat Mode (Q&A), Write For Me (content generation), Live Mode (real-time conversation), Catch Me Up (activity summary), Pay Attention (meeting transcription). Plus **Bing Grounding** for web search.
 
@@ -92,7 +92,7 @@ flowchart LR
 
 ### Region Availability
 
-Required regions: East US 2, Sweden Central, Southeast Asia.
+the team requires: East US 2, Sweden Central, Southeast Asia.
 
 | Model | East US 2 | Sweden Central | Southeast Asia |
 |-------|:---------:|:-------------:|:--------------:|
@@ -184,9 +184,9 @@ API: `responses.create(model=..., stream=True)` | 40 samples per cell (5 runs me
 
 ### 3.2 web_search_preview + GUARDRAILS — Customer's Production Path
 
-> **This is the primary benchmark** — testing the exact architecture is used in production.
+> **This is the primary benchmark** — testing the exact architecture the team uses in production.
 
-The production environment uses `web_search_preview` (Responses API built-in tool) instead of Foundry Agent + BingGroundingAgentTool. This section tests the actual customer architecture.
+the team confirmed that the assistant uses `web_search_preview` (Responses API built-in tool) instead of Foundry Agent + BingGroundingAgentTool. This section tests the actual customer architecture.
 
 **Key differences from Section 3.3 (Foundry+Bing)**:
 - No Foundry Agent orchestration layer — direct AOAI call with `tools=[{"type": "web_search_preview"}]`
@@ -224,7 +224,7 @@ The production environment uses `web_search_preview` (Responses API built-in too
 
 ### 3.3 Foundry Agent V2 + Bing Grounding (Alternative Path)
 
-> The following sections test an alternative Bing integration path via Foundry Agent. This alternative path is not currently used in production, but this path, but it is included for completeness and cross-validation.
+> The following sections test an alternative Bing integration path via Foundry Agent. the team does not currently use this path, but it is included for completeness and cross-validation.
 
 #### 3.3.1 Foundry Agent — No Bing (Agent orchestration overhead)
 
@@ -710,23 +710,118 @@ Results:
 
 ---
 
-## 8. Reproducing the Benchmarks
+## 8. Priority Processing: Standard vs Priority PAYGO (Preview)
 
-### 8.1 Prerequisites
+### 8.1 Overview
+
+[Priority Processing](https://learn.microsoft.com/en-us/azure/foundry/openai/concepts/priority-processing) is a new Azure OpenAI feature (preview) that provides **guaranteed token generation speed (TPS)** on GlobalStandard/DataZoneStandard deployments, with pay-as-you-go pricing at 1.75x standard rates.
+
+| Aspect | Standard PAYGO | **Priority PAYGO** | PTU |
+|--------|:---:|:---:|:---:|
+| TPS guarantee | Best-effort | **99% > 50 TPS** (gpt-5.4) | Guaranteed |
+| Pricing | Base | **1.75x Base** | Fixed monthly |
+| Commitment | None | **None** | Monthly/Annual |
+| TTFT improvement | — | **No** (prefill unchanged) | Yes |
+| Long context (>128K) | Normal | Downgraded to Standard | Normal |
+
+### 8.2 Benchmark Results (gpt-5.4, swedencentral)
+
+Tested with `reasoning_effort=none`, streaming, interleaved Standard/Priority execution.
+
+#### TPS and E2E by Output Length (6 scenarios, 8 iter each, N=96)
+
+| Output Tokens | Std TPS | Pri TPS | **ΔTPS** | Std E2E | Pri E2E | **ΔE2E** |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| 20 | 51.0 | 49.5 | -3% ❌ | 1.4s | 1.4s | -3% |
+| 50 | 38.9 | 51.2 | **+32%** | 2.6s | 2.3s | -12% |
+| 100 | 44.7 | 60.1 | **+35%** | 3.5s | 2.9s | -17% |
+| 200 | 44.8 | 60.8 | **+36%** | 5.8s | 4.5s | -23% |
+| 500 | 49.1 | 63.5 | **+29%** | 11.5s | 9.1s | -21% |
+| 1000 | 43.8 | 66.3 | **+51%** | 24.0s | 16.4s | **-32%** |
+
+> **Crossover point**: Priority has no benefit at 20 tokens. Benefit starts at ~50 tokens (+32% TPS) and scales with output length. At 1000 tokens: TPS +51%, E2E -32% (saves 7.6 seconds).
+
+![Priority Processing Benchmark](images/priority_processing_benchmark.png)
+
+#### Concurrent Load Test (10 threads × 25 requests, output=200)
+
+| Metric | Standard | Priority | Delta |
+|---|:---:|:---:|:---:|
+| TTFT P50 | 1452 ms | 1249 ms | -14% |
+| **TTFT P95** | 3296 ms | **1590 ms** | **-52%** |
+| E2E P50 | 5365 ms | 4227 ms | -21% |
+| TPS P50 | 54.6 | 68.9 | +26% |
+| Throughput | 1.6 req/s | 1.9 req/s | +19% |
+
+> **Key finding under load**: Priority's biggest advantage is **tail latency control** — TTFT P95 drops 52% under 10-concurrent pressure. Standard suffers from queuing spikes; Priority maintains consistent latency.
+
+#### Why TPS improvement > E2E improvement?
+
+E2E = TTFT + GenTime. Priority only accelerates GenTime (decode phase), not TTFT (prefill phase):
+
+| Component | Standard | Priority | Delta |
+|---|:---:|:---:|:---:|
+| TTFT (prefill) | 1245 ms | 1225 ms | -20 ms (unchanged) |
+| GenTime (decode) | 3849 ms | **2743 ms** | **-29%** |
+| Effective TPS | 42.4 | **65.6** | **+55%** |
+
+### 8.3 When to Use Priority Processing
+
+| Scenario | Output Length | Priority ROI | Recommendation |
+|---|:---:|:---:|---|
+| Content generation (email, reports, code) | 500-2000 tok | ✅✅✅ | **Strong** — TPS +30-51%, E2E saves 2-8s |
+| Streaming chat (user watches output) | 100-500 tok | ✅✅ | **Good** — faster perceived speed |
+| RAG answer generation | 100-300 tok | ✅ | **Marginal** — E2E saves ~500ms |
+| Intent classification / routing | <20 tok | ❌ | **Not recommended** — zero benefit, 75% price premium |
+| High-concurrency bursts | Any >50 tok | ✅✅ | **Good** — tail latency (P95) dramatically reduced |
+
+### 8.4 Hybrid Architecture: PTU + Priority + Standard
+
+```
+Traffic Router (APIM)
+       │
+  ┌────┴────┬──────────┐
+  ▼         ▼          ▼
+PTU      Priority    Standard
+(base)   (overflow)  (background)
+──────   ─────────   ──────────
+Steady   Peak/burst  Batch/async
+Lowest   TPS SLA     Lowest cost
+latency  No commit   
+```
+
+| Traffic Type | Route To | Reason |
+|---|---|---|
+| Steady baseline (predictable) | PTU | Lowest latency + fixed cost |
+| Peak overflow (bursty) | **Priority PAYGO** | TPS guaranteed + no commitment |
+| Background/batch tasks | Standard PAYGO | Lowest cost |
+
+### 8.5 Limitations
+
+- **Region availability**: Only 3 regions support gpt-5.4 Priority (polandcentral, southcentralus, swedencentral). Other models (gpt-5.2/5.1/4.1) available in 20+ regions.
+- **Ramp rate limit**: >50% TPM increase in <15 minutes may trigger downgrade to Standard tier.
+- **Long context**: Prompts >128K tokens are automatically downgraded.
+- **`service_tier` response field**: Not returned in `2025-04-01-preview` API version. May require `2025-12-01` or later, or deployment-level configuration via Foundry Portal.
+
+---
+
+## 9. Reproducing the Benchmarks
+
+### 9.1 Prerequisites
 
 - Python 3.10+
 - Azure OpenAI deployment with API key
 - For web_search tests: Responses API access (`2025-04-01-preview`)
 
-### 8.2 Setup
+### 9.2 Setup
 
 ```bash
-git clone https://github.com/xinyuwei-david/david-share.git
-cd david-share/Agents/AOAI-Model-Migration-Benchmark
+git clone https://github.com/xinyuwei-david/the team-the assistant-Model-Migration.git
+cd the team-the assistant-Model-Migration
 pip install -r requirements.txt
 ```
 
-### 8.3 Run Benchmarks
+### 9.3 Run Benchmarks
 
 **web_search + GUARDRAILS benchmark** (customer's production path):
 
@@ -754,11 +849,11 @@ python scripts/stress_test_tpm_utilization.py \
   --output results.json
 ```
 
-### 8.4 Data Files
+### 9.4 Data Files
 
 All benchmark results are stored in `data/` as JSON files. Each file contains raw per-request records with TTFT, E2E latency, and model metadata. The 5-run web_search dataset (`data/benchmark_websearch_guardrails_*.json`) contains 1,199 records across 5 models × 4 scenarios × ~120 samples.
 
-### 8.5 Scripts Inventory
+### 9.5 Scripts Inventory
 
 | Script | Purpose | Parameters |
 |--------|---------|------------|

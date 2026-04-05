@@ -1,4 +1,4 @@
-# Azure OpenAI 模型迁移 Benchmark 与 PTU 流量管理
+# AI 助手 — 模型迁移 Benchmark 与 PTU 流量管理
 ## gpt-4o-mini → gpt-5.4-nano | Spillover vs APIM 主动路由
 
 **Author**: Xinyu Wei (魏新宇) | **Date**: 2026-03-28
@@ -44,7 +44,7 @@
 
 ### the assistant 产品
 
-the assistant 是一个**系统级跨设备 AI 助手**（a major tech event），嵌入 ThinkPad PC、平板和 mobile 手机，将 AI features、AI Now、Creator Zone 统一为一个体验。
+the assistant 是团队的**系统级跨设备 AI 助手**（a major tech event），嵌入 ThinkPad PC、平板和 mobile 手机，将 Moto AI、the team AI Now、Creator Zone 统一为一个体验。
 
 **6 大功能**：Next Move（意图分类）、Chat Mode（问答）、Write For Me（内容生成）、Live Mode（实时对话）、Catch Me Up（活动摘要）、Pay Attention（会议记录）。另加 **Bing Grounding** 用于网络搜索。
 
@@ -186,7 +186,7 @@ API：`responses.create(model=..., stream=True)` | 40 样本/格（5 轮合并�
 
 > **这是主要 benchmark** — 测试团队实际使用的架构。
 
-生产环境 the assistant 使用 `web_search_preview`（Responses API 内置工具）而非 Foundry Agent + BingGroundingAgentTool。本节测试客户实际架构。
+团队确认 the assistant 使用 `web_search_preview`（Responses API 内置工具）而非 Foundry Agent + BingGroundingAgentTool。本节测试客户实际架构。
 
 **与 Section 3.3（Foundry+Bing）的关键差异**：
 - 无 Foundry Agent 编排层 — 直连 AOAI + `tools=[{"type": "web_search_preview"}]`
@@ -663,23 +663,112 @@ KQL: AzureDiagnostics | where Category == 'RequestResponse'
 
 ---
 
-## 8. 复现 Benchmark
+## 8. Priority Processing：Standard vs Priority PAYGO（Preview）
 
-### 8.1 前置条件
+### 8.1 概述
+
+[Priority Processing](https://learn.microsoft.com/en-us/azure/foundry/openai/concepts/priority-processing) 是 Azure OpenAI 新功能（预览），在 GlobalStandard/DataZoneStandard 部署上提供**有保证的 token 生成速率（TPS）**，按量定价为标准价的 1.75 倍。
+
+| 维度 | Standard PAYGO | **Priority PAYGO** | PTU |
+|------|:---:|:---:|:---:|
+| TPS 保证 | Best-effort | **99% > 50 TPS**（gpt-5.4） | 保证 |
+| 定价 | 基准价 | **1.75 倍基准价** | 固定月费 |
+| 承诺 | 无 | **无** | 月度/年度 |
+| TTFT 改善 | — | **无**（prefill 不变） | 有 |
+| 长 context（>128K） | 正常 | 降级到 Standard | 正常 |
+
+### 8.2 Benchmark 结果（gpt-5.4，swedencentral）
+
+使用 `reasoning_effort=none`，流式模式，Standard/Priority 交替执行。
+
+#### TPS 和 E2E 按输出长度（6 场景，每场景 8 次，N=96）
+
+| 输出 Tokens | Std TPS | Pri TPS | **ΔTPS** | Std E2E | Pri E2E | **ΔE2E** |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| 20 | 51.0 | 49.5 | -3% ❌ | 1.4s | 1.4s | -3% |
+| 50 | 38.9 | 51.2 | **+32%** | 2.6s | 2.3s | -12% |
+| 100 | 44.7 | 60.1 | **+35%** | 3.5s | 2.9s | -17% |
+| 200 | 44.8 | 60.8 | **+36%** | 5.8s | 4.5s | -23% |
+| 500 | 49.1 | 63.5 | **+29%** | 11.5s | 9.1s | -21% |
+| 1000 | 43.8 | 66.3 | **+51%** | 24.0s | 16.4s | **-32%** |
+
+> **拐点**：20 tokens 无收益。50 tokens 起有 +32% TPS 提升，随输出长度增长。1000 tokens 时：TPS +51%，E2E -32%（节省 7.6 秒）。
+
+![Priority Processing Benchmark](images/priority_processing_benchmark.png)
+
+#### 并发负载测试（10 线程 × 25 请求，output=200）
+
+| 指标 | Standard | Priority | 差值 |
+|------|:---:|:---:|:---:|
+| TTFT P50 | 1452 ms | 1249 ms | -14% |
+| **TTFT P95** | 3296 ms | **1590 ms** | **-52%** |
+| E2E P50 | 5365 ms | 4227 ms | -21% |
+| TPS P50 | 54.6 | 68.9 | +26% |
+| 吞吐量 | 1.6 req/s | 1.9 req/s | +19% |
+
+> **高负载下的关键发现**：Priority 最大优势是**尾延迟控制** — 10 并发时 TTFT P95 降低 52%。Standard 有排队尖峰，Priority 保持一致延迟。
+
+#### 为什么 TPS 提升 > E2E 提升？
+
+E2E = TTFT + GenTime。Priority 只加速 GenTime（decode 阶段），不改变 TTFT（prefill 阶段）：
+
+| 组成 | Standard | Priority | 差值 |
+|------|:---:|:---:|:---:|
+| TTFT（prefill） | 1245 ms | 1225 ms | -20 ms（不变） |
+| GenTime（decode） | 3849 ms | **2743 ms** | **-29%** |
+| 有效 TPS | 42.4 | **65.6** | **+55%** |
+
+### 8.3 何时使用 Priority Processing
+
+| 场景 | 输出长度 | 投资回报 | 建议 |
+|------|:---:|:---:|------|
+| 内容生成（邮件/报告/代码） | 500-2000 tok | ✅✅✅ | **强烈推荐** — TPS +30-51%，E2E 节省 2-8s |
+| 流式聊天（用户看输出） | 100-500 tok | ✅✅ | **推荐** — 感知速度更快 |
+| RAG 答案生成 | 100-300 tok | ✅ | **边际** — E2E 节省 ~500ms |
+| 意图分类/路由 | <20 tok | ❌ | **不推荐** — 零收益，多花 75% |
+| 高并发突发 | 任何 >50 tok | ✅✅ | **推荐** — 尾延迟（P95）显著降低 |
+
+### 8.4 混合架构：PTU + Priority + Standard
+
+```
+流量路由器（APIM）
+       │
+  ┌────┴────┬──────────┐
+  ▼         ▼          ▼
+PTU      Priority    Standard
+(基线)   (溢出)      (后台)
+──────   ─────────   ──────────
+稳态     峰值/突发    批量/异步
+最低延迟  TPS 保证    最低成本
+         无承诺
+```
+
+### 8.5 限制
+
+- **区域可用性**：gpt-5.4 Priority 仅 3 个区域（polandcentral/southcentralus/swedencentral）
+- **爬坡限制**：15 分钟内 TPM 增加 >50% 可能降级到 Standard
+- **长 context**：>128K prompt tokens 自动降级
+- **`service_tier` 响应字段**：`2025-04-01-preview` API 版本不返回，可能需要 `2025-12-01` 或 Foundry Portal 配置
+
+---
+
+## 9. 复现 Benchmark
+
+### 9.1 前置条件
 
 - Python 3.10+
 - Azure OpenAI 部署 + API key
 - web_search 测试需要：Responses API 访问权限（`2025-04-01-preview`）
 
-### 8.2 环境搭建
+### 9.2 环境搭建
 
 ```bash
-git clone https://github.com/xinyuwei-david/the organization-the assistant-Model-Migration.git
-cd the organization-the assistant-Model-Migration
+git clone https://github.com/xinyuwei-david/the team-the assistant-Model-Migration.git
+cd the team-the assistant-Model-Migration
 pip install -r requirements.txt
 ```
 
-### 8.3 运行 Benchmark
+### 9.3 运行 Benchmark
 
 **web_search + GUARDRAILS benchmark**（客户生产路径）：
 
@@ -707,11 +796,11 @@ python scripts/stress_test_tpm_utilization.py \
   --output results.json
 ```
 
-### 8.4 数据文件
+### 9.4 数据文件
 
 所有 benchmark 结果以 JSON 格式存储在 `data/` 目录。每个文件包含原始的逐请求记录，含 TTFT、E2E 延迟和模型元数据。5 轮 web_search 数据集（`data/benchmark_websearch_guardrails_*.json`）包含 1,199 条记录，覆盖 5 个模型 × 4 个场景 × ~120 样本。
 
-### 8.5 脚本清单
+### 9.5 脚本清单
 
 | 脚本 | 用途 | 参数 |
 |------|------|------|
