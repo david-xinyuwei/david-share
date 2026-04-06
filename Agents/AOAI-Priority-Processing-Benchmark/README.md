@@ -103,13 +103,13 @@ Microsoft [documents](https://learn.microsoft.com/en-us/azure/foundry/openai/con
 | Output | Standard TPS P50 | ≥50? | Priority TPS P50 | ≥50? |
 |:---:|:---:|:---:|:---:|:---:|
 | ≤30 | 51.3 | ✅ | 50.2 | ✅ borderline |
-| 50 | 39.4 | ❌ | 52.4 | ✅ |
-| 100 | 45.2 | ❌ | 65.2 | ✅ |
-| 200 | 45.8 | ❌ | 60.1 | ✅ |
-| 500 | 44.9 | ❌ | 63.3 | ✅ |
-| 1000 | 43.9 | ❌ | 62.4 | ✅ |
+| 50 | 38.2 | ❌ | 49.8 | ⚠️ borderline |
+| 100 | 44.1 | ❌ | 60.2 | ✅ |
+| 200 | 44.6 | ❌ | 59.8 | ✅ |
+| 500 | 45.7 | ❌ | 63.1 | ✅ |
+| 1000 | 43.6 | ❌ | 62.4 | ✅ |
 
-> **Standard fails the 50 TPS bar in 5 of 6 scenarios** (39–46 TPS). Priority meets it in all 6 scenarios (50–65 TPS). This is precisely the value proposition of Priority Processing: guaranteed TPS floor that Standard cannot provide.
+> **Standard fails the 50 TPS bar in 5 of 6 scenarios** (38–46 TPS). Priority meets or nearly meets it in all 6 scenarios (50–63 TPS, with 50tok at 49.8 borderline). This is precisely the value proposition: a guaranteed TPS floor that Standard cannot provide.
 
 ---
 
