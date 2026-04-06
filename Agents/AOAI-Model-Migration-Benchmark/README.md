@@ -1,11 +1,11 @@
-# the AI assistant — Model Migration Benchmark & PTU Traffic Management
+# Azure OpenAI Model Migration Benchmark & PTU Traffic Management
 ## gpt-4o-mini → gpt-5.4-nano | Spillover vs APIM Proactive Routing
 
 **Author**: Xinyu Wei (魏新宇) | **Date**: 2026-03-28
 
 ## Executive Summary
 
-**gpt-5.4-nano** is the recommended successor for gpt-4o-mini in the the assistant AI assistant.
+**gpt-5.4-nano** is the recommended successor for gpt-4o-mini in the AI assistant.
 
 Tested across 5 candidate models using the **customer's actual architecture** (Responses API + `web_search_preview` + streaming) and an alternative path (Foundry Agent + BingGroundingAgentTool). gpt-5.4-nano delivers **equivalent Bing latency** (~2s) in both architectures while being the only viable successor after gpt-4o-mini retirement (2026-10-01).
 
@@ -36,15 +36,15 @@ Tested across 5 candidate models using the **customer's actual architecture** (R
 | PTU Spillover (built-in) | Triggers on HTTP 429 — request must fail first | +1-10s per spilled request | ⚠️ Safety net only |
 | **APIM Proactive Routing** | Reads `x-ratelimit-remaining-tokens` header, routes at >95% utilization | **Zero** | ✅ **Recommended** — maintains consistent P50/P99 latency |
 
-> PTU spillover is reactive (fail-then-retry). For the assistant's real-time features with P50 TTFT targets of 1-2s, APIM proactive routing eliminates 429-induced tail latency. See Section 7 for details and validated stress test results.
+> PTU spillover is reactive (fail-then-retry). For the AI assistant's real-time features with P50 TTFT targets of 1-2s, APIM proactive routing eliminates 429-induced tail latency. See Section 7 for details and validated stress test results.
 
 ---
 
 ## 1. Background
 
-### the assistant Product
+### Product Overview
 
-the assistant is the team's **system-level, cross-device AI assistant** (CES 2026), embedded across ThinkPad PCs, tablets, and mobile phones. It unifies Moto AI, the team AI Now, and Creator Zone into one experience.
+The AI assistant is a **system-level, cross-device AI product** embedded across PCs, tablets, and mobile phones. It unifies multiple AI features into one unified experience.
 
 **6 Core Features**: Next Move (intent classification), Chat Mode (Q&A), Write For Me (content generation), Live Mode (real-time conversation), Catch Me Up (activity summary), Pay Attention (meeting transcription). Plus **Bing Grounding** for web search.
 
@@ -52,7 +52,7 @@ All features are **non-reasoning** tasks. Reasoning models add latency without q
 
 **Critical: `reasoning_effort` differences across model families**:
 
-| Model Family | Minimum `reasoning_effort` | Impact on the assistant |
+| Model Family | Minimum `reasoning_effort` | Impact on AI Assistant |
 |-------------|:-------------------------:|----------------|
 | gpt-4o-mini | N/A (non-reasoning) | No reasoning overhead |
 | **gpt-5.4-mini / nano** | **`none`** | Zero reasoning overhead — ideal for non-reasoning tasks |
@@ -92,7 +92,7 @@ flowchart LR
 
 ### Region Availability
 
-the team requires: East US 2, Sweden Central, Southeast Asia.
+Required regions: East US 2, Sweden Central, Southeast Asia.
 
 | Model | East US 2 | Sweden Central | Southeast Asia |
 |-------|:---------:|:-------------:|:--------------:|
@@ -160,11 +160,11 @@ Direct AOAI supports both APIs. Responses API delivers ~2x faster TTFT:
 
 ### Test Queries
 
-All scenarios use the same 3 queries (system instruction: `"You are the assistant, a helpful AI assistant. Answer concisely."`):
+All scenarios use the same 3 queries (system instruction: `"You are a helpful AI assistant. Answer concisely."`):
 
 | Query | Prompt | max_tokens |
 |-------|--------|:----------:|
-| **Pricing** | "What is the latest retail price for a ThinkPad X1 Carbon Gen 12?" | 300 |
+| **Pricing** | "What is the latest retail price for a flagship laptop?" | 300 |
 | **News** | "What are the top AI news stories this week?" | 300 |
 | **Weather** | "What is the current weather in Seattle, Washington?" | 200 |
 
@@ -184,9 +184,9 @@ API: `responses.create(model=..., stream=True)` | 40 samples per cell (5 runs me
 
 ### 3.2 web_search_preview + GUARDRAILS — Customer's Production Path
 
-> **This is the primary benchmark** — testing the exact architecture the team uses in production.
+> **This is the primary benchmark** — testing the exact architecture the customer uses in production.
 
-the team confirmed that the assistant uses `web_search_preview` (Responses API built-in tool) instead of Foundry Agent + BingGroundingAgentTool. This section tests the actual customer architecture.
+The customer confirmed their AI assistant uses `web_search_preview` (Responses API built-in tool) instead of Foundry Agent + BingGroundingAgentTool. This section tests the actual customer architecture.
 
 **Key differences from Section 3.3 (Foundry+Bing)**:
 - No Foundry Agent orchestration layer — direct AOAI call with `tools=[{"type": "web_search_preview"}]`
@@ -224,7 +224,7 @@ the team confirmed that the assistant uses `web_search_preview` (Responses API b
 
 ### 3.3 Foundry Agent V2 + Bing Grounding (Alternative Path)
 
-> The following sections test an alternative Bing integration path via Foundry Agent. the team does not currently use this path, but it is included for completeness and cross-validation.
+> The following sections test an alternative Bing integration path via Foundry Agent. the customer does not currently use this path, but it is included for completeness and cross-validation.
 
 #### 3.3.1 Foundry Agent — No Bing (Agent orchestration overhead)
 
@@ -293,7 +293,7 @@ API: `responses.create(agent_reference=..., tool_choice="required", stream=True)
 
 Azure OpenAI applies automatic [prompt caching](https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/prompt-caching) when the input prefix is ≥1024 tokens and is repeated across requests. **Cached input tokens are billed at 50% of the standard input price.**
 
-For the assistant's production scenario, the GUARDRAILS system prompt (12 behavioral sections, ~1066 tokens) consistently exceeds the caching threshold, making every the assistant request eligible for prompt caching.
+For the AI assistant's production scenario, the GUARDRAILS system prompt (12 behavioral sections, ~1066 tokens) consistently exceeds the caching threshold, making every request eligible for prompt caching.
 
 ### 4.1 TTFT Impact: None
 
@@ -323,7 +323,7 @@ Assuming the 1066-token GUARDRAILS prefix is cached on every production request:
 | gpt-5.4-mini | $0.750/1M | $0.075/1M | $4.500/1M | [OpenAI](https://developers.openai.com/api/docs/pricing) |
 | **gpt-5.4-nano** | **$0.200/1M** | **$0.020/1M** | **$1.250/1M** | [OpenAI](https://developers.openai.com/api/docs/pricing) |
 
-**Full TCO estimate** — 100M input tokens + 20M output tokens per month (estimated the assistant scale):
+**Full TCO estimate** — 100M input tokens + 20M output tokens per month (estimated production scale):
 
 | Model | Input (cached) | Output | **Monthly Total** | vs 4o-mini |
 |-------|:---:|:---:|:---:|:---:|
@@ -335,7 +335,7 @@ Assuming the 1066-token GUARDRAILS prefix is cached on every production request:
 
 ### 4.3 Short-Output Scenario: Intent Classification (gpt-5.4-nano is 48% cheaper)
 
-The TCO above assumes 20M output tokens/month (~200 tokens/response). However, the assistant's **Next Move** feature (intent classification) produces very short output (~4-7 tokens per response, just a label like "ChatMode" or "BingSearch").
+The TCO above assumes 20M output tokens/month (~200 tokens/response). However, the AI assistant's **Next Move** feature (intent classification) produces very short output (~4-7 tokens per response, just a label like "ChatMode" or "BingSearch").
 
 Benchmark: 10 intent queries × 10 iterations, GUARDRAILS system prompt (596 input tokens), `max_output_tokens=30`:
 
@@ -424,7 +424,7 @@ flowchart LR
 
 > The request must **first fail** (429) before spillover kicks in. Each spilled request pays the `retry-after-ms` penalty (typically 1-10s).
 
-For the assistant's real-time features (Live Mode, Chat Mode) with P50 TTFT targets of 1-2s, even a single 429 retry adds unacceptable latency.
+For the AI assistant's real-time features (Live Mode, Chat Mode) with P50 TTFT targets of 1-2s, even a single 429 retry adds unacceptable latency.
 
 ### 7.2 Three-Layer PTU Monitoring Architecture
 
@@ -731,8 +731,8 @@ Key findings (216 records, IQR denoised): **TPS +31~44%** for outputs ≥50 toke
 ### 9.2 Setup
 
 ```bash
-git clone https://github.com/xinyuwei-david/the team-the assistant-Model-Migration.git
-cd the team-the assistant-Model-Migration
+git clone https://github.com/xinyuwei-david/AOAI-Model-Migration-Benchmark.git
+cd AOAI-Model-Migration-Benchmark
 pip install -r requirements.txt
 ```
 
@@ -782,7 +782,7 @@ All benchmark results are stored in `data/` as JSON files. Each file contains ra
 
 ## Appendix
 
-### A. the assistant Feature-Level Benchmark (3 models, Chat Completions API)
+### A. Feature-Level Benchmark (3 models, Chat Completions API)
 
 | Feature | Scenario | 4o-mini TTFT/E2E | 5.4-mini TTFT/E2E | 5.4-nano TTFT/E2E |
 |---------|----------|:---:|:---:|:---:|
@@ -794,7 +794,7 @@ All benchmark results are stored in `data/` as JSON files. Each file contains ra
 | Pay Attention | Meeting Summary | **1.38/2.31s** | 1.99/3.70s | 1.91/4.62s |
 | Bing Grounding | Web Q&A | **1.29/1.65s** | 1.88/2.82s | 2.54/3.54s |
 
-> **Important**: This table uses the older **Chat Completions API**, which has ~2x higher TTFT than the Responses API used in Section 3. The absolute TTFT values here are not comparable to Section 3, but the **relative model ranking** across the assistant features remains informative. In particular, gpt-5.4-nano's higher Bing TTFT here (2.54s) improves to 1.85s (P50) with Responses API + streaming + `tool_choice="required"`.
+> **Important**: This table uses the older **Chat Completions API**, which has ~2x higher TTFT than the Responses API used in Section 3. The absolute TTFT values here are not comparable to Section 3, but the **relative model ranking** across features remains informative. In particular, gpt-5.4-nano's higher Bing TTFT here (2.54s) improves to 1.85s (P50) with Responses API + streaming + `tool_choice="required"`.
 
 ### B. Non-Streaming Behavior
 

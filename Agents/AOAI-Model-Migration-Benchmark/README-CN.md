@@ -1,11 +1,11 @@
-# AI 助手 — 模型迁移 Benchmark 与 PTU 流量管理
+# Azure OpenAI 模型迁移 Benchmark 与 PTU 流量管理
 ## gpt-4o-mini → gpt-5.4-nano | Spillover vs APIM 主动路由
 
 **Author**: Xinyu Wei (魏新宇) | **Date**: 2026-03-28
 
 ## Executive Summary
 
-**gpt-5.4-nano** 是 gpt-4o-mini 在 the assistant AI 助手中的推荐替代模型。
+**gpt-5.4-nano** 是 gpt-4o-mini 在 AI 助手中的推荐替代模型。
 
 使用**客户实际架构**（Responses API + `web_search_preview` + streaming）和备选路径（Foundry Agent + BingGroundingAgentTool）对 5 个候选模型进行测试。gpt-5.4-nano 在两种架构下均实现**等效的 Bing 延迟**（~2s），且是 gpt-4o-mini 退役（2026-10-01）后唯一可用的继任者。
 
@@ -36,15 +36,15 @@
 | PTU Spillover（内置） | HTTP 429 触发 — 请求必须先失败 | +1-10s/溢出请求 | ⚠️ 仅作安全网 |
 | **APIM 主动路由** | 读取 `x-ratelimit-remaining-tokens` header，>95% 利用率时路由 | **零** | ✅ **推荐** — 保持一致的 P50/P99 延迟 |
 
-> PTU spillover 是被动的（失败后重试）。对于 the assistant 的实时功能（P50 TTFT 目标 1-2s），APIM 主动路由消除了 429 引发的尾延迟。详见第 7 节压测验证结果。
+> PTU spillover 是被动的（失败后重试）。对于 AI 助手的实时功能（P50 TTFT 目标 1-2s），APIM 主动路由消除了 429 引发的尾延迟。详见第 7 节压测验证结果。
 
 ---
 
 ## 1. 背景
 
-### the assistant 产品
+### 产品概述
 
-the assistant 是团队的**系统级跨设备 AI 助手**（CES 2026），嵌入 ThinkPad PC、平板和 mobile 手机，将 Moto AI、the team AI Now、Creator Zone 统一为一个体验。
+该 AI 助手是**系统级跨设备 AI 产品**，嵌入 PC、平板和手机，将 多个 AI 功能统一为一个体验。
 
 **6 大功能**：Next Move（意图分类）、Chat Mode（问答）、Write For Me（内容生成）、Live Mode（实时对话）、Catch Me Up（活动摘要）、Pay Attention（会议记录）。另加 **Bing Grounding** 用于网络搜索。
 
@@ -52,7 +52,7 @@ the assistant 是团队的**系统级跨设备 AI 助手**（CES 2026），嵌�
 
 **关键：各模型系列的 `reasoning_effort` 差异**：
 
-| 模型系列 | 最低 `reasoning_effort` | 对 the assistant 的影响 |
+| 模型系列 | 最低 `reasoning_effort` | 对 AI 助手的影响 |
 |---------|:-------------------------:|----------------|
 | gpt-4o-mini | N/A（非推理模型） | 无推理开销 |
 | **gpt-5.4-mini / nano** | **`none`** | 零推理开销 — 非推理任务的理想选择 |
@@ -160,11 +160,11 @@ Total TTFT = [模型推理] + [Foundry 编排] + [Bing 搜索]
 
 ### 测试 Query
 
-三个场景使用相同的 3 条 query（系统指令：`"You are the assistant, a helpful AI assistant. Answer concisely."`）：
+三个场景使用相同的 3 条 query（系统指令：`"You are a helpful AI assistant. Answer concisely."`）：
 
 | Query | Prompt | max_tokens |
 |-------|--------|:----------:|
-| **Pricing** | "What is the latest retail price for a ThinkPad X1 Carbon Gen 12?" | 300 |
+| **Pricing** | "What is the latest retail price for a flagship laptop?" | 300 |
 | **News** | "What are the top AI news stories this week?" | 300 |
 | **Weather** | "What is the current weather in Seattle, Washington?" | 200 |
 
@@ -186,7 +186,7 @@ API：`responses.create(model=..., stream=True)` | 40 样本/格（5 轮合并�
 
 > **这是主要 benchmark** — 测试团队实际使用的架构。
 
-团队确认 the assistant 使用 `web_search_preview`（Responses API 内置工具）而非 Foundry Agent + BingGroundingAgentTool。本节测试客户实际架构。
+团队确认 AI 助手使用 `web_search_preview`（Responses API 内置工具）而非 Foundry Agent + BingGroundingAgentTool。本节测试客户实际架构。
 
 **与 Section 3.3（Foundry+Bing）的关键差异**：
 - 无 Foundry Agent 编排层 — 直连 AOAI + `tools=[{"type": "web_search_preview"}]`
@@ -293,7 +293,7 @@ API：`responses.create(agent_reference=..., tool_choice="required", stream=True
 
 Azure OpenAI 在输入前缀 ≥1024 tokens 且跨请求重复相同前缀时，自动触发 [Prompt Caching](https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/prompt-caching)。**被缓存的 input tokens 按标准价格的 50% 计费。**
 
-the assistant 生产场景中，GUARDRAILS 系统提示词（12 个行为规范章节，~1066 tokens）持续超过缓存阈值，每次 the assistant 请求均可触发 Prompt Caching。
+AI 助手生产场景中，GUARDRAILS 系统提示词（12 个行为规范章节，~1066 tokens）持续超过缓存阈值，每次 AI 助手请求均可触发 Prompt Caching。
 
 ### 4.1 TTFT 影响：无
 
@@ -323,7 +323,7 @@ Prompt Caching 降低**计费成本**，不影响**延迟**。TTFT 主要由网�
 | gpt-5.4-mini | $0.750/1M | $0.075/1M | $4.500/1M | [OpenAI](https://developers.openai.com/api/docs/pricing) |
 | **gpt-5.4-nano** | **$0.200/1M** | **$0.020/1M** | **$1.250/1M** | [OpenAI](https://developers.openai.com/api/docs/pricing) |
 
-**完整 TCO 估算** — 每月 1 亿 input tokens + 2000 万 output tokens（the assistant 估算规模）：
+**完整 TCO 估算** — 每月 1 亿 input tokens + 2000 万 output tokens（生产估算规模）：
 
 | 模型 | Input（缓存） | Output | **月总成本** | vs 4o-mini |
 |------|:---:|:---:|:---:|:---:|
@@ -335,7 +335,7 @@ Prompt Caching 降低**计费成本**，不影响**延迟**。TTFT 主要由网�
 
 ### 4.3 短输出场景：意图分类（gpt-5.4-nano 便宜 48%）
 
-上述 TCO 假设每月 2000 万 output tokens（~200 tokens/响应）。但 the assistant 的 **Next Move** 功能（意图分类）输出极短（~4-7 tokens/响应，只返回一个标签如 "ChatMode" 或 "BingSearch"）。
+上述 TCO 假设每月 2000 万 output tokens（~200 tokens/响应）。但 AI 助手的 **Next Move** 功能（意图分类）输出极短（~4-7 tokens/响应，只返回一个标签如 "ChatMode" 或 "BingSearch"）。
 
 Benchmark：10 个意图查询 × 10 轮，GUARDRAILS 系统提示词（596 input tokens），`max_output_tokens=30`：
 
@@ -424,7 +424,7 @@ flowchart LR
 
 > 请求必须先**失败**（429）才会触发 spillover。每个溢出请求都要付出 `retry-after-ms` 惩罚（通常 1-10s）。
 
-对于 the assistant 的实时功能（Live Mode、Chat Mode），P50 TTFT 目标为 1-2s，即使一次 429 重试也会带来不可接受的延迟。
+对于 AI 助手的实时功能（Live Mode、Chat Mode），P50 TTFT 目标为 1-2s，即使一次 429 重试也会带来不可接受的延迟。
 
 ### 7.2 三层 PTU 监控架构
 
@@ -684,8 +684,8 @@ Priority Processing 的完整多维度基准测试（性能分析、并发负载
 ### 9.2 环境搭建
 
 ```bash
-git clone https://github.com/xinyuwei-david/the team-the assistant-Model-Migration.git
-cd the team-the assistant-Model-Migration
+git clone https://github.com/xinyuwei-david/AOAI-Model-Migration-Benchmark.git
+cd AOAI-Model-Migration-Benchmark
 pip install -r requirements.txt
 ```
 
@@ -735,7 +735,7 @@ python scripts/stress_test_tpm_utilization.py \
 
 ## Appendix
 
-### A. the assistant 功能级 Benchmark（3 模型，Chat Completions API）
+### A. 功能级 Benchmark（3 模型，Chat Completions API）
 
 | 功能 | 场景 | 4o-mini TTFT/E2E | 5.4-mini TTFT/E2E | 5.4-nano TTFT/E2E |
 |------|------|:---:|:---:|:---:|
