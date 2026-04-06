@@ -18,13 +18,27 @@
 
 ### 为什么短输出无可测量的 TPS 收益
 
-```
-E2E = TTFT + GenTime
-       │       │
-       │    tokens / TPS
-       │
-  20 tokens:  TTFT=1295ms (92%) + GenTime=97ms (7%)  → Priority 省 ~29ms → 噪声淹没
- 1000 tokens: TTFT=1237ms (5%)  + GenTime=22558ms (95%) → Priority 省 ~7500ms → 效果显著
+```mermaid
+flowchart LR
+    E2E["E2E"] --> TTFT["TTFT<br/>(预填充)"]
+    E2E --> GenTime["GenTime<br/>(解码)<br/>= tokens / TPS"]
+    
+    subgraph S20["20 tokens"]
+        T20["TTFT=1295ms<br/>(92%)"]
+        G20["GenTime=97ms<br/>(7%)"]
+        R20["Priority 省<br/>~29ms → 噪声淹没"]
+    end
+    
+    subgraph S1000["1000 tokens"]
+        T1000["TTFT=1237ms<br/>(5%)"]
+        G1000["GenTime=22558ms<br/>(95%)"]
+        R1000["Priority 省<br/>~7500ms → 效果显著"]
+    end
+    
+    style S20 fill:#fff3cd,stroke:#ffc107
+    style S1000 fill:#d4edda,stroke:#28a745
+    style R20 fill:#f8d7da,stroke:#dc3545
+    style R1000 fill:#d4edda,stroke:#28a745
 ```
 
 > Priority 只加速 **Decode（GenTime）**。当输出 ≤30 tokens 时，GenTime 仅 <100ms——即使加速 30% 也只省 ~29ms，小于 TTFT 测量噪声（σ=81ms）。收益存在但**在该尺度下无法测量**。
@@ -81,11 +95,13 @@ Priority Processing 是一种按使用量付费的选项，提供**有保证的 
 
 ## 2. Priority 加速什么（不加速什么）
 
-```
-E2E = TTFT（Prefill） + GenTime（Decode）
-              ↑                ↑
-        约 6% 更快       +31~44% 更快
-        σ 减半           （主要收益）
+```mermaid
+flowchart LR
+    E2E["E2E 延迟"] --> TTFT["TTFT (Prefill)<br/>约 6% 更快<br/>σ 减半"]
+    E2E --> GenTime["GenTime (Decode)<br/>+31~44% 更快<br/>（主要收益）"]
+    
+    style TTFT fill:#fff3cd,stroke:#ffc107
+    style GenTime fill:#d4edda,stroke:#28a745
 ```
 
 Priority 的核心收益是**更快的 Token 生成（Decode 阶段）**，而非更快的首 Token（Prefill 阶段）。E2E 改善随输出长度增加，因为 GenTime 在 E2E 中的占比增大。
@@ -154,17 +170,20 @@ Priority 定价为 Standard 的 1.75 倍。加速是否值得？
 
 ## 5. 混合架构：PTU + Priority + Standard
 
-```
-流量路由器（APIM）
-       │
-  ┌────┴────┬──────────┐
-  ▼         ▼          ▼
-PTU      Priority    Standard
-（基线）  （溢出）    （后台）
-──────   ─────────   ──────────
-稳定流量   峰值/突发    批量/异步
-最低延迟   TPS SLA      最低成本
-           无承诺
+```mermaid
+flowchart TB
+    APIM["流量路由器<br/>（APIM）"] --> PTU["PTU<br/>（基线）"]
+    APIM --> PRI["Priority<br/>（溢出）"]
+    APIM --> STD["Standard<br/>（后台）"]
+    
+    PTU --- P1["稳定流量<br/>最低延迟<br/>固定成本"]
+    PRI --- P2["峰值 / 突发<br/>TPS 保证<br/>无承诺"]
+    STD --- P3["批量 / 异步<br/>最低成本"]
+    
+    style PTU fill:#d4edda,stroke:#28a745
+    style PRI fill:#fff3cd,stroke:#ffc107
+    style STD fill:#e2e3e5,stroke:#6c757d
+    style APIM fill:#e8d5f5,stroke:#7209b7
 ```
 
 | 流量类型 | 路由到 | 原因 |

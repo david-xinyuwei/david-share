@@ -18,13 +18,27 @@
 
 ### Why short output shows no measurable TPS benefit
 
-```
-E2E = TTFT + GenTime
-       │       │
-       │    tokens / TPS
-       │
-  20 tokens:  TTFT=1295ms (92%) + GenTime=97ms (7%)  → Priority saves ~29ms → noise
- 1000 tokens: TTFT=1237ms (5%)  + GenTime=22558ms (95%) → Priority saves ~7500ms → massive
+```mermaid
+flowchart LR
+    E2E["E2E"] --> TTFT["TTFT<br/>(prefill)"]
+    E2E --> GenTime["GenTime<br/>(decode)<br/>= tokens / TPS"]
+    
+    subgraph S20["20 tokens"]
+        T20["TTFT=1295ms<br/>(92%)"]
+        G20["GenTime=97ms<br/>(7%)"]
+        R20["Priority saves<br/>~29ms → noise"]
+    end
+    
+    subgraph S1000["1000 tokens"]
+        T1000["TTFT=1237ms<br/>(5%)"]
+        G1000["GenTime=22558ms<br/>(95%)"]
+        R1000["Priority saves<br/>~7500ms → massive"]
+    end
+    
+    style S20 fill:#fff3cd,stroke:#ffc107
+    style S1000 fill:#d4edda,stroke:#28a745
+    style R20 fill:#f8d7da,stroke:#dc3545
+    style R1000 fill:#d4edda,stroke:#28a745
 ```
 
 > Priority accelerates **decode (GenTime) only**. When output is ≤30 tokens, GenTime is <100ms — even a 30% speedup saves only ~29ms, which is smaller than TTFT measurement noise (σ=81ms). The benefit exists but is **unmeasurable at this scale**.
@@ -81,11 +95,13 @@ Priority Processing is a pay-as-you-go option that provides **guaranteed token g
 
 ## 2. What Priority Accelerates (and What It Doesn't)
 
-```
-E2E = TTFT (prefill) + GenTime (decode)
-              ↑                ↑
-        ~6% faster       +31~44% faster
-        σ halved          (main benefit)
+```mermaid
+flowchart LR
+    E2E["E2E Latency"] --> TTFT["TTFT (prefill)<br/>~6% faster<br/>σ halved"]
+    E2E --> GenTime["GenTime (decode)<br/>+31~44% faster<br/>(main benefit)"]
+    
+    style TTFT fill:#fff3cd,stroke:#ffc107
+    style GenTime fill:#d4edda,stroke:#28a745
 ```
 
 Priority's primary benefit is **faster token generation (decode phase)**, not faster first-token (prefill phase). The E2E improvement scales with output length because GenTime's share of E2E increases.
@@ -154,17 +170,20 @@ Under 10-concurrent load (25 requests, output=200):
 
 ## 5. Hybrid Architecture: PTU + Priority + Standard
 
-```
-Traffic Router (APIM)
-       │
-  ┌────┴────┬──────────┐
-  ▼         ▼          ▼
-PTU      Priority    Standard
-(base)   (overflow)  (background)
-──────   ─────────   ──────────
-Steady   Peak/burst  Batch/async
-Lowest   TPS SLA     Lowest cost
-latency  No commit   
+```mermaid
+flowchart TB
+    APIM["Traffic Router<br/>(APIM)"] --> PTU["PTU<br/>(base)"]
+    APIM --> PRI["Priority<br/>(overflow)"]
+    APIM --> STD["Standard<br/>(background)"]
+    
+    PTU --- P1["Steady traffic<br/>Lowest latency<br/>Fixed cost"]
+    PRI --- P2["Peak / burst<br/>TPS SLA<br/>No commitment"]
+    STD --- P3["Batch / async<br/>Lowest cost"]
+    
+    style PTU fill:#d4edda,stroke:#28a745
+    style PRI fill:#fff3cd,stroke:#ffc107
+    style STD fill:#e2e3e5,stroke:#6c757d
+    style APIM fill:#e8d5f5,stroke:#7209b7
 ```
 
 | Traffic Type | Route To | Reason |
