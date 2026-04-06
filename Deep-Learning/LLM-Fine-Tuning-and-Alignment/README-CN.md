@@ -4,6 +4,17 @@
 
 > *This guide consolidates content from multiple previously separate articles into a single coherent resource.*
 
+## 目录
+
+- [Part 1: SFT 超参调优最佳实践](#part-1-sft-超参调优最佳实践)
+- [Part 2: 各种微调方法全景对比](#part-2-各种微调方法全景对比)
+- [Part 3: 强化学习与微调的本质区别](#part-3-强化学习与微调的本质区别)
+- [Part 4: 七种微调技术对比总表](#part-4-七种微调技术对比总表)
+- [Part 5: LoRA/QLoRA 微调机制与 GaLore 全量微调](#part-5-loraqlorafine-微调机制与-galore-全量微调)
+- [Part 6: DPO 理论深入与对齐实践](#part-6-dpo-理论深入与对齐实践)
+- [Part 7: DPO 微调代码与训练结果分析](#part-7-dpo-微调代码与训练结果分析)
+- [Part 8: 大模型 DPO 分布式训练 (DeepSpeed & FSDP)](#part-8-大模型-dpo-分布式训练-deepspeed--fsdp)
+
 ## Running on Azure
 
 All experiments in this project were conducted on **Azure GPU VMs**.
@@ -74,17 +85,23 @@ training_arguments = TrainingArguments(
 
 对于批量大小为 1 的情况：
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXbkq6buj5ThXTAegKtDOcbC6TK0DIiaK8y5SpOcxviaHyPAM1wJJwzV0qLAM8rfBtmt0ztcuH5m5nw/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)对于批量大小为 2 的情况：
+<img src="images/ext_01.png" width="600">
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXbkq6buj5ThXTAegKtDOcbkVuaSWk3NXTmjK3559BBfTp31fIMY3H6XabjdNTCUqy2o4UicZkjSrw/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)对于批量大小为 4 的情况：
+对于批量大小为 2 的情况：
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXbkq6buj5ThXTAegKtDOcbwFqlM10maysPA4ySFnE27yXZzmbiaQhmPb1T704bm3ljraxblEsl0ZA/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)对于批量大小为 8 的情况：
+<img src="images/ext_02.png" width="600">
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXbkq6buj5ThXTAegKtDOcbibmM6YO2yRByoGt2LLb1p6Gdfk3KH0Nf0XXUDVAQ9wic4X7QHJgmn3LQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+对于批量大小为 4 的情况：
+
+<img src="images/ext_03.png" width="600">
+
+对于批量大小为 8 的情况：
+
+<img src="images/ext_04.png" width="600">
 
 比较：
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXbkq6buj5ThXTAegKtDOcbwPOZ58wOd20QGkG3cR0mj46iciaQMlDOTHquywjAfeIicEmr1ZEftXzFw/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+<img src="images/ext_05.png" width="600">
 
 
 
@@ -94,17 +111,7 @@ training_arguments = TrainingArguments(
 实验表明，即使在批量大小为32的情况下，也能获得较好的损失结果。但是，这会增加内存的使用量，在一些情况下，如16GB内存的GPU上，如果不采用如梯度累积等技术，实现这样的批量大小是不现实的。因此，而不是单纯追求更大的批量，应综合考虑硬件限制并通过实验确定最佳的批量大小。这种方法保证了在可用资源范围内，模型训练既高效又实用。
 
 
-## Running on Azure
-
-This project can be deployed on **Azure Virtual Machines** with GPU support.
-
-| Item | Details |
-|---|---|
-| **Azure VMs** | [GPU-optimized VM sizes](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/overview) |
-| **Compute** | Select VM size based on model requirements |
-
-
-## **二、最大Sequence Length、Padding、Truncating**
+## 二、Maximum Sequence Length, Padding, Truncating（最大序列长度、填充、截断）
 
 在批处理中，需要对训练样本进行填充，以确保每一批数据中所有样本的形状或大小一致，这是并行处理数据的机器学习模型的基本要求。特别是在执行序列任务，如语言生成时，这种数据的统一性变得尤为重要。  在准备数据批次时，需要对较短的序列进行填充，增加一些无关紧要的值，以确保它们的长度与批次中最长序列相匹配。这种填充可以是在序列的前端（左填充），或者是尾端（右填充），有时还可能两端同时进行，这取决于具体的模型设计和任务需求。需要注意的是，并不是所有的技术都能适应任意一端的填充方式。例如，在使用**FlashAttention技术时，必须进行左填充。**  为了更好地控制批次大小，建议设定一个最长序列限制。例如，我们如果将这个最大长度设置为1,024个令牌，那么批次中的每个样本都会被处理到恰好有1,024个令牌。如果某个样本原本只有512个令牌，那么就会追加512个填充令牌。相反，如果某个样本的令牌数超过了1,024个，那么超出的部分就会被截断。通过这种方式，我们不仅能保证处理过程的一致性，也有助于优化内存的使用，从而提升训练的效率。
 
@@ -181,7 +188,7 @@ print(input)
 
 理想情况下，最大长度应设为与训练样例中最长序列的长度相匹配。如果GPU内存有限，这个长度也可以适当减少。通常，除了用于RAG应用和摘要任务外，超过4,096的最大长度并不常见；对于大多数的语言生成任务，最小推荐长度是512。这样的设定有助于在确保模型效能的同时，避免不必要的内存消耗。
 
-## **三、Epochs和Steps**
+## 三、Epochs and Steps（训练轮次与步数）
 
 模型在处理完一批数据后就会进行权重更新，这个过程称为训练步骤。例如，如果数据集含有1,000个样例，且批量大小设置为100，那么在整个数据集上进行一次完整的迭代就需要10个这样的训练步骤（1,000除以100等于10）。每一步涉及到数据的前向传播（即数据通过模型），损失的计算（即模型预测与实际情况的偏差），以及通过反向传播更新权重，尝试减少损失。  当数据集中的每个样例都已恰好被模型处理一遍时，就完成了一个训练周期，也就是一个epoch。所以，每个epoch包含的步骤数量取决于数据集的大小和批量大小。延续前面的例子，如果整个数据集有1,000个样例，批量大小为100，则完成一个epoch需要10个步骤。进行多个epoch的训练意味着让模型多次见到同样的数据，期望模型通过调整权重进行更准确的预测，每经过一个epoch都可能让模型有所学习和进步。
 
@@ -203,12 +210,12 @@ print(input)
 
 假设在使用openassistant-guanaco训练TinyLlama模型时，若步骤总数为9,846，批量大小定为8，则一个epoch将包含大约1,231个训练步骤。如果仅在这个数据集上训练一个epoch，模型通常能够学到有效信息。然而，如果继续训练更多的epoch，就可能导致模型过度拟合，也就是它对训练数据过于敏感，可能影响其在新数据上的表现。如果观察到模型在两个epoch后的训练情况，就能发现这一过度拟合的迹象。
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXyvuzhK1CR7Kb6yeGQvrdSaJNYpaLIictddYwEudrjpvzSZlzQCENnG277AChJEgtFmuI46t24Z8w/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+<img src="images/ext_06.png" width="600">
 
 
 即使没有观察验证损失，也可以注意到训练损失下降得异常迅速。如在下一节中所述，通过调整学习率和采用适当的预热比例，可以有效地解决这一问题。这种调整有助于模型学习得更为平稳，避免过拟合，同时保证模型在未知数据上的泛化能力。
 
-## **四、梯度累积步骤Gradient Accumulation Steps**
+## 四、Gradient Accumulation Steps（梯度累积步骤）
 
 梯度累积技术通过分割数据为更小的子批量来实现模拟大批量训练的效果。这一技巧并不在每个子批量处理后立即更新模型的权重，而是在一定数量的步骤中积累每个子批量的梯度。权重更新只有在累积到与较大批量相当的量时才会进行。例如，若目标批量大小是1,024，但设备每次只能处理256个样本，那么可以通过累积四个步骤中每个步骤的256个样本的梯度，来模拟出一个包含1,024个样本的批量更新。
 
@@ -223,7 +230,7 @@ print(input)
 
 
 
-## **五、梯度检查点Gradient Checkpointing**
+## 五、Gradient Checkpointing（梯度检查点）
 
 在常规的训练过程中，所有的中间激活数据都会被保留在内存里，以便在反向传播时计算梯度。但是，考虑到大多数硬件（比如GPU）的内存限制，对于特别深的网络，这种方式很快就会显得不实用。梯度检查点技术通过只在网络的特定层面上保存激活数据来应对此挑战。对于那些没有保存激活数据的层，需要计算梯度时，会在反向传播过程中重新进行计算。
 
@@ -243,7 +250,7 @@ print(input)
 model.gradient_checkpointing_enable()
 ```
 
-## **六、学习率Learning Rate**
+## 六、Learning Rate（学习率）
 
 学习率是决定模型在训练期间如何更新其权重的关键超参数。它影响模型为最小化损失函数而在参数空间中迈出的步长大小。合理设定的学习率可以确保模型在学习过程中既能高效提升预测性能，又不会在达到最优化之前就发生过度调整或停滞不前。
 
@@ -259,7 +266,7 @@ model.gradient_checkpointing_enable()
 [...]
 ```
 
-## **七、学习率调度器Learning Rate Scheduler**
+## 七、Learning Rate Scheduler（学习率调度器）
 
 学习率调度器的目的在于根据一个预先定义的方案，在训练过程中调整学习率。这样做有助于避免模型早期训练中陷入局部最小值，或者在接近最优解时跳过最小值。对于大型语言模型（LLM），最常见的调度器类型是含预热期的调度器。这种调度器从一个较低的学习率出发，在几个epoch或训练步骤后逐步将学习率提升到目标值。这个策略在从大规模预训练模型开始微调时特别有用，它可以有效预防早期训练中可能出现的剧烈权重更新，这种更新有碍于模型的稳定性。  在大多数场景下，我推荐使用含预热的线性调度器，因为它至少与其他类型的调度器一样有效，这一点在论文《何时、为何以及多少？通过细化自适应学习率调度》中有所展示。线性调度器在预热后会逐步降低学习率，这种逐渐减小学习率的策略有助于模型在训练后期更加稳定地收敛。
 
@@ -271,7 +278,7 @@ model.gradient_checkpointing_enable()
 [...]
 ```
 
-## **八、热身步骤和热身比率Warmup Steps and Warmup Ratio、**
+## 八、Warmup Steps and Warmup Ratio（热身步骤与热身比率）
 
 预热步骤是指在训练初期，学习率会按照设定的学习率调度计划从一个较低的初始值渐增至一个预定的目标值。例如，假设设定了1,000个预热步骤，学习率会从一个较低的起点开始，并随着每个步骤的完成逐步上升，直至第1,000步时达到既定的目标学习率。到达这个点之后，学习率可能会按照另一个计划进行调整，如保持不变或按比例衰减。
 
@@ -287,7 +294,7 @@ model.gradient_checkpointing_enable()
 [...]
 ```
 
-## **九、权重衰减Weight Decay**
+## 九、Weight Decay（权重衰减）
 
 权重衰减是一种鼓励模型维持较小权重值的技术，通过这种方式实现对模型的正则化，以避免复杂度过高的模型。这种技术通过将权重的平方和乘以一个正则化参数后添加到模型的损失函数中来实施。其效果是轻微地推动权重向零移动，这也有助于模型不过分依赖于任何单一的输入特征，因为这种过分依赖通常会造成对应特征权重值的显著增大。
 
@@ -303,7 +310,7 @@ model.gradient_checkpointing_enable()
 [...]
 ```
 
-## **十、优化器Optimizer**
+## 十、Optimizer（优化器）
 
 优化器的作用在于引导模型训练过程，通过最小化误差或提升准确性来进行微调。众多优化器中，AdamW（一种基于Adam的变体）是目前使用最广泛的。另外，AdaFactor是一个内存效率更高的有趣选择。
 
@@ -325,7 +332,7 @@ AdaFactor是为了减少内存使用和提升训练效率而设计的另一优�
 
 为了获得更好的模型，我建议将其设置为未量化的“adamw_torch”。如果内存不足，请尝试“adamw_8bit”。然后，作为最后的手段，尝试“paged_adamw_8bit”。它会比 AdamW 8 位慢，但会进一步减少内存消耗。
 
-## **十一、Float16 和 Bfloat16**
+## 十一、Float16 和 Bfloat16
 
 传统上，机器学习模型使用float32数据类型进行训练，这种类型的每个参数占用4字节（32位）内存。对于参数量达到70亿（7B）的模型，仅使用float32就意味着至少需要一块具有28GB内存（7乘以4等于28）的GPU。对于更大的模型，这种内存要求难以满足。因此，半精度训练开始变得流行，它使用float16或bfloat16数据类型，将内存需求降低了一半。  float16和bfloat16之间的主要差异在于它们如何在指数和小数部分之间分配位。bfloat16的设计允许处理更广泛的数值范围，而不会显著牺牲计算精度，这使得bfloat16在执行高速且内存效率高的深度学习操作时具有优势。尽管bfloat16在性能上更佳，但它只受安培（Ampere）一代或更新版本的GPU支持。如果您的GPU支持bfloat16，请优先使用。如果不支持，您可以选择float16，但如果在训练中遇到溢出问题（例如损失突变为0.0或NaN），可能需要回退到float32。  您可以根据硬件自动设置这些参数，具体设置方法如下：[此处假设原文会提供具体代码或设置步骤]。
 
@@ -334,7 +341,7 @@ AdaFactor是为了减少内存使用和提升训练效率而设计的另一优�
         bf16= torch.cuda.is_bf16_supported(),
 ```
 
-## **十二、评估和保存步骤Evaluation and save steps**
+## 十二、Evaluation and Save Steps（评估与保存步骤）
 
 评估是训练过程中的一个关键步骤，在此过程中，模型会定期对未曾见过的数据进行性能评估。这种评估对于确保模型没有过度拟合训练数据非常重要。如果观察到训练损失在减少，但验证损失保持不变或有所增加，这通常意味着模型出现了过拟合。
 
@@ -361,15 +368,15 @@ AdaFactor是为了减少内存使用和提升训练效率而设计的另一优�
 
 ---
 
-## Appendix: Fine-tuning Base LLMs vs Instruct Version
+## 附录：微调 Base LLM 与 Instruct 版本的对比
 
 > *原文来自 LLM-Fine-Tuning-Best-Practices*
 
 In the application of large language models (LLMs), fine-tuning is a critical step. Fine-tuning allows the model to better adapt to specific tasks or datasets. However, with the development of LLMs, two main versions have emerged: base LLMs and instruct LLMs. This article will explore the differences between these two versions and discuss which version should be chosen for fine-tuning in practical applications.
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nV2OasoxzlibKMkawNmnVETPsicGxQagJ5rklAAOJoUic5qYuCr0vEeoSiaNAicCvag9SHhXxVGLZpdq1Q/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+<img src="images/ext_07.png" width="600">
 
-## What are Base LLMs and Instruct LLMs?
+## 什么是 Base LLM 和 Instruct LLM？
 
 ### Base LLMs
 
@@ -379,7 +386,7 @@ Base LLMs are models pre-trained on a large amount of text data, with the traini
 
 Instruct LLMs are fine-tuned versions of base LLMs, processed through a complex pipeline to better respond to user instructions. These models undergo several post-training stages, including supervised fine-tuning (SFT), reinforcement learning with human feedback (RLHF), and direct preference optimization (DPO). They are capable of generating answers that align more closely with human preferences and are commonly used in chat applications.
 
-## Differences Between Fine-Tuning Base LLMs and Instruct LLMs
+## 微调 Base LLM 与 Instruct LLM 的区别
 
  
 
@@ -391,7 +398,7 @@ When fine-tuning base LLMs, the model updates its weights based on new data, gra
 
 Instruct LLMs have already undergone a complex post-training process and have specific formats and system instructions. Fine-tuning instruct LLMs may introduce conflicts with the original system instructions and templates, leading to unexpected results. Additionally, instruct LLMs may partially lose their original safety and preference alignment capabilities during fine-tuning.
 
-## Why Fine-Tuning Instruct LLMs is Not Recommended
+## 为什么不建议微调 Instruct LLM
 
 - **Disruption of Original Training**: Fine-tuning instruct LLMs can partially undo the results of their original SFT and DPO training, causing the model to generate answers that no longer fully align with human preferences.
 
@@ -401,7 +408,7 @@ Instruct LLMs have already undergone a complex post-training process and have sp
 
   In most cases, fine-tuning base LLMs is preferable to fine-tuning instruct LLMs. Base LLMs do not have specific format constraints and can more quickly adapt to new data and tasks. For applications requiring specific formats and safety, instruct LLMs can be considered, but potential conflicts and inconsistencies should be noted.
   
-## SFT code
+## SFT 代码示例
 
 ### Base Model
 ```
@@ -570,20 +577,6 @@ trainer.train()
 
 本文将会对如下微调技术进行对比：SFT、ReFT、RHLF、RLAIF、DPO、PPO、TPO。
 
-
-
-
-## Running on Azure
-
-All experiments in this project were conducted on an **Azure GPU VM**.
-
-| Item | Details |
-|---|---|
-| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
-| **GPU** | NVIDIA H100 80GB |
-| **Frameworks** | LoRA/PEFT |
-
-
 ## 几种技术之间的关系
 
 如果把复杂的问题简单理解，这些技术之间的关系大概是：
@@ -596,7 +589,7 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 
 **RLHF（Reinforcement Learning from Human Feedback，基于人类反馈的强化学习）：**
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUZtF6XYK9EpTpg40XvUeRCHQFd39MdyIIIbGaFjQKZ8PDxic6faSnOGnITqdpvbznWY1Sp2aqIIcw/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+<img src="images/ext_08.png" width="600">
 
 - **组成**：RLHF = SFT + PPO + 人类反馈
 - **过程**：在 SFT 的基础上，使用 PPO 进行强化学习，奖励信号来自**人类反馈**。
@@ -610,7 +603,7 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 
 **RLAIF（Reinforcement Learning from AI Feedback，基于 AI 反馈的强化学习）：**
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUZtF6XYK9EpTpg40XvUeRCxfjelLwiaed6DNmzrv9LKwPYwaPAqFJ0qc9ddesiaDzsU9wgaEmettJg/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+<img src="images/ext_09.png" width="600">
 
 - **组成**：RLAIF = SFT + PPO + AI 反馈
 - **过程**：在 SFT 的基础上，使用 PPO 进行强化学习，奖励信号来自**AI 模型的反馈**。
@@ -718,7 +711,7 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
 
  
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUmuCC75DMa6J6ZShqhcHx0wRmzErG3eIKhpxmNeHU4GyAm491eAhwXhibweP4qAHWqH4kuPLOIQSA/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+<img src="images/ext_10.png" width="600">
 
 #### **1. 关键组成部分**
 
@@ -1128,7 +1121,7 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
 
 
 
-## **ReFT简介**
+## ReFT 简介
 
 ### OpenAI的 ReFT
 
@@ -1152,23 +1145,23 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
 
 训练数据范例如下，训练中，并不把答案直接放入到训练集。
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/3.png)
+<img src="images/3.png" width="600">
 
 训练过程中，模型可能包含或者不包含正确答案：
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/4.png)
+<img src="images/4.png" width="600">
 
 创建训练集和校验集的jsonal文件：
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/5.png)
+<img src="images/5.png" width="600">
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/6.png)
+<img src="images/6.png" width="600">
 
 构建奖励函数：
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/7.png)
+<img src="images/7.png" width="600">
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/8.png)
+<img src="images/8.png" width="600">
 
 这个JSON文件（grader.json）的内容定义了一个评分系统的配置。具体来说，这个配置文件定义了如何对某个对象进行评分。让我们逐行解析这个文件的内容：
 
@@ -1198,21 +1191,21 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
 
 设置训练超参：
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/9.png)
+<img src="images/9.png" width="600">
 
 训练结果：
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/10.png)
+<img src="images/10.png" width="600">
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/11.png)
+<img src="images/11.png" width="600">
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/12.png)
+<img src="images/12.png" width="600">
 
 ### 字节的ReFT
 
 先看ReFT论文中的流程图：
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUpgIIJic3v3UHiaRriaapjX2omaoJWqB4dr3dQyGEkDMjjR5JeI8LibRVX9icuCAiarOA0kMgPfWhoqiamg/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+<img src="images/ext_11.png" width="600">
 
 如上图所示，ReFT，该框架结合了监督微调（Supervised Fine-Tuning, SFT）和强化微调（Reinforced Fine-Tuning, ReFT）的方法。以下是对图中各部分的详细解释：
 
@@ -1236,11 +1229,11 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
 
      图例说明了在GSM8K数据集上，一个问题（x）、推理链（e）和答案（y）的示例。通过多个SFT周期对训练数据进行迭代，并使用ReFT方法从SFT进行预热，然后在相同数据上进行强化学习训练。
 
-## **TPO的流程**
+## TPO 的流程
 
 先看Thought Preference Optimization（TPO）的流程：
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUpgIIJic3v3UHiaRriaapjX2obrFTylPby9mlhw3NUiaJicSIAianv6WrYjTbaCe24w2nic8xrHLOUo4VLg/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+<img src="images/ext_12.png" width="600">
 
 - TPO 方法由三个主要部分组成：
   1. SFT（有监督微调）：提供了模型的基础。
@@ -1290,7 +1283,7 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
 
 - **使用 DPO 优化**：利用这些偏好对，结合 **参考模型**，使用 DPO 方法构建损失函数，直接优化模型参数。
 
-## **PPO和DPO的本质区别**
+## PPO 和 DPO 的本质区别
 
 ### 1. 强化学习的本质
 
@@ -1563,77 +1556,6 @@ ReFT、RLHF、DPO和RLAIF。这些方法都是在监督微调（SFT）的基础�
 - **过程**：在 SFT 的基础上，引入**思维生成**，即模型在输出回答前生成内部的思维过程。然后，使用 DPO 方法，结合**参考模型**，直接优化模型参数，偏好数据来自**AI 判别模型的反馈**。
 - **评估方式**：利用**AI 判别模型**对模型输出的**回答部分**进行评价，形成偏好对（优选和劣选）。结合**参考模型**，使用 DPO 方法构建损失函数，直接优化模型参数，提升模型性能。
 
-## LoRA/QLoRA 微调机制与 Adapter 合并策略
-
-### LoRA 的原理
-
-LoRA（Low-Rank Adaptation）的核心思想是：给预训练权重 W 增加一个低秩的增量 BA，而不是直接修改所有参数。
-
-QLoRA 在此基础上进一步优化——将大型预训练模型先量化成较低精度（通常是4-bit），再在其之上训练规模很小的适配器（adapter）参数，从而在显著减少显存占用的同时，仍能对模型进行有效的微调。
-
-其关键要素包括：
-
-1. **预训练权重 (Pretrained Weights)**：原始预训练模型的权重 W，QLoRA 会将这些预训练权重量化到4-bit，大幅缩小模型体积并减少显存占用。
-
-2. **适配器 (Adapter) 参数 (A 和 B)**：LoRA/QLoRA 中用到的两组小矩阵 A 和 B，以16-bit的形式存储和训练。适配器的参数规模远小于全部模型权重，训练时只需为这小部分参数保存梯度和优化器状态。在最初训练时，B 被初始化为 0 矩阵，A 则随机初始化。
-
-3. **前向计算 (Forward Pass)**：h = W x + B A x，模型的输出不仅包含原来预训练权重 W 的贡献，也会额外加上由适配器 B A 乘以输入 x 得到的增量。
-
-4. **权重合并 (Merged Weights)**：在推理阶段可以将 W 与 B A 合并成一个新的权重矩阵 W_merged 进行计算。
-
-![images](images/qlora_perf_1.png)
-
-### 低秩矩阵表示的数学示例
-
-以 4×4 小矩阵为例说明 LoRA 的低秩更新原理：
-
-**原始权重** W（4×4）：
-```
-W = [[1, 2, 3, 4],
-     [2, 3, 4, 5],
-     [3, 4, 5, 6],
-     [4, 5, 6, 7]]
-```
-
-选择 r=2（低秩），则 B 为 (4×2)，A 为 (2×4)：
-```
-B = [[0.1, 0.2],    A = [[2.0, 0.0, 0.0, 1.5],
-     [0.0, 0.3],         [0.0, 1.0, 2.0, 1.0]]
-     [0.1, 0.1],
-     [0.0, 0.2]]
-```
-
-BA 结果为 4×4 矩阵（秩不超过2）：
-```
-BA = [[0.2, 0.1, 0.4, 0.3],
-      [0.0, 0.3, 0.6, 0.3],
-      [0.2, 0.1, 0.4, 0.3],
-      [0.0, 0.2, 0.4, 0.2]]
-```
-
-微调后权重 W_merged = W + BA，通过两个小矩阵的乘积完成对原始权重的修正。当 r 比 d 小很多时，B 和 A 的参数量远小于 d×d，节省大量训练开销与存储。
-
-### Adapter 合并策略与量化对精度的影响
-
-![images](images/qlora_perf_2.png)
-
-以下是四种不同的 Adapter 部署策略及其效果对比：
-
-| 策略 | 做法 | 困惑度(PPL) | 说明 |
-|------|------|:-----------:|------|
-| **不合并 Adapter** | 基础模型 4-bit + Adapter 16-bit | **3.55** | 效果最好，需额外管理 Adapter 文件 |
-| **合并后 AWQ 量化** | 合并 → 16-bit → AWQ 4-bit | 3.88 | 部署简洁，效果略逊 |
-| **合并后不量化** | 合并 → 保持 16-bit | 3.60 | 需 16-bit 显存，与不合并效果相当 |
-| **合并后 BnB 量化** | 合并 → bitsandbytes 4-bit | 4.33 | **不推荐**，退回未微调水平 |
-
-**结论**：
-- 追求最佳效果 → 基础模型 4-bit + 不合并的 Adapter (16-bit)
-- 追求部署简洁 → 合并后用 AWQ/AutoRound 量化到 4-bit
-- 显存充足 → 合并后直接 16-bit 推理
-- **避免**合并后再用 bitsandbytes 4-bit 量化
-
-## GaLore 全量微调实验
-
 
 ---
 
@@ -1660,7 +1582,7 @@ QLoRA 在此基础上进一步优化——将大型预训练模型先量化成�
 
 4. **权重合并 (Merged Weights)**：在推理阶段可以将 W 与 B A 合并成一个新的权重矩阵 W_merged 进行计算。
 
-![images](images/qlora_perf_1.png)
+<img src="images/qlora_perf_1.png" width="600">
 
 ### 低秩矩阵表示的数学示例
 
@@ -1694,7 +1616,7 @@ BA = [[0.2, 0.1, 0.4, 0.3],
 
 ### Adapter 合并策略与量化对精度的影响
 
-![images](images/qlora_perf_2.png)
+<img src="images/qlora_perf_2.png" width="600">
 
 以下是四种不同的 Adapter 部署策略及其效果对比：
 
@@ -1715,11 +1637,11 @@ BA = [[0.2, 0.1, 0.4, 0.3],
 
 GaLore（Gradient Low-Rank）支持全量微调（Full Fine-tuning），即调整模型所有参数。与 LoRA 等参数效率微调（PEFT）不同，GaLore 通过创新的梯度低秩投影技术，在内存受限条件下也能进行大型模型的全量微调。
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXBUWiajIRkWDFnAIVQEYeVKcOCQgbecLaUwicOjXicJPWzZnlJ0B2MvaJ83J8iaID7iclibMISIRNeISKg/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+<img src="images/ext_13.png" width="600">
 
 GaLore 性能对比：
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXBUWiajIRkWDFnAIVQEYeVKwz1guKATOUib2rJ114icJYIBLtzK9CUBULRSgIMdp47GURH0B9a4iaWhg/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+<img src="images/ext_14.png" width="600">
 
 GaLore 引入额外超参数：Rank r、Scale factor α、Subspace change frequency T。
 
@@ -1737,13 +1659,13 @@ GaLore 引入额外超参数：Rank r、Scale factor α、Subspace change freque
 
 **实验一**：BS=128, lr=1e-5, optim=galore_adamw_8bit_layerwise, rank=512
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXBUWiajIRkWDFnAIVQEYeVK6nTib0DBbecicLia529j7hxFIaciaqDzFjbXA8h5b8dcR25GT2Kd1ICaTA/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+<img src="images/ext_15.png" width="600">
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXBUWiajIRkWDFnAIVQEYeVKKDPJiaQicKH5It9EiboXtAB5DWgwA4R14Qoyur8rLjawAHk3KZ58OibMPw/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+<img src="images/ext_16.png" width="600">
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXBUWiajIRkWDFnAIVQEYeVKicCibC0EJTsYSyauzvIWy6PUXMpFNLFlm7rMp7bGQ7I8q4mnpyNtd80w/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+<img src="images/ext_17.png" width="600">
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXBUWiajIRkWDFnAIVQEYeVKuus30PiaOVDticlEeFo7uPXGfHw17W9j6ywvLhZToOtgQiakfdD4FkzOw/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+<img src="images/ext_18.png" width="600">
 
 从损失函数看，训练效果不理想。
 
@@ -1751,11 +1673,11 @@ GaLore 引入额外超参数：Rank r、Scale factor α、Subspace change freque
 
 将学习率增加一倍，将 BS 减少一半：
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXBUWiajIRkWDFnAIVQEYeVKic9ezNVcbayBiazsy7fmZdkdLMADYlb6GlkXI6u8yKX4Uf2CUqicBwuhA/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+<img src="images/ext_19.png" width="600">
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXBUWiajIRkWDFnAIVQEYeVK8ibY7S3R9COHhOIIOtic0UfGZmRpk7sc7hyrdzQOuVh6rxibotETHTyMw/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+<img src="images/ext_20.png" width="600">
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXBUWiajIRkWDFnAIVQEYeVKX29mtlRIPkUT8yLOjxjy6cQQRvC4BvqPsAEydSiasyhVrXuZT92Yia3A/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+<img src="images/ext_21.png" width="600">
 
 效果好些，但依然不理想。
 
@@ -1763,27 +1685,27 @@ GaLore 引入额外超参数：Rank r、Scale factor α、Subspace change freque
 
 换用 galore_adamw_8bit（非 layerwise）优化器后，GPU 显存利用率更高：
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUTickEPG2OjjIKXgp96IsODW2BibS0jEEuOuw1xm0pZ4EH4d572ScuXvnfaxia4mAN95hpKJAdGcNyw/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+<img src="images/ext_22.png" width="600">
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUTickEPG2OjjIKXgp96IsODd4BtwnZQ3cIlicqaI6nnM36r8FUhwHOUlt3yXG1IHK382MTCh7209lQ/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+<img src="images/ext_23.png" width="600">
 
 训练效果比上次好太多了，结果理想。
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUTickEPG2OjjIKXgp96IsODEvAprYC3GDe1rFK91cb9HtF94rrzesJZub0gwEz6bfIOx0d3DNWPRw/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+<img src="images/ext_24.png" width="600">
 
 **实验四**：BS=128, lr=1e-5, optim=galore_adamw_8bit, rank=1024
 
 保持 BS=128 和 galore_adamw_8bit 优化器，将 rank 从 512 提升到 1024：
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUTickEPG2OjjIKXgp96IsODB3HGFPZcWR12jjWKiaolqDvuT8weWZicUxow2AOhAUCjwUr3c2t8yU1w/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+<img src="images/ext_25.png" width="600">
 
 训练中，GPU 显存利用率飙升到87GB，但没有 OOM，充分体现大显存的好处：
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUTickEPG2OjjIKXgp96IsODNfN4zibDVvMJIUHib1vPUHpFN9lib6DsyRRVUr6LzZ3Bmvop7MsUCPjfQ/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+<img src="images/ext_26.png" width="600">
 
 查看训练结果，比实验三更理想，损失函数在 step50 直接降到 0.825400，且在 Step100 时降低到 0.71：
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUTickEPG2OjjIKXgp96IsODkYRCfA3jyHotAtpa2pmibcquFauYqJlwotvIzOl2ib6ank3AmNd51wJw/640?wx_fmt=other&from=appmsg&wxfrom=5&wx_lazy=1&wx_co=1&tp=webp)
+<img src="images/ext_27.png" width="600">
 
 上图展示随着训练过程，损失函数正常下降，但 Validation Loss 上升，说明出现过拟合。
 
@@ -1791,11 +1713,11 @@ GaLore 引入额外超参数：Rank r、Scale factor α、Subspace change freque
 
 针对实验四的过拟合，降低学习率，增加 weight_decay 和 warmup_ratio：
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXYro4VNFxnL6o7LHiaDJL6QB6YGDsBAjVGqJ6gYHPtL1RX0pImFaPxhTLkIQHdEggnF0Ngq6UicbpA/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+<img src="images/ext_28.png" width="600">
 
 查看训练效果，过拟合问题解决：
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXYro4VNFxnL6o7LHiaDJL6QG3Btgib4WkPCmPGwibyKCBkwGpdSDU8m1ibyBJgOwJBOkibDIn6tGAYK7Q/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+<img src="images/ext_29.png" width="600">
 
 ### GaLore 实验总结
 
@@ -1821,11 +1743,11 @@ GaLore 引入额外超参数：Rank r、Scale factor α、Subspace change freque
 > *原文来自 LLM-Alignment-DPO-PPO-CPO*
 
 
-## Part I: 解读 DPO 和 PPO：从偏好反馈中学习的最佳实践解析
+## 6.1 解读 DPO 和 PPO：从偏好反馈中学习的最佳实践解析
 
 ***Refer to ：Unpacking DPO and PPO: Disentangling Best Practices for Learning from Preference Feedback***
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/6.png)
+<img src="images/6.png" width="600">
 
 这篇论文再次证实了 PPO 显著优于 DPO。值得注意的是，最初的 DPO 论文声称在结合强化学习与人类反馈（RLHF）的情况下，DPO 比 PPO 更好。然而，经过大量的实际测试、社区反馈以及后续研究，很明显事实并非如此。
 
@@ -1837,7 +1759,7 @@ DPO 的运行成本显著低于 PPO，因为它不需要奖励模型。其更简
 
  PPO 训练架构中，四个主要模型（Policy Model、Reference Model、Reward Model、Value Model）各自承担着不同的职责，简要说明如下：
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/7.png)
+<img src="images/7.png" width="600">
 
 1. Policy Model（策略模型）
    • 这是我们真正想要训练和更新的"生成模型"或"策略"，它给定输入（q）后，会输出某种动作（如下一步的文本 tokens）。
@@ -1964,7 +1886,7 @@ PPO 与 DPO 都基于偏好数据进行模型训练，但过程并不相同：
 • DPO：直接在偏好数据（prompt, chosen response, rejected response）上进行离线优化。
 • PPO：先训练一个"奖励模型（reward model）"，再用该奖励模型在线给策略模型的输出打分，并通过强化学习更新策略。
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/1.png)
+<img src="images/1.png" width="600">
 
 因此，我们将这类偏好学习过程拆解为四部分：
 1）偏好数据
@@ -1978,7 +1900,7 @@ PPO 与 DPO 都基于偏好数据进行模型训练，但过程并不相同：
 
 本节先简要介绍 PPO 与 DPO 的概念与原理，然后描述我们在实验与评测中的具体做法。呈现了 PPO 与 DPO 间的结构化对比。  
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/2.png)
+<img src="images/2.png" width="600">
 
 **PPO 与 DPO（PPO and DPO）**
 (1) PPO
@@ -2015,7 +1937,7 @@ PPO 与 DPO 都基于偏好数据进行模型训练，但过程并不相同：
 • 部分 Arena 数据在安全性上较差。
 
 **学习算法：DPO 与 PPO**
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/3.png)
+<img src="images/3.png" width="600">
 
 在偏好数据相同、模型规模相同（13B）的条件下：
 • PPO 整体略优于 DPO，优势约 0.7 个点。
@@ -2029,7 +1951,7 @@ PPO 与 DPO 都基于偏好数据进行模型训练，但过程并不相同：
 
 **策略训练提示（Policy Training Prompts）**
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/4.png)
+<img src="images/4.png" width="600">
 
 • 针对性提示可大幅提升单一领域（如数学：46% → 62%）。
 • 但混合提示对多任务综合性能改善有限。
@@ -2039,7 +1961,7 @@ PPO 与 DPO 都基于偏好数据进行模型训练，但过程并不相同：
 
 综合上述分析，推荐的最佳实践：
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/5.png)
+<img src="images/5.png" width="600">
 
 - 偏好数据：使用高质量的合成偏好数据（如 UltraFeedback）。
 - 学习算法：在大多数场景下，PPO 的性能普遍优于 DPO。
@@ -2067,7 +1989,7 @@ PPO 与 DPO 都基于偏好数据进行模型训练，但过程并不相同：
 ---
 
 
-## Part II: DPO 深入探讨与实践
+## 6.2 DPO 深入探讨与实践
 
 ### RLHF、RLAIF 与 DPO 的偏见问题
 
@@ -2101,7 +2023,7 @@ RLAIF 试图通过使用另一个大型语言模型（LLM）生成反馈来解�
 1. **参考模型（Reference Model）**：使用 SFT 在指令数据集上精调得到的模型。
 2. **基础模型（Base Model）**：我们希望通过 DPO 训练的模型。
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nWkavyXUFb7YmV633SNtwPQA9RorrzDeH5NiaBm0TQC2qZukibcdrjLFB2M3aAW5ibLhOXjDwiaTVEGvw/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+<img src="images/ext_30.png" width="600">
 
 **参考模型与基础模型的区别：**
 
@@ -2193,9 +2115,9 @@ dataset_test_dpo = load_dataset("HuggingFaceH4/ultrafeedback_binarized", split="
 
 两个数据集示意：
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUXuFTxdR1SWPoED75CVM31Qg16gInAqzxm4XSQHf94ib3WaQTfbRKHYQXEpMOu2pJ7HUKBqbumvDA/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+<img src="images/ext_31.png" width="600">
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUXuFTxdR1SWPoED75CVM31vBXuMoJbd2icF70YePHZpdBedtLx0oUTTIyKjVicMaOdG7ibKhB2SGP6Q/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+<img src="images/ext_32.png" width="600">
 
 **模型加载与适配器配置**
 
@@ -2222,43 +2144,43 @@ model.load_adapter("kaitchup/Mistral-7B-v0.1-SFT-ultrachat-v2", adapter_name="re
 
 **第一步：SFT 训练参考模型**（使用 HuggingFaceH4/ultrachat_200k）
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUXuFTxdR1SWPoED75CVM31TRnRNZ1KTQBNQmFJvLiaNgtQ2sGFTEDzU8v83dRkYKxib3xpTeNONxuQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+<img src="images/ext_33.png" width="600">
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUXuFTxdR1SWPoED75CVM31PuTVUk3nlGATuQOy5PRE5FibmVIyJ7EADxOzVafzS2n068OotrWv9ow/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+<img src="images/ext_34.png" width="600">
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUXuFTxdR1SWPoED75CVM31sAhNG7fQ2pNpHRn8578j4VHmM6WuVdRSa5QzlqicfAXgYAmoCppia5wg/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+<img src="images/ext_35.png" width="600">
 
 微调过程中的资源消耗：
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUXuFTxdR1SWPoED75CVM31DXj7XpFcgfGCcwkkkhCPgkwClsOicg7PmyZibnibvO9ic8vuiaR3DjDEUvQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+<img src="images/ext_36.png" width="600">
 
 **第二步：DPO 训练基础模型**（使用 SFT 后的模型作为参考模型）
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUXuFTxdR1SWPoED75CVM31tcnFcDhJ60icpRHzVaknNPT9UVo2Xwqo5I2Uq2EX0gvM6mpIBokHQDQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+<img src="images/ext_37.png" width="600">
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUXuFTxdR1SWPoED75CVM31qFmelfEAkT4xrcqkAmxICxbmROJnicGbUTto7LAYvyfGhJ7WHqoMMrQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+<img src="images/ext_38.png" width="600">
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUXuFTxdR1SWPoED75CVM31hQmrMLYvVxIibPNibVqJ2MNbEKM6lkJLOoxZ4sADSTm8yROVuBMUF10w/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+<img src="images/ext_39.png" width="600">
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUXuFTxdR1SWPoED75CVM31EibScDruPpInR1dnjgYSvKFoSwfm1ZWE2dyHXqLo4Akz3Fq1IoRW5vA/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+<img src="images/ext_40.png" width="600">
 
 **DPO 训练过程中的资源开销**
 
 bs=4:
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUXuFTxdR1SWPoED75CVM31PLGFDxOAm0ZvUSyEADqs8IfyF60Dl7W7Ae6F3quo8Mex2BiaRkxNVvQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+<img src="images/ext_41.png" width="600">
 
 bs=16：
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUXuFTxdR1SWPoED75CVM311icJ9J9XMMtia73zuKkJGvnZ4UY9mmtjicvGnFxbWcxXVx7m6fewqAFsw/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+<img src="images/ext_42.png" width="600">
 
 bs=32：
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUXuFTxdR1SWPoED75CVM31JiaDvRWfI53axaYC2IZBIFejPkhr5ibIRy3X4x8ozt6auGsXicbZ3fAfQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+<img src="images/ext_43.png" width="600">
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUXuFTxdR1SWPoED75CVM31yGktkn5WIczClZnJyoM9GDjicHFHJzFib3ZGCgAiav7fMIgBFhUyklhvQ/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+<img src="images/ext_44.png" width="600">
 
-![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nUXuFTxdR1SWPoED75CVM31Y0okm1V2QqAjsUnkl2LhuzsR0QFKmxWfJWlC0VP1a5h8XibmWcO4sgA/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+<img src="images/ext_45.png" width="600">
 
 **DPO 训练指标解读**
 
@@ -2315,7 +2237,7 @@ dataset = load_dataset("UltraFeedback-prompt-chosen-rejected")
 
 查看数据集的第一条，在数据集中，`chosen` 和 `rejected` 标签可以用于训练模型理解什么是好的回复，什么是不好的回复，从而优化模型的输出质量。
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/1.png)
+<img src="images/1.png" width="600">
 
 ```
 bnb_config = BitsAndBytesConfig(
@@ -2383,7 +2305,7 @@ trainer.train()
 
 查看训练结果：
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/2.png)
+<img src="images/2.png" width="600">
 
 ## 对DPO训练结果的解释
 
@@ -2694,17 +2616,6 @@ For example, suppose we want to perform DPO training on a 70 billion-parameter m
   Thus, just the model parameters alone consume 280 GB of VRAM, approximately 43.75% of the total VRAM. In addition, there are optimizer states. For example, using the AdamW optimizer, each parameter has two additional state variables. If these state variables are stored in 16-bit precision, they will take up an extra 280 GB of VRAM. Adding it all up, we've used 560 GB of VRAM, leaving only 80 GB. This remaining VRAM is needed to store activations and gradients. Without special methods, it's unlikely to train on a single machine.
 
 
-## Running on Azure
-
-All experiments in this project were conducted on an **Azure GPU VM**.
-
-| Item | Details |
-|---|---|
-| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
-| **GPU** | NVIDIA H100 80GB |
-| **Frameworks** | DeepSpeed, LoRA/PEFT |
-
-
 ## Distributed training technology 
 
 To address the above challenges, we could use PyTorch's **Fully Sharded Data Parallel (FSDP)** technology, combined with parameter-efficient fine-tuning methods like LoRA and QLoRA. 
@@ -2713,7 +2624,7 @@ To address the above challenges, we could use PyTorch's **Fully Sharded Data Par
 
 In my repo, I used both DeepSpeed ZeRO-3 technology and FSDP technology, and the training results were the same. I will showcase the scripts and configuration files for both training methods. 
 
- ![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXVG8MCygzbO12sANWDsyJAcwEYpAcnqXWdicELzh4cFtibVKK8HonEFffN03MKhIluSb7lD8kxvmVA/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+ <img src="images/ext_46.png" width="600">
 
 In the following DeepSpeed and Accelerate FSDP training, I use an adapter from HF:
 
@@ -2970,7 +2881,7 @@ Launch training
  20%|████████████████████████████▊   
 ```
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-Fine-Tuning-and-Alignment/images/1.png)
+<img src="images/1.png" width="600">
 
 ## Accelerate FSDP training
 
@@ -3255,11 +3166,11 @@ The training data includes:
 
   Sometimes in the data, the **"prompt"** and **"question"** may be identical, which can serve as the starting point for the conversation in certain training settings.
 
-  ![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXVG8MCygzbO12sANWDsyJAl6sIF5iaooXZPcDtkfNgmDaYiczO6Kb9VMHuia3KzFAkEUTrUZGTRSmYg/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+  <img src="images/ext_47.png" width="600">
 
   Training results are as following:
 
-  ![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXVG8MCygzbO12sANWDsyJAG0lGSUZEgnusjGQ4IIkqWJtvKJa6r42TJcKXguutu2xuuEATUibY3sg/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+  <img src="images/ext_48.png" width="600">
 
 Next, I will combine the training data to roughly introduce the DPO training process and results.
 

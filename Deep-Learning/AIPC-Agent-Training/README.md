@@ -19,13 +19,16 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 This repository implements an **AI Agent Flywheel** training methodology, where each model version builds upon the previous one through targeted training strategies. Starting from `meta-llama/Llama-3.2-3B-Instruct`, we incrementally train a specialized **AI PC Expert** agent through 5 stages.
 
 **Key Results:**
-| Version | Training Method | Focus | Improvement |
-|---------|-----------------|-------|-------------|
-| V1.0 | - | Base Model | Pre-trained `Llama-3.2-3B-Instruct` |
-| V1.1 | SFT + GRPO | Domain Knowledge | AI PC terminology + structured answers |
-| V1.2 | DPO (Style) | Concise Output | 60% shorter responses, same quality |
-| V1.3 | DPO (Feedback) | Practical Guidance | Step-by-step instructions preferred |
-| V1.4 | DPO (Code) | Code Generation | AST-validated Python code |
+| Version | Training Method | Focus | GPT-5.2 Score |
+|---------|-----------------|-------|:-------------:|
+| V1.0 | - | Base Model | 4.0/10 |
+| V1.1 | SFT (850 samples) | Domain Knowledge | - |
+| V1.1+ | GRPO (Hybrid Reward) | Quality via RL | - |
+| V1.2 | DPO (Style) | Concise Output | - |
+| V1.3 | DPO (Feedback) | Practical Guidance | - |
+| V1.4 | DPO (Code) | Code Generation | **5.0/10 (+25%)** |
+
+> **Key Finding**: Pure GPT-as-Judge reward fails on small models (all-negative rewards → model "learns to be worse"). A **hybrid reward** (rule-based baseline + GPT quality adjustment) is essential for GRPO to work on 3B models. See [Experiment Report](EXPERIMENT-REPORT.md) for details.
 
 ---
 
@@ -151,39 +154,54 @@ def reward_function(completions, **kwargs):
   "vocab_size": 128256
 }
 ```
-
+> **Note**: This pipeline is model-agnostic. To use a different base model (e.g., LLaMA 3.3 8B), simply change `--model_name_or_path` in Step 1.
 ---
 
 ## 📁 Repository Structure
 
 ```
-├── Training Scripts (执行顺序)
+├── Training Scripts (Execution Order)
 │   ├── train_sft_aipc.py          # Step 1: V1.0 → V1.1 SFT
-│   ├── train_grpo_aipc.py         # Step 2: V1.1 GRPO reinforcement
+│   ├── train_grpo_aipc.py         # Step 2: V1.1 GRPO (rule-based reward)
+│   ├── l5_hybrid_pipeline.py      # Step 2+: Full pipeline with hybrid reward (recommended)
 │   ├── train_dpo_style.py         # Step 3: V1.1 → V1.2 Style DPO
 │   ├── train_dpo_v1.3.py          # Step 4: V1.2 → V1.3 Feedback DPO
 │   └── train_dpo_v1.4.py          # Step 5: V1.3 → V1.4 Code DPO
 │
 ├── Data Generation Scripts
-│   ├── generate_aipc_new_data.py  # Generate SFT data via Azure OpenAI
-│   ├── generate_style_dpo_data.py # Generate style preference pairs
-│   ├── generate_feedback_v1.3.py  # Simulate customer feedback
-│   └── generate_feedback_v1.4.py  # Generate code preference with AST validation
+│   ├── download_and_prepare_data.py  # Download HF datasets + format conversion
+│   ├── generate_aipc_new_data.py     # Generate SFT data via Azure OpenAI
+│   ├── generate_style_dpo_data.py    # Generate style preference pairs
+│   ├── generate_feedback_v1.3.py     # Simulate customer feedback
+│   └── generate_feedback_v1.4.py     # Generate code preference with AST validation
 │
-├── Sample Data (data/)
-│   ├── sample_sft.jsonl           # 3 SFT examples
-│   ├── sample_style_dpo.jsonl     # 3 Style DPO examples
-│   ├── sample_feedback_v1.3.jsonl # 2 Feedback DPO examples
-│   └── sample_code_feedback_v1.4.jsonl # 2 Code DPO examples
+├── Training Data (data/)
+│   ├── aipc_sft_train.jsonl         # 850 SFT samples (bitext + IT helpdesk)
+│   ├── aipc_sft_val.jsonl           # 50 validation samples
+│   ├── aipc_style_dpo.jsonl         # 33 style preference pairs
+│   ├── aipc_feedback_v1.3.jsonl     # 33 feedback preference pairs
+│   └── aipc_code_feedback_v1.4.jsonl # 34 code preference pairs
+│
+├── Experiment Logs (logs/)
+│   ├── sft_train.log               # SFT training log
+│   ├── grpo_train.log              # GRPO (rule-based) log
+│   ├── l5_pipeline.log             # GRPO (pure GPT judge) log
+│   ├── l5_hybrid.log               # GRPO (hybrid reward) log ← best
+│   ├── full_pipeline.log           # Full pipeline (rule-based GRPO + DPO) log
+│   ├── dpo_style.log               # DPO V1.2 log
+│   ├── dpo_v1.3.log                # DPO V1.3 log
+│   ├── dpo_v1.4.log                # DPO V1.4 log
+│   └── inference_compare.log       # Base vs V1.4 comparison
 │
 ├── Inference & Evaluation
-│   ├── inference_aipc_sft.py      # Basic inference
-│   ├── inference_compare.py       # Multi-version comparison
-│   ├── compare_v1.2_v1.3.py       # A/B test: V1.2 vs V1.3
-│   └── compare_v1.3_v1.4.py       # A/B test: V1.3 vs V1.4
+│   ├── inference_aipc_sft.py       # Basic inference
+│   ├── inference_compare.py        # Multi-version comparison via vLLM
+│   ├── compare_v1.2_v1.3.py        # A/B test: V1.2 vs V1.3
+│   └── compare_v1.3_v1.4.py        # A/B test: V1.3 vs V1.4
 │
+├── EXPERIMENT-REPORT.md            # Detailed 3-round experiment analysis
 └── Utilities
-    └── convert_checkpoint.py      # Checkpoint format conversion
+    └── convert_checkpoint.py       # Checkpoint format conversion
 ```
 
 ---
@@ -331,13 +349,85 @@ def has_valid_python(text):
 
 ## 📊 Training Data Summary
 
-| Stage | Dataset | Size | Format |
-|-------|---------|------|--------|
-| V1.1 SFT | `aipc_sft_train.jsonl` | 896 | `{prompt, completion}` |
-| V1.1 SFT Val | `aipc_sft_val.jsonl` | 47 | `{prompt, completion}` |
-| V1.2 DPO | `aipc_style_dpo.jsonl` | 50 | `{prompt, chosen, rejected}` |
-| V1.3 DPO | `aipc_feedback_v1.3.jsonl` | 10 | `{prompt, chosen, rejected}` |
-| V1.4 DPO | `aipc_code_feedback_v1.4.jsonl` | 10 | `{prompt, chosen, rejected}` |
+| Stage | Dataset | Size | Source | Format |
+|-------|---------|:----:|--------|--------|
+| V1.1 SFT | `aipc_sft_train.jsonl` | 850 | HuggingFace (bitext + Console-AI) | `{prompt, completion}` |
+| V1.1 SFT Val | `aipc_sft_val.jsonl` | 50 | Same | `{prompt, completion}` |
+| V1.2 DPO | `aipc_style_dpo.jsonl` | 33 | Auto-generated from bitext | `{prompt, chosen, rejected}` |
+| V1.3 DPO | `aipc_feedback_v1.3.jsonl` | 33 | Auto-generated from bitext | `{prompt, chosen, rejected}` |
+| V1.4 DPO | `aipc_code_feedback_v1.4.jsonl` | 34 | Auto-generated from bitext | `{prompt, chosen, rejected}` |
+
+**Data Sources:**
+- SFT: [bitext/Bitext-customer-support-llm-chatbot-training-dataset](https://huggingface.co/datasets/bitext/Bitext-customer-support-llm-chatbot-training-dataset) (26.9K samples, 400 used) + [Console-AI/IT-helpdesk-synthetic-tickets](https://huggingface.co/datasets/Console-AI/IT-helpdesk-synthetic-tickets) (500 IT tickets)
+- DPO: Auto-generated preference pairs from bitext (shorter=chosen, verbose=rejected)
+
+---
+
+## 📈 Experiment Results
+
+### Three Rounds of GRPO Reward Function Iteration
+
+We iterated through 3 reward function designs to find what works for small (3B) models:
+
+| Round | Reward Design | Reward Mean | GPT-5.2 Score | Result |
+|:-----:|---------------|:-----------:|:-------------:|--------|
+| 1 | Rule-based only | +0.50 | - | GRPO loss=0 (reward saturated, no learning signal) |
+| 2 | GPT-5.2 only | **-0.50** | 2.8/10 (-12.5%) | All-negative rewards → model degraded |
+| 3 | **Hybrid (Rule + GPT)** | **+0.22** | **5.0/10 (+25%)** | ✅ Positive baseline + quality adjustment |
+
+### Why Hybrid Reward Works
+
+```
+Pure GPT Judge (Round 2):           Hybrid Reward (Round 3):
+┌─────────────────────┐              ┌─────────────────────┐
+│ GPT scores 3B model │              │ Rule-based: 0~0.5   │
+│ → Always 2-3/10     │              │ (keywords, structure,│
+│ → Normalized: -0.5  │              │  length, no refusal) │
+│ → ALL negative!     │              │        +             │
+│ → Model learns      │              │ GPT adjustment:      │
+│   "everything bad"  │              │ -0.3 ~ +0.5          │
+│ → Degrades          │              │ (quality scoring)    │
+└─────────────────────┘              │        =             │
+                                     │ Total: -0.3 ~ +1.0  │
+                                     │ → Positive baseline  │
+                                     │ → GPT differentiates │
+                                     │ → GRPO can learn!    │
+                                     └─────────────────────┘
+```
+
+**Key Insight**: For small models (3B), the reward function must provide a **positive baseline** so GRPO receives directional signal. Pure LLM-as-Judge with absolute scoring creates an all-negative reward landscape where the model cannot find improvement directions.
+
+### SFT Training Curve
+
+```
+Epoch 1: Loss 2.22 → 0.09 (rapid knowledge injection)
+Epoch 2: Loss 0.07 → 0.05 (convergence)
+Epoch 3: Loss 0.06 → 0.05 (stable)
+```
+
+### GRPO Reward Trend (Hybrid, 2 epochs, 100 steps)
+
+```
+Step 5:   reward=0.230  std=0.097
+Step 25:  reward=0.239  std=0.116
+Step 50:  reward=0.219  std=0.107  (epoch 1 complete)
+Step 65:  reward=0.254  std=0.114  ← peak
+Step 100: reward=0.266  std=0.102  ← new high at end
+```
+
+### Final Evaluation (GPT-5.2 as Judge, 8 questions)
+
+| Question | Base | V1.4 |
+|----------|:----:|:----:|
+| AI PC vs regular laptop | 3 | **6** |
+| Deploy 7B model locally | 4 | 1 |
+| VPN troubleshooting | 7 | 6 |
+| NPU vs GPU benefits | 4 | **5** |
+| Check NPU utilization | 2 | 2 |
+| Windows update install | 4 | **6** |
+| Reset AD account | 4 | **7** |
+| CPU diagnosis | 4 | **7** |
+| **Average** | **4.0** | **5.0 (+25%)** |
 
 ---
 
@@ -466,10 +556,18 @@ We chose incremental DPO because:
 ### Why GRPO Before DPO?
 
 GRPO establishes a **quality baseline** before preference learning:
-- GRPO teaches "what makes a good AI PC answer" (keywords, structure, no hallucination)
+- GRPO teaches "what makes a good answer" (via reward function)
 - DPO then teaches "which style/format is preferred"
+- Without GRPO, DPO would try to learn content quality AND style simultaneously
 
-Without GRPO, DPO would try to learn content quality AND style simultaneously.
+### Why Hybrid Reward for GRPO?
+
+Through 3 rounds of experimentation, we discovered:
+1. **Rule-based only** → Reward saturates at ~0.5, GRPO gets zero gradients
+2. **GPT-only judge** → Scores small models too harshly (2-3/10), all rewards negative, model degrades
+3. **Hybrid** → Rule-based gives positive baseline (0~0.5), GPT adjusts for quality (-0.3~+0.5), GRPO has directional signal
+
+This finding is critical for anyone applying GRPO to small (<8B) models.
 
 ---
 

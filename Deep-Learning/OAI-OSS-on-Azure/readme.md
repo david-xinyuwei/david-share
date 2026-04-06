@@ -564,8 +564,8 @@ Full test script:
 (base) root@linuxworkvm:~# kubectl get svc
 NAME            TYPE           CLUSTER-IP     EXTERNAL-IP      PORT(S)          AGE
 kubernetes      ClusterIP      10.0.0.1       <none>           443/TCP          51m
-vllm-a100-svc   LoadBalancer   10.0.120.197   135.171.16.230   5000:31196/TCP   43m
-(base) root@linuxworkvm:~# IP=135.171.16.230 bash ./script.sh 
+vllm-a100-svc   LoadBalancer   10.0.120.197   <your-vm-public-ip>   5000:31196/TCP   43m
+(base) root@linuxworkvm:~# IP=<your-vm-public-ip> bash ./script.sh 
 ```
 
 Test inference:
@@ -682,7 +682,7 @@ Run script:
 
 ```
 #kubectl get svc
-#IP=135.171.16.230 bash script.sh
+#IP=<your-vm-public-ip> bash script.sh
 ```
 
 

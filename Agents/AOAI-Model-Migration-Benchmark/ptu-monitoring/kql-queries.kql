@@ -1,0 +1,98 @@
+-- ============================================================
+-- KQL Queries for PTU Monitoring Dashboard
+-- Import into Azure Monitor Workbook or Log Analytics
+-- ============================================================
+
+-- ============================================================
+-- 1. PTU Utilization Trend (5-min bins)
+-- ============================================================
+AzureMetrics
+| where MetricName == "ProvisionedManagedUtilizationV2"
+| summarize 
+    avg_util = avg(Average), 
+    max_util = max(Maximum), 
+    p95_util = percentile(Average, 95) 
+  by bin(TimeGenerated, 5m)
+| render timechart 
+  with (title="PTU Utilization (%)", ytitle="Utilization %")
+
+
+-- ============================================================
+-- 2. Request Volume by Status Code (detect 429s)
+-- ============================================================
+AzureMetrics
+| where MetricName == "AzureOpenAIRequests"
+| extend StatusCode = tostring(parse_json(DimensionList)[0].value)
+| summarize count = sum(Total) by bin(TimeGenerated, 5m), StatusCode
+| render timechart 
+  with (title="AOAI Requests by Status Code", ytitle="Request Count")
+
+
+-- ============================================================
+-- 3. Token Consumption Over Time
+-- ============================================================
+AzureMetrics
+| where MetricName in ("ProcessedPromptTokens", "GeneratedCompletionTokens")
+| summarize tokens = sum(Total) by bin(TimeGenerated, 5m), MetricName
+| render timechart 
+  with (title="Token Consumption", ytitle="Tokens")
+
+
+-- ============================================================
+-- 4. Latency Distribution (from resource logs)
+-- ============================================================
+AzureDiagnostics
+| where Category == "RequestResponse"
+| extend 
+    model = tostring(properties_s.model),
+    statusCode = tostring(properties_s.statusCode),
+    durationMs = todouble(DurationMs)
+| summarize 
+    p50 = percentile(durationMs, 50),
+    p95 = percentile(durationMs, 95),
+    p99 = percentile(durationMs, 99)
+  by bin(TimeGenerated, 5m), model
+| render timechart 
+  with (title="AOAI Latency by Model", ytitle="Latency (ms)")
+
+
+-- ============================================================
+-- 5. 429 Throttling Events (detail view)
+-- ============================================================
+AzureDiagnostics
+| where Category == "RequestResponse"
+| where properties_s has "429"
+| project 
+    TimeGenerated, 
+    model = tostring(properties_s.model),
+    statusCode = tostring(properties_s.statusCode),
+    DurationMs,
+    _ResourceId
+| order by TimeGenerated desc
+
+
+-- ============================================================
+-- 6. PTU Utilization Heatmap (hourly pattern)
+-- ============================================================
+AzureMetrics
+| where MetricName == "ProvisionedManagedUtilizationV2"
+| extend hour = datetime_part("hour", TimeGenerated)
+| extend dayOfWeek = dayofweek(TimeGenerated) / 1d
+| summarize avg_util = avg(Average) by hour, dayOfWeek
+| render columnchart 
+  with (title="PTU Utilization Heatmap (Hour vs Day)", xtitle="Hour", ytitle="Day of Week")
+
+
+-- ============================================================
+-- 7. Cost Estimation (tokens × pricing)
+-- ============================================================
+AzureMetrics
+| where MetricName in ("ProcessedPromptTokens", "GeneratedCompletionTokens")
+| summarize tokens = sum(Total) by bin(TimeGenerated, 1d), MetricName
+| extend cost_usd = case(
+    MetricName == "ProcessedPromptTokens", tokens / 1000000.0 * 0.20,  // gpt-5.4-nano input
+    MetricName == "GeneratedCompletionTokens", tokens / 1000000.0 * 1.25,  // gpt-5.4-nano output
+    0.0)
+| summarize daily_cost = sum(cost_usd) by bin(TimeGenerated, 1d)
+| render barchart 
+  with (title="Estimated Daily Cost (USD)", ytitle="Cost (USD)")

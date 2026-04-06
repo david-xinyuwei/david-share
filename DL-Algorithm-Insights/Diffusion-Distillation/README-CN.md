@@ -46,7 +46,7 @@
 | 类别 | 技术 | 作用 | 使用位置 | 详细章节 |
 |------|------|------|:--------:|:--------:|
 | **算法** | Trajectory Distillation（轨迹蒸馏，2nd-gen） | 学生跳过 5× 教师步数，通过匹配中间 latent 学习 | 核心训练循环 | [深度解析](#深度解析轨迹蒸馏) |
-| **算法** | IMM Loss（矩匹配损失） | 匹配分布（μ+σ²）而非点估计 → 避免 Mode Averaging | 损失函数 | [IMM 损失](#imm-损失矩匹配) |
+| **算法** | Velocity Matching Loss | 在速度场（velocity）空间构建 loss，而非 latent（位置）空间 | 损失函数 | [损失函数](#损失函数latent-matching-vs-velocity-matching) |
 | **参数效率** | LoRA（低秩适配器） | 仅少部分参数可训练 → 优化器状态极小 | 学生适配器 | [第二步](#第二步训练学生lora-作为适配器) |
 | **精度** | BF16 (bfloat16) | 相比 FP32 节省一半显存；200 亿模型 = ~40 GB 而非 ~80 GB | 全部模型权重 | [实验配置](#实验配置) |
 | **显存—教师** | `torch.no_grad()` | 避免存储 40 步教师前向的激活值 → 节省 ~50 GB | 教师前向传播 | [显存分析](#为什么学生有梯度显存也够) |
@@ -75,6 +75,53 @@
 ---
 
 ## 原理详解
+
+### 核心术语：ODE、SDE、Velocity、Flow Matching
+
+在深入蒸馏技术之前，先理解四个核心概念。
+
+#### ODE vs SDE — 两种去噪建模方式
+
+扩散模型的去噪过程本质上是从噪声到图像的一条路径。这条路径可以用两种微分方程来建模：
+
+| | ODE（常微分方程） | SDE（随机微分方程） |
+|---|---|---|
+| **全称** | Ordinary Differential Equation | Stochastic Differential Equation |
+| **大白话** | **确定性导航**——每一步走哪、走多远完全确定 | **导航 + 随机晃动**——每步有方向但还叠加随机噪声 |
+| **比喻** | 坐高铁：轨道固定，同起点必到同终点 | 坐帆船：大方向对但风在吹，每次航线略不同 |
+| **公式** | dz/dt = v(z, t) | dz = v(z,t)dt + g(t)dW |
+| **同起点跑两次** | **完全相同** | **略有不同** |
+| **代表** | DDIM、**Flow Matching** | DDPM |
+| **蒸馏友好度** | **高** — 路线确定可精确模仿 | 低 — 每次路线不同 |
+
+> 本文后续讨论的蒸馏均基于 **ODE**（Flow Matching）框架。
+
+#### Velocity — 潜空间的"速度"
+
+**Velocity（速度场）** 是 ODE 去噪的核心概念：
+
+```
+dz/dt = v_θ(z_t, t)
+```
+
+- z_t = latent 在时间 t 的状态（**位置**）
+- v_θ = 模型预测的 velocity（**速度** = 位置对时间的导数）
+
+velocity 是 latent 轨迹的**切线方向 + 速率**。latent 差分 z_{t-1} - z_t 混入了 scheduler 步长缩放，和 velocity 差一个数量级——**不能用 latent 差分代替 velocity**。
+
+#### Flow Matching — 学习最短路径
+
+**Flow Matching** 直接训练 velocity field：从噪声到数据学一条最短路径的速率场。相比 "预测噪声 → 减掉" 的传统方式，"预测速度 → 沿速度走" 更直接，也天然适合蒸馏。
+
+| 方法 | 模型预测什么 | 蒸馏方式 |
+|------|:---:|---------|
+| **DDPM (SDE)** | 噪声 epsilon | 困难：每次路径不同 |
+| **DDIM (ODE)** | 噪声 epsilon | 可以，但非直接 |
+| **Flow Matching (ODE)** | **velocity v** | **天然友好：velocity MSE 直接做蒸馏 loss** |
+
+> **这就是为什么蒸馏的 loss 在 velocity 空间构建，诊断也必须在 velocity 空间进行。**
+
+---
 
 ### Denoising Trajectory（去噪轨迹）
 
@@ -111,12 +158,21 @@ z_T（纯噪声）→ z_{T-1} → z_{T-2} → ... → z_0（干净图像）
 | 代际 | 方法 | 监督信号 | 教师在 GPU 上 | 步数压缩 | 代表 |
 |:---:|------|:-------:|:-----------:|:-------:|------|
 | **1st-gen — Online Distillation（在线蒸馏）** | 教师和学生同时训练 | **仅最终输出**（干净 latent / 图像）| ✅ 全程 | 40→15（~2.7×） | Progressive Distillation |
-| **2nd-gen — Offline Trajectory Distillation（离线轨迹蒸馏）** | 教师跑一次存轨迹后下线 | **K 个中间 latent 检查点**（逐步对齐）| 仅预计算阶段 | 40→8（5×） | TwinFlow |
+| **2nd-gen — Offline Trajectory Distillation（离线轨迹蒸馏）** | 教师跑一次存轨迹后下线 | **K 个中间检查点**（逐步对齐）| 仅预计算阶段 | 40→8（5×） | TwinFlow |
 | **3rd-gen — Teacher-free Distillation（无教师蒸馏）** | 不需要独立的教师模型 | 数学插值（无教师输出）| ❌ 完全不需要 | 可变 | IMM、Consistency Models |
 
 > **第一代教师提供什么**：教师跑 N 步去噪 → 产出**最终干净 latent** → 学生被训练成用 N/2 步匹配该终点。没有存储或使用任何中间状态。
 
-**为什么第二代能做到更激进的压缩**：通过在每个中间 latent 检查点提供监督（而不仅仅是最终输出），学生得到更密集的指导 — 必须匹配教师的**路径**，而不只是**终点**。正是这一点使压缩倍数从 2.7× 跃升到 6×。
+**为什么第二代能做到更激进的压缩**：通过在每个中间检查点提供监督（而不仅仅是最终输出），学生得到更密集的指导。
+
+> **⚠️ 关键区分：第二代轨迹蒸馏有两种变体**
+>
+> | 变体 | 监督信号 | Loss Domain | 代表 |
+> |------|---------|------------|------|
+> | **Latent Matching** | 教师在 K 个 timestep 的 latent 状态 z_t | `MSE(z_student, z_teacher)` — 在 **latent（位置）空间** | TwinFlow |
+> | **Velocity Matching** | 教师在每步的 velocity（模型预测的去噪方向）v_t | `MSE(v_student, v_teacher)` — 在 **velocity（速度场）空间** | DiffSynth Trajectory Imitation |
+>
+> 两者的关键差异：Latent Matching 要求学生"到达相同位置"，Velocity Matching 要求学生"预测相同方向"。**后者的 loss 构建在速度场上，诊断也必须在速度场上进行（见下方三层分析框架）。**
 
 ---
 
@@ -176,7 +232,11 @@ for step in range(training_steps):
         z_student = step(z, v, large_dt)     # 大步跳跃：5 个教师步
         z_teacher = traj[t_teacher]          # 教师的 ground truth
 
-        loss += perception_loss(z_student, z_teacher)  # 每步对齐
+        loss += perception_loss(z_student, z_teacher)  # 方案 A: Latent Matching
+        # 方案 B: Velocity Matching（实际生产中更常见）
+        # v_teacher = teacher(z, t_now, condition)  # 教师的 velocity
+        # v_student = model(z, t_now, condition)    # 学生的 velocity
+        # loss += MSE(v_student, v_teacher) + LPIPS(decode(z_student), decode(z_teacher))
         z = z_student
         loss.backward()    # 立即 backward — 避免累积 8 步计算图导致 OOM
         loss = 0
@@ -204,16 +264,29 @@ for step in range(training_steps):
 - **上行（蓝色，教师）**：40 步去噪的完整序列，σ_max → Clean
 - **下行（橙色，学生）**：8 步去噪，每步跨越 5 个教师步
 - **紫色虚线箭头**：教师与学生步骤之间的对齐关系
-- **蒸馏目标**：LoRA 的训练目标是让学生在每个对齐点的 latent 尽可能接近教师在对应位置的 latent（通过 IMM 矩匹配损失实现）
+- **蒸馏目标**：LoRA 的训练目标是让学生在每个对齐点的 latent 或 velocity 尽可能接近教师在对应位置的值
 
-#### IMM 损失：矩匹配
+#### 损失函数：Latent Matching vs Velocity Matching
 
-IMM（Improved Multistep Matching）损失在每个检查点匹配学生 latent 与教师 latent 的*分布*，而不仅仅是点估计：
+轨迹蒸馏的损失函数有两大流派：
 
+**方案 A — Latent Matching（位置对齐）**：
 ```
-IMM loss = 匹配 μ（均值）+ 匹配 σ²（方差）
-         ≈ 使学生轨迹分布 ≈ 教师分布
+L = MSE(z_student_t, z_teacher_t) + LPIPS(decode(z_student), decode(z_teacher))
 ```
+匹配学生和教师在同一 timestep 的 **latent 状态**（位置）。变体包括 IMM（矩匹配，匹配 mu+sigma 分布而非点估计）。
+
+**方案 B — Velocity Matching（速度场对齐）**：
+```
+L = MSE(v_student_t, v_teacher_t) + LPIPS(decode(z_student), decode(z_teacher))
+```
+匹配学生和教师在同一 timestep 的 **velocity**（模型预测的去噪方向）。
+
+**关键区别**：
+- Latent Matching 要求"到达相同位置" — 诊断时在 latent 空间有效
+- Velocity Matching 要求"预测相同方向" — **诊断时必须在 velocity 空间进行**
+
+> **实践中 Velocity Matching 更常见**：flow matching 类模型的 DiT 直接输出 velocity（即 noise_pred），velocity MSE 可以直接用模型输出计算，无需额外保存教师 latent 检查点。
 
 这比纯 MSE 更鲁棒——MSE 可能导致 Mode Averaging（模式平均）伪影。实践中 LPIPS（Perceptual Loss，感知损失）也常被使用。
 
@@ -399,7 +472,37 @@ Step N：
 
 ---
 
-### 轨迹分析：latent 空间中实际发生了什么
+### 蒸馏质量分析：三层框架
+
+> **核心方法论：评价蒸馏用像素空间，诊断蒸馏用 velocity 空间，三层幂等校验确保结论一致。**
+>
+> 诊断蒸馏质量的 domain 必须匹配 loss 函数的 domain。如果 loss 在 velocity 空间构建（方案 B），诊断也必须在 velocity 空间进行。在 latent 空间观察到的"对齐"可能产生误导——终点接近不等于路径正确。
+
+```
+┌──────────────────────────────────────────────────┐
+│  Layer 3: 像素空间（评价层）                       │
+│  SSIM / FID / LPIPS / 目视                        │
+│  回答：蒸馏最终效果好不好？                         │
+├──────────────────────────────────────────────────┤
+│  Layer 2: Velocity 空间（机制理解层）                  │
+│  PCA 轨迹 / L2 norm 分布 / Teacher-Student overlay│
+│  回答：velocity field 的行为特征是什么？          │
+│  ✅ 与 velocity loss domain 匹配                  │
+├──────────────────────────────────────────────────┤
+│  Layer 1: Latent 空间（参考层）                    │
+│  Latent Norm / Cosine / 热力图                    │
+│  回答：终态是否收敛？（必要条件，非充分条件）        │
+│  ⚠️ 能看到"到没到"，看不到"怎么到的"              │
+└──────────────────────────────────────────────────┘
+```
+
+**幂等校验**：三层结论必须一致。但要注意：**Layer 2（velocity）和 Layer 1/3 测量的是不同的东西** — velocity PCA coverage 低并不预示像素空间劣化。Velocity PCA 测量的是“方向多样性”，不是“去噪质量”。质量判定来自 Layer 1（latent 终点）和 Layer 3（像素评价）。
+
+#### Layer 1: Latent 空间分析（终态参考，非诊断充分条件）
+
+> **⚠️ 定位说明**：以下 latent 指标反映**终态收敛**——"学生是否到达了和教师相近的位置"。这是蒸馏质量的**必要条件**，但**不是充分条件**。
+>
+> **类比**：两辆车都到了目的地（终态 Cosine > 0.98），但一辆走高速另一辆上了田埂——终点相同不等于路径正确。
 
 下图展示 GPU 实测的 latent 空间指标——教师（40 步）vs 学生（8 步）：
 
@@ -411,25 +514,65 @@ Step N：
 
 2. **MSE（均方误差）**：教师与学生在每步的 latent 差异。越低 = 对齐越好。
 
-3. **余弦相似度**：每步学生与教师 latent 的方向一致性。**最终余弦相似度 = 0.984** — 方向几乎完全一致。
+3. **余弦相似度**：每步学生与教师 latent 的方向一致性。**最终余弦相似度 > 0.98** — 方向几乎完全一致。
 
 4. **通道统计**：每通道均值和标准差的变化趋势 — 两个模型演变方式相似。
 
-**关键 latent 指标**：
-- 最终 latent MSE：非常低
-- 最终余弦相似度：非常高（>0.98）
+> 这些指标确认终态收敛良好，但不能用于诊断 velocity field 的学习质量。
 
-#### Latent 空间热力图
+#### Layer 2: Velocity 空间诊断（与 loss domain 匹配）
 
-每个去噪步骤的逐通道 latent 张量热力图，展示空间结构的演变过程：
+> **方法论**：当 loss 函数在 velocity 空间构建时（`MSE(v_student, v_teacher)`），诊断也必须在 velocity 空间进行。
+>
+> velocity 的获取方式：monkey-patch `scheduler.step`，拦截其第一个参数 `model_output`（即 CFG rescaling 后的 noise_pred = velocity）。这比 latent 差分（`z_{t-1} - z_t`）精确——latent 差分混入了 scheduler 的 sigma 缩放，与真实 velocity 差一个数量级。
 
-![Latent 热力图](images/latent_heatmaps_40vs8.png)
+**方法**：
+1. Monkey-patch `scheduler.step` 拦截 `noise_pred`（= velocity），每步存一个向量
+2. 对 Teacher velocity 向量做 PCA 降到 2D
+3. 把 Student velocity 向量投影到 Teacher 的 PCA 基上
+4. 绘制 overlay 对比图
 
-每列代表一个关键去噪步骤。上行：教师（40 步）。下行：学生（8 步）。颜色映射显示 latent 张量的逐通道均值 — 两个模型在最终步骤收敛到几乎相同的空间模式。
+**核心发现 — "Missing Turn" 现象**：
 
-#### VAE 解码的中间步骤
+将 Student 投影到 Teacher 的 PCA 基后发现：
+1. **Student 8 步紧贴 Teacher 右侧弧段** — velocity 方向一致，说明蒸馏 LoRA 学到了 velocity field 方向
+2. **Teacher 独有的左侧大弧** — 对应 mid-timestep，Student 8 步完全跳过
+3. **CFG 不影响轨迹形状** — CFG 主要改变 velocity 幅值（被 norm rescaling 抵消），不改变方向
+4. **Teacher L2 norm 范围远大于 Student** — Student 缺少 mid-timestep 低 norm 阶段
 
-VAE 解码可视化参见上方 [去噪轨迹](#去噪轨迹可视化与分析) 小节中的 decoded_steps_40vs8.png 图：教师 40 步 vs 学生 8 步的逐步解码对比。
+**Velocity Overlay — Teacher（蓝）vs Student（红/黄），投影到 Teacher PCA 基：**
+
+![E12d Velocity Overlay](images/E12d_velocity_overlay_comparison.png)
+
+> Student 8 步紧贴 Teacher 右侧弧段（方向一致），但 Teacher 独有的左侧大弧（mid-timestep 转折区域）被完全跳过。
+
+**Joint PCA：Teacher + Student CFG=2 在同一坐标系：**
+
+![Joint PCA CFG=2](images/E12d_velocity_joint_pca_cfg2.png)
+
+**结论 — “Missing Turn” 是正常现象，不是蒸馏失败**：
+
+蒸馏 8 步在 velocity 空间中走了一条更直接的路径 — Teacher 的 mid-timestep 转折区域被跳过，因为 Student 只在 velocity field 中采样了 8 个点（vs Teacher 的 40 个）。这是**步数减少的数学必然**，不是蒸馏质量问题。
+
+**关键证据**（控制变量实验，2026-03-18）：
+- Base model（无 LoRA），8 步 → velocity PCA coverage = **61.1%**（纯步数效应）
+- LoRA 蒸馏模型，8 步 → velocity PCA coverage = **31.5%**（步数效应 + LoRA 轨迹集中）
+- 两个模型 → Latent PCA coverage = **98.6%**（终点精度优秀）
+
+Velocity PCA 测量的是“方向多样性”，**不是**去噪完成度。Latent PCA 测量的是“终点精度” — 98.6% 证明 Student 到达了正确的最终位置。
+
+> ⚠️ **常见误解**：“60%+ 的 velocity 空间未被覆盖”听起来很严重，但这混淆了“路径多样性”和“质量”。
+
+**探索方向**（研究方向，不是必须的修复）：
+- 多 NFE 蒸馏（4+8+16 步联合训练）→ 增加 velocity 方向多样性
+- t 接近 0 时加密采样 → 末端 timestep 是图像细节的关键区域
+- 自适应 timestep schedule → 在 velocity 变化剧烈的区域分配更多步数
+
+#### Layer 3: 像素空间评价（蒸馏的终极标准）
+
+像素空间评价是蒸馏效果的最终裁判——不管 loss 在什么域构建，最终目的都是生成高质量图像。
+
+**跨层验证**：Velocity PCA 显示 Student 走了一条更直接的路径。Latent PCA 确认终点正确（98.6%）。SSIM < 1.0 反映的是步数减少的影响，而非 velocity coverage 不足。
 
 ---
 
@@ -624,6 +767,26 @@ with set_lora_enabled(model, False):   # 教师轨迹收集
 with set_lora_enabled(model, True):    # 学生训练步骤
     loss = train_student_step(...)
 ```
+
+---
+
+### 5. Scheduler Shift 对轨迹覆盖率的影响
+
+`FlowMatchEulerDiscreteScheduler` 的 `base_shift` 参数控制 timestep→sigma 映射的非线性程度。shift 越大，timestep 越被压向后段（精修阶段），前段（大结构形成阶段）被跳过越多。
+
+**实测（控制变量消融，H100）**：
+
+| base_shift | 8步覆盖率 | 16步覆盖率 |
+|:---------:|:---------:|:---------:|
+| **1.0986** (=log(3)) | **~30%** | ~80% |
+| **0.5** | **~100%** | ~100% |
+
+同一模型 + 同一 LoRA + 同一输入图片，只换 scheduler 配置 → 覆盖率从 30% 变到 100%。
+
+**工程建议**：
+- 蒸馏的训练和推理**必须使用相同的 scheduler 配置**
+- 诊断蒸馏质量时，先检查 scheduler 的 shift 参数 — 其影响比 loss 函数选择、padding 方式大一个数量级
+- 如果 shift 值较大（>1.0），增加推理步数（8→16）可以部分补偿覆盖不足
 
 ---
 
