@@ -20,8 +20,8 @@
 
 ```mermaid
 flowchart LR
-    E2E["E2E"] --> TTFT["TTFT<br/>(incl. prefill)"]
-    E2E --> GenTime["GenTime<br/>(decode)<br/>= tokens / TPS"]
+    E2E["E2E"] --> TTFT["TTFT<br/>= network + queue<br/>+ prefill + 1st decode"]
+    E2E --> GenTime["GenTime<br/>= remaining decodes<br/>= (tokens-1) / TPS"]
     
     subgraph S20["20 tokens"]
         T20["TTFT=1295ms<br/>(92%)"]
@@ -97,19 +97,19 @@ Priority Processing is a pay-as-you-go option that provides **guaranteed token g
 
 ```mermaid
 flowchart LR
-    E2E["E2E Latency"] --> TTFT["TTFT<br/>(incl. prefill)<br/>~6% faster, σ halved"]
-    E2E --> GenTime["GenTime (decode)<br/>+31~44% faster<br/>(main benefit)"]
+    E2E["E2E Latency"] --> TTFT["TTFT<br/>(prefill + 1st decode)<br/>~6% faster, σ halved"]
+    E2E --> GenTime["GenTime<br/>(remaining decodes)<br/>+31~44% faster<br/>(main benefit)"]
     
     style TTFT fill:#fff3cd,stroke:#ffc107
     style GenTime fill:#d4edda,stroke:#28a745
 ```
 
-Priority's primary benefit is **faster token generation (decode phase)**, not faster first-token (prefill phase). The E2E improvement scales with output length because GenTime's share of E2E increases.
+Priority's primary benefit is **faster decode**. TTFT = network + scheduling + prefill + 1st token decode; GenTime = remaining token decodes. Priority accelerates all decode steps, but since TTFT is dominated by prefill (not decode), the TTFT improvement is modest. The E2E improvement scales with output length because GenTime's share of E2E increases.
 
 | Component | Standard | Priority | Impact |
 |---|:---:|:---:|:---:|
-| TTFT (incl. prefill) | 1296 ms | 1221 ms | -6%, σ halved |
-| GenTime (decode) | Varies | **+31~44% faster** | Main benefit |
+| TTFT (prefill + 1st decode) | 1296 ms | 1221 ms | -6%, σ halved |
+| GenTime (remaining decodes) | Varies | **+31~44% faster** | Main benefit |
 | E2E (total) | Varies | -14~29% | Scales with output length |
 
 ### Validation against Microsoft's SLA
