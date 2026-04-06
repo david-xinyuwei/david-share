@@ -44,7 +44,7 @@ Tested across 5 candidate models using the **customer's actual architecture** (R
 
 ### the assistant Product
 
-the assistant is the team's **system-level, cross-device AI assistant** (a major tech event), embedded across ThinkPad PCs, tablets, and mobile phones. It unifies Moto AI, the team AI Now, and Creator Zone into one experience.
+the assistant is the team's **system-level, cross-device AI assistant** (CES 2026), embedded across ThinkPad PCs, tablets, and mobile phones. It unifies Moto AI, the team AI Now, and Creator Zone into one experience.
 
 **6 Core Features**: Next Move (intent classification), Chat Mode (Q&A), Write For Me (content generation), Live Mode (real-time conversation), Catch Me Up (activity summary), Pay Attention (meeting transcription). Plus **Bing Grounding** for web search.
 
@@ -726,24 +726,34 @@ Results:
 
 ### 8.2 Benchmark Results (gpt-5.4, swedencentral)
 
-Tested with `reasoning_effort=none`, streaming, interleaved Standard/Priority execution.
+Tested with `reasoning_effort=none`, streaming, interleaved Standard/Priority execution. Results below are **IQR-denoised meta-analysis** across 3 independent test runs (216 total records, 108 per tier).
 
-#### TPS and E2E by Output Length (6 scenarios, 8 iter each, N=96)
+#### TPS and E2E by Output Length (IQR denoised, 216 records merged)
 
-| Output Tokens | Std TPS | Pri TPS | **ΔTPS** | Std E2E | Pri E2E | **ΔE2E** |
-|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| 20 | 51.0 | 49.5 | -3% ❌ | 1.4s | 1.4s | -3% |
-| 50 | 38.9 | 51.2 | **+32%** | 2.6s | 2.3s | -12% |
-| 100 | 44.7 | 60.1 | **+35%** | 3.5s | 2.9s | -17% |
-| 200 | 44.8 | 60.8 | **+36%** | 5.8s | 4.5s | -23% |
-| 500 | 49.1 | 63.5 | **+29%** | 11.5s | 9.1s | -21% |
-| 1000 | 43.8 | 66.3 | **+51%** | 24.0s | 16.4s | **-32%** |
+| Output Tokens | N (clean) | Std TPS P50\u00b1\u03c3 | Pri TPS P50\u00b1\u03c3 | **\u0394TPS** | Std E2E P50 | Pri E2E P50 | **\u0394E2E** |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| \u226430 | 14 | 51.3\u00b12.2 | 50.2\u00b12.0 | -2% \u274c | 1.4s | 1.3s | -7% |
+| 50 | 40 | 39.4\u00b18.4 | 52.4\u00b113.0 | **+33%** | 2.6s | 2.3s | -14% |
+| 100 | 28 | 45.2\u00b15.3 | 65.2\u00b18.2 | **+44%** | 3.6s | 2.9s | -20% |
+| 200 | 45 | 45.8\u00b15.5 | 60.1\u00b13.8 | **+31%** | 5.8s | 4.5s | -21% |
+| 500 | 55 | 44.9\u00b16.8 | 63.3\u00b13.7 | **+41%** | 12.0s | 8.9s | -26% |
+| 1000 | 25 | 43.9\u00b11.7 | 62.4\u00b16.2 | **+42%** | 24.3s | 17.2s | **-29%** |
 
-> **Crossover point**: Priority has no benefit at 20 tokens. Benefit starts at ~50 tokens (+32% TPS) and scales with output length. At 1000 tokens: TPS +51%, E2E -32% (saves 7.6 seconds).
+> **Crossover point**: Priority has no benefit at \u226430 tokens (-2%). Benefit starts at ~50 tokens (+33% TPS) and stabilizes at **+31\u201344%** for 100\u20131000 tokens. Priority TPS \u03c3 is consistently smaller (more stable).
+
+#### TTFT Summary (IQR denoised, N=99 per tier)
+
+| Tier | TTFT P50 | TTFT P95 | Mean\u00b1\u03c3 |
+|---|:---:|:---:|:---:|
+| Standard | 1296 ms | 1449 ms | 1300\u00b181 ms |
+| **Priority** | **1221 ms** | **1281 ms** | **1224\u00b134 ms** |
+| **\u0394** | **-75 ms (-5.8%)** | **-168 ms** | **\u03c3 halved** |
+
+> Priority improves TTFT by ~6% and **halves TTFT variance** (\u03c3: 81\u219234 ms). This contradicts the earlier single-run finding that "TTFT is unchanged" \u2014 with 99 samples per tier, the improvement is statistically significant.
 
 ![Priority Processing Benchmark](images/priority_processing_benchmark.png)
 
-#### Concurrent Load Test (10 threads × 25 requests, output=200)
+#### Concurrent Load Test (10 threads \u00d7 25 requests, output=200)
 
 | Metric | Standard | Priority | Delta |
 |---|:---:|:---:|:---:|

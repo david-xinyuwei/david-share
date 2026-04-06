@@ -44,7 +44,7 @@
 
 ### the assistant 产品
 
-the assistant 是团队的**系统级跨设备 AI 助手**（a major tech event），嵌入 ThinkPad PC、平板和 mobile 手机，将 Moto AI、the team AI Now、Creator Zone 统一为一个体验。
+the assistant 是团队的**系统级跨设备 AI 助手**（CES 2026），嵌入 ThinkPad PC、平板和 mobile 手机，将 Moto AI、the team AI Now、Creator Zone 统一为一个体验。
 
 **6 大功能**：Next Move（意图分类）、Chat Mode（问答）、Write For Me（内容生成）、Live Mode（实时对话）、Catch Me Up（活动摘要）、Pay Attention（会议记录）。另加 **Bing Grounding** 用于网络搜索。
 
@@ -679,20 +679,30 @@ KQL: AzureDiagnostics | where Category == 'RequestResponse'
 
 ### 8.2 Benchmark 结果（gpt-5.4，swedencentral）
 
-使用 `reasoning_effort=none`，流式模式，Standard/Priority 交替执行。
+使用 `reasoning_effort=none`，流式模式，Standard/Priority 交替执行。以下结果为 **IQR 去噪后的多轮合并分析**（216 条记录，每 tier 108 条）。
 
-#### TPS 和 E2E 按输出长度（6 场景，每场景 8 次，N=96）
+#### TPS 和 E2E 按输出长度（IQR 去噪，216 条合并）
 
-| 输出 Tokens | Std TPS | Pri TPS | **ΔTPS** | Std E2E | Pri E2E | **ΔE2E** |
-|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| 20 | 51.0 | 49.5 | -3% ❌ | 1.4s | 1.4s | -3% |
-| 50 | 38.9 | 51.2 | **+32%** | 2.6s | 2.3s | -12% |
-| 100 | 44.7 | 60.1 | **+35%** | 3.5s | 2.9s | -17% |
-| 200 | 44.8 | 60.8 | **+36%** | 5.8s | 4.5s | -23% |
-| 500 | 49.1 | 63.5 | **+29%** | 11.5s | 9.1s | -21% |
-| 1000 | 43.8 | 66.3 | **+51%** | 24.0s | 16.4s | **-32%** |
+| 输出 Tokens | N (清洁) | Std TPS P50±σ | Pri TPS P50±σ | **ΔTPS** | Std E2E P50 | Pri E2E P50 | **ΔE2E** |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| ≤30 | 14 | 51.3±2.2 | 50.2±2.0 | -2% ❌ | 1.4s | 1.3s | -7% |
+| 50 | 40 | 39.4±8.4 | 52.4±13.0 | **+33%** | 2.6s | 2.3s | -14% |
+| 100 | 28 | 45.2±5.3 | 65.2±8.2 | **+44%** | 3.6s | 2.9s | -20% |
+| 200 | 45 | 45.8±5.5 | 60.1±3.8 | **+31%** | 5.8s | 4.5s | -21% |
+| 500 | 55 | 44.9±6.8 | 63.3±3.7 | **+41%** | 12.0s | 8.9s | -26% |
+| 1000 | 25 | 43.9±1.7 | 62.4±6.2 | **+42%** | 24.3s | 17.2s | **-29%** |
 
-> **拐点**：20 tokens 无收益。50 tokens 起有 +32% TPS 提升，随输出长度增长。1000 tokens 时：TPS +51%，E2E -32%（节省 7.6 秒）。
+> **拐点**：≤30 tokens 无收益（-2%）。50 tokens 起有 +33% TPS 提升，100-1000 tokens 稳定在 **+31~44%**。Priority 的 TPS σ 更小（更稳定）。
+
+#### TTFT 汇总（IQR 去噪，N=99/tier）
+
+| Tier | TTFT P50 | TTFT P95 | Mean±σ |
+|------|:---:|:---:|:---:|
+| Standard | 1296 ms | 1449 ms | 1300±81 ms |
+| **Priority** | **1221 ms** | **1281 ms** | **1224±34 ms** |
+| **差值** | **-75 ms (-5.8%)** | **-168 ms** | **σ 减半** |
+
+> Priority 改善 TTFT 约 6% 并**将 TTFT 方差减半**（σ: 81→34 ms）。基于 99 样本/tier，改善具有统计显著性。
 
 ![Priority Processing Benchmark](images/priority_processing_benchmark.png)
 
@@ -706,7 +716,7 @@ KQL: AzureDiagnostics | where Category == 'RequestResponse'
 | TPS P50 | 54.6 | 68.9 | +26% |
 | 吞吐量 | 1.6 req/s | 1.9 req/s | +19% |
 
-> **高负载下的关键发现**：Priority 最大优势是**尾延迟控制** — 10 并发时 TTFT P95 降低 52%。Standard 有排队尖峰，Priority 保持一致延迟。
+> **高负载下的关键发现**：Priority 最大优势是**尾延迟控制** — 10 并发时 TTFT P95 降低 52%。
 
 #### 为什么 TPS 提升 > E2E 提升？
 
