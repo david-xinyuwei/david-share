@@ -6,26 +6,49 @@
 
 [Priority Processing](https://learn.microsoft.com/en-us/azure/foundry/openai/concepts/priority-processing) is a new Azure OpenAI feature (preview) that provides **guaranteed token generation speed** on GlobalStandard/DataZoneStandard deployments at 1.75x standard pricing.
 
-**Key findings** (IQR-denoised, 216 records across 3 independent test runs):
+### Per-metric benefit conditions (216 records, IQR denoised)
 
-| Output Tokens | N | Std TPS P50±σ | Pri TPS P50±σ | **ΔTPS** | Std E2E | Pri E2E | **ΔE2E** |
+| Metric | Condition for benefit | Magnitude | Why |
+|---|---|:---:|---|
+| **TTFT** | ✅ Always (any input/output length) | **-6%, σ halved** (81→34 ms) | Priority gets faster scheduling regardless of request size |
+| **TPS (tokens/s)** | ✅ Output ≥50 tokens | **+31–44%** (short input), **+49–67%** (long input) | Decode phase accelerated; longer input amplifies benefit |
+| **E2E latency** | ✅ Output ≥50 tokens | **-14–29%** (short input), **-25–37%** (long input) | E2E = TTFT + GenTime; GenTime share grows with output length |
+| **TTFT under load** | ✅ Concurrent requests | **P95 -52%** | Priority avoids queue spikes that Standard suffers |
+| **❌ No benefit** | Output ≤30 tokens | TPS ±2%, E2E -4.5% | GenTime is only ~97ms (≤7% of E2E); even 30% speedup saves only ~29ms, drowned by TTFT noise |
+
+### Why short output shows no measurable TPS benefit
+
+```
+E2E = TTFT + GenTime
+       │       │
+       │    tokens / TPS
+       │
+  20 tokens:  TTFT=1295ms (92%) + GenTime=97ms (7%)  → Priority saves ~29ms → noise
+ 1000 tokens: TTFT=1237ms (5%)  + GenTime=22558ms (95%) → Priority saves ~7500ms → massive
+```
+
+> Priority accelerates **decode (GenTime) only**. When output is ≤30 tokens, GenTime is <100ms — even a 30% speedup saves only ~29ms, which is smaller than TTFT measurement noise (σ=81ms). The benefit exists but is **unmeasurable at this scale**.
+
+### Two-dimensional results: Output length × Input length
+
+| Input | Output | Std TPS | Pri TPS | **ΔTPS** | Std E2E | Pri E2E | **ΔE2E** |
 |:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| ≤30 | 14 | 51.3±2.2 | 50.2±2.0 | -2% ❌ | 1.4s | 1.3s | -7% |
-| 50 | 40 | 39.4±8.4 | 52.4±13.0 | **+33%** | 2.6s | 2.3s | -14% |
-| 100 | 28 | 45.2±5.3 | 65.2±8.2 | **+44%** | 3.6s | 2.9s | -20% |
-| 200 | 45 | 45.8±5.5 | 60.1±3.8 | **+31%** | 5.8s | 4.5s | -21% |
-| 500 | 55 | 44.9±6.8 | 63.3±3.7 | **+41%** | 12.0s | 8.9s | -26% |
-| 1000 | 25 | 43.9±1.7 | 62.4±6.2 | **+42%** | 24.3s | 17.2s | **-29%** |
+| short | 50 | 34.9 | 48.4 | **+39%** | 2.6s | 2.2s | -18% |
+| short | 200 | 42.7 | 58.4 | **+37%** | 5.8s | 4.6s | -21% |
+| short | 500 | 45.1 | 60.9 | **+35%** | 11.9s | 9.4s | -21% |
+| short | 1000 | 43.1 | 59.7 | **+39%** | 24.5s | 17.9s | -27% |
+| **long** | **200** | 40.1 | 59.8 | **+49%** | 6.1s | 4.6s | **-25%** |
+| **long** | **500** | 38.2 | 63.6 | **+67%** | 14.4s | 9.1s | **-37%** |
 
-**TTFT** (N=99 per tier, IQR denoised):
+> **Longer input → bigger Priority benefit**: at output=500, short input ΔTPS=+35% vs long input ΔTPS=**+67%** (+32pp). Standard’s TPS degrades under long-context prefill pressure; Priority maintains its TPS guarantee regardless of input length.
+
+### TTFT (N=99 per tier, IQR denoised)
 
 | Tier | TTFT P50 | TTFT P95 | Mean±σ |
 |---|:---:|:---:|:---:|
 | Standard | 1296 ms | 1449 ms | 1300±81 ms |
 | **Priority** | **1221 ms** | **1281 ms** | **1224±34 ms** |
 | **Δ** | **-75 ms (-5.8%)** | **-168 ms** | **σ halved** |
-
-> Priority Processing improves TPS by **+31~44%** for outputs ≥50 tokens, reduces E2E by **14~29%**, and **halves TTFT variance** (σ: 81→34 ms). No benefit for ≤30 token outputs.
 
 ![Priority Processing Benchmark](images/priority_processing_benchmark.png)
 

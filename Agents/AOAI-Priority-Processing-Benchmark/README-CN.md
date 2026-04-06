@@ -6,26 +6,49 @@
 
 [Priority Processing](https://learn.microsoft.com/en-us/azure/foundry/openai/concepts/priority-processing) 是 Azure OpenAI 的新功能（Preview），在 GlobalStandard/DataZoneStandard 部署上以 1.75 倍定价提供**有保证的 Token 生成速度**。
 
-**核心发现**（IQR 去噪，216 条记录，3 次独立测试）：
+### 各指标收益条件（216 条记录，IQR 去噪）
 
-| 输出 Token 数 | N | Std TPS P50±σ | Pri TPS P50±σ | **ΔTPS** | Std E2E | Pri E2E | **ΔE2E** |
+| 指标 | 收益条件 | 幅度 | 原因 |
+|---|---|:---:|---|
+| **TTFT** | ✅ 始终有效（任意输入/输出长度） | **-6%，σ 减半**（81→34 ms） | Priority 获得更快的调度，与请求大小无关 |
+| **TPS (tokens/s)** | ✅ 输出 ≥50 tokens | **+31–44%**（短输入），**+49–67%**（长输入） | Decode 阶段加速；输入越长收益越大 |
+| **E2E 延迟** | ✅ 输出 ≥50 tokens | **-14–29%**（短输入），**-25–37%**（长输入） | E2E = TTFT + GenTime；GenTime 占比随输出增大 |
+| **并发下 TTFT** | ✅ 并发请求 | **P95 -52%** | Priority 避免了 Standard 的队列尖峰 |
+| **❌ 无收益** | 输出 ≤30 tokens | TPS ±2%，E2E -4.5% | GenTime 仅 ~97ms（占 E2E <7%）；加速 30% 也只省 ~29ms，被 TTFT 噪声淹没 |
+
+### 为什么短输出无可测量的 TPS 收益
+
+```
+E2E = TTFT + GenTime
+       │       │
+       │    tokens / TPS
+       │
+  20 tokens:  TTFT=1295ms (92%) + GenTime=97ms (7%)  → Priority 省 ~29ms → 噪声淹没
+ 1000 tokens: TTFT=1237ms (5%)  + GenTime=22558ms (95%) → Priority 省 ~7500ms → 效果显著
+```
+
+> Priority 只加速 **Decode（GenTime）**。当输出 ≤30 tokens 时，GenTime 仅 <100ms——即使加速 30% 也只省 ~29ms，小于 TTFT 测量噪声（σ=81ms）。收益存在但**在该尺度下无法测量**。
+
+### 二维结果：输出长度 × 输入长度
+
+| 输入 | 输出 | Std TPS | Pri TPS | **ΔTPS** | Std E2E | Pri E2E | **ΔE2E** |
 |:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| ≤30 | 14 | 51.3±2.2 | 50.2±2.0 | -2% ❌ | 1.4s | 1.3s | -7% |
-| 50 | 40 | 39.4±8.4 | 52.4±13.0 | **+33%** | 2.6s | 2.3s | -14% |
-| 100 | 28 | 45.2±5.3 | 65.2±8.2 | **+44%** | 3.6s | 2.9s | -20% |
-| 200 | 45 | 45.8±5.5 | 60.1±3.8 | **+31%** | 5.8s | 4.5s | -21% |
-| 500 | 55 | 44.9±6.8 | 63.3±3.7 | **+41%** | 12.0s | 8.9s | -26% |
-| 1000 | 25 | 43.9±1.7 | 62.4±6.2 | **+42%** | 24.3s | 17.2s | **-29%** |
+| 短 | 50 | 34.9 | 48.4 | **+39%** | 2.6s | 2.2s | -18% |
+| 短 | 200 | 42.7 | 58.4 | **+37%** | 5.8s | 4.6s | -21% |
+| 短 | 500 | 45.1 | 60.9 | **+35%** | 11.9s | 9.4s | -21% |
+| 短 | 1000 | 43.1 | 59.7 | **+39%** | 24.5s | 17.9s | -27% |
+| **长** | **200** | 40.1 | 59.8 | **+49%** | 6.1s | 4.6s | **-25%** |
+| **长** | **500** | 38.2 | 63.6 | **+67%** | 14.4s | 9.1s | **-37%** |
 
-**TTFT**（每 Tier N=99，IQR 去噪）：
+> **输入越长 → Priority 收益越大**：输出=500 时，短输入 ΔTPS=+35% vs 长输入 ΔTPS=**+67%**（+32pp）。Standard 的 TPS 在长上下文 Prefill 压力下下降；Priority 保持 TPS 保证不受输入长度影响。
+
+### TTFT（每 Tier N=99，IQR 去噪）
 
 | Tier | TTFT P50 | TTFT P95 | Mean±σ |
 |---|:---:|:---:|:---:|
 | Standard | 1296 ms | 1449 ms | 1300±81 ms |
 | **Priority** | **1221 ms** | **1281 ms** | **1224±34 ms** |
 | **差值** | **-75 ms (-5.8%)** | **-168 ms** | **σ 减半** |
-
-> Priority Processing 在输出 ≥50 Token 时 TPS 提升 **+31~44%**，E2E 降低 **14~29%**，TTFT 方差**减半**（σ: 81→34 ms）。≤30 Token 的短输出无收益。
 
 ![Priority Processing Benchmark](images/priority_processing_benchmark.png)
 
