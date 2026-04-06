@@ -712,106 +712,11 @@ Results:
 
 ## 8. Priority Processing: Standard vs Priority PAYGO (Preview)
 
-### 8.1 Overview
+For a comprehensive benchmark study of Priority Processing (Standard vs Priority PAYGO), including multi-dimensional performance analysis, concurrent load testing, and cost-benefit guidance, see the standalone repo:
 
-[Priority Processing](https://learn.microsoft.com/en-us/azure/foundry/openai/concepts/priority-processing) is a new Azure OpenAI feature (preview) that provides **guaranteed token generation speed (TPS)** on GlobalStandard/DataZoneStandard deployments, with pay-as-you-go pricing at 1.75x standard rates.
+👉 **[AOAI-Priority-Processing-Benchmark](../AOAI-Priority-Processing-Benchmark/)**
 
-| Aspect | Standard PAYGO | **Priority PAYGO** | PTU |
-|--------|:---:|:---:|:---:|
-| TPS guarantee | Best-effort | **99% > 50 TPS** (gpt-5.4) | Guaranteed |
-| Pricing | Base | **1.75x Base** | Fixed monthly |
-| Commitment | None | **None** | Monthly/Annual |
-| TTFT improvement | — | **No** (prefill unchanged) | Yes |
-| Long context (>128K) | Normal | Downgraded to Standard | Normal |
-
-### 8.2 Benchmark Results (gpt-5.4, swedencentral)
-
-Tested with `reasoning_effort=none`, streaming, interleaved Standard/Priority execution. Results below are **IQR-denoised meta-analysis** across 3 independent test runs (216 total records, 108 per tier).
-
-#### TPS and E2E by Output Length (IQR denoised, 216 records merged)
-
-| Output Tokens | N (clean) | Std TPS P50\u00b1\u03c3 | Pri TPS P50\u00b1\u03c3 | **\u0394TPS** | Std E2E P50 | Pri E2E P50 | **\u0394E2E** |
-|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| \u226430 | 14 | 51.3\u00b12.2 | 50.2\u00b12.0 | -2% \u274c | 1.4s | 1.3s | -7% |
-| 50 | 40 | 39.4\u00b18.4 | 52.4\u00b113.0 | **+33%** | 2.6s | 2.3s | -14% |
-| 100 | 28 | 45.2\u00b15.3 | 65.2\u00b18.2 | **+44%** | 3.6s | 2.9s | -20% |
-| 200 | 45 | 45.8\u00b15.5 | 60.1\u00b13.8 | **+31%** | 5.8s | 4.5s | -21% |
-| 500 | 55 | 44.9\u00b16.8 | 63.3\u00b13.7 | **+41%** | 12.0s | 8.9s | -26% |
-| 1000 | 25 | 43.9\u00b11.7 | 62.4\u00b16.2 | **+42%** | 24.3s | 17.2s | **-29%** |
-
-> **Crossover point**: Priority has no benefit at \u226430 tokens (-2%). Benefit starts at ~50 tokens (+33% TPS) and stabilizes at **+31\u201344%** for 100\u20131000 tokens. Priority TPS \u03c3 is consistently smaller (more stable).
-
-#### TTFT Summary (IQR denoised, N=99 per tier)
-
-| Tier | TTFT P50 | TTFT P95 | Mean\u00b1\u03c3 |
-|---|:---:|:---:|:---:|
-| Standard | 1296 ms | 1449 ms | 1300\u00b181 ms |
-| **Priority** | **1221 ms** | **1281 ms** | **1224\u00b134 ms** |
-| **\u0394** | **-75 ms (-5.8%)** | **-168 ms** | **\u03c3 halved** |
-
-> Priority improves TTFT by ~6% and **halves TTFT variance** (\u03c3: 81\u219234 ms). This contradicts the earlier single-run finding that "TTFT is unchanged" \u2014 with 99 samples per tier, the improvement is statistically significant.
-
-![Priority Processing Benchmark](images/priority_processing_benchmark.png)
-
-#### Concurrent Load Test (10 threads \u00d7 25 requests, output=200)
-
-| Metric | Standard | Priority | Delta |
-|---|:---:|:---:|:---:|
-| TTFT P50 | 1452 ms | 1249 ms | -14% |
-| **TTFT P95** | 3296 ms | **1590 ms** | **-52%** |
-| E2E P50 | 5365 ms | 4227 ms | -21% |
-| TPS P50 | 54.6 | 68.9 | +26% |
-| Throughput | 1.6 req/s | 1.9 req/s | +19% |
-
-> **Key finding under load**: Priority's biggest advantage is **tail latency control** — TTFT P95 drops 52% under 10-concurrent pressure. Standard suffers from queuing spikes; Priority maintains consistent latency.
-
-#### Why TPS improvement > E2E improvement?
-
-E2E = TTFT + GenTime. Priority only accelerates GenTime (decode phase), not TTFT (prefill phase):
-
-| Component | Standard | Priority | Delta |
-|---|:---:|:---:|:---:|
-| TTFT (prefill) | 1245 ms | 1225 ms | -20 ms (unchanged) |
-| GenTime (decode) | 3849 ms | **2743 ms** | **-29%** |
-| Effective TPS | 42.4 | **65.6** | **+55%** |
-
-### 8.3 When to Use Priority Processing
-
-| Scenario | Output Length | Priority ROI | Recommendation |
-|---|:---:|:---:|---|
-| Content generation (email, reports, code) | 500-2000 tok | ✅✅✅ | **Strong** — TPS +30-51%, E2E saves 2-8s |
-| Streaming chat (user watches output) | 100-500 tok | ✅✅ | **Good** — faster perceived speed |
-| RAG answer generation | 100-300 tok | ✅ | **Marginal** — E2E saves ~500ms |
-| Intent classification / routing | <20 tok | ❌ | **Not recommended** — zero benefit, 75% price premium |
-| High-concurrency bursts | Any >50 tok | ✅✅ | **Good** — tail latency (P95) dramatically reduced |
-
-### 8.4 Hybrid Architecture: PTU + Priority + Standard
-
-```
-Traffic Router (APIM)
-       │
-  ┌────┴────┬──────────┐
-  ▼         ▼          ▼
-PTU      Priority    Standard
-(base)   (overflow)  (background)
-──────   ─────────   ──────────
-Steady   Peak/burst  Batch/async
-Lowest   TPS SLA     Lowest cost
-latency  No commit   
-```
-
-| Traffic Type | Route To | Reason |
-|---|---|---|
-| Steady baseline (predictable) | PTU | Lowest latency + fixed cost |
-| Peak overflow (bursty) | **Priority PAYGO** | TPS guaranteed + no commitment |
-| Background/batch tasks | Standard PAYGO | Lowest cost |
-
-### 8.5 Limitations
-
-- **Region availability**: Only 3 regions support gpt-5.4 Priority (polandcentral, southcentralus, swedencentral). Other models (gpt-5.2/5.1/4.1) available in 20+ regions.
-- **Ramp rate limit**: >50% TPM increase in <15 minutes may trigger downgrade to Standard tier.
-- **Long context**: Prompts >128K tokens are automatically downgraded.
-- **`service_tier` response field**: Not returned in `2025-04-01-preview` API version. May require `2025-12-01` or later, or deployment-level configuration via Foundry Portal.
+Key findings (216 records, IQR denoised): **TPS +31~44%** for outputs ≥50 tokens, **E2E -14~29%**, **TTFT σ halved**. No benefit for ≤30 token outputs.
 
 ---
 

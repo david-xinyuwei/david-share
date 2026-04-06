@@ -665,100 +665,11 @@ KQL: AzureDiagnostics | where Category == 'RequestResponse'
 
 ## 8. Priority Processing：Standard vs Priority PAYGO（Preview）
 
-### 8.1 概述
+Priority Processing 的完整多维度基准测试（性能分析、并发负载测试、成本收益指南）请参见独立 Repo：
 
-[Priority Processing](https://learn.microsoft.com/en-us/azure/foundry/openai/concepts/priority-processing) 是 Azure OpenAI 新功能（预览），在 GlobalStandard/DataZoneStandard 部署上提供**有保证的 token 生成速率（TPS）**，按量定价为标准价的 1.75 倍。
+👉 **[AOAI-Priority-Processing-Benchmark](../AOAI-Priority-Processing-Benchmark/)**
 
-| 维度 | Standard PAYGO | **Priority PAYGO** | PTU |
-|------|:---:|:---:|:---:|
-| TPS 保证 | Best-effort | **99% > 50 TPS**（gpt-5.4） | 保证 |
-| 定价 | 基准价 | **1.75 倍基准价** | 固定月费 |
-| 承诺 | 无 | **无** | 月度/年度 |
-| TTFT 改善 | — | **无**（prefill 不变） | 有 |
-| 长 context（>128K） | 正常 | 降级到 Standard | 正常 |
-
-### 8.2 Benchmark 结果（gpt-5.4，swedencentral）
-
-使用 `reasoning_effort=none`，流式模式，Standard/Priority 交替执行。以下结果为 **IQR 去噪后的多轮合并分析**（216 条记录，每 tier 108 条）。
-
-#### TPS 和 E2E 按输出长度（IQR 去噪，216 条合并）
-
-| 输出 Tokens | N (清洁) | Std TPS P50±σ | Pri TPS P50±σ | **ΔTPS** | Std E2E P50 | Pri E2E P50 | **ΔE2E** |
-|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| ≤30 | 14 | 51.3±2.2 | 50.2±2.0 | -2% ❌ | 1.4s | 1.3s | -7% |
-| 50 | 40 | 39.4±8.4 | 52.4±13.0 | **+33%** | 2.6s | 2.3s | -14% |
-| 100 | 28 | 45.2±5.3 | 65.2±8.2 | **+44%** | 3.6s | 2.9s | -20% |
-| 200 | 45 | 45.8±5.5 | 60.1±3.8 | **+31%** | 5.8s | 4.5s | -21% |
-| 500 | 55 | 44.9±6.8 | 63.3±3.7 | **+41%** | 12.0s | 8.9s | -26% |
-| 1000 | 25 | 43.9±1.7 | 62.4±6.2 | **+42%** | 24.3s | 17.2s | **-29%** |
-
-> **拐点**：≤30 tokens 无收益（-2%）。50 tokens 起有 +33% TPS 提升，100-1000 tokens 稳定在 **+31~44%**。Priority 的 TPS σ 更小（更稳定）。
-
-#### TTFT 汇总（IQR 去噪，N=99/tier）
-
-| Tier | TTFT P50 | TTFT P95 | Mean±σ |
-|------|:---:|:---:|:---:|
-| Standard | 1296 ms | 1449 ms | 1300±81 ms |
-| **Priority** | **1221 ms** | **1281 ms** | **1224±34 ms** |
-| **差值** | **-75 ms (-5.8%)** | **-168 ms** | **σ 减半** |
-
-> Priority 改善 TTFT 约 6% 并**将 TTFT 方差减半**（σ: 81→34 ms）。基于 99 样本/tier，改善具有统计显著性。
-
-![Priority Processing Benchmark](images/priority_processing_benchmark.png)
-
-#### 并发负载测试（10 线程 × 25 请求，output=200）
-
-| 指标 | Standard | Priority | 差值 |
-|------|:---:|:---:|:---:|
-| TTFT P50 | 1452 ms | 1249 ms | -14% |
-| **TTFT P95** | 3296 ms | **1590 ms** | **-52%** |
-| E2E P50 | 5365 ms | 4227 ms | -21% |
-| TPS P50 | 54.6 | 68.9 | +26% |
-| 吞吐量 | 1.6 req/s | 1.9 req/s | +19% |
-
-> **高负载下的关键发现**：Priority 最大优势是**尾延迟控制** — 10 并发时 TTFT P95 降低 52%。
-
-#### 为什么 TPS 提升 > E2E 提升？
-
-E2E = TTFT + GenTime。Priority 只加速 GenTime（decode 阶段），不改变 TTFT（prefill 阶段）：
-
-| 组成 | Standard | Priority | 差值 |
-|------|:---:|:---:|:---:|
-| TTFT（prefill） | 1245 ms | 1225 ms | -20 ms（不变） |
-| GenTime（decode） | 3849 ms | **2743 ms** | **-29%** |
-| 有效 TPS | 42.4 | **65.6** | **+55%** |
-
-### 8.3 何时使用 Priority Processing
-
-| 场景 | 输出长度 | 投资回报 | 建议 |
-|------|:---:|:---:|------|
-| 内容生成（邮件/报告/代码） | 500-2000 tok | ✅✅✅ | **强烈推荐** — TPS +30-51%，E2E 节省 2-8s |
-| 流式聊天（用户看输出） | 100-500 tok | ✅✅ | **推荐** — 感知速度更快 |
-| RAG 答案生成 | 100-300 tok | ✅ | **边际** — E2E 节省 ~500ms |
-| 意图分类/路由 | <20 tok | ❌ | **不推荐** — 零收益，多花 75% |
-| 高并发突发 | 任何 >50 tok | ✅✅ | **推荐** — 尾延迟（P95）显著降低 |
-
-### 8.4 混合架构：PTU + Priority + Standard
-
-```
-流量路由器（APIM）
-       │
-  ┌────┴────┬──────────┐
-  ▼         ▼          ▼
-PTU      Priority    Standard
-(基线)   (溢出)      (后台)
-──────   ─────────   ──────────
-稳态     峰值/突发    批量/异步
-最低延迟  TPS 保证    最低成本
-         无承诺
-```
-
-### 8.5 限制
-
-- **区域可用性**：gpt-5.4 Priority 仅 3 个区域（polandcentral/southcentralus/swedencentral）
-- **爬坡限制**：15 分钟内 TPM 增加 >50% 可能降级到 Standard
-- **长 context**：>128K prompt tokens 自动降级
-- **`service_tier` 响应字段**：`2025-04-01-preview` API 版本不返回，可能需要 `2025-12-01` 或 Foundry Portal 配置
+核心发现（216 条记录，IQR 去噪）：输出 ≥50 Token 时 **TPS +31~44%**、**E2E -14~29%**、**TTFT σ 减半**。≤30 Token 短输出无收益。
 
 ---
 
