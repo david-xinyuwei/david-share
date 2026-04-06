@@ -20,7 +20,7 @@
 
 ```mermaid
 flowchart LR
-    E2E["E2E"] --> TTFT["TTFT<br/>(prefill)"]
+    E2E["E2E"] --> TTFT["TTFT<br/>(incl. prefill)"]
     E2E --> GenTime["GenTime<br/>(decode)<br/>= tokens / TPS"]
     
     subgraph S20["20 tokens"]
@@ -97,7 +97,7 @@ Priority Processing is a pay-as-you-go option that provides **guaranteed token g
 
 ```mermaid
 flowchart LR
-    E2E["E2E Latency"] --> TTFT["TTFT (prefill)<br/>~6% faster<br/>σ halved"]
+    E2E["E2E Latency"] --> TTFT["TTFT<br/>(incl. prefill)<br/>~6% faster, σ halved"]
     E2E --> GenTime["GenTime (decode)<br/>+31~44% faster<br/>(main benefit)"]
     
     style TTFT fill:#fff3cd,stroke:#ffc107
@@ -108,7 +108,7 @@ Priority's primary benefit is **faster token generation (decode phase)**, not fa
 
 | Component | Standard | Priority | Impact |
 |---|:---:|:---:|:---:|
-| TTFT (prefill) | 1296 ms | 1221 ms | -6%, σ halved |
+| TTFT (incl. prefill) | 1296 ms | 1221 ms | -6%, σ halved |
 | GenTime (decode) | Varies | **+31~44% faster** | Main benefit |
 | E2E (total) | Varies | -14~29% | Scales with output length |
 

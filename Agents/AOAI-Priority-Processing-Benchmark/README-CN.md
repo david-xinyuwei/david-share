@@ -20,7 +20,7 @@
 
 ```mermaid
 flowchart LR
-    E2E["E2E"] --> TTFT["TTFT<br/>(预填充)"]
+    E2E["E2E"] --> TTFT["TTFT<br/>(含 prefill)"]
     E2E --> GenTime["GenTime<br/>(解码)<br/>= tokens / TPS"]
     
     subgraph S20["20 tokens"]
@@ -97,7 +97,7 @@ Priority Processing 是一种按使用量付费的选项，提供**有保证的 
 
 ```mermaid
 flowchart LR
-    E2E["E2E 延迟"] --> TTFT["TTFT (Prefill)<br/>约 6% 更快<br/>σ 减半"]
+    E2E["E2E 延迟"] --> TTFT["TTFT<br/>(含 prefill)<br/>约 6% 更快, σ 减半"]
     E2E --> GenTime["GenTime (Decode)<br/>+31~44% 更快<br/>（主要收益）"]
     
     style TTFT fill:#fff3cd,stroke:#ffc107
@@ -108,7 +108,7 @@ Priority 的核心收益是**更快的 Token 生成（Decode 阶段）**，而�
 
 | 组件 | Standard | Priority | 影响 |
 |---|:---:|:---:|:---:|
-| TTFT（Prefill） | 1296 ms | 1221 ms | -6%，σ 减半 |
+| TTFT（含 Prefill） | 1296 ms | 1221 ms | -6%，σ 减半 |
 | GenTime（Decode） | 取决于输出 | **+31~44% 更快** | 主要收益 |
 | E2E（总和） | 取决于输出 | -14~29% | 随输出长度增加 |
 
