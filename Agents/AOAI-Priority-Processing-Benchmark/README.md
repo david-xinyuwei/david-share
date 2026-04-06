@@ -96,6 +96,21 @@ Priority's primary benefit is **faster token generation (decode phase)**, not fa
 | GenTime (decode) | Varies | **+31~44% faster** | Main benefit |
 | E2E (total) | Varies | -14~29% | Scales with output length |
 
+### Validation against Microsoft's SLA
+
+Microsoft [documents](https://learn.microsoft.com/en-us/azure/foundry/openai/concepts/priority-processing) the Priority Processing latency target as **99% > 50 TPS** for gpt-5.4 (P50, per 5-minute window). Our benchmark validates this:
+
+| Output | Standard TPS P50 | ≥50? | Priority TPS P50 | ≥50? |
+|:---:|:---:|:---:|:---:|:---:|
+| ≤30 | 51.3 | ✅ | 50.2 | ✅ borderline |
+| 50 | 39.4 | ❌ | 52.4 | ✅ |
+| 100 | 45.2 | ❌ | 65.2 | ✅ |
+| 200 | 45.8 | ❌ | 60.1 | ✅ |
+| 500 | 44.9 | ❌ | 63.3 | ✅ |
+| 1000 | 43.9 | ❌ | 62.4 | ✅ |
+
+> **Standard fails the 50 TPS bar in 5 of 6 scenarios** (39–46 TPS). Priority meets it in all 6 scenarios (50–65 TPS). This is precisely the value proposition of Priority Processing: guaranteed TPS floor that Standard cannot provide.
+
 ---
 
 ## 3. When to Use Priority Processing

@@ -96,6 +96,21 @@ Priority 的核心收益是**更快的 Token 生成（Decode 阶段）**，而�
 | GenTime（Decode） | 取决于输出 | **+31~44% 更快** | 主要收益 |
 | E2E（总和） | 取决于输出 | -14~29% | 随输出长度增加 |
 
+### 实测 vs 微软 SLA 承诺
+
+微软[文档](https://learn.microsoft.com/en-us/azure/foundry/openai/concepts/priority-processing)中 Priority Processing 的延迟目标为 gpt-5.4 **99% > 50 TPS**（P50，每 5 分钟窗口）。我们的实测验证了这一承诺：
+
+| 输出 | Standard TPS P50 | ≥50? | Priority TPS P50 | ≥50? |
+|:---:|:---:|:---:|:---:|:---:|
+| ≤30 | 51.3 | ✅ | 50.2 | ✅ 踩线 |
+| 50 | 39.4 | ❌ | 52.4 | ✅ |
+| 100 | 45.2 | ❌ | 65.2 | ✅ |
+| 200 | 45.8 | ❌ | 60.1 | ✅ |
+| 500 | 44.9 | ❌ | 63.3 | ✅ |
+| 1000 | 43.9 | ❌ | 62.4 | ✅ |
+
+> **Standard 在 6 个场景中有 5 个跌破 50 TPS**（39–46 TPS）。Priority 全部 6 个场景达标（50–65 TPS）。这正是 Priority Processing 的核心价值：提供 Standard 无法保证的 TPS 下限。
+
 ---
 
 ## 3. 何时使用 Priority Processing
