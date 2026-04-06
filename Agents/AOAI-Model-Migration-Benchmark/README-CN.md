@@ -530,8 +530,14 @@ flowchart TD
 
 **APIM 设置步骤**：
 1. 创建两个后端：`ptu-backend`（PTU endpoint）和 `paygo-backend`（PAYGO endpoint）
-2. 创建 Named Values：`ptu-routing-threshold` = `95`
+2. 创建 Named Values：`ptu-routing-threshold` = `95`，`ptu-deployment` = 部署名称
 3. 应用 `apim-policy-ptu-routing.xml` 到 API
+
+**APIM Policy 核心功能**：
+- 从每个 PTU 响应中读取 `x-ratelimit-remaining-tokens`
+- 计算利用率并缓存（60s TTL），用于下次路由决策
+- HTTP 429 时：自动缓存 `utilization=100%`，重试到 PAYGO
+- 通过 `emit-metric` 将 `PTU Utilization` 自定义指标发送到 Application Insights
 
 ### 7.5 Layer 3: PTU Spillover（安全网）
 
@@ -554,9 +560,31 @@ python scripts/stress_test_tpm_utilization.py \
   --output results.json
 ```
 
+**用途**：对 PTU 运行压测，确认 header 可用性、实际 TPM/RPM 限额，校准 APIM 路由阈值。
+
+**压测结果**（PAYGO，300 请求，50 并发）：
+
+| 指标 | 值 |
+|------|:---:|
+| 成功率 | 100%（0 个 HTTP 429） |
+| Header 可用性 | 100% |
+| 吞吐量 | 5.7 req/s |
+
 #### 工具 2: `ptu-monitor-server/`（Node.js）
 
 基于 [Xuebing Bai 的 App Insights + OTel demo](https://github.com/henrynn/monitor/tree/main/appinsight-zavademo) 改造的 AOAI 代理服务器，实现完整路由逻辑 + Application Insights 集成。
+
+```bash
+cd ptu-monitor-server
+npm install
+PTU_ENDPOINT=https://YOUR_PTU.openai.azure.com PTU_API_KEY=xxx \
+PAYGO_ENDPOINT=https://YOUR_PAYGO.openai.azure.com PAYGO_API_KEY=xxx \
+ROUTING_THRESHOLD=95 \
+APPLICATIONINSIGHTS_CONNECTION_STRING="InstrumentationKey=xxx;..." \
+npm start
+```
+
+**端点**：
 
 | 方法 | 路径 | 用途 |
 |------|------|------|
@@ -575,6 +603,25 @@ python scripts/stress_test_tpm_utilization.py \
 | `ptu.e2e_ms` | Histogram | 端到端延迟 |
 | `ptu.http429_count` | Counter | 被限流的请求 |
 | `ptu.routing_decision` | Counter | PTU vs PAYGO 路由决策 |
+
+**App Insights KQL 查询**：
+
+```kql
+-- PTU 利用率趋势
+customMetrics
+| where name == "ptu.utilization_pct"
+| summarize avg(value), max(value), percentile(value, 95) by bin(timestamp, 1m)
+| render timechart
+
+-- 路由决策分布
+customMetrics
+| where name == "ptu.routing_decision"
+| extend backend = tostring(customDimensions["backend"])
+| summarize count = sum(value) by bin(timestamp, 5m), backend
+| render piechart
+```
+
+**已验证**：所有端点已在 Azure VM 上验证通过 — 路由逻辑确认（PTU 利用率超阈值时切换到 PAYGO，利用率下降后自动切回）。
 
 ### 7.7 验证结果（真实数据）
 
