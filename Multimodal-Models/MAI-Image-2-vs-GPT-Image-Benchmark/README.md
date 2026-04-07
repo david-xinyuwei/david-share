@@ -127,6 +127,29 @@ Both models ran in the same script (`fair_comparison_r2.py`), alternating per pr
 | Pixel Resolution | 1024x1024 | 1024x1024 |
 | Output Format | PNG 8-bit RGB | PNG 8-bit RGB |
 
+### Capability Comparison
+
+| Capability | MAI-Image-2 | GPT-Image-1.5 |
+|---|:---:|:---:|
+| Text-to-image (text→image) | ✅ | ✅ |
+| Image editing (image→image with prompt) | ❌ | ✅ (via `/images/edits`) |
+| Inpainting (mask + prompt) | ❌ | ✅ |
+| Max prompt length | 32,000 tokens | 4,000 characters |
+| Output count per request | 1 (fixed) | 1–10 |
+| Output format options | PNG only | PNG / URL |
+| Flexible aspect ratio | ✅ (any W×H ≤ 1,048,576, min 768px each) | Fixed sizes only (1024×1024 / 1792×1024 / 1024×1792) |
+| Auth | Entra ID only | API Key + Entra ID |
+
+### MAI-Image-2 Limitations (as of 2026-04)
+
+- **No image editing**: API only has `/mai/v1/images/generations`. No `/images/edits` or `/images/variations` endpoint.
+- **Preview status**: Not recommended for production.
+- **Region availability**: 6 regions only (West Central US, East US, West US, West Europe, Sweden Central, South India).
+- **Rate limit**: 9–90 RPM depending on SKU capacity (tier 1–6).
+- **Output**: Fixed 1 image per request, PNG format only.
+
+> **When to choose which**: MAI-Image-2 for fast batch text-to-image generation (2.1x faster). GPT-Image-1.5 for image editing, inpainting, or when flexible output count is needed.
+
 ## How to Reproduce
 
 ### Prerequisites

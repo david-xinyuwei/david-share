@@ -127,6 +127,29 @@
 | 像素分辨率 | 1024x1024 | 1024x1024 |
 | 输出格式 | PNG 8-bit RGB | PNG 8-bit RGB |
 
+### 能力对比
+
+| 能力 | MAI-Image-2 | GPT-Image-1.5 |
+|---|:---:|:---:|
+| 文生图（text→image） | ✅ | ✅ |
+| 以图改图（image→image + prompt） | ❌ | ✅（通过 `/images/edits`） |
+| 局部重绘（mask + prompt） | ❌ | ✅ |
+| 最大 prompt 长度 | 32,000 tokens | 4,000 字符 |
+| 每次请求输出数量 | 1（固定） | 1–10 |
+| 输出格式选项 | 仅 PNG | PNG / URL |
+| 灵活宽高比 | ✅（任意 W×H ≤ 1,048,576，每边最小 768px） | 固定尺寸（1024×1024 / 1792×1024 / 1024×1792） |
+| 认证方式 | 仅 Entra ID | API Key + Entra ID |
+
+### MAI-Image-2 限制（截至 2026-04）
+
+- **不支持图片编辑**：API 仅有 `/mai/v1/images/generations`，没有 `/images/edits` 或 `/images/variations` 端点。
+- **Preview 状态**：不建议生产使用。
+- **区域可用性**：仅 6 个区域（West Central US、East US、West US、West Europe、Sweden Central、South India）。
+- **速率限制**：9–90 RPM，取决于 SKU 容量（tier 1–6）。
+- **输出**：每次固定 1 张图片，仅 PNG 格式。
+
+> **如何选择**：快速批量文生图用 MAI-Image-2（2.1 倍更快）。图片编辑、局部重绘、或需要灵活输出数量时用 GPT-Image-1.5。
+
 ## 复现方法
 
 ### 前提条件
