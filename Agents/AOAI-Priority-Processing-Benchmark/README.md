@@ -10,7 +10,7 @@
 
 | Metric | Condition for benefit | Magnitude | Why |
 |---|---|:---:|---|
-| **TTFT** | ✅ Always (any input/output length) | **-6%, σ halved** (81→34 ms) | Priority gets faster scheduling regardless of request size |
+| **TTFT** | ✅ Always (any input/output length) | **P50: 1296→1221ms (-6%), σ: ±81→±34ms (-58%)** | Priority gets faster scheduling regardless of request size |
 | **TPS (tokens/s)** | ✅ Output ≥50 tokens | **+31–44%** (short input), **+49–67%** (long input) | Decode phase accelerated; longer input amplifies benefit |
 | **E2E latency** | ✅ Output ≥50 tokens | **-14–29%** (short input), **-25–37%** (long input) | E2E = TTFT + GenTime; GenTime share grows with output length |
 | **TTFT under load** | ✅ Concurrent requests | **P95 -52%** | Priority avoids queue spikes that Standard suffers |
@@ -60,9 +60,9 @@ flowchart LR
 
 | Tier | TTFT P50 | TTFT P95 | Mean±σ |
 |---|:---:|:---:|:---:|
-| Standard | 1296 ms | 1449 ms | 1300±81 ms |
-| **Priority** | **1221 ms** | **1281 ms** | **1224±34 ms** |
-| **Δ** | **-75 ms (-5.8%)** | **-168 ms** | **σ halved** |
+| Standard | 1296 ms | 1449 ms | 1300 ± 81 ms |
+| **Priority** | **1221 ms** | **1281 ms** | **1224 ± 34 ms** |
+| **Δ** | **-75 ms (-5.8%)** | **-168 ms** | **σ: ±81→±34ms (-58%)** |
 
 ![Priority Processing Benchmark](images/priority_processing_benchmark.png)
 
@@ -77,7 +77,7 @@ Priority Processing is a pay-as-you-go option that provides **guaranteed token g
 | TPS guarantee | Best-effort | **99% > 50 TPS** (gpt-5.4) | Guaranteed |
 | Pricing | Base rate | **1.75x Base** | Fixed monthly |
 | Commitment | None | **None** | Monthly/Annual |
-| TTFT improvement | — | **~6% + σ halved** | Yes |
+| TTFT improvement | — | **P50 -6%, σ ±81→±34ms** | Yes |
 | Long context (>128K) | Normal | Downgraded to Standard | Normal |
 
 **Supported models** (as of 2026-04):
@@ -97,7 +97,7 @@ Priority Processing is a pay-as-you-go option that provides **guaranteed token g
 
 ```mermaid
 flowchart LR
-    E2E["E2E Latency"] --> TTFT["TTFT<br/>(prefill + 1st decode)<br/>~6% faster, σ halved"]
+    E2E["E2E Latency"] --> TTFT["TTFT<br/>(prefill + 1st decode)<br/>P50 -6%, σ ±81→±34ms"]
     E2E --> GenTime["GenTime<br/>(remaining decodes)<br/>+31~44% faster<br/>(main benefit)"]
     
     style TTFT fill:#fff3cd,stroke:#ffc107
@@ -108,7 +108,7 @@ Priority's primary benefit is **faster decode**. TTFT = network + scheduling + p
 
 | Component | Standard | Priority | Impact |
 |---|:---:|:---:|:---:|
-| TTFT (prefill + 1st decode) | 1296 ms | 1221 ms | -6%, σ halved |
+| TTFT (prefill + 1st decode) | 1296 ms | 1221 ms | P50 -6%, σ ±81→±34ms |
 | GenTime (remaining decodes) | Varies | **+31~44% faster** | Main benefit |
 | E2E (total) | Varies | -14~29% | Scales with output length |
 
