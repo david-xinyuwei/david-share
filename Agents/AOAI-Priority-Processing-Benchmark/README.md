@@ -55,7 +55,26 @@ flowchart LR
 | **long** | **500** | 38.2 | 63.6 | **+67%** | 14.4s | 9.1s | **-37%** |
 
 > **Longer input → bigger Priority benefit**: at output=500, short input ΔTPS=+35% vs long input ΔTPS=**+67%** (+32pp). Standard’s TPS degrades under long-context prefill pressure; Priority maintains its TPS guarantee regardless of input length.
+### What determines Priority benefit — controlled variable analysis
 
+Two variables affect Priority's TPS improvement (ΔTPS%), but through **different mechanisms**:
+
+**Output length determines WHETHER there is a measurable benefit:**
+- E2E = TTFT + GenTime, where GenTime = output_tokens / TPS
+- At 20 tokens: GenTime ≈ 97ms (7% of E2E) → even 30% speedup saves only ~29ms → drowned by TTFT noise (σ=81ms)
+- At 1000 tokens: GenTime ≈ 22,558ms (95% of E2E) → 30% speedup saves ~7,500ms → clearly measurable
+- Threshold: output ≥50 tokens for measurable benefit
+
+**Input length determines HOW MUCH the benefit is:**
+- Priority TPS is stable regardless of input length (TPS guarantee): short_500 Pri=60.9, long_500 Pri=63.6
+- Standard TPS degrades under long prefill pressure: short_500 Std=45.1, long_500 Std=**38.2** (-15%)
+- Since ΔTPS% = (Pri - Std) / Std, when Std drops (denominator shrinks), the percentage grows
+- Result: same output=500, ΔTPS goes from +35% (short input) to +67% (long input)
+
+| Variable | Effect on ΔTPS% | Mechanism |
+|---|---|---|
+| **Output length** | Determines if benefit is measurable | GenTime share of E2E: low → noise drowns signal |
+| **Input length** | Amplifies the percentage | Standard TPS drops under prefill load; Priority TPS stays constant |
 ### TTFT (N=99 per tier, IQR denoised)
 
 | Tier | TTFT P50 | TTFT P95 | Mean±σ |

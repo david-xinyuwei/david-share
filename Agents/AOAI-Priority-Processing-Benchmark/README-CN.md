@@ -56,6 +56,27 @@ flowchart LR
 
 > **输入越长 → Priority 收益越大**：输出=500 时，短输入 ΔTPS=+35% vs 长输入 ΔTPS=**+67%**（+32pp）。Standard 的 TPS 在长上下文 Prefill 压力下下降；Priority 保持 TPS 保证不受输入长度影响。
 
+### 什么决定 Priority 收益——控制变量分析
+
+两个变量影响 Priority 的 TPS 提升百分比（ΔTPS%），但通过**不同机制**：
+
+**输出长度决定"是否"有可测量的收益：**
+- E2E = TTFT + GenTime，其中 GenTime = 输出 tokens / TPS
+- 20 tokens 时：GenTime ≈ 97ms（占 E2E 的 7%）→ 加速 30% 仅省 ~29ms → 被 TTFT 噪声（σ=81ms）淹没
+- 1000 tokens 时：GenTime ≈ 22,558ms（占 E2E 的 95%）→ 加速 30% 省 ~7,500ms → 效果显著
+- 阈值：输出 ≥50 tokens 才有可测量收益
+
+**输入长度决定收益"幅度"：**
+- Priority TPS 不受输入长度影响（有 TPS 保证）：short_500 Pri=60.9，long_500 Pri=63.6
+- Standard TPS 在长 prefill 压力下下降：short_500 Std=45.1，long_500 Std=**38.2**（-15%）
+- 由于 ΔTPS% = (Pri - Std) / Std，Std 下降（分母缩小）→ 百分比增大
+- 结果：同样输出=500，ΔTPS 从 +35%（短输入）增加到 +67%（长输入）
+
+| 变量 | 对 ΔTPS% 的影响 | 机制 |
+|---|---|---|
+| **输出长度** | 决定收益是否可测量 | GenTime 占 E2E 比例：占比低 → 噪声淹没信号 |
+| **输入长度** | 放大收益百分比 | Standard TPS 在 prefill 负载下下降；Priority TPS 保持不变 |
+
 ### TTFT（每 Tier N=99，IQR 去噪）
 
 | Tier | TTFT P50 | TTFT P95 | Mean±σ |
