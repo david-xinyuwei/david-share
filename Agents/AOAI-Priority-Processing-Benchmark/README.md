@@ -11,8 +11,8 @@
 | Metric | Condition for benefit | Magnitude | Why |
 |---|---|:---:|---|
 | **TTFT** | ✅ Always (any input/output length) | **P50: 1296→1221ms (-6%), σ: ±81→±34ms (-58%)** | Priority gets faster scheduling regardless of request size |
-| **TPS (tokens/s)** | ✅ Output ≥50 tokens | **+31–44%** (short input), **+49–67%** (long input) | Decode phase accelerated; longer input amplifies benefit |
-| **E2E latency** | ✅ Output ≥50 tokens | **-14–29%** (short input), **-25–37%** (long input) | E2E = TTFT + GenTime; GenTime share grows with output length |
+| **TPS (tokens/s)** | ✅ Output ≥50 tokens | **+35–39%** (short input), **+49–66%** (long input) | Decode phase accelerated; longer input amplifies benefit |
+| **E2E latency** | ✅ Output ≥50 tokens | **-17–27%** (short input), **-25–37%** (long input) | E2E = TTFT + GenTime; GenTime share grows with output length |
 | **TTFT under load** | ✅ Concurrent requests | **P95 -52%** | Priority avoids queue spikes that Standard suffers |
 | **❌ No benefit** | Output ≤30 tokens | TPS ±2%, E2E -4.5% | GenTime is only ~97ms (≤7% of E2E); even 30% speedup saves only ~29ms, drowned by TTFT noise |
 
@@ -98,7 +98,7 @@ Priority Processing is a pay-as-you-go option that provides **guaranteed token g
 ```mermaid
 flowchart LR
     E2E["E2E Latency"] --> TTFT["TTFT<br/>(prefill + 1st decode)<br/>P50 -6%, σ ±81→±34ms"]
-    E2E --> GenTime["GenTime<br/>(remaining decodes)<br/>+31~44% faster<br/>(main benefit)"]
+    E2E --> GenTime["GenTime<br/>(remaining decodes)<br/>+30~43% faster<br/>(main benefit)"]
     
     style TTFT fill:#fff3cd,stroke:#ffc107
     style GenTime fill:#d4edda,stroke:#28a745
@@ -109,8 +109,8 @@ Priority's primary benefit is **faster decode**. TTFT = network + scheduling + p
 | Component | Standard | Priority | Impact |
 |---|:---:|:---:|:---:|
 | TTFT (prefill + 1st decode) | 1296 ms | 1221 ms | P50 -6%, σ ±81→±34ms |
-| GenTime (remaining decodes) | Varies | **+31~44% faster** | Main benefit |
-| E2E (total) | Varies | -14~29% | Scales with output length |
+| GenTime (remaining decodes) | Varies | **+30~43% faster** | Main benefit |
+| E2E (total) | Varies | -16~30% | Scales with output length |
 
 ### Validation against Microsoft's SLA
 

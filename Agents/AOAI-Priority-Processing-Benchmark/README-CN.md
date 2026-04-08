@@ -11,8 +11,8 @@
 | 指标 | 收益条件 | 幅度 | 原因 |
 |---|---|:---:|---|
 | **TTFT** | ✅ 始终有效（任意输入/输出长度） | **P50: 1296→1221ms (-6%)，σ: ±81→±34ms (-58%)** | Priority 获得更快的调度，与请求大小无关 |
-| **TPS (tokens/s)** | ✅ 输出 ≥50 tokens | **+31–44%**（短输入），**+49–67%**（长输入） | Decode 阶段加速；输入越长收益越大 |
-| **E2E 延迟** | ✅ 输出 ≥50 tokens | **-14–29%**（短输入），**-25–37%**（长输入） | E2E = TTFT + GenTime；GenTime 占比随输出增大 |
+| **TPS (tokens/s)** | ✅ 输出 ≥50 tokens | **+35–39%**（短输入），**+49–66%**（长输入） | Decode 阶段加速；输入越长收益越大 |
+| **E2E 延迟** | ✅ 输出 ≥50 tokens | **-17–27%**（短输入），**-25–37%**（长输入） | E2E = TTFT + GenTime；GenTime 占比随输出增大 |
 | **并发下 TTFT** | ✅ 并发请求 | **P95 -52%** | Priority 避免了 Standard 的队列尖峰 |
 | **❌ 无收益** | 输出 ≤30 tokens | TPS ±2%，E2E -4.5% | GenTime 仅 ~97ms（占 E2E <7%）；加速 30% 也只省 ~29ms，被 TTFT 噪声淹没 |
 
@@ -98,7 +98,7 @@ Priority Processing 是一种按使用量付费的选项，提供**有保证的 
 ```mermaid
 flowchart LR
     E2E["E2E 延迟"] --> TTFT["TTFT<br/>(prefill + 首token解码)<br/>P50 -6%, σ ±81→±34ms"]
-    E2E --> GenTime["GenTime<br/>(剩余token解码)<br/>+31~44% 更快<br/>（主要收益）"]
+    E2E --> GenTime["GenTime<br/>(剩余token解码)<br/>+30~43% 更快<br/>（主要收益）"]
     
     style TTFT fill:#fff3cd,stroke:#ffc107
     style GenTime fill:#d4edda,stroke:#28a745
@@ -109,8 +109,8 @@ Priority 的核心收益是**更快的 Decode**。TTFT = 网络 + 调度 + Prefi
 | 组件 | Standard | Priority | 影响 |
 |---|:---:|:---:|:---:|
 | TTFT（prefill + 首token解码） | 1296 ms | 1221 ms | P50 -6%，σ ±81→±34ms |
-| GenTime（剩余token解码） | 取决于输出 | **+31~44% 更快** | 主要收益 |
-| E2E（总和） | 取决于输出 | -14~29% | 随输出长度增加 |
+| GenTime（剩余token解码） | 取决于输出 | **+30~43% 更快** | 主要收益 |
+| E2E（总和） | 取决于输出 | -16~30% | 随输出长度增加 |
 
 ### 实测 vs 微软 SLA 承诺
 
