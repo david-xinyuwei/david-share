@@ -10,7 +10,7 @@
 
 | Metric | Condition for benefit | Magnitude | Why |
 |---|---|:---:|---|
-| **TTFT** | ✅ Always (any input/output length) | **P50: 1296→1221ms (-6%), σ: ±81→±34ms (-58%)** | Priority gets faster scheduling regardless of request size |
+| **TTFT** | ✅ Always (any input/output length) | **P50: 1296→1221ms (-6%), σ: ±81→±34ms (-58%)** | Observed improvement; internal mechanism not publicly documented |
 | **TPS (tokens/s)** | ✅ Output ≥50 tokens | **+35–39%** (short input), **+49–66%** (long input) | Priority scheduling + dynamic compute; longer input degrades Standard TPS more → bigger gap |
 | **E2E latency** | ✅ Output ≥50 tokens | **-17–27%** (short input), **-25–37%** (long input) | E2E = TTFT + GenTime; GenTime share grows with output length |
 | **TTFT under load** | ✅ Concurrent requests | **P95 -52%** | Priority avoids queue spikes that Standard suffers |
@@ -94,7 +94,7 @@ Priority Processing is a pay-as-you-go option that provides **guaranteed token g
 | Aspect | Standard PAYGO | **Priority PAYGO** | PTU |
 |--------|:---:|:---:|:---:|
 | TPS guarantee | Best-effort | **99% > 50 TPS** (gpt-5.4) | Guaranteed |
-| Pricing | Base rate | **1.75x Base** | Fixed monthly |
+| Pricing | Base rate | **1.75–2× Base** ([Blog: 2× for GPT-5.4](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/announcing-priority-processing-in-microsoft-foundry-for-performance-sensitive-ai/4504788)) | Fixed monthly |
 | Commitment | None | **None** | Monthly/Annual |
 | TTFT improvement | — | **P50 -6%, σ ±81→±34ms** | Yes |
 | Long context (>128K) | Normal | Downgraded to Standard | Normal |
@@ -159,21 +159,21 @@ Microsoft [documents](https://learn.microsoft.com/en-us/azure/foundry/openai/con
 | **Streaming chat** | Short (<500) | 100-500 | +35~39% | -17~21% | ✅✅ | User watches output stream — perceived speed matters |
 | **Email/report generation** | Short (<500) | 200-1000 | +35~39% | -17~27% | ✅✅ | Stable moderate benefit |
 | **High-concurrency bursts** | Any | >50 | +30~43% | P95 -52% | ✅✅ | Tail latency control, avoids queue spikes |
-| **Short Q&A** | Short | <30 | ≈0% | -4% | ❌ | GenTime <100ms, benefit drowned by noise, wastes 75% premium |
+| **Short Q&A** | Short | <30 | ≈0% | -4% | ❌ | GenTime <100ms, benefit drowned by noise, wastes 75–100% price premium |
 | **Intent classification** | Short | 5-20 | ≈0% | ≈0% | ❌ | Output too short, zero measurable benefit |
 
 > **Best scenarios**: long input + long output (Agent, RAG, Code). Priority's TPS guarantee stays constant while Standard's TPS degrades under long-context prefill pressure — the percentage gap widens.
 
 ### Cost-Benefit Analysis
 
-Priority costs 1.75x Standard. Is the speedup worth it?
+Priority costs 1.75–2× Standard (model-dependent). Is the speedup worth it?
 
 | Output | E2E Saved | Cost Premium | Worth it? |
 |:---:|:---:|:---:|:---:|
-| 50 tok | 0.3s | +75% | Only if latency-critical |
-| 200 tok | 1.3s | +75% | Yes for user-facing |
-| 500 tok | 3.1s | +75% | **Yes** |
-| 1000 tok | 7.1s | +75% | **Strongly yes** |
+| 50 tok | 0.3s | +75–100% | Only if latency-critical |
+| 200 tok | 1.3s | +75–100% | Yes for user-facing |
+| 500 tok | 3.1s | +75–100% | **Yes** |
+| 1000 tok | 7.1s | +75–100% | **Strongly yes** |
 
 ---
 
