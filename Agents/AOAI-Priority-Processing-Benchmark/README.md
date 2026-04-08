@@ -150,13 +150,19 @@ Microsoft [documents](https://learn.microsoft.com/en-us/azure/foundry/openai/con
 
 ## 3. When to Use Priority Processing
 
-| Scenario | Output Length | Priority ROI | Recommendation |
-|---|:---:|:---:|---|
-| Content generation (email, reports, code) | 500-2000 tok | ✅✅✅ | **Strong** — TPS +41%, E2E saves 3-7s |
-| Streaming chat (user watches output) | 100-500 tok | ✅✅ | **Good** — faster perceived speed |
-| High-concurrency bursts | Any >50 tok | ✅✅ | **Good** — TTFT P95 reduced 52% under load |
-| RAG answer generation | 100-300 tok | ✅ | **Marginal** — E2E saves ~500ms |
-| Intent classification / routing | <30 tok | ❌ | **Not recommended** — zero benefit, 75% price premium |
+| Scenario | Input | Output | ΔTPS | ΔE2E | ROI | Why |
+|---|:---:|:---:|:---:|:---:|:---:|---|
+| **Agent multi-turn chat** | Long (1K-10K) | 200-1000 | +49~66% | -25~37% | ✅✅✅ | Context accumulates → input grows → Standard TPS degrades |
+| **RAG long answer** | Long (2K-8K) | 200-1000 | +49~66% | -25~37% | ✅✅✅ | Retrieved chunks fill context → long input |
+| **Code generation** | Long (1K-4K) | 200-2000 | +49~66% | -25~37% | ✅✅✅ | Large code context + long generated code |
+| **Content gen (long prompt)** | Long (1K+) | 500-2000 | +49~66% | -25~37% | ✅✅✅ | Long system prompt + brand guidelines |
+| **Streaming chat** | Short (<500) | 100-500 | +35~39% | -17~21% | ✅✅ | User watches output stream — perceived speed matters |
+| **Email/report generation** | Short (<500) | 200-1000 | +35~39% | -17~27% | ✅✅ | Stable moderate benefit |
+| **High-concurrency bursts** | Any | >50 | +30~43% | P95 -52% | ✅✅ | Tail latency control, avoids queue spikes |
+| **Short Q&A** | Short | <30 | ≈0% | -4% | ❌ | GenTime <100ms, benefit drowned by noise, wastes 75% premium |
+| **Intent classification** | Short | 5-20 | ≈0% | ≈0% | ❌ | Output too short, zero measurable benefit |
+
+> **Best scenarios**: long input + long output (Agent, RAG, Code). Priority's TPS guarantee stays constant while Standard's TPS degrades under long-context prefill pressure — the percentage gap widens.
 
 ### Cost-Benefit Analysis
 
