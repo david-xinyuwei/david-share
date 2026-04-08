@@ -16,7 +16,7 @@
 | **并发下 TTFT** | ✅ 并发请求 | **P95 -52%** | Priority 避免了 Standard 的队列尖峰 |
 | **❌ 无收益** | 输出 ≤30 tokens | TPS ±2%，E2E -4.5% | GenTime 仅 ~97ms（占 E2E <7%）；加速 30% 也只省 ~29ms，被 TTFT 噪声淹没 |
 
-### 为什么短输出无可测量的 TPS 收益
+### 为什么短输出无显著收益
 
 ```mermaid
 flowchart LR

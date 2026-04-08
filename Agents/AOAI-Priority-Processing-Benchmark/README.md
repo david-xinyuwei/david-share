@@ -16,7 +16,7 @@
 | **TTFT under load** | ✅ Concurrent requests | **P95 -52%** | Priority avoids queue spikes that Standard suffers |
 | **❌ No benefit** | Output ≤30 tokens | TPS ±2%, E2E -4.5% | GenTime is only ~97ms (≤7% of E2E); even 30% speedup saves only ~29ms, drowned by TTFT noise |
 
-### Why short output shows no measurable TPS benefit
+### Why short output shows no measurable benefit
 
 ```mermaid
 flowchart LR
