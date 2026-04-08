@@ -716,7 +716,7 @@ Priority Processing 的完整多维度基准测试（性能分析、并发负载
 
 👉 **[AOAI-Priority-Processing-Benchmark](../AOAI-Priority-Processing-Benchmark/)**
 
-核心发现（216 条记录，IQR 去噪）：输出 ≥50 Token 时 **TPS +31~44%**、**E2E -14~29%**、**TTFT σ 减半**。≤30 Token 短输出无收益。
+核心发现（216 条记录，IQR 去噪）：输出 ≥50 Token 时 **TPS +30~43%**、**E2E -16~30%**、**TTFT P50 -6%，σ ±81→±34ms**。≤30 Token 短输出无收益。
 
 ---
 

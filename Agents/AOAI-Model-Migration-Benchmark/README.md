@@ -716,7 +716,7 @@ For a comprehensive benchmark study of Priority Processing (Standard vs Priority
 
 👉 **[AOAI-Priority-Processing-Benchmark](../AOAI-Priority-Processing-Benchmark/)**
 
-Key findings (216 records, IQR denoised): **TPS +31~44%** for outputs ≥50 tokens, **E2E -14~29%**, **TTFT σ halved**. No benefit for ≤30 token outputs.
+Key findings (216 records, IQR denoised): **TPS +30~43%** for outputs ≥50 tokens, **E2E -16~30%**, **TTFT P50 -6%, σ ±81→±34ms**. No benefit for ≤30 token outputs.
 
 ---
 
