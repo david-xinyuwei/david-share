@@ -4,7 +4,7 @@
 
 ## 摘要
 
-[Priority Processing](https://learn.microsoft.com/en-us/azure/foundry/openai/concepts/priority-processing) 是 Azure OpenAI 的新功能（Preview），在 GlobalStandard/DataZoneStandard 部署上以 1.75 倍定价提供**有保证的 Token 生成速度**。
+[Priority Processing](https://learn.microsoft.com/en-us/azure/foundry/openai/concepts/priority-processing) 是 Azure OpenAI 的新功能（Preview），在 GlobalStandard/DataZoneStandard 部署上以 1.75–2 倍定价（因模型而异；[博客](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/announcing-priority-processing-in-microsoft-foundry-for-performance-sensitive-ai/4504788) 指出 GPT-5.4 为 2 倍）提供**有保证的 Token 生成速度**。
 
 ### 各指标收益条件（216 条记录，IQR 去噪）
 
@@ -41,7 +41,7 @@ flowchart LR
     style R1000 fill:#d4edda,stroke:#28a745
 ```
 
-> Priority 通过**调度优先 + 动态计算资源分配**工作（[来源](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/announcing-priority-processing-in-microsoft-foundry-for-performance-sensitive-ai/4504788)），不是更快的 decode 内核。观测效果：GenTime -26~32%，TTFT -7%（σ -53%）。GenTime 改善更大（约 4 倍）是因为调度优势在多个 decode step 上累积。当输出 ≤30 tokens 时，GenTime 仅 <100ms——即使加速 30% 也只省 ~29ms，小于 TTFT 测量噪声（σ=81ms）。收益存在但**在该尺度下无法测量**。
+> 据微软官方：Priority Processing 通过*"优先处理延迟敏感的推理请求"*并*"为时间关键型工作负载动态分配计算资源"*（[Tech Community 博客](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/announcing-priority-processing-in-microsoft-foundry-for-performance-sensitive-ai/4504788)）。内部 GPU 级别机制未公开。我们的观测效果：GenTime -26~32%，TTFT -7%（σ -53%）。当输出 ≤30 tokens 时，GenTime 仅 <100ms——即使加速 30% 也只省 ~29ms，小于 TTFT 测量噪声（σ=81ms）。收益存在但**在该尺度下无法测量**。
 
 ### 二维结果：输出长度 × 输入长度
 
@@ -125,7 +125,7 @@ flowchart LR
     style GenTime fill:#d4edda,stroke:#28a745
 ```
 
-Priority Processing 是**调度层面的功能**：优先请求被排在标准流量之前，并获得动态计算资源分配（[Microsoft Tech Community](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/announcing-priority-processing-in-microsoft-foundry-for-performance-sensitive-ai/4504788)），不是不同的 decode 算法。观测效果：GenTime -26~32%（TPS +30~43%），TTFT -7%（σ -53%）。TTFT = 网络 + 调度 + Prefill + 首 token 解码；GenTime = 剩余 token 解码。GenTime 改善更大是因为调度优势在多个 decode step 上累积。E2E 改善随输出长度增加，因为 GenTime 在 E2E 中的占比增大。
+据 [Microsoft Tech Community](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/announcing-priority-processing-in-microsoft-foundry-for-performance-sensitive-ai/4504788)：Priority Processing *"优先处理延迟敏感的推理请求"*并*"为时间关键型工作负载动态分配计算资源"*。内部 GPU 级别机制未公开。我们的观测效果：GenTime -26~32%（TPS +30~43%），TTFT -7%（σ -53%）。TTFT = 网络 + 调度 + Prefill + 首 token 解码；GenTime = 剩余 token 解码。E2E 改善随输出长度增加，因为 GenTime 在 E2E 中的占比增大。
 
 | 组件 | Standard | Priority | 影响 |
 |---|:---:|:---:|:---:|
