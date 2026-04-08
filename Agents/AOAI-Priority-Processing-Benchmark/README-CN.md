@@ -11,7 +11,7 @@
 | 指标 | 收益条件 | 幅度 | 原因 |
 |---|---|:---:|---|
 | **TTFT** | ✅ 始终有效（任意输入/输出长度） | **P50: 1296→1221ms (-6%)，σ: ±81→±34ms (-58%)** | Priority 获得更快的调度，与请求大小无关 |
-| **TPS (tokens/s)** | ✅ 输出 ≥50 tokens | **+35–39%**（短输入），**+49–66%**（长输入） | Decode 阶段加速；输入越长收益越大 |
+| **TPS (tokens/s)** | ✅ 输出 ≥50 tokens | **+35–39%**（短输入），**+49–66%**（长输入） | 调度优先 + 动态计算资源；长输入使 Standard TPS 下降更多 → 差距更大 |
 | **E2E 延迟** | ✅ 输出 ≥50 tokens | **-17–27%**（短输入），**-25–37%**（长输入） | E2E = TTFT + GenTime；GenTime 占比随输出增大 |
 | **并发下 TTFT** | ✅ 并发请求 | **P95 -52%** | Priority 避免了 Standard 的队列尖峰 |
 | **❌ 无收益** | 输出 ≤30 tokens | TPS ±2%，E2E -4.5% | GenTime 仅 ~97ms（占 E2E <7%）；加速 30% 也只省 ~29ms，被 TTFT 噪声淹没 |
@@ -41,7 +41,7 @@ flowchart LR
     style R1000 fill:#d4edda,stroke:#28a745
 ```
 
-> Priority **主要加速 Decode（GenTime -26~32%）**，同时也改善 TTFT（-7%，σ -53%）。GenTime 改善约为 TTFT 改善的 4 倍。当输出 ≤30 tokens 时，GenTime 仅 <100ms——即使加速 30% 也只省 ~29ms，小于 TTFT 测量噪声（σ=81ms）。收益存在但**在该尺度下无法测量**。
+> Priority 通过**调度优先 + 动态计算资源分配**工作（[来源](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/announcing-priority-processing-in-microsoft-foundry-for-performance-sensitive-ai/4504788)），不是更快的 decode 内核。观测效果：GenTime -26~32%，TTFT -7%（σ -53%）。GenTime 改善更大（约 4 倍）是因为调度优势在多个 decode step 上累积。当输出 ≤30 tokens 时，GenTime 仅 <100ms——即使加速 30% 也只省 ~29ms，小于 TTFT 测量噪声（σ=81ms）。收益存在但**在该尺度下无法测量**。
 
 ### 二维结果：输出长度 × 输入长度
 
@@ -119,13 +119,13 @@ Priority Processing 是一种按使用量付费的选项，提供**有保证的 
 ```mermaid
 flowchart LR
     E2E["E2E 延迟"] --> TTFT["TTFT<br/>(prefill + 首token解码)<br/>P50 -6%, σ ±81→±34ms"]
-    E2E --> GenTime["GenTime<br/>(剩余token解码)<br/>+30~43% 更快<br/>（主要收益）"]
+    E2E --> GenTime["GenTime<br/>(剩余token解码)<br/>+30~43% 更快<br/>（调度优先）"]
     
     style TTFT fill:#fff3cd,stroke:#ffc107
     style GenTime fill:#d4edda,stroke:#28a745
 ```
 
-Priority **主要加速 Decode**（GenTime -26~32%，即 TPS +30~43%），同时也改善 TTFT（-7%，σ -53%）。TTFT = 网络 + 调度 + Prefill + 首 token 解码；GenTime = 剩余 token 解码。TTFT 主要由 Prefill 主导，因此改善较小（约为 GenTime 改善的 1/4）。E2E 改善随输出长度增加，因为 GenTime 在 E2E 中的占比增大。
+Priority Processing 是**调度层面的功能**：优先请求被排在标准流量之前，并获得动态计算资源分配（[Microsoft Tech Community](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/announcing-priority-processing-in-microsoft-foundry-for-performance-sensitive-ai/4504788)），不是不同的 decode 算法。观测效果：GenTime -26~32%（TPS +30~43%），TTFT -7%（σ -53%）。TTFT = 网络 + 调度 + Prefill + 首 token 解码；GenTime = 剩余 token 解码。GenTime 改善更大是因为调度优势在多个 decode step 上累积。E2E 改善随输出长度增加，因为 GenTime 在 E2E 中的占比增大。
 
 | 组件 | Standard | Priority | 影响 |
 |---|:---:|:---:|:---:|

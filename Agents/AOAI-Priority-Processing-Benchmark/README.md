@@ -11,7 +11,7 @@
 | Metric | Condition for benefit | Magnitude | Why |
 |---|---|:---:|---|
 | **TTFT** | ✅ Always (any input/output length) | **P50: 1296→1221ms (-6%), σ: ±81→±34ms (-58%)** | Priority gets faster scheduling regardless of request size |
-| **TPS (tokens/s)** | ✅ Output ≥50 tokens | **+35–39%** (short input), **+49–66%** (long input) | Decode phase accelerated; longer input amplifies benefit |
+| **TPS (tokens/s)** | ✅ Output ≥50 tokens | **+35–39%** (short input), **+49–66%** (long input) | Priority scheduling + dynamic compute; longer input degrades Standard TPS more → bigger gap |
 | **E2E latency** | ✅ Output ≥50 tokens | **-17–27%** (short input), **-25–37%** (long input) | E2E = TTFT + GenTime; GenTime share grows with output length |
 | **TTFT under load** | ✅ Concurrent requests | **P95 -52%** | Priority avoids queue spikes that Standard suffers |
 | **❌ No benefit** | Output ≤30 tokens | TPS ±2%, E2E -4.5% | GenTime is only ~97ms (≤7% of E2E); even 30% speedup saves only ~29ms, drowned by TTFT noise |
@@ -41,7 +41,7 @@ flowchart LR
     style R1000 fill:#d4edda,stroke:#28a745
 ```
 
-> Priority **primarily accelerates decode (GenTime -26~32%)**, but also improves TTFT (-7%, σ -53%). GenTime improvement is ~4x larger than TTFT improvement. When output is ≤30 tokens, GenTime is <100ms — even a 30% speedup saves only ~29ms, which is smaller than TTFT measurement noise (σ=81ms). The benefit exists but is **unmeasurable at this scale**.
+> Priority works via **scheduling priority + dynamic compute allocation** ([source](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/announcing-priority-processing-in-microsoft-foundry-for-performance-sensitive-ai/4504788)), not a faster decode kernel. The observed effect: GenTime -26~32%, TTFT -7% (σ -53%). GenTime improvement is ~4x larger because it accumulates over many decode steps. When output is ≤30 tokens, GenTime is <100ms — even a 30% speedup saves only ~29ms, which is smaller than TTFT measurement noise (σ=81ms). The benefit exists but is **unmeasurable at this scale**.
 
 ### Two-dimensional results: Output length × Input length
 
@@ -117,13 +117,13 @@ Priority Processing is a pay-as-you-go option that provides **guaranteed token g
 ```mermaid
 flowchart LR
     E2E["E2E Latency"] --> TTFT["TTFT<br/>(prefill + 1st decode)<br/>P50 -6%, σ ±81→±34ms"]
-    E2E --> GenTime["GenTime<br/>(remaining decodes)<br/>+30~43% faster<br/>(main benefit)"]
+    E2E --> GenTime["GenTime<br/>(remaining decodes)<br/>+30~43% faster<br/>(scheduling priority)"]
     
     style TTFT fill:#fff3cd,stroke:#ffc107
     style GenTime fill:#d4edda,stroke:#28a745
 ```
 
-Priority **primarily accelerates decode** (GenTime -26~32%, i.e. TPS +30~43%), and also improves TTFT (-7%, σ -53%). TTFT = network + scheduling + prefill + 1st decode; GenTime = remaining decodes. Since TTFT is dominated by prefill, its improvement is modest (~4x smaller than GenTime improvement). The E2E improvement scales with output length because GenTime's share of E2E increases.
+Priority Processing is a **scheduling-level feature**: priority requests are scheduled ahead of standard traffic with dynamic compute allocation ([Microsoft Tech Community](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/announcing-priority-processing-in-microsoft-foundry-for-performance-sensitive-ai/4504788)). It is not a different decode algorithm. The observed effect: GenTime -26~32% (TPS +30~43%), TTFT -7% (σ -53%). TTFT = network + scheduling + prefill + 1st decode; GenTime = remaining decodes. GenTime improvement is larger because the scheduling advantage accumulates over many decode steps. E2E improvement scales with output length because GenTime's share of E2E increases.
 
 | Component | Standard | Priority | Impact |
 |---|:---:|:---:|:---:|
