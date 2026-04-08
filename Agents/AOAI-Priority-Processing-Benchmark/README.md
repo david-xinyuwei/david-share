@@ -41,7 +41,7 @@ flowchart LR
     style R1000 fill:#d4edda,stroke:#28a745
 ```
 
-> Priority accelerates **decode (GenTime) only**. When output is ≤30 tokens, GenTime is <100ms — even a 30% speedup saves only ~29ms, which is smaller than TTFT measurement noise (σ=81ms). The benefit exists but is **unmeasurable at this scale**.
+> Priority **primarily accelerates decode (GenTime -26~32%)**, but also improves TTFT (-7%, σ -53%). GenTime improvement is ~4x larger than TTFT improvement. When output is ≤30 tokens, GenTime is <100ms — even a 30% speedup saves only ~29ms, which is smaller than TTFT measurement noise (σ=81ms). The benefit exists but is **unmeasurable at this scale**.
 
 ### Two-dimensional results: Output length × Input length
 
@@ -104,7 +104,7 @@ flowchart LR
     style GenTime fill:#d4edda,stroke:#28a745
 ```
 
-Priority's primary benefit is **faster decode**. TTFT = network + scheduling + prefill + 1st token decode; GenTime = remaining token decodes. Priority accelerates all decode steps, but since TTFT is dominated by prefill (not decode), the TTFT improvement is modest. The E2E improvement scales with output length because GenTime's share of E2E increases.
+Priority **primarily accelerates decode** (GenTime -26~32%, i.e. TPS +30~43%), and also improves TTFT (-7%, σ -53%). TTFT = network + scheduling + prefill + 1st decode; GenTime = remaining decodes. Since TTFT is dominated by prefill, its improvement is modest (~4x smaller than GenTime improvement). The E2E improvement scales with output length because GenTime's share of E2E increases.
 
 | Component | Standard | Priority | Impact |
 |---|:---:|:---:|:---:|

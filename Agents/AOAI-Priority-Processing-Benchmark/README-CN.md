@@ -41,7 +41,7 @@ flowchart LR
     style R1000 fill:#d4edda,stroke:#28a745
 ```
 
-> Priority 只加速 **Decode（GenTime）**。当输出 ≤30 tokens 时，GenTime 仅 <100ms——即使加速 30% 也只省 ~29ms，小于 TTFT 测量噪声（σ=81ms）。收益存在但**在该尺度下无法测量**。
+> Priority **主要加速 Decode（GenTime -26~32%）**，同时也改善 TTFT（-7%，σ -53%）。GenTime 改善约为 TTFT 改善的 4 倍。当输出 ≤30 tokens 时，GenTime 仅 <100ms——即使加速 30% 也只省 ~29ms，小于 TTFT 测量噪声（σ=81ms）。收益存在但**在该尺度下无法测量**。
 
 ### 二维结果：输出长度 × 输入长度
 
@@ -104,7 +104,7 @@ flowchart LR
     style GenTime fill:#d4edda,stroke:#28a745
 ```
 
-Priority 的核心收益是**更快的 Decode**。TTFT = 网络 + 调度 + Prefill + 首 token 解码；GenTime = 剩余 token 解码。Priority 加速所有 Decode 步骤，但 TTFT 主要由 Prefill 主导（非 Decode），因此 TTFT 改善较小。E2E 改善随输出长度增加，因为 GenTime 在 E2E 中的占比增大。
+Priority **主要加速 Decode**（GenTime -26~32%，即 TPS +30~43%），同时也改善 TTFT（-7%，σ -53%）。TTFT = 网络 + 调度 + Prefill + 首 token 解码；GenTime = 剩余 token 解码。TTFT 主要由 Prefill 主导，因此改善较小（约为 GenTime 改善的 1/4）。E2E 改善随输出长度增加，因为 GenTime 在 E2E 中的占比增大。
 
 | 组件 | Standard | Priority | 影响 |
 |---|:---:|:---:|:---:|
