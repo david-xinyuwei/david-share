@@ -150,19 +150,23 @@ Microsoft [documents](https://learn.microsoft.com/en-us/azure/foundry/openai/con
 
 ## 3. When to Use Priority Processing
 
-| Scenario | Input | Output | ΔTPS | ΔE2E | ROI | Why |
-|---|:---:|:---:|:---:|:---:|:---:|---|
-| **Agent multi-turn chat** | Long (1K-10K) | 200-1000 | +49~66% | -25~37% | ✅✅✅ | Context accumulates → input grows → Standard TPS degrades |
-| **RAG long answer** | Long (2K-8K) | 200-1000 | +49~66% | -25~37% | ✅✅✅ | Retrieved chunks fill context → long input |
-| **Code generation** | Long (1K-4K) | 200-2000 | +49~66% | -25~37% | ✅✅✅ | Large code context + long generated code |
-| **Content gen (long prompt)** | Long (1K+) | 500-2000 | +49~66% | -25~37% | ✅✅✅ | Long system prompt + brand guidelines |
-| **Streaming chat** | Short (<500) | 100-500 | +35~39% | -17~21% | ✅✅ | User watches output stream — perceived speed matters |
-| **Email/report generation** | Short (<500) | 200-1000 | +35~39% | -17~27% | ✅✅ | Stable moderate benefit |
-| **High-concurrency bursts** | Any | >50 | +30~43% | P95 -52% | ✅✅ | Tail latency control, avoids queue spikes |
-| **Short Q&A** | Short | <30 | ≈0% | -4% | ❌ | GenTime <100ms, benefit drowned by noise, wastes 75–100% price premium |
-| **Intent classification** | Short | 5-20 | ≈0% | ≈0% | ❌ | Output too short, zero measurable benefit |
+Microsoft [recommends](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/announcing-priority-processing-in-microsoft-foundry-for-performance-sensitive-ai/4504788) Priority for: real-time copilots, interactive developer tools, financial decisioning, operational dashboards, and AI-powered agent orchestration. Background/batch workloads should use Standard or Batch deployments.
 
-> **Best scenarios**: long input + long output (Agent, RAG, Code). Priority's TPS guarantee stays constant while Standard's TPS degrades under long-context prefill pressure — the percentage gap widens.
+We validated these recommendations with benchmark data and extended the analysis to specific input/output patterns:
+
+| Scenario | Source | Input | Output | ΔTPS | ΔE2E | ROI | Evidence |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|---|
+| **Agent orchestration** | MS Blog | Long (1K-10K) | 200-1000 | +49~66% | -25~37% | ✅✅✅ | Context accumulates → long input → measured |
+| **Real-time copilot / streaming chat** | MS Blog | Short-Long | 100-500 | +35~66% | -17~37% | ✅✅✅ | User watches output stream |
+| **Interactive developer tools (code gen)** | MS Blog | Long (1K-4K) | 200-2000 | +49~66% | -25~37% | ✅✅✅ | Large code context + long output |
+| **Bursty traffic** | MS Docs | Any | >50 | +30~43% | P95 -52% | ✅✅ | Tail latency control under load |
+| **RAG long answer** | Our test | Long (2K-8K) | 200-1000 | +49~66% | -25~37% | ✅✅✅ | Retrieved chunks fill context |
+| **Content gen (long prompt)** | Our test | Long (1K+) | 500-2000 | +49~66% | -25~37% | ✅✅✅ | Long system prompt + brand rules |
+| **Email/report generation** | Our test | Short (<500) | 200-1000 | +35~39% | -17~27% | ✅✅ | Moderate stable benefit |
+| **Short Q&A** | Our test | Short | <30 | ≈0% | -4% | ❌ | GenTime <100ms, benefit unmeasurable |
+| **Intent classification / routing** | Our test | Short | 5-20 | ≈0% | ≈0% | ❌ | Output too short, zero benefit |
+
+> **Key insight from our benchmark**: Priority's biggest advantage appears in **long input + long output** scenarios (Agent, RAG, Code). Under long-context prefill load, Standard TPS degrades while Priority TPS stays consistent — the percentage gap widens. Short-output tasks (<30 tokens) show no measurable benefit regardless of input length.
 
 ### Cost-Benefit Analysis
 
