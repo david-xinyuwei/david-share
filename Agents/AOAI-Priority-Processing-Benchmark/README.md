@@ -156,14 +156,14 @@ We validated these recommendations with benchmark data and extended the analysis
 
 | Scenario | Source | Input | Output | ΔTPS | ΔE2E | ΔTTFT | ROI | Evidence |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|---|
-| **Agent orchestration** | MS Blog | Long (1K-10K) | 200-1000 | +49~66% | -25~37% | P50 -6%, σ -58% | ✅✅✅ | Context accumulates → long input → measured |
-| **Real-time copilot / streaming chat** | MS Blog | Short-Long | 100-500 | +35~66% | -17~37% | P50 -6%, σ -58% | ✅✅✅ | User watches output stream |
-| **Interactive developer tools (code gen)** | MS Blog | Long (1K-4K) | 200-2000 | +49~66% | -25~37% | P50 -6%, σ -58% | ✅✅✅ | Large code context + long output |
+| **Agent orchestration** | MS Blog | Long (1K-10K) | 200-1000 | +49~66% | -25~37% | P50 -6% | ✅✅✅ | Context accumulates → long input → measured |
+| **Real-time copilot / streaming chat** | MS Blog | Short-Long | 100-500 | +35~66% | -17~37% | P50 -6% | ✅✅✅ | User watches output stream |
+| **Interactive developer tools (code gen)** | MS Blog | Long (1K-4K) | 200-2000 | +49~66% | -25~37% | P50 -6% | ✅✅✅ | Large code context + long output |
 | **Bursty traffic** | MS Docs | Any | >50 | +30~43% | P95 -52% | **P95 -52%** | ✅✅ | Tail latency control under load |
-| **RAG long answer** | Our test | Long (2K-8K) | 200-1000 | +49~66% | -25~37% | P50 -6%, σ -58% | ✅✅✅ | Retrieved chunks fill context |
-| **Content gen (long prompt)** | Our test | Long (1K+) | 500-2000 | +49~66% | -25~37% | P50 -6%, σ -58% | ✅✅✅ | Long system prompt + brand rules |
-| **Email/report generation** | Our test | Short (<500) | 200-1000 | +35~39% | -17~27% | P50 -6%, σ -58% | ✅✅ | Moderate stable benefit |
-| **Short Q&A** | Our test | Short | <30 | ≈0% | -4% | P50 -6%, σ -58% | ❌ | GenTime <100ms, benefit unmeasurable |
+| **RAG long answer** | Our test | Long (2K-8K) | 200-1000 | +49~66% | -25~37% | P50 -6% | ✅✅✅ | Retrieved chunks fill context |
+| **Content gen (long prompt)** | Our test | Long (1K+) | 500-2000 | +49~66% | -25~37% | P50 -6% | ✅✅✅ | Long system prompt + brand rules |
+| **Email/report generation** | Our test | Short (<500) | 200-1000 | +35~39% | -17~27% | P50 -6% | ✅✅ | Moderate stable benefit |
+| **Short Q&A** | Our test | Short | <30 | ≈0% | -4% | P50 -6% | ❌ | GenTime <100ms, benefit unmeasurable |
 | **Intent classification / routing** | Our test | Short | 5-20 | ≈0% | ≈0% | ❌ | Output too short, zero benefit |
 
 > **Key insight from our benchmark**: Priority's biggest advantage appears in **long input + long output** scenarios (Agent, RAG, Code). Under long-context prefill load, Standard TPS degrades while Priority TPS stays consistent — the percentage gap widens. Short-output tasks (<30 tokens) show no measurable benefit regardless of input length.
