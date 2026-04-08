@@ -135,7 +135,7 @@ flowchart LR
 
 ### 实测 vs 微软 SLA 承诺
 
-微软[文档](https://learn.microsoft.com/en-us/azure/foundry/openai/concepts/priority-processing)中 Priority Processing 的延迟目标为 gpt-5.4 **99% > 50 TPS**（P50，每 5 分钟窗口）。我们的实测验证了这一承诺：
+微软[文档](https://learn.microsoft.com/en-us/azure/foundry/openai/concepts/priority-processing)中 Priority Processing 的延迟目标为 gpt-5.4 **99% > 50 TPS**。据脚注，TPS 按 P50（中位数）计算，统计窗口为每 5 分钟——即：99% 的 5 分钟窗口内，中位数 TPS 超过 50。我们的实测验证了这一承诺：
 
 | 输出 | Standard TPS P50 | ≥50? | Priority TPS P50 | ≥50? |
 |:---:|:---:|:---:|:---:|:---:|

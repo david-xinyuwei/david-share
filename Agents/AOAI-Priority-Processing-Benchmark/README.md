@@ -133,7 +133,7 @@ Per [Microsoft Tech Community](https://techcommunity.microsoft.com/blog/azure-ai
 
 ### Validation against Microsoft's SLA
 
-Microsoft [documents](https://learn.microsoft.com/en-us/azure/foundry/openai/concepts/priority-processing) the Priority Processing latency target as **99% > 50 TPS** for gpt-5.4 (P50, per 5-minute window). Our benchmark validates this:
+Microsoft [documents](https://learn.microsoft.com/en-us/azure/foundry/openai/concepts/priority-processing) the Priority Processing latency target as **99% > 50 TPS** for gpt-5.4. Per the footnote, TPS is calculated as P50 (median) request latency on a per 5-minute basis — meaning: in 99% of 5-minute windows, the median TPS exceeds 50. Our benchmark validates this:
 
 | Output | Standard TPS P50 | ≥50? | Priority TPS P50 | ≥50? |
 |:---:|:---:|:---:|:---:|:---:|
