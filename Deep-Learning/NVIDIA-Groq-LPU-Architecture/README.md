@@ -1,8 +1,8 @@
 # NVIDIA Groq LPU — Architecture Deep Dive: From TSP to Vera Rubin Platform
 
-> **⛔ Last Updated: 2026-03-30 12:00**
-> **Project Category**: AI Infrastructure — Chip Architecture Analysis
-> **Author**: Xinyu Wei
+> **Last Updated**: 2026-04-10
+> **Category**: AI Infrastructure — Chip Architecture Analysis
+> **Author**: Xinyu Wei (魏新宇) | Microsoft AI GBB
 
 ---
 
@@ -66,6 +66,42 @@ TSP (Tensor Streaming Processor) does the opposite — **slices by function, not
 | **MXM** | Matrix Execution Module | Matrix multiplication (the main compute) |
 | **SXM** | Switch Execution Module | Inter-chip networking and data routing |
 
+**Architecture Comparison Diagram:**
+
+```mermaid
+graph TB
+    subgraph GPU["Traditional GPU: Hub-and-Spoke"]
+        direction TB
+        C0["Core 0: ALU+Cache+Control"] --- BUS["Shared Bus / Crossbar: Contention!"]
+        C1["Core 1: ALU+Cache+Control"] --- BUS
+        C2["Core 2: ALU+Cache+Control"] --- BUS
+        C3["Core N: ALU+Cache+Control"] --- BUS
+        BUS --- HBM["HBM Memory: 22 TB/s"]
+    end
+
+    subgraph LPU["TSP / LPU: Assembly-Line"]
+        direction TB
+        ICU["ICU: Instruction Control, Shared, less than 3% area"] -->|Instructions| MEM
+        MEM["MEM: Memory Slice, SRAM 150 TB/s"] -->|Data| VXM
+        VXM["VXM: Vector Execution, ReLU, LayerNorm"] -->|Data| MXM
+        MXM["MXM: Matrix Execution, MatMul"] -->|Data| SXM
+        SXM["SXM: Switch Execution, C2C 640 TB/s"]
+    end
+
+    style GPU fill:#ff634720,stroke:#ff6347,stroke-width:2px
+    style LPU fill:#0078d420,stroke:#0078d4,stroke-width:2px
+    style BUS fill:#ff6347,color:#fff
+    style ICU fill:#0078d4,color:#fff
+    style MEM fill:#005a9e,color:#fff
+    style VXM fill:#00bcf2,color:#fff
+    style MXM fill:#0078d4,color:#fff
+    style SXM fill:#005a9e,color:#fff
+    style HBM fill:#ff6347,color:#fff
+```
+
+<details>
+<summary>ASCII Art Version (click to expand)</summary>
+
 ```
 Traditional (GPU): Each core has everything → cores fight for shared resources
 
@@ -91,6 +127,8 @@ TSP (LPU): Functions separated into slices → data flows through like assembly 
   └─────┴─────┴─────┴─────┴─────┘
   Data flows → (X-axis)
 ```
+
+</details>
 
 ### 2.2 Why This Design Works
 
@@ -244,6 +282,60 @@ Key phrase: **"jointly computing every layer"** — GPU and LPU are NOT simply s
 
 ### 5.2 System Architecture
 
+**System Architecture Diagram:**
+
+```mermaid
+graph TB
+    USER["User Request"] --> DYNAMO
+
+    subgraph DYNAMO["NVIDIA Dynamo 1.0: Orchestrator"]
+        ROUTER["KV-aware Router"]
+        PLANNER["SLA-based Planner"]
+        KVBM["KV Block Manager"]
+    end
+
+    DYNAMO -->|"1: Prefill"| NVL72
+
+    subgraph NVL72["Vera Rubin NVL72 Rack"]
+        GPU["72x Rubin GPU, 288 GB HBM4 each, 3.6 EFLOPS"]
+        VERA["36x Vera CPU, 88 Olympus cores"]
+    end
+
+    NVL72 -->|"2: KV Cache + Activations via NIXL"| LPX
+
+    subgraph LPX["NVIDIA Groq 3 LPX Rack"]
+        LPUCHIP["256x LPU, 128 GB SRAM, 315 PFLOPS"]
+        C2C["Custom C2C, 640 TB/s Scale-Up"]
+    end
+
+    NVL72 <-->|"3: Jointly Computing Every Layer"| LPX
+
+    LPX --> STX
+
+    subgraph STX["BlueField-4 STX Storage"]
+        DOCA["DOCA Memos: KV Cache Storage, 5x throughput"]
+    end
+
+    LPX -->|"4: Tokens Out"| RESPONSE["Response: 1000+ TPS/User, 35x vs Blackwell"]
+
+    style DYNAMO fill:#76b90020,stroke:#76b900,stroke-width:2px
+    style NVL72 fill:#0078d420,stroke:#0078d4,stroke-width:2px
+    style LPX fill:#00bcf220,stroke:#00bcf2,stroke-width:2px
+    style STX fill:#5c2d9120,stroke:#5c2d91,stroke-width:2px
+    style GPU fill:#0078d4,color:#fff
+    style VERA fill:#005a9e,color:#fff
+    style LPUCHIP fill:#00bcf2,color:#fff
+    style C2C fill:#005a9e,color:#fff
+    style DOCA fill:#5c2d91,color:#fff
+    style ROUTER fill:#76b900,color:#fff
+    style PLANNER fill:#76b900,color:#fff
+    style KVBM fill:#76b900,color:#fff
+    style RESPONSE fill:#76b900,color:#fff
+```
+
+<details>
+<summary>ASCII Art Version (click to expand)</summary>
+
 ```
 Vera Rubin SuperPOD:
 
@@ -275,6 +367,8 @@ Vera Rubin SuperPOD:
     • SLA-based Planner (auto-scaling prefill/decode pools)
     • Grove (K8s topology-aware gang scheduling)
 ```
+
+</details>
 
 ### 5.3 LPX Rack Specifications
 
@@ -390,14 +484,13 @@ Groq's proprietary numeric format:
 | # | Source | Type | Authority |
 |---|--------|------|:---------:|
 | 1 | Post Keynote GTC 2026 Customer Deck — Accelerated Computing (44 pages) | PDF | ☠2 |
-| 2 | nvidianews.nvidia.com/news/nvidia-vera-rubin-platform | Press Release | ☠1 |
-| 3 | blogs.nvidia.com/blog/gtc-2026-news (Keynote live blog) | Blog | ☠2 |
-| 4 | groq.com/lpu-architecture | Official Product Page | ☠2 |
-| 5 | groq.com/blog/inside-the-lpu-deconstructing-groq-speed | Technical Blog | ☠2 |
-| 6 | groq.com/blog/from-speed-to-scale-how-groq-is-optimized-for-moe-other-large-models | Technical Blog | ☠2 |
-| 7 | groq.com/blog/the-groq-lpu-explained (LPU 4 Design Principles) | Technical Blog | ☠2 |
-| 8 | Groq TSP ISCA 2020 Paper | Academic Paper | ☠2 |
-| 9 | EETOP WeChat: "深度拆解Groq LPU架构" (2026-03-30) | Analysis Article | ☠4 |
-| 10 | github.com/ai-dynamo/dynamo (NVIDIA Dynamo 1.0) | Open Source Repo | ☠2 |
+| 2 | [nvidianews.nvidia.com/news/nvidia-vera-rubin-platform](https://nvidianews.nvidia.com/news/nvidia-vera-rubin-platform) | Press Release | ☠️1 |
+| 3 | [blogs.nvidia.com/blog/gtc-2026-news](https://blogs.nvidia.com/blog/gtc-2026-news) (Keynote live blog) | Blog | ☠️2 |
+| 4 | [groq.com/lpu-architecture](https://groq.com/lpu-architecture) | Official Product Page | ☠️2 |
+| 5 | [groq.com/blog/inside-the-lpu-deconstructing-groq-speed](https://groq.com/blog/inside-the-lpu-deconstructing-groq-speed) | Technical Blog | ☠️2 |
+| 6 | [groq.com/blog/from-speed-to-scale](https://groq.com/blog/from-speed-to-scale-how-groq-is-optimized-for-moe-other-large-models) | Technical Blog | ☠️2 |
+| 7 | [groq.com/blog/the-groq-lpu-explained](https://groq.com/blog/the-groq-lpu-explained) (LPU 4 Design Principles) | Technical Blog | ☠️2 |
+| 8 | Groq TSP ISCA 2020 Paper | Academic Paper | ☠️2 |
+| 9 | [github.com/ai-dynamo/dynamo](https://github.com/ai-dynamo/dynamo) (NVIDIA Dynamo 1.0) | Open Source Repo | ☠️2 |
 
 ---
