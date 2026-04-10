@@ -1,8 +1,8 @@
 # NVIDIA Groq LPU — 架构深度解析：从 TSP 到 Vera Rubin 平台
 
-> **⛔ 最后更新: 2026-03-30 12:00**
-> **项目分类**: AI 基础设施 — 芯片架构分析
-> **作者**: 魏新宇 (Xinyu Wei)
+> **最后更新**: 2026-04-10
+> **分类**: AI 基础设施 — 芯片架构分析
+> **作者**: 魏新宇 (Xinyu Wei) | Microsoft AI GBB
 
 ---
 
@@ -68,6 +68,42 @@ TSP（Tensor Streaming Processor，张量流处理器）反其道而行 — **�
 | **MXM** | Matrix Execution Module | Matrix multiplication (the main compute) |
 | **SXM** | Switch Execution Module | Inter-chip networking and data routing |
 
+**架构对比图：**
+
+```mermaid
+graph TB
+    subgraph GPU["传统 GPU：轮毂模型"]
+        direction TB
+        C0["核心 0: ALU+缓存+控制"] --- BUS["共享总线 / 交叉开关: 争抢!"]
+        C1["核心 1: ALU+缓存+控制"] --- BUS
+        C2["核心 2: ALU+缓存+控制"] --- BUS
+        C3["核心 N: ALU+缓存+控制"] --- BUS
+        BUS --- HBM["HBM 内存: 22 TB/s"]
+    end
+
+    subgraph LPU["TSP / LPU：流水线模型"]
+        direction TB
+        ICU["ICU: 指令控制, 共享, 不到3%面积"] -->|指令流| MEM
+        MEM["MEM: 内存切片, SRAM 150 TB/s"] -->|数据流| VXM
+        VXM["VXM: 向量执行, ReLU, LayerNorm"] -->|数据流| MXM
+        MXM["MXM: 矩阵执行, MatMul"] -->|数据流| SXM
+        SXM["SXM: 交换执行, C2C 640 TB/s"]
+    end
+
+    style GPU fill:#ff634720,stroke:#ff6347,stroke-width:2px
+    style LPU fill:#0078d420,stroke:#0078d4,stroke-width:2px
+    style BUS fill:#ff6347,color:#fff
+    style ICU fill:#0078d4,color:#fff
+    style MEM fill:#005a9e,color:#fff
+    style VXM fill:#00bcf2,color:#fff
+    style MXM fill:#0078d4,color:#fff
+    style SXM fill:#005a9e,color:#fff
+    style HBM fill:#ff6347,color:#fff
+```
+
+<details>
+<summary>ASCII 文本版（点击展开）</summary>
+
 ```
 传统设计 (GPU)：每个核心都有全套功能 → 核心之间争抢共享资源
 
@@ -93,6 +129,8 @@ TSP (LPU)：按功能分离成切片 → 数据像流水线一样流过
   └─────┴─────┴─────┴─────┴─────┘
   数据流 → (X轴)
 ```
+
+</details>
 
 ### 2.2 这种设计为什么有效
 
@@ -248,6 +286,60 @@ GPU 计算层   │  GPU 运行 kernel（MatMul/Attention/LayerNorm）
 
 ### 5.2 系统架构
 
+**系统架构图：**
+
+```mermaid
+graph TB
+    USER["用户请求"] --> DYNAMO
+
+    subgraph DYNAMO["NVIDIA Dynamo 1.0: 调度器"]
+        ROUTER["KV-aware 路由"]
+        PLANNER["SLA 驱动的 Planner"]
+        KVBM["KV Block Manager"]
+    end
+
+    DYNAMO -->|"1: Prefill"| NVL72
+
+    subgraph NVL72["Vera Rubin NVL72 机架"]
+        GPU["72x Rubin GPU, 每颗 288 GB HBM4, 3.6 EFLOPS"]
+        VERA["36x Vera CPU, 88 Olympus 核心"]
+    end
+
+    NVL72 -->|"2: KV Cache + Activations 通过 NIXL"| LPX
+
+    subgraph LPX["NVIDIA Groq 3 LPX 机架"]
+        LPUCHIP["256x LPU, 128 GB SRAM, 315 PFLOPS"]
+        C2C["自定义 C2C, 640 TB/s"]
+    end
+
+    NVL72 <-->|"3: 联合计算每一层"| LPX
+
+    LPX --> STX
+
+    subgraph STX["BlueField-4 STX 存储"]
+        DOCA["DOCA Memos: KV Cache 存储, 5x 吞吐提升"]
+    end
+
+    LPX -->|"4: Token 输出"| RESPONSE["响应: 1000+ TPS/用户, 35x vs Blackwell"]
+
+    style DYNAMO fill:#76b90020,stroke:#76b900,stroke-width:2px
+    style NVL72 fill:#0078d420,stroke:#0078d4,stroke-width:2px
+    style LPX fill:#00bcf220,stroke:#00bcf2,stroke-width:2px
+    style STX fill:#5c2d9120,stroke:#5c2d91,stroke-width:2px
+    style GPU fill:#0078d4,color:#fff
+    style VERA fill:#005a9e,color:#fff
+    style LPUCHIP fill:#00bcf2,color:#fff
+    style C2C fill:#005a9e,color:#fff
+    style DOCA fill:#5c2d91,color:#fff
+    style ROUTER fill:#76b900,color:#fff
+    style PLANNER fill:#76b900,color:#fff
+    style KVBM fill:#76b900,color:#fff
+    style RESPONSE fill:#76b900,color:#fff
+```
+
+<details>
+<summary>ASCII 文本版（点击展开）</summary>
+
 ```
 Vera Rubin SuperPOD：
 
@@ -279,6 +371,8 @@ Vera Rubin SuperPOD：
     • SLA-based Planner (auto-scaling prefill/decode pools)
     • Grove (K8s topology-aware gang scheduling)
 ```
+
+</details>
 
 ### 5.3 LPX 机架规格
 
@@ -401,8 +495,7 @@ Groq 的专有数值格式：
 | 6 | groq.com/blog/from-speed-to-scale-how-groq-is-optimized-for-moe-other-large-models | Technical Blog | ☠2 |
 | 7 | groq.com/blog/the-groq-lpu-explained (LPU 4 Design Principles) | Technical Blog | ☠2 |
 | 8 | Groq TSP ISCA 2020 Paper | Academic Paper | ☠2 |
-| 9 | EETOP WeChat: "深度拆解Groq LPU架构" (2026-03-30) | Analysis Article | ☠4 |
-| 10 | github.com/ai-dynamo/dynamo (NVIDIA Dynamo 1.0) | Open Source Repo | ☠2 |
+| 9 | github.com/ai-dynamo/dynamo (NVIDIA Dynamo 1.0) | Open Source Repo | ☠2 |
 | 11 | Cenyu Zhang GTC 2026 Conference Report | Internal Report | ☠3 |
 | 12 | Session discussion with commander (multi-round Q&A, 2026-03-29~30) | Session | ☠1 |
 
