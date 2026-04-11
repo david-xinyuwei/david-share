@@ -218,6 +218,8 @@ graph TD
     style CONCAT fill:#FFF176
 ```
 
+> 🖼️ If Mermaid doesn't render, see the PNG version: [en-full-pipeline.png](images/en-full-pipeline.png)
+
 > **Why is KV Cache so large?** Not just because of token count — multiply by layer count. Each of the 36 layers independently stores all historical K and V vectors. That's why the KV Cache formula has $L$ (number of layers).
 >
 > **Why can't layers share KV Cache?** Because each layer computes different K and V: (1) each layer's input is different — layer 0 receives embeddings, layer 1 receives layer 0's output, etc.; (2) each layer has its own W_K and W_V weight matrices. Different input × different weights = completely different K/V tensors. In HuggingFace transformers, `DynamicCache` stores "a list of CacheLayer, one for each layer" — verified from source code.

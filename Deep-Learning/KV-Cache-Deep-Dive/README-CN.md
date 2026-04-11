@@ -333,6 +333,8 @@ graph TD
     style LOOP fill:#66BB6A,color:#fff
 ```
 
+> 🖼️ 如果 Mermaid 无法渲染，请查看 PNG 版本：[cn-full-pipeline.png](images/cn-full-pipeline.png)
+
 **图中三大优化技术：**
 
 | 颜色 | 技术 | 位置 | 作用 |
