@@ -330,11 +330,6 @@ graph TD
     style K fill:#A5D6A7
     style V fill:#A5D6A7
 ```
-    style STEP4 fill:#FFF3E0,stroke:#E65100
-    style STEP5 fill:#F3E5F5,stroke:#7B1FA2
-    style KC fill:#4CAF50,color:#fff
-    style SCORE fill:#FF9800,color:#fff
-```
 
 ### 1.2 权重矩阵里有什么？
 
