@@ -147,19 +147,19 @@ W_V (v_proj.weight) [1024 × 1024] = 1,048,576 个数字:
 
 **三个矩阵的结构完全一样**（都是浮点数表格），**区别来自训练过程**——它们在 Attention 计算图中的位置不同，导致训练时梯度不同，最终收敛到不同的数字：
 
-- $W_Q$ 的产物在 $QK^\top$ 的**左边** → 训练时梯度迫使它学会提取"查找需求"
-- $W_K$ 的产物在 $QK^\top$ 的**右边** → 梯度迫使它学会提取"身份特征"
-- $W_V$ 的产物在 $\text{weight} \times V$ 的**右边** → 梯度迫使它学会提取"需要传递的语义内容"
+- W_Q 的产物在 QKᵀ 的**左边** → 训练时梯度迫使它学会提取"查找需求"
+- W_K 的产物在 QKᵀ 的**右边** → 梯度迫使它学会提取"身份特征"
+- W_V 的产物在 weight × V 的**右边** → 梯度迫使它学会提取"需要传递的语义内容"
 
-矩阵乘法（$x \times W_K$）的本质是**对 embedding 各维度做加权求和**——$W_K$ 每一行的数字决定了"从 4096 维 embedding 中，哪些维度放大、哪些维度忽略、怎么混合成 128 维的 K 向量"。三个矩阵就是三套不同的"混合配比"。
+矩阵乘法（x × W_K）的本质是**对 embedding 各维度做加权求和**——W_K 每一行的数字决定了"从 4096 维 embedding 中，哪些维度放大、哪些维度忽略、怎么混合成 128 维的 K 向量"。三个矩阵就是三套不同的"混合配比"。
 
-> **V 不是 Embedding 的原始内容**。V 是 Embedding 经过 $W_V$ 加工后的版本——$W_V$ 决定了"从 Embedding 中提取什么信息来传递"。如果不同层的 $W_V$ 不同（事实如此），每层 Attention 可以选择性传递不同方面的信息。
+> **V 不是 Embedding 的原始内容**。V 是 Embedding 经过 W_V 加工后的版本——W_V 决定了"从 Embedding 中提取什么信息来传递"。如果不同层的 W_V 不同（事实如此），每层 Attention 可以选择性传递不同方面的信息。
 
 ### 1.3 KV Cache 到底缓存了什么？
 
-**KV Cache 缓存的是每层每个历史 token 的 K 向量和 V 向量**——即 $x_t W_K$ 和 $x_t W_V$ 的乘积结果。
+**KV Cache 缓存的是每层每个历史 token 的 K 向量和 V 向量**——即 x_t × W_K 和 x_t × W_V 的乘积结果。
 
-**不是** Attention Score（$QK^\top$），**不是** Attention Weight（softmax 后的概率），**不是**原始 Embedding $x_t$。
+**不是** Attention Score（QKᵀ），**不是** Attention Weight（softmax 后的概率），**不是**原始 Embedding x_t。
 
 ```
 KV Cache 存的东西:
@@ -169,16 +169,16 @@ Layer 1:  { K: [K₁, K₂, ..., Kₜ],  V: [V₁, V₂, ..., Vₜ] }
 Layer 35: { K: [K₁, K₂, ..., Kₜ],  V: [V₁, V₂, ..., Vₜ] }
 ```
 
-每个 $K_i$ 和 $V_i$ 是一个 `[num_kv_heads × head_dim]` 的浮点向量。
+每个 K_i 和 V_i 是一个 `[num_kv_heads × head_dim]` 的浮点向量。
 
 **缓存 K 和 V 而不缓存 Q 和 Score 的原因：**
 
 | 东西 | 能缓存吗？ | 原因 |
 |------|:---------:|------|
-| **K** | ✅ | $K_j = x_j W_K$，$x_j$ 和 $W_K$ 都不随后续 token 变化，一旦算出就固定 |
-| **V** | ✅ | 同上，$V_j = x_j W_V$ 也是固定的 |
-| **Q** | ❌ | $Q_t$ 属于当前 token，每步都是新的，没法复用 |
-| **Score** | ❌ | Score = $Q \times K^\top$，Q 每步都变 → Score 必须每步重算 |
+| **K** | ✅ | K_j = x_j × W_K，x_j 和 W_K 都不随后续 token 变化，一旦算出就固定 |
+| **V** | ✅ | 同上，V_j = x_j × W_V 也是固定的 |
+| **Q** | ❌ | Q_t 属于当前 token，每步都是新的，没法复用 |
+| **Score** | ❌ | Score = Q × Kᵀ，Q 每步都变 → Score 必须每步重算 |
 
 ### 1.4 Prefill 和 Decode 两个阶段
 
@@ -211,7 +211,7 @@ Decode Step 3: 生成 "很"  → 只算 K₈V₈，追加到 Cache
 
 **KV Cache = 用线性内存换掉二次计算。** Cache 只增不减（直到对话结束），每生成一个 token 就追加一组 K、V。这就是为什么长上下文推理需要大量 GPU 显存。
 
-> **一句话总结**：KV Cache 存的是每层每个历史 token 的 Key 和 Value 投影向量（$x_t W_K$ 和 $x_t W_V$ 的乘积结果）。它们在 Attention 计算之前通过线性投影产生，一旦算出就不再变化，因此可以缓存给后续 token 复用。
+> **一句话总结**：KV Cache 存的是每层每个历史 token 的 Key 和 Value 投影向量（x_t × W_K 和 x_t × W_V 的乘积结果）。它们在 Attention 计算之前通过线性投影产生，一旦算出就不再变化，因此可以缓存给后续 token 复用。
 
 ---
 
@@ -566,7 +566,7 @@ Q1: 模型权重（BF16）能放进单GPU吗？
 
 | 分类 | 概念 | 是什么 |
 |:---:|------|------|
-| **数据** | **Score Matrix** | $Q \times K^\top$ 的点积结果，T×T 的分数表。临时计算，用完就扔 |
+| **数据** | **Score Matrix** | Q × Kᵀ 的点积结果，T×T 的分数表。临时计算，用完就扔 |
 | **数据** | **KV Cache** | K 和 V 向量的持久存储，在 HBM 中，持续整个对话 |
 | **优化技术** | **FlashAttention** | 优化 **Score** 的计算方式——分块在 Shared Memory 中算，Score 不落地 HBM |
 | **优化技术** | **PagedAttention** | 优化 **KV Cache** 的存储方式——分页管理 HBM，减少显存碎片 |

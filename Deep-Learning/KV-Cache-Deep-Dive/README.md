@@ -136,19 +136,19 @@ W_V (v_proj.weight) [1024 × 1024] = 1,048,576 numbers:
 
 **All three matrices have identical structure** (float tables). Their difference comes solely from their **position in the computation graph**, which causes different gradients during training:
 
-- $W_Q$'s output is on the **left side** of $QK^\top$ → trained to extract "query needs"
-- $W_K$'s output is on the **right side** of $QK^\top$ → trained to extract "identity features"
-- $W_V$'s output is on the **right side** of weight × V → trained to extract "content to transfer"
+- W_Q's output is on the **left side** of QKᵀ → trained to extract "query needs"
+- W_K's output is on the **right side** of QKᵀ → trained to extract "identity features"
+- W_V's output is on the **right side** of weight × V → trained to extract "content to transfer"
 
-Matrix multiplication ($x \times W_K$) is fundamentally **weighted summation** — each row of $W_K$ determines which embedding dimensions to amplify and which to ignore.
+Matrix multiplication (x × W_K) is fundamentally **weighted summation** — each row of W_K determines which embedding dimensions to amplify and which to ignore.
 
-> **V is not the raw Embedding**. V is a processed version via $W_V$, which selects what information to transfer. Different layers' $W_V$ extract different aspects of the same embedding.
+> **V is not the raw Embedding**. V is a processed version via W_V, which selects what information to transfer. Different layers' W_V extract different aspects of the same embedding.
 
 ### 1.3 What Exactly Does KV Cache Store?
 
-**KV Cache stores the K and V vectors for every historical token at every layer** — the products of $x_t W_K$ and $x_t W_V$.
+**KV Cache stores the K and V vectors for every historical token at every layer** — the products of x_t × W_K and x_t × W_V.
 
-**Not** Attention Scores ($QK^\top$), **not** Attention Weights (post-softmax), **not** raw Embedding $x_t$.
+**Not** Attention Scores (QKᵀ), **not** Attention Weights (post-softmax), **not** raw Embedding x_t.
 
 ```
 KV Cache contents:
@@ -162,10 +162,10 @@ Layer 35: { K: [K₁, K₂, ..., Kₜ],  V: [V₁, V₂, ..., Vₜ] }
 
 | Item | Cacheable? | Reason |
 |------|:---------:|--------|
-| **K** | ✅ | $K_j = x_j W_K$; both $x_j$ and $W_K$ are fixed once computed |
-| **V** | ✅ | Same: $V_j = x_j W_V$ is fixed |
-| **Q** | ❌ | $Q_t$ belongs to the current token; changes every step |
-| **Score** | ❌ | Score = $Q \times K^\top$; Q changes → Score must be recomputed |
+| **K** | ✅ | K_j = x_j × W_K; both x_j and W_K are fixed once computed |
+| **V** | ✅ | Same: V_j = x_j × W_V is fixed |
+| **Q** | ❌ | Q_t belongs to the current token; changes every step |
+| **Score** | ❌ | Score = Q × Kᵀ; Q changes → Score must be recomputed |
 
 ### 1.4 Prefill and Decode: Two Phases
 
@@ -186,7 +186,7 @@ During Decode, **only 1 token's K and V are computed per step**. All historical 
 
 **KV Cache = trading linear memory for quadratic compute.** The cache only grows (never shrinks until the conversation ends).
 
-> **One-line summary**: KV Cache stores each historical token's Key and Value projection vectors ($x_t W_K$ and $x_t W_V$) across all layers. They are produced before Attention via linear projection, are immutable once computed, and can be reused by all subsequent tokens.
+> **One-line summary**: KV Cache stores each historical token's Key and Value projection vectors (x_t × W_K and x_t × W_V) across all layers. They are produced before Attention via linear projection, are immutable once computed, and can be reused by all subsequent tokens.
 
 ---
 
@@ -399,7 +399,7 @@ Q1: Do model weights fit on a single GPU?
 
 | Category | Concept | What It Is |
 |:---:|--------|------|
-| **Data** | **Score Matrix** | $Q \times K^\top$ dot product result, T×T table. Temporary, discarded after use |
+| **Data** | **Score Matrix** | Q × Kᵀ dot product result, T×T table. Temporary, discarded after use |
 | **Data** | **KV Cache** | Persistent storage of K and V vectors in HBM, lasts entire conversation |
 | **Optimization** | **FlashAttention** | Optimizes **Score** computation — tiled in Shared Memory, Score never touches HBM |
 | **Optimization** | **PagedAttention** | Optimizes **KV Cache** storage — paged HBM management, reduces fragmentation |
