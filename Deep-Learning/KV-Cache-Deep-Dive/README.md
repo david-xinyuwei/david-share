@@ -10,10 +10,11 @@
 
 KV Cache is the **single largest dynamic memory consumer** during LLM inference. Understanding how KV Cache works and how to calculate its size is essential for GPU selection, VRAM planning, and production deployment.
 
-This guide progresses through 5 levels:
+This guide progresses through 6 levels:
 
 | Level | Topic | What You'll Learn |
 |:---:|-------|---------|
+| **L0** | Zero-Prerequisite Intro | Walk through the entire LLM inference + KV Cache with one example, no prior knowledge needed |
 | **L1** | What is KV Cache | Deriving KV Cache from the Attention mechanism |
 | **L2** | How Big is It | Universal formula + real model calculations |
 | **L3** | Four Reduction Architectures | GQA → Hybrid Attention → MLA → Hybrid Mamba |
@@ -33,11 +34,53 @@ This guide progresses through 5 levels:
 
 ---
 
+## L0: Zero-Prerequisite Introduction — One Example, Full Pipeline
+
+> If you already understand Transformer basics, skip to L1.
+
+### The entire LLM inference does one thing: given previous tokens, predict the next one
+
+```
+Input: "The weather is"
+Model predicts: "nice" (highest probability)
+Input becomes: "The weather is nice"
+Model predicts: "today" (highest probability)
+```
+
+One token at a time. How? Through 6 steps:
+
+**Step 1: Turn words into numbers (Tokenize)** — The model only understands numbers. A dictionary maps words to IDs: `"weather" → 8514`. No intelligence here, just lookup.
+
+**Step 2: Turn numbers into feature vectors (Embedding)** — A large table (150K rows × 4096 columns) maps each ID to a row of 4096 numbers. Similar words (e.g. "good" and "great") have similar rows. This makes math possible.
+
+**Step 3: Split each vector into three parts (Linear Projection)** — Same 4096-dim vector, compressed through three different weight matrices into three different 128-dim vectors:
+- **Q** (Query): "What am I looking for?"
+- **K** (Key): "What kind of word am I?"
+- **V** (Value): "What info do I carry if selected?"
+
+**Step 4: Find relevant words + transfer info (Attention)** — Q dot-product with every historical K → scores → softmax to probabilities → weighted sum of V vectors. The output is a new vector enriched with context.
+
+**Step 5: Independent digestion (FFN)** — Two matrix multiplications with a non-linear activation function in between. Attention = words talking to each other; FFN = each word thinking independently. Repeat Attention+FFN for 36 layers.
+
+**Step 6: Predict next token (LM Head)** — One final matrix multiplication maps 4096-dim to vocab size (150K). Pick the highest = model's prediction.
+
+### KV Cache: Don't Recompute, Just Cache
+
+After predicting "nice", the model predicts the next token. Step 4 needs every historical token's K and V. Without cache, all K/V must be recomputed. **KV Cache stores them — each new token only computes 1 new K and V, reads the rest from cache.**
+
+| | No Cache | With KV Cache |
+|---|---|---|
+| K/V computed per step | All tokens | Only 1 new token |
+| Speed | Slower and slower | Constant |
+| Cost | None | Cache grows, uses GPU memory |
+
+---
+
 ## L1: What is KV Cache?
 
 ### 1.1 End-to-End Processing of a Sentence
 
-Using "Alice threw the ball to Bob" as an example, the model processes it through these steps:
+Using "The weather is" as the same example from L0 (now with technical detail), the model processes it through these steps:
 
 **Step 1: Tokenize** — pure text operation, no vectors involved
 
