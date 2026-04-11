@@ -63,19 +63,45 @@ The model's **first layer weight** is an Embedding table (`[vocab_size × hidden
 
 The Embedding table is part of the model weights, learned during training.
 
-**Step 3: Linear projection** — produces Q, K, V
+**Step 3: Linear Projection** — produces Q, K, V
+
+> **What is linear projection?** It's a matrix multiplication. A 4096-dim vector multiplied by a 4096×128 matrix becomes a 128-dim vector. "Linear" because it only uses multiplication and addition. "Projection" because it maps from high-dimensional space (4096) to low-dimensional space (128) — like casting a 3D object's 2D shadow, keeping some information and discarding the rest.
 
 Each layer has three **trained weight matrices** W_Q, W_K, W_V (model parameters, frozen during inference):
 
 $$Q_t = x_t W_Q, \quad K_t = x_t W_K, \quad V_t = x_t W_V$$
 
-Same embedding x_t, three different matrices, three different output vectors.
+Same embedding x_t, three different matrices, three different output vectors. The three matrices are like three different "filters" — same photo (embedding), different filters, three images highlighting different features (Q, K, V).
 
-**Step 4: Attention computation** — Q and K pair up, V carries content
+**Step 4: Attention Computation** — Q and K pair up for scoring, V carries content
 
-$$\text{score}_{t,j} = \frac{Q_t \cdot K_j^\top}{\sqrt{d_k}}, \quad \text{output}_t = \sum_j \text{softmax}(\text{score})_j \cdot V_j$$
+> **What is Attention?** It means "paying attention" — the model decides which previous tokens to **focus on** when generating the current token. Three sub-steps:
+>
+> 1. **Scoring**: Dot product of current token's Q with each historical token's K (multiply corresponding elements and sum). Higher score = more relevant.
+> 2. **Softmax (normalization)**: Convert scores to probabilities (summing to 1). Softmax computes $e^{x_i} / \sum e^{x_j}$ — amplifies differences and normalizes.
+> 3. **Weighted sum**: Use probabilities to weight-average all historical V vectors. High-probability tokens contribute more. Output = a new vector fused with context.
 
-**Step 5: FFN (Feed-Forward Network) + next layer** — repeat for all 36 layers, finally predict next token.
+$$\text{score}_{t,j} = \frac{Q_t \cdot K_j^\top}{\sqrt{d_k}} \quad \text{(divide by } \sqrt{d_k} \text{ to prevent dot products from growing too large)}$$
+
+$$\text{output}_t = \sum_j \text{softmax}(\text{score})_j \cdot V_j$$
+
+**Step 5: FFN (Feed-Forward Network) + next layer**
+
+> **What is FFN?** Two matrix multiplications with an activation function in between. It "post-processes" the Attention output:
+>
+> ```
+> Attention output (128d) → × Matrix₁ → Activation(SiLU) → × Matrix₂ → FFN output (4096d)
+> ```
+>
+> **Activation function** (e.g. SiLU/ReLU) adds non-linearity — e.g. ReLU sets negative values to 0. Without it, stacking any number of linear layers is equivalent to one layer. Non-linearity is what allows the model to learn complex relationships.
+>
+> Think of it this way: Attention is tokens **talking to each other**; FFN is each token **thinking independently** about what it heard.
+
+One layer = Attention + FFN. 36 layers stacked = information is repeatedly "exchanged → digested → exchanged → digested", building deeper understanding.
+
+**Step 6: LM Head (Language Model Head) — predict next token**
+
+> **What is LM Head?** One final matrix multiplication. Maps the 4096-dim output from layer 36 to vocab size (e.g. 150K dimensions), where each dimension is a probability for one token. Pick the highest → that's the prediction.
 
 **Full Pipeline (Step 1 → Step 6):**
 
