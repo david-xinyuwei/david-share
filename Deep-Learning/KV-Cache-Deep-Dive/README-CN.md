@@ -859,6 +859,96 @@ FlashAttention:
 
 ---
 
+## Appendix B: NVIDIA Groq 3 LPX — SRAM-First 异构推理架构与 KV Cache
+
+> 数据来源：NVIDIA Developer Blog（[Inside NVIDIA Groq 3 LPX](https://developer.nvidia.com/blog/inside-nvidia-groq-3-lpx-the-low-latency-inference-accelerator-for-the-nvidia-vera-rubin-platform)）、[NVIDIA LPX 产品页](https://www.nvidia.com/en-us/data-center/lpx/)、Groq 官方博客（[Inside the LPU](https://groq.com/blog/inside-the-lpu-deconstructing-groq-speed)）。GTC 2026 发布。
+
+### B.1 背景：NVIDIA 授权 Groq IP
+
+NVIDIA 在 GTC 2026（2026-03）发布了 **NVIDIA Groq 3 LPX**——这是 NVIDIA Vera Rubin 平台的第七颗芯片。NVIDIA 于 2025 年末授权了 Groq 的 Tensor Streaming Processor (TSP) IP，将其集成到自己的数据中心架构中。
+
+### B.2 核心架构：SRAM-First + 确定性执行
+
+Groq 3 LPU 的核心设计理念是 **SRAM 作主存储（不是缓存）**：
+
+| 特性 | Groq 3 LPU (每芯片) | Groq 3 LPX (整柜) |
+|------|:---:|:---:|
+| **SRAM 容量** | 500 MB | 128 GB (256 芯片) |
+| **SRAM 带宽** | 150 TB/s | 40 PB/s |
+| **Scale-up 带宽** | 2.5 TB/s | 640 TB/s |
+| **FP8 算力** | 1.2 PFLOPS | 315 PFLOPS |
+| **DRAM**| 通过 Fabric Expansion Logic | 每托盘最大 256 GB |
+
+**与 GPU 的关键区别**：
+
+| | GPU (Rubin) | LPU (Groq 3) |
+|---|---|---|
+| **主存储** | HBM（片外，带宽 ~TB/s 级） | **SRAM（片上，带宽 ~PB/s 级）** |
+| **调度模式** | 运行时动态调度 | **编译时静态确定到每个时钟周期** |
+| **数据移动** | 硬件缓存层次管理 | **编译器显式调度** |
+| **延迟特性** | 有抖动（缓存未命中/资源竞争） | **确定性，极低抖动** |
+
+### B.3 权重、激活、KV Cache 分别存在哪？
+
+官方原文：
+> *"A flat, SRAM-first memory architecture where 500 MB of high-speed on-chip SRAM serves as the primary working storage for inference. The compiler and runtime place the active working set, **including weights, activations, and KV state**, into on-chip memory and move data explicitly."*
+
+| 数据 | 存储位置 | 特点 |
+|------|---------|------|
+| **权重** | 片上 SRAM（跨多芯片分布）| 静态，编译时确定布局 |
+| **激活** | 片上 SRAM（“传送带”流动）| 动态，用完可覆盖，占用固定 |
+| **KV Cache** | 片上 SRAM | 动态增长，随上下文增大 |
+
+**激活**的好消息：它不是累积的——Layer 0 的激活传给 Layer 1 后可以被覆盖，不像 KV Cache 需要一直留着。
+
+**KV Cache** 是 SRAM 容量的核心挑战：一个柜 128 GB SRAM 要同时装权重 + 激活 + KV Cache。对于万亿参数模型 + 百万 token 上下文，SRAM 单独装不下——这就是为什么需要异构架构。
+
+### B.4 异构推理：Rubin GPU + LPX LPU 协作
+
+**关键洞察：不是 LPX 单独工作，而是与 Rubin GPU 分工协作。**
+
+NVIDIA 的架构是 **Attention-FFN Disaggregation (AFD)**：
+
+```
+Prefill 阶段（处理长 prompt，构建 KV Cache）
+    → 由 Rubin GPU 执行（HBM 大容量 + 高算力）
+
+Decode 阶段（逐 token 生成）
+    ├─ Attention（读 KV Cache） → Rubin GPU（KV Cache 存在 HBM 中）
+    └─ FFN/MoE（权重计算） → LPX LPU（权重存在 SRAM 中，极低延迟）
+    → 中间激活在 GPU ↔ LPU 之间传递
+```
+
+| 阶段 | 执行者 | 原因 |
+|------|---------|------|
+| **Prefill** | Rubin GPU | 需要处理大量输入 + 构建 KV Cache，需要 HBM 大容量 |
+| **Decode Attention** | Rubin GPU | 需要读取整个 KV Cache，KV Cache 存在 HBM 中 |
+| **Decode FFN/MoE** | LPX LPU | 权重存在 SRAM，150 TB/s 带宽，极低延迟 |
+
+**这解释了为什么 LPX 不需要单独解决 KV Cache 的存储问题**——KV Cache 留在 Rubin GPU 的 HBM 中，LPX 只负责 FFN/MoE 的权重计算。
+
+### B.5 NVIDIA Dynamo 编排层
+
+NVIDIA Dynamo 负责：
+- 请求分类与路由（吞吐优先 vs 延迟优先）
+- Prefill/Decode 分离调度
+- AFD 循环中 GPU ↔ LPU 间的激活传递
+- KV-aware routing（感知 KV Cache 位置的调度）
+
+### B.6 与本文的关联
+
+| 本文概念 | LPX 架构中的体现 |
+|---------|------------------|
+| **KV Cache 每层独立** | √ KV Cache 存在 GPU HBM 中，不受 SRAM 容量限制 |
+| **FlashAttention** | √ Decode Attention 在 GPU 上执行，可用 FlashAttention |
+| **PagedAttention** | √ KV Cache 在 GPU HBM 中，可用 PagedAttention 管理 |
+| **FFN 维度** (4096d→12288d→4096d) | √ FFN/MoE 卸载到 LPU，权重在 SRAM，SRAM 带宽比 HBM 高 ~10x |
+| **Multi-Head Concat + o_proj** | √ Concat 后的激活是 GPU↔LPU 间传递的“中间张量” |
+
+> **一句话总结**：NVIDIA Groq 3 LPX 通过 SRAM 的极端带宽（150 TB/s/芯片）解决 decode 阶段 FFN/MoE 的延迟瘦颈，而 KV Cache 留在 Rubin GPU 的 HBM 中——这是一个 GPU+LPU 异构协作的架构，不是 LPU 单打独斗。
+
+---
+
 ## Reproducing
 
 ### Environment

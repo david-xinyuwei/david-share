@@ -566,6 +566,94 @@ FlashAttention:
 
 ---
 
+## Appendix B: NVIDIA Groq 3 LPX — SRAM-First Heterogeneous Inference Architecture and KV Cache
+
+> Sources: NVIDIA Developer Blog ([Inside NVIDIA Groq 3 LPX](https://developer.nvidia.com/blog/inside-nvidia-groq-3-lpx-the-low-latency-inference-accelerator-for-the-nvidia-vera-rubin-platform)), [NVIDIA LPX Product Page](https://www.nvidia.com/en-us/data-center/lpx/), Groq Blog ([Inside the LPU](https://groq.com/blog/inside-the-lpu-deconstructing-groq-speed)). Announced at GTC 2026.
+
+### B.1 Background: NVIDIA Licensed Groq IP
+
+NVIDIA announced **NVIDIA Groq 3 LPX** at GTC 2026 (March 2026)—the seventh chip of the NVIDIA Vera Rubin platform. NVIDIA licensed Groq's Tensor Streaming Processor (TSP) IP in late 2025 and integrated it into its data center architecture.
+
+### B.2 Core Architecture: SRAM-First + Deterministic Execution
+
+The Groq 3 LPU's core design: **SRAM as primary storage (not cache)**:
+
+| Metric | Groq 3 LPU (per chip) | Groq 3 LPX (full rack) |
+|------|:---:|:---:|
+| **SRAM Capacity** | 500 MB | 128 GB (256 chips) |
+| **SRAM Bandwidth** | 150 TB/s | 40 PB/s |
+| **Scale-up Bandwidth** | 2.5 TB/s | 640 TB/s |
+| **FP8 Compute** | 1.2 PFLOPS | 315 PFLOPS |
+| **DRAM** | Via Fabric Expansion Logic | Up to 256 GB per tray |
+
+**Key Differences vs GPU**:
+
+| | GPU (Rubin) | LPU (Groq 3) |
+|---|---|---|
+| **Primary Storage** | HBM (off-chip, ~TB/s bandwidth) | **SRAM (on-chip, ~PB/s bandwidth)** |
+| **Scheduling** | Runtime dynamic scheduling | **Compile-time static, down to clock cycles** |
+| **Data Movement** | Hardware cache hierarchies | **Compiler-explicit scheduling** |
+| **Latency** | Variable (cache misses, contention) | **Deterministic, minimal jitter** |
+
+### B.3 Where Are Weights, Activations, and KV Cache Stored?
+
+Official quote:
+> *"A flat, SRAM-first memory architecture where 500 MB of high-speed on-chip SRAM serves as the primary working storage for inference. The compiler and runtime place the active working set, **including weights, activations, and KV state**, into on-chip memory and move data explicitly."*
+
+| Data | Storage Location | Characteristics |
+|------|---------|------|
+| **Weights** | On-chip SRAM (distributed across chips) | Static, layout determined at compile time |
+| **Activations** | On-chip SRAM ("conveyor belt" flow) | Dynamic, overwritable after use, fixed footprint |
+| **KV Cache** | On-chip SRAM | Dynamic growth, scales with context |
+
+**Activations** don't accumulate—Layer 0's activations can be overwritten once passed to Layer 1.
+
+**KV Cache** is the core SRAM challenge: 128 GB rack SRAM must hold weights + activations + KV Cache simultaneously. For trillion-parameter models + million-token context, SRAM alone isn't enough—hence the heterogeneous architecture.
+
+### B.4 Heterogeneous Inference: Rubin GPU + LPX LPU Cooperation
+
+**Key insight: LPX doesn't work alone—it cooperates with Rubin GPUs via Attention-FFN Disaggregation (AFD).**
+
+```
+Prefill phase (process long prompt, build KV Cache)
+    → Rubin GPU (HBM large capacity + high compute)
+
+Decode phase (per-token generation)
+    ├─ Attention (read KV Cache) → Rubin GPU (KV Cache in HBM)
+    └─ FFN/MoE (weight computation) → LPX LPU (weights in SRAM, ultra-low latency)
+    → Intermediate activations exchanged between GPU ↔ LPU
+```
+
+| Phase | Executor | Why |
+|------|---------|------|
+| **Prefill** | Rubin GPU | Needs large input processing + KV Cache building, requires HBM capacity |
+| **Decode Attention** | Rubin GPU | Needs full KV Cache access, KV Cache stored in HBM |
+| **Decode FFN/MoE** | LPX LPU | Weights in SRAM, 150 TB/s bandwidth, ultra-low latency |
+
+**This explains why LPX doesn't need to solve KV Cache storage alone**—KV Cache stays in Rubin GPU HBM, LPX handles FFN/MoE weight computation only.
+
+### B.5 NVIDIA Dynamo Orchestration
+
+NVIDIA Dynamo handles:
+- Request classification and routing (throughput-first vs latency-first)
+- Prefill/Decode disaggregated scheduling
+- Activation transfer in the AFD loop between GPU ↔ LPU
+- KV-aware routing (scheduling aware of KV Cache location)
+
+### B.6 Connection to This Article
+
+| Concept in This Article | How It Appears in LPX Architecture |
+|---------|------------------|
+| **KV Cache per-layer independence** | √ KV Cache stored in GPU HBM, not constrained by SRAM |
+| **FlashAttention** | √ Decode Attention runs on GPU, can use FlashAttention |
+| **PagedAttention** | √ KV Cache in GPU HBM, manageable by PagedAttention |
+| **FFN dimensions** (4096d→12288d→4096d) | √ FFN/MoE offloaded to LPU, weights in SRAM with ~10x bandwidth vs HBM |
+| **Multi-Head Concat + o_proj** | √ Post-concat activations are the "interim tensors" exchanged between GPU↔LPU |
+
+> **One-line summary**: NVIDIA Groq 3 LPX uses extreme SRAM bandwidth (150 TB/s per chip) to solve decode-phase FFN/MoE latency, while KV Cache stays in Rubin GPU HBM—a GPU+LPU heterogeneous cooperation architecture, not LPU working alone.
+
+---
+
 ## Reproducing
 
 ### KV Cache Calculator
