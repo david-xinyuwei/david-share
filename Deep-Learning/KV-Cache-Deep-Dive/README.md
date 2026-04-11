@@ -87,12 +87,9 @@ Using "The weather is" as the same example from L0 (now with technical detail), 
 The tokenizer splits the string into subwords and maps them to integer IDs via a vocabulary dictionary:
 
 ```
-"Alice"  → 14925
-"threw"  → 18839
-"the"    → 279
-"ball"   → 5765
-"to"     → 311
-"Bob"    → 13649
+"The"      → 279
+"weather"  → 8514
+"is"       → 374
 ```
 
 **Step 2: Embedding lookup** — integers → float vectors
@@ -100,8 +97,9 @@ The tokenizer splits the string into subwords and maps them to integer IDs via a
 The model's **first layer weight** is an Embedding table (`[vocab_size × hidden_size]`). Token ID is used as a row index:
 
 ```
-14925 → x₁ = [0.82, -0.31, 0.54, ...]   ← 4096 floats representing "Alice"
-13649 → x₆ = [0.79, -0.28, 0.61, ...]   ← representing "Bob"
+279  → x₁ = [0.12, -0.34, 0.56, ...]   ← 4096 floats representing "The"
+8514 → x₂ = [0.45, 0.23, -0.11, ...]   ← representing "weather"
+374  → x₃ = [0.33, 0.17, -0.08, ...]   ← representing "is"
 ```
 
 The Embedding table is part of the model weights, learned during training.
@@ -151,7 +149,7 @@ One layer = Attention + FFN. 36 layers stacked = information is repeatedly "exch
 ```mermaid
 graph TD
     subgraph STEP1["Step 1: Tokenize (CPU)"]
-        INPUT["User input<br/>Alice threw the ball to Bob"] --> TOK["Tokenizer: split + vocab lookup<br/>Alice→14925, threw→18839, the→279<br/>ball→5765, to→311, Bob→13649"]
+        INPUT["User input<br/>The weather is"] --> TOK["Tokenizer: split + vocab lookup<br/>The→279, weather→8514, is→374"]
     end
 
     subgraph STEP2["Step 2: Embedding Lookup (GPU)"]
