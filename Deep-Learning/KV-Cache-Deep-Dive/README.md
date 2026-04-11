@@ -128,10 +128,13 @@ $$\text{output}_t = \sum_j \text{softmax}(\text{score})_j \cdot V_j$$
 
 **Step 5: FFN (Feed-Forward Network) + next layer**
 
-> **What is FFN?** Two matrix multiplications with an activation function in between. It "post-processes" the Attention output:
+> **What is FFN?** Two matrix multiplications with an activation function in between. It "post-processes" the Attention output.
+>
+> But first, Attention outputs must be reassembled: each head produces a 128d vector, all heads are **concatenated** back to 4096d, then multiplied by an output projection matrix (o_proj). This 4096d vector is what enters FFN:
 >
 > ```
-> Attention output (128d) → × Matrix₁ → Activation(SiLU) → × Matrix₂ → FFN output (4096d)
+> Per-head attention output (128d each) → Concat 32 heads → 4096d → × o_proj → 4096d
+>   → × Matrix₁ (gate_proj + up_proj, 4096→12288) → Activation(SiLU) → × Matrix₂ (down_proj, 12288→4096) → 4096d
 > ```
 >
 > **Activation function** (e.g. SiLU/ReLU) adds non-linearity — e.g. ReLU sets negative values to 0. Without it, stacking any number of linear layers is equivalent to one layer. Non-linearity is what allows the model to learn complex relationships.
@@ -172,12 +175,16 @@ graph TD
     subgraph STEP4["Step 4: Attention Computation"]
         SCORE["Score = Q × Kᵀ / √d<br/>Dot product Q with each historical K<br/>Temporary, discarded after use"]
         SOFT["Softmax: normalize to probabilities"]
-        OUT["Output = Weight × V<br/>Weighted sum of all historical V"]
+        OUT["Output = Weight × V<br/>Weighted sum of all historical V (128d per head)"]
         SCORE --> SOFT --> OUT
     end
 
+    subgraph STEP4B["Step 4b: Multi-Head Concat + Output Projection"]
+        CONCAT["Concat 32 heads: 32×128d → 4096d<br/>× o_proj matrix → 4096d"]
+    end
+
     subgraph STEP5["Step 5: FFN (Feed-Forward Network) + Repeat"]
-        FFN["FFN: two matrix multiplications<br/>+ activation function<br/>128d → 4096d"]
+        FFN["FFN: 4096d → 12288d → 4096d<br/>(gate_proj + up_proj + down_proj)"]
         NEXT["Output becomes next layer input<br/>Repeat for 36 layers"]
     end
 
@@ -191,7 +198,7 @@ graph TD
     Q --> SCORE
     KC -->|"Read all historical K"| SCORE
     KC -->|"Read all historical V"| OUT
-    OUT --> FFN --> NEXT
+    OUT --> CONCAT --> FFN --> NEXT
     NEXT --> PREDICT --> LOOP
     LOOP -.->|"Decode loop"| EMB
 
@@ -200,6 +207,7 @@ graph TD
     style STEP3 fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px
     style CACHE_ZONE fill:#C8E6C9,stroke:#1B5E20,stroke-width:3px
     style STEP4 fill:#FFF3E0,stroke:#E65100,stroke-width:2px
+    style STEP4B fill:#FFF9C4,stroke:#F9A825,stroke-width:2px
     style STEP5 fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px
     style STEP6 fill:#FCE4EC,stroke:#C62828,stroke-width:2px
     style KC fill:#4CAF50,color:#fff
@@ -207,9 +215,14 @@ graph TD
     style Q fill:#FFE082
     style K fill:#A5D6A7
     style V fill:#A5D6A7
+    style CONCAT fill:#FFF176
 ```
-    style SCORE fill:#FF9800,color:#fff
-```
+
+> **Why is KV Cache so large?** Not just because of token count — multiply by layer count. Each of the 36 layers independently stores all historical K and V vectors. That's why the KV Cache formula has $L$ (number of layers).
+>
+> **Why can't layers share KV Cache?** Because each layer computes different K and V: (1) each layer's input is different — layer 0 receives embeddings, layer 1 receives layer 0's output, etc.; (2) each layer has its own W_K and W_V weight matrices. Different input × different weights = completely different K/V tensors. In HuggingFace transformers, `DynamicCache` stores "a list of CacheLayer, one for each layer" — verified from source code.
+>
+> **Exception**: Some newer architectures (e.g. Gemma3n) have `num_kv_shared_layers` — layers that share weights, so their KV Cache entries can be reused. But this is a special design, not standard Transformer behavior.
 
 ### 1.2 What's Inside the Weight Matrices?
 
@@ -591,3 +604,12 @@ Architecture: gqa
 
 ---
 
+## Project Information
+
+| Item | Detail |
+|------|--------|
+| **Project** | KV Cache Deep Dive — From Fundamentals to Production |
+| **Author** | 魏新宇 (Xinyu Wei) |
+| **Date** | 2026-04 |
+| **Primary Sources** | Benjamin Marie (Kaitchup), HuggingFace model configs |
+| **Verified With** | Python calculation + HuggingFace config.json API |

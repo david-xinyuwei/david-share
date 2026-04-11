@@ -244,10 +244,13 @@ $$\text{output}_t = \sum_j \text{softmax}(\text{score}_{t,:})_j \cdot V_j$$
 
 **Step 5: FFN（Feed-Forward Network，前馈神经网络）+ 下一层**
 
-> **什么是 FFN？** 就是两次矩阵乘法夹一个激活函数。Attention 的输出经过 FFN 做一次"深加工"：
+> **什么是 FFN？** 就是两次矩阵乘法夹一个激活函数。
+>
+> 但在进入 FFN 之前，还缺一步：Attention 的输出是**按头（head）分开的**——32 个头各产出 128d。需要先**拼接（concat）**回 4096d，再过一个输出投影矩阵（o_proj）。这个 4096d 才是 FFN 的输入：
 >
 > ```
-> Attention 输出 (128维) → × 矩阵₁ → 激活函数(SiLU) → × 矩阵₂ → FFN 输出 (4096维)
+> 每头 Attention 输出 (128d) → 拼接 32 个头 → 4096d → × o_proj → 4096d
+>   → × 矩阵₁ (gate_proj + up_proj, 4096→12288) → 激活函数(SiLU) → × 矩阵₂ (down_proj, 12288→4096) → 4096d
 > ```
 >
 > **激活函数**（如 SiLU/ReLU）是一个简单的非线性变换——比如 ReLU 就是"负数变 0，正数不变"。加了它模型才能学到弯曲的、复杂的关系，否则多少层矩阵乘法叠起来都等价于一层（线性叠加还是线性）。
@@ -293,11 +296,12 @@ graph TD
         subgraph FA["🔵 FlashAttention: Score不落地HBM"]
             SCORE["Q × Kᵀ / √d → 打分"]
             SOFT["Softmax → 权重"]
-            OUT["权重 × V → 输出"]
+            OUT["权重 × V → 输出 (128d/头)"]
             SCORE --> SOFT --> OUT
         end
 
-        S5["Step 5: FFN 独立消化"]
+        CONCAT["Multi-Head Concat: 32×128d → 4096d<br/>× o_proj → 4096d"]
+        S5["Step 5: FFN 4096d → 12288d → 4096d"]
     end
 
     subgraph S6["Step 6: 预测 + Decode"]
@@ -311,7 +315,8 @@ graph TD
     WQ --> SCORE
     KC -->|"读历史K"| SCORE
     KC -->|"读历史V"| OUT
-    OUT --> S5
+    OUT --> CONCAT
+    CONCAT --> S5
     S5 --> PREDICT
     PREDICT --> LOOP
     LOOP -.->|"循环"| EMB
@@ -337,6 +342,10 @@ graph TD
 | 🟢 绿色 | **KV Cache** | Decode 循环 | 历史 K/V 不重复算，每步只算 1 组新 K/V |
 
 > **为什么 KV Cache 占显存这么大？** 不只是因为 token 数多——还要乘以层数。36 层 = 36 份独立的 KV Cache，每层单独存所有历史 token 的 K 和 V。这也是 KV Cache 公式中有 $L$（层数）的原因。
+>
+> **为什么每层的 KV Cache 不能复用？** 因为每层算出的 K 和 V 是不同的数字：(1) 每层的输入不同——第 0 层输入是 Embedding，第 1 层输入是第 0 层的输出…同一个 token 在每层的表示完全不同；(2) 每层有独立的 W_K 和 W_V 权重矩阵——36 套独立参数。输入不同 × 权重不同 = 结果完全不同 → 每层必须独立存储。HuggingFace transformers 源码中，`DynamicCache` 存储的是 "a list of CacheLayer, one for each layer"——每层一个独立的 CacheLayer 对象。
+>
+> **例外**：部分新架构（如 Gemma3n）有 `num_kv_shared_layers` 参数——共享权重的层不需要独立 KV Cache。但这是特殊架构设计，标准 Transformer（Qwen3/GPT/LLaMA）不适用。
 
 ### 1.2 权重矩阵里有什么？
 
@@ -906,3 +915,13 @@ Architecture: gqa
 
 ---
 
+## Project Information
+
+| Item | Detail |
+|------|--------|
+| **Project** | KV Cache Deep Dive — From Fundamentals to Production |
+| **Author** | 魏新宇 (Xinyu Wei) |
+| **Date** | 2026-04 |
+| **Primary Sources** | Benjamin Marie (Kaitchup), HuggingFace model configs |
+| **Verified With** | Python calculation + HuggingFace config.json API |
+| **Local Files** | `G:\AI-Super-Agent\KV-Cache研究\` |
