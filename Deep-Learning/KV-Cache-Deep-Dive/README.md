@@ -65,17 +65,59 @@ The Embedding table is part of the model weights, learned during training.
 
 **Step 3: Linear projection** — produces Q, K, V
 
-Each layer has three **trained weight matrices** $W_Q$, $W_K$, $W_V$ (model parameters, frozen during inference):
+Each layer has three **trained weight matrices** W_Q, W_K, W_V (model parameters, frozen during inference):
 
 $$Q_t = x_t W_Q, \quad K_t = x_t W_K, \quad V_t = x_t W_V$$
 
-Same embedding $x_t$, three different matrices, three different output vectors.
+Same embedding x_t, three different matrices, three different output vectors.
 
 **Step 4: Attention computation** — Q and K pair up, V carries content
 
 $$\text{score}_{t,j} = \frac{Q_t \cdot K_j^\top}{\sqrt{d_k}}, \quad \text{output}_t = \sum_j \text{softmax}(\text{score})_j \cdot V_j$$
 
 **Step 5: FFN + next layer** — repeat for all 36 layers, finally predict next token.
+
+**Step 3-5 Flow Diagram:**
+
+```mermaid
+graph TD
+    subgraph STEP3["Step 3: Linear Projection"]
+        direction TB
+        X["x (Embedding, 4096d)"]
+        WQ["× W_Q"] --> Q["Q (128d)"]
+        WK["× W_K"] --> K["K (128d)"]
+        WV["× W_V"] --> V["V (128d)"]
+        X --> WQ
+        X --> WK
+        X --> WV
+    end
+
+    subgraph STORE["KV Cache (HBM)"]
+        KC["Append K and V<br/>Persistent storage"]
+    end
+
+    subgraph STEP4["Step 4: Attention"]
+        SCORE["Score = Q × Kᵀ / √d"] --> SOFT["softmax"] --> OUT["Output = Weight × V"]
+    end
+
+    subgraph STEP5["Step 5: FFN + Next Layer"]
+        FFN["FFN: 128d→4096d"] --> NEXT["Repeat 36 layers"] --> PREDICT["LM Head → Predict token"]
+    end
+
+    K --> KC
+    V --> KC
+    Q --> SCORE
+    KC -->|"Read historical K"| SCORE
+    KC -->|"Read historical V"| OUT
+    OUT --> FFN
+
+    style STEP3 fill:#E8F5E9,stroke:#2E7D32
+    style STORE fill:#E3F2FD,stroke:#1565C0
+    style STEP4 fill:#FFF3E0,stroke:#E65100
+    style STEP5 fill:#F3E5F5,stroke:#7B1FA2
+    style KC fill:#4CAF50,color:#fff
+    style SCORE fill:#FF9800,color:#fff
+```
 
 ### 1.2 What's Inside the Weight Matrices?
 
@@ -456,3 +498,4 @@ Architecture: gqa
 | [kv_cache_calculator.py](scripts/kv_cache_calculator.py) | Calculate KV cache size for any HuggingFace model |
 
 ---
+

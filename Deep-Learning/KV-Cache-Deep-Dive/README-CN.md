@@ -68,11 +68,11 @@ Embedding 表本身是模型权重的一部分，在训练中学习到的。数�
 
 **Step 3: 线性投影** — 产生 Q、K、V
 
-每一层有三个**训练好的权重矩阵** $W_Q$、$W_K$、$W_V$（模型参数的一部分，推理时固定不变）。每个 token 的 embedding 分别乘以这三个矩阵：
+每一层有三个**训练好的权重矩阵** W_Q、W_K、W_V（模型参数的一部分，推理时固定不变）。每个 token 的 embedding 分别乘以这三个矩阵：
 
 $$Q_t = x_t W_Q, \quad K_t = x_t W_K, \quad V_t = x_t W_V$$
 
-同一个 embedding $x_t$，过三个不同的矩阵，得到三组不同的数字。
+同一个 embedding x_t，过三个不同的矩阵，得到三组不同的数字。
 
 **Step 4: Attention 计算** — Q 和 K 配对，然后用 V 传内容
 
@@ -81,6 +81,48 @@ $$\text{score}_{t,j} = \frac{Q_t \cdot K_j^\top}{\sqrt{d_k}}$$
 $$\text{output}_t = \sum_j \text{softmax}(\text{score}_{t,:})_j \cdot V_j$$
 
 **Step 5: FFN + 下一层** — 重复 36 层，最终预测下一个 token。
+
+**Step 3-5 完整流程图：**
+
+```mermaid
+graph TD
+    subgraph STEP3["Step 3: 线性投影"]
+        direction TB
+        X["x (Embedding, 4096维)"]
+        WQ["× W_Q"] --> Q["Q (128维)"]
+        WK["× W_K"] --> K["K (128维)"]
+        WV["× W_V"] --> V["V (128维)"]
+        X --> WQ
+        X --> WK
+        X --> WV
+    end
+
+    subgraph STORE["KV Cache (HBM)"]
+        KC["追加 K 和 V<br/>持久存储"]
+    end
+
+    subgraph STEP4["Step 4: Attention"]
+        SCORE["Score = Q × Kᵀ / √d"] --> SOFT["softmax"] --> OUT["Output = Weight × V"]
+    end
+
+    subgraph STEP5["Step 5: FFN + 下一层"]
+        FFN["FFN: 128维→4096维"] --> NEXT["重复36层"] --> PREDICT["LM Head → 预测token"]
+    end
+
+    K --> KC
+    V --> KC
+    Q --> SCORE
+    KC -->|"读取历史K"| SCORE
+    KC -->|"读取历史V"| OUT
+    OUT --> FFN
+
+    style STEP3 fill:#E8F5E9,stroke:#2E7D32
+    style STORE fill:#E3F2FD,stroke:#1565C0
+    style STEP4 fill:#FFF3E0,stroke:#E65100
+    style STEP5 fill:#F3E5F5,stroke:#7B1FA2
+    style KC fill:#4CAF50,color:#fff
+    style SCORE fill:#FF9800,color:#fff
+```
 
 ### 1.2 权重矩阵里有什么？
 
@@ -650,3 +692,4 @@ Architecture: gqa
 | [kv_cache_calculator.py](scripts/kv_cache_calculator.py) | Calculate KV cache size for any HuggingFace model |
 
 ---
+
