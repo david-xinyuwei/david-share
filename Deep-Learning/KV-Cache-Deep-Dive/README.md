@@ -45,34 +45,144 @@ Input: "The weather is"
 Model predicts: "nice" (highest probability)
 Input becomes: "The weather is nice"
 Model predicts: "today" (highest probability)
+Input becomes: "The weather is nice today"
+Model predicts: "!" (highest probability)
 ```
 
-One token at a time. How? Through 6 steps:
+One token at a time. Only one. How? Through 6 steps below.
 
-**Step 1: Turn words into numbers (Tokenize)** — The model only understands numbers. A dictionary maps words to IDs: `"weather" → 8514`. No intelligence here, just lookup.
+### Step 1: Turn words into numbers
 
-**Step 2: Turn numbers into feature vectors (Embedding)** — A large table (150K rows × 4096 columns) maps each ID to a row of 4096 numbers. Similar words (e.g. "good" and "great") have similar rows. This makes math possible.
+The model doesn't understand text — only numbers. This step is called **Tokenization**.
 
-**Step 3: Split each vector into three parts (Linear Projection)** — Same 4096-dim vector, compressed through three different weight matrices into three different 128-dim vectors:
-- **Q** (Query): "What am I looking for?"
-- **K** (Key): "What kind of word am I?"
-- **V** (Value): "What info do I carry if selected?"
+```
+"The weather is" → [279, 8514, 374]
+```
 
-**Step 4: Find relevant words + transfer info (Attention)** — Q dot-product with every historical K → scores → softmax to probabilities → weighted sum of V vectors. The output is a new vector enriched with context.
+Like a dictionary: "The" is on page 279, "weather" on page 8514. Pure dictionary lookup, no intelligence, runs on CPU.
 
-**Step 5: Independent digestion (FFN)** — Two matrix multiplications with a non-linear activation function in between. Attention = words talking to each other; FFN = each word thinking independently. Repeat Attention+FFN for 36 layers.
+### Step 2: Turn numbers into feature vectors
 
-**Step 6: Predict next token (LM Head)** — One final matrix multiplication maps 4096-dim to vocab size (150K). Pick the highest = model's prediction.
+The model has a large table (**Embedding table**): 150K rows, each row containing 4096 numbers. Use the token ID as row index:
 
-### KV Cache: Don't Recompute, Just Cache
+```
+Row 279  → [0.12, -0.34, 0.56, ..., 0.23]   ← 4096 numbers representing "The"
+Row 8514 → [0.45, 0.23, -0.11, ..., -0.05]   ← representing "weather"
+```
 
-After predicting "nice", the model predicts the next token. Step 4 needs every historical token's K and V. Without cache, all K/V must be recomputed. **KV Cache stores them — each new token only computes 1 new K and V, reads the rest from cache.**
+> A **vector** is just an ordered list of numbers. 4096 numbers in a column = a 4096-dimensional vector.
+
+**Why this step?** IDs 279 and 8514 have no mathematical relationship. But these 4096 numbers are trained — semantically similar words (e.g. "good" and "great") have similar vectors, unrelated words are far apart. Converting IDs to meaningful numbers enables subsequent math.
+
+### Step 3: Split each vector into three parts — for "scoring" and "contributing"
+
+Next, each token needs to look at previous tokens to gather context. But using the raw Embedding directly works poorly — the 4096-dim Embedding is a grab-bag, one set of numbers trying to serve both "scoring" and "contributing content" simultaneously, doing neither well.
+
+**Solution**: Split the same Embedding into three different sets of numbers, each serving one purpose:
+
+- **Q** = Numbers dedicated to **scoring others**. The current token's Q is dot-producted with every historical token's K — the result is a score that determines "how important is each previous token to me"
+- **K** = Numbers dedicated to **being scored by others**. K passively waits for others' Q to measure it
+- **V** = Numbers dedicated to **contributing to output when selected**. K determines "should I be selected?", V determines "after being selected, what do I contribute to the final prediction"
+
+```
+"is" (4096 numbers)
+    ├── × W_Q matrix → Q = [128 numbers]  ← tool for scoring others
+    ├── × W_K matrix → K = [128 numbers]  ← object to be scored
+    └── × W_V matrix → V = [128 numbers]  ← content contributed when selected
+```
+
+> **Why separate K and V?** The numbers needed for accurate scoring (K) and the numbers needed for correct prediction (V) aren't the same. If one set of numbers serves both "scoring" and "prediction", neither works well. Separating them lets each focus on its own job.
+
+> **What's actually in V?** V's 128 numbers have no human-readable meaning. They encode: in the current layer, given current context, the most useful information this token can provide for subsequent computation — possibly including word co-occurrence patterns ("weather" is often followed by "is/forecast/today"), the token's role in the sentence ("weather" as part of "weather forecast"), and features that help subsequent layers determine context. What exactly is determined by training; humans cannot directly interpret it.
+
+> **Weight matrices** W_Q, W_K, W_V are three number tables whose values are learned during training. Three different "recipes" extract three different sets of numbers from the same Embedding — each serving an independent purpose.
+
+**This step is called Linear Projection.**
+
+### Step 4: Q scores K, then retrieves content from V — this is Attention
+
+The model is predicting what comes after "The weather is", so "is" needs to look at all previous tokens to understand context.
+
+**First: Q scores each K**
+
+"is" takes its Q and dot-products with every historical token's K (multiply corresponding positions of two 128-number sets, then sum — yielding one score). **Q pairs with K → one Q scores multiple Ks.** High score = this historical token matters:
+
+```
+"is"'s Q × "The"'s K     = 0.3  ← not very relevant
+"is"'s Q × "weather"'s K = 0.8  ← very relevant (weather is a phrase)
+"is"'s Q × "is"'s K      = 0.5  ← moderate
+```
+
+**Second: Normalize (Softmax)**
+
+Convert scores to percentages (summing to 100%), amplifying differences — big gets bigger, small gets smaller:
+
+```
+[0.3, 0.8, 0.5] → [15%, 55%, 30%]
+```
+
+**Third: Retrieve content from V by scores (weighted average)**
+
+Use percentages to proportionally take content from each token's V (**note: taking from V not K — K handles scoring, V handles content, each its own job**):
+
+```
+output = 15% × "The"'s V + 55% × "weather"'s V + 30% × "is"'s V
+```
+
+**"is" now has a new vector fused with context** — mainly containing "weather"'s information (55%), because "weather is" is a phrase.
+
+### Step 5: Independent digestion — FFN (Feed-Forward Network)
+
+Attention is tokens **talking to each other**. FFN is each token **independently digesting** what it just received:
+
+```
+Post-attention vector → × Matrix₁ → Activation function (non-linearity: e.g. negatives→0, enables learning complex relationships) → × Matrix₂ → output
+```
+
+> Why activation functions? With only matrix multiplications (linear operations), no matter how many layers you stack, it's equivalent to one layer. Adding activation functions enables the model to learn curved, complex relationships.
+
+**One layer = Attention (exchange) + FFN (digest).** Stack 36 layers, information repeatedly "exchanged → digested", understanding deepens:
+
+```
+Layer 0:  Understands literal meaning ("weather" + "is" = talking about weather)
+Layer 15: Understands context (discussing weather conditions)
+Layer 35: Synthesizes judgment (next token should be "nice/bad/cold" etc.)
+```
+
+### Step 6: Predict — LM Head (Language Model Head)
+
+After 36 layers, the last token "is"'s vector has fused the entire sentence's understanding. One final matrix multiplication:
+
+```
+4096 numbers × matrix(4096×150000) = 150000 numbers
+                                        ↓
+                       Each number = probability for one vocab token
+                            Pick highest → "nice"
+```
+
+Output: "nice".
+
+### KV Cache in this example
+
+After predicting "nice", the model continues predicting the next token. Input becomes "The weather is nice", requiring Step 4 again.
+
+**Problem**: Step 4 scoring needs every historical token's K, content retrieval needs every historical token's V. Without caching, predicting each new token requires recomputing K and V for "The", "weather", "is", "nice" — **redundant work**.
+
+**KV Cache stores previously computed K and V**:
+
+```
+Predicting "nice":  Computed The_K weather_K is_K    → stored in Cache
+Predicting "today": Cache has history K, only compute nice_K → append to Cache
+Predicting "!":     Cache has history K, only compute today_K → append to Cache
+```
 
 | | No Cache | With KV Cache |
 |---|---|---|
-| K/V computed per step | All tokens | Only 1 new token |
-| Speed | Slower and slower | Constant |
-| Cost | None | Cache grows, uses GPU memory |
+| K/V computed per step | **All tokens recomputed** | **Only 1 new token** |
+| Speed | Slower and slower (more tokens = more compute) | Constant (always compute 1) |
+| Cost | None | Cache keeps growing, **uses GPU memory** |
+
+**That's all KV Cache is: store to avoid recomputation, trade memory for speed.**
 
 ---
 
@@ -657,6 +767,12 @@ NVIDIA Dynamo handles:
 ---
 
 ## Reproducing
+
+### Environment
+
+```bash
+pip install requests
+```
 
 ### KV Cache Calculator
 
