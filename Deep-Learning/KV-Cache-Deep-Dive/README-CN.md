@@ -270,73 +270,42 @@ $$\text{output}_t = \sum_j \text{softmax}(\text{score}_{t,:})_j \cdot V_j$$
 
 ```mermaid
 graph TD
-    subgraph STEP1["Step 1: 分词 Tokenize (CPU)"]
-        INPUT["用户输入: 今天天气"] --> TOK["Tokenizer 切分+查词表<br/>今→3920, 天→8514, 天→8514, 气→6720"]
-    end
+    INPUT["① 分词"] --> EMB["② Embedding"]
+    EMB --> PROJ["③ 线性投影"]
+    PROJ --> Q["Q"]
+    PROJ --> K["K"]
+    PROJ --> V["V"]
+    K -->|"存入"| KC["🟣 KV Cache"]
+    V -->|"存入"| KC
+    Q --> SCORE["④ Q×K打分"]
+    KC -->|"读K"| SCORE
+    SCORE --> SOFT["Softmax"]
+    SOFT --> OUT["Weight×V"]
+    KC -->|"读V"| OUT
+    OUT --> FFN["⑤ FFN"]
+    FFN --> NEXT["重复36层"]
+    NEXT --> PREDICT["⑥ LM Head 预测"]
+    PREDICT --> LOOP["Decode循环"]
+    LOOP -.-> EMB
 
-    subgraph STEP2["Step 2: Embedding 查表 (GPU)"]
-        TOK --> EMB["用 token ID 取 Embedding 表对应行<br/>→ 每个 token 得到 4096 维向量"]
-    end
-
-    subgraph LAYER["一层 Transformer (共36层, 每层独立重复)"]
-        direction TB
-
-        subgraph STEP3["Step 3: 线性投影"]
-            EMB2["本层输入向量"] --> WQ["× W_Q"] --> Q["Q 打分工具"]
-            EMB2 --> WK["× W_K"] --> K["K 被打分对象"]
-            EMB2 --> WV["× W_V"] --> V["V 贡献内容"]
-        end
-
-        subgraph KV_CACHE["🟣 KV Cache (HBM显存) + PagedAttention分页管理<br/>每层独立存一份, 36层=36份独立Cache<br/>Decode时: 历史K/V从Cache读, 只算新token的K/V"]
-            KC["本层的 K₁K₂...Kₜ 和 V₁V₂...Vₜ<br/>持久存储, 只增不减"]
-        end
-
-        subgraph FA_ZONE["🔵 FlashAttention 优化区<br/>Score在Shared Memory中算, 不落地HBM"]
-            SCORE["Score = Q × Kᵀ / √d<br/>Q给每个历史K打分"] --> SOFT["Softmax 归一化"] --> OUT["Output = Weight × V<br/>按分数从V取内容"]
-        end
-
-        subgraph STEP5["Step 5: FFN (前馈神经网络)"]
-            FFN["两次矩阵乘法+激活函数"]
-        end
-    end
-
-    subgraph REPEAT["36层循环"]
-        NEXT["本层输出→下一层输入<br/>第0层→第1层→...→第35层<br/>每层有独立的W_Q/W_K/W_V和独立的KV Cache"]
-    end
-
-    subgraph STEP6["Step 6: 预测 + Decode循环"]
-        PREDICT["LM Head: 4096维→15万维<br/>取概率最高的 = 下一个 token"]
-        LOOP["🟢 Decode循环: 生成的token回到Step 2<br/>每层只算1组新K/V, 历史K/V从各层Cache读"]
-    end
-
-    EMB --> EMB2
-    K -->|"新K存入本层Cache"| KC
-    V -->|"新V存入本层Cache"| KC
-    Q --> SCORE
-    KC -->|"读取本层所有历史K"| SCORE
-    KC -->|"读取本层所有历史V"| OUT
-    OUT --> FFN
-    FFN --> NEXT
-    NEXT --> PREDICT
-    PREDICT --> LOOP
-    LOOP -.->|"Decode循环"| EMB
-
-    style STEP1 fill:#E3F2FD,stroke:#1565C0,stroke-width:2px
-    style STEP2 fill:#E8EAF6,stroke:#283593,stroke-width:2px
-    style STEP3 fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px
-    style KV_CACHE fill:#E1BEE7,stroke:#7B1FA2,stroke-width:3px
-    style FA_ZONE fill:#BBDEFB,stroke:#1565C0,stroke-width:3px
-    style STEP5 fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px
-    style LAYER fill:#FAFAFA,stroke:#9E9E9E,stroke-width:2px
-    style REPEAT fill:#FFF3E0,stroke:#E65100,stroke-width:2px
-    style STEP6 fill:#FCE4EC,stroke:#C62828,stroke-width:2px
     style KC fill:#9C27B0,color:#fff
     style SCORE fill:#1565C0,color:#fff
+    style SOFT fill:#42A5F5,color:#fff
+    style OUT fill:#42A5F5,color:#fff
     style LOOP fill:#66BB6A,color:#fff
     style Q fill:#FFE082
     style K fill:#CE93D8
     style V fill:#CE93D8
 ```
+
+**图中标注说明：**
+
+| 标记 | 含义 |
+|:---:|------|
+| 🟣 **KV Cache** | K 和 V 存在 HBM 显存中，**每层独立存一份**（36 层 = 36 份）。PagedAttention 分页管理存储，减少碎片 |
+| 🔵 **蓝色节点**（Q×K打分 → Softmax → Weight×V） | **FlashAttention 优化区**：Score 在 Shared Memory 中计算，不落地 HBM |
+| 🟢 **Decode 循环** | **KV Cache 基本功能**：历史 K/V 从 Cache 读，每步只算 1 组新 K/V |
+| **重复 36 层** | Step ③④⑤ 每层独立重复，每层有各自的 W_Q/W_K/W_V 权重和独立的 KV Cache |
 
 > **为什么 KV Cache 占显存这么大？** 不只是因为 token 数多——还要乘以层数。36 层 = 36 份独立的 KV Cache，每层单独存所有历史 token 的 K 和 V。这也是 KV Cache 公式中有 $L$（层数）的原因。
 
