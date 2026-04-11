@@ -75,47 +75,72 @@ Same embedding x_t, three different matrices, three different output vectors.
 
 $$\text{score}_{t,j} = \frac{Q_t \cdot K_j^\top}{\sqrt{d_k}}, \quad \text{output}_t = \sum_j \text{softmax}(\text{score})_j \cdot V_j$$
 
-**Step 5: FFN + next layer** — repeat for all 36 layers, finally predict next token.
+**Step 5: FFN (Feed-Forward Network) + next layer** — repeat for all 36 layers, finally predict next token.
 
-**Step 3-5 Flow Diagram:**
+**Full Pipeline (Step 1 → Step 6):**
 
 ```mermaid
 graph TD
+    subgraph STEP1["Step 1: Tokenize (CPU)"]
+        INPUT["User input<br/>Alice threw the ball to Bob"] --> TOK["Tokenizer: split + vocab lookup<br/>Alice→14925, threw→18839, the→279<br/>ball→5765, to→311, Bob→13649"]
+    end
+
+    subgraph STEP2["Step 2: Embedding Lookup (GPU)"]
+        TOK --> EMB["Use token ID as row index<br/>in Embedding weight table<br/>→ each token gets a 4096-dim float vector"]
+    end
+
     subgraph STEP3["Step 3: Linear Projection"]
-        direction TB
-        X["x (Embedding, 4096d)"]
-        WQ["× W_Q"] --> Q["Q (128d)"]
-        WK["× W_K"] --> K["K (128d)"]
-        WV["× W_V"] --> V["V (128d)"]
-        X --> WQ
-        X --> WK
-        X --> WV
+        EMB --> WQ["x × W_Q matrix"]
+        EMB --> WK["x × W_K matrix"]
+        EMB --> WV["x × W_V matrix"]
+        WQ --> Q["Q: Query vector (128d)"]
+        WK --> K["K: Key vector (128d)"]
+        WV --> V["V: Value vector (128d)"]
     end
 
-    subgraph STORE["KV Cache (HBM)"]
-        KC["Append K and V<br/>Persistent storage"]
+    subgraph CACHE_ZONE["KV Cache — Persistent storage in HBM"]
+        KC["K₁ K₂ K₃ ... Kₜ<br/>V₁ V₂ V₃ ... Vₜ<br/>Append one K,V per new token<br/>Only grows, never shrinks"]
     end
 
-    subgraph STEP4["Step 4: Attention"]
-        SCORE["Score = Q × Kᵀ / √d"] --> SOFT["softmax"] --> OUT["Output = Weight × V"]
+    subgraph STEP4["Step 4: Attention Computation"]
+        SCORE["Score = Q × Kᵀ / √d<br/>Dot product Q with each historical K<br/>Temporary, discarded after use"]
+        SOFT["Softmax: normalize to probabilities"]
+        OUT["Output = Weight × V<br/>Weighted sum of all historical V"]
+        SCORE --> SOFT --> OUT
     end
 
-    subgraph STEP5["Step 5: FFN + Next Layer"]
-        FFN["FFN: 128d→4096d"] --> NEXT["Repeat 36 layers"] --> PREDICT["LM Head → Predict token"]
+    subgraph STEP5["Step 5: FFN (Feed-Forward Network) + Repeat"]
+        FFN["FFN: two matrix multiplications<br/>+ activation function<br/>128d → 4096d"]
+        NEXT["Output becomes next layer input<br/>Repeat for 36 layers"]
     end
 
-    K --> KC
-    V --> KC
+    subgraph STEP6["Step 6: Predict Next Token"]
+        PREDICT["LM Head (Language Model Head)<br/>4096d → 150K-dim (vocab size)<br/>Pick highest probability = next token"]
+        LOOP["Generated token goes back to Step 2<br/>Continue generating (Decode loop)"]
+    end
+
+    K -->|"Store"| KC
+    V -->|"Store"| KC
     Q --> SCORE
-    KC -->|"Read historical K"| SCORE
-    KC -->|"Read historical V"| OUT
-    OUT --> FFN
+    KC -->|"Read all historical K"| SCORE
+    KC -->|"Read all historical V"| OUT
+    OUT --> FFN --> NEXT
+    NEXT --> PREDICT --> LOOP
+    LOOP -.->|"Decode loop"| EMB
 
-    style STEP3 fill:#E8F5E9,stroke:#2E7D32
-    style STORE fill:#E3F2FD,stroke:#1565C0
-    style STEP4 fill:#FFF3E0,stroke:#E65100
-    style STEP5 fill:#F3E5F5,stroke:#7B1FA2
+    style STEP1 fill:#E3F2FD,stroke:#1565C0,stroke-width:2px
+    style STEP2 fill:#E8EAF6,stroke:#283593,stroke-width:2px
+    style STEP3 fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px
+    style CACHE_ZONE fill:#C8E6C9,stroke:#1B5E20,stroke-width:3px
+    style STEP4 fill:#FFF3E0,stroke:#E65100,stroke-width:2px
+    style STEP5 fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px
+    style STEP6 fill:#FCE4EC,stroke:#C62828,stroke-width:2px
     style KC fill:#4CAF50,color:#fff
+    style SCORE fill:#FF9800,color:#fff
+    style Q fill:#FFE082
+    style K fill:#A5D6A7
+    style V fill:#A5D6A7
+```
     style SCORE fill:#FF9800,color:#fff
 ```
 

@@ -80,44 +80,72 @@ $$\text{score}_{t,j} = \frac{Q_t \cdot K_j^\top}{\sqrt{d_k}}$$
 
 $$\text{output}_t = \sum_j \text{softmax}(\text{score}_{t,:})_j \cdot V_j$$
 
-**Step 5: FFN + 下一层** — 重复 36 层，最终预测下一个 token。
+**Step 5: FFN（前馈神经网络）+ 下一层** — 重复 36 层，最终预测下一个 token。
 
-**Step 3-5 完整流程图：**
+**完整流程图（Step 1 → Step 6）：**
 
 ```mermaid
 graph TD
-    subgraph STEP3["Step 3: 线性投影"]
-        direction TB
-        X["x (Embedding, 4096维)"]
-        WQ["× W_Q"] --> Q["Q (128维)"]
-        WK["× W_K"] --> K["K (128维)"]
-        WV["× W_V"] --> V["V (128维)"]
-        X --> WQ
-        X --> WK
-        X --> WV
+    subgraph STEP1["Step 1: 分词 Tokenize (CPU)"]
+        INPUT["用户输入<br/>小明把球扔给了小红"] --> TOK["Tokenizer 切分+查词表<br/>小明→8831, 把→1636, 球→4521<br/>扔给了→29105, 小红→8856"]
     end
 
-    subgraph STORE["KV Cache (HBM)"]
-        KC["追加 K 和 V<br/>持久存储"]
+    subgraph STEP2["Step 2: Embedding 查表 (GPU)"]
+        TOK --> EMB["用 token ID 当行号<br/>取 Embedding 权重表对应行<br/>→ 每个 token 得到 4096 维浮点向量"]
     end
 
-    subgraph STEP4["Step 4: Attention"]
-        SCORE["Score = Q × Kᵀ / √d"] --> SOFT["softmax"] --> OUT["Output = Weight × V"]
+    subgraph STEP3["Step 3: 线性投影 Linear Projection"]
+        EMB --> WQ["x × W_Q 矩阵"]
+        EMB --> WK["x × W_K 矩阵"]
+        EMB --> WV["x × W_V 矩阵"]
+        WQ --> Q["Q 查询向量 (128维)"]
+        WK --> K["K 身份向量 (128维)"]
+        WV --> V["V 内容向量 (128维)"]
     end
 
-    subgraph STEP5["Step 5: FFN + 下一层"]
-        FFN["FFN: 128维→4096维"] --> NEXT["重复36层"] --> PREDICT["LM Head → 预测token"]
+    subgraph CACHE_ZONE["KV Cache — HBM 显存中持久存储"]
+        KC["K₁ K₂ K₃ ... Kₜ<br/>V₁ V₂ V₃ ... Vₜ<br/>每生成一个 token 追加一组<br/>只增不减, 直到对话结束"]
     end
 
-    K --> KC
-    V --> KC
+    subgraph STEP4["Step 4: Attention (注意力计算)"]
+        SCORE["Score = Q × Kᵀ / √d<br/>Q和每个历史K做点积<br/>得分数表(临时,用完就扔)"]
+        SOFT["Softmax 归一化成概率"]
+        OUT["Output = Weight × V<br/>用概率加权所有历史V"]
+        SCORE --> SOFT --> OUT
+    end
+
+    subgraph STEP5["Step 5: FFN (前馈神经网络) + 重复"]
+        FFN["FFN: 两次矩阵乘法+激活函数<br/>128维 → 4096维"]
+        NEXT["输出作为下一层输入<br/>重复 36 层"]
+    end
+
+    subgraph STEP6["Step 6: 预测下一个 token"]
+        PREDICT["LM Head (语言模型头)<br/>4096维 → 15万维(词表大小)<br/>取概率最高的 = 下一个 token"]
+        LOOP["生成的 token 回到 Step 2<br/>继续生成下一个 (Decode 循环)"]
+    end
+
+    K -->|"存入"| KC
+    V -->|"存入"| KC
     Q --> SCORE
-    KC -->|"读取历史K"| SCORE
-    KC -->|"读取历史V"| OUT
-    OUT --> FFN
+    KC -->|"读取所有历史 K"| SCORE
+    KC -->|"读取所有历史 V"| OUT
+    OUT --> FFN --> NEXT
+    NEXT --> PREDICT --> LOOP
+    LOOP -.->|"Decode 循环"| EMB
 
-    style STEP3 fill:#E8F5E9,stroke:#2E7D32
-    style STORE fill:#E3F2FD,stroke:#1565C0
+    style STEP1 fill:#E3F2FD,stroke:#1565C0,stroke-width:2px
+    style STEP2 fill:#E8EAF6,stroke:#283593,stroke-width:2px
+    style STEP3 fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px
+    style CACHE_ZONE fill:#C8E6C9,stroke:#1B5E20,stroke-width:3px
+    style STEP4 fill:#FFF3E0,stroke:#E65100,stroke-width:2px
+    style STEP5 fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px
+    style STEP6 fill:#FCE4EC,stroke:#C62828,stroke-width:2px
+    style KC fill:#4CAF50,color:#fff
+    style SCORE fill:#FF9800,color:#fff
+    style Q fill:#FFE082
+    style K fill:#A5D6A7
+    style V fill:#A5D6A7
+```
     style STEP4 fill:#FFF3E0,stroke:#E65100
     style STEP5 fill:#F3E5F5,stroke:#7B1FA2
     style KC fill:#4CAF50,color:#fff
