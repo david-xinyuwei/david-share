@@ -570,6 +570,17 @@ MLA (compressed storage + on-demand decompression) → Orthogonal optimization
 
 ## L3: Four KV Cache Reduction Architectures
 
+Four state-of-the-art ~30B MoE models use different strategies to reduce KV Cache. Here's how they map to the attention mechanisms from L2.4:
+
+| Model | L2.4 Attention Type | Attention Layer Strategy | Non-Attention Layer Strategy | KV Cache Reduction |
+|------|---------|---------|----------|:---:|
+| Qwen3-30B-A3B | **GQA** | 48/48 layers all GQA | None | baseline |
+| GLM-4.7-Flash | **MLA** | 47/47 layers all MLA | None | −45% |
+| Qwen3.5-35B-A3B | **GQA** + Linear Attention | 10/40 layers GQA | 30 layers Linear Attention (no KV Cache) | −79% |
+| Nemotron-3-Nano-30B | **GQA** + Mamba (SSM) | 6/52 layers GQA | 46 layers Mamba (no KV Cache) | −94% |
+
+> **Key insight**: Qwen3.5 and Nemotron have tiny KV Cache not because their attention type is more advanced (both use standard GQA), but because they **drastically reduced the number of layers using Attention** — replacing most layers with Linear Attention / Mamba that need no KV Cache.
+
 ### 3.1 Standard GQA — Qwen3-30B-A3B
 
 All layers use GQA with full KV Cache.

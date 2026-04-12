@@ -616,7 +616,18 @@ MLA（压缩存储 + 按需解压）→ 正交优化，可与 GQA 思路结合
 
 ## L3: 四种减少 KV Cache 的架构
 
-当前最先进的 ~30B 参数 MoE 模型采用了四种不同的策略来减少 KV Cache。以下逐一分析。
+当前最先进的 ~30B 参数 MoE 模型采用了四种不同的策略来减少 KV Cache。它们和 L2.4 中讲的四种注意力机制的对应关系：
+
+| 模型 | L2.4 注意力类型 | Attention 层的策略 | 非 Attention 层的策略 | KV Cache 压缩效果 |
+|------|---------|---------|----------|:---:|
+| Qwen3-30B-A3B | **GQA** | 48/48 层全用 GQA | 无 | baseline |
+| GLM-4.7-Flash | **MLA** | 47/47 层全用 MLA | 无 | −45% |
+| Qwen3.5-35B-A3B | **GQA** + Linear Attention | 10/40 层用 GQA | 30 层用 Linear Attention（无 KV Cache） | −79% |
+| Nemotron-3-Nano-30B | **GQA** + Mamba (SSM) | 6/52 层用 GQA | 46 层用 Mamba（无 KV Cache） | −94% |
+
+> **关键洞察**：Qwen3.5 和 Nemotron 的 KV Cache 极小，不是因为它们的 Attention 类型更先进（两者都用标准 GQA），而是因为它们**大幅减少了使用 Attention 的层数**——用不需要 KV Cache 的 Linear Attention / Mamba 替代了大部分层。
+
+以下逐一分析。
 
 ### 3.1 Standard GQA — Qwen3-30B-A3B
 
