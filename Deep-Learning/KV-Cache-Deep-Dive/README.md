@@ -460,60 +460,94 @@ GQA is the **dominant choice** today: near-MHA quality with $1/g$ KV Cache.
 
 #### Four Attention Mechanisms: Deep Comparison
 
-Using a simplified 4 Q-head, head_dim=4 model processing "today"'s attention to history:
+Continuing with our "The weather is" example. "is" needs to attend to "The" and "weather". Assume 4 Q heads, head_dim=4:
+
+"is" produces 4 different Q vectors through W_Q (4 different "query perspectives"):
+```
+Q_head_0 = [0.8, 0.1, -0.5, 0.3]   ← may focus on "word collocations"
+Q_head_1 = [0.2, 0.9, 0.1, -0.4]   ← may focus on "temporal modifiers"
+Q_head_2 = [-0.3, 0.4, 0.7, 0.2]   ← may focus on "syntactic structure"
+Q_head_3 = [0.5, -0.2, 0.3, 0.8]   ← may focus on "position relationships"
+```
+
+The difference between the four mechanisms is: **how many sets of K and V does each historical token ("The", "weather") produce to serve these 4 Q heads?**
 
 **MHA (Multi-Head Attention): Each Q head gets its own K/V**
 
-```
-Q_head_0 ──→ K_head_0, V_head_0    (exclusive)
-Q_head_1 ──→ K_head_1, V_head_1    (exclusive)
-Q_head_2 ──→ K_head_2, V_head_2    (exclusive)
-Q_head_3 ──→ K_head_3, V_head_3    (exclusive)
+Each historical token produces 4 independent K/V sets, one per head:
 
-KV Cache = 4K + 4V = 8 vectors/token/layer
 ```
+"weather"'s K/V:
+  K_weather_head0, V_weather_head0  ← exclusively for Q_head_0
+  K_weather_head1, V_weather_head1  ← exclusively for Q_head_1
+  K_weather_head2, V_weather_head2  ← exclusively for Q_head_2
+  K_weather_head3, V_weather_head3  ← exclusively for Q_head_3
 
-Four interviewers, each reviewing **their own unique resume** (K) and **portfolio** (V). Fully independent.
+Q_head_0 × K_weather_head0 → score ("is" evaluates "weather" from "collocation" perspective)
+Q_head_1 × K_weather_head1 → score ("is" evaluates "weather" from "temporal" perspective)
+...each fully independent
+
+KV Cache: each historical token stores 4K + 4V = 8 vectors
+```
 
 **MQA (Multi-Query Attention): All Q heads share 1 set of K/V**
 
-```
-Q_head_0 ──┐
-Q_head_1 ──┼──→ K_shared, V_shared    (shared)
-Q_head_2 ──┤
-Q_head_3 ──┘
+Each historical token produces only 1 K/V set; all 4 different Q heads score against the same K:
 
-KV Cache = 1K + 1V = 2 vectors/token/layer (1/4 of MHA)
 ```
+"weather"'s K/V:
+  K_weather_shared, V_weather_shared  ← only one set, all 4 Q heads use it
 
-Four interviewers review **the same resume**. But since each Q is different, they **score differently** → different weighted averages → different outputs. They just can't see different facets of the candidate.
+Q_head_0 × K_weather_shared = 0.95  ← "collocation" perspective score
+Q_head_1 × K_weather_shared = 0.10  ← "temporal" perspective score
+Q_head_2 × K_weather_shared = -0.53 ← "syntactic" perspective score
+Q_head_3 × K_weather_shared = 0.41  ← "position" perspective score
+
+→ 4 different Q → 4 different scores → different weighted V → different outputs
+→ But "weather" only provides one set of "identity" (K) and "content" (V)
+
+KV Cache: each historical token stores 1K + 1V = 2 vectors (1/4 of MHA)
+```
 
 **GQA (Grouped-Query Attention): Each group of Q heads shares 1 set of K/V**
 
+4 Q heads split into 2 groups, each sharing 1 K/V set. Within-group sharing, between-group independent:
+
 ```
-Q_head_0 ──┐
-Q_head_1 ──┘──→ K_group_0, V_group_0    (group 0 shares)
+"weather"'s K/V:
+  K_weather_group0, V_weather_group0  ← Q_head_0 and Q_head_1 share this
+  K_weather_group1, V_weather_group1  ← Q_head_2 and Q_head_3 share this
 
-Q_head_2 ──┐
-Q_head_3 ──┘──→ K_group_1, V_group_1    (group 1 shares)
+Group 0: Q_head_0 × K_weather_group0 = 0.72  ("collocation" perspective)
+         Q_head_1 × K_weather_group0 = 0.25  ("temporal" perspective)
+         → Same K, different Q, different scores
 
-KV Cache = 2K + 2V = 4 vectors/token/layer (1/2 of MHA)
+Group 1: Q_head_2 × K_weather_group1 = -0.41 ("syntactic" perspective)
+         Q_head_3 × K_weather_group1 = 0.63  ("position" perspective)
+         → Different K, different Q, different scores
+
+KV Cache: each historical token stores 2K + 2V = 4 vectors (1/2 of MHA)
 ```
 
-Four interviewers split into two groups. **Same group sees the same resume, different groups see different versions** — richer than MQA, more compact than MHA. Real example: Qwen3-8B has 32 Q heads, 8 KV heads → every 4 Q heads share 1 KV set → KV Cache = 1/4 of MHA.
+Real example: Qwen3-8B has 32 Q heads, 8 KV heads → every 4 Q heads share 1 KV set → KV Cache = 1/4 of MHA.
 
 **MLA (Multi-head Latent Attention): Store compressed latent, not full K/V**
 
-```
-Standard: x → W_K → K (128d) → store in Cache
-          x → W_V → V (128d) → store in Cache
+Completely different approach — doesn't reduce K/V head count, instead doesn't store full K and V:
 
-MLA:      x → W_compress → latent (576d) → store in Cache
-          At inference: latent → W_decompress_K → K
-                        latent → W_decompress_V → V
+```
+Standard (MHA/GQA):
+  "weather" → × W_K → K_weather (128d)  → store in Cache
+  "weather" → × W_V → V_weather (128d)  → store in Cache
+  At inference: directly read K_weather and V_weather
+
+MLA:
+  "weather" → × W_compress → latent_weather (576d) → store in Cache (only this!)
+  At inference: latent_weather → × W_decompress_K → K_weather → scoring
+                latent_weather → × W_decompress_V → V_weather → content retrieval
 ```
 
-Instead of reducing head count, MLA takes a different approach — store a **compressed representation** and decompress on the fly. GLM-4.7-Flash stores 576 numbers per layer instead of 1024, compressing to 56%. The cost is one extra matrix multiplication for decompression.
+GLM-4.7-Flash stores 576 numbers per layer instead of 1024, compressing to 56%. The cost is one extra decompression matrix multiplication at inference.
 
 **Evolution path**:
 

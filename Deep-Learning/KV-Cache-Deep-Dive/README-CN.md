@@ -506,60 +506,94 @@ GQA 是当前的**主流选择**：在几乎不损失质量的前提下，将 KV
 
 #### 四种注意力机制深入对比
 
-以 4 个 Q 头、head_dim=4 的极简模型为例，处理 "today" 对历史 token 的注意力：
+继续用"今天天气"的例子。"气"要和前面的"今""天""天"做 Attention，假设模型有 4 个 Q 头，head_dim=4：
+
+"气"经过 W_Q 产生 4 个不同的 Q（4 种"提问视角"）：
+```
+Q_head_0 = [0.8, 0.1, -0.5, 0.3]   ← 可能在关注"词语搭配"
+Q_head_1 = [0.2, 0.9, 0.1, -0.4]   ← 可能在关注"时间修饰"
+Q_head_2 = [-0.3, 0.4, 0.7, 0.2]   ← 可能在关注"句法结构"
+Q_head_3 = [0.5, -0.2, 0.3, 0.8]   ← 可能在关注"位置关系"
+```
+
+四种机制的区别就在于：**"今""天""天"各自产生几组 K 和 V 来配合这 4 个 Q？**
 
 **MHA（Multi-Head Attention）：每个 Q 头配独立的 K/V**
 
-```
-Q_head_0 ──→ K_head_0, V_head_0    （独占）
-Q_head_1 ──→ K_head_1, V_head_1    （独占）
-Q_head_2 ──→ K_head_2, V_head_2    （独占）
-Q_head_3 ──→ K_head_3, V_head_3    （独占）
+每个历史 token 产生 4 组独立的 K 和 V，各头完全独立打分：
 
-KV Cache = 4K + 4V = 8 个向量/token/层
 ```
+"天" 的 K/V：
+  K_天_head0, V_天_head0  ← 专门给 Q_head_0 用
+  K_天_head1, V_天_head1  ← 专门给 Q_head_1 用
+  K_天_head2, V_天_head2  ← 专门给 Q_head_2 用
+  K_天_head3, V_天_head3  ← 专门给 Q_head_3 用
 
-四个面试官，每人面对**各自不同的简历**（K）和**作品集**（V），完全独立评估。
+Q_head_0 × K_天_head0 → 分数（"气"从"词语搭配"视角看"天"有多重要）
+Q_head_1 × K_天_head1 → 分数（"气"从"时间修饰"视角看"天"有多重要）
+...各自独立
+
+KV Cache: 每个历史 token 存 4K + 4V = 8 个向量
+```
 
 **MQA（Multi-Query Attention）：所有 Q 头共享 1 组 K/V**
 
-```
-Q_head_0 ──┐
-Q_head_1 ──┼──→ K_shared, V_shared    （共享同一组）
-Q_head_2 ──┤
-Q_head_3 ──┘
+每个历史 token 只产生 1 组 K 和 V，4 个不同的 Q 都去和这同一组 K 打分：
 
-KV Cache = 1K + 1V = 2 个向量/token/层（MHA 的 1/4）
 ```
+"天" 的 K/V：
+  K_天_shared, V_天_shared  ← 只有这一组，4 个 Q 都用它
 
-四个面试官面对**同一份简历**。但因为 Q 不同，打出的**分数不同** → 取的加权平均也不同 → 输出仍然不同。只是所有人看到的"候选人侧面"完全一样。
+Q_head_0 × K_天_shared = 0.95  ← "词语搭配"视角打分
+Q_head_1 × K_天_shared = 0.10  ← "时间修饰"视角打分
+Q_head_2 × K_天_shared = -0.53 ← "句法结构"视角打分
+Q_head_3 × K_天_shared = 0.41  ← "位置关系"视角打分
+
+→ 4 个 Q 不同 → 打出的分数不同 → 取 V 的加权不同 → 输出不同
+→ 但"天"只提供了一套"身份信息"（K）和"内容"（V）
+
+KV Cache: 每个历史 token 存 1K + 1V = 2 个向量（MHA 的 1/4）
+```
 
 **GQA（Grouped-Query Attention）：每组 Q 头共享 1 组 K/V**
 
+4 个 Q 头分成 2 组，每组共享 1 组 K/V。组内共享，组间独立：
+
 ```
-Q_head_0 ──┐
-Q_head_1 ──┘──→ K_group_0, V_group_0    （组 0 共享）
+"天" 的 K/V：
+  K_天_group0, V_天_group0  ← Q_head_0 和 Q_head_1 共用
+  K_天_group1, V_天_group1  ← Q_head_2 和 Q_head_3 共用
 
-Q_head_2 ──┐
-Q_head_3 ──┘──→ K_group_1, V_group_1    （组 1 共享）
+组 0：Q_head_0 × K_天_group0 = 0.72  （"词语搭配"视角）
+     Q_head_1 × K_天_group0 = 0.25  （"时间修饰"视角）
+     → 同一个 K，不同 Q，不同分数
 
-KV Cache = 2K + 2V = 4 个向量/token/层（MHA 的 1/2）
+组 1：Q_head_2 × K_天_group1 = -0.41 （"句法结构"视角）
+     Q_head_3 × K_天_group1 = 0.63  （"位置关系"视角）
+     → 另一个 K，不同 Q，不同分数
+
+KV Cache: 每个历史 token 存 2K + 2V = 4 个向量（MHA 的 1/2）
 ```
 
-四个面试官分两组。**同组看同一份简历，不同组看不同版本**——比 MQA 更丰富，比 MHA 更省存储。实际模型如 Qwen3-8B：32 个 Q 头，8 个 KV 头 → 每 4 个 Q 共享 1 组 KV → KV Cache = MHA 的 1/4。
+实际模型如 Qwen3-8B：32 个 Q 头，8 个 KV 头 → 每 4 个 Q 共享 1 组 KV → KV Cache = MHA 的 1/4。
 
 **MLA（Multi-head Latent Attention）：不存完整 K/V，存压缩 latent**
 
-```
-标准方式：x → W_K → K (128d) → 存 Cache
-         x → W_V → V (128d) → 存 Cache
+思路完全不同——不减 K/V 头数，而是不存完整的 K 和 V：
 
-MLA 方式：x → W_compress → latent (576d) → 存 Cache
-          推理时：latent → W_decompress_K → K
-                  latent → W_decompress_V → V
+```
+标准方式（MHA/GQA）：
+  "天" → × W_K → K_天 (128d)  → 存入 Cache
+  "天" → × W_V → V_天 (128d)  → 存入 Cache
+  推理时直接读 K_天 和 V_天
+
+MLA 方式：
+  "天" → × W_compress → latent_天 (576d) → 存入 Cache（只存这个！）
+  推理时：latent_天 → × W_decompress_K → K_天 → 打分
+          latent_天 → × W_decompress_V → V_天 → 取内容
 ```
 
-不减头数，换思路——存**压缩表示**再解压。GLM-4.7-Flash 每层存 576 个数而非 1024 个，压缩到 56%。代价是推理时多一次解压矩阵乘法。
+GLM-4.7-Flash 每层存 576 个数而非 1024 个，压缩到 56%。代价是推理时多一次解压矩阵乘法。
 
 **演进路线**：
 
