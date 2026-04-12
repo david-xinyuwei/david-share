@@ -1131,4 +1131,3 @@ Architecture: gqa
 | **Date** | 2026-04 |
 | **Primary Sources** | Benjamin Marie (Kaitchup), HuggingFace model configs |
 | **Verified With** | Python calculation + HuggingFace config.json API |
-| **Local Files** | `G:\AI-Super-Agent\KV-Cache研究\` |
