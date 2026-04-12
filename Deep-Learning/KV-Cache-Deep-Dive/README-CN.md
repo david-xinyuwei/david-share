@@ -504,6 +504,80 @@ $$\text{KV Cache} \propto T$$
 
 GQA 是当前的**主流选择**：在几乎不损失质量的前提下，将 KV Cache 压缩到 MHA 的 $1/g$。
 
+#### 四种注意力机制深入对比
+
+以 4 个 Q 头、head_dim=4 的极简模型为例，处理 "today" 对历史 token 的注意力：
+
+**MHA（Multi-Head Attention）：每个 Q 头配独立的 K/V**
+
+```
+Q_head_0 ──→ K_head_0, V_head_0    （独占）
+Q_head_1 ──→ K_head_1, V_head_1    （独占）
+Q_head_2 ──→ K_head_2, V_head_2    （独占）
+Q_head_3 ──→ K_head_3, V_head_3    （独占）
+
+KV Cache = 4K + 4V = 8 个向量/token/层
+```
+
+四个面试官，每人面对**各自不同的简历**（K）和**作品集**（V），完全独立评估。
+
+**MQA（Multi-Query Attention）：所有 Q 头共享 1 组 K/V**
+
+```
+Q_head_0 ──┐
+Q_head_1 ──┼──→ K_shared, V_shared    （共享同一组）
+Q_head_2 ──┤
+Q_head_3 ──┘
+
+KV Cache = 1K + 1V = 2 个向量/token/层（MHA 的 1/4）
+```
+
+四个面试官面对**同一份简历**。但因为 Q 不同，打出的**分数不同** → 取的加权平均也不同 → 输出仍然不同。只是所有人看到的"候选人侧面"完全一样。
+
+**GQA（Grouped-Query Attention）：每组 Q 头共享 1 组 K/V**
+
+```
+Q_head_0 ──┐
+Q_head_1 ──┘──→ K_group_0, V_group_0    （组 0 共享）
+
+Q_head_2 ──┐
+Q_head_3 ──┘──→ K_group_1, V_group_1    （组 1 共享）
+
+KV Cache = 2K + 2V = 4 个向量/token/层（MHA 的 1/2）
+```
+
+四个面试官分两组。**同组看同一份简历，不同组看不同版本**——比 MQA 更丰富，比 MHA 更省存储。实际模型如 Qwen3-8B：32 个 Q 头，8 个 KV 头 → 每 4 个 Q 共享 1 组 KV → KV Cache = MHA 的 1/4。
+
+**MLA（Multi-head Latent Attention）：不存完整 K/V，存压缩 latent**
+
+```
+标准方式：x → W_K → K (128d) → 存 Cache
+         x → W_V → V (128d) → 存 Cache
+
+MLA 方式：x → W_compress → latent (576d) → 存 Cache
+          推理时：latent → W_decompress_K → K
+                  latent → W_decompress_V → V
+```
+
+不减头数，换思路——存**压缩表示**再解压。GLM-4.7-Flash 每层存 576 个数而非 1024 个，压缩到 56%。代价是推理时多一次解压矩阵乘法。
+
+**演进路线**：
+
+```
+MHA（每头独立 KV）→ KV Cache 太大
+  ↓
+MQA（全部共享 1 组 KV）→ Cache 最小，但质量损失
+  ↓
+GQA（分组共享）→ 折中方案 ← 当前主流
+  ↓
+MLA（压缩存储 + 按需解压）→ 正交优化，可与 GQA 思路结合
+```
+
+> **数学验证**（Qwen3-8B，32 Q 头，BF16）：
+> - MHA: 36 × 2 × 32 × 128 × 2 = 589,824 bytes/token = 576 KiB → @32K = **18 GiB**
+> - GQA (8 KV 头): 36 × 2 × 8 × 128 × 2 = 147,456 bytes/token = 144 KiB → @32K = **4.5 GiB**
+> - 比值 = 4.5/18 = **1/4**——GQA 帮省了 75% 的 KV Cache
+
 ---
 
 ## L3: 四种减少 KV Cache 的架构

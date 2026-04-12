@@ -458,6 +458,80 @@ Double the context → double the KV Cache. This is a **linear relationship** wi
 
 GQA is the **dominant choice** today: near-MHA quality with $1/g$ KV Cache.
 
+#### Four Attention Mechanisms: Deep Comparison
+
+Using a simplified 4 Q-head, head_dim=4 model processing "today"'s attention to history:
+
+**MHA (Multi-Head Attention): Each Q head gets its own K/V**
+
+```
+Q_head_0 ──→ K_head_0, V_head_0    (exclusive)
+Q_head_1 ──→ K_head_1, V_head_1    (exclusive)
+Q_head_2 ──→ K_head_2, V_head_2    (exclusive)
+Q_head_3 ──→ K_head_3, V_head_3    (exclusive)
+
+KV Cache = 4K + 4V = 8 vectors/token/layer
+```
+
+Four interviewers, each reviewing **their own unique resume** (K) and **portfolio** (V). Fully independent.
+
+**MQA (Multi-Query Attention): All Q heads share 1 set of K/V**
+
+```
+Q_head_0 ──┐
+Q_head_1 ──┼──→ K_shared, V_shared    (shared)
+Q_head_2 ──┤
+Q_head_3 ──┘
+
+KV Cache = 1K + 1V = 2 vectors/token/layer (1/4 of MHA)
+```
+
+Four interviewers review **the same resume**. But since each Q is different, they **score differently** → different weighted averages → different outputs. They just can't see different facets of the candidate.
+
+**GQA (Grouped-Query Attention): Each group of Q heads shares 1 set of K/V**
+
+```
+Q_head_0 ──┐
+Q_head_1 ──┘──→ K_group_0, V_group_0    (group 0 shares)
+
+Q_head_2 ──┐
+Q_head_3 ──┘──→ K_group_1, V_group_1    (group 1 shares)
+
+KV Cache = 2K + 2V = 4 vectors/token/layer (1/2 of MHA)
+```
+
+Four interviewers split into two groups. **Same group sees the same resume, different groups see different versions** — richer than MQA, more compact than MHA. Real example: Qwen3-8B has 32 Q heads, 8 KV heads → every 4 Q heads share 1 KV set → KV Cache = 1/4 of MHA.
+
+**MLA (Multi-head Latent Attention): Store compressed latent, not full K/V**
+
+```
+Standard: x → W_K → K (128d) → store in Cache
+          x → W_V → V (128d) → store in Cache
+
+MLA:      x → W_compress → latent (576d) → store in Cache
+          At inference: latent → W_decompress_K → K
+                        latent → W_decompress_V → V
+```
+
+Instead of reducing head count, MLA takes a different approach — store a **compressed representation** and decompress on the fly. GLM-4.7-Flash stores 576 numbers per layer instead of 1024, compressing to 56%. The cost is one extra matrix multiplication for decompression.
+
+**Evolution path**:
+
+```
+MHA (independent KV per head) → KV Cache too large
+  ↓
+MQA (all heads share 1 KV) → Smallest Cache, but quality loss
+  ↓
+GQA (grouped sharing) → Best tradeoff ← current mainstream
+  ↓
+MLA (compressed storage + on-demand decompression) → Orthogonal optimization
+```
+
+> **Math verification** (Qwen3-8B, 32 Q heads, BF16):
+> - MHA: 36 × 2 × 32 × 128 × 2 = 589,824 bytes/token = 576 KiB → @32K = **18 GiB**
+> - GQA (8 KV heads): 36 × 2 × 8 × 128 × 2 = 147,456 bytes/token = 144 KiB → @32K = **4.5 GiB**
+> - Ratio = 4.5/18 = **1/4** — GQA saves 75% of KV Cache
+
 ---
 
 ## L3: Four KV Cache Reduction Architectures
