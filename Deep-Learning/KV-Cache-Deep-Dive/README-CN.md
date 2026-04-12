@@ -627,6 +627,47 @@ MLA（压缩存储 + 按需解压）→ 正交优化，可与 GQA 思路结合
 
 > **关键洞察**：Qwen3.5 和 Nemotron 的 KV Cache 极小，不是因为它们的 Attention 类型更先进（两者都用标准 GQA），而是因为它们**大幅减少了使用 Attention 的层数**——用不需要 KV Cache 的 Linear Attention / Mamba 替代了大部分层。
 
+#### 两个正交维度理解 KV Cache 优化
+
+减少 KV Cache 有两个独立的维度，可以自由组合：
+
+```
+维度 1（层内）：单个 Attention 层内部，KV 头怎么组织？
+              MHA → GQA → MQA → MLA
+              （减少每层存的 KV 大小）
+
+维度 2（层间）：模型的多层中，哪些层用 Attention？
+              全部用 Attention → Hybrid（部分层用替代机制）
+              （减少产生 KV Cache 的层数）
+```
+
+| | 全部层 Attention | Hybrid（部分层替代） |
+|---|---|---|
+| **GQA** | Qwen3-30B（48层全 GQA） | Qwen3.5（10层 GQA + 30层 Linear），Nemotron（6层 GQA + 46层 Mamba） |
+| **MLA** | GLM-4.7（47层全 MLA） | 理论上可行，尚未见实际模型 |
+
+#### 为什么有些层可以不用 Attention？
+
+在传统 Transformer（GPT/LLaMA/Qwen3）中，**每层都有 Attention**，每层都有 W_Q/W_K/W_V 矩阵，每层都产生 KV Cache。这是 2023 年之前的默认设计。
+
+2024-2025 年出现的 **Hybrid 架构打破了这个默认**——用不需要 KV Cache 的替代机制替换了大部分层：
+
+| 机制 | 怎么获取上下文 | 历史存储 | KV Cache? |
+|------|---------|---------|:---:|
+| **标准 Attention** | Q 逐一和每个历史 K 打分，按分数取 V | 存每个 token 的 K 和 V | **需要，$O(T)$ 增长** |
+| **Linear Attention** | 把历史压缩到固定大小的状态矩阵 S，每步更新 S | 固定大小的 S | **不需要，$O(1)$** |
+| **Mamba (SSM)** | 用选择性状态空间模型更新固定大小的隐藏状态 h | 固定大小的 h | **不需要，$O(1)$** |
+
+Linear Attention 和 Mamba 的**代价**是：历史信息被“有损压缩”到固定大小的状态中，无法像标准 Attention 那样**精确回看任意历史 token**。
+
+#### 为什么 Hybrid 是最佳方案？
+
+模型有两种需求：
+- **大部分时候**：“大致知道前面说了什么”就够了 → Linear Attention / Mamba 能胜任（便宜，无 KV Cache）
+- **偶尔需要**：“精确回看某个具体历史 token” → 必须用标准 Attention（贵，需要 KV Cache）
+
+Hybrid = 大部分层用便宜的 + 少数层用贵的 = **省 KV Cache + 保留精确回看能力**。例如 Qwen3.5 每隔 4 层放一个 full_attention 层，定期给模型一个机会精确回看完整历史。
+
 以下逐一分析。
 
 ### 3.1 Standard GQA — Qwen3-30B-A3B

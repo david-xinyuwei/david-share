@@ -581,6 +581,47 @@ Four state-of-the-art ~30B MoE models use different strategies to reduce KV Cach
 
 > **Key insight**: Qwen3.5 and Nemotron have tiny KV Cache not because their attention type is more advanced (both use standard GQA), but because they **drastically reduced the number of layers using Attention** — replacing most layers with Linear Attention / Mamba that need no KV Cache.
 
+#### Two Orthogonal Dimensions for KV Cache Optimization
+
+Reducing KV Cache has two independent dimensions that can be freely combined:
+
+```
+Dimension 1 (within layer): Inside a single Attention layer, how are KV heads organized?
+              MHA → GQA → MQA → MLA
+              (reduce per-layer KV size)
+
+Dimension 2 (across layers): Across the model's layers, which layers use Attention?
+              All layers Attention → Hybrid (some layers use alternatives)
+              (reduce number of layers producing KV Cache)
+```
+
+| | All Layers Attention | Hybrid (some layers replaced) |
+|---|---|---|
+| **GQA** | Qwen3-30B (48 layers all GQA) | Qwen3.5 (10 GQA + 30 Linear), Nemotron (6 GQA + 46 Mamba) |
+| **MLA** | GLM-4.7 (47 layers all MLA) | Theoretically possible, no real model yet |
+
+#### Why Can Some Layers Skip Attention?
+
+In traditional Transformers (GPT/LLaMA/Qwen3), **every layer has Attention** with W_Q/W_K/W_V matrices, and every layer produces KV Cache. This was the default before 2023.
+
+**Hybrid architectures (2024-2025) broke this default** — replacing most layers with KV-Cache-free alternatives:
+
+| Mechanism | How It Gets Context | History Storage | KV Cache? |
+|------|---------|---------|:---:|
+| **Standard Attention** | Q scores each historical K, weighted sum of V | Stores every token's K and V | **Yes, $O(T)$ growth** |
+| **Linear Attention** | Compresses history into fixed-size state matrix S, updated each step | Fixed-size S | **No, $O(1)$** |
+| **Mamba (SSM)** | Selective state space model updates fixed-size hidden state h | Fixed-size h | **No, $O(1)$** |
+
+The **tradeoff** of Linear Attention and Mamba: history is "lossy-compressed" into a fixed-size state — they cannot precisely recall any arbitrary historical token like standard Attention can.
+
+#### Why Hybrid Is the Best Approach
+
+Models need two capabilities:
+- **Most of the time**: "roughly knowing what was said before" is enough → Linear Attention / Mamba can handle this (cheap, no KV Cache)
+- **Occasionally**: "precisely recall a specific historical token" → must use standard Attention (expensive, needs KV Cache)
+
+Hybrid = most layers use the cheap option + a few layers use the expensive one = **save KV Cache + retain precise recall**. For example, Qwen3.5 places one full_attention layer every 4 layers, periodically giving the model a chance to precisely review complete history.
+
 ### 3.1 Standard GQA — Qwen3-30B-A3B
 
 All layers use GQA with full KV Cache.
