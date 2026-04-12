@@ -86,10 +86,12 @@ KV Cache 是 LLM 推理（Inference）中**最关键的内存消耗来源**。�
 
 ```
 "气" 的 4096 个数字
-    ├── × W_Q矩阵 → Q = [128个数字]  ← 给别人打分的工具
-    ├── × W_K矩阵 → K = [128个数字]  ← 被别人打分的对象
-    └── × W_V矩阵 → V = [128个数字]  ← 被选中后贡献到输出的内容
+    ├── × W_Q矩阵 → Q = [128个数字/头 × 32头]  ← 给别人打分的工具
+    ├── × W_K矩阵 → K = [128个数字/头 × 8头]   ← 被别人打分的对象
+    └── × W_V矩阵 → V = [128个数字/头 × 8头]   ← 被选中后贡献到输出的内容
 ```
+
+> **为什么 Q 有 32 头而 K/V 只有 8 头？** 这就是 GQA（Grouped-Query Attention）——每 4 个 Q 头共享 1 组 K/V，减少 KV Cache 大小而几乎不损失质量。L0 阶段可以只记住：Q 比 K/V 多，具体原理见 L2.4。
 
 > **为什么 K 和 V 要分开？** 让打分结果准确需要的数字（K），和让最终预测猜对字需要的数字（V），不是同一组。如果让一组数字同时伺候"打分"和"预测"两个需求，两头都做不好。拆开后各管各的，效果更好。
 
@@ -865,9 +867,9 @@ FlashAttention:
 
 > 数据来源：NVIDIA Developer Blog（[Inside NVIDIA Groq 3 LPX](https://developer.nvidia.com/blog/inside-nvidia-groq-3-lpx-the-low-latency-inference-accelerator-for-the-nvidia-vera-rubin-platform)）、[NVIDIA LPX 产品页](https://www.nvidia.com/en-us/data-center/lpx/)、Groq 官方博客（[Inside the LPU](https://groq.com/blog/inside-the-lpu-deconstructing-groq-speed)）。GTC 2026 发布。
 
-### B.1 背景：NVIDIA 授权 Groq IP
+### B.1 背景：NVIDIA 与 Groq 的合作
 
-NVIDIA 在 GTC 2026（2026-03）发布了 **NVIDIA Groq 3 LPX**——这是 NVIDIA Vera Rubin 平台的第七颗芯片。NVIDIA 于 2025 年末授权了 Groq 的 Tensor Streaming Processor (TSP) IP，将其集成到自己的数据中心架构中。
+NVIDIA 在 GTC 2026（2026-03）发布了 **NVIDIA Groq 3 LPX**——这是 NVIDIA Vera Rubin 平台的第七颗芯片。据报道（[IEEE Spectrum](https://spectrum.ieee.org/nvidia-groq-3)），NVIDIA 与 Groq 的 IP 授权交易发生在 2025 年末，将 Groq 的 Tensor Streaming Processor (TSP) 架构集成到 NVIDIA 的数据中心平台中。
 
 ### B.2 核心架构：SRAM-First + 确定性执行
 
@@ -1060,9 +1062,9 @@ Q_真 × [K_今, K_天, K_天, K_气, K_真]ᵀ → 打分
 | **能装 KV Cache？** | ❌ 太小（KB 级装不下 GB 级） | ✅ 设计上就是用来装的 |
 
 - **FlashAttention** 是一种**软件优化**：让 GPU 的小 SRAM（KB 级）高效处理 Attention 中间结果
-- **Groq LPU** 是一种**硬件架构**：用大 SRAM（500 MB 级）直接替代 HBM
+- **Groq LPU** 是一种**硬件架构**：用大 SRAM（500 MB 级）作主存储，同时每个计算托盘还配有 DRAM（最大 256 GB）用于容纳更大的模型和工作集
 
-两者不是同一件事。FA 不能让 KV Cache "进入" GPU 的 SRAM——SRAM 太小了。Groq 的 SRAM 能装 KV Cache，是因为硬件上就给了 500 MB/芯片。
+两者不是同一件事。FA 不能让 KV Cache "进入" GPU 的 SRAM——SRAM 太小了。Groq 的 SRAM 能装 KV Cache，是因为硬件上就给了 500 MB/芯片；更大的工作集可以溢出到 DRAM。
 
 ---
 
@@ -1131,3 +1133,4 @@ Architecture: gqa
 | **Date** | 2026-04 |
 | **Primary Sources** | Benjamin Marie (Kaitchup), HuggingFace model configs |
 | **Verified With** | Python calculation + HuggingFace config.json API |
+| **Local Files** | `G:\AI-Super-Agent\KV-Cache研究\` |

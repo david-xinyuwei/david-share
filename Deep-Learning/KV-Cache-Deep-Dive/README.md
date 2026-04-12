@@ -86,10 +86,12 @@ Next, each token needs to look at previous tokens to gather context. But using t
 
 ```
 "is" (4096 numbers)
-    ├── × W_Q matrix → Q = [128 numbers]  ← tool for scoring others
-    ├── × W_K matrix → K = [128 numbers]  ← object to be scored
-    └── × W_V matrix → V = [128 numbers]  ← content contributed when selected
+    ├── × W_Q matrix → Q = [128 numbers/head × 32 heads]  ← tool for scoring others
+    ├── × W_K matrix → K = [128 numbers/head × 8 heads]   ← object to be scored
+    └── × W_V matrix → V = [128 numbers/head × 8 heads]   ← content contributed when selected
 ```
+
+> **Why does Q have 32 heads but K/V only 8?** This is GQA (Grouped-Query Attention) — every 4 Q heads share 1 set of K/V, reducing KV Cache size with almost no quality loss. For L0, just remember: Q has more heads than K/V. Details in L2.4.
 
 > **Why separate K and V?** The numbers needed for accurate scoring (K) and the numbers needed for correct prediction (V) aren't the same. If one set of numbers serves both "scoring" and "prediction", neither works well. Separating them lets each focus on its own job.
 
@@ -682,9 +684,9 @@ FlashAttention:
 
 > Sources: NVIDIA Developer Blog ([Inside NVIDIA Groq 3 LPX](https://developer.nvidia.com/blog/inside-nvidia-groq-3-lpx-the-low-latency-inference-accelerator-for-the-nvidia-vera-rubin-platform)), [NVIDIA LPX Product Page](https://www.nvidia.com/en-us/data-center/lpx/), Groq Blog ([Inside the LPU](https://groq.com/blog/inside-the-lpu-deconstructing-groq-speed)). Announced at GTC 2026.
 
-### B.1 Background: NVIDIA Licensed Groq IP
+### B.1 Background: NVIDIA and Groq Cooperation
 
-NVIDIA announced **NVIDIA Groq 3 LPX** at GTC 2026 (March 2026)—the seventh chip of the NVIDIA Vera Rubin platform. NVIDIA licensed Groq's Tensor Streaming Processor (TSP) IP in late 2025 and integrated it into its data center architecture.
+NVIDIA announced **NVIDIA Groq 3 LPX** at GTC 2026 (March 2026)—the seventh chip of the NVIDIA Vera Rubin platform. According to reports ([IEEE Spectrum](https://spectrum.ieee.org/nvidia-groq-3)), NVIDIA's IP licensing deal with Groq occurred in late 2025, integrating Groq's Tensor Streaming Processor (TSP) architecture into NVIDIA's data center platform.
 
 ### B.2 Core Architecture: SRAM-First + Deterministic Execution
 
@@ -875,9 +877,9 @@ Without caching, "nice" at Layer 0 would need to recompute K and V for "The", "w
 | **Can hold KV Cache?** | ❌ Too small (KB vs GB) | ✅ Designed for it |
 
 - **FlashAttention** is a **software optimization**: makes GPU's small SRAM (KB) efficiently handle attention intermediates
-- **Groq LPU** is a **hardware architecture**: uses large SRAM (500 MB) to replace HBM entirely
+- **Groq LPU** is a **hardware architecture**: uses large SRAM (500 MB) as primary storage, plus each compute tray includes DRAM (up to 256 GB) for larger models and working sets
 
-These are not the same thing. FA cannot put KV Cache "into" GPU SRAM — it's too small. Groq's SRAM can hold KV Cache because the hardware provides 500 MB per chip.
+These are not the same thing. FA cannot put KV Cache "into" GPU SRAM — it's too small. Groq's SRAM can hold KV Cache because the hardware provides 500 MB per chip; larger working sets can spill to DRAM.
 
 ---
 
