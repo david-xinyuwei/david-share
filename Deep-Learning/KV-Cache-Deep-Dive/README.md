@@ -766,6 +766,121 @@ NVIDIA Dynamo handles:
 
 ---
 
+## Appendix C: Activation Lifecycle in One Decoder Layer — What's Kept, Discarded, and Optimized
+
+> Example: Qwen3-8B Layer 0 processing token "is" (32 heads, head_dim=128, hidden_size=4096, intermediate_size=12288)
+
+### C.1 The Fate of All 15 Activations
+
+![Activation Lifecycle](images/activation-lifecycle.png)
+
+| # | Activation | Dims | Fate | FA? | PA? |
+|:-:|-----------|:---:|:---:|:---:|:---:|
+| ① | x_is (layer input) | 4096d | ➡️ Released after residual | — | — |
+| ② | Q_total | 4096d | 🗑️ Discarded after scoring | — | — |
+| ③ | **K_total** | 1024d | **🟣 Stored in KV Cache** | — | **✅ PA manages storage** |
+| ④ | **V_total** | 1024d | **🟣 Stored in KV Cache** | — | **✅ PA manages storage** |
+| ⑤ | **Scores (Q×Kᵀ)** | **seq×seq** | 🗑️ Discarded | **⚡ FA: stays in SRAM** | — |
+| ⑥ | **Softmax Weights** | **seq×seq** | 🗑️ Discarded | **⚡ FA: stays in SRAM** | — |
+| ⑦ | Attn Output (per head) | 128d×32 | 🗑️ Discarded | **⚡ FA: block-accumulate** | — |
+| ⑧ | Concat result | 4096d | 🗑️ Discarded | — | — |
+| ⑨ | o_proj output | 4096d | 🗑️ Discarded | — | — |
+| ⑩ | post_attn (after residual) | 4096d | ➡️ Released after residual | — | — |
+| ⑪ | gate_proj output | **12288d** | 🗑️ Discarded | — | — |
+| ⑫ | up_proj output | **12288d** | 🗑️ Discarded | — | — |
+| ⑬ | ffn_mid (SiLU×up) | **12288d** | 🗑️ Discarded | — | — |
+| ⑭ | down_proj output | 4096d | 🗑️ Discarded | — | — |
+| ⑮ | layer_output | 4096d | **🔵 Passed to Layer 1** | — | — |
+
+**Summary**: Of 15 activations — 🟣 Persisted 2 (K/V) | 🔵 Passed to next layer 1 | ➡️ Released after residual 2 | 🗑️ Discarded immediately 10
+
+### C.2 FlashAttention vs PagedAttention Scope — Zero Overlap
+
+```
+15 activations
+├── ③④ K/V → PagedAttention (how KV Cache is stored in HBM — paging, defragmentation)
+├── ⑤⑥⑦ Score/Softmax/Output → FlashAttention (how attention is computed — in SRAM, off HBM)
+└── Remaining 10 → Normal HBM read/write, no special optimization
+```
+
+**Quantified HBM IO savings by FA** (Qwen3-8B, seq=32K, BF16):
+
+| Intermediate Activation | Standard Attention | FlashAttention |
+|---------|:---:|:---:|
+| ⑤ Score matrix (seq×seq) | Write + Read = 137.4 GB | **0** (stays in SRAM) |
+| ⑥ Softmax result (seq×seq) | Write + Read = 137.4 GB | **0** (stays in SRAM) |
+| **Total HBM IO eliminated** | — | **274.9 GB** |
+
+### C.3 Relationship Between KV Cache and Activations
+
+**Computationally**: KV Cache ⊂ Activations — K and V are intermediate results of the forward pass; they are activations.
+
+**In memory management**: KV Cache is "extracted" and managed independently, behaving entirely differently from transient activations:
+
+| Property | Transient activations (②⑤⑥⑧...) | KV Cache (③④) |
+|------|:---:|:---:|
+| Lifetime | Discarded within current step | Accumulates throughout entire conversation |
+| Memory growth | Fixed (constant size) | Grows linearly with token count |
+| Management | Standard CUDA alloc/free | PagedAttention paged management |
+
+**Analogy**: Activations are semi-finished products on an assembly line — processed and passed on, not stored. KV Cache is parts pulled off the line and placed in a warehouse — they were once on the line, but now they're "inventory".
+
+### C.4 layer_output: From "Knowing Only Itself" to "Fused Context Understanding"
+
+Before Layer 0: "is"'s vector contains only its own initial features.
+
+After Layer 0: Still a 4096d vector (format unchanged), but values are completely different — now fused with "weather"'s information (via Attention, "is" knows "weather is" is a phrase) and independently digested by FFN.
+
+```
+Layer 0:  "is" learned that "weather is" is a phrase
+Layer 15: "is" understands "discussing weather conditions"
+Layer 35: "is" judges the next token should be "nice/bad/cold"
+```
+
+**layer_output only passes to the next layer — it flows "vertically" (between layers).**
+
+### C.5 Why KV Cache Must Be Stored Separately — "Vertical" vs "Horizontal"
+
+```
+"is" at Layer 0 produces two things:
+
+Vertical (between layers): layer_output → passed to Layer 1 → "is" continues deeper
+Horizontal (across steps): K_is, V_is → stored in Cache → left for all future tokens
+
+Two directions, two purposes, both essential.
+```
+
+| | layer_output (vertical) | KV Cache (horizontal) |
+|---|---|---|
+| **Serves** | "is" **itself** — continues to deeper layers | **All future tokens** — used when they do Attention at Layer 0 |
+| **Time dimension** | Within current step, between layers | Across steps, entire conversation |
+| **Lifetime** | Released after Layer 1 uses it | Released when conversation ends |
+
+When future token "nice" reaches Layer 0:
+```
+Q_nice × [K_The, K_weather, K_is, K_nice]ᵀ → scores
+                             ↑ This K_is is read from Cache!
+```
+
+Without caching, "nice" at Layer 0 would need to recompute K and V for "The", "weather", "is" through W_K and W_V — redundant work. **KV Cache eliminates this redundancy.**
+
+### C.6 GPU SRAM vs Groq LPU SRAM — Not the Same Thing
+
+| | GPU SRAM (Shared Memory) | Groq LPU SRAM (MEM block) |
+|---|---|---|
+| **Capacity** | **Tens to hundreds of KB** (per SM) | **500 MB** (per chip) |
+| **Gap** | — | **~1000x** |
+| **Role** | Scratch pad (supporting role) | **Primary storage (replaces HBM)** |
+| **Managed by** | FA kernel manually | Compiler static allocation |
+| **Can hold KV Cache?** | ❌ Too small (KB vs GB) | ✅ Designed for it |
+
+- **FlashAttention** is a **software optimization**: makes GPU's small SRAM (KB) efficiently handle attention intermediates
+- **Groq LPU** is a **hardware architecture**: uses large SRAM (500 MB) to replace HBM entirely
+
+These are not the same thing. FA cannot put KV Cache "into" GPU SRAM — it's too small. Groq's SRAM can hold KV Cache because the hardware provides 500 MB per chip.
+
+---
+
 ## Reproducing
 
 ### Environment

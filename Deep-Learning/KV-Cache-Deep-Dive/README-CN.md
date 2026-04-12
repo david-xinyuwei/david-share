@@ -951,6 +951,121 @@ NVIDIA Dynamo 负责：
 
 ---
 
+## Appendix C: 一层 Decoder 的激活生命周期——哪些保留、哪些丢弃、哪些被优化
+
+> 以 Qwen3-8B Layer 0 处理 token "气"为例（32 头，head_dim=128，hidden_size=4096，intermediate_size=12288）
+
+### C.1 15 个激活的完整命运
+
+![Activation Lifecycle](images/activation-lifecycle.png)
+
+| # | 激活名称 | 维度 | 命运 | FA 优化？ | PA 优化？ |
+|:-:|---------|:---:|:---:|:---:|:---:|
+| ① | x_气（本层输入） | 4096d | ➡️ 残差连接后释放 | — | — |
+| ② | Q_total | 4096d | 🗑️ 打分后丢弃 | — | — |
+| ③ | **K_total** | 1024d | **🟣 存入 KV Cache** | — | **✅ PA 管存储** |
+| ④ | **V_total** | 1024d | **🟣 存入 KV Cache** | — | **✅ PA 管存储** |
+| ⑤ | **Scores (Q×Kᵀ)** | **seq×seq** | 🗑️ 丢弃 | **⚡ FA 不落地 HBM** | — |
+| ⑥ | **Softmax Weights** | **seq×seq** | 🗑️ 丢弃 | **⚡ FA 不落地 HBM** | — |
+| ⑦ | Attn Output（per head）| 128d×32 | 🗑️ 丢弃 | **⚡ FA 分块累积** | — |
+| ⑧ | Concat 结果 | 4096d | 🗑️ 丢弃 | — | — |
+| ⑨ | o_proj Output | 4096d | 🗑️ 丢弃 | — | — |
+| ⑩ | post_attn（残差后） | 4096d | ➡️ 残差连接后释放 | — | — |
+| ⑪ | gate_proj 输出 | **12288d** | 🗑️ 丢弃 | — | — |
+| ⑫ | up_proj 输出 | **12288d** | 🗑️ 丢弃 | — | — |
+| ⑬ | ffn_mid（SiLU×up） | **12288d** | 🗑️ 丢弃 | — | — |
+| ⑭ | down_proj 输出 | 4096d | 🗑️ 丢弃 | — | — |
+| ⑮ | layer_output | 4096d | **🔵 传给 Layer 1** | — | — |
+
+**统计**：15 个激活中 — 🟣 持久化 2 个（K/V）| 🔵 传给下层 1 个 | ➡️ 残差后释放 2 个 | 🗑️ 用完即丢 10 个
+
+### C.2 FlashAttention 与 PagedAttention 的作用域——零重叠
+
+```
+15 个激活
+├── ③④ K/V → PagedAttention 管（在 HBM 中怎么存——分页、消除碎片）
+├── ⑤⑥⑦ Score/Softmax/Output → FlashAttention 管（在 SRAM 中怎么算——不落地 HBM）
+└── 其余 10 个 → 正常 HBM 读写，无特殊优化
+```
+
+**FA 消除的 HBM IO 量化**（Qwen3-8B, seq=32K, BF16）：
+
+| 中间激活 | 标准 Attention | FlashAttention |
+|---------|:---:|:---:|
+| ⑤ Score 矩阵 (seq×seq) | 写 + 读 = 137.4 GB | **0**（SRAM 不落地）|
+| ⑥ Softmax 结果 (seq×seq) | 写 + 读 = 137.4 GB | **0**（SRAM 不落地）|
+| **消除的 HBM IO 总量** | — | **274.9 GB** |
+
+### C.3 KV Cache 与激活的关系
+
+**从计算概念上**：KV Cache ⊂ 激活——K 和 V 都是 forward pass 的中间计算结果，它们本身就是激活。
+
+**从内存管理上**：KV Cache 被"挑出来"独立管理，与瞬时激活的行为完全不同：
+
+| 特性 | 瞬时激活（②⑤⑥⑧...） | KV Cache（③④） |
+|------|:---:|:---:|
+| 生命周期 | 当前步骤内用完即丢 | 整个对话期间持续累积 |
+| 内存增长 | 不增长（固定大小） | 随 token 数线性增长 |
+| 管理方式 | 常规 CUDA 内存分配/释放 | PagedAttention 分页管理 |
+
+**类比**：激活是流水线上的半成品——加工完传给下一步就不保留。KV Cache 是从流水线上挑出来放进仓库的零件——虽然曾在流水线上，但现在身份是"库存"。
+
+### C.4 layer_output：从"只知道自己"到"融合了上下文的理解"
+
+Layer 0 之前："气"的向量只包含"气"自己的初始特征。
+
+Layer 0 之后：还是 4096d 的向量（格式不变），但数值完全不同——已经融合了"天"的信息（通过 Attention 知道"天气"是一个词），并经过 FFN 独立消化。
+
+```
+Layer 0:  "气"知道了"天气"是一个词
+Layer 15: "气"理解了"在讨论天气状况"
+Layer 35: "气"判断出下一个字应该是"真/好/不"
+```
+
+**layer_output 只传给下一层——它是"纵向"的（层间传递）。**
+
+### C.5 为什么 KV Cache 还要单独存？——"纵向"vs"横向"
+
+```
+"气" 在 Layer 0 产生了两样东西：
+
+纵向（层间）：layer_output → 传给 Layer 1 → "气"自己继续往深走
+横向（跨步骤）：K_气, V_气 → 存入 Cache → 留给未来所有新 token
+
+两个方向，两种用途，缺一不可。
+```
+
+| | layer_output（纵向） | KV Cache（横向） |
+|---|---|---|
+| **服务对象** | "气"**自己**——继续往深层走 | **未来所有新 token**——在 Layer 0 做 Attention 时用 |
+| **时间维度** | 当前步骤内，层间传递 | 跨步骤，整个对话期间 |
+| **生命周期** | Layer 1 用完后释放 | 对话结束才释放 |
+
+当未来 token "真"到达 Layer 0 时：
+```
+Q_真 × [K_今, K_天, K_天, K_气, K_真]ᵀ → 打分
+                              ↑ 这个 K_气 就是从 Cache 读的！
+```
+
+如果不缓存，"真"在 Layer 0 做 Attention 时就需要把"今天天气"全部重新过 Layer 0 的 W_K 和 W_V——重复计算。**KV Cache 就是把这个重复计算省掉的。**
+
+### C.6 GPU SRAM vs Groq LPU SRAM——不是同一种东西
+
+| | GPU 的 SRAM (Shared Memory) | Groq LPU 的 SRAM (MEM block) |
+|---|---|---|
+| **容量** | **几十~几百 KB**（per SM） | **500 MB**（per chip） |
+| **差距** | — | **约 1000 倍** |
+| **定位** | 暂存区（配角） | **主存储（替代 HBM）** |
+| **谁管** | FA kernel 手动管理 | 编译器静态分配 |
+| **能装 KV Cache？** | ❌ 太小（KB 级装不下 GB 级） | ✅ 设计上就是用来装的 |
+
+- **FlashAttention** 是一种**软件优化**：让 GPU 的小 SRAM（KB 级）高效处理 Attention 中间结果
+- **Groq LPU** 是一种**硬件架构**：用大 SRAM（500 MB 级）直接替代 HBM
+
+两者不是同一件事。FA 不能让 KV Cache "进入" GPU 的 SRAM——SRAM 太小了。Groq 的 SRAM 能装 KV Cache，是因为硬件上就给了 500 MB/芯片。
+
+---
+
 ## Reproducing
 
 ### Environment
