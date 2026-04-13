@@ -133,7 +133,22 @@ flowchart LR
 
 Serverless supports 6 US regions only: East US, East US 2, Central US, North Central US, West US, West US 3.
 
-### 2.2 PTU Pricing
+### 2.2 Fireworks Serverless Pricing (Pay-per-Token)
+
+> Source: [Microsoft Tech Community Blog](https://aka.ms/fireworks-pricing) (March 2026)
+
+| Model | Input ($/1M tokens) | Cached ($/1M tokens) | Output ($/1M tokens) |
+|:---|:---:|:---:|:---:|
+| gpt-oss-120b | $0.17 | $0.09 | $0.66 |
+| Kimi-K2.5 | $0.66 | $0.11 | $3.30 |
+| DeepSeek-V3.2 | $0.62 | $0.31 | $1.85 |
+| MiniMax-M2.5 | $0.33 | $0.03 | $1.32 |
+
+> **Note**: These are Fireworks-specific prices, different from Azure Native per-token prices. For example, Native gpt-oss-120b is $0.15 input / $0.60 output (Azure OpenAI pricing page), while Fireworks version is $0.17 input / $0.66 output — approximately 10% higher.
+
+### 2.3 Fireworks PTU Pricing (Provisioned Throughput)
+
+PTU unit pricing follows the unified Azure Provisioned Throughput pricing ("works just like it does for Foundry models" — [source](https://aka.ms/fireworks-pricing)):
 
 | Deployment Type | Min PTU | Hourly | Monthly Reserved | Annual Reserved |
 |:---|:---:|:---:|:---:|:---:|
@@ -141,12 +156,23 @@ Serverless supports 6 US regions only: East US, East US 2, Central US, North Cen
 | Data Zone Provisioned | 15 | $1.10/PTU/hr | $286/PTU/mo | $2,916/PTU/yr |
 | Regional Provisioned | 50 | $2/PTU/hr | $286/PTU/mo | $2,916/PTU/yr |
 
+However, **each Fireworks model requires a different minimum PTU deployment** and delivers different throughput per PTU:
+
+| Model | Min PTU | Scale Increment | Input TPM per PTU | Latency Target |
+|:---|:---:|:---:|:---:|:---|
+| gpt-oss-120b | 80 | 40 | 13,500 | 99% > 50 TPS |
+| Kimi-K2.5 | 800 | 400 | 530 | 99% > 50 TPS |
+| DeepSeek-V3.2 | 1,200 | 600 | 1,500 | 99% > 50 TPS |
+| MiniMax-M2.5 | 400 | 200 | 3,000 | 99% > 50 TPS |
+
+> Source: [Microsoft Tech Community Blog](https://aka.ms/fireworks-pricing)
+
 **Key PTU Concepts**:
 - PTU is an abstract compute unit — customers **cannot see** the underlying GPU model
-- PTU pool is shared — existing Azure OpenAI PTU reservations can be used for Fireworks models
+- PTU pool is shared — existing Azure OpenAI PTU reservations can be used for Fireworks models ("your existing quota for Global PTUs works as does any reservation commitments")
 - Billing continues whether or not traffic is flowing once deployed
 
-### 2.3 Fireworks Native Platform Pricing (Comparison)
+### 2.4 Fireworks Native Platform Pricing (Comparison)
 
 | Mode | Billing | Notes |
 |:---|:---|:---|
@@ -395,6 +421,8 @@ Equivalent: Traffic that would need ~240 PTU natively → only 80 PTU with Firew
 ---
 
 ## 7. FW vs Azure Native Inference Performance (Benchmark)
+
+> **Important**: All benchmarks in this section were conducted using **Serverless (pay-per-token) deployments**, not PTU. Fireworks models used DataZoneStandard SKU; Azure Native models used GlobalStandard SKU. Performance under PTU deployments may differ due to reserved capacity and different infrastructure configurations.
 
 ### 7.1 Test Conditions
 

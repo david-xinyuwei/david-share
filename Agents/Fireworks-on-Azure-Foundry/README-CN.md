@@ -133,7 +133,22 @@ flowchart LR
 
 Serverless 仅支持 6 个 US 区域：East US、East US 2、Central US、North Central US、West US、West US 3。
 
-### 2.2 PTU 定价
+### 2.2 Fireworks Serverless 定价（按 Token 付费）
+
+> 来源：[Microsoft Tech Community Blog](https://aka.ms/fireworks-pricing)（2026 年 3 月）
+
+| 模型 | Input ($/1M tokens) | Cached ($/1M tokens) | Output ($/1M tokens) |
+|:---|:---:|:---:|:---:|
+| gpt-oss-120b | $0.17 | $0.09 | $0.66 |
+| Kimi-K2.5 | $0.66 | $0.11 | $3.30 |
+| DeepSeek-V3.2 | $0.62 | $0.31 | $1.85 |
+| MiniMax-M2.5 | $0.33 | $0.03 | $1.32 |
+
+> **注意**：这是 Fireworks 专有定价，与 Azure Native 按 Token 定价不同。例如 Native gpt-oss-120b 为 $0.15 input / $0.60 output（Azure OpenAI 定价页），Fireworks 版为 $0.17 input / $0.66 output — 约贵 10%。
+
+### 2.3 Fireworks PTU 定价（Provisioned Throughput）
+
+PTU 单价遵循统一的 Azure Provisioned Throughput 定价体系（"works just like it does for Foundry models" — [来源](https://aka.ms/fireworks-pricing)）：
 
 | 部署类型 | 最小 PTU | 按小时 | 月预留 | 年预留 |
 |:---|:---:|:---:|:---:|:---:|
@@ -141,9 +156,20 @@ Serverless 仅支持 6 个 US 区域：East US、East US 2、Central US、North 
 | Data Zone Provisioned | 15 | $1.10/PTU/hr | $286/PTU/月 | $2,916/PTU/年 |
 | Regional Provisioned | 50 | $2/PTU/hr | $286/PTU/月 | $2,916/PTU/年 |
 
+但 **Fireworks 每个模型的最小 PTU 部署量和每 PTU 吞吐量不同**：
+
+| 模型 | 最小 PTU | 扩容步长 | 每 PTU Input TPM | 延迟目标 |
+|:---|:---:|:---:|:---:|:---|
+| gpt-oss-120b | 80 | 40 | 13,500 | 99% > 50 TPS |
+| Kimi-K2.5 | 800 | 400 | 530 | 99% > 50 TPS |
+| DeepSeek-V3.2 | 1,200 | 600 | 1,500 | 99% > 50 TPS |
+| MiniMax-M2.5 | 400 | 200 | 3,000 | 99% > 50 TPS |
+
+> 来源：[Microsoft Tech Community Blog](https://aka.ms/fireworks-pricing)
+
 **PTU 核心理解**：
 - PTU 是抽象算力单位，**不等于 GPU**，客户看不到底层 GPU 型号
-- PTU 是共享池 — 已有的 Azure OpenAI PTU 预留可直接用于 Fireworks 模型
+- PTU 是共享池 — 已有的 Azure OpenAI PTU 预留可直接用于 Fireworks 模型（"your existing quota for Global PTUs works as does any reservation commitments"）
 - 部署后不管是否有流量都会持续计费
 
 ### 2.3 Fireworks 自有平台定价（对比参考）
@@ -404,6 +430,8 @@ which is bigger than the current available capacity 0.
 ---
 
 ## 7. FW vs Azure Native 推理性能对比（实测）
+
+> **重要说明**：本节所有 Benchmark 均使用 **Serverless（按 Token 付费）部署**，不是 PTU。Fireworks 模型使用 DataZoneStandard SKU，Azure Native 模型使用 GlobalStandard SKU。PTU 部署下的性能可能因预留容量和基础设施配置不同而有所差异。
 
 ### 7.1 测试条件
 
