@@ -34,27 +34,35 @@
 
 NemoClaw is a three-layer stack:
 
-```
-┌─────────────────────────────────────────────┐
-│  🦞 NemoClaw (Operations Layer)             │
-│  CLI + Guided onboarding + Blueprint        │
-│  State management + Security policies       │
-├─────────────────────────────────────────────┤
-│  🐚 OpenShell (Sandbox Runtime)             │
-│  Gateway + Policy Engine + Inference proxy   │
-│  Landlock + seccomp + Network namespace      │
-├─────────────────────────────────────────────┤
-│  🦞 OpenClaw (AI Agent)                     │
-│  Autonomous assistant inside sandbox         │
-│  Tool calling + Memory + Persistent state    │
-└─────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph NemoClaw["🦞 NemoClaw - Operations Layer"]
+        NC_CLI["CLI + Guided Onboarding"]
+        NC_BP["Blueprint + State Management"]
+        NC_SEC["Security Policies"]
+    end
+    subgraph OpenShell["🐚 OpenShell - Sandbox Runtime"]
+        OS_GW["Gateway + Policy Engine"]
+        OS_INF["Inference Proxy"]
+        OS_ISO["Landlock + seccomp + netns"]
+    end
+    subgraph Sandbox["🦞 OpenClaw - AI Agent"]
+        OC_AGENT["Autonomous Assistant"]
+        OC_TOOLS["Tool Calling + Memory"]
+    end
+    NemoClaw --> OpenShell
+    OpenShell --> Sandbox
 ```
 
 **Inference Routing** — the agent never directly accesses the inference provider:
 
-```
-Agent (sandbox) ──► inference.local ──► OpenShell Gateway (host) ──► Inference Provider
-                    (never direct)       (credential injection)       (API key on host only)
+```mermaid
+graph LR
+    A["Agent in Sandbox"] -->|"inference.local"| B["OpenShell Gateway"]
+    B -->|"Credential Injection"| C["Inference Provider"]
+    style A fill:#f9f,stroke:#333
+    style B fill:#bbf,stroke:#333
+    style C fill:#bfb,stroke:#333
 ```
 
 ---
@@ -154,14 +162,15 @@ Azure OpenAI (including APIM proxy) requires:
 
 Deploy a lightweight Node.js proxy on the host VM that translates between the two formats:
 
-```
-NemoClaw Sandbox
-    ↓ inference.local
-OpenShell Gateway
-    ↓ http://127.0.0.1:9100/v1/chat/completions (Bearer token)
-Local Proxy (aoai-proxy.js)
-    ↓ https://your-aoai.openai.azure.com/openai/deployments/gpt-5.4/chat/completions (api-key)
-Azure OpenAI
+```mermaid
+graph LR
+    A["NemoClaw Sandbox"] -->|"inference.local"| B["OpenShell Gateway"]
+    B -->|"Bearer token"| C["AOAI Proxy"]
+    C -->|"api-key + AOAI path"| D["Azure OpenAI"]
+    style A fill:#f9f,stroke:#333
+    style B fill:#bbf,stroke:#333
+    style C fill:#ff9,stroke:#333
+    style D fill:#bfb,stroke:#333
 ```
 
 The proxy ([scripts/aoai-proxy.js](scripts/aoai-proxy.js)) handles:

@@ -34,27 +34,35 @@
 
 NemoClaw 是三层栈架构：
 
-```
-┌─────────────────────────────────────────────┐
-│  🦞 NemoClaw（运维层）                       │
-│  CLI + 引导式 Onboarding + Blueprint        │
-│  状态管理 + 安全策略配置                      │
-├─────────────────────────────────────────────┤
-│  🐚 OpenShell（沙箱运行时）                   │
-│  Gateway + 策略引擎 + 推理代理               │
-│  Landlock + seccomp + 网络命名空间隔离       │
-├─────────────────────────────────────────────┤
-│  🦞 OpenClaw（AI Agent）                    │
-│  沙箱内自主运行的 AI 助手                     │
-│  工具调用 + 记忆 + 持久状态                   │
-└─────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph NemoClaw["🦞 NemoClaw 运维层"]
+        NC_CLI["CLI + 引导式 Onboarding"]
+        NC_BP["Blueprint + 状态管理"]
+        NC_SEC["安全策略配置"]
+    end
+    subgraph OpenShell["🐚 OpenShell 沙箱运行时"]
+        OS_GW["Gateway + 策略引擎"]
+        OS_INF["推理代理"]
+        OS_ISO["Landlock + seccomp + 网络命名空间"]
+    end
+    subgraph Sandbox["🦞 OpenClaw AI Agent"]
+        OC_AGENT["沙箱内自主运行的助手"]
+        OC_TOOLS["工具调用 + 记忆 + 持久状态"]
+    end
+    NemoClaw --> OpenShell
+    OpenShell --> Sandbox
 ```
 
 **推理路由** — Agent 永远不直接访问推理提供者：
 
-```
-Agent (沙箱) ──► inference.local ──► OpenShell Gateway (宿主机) ──► 推理提供者
-                  (永不直连)            (凭据注入)                    (API Key 仅在宿主机)
+```mermaid
+graph LR
+    A["Agent 沙箱"] -->|"永不直连"| B["OpenShell Gateway 宿主机"]
+    B -->|"凭据注入"| C["推理提供者"]
+    style A fill:#f9f,stroke:#333
+    style B fill:#bbf,stroke:#333
+    style C fill:#bfb,stroke:#333
 ```
 
 ---
@@ -146,14 +154,15 @@ Azure OpenAI 需要：
 
 在宿主机上部署一个轻量 Node.js 代理，自动完成两种格式之间的转换：
 
-```
-NemoClaw 沙箱
-    ↓ inference.local
-OpenShell Gateway
-    ↓ http://127.0.0.1:9100/v1/chat/completions (Bearer token)
-本地代理 (aoai-proxy.js)
-    ↓ https://your-aoai.openai.azure.com/openai/deployments/gpt-5.4/... (api-key)
-Azure OpenAI
+```mermaid
+graph LR
+    A["NemoClaw 沙箱"] -->|"inference.local"| B["OpenShell Gateway"]
+    B -->|"Bearer token"| C["本地代理 aoai-proxy"]
+    C -->|"api-key + AOAI 路径"| D["Azure OpenAI"]
+    style A fill:#f9f,stroke:#333
+    style B fill:#bbf,stroke:#333
+    style C fill:#ff9,stroke:#333
+    style D fill:#bfb,stroke:#333
 ```
 
 代理处理内容：
