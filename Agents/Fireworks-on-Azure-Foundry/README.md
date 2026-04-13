@@ -139,16 +139,24 @@ PTU unit pricing follows the unified Azure Provisioned Throughput pricing ("work
 | Data Zone Provisioned | 15 | $1.10/PTU/hr | $286/PTU/mo | $2,916/PTU/yr |
 | Regional Provisioned | 50 | $2/PTU/hr | $286/PTU/mo | $2,916/PTU/yr |
 
-However, **each Fireworks model requires a different minimum PTU deployment** and delivers different throughput per PTU:
+However, **each Fireworks model requires a different minimum PTU deployment** and delivers different throughput per PTU. Only Global Provisioned is available; Data Zone and Regional PTU are not currently supported for Fireworks models.
 
-| Model | Min PTU | Scale Increment | Input TPM per PTU | Latency Target |
-|:---|:---:|:---:|:---:|:---|
-| gpt-oss-120b | 80 | 40 | 13,500 | 99% > 50 TPS |
-| Kimi-K2.5 | 800 | 400 | 530 | 99% > 50 TPS |
-| DeepSeek-V3.2 | 1,200 | 600 | 1,500 | 99% > 50 TPS |
-| MiniMax-M2.5 | 400 | 200 | 3,000 | 99% > 50 TPS |
+> Source: [Provisioned throughput unit (PTU) costs and billing](https://learn.microsoft.com/en-us/azure/foundry/openai/how-to/provisioned-throughput-onboarding) (updated 2026-04-09)
 
-> Source: [Microsoft Tech Community Blog](https://aka.ms/fireworks-pricing)
+| Model | Min PTU | Scale Increment | Input TPM per PTU |
+|:---|:---:|:---:|:---:|
+| GPT-OSS-120B | 80 | 40 | 13,500 |
+| Kimi K2 教学 0905 | 500 | 275 | 1,250 |
+| Kimi K2 思考 | 500 | 275 | 700 |
+| Kimi K2.5 | 800 | 400 | 530 |
+| DeepSeek V3.1 | 800 | 400 | 1,050 |
+| DeepSeek V3.2 | 1,200 | 600 | 1,500 |
+| Qwen3-14B | 80 | 40 | 4,800 |
+| MiniMax M2.5 | 400 | 200 | 3,000 |
+| GLM-5 | 700 | 350 | 3,500 |
+| GLM-4.7 | 800 | 400 | 3,000 |
+
+All Fireworks PTU models share a latency target of **99% > 50 Tokens Per Second** (p50 per 5 min).
 
 **Key PTU Concepts**:
 - PTU is an abstract compute unit — customers **cannot see** the underlying GPU model
