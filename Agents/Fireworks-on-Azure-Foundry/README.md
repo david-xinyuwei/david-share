@@ -17,6 +17,26 @@ Fireworks AI announced a **multi-year partnership** with Microsoft on March 9, 2
 
 > **One-line Assessment**: Three core advantages — ① TPS 2.9-3.9x faster (3x better PTU cost efficiency); ② BYOW custom weight upload (first-ever "upload model + managed inference + zero ops" in Azure); ③ Day-zero new model onboarding. Preview limitations remain (model range, fine-tuning, SLA).
 
+**Key Benchmark Results** (de-noised: warmup + IQR + thinking token capture):
+
+| Model | FW TPS P50 | Native TPS P50 | Speedup | FW TTFT P50 | Native TTFT P50 |
+|:---|:---:|:---:|:---:|:---:|:---:|
+| Kimi K2.5 | **135.5** | 46.3 | **2.9x** | 1.454s | 1.025s |
+| GPT-OSS-120B | **133.0** | 58.4 | **2.3x** | 1.211s | 1.018s |
+| DeepSeek V3.2 | **86.3** | 22.2 | **3.9x** | 1.547s | 1.490s |
+| MiniMax M2.5 | **97.5** | — | N/A | 1.404s | — |
+| GLM-5 | **82.4** | — | N/A | 1.818s | — |
+
+| Test Condition | Value |
+|:---|:---|
+| Deployment Types | FW: DataZoneStandard / Native: GlobalStandard |
+| Region | East US 2 |
+| API Version | 2024-10-21 |
+| Iterations | 10 per prompt × 5 prompts = 50 per deployment |
+| De-noising | Warmup (2 req) + IQR outlier removal + reasoning_content capture |
+| Valid Samples | N = 39-50 per deployment |
+| Test Date | 2026-04-03 |
+
 ---
 
 ## 1. Background
@@ -64,6 +84,41 @@ Fireworks AI specializes in high-performance inference for open-source models, p
 | SLA | Yes (varies by type) | ❌ No SLA in Preview |
 | BYOW | ❌ Not supported | ✅ Custom weight upload supported |
 | EU Data Boundary | ✅ Supported | ❌ Excluded |
+
+### 1.5 Request Routing Architecture
+
+```mermaid
+flowchart LR
+    subgraph Client
+        A[Application]
+    end
+    
+    subgraph Azure["Azure Foundry"]
+        B[Foundry Endpoint]
+        C[Azure Native GPU]
+        D[Governance / RBAC / Audit]
+    end
+    
+    subgraph FW["Fireworks Cloud"]
+        E[FireAttention Engine]
+        F[Fireworks GPU Pool]
+    end
+    
+    A -->|API Request| B
+    B -->|Native Model| C
+    B -->|FW Model| E
+    E --> F
+    F -->|Response| B
+    C -->|Response| B
+    B -->|Response| A
+    D -.->|Monitors| B
+    
+    style C fill:#4A90D9,color:#fff
+    style E fill:#FF6B35,color:#fff
+    style F fill:#FF6B35,color:#fff
+```
+
+> **Why TTFT is slower for Fireworks**: Requests to FW models are routed from Azure Foundry endpoint to the Fireworks GPU cloud (extra network hop), adding ~0.4s latency. Once generation starts, FireAttention engine produces tokens 2-3x faster, compensating for the initial delay.
 
 ---
 

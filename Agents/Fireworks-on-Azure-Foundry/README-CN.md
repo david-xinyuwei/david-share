@@ -17,6 +17,26 @@ Fireworks AI 于 2026 年 3 月 9 日与 Microsoft 宣布**多年期合作**，�
 
 > **一句话评价**：三大核心优势 — ① TPS 快 2.9-3.9 倍（同 PTU 成本效益高 3 倍）；② BYOW 自定义权重上传（Azure 体系内首次实现"上传模型 + 托管推理 + 零运维"）；③ Day-zero 新模型接入。Preview 阶段仍有模型范围、微调、SLA 等限制。
 
+**核心 Benchmark 结果**（去噪：warmup + IQR + thinking token 捕获）：
+
+| 模型 | FW TPS P50 | Native TPS P50 | 加速比 | FW TTFT P50 | Native TTFT P50 |
+|:---|:---:|:---:|:---:|:---:|:---:|
+| Kimi K2.5 | **135.5** | 46.3 | **2.9x** | 1.454s | 1.025s |
+| GPT-OSS-120B | **133.0** | 58.4 | **2.3x** | 1.211s | 1.018s |
+| DeepSeek V3.2 | **86.3** | 22.2 | **3.9x** | 1.547s | 1.490s |
+| MiniMax M2.5 | **97.5** | — | N/A | 1.404s | — |
+| GLM-5 | **82.4** | — | N/A | 1.818s | — |
+
+| 测试条件 | 值 |
+|:---|:---|
+| 部署类型 | FW: DataZoneStandard / Native: GlobalStandard |
+| 区域 | East US 2 |
+| API Version | 2024-10-21 |
+| 迭代次数 | 10 次/prompt × 5 prompts = 50 次/deployment |
+| 去噪方法 | Warmup (2 req) + IQR 异常值去除 + reasoning_content 捕获 |
+| 有效样本 | N = 39-50 / deployment |
+| 测试日期 | 2026-04-03 |
+
 ---
 
 ## 1. Background
@@ -64,6 +84,41 @@ Fireworks AI 是一家专注于开源模型高性能推理的公司，核心技�
 | SLA | 有（看部署类型） | ❌ Preview 无 SLA |
 | BYOW | ❌ 不支持 | ✅ 支持自定义权重上传 |
 | EU Data Boundary | ✅ 支持 | ❌ 排除 |
+
+### 1.5 请求路由架构
+
+```mermaid
+flowchart LR
+    subgraph Client
+        A[Application]
+    end
+    
+    subgraph Azure["Azure Foundry"]
+        B[Foundry Endpoint]
+        C[Azure Native GPU]
+        D[Governance / RBAC / Audit]
+    end
+    
+    subgraph FW["Fireworks Cloud"]
+        E[FireAttention Engine]
+        F[Fireworks GPU Pool]
+    end
+    
+    A -->|API Request| B
+    B -->|Native Model| C
+    B -->|FW Model| E
+    E --> F
+    F -->|Response| B
+    C -->|Response| B
+    B -->|Response| A
+    D -.->|Monitors| B
+    
+    style C fill:#4A90D9,color:#fff
+    style E fill:#FF6B35,color:#fff
+    style F fill:#FF6B35,color:#fff
+```
+
+> **Fireworks TTFT 偏慢的原因**：FW 模型请求从 Azure Foundry 端点路由到 Fireworks GPU 云（多一跳网络延迟），增加约 0.4s。但生成开始后，FireAttention 引擎的 Token 生成速度快 2-3 倍，足以弥补初始延迟。
 
 ---
 
