@@ -89,36 +89,19 @@ Fireworks AI 是一家专注于开源模型高性能推理的公司，核心技�
 
 ```mermaid
 flowchart LR
-    subgraph Client
-        A[Application]
-    end
-    
-    subgraph Azure["Azure Foundry"]
-        B[Foundry Endpoint]
-        C[Serverless Inference<br/>Azure Managed]
-        D[Governance / RBAC / Audit]
-    end
-    
-    subgraph FW["Fireworks Cloud"]
-        E[FireAttention Engine]
-        F[Fireworks GPU Pool]
-    end
-    
-    A -->|API Request| B
-    B -->|Native Model<br/>GlobalStandard| C
-    B -->|FW Model<br/>DataZoneStandard| E
-    E --> F
-    F -->|Response| B
+    A[Application] -->|API Request| B[Azure Foundry<br/>Endpoint]
+    B -->|Native Model<br/>GlobalStandard| C[Azure Managed<br/>Inference]
+    B -->|FW Model<br/>DataZoneStandard| D[Fireworks<br/>FireAttention Engine]
     C -->|Response| B
+    D -->|Response| B
     B -->|Response| A
-    D -.->|Monitors| B
+    E[Governance / RBAC / Audit] -.->|Monitors| B
     
     style C fill:#4A90D9,color:#fff
-    style E fill:#FF6B35,color:#fff
-    style F fill:#FF6B35,color:#fff
+    style D fill:#FF6B35,color:#fff
 ```
 
-> **架构说明**：两种部署方式都是 Serverless — 客户只看到 API 端点，看不到底层基础设施。Azure Native 模型使用 **GlobalStandard** Serverless 部署，完全由 Azure 托管。Fireworks 模型使用 **DataZoneStandard** 部署，请求被路由到 Fireworks 云端，由 FireAttention 引擎在 Fireworks 自有 GPU 池上运行。到 Fireworks 云的额外网络跳转解释了 ~0.4s 的 TTFT 开销，而 FireAttention 引擎的优化使得生成开始后 Token 速度快 2-3 倍。
+> **架构说明**：Azure Native 模型使用 GlobalStandard Serverless 部署。Fireworks 模型使用 DataZoneStandard 部署，由 Fireworks FireAttention 推理引擎服务。具体基础设施拓扑（Fireworks 是在 Azure GPU 上运行还是在 Fireworks 自有 GPU 池上运行）未公开文档化。已确认的事实：数据在 Microsoft 和 Fireworks 之间共享（参见 Data Privacy 章节），Fireworks 模型排除在 EU Data Boundary 之外。
 
 ---
 

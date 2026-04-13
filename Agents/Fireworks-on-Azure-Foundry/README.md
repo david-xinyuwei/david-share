@@ -89,36 +89,19 @@ Fireworks AI specializes in high-performance inference for open-source models, p
 
 ```mermaid
 flowchart LR
-    subgraph Client
-        A[Application]
-    end
-    
-    subgraph Azure["Azure Foundry"]
-        B[Foundry Endpoint]
-        C[Serverless Inference<br/>Azure Managed]
-        D[Governance / RBAC / Audit]
-    end
-    
-    subgraph FW["Fireworks Cloud"]
-        E[FireAttention Engine]
-        F[Fireworks GPU Pool]
-    end
-    
-    A -->|API Request| B
-    B -->|Native Model<br/>GlobalStandard| C
-    B -->|FW Model<br/>DataZoneStandard| E
-    E --> F
-    F -->|Response| B
+    A[Application] -->|API Request| B[Azure Foundry<br/>Endpoint]
+    B -->|Native Model<br/>GlobalStandard| C[Azure Managed<br/>Inference]
+    B -->|FW Model<br/>DataZoneStandard| D[Fireworks<br/>FireAttention Engine]
     C -->|Response| B
+    D -->|Response| B
     B -->|Response| A
-    D -.->|Monitors| B
+    E[Governance / RBAC / Audit] -.->|Monitors| B
     
     style C fill:#4A90D9,color:#fff
-    style E fill:#FF6B35,color:#fff
-    style F fill:#FF6B35,color:#fff
+    style D fill:#FF6B35,color:#fff
 ```
 
-> **Architecture Notes**: Both deployment types are serverless — customers see only an API endpoint, no underlying infrastructure. Azure Native models use **GlobalStandard** serverless deployment managed entirely by Azure. Fireworks models use **DataZoneStandard** deployment where requests are routed to the Fireworks cloud and served by the FireAttention engine on Fireworks' own GPU pool. The extra network hop to Fireworks cloud explains the ~0.4s TTFT overhead, while the optimized engine produces tokens 2-3x faster once generation begins.
+> **Architecture Notes**: Azure Native models use GlobalStandard serverless deployment. Fireworks models use DataZoneStandard deployment, served by the Fireworks FireAttention inference engine. The exact infrastructure topology (whether Fireworks runs on Azure GPU or Fireworks' own GPU pool) is not publicly documented. What is confirmed: data is shared between Microsoft and Fireworks (per Data Privacy section), and Fireworks models are excluded from EU Data Boundary.
 
 ---
 
