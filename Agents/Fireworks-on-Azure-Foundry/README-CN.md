@@ -623,3 +623,59 @@ az cognitiveservices account deployment list \
   --resource-group "<your-resource-group>" \
   -o table
 ```
+
+---
+
+## Appendix
+
+### A. 数据文件索引 (Data File Index)
+
+| 文件 | 说明 | 模型 | 类型 |
+|:---|:---|:---|:---|
+| `data/benchmark_results_v3.json` | 去噪 FW vs Native benchmark | Kimi K2.5 (FW + Native) | 对比 |
+| `data/deepseek_benchmark_v3.json` | 去噪 FW vs Native benchmark | DeepSeek V3.2 (FW + Native) | 对比 |
+| `data/gptoss_benchmark_v3.json` | 去噪 FW-only benchmark | GPT-OSS-120B (FW) | 独立 |
+| `data/gptoss_native_benchmark_v3.json` | 去噪 Native-only benchmark | GPT-OSS-120B (Native) | 独立 |
+| `data/glm5_benchmark_v3.json` | 去噪 FW-only benchmark | GLM-5 (FW only, 无 Native) | 独立 |
+| `data/minimax_benchmark_v3.json` | 去噪 FW-only benchmark | MiniMax M2.5 (FW only, 无 Native) | 独立 |
+
+### B. 脚本清单 (Script Inventory)
+
+| 脚本 | 说明 | 关键参数 |
+|:---|:---|:---|
+| `scripts/fw_vs_native_benchmark.py` | v1 benchmark（无去噪） | `--endpoint`, `--api-key`, `--iterations`, `--deployments`, `--output` |
+| `scripts/fw_vs_native_benchmark_v2.py` | v2 benchmark 去噪版（推荐） | 同 v1 + warmup, IQR 异常值去除, reasoning_content 捕获 |
+
+### C. JSON 数据结构 (Data Schema)
+
+每个 benchmark JSON 包含以下结构：
+
+```json
+{
+  "test_config": {
+    "endpoint": "https://<your-resource>.cognitiveservices.azure.com/",
+    "iterations": 10,
+    "max_tokens": 512,
+    "num_prompts": 5,
+    "denoising": "IQR outlier removal + warmup + reasoning_content capture",
+    "api_version": "2024-10-21",
+    "timestamp": "2026-04-03T..."
+  },
+  "results": {
+    "<deployment-name>": {
+      "summary": {
+        "ttft": {"p50": ..., "mean": ..., "stdev": ..., "n": ...},
+        "tps_all_tokens": {"p50": ..., "mean": ..., "n": ...},
+        "tps_content_only": {"p50": ..., "mean": ..., "n": ...}
+      },
+      "details": [...]
+    }
+  }
+}
+```
+
+### D. 正文未涉及的关键观察 (Key Observations)
+
+- **GLM-5 几乎全部输出 thinking tokens**（C≈0, R=512）。因此 GLM-5 的 `content TPS` 指标不可靠（N=2），只有 `all tokens TPS`（82.4 tok/s）有参考价值。
+- **Fireworks DeepSeek V3.2 输出 thinking tokens（R≠0），但 Azure Native 版不输出（R=0）**。这说明两个引擎的推理配置不同。
+- **api-version 兼容性**：Fireworks 模型必须使用 `2024-10-21`，使用 `2025-06-01` 返回 HTTP 404。此问题未在微软官方 Learn 文档中记录。

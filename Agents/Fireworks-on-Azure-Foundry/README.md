@@ -614,3 +614,59 @@ az cognitiveservices account deployment list \
   --resource-group "<your-resource-group>" \
   -o table
 ```
+
+---
+
+## Appendix
+
+### A. Data File Index
+
+| File | Description | Model(s) | Type |
+|:---|:---|:---|:---|
+| `data/benchmark_results_v3.json` | De-noised FW vs Native benchmark | Kimi K2.5 (FW + Native) | Comparison |
+| `data/deepseek_benchmark_v3.json` | De-noised FW vs Native benchmark | DeepSeek V3.2 (FW + Native) | Comparison |
+| `data/gptoss_benchmark_v3.json` | De-noised FW-only benchmark | GPT-OSS-120B (FW) | Standalone |
+| `data/gptoss_native_benchmark_v3.json` | De-noised Native-only benchmark | GPT-OSS-120B (Native) | Standalone |
+| `data/glm5_benchmark_v3.json` | De-noised FW-only benchmark | GLM-5 (FW only, no Native) | Standalone |
+| `data/minimax_benchmark_v3.json` | De-noised FW-only benchmark | MiniMax M2.5 (FW only, no Native) | Standalone |
+
+### B. Script Inventory
+
+| Script | Description | Key Arguments |
+|:---|:---|:---|
+| `scripts/fw_vs_native_benchmark.py` | v1 benchmark (without de-noising) | `--endpoint`, `--api-key`, `--iterations`, `--deployments`, `--output` |
+| `scripts/fw_vs_native_benchmark_v2.py` | v2 benchmark with de-noising (recommended) | Same as v1 + warmup, IQR outlier removal, reasoning_content capture |
+
+### C. JSON Data Schema
+
+Each benchmark JSON contains the following structure:
+
+```json
+{
+  "test_config": {
+    "endpoint": "https://<your-resource>.cognitiveservices.azure.com/",
+    "iterations": 10,
+    "max_tokens": 512,
+    "num_prompts": 5,
+    "denoising": "IQR outlier removal + warmup + reasoning_content capture",
+    "api_version": "2024-10-21",
+    "timestamp": "2026-04-03T..."
+  },
+  "results": {
+    "<deployment-name>": {
+      "summary": {
+        "ttft": {"p50": ..., "mean": ..., "stdev": ..., "n": ...},
+        "tps_all_tokens": {"p50": ..., "mean": ..., "n": ...},
+        "tps_content_only": {"p50": ..., "mean": ..., "n": ...}
+      },
+      "details": [...]
+    }
+  }
+}
+```
+
+### D. Key Observations Not in Main Text
+
+- **GLM-5 outputs almost exclusively thinking tokens** (C≈0, R=512 in most runs). This means GLM-5's `content TPS` metric is unreliable (N=2). Only `all tokens TPS` (82.4 tok/s) is meaningful.
+- **Fireworks DeepSeek V3.2 outputs thinking tokens (R≠0), but Azure Native DeepSeek does not (R=0)**. This behavioral difference suggests different inference configurations between the two engines.
+- **api-version compatibility**: Fireworks models require `2024-10-21`. Using `2025-06-01` returns HTTP 404. This is not documented in official Microsoft Learn docs.
