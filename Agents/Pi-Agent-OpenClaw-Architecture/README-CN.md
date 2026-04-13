@@ -4,7 +4,7 @@
 >
 > **日期**: 2026 年 4 月
 >
-> **TL;DR**: Pi 是一个极简编码代理（Coding Agent），仅基于 **4 个工具**（Read、Write、Edit、Bash）构建，配合统一的 LLM API 支持 **22+ 个模型提供商**。OpenClaw 在 Pi 基础上扩展为企业级平台，增加了通信渠道（企业微信、Telegram、Slack、Web）。本文分析 Pi 的架构设计决策、扩展系统，以及在 Azure 上的实际部署经验。
+> **TL;DR**: Pi 是一个极简编码代理（Coding Agent），拥有 **4 个默认工具**（Read、Write、Edit、Bash），配合统一的 LLM API 支持 **22+ 个模型提供商**。OpenClaw 在 Pi 基础上扩展为**个人 AI 助手**，增加了 20+ 通信渠道（WhatsApp、Telegram、Slack、Discord、微信、Signal、iMessage、Teams、Web 等）。本文分析 Pi 的架构设计决策、扩展系统，以及在 Azure 上的实际部署经验。
 
 ---
 
@@ -34,14 +34,14 @@
 | **LLM 支持** | 通过 `pi-ai` 统一 API 支持 22+ 个提供商（OpenAI、Azure OpenAI、Anthropic、Google、xAI、Groq、Bedrock 等） |
 | **跨模型切换** | 会话可在不同模型间无缝切换；Thinking Blocks 自动转换为 `<thinking>` 标签 |
 | **浏览器自动化** | 内置 Playwright 支持，用于 Computer Use 场景 |
-| **我们的部署** | Azure OpenAI GPT-5.4 + API Management + 企业微信集成 + Caddy 反向代理 |
+| **我们的部署** | Azure OpenAI GPT-5.4 + API Management + 微信集成 + Caddy/Tailscale 反向代理 |
 
 ### 关键人物
 
 | 人物 | 角色 | 备注 |
 |------|------|------|
 | Mario Zechner ([@badlogic](https://github.com/badlogic)) | Pi 作者 | `pi-mono` 仓库维护者 |
-| Peter Steinberger ([@steipete](https://github.com/steipete)) | OpenClaw 作者 | 将 Pi 扩展为企业平台 |
+| Peter Steinberger ([@steipete](https://github.com/steipete)) | OpenClaw 作者 | 将 Pi 扩展为个人 AI 助手平台 |
 | Armin Ronacher ([@mitsuhiko](https://github.com/mitsuhiko)) | Flask 作者、Pi 重度用户 | 撰写了有影响力的 [Pi 设计分析博文](https://lucumr.pocoo.org/2026/1/31/pi/) |
 
 ---
@@ -66,7 +66,7 @@ pi-mono/
 | 包名 | npm | 用途 |
 |------|-----|------|
 | `pi-agent-core` | `@mariozechner/pi-agent-core` | Agent 运行时：工具调用与状态管理 |
-| `pi-ai` | `@mariozechner/pi-ai` | LLM 抽象层：7 种 API 适配器、工具调用、流式输出、上下文序列化 |
+| `pi-ai` | `@mariozechner/pi-ai` | LLM 抽象层：10 种 API 适配器、工具调用、流式输出、上下文序列化 |
 | `pi-coding-agent` | `@mariozechner/pi-coding-agent` | 编码代理本体：4 个工具 + 扩展系统 + 会话管理 |
 | `pi-tui` | `@mariozechner/pi-tui` | 终端 UI，差分渲染实现响应式 CLI |
 | `pi-web-ui` | `@mariozechner/pi-web-ui` | Web 组件，用于在 Web 应用中嵌入 AI 聊天 |

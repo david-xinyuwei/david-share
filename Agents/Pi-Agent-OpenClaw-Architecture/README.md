@@ -4,7 +4,7 @@
 >
 > **Date**: April 2026
 >
-> **TL;DR**: Pi is a minimalist coding agent built on just **4 tools** (Read, Write, Edit, Bash) with a unified LLM API supporting **22+ providers**. OpenClaw extends Pi into an enterprise-ready platform by adding communication channels (WeChat Work, Telegram, Slack, Web). This article examines Pi's architecture decisions, its extension system, and real-world deployment experience on Azure.
+> **TL;DR**: Pi is a minimalist coding agent with **4 default tools** (Read, Write, Edit, Bash) and a unified LLM API supporting **22+ providers**. OpenClaw extends Pi into a **personal AI assistant** with 20+ communication channels (WhatsApp, Telegram, Slack, Discord, WeChat, Signal, iMessage, Teams, Web, etc.). This article examines Pi's architecture decisions, its extension system, and real-world deployment experience on Azure.
 
 ---
 
@@ -34,14 +34,14 @@
 | **LLM Support** | 22+ providers via `pi-ai` unified API (OpenAI, Azure OpenAI, Anthropic, Google, xAI, Groq, Bedrock, etc.) |
 | **Cross-Provider Handoff** | Sessions can seamlessly switch between models; thinking blocks auto-convert to `<thinking>` tags |
 | **Browser Automation** | Built-in Playwright support for Computer Use scenarios |
-| **Our Deployment** | Azure OpenAI GPT-5.4 via API Management, WeChat Work integration, Caddy reverse proxy |
+| **Our Deployment** | Azure OpenAI GPT-5.4 via API Management, WeChat integration, Caddy/Tailscale reverse proxy |
 
 ### Key People
 
 | Person | Role | Notable |
 |--------|------|---------|
 | Mario Zechner ([@badlogic](https://github.com/badlogic)) | Pi creator | Maintainer of `pi-mono` monorepo |
-| Peter Steinberger ([@steipete](https://github.com/steipete)) | OpenClaw creator | Extended Pi into enterprise platform |
+| Peter Steinberger ([@steipete](https://github.com/steipete)) | OpenClaw creator | Extended Pi into a personal AI assistant platform |
 | Armin Ronacher ([@mitsuhiko](https://github.com/mitsuhiko)) | Flask creator, Pi power user | Wrote influential [blog analysis](https://lucumr.pocoo.org/2026/1/31/pi/) of Pi's design |
 
 ---
@@ -66,7 +66,7 @@ pi-mono/
 | Package | npm | Purpose |
 |---------|-----|---------|  
 | `pi-agent-core` | `@mariozechner/pi-agent-core` | Agent runtime with tool calling and state management |
-| `pi-ai` | `@mariozechner/pi-ai` | LLM abstraction: 7 API adapters, tool calling, streaming, context serialization |
+| `pi-ai` | `@mariozechner/pi-ai` | LLM abstraction: 10 API adapters, tool calling, streaming, context serialization |
 | `pi-coding-agent` | `@mariozechner/pi-coding-agent` | The coding agent itself: 4 tools + extensions + session management |
 | `pi-tui` | `@mariozechner/pi-tui` | Terminal UI with differential rendering for responsive CLI |
 | `pi-web-ui` | `@mariozechner/pi-web-ui` | Web components for embedding AI chat in web apps |
