@@ -17,7 +17,7 @@ Fireworks AI announced a **multi-year partnership** with Microsoft on March 9, 2
 
 > **One-line Assessment**: Three core advantages — ① TPS 2.9-3.9x faster (3x better PTU cost efficiency); ② BYOW custom weight upload (first-ever "upload model + managed inference + zero ops" in Azure); ③ Day-zero new model onboarding. Preview limitations remain (model range, fine-tuning, SLA).
 
-**Key Benchmark Results** (de-noised: warmup + IQR + thinking token capture):
+**Key Benchmark Results** (Serverless pay-per-token deployments, de-noised: warmup + IQR + thinking token capture):
 
 | Model | FW TPS P50 | Native TPS P50 | Speedup | FW TTFT P50 | Native TTFT P50 |
 |:---|:---:|:---:|:---:|:---:|:---:|

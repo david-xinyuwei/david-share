@@ -17,7 +17,7 @@ Fireworks AI 于 2026 年 3 月 9 日与 Microsoft 宣布**多年期合作**，�
 
 > **一句话评价**：三大核心优势 — ① TPS 快 2.9-3.9 倍（同 PTU 成本效益高 3 倍）；② BYOW 自定义权重上传（Azure 体系内首次实现"上传模型 + 托管推理 + 零运维"）；③ Day-zero 新模型接入。Preview 阶段仍有模型范围、微调、SLA 等限制。
 
-**核心 Benchmark 结果**（去噪：warmup + IQR + thinking token 捕获）：
+**核心 Benchmark 结果**（Serverless 按 Token 付费部署，去噪：warmup + IQR + thinking token 捕获）：
 
 | 模型 | FW TPS P50 | Native TPS P50 | 加速比 | FW TTFT P50 | Native TTFT P50 |
 |:---|:---:|:---:|:---:|:---:|:---:|
