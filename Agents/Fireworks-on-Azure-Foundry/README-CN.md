@@ -454,6 +454,12 @@ which is bigger than the current available capacity 0.
 > - **成本效益**：同样的 PTU 预算，Fireworks 引擎可处理 2-4 倍的请求量
 > - **去噪方法**：所有数据均经过 Warmup 预热 + IQR 异常值去除 + Thinking Token 捕获，有效样本 N=39-50
 
+### Benchmark 可视化
+
+![TPS 对比](images/tps_comparison.png)
+
+![TTFT 对比](images/ttft_comparison.png)
+
 ---
 
 ## 8. 建议与后续计划 (Recommendations)

@@ -445,6 +445,12 @@ Equivalent: Traffic that would need ~240 PTU natively → only 80 PTU with Firew
 > - **Cost Efficiency**: Same PTU budget handles 2-4x more requests with Fireworks engine
 > - **De-noising**: All data processed with Warmup + IQR outlier removal + Thinking Token capture, valid samples N=39-50
 
+### Benchmark Visualizations
+
+![TPS Comparison](images/tps_comparison.png)
+
+![TTFT Comparison](images/ttft_comparison.png)
+
 ---
 
 ## 8. Recommendations & Next Steps
