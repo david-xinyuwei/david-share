@@ -26,7 +26,6 @@
 - [Security Features](#security-features)
 - [Multi-User Capabilities](#multi-user-capabilities)
 - [Known Limitations](#known-limitations)
-- [Troubleshooting](#troubleshooting)
 - [Reproducing the Results](#reproducing-the-results)
 
 ---
@@ -265,37 +264,6 @@ For per-user isolation, each user needs a separate NemoClaw instance (separate V
 | ~12-15GB disk requirement | Small OS disks run out of space | Use data disk, symlink Docker/k3s |
 | No cross-instance communication | Sandboxes are fully isolated | Not addressable — by design |
 | npm package name squatted | `npm install -g nemoclaw` installs a fake empty package | Use official installer script only |
-
----
-
-## Troubleshooting
-
-### Disk Space Error During Sandbox Build
-
-```
-ctr: failed to extract layer ... no space left on device
-```
-
-**Solution**: Move Docker and k3s data to a larger disk (see [Disk Space Considerations](#disk-space-considerations)), then run `nemoclaw onboard --non-interactive`.
-
-### Inference Timeout in Sandbox
-
-```
-LLM request timed out.
-```
-
-**Cause**: The proxy is not running, or the OpenShell provider URL points to an unreachable address.
-
-**Solution**:
-1. Ensure `aoai-proxy.js` is running on the host: `pgrep -f aoai-proxy`
-2. Test proxy directly: `curl http://127.0.0.1:9100/v1/chat/completions ...`
-3. Update provider URL if needed: `openshell provider update compatible-endpoint --config OPENAI_BASE_URL=http://127.0.0.1:9100/v1`
-
-### Dashboard "Gateway Password Missing/Mismatch"
-
-This is a known issue with OpenClaw's device pairing protocol in remote/headless deployments. The Dashboard expects a device pairing challenge that cannot complete over SSH tunnels.
-
-**Workaround**: Use CLI or TUI instead of the web dashboard.
 
 ---
 

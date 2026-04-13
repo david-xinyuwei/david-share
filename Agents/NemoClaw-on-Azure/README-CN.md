@@ -26,7 +26,6 @@
 - [安全特性](#安全特性)
 - [多用户能力](#多用户能力)
 - [已知限制](#已知限制)
-- [故障排查](#故障排查)
 - [复现步骤](#复现步骤)
 
 ---
@@ -232,34 +231,6 @@ NemoClaw **无法实现跨虚机管理**。每个实例是完全独立的，没�
 | 约 12-15GB 磁盘需求 | 小 OS 盘空间不足 | 使用数据盘 |
 | 无跨实例通信 | 沙箱完全隔离 | 设计如此，无法绕行 |
 | npm 包名被占位 | `npm install -g nemoclaw` 安装的是假空包 | 只用官方安装脚本 |
-
----
-
-## 故障排查
-
-### 沙箱构建时磁盘空间不足
-
-```
-ctr: failed to extract layer ... no space left on device
-```
-
-**解决**：将 Docker 和 k3s 数据迁移到更大的磁盘，然后重新运行 `nemoclaw onboard`。
-
-### 沙箱内推理超时
-
-```
-LLM request timed out.
-```
-
-**原因**：代理未运行，或 OpenShell provider URL 指向不可达地址。
-
-**解决**：确认代理在运行（`pgrep -f aoai-proxy`），测试代理可达性，更新 provider URL。
-
-### Dashboard "Gateway Password Missing/Mismatch"
-
-这是 OpenClaw 设备配对协议在远程 headless 部署中的已知问题。
-
-**绕行**：使用 CLI (`openclaw agent`) 或 TUI (`openclaw tui`) 代替 Web Dashboard。
 
 ---
 
