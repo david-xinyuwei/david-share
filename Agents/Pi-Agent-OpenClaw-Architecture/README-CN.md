@@ -492,7 +492,203 @@ pi-ai 支持多种 API 模式。对于 Azure OpenAI 部署，选择很关键：
 
 ---
 
-## 10. 参考资料
+## 10. 实测验证
+
+我们安装了 Pi 并通过实际运行代码验证了其核心声明。
+
+### 安装
+
+```bash
+npm install -g @mariozechner/pi-coding-agent
+# 257 个包，13 秒完成
+```
+
+### 声明验证结果
+
+| README 中的声明 | 验证方法 | 实际结果 | 判定 |
+|----------------|---------|---------|------|
+| **4 个默认工具，7 个可用** | `pi --help` → `--tools` 参数 | `read,bash,edit,write`（默认）+ `grep,find,ls`（可选）= **7** | ✅ 准确 |
+| **22+ 个 Provider** | `getProviders()` SDK 调用 | **23 个 Provider**（amazon-bedrock, anthropic, azure-openai-responses, cerebras, github-copilot, google, google-antigravity, google-gemini-cli, google-vertex, groq, huggingface, kimi-coding, minimax, minimax-cn, mistral, openai, openai-codex, opencode, opencode-go, openrouter, vercel-ai-gateway, xai, zai） | ✅ 保守 |
+| **系统提示词不到 50 行** | `buildSystemPrompt()` 实际输出 | **24 行**（含工具列表） | ✅ 实际只有声明的一半 |
+| **npm install -g 安装** | 实际执行 | Node 22 上正常，257 个包 | ✅ 准确 |
+| **833 个预配置模型** | 遍历 23 个 Provider 调用 `getModels()` | **833 个**（OpenRouter: 253, Bedrock: 87 等） | ✅ 精确 |
+
+### Pi-AI SDK + Azure OpenAI 集成测试
+
+我们通过自定义 Model 定义将 Pi 的 SDK 连接到 Azure OpenAI GPT-5.4（经由 API Management）：
+
+```javascript
+import { complete } from '@mariozechner/pi-ai';
+
+const model = {
+  id: 'gpt-5.4',
+  api: 'openai-completions',
+  provider: 'custom-azure',
+  baseUrl: '<your-apim-endpoint>/openai/deployments/gpt-5.4',
+  reasoning: true,
+  input: ['text'],
+  headers: { 'api-key': '<your-apim-subscription-key>' },
+  compat: { supportsStore: false, maxTokensField: 'max_completion_tokens' },
+  // ... cost, contextWindow, maxTokens
+};
+
+const response = await complete(model, {
+  messages: [{ role: 'user', content: 'What is the capital of France?', timestamp: Date.now() }]
+}, { apiKey: 'dummy' });
+
+// Response: "Paris" ✅
+```
+
+> **注意**：`openai-completions` 适配器不会自动在请求中附加 `?api-version=` 参数，而 Azure OpenAI 需要该参数。使用 APIM 时，可在 APIM Inbound Policy 中配置默认 api-version，或使用 fetch 拦截器注入。内置的 `azure-openai-responses` 适配器在直连 Azure OpenAI 时会自动处理此问题。
+
+### Pi Agent 完整编码任务
+
+我们创建了一个带 `bash` 和 `write` 工具的完整 Agent（由 GPT-5.4 驱动），并给它一个真实任务：
+
+**任务**：「写一个 Python fibonacci 函数，验证 fibonacci(10) 等于 55」
+
+**Agent 行为**（完全自主，无人工干预）：
+1. 调用 `write` 工具 → 创建 `/tmp/pi-test/fib.py`
+2. 调用 `bash` 工具 → 执行 `python3 -c "from fib import fibonacci; print(fibonacci(10))"`
+3. 获取输出 `55` → 向用户汇报成功
+
+**GPT-5.4 通过 Pi Agent 自主生成的代码**：
+```python
+def fibonacci(n):
+    if n < 0:
+        raise ValueError("n must be non-negative")
+    a, b = 0, 1
+    for _ in range(n):
+        a, b = b, a + b
+    return a
+```
+
+独立验证：`fibonacci(10) = 55` ✅
+
+---
+
+## 11. 价值分析：Pi vs 原始 LLM API
+
+在基本的 Tool-Calling Loop 之外，我们进行了源码级分析，找出 Pi 在原始 LLM API 调用之上增加了什么。
+
+### Pi 的附加功能（源码证据）
+
+| # | 功能 | 实现位置 | 代码行数 | LLM 参与度 |
+|---|------|---------|---------|-----------|
+| 1 | **上下文压缩（Context Compaction）** | `core/compaction/compaction.js` | ~300 | LLM 生成摘要 |
+| 2 | **模糊编辑匹配（Fuzzy Edit Match）** | `core/tools/edit-diff.js` | ~336 | 无（纯代码） |
+| 3 | **Bash 输出截断** | `core/tools/bash.js` | ~50 | 无 |
+| 4 | **文件写入队列** | `core/tools/file-mutation-queue.js` | ~40 | 无 |
+| 5 | **流式 JSON 解析器** | pi-ai 中的 `parseStreamingJson()` | ~100 | 无 |
+| 6 | **模型库 + 成本追踪** | `models.generated.ts` | 自动生成 | 无 |
+| 7 | **树状 Session** | `core/session-manager.js` | ~200 | 无 |
+
+### 深入：上下文压缩（Context Compaction）
+
+**问题**：当对话 Token 数接近 Context Window 上限（如 GPT-5.4 的 272K）时，API 返回 `context_length_exceeded`，对话终止。
+
+**Pi 的解法**：摘要化旧消息，同时保留最近的上下文和文件操作记录。
+
+```
+压缩前（200K tokens）：
+┌──────────────────────────────────────────────────┐
+│ 消息 1-80（180K tokens）     │ 消息 81-100       │
+│ ← 将被摘要化 ──────────────→ │ ← 保留原文 ─────→ │
+└──────────────────────────────────────────────────┘
+
+压缩后（~22K tokens）：
+┌──────────────────────────────────────────────────┐
+│ [摘要: 2K]                   │ 消息 81-100       │
+│ "用户让写排序算法，            │ ← 原文保留 ─────→ │
+│  改过的文件: sort.py,         │                    │
+│  test_sort.py, ..."          │                    │
+└──────────────────────────────────────────────────┘
+```
+
+关键实现细节：
+- **切点对齐**：始终在 Turn 边界切断（不会在 Tool Call 中间切）
+- **文件操作追踪**：从 Tool Call 中提取 `readFiles`/`modifiedFiles`，跨压缩保留
+- **增量摘要**：将上一次的摘要传给模型，让它在旧摘要基础上追加，不丢失更早的上下文
+- **可配置参数**：`keepRecentTokens: 20000`（保留的近期消息）、`reserveTokens: 16384`（为下次响应预留的缓冲）
+
+### 深入：模糊编辑匹配（Fuzzy Edit Match）
+
+**问题**：LLM 在生成编辑指令时经常产生 Unicode 智能引号（`"` `"`）或特殊破折号（`—` `–`），但源代码文件使用 ASCII 字符。标准 `indexOf` 匹配失败，编辑被拒绝。
+
+**Pi 的解法**：两级匹配 + Unicode 归一化。
+
+```
+第 1 级：精确匹配 → content.indexOf(oldText)
+  ↓（未找到？）
+第 2 级：模糊匹配 → 双侧归一化后再 indexOf
+  归一化操作：
+  - 智能引号 → ASCII：" " → "    ' ' → '
+  - Unicode 破折号 → ASCII：— – ‐ ‑ → -
+  - 特殊空格 → 普通空格
+  - 每行尾部空格 → 去除
+  - NFKC Unicode 归一化
+```
+
+这完全是代码实现（无 LLM 调用），直接提升了 Agent 任务成功率。
+
+### 价值排名
+
+| 排名 | 功能 | 价值 | 自建难度 | 一句话总结 |
+|------|------|------|---------|-----------|
+| 1 | 上下文压缩 | ⭐⭐⭐ | 中高（~300 行 + 算法设计） | 长对话不崩 |
+| 2 | 模糊编辑匹配 | ⭐⭐⭐ | 中（~336 行 Diff 引擎） | 编辑成功率显著提升 |
+| 3 | Bash 输出截断 | ⭐⭐ | 低（但容易忘） | 一条大输出不撑爆 Context |
+| 4 | 文件写入队列 | ⭐⭐ | 低（但容易忘） | 并行写入不损坏文件 |
+| 5 | 流式 JSON 解析器 | ⭐ | 中（特殊解析器） | 工具流式输出时更流畅 |
+| 6 | 模型库 + 成本追踪 | ⭐ | 低（但数据维护成本高） | 知道花了多少钱 |
+| 7 | 树状 Session | ⭐⭐ | 高（数据结构 + UI） | 对话版 Git |
+
+> **结论**：Pi 相对于原始 API 调用的核心价值是**上下文压缩**（长对话场景）和**模糊编辑**（可靠编辑）。其他都是工程打磨。
+
+---
+
+## 12. 生态分析：Pi 为何走红
+
+Pi 的增长驱动力不是技术碾压，而是生态因素的完美汇聚。
+
+### 关键因素
+
+| 因素 | 详情 |
+|------|------|
+| **OpenClaw 病毒式增长** | Peter Steinberger（PSPDFKit 创始人）在 Pi 之上构建了 OpenClaw，连接了 20+ 消息渠道，GitHub 达到 356K star，带动了 Pi 的发现 |
+| **Armin Ronacher 背书** | Flask 作者从 Claude Code 切换到 Pi，写了有影响力的[博文](https://lucumr.pocoo.org/2026/1/31/pi/)："Pi is written like excellent software. It doesn't flicker, it doesn't randomly break." 他还开源了多个 Pi 扩展 |
+| **Claude Code 疲劳窗口** | Pi 作者 Mario Zechner 明确表示："Claude Code 已变成一艘太空飞船，80% 的功能我用不上。" Pi 出现在开发者寻求简洁替代品的时机 |
+| **Mario Zechner 的信誉** | libGDX 的作者（23K star Java 游戏框架），其详尽坦诚的技术博文获得开发者共鸣 |
+| **引人注目的叙事** | "开发者用 4 个工具做了极简 Agent，在 Terminal-Bench 上打平 Cursor 和 Windsurf" — 反叛者故事自带传播力 |
+| **Terminal-Bench Benchmark** | Pi + Claude Opus 4.5 在 Terminal-Bench 2.0 上与 Cursor、Windsurf、Claude Code 基本持平，为极简主义主张提供了数据支撑 |
+
+### 关键关系图
+
+```mermaid
+graph TB
+    Mario["Mario Zechner<br/>(Pi 作者, libGDX)"]
+    Peter["Peter Steinberger<br/>(OpenClaw, PSPDFKit)"]
+    Armin["Armin Ronacher<br/>(Flask 作者, Pi 重度用户)"]
+    
+    subgraph "Products"
+        Pi["Pi<br/>(34.9K ⭐)"]
+        OC["OpenClaw<br/>(356K ⭐)"]
+        Ext["Armin 的扩展<br/>(/answer, /todos, /review)"]
+    end
+    
+    Mario -->|"创建"| Pi
+    Peter -->|"基于 Pi 构建"| OC
+    Armin -->|"背书 + 扩展"| Ext
+    Pi -->|"核心引擎"| OC
+    Ext -->|"生态示范"| Pi
+    OC -->|"病毒增长带动"| Pi
+```
+
+> **总结**：Pi 的走红依赖于 OpenClaw 的病毒式增长 + Flask 作者的背书 + Claude Code 疲劳期的时机 + "极简主义有效"的叙事（有 Benchmark 数据支撑）。技术本质是扎实的工程实现（而非突破性创新），但生态和时机将其推成了现象级项目。
+
+---
+
+## 13. 参考资料
 
 | 资源 | URL |
 |------|-----|
