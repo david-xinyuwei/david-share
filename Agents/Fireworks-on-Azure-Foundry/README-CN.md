@@ -95,7 +95,7 @@ flowchart LR
     
     subgraph Azure["Azure Foundry"]
         B[Foundry Endpoint]
-        C[Azure Native GPU]
+        C[Managed Online Endpoint<br/>Containerized Inference]
         D[Governance / RBAC / Audit]
     end
     
@@ -118,7 +118,7 @@ flowchart LR
     style F fill:#FF6B35,color:#fff
 ```
 
-> **Fireworks TTFT 偏慢的原因**：FW 模型请求从 Azure Foundry 端点路由到 Fireworks GPU 云（多一跳网络延迟），增加约 0.4s。但生成开始后，FireAttention 引擎的 Token 生成速度快 2-3 倍，足以弥补初始延迟。
+> **架构说明**：Azure Native 模型运行在 **Managed Online Endpoint**（GPU VM 上的容器化推理服务），不是裸 GPU。Fireworks 模型的请求被路由到 Fireworks 云端，由 FireAttention 引擎在 Fireworks 自有 GPU 池上运行。到 Fireworks 云的额外网络跳转解释了 ~0.4s 的 TTFT 开销，而 FireAttention 引擎的优化使得生成开始后 Token 速度快 2-3 倍。
 
 ---
 

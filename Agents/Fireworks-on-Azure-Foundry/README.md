@@ -95,7 +95,7 @@ flowchart LR
     
     subgraph Azure["Azure Foundry"]
         B[Foundry Endpoint]
-        C[Azure Native GPU]
+        C[Managed Online Endpoint<br/>Containerized Inference]
         D[Governance / RBAC / Audit]
     end
     
@@ -118,7 +118,7 @@ flowchart LR
     style F fill:#FF6B35,color:#fff
 ```
 
-> **Why TTFT is slower for Fireworks**: Requests to FW models are routed from Azure Foundry endpoint to the Fireworks GPU cloud (extra network hop), adding ~0.4s latency. Once generation starts, FireAttention engine produces tokens 2-3x faster, compensating for the initial delay.
+> **Architecture Notes**: Azure Native models run on **Managed Online Endpoints** (containerized inference services on GPU VMs), not bare metal GPUs. Fireworks models are routed to the Fireworks cloud where the FireAttention engine runs on their own GPU pool. The extra network hop to Fireworks cloud explains the ~0.4s TTFT overhead, while the optimized FireAttention engine produces tokens 2-3x faster once generation begins.
 
 ---
 
