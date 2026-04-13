@@ -29,8 +29,16 @@ TEST_PROMPTS = [
 ]
 
 DEPLOYMENTS = {
+    # Fireworks models (DataZoneStandard)
     "fw-kimi-k25": "FW-Kimi-K2.5 (Fireworks Engine)",
+    "fw-deepseek-v32": "FW-DeepSeek-V3.2 (Fireworks Engine)",
+    "fw-gpt-oss-120b": "FW-GPT-OSS-120B (Fireworks Engine)",
+    "fw-glm-5": "FW-GLM-5 (Fireworks Engine)",
+    "fw-minimax-m25": "FW-MiniMax-M2.5 (Fireworks Engine)",
+    # Azure Native models (GlobalStandard)
     "kimi-k25-native": "Kimi-K2.5 (Azure Native)",
+    "deepseek-v32-native": "DeepSeek-V3.2 (Azure Native)",
+    "gpt-oss-120b-native": "gpt-oss-120b (Azure Native)",
 }
 
 
