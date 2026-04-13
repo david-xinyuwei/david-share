@@ -95,7 +95,7 @@ flowchart LR
     
     subgraph Azure["Azure Foundry"]
         B[Foundry Endpoint]
-        C[Managed Online Endpoint<br/>Containerized Inference]
+        C[Serverless Inference<br/>Azure Managed]
         D[Governance / RBAC / Audit]
     end
     
@@ -105,8 +105,8 @@ flowchart LR
     end
     
     A -->|API Request| B
-    B -->|Native Model| C
-    B -->|FW Model| E
+    B -->|Native Model<br/>GlobalStandard| C
+    B -->|FW Model<br/>DataZoneStandard| E
     E --> F
     F -->|Response| B
     C -->|Response| B
@@ -118,7 +118,7 @@ flowchart LR
     style F fill:#FF6B35,color:#fff
 ```
 
-> **Architecture Notes**: Azure Native models run on **Managed Online Endpoints** (containerized inference services on GPU VMs), not bare metal GPUs. Fireworks models are routed to the Fireworks cloud where the FireAttention engine runs on their own GPU pool. The extra network hop to Fireworks cloud explains the ~0.4s TTFT overhead, while the optimized FireAttention engine produces tokens 2-3x faster once generation begins.
+> **Architecture Notes**: Both deployment types are serverless — customers see only an API endpoint, no underlying infrastructure. Azure Native models use **GlobalStandard** serverless deployment managed entirely by Azure. Fireworks models use **DataZoneStandard** deployment where requests are routed to the Fireworks cloud and served by the FireAttention engine on Fireworks' own GPU pool. The extra network hop to Fireworks cloud explains the ~0.4s TTFT overhead, while the optimized engine produces tokens 2-3x faster once generation begins.
 
 ---
 

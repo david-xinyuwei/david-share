@@ -95,7 +95,7 @@ flowchart LR
     
     subgraph Azure["Azure Foundry"]
         B[Foundry Endpoint]
-        C[Managed Online Endpoint<br/>Containerized Inference]
+        C[Serverless Inference<br/>Azure Managed]
         D[Governance / RBAC / Audit]
     end
     
@@ -105,8 +105,8 @@ flowchart LR
     end
     
     A -->|API Request| B
-    B -->|Native Model| C
-    B -->|FW Model| E
+    B -->|Native Model<br/>GlobalStandard| C
+    B -->|FW Model<br/>DataZoneStandard| E
     E --> F
     F -->|Response| B
     C -->|Response| B
@@ -118,7 +118,7 @@ flowchart LR
     style F fill:#FF6B35,color:#fff
 ```
 
-> **架构说明**：Azure Native 模型运行在 **Managed Online Endpoint**（GPU VM 上的容器化推理服务），不是裸 GPU。Fireworks 模型的请求被路由到 Fireworks 云端，由 FireAttention 引擎在 Fireworks 自有 GPU 池上运行。到 Fireworks 云的额外网络跳转解释了 ~0.4s 的 TTFT 开销，而 FireAttention 引擎的优化使得生成开始后 Token 速度快 2-3 倍。
+> **架构说明**：两种部署方式都是 Serverless — 客户只看到 API 端点，看不到底层基础设施。Azure Native 模型使用 **GlobalStandard** Serverless 部署，完全由 Azure 托管。Fireworks 模型使用 **DataZoneStandard** 部署，请求被路由到 Fireworks 云端，由 FireAttention 引擎在 Fireworks 自有 GPU 池上运行。到 Fireworks 云的额外网络跳转解释了 ~0.4s 的 TTFT 开销，而 FireAttention 引擎的优化使得生成开始后 Token 速度快 2-3 倍。
 
 ---
 
