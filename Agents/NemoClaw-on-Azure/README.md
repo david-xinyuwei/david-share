@@ -24,6 +24,7 @@
 - [Azure Deployment Guide](#azure-deployment-guide)
 - [Azure OpenAI Integration](#azure-openai-integration)
 - [Security Features](#security-features)
+- [NemoClaw vs Native OpenClaw](#nemoclaw-vs-native-openclaw)
 - [Multi-User Capabilities](#multi-user-capabilities)
 - [Known Limitations](#known-limitations)
 - [Reproducing the Results](#reproducing-the-results)
@@ -237,6 +238,26 @@ Additional hardening:
 - Network probes (netcat) removed
 - Agent home directory read-only
 - Gateway config immutable
+
+---
+
+## NemoClaw vs Native OpenClaw
+
+OpenClaw can run without NemoClaw — just install it directly on any machine. NemoClaw adds a security sandbox layer on top. Here is how they compare:
+
+| Dimension | Native OpenClaw (no NemoClaw) | NemoClaw + OpenClaw |
+|:---|:---|:---|
+| **Network isolation** | Agent can access any website freely | Deny-by-default egress; unauthorized requests are blocked and require operator approval |
+| **Filesystem isolation** | Agent can read/write host files | Landlock LSM; home directory read-only; only specific paths writable |
+| **Process isolation** | Agent can execute arbitrary commands | seccomp filters + ulimit 512 processes + no privilege escalation |
+| **Credential security** | API keys visible in agent environment | API keys stay on host; agent only sees `inference.local` |
+| **Image hardening** | Includes gcc, netcat, build tools | Build toolchains and network probes removed from runtime image |
+| **Reproducibility** | Each install may differ | Blueprint versioned + digest verified; same sandbox on different machines |
+| **State migration** | Manual export | Automatic credential stripping + integrity verification |
+
+> **When NemoClaw matters**: If your agent autonomously browses the web, executes shell commands, reads/writes files, or calls external APIs — NemoClaw prevents it from doing anything unauthorized.
+>
+> **When NemoClaw is unnecessary**: If you only need to call an LLM API (chat completions), NemoClaw's security layers add complexity without benefit. Use Azure OpenAI directly.
 
 ---
 

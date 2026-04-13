@@ -24,6 +24,7 @@
 - [Azure 部署指南](#azure-部署指南)
 - [Azure OpenAI 集成](#azure-openai-集成)
 - [安全特性](#安全特性)
+- [NemoClaw vs 原生 OpenClaw](#nemoclaw-vs-原生-openclaw)
 - [多用户能力](#多用户能力)
 - [已知限制](#已知限制)
 - [复现步骤](#复现步骤)
@@ -210,6 +211,26 @@ NemoClaw 提供四层防护：
 | **文件系统** | Landlock LSM。`/sandbox` 只读。仅特定路径可写 | 否（创建时锁定） |
 | **进程** | seccomp 过滤。ulimit 512 进程。禁止提权 | 否（创建时锁定） |
 | **推理** | 所有调用通过 Gateway 路由。凭据永不进入沙箱 | 是 |
+
+---
+
+## NemoClaw vs 原生 OpenClaw
+
+OpenClaw 可以不用 NemoClaw 直接安装在任何机器上。NemoClaw 在其上层加了安全沙箱。对比如下：
+
+| 维度 | 原生 OpenClaw（不用 NemoClaw） | NemoClaw + OpenClaw |
+|:---|:---|:---|
+| **网络隔离** | Agent 可以随意访问任何网站 | 默认拒绝所有出站，未授权请求被拦截并需操作者审批 |
+| **文件系统隔离** | Agent 可以读写宿主机文件 | Landlock LSM，主目录只读，仅特定路径可写 |
+| **进程隔离** | Agent 可以执行任意命令 | seccomp 过滤 + ulimit 512 进程 + 禁止提权 |
+| **凭据安全** | API Key 在 Agent 环境变量中可见 | API Key 留在宿主机，Agent 只看到 `inference.local` |
+| **镜像加固** | 包含 gcc、netcat 等工具 | 编译工具链和网络探测工具已从运行时镜像删除 |
+| **可复现性** | 每次安装可能不同 | Blueprint 版本化 + 摘要校验，不同机器产出相同沙箱 |
+| **状态迁移** | 手动导出 | 自动凭据剥离 + 完整性校验 |
+
+> **NemoClaw 有用的场景**：Agent 需要自主浏览网页、执行 Shell 命令、读写文件、调用外部 API — NemoClaw 防止它做任何未授权操作。
+>
+> **NemoClaw 多余的场景**：如果只需要调用 LLM API（聊天/问答），NemoClaw 的安全层只会增加复杂度而无收益。直接用 Azure OpenAI 即可。
 
 ---
 
