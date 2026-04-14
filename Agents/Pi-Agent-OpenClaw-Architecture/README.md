@@ -20,7 +20,10 @@
 - [7. OpenClaw: Pi in Production](#7-openclaw-pi-in-production)
 - [8. Deployment on Azure](#8-deployment-on-azure)
 - [9. Known Issues and Troubleshooting](#9-known-issues-and-troubleshooting)
-- [10. References](#10-references)
+- [10. Hands-on Verification](#10-hands-on-verification)
+- [11. Value Analysis: Pi vs. Raw LLM API](#11-value-analysis-pi-vs-raw-llm-api)
+- [12. Ecosystem Analysis: Why Pi Became Popular](#12-ecosystem-analysis-why-pi-became-popular)
+- [13. References](#13-references)
 
 ---
 
