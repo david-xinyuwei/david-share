@@ -103,70 +103,39 @@ Upload image via `/openai/v1/files` (purpose=`assistants`), then reference `file
 
 8/8 PASS via file_id on the same Foundry endpoint. Control group: 5/5 FAIL with inline base64.
 
-> **Note**: The inline base64 size limit affects the **Responses API** (`/responses`) path. The Agent SDK's threads/runs path (`azure-ai-agents`) handles inline base64 images without this issue. If your application uses the Agent SDK with `agents_client.messages.create()`, you may not be affected. The `file_id` upload works on both paths.
-
 ## Workarounds
 
 ### Option 1: file_id Upload (Recommended)
 
-Stays on the Foundry project endpoint — no loss of agentic layer, Bing connectors, or failover logic. Uses the official Foundry Agent SDK (`azure-ai-agents`).
+Stays on the Foundry project endpoint — no loss of agentic layer, Bing connectors, or failover logic. Only the image input method changes; everything else in your code stays the same.
 
-**Python (Foundry Agent SDK)**:
+**Python**:
 
 ```python
-from azure.ai.agents import AgentsClient
-from azure.ai.agents.models import (
-    MessageInputTextBlock, MessageInputImageFileBlock,
-    MessageImageFileParam, FilePurpose, ListSortOrder,
-)
+from azure.ai.projects import AIProjectClient
 from azure.identity import DefaultAzureCredential
 
-agents_client = AgentsClient(
+project = AIProjectClient(
     endpoint="https://RESOURCE.services.ai.azure.com/api/projects/PROJECT",
     credential=DefaultAzureCredential(),
 )
+client = project.get_openai_client()
 
 # Step 1: upload image (bypasses inline base64 size limit)
-image_file = agents_client.files.upload_and_poll(
-    file_path="photo.jpg", purpose=FilePurpose.AGENTS
-)
+file = client.files.create(file=open("photo.jpg", "rb"), purpose="assistants")
 
-# Step 2: create agent (your existing agent setup)
-agent = agents_client.create_agent(
+# Step 2: use file_id in responses.create (replaces inline base64)
+response = client.responses.create(
     model="gpt-4o-mini",
-    name="my-agent",
-    instructions="You are a helpful assistant that analyzes images.",
-    # tools=[BingGroundingTool(connection_id=...).definitions],  # keep your tools
+    input=[{"role": "user", "content": [
+        {"type": "input_text", "text": "Describe this image"},
+        {"type": "input_image", "file_id": file.id}
+    ]}],
 )
-
-# Step 3: create thread + message with image
-thread = agents_client.threads.create()
-message = agents_client.messages.create(
-    thread_id=thread.id,
-    role="user",
-    content=[
-        MessageInputTextBlock(text="Describe this image"),
-        MessageInputImageFileBlock(
-            image_file=MessageImageFileParam(file_id=image_file.id, detail="high")
-        ),
-    ],
-)
-
-# Step 4: run agent
-run = agents_client.runs.create_and_process(
-    thread_id=thread.id, agent_id=agent.id
-)
-
-# Step 5: get response
-messages = agents_client.messages.list(
-    thread_id=thread.id, order=ListSortOrder.ASCENDING
-)
-for msg in messages:
-    if msg.role == "assistant" and msg.text_messages:
-        print(msg.text_messages[-1].text.value)
+print(response.output_text)
 ```
 
-**What changes from inline base64**: Only the image input method. Instead of embedding base64 in the message content, you call `files.upload_and_poll()` first, then reference the `file_id` via `MessageInputImageFileBlock`. Agent creation, tools, threads, and runs stay exactly the same.
+**What changes**: Only the image input. Instead of `"image_url": "data:image/jpeg;base64,..."`, you call `files.create()` first, then pass `"file_id": file.id`. The rest of your code (`AIProjectClient`, `get_openai_client()`, `responses.create()`, tools, instructions) stays exactly the same.
 
 **Node.js / TypeScript**:
 
