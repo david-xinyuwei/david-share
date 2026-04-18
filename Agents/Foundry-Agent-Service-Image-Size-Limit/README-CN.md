@@ -214,7 +214,7 @@ python workaround_resize_python.py "$IMAGE_FILE" | jq ...
 ### 前置条件
 
 ```bash
-pip install Pillow openai
+pip install azure-ai-projects azure-identity Pillow
 export FOUNDRY_KEY="<your-key>"
 export AOAI_KEY="<your-key>"
 ```

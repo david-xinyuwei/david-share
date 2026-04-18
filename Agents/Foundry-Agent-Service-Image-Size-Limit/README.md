@@ -214,7 +214,7 @@ With `file_id`, the image binary is uploaded separately via `/openai/v1/files` (
 ### Prerequisites
 
 ```bash
-pip install Pillow openai
+pip install azure-ai-projects azure-identity Pillow
 export FOUNDRY_KEY="<your-key>"
 export AOAI_KEY="<your-key>"
 ```
