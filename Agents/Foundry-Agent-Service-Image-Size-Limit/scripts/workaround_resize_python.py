@@ -7,7 +7,7 @@ Usage:
     pip install Pillow
     python workaround_resize_python.py ./photo.jpg
 
-Author: 魏新宇 (Xinyu Wei)
+Author: Xinyu Wei
 """
 import base64, json, sys, os
 from io import BytesIO
