@@ -107,35 +107,64 @@ Upload image via `/openai/v1/files` (purpose=`assistants`), then reference `file
 
 ### Option 1: file_id Upload (Recommended)
 
-Stays on the Foundry project endpoint — no loss of agentic layer, Bing connectors, or failover logic. Foundry Agent v2 uses the Responses API under the hood, so `responses.create()` with `instructions` and `tools` is the standard Agent v2 call.
+Stays on the Foundry project endpoint — no loss of agentic layer, Bing connectors, or failover logic. Uses the official Foundry Agent SDK (`azure-ai-agents`).
 
-**Python (Foundry SDK — recommended)**:
+**Python (Foundry Agent SDK)**:
 
 ```python
-from azure.ai.projects import AIProjectClient
+from azure.ai.agents import AgentsClient
+from azure.ai.agents.models import (
+    MessageInputTextBlock, MessageInputImageFileBlock,
+    MessageImageFileParam, FilePurpose, ListSortOrder,
+)
 from azure.identity import DefaultAzureCredential
 
-project = AIProjectClient(
+agents_client = AgentsClient(
     endpoint="https://RESOURCE.services.ai.azure.com/api/projects/PROJECT",
     credential=DefaultAzureCredential(),
 )
-client = project.get_openai_client()
 
 # Step 1: upload image (bypasses inline base64 size limit)
-file = client.files.create(file=open("photo.jpg", "rb"), purpose="assistants")
-
-# Step 2: call Agent v2 with file_id (instructions + tools preserved)
-response = client.responses.create(
-    model="gpt-4o-mini",
-    instructions="You are a helpful assistant that analyzes images.",
-    input=[{"role": "user", "content": [
-        {"type": "input_text", "text": "Describe this image"},
-        {"type": "input_image", "file_id": file.id}
-    ]}],
-    # tools=[{"type": "bing_grounding"}],  # add your existing tools here
+image_file = agents_client.files.upload_and_poll(
+    file_path="photo.jpg", purpose=FilePurpose.AGENTS
 )
-print(response.output_text)
+
+# Step 2: create agent (your existing agent setup)
+agent = agents_client.create_agent(
+    model="gpt-4o-mini",
+    name="my-agent",
+    instructions="You are a helpful assistant that analyzes images.",
+    # tools=[BingGroundingTool(connection_id=...).definitions],  # keep your tools
+)
+
+# Step 3: create thread + message with image
+thread = agents_client.threads.create()
+message = agents_client.messages.create(
+    thread_id=thread.id,
+    role="user",
+    content=[
+        MessageInputTextBlock(text="Describe this image"),
+        MessageInputImageFileBlock(
+            image_file=MessageImageFileParam(file_id=image_file.id, detail="high")
+        ),
+    ],
+)
+
+# Step 4: run agent
+run = agents_client.runs.create_and_process(
+    thread_id=thread.id, agent_id=agent.id
+)
+
+# Step 5: get response
+messages = agents_client.messages.list(
+    thread_id=thread.id, order=ListSortOrder.ASCENDING
+)
+for msg in messages:
+    if msg.role == "assistant" and msg.text_messages:
+        print(msg.text_messages[-1].text.value)
 ```
+
+**What changes from inline base64**: Only the image input method. Instead of embedding base64 in the message content, you call `files.upload_and_poll()` first, then reference the `file_id` via `MessageInputImageFileBlock`. Agent creation, tools, threads, and runs stay exactly the same.
 
 **Node.js / TypeScript**:
 

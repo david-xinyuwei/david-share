@@ -107,35 +107,64 @@ Agent Service: 2/9 通过（仅 body <64KB）。AOAI 直连: 9/9 全通过。
 
 ### 方案 1: file_id 上传（推荐）
 
-保持 Foundry 项目端点不变 — 不丢失 agentic 层、Bing 连接器或 failover 逻辑。Foundry Agent v2 底层使用 Responses API，所以 `responses.create()` 加上 `instructions` 和 `tools` 就是标准的 Agent v2 调用。
+保持 Foundry 项目端点不变 — 不丢失 agentic 层、Bing 连接器或 failover 逻辑。使用官方 Foundry Agent SDK（`azure-ai-agents`）。
 
-**Python (Foundry SDK — 推荐)**:
+**Python (Foundry Agent SDK)**:
 
 ```python
-from azure.ai.projects import AIProjectClient
+from azure.ai.agents import AgentsClient
+from azure.ai.agents.models import (
+    MessageInputTextBlock, MessageInputImageFileBlock,
+    MessageImageFileParam, FilePurpose, ListSortOrder,
+)
 from azure.identity import DefaultAzureCredential
 
-project = AIProjectClient(
+agents_client = AgentsClient(
     endpoint="https://RESOURCE.services.ai.azure.com/api/projects/PROJECT",
     credential=DefaultAzureCredential(),
 )
-client = project.get_openai_client()
 
 # Step 1: 上传图片（绕过 inline base64 大小限制）
-file = client.files.create(file=open("photo.jpg", "rb"), purpose="assistants")
-
-# Step 2: 调用 Agent v2，file_id 引用（instructions + tools 保留）
-response = client.responses.create(
-    model="gpt-4o-mini",
-    instructions="You are a helpful assistant that analyzes images.",
-    input=[{"role": "user", "content": [
-        {"type": "input_text", "text": "Describe this image"},
-        {"type": "input_image", "file_id": file.id}
-    ]}],
-    # tools=[{"type": "bing_grounding"}],  # 加上你现有的 tools
+image_file = agents_client.files.upload_and_poll(
+    file_path="photo.jpg", purpose=FilePurpose.AGENTS
 )
-print(response.output_text)
+
+# Step 2: 创建 agent（你现有的 agent 设置）
+agent = agents_client.create_agent(
+    model="gpt-4o-mini",
+    name="my-agent",
+    instructions="You are a helpful assistant that analyzes images.",
+    # tools=[BingGroundingTool(connection_id=...).definitions],  # 保留你的 tools
+)
+
+# Step 3: 创建 thread + 带图片消息
+thread = agents_client.threads.create()
+message = agents_client.messages.create(
+    thread_id=thread.id,
+    role="user",
+    content=[
+        MessageInputTextBlock(text="Describe this image"),
+        MessageInputImageFileBlock(
+            image_file=MessageImageFileParam(file_id=image_file.id, detail="high")
+        ),
+    ],
+)
+
+# Step 4: 运行 agent
+run = agents_client.runs.create_and_process(
+    thread_id=thread.id, agent_id=agent.id
+)
+
+# Step 5: 获取响应
+messages = agents_client.messages.list(
+    thread_id=thread.id, order=ListSortOrder.ASCENDING
+)
+for msg in messages:
+    if msg.role == "assistant" and msg.text_messages:
+        print(msg.text_messages[-1].text.value)
 ```
+
+**和 inline base64 相比改了什么**：只改了图片输入方式。不再在消息内容中嵌入 base64，而是先调 `files.upload_and_poll()`，然后通过 `MessageInputImageFileBlock` 引用 `file_id`。Agent 创建、tools、threads 和 runs 完全不变。
 
 **Node.js / TypeScript**:
 
