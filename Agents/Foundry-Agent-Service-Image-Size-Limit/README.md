@@ -113,7 +113,28 @@ Upload image via `/openai/v1/files` (purpose=`assistants`), then reference `file
 
 Stays on the Foundry project endpoint — no loss of agentic layer, Bing connectors, or failover logic. Only the image input method changes; everything else in your code stays the same.
 
-**Python**:
+**Before vs After**:
+
+```diff
+  # Your existing client setup (unchanged)
+  client = project.get_openai_client()  # or however you get the OpenAI client
+
++ # NEW: upload image first
++ file = client.files.create(file=open("photo.jpg", "rb"), purpose="assistants")
+
+  response = client.responses.create(
+      model="gpt-4o-mini",
+      input=[{"role": "user", "content": [
+          {"type": "input_text", "text": "Describe this image"},
+-         {"type": "input_image", "image_url": "data:image/jpeg;base64,..."}
++         {"type": "input_image", "file_id": file.id}
+      ]}],
+  )
+```
+
+That's it. Two lines changed.
+
+**Full Python example**:
 
 ```python
 from azure.ai.projects import AIProjectClient
@@ -139,24 +160,23 @@ response = client.responses.create(
 print(response.output_text)
 ```
 
-**What changes**: Only the image input. Instead of `"image_url": "data:image/jpeg;base64,..."`, you call `files.create()` first, then pass `"file_id": file.id`. The rest of your code (`AIProjectClient`, `get_openai_client()`, `responses.create()`, tools, instructions) stays exactly the same.
-
-**Node.js / TypeScript**:
+**Full Node.js / TypeScript example**:
 
 ```javascript
-const { AzureOpenAI } = require("openai");
+const { AIProjectClient } = require("@azure/ai-projects");
+const { DefaultAzureCredential } = require("@azure/identity");
 const fs = require("fs");
 
-const client = new AzureOpenAI({
-  endpoint: "https://RESOURCE.services.ai.azure.com/api/projects/PROJECT",
-  apiVersion: "2025-03-01-preview",
-});
+const project = new AIProjectClient(PROJECT_ENDPOINT, new DefaultAzureCredential());
+const client = await project.getOpenAIClient();
 
+// Step 1: upload image
 const file = await client.files.create({
   file: fs.createReadStream("photo.jpg"),
   purpose: "assistants"
 });
 
+// Step 2: use file_id (replaces inline base64)
 const response = await client.responses.create({
   model: "gpt-4o-mini",
   input: [{ role: "user", content: [

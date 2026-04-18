@@ -113,7 +113,28 @@ Agent Service: 2/9 通过（仅 body <64KB）。AOAI 直连: 9/9 全通过。
 
 保持 Foundry 项目端点不变 — 不丢失 agentic 层、Bing 连接器或 failover 逻辑。只改图片输入方式，其他代码不变。
 
-**Python**:
+**改前 vs 改后**：
+
+```diff
+  # 你现有的客户端设置（不变）
+  client = project.get_openai_client()  # 或者你获取 OpenAI client 的方式
+
++ # 新增：先上传图片
++ file = client.files.create(file=open("photo.jpg", "rb"), purpose="assistants")
+
+  response = client.responses.create(
+      model="gpt-4o-mini",
+      input=[{"role": "user", "content": [
+          {"type": "input_text", "text": "Describe this image"},
+-         {"type": "input_image", "image_url": "data:image/jpeg;base64,..."}
++         {"type": "input_image", "file_id": file.id}
+      ]}],
+  )
+```
+
+就这么多。改两行。
+
+**完整 Python 示例**：
 
 ```python
 from azure.ai.projects import AIProjectClient
@@ -139,24 +160,23 @@ response = client.responses.create(
 print(response.output_text)
 ```
 
-**改了什么**：只改图片输入。原来是 `"image_url": "data:image/jpeg;base64,..."`，现在先调 `files.create()` 拿到 file_id，再传 `"file_id": file.id`。其余代码（`AIProjectClient`、`get_openai_client()`、`responses.create()`、tools、instructions）完全不变。
-
-**Node.js / TypeScript**:
+**完整 Node.js / TypeScript 示例**：
 
 ```javascript
-const { AzureOpenAI } = require("openai");
+const { AIProjectClient } = require("@azure/ai-projects");
+const { DefaultAzureCredential } = require("@azure/identity");
 const fs = require("fs");
 
-const client = new AzureOpenAI({
-  endpoint: "https://RESOURCE.services.ai.azure.com/api/projects/PROJECT",
-  apiVersion: "2025-03-01-preview",
-});
+const project = new AIProjectClient(PROJECT_ENDPOINT, new DefaultAzureCredential());
+const client = await project.getOpenAIClient();
 
+// Step 1: 上传图片
 const file = await client.files.create({
   file: fs.createReadStream("photo.jpg"),
   purpose: "assistants"
 });
 
+// Step 2: 使用 file_id（替换 inline base64）
 const response = await client.responses.create({
   model: "gpt-4o-mini",
   input: [{ role: "user", content: [
