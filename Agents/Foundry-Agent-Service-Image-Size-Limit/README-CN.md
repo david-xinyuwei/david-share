@@ -51,7 +51,11 @@ flowchart TB
     style A3 fill:#ffd93d,color:#333
 ```
 
-Foundry 项目端点和 AOAI 直连端点共享同一底层模型，但请求处理路径不同。项目端点对 inline base64 图片有 payload 大小限制（~64KB），直连端点没有。`file_id` workaround 通过 multipart 单独上传图片来绕过此限制 — JSON body 只包含一个短小的 file_id 引用。
+Foundry 项目端点和 AOAI 直连端点共享同一底层模型，但请求处理路径不同。项目端点对 inline base64 图片有 payload 大小限制（~64KB），直连端点没有。
+
+切换到 AOAI 直连端点（`*.openai.azure.com`）并不总是可行的 — 使用项目端点的应用可能依赖仅通过项目端点提供的能力（如 Bing grounding、agentic tools、failover 逻辑）。
+
+`file_id` workaround 使用的是 Responses API 自身的 `/openai/v1/files` 上传端点。这是 Responses API 的标准功能 — 不特定于任何 Agent 框架。上传走 `multipart/form-data`（不是 JSON），不受 JSON body 大小限制。
 
 ## 测试结果
 
@@ -201,7 +205,13 @@ python workaround_resize_python.py "$IMAGE_FILE" | jq ...
 
 ## 为什么 file_id 有效
 
-使用 `file_id` 时，图片二进制通过 `/openai/v1/files` 单独上传（multipart，不是 JSON）。`/responses` 请求体只包含 file_id 字符串引用（~50 bytes vs 数百 KB 的 base64）。图片数据永远不会进入触发大小限制的 JSON payload。
+Responses API 支持两种传图方式：
+
+1. **Inline base64**（`image_url: "data:image/jpeg;base64,..."`）— 图片嵌入 JSON 请求体。在 Foundry 项目端点上，这个 body 受 ~64KB 大小限制。
+
+2. **file_id 引用**（`file_id: "assistant-xxx"`）— 图片先通过 `POST /openai/v1/files` 以 `multipart/form-data` 上传（不是 JSON）。`/responses` 请求体只包含短小的 file_id 字符串（~50 bytes）。图片二进制永远不会进入 JSON payload。
+
+`/openai/v1/files` 是 Responses API 的标准端点。它不特定于任何 Agent 框架 — 无论应用是否使用 agentic 功能，工作方式都一样。
 
 ## 外部证据
 

@@ -51,7 +51,11 @@ flowchart TB
     style A3 fill:#ffd93d,color:#333
 ```
 
-The Foundry project endpoint and the AOAI direct endpoint share the same underlying model but have different request processing paths. The project endpoint has a payload size restriction (~64KB for inline base64 images) that does not exist on the direct endpoint. The `file_id` workaround bypasses this by uploading the image separately via multipart — the JSON body only contains a short file_id reference.
+The Foundry project endpoint and the AOAI direct endpoint share the same underlying model but have different request processing paths. The project endpoint has a payload size restriction (~64KB for inline base64 images) that does not exist on the direct endpoint.
+
+Switching to the AOAI direct endpoint (`*.openai.azure.com`) is not always viable — applications using the project endpoint may depend on capabilities only available through it (e.g., Bing grounding, agentic tools, failover logic).
+
+The `file_id` workaround uses the Responses API's own `/openai/v1/files` upload endpoint. This is a standard Responses API feature — not specific to any agent framework. The upload goes via `multipart/form-data` (not JSON), so it is not subject to the JSON body size limit.
 
 ## Test Results
 
@@ -201,7 +205,13 @@ python workaround_resize_python.py "$IMAGE_FILE" | jq ...
 
 ## Why file_id Works
 
-With `file_id`, the image binary is uploaded separately via `/openai/v1/files` (multipart, not JSON). The `/responses` request body only contains the file_id string reference (~50 bytes vs hundreds of KB for base64). The image data never enters the JSON payload that hits the size limit.
+The Responses API supports two ways to pass images:
+
+1. **Inline base64** (`image_url: "data:image/jpeg;base64,..."`) — the image is embedded in the JSON request body. On the Foundry project endpoint, this body is subject to a ~64KB size limit.
+
+2. **file_id reference** (`file_id: "assistant-xxx"`) — the image is first uploaded via `POST /openai/v1/files` using `multipart/form-data` (not JSON). The `/responses` request body then only contains the short file_id string (~50 bytes). The image binary never enters the JSON payload.
+
+`/openai/v1/files` is a standard Responses API endpoint. It is not specific to any agent framework — it works the same way regardless of whether the application uses agentic features.
 
 ## External Evidence
 
