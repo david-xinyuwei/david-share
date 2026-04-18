@@ -53,6 +53,15 @@ flowchart TB
 
 The Foundry project endpoint and the AOAI direct endpoint share the same underlying model but have different request processing paths. The project endpoint has a payload size restriction (~64KB for inline base64 images) that does not exist on the direct endpoint.
 
+**Size calculation**: base64 encoding expands image data by 4/3 (33%), plus ~220 bytes JSON overhead:
+
+```
+JSON body size = image_size × 4/3 + ~220 bytes
+Max image size = (64KB body limit - 220 bytes) × 3/4 ≈ 48KB
+```
+
+So the effective limit is roughly **48KB original image size** (not 64KB — 64KB is the JSON body limit, not the image limit).
+
 Switching to the AOAI direct endpoint (`*.openai.azure.com`) is not always viable — applications using the project endpoint may depend on capabilities only available through it (e.g., Bing grounding, agentic tools, failover logic).
 
 The `file_id` workaround uses the Responses API's own `/openai/v1/files` upload endpoint. This is a standard Responses API feature — not specific to any agent framework. The upload goes via `multipart/form-data` (not JSON), so it is not subject to the JSON body size limit.

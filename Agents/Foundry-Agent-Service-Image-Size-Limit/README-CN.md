@@ -53,6 +53,15 @@ flowchart TB
 
 Foundry 项目端点和 AOAI 直连端点共享同一底层模型，但请求处理路径不同。项目端点对 inline base64 图片有 payload 大小限制（~64KB），直连端点没有。
 
+**大小计算公式**：base64 编码会将图片数据膨胀 4/3（33%），加上 ~220 字节 JSON 开销：
+
+```
+JSON body 大小 = 图片大小 × 4/3 + ~220 字节
+图片大小上限 = (64KB body 限制 - 220 字节) × 3/4 ≈ 48KB
+```
+
+所以实际限制约为**原始图片 48KB**（不是 64KB — 64KB 是 JSON body 限制，不是图片限制）。
+
 切换到 AOAI 直连端点（`*.openai.azure.com`）并不总是可行的 — 使用项目端点的应用可能依赖仅通过项目端点提供的能力（如 Bing grounding、agentic tools、failover 逻辑）。
 
 `file_id` workaround 使用的是 Responses API 自身的 `/openai/v1/files` 上传端点。这是 Responses API 的标准功能 — 不特定于任何 Agent 框架。上传走 `multipart/form-data`（不是 JSON），不受 JSON body 大小限制。
