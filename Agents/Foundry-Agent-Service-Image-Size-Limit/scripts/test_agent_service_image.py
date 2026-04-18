@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
 Agent Service (services.ai) vs AOAI Direct (openai.azure.com) — Large Image Test
-Reproduce Lenovo's issue: base64 images >500KB fail on Agent Service project endpoint.
+Reproduce the issue: base64 images fail on Agent Service project endpoint.
 
-Author: 魏新宇 (Xinyu Wei)
+Author: Xinyu Wei
 Date: 2026-04-16
 """
 import base64, json, os, sys, time

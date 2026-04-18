@@ -64,7 +64,6 @@ async function resizeAndEncode(input, opts = {}) {
     };
 }
 
-// --- Example: drop-in replacement for Lenovo's flow ---
 async function sendImageToFoundry(imagePath, token, endpoint) {
     const { base64, originalKB, resizedKB, wasResized } = await resizeAndEncode(imagePath);
     
