@@ -19,26 +19,11 @@ Azure AI Foundry Agent Service 项目端点（`*.services.ai.azure.com`）在 Re
 
 ## 架构
 
-```mermaid
-flowchart LR
-    subgraph AgentPath["Agent Service 路径"]
-        direction LR
-        C1[Client] --> GW["Gateway/Proxy<br>~64KB 限制"]
-        GW --> CDB["Cosmos DB<br>2MB 文档限制"]
-        CDB --> M1[Model]
-    end
-    subgraph DirectPath["AOAI 直连路径"]
-        direction LR
-        C2[Client] --> OGW["OpenAI Gateway<br>无 Cosmos DB"]
-        OGW --> M2["Model<br>claim check inline"]
-    end
+Foundry 项目端点（`*.services.ai.azure.com`）和 AOAI 直连端点（`*.openai.azure.com`）共享同一底层模型，但请求处理路径不同。PG 确认项目端点有 payload 大小限制，而直连端点没有：
 
-    style GW fill:#ff6b6b,color:#fff
-    style CDB fill:#ffd93d,color:#333
-    style OGW fill:#6bcb77,color:#fff
-```
+> "We have identified the root cause limiting payloads to a certain size. It is a change on our end."
 
-两条路径都经过 APIM（通过 `apim-request-id` header 确认）。Agent Service 额外有 `azureml-served-by-cluster` header。Cosmos DB 假设来自 PG GBB — Agent Service 项目端点使用 Cosmos DB 作为后端存储（2MB 文档限制），而 AOAI 直连走 "claim check pattern inline" 不经过 Cosmos DB。此假设未经 PG 官方 RCA 确认。
+直连端点处理 inline base64 图片最大至少 2.2MB 无问题。项目端点在 ~64KB 以上拒绝。
 
 ## 测试结果
 
@@ -185,16 +170,6 @@ python workaround_resize_python.py "$IMAGE_FILE" | jq ...
 ## 为什么 file_id 有效
 
 使用 `file_id` 时，图片二进制通过 `/openai/v1/files` 单独上传（multipart，不是 JSON）。`/responses` 请求体只包含 file_id 字符串引用（~50 bytes vs 数百 KB 的 base64）。图片数据永远不会进入触发大小限制的 JSON payload。
-
-## 响应头指纹
-
-| Header | Agent Service | AOAI 直连 |
-|:---|:---:|:---:|
-| `apim-request-id` | 有 | 有 |
-| `azureml-served-by-cluster` | 有 | 无 |
-| `openai-processing-ms` | 有（到达模型时） | 有 |
-
-Agent Service 返回 400 时，`openai-processing-ms` 不存在 — 请求在到达模型后端之前被拒绝。
 
 ## 外部证据
 

@@ -19,26 +19,11 @@ Azure AI Foundry Agent Service project endpoint (`*.services.ai.azure.com`) reje
 
 ## Architecture
 
-```mermaid
-flowchart LR
-    subgraph AgentPath["Agent Service Path"]
-        direction LR
-        C1[Client] --> GW["Gateway/Proxy<br>~64KB limit"]
-        GW --> CDB["Cosmos DB<br>2MB doc limit"]
-        CDB --> M1[Model]
-    end
-    subgraph DirectPath["AOAI Direct Path"]
-        direction LR
-        C2[Client] --> OGW["OpenAI Gateway<br>No Cosmos DB"]
-        OGW --> M2["Model<br>claim check inline"]
-    end
+The Foundry project endpoint (`*.services.ai.azure.com`) and the AOAI direct endpoint (`*.openai.azure.com`) share the same underlying model but have different request processing paths. PG confirmed the project endpoint has a payload size restriction that does not exist on the direct endpoint:
 
-    style GW fill:#ff6b6b,color:#fff
-    style CDB fill:#ffd93d,color:#333
-    style OGW fill:#6bcb77,color:#fff
-```
+> "We have identified the root cause limiting payloads to a certain size. It is a change on our end."
 
-Both paths go through APIM (confirmed via `apim-request-id` header). Agent Service adds `azureml-served-by-cluster` header. The Cosmos DB hypothesis comes from a PG GBB who noted that Agent Service project endpoints use Cosmos DB as a backing store (2MB doc limit), while AOAI Direct runs "claim check pattern inline" without Cosmos DB. This is unconfirmed by PG's official RCA.
+The direct endpoint processes inline base64 images up to at least 2.2MB without issue. The project endpoint rejects them above ~64KB.
 
 ## Test Results
 
@@ -185,16 +170,6 @@ python workaround_resize_python.py "$IMAGE_FILE" | jq ...
 ## Why file_id Works
 
 With `file_id`, the image binary is uploaded separately via `/openai/v1/files` (multipart, not JSON). The `/responses` request body only contains the file_id string reference (~50 bytes vs hundreds of KB for base64). The image data never enters the JSON payload that hits the size limit.
-
-## Response Header Fingerprint
-
-| Header | Agent Service | AOAI Direct |
-|:---|:---:|:---:|
-| `apim-request-id` | Yes | Yes |
-| `azureml-served-by-cluster` | Yes | No |
-| `openai-processing-ms` | Yes (when reaches model) | Yes |
-
-When Agent Service returns 400, `openai-processing-ms` is absent — the request is rejected before reaching the model backend.
 
 ## External Evidence
 
