@@ -2,9 +2,7 @@
 
 ## 问题
 
-Azure AI Foundry Agent Service 项目端点（`*.services.ai.azure.com`）在 Responses API（`/responses`）中拒绝 inline base64 图片。相同图片在 AOAI 直连端点（`*.openai.azure.com`）正常工作。这是 2026 年 4 月初引入的 regression。
-
-**PG 确认**: "limiting payloads to a certain size. It is a change on our end." ([GitHub #46305](https://github.com/Azure/azure-sdk-for-python/issues/46305))
+Azure AI Foundry Agent Service 项目端点（`*.services.ai.azure.com`）在 Responses API（`/responses`）中拒绝 inline base64 图片。相同图片在 AOAI 直连端点（`*.openai.azure.com`）正常工作。这是一个已知的 regression，跟踪于 [GitHub #46305](https://github.com/Azure/azure-sdk-for-python/issues/46305)。
 
 ## 关键发现
 
@@ -19,11 +17,37 @@ Azure AI Foundry Agent Service 项目端点（`*.services.ai.azure.com`）在 Re
 
 ## 架构
 
-Foundry 项目端点（`*.services.ai.azure.com`）和 AOAI 直连端点（`*.openai.azure.com`）共享同一底层模型，但请求处理路径不同。PG 确认项目端点有 payload 大小限制，而直连端点没有：
+```mermaid
+flowchart TB
+    subgraph Client["客户端应用"]
+        IMG["图片 (72KB – 7.9MB)"]
+    end
 
-> "We have identified the root cause limiting payloads to a certain size. It is a change on our end."
+    subgraph OptionA["方案 A: Inline Base64 (已损坏)"]
+        direction TB
+        A1["将图片编码为 base64\n嵌入 JSON body"] --> A2["POST /responses\n{ input_image: data:image/jpeg;base64,... }"]
+        A2 --> A3{"Body > ~64KB?"}
+        A3 -->|"是"| A4["❌ 400 invalid_payload\n(7/9 图片失败)"]
+        A3 -->|"否"| A5["✅ 模型处理图片"]
+    end
 
-直连端点处理 inline base64 图片最大至少 2.2MB 无问题。项目端点在 ~64KB 以上拒绝。
+    subgraph OptionB["方案 B: file_id 上传 (Workaround)"]
+        direction TB
+        B1["POST /openai/v1/files\n(multipart 上传，非 JSON)"] --> B2["获得 file_id"]
+        B2 --> B3["POST /responses\n{ input_image: { file_id: file-xxx } }\n(~200 bytes JSON body)"]
+        B3 --> B4["✅ 模型处理图片\n(8/8 图片通过，最大 7.9MB)"]
+    end
+
+    IMG --> A1
+    IMG --> B1
+
+    style A4 fill:#d13438,color:#fff
+    style A5 fill:#107c10,color:#fff
+    style B4 fill:#107c10,color:#fff
+    style A3 fill:#ffd93d,color:#333
+```
+
+Foundry 项目端点和 AOAI 直连端点共享同一底层模型，但请求处理路径不同。项目端点对 inline base64 图片有 payload 大小限制（~64KB），直连端点没有。`file_id` workaround 通过 multipart 单独上传图片来绕过此限制 — JSON body 只包含一个短小的 file_id 引用。
 
 ## 测试结果
 

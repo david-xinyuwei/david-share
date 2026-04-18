@@ -2,9 +2,7 @@
 
 ## Issue
 
-Azure AI Foundry Agent Service project endpoint (`*.services.ai.azure.com`) rejects inline base64 images in the Responses API (`/responses`). The same images succeed on the AOAI direct endpoint (`*.openai.azure.com`). This is a regression introduced around early April 2026.
-
-**PG confirmed**: "limiting payloads to a certain size. It is a change on our end." ([GitHub #46305](https://github.com/Azure/azure-sdk-for-python/issues/46305))
+Azure AI Foundry Agent Service project endpoint (`*.services.ai.azure.com`) rejects inline base64 images in the Responses API (`/responses`). The same images succeed on the AOAI direct endpoint (`*.openai.azure.com`). This is a known regression tracked in [GitHub #46305](https://github.com/Azure/azure-sdk-for-python/issues/46305).
 
 ## Key Findings
 
@@ -19,11 +17,37 @@ Azure AI Foundry Agent Service project endpoint (`*.services.ai.azure.com`) reje
 
 ## Architecture
 
-The Foundry project endpoint (`*.services.ai.azure.com`) and the AOAI direct endpoint (`*.openai.azure.com`) share the same underlying model but have different request processing paths. PG confirmed the project endpoint has a payload size restriction that does not exist on the direct endpoint:
+```mermaid
+flowchart TB
+    subgraph Client["Client Application"]
+        IMG["Image (72KB – 7.9MB)"]
+    end
 
-> "We have identified the root cause limiting payloads to a certain size. It is a change on our end."
+    subgraph OptionA["Option A: Inline Base64 (Broken)"]
+        direction TB
+        A1["Encode image as base64\nEmbed in JSON body"] --> A2["POST /responses\n{ input_image: data:image/jpeg;base64,... }"]
+        A2 --> A3{"Body > ~64KB?"}
+        A3 -->|"Yes"| A4["❌ 400 invalid_payload\n(7/9 images fail)"]
+        A3 -->|"No"| A5["✅ Model processes image"]
+    end
 
-The direct endpoint processes inline base64 images up to at least 2.2MB without issue. The project endpoint rejects them above ~64KB.
+    subgraph OptionB["Option B: file_id Upload (Workaround)"]
+        direction TB
+        B1["POST /openai/v1/files\n(multipart upload, not JSON)"] --> B2["Receive file_id"]
+        B2 --> B3["POST /responses\n{ input_image: { file_id: file-xxx } }\n(~200 bytes JSON body)"]
+        B3 --> B4["✅ Model processes image\n(8/8 images pass, up to 7.9MB)"]
+    end
+
+    IMG --> A1
+    IMG --> B1
+
+    style A4 fill:#d13438,color:#fff
+    style A5 fill:#107c10,color:#fff
+    style B4 fill:#107c10,color:#fff
+    style A3 fill:#ffd93d,color:#333
+```
+
+The Foundry project endpoint and the AOAI direct endpoint share the same underlying model but have different request processing paths. The project endpoint has a payload size restriction (~64KB for inline base64 images) that does not exist on the direct endpoint. The `file_id` workaround bypasses this by uploading the image separately via multipart — the JSON body only contains a short file_id reference.
 
 ## Test Results
 
