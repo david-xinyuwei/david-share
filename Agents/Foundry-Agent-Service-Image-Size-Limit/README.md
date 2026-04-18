@@ -84,7 +84,7 @@ The `file_id` workaround uses the Responses API's own `/openai/v1/files` upload 
 
 Agent Service: 2/9 passed (only body <64KB). AOAI Direct: 9/9 passed.
 
-Error: `400 invalid_payload: "The provided data does not match the expected schema"` — body truncation at the gateway produces malformed JSON.
+Error: `400 invalid_payload: "The provided data does not match the expected schema"` — returned when inline base64 image data exceeds the size limit.
 
 ### Precise Threshold (Binary Search)
 

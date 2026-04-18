@@ -84,7 +84,7 @@ JSON body 大小 = 图片大小 × 4/3 + ~220 字节
 
 Agent Service: 2/9 通过（仅 body <64KB）。AOAI 直连: 9/9 全通过。
 
-错误: `400 invalid_payload: "The provided data does not match the expected schema"` — 网关层截断请求体，产生畸形 JSON。
+错误: `400 invalid_payload: "The provided data does not match the expected schema"` — 当 inline base64 图片数据超过大小限制时返回。
 
 ### 精确阈值（二分搜索，Binary Search）
 
