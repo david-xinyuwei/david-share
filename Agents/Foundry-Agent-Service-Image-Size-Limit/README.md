@@ -103,6 +103,8 @@ Upload image via `/openai/v1/files` (purpose=`assistants`), then reference `file
 
 8/8 PASS via file_id on the same Foundry endpoint. Control group: 5/5 FAIL with inline base64.
 
+> **Note**: The inline base64 size limit affects the **Responses API** (`/responses`) path. The Agent SDK's threads/runs path (`azure-ai-agents`) handles inline base64 images without this issue. If your application uses the Agent SDK with `agents_client.messages.create()`, you may not be affected. The `file_id` upload works on both paths.
+
 ## Workarounds
 
 ### Option 1: file_id Upload (Recommended)

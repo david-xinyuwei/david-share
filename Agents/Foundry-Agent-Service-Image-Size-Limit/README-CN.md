@@ -103,6 +103,8 @@ Agent Service: 2/9 通过（仅 body <64KB）。AOAI 直连: 9/9 全通过。
 
 8/8 通过 file_id，在同一 Foundry 端点。对照组：inline base64 5/5 全部 FAIL。
 
+> **注意**：inline base64 大小限制影响的是 **Responses API**（`/responses`）路径。Agent SDK 的 threads/runs 路径（`azure-ai-agents`）处理 inline base64 图片不受此限制。如果你的应用使用 Agent SDK 的 `agents_client.messages.create()`，可能不受影响。`file_id` 上传在两条路径都有效。
+
 ## Workaround
 
 ### 方案 1: file_id 上传（推荐）
