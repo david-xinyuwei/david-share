@@ -19,23 +19,27 @@ Azure AI Foundry Agent Service project endpoint (`*.services.ai.azure.com`) reje
 
 ```mermaid
 flowchart TB
-    subgraph Client["Client Application"]
-        IMG["Image (72KB – 7.9MB)"]
+    IMG["📷 Image 72KB–7.9MB"]
+
+    subgraph broken["❌ Inline Base64 — BROKEN"]
+        direction TB
+        A1["base64-encode image"]
+        A2["POST /responses with base64 in JSON"]
+        A3{"JSON body > ~64KB?"}
+        A4["400 invalid_payload\n7 of 9 images fail"]
+        A5["✅ Model responds\n2 of 9 images pass"]
+        A1 --> A2 --> A3
+        A3 -- "Yes" --> A4
+        A3 -- "No" --> A5
     end
 
-    subgraph OptionA["Option A: Inline Base64 (Broken)"]
+    subgraph works["✅ file_id Upload — WORKAROUND"]
         direction TB
-        A1["Encode image as base64\nEmbed in JSON body"] --> A2["POST /responses\n{ input_image: data:image/jpeg;base64,... }"]
-        A2 --> A3{"Body > ~64KB?"}
-        A3 -->|"Yes"| A4["❌ 400 invalid_payload\n(7/9 images fail)"]
-        A3 -->|"No"| A5["✅ Model processes image"]
-    end
-
-    subgraph OptionB["Option B: file_id Upload (Workaround)"]
-        direction TB
-        B1["POST /openai/v1/files\n(multipart upload, not JSON)"] --> B2["Receive file_id"]
-        B2 --> B3["POST /responses\n{ input_image: { file_id: file-xxx } }\n(~200 bytes JSON body)"]
-        B3 --> B4["✅ Model processes image\n(8/8 images pass, up to 7.9MB)"]
+        B1["POST /openai/v1/files\nmultipart upload"]
+        B2["Receive file_id"]
+        B3["POST /responses\nJSON body ~200 bytes"]
+        B4["✅ Model responds\n8 of 8 images pass"]
+        B1 --> B2 --> B3 --> B4
     end
 
     IMG --> A1
@@ -103,7 +107,7 @@ Upload image via `/openai/v1/files` (purpose=`assistants`), then reference `file
 
 ### Option 1: file_id Upload (Recommended)
 
-Stays on the Foundry project endpoint — no loss of agentic layer, Bing connectors, or failover logic.
+Stays on the Foundry project endpoint — no loss of agentic layer, Bing connectors, or failover logic. Foundry Agent v2 uses the Responses API under the hood, so `responses.create()` with `instructions` and `tools` is the standard Agent v2 call.
 
 **Python (Foundry SDK — recommended)**:
 
@@ -117,16 +121,18 @@ project = AIProjectClient(
 )
 client = project.get_openai_client()
 
-# Step 1: upload
+# Step 1: upload image (bypasses inline base64 size limit)
 file = client.files.create(file=open("photo.jpg", "rb"), purpose="assistants")
 
-# Step 2: use file_id
+# Step 2: call Agent v2 with file_id (instructions + tools preserved)
 response = client.responses.create(
     model="gpt-4o-mini",
+    instructions="You are a helpful assistant that analyzes images.",
     input=[{"role": "user", "content": [
         {"type": "input_text", "text": "Describe this image"},
         {"type": "input_image", "file_id": file.id}
-    ]}]
+    ]}],
+    # tools=[{"type": "bing_grounding"}],  # add your existing tools here
 )
 print(response.output_text)
 ```

@@ -19,23 +19,27 @@ Azure AI Foundry Agent Service 项目端点（`*.services.ai.azure.com`）在 Re
 
 ```mermaid
 flowchart TB
-    subgraph Client["客户端应用"]
-        IMG["图片 (72KB – 7.9MB)"]
+    IMG["📷 图片 72KB–7.9MB"]
+
+    subgraph broken["❌ Inline Base64 — 已损坏"]
+        direction TB
+        A1["将图片编码为 base64"]
+        A2["POST /responses 带 base64 JSON"]
+        A3{"JSON body > ~64KB?"}
+        A4["400 invalid_payload\n7/9 图片失败"]
+        A5["✅ 模型响应\n2/9 图片通过"]
+        A1 --> A2 --> A3
+        A3 -- "是" --> A4
+        A3 -- "否" --> A5
     end
 
-    subgraph OptionA["方案 A: Inline Base64 (已损坏)"]
+    subgraph works["✅ file_id 上传 — WORKAROUND"]
         direction TB
-        A1["将图片编码为 base64\n嵌入 JSON body"] --> A2["POST /responses\n{ input_image: data:image/jpeg;base64,... }"]
-        A2 --> A3{"Body > ~64KB?"}
-        A3 -->|"是"| A4["❌ 400 invalid_payload\n(7/9 图片失败)"]
-        A3 -->|"否"| A5["✅ 模型处理图片"]
-    end
-
-    subgraph OptionB["方案 B: file_id 上传 (Workaround)"]
-        direction TB
-        B1["POST /openai/v1/files\n(multipart 上传，非 JSON)"] --> B2["获得 file_id"]
-        B2 --> B3["POST /responses\n{ input_image: { file_id: file-xxx } }\n(~200 bytes JSON body)"]
-        B3 --> B4["✅ 模型处理图片\n(8/8 图片通过，最大 7.9MB)"]
+        B1["POST /openai/v1/files\nmultipart 上传"]
+        B2["获得 file_id"]
+        B3["POST /responses\nJSON body ~200 bytes"]
+        B4["✅ 模型响应\n8/8 图片通过"]
+        B1 --> B2 --> B3 --> B4
     end
 
     IMG --> A1
@@ -103,7 +107,7 @@ Agent Service: 2/9 通过（仅 body <64KB）。AOAI 直连: 9/9 全通过。
 
 ### 方案 1: file_id 上传（推荐）
 
-保持 Foundry 项目端点不变 — 不丢失 agentic 层、Bing 连接器或 failover 逻辑。
+保持 Foundry 项目端点不变 — 不丢失 agentic 层、Bing 连接器或 failover 逻辑。Foundry Agent v2 底层使用 Responses API，所以 `responses.create()` 加上 `instructions` 和 `tools` 就是标准的 Agent v2 调用。
 
 **Python (Foundry SDK — 推荐)**:
 
@@ -117,16 +121,18 @@ project = AIProjectClient(
 )
 client = project.get_openai_client()
 
-# Step 1: 上传
+# Step 1: 上传图片（绕过 inline base64 大小限制）
 file = client.files.create(file=open("photo.jpg", "rb"), purpose="assistants")
 
-# Step 2: 使用 file_id
+# Step 2: 调用 Agent v2，file_id 引用（instructions + tools 保留）
 response = client.responses.create(
     model="gpt-4o-mini",
+    instructions="You are a helpful assistant that analyzes images.",
     input=[{"role": "user", "content": [
         {"type": "input_text", "text": "Describe this image"},
         {"type": "input_image", "file_id": file.id}
-    ]}]
+    ]}],
+    # tools=[{"type": "bing_grounding"}],  # 加上你现有的 tools
 )
 print(response.output_text)
 ```
