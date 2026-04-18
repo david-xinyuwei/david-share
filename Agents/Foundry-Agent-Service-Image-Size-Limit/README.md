@@ -105,15 +105,17 @@ Upload image via `/openai/v1/files` (purpose=`assistants`), then reference `file
 
 Stays on the Foundry project endpoint — no loss of agentic layer, Bing connectors, or failover logic.
 
-**Python (OpenAI SDK)**:
+**Python (Foundry SDK — recommended)**:
 
 ```python
-from openai import OpenAI
+from azure.ai.projects import AIProjectClient
+from azure.identity import DefaultAzureCredential
 
-client = OpenAI(
-    base_url="https://RESOURCE.services.ai.azure.com/api/projects/PROJECT/openai/v1/",
-    api_key="YOUR_KEY"
+project = AIProjectClient(
+    endpoint="https://RESOURCE.services.ai.azure.com/api/projects/PROJECT",
+    credential=DefaultAzureCredential(),
 )
+client = project.get_openai_client()
 
 # Step 1: upload
 file = client.files.create(file=open("photo.jpg", "rb"), purpose="assistants")

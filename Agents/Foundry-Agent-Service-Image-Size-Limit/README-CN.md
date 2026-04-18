@@ -105,15 +105,17 @@ Agent Service: 2/9 通过（仅 body <64KB）。AOAI 直连: 9/9 全通过。
 
 保持 Foundry 项目端点不变 — 不丢失 agentic 层、Bing 连接器或 failover 逻辑。
 
-**Python (OpenAI SDK)**:
+**Python (Foundry SDK — 推荐)**:
 
 ```python
-from openai import OpenAI
+from azure.ai.projects import AIProjectClient
+from azure.identity import DefaultAzureCredential
 
-client = OpenAI(
-    base_url="https://RESOURCE.services.ai.azure.com/api/projects/PROJECT/openai/v1/",
-    api_key="YOUR_KEY"
+project = AIProjectClient(
+    endpoint="https://RESOURCE.services.ai.azure.com/api/projects/PROJECT",
+    credential=DefaultAzureCredential(),
 )
+client = project.get_openai_client()
 
 # Step 1: 上传
 file = client.files.create(file=open("photo.jpg", "rb"), purpose="assistants")
