@@ -110,7 +110,7 @@ Agent Service: 2/9 通过（仅 body <64KB）。AOAI 直连: 9/9 全通过。
 | 合成图 | 877 KB | FAIL 400 | **PASS** |
 | 合成图 | 2.2 MB | FAIL 400 | **PASS** |
 | 合成图 | 3.9 MB | FAIL 400 | **PASS** |
-| 合成图 | 7.9 MB | — | **PASS** |
+| 合成图 | 7.9 MB | FAIL 400 | **PASS** |
 | 真实照片 1 | 238 KB | FAIL 400 | **PASS** |
 | 真实照片 2 | 220 KB | FAIL 400 | **PASS** |
 

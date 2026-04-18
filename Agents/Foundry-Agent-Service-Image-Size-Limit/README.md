@@ -110,7 +110,7 @@ Upload image via `/openai/v1/files` (purpose=`assistants`), then reference `file
 | Synthetic | 877 KB | FAIL 400 | **PASS** |
 | Synthetic | 2.2 MB | FAIL 400 | **PASS** |
 | Synthetic | 3.9 MB | FAIL 400 | **PASS** |
-| Synthetic | 7.9 MB | — | **PASS** |
+| Synthetic | 7.9 MB | FAIL 400 | **PASS** |
 | Real photo 1 | 238 KB | FAIL 400 | **PASS** |
 | Real photo 2 | 220 KB | FAIL 400 | **PASS** |
 
