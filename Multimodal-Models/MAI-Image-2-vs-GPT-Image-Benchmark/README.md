@@ -1,5 +1,29 @@
 # MAI-Image-2 vs MAI-Image-2e vs GPT-Image-1.5: Azure AI Image Generation Benchmark
 
+## Executive Summary
+
+This benchmark compares three Azure image generation models across 5 configurations (11 prompts × 2 rounds = 110 API calls) with fairness controls (warmup, order reversal, symmetric wait). All models are in preview as of April 2026.
+
+**Model Profiles:**
+
+| | MAI-Image-2 | MAI-Image-2e | GPT-Image-1.5 |
+|---|:---:|:---:|:---:|
+| **Provider** | Microsoft AI (first-party) | Microsoft AI (first-party) | OpenAI via Azure |
+| **API** | `/mai/v1/` (dedicated) | `/mai/v1/` (dedicated) | `/openai/deployments/` (standard) |
+| **Quality control** | Single fixed tier | Single fixed tier | 3 tiers (low/med/high) |
+| **Avg latency** | 21.1s | 17.4s | 13.1s (low) / 21.3s (med) / 44.0s (high) |
+| **Output pricing** | USD 33/1M tokens | **USD 19.50/1M tokens** | USD 32/1M tokens |
+| **Image editing** | ❌ | ❌ | ✅ |
+| **Flexible resolution** | ✅ (768–1366px) | ✅ (768–1366px) | ❌ (3 fixed sizes) |
+| **Max prompt** | 32K tokens | 32K tokens | 4K characters |
+| **Status** | Preview | Preview | Preview |
+
+**Key takeaway:** GPT-Image-1.5 at `quality=low` is the fastest (13.1s) with competitive image quality. MAI-Image-2e offers the lowest output token price (USD 19.50/1M) and Microsoft first-party independence from OpenAI. MAI-Image-2 provides the smoothest photorealistic output but at the highest cost (USD 33/1M) with no speed advantage over GPT-medium. Choose based on your priority: speed → GPT-low, cost → MAI-2e, editing → GPT, first-party → MAI.
+
+> **Sources:** MAI API — [Microsoft Learn](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai?tabs=python) | MAI-Image-2 pricing — [Tech Community 2026-04-02](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-mai-transcribe-1-mai-voice-1-and-mai-image-2-in-microsoft-foundry/4507787) | MAI-Image-2e pricing — [Tech Community 2026-04-14](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-mai-image-2-efficient-faster-more-efficient-image-generation/4510918) | GPT-Image-1.5 pricing — [Azure OpenAI Pricing](https://azure.microsoft.com/en-us/pricing/details/cognitive-services/openai-service/)
+
+---
+
 A comprehensive latency benchmark comparing **5 configurations** of Azure image generation models: **MAI-Image-2**, **MAI-Image-2e** (Efficient), and **GPT-Image-1.5** at three quality levels (low / medium / high), using identical prompts and resolution.
 
 ## Key Results

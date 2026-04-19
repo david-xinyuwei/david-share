@@ -1,5 +1,29 @@
 # MAI-Image-2 vs MAI-Image-2e vs GPT-Image-1.5：Azure AI 图像生成基准测试
 
+## 概要总结
+
+本基准测试对比了 Azure 三款图像生成模型的 5 种配置（11 个提示词 × 2 轮 = 110 次 API 调用），采用公平性控制（预热、顺序翻转、对称等待）。截至 2026 年 4 月，所有模型均为 Preview 状态。
+
+**模型概况：**
+
+| | MAI-Image-2 | MAI-Image-2e | GPT-Image-1.5 |
+|---|:---:|:---:|:---:|
+| **供应商** | Microsoft AI（第一方） | Microsoft AI（第一方） | OpenAI via Azure |
+| **API** | `/mai/v1/`（专用） | `/mai/v1/`（专用） | `/openai/deployments/`（标准） |
+| **质量控制** | 固定单档 | 固定单档 | 3 档（low/med/high） |
+| **平均延迟** | 21.1s | 17.4s | 13.1s (low) / 21.3s (med) / 44.0s (high) |
+| **输出定价** | USD 33/1M tokens | **USD 19.50/1M tokens** | USD 32/1M tokens |
+| **图片编辑** | ❌ | ❌ | ✅ |
+| **灵活分辨率** | ✅（768–1366px） | ✅（768–1366px） | ❌（3 种固定尺寸） |
+| **最大提示词** | 32K tokens | 32K tokens | 4K 字符 |
+| **状态** | Preview | Preview | Preview |
+
+**核心结论：** GPT-Image-1.5 `quality=low` 速度最快（13.1s），图片质量已很高。MAI-Image-2e 输出 token 单价最低（USD 19.50/1M），且为微软第一方模型，不依赖 OpenAI。MAI-Image-2 提供最平滑的写实风格，但成本最高（USD 33/1M），速度无优势。选型建议：追求速度 → GPT-low，追求成本 → MAI-2e，需要编辑 → GPT，第一方独立 → MAI。
+
+> **来源：** MAI API — [Microsoft Learn](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai?tabs=python) | MAI-Image-2 定价 — [Tech Community 2026-04-02](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-mai-transcribe-1-mai-voice-1-and-mai-image-2-in-microsoft-foundry/4507787) | MAI-Image-2e 定价 — [Tech Community 2026-04-14](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-mai-image-2-efficient-faster-more-efficient-image-generation/4510918) | GPT-Image-1.5 定价 — [Azure OpenAI 定价](https://azure.microsoft.com/en-us/pricing/details/cognitive-services/openai-service/)
+
+---
+
 对 Azure 图像生成模型的 **5 种配置**进行综合延迟基准测试：**MAI-Image-2**、**MAI-Image-2e**（Efficient 效率版）和 **GPT-Image-1.5** 三个质量档位（low / medium / high），使用相同的提示词和分辨率。
 
 ## 核心结果
