@@ -338,7 +338,7 @@ MAI-Image-2 and MAI-Image-2e accept only 4 API parameters: `model`, `prompt`, `w
 | Maximum detail | GPT-Image-1.5 (high) | Most output tokens, but 46s |
 | Image editing / inpainting | GPT-Image-1.5 | MAI has no editing API |
 | Flexible aspect ratios | MAI-Image-2 / 2e | Any W×H within pixel budget |
-| Long prompts (>4K chars) | MAI-Image-2 / 2e | 32K token prompt support |
+| Long prompts (>4K tokens) | MAI-Image-2 / 2e | 32K token prompt support |
 | Lowest per-token price | MAI-Image-2e | USD 19.50/1M tokens (but ~USD 0.020/image vs GPT-low USD 0.015) |
 
 ## How to Reproduce

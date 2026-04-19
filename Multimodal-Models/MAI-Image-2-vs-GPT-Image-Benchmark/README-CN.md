@@ -338,7 +338,7 @@ MAI-Image-2 和 MAI-Image-2e 的 API 仅接受 4 个参数：`model`、`prompt`�
 | 最高画质细节 | GPT-Image-1.5 (high) | 输出 token 最多，但 46s |
 | 图片编辑/修复 | GPT-Image-1.5 | MAI 无编辑 API |
 | 灵活宽高比 | MAI-Image-2 / 2e | 像素预算内任意 W×H |
-| 长提示词（>4K 字符） | MAI-Image-2 / 2e | 支持 32K token 提示词 |
+| 长提示词（>4K tokens） | MAI-Image-2 / 2e | 支持 32K token 提示词 |
 | 最低 token 单价 | MAI-Image-2e | USD 19.50/1M tokens（但单张 ~USD 0.020 vs GPT-low USD 0.015） |
 
 ## 如何复现
