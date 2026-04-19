@@ -40,6 +40,8 @@ A comprehensive latency benchmark comparing **5 configurations** of Azure image 
 | GPT-Image-1.5 | medium | 22.8s | 1,473 | USD 0.047 | 22/22 |
 | GPT-Image-1.5 | high | 46.3s | 4,573 | USD 0.146 | 22/22 |
 
+> **Pass Rate** = successful API calls / total attempts (11 prompts × 2 rounds = 22 calls per model).
+>
 > *MAI-Image-2e API does not return output token count. Cost estimated using MAI-Image-2's fixed 1,024 tokens.
 >
 > - GPT-Image-1.5 (low) is the fastest (13.3s) **and** cheapest per image (USD 0.015).

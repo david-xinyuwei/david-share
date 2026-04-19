@@ -40,7 +40,9 @@
 | GPT-Image-1.5 | medium | 22.8s | 1,473 | USD 0.047 | 22/22 |
 | GPT-Image-1.5 | high | 46.3s | 4,573 | USD 0.146 | 22/22 |
 
-> - GPT-Image-1.5 (low) 速度最快（13.1s），比 MAI-Image-2e 快 33%。
+> **通过率**（Pass Rate）= API 调用成功次数 / 总调用次数（每个模型 11 个提示词 × 2 轮 = 22 次调用）。
+>
+> - GPT-Image-1.5 (low) 速度最快（13.3s），**且单张成本最低**（USD 0.015）。
 > - MAI-Image-2 ≈ GPT-Image-1.5 (medium) 延迟相当（~21s）。
 > - MAI 模型**没有 quality 参数** — 仅输出固定单一质量档位。
 
