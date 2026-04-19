@@ -15,7 +15,7 @@
 | **输出定价** | USD 33/1M tokens | **USD 19.50/1M tokens** | USD 32/1M tokens |
 | **图片编辑** | ❌ | ❌ | ✅ |
 | **灵活分辨率** | ✅（768–1366px） | ✅（768–1366px） | ❌（3 种固定尺寸） |
-| **最大提示词** | 32K tokens | 32K tokens | 4K 字符 |
+| **最大提示词** | 32K tokens | 32K tokens | 4K tokens |
 | **状态** | Preview | Preview | Preview |
 
 **核心结论：** GPT-Image-1.5 `quality=low` 速度最快（13.1s），图片质量已很高。MAI-Image-2e 输出 token 单价最低（USD 19.50/1M），且为微软第一方模型，不依赖 OpenAI。MAI-Image-2 提供最平滑的写实风格，但成本最高（USD 33/1M），速度无优势。选型建议：追求速度 → GPT-low，追求成本 → MAI-2e，需要编辑 → GPT，第一方独立 → MAI。
@@ -167,7 +167,7 @@ MAI-Image-2 和 MAI-Image-2e 的 API 仅接受 4 个参数：`model`、`prompt`�
 | 分辨率 | 灵活：W≥768, H≥768, W×H≤1,048,576 | 固定：1024×1024 / 1792×1024 / 1024×1792 |
 | 输出格式 | 仅 PNG | PNG / URL |
 | 输出数量 | 1（固定） | 1–10 |
-| 最大提示词 | 32,000 tokens | 4,000 字符 |
+| 最大提示词 | 32,000 tokens | 4,000 tokens |
 
 > **来源**：MAI 参数来自 [Microsoft Learn](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai?tabs=python)。GPT 参数来自 [Azure OpenAI 文档](https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/dall-e)。
 

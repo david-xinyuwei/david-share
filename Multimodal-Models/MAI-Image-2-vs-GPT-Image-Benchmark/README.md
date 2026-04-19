@@ -15,7 +15,7 @@ This benchmark compares three Azure image generation models across 5 configurati
 | **Output pricing** | USD 33/1M tokens | **USD 19.50/1M tokens** | USD 32/1M tokens |
 | **Image editing** | ❌ | ❌ | ✅ |
 | **Flexible resolution** | ✅ (768–1366px) | ✅ (768–1366px) | ❌ (3 fixed sizes) |
-| **Max prompt** | 32K tokens | 32K tokens | 4K characters |
+| **Max prompt** | 32K tokens | 32K tokens | 4K tokens |
 | **Status** | Preview | Preview | Preview |
 
 **Key takeaway:** GPT-Image-1.5 at `quality=low` is the fastest (13.1s) with competitive image quality. MAI-Image-2e offers the lowest output token price (USD 19.50/1M) and Microsoft first-party independence from OpenAI. MAI-Image-2 provides the smoothest photorealistic output but at the highest cost (USD 33/1M) with no speed advantage over GPT-medium. Choose based on your priority: speed → GPT-low, cost → MAI-2e, editing → GPT, first-party → MAI.
@@ -167,7 +167,7 @@ MAI-Image-2 and MAI-Image-2e accept only 4 API parameters: `model`, `prompt`, `w
 | Resolution | Flexible: W≥768, H≥768, W×H≤1,048,576 | Fixed: 1024×1024 / 1792×1024 / 1024×1792 |
 | Output format | PNG only | PNG / URL |
 | Output count | 1 (fixed) | 1–10 |
-| Max prompt | 32,000 tokens | 4,000 characters |
+| Max prompt | 32,000 tokens | 4,000 tokens |
 
 > **Source**: MAI parameters from [Microsoft Learn](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai?tabs=python). GPT parameters from [Azure OpenAI docs](https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/dall-e).
 
