@@ -64,15 +64,71 @@ MAI-Image-2 和 MAI-Image-2e 的 API 仅接受 4 个参数：`model`、`prompt`�
 
 ## 并排图片对比
 
-详见英文版 README.md 中的完整 11 组 × 5 模型并排图片。每组图片路径：
+### Test 1: 金属和服少女
 
-```
-images/mai-image-2/{01-11}_test.png
-images/mai-image-2e/{01-11}_test.png
-images/gpt-image-1.5-low/{01-11}_test.png
-images/gpt-image-1.5-medium/{01-11}_test.png
-images/gpt-image-1.5-high/{01-11}_test.png
-```
+| MAI-Image-2 (20.5s) | MAI-Image-2e (17.8s) | GPT-1.5 low (13.8s) | GPT-1.5 med (19.9s) | GPT-1.5 high (45.7s) |
+|:---:|:---:|:---:|:---:|:---:|
+| ![](images/mai-image-2/01_test.png) | ![](images/mai-image-2e/01_test.png) | ![](images/gpt-image-1.5-low/01_test.png) | ![](images/gpt-image-1.5-medium/01_test.png) | ![](images/gpt-image-1.5-high/01_test.png) |
+
+### Test 2: 森林传送门
+
+| MAI-Image-2 (20.9s) | MAI-Image-2e (17.3s) | GPT-1.5 low (13.3s) | GPT-1.5 med (21.0s) | GPT-1.5 high (43.8s) |
+|:---:|:---:|:---:|:---:|:---:|
+| ![](images/mai-image-2/02_test.png) | ![](images/mai-image-2e/02_test.png) | ![](images/gpt-image-1.5-low/02_test.png) | ![](images/gpt-image-1.5-medium/02_test.png) | ![](images/gpt-image-1.5-high/02_test.png) |
+
+### Test 3: 月球宇航员
+
+| MAI-Image-2 (19.7s) | MAI-Image-2e (17.3s) | GPT-1.5 low (12.6s) | GPT-1.5 med (20.3s) | GPT-1.5 high (40.4s) |
+|:---:|:---:|:---:|:---:|:---:|
+| ![](images/mai-image-2/03_test.png) | ![](images/mai-image-2e/03_test.png) | ![](images/gpt-image-1.5-low/03_test.png) | ![](images/gpt-image-1.5-medium/03_test.png) | ![](images/gpt-image-1.5-high/03_test.png) |
+
+### Test 4: LOTR 小红龙
+
+| MAI-Image-2 (21.2s) | MAI-Image-2e (17.2s) | GPT-1.5 low (11.7s) | GPT-1.5 med (20.8s) | GPT-1.5 high (41.4s) |
+|:---:|:---:|:---:|:---:|:---:|
+| ![](images/mai-image-2/04_test.png) | ![](images/mai-image-2e/04_test.png) | ![](images/gpt-image-1.5-low/04_test.png) | ![](images/gpt-image-1.5-medium/04_test.png) | ![](images/gpt-image-1.5-high/04_test.png) |
+
+### Test 5: 梦幻生物
+
+| MAI-Image-2 (20.8s) | MAI-Image-2e (16.5s) | GPT-1.5 low (12.3s) | GPT-1.5 med (21.6s) | GPT-1.5 high (44.4s) |
+|:---:|:---:|:---:|:---:|:---:|
+| ![](images/mai-image-2/05_test.png) | ![](images/mai-image-2e/05_test.png) | ![](images/gpt-image-1.5-low/05_test.png) | ![](images/gpt-image-1.5-medium/05_test.png) | ![](images/gpt-image-1.5-high/05_test.png) |
+
+### Test 6: 丛林天坑
+
+| MAI-Image-2 (22.0s) | MAI-Image-2e (19.2s) | GPT-1.5 low (13.2s) | GPT-1.5 med (22.7s) | GPT-1.5 high (42.2s) |
+|:---:|:---:|:---:|:---:|:---:|
+| ![](images/mai-image-2/06_test.png) | ![](images/mai-image-2e/06_test.png) | ![](images/gpt-image-1.5-low/06_test.png) | ![](images/gpt-image-1.5-medium/06_test.png) | ![](images/gpt-image-1.5-high/06_test.png) |
+
+### Test 7: 科技少女
+
+| MAI-Image-2 (20.7s) | MAI-Image-2e (17.4s) | GPT-1.5 low (12.8s) | GPT-1.5 med (21.4s) | GPT-1.5 high (46.1s) |
+|:---:|:---:|:---:|:---:|:---:|
+| ![](images/mai-image-2/07_test.png) | ![](images/mai-image-2e/07_test.png) | ![](images/gpt-image-1.5-low/07_test.png) | ![](images/gpt-image-1.5-medium/07_test.png) | ![](images/gpt-image-1.5-high/07_test.png) |
+
+### Test 8: 迷幻宇宙
+
+| MAI-Image-2 (23.2s) | MAI-Image-2e (19.4s) | GPT-1.5 low (15.2s) | GPT-1.5 med (23.8s) | GPT-1.5 high (47.1s) |
+|:---:|:---:|:---:|:---:|:---:|
+| ![](images/mai-image-2/08_test.png) | ![](images/mai-image-2e/08_test.png) | ![](images/gpt-image-1.5-low/08_test.png) | ![](images/gpt-image-1.5-medium/08_test.png) | ![](images/gpt-image-1.5-high/08_test.png) |
+
+### Test 9: 分形生物
+
+| MAI-Image-2 (23.1s) | MAI-Image-2e (17.0s) | GPT-1.5 low (13.2s) | GPT-1.5 med (20.4s) | GPT-1.5 high (44.6s) |
+|:---:|:---:|:---:|:---:|:---:|
+| ![](images/mai-image-2/09_test.png) | ![](images/mai-image-2e/09_test.png) | ![](images/gpt-image-1.5-low/09_test.png) | ![](images/gpt-image-1.5-medium/09_test.png) | ![](images/gpt-image-1.5-high/09_test.png) |
+
+### Test 10: 愤怒猫鼓手
+
+| MAI-Image-2 (20.5s) | MAI-Image-2e (15.9s) | GPT-1.5 low (12.8s) | GPT-1.5 med (21.0s) | GPT-1.5 high (44.5s) |
+|:---:|:---:|:---:|:---:|:---:|
+| ![](images/mai-image-2/10_test.png) | ![](images/mai-image-2e/10_test.png) | ![](images/gpt-image-1.5-low/10_test.png) | ![](images/gpt-image-1.5-medium/10_test.png) | ![](images/gpt-image-1.5-high/10_test.png) |
+
+### Test 11: 猴子音乐家
+
+| MAI-Image-2 (19.1s) | MAI-Image-2e (16.6s) | GPT-1.5 low (13.1s) | GPT-1.5 med (21.7s) | GPT-1.5 high (44.0s) |
+|:---:|:---:|:---:|:---:|:---:|
+| ![](images/mai-image-2/11_test.png) | ![](images/mai-image-2e/11_test.png) | ![](images/gpt-image-1.5-low/11_test.png) | ![](images/gpt-image-1.5-medium/11_test.png) | ![](images/gpt-image-1.5-high/11_test.png) |
 
 ## API 对比
 
