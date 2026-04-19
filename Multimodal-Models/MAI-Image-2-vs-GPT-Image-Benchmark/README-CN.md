@@ -42,6 +42,8 @@
 
 > **通过率**（Pass Rate）= API 调用成功次数 / 总调用次数（每个模型 11 个提示词 × 2 轮 = 22 次调用）。
 >
+> *MAI-Image-2e 的 API 不返回 output token 数。成本按 MAI-Image-2 的固定 1,024 tokens 估算。
+>
 > - GPT-Image-1.5 (low) 速度最快（13.3s），**且单张成本最低**（USD 0.015）。
 > - MAI-Image-2 ≈ GPT-Image-1.5 (medium) 延迟相当（~21s）。
 > - MAI 模型**没有 quality 参数** — 仅输出固定单一质量档位。
