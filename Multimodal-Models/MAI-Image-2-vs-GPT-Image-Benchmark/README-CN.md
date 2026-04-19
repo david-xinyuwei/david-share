@@ -333,9 +333,9 @@ MAI-Image-2 和 MAI-Image-2e 的 API 仅接受 4 个参数：`model`、`prompt`�
 
 | 使用场景 | 推荐 | 原因 |
 |----------|:----:|------|
-| 最快生成速度 | GPT-Image-1.5 (low) | 平均 13.1s |
-| 速度 + 微软第一方 | MAI-Image-2e | 17.4s，不依赖 OpenAI |
-| 最高画质细节 | GPT-Image-1.5 (high) | 输出 token 最多，但 44s |
+| 最快生成速度 | GPT-Image-1.5 (low) | 平均 13.3s，USD 0.015/张 |
+| 速度 + 微软第一方 | MAI-Image-2e | 17.2s，不依赖 OpenAI |
+| 最高画质细节 | GPT-Image-1.5 (high) | 输出 token 最多，但 46s |
 | 图片编辑/修复 | GPT-Image-1.5 | MAI 无编辑 API |
 | 灵活宽高比 | MAI-Image-2 / 2e | 像素预算内任意 W×H |
 | 长提示词（>4K 字符） | MAI-Image-2 / 2e | 支持 32K token 提示词 |
@@ -356,9 +356,9 @@ MAI-Image-2 和 MAI-Image-2e 的 API 仅接受 4 个参数：`model`、`prompt`�
 git clone https://github.com/david-share/Multimodal-Models.git
 cd Multimodal-Models/MAI-Image-2-vs-GPT-Image-Benchmark
 
-# 编辑 scripts/benchmark_5way.py — 设置你的端点和凭据
+# 编辑 scripts/benchmark_5way_v2.py — 设置你的端点和凭据
 pip install requests
-python scripts/benchmark_5way.py
+python scripts/benchmark_5way_v2.py
 ```
 
 ## 仓库结构
@@ -369,13 +369,21 @@ python scripts/benchmark_5way.py
 ├── README-CN.md                         # 中文版（本文件）
 ├── prompts.csv                          # 11 个 Surreal 风格测试提示词
 ├── data/
-│   └── 5way_benchmark_results.json      # 原始基准测试数据
+│   └── 5way_v2_results.json           # 原始测试数据（V2，含 token 用量）
 ├── scripts/
-│   └── benchmark_5way.py                # 5 组基准测试脚本
+│   └── benchmark_5way_v2.py           # 5 组基准测试脚本（V2）
 └── images/
     ├── mai-image-2/                     # 11 张图片
     ├── mai-image-2e/                    # 11 张图片
     ├── gpt-image-1.5-low/              # 11 张图片
-    ├── gpt-image-1.5-medium/           # 11 张图片
-    └── gpt-image-1.5-high/             # 11 张图片
+    ├── gpt-image-1.5-medium/           # 每个模型含 r1/ 和 r2/ 子目录
+    └── gpt-image-1.5-high/             # 每个模型含 r1/ 和 r2/ 子目录
 ```
+
+## 已知局限性
+
+- **样本量**：仅 11 个提示词（Surreal 风格）。不同提示词类型（如产品摄影、图表、文字渲染）结果可能不同。
+- **单一分辨率**：全部测试在 1024×1024。其他分辨率下延迟和成本可能不同。
+- **2 轮测试**：每个数据点仅 N=2，统计力有限。两轮间方差 <6%，趋势一致。
+- **Preview 模型**：截至 2026 年 4 月所有模型均为 Preview 状态，性能和定价可能在 GA 时变化。
+- **区域**：仅从 East US 测试，其他区域延迟可能不同。

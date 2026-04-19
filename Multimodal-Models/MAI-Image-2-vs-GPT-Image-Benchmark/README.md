@@ -333,9 +333,9 @@ MAI-Image-2 and MAI-Image-2e accept only 4 API parameters: `model`, `prompt`, `w
 
 | Use Case | Recommended | Why |
 |----------|:-----------:|-----|
-| Fastest generation | GPT-Image-1.5 (low) | 13.1s avg latency |
-| Speed + Microsoft first-party | MAI-Image-2e | 17.4s, no OpenAI dependency |
-| Maximum detail | GPT-Image-1.5 (high) | Most output tokens, but 44s |
+| Fastest generation | GPT-Image-1.5 (low) | 13.3s avg, USD 0.015/image |
+| Speed + Microsoft first-party | MAI-Image-2e | 17.2s, no OpenAI dependency |
+| Maximum detail | GPT-Image-1.5 (high) | Most output tokens, but 46s |
 | Image editing / inpainting | GPT-Image-1.5 | MAI has no editing API |
 | Flexible aspect ratios | MAI-Image-2 / 2e | Any W×H within pixel budget |
 | Long prompts (>4K chars) | MAI-Image-2 / 2e | 32K token prompt support |
@@ -356,9 +356,9 @@ MAI-Image-2 and MAI-Image-2e accept only 4 API parameters: `model`, `prompt`, `w
 git clone https://github.com/david-share/Multimodal-Models.git
 cd Multimodal-Models/MAI-Image-2-vs-GPT-Image-Benchmark
 
-# Edit scripts/benchmark_5way.py — set your endpoints and credentials
+# Edit scripts/benchmark_5way_v2.py — set your endpoints and credentials
 pip install requests
-python scripts/benchmark_5way.py
+python scripts/benchmark_5way_v2.py
 ```
 
 ## Repository Structure
@@ -369,13 +369,21 @@ python scripts/benchmark_5way.py
 ├── README-CN.md
 ├── prompts.csv                          # 11 Surreal-style test prompts
 ├── data/
-│   └── 5way_benchmark_results.json      # Raw benchmark data
+│   └── 5way_v2_results.json           # Raw benchmark data (V2, with token usage)
 ├── scripts/
-│   └── benchmark_5way.py                # 5-way benchmark script
+│   └── benchmark_5way_v2.py           # 5-way benchmark script (V2)
 └── images/
     ├── mai-image-2/                     # 11 images
     ├── mai-image-2e/                    # 11 images
     ├── gpt-image-1.5-low/              # 11 images
-    ├── gpt-image-1.5-medium/           # 11 images
-    └── gpt-image-1.5-high/             # 11 images
+    ├── gpt-image-1.5-medium/           # r1/ and r2/ per round
+    └── gpt-image-1.5-high/             # r1/ and r2/ per round
 ```
+
+## Known Limitations
+
+- **Sample size**: 11 prompts (Surreal style only). Results may vary with different prompt types (e.g., product photography, diagrams, text rendering).
+- **Single resolution**: All tests at 1024×1024. Latency and cost may differ at other resolutions.
+- **2 rounds**: Statistical power is limited with N=2 per data point. Trends are consistent across rounds (<6% variance) but a larger N would strengthen confidence.
+- **Preview models**: All models are in Preview as of April 2026. Performance and pricing may change at GA.
+- **Region**: Tested from East US only. Latency may vary by region.
