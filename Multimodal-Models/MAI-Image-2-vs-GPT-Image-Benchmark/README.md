@@ -1,185 +1,211 @@
-# MAI-Image-2 vs GPT-Image-1.5: Azure AI Image Generation Benchmark
+# MAI-Image-2 vs MAI-Image-2e vs GPT-Image-1.5: Azure AI Image Generation Benchmark
 
-A fair, head-to-head latency benchmark comparing **MAI-Image-2** and **GPT-Image-1.5** on Azure, using identical prompts, resolution, quality settings, and testing environment.
+A comprehensive latency benchmark comparing **5 configurations** of Azure image generation models: **MAI-Image-2**, **MAI-Image-2e** (Efficient), and **GPT-Image-1.5** at three quality levels (low / medium / high), using identical prompts and resolution.
 
 ## Key Results
 
-| Metric | MAI-Image-2 | GPT-Image-1.5 | Difference |
-|--------|:-----------:|:-------------:|:----------:|
-| Pass Rate | 11/11 (100%) | 11/11 (100%) | Tie |
-| **Avg Latency** | **22.7s** | **46.7s** | **MAI 2.1x faster** |
-| Latency Range | 20.0s – 32.7s | 43.3s – 49.2s | MAI more stable |
-| Resolution | 1024x1024 RGB | 1024x1024 RGB | Identical |
-| Quality | high | high | Identical |
+| Model | Quality | Avg Latency | Avg File Size | Pass Rate |
+|-------|:-------:|:-----------:|:-------------:|:---------:|
+| GPT-Image-1.5 | low | **13.1s** | 1,772 KB | 22/22 |
+| MAI-Image-2e | N/A (single tier) | **17.4s** | 1,631 KB | 22/22 |
+| MAI-Image-2 | N/A (single tier) | **21.1s** | 1,575 KB | 22/22 |
+| GPT-Image-1.5 | medium | 21.3s | 1,936 KB | 22/22 |
+| GPT-Image-1.5 | high | 44.0s | 2,075 KB | 22/22 |
 
-> MAI-Image-2 is consistently **2.1x faster** than GPT-Image-1.5 across all 11 test prompts, with no exceptions.
+> - GPT-Image-1.5 (low) is the fastest at 13.1s — 33% faster than MAI-Image-2e.
+> - MAI-Image-2 ≈ GPT-Image-1.5 (medium) in latency (~21s).
+> - MAI models have **no quality parameter** — they output a single, fixed quality tier.
 
-## Fair Comparison: 7-Dimension Alignment
+## Fair Comparison Design
 
-To ensure a valid comparison, we aligned **all controllable variables** and only varied the model:
+### Alignment Dimensions
 
-| Dimension | MAI-Image-2 | GPT-Image-1.5 | Aligned |
-|-----------|:-----------:|:-------------:|:-------:|
-| Prompt | 11 Surreal-style prompts | Same 11 prompts | ✅ |
-| Resolution | 1024×1024 | 1024×1024 | ✅ |
-| Quality | `high` (explicit) | `high` (explicit) | ✅ |
-| Output Format | PNG 8-bit RGB | PNG 8-bit RGB | ✅ |
-| Network | Same VM (East US) | Same VM (East US) | ✅ |
-| Test Date | 2026-04-03 | 2026-04-03 | ✅ |
-| **Model (Variable)** | MAI-Image-2 | gpt-image-1.5 | 🔀 |
+| Dimension | All 5 Groups | Status |
+|-----------|:------------:|:------:|
+| Prompt | Same 11 Surreal-style prompts | ✅ Aligned |
+| Resolution | 1024×1024 | ✅ Aligned |
+| Output Format | PNG (b64_json) | ✅ Aligned |
+| Network | Same machine (East US) | ✅ Aligned |
+| Test Date | 2026-04-19 | ✅ Aligned |
+| Warmup | 1 throwaway request per group | ✅ Aligned |
+| Inter-call Wait | 5s between every API call (symmetric) | ✅ Aligned |
+| **Quality** | MAI: not applicable / GPT: low, medium, high | 🔀 **Difference** |
+| **Model** | MAI-Image-2 / MAI-Image-2e / GPT-Image-1.5 | 🔀 Variable |
 
-Both models ran in the same script (`fair_comparison_r2.py`), alternating per prompt to minimize network/time bias.
+### Why Quality Is a Difference, Not an Alignment
+
+MAI-Image-2 and MAI-Image-2e accept only 4 API parameters: `model`, `prompt`, `width`, `height`. **There is no `quality` parameter** ([source](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai?tabs=python)). GPT-Image-1.5 supports `quality` with values `low`, `medium`, `high`, which controls the number of output image tokens (more tokens = more detail = slower). To fairly assess where MAI's fixed quality falls relative to GPT's tiers, we test GPT at all three levels.
+
+### Fairness Controls
+
+- **Warmup**: 1 throwaway request per model/quality group before timing starts
+- **Order reversal**: Round 1 runs groups A→E, Round 2 runs E→A
+- **Symmetric wait**: 5s between every API call regardless of model
+- **2 rounds**: Each data point is the average of 2 measurements
 
 ## Per-Prompt Latency Comparison
 
-| # | Prompt | MAI-Image-2 | GPT-Image-1.5 | Speedup |
-|:-:|:-------|:-----------:|:-------------:|:-------:|
-| 1 | Chrome kimono metallic maiden | 22.2s | 49.0s | 2.2x |
-| 2 | Portal into mythical forest | 20.4s | 47.8s | 2.3x |
-| 3 | Tiny astronaut hatching on moon | 20.6s | 49.2s | 2.4x |
-| 4 | LOTR tiny red dragon macro | 20.0s | 43.6s | 2.2x |
-| 5 | Fluffy creature fantasy | 20.3s | 48.3s | 2.4x |
-| 6 | Hidden jungle cenote | 24.9s | 46.2s | 1.9x |
-| 7 | Tech-savvy girl holographic UI | 32.7s | 46.7s | 1.4x |
-| 8 | Universe fractal worlds | 24.6s | 48.2s | 2.0x |
-| 9 | Fractal mythical creature | 21.7s | 43.3s | 2.0x |
-| 10 | Angry cat playing drums | 21.4s | 43.9s | 2.0x |
-| 11 | Monkey playing music | 20.5s | 47.0s | 2.3x |
-| **AVG** | | **22.7s** | **46.7s** | **2.1x** |
+| # | Prompt | MAI-2 | MAI-2e | GPT low | GPT med | GPT high |
+|:-:|:-------|:-----:|:------:|:-------:|:-------:|:--------:|
+| 1 | Chrome kimono metallic maiden | 20.5s | 17.8s | 13.8s | 19.9s | 45.7s |
+| 2 | Portal into mythical forest | 20.9s | 17.3s | 13.3s | 21.0s | 43.8s |
+| 3 | Tiny astronaut hatching on moon | 19.7s | 17.3s | 12.6s | 20.3s | 40.4s |
+| 4 | LOTR tiny red dragon macro | 21.2s | 17.2s | 11.7s | 20.8s | 41.4s |
+| 5 | Fluffy creature fantasy | 20.8s | 16.5s | 12.3s | 21.6s | 44.4s |
+| 6 | Hidden jungle cenote | 22.0s | 19.2s | 13.2s | 22.7s | 42.2s |
+| 7 | Tech-savvy girl holographic UI | 20.7s | 17.4s | 12.8s | 21.4s | 46.1s |
+| 8 | Universe fractal worlds | 23.2s | 19.4s | 15.2s | 23.8s | 47.1s |
+| 9 | Fractal mythical creature | 23.1s | 17.0s | 13.2s | 20.4s | 44.6s |
+| 10 | Angry cat playing drums | 20.5s | 15.9s | 12.8s | 21.0s | 44.5s |
+| 11 | Monkey playing music | 19.1s | 16.6s | 13.1s | 21.7s | 44.0s |
+| **AVG** | | **21.1s** | **17.4s** | **13.1s** | **21.3s** | **44.0s** |
+
+> Each cell is the average of 2 rounds. Round 1 order: A→E. Round 2 order: E→A (reversed).
 
 ## Side-by-Side Image Comparison
 
 ### Test 1: Chrome Kimono Metallic Maiden
 
-| MAI-Image-2 (22.2s) | GPT-Image-1.5 (49.0s) |
-|:---:|:---:|
-| ![MAI](images/mai-image-2/01_test.png) | ![GPT](images/gpt-image-1.5/01_test.png) |
+| MAI-Image-2 (20.5s) | MAI-Image-2e (17.8s) | GPT-1.5 low (13.8s) | GPT-1.5 med (19.9s) | GPT-1.5 high (45.7s) |
+|:---:|:---:|:---:|:---:|:---:|
+| ![](images/mai-image-2/01_test.png) | ![](images/mai-image-2e/01_test.png) | ![](images/gpt-image-1.5-low/01_test.png) | ![](images/gpt-image-1.5-medium/01_test.png) | ![](images/gpt-image-1.5-high/01_test.png) |
 
 ### Test 2: Portal into Mythical Forest
 
-| MAI-Image-2 (20.4s) | GPT-Image-1.5 (47.8s) |
-|:---:|:---:|
-| ![MAI](images/mai-image-2/02_test.png) | ![GPT](images/gpt-image-1.5/02_test.png) |
+| MAI-Image-2 (20.9s) | MAI-Image-2e (17.3s) | GPT-1.5 low (13.3s) | GPT-1.5 med (21.0s) | GPT-1.5 high (43.8s) |
+|:---:|:---:|:---:|:---:|:---:|
+| ![](images/mai-image-2/02_test.png) | ![](images/mai-image-2e/02_test.png) | ![](images/gpt-image-1.5-low/02_test.png) | ![](images/gpt-image-1.5-medium/02_test.png) | ![](images/gpt-image-1.5-high/02_test.png) |
 
 ### Test 3: Tiny Astronaut on Moon
 
-| MAI-Image-2 (20.6s) | GPT-Image-1.5 (49.2s) |
-|:---:|:---:|
-| ![MAI](images/mai-image-2/03_test.png) | ![GPT](images/gpt-image-1.5/03_test.png) |
+| MAI-Image-2 (19.7s) | MAI-Image-2e (17.3s) | GPT-1.5 low (12.6s) | GPT-1.5 med (20.3s) | GPT-1.5 high (40.4s) |
+|:---:|:---:|:---:|:---:|:---:|
+| ![](images/mai-image-2/03_test.png) | ![](images/mai-image-2e/03_test.png) | ![](images/gpt-image-1.5-low/03_test.png) | ![](images/gpt-image-1.5-medium/03_test.png) | ![](images/gpt-image-1.5-high/03_test.png) |
 
 ### Test 4: LOTR Tiny Red Dragon
 
-| MAI-Image-2 (20.0s) | GPT-Image-1.5 (43.6s) |
-|:---:|:---:|
-| ![MAI](images/mai-image-2/04_test.png) | ![GPT](images/gpt-image-1.5/04_test.png) |
+| MAI-Image-2 (21.2s) | MAI-Image-2e (17.2s) | GPT-1.5 low (11.7s) | GPT-1.5 med (20.8s) | GPT-1.5 high (41.4s) |
+|:---:|:---:|:---:|:---:|:---:|
+| ![](images/mai-image-2/04_test.png) | ![](images/mai-image-2e/04_test.png) | ![](images/gpt-image-1.5-low/04_test.png) | ![](images/gpt-image-1.5-medium/04_test.png) | ![](images/gpt-image-1.5-high/04_test.png) |
 
 ### Test 5: Fluffy Fantasy Creature
 
-| MAI-Image-2 (20.3s) | GPT-Image-1.5 (48.3s) |
-|:---:|:---:|
-| ![MAI](images/mai-image-2/05_test.png) | ![GPT](images/gpt-image-1.5/05_test.png) |
+| MAI-Image-2 (20.8s) | MAI-Image-2e (16.5s) | GPT-1.5 low (12.3s) | GPT-1.5 med (21.6s) | GPT-1.5 high (44.4s) |
+|:---:|:---:|:---:|:---:|:---:|
+| ![](images/mai-image-2/05_test.png) | ![](images/mai-image-2e/05_test.png) | ![](images/gpt-image-1.5-low/05_test.png) | ![](images/gpt-image-1.5-medium/05_test.png) | ![](images/gpt-image-1.5-high/05_test.png) |
 
 ### Test 6: Hidden Jungle Cenote
 
-| MAI-Image-2 (24.9s) | GPT-Image-1.5 (46.2s) |
-|:---:|:---:|
-| ![MAI](images/mai-image-2/06_test.png) | ![GPT](images/gpt-image-1.5/06_test.png) |
+| MAI-Image-2 (22.0s) | MAI-Image-2e (19.2s) | GPT-1.5 low (13.2s) | GPT-1.5 med (22.7s) | GPT-1.5 high (42.2s) |
+|:---:|:---:|:---:|:---:|:---:|
+| ![](images/mai-image-2/06_test.png) | ![](images/mai-image-2e/06_test.png) | ![](images/gpt-image-1.5-low/06_test.png) | ![](images/gpt-image-1.5-medium/06_test.png) | ![](images/gpt-image-1.5-high/06_test.png) |
 
 ### Test 7: Tech-Savvy Girl with Holographic UI
 
-| MAI-Image-2 (32.7s) | GPT-Image-1.5 (46.7s) |
-|:---:|:---:|
-| ![MAI](images/mai-image-2/07_test.png) | ![GPT](images/gpt-image-1.5/07_test.png) |
+| MAI-Image-2 (20.7s) | MAI-Image-2e (17.4s) | GPT-1.5 low (12.8s) | GPT-1.5 med (21.4s) | GPT-1.5 high (46.1s) |
+|:---:|:---:|:---:|:---:|:---:|
+| ![](images/mai-image-2/07_test.png) | ![](images/mai-image-2e/07_test.png) | ![](images/gpt-image-1.5-low/07_test.png) | ![](images/gpt-image-1.5-medium/07_test.png) | ![](images/gpt-image-1.5-high/07_test.png) |
 
 ### Test 8: Universe Fractal Worlds
 
-| MAI-Image-2 (24.6s) | GPT-Image-1.5 (48.2s) |
-|:---:|:---:|
-| ![MAI](images/mai-image-2/08_test.png) | ![GPT](images/gpt-image-1.5/08_test.png) |
+| MAI-Image-2 (23.2s) | MAI-Image-2e (19.4s) | GPT-1.5 low (15.2s) | GPT-1.5 med (23.8s) | GPT-1.5 high (47.1s) |
+|:---:|:---:|:---:|:---:|:---:|
+| ![](images/mai-image-2/08_test.png) | ![](images/mai-image-2e/08_test.png) | ![](images/gpt-image-1.5-low/08_test.png) | ![](images/gpt-image-1.5-medium/08_test.png) | ![](images/gpt-image-1.5-high/08_test.png) |
 
 ### Test 9: Fractal Mythical Creature
 
-| MAI-Image-2 (21.7s) | GPT-Image-1.5 (43.3s) |
-|:---:|:---:|
-| ![MAI](images/mai-image-2/09_test.png) | ![GPT](images/gpt-image-1.5/09_test.png) |
+| MAI-Image-2 (23.1s) | MAI-Image-2e (17.0s) | GPT-1.5 low (13.2s) | GPT-1.5 med (20.4s) | GPT-1.5 high (44.6s) |
+|:---:|:---:|:---:|:---:|:---:|
+| ![](images/mai-image-2/09_test.png) | ![](images/mai-image-2e/09_test.png) | ![](images/gpt-image-1.5-low/09_test.png) | ![](images/gpt-image-1.5-medium/09_test.png) | ![](images/gpt-image-1.5-high/09_test.png) |
 
 ### Test 10: Angry Cat Playing Drums
 
-| MAI-Image-2 (21.4s) | GPT-Image-1.5 (43.9s) |
-|:---:|:---:|
-| ![MAI](images/mai-image-2/10_test.png) | ![GPT](images/gpt-image-1.5/10_test.png) |
+| MAI-Image-2 (20.5s) | MAI-Image-2e (15.9s) | GPT-1.5 low (12.8s) | GPT-1.5 med (21.0s) | GPT-1.5 high (44.5s) |
+|:---:|:---:|:---:|:---:|:---:|
+| ![](images/mai-image-2/10_test.png) | ![](images/mai-image-2e/10_test.png) | ![](images/gpt-image-1.5-low/10_test.png) | ![](images/gpt-image-1.5-medium/10_test.png) | ![](images/gpt-image-1.5-high/10_test.png) |
 
 ### Test 11: Monkey Playing Music
 
-| MAI-Image-2 (20.5s) | GPT-Image-1.5 (47.0s) |
-|:---:|:---:|
-| ![MAI](images/mai-image-2/11_test.png) | ![GPT](images/gpt-image-1.5/11_test.png) |
+| MAI-Image-2 (19.1s) | MAI-Image-2e (16.6s) | GPT-1.5 low (13.1s) | GPT-1.5 med (21.7s) | GPT-1.5 high (44.0s) |
+|:---:|:---:|:---:|:---:|:---:|
+| ![](images/mai-image-2/11_test.png) | ![](images/mai-image-2e/11_test.png) | ![](images/gpt-image-1.5-low/11_test.png) | ![](images/gpt-image-1.5-medium/11_test.png) | ![](images/gpt-image-1.5-high/11_test.png) |
 
-## API Differences
+## API Comparison
 
-| Feature | MAI-Image-2 | GPT-Image-1.5 |
-|---------|:-----------:|:-------------:|
+### Request Parameters
+
+| Feature | MAI-Image-2 / MAI-Image-2e | GPT-Image-1.5 |
+|---------|:---------------------------:|:-------------:|
 | API Path | `/mai/v1/images/generations` | `/openai/deployments/{name}/images/generations` |
-| Auth | **Entra ID only** | Key + Entra ID |
-| Size Param | `width` / `height` (integers) | `size` (string, e.g. `"1024x1024"`) |
-| Model Param | Required (`"MAI-Image-2"`) | Not needed (in deployment) |
-| Quality Param | `low` / `medium` / `high` | `low` / `medium` / `high` |
-| Pixel Resolution | 1024x1024 | 1024x1024 |
-| Output Format | PNG 8-bit RGB | PNG 8-bit RGB |
+| Auth | Entra ID + API Key | API Key + Entra ID |
+| Parameters | `model`, `prompt`, `width`, `height` | `prompt`, `n`, `size`, `quality` |
+| Quality control | **Not available** (single fixed tier) | `low` / `medium` / `high` |
+| Resolution | Flexible: W≥768, H≥768, W×H≤1,048,576 | Fixed: 1024×1024 / 1792×1024 / 1024×1792 |
+| Output format | PNG only | PNG / URL |
+| Output count | 1 (fixed) | 1–10 |
+| Max prompt | 32,000 tokens | 4,000 characters |
+
+> **Source**: MAI parameters from [Microsoft Learn](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai?tabs=python). GPT parameters from [Azure OpenAI docs](https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/dall-e).
 
 ### Capability Comparison
 
-| Capability | MAI-Image-2 | GPT-Image-1.5 |
-|---|:---:|:---:|
-| Text-to-image (text→image) | ✅ | ✅ |
-| Image editing (image→image with prompt) | ❌ | ✅ (via `/images/edits`) |
-| Inpainting (mask + prompt) | ❌ | ✅ |
-| Max prompt length | 32,000 tokens | 4,000 characters |
-| Output count per request | 1 (fixed) | 1–10 |
-| Output format options | PNG only | PNG / URL |
-| Flexible aspect ratio | ✅ (any W×H ≤ 1,048,576, min 768px each) | Fixed sizes only (1024×1024 / 1792×1024 / 1024×1792) |
-| Auth | Entra ID only | API Key + Entra ID |
+| Capability | MAI-Image-2 | MAI-Image-2e | GPT-Image-1.5 |
+|---|:---:|:---:|:---:|
+| Text-to-image | ✅ | ✅ | ✅ |
+| Image editing | ❌ | ❌ | ✅ |
+| Inpainting | ❌ | ❌ | ✅ |
+| Flexible aspect ratio | ✅ | ✅ | ❌ (fixed sizes) |
+| Quality tiers | ❌ (single tier) | ❌ (single tier) | ✅ (low/med/high) |
 
-### MAI-Image-2 Limitations (as of 2026-04)
+### Pricing
 
-- **No image editing**: API only has `/mai/v1/images/generations`. No `/images/edits` or `/images/variations` endpoint.
-- **Preview status**: Not recommended for production.
-- **Region availability**: 6 regions only (West Central US, East US, West US, West Europe, Sweden Central, South India).
-- **Rate limit**: 9–90 RPM depending on SKU capacity (tier 1–6).
-- **Output**: Fixed 1 image per request, PNG format only.
+| Model | Text Input | Image Output | Source |
+|-------|:----------:|:------------:|:------:|
+| MAI-Image-2 | USD 5 / 1M tokens | USD 33 / 1M tokens | [Tech Community 2026-04-02](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-mai-transcribe-1-mai-voice-1-and-mai-image-2-in-microsoft-foundry/4507787) |
+| MAI-Image-2e | USD 5 / 1M tokens | USD 19.50 / 1M tokens | [Tech Community 2026-04-14](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-mai-image-2-efficient-faster-more-efficient-image-generation/4510918) |
+| GPT-Image-1.5 | USD 5 / 1M tokens | USD 32 / 1M tokens | [Azure OpenAI Pricing](https://azure.microsoft.com/en-us/pricing/details/cognitive-services/openai-service/) |
 
-> **When to choose which**: MAI-Image-2 for fast batch text-to-image generation (2.1x faster). GPT-Image-1.5 for image editing, inpainting, or when flexible output count is needed.
+> GPT-Image-1.5 charges per token — `quality=low` generates fewer tokens (cheaper per image), `quality=high` generates more tokens (more expensive per image). MAI models have a single fixed tier.
+
+### Rate Limits
+
+| Model | Tier 1 RPM | Tier 6 RPM |
+|-------|:----------:|:----------:|
+| MAI-Image-2 | 9 | 90 |
+| MAI-Image-2e | 18 | 180 |
+
+> Source: [Microsoft Learn](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai?tabs=python)
+
+## Choosing the Right Model
+
+| Use Case | Recommended | Why |
+|----------|:-----------:|-----|
+| Fastest generation | GPT-Image-1.5 (low) | 13.1s avg latency |
+| Speed + Microsoft first-party | MAI-Image-2e | 17.4s, no OpenAI dependency |
+| Maximum detail | GPT-Image-1.5 (high) | Most output tokens, but 44s |
+| Image editing / inpainting | GPT-Image-1.5 | MAI has no editing API |
+| Flexible aspect ratios | MAI-Image-2 / 2e | Any W×H within pixel budget |
+| Long prompts (>4K chars) | MAI-Image-2 / 2e | 32K token prompt support |
+| Lowest cost at scale | MAI-Image-2e | USD 19.50/1M output tokens |
 
 ## How to Reproduce
 
 ### Prerequisites
 
 - Azure subscription with Azure AI Services resource
-- MAI-Image-2 and gpt-image-1.5 model deployments
-- Python 3.x with `requests` package
+- Deployments: MAI-Image-2, MAI-Image-2e (AI Services), gpt-image-1.5 (Azure OpenAI)
+- Python 3.x with `requests`
 - Azure CLI (`az`) logged in
 
-### Run the Fair Comparison
+### Run
 
 ```bash
-# Clone this repo
-git clone https://github.com/david-xinyuwei/MAI-Image-2-vs-GPT-Image-Benchmark.git
-cd MAI-Image-2-vs-GPT-Image-Benchmark
+git clone https://github.com/david-share/Multimodal-Models.git
+cd Multimodal-Models/MAI-Image-2-vs-GPT-Image-Benchmark
 
-# Edit scripts/fair_comparison_r2.py to set your resource names and API key
-# Then run:
+# Edit scripts/benchmark_5way.py — set your endpoints and credentials
 pip install requests
-python scripts/fair_comparison_r2.py
-```
-
-### Run Individual Model Tests
-
-```bash
-# MAI-Image-2 only (requires Entra ID auth)
-python scripts/test_mai_image2.py
-
-# GPT-Image-1.5 only (supports Key auth)
-python scripts/test_gpt_image15.py
+python scripts/benchmark_5way.py
 ```
 
 ## Repository Structure
@@ -187,89 +213,16 @@ python scripts/test_gpt_image15.py
 ```
 .
 ├── README.md
+├── README-CN.md
 ├── prompts.csv                          # 11 Surreal-style test prompts
+├── data/
+│   └── 5way_benchmark_results.json      # Raw benchmark data
 ├── scripts/
-│   ├── fair_comparison_r2.py            # Unified comparison script (quality=high)
-│   ├── test_mai_image2.py               # MAI-Image-2 standalone test
-│   └── test_gpt_image15.py             # GPT-Image-1.5 standalone test
+│   └── benchmark_5way.py                # 5-way benchmark script
 └── images/
-    ├── mai-image-2/                     # 11 generated images from MAI-Image-2
-    │   ├── 01_test.png ... 11_test.png
-    └── gpt-image-1.5/                   # 11 generated images from GPT-Image-1.5
-        ├── 01_test.png ... 11_test.png
+    ├── mai-image-2/                     # 11 images
+    ├── mai-image-2e/                    # 11 images
+    ├── gpt-image-1.5-low/              # 11 images
+    ├── gpt-image-1.5-medium/           # 11 images
+    └── gpt-image-1.5-high/             # 11 images
 ```
-
-## Expected Output
-
-When you run `fair_comparison_r2.py`, you should see output like:
-
-```
-======================================================================
-MAI-Image-2 vs GPT-Image-1.5 Fair Comparison (Round 2)
-Unified params: 1024x1024, quality=high, b64_json
-======================================================================
-Prompts: 11
-Entra token acquired
-======================================================================
-
-[1/11] Chrome kimono, a maiden surrounded by metallic flowers, earrings, orna...
-  MAI: OK 22.2s 1473KB
-  GPT: OK 49.0s 2212KB
-...
-======================================================================
-RESULTS SUMMARY (quality=high, 1024x1024)
-======================================================================
-  # Prompt                      MAI Time   MAI KB   GPT Time   GPT KB   Ratio
-----------------------------------------------------------------------
-  1 Chrome kimono, a maide...      22.2s    1473      49.0s    2212    2.2x
-  ...
-----------------------------------------------------------------------
-AVG                                22.7s    1507      46.7s    2035    2.1x
-
-MAI: 11/11 passed | GPT: 11/11 passed
-```
-
-## Analysis
-
-### Why is MAI-Image-2 faster?
-
-MAI-Image-2 uses a proprietary MAI API path (`/mai/v1/`) that is separate from the standard OpenAI API infrastructure. This suggests Microsoft has optimized the serving infrastructure specifically for MAI models, resulting in consistently lower latency across all prompt types.
-
-### Quality Considerations
-
-This benchmark measures **latency only**, not subjective image quality. Both models produce high-quality 1024x1024 images at `quality=high`. Visual quality comparison should be done by examining the side-by-side images above — both models demonstrate strong prompt adherence and artistic quality.
-
-### Recommendations
-
-- For **latency-sensitive** applications (real-time UX, batch processing), MAI-Image-2 provides a clear 2x speed advantage
-- For applications using the **standard OpenAI API**, GPT-Image-1.5 offers the benefit of a familiar API format and Key-based auth support
-- Consider testing with your specific prompt types, as latency may vary by prompt complexity
-
-## Cleanup
-
-To delete the Azure deployments after testing:
-
-```bash
-# Delete gpt-image-1.5 deployment
-az cognitiveservices account deployment delete \
-  --name <your-resource-name> \
-  --resource-group <your-resource-group> \
-  --deployment-name gpt-image-1-5
-
-# Delete MAI-Image-2 deployment
-az cognitiveservices account deployment delete \
-  --name <your-mai-resource> \
-  --resource-group <your-resource-group> \
-  --deployment-name mai-image-2
-```
-
-## Test Environment
-
-- **Azure Region**: East US
-- **Test Date**: April 3, 2026
-- **Test Machine**: Azure VM in East US
-- **Python**: 3.x + requests
-
-## Author
-
-Xinyu Wei (魏新宇)

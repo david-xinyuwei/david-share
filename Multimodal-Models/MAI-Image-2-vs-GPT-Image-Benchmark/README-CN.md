@@ -1,270 +1,172 @@
-# MAI-Image-2 vs GPT-Image-1.5: Azure AI 图像生成 Benchmark
+# MAI-Image-2 vs MAI-Image-2e vs GPT-Image-1.5：Azure AI 图像生成基准测试
 
-在 Azure 上对 **MAI-Image-2** 和 **GPT-Image-1.5** 进行公平的延迟基准测试，使用完全相同的 Prompt、分辨率、Quality 设置和测试环境。
+对 Azure 图像生成模型的 **5 种配置**进行综合延迟基准测试：**MAI-Image-2**、**MAI-Image-2e**（Efficient 效率版）和 **GPT-Image-1.5** 三个质量档位（low / medium / high），使用相同的提示词和分辨率。
 
 ## 核心结果
 
-| 指标 | MAI-Image-2 | GPT-Image-1.5 | 差异 |
-|------|:-----------:|:-------------:|:----:|
-| 通过率 | 11/11 (100%) | 11/11 (100%) | 持平 |
-| **平均延迟** | **22.7s** | **46.7s** | **MAI 快 2.1x** |
-| 延迟范围 | 20.0s – 32.7s | 43.3s – 49.2s | MAI 更稳定 |
-| 分辨率 | 1024x1024 RGB | 1024x1024 RGB | 完全一致 |
-| Quality | high | high | 完全一致 |
+| 模型 | Quality | 平均延迟 | 平均文件大小 | 通过率 |
+|------|:-------:|:--------:|:----------:|:------:|
+| GPT-Image-1.5 | low | **13.1s** | 1,772 KB | 22/22 |
+| MAI-Image-2e | N/A（固定单档） | **17.4s** | 1,631 KB | 22/22 |
+| MAI-Image-2 | N/A（固定单档） | **21.1s** | 1,575 KB | 22/22 |
+| GPT-Image-1.5 | medium | 21.3s | 1,936 KB | 22/22 |
+| GPT-Image-1.5 | high | 44.0s | 2,075 KB | 22/22 |
 
-> MAI-Image-2 在所有 11 个测试 Prompt 中**一致地快 2.1 倍**，无一例外。
+> - GPT-Image-1.5 (low) 速度最快（13.1s），比 MAI-Image-2e 快 33%。
+> - MAI-Image-2 ≈ GPT-Image-1.5 (medium) 延迟相当（~21s）。
+> - MAI 模型**没有 quality 参数** — 仅输出固定单一质量档位。
 
-## 公平对比：七维对齐
+## 公平对比设计
 
-为确保对比有效，我们对齐了**所有可控变量**，仅变更模型：
+### 对齐维度
 
-| 维度 | MAI-Image-2 | GPT-Image-1.5 | 对齐 |
-|------|:-----------:|:-------------:|:----:|
-| Prompt | 11 个 Surreal 风格 Prompt | 相同的 11 个 Prompt | ✅ |
-| 分辨率 | 1024×1024 | 1024×1024 | ✅ |
-| Quality | `high`（显式指定） | `high`（显式指定） | ✅ |
-| 输出格式 | PNG 8-bit RGB | PNG 8-bit RGB | ✅ |
-| 网络环境 | 同一台 VM (East US) | 同一台 VM (East US) | ✅ |
-| 测试日期 | 2026-04-03 | 2026-04-03 | ✅ |
-| **模型（被测变量）** | MAI-Image-2 | gpt-image-1.5 | 🔀 |
+| 维度 | 5 组统一设定 | 状态 |
+|------|:----------:|:----:|
+| 提示词 | 相同的 11 个 Surreal 风格提示词 | ✅ 对齐 |
+| 分辨率 | 1024×1024 | ✅ 对齐 |
+| 输出格式 | PNG (b64_json) | ✅ 对齐 |
+| 网络环境 | 同一台机器（East US） | ✅ 对齐 |
+| 测试日期 | 2026-04-19 | ✅ 对齐 |
+| 预热 | 每组 1 次丢弃请求 | ✅ 对齐 |
+| 调用间隔 | 每次 API 调用间等待 5s（对称） | ✅ 对齐 |
+| **Quality** | MAI：不适用 / GPT：low、medium、high | 🔀 **差异项** |
+| **模型** | MAI-Image-2 / MAI-Image-2e / GPT-Image-1.5 | 🔀 被测变量 |
 
-两个模型在同一脚本 (`fair_comparison_r2.py`) 中交替运行，最小化网络/时间偏差。
+### 为什么 Quality 是差异项而非对齐项
 
-## 逐项延迟对比
+MAI-Image-2 和 MAI-Image-2e 的 API 仅接受 4 个参数：`model`、`prompt`、`width`、`height`。**不存在 `quality` 参数**（[来源](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai?tabs=python)）。GPT-Image-1.5 支持 `quality` 参数（low / medium / high），控制输出图像 token 数量（token 越多 = 细节越多 = 速度越慢）。为公平评估 MAI 固定质量对标 GPT 的哪个档位，我们测试了 GPT 的全部三档。
 
-| # | Prompt | MAI-Image-2 | GPT-Image-1.5 | 加速比 |
-|:-:|:-------|:-----------:|:-------------:|:------:|
-| 1 | Chrome kimono metallic maiden | 22.2s | 49.0s | 2.2x |
-| 2 | Portal into mythical forest | 20.4s | 47.8s | 2.3x |
-| 3 | Tiny astronaut hatching on moon | 20.6s | 49.2s | 2.4x |
-| 4 | LOTR tiny red dragon macro | 20.0s | 43.6s | 2.2x |
-| 5 | Fluffy creature fantasy | 20.3s | 48.3s | 2.4x |
-| 6 | Hidden jungle cenote | 24.9s | 46.2s | 1.9x |
-| 7 | Tech-savvy girl holographic UI | 32.7s | 46.7s | 1.4x |
-| 8 | Universe fractal worlds | 24.6s | 48.2s | 2.0x |
-| 9 | Fractal mythical creature | 21.7s | 43.3s | 2.0x |
-| 10 | Angry cat playing drums | 21.4s | 43.9s | 2.0x |
-| 11 | Monkey playing music | 20.5s | 47.0s | 2.3x |
-| **平均** | | **22.7s** | **46.7s** | **2.1x** |
+### 公平性控制措施
+
+- **预热**：每组模型/质量配置各执行 1 次丢弃请求后再开始计时
+- **顺序翻转**：Round 1 按 A→E 顺序执行，Round 2 按 E→A 反转
+- **对称等待**：每次 API 调用间统一等待 5s
+- **2 轮测试**：每个数据点取 2 次测量的平均值
+
+## 逐提示词延迟对比
+
+| # | 提示词 | MAI-2 | MAI-2e | GPT low | GPT med | GPT high |
+|:-:|:-------|:-----:|:------:|:-------:|:-------:|:--------:|
+| 1 | 金属和服少女 | 20.5s | 17.8s | 13.8s | 19.9s | 45.7s |
+| 2 | 森林传送门 | 20.9s | 17.3s | 13.3s | 21.0s | 43.8s |
+| 3 | 月球宇航员 | 19.7s | 17.3s | 12.6s | 20.3s | 40.4s |
+| 4 | LOTR 小红龙 | 21.2s | 17.2s | 11.7s | 20.8s | 41.4s |
+| 5 | 梦幻生物 | 20.8s | 16.5s | 12.3s | 21.6s | 44.4s |
+| 6 | 丛林天坑 | 22.0s | 19.2s | 13.2s | 22.7s | 42.2s |
+| 7 | 科技少女 | 20.7s | 17.4s | 12.8s | 21.4s | 46.1s |
+| 8 | 迷幻宇宙 | 23.2s | 19.4s | 15.2s | 23.8s | 47.1s |
+| 9 | 分形生物 | 23.1s | 17.0s | 13.2s | 20.4s | 44.6s |
+| 10 | 愤怒猫鼓手 | 20.5s | 15.9s | 12.8s | 21.0s | 44.5s |
+| 11 | 猴子音乐家 | 19.1s | 16.6s | 13.1s | 21.7s | 44.0s |
+| **平均** | | **21.1s** | **17.4s** | **13.1s** | **21.3s** | **44.0s** |
+
+> 每个单元格为 2 轮测量的平均值。Round 1 顺序 A→E，Round 2 顺序 E→A（翻转）。
 
 ## 并排图片对比
 
-### Test 1: Chrome Kimono Metallic Maiden
+详见英文版 README.md 中的完整 11 组 × 5 模型并排图片。每组图片路径：
 
-| MAI-Image-2 (22.2s) | GPT-Image-1.5 (49.0s) |
-|:---:|:---:|
-| ![MAI](images/mai-image-2/01_test.png) | ![GPT](images/gpt-image-1.5/01_test.png) |
+```
+images/mai-image-2/{01-11}_test.png
+images/mai-image-2e/{01-11}_test.png
+images/gpt-image-1.5-low/{01-11}_test.png
+images/gpt-image-1.5-medium/{01-11}_test.png
+images/gpt-image-1.5-high/{01-11}_test.png
+```
 
-### Test 2: Portal into Mythical Forest
+## API 对比
 
-| MAI-Image-2 (20.4s) | GPT-Image-1.5 (47.8s) |
-|:---:|:---:|
-| ![MAI](images/mai-image-2/02_test.png) | ![GPT](images/gpt-image-1.5/02_test.png) |
+### 请求参数
 
-### Test 3: Tiny Astronaut on Moon
+| 特性 | MAI-Image-2 / MAI-Image-2e | GPT-Image-1.5 |
+|------|:---------------------------:|:-------------:|
+| API 路径 | `/mai/v1/images/generations` | `/openai/deployments/{name}/images/generations` |
+| 认证方式 | Entra ID + API Key | API Key + Entra ID |
+| 参数 | `model`、`prompt`、`width`、`height` | `prompt`、`n`、`size`、`quality` |
+| 质量控制 | **不可用**（固定单档） | `low` / `medium` / `high` |
+| 分辨率 | 灵活：W≥768, H≥768, W×H≤1,048,576 | 固定：1024×1024 / 1792×1024 / 1024×1792 |
+| 输出格式 | 仅 PNG | PNG / URL |
+| 输出数量 | 1（固定） | 1–10 |
+| 最大提示词 | 32,000 tokens | 4,000 字符 |
 
-| MAI-Image-2 (20.6s) | GPT-Image-1.5 (49.2s) |
-|:---:|:---:|
-| ![MAI](images/mai-image-2/03_test.png) | ![GPT](images/gpt-image-1.5/03_test.png) |
-
-### Test 4: LOTR Tiny Red Dragon
-
-| MAI-Image-2 (20.0s) | GPT-Image-1.5 (43.6s) |
-|:---:|:---:|
-| ![MAI](images/mai-image-2/04_test.png) | ![GPT](images/gpt-image-1.5/04_test.png) |
-
-### Test 5: Fluffy Fantasy Creature
-
-| MAI-Image-2 (20.3s) | GPT-Image-1.5 (48.3s) |
-|:---:|:---:|
-| ![MAI](images/mai-image-2/05_test.png) | ![GPT](images/gpt-image-1.5/05_test.png) |
-
-### Test 6: Hidden Jungle Cenote
-
-| MAI-Image-2 (24.9s) | GPT-Image-1.5 (46.2s) |
-|:---:|:---:|
-| ![MAI](images/mai-image-2/06_test.png) | ![GPT](images/gpt-image-1.5/06_test.png) |
-
-### Test 7: Tech-Savvy Girl with Holographic UI
-
-| MAI-Image-2 (32.7s) | GPT-Image-1.5 (46.7s) |
-|:---:|:---:|
-| ![MAI](images/mai-image-2/07_test.png) | ![GPT](images/gpt-image-1.5/07_test.png) |
-
-### Test 8: Universe Fractal Worlds
-
-| MAI-Image-2 (24.6s) | GPT-Image-1.5 (48.2s) |
-|:---:|:---:|
-| ![MAI](images/mai-image-2/08_test.png) | ![GPT](images/gpt-image-1.5/08_test.png) |
-
-### Test 9: Fractal Mythical Creature
-
-| MAI-Image-2 (21.7s) | GPT-Image-1.5 (43.3s) |
-|:---:|:---:|
-| ![MAI](images/mai-image-2/09_test.png) | ![GPT](images/gpt-image-1.5/09_test.png) |
-
-### Test 10: Angry Cat Playing Drums
-
-| MAI-Image-2 (21.4s) | GPT-Image-1.5 (43.9s) |
-|:---:|:---:|
-| ![MAI](images/mai-image-2/10_test.png) | ![GPT](images/gpt-image-1.5/10_test.png) |
-
-### Test 11: Monkey Playing Music
-
-| MAI-Image-2 (20.5s) | GPT-Image-1.5 (47.0s) |
-|:---:|:---:|
-| ![MAI](images/mai-image-2/11_test.png) | ![GPT](images/gpt-image-1.5/11_test.png) |
-
-## API 差异
-
-| 特性 | MAI-Image-2 | GPT-Image-1.5 |
-|------|:-----------:|:-------------:|
-| API Path | `/mai/v1/images/generations` | `/openai/deployments/{name}/images/generations` |
-| 认证方式 | **仅 Entra ID** | Key + Entra ID |
-| 尺寸参数 | `width` / `height`（整数） | `size`（字符串，如 `"1024x1024"`） |
-| Model 参数 | 必须指定 `"MAI-Image-2"` | 不需要（已在 deployment 中指定） |
-| Quality 参数 | `low` / `medium` / `high` | `low` / `medium` / `high` |
-| 像素分辨率 | 1024x1024 | 1024x1024 |
-| 输出格式 | PNG 8-bit RGB | PNG 8-bit RGB |
+> **来源**：MAI 参数来自 [Microsoft Learn](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai?tabs=python)。GPT 参数来自 [Azure OpenAI 文档](https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/dall-e)。
 
 ### 能力对比
 
-| 能力 | MAI-Image-2 | GPT-Image-1.5 |
-|---|:---:|:---:|
-| 文生图（text→image） | ✅ | ✅ |
-| 以图改图（image→image + prompt） | ❌ | ✅（通过 `/images/edits`） |
-| 局部重绘（mask + prompt） | ❌ | ✅ |
-| 最大 prompt 长度 | 32,000 tokens | 4,000 字符 |
-| 每次请求输出数量 | 1（固定） | 1–10 |
-| 输出格式选项 | 仅 PNG | PNG / URL |
-| 灵活宽高比 | ✅（任意 W×H ≤ 1,048,576，每边最小 768px） | 固定尺寸（1024×1024 / 1792×1024 / 1024×1792） |
-| 认证方式 | 仅 Entra ID | API Key + Entra ID |
+| 能力 | MAI-Image-2 | MAI-Image-2e | GPT-Image-1.5 |
+|------|:---:|:---:|:---:|
+| 文字生图 | ✅ | ✅ | ✅ |
+| 图片编辑 | ❌ | ❌ | ✅ |
+| 图像修复（Inpainting） | ❌ | ❌ | ✅ |
+| 灵活宽高比 | ✅ | ✅ | ❌（固定尺寸） |
+| 质量档位 | ❌（固定单档） | ❌（固定单档） | ✅（low/med/high） |
 
-### MAI-Image-2 限制（截至 2026-04）
+### 定价
 
-- **不支持图片编辑**：API 仅有 `/mai/v1/images/generations`，没有 `/images/edits` 或 `/images/variations` 端点。
-- **Preview 状态**：不建议生产使用。
-- **区域可用性**：仅 6 个区域（West Central US、East US、West US、West Europe、Sweden Central、South India）。
-- **速率限制**：9–90 RPM，取决于 SKU 容量（tier 1–6）。
-- **输出**：每次固定 1 张图片，仅 PNG 格式。
+| 模型 | 文本输入 | 图像输出 | 来源 |
+|------|:--------:|:--------:|:----:|
+| MAI-Image-2 | USD 5 / 1M tokens | USD 33 / 1M tokens | [Tech Community 2026-04-02](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-mai-transcribe-1-mai-voice-1-and-mai-image-2-in-microsoft-foundry/4507787) |
+| MAI-Image-2e | USD 5 / 1M tokens | USD 19.50 / 1M tokens | [Tech Community 2026-04-14](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-mai-image-2-efficient-faster-more-efficient-image-generation/4510918) |
+| GPT-Image-1.5 | USD 5 / 1M tokens | USD 32 / 1M tokens | [Azure OpenAI 定价](https://azure.microsoft.com/en-us/pricing/details/cognitive-services/openai-service/) |
 
-> **如何选择**：快速批量文生图用 MAI-Image-2（2.1 倍更快）。图片编辑、局部重绘、或需要灵活输出数量时用 GPT-Image-1.5。
+> GPT-Image-1.5 按 token 计费 — `quality=low` 生成更少 token（单张更便宜），`quality=high` 生成更多 token（单张更贵）。MAI 模型为固定单档。
 
-## 复现方法
+### Rate Limits
+
+| 模型 | Tier 1 RPM | Tier 6 RPM |
+|------|:----------:|:----------:|
+| MAI-Image-2 | 9 | 90 |
+| MAI-Image-2e | 18 | 180 |
+
+> 来源：[Microsoft Learn](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-mai?tabs=python)
+
+## 选型建议
+
+| 使用场景 | 推荐 | 原因 |
+|----------|:----:|------|
+| 最快生成速度 | GPT-Image-1.5 (low) | 平均 13.1s |
+| 速度 + 微软第一方 | MAI-Image-2e | 17.4s，不依赖 OpenAI |
+| 最高画质细节 | GPT-Image-1.5 (high) | 输出 token 最多，但 44s |
+| 图片编辑/修复 | GPT-Image-1.5 | MAI 无编辑 API |
+| 灵活宽高比 | MAI-Image-2 / 2e | 像素预算内任意 W×H |
+| 长提示词（>4K 字符） | MAI-Image-2 / 2e | 支持 32K token 提示词 |
+| 大规模低成本 | MAI-Image-2e | USD 19.50/1M 输出 token |
+
+## 如何复现
 
 ### 前提条件
 
-- 包含 Azure AI Services 资源的 Azure 订阅
-- MAI-Image-2 和 gpt-image-1.5 模型部署
-- Python 3.x + `requests` 包
+- Azure 订阅 + Azure AI Services 资源
+- 已部署：MAI-Image-2、MAI-Image-2e（AI Services）、gpt-image-1.5（Azure OpenAI）
+- Python 3.x + `requests`
 - Azure CLI (`az`) 已登录
 
-### 运行公平对比测试
+### 运行
 
 ```bash
-# 克隆本仓库
-git clone https://github.com/david-xinyuwei/MAI-Image-2-vs-GPT-Image-Benchmark.git
-cd MAI-Image-2-vs-GPT-Image-Benchmark
+git clone https://github.com/david-share/Multimodal-Models.git
+cd Multimodal-Models/MAI-Image-2-vs-GPT-Image-Benchmark
 
-# 编辑 scripts/fair_comparison_r2.py 设置你的资源名和 API Key
+# 编辑 scripts/benchmark_5way.py — 设置你的端点和凭据
 pip install requests
-python scripts/fair_comparison_r2.py
-```
-
-### 单独运行某个模型测试
-
-```bash
-# 仅 MAI-Image-2（需要 Entra ID 认证）
-python scripts/test_mai_image2.py
-
-# 仅 GPT-Image-1.5（支持 Key 认证）
-python scripts/test_gpt_image15.py
-```
-
-## Expected Output / 预期输出
-
-运行 `fair_comparison_r2.py` 后应看到类似输出：
-
-```
-======================================================================
-MAI-Image-2 vs GPT-Image-1.5 Fair Comparison (Round 2)
-Unified params: 1024x1024, quality=high, b64_json
-======================================================================
-Prompts: 11
-Entra token acquired
-======================================================================
-
-[1/11] Chrome kimono, a maiden surrounded by metallic flowers, earrings, orna...
-  MAI: OK 22.2s 1473KB
-  GPT: OK 49.0s 2212KB
-...
-======================================================================
-RESULTS SUMMARY (quality=high, 1024x1024)
-======================================================================
-AVG                                22.7s    1507      46.7s    2035    2.1x
-
-MAI: 11/11 passed | GPT: 11/11 passed
-```
-
-## Analysis / 分析
-
-### Root Cause: MAI-Image-2 为什么更快？
-
-MAI-Image-2 使用专有的 MAI API Path (`/mai/v1/`)，与标准 OpenAI API 基础设施分离。这表明 Microsoft 针对 MAI 模型专门优化了 Serving 基础设施，从而在所有 Prompt 类型上实现了更低的延迟。
-
-### 质量考量
-
-本 Benchmark 仅测量**延迟**，不评估主观图像质量。两个模型在 `quality=high` 下都生成高质量的 1024x1024 图像。视觉质量对比请查看上方的并排图片——两个模型都展现了较强的 Prompt 遵循能力和艺术质量。
-
-### Recommendations / 建议
-
-- 对**延迟敏感**的应用（实时 UX、批量处理），MAI-Image-2 提供明确的 2x 速度优势
-- 对使用**标准 OpenAI API** 的应用，GPT-Image-1.5 提供熟悉的 API 格式和 Key 认证支持
-- 建议使用你的特定 Prompt 类型进行测试，因为延迟可能因 Prompt 复杂度而异
-
-## Cleanup / 清理
-
-测试完成后删除 Azure 部署：
-
-```bash
-# 删除 gpt-image-1.5 部署
-az cognitiveservices account deployment delete \
-  --name <your-resource-name> \
-  --resource-group <your-resource-group> \
-  --deployment-name gpt-image-1-5
-
-# 删除 MAI-Image-2 部署
-az cognitiveservices account deployment delete \
-  --name <your-mai-resource> \
-  --resource-group <your-resource-group> \
-  --deployment-name mai-image-2
+python scripts/benchmark_5way.py
 ```
 
 ## 仓库结构
 
 ```
 .
-├── README.md                            # English version
-├── README-CN.md                         # 中文版本
-├── prompts.csv                          # 11 个 Surreal 风格测试 Prompt
+├── README.md                            # 英文版
+├── README-CN.md                         # 中文版（本文件）
+├── prompts.csv                          # 11 个 Surreal 风格测试提示词
+├── data/
+│   └── 5way_benchmark_results.json      # 原始基准测试数据
 ├── scripts/
-│   ├── fair_comparison_r2.py            # 统一对比脚本（quality=high）
-│   ├── test_mai_image2.py               # MAI-Image-2 单独测试
-│   └── test_gpt_image15.py             # GPT-Image-1.5 单独测试
+│   └── benchmark_5way.py                # 5 组基准测试脚本
 └── images/
-    ├── mai-image-2/                     # MAI-Image-2 生成的 11 张图片
-    │   ├── 01_test.png ... 11_test.png
-    └── gpt-image-1.5/                   # GPT-Image-1.5 生成的 11 张图片
-        ├── 01_test.png ... 11_test.png
+    ├── mai-image-2/                     # 11 张图片
+    ├── mai-image-2e/                    # 11 张图片
+    ├── gpt-image-1.5-low/              # 11 张图片
+    ├── gpt-image-1.5-medium/           # 11 张图片
+    └── gpt-image-1.5-high/             # 11 张图片
 ```
-
-## 测试环境
-
-- **Azure Region**: East US
-- **测试日期**: 2026 年 4 月 3 日
-- **测试机器**: East US 区域 Azure VM
-- **Python**: 3.x + requests
-
-## Author
-
-Xinyu Wei (魏新宇)
