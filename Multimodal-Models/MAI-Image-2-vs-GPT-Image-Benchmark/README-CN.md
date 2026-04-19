@@ -339,7 +339,7 @@ MAI-Image-2 和 MAI-Image-2e 的 API 仅接受 4 个参数：`model`、`prompt`�
 | 图片编辑/修复 | GPT-Image-1.5 | MAI 无编辑 API |
 | 灵活宽高比 | MAI-Image-2 / 2e | 像素预算内任意 W×H |
 | 长提示词（>4K 字符） | MAI-Image-2 / 2e | 支持 32K token 提示词 |
-| 大规模低成本 | MAI-Image-2e | USD 19.50/1M 输出 token |
+| 最低 token 单价 | MAI-Image-2e | USD 19.50/1M tokens（但单张 ~USD 0.020 vs GPT-low USD 0.015） |
 
 ## 如何复现
 
@@ -373,9 +373,9 @@ python scripts/benchmark_5way_v2.py
 ├── scripts/
 │   └── benchmark_5way_v2.py           # 5 组基准测试脚本（V2）
 └── images/
-    ├── mai-image-2/                     # 11 张图片
-    ├── mai-image-2e/                    # 11 张图片
-    ├── gpt-image-1.5-low/              # 11 张图片
+    ├── mai-image-2/                     # 每个模型含 r1/ 和 r2/ 子目录
+    ├── mai-image-2e/                    # 每个模型含 r1/ 和 r2/ 子目录
+    ├── gpt-image-1.5-low/              # 每个模型含 r1/ 和 r2/ 子目录
     ├── gpt-image-1.5-medium/           # 每个模型含 r1/ 和 r2/ 子目录
     └── gpt-image-1.5-high/             # 每个模型含 r1/ 和 r2/ 子目录
 ```

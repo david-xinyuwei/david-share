@@ -339,7 +339,7 @@ MAI-Image-2 and MAI-Image-2e accept only 4 API parameters: `model`, `prompt`, `w
 | Image editing / inpainting | GPT-Image-1.5 | MAI has no editing API |
 | Flexible aspect ratios | MAI-Image-2 / 2e | Any W×H within pixel budget |
 | Long prompts (>4K chars) | MAI-Image-2 / 2e | 32K token prompt support |
-| Lowest cost at scale | MAI-Image-2e | USD 19.50/1M output tokens |
+| Lowest per-token price | MAI-Image-2e | USD 19.50/1M tokens (but ~USD 0.020/image vs GPT-low USD 0.015) |
 
 ## How to Reproduce
 
@@ -373,9 +373,9 @@ python scripts/benchmark_5way_v2.py
 ├── scripts/
 │   └── benchmark_5way_v2.py           # 5-way benchmark script (V2)
 └── images/
-    ├── mai-image-2/                     # 11 images
-    ├── mai-image-2e/                    # 11 images
-    ├── gpt-image-1.5-low/              # 11 images
+    ├── mai-image-2/                     # r1/ and r2/ per round
+    ├── mai-image-2e/                    # r1/ and r2/ per round
+    ├── gpt-image-1.5-low/              # r1/ and r2/ per round
     ├── gpt-image-1.5-medium/           # r1/ and r2/ per round
     └── gpt-image-1.5-high/             # r1/ and r2/ per round
 ```
