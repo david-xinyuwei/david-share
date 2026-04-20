@@ -1,4 +1,4 @@
-# When NOT to Use PD Disaggregation: Benchmarking NVIDIA Dynamo on 2×H100 NVL
+# LLM Inference Optimization Showdown: TP vs PD vs Prefix Cache on 2×H100 NVL
 
 > **Author**: Xinyu Wei (魏新宇)  
 > **Date**: 2026-04-20  
@@ -9,7 +9,11 @@
 
 ## TL;DR
 
-We benchmarked NVIDIA Dynamo's Prefill-Decode (PD) disaggregation against standard Tensor Parallel (TP=2) on the same 2×H100 hardware with Qwen3-8B. **Result: TP=2 wins on every average metric. PD's only advantage is tail latency stability (P99 ITL -52%).** For small models on same-node NVLink, PD disaggregation adds complexity without benefit. Prefix Cache alone gives 41% TTFT reduction with zero configuration.
+We benchmarked three LLM inference optimization strategies on 2×H100 NVL with Qwen3-8B: **Tensor Parallel (TP=2)**, **Prefix Cache**, and **NVIDIA Dynamo PD Disaggregation (1P1D)**. Key findings:
+
+- **TP=2**: Best for latency — TTFT -25%, E2E -34% vs single GPU. The go-to choice for same-node NVLink.
+- **Prefix Cache**: Highest ROI — 41% TTFT reduction with zero config, zero extra hardware. Essential for agent/multi-turn workloads.
+- **PD Disaggregation**: Only wins on tail latency (P99 ITL -52%) but loses on every average metric. Designed for large models on multi-node, not small models on NVLink.
 
 ![PD vs TP=2 Summary](images/pd_vs_tp2_summary.png)
 

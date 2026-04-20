@@ -1,4 +1,4 @@
-# 什么时候不该用 PD 分离：NVIDIA Dynamo 在 2×H100 NVL 上的实测
+# LLM 推理优化对决：TP vs PD vs Prefix Cache 在 2×H100 NVL 上的实测
 
 > **作者**：魏新宇 (Xinyu Wei)  
 > **日期**：2026-04-20  
@@ -9,7 +9,11 @@
 
 ## 一句话结论
 
-我们在相同的 2×H100 硬件上，用 Qwen3-8B 对比了 NVIDIA Dynamo 的 Prefill-Decode（PD）分离与标准 Tensor Parallel（TP=2）。**结果：TP=2 在所有平均指标上胜出。PD 唯一的优势是尾部延迟稳定性（P99 ITL -52%）。** 对于同节点 NVLink 上的小模型，PD 分离只增加复杂度没有收益。Prefix Cache 零配置即可获得 41% TTFT 下降。
+我们在 2×H100 NVL 上用 Qwen3-8B 对比了三种 LLM 推理优化策略：**Tensor Parallel（TP=2）**、**Prefix Cache**、**NVIDIA Dynamo PD 分离（1P1D）**。核心发现：
+
+- **TP=2**：延迟最优 — TTFT -25%，E2E -34%（vs 单卡）。同节点 NVLink 场景的首选。
+- **Prefix Cache**：ROI 最高 — 41% TTFT 下降，零配置、零额外硬件。Agent/多轮场景必开。
+- **PD 分离**：仅在尾部延迟胜出（P99 ITL -52%），平均指标全输。为大模型多节点设计，不适合小模型 + NVLink。
 
 ![PD vs TP=2 Summary](images/pd_vs_tp2_summary.png)
 
