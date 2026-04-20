@@ -136,6 +136,49 @@ Flush 对照组（R3）和 Cold（R1）完全一致——证明 Warm cache 的�
 
 ---
 
+## 第三种方案：Chunked Prefill
+
+PD 分离通过**物理隔离**（不同 GPU）解决 prefill-decode 互相干扰。但有更便宜的替代方案：**Chunked Prefill**，SGLang 默认开启。
+
+### 问题
+
+GPU 一次只能跑**一个 kernel**。kernel 启动后必须跑完，不能暂停、不能抢占。如果 32K token 的 prefill 作为一个 kernel 启动，耗时 ~2 秒。这 2 秒内所有其他请求的 decode 被阻塞。
+
+### 解法
+
+把 32K prefill 切成多个 chunk（如每 chunk 1024 tokens）。每个 chunk 是一次独立的 kernel launch。两次 kernel 之间，调度器可以插入其他请求：
+
+```
+不切碎：
+  kernel: Attention(32K tokens) → 2000ms，其他请求干等
+
+切碎（chunk=1024）：
+  kernel 1: Attention(1024 tokens)                → 60ms
+  kernel 2: Attention(1024 tokens + 新请求)        → 62ms
+  kernel 3: Attention(1024 tokens + decode batch)  → 63ms
+  ...（共 32 个 kernel，其他请求穿插执行）
+```
+
+原理和操作系统的时间片轮转一样：GPU 不能多任务，但把一个长任务切成多个短任务后，调度器在每个短任务之间都有决策机会。
+
+### KV Cache 正确性
+
+Chunked prefill 产生的 KV Cache 与完整 prefill **数学上完全等价**。每个 token 的 K 和 V 只取决于该 token 本身 + 前面所有 token + 模型权重。分几次算和一次算，结果一样。Chunk 2 从缓存中读取 chunk 1 已存好的 KV（PagedAttention 支持非连续读取），看到的上下文完全相同。
+
+### Chunked Prefill vs PD 分离
+
+| | Chunked Prefill | PD 分离 |
+|:---|:---|:---|
+| **原理** | 一个 GPU 上时间片切分 | 不同 GPU 物理隔离 |
+| **ITL 稳定性** | 好（无长时间卡顿） | 最好（零干扰） |
+| **额外硬件** | 不需要 | 需要额外 GPU + NATS/etcd/NIXL |
+| **TTFT 影响** | 略升（被切碎） | 可能升（KV 传输 + 排队） |
+| **配置难度** | 零（SGLang 默认开启） | 复杂部署 |
+
+**Chunked Prefill 是"穷人的 PD"** — 用 0% 的成本解决 80% 的问题。我们的 benchmark 使用了 SGLang 默认的 chunked prefill（`--chunked-prefill-size 8192`），所以 TP=2 高并发的 P99 ITL（24.6ms）已经不算太差。如果关掉 chunked prefill，ITL 尖刺会严重得多，PD 的优势会更明显。
+
+---
+
 ## 从 PyPI 部署 Dynamo PD（非 Docker）
 
 我们不用 Docker，纯 pip 包部署了 Dynamo。需要解决三个兼容性问题。

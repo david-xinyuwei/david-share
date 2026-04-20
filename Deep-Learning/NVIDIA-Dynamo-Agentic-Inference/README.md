@@ -136,6 +136,49 @@ Based on our benchmarks + Dynamo's design intent:
 
 ---
 
+## The Third Option: Chunked Prefill
+
+PD disaggregation solves the prefill-decode interference problem by **physical isolation** (separate GPUs). But there's a cheaper alternative: **Chunked Prefill**, which is enabled by default in SGLang.
+
+### The problem
+
+A GPU can only run **one kernel at a time**. Once a kernel starts, it must run to completion — no pausing, no preemption. If a 32K-token prefill launches as a single kernel, it takes ~2 seconds. During those 2 seconds, every other request's decode is blocked.
+
+### The solution
+
+Split the 32K prefill into chunks (e.g., 1024 tokens each). Each chunk is a separate kernel launch. Between kernel launches, the scheduler can insert other requests:
+
+```
+Without chunking:
+  kernel: Attention(32K tokens) → 2000ms, nothing else can run
+
+With chunking (chunk=1024):
+  kernel 1: Attention(1024 tokens)              → 60ms
+  kernel 2: Attention(1024 tokens + new request) → 62ms
+  kernel 3: Attention(1024 tokens + decode batch) → 63ms
+  ... (32 kernels total, other requests interleave)
+```
+
+This is the same principle as OS time-slicing: the GPU can't multitask, but by breaking one long task into many short tasks, the scheduler gets decision points between them.
+
+### KV Cache correctness
+
+Chunked prefill produces **mathematically identical KV Cache** as full prefill. Each token's K and V depend only on the token itself + all preceding tokens + model weights. Whether you compute them in one pass or three passes, the result is the same. Chunk 2 reads chunk 1's KV from the cache (already stored by PagedAttention), so it sees the same context.
+
+### Chunked Prefill vs PD Disaggregation
+
+| | Chunked Prefill | PD Disaggregation |
+|:---|:---|:---|
+| **How it works** | Time-slicing on one GPU | Physical isolation on separate GPUs |
+| **ITL stability** | Good (no long stalls) | Best (zero interference) |
+| **Extra hardware** | None | Extra GPU(s) + NATS/etcd/NIXL |
+| **TTFT impact** | Slightly higher (chunked) | Higher (KV transfer + queue) |
+| **Configuration** | Default in SGLang | Complex deployment |
+
+**Chunked Prefill is "poor man's PD"** — it solves 80% of the problem at 0% of the cost. Our benchmarks used SGLang's default chunked prefill (`--chunked-prefill-size 8192`), which is why TP=2's P99 ITL (24.6ms at high concurrency) was already reasonable. Without chunked prefill, the ITL spikes would be much worse, making PD's advantage more pronounced.
+
+---
+
 ## Deploying Dynamo PD from PyPI (Not Docker)
 
 We deployed Dynamo without Docker — pip packages only. This required solving three compatibility issues.
