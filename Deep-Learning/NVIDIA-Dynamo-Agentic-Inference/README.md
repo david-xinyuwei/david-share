@@ -229,5 +229,3 @@ Raw benchmark logs are in `data/`.
 3. **Dynamo's value is in large-scale production**, not small-model benchmarks. Its real strengths — KV-aware routing across dozens of workers, agent lifecycle management, 4-tier KV storage — cannot be demonstrated on 2 GPUs.
 
 4. **The engineering challenge is real**: deploying Dynamo from PyPI requires NATS + etcd + NIXL + SGLang compatibility patches. The Docker path (`nvcr.io/nvidia/dynamo`) is significantly easier for production.
-# NVIDIA Dynamo: Distributed Inference Orchestration for Agentic AI
-
