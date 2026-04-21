@@ -281,6 +281,29 @@ FP8 KV cache（`--kv-cache-dtype fp8_e5m2`）将 KV 存储从 16-bit 压缩到 8
 
 ---
 
+## PD 分离工作原理（我们的实际部署）
+
+![PD 分离架构图](images/pd_disaggregation_architecture.png)
+
+上图展示了我们的实际部署。请求流程：
+
+1. **Client → Frontend**：Dynamo 的 Rust Frontend（端口 8000）接收请求。KV 感知路由器查询 Flash Indexer 选择最优 worker。
+2. **Prefill Worker (GPU 0)**：为输入 token 计算 KV cache（1024 tokens → 32B 约 369ms）。使用 `--disaggregation-mode prefill`，CUDA:0。
+3. **NIXL KV 传输**：计算好的 KV cache 通过 NIXL 经 NVLink（~900 GB/s 双向）从 GPU 0 传输到 GPU 1。这增加了 TTFT 延迟，但实现了物理隔离。
+4. **Decode Worker (GPU 1)**：从传输的 KV cache 生成输出 token（~26ms/token）。使用 `--disaggregation-mode decode`，CUDA:1。**这张 GPU 永远不执行 prefill kernel** — 所以 P99 ITL 保持 31ms，不受新请求负载影响。
+
+| 组件 | 作用 | 我们的版本 |
+|:---|:---|:---|
+| **Dynamo Frontend** | Rust HTTP 服务器，KV 感知路由，agent hints 处理 | Dynamo 1.0.1 |
+| **NATS** | 消息总线，组件间服务发现 | v2.11.3 (JetStream) |
+| **etcd** | 分布式配置存储，worker 注册 | v3.5.21 |
+| **NIXL** | GPU-to-GPU KV cache 传输（RDMA/NVLink） | nixl 1.0.1 |
+| **SGLang Workers** | 推理引擎，分 prefill/decode 角色 | SGLang 0.5.10 |
+
+> **关于 KVBM**：Dynamo 的 KV Block Manager (KVBM) — 支持四层 KV 存储（GPU → CPU → NVMe → 远程）— 目前仅在 TensorRT-LLM 后端可用（`--kv-transfer-config kvbm`）。SGLang 后端在 PD 模式中使用 NIXL 进行 KV 传输。KVBM + SGLang 在 [Dynamo 特性矩阵](https://docs.nvidia.com/dynamo/resources/feature-matrix) 中标记为 🚧（开发中）。
+
+---
+
 ## 什么时候用（和不用）PD 分离
 
 基于实测数据 + Dynamo 设计意图：

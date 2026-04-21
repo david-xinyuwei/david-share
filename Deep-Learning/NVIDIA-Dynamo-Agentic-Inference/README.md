@@ -281,6 +281,29 @@ This is the classic **TTFT vs ITL tradeoff**:
 
 ---
 
+## How PD Disaggregation Works (Our Setup)
+
+![PD Disaggregation Architecture](images/pd_disaggregation_architecture.png)
+
+The diagram above shows our actual deployment. The request flow:
+
+1. **Client → Frontend**: Dynamo's Rust-based frontend (port 8000) receives the request. The KV-aware router queries the Flash Indexer to select the best worker.
+2. **Prefill Worker (GPU 0)**: Computes KV cache for the input tokens (1024 tokens → ~369ms for 32B). Runs `--disaggregation-mode prefill` with CUDA:0.
+3. **NIXL KV Transfer**: The computed KV cache is transferred from GPU 0 to GPU 1 via NIXL over NVLink (~900 GB/s bidirectional). This transfer adds latency to TTFT but enables physical isolation.
+4. **Decode Worker (GPU 1)**: Generates output tokens from the transferred KV cache (~26ms/token). Runs `--disaggregation-mode decode` with CUDA:1. **This GPU never executes prefill kernels** — which is why P99 ITL stays at 31ms regardless of incoming request load.
+
+| Component | Role | Our Version |
+|:---|:---|:---|
+| **Dynamo Frontend** | Rust HTTP server, KV-aware routing, agent hints processing | Dynamo 1.0.1 |
+| **NATS** | Message bus for service discovery between components | v2.11.3 (JetStream) |
+| **etcd** | Distributed config store, worker registration | v3.5.21 |
+| **NIXL** | GPU-to-GPU KV cache transfer (RDMA/NVLink) | nixl 1.0.1 |
+| **SGLang Workers** | Inference engine, split into prefill/decode roles | SGLang 0.5.10 |
+
+> **Note on KVBM**: Dynamo's KV Block Manager (KVBM) — which enables 4-tier KV storage (GPU → CPU → NVMe → Remote) — is currently only available with the TensorRT-LLM backend (`--kv-transfer-config kvbm`). The SGLang backend uses NIXL for KV transfer in PD mode. KVBM with SGLang is listed as 🚧 (work in progress) in the [Dynamo feature matrix](https://docs.nvidia.com/dynamo/resources/feature-matrix).
+
+---
+
 ## When to Use (and NOT Use) PD Disaggregation
 
 Based on our benchmarks + Dynamo's design intent:
