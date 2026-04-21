@@ -9,11 +9,13 @@
 
 ## TL;DR
 
-We benchmarked three LLM inference optimization strategies on 2×H100 NVL with Qwen3-8B: **Tensor Parallel (TP=2)**, **Prefix Cache**, and **NVIDIA Dynamo PD Disaggregation (1P1D)**. Key findings:
+We benchmarked LLM inference optimization strategies on 2×H100 NVL with two models — **Qwen3-8B** (Results 1-3) and **Qwen2.5-32B** (Results 4-5). Strategies tested: **TP=2**, **Prefix Cache**, **NVIDIA Dynamo PD Disaggregation**, **FP8 KV Cache**, and **Chunked Prefill ON/OFF**.
 
-- **TP=2**: Best for latency — TTFT -25%, E2E -34% vs single GPU. The go-to choice for same-node NVLink.
-- **Prefix Cache**: Highest ROI — 41% TTFT reduction with zero config, zero extra hardware. Essential for agent/multi-turn workloads.
-- **PD Disaggregation**: Only wins on tail latency (P99 ITL -52%) but loses on every average metric. Designed for large models on multi-node, not small models on NVLink.
+- **TP=2**: Best throughput and TTFT at all model sizes. The go-to choice for same-node NVLink.
+- **Prefix Cache**: Highest ROI — 41% TTFT reduction, zero config, zero extra hardware.
+- **PD Disaggregation**: Only wins on tail latency — but the advantage scales with model size: P99 ITL **-52% for 8B**, **-85% for 32B**. Designed for large models where prefill is compute-heavy.
+- **FP8 KV Cache**: No benefit at 1024-token context. Matters at 8K+ tokens or memory-constrained setups.
+- **Chunked Prefill**: Critical — disabling it explodes TTFT 4.7× while only modestly improving ITL.
 
 ![PD vs TP=2 Summary](images/pd_vs_tp2_summary.png)
 
@@ -54,11 +56,13 @@ Key capability: **PD Disaggregation** — dedicate some GPUs to prefill (compute
 |:---|:---|
 | **VM** | Azure NC80adis_H100_v5, 2× NVIDIA H100 NVL 95830 MiB |
 | **Interconnect** | NV12 NVLink (intra-node, ~900 GB/s bidirectional) |
-| **Model** | Qwen3-8B FP16 (16GB, fits easily in single H100 95GB) |
+| **Models** | Qwen3-8B FP16 (16GB) — Results 1-3; Qwen2.5-32B-Instruct FP16 (65GB, 89% of H100 VRAM) — Results 4-5 |
 | **Engine** | SGLang 0.5.10.post1, FlashInfer 0.6.7.post3, PyTorch 2.9.1+cu128 |
 | **Dynamo** | ai-dynamo 1.0.1, nixl 1.0.1, NATS v2.11.3, etcd v3.5.21 |
 | **Benchmark** | `sglang.bench_serving`, random dataset, 1024 input / 256 output tokens |
-| **Configs tested** | Single GPU, TP=2, Prefix Cache (cold/warm/flush), Dynamo PD 1P1D |
+| **8B load** | 50 prompts @ 5 req/s (low), 200 prompts @ 20 req/s (high) |
+| **32B load** | 100 prompts @ 10 req/s |
+| **Configs tested** | Single GPU, TP=2, Prefix Cache (cold/warm/flush), Dynamo PD 1P1D, FP8 KV, Chunked ON/OFF |
 
 ---
 
@@ -120,6 +124,86 @@ The flush-cache control run (R3) matches cold (R1) exactly — proving warm cach
 
 ---
 
+## Result 4: 32B Model — Does Model Size Change the Story?
+
+All results above used Qwen3-8B (16GB). A natural question: does PD become more valuable with larger models that put more pressure on compute? We tested **Qwen2.5-32B-Instruct** (65GB FP16) — a model that fills 89% of a single H100 NVL's 95GB VRAM.
+
+**Test parameters**: 100 prompts @ 10 req/s, 1024 input / 256 output tokens (same token lengths as 8B; lower request rate because 32B is ~4× slower per token).
+
+![32B TP vs PD Comparison](images/benchmark_32b_tp_vs_pd.png)
+
+| Metric | Baseline (1 GPU) | TP=2 (2 GPU) | PD 1P1D (2 GPU) | PD vs TP=2 |
+|:---|:---:|:---:|:---:|:---|
+| **Output tok/s** | 749 | **966** | 830 | -14% |
+| **Mean TTFT** | 369 ms | **130 ms** | 355 ms | +173% |
+| **Mean E2E** | 7548 ms | **3524 ms** | 3559 ms | +1% |
+| **P95 ITL** | 258 ms | 82 ms | **29 ms** | **-65%** |
+| **P99 ITL** | 680 ms | 201 ms | **31 ms** | **-85%** |
+
+> **Fairness note**: TP=2 uses `--backend sglang` (native `/generate`), PD uses `--backend sglang-oai-chat` (`/v1/chat/completions`). This is a structural limitation — Dynamo frontend only exposes OpenAI-compatible endpoints. The chat API overhead is estimated at 5-20ms, far smaller than the 225ms TTFT gap, so it does not change the direction of any conclusion. See also Result 2.
+
+**TP=2 still wins throughput and TTFT** — same pattern as 8B. Two GPUs each running half the model compute prefill in ~65ms vs ~369ms on one GPU.
+
+**PD's ITL advantage scales with model size** — this is the key finding:
+
+| Model | P99 ITL (TP=2) | P99 ITL (PD) | PD Advantage | Load |
+|:---|:---:|:---:|:---|:---|
+| Qwen3-8B | 24.6 ms | 11.8 ms | -52% | 200 @ 20 req/s |
+| Qwen2.5-32B | 201 ms | 31 ms | **-85%** | 100 @ 10 req/s |
+
+![Cross-Model ITL Comparison](images/benchmark_model_size_itl.png)
+
+Why does this happen? On TP=2, both GPUs handle prefill AND decode concurrently. With a 4× larger model, each chunked-prefill kernel runs ~4× longer, causing longer decode stalls between chunks. On PD, the decode worker has zero prefill interference regardless of model size — its P99 ITL stays in the 10-30ms range whether the model is 8B or 32B.
+
+**E2E is essentially flat** (3524 vs 3559 ms, +1%). PD's TTFT disadvantage (KV transfer overhead via NIXL) is offset by its superior decode consistency. The ~250 decode steps × ~26ms/token dominate total latency, making E2E insensitive to which architecture is used.
+
+**The 32B model sits at the PD crossover point**: single-GPU TTFT = 369ms means prefill is genuinely compute-heavy (vs 43ms for 8B). For 70B+ models requiring 4+ GPUs, prefill would be even heavier, and PD's value proposition strengthens further.
+
+---
+
+## Result 5: Optimization Ablation — FP8 KV Cache and Chunked Prefill
+
+Two common inference optimizations, tested in isolation on Qwen2.5-32B single-GPU baseline (100 prompts @ 10 req/s, 1024 input / 256 output tokens).
+
+### FP8 KV Cache
+
+| Metric | BF16 KV (default) | FP8 KV | Δ |
+|:---|:---:|:---:|:---|
+| **Output tok/s** | 749 | 741 | -1% |
+| **Mean TTFT** | 369 ms | 393 ms | +6% |
+| **Mean E2E** | 7548 ms | 7717 ms | +2% |
+| **P99 ITL** | 680 ms | 594 ms | -13% |
+
+FP8 KV cache (`--kv-cache-dtype fp8_e5m2`) compresses KV storage from 16-bit to 8-bit, halving the KV memory footprint. However, it does **not** change the computation precision of attention kernels — the math is still done in BF16/FP16.
+
+**Result**: No measurable throughput or latency benefit at this context length (1024 tokens). The memory saving only matters when KV cache is the bottleneck — typically at very long contexts (8K+ tokens) or very high concurrency where KV fills available VRAM. At 1024 tokens with 100 requests, we never approached the KV capacity limit.
+
+**When FP8 KV matters**: Long-context workloads (8K-128K input), high concurrency on memory-constrained GPUs, or serving 70B+ models where every GB of VRAM counts.
+
+### Chunked Prefill ON vs OFF
+
+| Metric | Chunked ON (default) | Chunked OFF | Δ |
+|:---|:---:|:---:|:---|
+| **Output tok/s** | 749 | 618 | **-17%** |
+| **Mean TTFT** | 369 ms | 1729 ms | **+369% (4.7×)** |
+| **Mean E2E** | 7548 ms | 7332 ms | -3% |
+| **P95 ITL** | 258 ms | 155 ms | **-40%** |
+| **P99 ITL** | 680 ms | 341 ms | **-50%** |
+
+![Chunked Prefill Ablation](images/benchmark_chunked_ablation.png)
+
+This is the classic **TTFT vs ITL tradeoff**:
+
+- **Without chunked prefill** (`--chunked-prefill-size -1`): Each 1024-token prefill runs as a single uninterruptible kernel (~369ms). While it executes, ALL decode batches are blocked. Subsequent prefills also queue. Result: TTFT explodes to 1729ms (median 601ms — some requests wait behind multiple prefills). But once a request enters decode, it runs uninterrupted — P95 ITL drops to 155ms.
+
+- **With chunked prefill** (default, `--chunked-prefill-size 8192`): Prefill is split into chunks. The scheduler interleaves decode batches between chunks. TTFT stays low because new requests are scheduled quickly. But decode tokens occasionally wait behind a prefill chunk — P95 ITL rises to 258ms.
+
+**Throughput**: Chunked ON gets 749 vs 618 tok/s (+21%) because the scheduler fills GPU utilization gaps between chunks with decode work, instead of leaving decode idle during long prefills.
+
+**E2E is roughly flat** — the TTFT improvement from chunking roughly cancels out the ITL degradation.
+
+---
+
 ## When to Use (and NOT Use) PD Disaggregation
 
 Based on our benchmarks + Dynamo's design intent:
@@ -127,12 +211,13 @@ Based on our benchmarks + Dynamo's design intent:
 | Scenario | Use PD? | Why |
 |:---|:---:|:---|
 | Small model (8B-13B) on single node with NVLink | **No** | TP is strictly better. Prefill is not a bottleneck. |
+| Medium model (30B-class) on 2 GPUs with NVLink | **Maybe** | PD wins P99 ITL by 85%, but loses 14% throughput. Only if strict ITL SLO. |
 | Large model (70B+) on multi-node | **Yes** | Prefill becomes compute-heavy, worth dedicating GPUs. |
 | Strict P99 ITL SLO (< 15ms) | **Maybe** | PD prevents prefill from preempting decode. |
 | Agent workloads with tool calls (2-30s gaps) | **Yes** | PD + KV cache pinning prevents eviction during gaps. |
 | Cost-sensitive, want max throughput per dollar | **No** | TP gives same throughput with simpler architecture. |
 
-**The 30ms rule**: If single-GPU prefill for your typical input length takes < 30ms, PD adds overhead (KV transfer) without benefit. Our 1024-token prefill took ~30ms on H100 — right at the threshold. For longer prompts (4K+) or weaker GPUs, PD becomes more attractive.
+**The prefill-time rule**: If single-GPU prefill for your typical input length takes < 30ms (our 8B at 1024 tokens), PD adds overhead without benefit. At ~370ms (our 32B at 1024 tokens), you're at the crossover point where PD's ITL advantage (-85%) starts to outweigh its throughput cost (-14%). For longer prompts (4K+), larger models (70B+), or weaker GPUs, PD becomes clearly attractive.
 
 ---
 
@@ -176,6 +261,8 @@ Chunked prefill produces **mathematically identical KV Cache** as full prefill. 
 | **Configuration** | Default in SGLang | Complex deployment |
 
 **Chunked Prefill is "poor man's PD"** — it solves 80% of the problem at 0% of the cost. Our benchmarks used SGLang's default chunked prefill (`--chunked-prefill-size 8192`), which is why TP=2's P99 ITL (24.6ms at high concurrency) was already reasonable. Without chunked prefill, the ITL spikes would be much worse, making PD's advantage more pronounced.
+
+**Measured impact (Result 5)**: On 32B, disabling chunked prefill caused TTFT to explode from 369ms to 1729ms (+4.7×), while P95 ITL improved from 258ms to 155ms (-40%). Throughput dropped 17%. The net E2E was roughly flat — confirming that chunked prefill trades slightly worse ITL for dramatically better TTFT and throughput. See [Result 5](#result-5-optimization-ablation--fp8-kv-cache-and-chunked-prefill) for full data.
 
 ---
 
@@ -265,10 +352,16 @@ Raw benchmark logs are in `data/`.
 
 ## Conclusion
 
-1. **PD disaggregation is not universally better** — it trades average performance for tail latency stability. For small models on NVLink, TP is strictly superior.
+1. **PD disaggregation is not universally better** — it trades average performance for tail latency stability. For small models on NVLink, TP is strictly superior on every average metric.
 
-2. **Prefix Cache is the highest-ROI optimization** for agent/multi-turn workloads: 41% TTFT reduction, zero config, zero extra hardware.
+2. **PD's value scales with model size**. For 8B, PD improves P99 ITL by 52%. For 32B, the improvement jumps to 85%. The physical reason: larger models make prefill kernels heavier, causing worse decode stalls on TP — while PD's dedicated decode worker is immune to model size.
 
-3. **Dynamo's value is in large-scale production**, not small-model benchmarks. Its real strengths — KV-aware routing across dozens of workers, agent lifecycle management, 4-tier KV storage — cannot be demonstrated on 2 GPUs.
+3. **Prefix Cache is the highest-ROI optimization** for agent/multi-turn workloads: 41% TTFT reduction, zero config, zero extra hardware.
 
-4. **The engineering challenge is real**: deploying Dynamo from PyPI requires NATS + etcd + NIXL + SGLang compatibility patches. The Docker path (`nvcr.io/nvidia/dynamo`) is significantly easier for production.
+4. **Chunked Prefill is non-negotiable**: disabling it causes 4.7× TTFT regression on 32B. The ITL improvement from disabling it (40%) is not worth the throughput loss (17%) and TTFT explosion. Keep it on.
+
+5. **FP8 KV Cache is context-length dependent**: no benefit at 1024 tokens, but important for long-context (8K+) or memory-constrained deployments where KV cache fills VRAM.
+
+6. **Dynamo's value is in large-scale production**, not small-model benchmarks. Its real strengths — KV-aware routing across dozens of workers, agent lifecycle management, 4-tier KV storage — cannot be demonstrated on 2 GPUs.
+
+7. **The engineering challenge is real**: deploying Dynamo from PyPI requires NATS + etcd + NIXL + SGLang compatibility patches. The Docker path (`nvcr.io/nvidia/dynamo`) is significantly easier for production.

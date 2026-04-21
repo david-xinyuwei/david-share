@@ -141,4 +141,101 @@ ax.spines['right'].set_visible(False)
 fig.tight_layout()
 save(fig, 'pd_vs_tp2_summary.png')
 
+# ===== NEW: 32B Model Charts =====
+
+# 32B data (C-series, 100 prompts @ 10 req/s, 1024/256 tokens)
+configs_32b_3 = ['Baseline\n(1 GPU)', 'TP=2\n(2 GPU)', 'Dynamo PD\n1P1D (2 GPU)']
+c32_tps =     [748.83, 965.95, 830.06]
+c32_ttft =    [368.60, 129.95, 355.20]
+c32_e2e =     [7547.93, 3523.50, 3558.81]
+c32_p99_itl = [680.06, 201.42, 31.00]
+
+# --- Chart 5: 32B 3-config comparison ---
+fig, axes = plt.subplots(1, 4, figsize=(17, 4.5))
+fig.suptitle('32B Model: 100 prompts @ 10 req/s (Qwen2.5-32B, 2×H100 NVL)', fontsize=13, fontweight='bold')
+
+for ax, data, title, unit, better in zip(
+    axes,
+    [c32_ttft, c32_tps, c32_e2e, c32_p99_itl],
+    ['Mean TTFT', 'Output tok/s', 'Mean E2E', 'P99 ITL'],
+    ['ms', 'tok/s', 'ms', 'ms'],
+    ['lower', 'higher', 'lower', 'lower']
+):
+    bars = ax.bar(range(len(data)), data, color=colors_3, edgecolor='white', linewidth=0.5)
+    ax.set_title(title, fontweight='bold')
+    ax.set_ylabel(unit)
+    ax.set_xticks(range(len(data)))
+    ax.set_xticklabels(configs_32b_3, fontsize=9)
+    for bar, val in zip(bars, data):
+        ax.text(bar.get_x() + bar.get_width()/2., bar.get_height() + max(data)*0.02,
+                f'{val:.0f}', ha='center', va='bottom', fontsize=9)
+    best_idx = data.index(min(data)) if better == 'lower' else data.index(max(data))
+    bars[best_idx].set_edgecolor('#000000')
+    bars[best_idx].set_linewidth(2)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+
+fig.tight_layout()
+save(fig, 'benchmark_32b_tp_vs_pd.png')
+
+# --- Chart 6: Cross-model P99 ITL comparison ---
+fig, ax = plt.subplots(figsize=(9, 5))
+x = np.arange(2)
+w = 0.32
+tp_vals  = [24.56, 201.42]
+pd_vals  = [11.78, 31.00]
+bars1 = ax.bar(x - w/2, tp_vals, w, label='TP=2', color='#2196F3', edgecolor='white')
+bars2 = ax.bar(x + w/2, pd_vals, w, label='Dynamo PD', color='#FF9800', edgecolor='white')
+ax.set_xticks(x)
+ax.set_xticklabels(['Qwen3-8B\n(200@20)', 'Qwen2.5-32B\n(100@10)'], fontsize=11)
+ax.set_ylabel('P99 ITL (ms)')
+ax.set_title('P99 ITL: PD Advantage Scales with Model Size', fontsize=13, fontweight='bold')
+ax.legend()
+for bar, val in zip(bars1, tp_vals):
+    ax.text(bar.get_x() + bar.get_width()/2., bar.get_height() + 3,
+            f'{val:.1f}', ha='center', va='bottom', fontsize=10, fontweight='bold')
+for bar, val in zip(bars2, pd_vals):
+    ax.text(bar.get_x() + bar.get_width()/2., bar.get_height() + 3,
+            f'{val:.1f}', ha='center', va='bottom', fontsize=10, fontweight='bold')
+# Add advantage annotations
+ax.annotate('-52%', xy=(0, 11.78), xytext=(0.35, 50),
+            fontsize=12, fontweight='bold', color='#4CAF50',
+            arrowprops=dict(arrowstyle='->', color='#4CAF50', lw=1.5))
+ax.annotate('-85%', xy=(1, 31.00), xytext=(1.35, 130),
+            fontsize=14, fontweight='bold', color='#4CAF50',
+            arrowprops=dict(arrowstyle='->', color='#4CAF50', lw=2))
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+fig.tight_layout()
+save(fig, 'benchmark_model_size_itl.png')
+
+# --- Chart 7: Chunked Prefill ablation ---
+fig, axes = plt.subplots(1, 3, figsize=(14, 4.5))
+fig.suptitle('Chunked Prefill Ablation: 32B Single GPU (100@10, 1024/256)', fontsize=13, fontweight='bold')
+
+chunk_configs = ['Chunked ON\n(default)', 'Chunked OFF']
+chunk_colors = ['#4CAF50', '#F44336']
+chunk_data = [
+    ([368.60, 1729.08], 'Mean TTFT', 'ms'),
+    ([748.83, 617.84], 'Output tok/s', 'tok/s'),
+    ([257.79, 154.97], 'P95 ITL', 'ms'),
+]
+for ax, (data, title, unit) in zip(axes, chunk_data):
+    bars = ax.bar(chunk_configs, data, color=chunk_colors, edgecolor='white', width=0.5)
+    ax.set_title(title, fontweight='bold')
+    ax.set_ylabel(unit)
+    for bar, val in zip(bars, data):
+        ax.text(bar.get_x() + bar.get_width()/2., bar.get_height() + max(data)*0.02,
+                f'{val:.0f}', ha='center', va='bottom', fontsize=10, fontweight='bold')
+    # Delta annotation between bars
+    pct = (data[1] - data[0]) / data[0] * 100
+    mid_y = (data[0] + data[1]) / 2
+    ax.text(0.5, mid_y, f'{pct:+.0f}%', ha='center', fontsize=13,
+            fontweight='bold', color='#F44336' if pct > 0 else '#4CAF50')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+
+fig.tight_layout()
+save(fig, 'benchmark_chunked_ablation.png')
+
 print(f"\nAll charts saved to {OUT_DIR}/")

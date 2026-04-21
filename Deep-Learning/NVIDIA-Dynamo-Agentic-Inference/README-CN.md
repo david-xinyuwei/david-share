@@ -9,11 +9,13 @@
 
 ## 一句话结论
 
-我们在 2×H100 NVL 上用 Qwen3-8B 对比了三种 LLM 推理优化策略：**Tensor Parallel（TP=2）**、**Prefix Cache**、**NVIDIA Dynamo PD 分离（1P1D）**。核心发现：
+我们在 2×H100 NVL 上用两个模型对比了 LLM 推理优化策略 — **Qwen3-8B**（结果 1-3）和 **Qwen2.5-32B**（结果 4-5）。测试策略：**TP=2**、**Prefix Cache**、**NVIDIA Dynamo PD 分离**、**FP8 KV Cache**、**Chunked Prefill 开/关**。
 
-- **TP=2**：延迟最优 — TTFT -25%，E2E -34%（vs 单卡）。同节点 NVLink 场景的首选。
-- **Prefix Cache**：ROI 最高 — 41% TTFT 下降，零配置、零额外硬件。Agent/多轮场景必开。
-- **PD 分离**：仅在尾部延迟胜出（P99 ITL -52%），平均指标全输。为大模型多节点设计，不适合小模型 + NVLink。
+- **TP=2**：所有模型尺寸下吐量和 TTFT 最优。同节点 NVLink 的首选。
+- **Prefix Cache**：ROI 最高 — 41% TTFT 下降，零配置、零额外硬件。
+- **PD 分离**：仅在尾部延迟胜出 — 但优势随模型增大而扩大：P99 ITL **8B -52%**、**32B -85%**。为 prefill 计算密集的大模型而设计。
+- **FP8 KV Cache**：1024 token 上下文无收益。8K+ token 或显存紧张场景才有意义。
+- **Chunked Prefill**：关键优化 — 关闭后 TTFT 爆炸 4.7×，ITL 改善有限。
 
 ![PD vs TP=2 Summary](images/pd_vs_tp2_summary.png)
 
@@ -54,11 +56,13 @@ graph TD
 |:---|:---|
 | **VM** | Azure NC80adis_H100_v5，2× NVIDIA H100 NVL 95830 MiB |
 | **互联** | NV12 NVLink（节点内，~900 GB/s 双向） |
-| **模型** | Qwen3-8B FP16（16GB，轻松装入单卡 H100 95GB） |
+| **模型** | Qwen3-8B FP16 (16GB) — 结果 1-3；Qwen2.5-32B-Instruct FP16 (65GB，占 H100 VRAM 89%) — 结果 4-5 |
 | **引擎** | SGLang 0.5.10.post1，FlashInfer 0.6.7.post3，PyTorch 2.9.1+cu128 |
 | **Dynamo** | ai-dynamo 1.0.1，nixl 1.0.1，NATS v2.11.3，etcd v3.5.21 |
 | **Benchmark** | `sglang.bench_serving`，random 数据集，1024 输入 / 256 输出 tokens |
-| **测试配置** | 单卡、TP=2、Prefix Cache（cold/warm/flush）、Dynamo PD 1P1D |
+| **8B 负载** | 50 prompts @ 5 req/s（低并发），200 @ 20（高并发） |
+| **32B 负载** | 100 prompts @ 10 req/s |
+| **测试配置** | 单卡、TP=2、Prefix Cache（cold/warm/flush）、Dynamo PD 1P1D、FP8 KV、Chunked 开/关 |
 
 ---
 
@@ -120,6 +124,86 @@ Flush 对照组（R3）和 Cold（R1）完全一致——证明 Warm cache 的�
 
 ---
 
+## 结果 4：32B 模型 — 模型尺寸会改变结论吗？
+
+以上结果均基于 Qwen3-8B（16GB）。一个自然的问题：PD 在更大的模型上会不会更有价值？我们测试了 **Qwen2.5-32B-Instruct**（65GB FP16）— 占满单张 H100 NVL 95GB VRAM 的 89%。
+
+**测试参数**：100 prompts @ 10 req/s，1024 输入 / 256 输出 tokens（与 8B 相同的 token 长度；由于 32B 每 token 慢 ~4×，降低了请求率）。
+
+![32B TP vs PD 对比](images/benchmark_32b_tp_vs_pd.png)
+
+| 指标 | Baseline (1 GPU) | TP=2 (2 GPU) | PD 1P1D (2 GPU) | PD vs TP=2 |
+|:---|:---:|:---:|:---:|:---|
+| **Output tok/s** | 749 | **966** | 830 | -14% |
+| **Mean TTFT** | 369 ms | **130 ms** | 355 ms | +173% |
+| **Mean E2E** | 7548 ms | **3524 ms** | 3559 ms | +1% |
+| **P95 ITL** | 258 ms | 82 ms | **29 ms** | **-65%** |
+| **P99 ITL** | 680 ms | 201 ms | **31 ms** | **-85%** |
+
+> **公平性说明**：TP=2 使用 `--backend sglang`（原生 `/generate`），PD 使用 `--backend sglang-oai-chat`（`/v1/chat/completions`）。这是结构性限制 — Dynamo frontend 只暴露 OpenAI 兼容端点。chat API 开销约 5-20ms，远小于 225ms TTFT 差距，不改变任何结论方向。
+
+**TP=2 仍然赢吐量和 TTFT** — 与 8B 相同的模式。两张 GPU 各跑一半模型，prefill 从 ~369ms 降到 ~65ms。
+
+**PD 的 ITL 优势随模型增大而扩大** — 这是核心发现：
+
+| 模型 | P99 ITL (TP=2) | P99 ITL (PD) | PD 优势 | 负载 |
+|:---|:---:|:---:|:---|:---|
+| Qwen3-8B | 24.6 ms | 11.8 ms | -52% | 200 @ 20 req/s |
+| Qwen2.5-32B | 201 ms | 31 ms | **-85%** | 100 @ 10 req/s |
+
+![Cross-Model ITL 对比](images/benchmark_model_size_itl.png)
+
+为什么？TP=2 两张 GPU 同时处理 prefill 和 decode。模型增大 4×，每个 chunked-prefill kernel 运行时间也增大 ~4×，decode 在 chunk 间的停顿更长。PD 的 decode 卡零 prefill 干扰，无论模型多大 P99 ITL 都保持在 10-30ms。
+
+**E2E 基本持平**（3524 vs 3559 ms，+1%）。PD 的 TTFT 劣势（NIXL KV 传输开销）被其 decode 一致性优势抵消。~250 个 decode 步骤 × ~26ms/token 主导总延迟。
+
+**32B 模型处于 PD 交叉点**：单卡 TTFT = 369ms 说明 prefill 真正计算密集（vs 8B 的 43ms）。70B+ 模型需 4+ GPU，prefill 更重，PD 价值进一步增强。
+
+---
+
+## 结果 5：优化消融实验 — FP8 KV Cache 和 Chunked Prefill
+
+两个常见推理优化，在 Qwen2.5-32B 单卡基线上独立测试（100 prompts @ 10 req/s，1024/256 tokens）。
+
+### FP8 KV Cache
+
+| 指标 | BF16 KV（默认） | FP8 KV | Δ |
+|:---|:---:|:---:|:---|
+| **Output tok/s** | 749 | 741 | -1% |
+| **Mean TTFT** | 369 ms | 393 ms | +6% |
+| **Mean E2E** | 7548 ms | 7717 ms | +2% |
+| **P99 ITL** | 680 ms | 594 ms | -13% |
+
+FP8 KV cache（`--kv-cache-dtype fp8_e5m2`）将 KV 存储从 16-bit 压缩到 8-bit，KV 内存占用减半。但不改变 attention kernel 的计算精度 — 运算仍然是 BF16/FP16。
+
+**结果**：在 1024 token 上下文下无可测量的性能收益。内存节省仅在 KV cache 成为瓶颈时才重要 — 通常是超长上下文（8K+）或高并发 KV 占满显存时。
+
+**FP8 KV 何时有意义**：长上下文（8K-128K 输入）、显存紧张的 GPU、或 70B+ 模型每 GB VRAM 都很珍贵的场景。
+
+### Chunked Prefill 开 vs 关
+
+| 指标 | Chunked 开（默认） | Chunked 关 | Δ |
+|:---|:---:|:---:|:---|
+| **Output tok/s** | 749 | 618 | **-17%** |
+| **Mean TTFT** | 369 ms | 1729 ms | **+369% (4.7×)** |
+| **Mean E2E** | 7548 ms | 7332 ms | -3% |
+| **P95 ITL** | 258 ms | 155 ms | **-40%** |
+| **P99 ITL** | 680 ms | 341 ms | **-50%** |
+
+![Chunked Prefill 消融实验](images/benchmark_chunked_ablation.png)
+
+经典的 **TTFT vs ITL 权衡**：
+
+- **关闭 chunked prefill**（`--chunked-prefill-size -1`）：每个 1024-token prefill 作为单个不可中断的 kernel 执行（~369ms）。执行期间所有 decode batch 被阻塞。后续 prefill 请求也排队。结果：TTFT 爆炸到 1729ms。但 decode 阶段不受干扰 — P95 ITL 降至 155ms。
+
+- **开启 chunked prefill**（默认，`--chunked-prefill-size 8192`）：prefill 被切成 chunk，调度器在 chunk 间穿插 decode batch。TTFT 保持低位。但 decode token 偶尔等待 prefill chunk — P95 ITL 升至 258ms。
+
+**吐量**：chunked 开比关快 21%（749 vs 618 tok/s），因为调度器能在 chunk 间隙塞入 decode 工作。
+
+**E2E 基本持平** — TTFT 改善和 ITL 恶化相互抵消。
+
+---
+
 ## 什么时候用（和不用）PD 分离
 
 基于实测数据 + Dynamo 设计意图：
@@ -127,12 +211,13 @@ Flush 对照组（R3）和 Cold（R1）完全一致——证明 Warm cache 的�
 | 场景 | 用 PD？ | 原因 |
 |:---|:---:|:---|
 | 小模型（8B-13B）+ 同节点 NVLink | **不用** | TP 严格更好。Prefill 不是瓶颈。 |
+| 中型模型（30B 级）+ 2 卡 NVLink | **可能** | PD 赢 P99 ITL 85%，但输吐量 14%。仅严格 ITL SLO 时。 |
 | 大模型（70B+）+ 多节点 | **用** | Prefill 变成计算密集型，值得专用 GPU。 |
 | 严格 P99 ITL SLO（< 15ms） | **可能** | PD 防止 prefill 抢占 decode。 |
 | Agent 场景 + tool call（2-30 秒间隔） | **用** | PD + KV cache 钉住防止间隔期驱逐。 |
-| 成本敏感，追求最大吞吐/美元 | **不用** | TP 以更简单架构给出相同吞吐。 |
+| 成本敏感，追求最大吐量/美元 | **不用** | TP 以更简单架构给出相同吐量。 |
 
-**30ms 法则**：如果单卡 prefill 你的典型输入长度 < 30ms，PD 增加的 KV transfer 开销反而拖后腿。我们的 1024 token prefill 在 H100 上约 ~30ms——正好在临界点。更长 prompt（4K+）或更弱 GPU 上，PD 更有吸引力。
+**Prefill 时间规则**：如果单卡 prefill 你的典型输入长度 < 30ms（我们 8B 在 1024 token），PD 增加开销而无收益。在 ~370ms（我们 32B 在 1024 token）时，你处于交叉点 — PD 的 ITL 优势（-85%）开始超过其吐量代价（-14%）。更长 prompt（4K+）、更大模型（70B+）或更弱 GPU，PD 明确更有吸引力。
 
 ---
 
@@ -176,7 +261,7 @@ Chunked prefill 产生的 KV Cache 与完整 prefill **数学上完全等价**�
 | **配置难度** | 零（SGLang 默认开启） | 复杂部署 |
 
 **Chunked Prefill 是"穷人的 PD"** — 用 0% 的成本解决 80% 的问题。我们的 benchmark 使用了 SGLang 默认的 chunked prefill（`--chunked-prefill-size 8192`），所以 TP=2 高并发的 P99 ITL（24.6ms）已经不算太差。如果关掉 chunked prefill，ITL 尖刺会严重得多，PD 的优势会更明显。
-
+**实测数据（结果 5）**：在 32B 上，关闭 chunked prefill 导致 TTFT 从 369ms 爆炸到 1729ms（+4.7×），P95 ITL 从 258ms 改善到 155ms（-40%）。吐量下降 17%。净 E2E 基本持平 — 确认 chunked prefill 用略差的 ITL 换取显著更好的 TTFT 和吐量。详见[结果 5](#结果-5优化消融实验--fp8-kv-cache-和-chunked-prefill)。
 ---
 
 ## 从 PyPI 部署 Dynamo PD（非 Docker）
@@ -265,10 +350,16 @@ python3 scripts/generate_charts.py
 
 ## 结论
 
-1. **PD 分离不是万能的** — 它用平均性能换尾部延迟稳定性。小模型 + NVLink 场景下，TP 严格优于 PD。
+1. **PD 分离不是万能的** — 它用平均性能换尾部延迟稳定性。小模型 + NVLink 场景下，TP 在每个平均指标上严格优于 PD。
 
-2. **Prefix Cache 是 Agent/多轮场景下 ROI 最高的优化**：41% TTFT 下降，零配置，零额外硬件。
+2. **PD 的价值随模型增大而增强**。8B 时 PD 改善 P99 ITL 52%，32B 时跳到 85%。物理原因：更大模型让 prefill kernel 更重，TP 上 decode 停顿更严重 — PD 的专用 decode 卡免疫模型尺寸。
 
-3. **Dynamo 的价值在于大规模生产**，不在小模型 benchmark。它的真正优势——跨数十个 worker 的 KV 感知路由、Agent 生命周期管理、四层 KV 存储——无法在 2 张 GPU 上展现。
+3. **Prefix Cache 是 Agent/多轮场景下 ROI 最高的优化**：41% TTFT 下降，零配置，零额外硬件。
 
-4. **工程挑战是真实的**：从 PyPI 部署 Dynamo 需要 NATS + etcd + NIXL + SGLang 兼容 patch。Docker 路径（`nvcr.io/nvidia/dynamo`）在生产中显著更容易。
+4. **Chunked Prefill 不可关闭**：32B 上关闭导致 4.7× TTFT 回退。ITL 改善（40%）不值得吐量损失（17%）和 TTFT 爆炸。保持开启。
+
+5. **FP8 KV Cache 取决于上下文长度**：1024 token 无收益，但对长上下文（8K+）或显存紧张场景重要。
+
+6. **Dynamo 的价值在大规模生产**，不在小模型 benchmark。它的真正优势 — 跨数十个 worker 的 KV 感知路由、Agent 生命周期管理、四层 KV 存储 — 无法在 2 张 GPU 上展现。
+
+7. **工程挑战是真实的**：从 PyPI 部署 Dynamo 需要 NATS + etcd + NIXL + SGLang 兼容 patch。Docker 路径（`nvcr.io/nvidia/dynamo`）在生产中显著更容易。
