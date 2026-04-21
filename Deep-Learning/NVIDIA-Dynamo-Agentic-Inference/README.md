@@ -481,18 +481,26 @@ Throughput and ITL are within measurement noise. The Docker path eliminates all 
 ## Reproducing These Results
 
 ```bash
-# 1. Setup environment (installs SGLang + Dynamo + NATS + etcd + model)
+# 1. Setup environment (installs SGLang + Dynamo + NATS + etcd + downloads both models)
 bash scripts/setup.sh
 
-# 2. Run all benchmarks
+# 2. Run 8B benchmarks (Results 1-3: single GPU, TP=2, prefix cache, PD)
 bash scripts/run_benchmark.sh all
 
-# 3. Generate charts
+# 3. Run 32B benchmarks (Results 4-5: baseline, FP8 KV, chunked ablation, TP=2, PD)
+bash scripts/run_benchmark.sh 32b
+
+# 4. Run Docker benchmarks (Docker deployment verification)
+# Requires: docker pull nvcr.io/nvidia/ai-dynamo/sglang-runtime:1.0.1
+bash scripts/run_benchmark.sh docker
+
+# 5. Generate charts
 pip install matplotlib
 python3 scripts/generate_charts.py
+python3 scripts/generate_pd_architecture.py
 ```
 
-Or run individual phases: `bash scripts/run_benchmark.sh phase1|phase2|phase3|phase5|highload_tp2|highload_pd`
+Individual 8B phases: `bash scripts/run_benchmark.sh phase1|phase2|phase3|phase5|highload_tp2|highload_pd`
 
 Raw benchmark logs are in `data/`.
 

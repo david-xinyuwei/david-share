@@ -258,6 +258,112 @@ case "${1:-all}" in
     phase5) phase5 ;;
     highload_tp2) highload_tp2 ;;
     highload_pd) highload_pd ;;
+    32b)
+        # 32B benchmarks: C1 baseline, C4 FP8 KV, C5 no chunked, C6 PD, C7 TP=2
+        MODEL_32B="${MODEL_32B:-/root/models/Qwen2.5-32B-Instruct}"
+        WAIT=240
+        echo "========== 32B Benchmarks (100 prompts @ 10 req/s) =========="
+
+        echo "=== C1: 32B Baseline (single GPU) ==="
+        cleanup
+        python3 -m sglang.launch_server --model-path "$MODEL_32B" --port $PORT --host 0.0.0.0 &>/tmp/sglang_32b.log &
+        wait_for_server $WAIT
+        run_sglang_bench sglang benchmark_32b_C1_baseline.log 100 10 "--model $MODEL_32B"
+        cleanup
+
+        echo "=== C4: 32B FP8 KV Cache ==="
+        python3 -m sglang.launch_server --model-path "$MODEL_32B" --port $PORT --host 0.0.0.0 --kv-cache-dtype fp8_e5m2 &>/tmp/sglang_32b.log &
+        wait_for_server $WAIT
+        run_sglang_bench sglang benchmark_32b_C4_fp8kv.log 100 10 "--model $MODEL_32B"
+        cleanup
+
+        echo "=== C5: 32B No Chunked Prefill ==="
+        python3 -m sglang.launch_server --model-path "$MODEL_32B" --port $PORT --host 0.0.0.0 --chunked-prefill-size -1 &>/tmp/sglang_32b.log &
+        wait_for_server $WAIT
+        run_sglang_bench sglang benchmark_32b_C5_nochunk.log 100 10 "--model $MODEL_32B"
+        cleanup
+
+        echo "=== C7: 32B TP=2 ==="
+        python3 -m sglang.launch_server --model-path "$MODEL_32B" --port $PORT --host 0.0.0.0 --tp 2 &>/tmp/sglang_32b.log &
+        wait_for_server $WAIT
+        run_sglang_bench sglang benchmark_32b_C7_tp2.log 100 10 "--model $MODEL_32B"
+        cleanup
+
+        echo "=== C6: 32B Dynamo PD 1P1D ==="
+        nats-server -js &>/tmp/nats.log &
+        etcd &>/tmp/etcd.log &
+        sleep 2
+        python3 -m dynamo.frontend --router-mode kv --router-reset-states &>/tmp/dynamo_frontend.log &
+        sleep 3
+        CUDA_VISIBLE_DEVICES=0 DYN_SYSTEM_PORT=8081 python3 -m dynamo.sglang \
+            --model-path "$MODEL_32B" --served-model-name QWEN32B --page-size 64 --tp 1 \
+            --disaggregation-mode prefill --host 0.0.0.0 \
+            --kv-events-config '{"publisher":"zmq","topic":"kv-events","endpoint":"tcp://*:5557"}' \
+            --disaggregation-transfer-backend nixl &>/tmp/dynamo_prefill.log &
+        CUDA_VISIBLE_DEVICES=1 DYN_SYSTEM_PORT=8083 python3 -m dynamo.sglang \
+            --model-path "$MODEL_32B" --served-model-name QWEN32B --page-size 64 --tp 1 \
+            --disaggregation-mode decode --host 0.0.0.0 \
+            --kv-events-config '{"publisher":"zmq","topic":"kv-events","endpoint":"tcp://*:5560"}' \
+            --disaggregation-transfer-backend nixl &>/tmp/dynamo_decode.log &
+        wait_for_server $WAIT
+        run_sglang_bench sglang-oai-chat benchmark_32b_C6_pd.log 100 10 "--model QWEN32B --tokenizer $MODEL_32B"
+        cleanup
+        pkill -f nats-server 2>/dev/null; pkill -f etcd 2>/dev/null
+
+        echo "========== 32B Benchmarks complete =========="
+        ;;
+    docker)
+        # Docker deployment benchmarks (requires: docker pull nvcr.io/nvidia/ai-dynamo/sglang-runtime:1.0.1)
+        MODEL_32B="${MODEL_32B:-/root/models/Qwen2.5-32B-Instruct}"
+        echo "========== Docker Benchmarks =========="
+        echo "Requires: docker with --runtime=nvidia and model at $MODEL_32B"
+
+        docker rm -f dynamo-docker-bench 2>/dev/null
+        docker run -d --name dynamo-docker-bench --runtime=nvidia --network host --ipc=host \
+            -v "$(dirname $MODEL_32B):/models" \
+            nvcr.io/nvidia/ai-dynamo/sglang-runtime:1.0.1 sleep infinity
+
+        echo "=== D1: Docker Single GPU Baseline ==="
+        docker exec -d dynamo-docker-bench python3 -m sglang.launch_server \
+            --model-path /models/$(basename $MODEL_32B) --port 8000 --host 0.0.0.0
+        echo "Waiting for Docker server..."
+        for i in $(seq 1 300); do
+            curl -s http://localhost:8000/v1/models 2>/dev/null | grep -q "Qwen" && echo "D1 ready at ${i}s" && break
+            sleep 1
+        done
+        docker exec dynamo-docker-bench python3 -m sglang.bench_serving --backend sglang --port 8000 \
+            --model /models/$(basename $MODEL_32B) --dataset-name random \
+            --random-input-len 1024 --random-output-len 256 --num-prompts 100 --request-rate 10 --seed 1 \
+            2>&1 | tee "$LOG_DIR/benchmark_32b_D1_docker_baseline.log"
+        docker exec dynamo-docker-bench bash -c "pkill -f sglang" && sleep 5
+
+        echo "=== D2: Docker Dynamo PD ==="
+        docker exec -d dynamo-docker-bench bash -c "nats-server -js & etcd &"
+        sleep 3
+        docker exec -d dynamo-docker-bench python3 -m dynamo.frontend --router-mode kv --router-reset-states --http-port 8000
+        sleep 3
+        docker exec -d -e CUDA_VISIBLE_DEVICES=0 -e DYN_SYSTEM_PORT=8081 dynamo-docker-bench python3 -m dynamo.sglang \
+            --model-path /models/$(basename $MODEL_32B) --served-model-name QWEN32B --page-size 64 --tp 1 \
+            --disaggregation-mode prefill --host 0.0.0.0 \
+            --kv-events-config '{"publisher":"zmq","topic":"kv-events","endpoint":"tcp://*:5557"}' \
+            --disaggregation-transfer-backend nixl
+        docker exec -d -e CUDA_VISIBLE_DEVICES=1 -e DYN_SYSTEM_PORT=8083 dynamo-docker-bench python3 -m dynamo.sglang \
+            --model-path /models/$(basename $MODEL_32B) --served-model-name QWEN32B --page-size 64 --tp 1 \
+            --disaggregation-mode decode --host 0.0.0.0 \
+            --kv-events-config '{"publisher":"zmq","topic":"kv-events","endpoint":"tcp://*:5560"}' \
+            --disaggregation-transfer-backend nixl
+        for i in $(seq 1 300); do
+            curl -s http://localhost:8000/v1/models 2>/dev/null | grep -q "QWEN32B" && echo "D2 ready at ${i}s" && break
+            sleep 1
+        done
+        docker exec dynamo-docker-bench python3 -m sglang.bench_serving --backend sglang-oai-chat --port 8000 \
+            --model QWEN32B --tokenizer /models/$(basename $MODEL_32B) --dataset-name random \
+            --random-input-len 1024 --random-output-len 256 --num-prompts 100 --request-rate 10 --seed 1 \
+            2>&1 | tee "$LOG_DIR/benchmark_32b_D2_docker_pd.log"
+
+        docker rm -f dynamo-docker-bench 2>/dev/null
+        echo "========== Docker Benchmarks complete =========="
+        ;;
     all)
         phase1
         phase2
@@ -265,7 +371,9 @@ case "${1:-all}" in
         phase5
         highload_tp2
         highload_pd
-        echo "========== All phases complete =========="
+        echo "========== All 8B phases complete =========="
+        echo "For 32B benchmarks: bash $0 32b"
+        echo "For Docker benchmarks: bash $0 docker"
         ;;
     *) usage ;;
 esac

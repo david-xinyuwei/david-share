@@ -479,18 +479,26 @@ docker exec -d -e CUDA_VISIBLE_DEVICES=1 -e DYN_SYSTEM_PORT=8083 dynamo python3 
 ## 复现步骤
 
 ```bash
-# 1. 搭建环境（安装 SGLang + Dynamo + NATS + etcd + 下载模型）
+# 1. 搭建环境（安装 SGLang + Dynamo + NATS + etcd + 下载两个模型）
 bash scripts/setup.sh
 
-# 2. 跑全部 benchmark
+# 2. 跑 8B benchmark（结果 1-3：单卡、TP=2、Prefix Cache、PD）
 bash scripts/run_benchmark.sh all
 
-# 3. 生成图表
+# 3. 跑 32B benchmark（结果 4-5：baseline、FP8 KV、Chunked 消融、TP=2、PD）
+bash scripts/run_benchmark.sh 32b
+
+# 4. 跑 Docker benchmark（Docker 部署验证）
+# 需要：docker pull nvcr.io/nvidia/ai-dynamo/sglang-runtime:1.0.1
+bash scripts/run_benchmark.sh docker
+
+# 5. 生成图表
 pip install matplotlib
 python3 scripts/generate_charts.py
+python3 scripts/generate_pd_architecture.py
 ```
 
-也可以单独跑：`bash scripts/run_benchmark.sh phase1|phase2|phase3|phase5|highload_tp2|highload_pd`
+单独跑 8B 某个 phase：`bash scripts/run_benchmark.sh phase1|phase2|phase3|phase5|highload_tp2|highload_pd`
 
 原始 benchmark 日志在 `data/` 目录。
 

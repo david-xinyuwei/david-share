@@ -47,16 +47,31 @@ cp /tmp/etcd-${ETCD_VER}-linux-amd64/etcd /tmp/etcd-${ETCD_VER}-linux-amd64/etcd
 echo "etcd: $(etcd --version | head -1)"
 
 echo "=== Step 7: Download model ==="
-MODEL_DIR="/root/models/Qwen3-8B"
-if [ ! -d "$MODEL_DIR" ]; then
-    pip install huggingface_hub
+MODEL_8B="/root/models/Qwen3-8B"
+MODEL_32B="/root/models/Qwen2.5-32B-Instruct"
+
+pip install huggingface_hub
+
+if [ ! -d "$MODEL_8B" ]; then
+    echo "Downloading Qwen3-8B..."
     python3 -c "
 from huggingface_hub import snapshot_download
-snapshot_download('Qwen/Qwen3-8B', local_dir='$MODEL_DIR')
-print('Model downloaded')
+snapshot_download('Qwen/Qwen3-8B', local_dir='$MODEL_8B')
+print('Qwen3-8B downloaded')
 "
 else
-    echo "Model already exists at $MODEL_DIR"
+    echo "Qwen3-8B already exists at $MODEL_8B"
+fi
+
+if [ ! -d "$MODEL_32B" ]; then
+    echo "Downloading Qwen2.5-32B-Instruct..."
+    python3 -c "
+from huggingface_hub import snapshot_download
+snapshot_download('Qwen/Qwen2.5-32B-Instruct', local_dir='$MODEL_32B')
+print('Qwen2.5-32B-Instruct downloaded')
+"
+else
+    echo "Qwen2.5-32B-Instruct already exists at $MODEL_32B"
 fi
 
 echo "=== Setup complete ==="
