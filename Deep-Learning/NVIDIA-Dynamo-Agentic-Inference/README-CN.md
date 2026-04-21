@@ -17,7 +17,30 @@
 - **FP8 KV Cache**：1024 token 上下文无收益。8K+ token 或显存紧张场景才有意义。
 - **Chunked Prefill**：关键优化 — 关闭后 TTFT 爆炸 4.7×，ITL 改善有限。
 
+Dynamo 的价值超越纯 benchmark 数据：**agent hints**、**KV 感知路由**、**选择性缓存保留** — 这些特性在你的 workload 是多轮 agent 而非单次 prompt 时才重要。
+
 ![PD vs TP=2 Summary](images/pd_vs_tp2_summary.png)
+
+---
+
+## 为什么 Agent 推理需要的不只是引擎
+
+Coding agent 正在大规模写生产代码：[Stripe 每周 1300+ PRs](https://stripe.dev/blog/minions-stripes-one-shot-end-to-end-coding-agents)、[Ramp 30% 合并 PRs 来自 agent](https://www.infoq.com/news/2026/01/ramp-coding-agent-platform/)、[Spotify 每月 650+ agent 生成的 PRs](https://engineering.atspotify.com/2025/11/spotifys-background-coding-agent-part-1)。这些工作流背后的推理栈承受着巨大的 KV cache 压力。
+
+NVIDIA 分析了 Claude Code session，发现了 **Write-Once-Read-Many (WORM)** 访问模式：第一次 API 调用将对话前缀写入 KV cache 后，后续每次调用命中 **85-97% cache**。Agent 团队更进一步 — 4 个 Opus 队友的聚合 cache 命中率达 **97.2%**，读写比达 **11.7×**。
+
+但并非所有 KV block 价值相同：
+
+| Block 类型 | 复用模式 | 保留价值 |
+|:---|:---|:---|
+| System prompt + tool 定义 | 每轮复用 | **最高** |
+| 对话历史 | 后续轮次，递增 | 高 |
+| 思考/推理 token（`<think>`） | 循环关闭后不再复用（占输出 ~40%） | **接近零** |
+| 子 Agent KV | 1-3 轮后 Agent 死亡 | **接近零** |
+
+默认 LRU 驱逐对所有 block 一视同仁。2-30 秒的 tool call 等待可能导致 agent 的整个前缀被驱逐，恢复时必须全量重算。传统推理引擎解决了 kernel 调度 — **Dynamo 解决的是 agent 感知的缓存管理**。
+
+*来源：[Full-Stack Optimizations for Agentic Inference with NVIDIA Dynamo](https://developer.nvidia.com/blog/full-stack-optimizations-for-agentic-inference-with-nvidia-dynamo/) — Figure 1、KV 复用表、Claude Code 分析。*
 
 ---
 
@@ -47,6 +70,60 @@ graph TD
 核心能力：**PD 分离** — 将部分 GPU 专用于 prefill（计算 KV cache），其余 GPU 专用于 decode（生成 token）。原理：prefill 是计算密集型，decode 是显存带宽密集型，分开可避免互相干扰。
 
 **来源**：[Dynamo 1.0 Blog](https://developer.nvidia.com/blog/nvidia-dynamo-1-production-ready/) | [Full-Stack Agentic Inference Blog](https://developer.nvidia.com/blog/full-stack-optimizations-for-agentic-inference-with-nvidia-dynamo/) | [GitHub](https://github.com/ai-dynamo/dynamo)
+
+### Layer 1：Frontend — Agent Hints API
+
+Dynamo 通过统一内部表示服务 `v1/chat/completions`、`v1/responses` 和 `v1/messages` 三种端点。核心扩展是 `nvext.agent_hints`，允许 harness 向请求附加结构化元数据：
+
+```json
+{
+  "model": "Qwen2.5-32B-Instruct",
+  "messages": [...],
+  "nvext": {
+    "agent_hints": {
+      "osl": 256,
+      "speculative_prefill": true,
+      "priority": 10
+    },
+    "cache_control": {
+      "type": "ephemeral",
+      "ttl": "1h"
+    }
+  }
+}
+```
+
+| 字段 | 作用 |
+|:---|:---|
+| `priority` | 控制路由器（队列排序）和引擎（抢占/驱逐）的调度。值越高 = 越重要。 |
+| `osl` | Harness 估算的输出 token 数。路由器用此评估 worker 占用时间，改善负载均衡。 |
+| `speculative_prefill` | 在完整请求到达前就开始在可能的 worker 上缓存前缀（tool call 返回前预热 cache）。 |
+| `cache_control` | 将计算好的前缀钉住指定时间，防止 tool call 间隔期被驱逐。语义匹配 [Anthropic 的 prompt caching API](https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching)。 |
+
+### Layer 2：Router — KV 感知路由 + 优先级调度
+
+没有缓存感知路由时，多轮对话第 2 轮命中同一 worker 的概率是 ~1/N。每次未命中 = 全量重算前缀。Dynamo 路由器通过 **Flash Indexer**（170M ops/s — 见 [Flash Indexer 文章](https://docs.nvidia.com/dynamo/blog/flash-indexer)）维护全局索引，记录哪些 KV cache block 在哪个 worker 上。每次请求选择 `cache_miss_cost + decode_load` 最小的 worker。
+
+优先级调度：请求进入 `BinaryHeap<QueueEntry>` 按有效到达时间排序。更高 `priority` 让请求看起来更早到达。低于可配置负载阈值时，请求直接跳过队列。
+
+### Layer 3：KV Cache — 四层存储层级 + 选择性保留
+
+当前引擎将 KV cache 视为本地临时资源。Dynamo 的 KV Block Manager (KVBM) 构建**四层内存层级**：
+
+| 层 | 介质 | 速度 | 容量 | 持久性 |
+|:---|:---|:---|:---|:---|
+| L1 | GPU HBM | 最快 | 最小 (95 GB/GPU) | 请求生命周期 |
+| L2 | CPU Pinned DRAM | 快 | 中等 (~500 GB) | 可配置 TTL |
+| L3 | 本地 NVMe | 中等 | 大 (~3 TB) | Session 生命周期 |
+| L4 | 远程存储 | 最慢 | 无限 | 跨 worker 共享 |
+
+Block 沿 **write-through** 路径流动：GPU → CPU → 磁盘自动写入。每个 block 由**序列哈希去重** — 注册后不可变，任何 worker 可寻址。
+
+**选择性保留**替代统一 LRU。Harness 可以表达：“system prompt block 最后驱逐 (`priority: 100`)；对话上下文存活 30 秒 tool call (`duration: 45s`)；decode token 最先驱逐 (`priority: 1`)”。驱逐器使用双结构：无优先级 block 用 LRU (O(1))，有注解的 block 用优先队列。
+
+**Agent 生命周期感知**：子 agent 终止时，其 session 的 KV block 最先被回收。Thinking tokens（`<think>...</think>`）— 约占输出 40% — 在插入时被标记为 ephemeral，跳过 L2 写回，在普通 block 之前驱逐。
+
+*来源：[Full-Stack Optimizations for Agentic Inference](https://developer.nvidia.com/blog/full-stack-optimizations-for-agentic-inference-with-nvidia-dynamo/) — Layers 1-3。[Dynamo 1.0 Blog](https://developer.nvidia.com/blog/nvidia-dynamo-1-production-ready/) — KVBM 段落。*
 
 ---
 
@@ -348,6 +425,22 @@ python3 scripts/generate_charts.py
 
 ---
 
+## 从 Benchmark 到生产
+
+我们的 benchmark 在 2 张 GPU 上测试 Dynamo 的 PD 分离 — 这是最小可能的部署。在生产中，Dynamo 的软件栈解决的是只在规模化时才出现的问题：
+
+| 实测结果 | 物理原因 | Dynamo 生产特性 |
+|:---|:---|:---|
+| PD P99 ITL **-85%** (32B) | Decode 卡零 prefill 干扰 | Layer 3: NIXL KV transfer 实现物理隔离 |
+| Prefix Cache **-41%** TTFT | RadixAttention 前缀命中 | Layer 2: KV 感知路由确保多轮请求命中同一 worker |
+| Chunked 关 → TTFT **+4.7×** | Prefill kernel 不可抢占 | SGLang 调度；Layer 1 `priority` hint 在此基础上加请求级排序 |
+| FP8 KV @1024 无效 | KV 不是显存瓶颈 | Layer 3: 四层存储在 8K+ 上下文或显存紧张 GPU 才关键 |
+| PD ITL 优势随模型增大 (-52% → -85%) | Prefill kernel 更重 | PD + 多节点是 70B+ 模型的设计目标 |
+
+使用 Dynamo + [NeMo Agent Toolkit](https://github.com/NVIDIA/NeMo-Agent-Toolkit) 在 Hopper 上跑 Llama 3.1，实现了 **4× TTFT 降低 + 1.5× 吐量提升**，其 Thompson Sampling bandit 路由器配合优先级标记在显存压力下实现 **63% p50 TTFT 降低**。*（NVIDIA 报告数据，我们未独立验证。来源：[Dynamo 1.0 Blog](https://developer.nvidia.com/blog/nvidia-dynamo-1-production-ready/)，[NeMo Agent Toolkit 集成](https://github.com/NVIDIA/NeMo-Agent-Toolkit/tree/develop/examples/dynamo_integration)。）*
+
+---
+
 ## 结论
 
 1. **PD 分离不是万能的** — 它用平均性能换尾部延迟稳定性。小模型 + NVLink 场景下，TP 在每个平均指标上严格优于 PD。
@@ -363,3 +456,7 @@ python3 scripts/generate_charts.py
 6. **Dynamo 的价值在大规模生产**，不在小模型 benchmark。它的真正优势 — 跨数十个 worker 的 KV 感知路由、Agent 生命周期管理、四层 KV 存储 — 无法在 2 张 GPU 上展现。
 
 7. **工程挑战是真实的**：从 PyPI 部署 Dynamo 需要 NATS + etcd + NIXL + SGLang 兼容 patch。Docker 路径（`nvcr.io/nvidia/dynamo`）在生产中显著更容易。
+
+8. **Dynamo 的价值在软件栈，不仅仅是 PD 分离**。Agent hints、KV 感知路由、选择性缓存保留、四层 KV 存储是生产 agent workload 中 Dynamo 相比 vanilla SGLang 的核心优势。
+
+9. **对于生产 agent workload**（多轮对话 + tool call），这些特性值得部署复杂性。对于单次批量推理，vanilla SGLang 或 vLLM 更简单且同样高效。

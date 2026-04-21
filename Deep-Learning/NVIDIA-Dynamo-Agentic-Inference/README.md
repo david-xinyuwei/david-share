@@ -17,7 +17,30 @@ We benchmarked LLM inference optimization strategies on 2×H100 NVL with two mod
 - **FP8 KV Cache**: No benefit at 1024-token context. Matters at 8K+ tokens or memory-constrained setups.
 - **Chunked Prefill**: Critical — disabling it explodes TTFT 4.7× while only modestly improving ITL.
 
+Dynamo's value beyond raw benchmarks: **agent hints**, **KV-aware routing**, and **selective cache retention** — features that matter when your workload is a multi-turn agent, not a one-shot prompt.
+
 ![PD vs TP=2 Summary](images/pd_vs_tp2_summary.png)
+
+---
+
+## Why Agentic Inference Needs More Than an Engine
+
+Coding agents are writing production code at scale: [Stripe generates 1,300+ PRs/week](https://stripe.dev/blog/minions-stripes-one-shot-end-to-end-coding-agents), [Ramp attributes 30% of merged PRs to agents](https://www.infoq.com/news/2026/01/ramp-coding-agent-platform/), [Spotify reports 650+ agent-generated PRs/month](https://engineering.atspotify.com/2025/11/spotifys-background-coding-agent-part-1). Behind every one of these workflows is an inference stack under significant KV cache pressure.
+
+NVIDIA analyzed Claude Code sessions and found a **Write-Once-Read-Many (WORM)** access pattern: after the first API call writes the conversation prefix to KV cache, every subsequent call to the same worker hits **85-97% cache**. Agent teams push this further — **97.2% aggregate cache hit rate** across 4 Opus teammates, with an **11.7× read/write ratio**.
+
+But not all KV blocks are equal:
+
+| Block Type | Reuse Pattern | Retention Value |
+|:---|:---|:---|
+| System prompt + tool definitions | Every turn | **Highest** |
+| Conversation history | Subsequent turns, growing | High |
+| Thinking/reasoning tokens (`<think>`) | Never reused after loop closes (~40% of output) | **Near-zero** |
+| Subagent KV | 1-3 turns then agent dies | **Near-zero** |
+
+Default LRU eviction treats all blocks identically. A 2-30 second tool call pause can age out an agent's entire prefix, forcing full recomputation when it resumes. Traditional inference engines solve kernel scheduling — **Dynamo solves agent-aware cache management**.
+
+*Source: [Full-Stack Optimizations for Agentic Inference with NVIDIA Dynamo](https://developer.nvidia.com/blog/full-stack-optimizations-for-agentic-inference-with-nvidia-dynamo/) — Figure 1, KV reuse tables, Claude Code analysis.*
 
 ---
 
@@ -47,6 +70,60 @@ graph TD
 Key capability: **PD Disaggregation** — dedicate some GPUs to prefill (compute KV cache) and others to decode (generate tokens). The idea: prefill is compute-intensive, decode is memory-bandwidth-intensive. Separating them prevents mutual interference.
 
 **Sources**: [Dynamo 1.0 Blog](https://developer.nvidia.com/blog/nvidia-dynamo-1-production-ready/) | [Full-Stack Agentic Inference Blog](https://developer.nvidia.com/blog/full-stack-optimizations-for-agentic-inference-with-nvidia-dynamo/) | [GitHub](https://github.com/ai-dynamo/dynamo)
+
+### Layer 1: Frontend — Agent Hints API
+
+Dynamo serves `v1/chat/completions`, `v1/responses`, and `v1/messages` through a common internal representation. The key extension is `nvext.agent_hints`, which lets any harness attach structured metadata to requests:
+
+```json
+{
+  "model": "Qwen2.5-32B-Instruct",
+  "messages": [...],
+  "nvext": {
+    "agent_hints": {
+      "osl": 256,
+      "speculative_prefill": true,
+      "priority": 10
+    },
+    "cache_control": {
+      "type": "ephemeral",
+      "ttl": "1h"
+    }
+  }
+}
+```
+
+| Field | What it does |
+|:---|:---|
+| `priority` | Controls scheduling at router (queue ordering) and engine (preemption, eviction). Higher = more important. |
+| `osl` | Harness's estimate of output tokens. Router uses this to gauge worker occupancy for load balancing. |
+| `speculative_prefill` | Begin caching prefix on a likely worker before the full request arrives (warm cache ahead of tool call return). |
+| `cache_control` | Pin computed prefix for the specified TTL, protecting it from eviction during tool call gaps. Matches [Anthropic's prompt caching API](https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching) semantics. |
+
+### Layer 2: Router — KV-Aware Placement + Priority Scheduling
+
+Without cache-aware routing, turn 2 of a multi-turn conversation has a ~1/N chance of hitting the same worker as turn 1. Every miss is a full prefix recomputation. Dynamo's router maintains a **global index** of which KV cache blocks exist on which workers via the **Flash Indexer** (170M ops/s — see [Flash Indexer post](https://docs.nvidia.com/dynamo/blog/flash-indexer)). On every request, it selects the worker that minimizes `cache_miss_cost + decode_load`.
+
+For priority scheduling, requests enter a `BinaryHeap<QueueEntry>` ordered by effective arrival time. A higher `priority` makes the request appear as if it arrived earlier. Below a configurable load threshold, requests bypass the queue entirely.
+
+### Layer 3: KV Cache — 4-Tier Hierarchy + Selective Retention
+
+Today's engines treat KV cache as a local, ephemeral resource. Dynamo's KV Block Manager (KVBM) builds toward a **4-tier memory hierarchy**:
+
+| Tier | Medium | Speed | Capacity | Persistence |
+|:---|:---|:---|:---|:---|
+| L1 | GPU HBM | Fastest | Smallest (95 GB/GPU) | Request lifetime |
+| L2 | CPU Pinned DRAM | Fast | Medium (~500 GB) | Configurable TTL |
+| L3 | Local NVMe | Moderate | Large (~3 TB) | Session lifetime |
+| L4 | Remote Storage | Slowest | Unlimited | Cross-worker shared |
+
+Blocks follow a **write-through** path: GPU → CPU → disk automatically. Each block is **deduplicated by sequence hash** in a global registry — once registered, it's immutable and addressable by any worker.
+
+**Selective retention** replaces uniform LRU. The harness can express: "system prompt blocks are evicted last (`priority: 100`); conversation context survives a 30-second tool call (`duration: 45s`); decode tokens are first to go (`priority: 1`)." The evictor uses a two-structure system: LRU for unprioritized blocks (O(1)) and a priority queue for annotated blocks.
+
+**Agent lifecycle awareness**: when a subagent terminates, its session's KV blocks are the first to reclaim. Thinking tokens (`<think>...</think>`) — ~40% of generated output — are tagged as ephemeral at insertion time, skipping L2 write-back and evicting before normal blocks.
+
+*Source: [Full-Stack Optimizations for Agentic Inference](https://developer.nvidia.com/blog/full-stack-optimizations-for-agentic-inference-with-nvidia-dynamo/) — Layers 1-3. [Dynamo 1.0 Blog](https://developer.nvidia.com/blog/nvidia-dynamo-1-production-ready/) — KVBM section.*
 
 ---
 
@@ -350,6 +427,22 @@ Raw benchmark logs are in `data/`.
 
 ---
 
+## From Benchmarks to Production
+
+Our benchmarks test Dynamo's PD disaggregation on 2 GPUs — the smallest possible setup. In production, Dynamo's software stack addresses problems that only appear at scale:
+
+| What We Measured | Physical Reason | Dynamo Production Feature |
+|:---|:---|:---|
+| PD P99 ITL **-85%** (32B) | Decode worker has zero prefill interference | Layer 3: NIXL KV transfer enables physical isolation |
+| Prefix Cache **-41%** TTFT | RadixAttention prefix match | Layer 2: KV-Aware routing ensures multi-turn requests hit the same worker |
+| Chunked OFF → TTFT **+4.7×** | Prefill kernel is uninterruptible | SGLang scheduling; Layer 1 `priority` hint adds request-level ordering on top |
+| FP8 KV no effect @1024 tokens | KV is not the memory bottleneck | Layer 3: 4-Tier hierarchy matters at 8K+ context or memory-constrained GPUs |
+| PD ITL advantage grows with model size (-52% → -85%) | Larger prefill kernels cause worse decode stalls | PD + multi-node is designed for 70B+ models |
+
+Running Dynamo with the [NeMo Agent Toolkit](https://github.com/NVIDIA/NeMo-Agent-Toolkit) demonstrated **up to 4× lower TTFT and 1.5× higher throughput** on Llama 3.1 on Hopper, using a Thompson Sampling bandit-style router with priority tagging achieving **63% p50 TTFT reduction** under memory pressure. *(Reported by NVIDIA; not independently verified by us. Source: [Dynamo 1.0 Blog](https://developer.nvidia.com/blog/nvidia-dynamo-1-production-ready/), [NeMo Agent Toolkit integration](https://github.com/NVIDIA/NeMo-Agent-Toolkit/tree/develop/examples/dynamo_integration).)*
+
+---
+
 ## Conclusion
 
 1. **PD disaggregation is not universally better** — it trades average performance for tail latency stability. For small models on NVLink, TP is strictly superior on every average metric.
@@ -365,3 +458,7 @@ Raw benchmark logs are in `data/`.
 6. **Dynamo's value is in large-scale production**, not small-model benchmarks. Its real strengths — KV-aware routing across dozens of workers, agent lifecycle management, 4-tier KV storage — cannot be demonstrated on 2 GPUs.
 
 7. **The engineering challenge is real**: deploying Dynamo from PyPI requires NATS + etcd + NIXL + SGLang compatibility patches. The Docker path (`nvcr.io/nvidia/dynamo`) is significantly easier for production.
+
+8. **Dynamo's value is in the software stack, not just PD disaggregation**. Agent hints, KV-aware routing, selective cache retention, and 4-tier KV storage are the features that justify Dynamo over vanilla SGLang for production agent workloads.
+
+9. **For production agent workloads** with multi-turn conversations and tool calls, these features justify the deployment complexity. For one-shot batch inference, vanilla SGLang or vLLM is simpler and equally performant.
