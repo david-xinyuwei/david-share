@@ -117,27 +117,59 @@ for ax, data, title, unit in zip(
 fig.tight_layout()
 save(fig, 'benchmark_prefix_cache.png')
 
-# --- Chart 4: PD advantage/disadvantage summary ---
-fig, ax = plt.subplots(figsize=(10, 5))
-metrics = ['TTFT', 'tok/s', 'E2E', 'P99 ITL', 'P95 ITL']
-pct_change = [
-    (53.01 - 25.29) / 25.29 * 100,   # TTFT: PD worse
-    (2179.46 - 2259.35) / 2259.35 * 100,  # tok/s: PD worse
-    (995.12 - 848.82) / 848.82 * 100,  # E2E: PD worse
-    (11.78 - 24.56) / 24.56 * 100,    # P99 ITL: PD better
-    (8.24 - 13.82) / 13.82 * 100,     # P95 ITL: PD better
-]
-bar_colors = ['#F44336' if v > 0 else '#4CAF50' for v in pct_change]
-bars = ax.barh(metrics, pct_change, color=bar_colors, edgecolor='white', height=0.6)
-ax.axvline(x=0, color='black', linewidth=0.8)
-ax.set_xlabel('% Change (PD vs TP=2) — Negative = PD Better')
-ax.set_title('Dynamo PD vs TP=2: Where PD Wins and Loses\n(200 prompts @ 20 req/s, 2×H100 NVL)', fontweight='bold')
-for bar, val in zip(bars, pct_change):
-    x_pos = val + (3 if val > 0 else -3)
-    ax.text(x_pos, bar.get_y() + bar.get_height()/2.,
-            f'{val:+.1f}%', ha='left' if val > 0 else 'right', va='center', fontweight='bold')
-ax.spines['top'].set_visible(False)
-ax.spines['right'].set_visible(False)
+# --- Chart 4: PD vs TP=2 — absolute values side by side ---
+fig, axes = plt.subplots(1, 2, figsize=(14, 5), gridspec_kw={'width_ratios': [3, 2]})
+fig.suptitle('8B High Concurrency: TP=2 vs PD (200 prompts @ 20 req/s, 2×H100 NVL)', fontsize=13, fontweight='bold')
+
+# Left panel: TP=2 wins (averages) — lower is better for TTFT/E2E, higher for tok/s
+ax1 = axes[0]
+ax1.set_title('Average Metrics — TP=2 Wins', fontweight='bold', color='#2196F3')
+metrics_avg = ['Output tok/s', 'Mean TTFT (ms)', 'Mean E2E (ms)']
+tp2_avg = [2259, 25.3, 849]
+pd_avg = [2179, 53.0, 995]
+x = np.arange(len(metrics_avg))
+w = 0.35
+b1 = ax1.bar(x - w/2, tp2_avg, w, label='TP=2', color='#2196F3', edgecolor='white')
+b2 = ax1.bar(x + w/2, pd_avg, w, label='Dynamo PD', color='#FF9800', edgecolor='white')
+ax1.set_xticks(x)
+ax1.set_xticklabels(metrics_avg, fontsize=10)
+ax1.legend(fontsize=10)
+for bar, val in zip(b1, tp2_avg):
+    ax1.text(bar.get_x() + bar.get_width()/2., bar.get_height() + max(tp2_avg)*0.01,
+             f'{val:.0f}' if val > 100 else f'{val:.1f}', ha='center', va='bottom', fontsize=9, fontweight='bold', color='#2196F3')
+for bar, val in zip(b2, pd_avg):
+    ax1.text(bar.get_x() + bar.get_width()/2., bar.get_height() + max(pd_avg)*0.01,
+             f'{val:.0f}' if val > 100 else f'{val:.1f}', ha='center', va='bottom', fontsize=9, fontweight='bold', color='#FF9800')
+ax1.spines['top'].set_visible(False)
+ax1.spines['right'].set_visible(False)
+
+# Right panel: PD wins (tail latency) — lower is better
+ax2 = axes[1]
+ax2.set_title('Tail Latency — PD Wins', fontweight='bold', color='#FF9800')
+metrics_tail = ['P95 ITL (ms)', 'P99 ITL (ms)']
+tp2_tail = [13.8, 24.6]
+pd_tail = [8.2, 11.8]
+x2 = np.arange(len(metrics_tail))
+b3 = ax2.bar(x2 - w/2, tp2_tail, w, label='TP=2', color='#2196F3', edgecolor='white')
+b4 = ax2.bar(x2 + w/2, pd_tail, w, label='Dynamo PD', color='#FF9800', edgecolor='white')
+ax2.set_xticks(x2)
+ax2.set_xticklabels(metrics_tail, fontsize=10)
+ax2.legend(fontsize=10)
+for bar, val in zip(b3, tp2_tail):
+    ax2.text(bar.get_x() + bar.get_width()/2., bar.get_height() + 0.5,
+             f'{val:.1f}', ha='center', va='bottom', fontsize=10, fontweight='bold', color='#2196F3')
+for bar, val in zip(b4, pd_tail):
+    ax2.text(bar.get_x() + bar.get_width()/2., bar.get_height() + 0.5,
+             f'{val:.1f}', ha='center', va='bottom', fontsize=10, fontweight='bold', color='#FF9800')
+# Add percentage annotations
+for i, (t, p) in enumerate(zip(tp2_tail, pd_tail)):
+    pct = (p - t) / t * 100
+    ax2.annotate(f'{pct:.0f}%', xy=(i + w/2, p), xytext=(i + w/2 + 0.15, p + 2),
+                 fontsize=11, fontweight='bold', color='#4CAF50',
+                 arrowprops=dict(arrowstyle='->', color='#4CAF50', lw=1.5))
+ax2.spines['top'].set_visible(False)
+ax2.spines['right'].set_visible(False)
+
 fig.tight_layout()
 save(fig, 'pd_vs_tp2_summary.png')
 
