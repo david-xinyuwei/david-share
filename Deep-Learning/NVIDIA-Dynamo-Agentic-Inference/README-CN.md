@@ -431,6 +431,76 @@ Dynamo 支持三种部署方式（[来源](https://github.com/ai-dynamo/dynamo#q
 
 > 生产多节点 PD 分离推荐使用 **Kubernetes**。K8s 处理 worker 调度、拓扑感知放置（Grove）、自动扩缩容（Planner）和故障恢复。见 [Dynamo K8s 部署指南](https://github.com/ai-dynamo/dynamo/blob/main/docs/kubernetes/README.md) 和 [生产 recipe](https://github.com/ai-dynamo/dynamo/tree/main/recipes)。
 
+### K8s PD 分离：如何工作
+
+Dynamo 使用 `DynamoGraphDeployment` CRD（自定义资源定义）在 K8s 上定义 PD 分离。YAML 定义三个 service — Frontend、Prefill Worker、Decode Worker — 各自独立的 replicas 和 GPU 资源。
+
+现成 SGLang disagg recipe：[`nemotron-3-super-fp8/sglang/disagg/deploy.yaml`](https://github.com/ai-dynamo/dynamo/tree/main/recipes/nemotron-3-super-fp8/sglang/disagg) — YAML 结构与模型无关（改 `--model-path` 即可用任何模型）。
+
+**简化结构**（来自上述 recipe，加了注释）：
+
+```yaml
+apiVersion: nvidia.com/v1alpha1
+kind: DynamoGraphDeployment
+metadata:
+  name: my-model-sglang-disagg
+spec:
+  backendFramework: sglang
+  services:
+    Frontend:
+      componentType: frontend
+      replicas: 1
+      # KV 感知路由选择最优 worker
+      args: python3 -m dynamo.frontend --router-mode kv --http-port 8000
+      image: nvcr.io/nvidia/ai-dynamo/sglang-runtime:1.0.0
+
+    prefill:
+      componentType: worker
+      subComponentType: prefill     # <-- 声明这是 prefill worker
+      replicas: 1                   # 可独立于 decode 扩缩
+      resources:
+        limits: { gpu: "2" }       # 每个 prefill worker TP=2
+      args:
+        - --model-path <your-model>
+        - --tp 2
+        - --disaggregation-mode prefill
+        - --disaggregation-transfer-backend nixl    # KV 通过 NIXL 传输
+        - --disaggregation-bootstrap-port 12345     # 跨节点 worker 发现
+
+    decode:
+      componentType: worker
+      subComponentType: decode      # <-- 声明这是 decode worker
+      replicas: 1
+      resources:
+        limits: { gpu: "2" }       # 每个 decode worker TP=2
+      args:
+        - --model-path <your-model>
+        - --tp 2
+        - --disaggregation-mode decode
+        - --disaggregation-transfer-backend nixl
+        - --disaggregation-bootstrap-port 12345
+```
+
+**K8s 部署步骤**（来源：[recipes README](https://github.com/ai-dynamo/dynamo/tree/main/recipes#quick-start)）：
+
+```bash
+# 1. 安装 Dynamo K8s Platform (~10 min)
+# 见：https://github.com/ai-dynamo/dynamo/blob/main/docs/kubernetes/README.md
+
+# 2. 下载模型
+kubectl apply -f <model>/model-cache/ -n $NAMESPACE
+kubectl wait --for=condition=Complete job/model-download -n $NAMESPACE --timeout=6000s
+
+# 3. 部署 PD 分离
+kubectl apply -f <model>/sglang/disagg/deploy.yaml -n $NAMESPACE
+
+# 4. 测试
+kubectl port-forward svc/<name>-frontend 8000:8000 -n $NAMESPACE
+curl http://localhost:8000/v1/chat/completions -d '{"model": "<name>", "messages": [{"role": "user", "content": "Hello!"}]}'
+```
+
+> **⚠️ 我们未测试 K8s 部署。** 上述 YAML 和步骤来自 Dynamo 官方 recipe（[来源](https://github.com/ai-dynamo/dynamo/tree/main/recipes/nemotron-3-super-fp8/sglang/disagg)）。我们的单节点 PyPI/Docker 部署使用了相同的 `--disaggregation-mode` 和 `--disaggregation-transfer-backend nixl` 参数。
+
 ---
 
 ## 从 PyPI 部署 Dynamo PD（非 Docker）

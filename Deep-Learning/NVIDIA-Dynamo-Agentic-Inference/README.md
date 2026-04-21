@@ -433,6 +433,76 @@ Dynamo supports three deployment methods ([source](https://github.com/ai-dynamo/
 
 > For production multi-node PD disaggregation, **Kubernetes is the recommended path**. K8s handles worker scheduling, topology-aware placement (via Grove), auto-scaling (via Planner), and fault recovery. See [Dynamo K8s Deployment Guide](https://github.com/ai-dynamo/dynamo/blob/main/docs/kubernetes/README.md) and [production recipes](https://github.com/ai-dynamo/dynamo/tree/main/recipes).
 
+### K8s PD Disaggregation: How It Works
+
+Dynamo uses a `DynamoGraphDeployment` CRD (Custom Resource Definition) to define PD disaggregation on Kubernetes. The YAML defines three services — Frontend, Prefill Worker, and Decode Worker — each with independent replicas and GPU resources.
+
+Ready-to-use SGLang disagg recipe: [`nemotron-3-super-fp8/sglang/disagg/deploy.yaml`](https://github.com/ai-dynamo/dynamo/tree/main/recipes/nemotron-3-super-fp8/sglang/disagg) — the YAML structure is model-agnostic (change `--model-path` to use any model).
+
+**Simplified structure** (from the recipe above, comments added):
+
+```yaml
+apiVersion: nvidia.com/v1alpha1
+kind: DynamoGraphDeployment
+metadata:
+  name: my-model-sglang-disagg
+spec:
+  backendFramework: sglang
+  services:
+    Frontend:
+      componentType: frontend
+      replicas: 1
+      # KV-aware router selects best worker
+      args: python3 -m dynamo.frontend --router-mode kv --http-port 8000
+      image: nvcr.io/nvidia/ai-dynamo/sglang-runtime:1.0.0
+
+    prefill:
+      componentType: worker
+      subComponentType: prefill     # <-- declares this as a prefill worker
+      replicas: 1                   # scale independently from decode
+      resources:
+        limits: { gpu: "2" }       # TP=2 per prefill worker
+      args:
+        - --model-path <your-model>
+        - --tp 2
+        - --disaggregation-mode prefill
+        - --disaggregation-transfer-backend nixl    # KV transfer via NIXL
+        - --disaggregation-bootstrap-port 12345     # cross-node worker discovery
+
+    decode:
+      componentType: worker
+      subComponentType: decode      # <-- declares this as a decode worker
+      replicas: 1
+      resources:
+        limits: { gpu: "2" }       # TP=2 per decode worker
+      args:
+        - --model-path <your-model>
+        - --tp 2
+        - --disaggregation-mode decode
+        - --disaggregation-transfer-backend nixl
+        - --disaggregation-bootstrap-port 12345
+```
+
+**K8s deployment steps** (from [recipes README](https://github.com/ai-dynamo/dynamo/tree/main/recipes#quick-start)):
+
+```bash
+# 1. Install Dynamo K8s Platform (~10 min)
+# See: https://github.com/ai-dynamo/dynamo/blob/main/docs/kubernetes/README.md
+
+# 2. Download model
+kubectl apply -f <model>/model-cache/ -n $NAMESPACE
+kubectl wait --for=condition=Complete job/model-download -n $NAMESPACE --timeout=6000s
+
+# 3. Deploy PD disaggregation
+kubectl apply -f <model>/sglang/disagg/deploy.yaml -n $NAMESPACE
+
+# 4. Test
+kubectl port-forward svc/<name>-frontend 8000:8000 -n $NAMESPACE
+curl http://localhost:8000/v1/chat/completions -d '{"model": "<name>", "messages": [{"role": "user", "content": "Hello!"}]}'
+```
+
+> **⚠️ We have not tested K8s deployment.** The YAML and steps above are from official Dynamo recipes ([source](https://github.com/ai-dynamo/dynamo/tree/main/recipes/nemotron-3-super-fp8/sglang/disagg)). Our single-node PyPI/Docker deployments use the same `--disaggregation-mode` and `--disaggregation-transfer-backend nixl` parameters.
+
 ---
 
 ## Deploying Dynamo PD from PyPI (Not Docker)
