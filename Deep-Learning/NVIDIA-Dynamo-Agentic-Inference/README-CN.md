@@ -501,6 +501,33 @@ curl http://localhost:8000/v1/chat/completions -d '{"model": "<name>", "messages
 
 > **⚠️ 我们未测试 K8s 部署。** 上述 YAML 和步骤来自 Dynamo 官方 recipe（[来源](https://github.com/ai-dynamo/dynamo/tree/main/recipes/nemotron-3-super-fp8/sglang/disagg)）。我们的单节点 PyPI/Docker 部署使用了相同的 `--disaggregation-mode` 和 `--disaggregation-transfer-backend nixl` 参数。
 
+### 单容器 vs 生产 K8s：架构对比
+
+我们的 PoC 把**所有组件跑在一个 Docker 容器里** — 这是测试简化，不是生产部署方式：
+
+```
+我们的 PoC（单容器）:                   生产 K8s（多 Pod）:
+┌─────────────────────────────────┐       ┌───────────┐  ┌───────────┐  ┌───────────┐
+│ 一个 Docker 容器               │       │ Pod 1     │  │ Pod 2     │  │ Pod 3     │
+│  ├─ nats-server                 │       │ Frontend  │  │ Prefill   │  │ Decode    │
+│  ├─ etcd                        │       │ + Router  │  │ Worker    │  │ Worker    │
+│  ├─ dynamo.frontend             │       │ (CPU)     │  │ (GPU x2)  │  │ (GPU x2)  │
+│  ├─ SGLang prefill (GPU 0)      │       └─────┬─────┘  └─────┬─────┘  └─────┬─────┘
+│  └─ SGLang decode  (GPU 1)      │             │ etcd/NATS  │           │
+│                                 │             └────┬─────┘           │
+│  KV 传输: NVLink (同机 GPU)    │             RDMA / InfiniBand / RoCE
+└─────────────────────────────────┘       (跨节点 KV 传输)
+```
+
+| 方面 | 我们的 PoC（单容器） | 生产 K8s（多 Pod） |
+|:---|:---|:---|
+| **组件** | 5 个进程在 1 个容器 | 每个 service = 独立 Pod |
+| **GPU 隔离** | `CUDA_VISIBLE_DEVICES=0/1` | K8s GPU 资源限制 per Pod |
+| **KV 传输** | NVLink（同机，~900 GB/s） | RDMA via IB/RoCE（跨节点） |
+| **扩缩容** | 固定 1 prefill + 1 decode | 独立 replica 扩缩 |
+| **容错** | 容器死 = 全部死 | Pod 重启 + 请求迁移 |
+| **服务发现** | 容器内 etcd + NATS | K8s 原生或共享 etcd 集群 |
+
 ---
 
 ## 从 PyPI 部署 Dynamo PD（非 Docker）

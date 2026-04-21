@@ -503,6 +503,33 @@ curl http://localhost:8000/v1/chat/completions -d '{"model": "<name>", "messages
 
 > **⚠️ We have not tested K8s deployment.** The YAML and steps above are from official Dynamo recipes ([source](https://github.com/ai-dynamo/dynamo/tree/main/recipes/nemotron-3-super-fp8/sglang/disagg)). Our single-node PyPI/Docker deployments use the same `--disaggregation-mode` and `--disaggregation-transfer-backend nixl` parameters.
 
+### Single Container vs Production K8s: Architecture Comparison
+
+Our PoC runs **all components in a single Docker container** — this is a simplification for testing, not how production deployments work:
+
+```
+Our PoC (single container):                 Production K8s (multiple Pods):
+┌─────────────────────────────────┐       ┌───────────┐  ┌───────────┐  ┌───────────┐
+│ One Docker container           │       │ Pod 1     │  │ Pod 2     │  │ Pod 3     │
+│  ├─ nats-server                 │       │ Frontend  │  │ Prefill   │  │ Decode    │
+│  ├─ etcd                        │       │ + Router  │  │ Worker    │  │ Worker    │
+│  ├─ dynamo.frontend             │       │ (CPU)     │  │ (GPU x2)  │  │ (GPU x2)  │
+│  ├─ SGLang prefill (GPU 0)      │       └─────┬─────┘  └─────┬─────┘  └─────┬─────┘
+│  └─ SGLang decode  (GPU 1)      │             │ etcd/NATS  │           │
+│                                 │             └────┬─────┘           │
+│  KV transfer: NVLink (same GPU) │             RDMA / InfiniBand / RoCE
+└─────────────────────────────────┘       (cross-node KV transfer)
+```
+
+| Aspect | Our PoC (Single Container) | Production K8s (Multi-Pod) |
+|:---|:---|:---|
+| **Components** | All 5 processes in 1 container | Each service = separate Pod |
+| **GPU isolation** | `CUDA_VISIBLE_DEVICES=0/1` | K8s GPU resource limits per Pod |
+| **KV transfer** | NVLink (same-node, ~900 GB/s) | RDMA via IB/RoCE (cross-node) |
+| **Scaling** | Fixed 1 prefill + 1 decode | Independent replica scaling |
+| **Fault tolerance** | Container dies = everything dies | Pod restart, request migration |
+| **Service discovery** | etcd + NATS inside container | K8s-native or shared etcd cluster |
+
 ---
 
 ## Deploying Dynamo PD from PyPI (Not Docker)
