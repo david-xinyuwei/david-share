@@ -419,6 +419,20 @@ Chunked prefill 产生的 KV Cache 与完整 prefill **数学上完全等价**�
 **实测数据（结果 5）**：在 32B 上，关闭 chunked prefill 导致 TTFT 从 369ms 爆炸到 1729ms（+4.7×），P95 ITL 从 258ms 改善到 155ms（-40%）。吐量下降 17%。净 E2E 基本持平 — 确认 chunked prefill 用略差的 ITL 换取显著更好的 TTFT 和吐量。详见[结果 5](#结果-5优化消融实验--fp8-kv-cache-和-chunked-prefill)。
 ---
 
+## 部署方式
+
+Dynamo 支持三种部署方式（[来源](https://github.com/ai-dynamo/dynamo#quick-start)）：
+
+| 方式 | 适用场景 | 跨节点 PD？ | 我们的经验 |
+|:---|:---|:---:|:---|
+| **PyPI** (`pip install ai-dynamo`) | 开发/测试、单节点、快速迭代 | 否（仅单节点） | ✅ 已测 — 需要 SGLang 兼容 patch、手动装 NATS/etcd |
+| **Docker** (`nvcr.io/nvidia/ai-dynamo/sglang-runtime`) | 单节点、干净环境、无依赖问题 | 否（仅单节点） | ✅ 已测 — 一切预配置，冷启动 19s vs PyPI 的 600s |
+| **Kubernetes** (DynamoGraphDeployment CRD + Grove) | **生产多节点**、自动扩缩容、故障恢复 | **是** — 需 RDMA 网络 | ❌ 未测 — 需要 K8s 集群 + GPU operator |
+
+> 生产多节点 PD 分离推荐使用 **Kubernetes**。K8s 处理 worker 调度、拓扑感知放置（Grove）、自动扩缩容（Planner）和故障恢复。见 [Dynamo K8s 部署指南](https://github.com/ai-dynamo/dynamo/blob/main/docs/kubernetes/README.md) 和 [生产 recipe](https://github.com/ai-dynamo/dynamo/tree/main/recipes)。
+
+---
+
 ## 从 PyPI 部署 Dynamo PD（非 Docker）
 
 我们不用 Docker，纯 pip 包部署了 Dynamo。需要解决三个兼容性问题。

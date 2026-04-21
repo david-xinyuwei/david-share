@@ -421,6 +421,20 @@ Chunked prefill produces **mathematically identical KV Cache** as full prefill. 
 
 ---
 
+## Deployment Options
+
+Dynamo supports three deployment methods ([source](https://github.com/ai-dynamo/dynamo#quick-start)):
+
+| Method | Best For | PD Cross-Node? | Our Experience |
+|:---|:---|:---:|:---|
+| **PyPI** (`pip install ai-dynamo`) | Dev/test, single node, quick iteration | No (single node only) | ✅ Tested — requires SGLang compatibility patches, manual NATS/etcd install |
+| **Docker** (`nvcr.io/nvidia/ai-dynamo/sglang-runtime`) | Single node, clean environment, no dependency issues | No (single node only) | ✅ Tested — everything pre-configured, 19s cold start vs PyPI’s 600s |
+| **Kubernetes** (DynamoGraphDeployment CRD + Grove operator) | **Production multi-node**, auto-scaling, fault tolerance | **Yes** — with RDMA networking | ❌ Not tested — requires K8s cluster + GPU operator |
+
+> For production multi-node PD disaggregation, **Kubernetes is the recommended path**. K8s handles worker scheduling, topology-aware placement (via Grove), auto-scaling (via Planner), and fault recovery. See [Dynamo K8s Deployment Guide](https://github.com/ai-dynamo/dynamo/blob/main/docs/kubernetes/README.md) and [production recipes](https://github.com/ai-dynamo/dynamo/tree/main/recipes).
+
+---
+
 ## Deploying Dynamo PD from PyPI (Not Docker)
 
 We deployed Dynamo without Docker — pip packages only. This required solving three compatibility issues.
