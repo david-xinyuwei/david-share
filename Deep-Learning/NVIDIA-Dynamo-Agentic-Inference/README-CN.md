@@ -1,4 +1,4 @@
-# LLM 推理优化对决：TP vs PD vs Prefix Cache 在 2×H100 NVL 上的实测
+# PD 分离推理实战：Disaggregated Inference 架构、Benchmark 与 NC80 H100 部署
 
 > **作者**：魏新宇 (Xinyu Wei)  
 > **日期**：2026-04-20  

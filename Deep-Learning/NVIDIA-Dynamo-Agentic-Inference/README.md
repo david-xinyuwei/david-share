@@ -1,4 +1,4 @@
-# LLM Inference Optimization Showdown: TP vs PD vs Prefix Cache on 2×H100 NVL
+# Disaggregated Inference in Practice: PD Separation Architecture, Benchmarks, and Deployment on NC80 H100
 
 > **Author**: Xinyu Wei (魏新宇)  
 > **Date**: 2026-04-20  
