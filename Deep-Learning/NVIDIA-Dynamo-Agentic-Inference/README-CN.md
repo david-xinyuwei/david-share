@@ -321,18 +321,21 @@ NIXL（KV 传输库）使用 [UCX](https://github.com/openucx/ucx) 作为默认�
 
 ## 什么时候用（和不用）PD 分离
 
+> **⚠️ 诚实评估**：我们的 2×H100 NVL 环境是一个 **概念验证**，验证 PD 分离能端到端跑通。这不是生产代表性部署。在单节点 NVLink 环境下，TP 在每个平均指标上都严格优于 PD。PD 的真正价值在于多节点部署（16+ GPU 跨 2+ 台机器）+ RDMA 网络，prefill 和 decode 池可以独立扩缩容。
+
 基于实测数据 + Dynamo 设计意图：
 
 | 场景 | 用 PD？ | 原因 |
 |:---|:---:|:---|
-| 小模型（8B-13B）+ 同节点 NVLink | **不用** | TP 严格更好。Prefill 不是瓶颈。 |
-| 中型模型（30B 级）+ 2 卡 NVLink | **可能** | PD 赢 P99 ITL 85%，但输吐量 14%。仅严格 ITL SLO 时。 |
-| 大模型（70B+）+ 多节点 | **用** | Prefill 变成计算密集型，值得专用 GPU。 |
-| 严格 P99 ITL SLO（< 15ms） | **可能** | PD 防止 prefill 抢占 decode。 |
-| Agent 场景 + tool call（2-30 秒间隔） | **用** | PD + KV cache 钉住防止间隔期驱逐。 |
-| 成本敏感，追求最大吐量/美元 | **不用** | TP 以更简单架构给出相同吐量。 |
+| 小模型（8B-13B）+ 单节点 NVLink | **不用** | TP 严格更好。Prefill 不是瓶颈。 |
+| 中型模型（30B）+ 2 卡 NVLink | **不用** | PD 赢 P99 ITL 85%，但输吐量 14%。TP + Chunked Prefill 是更好的权衡。 |
+| 单节点 8 卡（如 8×H100 NVLink） | **不用** | TP=8 已经最小化 prefill 时间。4P4D 浪费一半 GPU。Chunked Prefill 用零成本解决 80% 的 ITL 问题。 |
+| 大模型（70B+）+ **多节点** + RDMA | **用** | Prefill 计算密集，跨节点 KV 通过 IB/RoCE 传输，独立池扩缩容降低成本。 |
+| 严格 P99 ITL SLO（< 10ms）+ 多节点 | **用** | PD 防止集群中 prefill 抢占 decode。 |
+| Agent 场景 + tool call（2-30 秒间隔） | **用** | PD + KV cache 钉住防止 tool call 间隔期驱逐。 |
+| 成本敏感，追求最大吐量/美元 | **不用** | TP 以更简单架构给出相同或更好吐量。 |
 
-**Prefill 时间规则**：如果单卡 prefill 你的典型输入长度 < 30ms（我们 8B 在 1024 token），PD 增加开销而无收益。在 ~370ms（我们 32B 在 1024 token）时，你处于交叉点 — PD 的 ITL 优势（-85%）开始超过其吐量代价（-14%）。更长 prompt（4K+）、更大模型（70B+）或更弱 GPU，PD 明确更有吸引力。
+**Prefill 时间规则**：如果单卡 prefill 你的典型输入长度 < 30ms（我们 8B 在 1024 token），PD 增加开销而无收益。在 ~370ms（我们 32B 在 1024 token）时，你处于交叉点 — 但仅限多节点场景（节点间没有 NVLink）。单节点有 NVLink 时，**始终优先 TP + Chunked Prefill** 而非 PD。
 
 ---
 

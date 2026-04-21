@@ -321,18 +321,21 @@ NIXL (the KV transfer library) uses [UCX](https://github.com/openucx/ucx) as its
 
 ## When to Use (and NOT Use) PD Disaggregation
 
+> **⚠️ Honest assessment**: Our 2×H100 NVL setup is a **proof-of-concept** that validates PD disaggregation works end-to-end. It is NOT a production-representative deployment. On a single node with NVLink, TP is strictly better on every average metric. PD's real value emerges in multi-node deployments (16+ GPUs across 2+ machines) with RDMA networking, where prefill and decode pools can scale independently.
+
 Based on our benchmarks + Dynamo's design intent:
 
 | Scenario | Use PD? | Why |
 |:---|:---:|:---|
 | Small model (8B-13B) on single node with NVLink | **No** | TP is strictly better. Prefill is not a bottleneck. |
-| Medium model (30B-class) on 2 GPUs with NVLink | **Maybe** | PD wins P99 ITL by 85%, but loses 14% throughput. Only if strict ITL SLO. |
-| Large model (70B+) on multi-node | **Yes** | Prefill becomes compute-heavy, worth dedicating GPUs. |
-| Strict P99 ITL SLO (< 15ms) | **Maybe** | PD prevents prefill from preempting decode. |
-| Agent workloads with tool calls (2-30s gaps) | **Yes** | PD + KV cache pinning prevents eviction during gaps. |
-| Cost-sensitive, want max throughput per dollar | **No** | TP gives same throughput with simpler architecture. |
+| Medium model (30B-class) on 2 GPUs with NVLink | **No** | PD wins P99 ITL by 85%, but loses 14% throughput. TP + Chunked Prefill is the better tradeoff. |
+| Single node 8-GPU (e.g., 8×H100 NVLink) | **No** | TP=8 already minimizes prefill time. 4P4D wastes half the GPUs. Chunked Prefill solves 80% of the ITL problem at zero cost. |
+| Large model (70B+) on **multi-node** with RDMA | **Yes** | Prefill becomes compute-heavy, cross-node KV transfer via IB/RoCE is the only option, and independent pool scaling reduces cost. |
+| Strict P99 ITL SLO (< 10ms) on multi-node | **Yes** | PD prevents prefill from preempting decode across the cluster. |
+| Agent workloads with tool calls (2-30s gaps) | **Yes** | PD + KV cache pinning prevents eviction during tool call gaps. |
+| Cost-sensitive, want max throughput per dollar | **No** | TP gives same or better throughput with simpler architecture. |
 
-**The prefill-time rule**: If single-GPU prefill for your typical input length takes < 30ms (our 8B at 1024 tokens), PD adds overhead without benefit. At ~370ms (our 32B at 1024 tokens), you're at the crossover point where PD's ITL advantage (-85%) starts to outweigh its throughput cost (-14%). For longer prompts (4K+), larger models (70B+), or weaker GPUs, PD becomes clearly attractive.
+**The prefill-time rule**: If single-GPU prefill for your typical input length takes < 30ms (our 8B at 1024 tokens), PD adds overhead without benefit. At ~370ms (our 32B at 1024 tokens), you're at the crossover point — but only on multi-node where TP can't help (no NVLink between nodes). On a single node with NVLink, **always prefer TP + Chunked Prefill** over PD.
 
 ---
 
