@@ -426,7 +426,7 @@ Dynamo 支持三种部署方式（[来源](https://github.com/ai-dynamo/dynamo#q
 | 方式 | 适用场景 | 跨节点 PD？ | 我们的经验 |
 |:---|:---|:---:|:---|
 | **PyPI** (`pip install ai-dynamo`) | 开发/测试、单节点、快速迭代 | 否（仅单节点） | ✅ 已测 — 需要 SGLang 兼容 patch、手动装 NATS/etcd |
-| **Docker** (`nvcr.io/nvidia/ai-dynamo/sglang-runtime`) | 单节点、干净环境、无依赖问题 | 否（仅单节点） | ✅ 已测 — 一切预配置，冷启动 19s vs PyPI 的 600s |
+| **Docker** (`nvcr.io/nvidia/ai-dynamo/sglang-runtime`) | 单节点、干净环境、无依赖问题 | 否（仅单节点） | ✅ 已测 — 一切预配置，无需兼容 patch |
 | **Kubernetes** (DynamoGraphDeployment CRD + Grove) | **生产多节点**、自动扩缩容、故障恢复 | **是** — 需 RDMA 网络 | ❌ 未测 — 需要 K8s 集群 + GPU operator |
 
 > 生产多节点 PD 分离推荐使用 **Kubernetes**。K8s 处理 worker 调度、拓扑感知放置（Grove）、自动扩缩容（Planner）和故障恢复。见 [Dynamo K8s 部署指南](https://github.com/ai-dynamo/dynamo/blob/main/docs/kubernetes/README.md) 和 [生产 recipe](https://github.com/ai-dynamo/dynamo/tree/main/recipes)。
