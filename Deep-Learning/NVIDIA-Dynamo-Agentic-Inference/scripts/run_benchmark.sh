@@ -268,7 +268,7 @@ case "${1:-all}" in
     32b)
         # 32B benchmarks: C1 baseline, C4 FP8 KV, C5 no chunked, C6 PD, C7 TP=2
         MODEL_32B="${MODEL_32B:-/root/models/Qwen2.5-32B-Instruct}"
-        WAIT=240
+        WAIT=720
         echo "========== 32B Benchmarks (100 prompts @ 10 req/s) =========="
 
         echo "=== C1: 32B Baseline (single GPU) ==="
