@@ -317,6 +317,43 @@ NIXL（KV 传输库）使用 [UCX](https://github.com/openucx/ucx) 作为默认�
 >
 > *来源：[NIXL Blog](https://developer.nvidia.com/blog/enhancing-distributed-inference-performance-with-the-nvidia-inference-transfer-library/) — "supports AWS with EFA networking... Azure with RDMA networking"；[NIXL GitHub](https://github.com/ai-dynamo/nixl) — UCX 默认后端，`--with-verbs` (IB/RoCE)。*
 
+### KV 传输栈：数据实际怎么搞
+
+```
+Dynamo PD 分离
+  │ Prefill worker 算完 KV cache，需要发给 Decode worker
+  ▼
+NIXL (NVIDIA Inference Xfer Library — NVIDIA 推理传输库)
+  │ 统一数据传输 API — 抽象了内存类型和传输方式
+  │ 来源：https://github.com/ai-dynamo/nixl
+  ▼
+UCX (Unified Communication X — 统一通信框架)        [默认后端]
+  │ 通信框架 — 自动选择硬件最优传输方式
+  │ 来源：https://github.com/openucx/ucx
+  ▼
+┌─────────────────┬──────────────────────┬──────────────────────┬──────────────┐
+│ NVLink          │ IB RDMA              │ RoCE v2              │ TCP (回退)   │
+│ 同机 GPU 互联  │ 跨节点             │ 跨节点             │ 跨节点     │
+│ ~900 GB/s       │ 100-400 Gbps         │ 100-200 Gbps         │ 慢           │
+│ (我们的场景)   │ 零拷贝 RDMA          │ 无损以太网          │ 不适合生产 │
+└─────────────────┴──────────────────────┴──────────────────────┴──────────────┘
+```
+
+**缩写词表**：
+
+| 缩写 | 全称 | 是什么 |
+|:---|:---|:---|
+| **NIXL** | NVIDIA Inference Xfer (Transfer) Library | KV cache 在 GPU/存储之间的数据传输库 |
+| **UCX** | Unified Communication X | 底层通信框架，自动选择最优传输方式 |
+| **NVLink** | NVIDIA NVLink | 同节点内 GPU 间高带宽互联 |
+| **IB** | InfiniBand | 跨节点高性能网络，支持 RDMA |
+| **RDMA** | Remote Direct Memory Access（远程直接内存访问） | 零拷贝数据传输 — GPU 直接读写远程内存，不经 CPU |
+| **RoCE** | RDMA over Converged Ethernet | 在无损以太网上跑 RDMA 协议 |
+| **EFA** | Elastic Fabric Adapter | AWS 原生 RDMA 网络（EC2 实例用） |
+| **KVBM** | KV Block Manager | Dynamo 的四层 KV 存储管理器（GPU→CPU→NVMe→远程） |
+| **NATS** | Neural Autonomic Transport System | 轻量消息总线，Dynamo 服务发现用 |
+| **etcd** | （来自 "/etc distributed"，非缩写） | 分布式键值存储，worker 注册和配置用 |
+
 ---
 
 ## 什么时候用（和不用）PD 分离

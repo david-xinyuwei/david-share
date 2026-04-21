@@ -317,6 +317,43 @@ NIXL (the KV transfer library) uses [UCX](https://github.com/openucx/ucx) as its
 >
 > *Source: [NIXL Blog](https://developer.nvidia.com/blog/enhancing-distributed-inference-performance-with-the-nvidia-inference-transfer-library/) — "supports AWS with EFA networking... Azure with RDMA networking"; [NIXL GitHub](https://github.com/ai-dynamo/nixl) — UCX default backend with `--with-verbs` (IB/RoCE).*
 
+### KV Transfer Stack: How Data Actually Moves
+
+```
+Dynamo PD Disaggregation
+  │ Prefill worker computes KV cache, needs to send it to Decode worker
+  ▼
+NIXL (NVIDIA Inference Xfer Library)
+  │ Unified data transfer API — abstracts memory types and transports
+  │ Source: https://github.com/ai-dynamo/nixl
+  ▼
+UCX (Unified Communication X)                    [default backend]
+  │ Communication framework — auto-selects optimal transport for hardware
+  │ Source: https://github.com/openucx/ucx
+  ▼
+┌─────────────────┬──────────────────────┬──────────────────────┬──────────────┐
+│ NVLink          │ IB RDMA              │ RoCE v2              │ TCP (fallback)│
+│ Same-node GPU   │ Cross-node           │ Cross-node           │ Cross-node   │
+│ ~900 GB/s       │ 100-400 Gbps         │ 100-200 Gbps         │ Slow         │
+│ (our setup)     │ zero-copy RDMA       │ lossless Ethernet    │ not for prod │
+└─────────────────┴──────────────────────┴──────────────────────┴──────────────┘
+```
+
+**Glossary**:
+
+| Abbreviation | Full Name | What It Is |
+|:---|:---|:---|
+| **NIXL** | NVIDIA Inference Xfer (Transfer) Library | Data transfer library for moving KV cache between GPUs/storage |
+| **UCX** | Unified Communication X | Low-level communication framework, auto-selects best transport |
+| **NVLink** | NVIDIA NVLink | High-bandwidth GPU-to-GPU interconnect within a single node |
+| **IB** | InfiniBand | High-performance networking fabric for cross-node RDMA |
+| **RDMA** | Remote Direct Memory Access | Zero-copy data transfer — GPU reads/writes remote memory without CPU involvement |
+| **RoCE** | RDMA over Converged Ethernet | RDMA protocol running on lossless Ethernet |
+| **EFA** | Elastic Fabric Adapter | AWS-native RDMA networking for EC2 instances |
+| **KVBM** | KV Block Manager | Dynamo’s 4-tier KV cache storage manager (GPU→CPU→NVMe→Remote) |
+| **NATS** | Neural Autonomic Transport System | Lightweight message bus for Dynamo service discovery |
+| **etcd** | (from "/etc distributed") | Distributed key-value store for worker registration and config |
+
 ---
 
 ## When to Use (and NOT Use) PD Disaggregation
