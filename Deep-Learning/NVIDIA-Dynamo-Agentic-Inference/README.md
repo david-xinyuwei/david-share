@@ -632,11 +632,6 @@ bash scripts/run_benchmark.sh 32b
 # 4. Run Docker benchmarks (Docker deployment verification)
 # Requires: docker pull nvcr.io/nvidia/ai-dynamo/sglang-runtime:1.0.1
 bash scripts/run_benchmark.sh docker
-
-# 5. Generate charts
-pip install matplotlib
-python3 scripts/generate_charts.py
-python3 scripts/generate_pd_architecture.py
 ```
 
 Individual 8B phases: `bash scripts/run_benchmark.sh phase1|phase2|phase3|phase5|highload_tp2|highload_pd`
