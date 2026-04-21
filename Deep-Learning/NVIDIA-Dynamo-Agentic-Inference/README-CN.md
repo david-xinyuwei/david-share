@@ -405,6 +405,54 @@ Dynamo 响应中包含 `nvext.worker_id`，分别标明 `prefill_worker_id` 和 
 
 ---
 
+## Docker 部署 Dynamo PD（推荐）
+
+Docker 路径显著更简单 — 无需兼容性 patch、无需手动安装 NATS/etcd，一切预配置。
+
+```bash
+# 拉取预构建容器（55.7 GB）
+docker pull nvcr.io/nvidia/ai-dynamo/sglang-runtime:1.0.1
+
+# 启动容器（GPU 访问 + 模型挂载）
+docker run -d --name dynamo --runtime=nvidia --network host --ipc=host \
+  -v /path/to/models:/models \
+  nvcr.io/nvidia/ai-dynamo/sglang-runtime:1.0.1 sleep infinity
+
+# 单卡推理（无 Dynamo 编排）
+docker exec -d dynamo python3 -m sglang.launch_server \
+  --model-path /models/Qwen2.5-32B-Instruct --port 8000 --host 0.0.0.0
+
+# PD 分离（需要 NATS + etcd + frontend + 2 个 worker）
+docker exec -d dynamo bash -c "nats-server -js & etcd &"
+docker exec -d dynamo python3 -m dynamo.frontend --router-mode kv --router-reset-states --http-port 8000
+docker exec -d -e CUDA_VISIBLE_DEVICES=0 -e DYN_SYSTEM_PORT=8081 dynamo python3 -m dynamo.sglang \
+  --model-path /models/Qwen2.5-32B-Instruct --served-model-name QWEN32B \
+  --page-size 64 --tp 1 --disaggregation-mode prefill --host 0.0.0.0 \
+  --kv-events-config '{"publisher":"zmq","topic":"kv-events","endpoint":"tcp://*:5557"}' \
+  --disaggregation-transfer-backend nixl
+docker exec -d -e CUDA_VISIBLE_DEVICES=1 -e DYN_SYSTEM_PORT=8083 dynamo python3 -m dynamo.sglang \
+  --model-path /models/Qwen2.5-32B-Instruct --served-model-name QWEN32B \
+  --page-size 64 --tp 1 --disaggregation-mode decode --host 0.0.0.0 \
+  --kv-events-config '{"publisher":"zmq","topic":"kv-events","endpoint":"tcp://*:5560"}' \
+  --disaggregation-transfer-backend nixl
+```
+
+**Docker vs PyPI 性能一致性验证**：
+
+| 指标 | Docker Baseline (1 GPU) | PyPI Baseline (C1) | Docker PD (2 GPU) | PyPI PD (C6) |
+|:---|:---:|:---:|:---:|:---:|
+| **Output tok/s** | 750 | 749 | 820 | 830 |
+| **Mean TTFT** | 326 ms | 369 ms | 506 ms | 355 ms |
+| **Mean E2E** | 7545 ms | 7548 ms | 3774 ms | 3559 ms |
+| **P95 ITL** | 259 ms | 258 ms | **30 ms** | 29 ms |
+| **P99 ITL** | 391 ms | 680 ms | **47 ms** | 31 ms |
+
+吞吐和 ITL 在测量噪声范围内。Docker 路径消除了所有 PyPI 兼容性问题（SGLang API patch、NIXL 手动安装、NATS/etcd 二进制文件），同时提供相同性能。
+
+> **注意**：Docker 使用 `--runtime=nvidia`（不是 `--gpus all`），需要 `--ipc=host` 以支持 PyTorch 共享内存。容器包含 SGLang、Dynamo、NATS、etcd、NIXL 及所有依赖。
+
+---
+
 ## 复现步骤
 
 ```bash

@@ -407,6 +407,54 @@ The Dynamo response includes `nvext.worker_id` with separate `prefill_worker_id`
 
 ---
 
+## Deploying Dynamo PD from Docker (Recommended)
+
+The Docker path is significantly simpler — no compatibility patches, no manual NATS/etcd install, everything pre-configured.
+
+```bash
+# Pull the pre-built container (55.7 GB)
+docker pull nvcr.io/nvidia/ai-dynamo/sglang-runtime:1.0.1
+
+# Start container with GPU access and model mount
+docker run -d --name dynamo --runtime=nvidia --network host --ipc=host \
+  -v /path/to/models:/models \
+  nvcr.io/nvidia/ai-dynamo/sglang-runtime:1.0.1 sleep infinity
+
+# Single-GPU serving (no Dynamo orchestration)
+docker exec -d dynamo python3 -m sglang.launch_server \
+  --model-path /models/Qwen2.5-32B-Instruct --port 8000 --host 0.0.0.0
+
+# PD Disaggregation (requires NATS + etcd + frontend + 2 workers)
+docker exec -d dynamo bash -c "nats-server -js & etcd &"
+docker exec -d dynamo python3 -m dynamo.frontend --router-mode kv --router-reset-states --http-port 8000
+docker exec -d -e CUDA_VISIBLE_DEVICES=0 -e DYN_SYSTEM_PORT=8081 dynamo python3 -m dynamo.sglang \
+  --model-path /models/Qwen2.5-32B-Instruct --served-model-name QWEN32B \
+  --page-size 64 --tp 1 --disaggregation-mode prefill --host 0.0.0.0 \
+  --kv-events-config '{"publisher":"zmq","topic":"kv-events","endpoint":"tcp://*:5557"}' \
+  --disaggregation-transfer-backend nixl
+docker exec -d -e CUDA_VISIBLE_DEVICES=1 -e DYN_SYSTEM_PORT=8083 dynamo python3 -m dynamo.sglang \
+  --model-path /models/Qwen2.5-32B-Instruct --served-model-name QWEN32B \
+  --page-size 64 --tp 1 --disaggregation-mode decode --host 0.0.0.0 \
+  --kv-events-config '{"publisher":"zmq","topic":"kv-events","endpoint":"tcp://*:5560"}' \
+  --disaggregation-transfer-backend nixl
+```
+
+**Docker vs PyPI performance parity**: We verified that the Docker container produces identical performance to the PyPI installation:
+
+| Metric | Docker Baseline (1 GPU) | PyPI Baseline (C1) | Docker PD (2 GPU) | PyPI PD (C6) |
+|:---|:---:|:---:|:---:|:---:|
+| **Output tok/s** | 750 | 749 | 820 | 830 |
+| **Mean TTFT** | 326 ms | 369 ms | 506 ms | 355 ms |
+| **Mean E2E** | 7545 ms | 7548 ms | 3774 ms | 3559 ms |
+| **P95 ITL** | 259 ms | 258 ms | **30 ms** | 29 ms |
+| **P99 ITL** | 391 ms | 680 ms | **47 ms** | 31 ms |
+
+Throughput and ITL are within measurement noise. The Docker path eliminates all PyPI compatibility issues (SGLang API patches, NIXL manual install, NATS/etcd binaries) while delivering the same performance.
+
+> **Note**: Docker uses `--runtime=nvidia` (not `--gpus all`) and requires `--ipc=host` for PyTorch shared memory. The container includes SGLang, Dynamo, NATS, etcd, NIXL, and all dependencies pre-configured.
+
+---
+
 ## Reproducing These Results
 
 ```bash

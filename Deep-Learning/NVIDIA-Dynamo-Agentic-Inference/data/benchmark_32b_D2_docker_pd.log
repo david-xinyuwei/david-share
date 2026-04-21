@@ -1,0 +1,52 @@
+  0%|          | 0/100 [00:00<?, ?it/s]benchmark_args=Namespace(backend='sglang-oai-chat', base_url=None, host='0.0.0.0', port=8000, dataset_name='random', dataset_path='', model='QWEN32B', served_model_name=None, tokenizer='/models/Qwen2.5-32B-Instruct', num_prompts=100, sharegpt_output_len=None, sharegpt_context_len=None, random_input_len=1024, random_output_len=256, random_range_ratio=0.0, image_count=1, image_resolution='1080p', random_image_count=False, image_format='jpeg', image_content='random', request_rate=10.0, use_trace_timestamps=False, max_concurrency=None, output_file=None, output_details=False, print_requests=False, disable_tqdm=False, disable_stream=False, return_logprob=False, return_routed_experts=False, seed=1, disable_ignore_eos=False, extra_request_body=None, apply_chat_template=False, profile=False, plot_throughput=False, profile_activities=['CPU', 'GPU'], profile_num_steps=None, profile_by_stage=False, profile_stages=None, profile_output_dir=None, profile_prefix=None, lora_name=None, lora_request_distribution='uniform', lora_zipf_alpha=1.5, prompt_suffix='', pd_separated=False, profile_prefill_url=None, profile_decode_url=None, flush_cache=False, warmup_requests=1, tokenize_prompt=False, gsp_num_groups=64, gsp_prompts_per_group=16, gsp_system_prompt_len=2048, gsp_question_len=128, gsp_output_len=256, gsp_range_ratio=1.0, gsp_fast_prepare=False, gsp_send_routing_key=False, gsp_num_turns=1, gsp_ordered=False, mooncake_slowdown_factor=1.0, mooncake_num_rounds=1, mooncake_workload='conversation', tag=None, header=None)
+Fail to load tokenizer config with error=QWEN32B is not a local folder and is not a valid model identifier listed on 'https://huggingface.co/models'
+If this is a private repository, make sure to pass a token having permission to this repo either by logging in with `hf auth login` or by passing `token=<your_token>`
+
+WARNING It is recommended to use the `Chat` or `Instruct` model for benchmarking.
+Because when the tokenizer counts the output tokens, if there is gibberish, it might count incorrectly.
+
+Namespace(backend='sglang-oai-chat', base_url=None, host='0.0.0.0', port=8000, dataset_name='random', dataset_path='', model='QWEN32B', served_model_name=None, tokenizer='/models/Qwen2.5-32B-Instruct', num_prompts=100, sharegpt_output_len=None, sharegpt_context_len=None, random_input_len=1024, random_output_len=256, random_range_ratio=0.0, image_count=1, image_resolution='1080p', random_image_count=False, image_format='jpeg', image_content='random', request_rate=10.0, use_trace_timestamps=False, max_concurrency=None, output_file=None, output_details=False, print_requests=False, disable_tqdm=False, disable_stream=False, return_logprob=False, return_routed_experts=False, seed=1, disable_ignore_eos=False, extra_request_body=None, apply_chat_template=False, profile=False, plot_throughput=False, profile_activities=['CPU', 'GPU'], profile_num_steps=None, profile_by_stage=False, profile_stages=None, profile_output_dir=None, profile_prefix=None, lora_name=None, lora_request_distribution='uniform', lora_zipf_alpha=1.5, prompt_suffix='', pd_separated=False, profile_prefill_url=None, profile_decode_url=None, flush_cache=False, warmup_requests=1, tokenize_prompt=False, gsp_num_groups=64, gsp_prompts_per_group=16, gsp_system_prompt_len=2048, gsp_question_len=128, gsp_output_len=256, gsp_range_ratio=1.0, gsp_fast_prepare=False, gsp_send_routing_key=False, gsp_num_turns=1, gsp_ordered=False, mooncake_slowdown_factor=1.0, mooncake_num_rounds=1, mooncake_workload='conversation', tag=None, header=None)
+
+#Input tokens: 50561
+#Output tokens: 12508
+Starting warmup with 1 sequences...
+Warmup completed with 1 sequences. Starting main benchmark run...
+  1%|          | 1/100 [00:01<02:20,  1.42s/it]  2%|▏         | 2/100 [00:01<01:12,  1.34it/s]  3%|▎         | 3/100 [00:01<00:51,  1.88it/s]  5%|▌         | 5/100 [00:02<00:39,  2.42it/s]  7%|▋         | 7/100 [00:03<00:43,  2.13it/s]  8%|▊         | 8/100 [00:03<00:37,  2.44it/s]  9%|▉         | 9/100 [00:04<00:30,  2.97it/s] 11%|█         | 11/100 [00:04<00:21,  4.23it/s] 13%|█▎        | 13/100 [00:04<00:16,  5.36it/s] 14%|█▍        | 14/100 [00:04<00:17,  5.00it/s] 16%|█▌        | 16/100 [00:04<00:12,  6.96it/s] 18%|█▊        | 18/100 [00:05<00:13,  6.04it/s] 20%|██        | 20/100 [00:05<00:12,  6.60it/s] 21%|██        | 21/100 [00:05<00:11,  7.06it/s] 22%|██▏       | 22/100 [00:05<00:11,  6.71it/s] 23%|██▎       | 23/100 [00:05<00:13,  5.76it/s] 24%|██▍       | 24/100 [00:06<00:16,  4.69it/s] 25%|██▌       | 25/100 [00:06<00:14,  5.05it/s] 26%|██▌       | 26/100 [00:06<00:13,  5.35it/s] 28%|██▊       | 28/100 [00:06<00:11,  6.51it/s] 29%|██▉       | 29/100 [00:07<00:11,  6.44it/s] 33%|███▎      | 33/100 [00:07<00:05, 12.44it/s] 35%|███▌      | 35/100 [00:07<00:05, 12.70it/s] 39%|███▉      | 39/100 [00:07<00:03, 18.35it/s] 42%|████▏     | 42/100 [00:08<00:06,  9.11it/s] 45%|████▌     | 45/100 [00:08<00:07,  7.48it/s] 47%|████▋     | 47/100 [00:08<00:07,  6.85it/s] 51%|█████     | 51/100 [00:09<00:05,  8.89it/s] 53%|█████▎    | 53/100 [00:09<00:05,  8.04it/s] 55%|█████▌    | 55/100 [00:10<00:07,  5.96it/s] 57%|█████▋    | 57/100 [00:10<00:06,  6.25it/s] 59%|█████▉    | 59/100 [00:10<00:05,  7.58it/s] 62%|██████▏   | 62/100 [00:10<00:04,  9.32it/s] 65%|██████▌   | 65/100 [00:10<00:02, 12.06it/s] 67%|██████▋   | 67/100 [00:11<00:03, 10.53it/s] 69%|██████▉   | 69/100 [00:11<00:02, 10.68it/s] 71%|███████   | 71/100 [00:11<00:02, 12.21it/s] 73%|███████▎  | 73/100 [00:11<00:01, 13.67it/s] 76%|███████▌  | 76/100 [00:11<00:01, 17.16it/s] 79%|███████▉  | 79/100 [00:11<00:01, 12.20it/s] 81%|████████  | 81/100 [00:12<00:01, 11.16it/s] 83%|████████▎ | 83/100 [00:12<00:02,  7.61it/s] 85%|████████▌ | 85/100 [00:12<00:01,  7.75it/s] 87%|████████▋ | 87/100 [00:13<00:01,  7.17it/s] 88%|████████▊ | 88/100 [00:13<00:01,  6.78it/s] 90%|█████████ | 90/100 [00:13<00:01,  6.85it/s] 91%|█████████ | 91/100 [00:14<00:01,  5.40it/s] 93%|█████████▎| 93/100 [00:14<00:01,  6.55it/s] 97%|█████████▋| 97/100 [00:14<00:00,  9.32it/s] 99%|█████████▉| 99/100 [00:14<00:00,  7.81it/s]100%|██████████| 100/100 [00:15<00:00,  6.13it/s]100%|██████████| 100/100 [00:15<00:00,  6.56it/s]
+
+============ Serving Benchmark Result ============
+Backend:                                 sglang-oai-chat
+Traffic request rate:                    10.0      
+Max request concurrency:                 not set   
+Successful requests:                     100       
+Benchmark duration (s):                  15.25     
+Total input tokens:                      50561     
+Total input text tokens:                 50561     
+Total generated tokens:                  12508     
+Total generated tokens (retokenized):    12404     
+Request throughput (req/s):              6.56      
+Input token throughput (tok/s):          3314.79   
+Output token throughput (tok/s):         820.03    
+Peak output token throughput (tok/s):    1509.00   
+Peak concurrent requests:                53        
+Total token throughput (tok/s):          4134.81   
+Concurrency:                             24.74     
+----------------End-to-End Latency----------------
+Mean E2E Latency (ms):                   3773.84   
+Median E2E Latency (ms):                 3714.94   
+P90 E2E Latency (ms):                    6417.37   
+P99 E2E Latency (ms):                    7490.89   
+---------------Time to First Token----------------
+Mean TTFT (ms):                          506.33    
+Median TTFT (ms):                        472.34    
+P99 TTFT (ms):                           982.17    
+-----Time per Output Token (excl. 1st token)------
+Mean TPOT (ms):                          26.31     
+Median TPOT (ms):                        26.20     
+P99 TPOT (ms):                           28.76     
+---------------Inter-Token Latency----------------
+Mean ITL (ms):                           26.54     
+Median ITL (ms):                         25.67     
+P95 ITL (ms):                            29.83     
+P99 ITL (ms):                            46.70     
+Max ITL (ms):                            356.89    
+==================================================
