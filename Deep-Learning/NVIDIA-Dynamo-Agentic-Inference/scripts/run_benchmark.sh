@@ -235,19 +235,26 @@ highload_pd() {
 # Main
 # ============================================================
 usage() {
-    echo "Usage: $0 {phase1|phase2|phase3|phase5|highload_tp2|highload_pd|all}"
+    echo "Usage: $0 {phase1|phase2|phase3|phase5|highload_tp2|highload_pd|32b|docker|all}"
     echo ""
-    echo "Phases:"
+    echo "8B Phases (Qwen3-8B):"
     echo "  phase1       - Baseline single GPU"
     echo "  phase2       - TP=2 tensor parallel"
     echo "  phase3       - Prefix cache (cold/warm/flush)"
     echo "  phase5       - Dynamo PD disaggregation (requires NATS+etcd+nixl)"
     echo "  highload_tp2 - High concurrency TP=2 (200 prompts @ 20 req/s)"
     echo "  highload_pd  - High concurrency Dynamo PD"
-    echo "  all          - Run all phases sequentially"
+    echo "  all          - Run all 8B phases sequentially"
+    echo ""
+    echo "32B Phases (Qwen2.5-32B-Instruct):"
+    echo "  32b          - C1 baseline + C4 FP8 KV + C5 no chunked + C7 TP=2 + C6 PD"
+    echo ""
+    echo "Docker Phases:"
+    echo "  docker       - D1 Docker baseline + D2 Docker PD (requires Docker + nvidia runtime)"
     echo ""
     echo "Environment variables:"
-    echo "  MODEL_PATH   - Path to model (default: /root/models/Qwen3-8B)"
+    echo "  MODEL_PATH   - Path to 8B model (default: /root/models/Qwen3-8B)"
+    echo "  MODEL_32B    - Path to 32B model (default: /root/models/Qwen2.5-32B-Instruct)"
     echo "  LOG_DIR      - Directory for benchmark logs (default: /root)"
 }
 
