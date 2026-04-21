@@ -112,9 +112,9 @@ Dynamo 通过统一内部表示服务 `v1/chat/completions`、`v1/responses` 和
 
 | 层 | 介质 | 速度 | 容量 | 持久性 |
 |:---|:---|:---|:---|:---|
-| L1 | GPU HBM | 最快 | 最小 (95 GB/GPU) | 请求生命周期 |
-| L2 | CPU Pinned DRAM | 快 | 中等 (~500 GB) | 可配置 TTL |
-| L3 | 本地 NVMe | 中等 | 大 (~3 TB) | Session 生命周期 |
+| L1 | GPU HBM | 最快 | 最小（H100 上 95 GB） | 请求生命周期 |
+| L2 | CPU Pinned DRAM | 快 | 取决于主机内存 | 可配置 TTL |
+| L3 | 本地 NVMe | 中等 | 取决于磁盘 | Session 生命周期 |
 | L4 | 远程存储 | 最慢 | 无限 | 跨 worker 共享 |
 
 Block 沿 **write-through** 路径流动：GPU → CPU → 磁盘自动写入。每个 block 由**序列哈希去重** — 注册后不可变，任何 worker 可寻址。
@@ -351,7 +351,7 @@ UCX (Unified Communication X — 统一通信框架)        [默认后端]
 | **RoCE** | RDMA over Converged Ethernet | 在无损以太网上跑 RDMA 协议 |
 | **EFA** | Elastic Fabric Adapter | AWS 原生 RDMA 网络（EC2 实例用） |
 | **KVBM** | KV Block Manager | Dynamo 的四层 KV 存储管理器（GPU→CPU→NVMe→远程） |
-| **NATS** | Neural Autonomic Transport System | 轻量消息总线，Dynamo 服务发现用 |
+| **NATS** | （非缩写） | 轻量消息总线，Dynamo 服务发现用 ([nats.io](https://nats.io)) |
 | **etcd** | （来自 "/etc distributed"，非缩写） | 分布式键值存储，worker 注册和配置用 |
 
 ---

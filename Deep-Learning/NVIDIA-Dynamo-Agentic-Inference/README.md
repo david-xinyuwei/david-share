@@ -112,9 +112,9 @@ Today's engines treat KV cache as a local, ephemeral resource. Dynamo's KV Block
 
 | Tier | Medium | Speed | Capacity | Persistence |
 |:---|:---|:---|:---|:---|
-| L1 | GPU HBM | Fastest | Smallest (95 GB/GPU) | Request lifetime |
-| L2 | CPU Pinned DRAM | Fast | Medium (~500 GB) | Configurable TTL |
-| L3 | Local NVMe | Moderate | Large (~3 TB) | Session lifetime |
+| L1 | GPU HBM | Fastest | Smallest (95 GB on H100) | Request lifetime |
+| L2 | CPU Pinned DRAM | Fast | Depends on host RAM | Configurable TTL |
+| L3 | Local NVMe | Moderate | Depends on disk | Session lifetime |
 | L4 | Remote Storage | Slowest | Unlimited | Cross-worker shared |
 
 Blocks follow a **write-through** path: GPU → CPU → disk automatically. Each block is **deduplicated by sequence hash** in a global registry — once registered, it's immutable and addressable by any worker.
@@ -351,7 +351,7 @@ UCX (Unified Communication X)                    [default backend]
 | **RoCE** | RDMA over Converged Ethernet | RDMA protocol running on lossless Ethernet |
 | **EFA** | Elastic Fabric Adapter | AWS-native RDMA networking for EC2 instances |
 | **KVBM** | KV Block Manager | Dynamo’s 4-tier KV cache storage manager (GPU→CPU→NVMe→Remote) |
-| **NATS** | Neural Autonomic Transport System | Lightweight message bus for Dynamo service discovery |
+| **NATS** | (not an acronym) | Lightweight message bus for Dynamo service discovery ([nats.io](https://nats.io)) |
 | **etcd** | (from "/etc distributed") | Distributed key-value store for worker registration and config |
 
 ---
