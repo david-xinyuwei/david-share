@@ -302,6 +302,21 @@ The diagram above shows our actual deployment. The request flow:
 
 > **Note on KVBM**: Dynamo's KV Block Manager (KVBM) — which enables 4-tier KV storage (GPU → CPU → NVMe → Remote) — is currently only available with the TensorRT-LLM backend (`--kv-transfer-config kvbm`). The SGLang backend uses NIXL for KV transfer in PD mode. KVBM with SGLang is listed as 🚧 (work in progress) in the [Dynamo feature matrix](https://docs.nvidia.com/dynamo/resources/feature-matrix).
 
+### Network Prerequisites for PD Disaggregation
+
+NIXL (the KV transfer library) uses [UCX](https://github.com/openucx/ucx) as its default backend and **automatically selects the best available transport**:
+
+| Deployment | KV Transfer Path | Network Required | Performance |
+|:---|:---|:---|:---|
+| **Same-node** (our setup) | NVLink via UCX CUDA IPC | No network needed | ~900 GB/s (NVL12) |
+| **Cross-node production** | RDMA via UCX verbs | **InfiniBand or RoCE v2** | 100-400 Gbps, zero-copy |
+| **AWS cross-node** | EFA via UCX | AWS Elastic Fabric Adapter | AWS-native RDMA |
+| **TCP fallback** | TCP via UCX | Standard Ethernet | Functional but **not production-viable** — non-zero-copy, high latency |
+
+> **⚠️ Important: This repo validates PD disaggregation on a single node (2×H100 NVL) where KV transfer uses NVLink — no network fabric is involved.** For production multi-node PD deployments, **RDMA networking (InfiniBand, RoCE v2, or AWS EFA) is required** for acceptable KV transfer latency. TCP-based KV transfer is technically possible via UCX but adds significant overhead (GPU→CPU copy → TCP → CPU→GPU copy) that would negate PD’s latency benefits. All NVIDIA Dynamo multi-node recipes assume RDMA-capable networking.
+>
+> *Source: [NIXL Blog](https://developer.nvidia.com/blog/enhancing-distributed-inference-performance-with-the-nvidia-inference-transfer-library/) — "supports AWS with EFA networking... Azure with RDMA networking"; [NIXL GitHub](https://github.com/ai-dynamo/nixl) — UCX default backend with `--with-verbs` (IB/RoCE).*
+
 ---
 
 ## When to Use (and NOT Use) PD Disaggregation

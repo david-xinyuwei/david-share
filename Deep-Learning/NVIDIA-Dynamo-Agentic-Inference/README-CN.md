@@ -302,6 +302,21 @@ FP8 KV cache（`--kv-cache-dtype fp8_e5m2`）将 KV 存储从 16-bit 压缩到 8
 
 > **关于 KVBM**：Dynamo 的 KV Block Manager (KVBM) — 支持四层 KV 存储（GPU → CPU → NVMe → 远程）— 目前仅在 TensorRT-LLM 后端可用（`--kv-transfer-config kvbm`）。SGLang 后端在 PD 模式中使用 NIXL 进行 KV 传输。KVBM + SGLang 在 [Dynamo 特性矩阵](https://docs.nvidia.com/dynamo/resources/feature-matrix) 中标记为 🚧（开发中）。
 
+### PD 分离的网络前提
+
+NIXL（KV 传输库）使用 [UCX](https://github.com/openucx/ucx) 作为默认后端，**自动选择最优传输方式**：
+
+| 部署场景 | KV 传输路径 | 网络要求 | 性能 |
+|:---|:---|:---|:---|
+| **同节点**（我们的场景） | NVLink via UCX CUDA IPC | 无需网络 | ~900 GB/s (NVL12) |
+| **跨节点生产** | RDMA via UCX verbs | **InfiniBand 或 RoCE v2** | 100-400 Gbps，零拷贝 |
+| **AWS 跨节点** | EFA via UCX | AWS Elastic Fabric Adapter | AWS 原生 RDMA |
+| **TCP 回退** | TCP via UCX | 普通以太网 | 能跑但**不适合生产** — 非零拷贝，延迟高 |
+
+> **⚠️ 重要说明：本 Repo 在单节点（2×H100 NVL）上验证 PD 分离，KV 传输走 NVLink — 不涉及网络。** 生产环境多节点 PD 部署**必须使用 RDMA 网络（InfiniBand、RoCE v2 或 AWS EFA）**，否则 KV 传输延迟会抵消 PD 的延迟优势。基于 TCP 的 KV 传输技术上可通过 UCX 实现，但额外的 GPU→CPU→TCP→CPU→GPU 拷贝开销会抵消 PD 的延迟收益。所有 NVIDIA Dynamo 多节点 recipe 均假定 RDMA 网络。
+>
+> *来源：[NIXL Blog](https://developer.nvidia.com/blog/enhancing-distributed-inference-performance-with-the-nvidia-inference-transfer-library/) — "supports AWS with EFA networking... Azure with RDMA networking"；[NIXL GitHub](https://github.com/ai-dynamo/nixl) — UCX 默认后端，`--with-verbs` (IB/RoCE)。*
+
 ---
 
 ## 什么时候用（和不用）PD 分离
