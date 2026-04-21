@@ -292,13 +292,13 @@ The diagram above shows our actual deployment. The request flow:
 3. **NIXL KV Transfer**: The computed KV cache is transferred from GPU 0 to GPU 1 via NIXL over NVLink (~900 GB/s bidirectional). This transfer adds latency to TTFT but enables physical isolation.
 4. **Decode Worker (GPU 1)**: Generates output tokens from the transferred KV cache (~26ms/token). Runs `--disaggregation-mode decode` with CUDA:1. **This GPU never executes prefill kernels** — which is why P99 ITL stays at 31ms regardless of incoming request load.
 
-| Component | Role | Our Version |
-|:---|:---|:---|
-| **Dynamo Frontend** | Rust HTTP server, KV-aware routing, agent hints processing | Dynamo 1.0.1 |
-| **NATS** | Message bus for service discovery between components | v2.11.3 (JetStream) |
-| **etcd** | Distributed config store, worker registration | v3.5.21 |
-| **NIXL** | GPU-to-GPU KV cache transfer (RDMA/NVLink) | nixl 1.0.1 |
-| **SGLang Workers** | Inference engine, split into prefill/decode roles | SGLang 0.5.10 |
+| Component | Role | Why It’s Needed | Our Version |
+|:---|:---|:---|:---|
+| **Dynamo Frontend** | Rust-based HTTP server. Receives all client requests, applies `nvext.agent_hints`, and routes each request to the optimal worker using the KV-aware router + Flash Indexer. | Without it, clients would need to know which GPU is prefill vs decode. The frontend abstracts this — clients just send to port 8000. | Dynamo 1.0.1 |
+| **NATS** | Lightweight publish-subscribe message bus. Components announce their status ("I’m a prefill worker, I’m ready") and the frontend subscribes to discover them. | Workers and frontend need to find each other dynamically. NATS provides real-time service discovery without hardcoding IPs. | v2.11.3 (JetStream) |
+| **etcd** | Distributed key-value store. Stores worker metadata (which workers exist, their roles, their endpoints) and Dynamo configuration. Workers register themselves in etcd on startup. | The router needs a consistent, shared registry of all workers. etcd provides this across multiple nodes. On a single node, `--discovery-backend file` can replace etcd. | v3.5.21 |
+| **NIXL** | Data transfer library. Moves KV cache blocks between GPUs (or between GPU and CPU/storage). Uses UCX under the hood to auto-select the best transport (NVLink, IB RDMA, RoCE, TCP). | After prefill computes KV on GPU 0, the KV data must physically move to GPU 1 for decode. NIXL handles this transfer with minimal overhead. | nixl 1.0.1 |
+| **SGLang Workers** | The actual inference engine. Each worker loads the full model and runs either prefill or decode, controlled by `--disaggregation-mode`. Manages KV cache, attention computation, and token generation. | The "brain" that does the math. Dynamo orchestrates, but SGLang does the actual GPU computation. | SGLang 0.5.10 |
 
 > **Note on KVBM**: Dynamo's KV Block Manager (KVBM) — which enables 4-tier KV storage (GPU → CPU → NVMe → Remote) — is currently only available with the TensorRT-LLM backend (`--kv-transfer-config kvbm`). The SGLang backend uses NIXL for KV transfer in PD mode. KVBM with SGLang is listed as 🚧 (work in progress) in the [Dynamo feature matrix](https://docs.nvidia.com/dynamo/resources/feature-matrix).
 

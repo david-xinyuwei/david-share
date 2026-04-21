@@ -292,13 +292,13 @@ FP8 KV cache（`--kv-cache-dtype fp8_e5m2`）将 KV 存储从 16-bit 压缩到 8
 3. **NIXL KV 传输**：计算好的 KV cache 通过 NIXL 经 NVLink（~900 GB/s 双向）从 GPU 0 传输到 GPU 1。这增加了 TTFT 延迟，但实现了物理隔离。
 4. **Decode Worker (GPU 1)**：从传输的 KV cache 生成输出 token（~26ms/token）。使用 `--disaggregation-mode decode`，CUDA:1。**这张 GPU 永远不执行 prefill kernel** — 所以 P99 ITL 保持 31ms，不受新请求负载影响。
 
-| 组件 | 作用 | 我们的版本 |
-|:---|:---|:---|
-| **Dynamo Frontend** | Rust HTTP 服务器，KV 感知路由，agent hints 处理 | Dynamo 1.0.1 |
-| **NATS** | 消息总线，组件间服务发现 | v2.11.3 (JetStream) |
-| **etcd** | 分布式配置存储，worker 注册 | v3.5.21 |
-| **NIXL** | GPU-to-GPU KV cache 传输（RDMA/NVLink） | nixl 1.0.1 |
-| **SGLang Workers** | 推理引擎，分 prefill/decode 角色 | SGLang 0.5.10 |
+| 组件 | 作用 | 为什么需要 | 我们的版本 |
+|:---|:---|:---|:---|
+| **Dynamo Frontend** | Rust HTTP 服务器。接收所有客户端请求，处理 `nvext.agent_hints`，通过 KV 感知路由器 + Flash Indexer 把请求分发到最优 worker。 | 没有它，客户端就得知道哪张 GPU 做 prefill、哪张做 decode。Frontend 抽象了这些—客户端只管发到 8000 端口。 | Dynamo 1.0.1 |
+| **NATS** | 轻量级发布-订阅消息总线。各组件通过 NATS 宣告自己的状态（“我是 prefill worker，我已就绪”），Frontend 订阅这些消息来发现 worker。 | Worker 和 Frontend 需要动态发现彼此，NATS 提供实时服务发现，不需硬编码 IP。 | v2.11.3 (JetStream) |
+| **etcd** | 分布式键值存储。存储 worker 元数据（哪些 worker 存在、它们的角色、端点）和 Dynamo 配置。Worker 启动时自动注册到 etcd。 | 路由器需要一个一致的、共享的 worker 注册表。etcd 在多节点场景提供这个能力。单节点可用 `--discovery-backend file` 替代。 | v3.5.21 |
+| **NIXL** | 数据传输库。在 GPU 之间（或 GPU 和 CPU/存储之间）移动 KV cache block。底层用 UCX 自动选择最优传输（NVLink/IB RDMA/RoCE/TCP）。 | Prefill 在 GPU 0 算完 KV 后，KV 数据必须物理移动到 GPU 1 才能开始 decode。NIXL 以最小开销完成这个传输。 | nixl 1.0.1 |
+| **SGLang Workers** | 实际的推理引擎。每个 worker 加载完整模型，通过 `--disaggregation-mode` 指定做 prefill 还是 decode。管理 KV cache、attention 计算和 token 生成。 | 做数学计算的“大脑”。Dynamo 负责编排，SGLang 负责实际 GPU 计算。 | SGLang 0.5.10 |
 
 > **关于 KVBM**：Dynamo 的 KV Block Manager (KVBM) — 支持四层 KV 存储（GPU → CPU → NVMe → 远程）— 目前仅在 TensorRT-LLM 后端可用（`--kv-transfer-config kvbm`）。SGLang 后端在 PD 模式中使用 NIXL 进行 KV 传输。KVBM + SGLang 在 [Dynamo 特性矩阵](https://docs.nvidia.com/dynamo/resources/feature-matrix) 中标记为 🚧（开发中）。
 
