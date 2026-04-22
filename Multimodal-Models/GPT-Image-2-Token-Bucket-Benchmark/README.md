@@ -132,17 +132,41 @@ New fields compared to GPT-Image-1.5:
 
 ### Generated Images — Visual Comparison
 
-#### Prompt 1: "A simple red circle on white background"
+#### Prompt: "A golden retriever puppy in a sunlit meadow" (same prompt across all 9 combinations)
+
+**1024×1024 (Square)**
+
+| Low (208 tokens, 19.6s) | Medium (805 tokens, 59.7s) | High (3,171 tokens, 187.9s) |
+|:---:|:---:|:---:|
+| ![](images/matrix/1024x1024_low.png) | ![](images/matrix/1024x1024_medium.png) | ![](images/matrix/1024x1024_high.png) |
+
+**1024×1536 (Portrait)**
+
+| Low (365 tokens, 23.8s) | Medium (1,415 tokens, 49.9s) | High (5,574 tokens, 128.0s) |
+|:---:|:---:|:---:|
+| ![](images/matrix/1024x1536_low.png) | ![](images/matrix/1024x1536_medium.png) | ![](images/matrix/1024x1536_high.png) |
+
+**1536×1024 (Landscape)**
+
+| Low (358 tokens, 27.3s) | Medium (1,401 tokens, 46.9s) | High (5,546 tokens, 128.9s) |
+|:---:|:---:|:---:|
+| ![](images/matrix/1536x1024_low.png) | ![](images/matrix/1536x1024_medium.png) | ![](images/matrix/1536x1024_high.png) |
+
+#### Earlier tests — different prompts at 1024×1024
+
+Prompt 1: "A simple red circle on white background"
 
 | Low (208 tokens) | Medium (805 tokens) | High (3,171 tokens) |
 |:---:|:---:|:---:|
 | ![low](images/red_dot/red_dot_low.png) | ![medium](images/red_dot/red_dot_medium.png) | ![high](images/red_dot/red_dot_high.png) |
 
-#### Prompt 2: "A photorealistic golden retriever puppy..."
+Prompt 2: "A photorealistic golden retriever puppy sitting in a sunlit meadow with wildflowers..."
 
 | Low (208 tokens) | Medium (805 tokens) | High (3,171 tokens) |
 |:---:|:---:|:---:|
 | ![low](images/dog/dog_low.png) | ![medium](images/dog/dog_medium.png) | ![high](images/dog/dog_high.png) |
+
+> All three 1024×1024 low results above returned exactly 208 output tokens — confirming that **prompt content does not affect token count**.
 
 ## How to Choose the Right Quality
 
@@ -156,11 +180,11 @@ New fields compared to GPT-Image-1.5:
 
 ## Known Limitations
 
-1. **Sample size**: 2 prompts × 3 quality levels. A production benchmark should test 20+ diverse prompts.
-2. **Single resolution**: Only 1024×1024 tested. 1024×1536 and 1536×1024 may produce different token counts.
-3. **No repeat runs**: Each combination tested once. Variance analysis requires multiple runs.
-4. **Preview API**: Using `2025-04-01-preview` — behavior may change in GA.
-5. **Region**: East US 2 only. Latency varies by region.
+1. **No repeat runs**: Each size×quality combination tested once. Variance analysis requires multiple runs per combination.
+2. **Single prompt per matrix**: The 3×3 matrix used one prompt. Token determinism verified with 4 prompts only at 1024×1024 low.
+3. **Preview API**: Using `2025-04-01-preview` — behavior may change in GA.
+4. **Region**: East US 2 only. Latency varies by region and load.
+5. **Latency is end-to-end**: Includes network RTT from client, not pure generation time.
 
 ## Reproducing the Benchmark
 

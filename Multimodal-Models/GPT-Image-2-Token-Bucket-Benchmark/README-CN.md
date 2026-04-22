@@ -132,17 +132,41 @@ GPT-Image-2 相比 GPT-Image-1.5 返回更丰富的响应结构：
 
 ### 生成图片 — 视觉对比
 
-#### Prompt 1："A simple red circle on white background"
+#### Prompt："A golden retriever puppy in a sunlit meadow"（同一 Prompt 覆盖全部 9 种组合）
+
+**1024×1024（正方形）**
+
+| Low (208 tokens, 19.6s) | Medium (805 tokens, 59.7s) | High (3,171 tokens, 187.9s) |
+|:---:|:---:|:---:|
+| ![](images/matrix/1024x1024_low.png) | ![](images/matrix/1024x1024_medium.png) | ![](images/matrix/1024x1024_high.png) |
+
+**1024×1536（竖版）**
+
+| Low (365 tokens, 23.8s) | Medium (1,415 tokens, 49.9s) | High (5,574 tokens, 128.0s) |
+|:---:|:---:|:---:|
+| ![](images/matrix/1024x1536_low.png) | ![](images/matrix/1024x1536_medium.png) | ![](images/matrix/1024x1536_high.png) |
+
+**1536×1024（横版）**
+
+| Low (358 tokens, 27.3s) | Medium (1,401 tokens, 46.9s) | High (5,546 tokens, 128.9s) |
+|:---:|:---:|:---:|
+| ![](images/matrix/1536x1024_low.png) | ![](images/matrix/1536x1024_medium.png) | ![](images/matrix/1536x1024_high.png) |
+
+#### 早期测试 — 不同 Prompt，1024×1024
+
+Prompt 1："A simple red circle on white background"
 
 | Low (208 tokens) | Medium (805 tokens) | High (3,171 tokens) |
 |:---:|:---:|:---:|
 | ![low](images/red_dot/red_dot_low.png) | ![medium](images/red_dot/red_dot_medium.png) | ![high](images/red_dot/red_dot_high.png) |
 
-#### Prompt 2："A photorealistic golden retriever puppy..."
+Prompt 2："A photorealistic golden retriever puppy sitting in a sunlit meadow with wildflowers..."
 
 | Low (208 tokens) | Medium (805 tokens) | High (3,171 tokens) |
 |:---:|:---:|:---:|
 | ![low](images/dog/dog_low.png) | ![medium](images/dog/dog_medium.png) | ![high](images/dog/dog_high.png) |
+
+> 以上三组 1024×1024 low 结果均返回 208 output tokens —— 确认 **Prompt 内容不影响 Token 数量**。
 
 ## 如何选择合适的 Quality
 
@@ -156,11 +180,11 @@ GPT-Image-2 相比 GPT-Image-1.5 返回更丰富的响应结构：
 
 ## Known Limitations（已知限制）
 
-1. **样本量**：2 个 Prompt × 3 个 Quality 级别。生产级 Benchmark 应测试 20+ 个不同 Prompt。
-2. **单一分辨率**：仅测试 1024×1024。1024×1536 和 1536×1024 可能产生不同的 Token 数量。
-3. **无重复测试**：每个组合仅测试一次。方差分析需要多次运行。
-4. **Preview API**：使用 `2025-04-01-preview` —— GA 版本行为可能变化。
-5. **单一区域**：仅 East US 2。延迟因区域而异。
+1. **无重复测试**：每种 size×quality 组合仅测试一次。方差分析需要多次运行。
+2. **矩阵只用了一个 Prompt**：3×3 矩阵使用同一 Prompt。Token 确定性仅在 1024×1024 low 下用 4 个 Prompt 验证。
+3. **Preview API**：使用 `2025-04-01-preview` —— GA 版本行为可能变化。
+4. **单一区域**：仅 East US 2。延迟因区域和负载而异。
+5. **延迟为端到端测量**：包含客户端网络 RTT，不是纯生成时间。
 
 ## Reproducing the Benchmark（复现测试）
 
