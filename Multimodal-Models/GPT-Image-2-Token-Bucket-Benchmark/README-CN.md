@@ -29,7 +29,7 @@ GPT-Image-2（`v2026-04-21`）使用**确定性 Token 分配**，由两个因素
 1. **Output tokens = f(size, quality)** —— Prompt 内容对输出 Token 无影响。通过 4 个不同 Prompt（3–20 词）在 1024×1024 low 下验证：全部返回 208 tokens。
 2. **竖版/横版 Token 约为正方形的 1.75 倍** —— 与像素数之比 1.5 倍（1,572,864 vs 1,048,576 像素）基本吻合。
 3. **竖版 ≈ 横版** —— 1024×1536 和 1536×1024 产生几乎相同的 Token（365 vs 358, 1415 vs 1401, 5574 vs 5546），存在轻微方向差异。
-4. **延迟主要由 quality 决定**，与 size 关系不大 —— high quality 比 low 慢 2–10 倍，但更大尺寸不一定更慢。
+4. **延迟由 quality 和 size 共同决定**，与 prompt 内容无关 — high quality 比 low 慢 2–10 倍。size 也影响延迟（竖版/横版与正方形可能差 10–30%）。
 
 ## Background
 
@@ -213,9 +213,9 @@ Output tokens **不受 prompt 内容影响**。我们用 11 个完全不同的 p
 | **1024×1536** | 365 | 1,415 | 5,574 |
 | **1536×1024** | 358 | 1,401 | 5,546 |
 
-### 2. 延迟与 prompt 无关
+### 2. 延迟由 quality 和 size 共同决定，与 prompt 无关
 
-11 个不同 prompt 在 medium + 1024×1024 下，延迟范围 59.7–71.0s（均值 63.6s，σ=3.1s）。Prompt 长度（11–21 input tokens）对延迟无可测影响。延迟主要由 `quality` 决定。
+11 个不同 prompt 在 medium + 1024×1024 下，延迟范围 59.7–71.0s（均值 63.6s，σ=3.1s）。Prompt 长度（11–21 input tokens）对延迟无可测影响。延迟主要由 `quality` 和 `size` 参数决定。
 
 ### 3. TC Blog 的 "token size bucket" 并非由 prompt 驱动
 

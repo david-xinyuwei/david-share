@@ -29,7 +29,7 @@ GPT-Image-2 (`v2026-04-21`) uses a **deterministic token allocation** based on t
 1. **Output tokens = f(size, quality) only** — prompt content has zero effect. Verified with 4 different prompts (3–20 words) at 1024×1024 low: all returned exactly 208 tokens.
 2. **Portrait/Landscape tokens are ~1.75× square** — matching the 1.5× pixel ratio (1,572,864 vs 1,048,576 pixels).
 3. **Portrait ≈ Landscape** — 1024×1536 and 1536×1024 produce nearly identical tokens (365 vs 358, 1415 vs 1401, 5574 vs 5546), with slight directional variance.
-4. **Latency scales with quality**, not with size — high quality takes 2–10× longer than low, but larger sizes are not consistently slower.
+4. **Latency is determined by quality and size**, not by prompt content — high quality takes 2–10× longer than low. Size also affects latency (portrait/landscape may differ from square by 10–30%).
 
 ## Background
 
@@ -213,9 +213,9 @@ Output tokens are **not influenced by prompt content**. We tested 11 completely 
 | **1024×1536** | 365 | 1,415 | 5,574 |
 | **1536×1024** | 358 | 1,401 | 5,546 |
 
-### 2. Latency is prompt-independent
+### 2. Latency is determined by quality and size, not by prompt
 
-Across 11 diverse prompts at medium + 1024×1024, latency ranged from 59.7s to 71.0s (mean=63.6s, σ=3.1s). Prompt length (11–21 input tokens) had no measurable impact on latency. Latency is primarily determined by `quality` level.
+Across 11 diverse prompts at medium + 1024×1024, latency ranged from 59.7s to 71.0s (mean=63.6s, σ=3.1s). Prompt length (11–21 input tokens) had no measurable impact on latency. Latency is primarily determined by the `quality` and `size` parameters.
 
 ### 3. The TC Blog's "token size bucket" is not prompt-driven
 
