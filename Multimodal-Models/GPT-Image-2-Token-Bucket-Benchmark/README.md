@@ -154,7 +154,38 @@ New fields compared to GPT-Image-1.5:
 
 #### Earlier tests — different prompts at 1024×1024
 
-Prompt 1: "A simple red circle on white background"
+**11 diverse prompts, all at medium quality, 1024×1024** — verifying output tokens are prompt-independent:
+
+| # | Prompt | Input Tokens | Output Tokens | Latency (s) |
+|:--|:-------|:------------|:-------------|:-----------|
+| 01 | Chrome kimono maiden, metallic flowers, cinematic lighting | 17 | **805** | 61.3 |
+| 02 | A portal into a mythical forest on a bedroom wall | 20 | **805** | 62.0 |
+| 03 | A tiny astronaut hatching from an egg on the moon | 17 | **805** | 63.8 |
+| 04 | Cute fluffy creature fantasy, dreamlike, surrealism | 21 | **805** | 60.3 |
+| 05 | A hidden cenote in a lush jungle, turquoise waters | 18 | **805** | 64.0 |
+| 06 | Girl with silver pixie-cut hair, holographic interface | 20 | **805** | 66.0 |
+| 07 | Universe, LSD, Fractal Worlds, Giant Eyes | 16 | **805** | 71.0 |
+| 08 | Close up render of a mythical creature, spiraling fractals | 19 | **805** | 59.7 |
+| 09 | An angry cat playing drums | 11 | **805** | 62.3 |
+| 10 | A monkey playing music in a jazz club | 14 | **805** | 64.5 |
+| 11 | Watercolor painting of Venice canals at sunset | 17 | **805** | 64.2 |
+
+> **11/11 returned exactly 805 output tokens.** Input tokens ranged from 11 to 21, latency varied 59.7–71.0s (σ=3.1s). This confirms output tokens are **deterministic and prompt-independent**.
+
+| | | |
+|:---:|:---:|:---:|
+| ![01](images/diverse_prompts/01_medium.png) | ![02](images/diverse_prompts/02_medium.png) | ![03](images/diverse_prompts/03_medium.png) |
+| *01: Chrome kimono* | *02: Mythical forest portal* | *03: Astronaut egg on moon* |
+| ![04](images/diverse_prompts/04_medium.png) | ![05](images/diverse_prompts/05_medium.png) | ![06](images/diverse_prompts/06_medium.png) |
+| *04: Fluffy creature* | *05: Hidden cenote* | *06: Silver pixie-cut girl* |
+| ![07](images/diverse_prompts/07_medium.png) | ![08](images/diverse_prompts/08_medium.png) | ![09](images/diverse_prompts/09_medium.png) |
+| *07: Fractal universe* | *08: Fractal creature* | *09: Angry cat drums* |
+| ![10](images/diverse_prompts/10_medium.png) | ![11](images/diverse_prompts/11_medium.png) | |
+| *10: Jazz monkey* | *11: Venice watercolor* | |
+
+#### Additional verification — simple prompts at 1024×1024
+
+Prompt: "A simple red circle on white background"
 
 | Low (208 tokens) | Medium (805 tokens) | High (3,171 tokens) |
 |:---:|:---:|:---:|

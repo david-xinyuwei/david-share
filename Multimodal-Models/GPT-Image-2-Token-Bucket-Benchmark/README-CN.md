@@ -154,6 +154,37 @@ GPT-Image-2 相比 GPT-Image-1.5 返回更丰富的响应结构：
 
 #### 早期测试 — 不同 Prompt，1024×1024
 
+**11 个不同 Prompt，全部 medium quality，1024×1024** — 验证 output tokens 与 prompt 无关：
+
+| # | Prompt | Input Tokens | Output Tokens | Latency (s) |
+|:--|:-------|:------------|:-------------|:-----------|
+| 01 | Chrome kimono maiden, metallic flowers, cinematic lighting | 17 | **805** | 61.3 |
+| 02 | A portal into a mythical forest on a bedroom wall | 20 | **805** | 62.0 |
+| 03 | A tiny astronaut hatching from an egg on the moon | 17 | **805** | 63.8 |
+| 04 | Cute fluffy creature fantasy, dreamlike, surrealism | 21 | **805** | 60.3 |
+| 05 | A hidden cenote in a lush jungle, turquoise waters | 18 | **805** | 64.0 |
+| 06 | Girl with silver pixie-cut hair, holographic interface | 20 | **805** | 66.0 |
+| 07 | Universe, LSD, Fractal Worlds, Giant Eyes | 16 | **805** | 71.0 |
+| 08 | Close up render of a mythical creature, spiraling fractals | 19 | **805** | 59.7 |
+| 09 | An angry cat playing drums | 11 | **805** | 62.3 |
+| 10 | A monkey playing music in a jazz club | 14 | **805** | 64.5 |
+| 11 | Watercolor painting of Venice canals at sunset | 17 | **805** | 64.2 |
+
+> **11/11 全部返回 805 output tokens。** Input tokens 范围 11–21，延迟 59.7–71.0s（σ=3.1s）。确认 output tokens 是**确定性的，与 prompt 无关**。
+
+| | | |
+|:---:|:---:|:---:|
+| ![01](images/diverse_prompts/01_medium.png) | ![02](images/diverse_prompts/02_medium.png) | ![03](images/diverse_prompts/03_medium.png) |
+| *01: 金属和服少女* | *02: 神秘森林传送门* | *03: 月球上孵化的宇航员* |
+| ![04](images/diverse_prompts/04_medium.png) | ![05](images/diverse_prompts/05_medium.png) | ![06](images/diverse_prompts/06_medium.png) |
+| *04: 毛茸茸的幻想生物* | *05: 丛林天坑* | *06: 银发全息少女* |
+| ![07](images/diverse_prompts/07_medium.png) | ![08](images/diverse_prompts/08_medium.png) | ![09](images/diverse_prompts/09_medium.png) |
+| *07: 分形宇宙* | *08: 分形生物* | *09: 愤怒猫打鼓* |
+| ![10](images/diverse_prompts/10_medium.png) | ![11](images/diverse_prompts/11_medium.png) | |
+| *10: 爵士猴* | *11: 威尼斯水彩* | |
+
+#### 补充验证 — 简单 Prompt，1024×1024
+
 Prompt 1："A simple red circle on white background"
 
 | Low (208 tokens) | Medium (805 tokens) | High (3,171 tokens) |
