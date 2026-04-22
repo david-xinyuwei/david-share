@@ -1,20 +1,35 @@
 # GPT-Image-2 Token Bucket Benchmark on Azure OpenAI
 
-This repository investigates the **token size bucket** mechanism in OpenAI's GPT-Image-2 model, deployed via Azure OpenAI Service. We provide hands-on benchmark data answering the key question: **How does the `quality` parameter affect output token consumption and cost?**
+This repository investigates the **token size bucket** mechanism in OpenAI's GPT-Image-2 model, deployed via Azure OpenAI Service. We provide hands-on benchmark data answering the key question: **How do `quality` and `size` parameters affect output token consumption and latency?**
 
 ## Executive Summary
 
-GPT-Image-2 (`v2026-04-21`) introduces a variable token billing system — unlike GPT-Image-1.5 which used fixed token counts, GPT-Image-2 dynamically allocates output tokens based on the `quality` parameter.
+GPT-Image-2 (`v2026-04-21`) uses a **deterministic token allocation** based on two factors: `quality` and `size`. Output tokens are **completely independent of prompt content** — the same quality+size combination always produces the exact same token count.
 
-| Quality | Output Tokens | Latency (s) | Cost per Image (USD) | Ratio vs Low |
-|:--------|:-------------|:-----------|:---------------------|:-------------|
-| **low** | 208 | ~15–21 | $0.006 | 1.0x |
-| **medium** | 805 | ~30–59 | $0.024 | 3.9x |
-| **high** | 3,171 | ~174 | $0.095 | 15.2x |
+### Output Token Matrix (3 sizes × 3 qualities = 9 combinations)
 
-> **Test conditions**: gpt-image-2 `v2026-04-21`, Azure OpenAI `api-version=2025-04-01-preview`, GlobalStandard deployment, `1024x1024`, East US 2 region. Cost calculated at USD 30/1M output image tokens ([source: OpenAI API Pricing](https://openai.com/api/pricing/)).
+| Size ↓ \ Quality → | low | medium | high |
+|:-------------------|:---:|:------:|:----:|
+| **1024×1024** (square) | 208 | 805 | 3,171 |
+| **1024×1536** (portrait) | 365 | 1,415 | 5,574 |
+| **1536×1024** (landscape) | 358 | 1,401 | 5,546 |
 
-**Key finding**: The `quality` parameter is the primary lever controlling output token count. Token counts are **consistent across different prompts** at the same quality level — both a simple "red dot" and a complex photorealistic scene produced identical token counts (208/805/3171) for the same quality setting.
+### Latency Matrix (seconds)
+
+| Size ↓ \ Quality → | low | medium | high |
+|:-------------------|:---:|:------:|:----:|
+| **1024×1024** | 19.6 | 59.7 | 187.9 |
+| **1024×1536** | 23.8 | 49.9 | 128.0 |
+| **1536×1024** | 27.3 | 46.9 | 128.9 |
+
+> **Test conditions**: gpt-image-2 `v2026-04-21`, Azure OpenAI `api-version=2025-04-01-preview`, GlobalStandard deployment (capacity=9), East US 2 region. Prompt: "A golden retriever puppy in a sunlit meadow" (16 input tokens). Each combination tested once. Latency measured end-to-end from the client (WSL on Windows, East US region).
+
+**Key findings**:
+
+1. **Output tokens = f(size, quality) only** — prompt content has zero effect. Verified with 4 different prompts (3–20 words) at 1024×1024 low: all returned exactly 208 tokens.
+2. **Portrait/Landscape tokens are ~1.75× square** — matching the 1.5× pixel ratio (1,572,864 vs 1,048,576 pixels).
+3. **Portrait ≈ Landscape** — 1024×1536 and 1536×1024 produce nearly identical tokens (365 vs 358, 1415 vs 1401, 5574 vs 5546), with slight directional variance.
+4. **Latency scales with quality**, not with size — high quality takes 2–10× longer than low, but larger sizes are not consistently slower.
 
 ## Background
 
@@ -41,8 +56,6 @@ The [Introducing GPT-Image-2 in Microsoft Foundry](https://techcommunity.microso
 | Status | Generally Available | Model catalog |
 | Format | OpenAI | Azure deployment |
 | Deprecation | 2027-04-21 | Model catalog |
-| Pricing (Output Image) | USD 30 / 1M tokens | [OpenAI API Pricing](https://openai.com/api/pricing/) |
-| Pricing (Input Text) | USD 5 / 1M tokens | [OpenAI API Pricing](https://openai.com/api/pricing/) |
 | API Capabilities | imageGenerations, imageEdits, convo2im | Model capabilities |
 
 ### API Response Structure
@@ -117,18 +130,6 @@ New fields compared to GPT-Image-1.5:
 2. **Input tokens scale with prompt length** — 9 tokens for a 5-word prompt vs 32 tokens for a 20-word prompt.
 3. **Token ratios**: low : medium : high = 1 : 3.87 : 15.24
 
-### Cost Analysis
-
-Using [OpenAI pricing](https://openai.com/api/pricing/) (USD 30/1M output image tokens, USD 5/1M input text tokens):
-
-| Quality | Output Tokens | Output Cost | Input Cost (9 tok) | **Total Cost/Image** |
-|:--------|:-------------|:-----------|:-------------------|:--------------------|
-| low | 208 | $0.00624 | $0.000045 | **$0.006** |
-| medium | 805 | $0.02415 | $0.000045 | **$0.024** |
-| high | 3,171 | $0.09513 | $0.000045 | **$0.095** |
-
-> At scale (e.g., 10,000 images/month): low = $62, medium = $242, high = $952
-
 ### Generated Images — Visual Comparison
 
 #### Prompt 1: "A simple red circle on white background"
@@ -147,11 +148,11 @@ Using [OpenAI pricing](https://openai.com/api/pricing/) (USD 30/1M output image 
 
 | Use Case | Recommended Quality | Why |
 |:---------|:-------------------|:----|
-| Thumbnails / previews | **low** | 15x cheaper than high, fast (~15s) |
-| Marketing / social media | **medium** | Good balance of quality and cost |
-| Print / professional | **high** | Maximum detail, but 15x more tokens |
-| Prototyping / iteration | **low** | Fast feedback loop, minimal cost |
-| A/B testing at scale | **low** or **medium** | Cost-efficient for bulk generation |
+| Thumbnails / previews | **low** | 15× fewer tokens, fast (~20s) |
+| Marketing / social media | **medium** | Good balance of detail and speed |
+| Print / professional | **high** | Maximum detail, but 15× more tokens and ~3 min latency |
+| Prototyping / iteration | **low** | Fast feedback loop, minimal token usage |
+| A/B testing at scale | **low** or **medium** | Low token consumption for bulk generation |
 
 ## Known Limitations
 
@@ -212,7 +213,6 @@ python scripts/benchmark_gpt_image2.py \
 ## References
 
 - [Introducing GPT-Image-2 in Microsoft Foundry](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-openais-gpt-image-2-in-microsoft-foundry/4514417) — TC Blog describing token bucket mechanism
-- [OpenAI API Pricing](https://openai.com/api/pricing/) — GPT-Image-2 pricing
 - [Azure OpenAI Image Generation](https://learn.microsoft.com/en-us/azure/foundry/openai/how-to/dall-e) — API documentation
 - [Azure Foundry Models](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure) — Model catalog
 

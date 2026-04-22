@@ -1,20 +1,35 @@
 # GPT-Image-2 Token Bucket 机制实测 — Azure OpenAI
 
-本仓库通过实测验证 OpenAI GPT-Image-2 模型的 **Token Size Bucket** 机制，部署于 Azure OpenAI Service。核心问题：**`quality` 参数如何影响输出 Token 消耗和成本？**
+本仓库通过实测验证 OpenAI GPT-Image-2 模型的 **Token Size Bucket** 机制，部署于 Azure OpenAI Service。核心问题：**`quality` 和 `size` 参数如何影响输出 Token 消耗和延迟？**
 
 ## Executive Summary
 
-GPT-Image-2（`v2026-04-21`）引入了可变 Token 计费系统 —— 与 GPT-Image-1.5 使用固定 Token 数不同，GPT-Image-2 根据 `quality` 参数动态分配输出 Token。
+GPT-Image-2（`v2026-04-21`）使用**确定性 Token 分配**，由两个因素决定：`quality` 和 `size`。输出 Token **完全独立于 Prompt 内容** —— 相同的 quality+size 组合始终产生完全相同的 Token 数。
 
-| Quality | Output Tokens | Latency (s) | 单张成本 (USD) | 相对 Low 倍率 |
-|:--------|:-------------|:-----------|:--------------|:-------------|
-| **low** | 208 | ~15–21 | $0.006 | 1.0x |
-| **medium** | 805 | ~30–59 | $0.024 | 3.9x |
-| **high** | 3,171 | ~174 | $0.095 | 15.2x |
+### Output Token 矩阵（3 种尺寸 × 3 种质量 = 9 种组合）
 
-> **测试条件**：gpt-image-2 `v2026-04-21`，Azure OpenAI `api-version=2025-04-01-preview`，GlobalStandard 部署，`1024x1024`，East US 2 区域。成本按 USD 30/1M 输出图像 Token 计算（[来源：OpenAI API Pricing](https://openai.com/api/pricing/)）。
+| Size ↓ \ Quality → | low | medium | high |
+|:-------------------|:---:|:------:|:----:|
+| **1024×1024**（正方形） | 208 | 805 | 3,171 |
+| **1024×1536**（竖版） | 365 | 1,415 | 5,574 |
+| **1536×1024**（横版） | 358 | 1,401 | 5,546 |
 
-**核心发现**：`quality` 参数是控制输出 Token 数量的主要手段。Token 数量在**同一 quality 下跨不同 prompt 保持一致** —— 简单的"红点"和复杂的写实场景在相同 quality 下产生完全相同的 Token 数（208/805/3171）。
+### 延迟矩阵（秒）
+
+| Size ↓ \ Quality → | low | medium | high |
+|:-------------------|:---:|:------:|:----:|
+| **1024×1024** | 19.6 | 59.7 | 187.9 |
+| **1024×1536** | 23.8 | 49.9 | 128.0 |
+| **1536×1024** | 27.3 | 46.9 | 128.9 |
+
+> **测试条件**：gpt-image-2 `v2026-04-21`，Azure OpenAI `api-version=2025-04-01-preview`，GlobalStandard 部署（capacity=9），East US 2 区域。Prompt："A golden retriever puppy in a sunlit meadow"（16 input tokens）。每种组合测试一次。延迟为客户端端到端测量（WSL on Windows，East US 区域）。
+
+**核心发现**：
+
+1. **Output tokens = f(size, quality)** —— Prompt 内容对输出 Token 无影响。通过 4 个不同 Prompt（3–20 词）在 1024×1024 low 下验证：全部返回 208 tokens。
+2. **竖版/横版 Token 约为正方形的 1.75 倍** —— 与像素数之比 1.5 倍（1,572,864 vs 1,048,576 像素）基本吻合。
+3. **竖版 ≈ 横版** —— 1024×1536 和 1536×1024 产生几乎相同的 Token（365 vs 358, 1415 vs 1401, 5574 vs 5546），存在轻微方向差异。
+4. **延迟主要由 quality 决定**，与 size 关系不大 —— high quality 比 low 慢 2–10 倍，但更大尺寸不一定更慢。
 
 ## Background
 
@@ -41,8 +56,6 @@ GPT-Image-2（`v2026-04-21`）引入了可变 Token 计费系统 —— 与 GPT-
 | Status（状态） | Generally Available | Model catalog |
 | Format（格式） | OpenAI | Azure deployment |
 | Deprecation（退役） | 2027-04-21 | Model catalog |
-| Pricing — Output Image（输出图像定价） | USD 30 / 1M tokens | [OpenAI API Pricing](https://openai.com/api/pricing/) |
-| Pricing — Input Text（输入文本定价） | USD 5 / 1M tokens | [OpenAI API Pricing](https://openai.com/api/pricing/) |
 | API Capabilities（能力） | imageGenerations, imageEdits, convo2im | Model capabilities |
 
 ### API 响应结构
@@ -117,18 +130,6 @@ GPT-Image-2 相比 GPT-Image-1.5 返回更丰富的响应结构：
 2. **输入 Token 随 Prompt 长度变化** —— 5 词 Prompt 为 9 个 Token，20 词 Prompt 为 32 个 Token。
 3. **Token 倍率**：low : medium : high = 1 : 3.87 : 15.24
 
-### 成本分析
-
-使用 [OpenAI 定价](https://openai.com/api/pricing/)（USD 30/1M 输出图像 Token，USD 5/1M 输入文本 Token）：
-
-| Quality | Output Tokens | 输出成本 | 输入成本 (9 tok) | **单张总成本** |
-|:--------|:-------------|:---------|:----------------|:--------------|
-| low | 208 | $0.00624 | $0.000045 | **$0.006** |
-| medium | 805 | $0.02415 | $0.000045 | **$0.024** |
-| high | 3,171 | $0.09513 | $0.000045 | **$0.095** |
-
-> 大规模场景（如 10,000 张/月）：low = $62，medium = $242，high = $952
-
 ### 生成图片 — 视觉对比
 
 #### Prompt 1："A simple red circle on white background"
@@ -147,11 +148,11 @@ GPT-Image-2 相比 GPT-Image-1.5 返回更丰富的响应结构：
 
 | 使用场景 | 推荐 Quality | 原因 |
 |:---------|:------------|:-----|
-| 缩略图 / 预览图 | **low** | 比 high 便宜 15 倍，快（~15s） |
-| 营销 / 社交媒体 | **medium** | 质量与成本的良好平衡 |
-| 印刷 / 专业用途 | **high** | 最高细节，但 Token 消耗 15 倍 |
-| 原型设计 / 迭代 | **low** | 快速反馈，最低成本 |
-| 大规模 A/B 测试 | **low** 或 **medium** | 批量生成的成本效率 |
+| 缩略图 / 预览图 | **low** | Token 消耗最少，速度最快（~20s） |
+| 营销 / 社交媒体 | **medium** | 细节与速度的良好平衡 |
+| 印刷 / 专业用途 | **high** | 最高细节，但 Token 消耗 15 倍，延迟约 3 分钟 |
+| 原型设计 / 迭代 | **low** | 快速反馈，最低 Token 消耗 |
+| 大规模 A/B 测试 | **low** 或 **medium** | 批量生成的 Token 效率最优 |
 
 ## Known Limitations（已知限制）
 
@@ -212,7 +213,6 @@ python scripts/benchmark_gpt_image2.py \
 ## References（参考资料）
 
 - [Introducing GPT-Image-2 in Microsoft Foundry](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-openais-gpt-image-2-in-microsoft-foundry/4514417) — TC Blog，描述 Token Bucket 机制
-- [OpenAI API Pricing](https://openai.com/api/pricing/) — GPT-Image-2 定价
 - [Azure OpenAI Image Generation](https://learn.microsoft.com/en-us/azure/foundry/openai/how-to/dall-e) — API 文档
 - [Azure Foundry Models](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure) — 模型目录
 
