@@ -211,6 +211,10 @@ for each triangle in scene:
 
 ![E3 差异热力图](images/e3_diff_heatmap.png)
 
+![E2 光追对比场景渲染](images/e2_match_e1_render.png)
+
+*E2 光追渲染的立方体场景 — 注意地面上的阴影投射（E1 没有）*
+
 **热力图解读**：
 - **蓝色区域（背景）**：两者都是深色背景，差异小
 - **红/橙区域（地面+阴影）**：最大差异！E1 地面几乎黑色（单光源 Lambert），E2 地面被双光源照亮且有阴影投射
@@ -238,11 +242,17 @@ for each triangle in scene:
 
 ![EEVEE 光栅化渲染](images/e4_eevee_640.png)
 
+*EEVEE（光栅化）：快速但反射受限（仅屏幕空间反射）*
+
+![Cycles 光追渲染](images/e4_cycles_640.png)
+
+*Cycles（光追）：Blender 3.0 headless 模式的色彩管理问题导致输出偏暗 — 这是无完整显示环境下 CLI 渲染的已知限制*
+
 **重要发现：A10-24Q (vGPU) 无法被 Blender Cycles CUDA 后端识别**
 
 - nvidia-smi 显示 GPU 利用率 0% — Blender Cycles 完全在 CPU 上跑
 - 这是 Azure vGPU 的限制：vGPU 分配的虚拟 GPU 不暴露完整的 CUDA Compute 能力给 Blender
-- **实际生产中用物理 GPU（如 RTX 4090）Cycles GPU 渲染会比 CPU 快 10-50 倍**
+- **实际生产中用物理 GPU（如 RTX 4090）Cycles GPU 渲染预计会显著快于 CPU（推测，具体倍数取决于场景复杂度和 GPU 型号）**
 
 ---
 

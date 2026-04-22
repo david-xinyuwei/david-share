@@ -128,6 +128,14 @@ Same scene (colored cube + ground), 640×480:
 
 *Left: E1 Rasterization | Middle: E2 Ray Tracing | Right: Difference heatmap (blue=similar, red=different)*
 
+![E3 Difference Heatmap](images/e3_diff_heatmap.png)
+
+*Blue = similar, Red/Orange = large difference (concentrated in shadow and ground regions)*
+
+![E2 Match E1 Render](images/e2_match_e1_render.png)
+
+*E2 ray tracing of the same cube scene as E1 — note the visible shadow on the ground*
+
 **Speed Comparison**:
 
 | Method | 640×480 Time | Ratio |
@@ -145,6 +153,14 @@ Same scene (colored cube + ground), 640×480:
 |--------|------|:-------:|:----:|:------:|
 | **EEVEE** | Rasterization | 32 | **2.37s** | GPU OpenGL |
 | **Cycles** | Path Tracing | 64 | **7.24s** | CPU fallback |
+
+![Blender EEVEE Render](images/e4_eevee_640.png)
+
+*EEVEE (rasterization): Fast but limited reflections (screen-space only)*
+
+![Blender Cycles Render](images/e4_cycles_640.png)
+
+*Cycles (path tracing): Color management issue in headless Blender 3.0 caused dark output — a known limitation of running Blender CLI without full display environment*
 
 **Key finding**: A10-24Q (vGPU) is not recognized by Blender Cycles CUDA backend — GPU utilization stayed at 0%, falling back to CPU rendering.
 
@@ -245,4 +261,5 @@ python3 scripts/e3_compare_results.py \
 | Ray Tracing | Wikipedia [Ray Tracing](https://en.wikipedia.org/wiki/Ray_tracing_(graphics)) |
 | DLSS | [NVIDIA DLSS](https://www.nvidia.com/en-us/geforce/technologies/dlss/) |
 | RT Core | [NVIDIA Turing In-Depth](https://developer.nvidia.com/blog/nvidia-turing-architecture-in-depth/) |
+| Rendering overview | Wikipedia [Rendering (computer graphics)](https://en.wikipedia.org/wiki/Rendering_(computer_graphics)) |
 | Rendering × AI analogies | Author's reasoning (marked "speculative") |
