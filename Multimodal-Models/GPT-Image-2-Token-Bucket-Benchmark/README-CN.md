@@ -1,4 +1,4 @@
-# GPT-Image-2 Token Bucket 机制实测 — Azure OpenAI
+# GPT-Image-2 实测：Token 消耗、延迟与质量分析 — Azure OpenAI
 
 本仓库通过实测验证 OpenAI GPT-Image-2 模型的 **Token Size Bucket** 机制，部署于 Azure OpenAI Service。核心问题：**`quality` 和 `size` 参数如何影响输出 Token 消耗和延迟？**
 

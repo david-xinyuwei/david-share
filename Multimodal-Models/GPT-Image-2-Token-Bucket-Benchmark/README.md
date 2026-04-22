@@ -1,4 +1,4 @@
-# GPT-Image-2 Token Bucket Benchmark on Azure OpenAI
+# GPT-Image-2 Benchmark: Token Usage, Latency, and Quality Analysis on Azure OpenAI
 
 This repository investigates the **token size bucket** mechanism in OpenAI's GPT-Image-2 model, deployed via Azure OpenAI Service. We provide hands-on benchmark data answering the key question: **How do `quality` and `size` parameters affect output token consumption and latency?**
 
