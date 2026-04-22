@@ -263,7 +263,9 @@ python scripts/benchmark_gpt_image2.py \
 
 | 脚本 | 用途 |
 |:-----|:-----|
-| `scripts/benchmark_gpt_image2.py` | 主测试脚本 — 测试各 quality 级别，保存图片 + Token 数据 |
+| `scripts/benchmark_gpt_image2.py` | 基础测试 — 2 个 Prompt × 3 个 Quality，保存图片 + Token 数据 |
+| `scripts/benchmark_size_quality_matrix.py` | 3×3 尺寸×质量矩阵 — 映射全部 9 种组合的 output tokens |
+| `scripts/verify_token_determinism.py` | 运行 11 个不同 Prompt，固定 quality+size，证明 Token 确定性 |
 
 ## References（参考资料）
 

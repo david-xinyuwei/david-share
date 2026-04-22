@@ -263,7 +263,9 @@ python scripts/benchmark_gpt_image2.py \
 
 | Script | Purpose |
 |:-------|:--------|
-| `scripts/benchmark_gpt_image2.py` | Main benchmark — tests quality levels, saves images + token data |
+| `scripts/benchmark_gpt_image2.py` | Basic benchmark — 2 prompts × 3 qualities, saves images + token data |
+| `scripts/benchmark_size_quality_matrix.py` | 3×3 size×quality matrix — maps output tokens for all 9 combinations |
+| `scripts/verify_token_determinism.py` | Runs 11 diverse prompts at fixed quality+size to prove token determinism |
 
 ## References
 
