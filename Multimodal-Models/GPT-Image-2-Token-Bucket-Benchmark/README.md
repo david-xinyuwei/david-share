@@ -235,6 +235,29 @@ Input tokens varied **24×** (7 vs 170), but latency only differed by **~10%** (
 
 The [TC Blog](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-openais-gpt-image-2-in-microsoft-foundry/4514417) describes Mode 2 as the routing layer selecting from six token buckets based on prompt analysis. Our testing shows that **in practice, the bucket selection is fully determined by the `quality` and `size` parameters** — prompt complexity plays no role. Users do not need to worry about bucket selection; they only need the lookup table above.
 
+### 4. Image Edit benchmark (time, cost, and rendered outputs)
+
+We tested the edit API at 1024x1024 with the same input image and prompt:
+
+- Input image: `images/matrix/1024x1024_medium.png`
+- Prompt: `Add cool sunglasses to the dog`
+- Endpoint: `/images/edits`
+- API version: `2025-04-01-preview`
+
+| Quality | Input Tokens | Output Tokens | Total Tokens | Latency | Estimated Cost / image (USD) |
+|:--------|:------------:|:-------------:|:------------:|:-------:|:-----------------------------:|
+| low | 1,037 | 208 | 1,245 | 55.3s | 0.0114 |
+| medium | 1,037 | 805 | 1,842 | 92.5s | 0.0293 |
+| high | 1,037 | 3,171 | 4,208 | 239.7s | 0.1003 |
+
+> Cost formula (estimate): `input_tokens * 5/1M + output_tokens * 30/1M` (source: [OpenAI API Pricing](https://openai.com/api/pricing/)). Azure official GPT-Image-2 pricing may differ when published.
+
+| low (55.3s) | medium (92.5s) | high (239.7s) |
+|:---:|:---:|:---:|
+| ![edit low](images/edit_test/dog_sunglasses_low.png) | ![edit medium](images/edit_test/dog_sunglasses_medium.png) | ![edit high](images/edit_test/dog_sunglasses_high.png) |
+
+Key observation: for image edits, `input_tokens` stayed fixed at 1,037 for all quality levels (image tokens dominate), while `output_tokens` followed the same quality bucket pattern as image generation (208/805/3171 at 1024x1024).
+
 ## How Token Data Was Collected
 
 Output token counts are **returned directly by the Azure OpenAI API** in the response body, not calculated or estimated by the client.
@@ -366,6 +389,7 @@ python scripts/benchmark_gpt_image2.py \
 | `scripts/benchmark_gpt_image2.py` | Basic benchmark — 2 prompts × 3 qualities, saves images + token data |
 | `scripts/benchmark_size_quality_matrix.py` | 3×3 size×quality matrix — maps output tokens for all 9 combinations |
 | `scripts/verify_token_determinism.py` | Runs 11 diverse prompts at fixed quality+size to prove token determinism |
+| `scripts/benchmark_gpt_image2_edit.py` | Edit API benchmark — tests low/medium/high edits, saves rendered outputs + token/latency CSV |
 
 ## References
 

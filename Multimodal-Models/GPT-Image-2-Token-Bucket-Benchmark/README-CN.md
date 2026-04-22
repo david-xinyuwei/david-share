@@ -235,6 +235,29 @@ Input tokens 差 **24 倍**（7 vs 170），延迟仅差 **~10%**（60.6s vs 67.
 
 [TC Blog](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-openais-gpt-image-2-in-microsoft-foundry/4514417) 描述 Mode 2 为 routing layer 根据 prompt 分析选择 token 桶。我们的测试表明，**实际上桶的选择完全由 `quality` 和 `size` 参数决定** —— prompt 复杂度不起作用。用户不需要关心桶的选择，只需要上面的查表即可。
 
+### 4. 改图（Image Edit）实测：时间、成本、渲染结果
+
+我们在 1024x1024 下用同一输入图和同一 prompt 测试了 edit API：
+
+- 输入图：`images/matrix/1024x1024_medium.png`
+- Prompt：`Add cool sunglasses to the dog`
+- 端点：`/images/edits`
+- API 版本：`2025-04-01-preview`
+
+| Quality | Input Tokens | Output Tokens | Total Tokens | Latency | 预估单图成本 (USD) |
+|:--------|:------------:|:-------------:|:------------:|:-------:|:------------------:|
+| low | 1,037 | 208 | 1,245 | 55.3s | 0.0114 |
+| medium | 1,037 | 805 | 1,842 | 92.5s | 0.0293 |
+| high | 1,037 | 3,171 | 4,208 | 239.7s | 0.1003 |
+
+> 成本公式（预估）：`input_tokens * 5/1M + output_tokens * 30/1M`（来源：[OpenAI API Pricing](https://openai.com/api/pricing/)）。Azure 官方 GPT-Image-2 定价发布后可能与此不同。
+
+| low (55.3s) | medium (92.5s) | high (239.7s) |
+|:---:|:---:|:---:|
+| ![edit low](images/edit_test/dog_sunglasses_low.png) | ![edit medium](images/edit_test/dog_sunglasses_medium.png) | ![edit high](images/edit_test/dog_sunglasses_high.png) |
+
+关键观察：改图场景下，三个 quality 的 `input_tokens` 都固定为 1,037（image tokens 占主导）；`output_tokens` 仍然沿用与生图相同的质量桶模式（1024x1024 下 208/805/3171）。
+
 ## Token 数据获取方式
 
 Output token 数量是 **Azure OpenAI API 在响应体中直接返回的**，不是客户端计算或估算的。
@@ -366,6 +389,7 @@ python scripts/benchmark_gpt_image2.py \
 | `scripts/benchmark_gpt_image2.py` | 基础测试 — 2 个 Prompt × 3 个 Quality，保存图片 + Token 数据 |
 | `scripts/benchmark_size_quality_matrix.py` | 3×3 尺寸×质量矩阵 — 映射全部 9 种组合的 output tokens |
 | `scripts/verify_token_determinism.py` | 运行 11 个不同 Prompt，固定 quality+size，证明 Token 确定性 |
+| `scripts/benchmark_gpt_image2_edit.py` | 改图 API 测试 — 运行 low/medium/high，保存渲染结果与 token/延迟 CSV |
 
 ## References（参考资料）
 

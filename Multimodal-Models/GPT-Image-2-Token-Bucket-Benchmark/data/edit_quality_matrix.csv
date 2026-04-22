@@ -1,0 +1,4 @@
+quality,input_tokens,output_tokens,total_tokens,latency_s,imgKB
+low,1037,208,1245,55.3,1604
+medium,1037,805,1842,92.5,1622
+high,1037,3171,4208,239.7,1722
