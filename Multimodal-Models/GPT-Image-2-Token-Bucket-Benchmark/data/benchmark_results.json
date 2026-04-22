@@ -1,0 +1,59 @@
+{
+  "model": "gpt-image-2",
+  "version": "2026-04-21",
+  "api_version": "2025-04-01-preview",
+  "region": "eastus2",
+  "date": "2026-04-22",
+  "results": [
+    {
+      "prompt": "a red dot",
+      "quality": "low",
+      "size": "1024x1024",
+      "output_tokens": 208,
+      "input_tokens": 9,
+      "total_tokens": 217,
+      "background": "opaque",
+      "output_format": "png"
+    },
+    {
+      "prompt": "a red dot",
+      "quality": "medium",
+      "size": "1024x1024",
+      "output_tokens": 805,
+      "input_tokens": 9,
+      "total_tokens": 814,
+      "background": "opaque",
+      "output_format": "png"
+    },
+    {
+      "prompt": "a red dot",
+      "quality": "high",
+      "size": "1024x1024",
+      "output_tokens": 3171,
+      "input_tokens": 9,
+      "total_tokens": 3180,
+      "background": "opaque",
+      "output_format": "png"
+    },
+    {
+      "prompt": "A photorealistic golden retriever puppy sitting in a sunlit meadow with wildflowers, shallow depth of field, professional photography",
+      "quality": "low",
+      "size": "1024x1024",
+      "output_tokens": 208,
+      "input_tokens": 32,
+      "total_tokens": 240,
+      "background": "opaque",
+      "output_format": "png"
+    },
+    {
+      "prompt": "A photorealistic golden retriever puppy sitting in a sunlit meadow with wildflowers, shallow depth of field, professional photography",
+      "quality": "medium",
+      "size": "1024x1024",
+      "output_tokens": 805,
+      "input_tokens": 32,
+      "total_tokens": 837,
+      "background": "opaque",
+      "output_format": "png"
+    }
+  ]
+}
