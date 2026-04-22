@@ -199,6 +199,92 @@ Prompt 2: "A photorealistic golden retriever puppy sitting in a sunlit meadow wi
 
 > All three 1024×1024 low results above returned exactly 208 output tokens — confirming that **prompt content does not affect token count**.
 
+## Conclusions
+
+Based on 26 API calls across 3 sizes × 3 qualities + 11 diverse prompts:
+
+### 1. Output tokens are a deterministic function of (size, quality) only
+
+Output tokens are **not influenced by prompt content**. We tested 11 completely different prompts (from "an angry cat playing drums" to complex cinematic photography descriptions) at medium + 1024×1024 — all 11 returned exactly 805 output tokens with zero variance. The mapping is a fixed lookup table:
+
+| Size ↓ \ Quality → | low | medium | high |
+|:-------------------|:---:|:------:|:----:|
+| **1024×1024** | 208 | 805 | 3,171 |
+| **1024×1536** | 365 | 1,415 | 5,574 |
+| **1536×1024** | 358 | 1,401 | 5,546 |
+
+### 2. Latency is prompt-independent
+
+Across 11 diverse prompts at medium + 1024×1024, latency ranged from 59.7s to 71.0s (mean=63.6s, σ=3.1s). Prompt length (11–21 input tokens) had no measurable impact on latency. Latency is primarily determined by `quality` level.
+
+### 3. The TC Blog's "token size bucket" is not prompt-driven
+
+The [TC Blog](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-openais-gpt-image-2-in-microsoft-foundry/4514417) describes Mode 2 as the routing layer selecting from six token buckets based on prompt analysis. Our testing shows that **in practice, the bucket selection is fully determined by the `quality` and `size` parameters** — prompt complexity plays no role. Users do not need to worry about bucket selection; they only need the lookup table above.
+
+## How Token Data Was Collected
+
+Output token counts are **returned directly by the Azure OpenAI API** in the response body, not calculated or estimated by the client.
+
+### API Response Structure
+
+When you call the image generation endpoint, the response includes a `usage` object:
+
+```json
+{
+  "created": 1776825422,
+  "background": "opaque",
+  "data": [{ "b64_json": "<base64 image>" }],
+  "output_format": "png",
+  "quality": "medium",
+  "size": "1024x1024",
+  "usage": {
+    "input_tokens": 9,
+    "input_tokens_details": {
+      "image_tokens": 0,
+      "text_tokens": 9
+    },
+    "output_tokens": 805,
+    "total_tokens": 814
+  }
+}
+```
+
+### Code to Extract Token Usage
+
+```python
+import requests, json
+
+endpoint = "https://YOUR_RESOURCE.openai.azure.com"
+api_key = "YOUR_KEY"
+url = f"{endpoint}/openai/deployments/gpt-image-2/images/generations?api-version=2025-04-01-preview"
+
+resp = requests.post(url,
+    headers={"api-key": api_key, "Content-Type": "application/json"},
+    json={"prompt": "a cat", "quality": "medium", "size": "1024x1024", "n": 1},
+    timeout=300,
+)
+data = resp.json()
+
+# Token usage is in the response body — server-side authoritative data
+usage = data["usage"]
+print(f"Input tokens:  {usage['input_tokens']}")
+print(f"Output tokens: {usage['output_tokens']}")   # This is the billing metric
+print(f"Total tokens:  {usage['total_tokens']}")
+
+# Verify internal consistency
+assert usage["total_tokens"] == usage["input_tokens"] + usage["output_tokens"]
+```
+
+### Why This Data Is Authoritative
+
+| Aspect | Explanation |
+|:-------|:-----------|
+| **Source** | `response.usage.output_tokens` — returned by Azure OpenAI server, same field used for billing |
+| **Format** | Identical to the `usage` object in Chat Completions API — standard OpenAI convention |
+| **Consistency** | `total_tokens = input_tokens + output_tokens` holds for all 26 calls |
+| **Not client-side** | Token count is not derived from image file size, base64 length, or client-side tokenizer |
+| **Determinism** | 11 different prompts at the same quality+size all returned the exact same `output_tokens` value |
+
 ## How to Choose the Right Quality
 
 | Use Case | Recommended Quality | Why |

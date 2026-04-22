@@ -199,6 +199,92 @@ Prompt 2："A photorealistic golden retriever puppy sitting in a sunlit meadow w
 
 > 以上三组 1024×1024 low 结果均返回 208 output tokens —— 确认 **Prompt 内容不影响 Token 数量**。
 
+## 结论
+
+基于 26 次 API 调用（3 种尺寸 × 3 种质量 + 11 个不同 prompt）：
+
+### 1. Output tokens 是 (size, quality) 的确定性函数
+
+Output tokens **不受 prompt 内容影响**。我们用 11 个完全不同的 prompt（从"愤怒猫打鼓"到复杂电影摄影描述）测试 medium + 1024×1024 — 全部 11 次返回 805 output tokens，零偏差。映射是一个固定查表：
+
+| Size ↓ \ Quality → | low | medium | high |
+|:-------------------|:---:|:------:|:----:|
+| **1024×1024** | 208 | 805 | 3,171 |
+| **1024×1536** | 365 | 1,415 | 5,574 |
+| **1536×1024** | 358 | 1,401 | 5,546 |
+
+### 2. 延迟与 prompt 无关
+
+11 个不同 prompt 在 medium + 1024×1024 下，延迟范围 59.7–71.0s（均值 63.6s，σ=3.1s）。Prompt 长度（11–21 input tokens）对延迟无可测影响。延迟主要由 `quality` 决定。
+
+### 3. TC Blog 的 "token size bucket" 并非由 prompt 驱动
+
+[TC Blog](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-openais-gpt-image-2-in-microsoft-foundry/4514417) 描述 Mode 2 为 routing layer 根据 prompt 分析选择 token 桶。我们的测试表明，**实际上桶的选择完全由 `quality` 和 `size` 参数决定** —— prompt 复杂度不起作用。用户不需要关心桶的选择，只需要上面的查表即可。
+
+## Token 数据获取方式
+
+Output token 数量是 **Azure OpenAI API 在响应体中直接返回的**，不是客户端计算或估算的。
+
+### API 响应结构
+
+调用图像生成端点时，响应包含 `usage` 对象：
+
+```json
+{
+  "created": 1776825422,
+  "background": "opaque",
+  "data": [{ "b64_json": "<base64 image>" }],
+  "output_format": "png",
+  "quality": "medium",
+  "size": "1024x1024",
+  "usage": {
+    "input_tokens": 9,
+    "input_tokens_details": {
+      "image_tokens": 0,
+      "text_tokens": 9
+    },
+    "output_tokens": 805,
+    "total_tokens": 814
+  }
+}
+```
+
+### 提取 Token 用量的代码
+
+```python
+import requests, json
+
+endpoint = "https://YOUR_RESOURCE.openai.azure.com"
+api_key = "YOUR_KEY"
+url = f"{endpoint}/openai/deployments/gpt-image-2/images/generations?api-version=2025-04-01-preview"
+
+resp = requests.post(url,
+    headers={"api-key": api_key, "Content-Type": "application/json"},
+    json={"prompt": "a cat", "quality": "medium", "size": "1024x1024", "n": 1},
+    timeout=300,
+)
+data = resp.json()
+
+# Token 用量在响应体中 — 服务端权威数据
+usage = data["usage"]
+print(f"Input tokens:  {usage['input_tokens']}")
+print(f"Output tokens: {usage['output_tokens']}")   # 这是计费指标
+print(f"Total tokens:  {usage['total_tokens']}")
+
+# 验证内部一致性
+assert usage["total_tokens"] == usage["input_tokens"] + usage["output_tokens"]
+```
+
+### 为什么这个数据是权威的
+
+| 维度 | 说明 |
+|:-----|:-----|
+| **来源** | `response.usage.output_tokens` — Azure OpenAI 服务端返回，与计费使用同一字段 |
+| **格式** | 与 Chat Completions API 的 `usage` 对象完全一致 — OpenAI 标准规范 |
+| **一致性** | 全部 26 次调用 `total_tokens = input_tokens + output_tokens` 均成立 |
+| **非客户端** | Token 数量不是从图片文件大小、base64 长度或客户端 tokenizer 推导的 |
+| **确定性** | 11 个不同 prompt 在相同 quality+size 下全部返回相同的 `output_tokens` 值 |
+
 ## 如何选择合适的 Quality
 
 | 使用场景 | 推荐 Quality | 原因 |
