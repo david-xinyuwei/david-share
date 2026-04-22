@@ -35,17 +35,34 @@ GPT-Image-2（`v2026-04-21`）使用**确定性 Token 分配**，由两个因素
 
 ### 什么是 "Token Size Bucket"？
 
-[Introducing GPT-Image-2 in Microsoft Foundry](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-openais-gpt-image-2-in-microsoft-foundry/4514417) 博客描述了 **Mode 2 — Token size bucket selection** 机制：
+GPT-Image-2 内置**智能路由层**，自动为每次请求选择最优的生成配置，分为两种模式：
 
-- Routing layer 从 **6 个 Token 桶**中选择：16、24、36、48、64、96
-- 映射到 Legacy Size Tier：`smimage`、`image`、`xlimage`
-- 系统分析 Prompt 复杂度、细节需求和场景类型，自动选择桶
+| 模式 | 工作方式 | 档位 |
+|:----|:--------|:----|
+| **Mode 1** — 旧版尺寸选择 | 从 3 个旧版尺寸层级中选择，适合已熟悉旧版 API 的团队，无需修改现有代码 | `smimage`、`image`、`xlimage` |
+| **Mode 2** — Token 档位选择 | 从 6 个 Token 档位中选择，针对给定请求优化输出质量与效率 | 16、24、36、48、64、96 |
+
+> 来源：[TC Blog — Introducing GPT-Image-2 in Microsoft Foundry](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-openais-gpt-image-2-in-microsoft-foundry/4514417) · [Azure 云科技微信公众号，2026年4月22日](https://mp.weixin.qq.com/s/YeAMajFSgdu5BN_PRR_RKw)
 
 **这不是用户可配置的参数。** API 中没有 `token_bucket` 或 `output_token_count` 参数。用户通过以下方式间接影响 Token 分配：
 
 1. **`quality` 参数**（low / medium / high）—— 主要控制手段
 2. **`size` 参数**（1024x1024、1024x1536、1536x1024）—— 分辨率控制
 3. **Prompt 复杂度** —— 系统可能根据 Prompt 分析调整分配
+
+### GPT-Image-2 新能力
+
+GPT-Image-2 相比 GPT-Image-1.x 引入了若干重大改进：
+
+| 能力 | 详情 |
+|:----|:----|
+| **真实世界智能** | 知识截止日期：2025 年 12 月。模型可搜索网络、审查自身输出，并从单个 Prompt 生成多张图像 |
+| **多语言文字渲染** | 增强对日语、韩语、中文、印地语、孟加拉语的支持 — 可在生成图像中直接渲染本地化文字 |
+| **4K 分辨率支持** | 支持自定义尺寸最高达 4K，可生成细腻、逼真的生产级图像 |
+| **智能路由层** | 双模式路由（Mode 1 + Mode 2）自动选择最优生成配置 |
+| **图像编辑** | 内置 `/images/edits` 端点，支持对已有图像进行增量修改 |
+
+> 来源：[OpenAI GPT-image-2 正式上线 Microsoft Foundry（企业级国际版）— Azure 云科技微信公众号，2026年4月22日](https://mp.weixin.qq.com/s/YeAMajFSgdu5BN_PRR_RKw)
 
 ### 模型信息
 
@@ -393,7 +410,8 @@ python scripts/benchmark_gpt_image2.py \
 
 ## References（参考资料）
 
-- [Introducing GPT-Image-2 in Microsoft Foundry](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-openais-gpt-image-2-in-microsoft-foundry/4514417) — TC Blog，描述 Token Bucket 机制
+- [Introducing GPT-Image-2 in Microsoft Foundry](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-openais-gpt-image-2-in-microsoft-foundry/4514417) — TC Blog，描述 Token Bucket 机制（Mode 1 / Mode 2 路由）
+- [OpenAI GPT-image-2 正式上线 Microsoft Foundry（企业级国际版）](https://mp.weixin.qq.com/s/YeAMajFSgdu5BN_PRR_RKw) — Azure 云科技微信公众号，2026年4月22日；描述新能力、路由模式及行业应用
 - [Azure OpenAI Image Generation](https://learn.microsoft.com/en-us/azure/foundry/openai/how-to/dall-e) — API 文档
 - [Azure Foundry Models](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure) — 模型目录
 

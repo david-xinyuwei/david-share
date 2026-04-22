@@ -35,17 +35,34 @@ GPT-Image-2 (`v2026-04-21`) uses a **deterministic token allocation** based on t
 
 ### What is the "Token Size Bucket"?
 
-The [Introducing GPT-Image-2 in Microsoft Foundry](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-openais-gpt-image-2-in-microsoft-foundry/4514417) blog describes a **Mode 2 — Token size bucket selection** mechanism:
+GPT-Image-2 includes an **intelligent routing layer** that automatically selects the optimal generation configuration. It operates in two modes:
 
-- The routing layer selects from **six token size buckets**: 16, 24, 36, 48, 64, 96
-- These map to legacy size tiers: `smimage`, `image`, `xlimage`
-- The system analyzes prompt complexity, detail requirements, and scene type to automatically select a bucket
+| Mode | How it works | Tiers |
+|:-----|:------------|:------|
+| **Mode 1** — Legacy size selection | Selects from 3 legacy size tiers; suitable for teams migrating from legacy APIs without changing existing code | `smimage`, `image`, `xlimage` |
+| **Mode 2** — Token tier selection | Selects from 6 token tiers to optimize output quality and efficiency for a given request | 16, 24, 36, 48, 64, 96 |
+
+> Sources: [TC Blog — Introducing GPT-Image-2 in Microsoft Foundry](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-openais-gpt-image-2-in-microsoft-foundry/4514417) · [Azure Cloud Tech WeChat, April 22, 2026](https://mp.weixin.qq.com/s/YeAMajFSgdu5BN_PRR_RKw)
 
 **This is NOT a user-configurable parameter.** There is no `token_bucket` or `output_token_count` API parameter. Users influence token allocation through:
 
 1. **`quality` parameter** (low / medium / high) — primary control
 2. **`size` parameter** (1024x1024, 1024x1536, 1536x1024) — resolution control
 3. **Prompt complexity** — the system may adjust allocation based on prompt analysis
+
+### GPT-Image-2 New Capabilities
+
+GPT-Image-2 introduces several significant improvements over GPT-Image-1.x:
+
+| Capability | Details |
+|:-----------|:--------|
+| **Real-world intelligence** | Knowledge cutoff: December 2025. The model can search the web, review its own outputs, and generate multiple images from a single prompt |
+| **Multilingual text rendering** | Enhanced support for Japanese, Korean, Chinese, Hindi, and Bengali — can render localized text directly in generated images |
+| **4K resolution support** | Supports custom sizes up to 4K, enabling rich, detailed, photorealistic output at production quality |
+| **Smart routing layer** | Two-mode routing (Mode 1 + Mode 2) automatically selects the optimal generation configuration |
+| **Image editing** | Built-in `/images/edits` endpoint for incremental modifications to existing images |
+
+> Source: [OpenAI GPT-image-2 正式上线 Microsoft Foundry — Azure Cloud Tech WeChat, April 22, 2026](https://mp.weixin.qq.com/s/YeAMajFSgdu5BN_PRR_RKw)
 
 ### Model Information
 
@@ -393,7 +410,8 @@ python scripts/benchmark_gpt_image2.py \
 
 ## References
 
-- [Introducing GPT-Image-2 in Microsoft Foundry](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-openais-gpt-image-2-in-microsoft-foundry/4514417) — TC Blog describing token bucket mechanism
+- [Introducing GPT-Image-2 in Microsoft Foundry](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-openais-gpt-image-2-in-microsoft-foundry/4514417) — TC Blog describing token bucket mechanism (Mode 1 / Mode 2 routing)
+- [OpenAI GPT-image-2 正式上线 Microsoft Foundry（企业级国际版）](https://mp.weixin.qq.com/s/YeAMajFSgdu5BN_PRR_RKw) — Azure Cloud Tech WeChat official account, April 22, 2026 (Chinese); describes new capabilities, routing modes, industry applications
 - [Azure OpenAI Image Generation](https://learn.microsoft.com/en-us/azure/foundry/openai/how-to/dall-e) — API documentation
 - [Azure Foundry Models](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure) — Model catalog
 
