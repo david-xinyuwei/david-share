@@ -213,9 +213,17 @@ Output tokens **不受 prompt 内容影响**。我们用 11 个完全不同的 p
 | **1024×1536** | 365 | 1,415 | 5,574 |
 | **1536×1024** | 358 | 1,401 | 5,546 |
 
-### 2. 延迟由 quality 和 size 共同决定，与 prompt 无关
+### 2. 延迟主要由 quality 和 size 决定，prompt 影响微弱
 
-11 个不同 prompt 在 medium + 1024×1024 下，延迟范围 59.7–71.0s（均值 63.6s，σ=3.1s）。Prompt 长度（11–21 input tokens）对延迟无可测影响。延迟主要由 `quality` 和 `size` 参数决定。
+我们测试了极端 prompt 长度，均为 medium + 1024×1024：
+
+| Prompt | 字符数 | Input Tokens | Latency |
+|:-------|:------|:------------|:--------|
+| "cat"（最短） | 3 | 7 | 60.6s |
+| 11 个中等 prompt | 20–60 | 11–21 | 59.7–71.0s |
+| 800+ 字符日本庙宇场景（最长） | 959 | 170 | 67.1s |
+
+Input tokens 差 **24 倍**（7 vs 170），延迟仅差 **~10%**（60.6s vs 67.1s）。Prompt 长度对延迟有轻微影响，但 `quality` 和 `size` 才是主因（low ~20s vs medium ~60s vs high ~130–188s，差数倍）。
 
 ### 3. TC Blog 的 "token size bucket" 并非由 prompt 驱动
 

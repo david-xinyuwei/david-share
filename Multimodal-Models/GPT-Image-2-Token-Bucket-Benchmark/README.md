@@ -213,9 +213,17 @@ Output tokens are **not influenced by prompt content**. We tested 11 completely 
 | **1024×1536** | 365 | 1,415 | 5,574 |
 | **1536×1024** | 358 | 1,401 | 5,546 |
 
-### 2. Latency is determined by quality and size, not by prompt
+### 2. Latency is determined by quality and size, with minor prompt influence
 
-Across 11 diverse prompts at medium + 1024×1024, latency ranged from 59.7s to 71.0s (mean=63.6s, σ=3.1s). Prompt length (11–21 input tokens) had no measurable impact on latency. Latency is primarily determined by the `quality` and `size` parameters.
+We tested extreme prompt lengths at medium + 1024×1024:
+
+| Prompt | Chars | Input Tokens | Latency |
+|:-------|:------|:------------|:--------|
+| "cat" (shortest) | 3 | 7 | 60.6s |
+| 11 diverse prompts | 20–60 | 11–21 | 59.7–71.0s |
+| 800+ char Japanese temple scene (longest) | 959 | 170 | 67.1s |
+
+Input tokens varied **24×** (7 vs 170), but latency only differed by **~10%** (60.6s vs 67.1s). Prompt length has a minor effect on latency, but `quality` and `size` are the dominant factors (low ~20s vs medium ~60s vs high ~130–188s).
 
 ### 3. The TC Blog's "token size bucket" is not prompt-driven
 
