@@ -225,6 +225,12 @@ We tested extreme prompt lengths at medium + 1024×1024:
 
 Input tokens varied **24×** (7 vs 170), but latency only differed by **~10%** (60.6s vs 67.1s). Prompt length has a minor effect on latency, but `quality` and `size` are the dominant factors (low ~20s vs medium ~60s vs high ~130–188s).
 
+| "cat" (3 chars, 7 input tokens, 60.6s) | Japanese temple scene (959 chars, 170 input tokens, 67.1s) |
+|:---:|:---:|
+| ![cat](images/extreme_length/cat_short_medium.png) | ![temple](images/extreme_length/temple_long_medium.png) |
+
+> Both images produced exactly **805 output tokens** despite 24× difference in prompt length.
+
 ### 3. The TC Blog's "token size bucket" is not prompt-driven
 
 The [TC Blog](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-openais-gpt-image-2-in-microsoft-foundry/4514417) describes Mode 2 as the routing layer selecting from six token buckets based on prompt analysis. Our testing shows that **in practice, the bucket selection is fully determined by the `quality` and `size` parameters** — prompt complexity plays no role. Users do not need to worry about bucket selection; they only need the lookup table above.

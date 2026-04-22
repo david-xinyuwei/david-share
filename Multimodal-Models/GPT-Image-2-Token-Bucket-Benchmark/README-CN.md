@@ -225,6 +225,12 @@ Output tokens **不受 prompt 内容影响**。我们用 11 个完全不同的 p
 
 Input tokens 差 **24 倍**（7 vs 170），延迟仅差 **~10%**（60.6s vs 67.1s）。Prompt 长度对延迟有轻微影响，但 `quality` 和 `size` 才是主因（low ~20s vs medium ~60s vs high ~130–188s，差数倍）。
 
+| "cat"（3 字符, 7 input tokens, 60.6s） | 日本庙宇场景（959 字符, 170 input tokens, 67.1s） |
+|:---:|:---:|
+| ![cat](images/extreme_length/cat_short_medium.png) | ![temple](images/extreme_length/temple_long_medium.png) |
+
+> 两张图均产生 **805 output tokens**，尽管 prompt 长度差 24 倍。
+
 ### 3. TC Blog 的 "token size bucket" 并非由 prompt 驱动
 
 [TC Blog](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-openais-gpt-image-2-in-microsoft-foundry/4514417) 描述 Mode 2 为 routing layer 根据 prompt 分析选择 token 桶。我们的测试表明，**实际上桶的选择完全由 `quality` 和 `size` 参数决定** —— prompt 复杂度不起作用。用户不需要关心桶的选择，只需要上面的查表即可。
