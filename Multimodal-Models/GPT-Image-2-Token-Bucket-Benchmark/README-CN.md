@@ -35,20 +35,14 @@ GPT-Image-2（`v2026-04-21`）使用**确定性 Token 分配**，由两个因素
 
 ### 什么是 "Token Size Bucket"？
 
-GPT-Image-2 内置**智能路由层**，自动为每次请求选择最优的生成配置，分为两种模式：
+[TC Blog](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-openais-gpt-image-2-in-microsoft-foundry/4514417) 描述了一个内部路由层，包含 "Mode 1"（旧版三档尺寸）和 "Mode 2"（六个 Token 桶：16、24、36、48、64、96）。**这些是模型内部概念，不是公开 API 参数。** API 中没有 `token_bucket`、`mode` 或 `output_token_count` 字段。
 
-| 模式 | 工作方式 | 档位 |
-|:----|:--------|:----|
-| **Mode 1** — 旧版尺寸选择 | 从 3 个旧版尺寸层级中选择，适合已熟悉旧版 API 的团队，无需修改现有代码 | `smimage`、`image`、`xlimage` |
-| **Mode 2** — Token 档位选择 | 从 6 个 Token 档位中选择，针对给定请求优化输出质量与效率 | 16、24、36、48、64、96 |
+作为用户，你只通过**两个参数**控制输出 Token 分配：
 
-> 来源：[TC Blog — Introducing GPT-Image-2 in Microsoft Foundry](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-openais-gpt-image-2-in-microsoft-foundry/4514417) · [Azure 云科技微信公众号，2026年4月22日](https://mp.weixin.qq.com/s/YeAMajFSgdu5BN_PRR_RKw)
+1. **`quality`** — `low` / `medium` / `high`
+2. **`size`** — `1024x1024` / `1024x1536` / `1536x1024`
 
-**这不是用户可配置的参数。** API 中没有 `token_bucket` 或 `output_token_count` 参数。用户通过以下方式间接影响 Token 分配：
-
-1. **`quality` 参数**（low / medium / high）—— 主要控制手段
-2. **`size` 参数**（1024x1024、1024x1536、1536x1024）—— 分辨率控制
-3. **Prompt 复杂度** —— 系统可能根据 Prompt 分析调整分配
+我们的实测确认这两个参数**完全决定**输出 Token 数量，Prompt 内容无影响（见 [Conclusions](#conclusions)）。
 
 ### GPT-Image-2 新能力
 
@@ -59,7 +53,7 @@ GPT-Image-2 相比 GPT-Image-1.x 引入了若干重大改进：
 | **真实世界智能** | 知识截止日期：2025 年 12 月。模型可搜索网络、审查自身输出，并从单个 Prompt 生成多张图像 |
 | **多语言文字渲染** | 增强对日语、韩语、中文、印地语、孟加拉语的支持 — 可在生成图像中直接渲染本地化文字 |
 | **4K 分辨率支持** | 支持自定义尺寸最高达 4K，可生成细腻、逼真的生产级图像 |
-| **智能路由层** | 双模式路由（Mode 1 + Mode 2）自动选择最优生成配置 |
+| **内部路由层** | 根据 `quality` + `size` 参数自动选择生成配置 |
 | **图像编辑** | 内置 `/images/edits` 端点，支持对已有图像进行增量修改 |
 
 > 来源：[OpenAI GPT-image-2 正式上线 Microsoft Foundry（企业级国际版）— Azure 云科技微信公众号，2026年4月22日](https://mp.weixin.qq.com/s/YeAMajFSgdu5BN_PRR_RKw)
@@ -112,7 +106,6 @@ GPT-Image-2 相比 GPT-Image-1.5 返回更丰富的响应结构：
 - **模型**：gpt-image-2 `v2026-04-21`，Azure OpenAI（East US 2）
 - **API 版本**：`2025-04-01-preview`
 - **部署**：GlobalStandard，capacity=9
-- **路由模式**：**Mode 2**（显式指定 `quality` + `size` 参数）
 - **尺寸**：1024x1024（固定）
 - **Quality 级别**：low、medium、high
 - **Prompt**：
@@ -251,7 +244,7 @@ Input tokens 差 **24 倍**（7 vs 170），延迟仅差 **~10%**（60.6s vs 67.
 
 ### 3. TC Blog 的 "token size bucket" 并非由 prompt 驱动
 
-[TC Blog](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-openais-gpt-image-2-in-microsoft-foundry/4514417) 描述 Mode 2 为 routing layer 根据 prompt 分析选择 token 桶。我们的测试表明，**实际上桶的选择完全由 `quality` 和 `size` 参数决定** —— prompt 复杂度不起作用。用户不需要关心桶的选择，只需要上面的查表即可。
+[TC Blog](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-openais-gpt-image-2-in-microsoft-foundry/4514417) 描述内部路由层根据 prompt 分析选择 token 桶。我们的测试表明，**实际上桶的选择完全由 `quality` 和 `size` 参数决定** —— prompt 复杂度不起作用。用户不需要关心内部路由，只需要上面的查表即可。
 
 ### 4. 改图（Image Edit）实测：时间、成本、渲染结果
 
@@ -411,8 +404,8 @@ python scripts/benchmark_gpt_image2.py \
 
 ## References（参考资料）
 
-- [Introducing GPT-Image-2 in Microsoft Foundry](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-openais-gpt-image-2-in-microsoft-foundry/4514417) — TC Blog，描述 Token Bucket 机制（Mode 1 / Mode 2 路由）
-- [OpenAI GPT-image-2 正式上线 Microsoft Foundry（企业级国际版）](https://mp.weixin.qq.com/s/YeAMajFSgdu5BN_PRR_RKw) — Azure 云科技微信公众号，2026年4月22日；描述新能力、路由模式及行业应用
+- [Introducing GPT-Image-2 in Microsoft Foundry](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/introducing-openais-gpt-image-2-in-microsoft-foundry/4514417) — TC Blog，描述 Token Bucket 机制及内部路由
+- [OpenAI GPT-image-2 正式上线 Microsoft Foundry（企业级国际版）](https://mp.weixin.qq.com/s/YeAMajFSgdu5BN_PRR_RKw) — Azure 云科技微信公众号，2026年4月22日；描述新能力及行业应用
 - [Azure OpenAI Image Generation](https://learn.microsoft.com/en-us/azure/foundry/openai/how-to/dall-e) — API 文档
 - [Azure Foundry Models](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure) — 模型目录
 
