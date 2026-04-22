@@ -112,6 +112,7 @@ New fields compared to GPT-Image-1.5:
 - **Model**: gpt-image-2 `v2026-04-21` on Azure OpenAI (East US 2)
 - **API Version**: `2025-04-01-preview`
 - **Deployment**: GlobalStandard, capacity=9
+- **Routing Mode**: **Mode 2** (explicit `quality` + `size` parameters)
 - **Size**: 1024x1024 (held constant)
 - **Quality levels**: low, medium, high
 - **Prompts**:

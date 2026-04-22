@@ -112,6 +112,7 @@ GPT-Image-2 相比 GPT-Image-1.5 返回更丰富的响应结构：
 - **模型**：gpt-image-2 `v2026-04-21`，Azure OpenAI（East US 2）
 - **API 版本**：`2025-04-01-preview`
 - **部署**：GlobalStandard，capacity=9
+- **路由模式**：**Mode 2**（显式指定 `quality` + `size` 参数）
 - **尺寸**：1024x1024（固定）
 - **Quality 级别**：low、medium、high
 - **Prompt**：
