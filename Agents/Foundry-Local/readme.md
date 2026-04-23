@@ -16,7 +16,7 @@ Hardware: Minimum 8GB RAM, 3GB free disk space. Recommended 16GB RAM, 15GB free 
 Network: Internet connection for initial model download (optional for offline use)
 Acceleration (optional): NVIDIA GPU (2,000 series or newer), AMD GPU (6,000 series or newer), Qualcomm Snapdragon X Elite (8GB or more of memory), or Apple silicon.
 
-*Refer to：https://learn.microsoft.com/en-us/azure/ai-foundry/foundry-local/get-started*
+*Refer to: https://learn.microsoft.com/en-us/azure/ai-foundry/foundry-local/get-started*
 
 ![Foundry Local Architecture](images/1.png)
 
@@ -28,7 +28,7 @@ On Powershell to install
 winget install Microsoft.FoundryLocal
 ```
 
-Start foundry service for open-webui  connection:
+Start foundry service for open-webui connection:
 
 ```
 PS C:\Users\xinyuwei> foundry service status
@@ -81,6 +81,8 @@ The models currently available in the Foundry Local repository may not necessari
 pip install olive-ai[auto-opt]
 pip install transformers==4.44.2 onnxruntime-genai
 ```
+
+> **Note:** `transformers==4.44.2` is pinned to match Olive compatibility at the time of testing. Check the latest [Olive documentation](https://github.com/microsoft/Olive) for current version requirements.
 
 Use the Olive `auto-opt` command to download, convert, quantize, and optimize the model:
 
@@ -191,7 +193,13 @@ Run the programme:
 python generate_inference_model.py
 ```
 
-Next, download the entire "model" directory to my laptop under the following location:
+Next, download the entire "model" directory from the Azure VM to your laptop. For example, using `scp`:
+
+```
+scp -r root@<your-vm-ip>:/root/models/llama/llama-3.2 C:\Users\xinyuwei\models\llama-3.2
+```
+
+Then place it under the following location:
 
 ```
 C:\Users\xinyuwei>
@@ -216,6 +224,8 @@ Models cached on device:
 💾 Model was not found in catalogmodel
 PS C:\Users\xinyuwei>
 ```
+
+> **Note:** `Model was not found in catalog` is expected for custom models converted via Olive — they are not in the official Foundry catalog but work correctly as local models.
 
 Run the model locally:
 
