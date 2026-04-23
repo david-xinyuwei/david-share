@@ -18,7 +18,7 @@ Acceleration (optional): NVIDIA GPU (2,000 series or newer), AMD GPU (6,000 seri
 
 *Refer to：https://learn.microsoft.com/en-us/azure/ai-foundry/foundry-local/get-started*
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/Foundry-Local/images/1.png)
+![Foundry Local Architecture](images/1.png)
 
 ### Install and Run Foundry Local on my Surface Laptop
 
@@ -45,7 +45,7 @@ PS C:\Users\xinyuwei> foundry service status
 
 ```
 
-On  WLS of my Laptop:
+On WSL of my Laptop:
 
 ```
 pip install open-webui
@@ -66,12 +66,12 @@ Access  http://localhost:8080/ of open-webui
 
 **Note:** The local models visible on Open-WebUI are models that have already been pulled locally using Foundry through PowerShell.
 
-![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/Foundry-Local/images/2.png)
+![Open-WebUI with Foundry Local](images/2.png)
 
 ***Please click below pictures to see my demo video on Youtube***:
 [![BitNet-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/NpYDsGXFrAU)
 
-## Load sepacial AI model from Hugging face
+## Load Special AI Model from Hugging Face
 
 The models currently available in the Foundry Local repository may not necessarily include the specific models we intend to use. However, we can utilize the Olive tool to convert any model from Hugging Face into the ONNX format and save it locally, then load it into Foundry Local. **It's important to note** that converting models often requires significant memory resources. If your laptop can't meet these memory requirements, it may be necessary to perform this operation on an Azure VM with larger memory capacity.
 
@@ -264,74 +264,74 @@ Total Tokens: 235
 =====================================================
 ```
 
-## Different between Foundry Local and AI Dev Gallery
+## Difference between Foundry Local and AI Dev Gallery
 
-- 想要“本地REST API推理服务”，采用OpenAI 兼容协议 → 选择 **Foundry Local**
-- 想要“快速开发Windows单机交互UI、0延迟进程内直接推理” → 选择 **AI Dev Gallery默认**
+- Need a **local REST API inference service** with OpenAI-compatible protocol → Choose **Foundry Local**
+- Need **rapid Windows desktop UI development with zero-latency in-process inference** → Choose **AI Dev Gallery (default)**
 
 ```
 +------------------------+                                 +---------------------------------------+
-| 你的客户端程序          |                                 | Foundry Local 本地服务守护进程          |
+| Your Client App         |                                 | Foundry Local Service Daemon            |
 | (Python/JS/C#/Java..)  |                                 |                                       |
 |                        |                                 |   +-------------------------------+   |
 |                        |                                 |   |  ONNX Runtime (CPU/GPU/NPU)   |   |
 |                        |                                 |   +---------------▲---------------+   |
 +-----------+------------+                                 |                   |                   |
             |                                              |   +---------------▼---------------+   |
-            |  HTTP请求(OpenAI REST API, JSON)             |   |       ONNX 模型(.ort/.onnx)     |   |
+            |  HTTP Request (OpenAI REST API, JSON)        |   |       ONNX Model (.ort/.onnx)   |   |
             |                                              |   +-------------------------------+   |
             |                                              +---------------------------------------+
             ▼
-http://localhost:端口/v1/chat/completions
-(JSON请求和响应完全兼容OpenAI API)
+http://localhost:PORT/v1/chat/completions
+(Request and response fully compatible with OpenAI API)
 ```
 
-**说明：**
+**Notes:**
 
-- 你的应用与模型推理服务是一种典型的 **客户端 - 服务端** 架构。
-- Foundry Local 后台以 HTTP REST API 提供推理服务，因此适合多进程、多应用甚至远程调用。
-- 调用协议完全是 OpenAI API 兼容，易于集成已有代码。
+- Your application and the model inference service use a typical **client-server** architecture.
+- Foundry Local provides inference via HTTP REST API in the background, making it suitable for multi-process, multi-application, and even remote invocation.
+- The protocol is fully OpenAI API compatible, making it easy to integrate with existing code.
 
 ```
 +-------------------------------------------------------+
-|                AI Dev Gallery 示例应用(WinUI)          |
+|                AI Dev Gallery Sample App (WinUI)       |
 |                                                       |
 |   +-----------------------------------------------+   |
-|   | WinUI 页面 (XAML, UI控件, 消息窗口等)          |   |
+|   | WinUI Page (XAML, UI Controls, Chat Window)    |   |
 |   +-----------------------------------------------+   |
 |                    ▲         |                        |
-|                    |         | IChatClient接口调用     |
+|                    |         | IChatClient API call    |
 |                    |         ▼                        |
 |    +---------------------------------------------+    |
-|    |  OnnxRuntimeGenAIChatClient (封装层C#)      |    |
+|    |  OnnxRuntimeGenAIChatClient (C# wrapper)   |    |
 |    +-------------------------▲-------------------+    |
-|                              | P/Invoke(调用DLL内API) |
+|                              | P/Invoke (call DLL API)|
 |    +-------------------------▼-------------------+    |
 |    |   ONNX Runtime (Microsoft.ML.OnnxRuntime)   |    |
 |    +-------------------------▲-------------------+    |
-|                              | 加载模型数据到内存     |
+|                              | Load model into memory |
 |    +-------------------------▼-------------------+    |
-|    |       本地保存的ONNX模型(.ort/.onnx)        |    |
+|    |       Local ONNX Model (.ort/.onnx)         |    |
 |    +---------------------------------------------+    |
 +-------------------------------------------------------+
 ```
 
-**说明：**
+**Notes:**
 
-- 没有HTTP/API调用，只是普通的 **进程内函数/DLL调用**。
-- 模型是直接加载进当前的UI进程内，所有推理发生在当前进程内。
-- 优势：低延迟、适合单机UI程序；劣势：不太适合多进程共享。
+- No HTTP/API calls — just ordinary **in-process function/DLL calls**.
+- The model is loaded directly into the current UI process; all inference happens in-process.
+- Advantage: low latency, ideal for single-machine UI apps. Disadvantage: not suitable for multi-process sharing.
 
 
 
-| 特性           | Foundry Local(后台服务进程)       | AI Dev Gallery 示例(进程内调用) |
-| -------------- | --------------------------------- | ------------------------------- |
-| 架构           | 客户端-服务端 (进程通信 REST API) | 单进程 (DLL函数调用)            |
-| 调用协议       | OpenAI REST API、HTTP、JSON       | 内存内函数调用 (无HTTP)         |
-| 是否有网络开销 | 少量（本地回环）                  | 无网络开销                      |
-| 延迟比较       | 略高(因序列化+进程通信)           | 最低(进程内直接调用)            |
-| 应用场景       | 后台、多进程共享、远程调用场景    | Windows单机GUI应用(聊天窗口等)  |
-| 模型存储       | Foundry服务管理                   | AI Dev Gallery示例程序自己管理  |
+| Feature | Foundry Local (Background Service) | AI Dev Gallery (In-Process) |
+| --- | --- | --- |
+| Architecture | Client-Server (REST API IPC) | Single process (DLL function call) |
+| Protocol | OpenAI REST API, HTTP, JSON | In-memory function call (no HTTP) |
+| Network Overhead | Minimal (localhost loopback) | None |
+| Latency | Slightly higher (serialization + IPC) | Lowest (direct in-process call) |
+| Use Case | Backend, multi-process sharing, remote calls | Windows desktop GUI apps (chat windows, etc.) |
+| Model Storage | Managed by Foundry service | Managed by the app itself |
 
 
 
