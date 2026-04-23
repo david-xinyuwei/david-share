@@ -279,60 +279,36 @@ Total Tokens: 235
 - Need a **local REST API inference service** with OpenAI-compatible protocol → Choose **Foundry Local**
 - Need **rapid Windows desktop UI development with zero-latency in-process inference** → Choose **AI Dev Gallery (default)**
 
+### Foundry Local Architecture
+
+Your app communicates with Foundry Local via HTTP REST API (OpenAI-compatible). Foundry Local runs as a background service daemon, loading ONNX models and performing inference via ONNX Runtime (CPU/GPU/NPU).
+
 ```
-+------------------------+                                 +---------------------------------------+
-| Your Client App         |                                 | Foundry Local Service Daemon            |
-| (Python/JS/C#/Java..)  |                                 |                                       |
-|                        |                                 |   +-------------------------------+   |
-|                        |                                 |   |  ONNX Runtime (CPU/GPU/NPU)   |   |
-|                        |                                 |   +---------------▲---------------+   |
-+-----------+------------+                                 |                   |                   |
-            |                                              |   +---------------▼---------------+   |
-            |  HTTP Request (OpenAI REST API, JSON)        |   |       ONNX Model (.ort/.onnx)   |   |
-            |                                              |   +-------------------------------+   |
-            |                                              +---------------------------------------+
-            ▼
+Client App (Python/JS/C#/Java)
+    │
+    │  HTTP Request (OpenAI REST API, JSON)
+    ▼
 http://localhost:PORT/v1/chat/completions
-(Request and response fully compatible with OpenAI API)
+    │
+    ▼
+Foundry Local Service Daemon
+    ├── ONNX Runtime (CPU/GPU/NPU)
+    └── ONNX Model (.ort/.onnx)
 ```
 
-**Notes:**
+### AI Dev Gallery Architecture
 
-- Your application and the model inference service use a typical **client-server** architecture.
-- Foundry Local provides inference via HTTP REST API in the background, making it suitable for multi-process, multi-application, and even remote invocation.
-- The protocol is fully OpenAI API compatible, making it easy to integrate with existing code.
+The WinUI app loads ONNX models directly into the current process via `OnnxRuntimeGenAIChatClient` (C# wrapper) → P/Invoke → ONNX Runtime DLL. No HTTP calls — all inference happens in-process.
 
 ```
-+-------------------------------------------------------+
-|                AI Dev Gallery Sample App (WinUI)       |
-|                                                       |
-|   +-----------------------------------------------+   |
-|   | WinUI Page (XAML, UI Controls, Chat Window)    |   |
-|   +-----------------------------------------------+   |
-|                    ▲         |                        |
-|                    |         | IChatClient API call    |
-|                    |         ▼                        |
-|    +---------------------------------------------+    |
-|    |  OnnxRuntimeGenAIChatClient (C# wrapper)   |    |
-|    +-------------------------▲-------------------+    |
-|                              | P/Invoke (call DLL API)|
-|    +-------------------------▼-------------------+    |
-|    |   ONNX Runtime (Microsoft.ML.OnnxRuntime)   |    |
-|    +-------------------------▲-------------------+    |
-|                              | Load model into memory |
-|    +-------------------------▼-------------------+    |
-|    |       Local ONNX Model (.ort/.onnx)         |    |
-|    +---------------------------------------------+    |
-+-------------------------------------------------------+
+AI Dev Gallery WinUI App
+    ├── WinUI Page (XAML, UI Controls)
+    ├── OnnxRuntimeGenAIChatClient (C# wrapper)
+    ├── ONNX Runtime (Microsoft.ML.OnnxRuntime)
+    └── Local ONNX Model (.ort/.onnx)
 ```
 
-**Notes:**
-
-- No HTTP/API calls — just ordinary **in-process function/DLL calls**.
-- The model is loaded directly into the current UI process; all inference happens in-process.
-- Advantage: low latency, ideal for single-machine UI apps. Disadvantage: not suitable for multi-process sharing.
-
-
+### Comparison
 
 | Feature | Foundry Local (Background Service) | AI Dev Gallery (In-Process) |
 | --- | --- | --- |
