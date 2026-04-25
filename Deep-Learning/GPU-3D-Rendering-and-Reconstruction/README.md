@@ -67,6 +67,28 @@ Model coords → [Model Transform] → World coords → [Camera Transform] → C
 | Global illumination | Pre-baked Light Probes | Path Tracing Monte Carlo |
 | Speed | Fast (60-240fps real-time) | 1-2 orders of magnitude slower |
 
+### Rendering Results
+
+**E1 Software Rasterizer** (14-triangle cube, Edge Function + Z-Buffer + Lambert shading):
+
+![E1 Rasterization](images/e1_final_render.png)
+
+**E2 Software Ray Tracer** (reflective spheres + shadows + multi-light, recursive depth 3):
+
+![E2 Ray Tracing Showcase](images/e2_showcase_render.png)
+
+**E3 Pixel-level Comparison** (Left: rasterization | Middle: ray tracing | Right: difference heatmap, blue=similar, red=different):
+
+![E3 Comparison](images/e3_comparison.png)
+
+> Differences concentrate in **shadow regions** (38% of pixels show large differences) — this is exactly where ray tracing's physical realism shines.
+
+**E4 Blender EEVEE (Rasterization)**:
+
+![E4 EEVEE](images/e4_eevee_640.png)
+
+Experiment scripts and full data available in [scripts/](scripts/) directory.
+
 Sources: [Scratchapixel](https://www.scratchapixel.com/lessons/3d-basic-rendering/rasterization-practical-implementation/overview-rasterization-algorithm.html) (CC BY-NC-ND 4.0), Wikipedia [Ray Tracing](https://en.wikipedia.org/wiki/Ray_tracing_(graphics))
 
 ---

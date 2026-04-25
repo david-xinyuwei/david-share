@@ -67,6 +67,28 @@
 | 全局光照 | 预烘焙 Light Probe | Path Tracing Monte Carlo |
 | 速度 | 快（实时 60-240fps） | 慢 1-2 个数量级 |
 
+### 渲染效果实测对比
+
+**E1 软件光栅化器**（14 三角形立方体，Edge Function + Z-Buffer + Lambert 着色）：
+
+![E1 光栅化渲染](images/e1_final_render.png)
+
+**E2 软件光线追踪器**（反射球 + 阴影 + 多光源，递归深度 3）：
+
+![E2 光追展示](images/e2_showcase_render.png)
+
+**E3 同一场景像素级对比**（左：光栅化 | 中：光追 | 右：差异热力图，蓝=相似，红=差异大）：
+
+![E3 对比](images/e3_comparison.png)
+
+> 差异集中在**阴影区域**（38% 像素有大差异）— 这正是光追的物理真实性优势所在。
+
+**E4 Blender EEVEE（光栅化）**：
+
+![E4 EEVEE](images/e4_eevee_640.png)
+
+实验脚本和完整数据见 [scripts/](scripts/) 目录。
+
 来源：[Scratchapixel](https://www.scratchapixel.com/lessons/3d-basic-rendering/rasterization-practical-implementation/overview-rasterization-algorithm.html) (CC BY-NC-ND 4.0)、Wikipedia [Ray Tracing](https://en.wikipedia.org/wiki/Ray_tracing_(graphics))
 
 ---
