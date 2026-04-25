@@ -2,259 +2,494 @@
 
 > **Author**: Xinyu Wei
 >
-> **Core thesis**: GPUs were born for 3D rendering. AI inference is an "accidental beneficiary." **Understanding rendering's design philosophy reveals why GPUs are naturally suited for AI — and how to better exploit them.**
+> **Core thesis**: GPUs were born for 3D rendering. AI inference is an "accidental beneficiary." Understanding rendering's design philosophy reveals why GPUs are naturally suited for AI.
 >
-> **Unique perspective**: This guide validates the deep connections between rendering techniques and AI inference optimizations using the author's real benchmark data — not speculation, but engineering evidence.
+> **Unique perspective**: This guide validates the deep connections between rendering and AI inference using the author's **real benchmark data** from LLM/Diffusion inference optimization — not speculation, but engineering evidence.
 
 ---
 
 ## Executive Summary
 
-Every AI inference engineer uses GPUs, but few ask: **Why are GPUs designed the way they are?** The answer lies in GPU's birth certificate — 3D rendering.
-
-| Rendering Design Decision | Corresponding AI Optimization | Author's Evidence |
+| 渲染设计决策 | AI 推理中的对应技术 | 作者实测证据 |
 |:---|:---|:---|
-| Tiled Rendering | FlashAttention tiling | FlashInfer 9-15% faster at 32K ([FlashInfer-vs-FA](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/FlashInfer-vs-FlashAttention-Benchmark)) |
-| Z-Buffer per-pixel memory | PagedAttention block KV Cache | KV Cache six-level guide ([KV-Cache-Deep-Dive](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive)) |
-| Mipmap multi-res LOD | Speculative Decoding draft-verify | EAGLE3 2.67x speedup ([EAGLE3](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/Speculative-Decoding-EAGLE3)) |
-| Z-fighting 16-bit flicker | BF16 precision accumulation | fuse_lora SSIM gap 2-18% ([LoRA-Merge](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/LoRA-Merge-Quality-Impact)) |
-| Frame buffer reuse | KV Cache caching K/V | GQA/MLA 4-arch comparison ([KV-Cache-Deep-Dive](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive)) |
-| Path Tracing Monte Carlo + denoise | Diffusion DDPM + denoise | Distillation 40→8 steps ([Diffusion-Distillation](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/Diffusion-Distillation)) |
+| 分块渲染（Tiled Rendering） | FlashAttention 分块计算 | FlashInfer 在 32K 时比 FA 快 9-15% ([链接](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/FlashInfer-vs-FlashAttention-Benchmark)) |
+| Z-Buffer 逐像素内存管理 | PagedAttention 逐块 KV Cache | KV Cache 六级深潜 ([链接](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive)) |
+| Mipmap 多精度 LOD | Speculative Decoding 草稿验证 | EAGLE3 加速 2.67x ([链接](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/Speculative-Decoding-EAGLE3)) |
+| Z-fighting 精度闪烁 | BF16 精度累积误差 | fuse_lora SSIM 差 2-18% ([链接](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/LoRA-Merge-Quality-Impact)) |
+| 帧缓冲复用上一帧 | KV Cache 缓存 Key/Value | GQA/MLA 四架构对比 ([链接](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive)) |
+| 光追 Monte Carlo 降噪 | Diffusion DDPM 去噪 | 蒸馏 40步→8步 ([链接](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/Diffusion-Distillation)) |
 
 ---
 
-## 1. The Rendering Problem: Why 3D Must Become 2D
+## 1. 第一原理：为什么 3D 要变成 2D？
 
-**Because your monitor is 2D.** A 3D scene must be "compressed" into a 2D pixel matrix.
+**因为显示器是 2D 的。** 屏幕是一块平面像素矩阵（如 3840×2160），3D 场景必须被"压"成 2D 图像。
 
-| Method | Approach | GPU Hardware |
-|:---|:---|:---|
-| **Rasterization** | Each triangle asks: "Which pixels do I cover?" | CUDA Core + Fixed-function Rasterizer |
-| **Ray Tracing** | Each pixel asks: "What object do I see?" | RT Core (BVH traversal + Ray-Triangle intersection) |
+这和人眼一样：现实世界是 3D 的，但视网膜是 2D 曲面 — 3D 光线经晶状体投影到视网膜上变成 2D 信号，大脑再"脑补"出深度感。
 
-**Why triangles?** Any 3 points are coplanar (uniquely define a plane); 4 points may not be. Triangles are the simplest guaranteed-planar primitive.
+**为什么三角形是万物基本单位？** 任意 3 点必然共面（唯一确定一个平面），4 点不一定 — 三角形是最简单的保证平面性的图元。一个游戏角色可能由几十万个三角形拼成。
 
 ---
 
-## 2. Graphics Pipeline — 5 Steps
+## 2. 图形管线（Graphics Pipeline）5 步详解
 
-The core of 3D→2D is **5 matrix multiplications** (4×4 each):
+3D→2D 渲染的核心是 **5 次坐标变换**，每步是一次 4×4 矩阵乘法：
 
 ```
-Model coords → [Model Transform] → World coords → [Camera Transform] → Camera coords
-→ [Projection] → NDC → [Clipping] → [Viewport] → Screen pixels
+模型坐标 → [Model Transform] → 世界坐标 → [Camera Transform] → 摄像机坐标
+→ [Projection] → NDC → [Clipping] → [Viewport] → 屏幕像素
 ```
 
-| Step | What | Why |
-|:---|:---|:---|
-| **Model Transform** | Place object (rotate+translate+scale) | 4×4 unifies all transforms (3×3 can't translate) |
-| **Camera Transform** | Move camera to origin | LookAt matrix, cross products build orthonormal basis |
-| **Projection** | Near big, far small | Perspective: divide by z depth, frustum → NDC |
-| **Clipping** | Discard invisible parts | Clipping in NDC cube is simpler than in frustum |
-| **Viewport** | NDC → pixels | [-1,1] → [0,Width]×[0,Height] |
+| 步骤 | 做什么 | 数学原理 | 为什么这样设计 |
+|:---|:---|:---|:---|
+| **Model Transform** | 把物体放到世界中正确的位置、角度、大小 | 旋转+平移+缩放的 4×4 齐次矩阵 | **4×4 而非 3×3**：因为 3×3 只能旋转/缩放，不能平移。加齐次坐标后平移也变成矩阵乘法 |
+| **Camera Transform** | 把整个世界变换到摄像机视角 | LookAt 矩阵（叉积构建正交基） | 让摄像机在原点朝 -Z 看，简化后续计算 |
+| **Projection** | 近大远小 | 透视投影矩阵：除以 w 分量（z 深度） | 将视锥体（Frustum）映射为标准立方体 NDC [-1,1]³ |
+| **Clipping** | 丢弃视锥体外的三角形 | NDC 空间裁剪 | 在标准立方体内裁剪比在截锥体内简单得多 |
+| **Viewport** | NDC → 屏幕像素坐标 | 线性映射 + Y 翻转 | [-1,1] → [0,Width]×[0,Height] |
 
-**Key insight**: All 5 steps are matrix multiplications — they can be pre-multiplied into one matrix. **This is why GPUs exist: massively parallel matrix operations.**
+**透视投影矩阵**（来源：Wikipedia [Graphics Pipeline](https://en.wikipedia.org/wiki/Graphics_pipeline)）：
+
+```
+P = | f/aspect  0    0                        0                       |
+    | 0         f    0                        0                       |
+    | 0         0    (far+near)/(near-far)    2*far*near/(near-far)   |
+    | 0         0    -1                       0                       |
+
+其中 f = 1/tan(FOV/2)
+```
+
+**E1 软件光栅化器实测**（从零用 Python 实现完整管线）：
+
+| 步骤 | 耗时 | 占比 |
+|:---|---:|---:|
+| Model Transform | 37.61 ms | 2.8% |
+| Camera Transform | 0.16 ms | 0.0% |
+| Projection | 12.55 ms | 0.9% |
+| Viewport | 0.03 ms | 0.0% |
+| **Rasterization** | **1296.47 ms** | **96.3%** |
+| 总计 | 1346.81 ms | 100% |
+
+> **关键发现**: 光栅化本身占总时间的 **96%**。矩阵变换很快，像素填充很慢。**这就是为什么 GPU 要把光栅化做成固定功能硬件 — 它是瓶颈。**
+
+![投影后的顶点位置](images/step4_vertices_projected.png)
+
+*E1 实验：640×480 分辨率，12 个顶点、14 个三角形经过 5 步变换后投影到屏幕上的位置*
 
 ---
 
-## 3. Rasterization vs Ray Tracing
+## 3. 两条渲染路线：光栅化 vs 光线追踪
 
-| Effect | Rasterization | Ray Tracing |
+### 3.1 光栅化（Rasterization）
+
+**原理**: 逐三角形投影到屏幕 → 用 **Edge Function** 判断每个像素是否被三角形覆盖 → **Z-Buffer** 解决前后遮挡。
+
+```python
+# 伪代码 (来源：Scratchapixel CC BY-NC-ND 4.0)
+for each triangle in scene:
+    project vertices to screen
+    compute bounding box
+    for each pixel in bounding box:
+        if pixel inside triangle (edge function):
+            depth = interpolate z
+            if depth < zbuffer[pixel]:
+                zbuffer[pixel] = depth
+                framebuffer[pixel] = shade(triangle)
+```
+
+**Z-Buffer 为什么赢了 Painter's Algorithm？** Painter's 按深度排序从远到近画（像画家），但无法处理互相穿透的三角形。Z-Buffer 逐像素比较深度，不需要排序，能处理任何遮挡。
+
+**GPU 中的角色分工**：
+- **Rasterizer Unit（固定功能）**: 做三角形→像素的覆盖测试
+- **ROP（Render Output Unit，固定功能）**: Z-Buffer 深度测试 + Alpha 混合
+- **CUDA Core（可编程）**: 跑 Vertex Shader 和 Fragment Shader — 计算顶点位置和像素颜色
+
+> **易混淆点纠正**: CUDA Core **不直接做光栅化**！光栅化的"像素覆盖测试"由固定功能的 Rasterizer Unit 完成。CUDA Core 做的是 Shader 中的可编程计算（如光照、纹理采样）。
+
+**E1 实验渲染结果**：
+
+![E1 光栅化渲染](images/e1_final_render.png)
+
+*软件光栅化器：彩色立方体（6 面 12 三角形）+ 灰色地面（2 三角形），Lambert 着色*
+
+**Z-Buffer 深度图可视化**：
+
+![E1 Z-Buffer](images/e1_zbuffer.png)
+
+*近深远浅，立方体轮廓清晰 — 验证 Z-Buffer 深度排序正确*
+
+### 3.2 光线追踪（Ray Tracing）
+
+**原理**: 从摄像机逐像素射出光线 → 找最近交点 → 计算光照 + **阴影光线**（是否被遮挡）+ **反射光线**（递归追踪）。
+
+**Ray-Sphere 求交**（解二次方程，来源：Wikipedia [Ray Tracing](https://en.wikipedia.org/wiki/Ray_tracing_(graphics))）：
+
+```
+||origin + t·dir - center||² = r²
+→ t² + 2t(v·d) + (v·v - r²) = 0
+→ 判别式 Δ = b² - 4ac
+  Δ < 0: 不相交 | Δ = 0: 相切 | Δ > 0: 两个交点取较近的
+```
+
+**Ray-Triangle 求交**: Möller-Trumbore 算法 (1997)，用叉积和点积计算重心坐标。
+
+**GPU 中的角色分工**：
+- **RT Core（固定功能）**: 做 BVH（Bounding Volume Hierarchy）遍历 + Ray-Triangle 求交 — 这是光追中计算量最大的部分
+- **CUDA Core（可编程）**: 跑光照计算 Shader（Lambert/Phong/PBR）
+
+> **RT Core 只做一件事**: 快速找到光线和三角形的交点。光照、阴影、反射的逻辑仍由 CUDA Core 上的 Shader 完成。RT Core 是加速瓶颈操作的 ASIC。
+
+**E2 光追展示场景**（反射 + 阴影 + 多光源）：
+
+![E2 光追展示](images/e2_showcase_render.png)
+
+*4 个球体：银色镜面球清晰反射其他球体 + 阴影投射在地面 + 双光源照明*
+
+| 参数 | 值 |
+|:---|:---|
+| 分辨率 | 320×240 |
+| 主光线数 | 76,800 |
+| 最大反射深度 | 3 次 |
+| 渲染时间 | 4.68 秒 |
+| 每像素 | 60.9 µs |
+
+### 3.3 效果对比
+
+| 效果 | 光栅化能做？ | 光追自然产出？ |
 |:---|:---|:---|
-| Reflections | Cube Map approximation | Recursive reflection rays (physically correct) |
-| Shadows | Shadow Map approximation | Shadow ray occlusion test |
-| Refraction | Screen-space distortion | Snell's Law + refraction rays |
-| Global illumination | Pre-baked Light Probes | Path Tracing Monte Carlo |
-| Speed | Fast (60-240fps real-time) | 1-2 orders of magnitude slower |
+| **镜面反射** | ❌ Cube Map 近似（不准确） | ✅ 递归反射光线（物理正确） |
+| **阴影** | ❌ Shadow Map 近似（有锯齿） | ✅ 阴影光线遮挡测试（柔和准确） |
+| **折射/玻璃** | ❌ 屏幕空间扭曲（假的） | ✅ Snell's Law + 折射光线 |
+| **全局光照** | ❌ 预烘焙 Light Probe | ✅ Path Tracing Monte Carlo |
+| **焦散** | ❌ 无法模拟 | ✅ 光线聚焦自然产出 |
+| **速度** | ✅ 快（实时 60-240fps） | ❌ 慢 1-2 个数量级 |
 
-### Rendering Results
+### 3.4 E3 像素级对比实验
 
-**E1 Software Rasterizer** (14-triangle cube, Edge Function + Z-Buffer + Lambert shading):
+同一场景（彩色立方体 + 地面），E1 光栅化 vs E2 光追，640×480：
 
-![E1 Rasterization](images/e1_final_render.png)
+| 指标 | 值 | 含义 |
+|:---|:---|:---|
+| MSE | 3577.58 | 差异显著 |
+| SSIM | -0.07 | 两种方法产生了视觉上完全不同的结果 |
+| 完全相同像素 | 0.1% | 仅深色背景 |
+| 中等差异 | 60.1% | 几何一致但光照模型不同 |
+| **大差异** | **38.2%** | **集中在阴影区域** |
 
-**E2 Software Ray Tracer** (reflective spheres + shadows + multi-light, recursive depth 3):
+![E3 三图对比](images/e3_comparison.png)
 
-![E2 Ray Tracing Showcase](images/e2_showcase_render.png)
+*左：E1 光栅化（无阴影）| 中：E2 光追（有阴影+双光源）| 右：差异热力图*
 
-**E3 Pixel-level Comparison** (Left: rasterization | Middle: ray tracing | Right: difference heatmap, blue=similar, red=different):
+![E3 差异热力图](images/e3_diff_heatmap.png)
 
-![E3 Comparison](images/e3_comparison.png)
+*蓝色=相似 | 红/橙=差异大 — 差异主要在地面阴影区域和立方体受光面*
 
-> Differences concentrate in **shadow regions** (38% of pixels show large differences) — this is exactly where ray tracing's physical realism shines.
+**E2 对比场景渲染**（与 E1 同视角的光追版本）：
 
-**E4 Blender EEVEE (Rasterization)**:
+![E2 对比场景](images/e2_match_e1_render.png)
+
+*同一立方体场景的光追渲染 — 注意地面上的阴影投射和更自然的光照*
+
+**速度对比**:
+
+| 方法 | 640×480 渲染时间 | 比率 |
+|:---|:---:|:---:|
+| E1 光栅化 | 1.3 秒 | 1x |
+| E2 光追 | 169 秒 | **130x 慢** |
+
+> **核心结论**: 光追以 **130 倍的性能代价** 换取物理真实的光影。这就是 RT Core 存在的意义 — 硬件加速将这个代价降低到可接受的范围。
+
+### 3.5 E4 Blender EEVEE vs Cycles
+
+使用 Blender 3.0.1 在 Azure A10 VM 上渲染同一场景：
+
+| 引擎 | 类型 | Samples | 渲染时间 | 设备 |
+|:---|:---|:---:|:---:|:---|
+| **EEVEE** | 光栅化 | 32 | **2.37 秒** | GPU (OpenGL) |
+| **Cycles** | 光追 (Path Tracing) | 64 | **7.24 秒** | CPU (回退) |
+
+**EEVEE 渲染结果**（光栅化）：
 
 ![E4 EEVEE](images/e4_eevee_640.png)
 
-Experiment scripts and full data available in [scripts/](scripts/) directory.
+*EEVEE：金属球近乎黑色是因为 Metallic=1.0 但 EEVEE 的 Screen-Space Reflection 只能反射屏幕内可见的物体*
 
-Sources: [Scratchapixel](https://www.scratchapixel.com/lessons/3d-basic-rendering/rasterization-practical-implementation/overview-rasterization-algorithm.html) (CC BY-NC-ND 4.0), Wikipedia [Ray Tracing](https://en.wikipedia.org/wiki/Ray_tracing_(graphics))
+**Cycles 渲染结果**（光追）：
+
+![E4 Cycles](images/e4_cycles_640.png)
+
+*Cycles：headless Blender 3.0 的色彩管理问题导致输出偏暗（"Filmic" view transform 未找到）— 这是无完整显示环境下 CLI 渲染的已知限制*
+
+> **Azure vGPU 发现**: A10-24Q 是虚拟化 GPU，nvidia-smi 显示 GPU 利用率 0% — Blender Cycles 无法识别 vGPU 为 CUDA 渲染设备，完全回退到 CPU。这说明 **vGPU 和物理 GPU 在图形渲染兼容性上有显著差异**。
 
 ---
 
-## 4. GPU Architecture Evolution
+## 4. GPU 架构演进：从渲染专用机到 AI 通用加速器
 
 ```
-1990s   Fixed pipeline — hardware could only do predefined rendering steps
-2001    Programmable Shader (GeForce 3)
-2006    Unified Shader (GeForce 8) — CUDA born → GPGPU → AI begins
-2017    Tensor Core (Volta V100) — matrix multiply hardware acceleration
-2018    RT Core (Turing RTX 20) — real-time ray tracing
-2020    3rd gen Tensor Core (A100) — TF32/BF16/INT8, structured sparsity
+1990s   固定管线 — 硬件只能做预定义的渲染步骤（不可编程）
+2001    可编程 Shader (GeForce 3) — Vertex/Pixel Shader 可编程
+2006    统一着色器 (GeForce 8) — CUDA 诞生 → GPGPU → AI 的起点
+2017    Tensor Core (Volta V100) — 矩阵乘法硬件加速 → DL 训练爆发
+2018    RT Core (Turing RTX 20) — BVH+求交硬件 → 实时光追
+2020    3rd gen Tensor Core (A100) — TF32/BF16/INT8, 结构化稀疏 2:4
 2022    4th gen Tensor Core (H100) — FP8, Transformer Engine
-2024    5th gen Tensor Core (B200) — FP4
+2024    5th gen Tensor Core (B200) — FP4, Confidential Computing
 ```
 
-**Design pattern**: When an operation becomes a bottleneck with a fixed pattern → **make it dedicated hardware**.
+**最核心的设计模式**：当某个操作成为瓶颈且模式固定 → **做成专用硬件**。
 
-| General → Programmable → Specialized | Rendering | AI |
-|:---|:---|:---|
-| CPU general | CPU rendering | CPU ML |
-| GPU parallel | CUDA Core Shaders | CUDA Core kernels |
-| Dedicated ASIC | RT Core (BVH) | Tensor Core (GEMM) |
-
----
-
-## 5. Three Types of GPU Cores
-
-| | CUDA Core | RT Core | Tensor Core |
+| 演进阶段 | 渲染领域 | AI 领域 | 共同模式 |
 |:---|:---|:---|:---|
-| **Function** | General parallel compute | BVH + Ray-Triangle intersection | Matrix multiply (GEMM) |
-| **Programmable** | ✅ | ❌ Fixed-function | ❌ Fixed-function |
-| **Rendering** | Shaders | Ray tracing acceleration | DLSS |
-| **AI** | General CUDA | — | Training & inference |
+| 通用 CPU | CPU 做所有渲染 | CPU 做所有 ML | 灵活但慢 |
+| 可编程 GPU | CUDA Core 跑 Shader | CUDA Core 跑 CUDA kernel | 并行加速 |
+| 专用 ASIC | RT Core（BVH+求交） | Tensor Core（矩阵乘法） | 瓶颈操作 → 专用硬件 |
 
-### Data Center vs Gaming GPUs
+---
 
-| GPU | CUDA Cores | Tensor Cores | RT Cores | Purpose |
+## 5. GPU 三种核心在渲染和 AI 中的完整角色
+
+### 5.1 三种核心对比
+
+| 维度 | CUDA Core | RT Core | Tensor Core |
+|:---|:---|:---|:---|
+| **硬件类型** | 通用 ALU（可编程） | 固定功能 ASIC | 固定功能矩阵乘单元 |
+| **核心操作** | 浮点加减乘除 | BVH 遍历 + Ray-Triangle 求交 | 4×4 矩阵乘法 (GEMM) |
+| **渲染中做什么** | Vertex Shader + Fragment Shader（计算顶点位置、光照、纹理采样） | 光线追踪的加速结构遍历（找光线和三角形的交点） | DLSS 的神经网络推理（超分辨率 + 帧生成） |
+| **AI 中做什么** | 通用 CUDA 计算（数据预处理、非矩阵操作） | —（不用于 AI） | 所有矩阵密集操作（Attention 的 QK^T、FFN 的线性层） |
+| **可编程性** | ✅ 完全可编程 | ❌ 不可编程 | ❌ 不可编程（固定尺寸矩阵乘） |
+| **引入时间** | 2006 (GeForce 8 / G80) | 2018 (Turing / RTX 20) | 2017 (Volta / V100) |
+
+### 5.2 一帧游戏画面中三种 Core 的协作
+
+```
+一帧渲染流程（现代混合渲染管线）:
+
+CUDA Core  ──→ 运行 Vertex Shader：计算顶点位置
+    ↓
+固定功能 Rasterizer Unit ──→ 三角形→像素覆盖测试
+    ↓
+CUDA Core  ──→ 运行 Fragment Shader：计算像素颜色（材质+光照）
+    ↓
+ROP (固定功能) ──→ Z-Buffer 深度测试 + Alpha 混合 → 基础画面完成
+    ↓
+RT Core ──→ 对选定效果（反射/阴影/全局光照）做光线追踪增强
+    ↓
+CUDA Core ──→ 光追命中后的光照计算 Shader
+    ↓
+Tensor Core ──→ DLSS：低分辨率输入 + 运动向量 + 上一帧 → AI 超分到高分辨率
+    ↓
+Tensor Core ──→ DLSS Frame Gen：AI "凭空"生成中间帧 → 帧率翻倍
+    ↓
+输出 → 显示器
+```
+
+> **关键理解**: 三种 Core 不是选一个用，而是**在同一帧中串联协作**。CUDA Core 负责可编程的灵活计算，RT Core 加速光追的瓶颈操作，Tensor Core 做 AI 推理补偿性能损失。
+
+### 5.3 数据中心 GPU vs 游戏 GPU
+
+| GPU | CUDA Core | Tensor Core | RT Core | 定位 |
 |:---|:---:|:---:|:---:|:---|
-| **H100** SXM | 16,896 | 528 (4th gen) | ❌ | AI training/inference |
-| **A100** | 6,912 | 432 (3rd gen) | ❌ | AI training/inference |
-| **A10** | 9,216 | 288 (3rd gen) | ✅ 72 (2nd gen) | Inference + graphics |
-| **RTX 4090** | 16,384 | 512 (4th gen) | ✅ 128 (3rd gen) | Gaming + AI |
+| **H100** SXM | 16,896 | 528 (4th gen) | ❌ **没有** | 纯 AI 训练推理 |
+| **A100** | 6,912 | 432 (3rd gen) | ❌ **没有** | 纯 AI 训练推理 |
+| **A10** | 9,216 | 288 (3rd gen) | ✅ 72 (2nd gen) | 推理 + 图形混合 |
+| **RTX 4090** | 16,384 | 512 (4th gen) | ✅ 128 (3rd gen) | 游戏 + AI |
+| **RTX 5090** | 21,760 | 680 (5th gen) | ✅ 170 (4th gen) | 游戏 + AI |
 
-> **Insight**: Data center GPUs (H100/A100) have **no RT Cores** — purely optimized for AI. A10 has all three core types, used in Azure NV-series for mixed graphics+inference workloads.
+来源：NVIDIA 官方产品规格
 
-Source: NVIDIA official specifications
-
----
-
-## 6. DLSS: Where Rendering Meets AI
-
-| Version | Year | Core Technology |
-|:---:|:---:|:---|
-| 1.0 | 2019 | Per-game trained CNN |
-| 2.0 | 2020 | Universal temporal feedback network + motion vectors |
-| 3.0 | 2022 | + Frame Generation (AI generates intermediate frames) |
-| 4.0 | 2025 | Multi Frame Generation (up to 3 frames at once) |
-| 4.5 | 2025 | Dynamic Multi Frame Generation |
-
-Sources: [NVIDIA DLSS](https://www.nvidia.com/en-us/geforce/technologies/dlss/), [DLSS 4.5 Blog](https://developer.nvidia.com/blog/nvidia-dlss-4-5-delivers-super-resolution-upgrades-and-new-dynamic-multi-frame-generation/)
+> **洞察**: 数据中心 GPU（H100/A100）**完全没有 RT Core** — 它们的芯片面积全部给了 Tensor Core 和 CUDA Core。**GPU 不是一种硬件，而是根据工作负载定制的芯片家族。** A10 是少数三种 Core 都有的"跨界"GPU，这也是它被用于 Azure NV 系列（图形 + 推理混合工作负载）的原因。
 
 ---
 
-## 7. ★ Core Chapter: Rendering × AI Inference — Validated with Engineering Data
+## 6. DLSS：Tensor Core 在渲染中的角色 — 渲染 × AI 的第一个大规模融合
 
-> Every analogy below is backed by the author's **real benchmark data**.
+### 6.1 DLSS 是什么
 
-### 7.1 Tiled Rendering ↔ FlashAttention
+DLSS（Deep Learning Super Sampling）在 Tensor Core 上运行一个**时序反馈神经网络**，将低分辨率渲染帧超分辨率到高分辨率，并可生成中间帧提升帧率。
 
-**Rendering**: Tiled Rendering splits the screen into 16×16 blocks, processing each independently to avoid global memory bottleneck.
+**核心思路**: GPU 花大量时间做的是"像素填充"（光栅化/光追）。DLSS 的策略是 — **少渲染一些像素（如只渲 1080p），用 AI 补回去（补到 4K）**。
 
-**AI**: FlashAttention tiles Q/K/V matrices, computing Softmax in SRAM to avoid HBM round-trips.
+### 6.2 DLSS 代际演进
 
-**Evidence**: FlashInfer is 9-15% faster than FlashAttention at 32K sequence length on A100. Source: [FlashInfer-vs-FlashAttention-Benchmark](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/FlashInfer-vs-FlashAttention-Benchmark)
+| 版本 | 年份 | 核心技术 | 突破 |
+|:---:|:---:|:---|:---|
+| 1.0 | 2019 | 每游戏单独训练 CNN | 第一次在游戏中用 AI 做超分 |
+| 2.0 | 2020 | **通用时序反馈网络** + 运动向量 + 前帧信息 | 一个模型适配所有游戏（质的飞跃） |
+| 3.0 | 2022 | + **帧生成**（AI "凭空"生成中间帧） | 从超分辨率扩展到帧率提升 |
+| 4.0 | 2025 | Multi Frame Generation（一次最多 3 帧） | 帧率可提升 8x |
+| 4.5 | 2025 | Dynamic Multi Frame Generation | 动态调整生成帧数 |
 
-**Shared principle**: IO-aware tiling — move compute to data, not data to compute.
+### 6.3 DLSS 核心算法
 
-### 7.2 Z-Buffer ↔ PagedAttention
+```
+输入：
+  - 低分辨率当前帧（如 1080p）
+  - 运动向量（Motion Vector）：每个像素从上一帧到当前帧的位移
+  - 上一帧的高分辨率结果（如 4K）
 
-**Rendering**: Z-Buffer writes depth per-pixel on demand, no pre-allocation.
+网络：时序卷积网络，在 Tensor Core 上推理
+  - 延迟要求：<2ms/帧（游戏要求 60fps = 16.6ms/帧，DLSS 只能占一小部分）
+  - 精度：FP16（Tensor Core 原生支持）
 
-**AI**: PagedAttention allocates KV Cache in pages, no pre-allocation for max sequence length.
+输出：高分辨率当前帧（如 4K）
+```
 
-**Evidence**: KV Cache size varies >10x across GQA/MLA/Hybrid Attention/Hybrid Mamba architectures. Source: [KV-Cache-Deep-Dive](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive)
+来源：https://www.nvidia.com/en-us/geforce/technologies/dlss/ 、https://developer.nvidia.com/blog/nvidia-dlss-4-5-delivers-super-resolution-upgrades-and-new-dynamic-multi-frame-generation/
 
-**Shared principle**: Memory is scarce; on-demand allocation beats pre-allocation.
+### 6.4 DLSS 的意义
 
-### 7.3 Mipmap/LOD ↔ Speculative Decoding
+| 维度 | 意义 |
+|:---|:---|
+| **对游戏** | 用 AI 补回光追的性能损失 — 开光追+DLSS 比不开光追还快 |
+| **对 AI** | 证明 Tensor Core 不仅能训练模型，还能在**实时应用**中做推理（<2ms 硬约束） |
+| **对硬件设计** | 推动了 Tensor Core 在消费级 GPU 中的普及（RTX 20 系列起） |
 
-**Rendering**: Far objects use low-res textures (fast, saves bandwidth); near objects use high-res.
-
-**AI**: Small draft model generates candidate tokens quickly; large model verifies in one pass.
-
-**Evidence**: EAGLE3 achieves 2.67x speedup. Source: [Speculative-Decoding-EAGLE3](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/Speculative-Decoding-EAGLE3)
-
-**Shared principle**: Cheap approximation first, expensive verification second.
-
-### 7.4 Z-fighting ↔ BF16 Precision Issues
-
-**Rendering**: Z-Buffer's 16-bit precision causes flickering when two surfaces are nearly coplanar.
-
-**AI**: BF16's 7-bit mantissa causes accumulated rounding errors in Diffusion's multi-step ODE solving.
-
-**Evidence**: At 8-step distillation, fuse_lora SSIM=1.0 vs set_adapters SSIM=0.88-0.91. Source: [LoRA-Merge-Quality-Impact](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/LoRA-Merge-Quality-Impact)
-
-**Shared principle**: Finite precision amplifies errors in accumulated computation; fewer steps = more sensitive.
-
-### 7.5 Frame Buffer ↔ KV Cache
-
-**Rendering**: DLSS uses previous frame + motion vectors to generate high-res output.
-
-**AI**: KV Cache stores computed Keys/Values; generating next token only computes new Q.
-
-**Evidence**: FP8 KV Cache quantization reduces ~50% VRAM. Source: [Qwen3.5-122B-Azure-vs-AWS-Benchmark](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/Qwen3.5-122B-Azure-vs-AWS-Benchmark)
-
-**Shared principle**: Cache intermediate results; trade space for time.
-
-### 7.6 Path Tracing Monte Carlo ↔ Diffusion Denoising
-
-**Rendering**: Path Tracing randomly samples light paths → denoise.
-
-**AI**: Diffusion starts from pure noise → iteratively denoise to reconstruct image.
-
-**Evidence**: Distillation compresses 40 steps → 8 steps (ODE trajectory distillation). Source: [Diffusion-Distillation](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/Diffusion-Distillation)
-
-**Shared principle**: Iterative process from random to ordered; steps vs quality trade-off.
+> **DLSS 和 LLM 推理用的是同一个硬件**: Tensor Core 做 FP16 矩阵乘法。区别只在延迟要求 — DLSS 需要 <2ms，LLM 推理通常容忍数十到数百毫秒。
 
 ---
 
-## 8. 2D→3D Reconstruction (Brief)
+## 7. ★ 核心章节：渲染设计 × AI 推理 — 用工程数据验证的 6 个深层关联
 
-| Method | Input | Key Idea |
-|:---|:---|:---|
-| **NeRF** (2020) | N photos | MLP fitting 5D radiance field |
-| **3D Gaussian Splatting** (2023) | N photos | 100x faster than NeRF, real-time |
-| **Monocular Depth** | 1 photo | Learn visual priors at scale |
+### 7.1 分块渲染 ↔ FlashAttention — IO-aware Tiling
 
-Sources: Wikipedia [NeRF](https://en.wikipedia.org/wiki/Neural_radiance_field) + [3DGS](https://en.wikipedia.org/wiki/Gaussian_splatting)
+**渲染**: Tiled Rendering 将屏幕分成小块（如 16×16 像素），每块的三角形列表独立处理，避免全局内存带宽瓶颈。
+
+**AI**: FlashAttention 将 Q/K/V 矩阵分块，在 SRAM 中完成 Softmax 计算，避免将中间结果写回 HBM。
+
+**作者实测**: FlashInfer 在 A100/32K 序列时比 FlashAttention 快 9-15%。来源：[FlashInfer-vs-FlashAttention-Benchmark](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/FlashInfer-vs-FlashAttention-Benchmark)
+
+**共同原理**: **把计算搬到数据旁边，而非把数据搬到计算旁边。** 在 GPU 上，计算便宜，内存访问昂贵。
+
+### 7.2 Z-Buffer ↔ PagedAttention — 按需内存管理
+
+**渲染**: Z-Buffer 逐像素按需写入深度值，不预分配整个场景的内存。
+
+**AI**: PagedAttention（vLLM）将 KV Cache 按页（block）分配，不预分配最大序列长度的连续内存。
+
+**作者实测**: GQA/MLA/Hybrid Attention/Hybrid Mamba 四种架构的 KV Cache 大小差异超过 10 倍。来源：[KV-Cache-Deep-Dive](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive)
+
+**共同原理**: **内存是稀缺资源，按需分配优于预分配。** Z-Buffer 的"先到先写"策略和 PagedAttention 的"用时再分"策略异曲同工。
+
+### 7.3 Mipmap/LOD ↔ Speculative Decoding — 先粗后精
+
+**渲染**: 远处物体用低分辨率纹理（Mipmap 低级 LOD），近处用高分辨率。节省带宽。
+
+**AI**: Speculative Decoding 用小模型（draft model）快速生成多个候选 token，再用大模型一次性验证/拒绝。
+
+**作者实测**: EAGLE3 在 Qwen 模型上实现 2.67x 加速（官方权重）。来源：[Speculative-Decoding-EAGLE3](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/Speculative-Decoding-EAGLE3)
+
+**共同原理**: **先用便宜的近似，再用昂贵的精确验证。** 大多数情况下近似就够了，只在需要时才调用高精度。
+
+### 7.4 Z-fighting ↔ BF16 精度问题 — 有限精度的工程后果
+
+**渲染**: Z-Buffer 通常 16-bit 或 24-bit 精度。两个三角形深度极其接近时，精度不够导致像素闪烁（Z-fighting）。
+
+**AI**: BF16 只有 7-bit 尾数。Diffusion 模型的多步 ODE 求解中，BF16 舍入误差在 8-50 步中累积放大，导致 `fuse_lora` 和 `set_adapters` 两种 LoRA 加载方式产生可测量的图像质量差异。
+
+**作者实测**: 蒸馏 8 步 + CFG=4 时，fuse_lora SSIM=1.0 vs set_adapters SSIM=0.88-0.91。误差来源：BF16 浮点运算路径不同（27% merge-time + 73% inference-path）。来源：[LoRA-Merge-Quality-Impact](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/LoRA-Merge-Quality-Impact)
+
+**共同原理**: **有限精度在累积计算中放大误差，步数越少越敏感。** Z-Buffer 的解决方案是增加精度（24-bit/32-bit）；AI 的解决方案是 fuse_lora（在精度损失前合并权重）。
+
+### 7.5 帧缓冲 ↔ KV Cache — 缓存中间结果
+
+**渲染**: DLSS 利用上一帧（Frame Buffer）+ 运动向量生成高分辨率输出，不从零渲染每帧。
+
+**AI**: KV Cache 缓存已计算的 Key/Value 张量，生成下一 token 只需计算新 Q 与缓存的 K/V 做 Attention。
+
+**作者实测**: Qwen3.5-122B MoE 模型的 KV Cache 在 FP8 量化下减少约 50% VRAM。来源：[Qwen3.5-122B-Azure-vs-AWS-Benchmark](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/Qwen3.5-122B-Azure-vs-AWS-Benchmark)
+
+**共同原理**: **缓存中间结果，用空间换时间。** 帧缓冲和 KV Cache 都面临"缓存什么、何时淘汰"的设计决策。
+
+### 7.6 光追 Monte Carlo ↔ Diffusion DDPM — 随机到有序
+
+**渲染**: Path Tracing 对每个像素随机采样多条光路（Monte Carlo 积分），结果有噪声 → 用降噪器平滑。
+
+**AI**: Diffusion 从纯高斯噪声开始，逐步去噪还原图像。蒸馏通过让学生模型学习教师的多步轨迹，压缩步数。
+
+**作者实测**: 扩散模型蒸馏将 40 步去噪压缩到 8 步（ODE 轨迹蒸馏），速度提升 5 倍但质量可量化下降。来源：[Diffusion-Distillation](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/Diffusion-Distillation)
+
+**共同原理**: **从随机到有序的迭代过程，步数和质量的权衡。** Path Tracing 增加 samples 降低噪声；Diffusion 增加 steps 提升质量。两者都可以通过"蒸馏/预计算"减少迭代次数。
+
+---
+
+## 8. 2D→3D 重建：渲染的逆问题
+
+渲染是 3D→2D（确定性过程，有唯一解）。2D→3D 是反过来（不确定过程，需要 AI "猜"）。
+
+| 方法 | 输入 | 核心思想 | 速度 |
+|:---|:---|:---|:---|
+| **NeRF** (2020) | N 张照片 | MLP 拟合 5D 辐射场 (x,y,z,θ,φ)→(r,g,b,σ) | 慢（秒级/帧） |
+| **3D Gaussian Splatting** (2023) | N 张照片 | 数百万个 3D 高斯椭球"泼"到屏幕上 | **快 100x**（实时） |
+| **单图深度估计** | 1 张照片 | 大规模数据学习透视/遮挡等视觉先验 | 实时 |
+| **生成式 3D** | 文字/图片 | Diffusion + 多视角重建 | 秒-分钟级 |
+
+来源：Wikipedia [Neural Radiance Field](https://en.wikipedia.org/wiki/Neural_radiance_field) + [Gaussian Splatting](https://en.wikipedia.org/wiki/Gaussian_splatting)
 
 ---
 
 ## Running on Azure
 
-This is a principles + cross-project reference guide. Chapter 7 evidence comes from:
+**本文实验环境**：
 
-| Project | GPU | Link |
+| 项目 | 值 |
+|:---|:---|
+| VM | Azure 1a10vm (Standard_NV6ads_A10_v5) |
+| GPU | NVIDIA A10-24Q (vGPU, Ampere, Compute 8.6) |
+| 驱动 | 550.144.06 |
+| OS | Ubuntu 22.04.5 LTS |
+| Blender | 3.0.1 |
+| Python | 3.10.12 |
+| 位置 | Canada Central |
+
+**第 7 章跨项目引用的实测数据来自**：
+
+| 项目 | GPU | 链接 |
 |:---|:---|:---|
-| FlashInfer-vs-FA | A100 80GB | [Link](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/FlashInfer-vs-FlashAttention-Benchmark) |
-| KV-Cache-Deep-Dive | Analysis | [Link](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive) |
-| EAGLE3 | H100 | [Link](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/Speculative-Decoding-EAGLE3) |
-| LoRA-Merge-Quality | H100 | [Link](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/LoRA-Merge-Quality-Impact) |
-| Diffusion-Distillation | H100 | [Link](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/Diffusion-Distillation) |
-| Qwen3.5-122B | H100 | [Link](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/Qwen3.5-122B-Azure-vs-AWS-Benchmark) |
+| FlashInfer-vs-FA | A100 80GB | [链接](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/FlashInfer-vs-FlashAttention-Benchmark) |
+| KV-Cache-Deep-Dive | 原理分析 | [链接](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive) |
+| EAGLE3 | H100 | [链接](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/Speculative-Decoding-EAGLE3) |
+| LoRA-Merge-Quality | H100 | [链接](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/LoRA-Merge-Quality-Impact) |
+| Diffusion-Distillation | H100 | [链接](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/Diffusion-Distillation) |
+| Qwen3.5-122B | H100 | [链接](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/Qwen3.5-122B-Azure-vs-AWS-Benchmark) |
+
+**复现实验**：
+
+```bash
+pip install numpy Pillow
+
+# E1: 软件光栅化器（5 步管线 + Edge Function + Z-Buffer）
+python3 scripts/e1_software_rasterizer.py --width 640 --height 480
+
+# E2: 光线追踪器（反射+阴影）
+python3 scripts/e2_ray_tracer.py --width 320 --height 240 --scene showcase --max-depth 3
+
+# E2: 同场景对比版（无反射，用于 E3）
+python3 scripts/e2_ray_tracer.py --width 640 --height 480 --scene match_e1 --max-depth 0
+
+# E3: 像素级对比（MSE/SSIM + 差异热力图）
+pip install scikit-image
+python3 scripts/e3_compare_results.py \
+  --img1 results/e1_rasterizer/e1_final_render.png \
+  --img2 results/e2_raytracer/e2_match_e1_render.png
+
+# E4: Blender EEVEE vs Cycles（需要 Blender + xvfb）
+xvfb-run -a blender -b -P scripts/e4_blender_benchmark.py
+```
 
 ---
 
-## Sources
+## 来源
 
-| Content | Source |
+| 内容 | 来源 |
 |:---|:---|
-| Graphics Pipeline | Wikipedia [Graphics Pipeline](https://en.wikipedia.org/wiki/Graphics_pipeline) |
-| Rasterization | [Scratchapixel](https://www.scratchapixel.com/lessons/3d-basic-rendering/rasterization-practical-implementation/overview-rasterization-algorithm.html) (CC BY-NC-ND 4.0) |
-| Ray Tracing | Wikipedia [Ray Tracing](https://en.wikipedia.org/wiki/Ray_tracing_(graphics)) |
+| 图形管线 | Wikipedia [Graphics Pipeline](https://en.wikipedia.org/wiki/Graphics_pipeline) |
+| 光栅化算法 | [Scratchapixel](https://www.scratchapixel.com/lessons/3d-basic-rendering/rasterization-practical-implementation/overview-rasterization-algorithm.html) (CC BY-NC-ND 4.0) |
+| 光线追踪 | Wikipedia [Ray Tracing](https://en.wikipedia.org/wiki/Ray_tracing_(graphics)) |
+| 渲染总论 | Wikipedia [Rendering](https://en.wikipedia.org/wiki/Rendering_(computer_graphics)) |
 | DLSS | [NVIDIA DLSS](https://www.nvidia.com/en-us/geforce/technologies/dlss/) |
-| RT Core | [NVIDIA Turing In-Depth](https://developer.nvidia.com/blog/nvidia-turing-architecture-in-depth/) |
-| GPU specs | NVIDIA official specifications |
-| Rendering × AI connections | Author's benchmark data (Chapter 7 source links) |
+| DLSS 4.5 | [NVIDIA Developer Blog](https://developer.nvidia.com/blog/nvidia-dlss-4-5-delivers-super-resolution-upgrades-and-new-dynamic-multi-frame-generation/) |
+| RT Core 架构 | [NVIDIA Turing In-Depth](https://developer.nvidia.com/blog/nvidia-turing-architecture-in-depth/) |
+| GPU 规格 | NVIDIA 官方产品页面 |
+| NeRF / 3DGS | Wikipedia [Neural Radiance Field](https://en.wikipedia.org/wiki/Neural_radiance_field) + [Gaussian Splatting](https://en.wikipedia.org/wiki/Gaussian_splatting) |
+| 渲染×AI 关联 | 作者实测数据（第 7 章各子节来源链接） |
