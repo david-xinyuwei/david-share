@@ -1,10 +1,10 @@
-# GPU Architecture Deep Dive: From 3D Rendering Origins to AI Inference Acceleration
+# GPU 架构深潜：从 3D 渲染到 AI 推理 — 一个推理工程师的 GPU 全景指南
 
-> **Author**: Xinyu Wei
+> **作者**: 魏新宇 (Xinyu Wei)
 >
-> **Core thesis**: GPUs were born for 3D rendering. AI inference is an "accidental beneficiary." Understanding rendering's design philosophy reveals why GPUs are naturally suited for AI.
+> **核心命题**: GPU 为 3D 渲染而生，AI 推理是"意外的受益者"。理解渲染的设计哲学，就理解了 GPU 为什么天生适合 AI。
 >
-> **Unique perspective**: This guide validates the deep connections between rendering and AI inference using the author's **real benchmark data** from LLM/Diffusion inference optimization — not speculation, but engineering evidence.
+> **本文特色**: 用作者在 LLM/Diffusion 推理优化领域的**实测数据**验证渲染技术与 AI 推理的深层关联。同时提供从零实现的软件光栅化器和光线追踪器，可直观对比两种渲染方法的效果差异。
 
 ---
 
@@ -33,7 +33,9 @@
 
 ## 2. 图形管线（Graphics Pipeline）5 步详解
 
-3D→2D 渲染的核心是 **5 次坐标变换**，每步是一次 4×4 矩阵乘法：
+3D→2D 渲染的核心是 **5 次坐标变换**，每步是一次 4×4 矩阵乘法。
+
+> **类比**：想象你在拍照片。你要做的事情是：① 把物体摆好位置（模型变换）② 把相机架好对着物体（摄像机变换）③ 透过镜头看“远小近大”（透视投影）④ 裁掉取景框外的部分（裁剪）⑤ 冲印成照片（视口变换）。
 
 ```
 模型坐标 → [Model Transform] → 世界坐标 → [Camera Transform] → 摄像机坐标
@@ -82,7 +84,15 @@ P = | f/aspect  0    0                        0                       |
 
 ### 3.1 光栅化（Rasterization）
 
-**原理**: 逐三角形投影到屏幕 → 用 **Edge Function** 判断每个像素是否被三角形覆盖 → **Z-Buffer** 解决前后遮挡。
+**什么是光栅化？** 一句话：**把三角形变成像素。**
+
+屏幕是一块像素网格（比如 1920×1080 = 207 万个小格子）。管线前 4 步已经算出了每个三角形的屏幕坐标。现在的问题是：**哪些格子被这个三角形盖住了？盖住的格子涂什么颜色？**
+
+> **类比：十字绣。** 设计师画了一个三角形图案（= 三个坐标点），你拿到一块有网格的布（= 像素网格），需要在网格上把三角形内部的每个格子绣上对应颜色的线。这个“一格一格绣”的过程就是光栅化。
+
+**为什么要“填充”而不是只“画边”？** 因为真实世界的物体是实心的，不是骨架。只画边线（线框渲染）无法区分前后遮挡，也无法显示材质颜色和光照明暗 — 填充后才能看起来像真实物体。
+
+**具体怎么做？** 用 **Edge Function**（边缘函数：一个数学公式，判断一个点是否在三角形内部）检测每个像素是否被三角形覆盖，然后用 **Z-Buffer**（深度缓冲区：记录每个像素最近的三角形距离，解决“前面的物体挡住后面的”问题）解决前后遮挡。
 
 ```python
 # 伪代码 (来源：Scratchapixel CC BY-NC-ND 4.0)
@@ -120,7 +130,13 @@ for each triangle in scene:
 
 ### 3.2 光线追踪（Ray Tracing）
 
-**原理**: 从摄像机逐像素射出光线 → 找最近交点 → 计算光照 + **阴影光线**（是否被遮挡）+ **反射光线**（递归追踪）。
+**什么是光线追踪？** 光栅化是“每个三角形问：我盖住了哪些像素？”，光线追踪反过来：**“每个像素问：我看到了什么物体？”**
+
+> **类比：光栅化像“投影仪投射幻灯片到幕布上”（从物体到屏幕），光线追踪像“从你的眼睛射出一根激光笔，看它打到了什么东西上”（从屏幕到物体）。**
+
+**为什么需要光线追踪？** 因为光栅化的光影是“假的”（用各种近似算法模拟），而光线追踪模拟光线的真实物理行为（反射、折射、阴影），所以看起来更真实。代价是慢 1-2 个数量级。
+
+**原理**: 从摄像机逐像素射出光线 → 找最近交点 → 计算光照 + **阴影光线**（从交点向光源发一条光线，检查中间有没有东西挡住 — 有就是阴影，没有就被照亮）+ **反射光线**（光线打到镜面后弹开，继续追踪 — 这就是为什么镜子里能看到东西）。
 
 **Ray-Sphere 求交**（解二次方程，来源：Wikipedia [Ray Tracing](https://en.wikipedia.org/wiki/Ray_tracing_(graphics))）：
 
@@ -134,7 +150,7 @@ for each triangle in scene:
 **Ray-Triangle 求交**: Möller-Trumbore 算法 (1997)，用叉积和点积计算重心坐标。
 
 **GPU 中的角色分工**：
-- **RT Core（固定功能）**: 做 BVH（Bounding Volume Hierarchy）遍历 + Ray-Triangle 求交 — 这是光追中计算量最大的部分
+- **RT Core（固定功能）**: 做 **BVH**（Bounding Volume Hierarchy，“包围盒层级结构” — 把数百万个三角形按空间位置分组装进嵌套的盒子里，光线先测试是否击中大盒子，再测小盒子，最后才测具体三角形 — 这样就不需要对每条光线检查所有三角形）遍历 + Ray-Triangle 求交
 - **CUDA Core（可编程）**: 跑光照计算 Shader（Lambert/Phong/PBR）
 
 > **RT Core 只做一件事**: 快速找到光线和三角形的交点。光照、阴影、反射的逻辑仍由 CUDA Core 上的 Shader 完成。RT Core 是加速瓶颈操作的 ASIC。
