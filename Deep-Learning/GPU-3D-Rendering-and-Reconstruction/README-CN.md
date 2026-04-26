@@ -599,6 +599,9 @@ DLSS（Deep Learning Super Sampling，深度学习超级采样）— 名字直�
 | 3.0 | 2022 | + **帧生成**（AI "凭空"生成中间帧） | 从超分辨率扩展到帧率提升 |
 | 4.0 | 2025 | Multi Frame Generation（一次最多 3 帧） | 帧率可提升 8x |
 | 4.5 | 2025 | Dynamic Multi Frame Generation | 动态调整生成帧数 |
+| **5.0** | **2026** | **Neural Rendering = 3D 图形 + 生成式 AI 融合** | **不再只是超分辨率，而是用 AI 生成逼近照片级的画面** |
+
+> **Jensen Huang, GTC 2026**: "We call it Neural Rendering, the fusion of 3D graphics and artificial intelligence." — DLSS 5 将可控的 3D 图形（结构化数据）与生成式 AI（概率计算）融合，用 AI 重新定义了"什么是好画面"。
 
 ### 6.3 DLSS 核心算法
 
@@ -628,6 +631,30 @@ DLSS（Deep Learning Super Sampling，深度学习超级采样）— 名字直�
 > **DLSS 和 LLM 推理用的是同一个硬件**: Tensor Core 做 FP16 矩阵乘法。区别在于延迟要求 — DLSS 必须在毫秒级完成（实时渲染管线的一部分），LLM 推理通常容忍数十到数百毫秒。
 >
 > **DLSS 是渲染和 AI 融合的第一个大规模成功案例** — 它证明了 AI 不只是训练模型的离线工具，更能在实时场景中产出肉眼可见的价值。
+
+### 6.5 DLSS 5 效果对比：Resident Evil Requiem
+
+以下两张截图来自 NVIDIA GTC 2026 Keynote 演示，同一场景、同一视角，分别展示 DLSS 5 关闭和开启的效果（来源：GTC 2026 Keynote）：
+
+**DLSS 5 关闭**（传统光栅化 + 光追渲染）：
+
+![DLSS 5 Off](images/dlss5_off.png)
+
+**DLSS 5 开启**（Neural Rendering = 3D 图形 + 生成式 AI）：
+
+![DLSS 5 On](images/dlss5_on.png)
+
+**对比分析**：
+
+| 维度 | DLSS 5 Off | DLSS 5 On |
+|:---|:---|:---|
+| **皮肤质感** | 略有"塑料感"，毛孔和微表面细节不够自然 | 次表面散射更自然，肤色接近照片级 |
+| **头发** | 发丝偏硬，高光分布不够自然 | 更柔和自然，光泽和层次感更丰富 |
+| **整体光照** | 光照正确但略显"CG 感" | 接近电影级摄影质感，不再像"游戏画面" |
+| **背景氛围** | 建筑清晰但光照偏生硬 | 雨雾和灯光有更真实的"空气感" |
+| **本质区别** | 3D 渲染的确定性输出 | **结构化 3D 数据 + 概率性 AI 生成的融合** |
+
+> **这不再只是"超分辨率"** — DLSS 5 的 Neural Rendering 融合了传统 3D 图形的精确控制（几何、物理正确的光照）和生成式 AI 的"想象力"（补充传统渲染无法高效计算的微细节），让画面从"好看的 CG"变成"难以分辨的照片级真实"。正如 Jensen 在 GTC 2026 所说：*"We combined 3D graphics, structured data, with generative AI, probabilistic computing. One of them is completely predictive. The other one, probabilistic, yet highly realistic."*
 
 ---
 

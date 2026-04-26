@@ -601,6 +601,9 @@ Ray tracing + DLSS: only render 1080p raster + 1080p RT + AI upscale to 4K → 8
 | 3.0 | 2022 | + **Frame Generation** (AI generates intermediate frames "from nothing") | Expanded from super-resolution to frame rate boosting |
 | 4.0 | 2025 | Multi Frame Generation (up to 3 frames at once) | Frame rate can increase up to 8x |
 | 4.5 | 2025 | Dynamic Multi Frame Generation | Dynamic adjustment of generated frame count |
+| **5.0** | **2026** | **Neural Rendering = 3D graphics + generative AI fusion** | **No longer just super-resolution, but AI-generated near-photorealistic imagery** |
+
+> **Jensen Huang, GTC 2026**: "We call it Neural Rendering, the fusion of 3D graphics and artificial intelligence." — DLSS 5 fuses controllable 3D graphics (structured data) with generative AI (probabilistic computing), redefining what "good imagery" means through AI.
 
 ### 6.3 DLSS Core Algorithm
 
@@ -630,6 +633,30 @@ Source: https://www.nvidia.com/en-us/geforce/technologies/dlss/ , https://develo
 > **DLSS and LLM inference use the same hardware**: Tensor Cores performing FP16 matrix multiplication. The difference is latency requirements — DLSS must complete in milliseconds (part of the real-time rendering pipeline), while LLM inference typically tolerates tens to hundreds of milliseconds.
 >
 > **DLSS is the first large-scale success story of rendering × AI fusion** — it proved that AI is not just an offline tool for training models, but can deliver tangible, visible value in real-time scenarios.
+
+### 6.5 DLSS 5 Visual Comparison: Resident Evil Requiem
+
+The following two screenshots are from the NVIDIA GTC 2026 Keynote demo, showing the same scene and viewpoint with DLSS 5 off and on (Source: GTC 2026 Keynote):
+
+**DLSS 5 Off** (traditional rasterization + ray tracing):
+
+![DLSS 5 Off](images/dlss5_off.png)
+
+**DLSS 5 On** (Neural Rendering = 3D graphics + generative AI):
+
+![DLSS 5 On](images/dlss5_on.png)
+
+**Comparison Analysis**:
+
+| Dimension | DLSS 5 Off | DLSS 5 On |
+|:---|:---|:---|
+| **Skin texture** | Slightly "plasticky," pores and micro-surface detail not natural enough | More natural subsurface scattering, skin tone approaches photographic quality |
+| **Hair** | Strands appear rigid, specular highlight distribution unnatural | Softer, more natural, richer gloss and layering |
+| **Overall lighting** | Correct but has a noticeable "CG look" | Approaches cinematic photography quality, no longer looks like a "game" |
+| **Background atmosphere** | Buildings clear but lighting somewhat harsh | Rain fog and lights have more realistic "atmospheric depth" |
+| **Fundamental difference** | Deterministic output of 3D rendering | **Fusion of structured 3D data + probabilistic AI generation** |
+
+> **This is no longer just "super-resolution"** — DLSS 5's Neural Rendering fuses the precise control of traditional 3D graphics (geometry, physically correct lighting) with the "imagination" of generative AI (supplementing micro-details that traditional rendering cannot efficiently compute), transforming imagery from "good-looking CG" to "indistinguishable-from-photograph realism." As Jensen said at GTC 2026: *"We combined 3D graphics, structured data, with generative AI, probabilistic computing. One of them is completely predictive. The other one, probabilistic, yet highly realistic."*
 
 ---
 
