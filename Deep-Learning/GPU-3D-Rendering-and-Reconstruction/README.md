@@ -4,6 +4,8 @@
 >
 > **Core Thesis**: GPUs were born for 3D rendering; AI inference is the "accidental beneficiary." Understanding the design philosophy of rendering reveals why GPUs are naturally suited for AI.
 >
+> **Jensen Huang, GTC 2026**: *"Just as GeForce brought AI to the world, AI is now going to go back and revolutionize how computer graphics is done all together."* — GPUs were born for rendering, which gave birth to AI; AI is now revolutionizing rendering in return. This closed loop is the main thread of this article.
+>
 > **What Makes This Article Unique**: The author validates the deep connections between rendering techniques and AI inference using **real benchmark data** from LLM/Diffusion inference optimization work. It also provides from-scratch implementations of a software rasterizer and ray tracer, allowing direct visual comparison of the two rendering approaches.
 
 ---
@@ -252,6 +254,40 @@ A complete 5-step pipeline implemented from scratch in Python:
 
 *E1 experiment: 640×480 resolution, 12 vertices and 14 triangles projected onto the screen after 5 transformation steps*
 
+### Shaders: The Programmable Soul of the Rasterization Pipeline
+
+Two stages in the 5-step pipeline are **programmable** (Shaders); the rest are fixed-function hardware:
+
+```
+Vertex data → [Vertex Shader ✏️] → Transformed vertices
+                ↓
+        Fixed-function Rasterizer ⚙️ → Triangles become pixels (coverage test)
+                ↓
+        [Fragment Shader ✏️] → What color for each pixel
+                ↓
+           ROP ⚙️ → Z-Buffer + output to screen
+
+✏️ = Programmable (developer writes code)   ⚙️ = Fixed function (hardwired)
+```
+
+| Shader | Pipeline Stage | What It Does |
+|:---|:---|:---|
+| **Vertex Shader** | Very beginning | Coordinate transforms for each vertex (Model → World → Camera → Projection) |
+| **Fragment Shader** (= Pixel Shader) | After rasterization | What color for each pixel (lighting, textures, materials) |
+
+Before 2001, these two stages were also fixed-function — the hardware had hardcoded lighting and texture algorithms that developers couldn't change. NVIDIA introduced the programmable Pixel Shader in GeForce 3, letting developers write their own code for "how to shade this pixel" for the first time. Jensen Huang reflected on this moment at GTC 2026: *"A perfectly unobvious invention to make an accelerator programmable, the world's first programmable accelerator, the pixel shader."* (Source: GTC 2026 Keynote, 11:25)
+
+**This is the starting point of the entire causal chain**:
+
+```
+Rasterization needs Shaders → Shaders become programmable (2001)
+    → Vertex Shader + Fragment Shader unified into one programmable core (2006)
+    → This "unified programmable core" becomes the CUDA Core
+    → CUDA programming model is born
+    → AI researchers discover GPUs can accelerate deep learning
+    → The big bang of AI
+```
+
 ---
 
 ## 3. Two Rendering Paths: Rasterization vs Ray Tracing
@@ -484,15 +520,54 @@ Using Blender 3.0.1 on an Azure A10 VM to render the same scene:
 
 ## 4. GPU Architecture Evolution: From Rendering-Only Machine to General AI Accelerator
 
+> The following evolutionary narrative references Jensen Huang's GTC 2026 Keynote (Source: GTC 2026 Keynote transcript), combined with public product specifications.
+
+### Jensen's Four-Step Narrative
+
+At GTC 2026, Jensen told the story of how GPUs went from rendering to AI, and from AI back to rendering, in four steps:
+
+**Step 1: Programmable Shader (2001) → The GeForce Revolution**
+
+> *"25 years ago, we invented the programmable shader."* — 11:18
+> *"The pixel shader led to, of course, the revolution of GeForce."* — 12:22
+
+GPUs transformed from fixed-function rendering machines to programmable parallel processors. This seemed like merely a rendering improvement, but it gave GPUs the DNA of "general-purpose computing" for the first time.
+
+**Step 2: CUDA (2006) → The Big Bang of AI**
+
+> *"5 years later, the invention of CUDA."* — 11:37
+> *"GeForce brought CUDA to the world."* — 12:42
+> *"GeForce enabled Alex Krizshevsky and Ilya Sutskever and Jeff Hinton, Andrew Ng to discover that the GPU could be their friend in accelerating deep learning. It started the big bang of AI."* — 12:44
+
+Vertex Shader and Fragment Shader were unified into CUDA Cores (unified shader architecture), and the CUDA programming model was born. NVIDIA shipped CUDA on GeForce to every computer — the deep learning pioneers used these consumer GPUs to start the AI revolution.
+
+**Step 3: RTX = Programmable Shading + Hardware Ray Tracing + AI (2018)**
+
+> *"We decided that we would fuse programmable shading and introduce two new ideas. Ray tracing, hardware ray tracing."* — 13:02
+> *"Imagine, about 10 years ago, we thought that AI would revolutionize computer graphics."* — 13:17
+
+The RTX architecture added RT Cores (ray tracing acceleration) and Tensor Cores (AI inference acceleration) alongside CUDA Cores — **GPUs had dedicated hardware for both rendering and AI for the first time**.
+
+**Step 4: Neural Rendering = 3D Graphics + Generative AI Fusion (2026)**
+
+> *"Just as GeForce brought AI to the world, AI is now going to go back and revolutionize how computer graphics is done all together."* — 13:23
+> *"We call it Neural Rendering, the fusion of 3D graphics and artificial intelligence."* — 13:39
+
+DLSS 5 fuses controllable 3D graphics (structured data) with generative AI (probabilistic computing). Rendering evolves from "deterministic pixel computation" to "AI-assisted probabilistic generation." The rendering→AI→rendering loop is now complete.
+
+### Technical Timeline
+
 ```
 1990s   Fixed pipeline — Hardware could only perform predefined rendering steps (not programmable)
-2001    Programmable Shaders (GeForce 3) — Vertex/Pixel Shaders became programmable
-2006    Unified Shaders (GeForce 8) — CUDA born → GPGPU → the beginning of AI
+2001    Programmable Shaders (GeForce 3) — Vertex/Pixel Shaders became programmable → "GeForce revolution"
+2006    Unified Shaders (GeForce 8) — CUDA born → GPGPU → "the starting point of the AI big bang"
+2016    DGX-1 (Pascal) — World's first computer designed for deep learning
 2017    Tensor Core (Volta V100) — Matrix multiplication hardware acceleration → DL training explosion
-2018    RT Core (Turing RTX 20) — BVH + intersection hardware → real-time ray tracing
+2018    RT Core (Turing RTX 20) — BVH + intersection hardware → real-time ray tracing + DLSS 1.0
 2020    3rd gen Tensor Core (A100) — TF32/BF16/INT8, structured sparsity 2:4
-2022    4th gen Tensor Core (H100) — FP8, Transformer Engine
-2024    5th gen Tensor Core (B200) — FP4, Confidential Computing
+2022    4th gen Tensor Core (H100) — FP8, Transformer Engine → "launched the Generative AI era"
+2024    Blackwell (B200) — NVLink-72, FP4 → redefined AI supercomputing system architecture
+2026    Vera Rubin — 3.6 exaflops, 5x Blackwell → DLSS 5 / Neural Rendering
 ```
 
 **The most fundamental design pattern**: When an operation becomes a bottleneck and its pattern is fixed → **make it dedicated hardware**.
@@ -502,6 +577,7 @@ Using Blender 3.0.1 on an Azure A10 VM to render the same scene:
 | General CPU | CPU does all rendering | CPU does all ML | Flexible but slow |
 | Programmable GPU | CUDA Core runs Shaders | CUDA Core runs CUDA kernels | Parallel acceleration |
 | Dedicated ASIC | RT Core (BVH + intersection) | Tensor Core (matrix multiplication) | Bottleneck operation → dedicated hardware |
+| AI Fusion | Neural Rendering / DLSS 5 | LLM inference / Diffusion | Rendering × AI bidirectional fusion |
 
 ---
 
@@ -736,6 +812,32 @@ Rendering is 3D→2D (a deterministic process with a unique solution). 2D→3D i
 | **Generative 3D** | Text/image | Diffusion + multi-view reconstruction | Seconds to minutes |
 
 Source: Wikipedia [Neural Radiance Field](https://en.wikipedia.org/wiki/Neural_radiance_field) + [Gaussian Splatting](https://en.wikipedia.org/wiki/Gaussian_splatting)
+
+---
+
+## 9. Conclusion: From Pixel Shader to Neural Rendering — A Closed Loop
+
+Looking back at the entire article, GPU evolution is not linear but a **closed loop**:
+
+```
+Rendering ────────────────────→ AI ────────────────────→ Rendering
+ │                                │                         │
+ Pixel Shader (Ch2)               CUDA → Deep Learning (Ch4)   Neural Rendering (Ch6)
+ Rasterization (Ch3.1)            FlashAttention (Ch7.1)    DLSS 5 = 3D + GenAI
+ Ray Tracing (Ch3.2)              PagedAttention (Ch7.2)
+ RT Core (Ch5)                    Tensor Core (Ch5)
+```
+
+1. **Rendering gave birth to GPU programmability** (Chapter 2) — The rasterization pipeline needed flexible Shaders; Shaders became programmable cores; programmable cores were unified into CUDA Cores
+2. **CUDA Cores gave birth to AI** (Chapter 4) — GeForce brought CUDA to the world; deep learning pioneers used consumer GPUs to start the AI big bang
+3. **Rendering and AI face the same hardware constraints and independently invented the same solutions** (Chapter 7) — Tiling, on-demand allocation, coarse-then-fine, caching, dedicated hardware
+4. **AI is revolutionizing rendering in return** (Chapter 6) — DLSS uses Tensor Cores to run neural networks to recover ray tracing's performance loss; Neural Rendering fuses 3D graphics with generative AI
+
+Jensen Huang summarized this closed loop in one sentence at GTC 2026:
+
+> *"Just as GeForce brought AI to the world, AI is now going to go back and revolutionize how computer graphics is done all together."*
+
+**This is why understanding rendering = understanding AI inference.** They are not two separate fields, but two manifestations of the same engineering problem in different eras — sharing the same hardware, the same methodologies, and the same evolutionary path.
 
 ---
 

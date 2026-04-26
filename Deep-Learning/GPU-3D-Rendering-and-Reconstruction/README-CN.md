@@ -4,6 +4,8 @@
 >
 > **核心命题**: GPU 为 3D 渲染而生，AI 推理是"意外的受益者"。理解渲染的设计哲学，就理解了 GPU 为什么天生适合 AI。
 >
+> **Jensen Huang, GTC 2026**: *"Just as GeForce brought AI to the world, AI is now going to go back and revolutionize how computer graphics is done all together."* — GPU 因渲染而生，催生了 AI；AI 反过来革命性改变渲染。这个闭环就是本文的主线。
+>
 > **本文特色**: 用作者在 LLM/Diffusion 推理优化领域的**实测数据**验证渲染技术与 AI 推理的深层关联。同时提供从零实现的软件光栅化器和光线追踪器，可直观对比两种渲染方法的效果差异。
 
 ---
@@ -251,6 +253,40 @@ P = | f/aspect  0    0                        0                       |
 
 *E1 实验：640×480 分辨率，12 个顶点、14 个三角形经过 5 步变换后投影到屏幕上的位置*
 
+### Shader：光栅化管线中的可编程灵魂
+
+管线 5 步中有两个环节是**可编程的**（Shader），其余是固定功能硬件：
+
+```
+顶点数据 → [Vertex Shader ✏️] → 坐标变换后的顶点
+                ↓
+        固定功能 Rasterizer ⚙️ → 三角形变成像素（哪些像素被覆盖）
+                ↓
+        [Fragment Shader ✏️] → 每个像素涂什么颜色
+                ↓
+           ROP ⚙️ → Z-Buffer + 输出到屏幕
+
+✏️ = 可编程（开发者写代码）   ⚙️ = 固定功能（硬件写死）
+```
+
+| Shader | 在管线哪一步 | 干什么 |
+|:---|:---|:---|
+| **Vertex Shader** | 管线最前面 | 每个顶点的坐标变换（模型→世界→摄像机→投影） |
+| **Fragment Shader**（= Pixel Shader） | 光栅化之后 | 每个像素涂什么颜色（光照、纹理、材质） |
+
+2001 年之前，这两步也是固定功能 — 硬件写死了怎么算光照、怎么贴纹理，开发者没法改。NVIDIA 在 GeForce 3 中引入可编程 Pixel Shader，让开发者第一次可以自己写代码决定"这个像素怎么着色"。Jensen Huang 在 GTC 2026 中回顾这一刻：*"A perfectly unobvious invention to make an accelerator programmable, the world's first programmable accelerator, the pixel shader."*（来源：GTC 2026 Keynote, 11:25）
+
+**这是整个因果链的起点**：
+
+```
+光栅化需要 Shader → Shader 变成可编程 (2001)
+    → Vertex Shader + Fragment Shader 统一成同一种可编程核心 (2006)
+    → 这个"统一的可编程核心"就是 CUDA Core
+    → CUDA 编程模型诞生
+    → AI 研究者发现 GPU 可以加速深度学习
+    → AI 大爆炸
+```
+
 ---
 
 ## 3. 两条渲染路线：光栅化 vs 光线追踪
@@ -482,15 +518,54 @@ for each triangle in scene:
 
 ## 4. GPU 架构演进：从渲染专用机到 AI 通用加速器
 
+> 以下演进叙事参考 Jensen Huang GTC 2026 Keynote（来源：GTC 2026 Keynote 转录稿），结合公开产品规格整理。
+
+### Jensen 的四步叙事
+
+Jensen 在 GTC 2026 中用四步讲述了 GPU 如何从渲染走向 AI，又从 AI 回到渲染：
+
+**第一步：可编程 Shader（2001）→ GeForce 革命**
+
+> *"25 years ago, we invented the programmable shader."* — 11:18
+> *"The pixel shader led to, of course, the revolution of GeForce."* — 12:22
+
+GPU 从固定功能的渲染专用机变成可编程的并行处理器。这看似只是一个渲染技术改进，但它让 GPU 第一次有了"通用计算"的基因。
+
+**第二步：CUDA（2006）→ AI 大爆炸**
+
+> *"5 years later, the invention of CUDA."* — 11:37
+> *"GeForce brought CUDA to the world."* — 12:42
+> *"GeForce enabled Alex Krizshevsky and Ilya Sutskever and Jeff Hinton, Andrew Ng to discover that the GPU could be their friend in accelerating deep learning. It started the big bang of AI."* — 12:44
+
+Vertex Shader 和 Fragment Shader 统一为 CUDA Core（统一着色器架构），CUDA 编程模型诞生。NVIDIA 把 CUDA 搭载在 GeForce 上带到每台电脑 — 深度学习先驱们正是用这些消费级显卡开始了 AI 革命。
+
+**第三步：RTX = 可编程着色 + 硬件光追 + AI（2018）**
+
+> *"We decided that we would fuse programmable shading and introduce two new ideas. Ray tracing, hardware ray tracing."* — 13:02
+> *"Imagine, about 10 years ago, we thought that AI would revolutionize computer graphics."* — 13:17
+
+RTX 架构在 CUDA Core 之外加入了 RT Core（光追加速）和 Tensor Core（AI 推理加速），**GPU 第一次同时具备渲染和 AI 两种专用硬件**。
+
+**第四步：Neural Rendering = 3D 图形 + 生成式 AI 融合（2026）**
+
+> *"Just as GeForce brought AI to the world, AI is now going to go back and revolutionize how computer graphics is done all together."* — 13:23
+> *"We call it Neural Rendering, the fusion of 3D graphics and artificial intelligence."* — 13:39
+
+DLSS 5 将可控的 3D 图形（结构化数据）与生成式 AI（概率计算）融合，渲染从"确定性像素计算"进化为"AI 辅助的概率生成"。至此，渲染→AI→渲染的闭环完成。
+
+### 技术时间线
+
 ```
 1990s   固定管线 — 硬件只能做预定义的渲染步骤（不可编程）
-2001    可编程 Shader (GeForce 3) — Vertex/Pixel Shader 可编程
-2006    统一着色器 (GeForce 8) — CUDA 诞生 → GPGPU → AI 的起点
+2001    可编程 Shader (GeForce 3) — Vertex/Pixel Shader 可编程 → "GeForce 革命"
+2006    统一着色器 (GeForce 8) — CUDA 诞生 → GPGPU → "AI 大爆炸的起点"
+2016    DGX-1 (Pascal) — 世界首台为深度学习设计的计算机
 2017    Tensor Core (Volta V100) — 矩阵乘法硬件加速 → DL 训练爆发
-2018    RT Core (Turing RTX 20) — BVH+求交硬件 → 实时光追
+2018    RT Core (Turing RTX 20) — BVH+求交硬件 → 实时光追 + DLSS 1.0
 2020    3rd gen Tensor Core (A100) — TF32/BF16/INT8, 结构化稀疏 2:4
-2022    4th gen Tensor Core (H100) — FP8, Transformer Engine
-2024    5th gen Tensor Core (B200) — FP4, Confidential Computing
+2022    4th gen Tensor Core (H100) — FP8, Transformer Engine → "launched the Generative AI era"
+2024    Blackwell (B200) — NVLink-72, FP4 → 重定义 AI 超算系统架构
+2026    Vera Rubin — 3.6 exaflops, 5x Blackwell → DLSS 5 / Neural Rendering
 ```
 
 **最核心的设计模式**：当某个操作成为瓶颈且模式固定 → **做成专用硬件**。
@@ -500,6 +575,7 @@ for each triangle in scene:
 | 通用 CPU | CPU 做所有渲染 | CPU 做所有 ML | 灵活但慢 |
 | 可编程 GPU | CUDA Core 跑 Shader | CUDA Core 跑 CUDA kernel | 并行加速 |
 | 专用 ASIC | RT Core（BVH+求交） | Tensor Core（矩阵乘法） | 瓶颈操作 → 专用硬件 |
+| AI 融合 | Neural Rendering / DLSS 5 | LLM 推理 / Diffusion | 渲染×AI 双向融合 |
 
 ---
 
@@ -734,6 +810,32 @@ DLSS（Deep Learning Super Sampling，深度学习超级采样）— 名字直�
 | **生成式 3D** | 文字/图片 | Diffusion + 多视角重建 | 秒-分钟级 |
 
 来源：Wikipedia [Neural Radiance Field](https://en.wikipedia.org/wiki/Neural_radiance_field) + [Gaussian Splatting](https://en.wikipedia.org/wiki/Gaussian_splatting)
+
+---
+
+## 9. 结语：从 Pixel Shader 到 Neural Rendering — 一个闭环
+
+回顾全文，GPU 的演进不是线性的，而是一个**闭环**：
+
+```
+渲染 ──────────────────────→ AI ──────────────────────→ 渲染
+ │                             │                          │
+ Pixel Shader (Ch2)            CUDA → 深度学习 (Ch4)      Neural Rendering (Ch6)
+ 光栅化 (Ch3.1)                FlashAttention (Ch7.1)     DLSS 5 = 3D + GenAI
+ 光线追踪 (Ch3.2)              PagedAttention (Ch7.2)
+ RT Core (Ch5)                 Tensor Core (Ch5)
+```
+
+1. **渲染催生了 GPU 的可编程性**（第 2 章）— 光栅化管线需要灵活的 Shader，Shader 变成可编程核心，可编程核心统一为 CUDA Core
+2. **CUDA Core 催生了 AI**（第 4 章）— GeForce 把 CUDA 带到全世界，深度学习先驱用消费级显卡启动了 AI 大爆炸
+3. **渲染和 AI 面对同样的硬件约束，独立发明了同一套解法**（第 7 章）— 分块、按需分配、先粗后精、缓存、专用硬件
+4. **AI 反过来革命性改变渲染**（第 6 章）— DLSS 用 Tensor Core 跑神经网络补回光追的性能损失，Neural Rendering 将 3D 图形和生成式 AI 融合
+
+Jensen Huang 在 GTC 2026 用一句话总结了这个闭环：
+
+> *"Just as GeForce brought AI to the world, AI is now going to go back and revolutionize how computer graphics is done all together."*
+
+**这就是为什么理解渲染 = 理解 AI 推理。** 它们不是两个领域，而是同一个工程问题在不同时代的两种表现形式 — 共享同一套硬件、同一套方法论、同一条演进路线。
 
 ---
 
