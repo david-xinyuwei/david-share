@@ -6,6 +6,12 @@
 >
 > **Jensen Huang, GTC 2026**: *"Just as GeForce brought AI to the world, AI is now going to go back and revolutionize how computer graphics is done all together."* — GPU 因渲染而生，催生了 AI；AI 反过来革命性改变渲染。这个闭环就是本文的主线。
 >
+> **全文主线 — Jensen 的四步演进**：
+> ```
+> 可编程 Shader (2001) → CUDA Core (2006) → RTX: RT Core + Tensor Core (2018) → Neural Rendering / DLSS 5 (2026)
+>    光栅化的灵魂         AI 大爆炸的起点       光追硬件加速 + AI 推理硬件       3D 图形 × 生成式 AI 融合
+> ```
+>
 > **本文特色**: 用作者在 LLM/Diffusion 推理优化领域的**实测数据**验证渲染技术与 AI 推理的深层关联。同时提供从零实现的软件光栅化器和光线追踪器，可直观对比两种渲染方法的效果差异。
 
 ---

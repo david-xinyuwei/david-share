@@ -6,6 +6,13 @@
 >
 > **Jensen Huang, GTC 2026**: *"Just as GeForce brought AI to the world, AI is now going to go back and revolutionize how computer graphics is done all together."* — GPUs were born for rendering, which gave birth to AI; AI is now revolutionizing rendering in return. This closed loop is the main thread of this article.
 >
+> **Main Thread — Jensen's Four-Step Evolution**:
+> ```
+> Programmable Shader (2001) → CUDA Core (2006) → RTX: RT Core + Tensor Core (2018) → Neural Rendering / DLSS 5 (2026)
+>    Soul of rasterization       Starting point of        HW ray tracing accel +        3D graphics × generative
+>                                the AI big bang          AI inference hardware          AI fusion
+> ```
+>
 > **What Makes This Article Unique**: The author validates the deep connections between rendering techniques and AI inference using **real benchmark data** from LLM/Diffusion inference optimization work. It also provides from-scratch implementations of a software rasterizer and ray tracer, allowing direct visual comparison of the two rendering approaches.
 
 ---
