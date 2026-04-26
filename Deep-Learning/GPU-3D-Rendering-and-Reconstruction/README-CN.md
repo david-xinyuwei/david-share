@@ -46,9 +46,9 @@
 
 ---
 
-## 2. 图形管线（Graphics Pipeline）— 渲染流水线 5 步详解
+## 2. Graphics Pipeline 5 步详解
 
-> **“管线”是什么？** Pipeline 直译是“管道”，但它真正的意思是**工厂流水线**。和普通流程的区别是：流水线上**每一步可以同时干活** — 第 1 步处理三角形 5 的同时，第 2 步在处理三角形 4，第 3 步在处理三角形 3……就像汽车装配线上同时有很多车在不同工位。所以说“图形管线”不如说“**渲染流水线**”更直观。
+> **Pipeline 是什么？** 直译"管道/管线"，实际意思是**工厂流水线**。和普通流程的区别：流水线上**每一步可以同时干活** — 第 1 步处理三角形 5 的同时，第 2 步在处理三角形 4，第 3 步在处理三角形 3……就像汽车装配线上同时有很多车在不同工位。
 
 3D→2D 渲染的核心是 **5 次坐标变换**，每步是一次 4×4 矩阵乘法。
 
@@ -677,7 +677,7 @@ xvfb-run -a blender -b -P scripts/e4_blender_benchmark.py
 
 | 内容 | 来源 |
 |:---|:---|
-| 图形管线 | Wikipedia [Graphics Pipeline](https://en.wikipedia.org/wiki/Graphics_pipeline) |
+| Graphics Pipeline | Wikipedia [Graphics Pipeline](https://en.wikipedia.org/wiki/Graphics_pipeline) |
 | 光栅化算法 | [Scratchapixel](https://www.scratchapixel.com/lessons/3d-basic-rendering/rasterization-practical-implementation/overview-rasterization-algorithm.html) (CC BY-NC-ND 4.0) |
 | 光线追踪 | Wikipedia [Ray Tracing](https://en.wikipedia.org/wiki/Ray_tracing_(graphics)) |
 | 渲染总论 | Wikipedia [Rendering](https://en.wikipedia.org/wiki/Rendering_(computer_graphics)) |
