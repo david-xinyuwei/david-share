@@ -564,9 +564,33 @@ Source: NVIDIA official product specifications
 
 ### 6.1 What Is DLSS
 
-DLSS (Deep Learning Super Sampling) runs a **temporal feedback neural network** on Tensor Cores, upscaling low-resolution rendered frames to high resolution and optionally generating intermediate frames to boost frame rate.
+DLSS (Deep Learning Super Sampling) — the name says it all: use **Deep Learning** to do **Super Sampling** (upscaling). It runs a **temporal feedback neural network** on Tensor Cores, upscaling low-resolution rendered frames to high resolution and optionally generating intermediate frames to boost frame rate.
 
-**Core idea**: GPUs spend enormous time on "pixel filling" (rasterization/ray tracing). DLSS's strategy is — **render fewer pixels (e.g., only at 1080p), and use AI to fill them back in (upscale to 4K)**.
+**Plain English**: Drawing a 4K frame is too slow for the GPU (especially with ray tracing on), so DLSS's approach is — **only draw a 1080p image, and let AI fill in the 4K version.** It's like taking a blurry low-res photo, and the DLSS AI says: "Based on these pixel colors, what the last frame looked like, and where each pixel moved — I can guess what the high-res version should be."
+
+**Why is "ray tracing + DLSS" faster than "no ray tracing at all"?** The arithmetic:
+
+```
+No ray tracing: GPU rasterizes full 4K resolution               → e.g., 60fps
+
+Ray tracing but no DLSS: 4K rasterization + 4K ray tracing      → drops to 30fps (RT is expensive)
+
+Ray tracing + DLSS: only render 1080p raster + 1080p RT + AI upscale to 4K → 80fps
+                    ↑                                                        ↑
+                    only 1/4 of the pixels                     savings > RT cost
+```
+
+> DLSS lets the GPU render only 1/4 of the pixels (1080p = 1/4 of 4K pixel count). **The computation saved far exceeds what ray tracing consumes.** Net result: better image quality (physically correct reflections/shadows from ray tracing) and higher frame rate.
+
+**Roles of three Core types in DLSS**:
+
+| Core | Role in DLSS |
+|:---|:---|
+| **Tensor Core** | Run the super-resolution neural network (FP16 matrix multiply) — **the core of DLSS** |
+| CUDA Core | Data preprocessing (prepare motion vectors, assemble input tensors, etc.) |
+| RT Core | Unrelated to DLSS itself, but frequently used together (RT provides realistic lighting, DLSS recovers performance) |
+
+> This is why DLSS only works on RTX GPUs — only the RTX series has Tensor Cores. Older GPUs (GTX series) lack Tensor Cores and cannot run DLSS.
 
 ### 6.2 DLSS Generational Evolution
 
@@ -587,7 +611,7 @@ Input:
   - Previous frame's high-resolution result (e.g., 4K)
 
 Network: Temporal convolutional network, inference on Tensor Cores
-  - Latency requirement: <2ms/frame (games require 60fps = 16.6ms/frame, DLSS can only use a fraction)
+  - Latency requirement: games require 60fps = 16.6ms/frame, DLSS is just one pipeline step and must complete in a very short fraction of that
   - Precision: FP16 (natively supported by Tensor Cores)
 
 Output: High-resolution current frame (e.g., 4K)
@@ -599,11 +623,13 @@ Source: https://www.nvidia.com/en-us/geforce/technologies/dlss/ , https://develo
 
 | Dimension | Significance |
 |:---|:---|
-| **For Gaming** | Uses AI to recover the performance lost to ray tracing — enabling ray tracing + DLSS is faster than without ray tracing at all |
-| **For AI** | Proved that Tensor Cores can perform inference in **real-time applications** (hard <2ms constraint), not just training |
-| **For Hardware Design** | Drove the proliferation of Tensor Cores in consumer GPUs (starting from RTX 20 series) |
+| **For Gamers** | Ray tracing looks stunning but is too slow; DLSS lets you have both — more realistic image quality (with ray tracing) and higher frame rate. Without DLSS, ray tracing would be a beautiful feature nobody dares to enable |
+| **For the AI Industry** | DLSS is the first large-scale deployed AI inference application in the consumer space with hard real-time constraints — each frame's rendering budget is only ~16ms, and DLSS inference must complete in a small fraction, or the game stutters |
+| **For Hardware Design** | NVIDIA included Tensor Cores in the RTX 20 series, and DLSS gave consumer-grade Tensor Cores a killer application — every gamer who buys an RTX GPU uses Tensor Cores |
 
-> **DLSS and LLM inference use the same hardware**: Tensor Cores performing FP16 matrix multiplication. The only difference is latency requirements — DLSS needs <2ms, LLM inference typically tolerates tens to hundreds of milliseconds.
+> **DLSS and LLM inference use the same hardware**: Tensor Cores performing FP16 matrix multiplication. The difference is latency requirements — DLSS must complete in milliseconds (part of the real-time rendering pipeline), while LLM inference typically tolerates tens to hundreds of milliseconds.
+>
+> **DLSS is the first large-scale success story of rendering × AI fusion** — it proved that AI is not just an offline tool for training models, but can deliver tangible, visible value in real-time scenarios.
 
 ---
 
