@@ -57,6 +57,20 @@ This mirrors how human vision works: the real world is 3D, but the retina is a 2
 
 **Real-life example**: A 3-legged table never wobbles (3 points determine a plane); a 4-legged table often has one leg hovering (4 points may not be coplanar). If quadrilaterals were used as the primitive, the face would "twist and fold" when the 4 points aren't coplanar, resulting in incorrect rendering. Triangles don't have this problem — **that's why GPUs only process triangles**. A single game character can be composed of hundreds of thousands of triangles.
 
+**Every 3D object in the GPU is a triangle mesh**: The smooth spheres, human faces, and cars you see are all composed of thousands of tiny triangles inside the GPU — more triangles means a closer approximation to smooth:
+
+```
+What you see: a smooth sphere        What the GPU sees: thousands of triangles
+
+      ████                                ╱╲╱╲
+    ████████                             ╱╲╱╲╱╲
+   ██████████                           ╱╲╱╲╱╲╱╲
+    ████████                             ╲╱╲╱╲╱╲
+      ████                                ╲╱╲╱
+```
+
+> **Triangles are the computer's approximation of the physical world, not physical reality.** Real object surfaces are continuously smooth, but computers can only store discrete numbers, so they must use enough small triangles to "approximate" continuous surfaces. Why triangles? ① Any curved surface can be approximated by enough triangles to be indistinguishable to the naked eye ② The math for ray-triangle intersection is simple ③ GPU hardware has been optimized for triangle processing for 30 years. If better surface representations with hardware support emerge in the future (e.g., NURBS mathematical surfaces, Voxels, 3D Gaussian Splatting), triangles could be replaced — but they remain the industry standard today.
+
 ---
 
 ## 2. Graphics Pipeline: 5 Steps in Detail
@@ -327,9 +341,33 @@ for each triangle in scene:
 
 > **Analogy: Rasterization is like "a projector casting a slide onto a screen" (from object to screen); ray tracing is like "shooting a laser pointer from your eye to see what it hits" (from screen to object).**
 
+**Why shoot rays in reverse, from the eye outward?** In reality, light travels from the light source → bounces off objects → eventually enters your eye. But if you simulated all rays emitted from the light source, 99.99% would never reach the eye — totally wasted computation. By reversing the direction and shooting from the eye, **every ray corresponds to exactly one pixel on screen**, with zero waste.
+
 **Why do we need ray tracing?** Because rasterization's lighting is "faked" (using various approximation algorithms), while ray tracing simulates the real physical behavior of light (reflection, refraction, shadows), producing more realistic results. The cost is 1-2 orders of magnitude slower.
 
 **Principle**: Shoot rays from the camera pixel-by-pixel → find nearest intersection → compute lighting + **shadow rays** (shoot a ray from the intersection toward the light source; if something blocks it, it's in shadow; if not, it's illuminated) + **reflection rays** (when a ray hits a mirror surface, it bounces and continues tracing — this is why you can see things in mirrors).
+
+**Complete tracing path of a single ray**:
+
+```
+Camera (your eye)
+  │
+  │ ① Primary ray: shot from eye, finds the first object hit (e.g., a mirror)
+  ▼
+Mirror surface (intersection point A)
+  │
+  ├─ ② Shadow ray: from point A toward the light source
+  │     → Is something blocking the path? Yes = shadow, No = illuminated
+  │
+  ├─ ③ Reflection ray: bounces off mirror, continues flying → hits a red sphere (point B)
+  │     │
+  │     ├─ Shadow ray: from point B toward light source...
+  │     └─ Reflection ray: continues bouncing... (recursive, until max depth)
+  │
+  └─ ④ Refraction ray (if glass): passes through the surface and continues...
+```
+
+> **Every single ray** (primary, reflection, shadow, refraction) needs to answer the same question: **when this ray flies out, which triangle does it hit first?** A scene contains millions of triangles, but a ray only hits the nearest one. One primary ray per pixel means 2 million rays for a 1920×1080 screen, and each may bounce multiple times — this is why ray tracing is slow, and why RT Core hardware acceleration is needed.
 
 **Ray-Sphere Intersection** (solving a quadratic equation, Source: Wikipedia [Ray Tracing](https://en.wikipedia.org/wiki/Ray_tracing_(graphics))):
 
@@ -347,6 +385,15 @@ for each triangle in scene:
 - **CUDA Core (programmable)**: Runs lighting computation Shaders (Lambert/Phong/PBR)
 
 > **RT Core does exactly one thing**: quickly find the intersection between a ray and triangles. Lighting, shadow, and reflection logic is still handled by Shaders on CUDA Cores. RT Core is an ASIC that accelerates the bottleneck operation.
+
+**RT Core accelerates "finding," not "computing"**:
+
+| Step | Who Does It | Why |
+|:---|:---|:---|
+| When this ray flies out, which triangle does it hit? | **RT Core** (fixed function) | Fixed pattern, millions of times per frame → dedicated hardware is tens of times faster |
+| After hitting, what color to compute, which direction to reflect/refract? | **CUDA Core** (programmable) | Logic is flexible, different materials have different shading algorithms |
+
+> Whether the ray is a primary ray from the eye, a reflection ray bouncing off a mirror, or a shadow ray probing toward a light source — **any ray that needs to find an intersection goes to RT Core.** Faster intersection finding means faster overall ray tracing.
 
 **E2 Ray Tracing Showcase Scene** (reflection + shadows + multiple lights):
 
