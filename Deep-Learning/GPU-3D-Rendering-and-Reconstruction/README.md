@@ -21,6 +21,8 @@
 > ```
 > Driving force at each step: ①Too rigid → ②Programmable but split → ③Unified → CUDA → AI big bang → ④AI needs dedicated HW → ⑤AI gives back to rendering
 >
+> ![GPU Five-Step Evolution & Rendering↔AI Closed Loop](images/gpu_evolution_loop.png)
+>
 > **What Makes This Article Unique**: The author validates the deep connections between rendering techniques and AI inference using **real benchmark data** from LLM/Diffusion inference optimization work. It also provides from-scratch implementations of a software rasterizer and ray tracer, allowing direct visual comparison of the two rendering approaches.
 
 ---
