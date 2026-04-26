@@ -408,13 +408,7 @@ for each triangle in scene:
 
 *EEVEE：金属球近乎黑色是因为 Metallic=1.0 但 EEVEE 的 Screen-Space Reflection 只能反射屏幕内可见的物体*
 
-**Cycles 渲染结果**（光追）：
-
-![E4 Cycles](images/e4_cycles_640.png)
-
-*Cycles：headless Blender 3.0 的色彩管理问题导致输出偏暗（"Filmic" view transform 未找到）— 这是无完整显示环境下 CLI 渲染的已知限制*
-
-> **Azure vGPU 发现**: A10-24Q 是虚拟化 GPU，nvidia-smi 显示 GPU 利用率 0% — Blender Cycles 无法识别 vGPU 为 CUDA 渲染设备，完全回退到 CPU。这说明 **vGPU 和物理 GPU 在图形渲染兼容性上有显著差异**。
+> **Azure vGPU 发现**: A10-24Q 是虚拟化 GPU，nvidia-smi 显示 GPU 利用率 0% — Blender Cycles 无法识别 vGPU 为 CUDA 渲染设备，完全回退到 CPU。Cycles headless 模式还存在色彩管理问题（"Filmic" view transform 未找到），导致输出全黑。这说明 **vGPU 和物理 GPU 在图形渲染兼容性上有显著差异**。
 
 ---
 
