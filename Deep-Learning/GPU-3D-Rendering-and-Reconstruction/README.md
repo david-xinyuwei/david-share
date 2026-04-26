@@ -6,12 +6,20 @@
 >
 > **Jensen Huang, GTC 2026**: *"Just as GeForce brought AI to the world, AI is now going to go back and revolutionize how computer graphics is done all together."* — GPUs were born for rendering, which gave birth to AI; AI is now revolutionizing rendering in return. This closed loop is the main thread of this article.
 >
-> **Main Thread — Jensen's Four-Step Evolution**:
+> **Main Thread — Five-Step GPU Evolution & Rendering↔AI Closed Loop**:
 > ```
-> Programmable Shader (2001) → CUDA Core (2006) → RTX: RT Core + Tensor Core (2018) → Neural Rendering / DLSS 5 (2026)
->    Soul of rasterization       Starting point of        HW ray tracing accel +        3D graphics × generative
->                                the AI big bang          AI inference hardware          AI fusion
+> ①Fixed Pipeline (1995)  →  ②Programmable Shader (2001)  →  ③Unified into CUDA Core (2006)
+>   Every step hardwired       Developers can finally write     Vertex/Pixel Shader merged
+>   Can't change, only tweak   code to decide pixel shading     into one general programmable core
+>                                                                         │
+>                    ┌────────────────────────────────────────────────────┘
+>                    ▼
+>   ④ RTX: RT Core + Tensor Core (2018)  →  ⑤ Neural Rendering / DLSS 5 (2026)
+>     Ray tracing accel (RT Core) +           3D graphics × generative AI fusion
+>     AI inference (Tensor Core)              AI revolutionizes rendering back ──→ loop 🔄
+>     GPU has rendering + AI dedicated HW for the first time
 > ```
+> Driving force at each step: ①Too rigid → ②Programmable but split → ③Unified → CUDA → AI big bang → ④AI needs dedicated HW → ⑤AI gives back to rendering
 >
 > **What Makes This Article Unique**: The author validates the deep connections between rendering techniques and AI inference using **real benchmark data** from LLM/Diffusion inference optimization work. It also provides from-scratch implementations of a software rasterizer and ray tracer, allowing direct visual comparison of the two rendering approaches.
 
