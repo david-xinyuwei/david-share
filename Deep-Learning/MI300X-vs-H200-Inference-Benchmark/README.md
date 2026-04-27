@@ -289,6 +289,13 @@ This is exactly the scenario for:
 | 5 | SGLang H200 Benchmarking | https://github.com/sgl-project/sglang/issues/2450 | Community |
 | 6 | Verda/DataCrunch DeepSeek-R1 on H200 | https://verda.com/blog/deploy-deepseek-r1-on-8x-nvidia-h200 | Cloud provider |
 
+## Related Repos (Our Hands-on Tests on MI300X)
+
+| Repo | Description |
+|:---|:---|
+| [Azure-AMD-MI300X-Guide](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/Azure-AMD-MI300X-Guide) | Deployment, benchmarking, and fine-tuning guide for Azure ND MI300X v5. Covers DeepSeek-R1 671B (SGLang), Qwen3-235B-A22B (vLLM), Qwen 2.5 72B, Qwen 2.5 VL 7B, Llama 4, with real benchmark data on MI300X. |
+| [AMD-GPU-SFT-Inference](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/AMD-GPU-SFT-Inference) | SFT training and inference on AMD Instinct GPUs. (Merged into unified project) |
+
 ---
 
 *Running on Azure. Author: Xinyu Wei (魏新宇), Microsoft AI GBB.*

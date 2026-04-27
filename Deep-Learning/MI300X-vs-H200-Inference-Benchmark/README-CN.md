@@ -263,6 +263,13 @@ H100:   8 × 80GB  =   640 GB
 | 5 | SGLang H200 Benchmarking | https://github.com/sgl-project/sglang/issues/2450 | 社区 |
 | 6 | Verda/DataCrunch DeepSeek-R1 | https://verda.com/blog/deploy-deepseek-r1-on-8x-nvidia-h200 | 云供应商 |
 
+## 相关 Repo（我们在 MI300X 上的实测）
+
+| Repo | 说明 |
+|:---|:---|
+| [Azure-AMD-MI300X-Guide](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/Azure-AMD-MI300X-Guide) | Azure ND MI300X v5 部署/Benchmark/微调指南。覆盖 DeepSeek-R1 671B (SGLang)、Qwen3-235B-A22B (vLLM)、Qwen 2.5 72B、Llama 4，含 MI300X 实测数据。 |
+| [AMD-GPU-SFT-Inference](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/AMD-GPU-SFT-Inference) | AMD Instinct GPU 上的 SFT 训练和推理。（已合并到统一项目） |
+
 ---
 
 *Running on Azure. 作者：魏新宇 (Xinyu Wei)，Microsoft AI GBB.*
