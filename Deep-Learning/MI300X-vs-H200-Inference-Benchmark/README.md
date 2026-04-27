@@ -10,11 +10,10 @@
 
 ## TL;DR
 
-- **For dense models (Llama 8B–405B)**, H200 wins across the board: **+31% to +64%** throughput over MI300X.
-- **For large MoE models (DeepSeek-R1 671B)**, MI300X can match or slightly beat H200 on online throughput (+10%), thanks to its **192GB HBM3** (vs H200's 141GB).
-- **MI300X's sweet spot**: trillion-parameter MoE models with long context, where memory capacity is the binding constraint.
-- **H200's advantage**: superior CUDA ecosystem, TensorRT-LLM optimization, NVLink bandwidth, and FP8 GEMM efficiency.
-- **Bottom line**: GPU selection should be workload-driven, not brand-driven. This repo provides the data to make that decision.
+- **Dense models (Llama 8B–405B)**: H200 outperforms MI300X by **+24% to +39%** in throughput (Azure vLLM FP8 benchmark). The gap comes primarily from software maturity (CUDA ecosystem) and collective communication efficiency (NCCL), not from hardware limitations.
+- **Large MoE models (DeepSeek-R1 671B)**: MI300X achieves **+10% higher online throughput** than H200 in a third-party benchmark (dstack, vLLM vs TRT-LLM). MI300X's 192GB HBM3 provides critical headroom for 671B-class models.
+- **Hardware vs software gap**: MI300X leads on HBM capacity (+36%), HBM bandwidth (+10%), and theoretical FLOPS (+32%). The performance gap on dense models is largely attributable to software optimization differences (ROCm vs CUDA), which are narrowing over time.
+- **Workload determines the right choice**: memory-bound workloads (large MoE, long context) favor MI300X; compute-bound workloads (dense models, short context) favor H200.
 
 ---
 
@@ -75,13 +74,19 @@
 
 ### Analysis
 
-**H200 dominates dense models by +24% to +39%** despite MI300X having higher theoretical specs. Why?
+H200 outperforms MI300X on dense models by **+24% to +39%** across all configurations tested, despite MI300X having higher theoretical specs. The gap has both hardware and software components:
 
-1. **NCCL vs RCCL**: H200 AllReduce at 8GB reaches **481 GB/s** vs MI300X's 317 GB/s — a **52% gap** in multi-GPU communication. TP=8 amplifies this.
-2. **FP8 GEMM efficiency**: CuBLAS FP8 GEMM (4096×4096) delivers 1,249 TFLOPS on H200 vs 1,085 TFLOPS on MI300X — H200 converts more theoretical FLOPS into real throughput.
-3. **Software maturity**: CUDA + cuBLAS + FlashAttention optimizations have years of head start over ROCm + hipBLAS.
+**Hardware factors** (inherent to the platform):
+1. **Collective communication**: NCCL AllReduce at 8GB reaches **481 GB/s** on H200 vs RCCL's 317 GB/s on MI300X — a **52% gap**. With TP=8, every forward pass requires AllReduce across 8 GPUs, making this a significant throughput bottleneck for MI300X.
+2. **FP8 GEMM realized efficiency**: CuBLAS FP8 GEMM (4096×4096) delivers 1,249 TFLOPS on H200 vs hipBLAS's 1,085 TFLOPS on MI300X. MI300X has higher peak FP8 TFLOPS (2,610 vs 1,979), but achieves lower utilization — 47.8% vs 63.1% of theoretical peak at this size.
 
-**Exception**: MI300X beats H100 (not H200) on 405B with long output (128/2048: +14%), because the 405B model at FP8 nearly fills H100's 80GB but sits comfortably in MI300X's 192GB.
+**Software factors** (subject to improvement over time):
+3. **Kernel optimization maturity**: CUDA + cuBLAS + FlashAttention have years of optimization for NVIDIA hardware. ROCm + hipBLAS + Composable Kernel are improving rapidly — AMD demonstrated a **4× improvement** in DeepSeek-R1 throughput within just two weeks of optimization on SGLang (Source: AMD ROCm Blog).
+4. **Software version gap in Azure data**: The MI300X results were last updated ~1 year ago (ROCm 6.8.5), while H200 results were updated ~5 months ago. This version gap likely accounts for a portion of the measured difference.
+
+> **Important context**: The performance gap on dense models is a combination of hardware architecture differences and software maturity differences. The software component is narrowing as ROCm matures. Teams evaluating MI300X should benchmark with the latest ROCm and vLLM/SGLang versions, as results may differ significantly from older published data.
+
+**Notable exception**: MI300X outperforms H100 (not H200) on 405B with long output (128/2048: +14%), because the 405B model at FP8 approaches H100's 80GB capacity limit while MI300X's 192GB provides ample headroom.
 
 ---
 
@@ -111,14 +116,16 @@
 | **TPOT** | Theoretically better | Similar in practice | Tie — ROCm gap offsets HBM advantage |
 | **TTFT vs output length** | **Stable** | vLLM/TRT-LLM spike | MI300X — more headroom for KV cache |
 
-### Why MI300X Competes on MoE
+### Why MI300X Is Competitive on MoE
 
-DeepSeek-R1 671B is **the perfect workload for MI300X**:
+DeepSeek-R1 671B has characteristics that align with MI300X's hardware strengths:
 
-1. **Memory capacity is the bottleneck**: 671B parameters in FP8 = ~640GB. 8×MI300X = 1,536GB total vs 8×H200 = 1,128GB. The extra 400GB allows larger batches and more KV cache.
-2. **256 expert weights**: MoE models load different expert weights per token per layer. More HBM = less weight swapping.
-3. **Long chain-of-thought**: Reasoning models generate thousands of thinking tokens. More HBM bandwidth = faster decode.
-4. **Diminished NVLink advantage**: MoE expert routing is less AllReduce-heavy than dense TP — MI300X's xGMI gap matters less.
+1. **Memory capacity as the binding constraint**: 671B parameters in FP8 require ~640GB for weights alone. 8×MI300X provides 1,536GB total vs 8×H200's 1,128GB. The additional 408GB enables larger batch sizes and more KV cache entries before memory pressure forces eviction or reduces concurrency.
+2. **Expert weight access pattern**: MoE models activate different expert subsets per token per layer, creating a memory-bandwidth-intensive access pattern. MI300X's 5.3 TB/s HBM bandwidth provides a 10% advantage over H200's 4.8 TB/s for these random-access weight loads.
+3. **Long output generation**: Reasoning models produce extended chain-of-thought sequences (often 2,000+ tokens). The decode phase is memory-bandwidth-bound, where MI300X's HBM advantage directly translates to lower per-token latency.
+4. **Reduced collective communication dependency**: MoE expert routing uses All-to-All communication patterns rather than AllReduce. The 52% NCCL vs RCCL gap measured on AllReduce has a smaller impact on MoE workloads.
+
+> **Caveat**: The dstack benchmark compared MI300X (vLLM) against H200 (TRT-LLM). TRT-LLM is not available on MI300X. If both platforms used the same engine, the comparison would be more controlled. The +10% throughput advantage should be interpreted with this asymmetry in mind.
 
 ---
 
@@ -158,11 +165,11 @@ AMD's internal benchmarks (using vLLM for MI300X, TRT-LLM for H100) on Llama 3.1
 | | TTFT (prefill) | 0.76× (slower) |
 
 **Key observations**:
-- MI300X's **1.5-1.6× TPOT advantage** (decode phase) comes directly from HBM bandwidth superiority
-- MI300X's **0.76-0.81× TTFT disadvantage** (prefill phase) comes from lower effective GEMM throughput
-- **E2E MI300X wins** because most real-world inference is decode-dominant (output tokens >> input tokens)
+- MI300X shows a **1.5-1.6× TPOT advantage** (decode phase), consistent with its HBM bandwidth lead
+- MI300X shows a **0.76-0.81× TTFT disadvantage** (prefill phase), consistent with lower realized GEMM throughput
+- **E2E latency favors MI300X** in AMD's tests, because these configurations use input/output ratios where decode time dominates total latency. For workloads with very long inputs and short outputs (e.g., summarization), the TTFT disadvantage would weigh more heavily.
 
-> **⚠️ Fairness note**: AMD used vLLM for MI300X but TRT-LLM for H100. TRT-LLM is generally faster than vLLM on NVIDIA hardware. If H100 also used vLLM, the MI300X advantage would likely be larger. If MI300X had a TRT-LLM equivalent, results might differ.
+> **⚠️ Fairness note**: These are AMD-published numbers using vLLM for MI300X vs TRT-LLM for H100. TRT-LLM is typically faster than vLLM on NVIDIA hardware, so H100's comparison baseline is actually *stronger* than if both used vLLM. However, the comparison is still asymmetric — MI300X does not have a TRT-LLM equivalent. Readers should treat these as directional indicators rather than exact ratios.
 
 **Additional benchmarks from AMD**:
 - Mixtral (MoE): MI300X **1.41×** throughput vs H100
@@ -259,15 +266,15 @@ This is exactly the scenario for:
 
 ## Conclusion
 
-1. **No single GPU wins everything.** H200 dominates dense models; MI300X has an edge on memory-hungry MoE models. The right choice depends on your workload.
+1. **Performance is workload-dependent, not GPU-dependent.** H200 outperforms MI300X on dense models (+24-39%); MI300X is competitive on large MoE models (+10% on DeepSeek-R1 671B online serving). The right choice requires profiling your specific model, input/output distribution, and concurrency requirements.
 
-2. **MI300X's 192GB HBM is a genuine differentiator** for trillion-parameter MoE models with long context. This advantage grows as models get larger and context windows expand.
+2. **MI300X's 192GB HBM addresses a real constraint** for 600B+ parameter MoE models with long context. When total weights + KV cache approach the memory limit, the additional 36% capacity directly enables higher concurrency and larger batches.
 
-3. **H200's software ecosystem advantage is real but narrowing.** TRT-LLM and FlashAttention 3 are H200-exclusive. But PyTorch, Triton, vLLM, and SGLang all work on both platforms.
+3. **The measured performance gap on dense models has both hardware and software components.** Hardware factors (NCCL bandwidth, GEMM utilization) are inherent; software factors (ROCm optimization maturity) are improving. Teams should benchmark with the latest software stack rather than relying on published numbers that may be 6-12 months old.
 
-4. **For MoE models at scale** (DeepSeek-R1, trillion-parameter models), MI300X offers **competitive performance at lower cost per token** — the most important metric for production inference.
+4. **Cost-performance analysis is model-specific.** On DeepSeek-R1 671B, MI300X shows 46% better tok/s/\$ at Azure list prices. On Llama 70B, H200 would show better cost-performance despite higher per-GPU cost. There is no universal cost-performance winner.
 
-5. **The future favors MI300X's memory-first approach**: as models trend toward larger MoE architectures with longer contexts, memory capacity becomes increasingly critical.
+5. **Both platforms carry risks.** MI300X risks: ROCm ecosystem gaps (no TRT-LLM, prefix caching WiP, smaller community). H200 risks: memory capacity ceiling for next-generation trillion-parameter models, higher unit cost. A thorough POC on the target workload is the only reliable way to make the decision.
 
 ---
 

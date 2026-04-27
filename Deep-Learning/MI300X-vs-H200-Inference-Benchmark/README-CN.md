@@ -10,11 +10,10 @@
 
 ## 一句话结论
 
-- **Dense 模型（Llama 8B-405B）**：H200 全面领先，吞吐量高 **31%-64%**。
-- **大规模 MoE 模型（DeepSeek-R1 671B）**：MI300X 在线推理吞吐量反超 H200 **+10%**，得益于 **192GB HBM3** 显存优势。
-- **MI300X 的最佳战场**：万亿参数 MoE 模型 + 长上下文推理，显存容量是决定性约束。
-- **H200 的核心优势**：CUDA 生态成熟度、TensorRT-LLM 优化、NVLink 带宽、FP8 GEMM 效率。
-- **结论**：GPU 选型应该由工作负载驱动，而非品牌驱动。本 Repo 提供数据支撑决策。
+- **Dense 模型（Llama 8B-405B）**：H200 吐量领先 MI300X **+24% 到 +39%**（Azure vLLM FP8 测试）。差距主要来自软件成熟度（CUDA 生态）和集合通信效率（NCCL），而非硬件局限。
+- **大规模 MoE 模型（DeepSeek-R1 671B）**：MI300X 在线推理吞吐量 **高出 H200 10%**（dstack 第三方测试，vLLM vs TRT-LLM）。MI300X 的 192GB HBM3 为 671B 级别模型提供了关键的显存余量。
+- **硬件 vs 软件差距**：MI300X 在 HBM 容量（+36%）、HBM 带宽（+10%）、理论 FLOPS（+32%）上均领先。Dense 模型上的性能差距主要归因于软件优化差异（ROCm vs CUDA），该差距正在缩小。
+- **工作负载决定正确选择**：显存密集型工作负载（大 MoE、长上下文）适合 MI300X；计算密集型工作负载（Dense 模型、短上下文）适合 H200。
 
 ---
 
@@ -67,13 +66,19 @@
 
 ### 分析
 
-尽管 MI300X 理论规格全面领先，**H200 在 dense 模型上仍以 +24% 到 +39% 的优势碾压**。原因：
+尽管 MI300X 理论规格全面领先，**H200 在 dense 模型上仍以 +24% 到 +39% 的优势领先**。该差距同时包含硬件和软件因素：
 
-1. **NCCL vs RCCL**：8GB AllReduce 带宽 H200 **481 GB/s** vs MI300X 317 GB/s — **差距 52%**，TP=8 下多卡通信被放大。
-2. **FP8 GEMM 实际效率**：CuBLAS FP8 GEMM (4096×4096) H200 达 1,249 TFLOPS vs MI300X 1,085 TFLOPS — 理论 FLOPS 高不等于实际 GEMM 快。
-3. **软件成熟度**：CUDA + cuBLAS + FlashAttention 多年积累的优化深度远超 ROCm。
+**硬件因素**（平台固有）：
+1. **集合通信**：8GB AllReduce 带宽 H200 **481 GB/s** vs MI300X 317 GB/s — **差距 52%**。TP=8 时每次前向传播都需要 AllReduce，这是 MI300X 的显著吞吐量瓶颈。
+2. **FP8 GEMM 实际效率**：CuBLAS FP8 GEMM (4096×4096) H200 达 1,249 TFLOPS vs hipBLAS MI300X 1,085 TFLOPS。MI300X 理论 FP8 更高（2,610 vs 1,979 TFLOPS），但利用率更低 — 47.8% vs 63.1%。
 
-**例外**：MI300X 在 405B 长输出（128/2048）场景下**反超 H100 14%** — 因为 405B FP8 接近 H100 80GB 显存上限，而 MI300X 192GB 游刃有余。
+**软件因素**（可随时间改善）：
+3. **Kernel 优化成熟度**：CUDA + cuBLAS + FlashAttention 对 NVIDIA 硬件有多年优化积累。ROCm + hipBLAS + Composable Kernel 正在快速进步 — AMD 在 SGLang 上仅用两周就实现了 DeepSeek-R1 **4× 性能提升**（来源：AMD ROCm Blog）。
+4. **Azure 数据的软件版本差异**：MI300X 结果更新于约 1 年前（ROCm 6.8.5），H200 结果更新于约 5 个月前。这个版本差距可能占实测差异的一部分。
+
+> **重要背景**：Dense 模型上的性能差距是硬件架构差异和软件成熟度差异的综合结果。软件部分正在随 ROCm 成熟而缩小。评估 MI300X 的团队应使用最新的 ROCm 和 vLLM/SGLang 版本进行实测，因为结果可能与较早发布的数据有显著差异。
+
+**例外**：MI300X 在 405B 长输出场景（128/2048）下超越 H100（非 H200）**14%** — 因为 405B FP8 接近 H100 80GB 显存上限，而 MI300X 192GB 游刃有余。
 
 ---
 
@@ -105,12 +110,14 @@
 
 ### MI300X 在 MoE 上有竞争力的原因
 
-DeepSeek-R1 671B 是 MI300X 最有利的战场：
+DeepSeek-R1 671B 的工作负载特征与 MI300X 的硬件优势高度匹配：
 
-1. **显存容量是瓶颈**：671B FP8 ≈ 640GB 权重。8×MI300X = 1,536GB vs 8×H200 = 1,128GB，多出 400GB 可用于更大 batch 和更多 KV cache。
-2. **256 个 expert 权重**：MoE 每层每 token 加载不同 expert 权重。更多 HBM = 更少权重换入换出。
-3. **长链式推理**：Reasoning 模型生成数千 thinking tokens。更高 HBM 带宽 = 更快 decode。
-4. **NVLink 优势减弱**：MoE expert routing 不像 dense TP 那么依赖 AllReduce，MI300X 的 xGMI 差距影响更小。
+1. **显存容量是约束条件**：671B FP8 仅权重就需 ~640GB。8×MI300X 提供 1,536GB vs 8×H200 1,128GB，多出的 408GB 可用于更大 batch 和更多 KV cache 条目。
+2. **Expert 权重访问模式**：MoE 每层每 token 激活不同的 expert 子集，产生显存带宽密集型的随机访问。MI300X 5.3 TB/s HBM 带宽比 H200 4.8 TB/s 高 10%。
+3. **长输出生成**：Reasoning 模型生成较长的链式推理序列（常超 2000 tokens）。Decode 阶段受显存带宽约束，MI300X 的 HBM 优势直接降低每 token 延迟。
+4. **集合通信依赖减少**：MoE expert routing 使用 All-to-All 通信模式而非 AllReduce。AllReduce 上测量的 NCCL vs RCCL 52% 差距对 MoE 工作负载影响较小。
+
+> **注意**：dstack benchmark 对比的是 MI300X（vLLM）vs H200（TRT-LLM）。TRT-LLM 在 MI300X 上不可用。如果两个平台使用相同引擎，对比会更可控。+10% 的吞吐量优势应在考虑这个不对称性的前提下理解。
 
 ---
 
@@ -150,7 +157,12 @@ AMD 内部测试（MI300X 用 vLLM，H100 用 TRT-LLM）Llama 3.1 结果：
 
 **其他模型**：Mixtral（MoE）MI300X **1.41×**、Mistral 7B **1.27×**、SDXL（diffusion）**持平**。
 
-> ⚠️ 公平性说明：AMD 用 vLLM（MI300X）vs TRT-LLM（H100），TRT-LLM 通常比 vLLM 在 NVIDIA 硬件上更快。如果 H100 也用 vLLM，MI300X 优势可能更大。
+**关键观察**：
+- MI300X **TPOT 优势 1.5-1.6×**（decode 阶段），与其 HBM 带宽领先一致
+- MI300X **TTFT 劣势 0.76-0.81×**（prefill 阶段），与其较低的实际 GEMM 吞吐量一致
+- **E2E 延迟在 AMD 测试中对 MI300X 有利**，因为这些配置的输入/输出比例中 decode 时间占总延迟的主要部分。对于输入很长但输出很短的工作负载（如摘要），TTFT 劣势会占更大比重。
+
+> ⚠️ **公平性说明**：这些是 AMD 发布的数据，使用 vLLM（MI300X）vs TRT-LLM（H100）。TRT-LLM 在 NVIDIA 硬件上通常比 vLLM 更快，所以 H100 的对比基线实际上是*更强的*。但对比仍然是不对称的 — MI300X 没有 TRT-LLM 等价物。读者应将这些数据视为方向性指标而非精确比例。
 
 ---
 
@@ -228,11 +240,15 @@ H100:   8 × 80GB  =   640 GB
 
 ## 结论
 
-1. **没有一款 GPU 通吃所有场景。** H200 碾压 dense 模型；MI300X 在显存密集型 MoE 模型上有优势。
-2. **MI300X 的 192GB HBM 是万亿参数 MoE 长上下文推理的真正差异化优势**。
-3. **H200 的软件生态优势真实存在但在缩小。** TRT-LLM 和 FA3 是 H200 独占。但 PyTorch/Triton/vLLM/SGLang 两边都能跑。
-4. **对于大规模 MoE 推理**，MI300X 提供**有竞争力的性能和更低的单 token 成本** — 生产推理最重要的指标。
-5. **未来趋势有利于 MI300X 的 memory-first 路线**：模型越来越大、MoE 架构越来越主流、上下文窗口越来越长 — 显存容量的重要性持续上升。
+1. **性能取决于工作负载，而非 GPU 本身。** H200 在 dense 模型上领先（+24-39%）；MI300X 在大 MoE 模型上有竞争力（DeepSeek-R1 671B 在线推理 +10%）。正确选择需要针对具体模型、输入/输出分布和并发需求进行实测。
+
+2. **MI300X 的 192GB HBM 解决的是真实的显存约束问题。** 当 600B+ 参数 MoE 模型的权重 + KV cache 接近显存上限时，额外 36% 的容量直接支持更高并发和更大 batch。
+
+3. **Dense 模型上的性能差距同时包含硬件和软件因素。** 硬件因素（NCCL 带宽、GEMM 利用率）是固有的；软件因素（ROCm 优化成熟度）正在改善。团队应使用最新软件栈实测，而非依赖 6-12 个月前的发布数据。
+
+4. **性价比分析是模型特定的。** DeepSeek-R1 671B 上 MI300X 性价比高 46%；Llama 70B 上 H200 性价比会更高。没有普遍的性价比赢家。
+
+5. **两个平台都有风险。** MI300X 风险：ROCm 生态差距（无 TRT-LLM、prefix caching 开发中、社区较小）。H200 风险：显存容量上限可能不够下一代万亿参数模型、单卡成本更高。**基于目标工作负载的充分 POC 是做出可靠决策的唯一方式。**
 
 ---
 
