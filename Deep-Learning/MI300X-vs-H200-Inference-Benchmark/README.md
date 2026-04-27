@@ -116,6 +116,36 @@ H200 outperforms MI300X on dense models by **+24% to +39%** across all configura
 | **TPOT** | Theoretically better | Similar in practice | Tie — ROCm gap offsets HBM advantage |
 | **TTFT vs output length** | **Stable** | vLLM/TRT-LLM spike | MI300X — more headroom for KV cache |
 
+### Why Dense Models and MoE Models Have Different Bottlenecks
+
+The reason MI300X loses on dense models but competes on MoE models comes down to **which hardware resource is the bottleneck**:
+
+**Dense model inference (e.g., Llama 70B)**:
+```
+Every token → passes through ALL 70B parameters → AllReduce sync across 8 GPUs
+```
+- High compute per token → **GEMM efficiency is the bottleneck** → H200's cuBLAS wins (63% utilization vs MI300X's 48%)
+- 8-GPU synchronization on every layer → **AllReduce bandwidth is the bottleneck** → H200's NCCL wins (481 vs 317 GB/s)
+- Model fits comfortably in memory (70B FP8 = 35GB per card) → **memory capacity is NOT a factor**
+
+**MoE model inference (e.g., DeepSeek-R1 671B, 256 experts)**:
+```
+Every token → Router selects 8 out of 256 experts → only ~37B parameters activated per token
+```
+- Actual compute per token is only ~37B (not 671B) → **GEMM efficiency matters less**
+- But all 256 experts' weights must **reside in GPU memory** (~640GB FP8) → **memory capacity is the binding constraint**
+- Each layer loads different expert weights per token → **random-access HBM bandwidth is the bottleneck**
+- Communication pattern is All-to-All (route tokens to experts), not AllReduce → **NVLink advantage is diminished**
+
+| Bottleneck | Dense Model Needs | MoE Model Needs | MI300X | H200 | MoE Winner |
+|:---|:---|:---|:---:|:---:|:---|
+| **Memory capacity** | Low (70B=35GB/card) | **Critical** (671B=640GB total) | **1,536GB** | 1,128GB | **MI300X** |
+| **HBM bandwidth** | Important (decode) | **Most important** (expert loading) | **5.3 TB/s** | 4.8 TB/s | **MI300X** |
+| **GEMM compute** | **Most important** (all params) | Less important (only 37B active) | Weaker | Stronger | Gap shrinks |
+| **Multi-GPU comm** | AllReduce (TP sync) | All-to-All (token routing) | Weaker | Stronger | Gap shrinks |
+
+This is why MI300X loses by 24-39% on dense models but competes on MoE: **MoE shifts the bottleneck from compute and communication (where H200 leads) to memory capacity and bandwidth (where MI300X leads).**
+
 ### Why MI300X Is Competitive on MoE
 
 DeepSeek-R1 671B has characteristics that align with MI300X's hardware strengths:
