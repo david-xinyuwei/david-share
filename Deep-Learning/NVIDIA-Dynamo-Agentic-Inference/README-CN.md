@@ -69,7 +69,7 @@ graph TD
 
 核心能力：**PD 分离** — 将部分 GPU 专用于 prefill（计算 KV cache），其余 GPU 专用于 decode（生成 token）。原理：prefill 是计算密集型，decode 是显存带宽密集型，分开可避免互相干扰。
 
-**来源**：[Dynamo 1.0 Blog](https://developer.nvidia.com/blog/nvidia-dynamo-1-production-ready/) | [Full-Stack Agentic Inference Blog](https://developer.nvidia.com/blog/full-stack-optimizations-for-agentic-inference-with-nvidia-dynamo/) | [GitHub](https://github.com/ai-dynamo/dynamo)
+**来源**：[Dynamo 1.0 Blog](https://developer.nvidia.com/blog/nvidia-dynamo-1-production-ready/) | [Full-Stack Agentic Inference Blog](https://developer.nvidia.com/blog/full-stack-optimizations-for-agentic-inference-with-nvidia-dynamo/) | [GTC Tutorial S73042](https://www.nvidia.com/en-us/on-demand/) | [GitHub](https://github.com/ai-dynamo/dynamo)
 
 ### Layer 1：Frontend — Agent Hints API
 
@@ -102,7 +102,15 @@ Dynamo 通过统一内部表示服务 `v1/chat/completions`、`v1/responses` 和
 
 ### Layer 2：Router — KV 感知路由 + 优先级调度
 
-没有缓存感知路由时，多轮对话第 2 轮命中同一 worker 的概率是 ~1/N。每次未命中 = 全量重算前缀。Dynamo 路由器通过 **Flash Indexer**（170M ops/s — 见 [Flash Indexer 文章](https://docs.nvidia.com/dynamo/blog/flash-indexer)）维护全局索引，记录哪些 KV cache block 在哪个 worker 上。每次请求选择 `cache_miss_cost + decode_load` 最小的 worker。
+没有缓存感知路由时，多轮对话第 2 轮命中同一 worker 的概率是 ~1/N。每次未命中 = 全量重算前缀。Dynamo 路由器通过 **Flash Indexer**（170M ops/s — 见 [Flash Indexer 文章](https://docs.nvidia.com/dynamo/blog/flash-indexer)）维护全局索引，记录哪些 KV cache block 在哪个 worker 上。每次请求选择 `Score = KV_match_ratio - Load_ratio` 得分最高的 worker（来源：[GTC Tutorial S73042](https://www.nvidia.com/en-us/on-demand/) P51）。
+
+**路由算例**（来自 GTC Tutorial S73042）：
+
+| Worker | KV 匹配率 | 负载 | 得分 | 选中？ |
+|:---|:---:|:---:|:---:|:---:|
+| Worker 1 | 15% | 30% | -0.15 | |
+| Worker 2 | 50% | 50% | 0.00 | 最优 |
+| Worker 3 | 75% | 80% | -0.05 | |
 
 优先级调度：请求进入 `BinaryHeap<QueueEntry>` 按有效到达时间排序。更高 `priority` 让请求看起来更早到达。低于可配置负载阈值时，请求直接跳过队列。
 
@@ -291,6 +299,17 @@ FP8 KV cache（`--kv-cache-dtype fp8_e5m2`）将 KV 存储从 16-bit 压缩到 8
 2. **Prefill Worker (GPU 0)**：为输入 token 计算 KV cache（1024 tokens → 32B 约 369ms）。使用 `--disaggregation-mode prefill`，CUDA:0。
 3. **NIXL KV 传输**：计算好的 KV cache 通过 NIXL 经 NVLink（~900 GB/s 双向）从 GPU 0 传输到 GPU 1。这增加了 TTFT 延迟，但实现了物理隔离。
 4. **Decode Worker (GPU 1)**：从传输的 KV cache 生成输出 token（~26ms/token）。使用 `--disaggregation-mode decode`，CUDA:1。**这张 GPU 永远不执行 prefill kernel** — 所以 P99 ITL 保持 31ms，不受新请求负载影响。
+
+**条件性分离（Conditional Disaggregation）**：VllmWorker 不会把所有请求都发给远程 PrefillWorker。`max_local_prefill_length` 参数控制阈值 — token 数 ≤ 阈值的请求在本地 prefill，超过阈值才派发到专用 PrefillWorker。这样可以避免短 prompt 承受不必要的 NIXL 传输开销。（来源：[GTC Tutorial S73042](https://www.nvidia.com/en-us/on-demand/) P38）
+
+```yaml
+# 官方 disagg 配置（来自 GTC Tutorial S73042）
+VllmWorker:
+  conditional-disagg: true              # 启用条件性路由
+  max_local_prefill_length: 10          # ≤10 tokens: 本地 prefill; >10: 远程
+  remote_prefill: true
+  kv-transfer-config: '{"kv_connector":"DynamoNixlConnector"}'
+```
 
 | 组件 | 作用 | 为什么需要 | 我们的版本 |
 |:---|:---|:---|:---|
@@ -530,6 +549,39 @@ curl http://localhost:8000/v1/chat/completions -d '{"model": "<name>", "messages
 
 ---
 
+## 官方部署路径：dynamo CLI
+
+官方 Dynamo 部署使用 CLI 驱动的工作流 + Python graph 定义（来源：[GTC Tutorial S73042](https://www.nvidia.com/en-us/on-demand/) P25-P29）：
+
+```bash
+# Step 1: 安装
+uv pip install ai-dynamo[all]
+
+# Step 2: 快速测试（单命令启动推理）
+dynamo run out=vllm deepseek-ai/DeepSeek-R1-Distill-Llama-8B
+
+# Step 3: 服务化（从 Python 图定义构建服务）
+dynamo serve graphs.disagg:Frontend -f configs/disagg.yaml
+
+# Step 4: 容器化（EA）
+dynamo build --containerize hello_world:Frontend
+
+# Step 5: 部署到 K8s（Coming Soon）
+dynamo deploy
+```
+
+**Graph 定义**（来源：GTC Tutorial S73042 P35）：
+```python
+# graphs/disagg.py — 定义 PD 分离拓扑
+Frontend.link(Processor).link(VllmWorker).link(PrefillWorker)
+```
+
+进程管理由 `circusd` 处理（`dynamo serve` 自动启动）。关闭：`kill_tree $(pgrep circusd)`。
+
+> **注意**：我们的 benchmark 使用底层组件启动（`python3 -m dynamo.*`），因为 `dynamo serve` + SGLang 后端在 ai-dynamo 1.0.1 上有兼容性问题。生产环境推荐使用官方 `dynamo serve` graph 方式。
+
+---
+
 ## 从 PyPI 部署 Dynamo PD（非 Docker）
 
 我们不用 Docker，纯 pip 包部署了 Dynamo。需要解决三个兼容性问题。
@@ -662,7 +714,24 @@ Docker 部署命令见上方 [Docker 部署章节](#docker-部署-dynamo-pd推�
 ---
 
 ## 从 Benchmark 到生产
+### NVIDIA 官方 Benchmark 与我们实测的对比
 
+[GTC Tutorial S73042](https://www.nvidia.com/en-us/on-demand/)（演讲者：Neelay Shah, Harry Kim, Tanmay Verma, Ryan Olson）提供了 NVIDIA 官方 benchmark 数据。与我们的独立实测对比：
+
+| 来源 | 功能 | 模型 | 硬件 | ISL/OSL | 结果 |
+|:---|:---|:---|:---|:---|:---|
+| **NVIDIA** | PD 分离 | Llama 70B FP8 | 1× HGX H100 | 3K/150 | **1.3×** 吞吐量 |
+| **NVIDIA** | PD 分离 | Llama 70B FP8 | 2× HGX H100 | 3K/150 | **2×** 吞吐量 |
+| **我们** | PD 分离 | Qwen3-8B FP16 | 2× H100 NVL | 1K/256 | -0.3% 吞吐量, **-52% P99 ITL** |
+| **我们** | PD 分离 | Qwen2.5-32B FP16 | 2× H100 NVL | 1K/256 | -14% 吞吐量, **-85% P99 ITL** |
+| **NVIDIA** | KV 路由 | R1 Distilled 70B | 2×8 H100s, 100K req | — | **3× TTFT**, **2× E2E** |
+| **我们** | Prefix Cache | Qwen3-8B | 1× H100 | 1K/256 | **-41% TTFT** |
+| **NVIDIA** | 内存管理 | 8B, 80 用户 | 1× H100 | 1K/100 | **1.6× TTFT** |
+| **NVIDIA** | NIXL | 8B, 1P:1D | 2×8 H100s | — | **1.8× TTFT**, **1.15× 吞吐量** |
+
+**对账**：NVIDIA 的 1.3-2× 吞吐量提升来自 70B 模型在专用 HGX 节点上、ISL:OSL=20:1（3000/150）— prefill 密集型工作负载，正是 PD 的最佳场景。我们的 8B/32B 模型 ISL:OSL=4:1（1024/256）prefill 占比更低，所以吞吐量增益微小。但我们的 ITL 稳定性发现（-52% 到 -85% P99 ITL）是补充性的 — NVIDIA 关注吞吐量，我们度量了 decode 稳定性。两者结合在大小规模上都验证了架构。
+
+### 生产特性映射
 我们的 benchmark 在 2 张 GPU 上测试 Dynamo 的 PD 分离 — 这是最小可能的部署。在生产中，Dynamo 的软件栈解决的是只在规模化时才出现的问题：
 
 | 实测结果 | 物理原因 | Dynamo 生产特性 |

@@ -1,4 +1,4 @@
-# MI300X vs H200: LLM Inference Benchmark — When Does MI300X Win?
+# MI300X vs H200: LLM Inference Benchmark for Dense and MoE Models
 
 > **Author**: Xinyu Wei (魏新宇)  
 > **Date**: 2026-04-27  

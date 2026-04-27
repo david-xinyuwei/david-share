@@ -69,7 +69,7 @@ graph TD
 
 Key capability: **PD Disaggregation** — dedicate some GPUs to prefill (compute KV cache) and others to decode (generate tokens). The idea: prefill is compute-intensive, decode is memory-bandwidth-intensive. Separating them prevents mutual interference.
 
-**Sources**: [Dynamo 1.0 Blog](https://developer.nvidia.com/blog/nvidia-dynamo-1-production-ready/) | [Full-Stack Agentic Inference Blog](https://developer.nvidia.com/blog/full-stack-optimizations-for-agentic-inference-with-nvidia-dynamo/) | [GitHub](https://github.com/ai-dynamo/dynamo)
+**Sources**: [Dynamo 1.0 Blog](https://developer.nvidia.com/blog/nvidia-dynamo-1-production-ready/) | [Full-Stack Agentic Inference Blog](https://developer.nvidia.com/blog/full-stack-optimizations-for-agentic-inference-with-nvidia-dynamo/) | [GTC Tutorial S73042](https://www.nvidia.com/en-us/on-demand/) | [GitHub](https://github.com/ai-dynamo/dynamo)
 
 ### Layer 1: Frontend — Agent Hints API
 
@@ -102,7 +102,15 @@ Dynamo serves `v1/chat/completions`, `v1/responses`, and `v1/messages` through a
 
 ### Layer 2: Router — KV-Aware Placement + Priority Scheduling
 
-Without cache-aware routing, turn 2 of a multi-turn conversation has a ~1/N chance of hitting the same worker as turn 1. Every miss is a full prefix recomputation. Dynamo's router maintains a **global index** of which KV cache blocks exist on which workers via the **Flash Indexer** (170M ops/s — see [Flash Indexer post](https://docs.nvidia.com/dynamo/blog/flash-indexer)). On every request, it selects the worker that minimizes `cache_miss_cost + decode_load`.
+Without cache-aware routing, turn 2 of a multi-turn conversation has a ~1/N chance of hitting the same worker as turn 1. Every miss is a full prefix recomputation. Dynamo's router maintains a **global index** of which KV cache blocks exist on which workers via the **Flash Indexer** (170M ops/s — see [Flash Indexer post](https://docs.nvidia.com/dynamo/blog/flash-indexer)). On every request, it selects the worker that maximizes `Score = KV_match_ratio - Load_ratio` (Source: [GTC Tutorial S73042](https://www.nvidia.com/en-us/on-demand/) P51).
+
+**Routing example** (from GTC Tutorial S73042):
+
+| Worker | KV Match | Load | Score | Selected? |
+|:---|:---:|:---:|:---:|:---:|
+| Worker 1 | 15% | 30% | -0.15 | |
+| Worker 2 | 50% | 50% | 0.00 | Best |
+| Worker 3 | 75% | 80% | -0.05 | |
 
 For priority scheduling, requests enter a `BinaryHeap<QueueEntry>` ordered by effective arrival time. A higher `priority` makes the request appear as if it arrived earlier. Below a configurable load threshold, requests bypass the queue entirely.
 
@@ -291,6 +299,17 @@ The diagram above shows our actual deployment. The request flow:
 2. **Prefill Worker (GPU 0)**: Computes KV cache for the input tokens (1024 tokens → ~369ms for 32B). Runs `--disaggregation-mode prefill` with CUDA:0.
 3. **NIXL KV Transfer**: The computed KV cache is transferred from GPU 0 to GPU 1 via NIXL over NVLink (~900 GB/s bidirectional). This transfer adds latency to TTFT but enables physical isolation.
 4. **Decode Worker (GPU 1)**: Generates output tokens from the transferred KV cache (~26ms/token). Runs `--disaggregation-mode decode` with CUDA:1. **This GPU never executes prefill kernels** — which is why P99 ITL stays at 31ms regardless of incoming request load.
+
+**Conditional Disaggregation**: The VllmWorker does not always send prefill remotely. The `max_local_prefill_length` parameter controls the threshold — requests with token count ≤ threshold are prefilled locally, while longer requests are dispatched to a dedicated PrefillWorker. This avoids NIXL transfer overhead for short prompts. (Source: [GTC Tutorial S73042](https://www.nvidia.com/en-us/on-demand/) P38)
+
+```yaml
+# Official disagg config from GTC Tutorial S73042
+VllmWorker:
+  conditional-disagg: true              # Enable conditional routing
+  max_local_prefill_length: 10          # ≤10 tokens: local prefill; >10: remote
+  remote_prefill: true
+  kv-transfer-config: '{"kv_connector":"DynamoNixlConnector"}'
+```
 
 | Component | Role | Why It’s Needed | Our Version |
 |:---|:---|:---|:---|
@@ -532,6 +551,39 @@ Our PoC (single container):                 Production K8s (multiple Pods):
 
 ---
 
+## Official Deployment Path: dynamo CLI
+
+The official Dynamo deployment uses a CLI-driven workflow with Python graph definitions (Source: [GTC Tutorial S73042](https://www.nvidia.com/en-us/on-demand/) P25-P29):
+
+```bash
+# Step 1: Install
+uv pip install ai-dynamo[all]
+
+# Step 2: Quick test (single command inference)
+dynamo run out=vllm deepseek-ai/DeepSeek-R1-Distill-Llama-8B
+
+# Step 3: Serve (build service graph from Python definition)
+dynamo serve graphs.disagg:Frontend -f configs/disagg.yaml
+
+# Step 4: Containerize (EA)
+dynamo build --containerize hello_world:Frontend
+
+# Step 5: Deploy to K8s (Coming Soon)
+dynamo deploy
+```
+
+**Graph definition** (Source: GTC Tutorial S73042 P35):
+```python
+# graphs/disagg.py — defines the PD disaggregation topology
+Frontend.link(Processor).link(VllmWorker).link(PrefillWorker)
+```
+
+Process management is handled by `circusd` (auto-started by `dynamo serve`). Shutdown: `kill_tree $(pgrep circusd)`.
+
+> **Note**: Our benchmark used low-level component startup (`python3 -m dynamo.*`) because `dynamo serve` with the SGLang backend had compatibility issues with ai-dynamo 1.0.1. The official `dynamo serve` graph approach is recommended for production.
+
+---
+
 ## Deploying Dynamo PD from PyPI (Not Docker)
 
 We deployed Dynamo without Docker — pip packages only. This required solving three compatibility issues.
@@ -664,6 +716,25 @@ Raw benchmark logs are in `data/`.
 ---
 
 ## From Benchmarks to Production
+
+### NVIDIA Official Benchmarks vs Our Results
+
+The [GTC Tutorial S73042](https://www.nvidia.com/en-us/on-demand/) (presented by Neelay Shah, Harry Kim, Tanmay Verma, Ryan Olson) provides NVIDIA's official benchmark data. Comparing with our independent results:
+
+| Source | Feature | Model | Hardware | ISL/OSL | Result |
+|:---|:---|:---|:---|:---|:---|
+| **NVIDIA** | PD Disagg | Llama 70B FP8 | 1× HGX H100 | 3K/150 | **1.3×** throughput |
+| **NVIDIA** | PD Disagg | Llama 70B FP8 | 2× HGX H100 | 3K/150 | **2×** throughput |
+| **Ours** | PD Disagg | Qwen3-8B FP16 | 2× H100 NVL | 1K/256 | -0.3% throughput, **-52% P99 ITL** |
+| **Ours** | PD Disagg | Qwen2.5-32B FP16 | 2× H100 NVL | 1K/256 | -14% throughput, **-85% P99 ITL** |
+| **NVIDIA** | KV Routing | R1 Distilled 70B | 2×8 H100s, 100K req | — | **3× TTFT**, **2× E2E** |
+| **Ours** | Prefix Cache | Qwen3-8B | 1× H100 | 1K/256 | **-41% TTFT** |
+| **NVIDIA** | Memory Mgmt | 8B, 80 users | 1× H100 | 1K/100 | **1.6× TTFT** |
+| **NVIDIA** | NIXL | 8B, 1P:1D | 2×8 H100s | — | **1.8× TTFT**, **1.15× throughput** |
+
+**Reconciliation**: NVIDIA's 1.3-2× throughput gains come from 70B models on dedicated HGX nodes with ISL:OSL=20:1 (3000/150) — a prefill-heavy workload where PD shines. Our 8B/32B models with ISL:OSL=4:1 (1024/256) are less prefill-heavy, so throughput gains are minimal. However, our ITL stability finding (-52% to -85% P99 ITL) is complementary — NVIDIA focused on throughput while we measured decode stability. Together they validate the architecture at both small and large scale.
+
+### Production Feature Mapping
 
 Our benchmarks test Dynamo's PD disaggregation on 2 GPUs — the smallest possible setup. In production, Dynamo's software stack addresses problems that only appear at scale:
 
