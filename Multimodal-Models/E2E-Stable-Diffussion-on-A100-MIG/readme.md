@@ -1,5 +1,7 @@
 # End-to-end Stable Diffusion test on Azure NC A100/H100 MIG
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 A100/H100 are High end Training GPU, which could also work as Inference. In order to save compute power and GPU memory, We could use NVIDIA Multi-Instance GPU (MIG), then we could run Stable Diffusion on MIG.
 I do the test on Azure NC A100 VM.
 
@@ -325,3 +327,18 @@ We see that the quality of the generated images is the same, and the file sizes 
 ![thumbnail image 11 of blog post titled  	 	 	  	 	 	 				 		 			 				 						 							End-to-end Stable Diffusion test on Azure NC A100/H100 MIG 							 						 					 			 		 	 			 	 	 	 	 	 ](https://techcommunity.microsoft.com/t5/image/serverpage/image-id/613672i8727D9802A938660/image-size/medium?v=v2&px=400)
 
 We observe that the inference speed of INT8 increased by 20% compared to FP16.
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

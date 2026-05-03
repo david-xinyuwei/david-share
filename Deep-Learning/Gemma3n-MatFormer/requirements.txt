@@ -1,0 +1,6 @@
+huggingface-hub
+pandas
+safetensors
+torch
+tqdm
+transformers

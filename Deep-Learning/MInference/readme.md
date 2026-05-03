@@ -1,5 +1,7 @@
 # MInference的实践
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 本文基于MInference最新官方文档与实测结果进行详细技术阐述，加入个人实践、通俗解读以及对比数据，系统讲解MInference技术缘起、实现原理、具体优化细节、算法展开与真实应用场景分析，以帮助读者更好地理解和使用这一微软新开源的工具。
 
 Refer to: *https://github.com/microsoft/MInference*
@@ -309,3 +311,19 @@ MInference 本质上并不是一个独立的底层推理引擎本身，而是建
 
 ![Image](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nVbh5eMicZRkJWU3eUeQNIhBy3Yzzee1lILlLicRHNFPlVVzCaEJ8nQ2BzHbRaCl8TrVu1OVGGwMj2A/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1)
 
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

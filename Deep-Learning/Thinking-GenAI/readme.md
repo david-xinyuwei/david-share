@@ -1,5 +1,7 @@
 # 关于GenAI走势的一点思考
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 **一、从“思考的快与慢”到大模型推理的局限**
 在大型语言模型（LLM）的研究与应用中，人们时常借助人类的两种典型思维形态进行类比：
 • System 1（快思考）：反应迅速、几乎不经显式推演或分析，主要依靠直觉或经验。
@@ -128,3 +130,18 @@ DeepSeek-V3 是一款具备 671B 参数的大型模型，在预训练时已使�
 综上所述，为了在训练资源难再扩张的情况下保持大模型的性能提升，研究者们正逐渐将重心从构建更大的预训练数据集，转移到在推理时实现更多步搜索或回溯的“慢思考”机理上。通过引入包括 Best-of-N、Beam Search、Lookahead Search、PPO、GRPO、PRM+ORM 等多种强化学习与搜索方式，模型可在面临复杂问题时展开更完善的逻辑演绎，显著降低出错风险。
 
 DS R1 等工程实例也说明，即使缺乏大规模人工标注或额外高质量语料，模型同样能在后期微调与强化环节中“自举”式地获取多步推理能力。“The Bitter Lesson”中所强调的“通用方法+算力”依旧是大模型发展的主要方向；通过进一步优化在线推理环节的搜索深度与质量，大模型或将在逻辑完整性与应用广度上迎来新一轮提升。
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

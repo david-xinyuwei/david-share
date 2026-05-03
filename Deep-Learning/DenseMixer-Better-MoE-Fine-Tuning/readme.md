@@ -1,5 +1,7 @@
 ## DenseMixer: Better MoE Fine-Tuning
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 DenseMixer (*https://github.com/yaof20/DenseMixer*)是一种面向 MoE（Mixture-of-Experts）模型的训练增强插件。它在保持推理 Top-K 稀疏前向的同时，通过直通估计器（STE）和敏感度信号，让路由器从 **所有专家** 获得梯度反馈，从而减少梯度偏置、提升专家利用率与训练稳定性。   兼容全参微调、LoRA、QLoRA，零侵入集成，工程落地简单。
 
 

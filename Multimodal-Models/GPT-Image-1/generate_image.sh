@@ -3,7 +3,7 @@
 # Azure OpenAI API 调用脚本，用于生成图像。
 
 # 请在此处填写你的 Azure OpenAI endpoint 与 API 密钥
-ENDPOINT="https://YOUR-ENDPOINT.cognitiveservices.azure.com"
+ENDPOINT="https://<your-resource>.cognitiveservices.azure.com"
 DEPLOYMENT="gpt-image-1"
 API_VERSION="2025-04-01-preview"
 AZURE_API_KEY="G97Q"

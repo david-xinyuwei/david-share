@@ -629,7 +629,7 @@ import argparse
 from openai import AzureOpenAI
 
 GPT5_API_KEY = os.environ.get("AZURE_OPENAI_API_KEY", "AlP*")
-GPT5_ENDPOINT = os.environ.get("AZURE_OPENAI_ENDPOINT", "https://YOUR-ENDPOINT.cognitiveservices.azure.com/")
+GPT5_ENDPOINT = os.environ.get("AZURE_OPENAI_ENDPOINT", "https://<your-resource>.cognitiveservices.azure.com/")
 GPT5_RESPONSES_API_VERSION = os.environ.get("AZURE_OPENAI_API_VERSION", "2025-04-01-preview")
 GPT5_DEPLOYMENT_NAME = os.environ.get("AZURE_OPENAI_DEPLOYMENT", "gpt-5")
 
@@ -1137,13 +1137,13 @@ from openai import AzureOpenAI, BadRequestError
 
 # 资源1：GPT-5
 GPT5_API_KEY = os.environ.get("AZURE_OPENAI_API_KEY_GPT5", "Al*")
-GPT5_ENDPOINT = os.environ.get("AZURE_OPENAI_ENDPOINT_GPT5", "https://YOUR-ENDPOINT.cognitiveservices.azure.com/")
+GPT5_ENDPOINT = os.environ.get("AZURE_OPENAI_ENDPOINT_GPT5", "https://<your-resource>.cognitiveservices.azure.com/")
 GPT5_API_VERSION = os.environ.get("AZURE_OPENAI_API_VERSION_GPT5", "2025-04-01-preview")
 GPT5_DEPLOYMENT = os.environ.get("AZURE_OPENAI_DEPLOYMENT_GPT5", "gpt-5")
 
 # 资源2：GPT-5-Codex
 CODEX_API_KEY = os.environ.get("AZURE_OPENAI_API_KEY_CODEX", "6V*")
-CODEX_ENDPOINT = os.environ.get("AZURE_OPENAI_ENDPOINT_CODEX", "https://YOUR-ENDPOINT.cognitiveservices.azure.com/")
+CODEX_ENDPOINT = os.environ.get("AZURE_OPENAI_ENDPOINT_CODEX", "https://<your-resource>.cognitiveservices.azure.com/")
 CODEX_API_VERSION = os.environ.get("AZURE_OPENAI_API_VERSION_CODEX", "2025-04-01-preview")
 CODEX_DEPLOYMENT = os.environ.get("AZURE_OPENAI_DEPLOYMENT_CODEX", "gpt-5-codex")
 

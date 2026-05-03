@@ -17,7 +17,7 @@ def get_user_input():
     api_key = input("Enter your API Key: ").strip()
     
     print("\nEnter your Base URL")
-    print("Example: https://your-resource.openai.azure.com/openai/v1")
+    print("Example: https://<your-resource>.openai.azure.com/openai/v1")
     base_url = input("Base URL: ").strip()
     
     # Get original video prompt

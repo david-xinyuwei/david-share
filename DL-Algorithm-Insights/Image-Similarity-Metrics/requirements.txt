@@ -1,0 +1,8 @@
+Pillow
+lpips
+matplotlib
+numpy
+scipy
+skimage
+torch
+torchvision

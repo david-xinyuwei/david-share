@@ -1,0 +1,8 @@
+IPython
+gradio
+nltk
+numpy
+openai
+optimum
+torch
+transformers

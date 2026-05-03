@@ -1,5 +1,7 @@
 # Fireworks AI on Microsoft Foundry — Deep Research & BYOW Hands-on Validation
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 ## Executive Summary
 
 Fireworks AI announced a **multi-year partnership** with Microsoft on March 9, 2026, integrating its high-performance open model inference engine into Microsoft Foundry (AI Foundry), currently in **Public Preview**.

@@ -1,5 +1,7 @@
 # MAI-Image-2 vs MAI-Image-2e vs GPT-Image-1.5: Azure AI Image Generation Benchmark
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 ## Executive Summary
 
 This benchmark compares three Azure image generation models across 5 configurations (11 prompts × 2 rounds = 110 API calls) with fairness controls (warmup, order reversal, symmetric wait). All models are in preview as of April 2026.
@@ -365,19 +367,6 @@ python scripts/benchmark_5way_v2.py
 
 ```
 .
-├── README.md
-├── README-CN.md
-├── prompts.csv                          # 11 Surreal-style test prompts
-├── data/
-│   └── 5way_v2_results.json           # Raw benchmark data (V2, with token usage)
-├── scripts/
-│   └── benchmark_5way_v2.py           # 5-way benchmark script (V2)
-└── images/
-    ├── mai-image-2/                     # r1/ and r2/ per round
-    ├── mai-image-2e/                    # r1/ and r2/ per round
-    ├── gpt-image-1.5-low/              # r1/ and r2/ per round
-    ├── gpt-image-1.5-medium/           # r1/ and r2/ per round
-    └── gpt-image-1.5-high/             # r1/ and r2/ per round
 ```
 
 ## Known Limitations

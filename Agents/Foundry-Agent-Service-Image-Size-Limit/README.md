@@ -1,5 +1,10 @@
 # Foundry Agent Service — Inline Base64 Image Size Limit
 
+
+## Overview
+
+This repository contains implementation and documentation for Foundry Agent Service — Inline Base64 Image Size Limit.
+
 ## Issue
 
 Azure AI Foundry Agent Service project endpoint (`*.services.ai.azure.com`) rejects inline base64 images in the Responses API (`/responses`). The same images succeed on the AOAI direct endpoint (`*.openai.azure.com`). This is a known regression tracked in [GitHub #46305](https://github.com/Azure/azure-sdk-for-python/issues/46305).

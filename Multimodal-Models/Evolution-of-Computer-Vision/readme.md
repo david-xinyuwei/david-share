@@ -1,5 +1,7 @@
 # 计算机视觉的演进与多模态建模：从CNN到视觉语言模型
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 计算机视觉（Computer Vision, CV）作为人工智能领域的重要研究方向，从最初尝试模拟人类视觉感知，到如今的多模态模型和通用智能，其发展经历了多个显著阶段：
 
 - **从最早的手工设计特征**（如SIFT、HOG），到利用深度学习的**卷积神经网络（CNN）**，显著提升了视觉任务的精度和效率。
@@ -1113,3 +1115,18 @@ optimizer = optim.AdamW(
 完整微调步骤参考：
 
 *https://github.com/xinyuwei-david/david-share/tree/master/Multimodal-Models/Phi3-vision-Fine-tuning*
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

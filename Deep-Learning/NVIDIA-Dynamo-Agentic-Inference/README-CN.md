@@ -350,12 +350,6 @@ UCX (Unified Communication X — 统一通信框架)        [默认后端]
   │ 通信框架 — 自动选择硬件最优传输方式
   │ 来源：https://github.com/openucx/ucx
   ▼
-┌─────────────────┬──────────────────────┬──────────────────────┬──────────────┐
-│ NVLink          │ IB RDMA              │ RoCE v2              │ TCP (回退)   │
-│ 同机 GPU 互联  │ 跨节点             │ 跨节点             │ 跨节点     │
-│ ~900 GB/s       │ 100-400 Gbps         │ 100-200 Gbps         │ 慢           │
-│ (我们的场景)   │ 零拷贝 RDMA          │ 无损以太网          │ 不适合生产 │
-└─────────────────┴──────────────────────┴──────────────────────┴──────────────┘
 ```
 
 **缩写词表**：
@@ -526,16 +520,7 @@ curl http://localhost:8000/v1/chat/completions -d '{"model": "<name>", "messages
 
 ```
 我们的 PoC（单容器）:                   生产 K8s（多 Pod）:
-┌─────────────────────────────────┐       ┌───────────┐  ┌───────────┐  ┌───────────┐
-│ 一个 Docker 容器               │       │ Pod 1     │  │ Pod 2     │  │ Pod 3     │
-│  ├─ nats-server                 │       │ Frontend  │  │ Prefill   │  │ Decode    │
-│  ├─ etcd                        │       │ + Router  │  │ Worker    │  │ Worker    │
-│  ├─ dynamo.frontend             │       │ (CPU)     │  │ (GPU x2)  │  │ (GPU x2)  │
-│  ├─ SGLang prefill (GPU 0)      │       └─────┬─────┘  └─────┬─────┘  └─────┬─────┘
-│  └─ SGLang decode  (GPU 1)      │             │ etcd/NATS  │           │
-│                                 │             └────┬─────┘           │
 │  KV 传输: NVLink (同机 GPU)    │             RDMA / InfiniBand / RoCE
-└─────────────────────────────────┘       (跨节点 KV 传输)
 ```
 
 | 方面 | 我们的 PoC（单容器） | 生产 K8s（多 Pod） |

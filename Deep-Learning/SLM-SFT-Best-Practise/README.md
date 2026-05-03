@@ -1,5 +1,12 @@
 # 🚚 This Project Has Moved
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
+
+## Overview
+
+This repository contains implementation and documentation for 🚚 This Project Has Moved.
+
 > **This project has been merged into a unified project.**
 
 <table>
@@ -20,3 +27,19 @@ The SLM SFT best practices content has been merged into the unified GRPO RL trai
 ---
 
 *This redirect was created to preserve backward compatibility with existing links.*
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

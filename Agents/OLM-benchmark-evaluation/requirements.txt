@@ -1,0 +1,3 @@
+optimum_benchmark
+torch
+transformers

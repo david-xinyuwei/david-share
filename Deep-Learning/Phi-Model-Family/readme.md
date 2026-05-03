@@ -1,6 +1,8 @@
 # Phi Model Family
 
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 ## Running on Azure
 
 All experiments in this project were conducted on an **Azure GPU VM**.
@@ -1681,4 +1683,20 @@ Step	Training Loss	Validation Loss
 200	1.170900	1.269450
 300	1.165900	1.263883
 400	1.162900	1.262569
+```
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
 ```

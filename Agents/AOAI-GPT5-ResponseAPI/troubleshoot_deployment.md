@@ -94,7 +94,7 @@ from openai import AzureOpenAI
 
 client = AzureOpenAI(
     api_key="your_key",
-    azure_endpoint="https://your-resource.cognitiveservices.azure.com/",
+    azure_endpoint="https://<your-resource>.cognitiveservices.azure.com/",
     api_version="2025-03-01-preview"
 )
 

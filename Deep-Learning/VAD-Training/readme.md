@@ -1,5 +1,7 @@
 # VAD :**向量化场景表征**在多传感器 3D 感知中的落地
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 Vectorized Scene Representation for Efficient Autonomous Driving
 
 自动驾驶 3D 感知技术这五年经历两次拐点：
@@ -528,3 +530,18 @@ def lyft2nusc(box_lyft):
 ### Refer to：
 
 *https://arxiv.org/pdf/2303.12077*
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

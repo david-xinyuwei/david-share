@@ -1,5 +1,7 @@
 # Using LLMs as Judges: Evaluating Large Language Models with Large Language Models
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 *An effective evaluation method providing rapid feedback and monitoring*
 
 ## Running on Azure
@@ -222,3 +224,19 @@ plt.title('Model Comparison: Win Rates')
 plt.show()    
 ```
 
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

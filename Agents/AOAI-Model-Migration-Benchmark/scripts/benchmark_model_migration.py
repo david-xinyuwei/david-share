@@ -26,7 +26,7 @@ KEY_SWE  = open("/tmp/key_swe.txt").read().strip()
 
 REGIONS = {
     "eastus2": ("https://<your-endpoint>.openai.azure.com", KEY_EUS2),
-    "swedencentral": ("https://admin-m3n3cb54-swedencentral.openai.azure.com", KEY_SWE),
+    "swedencentral": ("https://<your-resource>.openai.azure.com", KEY_SWE),
     "southeastasia": ("https://<your-aoai-endpoint>.openai.azure.com", "<your-api-key>"),
 }
 

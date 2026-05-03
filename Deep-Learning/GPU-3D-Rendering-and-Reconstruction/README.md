@@ -11,12 +11,11 @@
 > ①Fixed Pipeline (1995)  →  ②Programmable Shader (2001)  →  ③Unified into CUDA Core (2006)
 >   Every step hardwired       Developers can finally write     Vertex/Pixel Shader merged
 >   Can't change, only tweak   code to decide pixel shading     into one general programmable core
->                                                                         │
->                    ┌────────────────────────────────────────────────────┘
->                    ▼
+>                                                                          
+>                    v
 >   ④ RTX: RT Core + Tensor Core (2018)  →  ⑤ Neural Rendering / DLSS 5 (2026)
 >     Ray tracing accel (RT Core) +           3D graphics × generative AI fusion
->     AI inference (Tensor Core)              AI revolutionizes rendering back ──→ loop 🔄
+>     AI inference (Tensor Core)              AI revolutionizes rendering back --→ loop 🔄
 >     GPU has rendering + AI dedicated HW for the first time
 > ```
 > Driving force at each step: ①Too rigid → ②Programmable but split → ③Unified → CUDA → AI big bang → ④AI needs dedicated HW → ⑤AI gives back to rendering
@@ -69,8 +68,6 @@ This mirrors how human vision works: the real world is 3D, but the retina is a 2
       A ●                                       A ●
      ╱   ╲    ← No matter where these          ╱   ╲
     ╱     ╲      3 points are, a plane         ╱  D●  ╲  ← D might be above or
-   ●───────●     always passes through them   ╱  ↗    ╲    below the ABC plane
-   B       C                                 ●───────●
                                              B       C
 ```
 
@@ -325,7 +322,6 @@ Put another way: you have a **blank sheet of paper** (the screen) with a grid dr
          ╱ ███ ╲
         ╱ █████ ╲
        ╱ ███████ ╲
-      ★───────────★
   (50,250)      (200,300)
 
 █ = pixels covered by the triangle → colored with the triangle's color
@@ -414,8 +410,6 @@ Mirror surface (intersection point A)
   │
   ├─ ③ Reflection ray: bounces off mirror, continues flying → hits a red sphere (point B)
   │     │
-  │     ├─ Shadow ray: from point B toward light source...
-  │     └─ Reflection ray: continues bouncing... (recursive, until max depth)
   │
   └─ ④ Refraction ray (if glass): passes through the surface and continues...
 ```
@@ -837,8 +831,6 @@ Source: Wikipedia [Neural Radiance Field](https://en.wikipedia.org/wiki/Neural_r
 Looking back at the entire article, GPU evolution is not linear but a **closed loop**:
 
 ```
-Rendering ────────────────────→ AI ────────────────────→ Rendering
- │                                │                         │
  Pixel Shader (Ch2)               CUDA → Deep Learning (Ch4)   Neural Rendering (Ch6)
  Rasterization (Ch3.1)            FlashAttention (Ch7.1)    DLSS 5 = 3D + GenAI
  Ray Tracing (Ch3.2)              PagedAttention (Ch7.2)

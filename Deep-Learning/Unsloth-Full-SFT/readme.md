@@ -1,5 +1,7 @@
 ## Unsloth的全微调：从Adapter到Full Fine-tuning
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 大语言模型（LLM）最近发展得非常快，一动就是好几亿甚至上百亿的参数，让很多AI工程师在微调这些大模型时犯了难。Unsloth这个框架，原本主要是靠支持LoRA、QLoRA等Adapter微调而出名，重点就是省内存、训练快。现在它又更进一步，支持了全参数微调（Full Fine-tuning），也就是说，单卡环境就能搞定大规模模型的完整训练。接下来我想聊一聊Unsloth全微调的背景、它用到的关键技术，以及在实际工程中怎么把它用好。
 
 
@@ -249,6 +251,11 @@ model, tokenizer = FastLanguageModel.from_pretrained(
 ds_train = load_dataset("allenai/tulu-3-sft-mixture", split="train")
 
 # Apply the chat template from TULU's tokenizer
+
+## Overview
+
+This repository contains implementation and documentation for Apply the chat template from TULU's tokenizer.
+
 tokenizer_chat = AutoTokenizer.from_pretrained(tokenizer_name_chat_template)
 def process(row):
     row["text"] = tokenizer_chat.apply_chat_template(row["messages"], tokenize=False, add_generation_prompt=False)
@@ -298,3 +305,19 @@ trainer_ = trainer.train()
 
 ```
 
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

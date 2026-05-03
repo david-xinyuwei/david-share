@@ -20,15 +20,12 @@
 **Spillover** 是 Azure OpenAI 的原生溢出机制。当 PTU deployment 饱和 (429/400/500) 时，流量自动回退到**同一 Azure OpenAI 资源**内的 Standard (PAYGO) deployment：
 
 ```
-┌──────────────────────────┐
 │  Azure OpenAI 资源       │
 │                          │
 │  PTU Deployment          │ ← 主力（低延迟，固定成本）
-│     │ on 429/400/500     │
 │     ▼ spillover          │
 │  Standard Deployment     │ ← 溢出（PAYGO，延迟较高）
 │  (PAYGO)                 │
-└──────────────────────────┘
 ```
 
 Spillover 在 Azure AI Foundry Portal 配置，无需网关。文档：[Spillover Traffic Management](https://learn.microsoft.com/en-us/azure/foundry/openai/how-to/spillover-traffic-management)
@@ -352,9 +349,6 @@ Alert Rule → Action Group → Azure Function (每 30s)
   │  调用 APIM REST API:
   │  PUT /backends/<pool-name>
   │
-  ├── 区域 A 利用率高 → weight 5→1（减少流量）
-  ├── 极高 (>95%) → weight 1:100（紧急排空）
-  └── 恢复 (<50%) → weight 5:5（恢复）
 ```
 
 ### 通过 APIM REST API 动态更新 Weight
@@ -411,17 +405,7 @@ PTU 部署场景下，可以组合 APIM 负载均衡与 **Azure OpenAI Native Sp
                     APIM AI Gateway
                     (跨区域 LB)
                          │
-              ┌──────────┴──────────┐
               ▼                     ▼
-      ┌───────────────┐    ┌───────────────┐
-      │  区域 A       │    │  区域 B       │
-      │  AOAI 资源    │    │  AOAI 资源    │
-      │  PTU ─────────│    │  PTU ─────────│
-      │  │ (spillover) │    │  │ (spillover) │
-      │  ▼            │    │  ▼            │
-      │  Standard     │    │  Standard     │
-      │  (PAYGO)      │    │  (PAYGO)      │
-      └───────────────┘    └───────────────┘
 ```
 
 - **APIM**: 跨区域故障切换和负载均衡
@@ -438,7 +422,7 @@ PTU 部署场景下，可以组合 APIM 负载均衡与 **Azure OpenAI Native Sp
 
 **修复**: 设 API `path=""`（空）。完整 URL `/openai/deployments/...` 原样转发到后端。
 
-**替代方案**: 保留 `path="openai"`，但后端 URL 设为 `https://xxx.openai.azure.com/openai`。
+**替代方案**: 保留 `path="openai"`，但后端 URL 设为 `https://<your-resource>.openai.azure.com/openai`。
 
 ### 401 — Managed Identity 认证失败
 

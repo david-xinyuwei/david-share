@@ -1,5 +1,7 @@
 # Fireworks AI on Microsoft Foundry — 深度研究与 BYOW 实战验证
 
+> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+
 ## Executive Summary
 
 Fireworks AI 于 2026 年 3 月 9 日与 Microsoft 宣布**多年期合作**，将其高性能开源模型推理引擎集成到 Microsoft Foundry（即 AI Foundry）中，目前处于 **Public Preview** 阶段。

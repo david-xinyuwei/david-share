@@ -75,15 +75,6 @@ python content_safety_flux.py "A cute cat playing with yarn"
 
 ```
 Content-Safety-with-Flux-Image-Generation/
-├── README.md                    # 英文版
-├── README-CN.md                 # 本文件（中文版）
-├── requirements.txt             # Python 依赖
-├── src/
-│   └── content_safety_flux.py   # 主源代码
-└── images/                      # 测试结果图片
-    ├── golden_retriever.jpg     # 安全图片示例 (512x512)
-    ├── sunset_sailboats.jpg     # 安全图片示例 (512x512)
-    └── casino_gambling.jpg      # 赌博（不在检测类别中, 512x512）
 ```
 
 ---

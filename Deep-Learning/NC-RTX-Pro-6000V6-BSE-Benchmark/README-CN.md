@@ -75,15 +75,7 @@
 **GPU = 多种专用硬件单元的组合**
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
 │                         NVIDIA GPU                               │
-├─────────────────┬─────────────────────┬─────────────────────────┤
-│   📥 解码/输入   │     🧠 计算           │      📤 编码/输出        │
-├─────────────────┼─────────────────────┼─────────────────────────┤
-│  NVDEC (视频)   │  CUDA Core (通用)    │   NVENC (视频)          │
-│  NVJPG (图像)   │  Tensor Core (AI)   │   NVJPG (图像)          │
-│                 │  RT Core (光追)      │                         │
-└─────────────────┴─────────────────────┴─────────────────────────┘
 ```
 
 > 💡 **说明**: NVDEC/NVENC/NVJPG 既可用于输入（解码）也可用于输出（编码）。
@@ -280,29 +272,13 @@
 ### 决策流程图
 
 ```
-                    ┌─────────────────────┐
                     │   你的任务是什么？    │
-                    └──────────┬──────────┘
                                │
-        ┌──────────────────────┼──────────────────────┐
-        │                      │                      │
         ▼                      ▼                      ▼
-   ┌─────────┐           ┌─────────┐           ┌─────────┐
-   │ AI 训练 │           │ AI 推理 │           │视频/媒体│
-   └────┬────┘           └────┬────┘           └────┬────┘
-        │                     │                     │
         ▼                     │                     ▼
    需要 NVLink？              │              需要编码？
-        │                     │                     │
-    ┌───┴───┐                 │               ┌─────┴─────┐
    是      否                 │              是          否
-    │       │                 │               │           │
     ▼       ▼                 ▼               ▼           ▼
- ┌───────┐ ┌────────┐   ┌──────────┐  ┌───────────┐ ┌───────┐
- │NC H100│ │RTX PRO │   │检查显存  │  │RTX PRO    │ │NC H100│
- │NC A100│ │6000 BSE│   │与延迟需求│  │6000 BSE   │ │NC A100│
- └───────┘ └────────┘   └──────────┘  │NV A10     │ └───────┘
-                                      └───────────┘
 ```
 
 ---
@@ -412,19 +388,12 @@ sequenceDiagram
 **执行流程对比**:
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
 │ A100 (Ampere SM80) - 无原生 FP8                                              │
-│ FP8 权重 ──→ [Marlin 反量化] ──→ BF16 ──→ [BF16 Tensor Core] ──→ 输出       │
 │               ⚠️ 额外步骤                                                   │
-├─────────────────────────────────────────────────────────────────────────────┤
 │ H100 (Hopper SM90) - 原生 FP8                                               │
-│ FP8 权重 ──→ FP8 激活 ──→ [FP8 Tensor Core] ──→ 输出                        │
 │                            ✅ 直接执行                                       │
-├─────────────────────────────────────────────────────────────────────────────┤
 │ RTX 6000 (Blackwell SM120) - 原生 FP8                                       │
-│ FP8 权重 ──→ [FP8 Tensor Core] ──→ 输出                                     │
 │              ✅ 直接执行，新一代架构                                          │
-└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### 🔥 关键发现摘要
@@ -788,10 +757,8 @@ quadrantChart
 
 ```
 NVFP4 vs FP8 输出吞吐量 (Qwen3-14B, RTX PRO 6000 Blackwell)
-══════════════════════════════════════════════════════════════════
 NVFP4 (W4A4)    ██████████████████████████████████████████  2,777 tok/s (+38%)
 FP8 (W8A8)      ██████████████████████████████              2,009 tok/s (基准)
-══════════════════════════════════════════════════════════════════
 ```
 
 | 指标 | NVFP4 (W4A4) | FP8 (W8A8) | 差异 |
@@ -1052,7 +1019,7 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 
 ```bash
 # 下载
-wget https://download.microsoft.com/download/85beffdc-8361-4df4-a823-dcb1b230a7aa/NVIDIA-Linux-x86_64-580.105.08-grid-azure.run
+wget https://download.microsoft.com/download/<resource-id>/NVIDIA-Linux-x86_64-580.105.08-grid-azure.run
 
 # 安装
 sudo sh NVIDIA-Linux-x86_64-580.105.08-grid-azure.run --silent --dkms
@@ -1146,28 +1113,6 @@ nvidia-smi dmon --gpm-metrics 2,3 --gpm-options m -c 4
 
 ```
 NC-RTX-Pro-6000V6-BSE-Benchmark/
-├── README.md                      # 英文文档
-├── README-CN.md                   # 中文文档（本文件）
-├── benchmark.py                   # FP8 基准测试脚本
-├── benchmark_fair.py              # 公平对比基准测试
-├── benchmark_sglang.py            # SGLang 基准测试脚本
-├── benchmark_tp_comparison.py     # TP=1 vs TP=2 基准测试
-├── compare_results.py             # 结果对比工具
-├── gpu_p2p_bandwidth_test.py      # GPU P2P 带宽测试
-├── requirements.txt               # Python 依赖
-├── images/
-│   ├── 1.png                      # NC RTX Pro 基准测试图
-│   └── a100_fp8_performance.png   # A100 FP8 性能图表
-└── results/                       # 原始基准测试 JSON 数据
-    ├── a100_comparison_summary.json
-    ├── a100_fair_test_results.json
-    ├── a100_fp8_prequant.json
-    ├── h100_bf16.json
-    ├── h100_comparison_summary.json
-    ├── h100_fp8_prequant.json
-    ├── h100_fp8_runtime.json
-    ├── rtx6000_bf16.json
-    └── rtx6000_fp8_prequant.json
 ```
 
 ### 快速开始

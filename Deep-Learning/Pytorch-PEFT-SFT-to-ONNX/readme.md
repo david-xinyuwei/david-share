@@ -1,5 +1,7 @@
 # Pytorch PEFT SFT and convert to ONNX
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 ONNX (Open Neural Network Exchange) is an open format used to represent machine learning and deep learning models. It was introduced by Microsoft and Facebook in 2017, aiming to facilitate model interoperability between different deep learning frameworks. With ONNX, you can seamlessly convert models between different deep learning frameworks such as PyTorch and TensorFlow.
 
 Currently, ONNX fine-tuning can be done using Olive, but it does not yet support LoRA. If you want to perform LoRA fine-tuning with PyTorch and use ORT for inference, how can this be achieved?
@@ -255,3 +257,19 @@ print()
 del generator
 ```
 
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

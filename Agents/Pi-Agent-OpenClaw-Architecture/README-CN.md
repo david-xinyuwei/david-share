@@ -55,13 +55,6 @@ Pi 以 **Monorepo**（`pi-mono`）形式组织，包含 7 个包，每个包职�
 
 ```
 pi-mono/
-├── pi-ai/              → 统一多模型 LLM API（22+ 提供商）
-├── pi-agent-core/      → Agent 运行时：工具调用与状态管理
-├── pi-coding-agent/    → 交互式编码代理 CLI（4 个核心工具）
-├── pi-tui/             → 终端 UI 库（差分渲染）
-├── pi-web-ui/          → Web 组件（AI 聊天界面）
-├── pi-mom/             → Slack Bot 集成
-└── pi-pods/            → vLLM 部署管理 CLI
 ```
 
 ### 包详情
@@ -323,13 +316,6 @@ Pi 实现了一套精巧的会话系统，超越了简单的线性聊天历史�
 
 ```
 Session File (.jsonl)
-├── Message 1 (user)
-├── Message 2 (assistant + tool calls)
-├── Message 3 (tool results)
-├── Branch Point
-│   ├── Branch A: Message 4a, 5a, ...
-│   └── Branch B: Message 4b, 5b, ...
-└── Compact Marker (summarized messages 1-50)
 ```
 
 会话可通过标准 JSON 序列化进行共享、回放和跨机器迁移。
@@ -594,18 +580,8 @@ def fibonacci(n):
 
 ```
 压缩前（200K tokens）：
-┌──────────────────────────────────────────────────┐
-│ 消息 1-80（180K tokens）     │ 消息 81-100       │
-│ ← 将被摘要化 ──────────────→ │ ← 保留原文 ─────→ │
-└──────────────────────────────────────────────────┘
 
 压缩后（~22K tokens）：
-┌──────────────────────────────────────────────────┐
-│ [摘要: 2K]                   │ 消息 81-100       │
-│ "用户让写排序算法，            │ ← 原文保留 ─────→ │
-│  改过的文件: sort.py,         │                    │
-│  test_sort.py, ..."          │                    │
-└──────────────────────────────────────────────────┘
 ```
 
 关键实现细节：

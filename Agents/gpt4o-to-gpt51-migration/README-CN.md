@@ -105,14 +105,14 @@ pip install -r requirements.txt
 设置环境变量：
 
 ```bash
-export AZURE_OPENAI_ENDPOINT="https://your-resource.openai.azure.com/"
+export AZURE_OPENAI_ENDPOINT="https://<your-resource>.openai.azure.com/"
 export AZURE_OPENAI_API_KEY="your-api-key"
 ```
 
 或创建 `.env` 文件：
 
 ```ini
-AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
+AZURE_OPENAI_ENDPOINT=https://<your-resource>.openai.azure.com/
 AZURE_OPENAI_API_KEY=your-api-key
 ```
 

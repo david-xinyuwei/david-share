@@ -1,5 +1,7 @@
 # Agent Lightning: End-to-End Deep Reasoning Training
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 [中文文档](README-CN.md) | English
 
 
@@ -33,73 +35,14 @@ Agent Lightning is Microsoft's open-source framework for training AI agents. Thi
 ### Complete Architecture Diagram
 
 ```
-┌──────────────────────────────────────────────────────────────────────────────────────────────┐
 │                              AGENT LIGHTNING FRAMEWORK                                        │
 │                                (Microsoft Open Source)                                        │
-├──────────────────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                              │
-│  ┌────────────────────────────────────────────────────────────────────────────────────────┐  │
-│  │                                    USER LAYER                                          │  │
-│  │                                                                                        │  │
-│  │       @agl.rollout              agl.emit_reward()              agl.LLM                 │  │
-│  │       (Define Agent)            (Send Reward Signal)           (LLM Resource)          │  │
-│  └────────────────────────────────────────────┬───────────────────────────────────────────┘  │
-│                                               │                                              │
 │                                               ▼                                              │
-│  ┌────────────────────────────────────────────────────────────────────────────────────────┐  │
-│  │                                   TRAINER LAYER                                        │  │
-│  │                                     agl.Trainer                                        │  │
-│  │                              (Orchestrates training loop)                              │  │
-│  └────────────────────────────────────────────┬───────────────────────────────────────────┘  │
-│                                               │                                              │
 │                                               ▼                                              │
-│  ┌────────────────────────────────────────────────────────────────────────────────────────┐  │
-│  │                                  ALGORITHM LAYER                                       │  │
-│  │                                                                                        │  │
-│  │                                Algorithm (Base Class)                                  │  │
-│  │                                        │                                               │  │
-│  │            ┌───────────────────────────┼───────────────────────────┐                   │  │
-│  │            │                           │                           │                   │  │
-│  │            ▼                           ▼                           ▼                   │  │
-│  │   ┌────────────────┐          ┌────────────────┐          ┌────────────────┐           │  │
-│  │   │    agl.VERL    │          │    agl.APO     │          │  agl.Baseline  │           │  │
-│  │   │  (RL Training) │          │ (Prompt Optim) │          │  (Debug/Test)  │           │  │
-│  │   │                │          │                │          │                │           │  │
-│  │   │  Wraps VERL    │          │  Uses OpenAI   │          │ Simple logging │           │  │
-│  │   │  Framework     │          │  Compatible    │          │ and validation │           │  │
-│  │   │                │          │  API           │          │                │           │  │
-│  │   │  Config:       │          │                │          │                │           │  │
-│  │   │  • grpo        │          │  Config:       │          │  Config:       │           │  │
-│  │   │  • ppo         │          │  • beam_width  │          │  • n_epochs    │           │  │
-│  │   │  • dapo        │          │  • beam_rounds │          │  • train_split │           │  │
-│  │   │  • reinforce++ │          │                │          │                │           │  │
-│  │   └───────┬────────┘          └────────────────┘          └────────────────┘           │  │
-│  │           │                                                                            │  │
-│  └───────────┼────────────────────────────────────────────────────────────────────────────┘  │
-│              │                                                                               │
 │              ▼                                                                               │
-│  ┌────────────────────────────────────────────────────────────────────────────────────────┐  │
-│  │                          VERL FRAMEWORK (Volcengine Open Source)                       │  │
-│  │                                                                                        │  │
-│  │   ┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐                 │  │
-│  │   │   RL Algorithms  │    │   Distributed    │    │    Inference     │                 │  │
-│  │   │                  │    │     Backend      │    │      Engine      │                 │  │
-│  │   │   • GRPO         │    │                  │    │                  │                 │  │
-│  │   │   • PPO          │    │   • FSDP/FSDP2   │    │   • vLLM         │                 │  │
-│  │   │   • DAPO         │    │   • Megatron-LM  │    │   • SGLang       │                 │  │
-│  │   │   • ReMax        │    │   • Ray          │    │                  │                 │  │
-│  │   │   • REINFORCE++  │    │                  │    │                  │                 │  │
-│  │   └──────────────────┘    └──────────────────┘    └──────────────────┘                 │  │
-│  └────────────────────────────────────────────────────────────────────────────────────────┘  │
 │                                                                                              │
-│  ┌────────────────────────────────────────────────────────────────────────────────────────┐  │
-│  │                                 RUNTIME COMPONENTS                                     │  │
-│  │                                                                                        │  │
-│  │      agl.LitAgentRunner        agl.InMemoryLightningStore         agl.OtelTracer       │  │
-│  │      (Agent Executor)          (Data Storage)                     (Tracing)            │  │
-│  └────────────────────────────────────────────────────────────────────────────────────────┘  │
 │                                                                                              │
-└──────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Simplified Call Chain
@@ -180,67 +123,12 @@ flowchart TB
 Agent Lightning uses **Ray** as the distributed task scheduling framework, combined with different model parallelism strategies:
 
 ```
-┌────────────────────────────────────────────────────────────────────────────────────────┐
 │                              DISTRIBUTED ARCHITECTURE                                   │
 │                                                                                        │
-├────────────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                        │
-│  ╔════════════════════════════════════════════════════════════════════════════════╗    │
-│  ║                     🎯 RAY (Distributed Scheduling) - Required                  ║    │
-│  ╠════════════════════════════════════════════════════════════════════════════════╣    │
-│  ║                                                                                ║    │
-│  ║   @ray.remote                RayWorkerGroup              ray.init()            ║    │
-│  ║   ┌──────────────┐          ┌──────────────┐          ┌──────────────┐         ║    │
-│  ║   │ Task Dispatch │          │Worker Manage │          │Cluster Init  │         ║    │
-│  ║   │ to Nodes      │          │CPU/GPU Alloc │          │Resource Pool │         ║    │
-│  ║   └──────────────┘          └──────────────┘          └──────────────┘         ║    │
-│  ║                                                                                ║    │
-│  ║   💡 Start Command: bash scripts/restart_ray.sh                                ║    │
-│  ║                                                                                ║    │
-│  ╚════════════════════════════════════════════════════════════════════════════════╝    │
-│                                          │                                             │
 │                                          ▼                                             │
-│  ┌────────────────────────────────────────────────────────────────────────────────┐    │
-│  │                 ⚙️ Parallelism Strategy (Configure via strategy)                │    │
-│  ├────────────────────────────────────────────────────────────────────────────────┤    │
-│  │                                                                                │    │
-│  │     ┌─────────────────────────────┐       ┌─────────────────────────────┐      │    │
-│  │     │      FSDP / FSDP2           │       │       Megatron-LM           │      │    │
-│  │     │        ⭐ Default            │       │         Optional            │      │    │
-│  │     ├─────────────────────────────┤       ├─────────────────────────────┤      │    │
-│  │     │                             │       │                             │      │    │
-│  │     │  ✓ Fully Sharded Data       │       │  ✓ Tensor Parallel (TP)     │      │    │
-│  │     │    Parallel (FSDP)          │       │  ✓ Pipeline Parallel (PP)   │      │    │
-│  │     │  ✓ Param Offload to CPU     │       │  ✓ Data Parallel (DP)       │      │    │
-│  │     │  ✓ Optimizer State Offload  │       │  ✓ For 70B+ Large Models    │      │    │
-│  │     │  ✓ For 7B ~ 70B Models      │       │                             │      │    │
-│  │     │                             │       │                             │      │    │
-│  │     │  strategy: "fsdp"           │       │  strategy: "megatron"       │      │    │
-│  │     │                             │       │                             │      │    │
-│  │     └─────────────────────────────┘       └─────────────────────────────┘      │    │
-│  │                                                                                │    │
-│  └────────────────────────────────────────────────────────────────────────────────┘    │
-│                                          │                                             │
 │                                          ▼                                             │
-│  ┌────────────────────────────────────────────────────────────────────────────────┐    │
-│  │                       🚀 Inference Engine (Rollout Phase)                       │    │
-│  ├────────────────────────────────────────────────────────────────────────────────┤    │
-│  │                                                                                │    │
-│  │     ┌─────────────────────────────┐       ┌─────────────────────────────┐      │    │
-│  │     │          vLLM               │       │         SGLang              │      │    │
-│  │     │        ⭐ Default            │       │         Optional            │      │    │
-│  │     ├─────────────────────────────┤       ├─────────────────────────────┤      │    │
-│  │     │                             │       │                             │      │    │
-│  │     │  ✓ PagedAttention          │       │  ✓ RadixAttention           │      │    │
-│  │     │  ✓ Continuous Batching     │       │  ✓ Structured Generation    │      │    │
-│  │     │  ✓ Tensor Parallel Infer   │       │  ✓ Prefix Caching           │      │    │
-│  │     │  ✓ OpenAI-Compatible API   │       │  ✓ Constrained Decoding     │      │    │
-│  │     │                             │       │                             │      │    │
-│  │     └─────────────────────────────┘       └─────────────────────────────┘      │    │
-│  │                                                                                │    │
-│  └────────────────────────────────────────────────────────────────────────────────┘    │
 │                                                                                        │
-└────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 #### Configuration Examples
@@ -425,16 +313,6 @@ flowchart LR
 
 ```
 aipc_flywheel/
-├── __init__.py                   # Package init
-├── ARCHITECTURE.md               # Detailed architecture documentation
-├── generate_aipc_data_agl.py     # Stage 1: Data generation (GPT-4o teacher)
-├── train_sft_agl.py              # Stage 2: SFT cold start
-├── train_grpo_agl.py             # Stage 3: GRPO with @agl.rollout
-├── evaluate_agl.py               # Stage 4: LLM Judge evaluation
-├── generate_feedback_agl.py      # Stage 5a: Generate correction data
-├── train_feedback_agl.py         # Stage 5b: Preference learning via GRPO
-├── reward_functions.py           # AIPC domain reward functions
-└── run_flywheel.sh               # One-click pipeline script
 ```
 
 ### Quick Start
@@ -708,16 +586,6 @@ Can support:     7B models feasible
 
 ```
 Agent-Lighting/
-├── README.md                          # This document
-├── README-CN.md                       # Chinese version
-├── train_math_agent_vllm.py           # 🔥 Core training script (GRPO+DeepThinking)
-├── generate_training_data_gpt5_agl.py # Data generation (Azure OpenAI + AGL Tracing)
-├── judge_with_llm_agl.py              # 🔥 LLM judge with AGL tracing (GPT-5.1)
-├── convert_checkpoint.py              # Checkpoint conversion
-├── prepare_gsm8k.py                   # GSM8K dataset download
-├── prepare_math.py                    # MATH dataset download
-├── run_full_evaluation_v5.sh          # 🚀 One-click evaluation (dual datasets)
-└── agentL_h100.yml                    # A100/H100 environment config (validated on A100)
 ```
 
 ---
@@ -767,7 +635,7 @@ pip install openai pandas pyarrow huggingface_hub hydra-core \
 ### Environment Variables
 ```bash
 # Azure OpenAI (for data generation and judging)
-export AZURE_OPENAI_ENDPOINT="https://your-resource.openai.azure.com/"
+export AZURE_OPENAI_ENDPOINT="https://<your-resource>.openai.azure.com/"
 export AZURE_OPENAI_API_KEY="your-key-here"
 export AZURE_OPENAI_DEPLOYMENT="gpt-5.1-chat"
 export AZURE_OPENAI_API_VERSION="2025-01-01-preview"

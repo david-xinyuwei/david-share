@@ -1,5 +1,7 @@
 ## 在 Azure 上运行
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 本项目使用 **Azure OpenAI 服务**进行 Prompt Engineering 实践。
 
 | 项目 | 详情 |
@@ -96,3 +98,18 @@ Please show the output results - in a table, the table is divided into four colu
 输出的结果就是表格形式：
 
 ![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nWf6Iogb0ScBpSFibiavMUk2TohHj9WylLC68Q6yDGOS8hG6PHWqiavicIVNbFbVCWYeKEBMDQ1eg3hRA/640?wx_fmt=png&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

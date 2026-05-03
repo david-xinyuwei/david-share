@@ -553,7 +553,7 @@ flowchart TD
 
 ```bash
 python scripts/stress_test_tpm_utilization.py \
-  --endpoint https://YOUR_PTU.openai.azure.com \
+  --endpoint https://<your-resource>.openai.azure.com \
   --api-key YOUR_KEY \
   --deployment gpt-5.4-nano \
   --concurrency 50 --total 300 \
@@ -577,8 +577,8 @@ python scripts/stress_test_tpm_utilization.py \
 ```bash
 cd ptu-monitor-server
 npm install
-PTU_ENDPOINT=https://YOUR_PTU.openai.azure.com PTU_API_KEY=xxx \
-PAYGO_ENDPOINT=https://YOUR_PAYGO.openai.azure.com PAYGO_API_KEY=xxx \
+PTU_ENDPOINT=https://<your-resource>.openai.azure.com PTU_API_KEY=xxx \
+PAYGO_ENDPOINT=https://<your-resource>.openai.azure.com PAYGO_API_KEY=xxx \
 ROUTING_THRESHOLD=95 \
 APPLICATIONINSIGHTS_CONNECTION_STRING="InstrumentationKey=xxx;..." \
 npm start
@@ -742,7 +742,7 @@ pip install -r requirements.txt
 
 ```bash
 python scripts/benchmark_websearch_guardrails.py \
-  --endpoint https://YOUR_ENDPOINT.openai.azure.com \
+  --endpoint https://<your-resource>.openai.azure.com \
   --api-key YOUR_API_KEY
 ```
 
@@ -757,7 +757,7 @@ python scripts/benchmark_3s_detective.py
 
 ```bash
 python scripts/stress_test_tpm_utilization.py \
-  --endpoint https://YOUR_ENDPOINT.openai.azure.com \
+  --endpoint https://<your-resource>.openai.azure.com \
   --api-key YOUR_API_KEY \
   --deployment gpt-5.4-nano \
   --concurrency 50 --total 300 \

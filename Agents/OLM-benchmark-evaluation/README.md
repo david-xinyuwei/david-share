@@ -1,4 +1,6 @@
 # OLM-benchmark-evaluation
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 This repo draws inspiration and references the ideas and code from https://github.com/huggingface/optimum-benchmark, with practical adjustments made for user convenience, allowing for direct and easy use within VS Code. Using microsoft/Phi-3-mini-4k-instruct as a case study, this repo independently verifies the performance of PyTorch inference and vLLM inference. 
 
 ## Running on Azure
@@ -193,3 +195,38 @@ Decode phase throughput is significantly lower at 115.4 tokens/second, reflectin
 ```
 
 Form the above info we could observe that vLLM has 3 times speed that Pytorch.The huggingface/accelerate in vLLM locks up a lot of GPU memory based on the maximum sequence during inference, This means that even though phi-3 has 128k, if you use vLLM inference and actually use 128K arguments, it will cause OOM. Set gpu_memory_utilization when using vLLM， after set gpu_memory_utilization, for example 20% which is sufficient for model. Therefore, the results of the performance tests are the same, and there is no performance degradation due to the setting of gpu_memory_utilization. 
+
+
+
+
+## Architecture
+
+```mermaid
+flowchart LR
+    A["User / Client"] --> B["Azure API"]
+    B --> C["Model Endpoint"]
+    C --> D["GPU Inference"]
+    D --> E["Response"]
+```
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+pip install -r requirements.txt
+```
+
+### Scripts
+
+| Script | Description |
+|--------|-------------|
+| `Benchmarking_LLMs_with_Optimum_benchmark-davidwei.ipynb` | Benchmarking Llms With Optimum Benchmark-Davidwei.Ipynb |

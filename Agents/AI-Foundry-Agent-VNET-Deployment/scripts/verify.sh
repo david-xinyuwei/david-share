@@ -86,7 +86,7 @@ az role assignment create \
 ACCOUNT_SCOPE="/subscriptions/$SUB_ID/resourceGroups/$RG/providers/Microsoft.CognitiveServices/accounts/$ACCOUNT_NAME"
 az role assignment create \
     --assignee "$PRINCIPAL_ID" \
-    --role "a001fd3d-188f-4b5d-821b-7da978bf7442" \
+    --role "<resource-id>" \
     --scope "$ACCOUNT_SCOPE" \
     -o none 2>/dev/null || true
 echo "  RBAC roles assigned (Cognitive Services Contributor + OpenAI Contributor)"

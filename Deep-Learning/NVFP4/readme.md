@@ -1,5 +1,7 @@
 ## NVFP4 Analysis and Engineering Practice
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 ### **Abstract and Key Points**
 
 - NVFP4 is a 4-bit floating-point quantization format optimized by NVIDIA for Blackwell Tensor Core, using an **E2M1 element format** (1 sign bit + 2 exponent bits + 1 mantissa bit, totaling 4 bits) with **dual scaling** mechanism: every 16 weights share one FP8 E4M3 local scaling factor (**micro-block level**, i.e., "grouping granularity" of 16), plus one FP32 global scaling factor per tensor (tensor level), balancing storage compression with numerical stability. Experimental results show that with both activations and weights in NVFP4, throughput can be ~2.35× higher than INT4 (RTX 6000 Pro, vLLM 0.10.0, Llama-3.3-70B-Instruct).

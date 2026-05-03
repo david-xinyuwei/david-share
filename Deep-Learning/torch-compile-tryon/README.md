@@ -359,7 +359,6 @@ GPU:            Execute A →          Execute B → ...
 "Record" the entire computation flow as a GPU-side execution graph, submit once:
 
 ```
-CPU: Submit entire Graph ────────────────────→
 GPU:                  Execute A → Execute B → Execute C → ...
 ```
 

@@ -169,7 +169,7 @@ def main():
         print("❌ Error: AZURE_OPENAI_API_KEY and AZURE_OPENAI_ENDPOINT must be set.")
         print("\nSet environment variables:")
         print("  export AZURE_OPENAI_API_KEY=your-key")
-        print("  export AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/")
+        print("  export AZURE_OPENAI_ENDPOINT=https://<your-resource>.openai.azure.com/")
         return
 
     # Setup AGL logging

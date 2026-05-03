@@ -1,5 +1,10 @@
 # Gated DeltaNet: From Softmax Attention to Linear Attention with Delta Rule
 
+
+## Overview
+
+This repository contains implementation and documentation for Gated DeltaNet: From Softmax Attention to Linear Attention with Delta Rule.
+
 > **Series**: DL-Algorithm-Insights | **Author**: Xinyu Wei
 
 ---
@@ -410,7 +415,6 @@ Basic linear:   S_t = S_{t-1} + v_t × k_t^T                    ← Add whatever
 Delta rule:     S_t = S_{t-1} + (v_t - S_{t-1} × k_t) × k_t^T  ← Check first, then fix
                                  ↑          ↑
                             correct answer  note card's current guess
-                                 └────┬────┘
                                   delta (error)
 ```
 
@@ -563,24 +567,9 @@ flowchart TB
 ```
 Sequence Modeling Architectures
 │
-├── Softmax Attention Family (The "Textbook-Flipping" School)
-│   ├── MHA (Multi-Head Attention) — each head flips its own copy    ← GPT-3
-│   ├── MQA (Multi-Query Attention) — all heads share one copy       ← PaLM, Falcon
-│   └── GQA (Grouped-Query Attention) — groups share one copy        ← Qwen3, Llama3, GPT-4
 │
-├── State Space Models / SSM (The "Signal Filter" School)
-│   ├── Mamba                                                        ← Mamba-1
-│   └── Mamba2 / SSD                                                 ← Mamba-2
 │
-├── Linear Attention Family (The "Notebook" School)                  ★ Gated DeltaNet is here
-│   ├── Linear Transformer — additive-only notebook (too flat, weak)
-│   ├── GLA — added forgetting gate (can forget old notes)           ← ICML 2024
-│   ├── DeltaNet — added check-before-write (more accurate notes)    ← NeurIPS 2024
-│   └── ★ Gated DeltaNet — forget + check-before-write              ← ICLR 2025 ★
 │
-└── RNN Variants (The "Recurrent Memory" School)
-    ├── RWKV
-    └── Griffin
 ```
 
 Note: Mamba2's SSD (State Space Duality) formulation is mathematically dual to linear attention. Gated DeltaNet sits at the **intersection of linear attention and SSM**, absorbing the gating mechanism from Mamba2 and the delta rule from classical associative memory theory.
@@ -860,3 +849,26 @@ flowchart TB
 4. [flash-linear-attention (fla)](https://github.com/fla-org/flash-linear-attention) — Triton implementation of Gated DeltaNet and other linear attention variants.
 
 5. [Qwen3.5 Official Blog](https://qwenlm.github.io/blog/) — Model architecture details and performance benchmarks.
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+pip install -r requirements.txt
+```
+
+### Scripts
+
+| Script | Description |
+|--------|-------------|
+| `scripts/gdn_kernel_benchmark.py` | Gdn Kernel Benchmark |

@@ -18,7 +18,7 @@ import agentlightning as agl
 
 # Azure OpenAI Configuration
 # Please set these environment variables before running
-AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT", "https://your-resource.openai.azure.com/")
+AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT", "https://<your-resource>.openai.azure.com/")
 AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY", "your-key-here")
 AZURE_OPENAI_DEPLOYMENT = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o")
 AZURE_OPENAI_API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION", "2025-04-01-preview")

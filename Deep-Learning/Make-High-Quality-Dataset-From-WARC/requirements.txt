@@ -1,0 +1,14 @@
+bs4
+datasets
+datatrove
+markdown
+nltk
+numpy
+openai
+python-dotenv
+scikit-learn
+spacy
+tensorflow
+tqdm
+translate
+uuid

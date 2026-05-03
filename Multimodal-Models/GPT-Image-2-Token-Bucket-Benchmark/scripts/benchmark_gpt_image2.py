@@ -6,7 +6,7 @@ Tests how the `quality` parameter affects output token count in GPT-Image-2.
 Uses REST API directly for maximum compatibility.
 
 Usage:
-    export AZURE_OPENAI_ENDPOINT="https://YOUR_RESOURCE.openai.azure.com/"
+    export AZURE_OPENAI_ENDPOINT="https://<your-resource>.openai.azure.com/"
     export AZURE_OPENAI_KEY="YOUR_KEY"
     python benchmark_gpt_image2.py --endpoint $AZURE_OPENAI_ENDPOINT --key $AZURE_OPENAI_KEY
 

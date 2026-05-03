@@ -1,5 +1,7 @@
 # EAGLE3 Speculative Decoding（推测解码）：从验证到自训练
 
+> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+
 [English](README.md) | 中文文档
 
 [![EAGLE Paper](https://img.shields.io/badge/arXiv-EAGLE-b31b1b.svg)](https://arxiv.org/abs/2401.15077)
@@ -100,10 +102,6 @@ Draft tokens 形成一棵树用于批量验证：
 Query: "How can"
          ↓
     "I" (来自 target LLM, Forward 1)
-    ├── "make" ─┬── "a" ─── "the"
-    │           └── "our" ── "your"
-    └── "help" ─┬── "with" ─ "to"
-                └── "you" ── "feel"
 ```
 
 Target model **在单次 forward pass 中验证所有分支**，接受最长匹配序列（如 "I" → "help" → "you" → "feel"）。
@@ -226,22 +224,17 @@ Layer 0 → Layer 2 → ... → Layer 16 → ... → Layer 29 → Layer 30-31 �
               ↓              ↓                ↓                        ↓
          Hidden[0]      Hidden[1]        Hidden[2]               (用于验证)
           (4096)         (4096)           (4096)
-              └──────────────┼────────────────┘
                              ↓
                    拼接 (4096 × 3 = 12288)
                              ↓
-                    ┌─────────────────┐
                     │    FC 层        │  (12288 → 4096)
                     │  + 1个Decoder   │  (独立权重)
                     │  + LM Head      │  (4096 → 32000)
-                    └────────┬────────┘
                              ↓
                       Draft Token 预测
                              ↓
-              ┌──────────────┴──────────────┐
               ↓                              ↓
          Draft Tokens    +    目标模型输出 Logits
-              └──────────────┬──────────────┘
                              ↓
                          树形验证
                              ↓
@@ -354,9 +347,6 @@ Draft 模型非常轻量（~811MB vs 完整模型 16GB），因为它仅包含�
 **训练后的 Draft Head 文件结构**：
 ```
 eagle3-llama31-8b/
-├── config.json          # 737 B  - 模型配置
-├── model.safetensors    # 811 MB - Draft 模型权重（推理只需要这个）
-└── training_state.pt    # 3.2 GB - 优化器状态（推理不需要）
 ```
 
 **参数分布（总计 ~223M）**：
@@ -752,21 +742,6 @@ gradient_checkpointing: true
 
 ```
 Speculative-Decoding-EAGLE3/
-├── README.md                              # 英文文档
-├── README-CN.md                           # 中文文档
-├── requirements.txt                       # Python 依赖
-├── test_performance.py                    # 性能测试脚本
-├── config/
-│   ├── eagle3_llama31_8b.yaml            # 训练配置（YAML）
-│   └── llama3-8B-eagle3.json             # Draft 模型架构配置
-├── scripts/
-│   ├── prepare_data.py                   # 数据准备脚本
-│   ├── prepare_data.sh                   # 数据准备 Shell 封装
-│   ├── train_eagle3.sh                   # 训练启动脚本
-│   └── deploy_server.sh                  # 服务器部署脚本
-└── logs/
-    ├── training_sample.log               # 示例训练输出
-    └── server_startup.log                # 服务器启动日志
 ```
 
 

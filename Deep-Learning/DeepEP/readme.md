@@ -3,6 +3,13 @@
 
 
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
+
+## Overview
+
+This repository contains implementation and documentation for 深入解析 DeepSeek DeepEP：如何用极致通信优化加速现代 MoE 模型.
+
 ## Running on Azure
 
 All experiments in this project were conducted on an **Azure GPU VM**.
@@ -1345,14 +1352,11 @@ Router-0 决定有 60 个 token 要交给 **本机** 的专家，所以放进属
 Input Token IDs
       │
       ▼
-┌────────────────────────────────────────────────────────┐
 │                    Embedding Layer                     │
 │  • Token Lookup (vocab → 7168)                         │
 │  • Rotary Positional Encoding (RoPE)                   │
-└────────────────────────────────────────────────────────┘
       │   (hidden size d = 7168)
       ▼
-══════════════════════  Dense Block 1  ══════════════════════
 │   Pre-LayerNorm Transformer – “warm-up” layer ①            │
 │   Purpose: stabilize features before sparse MoE part       │
 │  1. LN-1                                                   │
@@ -1361,41 +1365,25 @@ Input Token IDs
 │  4. LN-2                                                   │
 │  5. Feed-Forward  Linear → GELU → Linear (dense FFN)       │
 │  6. Residual Add                                           │
-═════════════════════════════════════════════════════════════
       │
-══════════════════════  Dense Block 2  ══════════════════════
 │   Same structure as Block 1 – “warm-up” layer ②            │
-═════════════════════════════════════════════════════════════
       │
-══════════════════════  Dense Block 3  ══════════════════════
 │   Same structure as Block 1 – “warm-up” layer ③            │
-═════════════════════════════════════════════════════════════
       │
-══════════════════════  MoE Block 4  ════════════════════════
 │  1. LN-1                                                  │
 │  2. Multi-Head Attention  (128 heads)                     │
 │  3. Residual Add                                          │
 │  4. LN-2                                                  │
 │  5. Router / Gate  (Top-8 selection)                      │
-│     ├─ Dispatch  →  send token buckets across GPUs        │
-│     ├─ Expert Compute:                                    │
-│     │    • 1  Shared Expert                               │
-│     │    • 256 Routed Experts  (Linear-GELU-Linear)       │
-│     └─ Combine  ←  gather outputs back to source GPU      │
 │  6. Residual Add                                          │
-═════════════════════════════════════════════════════════════
       │
       ▼
 ……  MoE Block 5  …  MoE Block 61   (58 identical MoE blocks) ……
       │
       ▼
-┌────────────────────────────────────────────────────────┐
 │                   Final LayerNorm (global)             │
-└────────────────────────────────────────────────────────┘
       │
-┌────────────────────────────────────────────────────────┐
 │     LM Head   (7168 → 129 280 logits, weight-tied)     │
-└────────────────────────────────────────────────────────┘
       │
 Softmax / Sampling  →  next-token prediction
 ```
@@ -1652,16 +1640,10 @@ DeepEP 把重点火力全部集中在 **T2 Dispatch** 和 **T4 Combine** 这两�
 ## 架构全貌
 
 ```
-┌────────────── Python Layer ──────────────┐
 │ Router (Top-k)                          │
 │ Buffer API (dispatch / combine)         │
-│  ├─ get_dispatch_layout()               │
-│  └─ low_latency_dispatch()              │
-└─▼───────── runtime.cu ── stream & event 管理 ──▲
    │
-   ├─ NVLink P2P  (intranode.cu)  ── 自定义 PTX + GPU IPC
    │     • normal & low-lat kernels
-   └─ RDMA  P2P  (internode.cu)  ── NVSHMEM_put / get
          • 每 Expert = 一组 QP,  VL0/1 分流
 ```
 
@@ -1878,3 +1860,18 @@ GPU Idle: **39 % → 4 %**
 **Refer to：**
 
 https://github.com/naklecha/llama3-from-scratch?tab=readme-ov-file
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

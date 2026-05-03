@@ -1,5 +1,7 @@
 # Pre-Training Methods Explained
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 This article provides a comprehensive guide to pre-training methods for large language models (LLMs), covering the fundamental concepts of pre-training vs fine-tuning, continuous pre-training (CPT), instruction pre-training with synthetic data, code demonstrations, and distributed training tools.
 
 ---
@@ -692,3 +694,19 @@ Combining these strategies usually requires significant customization and adjust
 
 For an example of FSDP with `accelerate`, refer to:
 *https://github.com/xinyuwei-david/david-share/tree/master/Deep-Learning/Llama-3.1-Fine-Tuning-Guide*
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

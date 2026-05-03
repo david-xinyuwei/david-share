@@ -1,6 +1,8 @@
 # Auto-round-and-Quantization-Methods-Performance-Comparisons
 
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 ## Running on Azure
 
 All experiments in this project were conducted on an **Azure GPU VM**.
@@ -586,3 +588,19 @@ tokenizer.save_pretrained(quant_path)
 AWQ inference:
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Quantization-Methods-Comparison-and-Practice/images/dataset_quant_awq_inference.png)
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

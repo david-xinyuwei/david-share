@@ -4,6 +4,8 @@
 
 # Using the Responses API with Azure OpenAI GPT‑5 / Codex: Chain-of-Thought Reuse, Encryption, Summarization, and Cost Analysis
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 > **Quick Navigation**: [TL;DR](#tldr-quick-core-findings) | [Background](#background--problems) | [Mechanism](#mechanism-deep-dive) | [Experiments](#experiment-scenarios-and-result-analysis) | [Operations Handbook](#decision-checklists--operations-handbook) | [Code](#full-reproduction-code) | [GPT-5 vs Codex](#gpt-5-vs-gpt-5-codex-performance-comparison) | [Best Practices](#summary--best-practices)
 
 ## Running on Azure
@@ -538,7 +540,7 @@ import argparse
 from openai import AzureOpenAI
 
 GPT5_API_KEY = os.environ.get("AZURE_OPENAI_API_KEY", "AlP*")
-GPT5_ENDPOINT = os.environ.get("AZURE_OPENAI_ENDPOINT", "https://YOUR-ENDPOINT.cognitiveservices.azure.com/")
+GPT5_ENDPOINT = os.environ.get("AZURE_OPENAI_ENDPOINT", "https://<your-resource>.cognitiveservices.azure.com/")
 GPT5_RESPONSES_API_VERSION = os.environ.get("AZURE_OPENAI_API_VERSION", "2025-04-01-preview")
 GPT5_DEPLOYMENT_NAME = os.environ.get("AZURE_OPENAI_DEPLOYMENT", "gpt-5")
 
@@ -950,13 +952,13 @@ from openai import AzureOpenAI, BadRequestError
 
 # Resource 1: GPT-5
 GPT5_API_KEY = os.environ.get("AZURE_OPENAI_API_KEY_GPT5", "Al*")
-GPT5_ENDPOINT = os.environ.get("AZURE_OPENAI_ENDPOINT_GPT5", "https://YOUR-ENDPOINT.cognitiveservices.azure.com/")
+GPT5_ENDPOINT = os.environ.get("AZURE_OPENAI_ENDPOINT_GPT5", "https://<your-resource>.cognitiveservices.azure.com/")
 GPT5_API_VERSION = os.environ.get("AZURE_OPENAI_API_VERSION_GPT5", "2025-04-01-preview")
 GPT5_DEPLOYMENT = os.environ.get("AZURE_OPENAI_DEPLOYMENT_GPT5", "gpt-5")
 
 # Resource 2: GPT-5-Codex
 CODEX_API_KEY = os.environ.get("AZURE_OPENAI_API_KEY_CODEX", "6V*")
-CODEX_ENDPOINT = os.environ.get("AZURE_OPENAI_ENDPOINT_CODEX", "https://YOUR-ENDPOINT.cognitiveservices.azure.com/")
+CODEX_ENDPOINT = os.environ.get("AZURE_OPENAI_ENDPOINT_CODEX", "https://<your-resource>.cognitiveservices.azure.com/")
 CODEX_API_VERSION = os.environ.get("AZURE_OPENAI_API_VERSION_CODEX", "2025-04-01-preview")
 CODEX_DEPLOYMENT = os.environ.get("AZURE_OPENAI_DEPLOYMENT_CODEX", "gpt-5-codex")
 

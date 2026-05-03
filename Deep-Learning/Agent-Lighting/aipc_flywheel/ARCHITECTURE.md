@@ -242,7 +242,7 @@ The scripts use Azure OpenAI GPT-5.2 with **Responses API** (not Chat Completion
 from openai import AzureOpenAI
 
 client = AzureOpenAI(
-    azure_endpoint="https://YOUR-RESOURCE.openai.azure.com/",
+    azure_endpoint="https://<your-resource>.openai.azure.com/",
     api_key="YOUR_API_KEY",
     api_version="2025-04-01-preview"
 )
@@ -383,7 +383,7 @@ from aipc_flywheel.reward_functions import create_gpt52_reward_function
 
 # Create reward function
 reward_fn = create_gpt52_reward_function(
-    azure_endpoint="https://your-endpoint.openai.azure.com",
+    azure_endpoint="https://<your-resource><your-resource>.openai.azure.com",
     api_key="YOUR_API_KEY"
 )
 

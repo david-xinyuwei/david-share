@@ -302,7 +302,7 @@ When you call the image generation endpoint, the response includes a `usage` obj
 ```python
 import requests, json
 
-endpoint = "https://YOUR_RESOURCE.openai.azure.com"
+endpoint = "https://<your-resource>.openai.azure.com"
 api_key = "YOUR_KEY"
 url = f"{endpoint}/openai/deployments/gpt-image-2/images/generations?api-version=2025-04-01-preview"
 
@@ -384,7 +384,7 @@ az cognitiveservices account deployment create \
 ### Run the Benchmark
 
 ```bash
-export AZURE_OPENAI_ENDPOINT="https://YOUR_RESOURCE.openai.azure.com/"
+export AZURE_OPENAI_ENDPOINT="https://<your-resource>.openai.azure.com/"
 export AZURE_OPENAI_KEY="YOUR_KEY"
 
 python scripts/benchmark_gpt_image2.py \

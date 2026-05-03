@@ -1,5 +1,12 @@
 # NLWeb Introduction and tuning
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
+
+## Overview
+
+This repository contains implementation and documentation for NLWeb Introduction and tuning.
+
 ***Refer to: https://github.com/microsoft/NLWeb***
 
 ## Running on Azure
@@ -43,10 +50,10 @@ I use AI search and Azure OpenAI in NLWeb
 (NLWeb) root@linuxworkvm:~/NLWeb/code# cat .env
 
 ```
-AZURE_VECTOR_SEARCH_ENDPOINT="https://aisearch-xinyu.search.windows.net" 
+AZURE_VECTOR_SEARCH_ENDPOINT="https://<your-resource>.search.windows.net" 
 AZURE_VECTOR_SEARCH_API_KEY="C*"
 
-AZURE_OPENAI_ENDPOINT="https://YOUR-ENDPOINT.openai.azure.com/"
+AZURE_OPENAI_ENDPOINT="https://<your-resource>.openai.azure.com/"
 AZURE_OPENAI_API_KEY="B*"
 AZURE_OPENAI_API_VERSION="2025-01-01-preview"
 ANTHROPIC_API_KEY="<TODO>"
@@ -417,3 +424,19 @@ and finally
 `data: {"type":"function_stream_end","status":"success"}`.
 
 With that, the entire MCP path—WebServer routing → mcp_handler dispatch → GenerateAnswer RAG → schema.org Answer → MCP wrap (streaming or not)—is fully traced across the files you just inspected.
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

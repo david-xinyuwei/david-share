@@ -1,6 +1,8 @@
 # 🤖 MedImageParse - AI Medical Imaging Agent
 
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 ## Running on Azure
 
 This project can be deployed on **Azure Virtual Machines** with GPU support.
@@ -29,7 +31,7 @@ Supports **2D/3D medical imaging** with **conversational natural language prompt
 
 ## 🎬 Demo Video
 
-https://github.com/user-attachments/assets/7983ecb1-328d-421c-986f-8e22d7f9813d
+https://github.com/user-attachments/assets/<resource-id>
 
 ---
 

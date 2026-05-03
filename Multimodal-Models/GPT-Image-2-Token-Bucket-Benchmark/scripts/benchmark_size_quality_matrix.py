@@ -6,7 +6,7 @@ Tests all 9 combinations of size and quality to build a complete
 output token mapping table. Saves images and records token/latency data.
 
 Usage:
-    export AZURE_OPENAI_ENDPOINT="https://YOUR_RESOURCE.openai.azure.com/"
+    export AZURE_OPENAI_ENDPOINT="https://<your-resource>.openai.azure.com/"
     export AZURE_OPENAI_KEY="YOUR_KEY"
     python benchmark_size_quality_matrix.py
 

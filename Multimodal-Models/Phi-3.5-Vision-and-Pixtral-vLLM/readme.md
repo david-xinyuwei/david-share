@@ -3,6 +3,8 @@
 
 
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 ## Running on Azure
 
 This project can be deployed on **Azure Virtual Machines** with GPU support.
@@ -163,3 +165,18 @@ A densely packed urban street scene at twilight with brightly lit billboards and
 ```
 
 We could see that Phi-3.5-Vision is faster, Pixtral has more detailed inference result.
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

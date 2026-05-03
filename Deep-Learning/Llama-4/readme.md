@@ -1,5 +1,12 @@
 ## Llama-4 is Landing on Azure AML/AI Foundry
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
+## Overview
+
+This repository contains implementation and documentation for Llama 4.
+
+
 Refer to：
 
 
@@ -115,4 +122,19 @@ https://www.linkedin.com/pulse/llama-4-day0-support-amd-instinct-gpus-amd-cgm5e/
 
 总体来看，Llama 4 引入的 Mixture-of-Experts 架构、多模态支持和超长上下文窗口，代表了新一代大模型追求在规模和实用性之间的进一步平衡。Scout、Maverick、Behemoth 各司其职，既满足科研和工业界的多元需求，也为大模型的发展开启了更多可能性。虽然还无法确定 Meta 的这一战略会带来多大冲击，但毫无疑问，接下来很长一段时间里，Llama 4 都将是人们热议的焦点。
 
-对于想要在本地折腾新魔法的开发者来说，Scout 也许会是最现实的选择。期待未来的社区工具和教程，让我们能更轻松地体验、微调并挖掘 Llama 4 系列在各领域的真正潜力。
+对于想要在本地调试新魔法的开发者来说，Scout 也许会是最现实的选择。期待未来的社区工具和教程，让我们能更轻松地体验、微调并挖掘 Llama 4 系列在各领域的真正潜力。
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

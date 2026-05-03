@@ -104,7 +104,7 @@ QUESTION_TEMPLATES = [
 
 
 # Azure OpenAI GPT-5.2 Configuration
-AZURE_OPENAI_ENDPOINT = "https://YOUR-RESOURCE.openai.azure.com/"
+AZURE_OPENAI_ENDPOINT = "https://<your-resource>.openai.azure.com/"
 AZURE_OPENAI_API_KEY = "YOUR-API-KEY"
 AZURE_OPENAI_API_VERSION = "2025-04-01-preview"
 

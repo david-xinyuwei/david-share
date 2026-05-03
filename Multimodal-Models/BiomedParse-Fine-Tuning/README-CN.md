@@ -121,15 +121,6 @@ python finetune_3d.py
 
 ```
 data_dir/
-├── train/
-│   ├── slice001_left_kidney.png      # 文件名 = 提示词
-│   ├── slice001_right_kidney.png
-│   └── ...
-├── train_mask/
-│   ├── slice001_left_kidney_mask.png
-│   └── ...
-├── test/
-└── test_mask/
 ```
 
 **重要**：文件名（去掉扩展名后）会成为文本提示词！
@@ -349,15 +340,6 @@ slice035 | left kidney  | GT: 2,897px | Pred: 2,156px | Dice: 68.7%
 
 ```
 BiomedParse-Fine-Tuning/
-├── README.md                    # 英文版
-├── README-CN.md                 # 本文件（中文）
-├── finetune_2d.py               # 2D 微调脚本
-├── finetune_3d.py               # 3D 微调脚本
-├── visualize_2d.py              # 2D 对比图生成
-├── visualize_3d.py              # 3D 对比图生成
-└── images/
-    ├── biomedparse_2d_comparison.png  # 2D 结果
-    ├── biomedparse_3d_comparison.png  # 3D 结果
 ```
 
 ---

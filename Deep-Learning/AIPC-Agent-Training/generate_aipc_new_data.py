@@ -29,7 +29,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Azure OpenAI Configuration
-AZURE_ENDPOINT = os.environ.get("AZURE_OPENAI_ENDPOINT", "https://YOUR-ENDPOINT.openai.azure.com/")
+AZURE_ENDPOINT = os.environ.get("AZURE_OPENAI_ENDPOINT", "https://<your-resource>.openai.azure.com/")
 AZURE_KEY = os.environ.get("AZURE_OPENAI_API_KEY")
 AZURE_API_VERSION = os.environ.get("AZURE_OPENAI_API_VERSION", "2025-04-01-preview")
 AZURE_DEPLOYMENT = os.environ.get("AZURE_OPENAI_DEPLOYMENT", "gpt-5.2")

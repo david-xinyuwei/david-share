@@ -2,6 +2,11 @@
 
 本项目使用 **Azure OpenAI 服务** 的 GPT-4 进行机器翻译测试。
 
+## Overview
+
+This repository contains implementation and documentation for Use GPT4 as Translator.
+
+
 | 项目 | 详情 |
 |---|---|
 | **Azure 服务** | [Azure OpenAI Service](https://learn.microsoft.com/en-us/azure/ai-services/openai/) |
@@ -95,3 +100,18 @@ GPT4-1106使用Prompt：
 如果是段落，那么GPT4+Prompt的方式优势更加明显。
 
 此外，在处理一些词的翻译时，最好也加上上下文。
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

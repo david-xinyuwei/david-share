@@ -1,5 +1,7 @@
 # Train ViT and Run Qianwen-VL
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 As of now, CV models are primarily based on convolutional neural networks. However, with the rise of Transformers, Vision Transformers are gradually being applied.
 
 Next, let's look at mainstream CV implementations and their characteristics.
@@ -536,3 +538,19 @@ print(output_text)
 ![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nWiae5MCufG4IficQWbUIUOsB5jWyU73sXfVcHic1OVFojs6j4G6B1oU0qockicKVcAUz7ppeG3z2c34Q/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
 
 **['视频中展示了一条繁忙的街道，车辆密集，交通堵塞。街道两旁是高楼大厦，天空阴沉，可能是傍晚或清晨。']**
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

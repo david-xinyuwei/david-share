@@ -1,0 +1,6 @@
+datasets
+evaluate
+gradio
+huggingface-hub
+torch
+transformers

@@ -101,11 +101,6 @@ All experiments were conducted on a single Azure VM:
 
 ```
 H100 NVL 95,830 MiB Total
-├── Base Model (BF16):     ~39,000 MiB (41%)
-├── LoRA Weights:             ~451 MiB  (0.5%)
-├── Inference Activations:  ~17,000 MiB (18%)
-├── Available:              ~39,000 MiB (41%)
-└── Peak Usage:             ~57,000 MiB (59%)
 
 Without BF16: ~78,000 MiB model alone → needs 2× H100
 ```

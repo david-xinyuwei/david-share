@@ -59,7 +59,7 @@ This repository is **ready to be uploaded to GitHub**. All necessary files have 
 
 ### 1. Initialize Git Repository
 ```powershell
-cd "c:\Users\david\OneDrive - Office365\桌面\AI-Super-Agent\石头科技唤醒词"
+cd "c:\Users\david\OneDrive - Office365\桌面\local-workspace\石头科技唤醒词"
 git init
 ```
 

@@ -1,0 +1,24 @@
+# 🚚 This Project Has Moved
+
+> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+
+> **This project has been merged into a unified project.**
+
+<table>
+<tr>
+<td>📍 <b>Old Location</b></td>
+<td><code>Deep-Learning/Azure-NC-NV-GPU-VM-Selection-Guide</code></td>
+</tr>
+<tr>
+<td>📍 <b>New Location</b></td>
+<td><a href="../NC-RTX-Pro-6000V6-BSE-Benchmark/"><b>Deep-Learning/NC-RTX-Pro-6000V6-BSE-Benchmark</b></a></td>
+</tr>
+</table>
+
+### 👉 [Click here to go to the new location](../NC-RTX-Pro-6000V6-BSE-Benchmark/)
+
+The Azure GPU VM selection guide content has been merged into the unified NC RTX Pro benchmark project.
+
+---
+
+*This redirect was created to preserve backward compatibility with existing links.*

@@ -86,9 +86,6 @@ KV Cache 是 LLM 推理（Inference）中**最关键的内存消耗来源**。�
 
 ```
 "气" 的 4096 个数字
-    ├── × W_Q矩阵 → Q = [128个数字/头 × 32头]  ← 给别人打分的工具
-    ├── × W_K矩阵 → K = [128个数字/头 × 8头]   ← 被别人打分的对象
-    └── × W_V矩阵 → V = [128个数字/头 × 8头]   ← 被选中后贡献到输出的内容
 ```
 
 > **为什么 Q 有 32 头而 K/V 只有 8 头？** 这就是 GQA（Grouped-Query Attention）——每 4 个 Q 头共享 1 组 K/V，减少 KV Cache 大小而几乎不损失质量。L0 阶段可以只记住：Q 比 K/V 多，具体原理见 L2.4。
@@ -927,18 +924,14 @@ $$K_{total} = K_{per\_sequence} \times B$$
 ```
 Q1: 模型权重（BF16）能放进单GPU吗？
 │
-├── YES → Q2: 留给 KV Cache 的空间够吗？
 │   │     （GPU VRAM − Weights − 10% overhead ≥ KV Cache for target context × concurrency）
 │   │
-│   ├── YES → 单 GPU + Data Parallelism
 │   │         (vllm --dp N)
 │   │
-│   └── NO  → 选项A: 量化权重（BF16→INT4）释放空间
 │             选项B: 降低 max context length (--max-model-len)
 │             选项C: 使用 FP8 KV Cache (--kv-cache-dtype fp8)
 │             选项D: 升级到更大显存 GPU
 │
-└── NO  → Tensor Parallelism (vllm --tp N)
           注意: N 必须能整除 num_attention_heads
 ```
 
@@ -1145,9 +1138,6 @@ NVIDIA Dynamo 负责：
 
 ```
 15 个激活
-├── ③④ K/V → PagedAttention 管（在 HBM 中怎么存——分页、消除碎片）
-├── ⑤⑥⑦ Score/Softmax/Output → FlashAttention 管（在 SRAM 中怎么算——不落地 HBM）
-└── 其余 10 个 → 正常 HBM 读写，无特殊优化
 ```
 
 **FA 消除的 HBM IO 量化**（Qwen3-8B, seq=32K, BF16）：

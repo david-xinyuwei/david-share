@@ -1,5 +1,7 @@
 # AML and AI Foundry Model Catalog Models Performance Evaluation
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 [![Python Version](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
 [![Azure](https://img.shields.io/badge/Azure-AI%20Foundry-0078D4.svg)](https://azure.microsoft.com/en-us/products/ai-services)
 [![Azure Developer CLI](https://img.shields.io/badge/azd-supported-blue.svg)](https://learn.microsoft.com/azure/developer/azure-developer-cli/)
@@ -206,7 +208,7 @@ Skip `azd up` if you already have an Azure ML workspace. The deployment script w
 python scripts/deployment/deploymodels-linux-20250405.py
 ```
 
-https://github.com/user-attachments/assets/cc9065e9-bbf1-4f59-a7b8-57b8c9703db3
+https://github.com/user-attachments/assets/<resource-id>
 
 **The script will:**
 
@@ -238,7 +240,7 @@ python scripts/deployment/delete-endpoint-20250327.py
 azd down
 ```
 
-https://github.com/user-attachments/assets/8be25ceb-6c47-45b3-bfa6-34dbc79f6732
+https://github.com/user-attachments/assets/<resource-id>
 
 ---
 
@@ -299,7 +301,7 @@ az ml online-deployment show \
 --output json
 ```
 
-https://github.com/user-attachments/assets/8bd23c08-6937-4f3b-93d1-a7f3b3e2abd9
+https://github.com/user-attachments/assets/<resource-id>
 
 #### 4️⃣ Performance Test
 
@@ -320,7 +322,7 @@ huggingface-cli login
 python scripts/testing/press-phi4-0403.py
 ```
 
-https://github.com/user-attachments/assets/5560e1b8-22ea-4569-988e-7e361422ba0b
+https://github.com/user-attachments/assets/<resource-id>
 
 
 
@@ -1329,7 +1331,7 @@ Run test script, after entering the following three variables, the stress test w
 python scripts/testing/callaiinference-20250406.py
 ```
 
-https://github.com/user-attachments/assets/bb9606b6-b114-40d1-bcb6-ae51d5de62bc
+https://github.com/user-attachments/assets/<resource-id>
 
 ```text
 Please enter the Azure AI endpoint URL, such as https://xinyu.services.ai.azure.com/models format: https://ai-hubeastus869020590911.services.ai.azure.com/models

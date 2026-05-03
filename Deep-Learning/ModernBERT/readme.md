@@ -1,5 +1,7 @@
 # ModernBERT Model
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 A new encoder-only small model has been released and has gained high download volumes. Here is the link:  https://huggingface.co/answerdotai/ModernBERT-large  I tried it out, and it performs well in simple Q&A, classification, and similarity comparison tasks. 
 
  ![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nVZbeZF4zhUdVdhBRUiaPcReBxZhG6LEb8KcEmMKAsO7ZrpMFM9XVcxm1MCSkZrBLxbYgOGFRAyR2g/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
@@ -466,3 +468,18 @@ The following diagram explains how ModernBERT improves the attention mechanism, 
 - **Meets Practical Needs:** ModernBERT is an ideal choice for tasks requiring efficient processing of long texts and code.
 
 - **Promotes Model Diversity:** Emphasizes the importance of encoder models in the entire LLM ecosystem.
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

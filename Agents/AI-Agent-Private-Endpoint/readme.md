@@ -1,5 +1,7 @@
 # Secure-by-Default Networking and customer role for an AI Foundry Project
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 Step-by-step network hardening workflow
 
 1. Create a Private Endpoint for the AI Foundry project.
@@ -381,3 +383,19 @@ Model which is not on the white list could not be deployed:
 Model which is on the white list could be deployed:
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Agent-Private-Endpoint/images/24.png)
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

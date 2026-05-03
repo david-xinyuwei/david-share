@@ -1,5 +1,12 @@
 # LoRA-Training-Different-LM-Modules
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
+
+## Overview
+
+This repository contains implementation and documentation for LoRA-Training-Different-LM-Modules.
+
 In LoRA/QLoRA, there are two parameter target_modules and modules_to_save, with which we can specify which modules' parameters should be fully fine-tuned.
 
 ```
@@ -279,3 +286,26 @@ Modules trained：
 
 The results of the training are as follows:
 ![image](https://github.com/davidsajare/LoRA-Training-Different-LM-Modules/blob/main/images/6.png)
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+pip install -r requirements.txt
+```
+
+### Scripts
+
+| Script | Description |
+|--------|-------------|
+| `source code.ipynb` | Source Code.Ipynb |

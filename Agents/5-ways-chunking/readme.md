@@ -1,4 +1,6 @@
 # Five Levels of Chunking 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 This article will first introduce the principles of five chunking methods, followed by the implementation of the code.
 
 ## Running on Azure
@@ -276,7 +278,7 @@ class AgenticChunker:
         self.print_logging = True  
   
         # Azure OpenAI 配置信息  
-        self.endpoint = "https://YOUR-ENDPOINT.openai.azure.com/openai/deployments/YOUR-DEPLOYMENT/chat/completions?api-version=2024-02-15-preview"  
+        self.endpoint = "https://<your-resource>.openai.azure.com/openai/deployments/YOUR-DEPLOYMENT/chat/completions?api-version=2024-02-15-preview"  
         self.api_key = "***"  
   
     def _invoke_llm(self, prompt):  
@@ -402,3 +404,18 @@ Chunk ID: e89cc - Summary: This chunk contains information about the principle o
 
 
 Refer to ：https://github.com/FullStackRetrieval-com/RetrievalTutorials.git
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

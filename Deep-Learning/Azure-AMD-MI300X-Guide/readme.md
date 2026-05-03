@@ -1,5 +1,7 @@
 # Azure AMD MI300X Guide
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 This guide provides comprehensive guidance and resources for deploying, benchmarking, and fine-tuning cutting-edge open-source foundation models on Azure ND MI300X (Standard_ND96isr_MI300X_v5) GPU Virtual Machines powered by AMD Instinct MI300X accelerators.
 
 **Models covered:**
@@ -89,7 +91,7 @@ After the system is successfully deployed, open port 22 on the VM's NSG. Then SS
 
 For testing, use the local NVMe temporary disk as the docker runtime environment. Note that after VM restart, data stored on the temporary disk will be lost. This approach is suitable for fast, low-cost testing scenarios. For production scenarios, a persistent file system should be used.
 
-![NVMe Disk Setup](images/1.png)
+<!-- Image not found: images/1.png -->
 
 ```
 mkdir -p /mnt/resource_nvme/
@@ -417,22 +419,22 @@ This tool supports specifying concurrency, total requests, input/output tokens, 
 The following test uses a relatively extreme scenario with an input of 10,000 tokens:
 
 ```
-evalscope perf --url http://YOUR-VM.region.cloudapp.azure.com:30000/v1/chat/completions --model "deepseek-ai/DeepSeek-R1" --parallel 1 --number 20 --api openai --min-prompt-length 10000 --dataset "longalpaca" --max-tokens 2048 --min-tokens 2048 --stream 
+evalscope perf --url http://<your-vm>.cloudapp.azure.com:30000/v1/chat/completions --model "deepseek-ai/DeepSeek-R1" --parallel 1 --number 20 --api openai --min-prompt-length 10000 --dataset "longalpaca" --max-tokens 2048 --min-tokens 2048 --stream 
 ```
 
 Test results for several scenarios with different concurrency levels and request counts:
 
 **Single concurrency:**
 
-![Single Concurrency Result](images/2.jpg)
+<!-- Image not found: images/2.jpg -->
 
 **5 Concurrent Requests:**
 
-![5 Concurrent Requests](images/3.jpg)
+<!-- Image not found: images/3.jpg -->
 
 **10 Concurrent Requests:**
 
-![10 Concurrent Requests](images/4.jpg)
+<!-- Image not found: images/4.jpg -->
 
 **Note**: The `--enable-torch-compile` parameter is currently not supported in the AMD MI300X environment. The `--enable-dp-attention` parameter is supported but doesn't improve performance under low concurrency. Its effectiveness under high concurrency requires further observation.
 
@@ -1518,3 +1520,19 @@ The `rocm/vllm:rocm6.3.1_instinct_vllm0.8.3_20250410` image supports Qwen3 with 
 - [V710 VLLM Inference](https://github.com/dasilvajm/V710-VLLM-inference)
 - [AMD LoRA Fine-Tuning Qwen2-VL](https://github.com/ROCm/gpuaidev/blob/main/docs/notebooks/fine_tune/fine_tuning_lora_qwen2vl.ipynb)
 - [AMD Megatron-LM ROCm Fork](https://github.com/ROCm/Megatron-LM/blob/rocm_dev/)
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

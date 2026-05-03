@@ -6,7 +6,7 @@ Runs N diverse prompts at a fixed quality+size to verify that
 output tokens are deterministic and prompt-independent.
 
 Usage:
-    export AZURE_OPENAI_ENDPOINT="https://YOUR_RESOURCE.openai.azure.com/"
+    export AZURE_OPENAI_ENDPOINT="https://<your-resource>.openai.azure.com/"
     export AZURE_OPENAI_KEY="YOUR_KEY"
     python verify_token_determinism.py
 

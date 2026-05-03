@@ -2,7 +2,7 @@
 """Benchmark GPT-Image-2 image edit API across quality levels.
 
 Usage:
-  export AZURE_OPENAI_ENDPOINT="https://<resource>.openai.azure.com"
+  export AZURE_OPENAI_ENDPOINT="https://<resource><your-resource>.openai.azure.com"
   export AZURE_OPENAI_KEY="<key>"
   python scripts/benchmark_gpt_image2_edit.py \
     --input-image images/matrix/1024x1024_medium.png \
@@ -52,7 +52,7 @@ def run_edit(endpoint, api_key, deployment, api_version, image_path, prompt, qua
 
 def main():
     parser = argparse.ArgumentParser(description="Benchmark GPT-Image-2 edit API")
-    parser.add_argument("--endpoint", default=os.getenv("AZURE_OPENAI_ENDPOINT", "https://admin-4171-resource.openai.azure.com"))
+    parser.add_argument("--endpoint", default=os.getenv("AZURE_OPENAI_ENDPOINT", "https://<your-resource><your-resource>.openai.azure.com"))
     parser.add_argument("--api-key", default=os.getenv("AZURE_OPENAI_KEY", ""))
     parser.add_argument("--deployment", default="gpt-image-2")
     parser.add_argument("--api-version", default="2025-04-01-preview")

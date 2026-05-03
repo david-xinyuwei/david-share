@@ -1,5 +1,7 @@
 # Fine-tuning the STT Model Whisper
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
  In this article, we will explore how to fine-tune OpenAI's Whisper speech-to-text (STT) model using a specialized medical speech recognition dataset available on Huggingface. We will demonstrate how to make Whisper better understand and transcribe medical terminology, thereby making it more useful for medical-related speech recognition. The steps outlined in this article are not intended for any form of clinical use, medical diagnosis, or patient care, nor do they provide or support any commercial use.
 
 #### 
@@ -140,3 +142,26 @@ In code.ipynb
 *https://medium.com/@mahendra0203/fine-tuning-an-ai-speech-to-text-model-for-medical-transcription-b05397e0e1e1*
 
 *https://github.com/mahendra0203/whisper-finetuning/tree/main*
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+pip install -r requirements.txt
+```
+
+### Scripts
+
+| Script | Description |
+|--------|-------------|
+| `code.ipynb` | Code.Ipynb |

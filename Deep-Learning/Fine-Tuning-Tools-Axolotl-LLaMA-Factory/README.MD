@@ -1,5 +1,7 @@
 # Fine-Tuning Tools: Axolotl & LLaMA-Factory
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 This article covers two popular fine-tuning tools for large language models: **Axolotl** and **LLaMA-Factory**. It also provides a deep dive into parallel training strategies (DP, FSDP, TP, PP) that are essential for understanding how these tools scale across GPUs.
 
 **Notice:**
@@ -1364,3 +1366,19 @@ GRADIO_SHARE=1 llamafactory-cli webui
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Fine-Tuning-Tools-Axolotl-LLaMA-Factory/images/5.png)
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/Fine-Tuning-Tools-Axolotl-LLaMA-Factory/images/6.png)
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

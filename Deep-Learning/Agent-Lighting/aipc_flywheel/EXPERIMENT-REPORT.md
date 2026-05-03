@@ -1,7 +1,7 @@
 # AIPC Training Flywheel 实验报告
 
 > **实验日期**: 2026年1月3日-4日
-> **实验环境**: Azure A100 80GB VM (YOUR-VM.region.cloudapp.azure.com)
+> **实验环境**: Azure A100 80GB VM (<your-vm>.cloudapp.azure.com)
 > **基座模型**: Phi-3.5-mini-instruct (3.8B)
 > **评估标准**: GPT-5.2 五维度评分 (准确性/完整性/专业性/实用性/代码质量)
 

@@ -1,5 +1,12 @@
 # Foundry Local Functionality Verification
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
+
+## Overview
+
+This repository contains implementation and documentation for Foundry Local Functionality Verification.
+
 ## Running on Azure
 
 **Azure AI Foundry Local** runs AI models directly on your local machine — no cloud GPU required.
@@ -292,8 +299,6 @@ http://localhost:PORT/v1/chat/completions
     │
     ▼
 Foundry Local Service Daemon
-    ├── ONNX Runtime (CPU/GPU/NPU)
-    └── ONNX Model (.ort/.onnx)
 ```
 
 ### AI Dev Gallery Architecture
@@ -302,10 +307,6 @@ The WinUI app loads ONNX models directly into the current process via `OnnxRunti
 
 ```
 AI Dev Gallery WinUI App
-    ├── WinUI Page (XAML, UI Controls)
-    ├── OnnxRuntimeGenAIChatClient (C# wrapper)
-    ├── ONNX Runtime (Microsoft.ML.OnnxRuntime)
-    └── Local ONNX Model (.ort/.onnx)
 ```
 
 ### Comparison
@@ -321,3 +322,19 @@ AI Dev Gallery WinUI App
 
 
 
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

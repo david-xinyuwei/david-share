@@ -1,4 +1,6 @@
 # Chinese-PII-With-Azure-Speech-Service
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 Reference Link：
 
 *https://github.com/microsoft/presidio*
@@ -69,3 +71,33 @@ streamlit run --server.address 0.0.0.0 presidio_streamlit.py
 然后浏览器访问VM的域名加端口号
 
 *Then the browser accesses the VM's domain name plus port number*
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+pip install -r requirements.txt
+```
+
+### Scripts
+
+| Script | Description |
+|--------|-------------|
+| `code/azure_ai_language_wrapper.py` | Azure Ai Language Wrapper |
+| `code/flair_recognizer.py` | Flair Recognizer |
+| `code/flair_test.py` | Flair Test |
+| `code/openai_fake_data_generator.py` | Openai Fake Data Generator |
+| `code/presidio_helpers.py` | Presidio Helpers |
+| `code/presidio_nlp_engine_config.py` | Presidio Nlp Engine Config |
+| `code/presidio_streamlit.py` | Presidio Streamlit |
+| `code/test_streamlit.py` | Test Streamlit |

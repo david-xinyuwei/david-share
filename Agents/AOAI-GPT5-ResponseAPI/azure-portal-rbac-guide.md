@@ -292,7 +292,7 @@ Access control (IAM) → 顶部点击 "+ Add" 下拉菜单 → Add role assignme
 ```powershell
 # 设置变量
 $apiKey = "your_api_key_here"
-$endpoint = "https://your-resource.cognitiveservices.azure.com/"
+$endpoint = "https://<your-resource>.cognitiveservices.azure.com/"
 $deploymentName = "your-deployment-name"
 
 # 测试 API 调用
@@ -330,7 +330,7 @@ from openai import AzureOpenAI
 
 # 配置
 api_key = "your_api_key_here"
-endpoint = "https://your-resource.cognitiveservices.azure.com/"
+endpoint = "https://<your-resource>.cognitiveservices.azure.com/"
 deployment = "your-deployment-name"
 
 # 创建客户端

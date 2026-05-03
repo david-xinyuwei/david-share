@@ -107,26 +107,11 @@ graph TB
 ```
 传统设计 (GPU)：每个核心都有全套功能 → 核心之间争抢共享资源
 
-  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐
-  │Core 0│ │Core 1│ │Core 2│ │Core 3│  ← 每个都有 ALU+缓存+控制
-  └──┬───┘ └──┬───┘ └──┬───┘ └──┬───┘
-     └────────┴────────┴────────┘
               Shared Bus / Crossbar         ← 争抢！
 
 TSP (LPU)：按功能分离成切片 → 数据像流水线一样流过
 
   指令流 ↓ (Y轴)
-  ┌─────┬─────┬─────┬─────┬─────┐
-  │ ICU │ ICU │ ICU │ ICU │ ICU │  ← 指令控制（只需一份）
-  ├─────┼─────┼─────┼─────┼─────┤
-  │ MEM │ MEM │ MEM │ MEM │ MEM │  ← 内存（读权重）
-  ├─────┼─────┼─────┼─────┼─────┤
-  │ VXM │ VXM │ VXM │ VXM │ VXM │  ← 向量计算
-  ├─────┼─────┼─────┼─────┼─────┤
-  │ MXM │ MXM │ MXM │ MXM │ MXM │  ← 矩阵计算
-  ├─────┼─────┼─────┼─────┼─────┤
-  │ SXM │ SXM │ SXM │ SXM │ SXM │  ← 网络
-  └─────┴─────┴─────┴─────┴─────┘
   数据流 → (X轴)
 ```
 
@@ -253,19 +238,15 @@ Groq 官方声明：
 
 应用层       │  Python 代码 (model.generate())
                │
-───────────    │  ① torch.compile ← Optimizes here (Python → static graph)
                │     ~1.5× speedup, near-zero cost
 CPU 调度层   │  CPU 逐个发 kernel 给 GPU
                │
-───────────    │  ② CUDA Graph ← Optimizes here (record & replay, skip CPU)
                │     ~1.2× speedup, requires fixed input shapes
 GPU 计算层   │  GPU 运行 kernel（MatMul/Attention/LayerNorm）
                │
-───────────    │  ③ TensorRT ← Optimizes here (operator fusion + quantization)
                │     ~2-3× speedup, slow compilation, less flexibility
 硬件执行层   │  内存访问、缓存行为、线程调度、总线仲裁
                │
-───────────    │  ④ Groq Compiler ← Optimizes here (everything static, zero dynamic)
                │     ~4-7× speedup, requires dedicated LPU hardware
 物理层       │  晶体管、电信号
 ```
@@ -343,26 +324,20 @@ graph TB
 ```
 Vera Rubin SuperPOD：
 
-  ┌───────────────────────────────────┐
   │ Vera Rubin NVL72 机架              │  72 颗 Rubin GPU + 36 颗 Vera CPU
   │  • 每 GPU 288 GB HBM4              │  NVLink 6 (3600 GB/s)
   │  • 3.6 EFLOPS (NVFP4)              │  Prefill + 联合 Decode
   │  • NVLink 6 互联                    │
-  └─────────────┬─────────────────────┘
                 │ Activations + KV Cache (via NIXL)
                 │
-  ┌─────────────┴─────────────────────┐
   │ NVIDIA Groq 3 LPX 机架             │  256 颗 LPU
   │  • 128 GB SRAM（总计）              │  自定义 C2C (640 TB/s)
   │  • 315 PFLOPS (FP8)                │  联合 Decode
   │  • 150 TB/s SRAM 带宽              │
-  └─────────────┬─────────────────────┘
                 │
-  ┌─────────────┴─────────────────────┐
   │ BlueField-4 STX 存储机架            │  KV Cache 存储层
   │  • DOCA Memos 框架                  │  推理吞吐量提升 5×
   │  • POD 级上下文内存                  │
-  └───────────────────────────────────┘
 
   调度器：NVIDIA Dynamo 1.0
     • KV-aware routing

@@ -3,6 +3,8 @@
 # AI Model on PC的验证
 
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 ## Running on Azure
 
 This project can be deployed on **Azure Virtual Machines** with GPU support.
@@ -63,7 +65,7 @@ This project can be deployed on **Azure Virtual Machines** with GPU support.
 
 以Foundry Local推理模型为例，其推理解码速度显然比人类的阅读速度快。
 
-https://github.com/user-attachments/assets/2dabdf38-2945-4c0d-9398-39b38b74a6a3
+https://github.com/user-attachments/assets/<resource-id>
 
 
 
@@ -224,3 +226,19 @@ python run_llm.py
 | 推理质量下降 | 量化等级过低       | 改用8-bit或FP16                      |
 | 无法加载模型 | 格式不支持         | 确认下载GGUF版本                     |
 
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

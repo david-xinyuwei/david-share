@@ -1,6 +1,8 @@
 # Florence2 applications in multiple CV scenarios and Fine Tuning
 
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 Florence-2 has 4 version released by Microsoft official:
 ```
 Model	Model size	Model Description

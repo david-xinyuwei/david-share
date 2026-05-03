@@ -6,8 +6,8 @@
 #   ./deploy.sh \
 #     --resource-group rg-<your-resource-group> \
 #     --aoai-name my-aoai-resource \
-#     --ptu-endpoint https://xxx.openai.azure.com \
-#     --paygo-endpoint https://yyy.openai.azure.com \
+#     --ptu-endpoint https://<your-resource>.openai.azure.com \
+#     --paygo-endpoint https://<your-resource>.openai.azure.com \
 #     --email ops-team@company.com
 
 set -euo pipefail

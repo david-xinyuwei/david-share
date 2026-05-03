@@ -329,3 +329,19 @@ This is exactly the scenario for:
 ---
 
 *Running on Azure. Author: Xinyu Wei (魏新宇), Microsoft AI GBB.*
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

@@ -4,12 +4,14 @@
                                  Dload  Upload   Total   Spent    Left  Speed
 100 2008k  100 2008k  100   139  77516      5  0:00:27  0:00:26  0:00:01  481k
 图片已生成并保存为: generated_image.png
-Request ID: 69c90bbc-95a8-4f63-9fb3-32b42af772ab
+Request ID: <resource-id>
 (base) root@linuxworkvm:~#
 ```
 
 
 ## Running on Azure
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
 
 This project can be deployed on **Azure Virtual Machines** with GPU support.
 
@@ -19,3 +21,25 @@ This project can be deployed on **Azure Virtual Machines** with GPU support.
 | **Compute** | Select VM size based on model requirements |
 
 
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```
+
+### Scripts
+
+| Script | Description |
+|--------|-------------|
+| `generate_image.sh` | Generate Image |

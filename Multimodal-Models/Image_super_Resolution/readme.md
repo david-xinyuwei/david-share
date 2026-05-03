@@ -5,6 +5,8 @@ pip install git+https://github.com/sberbank-ai/Real-ESRGAN.git
 
 ## Running on Azure
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 This project can be deployed on **Azure Virtual Machines** with GPU support.
 
 | Item | Details |
@@ -40,3 +42,19 @@ sr_image.save('./sr_image-4.png')
 
 
 
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

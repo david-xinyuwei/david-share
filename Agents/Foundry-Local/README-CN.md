@@ -1,5 +1,7 @@
 # Foundry Local 功能验证
 
+> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+
 ## Running on Azure
 
 **Azure AI Foundry Local** 可以在本地设备上直接运行 AI 模型，无需云端 GPU。

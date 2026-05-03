@@ -1,5 +1,7 @@
 # SmolLM Full Fine-Tuning
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 Hugging Face has launched a series of miniatures: the SmolLM, including 135M, 360M and 1.7B parameter versions.
 
 ![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nX087KgSEQiaOe4SmFibX4Lcu4Tr3B05Y2RzcWGDsUDnzX5iamrDnSwEBpkgZdQuq1BCscb73jOb3IGA/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
@@ -316,3 +318,18 @@ Explain the rows in above picture:
 - **Increase Training Data**: More data can help the model learn better features.
 - **Adjust Model Structure**: Try different model structures to see if it can improve the model's performance.
 - **Check Data Preprocessing**: Ensure that the data preprocessing steps are correct to avoid data quality issues affecting the training effectiveness.
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

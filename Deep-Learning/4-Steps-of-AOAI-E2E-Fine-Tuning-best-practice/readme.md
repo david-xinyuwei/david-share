@@ -1,5 +1,7 @@
 # 4 Steps of AOAI E2E Fine-Tuning best practice
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 In this repository, I will start by introducing the process of synthesizing training data from Personas and then proceed step by step to fine-tune GPT-3.5 or other open-source models. This article will also discuss how to improve the fine-tuning results by adjusting the fine-tuning parameters.
 
 
@@ -27,7 +29,7 @@ At this stage, the dataset only contains the description of the Persona:
 The code I used: 1.generatedata.py
 
 ```
-(base) root@YOUR-VM:/mnt/c/david-share/2# cat 1.generatedata.py
+(base) root@YOUR-VM:./ cat 1.generatedata.py
 import sys
 from tqdm import tqdm
 from datasets import load_dataset
@@ -437,3 +439,19 @@ Based on the above analysis, the consistency between the second model and the tr
 #### Summary
 
 The consistency score between the second model and the training set is approximately 95%. It is highly consistent with the training set in terms of structure, content, and language style, with only some additional details in the "Processing Power" section, but these details are reasonable and relevant.
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

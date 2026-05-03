@@ -1,5 +1,12 @@
 # Computer Vision Workshop
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
+
+## Overview
+
+This repository contains implementation and documentation for Computer Vision Workshop.
+
 <img src="https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Computer-Vision-Workshop/images/14.png" alt="images" style="width:80%;"> 
 
 ### Content including：
@@ -96,7 +103,7 @@ Open jupyter files via VScode, the use local laptop python as your runtime, set 
 ```
 # Azure Computer Vision 4 (Florence)
 azure_cv_key = *
-azure_cv_endpoint = https://YOUR-ENDPOINT.cognitiveservices.azure.com/
+azure_cv_endpoint = https://<your-resource>.cognitiveservices.azure.com/
 ```
 
 Then you could do the Lab.
@@ -107,3 +114,34 @@ Then you could do the Lab.
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/IMAGES/5.png)
 
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+pip install -r requirements.txt
+```
+
+### Scripts
+
+| Script | Description |
+|--------|-------------|
+| `azure_computer_vision_workshop/00 Setup Azure Computer Vision.ipynb` | 00 Setup Azure Computer Vision.Ipynb |
+| `azure_computer_vision_workshop/01 Image Analysis.ipynb` | 01 Image Analysis.Ipynb |
+| `azure_computer_vision_workshop/03 Background removal.ipynb` | 03 Background Removal.Ipynb |
+| `azure_computer_vision_workshop/04  Gradio app for background removal.ipynb` | 04  Gradio App For Background Removal.Ipynb |
+| `azure_computer_vision_workshop/05 Image retrieval.ipynb` | 05 Image Retrieval.Ipynb |
+| `azure_computer_vision_workshop/06 Fashion visual search - Images analysis.ipynb` | 06 Fashion Visual Search - Images Analysis.Ipynb |
+| `azure_computer_vision_workshop/07 Fashion visual search - Images embeddings.ipynb` | 07 Fashion Visual Search - Images Embeddings.Ipynb |
+| `azure_computer_vision_workshop/10 Fashion visual search - Gradio App.ipynb` | 10 Fashion Visual Search - Gradio App.Ipynb |
+| `azure_computer_vision_workshop/azure.py` | Azure |

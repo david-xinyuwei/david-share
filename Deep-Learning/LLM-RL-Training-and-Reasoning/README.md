@@ -283,34 +283,19 @@ Let's first clarify "who is who" in training—this makes all subsequent paper d
 Prompt x
   │
   ▼
-┌───────────────┐        ┌──────────────────┐
-│ Actor πθ      │        │ Reference πref   │
-│ Generates y   │        │ (Original Script)│
-└──────┬────────┘        └───────┬──────────┘
        │                          │
        │ logπθ(y|x)               │ logπref(y|x)
        │                          │
        ▼                          ▼
-   ┌──────────────────────────────────────────┐
    │ KL Penalty:   -β · (logπθ - logπref)     │
-   └──────────────────────────────────────────┘
                   │
                   │ Generated (x, y)
                   │
-       ┌──────────┴──────────┐
        ▼                     ▼
-┌───────────────┐     ┌───────────────┐
-│ Reward Model  │     │ Critic Vψ     │
-│ r = RM(x,y)   │     │ v = Vψ(x)     │
-│ (Judge scores)│     │ (Coach estimates)│
-└──────┬────────┘     └──────┬────────┘
        │                     │
-       └──────────┬──────────┘
                   ▼
            Advantage A = r - v
                   │
-                  ├──> Update Actor θ (make high-A behaviors more frequent)
-                  └──> Update Critic ψ (make v closer to r)
 ```
 
 **Key Point**: Reward Model and Critic compute in parallel, both based on generated (x, y), then jointly compute Advantage.
@@ -848,11 +833,6 @@ python embedded_infer.py \
 
 ```
 embedded_sft_rl/
-├── embedded_grpo_train.py   # Main training script
-├── embedded_infer.py        # Inference script
-├── run_train.sh             # Training launch script
-├── requirements.txt         # Python dependencies
-└── README.md                # This document
 ```
 
 ---
@@ -1133,20 +1113,16 @@ Where R_meta comes from meta-verifier's quality score for the "review text".
 Problem X + Proof Y
         │
         ▼
-┌───────────────────────┐
 │ Verifier πφ           │
 │ - Find flaws/gaps     │
 │ - Explain deductions  │
 │ - Output score s∈{0,0.5,1}│
-└───────────┬───────────┘
             │ (More worth reviewing when s is low)
             ▼
-┌───────────────────────┐
 │ Meta-Verifier πη       │
 │ - Audit if "review" is real│
 │ - Audit if deduction reasons hold│
 │ - Output quality score ms∈{0,0.5,1}│
-└───────────┬───────────┘
             ▼
 Trustworthy review for training/filtering
 ```
@@ -1176,22 +1152,16 @@ Where (intuitive explanation):
 Prompt X
   │
   ▼
-┌───────────────────────────────┐
 │ Generator πθ                   │
 │ Generates: Proof Y + Self-Review Z│
-└───────────────┬───────────────┘
                 │
                 ▼
-┌───────────────────────────────┐
 │ Verifier πφ                    │
 │ Scores Proof Y: s              │
-└───────────────┬───────────────┘
                 │
                 ▼
-┌───────────────────────────────┐
 │ Meta-Verifier πη               │
 │ Audits Self-Review Z honesty/quality│
-└───────────────┬───────────────┘
                 ▼
 Reward R = α·(proof score) + β·(self-review fidelity)
 ```
@@ -1226,17 +1196,10 @@ For each proof:
 **Not two model weights—one model switching roles via prompts!**
 
 ```text
-┌─────────────────────────────────────────────────────────────────────┐
 │              Inference: Single Model + Prompt Role Switching         │
-├─────────────────────────────────────────────────────────────────────┤
 │                                                                     │
 │  Same model weights πθ                                              │
-│      │                                                              │
-│      ├── Prompt A (Generation) ──► Generate proof Y + self-eval Z   │
-│      │                                                              │
-│      └── Prompt B (Verification) ─► Verify others' proofs (majority voting)│
 │                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
 ```
 **But what's the cost? Look at the paper's inference configuration:**
 
@@ -1519,29 +1482,15 @@ All three approaches need to define "what makes a good answer", but implement it
 #### DeepSeekMath-V2: Three-Layer Verification Reward
 
 ```text
-┌─────────────────────────────────────────────────────────────────┐
 │                  DeepSeekMath-V2 Reward Architecture             │
-├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  Generator Output: Proof Y + Self-Evaluation Z                  │
-│         │                                                       │
 │         ▼                                                       │
-│  ┌─────────────────┐                                            │
-│  │ Verifier πφ     │ ──► R_Y = proof_score (0/0.5/1)           │
-│  │ (Trained Judge) │                                            │
-│  └────────┬────────┘                                            │
-│           │                                                     │
 │           ▼                                                     │
-│  ┌─────────────────┐                                            │
-│  │ Meta-Verifier πη│ ──► R_meta = is self-eval honest (0/0.5/1)│
-│  │ (Audits Judge)  │                                            │
-│  └────────┬────────┘                                            │
-│           │                                                     │
 │           ▼                                                     │
 │  R = R_format · (α·R_Y + β·R_Z)    α=0.76, β=0.24              │
 │                                                                 │
 │  Key: Reward model itself needs training, can evaluate reasoning│
-└─────────────────────────────────────────────────────────────────┘
 ```
 
 #### Agent Lightning: Composite Rule-Based Reward
@@ -1618,7 +1567,6 @@ Agent Lightning / Azure RFT use **pure external rewards**—the model doesn't kn
 
 ```text
 DeepSeekMath-V2 Training Pipeline (Complex):
-─────────────────────────────────────────────────────
 Stage 1: Train Verifier (needs human-labeled proof quality)
    │
 
@@ -1771,7 +1719,6 @@ You still need a real reward source:
 Process:
 
 ```
-Generate N candidates ─→ score ─→ group mean ─→ Advantage
 ```
 
 ## Example
@@ -3117,11 +3064,7 @@ This article mainly introduces three strategies for scaling test-time compute:
 
    Different strategies perform differently depending on problem difficulty and compute budget, following the concept of “compute-optimal scaling,” i.e., choosing the strategy that achieves the best performance for a given compute budget. For simpler problems and lower budgets, Best-of-N performs better; for more complex problems and higher budgets, beam search and DVTS have the advantage.
 
-   
-
    In the future, improving verifier quality, enabling model self-verification, incorporating deeper reasoning, and applying search methods to data generation, etc. These directions are expected to further enhance LLM performance, especially under resource constraints.
-
-   
 
 **I. Differences among several decoding techniques**
 
@@ -3145,7 +3088,6 @@ Building on the previous article, I add a comparison of DVTS (Diverse verifier t
 
 ### 1. Greedy Decoding（Greedy Decoding）
 
- 
 **How it works:**
 
 - At each step, choose the next word or token with the highest probability.
@@ -3163,7 +3105,6 @@ Building on the previous article, I add a comparison of DVTS (Diverse verifier t
 
 ### 2. Beam Search（Beam Search）
 
- 
 **How it works:**
 
 - **Keep multiple candidate sequences**: at each step, maintain a fixed number (beam width k) of most likely partial sequences.
@@ -3187,7 +3128,6 @@ Building on the previous article, I add a comparison of DVTS (Diverse verifier t
 
 ### 3. Diverse Verifier Tree Search（DVTS）
 
- 
 **How it works:**
 
 - **Split the initial beam**: divide the initial beam into multiple independent subtrees to increase initial diversity.
@@ -3211,11 +3151,8 @@ Building on the previous article, I add a comparison of DVTS (Diverse verifier t
   - **Higher compute cost**: due to more search paths and verifier computation.
   - **Implementation complexity**: requires careful design of search strategy and verifier model.
 
- 
-
 ### 4. Majority Voting（Majority Voting）
 
- 
 **How it works:**
 
 - **Multiple independent generations**: use random sampling (e.g., Top-k or Top-p sampling) to generate N independent candidate answers.
@@ -3250,11 +3187,7 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 
 ## Differences and connections among them
 
- 
-
 ### Size of the search space
-
- 
 
 - **Greedy Decoding**:
   - **Smallest search space**: explores only one path, choosing the top-probability token at each step.
@@ -3267,8 +3200,6 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 
 ### Diversity
 
- 
-
 - **Greedy Decoding**:
   - **Lowest diversity**: only one output sequence.
 - **Beam Search**:
@@ -3280,8 +3211,6 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 
 ### Compute cost
 
- 
-
 - **Greedy Decoding**:
   - **Lowest cost**: at each step only the top token is selected.
 - **Beam Search**:
@@ -3292,8 +3221,6 @@ All experiments in this project were conducted on an **Azure GPU VM**.
   - **Medium to high cost**: depends on the number of generations N.
 
 ### Suitable scenarios and tasks
-
- 
 
 - **Greedy Decoding**:
   - **Fast results**: suitable when speed is critical and quality demands are low.
@@ -3310,8 +3237,6 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 
 ## Simple analogies
 
- 
-
 - **Greedy Decoding**:
   - **Analogy**: at every intersection, choose the most straightforward-looking road, potentially missing a better route.
 - **Beam Search**:
@@ -3323,7 +3248,6 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 
 ## Summary
 
- 
 By incorporating **Majority Voting** into the discussion, we can more comprehensively understand the characteristics, advantages, and applicable scenarios of different decoding and generation strategies. Each method has unique strengths and limitations; choosing the right one depends on task requirements, available compute, and quality expectations.
 
 - **Greedy Decoding** fits simple, fast tasks with low quality requirements.
@@ -3350,15 +3274,12 @@ DeepMind’s latest research shows that test-time compute can be scaled optimall
 
 - **🧭 Search and Learn**: A lightweight toolkit for implementing search strategies on LLMs, built on vLLM for high speed.
 
-  
-
 So how well does compute-optimal scaling work in practice? Look at this chart: on the challenging MATH-500 benchmark, tiny 1B and 3B Llama Instruct models actually outperform their larger 8B and 70B counterparts when given enough “thinking time”:
 
 <img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/2.png" width="800">
 
 ## III. Strategies for test-time compute scaling
 
- 
 There are two main strategies for scaling test-time compute:
 
 1. **Self-Refinement**: Models iteratively improve their outputs or “thoughts” by identifying and correcting mistakes in subsequent iterations. While effective on some tasks, this often requires built-in self-improvement mechanisms, which may limit applicability.
@@ -3389,7 +3310,6 @@ Best-of-N, Beam Search, and Diverse Verifier Tree Search (DVTS) are decoding tec
 
 ## Experimental setup
 
- 
 As shown above, our experimental setup follows these steps:
 
 1. We first feed a math problem to an LLM, which generates N partial solutions, e.g., an intermediate step in the derivation.
@@ -3412,7 +3332,6 @@ To warm up, we start with a simple baseline and incrementally add techniques to 
 
 ## Majority voting: a simple baseline
 
- 
 Majority voting—aka self-consistency decoding—is the most straightforward way to aggregate LLM outputs. As the name implies, for a given math problem we generate N candidate solutions and select the most frequent answer. In all experiments, we sampled up to N = 256 candidates with temperature T = 0.8 and generated up to 2048 tokens per problem.
 
 The MATH benchmark has a quirk: answers must be formatted in a LaTeX box like `\boxed{answer}`. We initially tried the following simple system prompt for Llama 3.2 1B:
@@ -3421,7 +3340,6 @@ The MATH benchmark has a quirk: answers must be formatted in a LaTeX box like `\
 Please think step by step and put your final answer in \boxed{}.
 ```
 
- 
 But with greedy decoding (T = 0) the accuracy was far below the 30.6% Meta reported in their release. Fortunately, Meta also released the prompts they used for evaluation, and switching our system prompt to theirs made a huge difference:
 
 ```
@@ -3448,7 +3366,6 @@ Therefore, the final answer is: $\boxed{answer}$. I hope this is correct.
 where [answer] is the final number or expression that solves the problem.
 ```
 
- 
 There is a subtlety in evaluating math problem answers: strings like `1/3` and `3/3` are different but represent mathematically equivalent answers. The standard approach is to convert a pair of answers to SymPy objects, then check whether subtracting the two objects and applying `sympy.simplify` yields zero.
 
 While this approach works well when comparing a small number of candidate answers, we found that comparing many pairs in a list of N candidates is very slow — in some cases, even slower than generating the candidates in the first place! To address this, we first simplify each answer to its canonical form, then count the frequency of each form to determine the majority vote. If you are interested in how this is implemented, expand the details below.
@@ -3465,7 +3382,6 @@ Given the limitations of majority voting, let us see how introducing a reward mo
 
 ## Best-of-N
 
- 
 Best-of-N is a simple but effective extension of majority voting that uses a reward model to determine the most likely answer. There are two main variants:
 
 1. **Original Best-of-N**: Generate N independent responses and select the one with the highest reward model (RM) score as the final answer. This ensures choosing the single most confident response but does not account for consistency across answers.
@@ -3500,7 +3416,6 @@ However, despite these improvements, we still could not reach the performance of
 
 ## Beam search with a process reward model
 
- 
 Beam search is a structured search method that systematically explores the solution space, making it a powerful tool for improving model outputs at test time. When combined with a Process Reward Model (PRM), beam search can jointly optimize the generation and evaluation of intermediate steps in problem solving. Here's how it works:
 
 1. Iteratively generate multiple candidate solutions by maintaining a fixed number of “beams” or active paths N.
@@ -3526,7 +3441,6 @@ Beam search is a structured search method that systematically explores the solut
 
 ## What problems does beam search excel at?
 
- 
 While beam search is clearly a better search strategy than Best-of-N or majority voting overall, DeepMind’s paper shows that each strategy involves trade-offs depending on problem difficulty and test-time compute budget.
 
 To understand which strategy suits which problems, DeepMind estimated the distribution of problem difficulties and then split the results into quintiles. In other words, each problem is assigned to one of 5 levels, where level 1 denotes easier problems and level 5 denotes the hardest. To estimate problem difficulty, DeepMind generated 2048 candidate solutions per problem using standard sampling, and then proposed the following heuristics:
@@ -3537,7 +3451,6 @@ To understand which strategy suits which problems, DeepMind estimated the distri
 
   Below is the performance of various methods at four test-time compute budgets N = [4, 16, 64, 256] in terms of pass@1:
 
-  
   In this figure, each bar represents a test-time compute budget; within each bar, we show the relative accuracy of each method. For example, in the four bars for difficulty level 2, we see:
 
   <img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/9.png" width="800">
@@ -3552,7 +3465,6 @@ To understand which strategy suits which problems, DeepMind estimated the distri
 
 ## DVTS: Boosting performance via diversity
 
- 
 As seen above, beam search outperforms Best-of-N but tends to fare worse on simpler problems under large test-time compute budgets. To address this, we developed an extension called Diverse Verifier Tree Search (DVTS), designed to maximize diversity at larger N.
 
 DVTS works similarly to beam search, with the following modifications:
@@ -3697,11 +3609,8 @@ And several common methods for generating candidates include:
 
 **Genetic Algorithm** is an adaptive heuristic used to solve optimization and search problems, simulating natural selection and genetic variation. Its core idea is “survival of the fittest.” Through selection, crossover, and mutation, high-quality individuals (solutions) are retained in the population and generate new, better solutions. 
 
- 
-
  **Why introduce genetic algorithms?**
 
- 
 In DeepMind’s **Mind Evolution** method, genetic algorithms are introduced to:
 
 - **Enhance search capability**: More effectively explore complex solution spaces via biological evolution mechanisms.
@@ -3710,7 +3619,6 @@ In DeepMind’s **Mind Evolution** method, genetic algorithms are introduced to:
 
 **Key steps of genetic algorithms**
 
- 
 **(1) Initialize population**
 
 - **Population**: Composed of multiple candidate solutions (individuals).
@@ -3747,7 +3655,6 @@ In DeepMind’s **Mind Evolution** method, genetic algorithms are introduced to:
 
 ### Application of genetic algorithms in Mind Evolution
 
- 
 **Example task**: Plan a trip that meets specific requirements for a user.
 
 **Steps overview**:
@@ -3769,17 +3676,11 @@ In DeepMind’s **Mind Evolution** method, genetic algorithms are introduced to:
 
 - **Parallelization**: The process can be parallelized to improve efficiency.
 
-  
-
-  
-
   **Three、\**Implementation of Mind Evolution\****
 
 In DeepMind’s new paper **《Evolving Deeper LLM Thinking》**, a new implementation is introduced.
 
 **Mind Evolution** is a search method that combines **Large Language Models (LLMs)\** and \**evolutionary algorithms**, designed to improve LLMs’ ability on complex problems (e.g., natural language planning). It simulates biological evolution and iteratively optimizes candidates through generation, evaluation, selection, crossover, mutation, and refinement to ultimately find the best solution. 
-
- 
 
 <img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/14.png" width="800">
 
@@ -3799,12 +3700,10 @@ In DeepMind’s new paper **《Evolving Deeper LLM Thinking》**, a new implemen
 
 7. **Island Model - Migration and Reset**
 
-   
    Below, I will explain each step, the algorithms and concepts involved, with examples.
 
 ### Step 1: Candidate generation (initialization)
 
- 
 **Who performs it**: Large Language Model (LLM)
 
 **Explanation**:
@@ -3855,7 +3754,6 @@ In DeepMind’s new paper **《Evolving Deeper LLM Thinking》**, a new implemen
 
 ### Step 2: Plan evaluation (Fitness Evaluation)
 
- 
 **Who performs it**: **Evaluation function (programmatic evaluator)**
 
 **Explanation**:
@@ -3922,7 +3820,6 @@ In DeepMind’s new paper **《Evolving Deeper LLM Thinking》**, a new implemen
 
 ### Step 3: Refinement through Critical Conversation (RCC)
 
- 
 **Who performs it**: Large Language Model (LLM)
 
 **Explanation**:
@@ -3975,7 +3872,6 @@ In DeepMind’s new paper **《Evolving Deeper LLM Thinking》**, a new implemen
 
 ### Step 4: Selection
 
- 
 **Who performs it**: Algorithmic flow (program control)
 
 **Explanation**:
@@ -4050,7 +3946,6 @@ In DeepMind’s new paper **《Evolving Deeper LLM Thinking》**, a new implemen
 
 ### Step 6: Iteration and Evolution
 
- 
 **Who performs it**: Algorithmic flow (program control)
 
 **Explanation**:
@@ -4076,8 +3971,6 @@ In DeepMind’s new paper **《Evolving Deeper LLM Thinking》**, a new implemen
 - **Termination conditions**: A plan that meets all requirements is found, or a maximum number of iterations is reached.
 
 ### Step 7: Island Model - Migration and Reset
-
- 
 
 **Who performs it**: Algorithmic flow (program control)
 
@@ -4110,7 +4003,6 @@ In DeepMind’s new paper **《Evolving Deeper LLM Thinking》**, a new implemen
 
 ### Summary
 
- 
 The **Mind Evolution** method combines the generation and understanding capabilities of LLMs with the global optimization of evolutionary algorithms (including genetic algorithms and the island model) to achieve efficient plan optimization in natural language planning tasks.
 
 - **Role of LLMs**:
@@ -4525,8 +4417,6 @@ https://kaitchup.substack.com/p/fine-tuning-your-llm-to-think-like-r1
 
 - The Instruct model may be constrained by safety instructions or its original dialog mode, preventing full optimization for a single task like “translation”.
 
-  
-
 #### Evaluation
 
 ![images](images/gemma3_evaluation.png)
@@ -4724,29 +4614,13 @@ All three approaches need to define "what makes a good answer", but implement it
 #### DeepSeekMath-V2: Three-Layer Verification Reward
 
 ```text
-┌─────────────────────────────────────────────────────────────────┐
-│                  DeepSeekMath-V2 Reward Architecture             │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Generator Output: Proof Y + Self-Evaluation Z                  │
-│         │                                                       │
-│         ▼                                                       │
-│  ┌─────────────────┐                                            │
-│  │ Verifier πφ     │ ──► R_Y = proof_score (0/0.5/1)           │
-│  │ (Trained Judge) │                                            │
-│  └────────┬────────┘                                            │
-│           │                                                     │
-│           ▼                                                     │
-│  ┌─────────────────┐                                            │
-│  │ Meta-Verifier πη│ ──► R_meta = is self-eval honest (0/0.5/1)│
-│  │ (Audits Judge)  │                                            │
-│  └────────┬────────┘                                            │
-│           │                                                     │
-│           ▼                                                     │
-│  R = R_format · (α·R_Y + β·R_Z)    α=0.76, β=0.24              │
-│                                                                 │
-│  Key: Reward model itself needs training, can evaluate reasoning│
-└─────────────────────────────────────────────────────────────────┘
+                   DeepSeekMath-V2 Reward Architecture              
+   Generator Output: Proof Y + Self-Evaluation Z                   
+          v                                                        
+            v                                                      
+            v                                                      
+   R = R_format · (α·R_Y + β·R_Z)    α=0.76, β=0.24               
+   Key: Reward model itself needs training, can evaluate reasoning 
 ```
 
 #### Agent Lightning: Composite Rule-Based Reward
@@ -4823,7 +4697,6 @@ Agent Lightning / Azure RFT use **pure external rewards**—the model doesn't kn
 
 ```text
 DeepSeekMath-V2 Training Pipeline (Complex):
-─────────────────────────────────────────────────────
 Stage 1: Train Verifier (needs human-labeled proof quality)
    │
    ▼
@@ -4834,21 +4707,15 @@ Stage 3: Train Generator (using Verifier as Reward Model)
    │
    ▼
 Stage 4: Co-evolution (Generator↔Verifier mutually improve)
-─────────────────────────────────────────────────────
 
 Agent Lightning Training Pipeline (Simple):
-─────────────────────────────────────────────────────
 Stage 1: Define reward function (rule code)
    │
    ▼
 Stage 2: GRPO training (single stage)
-─────────────────────────────────────────────────────
 
 Azure RFT Training Pipeline (Simplest):
-─────────────────────────────────────────────────────
 Step 1: Prepare JSONL data
 Step 2: Define Grader (JSON config)
 Step 3: Submit training job (Azure Portal / API)
-─────────────────────────────────────────────────────
 ```
-

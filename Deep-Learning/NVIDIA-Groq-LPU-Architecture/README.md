@@ -105,26 +105,11 @@ graph TB
 ```
 Traditional (GPU): Each core has everything → cores fight for shared resources
 
-  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐
-  │Core 0│ │Core 1│ │Core 2│ │Core 3│  ← each has ALU+cache+control
-  └──┬───┘ └──┬───┘ └──┬───┘ └──┬───┘
-     └────────┴────────┴────────┘
               Shared Bus / Crossbar         ← contention!
 
 TSP (LPU): Functions separated into slices → data flows through like assembly line
 
   Instructions flow ↓ (Y-axis)
-  ┌─────┬─────┬─────┬─────┬─────┐
-  │ ICU │ ICU │ ICU │ ICU │ ICU │  ← instruction control (one copy)
-  ├─────┼─────┼─────┼─────┼─────┤
-  │ MEM │ MEM │ MEM │ MEM │ MEM │  ← memory (read weights)
-  ├─────┼─────┼─────┼─────┼─────┤
-  │ VXM │ VXM │ VXM │ VXM │ VXM │  ← vector compute
-  ├─────┼─────┼─────┼─────┼─────┤
-  │ MXM │ MXM │ MXM │ MXM │ MXM │  ← matrix compute
-  ├─────┼─────┼─────┼─────┼─────┤
-  │ SXM │ SXM │ SXM │ SXM │ SXM │  ← networking
-  └─────┴─────┴─────┴─────┴─────┘
   Data flows → (X-axis)
 ```
 
@@ -251,19 +236,15 @@ Layer (top = shallow, bottom = deep):
 
 Application    │  Python code (model.generate())
                │
-───────────    │  ① torch.compile ← Optimizes here (Python → static graph)
                │     ~1.5× speedup, near-zero cost
 CPU Dispatch   │  CPU sends kernels to GPU one by one
                │
-───────────    │  ② CUDA Graph ← Optimizes here (record & replay, skip CPU)
                │     ~1.2× speedup, requires fixed input shapes
 GPU Compute    │  GPU runs kernels (MatMul/Attention/LayerNorm)
                │
-───────────    │  ③ TensorRT ← Optimizes here (operator fusion + quantization)
                │     ~2-3× speedup, slow compilation, less flexibility
 HW Execution   │  Memory access, cache behavior, thread scheduling, bus arbitration
                │
-───────────    │  ④ Groq Compiler ← Optimizes here (everything static, zero dynamic)
                │     ~4-7× speedup, requires dedicated LPU hardware
 Physical       │  Transistors, electrical signals
 ```
@@ -339,26 +320,20 @@ graph TB
 ```
 Vera Rubin SuperPOD:
 
-  ┌───────────────────────────────────┐
   │ Vera Rubin NVL72 Rack             │  72 Rubin GPUs + 36 Vera CPUs
   │  • 288 GB HBM4 per GPU            │  NVLink 6 (3600 GB/s)
   │  • 3.6 EFLOPS (NVFP4)             │  Prefill + Joint Decode
   │  • NVLink 6 interconnect           │
-  └─────────────┬─────────────────────┘
                 │ Activations + KV Cache (via NIXL)
                 │
-  ┌─────────────┴─────────────────────┐
   │ NVIDIA Groq 3 LPX Rack            │  256 LPUs
   │  • 128 GB SRAM (total)             │  Custom C2C (640 TB/s)
   │  • 315 PFLOPS (FP8)               │  Joint Decode
   │  • 150 TB/s SRAM bandwidth        │
-  └─────────────┬─────────────────────┘
                 │
-  ┌─────────────┴─────────────────────┐
   │ BlueField-4 STX Storage Rack      │  KV Cache storage tier
   │  • DOCA Memos framework            │  5× inference throughput boost
   │  • POD-wide context memory         │
-  └───────────────────────────────────┘
 
   Orchestrator: NVIDIA Dynamo 1.0
     • KV-aware routing
@@ -494,3 +469,19 @@ Groq's proprietary numeric format:
 | 9 | [github.com/ai-dynamo/dynamo](https://github.com/ai-dynamo/dynamo) (NVIDIA Dynamo 1.0) | Open Source Repo | ☠️2 |
 
 ---
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

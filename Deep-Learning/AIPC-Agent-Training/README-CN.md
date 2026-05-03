@@ -157,33 +157,10 @@ def reward_function(completions, **kwargs):
 ## 📁 仓库结构
 
 ```
-├── 训练脚本（按执行顺序）
-│   ├── train_sft_aipc.py          # 步骤 1: V1.0 → V1.1 SFT
-│   ├── train_grpo_aipc.py         # 步骤 2: V1.1 GRPO 强化
-│   ├── train_dpo_style.py         # 步骤 3: V1.1 → V1.2 风格 DPO
-│   ├── train_dpo_v1.3.py          # 步骤 4: V1.2 → V1.3 反馈 DPO
-│   └── train_dpo_v1.4.py          # 步骤 5: V1.3 → V1.4 代码 DPO
 │
-├── 数据生成脚本
-│   ├── generate_aipc_new_data.py  # 通过 Azure OpenAI 生成 SFT 数据
-│   ├── generate_style_dpo_data.py # 生成风格偏好对
-│   ├── generate_feedback_v1.3.py  # 模拟客户反馈
-│   └── generate_feedback_v1.4.py  # 生成带 AST 验证的代码偏好
 │
-├── 示例数据 (data/)
-│   ├── sample_sft.jsonl           # 3 条 SFT 示例
-│   ├── sample_style_dpo.jsonl     # 3 条风格 DPO 示例
-│   ├── sample_feedback_v1.3.jsonl # 2 条反馈 DPO 示例
-│   └── sample_code_feedback_v1.4.jsonl # 2 条代码 DPO 示例
 │
-├── 推理与评估
-│   ├── inference_aipc_sft.py      # 基础推理
-│   ├── inference_compare.py       # 多版本对比
-│   ├── compare_v1.2_v1.3.py       # A/B 测试: V1.2 vs V1.3
-│   └── compare_v1.3_v1.4.py       # A/B 测试: V1.3 vs V1.4
 │
-└── 工具脚本
-    └── convert_checkpoint.py      # Checkpoint 格式转换
 ```
 
 ---

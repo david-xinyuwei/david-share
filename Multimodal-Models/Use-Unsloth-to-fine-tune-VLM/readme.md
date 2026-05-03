@@ -1,5 +1,7 @@
 # Use Unsloth to fine-tune VLM
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 In this article, I will introduce the challenges of fine-tuning VLM and how to use Unsloth to fine-tune VLM. I will provide the fine-tuning code and results. 
 
 **Note:**
@@ -314,3 +316,18 @@ What is name of university?
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Use-Unsloth-to-fine-tune-VLM/images/6.png)
 
 ['university of california', 'University of California', 'university of california, san diego']
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

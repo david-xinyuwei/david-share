@@ -468,22 +468,18 @@ Training converged steadily across all epochs with no overfitting. The loss decr
 > The diagnosis domain must match the loss function domain. If loss is built in velocity space, diagnosis must also be in velocity space. "Alignment" observed in latent space can be misleading — endpoints being close does not mean the path is correct.
 
 ```
-┌──────────────────────────────────────────────────┐
 │  Layer 3: Pixel Space (Evaluation)               │
 │  SSIM / FID / LPIPS / Visual Inspection          │
 │  Answers: How good is the final output?          │
-├──────────────────────────────────────────────────┤
 │  Layer 2: Velocity Space (Mechanism)              │
 │  PCA trajectory / L2 norm / Teacher-Student      │
 │  Answers: How does velocity field behave?        │
 │  ✅ Matches velocity loss domain                 │
-├──────────────────────────────────────────────────┤
 │  Layer 1: Latent Space (Reference)               │
 │  Latent Norm / Cosine / Heatmaps                 │
 │  Answers: Did endpoints converge? (necessary,    │
 │           not sufficient)                        │
 │  ⚠️ Shows "did it arrive" not "how it got there"│
-└──────────────────────────────────────────────────┘
 ```
 
 **Idempotency check**: Findings across all three layers must be consistent. However, **Layer 2 (velocity) and Layer 1/3 measure different things** — velocity PCA coverage being low does NOT predict pixel degradation. Velocity PCA measures *direction diversity*, not *denoising quality*. Quality verdict comes from Layer 1 (latent endpoint) and Layer 3 (pixel evaluation).

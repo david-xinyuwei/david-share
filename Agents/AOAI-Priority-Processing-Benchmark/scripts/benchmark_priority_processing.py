@@ -8,7 +8,7 @@ provides meaningful benefit.
 
 Usage:
   python3 benchmark_priority_processing.py \
-    --endpoint https://YOUR_ENDPOINT.openai.azure.com \
+    --endpoint https://<your-resource>.openai.azure.com \
     --api-key YOUR_API_KEY \
     --deployment gpt-54
 

@@ -1,5 +1,7 @@
 # 当LLM出现幻觉时它想什么？
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 参考论文:
 
 https://arxiv.org/pdf/2410.02707
@@ -902,7 +904,7 @@ Post-generation strategies involve verifying and correcting AI's output after ge
 
 Refer to ：https://github.com/ritun16/chain-of-verification/tree/main
 
-![CoVe_Architecture](https://private-user-images.githubusercontent.com/44939374/273401645-3efc0f5a-b7c6-4655-8a0e-e16c01cac97e.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MjU0NTMwNTUsIm5iZiI6MTcyNTQ1Mjc1NSwicGF0aCI6Ii80NDkzOTM3NC8yNzM0MDE2NDUtM2VmYzBmNWEtYjdjNi00NjU1LThhMGUtZTE2YzAxY2FjOTdlLnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNDA5MDQlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjQwOTA0VDEyMjU1NVomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTc0NDZkYTg1YzkxZDYyMWQ5NDFkZTQ2NmYxYjc4NzNmY2MyOGY0NGU0OGM5YWViYWE2NjBkZDZiNDNjMmI1NTMmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0JmFjdG9yX2lkPTAma2V5X2lkPTAmcmVwb19pZD0wIn0.9dcOdD_i8pLqGc-BOE3n4xoUOFiDBJps_aHZn04iyGM)
+![CoVe_Architecture](https://private-user-images.githubusercontent.com/44939374/273401645-<resource-id>.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MjU0NTMwNTUsIm5iZiI6MTcyNTQ1Mjc1NSwicGF0aCI6Ii80NDkzOTM3NC8yNzM0MDE2NDUtM2VmYzBmNWEtYjdjNi00NjU1LThhMGUtZTE2YzAxY2FjOTdlLnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNDA5MDQlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjQwOTA0VDEyMjU1NVomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTc0NDZkYTg1YzkxZDYyMWQ5NDFkZTQ2NmYxYjc4NzNmY2MyOGY0NGU0OGM5YWViYWE2NjBkZDZiNDNjMmI1NTMmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0JmFjdG9yX2lkPTAma2V5X2lkPTAmcmVwb19pZD0wIn0.9dcOdD_i8pLqGc-BOE3n4xoUOFiDBJps_aHZn04iyGM)
 
 These five source code files implement a system called "Chain of Verification (CoVE)" that generates more accurate answers by verifying and refining initial responses through multiple steps. Below is the implementation logic for each file:
 
@@ -1261,3 +1263,18 @@ The S2A method makes the AI think like human "System 2," focusing on important i
 ![img](https://miro.medium.com/v2/resize:fit:1050/1*TTepBsVL6Pvk1cSOMAaViA.png)
 
 ![img](https://miro.medium.com/v2/resize:fit:1050/1*lVBlwVOdfzm6bopnNoOD3w.png)
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

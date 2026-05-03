@@ -19,7 +19,7 @@ WRITE_LLM        = False                           # 若需对比回答设为 Tr
 # ---------- Azure OpenAI（仅在 WRITE_LLM=True 时使用） ----------
 client = AzureOpenAI(
     api_key        = "*ME",
-    azure_endpoint = "https://YOUR-ENDPOINT.openai.azure.com",
+    azure_endpoint = "https://<your-resource>.openai.azure.com",
     api_version    = "2024-12-01-preview",
 )
 DEPLOY = "gpt-4.1"

@@ -1,5 +1,12 @@
 # Agent Design Best Practice
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
+
+## Overview
+
+This repository contains implementation and documentation for Agent Design Best Practice.
+
 想让Agent 既 **跑得快、花得少、还不翻车**，光有“大模型能力”远远不够，更关键的是：你如何给它喂上下文、喂工具、喂反馈。
  这就是所谓 **Context Engineering**。
 
@@ -321,7 +328,7 @@ Predicted Outputs 是 OpenAI（gpt-4o / 4.1 系列）提供的推理期加速能
 
 # ========= 1. 个人配置（请改为环境变量更安全） =========
 OPENAI_API_KEY = "E*"           # ✅ 你的密钥
-AZURE_ENDPOINT = "https://YOUR-ENDPOINT.openai.azure.com/"  # ✅ 你的 Azure 端点
+AZURE_ENDPOINT = "https://<your-resource>.openai.azure.com/"  # ✅ 你的 Azure 端点
 DEPLOYMENT     = "gpt-4.1"                               # ✅ 部署名称
 
 # ========= 2. 初始化客户端 =========
@@ -443,3 +450,19 @@ rejected_prediction_tokens : 7
 ***https://medium.com/@peakji/context-engineering-for-ai-agents-lessons-from-building-manus-71883f0a67f2***
 
 ***https://platform.openai.com/docs/guides/predicted-outputs***
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

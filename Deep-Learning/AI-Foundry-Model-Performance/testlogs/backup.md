@@ -132,7 +132,7 @@ Next, deploy the "Phi-3-medium-4k-instruct" deployment using the VM SKU "Standar
 ![images](https://github.com/xinyuwei-david/AI-Foundry-Model-Performance/blob/main/images/15.png)
 
 ```
-# python deploy_infra.py "Phi-4-mini-instruct" "1" "08f95cfd-64fe-4187-99bb-7b3e661c4cde" "YOUR-RESOURCE-GROUP" "YOUR-WORKSPACE" "Standard_NC40ads_H100_v5" 1
+# python deploy_infra.py "Phi-4-mini-instruct" "1" "<resource-id>" "YOUR-RESOURCE-GROUP" "YOUR-WORKSPACE" "Standard_NC40ads_H100_v5" 1
 ```
 
 

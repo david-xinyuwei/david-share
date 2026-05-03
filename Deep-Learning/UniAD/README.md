@@ -1,5 +1,7 @@
 # UniAD FlashAttention-2 Optimization Package
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 **Version**: 2.0  
 **Date**: November 13, 2025  
 **Hardware Validated**: NVIDIA H100 NVL (94GB VRAM)  
@@ -27,35 +29,12 @@ This delivery package contains **everything needed** to deploy and validate Flas
 
 ```
 UniAD_FlashAttention2_Delivery/
-├── 01_Code/                          # Core implementation
-│   ├── flash_attention.py           # FlashAttention-2 module (359 lines)
-│   └── __init__.py                  # Module registration
 │
-├── 02_Configs/                       # Training configurations
-│   ├── base_track_map_fp32.py       # FP32 baseline
-│   ├── base_track_map_fp16.py       # FP16 baseline
-│   └── base_track_map_flashattn.py  # FP16 + FlashAttention-2
 │
-├── 03_Logs/                          # Complete training logs (6 epochs)
-│   ├── fp32_test.log                # FP32 baseline (1144 KB)
-│   ├── fp16_test.log                # FP16 baseline (1144 KB)
-│   └── flashattn_test_6epochs.log   # FP16+FA2 (1144 KB)
 │
-├── 04_Analysis_Scripts/              # Performance analysis tools
-│   ├── generate_6epochs_comparison.py   # Main comparison script
-│   ├── generate_simple_table.py         # 3-epoch analysis
-│   └── add_speedup_column.py            # CSV enhancement
 │
-├── 05_Results/                       # Analysis results
-│   ├── comparison_6epochs_15iter.csv    # 50 samples (every 15 iters)
-│   └── comparison_with_speedup.csv      # 3-epoch data with speedup
 │
-├── 06_Documentation/                 # Complete documentation
-│   ├── UniAD_FlashAttention2_Complete_Analysis_6Epochs.md  # Full report
-│   ├── UniAD_Architecture_Complete.md                       # System architecture
-│   └── DEPLOYMENT_GUIDE.md                                  # Deployment manual
 │
-└── README.md                         # This file
 ```
 
 ---
@@ -152,11 +131,6 @@ mkdir -p $UNIAD_ROOT/data/nuscenes
 # Extract to data/nuscenes/
 # Expected structure:
 # data/nuscenes/
-# ├── maps/
-# ├── samples/
-# ├── sweeps/
-# ├── v1.0-trainval/
-# └── v1.0-test/ (optional)
 
 # Prepare data (run from UniAD root)
 cd $UNIAD_ROOT

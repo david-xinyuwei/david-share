@@ -121,15 +121,6 @@ python finetune_3d.py
 
 ```
 data_dir/
-├── train/
-│   ├── slice001_left_kidney.png      # Filename = prompt
-│   ├── slice001_right_kidney.png
-│   └── ...
-├── train_mask/
-│   ├── slice001_left_kidney_mask.png
-│   └── ...
-├── test/
-└── test_mask/
 ```
 
 **Important**: The filename (minus extension) becomes the text prompt!
@@ -359,15 +350,6 @@ Average Dice: 90.2%
 
 ```
 BiomedParse-Fine-Tuning/
-├── README.md                    # This file (English)
-├── README-CN.md                 # Chinese version
-├── finetune_2d.py               # 2D fine-tuning script
-├── finetune_3d.py               # 3D fine-tuning script
-├── visualize_2d.py              # 2D comparison generator
-├── visualize_3d.py              # 3D comparison generator
-└── images/
-    ├── biomedparse_2d_comparison.png  # 2D results
-    └── biomedparse_3d_comparison.png  # 3D results
 ```
 
 ---

@@ -2,6 +2,11 @@
 
 # Qwen3.5-122B-A10B-FP8 Benchmark Reproduction Guide
 
+
+## Overview
+
+This repository contains implementation and documentation for Qwen3.5-122B-A10B-FP8 Benchmark Reproduction Guide.
+
 > Reproducible benchmark for Qwen3.5-122B-A10B-FP8 using SGLang. Used for Azure vs AWS comparison testing.
 
 ---

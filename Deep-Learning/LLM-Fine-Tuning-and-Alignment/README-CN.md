@@ -1,5 +1,7 @@
 # LLM Fine-Tuning and Alignment: A Complete Guide
 
+> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+
 本文是一份 LLM 微调与对齐的完整技术指南，涵盖从 SFT 超参调优、各种微调方法对比（SFT/ReFT/RLHF/DPO/PPO/RLAIF/TPO）、LoRA/QLoRA/GaLore 机制、DPO 理论与实践、PPO 架构详解，到大模型 DPO 分布式训练（DeepSpeed ZeRO-3 / FSDP）的全流程。
 
 > *This guide consolidates content from multiple previously separate articles into a single coherent resource.*

@@ -1,5 +1,12 @@
 # 深入理解 SGLang 与 vLLM：LLM 推理引擎技术对比解析
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
+
+## Overview
+
+This repository contains implementation and documentation for 深入理解 SGLang 与 vLLM：LLM 推理引擎技术对比解析.
+
 随着大语言模型（Large Language Models，简称 LLM）持续快速发展，推理引擎逐渐成为模型生产部署的关键基石。在诸多开源推理引擎中，SGLang 和 vLLM 无疑是近期社区瞩目的焦点。本文旨在从底层架构与核心技术角度，对二者进行全面、准确的对比和解析。
 
 
@@ -295,3 +302,18 @@ SGLang 在并行维度的支持现状：
 | 专注 DeepSeek或特定巨型模型推理，以 FP8 精度运行<br>(对 TP 要求较高，无需频繁DP伸缩） |  **SGLang**  | - 特定模型 kernel 深度优化 (FP8 GEMM、NextN Speculative 等)<br>- 和 DeepSeek 官方协作紧密<br>- TP 支持已较好 |
 | 通用大型模型快速切换与广泛兼容性<br>（TP、PP、DP 全面支持）  |   **vLLM**   | - torch.compile 覆盖广泛模型，生态建设更完善<br>- TP/PP/DP 并行方案成熟好用<br>- 文档和社区生态活跃，各种新模型快速适配 |
 | 大企业级、高QPS服务、大规模集群 GPU 并行管理<br>（DP、PP、TP 并行需求全面） |   **vLLM**   | - C++ Execution Engine 更成熟稳定<br>- 支持 Kubernetes、Ray 等生产级调度与运维工具<br>- PP、DP 组合极佳，更便于企业生产场景 |
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

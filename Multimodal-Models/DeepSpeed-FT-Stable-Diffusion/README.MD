@@ -1,4 +1,6 @@
 # DeepSpeed FT StableDiffusion
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 Refer to： 
 
 *https://github.com/microsoft/DeepSpeedExamples/tree/master/training/stable_diffusion*
@@ -123,3 +125,19 @@ Next show the comparison, each set of pictures are  first show the raw effect of
 
 
 
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

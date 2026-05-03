@@ -1,5 +1,7 @@
 # Distributed Training Parallelism: DP, TP, PP, ZeRO & NCCL Internals
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 > **A comprehensive guide to distributed parallelism strategies for Large Language Model training and inference, covering theory, implementation, and GPU communication internals.**
 
 This guide provides clear, diagram-driven explanations of all major parallelism strategies, their PyTorch/DeepSpeed implementations, and the underlying NCCL communication mechanisms. It answers the most frequently confused questions: *What exactly do TP, PP, and ZeRO each split? How does NCCL coordinate GPUs? When should you use which strategy?*
@@ -742,13 +744,6 @@ Total GPUs = TP_size × PP_size × DP_size
 Example: 8 GPUs, TP=2, PP=2, DP=2
 
                     DP Rank 0                    DP Rank 1
-              ┌────────────────────┐      ┌────────────────────┐
-PP Stage 0    │ GPU0(TP0) GPU1(TP1)│      │ GPU4(TP0) GPU5(TP1)│
-(Layer 0-46)  │  ←── NVLink ──→   │      │  ←── NVLink ──→   │
-              ├────────────────────┤      ├────────────────────┤
-PP Stage 1    │ GPU2(TP0) GPU3(TP1)│      │ GPU6(TP0) GPU7(TP1)│
-(Layer 47-93) │  ←── NVLink ──→   │      │  ←── NVLink ──→   │
-              └────────────────────┘      └────────────────────┘
                          ↕ AllReduce gradients (DP) ↕
 ```
 
@@ -874,7 +869,6 @@ Memory breakdown per GPU:
   Gradients (FP16):      ~7.8 GB
   Optimizer (FP32):      ~23.4 GB (Adam: 3× param FP32)
   Activations & KV:      ~30-40 GB
-  ──────────────────────────────
   Total:                 ~70-80 GB / 80 GB H100
 ```
 
@@ -1505,3 +1499,26 @@ lsmod | grep nv_peer_mem
 - [Technologies Behind Distributed Deep Learning: AllReduce](https://tech.preferred.jp/en/blog/technologies-behind-distributed-deep-learning-allreduce/)
 - [NVIDIA NCCL Developer Guide](https://docs.nvidia.com/deeplearning/sdk/nccl-developer-guide/docs/troubleshooting.html)
 - [RCCL Topology Visualization Tool](https://github.com/ROCmSoftwarePlatform/rccl/tree/develop/tools/TopoVisual)
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+pip install -r requirements.txt
+```
+
+### Scripts
+
+| Script | Description |
+|--------|-------------|
+| `generate_diagrams.py` | Generate Diagrams |

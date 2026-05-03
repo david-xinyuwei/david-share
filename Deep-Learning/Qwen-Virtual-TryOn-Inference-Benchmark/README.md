@@ -1,5 +1,10 @@
 # Qwen-Image-Edit-2511 Virtual Try-On Inference Benchmark
 
+
+## Overview
+
+This repository contains implementation and documentation for Qwen-Image-Edit-2511 Virtual Try-On Inference Benchmark.
+
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch 2.5+](https://img.shields.io/badge/pytorch-2.5+-red.svg)](https://pytorch.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -932,19 +937,6 @@ Speedup vs diffusers (70.31s): 3.94x 🚀
 
 ```
 Qwen-Virtual-TryOn-Inference-Benchmark/
-├── README.md                 # English documentation (this file)
-├── README-CN.md              # Chinese documentation
-├── requirements.txt          # Dependencies
-├── LICENSE                   # MIT License
-├── benchmarks/               # Example code (simplified)
-│   ├── diffusers_baseline.py # diffusers baseline example
-│   ├── diffusers_compile.py  # torch.compile example
-│   ├── vllm_omni_baseline.py # vLLM-Omni example
-│   └── sglang_test.py        # SGLang example
-└── images/
-    ├── model_input.jpg       # Test model image
-    ├── garment.jpg           # Test garment image
-    └── output_*.png          # Benchmark outputs
 ```
 
 ## Related Work

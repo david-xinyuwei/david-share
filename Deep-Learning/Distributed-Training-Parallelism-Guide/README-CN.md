@@ -1,5 +1,7 @@
 # 分布式训练并行策略：DP、TP、PP、ZeRO 与 NCCL 内幕
 
+> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+
 > **全面介绍用于大语言模型训练与推理的分布式并行策略，涵盖理论、实现与 GPU 通信内部机制。**
 
 本指南以图表驱动的方式清晰讲解所有主流并行策略、PyTorch/DeepSpeed 实现以及底层 NCCL 通信机制。它回答了最容易混淆的问题：*TP、PP 和 ZeRO 各切分了什么？NCCL 如何协调 GPU？何时该使用哪种策略？*
@@ -742,13 +744,6 @@ engine, optimizer, _, _ = deepspeed.initialize(model=model, config=ds_cfg)
 示例：8 个 GPU，TP=2，PP=2，DP=2
 
                     DP Rank 0                    DP Rank 1
-              ┌────────────────────┐      ┌────────────────────┐
-PP 阶段 0     │ GPU0(TP0) GPU1(TP1)│      │ GPU4(TP0) GPU5(TP1)│
-(第 0-46 层)  │  ←── NVLink ──→   │      │  ←── NVLink ──→   │
-              ├────────────────────┤      ├────────────────────┤
-PP 阶段 1     │ GPU2(TP0) GPU3(TP1)│      │ GPU6(TP0) GPU7(TP1)│
-(第 47-93 层) │  ←── NVLink ──→   │      │  ←── NVLink ──→   │
-              └────────────────────┘      └────────────────────┘
                          ↕ AllReduce 梯度 (DP) ↕
 ```
 
@@ -874,7 +869,6 @@ Meta 的 Llama-3 405B 在 **16,384 个 H100 GPU** 上使用 3D 并行训练：
   梯度 (FP16):      ~7.8 GB
   优化器 (FP32):    ~23.4 GB (Adam: 3× 参数 FP32)
   激活值 & KV:      ~30-40 GB
-  ──────────────────────────
   总计:             ~70-80 GB / 80 GB H100
 ```
 

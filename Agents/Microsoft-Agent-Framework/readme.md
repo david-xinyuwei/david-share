@@ -1,5 +1,7 @@
 # Microsoft Agent Framework Workflow Demos
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 > Dual workflow showcase combining a human-in-the-loop pipeline and a MagenticBuilder orchestration demo with shared DevUI tooling.
 
 ## Running on Azure
@@ -29,11 +31,11 @@ This project runs on **Azure OpenAI Service** with the Microsoft Agent Framework
 
 **Human-in-the-Loop (HITL) Workflow:**
 
-https://github.com/user-attachments/assets/371de179-192b-411b-b388-e67c4a4563ab
+https://github.com/user-attachments/assets/<resource-id>
 
 **Magentic Dynamic Routing Workflow:**
 
-https://github.com/user-attachments/assets/3ed468f3-7af2-441c-a802-c82a51c4636e
+https://github.com/user-attachments/assets/<resource-id>
 
 
 ## Architecture Overview
@@ -67,12 +69,6 @@ The Agent Framework source (see `python/packages/core/agent_framework/_workflows
 | Magentic Planner | `MagenticBuilder` (dynamic) | Users ask open-ended questions that require routing to the best specialist (weather, math, travel) without hardcoding flow. | Magentic manager plans and selects participants adaptively, mixing tool calls and plan reviews. Enables flexible orchestration without redesigning the graph for every new skill. |
 
 ```
-┌─────────────┐      ┌────────────────────┐      ┌──────────────┐
-│ Start Script│ ───▶ │ Workflow Orchestrator │ ─▶ │ Azure OpenAI │
-└─────────────┘      └────────────────────┘      └──────────────┘
-        │                        │                         │
-        │                        └──▶ DevUI events ───────▶│
-        └──▶ Terminal I/O ◀──────┘                         │
 ```
 
 ## Repository Layout
@@ -137,3 +133,31 @@ The Agent Framework source (see `python/packages/core/agent_framework/_workflows
 - [Microsoft Agent Framework repository](https://github.com/microsoft/agent-framework)
 - [Agent Framework DevUI package](https://pypi.org/project/agent-framework-devui/)
 - [Azure OpenAI Service documentation](https://learn.microsoft.com/azure/ai-services/openai/)
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+pip install -r requirements.txt
+```
+
+### Scripts
+
+| Script | Description |
+|--------|-------------|
+| `hitl_agent.py` | Hitl Agent |
+| `hitl_devui.py` | Hitl Devui |
+| `hitl_start.py` | Hitl Start |
+| `magentic_agent.py` | Magentic Agent |
+| `magentic_devui.py` | Magentic Devui |
+| `magentic_start.py` | Magentic Start |

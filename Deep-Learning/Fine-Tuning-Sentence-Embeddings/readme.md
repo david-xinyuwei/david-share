@@ -1,5 +1,7 @@
 # Fine-Tuning a Sentence Embeddings Model for Domain-Specific RAG
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 Semantic retrieval is the backbone of modern Retrieval-Augmented Generation (RAG) and search systems. While generic embedding models such as `all-mpnet-base-v2` and `text-embedding-3` are effective for many open-domain tasks, they often fall short when deployed in narrow, domain-specific scenarios. This results in:
 
 - **Noisy Top-k recalls:** Unrelated documents frequently appear amongst the top search results.
@@ -56,17 +58,11 @@ Fine-tune the embedding model using contrastive learning, so that positive query
 
 ```
 Data Preparation                   Training                         Evaluation
-     ┌───────────────────────────┐   ┌─────────────────────────────┐   ┌──────────────────────────────┐
-     │  Training Triplets:       │   │  Fine-tune with             │   │  Build large candidate       │
-     │  (query, positive, neg)   │──▶│  MultipleNegativesRanking   │──▶│  corpus (corpus.jsonl)       │
-     └───────────────────────────┘   └─────────────────────────────┘   └───────┬──────────────────────┘
                                                                                         │
                                                                                     Retrieval + RAG
-                                                           ┌───────────────────────────┴────────────────────────┐
                                                            │   Offline metrics (Hit@K, MRR),                   │
                                                            │   Batch CSV/report for every query,               │
                                                            │   Per-query document / answer comparison          │
-                                                           └───────────────────────────────────────────────────┘
 ```
 
 

@@ -1,5 +1,7 @@
 # Microsoft Computer Vision Test
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 I have developed 2 Python programs that runs on Windows and utilizes Azure Computer Vision (Azure CV) .
 
 - Perform object recognition on images selected by the user. After the recognition is complete, the user can choose the objects they wish to retain (one or more). The selected objects are then cropped and saved locally.
@@ -45,7 +47,7 @@ import threading
   
 # Azure Computer Vision API 信息  
 subscription_key = "o"  
-endpoint = "https://YOUR-CV-ENDPOINT.cognitiveservices.azure.com/"  
+endpoint = "https://<your-resource>.cognitiveservices.azure.com/"  
   
 # 图像分析函数  
 def analyze_image(image_path):  
@@ -451,3 +453,19 @@ upload_button.observe(on_file_upload, names='value')
 ![imgaes](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Computer-Vision/images/2.png)
 
 ![imgaes](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Computer-Vision/images/1.png)
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

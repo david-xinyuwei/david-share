@@ -1,5 +1,7 @@
 ## OpenAI OSS Model on Azure 
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 The **gpt-oss-120b** model achieves near-parity with OpenAI o4-mini on core reasoning benchmarks, while running efficiently on **a single 80 GB GPU**. 
 
 The **gpt-oss-20b** model delivers similar results to OpenAI o3‑mini on common benchmarks and can run on edge devices with just **16 GB of memory**, making it ideal for on-device use cases, local inference, or rapid iteration without costly infrastructure. Both models also perform strongly on tool use, few-shot function calling, CoT reasoning (as seen in results on the Tau-Bench agentic evaluation suite) and HealthBench (even outperforming proprietary models like OpenAI o1 and GPT‑4o).
@@ -215,9 +217,6 @@ All small values retain approximate precision, only large values are slightly cl
 ```
 [ INT4 (无符号示例) ]                 [ E2M1 (FP4) ]
 
-┌───┬───┬───┬───┐                   ┌───┬───┬───┬───┐
-│b3 │b2 │b1 │b0 │  ← 4 bits         │ S │ E1│ E0│ M0│  ← 4 bits
-└───┴───┴───┴───┘                   └───┴───┴───┴───┘
 b3..b0 → 整数值 (0~15)               S: 符号位 (0=正, 1=负)
                                      E1E0: 2-bit 指数（Exponent）
                                      M0: 1-bit 尾数（Mantissa）
@@ -835,7 +834,6 @@ def main():
     et = time.perf_counter()
     total_time = et - st
 
-    # ── Stats ────────────────────────────────────────────────────────────────
     def pct(lst, p): return statistics.quantiles(lst, n=100)[p-1]
 
     print("\nRESULTS")
@@ -958,7 +956,6 @@ def main():
     et = time.perf_counter()
     total_time = et - st
 
-    # ── Stats ────────────────────────────────────────────────────────────────
     def pct(lst, p): return statistics.quantiles(lst, n=100)[p-1]
 
     print("\nRESULTS")
@@ -3263,3 +3260,26 @@ root@a100vm:~/gpt-oss-function#
 *https://techcommunity.microsoft.com/blog/machinelearningblog/deploying-openai%E2%80%99s-first-open-source-model-on-azure-aks-with-kaito/4444234*
 
 *https://lmsys.org/blog/2025-08-28-gpt-oss-qat/*
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+pip install -r requirements.txt
+```
+
+### Scripts
+
+| Script | Description |
+|--------|-------------|
+| `fine-tune-transfomers.ipynb` | Fine-Tune-Transfomers.Ipynb |

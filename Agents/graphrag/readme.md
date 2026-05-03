@@ -1,5 +1,7 @@
 
 # graphrag configure and validation
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 **Notice:**
 graphrag is a Microsoft opensource project, link:
 ***https://github.com/microsoft/graphrag.git***
@@ -287,7 +289,7 @@ llm:
   model: gpt-4o
   model_supports_json: true # recommended if this is available for your model.
   # audience: "https://cognitiveservices.azure.com/.default"
-  api_base: https://YOUR-ENDPOINT.cognitiveservices.azure.com/
+  api_base: https://<your-resource>.cognitiveservices.azure.com/
   api_version: '2024-08-01-preview'
   # organization: <organization_id>
   deployment_name: gpt-4o-1120
@@ -309,7 +311,7 @@ embeddings:
     api_key: ${GRAPHRAG_API_KEY}
     type: azure_openai_embedding
     model: text-embedding-3-small
-    api_base: https://YOUR-ENDPOINT.cognitiveservices.azure.com/
+    api_base: https://<your-resource>.cognitiveservices.azure.com/
     api_version: '2023-05-15'
     # audience: "https://cognitiveservices.azure.com/.default"
     # organization: <organization_id>
@@ -481,21 +483,21 @@ required group field_id=-1 schema {
 
 前十五行数据：
                                       id  human_readable_id title    type                                        description                                      text_unit_ids
-0   70436dce-df5a-424f-8b8a-228da7a1e20d                  0   罗贯中  PERSON                            罗贯中是《三国演义》的作者，中国古代著名小说家  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
-1   ff2459ab-b2c8-4dbe-852f-d3956d1dfd66                  1    东汉     GEO                         东汉是中国历史上的一个朝代，故事的开端发生在东汉末年  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
-2   184504a9-eba5-4dd4-9705-2793a1865056                  2    西晋     GEO  西晋是中国历史上的一个朝代，位于三国时期之后。它成功结束了三国分裂局面，通过灭亡东吴实现了全...  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
-3   47de1847-023a-446a-9b44-3592f02932f4                  3     魏     GEO  魏是三国时期的一个国家，形成于东汉末年分裂后，是当时的一个重要政治军事集团。作为三国之一，魏...  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
-4   c3de0dba-e7f1-4bf4-b095-05d06d972487                  4     蜀     GEO  蜀是三国时期的一个重要国家之一，形成于东汉末年分裂后，作为一个政治军事集团而崛起。蜀以益州为...  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
-5   e81b7816-0540-4b26-91d3-4206cb239557                  5     吴     GEO  吴是三国时期的一个重要国家，与蜀汉和曹魏并立，形成鼎足之势。它是东汉末年分裂后形成的政治军事...  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
-6   bf829f70-d751-4172-a79e-fb847fcabb4e                  6     晋     GEO                               晋是西晋的简称，最终统一了魏、蜀、吴三国  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
-7   42280ef4-411c-4b9f-a175-d06f0232ca35                  7  黄巾起义   EVENT  黄巾起义是东汉末年的一次大规模农民起义，标志着三国故事的开端。起义由张角及其兄弟张梁、张宝共...  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
-8   c961b273-2f12-415c-9a22-b457f5d4ab79                  8    陈寿  PERSON                      陈寿是《三国志》的作者，为《三国演义》的创作提供了重要素材  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
-9   761a64f7-0c4b-4ab0-8a6b-6d58b9f12276                  9   裴松之  PERSON                 裴松之是《三国志》的注释者，为《三国演义》的创作提供了丰富的背景资料  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
-10  6d0e82ed-8efd-4b33-8c29-aeae940195a3                 10    洛阳     GEO  洛阳是中国古代历史上极为重要的城市，曾多次作为都城和政治、军事中心。东汉时期，洛阳是都城，成...  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
-11  76af3287-eebf-4a5a-a45c-ac47a13dcf13                 11    桓帝  PERSON  桓帝是东汉末年的皇帝，其统治时期被认为是三国乱局的起点之一。他在位期间因无子嗣，最终迎立解渎...  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
-12  6eafd67a-50b2-49f6-8aab-0444c17e2212                 12    灵帝  PERSON  灵帝是东汉末年的一位皇帝，其统治时期因亲近小人和宦官专权而导致国家衰败，成为东汉衰落的重要原...  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
-13  28f5b5fc-629d-44be-a5df-5fcd012d14dc                 13    窦武  PERSON                           窦武是东汉末年的大将军，曾试图铲除宦官势力但失败  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
-14  7eb2c8e9-6579-48fb-8fe1-b3a67f6d87eb                 14    陈蕃  PERSON                        陈蕃是东汉末年的太傅，与窦武合作试图铲除宦官势力但失败  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
+0   <resource-id>                  0   罗贯中  PERSON                            罗贯中是《三国演义》的作者，中国古代著名小说家  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
+1   <resource-id>                  1    东汉     GEO                         东汉是中国历史上的一个朝代，故事的开端发生在东汉末年  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
+2   <resource-id>                  2    西晋     GEO  西晋是中国历史上的一个朝代，位于三国时期之后。它成功结束了三国分裂局面，通过灭亡东吴实现了全...  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
+3   <resource-id>                  3     魏     GEO  魏是三国时期的一个国家，形成于东汉末年分裂后，是当时的一个重要政治军事集团。作为三国之一，魏...  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
+4   <resource-id>                  4     蜀     GEO  蜀是三国时期的一个重要国家之一，形成于东汉末年分裂后，作为一个政治军事集团而崛起。蜀以益州为...  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
+5   <resource-id>                  5     吴     GEO  吴是三国时期的一个重要国家，与蜀汉和曹魏并立，形成鼎足之势。它是东汉末年分裂后形成的政治军事...  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
+6   <resource-id>                  6     晋     GEO                               晋是西晋的简称，最终统一了魏、蜀、吴三国  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
+7   <resource-id>                  7  黄巾起义   EVENT  黄巾起义是东汉末年的一次大规模农民起义，标志着三国故事的开端。起义由张角及其兄弟张梁、张宝共...  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
+8   <resource-id>                  8    陈寿  PERSON                      陈寿是《三国志》的作者，为《三国演义》的创作提供了重要素材  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
+9   <resource-id>                  9   裴松之  PERSON                 裴松之是《三国志》的注释者，为《三国演义》的创作提供了丰富的背景资料  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
+10  <resource-id>                 10    洛阳     GEO  洛阳是中国古代历史上极为重要的城市，曾多次作为都城和政治、军事中心。东汉时期，洛阳是都城，成...  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
+11  <resource-id>                 11    桓帝  PERSON  桓帝是东汉末年的皇帝，其统治时期被认为是三国乱局的起点之一。他在位期间因无子嗣，最终迎立解渎...  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
+12  <resource-id>                 12    灵帝  PERSON  灵帝是东汉末年的一位皇帝，其统治时期因亲近小人和宦官专权而导致国家衰败，成为东汉衰落的重要原...  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
+13  <resource-id>                 13    窦武  PERSON                           窦武是东汉末年的大将军，曾试图铲除宦官势力但失败  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
+14  <resource-id>                 14    陈蕃  PERSON                        陈蕃是东汉末年的太傅，与窦武合作试图铲除宦官势力但失败  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429...
 ```
 
 inspect_parquet2.py:
@@ -591,21 +593,21 @@ required group field_id=-1 schema {
 前十五行数据：
                                       id  human_readable_id source target         description  weight  combined_degree
                                                          text_unit_ids
-0   b8294119-a80d-400d-8a82-02151e970d00                  0    罗贯中   三国演义       罗贯中是《三国演义》的作者    10.0                7  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
-1   aab04773-c063-4922-a886-7e76279c76b8                  1     东汉   黄巾起义         黄巾起义发生在东汉末年     9.0               43  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
-2   71d42882-800a-4b3b-9a5b-dea030cac458                  2     东汉      魏  魏是东汉末年分裂后形成的政治军事集团     8.0               39  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
-3   ea998eb7-5eb5-47a7-9737-02e782e43f2a                  3     东汉      蜀  蜀是东汉末年分裂后形成的政治军事集团     8.0               53  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
-4   9a966936-5bad-4d1f-a85a-89c39d1bf3f8                  4     东汉      吴  吴是东汉末年分裂后形成的政治军事集团     8.0               31  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
-5   5a807ad7-c432-4399-a737-89f42da1c764                  5     东汉     洛阳            洛阳是东汉的都城     7.0               61  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
-6   d1c28321-b588-4ed9-9d27-eb4b724021fc                  6     东汉     桓帝          桓帝是东汉末年的皇帝     7.0               24  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
-7   c6a4f7b8-5a8d-4819-951c-aab5eaa24aec                  7     东汉     灵帝          灵帝是东汉末年的皇帝     7.0               34  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
-8   1c1e381b-dc4e-4803-844d-5c07102adb03                  8     东汉     窦武         窦武是东汉末年的大将军     6.0               24  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
-9   ba730216-ed35-435c-bdd3-5d15ec098813                  9     东汉     陈蕃          陈蕃是东汉末年的太傅     6.0               24  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
-10  8cb073ee-5e07-4bbc-bf2e-dd506ddff65b                 10     东汉     曹节          曹节是东汉末年的宦官     6.0               27  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
-11  1998adde-6bc1-4285-9dc2-be7e9c340a52                 11     东汉     献帝        献帝是东汉的最后一位皇帝     8.0               46  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
-12  155214fd-5c1f-4db7-bd60-6906de5fd265                 12     东汉    光武帝         光武帝是东汉的开国皇帝     8.0               22  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
-13  95a5c7d3-15e1-4fc0-8516-bc8bcfb46d7b                 13     东汉     建宁          建宁是东汉的一个年号     7.0               24  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
-14  e0620b66-5a10-4193-a099-c06f380719de                 14     东汉   洛阳地震      洛阳地震是东汉末年的一场灾害     6.0               22  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
+0   <resource-id>                  0    罗贯中   三国演义       罗贯中是《三国演义》的作者    10.0                7  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
+1   <resource-id>                  1     东汉   黄巾起义         黄巾起义发生在东汉末年     9.0               43  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
+2   <resource-id>                  2     东汉      魏  魏是东汉末年分裂后形成的政治军事集团     8.0               39  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
+3   <resource-id>                  3     东汉      蜀  蜀是东汉末年分裂后形成的政治军事集团     8.0               53  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
+4   <resource-id>                  4     东汉      吴  吴是东汉末年分裂后形成的政治军事集团     8.0               31  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
+5   <resource-id>                  5     东汉     洛阳            洛阳是东汉的都城     7.0               61  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
+6   <resource-id>                  6     东汉     桓帝          桓帝是东汉末年的皇帝     7.0               24  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
+7   <resource-id>                  7     东汉     灵帝          灵帝是东汉末年的皇帝     7.0               34  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
+8   <resource-id>                  8     东汉     窦武         窦武是东汉末年的大将军     6.0               24  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
+9   <resource-id>                  9     东汉     陈蕃          陈蕃是东汉末年的太傅     6.0               24  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
+10  <resource-id>                 10     东汉     曹节          曹节是东汉末年的宦官     6.0               27  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
+11  <resource-id>                 11     东汉     献帝        献帝是东汉的最后一位皇帝     8.0               46  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
+12  <resource-id>                 12     东汉    光武帝         光武帝是东汉的开国皇帝     8.0               22  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
+13  <resource-id>                 13     东汉     建宁          建宁是东汉的一个年号     7.0               24  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
+14  <resource-id>                 14     东汉   洛阳地震      洛阳地震是东汉末年的一场灾害     6.0               22  [7ca24114b9a3c2bba48438bb3029d8e317b3f76e7d429881d5f5a5594860c7fffa1041f3ebdf1f7241127a99292ea771a82c2f29bfdab7b094ffc07c4e8b6875]
 
 选定的字段已保存到 /root/ragtest/output/selected_columns.parquet
 
@@ -914,3 +916,19 @@ In this code, the create_graph function generates a GraphML file using the Netwo
 
 
 
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

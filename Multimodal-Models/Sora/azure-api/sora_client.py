@@ -12,7 +12,7 @@ class SoraVideoClient:
         
         Args:
             api_key: Azure OpenAI API Key
-            base_url: API Endpoint (例如: https://your-resource.openai.azure.com/openai/v1)
+            base_url: API Endpoint (例如: https://<your-resource>.openai.azure.com/openai/v1)
         """
         self.api_key = api_key
         self.base_url = base_url.rstrip('/')
@@ -153,7 +153,7 @@ def example_create_video():
     # 初始化客户端
     client = SoraVideoClient(
         api_key="YOUR_API_KEY",
-        base_url="https://your-resource.openai.azure.com/openai/v1"
+        base_url="https://<your-resource>.openai.azure.com/openai/v1"
     )
     
     # 创建视频
@@ -180,7 +180,7 @@ def example_remix_video():
     
     client = SoraVideoClient(
         api_key="YOUR_API_KEY",
-        base_url="https://your-resource.openai.azure.com/openai/v1"
+        base_url="https://<your-resource>.openai.azure.com/openai/v1"
     )
     
     # 假设已有一个视频 ID
@@ -210,7 +210,7 @@ def example_complete_workflow():
     
     client = SoraVideoClient(
         api_key="YOUR_API_KEY",
-        base_url="https://your-resource.openai.azure.com/openai/v1"
+        base_url="https://<your-resource>.openai.azure.com/openai/v1"
     )
     
     # 步骤 1: 创建原始视频

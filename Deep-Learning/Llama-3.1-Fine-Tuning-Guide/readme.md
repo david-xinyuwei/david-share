@@ -1,4 +1,6 @@
 # Llama3.1-8B Fine Tuning
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 Llama 3.1 and Llama 3 do not differ significantly in terms of fine-tuning implementation. In this article, I will first introduce the differences between the two models and then present the code for QLoRA and LoRA
 
 
@@ -453,4 +455,19 @@ Run training command:
 (llama3.1) root@xinyu2a100vm:~# accelerate launch --config_file config_fsdp.yaml fsdp+QLoRA.py
 ```
 Observe the GPU memory usage:
-![image](./images/2.png)
+<!-- Image not found: ./images/2.png -->
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

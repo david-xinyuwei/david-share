@@ -1,0 +1,11 @@
+aiohttp
+asyncio
+fastapi
+nvidia_ml_py3
+pydantic
+pynvml
+sentence_transformers
+torch
+transformers
+uvicorn
+vllm

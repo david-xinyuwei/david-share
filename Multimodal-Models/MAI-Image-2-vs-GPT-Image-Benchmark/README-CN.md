@@ -1,5 +1,7 @@
 # MAI-Image-2 vs MAI-Image-2e vs GPT-Image-1.5：Azure AI 图像生成基准测试
 
+> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+
 ## 概要总结
 
 本基准测试对比了 Azure 三款图像生成模型的 5 种配置（11 个提示词 × 2 轮 = 110 次 API 调用），采用公平性控制（预热、顺序翻转、对称等待）。截至 2026 年 4 月，所有模型均为 Preview 状态。
@@ -365,19 +367,6 @@ python scripts/benchmark_5way_v2.py
 
 ```
 .
-├── README.md                            # 英文版
-├── README-CN.md                         # 中文版（本文件）
-├── prompts.csv                          # 11 个 Surreal 风格测试提示词
-├── data/
-│   └── 5way_v2_results.json           # 原始测试数据（V2，含 token 用量）
-├── scripts/
-│   └── benchmark_5way_v2.py           # 5 组基准测试脚本（V2）
-└── images/
-    ├── mai-image-2/                     # 每个模型含 r1/ 和 r2/ 子目录
-    ├── mai-image-2e/                    # 每个模型含 r1/ 和 r2/ 子目录
-    ├── gpt-image-1.5-low/              # 每个模型含 r1/ 和 r2/ 子目录
-    ├── gpt-image-1.5-medium/           # 每个模型含 r1/ 和 r2/ 子目录
-    └── gpt-image-1.5-high/             # 每个模型含 r1/ 和 r2/ 子目录
 ```
 
 ## 已知局限性

@@ -1,5 +1,7 @@
 # Fara-7B Azure H100 Validation & Streamlit Demo
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 End-to-end validation of Microsoft's first open-source Computer Use Agent (CUA) model on Azure GPU VMs.
 
 
@@ -30,6 +32,18 @@ Microsoft Fara-7B is the **first open-source agentic small language model** spec
 | **Architecture** | Qwen2_5_VLForConditionalGeneration |
 | **Context Length** | 128K tokens (max_position_embeddings) |
 | **Sliding Window** | 32K tokens |
+
+
+## Architecture
+
+```mermaid
+flowchart LR
+    A["User / Client"] --> B["Azure API"]
+    B --> C["Model Endpoint"]
+    C --> D["GPU Inference"]
+    D --> E["Response"]
+```
+
 
 ## 🧠 Model Architecture Details
 
@@ -79,20 +93,12 @@ Fara implements a `computer_use` tool with the following actions:
 ### Core Agent Functions
 ```
 FaraAgent
-├── initialize()              # Set up browser & OpenAI client
-├── run()                     # Main execution loop
-├── generate_model_call()     # Call vision-language model
-├── execute_action()          # Execute parsed action
-├── _get_scaled_screenshot()  # Capture & resize screen (1440×900)
-├── _parse_thoughts_and_action()  # Extract reasoning & action
-└── close()                   # Cleanup resources
 ```
 
 ### Agent Loop (ReAct Pattern)
 ```
 1. Screenshot → 2. Model Inference → 3. Parse Thought/Action → 4. Execute → 5. Repeat
      ↑                                                                           |
-     └───────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## ✅ Validated Demo Cases
@@ -118,9 +124,9 @@ FaraAgent
 > ⚠️ A10 (24GB) has insufficient VRAM for Fara-7B
 
 
-https://github.com/user-attachments/assets/90e8acc2-d8db-447e-8e30-cb2b157229cd
+https://github.com/user-attachments/assets/<resource-id>
 
-https://github.com/user-attachments/assets/d7041c81-b2e4-4413-980e-428135f8f62c
+https://github.com/user-attachments/assets/<resource-id>
 
 ## 🚀 Quick Deployment
 
@@ -212,9 +218,6 @@ python -m fara.run_fara \
 ### File Structure
 ```
 streamlit_app/
-├── app.py              # Main app (auto-manages VLLM backend)
-├── requirements.txt    # Dependencies
-└── README.md           # Documentation
 ```
 
 ### Deploy Streamlit
@@ -279,7 +282,7 @@ python -m fara.run_fara \
 
 ## 🔄 Human-in-the-Loop (HITL) with Magentic-UI
 
-https://github.com/user-attachments/assets/b62f7a34-aa41-4a69-8fdb-59a1c65eeb72
+https://github.com/user-attachments/assets/<resource-id>
 
 ### What is HITL?
 
@@ -309,25 +312,12 @@ For true interactive HITL (pause, get input, continue), you need framework suppo
 ### Magentic-UI + Fara HITL Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
 │                        Magentic-UI                              │
 │                                                                 │
-│  ┌─────────────┐    ┌──────────────────┐    ┌────────────────┐ │
-│  │  Frontend   │◄──►│  connection.py   │◄──►│ _fara_web_     │ │
-│  │  (React)    │    │  (WebSocket)     │    │  surfer.py     │ │
-│  └─────────────┘    └──────────────────┘    └───────┬────────┘ │
-│                                                      │          │
-│                                              ┌───────▼────────┐ │
-│                                              │  OpenAI API    │ │
-│                                              │  Client        │ │
-│                                              └───────┬────────┘ │
-└──────────────────────────────────────────────────────┼──────────┘
                                                        │
-                                               ┌───────▼────────┐
                                                │     vLLM       │
                                                │    Fara-7B     │
                                                │  (port 5000)   │
-                                               └────────────────┘
 ```
 
 **Key Points**:
@@ -470,3 +460,26 @@ This project code is under MIT License. Fara-7B model is also under MIT License.
 
 *Validation Date: 2025-11-27 | HITL Validation: 2025-12-12 | Validated by: Microsoft GBB AI Architect*
 
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+pip install -r requirements.txt
+```
+
+### Scripts
+
+| Script | Description |
+|--------|-------------|
+| `streamlit_app/app.py` | App |

@@ -1,0 +1,16 @@
+annotated_text
+azure_ai_language_wrapper
+flair
+flair_recognizer
+openai
+openai_fake_data_generator
+pandas
+presidio_analyzer
+presidio_anonymizer
+presidio_helpers
+presidio_nlp_engine_config
+python-dotenv
+spacy
+streamlit
+streamlit_tags
+transformers

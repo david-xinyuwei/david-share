@@ -541,21 +541,6 @@ Most production benchmarks should **NOT** use `enforce_eager=True`.
 
 ```
 flashinfer-vs-flashattention-benchmark/
-├── README.md                      # English documentation
-├── README-CN.md                   # Chinese documentation
-├── scripts/
-│   ├── benchmark_vllm.py          # Basic FI vs FA comparison
-│   ├── benchmark_batch_sweep.py   # Batch size sweep test
-│   ├── benchmark_advanced.py      # CUDAGraph + long sequence test
-│   └── robust_test.py             # 3-run robustness test
-└── results/
-    ├── h100_results.json          # H100 test results
-    ├── a100_results.json          # A100 test results
-    ├── a100_batch_sweep.json      # Batch sweep results
-    ├── a100_advanced.json         # A100 CUDAGraph results
-    ├── rtx6000_results.json       # RTX 6000 eager mode results
-    ├── rtx6000_advanced.json      # RTX 6000 CUDAGraph results
-    └── rtx6000_robust.json        # RTX 6000 3-run robustness results
 ```
 
 ---

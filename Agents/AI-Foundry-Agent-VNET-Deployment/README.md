@@ -1,5 +1,12 @@
 # Azure AI Foundry Agent Service — BYO VNET Deployment & Verification
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
+
+## Overview
+
+This repository contains implementation and documentation for Azure AI Foundry Agent Service — BYO VNET Deployment & Verification.
+
 End-to-end validated deployment of Azure AI Foundry Agent Service with BYO VNET (Bring Your Own Virtual Network) for network isolation. Includes deployment scripts, verification tools, subnet class testing results, and documented pitfalls.
 
 ## Key Findings
@@ -139,8 +146,8 @@ The following are actual outputs from independent deployment drills:
 
 **Drill 1 — Sweden Central, Class C (end-to-end with jumpbox)**:
 ```
-drill2mas.cognitiveservices.azure.com -> 192.168.1.8 [PRIVATE]
-drill2mas.openai.azure.com -> 192.168.1.9 [PRIVATE]
+<your-resource>.cognitiveservices.azure.com -> 192.168.1.8 [PRIVATE]
+<your-resource>.openai.azure.com -> 192.168.1.9 [PRIVATE]
 Token: OK
 Create Agent: HTTP 200
 ID: asst_URPw1iZyFgpFGAcECD2ahQVM

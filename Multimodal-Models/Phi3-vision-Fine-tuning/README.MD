@@ -1,5 +1,12 @@
 # Phi-3.5-vision Fine tuning
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
+
+## Overview
+
+This repository contains implementation and documentation for Phi-3.5-vision Fine tuning.
+
 In this test, I use Burberry's data to fine-tune Phi3.5-Vision comprehensively. The goal is to enable the fine-tuned model to predict brand, description, category, and price information based on product images.
 
  I ran the code on Azure NC H100 GPU VM.
@@ -605,3 +612,19 @@ Do more complex test:
 **Reference Link:**
 
 *https://wandb.ai/byyoung3/mlnews3/reports/How-to-fine-tune-Phi-3-vision-on-a-custom-dataset--Vmlldzo4MTEzMTg3*
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

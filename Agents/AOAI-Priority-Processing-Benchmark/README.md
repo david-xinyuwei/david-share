@@ -246,7 +246,7 @@ flowchart TB
 ```bash
 pip install httpx
 python scripts/benchmark_priority_processing.py \
-  --endpoint https://YOUR_ENDPOINT.openai.azure.com \
+  --endpoint https://<your-resource>.openai.azure.com \
   --api-key YOUR_API_KEY \
   --deployment YOUR_DEPLOYMENT_NAME \
   --iterations 8 --warmup 2

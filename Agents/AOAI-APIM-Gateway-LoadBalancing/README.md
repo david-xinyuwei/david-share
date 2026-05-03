@@ -20,15 +20,12 @@ The tradeoff: when PTU quota is exhausted, Azure OpenAI returns **HTTP 429** (To
 **Spillover** is Azure OpenAI's native overflow mechanism. When a PTU deployment is saturated (429/400/500), traffic automatically falls back to a Standard (PAYGO) deployment **in the same Azure OpenAI resource**:
 
 ```
-┌──────────────────────────┐
 │  Azure OpenAI Resource   │
 │                          │
 │  PTU Deployment          │ ← Primary (low latency, fixed cost)
-│     │ on 429/400/500     │
 │     ▼ spillover          │
 │  Standard Deployment     │ ← Overflow (PAYGO, higher latency)
 │  (PAYGO)                 │
-└──────────────────────────┘
 ```
 
 Spillover is configured in Azure AI Foundry Portal — no gateway needed. See: [Spillover Traffic Management](https://learn.microsoft.com/en-us/azure/foundry/openai/how-to/spillover-traffic-management)
@@ -415,9 +412,6 @@ Alert Rule → Action Group → Azure Function (every 30s)
   │  Calls APIM REST API:
   │  PUT /backends/<pool-name>
   │
-  ├── High util on Region A → weight 5→1 (reduce traffic)
-  ├── Very high (>95%) → weight 1:100 (emergency drain)
-  └── Recovered (<50%) → weight 5:5 (restore)
 ```
 
 ### Dynamic Weight Update via APIM REST API
@@ -475,18 +469,7 @@ For PTU deployments, combine APIM load balancing with **Azure OpenAI native spil
                     APIM AI Gateway
                     (Cross-Region LB)
                          │
-              ┌──────────┴──────────┐
               ▼                     ▼
-      ┌───────────────┐    ┌───────────────┐
-      │  Region A     │    │  Region B     │
-      │  AOAI Resource│    │  AOAI Resource│
-      │               │    │               │
-      │  PTU ─────────│    │  PTU ─────────│
-      │  │ (spillover) │    │  │ (spillover) │
-      │  ▼            │    │  ▼            │
-      │  Standard     │    │  Standard     │
-      │  (PAYGO)      │    │  (PAYGO)      │
-      └───────────────┘    └───────────────┘
 ```
 
 - **APIM**: Cross-region failover and load balancing
@@ -501,9 +484,9 @@ See: [Azure OpenAI Spillover Traffic Management](https://learn.microsoft.com/en-
 
 **Root cause**: API `path="openai"` causes APIM to strip `/openai` prefix before forwarding, but backend URL has no `/openai` → incomplete URL.
 
-**Fix**: Set API `path=""` (empty). Full URL `/openai/deployments/...` is forwarded as-is to backend URL `https://xxx.openai.azure.com`.
+**Fix**: Set API `path=""` (empty). Full URL `/openai/deployments/...` is forwarded as-is to backend URL `https://<your-resource>.openai.azure.com`.
 
-**Alternative**: Keep `path="openai"`, but set backend URLs to `https://xxx.openai.azure.com/openai`.
+**Alternative**: Keep `path="openai"`, but set backend URLs to `https://<your-resource>.openai.azure.com/openai`.
 
 ### 401 with Managed Identity
 
@@ -622,3 +605,27 @@ python monitor_and_route.py --mode metrics   # Query current metrics
 - [APIM Backend Pool & Circuit Breaker](https://learn.microsoft.com/en-us/azure/api-management/backends?tabs=bicep)
 - [AOAI Spillover Traffic Management](https://learn.microsoft.com/en-us/azure/foundry/openai/how-to/spillover-traffic-management)
 - [APIM GenAI Gateway Capabilities](https://learn.microsoft.com/en-us/azure/api-management/genai-gateway-capabilities)
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+pip install -r requirements.txt
+```
+
+### Scripts
+
+| Script | Description |
+|--------|-------------|
+| `monitor_and_route.py` | Monitor And Route |
+| `test_gateway.py` | Test Gateway |

@@ -1,5 +1,7 @@
 # How to make AI training faster
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 ### Factors Affecting AI Training Time
 
 
@@ -167,3 +169,18 @@ DP can be applied on multiple devices within a single server or across multiple 
 Pipeline parallelism (PP) is a different strategy where different model parts run on different devices. Setting DP to 8 in PP means 8 devices process data in parallel at each pipeline stage.
 
 In summary, DP and PP can be used simultaneously on devices within a single server or across multiple servers.
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

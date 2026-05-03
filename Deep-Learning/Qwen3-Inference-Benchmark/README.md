@@ -675,6 +675,33 @@ python3 scripts/bench_235b.py
 
 **Author**: Xinyu Wei (魏新宇)
 
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+pip install -r requirements.txt
+```
+
+### Scripts
+
+| Script | Description |
+|--------|-------------|
+| `scripts/bench_0112.py` | Bench 0112 |
+| `scripts/bench_235b.py` | Bench 235B |
+| `scripts/full_bench.py` | Full Bench |
+| `scripts/generate_architecture.py` | Generate Architecture |
+| `scripts/generate_request_flow.py` | Generate Request Flow |
+
 ## License
 
 MIT License

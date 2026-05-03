@@ -92,8 +92,8 @@ chmod +x deploy.sh
 ./deploy.sh \
   --resource-group rg-<your-resource-group> \
   --aoai-name your-aoai-resource \
-  --ptu-endpoint https://your-ptu.openai.azure.com \
-  --paygo-endpoint https://your-paygo.openai.azure.com \
+  --ptu-endpoint https://<your-resource>.openai.azure.com \
+  --paygo-endpoint https://<your-resource>.openai.azure.com \
   --email ops-team@company.com
 
 # Then apply APIM policy:
@@ -138,7 +138,7 @@ After deployment, verify with the stress test tool:
 
 ```bash
 python ../scripts/stress_test_tpm_utilization.py \
-  --endpoint https://YOUR_PTU.openai.azure.com \
+  --endpoint https://<your-resource>.openai.azure.com \
   --api-key YOUR_KEY \
   --deployment gpt-5.4-nano \
   --concurrency 50 --total 300 \

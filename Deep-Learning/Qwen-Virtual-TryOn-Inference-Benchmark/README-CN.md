@@ -932,19 +932,6 @@ Speedup vs diffusers (70.31s): 3.94x 🚀
 
 ```
 Qwen-Virtual-TryOn-Inference-Benchmark/
-├── README.md                 # 英文文档
-├── README-CN.md              # 中文文档（本文件）
-├── requirements.txt          # 依赖
-├── LICENSE                   # MIT 许可证
-├── benchmarks/               # 示例代码（精简版）
-│   ├── diffusers_baseline.py # diffusers 基线示例
-│   ├── diffusers_compile.py  # torch.compile 示例
-│   ├── vllm_omni_baseline.py # vLLM-Omni 示例
-│   └── sglang_test.py        # SGLang 示例
-└── images/
-    ├── model_input.jpg       # 测试模特图 (576x1024)
-    ├── garment.jpg           # 测试服装图 (1340x1785)
-    └── output_*.png          # 基准测试输出
 ```
 
 ## 相关工作

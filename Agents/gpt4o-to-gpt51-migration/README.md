@@ -105,14 +105,14 @@ pip install -r requirements.txt
 Set environment variables:
 
 ```bash
-export AZURE_OPENAI_ENDPOINT="https://your-resource.openai.azure.com/"
+export AZURE_OPENAI_ENDPOINT="https://<your-resource>.openai.azure.com/"
 export AZURE_OPENAI_API_KEY="your-api-key"
 ```
 
 Or create `.env` file:
 
 ```ini
-AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
+AZURE_OPENAI_ENDPOINT=https://<your-resource>.openai.azure.com/
 AZURE_OPENAI_API_KEY=your-api-key
 ```
 

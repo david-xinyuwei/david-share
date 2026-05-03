@@ -1,5 +1,12 @@
 # An Guide to Microsoft Muse / WHAM World Model
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
+
+## Overview
+
+This repository contains implementation and documentation for An Guide to Microsoft Muse / WHAM World Model.
+
 At the end of 2024, Microsoft Research – Game Intelligence publicly released the weights and source code of WHAM (World & Human Action Model) and exposed fully‑hosted inference endpoints on both Azure and Hugging Face.
 Given 10 context frames, WHAM is able to **simultaneously** predict the *next* game frame **and** the player’s *next* game‑pad input.
 
@@ -350,8 +357,6 @@ def muse_call(payload: dict, hdr: dict, url: str):
         js = json.loads(r.read().decode())
 
     # Debug: print first 2 KB of the response
-    print("── server response (first 2 KB) ──")
-    print(json.dumps(js, indent=2)[:2048], "\n────────────────────────")
 
     img_b64 = js["results"][0]["image"]
     img = Image.open(io.BytesIO(base64.b64decode(img_b64)))
@@ -469,3 +474,19 @@ Run programme
 python call_muse_iterative_debug.py --steps 50
 ```
 
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

@@ -1,5 +1,12 @@
 ## 在 Azure NC H100 上运行 Qwen3-Reranker-0.6B —— vLLM 断言与稳定性优化
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
+## Overview
+
+This repository contains implementation and documentation for Qwen Reranker.
+
+
 Qwen3-Reranker-0.6B 虽然是一个体量较小的模型，但在结合 **vLLM** 推理引擎运行，尤其是在高并发、超短生成任务（如单 token 判别）下，可能会触发底层 **C++ 路由模块的断言（assert）**，直接导致服务进程 crash。
 
 我在 **Qwen Reranker + vLLM v0 + FA2** 的组合下，经过参数调优和代码优化，能够避免在高压场景下频繁触发断言，从而保证服务稳定。单一实例在峰值时可以处理 **约 800 条文档/秒**，生产环境可采用多实例水平扩展。以下为原理与建议，供参考。
@@ -378,3 +385,26 @@ CSV file：
 | 32          | 320            | 320                 | 0               | 100          | 760.84       | 25761.95       | 2054.32   | 2316.28   | 29.68        | 34           |
 | 64          | 640            | 627                 | 13              | 97.97        | 749.91       | 22887.34       | 3486.57   | 3999.48   | 29.86        | 35           |
 | 128         | 1280           | 1174                | 106             | 91.72        | 698.38       | 21677.83       | 5648.19   | 17776.8   | 29.97        | 36           |
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+pip install -r requirements.txt
+```
+
+### Scripts
+
+| Script | Description |
+|--------|-------------|
+| `client.py` | Client |
+| `server.py` | Server |

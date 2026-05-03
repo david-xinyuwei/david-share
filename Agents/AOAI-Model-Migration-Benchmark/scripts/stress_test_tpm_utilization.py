@@ -12,7 +12,7 @@ Purpose:
 
 Usage:
   python3 stress_test_tpm_utilization.py \
-    --endpoint https://YOUR_ENDPOINT.openai.azure.com \
+    --endpoint https://<your-resource>.openai.azure.com \
     --api-key YOUR_API_KEY \
     --deployment gpt-5.4-nano \
     --concurrency 50 --total 300

@@ -376,7 +376,7 @@ def create_gpt52_reward_function(
         
     Example:
         >>> reward_fn = create_gpt52_reward_function(
-        ...     azure_endpoint="https://xxx.openai.azure.com",
+        ...     azure_endpoint="https://<your-resource><your-resource>.openai.azure.com",
         ...     api_key="YOUR_KEY"
         ... )
         >>> trainer = GRPOTrainer(..., reward_funcs=reward_fn)

@@ -1,5 +1,12 @@
 # Flux.1 Solution Test
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
+
+## Overview
+
+This repository contains implementation and documentation for Flux.1 Solution Test.
+
 FLUX.1 是由 Black Forest Labs 开发的开源图像生成模型。它提供多个版本以满足不同用户需求，包括 [pro]、[dev] 和 [schnell]。本文使用 FLUX.1 的 dev 版本进行了验证。FLUX.1 支持最高可达 2K 分辨率（2048 x 2048 像素）。
 
 
@@ -232,3 +239,18 @@ GPU usage during before action:
 The test result is as following:
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Multimodal-Models/Flux.1-Solution-Test/images/11.png)
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

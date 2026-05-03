@@ -1,5 +1,7 @@
 # RAG Best Practice With AI Search
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 Although models like GPT-4 and GPT-3.5 are powerful, their knowledge cannot be the most up-to-date. Previously, we often introduced engineering techniques in the use of LLMs by treating prompt engineering, RAG, and fine-tuning as parallel methods. In fact, these three technologies can be combined.
 
 ## Running on Azure
@@ -473,7 +475,7 @@ Sample code：
 import requests  
 import json  
   
-url = 'https://ai-search-eastus-xinyuwei.search.windows.net/indexes/wukong-doc1/docs/search'  
+url = 'https://<your-resource>.search.windows.net/indexes/wukong-doc1/docs/search'  
 params = {  
     'api-version': '2024-11-01-preview'  
 }  
@@ -504,7 +506,7 @@ Output:
 ```
 Status Code: 200
 Response Body: {
-  "@odata.context": "https://ai-search-eastus-xinyuwei.search.windows.net/indexes('wukong-doc1')/$metadata#docs(*)",
+  "@odata.context": "https://<your-resource>.search.windows.net/indexes('wukong-doc1')/$metadata#docs(*)",
   "@search.debug": {
     "semantic": null,
     "queryRewrites": {
@@ -620,14 +622,14 @@ Then I write a Python program, do hybrid search on 2 index
 
 ``` 
 # Azure AI Search配置  
-search_service_url = 'https://ai-search-eastus-xinyuwei.search.windows.net'  
+search_service_url = 'https://<your-resource>.search.windows.net'  
 search_api_version = '2024-11-01-preview'  
 search_api_key = '*'  # 替换为您的实际 Search API 密钥  
 text_index_name = 'azureblob-index'  
 image_index_name = 'vector-1734168453283'  
   
 # Azure OpenAI配置  
-openai_endpoint = 'https://YOUR-ENDPOINT.openai.azure.com/openai/deployments/gpt-4o-2/chat/completions?api-version=2024-08-01-preview'  
+openai_endpoint = 'https://<your-resource>.openai.azure.com/openai/deployments/gpt-4o-2/chat/completions?api-version=2024-08-01-preview'  
 openai_api_key = '*'  # 替换为您的实际 OpenAI API 密钥  
   
 # Azure Blob Storage配置  
@@ -804,3 +806,18 @@ if __name__ == "__main__":
 ```
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/RAG-Best-Practice/images/12.png)
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

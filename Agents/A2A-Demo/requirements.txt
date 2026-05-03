@@ -1,0 +1,11 @@
+a2a
+asyncio
+click
+fastapi
+foundry_agent
+foundry_agent_executor
+httpx
+openai
+python-dotenv
+starlette
+uuid

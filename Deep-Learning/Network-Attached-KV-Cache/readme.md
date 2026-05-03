@@ -1,5 +1,7 @@
 # Scaling LLM Inference on Consumer GPUs with Network-Attached KV Cache
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 > **Note:** This article is an enhanced and restructured technical write-up inspired by the original Medium post  
 > ["How to Give Your RTX GPU Nearly Infinite Memory for LLM Inference"](https://medium.com/data-science-collective/how-to-give-your-rtx-gpu-nearly-infinite-memory-for-llm-inference-de2c57af1e82) by Natalia Trifonova.  
 > The content here is adapted for GitHub, with additional reproducible scripts, diagrams, and generalized implementation notes.

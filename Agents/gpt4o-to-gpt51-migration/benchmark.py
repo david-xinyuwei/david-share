@@ -13,7 +13,7 @@ Features:
 - Enterprise scenario coverage (intent, sentiment, RAG, code, customer service)
 
 Usage:
-    export AZURE_OPENAI_ENDPOINT="https://your-resource.openai.azure.com/"
+    export AZURE_OPENAI_ENDPOINT="https://<your-resource>.openai.azure.com/"
     export AZURE_OPENAI_API_KEY="your-api-key"
     python benchmark.py [--runs N] [--quick] [--output results.json]
 
@@ -58,7 +58,7 @@ AZURE_API_KEY = os.environ.get("AZURE_OPENAI_API_KEY", "")
 if not AZURE_ENDPOINT or not AZURE_API_KEY:
     print("ERROR: Missing required environment variables!")
     print("Please set:")
-    print("  export AZURE_OPENAI_ENDPOINT='https://your-resource.openai.azure.com/'")
+    print("  export AZURE_OPENAI_ENDPOINT='https://<your-resource>.openai.azure.com/'")
     print("  export AZURE_OPENAI_API_KEY='your-api-key'")
     print("\nOr create a .env file with these values.")
     sys.exit(1)

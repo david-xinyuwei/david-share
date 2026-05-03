@@ -1,5 +1,7 @@
 # Make High Quality Dataset from WARC for Pre-training
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 In the following subsections, we will explain each step involved in generating High Qualit dataset Pre-training
 
 
@@ -71,7 +73,7 @@ In the following content, I will show how to create High Quality Dataset from WA
 (dataclean) root@YOUR-VM:~# cd dataclean/
 
 (dataclean) root@YOUR-VM:~/dataclean# hostname
-YOUR-VM.region.cloudapp.azure.com
+<your-vm>.cloudapp.azure.com
 
 #pip install datatrove xxhash faust-cchardet python-magic warcio fasteners tldextract trafilatura fasttext-wheel nltk awscli fasttext numpy==1.21.0  
 #pip install datatrove[all]  
@@ -268,7 +270,7 @@ Output:
 ```
 {
   "text": "Buy Ambien Online Legally (Zolpidem) belongs to the imidazopyridines class of opioids. Ambien complements the exceptional of sleep via way of means of decreasing the time it takes to fall asleep, decreasing the frequency of nocturnal awakenings, and growing the general period of sleep. Lengthens the second one degree of sleep and the deep sleep degree (III and IV). It does now no longer make you sleepy throughout the day. If you’re seeking to Buy Ambien Online at an inexpensive cost, come to our on line pharmacy.",
-  "id": "<urn:uuid:dd20979b-ada8-4c5b-b53e-4ade7274bc1b>",
+  "id": "<urn:uuid:<resource-id>>",
   "metadata": {
     "dump": "CC-MAIN-2023-23",
     "url": "http://42627.dynamicboard.de/u101117_ambienusa.html",
@@ -280,7 +282,7 @@ Output:
 }
 {
   "text": "My little guy turned two over the summer and we celebrated with an oh-so-cute Golf Birthday Party. He is all boy and loves anything that includes a stick and ball, which made choosing the golf theme fairly easy. We had fun golfing games, snacks & treats and each little caddie even received there very own golf bag. The post was getting fairly large I decided to split it in two parts. Part one covers the favor and dessert table and part two will focus on the food and games. Enjoy!\nGolf Pro Shop for the favor table\nEach “Golf Pro” received his/her own set of golf clubs (thank you Target dollar section for saving the day!), a blue or green visor I purchased at Joann’s, practice golf balls and a water bottle to stay hydrated on the course.\nI created the backdrop for the dessert table with a tan table cloth I had and pinned it to the window frame with thumb tacks (my husband wasn’t too happy about that one…opps!) I used 12” white tissue paper balls that I purchased from Devra Party and hung them by grosgrain ribbon.\nI wanted to use items on the dessert table that went along with the theme so I racked my brain for some golf terms. The sign over the table was “Caddie’s Sweet Spot” (sweet spot refers to the center point of the face of the club).\nThere was a “water hazard” ~ blue jell-o jigglers, “wormburners” (which is the term for a ball that skims the grass) ~ chocolate pudding pack topped with crumbled Oreos and gummy worms plus a sand trap of “doughnut hole in one” ~ made with powder sugar doughnuts and crumbled graham crackers for the sand.\nI also made cake pops that resembled golf balls ~ some like a lollipop and others with a golf flag and the number two for the birthday boy. The kids had a few candy choices and a small bag to fill so they could bring treats home.\n“Wormburners” – Chocolate pudding cups topped with crushed oreos and gummy worms\nGreen Grass Cupcakes, with white gumball and printable golf flags.\nThank you so much to everyone who helped make this party amazing, I couldn’t have done it without you.\nVendor List:\nPhotography: Andary Studio\nParty Printables: Printable Studio by 505 Design, Inc\nGolf Club Sets: Target Dollar Section\nFoam Visors: Joann’s\nGreen & White Tissue Balls: Devra Party\nGreen Polka Dot Balloons: Paws Attraction Boutique\nCupcakes – My super talented sister\nInterested in hosting your own Golf Themed Party – Check out the Golf Pro Printable set now available in the shop.\nMore details coming soon….\nThanks for stopping by! Cathy C.",
-  "id": "<urn:uuid:9ad54ec1-b946-4293-8099-abc434ef154c>",
+  "id": "<urn:uuid:<resource-id>>",
   "metadata": {
     "dump": "CC-MAIN-2023-23",
     "url": "http://505-design.com/tag/boys-party/",
@@ -492,7 +494,7 @@ Check first intem in final output file:
 (dataclean) root@YOUR-VM:~/dataclean/minhash/deduplicated_output# zcat ./00000.jsonl.gz | head -n 1 | jq .
 {
   "text": "Buy Ambien Online Legally (Zolpidem) belongs to the imidazopyridines class of opioids. Ambien complements the exceptional of sleep via way of means of decreasing the time it takes to fall asleep, decreasing the frequency of nocturnal awakenings, and growing the general period of sleep. Lengthens the second one degree of sleep and the deep sleep degree (III and IV). It does now no longer make you sleepy throughout the day. If you’re seeking to Buy Ambien Online at an inexpensive cost, come to our on line pharmacy.",
-  "id": "<urn:uuid:dd20979b-ada8-4c5b-b53e-4ade7274bc1b>",
+  "id": "<urn:uuid:<resource-id>>",
   "metadata": {
     "dump": "CC-MAIN-2023-23",
     "url": "http://42627.dynamicboard.de/u101117_ambienusa.html",
@@ -957,3 +959,31 @@ Take some results as examples:
 - DataTrove: https://github.com/huggingface/datatrove/
 - Generate Synthetic QnAs from Real-world Data: https://github.com/Azure/synthetic-qa-generation/
 
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+pip install -r requirements.txt
+```
+
+### Scripts
+
+| Script | Description |
+|--------|-------------|
+| `corpus-suggestions.ipynb` | Corpus-Suggestions.Ipynb |
+| `download_warc_file.py` | Download Warc File |
+| `generate-QA.ipynb` | Generate-Qa.Ipynb |
+| `minhash_deduplication.py` | Minhash Deduplication |
+| `process_common_crawl_dump.py` | Process Common Crawl Dump |
+| `数据清洗步骤-dataclean.ipynb` | 数据清洗步骤-Dataclean.Ipynb |

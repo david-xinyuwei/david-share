@@ -2,6 +2,8 @@
 
 
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 ## Running on Azure
 
 All experiments in this project were conducted on an **Azure GPU VM**.
@@ -62,7 +64,7 @@ david@h100vm:~$ source /home/david/stable-diffusion-webui/venv/bin/activate
 (venv) david@h100vm:~$ bash webui.sh --listen
 
 ```
-http://YOUR-VM.region.cloudapp.azure.com:7860/
+http://YOUR-VM.<your-vm><your-vm><your-vm>.cloudapp.azure.com:7860/
 
 ## Image to Image
 Run stable-diffusion-webui and verify the text-image.
@@ -213,3 +215,19 @@ In practical use, for personal use, you can use the fine-tuned models available 
 
 
 
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

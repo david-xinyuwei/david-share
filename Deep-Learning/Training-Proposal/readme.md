@@ -1,5 +1,7 @@
 # Customer AI Training Proposal
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 This training equips participants with practical expertise in secure Azure AI deployments, model fine‑tuning workflows, and advanced large model optimization on Azure infrastructure. The curriculum focuses on:
 
 1. Implementing secure, private, and compliant AI Foundry environments.
@@ -103,3 +105,18 @@ In this module, attendees will explore deploy and optimize *gpt‑oss‑20B/120B
 - AI Engineers & Data Scientists
 - Enterprise Cloud & Security Architects
 - AI Platform Operations & Governance Teams
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

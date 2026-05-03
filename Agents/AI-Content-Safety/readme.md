@@ -1,4 +1,11 @@
 # AI-Content-Safety
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
+
+## Overview
+
+This repository contains implementation and documentation for AI-Content-Safety.
+
 This repo uses code from:
 *https://github.com/Azure-Samples/AzureAIContentSafety.git* and did a little modification for fast PoC.
 
@@ -30,7 +37,7 @@ This project uses **Azure AI Content Safety** service for content moderation.
 # export CONTENT_SAFETY_ENDPOINT="https://**cognitiveservices.azure.com/"
 ```
  ```
- (base) root@YOUR-VM:/mnt/c/david-share/AzureAIContentSafety/python/1.0.0#
+ (base) root@YOUR-VM:./
  
  ```
  ## Video filter
@@ -142,7 +149,7 @@ We could observe which pictures have issue.
 ## Image filter
 We could also use other scripts:
 ```
-(base) root@YOUR-VM:/mnt/c/david-share/AzureAIContentSafety/python/1.0.0# cat sample_analyze_image.py
+(base) root@YOUR-VM:./ cat sample_analyze_image.py
 ```
 ```
 # coding: utf-8
@@ -205,7 +212,7 @@ if __name__ == "__main__":
     analyze_image()
 ```
 ```
-(base) root@YOUR-VM:/mnt/c/david-share/AzureAIContentSafety/python/1.0.0# python sample_analyze_image.py
+(base) root@YOUR-VM:./ python sample_analyze_image.py
 ```
 ```
 Hate severity: 0
@@ -216,7 +223,7 @@ Violence severity: 0
 ## Text filter
 When we use text content fileter, we usually need customize blacklist of words.
 ```
-(base) root@YOUR-VM:/mnt/c/david-share/AzureAIContentSafety/python/1.0.0# cat sample_manage_blocklist.py
+(base) root@YOUR-VM:./ cat sample_manage_blocklist.py
 ```
 ```
 # coding: utf-8
@@ -566,22 +573,22 @@ if __name__ == "__main__":
     delete_blocklist()
 ```
 ```
-(base) root@YOUR-VM:/mnt/c/david-share/AzureAIContentSafety/python/1.0.0# python sample_manage_blocklist.py
+(base) root@YOUR-VM:./ python sample_manage_blocklist.py
 ```
 ```
 Blocklist created or updated:
 Name: TestBlocklist, Description: Test blocklist management.
-BlocklistItemId: 0e3ad7f0-a445-4347-8908-8b0a21d59be7, Text: 包子, Description:
-BlocklistItemId: 77bea3a5-a603-4760-b824-fa018762fcf7, Text: k*ll, Description:
+BlocklistItemId: <resource-id>, Text: 包子, Description:
+BlocklistItemId: <resource-id>, Text: k*ll, Description:
 
 Blocklist match results:
-BlocklistName: TestBlocklist, BlocklistItemId: 541cad19-841c-40c5-a2ce-31cd8f1621f9, BlocklistItemText: h*te
-BlocklistName: TestBlocklist, BlocklistItemId: 77bea3a5-a603-4760-b824-fa018762fcf7, BlocklistItemText: k*ll
+BlocklistName: TestBlocklist, BlocklistItemId: <resource-id>, BlocklistItemText: h*te
+BlocklistName: TestBlocklist, BlocklistItemId: <resource-id>, BlocklistItemText: k*ll
 
 List blocklist items:
-BlocklistItemId: 77bea3a5-a603-4760-b824-fa018762fcf7, Text: k*ll, Description:
-BlocklistItemId: 0e3ad7f0-a445-4347-8908-8b0a21d59be7, Text: 包子, Description:
-BlocklistItemId: 541cad19-841c-40c5-a2ce-31cd8f1621f9, Text: h*te, Description:
+BlocklistItemId: <resource-id>, Text: k*ll, Description:
+BlocklistItemId: <resource-id>, Text: 包子, Description:
+BlocklistItemId: <resource-id>, Text: h*te, Description:
 
 List blocklists:
 Name: TestBlocklist, Description: Test blocklist management.
@@ -590,9 +597,9 @@ Get blocklist:
 Name: TestBlocklist, Description: Test blocklist management.
 
 Get blocklistItem:
-BlocklistItemId: 77bea3a5-a603-4760-b824-fa018762fcf7, Text: k*ll, Description:
+BlocklistItemId: <resource-id>, Text: k*ll, Description:
 
-Removed blocklistItem: 77bea3a5-a603-4760-b824-fa018762fcf7
+Removed blocklistItem: <resource-id>
 
 Deleted blocklist: TestBlocklist
 ```
@@ -694,3 +701,19 @@ Do test:
 
 ![images](https://github.com/xinyuwei-david/david-share/blob/master/Agents/AI-Content-Safety/images/8.png)
 
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

@@ -285,34 +285,19 @@ Test Time Scale：Majority Vote / Tree Search / Beam Search / Lookahead Search
 Prompt x
   │
   ▼
-┌───────────────┐        ┌──────────────────┐
-│ Actor πθ      │        │ Reference πref   │
-│ Generates y   │        │ (Original Script)│
-└──────┬────────┘        └───────┬──────────┘
        │                          │
        │ logπθ(y|x)               │ logπref(y|x)
        │                          │
        ▼                          ▼
-   ┌──────────────────────────────────────────┐
    │ KL Penalty:   -β · (logπθ - logπref)     │
-   └──────────────────────────────────────────┘
                   │
                   │ Generated (x, y)
                   │
-       ┌──────────┴──────────┐
        ▼                     ▼
-┌───────────────┐     ┌───────────────┐
-│ Reward Model  │     │ Critic Vψ     │
-│ r = RM(x,y)   │     │ v = Vψ(x)     │
-│ (Judge scores)│     │ (Coach estimates)│
-└──────┬────────┘     └──────┬────────┘
        │                     │
-       └──────────┬──────────┘
                   ▼
            Advantage A = r - v
                   │
-                  ├──> Update Actor θ (make high-A behaviors more frequent)
-                  └──> Update Critic ψ (make v closer to r)
 ```
 
 **关键点**：Reward Model 和 Critic **并行计算**，都基于生成的 (x, y)，然后联合计算 Advantage。
@@ -853,11 +838,6 @@ python embedded_infer.py \
 
 ```
 embedded_sft_rl/
-├── embedded_grpo_train.py   # 主训练脚本
-├── embedded_infer.py        # 推理脚本
-├── run_train.sh             # 训练启动脚本
-├── requirements.txt         # Python 依赖
-└── README.md                # 本文档
 ```
 
 ---
@@ -1139,20 +1119,16 @@ R_V = R_format · R_score · R_meta
 Problem X + Proof Y
         │
         ▼
-┌───────────────────────┐
 │ Verifier πφ           │
 │ - Find flaws/gaps     │
 │ - Explain deductions  │
 │ - Output score s∈{0,0.5,1}│
-└───────────┬───────────┘
             │ (More worth reviewing when s is low)
             ▼
-┌───────────────────────┐
 │ Meta-Verifier πη       │
 │ - Audit if "review" is real│
 │ - Audit if deduction reasons hold│
 │ - Output quality score ms∈{0,0.5,1}│
-└───────────┬───────────┘
             ▼
 Trustworthy review for training/filtering
 ```
@@ -1182,22 +1158,16 @@ R = R_format(Y,Z) · (α · R_Y + β · R_Z)
 Prompt X
   │
   ▼
-┌───────────────────────────────┐
 │ Generator πθ                   │
 │ Generates: Proof Y + Self-Review Z│
-└───────────────┬───────────────┘
                 │
                 ▼
-┌───────────────────────────────┐
 │ Verifier πφ                    │
 │ Scores Proof Y: s              │
-└───────────────┬───────────────┘
                 │
                 ▼
-┌───────────────────────────────┐
 │ Meta-Verifier πη               │
 │ Audits Self-Review Z honesty/quality│
-└───────────────┬───────────────┘
                 ▼
 Reward R = α·(proof score) + β·(self-review fidelity)
 ```
@@ -1232,17 +1202,10 @@ Reward R = α·(proof score) + β·(self-review fidelity)
 **Not two model weights—one model switching roles via prompts!**
 
 ```text
-┌─────────────────────────────────────────────────────────────────────┐
 │              Inference: Single Model + Prompt Role Switching         │
-├─────────────────────────────────────────────────────────────────────┤
 │                                                                     │
 │  Same model weights πθ                                              │
-│      │                                                              │
-│      ├── Prompt A (Generation) ──► Generate proof Y + self-eval Z   │
-│      │                                                              │
-│      └── Prompt B (Verification) ─► Verify others' proofs (majority voting)│
 │                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
 ```
 
 **但代价是什么？看论文的推理配置：**
@@ -1526,29 +1489,15 @@ itself is actually accurate, you should still consider its analysis reasonable.
 #### DeepSeekMath-V2: Three-Layer Verification Reward
 
 ```text
-┌─────────────────────────────────────────────────────────────────┐
 │                  DeepSeekMath-V2 Reward Architecture             │
-├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  Generator Output: Proof Y + Self-Evaluation Z                  │
-│         │                                                       │
 │         ▼                                                       │
-│  ┌─────────────────┐                                            │
-│  │ Verifier πφ     │ ──► R_Y = proof_score (0/0.5/1)           │
-│  │ (Trained Judge) │                                            │
-│  └────────┬────────┘                                            │
-│           │                                                     │
 │           ▼                                                     │
-│  ┌─────────────────┐                                            │
-│  │ Meta-Verifier πη│ ──► R_meta = is self-eval honest (0/0.5/1)│
-│  │ (Audits Judge)  │                                            │
-│  └────────┬────────┘                                            │
-│           │                                                     │
 │           ▼                                                     │
 │  R = R_format · (α·R_Y + β·R_Z)    α=0.76, β=0.24              │
 │                                                                 │
 │  Key: Reward model itself needs training, can evaluate reasoning│
-└─────────────────────────────────────────────────────────────────┘
 ```
 
 #### Agent Lightning: Composite Rule-Based Reward
@@ -1625,7 +1574,6 @@ Agent Lightning / Azure RFT use **pure external rewards**—the model doesn't kn
 
 ```text
 DeepSeekMath-V2 Training Pipeline (Complex):
-─────────────────────────────────────────────────────
 Stage 1: Train Verifier (needs human-labeled proof quality)
    │
 
@@ -1778,7 +1726,6 @@ https://huggingface.co/docs/trl/main/grpo_trainer
 流程：
 
 ```
-生成 N 个候选 ─→ 评分 ─→ 组内均值 ─→ Advantage
 ```
 
 ## Example
@@ -3124,11 +3071,7 @@ https://huggingface.co/spaces/HuggingFaceH4/blogpost-scaling-test-time-compute
 
    不同策略在不同问题难度和计算预算下的表现是不同的，参考“计算最优扩展”的概念，即针对特定的计算预算，选择能达到最佳性能的策略。对于简单问题和较低的计算预算，Best-of-N 表现更好；而对于复杂问题和较高的计算预算，束搜索和 DVTS 更具优势。
 
-   
-
    在未来，提升验证器的质量，实现模型的自验证，融入更深入的推理过程，以及将搜索方法用于数据生成等。这些方向都有望进一步提升 LLMs 的性能，特别是在资源受限的情况下。
-
-   
 
 **一、几种解码技术的区别**
 
@@ -3152,7 +3095,6 @@ https://github.com/xinyuwei-david/david-share/tree/master/Deep-Learning/LLM-Hall
 
 ### 1. 贪婪解码（Greedy Decoding）
 
- 
 **怎么工作：**
 
 - 在每一步，选择概率最高的下一个词或标记。
@@ -3170,7 +3112,6 @@ https://github.com/xinyuwei-david/david-share/tree/master/Deep-Learning/LLM-Hall
 
 ### 2. 束搜索（Beam Search）
 
- 
 **怎么工作：**
 
 - **保留多个候选序列**：在每一步，保留固定数量（束宽度为 *k*）的最有可能的部分序列。
@@ -3194,7 +3135,6 @@ https://github.com/xinyuwei-david/david-share/tree/master/Deep-Learning/LLM-Hall
 
 ### 3. 多样化验证器树搜索（DVTS）
 
- 
 **怎么工作：**
 
 - **分裂初始束**：将初始束分成多个独立的子树，增加初始解的多样性。
@@ -3218,11 +3158,8 @@ https://github.com/xinyuwei-david/david-share/tree/master/Deep-Learning/LLM-Hall
   - **计算成本高**：由于需要管理更多的搜索路径和验证器的计算。
   - **实现复杂**：需要精心设计搜索策略和验证器模型。
 
- 
-
 ### 4. 多数投票（Majority Voting）
 
- 
 **怎么工作：**
 
 - **多次独立生成**：使用随机采样（如 Top-k 或 Top-p 采样）等方法，生成多个（如 *N* 个）独立的候选答案。
@@ -3257,11 +3194,7 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 
 ## 它们之间的区别与联系
 
- 
-
 ### 搜索空间的大小
-
- 
 
 - **贪婪解码**：
   - **最小搜索空间**：只探索一条路径，即每一步都选择概率最高的词。
@@ -3274,8 +3207,6 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 
 ### 多样性
 
- 
-
 - **贪婪解码**：
   - **最低多样性**：只有一个输出序列。
 - **束搜索**：
@@ -3287,8 +3218,6 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 
 ### 计算成本
 
- 
-
 - **贪婪解码**：
   - **最低计算成本**：每一步只需计算概率最高的词。
 - **束搜索**：
@@ -3299,8 +3228,6 @@ All experiments in this project were conducted on an **Azure GPU VM**.
   - **中等到高的计算成本**：取决于生成的次数 *N*，生成次数越多，计算成本越高。
 
 ### 适用的场景和任务
-
- 
 
 - **贪婪解码**：
   - **快速生成结果**：适用于对速度要求高、对结果质量要求不高的简单任务。
@@ -3317,8 +3244,6 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 
 ## 简单类比
 
- 
-
 - **贪婪解码**：
   - **类比**：像在每个十字路口都选择看起来最直接的道路，可能错过更好的路线。
 - **束搜索**：
@@ -3330,7 +3255,6 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 
 ## 总结
 
- 
 通过将**多数投票**加入讨论，我们可以更全面地了解不同的解码和生成策略的特点、优点和适用场景。每种方法都有其独特的优势和局限性，选择适当的方法需要根据具体任务的需求、可用的计算资源以及对结果质量的要求来决定。
 
 - **贪婪解码**适合简单、快速、对质量要求不高的任务。
@@ -3357,15 +3281,12 @@ DeepMind 的最新研究表明，可以通过迭代自我改进（iterative self
 
 - **🧭 搜索与学习（Search and Learn）**：一个用于在大型语言模型上实现搜索策略的轻量级工具包，使用 vLLM 构建，速度极快。
 
-  
-
 那么，计算最优扩展在实践中效果如何呢？看看这个图表，在具有挑战性的 MATH-500 基准上，如果给予足够的“思考时间”，微小的 1B 和 3B Llama Instruct 模型竟然超过了它们更大的 8B 和 70B 同系列模型的表现 ：
 
 <img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/2.png" width="800">
 
 ## 三、test-time compute scaling的策略
 
- 
 扩展测试时间计算有两种主要策略：
 
 1. **自我改进（Self-Refinement）**：模型通过在后续迭代中识别和纠正错误，迭代地改进它们自己的输出或“想法”。虽然在某些任务上有效，但这种策略通常要求模型具有内置的自我改进机制，这可能会限制其适用性。
@@ -3396,7 +3317,6 @@ Best-of-N、束搜索（Beam Search）和多样化验证器树搜索（DVTS）�
 
 ## 实验设置
 
- 
 如上图所示，我们的实验设置涉及以下步骤的流程：
 
 1. 我们首先将一个数学问题输入大型语言模型（LLM），它生成 N 个部分解，例如推导中的一个中间步骤。
@@ -3419,7 +3339,6 @@ Best-of-N、束搜索（Beam Search）和多样化验证器树搜索（DVTS）�
 
 ## 多数投票：一个简单的基线
 
- 
 多数投票——或者如果你想用更高端的说法，可以称为自一致性解码（self-consistency decoding）——是聚合大型语言模型输出的最直接方法。顾名思义，对于给定的数学问题，我们生成 N 个候选解并选择最频繁的答案。在我们所有的实验中，我们以温度 T = 0.8 采样了最多 N = 256 个候选解，每个问题生成最多 2048 个标记。
 
 MATH 基准有一个独特之处，即答案必须以 LaTeX 盒子的形式格式化，如 `\boxed{answer}`。我们最初为 Llama 3.2 1B 尝试了以下简单的系统提示：
@@ -3428,7 +3347,6 @@ MATH 基准有一个独特之处，即答案必须以 LaTeX 盒子的形式格�
 请逐步思考，并将你的最终答案放在 \boxed{} 中。
 ```
 
- 
 但发现使用贪婪解码（T = 0）得到的准确率远低于 Meta 在其发布中报告的 30.6%。幸运的是，Meta 也发布了他们用于评估的提示，切换我们的系统提示到他们的后，效果发生了巨大变化：
 
 ```
@@ -3455,7 +3373,6 @@ MATH 基准有一个独特之处，即答案必须以 LaTeX 盒子的形式格�
 其中 [answer] 是解决问题的最终数字或表达式。
 ```
 
- 
 评估数学问题的答案有一个细微之处，即像 `1/3` 和 `3/3` 这样的字符串是不同的，但代表数学上等价的答案。处理这种情况的标准方法是将一对答案转换为 SymPy 对象，然后检查减去两个对象并应用 `sympy.simplify` 是否得到零。
 
 虽然这种方法在比较少量候选答案时效果很好，但我们发现当在一个包含 N 个候选答案的列表中比较许多对时，非常慢；在某些情况下，比最初生成候选答案还要慢！为了解决这个问题，我们首先将每个答案简化为其规范形式，然后计算每种形式的频率来确定多数投票。如果你对代码如何实现感兴趣，可以展开下面的细节。
@@ -3472,7 +3389,6 @@ MATH 基准有一个独特之处，即答案必须以 LaTeX 盒子的形式格�
 
 ## Best-of-N
 
- 
 Best-of-N 是多数投票的一个简单但有效的扩展，它使用奖励模型来确定最可能的答案。该方法有两种主要变体：
 
 1. **原始的 Best-of-N**：生成 N 个独立的回复，选择奖励模型（RM）得分最高的作为最终答案。这确保选择最自信的单个回复，但不考虑答案之间的一致性。
@@ -3507,7 +3423,6 @@ Best-of-N 是多数投票的一个简单但有效的扩展，它使用奖励模�
 
 ## 使用过程奖励模型的束搜索
 
- 
 束搜索（Beam search）是一种系统地探索解空间的结构化搜索方法，使其成为在测试时间改进模型输出的强大工具。当与过程奖励模型（PRM）结合使用时，束搜索可以同时优化问题解决中间步骤的生成和评估。其工作方式如下：
 
 1. 通过保持固定数量的“束”或活动路径 N，迭代地生成多个候选解。
@@ -3533,7 +3448,6 @@ Best-of-N 是多数投票的一个简单但有效的扩展，它使用奖励模�
 
 ## 束搜索最擅长解决哪些问题？
 
- 
 虽然总体来看，束搜索显然是比 Best-of-N 或多数投票更好的搜索策略，但 DeepMind 的论文表明，每种策略都有取舍，取决于问题难度和测试时间计算预算。
 
 为了了解哪种策略最适合哪些问题，DeepMind 计算了估计的问题难度分布，然后将结果分成五分位数。换句话说，每个问题被分配到 5 个级别之一，其中级别 1 表示较容易的问题，级别 5 表示最难的问题。为了估计问题难度，DeepMind 为每个问题以标准采样生成了 2048 个候选解，然后提出了以下启发式方法：
@@ -3544,7 +3458,6 @@ Best-of-N 是多数投票的一个简单但有效的扩展，它使用奖励模�
 
   以下是在四个测试时间计算预算 N = [4, 16, 64, 256] 和 pass@1 得分下，各种方法的表现：
 
-  
   在这个图中，每个柱状图表示一个测试时间计算预算，在每个柱状图内，我们显示每种方法的相对准确率。例如，在难度级别 2 的四个柱状图中，我们看到：
 
   <img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/9.png" width="800">
@@ -3559,7 +3472,6 @@ Best-of-N 是多数投票的一个简单但有效的扩展，它使用奖励模�
 
 ## DVTS：通过多样性提升性能
 
- 
 正如我们上面所见，束搜索在 Best-of-N 上表现出色，但在较简单的问题和较大的测试时间计算预算下往往表现不佳。为了解决这个问题，我们开发了一种扩展，称为多样化验证器树搜索（Diverse Verifier Tree Search，DVTS），旨在在较大的 N 值下最大化多样性。
 
 DVTS 的工作方式与束搜索类似，但有以下修改：
@@ -3704,11 +3616,8 @@ DVTS 的工作方式与束搜索类似，但有以下修改：
 
 **遗传算法（Genetic Algorithm）** 是一种用于解决优化和搜索问题的自适应启发式算法，模拟了自然选择和遗传变异的过程。它的核心思想是"适者生存"，通过选择、交叉和变异等操作，让优秀的个体（解）在种群中得以保留，并生成新的更优的解。
 
- 
-
  **为什么引入遗传算法？**
 
- 
 在 DeepMind 的 **Mind Evolution** 方法中，遗传算法被引入是为了：
 
 - **增强搜索能力**：通过模拟生物进化的过程，更有效地探索复杂问题的解空间。
@@ -3717,7 +3626,6 @@ DVTS 的工作方式与束搜索类似，但有以下修改：
 
 **遗传算法的关键步骤**
 
- 
 **（1）初始化种群**
 
 - **种群**：由多个候选方案（个体）组成。
@@ -3754,7 +3662,6 @@ DVTS 的工作方式与束搜索类似，但有以下修改：
 
 ### 遗传算法在 Mind Evolution 中的应用
 
- 
 **示例任务**：为用户规划一个满足特定要求的旅行计划。
 
 **步骤示意**：
@@ -3776,17 +3683,11 @@ DVTS 的工作方式与束搜索类似，但有以下修改：
 
 - **并行化**：遗传算法的过程可以并行执行，提升计算效率。
 
-  
-
-  
-
 **三、\**Mind Evolution的实现\****
 
 在DeepMind新的论文**《Evolving Deeper LLM Thinking》**中，介绍了新的实现。
 
 **Mind Evolution** 是一种结合了**大型语言模型（LLM）\**和\**进化算法**的搜索方法，旨在提高 LLM 在解决复杂问题（如自然语言规划任务）时的能力。这个方法模拟了生物进化的过程，通过生成、评估、选择、交叉、变异和改进等步骤，迭代地优化候选方案，最终找到最佳解决方案。 
-
- 
 
 <img src="https://github.com/xinyuwei-david/david-share/blob/master/Deep-Learning/LLM-RL-Training-and-Reasoning/images/14.png" width="800">
 
@@ -3806,12 +3707,10 @@ DVTS 的工作方式与束搜索类似，但有以下修改：
 
 7. **岛屿模型的应用（Island Model - Migration and Reset）**
 
-   
    下面，我将逐一解释每个步骤，以及其中涉及的算法和概念，并举例说明。
 
 ### 步骤 1：候选方案的生成（初始化）
 
- 
 **由谁完成**：大型语言模型（LLM）
 
 **解释**：
@@ -3862,7 +3761,6 @@ DVTS 的工作方式与束搜索类似，但有以下修改：
 
 ### 步骤 2：方案的评估（Fitness Evaluation）
 
- 
 **由谁完成**：**评估函数（程序化的评价器）**
 
 **解释**：
@@ -3929,7 +3827,6 @@ DVTS 的工作方式与束搜索类似，但有以下修改：
 
 ### 步骤 3：批判性对话下的改进（Refinement through Critical Conversation，RCC）
 
- 
 **由谁完成**：大型语言模型（LLM）
 
 **解释**：
@@ -3982,7 +3879,6 @@ DVTS 的工作方式与束搜索类似，但有以下修改：
 
 ### 步骤 4：选择（Selection）
 
- 
 **由谁完成**：算法流程（程序控制）
 
 **解释**：
@@ -4057,7 +3953,6 @@ DVTS 的工作方式与束搜索类似，但有以下修改：
 
 ### 步骤 6：迭代与进化（Iteration and Evolution）
 
- 
 **由谁完成**：算法流程（程序控制）
 
 **解释**：
@@ -4083,8 +3978,6 @@ DVTS 的工作方式与束搜索类似，但有以下修改：
 - **迭代终止条件**：找到满足所有要求的方案，或者达到预设的最大迭代次数。
 
 ### 步骤 7：岛屿模型的应用（Island Model - Migration and Reset）
-
- 
 
 **由谁完成**：算法流程（程序控制）
 
@@ -4117,7 +4010,6 @@ DVTS 的工作方式与束搜索类似，但有以下修改：
 
 ### 总结
 
- 
 **Mind Evolution 方法**通过以上七个步骤，结合了大型语言模型（LLM）的生成和理解能力，以及进化算法（包括遗传算法和岛屿模型）的全局优化策略，成功地在自然语言规划任务中实现了高效的方案优化。
 
 - **LLM 的作用**：
@@ -4533,8 +4425,6 @@ https://kaitchup.substack.com/p/fine-tuning-your-llm-to-think-like-r1
 
 - Instruct 模型可能受安全指令或原有对话模式约束，对“翻译”这种单一任务无法充分优化。
 
-  
-
 #### 效果评估
 
 ![images](images/gemma3_evaluation.png)
@@ -4732,29 +4622,13 @@ FT("google/gemma-3-270m", "en-fr")
 #### DeepSeekMath-V2: Three-Layer Verification Reward
 
 ```text
-┌─────────────────────────────────────────────────────────────────┐
-│                  DeepSeekMath-V2 Reward Architecture             │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Generator Output: Proof Y + Self-Evaluation Z                  │
-│         │                                                       │
-│         ▼                                                       │
-│  ┌─────────────────┐                                            │
-│  │ Verifier πφ     │ ──► R_Y = proof_score (0/0.5/1)           │
-│  │ (Trained Judge) │                                            │
-│  └────────┬────────┘                                            │
-│           │                                                     │
-│           ▼                                                     │
-│  ┌─────────────────┐                                            │
-│  │ Meta-Verifier πη│ ──► R_meta = is self-eval honest (0/0.5/1)│
-│  │ (Audits Judge)  │                                            │
-│  └────────┬────────┘                                            │
-│           │                                                     │
-│           ▼                                                     │
-│  R = R_format · (α·R_Y + β·R_Z)    α=0.76, β=0.24              │
-│                                                                 │
-│  Key: Reward model itself needs training, can evaluate reasoning│
-└─────────────────────────────────────────────────────────────────┘
+                   DeepSeekMath-V2 Reward Architecture              
+   Generator Output: Proof Y + Self-Evaluation Z                   
+          v                                                        
+            v                                                      
+            v                                                      
+   R = R_format · (α·R_Y + β·R_Z)    α=0.76, β=0.24               
+   Key: Reward model itself needs training, can evaluate reasoning 
 ```
 
 #### Agent Lightning: Composite Rule-Based Reward
@@ -4831,32 +4705,21 @@ Agent Lightning / Azure RFT use **pure external rewards**—the model doesn't kn
 
 ```text
 DeepSeekMath-V2 Training Pipeline (Complex):
-─────────────────────────────────────────────────────
 Stage 1: Train Verifier (needs human-labeled proof quality)
-   │
-   ▼
+   v
 Stage 2: Train Meta-Verifier (prevents Verifier hallucination)
-   │
-   ▼
+   v
 Stage 3: Train Generator (using Verifier as Reward Model)
-   │
-   ▼
+   v
 Stage 4: Co-evolution (Generator↔Verifier mutually improve)
-─────────────────────────────────────────────────────
 
 Agent Lightning Training Pipeline (Simple):
-─────────────────────────────────────────────────────
 Stage 1: Define reward function (rule code)
-   │
-   ▼
+   v
 Stage 2: GRPO training (single stage)
-─────────────────────────────────────────────────────
 
 Azure RFT Training Pipeline (Simplest):
-─────────────────────────────────────────────────────
 Step 1: Prepare JSONL data
 Step 2: Define Grader (JSON config)
 Step 3: Submit training job (Azure Portal / API)
-─────────────────────────────────────────────────────
 ```
-

@@ -1,5 +1,7 @@
 # Knowledge Distillation
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 This repository  introduces the differences between distillation and several other techniques, as well as the implementation architecture and code for distillation.
 
 
@@ -231,3 +233,19 @@ Final result:
 
 ![](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nVWziaVRS7EZczAsNXb9lBgS99zarbKxC6Gf6ZNIQXZfNBCzqf8xvpSTiboSSQrUD6JsZbs8H2S80yA/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
 
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

@@ -86,9 +86,6 @@ Next, each token needs to look at previous tokens to gather context. But using t
 
 ```
 "is" (4096 numbers)
-    ├── × W_Q matrix → Q = [128 numbers/head × 32 heads]  ← tool for scoring others
-    ├── × W_K matrix → K = [128 numbers/head × 8 heads]   ← object to be scored
-    └── × W_V matrix → V = [128 numbers/head × 8 heads]   ← content contributed when selected
 ```
 
 > **Why does Q have 32 heads but K/V only 8?** This is GQA (Grouped-Query Attention) — every 4 Q heads share 1 set of K/V, reducing KV Cache size with almost no quality loss. For L0, just remember: Q has more heads than K/V. Details in L2.4.
@@ -762,11 +759,7 @@ $$K_{total} = K_{per\_sequence} \times B$$
 ```
 Q1: Do model weights fit on a single GPU?
 │
-├── YES → Q2: Is remaining VRAM enough for target KV Cache?
-│   ├── YES → Single GPU + Data Parallelism (vllm --dp N)
-│   └── NO  → Quantize weights / Lower max-model-len / FP8 KV / Bigger GPU
 │
-└── NO  → Tensor Parallelism (vllm --tp N)
           Note: N must evenly divide num_attention_heads
 ```
 
@@ -960,9 +953,6 @@ NVIDIA Dynamo handles:
 
 ```
 15 activations
-├── ③④ K/V → PagedAttention (how KV Cache is stored in HBM — paging, defragmentation)
-├── ⑤⑥⑦ Score/Softmax/Output → FlashAttention (how attention is computed — in SRAM, off HBM)
-└── Remaining 10 → Normal HBM read/write, no special optimization
 ```
 
 **Quantified HBM IO savings by FA** (Qwen3-8B, seq=32K, BF16):

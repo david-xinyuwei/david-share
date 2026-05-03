@@ -6,7 +6,7 @@ Compare FW-Kimi-K2.5 (Fireworks engine) vs Kimi-K2.5 (Azure native) performance.
 Author: Xinyu Wei
 Usage:
     python3 fw_vs_native_benchmark.py \
-        --endpoint "https://your-resource.cognitiveservices.azure.com/" \
+        --endpoint "https://<your-resource>.cognitiveservices.azure.com/" \
         --api-key "YOUR_API_KEY" \
         --iterations 5 \
         --output results.json

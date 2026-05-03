@@ -1,5 +1,7 @@
 ## A2A Demo on Azure
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 This repository contains a minimal end-to-end demo that shows how multiple A2A-compatible micro-agents can cooperate behind a single LLM-based router while being protected by the same fixed Bearer-Token.
 
 ### Running on Azure
@@ -28,36 +30,21 @@ The router automatically attaches this token when it invokes the other agents, s
 The following ASCII diagram illustrates the runtime architecture:
 
 ```
-┌────────────┐
 │   Client   │ ① HTTP POST
-│  (cURL)    │─────────────────────────────────┐
-└────────────┘                                 │
                                                ▼
-                                      ┌────────────────────┐
                                       │   LLM Router       │
                                       │ orch_llm_router.py │ 10009
                                       │  • intent classify │
                                       │  • parallel calls  │
-                                      └────────────────────┘
                                       ② ③ ④  (parallel)
 
-      ┌──────────────────────┬──────────────┴────────────────┐
       ▼                      ▼                               ▼
-┌──────────────────┐  ┌──────────────────┐            ┌─────────────────┐
-│ Calendar-Workday │  │ Calendar-Weekend │            │  Writer-Agent   │
-│     main.py      │  │     main.py      │            │ writer_agent.py │
-│      10007       │  │      10008       │            │      10011      │
-│ • weekday events │  │ • weekend events │            │ • essay writer  │
-└──────────────────┘  └──────────────────┘            └─────────────────┘
       ▲                      ▲                               ▲
-      └────── Bearer-secured HTTP POST (same token) ─────────┘
 
            ⑤ each agent → JSON-RPC result → back to Router
                (response body, no extra auth)
 
-      ┌──────────────────────────────────────────────────────┐
       │        Router merges all results → back to Client    │
-      └──────────────────────────────────────────────────────┘
 ```
 
 ① Client sends a single JSON-RPC request to the LLM Router (port 10009).
@@ -139,6 +126,11 @@ curl.exe -X POST http://localhost:10007/ -H "Content-Type: application/json" -H 
 
 ```
 # Calendar-Workday
+
+## Overview
+
+This repository contains implementation and documentation for Calendar-Workday.
+
 curl.exe -X GET http://localhost:10007/.well-known/agent.json -H "Authorization: Bearer $Env:A2A_TOKEN"
 
 # Calendar-Weekend
@@ -183,31 +175,20 @@ Each calendar agent validates the token, asks its internal LLM to create the eve
 The test script extracts the text from the envelope(s) and prints results to the console.
 
 ```
-┌───────────────────────┐
 │  Test Script (A2A     │
 │  client loop)         │
 │  test_calendar_*.py   │
-└─────────┬─────────────┘
           │ ① JSON-RPC POST /
           │   + streaming POST /
           │   (both variants)          ② same pattern, next iteration
           │
           ▼
- ┌──────────────────┐      ┌──────────────────┐
- │ Calendar-Workday │      │ Calendar-Weekend │
- │     main.py      │      │     main.py      │
- │      10007       │      │      10008       │
- │ • weekday events │      │ • weekend events │
- └─────────▲────────┘      └────────▲─────────┘
            │ 200 JSON-RPC reply          │ 200 JSON-RPC reply
-           └────────────┬───────────────┘
                         │
                         ▼
-             ┌────────────────────────┐
              │  Console output:       │
              │  [A2A] plain reply     │
              │  [A2A-stream] merged   │
-             └────────────────────────┘
 ```
 
 ***Please click below pictures to see my demo video on Youtube***:
@@ -463,3 +444,31 @@ Anthropic's MCP and Google's A2A are both designed to support interactions betwe
 
 
 
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+pip install -r requirements.txt
+```
+
+### Scripts
+
+| Script | Description |
+|--------|-------------|
+| `demo-code/__main__.py` |   Main   |
+| `demo-code/foundry_agent.py` | Foundry Agent |
+| `demo-code/foundry_agent_executor.py` | Foundry Agent Executor |
+| `demo-code/orch_llm_router.py` | Orch Llm Router |
+| `demo-code/test_client-xinyudavid.py` | Test Client-Xinyudavid |
+| `demo-code/writer_agent_service.py` | Writer Agent Service |

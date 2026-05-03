@@ -6,7 +6,7 @@ Fixes: captures reasoning_content, warmup, outlier removal, per-prompt stats.
 Author: Xinyu Wei
 Usage:
     python3 fw_vs_native_benchmark_v2.py \
-        --endpoint "https://your-resource.cognitiveservices.azure.com/" \
+        --endpoint "https://<your-resource>.cognitiveservices.azure.com/" \
         --api-key "YOUR_API_KEY" \
         --iterations 10 \
         --output results_v3.json

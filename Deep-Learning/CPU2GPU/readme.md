@@ -1,5 +1,7 @@
 # AI Inference Task Migration from CPU to GPU: Methodology Overview
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 This repository ties together the entire methodology with a minimalistic example: first identify computational hotspots on the CPU, then rewrite loops characterized by "high parallelism, sequential memory access, and simple branching" into CUDA kernels to offload CPU workload and unleash GPU computing power. Running the code once can compare CPU and GPU execution times, separate transfer and computation overheads, and verify result errors. This quickly validates the feasibility and expected gains of "CPU → GPU" migration, providing a template for subsequent large-scale migration, pipeline optimization, and MIG resource partitioning in a real business environment.
 
 ---
@@ -61,11 +63,6 @@ GPU Chip (Total: 1 A100)
 └─ SM (Streaming Multiprocessor) (Total: 108)
 │
 ├─ 4 Warp Schedulers (4 input ports; up to 4 warps can be selected and issued instructions simultaneously each cycle)
-│ ├─ warp 0 (each warp = group of 32 threads)
-│ ├─ warp 1
-│ ├─ warp 2
-│ └─ warp 3 (up to 4 warps can be active per cycle)
-│ └─ Execution Resources (Hardware Units)
 ├─ 64 CUDA Cores (FP32 cores): standard floating-point cores like in regular computers
 ├─ 4 Tensor Cores (Matrix multiplication cores): advanced specialized matrix computation units
 └─ No RT cores (Ray Tracing cores): the A100 does not include ray tracing hardware cores
@@ -88,24 +85,12 @@ Hence, a single SM can launch up to 4 warps per cycle.
 ### Single SM schematic:
 
 ```
-┌───────────────────── 1× SM (Streaming Multiprocessor) ─────────────────────┐
 │                                                                            │
 │  Warp Scheduler 0   Warp Scheduler 1   Warp Scheduler 2   Warp Scheduler 3 │
-│  ────────────────   ────────────────   ────────────────   ──────────────── │
-│  ● Select 1 ready warp  │ ● Select 1 ready warp  │ ● Select 1 ready warp  │ ● Select 1 ready warp  │
 │  ▼                      ▼                       ▼                      ▼               │
-│ ┌──────────────────── Issue ──────────────────────┐                    │
-│ │  If 2 instructions target different functional units, can perform "dual issue" → each scheduler issues up to 2 instructions per cycle, total up to 8 instructions │ │
-│ └───────────────────────────────────────────────┘                     │
-│            │                 │                        │                    │
-│            │ Same warp's 32 threads execute same 1 instruction in lockstep (SIMT)          │
 │            ▼                 ▼                        ▼                    │
-│ ╔═════════════════  Execution Units  ══════════════════════════╗ │
-│ ║  FP32 cores ×64    │  INT32 cores ×64  │  Tensor Cores ×4   │  Load/Store units  ║ │
-│ ╚══════════════════════════════════════════════════════════════════╝ │
 │                                                                            │
 │  (Up to 4 warps can be selected and start execution in one clock cycle) │
-└────────────────────────────────────────────────────────────────────────────┘
             ▲                          ▲
             │                          │
   32 threads = 1 warp     Up to 48 warps can be resident (active/suspended) per SM
@@ -872,10 +857,6 @@ Example traffic split:
 ```
 Client
   │
-  ├── Istio Ingress (v1 90%, v2 10%)
-  │     ├── Service-CPU-v1 ←────┐
-  │     └── Service-CPU-v2 ←───┤ Argo Rollouts
-  │                           └─ Service-GPU-v1/v2
 ```
 
 
@@ -925,3 +906,18 @@ metrics:
 Migrating C++-dominant applications from CPU to GPU is a systematic process requiring comprehensive consideration of hardware conditions, software tools, and code architecture. This article provides step-by-step guidelines covering analysis, tool selection, code restructuring, and performance tuning.
 
 Practical migration success demonstrates that thorough preliminary analysis, proper CUDA usage, and patient tuning yield significant GPU acceleration. Understand that GPU acceleration is not universal — advantages manifest in cases of high algorithm parallelism and large data scales.
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

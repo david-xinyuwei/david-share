@@ -1,5 +1,10 @@
 # Reasoning-CoT
 
+
+## Overview
+
+This repository contains implementation and documentation for Reasoning-CoT.
+
 After the release of OpenAI o1, its training methods and reasoning approaches have garnered a lot of attention. I utilized the Prompt method to simulate Reasoning CoT based on 4o. Although its generalization ability and accuracy are certainly not as good as o1, it can still provide some help for everyone to understand reasoning.
 
 ## Running on Azure
@@ -214,3 +219,19 @@ streamlit run ui.py
 
 ​	
 
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

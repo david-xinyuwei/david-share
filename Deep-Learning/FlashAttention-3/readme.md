@@ -1,5 +1,12 @@
 # FlashAttention-3
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
+
+## Overview
+
+This repository contains implementation and documentation for FlashAttention-3.
+
 *参考链接：https://medium.com/@jrodthoughts/understanding-flashattention-3-one-of-the-most-important-algortihms-to-make-transformers-fast-7d21b0f6e6a4*
 
 
@@ -170,3 +177,18 @@ FlashAttention-3 使用 NVIDIA 的 CUTLASS 库中的抽象来整合这些新的 
 FlashAttention-3团队测量了其在各种序列长度上的运行时间，并与标准PyTorch实现、FlashAttention-2、在Triton中的FlashAttention-2（使用H100特定指令）以及供应商的H100优化FlashAttention-2（来自cuDNN）进行了比较。结果发现，FlashAttention-3比FlashAttention-2快2倍，比在Triton中的FlashAttention-2快1.5倍，达到了740 TFLOPS/s，即H100 GPU理论最大值的75%。
 
 ![Image](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nXhMib3ALx2JszDMxucnxLKbVc0maBwxI6moKiaYvvM6ulJs1E1BibE4Qu6HM0KOCS8PY64eI3f8mYug/640?wx_fmt=png&from=appmsg&randomid=yxsfqfae&tp=webp&wxfrom=5&wx_lazy=1)
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

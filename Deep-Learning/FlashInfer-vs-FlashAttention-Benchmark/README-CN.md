@@ -555,21 +555,6 @@ llm = LLM(model="your-model", enforce_eager=True)
 
 ```
 flashinfer-vs-flashattention-benchmark/
-├── README.md                      # 英文文档
-├── README-CN.md                   # 中文文档
-├── scripts/
-│   ├── benchmark_vllm.py          # 基础 FI vs FA 对比
-│   ├── benchmark_batch_sweep.py   # 批量大小扫描测试
-│   ├── benchmark_advanced.py      # CUDAGraph + 长序列测试
-│   └── robust_test.py             # 3 次鲁棒性测试
-└── results/
-    ├── h100_results.json          # H100 测试结果
-    ├── a100_results.json          # A100 测试结果
-    ├── a100_batch_sweep.json      # 批量扫描结果
-    ├── a100_advanced.json         # A100 CUDAGraph 结果
-    ├── rtx6000_results.json       # RTX 6000 eager 模式结果
-    ├── rtx6000_advanced.json      # RTX 6000 CUDAGraph 结果
-    └── rtx6000_robust.json        # RTX 6000 3 次鲁棒性结果
 ```
 
 ---

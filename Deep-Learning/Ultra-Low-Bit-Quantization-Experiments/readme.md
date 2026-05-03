@@ -911,8 +911,6 @@ Quantization Loss
   3%│              ●3B
   2%│
   1%│                                  ●14B
-  0%├───────────────────────────────────────●32B───
-    └─────────────────────────────────────────────
        0.5B   1.5B    3B     7B    14B    32B
 ```
 
@@ -1023,20 +1021,6 @@ accelerate: 1.2.1
 
 ```
 
-├── README.md                    # This document (English)
-├── README-CN.md                 # Chinese version
-├── requirements.txt             # Dependencies (exact versions locked)
-├── scripts/
-│   ├── phase2_100samples.sh     # Phase 2 test script (100 samples)
-│   ├── phase2_verify.sh         # Reproducibility verification (Run 2)
-│   └── phase2_seed42.sh         # Random seed verification (Run 3)
-├── logs/
-│   ├── phase2_100samples.log    # Phase 2 raw log (Run 1)
-│   ├── phase2_verify.log        # Verification run log (Run 2)
-│   ├── phase2_seed42.log        # seed=42 test log (Run 3)
-│   └── ...                      # Exploratory test logs
-└── images/
-    └── (reserved)
 ```
 
 ---

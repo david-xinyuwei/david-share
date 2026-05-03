@@ -1,5 +1,7 @@
 # Agent Lightning端到端实践:深度推理训练验证
 
+> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+
 中文文档 | [English](README.md)
 
 
@@ -382,16 +384,6 @@ flowchart LR
 
 ```
 aipc_flywheel/
-├── __init__.py                   # 包初始化
-├── ARCHITECTURE.md               # 详细架构文档
-├── generate_aipc_data_agl.py     # 阶段 1: 数据生成 (GPT-4o 教师模型)
-├── train_sft_agl.py              # 阶段 2: SFT 冷启动训练
-├── train_grpo_agl.py             # 阶段 3: 使用 @agl.rollout 的 GRPO 训练
-├── evaluate_agl.py               # 阶段 4: LLM Judge 评估
-├── generate_feedback_agl.py      # 阶段 5a: 生成修正数据
-├── train_feedback_agl.py         # 阶段 5b: 基于 GRPO 的偏好学习
-├── reward_functions.py           # AIPC 领域奖励函数
-└── run_flywheel.sh               # 一键运行脚本
 ```
 
 ### 快速开始
@@ -462,7 +454,7 @@ from aipc_flywheel.reward_functions import create_gpt52_reward_function
 
 # 创建 GPT-5.2 奖励函数
 reward_fn = create_gpt52_reward_function(
-    azure_endpoint="https://your-endpoint.openai.azure.com",
+    azure_endpoint="https://<your-resource><your-resource>.openai.azure.com",
     api_key="YOUR_API_KEY"
 )
 
@@ -721,16 +713,6 @@ PyTorch Context: ~5GB
 
 ```
 Agent-Lighting/
-├── README.md                          # 英文文档
-├── README-CN.md                       # 本文档(中文)
-├── train_math_agent_vllm.py           # 🔥 核心训练脚本(GRPO+DeepThinking)
-├── generate_training_data_gpt5_agl.py # 数据生成(Azure OpenAI + AGL追踪)
-├── judge_with_llm_agl.py              # 🔥 LLM评判器(GPT-5.1 + AGL追踪)
-├── convert_checkpoint.py              # Checkpoint转换工具
-├── prepare_gsm8k.py                   # GSM8K数据集下载
-├── prepare_math.py                    # MATH数据集下载
-├── run_full_evaluation_v5.sh          # 🚀 一键评估脚本(双数据集)
-└── agentL_h100.yml                    # A100/H100环境配置(已在A100验证)
 ```
 
 ---
@@ -780,7 +762,7 @@ pip install openai pandas pyarrow huggingface_hub hydra-core \
 ### 环境变量配置
 ```bash
 # Azure OpenAI (用于数据生成和评判)
-export AZURE_OPENAI_ENDPOINT="https://your-resource.openai.azure.com/"
+export AZURE_OPENAI_ENDPOINT="https://<your-resource>.openai.azure.com/"
 export AZURE_OPENAI_API_KEY="your-key-here"
 export AZURE_OPENAI_DEPLOYMENT="gpt-5.1-chat"
 export AZURE_OPENAI_API_VERSION="2025-01-01-preview"

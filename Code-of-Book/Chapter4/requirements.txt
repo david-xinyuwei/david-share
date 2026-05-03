@@ -1,0 +1,4 @@
+IPython
+chromadb
+llama-index
+pandas

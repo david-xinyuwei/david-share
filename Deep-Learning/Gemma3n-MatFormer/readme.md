@@ -1,5 +1,7 @@
 # 解析 Gemma 3n 与 MatFormer同心圆架构
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 Gemma 3n的MatFormer架构虽然还很新，但它首次实现了一套权重即可支撑从小型设备到服务器端部署的能力，而无需额外微调训练，展现了良好的工程前景。就是类似「同心圆」技术＝一份权重、多个体型：
 
 - 把每层 FFN 做成同心矩形；只取前 8 k 行就是 2 B 子网，再加外圈变 4 B——随选随剪，无需再训练。
@@ -180,3 +182,25 @@ Gemma 3n 把 MatFormer 理念首次落地到可商用的多模态 LLM：
 3. 结合 vLLM / LoRA / 量化，可在消费级显卡完成推理与微调。
 
 对需要 **多设备部署、动态 SLA 调度、统一版本管控** 的团队而言，MatFormer 大幅降低了运维与训练成本；对个人研究者，它提供了前所未有的灵活实验平台。现在即可克隆官方 notebook，裁出你的专属子模型，亲手体验“同心圆”带来的硬件弹性。
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+pip install -r requirements.txt
+```
+
+### Scripts
+
+| Script | Description |
+|--------|-------------|
+| `[Gemma_3n]MatFormer_Lab.ipynb` | [Gemma 3N]Matformer Lab.Ipynb |

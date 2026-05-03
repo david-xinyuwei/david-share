@@ -1,5 +1,7 @@
 # AI Training Optimizers selection
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 Common optimizers include but are not limited to:  
 
 - **SGD (Stochastic Gradient Descent):** The most basic gradient optimization method.  
@@ -167,3 +169,19 @@ fine_tune_llama("meta-llama/Llama-3.1-8B", "paged_adamw_8bit", 1, 32)
 
 
 **Refer to**: *https://newsletter.kaitchup.com/p/fine-tuning-llms-with-32-bit-8-bit*
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

@@ -1,5 +1,7 @@
 # EAGLE3 Speculative Decoding: From Validation to Self-Training
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 [中文文档](README-CN.md) | English
 
 [![EAGLE Paper](https://img.shields.io/badge/arXiv-EAGLE-b31b1b.svg)](https://arxiv.org/abs/2401.15077)
@@ -100,10 +102,6 @@ The draft tokens form a tree for batch verification:
 Query: "How can"
          ↓
     "I" (from target LLM, Forward 1)
-    ├── "make" ─┬── "a" ─── "the"
-    │           └── "our" ── "your"
-    └── "help" ─┬── "with" ─ "to"
-                └── "you" ── "feel"
 ```
 
 The target model verifies **ALL branches in ONE forward pass**, accepting the longest matching sequence (e.g., "I" → "help" → "you" → "feel").
@@ -226,22 +224,17 @@ Layer 0 → Layer 2 → ... → Layer 16 → ... → Layer 29 → Layer 30-31 �
               ↓              ↓                ↓                        ↓
          Hidden[0]      Hidden[1]        Hidden[2]              (for verification)
           (4096)         (4096)           (4096)
-              └──────────────┼────────────────┘
                              ↓
                   Concatenate (4096 × 3 = 12288)
                              ↓
-                    ┌─────────────────┐
                     │   FC Layer      │  (12288 → 4096)
                     │  + 1 Decoder    │  (independent weights)
                     │  + LM Head      │  (4096 → 32000)
-                    └────────┬────────┘
                              ↓
                     Draft Token Predictions
                              ↓
-              ┌──────────────┴──────────────┐
               ↓                              ↓
          Draft Tokens    +    Target Output Logits
-              └──────────────┬──────────────┘
                              ↓
                       Tree Verification
                              ↓
@@ -354,9 +347,6 @@ The draft model is extremely lightweight (~811MB vs 16GB for full model) because
 **Trained Draft Head File Layout**:
 ```
 eagle3-llama31-8b/
-├── config.json          # 737 B  - Model configuration
-├── model.safetensors    # 811 MB - Draft model weights (inference only needs this)
-└── training_state.pt    # 3.2 GB - Optimizer state (not needed for inference)
 ```
 
 **Parameter Breakdown (~223M total)**:
@@ -750,21 +740,6 @@ Check:
 
 ```
 Speculative-Decoding-EAGLE3/
-├── README.md                              # English documentation
-├── README-CN.md                           # Chinese documentation
-├── requirements.txt                       # Python dependencies
-├── test_performance.py                    # Benchmark script
-├── config/
-│   ├── eagle3_llama31_8b.yaml            # Training configuration (YAML)
-│   └── llama3-8B-eagle3.json             # Draft model architecture config
-├── scripts/
-│   ├── prepare_data.py                   # Data preparation script
-│   ├── prepare_data.sh                   # Data preparation shell wrapper
-│   ├── train_eagle3.sh                   # Training launch script
-│   └── deploy_server.sh                  # Server deployment script
-└── logs/
-    ├── training_sample.log               # Sample training output
-    └── server_startup.log                # Server startup log
 ```
 
 
@@ -906,3 +881,30 @@ When serving single requests (batch size = 1):
   year={2024}
 }
 ```
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+pip install -r requirements.txt
+```
+
+### Scripts
+
+| Script | Description |
+|--------|-------------|
+| `scripts/deploy_server.sh` | Deploy Server |
+| `scripts/prepare_data.py` | Prepare Data |
+| `scripts/prepare_data.sh` | Prepare Data |
+| `scripts/train_eagle3.sh` | Train Eagle3 |
+| `test_performance.py` | Test Performance |

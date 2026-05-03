@@ -1,0 +1,15 @@
+IPython
+Pillow
+cleanvision
+gradio
+matplotlib
+nomic
+numpy
+pandas
+plotly
+pprintjson
+python-dotenv
+requests
+seaborn
+tqdm
+umap

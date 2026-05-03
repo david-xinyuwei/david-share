@@ -1,5 +1,7 @@
 # Fara-7B Azure H100 验证与 Streamlit Demo
 
+> **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
+
 微软首个开源 Computer Use Agent (CUA) 模型在 Azure GPU VM 上的端到端验证。
 
 
@@ -30,6 +32,18 @@ Microsoft Fara-7B 是**首个专为计算机自动化操作设计的开源智能
 | **架构** | Qwen2_5_VLForConditionalGeneration |
 | **上下文长度** | 128K tokens (max_position_embeddings) |
 | **滑动窗口** | 32K tokens |
+
+
+## 架构
+
+```mermaid
+flowchart LR
+    A["用户 / 客户端"] --> B["Azure API"]
+    B --> C["模型端点"]
+    C --> D["GPU 推理"]
+    D --> E["响应"]
+```
+
 
 ## 🧠 模型架构详解
 
@@ -79,20 +93,12 @@ Fara 实现了 `computer_use` 工具，支持以下动作：
 ### 核心Agent函数
 ```
 FaraAgent
-├── initialize()              # 初始化浏览器和OpenAI客户端
-├── run()                     # 主执行循环
-├── generate_model_call()     # 调用视觉语言模型
-├── execute_action()          # 执行解析后的动作
-├── _get_scaled_screenshot()  # 截屏并缩放 (1440×900)
-├── _parse_thoughts_and_action()  # 提取推理和动作
-└── close()                   # 清理资源
 ```
 
 ### 智能体循环 (ReAct模式)
 ```
 1. 截图 → 2. 模型推理 → 3. 解析思考/动作 → 4. 执行 → 5. 重复
     ↑                                                      |
-    └──────────────────────────────────────────────────────┘
 ```
 
 ## ✅ 验证成功案例
@@ -118,9 +124,9 @@ FaraAgent
 > ⚠️ A10 (24GB) 显存不足，无法运行 Fara-7B
 
 
-https://github.com/user-attachments/assets/90e8acc2-d8db-447e-8e30-cb2b157229cd
+https://github.com/user-attachments/assets/<resource-id>
 
-https://github.com/user-attachments/assets/d7041c81-b2e4-4413-980e-428135f8f62c
+https://github.com/user-attachments/assets/<resource-id>
 
 ## 🚀 快速部署
 
@@ -212,9 +218,6 @@ python -m fara.run_fara \
 ### 文件结构
 ```
 streamlit_app/
-├── app.py              # 主应用 (自动管理 VLLM 后端)
-├── requirements.txt    # 依赖
-└── README.md           # 说明
 ```
 
 ### 部署 Streamlit
@@ -279,7 +282,7 @@ python -m fara.run_fara \
 
 ## 🔄 Human-in-the-Loop (HITL) 人机协作
 
-https://github.com/user-attachments/assets/b62f7a34-aa41-4a69-8fdb-59a1c65eeb72
+https://github.com/user-attachments/assets/<resource-id>
 
 ### 什么是 HITL？
 
@@ -309,25 +312,12 @@ Fara 模型内置了 "Critical Points" 机制 - 在敏感操作前自动停止�
 ### Magentic-UI + Fara HITL 架构
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
 │                        Magentic-UI                              │
 │                                                                 │
-│  ┌─────────────┐    ┌──────────────────┐    ┌────────────────┐ │
-│  │   前端      │◄──►│  connection.py   │◄──►│ _fara_web_     │ │
-│  │  (React)    │    │  (WebSocket)     │    │  surfer.py     │ │
-│  └─────────────┘    └──────────────────┘    └───────┬────────┘ │
-│                                                      │          │
-│                                              ┌───────▼────────┐ │
-│                                              │  OpenAI API    │ │
-│                                              │    客户端       │ │
-│                                              └───────┬────────┘ │
-└──────────────────────────────────────────────────────┼──────────┘
                                                        │
-                                               ┌───────▼────────┐
                                                │     vLLM       │
                                                │    Fara-7B     │
                                                │  (port 5000)   │
-                                               └────────────────┘
 ```
 
 **关键点**：

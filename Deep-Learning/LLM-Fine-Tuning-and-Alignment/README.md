@@ -1,5 +1,7 @@
 # LLM Fine-Tuning and Alignment: A Complete Guide
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 This article is a comprehensive technical guide to LLM fine-tuning and alignment, covering SFT hyperparameter tuning; comparison of various fine-tuning methods (SFT/ReFT/RLHF/DPO/PPO/RLAIF/TPO); LoRA/QLoRA/GaLore mechanisms; DPO theory and practice; detailed PPO architecture; and the end-to-end workflow for large-model DPO distributed training (DeepSpeed ZeRO-3 / FSDP).
 
 > *This guide consolidates content from multiple previously separate articles into a single coherent resource.*

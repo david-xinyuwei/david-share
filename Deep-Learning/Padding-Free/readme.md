@@ -1,5 +1,7 @@
 # Practical Experience of Padding-Free Training
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 As large language models (such as Meta's Llama and OpenAI's GPT series) become widely adopted in production and research, effectively utilizing expensive GPU resources and improving training efficiency have become crucial issues. Currently, three main batch processing strategies exist for fine-tuning language models: padding, packing, and padding-free. This article provides detailed insights, practical experience, comparative data, and important considerations about padding-free practice, helping you gain deeper understanding and efficiently apply padding-free techniques.
 
 Here is a simplified comparison table for these three methods:
@@ -427,3 +429,19 @@ GPU = NVIDIA H100 NVL. Max memory = 93.115 GB.
 
 **Summary:**
 Padding-free training leverages advanced GPU capabilities, significantly reducing computation overhead from padding. When batch size > 1 and captures variable-length textual inputs, padding-free is highly recommended for efficiency and resource-saving.
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

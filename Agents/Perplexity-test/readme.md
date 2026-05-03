@@ -1,5 +1,7 @@
 # Perplexity-test
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 ## Running on Azure
 
 Perplexity evaluation can run on any machine with a GPU. This project uses **HuggingFace Transformers** locally.
@@ -88,3 +90,19 @@ example = "The loss is calculated using CrossEntropyLoss which averages over val
 get_ppl("meta-llama/Meta-Llama-3.1-8B", example)
 ```
 
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

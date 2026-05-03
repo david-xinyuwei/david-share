@@ -1,5 +1,12 @@
 # Model Introduction: VibeVoice
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
+
+## Overview
+
+This repository contains implementation and documentation for Model Introduction: VibeVoice.
+
 **VibeVoice** is a long-form, multi-speaker conversational speech generation framework proposed by Microsoft in 2025. It combines a Large Language Model (LLM) with a **Next-Token Diffusion** decoder and an ultra-low frame rate continuous acoustic tokenizer, capable of generating up to **90 minutes** of high-fidelity dialogue with up to **4 speakers** in a single context. It outperforms many existing systems in both perceived audio quality and speaker consistency.
 
 ---
@@ -206,7 +213,7 @@ Running on Azure A10 GPU VM during model inference：
 
 ### Demo on A10 with 3 speakers in Chinese
 
-https://github.com/user-attachments/assets/4023a592-666c-4e60-9352-60f6ace068af
+https://github.com/user-attachments/assets/<resource-id>
 
 ### Demo on A10 with 2 speakers in Chinese with prompt emotion
 
@@ -232,7 +239,7 @@ Speaker 2: 嗯——不过啊——我们也得——提醒大家——科技很
 Speaker 1: 对——就像今天……我们是为了——开心、学习、分享——而来——唉——这才是最棒的……  
 ```
 
-https://github.com/user-attachments/assets/d308c5d1-b45f-4151-8dba-91f001a8d64f
+https://github.com/user-attachments/assets/<resource-id>
 
 ### Demo on A100 with  2 speakers in English and Chinese
 
@@ -242,11 +249,11 @@ Running on Azure A100 GPU VM after load model to GPU：
 
 **English Version Demo**:
 
-https://github.com/user-attachments/assets/26533ef2-ba0e-4fea-9a45-fd72ec5b0918
+https://github.com/user-attachments/assets/<resource-id>
 
 **Chinese Version Demo:**
 
-https://github.com/user-attachments/assets/976c0bb7-98c3-4007-ad78-0f324d595fd4
+https://github.com/user-attachments/assets/<resource-id>
 
 
 

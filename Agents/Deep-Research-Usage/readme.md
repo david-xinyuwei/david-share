@@ -1,5 +1,12 @@
 # Deep Research Azure Setup & Usage Scripts
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
+
+## Overview
+
+This repository contains implementation and documentation for Deep Research Azure Setup & Usage Scripts.
+
 This repository contains two Python scripts that help you:
 
 1. **`setup_sp_and_auth.py`** — Create and configure an Azure Service Principal (SP), assign roles, and save credentials to a JSON file.
@@ -221,10 +228,6 @@ That said, investors must remain vigilant about the challenges. Microsoft is mak
 ## 📁 Project Structure
 
 ```
-├── setup_sp_and_auth.py         # Setup and authentication script
-├── deep_research_usage.py       # Multi-turn Deep Research usage script
-├── deep_research_credentials.json # Generated credentials file (DO NOT COMMIT)
-└── README.md                    # Project documentation
 ```
 
 
@@ -235,3 +238,26 @@ That said, investors must remain vigilant about the challenges. Microsoft is mak
 
 - The generated `deep_research_credentials.json` contains sensitive credentials — **DO NOT commit** it to version control.
 - Use `Azure Key Vault` if deploying these scripts in production to store credentials securely.
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+pip install -r requirements.txt
+```
+
+### Scripts
+
+| Script | Description |
+|--------|-------------|
+| `deep_research_usage.py` | Deep Research Usage |
+| `setup_sp_and_auth.py` | Setup Sp And Auth |

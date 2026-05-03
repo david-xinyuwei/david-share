@@ -1,5 +1,12 @@
 # Pretraining Frameworks: Megatron-DeepSpeed & Nanotron
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
+
+## Overview
+
+This repository contains implementation and documentation for Pretraining Frameworks: Megatron-DeepSpeed & Nanotron.
+
 This repo demonstrates two popular pretraining frameworks for transformer models — **Megatron-DeepSpeed** and **Nanotron** — with hands-on examples of GPT-2 and TinyLlama pretraining on Azure GPU VMs.
 
 ---
@@ -714,3 +721,19 @@ GPU resource consumed during training:
 - *https://github.com/bigscience-workshop/Megatron-DeepSpeed*
 - *https://help.aliyun.com/zh/ecs/use-cases/use-the-megatron-deepspeed-training-gpt-2-and-generate-text?spm=a2c4g.11186623.0.0.72a47e45epJ6T7*
 - *https://github.com/huggingface/nanotron*
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

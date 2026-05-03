@@ -13,7 +13,7 @@ from urllib.error import HTTPError
 
 # --- Endpoints (override via env vars) ---
 AGENT_SVC_BASE = os.environ.get("AGENT_SVC_BASE", "https://YOUR_RESOURCE.services.ai.azure.com/api/projects/YOUR_PROJECT")
-AOAI_BASE = os.environ.get("AOAI_BASE", "https://YOUR_AOAI_RESOURCE.openai.azure.com")
+AOAI_BASE = os.environ.get("AOAI_BASE", "https://<your-resource>.openai.azure.com")
 MODEL = os.environ.get("MODEL", "gpt-4o-mini")
 PROMPT = "What do you see in this image? Reply in one sentence."
 

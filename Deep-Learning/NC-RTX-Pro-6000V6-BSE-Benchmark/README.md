@@ -75,15 +75,7 @@ This benchmark was conducted across multiple **Azure GPU VM** SKUs.
 **GPU = A combination of specialized hardware units**
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
 │                         NVIDIA GPU                               │
-├─────────────────┬─────────────────────┬─────────────────────────┤
-│   📥 Decode/In  │     🧠 Compute       │      📤 Encode/Out      │
-├─────────────────┼─────────────────────┼─────────────────────────┤
-│  NVDEC (Video)  │  CUDA Core (General)│   NVENC (Video)         │
-│  NVJPG (Image)  │  Tensor Core (AI)   │   NVJPG (Image)         │
-│                 │  RT Core (RayTrace) │                         │
-└─────────────────┴─────────────────────┴─────────────────────────┘
 ```
 
 > 💡 **Note**: NVDEC/NVENC/NVJPG can be used for both input (decode) and output (encode).
@@ -280,29 +272,13 @@ This benchmark was conducted across multiple **Azure GPU VM** SKUs.
 ### Decision Flowchart
 
 ```
-                    ┌─────────────────────┐
                     │  What's your task?  │
-                    └──────────┬──────────┘
                                │
-        ┌──────────────────────┼──────────────────────┐
-        │                      │                      │
         ▼                      ▼                      ▼
-   ┌─────────┐           ┌─────────┐           ┌─────────┐
-   │AI Train │           │AI Infer │           │Video/   │
-   └────┬────┘           └────┬────┘           │Media    │
-        │                     │                └────┬────┘
         ▼                     │                     ▼
    Need NVLink?               │              Need encoding?
-        │                     │                     │
-    ┌───┴───┐                 │               ┌─────┴─────┐
    Yes     No                 │              Yes         No
-    │       │                 │               │           │
     ▼       ▼                 ▼               ▼           ▼
- ┌───────┐ ┌────────┐   ┌──────────┐  ┌───────────┐ ┌───────┐
- │NC H100│ │RTX PRO │   │Check VRAM│  │RTX PRO    │ │NC H100│
- │NC A100│ │6000 BSE│   │& latency │  │6000 BSE   │ │NC A100│
- └───────┘ └────────┘   └──────────┘  │NV A10     │ └───────┘
-                                      └───────────┘
 ```
 
 ---
@@ -408,19 +384,12 @@ sequenceDiagram
 **Execution Flow Comparison:**
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
 │ A100 (Ampere SM80) - No Native FP8                                          │
-│ FP8 Weights ──→ [Marlin Dequant] ──→ BF16 ──→ [BF16 Tensor Core] ──→ Output │
 │                 ⚠️ Extra step                                                │
-├─────────────────────────────────────────────────────────────────────────────┤
 │ H100 (Hopper SM90) - Native FP8                                             │
-│ FP8 Weights ──→ FP8 Activations ──→ [FP8 Tensor Core] ──→ Output            │
 │                                     ✅ Direct execution                      │
-├─────────────────────────────────────────────────────────────────────────────┤
 │ RTX 6000 (Blackwell SM120) - Native FP8                                     │
-│ FP8 Weights ──→ [FP8 Tensor Core] ──→ Output                                │
 │                 ✅ Direct execution, next-gen architecture                   │
-└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### 🔥 Key Findings Summary
@@ -784,10 +753,8 @@ quadrantChart
 
 ```
 NVFP4 vs FP8 Output Throughput (Qwen3-14B, RTX PRO 6000 Blackwell)
-══════════════════════════════════════════════════════════════════
 NVFP4 (W4A4)    ██████████████████████████████████████████  2,777 tok/s (+38%)
 FP8 (W8A8)      ██████████████████████████████              2,009 tok/s (baseline)
-══════════════════════════════════════════════════════════════════
 ```
 
 | Metric | NVFP4 (W4A4) | FP8 (W8A8) | Difference |
@@ -1048,7 +1015,7 @@ python -c "from vllm._custom_ops import cutlass_scaled_mm_supports_fp4; print(f'
 
 ```bash
 # Download
-wget https://download.microsoft.com/download/85beffdc-8361-4df4-a823-dcb1b230a7aa/NVIDIA-Linux-x86_64-580.105.08-grid-azure.run
+wget https://download.microsoft.com/download/<resource-id>/NVIDIA-Linux-x86_64-580.105.08-grid-azure.run
 
 # Install
 sudo sh NVIDIA-Linux-x86_64-580.105.08-grid-azure.run --silent --dkms
@@ -1142,28 +1109,6 @@ nvidia-smi dmon --gpm-metrics 2,3 --gpm-options m -c 4
 
 ```
 NC-RTX-Pro-6000V6-BSE-Benchmark/
-├── README.md                      # English documentation (this file)
-├── README-CN.md                   # Chinese documentation
-├── benchmark.py                   # FP8 benchmark script
-├── benchmark_fair.py              # Fair comparison benchmark
-├── benchmark_sglang.py            # SGLang benchmark script
-├── benchmark_tp_comparison.py     # TP=1 vs TP=2 benchmark
-├── compare_results.py             # Results comparison tool
-├── gpu_p2p_bandwidth_test.py      # GPU P2P bandwidth test
-├── requirements.txt               # Python dependencies
-├── images/
-│   ├── 1.png                      # NC RTX Pro benchmark image
-│   └── a100_fp8_performance.png   # A100 FP8 performance chart
-└── results/                       # Raw benchmark JSON data
-    ├── a100_comparison_summary.json
-    ├── a100_fair_test_results.json
-    ├── a100_fp8_prequant.json
-    ├── h100_bf16.json
-    ├── h100_comparison_summary.json
-    ├── h100_fp8_prequant.json
-    ├── h100_fp8_runtime.json
-    ├── rtx6000_bf16.json
-    └── rtx6000_fp8_prequant.json
 ```
 
 ### Quick Start

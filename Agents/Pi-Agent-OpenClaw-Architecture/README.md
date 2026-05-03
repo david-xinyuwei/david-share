@@ -55,13 +55,6 @@ Pi is organized as a **monorepo** (`pi-mono`) containing 7 packages, each with a
 
 ```
 pi-mono/
-├── pi-ai/              → Unified multi-model LLM API (22+ providers)
-├── pi-agent-core/      → Agent runtime with tool calling and state management
-├── pi-coding-agent/    → Interactive coding agent CLI (4 core tools)
-├── pi-tui/             → Terminal UI library (differential rendering)
-├── pi-web-ui/          → Web components (AI chat interface)
-├── pi-mom/             → Slack Bot integration
-└── pi-pods/            → vLLM deployment management CLI
 ```
 
 ### Package Details
@@ -323,13 +316,6 @@ Sessions are stored as **JSONL files** with a tree structure, supporting:
 
 ```
 Session File (.jsonl)
-├── Message 1 (user)
-├── Message 2 (assistant + tool calls)
-├── Message 3 (tool results)
-├── Branch Point
-│   ├── Branch A: Message 4a, 5a, ...
-│   └── Branch B: Message 4b, 5b, ...
-└── Compact Marker (summarized messages 1-50)
 ```
 
 Sessions can be shared, replayed, and migrated between machines using standard JSON serialization.
@@ -594,18 +580,8 @@ Beyond the basic tool-calling loop, we performed a source-code-level analysis to
 
 ```
 Before compaction (200K tokens):
-┌──────────────────────────────────────────────────┐
-│ Messages 1-80 (180K tokens)  │ Messages 81-100   │
-│ ← to be summarized ────────→ │ ← keep as-is ───→ │
-└──────────────────────────────────────────────────┘
 
 After compaction (~22K tokens):
-┌──────────────────────────────────────────────────┐
-│ [Summary: 2K]                │ Messages 81-100   │
-│ "User requested sort algo,   │ ← preserved ────→ │
-│  Modified: sort.py,          │                    │
-│  test_sort.py, ..."          │                    │
-└──────────────────────────────────────────────────┘
 ```
 
 Key implementation details:
@@ -706,3 +682,19 @@ graph TB
 ---
 
 *This analysis is based on Pi mono-repo source code, OpenClaw documentation, deployment experience, and Armin Ronacher's independent analysis. Pi and OpenClaw are open-source projects created by Mario Zechner and Peter Steinberger respectively.*
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

@@ -1,5 +1,7 @@
 # Thinking模型的Budget Forcing
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 **一、推理中模型什么时候停止生成token**
 
 
@@ -68,3 +70,25 @@ This project can be deployed on **Azure Virtual Machines** with GPU support.
    
 
    因此，如果你的模型是个“reasoning 型”或者你希望它多输出中间推理，Budget Forcing 可以在一定程度上让模型的回答更充分、更“显式”。但这个方法并不能直接弥补模型在知识或逻辑推理方面的不足，依然要看模型本身的能力是否到位。
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+pip install -r requirements.txt
+```
+
+### Scripts
+
+| Script | Description |
+|--------|-------------|
+| `_Thinking__LLMs_with_Simple_Fine_tuning_and_Budget_Forcing.ipynb` |  Thinking  Llms With Simple Fine Tuning And Budget Forcing.Ipynb |

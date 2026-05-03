@@ -350,12 +350,6 @@ UCX (Unified Communication X)                    [default backend]
   │ Communication framework — auto-selects optimal transport for hardware
   │ Source: https://github.com/openucx/ucx
   ▼
-┌─────────────────┬──────────────────────┬──────────────────────┬──────────────┐
-│ NVLink          │ IB RDMA              │ RoCE v2              │ TCP (fallback)│
-│ Same-node GPU   │ Cross-node           │ Cross-node           │ Cross-node   │
-│ ~900 GB/s       │ 100-400 Gbps         │ 100-200 Gbps         │ Slow         │
-│ (our setup)     │ zero-copy RDMA       │ lossless Ethernet    │ not for prod │
-└─────────────────┴──────────────────────┴──────────────────────┴──────────────┘
 ```
 
 **Glossary**:
@@ -528,16 +522,7 @@ Our PoC runs **all components in a single Docker container** — this is a simpl
 
 ```
 Our PoC (single container):                 Production K8s (multiple Pods):
-┌─────────────────────────────────┐       ┌───────────┐  ┌───────────┐  ┌───────────┐
-│ One Docker container           │       │ Pod 1     │  │ Pod 2     │  │ Pod 3     │
-│  ├─ nats-server                 │       │ Frontend  │  │ Prefill   │  │ Decode    │
-│  ├─ etcd                        │       │ + Router  │  │ Worker    │  │ Worker    │
-│  ├─ dynamo.frontend             │       │ (CPU)     │  │ (GPU x2)  │  │ (GPU x2)  │
-│  ├─ SGLang prefill (GPU 0)      │       └─────┬─────┘  └─────┬─────┘  └─────┬─────┘
-│  └─ SGLang decode  (GPU 1)      │             │ etcd/NATS  │           │
-│                                 │             └────┬─────┘           │
 │  KV transfer: NVLink (same GPU) │             RDMA / InfiniBand / RoCE
-└─────────────────────────────────┘       (cross-node KV transfer)
 ```
 
 | Aspect | Our PoC (Single Container) | Production K8s (Multi-Pod) |

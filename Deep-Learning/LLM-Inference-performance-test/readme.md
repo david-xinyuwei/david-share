@@ -1,5 +1,7 @@
 # LLM Inference performance test
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 GuideLLM (*https://github.com/neuralmagic/guidellm*) can test the inference performance of various models under TGI and vLLM. We can test with different hyper parameters on various GPU hardware to identify performance bottlenecks in the environment.
 
 Based on the tool's parameters, I have created a reference table for the performance requirements of different LLM scenarios and their corresponding parameter settings.
@@ -197,3 +199,19 @@ Resource Utilization During Stress Testing:
 ![图片](https://mmbiz.qpic.cn/mmbiz_png/akGXyic486nWRqa8ZBBDsLVNyfZ3rI0BXSCvcwwFUSMdgziabqftdRse9AGOw8C3tWyic1dtEznc53uVdqRSiaTxEw/640?wx_fmt=png&from=appmsg&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
 
 It can be seen that vLLM  consumes lots of video memory and relies heavily on it. 
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

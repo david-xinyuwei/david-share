@@ -1,5 +1,12 @@
 # MCP Server Hands-On Guide and Examples
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
+
+## Overview
+
+This repository contains implementation and documentation for MCP Server Hands-On Guide and Examples.
+
 This repository provides a practical, hands-on guide to using and integrating MCP (Model-Context Protocol) Servers. Through clear step-by-step examples, you will learn how to set up MCP Servers within VS Code, interact with AI models and tools (such as Open-WebUI and GitHub Copilot), and enhance AI workflows by creating custom MCP servers. Additionally, this guide will cover advanced integration patterns, including exposing MCP services securely via Azure API Management (APIM). The security-related scenarios, particularly the use of APIM to safely expose MCP Servers, will be detailed in an upcoming update to this guide.
 
 ## Running on Azure
@@ -236,7 +243,6 @@ deploy.sh
 
 ```
 #!/usr/bin/env bash
-# ════════════════════════════════════════════════════════
 
 SUBSCRIPTION_ID=$(az account show --query id -o tsv)    # 当前订阅
 
@@ -256,7 +262,6 @@ SECRET_VALUE="david"                  # 实际密钥内容
 AI_ACCOUNT_NAME="deepresearch-resource-xinyuwei"
 AI_ACCOUNT_RG="rg-admin-9097"         # AI 账户所在资源组
 AI_ROLE="Azure AI User"               # 也可用 "Cognitive Services OpenAI User"
-# ════════════════════════════════════════════════════════
 
 set -euo pipefail
 
@@ -407,7 +412,6 @@ Contents of the file `C:\david-share\mcp_server_weather.py`:
 # -*- coding: utf-8 -*-
 """
 mcp_server_weather.py
-────────────────────────────────────────────────────────
 An MCP (Model-Context Protocol) provider that exposes three
 weather-related tools:
 
@@ -932,3 +936,26 @@ As shown clearly in this demonstration, integrating the MCP server via HTTP Stre
 ***Please click below pictures to see my demo video on Youtube***:
 [![BitNet-demo1](https://raw.githubusercontent.com/xinyuwei-david/david-share/refs/heads/master/IMAGES/6.webp)](https://youtu.be/DI32kB1iuAs)
 
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+pip install -r requirements.txt
+```
+
+### Scripts
+
+| Script | Description |
+|--------|-------------|
+| `mcp_server_weather.py` | Mcp Server Weather |

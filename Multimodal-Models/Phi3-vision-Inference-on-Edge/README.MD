@@ -1,5 +1,10 @@
 # Phi3-vision-Inference-on-Edge
 
+
+## Overview
+
+This repository contains implementation and documentation for Phi3-vision-Inference-on-Edge.
+
 **Notice:**
 
 - I have upload my jupyter file named Phi3-vision-Inference-on-Edge.ipynb , I ran the code on Azure NC A100 GPU VM.
@@ -296,3 +301,31 @@ pip install vllm
 ---
 
 *Author: Xinyu Wei (Microsoft AI GBB) | Updated: 2026-01*
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+pip install -r requirements.txt
+```
+
+### Scripts
+
+| Script | Description |
+|--------|-------------|
+| `1phi3v.py` | 1Phi3V |
+| `Phi3-vision-Inference-on-Edge.ipynb` | Phi3-Vision-Inference-On-Edge.Ipynb |
+| `scripts/test_phi4mm.py` | Test Phi4Mm |
+| `scripts/test_qwen2vl_2b.py` | Test Qwen2Vl 2B |
+| `scripts/test_qwen2vl_7b.py` | Test Qwen2Vl 7B |
+| `scripts/test_qwen2vl_7b_awq.py` | Test Qwen2Vl 7B Awq |

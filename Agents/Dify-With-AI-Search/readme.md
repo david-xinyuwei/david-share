@@ -1,5 +1,12 @@
 # Dify work with Microsoft AI Search
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
+
+## Overview
+
+This repository contains implementation and documentation for Dify work with Microsoft AI Search.
+
 Dify is an open-source platform for developing large language model (LLM) applications. It combines the concepts of Backend as a Service (BaaS) and LLMOps, enabling developers to quickly build production-grade generative AI applications.
 
 Dify offers various types of tools, including first-party and custom tools. These tools can extend the capabilities of LLMs, such as web search, scientific calculations, image generation, and more. On Dify, you can create more powerful AI applications, like intelligent assistant-type applications, which can complete complex tasks through task reasoning, step decomposition, and tool invocation.
@@ -64,7 +71,7 @@ Then Access dify portal via the URL of your dify container.
   },
   "servers": [
     {
-      "url": "https://ai-search-eastus-xinyuwei.search.windows.net"
+      "url": "https://<your-resource>.search.windows.net"
     }
   ],
   "paths": {
@@ -180,3 +187,19 @@ Then Access dify portal via the URL of your dify container.
 <img src="https://github.com/xinyuwei-david/david-share/blob/master/LLMs/Dify-With-AI-Search/images/11.png" alt="images" style="width:80%;">  
 
 At this point, we can clearly see that Dify can seamlessly integrate and work together with Microsoft's AI Search and Azure OpenAI GPT-4o, achieving an end-to-end Dify RAG workflow. 
+
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```

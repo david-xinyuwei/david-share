@@ -1,5 +1,12 @@
 # DeepSeek on Azure
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
+
+## Overview
+
+This repository contains implementation and documentation for DeepSeek on Azure.
+
 **Methods for Deploying DeepSeek on Microsoft Platforms:**
 
 - **Azure AI Foundry**   
@@ -213,3 +220,18 @@ if __name__ == "__main__":
 ## **Phi-4 14B Distillation** **Supervied** **fine-tuning**
 
 *https://github.com/xinyuwei-david/david-share/tree/master/Deep-Learning/SLM-DeepSeek-R1*
+
+
+## Reproducing the Results
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (recommended)
+
+### Setup
+
+```bash
+git clone <this-repo-url>
+cd <repo-name>
+```
