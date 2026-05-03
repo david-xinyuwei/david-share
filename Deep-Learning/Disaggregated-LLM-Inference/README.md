@@ -1,29 +1,118 @@
-# Disaggregated Inference in Practice: PD Separation Architecture, Benchmarks, and Deployment on NC80 H100
+# Disaggregated LLM Inference: Architecture, Ecosystem, and Benchmarks
 
 > **Author**: Xinyu Wei (魏新宇)  
-> **Date**: 2026-04-20  
+> **Date**: 2026-04-20 (benchmarks) | 2026-05-03 (architecture analysis)  
 > **Hardware**: Azure NC80adis_H100_v5 (2× NVIDIA H100 NVL 95830 MiB, NV12 NVLink)  
 > **Stack**: SGLang 0.5.10.post1 + NVIDIA Dynamo 1.0.1 + NIXL 1.0.1 + NATS v2.11.3 + etcd v3.5.21
+
+[中文版](README-CN.md)
 
 ---
 
 ## TL;DR
 
-We benchmarked LLM inference optimization strategies on 2×H100 NVL with two models — **Qwen3-8B** (Results 1-3) and **Qwen2.5-32B** (Results 4-5). Strategies tested: **TP=2**, **Prefix Cache**, **NVIDIA Dynamo PD Disaggregation**, **FP8 KV Cache**, and **Chunked Prefill ON/OFF**.
+**Part 1 — Architecture**: The disaggregated inference stack has **6 layers** (KV Data → KV Transfer → KV Storage → PD Scheduling → Request Routing → Application Awareness) and **6 major implementations** (Dynamo, SGLang, Mooncake, vLLM, DeepSeek, in-house). They are not competing — production deployments mix components from different layers.
 
-- **TP=2**: Best throughput and TTFT at all model sizes. The go-to choice for same-node NVLink.
-- **Prefix Cache**: Highest ROI — 41% TTFT reduction, zero config, zero extra hardware.
-- **PD Disaggregation**: Only wins on tail latency — but the advantage scales with model size: P99 ITL **-52% for 8B**, **-85% for 32B**. Designed for large models where prefill is compute-heavy.
-- **FP8 KV Cache**: No benefit at 1024-token context. Matters at 8K+ tokens or memory-constrained setups.
-- **Chunked Prefill**: Critical — disabling it explodes TTFT 4.7× while only modestly improving ITL.
-
-Dynamo's value beyond raw benchmarks: **agent hints**, **KV-aware routing**, and **selective cache retention** — features that matter when your workload is a multi-turn agent, not a one-shot prompt.
+**Part 2 — Benchmarks**: We tested PD disaggregation on 2×H100 NVL with Qwen3-8B and Qwen2.5-32B using NVIDIA Dynamo:
+- **TP=2**: Best throughput and TTFT. The go-to choice for same-node NVLink.
+- **Prefix Cache**: Highest ROI — 41% TTFT reduction, zero config.
+- **PD Disaggregation**: Only wins on tail latency — P99 ITL **-52% (8B)**, **-85% (32B)**. Value scales with model size.
+- **Chunked Prefill**: Non-negotiable — disabling it explodes TTFT 4.7×.
 
 ![PD vs TP=2 Summary](images/pd_vs_tp2_summary.png)
 
 ---
 
-## Why Agentic Inference Needs More Than an Engine
+## Part 1: Disaggregated Inference Architecture
+
+### The Six-Layer Stack
+
+Disaggregated LLM inference is not a single technology — it is a stack of 6 layers, each solving a different problem:
+
+```
+┌─────────────────────────────────────────────────────┐
+│ L6: Application Awareness                           │
+│     Agent hints / priority / TTL / session lifecycle │
+├─────────────────────────────────────────────────────┤
+│ L5: Request Routing                                  │
+│     KV-aware routing / Flash Indexer / load balance  │
+├─────────────────────────────────────────────────────┤
+│ L4: PD Scheduling                                    │
+│     Which GPU does Prefill, which does Decode        │
+├─────────────────────────────────────────────────────┤
+│ L3: KV Storage & Sharing                             │
+│     Multi-tier (GPU→CPU→SSD→Remote) / cross-worker   │
+├─────────────────────────────────────────────────────┤
+│ L2: KV Transfer                                      │
+│     Physical data movement between GPUs (RDMA/NVLink)│
+├─────────────────────────────────────────────────────┤
+│ L1: KV Data                                          │
+│     Transformer Key+Value vectors per layer per token│
+└─────────────────────────────────────────────────────┘
+```
+
+| Layer | Problem It Solves | Key Technologies |
+|:---|:---|:---|
+| **L1: KV Data** | What is KV Cache, how large, how computed | PagedAttention, RadixAttention, MLA, GQA, SWA |
+| **L2: KV Transfer** | Move KV from Prefill GPU to Decode GPU | NIXL, Mooncake Transfer Engine, DeepEP, P2P NCCL |
+| **L3: KV Storage** | Where to store KV, multi-tier, cross-worker sharing | KVBM (4-tier), HiCache, Mooncake Store, LMCache, FlexKV |
+| **L4: PD Scheduling** | Which GPU does P, which does D, how to dispatch | `--disaggregation-mode`, Dynamo Frontend, DeepEP dispatch, EPLB |
+| **L5: Request Routing** | Which worker gets a new request (cache-aware) | Flash Indexer (170M ops/s), sglang_router, Thompson Sampling |
+| **L6: Application Awareness** | Inference understands Agent lifecycle | nvext.agent_hints, cache_control TTL, `<think>` detection |
+
+### Six Implementations and Their Coverage
+
+These implementations are **not competing alternatives** — they operate at different layers and can be combined:
+
+```
+          L1    L2    L3    L4    L5    L6
+          Data  Xfer  Store Sched Route App
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Dynamo     ·    ██    ██    ██    ██    ██   ← L2-L6 full stack
+SGLang     ·    ██    ██    ██    ██    ·    ← L2-L5
+Mooncake   ·    ██    ██    ·     ·     ·    ← L2-L3 (infrastructure)
+vLLM       ·    ██    ██    ██    ·     ·    ← L2-L4 (via Connector plugins)
+DeepSeek   ·    ██    ██    ██    ██    ·    ← L2-L5 (partially open-sourced)
+In-house   ·    ██    ██    ██    ██    ██   ← Closed-loop proprietary
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**Production deployments mix layers from different implementations**:
+- `PagedAttention + NIXL + KVBM + Dynamo Frontend + Flash Indexer + agent_hints`
+- `RadixAttention + Mooncake TE + HiCache + SGLang disagg + sglang_router`
+- `PagedAttention + NixlConnector + LMCache + vLLM disagg + llm-d`
+- `MLA + DeepEP + internal storage + PD+EPLB+TBO + EPLB routing`
+
+### L3: KV Storage Is NOT Only for PD Disaggregation
+
+A common misconception: KV storage/sharing (L3) is only needed for PD disaggregation. In fact, L3 serves 5 independent use cases:
+
+| Scenario | Needs PD? | Needs L3? | Why |
+|:---|:---:|:---:|:---|
+| **Agent tool calls** (2-30s pause) | ❌ | ✅ | KV evicted by LRU during pause → offload to CPU/SSD → prefetch on resume |
+| **Multi-worker prefix sharing** | ❌ | ✅ | 4 workers recompute same system prompt → shared storage: compute once, read 4× |
+| **Long context overflow** | ❌ | ✅ | 128K tokens KV exceeds GPU VRAM → offload cold blocks to CPU/SSD |
+| **PD disaggregation** | ✅ | ✅ | Prefill writes KV to shared tier → Decode reads from it |
+| **Elastic scaling** | ❌ | ✅ | New worker loads existing sessions from shared storage instead of recomputing |
+
+### KV Cache Distribution Across GPUs
+
+KV Cache location depends on the parallelism strategy:
+
+| Strategy | KV Location | PD Transfer Complexity |
+|:---|:---|:---|
+| **Single GPU** | All on 1 GPU | Simple: 1-to-1 |
+| **TP=8** | Split across 8 GPUs (by attention head) | **8-to-8**: each Prefill GPU sends its share to corresponding Decode GPU |
+| **TP=8 + DP=2** | 16 GPUs | **16-to-16** |
+| **EP=16 (MoE)** | 16 GPUs, different experts per GPU | Irregular: KV location varies per layer per token |
+
+For trillion-parameter MoE models with hybrid attention (e.g., SWA + Global Attention), PD transfer becomes especially complex because different layers produce different-sized KV blocks.
+
+---
+
+## Part 2: Benchmarks and Deployment
+
+### Why Agentic Inference Needs More Than an Engine
 
 Coding agents are writing production code at scale: [Stripe generates 1,300+ PRs/week](https://stripe.dev/blog/minions-stripes-one-shot-end-to-end-coding-agents), [Ramp attributes 30% of merged PRs to agents](https://www.infoq.com/news/2026/01/ramp-coding-agent-platform/), [Spotify reports 650+ agent-generated PRs/month](https://engineering.atspotify.com/2025/11/spotifys-background-coding-agent-part-1). Behind every one of these workflows is an inference stack under significant KV cache pressure.
 
@@ -44,7 +133,7 @@ Default LRU eviction treats all blocks identically. A 2-30 second tool call paus
 
 ---
 
-## What is NVIDIA Dynamo (30-second version)
+### What is NVIDIA Dynamo (30-second version)
 
 NVIDIA Dynamo is an open-source (Apache 2.0) **distributed inference orchestration framework** that sits above inference engines (SGLang, vLLM, TRT-LLM). It is NOT an inference engine — it manages request routing, KV cache sharing, and agent-aware scheduling across multiple GPU workers.
 

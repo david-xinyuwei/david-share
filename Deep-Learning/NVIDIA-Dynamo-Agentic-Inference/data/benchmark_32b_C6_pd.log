@@ -1,55 +1,0 @@
-Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-benchmark_args=Namespace(backend='sglang-oai-chat', base_url=None, host='0.0.0.0', port=8000, ready_check_timeout_sec=60, dataset_name='random', dataset_path='', model='QWEN32B', served_model_name=None, tokenizer='/root/models/Qwen2.5-32B-Instruct', num_prompts=100, sharegpt_output_len=None, sharegpt_context_len=None, random_input_len=1024, random_output_len=256, random_range_ratio=0.0, image_count=1, image_resolution='1080p', random_image_count=False, image_format='jpeg', image_content='random', request_rate=10.0, use_trace_timestamps=False, max_concurrency=None, output_file=None, output_details=False, print_requests=False, disable_tqdm=False, disable_stream=False, return_logprob=False, top_logprobs_num=0, token_ids_logprob=None, logprob_start_len=-1, return_routed_experts=False, seed=1, disable_ignore_eos=False, extra_request_body=None, apply_chat_template=False, profile=False, plot_throughput=False, profile_activities=['CPU', 'GPU'], profile_start_step=None, profile_steps=None, profile_num_steps=None, profile_by_stage=False, profile_stages=None, profile_output_dir=None, profile_prefix=None, lora_name=None, lora_request_distribution='uniform', lora_zipf_alpha=1.5, prompt_suffix='', pd_separated=False, profile_prefill_url=None, profile_decode_url=None, flush_cache=False, warmup_requests=1, tokenize_prompt=False, gsp_num_groups=64, gsp_prompts_per_group=16, gsp_system_prompt_len=2048, gsp_question_len=128, gsp_output_len=256, gsp_range_ratio=1.0, gsp_fast_prepare=False, gsp_send_routing_key=False, gsp_num_turns=1, gsp_ordered=False, mooncake_slowdown_factor=1.0, mooncake_num_rounds=1, mooncake_workload='conversation', tag=None, header=None)
-Waiting up to 60s for http://0.0.0.0:8000/v1/models to become ready...
-Server ready in 0.0s.
-Fail to load tokenizer config with error=QWEN32B is not a local folder and is not a valid model identifier listed on 'https://huggingface.co/models'
-If this is a private repository, make sure to pass a token having permission to this repo either by logging in with `hf auth login` or by passing `token=<your_token>`
-
-WARNING It is recommended to use the `Chat` or `Instruct` model for benchmarking.
-Because when the tokenizer counts the output tokens, if there is gibberish, it might count incorrectly.
-
-Namespace(backend='sglang-oai-chat', base_url=None, host='0.0.0.0', port=8000, ready_check_timeout_sec=60, dataset_name='random', dataset_path='', model='QWEN32B', served_model_name=None, tokenizer='/root/models/Qwen2.5-32B-Instruct', num_prompts=100, sharegpt_output_len=None, sharegpt_context_len=None, random_input_len=1024, random_output_len=256, random_range_ratio=0.0, image_count=1, image_resolution='1080p', random_image_count=False, image_format='jpeg', image_content='random', request_rate=10.0, use_trace_timestamps=False, max_concurrency=None, output_file=None, output_details=False, print_requests=False, disable_tqdm=False, disable_stream=False, return_logprob=False, top_logprobs_num=0, token_ids_logprob=None, logprob_start_len=-1, return_routed_experts=False, seed=1, disable_ignore_eos=False, extra_request_body=None, apply_chat_template=False, profile=False, plot_throughput=False, profile_activities=['CPU', 'GPU'], profile_start_step=None, profile_steps=None, profile_num_steps=None, profile_by_stage=False, profile_stages=None, profile_output_dir=None, profile_prefix=None, lora_name=None, lora_request_distribution='uniform', lora_zipf_alpha=1.5, prompt_suffix='', pd_separated=False, profile_prefill_url=None, profile_decode_url=None, flush_cache=False, warmup_requests=1, tokenize_prompt=False, gsp_num_groups=64, gsp_prompts_per_group=16, gsp_system_prompt_len=2048, gsp_question_len=128, gsp_output_len=256, gsp_range_ratio=1.0, gsp_fast_prepare=False, gsp_send_routing_key=False, gsp_num_turns=1, gsp_ordered=False, mooncake_slowdown_factor=1.0, mooncake_num_rounds=1, mooncake_workload='conversation', tag=None, header=None)
-
-#Input tokens: 50561
-#Output tokens: 12508
-Starting warmup with 1 sequences...
-Warmup completed with 1 sequences. Starting main benchmark run...
-  0%|          | 0/100 [00:00<?, ?it/s]  1%|          | 1/100 [00:01<02:05,  1.26s/it]  2%|▏         | 2/100 [00:01<01:06,  1.48it/s]  4%|▍         | 4/100 [00:01<00:30,  3.11it/s]  5%|▌         | 5/100 [00:02<00:35,  2.67it/s]  6%|▌         | 6/100 [00:02<00:34,  2.75it/s]  7%|▋         | 7/100 [00:03<00:54,  1.70it/s]  9%|▉         | 9/100 [00:03<00:33,  2.74it/s] 11%|█         | 11/100 [00:04<00:22,  4.02it/s] 12%|█▏        | 12/100 [00:04<00:19,  4.41it/s] 14%|█▍        | 14/100 [00:04<00:14,  5.78it/s] 15%|█▌        | 15/100 [00:04<00:16,  5.13it/s] 18%|█▊        | 18/100 [00:04<00:11,  7.33it/s] 20%|██        | 20/100 [00:05<00:10,  7.53it/s] 21%|██        | 21/100 [00:05<00:14,  5.47it/s] 22%|██▏       | 22/100 [00:05<00:13,  5.87it/s] 23%|██▎       | 23/100 [00:05<00:14,  5.15it/s] 25%|██▌       | 25/100 [00:06<00:12,  5.79it/s] 26%|██▌       | 26/100 [00:06<00:13,  5.36it/s] 27%|██▋       | 27/100 [00:06<00:12,  5.98it/s] 28%|██▊       | 28/100 [00:06<00:11,  6.32it/s] 29%|██▉       | 29/100 [00:06<00:10,  6.92it/s] 33%|███▎      | 33/100 [00:06<00:05, 13.03it/s] 35%|███▌      | 35/100 [00:07<00:05, 12.50it/s] 37%|███▋      | 37/100 [00:07<00:05, 12.53it/s] 42%|████▏     | 42/100 [00:07<00:04, 13.28it/s] 44%|████▍     | 44/100 [00:07<00:05, 11.05it/s] 46%|████▌     | 46/100 [00:08<00:07,  6.93it/s] 47%|████▋     | 47/100 [00:08<00:08,  6.28it/s] 49%|████▉     | 49/100 [00:08<00:06,  7.82it/s] 51%|█████     | 51/100 [00:08<00:05,  9.46it/s] 53%|█████▎    | 53/100 [00:09<00:05,  7.90it/s] 55%|█████▌    | 55/100 [00:09<00:07,  5.72it/s] 57%|█████▋    | 57/100 [00:10<00:07,  5.81it/s] 60%|██████    | 60/100 [00:10<00:04,  8.40it/s] 62%|██████▏   | 62/100 [00:10<00:03,  9.88it/s] 64%|██████▍   | 64/100 [00:10<00:03, 10.92it/s] 67%|██████▋   | 67/100 [00:10<00:03, 10.04it/s] 69%|██████▉   | 69/100 [00:11<00:03, 10.28it/s] 73%|███████▎  | 73/100 [00:11<00:01, 15.09it/s] 76%|███████▌  | 76/100 [00:11<00:01, 17.07it/s] 79%|███████▉  | 79/100 [00:11<00:01, 11.88it/s] 81%|████████  | 81/100 [00:11<00:01, 11.80it/s] 83%|████████▎ | 83/100 [00:12<00:02,  8.24it/s] 85%|████████▌ | 85/100 [00:12<00:01,  8.27it/s] 87%|████████▋ | 87/100 [00:13<00:02,  5.82it/s] 89%|████████▉ | 89/100 [00:13<00:01,  7.11it/s] 91%|█████████ | 91/100 [00:13<00:01,  5.94it/s] 93%|█████████▎| 93/100 [00:13<00:00,  7.30it/s] 95%|█████████▌| 95/100 [00:14<00:00,  7.32it/s] 98%|█████████▊| 98/100 [00:14<00:00, 10.15it/s]100%|██████████| 100/100 [00:15<00:00,  5.89it/s]100%|██████████| 100/100 [00:15<00:00,  6.64it/s]
-
-============ Serving Benchmark Result ============
-Backend:                                 sglang-oai-chat
-Traffic request rate:                    10.0      
-Max request concurrency:                 not set   
-Successful requests:                     100       
-Benchmark duration (s):                  15.07     
-Total input tokens:                      50561     
-Total input text tokens:                 50561     
-Total generated tokens:                  12508     
-Total generated tokens (retokenized):    1067110   
-Request throughput (req/s):              6.64      
-Input token throughput (tok/s):          3355.35   
-Output token throughput (tok/s):         830.06    
-Peak output token throughput (tok/s):    1512.00   
-Peak concurrent requests:                49        
-Total token throughput (tok/s):          4185.41   
-Concurrency:                             23.62     
-----------------End-to-End Latency----------------
-Mean E2E Latency (ms):                   3558.81   
-Median E2E Latency (ms):                 3575.77   
-P90 E2E Latency (ms):                    6131.19   
-P99 E2E Latency (ms):                    7195.90   
----------------Time to First Token----------------
-Mean TTFT (ms):                          355.20    
-Median TTFT (ms):                        296.87    
-P99 TTFT (ms):                           738.53    
------Time per Output Token (excl. 1st token)------
-Mean TPOT (ms):                          26.26     
-Median TPOT (ms):                        26.10     
-P99 TPOT (ms):                           32.64     
----------------Inter-Token Latency----------------
-Mean ITL (ms):                           25.81     
-Median ITL (ms):                         25.50     
-P95 ITL (ms):                            28.60     
-P99 ITL (ms):                            31.00     
-Max ITL (ms):                            85.32     
-==================================================

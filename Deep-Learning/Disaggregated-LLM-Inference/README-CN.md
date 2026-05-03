@@ -1,29 +1,118 @@
-# PD 分离推理实战：Disaggregated Inference 架构、Benchmark 与 NC80 H100 部署
+# LLM 推理分离架构：六层技术栈、生态全景与实测
 
 > **作者**：魏新宇 (Xinyu Wei)  
-> **日期**：2026-04-20  
+> **日期**：2026-04-20（Benchmark）| 2026-05-03（架构分析）  
 > **硬件**：Azure NC80adis_H100_v5（2× NVIDIA H100 NVL 95830 MiB，NV12 NVLink）  
 > **技术栈**：SGLang 0.5.10.post1 + NVIDIA Dynamo 1.0.1 + NIXL 1.0.1 + NATS v2.11.3 + etcd v3.5.21
+
+[English Version](README.md)
 
 ---
 
 ## 一句话结论
 
-我们在 2×H100 NVL 上用两个模型对比了 LLM 推理优化策略 — **Qwen3-8B**（结果 1-3）和 **Qwen2.5-32B**（结果 4-5）。测试策略：**TP=2**、**Prefix Cache**、**NVIDIA Dynamo PD 分离**、**FP8 KV Cache**、**Chunked Prefill 开/关**。
+**第一部分 — 架构**：推理分离技术栈有 **6 层**（KV 数据 → KV 传输 → KV 存储 → PD 调度 → 请求路由 → 应用感知），**6 大实现**（Dynamo、SGLang、Mooncake、vLLM、DeepSeek、大厂自研）。它们不是竞争关系 — 生产部署是从不同层选组件拼装。
 
-- **TP=2**：所有模型尺寸下吐量和 TTFT 最优。同节点 NVLink 的首选。
-- **Prefix Cache**：ROI 最高 — 41% TTFT 下降，零配置、零额外硬件。
-- **PD 分离**：仅在尾部延迟胜出 — 但优势随模型增大而扩大：P99 ITL **8B -52%**、**32B -85%**。为 prefill 计算密集的大模型而设计。
-- **FP8 KV Cache**：1024 token 上下文无收益。8K+ token 或显存紧张场景才有意义。
-- **Chunked Prefill**：关键优化 — 关闭后 TTFT 爆炸 4.7×，ITL 改善有限。
-
-Dynamo 的价值超越纯 benchmark 数据：**agent hints**、**KV 感知路由**、**选择性缓存保留** — 这些特性在你的 workload 是多轮 agent 而非单次 prompt 时才重要。
+**第二部分 — 实测**：在 2×H100 NVL 上用 Qwen3-8B 和 Qwen2.5-32B 测试了 NVIDIA Dynamo PD 分离：
+- **TP=2**：吞吐量和 TTFT 最优。同节点 NVLink 首选。
+- **Prefix Cache**：ROI 最高 — 41% TTFT 下降，零配置。
+- **PD 分离**：仅尾部延迟胜出 — P99 ITL **8B -52%**、**32B -85%**。优势随模型增大。
+- **Chunked Prefill**：不可关闭 — 关闭后 TTFT 爆炸 4.7×。
 
 ![PD vs TP=2 Summary](images/pd_vs_tp2_summary.png)
 
 ---
 
-## 为什么 Agent 推理需要的不只是引擎
+## 第一部分：推理分离架构
+
+### 六层技术栈
+
+LLM 推理分离不是一项单一技术 — 而是 6 层技术栈，每层解决不同问题：
+
+```
+┌─────────────────────────────────────────────────────┐
+│ L6: 应用感知层                                        │
+│     Agent hints / priority / TTL / session lifecycle │
+├─────────────────────────────────────────────────────┤
+│ L5: 请求路由层                                        │
+│     KV-aware routing / Flash Indexer / 负载均衡       │
+├─────────────────────────────────────────────────────┤
+│ L4: PD 调度层                                         │
+│     哪个 GPU 做 Prefill、哪个做 Decode、怎么分配请求    │
+├─────────────────────────────────────────────────────┤
+│ L3: KV 存储与共享层                                    │
+│     多层存储(GPU→CPU→SSD→远程) / 跨 worker 共享       │
+├─────────────────────────────────────────────────────┤
+│ L2: KV 传输层                                         │
+│     GPU 间 KV 数据的物理搬运（RDMA/NVLink/TCP）        │
+├─────────────────────────────────────────────────────┤
+│ L1: KV 数据层                                         │
+│     Transformer 每层每 token 的 Key+Value 向量        │
+└─────────────────────────────────────────────────────┘
+```
+
+| 层 | 解决什么问题 | 关键技术 |
+|:---|:---|:---|
+| **L1: KV 数据** | KV Cache 是什么、多大、怎么算 | PagedAttention、RadixAttention、MLA、GQA、SWA |
+| **L2: KV 传输** | Prefill GPU 的 KV 怎么搬到 Decode GPU | NIXL、Mooncake Transfer Engine、DeepEP、P2P NCCL |
+| **L3: KV 存储** | KV 存哪里、多层级、跨 worker 共享 | KVBM（4层）、HiCache、Mooncake Store、LMCache、FlexKV |
+| **L4: PD 调度** | 哪个 GPU 做 P、哪个做 D | `--disaggregation-mode`、Dynamo Frontend、DeepEP dispatch、EPLB |
+| **L5: 请求路由** | 新请求发给谁（考虑 KV 缓存+负载） | Flash Indexer（170M ops/s）、sglang_router、Thompson Sampling |
+| **L6: 应用感知** | 推理系统理解 Agent 生命周期 | nvext.agent_hints、cache_control TTL、`<think>` 检测 |
+
+### 六大实现及覆盖层级
+
+这些实现**不是互斥竞争** — 它们在不同层运作，可以组合使用：
+
+```
+          L1    L2    L3    L4    L5    L6
+          数据   传输   存储   调度   路由   应用
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Dynamo     ·    ██    ██    ██    ██    ██   ← L2-L6 全栈
+SGLang     ·    ██    ██    ██    ██    ·    ← L2-L5
+Mooncake   ·    ██    ██    ·     ·     ·    ← L2-L3（基础设施层）
+vLLM       ·    ██    ██    ██    ·     ·    ← L2-L4（通过 Connector 插件）
+DeepSeek   ·    ██    ██    ██    ██    ·    ← L2-L5（部分开源）
+大厂自研    ·    ██    ██    ██    ██    ██   ← 各自闭环
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**生产部署 = 每层选一个组件拼装**：
+- `PagedAttention + NIXL + KVBM + Dynamo Frontend + Flash Indexer + agent_hints`
+- `RadixAttention + Mooncake TE + HiCache + SGLang disagg + sglang_router`
+- `PagedAttention + NixlConnector + LMCache + vLLM disagg + llm-d`
+- `MLA + DeepEP + 内部存储 + PD+EPLB+TBO + EPLB routing`
+
+### L3 KV 存储不只是 PD 分离才需要
+
+常见误解：KV 存储/共享（L3）只有 PD 分离才需要。实际上 L3 服务于 5 个独立场景：
+
+| 场景 | 需要 PD？ | 需要 L3？ | 原因 |
+|:---|:---:|:---:|:---|
+| **Agent 工具调用**（等 2-30 秒） | ❌ | ✅ | KV 被 LRU 驱逐 → 卸载到 CPU/SSD → 回来时 prefetch |
+| **多 Worker 共享前缀** | ❌ | ✅ | 4 个 worker 重算同一 system prompt → 共享存储算一次读 4 次 |
+| **长上下文溢出** | ❌ | ✅ | 128K token 的 KV 超出 GPU 显存 → 冷 block 卸载 |
+| **PD 分离** | ✅ | ✅ | Prefill 写 KV 到共享层 → Decode 读取 |
+| **弹性扩缩容** | ❌ | ✅ | 新 worker 从共享存储加载已有 session 的 KV |
+
+### KV Cache 在 GPU 上的分布
+
+KV Cache 的位置取决于并行策略：
+
+| 策略 | KV 位置 | PD 传输复杂度 |
+|:---|:---|:---|
+| **单卡** | 全在 1 张 GPU | 简单：1 对 1 |
+| **TP=8** | 分布在 8 张 GPU（按 attention head 切分） | **8 对 8**：每张 Prefill GPU 传给对应 Decode GPU |
+| **TP=8 + DP=2** | 16 张 GPU | **16 对 16** |
+| **EP=16（MoE）** | 16 张 GPU，每卡不同 expert | 不规则：每层每 token KV 位置不同 |
+
+对于采用 hybrid attention（SWA + Global Attention）的万亿参数 MoE 模型，PD 传输尤其复杂 — 不同层产生不同大小的 KV block。
+
+---
+
+## 第二部分：Benchmark 与部署
+
+### 为什么 Agent 推理需要的不只是引擎
 
 Coding agent 正在大规模写生产代码：[Stripe 每周 1300+ PRs](https://stripe.dev/blog/minions-stripes-one-shot-end-to-end-coding-agents)、[Ramp 30% 合并 PRs 来自 agent](https://www.infoq.com/news/2026/01/ramp-coding-agent-platform/)、[Spotify 每月 650+ agent 生成的 PRs](https://engineering.atspotify.com/2025/11/spotifys-background-coding-agent-part-1)。这些工作流背后的推理栈承受着巨大的 KV cache 压力。
 
@@ -44,7 +133,7 @@ NVIDIA 分析了 Claude Code session，发现了 **Write-Once-Read-Many (WORM)**
 
 ---
 
-## NVIDIA Dynamo 是什么（30 秒版）
+### NVIDIA Dynamo 是什么（30 秒版）
 
 NVIDIA Dynamo 是开源（Apache 2.0）的**分布式推理编排框架**，位于推理引擎（SGLang、vLLM、TRT-LLM）之上。它不是推理引擎——它管理请求路由、KV cache 共享和 Agent 感知调度。
 
