@@ -108,6 +108,48 @@ KV Cache 的位置取决于并行策略：
 
 对于采用 hybrid attention（SWA + Global Attention）的万亿参数 MoE 模型，PD 传输尤其复杂 — 不同层产生不同大小的 KV block。
 
+### 生产环境的 P:D 比例 — 不是 1:1
+
+常见问题：Prefill GPU 和 Decode GPU 各要多少？答案**不是 1:1** — 因为 Prefill 和 Decode 的计算特性完全不同：
+
+```
+Prefill: 一次性处理所有 input tokens → 计算密集 → 几十~几百 ms 完成
+Decode:  每次只生成 1 个 token → 显存带宽密集 → 持续数秒到数十秒
+
+时间线（1P:1D）：
+Prefill GPU: ██░░░░░░░░░░░░░░░░░░  （忙 200ms，空闲 39.8s 等下一个请求）
+Decode GPU:  ░░████████████████████ （持续忙 40s）
+→ Prefill GPU 99% 空闲，浪费。
+```
+
+生产部署使用 **xP:yD 比例**，由 ISL/OSL 和 SLO 目标决定：
+
+| 来源 | 模型 | P:D 比例（节点） | P:D 比例（GPU） | ISL | 说明 |
+|:---|:---|:---|:---|:---|:---|
+| **SGLang Blog（2025-05）** | DeepSeek-V3 | 4P : 9D 节点 | 32:72 GPU ≈ **1:2.25** | 2K | 12 节点 × 8 H100，开源复现 |
+| **DeepSeek 官方** | DeepSeek-V3 | 未公开 | 18 decode 节点 | — | 官方 profile data 已公开 |
+| **AIConfigurator** | 任意模型 | 自动推荐 | 按 ISL/OSL/SLO 变化 | 任意 | 秒级搜索数万种配置 |
+
+**比例取决于 ISL/OSL**：
+- 长输入短输出（摘要）→ Prefill 重 → 比例接近 **1:1 甚至 2:1**
+- 短输入长输出（Agent/聊天）→ Decode 重 → 比例接近 **1:2 ~ 1:4**
+- 正确做法：**用 AIConfigurator 自动推荐，不要手动猜**
+
+**AIConfigurator**（[GitHub](https://github.com/ai-dynamo/aiconfigurator)，[Blog](https://developer.nvidia.com/blog/removing-the-guesswork-from-disaggregated-serving/)）自动推荐最优 P:D 比例：
+
+```bash
+aiconfigurator cli default \
+  --model-path nvidia/Qwen3-32B-NVFP4 \
+  --total-gpus 64 --system b200_sxm \
+  --isl 15000 --osl 500 \
+  --ttft 1000 --tpot 15 \
+  --backend auto  # 同时对比 TRT-LLM、SGLang、vLLM
+```
+
+它把推理分解为各个操作，在目标 GPU 上分别测量，然后重组估算端到端性能 — 秒级搜索数万种配置，不占用 GPU。Mooncake 和阿里已贡献了 SGLang 和 vLLM 后端支持。
+
+*来源：[Removing the Guesswork from Disaggregated Serving](https://developer.nvidia.com/blog/removing-the-guesswork-from-disaggregated-serving/) — NVIDIA Developer Blog, 2026-03*
+
 ---
 
 ## 第二部分：Benchmark 与部署

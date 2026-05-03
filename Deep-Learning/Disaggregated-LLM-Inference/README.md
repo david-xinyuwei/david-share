@@ -108,6 +108,48 @@ KV Cache location depends on the parallelism strategy:
 
 For trillion-parameter MoE models with hybrid attention (e.g., SWA + Global Attention), PD transfer becomes especially complex because different layers produce different-sized KV blocks.
 
+### Production P:D Ratios — Not 1:1
+
+A common question: how many Prefill GPUs vs Decode GPUs? The answer is **not 1:1** — because Prefill and Decode have fundamentally different compute profiles:
+
+```
+Prefill: processes all input tokens at once → compute-intensive → finishes in ms
+Decode:  generates 1 token at a time → memory-bandwidth-intensive → runs for seconds
+
+Timeline (1P:1D):
+Prefill GPU: ██░░░░░░░░░░░░░░░░░░  (busy 200ms, idle 39.8s waiting)
+Decode GPU:  ░░████████████████████ (busy for 40s continuously)
+→ Prefill GPU is 99% idle. Wasteful.
+```
+
+Production deployments use **xP:yD ratios** determined by ISL/OSL and SLO targets:
+
+| Source | Model | P:D Ratio (nodes) | P:D Ratio (GPUs) | ISL | Notes |
+|:---|:---|:---|:---|:---|:---|
+| **SGLang Blog (2025-05)** | DeepSeek-V3 | 4P : 9D nodes | 32:72 GPUs ≈ **1:2.25** | 2K | 12 nodes × 8 H100, open-source reproduction |
+| **DeepSeek official** | DeepSeek-V3 | Not disclosed | 18 decode nodes | — | Production profile data published |
+| **AIConfigurator** | Any model | Auto-recommended | Varies by ISL/OSL/SLO | Any | Searches thousands of configs in seconds |
+
+**The ratio depends on ISL/OSL**:
+- Long input, short output (summarization): more Prefill GPUs → ratio closer to **1:1 or 2:1**
+- Short input, long output (Agent/chat): more Decode GPUs → ratio closer to **1:2 ~ 1:4**
+- The correct answer is: **use AIConfigurator, don't guess**
+
+**AIConfigurator** ([GitHub](https://github.com/ai-dynamo/aiconfigurator), [Blog](https://developer.nvidia.com/blog/removing-the-guesswork-from-disaggregated-serving/)) automatically recommends the optimal P:D ratio:
+
+```bash
+aiconfigurator cli default \
+  --model-path nvidia/Qwen3-32B-NVFP4 \
+  --total-gpus 64 --system b200_sxm \
+  --isl 15000 --osl 500 \
+  --ttft 1000 --tpot 15 \
+  --backend auto  # compares TRT-LLM, SGLang, vLLM simultaneously
+```
+
+It decomposes inference into constituent operations, measures each on the target GPU, and reassembles to estimate end-to-end performance — searching tens of thousands of configurations in seconds without occupying GPUs. Community contributors (Mooncake, Alibaba) have extended it to SGLang and vLLM backends.
+
+*Source: [Removing the Guesswork from Disaggregated Serving](https://developer.nvidia.com/blog/removing-the-guesswork-from-disaggregated-serving/) — NVIDIA Developer Blog, Mar 2026*
+
 ---
 
 ## Part 2: Benchmarks and Deployment
