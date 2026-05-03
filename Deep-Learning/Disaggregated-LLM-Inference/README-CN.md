@@ -560,6 +560,7 @@ Chunked prefill 产生的 KV Cache 与完整 prefill **数学上完全等价**�
 | **配置难度** | 零（SGLang 默认开启） | 复杂部署 |
 
 **Chunked Prefill 是"穷人的 PD"** — 用 0% 的成本解决 80% 的问题。我们的 benchmark 使用了 SGLang 默认的 chunked prefill（`--chunked-prefill-size 8192`），所以 TP=2 高并发的 P99 ITL（24.6ms）已经不算太差。如果关掉 chunked prefill，ITL 尖刺会严重得多，PD 的优势会更明显。
+
 **实测数据（结果 5）**：在 32B 上，关闭 chunked prefill 导致 TTFT 从 369ms 爆炸到 1729ms（+4.7×），P95 ITL 从 258ms 改善到 155ms（-40%）。吐量下降 17%。净 E2E 基本持平 — 确认 chunked prefill 用略差的 ITL 换取显著更好的 TTFT 和吐量。详见[结果 5](#结果-5优化消融实验--fp8-kv-cache-和-chunked-prefill)。
 ---
 
