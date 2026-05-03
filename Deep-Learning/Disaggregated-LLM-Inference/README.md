@@ -13,6 +13,8 @@
 
 **Part 1 — Architecture**: The disaggregated inference stack has **6 layers** (KV Data → KV Transfer → KV Storage → PD Scheduling → Request Routing → Application Awareness) and **6 major implementations** (Dynamo, SGLang, Mooncake, vLLM, DeepSeek, in-house). They are not competing — production deployments mix components from different layers.
 
+PD disaggregation’s value goes beyond tail latency: **(1)** P99 ITL becomes predictable and SLO-committable, **(2)** Prefill and Decode pools scale independently (add Decode GPUs without touching Prefill), **(3)** different GPU SKUs can be mixed (compute-optimized for Prefill, memory-optimized for Decode).
+
 **Part 2 — Benchmarks**: We tested PD disaggregation on 2×H100 NVL with Qwen3-8B and Qwen2.5-32B using NVIDIA Dynamo:
 - **TP=2**: Best throughput and TTFT. The go-to choice for same-node NVLink.
 - **Prefix Cache**: Highest ROI — 41% TTFT reduction, zero config.
@@ -54,9 +56,9 @@ Disaggregated LLM inference is not a single technology — it is a stack of 6 la
 | Layer | Problem It Solves | Key Technologies |
 |:---|:---|:---|
 | **L1: KV Data** | What is KV Cache, how large, how computed | PagedAttention, RadixAttention, MLA, GQA, SWA |
-| **L2: KV Transfer** | Move KV from Prefill GPU to Decode GPU | NIXL, Mooncake Transfer Engine, DeepEP, P2P NCCL |
+| **L2: KV Transfer** | Move KV from Prefill GPU to Decode GPU | NIXL, Mooncake Transfer Engine, P2P NCCL |
 | **L3: KV Storage** | Where to store KV, multi-tier, cross-worker sharing | KVBM (4-tier), HiCache, Mooncake Store, LMCache, FlexKV |
-| **L4: PD Scheduling** | Which GPU does P, which does D, how to dispatch | `--disaggregation-mode`, Dynamo Frontend, DeepEP dispatch, EPLB |
+| **L4: PD Scheduling** | Which GPU does P, which does D, how to dispatch | `--disaggregation-mode`, Dynamo Frontend, DeepEP (MoE expert dispatch), EPLB |
 | **L5: Request Routing** | Which worker gets a new request (cache-aware) | Flash Indexer (170M ops/s), sglang_router, Thompson Sampling |
 | **L6: Application Awareness** | Inference understands Agent lifecycle | nvext.agent_hints, cache_control TTL, `<think>` detection |
 
@@ -72,7 +74,7 @@ Dynamo     ·    ██    ██    ██    ██    ██   ← L2-L6 full
 SGLang     ·    ██    ██    ██    ██    ·    ← L2-L5
 Mooncake   ·    ██    ██    ·     ·     ·    ← L2-L3 (infrastructure)
 vLLM       ·    ██    ██    ██    ·     ·    ← L2-L4 (via Connector plugins)
-DeepSeek   ·    ██    ██    ██    ██    ·    ← L2-L5 (partially open-sourced)
+DeepSeek   ·    ⚠️    ██    ██    ██    ·    ← L2-L5 (L2 KV transfer not open-sourced)
 In-house   ·    ██    ██    ██    ██    ██   ← Closed-loop proprietary
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
@@ -81,7 +83,7 @@ In-house   ·    ██    ██    ██    ██    ██   ← Closed-loo
 - `PagedAttention + NIXL + KVBM + Dynamo Frontend + Flash Indexer + agent_hints`
 - `RadixAttention + Mooncake TE + HiCache + SGLang disagg + sglang_router`
 - `PagedAttention + NixlConnector + LMCache + vLLM disagg + llm-d`
-- `MLA + DeepEP + internal storage + PD+EPLB+TBO + EPLB routing`
+- `MLA + internal KV transfer + internal storage + PD+EPLB+TBO + internal routing`
 
 ### L3: KV Storage Is NOT Only for PD Disaggregation
 
@@ -132,7 +134,7 @@ Production deployments use **xP:yD ratios** determined by ISL/OSL and SLO target
 
 **The ratio depends on ISL/OSL**:
 - Long input, short output (summarization): more Prefill GPUs → ratio closer to **1:1 or 2:1**
-- Short input, long output (Agent/chat): more Decode GPUs → ratio closer to **1:2 ~ 1:4**
+- Short input, long output (Agent/chat): more Decode GPUs → ratio closer to **1:2 ~ 1:4** (estimated; only 1:2.25 empirically validated)
 - The correct answer is: **use AIConfigurator, don't guess**
 
 **AIConfigurator** ([GitHub](https://github.com/ai-dynamo/aiconfigurator), [Blog](https://developer.nvidia.com/blog/removing-the-guesswork-from-disaggregated-serving/)) automatically recommends the optimal P:D ratio:

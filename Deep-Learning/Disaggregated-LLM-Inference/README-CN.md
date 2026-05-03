@@ -13,6 +13,8 @@
 
 **第一部分 — 架构**：推理分离技术栈有 **6 层**（KV 数据 → KV 传输 → KV 存储 → PD 调度 → 请求路由 → 应用感知），**6 大实现**（Dynamo、SGLang、Mooncake、vLLM、DeepSeek、大厂自研）。它们不是竞争关系 — 生产部署是从不同层选组件拼装。
 
+PD 分离的价值不止于尾部延迟：**(1)** P99 ITL 可预测、可承诺 SLO，**(2)** Prefill 和 Decode 池独立扩缩容（加 Decode GPU 不动 Prefill），**(3)** 可混用不同 GPU SKU（算力型做 Prefill，大显存型做 Decode）。
+
 **第二部分 — 实测**：在 2×H100 NVL 上用 Qwen3-8B 和 Qwen2.5-32B 测试了 NVIDIA Dynamo PD 分离：
 - **TP=2**：吞吐量和 TTFT 最优。同节点 NVLink 首选。
 - **Prefix Cache**：ROI 最高 — 41% TTFT 下降，零配置。
@@ -54,9 +56,9 @@ LLM 推理分离不是一项单一技术 — 而是 6 层技术栈，每层解�
 | 层 | 解决什么问题 | 关键技术 |
 |:---|:---|:---|
 | **L1: KV 数据** | KV Cache 是什么、多大、怎么算 | PagedAttention、RadixAttention、MLA、GQA、SWA |
-| **L2: KV 传输** | Prefill GPU 的 KV 怎么搬到 Decode GPU | NIXL、Mooncake Transfer Engine、DeepEP、P2P NCCL |
+| **L2: KV 传输** | Prefill GPU 的 KV 怎么搬到 Decode GPU | NIXL、Mooncake Transfer Engine、P2P NCCL |
 | **L3: KV 存储** | KV 存哪里、多层级、跨 worker 共享 | KVBM（4层）、HiCache、Mooncake Store、LMCache、FlexKV |
-| **L4: PD 调度** | 哪个 GPU 做 P、哪个做 D | `--disaggregation-mode`、Dynamo Frontend、DeepEP dispatch、EPLB |
+| **L4: PD 调度** | 哪个 GPU 做 P、哪个做 D | `--disaggregation-mode`、Dynamo Frontend、DeepEP（MoE expert dispatch）、EPLB |
 | **L5: 请求路由** | 新请求发给谁（考虑 KV 缓存+负载） | Flash Indexer（170M ops/s）、sglang_router、Thompson Sampling |
 | **L6: 应用感知** | 推理系统理解 Agent 生命周期 | nvext.agent_hints、cache_control TTL、`<think>` 检测 |
 
@@ -72,7 +74,7 @@ Dynamo     ·    ██    ██    ██    ██    ██   ← L2-L6 全�
 SGLang     ·    ██    ██    ██    ██    ·    ← L2-L5
 Mooncake   ·    ██    ██    ·     ·     ·    ← L2-L3（基础设施层）
 vLLM       ·    ██    ██    ██    ·     ·    ← L2-L4（通过 Connector 插件）
-DeepSeek   ·    ██    ██    ██    ██    ·    ← L2-L5（部分开源）
+DeepSeek   ·    ⚠️    ██    ██    ██    ·    ← L2-L5（L2 KV 传输未开源）
 大厂自研    ·    ██    ██    ██    ██    ██   ← 各自闭环
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
@@ -81,7 +83,7 @@ DeepSeek   ·    ██    ██    ██    ██    ·    ← L2-L5（部�
 - `PagedAttention + NIXL + KVBM + Dynamo Frontend + Flash Indexer + agent_hints`
 - `RadixAttention + Mooncake TE + HiCache + SGLang disagg + sglang_router`
 - `PagedAttention + NixlConnector + LMCache + vLLM disagg + llm-d`
-- `MLA + DeepEP + 内部存储 + PD+EPLB+TBO + EPLB routing`
+- `MLA + 内部 KV 传输 + 内部存储 + PD+EPLB+TBO + 内部路由`
 
 ### L3 KV 存储不只是 PD 分离才需要
 
@@ -132,7 +134,7 @@ Decode GPU:  ░░████████████████████ 
 
 **比例取决于 ISL/OSL**：
 - 长输入短输出（摘要）→ Prefill 重 → 比例接近 **1:1 甚至 2:1**
-- 短输入长输出（Agent/聊天）→ Decode 重 → 比例接近 **1:2 ~ 1:4**
+- 短输入长输出（Agent/聊天）→ Decode 重 → 比例接近 **1:2 ~ 1:4**（估算范围；仅 1:2.25 经过实测验证）
 - 正确做法：**用 AIConfigurator 自动推荐，不要手动猜**
 
 **AIConfigurator**（[GitHub](https://github.com/ai-dynamo/aiconfigurator)，[Blog](https://developer.nvidia.com/blog/removing-the-guesswork-from-disaggregated-serving/)）自动推荐最优 P:D 比例：
