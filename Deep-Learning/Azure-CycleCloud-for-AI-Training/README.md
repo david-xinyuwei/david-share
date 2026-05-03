@@ -67,10 +67,23 @@ Everything else (DeepSpeed, NCCL, training code, model checkpoints) — **identi
 
 ```
 CycleCloud Server (1 CPU VM, always-on)
+├── REST API / Web UI / CLI
+├── Calls Azure RM API to create/destroy VMs via VMSS
 │
+├── Slurm Scheduler (1 CPU VM, always-on)
+│   ├── slurmctld (scheduler daemon)
+│   ├── azslurm CLI (Azure-Slurm bridge)
+│   └── munge (authentication)
 │
+├── Login Node (optional, 1 CPU VM, always-on)
 │
+├── Compute Nodes (on-demand, auto-scaled)
+│   ├── ND H200 × 9 (72 GPUs) — example
+│   ├── slurmd + Pyxis + Enroot
+│   ├── NCCL + InfiniBand 400Gb/s
+│   └── Shared storage auto-mounted
 │
+└── Shared Storage (ANF / Managed Lustre / NFS)
 ```
 
 ### 2.2 Always-On vs On-Demand Components
@@ -199,8 +212,14 @@ For pure AI training: keep only GPU partition.
 
 ```
 Traditional HPC user's cluster:
+├── HTC → run 10,000 independent GROMACS small tasks
+├── HPC → run 128-node OpenFOAM MPI simulation
+└── GPU → run AI model training
 
 Pure AI training cluster (Insilico):
+├── HTC → delete or Max=0
+├── HPC → delete or Max=0
+└── GPU → this is all you need (change to ND H200, Max=9)
 ```
 
 This is another sign of **over-engineering for pure AI users** — AML doesn't have this HPC baggage.
@@ -235,15 +254,24 @@ Overlap: Both can schedule GPU jobs. But Slurm is **native to IB/RDMA** — adva
 ```
 CycleCloud + Slurm Job Execution
 │
+├── Default: Bare Process (runs directly on host OS)
 │     sbatch → srun python train.py
 │                    ↓
 │           Host OS (Ubuntu)
+│              ├── python (PID 12345)  ← directly on host
+│              ├── GPU: /dev/nvidia* direct access
+│              └── Network: InfiniBand host passthrough
 │     Pros: zero overhead
 │     Cons: CUDA/PyTorch must be pre-installed on every VM
 │
+└── Optional: Enroot Container (lightweight, NOT Docker)
       sbatch → srun --container-image=nvcr.io#nvidia/pytorch:24.01
                     ↓
            Host OS (Ubuntu)
+              └── Enroot container (no daemon, user-space)
+                    ├── python + CUDA + PyTorch inside container
+                    ├── GPU: passthrough (same as bare process)
+                    └── Network: passthrough (same as bare process)
       Pros: environment consistency (NGC image has everything)
       Cons: near-zero overhead (NOT the Docker overhead you'd expect)
 ```
@@ -496,19 +524,3 @@ Microsoft provides official GitHub repositories for running large-scale AI train
 | Slurm Documentation | https://slurm.schedmd.com/ |
 | NVIDIA Enroot | https://github.com/NVIDIA/enroot |
 | NVIDIA Pyxis | https://github.com/NVIDIA/pyxis |
-
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```

@@ -86,12 +86,15 @@ Reward  │    ╱╲
         │   ╱  ╲___
         │  ╱       ╲___  ← Collapse @ 150–600 steps
         │ ╱            ╲___
+        └──────────────────────► Steps
 
 FP16 Training Curve (Stable Convergence):
+Reward  │              ╱────────
         │           ╱
         │        ╱
         │     ╱  ← Stable → Near-perfect accuracy
         │  ╱
+        └──────────────────────► Steps
 ```
 
 ---
@@ -134,16 +137,28 @@ Precision: 2⁻⁷ ≈ 0.008 (≈0.8% relative error)
 
 ```
 FP16 = Vernier Caliper (High Precision, Limited Range)
+┌─────────────────────────────────────────────────────────┐
 │  0.00   0.01   0.02   0.03   0.04   0.05   0.06  [mm]  │
+│   │      │      │      │      │      │      │           │
+│   ├──┼──┼┼──┼──┼┼──┼──┼┼──┼──┼┼──┼──┼┼──┼──┼┤          │
+│   │  │  ││  │  ││  │  ││  │  ││  │  ││  │  │           │
+│   └──┴──┴┴──┴──┴┴──┴──┴┴──┴──┴┴──┴──┴┴──┴──┴┘          │
 │     10 bits mantissa → 1024 fine divisions             │
 │     Can distinguish: 10.231 vs 10.237 ✓                │
+└─────────────────────────────────────────────────────────┘
 Range: 0–65 cm  |  Precision: 0.01 mm
 
 
 BF16 = Tape Measure (Wide Range, Coarse Precision)
+┌──────────────────────────────────────────────────────────┐
 │   0     10     20     30     40     50     60    [cm]   │
+│   │      │      │      │      │      │      │            │
+│   ├──────┼──────┼──────┼──────┼──────┼──────┤           │
+│   │      │      │      │      │      │      │            │
+│   └──────┴──────┴──────┴──────┴──────┴──────┘           │
 │      7 bits mantissa → 128 coarse divisions             │
 │      10.231 → 10.2  |  10.237 → 10.2  (same!) ✗        │
+└──────────────────────────────────────────────────────────┘
 Range: 0–100 m  |  Precision: 1 cm
 ```
 
@@ -155,6 +170,7 @@ True Policy Logits:  [10.231, 10.237, 10.225]
 FP16 (10-bit mantissa):  [10.2305, 10.2368, 10.2251]  ✓ Ranking preserved
                            ↓         ↓         ↓
 BF16 (7-bit mantissa):   [10.234,  10.234,  10.234 ]  ✗ All collapsed!
+                           └─────────┴─────────┘
                             Indistinguishable
                          → Random action selection
                          → Policy collapse
@@ -255,19 +271,25 @@ reward = 1.0                     # Usually in [-10, 10]
 Scenario: Three-action probability distribution
 π(a₁)=0.312, π(a₂)=0.308, π(a₃)=0.380
 
+┌──────────────────────────────────────────────────────────┐
 │ FP16 (1024 divisions) - Vernier Caliper                  │
+├──────────────────────────────────────────────────────────┤
 │ 0.312 → Division 319 ✓                                   │
 │ 0.308 → Division 315 ✓  4 divisions apart, clearly distinct │
 │ 0.380 → Division 389 ✓                                   │
 │                                                          │
 │ Action ranking: a₃ > a₁ > a₂  ← Correct!                │
+└──────────────────────────────────────────────────────────┘
 
+┌──────────────────────────────────────────────────────────┐
 │ BF16 (128 divisions) - Steel Tape                        │
+├──────────────────────────────────────────────────────────┤
 │ 0.312 → Division 40 (actual 0.3125) ✗                    │
 │ 0.308 → Division 39 (actual 0.3047) ✗  Both blurred between 39-40 │
 │ 0.380 → Division 49 (actual 0.3828) ✗                    │
 │                                                          │
 │ Action ranking: May become a₃ ≈ a₁ ≈ a₂  ← Wrong! Random │
+└──────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -319,6 +341,20 @@ ratio_fp16 = 0.312012 / 0.308105 = 1.0127  # ✅ Precision maintained!
 ```
 RL Precision Requirement = Numerical Density (mantissa) >> Numerical Range (exponent)
 
+┌─────────┬──────────┬──────────┬────────────────┐
+│ Format  │  Range   │ Density  │ RL Suitability │
+├─────────┼──────────┼──────────┼────────────────┤
+│  FP16   │  2¹⁵     │  2⁻¹⁰    │ ✅ Perfect fit  │
+│         │ (enough) │ (needed) │   Range OK     │
+│         │          │          │   Density OK   │
+├─────────┼──────────┼──────────┼────────────────┤
+│  BF16   │  2¹²⁷    │  2⁻⁷     │ ❌ Mismatch     │
+│         │ (wasted) │(lacking) │   Range excess │
+│         │          │          │   Density poor │
+├─────────┼──────────┼──────────┼────────────────┤
+│  FP32   │  2¹²⁷    │  2⁻²³    │ ✅ Over-kill    │
+│         │ (wasted) │ (wasted) │   3× cost      │
+└─────────┴──────────┴──────────┴────────────────┘
 
 Key Insights:
 • Range requirement: RL values always in [-100, 100] → FP16's ±65504 more than enough
@@ -769,22 +805,6 @@ Even with identical dtypes, different engines handle rounding/accumulation diffe
 }
 
 ---
-
-
-
-## Reproducing the Results
-
-### Prerequisites
-
-- Python 3.10+
-- CUDA-compatible GPU (recommended)
-
-### Setup
-
-```bash
-git clone <this-repo-url>
-cd <repo-name>
-```
 
 ## License
 

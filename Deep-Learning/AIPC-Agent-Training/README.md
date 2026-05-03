@@ -160,11 +160,48 @@ def reward_function(completions, **kwargs):
 ## 📁 Repository Structure
 
 ```
+├── Training Scripts (Execution Order)
+│   ├── train_sft_aipc.py          # Step 1: V1.0 → V1.1 SFT
+│   ├── train_grpo_aipc.py         # Step 2: V1.1 GRPO (rule-based reward)
+│   ├── l5_hybrid_pipeline.py      # Step 2+: Full pipeline with hybrid reward (recommended)
+│   ├── train_dpo_style.py         # Step 3: V1.1 → V1.2 Style DPO
+│   ├── train_dpo_v1.3.py          # Step 4: V1.2 → V1.3 Feedback DPO
+│   └── train_dpo_v1.4.py          # Step 5: V1.3 → V1.4 Code DPO
 │
+├── Data Generation Scripts
+│   ├── download_and_prepare_data.py  # Download HF datasets + format conversion
+│   ├── generate_aipc_new_data.py     # Generate SFT data via Azure OpenAI
+│   ├── generate_style_dpo_data.py    # Generate style preference pairs
+│   ├── generate_feedback_v1.3.py     # Simulate customer feedback
+│   └── generate_feedback_v1.4.py     # Generate code preference with AST validation
 │
+├── Training Data (data/)
+│   ├── aipc_sft_train.jsonl         # 850 SFT samples (bitext + IT helpdesk)
+│   ├── aipc_sft_val.jsonl           # 50 validation samples
+│   ├── aipc_style_dpo.jsonl         # 33 style preference pairs
+│   ├── aipc_feedback_v1.3.jsonl     # 33 feedback preference pairs
+│   └── aipc_code_feedback_v1.4.jsonl # 34 code preference pairs
 │
+├── Experiment Logs (logs/)
+│   ├── sft_train.log               # SFT training log
+│   ├── grpo_train.log              # GRPO (rule-based) log
+│   ├── l5_pipeline.log             # GRPO (pure GPT judge) log
+│   ├── l5_hybrid.log               # GRPO (hybrid reward) log ← best
+│   ├── full_pipeline.log           # Full pipeline (rule-based GRPO + DPO) log
+│   ├── dpo_style.log               # DPO V1.2 log
+│   ├── dpo_v1.3.log                # DPO V1.3 log
+│   ├── dpo_v1.4.log                # DPO V1.4 log
+│   └── inference_compare.log       # Base vs V1.4 comparison
 │
+├── Inference & Evaluation
+│   ├── inference_aipc_sft.py       # Basic inference
+│   ├── inference_compare.py        # Multi-version comparison via vLLM
+│   ├── compare_v1.2_v1.3.py        # A/B test: V1.2 vs V1.3
+│   └── compare_v1.3_v1.4.py        # A/B test: V1.3 vs V1.4
 │
+├── EXPERIMENT-REPORT.md            # Detailed 3-round experiment analysis
+└── Utilities
+    └── convert_checkpoint.py       # Checkpoint format conversion
 ```
 
 ---
@@ -342,10 +379,20 @@ We iterated through 3 reward function designs to find what works for small (3B) 
 
 ```
 Pure GPT Judge (Round 2):           Hybrid Reward (Round 3):
+┌─────────────────────┐              ┌─────────────────────┐
+│ GPT scores 3B model │              │ Rule-based: 0~0.5   │
+│ → Always 2-3/10     │              │ (keywords, structure,│
+│ → Normalized: -0.5  │              │  length, no refusal) │
+│ → ALL negative!     │              │        +             │
+│ → Model learns      │              │ GPT adjustment:      │
+│   "everything bad"  │              │ -0.3 ~ +0.5          │
+│ → Degrades          │              │ (quality scoring)    │
+└─────────────────────┘              │        =             │
                                      │ Total: -0.3 ~ +1.0  │
                                      │ → Positive baseline  │
                                      │ → GPT differentiates │
                                      │ → GRPO can learn!    │
+                                     └─────────────────────┘
 ```
 
 **Key Insight**: For small models (3B), the reward function must provide a **positive baseline** so GRPO receives directional signal. Pure LLM-as-Judge with absolute scoring creates an all-negative reward landscape where the model cannot find improvement directions.

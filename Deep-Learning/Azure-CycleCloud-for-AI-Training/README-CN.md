@@ -67,10 +67,23 @@ Azure CycleCloud 是 Azure 上的 **HPC 集群编排和管理应用**。它 **�
 
 ```
 CycleCloud Server（1 台 CPU VM，常驻）
+├── REST API / Web UI / CLI
+├── 调用 Azure RM API，通过 VMSS 创建/销毁 VM
 │
+├── Slurm Scheduler（1 台 CPU VM，常驻）
+│   ├── slurmctld（调度引擎）
+│   ├── azslurm CLI（Azure-Slurm 桥梁）
+│   └── munge（认证）
 │
+├── Login Node（可选，1 台 CPU VM，常驻）
 │
+├── 计算节点（按需扩缩）
+│   ├── ND H200 × 9（72 GPU）— 示例
+│   ├── slurmd + Pyxis + Enroot
+│   ├── NCCL + InfiniBand 400Gb/s
+│   └── 共享存储自动挂载
 │
+└── 共享存储（ANF / Managed Lustre / NFS）
 ```
 
 ### 2.2 常驻 vs 按需组件
@@ -199,8 +212,14 @@ Slurm 不知道 Azure 的存在。`azslurm` 是**翻译官**。
 
 ```
 传统 HPC 用户的集群:
+├── HTC → 跑上万个独立 GROMACS 小任务
+├── HPC → 跑 128 节点 OpenFOAM MPI 仿真
+└── GPU → 跑 AI 模型训练
 
 纯 AI 训练集群（Insilico）:
+├── HTC → 删掉或 Max=0
+├── HPC → 删掉或 Max=0
+└── GPU → 只需要这个（改为 ND H200，Max=9）
 ```
 
 这也是 CycleCloud 对纯 AI 用户**过度工程化**的另一个体现 — AML 没有这些 HPC 包袱。
@@ -235,15 +254,24 @@ VNet、Bastion、Storage Account、NFS、Key Vault、监控、CycleCloud Server 
 ```
 CycleCloud + Slurm 作业执行模式
 │
+├── 默认: 裸进程（直接跑在宿主机 OS 上）
 │     sbatch → srun python train.py
 │                    ↓
 │           宿主机 OS (Ubuntu)
+│              ├── python (PID 12345)  ← 直接在宿主机跑
+│              ├── GPU: /dev/nvidia* 直接访问
+│              └── 网络: InfiniBand 宿主机直通
 │     优点: 零开销
 │     缺点: CUDA/PyTorch 需预装在每台 VM
 │
+└── 可选: Enroot 容器（轻量级，不是 Docker！）
       sbatch → srun --container-image=nvcr.io#nvidia/pytorch:24.01
                     ↓
            宿主机 OS (Ubuntu)
+              └── Enroot 容器（无 daemon，用户态）
+                    ├── python + CUDA + PyTorch 在容器内
+                    ├── GPU: 直通（和裸进程一样）
+                    └── 网络: 直通（和裸进程一样）
       优点: 环境一致性好（NGC 镜像自带全套）
       缺点: 接近零开销（不是你想象的 Docker 开销）
 ```

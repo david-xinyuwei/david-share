@@ -43,18 +43,6 @@ Foundry IQ:
 
 ---
 
-
-## Architecture
-
-```mermaid
-flowchart LR
-    A["User / Client"] --> B["Azure API"]
-    B --> C["Model Endpoint"]
-    C --> D["GPU Inference"]
-    D --> E["Response"]
-```
-
-
 ## 📌 What is Foundry IQ? (Entity Definition)
 
 > ⚠️ **Important Clarification**: Foundry IQ is NOT a standalone Azure product, service, or SDK.
@@ -95,7 +83,16 @@ Single-shot RAG (one query hits one index once) quickly runs into limits when qu
 Foundry IQ uses an **agentic retrieval engine** that treats retrieval as a **reasoning task**, not just keyword lookup:
 
 ```
+┌─────────────────────────────────────────────────────────────────┐
 │                    Agentic Retrieval Engine                      │
+├─────────────────────────────────────────────────────────────────┤
+│  1. PLAN      │ AI plans how to search based on the question    │
+│  2. DECOMPOSE │ Rewrites and breaks down complex questions      │
+│  3. SEARCH    │ Reaches into multiple sources in parallel       │
+│  4. EVALUATE  │ Checks if it has enough signal                  │
+│  5. ITERATE   │ Searches again if needed                        │
+│  6. SYNTHESIZE│ Combines results with citations                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ### Retrieval Reasoning Effort
@@ -173,12 +170,47 @@ When you call the `/retrieve` API, the `activity` field reveals exactly how Agen
 ### System Architecture Diagram
 
 ```
+┌─────────────────────────────────────────────────────────────────────────┐
 │                        Azure AI Search Service                           │
 │                    (Knowledge Store API - 2025-11-01-preview)            │
+├─────────────────────────────────────────────────────────────────────────┤
 │                                                                          │
+│  ┌──────────────────────────────────────────────────────────────────┐   │
+│  │                      Knowledge Bases                              │   │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐               │   │
+│  │  │kb-azure-docs│  │kb-blob-only │  │kb-tech-docs │               │   │
+│  │  │(Web + Blob) │  │(Blob Only)  │  │(Tech Docs)  │               │   │
+│  │  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘               │   │
+│  └─────────┼────────────────┼────────────────┼──────────────────────┘   │
+│            │                │                │                           │
+│  ┌─────────┴────────────────┴────────────────┴──────────────────────┐   │
+│  │                      Knowledge Sources                            │   │
+│  │  ┌───────────────┐  ┌─────────────────┐  ┌─────────────────┐     │   │
+│  │  │web-azure-docs │  │blob-demo-vector │  │ blob-tech-docs  │     │   │
+│  │  │(Bing Grounding│  │(Azure Blob +    │  │ (Azure Blob +   │     │   │
+│  │  │ - Real-time)  │  │ Embedding)      │  │  Embedding)     │     │   │
+│  │  └───────────────┘  └─────────────────┘  └─────────────────┘     │   │
+│  └──────────────────────────────────────────────────────────────────┘   │
+│                                      │                                   │
+│                    ┌─────────────────┴─────────────────┐                │
+│                    │   Auto-Created Resources:         │                │
+│                    │   • {source}-datasource           │                │
+│                    │   • {source}-indexer              │                │
+│                    │   • {source}-skillset             │                │
+│                    │   • {source}-index (with vectors) │                │
+│                    └───────────────────────────────────┘                │
 │                                                                          │
+└──────────────────────────────────────┬───────────────────────────────────┘
                                │
+          ┌────────────────────┼────────────────────┐
           ▼                    ▼                    ▼
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│ Azure Blob      │  │ Azure OpenAI    │  │ Bing Grounding  │
+│ Storage         │  │                 │  │ (Web Search)    │
+│ (Managed ID)    │  │ • Embedding     │  │                 │
+│ • demo-docs/    │  │ • Chat (GPT-4o) │  │ Real-time       │
+│ • tech-docs/    │  │                 │  │ Internet Search │
+└─────────────────┘  └─────────────────┘  └─────────────────┘
 ```
 
 ### Knowledge Source Types (Complete List)
