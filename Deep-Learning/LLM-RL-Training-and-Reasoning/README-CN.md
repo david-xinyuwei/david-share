@@ -281,34 +281,17 @@ Test Time Scale：Majority Vote / Tree Search / Beam Search / Lookahead Search
 
 ### 训练信号如何流动？（PPO 架构图）
 
-```text
-Prompt x
-  │
-  ▼
-┌───────────────┐        ┌──────────────────┐
-│ Actor πθ      │        │ Reference πref   │
-│ Generates y   │        │ (Original Script)│
-└──────┬────────┘        └───────┬──────────┘
-       │                          │
-       │ logπθ(y|x)               │ logπref(y|x)
-       │                          │
-       ▼                          ▼
-   ┌──────────────────────────────────────────┐
-   │ KL Penalty:   -β · (logπθ - logπref)     │
-   └──────────────────────────────────────────┘
-                  │
-                  │ Generated (x, y)
-                  │
-       ┌──────────┴──────────┐
-       ▼                     ▼
-┌───────────────┐     ┌───────────────┐
-│ Reward Model  │     │ Critic Vψ     │
-│ r = RM(x,y)   │     │ v = Vψ(x)     │
-│ (Judge scores)│     │ (Coach estimates)│
-└──────┬────────┘     └──────┬────────┘
-       │                     │
-       └──────────┬──────────┘
-                  ▼
+```mermaid
+flowchart TB
+    X["Prompt x"] --> Actor["Actor πθ<br/>Generates y"]
+    X --> Ref["Reference πref<br/>(Original Script)"]
+    Actor -->|"logπθ(y|x)"| KL["KL Penalty<br/>-β · (logπθ - logπref)"]
+    Ref -->|"logπref(y|x)"| KL
+    KL -->|"Generated (x, y)"| RM["Reward Model<br/>r = RM(x,y)<br/>(Judge scores)"]
+    KL -->|"Generated (x, y)"| Critic["Critic Vψ<br/>v = Vψ(x)<br/>(Coach estimates)"]
+    RM --> Adv["Advantage = r - v"]
+    Critic --> Adv
+    Adv --> Update["Policy Gradient Update"]
 ```
            Advantage A = r - v
 ```text
@@ -1190,27 +1173,11 @@ R = R_format(Y,Z) · (α · R_Y + β · R_Z)
 
 #### "自验证证明"闭环（生成→自评→外部验证→训练信号）
 
-```text
-Prompt X
-  │
-  ▼
-┌───────────────────────────────┐
-│ Generator πθ                   │
-│ Generates: Proof Y + Self-Review Z│
-└───────────────┬───────────────┘
-                │
-                ▼
-┌───────────────────────────────┐
-│ Verifier πφ                    │
-│ Scores Proof Y: s              │
-└───────────────┬───────────────┘
-                │
-                ▼
-┌───────────────────────────────┐
-│ Meta-Verifier πη               │
-│ Audits Self-Review Z honesty/quality│
-└───────────────┬───────────────┘
-                ▼
+```mermaid
+flowchart TB
+    Input["Problem X + Proof Y"] --> V["Verifier πφ<br/>Find flaws/gaps<br/>Score s ∈ {0, 0.5, 1}"]
+    V -->|"Worth reviewing when s is low"| MV["Meta-Verifier πη<br/>Audit if review is real<br/>Quality score ms ∈ {0, 0.5, 1}"]
+    MV --> Output["Trustworthy review<br/>for training/filtering"]
 ```
 Reward R = α·(proof score) + β·(self-review fidelity)
 ```
@@ -1541,30 +1508,11 @@ itself is actually accurate, you should still consider its analysis reasonable.
 
 #### DeepSeekMath-V2: Three-Layer Verification Reward
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│                  DeepSeekMath-V2 Reward Architecture             │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Generator Output: Proof Y + Self-Evaluation Z                  │
-│         │                                                       │
-│         ▼                                                       │
-│  ┌─────────────────┐                                            │
-│  │ Verifier πφ     │ ──► R_Y = proof_score (0/0.5/1)           │
-│  │ (Trained Judge) │                                            │
-│  └────────┬────────┘                                            │
-│           │                                                     │
-│           ▼                                                     │
-│  ┌─────────────────┐                                            │
-│  │ Meta-Verifier πη│ ──► R_meta = is self-eval honest (0/0.5/1)│
-│  │ (Audits Judge)  │                                            │
-│  └────────┬────────┘                                            │
-│           │                                                     │
-│           ▼                                                     │
-│  R = R_format · (α·R_Y + β·R_Z)    α=0.76, β=0.24              │
-│                                                                 │
-│  Key: Reward model itself needs training, can evaluate reasoning│
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    Input["Problem X + Proof Y"] --> V["Verifier πφ<br/>Find flaws/gaps<br/>Score s ∈ {0, 0.5, 1}"]
+    V -->|"Worth reviewing when s is low"| MV["Meta-Verifier πη<br/>Audit if review is real<br/>Quality score ms ∈ {0, 0.5, 1}"]
+    MV --> Output["Trustworthy review<br/>for training/filtering"]
 ```
 ```
 
@@ -4874,14 +4822,10 @@ Stage 3: Train Generator (using Verifier as Reward Model)
    ▼
 ```
 Stage 4: Co-evolution (Generator↔Verifier mutually improve)
-```text
-─────────────────────────────────────────────────────
-```
+---
 
 Agent Lightning Training Pipeline (Simple):
-```text
-─────────────────────────────────────────────────────
-```
+---
 ```
 Stage 1: Define reward function (rule code)
    │
@@ -4899,9 +4843,7 @@ Azure RFT Training Pipeline (Simplest):
 Step 1: Prepare JSONL data
 Step 2: Define Grader (JSON config)
 Step 3: Submit training job (Azure Portal / API)
-```text
-─────────────────────────────────────────────────────
-```
+---
 ```
 
 
