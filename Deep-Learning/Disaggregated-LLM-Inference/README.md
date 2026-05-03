@@ -53,6 +53,60 @@ Disaggregated LLM inference is not a single technology — it is a stack of 6 la
 └─────────────────────────────────────────────────────┘
 ```
 
+**How a request flows through all 6 layers:**
+
+```mermaid
+graph TD
+    Client["Client Request"] --> L6
+
+    subgraph L6["L6: Application Awareness"]
+        L6T["nvext.agent_hints<br/>priority · osl · TTL · speculative_prefill"]
+    end
+
+    L6 --> L5
+
+    subgraph L5["L5: Request Routing"]
+        L5T["Flash Indexer 170M ops/s<br/>Score = KV_match − Load<br/>sglang_router · Thompson Sampling"]
+    end
+
+    L5 --> L4
+
+    subgraph L4["L4: PD Scheduling"]
+        L4P["Prefill Pool<br/>1~N GPUs<br/>compute-intensive"]
+        L4D["Decode Pool<br/>1~M GPUs<br/>memory-BW-intensive"]
+        L4T["DeepEP dispatch · EPLB<br/>AIConfigurator auto P:D ratio"]
+    end
+
+    L4P --> L2
+    L2 --> L4D
+
+    subgraph L2["L2: KV Transfer"]
+        L2T["NIXL · Mooncake TE · P2P NCCL<br/>NVLink ~900GB/s · RDMA 100-400Gbps"]
+    end
+
+    subgraph L3["L3: KV Storage & Sharing"]
+        L3T["KVBM 4-tier · HiCache · Mooncake Store<br/>LMCache · FlexKV<br/>GPU → CPU → SSD → Remote"]
+    end
+
+    L4P -.-> L3
+    L3 -.-> L4D
+
+    subgraph L1["L1: KV Data"]
+        L1T["PagedAttention · RadixAttention<br/>MLA · GQA · SWA<br/>K+V vectors per layer per token"]
+    end
+
+    L4P --> L1
+    L4D --> L1
+    L4D --> Response["Token Stream → Client"]
+
+    style L6 fill:#E8D5F5,stroke:#7B2D8E
+    style L5 fill:#D5E8F5,stroke:#2D6B8E
+    style L4 fill:#F5E8D5,stroke:#8E6B2D
+    style L3 fill:#D5F5E8,stroke:#2D8E6B
+    style L2 fill:#F5D5D5,stroke:#8E2D2D
+    style L1 fill:#F5F5D5,stroke:#8E8E2D
+```
+
 | Layer | Problem It Solves | Key Technologies |
 |:---|:---|:---|
 | **L1: KV Data** | What is KV Cache, how large, how computed | PagedAttention, RadixAttention, MLA, GQA, SWA |

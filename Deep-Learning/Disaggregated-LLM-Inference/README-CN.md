@@ -53,6 +53,60 @@ LLM 推理分离不是一项单一技术 — 而是 6 层技术栈，每层解�
 └─────────────────────────────────────────────────────┘
 ```
 
+**一个请求如何流经全部 6 层：**
+
+```mermaid
+graph TD
+    Client["客户端请求"] --> L6
+
+    subgraph L6["L6: 应用感知层"]
+        L6T["nvext.agent_hints<br/>priority · osl · TTL · speculative_prefill"]
+    end
+
+    L6 --> L5
+
+    subgraph L5["L5: 请求路由层"]
+        L5T["Flash Indexer 170M ops/s<br/>Score = KV_match − Load<br/>sglang_router · Thompson Sampling"]
+    end
+
+    L5 --> L4
+
+    subgraph L4["L4: PD 调度层"]
+        L4P["Prefill 池<br/>1~N 张 GPU<br/>计算密集型"]
+        L4D["Decode 池<br/>1~M 张 GPU<br/>显存带宽密集型"]
+        L4T["DeepEP dispatch · EPLB<br/>AIConfigurator 自动推荐 P:D 比例"]
+    end
+
+    L4P --> L2
+    L2 --> L4D
+
+    subgraph L2["L2: KV 传输层"]
+        L2T["NIXL · Mooncake TE · P2P NCCL<br/>NVLink ~900GB/s · RDMA 100-400Gbps"]
+    end
+
+    subgraph L3["L3: KV 存储与共享层"]
+        L3T["KVBM 4层 · HiCache · Mooncake Store<br/>LMCache · FlexKV<br/>GPU → CPU → SSD → 远程"]
+    end
+
+    L4P -.-> L3
+    L3 -.-> L4D
+
+    subgraph L1["L1: KV 数据层"]
+        L1T["PagedAttention · RadixAttention<br/>MLA · GQA · SWA<br/>每层每 token 的 K+V 向量"]
+    end
+
+    L4P --> L1
+    L4D --> L1
+    L4D --> Response["Token 流 → 客户端"]
+
+    style L6 fill:#E8D5F5,stroke:#7B2D8E
+    style L5 fill:#D5E8F5,stroke:#2D6B8E
+    style L4 fill:#F5E8D5,stroke:#8E6B2D
+    style L3 fill:#D5F5E8,stroke:#2D8E6B
+    style L2 fill:#F5D5D5,stroke:#8E2D2D
+    style L1 fill:#F5F5D5,stroke:#8E8E2D
+```
+
 | 层 | 解决什么问题 | 关键技术 |
 |:---|:---|:---|
 | **L1: KV 数据** | KV Cache 是什么、多大、怎么算 | PagedAttention、RadixAttention、MLA、GQA、SWA |
