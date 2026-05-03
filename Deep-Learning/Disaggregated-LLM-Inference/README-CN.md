@@ -25,9 +25,33 @@ PD 分离的价值不止于尾部延迟：**(1)** P99 ITL 可预测、可承诺 
 
 ---
 
-## 第一部分：推理分离架构
 
-### 六层技术栈
+---
+
+## 为什么需要推理分离
+
+
+Coding agent 正在大规模写生产代码：[Stripe 每周 1300+ PRs](https://stripe.dev/blog/minions-stripes-one-shot-end-to-end-coding-agents)、[Ramp 30% 合并 PRs 来自 agent](https://www.infoq.com/news/2026/01/ramp-coding-agent-platform/)、[Spotify 每月 650+ agent 生成的 PRs](https://engineering.atspotify.com/2025/11/spotifys-background-coding-agent-part-1)。这些工作流背后的推理栈承受着巨大的 KV cache 压力。
+
+NVIDIA 分析了 Claude Code session，发现了 **Write-Once-Read-Many (WORM)** 访问模式：第一次 API 调用将对话前缀写入 KV cache 后，后续每次调用命中 **85-97% cache**。Agent 团队更进一步 — 4 个 Opus 队友的聚合 cache 命中率达 **97.2%**，读写比达 **11.7×**。
+
+但并非所有 KV block 价值相同：
+
+| Block 类型 | 复用模式 | 保留价值 |
+|:---|:---|:---|
+| System prompt + tool 定义 | 每轮复用 | **最高** |
+| 对话历史 | 后续轮次，递增 | 高 |
+| 思考/推理 token（`<think>`） | 循环关闭后不再复用（占输出 ~40%） | **接近零** |
+| 子 Agent KV | 1-3 轮后 Agent 死亡 | **接近零** |
+
+默认 LRU 驱逐对所有 block 一视同仁。2-30 秒的 tool call 等待可能导致 agent 的整个前缀被驱逐，恢复时必须全量重算。传统推理引擎解决了 kernel 调度 — **Dynamo 解决的是 agent 感知的缓存管理**。
+
+*来源：[Full-Stack Optimizations for Agentic Inference with NVIDIA Dynamo](https://developer.nvidia.com/blog/full-stack-optimizations-for-agentic-inference-with-nvidia-dynamo/) — Figure 1、KV 复用表、Claude Code 分析。*
+
+---
+
+## 架构：六层技术栈
+
 
 LLM 推理分离不是一项单一技术 — 而是 6 层技术栈，每层解决不同问题：
 
@@ -208,117 +232,156 @@ aiconfigurator cli default \
 
 ---
 
-## 第二部分：Benchmark 与部署
+---
 
-### 为什么 Agent 推理需要的不只是引擎
+## PD 分离工作原理（我们的实际部署）
 
-Coding agent 正在大规模写生产代码：[Stripe 每周 1300+ PRs](https://stripe.dev/blog/minions-stripes-one-shot-end-to-end-coding-agents)、[Ramp 30% 合并 PRs 来自 agent](https://www.infoq.com/news/2026/01/ramp-coding-agent-platform/)、[Spotify 每月 650+ agent 生成的 PRs](https://engineering.atspotify.com/2025/11/spotifys-background-coding-agent-part-1)。这些工作流背后的推理栈承受着巨大的 KV cache 压力。
+![PD 分离架构图](images/pd_disaggregation_architecture.png)
 
-NVIDIA 分析了 Claude Code session，发现了 **Write-Once-Read-Many (WORM)** 访问模式：第一次 API 调用将对话前缀写入 KV cache 后，后续每次调用命中 **85-97% cache**。Agent 团队更进一步 — 4 个 Opus 队友的聚合 cache 命中率达 **97.2%**，读写比达 **11.7×**。
+上图展示了我们的实际部署。请求流程：
 
-但并非所有 KV block 价值相同：
+1. **Client → Frontend**：Dynamo 的 Rust Frontend（端口 8000）接收请求。KV 感知路由器查询 Flash Indexer 选择最优 worker。
+2. **Prefill Worker (GPU 0)**：为输入 token 计算 KV cache（1024 tokens → 32B 约 369ms）。使用 `--disaggregation-mode prefill`，CUDA:0。
+3. **NIXL KV 传输**：计算好的 KV cache 通过 NIXL 经 NVLink（~900 GB/s 双向）从 GPU 0 传输到 GPU 1。这增加了 TTFT 延迟，但实现了物理隔离。
+4. **Decode Worker (GPU 1)**：从传输的 KV cache 生成输出 token（~26ms/token）。使用 `--disaggregation-mode decode`，CUDA:1。**这张 GPU 永远不执行 prefill kernel** — 所以 P99 ITL 保持 31ms，不受新请求负载影响。
 
-| Block 类型 | 复用模式 | 保留价值 |
+**条件性分离（Conditional Disaggregation）**：VllmWorker 不会把所有请求都发给远程 PrefillWorker。`max_local_prefill_length` 参数控制阈值 — token 数 ≤ 阈值的请求在本地 prefill，超过阈值才派发到专用 PrefillWorker。这样可以避免短 prompt 承受不必要的 NIXL 传输开销。（来源：[GTC Tutorial S73042](https://www.nvidia.com/en-us/on-demand/) P38）
+
+```yaml
+# 官方 disagg 配置（来自 GTC Tutorial S73042）
+VllmWorker:
+  conditional-disagg: true              # 启用条件性路由
+  max_local_prefill_length: 10          # ≤10 tokens: 本地 prefill; >10: 远程
+  remote_prefill: true
+  kv-transfer-config: '{"kv_connector":"DynamoNixlConnector"}'
+```
+
+| 组件 | 作用 | 为什么需要 | 我们的版本 |
+|:---|:---|:---|:---|
+| **Dynamo Frontend** | Rust HTTP 服务器。接收所有客户端请求，处理 `nvext.agent_hints`，通过 KV 感知路由器 + Flash Indexer 把请求分发到最优 worker。 | 没有它，客户端就得知道哪张 GPU 做 prefill、哪张做 decode。Frontend 抽象了这些—客户端只管发到 8000 端口。 | Dynamo 1.0.1 |
+| **NATS** | 轻量级发布-订阅消息总线。各组件通过 NATS 宣告自己的状态（“我是 prefill worker，我已就绪”），Frontend 订阅这些消息来发现 worker。 | Worker 和 Frontend 需要动态发现彼此，NATS 提供实时服务发现，不需硬编码 IP。 | v2.11.3 (JetStream) |
+| **etcd** | 分布式键值存储。存储 worker 元数据（哪些 worker 存在、它们的角色、端点）和 Dynamo 配置。Worker 启动时自动注册到 etcd。 | 路由器需要一个一致的、共享的 worker 注册表。etcd 在多节点场景提供这个能力。单节点可用 `--discovery-backend file` 替代。 | v3.5.21 |
+| **NIXL** | 数据传输库。在 GPU 之间（或 GPU 和 CPU/存储之间）移动 KV cache block。底层用 UCX 自动选择最优传输（NVLink/IB RDMA/RoCE/TCP）。 | Prefill 在 GPU 0 算完 KV 后，KV 数据必须物理移动到 GPU 1 才能开始 decode。NIXL 以最小开销完成这个传输。 | nixl 1.0.1 |
+| **SGLang Workers** | 实际的推理引擎。每个 worker 加载完整模型，通过 `--disaggregation-mode` 指定做 prefill 还是 decode。管理 KV cache、attention 计算和 token 生成。 | 做数学计算的“大脑”。Dynamo 负责编排，SGLang 负责实际 GPU 计算。 | SGLang 0.5.10 |
+
+> **关于 KVBM**：Dynamo 的 KV Block Manager (KVBM) — 支持四层 KV 存储（GPU → CPU → NVMe → 远程）— 目前仅在 TensorRT-LLM 后端可用（`--kv-transfer-config kvbm`）。SGLang 后端在 PD 模式中使用 NIXL 进行 KV 传输。KVBM + SGLang 在 [Dynamo 特性矩阵](https://docs.nvidia.com/dynamo/resources/feature-matrix) 中标记为 🚧（开发中）。
+
+### PD 分离的网络前提
+
+NIXL（KV 传输库）使用 [UCX](https://github.com/openucx/ucx) 作为默认后端，**自动选择最优传输方式**：
+
+| 部署场景 | KV 传输路径 | 网络要求 | 性能 |
+|:---|:---|:---|:---|
+| **同节点**（我们的场景） | NVLink via UCX CUDA IPC | 无需网络 | ~900 GB/s (NVL12) |
+| **跨节点生产** | RDMA via UCX verbs | **InfiniBand 或 RoCE v2** | 100-400 Gbps，零拷贝 |
+| **AWS 跨节点** | EFA via UCX | AWS Elastic Fabric Adapter | AWS 原生 RDMA |
+| **TCP 回退** | TCP via UCX | 普通以太网 | 能跑但**不适合生产** — 非零拷贝，延迟高 |
+
+> **⚠️ 重要说明：本 Repo 在单节点（2×H100 NVL）上验证 PD 分离，KV 传输走 NVLink — 不涉及网络。** 生产环境多节点 PD 部署**必须使用 RDMA 网络（InfiniBand、RoCE v2 或 AWS EFA）**，否则 KV 传输延迟会抵消 PD 的延迟优势。基于 TCP 的 KV 传输技术上可通过 UCX 实现，但额外的 GPU→CPU→TCP→CPU→GPU 拷贝开销会抵消 PD 的延迟收益。所有 NVIDIA Dynamo 多节点 recipe 均假定 RDMA 网络。
+>
+> *来源：[NIXL Blog](https://developer.nvidia.com/blog/enhancing-distributed-inference-performance-with-the-nvidia-inference-transfer-library/) — "supports AWS with EFA networking... Azure with RDMA networking"；[NIXL GitHub](https://github.com/ai-dynamo/nixl) — UCX 默认后端，`--with-verbs` (IB/RoCE)。*
+
+### KV 传输栈：数据实际怎么搞
+
+```
+Dynamo PD 分离
+  │ Prefill worker 算完 KV cache，需要发给 Decode worker
+  ▼
+NIXL (NVIDIA Inference Xfer Library — NVIDIA 推理传输库)
+  │ 统一数据传输 API — 抽象了内存类型和传输方式
+  │ 来源：https://github.com/ai-dynamo/nixl
+  ▼
+UCX (Unified Communication X — 统一通信框架)        [默认后端]
+  │ 通信框架 — 自动选择硬件最优传输方式
+  │ 来源：https://github.com/openucx/ucx
+  ▼
+```
+
+**缩写词表**：
+
+| 缩写 | 全称 | 是什么 |
 |:---|:---|:---|
-| System prompt + tool 定义 | 每轮复用 | **最高** |
-| 对话历史 | 后续轮次，递增 | 高 |
-| 思考/推理 token（`<think>`） | 循环关闭后不再复用（占输出 ~40%） | **接近零** |
-| 子 Agent KV | 1-3 轮后 Agent 死亡 | **接近零** |
-
-默认 LRU 驱逐对所有 block 一视同仁。2-30 秒的 tool call 等待可能导致 agent 的整个前缀被驱逐，恢复时必须全量重算。传统推理引擎解决了 kernel 调度 — **Dynamo 解决的是 agent 感知的缓存管理**。
-
-*来源：[Full-Stack Optimizations for Agentic Inference with NVIDIA Dynamo](https://developer.nvidia.com/blog/full-stack-optimizations-for-agentic-inference-with-nvidia-dynamo/) — Figure 1、KV 复用表、Claude Code 分析。*
+| **NIXL** | NVIDIA Inference Xfer (Transfer) Library | KV cache 在 GPU/存储之间的数据传输库 |
+| **UCX** | Unified Communication X | 底层通信框架，自动选择最优传输方式 |
+| **NVLink** | NVIDIA NVLink | 同节点内 GPU 间高带宽互联 |
+| **IB** | InfiniBand | 跨节点高性能网络，支持 RDMA |
+| **RDMA** | Remote Direct Memory Access（远程直接内存访问） | 零拷贝数据传输 — GPU 直接读写远程内存，不经 CPU |
+| **RoCE** | RDMA over Converged Ethernet | 在无损以太网上跑 RDMA 协议 |
+| **EFA** | Elastic Fabric Adapter | AWS 原生 RDMA 网络（EC2 实例用） |
+| **KVBM** | KV Block Manager | Dynamo 的四层 KV 存储管理器（GPU→CPU→NVMe→远程） |
+| **NATS** | （非缩写） | 轻量消息总线，Dynamo 服务发现用 ([nats.io](https://nats.io)) |
+| **etcd** | （来自 "/etc distributed"，非缩写） | 分布式键值存储，worker 注册和配置用 |
 
 ---
 
-### NVIDIA Dynamo 是什么（30 秒版）
+---
 
-NVIDIA Dynamo 是开源（Apache 2.0）的**分布式推理编排框架**，位于推理引擎（SGLang、vLLM、TRT-LLM）之上。它不是推理引擎——它管理请求路由、KV cache 共享和 Agent 感知调度。
+## 什么时候用（和不用）PD 分离
 
-```mermaid
-graph TD
-    A[用户请求] --> B[NVIDIA Dynamo]
-    
-    subgraph B[NVIDIA Dynamo]
-        B1[Frontend - Rust] --> B2[Router - Rust]
-        B3[KV Cache Manager - KVBM]
-        B4[NATS] --- B5[etcd] --- B6[NIXL]
-    end
-    
-    B --> C1[SGLang]
-    B --> C2[vLLM]
-    B --> C3[TRT-LLM]
-    
-    C1 --> D[GPU Workers: Prefill 池 / Decode 池]
-    C2 --> D
-    C3 --> D
+> **⚠️ 诚实评估**：我们的 2×H100 NVL 环境是一个 **概念验证**，验证 PD 分离能端到端跑通。这不是生产代表性部署。在单节点 NVLink 环境下，TP 在每个平均指标上都严格优于 PD。PD 的真正价值在于多节点部署（16+ GPU 跨 2+ 台机器）+ RDMA 网络，prefill 和 decode 池可以独立扩缩容。
+
+基于实测数据 + Dynamo 设计意图：
+
+| 场景 | 用 PD？ | 原因 |
+|:---|:---:|:---|
+| 小模型（8B-13B）+ 单节点 NVLink | **不用** | TP 严格更好。Prefill 不是瓶颈。 |
+| 中型模型（30B）+ 2 卡 NVLink | **不用** | PD 赢 P99 ITL 85%，但输吐量 14%。TP + Chunked Prefill 是更好的权衡。 |
+| 单节点 8 卡（如 8×H100 NVLink） | **不用** | TP=8 已经最小化 prefill 时间。4P4D 浪费一半 GPU。Chunked Prefill 用零成本解决 80% 的 ITL 问题。 |
+| 大模型（70B+）+ **多节点** + RDMA | **用** | Prefill 计算密集，跨节点 KV 通过 IB/RoCE 传输，独立池扩缩容降低成本。 |
+| 严格 P99 ITL SLO（< 10ms）+ 多节点 | **用** | PD 防止集群中 prefill 抢占 decode。 |
+| Agent 场景 + tool call（2-30 秒间隔） | **用** | PD + KV cache 钉住防止 tool call 间隔期驱逐。 |
+| 成本敏感，追求最大吐量/美元 | **不用** | TP 以更简单架构给出相同或更好吐量。 |
+
+**Prefill 时间规则**：如果单卡 prefill 你的典型输入长度 < 30ms（我们 8B 在 1024 token），PD 增加开销而无收益。在 ~370ms（我们 32B 在 1024 token）时，你处于交叉点 — 但仅限多节点场景（节点间没有 NVLink）。单节点有 NVLink 时，**始终优先 TP + Chunked Prefill** 而非 PD。
+
+---
+
+---
+
+## 第三种方案：Chunked Prefill
+
+PD 分离通过**物理隔离**（不同 GPU）解决 prefill-decode 互相干扰。但有更便宜的替代方案：**Chunked Prefill**，SGLang 默认开启。
+
+### 问题
+
+GPU 一次只能跑**一个 kernel**。kernel 启动后必须跑完，不能暂停、不能抢占。如果 32K token 的 prefill 作为一个 kernel 启动，耗时 ~2 秒。这 2 秒内所有其他请求的 decode 被阻塞。
+
+### 解法
+
+把 32K prefill 切成多个 chunk（如每 chunk 1024 tokens）。每个 chunk 是一次独立的 kernel launch。两次 kernel 之间，调度器可以插入其他请求：
+
+```
+不切碎：
+  kernel: Attention(32K tokens) → 2000ms，其他请求干等
+
+切碎（chunk=1024）：
+  kernel 1: Attention(1024 tokens)                → 60ms
+  kernel 2: Attention(1024 tokens + 新请求)        → 62ms
+  kernel 3: Attention(1024 tokens + decode batch)  → 63ms
+  ...（共 32 个 kernel，其他请求穿插执行）
 ```
 
-核心能力：**PD 分离** — 将部分 GPU 专用于 prefill（计算 KV cache），其余 GPU 专用于 decode（生成 token）。原理：prefill 是计算密集型，decode 是显存带宽密集型，分开可避免互相干扰。
+原理和操作系统的时间片轮转一样：GPU 不能多任务，但把一个长任务切成多个短任务后，调度器在每个短任务之间都有决策机会。
 
-**来源**：[Dynamo 1.0 Blog](https://developer.nvidia.com/blog/nvidia-dynamo-1-production-ready/) | [Full-Stack Agentic Inference Blog](https://developer.nvidia.com/blog/full-stack-optimizations-for-agentic-inference-with-nvidia-dynamo/) | [GTC Tutorial S73042](https://www.nvidia.com/en-us/on-demand/) | [GitHub](https://github.com/ai-dynamo/dynamo)
+### KV Cache 正确性
 
-### Layer 1：Frontend — Agent Hints API
+Chunked prefill 产生的 KV Cache 与完整 prefill **数学上完全等价**。每个 token 的 K 和 V 只取决于该 token 本身 + 前面所有 token + 模型权重。分几次算和一次算，结果一样。Chunk 2 从缓存中读取 chunk 1 已存好的 KV（PagedAttention 支持非连续读取），看到的上下文完全相同。
 
-Dynamo 通过统一内部表示服务 `v1/chat/completions`、`v1/responses` 和 `v1/messages` 三种端点。核心扩展是 `nvext.agent_hints`，允许 harness 向请求附加结构化元数据：
+### Chunked Prefill vs PD 分离
 
-```json
-{
-  "model": "Qwen2.5-32B-Instruct",
-  "messages": [...],
-  "nvext": {
-    "agent_hints": {
-      "osl": 256,
-      "speculative_prefill": true,
-      "priority": 10
-    },
-    "cache_control": {
-      "type": "ephemeral",
-      "ttl": "1h"
-    }
-  }
-}
-```
+| | Chunked Prefill | PD 分离 |
+|:---|:---|:---|
+| **原理** | 一个 GPU 上时间片切分 | 不同 GPU 物理隔离 |
+| **ITL 稳定性** | 好（无长时间卡顿） | 最好（零干扰） |
+| **额外硬件** | 不需要 | 需要额外 GPU + NATS/etcd/NIXL |
+| **TTFT 影响** | 略升（被切碎） | 可能升（KV 传输 + 排队） |
+| **配置难度** | 零（SGLang 默认开启） | 复杂部署 |
 
-| 字段 | 作用 |
-|:---|:---|
-| `priority` | 控制路由器（队列排序）和引擎（抢占/驱逐）的调度。值越高 = 越重要。 |
-| `osl` | Harness 估算的输出 token 数。路由器用此评估 worker 占用时间，改善负载均衡。 |
-| `speculative_prefill` | 在完整请求到达前就开始在可能的 worker 上缓存前缀（tool call 返回前预热 cache）。 |
-| `cache_control` | 将计算好的前缀钉住指定时间，防止 tool call 间隔期被驱逐。语义匹配 [Anthropic 的 prompt caching API](https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching)。 |
+**Chunked Prefill 是"穷人的 PD"** — 用 0% 的成本解决 80% 的问题。我们的 benchmark 使用了 SGLang 默认的 chunked prefill（`--chunked-prefill-size 8192`），所以 TP=2 高并发的 P99 ITL（24.6ms）已经不算太差。如果关掉 chunked prefill，ITL 尖刺会严重得多，PD 的优势会更明显。
 
-### Layer 2：Router — KV 感知路由 + 优先级调度
+**实测数据（结果 5）**：在 32B 上，关闭 chunked prefill 导致 TTFT 从 369ms 爆炸到 1729ms（+4.7×），P95 ITL 从 258ms 改善到 155ms（-40%）。吐量下降 17%。净 E2E 基本持平 — 确认 chunked prefill 用略差的 ITL 换取显著更好的 TTFT 和吐量。详见[结果 5](#结果-5优化消融实验--fp8-kv-cache-和-chunked-prefill)。
+---
 
-没有缓存感知路由时，多轮对话第 2 轮命中同一 worker 的概率是 ~1/N。每次未命中 = 全量重算前缀。Dynamo 路由器通过 **Flash Indexer**（170M ops/s — 见 [Flash Indexer 文章](https://docs.nvidia.com/dynamo/blog/flash-indexer)）维护全局索引，记录哪些 KV cache block 在哪个 worker 上。每次请求选择 `Score = KV_match_ratio - Load_ratio` 得分最高的 worker（来源：[GTC Tutorial S73042](https://www.nvidia.com/en-us/on-demand/) P51）。
-
-**路由算例**（来自 GTC Tutorial S73042）：
-
-| Worker | KV 匹配率 | 负载 | 得分 | 选中？ |
-|:---|:---:|:---:|:---:|:---:|
-| Worker 1 | 15% | 30% | -0.15 | |
-| Worker 2 | 50% | 50% | 0.00 | 最优 |
-| Worker 3 | 75% | 80% | -0.05 | |
-
-优先级调度：请求进入 `BinaryHeap<QueueEntry>` 按有效到达时间排序。更高 `priority` 让请求看起来更早到达。低于可配置负载阈值时，请求直接跳过队列。
-
-### Layer 3：KV Cache — 四层存储层级 + 选择性保留
-
-当前引擎将 KV cache 视为本地临时资源。Dynamo 的 KV Block Manager (KVBM) 构建**四层内存层级**：
-
-| 层 | 介质 | 速度 | 容量 | 持久性 |
-|:---|:---|:---|:---|:---|
-| L1 | GPU HBM | 最快 | 最小（H100 上 95 GB） | 请求生命周期 |
-| L2 | CPU Pinned DRAM | 快 | 取决于主机内存 | 可配置 TTL |
-| L3 | 本地 NVMe | 中等 | 取决于磁盘 | Session 生命周期 |
-| L4 | 远程存储 | 最慢 | 无限 | 跨 worker 共享 |
-
-Block 沿 **write-through** 路径流动：GPU → CPU → 磁盘自动写入。每个 block 由**序列哈希去重** — 注册后不可变，任何 worker 可寻址。
-
-**选择性保留**替代统一 LRU。Harness 可以表达：“system prompt block 最后驱逐 (`priority: 100`)；对话上下文存活 30 秒 tool call (`duration: 45s`)；decode token 最先驱逐 (`priority: 1`)”。驱逐器使用双结构：无优先级 block 用 LRU (O(1))，有注解的 block 用优先队列。
-
-**Agent 生命周期感知**：子 agent 终止时，其 session 的 KV block 最先被回收。Thinking tokens（`<think>...</think>`）— 约占输出 40% — 在插入时被标记为 ephemeral，跳过 L2 写回，在普通 block 之前驱逐。
-
-*来源：[Full-Stack Optimizations for Agentic Inference](https://developer.nvidia.com/blog/full-stack-optimizations-for-agentic-inference-with-nvidia-dynamo/) — Layers 1-3。[Dynamo 1.0 Blog](https://developer.nvidia.com/blog/nvidia-dynamo-1-production-ready/) — KVBM 段落。*
 
 ---
 
@@ -476,148 +539,6 @@ FP8 KV cache（`--kv-cache-dtype fp8_e5m2`）将 KV 存储从 16-bit 压缩到 8
 
 ---
 
-## PD 分离工作原理（我们的实际部署）
-
-![PD 分离架构图](images/pd_disaggregation_architecture.png)
-
-上图展示了我们的实际部署。请求流程：
-
-1. **Client → Frontend**：Dynamo 的 Rust Frontend（端口 8000）接收请求。KV 感知路由器查询 Flash Indexer 选择最优 worker。
-2. **Prefill Worker (GPU 0)**：为输入 token 计算 KV cache（1024 tokens → 32B 约 369ms）。使用 `--disaggregation-mode prefill`，CUDA:0。
-3. **NIXL KV 传输**：计算好的 KV cache 通过 NIXL 经 NVLink（~900 GB/s 双向）从 GPU 0 传输到 GPU 1。这增加了 TTFT 延迟，但实现了物理隔离。
-4. **Decode Worker (GPU 1)**：从传输的 KV cache 生成输出 token（~26ms/token）。使用 `--disaggregation-mode decode`，CUDA:1。**这张 GPU 永远不执行 prefill kernel** — 所以 P99 ITL 保持 31ms，不受新请求负载影响。
-
-**条件性分离（Conditional Disaggregation）**：VllmWorker 不会把所有请求都发给远程 PrefillWorker。`max_local_prefill_length` 参数控制阈值 — token 数 ≤ 阈值的请求在本地 prefill，超过阈值才派发到专用 PrefillWorker。这样可以避免短 prompt 承受不必要的 NIXL 传输开销。（来源：[GTC Tutorial S73042](https://www.nvidia.com/en-us/on-demand/) P38）
-
-```yaml
-# 官方 disagg 配置（来自 GTC Tutorial S73042）
-VllmWorker:
-  conditional-disagg: true              # 启用条件性路由
-  max_local_prefill_length: 10          # ≤10 tokens: 本地 prefill; >10: 远程
-  remote_prefill: true
-  kv-transfer-config: '{"kv_connector":"DynamoNixlConnector"}'
-```
-
-| 组件 | 作用 | 为什么需要 | 我们的版本 |
-|:---|:---|:---|:---|
-| **Dynamo Frontend** | Rust HTTP 服务器。接收所有客户端请求，处理 `nvext.agent_hints`，通过 KV 感知路由器 + Flash Indexer 把请求分发到最优 worker。 | 没有它，客户端就得知道哪张 GPU 做 prefill、哪张做 decode。Frontend 抽象了这些—客户端只管发到 8000 端口。 | Dynamo 1.0.1 |
-| **NATS** | 轻量级发布-订阅消息总线。各组件通过 NATS 宣告自己的状态（“我是 prefill worker，我已就绪”），Frontend 订阅这些消息来发现 worker。 | Worker 和 Frontend 需要动态发现彼此，NATS 提供实时服务发现，不需硬编码 IP。 | v2.11.3 (JetStream) |
-| **etcd** | 分布式键值存储。存储 worker 元数据（哪些 worker 存在、它们的角色、端点）和 Dynamo 配置。Worker 启动时自动注册到 etcd。 | 路由器需要一个一致的、共享的 worker 注册表。etcd 在多节点场景提供这个能力。单节点可用 `--discovery-backend file` 替代。 | v3.5.21 |
-| **NIXL** | 数据传输库。在 GPU 之间（或 GPU 和 CPU/存储之间）移动 KV cache block。底层用 UCX 自动选择最优传输（NVLink/IB RDMA/RoCE/TCP）。 | Prefill 在 GPU 0 算完 KV 后，KV 数据必须物理移动到 GPU 1 才能开始 decode。NIXL 以最小开销完成这个传输。 | nixl 1.0.1 |
-| **SGLang Workers** | 实际的推理引擎。每个 worker 加载完整模型，通过 `--disaggregation-mode` 指定做 prefill 还是 decode。管理 KV cache、attention 计算和 token 生成。 | 做数学计算的“大脑”。Dynamo 负责编排，SGLang 负责实际 GPU 计算。 | SGLang 0.5.10 |
-
-> **关于 KVBM**：Dynamo 的 KV Block Manager (KVBM) — 支持四层 KV 存储（GPU → CPU → NVMe → 远程）— 目前仅在 TensorRT-LLM 后端可用（`--kv-transfer-config kvbm`）。SGLang 后端在 PD 模式中使用 NIXL 进行 KV 传输。KVBM + SGLang 在 [Dynamo 特性矩阵](https://docs.nvidia.com/dynamo/resources/feature-matrix) 中标记为 🚧（开发中）。
-
-### PD 分离的网络前提
-
-NIXL（KV 传输库）使用 [UCX](https://github.com/openucx/ucx) 作为默认后端，**自动选择最优传输方式**：
-
-| 部署场景 | KV 传输路径 | 网络要求 | 性能 |
-|:---|:---|:---|:---|
-| **同节点**（我们的场景） | NVLink via UCX CUDA IPC | 无需网络 | ~900 GB/s (NVL12) |
-| **跨节点生产** | RDMA via UCX verbs | **InfiniBand 或 RoCE v2** | 100-400 Gbps，零拷贝 |
-| **AWS 跨节点** | EFA via UCX | AWS Elastic Fabric Adapter | AWS 原生 RDMA |
-| **TCP 回退** | TCP via UCX | 普通以太网 | 能跑但**不适合生产** — 非零拷贝，延迟高 |
-
-> **⚠️ 重要说明：本 Repo 在单节点（2×H100 NVL）上验证 PD 分离，KV 传输走 NVLink — 不涉及网络。** 生产环境多节点 PD 部署**必须使用 RDMA 网络（InfiniBand、RoCE v2 或 AWS EFA）**，否则 KV 传输延迟会抵消 PD 的延迟优势。基于 TCP 的 KV 传输技术上可通过 UCX 实现，但额外的 GPU→CPU→TCP→CPU→GPU 拷贝开销会抵消 PD 的延迟收益。所有 NVIDIA Dynamo 多节点 recipe 均假定 RDMA 网络。
->
-> *来源：[NIXL Blog](https://developer.nvidia.com/blog/enhancing-distributed-inference-performance-with-the-nvidia-inference-transfer-library/) — "supports AWS with EFA networking... Azure with RDMA networking"；[NIXL GitHub](https://github.com/ai-dynamo/nixl) — UCX 默认后端，`--with-verbs` (IB/RoCE)。*
-
-### KV 传输栈：数据实际怎么搞
-
-```
-Dynamo PD 分离
-  │ Prefill worker 算完 KV cache，需要发给 Decode worker
-  ▼
-NIXL (NVIDIA Inference Xfer Library — NVIDIA 推理传输库)
-  │ 统一数据传输 API — 抽象了内存类型和传输方式
-  │ 来源：https://github.com/ai-dynamo/nixl
-  ▼
-UCX (Unified Communication X — 统一通信框架)        [默认后端]
-  │ 通信框架 — 自动选择硬件最优传输方式
-  │ 来源：https://github.com/openucx/ucx
-  ▼
-```
-
-**缩写词表**：
-
-| 缩写 | 全称 | 是什么 |
-|:---|:---|:---|
-| **NIXL** | NVIDIA Inference Xfer (Transfer) Library | KV cache 在 GPU/存储之间的数据传输库 |
-| **UCX** | Unified Communication X | 底层通信框架，自动选择最优传输方式 |
-| **NVLink** | NVIDIA NVLink | 同节点内 GPU 间高带宽互联 |
-| **IB** | InfiniBand | 跨节点高性能网络，支持 RDMA |
-| **RDMA** | Remote Direct Memory Access（远程直接内存访问） | 零拷贝数据传输 — GPU 直接读写远程内存，不经 CPU |
-| **RoCE** | RDMA over Converged Ethernet | 在无损以太网上跑 RDMA 协议 |
-| **EFA** | Elastic Fabric Adapter | AWS 原生 RDMA 网络（EC2 实例用） |
-| **KVBM** | KV Block Manager | Dynamo 的四层 KV 存储管理器（GPU→CPU→NVMe→远程） |
-| **NATS** | （非缩写） | 轻量消息总线，Dynamo 服务发现用 ([nats.io](https://nats.io)) |
-| **etcd** | （来自 "/etc distributed"，非缩写） | 分布式键值存储，worker 注册和配置用 |
-
----
-
-## 什么时候用（和不用）PD 分离
-
-> **⚠️ 诚实评估**：我们的 2×H100 NVL 环境是一个 **概念验证**，验证 PD 分离能端到端跑通。这不是生产代表性部署。在单节点 NVLink 环境下，TP 在每个平均指标上都严格优于 PD。PD 的真正价值在于多节点部署（16+ GPU 跨 2+ 台机器）+ RDMA 网络，prefill 和 decode 池可以独立扩缩容。
-
-基于实测数据 + Dynamo 设计意图：
-
-| 场景 | 用 PD？ | 原因 |
-|:---|:---:|:---|
-| 小模型（8B-13B）+ 单节点 NVLink | **不用** | TP 严格更好。Prefill 不是瓶颈。 |
-| 中型模型（30B）+ 2 卡 NVLink | **不用** | PD 赢 P99 ITL 85%，但输吐量 14%。TP + Chunked Prefill 是更好的权衡。 |
-| 单节点 8 卡（如 8×H100 NVLink） | **不用** | TP=8 已经最小化 prefill 时间。4P4D 浪费一半 GPU。Chunked Prefill 用零成本解决 80% 的 ITL 问题。 |
-| 大模型（70B+）+ **多节点** + RDMA | **用** | Prefill 计算密集，跨节点 KV 通过 IB/RoCE 传输，独立池扩缩容降低成本。 |
-| 严格 P99 ITL SLO（< 10ms）+ 多节点 | **用** | PD 防止集群中 prefill 抢占 decode。 |
-| Agent 场景 + tool call（2-30 秒间隔） | **用** | PD + KV cache 钉住防止 tool call 间隔期驱逐。 |
-| 成本敏感，追求最大吐量/美元 | **不用** | TP 以更简单架构给出相同或更好吐量。 |
-
-**Prefill 时间规则**：如果单卡 prefill 你的典型输入长度 < 30ms（我们 8B 在 1024 token），PD 增加开销而无收益。在 ~370ms（我们 32B 在 1024 token）时，你处于交叉点 — 但仅限多节点场景（节点间没有 NVLink）。单节点有 NVLink 时，**始终优先 TP + Chunked Prefill** 而非 PD。
-
----
-
-## 第三种方案：Chunked Prefill
-
-PD 分离通过**物理隔离**（不同 GPU）解决 prefill-decode 互相干扰。但有更便宜的替代方案：**Chunked Prefill**，SGLang 默认开启。
-
-### 问题
-
-GPU 一次只能跑**一个 kernel**。kernel 启动后必须跑完，不能暂停、不能抢占。如果 32K token 的 prefill 作为一个 kernel 启动，耗时 ~2 秒。这 2 秒内所有其他请求的 decode 被阻塞。
-
-### 解法
-
-把 32K prefill 切成多个 chunk（如每 chunk 1024 tokens）。每个 chunk 是一次独立的 kernel launch。两次 kernel 之间，调度器可以插入其他请求：
-
-```
-不切碎：
-  kernel: Attention(32K tokens) → 2000ms，其他请求干等
-
-切碎（chunk=1024）：
-  kernel 1: Attention(1024 tokens)                → 60ms
-  kernel 2: Attention(1024 tokens + 新请求)        → 62ms
-  kernel 3: Attention(1024 tokens + decode batch)  → 63ms
-  ...（共 32 个 kernel，其他请求穿插执行）
-```
-
-原理和操作系统的时间片轮转一样：GPU 不能多任务，但把一个长任务切成多个短任务后，调度器在每个短任务之间都有决策机会。
-
-### KV Cache 正确性
-
-Chunked prefill 产生的 KV Cache 与完整 prefill **数学上完全等价**。每个 token 的 K 和 V 只取决于该 token 本身 + 前面所有 token + 模型权重。分几次算和一次算，结果一样。Chunk 2 从缓存中读取 chunk 1 已存好的 KV（PagedAttention 支持非连续读取），看到的上下文完全相同。
-
-### Chunked Prefill vs PD 分离
-
-| | Chunked Prefill | PD 分离 |
-|:---|:---|:---|
-| **原理** | 一个 GPU 上时间片切分 | 不同 GPU 物理隔离 |
-| **ITL 稳定性** | 好（无长时间卡顿） | 最好（零干扰） |
-| **额外硬件** | 不需要 | 需要额外 GPU + NATS/etcd/NIXL |
-| **TTFT 影响** | 略升（被切碎） | 可能升（KV 传输 + 排队） |
-| **配置难度** | 零（SGLang 默认开启） | 复杂部署 |
-
-**Chunked Prefill 是"穷人的 PD"** — 用 0% 的成本解决 80% 的问题。我们的 benchmark 使用了 SGLang 默认的 chunked prefill（`--chunked-prefill-size 8192`），所以 TP=2 高并发的 P99 ITL（24.6ms）已经不算太差。如果关掉 chunked prefill，ITL 尖刺会严重得多，PD 的优势会更明显。
-
-**实测数据（结果 5）**：在 32B 上，关闭 chunked prefill 导致 TTFT 从 369ms 爆炸到 1729ms（+4.7×），P95 ITL 从 258ms 改善到 155ms（-40%）。吐量下降 17%。净 E2E 基本持平 — 确认 chunked prefill 用略差的 ITL 换取显著更好的 TTFT 和吐量。详见[结果 5](#结果-5优化消融实验--fp8-kv-cache-和-chunked-prefill)。
 ---
 
 ## 部署方式

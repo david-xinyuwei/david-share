@@ -25,9 +25,33 @@ PD disaggregation’s value goes beyond tail latency: **(1)** P99 ITL becomes pr
 
 ---
 
-## Part 1: Disaggregated Inference Architecture
 
-### The Six-Layer Stack
+---
+
+## Why Disaggregated Inference Matters
+
+
+Coding agents are writing production code at scale: [Stripe generates 1,300+ PRs/week](https://stripe.dev/blog/minions-stripes-one-shot-end-to-end-coding-agents), [Ramp attributes 30% of merged PRs to agents](https://www.infoq.com/news/2026/01/ramp-coding-agent-platform/), [Spotify reports 650+ agent-generated PRs/month](https://engineering.atspotify.com/2025/11/spotifys-background-coding-agent-part-1). Behind every one of these workflows is an inference stack under significant KV cache pressure.
+
+NVIDIA analyzed Claude Code sessions and found a **Write-Once-Read-Many (WORM)** access pattern: after the first API call writes the conversation prefix to KV cache, every subsequent call to the same worker hits **85-97% cache**. Agent teams push this further — **97.2% aggregate cache hit rate** across 4 Opus teammates, with an **11.7× read/write ratio**.
+
+But not all KV blocks are equal:
+
+| Block Type | Reuse Pattern | Retention Value |
+|:---|:---|:---|
+| System prompt + tool definitions | Every turn | **Highest** |
+| Conversation history | Subsequent turns, growing | High |
+| Thinking/reasoning tokens (`<think>`) | Never reused after loop closes (~40% of output) | **Near-zero** |
+| Subagent KV | 1-3 turns then agent dies | **Near-zero** |
+
+Default LRU eviction treats all blocks identically. A 2-30 second tool call pause can age out an agent's entire prefix, forcing full recomputation when it resumes. Traditional inference engines solve kernel scheduling — **Dynamo solves agent-aware cache management**.
+
+*Source: [Full-Stack Optimizations for Agentic Inference with NVIDIA Dynamo](https://developer.nvidia.com/blog/full-stack-optimizations-for-agentic-inference-with-nvidia-dynamo/) — Figure 1, KV reuse tables, Claude Code analysis.*
+
+---
+
+## Architecture: The Six-Layer Stack
+
 
 Disaggregated LLM inference is not a single technology — it is a stack of 6 layers, each solving a different problem:
 
@@ -208,117 +232,156 @@ It decomposes inference into constituent operations, measures each on the target
 
 ---
 
-## Part 2: Benchmarks and Deployment
+---
 
-### Why Agentic Inference Needs More Than an Engine
+## How PD Disaggregation Works (Our Setup)
 
-Coding agents are writing production code at scale: [Stripe generates 1,300+ PRs/week](https://stripe.dev/blog/minions-stripes-one-shot-end-to-end-coding-agents), [Ramp attributes 30% of merged PRs to agents](https://www.infoq.com/news/2026/01/ramp-coding-agent-platform/), [Spotify reports 650+ agent-generated PRs/month](https://engineering.atspotify.com/2025/11/spotifys-background-coding-agent-part-1). Behind every one of these workflows is an inference stack under significant KV cache pressure.
+![PD Disaggregation Architecture](images/pd_disaggregation_architecture.png)
 
-NVIDIA analyzed Claude Code sessions and found a **Write-Once-Read-Many (WORM)** access pattern: after the first API call writes the conversation prefix to KV cache, every subsequent call to the same worker hits **85-97% cache**. Agent teams push this further — **97.2% aggregate cache hit rate** across 4 Opus teammates, with an **11.7× read/write ratio**.
+The diagram above shows our actual deployment. The request flow:
 
-But not all KV blocks are equal:
+1. **Client → Frontend**: Dynamo's Rust-based frontend (port 8000) receives the request. The KV-aware router queries the Flash Indexer to select the best worker.
+2. **Prefill Worker (GPU 0)**: Computes KV cache for the input tokens (1024 tokens → ~369ms for 32B). Runs `--disaggregation-mode prefill` with CUDA:0.
+3. **NIXL KV Transfer**: The computed KV cache is transferred from GPU 0 to GPU 1 via NIXL over NVLink (~900 GB/s bidirectional). This transfer adds latency to TTFT but enables physical isolation.
+4. **Decode Worker (GPU 1)**: Generates output tokens from the transferred KV cache (~26ms/token). Runs `--disaggregation-mode decode` with CUDA:1. **This GPU never executes prefill kernels** — which is why P99 ITL stays at 31ms regardless of incoming request load.
 
-| Block Type | Reuse Pattern | Retention Value |
+**Conditional Disaggregation**: The VllmWorker does not always send prefill remotely. The `max_local_prefill_length` parameter controls the threshold — requests with token count ≤ threshold are prefilled locally, while longer requests are dispatched to a dedicated PrefillWorker. This avoids NIXL transfer overhead for short prompts. (Source: [GTC Tutorial S73042](https://www.nvidia.com/en-us/on-demand/) P38)
+
+```yaml
+# Official disagg config from GTC Tutorial S73042
+VllmWorker:
+  conditional-disagg: true              # Enable conditional routing
+  max_local_prefill_length: 10          # ≤10 tokens: local prefill; >10: remote
+  remote_prefill: true
+  kv-transfer-config: '{"kv_connector":"DynamoNixlConnector"}'
+```
+
+| Component | Role | Why It’s Needed | Our Version |
+|:---|:---|:---|:---|
+| **Dynamo Frontend** | Rust-based HTTP server. Receives all client requests, applies `nvext.agent_hints`, and routes each request to the optimal worker using the KV-aware router + Flash Indexer. | Without it, clients would need to know which GPU is prefill vs decode. The frontend abstracts this — clients just send to port 8000. | Dynamo 1.0.1 |
+| **NATS** | Lightweight publish-subscribe message bus. Components announce their status ("I’m a prefill worker, I’m ready") and the frontend subscribes to discover them. | Workers and frontend need to find each other dynamically. NATS provides real-time service discovery without hardcoding IPs. | v2.11.3 (JetStream) |
+| **etcd** | Distributed key-value store. Stores worker metadata (which workers exist, their roles, their endpoints) and Dynamo configuration. Workers register themselves in etcd on startup. | The router needs a consistent, shared registry of all workers. etcd provides this across multiple nodes. On a single node, `--discovery-backend file` can replace etcd. | v3.5.21 |
+| **NIXL** | Data transfer library. Moves KV cache blocks between GPUs (or between GPU and CPU/storage). Uses UCX under the hood to auto-select the best transport (NVLink, IB RDMA, RoCE, TCP). | After prefill computes KV on GPU 0, the KV data must physically move to GPU 1 for decode. NIXL handles this transfer with minimal overhead. | nixl 1.0.1 |
+| **SGLang Workers** | The actual inference engine. Each worker loads the full model and runs either prefill or decode, controlled by `--disaggregation-mode`. Manages KV cache, attention computation, and token generation. | The "brain" that does the math. Dynamo orchestrates, but SGLang does the actual GPU computation. | SGLang 0.5.10 |
+
+> **Note on KVBM**: Dynamo's KV Block Manager (KVBM) — which enables 4-tier KV storage (GPU → CPU → NVMe → Remote) — is currently only available with the TensorRT-LLM backend (`--kv-transfer-config kvbm`). The SGLang backend uses NIXL for KV transfer in PD mode. KVBM with SGLang is listed as 🚧 (work in progress) in the [Dynamo feature matrix](https://docs.nvidia.com/dynamo/resources/feature-matrix).
+
+### Network Prerequisites for PD Disaggregation
+
+NIXL (the KV transfer library) uses [UCX](https://github.com/openucx/ucx) as its default backend and **automatically selects the best available transport**:
+
+| Deployment | KV Transfer Path | Network Required | Performance |
+|:---|:---|:---|:---|
+| **Same-node** (our setup) | NVLink via UCX CUDA IPC | No network needed | ~900 GB/s (NVL12) |
+| **Cross-node production** | RDMA via UCX verbs | **InfiniBand or RoCE v2** | 100-400 Gbps, zero-copy |
+| **AWS cross-node** | EFA via UCX | AWS Elastic Fabric Adapter | AWS-native RDMA |
+| **TCP fallback** | TCP via UCX | Standard Ethernet | Functional but **not production-viable** — non-zero-copy, high latency |
+
+> **⚠️ Important: This repo validates PD disaggregation on a single node (2×H100 NVL) where KV transfer uses NVLink — no network fabric is involved.** For production multi-node PD deployments, **RDMA networking (InfiniBand, RoCE v2, or AWS EFA) is required** for acceptable KV transfer latency. TCP-based KV transfer is technically possible via UCX but adds significant overhead (GPU→CPU copy → TCP → CPU→GPU copy) that would negate PD’s latency benefits. All NVIDIA Dynamo multi-node recipes assume RDMA-capable networking.
+>
+> *Source: [NIXL Blog](https://developer.nvidia.com/blog/enhancing-distributed-inference-performance-with-the-nvidia-inference-transfer-library/) — "supports AWS with EFA networking... Azure with RDMA networking"; [NIXL GitHub](https://github.com/ai-dynamo/nixl) — UCX default backend with `--with-verbs` (IB/RoCE).*
+
+### KV Transfer Stack: How Data Actually Moves
+
+```
+Dynamo PD Disaggregation
+  │ Prefill worker computes KV cache, needs to send it to Decode worker
+  ▼
+NIXL (NVIDIA Inference Xfer Library)
+  │ Unified data transfer API — abstracts memory types and transports
+  │ Source: https://github.com/ai-dynamo/nixl
+  ▼
+UCX (Unified Communication X)                    [default backend]
+  │ Communication framework — auto-selects optimal transport for hardware
+  │ Source: https://github.com/openucx/ucx
+  ▼
+```
+
+**Glossary**:
+
+| Abbreviation | Full Name | What It Is |
 |:---|:---|:---|
-| System prompt + tool definitions | Every turn | **Highest** |
-| Conversation history | Subsequent turns, growing | High |
-| Thinking/reasoning tokens (`<think>`) | Never reused after loop closes (~40% of output) | **Near-zero** |
-| Subagent KV | 1-3 turns then agent dies | **Near-zero** |
-
-Default LRU eviction treats all blocks identically. A 2-30 second tool call pause can age out an agent's entire prefix, forcing full recomputation when it resumes. Traditional inference engines solve kernel scheduling — **Dynamo solves agent-aware cache management**.
-
-*Source: [Full-Stack Optimizations for Agentic Inference with NVIDIA Dynamo](https://developer.nvidia.com/blog/full-stack-optimizations-for-agentic-inference-with-nvidia-dynamo/) — Figure 1, KV reuse tables, Claude Code analysis.*
+| **NIXL** | NVIDIA Inference Xfer (Transfer) Library | Data transfer library for moving KV cache between GPUs/storage |
+| **UCX** | Unified Communication X | Low-level communication framework, auto-selects best transport |
+| **NVLink** | NVIDIA NVLink | High-bandwidth GPU-to-GPU interconnect within a single node |
+| **IB** | InfiniBand | High-performance networking fabric for cross-node RDMA |
+| **RDMA** | Remote Direct Memory Access | Zero-copy data transfer — GPU reads/writes remote memory without CPU involvement |
+| **RoCE** | RDMA over Converged Ethernet | RDMA protocol running on lossless Ethernet |
+| **EFA** | Elastic Fabric Adapter | AWS-native RDMA networking for EC2 instances |
+| **KVBM** | KV Block Manager | Dynamo’s 4-tier KV cache storage manager (GPU→CPU→NVMe→Remote) |
+| **NATS** | (not an acronym) | Lightweight message bus for Dynamo service discovery ([nats.io](https://nats.io)) |
+| **etcd** | (from "/etc distributed") | Distributed key-value store for worker registration and config |
 
 ---
 
-### What is NVIDIA Dynamo (30-second version)
+---
 
-NVIDIA Dynamo is an open-source (Apache 2.0) **distributed inference orchestration framework** that sits above inference engines (SGLang, vLLM, TRT-LLM). It is NOT an inference engine — it manages request routing, KV cache sharing, and agent-aware scheduling across multiple GPU workers.
+## When to Use (and NOT Use) PD Disaggregation
 
-```mermaid
-graph TD
-    A[User Request] --> B[NVIDIA Dynamo]
-    
-    subgraph B[NVIDIA Dynamo]
-        B1[Frontend - Rust] --> B2[Router - Rust]
-        B3[KV Cache Manager - KVBM]
-        B4[NATS] --- B5[etcd] --- B6[NIXL]
-    end
-    
-    B --> C1[SGLang]
-    B --> C2[vLLM]
-    B --> C3[TRT-LLM]
-    
-    C1 --> D[GPU Workers: Prefill Pool / Decode Pool]
-    C2 --> D
-    C3 --> D
+> **⚠️ Honest assessment**: Our 2×H100 NVL setup is a **proof-of-concept** that validates PD disaggregation works end-to-end. It is NOT a production-representative deployment. On a single node with NVLink, TP is strictly better on every average metric. PD's real value emerges in multi-node deployments (16+ GPUs across 2+ machines) with RDMA networking, where prefill and decode pools can scale independently.
+
+Based on our benchmarks + Dynamo's design intent:
+
+| Scenario | Use PD? | Why |
+|:---|:---:|:---|
+| Small model (8B-13B) on single node with NVLink | **No** | TP is strictly better. Prefill is not a bottleneck. |
+| Medium model (30B-class) on 2 GPUs with NVLink | **No** | PD wins P99 ITL by 85%, but loses 14% throughput. TP + Chunked Prefill is the better tradeoff. |
+| Single node 8-GPU (e.g., 8×H100 NVLink) | **No** | TP=8 already minimizes prefill time. 4P4D wastes half the GPUs. Chunked Prefill solves 80% of the ITL problem at zero cost. |
+| Large model (70B+) on **multi-node** with RDMA | **Yes** | Prefill becomes compute-heavy, cross-node KV transfer via IB/RoCE is the only option, and independent pool scaling reduces cost. |
+| Strict P99 ITL SLO (< 10ms) on multi-node | **Yes** | PD prevents prefill from preempting decode across the cluster. |
+| Agent workloads with tool calls (2-30s gaps) | **Yes** | PD + KV cache pinning prevents eviction during tool call gaps. |
+| Cost-sensitive, want max throughput per dollar | **No** | TP gives same or better throughput with simpler architecture. |
+
+**The prefill-time rule**: If single-GPU prefill for your typical input length takes < 30ms (our 8B at 1024 tokens), PD adds overhead without benefit. At ~370ms (our 32B at 1024 tokens), you're at the crossover point — but only on multi-node where TP can't help (no NVLink between nodes). On a single node with NVLink, **always prefer TP + Chunked Prefill** over PD.
+
+---
+
+---
+
+## The Third Option: Chunked Prefill
+
+PD disaggregation solves the prefill-decode interference problem by **physical isolation** (separate GPUs). But there's a cheaper alternative: **Chunked Prefill**, which is enabled by default in SGLang.
+
+### The problem
+
+A GPU can only run **one kernel at a time**. Once a kernel starts, it must run to completion — no pausing, no preemption. If a 32K-token prefill launches as a single kernel, it takes ~2 seconds. During those 2 seconds, every other request's decode is blocked.
+
+### The solution
+
+Split the 32K prefill into chunks (e.g., 1024 tokens each). Each chunk is a separate kernel launch. Between kernel launches, the scheduler can insert other requests:
+
+```
+Without chunking:
+  kernel: Attention(32K tokens) → 2000ms, nothing else can run
+
+With chunking (chunk=1024):
+  kernel 1: Attention(1024 tokens)              → 60ms
+  kernel 2: Attention(1024 tokens + new request) → 62ms
+  kernel 3: Attention(1024 tokens + decode batch) → 63ms
+  ... (32 kernels total, other requests interleave)
 ```
 
-Key capability: **PD Disaggregation** — dedicate some GPUs to prefill (compute KV cache) and others to decode (generate tokens). The idea: prefill is compute-intensive, decode is memory-bandwidth-intensive. Separating them prevents mutual interference.
+This is the same principle as OS time-slicing: the GPU can't multitask, but by breaking one long task into many short tasks, the scheduler gets decision points between them.
 
-**Sources**: [Dynamo 1.0 Blog](https://developer.nvidia.com/blog/nvidia-dynamo-1-production-ready/) | [Full-Stack Agentic Inference Blog](https://developer.nvidia.com/blog/full-stack-optimizations-for-agentic-inference-with-nvidia-dynamo/) | [GTC Tutorial S73042](https://www.nvidia.com/en-us/on-demand/) | [GitHub](https://github.com/ai-dynamo/dynamo)
+### KV Cache correctness
 
-### Layer 1: Frontend — Agent Hints API
+Chunked prefill produces **mathematically identical KV Cache** as full prefill. Each token's K and V depend only on the token itself + all preceding tokens + model weights. Whether you compute them in one pass or three passes, the result is the same. Chunk 2 reads chunk 1's KV from the cache (already stored by PagedAttention), so it sees the same context.
 
-Dynamo serves `v1/chat/completions`, `v1/responses`, and `v1/messages` through a common internal representation. The key extension is `nvext.agent_hints`, which lets any harness attach structured metadata to requests:
+### Chunked Prefill vs PD Disaggregation
 
-```json
-{
-  "model": "Qwen2.5-32B-Instruct",
-  "messages": [...],
-  "nvext": {
-    "agent_hints": {
-      "osl": 256,
-      "speculative_prefill": true,
-      "priority": 10
-    },
-    "cache_control": {
-      "type": "ephemeral",
-      "ttl": "1h"
-    }
-  }
-}
-```
+| | Chunked Prefill | PD Disaggregation |
+|:---|:---|:---|
+| **How it works** | Time-slicing on one GPU | Physical isolation on separate GPUs |
+| **ITL stability** | Good (no long stalls) | Best (zero interference) |
+| **Extra hardware** | None | Extra GPU(s) + NATS/etcd/NIXL |
+| **TTFT impact** | Slightly higher (chunked) | Higher (KV transfer + queue) |
+| **Configuration** | Default in SGLang | Complex deployment |
 
-| Field | What it does |
-|:---|:---|
-| `priority` | Controls scheduling at router (queue ordering) and engine (preemption, eviction). Higher = more important. |
-| `osl` | Harness's estimate of output tokens. Router uses this to gauge worker occupancy for load balancing. |
-| `speculative_prefill` | Begin caching prefix on a likely worker before the full request arrives (warm cache ahead of tool call return). |
-| `cache_control` | Pin computed prefix for the specified TTL, protecting it from eviction during tool call gaps. Matches [Anthropic's prompt caching API](https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching) semantics. |
+**Chunked Prefill is "poor man's PD"** — it solves 80% of the problem at 0% of the cost. Our benchmarks used SGLang's default chunked prefill (`--chunked-prefill-size 8192`), which is why TP=2's P99 ITL (24.6ms at high concurrency) was already reasonable. Without chunked prefill, the ITL spikes would be much worse, making PD's advantage more pronounced.
 
-### Layer 2: Router — KV-Aware Placement + Priority Scheduling
+**Measured impact (Result 5)**: On 32B, disabling chunked prefill caused TTFT to explode from 369ms to 1729ms (+4.7×), while P95 ITL improved from 258ms to 155ms (-40%). Throughput dropped 17%. The net E2E was roughly flat — confirming that chunked prefill trades slightly worse ITL for dramatically better TTFT and throughput. See [Result 5](#result-5-optimization-ablation--fp8-kv-cache-and-chunked-prefill) for full data.
 
-Without cache-aware routing, turn 2 of a multi-turn conversation has a ~1/N chance of hitting the same worker as turn 1. Every miss is a full prefix recomputation. Dynamo's router maintains a **global index** of which KV cache blocks exist on which workers via the **Flash Indexer** (170M ops/s — see [Flash Indexer post](https://docs.nvidia.com/dynamo/blog/flash-indexer)). On every request, it selects the worker that maximizes `Score = KV_match_ratio - Load_ratio` (Source: [GTC Tutorial S73042](https://www.nvidia.com/en-us/on-demand/) P51).
-
-**Routing example** (from GTC Tutorial S73042):
-
-| Worker | KV Match | Load | Score | Selected? |
-|:---|:---:|:---:|:---:|:---:|
-| Worker 1 | 15% | 30% | -0.15 | |
-| Worker 2 | 50% | 50% | 0.00 | Best |
-| Worker 3 | 75% | 80% | -0.05 | |
-
-For priority scheduling, requests enter a `BinaryHeap<QueueEntry>` ordered by effective arrival time. A higher `priority` makes the request appear as if it arrived earlier. Below a configurable load threshold, requests bypass the queue entirely.
-
-### Layer 3: KV Cache — 4-Tier Hierarchy + Selective Retention
-
-Today's engines treat KV cache as a local, ephemeral resource. Dynamo's KV Block Manager (KVBM) builds toward a **4-tier memory hierarchy**:
-
-| Tier | Medium | Speed | Capacity | Persistence |
-|:---|:---|:---|:---|:---|
-| L1 | GPU HBM | Fastest | Smallest (95 GB on H100) | Request lifetime |
-| L2 | CPU Pinned DRAM | Fast | Depends on host RAM | Configurable TTL |
-| L3 | Local NVMe | Moderate | Depends on disk | Session lifetime |
-| L4 | Remote Storage | Slowest | Unlimited | Cross-worker shared |
-
-Blocks follow a **write-through** path: GPU → CPU → disk automatically. Each block is **deduplicated by sequence hash** in a global registry — once registered, it's immutable and addressable by any worker.
-
-**Selective retention** replaces uniform LRU. The harness can express: "system prompt blocks are evicted last (`priority: 100`); conversation context survives a 30-second tool call (`duration: 45s`); decode tokens are first to go (`priority: 1`)." The evictor uses a two-structure system: LRU for unprioritized blocks (O(1)) and a priority queue for annotated blocks.
-
-**Agent lifecycle awareness**: when a subagent terminates, its session's KV blocks are the first to reclaim. Thinking tokens (`<think>...</think>`) — ~40% of generated output — are tagged as ephemeral at insertion time, skipping L2 write-back and evicting before normal blocks.
-
-*Source: [Full-Stack Optimizations for Agentic Inference](https://developer.nvidia.com/blog/full-stack-optimizations-for-agentic-inference-with-nvidia-dynamo/) — Layers 1-3. [Dynamo 1.0 Blog](https://developer.nvidia.com/blog/nvidia-dynamo-1-production-ready/) — KVBM section.*
+---
 
 ---
 
@@ -475,149 +538,6 @@ This is the classic **TTFT vs ITL tradeoff**:
 **E2E is roughly flat** — the TTFT improvement from chunking roughly cancels out the ITL degradation.
 
 ---
-
-## How PD Disaggregation Works (Our Setup)
-
-![PD Disaggregation Architecture](images/pd_disaggregation_architecture.png)
-
-The diagram above shows our actual deployment. The request flow:
-
-1. **Client → Frontend**: Dynamo's Rust-based frontend (port 8000) receives the request. The KV-aware router queries the Flash Indexer to select the best worker.
-2. **Prefill Worker (GPU 0)**: Computes KV cache for the input tokens (1024 tokens → ~369ms for 32B). Runs `--disaggregation-mode prefill` with CUDA:0.
-3. **NIXL KV Transfer**: The computed KV cache is transferred from GPU 0 to GPU 1 via NIXL over NVLink (~900 GB/s bidirectional). This transfer adds latency to TTFT but enables physical isolation.
-4. **Decode Worker (GPU 1)**: Generates output tokens from the transferred KV cache (~26ms/token). Runs `--disaggregation-mode decode` with CUDA:1. **This GPU never executes prefill kernels** — which is why P99 ITL stays at 31ms regardless of incoming request load.
-
-**Conditional Disaggregation**: The VllmWorker does not always send prefill remotely. The `max_local_prefill_length` parameter controls the threshold — requests with token count ≤ threshold are prefilled locally, while longer requests are dispatched to a dedicated PrefillWorker. This avoids NIXL transfer overhead for short prompts. (Source: [GTC Tutorial S73042](https://www.nvidia.com/en-us/on-demand/) P38)
-
-```yaml
-# Official disagg config from GTC Tutorial S73042
-VllmWorker:
-  conditional-disagg: true              # Enable conditional routing
-  max_local_prefill_length: 10          # ≤10 tokens: local prefill; >10: remote
-  remote_prefill: true
-  kv-transfer-config: '{"kv_connector":"DynamoNixlConnector"}'
-```
-
-| Component | Role | Why It’s Needed | Our Version |
-|:---|:---|:---|:---|
-| **Dynamo Frontend** | Rust-based HTTP server. Receives all client requests, applies `nvext.agent_hints`, and routes each request to the optimal worker using the KV-aware router + Flash Indexer. | Without it, clients would need to know which GPU is prefill vs decode. The frontend abstracts this — clients just send to port 8000. | Dynamo 1.0.1 |
-| **NATS** | Lightweight publish-subscribe message bus. Components announce their status ("I’m a prefill worker, I’m ready") and the frontend subscribes to discover them. | Workers and frontend need to find each other dynamically. NATS provides real-time service discovery without hardcoding IPs. | v2.11.3 (JetStream) |
-| **etcd** | Distributed key-value store. Stores worker metadata (which workers exist, their roles, their endpoints) and Dynamo configuration. Workers register themselves in etcd on startup. | The router needs a consistent, shared registry of all workers. etcd provides this across multiple nodes. On a single node, `--discovery-backend file` can replace etcd. | v3.5.21 |
-| **NIXL** | Data transfer library. Moves KV cache blocks between GPUs (or between GPU and CPU/storage). Uses UCX under the hood to auto-select the best transport (NVLink, IB RDMA, RoCE, TCP). | After prefill computes KV on GPU 0, the KV data must physically move to GPU 1 for decode. NIXL handles this transfer with minimal overhead. | nixl 1.0.1 |
-| **SGLang Workers** | The actual inference engine. Each worker loads the full model and runs either prefill or decode, controlled by `--disaggregation-mode`. Manages KV cache, attention computation, and token generation. | The "brain" that does the math. Dynamo orchestrates, but SGLang does the actual GPU computation. | SGLang 0.5.10 |
-
-> **Note on KVBM**: Dynamo's KV Block Manager (KVBM) — which enables 4-tier KV storage (GPU → CPU → NVMe → Remote) — is currently only available with the TensorRT-LLM backend (`--kv-transfer-config kvbm`). The SGLang backend uses NIXL for KV transfer in PD mode. KVBM with SGLang is listed as 🚧 (work in progress) in the [Dynamo feature matrix](https://docs.nvidia.com/dynamo/resources/feature-matrix).
-
-### Network Prerequisites for PD Disaggregation
-
-NIXL (the KV transfer library) uses [UCX](https://github.com/openucx/ucx) as its default backend and **automatically selects the best available transport**:
-
-| Deployment | KV Transfer Path | Network Required | Performance |
-|:---|:---|:---|:---|
-| **Same-node** (our setup) | NVLink via UCX CUDA IPC | No network needed | ~900 GB/s (NVL12) |
-| **Cross-node production** | RDMA via UCX verbs | **InfiniBand or RoCE v2** | 100-400 Gbps, zero-copy |
-| **AWS cross-node** | EFA via UCX | AWS Elastic Fabric Adapter | AWS-native RDMA |
-| **TCP fallback** | TCP via UCX | Standard Ethernet | Functional but **not production-viable** — non-zero-copy, high latency |
-
-> **⚠️ Important: This repo validates PD disaggregation on a single node (2×H100 NVL) where KV transfer uses NVLink — no network fabric is involved.** For production multi-node PD deployments, **RDMA networking (InfiniBand, RoCE v2, or AWS EFA) is required** for acceptable KV transfer latency. TCP-based KV transfer is technically possible via UCX but adds significant overhead (GPU→CPU copy → TCP → CPU→GPU copy) that would negate PD’s latency benefits. All NVIDIA Dynamo multi-node recipes assume RDMA-capable networking.
->
-> *Source: [NIXL Blog](https://developer.nvidia.com/blog/enhancing-distributed-inference-performance-with-the-nvidia-inference-transfer-library/) — "supports AWS with EFA networking... Azure with RDMA networking"; [NIXL GitHub](https://github.com/ai-dynamo/nixl) — UCX default backend with `--with-verbs` (IB/RoCE).*
-
-### KV Transfer Stack: How Data Actually Moves
-
-```
-Dynamo PD Disaggregation
-  │ Prefill worker computes KV cache, needs to send it to Decode worker
-  ▼
-NIXL (NVIDIA Inference Xfer Library)
-  │ Unified data transfer API — abstracts memory types and transports
-  │ Source: https://github.com/ai-dynamo/nixl
-  ▼
-UCX (Unified Communication X)                    [default backend]
-  │ Communication framework — auto-selects optimal transport for hardware
-  │ Source: https://github.com/openucx/ucx
-  ▼
-```
-
-**Glossary**:
-
-| Abbreviation | Full Name | What It Is |
-|:---|:---|:---|
-| **NIXL** | NVIDIA Inference Xfer (Transfer) Library | Data transfer library for moving KV cache between GPUs/storage |
-| **UCX** | Unified Communication X | Low-level communication framework, auto-selects best transport |
-| **NVLink** | NVIDIA NVLink | High-bandwidth GPU-to-GPU interconnect within a single node |
-| **IB** | InfiniBand | High-performance networking fabric for cross-node RDMA |
-| **RDMA** | Remote Direct Memory Access | Zero-copy data transfer — GPU reads/writes remote memory without CPU involvement |
-| **RoCE** | RDMA over Converged Ethernet | RDMA protocol running on lossless Ethernet |
-| **EFA** | Elastic Fabric Adapter | AWS-native RDMA networking for EC2 instances |
-| **KVBM** | KV Block Manager | Dynamo’s 4-tier KV cache storage manager (GPU→CPU→NVMe→Remote) |
-| **NATS** | (not an acronym) | Lightweight message bus for Dynamo service discovery ([nats.io](https://nats.io)) |
-| **etcd** | (from "/etc distributed") | Distributed key-value store for worker registration and config |
-
----
-
-## When to Use (and NOT Use) PD Disaggregation
-
-> **⚠️ Honest assessment**: Our 2×H100 NVL setup is a **proof-of-concept** that validates PD disaggregation works end-to-end. It is NOT a production-representative deployment. On a single node with NVLink, TP is strictly better on every average metric. PD's real value emerges in multi-node deployments (16+ GPUs across 2+ machines) with RDMA networking, where prefill and decode pools can scale independently.
-
-Based on our benchmarks + Dynamo's design intent:
-
-| Scenario | Use PD? | Why |
-|:---|:---:|:---|
-| Small model (8B-13B) on single node with NVLink | **No** | TP is strictly better. Prefill is not a bottleneck. |
-| Medium model (30B-class) on 2 GPUs with NVLink | **No** | PD wins P99 ITL by 85%, but loses 14% throughput. TP + Chunked Prefill is the better tradeoff. |
-| Single node 8-GPU (e.g., 8×H100 NVLink) | **No** | TP=8 already minimizes prefill time. 4P4D wastes half the GPUs. Chunked Prefill solves 80% of the ITL problem at zero cost. |
-| Large model (70B+) on **multi-node** with RDMA | **Yes** | Prefill becomes compute-heavy, cross-node KV transfer via IB/RoCE is the only option, and independent pool scaling reduces cost. |
-| Strict P99 ITL SLO (< 10ms) on multi-node | **Yes** | PD prevents prefill from preempting decode across the cluster. |
-| Agent workloads with tool calls (2-30s gaps) | **Yes** | PD + KV cache pinning prevents eviction during tool call gaps. |
-| Cost-sensitive, want max throughput per dollar | **No** | TP gives same or better throughput with simpler architecture. |
-
-**The prefill-time rule**: If single-GPU prefill for your typical input length takes < 30ms (our 8B at 1024 tokens), PD adds overhead without benefit. At ~370ms (our 32B at 1024 tokens), you're at the crossover point — but only on multi-node where TP can't help (no NVLink between nodes). On a single node with NVLink, **always prefer TP + Chunked Prefill** over PD.
-
----
-
-## The Third Option: Chunked Prefill
-
-PD disaggregation solves the prefill-decode interference problem by **physical isolation** (separate GPUs). But there's a cheaper alternative: **Chunked Prefill**, which is enabled by default in SGLang.
-
-### The problem
-
-A GPU can only run **one kernel at a time**. Once a kernel starts, it must run to completion — no pausing, no preemption. If a 32K-token prefill launches as a single kernel, it takes ~2 seconds. During those 2 seconds, every other request's decode is blocked.
-
-### The solution
-
-Split the 32K prefill into chunks (e.g., 1024 tokens each). Each chunk is a separate kernel launch. Between kernel launches, the scheduler can insert other requests:
-
-```
-Without chunking:
-  kernel: Attention(32K tokens) → 2000ms, nothing else can run
-
-With chunking (chunk=1024):
-  kernel 1: Attention(1024 tokens)              → 60ms
-  kernel 2: Attention(1024 tokens + new request) → 62ms
-  kernel 3: Attention(1024 tokens + decode batch) → 63ms
-  ... (32 kernels total, other requests interleave)
-```
-
-This is the same principle as OS time-slicing: the GPU can't multitask, but by breaking one long task into many short tasks, the scheduler gets decision points between them.
-
-### KV Cache correctness
-
-Chunked prefill produces **mathematically identical KV Cache** as full prefill. Each token's K and V depend only on the token itself + all preceding tokens + model weights. Whether you compute them in one pass or three passes, the result is the same. Chunk 2 reads chunk 1's KV from the cache (already stored by PagedAttention), so it sees the same context.
-
-### Chunked Prefill vs PD Disaggregation
-
-| | Chunked Prefill | PD Disaggregation |
-|:---|:---|:---|
-| **How it works** | Time-slicing on one GPU | Physical isolation on separate GPUs |
-| **ITL stability** | Good (no long stalls) | Best (zero interference) |
-| **Extra hardware** | None | Extra GPU(s) + NATS/etcd/NIXL |
-| **TTFT impact** | Slightly higher (chunked) | Higher (KV transfer + queue) |
-| **Configuration** | Default in SGLang | Complex deployment |
-
-**Chunked Prefill is "poor man's PD"** — it solves 80% of the problem at 0% of the cost. Our benchmarks used SGLang's default chunked prefill (`--chunked-prefill-size 8192`), which is why TP=2's P99 ITL (24.6ms at high concurrency) was already reasonable. Without chunked prefill, the ITL spikes would be much worse, making PD's advantage more pronounced.
-
-**Measured impact (Result 5)**: On 32B, disabling chunked prefill caused TTFT to explode from 369ms to 1729ms (+4.7×), while P95 ITL improved from 258ms to 155ms (-40%). Throughput dropped 17%. The net E2E was roughly flat — confirming that chunked prefill trades slightly worse ITL for dramatically better TTFT and throughput. See [Result 5](#result-5-optimization-ablation--fp8-kv-cache-and-chunked-prefill) for full data.
 
 ---
 
