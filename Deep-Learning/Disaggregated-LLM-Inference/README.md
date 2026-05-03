@@ -1,7 +1,7 @@
-# Disaggregated LLM Inference: Architecture, Ecosystem, and Benchmarks
+# Disaggregated LLM Inference: Architecture, Ecosystem, and Functional Validation
 
 > **Author**: Xinyu Wei (魏新宇)  
-> **Date**: 2026-04-20 (benchmarks) | 2026-05-03 (architecture analysis)  
+> **Date**: 2026-04-20 (functional validation) | 2026-05-03 (architecture analysis)  
 > **Hardware**: Azure NC80adis_H100_v5 (2× NVIDIA H100 NVL 95830 MiB, NV12 NVLink)  
 > **Stack**: SGLang 0.5.10.post1 + NVIDIA Dynamo 1.0.1 + NIXL 1.0.1 + NATS v2.11.3 + etcd v3.5.21
 
@@ -15,7 +15,7 @@
 
 PD disaggregation’s value goes beyond tail latency: **(1)** P99 ITL becomes predictable and SLO-committable, **(2)** Prefill and Decode pools scale independently (add Decode GPUs without touching Prefill), **(3)** different GPU SKUs can be mixed (compute-optimized for Prefill, memory-optimized for Decode).
 
-**Part 2 — Benchmarks**: We tested PD disaggregation on 2×H100 NVL with Qwen3-8B and Qwen2.5-32B using NVIDIA Dynamo:
+**Part 2 — Functional Validation**: We ran a **functional validation** (not a production benchmark) of PD disaggregation on 2×H100 NVL with Qwen3-8B and Qwen2.5-32B using NVIDIA Dynamo. The 2-GPU single-node setup verifies behavior and directional trends, but the absolute numbers should not be used for capacity planning or cross-platform comparison.
 - **TP=2**: Best throughput and TTFT. The go-to choice for same-node NVLink.
 - **Prefix Cache**: Highest ROI — 41% TTFT reduction, zero config.
 - **PD Disaggregation**: Only wins on tail latency — P99 ITL **-52% (8B)**, **-85% (32B)**. Value scales with model size.
@@ -385,7 +385,9 @@ Chunked prefill produces **mathematically identical KV Cache** as full prefill. 
 
 ---
 
-## Benchmark Setup
+## Functional Validation Setup
+
+> **Scope**: This is a **functional validation** on a single 2-GPU node, not a production-scale benchmark. The results verify that PD disaggregation works end-to-end and show directional trends (e.g., tail latency improvement scales with model size), but the absolute numbers are specific to this hardware/load combination and should not be extrapolated to production capacity planning. A rigorous benchmark would require multi-node deployment, sustained load, and statistical significance testing (multiple runs, confidence intervals).
 
 | Item | Value |
 |:---|:---|
@@ -843,6 +845,8 @@ Running Dynamo with the [NeMo Agent Toolkit](https://github.com/NVIDIA/NeMo-Agen
 ---
 
 ## Conclusion
+
+> **Important**: The conclusions below are based on a functional validation on 2×H100 NVL (single node). They capture directional trends but not production-grade absolute numbers. PD disaggregation's full value (independent scaling, KV-aware routing across dozens of workers) cannot be demonstrated at this scale.
 
 1. **PD disaggregation is not universally better** — it trades average performance for tail latency stability. For small models on NVLink, TP is strictly superior on every average metric.
 
