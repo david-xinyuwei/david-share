@@ -13,7 +13,7 @@
 | 1M Token 时的 KV 条目数 | 1,000,000 | 250,000（少 4×） | 15,625（少 64×） |
 | 每 Token Attention 开销 | O(N) | O(k) ≈ 常数 | O(N/m') — 线性但很小 |
 | H100 实测加速 @128K | baseline | **78.9×** | **27.5×** |
-| 论文：V4 vs V3.2 KV Cache | — | **≈ V3.2 的 7%**（Flash）/ **≈ 10%**（Pro） | （与 HCA 合计） |
+| 论文：V4 vs V3.2 KV Cache | — | **节省 ~93%**（Flash，仅剩 ~7%） | **节省 ~90%**（Pro，仅剩 ~10%） |
 | 论文：V4-Flash vs V3.2 FLOPs | — | V3.2 的 10% | （与 CSA 合计） |
 
 > **符号说明**：m = 块大小（每 m 个 Token 压缩成 1 条记录），k = 每个 Query 选出的 Top-k 块数，m' = HCA 的块大小。下文 CSA 和 HCA 章节有详细解释。

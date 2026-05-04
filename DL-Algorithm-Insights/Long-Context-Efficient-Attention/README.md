@@ -13,7 +13,7 @@
 | KV entries at 1M tokens | 1,000,000 | 250,000 (4× fewer) | 15,625 (64× fewer) |
 | Per-token attention cost | O(N) | O(k) ≈ constant | O(N/m') — linear but small |
 | H100 benchmark speedup @128K | baseline | **78.9×** | **27.5×** |
-| Paper result: V4 vs V3.2 KV cache | — | **~7% of V3.2** (Flash) / **~10%** (Pro) | (combined with HCA) |
+| Paper result: V4 vs V3.2 KV cache | — | **saves ~93%** (Flash, ~7% remains) | **saves ~90%** (Pro, ~10% remains) |
 | Paper result: V4-Flash vs V3.2 FLOPs | — | 10% of V3.2 | (combined with CSA) |
 
 > **Notation**: m = block size (tokens compressed into 1 entry), k = number of top blocks selected per query, m' = HCA block size. These are explained in detail in the CSA and HCA sections below.
