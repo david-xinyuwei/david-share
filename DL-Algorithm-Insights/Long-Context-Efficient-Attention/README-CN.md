@@ -131,7 +131,9 @@ CSA 分 4 个阶段，每个阶段解决流水线中的一个具体问题。在�
 
 核心思路：从 128,000 条记录筛到 576 条——这个缩减让长上下文 Attention 在单 GPU 上变得可行。代价是可能选错 64 个块。Sliding Window 保证了至少最近的上下文永远不会丢。
 
-![CSA Pipeline：4 个阶段](images/csa_pipeline.png)
+<div align="center">
+  <img src="images/csa_pipeline.png" width="600" alt="CSA Pipeline：4 个阶段">
+</div>
 
 论文的 CSA 架构图展示了同样的 4 阶段流水线，细节更丰富：
 
@@ -287,7 +289,9 @@ CSA 的 Top-k=64 选择擅长找到最相关的段落，但可能漏掉分散在
 
 CSA 像狙击枪——准但窄；HCA 像广角镜头——看得全但分辨率低。单独用都不够，配合起来才能覆盖彼此的盲区。
 
-![HCA Pipeline：3 个阶段，无 Indexer](images/hca_pipeline.png)
+<div align="center">
+  <img src="images/hca_pipeline.png" width="600" alt="HCA Pipeline：3 个阶段，无 Indexer">
+</div>
 
 论文的 HCA 架构图展示了简化后的流水线（没有 Indexer 阶段）：
 
@@ -354,7 +358,9 @@ V4 的整体架构图展示了 CSA 和 HCA 层如何在全模型中交替分布�
 
 理解了 CSA 和 HCA 之后，可以把它们放到更大的设计空间中定位。KV Cache 有三个正交的优化维度，可以自由组合：
 
-![三个正交 KV Cache 压缩维度](images/three_dimensions.png)
+<div align="center">
+  <img src="images/three_dimensions.png" width="720" alt="三个正交 KV Cache 压缩维度">
+</div>
 
 | 维度 | 压缩什么 | 代表方案 | 详见 |
 |:---:|---------|---------|------|

@@ -134,7 +134,9 @@ Output: one vector for position 128,001
 
 The key insight: from 128,000 entries, CSA narrows down to 576 — a reduction that makes long-context attention feasible on a single GPU. The cost of this narrowing is the risk of selecting the wrong 64 blocks. The sliding window ensures that at least the most recent context is never lost.
 
-![CSA Pipeline: 4 stages from input to output](images/csa_pipeline.png)
+<div align="center">
+  <img src="images/csa_pipeline.png" width="600" alt="CSA Pipeline: 4 stages from input to output">
+</div>
 
 The paper's CSA architecture diagram shows the same 4-stage pipeline in more detail:
 
@@ -291,7 +293,9 @@ The fundamental trade-off becomes clear when we put them next to each other:
 
 CSA is a sniper rifle — precise but narrow. HCA is a wide-angle lens — sees everything but at low resolution. Neither alone is sufficient. Together, they cover each other's blind spots.
 
-![HCA Pipeline: 3 stages, no Indexer needed](images/hca_pipeline.png)
+<div align="center">
+  <img src="images/hca_pipeline.png" width="600" alt="HCA Pipeline: 3 stages, no Indexer needed">
+</div>
 
 The paper's HCA diagram shows the simplified pipeline (no Indexer stage):
 
@@ -358,7 +362,9 @@ The overall V4 architecture diagram shows how CSA and HCA layers interleave acro
 
 With CSA and HCA understood, we can now position them in the broader design space. There are three orthogonal dimensions for reducing KV cache, and they can be combined freely:
 
-![Three orthogonal KV cache compression dimensions](images/three_dimensions.png)
+<div align="center">
+  <img src="images/three_dimensions.png" width="720" alt="Three orthogonal KV cache compression dimensions">
+</div>
 
 | Dimension | What It Compresses | Examples | Covered In |
 |:---------:|-------------------|----------|-----------|
