@@ -389,6 +389,52 @@ MMLU-Pro scores cluster between 24–42% for all models, with limited separation
 
 All 20 runs (4 models × 5 benchmarks × 200 samples) completed in approximately 5 minutes of GPU time on a single H100 NVL. The dominant cost was model downloading, not inference.
 
+### Critical Analysis: What CoDeC Actually Detects
+
+Our experiment, combined with official benchmark data, reveals a fundamental limitation that deserves explicit discussion.
+
+**The Gemma Paradox**
+
+| Metric | Gemma-3-4B-IT | Source |
+|--------|:-------------:|--------|
+| CoDeC on GSM8K | **5.5%** | Our experiment (H100 NVL) |
+| Official GSM8K 0-shot accuracy | **62.8%** | [Google Gemma 3 Model Card](https://ai.google.dev/gemma/docs/core/model_card_3), STEM and Code table |
+| Trained on math data? | **Yes** | Google Model Card: "Mathematics: Training on mathematical text helps the model learn logical reasoning" |
+
+A model that was explicitly trained on mathematical text and achieves 62.8% accuracy on GSM8K receives a CoDeC score of just 5.5%. This directly falsifies the naive interpretation that "CoDeC low score = model was not trained on this type of data."
+
+**Sufficiency and Necessity Analysis**
+
+| Condition | Statement | Holds? |
+|-----------|-----------|:------:|
+| **Sufficiency**: CoDeC high → trained on this data? | GPT-OSS 20B scores >99% on all datasets including those clearly not in training → **not sufficient** | No |
+| **Necessity**: trained on this data → CoDeC high? | Gemma trained on math data, GSM8K CoDeC = 5.5% → **not necessary** | No |
+
+CoDeC high score is **neither sufficient nor necessary** for "trained on this benchmark data." It is a weak correlate, not a diagnostic.
+
+**What CoDeC Actually Measures**
+
+The causal chain CoDeC relies on has four links:
+
+```
+Trained on exact text → Memorized exact tokens → Context disrupts memory → Log-prob drops → CoDeC high
+```
+
+Any break in this chain produces a failure:
+
+| Broken Link | Scenario | Result |
+|-------------|----------|--------|
+| Trained but did not memorize | Strong generalization (Gemma) | **False Negative** (5.5%) |
+| Not trained but CoDeC high | Extreme RLHF (GPT-OSS 20B) | **False Positive** (>99%) |
+| Trained on similar format, not original | Synthetic math ≠ GSM8K verbatim | Undetectable |
+| Context provides no signal | Diverse dataset, unrelated samples | Degrades to ~50% |
+
+**Correct Interpretation**
+
+CoDeC does not detect "whether the model was trained on math data." It detects **whether the model memorized the specific token sequences of a particular benchmark**. This is a much narrower claim than what casual readers might infer.
+
+The practical implication: use CoDeC for **relative cross-model comparison** (Qwen 68% vs Gemma 5.5% on the same benchmark is a meaningful signal), not for absolute "clean/dirty" classification of individual models.
+
 ## Pitfalls in Practice
 
 ### 1. Format Sensitivity

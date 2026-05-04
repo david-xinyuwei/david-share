@@ -396,6 +396,52 @@ Llama-3.2-3B 在 AIME 上得分 43.3%——非 Qwen 模型中最高，接近灰�
 
 全部 20 组实验（4 个模型 × 5 个 Benchmark × 每个 200 样本）在单台 H100 NVL 上的 GPU 时间约 5 分钟。主要成本是模型下载而非推理。
 
+### 深度辨析：CoDeC 到底在检测什么
+
+我们的实验结合官方 Benchmark 数据，揭示了一个值得深入讨论的根本局限。
+
+**Gemma 悖论**
+
+| 指标 | Gemma-3-4B-IT | 来源 |
+|------|:-------------:|------|
+| GSM8K 上的 CoDeC | **5.5%** | 我们的实验（H100 NVL） |
+| 官方 GSM8K 0-shot Accuracy | **62.8%** | [Google Gemma 3 Model Card](https://ai.google.dev/gemma/docs/core/model_card_3)，STEM and Code 表 |
+| 训练数据包含数学？ | **是** | Google Model Card："Mathematics: Training on mathematical text helps the model learn logical reasoning" |
+
+一个明确训练过数学文本、在 GSM8K 上准确率达 62.8% 的模型，CoDeC 仅给出 5.5%。这直接推翻了"CoDeC 低分 = 模型没在此类数据上训练过"的朴素解读。
+
+**充分必要条件分析**
+
+| 条件 | 命题 | 成立？ |
+|------|------|:------:|
+| **充分性**：CoDeC 高分 → 一定训练过？ | GPT-OSS 20B 在所有数据集上 >99%，包括明确没训练过的 → **不充分** | ❌ |
+| **必要性**：训练过 → 一定 CoDeC 高分？ | Gemma 训练过数学数据，GSM8K CoDeC 仅 5.5% → **不必要** | ❌ |
+
+CoDeC 高分**既不是**"训练过该 Benchmark 数据"的充分条件，**也不是**必要条件。它是一个弱相关指标，不是诊断工具。
+
+**CoDeC 真正检测的是什么**
+
+CoDeC 依赖的因果链有四个环节：
+
+```
+训练过精确文本 → 记住精确 Token 序列 → Context 干扰记忆 → Log-prob 下降 → CoDeC 高分
+```
+
+任何一环断裂都会导致检测失败：
+
+| 断裂点 | 场景 | 结果 |
+|--------|------|------|
+| 训练过但没记住 | 泛化能力强（如 Gemma） | **False Negative**（5.5%） |
+| 没训练过但 CoDeC 高 | 极端 RLHF（如 GPT-OSS 20B） | **False Positive**（>99%） |
+| 训练了类似格式但非原文 | 合成数学数据 ≠ GSM8K 原文 | 检测不到 |
+| Context 恰好无信号 | 多样化数据集，两个样本无关 | 退化到约 50% |
+
+**正确解读方式**
+
+CoDeC 检测的不是"模型是否训练过数学数据"，而是**模型是否记住了某个特定 Benchmark 的精确 Token 序列**。这是一个比读者可能推断的要窄得多的声明。
+
+实践意义：将 CoDeC 用于**跨模型相对比较**（同一 Benchmark 上 Qwen 68% vs Gemma 5.5% 是有意义的信号），而非对单个模型做绝对的"干净/污染"分类。
+
 ## 实践中的陷阱
 
 ### 1. 格式敏感性
