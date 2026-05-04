@@ -232,6 +232,50 @@ CSA 始终精确 64× 压缩，HCA 始终精确 1024×，跨所有序列长度�
 
 我们的实现使用 Vanilla PyTorch 操作。DeepSeek 的生产代码使用 Custom Triton Kernels（`kernel.py`，22KB）+ FP4 Indexer 量化 + 优化内存访问。实际部署中的加速比我们测到的更大。
 
+### 压缩倍数拆解
+
+CSA 报告的 64× KV Cache 压缩来自三个独立因素，其中只有一个是 CSA 特有的：
+
+| 因素 | 压缩倍数 | CSA 特有？ |
+|------|:-------:|:--------:|
+| Block Compression（m=4 Token → 1 Entry） | 4× | **是——CSA 核心贡献** |
+| MQA（8 KV Heads → 1 Shared Head） | 8× | 否——MQA 通用技术 |
+| K+V 合并为单个 Tensor | 2× | 否——实现细节 |
+| **总计** | **64×** | **仅 4× 是 CSA 独有** |
+
+与论文公平对比（论文以 MLA 为 Baseline，已有 KV 维度压缩）：CSA 特有压缩率 = **4×**/层。
+
+### 本实验的局限性
+
+本实验验证的是**算法层面的工程特性**（KV Cache 大小和计算速度），不是端到端模型性能。重要注意事项：
+
+1. **未验证 Quality**：压缩是有损的。随机权重下 Compressor 和 Indexer 没有学习到保留相关信息的能力。DeepSeek-V4 的 Quality 保证完全依赖于训练这些组件。
+
+2. **Baseline 使用了 FlashAttention 2**：标准 MHA 使用 `F.scaled_dot_product_attention`（H100 上自动调用 FlashAttention 2）。CSA 使用 Naive PyTorch。78.9× 加速来自**做更少的事**（只 Attend Top-k 块），不是更快的 Kernel。
+
+3. **小维度 vs 生产**：实验 dim=512、8 Heads。生产 DeepSeek-V4 用 dim=7168+、128+ Heads + Triton Kernels + FP4 量化。结果不可直接外推。
+
+4. **随机权重 ≠ 训练后模型**：我们的 Indexer 用均值 Query 点积评分，真实 Lightning Indexer 用每 Head 可学习权重 + FP4 QAT。Top-k 选择质量会完全不同。
+
+5. **缺少 Sliding Window 分支**：我们的 Standalone Module 不包含 DeepSeek-V4 配合 CSA/HCA 使用的 Sliding Window。生产中近距 Token（Window 内）用标准 Attention。
+
+### 来自论文的 Quality 证据
+
+虽然我们无法直接验证 Attention Quality，但 DeepSeek-V4 技术报告提供了强有力的间接证据，证明 CSA/HCA 压缩不会降低模型能力：
+
+| Benchmark | V3.2-Base（MLA，37B 激活） | V4-Flash-Base（CSA+HCA，13B 激活） | V4-Pro-Base（CSA+HCA，49B 激活） |
+|-----------|:-----:|:------:|:------:|
+| MMLU | 87.8 | 88.7 | **90.1** |
+| MMLU-Pro | 65.5 | 68.3 | **73.5** |
+| GSM8K | 91.1 | 90.8 | **92.6** |
+| HumanEval | 62.8 | 69.5 | **76.8** |
+
+（来源：DeepSeek-V4 Technical Report，Table 1）
+
+> *"DeepSeek-V4-Flash-Base 在多数 Benchmark 上已经超过 DeepSeek-V3.2-Base。"* — 论文 Section 1
+
+V4-Flash 使用 CSA+HCA（1M Context 下约 10% KV Cache + 10% FLOPs）达到了与 V3.2 相当甚至更好的准确率。这证明训练好的 CSA/HCA Compressor 能在激进压缩下保持 Quality。
+
 ## 决策流程图
 
 ```mermaid

@@ -386,6 +386,50 @@ KV Cache Compression Ratio (vs Standard MHA):
   seq=131,072 | HCA (m=64) | Compression: 1024.0× | Speedup: 27.47×
 ```
 
+### Compression Factor Breakdown
+
+The reported 64× KV cache compression for CSA comes from three independent factors, only one of which is CSA-specific:
+
+| Factor | Compression | CSA-Specific? |
+|--------|:-----------:|:-------------:|
+| Block compression (m=4 tokens → 1 entry) | 4× | **Yes — core CSA contribution** |
+| MQA (8 KV heads → 1 shared head) | 8× | No — standard MQA technique |
+| K+V merged into single tensor | 2× | No — implementation detail |
+| **Total** | **64×** | **Only 4× is CSA's unique contribution** |
+
+To compare fairly with the DeepSeek-V4 paper (which uses MLA as baseline, already having KV dimension compression), the CSA-specific compression ratio is **4×** per layer, not 64×. The paper's reported ~10% KV cache (vs V3.2 MLA) reflects a different baseline.
+
+### Limitations of This Experiment
+
+This experiment validates **algorithm-level engineering properties** (KV cache size and computational speed), not end-to-end model performance. Important caveats:
+
+1. **No quality verification**: Compression is lossy — our experiment does not measure attention output quality. With random weights, the Compressor and Indexer have no learned ability to preserve relevant information. Quality preservation in DeepSeek-V4 depends entirely on training these components.
+
+2. **Baseline uses FlashAttention 2**: Standard MHA uses PyTorch's `F.scaled_dot_product_attention`, which automatically dispatches to FlashAttention 2 on H100. CSA uses naive PyTorch operations. The 78.9× speedup comes from **doing less work** (attending to top-k blocks instead of all tokens), not from a faster kernel.
+
+3. **Small dimensions vs production**: Our experiment uses dim=512, 8 heads. Production DeepSeek-V4 uses dim=7168+, 128+ heads, with additional optimizations (Triton kernels, FP4 quantization). Results cannot be directly extrapolated to production scale.
+
+4. **Random weights ≠ trained model**: The Indexer in our experiment uses mean-query dot-product scoring. The real Lightning Indexer uses learned per-head weights with FP4 quantization-aware training. Top-k selection quality would be very different.
+
+5. **Missing sliding window branch**: Our standalone modules do not include the sliding window that DeepSeek-V4 uses alongside CSA/HCA. In production, recent tokens (within window_size) use standard attention — only distant tokens go through compression.
+
+### Quality Evidence from the Paper
+
+While we cannot directly verify attention quality, the DeepSeek-V4 Technical Report provides strong indirect evidence that CSA/HCA compression does not degrade model capability:
+
+| Benchmark | V3.2-Base (MLA, 37B activated) | V4-Flash-Base (CSA+HCA, 13B activated) | V4-Pro-Base (CSA+HCA, 49B activated) |
+|-----------|:-----:|:------:|:------:|
+| MMLU | 87.8 | 88.7 | **90.1** |
+| MMLU-Pro | 65.5 | 68.3 | **73.5** |
+| GSM8K | 91.1 | 90.8 | **92.6** |
+| HumanEval | 62.8 | 69.5 | **76.8** |
+
+(Source: DeepSeek-V4 Technical Report, Table 1)
+
+> *"DeepSeek-V4-Flash-Base already surpasses DeepSeek-V3.2-Base across a majority of benchmarks with its more parameter-efficient design."* — Section 1, DeepSeek-V4 Technical Report
+
+V4-Flash achieves equal or better accuracy than V3.2 while using CSA+HCA (with ~10% KV cache and ~10% FLOPs at 1M context). This demonstrates that trained CSA/HCA compressors can preserve quality despite aggressive compression.
+
 ## Pitfalls and Limitations
 
 ### 1. Cannot Run Full Model on Single GPU
