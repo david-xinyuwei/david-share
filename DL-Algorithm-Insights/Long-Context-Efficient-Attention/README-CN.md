@@ -13,6 +13,7 @@
 | 1M Token 时的 KV 条目数 | 1,000,000 | 250,000（少 4×） | 15,625（少 64×） |
 | 每 Token Attention 开销 | O(N) | O(k) ≈ 常数 | O(N/m') — 线性但很小 |
 | H100 实测加速 @128K | baseline | **78.9×** | **27.5×** |
+| 论文：V4 vs V3.2 KV Cache | — | **≈ V3.2 的 7%**（Flash）/ **≈ 10%**（Pro） | （与 HCA 合计） |
 | 论文：V4-Flash vs V3.2 FLOPs | — | V3.2 的 10% | （与 CSA 合计） |
 
 > **符号说明**：m = 块大小（每 m 个 Token 压缩成 1 条记录），k = 每个 Query 选出的 Top-k 块数，m' = HCA 的块大小。下文 CSA 和 HCA 章节有详细解释。
@@ -97,6 +98,24 @@ V4 论文明确交代了这个传承关系：
 先压缩（CSA）：N → N/m 条记录 → 对 N/m 条评分 → 保留 Top-k → Attend k 条。索引开销降到 O(N/m)。
 
 1M Token、m=4 时：DSA 要评分 100 万条；CSA 只评分 25 万条。FP4 Lightning Indexer 属于内存带宽瓶颈型操作，候选数少 4 倍带来的收益非常直接。
+
+### DeepSeek-V4 中哪些是原创？
+
+一个自然的问题：CSA 和 HCA 是全新发明，还是现有技术的重组？诚实的答案是两者都有——V4 论文本身对谱系交待得很明确：
+
+| 组件 | 起源 | 来源 |
+|------|------|------|
+| 块级别 KV 压缩 | NSA / Native Sparse Attention | DeepSeek-AI, 2025（NSA） |
+| 稀疏 Top-k 选择（Lightning Indexer + FP4） | DSA / DeepSeek Sparse Attention | DeepSeek-AI, 2025 — V3.2 引入 |
+| **CSA = 块压缩 + DSA** | ✅ V4 — 新组合 + 新命名 | V4 论文 Section 2.3.1 |
+| **HCA（Heavily Compressed Attention）** | ✅ V4 — 完全原创 | V4 论文 Section 2.3.2（未引用 prior work） |
+| **CSA + HCA 层交替架构** | ✅ V4 — 完全原创 | V4 论文 Figure 2 |
+
+V4 论文原文（Section 2.3.1）明说：
+
+> *"CSA compresses the KV caches along the sequence dimension and then performs **DeepSeek Sparse Attention (DSA) (DeepSeek-AI, 2025)**."*
+
+换言之：CSA 是 V4 把 DeepSeek 自己已有的两项技术（NSA 风格的块压缩 + V3.2 的 DSA）重新组合并起了新名字；HCA 则是 V4 全新引入、未引用任何 prior work。架构层面上真正的原创贡献是 **CSA + HCA 交替混合架构**——任一组件单独都不足以带来 V4 实际交付的长上下文效率。
 
 ---
 
@@ -447,15 +466,10 @@ DeepSeek-V4 是**第一个使用 D3 维度的生产模型**。三个维度正交
 | 64K | 134 MB | 2.10 MB | 0.13 MB | 18.5 ms | 0.58 ms | 0.87 ms | **32.0×** | **21.3×** |
 | 128K | 268 MB | 4.19 MB | 0.26 MB | 73.4 ms | 0.93 ms | 2.67 ms | **78.9×** | **27.5×** |
 
-```mermaid
-xychart-beta
-    title "H100 NVL 上的 Forward Pass 耗时"
-    x-axis ["1K", "4K", "16K", "32K", "64K", "128K"]
-    y-axis "耗时 (ms)" 0 --> 80
-    bar "标准 MHA" [0.12, 0.22, 1.37, 4.61, 18.5, 73.4]
-    bar "CSA (m=4)" [0.28, 0.28, 0.28, 0.36, 0.58, 0.93]
-    bar "HCA (m=64)" [0.18, 0.18, 0.20, 0.34, 0.87, 2.67]
-```
+<div align="center">
+  <img src="images/benchmark_forward_time.png" width="720" alt="H100 NVL 上的 Forward Pass 耗时">
+  <p><em>H100 NVL 上不同序列长度的 Forward Pass 耗时。标准 MHA（蓝色）是 FlashAttention 2 baseline；CSA（橙色，m=4 + top-k=64）；HCA（绿色，m'=64）。</em></p>
+</div>
 
 ### 分析
 

@@ -13,6 +13,7 @@
 | KV entries at 1M tokens | 1,000,000 | 250,000 (4× fewer) | 15,625 (64× fewer) |
 | Per-token attention cost | O(N) | O(k) ≈ constant | O(N/m') — linear but small |
 | H100 benchmark speedup @128K | baseline | **78.9×** | **27.5×** |
+| Paper result: V4 vs V3.2 KV cache | — | **~7% of V3.2** (Flash) / **~10%** (Pro) | (combined with HCA) |
 | Paper result: V4-Flash vs V3.2 FLOPs | — | 10% of V3.2 | (combined with CSA) |
 
 > **Notation**: m = block size (tokens compressed into 1 entry), k = number of top blocks selected per query, m' = HCA block size. These are explained in detail in the CSA and HCA sections below.
@@ -99,6 +100,24 @@ Without compression (DSA): score N entries → keep top-k → attend to k entrie
 With compression (CSA): compress N → N/m entries → score N/m entries → keep top-k → attend to k entries. Indexing cost drops to O(N/m).
 
 At 1M tokens with m=4: DSA scores 1M entries; CSA scores 250K entries. The FP4 Lightning Indexer makes this 4× reduction even more impactful because FP4 scoring is memory-bound and benefits directly from fewer entries.
+
+### What's Original in DeepSeek-V4?
+
+A natural question: are CSA and HCA brand-new inventions, or recombinations of existing ideas? The honest answer is mixed — the V4 paper itself is explicit about its lineage:
+
+| Component | Origin | Source |
+|-----------|--------|--------|
+| Block-level KV compression | NSA / Native Sparse Attention | DeepSeek-AI, 2025 (NSA) |
+| Sparse Top-k selection (Lightning Indexer + FP4) | DSA / DeepSeek Sparse Attention | DeepSeek-AI, 2025 — introduced in V3.2 |
+| **CSA = block compression + DSA** | ✅ V4 — new combination & naming | V4 Tech Report, Section 2.3.1 |
+| **HCA (Heavily Compressed Attention)** | ✅ V4 — fully original | V4 Tech Report, Section 2.3.2 (no prior work cited) |
+| **CSA + HCA alternating layer pattern** | ✅ V4 — fully original | V4 Tech Report, Figure 2 |
+
+The V4 paper itself says (Section 2.3.1):
+
+> *"CSA compresses the KV caches along the sequence dimension and then performs **DeepSeek Sparse Attention (DSA) (DeepSeek-AI, 2025)**."*
+
+In other words: CSA is V4's combination of two existing DeepSeek techniques (NSA-style block compression + V3.2's DSA), packaged with a new name. HCA, on the other hand, is fully introduced in V4 with no cited prior work. The truly novel contribution at the architecture level is the **CSA + HCA alternating hybrid** — neither component alone could deliver the long-context efficiency that V4 ships.
 
 ---
 
@@ -451,15 +470,10 @@ Data: [`data/csa_benchmark_results.json`](data/csa_benchmark_results.json)
 | 64K | 134 MB | 2.10 MB | 0.13 MB | 18.5 ms | 0.58 ms | 0.87 ms | **32.0×** | **21.3×** |
 | 128K | 268 MB | 4.19 MB | 0.26 MB | 73.4 ms | 0.93 ms | 2.67 ms | **78.9×** | **27.5×** |
 
-```mermaid
-xychart-beta
-    title "Forward Pass Time on H100 NVL"
-    x-axis ["1K", "4K", "16K", "32K", "64K", "128K"]
-    y-axis "Time (ms)" 0 --> 80
-    bar "Standard MHA" [0.12, 0.22, 1.37, 4.61, 18.5, 73.4]
-    bar "CSA (m=4)" [0.28, 0.28, 0.28, 0.36, 0.58, 0.93]
-    bar "HCA (m=64)" [0.18, 0.18, 0.20, 0.34, 0.87, 2.67]
-```
+<div align="center">
+  <img src="images/benchmark_forward_time.png" width="720" alt="Forward Pass Time on H100 NVL">
+  <p><em>Forward pass time on H100 NVL across sequence lengths. Standard MHA (blue) uses FlashAttention 2 baseline; CSA (orange, m=4 + top-k=64); HCA (green, m'=64).</em></p>
+</div>
 
 ### Analysis
 
