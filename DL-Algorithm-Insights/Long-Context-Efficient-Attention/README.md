@@ -63,8 +63,10 @@ The comparison from KV-Cache-Deep-Dive makes the gap visible:
 
 The paper's own data confirms the magnitude of this gap — and the improvement CSA/HCA brings:
 
-![Figure 1: FLOPs and KV cache comparison V4 vs V3.2](images/paper_figure1_flops_kv_comparison.png)
-*Source: Figure 1, DeepSeek-V4 Technical Report — CSA+HCA reduces FLOPs to 27% (Pro) / 10% (Flash) and KV cache to ~10% / ~7% vs V3.2's MLA baseline.*
+<div align="center">
+  <img src="images/paper_figure1_flops_kv_comparison.png" width="720" alt="Figure 1: FLOPs and KV cache comparison V4 vs V3.2">
+  <p><em>Source: Figure 1, DeepSeek-V4 Technical Report — CSA+HCA reduces FLOPs to 27% (Pro) / 10% (Flash) and KV cache to ~10% / ~7% vs V3.2's MLA baseline.</em></p>
+</div>
 
 ---
 
@@ -136,13 +138,17 @@ The key insight: from 128,000 entries, CSA narrows down to 576 — a reduction t
 
 The paper's CSA architecture diagram shows the same 4-stage pipeline in more detail:
 
-![Figure 3: CSA core architecture](images/paper_figure3_csa_architecture.png)
-*Source: Figure 3, DeepSeek-V4 Technical Report*
+<div align="center">
+  <img src="images/paper_figure3_csa_architecture.png" width="720" alt="Figure 3: CSA core architecture">
+  <p><em>Source: Figure 3, DeepSeek-V4 Technical Report</em></p>
+</div>
 
 And here are the mathematical formulas for all CSA stages as presented in the paper:
 
-![CSA mathematical formulas](images/paper_csa_formulas.png)
-*Source: Section 2.3.1 (Equations 9-19), DeepSeek-V4 Technical Report*
+<div align="center">
+  <img src="images/paper_csa_formulas.png" width="600" alt="CSA mathematical formulas">
+  <p><em>Source: Section 2.3.1 (Equations 9-19), DeepSeek-V4 Technical Report</em></p>
+</div>
 
 Now let's look at each stage in detail.
 
@@ -289,8 +295,10 @@ CSA is a sniper rifle — precise but narrow. HCA is a wide-angle lens — sees 
 
 The paper's HCA diagram shows the simplified pipeline (no Indexer stage):
 
-![Figure 4: HCA core architecture](images/paper_figure4_hca_architecture.png)
-*Source: Figure 4, DeepSeek-V4 Technical Report*
+<div align="center">
+  <img src="images/paper_figure4_hca_architecture.png" width="720" alt="Figure 4: HCA core architecture">
+  <p><em>Source: Figure 4, DeepSeek-V4 Technical Report</em></p>
+</div>
 
 ### Key Differences from CSA
 
@@ -339,8 +347,10 @@ This is why alternation outperforms either mechanism alone. Information that CSA
 
 The overall V4 architecture diagram shows how CSA and HCA layers interleave across the full model:
 
-![Figure 2: V4 overall architecture with CSA/HCA layers](images/paper_figure2_architecture.png)
-*Source: Figure 2, DeepSeek-V4 Technical Report*
+<div align="center">
+  <img src="images/paper_figure2_architecture.png" width="720" alt="Figure 2: V4 overall architecture with CSA/HCA layers">
+  <p><em>Source: Figure 2, DeepSeek-V4 Technical Report</em></p>
+</div>
 
 ---
 
