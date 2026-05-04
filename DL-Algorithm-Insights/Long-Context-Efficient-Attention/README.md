@@ -15,6 +15,8 @@
 | H100 benchmark speedup @128K | baseline | **78.9×** | **27.5×** |
 | Paper result: V4-Flash vs V3.2 FLOPs | — | 10% of V3.2 | (combined with CSA) |
 
+> **Notation**: m = block size (tokens compressed into 1 entry), k = number of top blocks selected per query, m' = HCA block size. These are explained in detail in the CSA and HCA sections below.
+
 Prior work tackled KV cache from two dimensions: within-layer compression (MHA → GQA → MQA → MLA, covered in [KV-Cache-Deep-Dive](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive#24-mha-vs-mqa-vs-gqa)) and cross-layer replacement (Hybrid Linear / Mamba, covered in [KV-Cache-Deep-Dive L3](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive#l3-four-kv-cache-reduction-architectures)). Both leave the number of KV entries per attention layer equal to N. DeepSeek-V4 opens a **third orthogonal dimension**: sequence-length compression via learned block compression and sparse top-k selection.
 
 > **Prerequisite**: Familiarity with KV cache fundamentals (MHA / GQA / MLA). If new to these, read [KV-Cache-Deep-Dive](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive) first — this article picks up where that one ends.
@@ -171,6 +173,15 @@ Per group g:  o_g = head_outputs_g × W_oa[g]   # low-rank down-project per grou
 ```
 
 This reduces output projection parameters by approximately O(n_groups).
+
+### Intuition
+
+Imagine the 1M-token context as a book with 1M pages and you have a question.
+
+- **Standard attention**: read all 1M pages cover to cover.
+- **CSA**: make a summary note every 4 pages (250K notes) → score each note against your question with a fast index (Lightning Indexer, FP4) → deep-read only the top 64 most relevant notes.
+
+The trade-off: you might miss something if the indexer picks the wrong 64. Mitigations: the **sliding window** always keeps recent pages uncompressed, the **trained indexer** learns which notes tend to matter, and the **attention sink** lets the model abstain when nothing relevant is found.
 
 ### The `compress_ratio` Switch
 

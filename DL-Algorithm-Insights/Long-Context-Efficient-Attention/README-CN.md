@@ -15,6 +15,8 @@
 | H100 实测加速 @128K | baseline | **78.9×** | **27.5×** |
 | 论文：V4-Flash vs V3.2 FLOPs | — | V3.2 的 10% | （与 CSA 合计） |
 
+> **符号说明**：m = 块大小（每 m 个 Token 压缩成 1 条记录），k = 每个 Query 选出的 Top-k 块数，m' = HCA 的块大小。下文 CSA 和 HCA 章节有详细解释。
+
 此前的工作从两个维度优化 KV Cache：层内压缩（MHA → GQA → MQA → MLA，详见 [KV-Cache-Deep-Dive](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive#24-mha-vs-mqa-vs-gqa)）和跨层替换（Hybrid Linear / Mamba，详见 [KV-Cache-Deep-Dive L3](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive#l3-four-kv-cache-reduction-architectures)）。但两者都无法减少每个 Attention 层中 KV 条目的数量——始终等于 N。DeepSeek-V4 开辟了**第三个正交维度**：通过学习式块压缩加稀疏 Top-k 选择来压缩序列长度。
 
 > **前置知识**：需要了解 KV Cache 基础（MHA / GQA / MLA）。如果不熟悉，先读 [KV-Cache-Deep-Dive](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive)——本文从那篇结束的地方开始。
@@ -170,6 +172,15 @@ CSA 用分组低秩分解：
 ```
 
 输出投影参数减少约 O(n_groups) 倍。
+
+### 直觉理解
+
+把 1M Token 的上下文想象成一本 100 万页的书，你要回答一个问题。
+
+- **标准 Attention**：把 100 万页从头到尾全部读一遍。
+- **CSA**：每 4 页做一条摘要笔记（共 25 万条）→ 用快速索引（Lightning Indexer，FP4）给每条笔记打分 → 只精读最相关的 64 条笔记。
+
+代价：如果索引选错了 64 条，可能漏掉关键信息。缓解措施：**Sliding Window** 始终保留最近的 Token 不压缩，**训练后的 Indexer** 学会了哪些笔记通常重要，**Attention Sink** 允许模型在没有相关内容时放弃 Attend。
 
 ### `compress_ratio` 开关
 
