@@ -69,6 +69,10 @@ For larger models (70B+), use INT4 quantization or multi-GPU setups (Standard_NC
 
 The method exploits a simple observation about how memorization interacts with in-context learning:
 
+> The following figure is from the original paper (Zawalski et al., 2025). Left: unseen data (GSM8K) — context helps, cumulative difference rises. Right: training data (ArXiv) — context interferes, cumulative difference drops. Source: Figure 1, arXiv:2510.27055, CC-BY 4.0.
+
+![Figure 1: Log-probability changes with and without context](images/paper_figure1_logprob_comparison.png)
+
 **Scenario A: Model has NOT seen the benchmark data**
 
 ```mermaid
@@ -92,6 +96,18 @@ flowchart LR
 > Result: Δ = with_context - without_context < 0 → **CONTAMINATED** ✗
 
 ### The Algorithm
+
+> The following figure shows the complete CoDeC pipeline: for each sample, compute log-probabilities with and without context, then compare. Source: Figure 2, Zawalski et al., 2025, arXiv:2510.27055, CC-BY 4.0.
+
+![Figure 2: CoDeC pipeline overview](images/paper_figure2_pipeline_overview.png)
+
+The formal algorithm and CoDeC score formula from the paper:
+
+![Algorithm steps and S_CoDeC formula](images/paper_formula_algorithm_steps.png)
+
+> Source: Section 2.3, Zawalski et al., 2025, arXiv:2510.27055, CC-BY 4.0.
+
+In plain text, the steps are:
 
 For each sample x in dataset D:
 
@@ -195,6 +211,12 @@ The paper offers a loss-landscape explanation:
 
 This is analogous to the well-known sharp-vs-flat minima distinction in generalization theory (Hochreiter & Schmidhuber, 1997; Keskar et al., 2017): sharp minima correspond to memorization, flat minima to generalization. CoDeC leverages in-context learning as a cheap probe for this geometry.
 
+> The following figures show CoDeC scores evolving during training (left: OLMo 7B, scores for training datasets rise sharply between 1k-10k steps), per-dataset score distribution and diversity correlation (middle, right), and contamination growth during finetuning (bottom). Source: Figures 4, 5, 6, arXiv:2510.27055, CC-BY 4.0.
+
+![Figures 4-5: CoDeC during training + dataset diversity](images/paper_figure4_5_training_dynamics.png)
+
+![Figure 6: CoDeC scores during finetuning](images/paper_figure6_finetuning.png)
+
 ## Comparison with Other Methods
 
 | Method | Requires Training Data? | Signal | Strengths | Weaknesses |
@@ -213,6 +235,10 @@ CoDeC's key advantage: it requires only log probabilities from the target model 
 ### Cross-Model Analysis (from the original paper, 40+ models)
 
 The original paper tested models from 410M to 56B parameters across multiple model families.
+
+> The following figure compares CoDeC against baseline methods (Vanilla Loss, Min-K%, Zlib Ratio). CoDeC achieves near-perfect separation (AUC 99.9%) while baselines fail. Source: Figure 3 and Table 1, arXiv:2510.27055, CC-BY 4.0.
+
+![Figure 3: CoDeC vs baselines — contamination scores for training (red) and unseen (blue) datasets](images/paper_figure3_codec_vs_baselines.png)
 
 **Known training data** (Wikipedia, GitHub, Common Crawl):
 - CoDeC scores consistently **> 95%** across all models — the method reliably detects known contamination (Source: Figure 3 in original paper)

@@ -67,6 +67,10 @@
 
 该方法利用了一个关于记忆如何与 In-Context Learning 交互的简单观察：
 
+> 下图来自原始论文（Zawalski et al., 2025）。左图：未见过的数据（GSM8K）—— Context 有帮助，累积差异上升。右图：训练数据（ArXiv）—— Context 产生干扰，累积差异下降。来源：Figure 1, arXiv:2510.27055, CC-BY 4.0.
+
+![Figure 1: 有/无 Context 时的 Log-Probability 变化](images/paper_figure1_logprob_comparison.png)
+
 ```
 场景 A: 模型在训练期间 未见过 Benchmark 数据
 ┌──────────────┐     ┌──────────────────┐     ┌──────────────┐
@@ -99,6 +103,18 @@
 ```
 
 ### 算法步骤
+
+> 下图展示了完整的 CoDeC Pipeline：对每个样本，分别计算有/无 Context 时的 Log-Probabilities，然后比较。来源：Figure 2, Zawalski et al., 2025, arXiv:2510.27055, CC-BY 4.0.
+
+![Figure 2: CoDeC Pipeline 概览](images/paper_figure2_pipeline_overview.png)
+
+论文中的正式算法和 CoDeC Score 公式：
+
+![Algorithm Steps 和 S_CoDeC 公式](images/paper_formula_algorithm_steps.png)
+
+> 来源：Section 2.3, Zawalski et al., 2025, arXiv:2510.27055, CC-BY 4.0.
+
+用纯文本表述，步骤如下：
 
 对数据集 D 中的每个样本 x：
 
@@ -202,6 +218,12 @@ contaminated = (baseline_conf > context_conf)  # 无 Context 时更自信 = 有�
 
 这类似于 Generalization Theory 中著名的 Sharp-vs-Flat Minima 区分（Hochreiter & Schmidhuber, 1997; Keskar et al., 2017）：Sharp Minima 对应记忆，Flat Minima 对应泛化。CoDeC 利用 In-Context Learning 作为这种几何特性的廉价探针。
 
+> 下图展示了 CoDeC Score 在训练过程中的演变（左：OLMo 7B，训练数据集的 Score 在 1k-10k 步时急剧上升）、数据集分布和多样性相关性（中、右）、以及 Finetuning 期间的污染增长（下）。来源：Figures 4, 5, 6, arXiv:2510.27055, CC-BY 4.0.
+
+![Figures 4-5: 训练过程中的 CoDeC + 数据集多样性](images/paper_figure4_5_training_dynamics.png)
+
+![Figure 6: Finetuning 期间的 CoDeC Score](images/paper_figure6_finetuning.png)
+
 ## 与其他方法的对比
 
 | 方法 | 需要训练数据？ | 信号来源 | 优势 | 劣势 |
@@ -220,6 +242,10 @@ CoDeC 的关键优势：只需要目标模型的 Log Probabilities 和任意 Ben
 ### 跨模型分析（来自原始论文，40+ 模型）
 
 原始论文在多个模型家族中测试了从 410M 到 56B 参数的模型。
+
+> 下图将 CoDeC 与 Baseline 方法（Vanilla Loss、Min-K%、Zlib Ratio）进行对比。CoDeC 实现了接近完美的分离（AUC 99.9%），而 Baseline 方法失败。来源：Figure 3 和 Table 1, arXiv:2510.27055, CC-BY 4.0.
+
+![Figure 3: CoDeC vs Baselines — 训练数据（红）和未见数据（蓝）的污染分数](images/paper_figure3_codec_vs_baselines.png)
 
 **已知训练数据**（Wikipedia、GitHub、Common Crawl）：
 - 所有模型的 CoDeC Score 一致**> 95%**——该方法可靠地检测已知污染
