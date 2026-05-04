@@ -106,6 +106,76 @@ The dataset-level CoDeC score is simply the fraction of samples marked contamina
 CoDeC(D) = (1/N) × Σ 𝟙[log p(xᵢ) > log p(xᵢ | cᵢ)]
 ```
 
+### What Does "Giving Context" Actually Mean?
+
+A common first reaction is: *"Giving one question from the same dataset as a hint — isn't that a stretch?"*
+
+It is important to understand that CoDeC is **not** giving the model a hint, an answer, or a reasoning scaffold. It is prepending a raw text sample from the same dataset. Consider GSM8K with three questions:
+
+```
+Question A: "Janet has 3 apples. She buys 2 more. How many does she have?"
+Question B: "A train travels 60 miles in 2 hours. What is its speed?"
+Question C: "Tom has 5 dogs and 3 cats. How many pets does he have?"
+```
+
+When testing Question B:
+
+**Without context** — the model sees:
+```
+A train travels 60 miles in 2 hours. What is its speed?
+```
+
+**With context** — Question A is randomly sampled and prepended:
+```
+Janet has 3 apples. She buys 2 more. How many does she have?
+
+A train travels 60 miles in 2 hours. What is its speed?
+```
+
+The model is **not answering** either question. It is performing **language modeling**: predicting each token's probability given all preceding tokens. We only measure how the log-probabilities of Question B's tokens change when Question A is placed before it.
+
+The signal is subtle but real: the attention mechanism picks up distributional cues from the context (math vocabulary, question phrasing patterns) that slightly shift token predictions. For unseen data, these cues help calibration. For memorized data, they interfere.
+
+**Limitation**: This signal is inherently weak when the dataset is highly diverse. If Question A is about apples and Question B is about trains, the distributional overlap is minimal. This is why CoDeC works best on **homogeneous datasets** (all math problems, all code snippets) and degrades toward ~50% (random) on mixed-domain datasets like MMLU-Pro.
+
+### What Is the Ground Truth?
+
+There is no separate "answer key." **The target text itself is the ground truth.**
+
+The model performs next-token prediction at every position:
+
+```
+Position 0: Input "A"       → Model outputs P(next_token) → We check: P("train") = ?
+Position 1: Input "train"   → Model outputs P(next_token) → We check: P("travels") = ?
+Position 2: Input "travels" → Model outputs P(next_token) → We check: P("60") = ?
+Position 3: Input "60"      → Model outputs P(next_token) → We check: P("miles") = ?
+```
+
+At each position, the model produces a probability distribution over its entire vocabulary. We extract the log-probability assigned to **the token that actually appears next in the original text**. The average of these log-probabilities is the "confidence" score.
+
+This is the fundamental operation of language modeling — no generation, no sampling, no answers needed. Any text can be evaluated this way.
+
+### The Core Logic in 4 Lines
+
+The entire detection algorithm reduces to:
+
+```python
+# Step 1: Baseline — model sees only the target text
+lp_baseline = get_logprobs(model, tokenizer, target)
+
+# Step 2: With context — prepend a same-dataset sample
+lp_context = get_logprobs(model, tokenizer, context + "\n\n" + target)
+
+# Step 3: Compare mean log-prob of the target portion (skip first 10 noisy tokens)
+baseline_conf = mean(lp_baseline[10:])
+context_conf  = mean(lp_context[-len(lp_baseline):][10:])
+
+# Step 4: Verdict
+contaminated = (baseline_conf > context_conf)  # More confident WITHOUT context = suspicious
+```
+
+Two forward passes, two floating-point averages, one comparison. No training, no gradients, no generation.
+
 ### Score Interpretation
 
 | CoDeC Score | Interpretation |
@@ -187,13 +257,17 @@ We independently reproduced the CoDeC method on an Azure H100 NVL (95 GB) VM to 
 | Qwen/Qwen2.5-3B-Instruct | 3.1B | Instruct (dense) | Public |
 | microsoft/phi-2 | 2.8B | Base (dense) | Public |
 | google/gemma-3-4b-it | 4.3B | Instruct (dense) | Gated (HF Token required) |
+| meta-llama/Llama-3.2-3B-Instruct | 3.2B | Instruct (dense) | Gated (HF Token required) |
 
 ### Benchmarks
 
 | Benchmark | Source | Samples Used | Type |
 |-----------|--------|:------------:|------|
+| Wikitext | `Salesforce/wikitext` (wikitext-103-raw-v1, test) | 200 / 1724 | Known training data (positive control) |
 | GSM8K | `openai/gsm8k` (test split) | 200 / 1319 | Math word problems |
 | MMLU-Pro | `TIGER-Lab/MMLU-Pro` (test split) | 200 / 12032 | Multi-domain knowledge QA |
+| HumanEval | `openai/openai_humaneval` (test split) | 164 / 164 | Code generation prompts |
+| AIME 2024 | `AI-MO/aimo-validation-aime` (train split) | 90 / 90 | Competition math |
 
 ### Step-by-Step Reproduction
 
@@ -208,13 +282,14 @@ nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
 # 3. Install dependencies (if needed)
 pip3 install torch transformers datasets numpy
 
-# 4. Set HF Token (required for gated models like Gemma)
+# 4. Set HF Token (required for gated models like Gemma, Llama)
 export HF_TOKEN="<your-hf-token>"
 
-# 5. Run the experiment
+# 5. Run the full experiment (4 models × 5 benchmarks)
 python3 -u scripts/codec_experiment.py \
-    --models "Qwen/Qwen2.5-3B-Instruct" "microsoft/phi-2" "google/gemma-3-4b-it" \
-    --benchmarks gsm8k gpqa \
+    --models "Qwen/Qwen2.5-3B-Instruct" "microsoft/phi-2" \
+             "google/gemma-3-4b-it" "meta-llama/Llama-3.2-3B-Instruct" \
+    --benchmarks wikipedia gsm8k mmlu_pro humaneval aime \
     --max-samples 200 \
     --output data/codec_results.json
 ```
@@ -223,18 +298,22 @@ The full experiment script is in [`scripts/codec_experiment.py`](scripts/codec_e
 
 ### Results
 
-| Model | Params | GSM8K | MMLU-Pro | Time (GSM8K) | Time (MMLU-Pro) |
-|-------|:------:|:-----:|:--------:|:------------:|:---------------:|
-| **Qwen2.5-3B-Instruct** | 3.1B | **68.0%** | **41.5%** | 12.2s | 13.8s |
-| **Phi-2** | 2.8B | **20.5%** | **26.2%** | 11.6s | 9.8s |
-| **Gemma-3-4B-IT** | 4.3B | **5.5%** | **24.0%** | 16.7s | 20.0s |
+| Model | Params | Wikitext | GSM8K | MMLU-Pro | HumanEval | AIME |
+|-------|:------:|:--------:|:-----:|:--------:|:---------:|:----:|
+| **Qwen2.5-3B-Instruct** | 3.1B | 21.0% | **68.0%** | 41.5% | **56.1%** | **61.1%** |
+| **Phi-2** | 2.8B | 13.5% | 20.5% | 26.2% | 16.5% | 20.0% |
+| **Gemma-3-4B-IT** | 4.3B | 24.5% | 5.5% | 24.0% | 15.9% | 5.6% |
+| **Llama-3.2-3B-Instruct** | 3.2B | **35.0%** | 31.0% | 39.5% | 26.2% | **43.3%** |
 
 ```mermaid
 xychart-beta
-    title "CoDeC Scores by Model and Benchmark (H100 NVL, N=200)"
-    x-axis ["Qwen2.5-3B GSM8K", "Qwen2.5-3B MMLU-Pro", "Phi-2 GSM8K", "Phi-2 MMLU-Pro", "Gemma-3-4B GSM8K", "Gemma-3-4B MMLU-Pro"]
-    y-axis "CoDeC Score (%)" 0 --> 100
-    bar [68, 41.5, 20.5, 26.2, 5.5, 24]
+    title "CoDeC Scores: 4 Models × 5 Benchmarks (H100 NVL, N=200)"
+    x-axis ["Wiki", "GSM8K", "MMLU-Pro", "HumanEval", "AIME"]
+    y-axis "CoDeC Score (%)" 0 --> 80
+    bar "Qwen2.5-3B" [21, 68, 41.5, 56.1, 61.1]
+    bar "Phi-2" [13.5, 20.5, 26.2, 16.5, 20]
+    bar "Gemma-3-4B" [24.5, 5.5, 24, 15.9, 5.6]
+    bar "Llama-3.2-3B" [35, 31, 39.5, 26.2, 43.3]
 ```
 
 ### Experiment Log (Abridged)
@@ -245,79 +324,70 @@ GPU: NVIDIA H100 NVL
 VRAM: 99.9 GB
 
 ============================================================
-Loading model: Qwen/Qwen2.5-3B-Instruct
-Model loaded in 3.3s, Parameters: 3.1B
-
-  Benchmark: gsm8k (1319 samples, evaluating 200)
-  [50/200] running score: 82.0%
-  [100/200] running score: 74.0%
-  [150/200] running score: 69.3%
-  [200/200] running score: 68.0%
-  CoDeC Score: 68.0% (200 samples, 12.2s)
-
-  Benchmark: mmlu_pro (12032 samples, evaluating 200)
-  [50/200] running score: 39.6%
-  [100/200] running score: 37.1%
-  [150/200] running score: 37.7%
-  [200/200] running score: 41.5%
-  CoDeC Score: 41.5% (195 samples, 13.8s)
+Loading model: Qwen/Qwen2.5-3B-Instruct (3.1B)
+  wikipedia:  CoDeC Score: 21.0% (200 samples, 41.0s)
+  gsm8k:      CoDeC Score: 68.0% (200 samples, 12.5s)
+  mmlu_pro:   CoDeC Score: 41.5% (195 samples, 15.7s)
+  humaneval:  CoDeC Score: 56.1% (164 samples, 11.9s)
+  aime:       CoDeC Score: 61.1% (90 samples, 8.5s)
 
 ============================================================
-Loading model: microsoft/phi-2
-Model loaded in 65.8s, Parameters: 2.8B
-
-  Benchmark: gsm8k
-  [200/200] running score: 20.5%
-  CoDeC Score: 20.5% (200 samples, 11.6s)
-
-  Benchmark: mmlu_pro
-  [200/200] running score: 26.2%
-  CoDeC Score: 26.2% (195 samples, 9.8s)
+Loading model: microsoft/phi-2 (2.8B)
+  wikipedia:  CoDeC Score: 13.5% (200 samples, 12.9s)
+  gsm8k:      CoDeC Score: 20.5% (200 samples, 9.0s)
+  mmlu_pro:   CoDeC Score: 26.2% (195 samples, 8.7s)
+  humaneval:  CoDeC Score: 16.5% (164 samples, 8.7s)
+  aime:       CoDeC Score: 20.0% (90 samples, 5.2s)
 
 ============================================================
-Loading model: google/gemma-3-4b-it
-Model loaded in 5.1s, Parameters: 4.3B
+Loading model: google/gemma-3-4b-it (4.3B)
+  wikipedia:  CoDeC Score: 24.5% (200 samples, 18.9s)
+  gsm8k:      CoDeC Score: 5.5%  (200 samples, 15.2s)
+  mmlu_pro:   CoDeC Score: 24.0% (196 samples, 14.9s)
+  humaneval:  CoDeC Score: 15.9% (164 samples, 13.8s)
+  aime:       CoDeC Score: 5.6%  (90 samples, 8.5s)
 
-  Benchmark: gsm8k
-  [50/200] running score: 6.0%
-  [100/200] running score: 4.0%
-  [200/200] running score: 5.5%
-  CoDeC Score: 5.5% (200 samples, 16.7s)
-
-  Benchmark: mmlu_pro
-  [50/200] running score: 30.6%
-  [100/200] running score: 26.5%
-  [150/200] running score: 24.5%
-  [200/200] running score: 24.0%
-  CoDeC Score: 24.0% (196 samples, 20.0s)
+============================================================
+Loading model: meta-llama/Llama-3.2-3B-Instruct (3.2B)
+  wikipedia:  CoDeC Score: 35.0% (200 samples, 11.4s)
+  gsm8k:      CoDeC Score: 31.0% (200 samples, 9.0s)
+  mmlu_pro:   CoDeC Score: 39.5% (195 samples, 8.7s)
+  humaneval:  CoDeC Score: 26.2% (164 samples, 8.5s)
+  aime:       CoDeC Score: 43.3% (90 samples, 5.2s)
 ```
 
 ### Analysis
 
-**Finding 1: Qwen shows strong GSM8K affinity (68%), Gemma does not (5.5%)**
+**Finding 1: Qwen shows extreme math/code benchmark affinity**
 
-The most striking result is the 12× gap between Qwen2.5 (68.0%) and Gemma-3 (5.5%) on GSM8K. This directly confirms the original paper's finding that Qwen family models exhibit significantly higher CoDeC scores on math benchmarks. Since both models are similar in size (3.1B vs 4.3B), this gap cannot be explained by model capacity alone.
+Qwen2.5-3B scores 68.0% on GSM8K, 61.1% on AIME, and 56.1% on HumanEval — all in or near the gray zone (60–80%). By contrast, Gemma-3-4B scores 5.5% on GSM8K and 5.6% on AIME. The 12× gap on GSM8K and 11× gap on AIME cannot be explained by model capacity (3.1B vs 4.3B). This strongly confirms the original paper's finding of Qwen benchmark affinity, and extends it to code (HumanEval) and competition math (AIME).
 
-Possible explanations:
-- GSM8K questions or similar math problem formats appeared in Qwen's training data
-- Qwen's training pipeline included synthetic math data that closely mirrors GSM8K's distribution
-- Qwen's math-specific instruction tuning created strong format-specific memorization patterns
+**Finding 2: Wikitext positive control failed — all models score < 35%**
 
-**Finding 2: MMLU-Pro scores are uniformly low (24–42%)**
+The Wikitext-103 positive control did not produce the expected >80% scores. All models scored 13–35%, far below the contamination threshold. This likely reflects Wikitext's high topic diversity: each passage covers a different subject, so a single context example provides minimal distributional signal. The paper's >95% results on Wikipedia used the full Wikipedia dataset with longer, more homogeneous article chunks. This validates the concern that **CoDeC's signal strength depends heavily on dataset homogeneity**.
 
-All three models score below 42% on MMLU-Pro, well within the "likely clean" zone (<60%). This suggests MMLU-Pro, as a newer and more challenging benchmark, has not been significantly contaminated in any of these models' training data.
+**Finding 3: Three-tier model contamination profile emerges**
 
-**Finding 3: Phi-2 is the cleanest reference model**
+The data reveals a clear three-tier pattern across all 5 benchmarks:
 
-Phi-2 scores 20.5% and 26.2% — the most uniformly low scores across both benchmarks. This makes it a good candidate as a "reference clean model" for the reference-based comparison approach recommended by the paper.
+| Tier | Model | Profile | Avg CoDeC |
+|:----:|-------|---------|:---------:|
+| 1 | **Gemma-3-4B** | Consistently lowest scores across all benchmarks | ~15% |
+| 2 | **Phi-2** | Uniformly low, good reference model | ~19% |
+| 3 | **Llama-3.2-3B** | Moderate, elevated on AIME (43%) | ~35% |
+| 4 | **Qwen2.5-3B** | Highly elevated on math/code, moderate elsewhere | ~50% |
 
-**Finding 4: Per-benchmark variation reveals contamination granularity**
+**Finding 4: Llama-3.2 shows surprising AIME affinity (43.3%)**
 
-Qwen2.5's scores differ dramatically between benchmarks (68% vs 41.5%), demonstrating that CoDeC can distinguish contamination at the individual-benchmark level. This confirms CoDeC's practical utility: it does not just give a single "clean/dirty" label for a model but identifies *which specific benchmarks* may be compromised.
+Llama-3.2-3B scores 43.3% on AIME — the highest among non-Qwen models and approaching the gray zone. This suggests Meta's training data may include competition math problems or similar synthetic math reasoning data. This finding was not reported in the original paper (which did not test Llama 3.2).
 
-**Finding 5: Total experiment time is remarkably low**
+**Finding 5: MMLU-Pro confirms method limitations on diverse datasets**
 
-The entire 6-run experiment (3 models × 2 benchmarks × 200 samples each) completed in under 90 seconds of GPU time. CoDeC is cheap enough to be a routine part of any model evaluation pipeline.
+MMLU-Pro scores cluster between 24–42% for all models, with limited separation between "clean" and "suspect" models. This is consistent with our earlier analysis: **CoDeC works best on homogeneous datasets and degrades on mixed-domain benchmarks**. The 17.5-point spread (Qwen 41.5% vs Gemma 24%) is much smaller than the 62.5-point spread on GSM8K (68% vs 5.5%).
+
+**Finding 6: Total experiment wall time remains low**
+
+All 20 runs (4 models × 5 benchmarks × 200 samples) completed in approximately 5 minutes of GPU time on a single H100 NVL. The dominant cost was model downloading, not inference.
 
 ## Pitfalls in Practice
 

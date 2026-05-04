@@ -73,6 +73,17 @@ def load_benchmark(name):
     elif name == "mmlu_pro":
         ds = load_dataset("TIGER-Lab/MMLU-Pro", split="test[:500]")
         return ds["question"]
+    elif name == "wikipedia":
+        # Positive control: wikitext is known training data for virtually all LLMs
+        ds = load_dataset("Salesforce/wikitext", "wikitext-103-raw-v1", split="test")
+        # Filter out short/empty entries
+        return [text for text in ds["text"] if len(text) > 200]
+    elif name == "humaneval":
+        ds = load_dataset("openai/openai_humaneval", split="test")
+        return ds["prompt"]
+    elif name == "aime":
+        ds = load_dataset("AI-MO/aimo-validation-aime", trust_remote_code=True, split="train")
+        return [row for row in ds["problem"]]
     else:
         raise ValueError(f"Unknown benchmark: {name}")
 
@@ -80,10 +91,10 @@ def load_benchmark(name):
 def main():
     parser = argparse.ArgumentParser(description="CoDeC Contamination Detection Experiment")
     parser.add_argument("--models", nargs="+", default=[
-        "Qwen/Qwen3-1.7B",
+        "Qwen/Qwen2.5-3B-Instruct",
         "google/gemma-3-4b-it",
     ])
-    parser.add_argument("--benchmarks", nargs="+", default=["gsm8k", "gpqa"])
+    parser.add_argument("--benchmarks", nargs="+", default=["gsm8k", "mmlu_pro"])
     parser.add_argument("--max-samples", type=int, default=200)
     parser.add_argument("--output", type=str, default="/root/codec_results.json")
     args = parser.parse_args()

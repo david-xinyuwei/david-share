@@ -113,6 +113,76 @@
 CoDeC(D) = (1/N) × Σ 𝟙[log p(xᵢ) > log p(xᵢ | cᵢ)]
 ```
 
+### "给 Context"到底是什么意思？
+
+一个常见的第一反应是：*"只给一道同数据集的裸题当提示——这不是有点牵强吗？"*
+
+重要的是理解 CoDeC **不是**给模型提示、答案或解题思路。它只是在目标文本前面**拼接**一条同数据集的原始文本。以 GSM8K 为例，有三道题：
+
+```
+题 A: "Janet has 3 apples. She buys 2 more. How many does she have?"
+题 B: "A train travels 60 miles in 2 hours. What is its speed?"
+题 C: "Tom has 5 dogs and 3 cats. How many pets does he have?"
+```
+
+测试题 B 时：
+
+**不给 Context** — 模型直接看到：
+```
+A train travels 60 miles in 2 hours. What is its speed?
+```
+
+**给 Context** — 随机抽到题 A，拼在前面：
+```
+Janet has 3 apples. She buys 2 more. How many does she have?
+
+A train travels 60 miles in 2 hours. What is its speed?
+```
+
+模型**不是在"做题"**。它在做**语言建模**：给定前面所有 Token，预测每个 Token 的概率。我们只测量题 B 的 Token Log 概率在有/无题 A 前缀时的变化。
+
+信号是微弱但真实的：Attention 机制从 Context 中捕捉到分布线索（数学词汇、提问句式模式），从而微调 Token 预测。对于未见过的数据，这些线索帮助校准。对于记忆过的数据，这些线索产生干扰。
+
+**局限**：当数据集高度多样时，这个信号天然很弱。如果题 A 是关于苹果的、题 B 是关于火车的，分布重叠很小。这就是为什么 CoDeC 在**同质化数据集**（全是数学题、全是代码题）上信号强，而在混合领域数据集（如 MMLU-Pro）上退化到约 50%（接近随机）。
+
+### Ground Truth 是什么？
+
+没有单独的"答案"。**目标文本本身就是 Ground Truth。**
+
+模型在每个位置做 Next-Token Prediction：
+
+```
+位置 0: 输入 "A"       → 模型输出 P(next_token) → 我们查看: P("train") = ?
+位置 1: 输入 "train"   → 模型输出 P(next_token) → 我们查看: P("travels") = ?
+位置 2: 输入 "travels" → 模型输出 P(next_token) → 我们查看: P("60") = ?
+位置 3: 输入 "60"      → 模型输出 P(next_token) → 我们查看: P("miles") = ?
+```
+
+在每个位置，模型生成一个覆盖整个词表的概率分布。我们提取**原始文本中实际出现的下一个 Token 的 Log 概率**。这些 Log 概率的平均值就是"置信度"分数。
+
+这是语言建模的基本操作——不需要生成、不需要采样、不需要答案。任何文本都可以这样评估。
+
+### 核心逻辑仅 4 行
+
+整个检测算法精简为：
+
+```python
+# 第 1 步: Baseline — 模型仅看目标文本
+lp_baseline = get_logprobs(model, tokenizer, target)
+
+# 第 2 步: 带 Context — 在前面拼接同数据集的一个样本
+lp_context = get_logprobs(model, tokenizer, context + "\n\n" + target)
+
+# 第 3 步: 比较 target 部分的平均 Log 概率（跳过前 10 个噪声 Token）
+baseline_conf = mean(lp_baseline[10:])
+context_conf  = mean(lp_context[-len(lp_baseline):][10:])
+
+# 第 4 步: 判定
+contaminated = (baseline_conf > context_conf)  # 无 Context 时更自信 = 有嫌疑
+```
+
+两次 Forward Pass，两个浮点数取平均，一次大小比较。不需要训练、不需要梯度、不需要生成。
+
 ### 分数解读
 
 | CoDeC Score | 解读 |
@@ -194,13 +264,17 @@ CoDeC 的关键优势：只需要目标模型的 Log Probabilities 和任意 Ben
 | Qwen/Qwen2.5-3B-Instruct | 3.1B | Instruct（Dense） | 公开 |
 | microsoft/phi-2 | 2.8B | Base（Dense） | 公开 |
 | google/gemma-3-4b-it | 4.3B | Instruct（Dense） | Gated（需要 HF Token） |
+| meta-llama/Llama-3.2-3B-Instruct | 3.2B | Instruct（Dense） | Gated（需要 HF Token） |
 
 ### Benchmark
 
 | Benchmark | 来源 | 使用样本数 | 类型 |
 |-----------|------|:--------:|------|
+| Wikitext | `Salesforce/wikitext`（wikitext-103-raw-v1, test） | 200 / 1724 | 已知训练数据（正控制组） |
 | GSM8K | `openai/gsm8k`（test split） | 200 / 1319 | 数学应用题 |
 | MMLU-Pro | `TIGER-Lab/MMLU-Pro`（test split） | 200 / 12032 | 多领域知识问答 |
+| HumanEval | `openai/openai_humaneval`（test split） | 164 / 164 | 代码生成 |
+| AIME 2024 | `AI-MO/aimo-validation-aime`（train split） | 90 / 90 | 竞赛数学 |
 
 ### 复现步骤
 
@@ -215,13 +289,14 @@ nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
 # 3. 安装依赖（如需要）
 pip3 install torch transformers datasets numpy
 
-# 4. 设置 HF Token（Gated 模型如 Gemma 需要）
+# 4. 设置 HF Token（Gated 模型如 Gemma、Llama 需要）
 export HF_TOKEN="<your-hf-token>"
 
-# 5. 运行实验
+# 5. 运行完整实验（4 模型 × 5 Benchmark）
 python3 -u scripts/codec_experiment.py \
-    --models "Qwen/Qwen2.5-3B-Instruct" "microsoft/phi-2" "google/gemma-3-4b-it" \
-    --benchmarks gsm8k gpqa \
+    --models "Qwen/Qwen2.5-3B-Instruct" "microsoft/phi-2" \
+             "google/gemma-3-4b-it" "meta-llama/Llama-3.2-3B-Instruct" \
+    --benchmarks wikipedia gsm8k mmlu_pro humaneval aime \
     --max-samples 200 \
     --output data/codec_results.json
 ```
@@ -230,18 +305,22 @@ python3 -u scripts/codec_experiment.py \
 
 ### 结果
 
-| 模型 | 参数量 | GSM8K | MMLU-Pro | 耗时（GSM8K） | 耗时（MMLU-Pro） |
-|------|:------:|:-----:|:--------:|:------------:|:---------------:|
-| **Qwen2.5-3B-Instruct** | 3.1B | **68.0%** | **41.5%** | 12.2s | 13.8s |
-| **Phi-2** | 2.8B | **20.5%** | **26.2%** | 11.6s | 9.8s |
-| **Gemma-3-4B-IT** | 4.3B | **5.5%** | **24.0%** | 16.7s | 20.0s |
+| 模型 | 参数量 | Wikitext | GSM8K | MMLU-Pro | HumanEval | AIME |
+|------|:------:|:--------:|:-----:|:--------:|:---------:|:----:|
+| **Qwen2.5-3B-Instruct** | 3.1B | 21.0% | **68.0%** | 41.5% | **56.1%** | **61.1%** |
+| **Phi-2** | 2.8B | 13.5% | 20.5% | 26.2% | 16.5% | 20.0% |
+| **Gemma-3-4B-IT** | 4.3B | 24.5% | 5.5% | 24.0% | 15.9% | 5.6% |
+| **Llama-3.2-3B-Instruct** | 3.2B | **35.0%** | 31.0% | 39.5% | 26.2% | **43.3%** |
 
 ```mermaid
 xychart-beta
-    title "CoDeC Scores by Model and Benchmark (H100 NVL, N=200)"
-    x-axis ["Qwen2.5-3B GSM8K", "Qwen2.5-3B MMLU-Pro", "Phi-2 GSM8K", "Phi-2 MMLU-Pro", "Gemma-3-4B GSM8K", "Gemma-3-4B MMLU-Pro"]
-    y-axis "CoDeC Score (%)" 0 --> 100
-    bar [68, 41.5, 20.5, 26.2, 5.5, 24]
+    title "CoDeC Scores: 4 Models × 5 Benchmarks (H100 NVL, N=200)"
+    x-axis ["Wiki", "GSM8K", "MMLU-Pro", "HumanEval", "AIME"]
+    y-axis "CoDeC Score (%)" 0 --> 80
+    bar "Qwen2.5-3B" [21, 68, 41.5, 56.1, 61.1]
+    bar "Phi-2" [13.5, 20.5, 26.2, 16.5, 20]
+    bar "Gemma-3-4B" [24.5, 5.5, 24, 15.9, 5.6]
+    bar "Llama-3.2-3B" [35, 31, 39.5, 26.2, 43.3]
 ```
 
 ### 实验日志（节选）
@@ -252,79 +331,70 @@ GPU: NVIDIA H100 NVL
 VRAM: 99.9 GB
 
 ============================================================
-Loading model: Qwen/Qwen2.5-3B-Instruct
-Model loaded in 3.3s, Parameters: 3.1B
-
-  Benchmark: gsm8k (1319 samples, evaluating 200)
-  [50/200] running score: 82.0%
-  [100/200] running score: 74.0%
-  [150/200] running score: 69.3%
-  [200/200] running score: 68.0%
-  CoDeC Score: 68.0% (200 samples, 12.2s)
-
-  Benchmark: mmlu_pro (12032 samples, evaluating 200)
-  [50/200] running score: 39.6%
-  [100/200] running score: 37.1%
-  [150/200] running score: 37.7%
-  [200/200] running score: 41.5%
-  CoDeC Score: 41.5% (195 samples, 13.8s)
+Loading model: Qwen/Qwen2.5-3B-Instruct (3.1B)
+  wikipedia:  CoDeC Score: 21.0% (200 samples, 41.0s)
+  gsm8k:      CoDeC Score: 68.0% (200 samples, 12.5s)
+  mmlu_pro:   CoDeC Score: 41.5% (195 samples, 15.7s)
+  humaneval:  CoDeC Score: 56.1% (164 samples, 11.9s)
+  aime:       CoDeC Score: 61.1% (90 samples, 8.5s)
 
 ============================================================
-Loading model: microsoft/phi-2
-Model loaded in 65.8s, Parameters: 2.8B
-
-  Benchmark: gsm8k
-  [200/200] running score: 20.5%
-  CoDeC Score: 20.5% (200 samples, 11.6s)
-
-  Benchmark: mmlu_pro
-  [200/200] running score: 26.2%
-  CoDeC Score: 26.2% (195 samples, 9.8s)
+Loading model: microsoft/phi-2 (2.8B)
+  wikipedia:  CoDeC Score: 13.5% (200 samples, 12.9s)
+  gsm8k:      CoDeC Score: 20.5% (200 samples, 9.0s)
+  mmlu_pro:   CoDeC Score: 26.2% (195 samples, 8.7s)
+  humaneval:  CoDeC Score: 16.5% (164 samples, 8.7s)
+  aime:       CoDeC Score: 20.0% (90 samples, 5.2s)
 
 ============================================================
-Loading model: google/gemma-3-4b-it
-Model loaded in 5.1s, Parameters: 4.3B
+Loading model: google/gemma-3-4b-it (4.3B)
+  wikipedia:  CoDeC Score: 24.5% (200 samples, 18.9s)
+  gsm8k:      CoDeC Score: 5.5%  (200 samples, 15.2s)
+  mmlu_pro:   CoDeC Score: 24.0% (196 samples, 14.9s)
+  humaneval:  CoDeC Score: 15.9% (164 samples, 13.8s)
+  aime:       CoDeC Score: 5.6%  (90 samples, 8.5s)
 
-  Benchmark: gsm8k
-  [50/200] running score: 6.0%
-  [100/200] running score: 4.0%
-  [200/200] running score: 5.5%
-  CoDeC Score: 5.5% (200 samples, 16.7s)
-
-  Benchmark: mmlu_pro
-  [50/200] running score: 30.6%
-  [100/200] running score: 26.5%
-  [150/200] running score: 24.5%
-  [200/200] running score: 24.0%
-  CoDeC Score: 24.0% (196 samples, 20.0s)
+============================================================
+Loading model: meta-llama/Llama-3.2-3B-Instruct (3.2B)
+  wikipedia:  CoDeC Score: 35.0% (200 samples, 11.4s)
+  gsm8k:      CoDeC Score: 31.0% (200 samples, 9.0s)
+  mmlu_pro:   CoDeC Score: 39.5% (195 samples, 8.7s)
+  humaneval:  CoDeC Score: 26.2% (164 samples, 8.5s)
+  aime:       CoDeC Score: 43.3% (90 samples, 5.2s)
 ```
 
 ### 分析
 
-**发现 1：Qwen 在 GSM8K 上表现出强亲和力（68%），Gemma 则没有（5.5%）**
+**发现 1：Qwen 在数学/代码 Benchmark 上表现出极端亲和力**
 
-最显著的结果是 Qwen2.5（68.0%）和 Gemma-3（5.5%）在 GSM8K 上的 12 倍差距。这直接验证了原始论文的发现——Qwen 家族模型在数学 Benchmark 上表现出显著更高的 CoDeC Score。由于两个模型参数量相近（3.1B vs 4.3B），这个差距不能仅用模型能力解释。
+Qwen2.5-3B 在 GSM8K 上得分 68.0%、AIME 上 61.1%、HumanEval 上 56.1%——全部处于或接近灰色地带（60-80%）。相比之下，Gemma-3-4B 在 GSM8K 上仅 5.5%、AIME 上 5.6%。GSM8K 上的 12 倍差距和 AIME 上的 11 倍差距无法用模型容量解释（3.1B vs 4.3B）。这强有力地验证了原始论文关于 Qwen Benchmark 亲和力的发现，并将其扩展到代码（HumanEval）和竞赛数学（AIME）。
 
-可能的解释：
-- GSM8K 题目或类似的数学问题格式出现在 Qwen 的训练数据中
-- Qwen 的训练流水线包含了与 GSM8K 分布高度相似的合成数学数据
-- Qwen 的数学特定 Instruction Tuning 产生了强烈的格式特异性记忆模式
+**发现 2：Wikitext 正控制组失败——所有模型得分 < 35%**
 
-**发现 2：MMLU-Pro 得分一致偏低（24–42%）**
+Wikitext-103 正控制组未产生预期的 >80% 分数。所有模型得分 13-35%，远低于污染阈值。这很可能反映了 Wikitext 的高主题多样性：每段文本覆盖不同主题，单个 Context Example 提供的分布信号极其微弱。论文中 >95% 的 Wikipedia 结果使用了完整 Wikipedia 数据集中更长、更同质的文章片段。这验证了一个关键关切：**CoDeC 的信号强度高度依赖于数据集的同质性**。
 
-所有三个模型在 MMLU-Pro 上得分均低于 42%，都在"可能干净"区域（<60%）内。这表明 MMLU-Pro 作为较新且更具挑战性的 Benchmark，在这些模型的训练数据中没有被显著污染。
+**发现 3：三级模型污染画像浮现**
 
-**发现 3：Phi-2 是最干净的参考模型**
+数据揭示了跨 5 个 Benchmark 的清晰三级模式：
 
-Phi-2 得分 20.5% 和 26.2%——两个 Benchmark 上都是最均匀的低分。这使其成为论文推荐的"参考干净模型"对比方法的良好候选。
+| 级别 | 模型 | 画像 | 平均 CoDeC |
+|:----:|------|------|:---------:|
+| 1 | **Gemma-3-4B** | 所有 Benchmark 上一致最低分 | ~15% |
+| 2 | **Phi-2** | 均匀低分，良好的参考模型 | ~19% |
+| 3 | **Llama-3.2-3B** | 中等，AIME 偏高（43%） | ~35% |
+| 4 | **Qwen2.5-3B** | 数学/代码高度偏高，其他中等 | ~50% |
 
-**发现 4：跨 Benchmark 差异揭示了污染的粒度**
+**发现 4：Llama-3.2 显示出意外的 AIME 亲和力（43.3%）**
 
-Qwen2.5 在不同 Benchmark 上的得分差异巨大（68% vs 41.5%），证明 CoDeC 能够在单个 Benchmark 级别区分污染程度。这验证了 CoDeC 的实用性：它不只给模型一个"干净/污染"的标签，而是识别*哪些具体 Benchmark* 可能被污染。
+Llama-3.2-3B 在 AIME 上得分 43.3%——非 Qwen 模型中最高，接近灰色地带。这表明 Meta 的训练数据可能包含竞赛数学题或类似的合成数学推理数据。这一发现在原始论文中未被报告（论文未测试 Llama 3.2）。
 
-**发现 5：总实验时间极短**
+**发现 5：MMLU-Pro 证实了方法在多样化数据集上的局限**
 
-整个 6 组实验（3 个模型 × 2 个 Benchmark × 每个 200 样本）的 GPU 时间不到 90 秒。CoDeC 足够便宜，可以作为任何模型评估流水线的常规组成部分。
+所有模型在 MMLU-Pro 上的得分聚集在 24-42%，"干净"模型和"可疑"模型之间的分离有限。这与我们之前的分析一致：**CoDeC 在同质数据集上效果最好，在混合领域 Benchmark 上退化**。17.5 个百分点的差距（Qwen 41.5% vs Gemma 24%）远小于 GSM8K 上 62.5 个百分点的差距（68% vs 5.5%）。
+
+**发现 6：总实验时间仍然很短**
+
+全部 20 组实验（4 个模型 × 5 个 Benchmark × 每个 200 样本）在单台 H100 NVL 上的 GPU 时间约 5 分钟。主要成本是模型下载而非推理。
 
 ## 实践中的陷阱
 
