@@ -60,7 +60,10 @@ KV-Cache-Deep-Dive 中的数据对比让这个缺口一目了然：
 | Nemotron-3-Nano (Hybrid Mamba) | 0.19 GiB | −94% | Attention 层虽少但仍 O(N) |
 
 **缺口所在**：两个维度都没有沿**序列长度**本身进行压缩。1M Token 下，即使 MLA 的紧凑 576 维 × 47 层 × 1M ≈ 50 GB/请求——仍然不可行。CSA 和 HCA 正是填补这个缺口的。
+论文自己的数据也印证了这个缺口的严重程度——以及 CSA/HCA 带来的改善：
 
+![Figure 1: V4 vs V3.2 FLOPs/KV 对比](images/paper_figure1_flops_kv_comparison.png)
+*来源：Figure 1, DeepSeek-V4 Technical Report — CSA+HCA 将 FLOPs 降至 27%（Pro）/ 10%（Flash），KV Cache 降至 ~10% / ~7% vs V3.2 MLA Baseline。*
 ---
 
 ## Sparse Attention 家族
@@ -127,6 +130,16 @@ CSA 分 4 个阶段，每个阶段解决流水线中的一个具体问题。在�
 核心思路：从 128,000 条记录筛到 576 条——这个缩减让长上下文 Attention 在单 GPU 上变得可行。代价是可能选错 64 个块。Sliding Window 保证了至少最近的上下文永远不会丢。
 
 ![CSA Pipeline：4 个阶段](images/csa_pipeline.png)
+
+论文的 CSA 架构图展示了同样的 4 阶段流水线，细节更丰富：
+
+![Figure 3: CSA 核心架构](images/paper_figure3_csa_architecture.png)
+*来源：Figure 3, DeepSeek-V4 Technical Report*
+
+论文中 CSA 各阶段的数学公式如下：
+
+![CSA 数学公式](images/paper_csa_formulas.png)
+*来源：Section 2.3.1（公式 9-19）, DeepSeek-V4 Technical Report*
 
 下面看每个阶段的细节。
 
@@ -270,6 +283,11 @@ CSA 像狙击枪——准但窄；HCA 像广角镜头——看得全但分辨率
 
 ![HCA Pipeline：3 个阶段，无 Indexer](images/hca_pipeline.png)
 
+论文的 HCA 架构图展示了简化后的流水线（没有 Indexer 阶段）：
+
+![Figure 4: HCA 核心架构](images/paper_figure4_hca_architecture.png)
+*来源：Figure 4, DeepSeek-V4 Technical Report*
+
 ### 与 CSA 的关键差异
 
 | 方面 | CSA | HCA |
@@ -314,6 +332,11 @@ Layer 60: Sliding Window (ratio=0) → 底层可能完全不压缩
 - 下一个 **CSA 层** 就能综合两者：精确的会议记录 + 广泛的项目背景
 
 这就是为什么交替比单纯用任一种都强。CSA 漏掉的信息，HCA 能在下一层补回来；反过来也一样。
+
+V4 的整体架构图展示了 CSA 和 HCA 层如何在全模型中交替分布：
+
+![Figure 2: V4 整体架构](images/paper_figure2_architecture.png)
+*来源：Figure 2, DeepSeek-V4 Technical Report*
 
 ---
 
@@ -454,25 +477,6 @@ xychart-beta
 > *"DeepSeek-V4-Flash-Base already surpasses DeepSeek-V3.2-Base across a majority of benchmarks with its more parameter-efficient design."* — 论文 Section 1
 
 V4-Flash 用 **13B 激活参数 + CSA/HCA** 就达到了 V3.2 的 **37B 激活 + MLA** 水平。说明训练好的块压缩加稀疏选择不仅能保持 Quality，甚至能进一步提升（很可能得益于 CSA/HCA 交替同时提供精准检索和全局感知）。
-
-### 论文原图
-
-以下图来自原始论文（CC-BY 4.0）：
-
-![Figure 1: V4 vs V3.2 FLOPs/KV 对比](images/paper_figure1_flops_kv_comparison.png)
-*来源：Figure 1, DeepSeek-V4 Technical Report — FLOPs 降至 27%（Pro）/ 10%（Flash）；KV Cache 降至 ~10% / ~7% vs V3.2*
-
-![Figure 2: V4 整体架构](images/paper_figure2_architecture.png)
-*来源：Figure 2, DeepSeek-V4 Technical Report*
-
-![Figure 3: CSA 核心架构](images/paper_figure3_csa_architecture.png)
-*来源：Figure 3, DeepSeek-V4 Technical Report*
-
-![Figure 4: HCA 核心架构](images/paper_figure4_hca_architecture.png)
-*来源：Figure 4, DeepSeek-V4 Technical Report*
-
-![CSA 数学公式](images/paper_csa_formulas.png)
-*来源：Section 2.3.1（公式 9-19）, DeepSeek-V4 Technical Report*
 
 ---
 

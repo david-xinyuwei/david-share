@@ -61,6 +61,11 @@ The comparison from KV-Cache-Deep-Dive makes the gap visible:
 
 **The gap**: neither dimension compresses along the **sequence length itself**. At 1M tokens, even MLA's compact 576 dimensions × 47 layers × 1M ≈ 50 GB per request. This is exactly the gap CSA and HCA fill.
 
+The paper's own data confirms the magnitude of this gap — and the improvement CSA/HCA brings:
+
+![Figure 1: FLOPs and KV cache comparison V4 vs V3.2](images/paper_figure1_flops_kv_comparison.png)
+*Source: Figure 1, DeepSeek-V4 Technical Report — CSA+HCA reduces FLOPs to 27% (Pro) / 10% (Flash) and KV cache to ~10% / ~7% vs V3.2's MLA baseline.*
+
 ---
 
 ## The Sparse Attention Family
@@ -128,6 +133,16 @@ Output: one vector for position 128,001
 The key insight: from 128,000 entries, CSA narrows down to 576 — a reduction that makes long-context attention feasible on a single GPU. The cost of this narrowing is the risk of selecting the wrong 64 blocks. The sliding window ensures that at least the most recent context is never lost.
 
 ![CSA Pipeline: 4 stages from input to output](images/csa_pipeline.png)
+
+The paper's CSA architecture diagram shows the same 4-stage pipeline in more detail:
+
+![Figure 3: CSA core architecture](images/paper_figure3_csa_architecture.png)
+*Source: Figure 3, DeepSeek-V4 Technical Report*
+
+And here are the mathematical formulas for all CSA stages as presented in the paper:
+
+![CSA mathematical formulas](images/paper_csa_formulas.png)
+*Source: Section 2.3.1 (Equations 9-19), DeepSeek-V4 Technical Report*
 
 Now let's look at each stage in detail.
 
@@ -272,6 +287,11 @@ CSA is a sniper rifle — precise but narrow. HCA is a wide-angle lens — sees 
 
 ![HCA Pipeline: 3 stages, no Indexer needed](images/hca_pipeline.png)
 
+The paper's HCA diagram shows the simplified pipeline (no Indexer stage):
+
+![Figure 4: HCA core architecture](images/paper_figure4_hca_architecture.png)
+*Source: Figure 4, DeepSeek-V4 Technical Report*
+
 ### Key Differences from CSA
 
 | Aspect | CSA | HCA |
@@ -316,6 +336,11 @@ Layer 60: Sliding window (ratio=0) → bottom layers may skip compression entire
 - The next **CSA layer** can then combine both signals: precise meeting notes + broad project context
 
 This is why alternation outperforms either mechanism alone. Information that CSA misses at one layer can be recovered by HCA at the next, and vice versa.
+
+The overall V4 architecture diagram shows how CSA and HCA layers interleave across the full model:
+
+![Figure 2: V4 overall architecture with CSA/HCA layers](images/paper_figure2_architecture.png)
+*Source: Figure 2, DeepSeek-V4 Technical Report*
 
 ---
 
@@ -456,25 +481,6 @@ Speed and memory savings mean nothing if the model's output quality collapses. W
 > *"DeepSeek-V4-Flash-Base already surpasses DeepSeek-V3.2-Base across a majority of benchmarks with its more parameter-efficient design."* — Section 1, DeepSeek-V4 Technical Report
 
 V4-Flash uses **13B activated parameters + CSA/HCA** to match or exceed V3.2's **37B activated + MLA**. This demonstrates that trained block compression + sparse selection can not only maintain quality but actually improve it (likely due to the complementary CSA/HCA alternation providing both precision and global awareness).
-
-### Paper Figures
-
-The following figures from the original paper illustrate the architecture (CC-BY 4.0):
-
-![Figure 1: FLOPs and KV cache comparison V4 vs V3.2](images/paper_figure1_flops_kv_comparison.png)
-*Source: Figure 1, DeepSeek-V4 Technical Report — FLOPs reduced to 27% (Pro) / 10% (Flash); KV cache to ~10% / ~7% vs V3.2*
-
-![Figure 2: V4 overall architecture with CSA/HCA layers](images/paper_figure2_architecture.png)
-*Source: Figure 2, DeepSeek-V4 Technical Report*
-
-![Figure 3: CSA core architecture](images/paper_figure3_csa_architecture.png)
-*Source: Figure 3, DeepSeek-V4 Technical Report*
-
-![Figure 4: HCA core architecture](images/paper_figure4_hca_architecture.png)
-*Source: Figure 4, DeepSeek-V4 Technical Report*
-
-![CSA mathematical formulas](images/paper_csa_formulas.png)
-*Source: Section 2.3.1 (Equations 9-19), DeepSeek-V4 Technical Report*
 
 ---
 
