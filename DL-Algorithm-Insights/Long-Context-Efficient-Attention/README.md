@@ -35,7 +35,7 @@ This work was developed and validated on a single Azure H100 NVL VM.
 
 ## Background: The Long-Context Bottleneck
 
-Standard multi-head attention has two scaling problems at long context:
+Why does everyone in the industry talk about "1M context" but few can actually serve it efficiently? The answer comes down to two numbers that grow uncomfortably fast.
 
 | Resource | Growth | At 1M tokens (Qwen3-8B equivalent) |
 |----------|:------:|:---------------------------------:|
@@ -65,7 +65,7 @@ The comparison from KV-Cache-Deep-Dive makes the gap visible:
 
 ## The Sparse Attention Family
 
-Before diving into CSA, it helps to understand where it sits in the sparse attention lineage. CSA stands for **Compressed Sparse Attention** — the "Sparse" is half its name and carries a specific lineage.
+CSA stands for **Compressed Sparse Attention** — the word "Sparse" is not decorative. It places CSA in a specific academic lineage that has been evolving since 2019, and understanding this lineage makes CSA's design choices much more intuitive.
 
 ### From Dense to Sparse
 
@@ -97,15 +97,45 @@ At 1M tokens with m=4: DSA scores 1M entries; CSA scores 250K entries. The FP4 L
 
 ## How CSA Works
 
-CSA operates in 4 stages. Each stage solves a specific problem in the pipeline from raw hidden states to final output.
+CSA operates in 4 stages. Each stage solves a specific problem in the pipeline from raw hidden states to final output. Before looking at the math, let's walk through a concrete example with real numbers to see what each stage actually does.
+
+### Concrete Example: 128K Tokens Through CSA
+
+Suppose we're generating the next token at position 128,001 in a conversation. The KV cache already holds 128K tokens of context. Here's what happens in a single CSA layer:
+
+```
+Input: 128,000 KV entries (one per previous token)
+  │
+  │ Stage 1: Block Compression (m=4)
+  │   Every 4 consecutive tokens → 1 compressed entry
+  │   128,000 ÷ 4 = 32,000 compressed entries
+  │   Each entry: a weighted combination of 4 tokens, not a simple average
+  │
+  │ Stage 2: Lightning Indexer (FP4, top-k=64)
+  │   Score all 32,000 entries against the current query
+  │   Keep only the 64 highest-scoring entries
+  │   Also keep the last 512 tokens uncompressed (sliding window)
+  │
+  │ Stage 3: Sparse Attention
+  │   Attend to: 64 selected + 512 window = 576 entries total
+  │   (instead of 128,000 — that's 222× fewer entries to attend to)
+  │
+  │ Stage 4: Output Projection
+  ▼
+Output: one vector for position 128,001
+```
+
+The key insight: from 128,000 entries, CSA narrows down to 576 — a reduction that makes long-context attention feasible on a single GPU. The cost of this narrowing is the risk of selecting the wrong 64 blocks. The sliding window ensures that at least the most recent context is never lost.
 
 ![CSA Pipeline: 4 stages from input to output](images/csa_pipeline.png)
+
+Now let's look at each stage in detail.
 
 ### Stage 1: Block KV Compression
 
 **Problem**: N KV entries is too many. Compress them.
 
-Every m consecutive tokens are compressed into a single KV entry via learned gated pooling.
+Every m consecutive tokens are compressed into a single KV entry via learned gated pooling. This is not a simple average — the model learns a **gate** that assigns different importance weights to different tokens within a block, so that the compressed entry preserves the most critical information.
 
 **Mathematical formulation** (paper Equations 9-12):
 
@@ -132,7 +162,7 @@ kv = (kv * score.softmax(dim=2)).sum(dim=2)
 
 **Problem**: Even N/m entries may be too many (250K at 1M tokens). Select only the top-k most relevant.
 
-The Lightning Indexer scores each compressed block against the current query and keeps only the top-k. It uses **FP4 precision** for scoring — 2× faster than FP8 at the cost of approximate (but sufficiently accurate) selection.
+The Lightning Indexer scores each compressed block against the current query and keeps only the top-k. It uses **FP4 precision** for scoring — this is a deliberate engineering trade-off: at the indexing stage, we only need to rank blocks roughly, not compute precise attention weights. FP4 provides sufficient ranking accuracy at 2× the throughput of FP8.
 
 **Mathematical formulation** (paper Equations 13-17):
 
@@ -203,6 +233,43 @@ This leads directly to the question: why have two different mechanisms?
 
 CSA's top-k=64 selection is excellent at finding the most relevant passages — but it can miss long-range global context that doesn't match any specific query. HCA solves this by maintaining a **global summary** of the entire sequence at much coarser granularity.
 
+### Concrete Example: 128K Tokens Through HCA
+
+Same scenario: generating token 128,001, but now in an HCA layer instead of CSA.
+
+```
+Input: 128,000 KV entries
+  │
+  │ Stage 1: Heavy Compression (m'=64)
+  │   Every 64 consecutive tokens → 1 compressed entry
+  │   128,000 ÷ 64 = 2,000 compressed entries
+  │
+  │ Stage 2: NO Indexer (attend to ALL)
+  │   2,000 entries is small enough to attend to all of them densely
+  │   Also keep sliding window (512 recent tokens)
+  │
+  │ Stage 3: Dense Attention
+  │   Attend to: 2,000 compressed + 512 window = 2,512 entries total
+  │
+  │ Stage 4: Output Projection
+  ▼
+Output: one vector for position 128,001
+```
+
+### CSA vs HCA Side-by-Side
+
+The fundamental trade-off becomes clear when we put them next to each other:
+
+| Step | CSA (m=4, k=64) | HCA (m'=64) |
+|------|:---------------:|:-----------:|
+| Compression | 128K → **32K** entries (4×) | 128K → **2K** entries (64×) |
+| Selection | Top-64 out of 32K | **None** — keep all 2K |
+| Entries attended | 64 + 512 window = **576** | 2,000 + 512 window = **2,512** |
+| What it's good at | Finding the **specific** paragraph that answers your question | Getting the **gist** of the entire document |
+| What it misses | Globally distributed information that no single block captures | Fine-grained details within each 64-token block |
+
+CSA is a sniper rifle — precise but narrow. HCA is a wide-angle lens — sees everything but at low resolution. Neither alone is sufficient. Together, they cover each other's blind spots.
+
 ![HCA Pipeline: 3 stages, no Indexer needed](images/hca_pipeline.png)
 
 ### Key Differences from CSA
@@ -230,19 +297,25 @@ Attention: o = softmax(q × HCA_KV^T / √d) × HCA_KV + window_kv contribution
 
 ### Why CSA and HCA Alternate
 
-DeepSeek-V4 interleaves CSA and HCA layers:
+DeepSeek-V4 does not use CSA or HCA exclusively — it interleaves them layer by layer. The exact pattern is configured per-layer via `args.compress_ratios[layer_id]`. A typical configuration alternates like this:
 
 ```
-Layer 0:  CSA  → magnifying glass: find the most relevant passages
-Layer 1:  HCA  → bird's eye view: coarse global scan, miss nothing
-Layer 2:  CSA  → another focused pass with different query
-Layer 3:  HCA  → another global scan
+Layer 0:  CSA (ratio=4)   → precise search: find the 64 most relevant blocks
+Layer 1:  HCA (ratio=64)  → global scan: coarse view of everything
+Layer 2:  CSA (ratio=4)   → precise search with a different query
+Layer 3:  HCA (ratio=64)  → another global scan
 ...
+Layer 60: Sliding window (ratio=0) → bottom layers may skip compression entirely
 ```
 
-Every pair of adjacent layers provides both **precise retrieval** (CSA's top-k) and **global awareness** (HCA's dense scan). Information that CSA misses at one layer can be recovered by HCA at the next. The exact per-layer assignment is configurable via `args.compress_ratios[layer_id]`.
+**Why this works**: consider what happens when a user asks "What was the conclusion of the meeting on January 15th?" in a 500K-token conversation history.
 
-This alternation is analogous to how human reading works: scanning the full page for context (HCA), then focusing on the specific sentence that answers the question (CSA).
+- A **CSA layer** can pinpoint the January 15th meeting notes (high precision, narrow focus)
+- But the model also needs to understand the broader context: what project is this about? Who are the participants? That context is spread across many meetings — no single 4-token block captures it
+- An **HCA layer** in the next pass reads a coarse summary of the entire 500K history, picking up the project context that CSA missed
+- The next **CSA layer** can then combine both signals: precise meeting notes + broad project context
+
+This is why alternation outperforms either mechanism alone. Information that CSA misses at one layer can be recovered by HCA at the next, and vice versa.
 
 ---
 
@@ -298,6 +371,8 @@ Our standalone benchmark measures 64× total KV compression for CSA. But this ha
 | **Total** | **64×** | **Only 4× is unique to CSA** |
 
 For fair comparison with the paper (which uses MLA as baseline): CSA adds ~4× per-layer on top of whatever D1 compression already exists.
+
+The theory is clear — CSA and HCA should be dramatically faster at long context and essentially free at short context (with some overhead). Let's verify this on real hardware.
 
 ---
 
@@ -369,7 +444,7 @@ xychart-beta
 
 ## Quality Evidence from the Paper
 
-We cannot verify quality directly (random weights cannot learn meaningful compression). However, the DeepSeek-V4 Technical Report provides strong indirect evidence that trained CSA/HCA preserves quality despite aggressive compression:
+Speed and memory savings mean nothing if the model's output quality collapses. We cannot verify quality directly with random weights (a randomly initialized compressor has no idea what to preserve), but the DeepSeek-V4 Technical Report provides strong indirect evidence that **trained** CSA/HCA preserves quality despite aggressive compression:
 
 | Benchmark | V3.2-Base (MLA, 37B activated) | V4-Flash-Base (CSA+HCA, 13B activated) | V4-Pro-Base (CSA+HCA, 49B activated) |
 |-----------|:-----:|:-----:|:-----:|
@@ -443,7 +518,9 @@ CSA/HCA is **complementary to**, not a replacement for, other dimensions:
 | Hybrid Linear / Mamba | High | ✅ Qwen3.5, Nemotron-3 |
 | **CSA + HCA + Lightning Indexer (FP4)** | **Very High** | **Currently only DeepSeek-V4** |
 
-The Lightning Indexer with FP4 QAT is the hardest piece — requiring custom Triton kernels (`kernel.py`, 22KB in DeepSeek's open-source code).
+The Lightning Indexer with FP4 QAT is the hardest piece — requiring custom Triton kernels (`kernel.py`, 22KB in DeepSeek's open-source code). This is why, as of mid-2026, only DeepSeek has shipped this in production.
+
+For readers who want to trace the implementation details, here is a walkthrough of the official code.
 
 ---
 
