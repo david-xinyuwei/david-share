@@ -670,6 +670,8 @@ KV @ 32K = 0.19 GiB  (−94% vs Qwen3)
 
 > **Key insight**: "Reducing the number of attention layers" (Hybrid strategy) is more effective than "compressing per-layer storage" (MLA strategy).
 
+> **🔗 Beyond these 4 architectures: A third dimension exists.** DeepSeek-V4 (2026) introduces **CSA + HCA** — sequence-length compression that compresses every m tokens into 1 KV entry plus sparse top-k selection. This is a third orthogonal dimension on top of the two covered here. See [Long-Context-Efficient-Attention](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/Long-Context-Efficient-Attention) for the full deep-dive.
+
 ---
 
 ## L4: Quantization Impact on KV Cache

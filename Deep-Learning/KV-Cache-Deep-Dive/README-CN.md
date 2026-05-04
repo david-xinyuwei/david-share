@@ -780,6 +780,8 @@ KV @ 32K     = 6 KiB × 32,768 = 0.1875 GiB ≈ 192 MiB
 
 > **关键洞察**："减少参与 Attention 的层数"（Hybrid 策略）比"压缩每层存储"（MLA 策略）更有效。Nemotron 和 Qwen3.5 都通过大幅减少 Attention 层实现了最大压缩。
 
+> **🔗 这 4 种架构之外还有第三维度。** DeepSeek-V4（2026）引入了 **CSA + HCA**——序列长度压缩，每 m 个 Token 压缩为 1 个 KV Entry + 稀疏 Top-k 选择。这是与本节两个维度正交的第三维度。详见 [Long-Context-Efficient-Attention](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/Long-Context-Efficient-Attention)。
+
 ---
 
 ## L4: 量化对 KV Cache 的影响

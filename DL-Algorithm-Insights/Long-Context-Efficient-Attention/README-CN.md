@@ -1,208 +1,340 @@
-# 长上下文高效注意力：DeepSeek-V4 的 CSA + HCA 混合架构
+# 长上下文高效注意力：DeepSeek-V4 的 CSA + HCA
 
 *Author: 魏新宇 (Xinyu Wei)*
 
-## 这是什么？
+> KV Cache 压缩第三维度的全面指南——通过学习式块压缩和稀疏选择实现序列长度维度的压缩。
 
-> **一句话**：DeepSeek-V4 引入了混合注意力架构，结合 Compressed Sparse Attention（CSA）和 Heavily Compressed Attention（HCA），在 1M Token Context 下将 KV Cache 降至约 2%、推理 FLOPs 降至约 27%——使百万 Token 推理在工程上成为可能。
+[English](README.md) | [配套阅读：KV-Cache-Deep-Dive](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive)
 
-标准 Transformer Attention 在长上下文下有两个众所周知的扩展问题：KV Cache 随序列长度线性增长（1M Token 时占数百 GB），每 Token 的 FLOPs 也线性增长。CSA+HCA 通过在序列维度上进行学习式 KV 压缩 + 稀疏 Top-k 选择，同时解决这两个问题。
+## Executive Summary
 
-## 为什么重要
+标准 Transformer Attention 在长上下文下有两个扩展问题：KV Cache 增长 O(N)，Attention FLOPs 增长 O(N²)。先前工作从两个维度攻击这些问题——层内压缩（MHA → GQA → MQA → MLA）和跨层替换（Hybrid Linear / Mamba）。DeepSeek-V4 开辟了**第三个正交维度**：通过学习式块压缩 + 稀疏 Top-k 选择实现序列长度压缩。
 
-百万 Token Context 的需求来自真实工作负载：完整代码库、长文档、多轮对话、以及随时间累积上下文的 Agent 工作流。但标准 Attention 下服务 1M Context 模型的成本是禁止性的：
+本指南分 6 个层级：
 
-| Context 长度 | KV Cache（27B, BF16） | 每 Token FLOPs |
-|:------------:|:---------------------:|:---------------:|
-| 4K | ~2 GB | 基线 |
-| 128K | ~64 GB | 32× |
-| 1M | ~500 GB | 250× |
+| 层级 | 主题 | 目标 |
+|:----:|------|------|
+| **L0** | 为什么需要又一种 Attention？ | MLA + Hybrid Mamba 之后的剩余空白 |
+| **L1** | 三个压缩维度 | 在设计空间中定位 CSA/HCA |
+| **L2** | CSA 算法 | 从第一性原理理解 Compressed Sparse Attention |
+| **L3** | HCA 算法 | Heavily Compressed Attention 及其与 CSA 的互补 |
+| **L4** | 压缩数学 | 加速来源（渐近复杂度分析） |
+| **L5** | 真实验证 | H100 Standalone Benchmark + 论文 Quality 证据 |
+| **L6** | 生产考量 | 何时使用 CSA/HCA vs 替代方案 |
 
-即使是 DeepSeek-V3 的 MLA（Multi-head Latent Attention，压缩每个 Head 的 KV 维度），序列长度维度的扩展仍然是 O(n)。
+> **前置知识**：熟悉 KV Cache 基础（MHA / GQA / MLA）。如果不熟，先读 [KV-Cache-Deep-Dive](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive) 的 **L0-L3**。
 
-**CSA+HCA 直接攻击序列维度**：不再每个 Token 存一个 KV Entry，而是将每 m 个 Token 压缩为 1 个 Entry，再通过 Top-k 选出最相关的压缩块。结果：**1M Token 下约 2% KV Cache + 约 27% FLOPs**（来源：Figure 1, DeepSeek-V4 Technical Report）。
+**关键结果**：1M Token Context 下，CSA+HCA 将 FLOPs 降至 27%（Pro）/ 10%（Flash），KV Cache 降至约 10% / 7%（vs V3.2 MLA Baseline）。在 H100 Standalone Benchmark 中（vs Naive MHA），128K Token 下测得最高 78.9× 加速。
 
 ## 在 Azure 上运行
 
-CSA+HCA 架构可以在 Azure GPU VM 上进行学习和实验。完整运行 DeepSeek-V4 模型需要多节点配置，但 Attention 机制本身可以在单 GPU 上分析和验证。
+本工作在单台 Azure H100 NVL VM 上开发和验证。
 
 ### 推荐 SKU
 
 | 组件 | 规格 |
 |------|------|
 | **VM SKU** | [Standard_NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
-| **GPU** | 1× NVIDIA H100 80 GB SXM |
-| **用途** | 代码分析、Standalone Attention Module 实验、KV Cache 大小验证 |
+| **GPU** | 1× NVIDIA H100 NVL 95 GB |
+| **用途** | Standalone CSA/HCA Module Benchmark（不需要加载完整 DeepSeek-V4 模型） |
 
 ### Technology Stack at a Glance（技术栈全景）
 
-| Category | Technique | What It Does | Impact | Detail Section |
-|----------|-----------|-------------|--------|---------------|
-| Attention（基础） | MLA-style Latent Q | Query 压缩为低秩 Latent 向量 | 降低每 Head 的 Q 计算量 | How It Works |
-| Attention（CSA） | Block KV Compression + Sparse Top-k | m 个 Token → 1 个 KV Entry，选 Top-k | ~4× KV 缩减 + 稀疏 Attention | CSA 架构 |
-| Attention（HCA） | Heavy Block Compression | m' 个 Token → 1 个 Entry（m' >> m），全 Attend | 极端 KV 缩减，提供全局视野 | HCA 架构 |
-| 局部上下文 | Sliding Window | 保留最近 n 个 Token 不压缩 | 保持局部细粒度依赖 | Sliding Window |
+| Category | Technique | Impact |
+|----------|-----------|--------|
+| Attention 基础 | MLA-style Latent Q（低秩投影） | 继承自 DeepSeek-V3 |
+| 序列压缩 | Block KV Pooling（CSA m=4，HCA m'=64） | KV Entries 从 N 降到 N/m |
+| 稀疏选择 | Lightning Indexer + FP4 加速 | O(N/m) → O(k) per token |
+| 局部 Attention | Sliding Window 分支 | 保持局部细粒度上下文 |
 
-## 工作原理
+---
 
-### 架构总览
+## L0: 为什么需要又一种 Attention 机制？
 
-> 下图展示了 DeepSeek-V4 整体架构。注意 CSA 和 HCA 层交替排列，每层都有 Sliding Window 分支。来源：Figure 2, DeepSeek-V4 Technical Report, MIT License.
+### 两个扩展问题
 
-![Figure 2: DeepSeek-V4 整体架构，CSA/HCA 交替层](images/paper_figure2_architecture.png)
+标准多头 Attention 在长上下文下有两个众所周知的扩展问题：
 
-核心洞察：**不同层服务不同目的**。
+| 资源 | 增长 | 1M Token（Qwen3-8B 等价） |
+|------|:----:|:------------------------:|
+| KV Cache | O(N) | ~144 GB（BF16） |
+| 每 Token Attention FLOPs | O(N) per token，O(N²) 总 | ~250× 4K 的成本 |
 
-| 层类型 | 压缩程度 | 选择方式 | Attend 到 | 目的 |
-|:------:|:-------:|:-------:|:---------:|------|
-| **CSA** | m Token → 1 Entry | Top-k 稀疏 | 选中的 k 个 Entry + Window | **放大镜**——找到并聚焦最相关段落 |
-| **HCA** | m' Token → 1 Entry（m' >> m） | 无（Dense） | 全部压缩 Entry + Window | **鸟瞰图**——粗略全局扫描 |
+单 GPU 装不下 144 GB KV Cache。即使 8× H100（640 GB），Batch > 1 也吃力。这是 2022 年以来所有 Attention 优化的核心瓶颈。
 
-### CSA：Compressed Sparse Attention
+### 先前工作解决了什么
 
-> 来源：Figure 3, DeepSeek-V4 Technical Report, MIT License.
+已经探索了两个正交维度：
 
-![Figure 3: CSA 核心架构——压缩、索引、选择、Attend](images/paper_figure3_csa_architecture.png)
+**维度 1——层内压缩**（详见 [KV-Cache-Deep-Dive L2.4](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive#l2-how-big-is-kv-cache)）：
+```
+MHA  →  GQA  →  MQA  →  MLA
+                       (DeepSeek-V2/V3)
+```
+这些减少**每个 Token 的 KV 大小**，但存储的 Entries 数量仍然等于 N。
 
-CSA 有四个阶段：
+**维度 2——跨层替换**（详见 [KV-Cache-Deep-Dive L3](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive#l3-four-kv-cache-reduction-architectures)）：
+```
+全 Attention  →  Hybrid Linear  →  Hybrid Mamba
+                 (Qwen3.5)         (Nemotron-3-Nano)
+```
+这些减少**需要 KV Cache 的层数**，但每个剩下的 Attention 层仍然 O(N)。
 
-**阶段 1：Block KV Compression**
+### 仍缺什么
 
-每 m 个连续 Token 通过学习式 Gated Pooling 压缩为 1 个 KV Entry：
+两个维度都让**每层的 KV Entries 数 = N**。1M Token 下，即使 MLA（每个 Latent 576 维）× 47 层 × 1M = ~50 GB/请求——仍然不可行。
+
+**空白**：没有任何生产架构沿**序列维度**进行压缩。这正是 CSA 和 HCA 做的事。
+
+### CSA/HCA 增加了什么
 
 ```
-对每个 m Token 块 [h₁, h₂, ..., hₘ]:
-  KV Entries:   C = W_kv × [h₁, ..., hₘ]        → m 个 dim c 的 Entry
-  Gate Scores:  Z = W_gate × [h₁, ..., hₘ] + APE  → m 个得分
-  压缩结果:     KV_compressed = Σ (softmax(Z) × C)  → 1 个 dim c 的 Entry
+维度 3（新）：序列长度压缩
+├─ 每 m 个 Token 压缩成 1 个 KV Entry（块压缩）
+└─ 稀疏选择 Top-k 压缩 Entries（Lightning Indexer）
 ```
 
-官方代码（`Compressor.forward()`）实现：
+结果：1M Token → ~250K Entries（CSA, m=4）→ 只 Attend Top-64 → 不论 N 多大 Attention 成本接近常数。
+
+---
+
+## L1: 三个正交压缩维度
+
+三个维度**独立可组合**。DeepSeek-V4 用 D1（MLA-style Latent Q）+ D3（CSA/HCA）。标准 GQA 模型只用 D1。Hybrid Mamba 只用 D2。
+
+![三个正交 KV Cache 压缩维度](images/three_dimensions.png)
+
+### 组合矩阵
+
+| 架构 | D1（层内） | D2（跨层） | D3（序列长度） | KV @ 32K |
+|------|:--------:|:--------:|:------------:|:--------:|
+| Llama 3 | GQA | 全 Attention | 无 | 4.5 GiB |
+| Qwen3-30B-A3B | GQA | 全 Attention | 无 | 3.0 GiB |
+| GLM-4.7-Flash | **MLA** | 全 Attention | 无 | 1.65 GiB |
+| Qwen3.5-35B-A3B | GQA | **Hybrid Linear** | 无 | 0.625 GiB |
+| Nemotron-3-Nano | GQA | **Hybrid Mamba** | 无 | 0.19 GiB |
+| **DeepSeek-V4** | **MLA-style Latent Q** | 全 Attention | **CSA + HCA** | 见 L5 |
+
+（参考数据来自 [KV-Cache-Deep-Dive L3.5](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive#35-comparison-summary)）
+
+### 关键观察
+
+DeepSeek-V4 是**第一个加入 D3 维度的生产模型**。其他架构理论上也可以采用 CSA/HCA——三个维度是正交的。
+
+---
+
+## L2: CSA — Compressed Sparse Attention
+
+### 算法概览
+
+CSA 分 4 个阶段：
+
+![CSA Pipeline：4 个阶段](images/csa_pipeline.png)
+
+### Stage 1: Block KV Compression
+
+每 m 个连续 Token 通过学习式 Gated Pooling 压缩为 1 个 KV Entry。
+
+**输入**：Hidden States H ∈ R^(B × N × D)
+**输出**：Compressed KV ∈ R^(B × N/m × c)
+
+**数学公式**（论文公式 9-12）：
+
+```
+对每个 m Token 块 [h_1, ..., h_m]:
+  KV Entries:   C  = W_kv  × H          # (B, N, c)
+  Gate Scores:  Z  = W_gate × H + APE   # (B, N, c)，APE = 学习式位置偏置
+  Reshape:      二者均到 (B, n_blocks, m, c)
+  Pooling:      KV_compressed = Σ_i softmax(Z)_i · C_i  for i ∈ [1, m]
+```
+
+APE（Absolute Position Embedding）是学习式的"块内位置偏置"，告诉模型哪些位置贡献更大。
+
+**代码**（来自官方 [`inference/model.py`](https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro/blob/main/inference/model.py) `Compressor.forward()`）：
 ```python
-kv = self.wkv(x)           # 投影到 KV 空间
-score = self.wgate(x)       # 计算 Gate 得分
-score += self.ape           # 加位置偏置
-kv = (kv * score.softmax(dim=2)).sum(dim=2)  # 加权求和 → 每块 1 个 Entry
+kv = self.wkv(x)              # KV 投影
+score = self.wgate(x)         # Gate 评分
+score += self.ape             # 加位置偏置
+kv = (kv * score.softmax(dim=2)).sum(dim=2)  # 加权池化
 ```
 
-**阶段 2：Lightning Indexer（稀疏选择）**
+### Stage 2: Lightning Indexer（稀疏选择）
 
-并非所有压缩块都相关。Lightning Indexer 用 FP4 精度对每个压缩块评分并选择 Top-k。
+压缩后有 N/m 个 Entries——1M Token 时 N/m=250K 仍然多。Lightning Indexer 评分每个压缩块并保留 Top-k。
 
-**阶段 3：Core Sparse Attention**
+**为什么叫 "Lightning"？** 用 **FP4 精度**做评分，比 FP8 快 2×，代价是 Top-k 选择是近似的（但训练后足够准）。
 
-对选出的 Top-k 压缩块 + Sliding Window KV 做 MQA Attention。
+**数学公式**（论文公式 13-17）：
 
-**阶段 4：Attention Sink**
-
-可学习的 Sink Logit，允许 Attention Score 总和不为 1——当上下文中没有真正相关内容时，模型不被迫 Attend 到无关内容。
-
-> CSA 完整数学公式（公式 9-19）。来源：Section 2.3.1, DeepSeek-V4 Technical Report, MIT License.
-
-![CSA 数学公式](images/paper_csa_formulas.png)
-
-### HCA：Heavily Compressed Attention
-
-> 来源：Figure 4, DeepSeek-V4 Technical Report, MIT License.
-
-![Figure 4: HCA 核心架构——更重的压缩，Dense Attention](images/paper_figure4_hca_architecture.png)
-
-HCA 与 CSA 有两个关键区别：
-1. **更大的块**：m' >> m（如 m'=64 vs m=4），1M Token 压缩到仅约 15K Entry
-2. **不做稀疏选择**：压缩后序列已经很短，直接 Dense Attend 全部
-
-### 与 MLA 的关系
-
-V4 论文全文**不含 "MLA" 术语**（pdftotext 全文搜索 = 0 结果）。但官方代码中：
-
-```python
-class Attention(nn.Module):
-    """Multi-head Latent Attention (MLA) with sliding window + optional KV compression."""
+```
+Latent Q:    c_t^Q = W_DQ × h_t                    # MLA-style 低秩 Q
+Index Q:     q_t^I = W_IUQ × c_t^Q                 # 上投影到 Indexer 空间
+Score:       I(t,s) = Σ_h w_h · ReLU(q_h · K_s)    # 每个压缩块 s 的得分
+Selection:   topk_idx = top-k(I(t, :))             # 只保留 Top-k 块
 ```
 
-代码自己称为 MLA。Query 路径使用与 MLA 相同的低秩 Latent 投影：`wq_a → q_norm → wq_b`。
+Latent Query `c_t^Q` **与主 Attention 路径共享**——这是 MLA 的继承。同一个低秩 Q 投影同时服务 Indexer（FP4 路径）和 Core Attention（BF16 路径）。
 
-**准确描述**：CSA/HCA 建立在 MLA 的 Latent Query 压缩**之上**，新增了序列维度 KV 压缩。论文避免使用 MLA 这个术语，因为整体机制已远超 V3 的 MLA 范畴。
+### Stage 3: Sparse Core Attention
 
-### 效率提升
+选出 Top-k 压缩块后，CSA 用 MQA（Multi-Query Attention）——所有 Query Heads 共享同一份压缩 KV。
 
-> 来源：Figure 1, DeepSeek-V4 Technical Report, MIT License.
+**数学公式**（论文公式 18-19）：
 
-![Figure 1: FLOPs 和 KV Cache 对比——V4 vs V3.2](images/paper_figure1_flops_kv_comparison.png)
+```
+Gather:    KV_selected = compressed_kv[topk_idx] ∪ window_kv
+                         (k 个稀疏选中 + window_size 个局部)
+Attention: o = softmax(q × KV_selected^T / √d) × KV_selected + attn_sink
+```
 
-| 指标 | V3.2（MLA） | V4-Pro（CSA+HCA） | V4-Flash（CSA+HCA） | 来源 |
-|------|:-----------:|:-----------------:|:-------------------:|------|
-| 单 Token FLOPs（1M ctx） | 100% | **27%** | **10%** | Figure 1 |
-| KV Cache（1M ctx） | 100% | **~10%** | **~7%** | Figure 1 |
+**Attention Sink**：可学习的 per-head logit，允许 Attention 总和小于 1。当上下文中没有真正相关的内容时，模型不被迫 Attend 到无关内容。
 
-## 与其他 Attention 机制的对比
+### Stage 4: Grouped Low-Rank Output Projection
 
-| 机制 | 压缩 KV 维度？ | 压缩序列长度？ | 稀疏选择？ | 长距离访问？ | 生产部署？ |
-|------|:------------:|:------------:|:--------:|:----------:|:--------:|
-| **MHA**（标准） | 否 | 否 | 否 | 完整 | 是 |
-| **GQA**（Llama 3） | 部分 | 否 | 否 | 完整 | 是 |
-| **MLA**（DeepSeek-V3） | 是 | 否 | 否 | 完整 | 是 |
-| **Sliding Window**（Gemma） | 否 | 是（截断） | 否 | **否** | 是 |
-| **CSA+HCA**（DeepSeek-V4） | 是 | **是** | **是** | **是** | **是** |
+对大 D（如 V4-Pro 的 7168）做完整的 W_o ∈ R^(D × D) 太贵。CSA 用**分组低秩分解**：
 
-CSA+HCA 是第一个同时具备所有五项能力的机制。
+```
+对每组 g:    o_g × W_oa[g] (低秩) → o_g × W_ob (共享) → 输出
+```
 
-### 核心代码结构
+将输出投影参数减少约 O(n_groups) 倍。
 
-官方实现在 [`inference/model.py`](https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro/blob/main/inference/model.py)（827 行，MIT License）。
+### 直觉理解
 
-| 类 | 行号 | 作用 |
-|----|:----:|------|
-| `Compressor` | 283-382 | 学习式 Gated Pooling，m Token → 1 KV Entry |
-| `Indexer` | 384-434 | Lightning Indexer：评分 + 选择 Top-k |
-| `Attention` | 436-558 | 完整 Attention：MLA 基础 + CSA/HCA + Sliding Window |
+把 1M Token 上下文想象成一本 100 万页的书，你有一个问题。
 
-`compress_ratio` 控制层类型：4 = CSA，>4 = HCA，0 = 纯 Sliding Window。
+- **标准 Attention**：把所有 100 万页通读一遍。
+- **CSA**：每 4 页做一个摘要笔记（25 万条笔记）→ 用 FP4 Lightning Indexer 快速对每个笔记打分 → 只精读 Top-64 个最相关的笔记。
 
-## 我们的实验：H100 上的 Standalone CSA/HCA Benchmark
+代价：如果 Indexer 选错了 64 条，可能漏掉关键信息。缓解措施：
+- **Sliding Window** 保留最近 N 个 Token 不压缩
+- **训练后的 Indexer** 学会哪些块通常重要
+- **Attention Sink** 允许"放弃"
 
-我们从零实现了 Standalone 的 CSA、HCA 和标准 MHA Module（无需加载任何模型权重），在 Azure H100 NVL 上验证压缩率和速度。
+---
 
-### 实验配置
+## L3: HCA — Heavily Compressed Attention
+
+### 为什么需要第二种机制？
+
+CSA 的 Top-k=64 选择可能漏掉长距离全局上下文。HCA 通过维护一个**整个序列的全局摘要**来解决这个问题。
+
+### 算法概览
+
+![HCA Pipeline：3 个阶段，无 Indexer](images/hca_pipeline.png)
+
+### 与 CSA 的关键差异
+
+| 方面 | CSA | HCA |
+|------|-----|-----|
+| 块大小 | m = 4 | m' = 64（更大） |
+| 压缩 Entries | N/m | N/m'（更少） |
+| Top-k 选择 | 是（k=64） | **否**——Dense Attend |
+| Indexer | FP4 Lightning Indexer | 无 |
+| 每 Token 成本 | O(N/m + k) | O(N/m') |
+
+**为什么不需要 Indexer？** m'=64 时，1M Token 压缩到约 15K Entries。直接 Dense Attend 全部 15K 比跑 FP4 Indexer + Top-k Gather + Sparse Attention 更便宜。
+
+### 数学公式（论文公式 20-23）
+
+```
+Compress:  与 CSA Stage 1 相同，但用 m' 而非 m
+           HCA_KV ∈ R^(B × N/m' × c)
+Attention: o = softmax(q × HCA_KV^T / √d) × HCA_KV + window 贡献
+           （无 Top-k，对所有 HCA_KV + Sliding Window 做 Dense Attention）
+```
+
+### 为什么 CSA/HCA 交替？
+
+DeepSeek-V4 用**分层交替**：
+
+```
+Layer 0:  CSA  → "放大镜"：找到并聚焦最相关段落
+Layer 1:  HCA  → "鸟瞰图"：粗略全局扫描，永不漏掉
+Layer 2:  CSA
+Layer 3:  HCA
+...
+```
+
+每对相邻层都有**精确检索**（CSA Top-k）+**全局感知**（HCA Dense）。CSA 在某层漏掉的信息能被 HCA 在下一层捕获。
+
+---
+
+## L4: 压缩数学——加速来自哪里？
+
+### 渐近复杂度
+
+序列长度 N 下生成每个 Token 的 Attention 计算：
+
+| 机制 | KV Cache 存储 | 每 Token Attention FLOPs | 备注 |
+|------|:-----------:|:-----------------------:|------|
+| 标准 MHA | O(N) | **O(N)** per token, O(N²) 总 | 完整 Attention |
+| MLA | O(N)（每条更小） | O(N) | 只压缩了每条大小 |
+| **CSA (m, k)** | **O(N/m)** | **O(N/m + k) ≈ O(k)** | k 为常数时 N 上亚线性 |
+| **HCA (m')** | **O(N/m')** | **O(N/m')** | 线性但常数极小 |
+
+### 1M Context 下的具体数字
+
+假设 m=4, k=64, m'=64（V4 典型配置）：
+
+| 指标 | 标准 MHA | MLA | CSA | HCA |
+|------|:-------:|:---:|:---:|:---:|
+| KV Entries | 1,000,000 | 1,000,000 | **250,000**（4× 少） | **15,625**（64× 少） |
+| 每 Token Attention | 1M ops | 1M ops | **~64 ops**（top-k） | **~15.6K ops** |
+| vs MHA 加速 | baseline | ~1× | **~15,000×** | **~64×** |
+
+### KV Cache 压缩倍数拆解
+
+KV Cache 减少有多个来源，**别把所有功劳归给 CSA**：
+
+| 因素 | 压缩倍数 | CSA 特有？ |
+|------|:------:|:--------:|
+| Block 压缩（m Token → 1 Entry） | 4× | **是——CSA 核心贡献** |
+| MQA（n_heads → 1 共享） | 8×（典型） | 否——MQA 通用 |
+| K+V 合并 | 2× | 否——实现细节 |
+| **Naive 总计** | **64×** | **仅 4× 是 CSA 独有** |
+
+公平对比（论文以 MLA 为 Baseline，已有 KV 压缩）：CSA 特有增益 = ~4×/层；与 MLA 组合 = ~10% KV Cache vs V3.2（论文 Figure 1）。
+
+---
+
+## L5: 真实验证
+
+### H100 上的 Standalone Benchmark
+
+我们从零实现了 CSA、HCA 和标准 MHA（无需 DeepSeek 模型权重），在 Azure H100 NVL 上测量。
+
+#### 配置
 
 | 参数 | 值 |
 |------|-----|
-| **GPU** | NVIDIA H100 NVL 95 GB（Azure，Korea Central） |
-| **框架** | PyTorch 2.7，BF16 精度 |
-| **Hidden dim** | 512 |
-| **Attention Heads** | 8 |
-| **CSA Compress Ratio (m)** | 4 |
-| **HCA Compress Ratio (m')** | 64 |
-| **CSA Top-k** | 64 |
-| **序列长度** | 1K, 4K, 16K, 32K, 64K, 128K |
+| GPU | NVIDIA H100 NVL 95 GB |
+| 框架 | PyTorch 2.7, BF16 |
+| Hidden dim | 512 |
+| Heads | 8 |
+| CSA m | 4 |
+| HCA m' | 64 |
+| CSA top-k | 64 |
+| 序列长度 | 1K, 4K, 16K, 32K, 64K, 128K |
+| 计时 | Warmup 3 + 10 次中位数 |
 
-完整实验脚本在 [`scripts/standalone_csa_benchmark.py`](scripts/standalone_csa_benchmark.py)。原始结果在 [`data/csa_benchmark_results.json`](data/csa_benchmark_results.json)。
+代码：[`scripts/standalone_csa_benchmark.py`](scripts/standalone_csa_benchmark.py)
+数据：[`data/csa_benchmark_results.json`](data/csa_benchmark_results.json)
 
-### 结果：KV Cache 压缩
+#### 结果
 
-| 序列长度 | 标准 MHA | CSA (m=4) | HCA (m=64) | CSA 压缩 | HCA 压缩 |
-|-------:|:--------:|:---------:|:----------:|:-------:|:-------:|
-| 1K | 2.10 MB | 0.03 MB | 0.00 MB | **64×** | **1024×** |
-| 4K | 8.39 MB | 0.13 MB | 0.01 MB | **64×** | **1024×** |
-| 16K | 33.6 MB | 0.52 MB | 0.03 MB | **64×** | **1024×** |
-| 32K | 67.1 MB | 1.05 MB | 0.07 MB | **64×** | **1024×** |
-| 64K | 134 MB | 2.10 MB | 0.13 MB | **64×** | **1024×** |
-| 128K | 268 MB | 4.19 MB | 0.26 MB | **64×** | **1024×** |
-
-### 结果：Forward Pass 速度
-
-| 序列长度 | 标准 MHA | CSA (m=4) | HCA (m=64) | CSA 加速 | HCA 加速 |
-|-------:|:--------:|:---------:|:----------:|:-------:|:-------:|
-| 1K | 0.12 ms | 0.28 ms | 0.18 ms | 0.4× | 0.7× |
-| 4K | 0.22 ms | 0.28 ms | 0.18 ms | 0.8× | 1.2× |
-| 16K | 1.37 ms | 0.28 ms | 0.20 ms | **4.9×** | **6.9×** |
-| 32K | 4.61 ms | 0.36 ms | 0.34 ms | **12.8×** | **13.6×** |
-| 64K | 18.5 ms | 0.58 ms | 0.87 ms | **32.0×** | **21.3×** |
-| 128K | 73.4 ms | 0.93 ms | 2.67 ms | **78.9×** | **27.5×** |
+| 序列长度 | MHA KV | CSA KV | HCA KV | MHA 时间 | CSA 时间 | HCA 时间 | CSA 加速 | HCA 加速 |
+|-------:|:------:|:------:|:------:|:-------:|:-------:|:-------:|:-------:|:-------:|
+| 1K | 2.1 MB | 0.03 MB | 0.00 MB | 0.12 ms | 0.28 ms | 0.18 ms | 0.4× | 0.7× |
+| 4K | 8.4 MB | 0.13 MB | 0.01 MB | 0.22 ms | 0.28 ms | 0.18 ms | 0.8× | 1.2× |
+| 16K | 33.6 MB | 0.52 MB | 0.03 MB | 1.37 ms | 0.28 ms | 0.20 ms | **4.9×** | **6.9×** |
+| 32K | 67.1 MB | 1.05 MB | 0.07 MB | 4.61 ms | 0.36 ms | 0.34 ms | **12.8×** | **13.6×** |
+| 64K | 134 MB | 2.10 MB | 0.13 MB | 18.5 ms | 0.58 ms | 0.87 ms | **32.0×** | **21.3×** |
+| 128K | 268 MB | 4.19 MB | 0.26 MB | 73.4 ms | 0.93 ms | 2.67 ms | **78.9×** | **27.5×** |
 
 ```mermaid
 xychart-beta
-    title "Forward Pass Time: Standard MHA vs CSA vs HCA (H100 NVL)"
+    title "Forward Pass Time on H100 NVL"
     x-axis ["1K", "4K", "16K", "32K", "64K", "128K"]
     y-axis "Time (ms)" 0 --> 80
     bar "Standard MHA" [0.12, 0.22, 1.37, 4.61, 18.5, 73.4]
@@ -210,101 +342,148 @@ xychart-beta
     bar "HCA (m=64)" [0.18, 0.18, 0.20, 0.34, 0.87, 2.67]
 ```
 
-### 分析
+#### 分析
 
-**发现 1：CSA 速度优势随序列长度超线性增长**
+1. **亚线性扩展确认**：CSA Forward 时间从 0.28ms（1K）到 0.93ms（128K）——序列增长 128× 但时间只增 3.3×，符合 O(N/m + k) 理论。
+2. **交叉点 ~8K**：8K 以下 CSA 慢于 MHA（压缩 Overhead），8K 以上 CSA 优势越来越大。
+3. **128K 时 CSA > HCA**：CSA（0.93ms）快于 HCA（2.67ms），因为 Top-k=64 让成本恒定，HCA 的 N/m' 仍线性增长。
+4. **中等长度 HCA 更快**：16K-32K 时 HCA 因无 Top-k 开销略快于 CSA。
 
-标准 MHA 的 Attention 计算为 O(n²)。CSA 压缩到 n/m 块后选 Top-k，复杂度为 O(n/m + k)——有效亚线性。128K Token 时达到 **78.9 倍加速**。CSA 超过 MHA 的交叉点约在 8K Token。
+### 本实验的局限
 
-**发现 2：中等长度 HCA 最快，超长序列 CSA 胜出**
-
-HCA 对所有压缩块做 Dense Attention（无 Top-k），复杂度为 O(n/m')——线性但常数很小。但在 128K 时 HCA 的 2.67ms 慢于 CSA 的 0.93ms，因为 CSA 的稀疏 Top-k（固定 k=64）使 Attention 开销与序列长度无关。
-
-**发现 3：短序列——压缩开销占主导**
-
-1K Token 时 CSA 比标准 MHA **慢 2.3 倍**。压缩步骤（学习式 Gated Pooling）有固定开销，只有序列够长才能回本。这解释了为什么 DeepSeek-V4 保留 Sliding Window 分支——短距离依赖用标准 Attention，长距离用 CSA/HCA。
-
-**发现 4：KV Cache 压缩率精确且与内容无关**
-
-CSA 始终精确 64× 压缩，HCA 始终精确 1024×，跨所有序列长度不变。这是算法的数学属性（m Token 块 → 1 Entry），不依赖输入内容。
-
-**发现 5：这是 Naive PyTorch 实现——生产环境会更快**
-
-我们的实现使用 Vanilla PyTorch 操作。DeepSeek 的生产代码使用 Custom Triton Kernels（`kernel.py`，22KB）+ FP4 Indexer 量化 + 优化内存访问。实际部署中的加速比我们测到的更大。
-
-### 压缩倍数拆解
-
-CSA 报告的 64× KV Cache 压缩来自三个独立因素，其中只有一个是 CSA 特有的：
-
-| 因素 | 压缩倍数 | CSA 特有？ |
-|------|:-------:|:--------:|
-| Block Compression（m=4 Token → 1 Entry） | 4× | **是——CSA 核心贡献** |
-| MQA（8 KV Heads → 1 Shared Head） | 8× | 否——MQA 通用技术 |
-| K+V 合并为单个 Tensor | 2× | 否——实现细节 |
-| **总计** | **64×** | **仅 4× 是 CSA 独有** |
-
-与论文公平对比（论文以 MLA 为 Baseline，已有 KV 维度压缩）：CSA 特有压缩率 = **4×**/层。
-
-### 本实验的局限性
-
-本实验验证的是**算法层面的工程特性**（KV Cache 大小和计算速度），不是端到端模型性能。重要注意事项：
-
-1. **未验证 Quality**：压缩是有损的。随机权重下 Compressor 和 Indexer 没有学习到保留相关信息的能力。DeepSeek-V4 的 Quality 保证完全依赖于训练这些组件。
-
-2. **Baseline 使用了 FlashAttention 2**：标准 MHA 使用 `F.scaled_dot_product_attention`（H100 上自动调用 FlashAttention 2）。CSA 使用 Naive PyTorch。78.9× 加速来自**做更少的事**（只 Attend Top-k 块），不是更快的 Kernel。
-
-3. **小维度 vs 生产**：实验 dim=512、8 Heads。生产 DeepSeek-V4 用 dim=7168+、128+ Heads + Triton Kernels + FP4 量化。结果不可直接外推。
-
-4. **随机权重 ≠ 训练后模型**：我们的 Indexer 用均值 Query 点积评分，真实 Lightning Indexer 用每 Head 可学习权重 + FP4 QAT。Top-k 选择质量会完全不同。
-
-5. **缺少 Sliding Window 分支**：我们的 Standalone Module 不包含 DeepSeek-V4 配合 CSA/HCA 使用的 Sliding Window。生产中近距 Token（Window 内）用标准 Attention。
+1. **未验证 Quality**：随机权重——Compressor 和 Indexer 没学到保留信息的能力
+2. **Baseline 用了 FlashAttention 2**：PyTorch `F.scaled_dot_product_attention` 在 H100 上自动用 FlashAttention 2，CSA 是 Naive PyTorch
+3. **小维度**：dim=512 vs 生产 dim=7168+，不可直接外推
+4. **随机 Indexer**：用均值 Q 点积，真实 Lightning Indexer 用学习式 FP4 权重
+5. **无 Sliding Window**：生产 CSA 包含 Sliding Window，我们省略了
 
 ### 来自论文的 Quality 证据
 
-虽然我们无法直接验证 Attention Quality，但 DeepSeek-V4 技术报告提供了强有力的间接证据，证明 CSA/HCA 压缩不会降低模型能力：
+虽然无法直接验证 Quality，论文提供了强有力的间接证据：
 
-| Benchmark | V3.2-Base（MLA，37B 激活） | V4-Flash-Base（CSA+HCA，13B 激活） | V4-Pro-Base（CSA+HCA，49B 激活） |
-|-----------|:-----:|:------:|:------:|
+| Benchmark | V3.2-Base（MLA, 37B 激活） | V4-Flash-Base（CSA+HCA, 13B 激活） | V4-Pro-Base（CSA+HCA, 49B 激活） |
+|-----------|:-----:|:-----:|:-----:|
 | MMLU | 87.8 | 88.7 | **90.1** |
 | MMLU-Pro | 65.5 | 68.3 | **73.5** |
 | GSM8K | 91.1 | 90.8 | **92.6** |
 | HumanEval | 62.8 | 69.5 | **76.8** |
 
-（来源：DeepSeek-V4 Technical Report，Table 1）
-
 > *"DeepSeek-V4-Flash-Base 在多数 Benchmark 上已经超过 DeepSeek-V3.2-Base。"* — 论文 Section 1
 
-V4-Flash 使用 CSA+HCA（1M Context 下约 10% KV Cache + 10% FLOPs）达到了与 V3.2 相当甚至更好的准确率。这证明训练好的 CSA/HCA Compressor 能在激进压缩下保持 Quality。
+V4-Flash 用 **13B 激活 + CSA/HCA** 达到了 V3.2 **37B 激活 + MLA** 的水平。证明训练好的 CSA/HCA 在激进压缩下仍能保持 Quality。
 
-## 决策流程图
+### 论文原图（来源材料）
 
-```mermaid
-flowchart TD
-    A["新 Token 到达"] --> B["MLA: 压缩 Query<br/>到 Latent 向量"]
-    B --> C{"层类型？"}
-    C -->|"compress_ratio = 4"| D["CSA 层"]
-    C -->|"compress_ratio > 4"| E["HCA 层"]
-    D --> D1["压缩 m Token<br/>→ 1 KV Entry"]
-    D1 --> D2["Lightning Indexer:<br/>评分 + 选择 Top-k"]
-    D2 --> D3["Sparse Attention<br/>Top-k + Sliding Window"]
-    E --> E1["压缩 m' Token<br/>→ 1 KV Entry"]
-    E1 --> E2["Dense Attention<br/>全部压缩 Entry + Window"]
-    D3 --> F["合并输出<br/>+ Attention Sink"]
-    E2 --> F
-    F --> G["Output Projection<br/>(Grouped Low-rank)"]
-    style D fill:#e3f2fd,stroke:#1976d2
-    style E fill:#fff3e0,stroke:#f57c00
-```
+下列图来自原始论文（CC-BY 4.0）：
 
-## 参考文献
+![Figure 1: V4 vs V3.2 FLOPs/KV 对比](images/paper_figure1_flops_kv_comparison.png)
+*来源：Figure 1, DeepSeek-V4 Technical Report*
 
-- DeepSeek-AI. (2026). *DeepSeek-V4: Towards Highly Efficient Million-Token Context Intelligence*. Technical Report. [HuggingFace](https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro/blob/main/DeepSeek_V4.pdf)
-- Official Inference Implementation: [inference/model.py](https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro/tree/main/inference) (MIT License)
-- DeepSeek-AI. (2024). *DeepSeek-V2*. arXiv:2405.04434.（引入 MLA）
-- DeepSeek-AI. (2025). *DeepSeek-V3 Technical Report*. arXiv:2412.19437.
-- Shazeer, N. (2019). *Fast Transformer Decoding: One Write-Head is All You Need*. arXiv:1911.02150.（MQA）
-- Ainslie, J. et al. (2023). *GQA*. arXiv:2305.13245.
+![Figure 2: V4 整体架构](images/paper_figure2_architecture.png)
+*来源：Figure 2, DeepSeek-V4 Technical Report*
+
+![Figure 3: CSA 核心架构](images/paper_figure3_csa_architecture.png)
+*来源：Figure 3, DeepSeek-V4 Technical Report*
+
+![Figure 4: HCA 核心架构](images/paper_figure4_hca_architecture.png)
+*来源：Figure 4, DeepSeek-V4 Technical Report*
+
+![CSA 数学公式](images/paper_csa_formulas.png)
+*来源：Section 2.3.1（公式 9-19）, DeepSeek-V4 Technical Report*
 
 ---
 
-*本文是 [DL-Algorithm-Insights](https://github.com/david-share/DL-Algorithm-Insights) 系列的一部分——用真实 GPU 实验解释深度学习算法。*
+## L6: 生产考量
+
+### 何时使用 CSA/HCA
+
+| 场景 | 推荐 |
+|------|------|
+| Context < 8K，Quality 关键 | 标准 MHA / GQA / MLA——CSA 开销不值 |
+| Context 8K-128K，平衡 | MLA + Hybrid Mamba（Nemotron 风格） |
+| Context 128K-1M，生产规模 | **CSA + HCA + MLA**（DeepSeek-V4 风格） |
+| 需要精确 Token 级召回 | CSA/HCA 可能丢信息——需下游评测验证 |
+
+### DeepSeek-V4 的架构选择
+
+| 组件 | 选择 | 原因 |
+|------|------|------|
+| Q 投影 | MLA-style 低秩 Latent | 继承 V3，已验证有效 |
+| KV 压缩 | CSA/HCA 块 + APE | V4 新增，启用序列维度压缩 |
+| 层模式 | CSA/HCA 交替 | 精确检索 + 全局视野 |
+| 局部上下文 | Sliding Window 分支 | 保持局部细粒度依赖 |
+| Indexer 精度 | FP4（MXFP4） | 2× 加速 + QAT 补偿精度 |
+| 输出投影 | 分组低秩 | 降低大 Hidden Dim 下的输出参数 |
+
+### 实现复杂度
+
+| 组件 | 复杂度 | 生产就绪？ |
+|------|:----:|:--------:|
+| 标准 MHA + KV Cache | 低 | ✅ 通用 |
+| GQA / MQA | 低 | ✅ Llama 3, Qwen3 |
+| MLA | 中 | ✅ DeepSeek-V2/V3 |
+| Hybrid Linear / Mamba | 高 | ✅ Qwen3.5, Nemotron-3 |
+| **CSA + HCA + Lightning Indexer (FP4)** | **极高** | **目前仅 DeepSeek-V4** |
+
+Lightning Indexer + FP4 QAT 是最难的部分——需要 Custom Triton Kernels（DeepSeek 开源代码 `kernel.py` 22KB）。
+
+---
+
+## 代码 Walkthrough 参考
+
+官方实现在 [`inference/model.py`](https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro/blob/main/inference/model.py)（827 行，MIT License）。
+
+### 核心类
+
+| 类 | 行号 | 作用 |
+|----|:----:|------|
+| `Compressor` | 283-382 | Block KV 压缩（Gated Pooling） |
+| `Indexer` | 384-434 | Lightning Indexer 稀疏 Top-k 选择 |
+| `Attention` | 436-558 | 完整 Attention：MLA + CSA/HCA + Sliding Window |
+
+### `compress_ratio` 控制层类型
+
+```python
+self.compress_ratio = args.compress_ratios[layer_id]
+```
+
+- `compress_ratio = 4`：CSA 层
+- `compress_ratio > 4`（如 64）：HCA 层
+- `compress_ratio = 0`：纯 Sliding Window
+
+---
+
+## 交叉引用
+
+| 主题 | 阅读位置 |
+|------|---------|
+| KV Cache 基础 | [KV-Cache-Deep-Dive L1](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive#l1-what-is-kv-cache) |
+| KV Cache 大小公式 | [KV-Cache-Deep-Dive L2](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive#l2-how-big-is-kv-cache) |
+| MHA / GQA / MQA / MLA 对比 | [KV-Cache-Deep-Dive L2.4](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive#24-mha-vs-mqa-vs-gqa) |
+| Hybrid Linear / Mamba 架构 | [KV-Cache-Deep-Dive L3](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive#l3-four-kv-cache-reduction-architectures) |
+| FlashAttention vs PagedAttention | [KV-Cache-Deep-Dive Appendix A](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive#appendix-a-score-matrix--flashattention--pagedattention) |
+| CSA + HCA（本文） | 本 README |
+
+## 参考文献
+
+- DeepSeek-AI. (2026). *DeepSeek-V4: Towards Highly Efficient Million-Token Context Intelligence*. Technical Report. [HuggingFace PDF](https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro/blob/main/DeepSeek_V4.pdf)
+- 官方推理代码：[DeepSeek-V4-Pro/inference/model.py](https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro/tree/main/inference)（MIT License）
+- DeepSeek-AI. (2024). *DeepSeek-V2*. arXiv:2405.04434（引入 MLA）
+- DeepSeek-AI. (2025). *DeepSeek-V3 Technical Report*. arXiv:2412.19437
+- Shazeer, N. (2019). *Fast Transformer Decoding: One Write-Head is All You Need*. arXiv:1911.02150（MQA）
+- Ainslie, J. et al. (2023). *GQA*. arXiv:2305.13245
+- 配套深度阅读：[KV-Cache-Deep-Dive](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive)
+
+---
+
+## 项目信息
+
+| 项目 | 值 |
+|------|-----|
+| Author | 魏新宇 (Xinyu Wei) |
+| 日期 | 2026-05 |
+| 验证环境 | Azure H100 NVL 95 GB（Korea Central） |
+| 来源 | DeepSeek-V4 Technical Report + 开源推理代码 |
+| 配套文章 | [KV-Cache-Deep-Dive](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive)（覆盖维度 1 和 2） |
+
+*本文是 [DL-Algorithm-Insights](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights) 系列的一部分——用真实 GPU 实验解释深度学习算法。*
