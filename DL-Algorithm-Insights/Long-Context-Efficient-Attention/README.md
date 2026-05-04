@@ -34,7 +34,7 @@ The CSA+HCA architecture can be studied and experimented with on Azure GPU VMs. 
 | **GPU** | 1× NVIDIA H100 80 GB SXM |
 | **vCPU** | 40 |
 | **RAM** | 320 GB |
-| **Purpose** | Code analysis, standalone attention module experiments, KV cache size validation |
+| **Purpose** | Standalone attention module benchmarking (validated in our experiment below) |
 
 ### Technology Stack at a Glance
 
@@ -236,6 +236,155 @@ self.compress_ratio = args.compress_ratios[layer_id]  # per-layer config
 - `compress_ratio = 0`: Pure sliding window (no compression)
 
 This elegant design means CSA and HCA share the same `Attention` class — the behavior changes based on a single integer.
+
+## Our Experiment: Standalone CSA/HCA Benchmark on H100
+
+We implemented standalone CSA, HCA, and standard MHA modules from scratch (no DeepSeek model weights needed) and benchmarked them on an Azure H100 NVL to verify the compression and speed claims.
+
+### Experiment Setup
+
+| Parameter | Value |
+|-----------|-------|
+| **GPU** | NVIDIA H100 NVL 95 GB (Azure, Korea Central) |
+| **Framework** | PyTorch 2.7, BF16 precision |
+| **Hidden dim** | 512 |
+| **Attention heads** | 8 |
+| **CSA compress ratio (m)** | 4 |
+| **HCA compress ratio (m')** | 64 |
+| **CSA top-k** | 64 |
+| **Sequence lengths** | 1K, 4K, 16K, 32K, 64K, 128K |
+| **Timing** | Warmup 3 runs + median of 10 runs |
+
+The full experiment script is in [`scripts/standalone_csa_benchmark.py`](scripts/standalone_csa_benchmark.py). Raw results are in [`data/csa_benchmark_results.json`](data/csa_benchmark_results.json).
+
+### Step-by-Step Reproduction
+
+```bash
+# 1. SSH into GPU VM
+ssh root@<your-h100-vm>
+
+# 2. Run the benchmark (no model download needed)
+python3 -u standalone_csa_benchmark.py \
+    --seq-lens 1024 4096 16384 32768 65536 131072 \
+    --output csa_results.json
+```
+
+### Results: KV Cache Compression
+
+| Seq Len | Standard MHA | CSA (m=4) | HCA (m=64) | CSA Compression | HCA Compression |
+|--------:|:------------:|:---------:|:----------:|:---------------:|:---------------:|
+| 1K | 2.10 MB | 0.03 MB | 0.00 MB | **64×** | **1024×** |
+| 4K | 8.39 MB | 0.13 MB | 0.01 MB | **64×** | **1024×** |
+| 16K | 33.6 MB | 0.52 MB | 0.03 MB | **64×** | **1024×** |
+| 32K | 67.1 MB | 1.05 MB | 0.07 MB | **64×** | **1024×** |
+| 64K | 134 MB | 2.10 MB | 0.13 MB | **64×** | **1024×** |
+| 128K | 268 MB | 4.19 MB | 0.26 MB | **64×** | **1024×** |
+
+KV cache compression is exact and deterministic: CSA achieves 64× reduction (m=4 block compression × 8 heads→1 MQA = 32×, plus BF16 factor), HCA achieves 1024× (m=64 × same factors).
+
+### Results: Forward Pass Speed
+
+| Seq Len | Standard MHA | CSA (m=4) | HCA (m=64) | CSA Speedup | HCA Speedup |
+|--------:|:------------:|:---------:|:----------:|:-----------:|:-----------:|
+| 1K | 0.12 ms | 0.28 ms | 0.18 ms | 0.4× | 0.7× |
+| 4K | 0.22 ms | 0.28 ms | 0.18 ms | 0.8× | 1.2× |
+| 16K | 1.37 ms | 0.28 ms | 0.20 ms | **4.9×** | **6.9×** |
+| 32K | 4.61 ms | 0.36 ms | 0.34 ms | **12.8×** | **13.6×** |
+| 64K | 18.5 ms | 0.58 ms | 0.87 ms | **32.0×** | **21.3×** |
+| 128K | 73.4 ms | 0.93 ms | 2.67 ms | **78.9×** | **27.5×** |
+
+```mermaid
+xychart-beta
+    title "Forward Pass Time: Standard MHA vs CSA vs HCA (H100 NVL)"
+    x-axis ["1K", "4K", "16K", "32K", "64K", "128K"]
+    y-axis "Time (ms)" 0 --> 80
+    bar "Standard MHA" [0.12, 0.22, 1.37, 4.61, 18.5, 73.4]
+    bar "CSA (m=4)" [0.28, 0.28, 0.28, 0.36, 0.58, 0.93]
+    bar "HCA (m=64)" [0.18, 0.18, 0.20, 0.34, 0.87, 2.67]
+```
+
+### Analysis
+
+**Finding 1: CSA speed advantage grows super-linearly with sequence length**
+
+Standard MHA scales as O(n²) in attention computation. CSA compresses to n/m blocks then selects top-k, making it O(n/m + k) — effectively sub-linear. At 128K tokens, this translates to **78.9× speedup**. The crossover point where CSA becomes faster than MHA is around 8K tokens.
+
+**Finding 2: HCA is fastest at medium lengths, CSA wins at very long sequences**
+
+HCA attends to all compressed blocks densely (no top-k selection), so its cost is O(n/m') which grows linearly but with a much smaller constant. However, at 128K tokens, HCA's 2.67ms is slower than CSA's 0.93ms because CSA's sparse top-k selection (fixed k=64) keeps attention cost constant regardless of sequence length.
+
+**Finding 3: Short sequences — compression overhead dominates**
+
+At 1K tokens, CSA is **2.3× slower** than standard MHA. The compression step (learned gated pooling) has fixed overhead that only pays off when the sequence is long enough. This explains why DeepSeek-V4 keeps a sliding window branch — short-range dependencies use standard attention, long-range uses CSA/HCA.
+
+**Finding 4: KV cache compression ratio is exact and independent of content**
+
+CSA consistently achieves exactly 64× compression and HCA exactly 1024× across all sequence lengths. This is a mathematical property of the algorithm (m-token blocks → 1 entry), not dependent on input content. In production, the actual savings may differ slightly due to sliding window KV entries that remain uncompressed.
+
+**Finding 5: These are naive PyTorch implementations — production would be faster**
+
+Our implementation uses vanilla PyTorch operations. DeepSeek's production code uses custom Triton kernels (`kernel.py`, 22KB) with fused operations, FP4 indexer quantization, and optimized memory access patterns. The actual speedups in DeepSeek-V4 deployment are likely even larger than what we measured.
+
+### Experiment Log
+
+```
+Device: cuda
+GPU: NVIDIA H100 NVL
+VRAM: 99.9 GB
+
+Config: dim=512, heads=8, CSA ratio=4, HCA ratio=64, topk=64
+
+============================================================
+Sequence length: 1,024
+  Standard MHA         | KV cache:     2.10 MB | Time:     0.12 ms | Peak mem: 0.045 GB
+  CSA (m=4)            | KV cache:     0.03 MB | Time:     0.28 ms | Peak mem: 0.041 GB
+  HCA (m=64)           | KV cache:     0.00 MB | Time:     0.18 ms | Peak mem: 0.039 GB
+
+============================================================
+Sequence length: 4,096
+  Standard MHA         | KV cache:     8.39 MB | Time:     0.22 ms | Peak mem: 0.061 GB
+  CSA (m=4)            | KV cache:     0.13 MB | Time:     0.28 ms | Peak mem: 0.060 GB
+  HCA (m=64)           | KV cache:     0.01 MB | Time:     0.18 ms | Peak mem: 0.052 GB
+
+============================================================
+Sequence length: 16,384
+  Standard MHA         | KV cache:    33.55 MB | Time:     1.37 ms | Peak mem: 0.136 GB
+  CSA (m=4)            | KV cache:     0.52 MB | Time:     0.28 ms | Peak mem: 0.136 GB
+  HCA (m=64)           | KV cache:     0.03 MB | Time:     0.20 ms | Peak mem: 0.102 GB
+
+============================================================
+Sequence length: 32,768
+  Standard MHA         | KV cache:    67.11 MB | Time:     4.61 ms | Peak mem: 0.237 GB
+  CSA (m=4)            | KV cache:     1.05 MB | Time:     0.36 ms | Peak mem: 0.237 GB
+  HCA (m=64)           | KV cache:     0.07 MB | Time:     0.34 ms | Peak mem: 0.169 GB
+
+============================================================
+Sequence length: 65,536
+  Standard MHA         | KV cache:   134.22 MB | Time:    18.53 ms | Peak mem: 0.438 GB
+  CSA (m=4)            | KV cache:     2.10 MB | Time:     0.58 ms | Peak mem: 0.309 GB
+  HCA (m=64)           | KV cache:     0.13 MB | Time:     0.87 ms | Peak mem: 0.303 GB
+
+============================================================
+Sequence length: 131,072
+  Standard MHA         | KV cache:   268.44 MB | Time:    73.35 ms | Peak mem: 0.841 GB
+  CSA (m=4)            | KV cache:     4.19 MB | Time:     0.93 ms | Peak mem: 0.576 GB
+  HCA (m=64)           | KV cache:     0.26 MB | Time:     2.67 ms | Peak mem: 0.572 GB
+
+============================================================
+KV Cache Compression Ratio (vs Standard MHA):
+  seq=  1,024 | CSA (m=4)  | Compression: 64.0×  | Speedup: 0.43×
+  seq=  1,024 | HCA (m=64) | Compression: 1024.0× | Speedup: 0.67×
+  seq=  4,096 | CSA (m=4)  | Compression: 64.0×  | Speedup: 0.79×
+  seq=  4,096 | HCA (m=64) | Compression: 1024.0× | Speedup: 1.22×
+  seq= 16,384 | CSA (m=4)  | Compression: 64.0×  | Speedup: 4.89×
+  seq= 16,384 | HCA (m=64) | Compression: 1024.0× | Speedup: 6.85×
+  seq= 32,768 | CSA (m=4)  | Compression: 64.0×  | Speedup: 12.81×
+  seq= 32,768 | HCA (m=64) | Compression: 1024.0× | Speedup: 13.56×
+  seq= 65,536 | CSA (m=4)  | Compression: 64.0×  | Speedup: 31.95×
+  seq= 65,536 | HCA (m=64) | Compression: 1024.0× | Speedup: 21.30×
+  seq=131,072 | CSA (m=4)  | Compression: 64.0×  | Speedup: 78.87×
+  seq=131,072 | HCA (m=64) | Compression: 1024.0× | Speedup: 27.47×
+```
 
 ## Pitfalls and Limitations
 

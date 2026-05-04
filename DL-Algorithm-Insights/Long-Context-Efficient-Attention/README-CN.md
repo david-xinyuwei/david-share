@@ -159,6 +159,79 @@ CSA+HCA 是第一个同时具备所有五项能力的机制。
 
 `compress_ratio` 控制层类型：4 = CSA，>4 = HCA，0 = 纯 Sliding Window。
 
+## 我们的实验：H100 上的 Standalone CSA/HCA Benchmark
+
+我们从零实现了 Standalone 的 CSA、HCA 和标准 MHA Module（无需加载任何模型权重），在 Azure H100 NVL 上验证压缩率和速度。
+
+### 实验配置
+
+| 参数 | 值 |
+|------|-----|
+| **GPU** | NVIDIA H100 NVL 95 GB（Azure，Korea Central） |
+| **框架** | PyTorch 2.7，BF16 精度 |
+| **Hidden dim** | 512 |
+| **Attention Heads** | 8 |
+| **CSA Compress Ratio (m)** | 4 |
+| **HCA Compress Ratio (m')** | 64 |
+| **CSA Top-k** | 64 |
+| **序列长度** | 1K, 4K, 16K, 32K, 64K, 128K |
+
+完整实验脚本在 [`scripts/standalone_csa_benchmark.py`](scripts/standalone_csa_benchmark.py)。原始结果在 [`data/csa_benchmark_results.json`](data/csa_benchmark_results.json)。
+
+### 结果：KV Cache 压缩
+
+| 序列长度 | 标准 MHA | CSA (m=4) | HCA (m=64) | CSA 压缩 | HCA 压缩 |
+|-------:|:--------:|:---------:|:----------:|:-------:|:-------:|
+| 1K | 2.10 MB | 0.03 MB | 0.00 MB | **64×** | **1024×** |
+| 4K | 8.39 MB | 0.13 MB | 0.01 MB | **64×** | **1024×** |
+| 16K | 33.6 MB | 0.52 MB | 0.03 MB | **64×** | **1024×** |
+| 32K | 67.1 MB | 1.05 MB | 0.07 MB | **64×** | **1024×** |
+| 64K | 134 MB | 2.10 MB | 0.13 MB | **64×** | **1024×** |
+| 128K | 268 MB | 4.19 MB | 0.26 MB | **64×** | **1024×** |
+
+### 结果：Forward Pass 速度
+
+| 序列长度 | 标准 MHA | CSA (m=4) | HCA (m=64) | CSA 加速 | HCA 加速 |
+|-------:|:--------:|:---------:|:----------:|:-------:|:-------:|
+| 1K | 0.12 ms | 0.28 ms | 0.18 ms | 0.4× | 0.7× |
+| 4K | 0.22 ms | 0.28 ms | 0.18 ms | 0.8× | 1.2× |
+| 16K | 1.37 ms | 0.28 ms | 0.20 ms | **4.9×** | **6.9×** |
+| 32K | 4.61 ms | 0.36 ms | 0.34 ms | **12.8×** | **13.6×** |
+| 64K | 18.5 ms | 0.58 ms | 0.87 ms | **32.0×** | **21.3×** |
+| 128K | 73.4 ms | 0.93 ms | 2.67 ms | **78.9×** | **27.5×** |
+
+```mermaid
+xychart-beta
+    title "Forward Pass Time: Standard MHA vs CSA vs HCA (H100 NVL)"
+    x-axis ["1K", "4K", "16K", "32K", "64K", "128K"]
+    y-axis "Time (ms)" 0 --> 80
+    bar "Standard MHA" [0.12, 0.22, 1.37, 4.61, 18.5, 73.4]
+    bar "CSA (m=4)" [0.28, 0.28, 0.28, 0.36, 0.58, 0.93]
+    bar "HCA (m=64)" [0.18, 0.18, 0.20, 0.34, 0.87, 2.67]
+```
+
+### 分析
+
+**发现 1：CSA 速度优势随序列长度超线性增长**
+
+标准 MHA 的 Attention 计算为 O(n²)。CSA 压缩到 n/m 块后选 Top-k，复杂度为 O(n/m + k)——有效亚线性。128K Token 时达到 **78.9 倍加速**。CSA 超过 MHA 的交叉点约在 8K Token。
+
+**发现 2：中等长度 HCA 最快，超长序列 CSA 胜出**
+
+HCA 对所有压缩块做 Dense Attention（无 Top-k），复杂度为 O(n/m')——线性但常数很小。但在 128K 时 HCA 的 2.67ms 慢于 CSA 的 0.93ms，因为 CSA 的稀疏 Top-k（固定 k=64）使 Attention 开销与序列长度无关。
+
+**发现 3：短序列——压缩开销占主导**
+
+1K Token 时 CSA 比标准 MHA **慢 2.3 倍**。压缩步骤（学习式 Gated Pooling）有固定开销，只有序列够长才能回本。这解释了为什么 DeepSeek-V4 保留 Sliding Window 分支——短距离依赖用标准 Attention，长距离用 CSA/HCA。
+
+**发现 4：KV Cache 压缩率精确且与内容无关**
+
+CSA 始终精确 64× 压缩，HCA 始终精确 1024×，跨所有序列长度不变。这是算法的数学属性（m Token 块 → 1 Entry），不依赖输入内容。
+
+**发现 5：这是 Naive PyTorch 实现——生产环境会更快**
+
+我们的实现使用 Vanilla PyTorch 操作。DeepSeek 的生产代码使用 Custom Triton Kernels（`kernel.py`，22KB）+ FP4 Indexer 量化 + 优化内存访问。实际部署中的加速比我们测到的更大。
+
 ## 决策流程图
 
 ```mermaid
