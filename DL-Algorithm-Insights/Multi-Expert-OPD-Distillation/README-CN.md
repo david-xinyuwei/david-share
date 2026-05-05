@@ -73,6 +73,8 @@ V4 选融合是因为：(1) DeepSeek 的 specialist 是全参数 RL 产出，不
 | 5 | **与 MoE 设计意图不同** | V4 用的是 *fine-grained* expert——每个专门 token 级别 pattern（某种语法结构、某类知识 token），不是一整个领域。一个“领域专家”对应几百个 fine-grained expert 的协作行为，不是 1：1 映射。 |
 
 > **一句话**：OPD 用**行为复刻**（logit 分布匹配）融合；直接塑 MoE expert 需要**零件移植**（权重插入）——后者因为零件接口不兼容而失败。
+
+排除了这两个自然替代方案后，业界最终聚焦在四种严肃的多专家融合方法上。
 ### 四种候选方案
 
 | 方案 | 机制 | 为什么不够好 |
@@ -369,108 +371,7 @@ V4 **既是 MoE 架构、又是 OPD 后训练的成果**。这是两个完全独
 | **MoE expert**（架构层） | 一个 Transformer block 内的单个 FFN 子网络，router 按 token 选 | **永久**——是模型架构的一部分 | ~256 fine-grained expert × ~60 层 = ~15K 个 expert |
 | **OPD 领域专家**（仅训练期） | 一个完整独立模型，按某领域（数学/代码/写作）全参数 RL 训出 | **仅训练期**——OPD 蒸馏后消失 | 训练时 10+，训练后 0 |
 
-同一个模型中两个层面的可视化：
-
-```mermaid
-graph TD
-    subgraph STEP1["Step 1: Tokenize (CPU)"]
-        INPUT["User input<br/>The weather is"] --> TOK["Tokenizer<br/>The→279, weather→8514, is→374"]
-    end
-
-    subgraph STEP2["Step 2: Embedding Lookup (GPU)"]
-        TOK --> EMB["Token ID → Embedding table<br/>each token → 4096-dim vector"]
-    end
-
-    subgraph STEP3["Step 3: Q/K/V Projection"]
-        EMB --> WQ["x × W_Q"]
-        EMB --> WK["x × W_K"]
-        EMB --> WV["x × W_V"]
-        WQ --> Q["Q (128d)"]
-        WK --> K["K (128d)"]
-        WV --> V["V (128d)"]
-    end
-
-    subgraph CACHE_ZONE["KV Cache — Persistent in HBM"]
-        KC["K₁ ... Kₜ<br/>V₁ ... Vₜ<br/>Append per token"]
-    end
-
-    subgraph STEP4["Step 4: Attention (CSA + HCA in V4)"]
-        SCORE["Score = Q × Kᵀ / √d"]
-        SOFT["Softmax"]
-        OUT["Output = Weight × V"]
-        SCORE --> SOFT --> OUT
-    end
-
-    subgraph STEP4B["Step 4b: Multi-Head Concat + O Proj"]
-        CONCAT["Concat heads → 4096d<br/>× o_proj → 4096d"]
-    end
-
-    subgraph STEP5_MOE["Step 5: MoE FFN (V4-Pro: 256 fine-grained experts, top-8)"]
-        ROUTER["Router (Gating Network)<br/>4096d → 256 logits<br/>softmax per expert"]
-        TOPK["Top-k Selection (k=8)<br/>Pick 8 highest-scoring experts"]
-
-        subgraph EXPERT_POOL["Expert Pool — 这些是 MoE 'experts'（不是 OPD specialist）"]
-            E1["Expert 1<br/>FFN: 4096→1408→4096"]
-            E2["Expert 2<br/>FFN: 4096→1408→4096"]
-            EDOTS["..."]
-            E256["Expert 256<br/>FFN: 4096→1408→4096"]
-            ESHR["Shared Expert<br/>(always activated)"]
-        end
-
-        WSUM["Weighted Sum<br/>Σ score_i × expert_i_output → 4096d"]
-        NEXTL["Output → next layer<br/>Repeat for ~60 layers"]
-
-        ROUTER --> TOPK
-        TOPK -->|"select"| E1
-        TOPK -->|"select"| E2
-        TOPK -.->|"..."| EDOTS
-        TOPK -->|"select"| E256
-        ESHR -->|"always on"| WSUM
-        E1 --> WSUM
-        E2 --> WSUM
-        EDOTS -.-> WSUM
-        E256 --> WSUM
-        WSUM --> NEXTL
-    end
-
-    subgraph STEP6["Step 6: LM Head"]
-        PREDICT["LM Head<br/>4096d → 150K (vocab)<br/>argmax → next token"]
-        LOOP["Generated token → back to Step 2"]
-    end
-
-    K -->|"Store"| KC
-    V -->|"Store"| KC
-    Q --> SCORE
-    KC -->|"Read all K"| SCORE
-    KC -->|"Read all V"| OUT
-    OUT --> CONCAT --> ROUTER
-    NEXTL --> PREDICT --> LOOP
-    LOOP -.->|"Decode loop"| EMB
-
-    style STEP1 fill:#E3F2FD,stroke:#1565C0,stroke-width:2px
-    style STEP2 fill:#E8EAF6,stroke:#283593,stroke-width:2px
-    style STEP3 fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px
-    style CACHE_ZONE fill:#C8E6C9,stroke:#1B5E20,stroke-width:3px
-    style STEP4 fill:#FFF3E0,stroke:#E65100,stroke-width:2px
-    style STEP4B fill:#FFF9C4,stroke:#F9A825,stroke-width:2px
-    style STEP5_MOE fill:#F3E5F5,stroke:#7B1FA2,stroke-width:3px
-    style EXPERT_POOL fill:#FFFFFF,stroke:#7B1FA2,stroke-width:1px,stroke-dasharray:4 4
-    style STEP6 fill:#FCE4EC,stroke:#C62828,stroke-width:2px
-    style KC fill:#4CAF50,color:#fff
-    style ROUTER fill:#9C27B0,color:#fff
-    style TOPK fill:#BA68C8,color:#fff
-    style ESHR fill:#FFB74D
-    style E1 fill:#CE93D8
-    style E2 fill:#CE93D8
-    style E256 fill:#CE93D8
-    style SCORE fill:#FF9800,color:#fff
-    style Q fill:#FFE082
-    style K fill:#A5D6A7
-    style V fill:#A5D6A7
-    style CONCAT fill:#FFF176
-```
-
-> 🖼️ 上图中的架构 “experts”（Step 5 Expert Pool）是 FFN 子网络，**不是** OPD 的领域专家模型。OPD specialist 从不出现在推理阶段——它们仅存在于训练期，行为被蒸馏进上图所有参数里（router、每个 expert FFN、每个 attention 层、每个 embedding 行）。
+要可视化 V4 Transformer 内部的架构层 MoE——看清 fine-grained FFN expert 相对于 Attention、KV Cache 和其他组件的位置——请看 [KV-Cache-Deep-Dive 中的完整 MoE Transformer 流水线图](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive#moe-variant-when-step-5-becomes-a-mixture-of-experts)。核心要点：每个 MoE "expert" 是一个小 FFN（如 4096→1408→4096），由 router 逐 token 选择。OPD specialist 是整个几千亿参数的模型。它们是完全不同的东西。
 
 ### OPD 蒸馏的能力最终去了哪里？
 
@@ -478,7 +379,7 @@ graph TD
 
 1. **Embedding** 层激活数学相关的 token embedding
 2. **Attention** 层（CSA/HCA）关注数学相关上下文
-3. Step 5 的 **Router** 把 token 调度给那些在 OPD 训练中成为数学 token pattern 专家的 MoE expert（这是自动的——梯度下降决定呓个 expert 处理呓个 pattern）
+3. Step 5 的 **Router** 把 token 调度给那些在 OPD 训练中成为数学 token pattern 专家的 MoE expert（这是自动的——梯度下降决定哪个 expert 处理哪个 pattern）
 4. **多个 MoE expert** 给出加权输出（没有任何单一 expert “是”那个数学专家）
 5. **LM Head** 映射到数学相关词表
 

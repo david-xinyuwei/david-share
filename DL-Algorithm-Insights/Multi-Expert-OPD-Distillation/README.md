@@ -75,6 +75,8 @@ Another natural reaction: "V4 is already a MoE architecture with hundreds of exp
 
 > **Bottom line**: OPD merges by **behavior replication** (logit distribution matching). Direct MoE injection would require **part transplantation** (weight insertion) — which fails because the parts don't have compatible interfaces.
 
+With these two natural alternatives ruled out, the field has converged on four serious approaches for multi-expert merging.
+
 ### The four candidate approaches
 
 | Approach | Mechanism | Why it falls short |
@@ -371,108 +373,7 @@ V4 is **both a MoE architecture and a recipient of OPD post-training**. These ar
 | **MoE expert** (architectural) | A single FFN sub-network within one Transformer block, selected by a router per-token | **Permanent** — part of the model architecture | ~256 fine-grained experts × ~60 layers = ~15K experts total |
 | **OPD "specialist expert"** (training-only) | A complete standalone model trained on one domain (math, code, writing, etc.) via full-parameter RL | **Training-only** — disappears after OPD distillation | 10+ during training, 0 after |
 
-Visualizing both layers in the same model:
-
-```mermaid
-graph TD
-    subgraph STEP1["Step 1: Tokenize (CPU)"]
-        INPUT["User input<br/>The weather is"] --> TOK["Tokenizer<br/>The→279, weather→8514, is→374"]
-    end
-
-    subgraph STEP2["Step 2: Embedding Lookup (GPU)"]
-        TOK --> EMB["Token ID → Embedding table<br/>each token → 4096-dim vector"]
-    end
-
-    subgraph STEP3["Step 3: Q/K/V Projection"]
-        EMB --> WQ["x × W_Q"]
-        EMB --> WK["x × W_K"]
-        EMB --> WV["x × W_V"]
-        WQ --> Q["Q (128d)"]
-        WK --> K["K (128d)"]
-        WV --> V["V (128d)"]
-    end
-
-    subgraph CACHE_ZONE["KV Cache — Persistent in HBM"]
-        KC["K₁ ... Kₜ<br/>V₁ ... Vₜ<br/>Append per token"]
-    end
-
-    subgraph STEP4["Step 4: Attention (CSA + HCA in V4)"]
-        SCORE["Score = Q × Kᵀ / √d"]
-        SOFT["Softmax"]
-        OUT["Output = Weight × V"]
-        SCORE --> SOFT --> OUT
-    end
-
-    subgraph STEP4B["Step 4b: Multi-Head Concat + O Proj"]
-        CONCAT["Concat heads → 4096d<br/>× o_proj → 4096d"]
-    end
-
-    subgraph STEP5_MOE["Step 5: MoE FFN (V4-Pro: 256 fine-grained experts, top-8)"]
-        ROUTER["Router (Gating Network)<br/>4096d → 256 logits<br/>softmax per expert"]
-        TOPK["Top-k Selection (k=8)<br/>Pick 8 highest-scoring experts"]
-
-        subgraph EXPERT_POOL["Expert Pool — these are MoE 'experts' (NOT the OPD specialists)"]
-            E1["Expert 1<br/>FFN: 4096→1408→4096"]
-            E2["Expert 2<br/>FFN: 4096→1408→4096"]
-            EDOTS["..."]
-            E256["Expert 256<br/>FFN: 4096→1408→4096"]
-            ESHR["Shared Expert<br/>(always activated)"]
-        end
-
-        WSUM["Weighted Sum<br/>Σ score_i × expert_i_output → 4096d"]
-        NEXTL["Output → next layer<br/>Repeat for ~60 layers"]
-
-        ROUTER --> TOPK
-        TOPK -->|"select"| E1
-        TOPK -->|"select"| E2
-        TOPK -.->|"..."| EDOTS
-        TOPK -->|"select"| E256
-        ESHR -->|"always on"| WSUM
-        E1 --> WSUM
-        E2 --> WSUM
-        EDOTS -.-> WSUM
-        E256 --> WSUM
-        WSUM --> NEXTL
-    end
-
-    subgraph STEP6["Step 6: LM Head"]
-        PREDICT["LM Head<br/>4096d → 150K (vocab)<br/>argmax → next token"]
-        LOOP["Generated token → back to Step 2"]
-    end
-
-    K -->|"Store"| KC
-    V -->|"Store"| KC
-    Q --> SCORE
-    KC -->|"Read all K"| SCORE
-    KC -->|"Read all V"| OUT
-    OUT --> CONCAT --> ROUTER
-    NEXTL --> PREDICT --> LOOP
-    LOOP -.->|"Decode loop"| EMB
-
-    style STEP1 fill:#E3F2FD,stroke:#1565C0,stroke-width:2px
-    style STEP2 fill:#E8EAF6,stroke:#283593,stroke-width:2px
-    style STEP3 fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px
-    style CACHE_ZONE fill:#C8E6C9,stroke:#1B5E20,stroke-width:3px
-    style STEP4 fill:#FFF3E0,stroke:#E65100,stroke-width:2px
-    style STEP4B fill:#FFF9C4,stroke:#F9A825,stroke-width:2px
-    style STEP5_MOE fill:#F3E5F5,stroke:#7B1FA2,stroke-width:3px
-    style EXPERT_POOL fill:#FFFFFF,stroke:#7B1FA2,stroke-width:1px,stroke-dasharray:4 4
-    style STEP6 fill:#FCE4EC,stroke:#C62828,stroke-width:2px
-    style KC fill:#4CAF50,color:#fff
-    style ROUTER fill:#9C27B0,color:#fff
-    style TOPK fill:#BA68C8,color:#fff
-    style ESHR fill:#FFB74D
-    style E1 fill:#CE93D8
-    style E2 fill:#CE93D8
-    style E256 fill:#CE93D8
-    style SCORE fill:#FF9800,color:#fff
-    style Q fill:#FFE082
-    style K fill:#A5D6A7
-    style V fill:#A5D6A7
-    style CONCAT fill:#FFF176
-```
-
-> 🖼️ The architectural "experts" shown above (in the Step 5 Expert Pool) are FFN sub-networks, **not** OPD's domain-specialist models. The OPD specialists never appear at inference — they only existed during training, and their behaviors were distilled into all the parameters above (the router, every expert FFN, every attention layer, every embedding row).
+Visualizing the architectural MoE inside V4's Transformer — to make clear where the fine-grained FFN experts live relative to Attention, KV Cache, and other components — see the full MoE Transformer pipeline diagram in [KV-Cache-Deep-Dive](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive#moe-variant-when-step-5-becomes-a-mixture-of-experts). Key takeaway: each MoE "expert" is a small FFN (e.g., 4096→1408→4096), selected per-token by a router. An OPD specialist is an entire multi-hundred-billion-parameter model. They are fundamentally different things.
 
 ### Where do the OPD-distilled capabilities end up?
 
