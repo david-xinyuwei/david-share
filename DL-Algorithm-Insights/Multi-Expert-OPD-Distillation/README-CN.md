@@ -415,6 +415,145 @@ OPD 在学术界已经研究了几年。V4 贡献的诚实拆解：
 
 ---
 
+## OPD 在 GKD 框架下的位置：所有蒸馏方法的统一视图
+
+OPD 不是独立方法——它实际上是更通用框架 **GKD（Generalized Knowledge Distillation，泛化知识蒸馏）** 的一个**特定配置**。GKD 由 Agarwal 等人（Google DeepMind, 2023）提出。理解 GKD 让 OPD 的设计空间一目了然。
+
+### GKD 统一损失函数
+
+GKD 用两个超参数把所有蒸馏方法参数化：
+
+```
+GKD Loss = (1 - lmbda) × KL_offline + lmbda × KL_on_policy
+                                                ↑
+                              "lmbda" 控制 on-policy 比例
+                              0 = 纯 offline, 1 = 纯 on-policy
+
+KL_inner = (1 - beta) × Forward_KL + beta × Reverse_KL
+                                              ↑
+                              "beta" 控制 KL 方向
+                              0 = 纯 forward KL, 1 = 纯 reverse KL
+```
+
+### 所有蒸馏方法都是 GKD 的某个配置
+
+| 配置 | 方法 | Trajectory 来源 | KL 方向 |
+|------|-----|---|---|
+| `lmbda=0, beta=0` | 经典 SFT 蒸馏 | Teacher | Forward |
+| `lmbda=0, beta=1` | Sequence-level KD + reverse KL | Teacher | Reverse |
+| `lmbda=1, beta=0` | On-policy + forward KL | Student | Forward |
+| **`lmbda=1, beta=1`** | **OPD（V4 选择）** | **Student** | **Reverse** |
+| `lmbda=0.5, beta=0.5` | 混合配置 | 50/50 | 50/50 |
+
+DeepSeek-V4 的 OPD 是边界情况：**最大 on-policy + 最大 reverse KL**。
+
+这个泛化性正是为什么 TRL 的 `GKDTrainer` 是开始 OPD 实验最简单的方式：**设 `lmbda=1.0, beta=1.0` 就是 OPD**。
+
+> 🔗 GKD 论文：Agarwal et al., *On-Policy Distillation of Language Models: Learning from Self-Generated Mistakes*, NeurIPS 2024 (arXiv:2306.13649)。DeepMind 官方实现：https://github.com/google-deepmind/gkd
+
+### KL 方向问题，直觉理解
+
+常见困惑："如果 `beta=0`（forward KL）让 student 覆盖 teacher 所有 mode，为什么 V4 选 `beta=1`（reverse KL）放弃某些 mode？"
+
+答案：student 容量有限，无法完美拟合多峰 teacher 分布。被迫近似时，两个 KL 方向产生相反行为：
+
+```
+Teacher 分布（多峰，比如一道数学题有 3 种合理表述）：
+   ▲
+   │ ████        ████        ████
+   │ ████        ████        ████
+   └──────────────────────────────
+      "84"     "answer:84"  "= 84"
+       0.4         0.3         0.3
+
+Forward KL（mode-covering）：
+   ▲
+   │ ████   ███        ████        
+   │ ████   █████      ████        ← 概率铺平到所有 mode
+   │ ████   ███████    ████        ← 输出：随机折中的怪东西
+   └──────────────────────────────
+
+Reverse KL（mode-seeking）：
+   ▲
+   │ ████████                       ← 集中赌一个 mode
+   │ ████████                        
+   │ ████████                       ← 输出：果断的单一答案
+   └──────────────────────────────
+```
+
+对 LLM 生成（每个位置必须选一个具体 token），reverse KL 的 **mode-seeking** 行为产生果断、连贯的输出。Forward KL 产生犹豫、混合的输出，往往不对应 teacher 任何一个真实 mode。
+
+这就是为什么 OPD 专门选反向 KL——不是因为它能捕获更多信息，而是因为它**学到了适合自回归生成的行为类型**。
+
+---
+
+## OPD 代码生态（2026 现实检查）
+
+虽然 DeepSeek 没开源 V4 OPD 代码，但更广泛的生态已经成熟。截至 2026-05，OPD 被以下生产模型使用：**Qwen3、MiMo-V2-Flash（小米）、GLM-5（智谱）、Baichuan-M3、Nemotron-Cascade 2（NVIDIA）、DeepSeek-V4**——它已经不是研究奇技。
+
+### 今天就可以 fork 的可用实现
+
+| Repo | URL | Stars | 适合 |
+|------|------|:----:|------|
+| **HuggingFace TRL `GKDTrainer`** | https://github.com/huggingface/trl | 15.7k | 单 teacher OPD 最快路径（设 `lmbda=1.0, beta=1.0`） |
+| **songmzhang/KDFlow** ⭐ | https://github.com/songmzhang/KDFlow | 122 | LLM 蒸馏专用框架，SGLang teacher inference + FSDP2 student training |
+| **NVIDIA NeMo-RL** | https://github.com/NVIDIA-NeMo/RL | — | 多教师 + 跨 tokenizer 大规模 |
+| **MS-SWIFT (阿里)** | https://github.com/modelscope/ms-swift | 14k | 内置 GKD trainer（`examples/train/rlhf/gkd/`） |
+| **OpenRLHF** | https://github.com/OpenRLHF/OpenRLHF | 9.4k | Ray + vLLM + DeepSpeed；reward 函数可定制做 OPD |
+| **verl-project/verl** (字节) | https://github.com/verl-project/verl | 21.1k | 大量 OPD 论文 fork verl 作为 base |
+| **agentica-project/AReaL** | — | — | OPD over student-sampled trajectories |
+| **THUDM/slime（智谱）** | https://github.com/THUDM/slime | — | 统一 RL stack 支持 OPD |
+
+### Awesome list 与元资源
+
+- **OPD 精选 list**：https://github.com/chrisliu298/awesome-on-policy-distillation （~32 stars，每日更新）—— 包含 ~21 篇核心 OPD 论文 + 13 个训练框架
+- **平行 awesome list**：https://github.com/nick7nlp/Awesome-LLM-On-Policy-Distillation
+- **最佳概念博客**：https://thinkingmachines.ai/blog/on-policy-distillation/ （Thinking Machines 出品）
+- **GOLD 实战教程**（HuggingFace H4，附 TRL 代码）：https://huggingface.co/spaces/HuggingFaceH4/on-policy-distillation
+- **OPD Survey 论文**：arXiv 2604.00626 (2026)
+
+### 工业界使用 OPD 的模型（来自技术报告）
+
+| 年份 | 模型 | OPD 用法 |
+|------|------|---------|
+| 2025 | Qwen3 / Qwen3-Omni | Strong-to-weak: off-policy 然后 on-policy distillation |
+| 2026 | **MiMo-V2-Flash**（小米） | **Multi-Teacher OPD (MOPD)** 作为主要 post-training 阶段 ⭐ |
+| 2026 | GLM-5（智谱） | On-policy cross-stage distillation |
+| 2026 | Nemotron-Cascade 2（NVIDIA） | Cascade RL + multi-domain OPD |
+| 2026 | **Baichuan-M3** | 三阶段：task RL → offline policy distillation → **multi-teacher OPD** ⭐ |
+| 2026 | **DeepSeek-V4** | 两阶段：domain-expert SFT+GRPO → unified model OPD |
+| 2026 | HY-Embodied-0.5（腾讯混元） | 32B → 2B large-to-small OPD |
+
+> 截至 2026 年中，开源独立复现 V4 multi-teacher OPD 的窗口期仍然开放。
+
+### 按角色快速起步
+
+| 目标 | 推荐路径 |
+|------|---------|
+| 快速跑通单教师 OPD | **TRL `GKDTrainer`** + `lmbda=1.0, beta=1.0` |
+| 生产级 OPD 框架 | **KDFlow**（LLM 蒸馏专用，文档详细） |
+| 多教师 OPD（最贴近 V4） | **NeMo-RL** 或在 KDFlow 上扩展 + 参考 MiMo-V2 MOPD recipe |
+| 基于 verl 生态 | **HJSang/OPSD_OnPolicyDistillation** + 自加 multi-teacher 循环 |
+
+---
+
+## 常见混淆：OPD ≠ 速度场蒸馏
+
+熟悉 diffusion 模型的工程师可能听过"速度场蒸馏"（Flow Matching、Lightning 等）用于图像生成。**OPD 不是这个。** 快速澄清：
+
+| 概念 | OPD（LLM） | 速度场蒸馏（Diffusion） |
+|------|---|---|
+| 领域 | 自回归 LLM | Diffusion 图像/视频生成 |
+| 学的对象 | 类别 token 分布（~150K 维） | 连续速度向量（~1024 维） |
+| Loss 类型 | **反向 KL 散度** | **MSE on velocity** |
+| 目标 | 多专家能力融合 | 减少推理步数（50 → 8） |
+| Teacher 信号 | 词表上的概率 | 每个 timestep 的速度预测 |
+| 例子 | DeepSeek-V4、Qwen3、GLM-5 | Stable Diffusion 3、Flux、Qwen-Image-Lightning |
+
+这是两种完全不同的方法，碰巧都叫 "distillation"。讨论 LLM 蒸馏时，OPD/GKD 是相关家族；讨论 diffusion 模型蒸馏时，Step Distillation（Progressive Distillation、ADD、Lightning、Hyper-SD）是相关家族。
+
+---
+
 ## OPD 实现：骨架代码
 
 PyTorch 单 GPU 上的最小 OPD 训练循环（演示，非生产）：

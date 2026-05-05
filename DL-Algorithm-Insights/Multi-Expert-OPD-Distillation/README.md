@@ -417,6 +417,145 @@ In short: the **OPD method itself is not new**. What V4 contributes is (1) the s
 
 ---
 
+## OPD in the GKD Framework: Where It Sits Among All Distillation Methods
+
+OPD is not a standalone method — it's actually a **specific configuration** of a more general framework called **GKD (Generalized Knowledge Distillation)** by Agarwal et al. (Google DeepMind, 2023). Understanding GKD makes the OPD design space crystal clear.
+
+### The GKD unified loss
+
+GKD parameterizes all distillation methods with two knobs:
+
+```
+GKD Loss = (1 - lmbda) × KL_offline + lmbda × KL_on_policy
+                                                ↑
+                              "lmbda" controls on-policy ratio
+                              0 = pure offline, 1 = pure on-policy
+
+KL_inner = (1 - beta) × Forward_KL + beta × Reverse_KL
+                                              ↑
+                              "beta" controls KL direction
+                              0 = pure forward KL, 1 = pure reverse KL
+```
+
+### All distillation methods are GKD configurations
+
+| Configuration | Method | Trajectory Source | KL Direction |
+|---------------|--------|-------------------|--------------|
+| `lmbda=0, beta=0` | Classic SFT distillation | Teacher | Forward |
+| `lmbda=0, beta=1` | Sequence-level KD with reverse KL | Teacher | Reverse |
+| `lmbda=1, beta=0` | On-policy + forward KL | Student | Forward |
+| **`lmbda=1, beta=1`** | **OPD (V4's choice)** | **Student** | **Reverse** |
+| `lmbda=0.5, beta=0.5` | Hybrid mode | 50/50 mix | 50/50 mix |
+
+DeepSeek-V4's OPD is the corner case: **maximum on-policy + maximum reverse KL**.
+
+This generality is why TRL's `GKDTrainer` is the easiest way to start experimenting with OPD-style training: **set `lmbda=1.0, beta=1.0` and you have OPD**.
+
+> 🔗 GKD paper: Agarwal et al., *On-Policy Distillation of Language Models: Learning from Self-Generated Mistakes*, NeurIPS 2024 (arXiv:2306.13649). The official DeepMind implementation is at https://github.com/google-deepmind/gkd.
+
+### The KL direction question, intuitively
+
+A common confusion: "If `beta=0` (forward KL) keeps the student covering all teacher modes, why would V4 choose `beta=1` (reverse KL) which 'drops' some modes?"
+
+The answer: student capacity is finite, so it can't perfectly fit a multi-modal teacher distribution. Forced to approximate, the two KL directions produce opposite behaviors:
+
+```
+Teacher distribution (multi-modal, e.g., a math problem with 3 valid phrasings):
+   ▲
+   │ ████        ████        ████
+   │ ████        ████        ████
+   └──────────────────────────────
+      "84"        "answer:84"  "= 84"
+       0.4          0.3          0.3
+
+Forward KL (mode-covering):
+   ▲
+   │ ████   ███        ████        
+   │ ████   █████      ████        ← Spreads probability across all modes
+   │ ████   ███████    ████        ← Output: random middling guesses
+   └──────────────────────────────
+
+Reverse KL (mode-seeking):
+   ▲
+   │ ████████                       ← Picks one mode and commits
+   │ ████████                        
+   │ ████████                       ← Output: confident single answer
+   └──────────────────────────────
+```
+
+For LLM generation, where each position must commit to one token, the **mode-seeking** behavior of reverse KL produces decisive, coherent outputs. Forward KL produces hesitant, blended outputs that often don't even correspond to any of the teacher's actual modes.
+
+This is why OPD specifically uses reverse KL — not because it captures more information, but because it **learns the right kind of behavior for autoregressive generation**.
+
+---
+
+## OPD Code Ecosystem (2026 Reality Check)
+
+Despite DeepSeek not open-sourcing V4's OPD code, the broader ecosystem has matured significantly. As of 2026-05, OPD is used in production at **Qwen3, MiMo-V2-Flash (Xiaomi), GLM-5 (Zhipu), Baichuan-M3, Nemotron-Cascade 2 (NVIDIA), DeepSeek-V4** — it's no longer a research curiosity.
+
+### Working implementations you can fork today
+
+| Repo | URL | Stars | Best for |
+|------|------|:----:|----------|
+| **HuggingFace TRL `GKDTrainer`** | https://github.com/huggingface/trl | 15.7k | Fastest path to single-teacher OPD (set `lmbda=1.0, beta=1.0`) |
+| **songmzhang/KDFlow** ⭐ | https://github.com/songmzhang/KDFlow | 122 | LLM-distillation-specific framework, SGLang teacher inference + FSDP2 student training |
+| **NVIDIA NeMo-RL** | https://github.com/NVIDIA-NeMo/RL | — | Multi-teacher + cross-tokenizer at scale |
+| **MS-SWIFT (Alibaba)** | https://github.com/modelscope/ms-swift | 14k | GKD trainer built-in (`examples/train/rlhf/gkd/`) |
+| **OpenRLHF** | https://github.com/OpenRLHF/OpenRLHF | 9.4k | Ray + vLLM + DeepSpeed; reward function customizable for OPD-style loss |
+| **verl-project/verl** (ByteDance) | https://github.com/verl-project/verl | 21.1k | Many OPD papers fork verl as the base |
+| **agentica-project/AReaL** | — | — | OPD over student-sampled trajectories with teacher log-prob guidance |
+| **THUDM/slime (Zhipu)** | https://github.com/THUDM/slime | — | Unified RL stack supporting OPD |
+
+### Awesome lists and meta-resources
+
+- **Curated OPD list**: https://github.com/chrisliu298/awesome-on-policy-distillation (~32 stars, daily updates) — includes ~21 core OPD papers and 13 training frameworks
+- **Parallel awesome list**: https://github.com/nick7nlp/Awesome-LLM-On-Policy-Distillation
+- **Best conceptual blog**: https://thinkingmachines.ai/blog/on-policy-distillation/ (Thinking Machines)
+- **GOLD walkthrough** (HuggingFace H4, with TRL code): https://huggingface.co/spaces/HuggingFaceH4/on-policy-distillation
+- **OPD survey paper**: arXiv 2604.00626 (2026)
+
+### Industry models using OPD (verified from technical reports)
+
+| Year | Model | OPD Application |
+|------|-------|-----------------|
+| 2025 | Qwen3 / Qwen3-Omni | Strong-to-weak: off-policy then on-policy distillation |
+| 2026 | **MiMo-V2-Flash** (Xiaomi) | **Multi-Teacher OPD (MOPD)** as main post-training stage ⭐ |
+| 2026 | GLM-5 (Zhipu) | On-policy cross-stage distillation |
+| 2026 | Nemotron-Cascade 2 (NVIDIA) | Cascade RL + multi-domain OPD |
+| 2026 | **Baichuan-M3** | Three-stage: task RL → offline policy distillation → **multi-teacher OPD** ⭐ |
+| 2026 | **DeepSeek-V4** | Two-stage: domain-expert SFT+GRPO → unified model OPD |
+| 2026 | HY-Embodied-0.5 (Tencent) | 32B → 2B large-to-small OPD |
+
+> The window for an open-source independent reproduction of V4's multi-teacher OPD remains open as of mid-2026.
+
+### Quick-start by role
+
+| Goal | Recommended path |
+|------|------------------|
+| Quickly run single-teacher OPD | **TRL `GKDTrainer`** with `lmbda=1.0, beta=1.0` |
+| Production-grade OPD framework | **KDFlow** (LLM-distillation-specific, well-documented) |
+| Multi-teacher OPD (closest to V4) | **NeMo-RL** or extend KDFlow with MiMo-V2 MOPD recipe |
+| Build on verl ecosystem | **HJSang/OPSD_OnPolicyDistillation** + add multi-teacher loop |
+
+---
+
+## Common Confusion: OPD ≠ Velocity Field Distillation
+
+Engineers familiar with diffusion models may have heard about "velocity field distillation" (Flow Matching, Lightning, etc.) used in diffusion image generation. **OPD is not this.** Quick disambiguation:
+
+| Concept | OPD (LLM) | Velocity Field Distillation (Diffusion) |
+|---------|---|---|
+| Domain | Autoregressive LLM | Diffusion image/video generation |
+| What is learned | Categorical token distribution (~150K dim) | Continuous velocity vector (~1024 dim) |
+| Loss type | **Reverse KL divergence** | **MSE on velocity** |
+| Goal | Multi-expert capability fusion | Reduce inference steps (50 → 8) |
+| Teacher signal | Probability over vocabulary | Velocity prediction at each timestep |
+| Examples | DeepSeek-V4, Qwen3, GLM-5 | Stable Diffusion 3, Flux, Qwen-Image-Lightning |
+
+These are completely different methods that share the word "distillation". When discussing distillation for LLMs, OPD/GKD is the relevant family. When discussing distillation for diffusion models, Step Distillation (Progressive Distillation, ADD, Lightning, Hyper-SD) is the relevant family.
+
+---
+
 ## Implementing OPD: Skeleton Code
 
 A minimal, single-GPU OPD training loop in PyTorch (illustrative, not production):
