@@ -152,566 +152,6 @@ Notice: the student is being scored on **its own decomposition strategy** ("12 �
 
 ---
 
-## The Math: Why Reverse KL?
-
-The OPD objective from the V4 paper (Equation 29):
-
-$$L_{OPD}(\theta) = \sum_{i=1}^{N} w_i \cdot D_{KL}(\pi_\theta \,\|\, \pi_{E_i})$$
-
-Three things are worth unpacking here.
-
-### 1. The KL is reverse, not forward
-
-| Direction | Formula | Behavior |
-|-----------|---------|----------|
-| **Forward KL** `D_KL(π_E ‖ π_θ)` | `Σ π_E(v) · [log π_E(v) − log π_θ(v)]` | "Mode-covering" — student tries to put non-zero probability everywhere the teacher does. Common in offline distillation. |
-| **Reverse KL** `D_KL(π_θ ‖ π_E)` | `Σ π_θ(v) · [log π_θ(v) − log π_E(v)]` | "Mode-seeking" — student concentrates on the teacher's high-probability modes. |
-
-OPD uses **reverse KL** because:
-- Trajectories are sampled from `π_θ` (the student), so it's natural to weight by `π_θ(v)`
-- Mode-seeking behavior produces sharper, more decisive student outputs (better for generation)
-- Forward KL on student-sampled trajectories would have high variance because we'd be evaluating teacher probability on tokens the student rarely picks
-
-### 2. The expectation is over student trajectories
-
-The KL is computed at every token in a student-sampled trajectory. This is the "on-policy" part:
-
-$$D_{KL}(\pi_\theta \,\|\, \pi_{E_i}) = \mathbb{E}_{y \sim \pi_\theta}\left[\sum_{t} \sum_v \pi_\theta(v|y_{<t}) \log \frac{\pi_\theta(v|y_{<t})}{\pi_{E_i}(v|y_{<t})}\right]$$
-
-If we sampled from the teacher instead, this would degenerate into offline distillation.
-
-### 3. The weights `w_i` route by domain implicitly
-
-The paper explains:
-> *"the unified policy π_θ selectively learns from the specialized expert relevant to the current task context (e.g., aligning with the mathematics expert for math reasoning tasks and the coding expert for programming tasks)."*
-
-This works because each teacher's distribution is sharp on its own domain and flat on others. When the trajectory is a math problem, only the math expert produces low-loss gradients; other teachers contribute roughly uniform-distribution noise that cancels out.
-
-So even though all teachers are summed, each task naturally aligns with its corresponding expert. This is much simpler than explicit task routing.
-
----
-
-## Multi-Expert OPD at Scale
-
-<div align="center">
-  <img src="images/multi_teacher_opd.png" width="600" alt="Multi-Expert OPD Pipeline">
-  <p><em>Multi-Expert OPD: student samples → all teachers score → weighted KL gradient updates student.</em></p>
-</div>
-
-DeepSeek-V4 distills from **10+ teachers** simultaneously. The naive implementation has two showstopper problems:
-
-### Problem 1 — Logit storage explodes
-
-Storing full-vocabulary logits at every token, for every teacher, for every training sample:
-
-- Vocabulary size `|V| > 100,000` (Qwen3, DeepSeek-V3 series)
-- Sequence length `L = 2048-32768` for long-context training
-- Per-position logits per teacher: `|V| × 4 bytes (FP32) = 400 KB`
-- For 10 teachers × 32K seq × 400 KB = **128 GB per training sample** — clearly impossible to materialize in memory or even on disk.
-
-**V4's solution** (paper Section 5.2.2): cache only the **last-layer hidden states** of each teacher, not the logits. Hidden states are `d_model × 2 bytes` (BF16), typically 7-14 KB per token — orders of magnitude smaller. At training time, the cached hidden states are passed through the teacher's prediction head on-the-fly to reconstruct the full logits exactly when needed.
-
-Trade-off: small recomputation overhead (one matrix multiply per token) for massive memory savings.
-
-### Problem 2 — Loading 10+ teacher weights simultaneously
-
-Each teacher might be a hundreds-of-billions-parameter model. Holding 10 of them in GPU memory at the same time is infeasible.
-
-**V4's solution**: ZeRO-style parameter sharding for teacher weights, with on-demand loading from centralized storage. Teachers are scheduled in batches; data is also reordered by teacher index to minimize prediction-head context-switching (paper Section 5.2.2).
-
-### Why bother? Why not use full logits with fewer teachers?
-
-The V4 paper takes a strong stance against the common shortcut of approximating the full-vocabulary KL with a single per-token KL estimate:
-
-> *"prior works usually simplify the full-vocabulary KL loss into a token-level KL estimate at each token position [...] Although this approach is resource-efficient, it leads to **high variance in gradient estimation and often causes training instability**. Therefore, we adopt full-vocabulary logit distillation in our OPD."*
-
-Token-level KL only looks at the probability the teacher assigned to the **token the student chose**, ignoring the rest of the distribution. This loses the information about how confident the teacher is in the chosen token vs. its alternatives — exactly the signal that matters for distillation. Full-vocabulary KL is more expensive but produces lower-variance, more stable training.
-
----
-
-## How OPD Compares to Other Multi-Expert Methods
-
-### vs Weight Averaging
-
-| Aspect | Weight Averaging | OPD |
-|--------|:----------------:|:---:|
-| Where merging happens | Parameter space | Logit space (output behavior) |
-| Captures non-linear interactions? | ❌ No | ✅ Yes (training does) |
-| Speed | Instant (no training) | Slow (student rollouts + multi-teacher forward passes) |
-| Quality preservation | Often poor (~70-90% of best expert) | Strong (often matches or exceeds best expert in domain) |
-| Hyperparameters | Just the merge weights | Weights `w_i`, learning rate, training steps, sampling temperature |
-
-Weight averaging is essentially asking: "if I take a step halfway between two good points in a non-convex loss landscape, am I still in a good region?" Often the answer is no — neural network loss landscapes are full of valleys where the midpoint is high above either endpoint.
-
-### vs Task Arithmetic (TIES, DARE, etc.)
-
-Task arithmetic is a more sophisticated form of weight merging:
-
-```
-For each expert i:  task_vector_i = θ_i − θ_base
-Merged:             θ_merged = θ_base + Σ_i τ_i · task_vector_i (with sign + sparsification heuristics)
-```
-
-This is better than averaging because it isolates "what the fine-tuning changed" from the base model. But it still suffers from the same fundamental issue: parameter-space combinations don't necessarily produce coherent output behaviors. TIES and DARE add heuristics (sign election, magnitude pruning) to mitigate interference, but the underlying assumption — that good behaviors compose linearly in weight space — is empirically shaky.
-
-OPD sidesteps the issue by working in output space directly. Whatever the parameters end up being, the student is rewarded for producing distributions that match the teachers'.
-
-> 🔗 We have a separate Repo, [LoRA-Merge-Quality-Impact](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/LoRA-Merge-Quality-Impact), that quantifies how parameter-space merging degrades quality. OPD is the alternative path that bypasses this problem.
-
-### vs Mixed RL (the V3.2 approach that V4 abandoned)
-
-Mixed RL trains one model with reward signals from multiple domains simultaneously:
-
-```
-For each batch: sample tasks from domain mix → run RL update with combined reward
-```
-
-Problems:
-- Reward functions don't compose. A math reward might prefer 500-token solutions; a chat reward might prefer 80-token responses. Optimizing both simultaneously produces incoherent length policies.
-- The model has no way to know which domain it's serving, so it learns averaged behavior rather than domain-conditional behavior.
-- Reward hacking is amplified — exploitable rewards in one domain pollute the gradient for all others.
-
-OPD doesn't have this problem because:
-- Each teacher's distribution is implicitly domain-specialized (the teacher itself was trained per-domain)
-- The KL signal is dense (every token, every vocab position) vs. sparse RL reward (one scalar per trajectory)
-- No reward function design needed — the teacher distribution IS the implicit reward
-
-### vs SFT (Supervised Fine-Tuning) — The Exposure Bias Problem
-
-A common question: **why not just use SFT to train the student on each specialist's outputs?** It seems simpler — collect specialist responses to a prompt, then fine-tune the student on those (prompt, response) pairs.
-
-This works to some degree but suffers a fundamental problem called **Exposure Bias**:
-
-```
-SFT training:
-  Prompt:   "Solve: 13 × 7 = ?"
-  Teacher's answer: "13 × 7 = 91"
-  
-  Student learns at every step:
-    Step 1: prefix "13 ×" → predict next token
-            (this prefix was written by teacher — clean, correct)
-    Step 2: prefix "13 × 7" → predict next token
-            (still teacher's prefix)
-    Step 3: prefix "13 × 7 =" → predict next token (= "91")
-  
-  At all training steps, student only sees teacher-generated prefixes.
-```
-
-But at inference time, **there is no teacher** — the student generates its own prefix:
-
-```
-Inference time:
-  Step 1: prefix "" → student generates "13"
-  Step 2: prefix "13" → student generates "×"
-  Step 3: prefix "13 ×" → student generates "7"
-  Step 4: prefix "13 × 7" → student accidentally generates "+" (a mistake!)
-  Step 5: prefix "13 × 7 +"  ← ⚠️ Student has NEVER seen this prefix during training!
-          The student doesn't know how to recover from its own error.
-          → Output may degenerate: "13 × 7 + 91 = 104" (nonsensical)
-```
-
-**This is exposure bias**: the student is never "exposed" during training to its own generated prefixes (which may contain errors). At inference time, when the student inevitably makes mistakes, it has no learned behavior for "how to continue after I just wrote something wrong".
-
-OPD solves this by **on-policy sampling**:
-
-```
-OPD training:
-  Step 1: Student generates a full trajectory using its own current ability:
-          "Let me think... 13 × 7 = 81... wait, let me recalculate: 13 × 7 = 91"
-          (Includes the student's own mistakes and self-corrections)
-  Step 2: Specialist scores this trajectory at every token position
-  Step 3: Student learns from feedback ON ITS OWN MISTAKES
-  
-  → Student is exposed to "what to do when I just wrote an error"
-  → At inference time, student can self-correct (this is exactly what reasoning models do)
-```
-
-This is why frontier reasoning models (DeepSeek-R1, OpenAI o1, etc.) all use on-policy training (RL or OPD) — pure SFT cannot teach self-correction.
-
-| Aspect | SFT | OPD |
-|--------|:---:|:---:|
-| Training data prefixes come from | Teacher | **Student itself** |
-| Per-token signal | 1 label (the teacher's chosen token) | **Full distribution (~150K probabilities)** |
-| Train/inference distribution match | ❌ Mismatch | ✅ Match |
-| Self-correction capability | ❌ Cannot teach | ✅ Can teach |
-| Multi-teacher support | ❌ Need to pick one or sequence them (catastrophic forgetting) | ✅ Native via Σᵢ |
-
-### vs RL / RLAIF — Just a Denser Reward Signal
-
-A natural follow-up question: **RL solves exposure bias too (student samples its own trajectories) — why not just use RL?**
-
-You're right — V3.2 used RL. V4 *did* try RL and replaced it with OPD. The key insight is:
-
-**OPD = RL with the teacher's logit distribution as the reward signal.**
-
-Both are on-policy training (student samples). The only difference is what kind of feedback the student gets per trajectory:
-
-| Method | Feedback per trajectory | Density per token |
-|--------|------------------------|:---:|
-| **RL with rule reward** (e.g., math correctness) | 1 scalar (e.g., +1 / -1) | ~0.001 (1 / 1000 tokens) |
-| **RLHF** (human feedback) | 1 scalar | ~0.001 |
-| **RLAIF** (LLM-as-judge, e.g., GPT-5 grades the answer) | 1 scalar | ~0.001 |
-| **OPD** | Full vocabulary distribution (~150K) at every token | **150,000** |
-
-OPD's feedback is roughly **1.5 × 10⁸ times denser** than scalar RL reward. This translates to:
-- More stable gradients (lower variance)
-- Faster convergence
-- No reward function to design (teacher distribution IS the reward)
-- No reward hacking (you can't game a 150K-dim distribution by exploiting one dimension)
-
-**Why doesn't everyone use OPD then?** Because it requires the **teacher's full vocabulary logits** — and that's where the practical wall is.
-
-#### The hidden constraint: API access to logits
-
-Commercial LLM APIs (OpenAI, Anthropic, etc.) **do not expose full-vocabulary logits**:
-
-| API | Maximum top_logprobs | Can do full-vocab OPD? |
-|-----|:--:|:--:|
-| Azure OpenAI Chat Completions | 20 | ❌ (only 0.013% of vocabulary) |
-| Azure OpenAI Completions | 5 | ❌ (only 0.003%) |
-| Anthropic Claude API | not exposed | ❌ |
-| **Self-hosted open model** (Llama / Qwen / DeepSeek) | All | ✅ Full vocabulary |
-
-> Source: [Azure OpenAI REST API Reference](https://learn.microsoft.com/en-us/azure/foundry/openai/reference) — `top_logprobs` is "an integer between 0 and 20 specifying the number of most likely tokens to return at each token position".
-
-This is why V4 had to do everything in-house: their specialists are self-hosted, so they get full vocabulary logits. A startup using GPT-5 as a teacher can only do "RLAIF with top-20 KL", which is much weaker than full OPD (the V4 paper explicitly criticizes this kind of approximation in Section 5.1.2).
-
-> 🔗 If you want to do something like OPD as a smaller team, the path is: deploy an open-source teacher (e.g., Llama-3-70B, Qwen2.5-72B, DeepSeek-V3) yourself, and you'll get full vocabulary logits. This is exactly how DeepSeek-R1's distillation into Qwen-series works.
-
-### vs Step Distillation (Diffusion Models) — Different Domain, Different Mechanism
-
-Engineers familiar with image generation may have heard of "distillation" in the context of diffusion models — for example, distilling a 50-step Stable Diffusion teacher into an 8-step student (LCM, Lightning, Hyper-SD, etc.). **This is a completely different kind of distillation, not OPD.**
-
-| Aspect | Step Distillation (Diffusion) | OPD (LLM) |
-|--------|:----------------------------:|:---:|
-| Domain | Diffusion image generation | Autoregressive LLM |
-| Goal | Reduce inference steps (50 → 8) | Merge multiple domain experts |
-| Teacher behavior at training | Generates trajectories **once** offline; then leaves | Computes logits **online** at every training step |
-| On-policy or offline? | **Offline** (teacher's trajectories saved as fixed dataset) | **On-policy** (student's trajectories scored live) |
-| Training signal | Teacher's intermediate denoising states | Teacher's full vocabulary distributions |
-
-In Step Distillation, the teacher's role is to **pre-generate a training dataset**. Once the dataset exists, the teacher disappears and the student trains in a normal supervised manner.
-
-In OPD, the teacher is **always present in the training loop** — it scores the student's live samples on every step.
-
-These are two completely different methods that happen to share the word "distillation". When someone says "we use distillation", always ask: **on-policy or offline? Single-teacher or multi-teacher? What signal does the teacher provide?** The answers determine which method is being discussed.
-
----
-
-## What's Original in DeepSeek-V4?
-
-OPD has been studied in the academic literature for several years. Honest breakdown of V4's contribution:
-
-| Component | Origin | Source |
-|-----------|--------|--------|
-| Knowledge distillation (general) | Hinton et al., 2015 | "Distilling the Knowledge in a Neural Network" |
-| Reverse-KL distillation | Generative modeling literature | Various 2018-2023 |
-| On-policy distillation concept | Agarwal et al., 2023 (GKD) | "Generalized Knowledge Distillation" |
-| Multi-teacher distillation | Multiple academic works 2020-2024 | Various |
-| **Replacing mixed RL with OPD entirely** | ✅ V4 — first major model to do this | V4 Tech Report Section 5.1 |
-| **Full-vocabulary OPD (no token-level KL approximation)** | ✅ V4 — emphasizes against the common shortcut | V4 Tech Report Section 5.1.2 |
-| **10+ teacher distillation at trillion-parameter scale** | ✅ V4 — engineering scale unprecedented | V4 Tech Report Section 5.2.2 |
-| **Hidden-state caching for logit reconstruction** | ✅ V4 — original engineering trick | V4 Tech Report Section 5.2.2 |
-
-In short: the **OPD method itself is not new**. What V4 contributes is (1) the strategic decision to make OPD the *only* multi-expert merging mechanism, (2) the insistence on full-vocabulary KL despite the cost, and (3) the engineering infrastructure to make this work with 10+ trillion-parameter teachers.
-
----
-
-## OPD in the GKD Framework: Where It Sits Among All Distillation Methods
-
-OPD is not a standalone method — it's actually a **specific configuration** of a more general framework called **GKD (Generalized Knowledge Distillation)** by Agarwal et al. (Google DeepMind, 2023). Understanding GKD makes the OPD design space crystal clear.
-
-### The GKD unified loss
-
-GKD parameterizes all distillation methods with two knobs:
-
-```
-GKD Loss = (1 - lmbda) × KL_offline + lmbda × KL_on_policy
-                                                ↑
-                              "lmbda" controls on-policy ratio
-                              0 = pure offline, 1 = pure on-policy
-
-KL_inner = (1 - beta) × Forward_KL + beta × Reverse_KL
-                                              ↑
-                              "beta" controls KL direction
-                              0 = pure forward KL, 1 = pure reverse KL
-```
-
-### All distillation methods are GKD configurations
-
-| Configuration | Method | Trajectory Source | KL Direction |
-|---------------|--------|-------------------|--------------|
-| `lmbda=0, beta=0` | Classic SFT distillation | Teacher | Forward |
-| `lmbda=0, beta=1` | Sequence-level KD with reverse KL | Teacher | Reverse |
-| `lmbda=1, beta=0` | On-policy + forward KL | Student | Forward |
-| **`lmbda=1, beta=1`** | **OPD (V4's choice)** | **Student** | **Reverse** |
-| `lmbda=0.5, beta=0.5` | Hybrid mode | 50/50 mix | 50/50 mix |
-
-DeepSeek-V4's OPD is the corner case: **maximum on-policy + maximum reverse KL**.
-
-This generality is why TRL's `GKDTrainer` is the easiest way to start experimenting with OPD-style training: **set `lmbda=1.0, beta=1.0` and you have OPD**.
-
-> 🔗 GKD paper: Agarwal et al., *On-Policy Distillation of Language Models: Learning from Self-Generated Mistakes*, NeurIPS 2024 (arXiv:2306.13649). The official DeepMind implementation is at https://github.com/google-deepmind/gkd.
-
-### The KL direction question, intuitively
-
-A common confusion: "If `beta=0` (forward KL) keeps the student covering all teacher modes, why would V4 choose `beta=1` (reverse KL) which 'drops' some modes?"
-
-The answer: student capacity is finite, so it can't perfectly fit a multi-modal teacher distribution. Forced to approximate, the two KL directions produce opposite behaviors:
-
-```
-Teacher distribution (multi-modal, e.g., a math problem with 3 valid phrasings):
-   ▲
-   │ ████        ████        ████
-   │ ████        ████        ████
-   └──────────────────────────────
-      "84"        "answer:84"  "= 84"
-       0.4          0.3          0.3
-
-Forward KL (mode-covering):
-   ▲
-   │ ████   ███        ████        
-   │ ████   █████      ████        ← Spreads probability across all modes
-   │ ████   ███████    ████        ← Output: random middling guesses
-   └──────────────────────────────
-
-Reverse KL (mode-seeking):
-   ▲
-   │ ████████                       ← Picks one mode and commits
-   │ ████████                        
-   │ ████████                       ← Output: confident single answer
-   └──────────────────────────────
-```
-
-For LLM generation, where each position must commit to one token, the **mode-seeking** behavior of reverse KL produces decisive, coherent outputs. Forward KL produces hesitant, blended outputs that often don't even correspond to any of the teacher's actual modes.
-
-This is why OPD specifically uses reverse KL — not because it captures more information, but because it **learns the right kind of behavior for autoregressive generation**.
-
----
-
-## OPD Code Ecosystem (2026 Reality Check)
-
-DeepSeek did not open-source V4's OPD training code. **No frontier model company has open-sourced their full OPD pipeline as of mid-2026.** What does exist is a layer of **third-party open-source frameworks** (HuggingFace TRL, KDFlow, NeMo-RL, etc.) that let you implement OPD-style training yourself.
-
-> ⚠️ **OPD is not yet an industry standard practice.** Realistic adoption (mid-2026):
-> - ~90% of LLM fine-tuning projects use **SFT + LoRA** (small-model customization)
-> - ~8% use SFT + simple RLHF
-> - ~1.5% use complex RL (PPO/GRPO)
-> - **<1% use OPD** — currently confined to a handful of frontier labs
->
-> Calling OPD "industry standard" would be misleading; "frontier-lab post-training trend" is more accurate.
-
-### Working implementations you can fork today
-
-| Repo | URL | Stars | Best for |
-|------|------|:----:|----------|
-| **HuggingFace TRL `GKDTrainer`** | https://github.com/huggingface/trl | 15.7k | Fastest path to single-teacher OPD (set `lmbda=1.0, beta=1.0`) |
-| **songmzhang/KDFlow** ⭐ | https://github.com/songmzhang/KDFlow | 122 | LLM-distillation-specific framework, SGLang teacher inference + FSDP2 student training |
-| **NVIDIA NeMo-RL** | https://github.com/NVIDIA-NeMo/RL | — | Multi-teacher + cross-tokenizer at scale |
-| **MS-SWIFT (Alibaba)** | https://github.com/modelscope/ms-swift | 14k | GKD trainer built-in (`examples/train/rlhf/gkd/`) |
-| **OpenRLHF** | https://github.com/OpenRLHF/OpenRLHF | 9.4k | Ray + vLLM + DeepSpeed; reward function customizable for OPD-style loss |
-| **verl-project/verl** (ByteDance) | https://github.com/verl-project/verl | 21.1k | Many OPD papers fork verl as the base |
-| **agentica-project/AReaL** | — | — | OPD over student-sampled trajectories with teacher log-prob guidance |
-| **THUDM/slime (Zhipu)** | https://github.com/THUDM/slime | — | Unified RL stack supporting OPD |
-
-### What `GKDTrainer` actually is, in plain English
-
-If the table above feels abstract, here's the simplest mental model:
-
-> **`GKDTrainer` is HuggingFace's "one-button OPD trainer"** — you provide a student model, a teacher model, and a dataset, set two flags, and it handles everything: student rollout, teacher scoring, KL loss computation, backpropagation, checkpointing.
-
-The two flags that matter:
-
-| Parameter | Meaning | Set to (for OPD) |
-|-----------|---------|:----------------:|
-| `lmbda` | Fraction of training steps where student samples its own trajectory (vs. using teacher's) | **1.0** (100% on-policy) |
-| `beta` | KL direction (0 = forward KL, 1 = reverse KL) | **1.0** (reverse KL) |
-
-A complete minimal example:
-
-```python
-from trl.experimental.gkd import GKDTrainer, GKDConfig
-
-config = GKDConfig(
-    lmbda=1.0,      # 100% on-policy → OPD
-    beta=1.0,       # reverse KL → OPD
-    output_dir="./output",
-    learning_rate=5e-7,
-    per_device_train_batch_size=4,
-    max_new_tokens=512,
-)
-
-trainer = GKDTrainer(
-    model="Qwen/Qwen2.5-1.5B-Instruct",          # student
-    teacher_model="Qwen/Qwen2.5-Math-7B",         # teacher (must share tokenizer!)
-    args=config,
-    train_dataset=my_dataset,
-    processing_class=tokenizer,
-)
-
-trainer.train()
-```
-
-That's it — same API as `SFTTrainer`, just with a teacher model and two extra flags. The full implementation (`generalized_jsd_loss` + `training_step`) is ~30 lines of PyTorch in `trl/experimental/gkd/gkd_trainer.py`.
-
-Other GKD configurations correspond to other distillation methods:
-
-| `lmbda` | `beta` | Equivalent to |
-|:-------:|:------:|---------------|
-| 0 | 0 | Classic SFT distillation (offline + forward KL) |
-| 0 | 1 | Sequence-level KD with reverse KL |
-| 1 | 0 | On-policy + forward KL (rare) |
-| **1** | **1** | **OPD (V4's choice)** |
-| 0.5 | 0.5 | Hybrid mode |
-
-So `GKDTrainer` covers the entire distillation design space — `lmbda=1, beta=1` is just the OPD corner.
-
-### thunlp/OPD: an academic deep-dive (not a production framework)
-
-If you want to study OPD's behavior at the research level, the most thorough open implementation is **[thunlp/OPD](https://github.com/thunlp/OPD)** from Tsinghua NLP (223 stars, accompanying paper [arXiv:2604.13016](https://arxiv.org/abs/2604.13016) "Rethinking On-Policy Distillation").
-
-**Strengths**:
-- Academic credibility (Tsinghua NLP, same lab as MiniCPM/OpenBMB)
-- The paper isn't a simple reproduction — it identifies *when OPD fails* and proposes recovery strategies (off-policy cold start, teacher-aligned prompt selection)
-- Provides released checkpoints (`Qwen3-1.7B-SFT`, `Qwen3-4B-Base-GRPO`) on HuggingFace for reproducing baselines
-- Rich configuration: `LOG_PROB_TOP_K`, `TOP_K_STRATEGY` (`only_stu` / `only_tch` / `intersection` / `union` / `union-intersection`), `REWARD_WEIGHT_MODE` (`student_p` / `teacher_p` / `none`) — useful for ablation studies
-
-**Caveats**:
-- **High hardware bar**: experiments run on 8 × NVIDIA A800 80GB GPUs (math-domain SFT + RL + OPD pipeline)
-- **Requires two conda environments**: one for verl (training), one for LlamaFactory (SFT)
-- **Single-teacher only** in published configs; not V4-style multi-teacher
-- **Top-K KL approximation** by default (`LOG_PROB_TOP_K=16`) — not the full-vocabulary KL the V4 paper insists on
-- **Core OPD loss is buried** inside their fork of verl (`verl/trainer/main_ppo.py` with `algorithm.adv_estimator=token_reward_direct`); the public `on_policy_distillation.sh` is a configuration shell, not standalone PyTorch code
-- License not stated in README (verify before commercial use)
-
-**Bottom line**:
-
-| Use case | Best tool |
-|----------|-----------|
-| Read OPD code top-to-bottom in one sitting | TRL `gkd_trainer.py` (~30 lines for the math) |
-| Run OPD on a single GPU | TRL `GKDTrainer` |
-| Reproduce OPD academic results & study failure modes | thunlp/OPD (need 8×A800) |
-| Build V4-style multi-teacher OPD | Neither directly — fork TRL or KDFlow and add Σᵢ teacher loop |
-
-### Awesome lists and meta-resources
-
-- **Curated OPD list**: https://github.com/chrisliu298/awesome-on-policy-distillation (~32 stars, daily updates) — includes ~21 core OPD papers and 13 training frameworks
-- **Parallel awesome list**: https://github.com/nick7nlp/Awesome-LLM-On-Policy-Distillation
-- **Best conceptual blog**: https://thinkingmachines.ai/blog/on-policy-distillation/ (Thinking Machines)
-- **GOLD walkthrough** (HuggingFace H4, with TRL code): https://huggingface.co/spaces/HuggingFaceH4/on-policy-distillation
-- **OPD survey paper**: arXiv 2604.00626 (2026)
-
-> ⚠️ **A note on awesome-lists**: these are useful entry points but should not be treated as primary sources. We've personally verified that some claims circulating in awesome-lists about "X model uses OPD" turn out to be wrong on reading the actual papers (model name mismatches, methodology mislabeled, etc.). Always trace claims back to the original technical report before citing.
-
-### Industry models using OPD (verified from primary sources)
-
-> ⚠️ **Methodology note**: This table only includes models where I have **personally verified the original technical report or paper** contains the exact OPD claim. Earlier drafts of this Repo cited a longer list copied from a third-party awesome-list ([chrisliu298/awesome-on-policy-distillation](https://github.com/chrisliu298/awesome-on-policy-distillation)); subsequent verification revealed model name errors (e.g., "GLM-5" doesn't exist publicly, only GLM-4.5; "Nemotron-Cascade 2" doesn't exist, the closest is Nemotron-Nano-2 which uses Minitron-style forward KL distillation, not OPD). The table below is the cleaned, verified version.
-
-| Year | Model | OPD Application | Primary Source |
-|------|-------|-----------------|----------------|
-| 2025 | **Qwen3** | "Strong-to-weak distillation" combining off-policy and on-policy knowledge transfer for smaller models | [arXiv:2505.09388](https://arxiv.org/abs/2505.09388) §1, §4 |
-| 2026 | **MiMo-V2-Flash** (Xiaomi) | **Multi-Teacher On-Policy Distillation (MOPD)** as main post-training stage; explicitly framed as "a new paradigm that formulates knowledge distillation as a reinforcement learning process; the student model learns from its own generated responses" | [GitHub README](https://github.com/XiaomiMiMo/MiMo-V2-Flash) §1, §5.1; arXiv 2601.02780 |
-| 2026 | **DeepSeek-V4** | "the mixed RL stage was entirely replaced by On-Policy Distillation (OPD)"; multi-teacher distillation merging 10+ domain experts into the unified model | DeepSeek-V4 Tech Report §5.1 |
-
-**Other models** sometimes claimed to use OPD (Baichuan-M3, GLM-5, Nemotron-Cascade 2, HY-Embodied-0.5, etc.) either: (a) the model name doesn't match a publicly verifiable release, (b) the original report uses different terminology that may or may not be OPD, or (c) the report doesn't include enough detail to confirm. We exclude them here pending direct verification.
-
-> The window for an open-source independent reproduction of V4's multi-teacher OPD remains open as of mid-2026.
-
-### Quick-start by role
-
-| Goal | Recommended path |
-|------|------------------|
-| Quickly run single-teacher OPD | **TRL `GKDTrainer`** with `lmbda=1.0, beta=1.0` |
-| Production-grade OPD framework | **KDFlow** (LLM-distillation-specific, well-documented) |
-| Multi-teacher OPD (closest to V4) | **NeMo-RL** or extend KDFlow with MiMo-V2 MOPD recipe |
-| Build on verl ecosystem | **HJSang/OPSD_OnPolicyDistillation** + add multi-teacher loop |
-
----
-
-## Common Confusion: OPD ≠ Velocity Field Distillation
-
-Engineers familiar with diffusion models may have heard about "velocity field distillation" (Flow Matching, Lightning, etc.) used in diffusion image generation. **OPD is not this.** Quick disambiguation:
-
-| Concept | OPD (LLM) | Velocity Field Distillation (Diffusion) |
-|---------|---|---|
-| Domain | Autoregressive LLM | Diffusion image/video generation |
-| What is learned | Categorical token distribution (~150K dim) | Continuous velocity vector (~1024 dim) |
-| Loss type | **Reverse KL divergence** | **MSE on velocity** |
-| Goal | Multi-expert capability fusion | Reduce inference steps (50 → 8) |
-| Teacher signal | Probability over vocabulary | Velocity prediction at each timestep |
-| Examples | DeepSeek-V4, Qwen3, MiMo-V2-Flash | Stable Diffusion 3, Flux, Qwen-Image-Lightning |
-
-These are completely different methods that share the word "distillation". When discussing distillation for LLMs, OPD/GKD is the relevant family. When discussing distillation for diffusion models, Step Distillation (Progressive Distillation, ADD, Lightning, Hyper-SD) is the relevant family.
-
----
-
-## Implementing OPD: Skeleton Code
-
-A minimal, single-GPU OPD training loop in PyTorch (illustrative, not production):
-
-```python
-import torch
-import torch.nn.functional as F
-
-def opd_loss(student_logits, teacher_logits_list, weights):
-    """
-    Full-vocabulary reverse-KL OPD loss.
-    Source: DeepSeek-V4 Tech Report Section 5.1.2 Eq. (29)
-
-    Args:
-        student_logits:        (B, L, |V|) — student forward output
-        teacher_logits_list:   list of N tensors, each (B, L, |V|)
-        weights:               list of N floats summing to 1.0
-
-    Returns:
-        scalar loss tensor
-    """
-    student_logp = F.log_softmax(student_logits, dim=-1)
-    student_p = student_logp.exp()
-
-    total_loss = 0.0
-    for w, t_logits in zip(weights, teacher_logits_list):
-        teacher_logp = F.log_softmax(t_logits, dim=-1)
-        # Reverse KL: D_KL(π_θ || π_E) = Σ π_θ * (log π_θ - log π_E)
-        kl_per_token = (student_p * (student_logp - teacher_logp)).sum(dim=-1)  # (B, L)
-        total_loss += w * kl_per_token.mean()
-    return total_loss
-
-
-def opd_train_step(student, teachers, prompts, weights, optimizer, max_new_tokens=256):
-    """
-    One on-policy distillation training step.
-    """
-    # 1. Student samples a rollout (no_grad to avoid memory blow-up)
-    with torch.no_grad():
-        rollout_ids = student.generate(prompts, max_new_tokens=max_new_tokens,
-                                        do_sample=True, temperature=1.0)
-
-    # 2. Forward pass: student computes logits WITH gradient
-    student_logits = student(rollout_ids).logits  # (B, L, |V|)
-
-    # 3. Each teacher scores the same rollout (no gradient needed)
-    with torch.no_grad():
-        teacher_logits_list = [t(rollout_ids).logits for t in teachers]
-
-    # 4. Compute OPD loss and backpropagate
-    loss = opd_loss(student_logits, teacher_logits_list, weights)
-    optimizer.zero_grad()
-    loss.backward()
-    torch.nn.utils.clip_grad_norm_(student.parameters(), max_norm=1.0)
-    optimizer.step()
-    return loss.item()
-```
-
-A few practical notes:
-
-- **Tokenizer alignment is mandatory.** All teachers and the student must share the same tokenizer (so logits are comparable token-by-token). In practice this means picking models from the same family (Qwen 2.5/3 series, Llama 3 series, etc.).
-- **Reverse KL can NaN.** Start with a small learning rate (5e-7 to 1e-6), use BF16 mixed precision, and keep gradient clipping at 1.0.
-- **Trajectory length matters.** Too short = not enough distillation signal per step. Too long = memory and time blow-up. 256-512 tokens is a reasonable starting point for small-scale experiments.
-- **Memory for teachers.** Even with `no_grad`, holding multiple teachers in GPU memory adds up. Consider CPU offload (`device_map="auto"` with `offload_folder`) for ablation studies.
-
----
-
 ## OPD vs MoE: Two Different "Experts"
 
 V4 is **both a MoE architecture and a recipient of OPD post-training**. These are completely separate concepts that happen to share the word "expert" — a frequent source of confusion. Disambiguating:
@@ -933,22 +373,367 @@ This is fundamentally different from architectural MoE, where each expert FFN is
 
 ---
 
-## Where OPD Fits in the V4 Series
+## The Math: Reverse KL + GKD Framework
 
-DeepSeek-V4 is a coordinated set of innovations. OPD plays a specific role:
+The OPD objective from the V4 paper (Equation 29):
 
-| Innovation | Purpose | Covered In |
-|-----------|---------|------------|
-| Long-context efficient attention (CSA + HCA) | Make 1M-token context computationally feasible | [Long-Context-Efficient-Attention](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/Long-Context-Efficient-Attention) |
-| Manifold-Constrained Hyper-Connections (mHC) | Strengthen residual connections in deep models | V4 Tech Report Section 2.2 |
-| Muon Optimizer | Faster convergence and training stability | V4 Tech Report Section 2.4 |
-| FP4 Quantization-Aware Training | Reduce memory traffic for both training and inference | V4 Tech Report Section 3.4 |
-| **On-Policy Distillation (this article)** | **Merge 10+ specialists into a single production model** | V4 Tech Report Section 5.1 |
-| Quick Instruction (auxiliary tasks via KV cache reuse) | Reduce TTFT for chatbot scenarios | V4 Tech Report Section 5.1.1 |
+$$L_{OPD}(\theta) = \sum_{i=1}^{N} w_i \cdot D_{KL}(\pi_\theta \,\|\, \pi_{E_i})$$
 
-OPD is the **post-training capstone** — the method that takes all the domain experts trained on the new architecture and consolidates them into the final shipped model.
+Three things are worth unpacking here.
+
+### 1. The KL is reverse, not forward
+
+| Direction | Formula | Behavior |
+|-----------|---------|----------|
+| **Forward KL** `D_KL(π_E ‖ π_θ)` | `Σ π_E(v) · [log π_E(v) − log π_θ(v)]` | "Mode-covering" — student tries to put non-zero probability everywhere the teacher does. Common in offline distillation. |
+| **Reverse KL** `D_KL(π_θ ‖ π_E)` | `Σ π_θ(v) · [log π_θ(v) − log π_E(v)]` | "Mode-seeking" — student concentrates on the teacher's high-probability modes. |
+
+OPD uses **reverse KL** because:
+- Trajectories are sampled from `π_θ` (the student), so it's natural to weight by `π_θ(v)`
+- Mode-seeking behavior produces sharper, more decisive student outputs (better for generation)
+- Forward KL on student-sampled trajectories would have high variance because we'd be evaluating teacher probability on tokens the student rarely picks
+
+### 2. The expectation is over student trajectories
+
+The KL is computed at every token in a student-sampled trajectory. This is the "on-policy" part:
+
+$$D_{KL}(\pi_\theta \,\|\, \pi_{E_i}) = \mathbb{E}_{y \sim \pi_\theta}\left[\sum_{t} \sum_v \pi_\theta(v|y_{<t}) \log \frac{\pi_\theta(v|y_{<t})}{\pi_{E_i}(v|y_{<t})}\right]$$
+
+If we sampled from the teacher instead, this would degenerate into offline distillation.
+
+### 3. The weights `w_i` route by domain implicitly
+
+The paper explains:
+> *"the unified policy π_θ selectively learns from the specialized expert relevant to the current task context (e.g., aligning with the mathematics expert for math reasoning tasks and the coding expert for programming tasks)."*
+
+This works because each teacher's distribution is sharp on its own domain and flat on others. When the trajectory is a math problem, only the math expert produces low-loss gradients; other teachers contribute roughly uniform-distribution noise that cancels out.
+
+So even though all teachers are summed, each task naturally aligns with its corresponding expert. This is much simpler than explicit task routing.
 
 ---
+
+
+### OPD in the GKD Framework
+
+With the reverse-KL objective established, we can now place OPD precisely within the broader landscape of distillation methods using the GKD (Generalized Knowledge Distillation) framework.
+
+
+OPD is not a standalone method — it's actually a **specific configuration** of a more general framework called **GKD (Generalized Knowledge Distillation)** by Agarwal et al. (Google DeepMind, 2023). Understanding GKD makes the OPD design space crystal clear.
+
+### The GKD unified loss
+
+GKD parameterizes all distillation methods with two knobs:
+
+```
+GKD Loss = (1 - lmbda) × KL_offline + lmbda × KL_on_policy
+                                                ↑
+                              "lmbda" controls on-policy ratio
+                              0 = pure offline, 1 = pure on-policy
+
+KL_inner = (1 - beta) × Forward_KL + beta × Reverse_KL
+                                              ↑
+                              "beta" controls KL direction
+                              0 = pure forward KL, 1 = pure reverse KL
+```
+
+### All distillation methods are GKD configurations
+
+| Configuration | Method | Trajectory Source | KL Direction |
+|---------------|--------|-------------------|--------------|
+| `lmbda=0, beta=0` | Classic SFT distillation | Teacher | Forward |
+| `lmbda=0, beta=1` | Sequence-level KD with reverse KL | Teacher | Reverse |
+| `lmbda=1, beta=0` | On-policy + forward KL | Student | Forward |
+| **`lmbda=1, beta=1`** | **OPD (V4's choice)** | **Student** | **Reverse** |
+| `lmbda=0.5, beta=0.5` | Hybrid mode | 50/50 mix | 50/50 mix |
+
+DeepSeek-V4's OPD is the corner case: **maximum on-policy + maximum reverse KL**.
+
+This generality is why TRL's `GKDTrainer` is the easiest way to start experimenting with OPD-style training: **set `lmbda=1.0, beta=1.0` and you have OPD**.
+
+> 🔗 GKD paper: Agarwal et al., *On-Policy Distillation of Language Models: Learning from Self-Generated Mistakes*, NeurIPS 2024 (arXiv:2306.13649). The official DeepMind implementation is at https://github.com/google-deepmind/gkd.
+
+### The KL direction question, intuitively
+
+A common confusion: "If `beta=0` (forward KL) keeps the student covering all teacher modes, why would V4 choose `beta=1` (reverse KL) which 'drops' some modes?"
+
+The answer: student capacity is finite, so it can't perfectly fit a multi-modal teacher distribution. Forced to approximate, the two KL directions produce opposite behaviors:
+
+```
+Teacher distribution (multi-modal, e.g., a math problem with 3 valid phrasings):
+   ▲
+   │ ████        ████        ████
+   │ ████        ████        ████
+   └──────────────────────────────
+      "84"        "answer:84"  "= 84"
+       0.4          0.3          0.3
+
+Forward KL (mode-covering):
+   ▲
+   │ ████   ███        ████        
+   │ ████   █████      ████        ← Spreads probability across all modes
+   │ ████   ███████    ████        ← Output: random middling guesses
+   └──────────────────────────────
+
+Reverse KL (mode-seeking):
+   ▲
+   │ ████████                       ← Picks one mode and commits
+   │ ████████                        
+   │ ████████                       ← Output: confident single answer
+   └──────────────────────────────
+```
+
+For LLM generation, where each position must commit to one token, the **mode-seeking** behavior of reverse KL produces decisive, coherent outputs. Forward KL produces hesitant, blended outputs that often don't even correspond to any of the teacher's actual modes.
+
+This is why OPD specifically uses reverse KL — not because it captures more information, but because it **learns the right kind of behavior for autoregressive generation**.
+
+---
+
+## Multi-Expert OPD at Scale
+
+<div align="center">
+  <img src="images/multi_teacher_opd.png" width="600" alt="Multi-Expert OPD Pipeline">
+  <p><em>Multi-Expert OPD: student samples → all teachers score → weighted KL gradient updates student.</em></p>
+</div>
+
+DeepSeek-V4 distills from **10+ teachers** simultaneously. The naive implementation has two showstopper problems:
+
+### Problem 1 — Logit storage explodes
+
+Storing full-vocabulary logits at every token, for every teacher, for every training sample:
+
+- Vocabulary size `|V| > 100,000` (Qwen3, DeepSeek-V3 series)
+- Sequence length `L = 2048-32768` for long-context training
+- Per-position logits per teacher: `|V| × 4 bytes (FP32) = 400 KB`
+- For 10 teachers × 32K seq × 400 KB = **128 GB per training sample** — clearly impossible to materialize in memory or even on disk.
+
+**V4's solution** (paper Section 5.2.2): cache only the **last-layer hidden states** of each teacher, not the logits. Hidden states are `d_model × 2 bytes` (BF16), typically 7-14 KB per token — orders of magnitude smaller. At training time, the cached hidden states are passed through the teacher's prediction head on-the-fly to reconstruct the full logits exactly when needed.
+
+Trade-off: small recomputation overhead (one matrix multiply per token) for massive memory savings.
+
+### Problem 2 — Loading 10+ teacher weights simultaneously
+
+Each teacher might be a hundreds-of-billions-parameter model. Holding 10 of them in GPU memory at the same time is infeasible.
+
+**V4's solution**: ZeRO-style parameter sharding for teacher weights, with on-demand loading from centralized storage. Teachers are scheduled in batches; data is also reordered by teacher index to minimize prediction-head context-switching (paper Section 5.2.2).
+
+### Why bother? Why not use full logits with fewer teachers?
+
+The V4 paper takes a strong stance against the common shortcut of approximating the full-vocabulary KL with a single per-token KL estimate:
+
+> *"prior works usually simplify the full-vocabulary KL loss into a token-level KL estimate at each token position [...] Although this approach is resource-efficient, it leads to **high variance in gradient estimation and often causes training instability**. Therefore, we adopt full-vocabulary logit distillation in our OPD."*
+
+Token-level KL only looks at the probability the teacher assigned to the **token the student chose**, ignoring the rest of the distribution. This loses the information about how confident the teacher is in the chosen token vs. its alternatives — exactly the signal that matters for distillation. Full-vocabulary KL is more expensive but produces lower-variance, more stable training.
+
+---
+
+## How OPD Compares to Other Multi-Expert Methods
+
+### vs Weight Averaging
+
+| Aspect | Weight Averaging | OPD |
+|--------|:----------------:|:---:|
+| Where merging happens | Parameter space | Logit space (output behavior) |
+| Captures non-linear interactions? | ❌ No | ✅ Yes (training does) |
+| Speed | Instant (no training) | Slow (student rollouts + multi-teacher forward passes) |
+| Quality preservation | Often poor (~70-90% of best expert) | Strong (often matches or exceeds best expert in domain) |
+| Hyperparameters | Just the merge weights | Weights `w_i`, learning rate, training steps, sampling temperature |
+
+Weight averaging is essentially asking: "if I take a step halfway between two good points in a non-convex loss landscape, am I still in a good region?" Often the answer is no — neural network loss landscapes are full of valleys where the midpoint is high above either endpoint.
+
+### vs Task Arithmetic (TIES, DARE, etc.)
+
+Task arithmetic is a more sophisticated form of weight merging:
+
+```
+For each expert i:  task_vector_i = θ_i − θ_base
+Merged:             θ_merged = θ_base + Σ_i τ_i · task_vector_i (with sign + sparsification heuristics)
+```
+
+This is better than averaging because it isolates "what the fine-tuning changed" from the base model. But it still suffers from the same fundamental issue: parameter-space combinations don't necessarily produce coherent output behaviors. TIES and DARE add heuristics (sign election, magnitude pruning) to mitigate interference, but the underlying assumption — that good behaviors compose linearly in weight space — is empirically shaky.
+
+OPD sidesteps the issue by working in output space directly. Whatever the parameters end up being, the student is rewarded for producing distributions that match the teachers'.
+
+> 🔗 We have a separate Repo, [LoRA-Merge-Quality-Impact](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/LoRA-Merge-Quality-Impact), that quantifies how parameter-space merging degrades quality. OPD is the alternative path that bypasses this problem.
+
+### vs Mixed RL (the V3.2 approach that V4 abandoned)
+
+Mixed RL trains one model with reward signals from multiple domains simultaneously:
+
+```
+For each batch: sample tasks from domain mix → run RL update with combined reward
+```
+
+Problems:
+- Reward functions don't compose. A math reward might prefer 500-token solutions; a chat reward might prefer 80-token responses. Optimizing both simultaneously produces incoherent length policies.
+- The model has no way to know which domain it's serving, so it learns averaged behavior rather than domain-conditional behavior.
+- Reward hacking is amplified — exploitable rewards in one domain pollute the gradient for all others.
+
+OPD doesn't have this problem because:
+- Each teacher's distribution is implicitly domain-specialized (the teacher itself was trained per-domain)
+- The KL signal is dense (every token, every vocab position) vs. sparse RL reward (one scalar per trajectory)
+- No reward function design needed — the teacher distribution IS the implicit reward
+
+### vs SFT (Supervised Fine-Tuning) — The Exposure Bias Problem
+
+A common question: **why not just use SFT to train the student on each specialist's outputs?** It seems simpler — collect specialist responses to a prompt, then fine-tune the student on those (prompt, response) pairs.
+
+This works to some degree but suffers a fundamental problem called **Exposure Bias**:
+
+```
+SFT training:
+  Prompt:   "Solve: 13 × 7 = ?"
+  Teacher's answer: "13 × 7 = 91"
+  
+  Student learns at every step:
+    Step 1: prefix "13 ×" → predict next token
+            (this prefix was written by teacher — clean, correct)
+    Step 2: prefix "13 × 7" → predict next token
+            (still teacher's prefix)
+    Step 3: prefix "13 × 7 =" → predict next token (= "91")
+  
+  At all training steps, student only sees teacher-generated prefixes.
+```
+
+But at inference time, **there is no teacher** — the student generates its own prefix:
+
+```
+Inference time:
+  Step 1: prefix "" → student generates "13"
+  Step 2: prefix "13" → student generates "×"
+  Step 3: prefix "13 ×" → student generates "7"
+  Step 4: prefix "13 × 7" → student accidentally generates "+" (a mistake!)
+  Step 5: prefix "13 × 7 +"  ← ⚠️ Student has NEVER seen this prefix during training!
+          The student doesn't know how to recover from its own error.
+          → Output may degenerate: "13 × 7 + 91 = 104" (nonsensical)
+```
+
+**This is exposure bias**: the student is never "exposed" during training to its own generated prefixes (which may contain errors). At inference time, when the student inevitably makes mistakes, it has no learned behavior for "how to continue after I just wrote something wrong".
+
+OPD solves this by **on-policy sampling**:
+
+```
+OPD training:
+  Step 1: Student generates a full trajectory using its own current ability:
+          "Let me think... 13 × 7 = 81... wait, let me recalculate: 13 × 7 = 91"
+          (Includes the student's own mistakes and self-corrections)
+  Step 2: Specialist scores this trajectory at every token position
+  Step 3: Student learns from feedback ON ITS OWN MISTAKES
+  
+  → Student is exposed to "what to do when I just wrote an error"
+  → At inference time, student can self-correct (this is exactly what reasoning models do)
+```
+
+This is why frontier reasoning models (DeepSeek-R1, OpenAI o1, etc.) all use on-policy training (RL or OPD) — pure SFT cannot teach self-correction.
+
+| Aspect | SFT | OPD |
+|--------|:---:|:---:|
+| Training data prefixes come from | Teacher | **Student itself** |
+| Per-token signal | 1 label (the teacher's chosen token) | **Full distribution (~150K probabilities)** |
+| Train/inference distribution match | ❌ Mismatch | ✅ Match |
+| Self-correction capability | ❌ Cannot teach | ✅ Can teach |
+| Multi-teacher support | ❌ Need to pick one or sequence them (catastrophic forgetting) | ✅ Native via Σᵢ |
+
+### vs RL / RLAIF — Just a Denser Reward Signal
+
+A natural follow-up question: **RL solves exposure bias too (student samples its own trajectories) — why not just use RL?**
+
+You're right — V3.2 used RL. V4 *did* try RL and replaced it with OPD. The key insight is:
+
+**OPD = RL with the teacher's logit distribution as the reward signal.**
+
+Both are on-policy training (student samples). The only difference is what kind of feedback the student gets per trajectory:
+
+| Method | Feedback per trajectory | Density per token |
+|--------|------------------------|:---:|
+| **RL with rule reward** (e.g., math correctness) | 1 scalar (e.g., +1 / -1) | ~0.001 (1 / 1000 tokens) |
+| **RLHF** (human feedback) | 1 scalar | ~0.001 |
+| **RLAIF** (LLM-as-judge, e.g., GPT-5 grades the answer) | 1 scalar | ~0.001 |
+| **OPD** | Full vocabulary distribution (~150K) at every token | **150,000** |
+
+OPD's feedback is roughly **1.5 × 10⁸ times denser** than scalar RL reward. This translates to:
+- More stable gradients (lower variance)
+- Faster convergence
+- No reward function to design (teacher distribution IS the reward)
+- No reward hacking (you can't game a 150K-dim distribution by exploiting one dimension)
+
+**Why doesn't everyone use OPD then?** Because it requires the **teacher's full vocabulary logits** — and that's where the practical wall is.
+
+#### The hidden constraint: API access to logits
+
+Commercial LLM APIs (OpenAI, Anthropic, etc.) **do not expose full-vocabulary logits**:
+
+| API | Maximum top_logprobs | Can do full-vocab OPD? |
+|-----|:--:|:--:|
+| Azure OpenAI Chat Completions | 20 | ❌ (only 0.013% of vocabulary) |
+| Azure OpenAI Completions | 5 | ❌ (only 0.003%) |
+| Anthropic Claude API | not exposed | ❌ |
+| **Self-hosted open model** (Llama / Qwen / DeepSeek) | All | ✅ Full vocabulary |
+
+> Source: [Azure OpenAI REST API Reference](https://learn.microsoft.com/en-us/azure/foundry/openai/reference) — `top_logprobs` is "an integer between 0 and 20 specifying the number of most likely tokens to return at each token position".
+
+This is why V4 had to do everything in-house: their specialists are self-hosted, so they get full vocabulary logits. A startup using GPT-5 as a teacher can only do "RLAIF with top-20 KL", which is much weaker than full OPD (the V4 paper explicitly criticizes this kind of approximation in Section 5.1.2).
+
+> 🔗 If you want to do something like OPD as a smaller team, the path is: deploy an open-source teacher (e.g., Llama-3-70B, Qwen2.5-72B, DeepSeek-V3) yourself, and you'll get full vocabulary logits. This is exactly how DeepSeek-R1's distillation into Qwen-series works.
+
+### vs Step Distillation (Diffusion Models) — Different Domain, Different Mechanism
+
+Engineers familiar with image generation may have heard of "distillation" in the context of diffusion models — for example, distilling a 50-step Stable Diffusion teacher into an 8-step student (LCM, Lightning, Hyper-SD, etc.). **This is a completely different kind of distillation, not OPD.**
+
+| Aspect | Step Distillation (Diffusion) | OPD (LLM) |
+|--------|:----------------------------:|:---:|
+| Domain | Diffusion image generation | Autoregressive LLM |
+| Goal | Reduce inference steps (50 → 8) | Merge multiple domain experts |
+| Teacher behavior at training | Generates trajectories **once** offline; then leaves | Computes logits **online** at every training step |
+| On-policy or offline? | **Offline** (teacher's trajectories saved as fixed dataset) | **On-policy** (student's trajectories scored live) |
+| Training signal | Teacher's intermediate denoising states | Teacher's full vocabulary distributions |
+
+In Step Distillation, the teacher's role is to **pre-generate a training dataset**. Once the dataset exists, the teacher disappears and the student trains in a normal supervised manner.
+
+In OPD, the teacher is **always present in the training loop** — it scores the student's live samples on every step.
+
+These are two completely different methods that happen to share the word "distillation". When someone says "we use distillation", always ask: **on-policy or offline? Single-teacher or multi-teacher? What signal does the teacher provide?** The answers determine which method is being discussed.
+
+---
+
+
+### vs Velocity Field Distillation (Diffusion Models)
+
+
+Engineers familiar with diffusion models may have heard about "velocity field distillation" (Flow Matching, Lightning, etc.) used in diffusion image generation. **OPD is not this.** Quick disambiguation:
+
+| Concept | OPD (LLM) | Velocity Field Distillation (Diffusion) |
+|---------|---|---|
+| Domain | Autoregressive LLM | Diffusion image/video generation |
+| What is learned | Categorical token distribution (~150K dim) | Continuous velocity vector (~1024 dim) |
+| Loss type | **Reverse KL divergence** | **MSE on velocity** |
+| Goal | Multi-expert capability fusion | Reduce inference steps (50 → 8) |
+| Teacher signal | Probability over vocabulary | Velocity prediction at each timestep |
+| Examples | DeepSeek-V4, Qwen3, MiMo-V2-Flash | Stable Diffusion 3, Flux, Qwen-Image-Lightning |
+
+These are completely different methods that share the word "distillation". When discussing distillation for LLMs, OPD/GKD is the relevant family. When discussing distillation for diffusion models, Step Distillation (Progressive Distillation, ADD, Lightning, Hyper-SD) is the relevant family.
+
+---
+
+## What's Original in DeepSeek-V4?
+
+OPD has been studied in the academic literature for several years. Honest breakdown of V4's contribution:
+
+| Component | Origin | Source |
+|-----------|--------|--------|
+| Knowledge distillation (general) | Hinton et al., 2015 | "Distilling the Knowledge in a Neural Network" |
+| Reverse-KL distillation | Generative modeling literature | Various 2018-2023 |
+| On-policy distillation concept | Agarwal et al., 2023 (GKD) | "Generalized Knowledge Distillation" |
+| Multi-teacher distillation | Multiple academic works 2020-2024 | Various |
+| **Replacing mixed RL with OPD entirely** | ✅ V4 — first major model to do this | V4 Tech Report Section 5.1 |
+| **Full-vocabulary OPD (no token-level KL approximation)** | ✅ V4 — emphasizes against the common shortcut | V4 Tech Report Section 5.1.2 |
+| **10+ teacher distillation at trillion-parameter scale** | ✅ V4 — engineering scale unprecedented | V4 Tech Report Section 5.2.2 |
+| **Hidden-state caching for logit reconstruction** | ✅ V4 — original engineering trick | V4 Tech Report Section 5.2.2 |
+
+In short: the **OPD method itself is not new**. What V4 contributes is (1) the strategic decision to make OPD the *only* multi-expert merging mechanism, (2) the insistence on full-vocabulary KL despite the cost, and (3) the engineering infrastructure to make this work with 10+ trillion-parameter teachers.
+
+---
+
+With the originality picture clear, we can now discuss OPD's honest limitations:
 
 ## Honest Limitations of OPD
 
@@ -988,6 +773,235 @@ The full V4 OPD pipeline (10+ teachers × trillion-scale parameters × full voca
 - Custom hidden-state caching (prevents logit storage from exploding to TB scale)
 
 For smaller teams: simpler variants of OPD-like training (single open-source teacher + standard PyTorch) are still very effective. But the *full* V4 setup is a frontier-only capability.
+
+---
+
+## Getting Started: Code & Tools
+
+### Implementing OPD: Skeleton Code
+
+A minimal, single-GPU OPD training loop in PyTorch (illustrative, not production):
+
+```python
+import torch
+import torch.nn.functional as F
+
+def opd_loss(student_logits, teacher_logits_list, weights):
+    """
+    Full-vocabulary reverse-KL OPD loss.
+    Source: DeepSeek-V4 Tech Report Section 5.1.2 Eq. (29)
+
+    Args:
+        student_logits:        (B, L, |V|) — student forward output
+        teacher_logits_list:   list of N tensors, each (B, L, |V|)
+        weights:               list of N floats summing to 1.0
+
+    Returns:
+        scalar loss tensor
+    """
+    student_logp = F.log_softmax(student_logits, dim=-1)
+    student_p = student_logp.exp()
+
+    total_loss = 0.0
+    for w, t_logits in zip(weights, teacher_logits_list):
+        teacher_logp = F.log_softmax(t_logits, dim=-1)
+        # Reverse KL: D_KL(π_θ || π_E) = Σ π_θ * (log π_θ - log π_E)
+        kl_per_token = (student_p * (student_logp - teacher_logp)).sum(dim=-1)  # (B, L)
+        total_loss += w * kl_per_token.mean()
+    return total_loss
+
+
+def opd_train_step(student, teachers, prompts, weights, optimizer, max_new_tokens=256):
+    """
+    One on-policy distillation training step.
+    """
+    # 1. Student samples a rollout (no_grad to avoid memory blow-up)
+    with torch.no_grad():
+        rollout_ids = student.generate(prompts, max_new_tokens=max_new_tokens,
+                                        do_sample=True, temperature=1.0)
+
+    # 2. Forward pass: student computes logits WITH gradient
+    student_logits = student(rollout_ids).logits  # (B, L, |V|)
+
+    # 3. Each teacher scores the same rollout (no gradient needed)
+    with torch.no_grad():
+        teacher_logits_list = [t(rollout_ids).logits for t in teachers]
+
+    # 4. Compute OPD loss and backpropagate
+    loss = opd_loss(student_logits, teacher_logits_list, weights)
+    optimizer.zero_grad()
+    loss.backward()
+    torch.nn.utils.clip_grad_norm_(student.parameters(), max_norm=1.0)
+    optimizer.step()
+    return loss.item()
+```
+
+A few practical notes:
+
+- **Tokenizer alignment is mandatory.** All teachers and the student must share the same tokenizer (so logits are comparable token-by-token). In practice this means picking models from the same family (Qwen 2.5/3 series, Llama 3 series, etc.).
+- **Reverse KL can NaN.** Start with a small learning rate (5e-7 to 1e-6), use BF16 mixed precision, and keep gradient clipping at 1.0.
+- **Trajectory length matters.** Too short = not enough distillation signal per step. Too long = memory and time blow-up. 256-512 tokens is a reasonable starting point for small-scale experiments.
+- **Memory for teachers.** Even with `no_grad`, holding multiple teachers in GPU memory adds up. Consider CPU offload (`device_map="auto"` with `offload_folder`) for ablation studies.
+
+---
+
+
+### OPD Code Ecosystem (2026 Reality Check)
+
+With the conceptual skeleton clear, let's survey the actual tools and frameworks available for OPD training today.
+
+
+DeepSeek did not open-source V4's OPD training code. **No frontier model company has open-sourced their full OPD pipeline as of mid-2026.** What does exist is a layer of **third-party open-source frameworks** (HuggingFace TRL, KDFlow, NeMo-RL, etc.) that let you implement OPD-style training yourself.
+
+> ⚠️ **OPD is not yet an industry standard practice.** Realistic adoption (mid-2026):
+> - ~90% of LLM fine-tuning projects use **SFT + LoRA** (small-model customization)
+> - ~8% use SFT + simple RLHF
+> - ~1.5% use complex RL (PPO/GRPO)
+> - **<1% use OPD** — currently confined to a handful of frontier labs
+>
+> Calling OPD "industry standard" would be misleading; "frontier-lab post-training trend" is more accurate.
+
+### Working implementations you can fork today
+
+| Repo | URL | Stars | Best for |
+|------|------|:----:|----------|
+| **HuggingFace TRL `GKDTrainer`** | https://github.com/huggingface/trl | 15.7k | Fastest path to single-teacher OPD (set `lmbda=1.0, beta=1.0`) |
+| **songmzhang/KDFlow** ⭐ | https://github.com/songmzhang/KDFlow | 122 | LLM-distillation-specific framework, SGLang teacher inference + FSDP2 student training |
+| **NVIDIA NeMo-RL** | https://github.com/NVIDIA-NeMo/RL | — | Multi-teacher + cross-tokenizer at scale |
+| **MS-SWIFT (Alibaba)** | https://github.com/modelscope/ms-swift | 14k | GKD trainer built-in (`examples/train/rlhf/gkd/`) |
+| **OpenRLHF** | https://github.com/OpenRLHF/OpenRLHF | 9.4k | Ray + vLLM + DeepSpeed; reward function customizable for OPD-style loss |
+| **verl-project/verl** (ByteDance) | https://github.com/verl-project/verl | 21.1k | Many OPD papers fork verl as the base |
+| **agentica-project/AReaL** | — | — | OPD over student-sampled trajectories with teacher log-prob guidance |
+| **THUDM/slime (Zhipu)** | https://github.com/THUDM/slime | — | Unified RL stack supporting OPD |
+
+### What `GKDTrainer` actually is, in plain English
+
+If the table above feels abstract, here's the simplest mental model:
+
+> **`GKDTrainer` is HuggingFace's "one-button OPD trainer"** — you provide a student model, a teacher model, and a dataset, set two flags, and it handles everything: student rollout, teacher scoring, KL loss computation, backpropagation, checkpointing.
+
+The two flags that matter:
+
+| Parameter | Meaning | Set to (for OPD) |
+|-----------|---------|:----------------:|
+| `lmbda` | Fraction of training steps where student samples its own trajectory (vs. using teacher's) | **1.0** (100% on-policy) |
+| `beta` | KL direction (0 = forward KL, 1 = reverse KL) | **1.0** (reverse KL) |
+
+A complete minimal example:
+
+```python
+from trl.experimental.gkd import GKDTrainer, GKDConfig
+
+config = GKDConfig(
+    lmbda=1.0,      # 100% on-policy → OPD
+    beta=1.0,       # reverse KL → OPD
+    output_dir="./output",
+    learning_rate=5e-7,
+    per_device_train_batch_size=4,
+    max_new_tokens=512,
+)
+
+trainer = GKDTrainer(
+    model="Qwen/Qwen2.5-1.5B-Instruct",          # student
+    teacher_model="Qwen/Qwen2.5-Math-7B",         # teacher (must share tokenizer!)
+    args=config,
+    train_dataset=my_dataset,
+    processing_class=tokenizer,
+)
+
+trainer.train()
+```
+
+That's it — same API as `SFTTrainer`, just with a teacher model and two extra flags. The full implementation (`generalized_jsd_loss` + `training_step`) is ~30 lines of PyTorch in `trl/experimental/gkd/gkd_trainer.py`.
+
+Other GKD configurations correspond to other distillation methods:
+
+| `lmbda` | `beta` | Equivalent to |
+|:-------:|:------:|---------------|
+| 0 | 0 | Classic SFT distillation (offline + forward KL) |
+| 0 | 1 | Sequence-level KD with reverse KL |
+| 1 | 0 | On-policy + forward KL (rare) |
+| **1** | **1** | **OPD (V4's choice)** |
+| 0.5 | 0.5 | Hybrid mode |
+
+So `GKDTrainer` covers the entire distillation design space — `lmbda=1, beta=1` is just the OPD corner.
+
+### thunlp/OPD: an academic deep-dive (not a production framework)
+
+If you want to study OPD's behavior at the research level, the most thorough open implementation is **[thunlp/OPD](https://github.com/thunlp/OPD)** from Tsinghua NLP (223 stars, accompanying paper [arXiv:2604.13016](https://arxiv.org/abs/2604.13016) "Rethinking On-Policy Distillation").
+
+**Strengths**:
+- Academic credibility (Tsinghua NLP, same lab as MiniCPM/OpenBMB)
+- The paper isn't a simple reproduction — it identifies *when OPD fails* and proposes recovery strategies (off-policy cold start, teacher-aligned prompt selection)
+- Provides released checkpoints (`Qwen3-1.7B-SFT`, `Qwen3-4B-Base-GRPO`) on HuggingFace for reproducing baselines
+- Rich configuration: `LOG_PROB_TOP_K`, `TOP_K_STRATEGY` (`only_stu` / `only_tch` / `intersection` / `union` / `union-intersection`), `REWARD_WEIGHT_MODE` (`student_p` / `teacher_p` / `none`) — useful for ablation studies
+
+**Caveats**:
+- **High hardware bar**: experiments run on 8 × NVIDIA A800 80GB GPUs (math-domain SFT + RL + OPD pipeline)
+- **Requires two conda environments**: one for verl (training), one for LlamaFactory (SFT)
+- **Single-teacher only** in published configs; not V4-style multi-teacher
+- **Top-K KL approximation** by default (`LOG_PROB_TOP_K=16`) — not the full-vocabulary KL the V4 paper insists on
+- **Core OPD loss is buried** inside their fork of verl (`verl/trainer/main_ppo.py` with `algorithm.adv_estimator=token_reward_direct`); the public `on_policy_distillation.sh` is a configuration shell, not standalone PyTorch code
+- License not stated in README (verify before commercial use)
+
+**Bottom line**:
+
+| Use case | Best tool |
+|----------|-----------|
+| Read OPD code top-to-bottom in one sitting | TRL `gkd_trainer.py` (~30 lines for the math) |
+| Run OPD on a single GPU | TRL `GKDTrainer` |
+| Reproduce OPD academic results & study failure modes | thunlp/OPD (need 8×A800) |
+| Build V4-style multi-teacher OPD | Neither directly — fork TRL or KDFlow and add Σᵢ teacher loop |
+
+### Awesome lists and meta-resources
+
+- **Curated OPD list**: https://github.com/chrisliu298/awesome-on-policy-distillation (~32 stars, daily updates) — includes ~21 core OPD papers and 13 training frameworks
+- **Parallel awesome list**: https://github.com/nick7nlp/Awesome-LLM-On-Policy-Distillation
+- **Best conceptual blog**: https://thinkingmachines.ai/blog/on-policy-distillation/ (Thinking Machines)
+- **GOLD walkthrough** (HuggingFace H4, with TRL code): https://huggingface.co/spaces/HuggingFaceH4/on-policy-distillation
+- **OPD survey paper**: arXiv 2604.00626 (2026)
+
+> ⚠️ **A note on awesome-lists**: these are useful entry points but should not be treated as primary sources. We've personally verified that some claims circulating in awesome-lists about "X model uses OPD" turn out to be wrong on reading the actual papers (model name mismatches, methodology mislabeled, etc.). Always trace claims back to the original technical report before citing.
+
+### Industry models using OPD (verified from primary sources)
+
+> ⚠️ **Methodology note**: This table only includes models where I have **personally verified the original technical report or paper** contains the exact OPD claim. Earlier drafts of this Repo cited a longer list copied from a third-party awesome-list ([chrisliu298/awesome-on-policy-distillation](https://github.com/chrisliu298/awesome-on-policy-distillation)); subsequent verification revealed model name errors (e.g., "GLM-5" doesn't exist publicly, only GLM-4.5; "Nemotron-Cascade 2" doesn't exist, the closest is Nemotron-Nano-2 which uses Minitron-style forward KL distillation, not OPD). The table below is the cleaned, verified version.
+
+| Year | Model | OPD Application | Primary Source |
+|------|-------|-----------------|----------------|
+| 2025 | **Qwen3** | "Strong-to-weak distillation" combining off-policy and on-policy knowledge transfer for smaller models | [arXiv:2505.09388](https://arxiv.org/abs/2505.09388) §1, §4 |
+| 2026 | **MiMo-V2-Flash** (Xiaomi) | **Multi-Teacher On-Policy Distillation (MOPD)** as main post-training stage; explicitly framed as "a new paradigm that formulates knowledge distillation as a reinforcement learning process; the student model learns from its own generated responses" | [GitHub README](https://github.com/XiaomiMiMo/MiMo-V2-Flash) §1, §5.1; arXiv 2601.02780 |
+| 2026 | **DeepSeek-V4** | "the mixed RL stage was entirely replaced by On-Policy Distillation (OPD)"; multi-teacher distillation merging 10+ domain experts into the unified model | DeepSeek-V4 Tech Report §5.1 |
+
+**Other models** sometimes claimed to use OPD (Baichuan-M3, GLM-5, Nemotron-Cascade 2, HY-Embodied-0.5, etc.) either: (a) the model name doesn't match a publicly verifiable release, (b) the original report uses different terminology that may or may not be OPD, or (c) the report doesn't include enough detail to confirm. We exclude them here pending direct verification.
+
+> The window for an open-source independent reproduction of V4's multi-teacher OPD remains open as of mid-2026.
+
+### Quick-start by role
+
+| Goal | Recommended path |
+|------|------------------|
+| Quickly run single-teacher OPD | **TRL `GKDTrainer`** with `lmbda=1.0, beta=1.0` |
+| Production-grade OPD framework | **KDFlow** (LLM-distillation-specific, well-documented) |
+| Multi-teacher OPD (closest to V4) | **NeMo-RL** or extend KDFlow with MiMo-V2 MOPD recipe |
+| Build on verl ecosystem | **HJSang/OPSD_OnPolicyDistillation** + add multi-teacher loop |
+
+---
+
+## Where OPD Fits in the V4 Series
+
+DeepSeek-V4 is a coordinated set of innovations. OPD plays a specific role:
+
+| Innovation | Purpose | Covered In |
+|-----------|---------|------------|
+| Long-context efficient attention (CSA + HCA) | Make 1M-token context computationally feasible | [Long-Context-Efficient-Attention](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/Long-Context-Efficient-Attention) |
+| Manifold-Constrained Hyper-Connections (mHC) | Strengthen residual connections in deep models | V4 Tech Report Section 2.2 |
+| Muon Optimizer | Faster convergence and training stability | V4 Tech Report Section 2.4 |
+| FP4 Quantization-Aware Training | Reduce memory traffic for both training and inference | V4 Tech Report Section 3.4 |
+| **On-Policy Distillation (this article)** | **Merge 10+ specialists into a single production model** | V4 Tech Report Section 5.1 |
+| Quick Instruction (auxiliary tasks via KV cache reuse) | Reduce TTFT for chatbot scenarios | V4 Tech Report Section 5.1.1 |
+
+OPD is the **post-training capstone** — the method that takes all the domain experts trained on the new architecture and consolidates them into the final shipped model.
 
 ---
 

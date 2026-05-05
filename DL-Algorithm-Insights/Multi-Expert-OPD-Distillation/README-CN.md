@@ -150,566 +150,6 @@ Student 生成："让我想想。12 × 7 = 12 × 5 + 12 × 2 = 60 + 24 = 84"
 
 ---
 
-## 数学：为什么用反向 KL？
-
-V4 论文的 OPD 目标函数（公式 29）：
-
-$$L_{OPD}(\theta) = \sum_{i=1}^{N} w_i \cdot D_{KL}(\pi_\theta \,\|\, \pi_{E_i})$$
-
-有三个地方值得拆开看。
-
-### 1. KL 是反向，不是正向
-
-| 方向 | 公式 | 行为 |
-|-----|------|-----|
-| **Forward KL** `D_KL(π_E ‖ π_θ)` | `Σ π_E(v) · [log π_E(v) − log π_θ(v)]` | "Mode-covering" — student 试图在 teacher 有概率的所有地方都放上非零概率。Offline distillation 常用。 |
-| **Reverse KL** `D_KL(π_θ ‖ π_E)` | `Σ π_θ(v) · [log π_θ(v) − log π_E(v)]` | "Mode-seeking" — student 集中在 teacher 的高概率 mode 上。 |
-
-OPD 用**反向 KL**因为：
-- Trajectory 来自 `π_θ`（student），用 `π_θ(v)` 加权很自然
-- Mode-seeking 行为产生更尖锐、更果断的 student 输出（适合生成）
-- 在 student-sampled trajectory 上算 forward KL 方差会很大，因为我们要在 student 很少选的 token 上评估 teacher 概率
-
-### 2. 期望是在 student trajectory 上
-
-KL 在 student-sampled trajectory 的每个 token 上计算。这就是"on-policy"的含义：
-
-$$D_{KL}(\pi_\theta \,\|\, \pi_{E_i}) = \mathbb{E}_{y \sim \pi_\theta}\left[\sum_{t} \sum_v \pi_\theta(v|y_{<t}) \log \frac{\pi_\theta(v|y_{<t})}{\pi_{E_i}(v|y_{<t})}\right]$$
-
-如果改从 teacher 采样，就退化成了 offline distillation。
-
-### 3. 权重 `w_i` 隐式做领域路由
-
-论文解释：
-> *"the unified policy π_θ selectively learns from the specialized expert relevant to the current task context (e.g., aligning with the mathematics expert for math reasoning tasks and the coding expert for programming tasks)."*
-
-这能 work 是因为每个 teacher 的分布在自己领域上很尖锐、在其他领域上很平。当 trajectory 是数学题时，只有数学专家产生 low-loss 梯度；其他 teacher 贡献的近似均匀分布噪声会相互抵消。
-
-所以即使所有 teacher 都加在一起，每个任务自然会和对应专家对齐。这比显式做任务路由简单得多。
-
----
-
-## 多专家 OPD 的工程化
-
-<div align="center">
-  <img src="images/multi_teacher_opd.png" width="600" alt="Multi-Expert OPD Pipeline">
-  <p><em>多专家 OPD：student 采样 → 所有 teacher 打分 → 加权 KL 梯度更新 student。</em></p>
-</div>
-
-DeepSeek-V4 同时从 **10+ 个 teacher** 蒸馏。朴素实现有两个致命问题：
-
-### 问题 1 — Logit 存储爆炸
-
-为每个训练样本、每个 teacher、每个 token 位置存全词表 logits：
-
-- 词表 `|V| > 100,000`（Qwen3、DeepSeek-V3 系列）
-- 序列长度 `L = 2048-32768`（长上下文训练）
-- 每个位置每个 teacher 的 logits：`|V| × 4 bytes (FP32) = 400 KB`
-- 10 个 teacher × 32K seq × 400 KB = **每个训练样本 128 GB**——内存装不下，存盘也存不下。
-
-**V4 的解决方案**（论文 Section 5.2.2）：只缓存每个 teacher 的**最后一层 hidden states**，不缓存 logits。Hidden states 是 `d_model × 2 bytes` (BF16)，每个 token 通常 7-14 KB——小好几个数量级。训练时把缓存的 hidden states 过 teacher 的预测头，按需精确重建完整 logits。
-
-代价：增加少量重计算（每个 token 一次矩阵乘法），换来巨大的内存节省。
-
-### 问题 2 — 同时加载 10+ teacher 权重
-
-每个 teacher 可能是几千亿参数的模型。同时把 10 个塞进 GPU 显存不可行。
-
-**V4 的解决方案**：teacher 权重用 ZeRO 风格参数分片，按需从中心化存储加载。Teacher 分批调度；数据按 teacher 索引重排，最小化 prediction head 的上下文切换（论文 Section 5.2.2）。
-
-### 为什么折腾这些？为什么不用全 logits + 少 teacher？
-
-V4 论文明确反对一种常见的省事做法——把全词表 KL 简化成单个 per-token KL 估计：
-
-> *"prior works usually simplify the full-vocabulary KL loss into a token-level KL estimate at each token position [...] Although this approach is resource-efficient, it leads to **high variance in gradient estimation and often causes training instability**. Therefore, we adopt full-vocabulary logit distillation in our OPD."*
-
-Token-level KL 只看 teacher 给 student 选中的那个 token 分配的概率，忽略了分布的其他部分。这丢失了"teacher 对所选 token 相比其他选项有多自信"的信息——而这恰恰是蒸馏最重要的信号。全词表 KL 更贵但梯度方差更低、训练更稳定。
-
----
-
-## OPD 与其他多专家方法对比
-
-### vs Weight Averaging
-
-| 方面 | Weight Averaging | OPD |
-|-----|:----------------:|:---:|
-| 融合发生在哪 | 参数空间 | Logit 空间（输出行为） |
-| 捕捉非线性交互？ | ❌ 不能 | ✅ 能（训练完成的） |
-| 速度 | 即时（无训练） | 慢（student rollout + 多 teacher forward） |
-| 质量保留 | 通常较差（最佳专家的 70-90%） | 强（往往达到或超过该领域最佳专家） |
-| 超参数 | 只有融合权重 | 权重 `w_i`、学习率、训练步数、采样温度 |
-
-权重平均本质上是在问："如果我在非凸 loss 地形上的两个好点之间走中点，我还在好的区域吗？" 答案常常是否定的——神经网络 loss 地形充满了山谷，中点远高于两个端点。
-
-### vs Task Arithmetic（TIES、DARE 等）
-
-Task arithmetic 是 weight merging 的精致版：
-
-```
-对每个专家 i：task_vector_i = θ_i − θ_base
-融合：       θ_merged = θ_base + Σ_i τ_i · task_vector_i（加上符号 + 稀疏化启发式）
-```
-
-比朴素平均好，因为它把"fine-tuning 改了什么"从 base 模型里剥离。但仍受同一个根本问题影响：参数空间组合不一定产生连贯的输出行为。TIES 和 DARE 加了启发式（符号选举、幅度剪枝）来缓解干扰，但底层假设——"好的行为在权重空间线性可组合"——经验上站不住脚。
-
-OPD 直接绕过这个问题，在输出空间工作。不管参数最终是什么，student 因产生匹配 teacher 的分布而被奖励。
-
-> 🔗 我们另有一个 Repo [LoRA-Merge-Quality-Impact](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/LoRA-Merge-Quality-Impact)，量化了参数空间合并如何降低质量。OPD 是绕开这个问题的另一条路。
-
-### vs Mixed RL（V3.2 用过、V4 抛弃的方案）
-
-Mixed RL 用多领域的 reward 信号同时训练一个模型：
-
-```
-每个 batch：从领域 mix 中采样任务 → 用组合 reward 跑 RL update
-```
-
-问题：
-- Reward 函数不可组合。数学 reward 可能偏好 500-token 解答；chat reward 可能偏好 80-token 回答。同时优化两者会产生不连贯的长度策略。
-- 模型不知道自己在服务哪个领域，所以它学到的是平均行为，而不是领域条件行为。
-- Reward hacking 被放大——一个领域可被利用的 reward 会污染所有领域的梯度。
-
-OPD 没有这些问题：
-- 每个 teacher 的分布隐式做了领域专业化（teacher 自己就是按领域训出来的）
-- KL 信号是稠密的（每个 token、每个 vocab 位置）vs 稀疏的 RL reward（每个 trajectory 一个标量）
-- 不需要设计 reward 函数——teacher 分布就是隐式 reward
-
-### vs SFT（Supervised Fine-Tuning）—— Exposure Bias 问题
-
-一个常见的疑问：**为什么不直接用 SFT 在每个 specialist 的输出上训练 student？** 看起来更简单——收集 specialist 对 prompt 的回答，然后把 (prompt, response) 对喂给 student fine-tune。
-
-这种方法在一定程度上有效，但有一个根本问题，叫 **Exposure Bias**：
-
-```
-SFT 训练：
-  Prompt:   "Solve: 13 × 7 = ?"
-  Teacher 答案："13 × 7 = 91"
-  
-  Student 在每一步学：
-    Step 1: 前缀 "13 ×" → 预测下一个 token
-            （这个前缀是 teacher 写的——干净、正确）
-    Step 2: 前缀 "13 × 7" → 预测下一个 token
-            （还是 teacher 的前缀）
-    Step 3: 前缀 "13 × 7 =" → 预测下一个 token（= "91"）
-  
-  整个训练过程，student 只见过 teacher 生成的前缀。
-```
-
-但推理时**没有 teacher**——student 自己生成前缀：
-
-```
-推理时：
-  Step 1: 前缀 "" → student 生成 "13"
-  Step 2: 前缀 "13" → student 生成 "×"
-  Step 3: 前缀 "13 ×" → student 生成 "7"
-  Step 4: 前缀 "13 × 7" → student 不小心生成 "+"（错了！）
-  Step 5: 前缀 "13 × 7 +"  ← ⚠️ 训练时从未见过这个前缀！
-          Student 不知道怎么从自己的错误中恢复。
-          → 输出可能崩坏："13 × 7 + 91 = 104"（胡说）
-```
-
-**这就是 exposure bias**：student 训练时从未"暴露"在自己生成的前缀（可能含错）下。推理时一旦自己出错，没有学过"刚才写错了，下一步怎么办"的行为。
-
-OPD 通过**on-policy 采样**解决：
-
-```
-OPD 训练：
-  Step 1: Student 用自己当前能力生成完整 trajectory：
-          "Let me think... 13 × 7 = 81... 等等，重算一下：13 × 7 = 91"
-          （包含 student 自己的错误和自我纠正）
-  Step 2: Specialist 在每个 token 位置打分
-  Step 3: Student 在【自己的错误】上学习
-  
-  → Student 学过"刚写错时怎么继续"
-  → 推理时能自我纠错（这就是推理模型的"等等，让我重新想"）
-```
-
-这就是为什么 frontier 推理模型（DeepSeek-R1、OpenAI o1 等）都用 on-policy 训练（RL 或 OPD）——纯 SFT 教不会自我纠正。
-
-| 维度 | SFT | OPD |
-|------|:---:|:---:|
-| 训练数据前缀来自 | Teacher | **Student 自己** |
-| 每 token 信号 | 1 个标签（teacher 选的 token） | **完整分布（~150K 个概率）** |
-| 训练/推理分布一致 | ❌ 不一致 | ✅ 一致 |
-| 自我纠错能力 | ❌ 教不会 | ✅ 能教会 |
-| 多教师支持 | ❌ 必须挑一个或顺序训（catastrophic forgetting） | ✅ 天然 Σᵢ 支持 |
-
-### vs RL / RLAIF —— 只是更密的 reward 信号
-
-自然的下一个问题：**RL 也能解决 exposure bias（student 自己采样）——为什么不直接用 RL？**
-
-你说得对——V3.2 用的就是 RL。V4 *试过* RL 然后用 OPD 替换。关键洞察：
-
-**OPD = 把 teacher logit 分布当 reward 信号的 RL。**
-
-两者都是 on-policy 训练（student 采样）。唯一区别是 student 每个 trajectory 收到的反馈类型：
-
-| 方法 | 每条 trajectory 的反馈 | 每 token 信号密度 |
-|------|---|:---:|
-| **RL with rule reward**（如数学正确性） | 1 个标量（如 +1 / -1） | ~0.001（1 / 1000 tokens） |
-| **RLHF**（人工反馈） | 1 个标量 | ~0.001 |
-| **RLAIF**（LLM 当裁判，如 GPT-5 打分） | 1 个标量 | ~0.001 |
-| **OPD** | 每 token 完整词表分布（~150K） | **150,000** |
-
-OPD 的反馈密度大约是 scalar RL reward 的 **1.5 × 10⁸ 倍**。这意味着：
-- 梯度更稳定（方差更低）
-- 收敛更快
-- 不需要设计 reward 函数（teacher 分布就是 reward）
-- 不会 reward hacking（你没法通过钻一个维度的漏洞来骗过 150K 维分布）
-
-**那为什么大家不都用 OPD？** 因为它需要 **teacher 的全词表 logits**——这就是实际的硬墙。
-
-#### 隐藏的限制：API 是否给 logits
-
-商业 LLM API（OpenAI、Anthropic 等）**不暴露全词表 logits**：
-
-| API | top_logprobs 上限 | 能做完整 OPD？ |
-|-----|:--:|:--:|
-| Azure OpenAI Chat Completions | 20 | ❌（只占 0.013% 词表） |
-| Azure OpenAI Completions | 5 | ❌（只占 0.003%） |
-| Anthropic Claude API | 不暴露 | ❌ |
-| **自部署开源模型**（Llama / Qwen / DeepSeek） | 全部 | ✅ 完整词表 |
-
-> 来源：[Azure OpenAI REST API Reference](https://learn.microsoft.com/en-us/azure/foundry/openai/reference) — `top_logprobs` 是 "An integer between 0 and 20 specifying the number of most likely tokens to return at each token position"。
-
-这就是为什么 V4 必须自家来做：specialist 是自部署的，能拿到全词表 logits。用 GPT-5 当 teacher 的初创公司只能做"top-20 KL 的 RLAIF"，比完整 OPD 弱很多（V4 论文 Section 5.1.2 明确反对这种近似）。
-
-> 🔗 小团队想做类似 OPD：自部署一个开源 teacher（如 Llama-3-70B、Qwen2.5-72B、DeepSeek-V3），就能拿到全词表 logits。这正是 DeepSeek-R1 蒸馏 Qwen 系列的做法。
-
-### vs Step Distillation（Diffusion 模型）—— 不同领域、不同机制
-
-熟悉图像生成的工程师可能听过 diffusion 模型语境下的"蒸馏"——比如把 50 步 Stable Diffusion teacher 蒸馏成 8 步 student（LCM、Lightning、Hyper-SD 等）。**这是完全不同的一种蒸馏，不是 OPD。**
-
-| 维度 | Step Distillation（Diffusion） | OPD（LLM） |
-|------|:----:|:---:|
-| 领域 | Diffusion 图像生成 | 自回归 LLM |
-| 目标 | 减少推理步数（50 → 8） | 融合多个领域专家 |
-| Teacher 在训练时的行为 | 离线**一次性**生成 trajectory；之后退场 | 每个训练 step **在线**计算 logits |
-| On-policy 还是 offline？ | **Offline**（teacher 的 trajectory 保存为固定数据集） | **On-policy**（student 的 trajectory 实时打分） |
-| 训练信号 | Teacher 的中间去噪状态 | Teacher 的完整词表分布 |
-
-Step Distillation 中，teacher 的角色是**预先生成训练数据集**。数据集生成后，teacher 退场，student 用普通监督方式训练。
-
-OPD 中，teacher **始终在训练循环中**——每一步都给 student 的实时采样打分。
-
-这是两种完全不同的方法，碰巧都叫"distillation"。当有人说"我们用了蒸馏"，一定要问：**on-policy 还是 offline？单 teacher 还是多 teacher？teacher 给什么信号？** 答案决定了讨论的是哪种方法。
-
----
-
-## DeepSeek-V4 中哪些是原创？
-
-OPD 在学术界已经研究了几年。V4 贡献的诚实拆解：
-
-| 组件 | 起源 | 来源 |
-|------|------|------|
-| 知识蒸馏（通用） | Hinton et al., 2015 | "Distilling the Knowledge in a Neural Network" |
-| 反向 KL 蒸馏 | 生成模型文献 | Various 2018-2023 |
-| On-policy distillation 概念 | Agarwal et al., 2023 (GKD) | "Generalized Knowledge Distillation" |
-| 多教师蒸馏 | 2020-2024 多篇学术工作 | Various |
-| **完全用 OPD 替代 mixed RL** | ✅ V4 — 第一个这么做的主流大模型 | V4 论文 Section 5.1 |
-| **全词表 OPD（拒绝 token-level KL 近似）** | ✅ V4 — 明确反对常见的省事做法 | V4 论文 Section 5.1.2 |
-| **10+ teacher 万亿参数级别的蒸馏** | ✅ V4 — 工程规模史无前例 | V4 论文 Section 5.2.2 |
-| **Hidden-state 缓存重建 logits** | ✅ V4 — 原创工程技巧 | V4 论文 Section 5.2.2 |
-
-简单说：**OPD 方法本身不是新的**。V4 的贡献在于：(1) 战略性地把 OPD 作为多专家融合的*唯一*机制，(2) 不计代价坚持全词表 KL，(3) 让这套方法在 10+ 万亿参数 teacher 规模下跑得动的工程基础设施。
-
----
-
-## OPD 在 GKD 框架下的位置：所有蒸馏方法的统一视图
-
-OPD 不是独立方法——它实际上是更通用框架 **GKD（Generalized Knowledge Distillation，泛化知识蒸馏）** 的一个**特定配置**。GKD 由 Agarwal 等人（Google DeepMind, 2023）提出。理解 GKD 让 OPD 的设计空间一目了然。
-
-### GKD 统一损失函数
-
-GKD 用两个超参数把所有蒸馏方法参数化：
-
-```
-GKD Loss = (1 - lmbda) × KL_offline + lmbda × KL_on_policy
-                                                ↑
-                              "lmbda" 控制 on-policy 比例
-                              0 = 纯 offline, 1 = 纯 on-policy
-
-KL_inner = (1 - beta) × Forward_KL + beta × Reverse_KL
-                                              ↑
-                              "beta" 控制 KL 方向
-                              0 = 纯 forward KL, 1 = 纯 reverse KL
-```
-
-### 所有蒸馏方法都是 GKD 的某个配置
-
-| 配置 | 方法 | Trajectory 来源 | KL 方向 |
-|------|-----|---|---|
-| `lmbda=0, beta=0` | 经典 SFT 蒸馏 | Teacher | Forward |
-| `lmbda=0, beta=1` | Sequence-level KD + reverse KL | Teacher | Reverse |
-| `lmbda=1, beta=0` | On-policy + forward KL | Student | Forward |
-| **`lmbda=1, beta=1`** | **OPD（V4 选择）** | **Student** | **Reverse** |
-| `lmbda=0.5, beta=0.5` | 混合配置 | 50/50 | 50/50 |
-
-DeepSeek-V4 的 OPD 是边界情况：**最大 on-policy + 最大 reverse KL**。
-
-这个泛化性正是为什么 TRL 的 `GKDTrainer` 是开始 OPD 实验最简单的方式：**设 `lmbda=1.0, beta=1.0` 就是 OPD**。
-
-> 🔗 GKD 论文：Agarwal et al., *On-Policy Distillation of Language Models: Learning from Self-Generated Mistakes*, NeurIPS 2024 (arXiv:2306.13649)。DeepMind 官方实现：https://github.com/google-deepmind/gkd
-
-### KL 方向问题，直觉理解
-
-常见困惑："如果 `beta=0`（forward KL）让 student 覆盖 teacher 所有 mode，为什么 V4 选 `beta=1`（reverse KL）放弃某些 mode？"
-
-答案：student 容量有限，无法完美拟合多峰 teacher 分布。被迫近似时，两个 KL 方向产生相反行为：
-
-```
-Teacher 分布（多峰，比如一道数学题有 3 种合理表述）：
-   ▲
-   │ ████        ████        ████
-   │ ████        ████        ████
-   └──────────────────────────────
-      "84"     "answer:84"  "= 84"
-       0.4         0.3         0.3
-
-Forward KL（mode-covering）：
-   ▲
-   │ ████   ███        ████        
-   │ ████   █████      ████        ← 概率铺平到所有 mode
-   │ ████   ███████    ████        ← 输出：随机折中的怪东西
-   └──────────────────────────────
-
-Reverse KL（mode-seeking）：
-   ▲
-   │ ████████                       ← 集中赌一个 mode
-   │ ████████                        
-   │ ████████                       ← 输出：果断的单一答案
-   └──────────────────────────────
-```
-
-对 LLM 生成（每个位置必须选一个具体 token），reverse KL 的 **mode-seeking** 行为产生果断、连贯的输出。Forward KL 产生犹豫、混合的输出，往往不对应 teacher 任何一个真实 mode。
-
-这就是为什么 OPD 专门选反向 KL——不是因为它能捕获更多信息，而是因为它**学到了适合自回归生成的行为类型**。
-
----
-
-## OPD 代码生态（2026 现实检查）
-
-DeepSeek 没开源 V4 OPD 训练代码。**截至 2026 年中，没有任何 frontier 模型公司开源完整的 OPD 训练 pipeline。** 真正存在的是一层**第三方开源框架**（HuggingFace TRL、KDFlow、NeMo-RL 等），可以让你自己实现 OPD 风格的训练。
-
-> ⚠️ **OPD 还远不是工业标配实践。** 现实采用情况（2026 年中）：
-> - ~90% 的 LLM 微调项目用 **SFT + LoRA**（小模型定制）
-> - ~8% 用 SFT + 简单 RLHF
-> - ~1.5% 用复杂 RL（PPO/GRPO）
-> - **<1% 用 OPD** —— 仅限少数 frontier 实验室
->
-> 称 OPD 为"工业标配"会误导读者；"frontier 实验室的后训练新趋势"是更准确的表述。
-
-### 今天就可以 fork 的可用实现
-
-| Repo | URL | Stars | 适合 |
-|------|------|:----:|------|
-| **HuggingFace TRL `GKDTrainer`** | https://github.com/huggingface/trl | 15.7k | 单 teacher OPD 最快路径（设 `lmbda=1.0, beta=1.0`） |
-| **songmzhang/KDFlow** ⭐ | https://github.com/songmzhang/KDFlow | 122 | LLM 蒸馏专用框架，SGLang teacher inference + FSDP2 student training |
-| **NVIDIA NeMo-RL** | https://github.com/NVIDIA-NeMo/RL | — | 多教师 + 跨 tokenizer 大规模 |
-| **MS-SWIFT (阿里)** | https://github.com/modelscope/ms-swift | 14k | 内置 GKD trainer（`examples/train/rlhf/gkd/`） |
-| **OpenRLHF** | https://github.com/OpenRLHF/OpenRLHF | 9.4k | Ray + vLLM + DeepSpeed；reward 函数可定制做 OPD |
-| **verl-project/verl** (字节) | https://github.com/verl-project/verl | 21.1k | 大量 OPD 论文 fork verl 作为 base |
-| **agentica-project/AReaL** | — | — | OPD over student-sampled trajectories |
-| **THUDM/slime（智谱）** | https://github.com/THUDM/slime | — | 统一 RL stack 支持 OPD |
-
-### `GKDTrainer` 到底是什么——大白话
-
-如果上面的表格感觉太抽象，最简单的心智模型是：
-
-> **`GKDTrainer` 是 HuggingFace 的"一键 OPD 训练器"**——你提供学生模型、教师模型、数据集，设两个开关，它帮你搞定一切：学生采样、教师打分、KL loss、反向传播、checkpoint 保存。
-
-只有两个关键开关：
-
-| 参数 | 含义 | OPD 应该设 |
-|------|------|:---------:|
-| `lmbda` | 学生自己采样 trajectory 的比例（vs 用 teacher 的） | **1.0**（100% on-policy） |
-| `beta` | KL 方向（0 = forward KL，1 = reverse KL） | **1.0**（reverse KL） |
-
-最小完整示例：
-
-```python
-from trl.experimental.gkd import GKDTrainer, GKDConfig
-
-config = GKDConfig(
-    lmbda=1.0,      # 100% on-policy → OPD
-    beta=1.0,       # reverse KL → OPD
-    output_dir="./output",
-    learning_rate=5e-7,
-    per_device_train_batch_size=4,
-    max_new_tokens=512,
-)
-
-trainer = GKDTrainer(
-    model="Qwen/Qwen2.5-1.5B-Instruct",          # 学生
-    teacher_model="Qwen/Qwen2.5-Math-7B",         # 教师（必须共享 tokenizer！）
-    args=config,
-    train_dataset=my_dataset,
-    processing_class=tokenizer,
-)
-
-trainer.train()
-```
-
-就这么简单——和 `SFTTrainer` 一样的 API，只多了一个 teacher_model 和两个开关。完整实现（`generalized_jsd_loss` + `training_step`）在 `trl/experimental/gkd/gkd_trainer.py` 里大约 30 行 PyTorch。
-
-GKD 其他配置对应其他蒸馏方法：
-
-| `lmbda` | `beta` | 等价于 |
-|:-------:|:------:|---------------|
-| 0 | 0 | 经典 SFT 蒸馏（offline + forward KL） |
-| 0 | 1 | Sequence-level KD with reverse KL |
-| 1 | 0 | On-policy + forward KL（少见） |
-| **1** | **1** | **OPD（V4 选择）** |
-| 0.5 | 0.5 | 混合模式 |
-
-所以 `GKDTrainer` 覆盖整个蒸馏设计空间——`lmbda=1, beta=1` 只是 OPD 那个角落。
-
-### thunlp/OPD：学术深度版（不是生产框架）
-
-如果想从研究层面研究 OPD 行为，**[thunlp/OPD](https://github.com/thunlp/OPD)** 是 GitHub 上最完整的开源实现（清华 NLP 出品，223 stars，配套论文 [arXiv:2604.13016](https://arxiv.org/abs/2604.13016) "Rethinking On-Policy Distillation"）。
-
-**优势**：
-- 学术权威性（清华 NLP，出过 MiniCPM/OpenBMB）
-- 论文不是简单复现——识别了 *OPD 何时失败* 并提出恢复策略（off-policy cold start、teacher-aligned prompt selection）
-- 提供已发布的 baseline checkpoint（`Qwen3-1.7B-SFT`、`Qwen3-4B-Base-GRPO`）在 HuggingFace 上
-- 配置丰富：`LOG_PROB_TOP_K`、`TOP_K_STRATEGY`（`only_stu` / `only_tch` / `intersection` / `union` / `union-intersection`）、`REWARD_WEIGHT_MODE`（`student_p` / `teacher_p` / `none`）—— 适合做 ablation 研究
-
-**注意事项**：
-- **硬件门槛高**：实验跑在 8 × NVIDIA A800 80GB GPU（数学领域 SFT + RL + OPD 完整 pipeline）
-- **需要两个 conda 环境**：verl（训练）+ LlamaFactory（SFT）
-- **公开配置只有单教师**，不是 V4 风格的多教师 OPD
-- **默认用 Top-K KL 近似**（`LOG_PROB_TOP_K=16`）—— 不是 V4 论文坚持的全词表 KL
-- **核心 OPD loss 藏在他们 fork 的 verl 里**（`verl/trainer/main_ppo.py` + `algorithm.adv_estimator=token_reward_direct`），公开的 `on_policy_distillation.sh` 是配置 shell 不是独立 PyTorch 代码
-- README 没标 license（商用前需确认）
-
-**结论**：
-
-| 用例 | 最佳工具 |
-|------|---------|
-| 一坐下来读完 OPD 代码 | TRL `gkd_trainer.py`（数学部分 ~30 行） |
-| 单 GPU 跑 OPD | TRL `GKDTrainer` |
-| 复现 OPD 学术结果 + 研究失败模式 | thunlp/OPD（需要 8×A800） |
-| 做 V4 风格的多教师 OPD | 都不直接支持——需要 fork TRL 或 KDFlow 加 Σᵢ teacher 循环 |
-
-### Awesome list 与元资源
-
-- **OPD 精选 list**：https://github.com/chrisliu298/awesome-on-policy-distillation （~32 stars，每日更新）—— 包含 ~21 篇核心 OPD 论文 + 13 个训练框架
-- **平行 awesome list**：https://github.com/nick7nlp/Awesome-LLM-On-Policy-Distillation
-- **最佳概念博客**：https://thinkingmachines.ai/blog/on-policy-distillation/ （Thinking Machines 出品）
-- **GOLD 实战教程**（HuggingFace H4，附 TRL 代码）：https://huggingface.co/spaces/HuggingFaceH4/on-policy-distillation
-- **OPD Survey 论文**：arXiv 2604.00626 (2026)
-
-> ⚠️ **关于 awesome-list 的提醒**：这些是有用的入口，但不应当作一手来源。我们亲自验证过——一些 awesome-list 流传的"X 模型用了 OPD"声明，读了实际论文后发现是错的（模型名不匹配、方法被错贴标签等）。引用前必须回溯到原始技术报告。
-
-### 工业界使用 OPD 的模型（从原始论文验证）
-
-> ⚠️ **方法说明**：本表只保留了**亲自阅读并验证原始技术报告/论文**中明确提及 OPD 的模型。本 Repo 早期草稿从第三方 awesome-list（[chrisliu298/awesome-on-policy-distillation](https://github.com/chrisliu298/awesome-on-policy-distillation)）复制了更长的清单；后续验证发现模型名错误（如 "GLM-5" 公开不存在，只有 GLM-4.5；"Nemotron-Cascade 2" 不存在，最接近的 Nemotron-Nano-2 用的是 Minitron 风格的 forward KL distillation而非 OPD）。下表是清理后的验证版本。
-
-| 年份 | 模型 | OPD 用法 | 原始来源 |
-|------|------|---------|---------|
-| 2025 | **Qwen3** | “Strong-to-weak distillation” 结合 off-policy 和 on-policy 知识转移训练小模型 | [arXiv:2505.09388](https://arxiv.org/abs/2505.09388) §1, §4 |
-| 2026 | **MiMo-V2-Flash**（小米） | **Multi-Teacher On-Policy Distillation (MOPD)** 作为主要 post-training 阶段；明确表述为"a new paradigm that formulates knowledge distillation as a reinforcement learning process; the student model learns from its own generated responses" | [GitHub README](https://github.com/XiaomiMiMo/MiMo-V2-Flash) §1, §5.1; arXiv 2601.02780 |
-| 2026 | **DeepSeek-V4** | "the mixed RL stage was entirely replaced by On-Policy Distillation (OPD)"；多教师蒸馏融合 10+ 领域专家到统一模型 | DeepSeek-V4 Tech Report §5.1 |
-
-**其他被声称使用 OPD 的模型**（Baichuan-M3、GLM-5、Nemotron-Cascade 2、HY-Embodied-0.5 等）要么：(a) 模型名与公开发布不匹配，(b) 原报告使用不同术语不能确认是 OPD，(c) 报告细节不足以确认。在直接验证前从表中排除。
-
-> 截至 2026 年中，开源独立复现 V4 multi-teacher OPD 的窗口期仍然开放。
-
-### 按角色快速起步
-
-| 目标 | 推荐路径 |
-|------|---------|
-| 快速跑通单教师 OPD | **TRL `GKDTrainer`** + `lmbda=1.0, beta=1.0` |
-| 生产级 OPD 框架 | **KDFlow**（LLM 蒸馏专用，文档详细） |
-| 多教师 OPD（最贴近 V4） | **NeMo-RL** 或在 KDFlow 上扩展 + 参考 MiMo-V2 MOPD recipe |
-| 基于 verl 生态 | **HJSang/OPSD_OnPolicyDistillation** + 自加 multi-teacher 循环 |
-
----
-
-## 常见混淆：OPD ≠ 速度场蒸馏
-
-熟悉 diffusion 模型的工程师可能听过"速度场蒸馏"（Flow Matching、Lightning 等）用于图像生成。**OPD 不是这个。** 快速澄清：
-
-| 概念 | OPD（LLM） | 速度场蒸馏（Diffusion） |
-|------|---|---|
-| 领域 | 自回归 LLM | Diffusion 图像/视频生成 |
-| 学的对象 | 类别 token 分布（~150K 维） | 连续速度向量（~1024 维） |
-| Loss 类型 | **反向 KL 散度** | **MSE on velocity** |
-| 目标 | 多专家能力融合 | 减少推理步数（50 → 8） |
-| Teacher 信号 | 词表上的概率 | 每个 timestep 的速度预测 |
-| 例子 | DeepSeek-V4、Qwen3、MiMo-V2-Flash | Stable Diffusion 3、Flux、Qwen-Image-Lightning |
-
-这是两种完全不同的方法，碰巧都叫 "distillation"。讨论 LLM 蒸馏时，OPD/GKD 是相关家族；讨论 diffusion 模型蒸馏时，Step Distillation（Progressive Distillation、ADD、Lightning、Hyper-SD）是相关家族。
-
----
-
-## OPD 实现：骨架代码
-
-PyTorch 单 GPU 上的最小 OPD 训练循环（演示，非生产）：
-
-```python
-import torch
-import torch.nn.functional as F
-
-def opd_loss(student_logits, teacher_logits_list, weights):
-    """
-    全词表反向 KL OPD loss。
-    来源：DeepSeek-V4 论文 Section 5.1.2 公式 (29)
-
-    参数:
-        student_logits:        (B, L, |V|) — student forward 输出
-        teacher_logits_list:   list of N tensors，每个 (B, L, |V|)
-        weights:               list of N 浮点数，加和为 1.0
-
-    返回:
-        scalar loss tensor
-    """
-    student_logp = F.log_softmax(student_logits, dim=-1)
-    student_p = student_logp.exp()
-
-    total_loss = 0.0
-    for w, t_logits in zip(weights, teacher_logits_list):
-        teacher_logp = F.log_softmax(t_logits, dim=-1)
-        # 反向 KL: D_KL(π_θ || π_E) = Σ π_θ * (log π_θ - log π_E)
-        kl_per_token = (student_p * (student_logp - teacher_logp)).sum(dim=-1)  # (B, L)
-        total_loss += w * kl_per_token.mean()
-    return total_loss
-
-
-def opd_train_step(student, teachers, prompts, weights, optimizer, max_new_tokens=256):
-    """
-    一个 on-policy distillation 训练 step。
-    """
-    # 1. Student 采样 rollout（no_grad 避免显存爆炸）
-    with torch.no_grad():
-        rollout_ids = student.generate(prompts, max_new_tokens=max_new_tokens,
-                                        do_sample=True, temperature=1.0)
-
-    # 2. Forward pass：student 带梯度计算 logits
-    student_logits = student(rollout_ids).logits  # (B, L, |V|)
-
-    # 3. 每个 teacher 给同样的 rollout 打分（不需要梯度）
-    with torch.no_grad():
-        teacher_logits_list = [t(rollout_ids).logits for t in teachers]
-
-    # 4. 计算 OPD loss 并反向传播
-    loss = opd_loss(student_logits, teacher_logits_list, weights)
-    optimizer.zero_grad()
-    loss.backward()
-    torch.nn.utils.clip_grad_norm_(student.parameters(), max_norm=1.0)
-    optimizer.step()
-    return loss.item()
-```
-
-几个实践注意事项：
-
-- **Tokenizer 对齐是必须的**。所有 teacher 和 student 必须用同一个 tokenizer（这样 logits 才能逐 token 比较）。实践中这意味着选同一族的模型（Qwen 2.5/3 系列、Llama 3 系列等）。
-- **反向 KL 容易 NaN**。学习率从小开始（5e-7 到 1e-6），用 BF16 mixed precision，gradient clipping 保持在 1.0。
-- **Trajectory 长度有讲究**。太短 = 每步蒸馏信号不够。太长 = 显存和时间爆炸。256-512 token 是小规模实验的合理起点。
-- **Teacher 的显存**。即使 `no_grad`，多个 teacher 同时放 GPU 也会累积。Ablation 研究可以考虑 CPU offload（`device_map="auto"` + `offload_folder`）。
-
----
-
 ## OPD vs MoE：两种不同的“Expert”
 
 V4 **既是 MoE 架构、又是 OPD 后训练的成果**。这是两个完全独立的概念，恰好用了同一个词“expert”——这是常见混淆的源头。澄清：
@@ -931,22 +371,367 @@ OPD 训练时教出这些行为的“数学专家模型”早就被删了。它�
 
 ---
 
-## OPD 在 V4 系列中的位置
+## 数学：反向 KL + GKD 框架
 
-DeepSeek-V4 是一组协调的创新。OPD 扮演特定角色：
+V4 论文的 OPD 目标函数（公式 29）：
 
-| 创新 | 用途 | 详见 |
-|------|------|------|
-| 长上下文高效 attention（CSA + HCA） | 让 1M-token context 在计算上可行 | [Long-Context-Efficient-Attention](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/Long-Context-Efficient-Attention) |
-| Manifold-Constrained Hyper-Connections (mHC) | 加强深层模型的 residual connections | V4 论文 Section 2.2 |
-| Muon Optimizer | 更快收敛 + 训练稳定性 | V4 论文 Section 2.4 |
-| FP4 量化感知训练 | 减少训练和推理的内存带宽压力 | V4 论文 Section 3.4 |
-| **On-Policy Distillation（本文）** | **把 10+ 个专家融合成单一生产模型** | V4 论文 Section 5.1 |
-| Quick Instruction（KV cache 复用做辅助任务） | 减少 chatbot 场景的 TTFT | V4 论文 Section 5.1.1 |
+$$L_{OPD}(\theta) = \sum_{i=1}^{N} w_i \cdot D_{KL}(\pi_\theta \,\|\, \pi_{E_i})$$
 
-OPD 是**post-training 的收官之作**——把所有用新架构训出的领域专家整合成最终上线模型的方法。
+有三个地方值得拆开看。
+
+### 1. KL 是反向，不是正向
+
+| 方向 | 公式 | 行为 |
+|-----|------|-----|
+| **Forward KL** `D_KL(π_E ‖ π_θ)` | `Σ π_E(v) · [log π_E(v) − log π_θ(v)]` | "Mode-covering" — student 试图在 teacher 有概率的所有地方都放上非零概率。Offline distillation 常用。 |
+| **Reverse KL** `D_KL(π_θ ‖ π_E)` | `Σ π_θ(v) · [log π_θ(v) − log π_E(v)]` | "Mode-seeking" — student 集中在 teacher 的高概率 mode 上。 |
+
+OPD 用**反向 KL**因为：
+- Trajectory 来自 `π_θ`（student），用 `π_θ(v)` 加权很自然
+- Mode-seeking 行为产生更尖锐、更果断的 student 输出（适合生成）
+- 在 student-sampled trajectory 上算 forward KL 方差会很大，因为我们要在 student 很少选的 token 上评估 teacher 概率
+
+### 2. 期望是在 student trajectory 上
+
+KL 在 student-sampled trajectory 的每个 token 上计算。这就是"on-policy"的含义：
+
+$$D_{KL}(\pi_\theta \,\|\, \pi_{E_i}) = \mathbb{E}_{y \sim \pi_\theta}\left[\sum_{t} \sum_v \pi_\theta(v|y_{<t}) \log \frac{\pi_\theta(v|y_{<t})}{\pi_{E_i}(v|y_{<t})}\right]$$
+
+如果改从 teacher 采样，就退化成了 offline distillation。
+
+### 3. 权重 `w_i` 隐式做领域路由
+
+论文解释：
+> *"the unified policy π_θ selectively learns from the specialized expert relevant to the current task context (e.g., aligning with the mathematics expert for math reasoning tasks and the coding expert for programming tasks)."*
+
+这能 work 是因为每个 teacher 的分布在自己领域上很尖锐、在其他领域上很平。当 trajectory 是数学题时，只有数学专家产生 low-loss 梯度；其他 teacher 贡献的近似均匀分布噪声会相互抵消。
+
+所以即使所有 teacher 都加在一起，每个任务自然会和对应专家对齐。这比显式做任务路由简单得多。
 
 ---
+
+
+### OPD 在 GKD 框架下的位置
+
+明确了反向 KL 目标函数后，我们可以用 GKD（Generalized Knowledge Distillation，泛化知识蒸馏）框架来精确定位 OPD 在所有蒸馏方法中的位置。
+
+
+OPD 不是独立方法——它实际上是更通用框架 **GKD（Generalized Knowledge Distillation，泛化知识蒸馏）** 的一个**特定配置**。GKD 由 Agarwal 等人（Google DeepMind, 2023）提出。理解 GKD 让 OPD 的设计空间一目了然。
+
+### GKD 统一损失函数
+
+GKD 用两个超参数把所有蒸馏方法参数化：
+
+```
+GKD Loss = (1 - lmbda) × KL_offline + lmbda × KL_on_policy
+                                                ↑
+                              "lmbda" 控制 on-policy 比例
+                              0 = 纯 offline, 1 = 纯 on-policy
+
+KL_inner = (1 - beta) × Forward_KL + beta × Reverse_KL
+                                              ↑
+                              "beta" 控制 KL 方向
+                              0 = 纯 forward KL, 1 = 纯 reverse KL
+```
+
+### 所有蒸馏方法都是 GKD 的某个配置
+
+| 配置 | 方法 | Trajectory 来源 | KL 方向 |
+|------|-----|---|---|
+| `lmbda=0, beta=0` | 经典 SFT 蒸馏 | Teacher | Forward |
+| `lmbda=0, beta=1` | Sequence-level KD + reverse KL | Teacher | Reverse |
+| `lmbda=1, beta=0` | On-policy + forward KL | Student | Forward |
+| **`lmbda=1, beta=1`** | **OPD（V4 选择）** | **Student** | **Reverse** |
+| `lmbda=0.5, beta=0.5` | 混合配置 | 50/50 | 50/50 |
+
+DeepSeek-V4 的 OPD 是边界情况：**最大 on-policy + 最大 reverse KL**。
+
+这个泛化性正是为什么 TRL 的 `GKDTrainer` 是开始 OPD 实验最简单的方式：**设 `lmbda=1.0, beta=1.0` 就是 OPD**。
+
+> 🔗 GKD 论文：Agarwal et al., *On-Policy Distillation of Language Models: Learning from Self-Generated Mistakes*, NeurIPS 2024 (arXiv:2306.13649)。DeepMind 官方实现：https://github.com/google-deepmind/gkd
+
+### KL 方向问题，直觉理解
+
+常见困惑："如果 `beta=0`（forward KL）让 student 覆盖 teacher 所有 mode，为什么 V4 选 `beta=1`（reverse KL）放弃某些 mode？"
+
+答案：student 容量有限，无法完美拟合多峰 teacher 分布。被迫近似时，两个 KL 方向产生相反行为：
+
+```
+Teacher 分布（多峰，比如一道数学题有 3 种合理表述）：
+   ▲
+   │ ████        ████        ████
+   │ ████        ████        ████
+   └──────────────────────────────
+      "84"     "answer:84"  "= 84"
+       0.4         0.3         0.3
+
+Forward KL（mode-covering）：
+   ▲
+   │ ████   ███        ████        
+   │ ████   █████      ████        ← 概率铺平到所有 mode
+   │ ████   ███████    ████        ← 输出：随机折中的怪东西
+   └──────────────────────────────
+
+Reverse KL（mode-seeking）：
+   ▲
+   │ ████████                       ← 集中赌一个 mode
+   │ ████████                        
+   │ ████████                       ← 输出：果断的单一答案
+   └──────────────────────────────
+```
+
+对 LLM 生成（每个位置必须选一个具体 token），reverse KL 的 **mode-seeking** 行为产生果断、连贯的输出。Forward KL 产生犹豫、混合的输出，往往不对应 teacher 任何一个真实 mode。
+
+这就是为什么 OPD 专门选反向 KL——不是因为它能捕获更多信息，而是因为它**学到了适合自回归生成的行为类型**。
+
+---
+
+## 多专家 OPD 的工程化
+
+<div align="center">
+  <img src="images/multi_teacher_opd.png" width="600" alt="Multi-Expert OPD Pipeline">
+  <p><em>多专家 OPD：student 采样 → 所有 teacher 打分 → 加权 KL 梯度更新 student。</em></p>
+</div>
+
+DeepSeek-V4 同时从 **10+ 个 teacher** 蒸馏。朴素实现有两个致命问题：
+
+### 问题 1 — Logit 存储爆炸
+
+为每个训练样本、每个 teacher、每个 token 位置存全词表 logits：
+
+- 词表 `|V| > 100,000`（Qwen3、DeepSeek-V3 系列）
+- 序列长度 `L = 2048-32768`（长上下文训练）
+- 每个位置每个 teacher 的 logits：`|V| × 4 bytes (FP32) = 400 KB`
+- 10 个 teacher × 32K seq × 400 KB = **每个训练样本 128 GB**——内存装不下，存盘也存不下。
+
+**V4 的解决方案**（论文 Section 5.2.2）：只缓存每个 teacher 的**最后一层 hidden states**，不缓存 logits。Hidden states 是 `d_model × 2 bytes` (BF16)，每个 token 通常 7-14 KB——小好几个数量级。训练时把缓存的 hidden states 过 teacher 的预测头，按需精确重建完整 logits。
+
+代价：增加少量重计算（每个 token 一次矩阵乘法），换来巨大的内存节省。
+
+### 问题 2 — 同时加载 10+ teacher 权重
+
+每个 teacher 可能是几千亿参数的模型。同时把 10 个塞进 GPU 显存不可行。
+
+**V4 的解决方案**：teacher 权重用 ZeRO 风格参数分片，按需从中心化存储加载。Teacher 分批调度；数据按 teacher 索引重排，最小化 prediction head 的上下文切换（论文 Section 5.2.2）。
+
+### 为什么折腾这些？为什么不用全 logits + 少 teacher？
+
+V4 论文明确反对一种常见的省事做法——把全词表 KL 简化成单个 per-token KL 估计：
+
+> *"prior works usually simplify the full-vocabulary KL loss into a token-level KL estimate at each token position [...] Although this approach is resource-efficient, it leads to **high variance in gradient estimation and often causes training instability**. Therefore, we adopt full-vocabulary logit distillation in our OPD."*
+
+Token-level KL 只看 teacher 给 student 选中的那个 token 分配的概率，忽略了分布的其他部分。这丢失了"teacher 对所选 token 相比其他选项有多自信"的信息——而这恰恰是蒸馏最重要的信号。全词表 KL 更贵但梯度方差更低、训练更稳定。
+
+---
+
+## OPD 与其他多专家方法对比
+
+### vs Weight Averaging
+
+| 方面 | Weight Averaging | OPD |
+|-----|:----------------:|:---:|
+| 融合发生在哪 | 参数空间 | Logit 空间（输出行为） |
+| 捕捉非线性交互？ | ❌ 不能 | ✅ 能（训练完成的） |
+| 速度 | 即时（无训练） | 慢（student rollout + 多 teacher forward） |
+| 质量保留 | 通常较差（最佳专家的 70-90%） | 强（往往达到或超过该领域最佳专家） |
+| 超参数 | 只有融合权重 | 权重 `w_i`、学习率、训练步数、采样温度 |
+
+权重平均本质上是在问："如果我在非凸 loss 地形上的两个好点之间走中点，我还在好的区域吗？" 答案常常是否定的——神经网络 loss 地形充满了山谷，中点远高于两个端点。
+
+### vs Task Arithmetic（TIES、DARE 等）
+
+Task arithmetic 是 weight merging 的精致版：
+
+```
+对每个专家 i：task_vector_i = θ_i − θ_base
+融合：       θ_merged = θ_base + Σ_i τ_i · task_vector_i（加上符号 + 稀疏化启发式）
+```
+
+比朴素平均好，因为它把"fine-tuning 改了什么"从 base 模型里剥离。但仍受同一个根本问题影响：参数空间组合不一定产生连贯的输出行为。TIES 和 DARE 加了启发式（符号选举、幅度剪枝）来缓解干扰，但底层假设——"好的行为在权重空间线性可组合"——经验上站不住脚。
+
+OPD 直接绕过这个问题，在输出空间工作。不管参数最终是什么，student 因产生匹配 teacher 的分布而被奖励。
+
+> 🔗 我们另有一个 Repo [LoRA-Merge-Quality-Impact](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/LoRA-Merge-Quality-Impact)，量化了参数空间合并如何降低质量。OPD 是绕开这个问题的另一条路。
+
+### vs Mixed RL（V3.2 用过、V4 抛弃的方案）
+
+Mixed RL 用多领域的 reward 信号同时训练一个模型：
+
+```
+每个 batch：从领域 mix 中采样任务 → 用组合 reward 跑 RL update
+```
+
+问题：
+- Reward 函数不可组合。数学 reward 可能偏好 500-token 解答；chat reward 可能偏好 80-token 回答。同时优化两者会产生不连贯的长度策略。
+- 模型不知道自己在服务哪个领域，所以它学到的是平均行为，而不是领域条件行为。
+- Reward hacking 被放大——一个领域可被利用的 reward 会污染所有领域的梯度。
+
+OPD 没有这些问题：
+- 每个 teacher 的分布隐式做了领域专业化（teacher 自己就是按领域训出来的）
+- KL 信号是稠密的（每个 token、每个 vocab 位置）vs 稀疏的 RL reward（每个 trajectory 一个标量）
+- 不需要设计 reward 函数——teacher 分布就是隐式 reward
+
+### vs SFT（Supervised Fine-Tuning）—— Exposure Bias 问题
+
+一个常见的疑问：**为什么不直接用 SFT 在每个 specialist 的输出上训练 student？** 看起来更简单——收集 specialist 对 prompt 的回答，然后把 (prompt, response) 对喂给 student fine-tune。
+
+这种方法在一定程度上有效，但有一个根本问题，叫 **Exposure Bias**：
+
+```
+SFT 训练：
+  Prompt:   "Solve: 13 × 7 = ?"
+  Teacher 答案："13 × 7 = 91"
+  
+  Student 在每一步学：
+    Step 1: 前缀 "13 ×" → 预测下一个 token
+            （这个前缀是 teacher 写的——干净、正确）
+    Step 2: 前缀 "13 × 7" → 预测下一个 token
+            （还是 teacher 的前缀）
+    Step 3: 前缀 "13 × 7 =" → 预测下一个 token（= "91"）
+  
+  整个训练过程，student 只见过 teacher 生成的前缀。
+```
+
+但推理时**没有 teacher**——student 自己生成前缀：
+
+```
+推理时：
+  Step 1: 前缀 "" → student 生成 "13"
+  Step 2: 前缀 "13" → student 生成 "×"
+  Step 3: 前缀 "13 ×" → student 生成 "7"
+  Step 4: 前缀 "13 × 7" → student 不小心生成 "+"（错了！）
+  Step 5: 前缀 "13 × 7 +"  ← ⚠️ 训练时从未见过这个前缀！
+          Student 不知道怎么从自己的错误中恢复。
+          → 输出可能崩坏："13 × 7 + 91 = 104"（胡说）
+```
+
+**这就是 exposure bias**：student 训练时从未"暴露"在自己生成的前缀（可能含错）下。推理时一旦自己出错，没有学过"刚才写错了，下一步怎么办"的行为。
+
+OPD 通过**on-policy 采样**解决：
+
+```
+OPD 训练：
+  Step 1: Student 用自己当前能力生成完整 trajectory：
+          "Let me think... 13 × 7 = 81... 等等，重算一下：13 × 7 = 91"
+          （包含 student 自己的错误和自我纠正）
+  Step 2: Specialist 在每个 token 位置打分
+  Step 3: Student 在【自己的错误】上学习
+  
+  → Student 学过"刚写错时怎么继续"
+  → 推理时能自我纠错（这就是推理模型的"等等，让我重新想"）
+```
+
+这就是为什么 frontier 推理模型（DeepSeek-R1、OpenAI o1 等）都用 on-policy 训练（RL 或 OPD）——纯 SFT 教不会自我纠正。
+
+| 维度 | SFT | OPD |
+|------|:---:|:---:|
+| 训练数据前缀来自 | Teacher | **Student 自己** |
+| 每 token 信号 | 1 个标签（teacher 选的 token） | **完整分布（~150K 个概率）** |
+| 训练/推理分布一致 | ❌ 不一致 | ✅ 一致 |
+| 自我纠错能力 | ❌ 教不会 | ✅ 能教会 |
+| 多教师支持 | ❌ 必须挑一个或顺序训（catastrophic forgetting） | ✅ 天然 Σᵢ 支持 |
+
+### vs RL / RLAIF —— 只是更密的 reward 信号
+
+自然的下一个问题：**RL 也能解决 exposure bias（student 自己采样）——为什么不直接用 RL？**
+
+你说得对——V3.2 用的就是 RL。V4 *试过* RL 然后用 OPD 替换。关键洞察：
+
+**OPD = 把 teacher logit 分布当 reward 信号的 RL。**
+
+两者都是 on-policy 训练（student 采样）。唯一区别是 student 每个 trajectory 收到的反馈类型：
+
+| 方法 | 每条 trajectory 的反馈 | 每 token 信号密度 |
+|------|---|:---:|
+| **RL with rule reward**（如数学正确性） | 1 个标量（如 +1 / -1） | ~0.001（1 / 1000 tokens） |
+| **RLHF**（人工反馈） | 1 个标量 | ~0.001 |
+| **RLAIF**（LLM 当裁判，如 GPT-5 打分） | 1 个标量 | ~0.001 |
+| **OPD** | 每 token 完整词表分布（~150K） | **150,000** |
+
+OPD 的反馈密度大约是 scalar RL reward 的 **1.5 × 10⁸ 倍**。这意味着：
+- 梯度更稳定（方差更低）
+- 收敛更快
+- 不需要设计 reward 函数（teacher 分布就是 reward）
+- 不会 reward hacking（你没法通过钻一个维度的漏洞来骗过 150K 维分布）
+
+**那为什么大家不都用 OPD？** 因为它需要 **teacher 的全词表 logits**——这就是实际的硬墙。
+
+#### 隐藏的限制：API 是否给 logits
+
+商业 LLM API（OpenAI、Anthropic 等）**不暴露全词表 logits**：
+
+| API | top_logprobs 上限 | 能做完整 OPD？ |
+|-----|:--:|:--:|
+| Azure OpenAI Chat Completions | 20 | ❌（只占 0.013% 词表） |
+| Azure OpenAI Completions | 5 | ❌（只占 0.003%） |
+| Anthropic Claude API | 不暴露 | ❌ |
+| **自部署开源模型**（Llama / Qwen / DeepSeek） | 全部 | ✅ 完整词表 |
+
+> 来源：[Azure OpenAI REST API Reference](https://learn.microsoft.com/en-us/azure/foundry/openai/reference) — `top_logprobs` 是 "An integer between 0 and 20 specifying the number of most likely tokens to return at each token position"。
+
+这就是为什么 V4 必须自家来做：specialist 是自部署的，能拿到全词表 logits。用 GPT-5 当 teacher 的初创公司只能做"top-20 KL 的 RLAIF"，比完整 OPD 弱很多（V4 论文 Section 5.1.2 明确反对这种近似）。
+
+> 🔗 小团队想做类似 OPD：自部署一个开源 teacher（如 Llama-3-70B、Qwen2.5-72B、DeepSeek-V3），就能拿到全词表 logits。这正是 DeepSeek-R1 蒸馏 Qwen 系列的做法。
+
+### vs Step Distillation（Diffusion 模型）—— 不同领域、不同机制
+
+熟悉图像生成的工程师可能听过 diffusion 模型语境下的"蒸馏"——比如把 50 步 Stable Diffusion teacher 蒸馏成 8 步 student（LCM、Lightning、Hyper-SD 等）。**这是完全不同的一种蒸馏，不是 OPD。**
+
+| 维度 | Step Distillation（Diffusion） | OPD（LLM） |
+|------|:----:|:---:|
+| 领域 | Diffusion 图像生成 | 自回归 LLM |
+| 目标 | 减少推理步数（50 → 8） | 融合多个领域专家 |
+| Teacher 在训练时的行为 | 离线**一次性**生成 trajectory；之后退场 | 每个训练 step **在线**计算 logits |
+| On-policy 还是 offline？ | **Offline**（teacher 的 trajectory 保存为固定数据集） | **On-policy**（student 的 trajectory 实时打分） |
+| 训练信号 | Teacher 的中间去噪状态 | Teacher 的完整词表分布 |
+
+Step Distillation 中，teacher 的角色是**预先生成训练数据集**。数据集生成后，teacher 退场，student 用普通监督方式训练。
+
+OPD 中，teacher **始终在训练循环中**——每一步都给 student 的实时采样打分。
+
+这是两种完全不同的方法，碰巧都叫"distillation"。当有人说"我们用了蒸馏"，一定要问：**on-policy 还是 offline？单 teacher 还是多 teacher？teacher 给什么信号？** 答案决定了讨论的是哪种方法。
+
+---
+
+
+### vs 速度场蒸馏（Diffusion 模型）
+
+
+熟悉 diffusion 模型的工程师可能听过"速度场蒸馏"（Flow Matching、Lightning 等）用于图像生成。**OPD 不是这个。** 快速澄清：
+
+| 概念 | OPD（LLM） | 速度场蒸馏（Diffusion） |
+|------|---|---|
+| 领域 | 自回归 LLM | Diffusion 图像/视频生成 |
+| 学的对象 | 类别 token 分布（~150K 维） | 连续速度向量（~1024 维） |
+| Loss 类型 | **反向 KL 散度** | **MSE on velocity** |
+| 目标 | 多专家能力融合 | 减少推理步数（50 → 8） |
+| Teacher 信号 | 词表上的概率 | 每个 timestep 的速度预测 |
+| 例子 | DeepSeek-V4、Qwen3、MiMo-V2-Flash | Stable Diffusion 3、Flux、Qwen-Image-Lightning |
+
+这是两种完全不同的方法，碰巧都叫 "distillation"。讨论 LLM 蒸馏时，OPD/GKD 是相关家族；讨论 diffusion 模型蒸馏时，Step Distillation（Progressive Distillation、ADD、Lightning、Hyper-SD）是相关家族。
+
+---
+
+## DeepSeek-V4 中哪些是原创？
+
+OPD 在学术界已经研究了几年。V4 贡献的诚实拆解：
+
+| 组件 | 起源 | 来源 |
+|------|------|------|
+| 知识蒸馏（通用） | Hinton et al., 2015 | "Distilling the Knowledge in a Neural Network" |
+| 反向 KL 蒸馏 | 生成模型文献 | Various 2018-2023 |
+| On-policy distillation 概念 | Agarwal et al., 2023 (GKD) | "Generalized Knowledge Distillation" |
+| 多教师蒸馏 | 2020-2024 多篇学术工作 | Various |
+| **完全用 OPD 替代 mixed RL** | ✅ V4 — 第一个这么做的主流大模型 | V4 论文 Section 5.1 |
+| **全词表 OPD（拒绝 token-level KL 近似）** | ✅ V4 — 明确反对常见的省事做法 | V4 论文 Section 5.1.2 |
+| **10+ teacher 万亿参数级别的蒸馏** | ✅ V4 — 工程规模史无前例 | V4 论文 Section 5.2.2 |
+| **Hidden-state 缓存重建 logits** | ✅ V4 — 原创工程技巧 | V4 论文 Section 5.2.2 |
+
+简单说：**OPD 方法本身不是新的**。V4 的贡献在于：(1) 战略性地把 OPD 作为多专家融合的*唯一*机制，(2) 不计代价坚持全词表 KL，(3) 让这套方法在 10+ 万亿参数 teacher 规模下跑得动的工程基础设施。
+
+---
+
+明确了原创性贡献后，我们来讨论 OPD 的诚实局限：
 
 ## OPD 的诚实局限
 
@@ -986,6 +771,235 @@ V4 没有声称解决这个问题——他们只是经验性地调参绕开。
 - 自定义 hidden state 缓存（防止 logit 存储爆炸到 TB 量级）
 
 对小团队：OPD 类训练的简化版本（单个开源 teacher + 标准 PyTorch）仍然非常有效。但 V4 的 *完整* 配置是 frontier 公司的专属能力。
+
+---
+
+## 快速上手：代码与工具
+
+### OPD 实现：骨架代码
+
+PyTorch 单 GPU 上的最小 OPD 训练循环（演示，非生产）：
+
+```python
+import torch
+import torch.nn.functional as F
+
+def opd_loss(student_logits, teacher_logits_list, weights):
+    """
+    全词表反向 KL OPD loss。
+    来源：DeepSeek-V4 论文 Section 5.1.2 公式 (29)
+
+    参数:
+        student_logits:        (B, L, |V|) — student forward 输出
+        teacher_logits_list:   list of N tensors，每个 (B, L, |V|)
+        weights:               list of N 浮点数，加和为 1.0
+
+    返回:
+        scalar loss tensor
+    """
+    student_logp = F.log_softmax(student_logits, dim=-1)
+    student_p = student_logp.exp()
+
+    total_loss = 0.0
+    for w, t_logits in zip(weights, teacher_logits_list):
+        teacher_logp = F.log_softmax(t_logits, dim=-1)
+        # 反向 KL: D_KL(π_θ || π_E) = Σ π_θ * (log π_θ - log π_E)
+        kl_per_token = (student_p * (student_logp - teacher_logp)).sum(dim=-1)  # (B, L)
+        total_loss += w * kl_per_token.mean()
+    return total_loss
+
+
+def opd_train_step(student, teachers, prompts, weights, optimizer, max_new_tokens=256):
+    """
+    一个 on-policy distillation 训练 step。
+    """
+    # 1. Student 采样 rollout（no_grad 避免显存爆炸）
+    with torch.no_grad():
+        rollout_ids = student.generate(prompts, max_new_tokens=max_new_tokens,
+                                        do_sample=True, temperature=1.0)
+
+    # 2. Forward pass：student 带梯度计算 logits
+    student_logits = student(rollout_ids).logits  # (B, L, |V|)
+
+    # 3. 每个 teacher 给同样的 rollout 打分（不需要梯度）
+    with torch.no_grad():
+        teacher_logits_list = [t(rollout_ids).logits for t in teachers]
+
+    # 4. 计算 OPD loss 并反向传播
+    loss = opd_loss(student_logits, teacher_logits_list, weights)
+    optimizer.zero_grad()
+    loss.backward()
+    torch.nn.utils.clip_grad_norm_(student.parameters(), max_norm=1.0)
+    optimizer.step()
+    return loss.item()
+```
+
+几个实践注意事项：
+
+- **Tokenizer 对齐是必须的**。所有 teacher 和 student 必须用同一个 tokenizer（这样 logits 才能逐 token 比较）。实践中这意味着选同一族的模型（Qwen 2.5/3 系列、Llama 3 系列等）。
+- **反向 KL 容易 NaN**。学习率从小开始（5e-7 到 1e-6），用 BF16 mixed precision，gradient clipping 保持在 1.0。
+- **Trajectory 长度有讲究**。太短 = 每步蒸馏信号不够。太长 = 显存和时间爆炸。256-512 token 是小规模实验的合理起点。
+- **Teacher 的显存**。即使 `no_grad`，多个 teacher 同时放 GPU 也会累积。Ablation 研究可以考虑 CPU offload（`device_map="auto"` + `offload_folder`）。
+
+---
+
+
+### OPD 代码生态（2026 现实检查）
+
+骨架代码理清了概念，接下来看看目前实际可用的 OPD 训练工具和框架。
+
+
+DeepSeek 没开源 V4 OPD 训练代码。**截至 2026 年中，没有任何 frontier 模型公司开源完整的 OPD 训练 pipeline。** 真正存在的是一层**第三方开源框架**（HuggingFace TRL、KDFlow、NeMo-RL 等），可以让你自己实现 OPD 风格的训练。
+
+> ⚠️ **OPD 还远不是工业标配实践。** 现实采用情况（2026 年中）：
+> - ~90% 的 LLM 微调项目用 **SFT + LoRA**（小模型定制）
+> - ~8% 用 SFT + 简单 RLHF
+> - ~1.5% 用复杂 RL（PPO/GRPO）
+> - **<1% 用 OPD** —— 仅限少数 frontier 实验室
+>
+> 称 OPD 为"工业标配"会误导读者；"frontier 实验室的后训练新趋势"是更准确的表述。
+
+### 今天就可以 fork 的可用实现
+
+| Repo | URL | Stars | 适合 |
+|------|------|:----:|------|
+| **HuggingFace TRL `GKDTrainer`** | https://github.com/huggingface/trl | 15.7k | 单 teacher OPD 最快路径（设 `lmbda=1.0, beta=1.0`） |
+| **songmzhang/KDFlow** ⭐ | https://github.com/songmzhang/KDFlow | 122 | LLM 蒸馏专用框架，SGLang teacher inference + FSDP2 student training |
+| **NVIDIA NeMo-RL** | https://github.com/NVIDIA-NeMo/RL | — | 多教师 + 跨 tokenizer 大规模 |
+| **MS-SWIFT (阿里)** | https://github.com/modelscope/ms-swift | 14k | 内置 GKD trainer（`examples/train/rlhf/gkd/`） |
+| **OpenRLHF** | https://github.com/OpenRLHF/OpenRLHF | 9.4k | Ray + vLLM + DeepSpeed；reward 函数可定制做 OPD |
+| **verl-project/verl** (字节) | https://github.com/verl-project/verl | 21.1k | 大量 OPD 论文 fork verl 作为 base |
+| **agentica-project/AReaL** | — | — | OPD over student-sampled trajectories |
+| **THUDM/slime（智谱）** | https://github.com/THUDM/slime | — | 统一 RL stack 支持 OPD |
+
+### `GKDTrainer` 到底是什么——大白话
+
+如果上面的表格感觉太抽象，最简单的心智模型是：
+
+> **`GKDTrainer` 是 HuggingFace 的"一键 OPD 训练器"**——你提供学生模型、教师模型、数据集，设两个开关，它帮你搞定一切：学生采样、教师打分、KL loss、反向传播、checkpoint 保存。
+
+只有两个关键开关：
+
+| 参数 | 含义 | OPD 应该设 |
+|------|------|:---------:|
+| `lmbda` | 学生自己采样 trajectory 的比例（vs 用 teacher 的） | **1.0**（100% on-policy） |
+| `beta` | KL 方向（0 = forward KL，1 = reverse KL） | **1.0**（reverse KL） |
+
+最小完整示例：
+
+```python
+from trl.experimental.gkd import GKDTrainer, GKDConfig
+
+config = GKDConfig(
+    lmbda=1.0,      # 100% on-policy → OPD
+    beta=1.0,       # reverse KL → OPD
+    output_dir="./output",
+    learning_rate=5e-7,
+    per_device_train_batch_size=4,
+    max_new_tokens=512,
+)
+
+trainer = GKDTrainer(
+    model="Qwen/Qwen2.5-1.5B-Instruct",          # 学生
+    teacher_model="Qwen/Qwen2.5-Math-7B",         # 教师（必须共享 tokenizer！）
+    args=config,
+    train_dataset=my_dataset,
+    processing_class=tokenizer,
+)
+
+trainer.train()
+```
+
+就这么简单——和 `SFTTrainer` 一样的 API，只多了一个 teacher_model 和两个开关。完整实现（`generalized_jsd_loss` + `training_step`）在 `trl/experimental/gkd/gkd_trainer.py` 里大约 30 行 PyTorch。
+
+GKD 其他配置对应其他蒸馏方法：
+
+| `lmbda` | `beta` | 等价于 |
+|:-------:|:------:|---------------|
+| 0 | 0 | 经典 SFT 蒸馏（offline + forward KL） |
+| 0 | 1 | Sequence-level KD with reverse KL |
+| 1 | 0 | On-policy + forward KL（少见） |
+| **1** | **1** | **OPD（V4 选择）** |
+| 0.5 | 0.5 | 混合模式 |
+
+所以 `GKDTrainer` 覆盖整个蒸馏设计空间——`lmbda=1, beta=1` 只是 OPD 那个角落。
+
+### thunlp/OPD：学术深度版（不是生产框架）
+
+如果想从研究层面研究 OPD 行为，**[thunlp/OPD](https://github.com/thunlp/OPD)** 是 GitHub 上最完整的开源实现（清华 NLP 出品，223 stars，配套论文 [arXiv:2604.13016](https://arxiv.org/abs/2604.13016) "Rethinking On-Policy Distillation"）。
+
+**优势**：
+- 学术权威性（清华 NLP，出过 MiniCPM/OpenBMB）
+- 论文不是简单复现——识别了 *OPD 何时失败* 并提出恢复策略（off-policy cold start、teacher-aligned prompt selection）
+- 提供已发布的 baseline checkpoint（`Qwen3-1.7B-SFT`、`Qwen3-4B-Base-GRPO`）在 HuggingFace 上
+- 配置丰富：`LOG_PROB_TOP_K`、`TOP_K_STRATEGY`（`only_stu` / `only_tch` / `intersection` / `union` / `union-intersection`）、`REWARD_WEIGHT_MODE`（`student_p` / `teacher_p` / `none`）—— 适合做 ablation 研究
+
+**注意事项**：
+- **硬件门槛高**：实验跑在 8 × NVIDIA A800 80GB GPU（数学领域 SFT + RL + OPD 完整 pipeline）
+- **需要两个 conda 环境**：verl（训练）+ LlamaFactory（SFT）
+- **公开配置只有单教师**，不是 V4 风格的多教师 OPD
+- **默认用 Top-K KL 近似**（`LOG_PROB_TOP_K=16`）—— 不是 V4 论文坚持的全词表 KL
+- **核心 OPD loss 藏在他们 fork 的 verl 里**（`verl/trainer/main_ppo.py` + `algorithm.adv_estimator=token_reward_direct`），公开的 `on_policy_distillation.sh` 是配置 shell 不是独立 PyTorch 代码
+- README 没标 license（商用前需确认）
+
+**结论**：
+
+| 用例 | 最佳工具 |
+|------|---------|
+| 一坐下来读完 OPD 代码 | TRL `gkd_trainer.py`（数学部分 ~30 行） |
+| 单 GPU 跑 OPD | TRL `GKDTrainer` |
+| 复现 OPD 学术结果 + 研究失败模式 | thunlp/OPD（需要 8×A800） |
+| 做 V4 风格的多教师 OPD | 都不直接支持——需要 fork TRL 或 KDFlow 加 Σᵢ teacher 循环 |
+
+### Awesome list 与元资源
+
+- **OPD 精选 list**：https://github.com/chrisliu298/awesome-on-policy-distillation （~32 stars，每日更新）—— 包含 ~21 篇核心 OPD 论文 + 13 个训练框架
+- **平行 awesome list**：https://github.com/nick7nlp/Awesome-LLM-On-Policy-Distillation
+- **最佳概念博客**：https://thinkingmachines.ai/blog/on-policy-distillation/ （Thinking Machines 出品）
+- **GOLD 实战教程**（HuggingFace H4，附 TRL 代码）：https://huggingface.co/spaces/HuggingFaceH4/on-policy-distillation
+- **OPD Survey 论文**：arXiv 2604.00626 (2026)
+
+> ⚠️ **关于 awesome-list 的提醒**：这些是有用的入口，但不应当作一手来源。我们亲自验证过——一些 awesome-list 流传的"X 模型用了 OPD"声明，读了实际论文后发现是错的（模型名不匹配、方法被错贴标签等）。引用前必须回溯到原始技术报告。
+
+### 工业界使用 OPD 的模型（从原始论文验证）
+
+> ⚠️ **方法说明**：本表只保留了**亲自阅读并验证原始技术报告/论文**中明确提及 OPD 的模型。本 Repo 早期草稿从第三方 awesome-list（[chrisliu298/awesome-on-policy-distillation](https://github.com/chrisliu298/awesome-on-policy-distillation)）复制了更长的清单；后续验证发现模型名错误（如 "GLM-5" 公开不存在，只有 GLM-4.5；"Nemotron-Cascade 2" 不存在，最接近的 Nemotron-Nano-2 用的是 Minitron 风格的 forward KL distillation而非 OPD）。下表是清理后的验证版本。
+
+| 年份 | 模型 | OPD 用法 | 原始来源 |
+|------|------|---------|---------|
+| 2025 | **Qwen3** | “Strong-to-weak distillation” 结合 off-policy 和 on-policy 知识转移训练小模型 | [arXiv:2505.09388](https://arxiv.org/abs/2505.09388) §1, §4 |
+| 2026 | **MiMo-V2-Flash**（小米） | **Multi-Teacher On-Policy Distillation (MOPD)** 作为主要 post-training 阶段；明确表述为"a new paradigm that formulates knowledge distillation as a reinforcement learning process; the student model learns from its own generated responses" | [GitHub README](https://github.com/XiaomiMiMo/MiMo-V2-Flash) §1, §5.1; arXiv 2601.02780 |
+| 2026 | **DeepSeek-V4** | "the mixed RL stage was entirely replaced by On-Policy Distillation (OPD)"；多教师蒸馏融合 10+ 领域专家到统一模型 | DeepSeek-V4 Tech Report §5.1 |
+
+**其他被声称使用 OPD 的模型**（Baichuan-M3、GLM-5、Nemotron-Cascade 2、HY-Embodied-0.5 等）要么：(a) 模型名与公开发布不匹配，(b) 原报告使用不同术语不能确认是 OPD，(c) 报告细节不足以确认。在直接验证前从表中排除。
+
+> 截至 2026 年中，开源独立复现 V4 multi-teacher OPD 的窗口期仍然开放。
+
+### 按角色快速起步
+
+| 目标 | 推荐路径 |
+|------|---------|
+| 快速跑通单教师 OPD | **TRL `GKDTrainer`** + `lmbda=1.0, beta=1.0` |
+| 生产级 OPD 框架 | **KDFlow**（LLM 蒸馏专用，文档详细） |
+| 多教师 OPD（最贴近 V4） | **NeMo-RL** 或在 KDFlow 上扩展 + 参考 MiMo-V2 MOPD recipe |
+| 基于 verl 生态 | **HJSang/OPSD_OnPolicyDistillation** + 自加 multi-teacher 循环 |
+
+---
+
+## OPD 在 V4 系列中的位置
+
+DeepSeek-V4 是一组协调的创新。OPD 扮演特定角色：
+
+| 创新 | 用途 | 详见 |
+|------|------|------|
+| 长上下文高效 attention（CSA + HCA） | 让 1M-token context 在计算上可行 | [Long-Context-Efficient-Attention](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/Long-Context-Efficient-Attention) |
+| Manifold-Constrained Hyper-Connections (mHC) | 加强深层模型的 residual connections | V4 论文 Section 2.2 |
+| Muon Optimizer | 更快收敛 + 训练稳定性 | V4 论文 Section 2.4 |
+| FP4 量化感知训练 | 减少训练和推理的内存带宽压力 | V4 论文 Section 3.4 |
+| **On-Policy Distillation（本文）** | **把 10+ 个专家融合成单一生产模型** | V4 论文 Section 5.1 |
+| Quick Instruction（KV cache 复用做辅助任务） | 减少 chatbot 场景的 TTFT | V4 论文 Section 5.1.1 |
+
+OPD 是**post-training 的收官之作**——把所有用新架构训出的领域专家整合成最终上线模型的方法。
 
 ---
 
