@@ -367,7 +367,7 @@ V4 **既是 MoE 架构、又是 OPD 后训练的成果**。这是两个完全独
 | 概念 | 是什么 | 存在期 | V4-Pro 数量 |
 |------|------|--------|:----------:|
 | **MoE expert**（架构层） | 一个 Transformer block 内的单个 FFN 子网络，router 按 token 选 | **永久**——是模型架构的一部分 | ~256 fine-grained expert × ~60 层 = ~15K 个 expert |
-| **OPD 领域专家**（仅训练期） | 一个完整独立模型，按某领域（数学/代码/写作）全参数 RL 训出 | **仅训练期**——OPD 蕩骏后消失 | 训练时 10+，训练后 0 |
+| **OPD 领域专家**（仅训练期） | 一个完整独立模型，按某领域（数学/代码/写作）全参数 RL 训出 | **仅训练期**——OPD 蒸馏后消失 | 训练时 10+，训练后 0 |
 
 同一个模型中两个层面的可视化：
 
@@ -470,11 +470,11 @@ graph TD
     style CONCAT fill:#FFF176
 ```
 
-> 🖼️ 上图中的架构 “experts”（Step 5 Expert Pool）是 FFN 子网络，**不是** OPD 的领域专家模型。OPD specialist 从不出现在推理阶段——它们仅存在于训练期，行为被蕩骏进上图所有参数里（router、每个 expert FFN、每个 attention 层、每个 embedding 行）。
+> 🖼️ 上图中的架构 “experts”（Step 5 Expert Pool）是 FFN 子网络，**不是** OPD 的领域专家模型。OPD specialist 从不出现在推理阶段——它们仅存在于训练期，行为被蒸馏进上图所有参数里（router、每个 expert FFN、每个 attention 层、每个 embedding 行）。
 
-### OPD 蕩骏的能力最终去了哪里？
+### OPD 蒸馏的能力最终去了哪里？
 
-当 OPD 蕩骏后的 student 推理时接到一道数学题：
+当 OPD 蒸馏后的 student 推理时接到一道数学题：
 
 1. **Embedding** 层激活数学相关的 token embedding
 2. **Attention** 层（CSA/HCA）关注数学相关上下文
@@ -529,6 +529,7 @@ OPD 是**post-training 的收官之作**——把所有用新架构训出的领�
 - Yadav, P. et al. (2023). *TIES-Merging: Resolving Interference When Merging Models*. arXiv:2306.01708（带符号选举的 task arithmetic）
 - Yu, L. et al. (2024). *Language Models are Super Mario: Absorbing Abilities from Homologous Models via DARE*. arXiv:2311.03099
 - 配套阅读：[Long-Context-Efficient-Attention](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/Long-Context-Efficient-Attention)（V4 的 CSA+HCA attention 机制）
+- 前置知识：[KV-Cache-Deep-Dive](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive)（Transformer 基础、KV Cache、MoE 架构图）
 - 关联阅读：[LoRA-Merge-Quality-Impact](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/LoRA-Merge-Quality-Impact)（量化参数空间合并的退化）
 
 ---

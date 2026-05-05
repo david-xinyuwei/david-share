@@ -531,6 +531,7 @@ These are planned for a follow-up phase. When the experimental data is in, this 
 - Yadav, P. et al. (2023). *TIES-Merging: Resolving Interference When Merging Models*. arXiv:2306.01708 (task arithmetic with sign election)
 - Yu, L. et al. (2024). *Language Models are Super Mario: Absorbing Abilities from Homologous Models via DARE*. arXiv:2311.03099
 - Companion article: [Long-Context-Efficient-Attention](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/Long-Context-Efficient-Attention) (V4's CSA+HCA attention mechanism)
+- Prerequisite: [KV-Cache-Deep-Dive](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive) (Transformer fundamentals, KV Cache, MoE architecture diagram)
 - Related article: [LoRA-Merge-Quality-Impact](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/LoRA-Merge-Quality-Impact) (quantifies parameter-space merging degradation)
 
 ---
