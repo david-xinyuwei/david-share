@@ -446,6 +446,127 @@ $$\frac{\partial D_{KL}}{\partial \theta_p} = \frac{\partial D_{KL}}{\partial \p
 
 **最终结果**：数学 expert 接受数学训练，写作 expert 接受写作训练，代码 expert 接受代码训练——尽管所有教练在每一步都在场。**Router（架构层）和梯度稀疏性（数学层）共同实现了清晰的分工。**
 
+### 可视化：推理路径 vs OPD 训练路径
+
+两张图把上面的机制画清楚。
+
+**图 A — 推理时（一个 token 走过 60 层）**：
+
+```mermaid
+graph TD
+    INPUT["Input Token<br/>例: '12'<br/>4096-dim hidden state"] --> L1
+    
+    subgraph L1["Layer 1"]
+        L1_ATT["Attention<br/>(CSA/HCA)"] --> L1_ROUTER
+        L1_ROUTER["Router<br/>4096d → 256 logits"]
+        L1_ROUTER -->|"top-8"| L1_E["Expert {17, 42, 89,<br/>103, 128, 156, 200, 233}<br/>+ Shared Expert"]
+        L1_E --> L1_OUT["输出 4096d<br/>→ 下一层"]
+    end
+    
+    L1 --> L2
+    
+    subgraph L2["Layer 2"]
+        L2_ATT["Attention"] --> L2_ROUTER
+        L2_ROUTER["Router"]
+        L2_ROUTER -->|"top-8"| L2_E["Expert {5, 23, 67,<br/>91, 120, 178, 201, 245}<br/>+ Shared Expert"]
+        L2_E --> L2_OUT["输出 4096d<br/>→ 下一层"]
+    end
+    
+    L2 --> DOTS["...<br/>(每层都重复:<br/>Attention → Router → top-8 expert)"]
+    
+    DOTS --> L60
+    
+    subgraph L60["Layer 60"]
+        L60_ATT["Attention"] --> L60_ROUTER
+        L60_ROUTER["Router"]
+        L60_ROUTER -->|"top-8"| L60_E["Expert {3, 47, 88,<br/>112, 145, 189, 217, 250}<br/>+ Shared Expert"]
+        L60_E --> L60_OUT["输出 4096d"]
+    end
+    
+    L60 --> LM_HEAD["LM Head<br/>4096d → 150K vocab<br/>→ 预测下一个 token"]
+    
+    style L1 fill:#E3F2FD,stroke:#1565C0,stroke-width:2px
+    style L2 fill:#E8EAF6,stroke:#283593,stroke-width:2px
+    style L60 fill:#FCE4EC,stroke:#C62828,stroke-width:2px
+    style DOTS fill:#FFF9C4,stroke:#F9A825,stroke-width:2px,stroke-dasharray:5 5
+    style L1_ROUTER fill:#9C27B0,color:#fff
+    style L2_ROUTER fill:#9C27B0,color:#fff
+    style L60_ROUTER fill:#9C27B0,color:#fff
+    style L1_E fill:#CE93D8
+    style L2_E fill:#CE93D8
+    style L60_E fill:#CE93D8
+    style INPUT fill:#FFE082
+    style LM_HEAD fill:#FFAB91
+```
+
+图 A 的关键观察：
+- **60 层，每层有自己独立的 256 个 expert 池**（Layer 1 和 Layer 2 的 expert 池**完全独立**，互不共享）
+- **每层 Router 独立选 top-8**（同一个 token 在不同层选的 expert 编号不同）
+- **每个 token 总激活量** = 60 × (8 routed + 1 shared) = **540 个 expert 实例**（共 ~15,000 个里）
+- 对应约 49B 激活参数（≈ V4-Pro 总参数 1.6T 的 3%）
+
+**图 B — OPD 一步训练**：
+
+```mermaid
+graph TD
+    INPUT["训练样本: 数学题<br/>例: '12 × 7 = ?'<br/>当前 token = '12'"] --> SPLIT[" "]
+    
+    SPLIT -.->|"同一 token 输入"| STUDENT
+    SPLIT -.->|"同一 token 输入"| TEACHERS
+    
+    subgraph STUDENT["Student (V4 MoE，正在被训练)"]
+        direction TB
+        S_L1["Layer 1: Attention → Router → top-8 expert<br/>{17, 42, 89, 103, ...}"] --> S_L2["Layer 2: 同样结构<br/>{5, 23, 67, 91, ...}"]
+        S_L2 --> S_DOTS["...60 层都重复..."]
+        S_DOTS --> S_LMHEAD["LM Head"]
+        S_LMHEAD --> S_DIST["π_θ:<br/>student 的全词表概率分布<br/>(150K-dim)"]
+    end
+    
+    subgraph TEACHERS["10+ Specialist 教练 (冻结，不训练)"]
+        direction TB
+        T_MATH["数学 Specialist<br/>(完整模型)<br/>→ 输出概率分布"]
+        T_CODE["代码 Specialist<br/>→ 输出概率分布"]
+        T_WRITE["写作 Specialist<br/>→ 输出概率分布"]
+        T_DOTS["...其他 ~7 个..."]
+    end
+    
+    S_DIST --> LOSS
+    T_MATH -->|"π_E1: 高质量信号<br/>(数学题它最懂)"| LOSS
+    T_CODE -->|"π_E2: 噪声信号<br/>(数学题它不懂)"| LOSS
+    T_WRITE -->|"π_E3: 噪声信号"| LOSS
+    T_DOTS -->|"..."| LOSS
+    
+    LOSS["Loss = Σᵢ wᵢ · KL(π_θ ‖ π_Ei)<br/>所有 N 个教练全部加权求和<br/>(论文 Eq.29)"]
+    
+    LOSS --> GRAD["反向传播梯度"]
+    
+    GRAD -.->|"数学教练梯度主导<br/>更新 student 参数"| S_UPDATE["✅ 更新 Student:<br/>• Embedding<br/>• 每层 Attention<br/>• 每层 Router<br/>• 每层被选中的 8 个 expert<br/>(其余 248 个 expert 梯度=0)"]
+    
+    GRAD -.->|"❌ 不更新"| T_FROZEN["教练全程冻结<br/>不被训练"]
+    
+    style INPUT fill:#FFE082
+    style SPLIT fill:#FFFFFF,stroke:#FFFFFF
+    style STUDENT fill:#E3F2FD,stroke:#1565C0,stroke-width:2px
+    style TEACHERS fill:#FFF3E0,stroke:#E65100,stroke-width:2px
+    style LOSS fill:#FFAB91,stroke:#BF360C,stroke-width:3px
+    style GRAD fill:#FFCC80,stroke:#E65100,stroke-width:2px
+    style S_UPDATE fill:#C8E6C9,stroke:#2E7D32,stroke-width:2px
+    style T_FROZEN fill:#FFCDD2,stroke:#B71C1C,stroke-width:2px
+    style S_DIST fill:#9C27B0,color:#fff
+    style T_MATH fill:#F8BBD0
+    style T_CODE fill:#F8BBD0
+    style T_WRITE fill:#F8BBD0
+    style T_DOTS fill:#F8BBD0,stroke-dasharray:3 3
+```
+
+图 B 的关键观察：
+- **所有 N 个教练每一步都跑 forward**（Eq.29 求和所有 KL 项——没有"挑教练"的步骤）
+- **只有对口教练给出有用梯度**（数学题上数学教练分布尖锐 → KL 大 → 信号强；其他教练分布近均匀 → 噪声）
+- **教练全程冻结**——只有 student 的参数被更新
+- **Student 内部，只有 Router 选中的 expert 收到梯度**——每层未被选中的 expert 梯度严格为 0
+
+"所有教练都打分"（Eq.29）+ "只有被选中的 expert 参与计算"（MoE forward）这两个机制叠加，产生了一个优雅的性质：**数学上 10+ 个教练全程参与，但实际效果是每道题只训了 router-pattern 与之对齐的 expert，主要由真正懂这个领域的教练指导**。
+
 ### OPD 蒸馏的能力最终去了哪里？
 
 当 OPD 蒸馏后的 student 推理时接到一道数学题：

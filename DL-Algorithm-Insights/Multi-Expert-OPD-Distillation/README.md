@@ -448,6 +448,127 @@ So when a math problem comes in:
 
 **End result**: math experts get math training, writing experts get writing training, code experts get code training — even though all teachers are present at every step. The router (architectural) and the gradient sparsity (mathematical) together produce the clean specialization.
 
+### Visualizing it: Inference Path vs OPD Training Path
+
+Two diagrams that make the above mechanism concrete.
+
+**Diagram A — Inference (one token through all 60 layers)**:
+
+```mermaid
+graph TD
+    INPUT["Input Token<br/>e.g., '12'<br/>4096-dim hidden state"] --> L1
+    
+    subgraph L1["Layer 1"]
+        L1_ATT["Attention<br/>(CSA/HCA)"] --> L1_ROUTER
+        L1_ROUTER["Router<br/>4096d → 256 logits"]
+        L1_ROUTER -->|"top-8"| L1_E["Expert {17, 42, 89,<br/>103, 128, 156, 200, 233}<br/>+ Shared Expert"]
+        L1_E --> L1_OUT["output 4096d<br/>→ next layer"]
+    end
+    
+    L1 --> L2
+    
+    subgraph L2["Layer 2"]
+        L2_ATT["Attention"] --> L2_ROUTER
+        L2_ROUTER["Router"]
+        L2_ROUTER -->|"top-8"| L2_E["Expert {5, 23, 67,<br/>91, 120, 178, 201, 245}<br/>+ Shared Expert"]
+        L2_E --> L2_OUT["output 4096d<br/>→ next layer"]
+    end
+    
+    L2 --> DOTS["...<br/>(every layer repeats:<br/>Attention → Router → top-8 expert)"]
+    
+    DOTS --> L60
+    
+    subgraph L60["Layer 60"]
+        L60_ATT["Attention"] --> L60_ROUTER
+        L60_ROUTER["Router"]
+        L60_ROUTER -->|"top-8"| L60_E["Expert {3, 47, 88,<br/>112, 145, 189, 217, 250}<br/>+ Shared Expert"]
+        L60_E --> L60_OUT["output 4096d"]
+    end
+    
+    L60 --> LM_HEAD["LM Head<br/>4096d → 150K vocab<br/>→ predict next token"]
+    
+    style L1 fill:#E3F2FD,stroke:#1565C0,stroke-width:2px
+    style L2 fill:#E8EAF6,stroke:#283593,stroke-width:2px
+    style L60 fill:#FCE4EC,stroke:#C62828,stroke-width:2px
+    style DOTS fill:#FFF9C4,stroke:#F9A825,stroke-width:2px,stroke-dasharray:5 5
+    style L1_ROUTER fill:#9C27B0,color:#fff
+    style L2_ROUTER fill:#9C27B0,color:#fff
+    style L60_ROUTER fill:#9C27B0,color:#fff
+    style L1_E fill:#CE93D8
+    style L2_E fill:#CE93D8
+    style L60_E fill:#CE93D8
+    style INPUT fill:#FFE082
+    style LM_HEAD fill:#FFAB91
+```
+
+Key observations from Diagram A:
+- **60 layers, each with its own independent 256-expert pool** (Layer 1's experts and Layer 2's experts are completely separate)
+- **Each layer's Router independently picks top-8** (the selected expert IDs differ across layers)
+- **Total per-token activation**: 60 × (8 routed + 1 shared) = **540 expert instances** (out of ~15,000 total)
+- This corresponds to ~49B activated parameters (≈ 3% of V4-Pro's 1.6T total)
+
+**Diagram B — One OPD Training Step**:
+
+```mermaid
+graph TD
+    INPUT["Training sample: math problem<br/>e.g., '12 × 7 = ?'<br/>current token = '12'"] --> SPLIT[" "]
+    
+    SPLIT -.->|"same token input"| STUDENT
+    SPLIT -.->|"same token input"| TEACHERS
+    
+    subgraph STUDENT["Student (V4 MoE, being trained)"]
+        direction TB
+        S_L1["Layer 1: Attention → Router → top-8 expert<br/>{17, 42, 89, 103, ...}"] --> S_L2["Layer 2: same structure<br/>{5, 23, 67, 91, ...}"]
+        S_L2 --> S_DOTS["...60 layers all repeat..."]
+        S_DOTS --> S_LMHEAD["LM Head"]
+        S_LMHEAD --> S_DIST["π_θ:<br/>student's full-vocab distribution<br/>(150K-dim)"]
+    end
+    
+    subgraph TEACHERS["10+ Specialist Teachers (frozen, NOT trained)"]
+        direction TB
+        T_MATH["Math Specialist<br/>(complete model)<br/>→ output distribution"]
+        T_CODE["Code Specialist<br/>→ output distribution"]
+        T_WRITE["Writing Specialist<br/>→ output distribution"]
+        T_DOTS["...other ~7 specialists..."]
+    end
+    
+    S_DIST --> LOSS
+    T_MATH -->|"π_E1: high-quality signal<br/>(it understands math)"| LOSS
+    T_CODE -->|"π_E2: noise<br/>(doesn't understand math)"| LOSS
+    T_WRITE -->|"π_E3: noise"| LOSS
+    T_DOTS -->|"..."| LOSS
+    
+    LOSS["Loss = Σᵢ wᵢ · KL(π_θ ‖ π_Ei)<br/>ALL N teachers summed weighted<br/>(paper Eq.29)"]
+    
+    LOSS --> GRAD["Backward pass"]
+    
+    GRAD -.->|"math teacher's gradient dominates<br/>updates student parameters"| S_UPDATE["✅ Update Student:<br/>• Embedding<br/>• Attention (every layer)<br/>• Router (every layer)<br/>• Selected top-8 experts (every layer)<br/>(other 248 experts/layer: gradient = 0)"]
+    
+    GRAD -.->|"❌ no update"| T_FROZEN["Teachers stay frozen<br/>throughout training"]
+    
+    style INPUT fill:#FFE082
+    style SPLIT fill:#FFFFFF,stroke:#FFFFFF
+    style STUDENT fill:#E3F2FD,stroke:#1565C0,stroke-width:2px
+    style TEACHERS fill:#FFF3E0,stroke:#E65100,stroke-width:2px
+    style LOSS fill:#FFAB91,stroke:#BF360C,stroke-width:3px
+    style GRAD fill:#FFCC80,stroke:#E65100,stroke-width:2px
+    style S_UPDATE fill:#C8E6C9,stroke:#2E7D32,stroke-width:2px
+    style T_FROZEN fill:#FFCDD2,stroke:#B71C1C,stroke-width:2px
+    style S_DIST fill:#9C27B0,color:#fff
+    style T_MATH fill:#F8BBD0
+    style T_CODE fill:#F8BBD0
+    style T_WRITE fill:#F8BBD0
+    style T_DOTS fill:#F8BBD0,stroke-dasharray:3 3
+```
+
+Key observations from Diagram B:
+- **All N teachers run forward at every step** (Eq.29 sums all KL terms — there is no teacher selection)
+- **Only the relevant teacher provides useful gradient** (math teacher on math problem = sharp distribution = large KL signal; other teachers on math problem = near-uniform distribution = noise)
+- **Teachers are frozen** — only the student's parameters are updated
+- **Within the student, only router-selected experts get gradient** — non-selected experts at each layer have gradient = 0
+
+The combination of "all teachers always score" (Eq.29) and "only selected experts compute" (MoE forward) is what produces the elegant property: **mathematically all 10+ teachers participate, but in practice each problem trains only the experts whose router-pattern aligns with that problem, primarily guided by the teacher who actually understands the domain**.
+
 ### Where do the OPD-distilled capabilities end up?
 
 When OPD-distilled student receives a math query at inference time:
