@@ -375,6 +375,79 @@ V4 is **both a MoE architecture and a recipient of OPD post-training**. These ar
 
 Visualizing the architectural MoE inside V4's Transformer — to make clear where the fine-grained FFN experts live relative to Attention, KV Cache, and other components — see the full MoE Transformer pipeline diagram in [KV-Cache-Deep-Dive](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive#moe-variant-when-step-5-becomes-a-mixture-of-experts). Key takeaway: each MoE "expert" is a small FFN (e.g., 4096→1408→4096), selected per-token by a router. An OPD specialist is an entire multi-hundred-billion-parameter model. They are fundamentally different things.
 
+### How do MoE experts get their "skills"?
+
+A common follow-up question: if no one labels MoE experts as "the math expert" or "the writing expert", how do they end up specialized at all?
+
+The answer: **specialization emerges automatically during pre-training, driven by the router-expert feedback loop.**
+
+```
+Pre-training initialization:
+  Expert 1, 2, ..., 256:  random FFN weights, no skills
+  Router:                   random weights, picks experts arbitrarily
+
+Pre-training progresses (trillions of tokens):
+  Random fluctuations make some experts marginally better at certain token patterns
+  → Router learns to pick those experts more often for that pattern
+  → Those experts receive more gradient on that pattern
+  → They become even better at it
+  → Positive feedback loop crystallizes the specialization
+
+Pre-training ends:
+  Expert 17:  attends mostly to English grammar tokens
+  Expert 42:  attends mostly to math symbols
+  Expert 103: attends mostly to Chinese narrative tokens
+  Expert 200: attends mostly to code indentation tokens
+  ...
+  (But no human ever labeled them. The router learned, the experts adapted.)
+```
+
+**Important nuance**: an expert's "skill" is not a domain — it is a **token-level pattern**. There is no "math expert" in the literal sense; there is "the expert that gets selected when the input token looks like a math operator", which behaves *as if* it were a math expert in aggregate. A math problem activates many different experts across many different tokens (numbers, operators, punctuation, etc.), each contributing to the final output.
+
+### OPD Gradient Flow: Which Experts Actually Get Updated?
+
+Now we can answer the most subtle question: **when an OPD step happens with 10+ teachers all scoring, which MoE experts in the student get updated?**
+
+Strict logical derivation from the OPD loss:
+
+$$L = \sum_{i=1}^{N} w_i \cdot D_{KL}(\pi_\theta \,\|\, \pi_{E_i})$$
+
+For any parameter `θ_p` (e.g., a specific expert's FFN weight), the gradient is:
+
+$$\frac{\partial L}{\partial \theta_p} = \sum_{i=1}^{N} w_i \cdot \frac{\partial D_{KL}(\pi_\theta \,\|\, \pi_{E_i})}{\partial \theta_p}$$
+
+The teacher distributions `π_E_i` are **frozen** (they don't depend on `θ_p`), so the only way the gradient is non-zero is through `π_θ` — the student's output distribution. By the chain rule:
+
+$$\frac{\partial D_{KL}}{\partial \theta_p} = \frac{\partial D_{KL}}{\partial \pi_\theta} \cdot \frac{\partial \pi_\theta}{\partial \theta_p}$$
+
+If `θ_p` did not participate in the forward pass that produced `π_θ`, then `∂π_θ / ∂θ_p = 0` strictly (it's not in the computation graph at all).
+
+**Putting it together** for a single training sample (e.g., a math problem):
+
+| Component | Participates in forward? | Receives gradient? |
+|-----------|:------------------------:|:-----------------:|
+| Embedding, Attention, LM Head | ✅ Always | ✅ Always |
+| Router | ✅ Always | ✅ Always |
+| MoE experts **selected by router** (top-8) | ✅ Yes | ✅ Yes (gradient flows) |
+| MoE experts **NOT selected** (the other 248) | ❌ No | ❌ Strictly zero |
+
+**Crucially**: the "all 10 teachers score every sample" fact only changes the *composition* of the gradient that flows to the selected experts — it does not enable gradient flow to unselected experts. The unselected expert FFN weights are mathematically disconnected from the loss for this sample.
+
+So when a math problem comes in:
+
+1. Router selects top-8 experts that handle math-pattern tokens — call this set M
+2. Forward pass uses only M (the other 248 experts are bypassed)
+3. All 10+ teachers score the student's output:
+   - Math teacher: high-quality KL signal (it understands math)
+   - Other 9 teachers: low-magnitude noise (they don't understand math, give near-uniform distributions)
+4. Gradients flow back, summed weighted by `w_i`:
+   - Math teacher's gradient dominates (large KL → large gradient)
+   - Other teachers' gradients average toward zero (random noise cancels)
+5. The dominant gradient updates **only the experts in M** (and Router/Attention/etc.)
+6. The other 248 experts: gradient = 0, weights unchanged
+
+**End result**: math experts get math training, writing experts get writing training, code experts get code training — even though all teachers are present at every step. The router (architectural) and the gradient sparsity (mathematical) together produce the clean specialization.
+
 ### Where do the OPD-distilled capabilities end up?
 
 When OPD-distilled student receives a math query at inference time:

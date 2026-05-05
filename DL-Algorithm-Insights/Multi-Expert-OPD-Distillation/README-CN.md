@@ -373,6 +373,79 @@ V4 **既是 MoE 架构、又是 OPD 后训练的成果**。这是两个完全独
 
 要可视化 V4 Transformer 内部的架构层 MoE——看清 fine-grained FFN expert 相对于 Attention、KV Cache 和其他组件的位置——请看 [KV-Cache-Deep-Dive 中的完整 MoE Transformer 流水线图](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/KV-Cache-Deep-Dive#moe-variant-when-step-5-becomes-a-mixture-of-experts)。核心要点：每个 MoE "expert" 是一个小 FFN（如 4096→1408→4096），由 router 逐 token 选择。OPD specialist 是整个几千亿参数的模型。它们是完全不同的东西。
 
+### MoE expert 的"技能"从哪来？
+
+一个常见的追问：既然没人给 MoE expert 贴"数学 expert" / "写作 expert" 的标签，它们是怎么变得专业化的？
+
+答案：**专业化是 pre-training 中由 Router-Expert 的反馈循环自动形成的。**
+
+```
+Pre-training 初始化：
+  Expert 1, 2, ..., 256：随机 FFN 权重，没有任何技能
+  Router：随机权重，瞎选
+
+Pre-training 进行中（万亿 token 训练）：
+  随机扰动让某些 expert 在某类 token pattern 上略好一点
+  → Router 学会在遇到这类 pattern 时更倾向选它们
+  → 这些 expert 在这类 pattern 上收到更多梯度
+  → 它们变得更擅长
+  → 正反馈循环把分工固化下来
+
+Pre-training 结束：
+  Expert 17：主要被英文语法 token 激活
+  Expert 42：主要被数学符号激活
+  Expert 103：主要被中文叙述 token 激活
+  Expert 200：主要被代码缩进 token 激活
+  ...
+  （但没有人给它们贴标签。是 Router 学会的，是 expert 自己适应的。）
+```
+
+**重要细节**：expert 的"技能"不是一个领域，而是一类 **token-level pattern**。严格说没有"数学 expert"；只有"被数学运算符 token 激活的那个 expert"——它在统计上看起来像数学专家。一道数学题的不同 token（数字、运算符、标点等）会激活很多不同 expert，每个都贡献最终输出的一部分。
+
+### OPD 梯度流：哪些 Expert 真正被更新？
+
+现在可以回答最微妙的问题：**当 OPD 一步训练发生时，10+ 个教练全部打分，student 中哪些 MoE expert 被更新？**
+
+从 OPD loss 严格逻辑推导：
+
+$$L = \sum_{i=1}^{N} w_i \cdot D_{KL}(\pi_\theta \,\|\, \pi_{E_i})$$
+
+对任意参数 `θ_p`（如某个 expert 的 FFN 权重），梯度为：
+
+$$\frac{\partial L}{\partial \theta_p} = \sum_{i=1}^{N} w_i \cdot \frac{\partial D_{KL}(\pi_\theta \,\|\, \pi_{E_i})}{\partial \theta_p}$$
+
+教练分布 `π_E_i` 是**冻结的**（不依赖 `θ_p`），所以梯度非零的唯一路径是通过 `π_θ`——student 输出分布。链式法则：
+
+$$\frac{\partial D_{KL}}{\partial \theta_p} = \frac{\partial D_{KL}}{\partial \pi_\theta} \cdot \frac{\partial \pi_\theta}{\partial \theta_p}$$
+
+如果 `θ_p` 没参与产生 `π_θ` 的 forward 计算，那么 `∂π_θ / ∂θ_p = 0` **严格为零**（它根本不在计算图里）。
+
+**对一个训练样本（如一道数学题）**：
+
+| 组件 | 参与 forward？ | 收到梯度？ |
+|------|:--------------:|:---------:|
+| Embedding、Attention、LM Head | ✅ 总是 | ✅ 总是 |
+| Router | ✅ 总是 | ✅ 总是 |
+| **被 Router 选中的** MoE expert（top-8） | ✅ 是 | ✅ 是（梯度流过） |
+| **未被选中的** MoE expert（其他 248 个） | ❌ 否 | ❌ 严格为零 |
+
+**关键**："10 个教练都给每个样本打分" 这个事实只改变了流到**被选中** expert 的梯度的**组成**——它无法让梯度流到**未被选中**的 expert。未被选中的 expert FFN 权重在数学上与这个样本的 loss 完全断开。
+
+所以一道数学题进来时：
+
+1. Router 选出 top-8 个处理数学 pattern token 的 expert，记为集合 M
+2. Forward pass 只用 M（其他 248 个 expert 被绕开）
+3. 10+ 个教练都对 student 输出打分：
+   - 数学教练：高质量 KL 信号（它懂数学）
+   - 其他 9 个教练：低幅噪声（它们不懂数学，给出近均匀分布）
+4. 梯度反向传播，按 `w_i` 加权求和：
+   - 数学教练的梯度占主导（KL 大 → 梯度大）
+   - 其他教练的梯度互相抵消接近零（随机噪声）
+5. 主导梯度只更新 **M 中的 expert**（以及 Router/Attention 等）
+6. 其他 248 个 expert：梯度 = 0，权重不变
+
+**最终结果**：数学 expert 接受数学训练，写作 expert 接受写作训练，代码 expert 接受代码训练——尽管所有教练在每一步都在场。**Router（架构层）和梯度稀疏性（数学层）共同实现了清晰的分工。**
+
 ### OPD 蒸馏的能力最终去了哪里？
 
 当 OPD 蒸馏后的 student 推理时接到一道数学题：
