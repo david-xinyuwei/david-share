@@ -335,6 +335,70 @@ graph TD
 >
 > **Exception**: Some newer architectures (e.g. Gemma3n) have `num_kv_shared_layers` — layers that share weights, so their KV Cache entries can be reused. But this is a special design, not standard Transformer behavior.
 
+### MoE Variant: When Step 5 Becomes a Mixture of Experts
+
+The Step 5 above shows a **dense FFN** — one shared FFN per layer, processing every token. Modern large models often replace this with **MoE (Mixture-of-Experts)**: many parallel FFNs, only a few activated per token. Steps 1-4 (KV Cache, Attention) are **identical**; only Step 5 changes.
+
+```mermaid
+graph TD
+    subgraph STEP4B_MOE["Step 4b: Multi-Head Concat + O Projection (same as before)"]
+        CONCAT_M["Concat heads → 4096d<br/>× o_proj → 4096d"]
+    end
+
+    subgraph STEP5_MOE["Step 5: MoE FFN (e.g. DeepSeek-V4-Pro: 256 fine-grained experts, top-8)"]
+        ROUTER["Router (Gating Network)<br/>4096d → 256 logits<br/>softmax → score per expert"]
+        TOPK["Top-k Selection (k=8)<br/>Pick 8 highest-scoring experts<br/>+ shared expert (always on)"]
+
+        subgraph EXPERT_POOL["Expert Pool — 256 fine-grained experts (only 8 activated per token)"]
+            E1["Expert 1<br/>FFN: 4096→1408→4096"]
+            E2["Expert 2<br/>FFN: 4096→1408→4096"]
+            EDOTS["..."]
+            E256["Expert 256<br/>FFN: 4096→1408→4096"]
+            ESHR["Shared Expert<br/>(always activated)"]
+        end
+
+        WSUM["Weighted Sum<br/>Σ score_i × expert_i_output → 4096d"]
+        NEXTL_M["Output → next layer<br/>(Repeat for ~60 layers)"]
+
+        ROUTER --> TOPK
+        TOPK -->|"select"| E1
+        TOPK -->|"select"| E2
+        TOPK -.->|"..."| EDOTS
+        TOPK -->|"select"| E256
+        ESHR -->|"always on"| WSUM
+        E1 --> WSUM
+        E2 --> WSUM
+        EDOTS -.-> WSUM
+        E256 --> WSUM
+        WSUM --> NEXTL_M
+    end
+
+    CONCAT_M --> ROUTER
+
+    style STEP4B_MOE fill:#FFF9C4,stroke:#F9A825,stroke-width:2px
+    style STEP5_MOE fill:#F3E5F5,stroke:#7B1FA2,stroke-width:3px
+    style EXPERT_POOL fill:#FFFFFF,stroke:#7B1FA2,stroke-width:1px,stroke-dasharray:4 4
+    style ROUTER fill:#9C27B0,color:#fff
+    style TOPK fill:#BA68C8,color:#fff
+    style ESHR fill:#FFB74D
+    style E1 fill:#CE93D8
+    style E2 fill:#CE93D8
+    style E256 fill:#CE93D8
+    style CONCAT_M fill:#FFF176
+```
+
+**Key differences vs dense FFN**:
+
+| Aspect | Dense FFN (LLaMA, Qwen3-dense) | MoE FFN (DeepSeek-V4, Mixtral) |
+|--------|:------------------------------:|:------------------------------:|
+| Number of FFN per layer | 1 large FFN (e.g., 4096→12288→4096) | N small FFNs in parallel (e.g., 256 × 4096→1408→4096) |
+| Computation per token | All FFN parameters used | Only top-k experts activated (e.g., 8/256 + 1 shared) |
+| Total parameters | Smaller | Much larger (e.g., V4-Pro = 1.6T total / 49B activated) |
+| Inference cost per token | Proportional to total params | Proportional to activated params |
+| KV Cache | Same (Steps 1-4 unchanged) | Same (Steps 1-4 unchanged) |
+
+> 🔗 The MoE expert here is an **architectural** concept — a FFN sub-network selected by the router. This is very different from the "domain expert" in post-training paradigms like On-Policy Distillation, where each "expert" is a complete standalone model. See [Multi-Expert-OPD-Distillation](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/Multi-Expert-OPD-Distillation) for that distinction in detail.
+
 ### 1.2 What's Inside the Weight Matrices?
 
 The Q, K, V weight matrices are **just trained floating-point numbers**. Below are actual values read from the Qwen3-0.6B model file:

@@ -348,6 +348,70 @@ graph TD
 >
 > **例外**：部分新架构（如 Gemma3n）有 `num_kv_shared_layers` 参数——共享权重的层不需要独立 KV Cache。但这是特殊架构设计，标准 Transformer（Qwen3/GPT/LLaMA）不适用。
 
+### MoE 变体：当 Step 5 变成 Mixture-of-Experts
+
+上面的 Step 5 展示的是 **Dense FFN** —— 每层一个共享 FFN，处理所有 token。现代大模型常常把它换成 **MoE（Mixture-of-Experts）**：多个并行 FFN，每个 token 只激活几个。Steps 1-4（KV Cache、Attention）**完全相同**；只有 Step 5 变了。
+
+```mermaid
+graph TD
+    subgraph STEP4B_MOE["Step 4b: Multi-Head Concat + O Projection（同前）"]
+        CONCAT_M["Concat heads → 4096d<br/>× o_proj → 4096d"]
+    end
+
+    subgraph STEP5_MOE["Step 5: MoE FFN（如 DeepSeek-V4-Pro：256 fine-grained experts，top-8）"]
+        ROUTER["Router (Gating Network)<br/>4096d → 256 logits<br/>softmax → 每个 expert 的分数"]
+        TOPK["Top-k 选择 (k=8)<br/>选出 8 个最高分 expert<br/>+ shared expert（始终激活）"]
+
+        subgraph EXPERT_POOL["Expert Pool — 256 个 fine-grained experts（每个 token 只激活 8 个）"]
+            E1["Expert 1<br/>FFN: 4096→1408→4096"]
+            E2["Expert 2<br/>FFN: 4096→1408→4096"]
+            EDOTS["..."]
+            E256["Expert 256<br/>FFN: 4096→1408→4096"]
+            ESHR["Shared Expert<br/>（始终激活）"]
+        end
+
+        WSUM["加权汇总<br/>Σ score_i × expert_i_output → 4096d"]
+        NEXTL_M["输出 → 下一层<br/>（重复 ~60 层）"]
+
+        ROUTER --> TOPK
+        TOPK -->|"select"| E1
+        TOPK -->|"select"| E2
+        TOPK -.->|"..."| EDOTS
+        TOPK -->|"select"| E256
+        ESHR -->|"always on"| WSUM
+        E1 --> WSUM
+        E2 --> WSUM
+        EDOTS -.-> WSUM
+        E256 --> WSUM
+        WSUM --> NEXTL_M
+    end
+
+    CONCAT_M --> ROUTER
+
+    style STEP4B_MOE fill:#FFF9C4,stroke:#F9A825,stroke-width:2px
+    style STEP5_MOE fill:#F3E5F5,stroke:#7B1FA2,stroke-width:3px
+    style EXPERT_POOL fill:#FFFFFF,stroke:#7B1FA2,stroke-width:1px,stroke-dasharray:4 4
+    style ROUTER fill:#9C27B0,color:#fff
+    style TOPK fill:#BA68C8,color:#fff
+    style ESHR fill:#FFB74D
+    style E1 fill:#CE93D8
+    style E2 fill:#CE93D8
+    style E256 fill:#CE93D8
+    style CONCAT_M fill:#FFF176
+```
+
+**与 Dense FFN 的关键差异**：
+
+| 维度 | Dense FFN（LLaMA、Qwen3-dense） | MoE FFN（DeepSeek-V4、Mixtral） |
+|------|:-------------------------------:|:-------------------------------:|
+| 每层 FFN 数量 | 1 个大 FFN（如 4096→12288→4096） | N 个并行小 FFN（如 256 × 4096→1408→4096） |
+| 每个 token 计算量 | 全部 FFN 参数都用 | 只激活 top-k expert（如 8/256 + 1 shared） |
+| 总参数量 | 较小 | 大得多（如 V4-Pro 总 1.6T / 激活 49B） |
+| 每 token 推理成本 | 与总参数成正比 | 与激活参数成正比 |
+| KV Cache | 相同（Steps 1-4 不变） | 相同（Steps 1-4 不变） |
+
+> 🔗 这里的 MoE expert 是**架构层面**的概念——一个由 router 选中的 FFN 子网络。这与后训练范式（如 On-Policy Distillation）里的"领域专家"完全不同——后者每个"专家"是一个完整的独立模型。详见 [Multi-Expert-OPD-Distillation](https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/Multi-Expert-OPD-Distillation) 对这一区别的深入讨论。
+
 ### 1.2 权重矩阵里有什么？
 
 Q、K、V 三个权重矩阵里**就是一堆训练出来的浮点数**。以下是从真实 Qwen3-0.6B 模型文件中读取的实际数字：
