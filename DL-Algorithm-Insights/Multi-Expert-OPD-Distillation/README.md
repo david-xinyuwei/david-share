@@ -491,7 +491,15 @@ This is why OPD specifically uses reverse KL — not because it captures more in
 
 ## OPD Code Ecosystem (2026 Reality Check)
 
-Despite DeepSeek not open-sourcing V4's OPD code, the broader ecosystem has matured significantly. As of 2026-05, OPD is used in production at **Qwen3, MiMo-V2-Flash (Xiaomi), GLM-5 (Zhipu), Baichuan-M3, Nemotron-Cascade 2 (NVIDIA), DeepSeek-V4** — it's no longer a research curiosity.
+DeepSeek did not open-source V4's OPD training code. **No frontier model company has open-sourced their full OPD pipeline as of mid-2026.** What does exist is a layer of **third-party open-source frameworks** (HuggingFace TRL, KDFlow, NeMo-RL, etc.) that let you implement OPD-style training yourself.
+
+> ⚠️ **OPD is not yet an industry standard practice.** Realistic adoption (mid-2026):
+> - ~90% of LLM fine-tuning projects use **SFT + LoRA** (small-model customization)
+> - ~8% use SFT + simple RLHF
+> - ~1.5% use complex RL (PPO/GRPO)
+> - **<1% use OPD** — currently confined to a handful of frontier labs
+>
+> Calling OPD "industry standard" would be misleading; "frontier-lab post-training trend" is more accurate.
 
 ### Working implementations you can fork today
 
@@ -514,17 +522,17 @@ Despite DeepSeek not open-sourcing V4's OPD code, the broader ecosystem has matu
 - **GOLD walkthrough** (HuggingFace H4, with TRL code): https://huggingface.co/spaces/HuggingFaceH4/on-policy-distillation
 - **OPD survey paper**: arXiv 2604.00626 (2026)
 
-### Industry models using OPD (verified from technical reports)
+### Industry models using OPD (verified from primary sources)
 
-| Year | Model | OPD Application |
-|------|-------|-----------------|
-| 2025 | Qwen3 / Qwen3-Omni | Strong-to-weak: off-policy then on-policy distillation |
-| 2026 | **MiMo-V2-Flash** (Xiaomi) | **Multi-Teacher OPD (MOPD)** as main post-training stage ⭐ |
-| 2026 | GLM-5 (Zhipu) | On-policy cross-stage distillation |
-| 2026 | Nemotron-Cascade 2 (NVIDIA) | Cascade RL + multi-domain OPD |
-| 2026 | **Baichuan-M3** | Three-stage: task RL → offline policy distillation → **multi-teacher OPD** ⭐ |
-| 2026 | **DeepSeek-V4** | Two-stage: domain-expert SFT+GRPO → unified model OPD |
-| 2026 | HY-Embodied-0.5 (Tencent) | 32B → 2B large-to-small OPD |
+> ⚠️ **Methodology note**: This table only includes models where I have **personally verified the original technical report or paper** contains the exact OPD claim. Earlier drafts of this Repo cited a longer list copied from a third-party awesome-list ([chrisliu298/awesome-on-policy-distillation](https://github.com/chrisliu298/awesome-on-policy-distillation)); subsequent verification revealed model name errors (e.g., "GLM-5" doesn't exist publicly, only GLM-4.5; "Nemotron-Cascade 2" doesn't exist, the closest is Nemotron-Nano-2 which uses Minitron-style forward KL distillation, not OPD). The table below is the cleaned, verified version.
+
+| Year | Model | OPD Application | Primary Source |
+|------|-------|-----------------|----------------|
+| 2025 | **Qwen3** | "Strong-to-weak distillation" combining off-policy and on-policy knowledge transfer for smaller models | [arXiv:2505.09388](https://arxiv.org/abs/2505.09388) §1, §4 |
+| 2026 | **MiMo-V2-Flash** (Xiaomi) | **Multi-Teacher On-Policy Distillation (MOPD)** as main post-training stage; explicitly framed as "a new paradigm that formulates knowledge distillation as a reinforcement learning process; the student model learns from its own generated responses" | [GitHub README](https://github.com/XiaomiMiMo/MiMo-V2-Flash) §1, §5.1; arXiv 2601.02780 |
+| 2026 | **DeepSeek-V4** | "the mixed RL stage was entirely replaced by On-Policy Distillation (OPD)"; multi-teacher distillation merging 10+ domain experts into the unified model | DeepSeek-V4 Tech Report §5.1 |
+
+**Other models** sometimes claimed to use OPD (Baichuan-M3, GLM-5, Nemotron-Cascade 2, HY-Embodied-0.5, etc.) either: (a) the model name doesn't match a publicly verifiable release, (b) the original report uses different terminology that may or may not be OPD, or (c) the report doesn't include enough detail to confirm. We exclude them here pending direct verification.
 
 > The window for an open-source independent reproduction of V4's multi-teacher OPD remains open as of mid-2026.
 
@@ -550,7 +558,7 @@ Engineers familiar with diffusion models may have heard about "velocity field di
 | Loss type | **Reverse KL divergence** | **MSE on velocity** |
 | Goal | Multi-expert capability fusion | Reduce inference steps (50 → 8) |
 | Teacher signal | Probability over vocabulary | Velocity prediction at each timestep |
-| Examples | DeepSeek-V4, Qwen3, GLM-5 | Stable Diffusion 3, Flux, Qwen-Image-Lightning |
+| Examples | DeepSeek-V4, Qwen3, MiMo-V2-Flash | Stable Diffusion 3, Flux, Qwen-Image-Lightning |
 
 These are completely different methods that share the word "distillation". When discussing distillation for LLMs, OPD/GKD is the relevant family. When discussing distillation for diffusion models, Step Distillation (Progressive Distillation, ADD, Lightning, Hyper-SD) is the relevant family.
 

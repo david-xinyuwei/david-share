@@ -489,7 +489,15 @@ Reverse KL（mode-seeking）：
 
 ## OPD 代码生态（2026 现实检查）
 
-虽然 DeepSeek 没开源 V4 OPD 代码，但更广泛的生态已经成熟。截至 2026-05，OPD 被以下生产模型使用：**Qwen3、MiMo-V2-Flash（小米）、GLM-5（智谱）、Baichuan-M3、Nemotron-Cascade 2（NVIDIA）、DeepSeek-V4**——它已经不是研究奇技。
+DeepSeek 没开源 V4 OPD 训练代码。**截至 2026 年中，没有任何 frontier 模型公司开源完整的 OPD 训练 pipeline。** 真正存在的是一层**第三方开源框架**（HuggingFace TRL、KDFlow、NeMo-RL 等），可以让你自己实现 OPD 风格的训练。
+
+> ⚠️ **OPD 还远不是工业标配实践。** 现实采用情况（2026 年中）：
+> - ~90% 的 LLM 微调项目用 **SFT + LoRA**（小模型定制）
+> - ~8% 用 SFT + 简单 RLHF
+> - ~1.5% 用复杂 RL（PPO/GRPO）
+> - **<1% 用 OPD** —— 仅限少数 frontier 实验室
+>
+> 称 OPD 为"工业标配"会误导读者；"frontier 实验室的后训练新趋势"是更准确的表述。
 
 ### 今天就可以 fork 的可用实现
 
@@ -512,17 +520,17 @@ Reverse KL（mode-seeking）：
 - **GOLD 实战教程**（HuggingFace H4，附 TRL 代码）：https://huggingface.co/spaces/HuggingFaceH4/on-policy-distillation
 - **OPD Survey 论文**：arXiv 2604.00626 (2026)
 
-### 工业界使用 OPD 的模型（来自技术报告）
+### 工业界使用 OPD 的模型（从原始论文验证）
 
-| 年份 | 模型 | OPD 用法 |
-|------|------|---------|
-| 2025 | Qwen3 / Qwen3-Omni | Strong-to-weak: off-policy 然后 on-policy distillation |
-| 2026 | **MiMo-V2-Flash**（小米） | **Multi-Teacher OPD (MOPD)** 作为主要 post-training 阶段 ⭐ |
-| 2026 | GLM-5（智谱） | On-policy cross-stage distillation |
-| 2026 | Nemotron-Cascade 2（NVIDIA） | Cascade RL + multi-domain OPD |
-| 2026 | **Baichuan-M3** | 三阶段：task RL → offline policy distillation → **multi-teacher OPD** ⭐ |
-| 2026 | **DeepSeek-V4** | 两阶段：domain-expert SFT+GRPO → unified model OPD |
-| 2026 | HY-Embodied-0.5（腾讯混元） | 32B → 2B large-to-small OPD |
+> ⚠️ **方法说明**：本表只保留了**亲自阅读并验证原始技术报告/论文**中明确提及 OPD 的模型。本 Repo 早期草稿从第三方 awesome-list（[chrisliu298/awesome-on-policy-distillation](https://github.com/chrisliu298/awesome-on-policy-distillation)）复制了更长的清单；后续验证发现模型名错误（如 "GLM-5" 公开不存在，只有 GLM-4.5；"Nemotron-Cascade 2" 不存在，最接近的 Nemotron-Nano-2 用的是 Minitron 风格的 forward KL distillation而非 OPD）。下表是清理后的验证版本。
+
+| 年份 | 模型 | OPD 用法 | 原始来源 |
+|------|------|---------|---------|
+| 2025 | **Qwen3** | “Strong-to-weak distillation” 结合 off-policy 和 on-policy 知识转移训练小模型 | [arXiv:2505.09388](https://arxiv.org/abs/2505.09388) §1, §4 |
+| 2026 | **MiMo-V2-Flash**（小米） | **Multi-Teacher On-Policy Distillation (MOPD)** 作为主要 post-training 阶段；明确表述为"a new paradigm that formulates knowledge distillation as a reinforcement learning process; the student model learns from its own generated responses" | [GitHub README](https://github.com/XiaomiMiMo/MiMo-V2-Flash) §1, §5.1; arXiv 2601.02780 |
+| 2026 | **DeepSeek-V4** | "the mixed RL stage was entirely replaced by On-Policy Distillation (OPD)"；多教师蒸馏融合 10+ 领域专家到统一模型 | DeepSeek-V4 Tech Report §5.1 |
+
+**其他被声称使用 OPD 的模型**（Baichuan-M3、GLM-5、Nemotron-Cascade 2、HY-Embodied-0.5 等）要么：(a) 模型名与公开发布不匹配，(b) 原报告使用不同术语不能确认是 OPD，(c) 报告细节不足以确认。在直接验证前从表中排除。
 
 > 截至 2026 年中，开源独立复现 V4 multi-teacher OPD 的窗口期仍然开放。
 
@@ -548,7 +556,7 @@ Reverse KL（mode-seeking）：
 | Loss 类型 | **反向 KL 散度** | **MSE on velocity** |
 | 目标 | 多专家能力融合 | 减少推理步数（50 → 8） |
 | Teacher 信号 | 词表上的概率 | 每个 timestep 的速度预测 |
-| 例子 | DeepSeek-V4、Qwen3、GLM-5 | Stable Diffusion 3、Flux、Qwen-Image-Lightning |
+| 例子 | DeepSeek-V4、Qwen3、MiMo-V2-Flash | Stable Diffusion 3、Flux、Qwen-Image-Lightning |
 
 这是两种完全不同的方法，碰巧都叫 "distillation"。讨论 LLM 蒸馏时，OPD/GKD 是相关家族；讨论 diffusion 模型蒸馏时，Step Distillation（Progressive Distillation、ADD、Lightning、Hyper-SD）是相关家族。
 
