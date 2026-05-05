@@ -274,6 +274,126 @@ OPD 没有这些问题：
 - KL 信号是稠密的（每个 token、每个 vocab 位置）vs 稀疏的 RL reward（每个 trajectory 一个标量）
 - 不需要设计 reward 函数——teacher 分布就是隐式 reward
 
+### vs SFT（Supervised Fine-Tuning）—— Exposure Bias 问题
+
+一个常见的疑问：**为什么不直接用 SFT 在每个 specialist 的输出上训练 student？** 看起来更简单——收集 specialist 对 prompt 的回答，然后把 (prompt, response) 对喂给 student fine-tune。
+
+这种方法在一定程度上有效，但有一个根本问题，叫 **Exposure Bias**：
+
+```
+SFT 训练：
+  Prompt:   "Solve: 13 × 7 = ?"
+  Teacher 答案："13 × 7 = 91"
+  
+  Student 在每一步学：
+    Step 1: 前缀 "13 ×" → 预测下一个 token
+            （这个前缀是 teacher 写的——干净、正确）
+    Step 2: 前缀 "13 × 7" → 预测下一个 token
+            （还是 teacher 的前缀）
+    Step 3: 前缀 "13 × 7 =" → 预测下一个 token（= "91"）
+  
+  整个训练过程，student 只见过 teacher 生成的前缀。
+```
+
+但推理时**没有 teacher**——student 自己生成前缀：
+
+```
+推理时：
+  Step 1: 前缀 "" → student 生成 "13"
+  Step 2: 前缀 "13" → student 生成 "×"
+  Step 3: 前缀 "13 ×" → student 生成 "7"
+  Step 4: 前缀 "13 × 7" → student 不小心生成 "+"（错了！）
+  Step 5: 前缀 "13 × 7 +"  ← ⚠️ 训练时从未见过这个前缀！
+          Student 不知道怎么从自己的错误中恢复。
+          → 输出可能崩坏："13 × 7 + 91 = 104"（胡说）
+```
+
+**这就是 exposure bias**：student 训练时从未"暴露"在自己生成的前缀（可能含错）下。推理时一旦自己出错，没有学过"刚才写错了，下一步怎么办"的行为。
+
+OPD 通过**on-policy 采样**解决：
+
+```
+OPD 训练：
+  Step 1: Student 用自己当前能力生成完整 trajectory：
+          "Let me think... 13 × 7 = 81... 等等，重算一下：13 × 7 = 91"
+          （包含 student 自己的错误和自我纠正）
+  Step 2: Specialist 在每个 token 位置打分
+  Step 3: Student 在【自己的错误】上学习
+  
+  → Student 学过"刚写错时怎么继续"
+  → 推理时能自我纠错（这就是推理模型的"等等，让我重新想"）
+```
+
+这就是为什么 frontier 推理模型（DeepSeek-R1、OpenAI o1 等）都用 on-policy 训练（RL 或 OPD）——纯 SFT 教不会自我纠正。
+
+| 维度 | SFT | OPD |
+|------|:---:|:---:|
+| 训练数据前缀来自 | Teacher | **Student 自己** |
+| 每 token 信号 | 1 个标签（teacher 选的 token） | **完整分布（~150K 个概率）** |
+| 训练/推理分布一致 | ❌ 不一致 | ✅ 一致 |
+| 自我纠错能力 | ❌ 教不会 | ✅ 能教会 |
+| 多教师支持 | ❌ 必须挑一个或顺序训（catastrophic forgetting） | ✅ 天然 Σᵢ 支持 |
+
+### vs RL / RLAIF —— 只是更密的 reward 信号
+
+自然的下一个问题：**RL 也能解决 exposure bias（student 自己采样）——为什么不直接用 RL？**
+
+你说得对——V3.2 用的就是 RL。V4 *试过* RL 然后用 OPD 替换。关键洞察：
+
+**OPD = 把 teacher logit 分布当 reward 信号的 RL。**
+
+两者都是 on-policy 训练（student 采样）。唯一区别是 student 每个 trajectory 收到的反馈类型：
+
+| 方法 | 每条 trajectory 的反馈 | 每 token 信号密度 |
+|------|---|:---:|
+| **RL with rule reward**（如数学正确性） | 1 个标量（如 +1 / -1） | ~0.001（1 / 1000 tokens） |
+| **RLHF**（人工反馈） | 1 个标量 | ~0.001 |
+| **RLAIF**（LLM 当裁判，如 GPT-5 打分） | 1 个标量 | ~0.001 |
+| **OPD** | 每 token 完整词表分布（~150K） | **150,000** |
+
+OPD 的反馈密度大约是 scalar RL reward 的 **1.5 × 10⁸ 倍**。这意味着：
+- 梯度更稳定（方差更低）
+- 收敛更快
+- 不需要设计 reward 函数（teacher 分布就是 reward）
+- 不会 reward hacking（你没法通过钻一个维度的漏洞来骗过 150K 维分布）
+
+**那为什么大家不都用 OPD？** 因为它需要 **teacher 的全词表 logits**——这就是实际的硬墙。
+
+#### 隐藏的限制：API 是否给 logits
+
+商业 LLM API（OpenAI、Anthropic 等）**不暴露全词表 logits**：
+
+| API | top_logprobs 上限 | 能做完整 OPD？ |
+|-----|:--:|:--:|
+| Azure OpenAI Chat Completions | 20 | ❌（只占 0.013% 词表） |
+| Azure OpenAI Completions | 5 | ❌（只占 0.003%） |
+| Anthropic Claude API | 不暴露 | ❌ |
+| **自部署开源模型**（Llama / Qwen / DeepSeek） | 全部 | ✅ 完整词表 |
+
+> 来源：[Azure OpenAI REST API Reference](https://learn.microsoft.com/en-us/azure/foundry/openai/reference) — `top_logprobs` 是 "An integer between 0 and 20 specifying the number of most likely tokens to return at each token position"。
+
+这就是为什么 V4 必须自家来做：specialist 是自部署的，能拿到全词表 logits。用 GPT-5 当 teacher 的初创公司只能做"top-20 KL 的 RLAIF"，比完整 OPD 弱很多（V4 论文 Section 5.1.2 明确反对这种近似）。
+
+> 🔗 小团队想做类似 OPD：自部署一个开源 teacher（如 Llama-3-70B、Qwen2.5-72B、DeepSeek-V3），就能拿到全词表 logits。这正是 DeepSeek-R1 蒸馏 Qwen 系列的做法。
+
+### vs Step Distillation（Diffusion 模型）—— 不同领域、不同机制
+
+熟悉图像生成的工程师可能听过 diffusion 模型语境下的"蒸馏"——比如把 50 步 Stable Diffusion teacher 蒸馏成 8 步 student（LCM、Lightning、Hyper-SD 等）。**这是完全不同的一种蒸馏，不是 OPD。**
+
+| 维度 | Step Distillation（Diffusion） | OPD（LLM） |
+|------|:----:|:---:|
+| 领域 | Diffusion 图像生成 | 自回归 LLM |
+| 目标 | 减少推理步数（50 → 8） | 融合多个领域专家 |
+| Teacher 在训练时的行为 | 离线**一次性**生成 trajectory；之后退场 | 每个训练 step **在线**计算 logits |
+| On-policy 还是 offline？ | **Offline**（teacher 的 trajectory 保存为固定数据集） | **On-policy**（student 的 trajectory 实时打分） |
+| 训练信号 | Teacher 的中间去噪状态 | Teacher 的完整词表分布 |
+
+Step Distillation 中，teacher 的角色是**预先生成训练数据集**。数据集生成后，teacher 退场，student 用普通监督方式训练。
+
+OPD 中，teacher **始终在训练循环中**——每一步都给 student 的实时采样打分。
+
+这是两种完全不同的方法，碰巧都叫"distillation"。当有人说"我们用了蒸馏"，一定要问：**on-policy 还是 offline？单 teacher 还是多 teacher？teacher 给什么信号？** 答案决定了讨论的是哪种方法。
+
 ---
 
 ## DeepSeek-V4 中哪些是原创？
@@ -597,6 +717,47 @@ DeepSeek-V4 是一组协调的创新。OPD 扮演特定角色：
 | Quick Instruction（KV cache 复用做辅助任务） | 减少 chatbot 场景的 TTFT | V4 论文 Section 5.1.1 |
 
 OPD 是**post-training 的收官之作**——把所有用新架构训出的领域专家整合成最终上线模型的方法。
+
+---
+
+## OPD 的诚实局限
+
+OPD 不是万能药。三个值得理解的现实约束：
+
+### 1. 覆盖度依赖数据，不是架构保证
+
+OPD 只更新 router 在每个训练样本中选中的 MoE expert。OPD 训练数据分布之外的 token-level pattern 对应的 expert，在整个 OPD 中**永远不会被选中**——它们保留 pre-training 权重不变。
+
+```
+如果 OPD 训练数据只覆盖 数学 + 代码 + 写作：
+  → 数学/代码/写作 pattern 对应的 expert 收到 OPD 更新（实际中是大多数 expert）
+  → 处理罕见 pattern 的 expert（如冷门语言、niche 符号）
+    收不到 OPD 信号 → 只保留 pre-training 能力
+
+→ OPD 覆盖度 = OPD 训练数据覆盖度 ≠ "256 个 expert 全都被均等训练"
+```
+
+V4 用多样化训练数据 + "general chat" specialist（激活面广）来缓解这点，但**没有**理论上保证每个 expert 都被改进——这是数据工程选择，不是数学保证。
+
+### 2. 梯度归因不精确
+
+Teacher 在**输出层**给反馈（next-token 分布），但 student 的错误可能发生在**任何中间层**（错的 attention 模式、错的 router 选择、错的 FFN 计算）。反向传播的梯度只能"猜"是哪个内部组件的责任。
+
+实际效果：
+- 训练比理想情况慢（部分梯度落在无辜组件上）
+- 没出错的 expert 也会收到一点小梯度更新
+- 用小学习率 + 多步训练 + 多教师噪声相消来压制
+
+V4 没有声称解决这个问题——他们只是经验性地调参绕开。
+
+### 3. 规模决定可行性
+
+完整的 V4 OPD pipeline（10+ teacher × 万亿参数 × 全词表 KL）只对以下组织可行：
+- 自部署 teacher 模型（商业 API top_logprobs 上限 20）
+- 中心化权重存储 + ZeRO 风格 sharding
+- 自定义 hidden state 缓存（防止 logit 存储爆炸到 TB 量级）
+
+对小团队：OPD 类训练的简化版本（单个开源 teacher + 标准 PyTorch）仍然非常有效。但 V4 的 *完整* 配置是 frontier 公司的专属能力。
 
 ---
 

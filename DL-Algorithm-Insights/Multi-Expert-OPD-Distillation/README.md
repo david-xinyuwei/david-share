@@ -276,6 +276,126 @@ OPD doesn't have this problem because:
 - The KL signal is dense (every token, every vocab position) vs. sparse RL reward (one scalar per trajectory)
 - No reward function design needed — the teacher distribution IS the implicit reward
 
+### vs SFT (Supervised Fine-Tuning) — The Exposure Bias Problem
+
+A common question: **why not just use SFT to train the student on each specialist's outputs?** It seems simpler — collect specialist responses to a prompt, then fine-tune the student on those (prompt, response) pairs.
+
+This works to some degree but suffers a fundamental problem called **Exposure Bias**:
+
+```
+SFT training:
+  Prompt:   "Solve: 13 × 7 = ?"
+  Teacher's answer: "13 × 7 = 91"
+  
+  Student learns at every step:
+    Step 1: prefix "13 ×" → predict next token
+            (this prefix was written by teacher — clean, correct)
+    Step 2: prefix "13 × 7" → predict next token
+            (still teacher's prefix)
+    Step 3: prefix "13 × 7 =" → predict next token (= "91")
+  
+  At all training steps, student only sees teacher-generated prefixes.
+```
+
+But at inference time, **there is no teacher** — the student generates its own prefix:
+
+```
+Inference time:
+  Step 1: prefix "" → student generates "13"
+  Step 2: prefix "13" → student generates "×"
+  Step 3: prefix "13 ×" → student generates "7"
+  Step 4: prefix "13 × 7" → student accidentally generates "+" (a mistake!)
+  Step 5: prefix "13 × 7 +"  ← ⚠️ Student has NEVER seen this prefix during training!
+          The student doesn't know how to recover from its own error.
+          → Output may degenerate: "13 × 7 + 91 = 104" (nonsensical)
+```
+
+**This is exposure bias**: the student is never "exposed" during training to its own generated prefixes (which may contain errors). At inference time, when the student inevitably makes mistakes, it has no learned behavior for "how to continue after I just wrote something wrong".
+
+OPD solves this by **on-policy sampling**:
+
+```
+OPD training:
+  Step 1: Student generates a full trajectory using its own current ability:
+          "Let me think... 13 × 7 = 81... wait, let me recalculate: 13 × 7 = 91"
+          (Includes the student's own mistakes and self-corrections)
+  Step 2: Specialist scores this trajectory at every token position
+  Step 3: Student learns from feedback ON ITS OWN MISTAKES
+  
+  → Student is exposed to "what to do when I just wrote an error"
+  → At inference time, student can self-correct (this is exactly what reasoning models do)
+```
+
+This is why frontier reasoning models (DeepSeek-R1, OpenAI o1, etc.) all use on-policy training (RL or OPD) — pure SFT cannot teach self-correction.
+
+| Aspect | SFT | OPD |
+|--------|:---:|:---:|
+| Training data prefixes come from | Teacher | **Student itself** |
+| Per-token signal | 1 label (the teacher's chosen token) | **Full distribution (~150K probabilities)** |
+| Train/inference distribution match | ❌ Mismatch | ✅ Match |
+| Self-correction capability | ❌ Cannot teach | ✅ Can teach |
+| Multi-teacher support | ❌ Need to pick one or sequence them (catastrophic forgetting) | ✅ Native via Σᵢ |
+
+### vs RL / RLAIF — Just a Denser Reward Signal
+
+A natural follow-up question: **RL solves exposure bias too (student samples its own trajectories) — why not just use RL?**
+
+You're right — V3.2 used RL. V4 *did* try RL and replaced it with OPD. The key insight is:
+
+**OPD = RL with the teacher's logit distribution as the reward signal.**
+
+Both are on-policy training (student samples). The only difference is what kind of feedback the student gets per trajectory:
+
+| Method | Feedback per trajectory | Density per token |
+|--------|------------------------|:---:|
+| **RL with rule reward** (e.g., math correctness) | 1 scalar (e.g., +1 / -1) | ~0.001 (1 / 1000 tokens) |
+| **RLHF** (human feedback) | 1 scalar | ~0.001 |
+| **RLAIF** (LLM-as-judge, e.g., GPT-5 grades the answer) | 1 scalar | ~0.001 |
+| **OPD** | Full vocabulary distribution (~150K) at every token | **150,000** |
+
+OPD's feedback is roughly **1.5 × 10⁸ times denser** than scalar RL reward. This translates to:
+- More stable gradients (lower variance)
+- Faster convergence
+- No reward function to design (teacher distribution IS the reward)
+- No reward hacking (you can't game a 150K-dim distribution by exploiting one dimension)
+
+**Why doesn't everyone use OPD then?** Because it requires the **teacher's full vocabulary logits** — and that's where the practical wall is.
+
+#### The hidden constraint: API access to logits
+
+Commercial LLM APIs (OpenAI, Anthropic, etc.) **do not expose full-vocabulary logits**:
+
+| API | Maximum top_logprobs | Can do full-vocab OPD? |
+|-----|:--:|:--:|
+| Azure OpenAI Chat Completions | 20 | ❌ (only 0.013% of vocabulary) |
+| Azure OpenAI Completions | 5 | ❌ (only 0.003%) |
+| Anthropic Claude API | not exposed | ❌ |
+| **Self-hosted open model** (Llama / Qwen / DeepSeek) | All | ✅ Full vocabulary |
+
+> Source: [Azure OpenAI REST API Reference](https://learn.microsoft.com/en-us/azure/foundry/openai/reference) — `top_logprobs` is "an integer between 0 and 20 specifying the number of most likely tokens to return at each token position".
+
+This is why V4 had to do everything in-house: their specialists are self-hosted, so they get full vocabulary logits. A startup using GPT-5 as a teacher can only do "RLAIF with top-20 KL", which is much weaker than full OPD (the V4 paper explicitly criticizes this kind of approximation in Section 5.1.2).
+
+> 🔗 If you want to do something like OPD as a smaller team, the path is: deploy an open-source teacher (e.g., Llama-3-70B, Qwen2.5-72B, DeepSeek-V3) yourself, and you'll get full vocabulary logits. This is exactly how DeepSeek-R1's distillation into Qwen-series works.
+
+### vs Step Distillation (Diffusion Models) — Different Domain, Different Mechanism
+
+Engineers familiar with image generation may have heard of "distillation" in the context of diffusion models — for example, distilling a 50-step Stable Diffusion teacher into an 8-step student (LCM, Lightning, Hyper-SD, etc.). **This is a completely different kind of distillation, not OPD.**
+
+| Aspect | Step Distillation (Diffusion) | OPD (LLM) |
+|--------|:----------------------------:|:---:|
+| Domain | Diffusion image generation | Autoregressive LLM |
+| Goal | Reduce inference steps (50 → 8) | Merge multiple domain experts |
+| Teacher behavior at training | Generates trajectories **once** offline; then leaves | Computes logits **online** at every training step |
+| On-policy or offline? | **Offline** (teacher's trajectories saved as fixed dataset) | **On-policy** (student's trajectories scored live) |
+| Training signal | Teacher's intermediate denoising states | Teacher's full vocabulary distributions |
+
+In Step Distillation, the teacher's role is to **pre-generate a training dataset**. Once the dataset exists, the teacher disappears and the student trains in a normal supervised manner.
+
+In OPD, the teacher is **always present in the training loop** — it scores the student's live samples on every step.
+
+These are two completely different methods that happen to share the word "distillation". When someone says "we use distillation", always ask: **on-policy or offline? Single-teacher or multi-teacher? What signal does the teacher provide?** The answers determine which method is being discussed.
+
 ---
 
 ## What's Original in DeepSeek-V4?
@@ -599,6 +719,47 @@ DeepSeek-V4 is a coordinated set of innovations. OPD plays a specific role:
 | Quick Instruction (auxiliary tasks via KV cache reuse) | Reduce TTFT for chatbot scenarios | V4 Tech Report Section 5.1.1 |
 
 OPD is the **post-training capstone** — the method that takes all the domain experts trained on the new architecture and consolidates them into the final shipped model.
+
+---
+
+## Honest Limitations of OPD
+
+OPD is not a magic bullet. Three honest constraints worth understanding:
+
+### 1. Coverage is data-dependent, not architectural
+
+OPD only updates the MoE experts that the router selects for each training sample. Experts that are never selected during OPD training — because their token-level pattern doesn't match the training data distribution — keep their pre-training weights unchanged.
+
+```
+If OPD training data covers math + code + writing only:
+  → Math/code/writing-pattern experts get OPD updates (~most experts in practice)
+  → Experts handling rare patterns (e.g., obscure languages, niche notation)
+    receive no OPD signal → retain pre-training capability only
+
+→ OPD coverage = OPD training data coverage ≠ "all 256 experts trained equally"
+```
+
+V4 mitigates this by using diverse training data covering many domains and a "general chat" specialist that activates broadly. But there's no theoretical guarantee that every expert is improved — it's a data engineering choice.
+
+### 2. Gradient attribution is imprecise
+
+The teacher gives feedback at the **output level** (next-token distribution), but the student's mistake might happen at **any internal layer** (wrong attention pattern, wrong router selection, wrong FFN computation). The gradient flowing back has to "guess" which internal component to blame.
+
+In practice this means:
+- Training is slower than ideal (some gradient lands on innocent components)
+- An expert that didn't cause the error still gets a small gradient update
+- Compensated by small learning rate + many training steps + multi-teacher noise cancellation
+
+V4 doesn't claim to solve this — they just empirically tune around it.
+
+### 3. Scale-dependent practicality
+
+The full V4 OPD pipeline (10+ teachers × trillion-scale parameters × full vocabulary KL) is only feasible for organizations with:
+- Self-hosted teacher models (commercial APIs cap top_logprobs at 20)
+- Centralized weight storage with ZeRO-style sharding
+- Custom hidden-state caching (prevents logit storage from exploding to TB scale)
+
+For smaller teams: simpler variants of OPD-like training (single open-source teacher + standard PyTorch) are still very effective. But the *full* V4 setup is a frontier-only capability.
 
 ---
 
