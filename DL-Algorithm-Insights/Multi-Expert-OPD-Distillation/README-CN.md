@@ -512,6 +512,85 @@ DeepSeek 没开源 V4 OPD 训练代码。**截至 2026 年中，没有任何 fro
 | **agentica-project/AReaL** | — | — | OPD over student-sampled trajectories |
 | **THUDM/slime（智谱）** | https://github.com/THUDM/slime | — | 统一 RL stack 支持 OPD |
 
+### `GKDTrainer` 到底是什么——大白话
+
+如果上面的表格感觉太抽象，最简单的心智模型是：
+
+> **`GKDTrainer` 是 HuggingFace 的"一键 OPD 训练器"**——你提供学生模型、教师模型、数据集，设两个开关，它帮你搞定一切：学生采样、教师打分、KL loss、反向传播、checkpoint 保存。
+
+只有两个关键开关：
+
+| 参数 | 含义 | OPD 应该设 |
+|------|------|:---------:|
+| `lmbda` | 学生自己采样 trajectory 的比例（vs 用 teacher 的） | **1.0**（100% on-policy） |
+| `beta` | KL 方向（0 = forward KL，1 = reverse KL） | **1.0**（reverse KL） |
+
+最小完整示例：
+
+```python
+from trl.experimental.gkd import GKDTrainer, GKDConfig
+
+config = GKDConfig(
+    lmbda=1.0,      # 100% on-policy → OPD
+    beta=1.0,       # reverse KL → OPD
+    output_dir="./output",
+    learning_rate=5e-7,
+    per_device_train_batch_size=4,
+    max_new_tokens=512,
+)
+
+trainer = GKDTrainer(
+    model="Qwen/Qwen2.5-1.5B-Instruct",          # 学生
+    teacher_model="Qwen/Qwen2.5-Math-7B",         # 教师（必须共享 tokenizer！）
+    args=config,
+    train_dataset=my_dataset,
+    processing_class=tokenizer,
+)
+
+trainer.train()
+```
+
+就这么简单——和 `SFTTrainer` 一样的 API，只多了一个 teacher_model 和两个开关。完整实现（`generalized_jsd_loss` + `training_step`）在 `trl/experimental/gkd/gkd_trainer.py` 里大约 30 行 PyTorch。
+
+GKD 其他配置对应其他蒸馏方法：
+
+| `lmbda` | `beta` | 等价于 |
+|:-------:|:------:|---------------|
+| 0 | 0 | 经典 SFT 蒸馏（offline + forward KL） |
+| 0 | 1 | Sequence-level KD with reverse KL |
+| 1 | 0 | On-policy + forward KL（少见） |
+| **1** | **1** | **OPD（V4 选择）** |
+| 0.5 | 0.5 | 混合模式 |
+
+所以 `GKDTrainer` 覆盖整个蒸馏设计空间——`lmbda=1, beta=1` 只是 OPD 那个角落。
+
+### thunlp/OPD：学术深度版（不是生产框架）
+
+如果想从研究层面研究 OPD 行为，**[thunlp/OPD](https://github.com/thunlp/OPD)** 是 GitHub 上最完整的开源实现（清华 NLP 出品，223 stars，配套论文 [arXiv:2604.13016](https://arxiv.org/abs/2604.13016) "Rethinking On-Policy Distillation"）。
+
+**优势**：
+- 学术权威性（清华 NLP，出过 MiniCPM/OpenBMB）
+- 论文不是简单复现——识别了 *OPD 何时失败* 并提出恢复策略（off-policy cold start、teacher-aligned prompt selection）
+- 提供已发布的 baseline checkpoint（`Qwen3-1.7B-SFT`、`Qwen3-4B-Base-GRPO`）在 HuggingFace 上
+- 配置丰富：`LOG_PROB_TOP_K`、`TOP_K_STRATEGY`（`only_stu` / `only_tch` / `intersection` / `union` / `union-intersection`）、`REWARD_WEIGHT_MODE`（`student_p` / `teacher_p` / `none`）—— 适合做 ablation 研究
+
+**注意事项**：
+- **硬件门槛高**：实验跑在 8 × NVIDIA A800 80GB GPU（数学领域 SFT + RL + OPD 完整 pipeline）
+- **需要两个 conda 环境**：verl（训练）+ LlamaFactory（SFT）
+- **公开配置只有单教师**，不是 V4 风格的多教师 OPD
+- **默认用 Top-K KL 近似**（`LOG_PROB_TOP_K=16`）—— 不是 V4 论文坚持的全词表 KL
+- **核心 OPD loss 藏在他们 fork 的 verl 里**（`verl/trainer/main_ppo.py` + `algorithm.adv_estimator=token_reward_direct`），公开的 `on_policy_distillation.sh` 是配置 shell 不是独立 PyTorch 代码
+- README 没标 license（商用前需确认）
+
+**结论**：
+
+| 用例 | 最佳工具 |
+|------|---------|
+| 一坐下来读完 OPD 代码 | TRL `gkd_trainer.py`（数学部分 ~30 行） |
+| 单 GPU 跑 OPD | TRL `GKDTrainer` |
+| 复现 OPD 学术结果 + 研究失败模式 | thunlp/OPD（需要 8×A800） |
+| 做 V4 风格的多教师 OPD | 都不直接支持——需要 fork TRL 或 KDFlow 加 Σᵢ teacher 循环 |
+
 ### Awesome list 与元资源
 
 - **OPD 精选 list**：https://github.com/chrisliu298/awesome-on-policy-distillation （~32 stars，每日更新）—— 包含 ~21 篇核心 OPD 论文 + 13 个训练框架
@@ -519,6 +598,8 @@ DeepSeek 没开源 V4 OPD 训练代码。**截至 2026 年中，没有任何 fro
 - **最佳概念博客**：https://thinkingmachines.ai/blog/on-policy-distillation/ （Thinking Machines 出品）
 - **GOLD 实战教程**（HuggingFace H4，附 TRL 代码）：https://huggingface.co/spaces/HuggingFaceH4/on-policy-distillation
 - **OPD Survey 论文**：arXiv 2604.00626 (2026)
+
+> ⚠️ **关于 awesome-list 的提醒**：这些是有用的入口，但不应当作一手来源。我们亲自验证过——一些 awesome-list 流传的"X 模型用了 OPD"声明，读了实际论文后发现是错的（模型名不匹配、方法被错贴标签等）。引用前必须回溯到原始技术报告。
 
 ### 工业界使用 OPD 的模型（从原始论文验证）
 

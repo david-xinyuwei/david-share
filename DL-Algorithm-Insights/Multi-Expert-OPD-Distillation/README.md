@@ -514,6 +514,85 @@ DeepSeek did not open-source V4's OPD training code. **No frontier model company
 | **agentica-project/AReaL** | — | — | OPD over student-sampled trajectories with teacher log-prob guidance |
 | **THUDM/slime (Zhipu)** | https://github.com/THUDM/slime | — | Unified RL stack supporting OPD |
 
+### What `GKDTrainer` actually is, in plain English
+
+If the table above feels abstract, here's the simplest mental model:
+
+> **`GKDTrainer` is HuggingFace's "one-button OPD trainer"** — you provide a student model, a teacher model, and a dataset, set two flags, and it handles everything: student rollout, teacher scoring, KL loss computation, backpropagation, checkpointing.
+
+The two flags that matter:
+
+| Parameter | Meaning | Set to (for OPD) |
+|-----------|---------|:----------------:|
+| `lmbda` | Fraction of training steps where student samples its own trajectory (vs. using teacher's) | **1.0** (100% on-policy) |
+| `beta` | KL direction (0 = forward KL, 1 = reverse KL) | **1.0** (reverse KL) |
+
+A complete minimal example:
+
+```python
+from trl.experimental.gkd import GKDTrainer, GKDConfig
+
+config = GKDConfig(
+    lmbda=1.0,      # 100% on-policy → OPD
+    beta=1.0,       # reverse KL → OPD
+    output_dir="./output",
+    learning_rate=5e-7,
+    per_device_train_batch_size=4,
+    max_new_tokens=512,
+)
+
+trainer = GKDTrainer(
+    model="Qwen/Qwen2.5-1.5B-Instruct",          # student
+    teacher_model="Qwen/Qwen2.5-Math-7B",         # teacher (must share tokenizer!)
+    args=config,
+    train_dataset=my_dataset,
+    processing_class=tokenizer,
+)
+
+trainer.train()
+```
+
+That's it — same API as `SFTTrainer`, just with a teacher model and two extra flags. The full implementation (`generalized_jsd_loss` + `training_step`) is ~30 lines of PyTorch in `trl/experimental/gkd/gkd_trainer.py`.
+
+Other GKD configurations correspond to other distillation methods:
+
+| `lmbda` | `beta` | Equivalent to |
+|:-------:|:------:|---------------|
+| 0 | 0 | Classic SFT distillation (offline + forward KL) |
+| 0 | 1 | Sequence-level KD with reverse KL |
+| 1 | 0 | On-policy + forward KL (rare) |
+| **1** | **1** | **OPD (V4's choice)** |
+| 0.5 | 0.5 | Hybrid mode |
+
+So `GKDTrainer` covers the entire distillation design space — `lmbda=1, beta=1` is just the OPD corner.
+
+### thunlp/OPD: an academic deep-dive (not a production framework)
+
+If you want to study OPD's behavior at the research level, the most thorough open implementation is **[thunlp/OPD](https://github.com/thunlp/OPD)** from Tsinghua NLP (223 stars, accompanying paper [arXiv:2604.13016](https://arxiv.org/abs/2604.13016) "Rethinking On-Policy Distillation").
+
+**Strengths**:
+- Academic credibility (Tsinghua NLP, same lab as MiniCPM/OpenBMB)
+- The paper isn't a simple reproduction — it identifies *when OPD fails* and proposes recovery strategies (off-policy cold start, teacher-aligned prompt selection)
+- Provides released checkpoints (`Qwen3-1.7B-SFT`, `Qwen3-4B-Base-GRPO`) on HuggingFace for reproducing baselines
+- Rich configuration: `LOG_PROB_TOP_K`, `TOP_K_STRATEGY` (`only_stu` / `only_tch` / `intersection` / `union` / `union-intersection`), `REWARD_WEIGHT_MODE` (`student_p` / `teacher_p` / `none`) — useful for ablation studies
+
+**Caveats**:
+- **High hardware bar**: experiments run on 8 × NVIDIA A800 80GB GPUs (math-domain SFT + RL + OPD pipeline)
+- **Requires two conda environments**: one for verl (training), one for LlamaFactory (SFT)
+- **Single-teacher only** in published configs; not V4-style multi-teacher
+- **Top-K KL approximation** by default (`LOG_PROB_TOP_K=16`) — not the full-vocabulary KL the V4 paper insists on
+- **Core OPD loss is buried** inside their fork of verl (`verl/trainer/main_ppo.py` with `algorithm.adv_estimator=token_reward_direct`); the public `on_policy_distillation.sh` is a configuration shell, not standalone PyTorch code
+- License not stated in README (verify before commercial use)
+
+**Bottom line**:
+
+| Use case | Best tool |
+|----------|-----------|
+| Read OPD code top-to-bottom in one sitting | TRL `gkd_trainer.py` (~30 lines for the math) |
+| Run OPD on a single GPU | TRL `GKDTrainer` |
+| Reproduce OPD academic results & study failure modes | thunlp/OPD (need 8×A800) |
+| Build V4-style multi-teacher OPD | Neither directly — fork TRL or KDFlow and add Σᵢ teacher loop |
+
 ### Awesome lists and meta-resources
 
 - **Curated OPD list**: https://github.com/chrisliu298/awesome-on-policy-distillation (~32 stars, daily updates) — includes ~21 core OPD papers and 13 training frameworks
@@ -521,6 +600,8 @@ DeepSeek did not open-source V4's OPD training code. **No frontier model company
 - **Best conceptual blog**: https://thinkingmachines.ai/blog/on-policy-distillation/ (Thinking Machines)
 - **GOLD walkthrough** (HuggingFace H4, with TRL code): https://huggingface.co/spaces/HuggingFaceH4/on-policy-distillation
 - **OPD survey paper**: arXiv 2604.00626 (2026)
+
+> ⚠️ **A note on awesome-lists**: these are useful entry points but should not be treated as primary sources. We've personally verified that some claims circulating in awesome-lists about "X model uses OPD" turn out to be wrong on reading the actual papers (model name mismatches, methodology mislabeled, etc.). Always trace claims back to the original technical report before citing.
 
 ### Industry models using OPD (verified from primary sources)
 
