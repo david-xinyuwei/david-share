@@ -1,0 +1,7 @@
+msal
+requests
+openai>=1.0
+azure-search-documents>=11.4.0
+azure-cosmos>=4.5.0
+azure-identity>=1.15.0
+azure-core>=1.30.0

@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Morning Sweep — AI Briefing</title>
+<style>
+:root{--bg:#f0ecf9;--card:rgba(255,255,255,0.88);--accent:#7c4dff;--accent2:#5e35b1;--red:#e74c3c;--orange:#f39c12;--green:#27ae60;--blue:#3498db;--gray:#888;--radius:14px;--shadow:0 2px 12px rgba(0,0,0,0.06)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,sans-serif;background:linear-gradient(135deg,#e8f0fe 0%,#f3e8ff 50%,#fce4ec 100%);min-height:100vh;color:#333}
+
+/* Layout */
+.app{max-width:1280px;margin:0 auto;padding:20px}
+.header{padding:16px 0 20px}
+.header .date{font-size:13px;color:var(--gray)}
+.header h1{font-size:28px;font-weight:300;color:#1a1a2e;margin-top:2px}
+.header h1 b{font-weight:600}
+.live{display:inline-block;background:var(--green);color:#fff;font-size:10px;padding:2px 8px;border-radius:10px;margin-left:10px;animation:pulse 2s infinite;vertical-align:middle}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+.grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+@media(max-width:1100px){.grid{grid-template-columns:1fr 1fr}}
+@media(max-width:700px){.grid{grid-template-columns:1fr}}
+.full{grid-column:1/-1}
+
+/* Card */
+.card{background:var(--card);backdrop-filter:blur(12px);border-radius:var(--radius);padding:14px;box-shadow:0 4px 20px rgba(0,0,0,0.05);border:1px solid rgba(255,255,255,0.6);transition:box-shadow .2s}
+.card:hover{box-shadow:0 6px 24px rgba(0,0,0,0.08)}
+.card-title{font-size:13px;font-weight:600;color:#444;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.card-title .count{font-size:11px;color:var(--accent);margin-left:auto;font-weight:700;background:#f0e8ff;padding:1px 8px;border-radius:8px}
+
+/* Collapsible items */
+.item{border-radius:10px;margin-bottom:6px;overflow:hidden;transition:all .2s}
+.item-header{display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer;transition:background .15s}
+.item-header:hover{background:rgba(124,77,255,.04)}
+.item-body{padding:0 12px 12px;display:none;font-size:13px;color:#555;line-height:1.6}
+.item.open .item-body{display:block}
+.item-chevron{font-size:10px;color:#bbb;transition:transform .2s;margin-left:auto;flex-shrink:0}
+.item.open .item-chevron{transform:rotate(90deg)}
+
+/* Email items */
+.email{border-left:4px solid #ddd;background:#fafafa}
+.email.high{border-left-color:var(--red);background:#fef5f5}
+.email.medium{border-left-color:var(--orange);background:#fffbf0}
+.email.low{border-left-color:var(--green);background:#f0faf4}
+.email-subj{font-weight:600;font-size:13px;flex:1;color:#222}
+.badge{display:inline-block;padding:1px 7px;border-radius:8px;font-size:10px;font-weight:700;text-transform:uppercase;color:#fff}
+.badge.high{background:var(--red)}.badge.medium{background:var(--orange)}.badge.low{background:var(--green)}
+
+/* Action items */
+.action{background:#fafafa}
+.action-check{width:20px;height:20px;border:2px solid #ccc;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s}
+.action-check:hover{border-color:var(--accent);background:#f0e8ff}
+.action.done .action-check{background:var(--green);border-color:var(--green)}
+.action.done .action-check::after{content:'✓';color:#fff;font-size:12px;font-weight:700}
+.action.done .action-task{text-decoration:line-through;opacity:.5}
+.pri{font-size:10px;font-weight:700;padding:1px 5px;border-radius:4px;color:#fff}
+.pri.P0{background:var(--red)}.pri.P1{background:var(--orange)}.pri.P2{background:var(--blue)}
+.action-task{font-size:13px;font-weight:500;color:#333}
+.action-meta{font-size:11px;color:#999;margin-top:2px}
+.detail-box{margin-top:8px;padding:10px;background:#f0f4ff;border-radius:8px;font-size:12px}
+.detail-box b{color:#555}
+.detail-box ul{margin:4px 0 0 16px}
+
+/* Profiles */
+.profile{display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;background:#f8f9ff;margin-bottom:6px}
+.avatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff;flex-shrink:0}
+.profile-info{flex:1;min-width:0}
+.profile-name{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.profile-role{font-size:11px;color:var(--gray)}
+.style-tag{display:inline-block;font-size:10px;padding:1px 7px;border-radius:8px;background:#e8f0fe;color:#1967d2;margin-top:2px}
+.profile-tip{font-size:11px;color:#777;font-style:italic;margin-top:2px}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dot.positive{background:var(--green)}.dot.neutral{background:var(--orange)}.dot.needs-attention{background:var(--red)}
+
+/* Network */
+.net-summary{font-size:12px;color:#666;line-height:1.5;margin-bottom:8px}
+.net-label{font-size:11px;font-weight:600;color:#999;text-transform:uppercase;margin-bottom:4px;margin-top:8px}
+.tags{display:flex;flex-wrap:wrap;gap:5px}
+.tag{padding:3px 10px;border-radius:14px;font-size:11px}
+.tag.inner{background:#e8f5e9;color:#2e7d32}.tag.attn{background:#fce4ec;color:#c62828}
+
+/* Insights */
+.insight{padding:10px;border-radius:10px;background:linear-gradient(135deg,#fff3e0,#fce4ec);margin-bottom:6px;font-size:12px}
+.insight strong{color:#333}
+.insight small{color:#999;display:block;margin-top:3px}
+
+/* Foundry IQ */
+.iq-item{padding:12px;border-radius:10px;background:linear-gradient(135deg,#e8f0fe,#f3e8ff);margin-bottom:8px;font-size:13px;border-left:3px solid #7c4dff}
+.iq-item .iq-query{font-size:11px;color:#7c4dff;font-weight:600;margin-bottom:4px}
+.iq-item .iq-answer{color:#333;line-height:1.5}
+.iq-item .iq-meta{font-size:10px;color:#999;margin-top:6px;display:flex;gap:12px}
+.iq-badge{display:inline-block;background:#7c4dff;color:white;font-size:9px;padding:1px 6px;border-radius:8px;font-weight:600;vertical-align:middle;margin-left:6px}
+
+/* Drafts */
+.draft{border-radius:10px;background:#f8f9ff;border:1px solid #e8eaff;margin-bottom:8px;overflow:hidden}
+.draft-header{display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer}
+.draft-header:hover{background:rgba(124,77,255,.04)}
+.draft-to{font-size:11px;color:var(--accent);font-weight:600}
+.draft-subj{font-size:13px;font-weight:600;color:#333;flex:1}
+.draft-body-wrap{display:none;padding:0 12px 12px}
+.draft.open .draft-body-wrap{display:block}
+.draft-body{font-size:12px;color:#555;line-height:1.5;padding:8px;background:#fff;border-radius:8px}
+.draft-body[contenteditable]{border:2px solid var(--accent);outline:none}
+.draft-tone{font-size:10px;color:#999;margin-top:4px;font-style:italic}
+.draft-ref{font-size:10px;color:#bbb;margin-top:2px}
+.draft-actions{display:flex;gap:6px;margin-top:8px}
+.btn{padding:5px 14px;border-radius:8px;font-size:11px;border:none;cursor:pointer;font-weight:600;transition:all .15s}
+.btn-send{background:var(--accent);color:#fff}.btn-send:hover{background:var(--accent2)}
+.btn-edit{background:#f0f0f0;color:#555}.btn-edit:hover{background:#e0e0e0}
+.btn-sent{background:var(--green);color:#fff;opacity:.7;cursor:default}
+
+/* Footer */
+.footer{text-align:center;padding:12px 0;font-size:11px;color:#bbb;border-top:1px solid rgba(0,0,0,0.04);margin-top:12px}
+.footer span{color:var(--accent);font-weight:600}
+.footer .tech{display:inline-flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:4px}
+.footer .tech-tag{background:#f0f0f0;padding:2px 8px;border-radius:6px;font-size:10px;color:#666}
+
+/* Toast */
+.toast{position:fixed;top:16px;right:16px;padding:10px 18px;border-radius:10px;color:#fff;font-size:13px;font-weight:600;z-index:9999;animation:slideIn .3s ease}
+@keyframes slideIn{from{transform:translateX(80px);opacity:0}to{transform:none;opacity:1}}
+
+/* Modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:9998;display:flex;align-items:center;justify-content:center}
+.modal{background:#fff;border-radius:16px;padding:20px;max-width:460px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+.modal h3{margin-bottom:10px;font-size:16px}
+.modal p{font-size:13px;color:#555;line-height:1.5;margin-bottom:14px}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end}
+
+/* Loading */
+.loading{text-align:center;padding:40px;color:#bbb;font-size:14px}
+
+/* Persona optimization */
+.persona-btns{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.persona-btn{padding:3px 10px;border-radius:12px;font-size:10px;font-weight:600;border:1.5px solid var(--accent);color:var(--accent);background:#fff;cursor:pointer;transition:all .15s}
+.persona-btn:hover{background:var(--accent);color:#fff}
+.persona-btn.active{background:var(--accent);color:#fff}
+.compare-box{margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.compare-col{padding:8px;border-radius:8px;font-size:12px;line-height:1.5}
+.compare-col.before{background:#fff3e0;border:1px solid #ffe0b2}
+.compare-col.after{background:#e8f5e9;border:1px solid #c8e6c9}
+.compare-label{font-size:10px;font-weight:700;text-transform:uppercase;margin-bottom:4px}
+.compare-label.before{color:var(--orange)}
+.compare-label.after{color:var(--green)}
+.optimizing{color:var(--accent);font-size:11px;font-style:italic;margin-top:6px}
+
+/* Teams Chats */
+.chat-msg{display:flex;gap:8px;padding:8px;border-radius:8px;margin-bottom:4px;background:#f9fafe}
+.chat-sender{font-weight:600;font-size:12px;color:var(--accent);white-space:nowrap}
+.chat-text{font-size:12px;color:#555;flex:1;line-height:1.4}
+.chat-time{font-size:10px;color:#bbb;white-space:nowrap}
+.chat-topic{font-size:11px;font-weight:600;color:#666;padding:4px 0;border-bottom:1px solid #eee;margin-bottom:4px}
+
+/* Drag drop attachment */
+.drop-zone{border:2px dashed #ccc;border-radius:8px;padding:8px;text-align:center;font-size:11px;color:#999;margin-top:6px;transition:all .15s;cursor:pointer}
+.drop-zone:hover,.drop-zone.dragover{border-color:var(--accent);background:#f8f0ff;color:var(--accent)}
+.att-list{margin-top:4px}
+.att-item{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;background:#e8f0fe;font-size:11px;color:#1967d2;margin:2px}
+.att-remove{cursor:pointer;color:var(--red);font-weight:700}
+
+/* History/Insights panel */
+.history-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:900px){.history-grid{grid-template-columns:1fr}}
+.history-timeline{display:flex;flex-direction:column;gap:6px}
+.timeline-item{display:flex;align-items:flex-start;gap:8px;padding:8px;border-radius:8px;background:#fafafa;font-size:12px}
+.timeline-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);margin-top:4px;flex-shrink:0}
+.timeline-time{font-size:10px;color:#999;white-space:nowrap}
+.timeline-tasks{color:#555}
+.evolution-item{padding:10px;border-radius:10px;background:#f8f9ff;margin-bottom:6px;display:flex;align-items:center;gap:10px}
+.evo-name{font-weight:600;font-size:13px;min-width:80px}
+.evo-detail{flex:1;font-size:11px;color:#666}
+.evo-sentiment{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.stat-box{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;background:#f0f4ff;font-size:13px;font-weight:600;color:var(--accent);margin:4px}
+
+/* Hero header */
+.hero{background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:var(--radius);padding:20px 24px;color:#fff;margin-bottom:16px;position:relative;overflow:hidden}
+.hero::after{content:'';position:absolute;top:-50%;right:-20%;width:300px;height:300px;background:rgba(255,255,255,0.06);border-radius:50%}
+.hero .date{font-size:12px;opacity:.8}
+.hero h1{font-size:24px;font-weight:300;margin:4px 0 8px}
+.hero h1 b{font-weight:600}
+.hero .live{background:rgba(255,255,255,.25);font-size:10px;padding:2px 8px;border-radius:8px;margin-left:8px;animation:pulse 2s infinite}
+.hero-stats{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
+.hero-stat{background:rgba(255,255,255,.15);padding:4px 14px;border-radius:10px;font-size:13px;font-weight:600;backdrop-filter:blur(4px)}
+.sync-btn{background:rgba(255,255,255,.2);color:#fff;border:1.5px solid rgba(255,255,255,.4);padding:6px 16px;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;margin-left:auto}
+.sync-btn:hover{background:rgba(255,255,255,.35)}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="hero">
+    <div class="date" id="dateEl"></div>
+    <h1 id="greetEl"><b>Loading...</b><span class="live">LIVE</span></h1>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div class="hero-stats" id="heroStats"></div>
+      <select id="hourSelect" onchange="changeHours(this.value)" style="padding:6px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.2);color:white;font-size:13px;cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url('data:image/svg+xml;utf8,<svg fill=&quot;white&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; viewBox=&quot;0 0 24 24&quot; width=&quot;16&quot;><path d=&quot;M7 10l5 5 5-5z&quot;/></svg>');background-repeat:no-repeat;background-position:right 6px center;padding-right:28px">
+        <option value="24" style="background:#333;color:white">Last 24h</option>
+        <option value="72" style="background:#333;color:white">Last 3 days</option>
+        <option value="168" selected style="background:#333;color:white">Last 7 days</option>
+        <option value="336" style="background:#333;color:white">Last 14 days</option>
+        <option value="720" style="background:#333;color:white">Last 30 days</option>
+      </select>
+      <span id="activeRange" style="font-size:11px;color:rgba(255,255,255,.7);margin-left:4px"></span>
+      <button class="sync-btn" id="syncBtn" onclick="manualRefresh(this)">🔄 Sync Now</button>
+    </div>
+  </div>
+  <div class="grid">
+    <div class="card"><div class="card-title">📧 Priority Emails <span class="count" id="emailCount"></span></div><div id="emailsEl"><div class="loading">Loading...</div></div></div>
+    <div class="card"><div class="card-title">✅ To-Do <span class="count" id="todoCount"></span></div><div id="actionsEl"><div class="loading">Loading...</div></div></div>
+    <div class="card"><div class="card-title">💬 Teams Chats <span class="count" id="chatCount"></span></div><div id="chatsEl"><div class="loading">Loading...</div></div></div>
+    <div class="card"><div class="card-title">👥 Contact Profiles <span class="count" id="profileCount"></span></div><div id="profilesEl"><div class="loading">Loading...</div></div></div>
+    <div class="card"><div class="card-title">🔗 Relationship Network</div><div id="networkEl"><div class="loading">Loading...</div></div></div>
+    <div class="card full" id="insightCard" style="display:none"><div class="card-title">🔍 Cross-Source Insights</div><div id="insightsEl"></div></div>
+    <div class="card full" id="iqCard" style="display:none"><div class="card-title">🧠 Foundry IQ — Agentic Retrieval <span class="count" id="iqCount"></span></div><div id="iqEl"></div></div>
+    <div class="card full"><div class="card-title">✉️ AI-Drafted Replies <span class="count" id="draftCount"></span></div><div id="draftsEl"><div class="loading">Loading...</div></div></div>
+    <div class="card full" id="historyCard"><div class="card-title">📈 Insights Over Time <span class="count" id="historyCount"></span></div><div id="historyEl"><div class="loading">Loading from CosmosDB...</div></div></div>
+  </div>
+  <div class="footer" id="footerEl">Powered by <span>Microsoft Graph API</span> + <span>Azure OpenAI</span> + <span>Foundry IQ</span> · M365 Morning Sweep</div>
+</div>
+
+<script>
+const C=['#7c4dff','#1967d2','#e74c3c','#27ae60','#f39c12','#00bcd4','#e91e63','#ff5722','#795548','#607d8b'];
+const ini=n=>n.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+const col=n=>{let h=0;for(let i=0;i<n.length;i++)h=n.charCodeAt(i)+((h<<5)-h);return C[Math.abs(h)%C.length]};
+const esc=s=>(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+let _drafts=[];
+let _profiles=[];
+
+function render(d){
+  try{
+  document.getElementById('dateEl').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  document.getElementById('greetEl').innerHTML=`<b>${esc(d.greeting||'Good morning')}</b><span class="live">LIVE</span>`;
+  
+  // Check for LLM error
+  if(d.error){
+    document.getElementById('heroStats').innerHTML=`<span class="hero-stat" style="color:#e74c3c">⚠️ Analysis error: ${esc(d.error)} — will retry on next data change</span>`;
+    return;
+  }
+  
+  // Hero stats
+  const emailCount=(d.priority_emails||[]).length;
+  const actionCount=(d.action_items||[]).length;
+  const chatCount=(d.recent_chats||[]).length;
+  const profileCount=(d.contact_profiles||[]).length;
+  document.getElementById('heroStats').innerHTML=`<span class="hero-stat">📧 ${emailCount} emails</span><span class="hero-stat">📋 ${actionCount} to-dos</span><span class="hero-stat">💬 ${chatCount} chats</span><span class="hero-stat">👥 ${profileCount} profiles</span>`;
+
+  // Emails (collapsible)
+  const emails=d.priority_emails||[];
+  document.getElementById('emailCount').textContent=emails.length;
+  let h='';
+  emails.forEach((e,i)=>{
+    h+=`<div class="item email ${e.urgency}" onclick="toggle(this)">
+      <div class="item-header"><span class="badge ${e.urgency}">${e.urgency}</span> <span class="email-subj">${esc(e.subject)}</span><span style="font-size:11px;color:#999">${esc(e.from)}</span><span class="item-chevron">▶</span></div>
+      <div class="item-body">💡 ${esc(e.suggested_action)}${e.source_ref?'<br><span style="color:#bbb;font-size:10px">📎 '+esc(e.source_ref)+'</span>':''}</div>
+    </div>`;
+  });
+  document.getElementById('emailsEl').innerHTML=h||'<div class="loading">No emails</div>';
+
+  // Teams Chats (safe render)
+  try{
+    const chats=d.recent_chats||[];
+    document.getElementById('chatCount').textContent=chats.length;
+    h='';
+    chats.forEach(c=>{
+      const topic=c.topic||'Chat';
+      const chatType=c.chat_type==='group'?'👥':'💬';
+      h+=`<div class="chat-topic">${chatType} ${esc(topic)}</div>`;
+      (c.messages||[]).forEach(m=>{
+        if(!m.content||m.content.trim().length<2)return;
+        const content=m.content.replace(/<[^>]*>/g,'').trim();
+        if(!content||content==='[📷 Image]'&&content.length<3)return;
+        const time=m.time?new Date(m.time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
+        h+=`<div class="chat-msg"><span class="chat-sender">${esc(m.from||'')}</span><span class="chat-text">${esc(content)}</span><span class="chat-time">${time}</span></div>`;
+      });
+    });
+    document.getElementById('chatsEl').innerHTML=h||'<div class="loading">No chats</div>';
+  }catch(e){console.error('Chats render error:',e);document.getElementById('chatsEl').innerHTML='<div class="loading">Error loading chats</div>';}
+
+  // Actions (collapsible with detail)
+  const items=d.action_items||[];
+  document.getElementById('todoCount').textContent=items.length+' pending';
+  h='';
+  items.forEach((a,i)=>{
+    const dt=a.detail||{};
+    const preps=(dt.prep_needed||[]).map(p=>'<li>'+esc(p)+'</li>').join('');
+    const ppl=(dt.related_people||[]).map(p=>esc(p.name)+(p.role_in_task?' ('+esc(p.role_in_task)+')':'')).join(', ');
+    h+=`<div class="item action" id="act${i}">
+      <div class="item-header" onclick="toggleAction(event,${i})">
+        <div class="action-check" onclick="event.stopPropagation();checkAction(${i})"></div>
+        <span class="pri ${a.priority}">${a.priority}</span>
+        <span class="action-task">${esc(a.task)}</span>
+        <span class="item-chevron">▶</span>
+      </div>
+      <div class="item-body">
+        <div class="action-meta">⏰ ${esc(a.deadline)} · 📎 ${esc(a.source_ref||a.source||'')}</div>
+        ${dt.background||preps||ppl||dt.suggested_approach?`<div class="detail-box">
+          ${dt.background?'<div><b>📋 Background:</b> '+esc(dt.background)+'</div>':''}
+          ${preps?'<div style="margin-top:4px"><b>📝 Prep:</b><ul>'+preps+'</ul></div>':''}
+          ${ppl?'<div style="margin-top:4px"><b>👥 People:</b> '+ppl+'</div>':''}
+          ${dt.suggested_approach?'<div style="margin-top:4px"><b>💡 Approach:</b> '+esc(dt.suggested_approach)+'</div>':''}
+        </div>`:''}
+      </div>
+    </div>`;
+  });
+  document.getElementById('actionsEl').innerHTML=h||'<div class="loading">All clear!</div>';
+
+  // Profiles
+  const profiles=d.contact_profiles||[];
+  document.getElementById('profileCount').textContent=profiles.length;
+  h='';
+  profiles.forEach(p=>{
+    h+=`<div class="profile"><div class="avatar" style="background:${col(p.name)}">${ini(p.name)}</div><div class="profile-info"><div class="profile-name">${esc(p.name)}</div><div class="profile-role">${esc(p.role||'')} · ${esc(p.relationship||'')}</div><span class="style-tag">${esc(p.communication_style||'')}</span><div class="profile-tip">${esc(p.tip||'')}</div></div><div class="dot ${(p.sentiment||'neutral').replace(' ','-')}"></div></div>`;
+  });
+  document.getElementById('profilesEl').innerHTML=h||'<div class="loading">No profiles</div>';
+
+  // Network
+  const net=d.relationship_network||{};
+  h=`<div class="net-summary">${esc(net.summary||'')}</div>`;
+  if(net.inner_circle?.length)h+=`<div class="net-label">Inner Circle</div><div class="tags">${net.inner_circle.map(n=>`<span class="tag inner">${esc(n)}</span>`).join('')}</div>`;
+  if(net.attention_needed?.length)h+=`<div class="net-label">Needs Attention</div><div class="tags">${net.attention_needed.map(n=>`<span class="tag attn">${esc(n)}</span>`).join('')}</div>`;
+  document.getElementById('networkEl').innerHTML=h;
+
+  // Insights
+  const cx=d.cross_check_insights||[];
+  if(cx.length){
+    document.getElementById('insightCard').style.display='';
+    h='';cx.forEach(i=>{h+=`<div class="insight"><strong>🔍 ${esc(i.insight)}</strong><small>📎 ${(i.sources||[]).map(esc).join(' · ')}</small></div>`});
+    document.getElementById('insightsEl').innerHTML=h;
+  }
+
+  // Foundry IQ
+  const iq=d.foundry_iq_insights||[];
+  if(iq.length){
+    document.getElementById('iqCard').style.display='';
+    document.getElementById('iqCount').textContent=iq.length+' queries';
+    h='';iq.forEach(i=>{
+      h+=`<div class="iq-item">
+        <div class="iq-query">🔎 ${esc(i.query)}</div>
+        <div class="iq-answer">${esc(i.answer)}</div>
+        <div class="iq-meta">
+          <span>📚 ${i.reference_count||0} references</span>
+          <span>📎 ${(i.sources||[]).map(esc).join(', ')}</span>
+        </div>
+      </div>`;
+    });
+    document.getElementById('iqEl').innerHTML=h;
+  }
+
+  // Drafts (collapsible)
+  _drafts=d.draft_replies||[];
+  _profiles=d.contact_profiles||[];
+  document.getElementById('draftCount').textContent=_drafts.length;
+  h='';
+  _drafts.forEach((dr,i)=>{
+    const personaBtns=_profiles.map((p,pi)=>`<button class="persona-btn" onclick="event.stopPropagation();optimizeDraft(${i},${pi})" title="${esc(p.tip||'')}">${esc(p.name)} (${esc(p.communication_style||'')})</button>`).join('');
+    h+=`<div class="item draft" id="draft${i}" onclick="toggle(this)">
+      <div class="draft-header"><span class="draft-to">${esc(dr.to)} ${dr.to_email?'&lt;'+esc(dr.to_email)+'&gt;':''}</span><span class="draft-subj">${esc(dr.subject)}</span><span class="item-chevron">▶</span></div>
+      <div class="draft-body-wrap">
+        <div class="draft-body" id="draftBody${i}">${esc(dr.draft)}</div>
+        <div class="draft-tone">🎨 ${esc(dr.tone_note)}</div>
+        ${dr.source_ref?'<div class="draft-ref">📎 '+esc(dr.source_ref)+'</div>':''}
+        <div style="margin-top:8px;font-size:11px;color:#666;font-weight:600">🎭 Optimize for persona:</div>
+        <div class="persona-btns">${personaBtns}</div>
+        <div id="compare${i}"></div>
+        <div class="drop-zone" id="dropZone${i}" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="event.preventDefault();this.classList.remove('dragover');handleDrop(event,${i})">📎 Drag files here or <label style="color:var(--accent);cursor:pointer;text-decoration:underline"><input type="file" style="display:none" onchange="handleFiles(this.files,${i})" multiple>click to attach</label> (&lt;3MB)</div>
+        <div class="att-list" id="attList${i}"></div>
+        <div class="draft-actions">
+          <button class="btn btn-send" onclick="event.stopPropagation();confirmSend(${i})">✉️ Send</button>
+          <button class="btn btn-edit" onclick="event.stopPropagation();editDraft(${i})">✏️ Edit</button>
+        </div>
+      </div>
+    </div>`;
+  });
+  document.getElementById('draftsEl').innerHTML=h||'<div class="loading">No drafts</div>';
+
+  // Footer
+  const m=d._meta||{};
+  if(m.total_tokens)document.getElementById('footerEl').innerHTML=`M365 Morning Sweep · <span>${m.timestamp||''}</span> · ${m.total_tokens} tokens<div class="tech"><span class="tech-tag">Graph API</span><span class="tech-tag">Azure OpenAI</span><span class="tech-tag">AI Search</span><span class="tech-tag">CosmosDB</span><span class="tech-tag">Foundry IQ</span></div>`;
+  }catch(err){console.error('Render error:',err)}
+}
+
+// Interactions
+function toggle(el){el.classList.toggle('open')}
+function toggleAction(e,i){if(!e.target.classList.contains('action-check'))document.getElementById('act'+i).classList.toggle('open')}
+function checkAction(i){
+  const el=document.getElementById('act'+i);
+  el.classList.toggle('done');
+  const total=document.querySelectorAll('.action').length;
+  const done=document.querySelectorAll('.action.done').length;
+  document.getElementById('todoCount').textContent=(total-done)+' pending';
+}
+function editDraft(i){
+  const el=document.getElementById('draftBody'+i);
+  if(!el)return;
+  if(el.contentEditable==='true'){el.contentEditable='false';_editing=false;toast('Draft saved','#27ae60')}
+  else{el.contentEditable='true';el.focus();_editing=true;toast('Editing... click Edit again to save','#f39c12')}
+}
+function confirmSend(i){
+  const dr=_drafts[i];
+  const bodyEl=document.getElementById('draftBody'+i);
+  const body=dr._optimized||(bodyEl?bodyEl.innerText:dr.draft);
+  const bg=document.createElement('div');bg.className='modal-bg';
+  bg.innerHTML=`<div class="modal"><h3>✉️ Confirm Send</h3><p><b>To:</b> ${esc(dr.to)} ${dr.to_email?'&lt;'+esc(dr.to_email)+'&gt;':''}<br><b>Subject:</b> ${esc(dr.subject)}<br><br>${esc(body).substring(0,200)}${body.length>200?'...':''}</p><div class="modal-btns"><button class="btn btn-edit" onclick="this.closest('.modal-bg').remove()">Cancel</button><button class="btn btn-send" onclick="doSend(${i},this)">Send Now</button></div></div>`;
+  document.body.appendChild(bg);
+}
+function doSend(i,btn){
+  const dr=_drafts[i];
+  const bodyEl=document.getElementById('draftBody'+i);
+  const body=dr._optimized||(bodyEl?bodyEl.innerText:'')||dr.draft;
+  btn.textContent='Sending...';btn.disabled=true;
+  fetch('/api/send-mail',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({to:dr.to_email||dr.to,subject:dr.subject,body,attachments:window._attachments[i]||[]})})
+  .then(r=>r.json()).then(res=>{
+    const modal=document.querySelector('.modal-bg');
+    if(modal)modal.remove();
+    if(res.ok){
+      toast('✅ Sent to '+dr.to,'#27ae60');
+      const d=document.getElementById('draft'+i);
+      if(d){
+        const sendBtn=d.querySelector('.btn-send');
+        if(sendBtn){sendBtn.className='btn btn-sent';sendBtn.textContent='✅ Sent';sendBtn.disabled=true}
+      }
+    } else toast('❌ '+(res.error||'Failed'),'#e74c3c');
+  }).catch(e=>{const m=document.querySelector('.modal-bg');if(m)m.remove();toast('❌ '+e,'#e74c3c')});
+}
+function toast(msg,color){const t=document.createElement('div');t.className='toast';t.style.background=color;t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),3000)}
+
+function optimizeDraft(draftIdx,profileIdx){
+  const dr=_drafts[draftIdx];
+  const p=_profiles[profileIdx];
+  const bodyEl=document.getElementById('draftBody'+draftIdx);
+  const original=bodyEl?bodyEl.innerText:(dr.draft||'');
+  const compareEl=document.getElementById('compare'+draftIdx);
+  if(!compareEl)return;
+
+  // Highlight active button
+  document.querySelectorAll('#draft'+draftIdx+' .persona-btn').forEach((b,bi)=>{b.classList.toggle('active',bi===profileIdx)});
+
+  // Show loading
+  compareEl.innerHTML='<div class="optimizing">🤖 Rewriting for '+esc(p.name)+' ('+esc(p.communication_style)+')...</div>';
+
+  // Call API to rewrite
+  fetch('/api/optimize-draft',{
+    method:'POST',
+    credentials:'same-origin',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      original_draft:original,
+      subject:dr.subject,
+      to:dr.to,
+      persona:{name:p.name,style:p.communication_style,tip:p.tip,relationship:p.relationship}
+    })
+  }).then(r=>r.json()).then(res=>{
+    if(res.optimized){
+      // Store optimized text in data attribute instead of base64
+      const compareId='compare'+draftIdx;
+      compareEl.innerHTML=`<div class="compare-box">
+        <div class="compare-col before"><div class="compare-label before">⬅ Original</div>${esc(original)}</div>
+        <div class="compare-col after"><div class="compare-label after">➡ Optimized for ${esc(p.name)} (${esc(p.communication_style)})</div>${esc(res.optimized)}</div>
+      </div>
+      <div style="margin-top:6px"><button class="btn btn-send" onclick="event.stopPropagation();applyOptimizedText(${draftIdx})">✅ Apply this version</button></div>`;
+      // Store in global
+      window['_opt_'+draftIdx]=res.optimized;
+    } else {
+      compareEl.innerHTML='<div class="optimizing">❌ '+(res.error||'Failed')+'</div>';
+    }
+  }).catch(e=>{compareEl.innerHTML='<div class="optimizing">❌ '+e+'</div>'});
+}
+
+function applyOptimizedText(i){
+  const text=window['_opt_'+i];
+  if(!text)return;
+  const el=document.getElementById('draftBody'+i);
+  if(el)el.innerText=text;
+  const cmp=document.getElementById('compare'+i);
+  if(cmp)cmp.innerHTML='<div class="optimizing">✅ Applied! Draft updated.</div>';
+  if(_drafts[i])_drafts[i]._optimized=text;
+  toast('Draft optimized','#27ae60');
+}
+
+// Attachment handling
+window._attachments={};
+function handleDrop(e,i){
+  handleFiles(e.dataTransfer.files,i);
+}
+function handleFiles(files,i){
+  if(!window._attachments[i])window._attachments[i]=[];
+  Array.from(files).forEach(f=>{
+    if(f.size>3*1024*1024){toast('❌ '+f.name+' too large (>3MB)','#e74c3c');return}
+    const reader=new FileReader();
+    reader.onload=()=>{
+      const base64=reader.result.split(',')[1];
+      window._attachments[i].push({name:f.name,contentType:f.type||'application/octet-stream',contentBytes:base64});
+      renderAttachments(i);
+    };
+    reader.readAsDataURL(f);
+  });
+}
+function renderAttachments(i){
+  const list=document.getElementById('attList'+i);
+  if(!list)return;
+  const atts=window._attachments[i]||[];
+  list.innerHTML=atts.map((a,ai)=>`<span class="att-item">📄 ${esc(a.name)} <span class="att-remove" onclick="event.stopPropagation();removeAtt(${i},${ai})">×</span></span>`).join('');
+}
+function removeAtt(i,ai){
+  if(window._attachments[i])window._attachments[i].splice(ai,1);
+  renderAttachments(i);
+}
+
+// Data polling (skip if user is editing)
+let lastJ='';
+let _editing=false;
+function poll(){
+  if(_editing)return;
+  fetch('/api/data',{credentials:'same-origin'}).then(r=>{
+    if(r.status===401)return;
+    return r.text();
+  }).then(t=>{
+    if(t&&t!==lastJ&&t.length>10){lastJ=t;render(JSON.parse(t));document.title='🔔 Morning Sweep'}
+  }).catch(()=>{});
+}
+poll();
+setInterval(poll,5000);
+
+function manualRefresh(btn){
+  btn.textContent='⏳ Syncing...';
+  btn.disabled=true;
+  const hours=parseInt(document.getElementById('hourSelect').value)||168;
+  fetch('/api/refresh',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({hours})}).then(r=>r.json()).then(res=>{
+    if(res.ok){toast(`🔄 Sync triggered (${res.hours||hours}h)! Updating in ~15s...`,'#7c4dff');setTimeout(()=>{btn.textContent='🔄 Sync Now';btn.disabled=false},18000)}
+    else{toast('❌ '+(res.error||'Failed'),'#e74c3c');btn.textContent='🔄 Sync Now';btn.disabled=false}
+  }).catch(e=>{toast('❌ '+e,'#e74c3c');btn.textContent='🔄 Sync Now';btn.disabled=false});
+}
+
+function changeHours(val){
+  toast(`⏳ Switching to ${val}h range...`,'#7c4dff');
+  manualRefresh(document.getElementById('syncBtn'));
+}
+
+// Sync selector with backend actual state
+function syncHealthStatus(){
+  fetch('/api/health',{credentials:'same-origin'}).then(r=>r.json()).then(h=>{
+    if(h.email_hours){
+      const sel=document.getElementById('hourSelect');
+      const rangeEl=document.getElementById('activeRange');
+      // Update select to match backend
+      for(let o of sel.options){if(parseInt(o.value)===h.email_hours)o.selected=true}
+      rangeEl.textContent=`(Server: ${h.email_hours}h · ${h.emails_count} emails · ${h.contacts_count} profiles)`;
+    }
+  }).catch(()=>{});
+}
+syncHealthStatus();
+setInterval(syncHealthStatus, 30000);
+
+// Load CosmosDB insights
+function loadInsights(){
+  fetch('/api/insights',{credentials:'same-origin'}).then(r=>r.json()).then(data=>{
+    if(data.error){document.getElementById('historyEl').innerHTML='<div class="loading">'+esc(data.error)+'</div>';return}
+    const h=data.analysis_history||[];
+    const c=data.contact_evolution||[];
+    document.getElementById('historyCount').textContent=data.total_analyses+' analyses · '+data.total_tokens_used+' tokens';
+
+    let html='<div class="history-grid"><div>';
+    // Left: Analysis Timeline
+    html+='<div style="font-weight:600;font-size:13px;margin-bottom:8px">📊 Analysis History</div>';
+    if(h.length){
+      html+='<div class="history-timeline">';
+      h.forEach(a=>{
+        const t=a.time||'';
+        const date=t.length>=8?t.substring(0,4)+'-'+t.substring(4,6)+'-'+t.substring(6,8)+' '+t.substring(9,11)+':'+t.substring(11,13):'';
+        html+=`<div class="timeline-item"><div class="timeline-dot"></div><div><div class="timeline-time">${esc(date)}</div><div class="timeline-tasks"><b>${a.tasks} tasks</b> · ${a.tokens||0} tokens</div>`;
+        if(a.task_list&&a.task_list.length)html+='<div style="color:#888;font-size:11px;margin-top:2px">'+a.task_list.map(esc).join(' · ')+'</div>';
+        if(a.attention&&a.attention.length)html+='<div style="margin-top:2px">⚠️ '+a.attention.map(n=>'<span class="tag attn">'+esc(n)+'</span>').join(' ')+'</div>';
+        html+='</div></div>';
+      });
+      html+='</div>';
+    } else html+='<div class="loading">No analysis history yet</div>';
+
+    html+='</div><div>';
+    // Right: Contact Evolution
+    html+='<div style="font-weight:600;font-size:13px;margin-bottom:8px">👥 Contact Profile Evolution</div>';
+    if(c.length){
+      c.forEach(p=>{
+        const sentClass=(p.sentiment||'neutral').replace(' ','-');
+        html+=`<div class="evolution-item"><div class="avatar" style="background:${col(p.name)};width:32px;height:32px;font-size:12px">${ini(p.name)}</div><div class="evo-detail"><div class="evo-name">${esc(p.name)}</div><span class="style-tag">${esc(p.style)}</span> <span style="color:#999">${esc(p.frequency)}</span>${p.topics&&p.topics.length?'<div style="margin-top:2px;color:#888">'+p.topics.slice(0,3).map(esc).join(' · ')+'</div>':''}<div style="font-style:italic;color:#999;margin-top:2px;font-size:10px">${esc(p.tip||'')}</div><div style="font-size:10px;color:#bbb">Updated: ${esc(p.updated||'')}</div></div><div class="evo-sentiment ${sentClass}"></div></div>`;
+      });
+    } else html+='<div class="loading">No profile data yet</div>';
+
+    html+='</div></div>';
+    // Summary stats
+    html+=`<div style="margin-top:12px;text-align:center"><span class="stat-box">📊 ${data.total_analyses} analyses</span><span class="stat-box">🪙 ${data.total_tokens_used} tokens</span><span class="stat-box">👥 ${c.length} profiles</span></div>`;
+
+    document.getElementById('historyEl').innerHTML=html;
+  }).catch(e=>{document.getElementById('historyEl').innerHTML='<div class="loading">CosmosDB: '+e+'</div>'});
+}
+loadInsights();
+setInterval(loadInsights,60000);
+</script>
+</body>
+</html>

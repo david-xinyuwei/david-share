@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Morning Sweep — AI Briefing</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', -apple-system, sans-serif; background: linear-gradient(135deg, #e8f0fe 0%, #f3e8ff 50%, #fce4ec 100%); min-height: 100vh; padding: 24px; }
+.container { max-width: 1200px; margin: 0 auto; }
+.header { margin-bottom: 24px; }
+.header .date { color: #666; font-size: 14px; }
+.header h1 { font-size: 32px; font-weight: 300; color: #1a1a2e; }
+.header h1 span { font-weight: 600; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.card { background: rgba(255,255,255,0.85); backdrop-filter: blur(10px); border-radius: 16px; padding: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+.card h2 { font-size: 16px; font-weight: 600; color: #333; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+.card h2 .icon { font-size: 20px; }
+.full-width { grid-column: 1 / -1; }
+
+/* Priority Emails */
+.email-item { padding: 12px; border-radius: 10px; margin-bottom: 10px; border-left: 4px solid #ccc; background: #fafafa; }
+.email-item.high { border-left-color: #e74c3c; background: #fef5f5; }
+.email-item.medium { border-left-color: #f39c12; background: #fffbf0; }
+.email-item.low { border-left-color: #27ae60; background: #f0faf4; }
+.email-subject { font-weight: 600; font-size: 14px; color: #222; }
+.email-from { font-size: 12px; color: #888; margin-top: 2px; }
+.email-action { font-size: 13px; color: #555; margin-top: 6px; padding: 6px 10px; background: rgba(0,0,0,0.03); border-radius: 6px; }
+.urgency-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; text-transform: uppercase; margin-left: 8px; }
+.urgency-badge.high { background: #e74c3c; color: white; }
+.urgency-badge.medium { background: #f39c12; color: white; }
+.urgency-badge.low { background: #27ae60; color: white; }
+
+/* Action Items */
+.action-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
+.action-item:last-child { border-bottom: none; }
+.action-check { width: 20px; height: 20px; border: 2px solid #ddd; border-radius: 50%; flex-shrink: 0; margin-top: 2px; cursor: pointer; }
+.action-check:hover { border-color: #7c4dff; }
+.action-priority { font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+.action-priority.P0 { background: #e74c3c; color: white; }
+.action-priority.P1 { background: #f39c12; color: white; }
+.action-priority.P2 { background: #3498db; color: white; }
+.action-task { font-size: 13px; color: #333; }
+.action-deadline { font-size: 11px; color: #999; margin-top: 3px; }
+
+/* Contact Profiles */
+.profile-item { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 10px; margin-bottom: 8px; background: #f8f9ff; }
+.profile-avatar { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; color: white; flex-shrink: 0; }
+.profile-info { flex: 1; }
+.profile-name { font-weight: 600; font-size: 14px; color: #222; }
+.profile-role { font-size: 12px; color: #888; }
+.profile-style { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 8px; background: #e8f0fe; color: #1967d2; margin-top: 4px; }
+.profile-tip { font-size: 12px; color: #666; margin-top: 4px; font-style: italic; }
+.profile-sentiment { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.profile-sentiment.positive { background: #27ae60; }
+.profile-sentiment.neutral { background: #f39c12; }
+.profile-sentiment.needs-attention { background: #e74c3c; }
+
+/* Relationship Network */
+.network-summary { font-size: 13px; color: #555; line-height: 1.6; margin-bottom: 12px; }
+.network-group { margin-bottom: 10px; }
+.network-label { font-size: 12px; font-weight: 600; color: #888; text-transform: uppercase; margin-bottom: 6px; }
+.network-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.network-tag { padding: 4px 12px; border-radius: 16px; font-size: 12px; }
+.network-tag.inner { background: #e8f5e9; color: #2e7d32; }
+.network-tag.attention { background: #fce4ec; color: #c62828; }
+
+/* Draft Replies */
+.draft-item { padding: 14px; border-radius: 10px; margin-bottom: 10px; background: #f8f9ff; border: 1px solid #e8eaff; }
+.draft-to { font-size: 12px; color: #7c4dff; font-weight: 600; }
+.draft-subject { font-size: 14px; font-weight: 600; color: #333; margin: 4px 0; }
+.draft-body { font-size: 13px; color: #555; line-height: 1.5; padding: 10px; background: white; border-radius: 8px; margin-top: 8px; }
+.draft-tone { font-size: 11px; color: #999; margin-top: 6px; font-style: italic; }
+.draft-actions { display: flex; gap: 8px; margin-top: 10px; }
+.btn { padding: 6px 16px; border-radius: 8px; font-size: 12px; border: none; cursor: pointer; font-weight: 600; }
+.btn-primary { background: #7c4dff; color: white; }
+.btn-secondary { background: #f0f0f0; color: #555; }
+
+/* Cross-check */
+.insight-item { padding: 12px; border-radius: 10px; background: linear-gradient(135deg, #fff3e0, #fce4ec); margin-bottom: 8px; }
+.insight-text { font-size: 13px; color: #333; font-weight: 500; }
+.insight-sources { font-size: 11px; color: #888; margin-top: 4px; }
+
+/* Powered by */
+.footer { text-align: center; margin-top: 24px; font-size: 12px; color: #aaa; }
+.footer span { color: #7c4dff; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="date" id="dateStr"></div>
+    <h1 id="greeting">Good morning</h1>
+  </div>
+  <div class="grid">
+    <!-- Priority Emails -->
+    <div class="card">
+      <h2><span class="icon">📧</span> Priority Emails</h2>
+      <div id="emails"></div>
+    </div>
+    <!-- Action Items / To-Do -->
+    <div class="card">
+      <h2><span class="icon">✅</span> To-Do <span id="todoCount" style="font-size:12px;color:#7c4dff;margin-left:auto;"></span></h2>
+      <div id="actions"></div>
+    </div>
+    <!-- Contact Profiles -->
+    <div class="card">
+      <h2><span class="icon">👥</span> Contact Profiles</h2>
+      <div id="profiles"></div>
+    </div>
+    <!-- Relationship Network -->
+    <div class="card">
+      <h2><span class="icon">🔗</span> Relationship Network</h2>
+      <div id="network"></div>
+    </div>
+    <!-- Cross-check Insights -->
+    <div class="card" id="insightsCard" style="display:none;">
+      <h2><span class="icon">🔍</span> Cross-Source Insights</h2>
+      <div id="insights"></div>
+    </div>
+    <!-- Draft Replies -->
+    <div class="card full-width">
+      <h2><span class="icon">✉️</span> AI-Drafted Replies</h2>
+      <div id="drafts"></div>
+    </div>
+  </div>
+  <div class="footer">Powered by <span>Microsoft Graph API</span> + <span>Azure OpenAI</span> · M365 Morning Sweep</div>
+</div>
+
+<script>
+const colors = ['#7c4dff','#1967d2','#e74c3c','#27ae60','#f39c12','#00bcd4','#e91e63','#ff5722','#795548','#607d8b'];
+function getInitials(name) { return name.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase(); }
+function getColor(name) { let h=0; for(let i=0;i<name.length;i++) h=name.charCodeAt(i)+((h<<5)-h); return colors[Math.abs(h)%colors.length]; }
+
+fetch('morning_sweep_output.json').then(r=>r.json()).then(data => {
+  // Header
+  document.getElementById('dateStr').textContent = new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  document.getElementById('greeting').innerHTML = data.greeting || 'Good morning';
+
+  // Emails
+  const emailsEl = document.getElementById('emails');
+  (data.priority_emails||[]).forEach(e => {
+    emailsEl.innerHTML += `<div class="email-item ${e.urgency}">
+      <div class="email-subject">${e.subject} <span class="urgency-badge ${e.urgency}">${e.urgency}</span></div>
+      <div class="email-from">From: ${e.from}</div>
+      <div class="email-action">💡 ${e.suggested_action}</div>
+    </div>`;
+  });
+
+  // Actions
+  const actionsEl = document.getElementById('actions');
+  const items = data.action_items||[];
+  document.getElementById('todoCount').textContent = items.length + ' pending';
+  items.forEach(a => {
+    actionsEl.innerHTML += `<div class="action-item">
+      <div class="action-check"></div>
+      <div>
+        <div><span class="action-priority ${a.priority}">${a.priority}</span> <span class="action-task">${a.task}</span></div>
+        <div class="action-deadline">⏰ ${a.deadline} · Source: ${a.source}</div>
+      </div>
+    </div>`;
+  });
+
+  // Contact Profiles
+  const profilesEl = document.getElementById('profiles');
+  (data.contact_profiles||[]).forEach(p => {
+    const c = getColor(p.name);
+    profilesEl.innerHTML += `<div class="profile-item">
+      <div class="profile-avatar" style="background:${c}">${getInitials(p.name)}</div>
+      <div class="profile-info">
+        <div class="profile-name">${p.name}</div>
+        <div class="profile-role">${p.role||''} · ${p.relationship||''}</div>
+        <span class="profile-style">${p.communication_style||''}</span>
+        <div class="profile-tip">${p.tip||''}</div>
+      </div>
+      <div class="profile-sentiment ${(p.sentiment||'neutral').replace(' ','-')}"></div>
+    </div>`;
+  });
+
+  // Relationship Network
+  const networkEl = document.getElementById('network');
+  const net = data.relationship_network||{};
+  networkEl.innerHTML = `<div class="network-summary">${net.summary||'No relationship data available.'}</div>`;
+  if(net.inner_circle && net.inner_circle.length) {
+    networkEl.innerHTML += `<div class="network-group"><div class="network-label">Inner Circle</div><div class="network-tags">${net.inner_circle.map(n=>`<span class="network-tag inner">${n}</span>`).join('')}</div></div>`;
+  }
+  if(net.attention_needed && net.attention_needed.length) {
+    networkEl.innerHTML += `<div class="network-group"><div class="network-label">Needs Attention</div><div class="network-tags">${net.attention_needed.map(n=>`<span class="network-tag attention">${n}</span>`).join('')}</div></div>`;
+  }
+
+  // Cross-check Insights
+  const insightsEl = document.getElementById('insights');
+  const crossChecks = data.cross_check_insights||[];
+  if(crossChecks.length) {
+    document.getElementById('insightsCard').style.display = 'block';
+    crossChecks.forEach(i => {
+      insightsEl.innerHTML += `<div class="insight-item">
+        <div class="insight-text">🔍 ${i.insight}</div>
+        <div class="insight-sources">Sources: ${(i.sources||[]).join(' · ')}</div>
+      </div>`;
+    });
+  }
+
+  // Draft Replies
+  const draftsEl = document.getElementById('drafts');
+  (data.draft_replies||[]).forEach(d => {
+    draftsEl.innerHTML += `<div class="draft-item">
+      <div class="draft-to">To: ${d.to}</div>
+      <div class="draft-subject">${d.subject}</div>
+      <div class="draft-body">${d.draft}</div>
+      <div class="draft-tone">🎨 ${d.tone_note}</div>
+      <div class="draft-actions">
+        <button class="btn btn-primary">Send</button>
+        <button class="btn btn-secondary">Edit</button>
+      </div>
+    </div>`;
+  });
+});
+</script>
+</body>
+</html>
