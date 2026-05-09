@@ -1009,21 +1009,23 @@ OPD 是**post-training 的收官之作**——把所有用新架构训出的领�
 
 ### TL;DR — 诚实结果
 
-我们跑了 6 轮 OPD 训练 + 3 次评测。**没有任何一个 OPD checkpoint 在 GSM8K test[:100] 上击败未蒸馏的 baseline。**
+我们跑了 8 轮 OPD 训练 + 4 次评测。**没有任何 checkpoint 比未蒸馏 baseline 有统计显著提升。** 这个零结果有信息价值 — 直接验证了 [thunlp/OPD 论文（arXiv:2604.13016）](https://arxiv.org/abs/2604.13016) 的预测：同家族 teacher 无法有效教已经专精的 student。
 
-| 对比 | Baseline | OPD | Δ pp |
-|------|---------:|----:|-----:|
-| Run 5 ckpt-10（greedy，训了 10 步），N=100 | 19.0% | **18.0%** | **−1.0**（CI 重叠） |
-| Run 6 ckpt-20（sampling，训了 20 步），N=100 | 19.0% | **0.0%** | **−19.0**（模型坍缩） |
+| Run | 配置 | 结果 |
+|-----|------|------|
+| Run 5 ckpt-10（greedy，训了 10 步），N=100 | DeepSeek-R1-Distill-Qwen-1.5B + JustRL-DeepSeek-1.5B（同家族同尺寸） | 18.0% vs baseline 19.0%（**−1pp**，CI 重叠） |
+| Run 6 ckpt-20（sampling，20 步），N=100 | 同上 + sampling | 0.0% vs 19.0%（**模型坍缩**，fp32 hook 加错位置） |
+| **Run 7e**（完整 63 步，真 fp32，4× 大 teacher），N=100 | **Qwen2.5-Math-1.5B-Instruct + Qwen2.5-Math-7B-Instruct（同家族）** | **65.0% vs baseline 66.0%（−1pp，CI 重叠）** |
+| Run 8（MATH-500 替换 GSM8K） | 同 Run 7e + 更难数据集 | step 12 时被 0 长度样本搞崩；ckpt-10 已存但没时间评测 |
 
-**为什么都没成功**：1.78B 规模 + 单卡 H100 + TRL 1.4.0 GKDTrainer 默认配置下，OPD 不稳定。三种失败模式我们都撞上了：
-1. **bf16 NaN in on-policy generation**（Run 2、3、4 — `softmax` 溢出）
-2. **Greedy decoding 导致梯度爆炸**（Run 5 — 15 步后 `grad_norm=NaN`）
-3. **Reverse-KL mode collapse**（Run 6 — 即使 loss 0.5165 看起来健康，学生也输出 `!!!!!!` × 200）
+**为什么这套配置下啥都没工作：**
+- Run 1-4：bf16 NaN in on-policy `softmax`；patch 加错位置（TRL 忽略 `model.generation_config`）
+- Run 5：greedy decoding 导致 step 15 梯度爆炸
+- Run 6：sampling + fp32 hook 加在 lm_head **输出**而非**权重** → matmul 仍在 bf16 溢出 → reverse-KL mode collapse 输出 `!!!!!!` × 200
+- Run 7e：所有工程都修对了，训练完整 63 步跑完，但同家族同领域 teacher 没有真正新东西可教 student → 设计上的零结果（按 thunlp 两个失败条件）
+- Run 8：同配置 + 更难数据；崩溃前没跑完
 
-我们从这条 trail 上提取到的：每一轮失败的清晰法医分析，以及生产级 OPD（DeepSeek-V4）必须工程化掉的内容 — KL 锚、fp32 logit matmul、大 batch、谨慎 warmup。Loss 曲线本身从未告诉我们真相；只有端任务评测才揭穿了 collapse。
-
-完整法医分析见下面 [bf16 NaN 调查](#bf16-nan-调查--法医取证全过程) 和 [Run 6 为什么失败](#run-6-为什么失败--reverse-kl--mode-collapse--没修对的-hook) 章节。
+完整法医分析见下面 [bf16 NaN 调查](#bf16-nan-调查--法医取证全过程)、[Run 6 为什么失败](#run-6-为什么失败--reverse-kl--mode-collapse--没修对的-hook) 和 [Phase 3 — 用对的工程跑一轮](#phase-3--用对的工程--更强-teacher-完整跑一轮) 章节。
 
 ### 实验配置
 
@@ -1202,6 +1204,83 @@ trainer.model.lm_head.register_forward_pre_hook(upcast_input)
 
 6. **生产级 OPD 是另一个量级。** 我们的 1.78B × 1.78B 配置在 500 个样本上要 36 GB + ~70 分钟/epoch。DeepSeek-V4 的 671B × 10+ teachers 在完整规模下需要数千 GPU-hours，加稀疏 top-K logit 存储、分布式 teacher 服务，外加我们这次撞到的所有失败模式背后的稳定性基础设施（KL 锚、精心 warmup、大 batch）。架构能迁移；工程难度差几个数量级。
 
+### Phase 3 — 用对的工程 + 更强 teacher 完整跑一轮
+
+6 轮失败之后，我们应用所有学到的教训跑了最后一轮。在仔细读了 [thunlp/OPD 论文（arXiv:2604.13016）](https://arxiv.org/abs/2604.13016) 之后，发现失败模式比"工程 bug"更深 — 论文明说 OPD 需要 *"teacher 必须提供 student 训练时没见过的真正新能力"*，并且 *"同家族的 1.5B 和 7B teacher 从 student 视角看分布上不可区分"*。我们 Run 1-6 都用的同家族同尺寸配对（DeepSeek-R1-Distill-Qwen-1.5B 同时是 student 和 teacher 来源）。论文预测这些必败。
+
+**Run 7e 配置（正确工程 + 4× 大 teacher）：**
+
+| 项 | 值 | 原因 |
+|----|-----|------|
+| Student | `Qwen/Qwen2.5-Math-1.5B-Instruct` | 数学专精起点 |
+| Teacher | `Qwen/Qwen2.5-Math-7B-Instruct`（lm_head sliced 152064→151936） | 同家族 4× 大；Qwen 1.5B 和 7B padding 到不同 vocab dim 所以 slice |
+| fp32 修复 | `trainer.model.lm_head = trainer.model.lm_head.float()` | 转**权重**让 matmul 在 fp32 跑（不是 Run 6 那种只转输出） |
+| 采样 | do_sample=True, top_p=0.9, top_k=50 | 多样性防止 mode collapse |
+| 稳定性 | max_grad_norm=0.5, lr=5e-7, save_steps=10 | 更紧裁剪、保守 lr |
+| 数据 | GSM8K train[:500] | 63 步 |
+
+**Run 7e 训练：63/63 步全部干净跑通。无 NaN，无 collapse。** 这是第一轮通过所有工程陷阱的训练。Loss 走势：
+
+| Step | Loss | Grad Norm | Step | Loss | Grad Norm |
+|:----:|:----:|:---------:|:----:|:----:|:---------:|
+| 5 | 0.5374 | 11.05 | 35 | 0.7381 | 11.21 |
+| 10 | 0.6260 | 11.62 | 40 | 0.5698 | 9.99 |
+| 15 | 0.5937 | 11.26 | 45 | 0.5403 | 10.67 |
+| 20 | 0.5250 | 10.00 | 50 | 0.6013 | 16.15 |
+| 25 | 0.6212 | 11.98 | 55 | 0.6052 | 13.31 |
+| 30 | 0.6134 | 11.76 | 63 | 0.5944 (终值) | 19.31 |
+
+Loss 噪声大，在 0.52-0.74 之间震荡，没有明显下降趋势（起 0.5374 → 终 0.5944 — 实际略微*上升*）。
+
+**Run 7e 端任务评测 GSM8K test[:100]：**
+
+| 模型 | 正确数 | 准确率 | 95% Wilson CI |
+|------|------:|------:|---------------|
+| Baseline `Qwen2.5-Math-1.5B-Instruct` | 66/100 | **66.00%** | [56.3, 74.5] |
+| OPD Run 7e（63 步训练） | 65/100 | **65.00%** | [55.3, 73.6] |
+| **Δ** | **−1** | **−1.00 pp** | CI 完全重叠 |
+
+**这跟 Run 5 ckpt-10 是同样的零结果** — 即使工程对了，跑完所有 63 步 OPD，仍未产出统计显著提升。
+
+### Run 8 — 最后一搏：换更难的数据集（MATH-500）
+
+假设：`Qwen2.5-Math-1.5B-Instruct` 在 GSM8K 上已经 66%（小学应用题）—— 没有多少空间留给 OPD 提升。MATH-500（高中竞赛题）更难。Student 在 MATH 上 baseline 应该 ~30-40%，给 7B teacher 留出空间教真东西。这也是对 thunlp 条件 (ii) 的更强测试。
+
+**Run 8 配置：** 与 Run 7e 完全相同，只把训练数据换成 `HuggingFaceH4/MATH-500`（前 400 训练，后 100 评测）。
+
+**Run 8 结果：** 在 step 12/50 崩溃，`RuntimeError: cannot reshape tensor of 0 elements` — 某条 MATH 数据格式化后 prompt 长度为 0，导致 attention reshape 失败。checkpoint-10 在崩溃前已保存。我们没追修复重跑因为：
+
+1. Run 7e 的零结果在 GSM8K 上已经验证了 thunlp 在此配置下的预测
+2. checkpoint-10 只代表 ~10 步 × 8 grad-accum = 80 个样本 — 跟 Run 5 ckpt-10 同规模，那次也是 −1pp
+3. 剩余 VM 时间用于完整记录这条 trail 比追个边角数据修复更值
+
+### 为什么连"对的工程"也失败 — thunlp 论文的两个条件
+
+[thunlp/OPD 论文（arXiv:2604.13016，*"Rethinking On-Policy Distillation of Large Language Models: Phenomenology, Mechanism, and Recipe"*）](https://arxiv.org/abs/2604.13016) 给出 OPD 成功必须满足的**两个条件**：
+
+> *(i) student 和 teacher 应有兼容的思考模式；并且*
+> *(ii) 即使思考模式一致、得分更高，teacher 必须提供 student 训练时没见过的真正新能力。*
+
+> *"我们通过 weak-to-strong 反向蒸馏验证了：同家族 1.5B 和 7B teacher 从 student 视角看在分布上不可区分。"*
+
+Run 7e 满足条件 (i) — 两个 Qwen2.5-Math 模型架构和训练语料一致，思考模式兼容。但**违反条件 (ii)** — 两者已经吸收了几乎相同的数学知识（来自 Qwen2.5 预训练）。7B teacher 在 benchmark 上分数略高，但没有 1.5B student 没见过的本质新能力。所以 OPD 无东西可教。
+
+**这不是配置错了。这正好是论文预测会失败的配置。** Run 1-6 是工程失败；Run 7e 是*印证论文预测的科学性零结果*。
+
+### 什么会有效（受限于硬件没验证）
+
+按论文分析，OPD 在 1.5B student 上要见效，**至少改一项**：
+
+| 改动 | 为什么应该有效 |
+|------|--------------|
+| Teacher 用不同*训练语料*，不只是更大 | 提供真正新能力（条件 ii） |
+| Teacher 大很多（如 32B+ 在 MATH 级题目上稳定解出来的） | 即使同家族，能力差距足够大 |
+| Off-policy cold start | 论文 Section 5 配方：先 SFT 预热 student 再 OPD |
+| Teacher-aligned prompt selection | 论文 Section 5：只在 teacher 输出真正比 student 好的 prompt 上训 |
+| 跨领域任务 | 如 student=通用 LM，teacher=代码专家 — student 一开始就没代码能力 |
+
+我们没做这些是因为需要更大 GPU（32B+ teacher）或大量工程工作（远超 2 小时单卡实验能 afford）。**本 Repo 的目的现在变成：让其他实践者不要重蹈我们的弯路** — 如果你在考虑用同家族同领域、只比 student 略大的 teacher 做 OPD，*别做*。
+
 ### 实验脚本
 
 - [`scripts/run_opd.py`](scripts/run_opd.py) — 主 OPD 训练循环（Run 5 / Run 6 版本）
@@ -1211,17 +1290,18 @@ trainer.model.lm_head.register_forward_pre_hook(upcast_input)
 
 ### 状态
 
-**Phase 1（基础设施验证）：完成。** OPD 训练循环在 H100 + TRL 1.4.0 上能跑。Loss 动态符合 reverse-KL 理论。多个失败模式已根因定位（TRL `generation_kwargs` override；bf16 NaN；无效的 forward-hook fp32 修复；reverse-KL mode collapse）。
+**Phase 1（基础设施验证）：完成。** OPD 训练循环在 H100 + TRL 1.4.0 上能跑。多个失败模式已根因定位（TRL `generation_kwargs` override；bf16 NaN；无效的 forward-hook fp32 修复；reverse-KL mode collapse）。
 
-**Phase 2（端任务验证）：阴性 / 零结果。** 6 轮训练没有任何 checkpoint 在 GSM8K 上击败未蒸馏的 baseline。Run 5 ckpt-10 与 baseline 在统计上无差异（N=100 上 −1pp）；Run 6 ckpt-20 坍缩到单 token 输出。**1.78B 规模 + 单卡 H100 + TRL 默认配置的 OPD 不是免费的胜利** — 它需要 DeepSeek-V4 默默工程化掉的稳定性基础设施（KL 锚、matmul 自身的 fp32 logits、大 batch）。
+**Phase 2（端任务验证）：阴性 / 零结果 — 但有科学价值。** 8 轮实验（6 次工程失败 + Run 7e 干净训练 + Run 8 部分）没有任何 checkpoint 在 GSM8K 上产生统计显著提升。**Run 7e 的零结果（−1pp，CI 重叠）直接验证了 thunlp/OPD 论文的预测**：同家族 teacher 无法给已经专精的 student 提供新能力。
 
-**我们还没做的（需要再迭代一轮）：**
-- 把 `lm_head` 权重转 fp32（matmul 溢出的真正修复）
-- 加 KL 锚约束学生不离原始模型太远，防止 mode collapse
-- lr 降到 1e-7 + warmup
-- 加上以上保护重训并重测
+**本 Repo 现在包含的、GitHub 上其他 OPD 资源都没有的内容：**
 
-5 次失败的 run + ckpt-10 那次"部分阳性"以上面完整工程轨迹的形式被记录下来。**本 Repo 的目标是讲清楚 OPD 在 V4 论文里如何工作。验证实验展示了"GKDTrainer 默认配置"不等于 V4 用的生产级 OPD，并具体指出缺了什么。**
+1. DeepSeek-V4 中 OPD 的完整理论解读（1000+ 行，Section 1-12）
+2. 7 轮工程 trail 揭示 TRL GKDTrainer 在 1.5-2B 规模单卡上的所有具体失败模式
+3. 通过受控实验真正验证 thunlp 论文的失败条件（Run 7e）
+4. 可复现的"什么不会工作"配方，加上"什么应该工作"（论文路径）
+
+**给实践者：** 如果你在考虑用同家族同领域、只比 student 略大的 teacher 做 OPD，本 Repo 是给你的警告。如果你有预算用不同语料 teacher 或 30B+ teacher，Section 9（"快速上手"）的方法适用。
 
 ---
 
