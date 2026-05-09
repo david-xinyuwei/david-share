@@ -92,8 +92,9 @@ We created a Foundry Toolbox named `agent-tools` with the following tools:
 | --- | --- | --- | --- |
 | `code_interpreter` | Built-in (Toolbox) | Executes Python in a managed sandbox — the agent sends code, the sandbox returns results. Used for computation tasks. | ✅ Verified end-to-end |
 | `web_search` | Built-in (Toolbox) | Searches the public web via Bing grounding. Lists correctly through MCP `tools/list`. | ⚠️ Lists OK; runtime invoke returns a tool error in some projects (preview). The agent auto-falls-back to `direct_web_search`. |
+| `file_search` | Built-in (Toolbox) | Searches uploaded documents in a vector store for relevant passages. We uploaded `docs/why-this-architecture.md` as test content. | ✅ Verified end-to-end — agent accurately quoted the MCP vs function-calling passage from the uploaded doc. |
 
-We demonstrate both the **governed Toolbox path** (code_interpreter works end-to-end) and the **Responses API fallback** (direct_web_search). This split is intentional: it shows how to combine preview-catalog tools with documented-runtime tools in one agent. See `scripts/create_toolbox.py --with-web-search --with-code-interpreter` for how both were registered.
+We demonstrate both the **governed Toolbox path** (code_interpreter and file_search work end-to-end) and the **Responses API fallback** (direct_web_search for web grounding). See `scripts/create_toolbox.py --with-web-search --with-code-interpreter --with-file-search` for how all three were registered.
 
 ### Hosted Agent contents (our experiment)
 

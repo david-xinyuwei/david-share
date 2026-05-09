@@ -92,8 +92,9 @@ flowchart LR
 | --- | --- | --- | --- |
 | `code_interpreter` | 内置（Toolbox） | 在受管沙箱中执行 Python——agent 发代码，沙箱返回结果。用于计算任务。 | ✅ 端到端已验证 |
 | `web_search` | 内置（Toolbox） | 通过 Bing grounding 搜索公开网页。MCP `tools/list` 正确返回。 | ⚠️ List OK；runtime invoke 在部分 project 中返回 tool error（preview）。Agent 自动 fallback 到 `direct_web_search`。 |
+| `file_search` | 内置（Toolbox） | 在 vector store 中搜索已上传文档的相关段落。我们上传了 `docs/why-this-architecture.md` 作为测试内容。 | ✅ 端到端已验证 — agent 准确引用了上传文档中 MCP vs function-calling 的原文。 |
 
-我们同时展示了 **受管 Toolbox 路径**（code_interpreter 端到端可通）和 **Responses API fallback**（direct_web_search）。这个拆分是故意的：它展示了如何在一个 agent 里组合 preview catalog tool 和 documented runtime tool。见 `scripts/create_toolbox.py --with-web-search --with-code-interpreter` 了解两个 tool 的注册方式。
+我们同时展示了 **受管 Toolbox 路径**（code_interpreter 和 file_search 端到端可通）和 **Responses API fallback**（direct_web_search 用于网页 grounding）。见 `scripts/create_toolbox.py --with-web-search --with-code-interpreter --with-file-search` 了解三个 tool 的注册方式。
 
 ### Hosted Agent 内容（本实验）
 
