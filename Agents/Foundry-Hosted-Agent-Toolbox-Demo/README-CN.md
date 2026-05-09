@@ -154,75 +154,84 @@ flowchart LR
 
 ### Agent 真实输出（实跑抓取，非 mock）
 
-<details>
-<summary><strong>Demo 1 — code_interpreter via Toolbox MCP</strong>（点击展开）</summary>
+#### Demo 1 — code_interpreter via Toolbox MCP (9.3 s)
 
-**用户输入：**
 ```
-Use code_interpreter to calculate the first 10 Fibonacci numbers and return them as a Python list.
-```
+User:  计算前 10 个 Fibonacci 数并以 Python list 返回。
 
-**Agent 回答（9.3 s）：**
-> The first 10 Fibonacci numbers are: **[0, 1, 1, 2, 3, 5, 8, 13, 21, 34]**
-
-**后台发生了什么：**
-```
-→ Agent 调 gpt-4-1-mini（planning）
-→ Model 发出 function_call: code_interpreter
-→ Toolbox MCP 转发到 Python sandbox
-→ Sandbox 执行真 Python，返回 [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
-→ Agent 调 gpt-4-1-mini（最终回答）
-→ 总计：2 次 model call + 1 次 MCP tools/call
-```
-</details>
-
-<details>
-<summary><strong>Demo 2 — file_search via Toolbox MCP</strong>（点击展开）</summary>
-
-**用户输入：**
-```
-Use file_search to find what the uploaded document says about the difference
-between Toolbox MCP and raw MCP servers. Summarize in 2 sentences.
+Agent: The first 10 Fibonacci numbers are: [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
 ```
 
-**Agent 回答（7.5 s）：**
-> The Toolbox MCP server sits in front of raw MCP servers to provide **aggregation of multiple tool types behind one endpoint**, letting agents connect once and discover all tools instead of managing multiple connections. Additionally, Toolbox adds **governance and version pinning**, allowing tool sets to be updated without redeploying agents, which raw MCP servers lack.
+路径: Agent → gpt-4-1-mini (planning) → Toolbox MCP `tools/call` code_interpreter → Python sandbox → gpt-4-1-mini (最终回答)
 
-**后台发生了什么：**
-```
-→ Agent 调 gpt-4-1-mini（planning）
-→ Model 发出 function_call: file_search
-→ Toolbox MCP 搜索 vector store vs_0Raxw5LUn5thdP7QMBfAdsKx
-→ 从 why-this-architecture.md（之前上传的）检索相关段落
-→ Agent 调 gpt-4-1-mini（带 citation 最终回答）
-→ 总计：2 次 model call + 1 次 MCP tools/call
-```
-</details>
+#### Demo 2 — file_search via Toolbox MCP (7.5 s)
 
-<details>
-<summary><strong>Demo 3 — direct_web_search via Responses API</strong>（点击展开）</summary>
-
-**用户输入：**
 ```
-Use direct_web_search to find the latest Microsoft Foundry Agent Service pricing.
-Return a one-sentence summary with the source URL.
+User:  从上传的文档中找出 Toolbox MCP 和 raw MCP server 的区别。
+
+Agent: Toolbox MCP server 在 raw MCP server 前面，把多种 tool type 聚合到一个
+       endpoint，让 agent 接一次就发现全部 tool。此外 Toolbox 加了 governance
+       和 version pinning，更新 tool set 不需要重部署 agent。
 ```
 
-**Agent 回答（12.4 s）：**
-> Microsoft Foundry Agent Service pricing in 2026 follows a flexible token consumption model with pay-as-you-go and provisioned throughput options, with details available at the [Azure pricing page](https://azure.microsoft.com/pricing/details/foundry-agent-service/).
+路径: Agent → gpt-4-1-mini → Toolbox MCP `tools/call` file_search → vector store (why-this-architecture.md) → gpt-4-1-mini (带 citation 最终回答)
 
-**后台发生了什么：**
-```
-→ Agent 调 gpt-4-1-mini（planning）
-→ Model 发出 function_call: direct_web_search
-→ direct_web_search 调 Foundry Responses API + tools=[{"type":"web_search"}]
-→ Bing grounding 返回合成答案 + URL citation
-→ Agent 调 gpt-4-1-mini（最终回答）
-→ 总计：2 次 model call + 1 次 Responses API web_search
-```
-</details>
+#### Demo 3 — direct_web_search via Responses API (12.4 s)
 
-### 核心路径
+```
+User:  查最新的 Microsoft Foundry Agent Service 定价。
+
+Agent: Microsoft Foundry Agent Service 2026 年采用灵活的 token 消费模型，
+       pay-as-you-go 和 provisioned throughput 可选，详见
+       https://azure.microsoft.com/pricing/details/foundry-agent-service/
+```
+
+路径: Agent → gpt-4-1-mini → `direct_web_search` → Foundry Responses API + Bing grounding → gpt-4-1-mini (最终回答 + 来源 URL)
+
+#### Demo 4 — 端云协同 (`examples/hybrid-edge-cloud/`)
+
+```
+[edge]  捕获 24 小时 3 个传感器读数 (seed=42)。
+[edge]  写 contract.json。current_owner = cloud。
+
+[cloud] 接管任务 6de61ccf（contract version 1）。
+[cloud] 调 hosted agent http://localhost:8088/responses ...
+
+Agent:  温度均值 22.04°C (20.03–24.46)，湿度均值 49.8%，
+        CO2 均值 699 ppm (419–994)。建议通风，因为 CO2 均值
+        接近 600–800 ppm 的舒适阈值。
+```
+
+路径: edge_agent.py (本地) → 写 JSON 契约 → cloud_handoff.py → hosted agent → Toolbox MCP `code_interpreter` → 计算统计 → 通风建议
+
+#### Demo 5 — 自定义 MCP server (`examples/custom-mcp-server/`)
+
+```
+$ python custom_mcp_client.py
+Tools found: 2
+  - device_health_check
+  - policy_evaluate
+
+[invoke] device_health_check(cpu_pct=92, mem_pct=70, temp_c=88)
+→ {"status": "critical", "advice": "page on-call"}
+
+[invoke] policy_evaluate(role=engineer, action=delete, sensitivity=internal)
+→ {"decision": "needs_approval", "reason": "write/delete on internal needs approval"}
+```
+
+路径: custom_mcp_client.py → 本地 FastMCP server :9100 → deterministic tool 逻辑 → MCP `tools/call` 响应
+
+#### Demo 6 — 图像生成 (51.7 s)
+
+```
+User:  生成 1024×1024 的红熊猫水彩画，带 Microsoft logo。
+
+Agent: 图像已生成。b64_json 长度: 2,680,868 字符。
+```
+
+路径: Agent → gpt-4-1-mini → `direct_image_generate` → Foundry `/openai/v1/images/generations` (gpt-image-1) → base64 图像返回
+
+### 测试汇总
 
 | 测试 | Tool 路径 | 结果 |
 | --- | --- | --- |
@@ -262,21 +271,8 @@ PASS repo check complete
 
 ---
 
-## 架构一图看懂
-
-```mermaid
-flowchart LR
-    User["User / App / Device"] --> HA["Hosted Agent<br/>MicroVM sandbox"]
-    HA --> Model["gpt-4-1-mini"]
-    HA --> TB["Toolbox MCP<br/>agent-tools"]
-    TB --> CI["code_interpreter"]
-    TB --> FS["file_search"]
-    TB --> WS_TB["web_search"]
-    HA --> DWS["direct_web_search<br/>Responses API + Bing"]
-    HA --> DIG["direct_image_generate<br/>gpt-image-1，可选"]
-```
-
-打个比方：
+<details>
+<summary><strong>📚 全部文档（14 篇，中英双语）</strong></summary>
 
 | 日常类比 | 映射到 |
 | --- | --- |

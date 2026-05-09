@@ -154,75 +154,89 @@ All scenarios were tested end-to-end against real Foundry resources (eastus2, pr
 
 ### Real agent output (captured live, not mocked)
 
-<details>
-<summary><strong>Demo 1 — code_interpreter via Toolbox MCP</strong> (click to expand)</summary>
+#### Demo 1 — code_interpreter via Toolbox MCP (9.3 s)
 
-**User input:**
 ```
-Use code_interpreter to calculate the first 10 Fibonacci numbers and return them as a Python list.
-```
+User:  Use code_interpreter to calculate the first 10 Fibonacci numbers
+       and return them as a Python list.
 
-**Agent response (9.3 s):**
-> The first 10 Fibonacci numbers are: **[0, 1, 1, 2, 3, 5, 8, 13, 21, 34]**
-
-**What happened behind the scenes:**
-```
-→ Agent called gpt-4-1-mini (planning)
-→ Model emitted function_call: code_interpreter
-→ Toolbox MCP forwarded to Python sandbox
-→ Sandbox executed real Python and returned [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
-→ Agent called gpt-4-1-mini (final answer)
-→ Total: 2 model calls + 1 MCP tools/call
-```
-</details>
-
-<details>
-<summary><strong>Demo 2 — file_search via Toolbox MCP</strong> (click to expand)</summary>
-
-**User input:**
-```
-Use file_search to find what the uploaded document says about the difference
-between Toolbox MCP and raw MCP servers. Summarize in 2 sentences.
+Agent: The first 10 Fibonacci numbers are: [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
 ```
 
-**Agent response (7.5 s):**
-> The Toolbox MCP server sits in front of raw MCP servers to provide **aggregation of multiple tool types behind one endpoint**, letting agents connect once and discover all tools instead of managing multiple connections. Additionally, Toolbox adds **governance and version pinning**, allowing tool sets to be updated without redeploying agents, which raw MCP servers lack as they represent only the basic client-server tool protocol without these higher-level lifecycle and governance features.
+Path: Agent → gpt-4-1-mini (planning) → Toolbox MCP `tools/call` code_interpreter → Python sandbox → gpt-4-1-mini (final answer)
 
-**What happened behind the scenes:**
-```
-→ Agent called gpt-4-1-mini (planning)
-→ Model emitted function_call: file_search
-→ Toolbox MCP searched vector store vs_0Raxw5LUn5thdP7QMBfAdsKx
-→ Retrieved passages from why-this-architecture.md (uploaded earlier)
-→ Agent called gpt-4-1-mini (final answer with citations)
-→ Total: 2 model calls + 1 MCP tools/call
-```
-</details>
+#### Demo 2 — file_search via Toolbox MCP (7.5 s)
 
-<details>
-<summary><strong>Demo 3 — direct_web_search via Responses API</strong> (click to expand)</summary>
-
-**User input:**
 ```
-Use direct_web_search to find the latest Microsoft Foundry Agent Service pricing.
-Return a one-sentence summary with the source URL.
+User:  Use file_search to find what the uploaded document says about the
+       difference between Toolbox MCP and raw MCP servers.
+
+Agent: The Toolbox MCP server sits in front of raw MCP servers to provide
+       aggregation of multiple tool types behind one endpoint, letting agents
+       connect once and discover all tools. Additionally, Toolbox adds
+       governance and version pinning, allowing tool sets to be updated
+       without redeploying agents.
 ```
 
-**Agent response (12.4 s):**
-> Microsoft Foundry Agent Service pricing in 2026 follows a flexible token consumption model with pay-as-you-go and provisioned throughput options, with details available at the [Azure pricing page](https://azure.microsoft.com/pricing/details/foundry-agent-service/).
+Path: Agent → gpt-4-1-mini → Toolbox MCP `tools/call` file_search → vector store (why-this-architecture.md) → gpt-4-1-mini (final answer with citations)
 
-**What happened behind the scenes:**
-```
-→ Agent called gpt-4-1-mini (planning)
-→ Model emitted function_call: direct_web_search
-→ direct_web_search called Foundry Responses API with tools=[{"type":"web_search"}]
-→ Bing grounding returned synthesized answer with URL citations
-→ Agent called gpt-4-1-mini (final answer)
-→ Total: 2 model calls + 1 Responses API web_search call
-```
-</details>
+#### Demo 3 — direct_web_search via Responses API (12.4 s)
 
-### Core paths
+```
+User:  Find the latest Microsoft Foundry Agent Service pricing.
+
+Agent: Microsoft Foundry Agent Service pricing in 2026 follows a flexible
+       token consumption model with pay-as-you-go and provisioned throughput
+       options, with details at https://azure.microsoft.com/pricing/details/
+       foundry-agent-service/.
+```
+
+Path: Agent → gpt-4-1-mini → `direct_web_search` → Foundry Responses API + Bing grounding → gpt-4-1-mini (final answer with source URL)
+
+#### Demo 4 — Edge-cloud handoff (`examples/hybrid-edge-cloud/`)
+
+```
+[edge]  Captured 24 hourly readings for 3 sensors (seed=42).
+[edge]  Wrote contract to contract.json. current_owner = cloud.
+
+[cloud] Picked up task 6de61ccf (contract version 1).
+[cloud] Calling hosted agent at http://localhost:8088/responses ...
+
+Agent:  Temperature mean 22.04°C (20.03–24.46), Humidity mean 49.8%,
+        CO2 mean 699 ppm (419–994). Ventilation is recommended because
+        the mean CO2 approaches the 600–800 ppm comfort threshold.
+```
+
+Path: edge_agent.py (local) → writes JSON contract → cloud_handoff.py → hosted agent → Toolbox MCP `code_interpreter` → computed statistics → recommendation
+
+#### Demo 5 — Custom MCP server (`examples/custom-mcp-server/`)
+
+```
+$ python custom_mcp_client.py
+Tools found: 2
+  - device_health_check
+  - policy_evaluate
+
+[invoke] device_health_check(cpu_pct=92, mem_pct=70, temp_c=88)
+→ {"status": "critical", "advice": "page on-call"}
+
+[invoke] policy_evaluate(role=engineer, action=delete, sensitivity=internal)
+→ {"decision": "needs_approval", "reason": "write/delete on internal needs approval"}
+```
+
+Path: custom_mcp_client.py → local FastMCP server on :9100 → deterministic tool logic → MCP `tools/call` response
+
+#### Demo 6 — Image generation (51.7 s)
+
+```
+User:  Generate a 1024x1024 watercolor image of a red panda with a Microsoft logo.
+
+Agent: Image generated. b64_json length: 2,680,868 characters.
+```
+
+Path: Agent → gpt-4-1-mini → `direct_image_generate` → Foundry `/openai/v1/images/generations` (gpt-image-1) → base64 image returned
+
+### Test summary
 
 | Test | Tool path | Result |
 | --- | --- | --- |
@@ -261,30 +275,6 @@ PASS repo check complete
 > Preview note: Hosted Agents and Toolbox are preview features. Package names, manifest shape, and endpoint behavior may change. This repo follows the public Learn pages and the official sample entry point at https://aka.ms/foundry-toolbox-maf.
 
 ---
-
-## How It Works (One Picture)
-
-```mermaid
-flowchart LR
-    User["User / App / Device"] --> HA["Hosted Agent<br/>MicroVM sandbox"]
-    HA --> Model["gpt-4-1-mini"]
-    HA --> TB["Toolbox MCP<br/>agent-tools"]
-    TB --> CI["code_interpreter"]
-    TB --> FS["file_search"]
-    TB --> WS_TB["web_search"]
-    HA --> DWS["direct_web_search<br/>Responses API + Bing"]
-    HA --> DIG["direct_image_generate<br/>gpt-image-1, opt-in"]
-```
-
-Think of it this way:
-
-| Everyday analogy | Maps to |
-| --- | --- |
-| Your phone's **App Store** | **Toolbox** — a catalog of tools the agent can discover and call. You update the catalog; apps (agents) pick up the new tools automatically. |
-| The **app** on your phone | **Hosted Agent** — your code, running in a managed MicroVM sandbox, with its own identity and a stable address. |
-| The **App Store updating an app without you doing anything** | Promoting a new `default_version` of the Toolbox — agents see new tools on their next call, no redeployment. |
-
-For the distributed-systems mapping (API gateway, service mesh, workload identity), see the [Mental Model](#mental-model-for-distributed-systems-engineers) section below.
 
 <details>
 <summary><strong>📚 All documentation (14 articles, bilingual EN/CN)</strong></summary>
