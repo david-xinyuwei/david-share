@@ -125,6 +125,8 @@ flowchart LR
     HA --> GPT["gpt-4-1-mini"]
     HA --> TB["Toolbox MCP<br/>agent-tools"]
     TB --> CI["code_interpreter"]
+    TB --> FS["file_search"]
+    TB --> WS_TB["web_search"]
     HA --> WS["direct_web_search<br/>Responses API + Bing"]
     HA --> IG["direct_image_generate<br/>gpt-image-1，可选"]
 ```
