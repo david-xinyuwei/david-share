@@ -1,0 +1,19 @@
+kind: hosted
+name: hosted-agent-toolbox-demo
+protocols:
+  - protocol: responses
+    version: 1.0.0
+resources:
+  cpu: "0.25"
+  memory: 0.5Gi
+environment_variables:
+  - name: FOUNDRY_PROJECT_ENDPOINT
+    value: ${FOUNDRY_PROJECT_ENDPOINT}
+  - name: AZURE_AI_MODEL_DEPLOYMENT_NAME
+    value: ${AZURE_AI_MODEL_DEPLOYMENT_NAME}
+  - name: TOOLBOX_NAME
+    value: ${TOOLBOX_NAME}
+  - name: TOOLBOX_MCP_ENDPOINT
+    value: ${TOOLBOX_MCP_ENDPOINT}
+  - name: ENABLE_DIRECT_WEB_SEARCH
+    value: ${ENABLE_DIRECT_WEB_SEARCH}
