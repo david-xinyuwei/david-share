@@ -2,42 +2,180 @@
 
 [中文版](README-CN.md)
 
-## The Problem This Solves
+---
 
-You are building an AI agent that calls multiple tools — code execution, web search, internal APIs, custom MCP servers. Each tool has its own auth, its own versioning, its own owning team. Without a shared catalog, every agent re-wires every tool, credentials are duplicated, and adding one new tool means patching N agents.
+## 1. What Is Foundry Toolbox — and Why It Matters
 
-This repo shows how to solve it with two building blocks:
+A **Toolbox** is a managed, versioned bundle of tools inside a Microsoft Foundry project. You define which tools to include, configure auth centrally, and expose the bundle as a **single MCP-compatible endpoint** that any agent can consume.
 
-1. **Hosted Agent** — your agent code runs in a managed container with its own identity and a stable HTTP endpoint. You don't manage infra.
-2. **Toolbox** — all your tools live in a single versioned catalog behind one MCP endpoint. The agent connects once and discovers everything. Add or update tools without redeploying the agent.
+### Toolbox advantages
 
-The result: **one agent endpoint, one tool catalog, zero per-tool wiring in your code**.
+| Advantage | What it means |
+| --- | --- |
+| **Single endpoint for all tools** | One MCP URL = all tools. The agent connects once; no per-tool wiring. |
+| **Centralized auth & governance** | Credentials, approval gating (`require_approval`), and RBAC live in the toolbox, not in agent code. |
+| **Versioned & immutable** | Each `ToolboxVersionObject` is a snapshot. Promote `default_version` atomically; roll back in one call. |
+| **Framework-agnostic consumption** | Any MCP-compatible client can use it: Microsoft Agent Framework, LangGraph, Semantic Kernel, GitHub Copilot SDK, Claude Code. |
+| **Tool diversity in one catalog** | Mix built-in tools (Code Interpreter, Web Search, Azure AI Search, File Search) with custom MCP servers, OpenAPI endpoints, and Agent-to-Agent (A2A) tools — all in one bundle. |
+| **Decouple tool lifecycle from agent lifecycle** | Add, remove, or reconfigure tools without redeploying the agent container. |
 
-## See It Work (30 Seconds)
+> Source: [Curate intent-based toolbox in Foundry](https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/tools/toolbox) · [Introducing Toolboxes in Foundry (blog)](https://devblogs.microsoft.com/foundry/introducing-toolboxes-in-foundry/)
 
-After cloning and setting up `.env` (see [Configure](#configure)):
+### Toolbox architecture
 
-```bash
-python main.py                    # Terminal 1: start the agent server
-
-# Terminal 2: ask the agent to compute something via Toolbox code_interpreter
-curl -X POST http://localhost:8088/responses \
-  -H "Content-Type: application/json" \
-  -d '{"input":"Use code_interpreter to calculate sum(i*i for i in range(1, 6))."}'
+```mermaid
+flowchart TB
+    subgraph FoundryProject["Foundry Project"]
+        TB_Consumer["Toolbox consumer MCP endpoint<br/>(serves default_version)"]
+        TB_V1["Version 1<br/>(code_interpreter)"]
+        TB_V2["Version 2<br/>(code_interpreter + AI Search + custom MCP)"]
+        TB_Consumer -.->|"default_version"| TB_V2
+    end
+    Agent1["Agent A<br/>(Agent Framework)"] --> TB_Consumer
+    Agent2["Agent B<br/>(LangGraph)"] --> TB_Consumer
+    Agent3["Agent C<br/>(Copilot SDK)"] --> TB_Consumer
 ```
 
-The agent calls the Foundry model, which decides to invoke `code_interpreter` through the Toolbox MCP endpoint. The sandbox runs real Python and returns the answer: **55**.
+One toolbox, many agents, many frameworks. Agents never see individual tool endpoints — they see the catalog.
 
-## What You Can Demo
+---
 
-| Demo | What happens | Try it |
+## 2. What Is Foundry Hosted Agent — and Why It Matters
+
+A **Hosted Agent** is your own containerized agent code running on Foundry Agent Service. The platform provides compute, identity, networking, observability, and a stable endpoint. You write the agent logic; the platform handles everything else.
+
+### Hosted Agent advantages
+
+| Advantage | What it means |
+| --- | --- |
+| **Per-agent identity** | Each agent gets its own Microsoft Entra ID at deploy time — calls to models, tools, and downstream services are identity-scoped. |
+| **Stable HTTP endpoint** | `{project}/agents/{name}/endpoint/protocols/openai/v1/responses` — callers point here; compute moves behind it. |
+| **Per-session VM-isolated sandbox** | `$HOME` and `/files` persist across turns and across idle; sessions resume with full state. |
+| **Scale-to-zero** | 15-minute idle timeout → deprovision. Next request → resume with state. You pay only for active sessions. |
+| **Bring any framework** | Agent Framework, LangGraph, Semantic Kernel, or raw Python/C# — the container is yours. |
+| **Built-in observability** | OpenTelemetry traces auto-injected into Application Insights. |
+| **Version pinning & traffic splitting** | Immutable agent versions; canary / blue-green with weighted rollouts. |
+
+> Source: [What are hosted agents?](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents) · [Hosted Agents blog](https://devblogs.microsoft.com/foundry/introducing-the-new-hosted-agents-in-foundry-agent-service-secure-scalable-compute-built-for-agents/)
+
+### Hosted Agent architecture
+
+```mermaid
+flowchart LR
+    Caller["Caller<br/>(app / device / test)"] --> Endpoint["Hosted Agent<br/>Responses endpoint"]
+    Endpoint --> Container["Your container<br/>(main.py)"]
+    Container --> Model["Foundry model<br/>deployment"]
+    Container --> Toolbox["Toolbox MCP<br/>endpoint"]
+    Container --> DirectTools["Direct Responses API<br/>(web_search, image gen)"]
+    subgraph Platform["Platform manages"]
+        Identity["Per-agent Entra ID"]
+        Sandbox["VM-isolated sandbox"]
+        OTel["OpenTelemetry → App Insights"]
+        Scaling["Scale-to-zero / resume"]
+    end
+    Container ~~~ Platform
+```
+
+---
+
+## 3. What We Built in This Demo
+
+### Toolbox contents (our experiment)
+
+We created a Foundry Toolbox named `agent-tools` with the following tools:
+
+| Tool | Type | What it does in this demo |
 | --- | --- | --- |
-| **Math via Toolbox** | Agent → model → Toolbox MCP → `code_interpreter` sandbox → answer with real computation | `scripts/smoke_test.py` |
-| **Web search** | Agent → model → Foundry Responses API `web_search` → grounded answer with citations | `scripts/smoke_test.py` |
-| **Edge-cloud handoff** | Local "device" generates sensor data → writes a task contract → cloud agent picks up and answers | `examples/hybrid-edge-cloud/` |
-| **Image generation** | Agent → Foundry image API → generates a 1024×1024 image from a text prompt | Set `ENABLE_DIRECT_IMAGE_GENERATE=true` in `.env` |
-| **Custom MCP server** | Your own tool (device health check, policy engine) served via MCP, discoverable by any agent | `examples/custom-mcp-server/` |
-| **Latency measurement** | Measures real p50/p95/mean for code and web paths | `scripts/measure_latency.py` |
+| `code_interpreter` | Built-in (Toolbox) | Executes Python in a managed sandbox — the agent sends code, the sandbox returns results. Used for computation tasks. |
+
+We kept the toolbox simple on purpose: one governed tool to prove the Toolbox MCP path end-to-end. The architecture supports adding Azure AI Search, File Search, Web Search, OpenAPI, custom MCP servers, and A2A tools into the same toolbox — see `scripts/create_toolbox.py` for how.
+
+### Hosted Agent contents (our experiment)
+
+Our hosted agent container (`main.py`) includes:
+
+| Component | Package / module | Purpose |
+| --- | --- | --- |
+| Agent Framework core | `agent-framework==1.3.0` | Agent runtime: planning, tool dispatch, message assembly. |
+| Foundry chat client | `agent-framework-foundry==1.3.0` | `FoundryChatClient` connects to Foundry model deployments. |
+| Hosted runtime | `agent-framework-foundry-hosting==1.0.0a260507` | `ResponsesHostServer` exposes the Responses protocol on `0.0.0.0:8088`. |
+| MCP tool bridge | `MCPStreamableHTTPTool` (from agent-framework) | Connects to Toolbox MCP endpoint with auth + preview header. |
+| `direct_web_search` | Custom `@tool` function in `main.py` | Calls Foundry Responses API with `tools:[{"type":"web_search"}]` for grounded public web answers. |
+| `direct_image_generate` | Custom `@tool` function in `main.py` (opt-in) | Calls Foundry `/openai/v1/images/generations` for image generation. |
+| Model deployment | `gpt-4-1-mini` (gpt-4.1-mini) | The LLM that does planning and final answer composition. |
+| Azure credential | `azure-identity==1.25.3` | `AzureCliCredential` (local) or `DefaultAzureCredential` (hosted). |
+
+### Combined architecture
+
+```mermaid
+flowchart LR
+    User["User / App / Device"] --> HostedAgent["Hosted Agent<br/>main.py on :8088"]
+    HostedAgent --> GPT["gpt-4-1-mini<br/>(planning + final answer)"]
+    HostedAgent --> ToolboxMCP["Toolbox MCP endpoint<br/>(agent-tools)"]
+    ToolboxMCP --> CI["code_interpreter<br/>(Python sandbox)"]
+    HostedAgent --> WebSearch["direct_web_search<br/>(Responses API + Bing)"]
+    HostedAgent --> ImageGen["direct_image_generate<br/>(gpt-image-1, opt-in)"]
+```
+
+---
+
+## 4. Why We Designed These Scenarios
+
+Each demo scenario is designed to prove a specific architectural claim:
+
+| Scenario | What it proves | Why it matters to customers |
+| --- | --- | --- |
+| **Code via Toolbox** | The Toolbox MCP path works end-to-end: agent → model → MCP `tools/call` → sandbox → result. | Customers need to trust that governed tools actually execute correctly through the catalog. |
+| **Web search via Responses API** | A direct Responses API tool coexists with Toolbox tools in the same agent. | Customers need both governed tools (Toolbox) and documented runtime tools (Responses API) in one agent. |
+| **Edge-cloud handoff** | A local "device" and a cloud hosted agent can share a task through a JSON contract — no direct tool coupling. | Customers building AI native devices need edge-cloud continuity without the device calling cloud tools directly. |
+| **Image generation** | Adding a new capability is one `@tool` function + one model deployment — no toolbox change, no agent rebuild. | Customers want to extend the agent quickly without touching the governed catalog for every experiment. |
+| **Custom MCP server** | A custom MCP server can be built, tested locally, and then registered into a Toolbox — the agent discovers it automatically. | Customers with their own backend APIs need a clear path from local prototype to governed catalog. |
+| **Latency measurement** | Real p50/p95/mean numbers replace illustrative budgets. | Customers making go/no-go decisions need data, not estimates. |
+
+---
+
+## 5. Verification Results
+
+All scenarios were tested end-to-end against real Foundry resources (eastus2, private subscription) on 2026-05-09.
+
+### Core paths
+
+| Test | Tool path | Result |
+| --- | --- | --- |
+| `scripts/smoke_test.py` — code | Toolbox MCP → `code_interpreter` | **55** (sum of squares 1-5) ✅ |
+| `scripts/smoke_test.py` — web | Direct Responses API `web_search` | Foundry Toolbox summary with source URLs ✅ |
+| `scripts/http_smoke_test.py` | HTTP `/responses` endpoint → code + web | Both paths returned 200, correct content ✅ |
+
+### Extended demos
+
+| Test | Result |
+| --- | --- |
+| `examples/hybrid-edge-cloud/` | Edge wrote contract → cloud handoff invoked code_interpreter → returned ventilation recommendation with computed statistics (mean CO2 = 699 ppm) ✅ |
+| `direct_image_generate` | Agent generated 1024×1024 watercolor image, `b64_json` length = 2,680,868 chars ✅ |
+| `examples/custom-mcp-server/` | `tools/list` returned 2 tools; `tools/call` returned `critical / page on-call` and `needs_approval` ✅ |
+
+### Measured latency (3 iterations, warm, no streaming)
+
+| Path | mean | p50 | p95 | max |
+| --- | :-: | :-: | :-: | :-: |
+| `code_interpreter` via Toolbox MCP | 8.9 s | 9.6 s | 10.8 s | 10.9 s |
+| `direct_web_search` via Responses API | 18.1 s | 16.4 s | 23.6 s | 24.4 s |
+
+> Model calls dominate latency (two per request: planning + final). The Toolbox MCP hop adds ~50-150 ms. Web search is dominated by Bing grounding (13-24 s range). Streaming would reduce perceived latency significantly.
+
+### Repo quality
+
+```text
+PASS required files present (42 items)
+PASS python files compile
+PASS manifest and env text checks
+PASS no obvious secrets or customer/internal terms in public files
+PASS repo check complete
+```
+
+> Preview note: Hosted Agents and Toolbox are preview features. Package names, manifest shape, and endpoint behavior may change. This repo follows the public Learn pages and the official sample entry point at https://aka.ms/foundry-toolbox-maf.
+
+---
 
 ## How It Works (One Picture)
 

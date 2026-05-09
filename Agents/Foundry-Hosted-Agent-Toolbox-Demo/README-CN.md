@@ -2,42 +2,180 @@
 
 [English](README.md)
 
-## 这个 repo 解决什么问题
+---
 
-你在做一个 AI agent，它要调多个 tool —— 代码执行、联网搜索、内部 API、自定义 MCP server。每个 tool 各自有 auth、各自有版本、各自有负责团队。如果没有统一目录，每个 agent 都要自己接每个 tool，credential 重复，加一个新 tool 就得改 N 个 agent。
+## 1. Foundry Toolbox 是什么、有什么优势
 
-本 repo 用两个模块来解决：
+**Toolbox** 是 Microsoft Foundry project 中受管的、版本化的工具包。你定义包含哪些 tool、统一配置 auth，然后把整个包暴露为 **一个 MCP 兼容 endpoint**，任何 agent 都能消费。
 
-1. **Hosted Agent** —— 你的 agent 代码跑在受管容器里，有自己的 identity 和稳定 HTTP endpoint。你不管基础设施。
-2. **Toolbox** —— 所有 tool 住在一个版本化目录里，统一暴露成一个 MCP endpoint。Agent 接一次，发现全部工具。加减 tool 不需要重新部署 agent。
+### Toolbox 优势
 
-效果：**一个 agent endpoint，一个 tool 目录，代码里零逐 tool 接线**。
+| 优势 | 含义 |
+| --- | --- |
+| **所有 tool 一个 endpoint** | 一个 MCP URL = 全部 tool。Agent 接一次，不用逐 tool 接线。 |
+| **集中 auth 和治理** | Credential、审批门（`require_approval`）、RBAC 都在 toolbox 里，不在 agent 代码里。 |
+| **版本化且不可变** | 每个 `ToolboxVersionObject` 是快照。一步 promote `default_version`，一步 rollback。 |
+| **框架无关消费** | 任何 MCP 兼容 client 都能用：Microsoft Agent Framework、LangGraph、Semantic Kernel、GitHub Copilot SDK、Claude Code。 |
+| **一个 catalog 容纳多种 tool** | 内置 tool（Code Interpreter、Web Search、Azure AI Search、File Search）+ 自定义 MCP server + OpenAPI + A2A，全在一个包里。 |
+| **Tool 生命周期和 agent 生命周期解耦** | 加减 tool 不需要重新部署 agent 容器。 |
 
-## 30 秒看效果
+> 来源：[Curate intent-based toolbox in Foundry](https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/tools/toolbox) · [Introducing Toolboxes in Foundry (blog)](https://devblogs.microsoft.com/foundry/introducing-toolboxes-in-foundry/)
 
-克隆 repo 并配好 `.env`（见 [Configure](#configure)）之后：
+### Toolbox 架构图
 
-```bash
-python main.py                    # Terminal 1：启动 agent server
-
-# Terminal 2：让 agent 通过 Toolbox 的 code_interpreter 算一道题
-curl -X POST http://localhost:8088/responses \
-  -H "Content-Type: application/json" \
-  -d '{"input":"Use code_interpreter to calculate sum(i*i for i in range(1, 6))."}'
+```mermaid
+flowchart TB
+    subgraph FoundryProject["Foundry Project"]
+        TB_Consumer["Toolbox consumer MCP endpoint<br/>（serve default_version）"]
+        TB_V1["Version 1<br/>(code_interpreter)"]
+        TB_V2["Version 2<br/>(code_interpreter + AI Search + custom MCP)"]
+        TB_Consumer -.->|"default_version"| TB_V2
+    end
+    Agent1["Agent A<br/>（Agent Framework）"] --> TB_Consumer
+    Agent2["Agent B<br/>（LangGraph）"] --> TB_Consumer
+    Agent3["Agent C<br/>（Copilot SDK）"] --> TB_Consumer
 ```
 
-Agent 调 Foundry model → model 决定调 `code_interpreter` → Toolbox MCP endpoint 把请求转到沙箱 → 沙箱跑真 Python → 返回答案：**55**。
+一个 toolbox，多个 agent，多个 framework。Agent 永远不看单个 tool endpoint——它们看的是 catalog。
 
-## 能演示什么
+---
 
-| Demo | 发生了什么 | 试一下 |
+## 2. Foundry Hosted Agent 是什么、有什么优势
+
+**Hosted Agent** 是你自己的容器化 agent 代码跑在 Foundry Agent Service 上。平台提供计算、身份、网络、可观测性和稳定 endpoint。你写 agent 逻辑，平台管其他一切。
+
+### Hosted Agent 优势
+
+| 优势 | 含义 |
+| --- | --- |
+| **Per-agent identity** | 每个 agent 部署时自动获得一个 Microsoft Entra ID——调 model、tool、下游服务都是 identity-scoped。 |
+| **稳定 HTTP endpoint** | `{project}/agents/{name}/endpoint/protocols/openai/v1/responses`——caller 指这里，计算在后面漂移。 |
+| **Per-session VM-isolated sandbox** | `$HOME` 和 `/files` 跨 turn 和 idle 持久化；session resume 带完整状态。 |
+| **Scale-to-zero** | 15 分钟 idle → 回收。下一个请求 → 带状态 resume。只为 active session 付费。 |
+| **任何框架** | Agent Framework、LangGraph、Semantic Kernel，或裸 Python/C#——容器是你的。 |
+| **内置可观测性** | OpenTelemetry trace 自动注入到 Application Insights。 |
+| **版本固化 + 流量拆分** | 不可变 agent version；canary / blue-green 带权重 rollout。 |
+
+> 来源：[What are hosted agents?](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents) · [Hosted Agents blog](https://devblogs.microsoft.com/foundry/introducing-the-new-hosted-agents-in-foundry-agent-service-secure-scalable-compute-built-for-agents/)
+
+### Hosted Agent 架构图
+
+```mermaid
+flowchart LR
+    Caller["Caller<br/>（app / device / test）"] --> Endpoint["Hosted Agent<br/>Responses endpoint"]
+    Endpoint --> Container["你的容器<br/>（main.py）"]
+    Container --> Model["Foundry model<br/>deployment"]
+    Container --> Toolbox["Toolbox MCP<br/>endpoint"]
+    Container --> DirectTools["Direct Responses API<br/>（web_search / image gen）"]
+    subgraph Platform["平台管理的"]
+        Identity["Per-agent Entra ID"]
+        Sandbox["VM-isolated sandbox"]
+        OTel["OpenTelemetry → App Insights"]
+        Scaling["Scale-to-zero / resume"]
+    end
+    Container ~~~ Platform
+```
+
+---
+
+## 3. 我们在这个 Demo 里构建了什么
+
+### Toolbox 内容（本实验）
+
+我们创建了一个名为 `agent-tools` 的 Foundry Toolbox，包含以下 tool：
+
+| Tool | 类型 | 在本 demo 中做什么 |
 | --- | --- | --- |
-| **Toolbox 算数** | Agent → model → Toolbox MCP → `code_interpreter` sandbox → 真计算结果 | `scripts/smoke_test.py` |
-| **联网搜索** | Agent → model → Foundry Responses API `web_search` → 带引用的 grounded 回答 | `scripts/smoke_test.py` |
-| **端云协同** | 本地"设备"生成传感器数据 → 写任务契约 → 云端 agent 接管作答 | `examples/hybrid-edge-cloud/` |
-| **图像生成** | Agent → Foundry image API → 从文本 prompt 生成 1024×1024 图片 | `.env` 里设 `ENABLE_DIRECT_IMAGE_GENERATE=true` |
-| **自定义 MCP server** | 你自己的 tool（设备健康检查、策略引擎）通过 MCP 暴露，任何 agent 都能发现 | `examples/custom-mcp-server/` |
-| **延迟实测** | 真实的 p50/p95/mean，code 路径和 web 路径分开测 | `scripts/measure_latency.py` |
+| `code_interpreter` | 内置（Toolbox） | 在受管沙箱中执行 Python——agent 发代码，沙箱返回结果。用于计算任务。 |
+
+我们故意只放一个 tool：用一个受管 tool 证明 Toolbox MCP 路径端到端可通。架构支持加 Azure AI Search、File Search、Web Search、OpenAPI、自定义 MCP server、A2A tool 到同一个 toolbox——见 `scripts/create_toolbox.py`。
+
+### Hosted Agent 内容（本实验）
+
+我们的 hosted agent 容器（`main.py`）包含：
+
+| 组件 | 包 / 模块 | 用途 |
+| --- | --- | --- |
+| Agent Framework 核心 | `agent-framework==1.3.0` | Agent runtime：规划、tool 分发、消息组装。 |
+| Foundry chat client | `agent-framework-foundry==1.3.0` | `FoundryChatClient` 连接 Foundry model deployment。 |
+| Hosted runtime | `agent-framework-foundry-hosting==1.0.0a260507` | `ResponsesHostServer` 暴露 Responses protocol 在 `0.0.0.0:8088`。 |
+| MCP tool 桥接 | `MCPStreamableHTTPTool`（agent-framework 内） | 连接 Toolbox MCP endpoint，带 auth + preview header。 |
+| `direct_web_search` | `main.py` 中的 `@tool` 函数 | 调 Foundry Responses API `tools:[{"type":"web_search"}]` 获取 grounded 公开网页结果。 |
+| `direct_image_generate` | `main.py` 中的 `@tool` 函数（可选） | 调 Foundry `/openai/v1/images/generations` 生成图片。 |
+| Model deployment | `gpt-4-1-mini`（gpt-4.1-mini） | 负责规划和最终回答。 |
+| Azure credential | `azure-identity==1.25.3` | 本地 `AzureCliCredential`，hosted 环境 `DefaultAzureCredential`。 |
+
+### 组合架构图
+
+```mermaid
+flowchart LR
+    User["User / App / Device"] --> HostedAgent["Hosted Agent<br/>main.py on :8088"]
+    HostedAgent --> GPT["gpt-4-1-mini<br/>（规划 + 最终回答）"]
+    HostedAgent --> ToolboxMCP["Toolbox MCP endpoint<br/>（agent-tools）"]
+    ToolboxMCP --> CI["code_interpreter<br/>（Python sandbox）"]
+    HostedAgent --> WebSearch["direct_web_search<br/>（Responses API + Bing）"]
+    HostedAgent --> ImageGen["direct_image_generate<br/>（gpt-image-1，可选）"]
+```
+
+---
+
+## 4. 为什么设计这些场景
+
+每个 demo 场景都是为了证明一个具体的架构主张：
+
+| 场景 | 证明什么 | 对客户为什么重要 |
+| --- | --- | --- |
+| **Toolbox 算数** | Toolbox MCP 路径端到端可通：agent → model → MCP `tools/call` → sandbox → 结果。 | 客户需要信任受管 tool 确实能通过 catalog 正确执行。 |
+| **Responses API 联网搜索** | Direct Responses API tool 能和 Toolbox tool 在同一个 agent 里共存。 | 客户同时需要受管 tool（Toolbox）和文档化 runtime tool（Responses API）。 |
+| **端云协同** | 本地"设备"和云端 hosted agent 能通过 JSON 契约共享任务——不直接耦合 tool。 | 做 AI native device 的客户需要端云续接，且设备不能直接调云端 tool。 |
+| **图像生成** | 加一个新能力只需一个 `@tool` 函数 + 一个 model deployment——不改 toolbox，不重建 agent。 | 客户想快速扩展 agent 能力，不希望每次实验都动受管 catalog。 |
+| **自定义 MCP server** | 自定义 MCP server 可以本地构建、测试，然后注册到 Toolbox——agent 自动发现。 | 有自己后端 API 的客户需要从本地原型到受管 catalog 的清晰路径。 |
+| **延迟实测** | 真实 p50/p95/mean 数字替代"示意预算"。 | 做 go/no-go 决策的客户需要数据，不是估算。 |
+
+---
+
+## 5. 验证结果
+
+所有场景都在 2026-05-09 对真实 Foundry 资源（eastus2，私人订阅）端到端测试通过。
+
+### 核心路径
+
+| 测试 | Tool 路径 | 结果 |
+| --- | --- | --- |
+| `scripts/smoke_test.py` — code | Toolbox MCP → `code_interpreter` | **55**（1-5 的平方和）✅ |
+| `scripts/smoke_test.py` — web | Direct Responses API `web_search` | 返回 Foundry Toolbox 摘要 + 来源 URL ✅ |
+| `scripts/http_smoke_test.py` | HTTP `/responses` endpoint → code + web | 两条路径都返回 200、内容正确 ✅ |
+
+### 扩展 demo
+
+| 测试 | 结果 |
+| --- | --- |
+| `examples/hybrid-edge-cloud/` | Edge 写契约 → cloud handoff 调 code_interpreter → 返回通风建议（计算 mean CO2 = 699 ppm）✅ |
+| `direct_image_generate` | Agent 生成 1024×1024 水彩图，`b64_json` 长度 = 2,680,868 字符 ✅ |
+| `examples/custom-mcp-server/` | `tools/list` 返回 2 个 tool；`tools/call` 返回 `critical / page on-call` 和 `needs_approval` ✅ |
+
+### 实测延迟（3 iterations, warm, 无 streaming）
+
+| 路径 | mean | p50 | p95 | max |
+| --- | :-: | :-: | :-: | :-: |
+| `code_interpreter` via Toolbox MCP | 8.9 s | 9.6 s | 10.8 s | 10.9 s |
+| `direct_web_search` via Responses API | 18.1 s | 16.4 s | 23.6 s | 24.4 s |
+
+> Model call 主导延迟（每请求两次：planning + final）。Toolbox MCP 跳加 ~50-150 ms。Web search 被 Bing grounding 主导（13-24 s 范围）。Streaming 会显著降低感知延迟。
+
+### Repo 质量
+
+```text
+PASS required files present (42 items)
+PASS python files compile
+PASS manifest and env text checks
+PASS no obvious secrets or customer/internal terms in public files
+PASS repo check complete
+```
+
+> Preview note: Hosted Agents 和 Toolbox 都是 preview feature。Package 名、manifest 结构和 endpoint 行为可能变化。本 repo 按 public Learn 页面和官方 sample 入口 https://aka.ms/foundry-toolbox-maf 实现。
+
+---
 
 ## 架构一图看懂
 
