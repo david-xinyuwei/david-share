@@ -19,24 +19,28 @@ A **Toolbox** is a managed, versioned bundle of tools inside a Microsoft Foundry
 | **Tool diversity in one catalog** | Mix built-in tools (Code Interpreter, Web Search, Azure AI Search, File Search) with custom MCP servers, OpenAPI endpoints, and Agent-to-Agent (A2A) tools — all in one bundle. |
 | **Decouple tool lifecycle from agent lifecycle** | Add, remove, or reconfigure tools without redeploying the agent container. |
 
+### Toolbox full lifecycle (4 pillars)
+
+<div align="center">
+<img src="https://devblogs.microsoft.com/foundry/wp-content/uploads/sites/89/2026/04/foundry-toolbox-marketecture-Latest-1.webp" width="720">
+<br/><em>Source: <a href="https://devblogs.microsoft.com/foundry/introducing-toolboxes-in-foundry/">Introducing Toolboxes in Foundry</a> (Microsoft Foundry Blog)</em>
+</div>
+
 > Source: [Curate intent-based toolbox in Foundry](https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/tools/toolbox) · [Introducing Toolboxes in Foundry (blog)](https://devblogs.microsoft.com/foundry/introducing-toolboxes-in-foundry/)
+
+### The problem Toolbox solves (before vs after)
+
+<div align="center">
+<img src="https://devblogs.microsoft.com/foundry/wp-content/uploads/sites/89/2026/04/before-after-architecture-New.webp" width="720">
+<br/><em>Source: <a href="https://devblogs.microsoft.com/foundry/introducing-toolboxes-in-foundry/">Introducing Toolboxes in Foundry</a> (Microsoft Foundry Blog)</em>
+</div>
 
 ### Toolbox architecture
 
-```mermaid
-flowchart TB
-    subgraph FP["Foundry Project"]
-        MCP["Toolbox MCP endpoint<br/>(serves default_version)"]
-        V1["v1: code_interpreter"]
-        V2["v2: code_interpreter<br/>+ AI Search + custom MCP"]
-        MCP -.->|default| V2
-    end
-    A1["Agent A<br/>Agent Framework"] --> MCP
-    A2["Agent B<br/>LangGraph"] --> MCP
-    A3["Agent C<br/>Copilot SDK"] --> MCP
-```
-
-One toolbox, many agents, many frameworks. Agents never see individual tool endpoints — they see the catalog.
+<div align="center">
+<img src="https://learn.microsoft.com/en-us/azure/foundry/agents/media/tools/toolbox/toolbox-architecture.png" width="720">
+<br/><em>Source: <a href="https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/tools/toolbox">Curate intent-based toolbox in Foundry</a> (Microsoft Learn)</em>
+</div>
 
 ---
 

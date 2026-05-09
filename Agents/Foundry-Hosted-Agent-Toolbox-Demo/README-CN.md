@@ -19,24 +19,28 @@
 | **一个 catalog 容纳多种 tool** | 内置 tool（Code Interpreter、Web Search、Azure AI Search、File Search）+ 自定义 MCP server + OpenAPI + A2A，全在一个包里。 |
 | **Tool 生命周期和 agent 生命周期解耦** | 加减 tool 不需要重新部署 agent 容器。 |
 
+### Toolbox 全生命周期（4 个 pillar）
+
+<div align="center">
+<img src="https://devblogs.microsoft.com/foundry/wp-content/uploads/sites/89/2026/04/foundry-toolbox-marketecture-Latest-1.webp" width="720">
+<br/><em>来源：<a href="https://devblogs.microsoft.com/foundry/introducing-toolboxes-in-foundry/">Introducing Toolboxes in Foundry</a>（Microsoft Foundry Blog）</em>
+</div>
+
 > 来源：[Curate intent-based toolbox in Foundry](https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/tools/toolbox) · [Introducing Toolboxes in Foundry (blog)](https://devblogs.microsoft.com/foundry/introducing-toolboxes-in-foundry/)
+
+### Toolbox 解决的问题（before vs after）
+
+<div align="center">
+<img src="https://devblogs.microsoft.com/foundry/wp-content/uploads/sites/89/2026/04/before-after-architecture-New.webp" width="720">
+<br/><em>来源：<a href="https://devblogs.microsoft.com/foundry/introducing-toolboxes-in-foundry/">Introducing Toolboxes in Foundry</a>（Microsoft Foundry Blog）</em>
+</div>
 
 ### Toolbox 架构图
 
-```mermaid
-flowchart TB
-    subgraph FP["Foundry Project"]
-        MCP["Toolbox MCP endpoint<br/>（serve default_version）"]
-        V1["v1: code_interpreter"]
-        V2["v2: code_interpreter<br/>+ AI Search + custom MCP"]
-        MCP -.->|default| V2
-    end
-    A1["Agent A<br/>Agent Framework"] --> MCP
-    A2["Agent B<br/>LangGraph"] --> MCP
-    A3["Agent C<br/>Copilot SDK"] --> MCP
-```
-
-一个 toolbox，多个 agent，多个 framework。Agent 永远不看单个 tool endpoint——它们看的是 catalog。
+<div align="center">
+<img src="https://learn.microsoft.com/en-us/azure/foundry/agents/media/tools/toolbox/toolbox-architecture.png" width="720">
+<br/><em>来源：<a href="https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/tools/toolbox">Curate intent-based toolbox in Foundry</a>（Microsoft Learn）</em>
+</div>
 
 ---
 
