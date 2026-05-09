@@ -1009,20 +1009,23 @@ OPD is the **post-training capstone** — the method that takes all the domain e
 
 We ran a hands-on OPD experiment on a single NVIDIA H100 NVL (95 GB) to verify that the GKD-based OPD training loop works in practice, observe the loss dynamics first-hand, and measure end-task accuracy improvement on GSM8K.
 
-### TL;DR — Key Results
+### TL;DR — Honest Result
 
-| Metric | Value |
-|--------|-------|
-| **Best checkpoint** | step-10 (loss 0.4858, ~10 min training) |
-| **Baseline accuracy** (student before OPD, GSM8K test[:30]) | **6.67%** (2/30) |
-| **OPD checkpoint-10 accuracy** | **13.33%** (4/30) |
-| **Absolute improvement** | **+6.67 percentage points** |
-| **Relative improvement** | **2× (200%)** |
-| **Decoding** | Greedy (do_sample=False) for both |
+We ran 6 OPD training runs and 3 evaluations. **None of the resulting OPD checkpoints beat the un-distilled baseline on GSM8K test[:100].**
 
-✅ **OPD works, even with only 10 training steps on 80 examples.** The student doubled its GSM8K accuracy by aligning to the teacher's distribution via reverse-KL on its own trajectories.
+| Comparison | Baseline | OPD | Δ pp |
+|------------|---------:|----:|-----:|
+| Run 5 ckpt-10 (greedy, 10 steps trained), N=100 | 19.0% | **18.0%** | **−1.0** (CIs overlap) |
+| Run 6 ckpt-20 (sampling, 20 steps trained), N=100 | 19.0% | **0.0%** | **−19.0** (model collapsed) |
 
-> Note: N=30 is small (95% Wilson CI ≈ ±13pp). A larger evaluation (N=100) is in progress and will replace these numbers when complete. The relative direction is clear; the absolute values may shift by a few points.
+**Why none worked:** at 1.78B scale + single H100 + TRL 1.4.0 GKDTrainer defaults, OPD is unstable. Three failure modes hit us:
+1. **bf16 NaN in on-policy generation** (Runs 2, 3, 4 — `softmax` overflow)
+2. **Greedy decoding causes gradient explosion** (Run 5 — `grad_norm=NaN` after 15 steps)
+3. **Reverse-KL mode collapse** (Run 6 — student outputs `!!!!!!` × 200 even with healthy-looking loss 0.5165)
+
+What we did extract from this trail: a clear forensic understanding of why each run failed and what production-grade OPD (DeepSeek-V4) must engineer around — KL anchors, fp32 logit matmul, large batches, careful warmup. Loss curves alone never told the truth; only end-task evaluation revealed the collapse.
+
+The full forensic story and what to do differently is in the [bf16 NaN Investigation](#the-bf16-nan-investigation--a-forensic-trail) and [Why Run 6 Failed](#why-run-6-failed--reverse-kl--mode-collapse--a-hook-that-didnt-fix-anything) sections below.
 
 ### Experiment Setup
 
@@ -1128,52 +1131,99 @@ This worked — Run 5 made it past step 17 cleanly. But greedy on-policy generat
 2. bf16 + sampling can NaN. bf16 + greedy can explode gradients. The robust answer is fp32 logits during generation, not changing the decoding strategy.
 3. `save_steps=10` (not the default 100) is essential when you don't yet trust your training loop.
 
-### End-Task Evaluation — Does OPD Actually Help?
+### End-Task Evaluation — Honest Reality Check
 
-We loaded `checkpoint-10` (the only healthy checkpoint from Run 5, loss 0.4858) and compared it head-to-head against the un-distilled student baseline on GSM8K test[:30] using greedy decoding.
+**Update (after running larger evals): the original "+6.67pp" result was a measurement artifact.**
 
-| Model | Correct | Accuracy | Notes |
-|-------|--------:|---------:|-------|
-| Baseline (`DeepSeek-R1-Distill-Qwen-1.5B`) | 2/30 | **6.67%** | Out-of-the-box student |
-| OPD checkpoint-10 (loss 0.4858) | 4/30 | **13.33%** | After ~10 OPD steps |
-| **Δ** | **+2** | **+6.67pp** | **2× relative improvement** |
+We initially compared `Run 5 checkpoint-10` vs baseline on `GSM8K test[:30]` and saw a 2× improvement (6.67% → 13.33%). After fixing a small bug in the answer extractor (`460.` vs `460` was failing to match) and scaling N to 100, the picture changed completely:
 
-Three problems the OPD checkpoint solved that the baseline couldn't:
-- Test #15 (multi-step arithmetic with intermediate units)
-- Test #24 (fraction-to-decimal conversion in a word problem)
-- Test #29 (compound percentage problem)
+| Comparison | Baseline | OPD | Δ pp | 95% Wilson CI overlap? |
+|------------|---------:|----:|-----:|:----------------------:|
+| N=30, buggy extractor (initial) | 6.67% | 13.33% | +6.67 | yes — overlapping |
+| **N=100, fixed extractor (Run 5 ckpt-10)** | **19.0%** | **18.0%** | **−1.0** | **completely overlapping** |
+| **N=100, fixed extractor (Run 6 ckpt-20)** | **19.0%** | **0.0%** | **−19.0** | **OPD model collapsed** |
 
-**Caveats and honest limitations:**
-- N=30 is small. The 95% Wilson confidence intervals overlap, so this is *suggestive*, not conclusive. A re-evaluation with N=100 is being run.
-- Only ~10 effective training steps (80 examples seen). With `lmbda=1, beta=1` and a healthy 63-step run, we'd expect substantially larger gains.
-- The answer extractor in v1 had a small bug (`460.` vs `460` mis-matched) that affected both models equally — direction is unaffected, absolute values are floors.
+**Run 5 ckpt-10**: trained 10 steps with greedy on-policy generation. After 80 examples seen, the student's GSM8K accuracy is statistically indistinguishable from baseline — neither better nor worse. 10 steps simply isn't enough OPD to move the needle.
+
+**Run 6 ckpt-20**: trained 20 steps with sampling on-policy generation. The training loss dropped to 0.5165 (the lowest we observed). But when we evaluated, the model output was **`!!!!!!!!...`** repeated for 200 tokens on every test question. **Policy collapse.** The "good loss" was misleading.
+
+### Why Run 6 Failed — Reverse KL + Mode Collapse + a Hook That Didn't Fix Anything
+
+Two failure modes compounded:
+
+**1. The reverse-KL trap**
+
+OPD minimizes $\text{KL}(\pi_{\text{student}} \| \pi_{\text{teacher}})$ over student-generated trajectories. Reverse KL is **mode-seeking**: the student is rewarded for finding **any** token the teacher assigns non-zero probability to. A degenerate solution exists — output one token forever, as long as the teacher gives that token > 0 probability somewhere. With a small batch size (batch=1, grad_accum=8) and aggressive learning rate (5e-7 felt safe but isn't), the student found this trap.
+
+The collapse is invisible from training loss alone. Loss 0.5165 looks healthy. Only end-task evaluation revealed `!!!!!!`.
+
+**2. Our fp32 fix didn't actually upcast the matmul**
+
+To prevent bf16 logit overflow we attached a forward hook to `lm_head`:
+
+```python
+def upcast_to_fp32(module, input, output):
+    return output.float()
+hook = trainer.model.lm_head.register_forward_hook(upcast_to_fp32)
+```
+
+This **looked right** but is wrong. Forward hooks run **after** the module computes its output. So the actual flow was:
+
+```
+hidden_states (bf16) ──▶ lm_head matmul (executed in bf16!) ──▶ logits (bf16, may be inf) ──▶ .float() = fp32 NaN
+                                  ▲
+                            overflow happens here, before our hook
+```
+
+We "saved" the result in fp32 after the damage was already done. The matmul itself needs to run in fp32 to prevent overflow. The proper fix is one of:
+
+```python
+# Option A: cast lm_head weights to fp32 (cleanest)
+trainer.model.lm_head = trainer.model.lm_head.float()
+
+# Option B: forward_pre_hook to upcast inputs before the matmul
+def upcast_input(module, args):
+    return tuple(x.float() if hasattr(x, 'dtype') and x.dtype == torch.bfloat16 else x
+                 for x in args)
+trainer.model.lm_head.register_forward_pre_hook(upcast_input)
+```
+
+We didn't catch this because we verified the hook **registered** (printed "fp32 hook attached"), but never verified that intermediate logits were actually fp32. **Verifying the symptom is gone is not the same as verifying the fix worked.**
 
 ### What We Learned
 
-1. **OPD works with off-the-shelf tools and modest budgets.** `GKDTrainer(lmbda=1, beta=1)` literally is OPD. ~36 GB VRAM for two 1.78B models. ~65 sec/step on H100. A 1.78B student doubled its GSM8K accuracy after roughly 10 minutes of training on 80 examples.
+1. **Loss curves can lie.** Reverse-KL training can have decreasing loss while the model becomes useless. End-task evaluation is non-negotiable.
 
-2. **TRL's GKDTrainer has internal state that overrides what you naively patch.** Always check `trainer.generation_kwargs`, not just `trainer.model.generation_config`. Read the source.
+2. **Mode collapse is OPD's specific failure mode**, not a generic bug. It comes directly from the reverse-KL objective. Production OPD implementations need: KL anchor to a reference model, gradient clipping, fp32 logits, and large batch sizes (the noise averages out collapse-prone gradients).
 
-3. **bf16 + on-policy sampling is a known landmine.** Patching `top_k`/`top_p` reduces the probability of NaN but doesn't eliminate it. Switching to greedy avoids softmax NaN but creates gradient instability instead. Production implementations should compute logits in fp32 inside `generate()`.
+3. **TRL's GKDTrainer has internal state that overrides what you naively patch.** `trainer.model.generation_config` looks like the right place to fix generation, but TRL uses `self.generation_kwargs` instead. Read the framework source.
 
-4. **`save_steps` matters a lot when you're debugging.** All four crashes before Run 5 lost their entire training state because the default `save_steps=100` was greater than the steps survived (~17-38). Setting `save_steps=10` recovered checkpoint-10 — the only artifact that produced a measurable accuracy gain.
+4. **bf16 + on-policy sampling is a structural landmine.** Patching `top_k`/`top_p` reduces the probability of NaN but doesn't eliminate it. Switching to greedy avoids softmax NaN but creates gradient instability. The real fix is fp32 logit computation — and you must verify the matmul runs in fp32, not just that the post-matmul tensor is.
 
-5. **Production-scale OPD is a different beast.** Our 1.78B × 1.78B setup needed 36 GB and ~70 minutes per epoch on 500 samples. DeepSeek-V4's 671B × (10+ teachers) at full GSM8K scale would need thousands of GPU-hours and engineered logit storage (sparse top-K, distributed teacher serving). The architecture is the same; the engineering is orders of magnitude harder.
+5. **`save_steps=10` (not the default 100) is essential when debugging.** All four crashes before we lowered `save_steps` lost their entire training state because the default 100 > steps survived (~17-38). We only got useful checkpoints to evaluate after lowering it.
 
-### Experiment Script
+6. **Production-scale OPD is a different beast.** Our 1.78B × 1.78B setup needed 36 GB and ~70 minutes per epoch on 500 samples. DeepSeek-V4's 671B × (10+ teachers) at full scale needs thousands of GPU-hours, sparse top-K logit storage, distributed teacher serving — and the kind of stability infrastructure (KL anchors, careful warmup, large batches) that prevents the failures we hit. The architecture transfers; the engineering is orders of magnitude harder.
 
-The complete experiment script is at [`scripts/run_opd.py`](scripts/run_opd.py). The evaluation script and detailed loss data are in [`data/experiment_results.json`](data/experiment_results.json).
+### Experiment Scripts
+
+- [`scripts/run_opd.py`](scripts/run_opd.py) — main OPD training loop (Run 5 / Run 6 versions)
+- [`scripts/eval_opd.py`](scripts/eval_opd.py) — N-sample GSM8K evaluation with Wilson 95% CI
+- [`scripts/generate_loss_curve.py`](scripts/generate_loss_curve.py) — reproduces the loss/accuracy chart
+- [`data/experiment_results.json`](data/experiment_results.json) — every loss value and eval result captured
 
 ### Status
 
-**Phase 1 (training infrastructure verification): COMPLETE.** OPD training loop works on H100 with TRL 1.4.0. Loss dynamics match theoretical predictions on the runs that survived numerical issues. The bf16 NaN problem has been root-caused (TRL `generation_kwargs` override).
+**Phase 1 (infrastructure verification): COMPLETE.** OPD training loop runs on H100 + TRL 1.4.0. Loss dynamics match reverse-KL theory. Multiple failure modes have been root-caused (TRL `generation_kwargs` override; bf16 NaN; ineffective forward-hook fp32 fix; reverse-KL mode collapse).
 
-**Phase 2 (end-task accuracy verification): PRELIMINARY POSITIVE.** OPD checkpoint at loss 0.4858 doubled baseline GSM8K accuracy on N=30. A larger eval (N=100, with answer-extractor bug fixed) is in progress.
+**Phase 2 (end-task verification): NEGATIVE / NULL RESULT.** None of the 6 runs produced a checkpoint that beats the un-distilled baseline on GSM8K. Run 5 ckpt-10 is statistically indistinguishable (−1pp on N=100); Run 6 ckpt-20 collapsed to single-token output. **OPD with TRL defaults at 1.78B scale on a single H100 is not a free win** — it requires the stability infrastructure DeepSeek-V4 quietly engineered around (KL anchors, fp32 logits in the matmul itself, large batches).
 
-**Future work:**
-- Complete a full 63-step training run with fp32 logits during generation (the proper fix)
-- Re-evaluate with N=200+ for statistical significance
-- Add an offline-distillation baseline (lmbda=0) to isolate the on-policy contribution
+**What we have not yet done (would require another iteration):**
+- Cast `lm_head` weights to fp32 (real fix for the matmul overflow)
+- Add a KL anchor term against the original student to prevent mode collapse
+- Lower learning rate to 1e-7 with a warmup
+- Re-train with these guards and re-evaluate
+
+The five failed runs and the partial-positive ckpt-10 are documented above as a complete engineering trail. **The goal of this Repo is to explain how OPD works in the V4 paper. The verification experiment shows that "GKDTrainer with defaults" is not the same as the production OPD that V4 uses, and what concretely is missing.**
 
 ---
 

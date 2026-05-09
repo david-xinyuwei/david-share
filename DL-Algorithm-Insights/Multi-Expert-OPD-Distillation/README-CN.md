@@ -1007,20 +1007,23 @@ OPD 是**post-training 的收官之作**——把所有用新架构训出的领�
 
 我们在单张 NVIDIA H100 NVL（95 GB）上跑了一个 OPD 实验，验证 GKD-based OPD 训练流程是否可行，亲眼观察 loss 动态，并测量 OPD 在 GSM8K 上对端任务准确率的提升。
 
-### TL;DR — 关键结果
+### TL;DR — 诚实结果
 
-| 指标 | 值 |
-|------|-----|
-| **最佳 checkpoint** | step-10（loss 0.4858，约 10 分钟训练） |
-| **Baseline 准确率**（OPD 前的 student，GSM8K test[:30]） | **6.67%**（2/30） |
-| **OPD checkpoint-10 准确率** | **13.33%**（4/30） |
-| **绝对提升** | **+6.67 个百分点** |
-| **相对提升** | **2 倍（200%）** |
-| **Decoding** | Greedy（do_sample=False），双方一致 |
+我们跑了 6 轮 OPD 训练 + 3 次评测。**没有任何一个 OPD checkpoint 在 GSM8K test[:100] 上击败未蒸馏的 baseline。**
 
-✅ **OPD 真的有效，仅 10 步训练（80 个样本）。** Student 通过 reverse-KL 在自身轨迹上向 teacher 对齐，GSM8K 准确率翻倍。
+| 对比 | Baseline | OPD | Δ pp |
+|------|---------:|----:|-----:|
+| Run 5 ckpt-10（greedy，训了 10 步），N=100 | 19.0% | **18.0%** | **−1.0**（CI 重叠） |
+| Run 6 ckpt-20（sampling，训了 20 步），N=100 | 19.0% | **0.0%** | **−19.0**（模型坍缩） |
 
-> 注：N=30 偏小（95% Wilson CI 约 ±13pp）。N=100 的更大评测正在进行，结果出来后会替换这些数值。方向明确，绝对值可能小幅波动。
+**为什么都没成功**：1.78B 规模 + 单卡 H100 + TRL 1.4.0 GKDTrainer 默认配置下，OPD 不稳定。三种失败模式我们都撞上了：
+1. **bf16 NaN in on-policy generation**（Run 2、3、4 — `softmax` 溢出）
+2. **Greedy decoding 导致梯度爆炸**（Run 5 — 15 步后 `grad_norm=NaN`）
+3. **Reverse-KL mode collapse**（Run 6 — 即使 loss 0.5165 看起来健康，学生也输出 `!!!!!!` × 200）
+
+我们从这条 trail 上提取到的：每一轮失败的清晰法医分析，以及生产级 OPD（DeepSeek-V4）必须工程化掉的内容 — KL 锚、fp32 logit matmul、大 batch、谨慎 warmup。Loss 曲线本身从未告诉我们真相；只有端任务评测才揭穿了 collapse。
+
+完整法医分析见下面 [bf16 NaN 调查](#bf16-nan-调查--法医取证全过程) 和 [Run 6 为什么失败](#run-6-为什么失败--reverse-kl--mode-collapse--没修对的-hook) 章节。
 
 ### 实验配置
 
@@ -1126,52 +1129,99 @@ trainer.generation_config = GenerationConfig(**trainer.generation_kwargs)
 2. bf16 + 采样会 NaN。bf16 + greedy 会梯度爆炸。最稳妥的答案是 generation 时用 fp32 logits，而不是改 decoding 策略。
 3. `save_steps=10`（不是默认 100）在你还没充分信任训练流程时是必须的。
 
-### 端任务评测 — OPD 真的有用吗？
+### 端任务评测 — 诚实的现实检验
 
-我们加载 `checkpoint-10`（Run 5 仅有的健康 checkpoint，loss 0.4858），与未蒸馏的 student baseline 在 GSM8K test[:30] 上用 greedy decoding 头对头对比。
+**更新（跑完更大评测后）：原来的 "+6.67pp" 结果是测量假象。**
 
-| 模型 | 正确数 | 准确率 | 备注 |
-|------|------:|------:|------|
-| Baseline（`DeepSeek-R1-Distill-Qwen-1.5B`） | 2/30 | **6.67%** | 开箱即用的 student |
-| OPD checkpoint-10（loss 0.4858） | 4/30 | **13.33%** | 经过约 10 步 OPD 训练 |
-| **Δ** | **+2** | **+6.67pp** | **2 倍相对提升** |
+我们最初用 `Run 5 checkpoint-10` 在 `GSM8K test[:30]` 上对比 baseline，看到 2 倍提升（6.67% → 13.33%）。但修复了答案抽取器的小 bug（`460.` 与 `460` 不匹配）+ 把 N 扩到 100 后，画面完全变了：
 
-OPD checkpoint 解决了 baseline 答错的 3 道题：
-- Test #15（多步骤算术 + 中间单位换算）
-- Test #24（应用题中的分数转小数）
-- Test #29（复合百分比）
+| 对比 | Baseline | OPD | Δ pp | 95% Wilson CI 重叠？ |
+|------|---------:|----:|-----:|:-------------------:|
+| N=30，buggy 抽取器（初版） | 6.67% | 13.33% | +6.67 | 是 — 重叠 |
+| **N=100，修过 bug（Run 5 ckpt-10）** | **19.0%** | **18.0%** | **−1.0** | **完全重叠** |
+| **N=100，修过 bug（Run 6 ckpt-20）** | **19.0%** | **0.0%** | **−19.0** | **OPD 模型坍缩** |
 
-**保留意见：**
-- N=30 偏小。95% Wilson 置信区间有重叠，所以这是*暗示性*而非*结论性*。N=100 重测正在跑。
-- 只有约 10 个有效训练步（看了 80 个样本）。如果 `lmbda=1, beta=1` 能完整跑完 63 步，预期提升会大得多。
-- v1 答案抽取器有个小 bug（`460.` 与 `460` 不匹配），但对 baseline 和 OPD 都生效，方向不受影响，绝对值是下界。
+**Run 5 ckpt-10**：用 greedy on-policy generation 训了 10 步。看了 80 个样本后，学生的 GSM8K 准确率与 baseline 在统计上无差异 — 既没好也没坏。10 步 OPD 根本不够。
+
+**Run 6 ckpt-20**：用 sampling on-policy generation 训了 20 步。训练 loss 降到 0.5165（我们观察到的最低值）。但评测时模型对每道题都输出 **`!!!!!!!!...`** 重复 200 个 token。**Policy 坍缩。** "好 loss" 是误导。
+
+### Run 6 为什么失败 — Reverse KL + Mode Collapse + 没修对的 hook
+
+两种失败模式叠加：
+
+**1. Reverse-KL 陷阱**
+
+OPD 在 student 生成的轨迹上最小化 $\text{KL}(\pi_{\text{student}} \| \pi_{\text{teacher}})$。Reverse KL 是 **mode-seeking**：学生只要找到 **任何一个** teacher 给非零概率的 token 就被奖励。存在退化解 — 永远输出一个 token，只要 teacher 在某处给那个 token > 0 概率。在小 batch（batch=1, grad_accum=8）+ 看似保守实际不够保守的 lr（5e-7）下，学生找到了这个陷阱。
+
+从训练 loss 看不出来这个坍缩。Loss 0.5165 看起来很健康。只有端任务评测才暴露 `!!!!!!`。
+
+**2. 我们的 fp32 修复根本没让 matmul 在 fp32 跑**
+
+为防止 bf16 logit 溢出，我们给 `lm_head` 加了 forward hook：
+
+```python
+def upcast_to_fp32(module, input, output):
+    return output.float()
+hook = trainer.model.lm_head.register_forward_hook(upcast_to_fp32)
+```
+
+这**看起来对**但其实错了。Forward hook 在 module 计算完输出**之后**运行。所以实际流程是：
+
+```
+hidden_states (bf16) ──▶ lm_head matmul (在 bf16 里算！) ──▶ logits (bf16，可能已经是 inf) ──▶ .float() = fp32 NaN
+                                  ▲
+                            溢出发生在这里，hook 之前
+```
+
+我们在伤害发生之后用 fp32 "保存"了结果。要防溢出，matmul 本身必须在 fp32 跑。正确的修复方法之一：
+
+```python
+# 方案 A：lm_head 权重整体转 fp32（最干净）
+trainer.model.lm_head = trainer.model.lm_head.float()
+
+# 方案 B：用 forward_pre_hook 在 matmul 前升级输入
+def upcast_input(module, args):
+    return tuple(x.float() if hasattr(x, 'dtype') and x.dtype == torch.bfloat16 else x
+                 for x in args)
+trainer.model.lm_head.register_forward_pre_hook(upcast_input)
+```
+
+我们没察觉，是因为我们验证了 hook **注册成功**（打印了 "fp32 hook attached"），但从未验证中间 logits 是否真的变成 fp32 了。**症状消失 ≠ 修复生效。**
 
 ### 我们学到了什么
 
-1. **OPD 用现成工具 + 适中预算就能做。** `GKDTrainer(lmbda=1, beta=1)` 字面就是 OPD。两个 1.78B 模型约 36 GB VRAM，H100 上 ~65 秒/步。1.78B student 在 ~10 分钟训练 + 80 个样本后，GSM8K 准确率翻倍。
+1. **Loss 曲线会骗人。** Reverse-KL 训练可以 loss 下降但模型变废。端任务评测不可省略。
 
-2. **TRL GKDTrainer 有内部状态会覆盖你天真打的 patch。** 永远先看 `trainer.generation_kwargs`，不只是 `trainer.model.generation_config`。读源码。
+2. **Mode collapse 是 OPD 特有的失败模式**，不是通用 bug。它直接来自 reverse-KL 目标。生产级 OPD 实现需要：reference model 的 KL 锚、梯度裁剪、fp32 logits、大 batch（噪声平均掉容易引发坍缩的梯度）。
 
-3. **bf16 + on-policy 采样是已知地雷。** `top_k`/`top_p` 降低 NaN 概率但不消除。换 greedy 避免 softmax NaN，但带来梯度不稳定。生产实现应在 `generate()` 内用 fp32 算 logits。
+3. **TRL GKDTrainer 有内部状态会覆盖你天真打的 patch。** `trainer.model.generation_config` 看起来是改 generation 的入口，但 TRL 用的是 `self.generation_kwargs`。读框架源码。
 
-4. **`save_steps` 在调试时极重要。** Run 5 之前的四次崩溃全部丢失了训练状态，因为默认 `save_steps=100` 大于实际跑到的步数（17-38）。设 `save_steps=10` 救回了 checkpoint-10 — 唯一产生准确率提升的产物。
+4. **bf16 + on-policy 采样是结构性地雷。** `top_k`/`top_p` 降低 NaN 概率但不消除。换 greedy 避免 softmax NaN，但带来梯度不稳定。真正的修复是 fp32 logits 计算 — **而且必须验证 matmul 在 fp32 跑，不只是 matmul 后的 tensor**。
 
-5. **生产级 OPD 是另一个量级。** 我们的 1.78B × 1.78B 配置在 500 个样本上要 36 GB + ~70 分钟/epoch。DeepSeek-V4 的 671B × 10+ teachers 在完整 GSM8K 上需要数千 GPU-hours 加上工程化的 logit 存储（稀疏 top-K、分布式 teacher 服务）。架构相同；工程难度相差几个数量级。
+5. **`save_steps=10`（不是默认 100）在调试时极重要。** 降 `save_steps` 之前的四次崩溃全部丢失了训练状态，因为默认 100 > 实际存活步数（17-38）。降到 10 才救回了能评测的 checkpoint。
+
+6. **生产级 OPD 是另一个量级。** 我们的 1.78B × 1.78B 配置在 500 个样本上要 36 GB + ~70 分钟/epoch。DeepSeek-V4 的 671B × 10+ teachers 在完整规模下需要数千 GPU-hours，加稀疏 top-K logit 存储、分布式 teacher 服务，外加我们这次撞到的所有失败模式背后的稳定性基础设施（KL 锚、精心 warmup、大 batch）。架构能迁移；工程难度差几个数量级。
 
 ### 实验脚本
 
-完整实验脚本在 [`scripts/run_opd.py`](scripts/run_opd.py)。评测脚本和详细 loss 数据在 [`data/experiment_results.json`](data/experiment_results.json)。
+- [`scripts/run_opd.py`](scripts/run_opd.py) — 主 OPD 训练循环（Run 5 / Run 6 版本）
+- [`scripts/eval_opd.py`](scripts/eval_opd.py) — N 样本 GSM8K 评测，含 Wilson 95% CI
+- [`scripts/generate_loss_curve.py`](scripts/generate_loss_curve.py) — 重新生成 loss/accuracy 图
+- [`data/experiment_results.json`](data/experiment_results.json) — 所有 loss 值和评测结果
 
 ### 状态
 
-**Phase 1（训练基础设施验证）：完成。** OPD 训练循环在 H100 + TRL 1.4.0 上能跑。loss 动态在没踩数值坑的 run 上符合理论预期。bf16 NaN 问题已根因定位（TRL `generation_kwargs` override）。
+**Phase 1（基础设施验证）：完成。** OPD 训练循环在 H100 + TRL 1.4.0 上能跑。Loss 动态符合 reverse-KL 理论。多个失败模式已根因定位（TRL `generation_kwargs` override；bf16 NaN；无效的 forward-hook fp32 修复；reverse-KL mode collapse）。
 
-**Phase 2（端任务准确率验证）：初步阳性。** Loss 0.4858 的 OPD checkpoint 让 baseline GSM8K 准确率翻倍（N=30）。N=100 + 修过 bug 的更大评测正在跑。
+**Phase 2（端任务验证）：阴性 / 零结果。** 6 轮训练没有任何 checkpoint 在 GSM8K 上击败未蒸馏的 baseline。Run 5 ckpt-10 与 baseline 在统计上无差异（N=100 上 −1pp）；Run 6 ckpt-20 坍缩到单 token 输出。**1.78B 规模 + 单卡 H100 + TRL 默认配置的 OPD 不是免费的胜利** — 它需要 DeepSeek-V4 默默工程化掉的稳定性基础设施（KL 锚、matmul 自身的 fp32 logits、大 batch）。
 
-**未来工作：**
-- 用 generation 期间 fp32 logits（正确的修复）完成完整 63 步训练
-- 用 N=200+ 重测以达到统计显著性
-- 加 offline-distillation baseline（lmbda=0）以隔离 on-policy 的贡献
+**我们还没做的（需要再迭代一轮）：**
+- 把 `lm_head` 权重转 fp32（matmul 溢出的真正修复）
+- 加 KL 锚约束学生不离原始模型太远，防止 mode collapse
+- lr 降到 1e-7 + warmup
+- 加上以上保护重训并重测
+
+5 次失败的 run + ckpt-10 那次"部分阳性"以上面完整工程轨迹的形式被记录下来。**本 Repo 的目标是讲清楚 OPD 在 V4 论文里如何工作。验证实验展示了"GKDTrainer 默认配置"不等于 V4 用的生产级 OPD，并具体指出缺了什么。**
 
 ---
 
