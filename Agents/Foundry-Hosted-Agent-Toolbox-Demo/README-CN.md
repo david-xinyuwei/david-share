@@ -1,5 +1,11 @@
 # Microsoft Foundry Hosted Agent + Toolbox Demo
 
+## Running on Azure
+
+本项目运行在 **Azure AI Foundry** 上，使用 Microsoft Agent Framework、Foundry Toolbox（3 个 tool：code_interpreter + web_search + file_search）和 Foundry Hosted Agents。
+
+> **Author**: 魏新宇 (Xinyu Wei) — Microsoft AI GBB Senior System Engineer
+
 [English](README.md)
 
 ---
@@ -144,6 +150,76 @@ flowchart LR
 
 所有场景都在 2026-05-09 对真实 Foundry 资源（eastus2，私人订阅）端到端测试通过。
 
+### Agent 真实输出（实跑抓取，非 mock）
+
+<details>
+<summary><strong>Demo 1 — code_interpreter via Toolbox MCP</strong>（点击展开）</summary>
+
+**用户输入：**
+```
+Use code_interpreter to calculate the first 10 Fibonacci numbers and return them as a Python list.
+```
+
+**Agent 回答（9.3 s）：**
+> The first 10 Fibonacci numbers are: **[0, 1, 1, 2, 3, 5, 8, 13, 21, 34]**
+
+**后台发生了什么：**
+```
+→ Agent 调 gpt-4-1-mini（planning）
+→ Model 发出 function_call: code_interpreter
+→ Toolbox MCP 转发到 Python sandbox
+→ Sandbox 执行真 Python，返回 [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
+→ Agent 调 gpt-4-1-mini（最终回答）
+→ 总计：2 次 model call + 1 次 MCP tools/call
+```
+</details>
+
+<details>
+<summary><strong>Demo 2 — file_search via Toolbox MCP</strong>（点击展开）</summary>
+
+**用户输入：**
+```
+Use file_search to find what the uploaded document says about the difference
+between Toolbox MCP and raw MCP servers. Summarize in 2 sentences.
+```
+
+**Agent 回答（7.5 s）：**
+> The Toolbox MCP server sits in front of raw MCP servers to provide **aggregation of multiple tool types behind one endpoint**, letting agents connect once and discover all tools instead of managing multiple connections. Additionally, Toolbox adds **governance and version pinning**, allowing tool sets to be updated without redeploying agents, which raw MCP servers lack.
+
+**后台发生了什么：**
+```
+→ Agent 调 gpt-4-1-mini（planning）
+→ Model 发出 function_call: file_search
+→ Toolbox MCP 搜索 vector store vs_0Raxw5LUn5thdP7QMBfAdsKx
+→ 从 why-this-architecture.md（之前上传的）检索相关段落
+→ Agent 调 gpt-4-1-mini（带 citation 最终回答）
+→ 总计：2 次 model call + 1 次 MCP tools/call
+```
+</details>
+
+<details>
+<summary><strong>Demo 3 — direct_web_search via Responses API</strong>（点击展开）</summary>
+
+**用户输入：**
+```
+Use direct_web_search to find the latest Microsoft Foundry Agent Service pricing.
+Return a one-sentence summary with the source URL.
+```
+
+**Agent 回答（12.4 s）：**
+> Microsoft Foundry Agent Service pricing in 2026 follows a flexible token consumption model with pay-as-you-go and provisioned throughput options, with details available at the [Azure pricing page](https://azure.microsoft.com/pricing/details/foundry-agent-service/).
+
+**后台发生了什么：**
+```
+→ Agent 调 gpt-4-1-mini（planning）
+→ Model 发出 function_call: direct_web_search
+→ direct_web_search 调 Foundry Responses API + tools=[{"type":"web_search"}]
+→ Bing grounding 返回合成答案 + URL citation
+→ Agent 调 gpt-4-1-mini（最终回答）
+→ 总计：2 次 model call + 1 次 Responses API web_search
+```
+</details>
+
 ### 核心路径
 
 | 测试 | Tool 路径 | 结果 |
@@ -159,6 +235,7 @@ flowchart LR
 | `examples/hybrid-edge-cloud/` | Edge 写契约 → cloud handoff 调 code_interpreter → 返回通风建议（计算 mean CO2 = 699 ppm）✅ |
 | `direct_image_generate` | Agent 生成 1024×1024 水彩图，`b64_json` 长度 = 2,680,868 字符 ✅ |
 | `examples/custom-mcp-server/` | `tools/list` 返回 2 个 tool；`tools/call` 返回 `critical / page on-call` 和 `needs_approval` ✅ |
+| `file_search`（新） | Agent 搜索上传的 `why-this-architecture.md`，准确引用了 MCP vs function-calling 的段落 ✅ |
 
 ### 实测延迟（3 iterations, warm, 无 streaming）
 

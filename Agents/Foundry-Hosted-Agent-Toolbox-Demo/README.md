@@ -1,5 +1,11 @@
 # Microsoft Foundry Hosted Agent + Toolbox Demo
 
+## Running on Azure
+
+This project runs on **Azure AI Foundry** with Microsoft Agent Framework, Foundry Toolbox (3 tools: code_interpreter + web_search + file_search), and Foundry Hosted Agents.
+
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
 [中文版](README-CN.md)
 
 ---
@@ -144,6 +150,76 @@ Each demo scenario is designed to prove a specific architectural claim:
 
 All scenarios were tested end-to-end against real Foundry resources (eastus2, private subscription) on 2026-05-09.
 
+### Real agent output (captured live, not mocked)
+
+<details>
+<summary><strong>Demo 1 — code_interpreter via Toolbox MCP</strong> (click to expand)</summary>
+
+**User input:**
+```
+Use code_interpreter to calculate the first 10 Fibonacci numbers and return them as a Python list.
+```
+
+**Agent response (9.3 s):**
+> The first 10 Fibonacci numbers are: **[0, 1, 1, 2, 3, 5, 8, 13, 21, 34]**
+
+**What happened behind the scenes:**
+```
+→ Agent called gpt-4-1-mini (planning)
+→ Model emitted function_call: code_interpreter
+→ Toolbox MCP forwarded to Python sandbox
+→ Sandbox executed real Python and returned [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
+→ Agent called gpt-4-1-mini (final answer)
+→ Total: 2 model calls + 1 MCP tools/call
+```
+</details>
+
+<details>
+<summary><strong>Demo 2 — file_search via Toolbox MCP</strong> (click to expand)</summary>
+
+**User input:**
+```
+Use file_search to find what the uploaded document says about the difference
+between Toolbox MCP and raw MCP servers. Summarize in 2 sentences.
+```
+
+**Agent response (7.5 s):**
+> The Toolbox MCP server sits in front of raw MCP servers to provide **aggregation of multiple tool types behind one endpoint**, letting agents connect once and discover all tools instead of managing multiple connections. Additionally, Toolbox adds **governance and version pinning**, allowing tool sets to be updated without redeploying agents, which raw MCP servers lack as they represent only the basic client-server tool protocol without these higher-level lifecycle and governance features.
+
+**What happened behind the scenes:**
+```
+→ Agent called gpt-4-1-mini (planning)
+→ Model emitted function_call: file_search
+→ Toolbox MCP searched vector store vs_0Raxw5LUn5thdP7QMBfAdsKx
+→ Retrieved passages from why-this-architecture.md (uploaded earlier)
+→ Agent called gpt-4-1-mini (final answer with citations)
+→ Total: 2 model calls + 1 MCP tools/call
+```
+</details>
+
+<details>
+<summary><strong>Demo 3 — direct_web_search via Responses API</strong> (click to expand)</summary>
+
+**User input:**
+```
+Use direct_web_search to find the latest Microsoft Foundry Agent Service pricing.
+Return a one-sentence summary with the source URL.
+```
+
+**Agent response (12.4 s):**
+> Microsoft Foundry Agent Service pricing in 2026 follows a flexible token consumption model with pay-as-you-go and provisioned throughput options, with details available at the [Azure pricing page](https://azure.microsoft.com/pricing/details/foundry-agent-service/).
+
+**What happened behind the scenes:**
+```
+→ Agent called gpt-4-1-mini (planning)
+→ Model emitted function_call: direct_web_search
+→ direct_web_search called Foundry Responses API with tools=[{"type":"web_search"}]
+→ Bing grounding returned synthesized answer with URL citations
+→ Agent called gpt-4-1-mini (final answer)
+→ Total: 2 model calls + 1 Responses API web_search call
+```
+</details>
+
 ### Core paths
 
 | Test | Tool path | Result |
@@ -159,6 +235,7 @@ All scenarios were tested end-to-end against real Foundry resources (eastus2, pr
 | `examples/hybrid-edge-cloud/` | Edge wrote contract → cloud handoff invoked code_interpreter → returned ventilation recommendation with computed statistics (mean CO2 = 699 ppm) ✅ |
 | `direct_image_generate` | Agent generated 1024×1024 watercolor image, `b64_json` length = 2,680,868 chars ✅ |
 | `examples/custom-mcp-server/` | `tools/list` returned 2 tools; `tools/call` returned `critical / page on-call` and `needs_approval` ✅ |
+| `file_search` (new) | Agent searched uploaded `why-this-architecture.md` and accurately quoted the MCP vs function-calling passage ✅ |
 
 ### Measured latency (3 iterations, warm, no streaming)
 
