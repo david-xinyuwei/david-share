@@ -1,32 +1,88 @@
 # Microsoft Foundry Hosted Agent + Toolbox Demo
 
-[中文版](README-CN.md) | [Why This Architecture](docs/why-this-architecture.md) | [Trade-offs](docs/architecture-tradeoffs.md) | [Comparison](docs/comparison.md) | [MCP Deep Dive](docs/mcp-protocol-deep-dive.md) | [Request Flow + Latency](docs/request-flow-with-budget.md) | [Failure Modes](docs/failure-modes.md) | [Production Scale](docs/production-scale.md) | [Hybrid Edge-Cloud](docs/hybrid-edge-cloud.md) | [Voice & Multimodal](docs/voice-and-multimodal.md) | [Architecture](docs/architecture.md) | [Demo Script](docs/demo-script.md) | [Scenario Mapping](docs/scenario-mapping.md) | [Troubleshooting](docs/troubleshooting.md)
+[中文版](README-CN.md)
 
-This repo is a complete, runnable reference for a Microsoft Agent Framework service that can be deployed as a Microsoft Foundry Hosted Agent and connected to a Microsoft Foundry Toolbox. It demonstrates a cloud-side agent endpoint, a governed MCP tool bundle, and a direct Responses API `web_search` fallback for current public facts.
+## The Problem This Solves
 
-The demo is intentionally customer-neutral. Use it as a public reference for AI application, AI device, gaming cloud, enterprise assistant, or developer-tool scenarios where a host agent needs to call a shared tool catalog.
+You are building an AI agent that calls multiple tools — code execution, web search, internal APIs, custom MCP servers. Each tool has its own auth, its own versioning, its own owning team. Without a shared catalog, every agent re-wires every tool, credentials are duplicated, and adding one new tool means patching N agents.
 
-## Executive Summary
+This repo shows how to solve it with two building blocks:
 
-| Area | What this repo demonstrates | Status |
+1. **Hosted Agent** — your agent code runs in a managed container with its own identity and a stable HTTP endpoint. You don't manage infra.
+2. **Toolbox** — all your tools live in a single versioned catalog behind one MCP endpoint. The agent connects once and discovers everything. Add or update tools without redeploying the agent.
+
+The result: **one agent endpoint, one tool catalog, zero per-tool wiring in your code**.
+
+## See It Work (30 Seconds)
+
+After cloning and setting up `.env` (see [Configure](#configure)):
+
+```bash
+python main.py                    # Terminal 1: start the agent server
+
+# Terminal 2: ask the agent to compute something via Toolbox code_interpreter
+curl -X POST http://localhost:8088/responses \
+  -H "Content-Type: application/json" \
+  -d '{"input":"Use code_interpreter to calculate sum(i*i for i in range(1, 6))."}'
+```
+
+The agent calls the Foundry model, which decides to invoke `code_interpreter` through the Toolbox MCP endpoint. The sandbox runs real Python and returns the answer: **55**.
+
+## What You Can Demo
+
+| Demo | What happens | Try it |
 | --- | --- | --- |
-| Hosted Agent runtime | `main.py` serves an Agent Framework agent through the Responses protocol. | Implemented |
-| Toolbox integration | `MCPStreamableHTTPTool` connects to a Foundry Toolbox MCP endpoint with the required preview header. | Implemented |
-| Code Interpreter | Toolbox-managed `code_interpreter` performs a real calculation through MCP. | Verified |
-| Web Search | `direct_web_search` calls the Foundry Responses API with `tools: [{"type":"web_search"}]`. | Verified |
-| HTTP endpoint test | `scripts/http_smoke_test.py` validates the local `/responses` endpoint. | Included |
-| Repo quality check | `scripts/repo_check.py` checks required files, Python syntax, manifest text, and obvious secret leaks. | Included |
+| **Math via Toolbox** | Agent → model → Toolbox MCP → `code_interpreter` sandbox → answer with real computation | `scripts/smoke_test.py` |
+| **Web search** | Agent → model → Foundry Responses API `web_search` → grounded answer with citations | `scripts/smoke_test.py` |
+| **Edge-cloud handoff** | Local "device" generates sensor data → writes a task contract → cloud agent picks up and answers | `examples/hybrid-edge-cloud/` |
+| **Image generation** | Agent → Foundry image API → generates a 1024×1024 image from a text prompt | Set `ENABLE_DIRECT_IMAGE_GENERATE=true` in `.env` |
+| **Custom MCP server** | Your own tool (device health check, policy engine) served via MCP, discoverable by any agent | `examples/custom-mcp-server/` |
+| **Latency measurement** | Measures real p50/p95/mean for code and web paths | `scripts/measure_latency.py` |
 
-Sources used for implementation and docs:
+## How It Works (One Picture)
 
-- Hosted Agents concept: https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents
-- Toolbox how-to: https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/tools/toolbox
-- Official Foundry Toolbox + Agent Framework sample entry point: https://aka.ms/foundry-toolbox-maf
-- Azure AI Foundry OpenAI web search: https://learn.microsoft.com/en-us/azure/foundry/openai/how-to/web-search
-- Hosted Agents blog: https://devblogs.microsoft.com/foundry/introducing-the-new-hosted-agents-in-foundry-agent-service-secure-scalable-compute-built-for-agents/
-- Toolbox blog: https://devblogs.microsoft.com/foundry/introducing-toolboxes-in-foundry/
+```mermaid
+flowchart LR
+    User["User / App / Device"] --> Responses["Hosted Agent endpoint<br/>(your container)"]
+    Responses --> Model["AI Model"]
+    Responses --> Toolbox["Toolbox<br/>(one MCP endpoint<br/>= all your tools)"]
+    Toolbox --> CI["code_interpreter"]
+    Toolbox --> Search["Azure AI Search"]
+    Toolbox --> Custom["Your custom MCP tools"]
+    Responses --> WebSearch["Web Search<br/>(Foundry Responses API)"]
+```
 
-> Preview note: Hosted Agents and Toolbox are preview features. Package names, manifest shape, and endpoint behavior can change. This repo follows the public Learn pages and the official sample entry point above.
+Think of it this way:
+
+| Everyday analogy | Maps to |
+| --- | --- |
+| Your phone's **App Store** | **Toolbox** — a catalog of tools the agent can discover and call. You update the catalog; apps (agents) pick up the new tools automatically. |
+| The **app** on your phone | **Hosted Agent** — your code, running in a managed sandbox, with its own identity and a stable address. |
+| The **App Store updating an app without you doing anything** | Promoting a new `default_version` of the Toolbox — agents see new tools on their next call, no redeployment. |
+
+For the distributed-systems mapping (API gateway, service mesh, workload identity), see the [Mental Model](#mental-model-for-distributed-systems-engineers) section below.
+
+<details>
+<summary><strong>📚 All documentation (14 articles, bilingual EN/CN)</strong></summary>
+
+| Document | What it covers |
+| --- | --- |
+| [Why This Architecture](docs/why-this-architecture.md) | First-principles derivation from customer constraints |
+| [Trade-offs](docs/architecture-tradeoffs.md) | Latency vs Governance vs Flexibility — what you pay |
+| [Comparison](docs/comparison.md) | vs OpenAI Assistants, Bedrock Agents, Vertex AI, LangGraph, Semantic Kernel |
+| [MCP Deep Dive](docs/mcp-protocol-deep-dive.md) | Wire-level MCP protocol as used by this repo |
+| [Request Flow + Latency](docs/request-flow-with-budget.md) | Token + latency budgets with real measurements |
+| [Failure Modes](docs/failure-modes.md) | Per-layer failure catalog and recovery patterns |
+| [Production Scale](docs/production-scale.md) | Multi-region, multi-tenant, cost, security, compliance |
+| [Hybrid Edge-Cloud](docs/hybrid-edge-cloud.md) | Edge-cloud agent composition with task contract |
+| [Voice & Multimodal](docs/voice-and-multimodal.md) | Voice, image gen, slide gen, multimodal input |
+| [Architecture](docs/architecture.md) | Detailed diagrams and request flow |
+| [Demo Script](docs/demo-script.md) | Customer-neutral live demo flow |
+| [Scenario Mapping](docs/scenario-mapping.md) | AI device, gaming cloud, enterprise assistant mapping |
+| [Troubleshooting](docs/troubleshooting.md) | Common errors and fixes |
+| [Validation](docs/validation.md) | Three-layer validation procedure |
+
+</details>
 
 ## Architecture
 
@@ -46,7 +102,7 @@ The hosted agent is your containerized code. The toolbox is a managed tool bundl
 
 The direct web-search path is intentionally separate. In the current implementation, Toolbox MCP is the governed path for `code_interpreter`; direct Responses API `web_search` is the documented and verified path for public web grounding.
 
-## Mental Model
+## Mental Model for Distributed-Systems Engineers
 
 If you have built distributed systems before, the architecture maps to ideas you already know:
 
@@ -65,37 +121,34 @@ For the first-principles derivation, see [docs/why-this-architecture.md](docs/wh
 
 ## Repo Layout
 
+Core files:
+
 | Path | Purpose |
 | --- | --- |
-| `main.py` | Agent Framework Responses host that loads a Foundry Toolbox and optional direct web-search tool. |
+| `main.py` | Agent host: loads Toolbox + optional web-search and image-gen tools, serves Responses protocol. |
+| `scripts/smoke_test.py` | End-to-end test: code_interpreter + web search in one run. |
+| `examples/hybrid-edge-cloud/` | Live edge-cloud demo: edge writes contract, cloud picks up via hosted agent. |
+| `examples/custom-mcp-server/` | Minimal custom MCP server + client you can register into a Toolbox. |
+| `infra/setup_foundry.py` | One-shot CLI to create Azure resources for this demo. |
+
+<details>
+<summary><strong>Full file inventory (click to expand)</strong></summary>
+
+| Path | Purpose |
+| --- | --- |
 | `agent.yaml` | Hosted Agent runtime definition for the Responses protocol. |
 | `agent.manifest.yaml` | Declarative sample manifest with a model and a toolbox. |
 | `Dockerfile` | Container image for the hosted agent. |
 | `.env.example` | Local configuration template. |
 | `scripts/create_toolbox.py` | Creates a Toolbox version through `azure-ai-projects`. |
 | `scripts/verify_toolbox.py` | Lists tools exposed by a Toolbox MCP endpoint. |
-| `scripts/smoke_test.py` | End-to-end in-process test for `direct_web_search` and Toolbox `code_interpreter`. |
 | `scripts/http_smoke_test.py` | HTTP test for a running local `/responses` server. |
 | `scripts/repo_check.py` | Local repo quality and syntax check. |
 | `scripts/measure_latency.py` | Measures p50 / p95 / mean latency of the hosted-agent endpoint. |
-| `infra/setup_foundry.py` | One-shot CLI to create the resource group, account, and model deployments. |
-| `examples/hybrid-edge-cloud/` | Live edge-cloud demo: edge writes a contract, cloud handoff invokes the hosted agent. |
-| `examples/custom-mcp-server/` | Minimal custom MCP server + client (exposes `device_health_check`, `policy_evaluate`). |
 | `examples/requests/` | Request bodies for manual `curl` or API testing. |
-| `docs/why-this-architecture.md` | First-principles derivation of the hosted-agent + toolbox shape. |
-| `docs/architecture-tradeoffs.md` | Explicit Latency / Governance / Flexibility trade-offs. |
-| `docs/comparison.md` | Customer-neutral comparison vs OpenAI Assistants, Bedrock Agents, Vertex AI, LangGraph, Semantic Kernel. |
-| `docs/mcp-protocol-deep-dive.md` | MCP protocol mechanics as used by this repo. |
-| `docs/request-flow-with-budget.md` | End-to-end request flow with token and latency budgets. |
-| `docs/failure-modes.md` | Per-layer failure catalog and recovery patterns. |
-| `docs/production-scale.md` | Multi-region / multi-tenant / cost / security checklist. |
-| `docs/hybrid-edge-cloud.md` | Edge-cloud agent composition: shared task contract, hand-off patterns, failure cases. |
-| `docs/voice-and-multimodal.md` | Voice (real-time + batch), image generation, slide generation, multimodal input patterns. |
-| `docs/architecture.md` | Original architecture diagrams and request flow. |
-| `docs/demo-script.md` | Customer-neutral live demo flow. |
-| `docs/scenario-mapping.md` | Generic mapping to AI device, gaming cloud, enterprise assistant, dev tools. |
-| `docs/troubleshooting.md` | Hands-on fix guide for common errors. |
-| `docs/validation.md` | Three-layer validation procedure (static / MCP listing / smoke test). |
+| All 14 docs | See the documentation list above. |
+
+</details>
 
 ## Prerequisites
 

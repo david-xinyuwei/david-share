@@ -1,32 +1,88 @@
 # Microsoft Foundry Hosted Agent + Toolbox Demo
 
-[English](README.md) | [设计源起](docs/why-this-architecture-CN.md) | [架构取舍](docs/architecture-tradeoffs-CN.md) | [友商对比](docs/comparison-CN.md) | [MCP 协议详解](docs/mcp-protocol-deep-dive-CN.md) | [请求流程与延迟预算](docs/request-flow-with-budget-CN.md) | [失败模式](docs/failure-modes-CN.md) | [生产规模](docs/production-scale-CN.md) | [端云协同](docs/hybrid-edge-cloud-CN.md) | [语音与多模态](docs/voice-and-multimodal-CN.md) | [架构](docs/architecture.md) | [演示脚本](docs/demo-script.md) | [场景映射](docs/scenario-mapping.md) | [排错指南](docs/troubleshooting.md)
+[English](README.md)
 
-这个 repo 是一个完整可运行的参考实现：用 Microsoft Agent Framework 写一个服务，通过 Responses protocol 暴露为 Microsoft Foundry Hosted Agent，并连接 Microsoft Foundry Toolbox。它展示了云端 agent endpoint、受管 MCP 工具包，以及用于公开网页事实检索的 direct Responses API `web_search` fallback。
+## 这个 repo 解决什么问题
 
-本 demo 保持 customer-neutral。它可以用于 AI application、AI native device、gaming cloud、enterprise assistant、developer tool 等场景，只要目标是让一个 host agent 调用统一的 tool catalog。
+你在做一个 AI agent，它要调多个 tool —— 代码执行、联网搜索、内部 API、自定义 MCP server。每个 tool 各自有 auth、各自有版本、各自有负责团队。如果没有统一目录，每个 agent 都要自己接每个 tool，credential 重复，加一个新 tool 就得改 N 个 agent。
 
-## Executive Summary
+本 repo 用两个模块来解决：
 
-| 模块 | 这个 repo 展示什么 | 状态 |
+1. **Hosted Agent** —— 你的 agent 代码跑在受管容器里，有自己的 identity 和稳定 HTTP endpoint。你不管基础设施。
+2. **Toolbox** —— 所有 tool 住在一个版本化目录里，统一暴露成一个 MCP endpoint。Agent 接一次，发现全部工具。加减 tool 不需要重新部署 agent。
+
+效果：**一个 agent endpoint，一个 tool 目录，代码里零逐 tool 接线**。
+
+## 30 秒看效果
+
+克隆 repo 并配好 `.env`（见 [Configure](#configure)）之后：
+
+```bash
+python main.py                    # Terminal 1：启动 agent server
+
+# Terminal 2：让 agent 通过 Toolbox 的 code_interpreter 算一道题
+curl -X POST http://localhost:8088/responses \
+  -H "Content-Type: application/json" \
+  -d '{"input":"Use code_interpreter to calculate sum(i*i for i in range(1, 6))."}'
+```
+
+Agent 调 Foundry model → model 决定调 `code_interpreter` → Toolbox MCP endpoint 把请求转到沙箱 → 沙箱跑真 Python → 返回答案：**55**。
+
+## 能演示什么
+
+| Demo | 发生了什么 | 试一下 |
 | --- | --- | --- |
-| Hosted Agent runtime | `main.py` 通过 Responses protocol 暴露 Agent Framework agent。 | 已实现 |
-| Toolbox integration | `MCPStreamableHTTPTool` 带 preview header 连接 Foundry Toolbox MCP endpoint。 | 已实现 |
-| Code Interpreter | Toolbox 管理的 `code_interpreter` 通过 MCP 执行计算。 | 已验证 |
-| Web Search | `direct_web_search` 调用 Foundry Responses API，使用 `tools: [{"type":"web_search"}]`。 | 已验证 |
-| HTTP endpoint test | `scripts/http_smoke_test.py` 验证本地 `/responses` endpoint。 | 已包含 |
-| Repo quality check | `scripts/repo_check.py` 检查必要文件、Python 语法、manifest 文本和明显 secret 泄露。 | 已包含 |
+| **Toolbox 算数** | Agent → model → Toolbox MCP → `code_interpreter` sandbox → 真计算结果 | `scripts/smoke_test.py` |
+| **联网搜索** | Agent → model → Foundry Responses API `web_search` → 带引用的 grounded 回答 | `scripts/smoke_test.py` |
+| **端云协同** | 本地"设备"生成传感器数据 → 写任务契约 → 云端 agent 接管作答 | `examples/hybrid-edge-cloud/` |
+| **图像生成** | Agent → Foundry image API → 从文本 prompt 生成 1024×1024 图片 | `.env` 里设 `ENABLE_DIRECT_IMAGE_GENERATE=true` |
+| **自定义 MCP server** | 你自己的 tool（设备健康检查、策略引擎）通过 MCP 暴露，任何 agent 都能发现 | `examples/custom-mcp-server/` |
+| **延迟实测** | 真实的 p50/p95/mean，code 路径和 web 路径分开测 | `scripts/measure_latency.py` |
 
-实现和文档参考来源：
+## 架构一图看懂
 
-- Hosted Agents concept: https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents
-- Toolbox how-to: https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/tools/toolbox
-- Official Foundry Toolbox + Agent Framework sample entry point: https://aka.ms/foundry-toolbox-maf
-- Azure AI Foundry OpenAI web search: https://learn.microsoft.com/en-us/azure/foundry/openai/how-to/web-search
-- Hosted Agents blog: https://devblogs.microsoft.com/foundry/introducing-the-new-hosted-agents-in-foundry-agent-service-secure-scalable-compute-built-for-agents/
-- Toolbox blog: https://devblogs.microsoft.com/foundry/introducing-toolboxes-in-foundry/
+```mermaid
+flowchart LR
+    User["User / App / Device"] --> Responses["Hosted Agent endpoint<br/>（你的容器）"]
+    Responses --> Model["AI Model"]
+    Responses --> Toolbox["Toolbox<br/>（一个 MCP endpoint<br/>= 所有 tool）"]
+    Toolbox --> CI["code_interpreter"]
+    Toolbox --> Search["Azure AI Search"]
+    Toolbox --> Custom["你的自定义 MCP tool"]
+    Responses --> WebSearch["Web Search<br/>（Foundry Responses API）"]
+```
 
-> Preview note: Hosted Agents 和 Toolbox 都是 preview feature。package 名、manifest 结构和 endpoint 行为后续可能变化。本 repo 按上面的 public Learn 页面和官方 sample 入口实现。
+打个比方：
+
+| 日常类比 | 映射到 |
+| --- | --- |
+| 你手机上的 **App Store** | **Toolbox** —— tool 的目录，agent 能发现和调用。你更新目录，app（agent）自动拿到新 tool。 |
+| 手机上的那个 **app** | **Hosted Agent** —— 你的代码，跑在受管沙箱里，有自己的 identity 和稳定地址。 |
+| **App Store 自动更新 app 而你什么都不用做** | Promote Toolbox 新 `default_version` —— agent 下次调用就看到新 tool，不需要重部署。 |
+
+分布式系统工程师的映射（API gateway / service mesh / workload identity）见下方 [心智模型](#心智模型面向分布式系统工程师) 章节。
+
+<details>
+<summary><strong>📚 全部文档（14 篇，中英双语）</strong></summary>
+
+| 文档 | 涵盖内容 |
+| --- | --- |
+| [设计源起](docs/why-this-architecture-CN.md) | 从客户约束出发的第一性原理推导 |
+| [架构取舍](docs/architecture-tradeoffs-CN.md) | Latency vs Governance vs Flexibility 的代价 |
+| [友商对比](docs/comparison-CN.md) | vs OpenAI Assistants、Bedrock Agents、Vertex AI、LangGraph、Semantic Kernel |
+| [MCP 协议详解](docs/mcp-protocol-deep-dive-CN.md) | 本 repo 使用的 MCP wire 级细节 |
+| [请求流程与延迟预算](docs/request-flow-with-budget-CN.md) | Token + latency 预算 + 实测数据 |
+| [失败模式](docs/failure-modes-CN.md) | 分层失败目录与恢复模式 |
+| [生产规模](docs/production-scale-CN.md) | 多区域、多租户、成本、安全、合规 |
+| [端云协同](docs/hybrid-edge-cloud-CN.md) | 端云 agent 组合 + 任务契约 |
+| [语音与多模态](docs/voice-and-multimodal-CN.md) | 语音、图像生成、PPT 生成、多模态输入 |
+| [架构](docs/architecture.md) | 详细架构图与请求流程（英文） |
+| [演示脚本](docs/demo-script.md) | Customer-neutral 演示流程（英文） |
+| [场景映射](docs/scenario-mapping.md) | AI device / gaming cloud / enterprise mapping（英文） |
+| [排错指南](docs/troubleshooting.md) | 常见错误与修复（英文） |
+| [验证](docs/validation.md) | 三层验证流程（英文） |
+
+</details>
 
 ## Architecture
 
@@ -46,7 +102,7 @@ Hosted Agent 是你自己的 containerized code。Toolbox 是 Foundry project �
 
 Web search 路径故意和 Toolbox 分开。当前实现里，Toolbox MCP 用来承载受管 `code_interpreter`；公开网页 grounding 用 direct Responses API `web_search`，这是文档明确支持并且本 repo 已验证的路径。
 
-## 心智模型（Mental Model）
+## 心智模型（面向分布式系统工程师）
 
 如果你做过微服务或平台架构，这个架构可以对应你已经熟悉的几个概念：
 
