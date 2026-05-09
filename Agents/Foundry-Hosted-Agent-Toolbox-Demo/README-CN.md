@@ -88,11 +88,12 @@ flowchart LR
 
 我们创建了一个名为 `agent-tools` 的 Foundry Toolbox，包含以下 tool：
 
-| Tool | 类型 | 在本 demo 中做什么 |
-| --- | --- | --- |
-| `code_interpreter` | 内置（Toolbox） | 在受管沙箱中执行 Python——agent 发代码，沙箱返回结果。用于计算任务。 |
+| Tool | 类型 | 在本 demo 中做什么 | Runtime 状态 |
+| --- | --- | --- | --- |
+| `code_interpreter` | 内置（Toolbox） | 在受管沙箱中执行 Python——agent 发代码，沙箱返回结果。用于计算任务。 | ✅ 端到端已验证 |
+| `web_search` | 内置（Toolbox） | 通过 Bing grounding 搜索公开网页。MCP `tools/list` 正确返回。 | ⚠️ List OK；runtime invoke 在部分 project 中返回 tool error（preview）。Agent 自动 fallback 到 `direct_web_search`。 |
 
-我们故意只放一个 tool：用一个受管 tool 证明 Toolbox MCP 路径端到端可通。架构支持加 Azure AI Search、File Search、Web Search、OpenAPI、自定义 MCP server、A2A tool 到同一个 toolbox——见 `scripts/create_toolbox.py`。
+我们同时展示了 **受管 Toolbox 路径**（code_interpreter 端到端可通）和 **Responses API fallback**（direct_web_search）。这个拆分是故意的：它展示了如何在一个 agent 里组合 preview catalog tool 和 documented runtime tool。见 `scripts/create_toolbox.py --with-web-search --with-code-interpreter` 了解两个 tool 的注册方式。
 
 ### Hosted Agent 内容（本实验）
 

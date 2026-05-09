@@ -2,7 +2,7 @@ import argparse
 import os
 
 from azure.ai.projects import AIProjectClient
-from azure.ai.projects.models import AzureAISearchTool, CodeInterpreterTool, MCPTool, WebSearchTool
+from azure.ai.projects.models import AzureAISearchTool, CodeInterpreterTool, FileSearchTool, MCPTool, WebSearchTool
 from azure.identity import AzureCliCredential, DefaultAzureCredential
 from dotenv import load_dotenv
 
@@ -42,6 +42,18 @@ def build_tools(args: argparse.Namespace) -> list[object]:
             CodeInterpreterTool(
                 name="code_interpreter",
                 description="Execute Python code for calculations and data analysis.",
+            )
+        )
+
+    # Source: https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/tools/toolbox#file-search
+    if getattr(args, 'with_file_search', False):
+        vector_store_ids = os.getenv("FILE_SEARCH_VECTOR_STORE_IDS", "").split(",")
+        vector_store_ids = [v.strip() for v in vector_store_ids if v.strip()]
+        tools.append(
+            FileSearchTool(
+                name="file_search",
+                description="Search uploaded files in a vector store for relevant passages.",
+                vector_store_ids=vector_store_ids if vector_store_ids else [],
             )
         )
 
@@ -88,6 +100,7 @@ def main() -> None:
     parser.add_argument("--description", default=os.getenv("TOOLBOX_DESCRIPTION", "Hosted Agent shared tools"))
     parser.add_argument("--with-web-search", action="store_true")
     parser.add_argument("--with-code-interpreter", action="store_true")
+    parser.add_argument("--with-file-search", action="store_true")
     parser.add_argument("--set-default", action="store_true", help="Point the toolbox consumer endpoint at the new version.")
     parser.add_argument("--mcp-require-approval", choices=["always", "never"], default="never")
     args = parser.parse_args()
