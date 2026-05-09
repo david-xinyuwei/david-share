@@ -24,6 +24,9 @@ header .badge { background: #00b04f; color: #fff; padding: 2px 10px; border-radi
 .msg.system { align-self: center; background: transparent; color: #888; font-size: 12px; font-style: italic; }
 .msg img { max-width: 100%; border-radius: 8px; margin-top: 8px; }
 .msg .tool-tag { display: inline-block; background: #00b04f22; color: #00b04f; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-right: 6px; margin-bottom: 4px; }
+.msg .call-chain { background: #1a1a3e; border: 1px solid #333; border-radius: 6px; padding: 8px 12px; margin-bottom: 8px; font-size: 11px; color: #888; font-family: monospace; }
+.msg .call-chain .arrow { color: #0078d4; }
+.msg .call-chain .timing { color: #00b04f; float: right; }
 .input-bar { display: flex; gap: 8px; padding: 16px 24px; background: #1a1a2e; border-top: 1px solid #333; }
 .input-bar input { flex: 1; background: #252540; border: 1px solid #444; color: #e0e0e0; padding: 12px 16px; border-radius: 8px; font-size: 14px; outline: none; }
 .input-bar input:focus { border-color: #0078d4; }
@@ -41,7 +44,7 @@ header .badge { background: #00b04f; color: #fff; padding: 2px 10px; border-radi
 <header>
   <h1>🎮 Foundry Agent + Toolbox Demo</h1>
   <span class="badge">Running on Azure</span>
-  <span style="color:#aaa;font-size:12px;margin-left:auto;">Toolbox: code_interpreter · file_search · web_search | Direct: image_gen · web_search</span>
+  <span id="agentInfo" style="color:#aaa;font-size:11px;margin-left:auto;">Loading agent info...</span>
 </header>
 <div class="main">
   <div class="sidebar">
@@ -52,6 +55,10 @@ header .badge { background: #00b04f; color: #fff; padding: 2px 10px; border-radi
     <button onclick="switchMode('edge')"><span class="icon">🌡️</span>Edge-Cloud</button>
     <div style="flex:1"></div>
     <button onclick="clearChat()" style="color:#e74c3c;border-color:#e74c3c33"><span class="icon">🗑️</span>Clear</button>
+    <div style="margin-top:12px;border-top:1px solid #333;padding-top:12px">
+      <div style="font-size:11px;color:#888;margin-bottom:6px">📦 Toolbox tools:</div>
+      <div id="toolboxTools" style="font-size:11px;color:#aaa">Loading...</div>
+    </div>
   </div>
   <div class="chat-area">
     <div class="messages" id="messages">
@@ -92,12 +99,20 @@ function switchMode(mode) {
 function addMsg(text, cls, extras) {
   const div = document.createElement('div');
   div.className = 'msg ' + cls;
-  if (extras?.tools) {
-    const tags = extras.tools.map(t => `<span class="tool-tag">🔧 ${t.name}</span>`).join('');
-    div.innerHTML = tags + '<br>' + escapeHtml(text);
-  } else {
-    div.textContent = text;
+  let html = '';
+  // Call chain (only for agent messages)
+  if (extras?.call_chain && extras.call_chain.length > 0) {
+    const chainStr = extras.call_chain.map(c => `<span>${escapeHtml(c)}</span>`).join(' <span class="arrow">→</span> ');
+    const timing = extras.elapsed_ms ? `<span class="timing">${extras.elapsed_ms}ms</span>` : '';
+    html += `<div class="call-chain">${chainStr}${timing}</div>`;
   }
+  // Tool tags
+  if (extras?.tools && extras.tools.length > 0) {
+    html += extras.tools.map(t => `<span class="tool-tag">🔧 ${escapeHtml(t.name || 'tool')}</span>`).join('');
+    html += '<br>';
+  }
+  html += escapeHtml(text);
+  div.innerHTML = html;
   if (extras?.image_b64) {
     const img = document.createElement('img');
     img.src = 'data:image/png;base64,' + extras.image_b64;
@@ -108,6 +123,22 @@ function addMsg(text, cls, extras) {
 }
 function addSystemMsg(text) { addMsg(text, 'system'); }
 function escapeHtml(t) { const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
+
+// Fetch Toolbox info on startup
+async function loadToolboxInfo() {
+  try {
+    const resp = await fetch('/api/toolbox-info');
+    const data = await resp.json();
+    document.getElementById('agentInfo').textContent = `Agent: ${data.agent_endpoint} | Toolbox: ${data.toolbox_name} (${data.tools.length} tools)`;
+    document.getElementById('toolboxTools').innerHTML = data.tools.map(t =>
+      `<div style="margin-bottom:4px">🔧 <b>${t.name}</b><br/><span style="color:#666">${t.description}</span></div>`
+    ).join('');
+  } catch(e) {
+    document.getElementById('agentInfo').textContent = 'Agent info unavailable';
+    document.getElementById('toolboxTools').textContent = 'Could not load tools';
+  }
+}
+loadToolboxInfo();
 
 function showLoading() {
   const div = document.createElement('div');
@@ -130,7 +161,7 @@ async function sendChat() {
       const resp = await fetch('/api/edge-cloud', { method: 'POST' });
       const data = await resp.json();
       hideLoading();
-      addMsg(data.text, 'agent', { tools: data.tool_calls });
+      addMsg(data.text, 'agent', { tools: data.tool_calls, call_chain: data.call_chain, elapsed_ms: data.elapsed_ms });
     } catch(e) { hideLoading(); addMsg('Error: ' + e.message, 'system'); }
     return;
   }
@@ -153,7 +184,7 @@ async function sendChat() {
     const resp = await fetch(endpoint, { method: 'POST', body: form });
     const data = await resp.json();
     hideLoading();
-    addMsg(data.text, 'agent', { tools: data.tool_calls, image_b64: data.image_b64 });
+    addMsg(data.text, 'agent', { tools: data.tool_calls, image_b64: data.image_b64, call_chain: data.call_chain, elapsed_ms: data.elapsed_ms });
   } catch(e) { hideLoading(); addMsg('Error: ' + e.message, 'system'); }
 }
 
@@ -177,7 +208,7 @@ async function toggleRecord() {
           const data = await resp.json();
           hideLoading();
           if (data.transcript) addMsg(`🎤 "${data.transcript}"`, 'user');
-          addMsg(data.text, 'agent', { tools: data.tool_calls });
+          addMsg(data.text, 'agent', { tools: data.tool_calls, call_chain: data.call_chain, elapsed_ms: data.elapsed_ms });
         } catch(e) { hideLoading(); addMsg('Error: ' + e.message, 'system'); }
       };
       mediaRecorder.start();

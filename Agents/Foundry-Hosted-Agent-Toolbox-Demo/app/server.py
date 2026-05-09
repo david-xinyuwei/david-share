@@ -50,11 +50,14 @@ def _get_token(scope: str = "https://cognitiveservices.azure.com/.default") -> s
 
 def _ask_agent(prompt: str, timeout: float = 180.0) -> dict:
     """Call the hosted agent and parse its response into structured parts."""
+    import time as _time
+    t0 = _time.time()
     resp = httpx.post(
         f"{AGENT_URL.rstrip('/')}/responses",
         json={"input": prompt},
         timeout=timeout,
     )
+    elapsed_ms = int((_time.time() - t0) * 1000)
     resp.raise_for_status()
     payload = resp.json()
 
@@ -90,15 +93,79 @@ def _ask_agent(prompt: str, timeout: float = 180.0) -> dict:
                 except Exception:
                     pass
 
+    # Build call chain for visibility
+    chain = ["You", f"Hosted Agent ({AGENT_URL})"]
+    if any("code_interpreter" in (tc.get("name","")) for tc in tool_calls):
+        chain.append("Toolbox MCP → code_interpreter")
+    if any("file_search" in (tc.get("name","")) for tc in tool_calls):
+        chain.append("Toolbox MCP → file_search")
+    if any("web_search" == (tc.get("name","")) for tc in tool_calls):
+        chain.append("Toolbox MCP → web_search")
+    if any("direct_web_search" in (tc.get("name","")) for tc in tool_calls):
+        chain.append("direct_web_search (Responses API + Bing)")
+    if any("direct_image_generate" in (tc.get("name","")) for tc in tool_calls):
+        chain.append("direct_image_generate (gpt-image-1)")
+    chain.append("gpt-4-1-mini (final answer)")
+
     return {
         "text": text or "(no text response)",
         "tool_calls": tool_calls,
         "image_b64": image_b64,
         "status": payload.get("status", "unknown"),
+        "elapsed_ms": elapsed_ms,
+        "call_chain": chain,
+        "agent_endpoint": AGENT_URL,
+        "response_id": payload.get("id", ""),
     }
 
 
 # ---------- API routes ----------
+
+@app.get("/api/toolbox-info")
+async def toolbox_info():
+    """Return the live Toolbox tool list so the UI can show what's in the catalog."""
+    try:
+        token = _get_token("https://ai.azure.com/.default")
+        toolbox_url = f"{PROJECT_ENDPOINT.rstrip('/')}/toolboxes/agent-tools/mcp?api-version=v1"
+        # JSON-RPC tools/list
+        resp = httpx.post(
+            toolbox_url,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Foundry-Features": "Toolboxes=V1Preview",
+                "Content-Type": "application/json",
+                "Accept": "application/json, text/event-stream",
+            },
+            json={"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
+                "protocolVersion": "2024-11-05", "capabilities": {},
+                "clientInfo": {"name": "demo-app", "version": "0.1"},
+            }},
+            timeout=15.0,
+        )
+        # Now list tools
+        resp2 = httpx.post(
+            toolbox_url,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Foundry-Features": "Toolboxes=V1Preview",
+                "Content-Type": "application/json",
+                "Accept": "application/json, text/event-stream",
+            },
+            json={"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}},
+            timeout=15.0,
+        )
+        tools_data = resp2.json().get("result", {}).get("tools", [])
+        tools = [{"name": t.get("name",""), "description": (t.get("description",""))[:100]} for t in tools_data]
+    except Exception as e:
+        tools = [{"name": "error", "description": str(e)[:100]}]
+
+    return JSONResponse({
+        "toolbox_name": "agent-tools",
+        "toolbox_endpoint": f"{PROJECT_ENDPOINT.rstrip('/')}/toolboxes/agent-tools/mcp?api-version=v1",
+        "agent_endpoint": AGENT_URL,
+        "project_endpoint": PROJECT_ENDPOINT,
+        "tools": tools,
+    })
 
 @app.post("/api/chat")
 async def chat(message: str = Form(...)):
