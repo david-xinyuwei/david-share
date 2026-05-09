@@ -266,13 +266,14 @@ PASS repo check complete
 
 ```mermaid
 flowchart LR
-    User["User / App / Device"] --> HA["Hosted Agent endpoint<br/>MicroVM sandbox"]
-    HA --> Model["AI Model"]
-    HA --> TB["Toolbox<br/>one MCP endpoint<br/>= all your tools"]
+    User["User / App / Device"] --> HA["Hosted Agent<br/>MicroVM sandbox"]
+    HA --> Model["gpt-4-1-mini"]
+    HA --> TB["Toolbox MCP<br/>agent-tools"]
     TB --> CI["code_interpreter"]
-    TB --> Search["Azure AI Search"]
-    TB --> Custom["Your custom MCP tools"]
-    HA --> WS["Web Search<br/>Foundry Responses API"]
+    TB --> FS["file_search"]
+    TB --> WS_TB["web_search"]
+    HA --> DWS["direct_web_search<br/>Responses API + Bing"]
+    HA --> DIG["direct_image_generate<br/>gpt-image-1, opt-in"]
 ```
 
 Think of it this way:
@@ -311,17 +312,20 @@ For the distributed-systems mapping (API gateway, service mesh, workload identit
 
 ```mermaid
 flowchart LR
-    User["User / App / Device"] --> Responses["Hosted Agent endpoint<br/>Responses protocol"]
-    Responses --> Host["Agent host container<br/>main.py"]
-    Host --> Model["Foundry model deployment"]
-    Host --> Toolbox["Foundry Toolbox<br/>managed MCP endpoint"]
-    Toolbox --> CodeInterpreter["code_interpreter"]
-    Toolbox --> OptionalTools["Optional Azure AI Search<br/>or custom MCP tools"]
-    Host --> DirectWebSearch["direct_web_search"]
-    DirectWebSearch --> ResponsesAPI["Foundry Responses API<br/>web_search tool"]
+    User["User / App / Device"] --> Endpoint["Hosted Agent endpoint<br/>Responses protocol"]
+    Endpoint --> Host["Agent host<br/>MicroVM sandbox"]
+    Host --> Model["Foundry model"]
+    Host --> Toolbox["Foundry Toolbox MCP"]
+    Toolbox --> CI2["code_interpreter"]
+    Toolbox --> FS2["file_search"]
+    Toolbox --> WS2["web_search"]
+    Host --> DWS2["direct_web_search"]
+    DWS2 --> RAPI["Responses API web_search"]
+    Host --> DIG2["direct_image_generate"]
+    DIG2 --> IAPI["Foundry image API"]
 ```
 
-The hosted agent is your containerized code. The toolbox is a managed tool bundle in the Foundry project. Updating the toolbox default version can change the tool set without rebuilding the agent container, as long as `TOOLBOX_NAME` and tool names remain compatible.
+The hosted agent runs your code in a MicroVM sandbox. The toolbox is a managed tool bundle in the Foundry project. Updating the toolbox default version can change the tool set without rebuilding the agent, as long as `TOOLBOX_NAME` and tool names remain compatible.
 
 The direct web-search path is intentionally separate. In the current implementation, Toolbox MCP is the governed path for `code_interpreter`; direct Responses API `web_search` is the documented and verified path for public web grounding.
 

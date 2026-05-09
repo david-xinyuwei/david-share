@@ -266,13 +266,14 @@ PASS repo check complete
 
 ```mermaid
 flowchart LR
-    User["User / App / Device"] --> HA["Hosted Agent endpoint<br/>MicroVM sandbox"]
-    HA --> Model["AI Model"]
-    HA --> TB["Toolbox<br/>一个 MCP endpoint<br/>= 所有 tool"]
+    User["User / App / Device"] --> HA["Hosted Agent<br/>MicroVM sandbox"]
+    HA --> Model["gpt-4-1-mini"]
+    HA --> TB["Toolbox MCP<br/>agent-tools"]
     TB --> CI["code_interpreter"]
-    TB --> Search["Azure AI Search"]
-    TB --> Custom["你的自定义 MCP tool"]
-    HA --> WS["Web Search<br/>Foundry Responses API"]
+    TB --> FS["file_search"]
+    TB --> WS_TB["web_search"]
+    HA --> DWS["direct_web_search<br/>Responses API + Bing"]
+    HA --> DIG["direct_image_generate<br/>gpt-image-1，可选"]
 ```
 
 打个比方：
@@ -311,17 +312,20 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    User["User / App / Device"] --> Responses["Hosted Agent endpoint<br/>Responses protocol"]
-    Responses --> Host["Agent host container<br/>main.py"]
-    Host --> Model["Foundry model deployment"]
-    Host --> Toolbox["Foundry Toolbox<br/>managed MCP endpoint"]
-    Toolbox --> CodeInterpreter["code_interpreter"]
-    Toolbox --> OptionalTools["Optional Azure AI Search<br/>or custom MCP tools"]
-    Host --> DirectWebSearch["direct_web_search"]
-    DirectWebSearch --> ResponsesAPI["Foundry Responses API<br/>web_search tool"]
+    User["User / App / Device"] --> Endpoint["Hosted Agent endpoint<br/>Responses protocol"]
+    Endpoint --> Host["Agent host<br/>MicroVM sandbox"]
+    Host --> Model["Foundry model"]
+    Host --> Toolbox["Foundry Toolbox MCP"]
+    Toolbox --> CI2["code_interpreter"]
+    Toolbox --> FS2["file_search"]
+    Toolbox --> WS2["web_search"]
+    Host --> DWS2["direct_web_search"]
+    DWS2 --> RAPI["Responses API web_search"]
+    Host --> DIG2["direct_image_generate"]
+    DIG2 --> IAPI["Foundry image API"]
 ```
 
-Hosted Agent 是你自己的 containerized code。Toolbox 是 Foundry project 里的受管 tool bundle。只要 `TOOLBOX_NAME` 和工具名保持兼容，更新 toolbox default version 就能改变工具集，不需要重新 build agent container。
+Hosted Agent 在 MicroVM sandbox 中跑你的代码。Toolbox 是 Foundry project 里的受管 tool bundle。只要 `TOOLBOX_NAME` 和工具名保持兼容，更新 toolbox default version 就能改变工具集，不需要重新 build agent。
 
 Web search 路径故意和 Toolbox 分开。当前实现里，Toolbox MCP 用来承载受管 `code_interpreter`；公开网页 grounding 用 direct Responses API `web_search`，这是文档明确支持并且本 repo 已验证的路径。
 
