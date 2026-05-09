@@ -25,15 +25,15 @@ A **Toolbox** is a managed, versioned bundle of tools inside a Microsoft Foundry
 
 ```mermaid
 flowchart TB
-    subgraph FoundryProject["Foundry Project"]
-        TB_Consumer["Toolbox consumer MCP endpoint<br/>(serves default_version)"]
-        TB_V1["Version 1<br/>(code_interpreter)"]
-        TB_V2["Version 2<br/>(code_interpreter + AI Search + custom MCP)"]
-        TB_Consumer -.->|"default_version"| TB_V2
+    subgraph FP["Foundry Project"]
+        MCP["Toolbox MCP endpoint<br/>(serves default_version)"]
+        V1["v1: code_interpreter"]
+        V2["v2: code_interpreter<br/>+ AI Search + custom MCP"]
+        MCP -.->|default| V2
     end
-    Agent1["Agent A<br/>(Agent Framework)"] --> TB_Consumer
-    Agent2["Agent B<br/>(LangGraph)"] --> TB_Consumer
-    Agent3["Agent C<br/>(Copilot SDK)"] --> TB_Consumer
+    A1["Agent A<br/>Agent Framework"] --> MCP
+    A2["Agent B<br/>LangGraph"] --> MCP
+    A3["Agent C<br/>Copilot SDK"] --> MCP
 ```
 
 One toolbox, many agents, many frameworks. Agents never see individual tool endpoints — they see the catalog.
@@ -42,7 +42,7 @@ One toolbox, many agents, many frameworks. Agents never see individual tool endp
 
 ## 2. What Is Foundry Hosted Agent — and Why It Matters
 
-A **Hosted Agent** is your own containerized agent code running on Foundry Agent Service. The platform provides compute, identity, networking, observability, and a stable endpoint. You write the agent logic; the platform handles everything else.
+A **Hosted Agent** is your own agent code running on Foundry Agent Service. You package it as a container image, but the platform runs it in a **MicroVM sandbox** (not a traditional container) — each session gets its own VM-isolated environment with persistent `$HOME` and `/files`. The platform provides compute, identity, networking, observability, and a stable endpoint. You write the agent logic; the platform handles everything else.
 
 ### Hosted Agent advantages
 
@@ -50,7 +50,7 @@ A **Hosted Agent** is your own containerized agent code running on Foundry Agent
 | --- | --- |
 | **Per-agent identity** | Each agent gets its own Microsoft Entra ID at deploy time — calls to models, tools, and downstream services are identity-scoped. |
 | **Stable HTTP endpoint** | `{project}/agents/{name}/endpoint/protocols/openai/v1/responses` — callers point here; compute moves behind it. |
-| **Per-session VM-isolated sandbox** | `$HOME` and `/files` persist across turns and across idle; sessions resume with full state. |
+| **Per-session VM-isolated MicroVM** | `$HOME` and `/files` persist across turns and across idle; sessions resume with full state. Not a traditional container — kernel-level isolation. |
 | **Scale-to-zero** | 15-minute idle timeout → deprovision. Next request → resume with state. You pay only for active sessions. |
 | **Bring any framework** | Agent Framework, LangGraph, Semantic Kernel, or raw Python/C# — the container is yours. |
 | **Built-in observability** | OpenTelemetry traces auto-injected into Application Insights. |
@@ -62,18 +62,18 @@ A **Hosted Agent** is your own containerized agent code running on Foundry Agent
 
 ```mermaid
 flowchart LR
-    Caller["Caller<br/>(app / device / test)"] --> Endpoint["Hosted Agent<br/>Responses endpoint"]
-    Endpoint --> Container["Your container<br/>(main.py)"]
-    Container --> Model["Foundry model<br/>deployment"]
-    Container --> Toolbox["Toolbox MCP<br/>endpoint"]
-    Container --> DirectTools["Direct Responses API<br/>(web_search, image gen)"]
+    Caller["Caller"] --> Endpoint["Hosted Agent<br/>Responses endpoint"]
+    Endpoint --> Sandbox["Your code in<br/>MicroVM sandbox"]
+    Sandbox --> Model["Foundry model"]
+    Sandbox --> Toolbox["Toolbox MCP"]
+    Sandbox --> Direct["Direct API tools<br/>web search / image"]
     subgraph Platform["Platform manages"]
-        Identity["Per-agent Entra ID"]
-        Sandbox["VM-isolated sandbox"]
-        OTel["OpenTelemetry → App Insights"]
-        Scaling["Scale-to-zero / resume"]
+        ID["Per-agent Entra ID"]
+        VM["VM-isolated sandbox"]
+        OT["OpenTelemetry"]
+        SC["Scale-to-zero"]
     end
-    Container ~~~ Platform
+    Sandbox ~~~ Platform
 ```
 
 ---
@@ -109,12 +109,12 @@ Our hosted agent container (`main.py`) includes:
 
 ```mermaid
 flowchart LR
-    User["User / App / Device"] --> HostedAgent["Hosted Agent<br/>main.py on :8088"]
-    HostedAgent --> GPT["gpt-4-1-mini<br/>(planning + final answer)"]
-    HostedAgent --> ToolboxMCP["Toolbox MCP endpoint<br/>(agent-tools)"]
-    ToolboxMCP --> CI["code_interpreter<br/>(Python sandbox)"]
-    HostedAgent --> WebSearch["direct_web_search<br/>(Responses API + Bing)"]
-    HostedAgent --> ImageGen["direct_image_generate<br/>(gpt-image-1, opt-in)"]
+    User["User / App / Device"] --> HA["Hosted Agent<br/>main.py on :8088"]
+    HA --> GPT["gpt-4-1-mini"]
+    HA --> TB["Toolbox MCP<br/>agent-tools"]
+    TB --> CI["code_interpreter"]
+    HA --> WS["direct_web_search<br/>Responses API + Bing"]
+    HA --> IG["direct_image_generate<br/>gpt-image-1, opt-in"]
 ```
 
 ---
@@ -181,13 +181,13 @@ PASS repo check complete
 
 ```mermaid
 flowchart LR
-    User["User / App / Device"] --> Responses["Hosted Agent endpoint<br/>(your container)"]
-    Responses --> Model["AI Model"]
-    Responses --> Toolbox["Toolbox<br/>(one MCP endpoint<br/>= all your tools)"]
-    Toolbox --> CI["code_interpreter"]
-    Toolbox --> Search["Azure AI Search"]
-    Toolbox --> Custom["Your custom MCP tools"]
-    Responses --> WebSearch["Web Search<br/>(Foundry Responses API)"]
+    User["User / App / Device"] --> HA["Hosted Agent endpoint<br/>MicroVM sandbox"]
+    HA --> Model["AI Model"]
+    HA --> TB["Toolbox<br/>one MCP endpoint<br/>= all your tools"]
+    TB --> CI["code_interpreter"]
+    TB --> Search["Azure AI Search"]
+    TB --> Custom["Your custom MCP tools"]
+    HA --> WS["Web Search<br/>Foundry Responses API"]
 ```
 
 Think of it this way:
@@ -195,7 +195,7 @@ Think of it this way:
 | Everyday analogy | Maps to |
 | --- | --- |
 | Your phone's **App Store** | **Toolbox** — a catalog of tools the agent can discover and call. You update the catalog; apps (agents) pick up the new tools automatically. |
-| The **app** on your phone | **Hosted Agent** — your code, running in a managed sandbox, with its own identity and a stable address. |
+| The **app** on your phone | **Hosted Agent** — your code, running in a managed MicroVM sandbox, with its own identity and a stable address. |
 | The **App Store updating an app without you doing anything** | Promoting a new `default_version` of the Toolbox — agents see new tools on their next call, no redeployment. |
 
 For the distributed-systems mapping (API gateway, service mesh, workload identity), see the [Mental Model](#mental-model-for-distributed-systems-engineers) section below.

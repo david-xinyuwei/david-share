@@ -25,15 +25,15 @@
 
 ```mermaid
 flowchart TB
-    subgraph FoundryProject["Foundry Project"]
-        TB_Consumer["Toolbox consumer MCP endpoint<br/>（serve default_version）"]
-        TB_V1["Version 1<br/>(code_interpreter)"]
-        TB_V2["Version 2<br/>(code_interpreter + AI Search + custom MCP)"]
-        TB_Consumer -.->|"default_version"| TB_V2
+    subgraph FP["Foundry Project"]
+        MCP["Toolbox MCP endpoint<br/>（serve default_version）"]
+        V1["v1: code_interpreter"]
+        V2["v2: code_interpreter<br/>+ AI Search + custom MCP"]
+        MCP -.->|default| V2
     end
-    Agent1["Agent A<br/>（Agent Framework）"] --> TB_Consumer
-    Agent2["Agent B<br/>（LangGraph）"] --> TB_Consumer
-    Agent3["Agent C<br/>（Copilot SDK）"] --> TB_Consumer
+    A1["Agent A<br/>Agent Framework"] --> MCP
+    A2["Agent B<br/>LangGraph"] --> MCP
+    A3["Agent C<br/>Copilot SDK"] --> MCP
 ```
 
 一个 toolbox，多个 agent，多个 framework。Agent 永远不看单个 tool endpoint——它们看的是 catalog。
@@ -42,7 +42,7 @@ flowchart TB
 
 ## 2. Foundry Hosted Agent 是什么、有什么优势
 
-**Hosted Agent** 是你自己的容器化 agent 代码跑在 Foundry Agent Service 上。平台提供计算、身份、网络、可观测性和稳定 endpoint。你写 agent 逻辑，平台管其他一切。
+**Hosted Agent** 是你自己的 agent 代码跑在 Foundry Agent Service 上。你把代码打成 container image，但平台跑它用的是 **MicroVM sandbox**（不是传统容器）—— 每个 session 有自己的 VM 级隔离环境，`$HOME` 和 `/files` 持久化。平台提供计算、身份、网络、可观测性和稳定 endpoint。你写 agent 逻辑，平台管其他一切。
 
 ### Hosted Agent 优势
 
@@ -50,7 +50,7 @@ flowchart TB
 | --- | --- |
 | **Per-agent identity** | 每个 agent 部署时自动获得一个 Microsoft Entra ID——调 model、tool、下游服务都是 identity-scoped。 |
 | **稳定 HTTP endpoint** | `{project}/agents/{name}/endpoint/protocols/openai/v1/responses`——caller 指这里，计算在后面漂移。 |
-| **Per-session VM-isolated sandbox** | `$HOME` 和 `/files` 跨 turn 和 idle 持久化；session resume 带完整状态。 |
+| **Per-session VM-isolated MicroVM** | `$HOME` 和 `/files` 跨 turn 和 idle 持久化；session resume 带完整状态。不是传统容器 —— kernel 级隔离。 |
 | **Scale-to-zero** | 15 分钟 idle → 回收。下一个请求 → 带状态 resume。只为 active session 付费。 |
 | **任何框架** | Agent Framework、LangGraph、Semantic Kernel，或裸 Python/C#——容器是你的。 |
 | **内置可观测性** | OpenTelemetry trace 自动注入到 Application Insights。 |
@@ -62,18 +62,18 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-    Caller["Caller<br/>（app / device / test）"] --> Endpoint["Hosted Agent<br/>Responses endpoint"]
-    Endpoint --> Container["你的容器<br/>（main.py）"]
-    Container --> Model["Foundry model<br/>deployment"]
-    Container --> Toolbox["Toolbox MCP<br/>endpoint"]
-    Container --> DirectTools["Direct Responses API<br/>（web_search / image gen）"]
+    Caller["Caller"] --> Endpoint["Hosted Agent<br/>Responses endpoint"]
+    Endpoint --> Sandbox["你的代码在<br/>MicroVM sandbox"]
+    Sandbox --> Model["Foundry model"]
+    Sandbox --> Toolbox["Toolbox MCP"]
+    Sandbox --> Direct["Direct API tools<br/>web search / image"]
     subgraph Platform["平台管理的"]
-        Identity["Per-agent Entra ID"]
-        Sandbox["VM-isolated sandbox"]
-        OTel["OpenTelemetry → App Insights"]
-        Scaling["Scale-to-zero / resume"]
+        ID["Per-agent Entra ID"]
+        VM["VM-isolated sandbox"]
+        OT["OpenTelemetry"]
+        SC["Scale-to-zero"]
     end
-    Container ~~~ Platform
+    Sandbox ~~~ Platform
 ```
 
 ---
@@ -109,12 +109,12 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    User["User / App / Device"] --> HostedAgent["Hosted Agent<br/>main.py on :8088"]
-    HostedAgent --> GPT["gpt-4-1-mini<br/>（规划 + 最终回答）"]
-    HostedAgent --> ToolboxMCP["Toolbox MCP endpoint<br/>（agent-tools）"]
-    ToolboxMCP --> CI["code_interpreter<br/>（Python sandbox）"]
-    HostedAgent --> WebSearch["direct_web_search<br/>（Responses API + Bing）"]
-    HostedAgent --> ImageGen["direct_image_generate<br/>（gpt-image-1，可选）"]
+    User["User / App / Device"] --> HA["Hosted Agent<br/>main.py on :8088"]
+    HA --> GPT["gpt-4-1-mini"]
+    HA --> TB["Toolbox MCP<br/>agent-tools"]
+    TB --> CI["code_interpreter"]
+    HA --> WS["direct_web_search<br/>Responses API + Bing"]
+    HA --> IG["direct_image_generate<br/>gpt-image-1，可选"]
 ```
 
 ---
@@ -181,13 +181,13 @@ PASS repo check complete
 
 ```mermaid
 flowchart LR
-    User["User / App / Device"] --> Responses["Hosted Agent endpoint<br/>（你的容器）"]
-    Responses --> Model["AI Model"]
-    Responses --> Toolbox["Toolbox<br/>（一个 MCP endpoint<br/>= 所有 tool）"]
-    Toolbox --> CI["code_interpreter"]
-    Toolbox --> Search["Azure AI Search"]
-    Toolbox --> Custom["你的自定义 MCP tool"]
-    Responses --> WebSearch["Web Search<br/>（Foundry Responses API）"]
+    User["User / App / Device"] --> HA["Hosted Agent endpoint<br/>MicroVM sandbox"]
+    HA --> Model["AI Model"]
+    HA --> TB["Toolbox<br/>一个 MCP endpoint<br/>= 所有 tool"]
+    TB --> CI["code_interpreter"]
+    TB --> Search["Azure AI Search"]
+    TB --> Custom["你的自定义 MCP tool"]
+    HA --> WS["Web Search<br/>Foundry Responses API"]
 ```
 
 打个比方：
@@ -195,7 +195,7 @@ flowchart LR
 | 日常类比 | 映射到 |
 | --- | --- |
 | 你手机上的 **App Store** | **Toolbox** —— tool 的目录，agent 能发现和调用。你更新目录，app（agent）自动拿到新 tool。 |
-| 手机上的那个 **app** | **Hosted Agent** —— 你的代码，跑在受管沙箱里，有自己的 identity 和稳定地址。 |
+| 手机上的那个 **app** | **Hosted Agent** —— 你的代码，跑在受管 MicroVM sandbox 里，有自己的 identity 和稳定地址。 |
 | **App Store 自动更新 app 而你什么都不用做** | Promote Toolbox 新 `default_version` —— agent 下次调用就看到新 tool，不需要重部署。 |
 
 分布式系统工程师的映射（API gateway / service mesh / workload identity）见下方 [心智模型](#心智模型面向分布式系统工程师) 章节。
