@@ -214,7 +214,7 @@ So when this article says "OPD compares probability distributions," it's the sam
 
 $$\text{KL}(P_{student} \| P_{teacher}) = \sum_{i=1}^{|V|} P_{student}(i) \log \frac{P_{student}(i)}{P_{teacher}(i)}$$
 
-This formula takes two probability vectors (each `|V|` entries long, where `|V|` is vocab size, e.g. 152K for DeepSeek-V4) and returns one scalar:
+This formula takes two probability vectors (each `|V|` entries long, where `|V|` is the vocab size of student and teacher — they must match) and returns one scalar:
 
 | Two distributions are... | KL value |
 |--------------------------|----------|
@@ -239,7 +239,7 @@ Distillation loss (uses full distribution, dense signal):
   P_student   = [0.10, 0.70, 0.05, 0.02, 0.05, 0.08, ...]  ← student output
   P_teacher   = [0.05, 0.85, 0.03, 0.02, 0.04, 0.01, ...]  ← teacher output
   loss = KL(P_s ‖ P_t) = 0.13
-  ↑ Sees all 152K positions; learns the full ranking, not just the winner
+  ↑ Sees all `|V|` positions; learns the full ranking, not just the winner
 ```
 
 This is also why the loss numbers reported in the experiments later in this document — `{'loss': '2.581'}`, `{'loss': '1.644'}` and so on — are KL divergence values. **A falling loss in OPD literally means "the student's distribution is converging toward the teacher's distribution."**
@@ -248,7 +248,7 @@ This is also why the loss numbers reported in the experiments later in this docu
 
 | Dimension | SFT (one-hot) | Distillation (full distribution) |
 |-----------|---------------|----------------------------------|
-| Information per token | ~1 bit ("right or wrong") | ~log₂(152K) ≈ 17 bits (full ranking) |
+| Information per token | ~1 bit ("right or wrong") | ~log₂(`|V|`) bits (full ranking, ~17 bits for 152K vocab) |
 | What student learns | "Output X" | "X best, Y second-best, Z definitely-not, ..." |
 | Sample efficiency | Baseline | 5-10× faster (Hinton 2015 result) |
 | Preserves teacher's "personality" | No | Yes (multiple acceptable answers all kept) |
@@ -605,6 +605,32 @@ This is why OPD specifically uses reverse KL — not because it captures more in
 </div>
 
 DeepSeek-V4 distills from **10+ teachers** simultaneously. The naive implementation has two showstopper problems:
+
+### A note on vocabulary size — every model is different
+
+Before going into the storage explosion, a brief reality check: **vocabulary size varies wildly across models**. There is no universal "152K." The choice depends on multilingual coverage, compression ratio, and GPU alignment. Common values:
+
+| Model family | Vocab size |
+|--------------|-----------:|
+| LLaMA-1 / LLaMA-2 | 32,000 |
+| Mistral / Mixtral | 32,000-32,768 |
+| GPT-2 / GPT-3 / GPT-3.5 | 50,257 |
+| GPT-4 | ~100,277 |
+| GPT-4o | ~200,019 |
+| **DeepSeek-V2 / V3 / V4** | **~102,400** (own tokenizer) |
+| DeepSeek-R1 | 128,000 |
+| LLaMA-3 / 3.1 / 3.2 | 128,256 |
+| **Qwen2 / Qwen2.5 / Qwen3 (1.5B variants)** | **151,936** |
+| **Qwen2 / Qwen2.5 / Qwen3 (7B+ variants)** | **152,064** ← (1.5B and 7B differ by 128 padding rows!) |
+| Gemma-1 / Gemma-2 | 256,000 |
+| Gemma-3 | 262,144 |
+
+A few takeaways:
+
+- **DeepSeek-V4 itself uses ~102K vocab**, not 152K. The numbers throughout this document referring to "152K" are about Qwen-based models, which is what our experiments later in this document use.
+- **Same family, different sizes can have different vocabs.** Qwen2.5-Math-1.5B = 151,936; Qwen2.5-Math-7B = 152,064. The 128-row gap is GPU alignment padding. This bit us in Run 7 onwards (see Appendix) — we had to slice the teacher's `lm_head` from [152064, 3584] to [151936, 3584] to make GKDTrainer happy.
+- **Larger vocab is not strictly better.** It improves multilingual coverage and reduces token count per sentence, but inflates the embedding/`lm_head` matrix. DeepSeek's smaller 102K vocab is offset by their tokenizer being highly optimized for code+math+Chinese mix.
+- **For OPD, what matters is**: student and teacher vocab sizes **must match exactly**, otherwise the KL divergence cannot be computed. Mismatched models require slicing or projecting the larger one down.
 
 ### Problem 1 — Logit storage explodes
 
