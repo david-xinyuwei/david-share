@@ -196,6 +196,71 @@ Notice: the student is being scored on **its own decomposition strategy** ("12 �
 
 ---
 
+### "Loss" and "comparing probabilities" are the same thing
+
+A common confusion when reading distillation papers: *"Are we computing a loss, or are we comparing probabilities?"* The answer is **both, simultaneously** — the loss function *is* the probability comparison.
+
+Every neural network training procedure needs one scalar number that says "how wrong are we right now?" That number is called the **loss**. Different training methods use different loss functions, but they all output one scalar.
+
+| Training type | What the loss function measures |
+|---------------|--------------------------------|
+| **SFT** (supervised fine-tuning) | Cross-entropy: did the predicted token match the correct token? |
+| **Distillation** | KL divergence: how close is the student's probability distribution to the teacher's? |
+| **RLHF / GRPO** | Reward gap: did this response score higher than alternatives? |
+
+So when this article says "OPD compares probability distributions," it's the same thing as saying "OPD uses KL divergence as its loss function." There is no choice between the two — comparing probability distributions *via the KL formula* **is** the loss.
+
+#### What the KL loss actually computes
+
+$$\text{KL}(P_{student} \| P_{teacher}) = \sum_{i=1}^{|V|} P_{student}(i) \log \frac{P_{student}(i)}{P_{teacher}(i)}$$
+
+This formula takes two probability vectors (each `|V|` entries long, where `|V|` is vocab size, e.g. 152K for DeepSeek-V4) and returns one scalar:
+
+| Two distributions are... | KL value |
+|--------------------------|----------|
+| Identical | 0 |
+| Slightly different | small positive number |
+| Very different | large positive number |
+
+**Training = backpropagating to reduce this scalar**. Every gradient step nudges the student's distribution closer to the teacher's.
+
+#### Side-by-side: SFT loss vs distillation loss
+
+For the same input prompt and the same vocabulary position:
+
+```
+SFT loss (uses one-hot label, sparse signal):
+  P_student   = [0.10, 0.70, 0.05, 0.02, 0.05, 0.08, ...]  ← student output
+  target      = [   0,    1,    0,    0,    0,    0, ...]  ← only token 1 is "correct"
+  loss = −log(0.70) = 0.36
+  ↑ Only sees one position; learns "must output token 1"
+
+Distillation loss (uses full distribution, dense signal):
+  P_student   = [0.10, 0.70, 0.05, 0.02, 0.05, 0.08, ...]  ← student output
+  P_teacher   = [0.05, 0.85, 0.03, 0.02, 0.04, 0.01, ...]  ← teacher output
+  loss = KL(P_s ‖ P_t) = 0.13
+  ↑ Sees all 152K positions; learns the full ranking, not just the winner
+```
+
+This is also why the loss numbers reported in the experiments later in this document — `{'loss': '2.581'}`, `{'loss': '1.644'}` and so on — are KL divergence values. **A falling loss in OPD literally means "the student's distribution is converging toward the teacher's distribution."**
+
+#### Why dense signal is the entire point
+
+| Dimension | SFT (one-hot) | Distillation (full distribution) |
+|-----------|---------------|----------------------------------|
+| Information per token | ~1 bit ("right or wrong") | ~log₂(152K) ≈ 17 bits (full ranking) |
+| What student learns | "Output X" | "X best, Y second-best, Z definitely-not, ..." |
+| Sample efficiency | Baseline | 5-10× faster (Hinton 2015 result) |
+| Preserves teacher's "personality" | No | Yes (multiple acceptable answers all kept) |
+
+#### Caveat: low loss ≠ high accuracy
+
+Driving the KL loss to a low number guarantees that the student's distribution looks like the teacher's distribution **on the trained tokens**. It does **not** automatically guarantee end-task improvement. The 9 experiments documented in the Appendix prove this — several runs achieved loss values of 0.5 or even 1.6 on cross-domain training, yet end-task accuracy moved less than 1 percentage point. The loss is necessary but not sufficient.
+
+The thunlp/OPD paper's two failure conditions explain why: even if the student exactly matches the teacher's output distribution, that only helps if (i) the student and teacher have compatible thinking patterns, and (ii) the teacher actually has new capabilities the student hadn't seen during pre-training. If both fail, KL → 0 changes nothing measurable downstream.
+
+---
+
 ## OPD vs MoE: Two Different "Experts"
 
 V4 is **both a MoE architecture and a recipient of OPD post-training**. These are completely separate concepts that happen to share the word "expert" — a frequent source of confusion. Disambiguating:
