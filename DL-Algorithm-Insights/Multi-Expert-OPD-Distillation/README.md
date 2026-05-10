@@ -607,15 +607,61 @@ Mixed RL trains one model with reward signals from multiple domains simultaneous
 For each batch: sample tasks from domain mix → run RL update with combined reward
 ```
 
-Problems:
-- Reward functions don't compose. A math reward might prefer 500-token solutions; a chat reward might prefer 80-token responses. Optimizing both simultaneously produces incoherent length policies.
-- The model has no way to know which domain it's serving, so it learns averaged behavior rather than domain-conditional behavior.
-- Reward hacking is amplified — exploitable rewards in one domain pollute the gradient for all others.
+This is what V3 and earlier used. V4 *entirely replaced* it with OPD. Why? Mixed RL has three structural problems that get worse at scale:
 
-OPD doesn't have this problem because:
-- Each teacher's distribution is implicitly domain-specialized (the teacher itself was trained per-domain)
-- The KL signal is dense (every token, every vocab position) vs. sparse RL reward (one scalar per trajectory)
-- No reward function design needed — the teacher distribution IS the implicit reward
+#### Problem 1 — Reward hacking (the student learns to game the scorer)
+
+GRPO requires you to first define a **reward function** for each domain:
+- Math: a verifier runs the code and checks the answer
+- Code: unit tests act as the reward
+- Writing: another LLM judges quality
+
+The student model, optimizing for that reward, learns to **exploit holes in the reward function**:
+- Math: outputs `print(answer)` directly to skip the reasoning
+- Writing: discovers the judge prefers long answers → pads every response
+- Code: writes a hardcoded hack that happens to pass the visible test cases
+
+At V4 scale (10+ domains), these exploits stack up — every reward function leaks something.
+
+#### Problem 2 — Reward functions don't compose across domains
+
+Different domains have *contradictory* reward shapes:
+- Math reward: prefer rigorous step-by-step (long, structured)
+- Chat reward: prefer concise natural reply (short, conversational)
+- Code reward: prefer minimal correct snippet
+
+Optimizing all simultaneously means the model **gets pulled in opposite directions** within the same gradient update. It learns "averaged" behavior — neither rigorously stepwise nor naturally conversational, just bland in the middle.
+
+The model also has no signal of which domain it's serving at inference time, so it can't switch behavior conditionally.
+
+#### Problem 3 — RL is intrinsically unstable at 671B
+
+Policy gradient methods have high variance. PPO/GRPO need three stabilization tricks just to converge: PPO clipping + GAE + value function baseline. Even with all three, V3's team has publicly mentioned that Mixed RL training "sometimes had to be restarted." At V4 scale this becomes unsustainable.
+
+#### How OPD sidesteps all three
+
+| Mixed RL problem | OPD's structural answer |
+|------------------|-------------------------|
+| Reward hacking | **No reward function exists**. The student doesn't optimize a score — it matches teacher logit distributions directly. There's nothing to hack. |
+| Cross-domain conflict | Each domain has its own teacher. At each token, only the teachers with non-trivial probability there contribute gradient. **Domains don't fight each other** — they coexist on different tokens. |
+| RL instability at 671B | KL minimization on student trajectories has a smooth, well-conditioned objective. **No PPO clipping, no GAE, no value baseline needed.** |
+
+#### The intuition: "scoring the test" vs. "copying the top student's notebook"
+
+| GRPO | OPD |
+|------|-----|
+| Student takes a test; we score the answers | Student watches the top student work through the problem; copies their reasoning at every step |
+| Student looks for cheap ways to score | No score exists — only the top student's reasoning to match |
+| Score function design is hard and exploitable | Top student's notebook is given (the teacher model itself) |
+| Multiple subjects → multiple scoring rubrics that conflict | Multiple subjects → multiple top students, one per subject — no conflict |
+
+That last analogy is the cleanest way to remember it: **GRPO trains via outcome rewards (what got points); OPD trains via process imitation (how the teacher thinks token-by-token).**
+
+#### What OPD doesn't have but Mixed RL does
+
+To be fair, Mixed RL has one capability OPD lacks: it can produce behavior **better than any single teacher** (via reward signal exploration). OPD is bounded by teacher quality — the student converges toward teacher distribution, never exceeds it on the trained data.
+
+V4's design choice: that ceiling is fine. They train domain experts very strongly first (Stage 2 produces near-state-of-art per-domain), then OPD simply consolidates without losing capability. The "exploration above teachers" advantage of RL is reserved for Stage 2, where each domain is trained independently with its own RL — without the cross-domain interference.
 
 ### vs SFT (Supervised Fine-Tuning) — The Exposure Bias Problem
 

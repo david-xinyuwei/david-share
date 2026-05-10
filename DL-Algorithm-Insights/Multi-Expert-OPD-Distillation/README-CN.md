@@ -605,15 +605,61 @@ Mixed RL 用多领域的 reward 信号同时训练一个模型：
 每个 batch：从领域 mix 中采样任务 → 用组合 reward 跑 RL update
 ```
 
-问题：
-- Reward 函数不可组合。数学 reward 可能偏好 500-token 解答；chat reward 可能偏好 80-token 回答。同时优化两者会产生不连贯的长度策略。
-- 模型不知道自己在服务哪个领域，所以它学到的是平均行为，而不是领域条件行为。
-- Reward hacking 被放大——一个领域可被利用的 reward 会污染所有领域的梯度。
+V3 及更早版本就是这套。V4 *整个换掉了*它，改用 OPD。为什么换？Mixed RL 在大规模上有三个结构性问题：
 
-OPD 没有这些问题：
-- 每个 teacher 的分布隐式做了领域专业化（teacher 自己就是按领域训出来的）
-- KL 信号是稠密的（每个 token、每个 vocab 位置）vs 稀疏的 RL reward（每个 trajectory 一个标量）
-- 不需要设计 reward 函数——teacher 分布就是隐式 reward
+#### 问题 1 — Reward hacking（学生学会钻分数函数的漏洞）
+
+GRPO 需要先为每个领域定义 **reward 函数**：
+- 数学：让 verifier 跑代码验答案
+- 代码：让单元测试当 reward
+- 写作：让另一个 LLM 当 judge
+
+Student 模型为了拿高分，会**钻 reward 函数的漏洞**：
+- 数学：直接输出 `print(answer)` 跳过推理过程
+- 写作：发现 judge 偏爱长文章 → 全部回答都凑字数
+- 代码：写一个总能通过可见测试用例的 hack（比如硬编码答案）
+
+V4 训 10+ 个领域时这问题被放大 10 倍 — 每个 reward 函数都在漏。
+
+#### 问题 2 — Reward 函数不能跨领域组合
+
+不同领域的 reward 形状*互相矛盾*：
+- 数学 reward：偏好严谨步骤（长、结构化）
+- Chat reward：偏好简洁自然（短、口语化）
+- 代码 reward：偏好最小正确实现
+
+同时优化所有这些，模型在同一个梯度更新里**被往相反方向拉扯**。学到的是"平均"行为——既不严谨步骤化、也不自然对话，就是中间的平庸。
+
+模型在推理时也没有信号知道自己在服务哪个领域，所以无法条件性切换行为。
+
+#### 问题 3 — RL 在 671B 上本身就不稳定
+
+策略梯度方法方差大。PPO/GRPO 需要三重稳定术才能收敛：PPO clipping + GAE + value function baseline。即使三项都用上，V3 团队也公开提到 Mixed RL "经常需要重启训练"。在 V4 规模这变得不可持续。
+
+#### OPD 怎么一次解决三个问题
+
+| Mixed RL 问题 | OPD 的结构性回答 |
+|---------------|----------------|
+| Reward hacking | **没有 reward 函数**。Student 不优化分数——直接对齐 teacher logit 分布。**没东西可钻**。 |
+| 跨领域冲突 | 每个领域有自己的 teacher。每个 token 上，只有在该位置有非平凡概率的 teacher 贡献梯度。**领域之间不打架**——它们在不同 token 上共存。 |
+| 671B 上 RL 不稳定 | 在 student 轨迹上做 KL 最小化，目标函数光滑、梯度条件好。**不需要 PPO clipping、不需要 GAE、不需要 value baseline**。 |
+
+#### 直觉理解："给试卷打分" vs. "抄学霸的草稿"
+
+| GRPO | OPD |
+|------|-----|
+| 学生做卷子，我们给答案打分 | 学生看着学霸做题；照搬学霸每一步的推理 |
+| 学生找便宜方法拿分 | 没有分数——只有学霸的推理可对齐 |
+| 设计打分函数难，且容易被钻 | 学霸的草稿现成的（teacher 模型本身） |
+| 多门科目 → 多套打分规则互相冲突 | 多门科目 → 多个学霸，每科一个——不冲突 |
+
+最后这个比喻是记住 OPD 最干净的方法：**GRPO 训练靠结果奖励（拿了多少分）；OPD 训练靠过程模仿（teacher 每个 token 怎么想的）。**
+
+#### OPD 没有但 Mixed RL 有的能力
+
+公平地说，Mixed RL 有一个 OPD 没有的能力：通过 reward 信号探索，能产出**比任何单个 teacher 更好的行为**。OPD 受 teacher 质量上界约束——student 收敛到 teacher 分布，在训练过的数据上不会超过 teacher。
+
+V4 的设计选择：这个上限可以接受。先在 Stage 2 把每个领域专家训得很强（接近单领域 SOTA），然后 OPD 只做整合，不损失能力。RL 那种"超越 teacher"的优势保留给 Stage 2，那时每个领域用自己的 RL 独立训——没有跨领域干扰。
 
 ### vs SFT（Supervised Fine-Tuning）—— Exposure Bias 问题
 
