@@ -41,13 +41,6 @@
 <br/><em>来源：<a href="https://devblogs.microsoft.com/foundry/introducing-toolboxes-in-foundry/">Introducing Toolboxes in Foundry</a>（Microsoft Foundry Blog）</em>
 </div>
 
-### Toolbox 架构图
-
-<div align="center">
-<img src="https://learn.microsoft.com/en-us/azure/foundry/agents/media/tools/toolbox/toolbox-architecture.png" width="720">
-<br/><em>来源：<a href="https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/tools/toolbox">Curate intent-based toolbox in Foundry</a>（Microsoft Learn）</em>
-</div>
-
 ---
 
 ## 2. Foundry Hosted Agent 是什么、有什么优势
