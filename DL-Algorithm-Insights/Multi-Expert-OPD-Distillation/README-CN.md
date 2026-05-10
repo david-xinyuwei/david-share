@@ -24,6 +24,50 @@ DeepSeek 通过从 base 模型分支并跑领域 RL，训出了 10+ 个领域专
 
 ---
 
+## 30 秒看懂：OPD 在 DeepSeek-V4 中的位置
+
+在数学之前、工程之前——**这一张图**就是你需要的全局视角，搞懂 OPD 为什么存在。
+
+```mermaid
+flowchart TB
+    A["<b>Stage 1 · 预训练</b><br/>万亿 tokens 互联网文本<br/>→ DeepSeek-V4-Base"]
+    B["<b>Stage 2 · 分支 + 专精</b><br/>把 V4-Base 复制 10+ 份<br/>每份在领域语料上独立做 SFT + RL"]
+    M["数学"]
+    C["代码"]
+    W["写作"]
+    AG["Agent"]
+    R["推理"]
+    D["... 10+ 个专家"]
+    P["⚠️ 部署难题<br/>10 个独立模型 = 10× 推理成本"]
+    O["<b>Stage 3 · ⭐ OPD —— 整合环节</b><br/>每个专家当 teacher<br/>一个 student 在自己的轨迹上做 reverse-KL 蒸馏<br/>对齐到所有专家在对应 token 的 logits"]
+    F["<b>DeepSeek-V4-Final</b><br/>单一模型，10+ 项能力<br/>可投产"]
+
+    A --> B
+    B --> M & C & W & AG & R & D
+    M & C & W & AG & R & D --> P
+    P --> O
+    O --> F
+
+    style O fill:#fff4e6,stroke:#ea580c,stroke-width:2.5px
+    style F fill:#dcfce7,stroke:#16a34a,stroke-width:2px
+    style P fill:#fef2f2,stroke:#dc2626,stroke-width:1.5px
+```
+
+### 为什么这个图很重要
+
+DeepSeek-V3 及更早版本用 **Mixed RL**（多任务 PPO/GRPO）做 Stage 3。V4 抛弃了它。论文原话：
+
+> *"the mixed Reinforcement Learning (RL) stage was entirely replaced by On-Policy Distillation (OPD)."*
+> —— DeepSeek-V4 Technical Report, Section 5.1
+
+本文剩下的部分会解释这次替换的*是什么*、*为什么*、*怎么做*——并在真实硬件上端到端验证整个机制。
+
+### 一句话总结
+
+> **OPD 是 DeepSeek-V4 的"专家融合术"：把 10+ 个分头训练的领域专家压缩回一个统一模型，替代了 V3 用的不稳定 Mixed RL。**
+
+---
+
 ## 背景：多专家融合问题
 
 现代 LLM 需要在多个领域都能干活——数学、代码、写作、Agent 工具调用、多语言翻译。标准做法是：
@@ -986,56 +1030,13 @@ GKD 其他配置对应其他蒸馏方法：
 
 ---
 
-## OPD 在 V4 系列中的位置
+## OPD 在 V4 创新集中的位置
 
-### DeepSeek-V4 完整训练流水线
-
-OPD 不是孤立的技巧——它在 DeepSeek-V4 端到端训练流水线中占据特定环节。理解*它在哪一环*，才能理解*V4 团队为什么用它*。
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│ Stage 1: 预训练                                              │
-│   • 万亿 tokens 互联网文本                                    │
-│   • 学语言、世界知识、基础推理                                 │
-│   产出：DeepSeek-V4-Base                                     │
-└─────────────────────────────────────────────────────────────┘
-                            ↓
-┌─────────────────────────────────────────────────────────────┐
-│ Stage 2: 分支 + 专精                                         │
-│   把 V4-Base 复制 10+ 份，每份在领域专属语料上独立做 SFT + RL │
-│                                                              │
-│   ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐    │
-│   │ 数学   │ │ 代码   │ │ 写作   │ │ Agent  │ │ 推理   │ ...10+│
-│   │ 专家   │ │ 专家   │ │ 专家   │ │ 专家   │ │ 专家   │    │
-│   └────────┘ └────────┘ └────────┘ └────────┘ └────────┘    │
-│                                                              │
-│   ⚠️ 部署难题：用户提一个问题，调哪个专家？                    │
-│      路由 10 个独立模型 = 10× 推理成本 — 生产环境不可接受     │
-└─────────────────────────────────────────────────────────────┘
-                            ↓
-┌─────────────────────────────────────────────────────────────┐
-│ Stage 3: ⭐ OPD — 整合环节                                   │
-│   把 10+ 个专家融合回一个统一模型。                            │
-│                                                              │
-│   方法：每个专家当 teacher；一个 student（通常是 V4-Base）    │
-│         在 student 自己的轨迹上做 reverse-KL 蒸馏，对齐到     │
-│         所有专家在对应 token 的 logits。                      │
-│                                                              │
-│   产出：DeepSeek-V4-Final — 单一模型，10+ 项能力              │
-└─────────────────────────────────────────────────────────────┘
-                            ↓
-                       生产部署
-                  （单模型 = 10× 省推理成本）
-```
+[开篇的图](#30-秒看懂opd-在-deepseek-v4-中的位置)展示了 OPD 在 V4 训练流水线*哪一环*。本节再放大一层：OPD 与 V4 其他创新的关系，以及为什么没有它们能取代 OPD。
 
 ### 为什么是 OPD（而不是其他融合方法）
 
-DeepSeek-V3 及更早版本用的是 **Mixed RL**（多任务 PPO/GRPO）做这一整合环节。V4 抛弃了它。V4 论文原文：
-
-> *"the mixed Reinforcement Learning (RL) stage was entirely replaced by On-Policy Distillation (OPD)."*
-> —— DeepSeek-V4 Technical Report, Section 5.1
-
-为什么换？Mixed RL 在这个规模有三个结构性问题：
+Mixed RL 在这个规模有三个结构性问题，OPD 一一绕过：
 
 | Mixed RL 问题 | OPD 的解法 |
 |---------------|-----------|
@@ -1056,11 +1057,7 @@ DeepSeek-V4 是一组协调的创新。OPD 在其中扮演特定角色：
 | **On-Policy Distillation（本文）** | **把 10+ 个专家融合成单一生产模型** | V4 论文 Section 5.1 |
 | Quick Instruction（KV cache 复用做辅助任务） | 减少 chatbot 场景的 TTFT | V4 论文 Section 5.1.1 |
 
-**OPD 是 post-training 的收官之作**——把所有在新架构（CSA、mHC、Muon、FP4）上训出的领域专家整合成最终上线模型。没有 OPD，V4 要么上线 10+ 个独立模型（10× 推理成本），要么回退到 Mixed RL（V3 用过的不稳定方案）。
-
-### 一句话总结
-
-> **OPD 是 DeepSeek-V4 的"专家融合术"：把 10+ 个分头训练的领域专家压缩回一个统一模型，替代了 V3 及以前用的不稳定 Mixed RL。**
+**OPD 是 post-training 的收官之作**——把所有在新架构（CSA、mHC、Muon、FP4）上训出的领域专家整合成最终上线模型。没有 OPD，V4 要么上线 10+ 个独立模型（10× 推理成本），要么回退到 Mixed RL。
 
 我们后面的小规模实验（Math student + Code teacher）就是在玩具规模复现这个整合机制，验证 OPD 在单卡 + TRL 下的实际行为。
 

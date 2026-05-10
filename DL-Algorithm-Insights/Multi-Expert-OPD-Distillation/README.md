@@ -24,6 +24,50 @@ This article explains why V4 chose OPD over the alternatives, walks through the 
 
 ---
 
+## The 30-Second Picture: Where OPD Fits in DeepSeek-V4
+
+Before the math, before the engineering — here is the *one diagram* you need to understand why OPD exists.
+
+```mermaid
+flowchart TB
+    A["<b>Stage 1 · Pre-training</b><br/>Trillions of internet tokens<br/>→ DeepSeek-V4-Base"]
+    B["<b>Stage 2 · Branch & Specialize</b><br/>Clone V4-Base into 10+ copies<br/>Each does SFT + RL on a domain corpus"]
+    M["Math"]
+    C["Code"]
+    W["Writing"]
+    AG["Agent"]
+    R["Reason"]
+    D["... 10+ experts"]
+    P["⚠️ Deployment problem<br/>10 separate models = 10× inference cost"]
+    O["<b>Stage 3 · ⭐ OPD — the consolidation step</b><br/>Each expert is a teacher<br/>One student does reverse-KL distillation<br/>on its own trajectories vs the experts' logits"]
+    F["<b>DeepSeek-V4-Final</b><br/>Single model, 10+ skills<br/>Production-ready"]
+
+    A --> B
+    B --> M & C & W & AG & R & D
+    M & C & W & AG & R & D --> P
+    P --> O
+    O --> F
+
+    style O fill:#fff4e6,stroke:#ea580c,stroke-width:2.5px
+    style F fill:#dcfce7,stroke:#16a34a,stroke-width:2px
+    style P fill:#fef2f2,stroke:#dc2626,stroke-width:1.5px
+```
+
+### Why this matters
+
+DeepSeek-V3 and earlier used **Mixed RL** (multi-task PPO/GRPO) for Stage 3. V4 abandoned it. The Tech Report is explicit:
+
+> *"the mixed Reinforcement Learning (RL) stage was entirely replaced by On-Policy Distillation (OPD)."*
+> — DeepSeek-V4 Technical Report, Section 5.1
+
+The rest of this document explains the *what*, *why*, and *how* of that replacement — and verifies the mechanism end-to-end on real hardware.
+
+### One-sentence summary
+
+> **OPD is DeepSeek-V4's "expert merging" technique: it compresses 10+ separately-trained domain specialists back into a single unified model, replacing the unstable Mixed RL approach used in V3.**
+
+---
+
 ## Background: The Multi-Expert Merging Problem
 
 Modern LLMs need to be good at many things — math, code, writing, agent tool-use, multilingual translation. The standard playbook is:
@@ -988,59 +1032,13 @@ If you want to study OPD's behavior at the research level, the most thorough ope
 
 ---
 
-## Where OPD Fits in the V4 Series
+## OPD's Place in the V4 Innovation Set
 
-### The Complete DeepSeek-V4 Training Pipeline
-
-OPD is not a standalone trick — it occupies a specific stage in DeepSeek-V4's end-to-end training pipeline. Understanding *where* it sits is essential to understanding *why* the V4 team adopted it.
-
-```
-┌──────────────────────────────────────────────────────┐
-│ Stage 1: Pre-training                                       │
-│   • Trillions of internet tokens                            │
-│   • Learns language, world knowledge, basic reasoning       │
-│   Output: DeepSeek-V4-Base                                  │
-└─────────────────────────────────────────────────────────┘
-                            ↓
-┌──────────────────────────────────────────────────────┐
-│ Stage 2: Branch and Specialize                              │
-│   Clone V4-Base into 10+ copies, each independently         │
-│   trained with SFT + RL on a domain-specific corpus.        │
-│                                                              │
-│   ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐             │
-│   │ Math   │ │ Code   │ │ Writing│ │ Agent  │ │ Reason │ ...10+│
-│   │ Expert │ │ Expert │ │ Expert │ │ Expert │ │ Expert │             │
-│   └────────┘ └────────┘ └────────┘ └────────┘ └────────┘             │
-│                                                              │
-│   ⚠️ Problem: at deployment, which expert do you call?       │
-│      Routing 10 separate models = 10× inference cost — not  │
-│      acceptable for production.                              │
-└─────────────────────────────────────────────────────────┘
-                            ↓
-┌──────────────────────────────────────────────────────┐
-│ Stage 3: ⭐ OPD — the consolidation step                     │
-│   Merge 10+ experts back into ONE unified model.            │
-│                                                              │
-│   Method: every expert serves as a teacher; one student     │
-│           (typically V4-Base) does reverse-KL distillation  │
-│           on its OWN trajectories, against the experts'     │
-│           logits at the matching tokens.                    │
-│                                                              │
-│   Output: DeepSeek-V4-Final — single model, all 10+ skills  │
-└─────────────────────────────────────────────────────────┘
-                            ↓
-                    Production deployment
-             (one model = 10× cheaper inference)
-```
+The [opening diagram](#the-30-second-picture-where-opd-fits-in-deepseek-v4) showed *where* OPD sits in V4's training pipeline. This section zooms out one more level: how OPD relates to the *other* V4 innovations and why none of them can replace it.
 
 ### Why OPD specifically (and not the alternatives)
 
-DeepSeek-V3 and earlier versions used **Mixed RL** (multi-task PPO/GRPO) for this consolidation step. V4 abandoned it. From the V4 Tech Report:
-
-> *"the mixed Reinforcement Learning (RL) stage was entirely replaced by On-Policy Distillation (OPD)."*
-> — DeepSeek-V4 Technical Report, Section 5.1
-
-Why the change? Mixed RL has three structural problems at this scale:
+Mixed RL has three structural problems at this scale, all of which OPD sidesteps:
 
 | Mixed RL problem | OPD's answer |
 |------------------|--------------|
@@ -1061,11 +1059,7 @@ DeepSeek-V4 is a coordinated set of innovations. OPD plays a specific role withi
 | **On-Policy Distillation (this article)** | **Merge 10+ specialists into a single production model** | V4 Tech Report Section 5.1 |
 | Quick Instruction (auxiliary tasks via KV cache reuse) | Reduce TTFT for chatbot scenarios | V4 Tech Report Section 5.1.1 |
 
-**OPD is the post-training capstone** — it takes all the domain experts trained on the new architecture (with CSA, mHC, Muon, FP4) and consolidates them into the final shipped model. Without OPD, V4 would either ship 10+ separate models (10× inference cost) or revert to Mixed RL (the unstable approach V3 used).
-
-### One-sentence summary
-
-> **OPD is DeepSeek-V4's "expert merging" technique: it compresses 10+ separately-trained domain specialists back into a single unified model, replacing the unstable Mixed RL approach used in V3 and earlier.**
+**OPD is the post-training capstone** — it takes all the domain experts trained on the new architecture (with CSA, mHC, Muon, FP4) and consolidates them into the final shipped model. Without OPD, V4 would either ship 10+ separate models (10× inference cost) or revert to Mixed RL.
 
 Our small-scale experiments later in this document (Math student + Code teacher) replicate exactly this consolidation mechanism at toy scale, to verify how it behaves in practice with TRL on a single GPU.
 
