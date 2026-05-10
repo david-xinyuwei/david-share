@@ -646,6 +646,20 @@ Policy gradient methods have high variance. PPO/GRPO need three stabilization tr
 | Cross-domain conflict | Each domain has its own teacher. At each token, only the teachers with non-trivial probability there contribute gradient. **Domains don't fight each other** — they coexist on different tokens. |
 | RL instability at 671B | KL minimization on student trajectories has a smooth, well-conditioned objective. **No PPO clipping, no GAE, no value baseline needed.** |
 
+#### Why does Mixed RL specifically *break* at 671B + 10 domains?
+
+The three problems above existed at smaller scale too. V1/V2/V3 lived with them. The "break" at V4 scale is a phase transition driven by four amplifications happening simultaneously:
+
+1. **Curse of dimensionality.** A 7B model has ~14B trainable parameters. **A 671B model has ~670B trainable parameters — 48× more.** Every parameter gets pushed by the same fuzzy multi-domain reward gradient. The volume of the "wrongly learned direction" space scales with parameter count, and recovery is 48× harder.
+
+2. **Reward hacking probability scales with domain count.** With one alignment reward, exploit probability is ~5%. With 10 reward functions, the probability that **at least one** can be gamed is ~40% — essentially guaranteed.
+
+3. **PPO memory explodes at 671B.** PPO needs Policy + Value + Reward + Reference model loaded simultaneously. At 671B that's roughly 4 × 671B = 2700B parameters in memory — even DeepSeek's H800 cluster struggles. To fit it, V3 had to compromise: smaller batches (higher gradient variance), shorter rollouts (sparser signal), cheaper reward models (more hackable). Each compromise made instability worse.
+
+4. **Failed-exploration cost becomes catastrophic.** A single PPO step at 671B is thousands of dollars in electricity. Roughly 80% of RL gradient updates are "wrong-direction exploration" that gets corrected later. At 671B, that 80% waste is no longer a research curiosity — it's a budget killer.
+
+These four amplifications all hit the same training loop simultaneously when V4 was being designed. The team's choice was: **fix Mixed RL one more time, or replace it entirely**. They chose to replace.
+
 #### The intuition: "scoring the test" vs. "copying the top student's notebook"
 
 | GRPO | OPD |
@@ -825,11 +839,93 @@ In short: the **OPD method itself is not new**. What V4 contributes is (1) the s
 
 With the originality picture clear, we can now discuss OPD's honest limitations:
 
+## Why It Took 10 Years for OPD to Reach Production
+
+Knowledge Distillation was published in 2015 (Hinton et al.). Generalized Knowledge Distillation — the on-policy variant — was published in 2023 (Agarwal et al., DeepMind). Yet OPD only entered serious production use in 2025-2026 (DeepSeek-V4, Qwen3, Gemini Flash). **Why the 10-year gap?**
+
+The quick answer most people give: "compute wasn't ready." That's wrong. The deeper truth is **a cognitive lock-in across the entire field**.
+
+### Reason 1 — "Distillation = compression" was the field's mental model
+
+From 2015 to 2024, distillation was almost universally framed as a *model-compression* technique. DistilBERT, TinyBERT, MobileBERT — all of these targeted "shrink a big model into a small one." **Nobody framed distillation as a multi-task consolidation tool**. Multi-task fusion was reserved for:
+- Multi-task learning (joint training from scratch)
+- RLHF (one model, multiple reward signals)
+- Mixture-of-Experts (architectural solution)
+
+Distillation was simply not in the conversation when teams discussed "how to merge specialists." The mental model was sticky for a decade.
+
+### Reason 2 — Mixed RL "worked well enough" until V3
+
+DeepSeek-V1, V2, V3 all used Mixed RL for the post-training consolidation step. It was painful (frequent restarts, reward hacking, instability) — but **it produced shippable models**. There was no forcing function to switch.
+
+Only when V4 pushed the scale to **671B parameters × 10+ specialist domains** did Mixed RL **actually break** (more on this below). "Good enough" is the biggest enemy of innovation.
+
+### Reason 3 — ChatGPT pulled the entire field toward RLHF
+
+When ChatGPT exploded in late 2022, the entire research community went all-in on RLHF: PPO improvements, reward modeling, Constitutional AI, RLAIF. Distillation was deemed "low-status" — something small companies did when they couldn't afford to train from scratch. Top labs invested research effort into RL variants, not into rethinking distillation.
+
+### Reason 4 — The 10+ specialist consolidation problem didn't exist before
+
+This is the deepest reason. **OPD as we know it (multi-expert consolidation) requires the input "we have 10+ trained specialists that need to become one model."** That input didn't widely exist before V4-class models. Earlier LLM teams trained one foundation model + RLHF — there was nothing to consolidate.
+
+Like shipping containers (invented 1956): the technology to build a steel box was always trivially available. What was missing was **the standardized global trade volume that made the box necessary**. OPD waited for the multi-expert-training pattern to become widespread.
+
+### Reason 5 — Specific engineering enablers landed late
+
+Even once you wanted OPD, you needed several pieces in place:
+
+| Enabler | First widely available |
+|---------|------------------------|
+| Top-K sparse logit storage | 2024 |
+| vLLM / SGLang inference engines (efficient teacher forward) | 2023-2024 |
+| TRL `GKDTrainer` (off-the-shelf framework) | 2024 |
+| H100 / H200 making 3× SFT compute affordable | 2023-2024 |
+
+None of these are the *fundamental* reason OPD took so long. They became necessary only **after** the cognitive shift. The cognitive shift required the V4-team-level pain to force.
+
+### One-sentence answer to "why didn't they use it earlier?"
+
+> **OPD wasn't unfeasible — it was unimagined.** The field was locked into "distillation = compression" and "alignment = RLHF" for a decade. Only when DeepSeek-V4's Mixed RL broke at 671B + 10 domains did anyone reframe distillation as the consolidation tool. The technology was always available; the necessity wasn't.
+
+This is also why this Repo exists — most existing OPD writeups still treat distillation as compression. Repositioning it as multi-expert consolidation is the conceptual contribution.
+
 ## Honest Limitations of OPD
 
-OPD is not a magic bullet. Three honest constraints worth understanding:
+OPD is not a magic bullet. Four honest constraints worth understanding:
 
-### 1. Coverage is data-dependent, not architectural
+### 1. Cannot exceed the teacher (the fundamental ceiling)
+
+The OPD objective is:
+
+$$\min_{\pi_{student}} \, \mathrm{KL}(\pi_{student} \,\|\, \pi_{teacher})$$
+
+KL = 0 has exactly one solution: $\pi_{student}$ identical to $\pi_{teacher}$. **By the math itself, the student converges toward the teacher and cannot exceed it.** This is not an engineering bug — it's the optimization target.
+
+**Why DeepSeek-V4 accepts this trade-off**
+
+V4's training is split:
+
+```
+Stage 2: Each domain expert is trained with its own RL → can exceed prior SOTA per domain
+Stage 3 (OPD): Consolidates 10+ experts into one student → ceiling = strongest expert per token
+```
+
+The "can-exceed" property of RL is **reserved for Stage 2**, where each expert is trained independently without cross-domain interference. Stage 3 is deliberately the "compress + merge" step — no innovation, just packaging.
+
+**The contrast with OpenAI / Anthropic**
+
+| | OPD path (V4) | RL-to-the-end path (GPT/Claude) |
+|---|---|---|
+| Final ceiling | = strongest teacher | can exceed teacher |
+| Stability | high | low |
+| Compute waste (failed RL exploration) | low | high |
+| Best for | merging many specialists at scale | chasing absolute SOTA |
+
+This is a **business strategy choice as much as a technical one**:
+- Want absolute frontier? Keep RL in the final stage. Pay for instability and compute waste.
+- Want stable productionization of many specialists? Use OPD. Accept the teacher ceiling.
+
+### 2. Coverage is data-dependent, not architectural
 
 OPD only updates the MoE experts that the router selects for each training sample. Experts that are never selected during OPD training — because their token-level pattern doesn't match the training data distribution — keep their pre-training weights unchanged.
 
