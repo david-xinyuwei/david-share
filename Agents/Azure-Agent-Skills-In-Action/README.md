@@ -306,6 +306,109 @@ Not every team needs every skill. Here is a decision guide:
 | Identity and security | `azure-rbac`, `entra-app-registration`, `entra-agent-id` | `azure-ai`, `azure-aigateway` |
 | Troubleshoot production issues | `azure-diagnostics`, `appinsights-instrumentation` | `azure-hosted-copilot-sdk` |
 
+## Hands-On Evaluation: Running the Azure MCP Server
+
+All claims in this repository are verified by actually running the Azure MCP Server (`@azure/mcp@latest`) and calling its tools via JSON-RPC. The test scripts are in `scripts/` and raw output is in `evaluation/results/`.
+
+### Environment
+
+| Component | Version |
+|-----------|--------|
+| Node.js | v22.22.2 |
+| npx | 10.9.7 |
+| Azure CLI | logged in (AI GBB - AI Infra subscription) |
+| Azure MCP | `@azure/mcp@latest` (auto-downloaded via npx) |
+| Platform | Ubuntu 24.04 on Azure VM |
+
+### Test 1: How Many Tools Does the MCP Server Actually Expose?
+
+The README says "200+ structured tools across 40+ Azure services." We called `tools/list` and counted:
+
+> **Result: 63 top-level tools** (not 200+).
+
+Each top-level tool (e.g., `foundry`, `compute`, `storage`) is a **composite tool** that exposes multiple sub-commands via the `learn` mechanism. For example, `foundry learn` returned **51,578 characters** of JSON describing dozens of sub-commands (model deployment, evaluation, prompt optimization, connections, etc.). So "200+" refers to the total of sub-commands across all 63 top-level tools — not 200 discrete tools in `tools/list`.
+
+**Actual tool list (63 tools)**:
+
+```
+acr, advisor, aks, appconfig, applens, applicationinsights, appservice,
+azd, azurebackup, azuremigrate, azureterraform, azureterraformbestpractices,
+bicepschema, cloudarchitect, communication, compute, confidentialledger,
+containerapps, cosmos, datadog, deploy, deviceregistry, documentation,
+eventgrid, eventhubs, extension_azqr, extension_cli_generate, extension_cli_install,
+fileshares, foundry, foundryextensions, functionapp, functions,
+get_azure_bestpractices, grafana, group_list, group_resource_list,
+keyvault, kusto, loadtesting, managedlustre, marketplace, monitor,
+mysql, policy, postgres, pricing, quota, redis, resourcehealth, role,
+search, servicebus, servicefabric, signalr, speech, sql, storage,
+storagesync, subscription_list, virtualdesktop,
+wellarchitectedframework, workbooks
+```
+
+Source: `scripts/test_mcp_tools.js` → `evaluation/results/mcp_test_results.txt`
+
+### Test 2: subscription_list — Does It Read Real Azure Data?
+
+```
+>>> Calling subscription_list
+
+Result: {"status":200, "subscriptions":[
+  {"displayName":"AI GBB - AI Services", "state":"Enabled"},
+  {"displayName":"AI GBB - AI Infra", "state":"Enabled"},
+  {"displayName":"GBB-Pulse", "state":"Enabled"}
+]}
+```
+
+**Verdict**: Real Azure data returned in < 1 second. The MCP server uses the local `az login` credential.
+
+### Test 3: group_list — Resource Group Inventory
+
+Calling `group_list` with subscription ID returned **40+ resource groups** with real names and locations (eastus2, southafricanorth, etc.). This confirms the server can enumerate Azure resources across regions.
+
+Source: `evaluation/results/mcp_test_v3.txt`
+
+### Test 4: foundry learn — What Foundry Sub-Commands Are Available?
+
+Calling `foundry` with `{"command": "learn"}` returned a 51KB JSON array listing all available Foundry sub-commands:
+
+| Sub-Command | Purpose |
+|-------------|--------|
+| `model_monitoring_metrics_get` | Get monitoring metrics for model deployments |
+| `model_similar_models_get` | Find similar models |
+| `prompt_optimize` | Optimize prompts using Azure OpenAI Prompt Optimizer |
+| `evaluation_agent_batch_eval_create` | Create batch evaluation for agents |
+| `project_connection_delete` | Delete project connections |
+| ... and many more | |
+
+**Key finding**: The `foundry` tool is a **gateway tool** — it does not execute anything directly. You call it with `{"command": "learn"}` to discover sub-commands, then call it again with `{"command": "<sub-command>", "parameters": "..."}` to execute. This is why `.mcp.json` only lists one `azure` server but the README claims "Foundry MCP" as a separate layer — it is a logical layer within the `azure` server.
+
+Source: `evaluation/results/mcp_test_v3.txt`
+
+### Test 5: compute learn — VM Management Sub-Commands
+
+Calling `compute` with `{"command": "learn"}` returned a 42KB JSON array with sub-commands:
+
+- `compute_vm_get` — List/get VM details (name, size, state, OS)
+- `compute_vm_create` — Create VMs (equivalent to `az vm create`)
+- `compute_vm_resize` — Resize VMs
+- `compute_vmss_*` — Virtual Machine Scale Set operations
+
+Source: `evaluation/results/mcp_foundry_results.txt`
+
+### Test 6: Tool Naming Convention Discovery
+
+The skill SKILL.md files reference tools with `mcp_azure_mcp_` prefix (e.g., `mcp_azure_mcp_subscription_list`). But when calling the server directly via JSON-RPC, tool names have **no prefix** — just `subscription_list`, `group_list`, `foundry`, etc. The `mcp_azure_mcp_` prefix is added by the host (VS Code, Copilot CLI) during tool registration.
+
+### Summary of Hands-On Findings
+
+| Claim | Verified? | Actual Result |
+|-------|:---------:|---------------|
+| 200+ structured tools | Partially | 63 top-level tools, each with multiple sub-commands |
+| Live Azure operations | ✅ | subscription_list and group_list return real data in < 1s |
+| Foundry MCP as separate layer | Clarified | Logical layer within `azure` server, accessed via `foundry` gateway tool |
+| az login credential | ✅ | Server uses local Azure CLI session |
+| Tool naming in SKILL.md | Clarified | `mcp_azure_mcp_` prefix added by host, not the server |
+
 ## Reproducing This Analysis
 
 ### Clone the source repos

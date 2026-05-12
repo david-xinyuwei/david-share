@@ -306,6 +306,109 @@ apm install microsoft/azure-skills
 | 身份和安全 | `azure-rbac`、`entra-app-registration`、`entra-agent-id` | `azure-ai`、`azure-aigateway` |
 | 排查生产问题 | `azure-diagnostics`、`appinsights-instrumentation` | `azure-hosted-copilot-sdk` |
 
+## 实测验证：运行 Azure MCP Server
+
+本仓库中的所有声明都通过实际运行 Azure MCP Server（`@azure/mcp@latest`）并通过 JSON-RPC 调用其工具进行了验证。测试脚本在 `scripts/`，原始输出在 `evaluation/results/`。
+
+### 环境
+
+| 组件 | 版本 |
+|------|------|
+| Node.js | v22.22.2 |
+| npx | 10.9.7 |
+| Azure CLI | 已登录（AI GBB - AI Infra 订阅） |
+| Azure MCP | `@azure/mcp@latest`（通过 npx 自动下载） |
+| 平台 | Ubuntu 24.04 on Azure VM |
+
+### 测试 1：MCP Server 实际暴露了多少工具？
+
+README 声称“200+ 结构化工具覆盖 40+ Azure 服务”。我们调用 `tools/list` 并计数：
+
+> **结果：63 个顶层工具**（不是 200+）。
+
+每个顶层工具（如 `foundry`、`compute`、`storage`）是一个**复合工具**，通过 `learn` 机制暴露多个子命令。例如，`foundry learn` 返回了 **51,578 字符**的 JSON，描述了数十个子命令。所以“200+”指的是所有 63 个顶层工具的子命令总数——而不是 `tools/list` 中的 200 个独立工具。
+
+**实际工具列表（63 个）**：
+
+```
+acr, advisor, aks, appconfig, applens, applicationinsights, appservice,
+azd, azurebackup, azuremigrate, azureterraform, azureterraformbestpractices,
+bicepschema, cloudarchitect, communication, compute, confidentialledger,
+containerapps, cosmos, datadog, deploy, deviceregistry, documentation,
+eventgrid, eventhubs, extension_azqr, extension_cli_generate, extension_cli_install,
+fileshares, foundry, foundryextensions, functionapp, functions,
+get_azure_bestpractices, grafana, group_list, group_resource_list,
+keyvault, kusto, loadtesting, managedlustre, marketplace, monitor,
+mysql, policy, postgres, pricing, quota, redis, resourcehealth, role,
+search, servicebus, servicefabric, signalr, speech, sql, storage,
+storagesync, subscription_list, virtualdesktop,
+wellarchitectedframework, workbooks
+```
+
+来源: `scripts/test_mcp_tools.js` → `evaluation/results/mcp_test_results.txt`
+
+### 测试 2：subscription_list — 是否读取真实 Azure 数据？
+
+```
+>>> 调用 subscription_list
+
+结果: {"status":200, "subscriptions":[
+  {"displayName":"AI GBB - AI Services", "state":"Enabled"},
+  {"displayName":"AI GBB - AI Infra", "state":"Enabled"},
+  {"displayName":"GBB-Pulse", "state":"Enabled"}
+]}
+```
+
+**结论**：真实 Azure 数据在 1 秒内返回。MCP server 使用本地 `az login` 凭据。
+
+### 测试 3：group_list — 资源组盘点
+
+使用订阅 ID 调用 `group_list` 返回了 **40+ 个资源组**，包含真实名称和位置（eastus2、southafricanorth 等）。确认 server 可以跨区域枚举 Azure 资源。
+
+来源: `evaluation/results/mcp_test_v3.txt`
+
+### 测试 4：foundry learn — 可用的 Foundry 子命令
+
+使用 `{"command": "learn"}` 调用 `foundry` 返回了 51KB 的 JSON 数组，列出所有可用的 Foundry 子命令：
+
+| 子命令 | 用途 |
+|--------|------|
+| `model_monitoring_metrics_get` | 获取模型部署的监控指标 |
+| `model_similar_models_get` | 查找相似模型 |
+| `prompt_optimize` | 使用 Azure OpenAI Prompt Optimizer 优化 prompt |
+| `evaluation_agent_batch_eval_create` | 创建 Agent 批量评估 |
+| `project_connection_delete` | 删除项目连接 |
+| ... 以及更多 | |
+
+**关键发现**：`foundry` 工具是一个**网关工具** — 它不直接执行任何操作。你用 `{"command": "learn"}` 发现子命令，然后用 `{"command": "<子命令>", "parameters": "..."}` 执行。这就是为什么 `.mcp.json` 只列了一个 `azure` server，但 README 声称“Foundry MCP”是单独一层 — 它是 `azure` server 内的一个逻辑层。
+
+来源: `evaluation/results/mcp_test_v3.txt`
+
+### 测试 5：compute learn — VM 管理子命令
+
+使用 `{"command": "learn"}` 调用 `compute` 返回了 42KB 的 JSON 数组：
+
+- `compute_vm_get` — 列出/获取 VM 详情（名称、大小、状态、操作系统）
+- `compute_vm_create` — 创建 VM（等同于 `az vm create`）
+- `compute_vm_resize` — 调整 VM 大小
+- `compute_vmss_*` — 虚拟机规模集操作
+
+来源: `evaluation/results/mcp_foundry_results.txt`
+
+### 测试 6：工具命名规则发现
+
+skill 的 SKILL.md 文件中引用工具时用 `mcp_azure_mcp_` 前缀（如 `mcp_azure_mcp_subscription_list`）。但通过 JSON-RPC 直接调用 server 时，工具名**没有前缀** — 只是 `subscription_list`、`group_list`、`foundry` 等。`mcp_azure_mcp_` 前缀是由宿主（VS Code、Copilot CLI）在工具注册时添加的。
+
+### 实测总结
+
+| 声明 | 验证？ | 实际结果 |
+|------|:----:|--------|
+| 200+ 结构化工具 | 部分验证 | 63 个顶层工具，每个含多个子命令 |
+| 实时 Azure 操作 | ✅ | subscription_list 和 group_list 在 1 秒内返回真实数据 |
+| Foundry MCP 作为单独层 | 已澄清 | `azure` server 内的逻辑层，通过 `foundry` 网关工具访问 |
+| az login 凭据 | ✅ | Server 使用本地 Azure CLI 会话 |
+| SKILL.md 中的工具命名 | 已澄清 | `mcp_azure_mcp_` 前缀由宿主添加，不是 server 本身 |
+
 ## 复现本分析
 
 ### 克隆源仓库
