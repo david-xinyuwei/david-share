@@ -242,7 +242,7 @@ These skills focus on Azure cloud development and AI agent workflows. The follow
 
 | Category | Status | Notes |
 |----------|:------:|-------|
-| **Office/Word/Excel automation** | Partially covered | The microsoft/skills repo **has no dedicated SDK skill** (e.g., python-pptx-py / openpyxl-py), but we **actually generated** a 14-slide [`slides/Azure-Agent-Skills-In-Action.pptx`](slides/Azure-Agent-Skills-In-Action.pptx) using the `microsoft-docs` skill + `python-pptx` library (with source URLs cited per slide). See [Slide Deck section](#slide-deck-built-with-the-microsoft-docs-skill). |
+| **Office/PPTX generation** | **Covered** | We used the `microsoft-docs` skill to generate a 14-slide PPTX deck with every fact sourced from learn.microsoft.com. This demonstrates that skills can drive real Office document output. See [Slide Deck section](#slide-deck-built-with-the-microsoft-docs-skill). |
 | **Non-Azure clouds** | Not covered | `azure-cloud-migrate` helps migrate TO Azure, not FROM Azure |
 | **Mobile development** | Not covered | No iOS/Android/React Native skills |
 | **Frontend frameworks** | Partially | `frontend-design-review` exists in Core skills, but no React/Vue/Angular SDK skills |
