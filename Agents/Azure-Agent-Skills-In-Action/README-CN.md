@@ -586,6 +586,10 @@ send("extension_cli_generate", {
 
 完整测试脚本和原始输出在 `scripts/run_full_value_evaluation.js`、`evaluation/results/full_value_evaluation.json`、`evaluation/results/full_value_matrix.csv`、`evaluation/results/full_value_summary.md` 和 `evaluation/cli_baseline/` 中。
 
+## 配套幻灯片
+
+本评测的 12 页执行摘要 PPT 在 [`slides/Azure-Agent-Skills-In-Action.pptx`](slides/Azure-Agent-Skills-In-Action.pptx)。内容来自上面同一份证据，覆盖：测试环境、头条结果（45/9/5/2/2）、high-signal wins、未完全执行项及原因、调用约定、Skills vs `az` CLI、架构、平台粘性、交付清单。生成脚本 [`slides/gen_azure_skills_ppt.py`](slides/gen_azure_skills_ppt.py) 可在重跑评测后重新生成 PPT。
+
 ## 复现本分析
 
 ### 克隆源仓库

@@ -586,6 +586,10 @@ From the 63-tool full run:
 
 Full test scripts and raw outputs are in `scripts/run_full_value_evaluation.js`, `evaluation/results/full_value_evaluation.json`, `evaluation/results/full_value_matrix.csv`, `evaluation/results/full_value_summary.md`, and `evaluation/cli_baseline/`.
 
+## Slide Deck
+
+A 12-slide executive deck summarizing this evaluation is in [`slides/Azure-Agent-Skills-In-Action.pptx`](slides/Azure-Agent-Skills-In-Action.pptx). The deck is generated from the same evidence shown above and covers: test environment, headline result (45/9/5/2/2), high-signal wins, blockers explained, calling convention, skills vs `az` CLI, architecture, platform stickiness, and deliverables. The generator script [`slides/gen_azure_skills_ppt.py`](slides/gen_azure_skills_ppt.py) lets you regenerate the deck after re-running the harness.
+
 ## Reproducing This Analysis
 
 ### Clone the source repos
