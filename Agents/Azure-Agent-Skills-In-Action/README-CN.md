@@ -408,6 +408,25 @@ skill 的 SKILL.md 文件中引用工具时用 `mcp_azure_mcp_` 前缀（如 `mc
 | Foundry MCP 作为单独层 | 已澄清 | `azure` server 内的逻辑层，通过 `foundry` 网关工具访问 |
 | az login 凭据 | ✅ | Server 使用本地 Azure CLI 会话 |
 | SKILL.md 中的工具命名 | 已澄清 | `mcp_azure_mcp_` 前缀由宿主添加，不是 server 本身 |
+| Compute VM 列表 | ✅ | `compute_vm_get` 返回真实 VM：`gok-h100-post-training`（Standard_D2ads_v5，southafricanorth） |
+| RBAC 执行 | ✅ | `group_resource_list` 对没有 Reader 角色的订阅返回 403 — MCP server 完全遵守 Azure RBAC |
+
+### 核心架构发现：两类工具
+
+通过反复试错测试，我们发现 MCP server 有**两种不同类型的工具**，参数传递方式不同：
+
+| 工具类型 | 示例 | 参数风格 |
+|---------|------|--------|
+| **简单工具** | `subscription_list`、`group_list`、`group_resource_list` | `arguments` 中扁平传键值对 |
+| **复合工具** | `compute`、`foundry`、`pricing`、`quota`、`role`、`monitor` | `arguments` 中需要 `command` + `parameters`（JSON 字符串） |
+
+复合工具的使用方式：
+1. 先用 `{"command": "learn"}` 发现可用子命令
+2. 再用 `{"command": "<子命令>", "parameters": "{...}"}` 执行
+
+这个两步"先学后执行"的模式**在 README 中没有记录** — 我们通过观察错误消息发现的，错误提示明确说"Wrap all command arguments into the root `parameters` argument."
+
+7 个测试脚本和原始输出文件在 `scripts/` 和 `evaluation/results/` 中。
 
 ## 复现本分析
 

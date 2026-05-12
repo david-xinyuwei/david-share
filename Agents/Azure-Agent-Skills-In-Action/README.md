@@ -408,6 +408,25 @@ The skill SKILL.md files reference tools with `mcp_azure_mcp_` prefix (e.g., `mc
 | Foundry MCP as separate layer | Clarified | Logical layer within `azure` server, accessed via `foundry` gateway tool |
 | az login credential | ✅ | Server uses local Azure CLI session |
 | Tool naming in SKILL.md | Clarified | `mcp_azure_mcp_` prefix added by host, not the server |
+| Compute VM listing | ✅ | `compute_vm_get` returned real VM: `gok-h100-post-training` (Standard_D2ads_v5, southafricanorth) |
+| RBAC enforcement | ✅ | `group_resource_list` returned 403 for subscription without Reader role — MCP server fully respects Azure RBAC |
+
+### Key Architecture Discovery: Two Classes of Tools
+
+Through trial-and-error testing, we discovered the MCP server has **two distinct tool types** with different parameter passing conventions:
+
+| Tool Type | Examples | Parameter Style |
+|-----------|---------|----------------|
+| **Simple tools** | `subscription_list`, `group_list`, `group_resource_list` | Flat key-value in `arguments` |
+| **Composite tools** | `compute`, `foundry`, `pricing`, `quota`, `role`, `monitor` | Requires `command` + `parameters` (JSON string) in `arguments` |
+
+For composite tools, you must:
+1. Call with `{"command": "learn"}` to discover available sub-commands
+2. Call with `{"command": "<sub_command>", "parameters": "{...}"}` to execute
+
+This two-step learn-then-execute pattern is **not documented in the README** — we discovered it by observing error messages that explicitly say "Wrap all command arguments into the root `parameters` argument."
+
+The 7 test scripts and raw output files are in `scripts/` and `evaluation/results/`.
 
 ## Reproducing This Analysis
 
