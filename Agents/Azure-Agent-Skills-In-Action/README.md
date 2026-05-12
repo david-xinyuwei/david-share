@@ -1,19 +1,20 @@
 # Azure Agent Skills In Action
 
-> A third-party engineering evaluation of Microsoft's Agent Skills ecosystem — covering architecture, real-world workflows, platform stickiness analysis, and hands-on verification across all skill categories.
+> A third-party engineering evaluation of Microsoft's Agent Skills ecosystem — covering architecture, real-world workflows, platform stickiness analysis, and a full hands-on run across every Azure MCP top-level tool.
 
 This repository provides a comprehensive, independent assessment of two Microsoft repositories:
 
 - **[microsoft/azure-skills](https://github.com/microsoft/azure-skills)** (v1.1.39) — The Azure Skills Plugin with 26 top-level skills, Azure MCP Server, and Foundry MCP.
 - **[microsoft/skills](https://github.com/microsoft/skills)** — The Agent Skills monorepo with 174 skills across Python, .NET, TypeScript, Java, and Rust, plus plugins (deep-wiki, azure-skills), custom agents, prompts, and MCP configs.
 
-The goal is not to repeat what the official README says, but to answer the questions a real engineering team would ask before adopting these skills at scale:
+The goal is not to repeat what the official README says. The goal is to save other engineers the time of running the whole stack themselves and answer the questions a real engineering team would ask before adopting these skills at scale:
 
 1. **What is the real architecture?** — Not just the marketing pitch, but how the pieces actually connect.
 2. **Does the deployment workflow actually work?** — The `prepare → validate → deploy` pipeline claims to be a hard gate system. We trace through it.
 3. **Where does platform stickiness happen?** — Which skills, once adopted, make it harder to leave Microsoft's ecosystem?
-4. **What are the gaps?** — What is NOT covered (e.g., Office/Word automation, non-Azure clouds)?
-5. **How should teams adopt this selectively?** — Not everything needs to be installed.
+4. **Did we actually run it?** — Yes. This repo includes a 63-tool Azure MCP run against a real Azure subscription, not just README inspection.
+5. **What are the gaps?** — What requires specific resources, what has external prerequisites, and what should not be executed automatically?
+6. **How should teams adopt this selectively?** — Not everything needs to be installed.
 
 ## Architecture Overview
 
@@ -380,7 +381,7 @@ Calling `foundry` with `{"command": "learn"}` returned a 51KB JSON array listing
 | `project_connection_delete` | Delete project connections |
 | ... and many more | |
 
-**Key finding**: The `foundry` tool is a **gateway tool** — it does not execute anything directly. You call it with `{"command": "learn"}` to discover sub-commands, then call it again with `{"command": "<sub-command>", "parameters": "..."}` to execute. This is why `.mcp.json` only lists one `azure` server but the README claims "Foundry MCP" as a separate layer — it is a logical layer within the `azure` server.
+**Key finding**: The `foundry` tool is a **gateway tool**. You call it with `{"command": "learn"}` to discover sub-commands, then call it again with the selected `command` plus that command's arguments. This is why `.mcp.json` only lists one `azure` server but the README claims "Foundry MCP" as a separate layer — it is a logical layer within the `azure` server.
 
 Source: `evaluation/results/mcp_test_v3.txt`
 
@@ -418,21 +419,19 @@ Through trial-and-error testing, we discovered the MCP server has **two distinct
 | Tool Type | Examples | Parameter Style |
 |-----------|---------|----------------|
 | **Simple tools** | `subscription_list`, `group_list`, `group_resource_list` | Flat key-value in `arguments` |
-| **Composite tools** | `compute`, `foundry`, `pricing`, `quota`, `role`, `monitor` | Requires `command` + `parameters` (JSON string) in `arguments` |
+| **Composite tools** | `compute`, `foundry`, `pricing`, `quota`, `role`, `monitor` | Use `command` plus flat command arguments in `arguments` |
 
 For composite tools, you must:
 1. Call with `{"command": "learn"}` to discover available sub-commands
-2. Call with `{"command": "<sub_command>", "parameters": "{...}"}` to execute
+2. Call with `{"command": "<sub_command>", ...requiredArguments}` to execute
 
-This two-step learn-then-execute pattern is **not documented in the README** — we discovered it by observing error messages that explicitly say "Wrap all command arguments into the root `parameters` argument."
+This two-step learn-then-execute pattern is **not documented in the README**. The full run in this repo verifies the direct JSON-RPC convention against live Azure data.
 
-The 7 test scripts and raw output files are in `scripts/` and `evaluation/results/`.
+The test scripts and raw output files are in `scripts/` and `evaluation/results/`.
 
-## Skills vs No-Skills: Side-by-Side Comparison
+## Full Run: All 63 Azure MCP Top-Level Tools
 
-The most important question for any team adopting these skills: **what do you actually gain over plain `az` CLI?**
-
-We ran 20 high-value scenarios on a personal Azure subscription (Owner permission, 8 VMs, 19 Cognitive Services, 20 Log Analytics workspaces, 10 Storage accounts, 8 ML workspaces) and compared the experience.
+This is the central evidence in this repository. On 2026-05-12, we ran `scripts/run_full_value_evaluation.js` against a real Azure subscription with Owner permission. The script discovered every Azure MCP top-level tool, called `learn` where needed, selected a safe read-only command, executed what could safely be executed, and wrote the raw results to `evaluation/results/`.
 
 ### Test Environment
 
@@ -446,19 +445,65 @@ We ran 20 high-value scenarios on a personal Azure subscription (Owner permissio
 | Log Analytics workspaces | 20 |
 | Storage accounts | 10 |
 | ML workspaces | 8 |
+| Test script | `scripts/run_full_value_evaluation.js` |
+| Raw JSON | `evaluation/results/full_value_evaluation.json` |
+| Matrix CSV | `evaluation/results/full_value_matrix.csv` |
+| Markdown report | `evaluation/results/full_value_summary.md` |
 
-### What Worked, What Didn't (20 scenarios)
+### Result Summary
 
-| Status | Count | Meaning |
-|--------|:-----:|---------|
-| ✅ SUCCESS | 6 | Real Azure data returned |
-| ⚠️ LEARN_FALLBACK | 7 | Sub-command name didn't match → server fell back to listing available commands |
-| ❌ MISSING_PARAMS | 6 | Composite tool needed `parameters` as JSON string, not object |
-| ❌ BAD_REQUEST | 1 | `pricing_get` requires precise filter combinations |
+| Result | Count | Meaning |
+|--------|------:|---------|
+| **EXECUTED** | **45** | A safe read-only command returned live Azure data, an empty live result, or command guidance from the MCP server. |
+| **SCHEMA_VERIFIED** | **9** | The tool exposed a valid command schema, but safe execution required a resource-specific input not available in this harness. |
+| **TOOL_ERROR** | **5** | The tool was callable but returned a service/tooling error. These are recorded as product/prerequisite findings, not hidden. |
+| **BLOCKED_UNSAFE** | **2** | The only relevant command had side effects, so the harness intentionally did not execute it. |
+| **FAILED** | **2** | The harness could not obtain a useful runtime result for this tool. |
+
+**Coverage interpretation**: 63/63 top-level tools were probed. 45/63 were executed successfully. 54/63 produced either live execution evidence or a verified command schema. The remaining cases are documented with the exact blocker.
+
+### High-Signal Wins From the Run
+
+| Capability | Tools Executed | What This Proves |
+|------------|----------------|------------------|
+| Live subscription and resource inventory | `subscription_list`, `group_list`, `group_resource_list` | The MCP server reads real Azure state through the current Azure CLI login. |
+| Compute and app platform discovery | `compute_vm_get`, `aks_cluster_get`, `containerapps_list`, `appservice_webapp_get`, `functionapp_get` | A coding agent can inspect runtime infrastructure without hand-writing `az` queries. |
+| Cost, quota, and pricing | `quota_usage_check`, `pricing_get`, `advisor_recommendation_list` | The skills reduce high-friction API research around quota, pricing, and optimization. |
+| IaC and architecture assistance | `bicepschema_get`, `azureterraform_azurerm_get`, `azureterraformbestpractices_get`, `cloudarchitect_design` | The agent can fetch concrete Bicep/Terraform schemas and architecture guidance on demand. |
+| Governance and identity | `role_assignment_list`, `policy_assignment_list`, `resourcehealth_availability-status_get` | The execution layer can surface RBAC, policy, and health data as structured evidence. |
+| Azure service discovery | `storage_account_get`, `cosmos_list`, `sql_server_get`, `redis_list`, `search_service_list` | The same harness can sweep many Azure service families with one consistent calling pattern. |
+| Developer workflow help | `functions_language_list`, `get_azure_bestpractices_get`, `wellarchitectedframework_serviceguide_get`, `extension_cli_generate` | The system is not just inventory; it returns actionable development guidance. |
+
+### What Did Not Fully Execute, and Why
+
+| Category | Tools | Reason |
+|----------|-------|--------|
+| Requires a specific resource instance | `keyvault`, `servicebus`, `servicefabric`, `speech`, `foundryextensions`, `confidentialledger`, `datadog`, `mysql`, `deploy` | The tool schema is valid, but safe execution needs a vault, queue, speech file, endpoint, cluster, ledger transaction, Datadog resource, MySQL user, or local azd workspace. |
+| Intentionally not executed | `communication`, `azuremigrate` | The selected commands could send messages or guide environment-changing migration actions. The harness records the schema instead of causing side effects. |
+| Product/prerequisite issue | `extension_azqr`, `loadtesting`, `marketplace`, `applens`, `foundry` | The server returned a runtime error or a missing prerequisite. Example: `extension_azqr` requires the `azqr` executable in PATH. |
+| Harness failure | `applicationinsights`, `extension_cli_install` | These still need a better test case or parameter set. They remain visible in the matrix. |
+
+### Calling Convention Verified
+
+The full run also corrected an important direct-JSON-RPC detail: for composite tools, direct calls to the Azure MCP server worked with **flat arguments** plus `command`:
+
+```js
+send("compute", {
+  command: "compute_vm_get",
+  subscription: SUB,
+  "resource-group": "winvm"
+});
+```
+
+This is different from the host-facing `mcp_azure_mcp_*` naming convention in SKILL.md files. The prefix is added by the agent host; the raw server exposes names such as `compute`, `quota`, `pricing`, `subscription_list`, and `group_list`.
+
+## Skills vs No-Skills: What the Run Proves
+
+The most important question for any team adopting these skills is not "can MCP call Azure?" It is: **what do you gain over plain `az` CLI plus a generic LLM?**
 
 ### Concrete Comparison Examples
 
-#### Example 1: List Subscriptions — Both work, MCP is structured
+#### Example 1: List Subscriptions — Both Work, MCP Is Structured
 
 **Without skills (az CLI)**:
 ```bash
@@ -479,7 +524,7 @@ real    0m0.949s
 
 **Verdict**: Same speed, but MCP returns structured JSON ready for LLM consumption.
 
-#### Example 2: Quota Check — MCP wins by 10x in complexity
+#### Example 2: Quota Check — MCP Wins in Complexity
 
 **Without skills (manual REST API)**:
 ```bash
@@ -527,9 +572,9 @@ send("extension_cli_generate", {
 
 **Verdict**: This is impossible without skills — you'd need an LLM with Azure CLI knowledge or to read docs.
 
-### When Skills Help vs When They Don't
+### When Skills Help vs When They Do Not
 
-From 20 hands-on scenarios:
+From the 63-tool full run:
 
 | Skill Wins When... | Skills Don't Help When... |
 |--------------------|---------------------------|
@@ -539,29 +584,7 @@ From 20 hands-on scenarios:
 | Need cross-service architecture recommendations | Just need single-service info |
 | Want guardrails (e.g., "always check actual cost first") | Want full control over every parameter |
 
-### The Hidden Cost We Discovered
-
-The MCP server's composite tools require a **3-layer parameter wrapping** that is not documented:
-
-```js
-// What looks intuitive (but FAILS):
-send("compute", { command: "compute_vm_get", subscription: SUB, "resource-group": "H100VM_group" })
-// → MISSING_PARAMS error
-
-// What actually works:
-send("compute", {
-  command: "compute_vm_get",
-  parameters: JSON.stringify({  // ← MUST be a JSON string!
-    subscription: SUB,
-    "resource-group": "H100VM_group"
-  })
-})
-// → SUCCESS
-```
-
-This is why our 6/20 success rate is misleading — most failures are from getting this format wrong, not from server problems. **In production with VS Code Copilot or Claude Code, the host handles this wrapping automatically**, so the apparent friction disappears.
-
-Full test scripts and raw outputs are in `scripts/test_skills_vs_no_skills.js`, `evaluation/results/mcp_comparison_*.{json,txt}`, and `evaluation/cli_baseline/`.
+Full test scripts and raw outputs are in `scripts/run_full_value_evaluation.js`, `evaluation/results/full_value_evaluation.json`, `evaluation/results/full_value_matrix.csv`, `evaluation/results/full_value_summary.md`, and `evaluation/cli_baseline/`.
 
 ## Reproducing This Analysis
 

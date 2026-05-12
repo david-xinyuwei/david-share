@@ -1,19 +1,20 @@
 # Azure Agent Skills 实战评测
 
-> 以第三方工程师视角，深度评测微软 Agent Skills 生态——覆盖架构拆解、实战工作流验证、平台粘性分析，以及全部 skill 分类的实测检验。
+> 以第三方工程师视角，深度评测微软 Agent Skills 生态——覆盖架构拆解、实战工作流验证、平台粘性分析，以及 63 个 Azure MCP 顶层工具的全量实跑。
 
 本仓库对以下两个微软官方仓库做了独立的、全面的工程评测：
 
 - **[microsoft/azure-skills](https://github.com/microsoft/azure-skills)** (v1.1.39) — Azure Skills Plugin，包含 26 个顶层 skill、Azure MCP Server、Foundry MCP。
 - **[microsoft/skills](https://github.com/microsoft/skills)** — Agent Skills 总仓库，包含 174 个 skill（Python、.NET、TypeScript、Java、Rust），以及 deep-wiki、azure-skills 等 plugin、自定义 Agent、Prompt 和 MCP 配置。
 
-本 Repo 的目标不是复述官方 README，而是回答一个真实工程团队在大规模采用前会问的问题：
+本 Repo 的目标不是复述官方 README，而是替其他工程师把整套 stack 跑完，回答一个真实工程团队在大规模采用前会问的问题：
 
 1. **真实架构长什么样？** — 不是营销话术，而是各组件实际如何连接。
 2. **部署工作流是否真正有效？** — `prepare → validate → deploy` 声称是硬门控流程，我们做了追踪验证。
 3. **平台粘性在哪里？** — 哪些 skill 一旦使用，就难以脱离微软生态？
-4. **有什么没覆盖？** — 比如 Office/Word 自动化、非 Azure 云。
-5. **团队应该如何选择性采用？** — 不是所有 skill 都需要安装。
+4. **到底有没有实际跑过？** — 有。本 Repo 包含针对真实 Azure 订阅的 63 个顶层 MCP 工具全量实跑结果。
+5. **还有哪些缺口？** — 哪些需要特定资源、哪些依赖外部工具、哪些不应自动执行。
+6. **团队应该如何选择性采用？** — 不是所有 skill 都需要安装。
 
 ## 架构全景
 
@@ -380,7 +381,7 @@ wellarchitectedframework, workbooks
 | `project_connection_delete` | 删除项目连接 |
 | ... 以及更多 | |
 
-**关键发现**：`foundry` 工具是一个**网关工具** — 它不直接执行任何操作。你用 `{"command": "learn"}` 发现子命令，然后用 `{"command": "<子命令>", "parameters": "..."}` 执行。这就是为什么 `.mcp.json` 只列了一个 `azure` server，但 README 声称“Foundry MCP”是单独一层 — 它是 `azure` server 内的一个逻辑层。
+**关键发现**：`foundry` 工具是一个**网关工具**。你用 `{"command": "learn"}` 发现子命令，然后用选定的 `command` 加上该命令需要的参数执行。这就是为什么 `.mcp.json` 只列了一个 `azure` server，但 README 声称“Foundry MCP”是单独一层 — 它是 `azure` server 内的一个逻辑层。
 
 来源: `evaluation/results/mcp_test_v3.txt`
 
@@ -418,21 +419,19 @@ skill 的 SKILL.md 文件中引用工具时用 `mcp_azure_mcp_` 前缀（如 `mc
 | 工具类型 | 示例 | 参数风格 |
 |---------|------|--------|
 | **简单工具** | `subscription_list`、`group_list`、`group_resource_list` | `arguments` 中扁平传键值对 |
-| **复合工具** | `compute`、`foundry`、`pricing`、`quota`、`role`、`monitor` | `arguments` 中需要 `command` + `parameters`（JSON 字符串） |
+| **复合工具** | `compute`、`foundry`、`pricing`、`quota`、`role`、`monitor` | `arguments` 中使用 `command` + flat command arguments |
 
 复合工具的使用方式：
 1. 先用 `{"command": "learn"}` 发现可用子命令
-2. 再用 `{"command": "<子命令>", "parameters": "{...}"}` 执行
+2. 再用 `{"command": "<子命令>", ...requiredArguments}` 执行
 
-这个两步"先学后执行"的模式**在 README 中没有记录** — 我们通过观察错误消息发现的，错误提示明确说"Wrap all command arguments into the root `parameters` argument."
+这个两步“先学后执行”的模式**在 README 中没有记录**。本 Repo 的全量实跑用真实 Azure 数据验证了直接 JSON-RPC 的调用约定。
 
-7 个测试脚本和原始输出文件在 `scripts/` 和 `evaluation/results/` 中。
+测试脚本和原始输出文件在 `scripts/` 和 `evaluation/results/` 中。
 
-## Skills vs 不用 Skills：并排对比
+## 全量实跑：63 个 Azure MCP 顶层工具
 
-任何团队采用这些 skill 前最关心的问题：**比纯 `az` CLI 能多得到什么？**
-
-我们在个人 Azure 订阅（Owner 权限，8 个 VM、19 个 Cognitive Services、20 个 Log Analytics、10 个 Storage、8 个 ML workspace）上跑了 20 个高价值场景，对比了体验。
+这是本 Repo 最核心的证据。2026-05-12，我们使用 `scripts/run_full_value_evaluation.js` 在真实 Azure 订阅中跑了一轮全量评测：先发现所有 Azure MCP 顶层工具，再对需要的工具调用 `learn` 获取子命令 schema，自动选择安全的 read-only 命令执行，最后把 JSON、CSV 和 Markdown 证据落盘到 `evaluation/results/`。
 
 ### 测试环境
 
@@ -446,15 +445,61 @@ skill 的 SKILL.md 文件中引用工具时用 `mcp_azure_mcp_` 前缀（如 `mc
 | Log Analytics workspace | 20 |
 | Storage 账户 | 10 |
 | ML workspace | 8 |
+| 测试脚本 | `scripts/run_full_value_evaluation.js` |
+| 原始 JSON | `evaluation/results/full_value_evaluation.json` |
+| 矩阵 CSV | `evaluation/results/full_value_matrix.csv` |
+| Markdown 报告 | `evaluation/results/full_value_summary.md` |
 
-### 哪些能跑、哪些不能（20 场景）
+### 结果汇总
 
-| 状态 | 数量 | 含义 |
-|------|:---:|------|
-| ✅ SUCCESS | 6 | 返回了真实 Azure 数据 |
-| ⚠️ LEARN_FALLBACK | 7 | 子命令名不匹配 → server 回退到列出可用命令 |
-| ❌ MISSING_PARAMS | 6 | 复合工具需要 `parameters` 是 JSON 字符串，不是 object |
-| ❌ BAD_REQUEST | 1 | `pricing_get` 需要精确的 filter 组合 |
+| 结果 | 数量 | 含义 |
+|------|-----:|------|
+| **EXECUTED** | **45** | 安全 read-only 命令返回了真实 Azure 数据、空结果，或 MCP server 的可执行指导。 |
+| **SCHEMA_VERIFIED** | **9** | 工具暴露了有效 schema，但安全执行需要本测试环境没有的具体资源输入。 |
+| **TOOL_ERROR** | **5** | 工具可调用，但返回服务端/工具链错误；这些作为产品或前置条件问题记录下来。 |
+| **BLOCKED_UNSAFE** | **2** | 相关命令有副作用，评测脚本故意不执行。 |
+| **FAILED** | **2** | 仍需要更好的测试用例或参数组合。 |
+
+**覆盖解释**：63/63 个顶层工具全部探测；45/63 实际执行成功；54/63 至少获得了 live 执行证据或可验证 schema；剩余项逐条记录了阻塞原因。
+
+### 本轮实跑证明了什么
+
+| 能力 | 已执行工具 | 证明点 |
+|------|------------|--------|
+| 订阅与资源盘点 | `subscription_list`, `group_list`, `group_resource_list` | MCP server 通过当前 Azure CLI 登录读取真实 Azure 状态。 |
+| 计算与应用平台发现 | `compute_vm_get`, `aks_cluster_get`, `containerapps_list`, `appservice_webapp_get`, `functionapp_get` | Agent 不需要手写一串 `az` 查询，也能检查运行时基础设施。 |
+| 成本、配额、价格 | `quota_usage_check`, `pricing_get`, `advisor_recommendation_list` | 对 quota、pricing、optimization 这类高摩擦 API，skill 明显降低查文档成本。 |
+| IaC 与架构辅助 | `bicepschema_get`, `azureterraform_azurerm_get`, `azureterraformbestpractices_get`, `cloudarchitect_design` | Agent 能按需拉取 Bicep/Terraform schema 和架构建议。 |
+| 治理与身份 | `role_assignment_list`, `policy_assignment_list`, `resourcehealth_availability-status_get` | RBAC、Policy、Resource Health 可以作为结构化证据返回。 |
+| Azure 服务发现 | `storage_account_get`, `cosmos_list`, `sql_server_get`, `redis_list`, `search_service_list` | 同一个调用模式可以扫过多个 Azure 服务族。 |
+| 开发工作流辅助 | `functions_language_list`, `get_azure_bestpractices_get`, `wellarchitectedframework_serviceguide_get`, `extension_cli_generate` | 它不只是列资源，还能返回工程指导和命令生成能力。 |
+
+### 未完全执行的项目及原因
+
+| 类型 | 工具 | 原因 |
+|------|------|------|
+| 需要具体资源实例 | `keyvault`, `servicebus`, `servicefabric`, `speech`, `foundryextensions`, `confidentialledger`, `datadog`, `mysql`, `deploy` | schema 有效，但安全执行需要 vault、queue、speech 文件、endpoint、cluster、ledger transaction、Datadog resource、MySQL user 或本地 azd workspace。 |
+| 故意不执行 | `communication`, `azuremigrate` | 相关命令可能发送短信或引导环境变更，评测脚本只记录 schema，避免副作用。 |
+| 产品/前置条件问题 | `extension_azqr`, `loadtesting`, `marketplace`, `applens`, `foundry` | 工具返回运行时错误或缺少前置工具；例如 `extension_azqr` 需要 PATH 中存在 `azqr`。 |
+| 仍需补测试用例 | `applicationinsights`, `extension_cli_install` | 需要更精确的参数或更合适的环境。 |
+
+### 已验证的调用约定
+
+全量实跑还修正了一个直接 JSON-RPC 调用细节：对复合工具，直接调用 Azure MCP Server 时可用 **flat arguments + command**：
+
+```js
+send("compute", {
+  command: "compute_vm_get",
+  subscription: SUB,
+  "resource-group": "winvm"
+});
+```
+
+这和 SKILL.md 中看到的 `mcp_azure_mcp_*` 命名不同。前缀是 VS Code、Copilot CLI 等宿主注册工具时加的；裸 MCP server 暴露的是 `compute`、`quota`、`pricing`、`subscription_list`、`group_list` 这类名字。
+
+## Skills vs 不用 Skills：实跑证明了什么
+
+任何团队采用这些 skill 前最关心的问题，不是“MCP 能不能调 Azure”，而是：**比纯 `az` CLI 加一个通用 LLM 多得到什么？**
 
 ### 具体对比示例
 
@@ -529,7 +574,7 @@ send("extension_cli_generate", {
 
 ### Skill 什么时候有用、什么时候不需要
 
-从 20 个实战场景总结：
+从 63 个顶层工具实跑总结：
 
 | Skill 占优势的场景 | Skill 帮不上忙的场景 |
 |----------------------|----------------------|
@@ -539,29 +584,7 @@ send("extension_cli_generate", {
 | 需要跨服务架构推荐 | 只需单服务信息 |
 | 想要 guardrail（如“总是先查实际成本”） | 想对每个参数完全控制 |
 
-### 我们发现的隐藏成本
-
-MCP server 的复合工具要求一个**三层参数包装**，这点文档里没说：
-
-```js
-// 看起来直观（但 ❌ 失败）：
-send("compute", { command: "compute_vm_get", subscription: SUB, "resource-group": "H100VM_group" })
-// → MISSING_PARAMS 错误
-
-// 实际可行的：
-send("compute", {
-  command: "compute_vm_get",
-  parameters: JSON.stringify({  // ← 必须是 JSON 字符串！
-    subscription: SUB,
-    "resource-group": "H100VM_group"
-  })
-})
-// → SUCCESS
-```
-
-这就是为什么我们 6/20 的成功率是误导的 — 大多数失败是因为这个格式不对，不是 server 的问题。**在 VS Code Copilot 或 Claude Code 生产环境下，宿主会自动处理这个包装**，所以这个表面的友好度问题会消失。
-
-完整测试脚本和原始输出在 `scripts/test_skills_vs_no_skills.js`、`evaluation/results/mcp_comparison_*.{json,txt}` 和 `evaluation/cli_baseline/` 中。
+完整测试脚本和原始输出在 `scripts/run_full_value_evaluation.js`、`evaluation/results/full_value_evaluation.json`、`evaluation/results/full_value_matrix.csv`、`evaluation/results/full_value_summary.md` 和 `evaluation/cli_baseline/` 中。
 
 ## 复现本分析
 
