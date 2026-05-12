@@ -1,13 +1,13 @@
 # Azure Agent Skills 实战评测
 
-> 微软发布了两个 Agent Skills 仓库，但几乎没人真正跑过。我们替大家跑了一遍——63 个 Azure MCP 工具全量实跑、61 个 skill 逐个验证、每个都有可复现的提示词和产出物。
+> 一份针对 Microsoft Agent Skills 生态的第三方工程评测，覆盖架构、真实工作流、平台粘性分析，以及对所有 Azure MCP 顶层工具的实跑验证。
 
-微软有两个 skills 仓库，我们做了独立评测：
+本仓库对两个 Microsoft 仓库做完整、独立评估：
 
-- **[microsoft/azure-skills](https://github.com/microsoft/azure-skills)** (v1.1.39) — 26 个 Azure skill + MCP Server + Foundry MCP，一套让 Agent 操作 Azure 的能力栈。
-- **[microsoft/skills](https://github.com/microsoft/skills)** — 174 个 skill（Python / .NET / TypeScript / Java / Rust），还有 plugin、自定义 Agent 和 MCP 配置。
+- **[microsoft/azure-skills](https://github.com/microsoft/azure-skills)** (v1.1.39) — Azure Skills Plugin，包含 26 个顶层 skill、Azure MCP Server 和 Foundry MCP。
+- **[microsoft/skills](https://github.com/microsoft/skills)** — Agent Skills monorepo，包含 174 个跨 Python、.NET、TypeScript、Java、Rust 的 skill，以及 plugins（deep-wiki、azure-skills）、custom agents、prompts 和 MCP configs。
 
-我们不打算复述官方 README。我们要回答的是工程团队在决定是否采用之前最关心的问题：
+目标不是复述官方 README，而是替其他工程师省下从头跑完整栈的时间，并回答工程团队在规模化采用这些 skills 之前真正会问的问题：
 
 1. **架构到底长什么样？** — 营销文案写得漂亮，但组件之间到底怎么接的？
 2. **部署流水线靠谱吗？** — `prepare → validate → deploy` 号称是强制门控流程，是真的吗？
@@ -96,7 +96,7 @@ Azure Skills Plugin 不是一个 prompt 包。它分三层，把一个通用 Cod
 
 ## 深度拆解：部署工作流
 
-`azure-prepare → azure-validate → azure-deploy` 流水线是整套 skill 里最“有态度”的部分——每个阶段之间设了硬门控，不满足就不让过。
+`azure-prepare → azure-validate → azure-deploy` 流水线是整套 skill 里约束最强的一部分。它强制先写计划、再做验证、最后部署，并在阶段之间设置硬门控。
 
 <div align="center"><img src="images/deploy-workflow.png" width="960"/></div>
 
@@ -309,7 +309,7 @@ apm install microsoft/azure-skills
 
 ## 实测验证：运行 Azure MCP Server
 
-本仓库中的所有声明都通过实际运行 Azure MCP Server（`@azure/mcp@latest`）并通过 JSON-RPC 调用其工具进行了验证。测试脚本在 `scripts/`，原始输出在 `evaluation/results/`。
+本节中的操作性结论都通过实际运行 Azure MCP Server（`@azure/mcp@latest`）并通过 JSON-RPC 调用其工具进行了验证。测试脚本在 `scripts/`，原始输出在 `evaluation/results/`。
 
 ### 环境
 
@@ -458,7 +458,7 @@ skill 的 SKILL.md 文件中引用工具时用 `mcp_azure_mcp_` 前缀（如 `mc
 | **SCHEMA_VERIFIED** | **9** | 工具暴露了有效 schema，但安全执行需要本测试环境没有的具体资源输入。 |
 | **TOOL_ERROR** | **5** | 工具可调用，但返回服务端/工具链错误；这些作为产品或前置条件问题记录下来。 |
 | **BLOCKED_UNSAFE** | **2** | 相关命令有副作用，评测脚本故意不执行。 |
-| **FAILED** | **2** | 仍需要更好的测试用例或参数组合。 |
+| **FAILED** | **2** | 评测脚本未能为该工具拿到有用的运行结果。 |
 
 **覆盖说明**：63 个工具全部探测，45 个跑通了，54 个拿到了实跑结果或 schema，剩下几个的阻塞原因都记在文档里。
 
@@ -524,7 +524,7 @@ real    0m0.949s
 
 **结论**：速度一样，但 MCP 返回结构化 JSON，可直接给 LLM 消费。
 
-#### 示例 2：配额查询 — MCP 在复杂度上赢 10 倍
+#### 示例 2：配额查询 — MCP 在复杂度上胜出
 
 **不用 skills（手动调 REST API）**：
 ```bash
@@ -570,7 +570,7 @@ send("extension_cli_generate", {
 }
 ```
 
-**结论**：这是不用 skill 不可能做到的 — 你需要一个懂 Azure CLI 的 LLM 或亲自查文档。
+**结论**：这是 skill 层真正增加价值的地方：不用 skill 也不是原则上做不到，但你需要一个懂 Azure CLI 的 LLM，或自己查文档，才能安全地产生同等命令。
 
 ### Skill 什么时候有用、什么时候不需要
 
@@ -908,7 +908,7 @@ export function trackAgentInvocation(attrs: AgentSpanAttrs): void {
 }
 ```
 
-Skill 强制要求：浏览器单独的 App Insights 资源（连接串明文暴露）、W3C trace context、OTel GenAI 语义约定。
+Skill 强制要求：浏览器使用单独的 App Insights 资源（浏览器端连接字符串公开可见）、W3C trace context、OTel GenAI 语义约定。
 
 → 完整代码：[`skill-demos/applicationinsights-web-ts/appInsights.ts`](skill-demos/applicationinsights-web-ts/appInsights.ts)
 

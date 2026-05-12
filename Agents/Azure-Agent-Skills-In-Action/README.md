@@ -309,7 +309,7 @@ Not every team needs every skill. Here is a decision guide:
 
 ## Hands-On Evaluation: Running the Azure MCP Server
 
-All claims in this repository are verified by actually running the Azure MCP Server (`@azure/mcp@latest`) and calling its tools via JSON-RPC. The test scripts are in `scripts/` and raw output is in `evaluation/results/`.
+The operational claims in this section are verified by actually running the Azure MCP Server (`@azure/mcp@latest`) and calling its tools via JSON-RPC. The test scripts are in `scripts/` and raw output is in `evaluation/results/`.
 
 ### Environment
 
@@ -570,7 +570,7 @@ send("extension_cli_generate", {
 }
 ```
 
-**Verdict**: This is impossible without skills — you'd need an LLM with Azure CLI knowledge or to read docs.
+**Verdict**: This is where skills add unique value: without the skill layer, you would need an Azure-aware LLM or manual documentation lookup to produce the same command safely.
 
 ### When Skills Help vs When They Do Not
 
