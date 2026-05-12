@@ -1,24 +1,24 @@
 # Azure Agent Skills 实战评测
 
-> 以第三方工程师视角，深度评测微软 Agent Skills 生态——覆盖架构拆解、实战工作流验证、平台粘性分析，以及 63 个 Azure MCP 顶层工具的全量实跑。
+> 微软发布了两个 Agent Skills 仓库，但几乎没人真正跑过。我们替大家跑了一遍——63 个 Azure MCP 工具全量实跑、61 个 skill 逐个验证、每个都有可复现的提示词和产出物。
 
-本仓库对以下两个微软官方仓库做了独立的、全面的工程评测：
+微软有两个 skills 仓库，我们做了独立评测：
 
-- **[microsoft/azure-skills](https://github.com/microsoft/azure-skills)** (v1.1.39) — Azure Skills Plugin，包含 26 个顶层 skill、Azure MCP Server、Foundry MCP。
-- **[microsoft/skills](https://github.com/microsoft/skills)** — Agent Skills 总仓库，包含 174 个 skill（Python、.NET、TypeScript、Java、Rust），以及 deep-wiki、azure-skills 等 plugin、自定义 Agent、Prompt 和 MCP 配置。
+- **[microsoft/azure-skills](https://github.com/microsoft/azure-skills)** (v1.1.39) — 26 个 Azure skill + MCP Server + Foundry MCP，一套让 Agent 操作 Azure 的能力栈。
+- **[microsoft/skills](https://github.com/microsoft/skills)** — 174 个 skill（Python / .NET / TypeScript / Java / Rust），还有 plugin、自定义 Agent 和 MCP 配置。
 
-本 Repo 的目标不是复述官方 README，而是替其他工程师把整套 stack 跑完，回答一个真实工程团队在大规模采用前会问的问题：
+我们不打算复述官方 README。我们要回答的是工程团队在决定是否采用之前最关心的问题：
 
-1. **真实架构长什么样？** — 不是营销话术，而是各组件实际如何连接。
-2. **部署工作流是否真正有效？** — `prepare → validate → deploy` 声称是硬门控流程，我们做了追踪验证。
-3. **平台粘性在哪里？** — 哪些 skill 一旦使用，就难以脱离微软生态？
-4. **到底有没有实际跑过？** — 有。本 Repo 包含针对真实 Azure 订阅的 63 个顶层 MCP 工具全量实跑结果。
-5. **还有哪些缺口？** — 哪些需要特定资源、哪些依赖外部工具、哪些不应自动执行。
-6. **团队应该如何选择性采用？** — 不是所有 skill 都需要安装。
+1. **架构到底长什么样？** — 营销文案写得漂亮，但组件之间到底怎么接的？
+2. **部署流水线靠谱吗？** — `prepare → validate → deploy` 号称是强制门控流程，是真的吗？
+3. **用了之后能不能换？** — 哪些 skill 一旦用上，就很难从微软生态里迁出去？
+4. **有人真跑过吗？** — 有。本仓库对真实 Azure 订阅跑了 63 个 MCP 工具，结果全部落盘。
+5. **还差什么？** — 哪些工具需要特定资源才能跑、哪些有外部依赖、哪些不该自动执行。
+6. **怎么挑着用？** — 不是所有 skill 都得装，挑哪些？
 
 ## 架构全景
 
-Azure Skills Plugin 不是一个 prompt 包。它是一个三层能力栈，能把通用编码 Agent 变成 Azure 专用操作员。
+Azure Skills Plugin 不是一个 prompt 包。它分三层，把一个通用 Coding Agent 变成 Azure 操作员。
 
 <div align="center"><img src="images/architecture-overview.png" width="960"/></div>
 
@@ -96,7 +96,7 @@ Azure Skills Plugin 不是一个 prompt 包。它是一个三层能力栈，能�
 
 ## 深度拆解：部署工作流
 
-`azure-prepare → azure-validate → azure-deploy` 流水线是 skills 生态中最有"主见"的部分。它在各阶段之间强制设置硬门控。
+`azure-prepare → azure-validate → azure-deploy` 流水线是整套 skill 里最“有态度”的部分——每个阶段之间设了硬门控，不满足就不让过。
 
 <div align="center"><img src="images/deploy-workflow.png" width="960"/></div>
 
@@ -217,7 +217,7 @@ Azure Skills Plugin 不是一个 prompt 包。它是一个三层能力栈，能�
 | `entra-app-registration` | 应用身份 | OAuth 2.0 流程、MSAL、Microsoft Graph 权限、Bicep 应用注册 |
 | `entra-agent-id` | Agent 身份 | 通过 Graph API 创建 Agent Identity Blueprint，OAuth Token 交换（fmi_path、OBO、跨租户）、AgentID sidecar |
 
-一旦组织的身份模型建立在 Entra ID + Managed Identity + RBAC + Agent Identity 上，迁移到其他云的身份系统意味着重建整个权限图谱，而不仅仅是更换 SDK 导入语句。
+一旦组织的身份体系建在 Entra ID + Managed Identity + RBAC + Agent Identity 上，要换到别的云就意味着重建整个权限图谱——这可不是换个 import 语句的事。
 
 ## 平台粘性分析
 
@@ -238,7 +238,7 @@ Azure Skills Plugin 不是一个 prompt 包。它是一个三层能力栈，能�
 
 ## 未覆盖的领域
 
-这些 skill 聚焦于 Azure 云开发和 AI Agent 工作流。以下领域明确不在覆盖范围内：
+这些 skill 专注于 Azure 云开发和 AI Agent 工作流。以下领域不包含在内：
 
 | 类别 | 状态 | 说明 |
 |------|:----:|------|
@@ -249,7 +249,7 @@ Azure Skills Plugin 不是一个 prompt 包。它是一个三层能力栈，能�
 | **数据库管理** | 部分覆盖 | Cosmos DB 和 SQL 的部署/RBAC 有覆盖，但查询优化和 schema 设计没有 |
 | **网络深度** | 部分覆盖 | `azure-enterprise-infra-planner` 在架构层覆盖 VNet/NSG/防火墙，但不涉及报文级排查 |
 
-`microsoft/skills` 中的 `m365-agents-py/dotnet/ts` skill 是用来构建**运行在 M365/Teams/Copilot Studio 上的 Agent**，不是用来操作 Office 文档。
+`microsoft/skills` 里的 `m365-agents-py/dotnet/ts` skill 是给在 M365/Teams/Copilot Studio 上建 Agent 用的，不是用来操作 Office 文档的。
 
 `azure-ai-translation-document-py` skill 可以翻译 Word/PDF/Excel 文件并保留格式，但这是翻译服务，不是文档自动化工具。
 
@@ -460,7 +460,7 @@ skill 的 SKILL.md 文件中引用工具时用 `mcp_azure_mcp_` 前缀（如 `mc
 | **BLOCKED_UNSAFE** | **2** | 相关命令有副作用，评测脚本故意不执行。 |
 | **FAILED** | **2** | 仍需要更好的测试用例或参数组合。 |
 
-**覆盖解释**：63/63 个顶层工具全部探测；45/63 实际执行成功；54/63 至少获得了 live 执行证据或可验证 schema；剩余项逐条记录了阻塞原因。
+**覆盖说明**：63 个工具全部探测，45 个跑通了，54 个拿到了实跑结果或 schema，剩下几个的阻塞原因都记在文档里。
 
 ### 本轮实跑证明了什么
 
@@ -499,7 +499,7 @@ send("compute", {
 
 ## Skills vs 不用 Skills：实跑证明了什么
 
-任何团队采用这些 skill 前最关心的问题，不是“MCP 能不能调 Azure”，而是：**比纯 `az` CLI 加一个通用 LLM 多得到什么？**
+在决定是否采用这些 skill 之前，工程团队最关心的不是“MCP 能不能调 Azure”，而是：**跟纯 `az` CLI + 一个通用 LLM 比，多得到什么？**
 
 ### 具体对比示例
 
