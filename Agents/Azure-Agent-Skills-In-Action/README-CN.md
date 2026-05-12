@@ -596,7 +596,7 @@ send("extension_cli_generate", {
 
 | 技能 | 任务 | 产出物 | 位置 |
 |------|------|--------|------|
-| **presenter** (幻灯片) | 生成评测摘要 PPT | 12 页 PPTX | `slides/Azure-Agent-Skills-In-Action.pptx` |
+| **presenter** (幻灯片) | 生成评测摘要 PPT | 12 页 PPTX | `slides/` |
 | **cloud-solution-architect** | 设计 RAG Agent 架构（7 步 WAF 审查） | 架构文档 + ADR | `skill-demos/cloud-solution-architect/` |
 | **github-issue-creator** | 把原始错误日志转成结构化 issue | 3 个 GitHub 格式 issue | `skill-demos/github-issue-creator/` |
 | **mcp-builder** | 构建暴露评测数据的 MCP server | Python FastMCP 服务（5 个工具） | `skill-demos/mcp-builder/` |
@@ -607,6 +607,192 @@ send("extension_cli_generate", {
 | **foundry-toolboxes** | 配置含 3 个 MCP 工具的 Toolbox | Toolbox 配置 + 实际端点 | `skill-demos/foundry-toolboxes/` |
 | **foundry-memory** | 集成跨 session agent 记忆 | FoundryMemoryProvider 集成 | `skill-demos/foundry-memory/` |
 | **copilot-sdk** | 构建多 agent 演示应用 | FastAPI 应用（Responses 协议） | `skill-demos/copilot-sdk/` |
+
+### Skill 1: cloud-solution-architect — RAG Agent 架构设计
+
+按照该 skill 的 **7 步架构审查工作流** 设计了一个生产级 RAG Agent 系统。
+
+**技术选型**（Step 3）：
+
+| 领域 | 选择 | 理由 |
+|------|------|------|
+| 计算（Web） | Azure Container Apps | 可缩容至零，比 AKS 简单 |
+| 计算（Worker） | Azure Functions | 事件驱动的文档处理 |
+| AI 编排 | Azure AI Foundry (gpt-4.1-mini) | 托管 LLM，内容安全 |
+| 向量搜索 | Azure AI Search | 混合向量+关键词，语义排序 |
+| 元数据存储 | Cosmos DB (serverless) | 亚 10ms 读取，无最低费用 |
+| 消息队列 | Azure Service Bus | 可靠的摄入队列，死信支持 |
+| 身份认证 | Entra ID + Managed Identity | 零凭据架构 |
+
+**应用了 10 个设计模式**（Step 4）：Cache-Aside、Queue-Based Load Leveling、Retry、Circuit Breaker、Bulkhead、Claim Check、Gateway Offloading、Health Endpoint Monitoring、Valet Key、External Configuration Store。
+
+**WAF 5 维评估**（Step 6）：可靠性 ✅ 强 | 安全 ✅ 强 | 成本 ✅ 好 | 运营卓越 ✅ 好 | 性能效率 ✅ 好。
+
+**ADR 决策记录**：Container Apps vs AKS、混合搜索 vs 纯向量、Serverless Cosmos vs PostgreSQL。
+
+→ 完整文档：[`skill-demos/cloud-solution-architect/architecture-design.md`](skill-demos/cloud-solution-architect/architecture-design.md)
+
+### Skill 2: github-issue-creator — 从错误日志生成结构化 Issue
+
+**输入**：63 工具实跑中的 6 行原始错误输出。
+
+**输出**：3 个结构化、可分派的 GitHub issue：
+
+| Issue | 摘要 | 严重度 |
+|-------|------|--------|
+| #1 | `extension_cli_install` 返回 400 — `--cli-type` 参数未在 learn schema 中文档化 | Low |
+| #2 | `foundry` 的 `model_similar_models_get` 使用有效 AIServices 账户仍返回通用错误 | Medium |
+| #3 | `extension_azqr` 在 `azqr` 二进制不存在时失败，无 fallback | Low |
+
+每个 issue 都遵循模板：Summary → Environment → Steps → Expected → Actual → Error → Impact → Context。
+
+→ 完整文档：[`skill-demos/github-issue-creator/generated-issues.md`](skill-demos/github-issue-creator/generated-issues.md)
+
+### Skill 3: mcp-builder — 暴露评测数据的 MCP Server
+
+按照 skill 的 4 阶段工作流构建了一个 Python FastMCP server：
+
+```python
+from mcp.server.fastmcp import FastMCP
+mcp = FastMCP("azure-skills-evaluation", version="1.0.0")
+
+@mcp.tool(annotations={"readOnlyHint": True})
+def eval_summary() -> str:
+    """获取 63 工具 Azure MCP 评测的汇总结果。"""
+    return json.dumps(data["summary"], indent=2)
+```
+
+**暴露 5 个工具**：`eval_summary`、`eval_tool_result`、`eval_list_tools`、`eval_family_breakdown`、`eval_blockers`——全部标注 `readOnlyHint: True`。
+
+语法验证：`python -m py_compile` ✅
+
+→ 完整代码：[`skill-demos/mcp-builder/evaluation_mcp_server.py`](skill-demos/mcp-builder/evaluation_mcp_server.py)
+
+### Skill 4: frontend-design-review — Foundry Demo 前端审查
+
+用 skill 的 5 维度审查框架审查了 `Foundry-Hosted-Agent-Toolbox-Demo/app/static/index.html`（726 行）：
+
+| 维度 | 评分 | 关键发现 |
+|------|-----:|----------|
+| 设计系统 | 7/10 | Segoe UI + Microsoft Blue 配色正确，间距不一致 |
+| 可访问性 | **4/10** | 无 ARIA 标签、无 landmark、无焦点样式、9px 文字 |
+| 性能 | 7/10 | 零外部依赖，但 3 个并行轮询 |
+| 响应式 | **2/10** | 固定 320px 网格列，零 media query |
+| 美观度 | 8/10 | 专业暗色主题，清晰视觉层级 |
+| **总评** | **5.7/10** | |
+
+**Top 3 修复**：(1) 加 ARIA 标签 + landmark，(2) 固定网格改响应式，(3) 轮询改 SSE。
+
+→ 完整报告：[`skill-demos/frontend-design-review/review-report.md`](skill-demos/frontend-design-review/review-report.md)
+
+### Skill 5: skill-creator — 创建全新 SKILL.md
+
+按照 skill-creator 的指导创建了完整的 SKILL.md（含 YAML frontmatter）：
+
+```yaml
+---
+name: azure-mcp-evaluation
+description: >-
+  Guide agents through evaluating Azure MCP Server tools against real Azure subscriptions.
+  USE FOR: running Azure MCP evaluation harnesses, interpreting MCP tool results...
+  DO NOT USE FOR: deploying Azure resources, modifying infrastructure...
+compatibility: github-copilot, claude-code, opencode
+---
+```
+
+包含：分类规则、调用约定、安全规则、输出格式、评测工作流、常用参数。
+
+→ 完整 SKILL.md：[`skill-demos/skill-creator/azure-mcp-evaluation-SKILL.md`](skill-demos/skill-creator/azure-mcp-evaluation-SKILL.md)
+
+### Skill 6: foundry-hosted-agents — 容器化 Agent 部署
+
+通过 `azd up` 部署了 Foundry 托管 agent：
+
+```python
+from agent_framework import Agent, MCPStreamableHTTPTool
+from agent_framework.foundry import FoundryChatClient
+from agent_framework_foundry_hosting import ResponsesHostServer
+
+agent = Agent(
+    client=client,
+    name="hosted-agent-toolbox-demo",
+    tools=[toolbox_tool, direct_web_search_tool, direct_image_generate_tool],
+    context_providers=[memory_provider],
+)
+```
+
+证据：Dockerfile、agent.yaml、Toolbox MCP 集成、Entra 身份、Container Apps 部署。
+
+→ 完整证据：[`skill-demos/foundry-hosted-agents/deployment-evidence.md`](skill-demos/foundry-hosted-agents/deployment-evidence.md)
+
+### Skill 7: foundry-models — Foundry 模型部署
+
+部署 `gpt-4.1-mini`（按量付费）并通过 MCP 验证：
+
+```bash
+az cognitiveservices account deployment list --name toolbox-demo-ais ...
+# gpt-4-1-mini    gpt-4.1-mini   2025-04-14
+```
+
+同时通过 MCP `foundry` 工具验证 — 记录了 `model_similar_models_get` 即使使用有效参数仍返回通用错误（产品发现）。
+
+→ 完整证据：[`skill-demos/foundry-models/model-deployment-evidence.md`](skill-demos/foundry-models/model-deployment-evidence.md)
+
+### Skill 8: foundry-toolboxes — Toolbox MCP 配置
+
+配置 Toolbox `agent-tools`，将 3 个工具打包到一个 MCP 端点：
+
+| 工具 | 类型 | 描述 |
+|------|------|------|
+| `code_interpreter` | Built-in | 在托管沙箱中执行 Python |
+| `file_search` | Built-in | 通过向量存储搜索上传文档 |
+| `web_search` | Built-in | 通过 Bing grounding 搜索（预览） |
+
+通过 `MCPStreamableHTTPTool` 消费，使用 `Foundry-Features: Toolboxes=V1Preview` header。
+
+→ 完整配置：[`skill-demos/foundry-toolboxes/toolbox-configuration.md`](skill-demos/foundry-toolboxes/toolbox-configuration.md)
+
+### Skill 9: foundry-memory — 跨 Session Agent 记忆
+
+集成 `FoundryMemoryProvider` 实现托管的长期记忆：
+
+```python
+from agent_framework.foundry import FoundryMemoryProvider
+memory_provider = FoundryMemoryProvider(
+    project_endpoint=project_endpoint,
+    credential=credential,
+    memory_store_name=memory_store_name,
+    scope="default",
+    allow_preview=True,
+)
+agent = Agent(..., context_providers=[memory_provider])
+```
+
+零基础设施——不需要 Redis/Cosmos。`MEMORY_STORE_NAME` 未设置时优雅降级为无状态模式。
+
+→ 完整集成：[`skill-demos/foundry-memory/memory-integration.md`](skill-demos/foundry-memory/memory-integration.md)
+
+### Skill 10: copilot-sdk — 多 Agent 演示应用
+
+构建了完整的 FastAPI Web 应用（`server.py` + `index.html`）：
+
+- **Responses 协议**：`POST /responses` + Bearer 认证到 Foundry 托管 agent
+- **多 Agent 人设**：Agent 注册表，每个 agent 配不同工具子集
+- **输出解析**：`output[] → message → content[] → output_text` 链
+- **语音管线**：浏览器 MediaRecorder → Whisper STT → Agent → 响应
+- **图像生成**：直接 Foundry Image API（gpt-image-1）
+
+```python
+resp = httpx.post(ep["url"], json={"input": constraint},
+                  headers={"Authorization": f"Bearer {_get_token(...)}"})
+for item in payload.get("output", []):
+    if item.get("type") == "message":
+        for c in item.get("content", []):
+            if c.get("type") == "output_text":
+                text_parts.append(c["text"])
+```
+
+→ 完整证据：[`skill-demos/copilot-sdk/application-evidence.md`](skill-demos/copilot-sdk/application-evidence.md)
 
 每个产出物都记录了：该 skill 教了什么、我们如何应用、实际产出、以及对 skill 价值的评定。
 

@@ -596,7 +596,7 @@ Beyond the Azure MCP execution layer, we verified 11 skills from [microsoft/skil
 
 | Skill | Task | Deliverable | Location |
 |-------|------|-------------|----------|
-| **presenter** (slides) | Generate evaluation summary deck | 12-slide PPTX | `slides/Azure-Agent-Skills-In-Action.pptx` |
+| **presenter** (slides) | Generate evaluation summary deck | 12-slide PPTX | `slides/` |
 | **cloud-solution-architect** | Design a RAG Agent architecture (7-step WAF review) | Architecture document with ADRs | `skill-demos/cloud-solution-architect/` |
 | **github-issue-creator** | Convert raw error logs into structured issues | 3 GitHub-format issues | `skill-demos/github-issue-creator/` |
 | **mcp-builder** | Build an MCP server exposing evaluation data | Python FastMCP server (5 tools) | `skill-demos/mcp-builder/` |
@@ -607,6 +607,192 @@ Beyond the Azure MCP execution layer, we verified 11 skills from [microsoft/skil
 | **foundry-toolboxes** | Configure Toolbox with 3 MCP tools | Toolbox config + live endpoint | `skill-demos/foundry-toolboxes/` |
 | **foundry-memory** | Integrate cross-session agent memory | FoundryMemoryProvider integration | `skill-demos/foundry-memory/` |
 | **copilot-sdk** | Build multi-agent demo app | FastAPI app with Responses protocol | `skill-demos/copilot-sdk/` |
+
+### Skill 1: cloud-solution-architect — RAG Agent Architecture
+
+The skill's **7-step Architecture Review Workflow** was applied to design a production RAG Agent system. Key outputs:
+
+**Technology stack selected** (Step 3):
+
+| Area | Choice | Rationale |
+|------|--------|-----------|
+| Compute (web) | Azure Container Apps | Auto-scale to zero, simpler than AKS |
+| Compute (worker) | Azure Functions | Event-triggered document processing |
+| AI orchestration | Azure AI Foundry (gpt-4.1-mini) | Managed LLM, content safety |
+| Vector search | Azure AI Search | Hybrid vector + keyword, semantic ranker |
+| Metadata store | Cosmos DB (serverless) | Sub-10ms reads, no minimum cost |
+| Messaging | Azure Service Bus | Reliable ingestion queue, dead-letter |
+| Identity | Entra ID + Managed Identity | Zero-credential architecture |
+
+**Design patterns applied** (Step 4): Cache-Aside, Queue-Based Load Leveling, Retry, Circuit Breaker, Bulkhead, Claim Check, Gateway Offloading, Health Endpoint Monitoring, Valet Key, External Configuration Store.
+
+**WAF pillar assessment** (Step 6): Reliability ✅ Strong | Security ✅ Strong | Cost ✅ Good | Ops Excellence ✅ Good | Performance ✅ Good.
+
+**ADRs documented**: Container Apps over AKS, Hybrid Search over Pure Vector, Serverless Cosmos DB over PostgreSQL.
+
+→ Full document: [`skill-demos/cloud-solution-architect/architecture-design.md`](skill-demos/cloud-solution-architect/architecture-design.md)
+
+### Skill 2: github-issue-creator — Structured Issues from Error Logs
+
+**Input**: Raw 6-line error dump from our 63-tool MCP evaluation run.
+
+**Output**: 3 properly structured, triageable GitHub issues:
+
+| Issue | Summary | Severity |
+|-------|---------|----------|
+| #1 | `extension_cli_install` returns 400 — required `--cli-type` not documented in learn schema | Low |
+| #2 | `foundry` `model_similar_models_get` returns generic error with valid AIServices account | Medium |
+| #3 | `extension_azqr` fails when `azqr` binary not in PATH — no fallback | Low |
+
+Each issue follows the template: Summary → Environment → Reproduction Steps → Expected → Actual → Error Details → Impact → Additional Context.
+
+→ Full document: [`skill-demos/github-issue-creator/generated-issues.md`](skill-demos/github-issue-creator/generated-issues.md)
+
+### Skill 3: mcp-builder — MCP Server for Evaluation Data
+
+Built a Python FastMCP server following the skill's 4-phase workflow:
+
+```python
+from mcp.server.fastmcp import FastMCP
+mcp = FastMCP("azure-skills-evaluation", version="1.0.0")
+
+@mcp.tool(annotations={"readOnlyHint": True})
+def eval_summary() -> str:
+    """Get the high-level summary of the 63-tool Azure MCP evaluation run."""
+    return json.dumps(data["summary"], indent=2)
+```
+
+**5 tools exposed**: `eval_summary`, `eval_tool_result`, `eval_list_tools`, `eval_family_breakdown`, `eval_blockers` — all annotated with `readOnlyHint: True`.
+
+Syntax verified: `python -m py_compile` ✅
+
+→ Full code: [`skill-demos/mcp-builder/evaluation_mcp_server.py`](skill-demos/mcp-builder/evaluation_mcp_server.py)
+
+### Skill 4: frontend-design-review — Foundry Demo Dashboard Audit
+
+Audited `Foundry-Hosted-Agent-Toolbox-Demo/app/static/index.html` (726 lines) using the skill's 5-pillar review:
+
+| Pillar | Score | Key Finding |
+|--------|------:|-------------|
+| Design System | 7/10 | Segoe UI + Microsoft Blue palette correct; spacing inconsistent |
+| Accessibility | **4/10** | No ARIA labels, no landmarks, no focus styles, 9px text |
+| Performance | 7/10 | Zero external deps, but 3 parallel polling loops |
+| Responsive | **2/10** | Fixed 320px grid columns, zero media queries |
+| Aesthetics | 8/10 | Professional dark theme, clear visual hierarchy |
+| **Overall** | **5.7/10** | |
+
+**Top 3 fixes**: (1) Add ARIA labels + landmarks, (2) Replace fixed grid with responsive, (3) Replace polling with SSE.
+
+→ Full report: [`skill-demos/frontend-design-review/review-report.md`](skill-demos/frontend-design-review/review-report.md)
+
+### Skill 5: skill-creator — New SKILL.md for MCP Evaluation
+
+Created a complete SKILL.md with proper YAML frontmatter following the skill-creator's guide:
+
+```yaml
+---
+name: azure-mcp-evaluation
+description: >-
+  Guide agents through evaluating Azure MCP Server tools against real Azure subscriptions.
+  USE FOR: running Azure MCP evaluation harnesses, interpreting MCP tool results...
+  DO NOT USE FOR: deploying Azure resources, modifying infrastructure...
+compatibility: github-copilot, claude-code, opencode
+---
+```
+
+Includes: classification rules, calling convention, safety rules, output format, evaluation workflow, common parameters.
+
+→ Full SKILL.md: [`skill-demos/skill-creator/azure-mcp-evaluation-SKILL.md`](skill-demos/skill-creator/azure-mcp-evaluation-SKILL.md)
+
+### Skill 6: foundry-hosted-agents — Containerized Agent Deployment
+
+Deployed a Foundry hosted agent via `azd up` with:
+
+```python
+from agent_framework import Agent, MCPStreamableHTTPTool
+from agent_framework.foundry import FoundryChatClient
+from agent_framework_foundry_hosting import ResponsesHostServer
+
+agent = Agent(
+    client=client,
+    name="hosted-agent-toolbox-demo",
+    tools=[toolbox_tool, direct_web_search_tool, direct_image_generate_tool],
+    context_providers=[memory_provider],
+)
+```
+
+Evidence: Dockerfile, agent.yaml, Toolbox MCP integration, Entra identity, azd deployment to Container Apps.
+
+→ Full evidence: [`skill-demos/foundry-hosted-agents/deployment-evidence.md`](skill-demos/foundry-hosted-agents/deployment-evidence.md)
+
+### Skill 7: foundry-models — Model Deployment on Foundry
+
+Deployed `gpt-4.1-mini` as pay-as-you-go and verified via MCP:
+
+```bash
+az cognitiveservices account deployment list --name toolbox-demo-ais ...
+# gpt-4-1-mini    gpt-4.1-mini   2025-04-14
+```
+
+Also verified via the MCP `foundry` tool — documented that `model_similar_models_get` returns a generic error even with valid parameters (product finding).
+
+→ Full evidence: [`skill-demos/foundry-models/model-deployment-evidence.md`](skill-demos/foundry-models/model-deployment-evidence.md)
+
+### Skill 8: foundry-toolboxes — Toolbox MCP Configuration
+
+Configured Toolbox `agent-tools` bundling 3 tools into one MCP endpoint:
+
+| Tool | Type | Description |
+|------|------|-------------|
+| `code_interpreter` | Built-in | Execute Python in managed sandbox |
+| `file_search` | Built-in | Search uploaded documents via vector store |
+| `web_search` | Built-in | Web search via Bing grounding (preview) |
+
+Consumed via `MCPStreamableHTTPTool` with `Foundry-Features: Toolboxes=V1Preview` header.
+
+→ Full configuration: [`skill-demos/foundry-toolboxes/toolbox-configuration.md`](skill-demos/foundry-toolboxes/toolbox-configuration.md)
+
+### Skill 9: foundry-memory — Cross-Session Agent Memory
+
+Integrated `FoundryMemoryProvider` for managed long-term memory:
+
+```python
+from agent_framework.foundry import FoundryMemoryProvider
+memory_provider = FoundryMemoryProvider(
+    project_endpoint=project_endpoint,
+    credential=credential,
+    memory_store_name=memory_store_name,
+    scope="default",
+    allow_preview=True,
+)
+agent = Agent(..., context_providers=[memory_provider])
+```
+
+Zero-infrastructure path — no Redis/Cosmos needed. Graceful fallback when `MEMORY_STORE_NAME` not set.
+
+→ Full integration: [`skill-demos/foundry-memory/memory-integration.md`](skill-demos/foundry-memory/memory-integration.md)
+
+### Skill 10: copilot-sdk — Multi-Agent Demo Application
+
+Built a complete FastAPI web app (`server.py` + `index.html`) implementing:
+
+- **Responses protocol**: `POST /responses` with Bearer auth to Foundry hosted agent
+- **Multi-agent personas**: Agent registry with per-agent tool subsets
+- **Output parsing**: `output[] → message → content[] → output_text` chain
+- **Voice pipeline**: Browser MediaRecorder → Whisper STT → Agent → Response
+- **Image generation**: Direct Foundry Image API (gpt-image-1)
+
+```python
+resp = httpx.post(ep["url"], json={"input": constraint},
+                  headers={"Authorization": f"Bearer {_get_token(...)}"})
+for item in payload.get("output", []):
+    if item.get("type") == "message":
+        for c in item.get("content", []):
+            if c.get("type") == "output_text":
+                text_parts.append(c["text"])
+```
+
+→ Full evidence: [`skill-demos/copilot-sdk/application-evidence.md`](skill-demos/copilot-sdk/application-evidence.md)
 
 Each deliverable documents: what the skill teaches, how we applied it, the actual output, and a verdict on the skill's value.
 
