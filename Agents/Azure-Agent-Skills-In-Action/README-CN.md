@@ -242,7 +242,7 @@ Azure Skills Plugin 不是一个 prompt 包。它是一个三层能力栈，能�
 
 | 类别 | 状态 | 说明 |
 |------|:----:|------|
-| **Office/Word/Excel 自动化** | 未覆盖 | 没有 DOCX 生成、编辑、排版或修订追踪相关 skill |
+| **Office/Word/Excel 自动化** | 部分覆盖 | microsoft/skills 仓库**没有专门的 SDK skill**（如 python-pptx-py / openpyxl-py），但我们用 `microsoft-docs` skill + `python-pptx` 库**真实生成了** [`slides/Azure-Agent-Skills-In-Action.pptx`](slides/Azure-Agent-Skills-In-Action.pptx)（14 页，含 URL 引用）。详见 ["配套幻灯片" 章节](#配套幻灯片使用-microsoft-docs-技能生成) |
 | **非 Azure 云** | 未覆盖 | `azure-cloud-migrate` 帮助迁移到 Azure，而非从 Azure 迁出 |
 | **移动开发** | 未覆盖 | 没有 iOS/Android/React Native skill |
 | **前端框架** | 部分覆盖 | Core skills 中有 `frontend-design-review`，但没有 React/Vue/Angular SDK skill |
