@@ -653,6 +653,12 @@ send("extension_cli_generate", {
 | **foundry-toolboxes** | 配置含 3 个 MCP 工具的 Toolbox | Toolbox 配置 + 实际端点 | `skill-demos/foundry-toolboxes/` |
 | **foundry-memory** | 集成跨 session agent 记忆 | FoundryMemoryProvider 集成 | `skill-demos/foundry-memory/` |
 | **copilot-sdk** | 构建多 agent 演示应用 | FastAPI 应用（Responses 协议） | `skill-demos/copilot-sdk/` |
+| **microsoft-docs** | 用引用官方文档的方式生成上面 14 页 PPT | 14 页 PPTX（页脚带 URL） | `slides/` |
+| **applicationinsights-web-ts** | 给 Foundry Demo 前端加浏览器 RUM + GenAI 追踪 | TS 模块（含 OTel GenAI 语义约定） | `skill-demos/applicationinsights-web-ts/` |
+| **continual-learning** | 把本次评测的教训沉淀为项目本地 learnings | `.copilot-memory/learnings.md` 风格文件 | `skill-demos/continual-learning/` |
+| **entra-agent-id** | 为托管 agent 配置 Entra Agent ID | Python 脚本（Graph beta + 3 步流程） | `skill-demos/entra-agent-id/` |
+| **kql** | 7 条 App Insights 监控的生产 KQL 查询 | `.kql` 文件（应用所有 skill 纪律规则） | `skill-demos/kql/` |
+| **podcast-generation** | 生成本次评测的音频摘要 | Python 脚本（Realtime API + WebSocket） | `skill-demos/podcast-generation/` |
 
 ### Skill 1: cloud-solution-architect — RAG Agent 架构设计
 
@@ -839,6 +845,113 @@ for item in payload.get("output", []):
 ```
 
 → 完整证据：[`skill-demos/copilot-sdk/application-evidence.md`](skill-demos/copilot-sdk/application-evidence.md)
+
+### Skill 11: applicationinsights-web-ts — 浏览器 RUM + GenAI 追踪
+
+为 Foundry Demo 仪表盘提供的 drop-in TypeScript 模块，包含 W3C 分布式追踪 + OpenTelemetry GenAI 语义约定。
+
+```typescript
+import { ApplicationInsights } from "@microsoft/applicationinsights-web";
+
+export const appInsights = new ApplicationInsights({
+  config: {
+    connectionString: import.meta.env.VITE_APPINSIGHTS_CONNECTION_STRING,
+    distributedTracingMode: 2, // AI_AND_W3C — 浏览器 ↔ FastAPI 后端关联
+    enableAutoRouteTracking: true,
+    extensions: [clickPlugin],
+  },
+});
+
+export function trackAgentInvocation(attrs: AgentSpanAttrs): void {
+  appInsights.trackEvent({ name: "gen_ai.agent.invocation" }, {
+    "gen_ai.system": "azure_ai_foundry",
+    "gen_ai.agent.name": attrs.agentName,
+    "gen_ai.usage.total_tokens": attrs.totalTokens ?? 0,
+    "duration_ms": attrs.durationMs,
+  });
+}
+```
+
+Skill 强制要求：浏览器单独的 App Insights 资源（连接串明文暴露）、W3C trace context、OTel GenAI 语义约定。
+
+→ 完整代码：[`skill-demos/applicationinsights-web-ts/appInsights.ts`](skill-demos/applicationinsights-web-ts/appInsights.ts)
+
+### Skill 12: continual-learning — 项目本地 Learnings 文件
+
+把整次评测的教训提炼为 `.copilot-memory/learnings.md` 格式。Coding Agent 打开本仓库时，hook 会在 session 启动时浮出这些教训。
+
+| 类别 | 示例教训 |
+|------|----------|
+| `tool_insight` | Composite Azure MCP 工具用 flat args + `command`，**不是** 嵌套 JSON-string `parameters` |
+| `tool_insight` | `mcp_azure_mcp_*` 前缀是 host 加的，裸 server 用 plain names |
+| `mistake` | PIL 画布 3840px + width="960" = 缩 4 倍 = 字糊 |
+| `mistake` | 我们说 PPT 由 `presenter` skill 生成 → 错的，那是 React 演示模式 skill |
+| `pattern` | 用 `microsoft-docs` skill：每页页脚必须显示来源 URL |
+| `pattern` | 用 `cloud-solution-architect`：必须走完 7 步，跳步 = 服务购物清单 |
+
+→ 完整文件：[`skill-demos/continual-learning/learnings.md`](skill-demos/continual-learning/learnings.md)
+
+### Skill 13: entra-agent-id — 配置 Entra Agent ID
+
+Python 脚本，通过 Microsoft Graph beta API 为 `hosted-agent-toolbox-demo` 配置 Microsoft Entra Agent ID：
+
+```python
+# Step 1：Blueprint（application 对象）
+POST /beta/applications  with @odata.type=Microsoft.Graph.AgentIdentityBlueprint
+
+# Step 2：BlueprintPrincipal（**强制** — 跳过会让 Step 3 返回 400）
+POST /beta/servicePrincipals  with @odata.type=Microsoft.Graph.AgentIdentityBlueprintPrincipal
+
+# Step 3：Agent Identity 实例
+POST /beta/servicePrincipals  with @odata.type=Microsoft.Graph.AgentIdentity
+```
+
+Skill 强制要求：仅 `/beta` API（preview）、`ClientSecretCredential`（DefaultAzureCredential 返回 403）、sponsor 必须是 User 对象、必须 `OData-Version: 4.0` 头、BlueprintPrincipal 步骤强制不可跳。
+
+→ 完整脚本：[`skill-demos/entra-agent-id/provision_agent_identity.py`](skill-demos/entra-agent-id/provision_agent_identity.py)
+
+### Skill 14: kql — 7 条 App Insights 生产监控查询
+
+7 条 KQL，覆盖日志 tail、agent 调用次数、tool 使用分布、token 消耗、错误率、p50/p95/p99 延迟、分布式追踪关联。
+
+```kql
+AppEvents
+| where TimeGenerated > ago(24h)
+| where Name == "gen_ai.agent.invocation"
+| extend agent_name = tostring(Properties["gen_ai.agent.name"])  // skill 规则：dynamic 字段在 summarize-by 前必须 cast
+| extend duration_ms = toint(Properties["duration_ms"])
+| summarize p50 = percentile(duration_ms, 50), p95 = percentile(duration_ms, 95)
+    by agent_name
+| order by p95 desc
+```
+
+Skill 强制要求：dynamic 字段在 summarize/order/join 前必须 cast；时间用 `ago()` 不要硬编码 UTC；延迟用 `percentile()` 不用 `avg()`；最后 project；结果集大小有界。
+
+→ 完整查询：[`skill-demos/kql/agent-monitoring.kql`](skill-demos/kql/agent-monitoring.kql)
+
+### Skill 15: podcast-generation — GPT Realtime 音频播客
+
+Python 脚本，通过 WebSocket 调用 Azure OpenAI GPT Realtime Mini 生成本次评测的播客版音频：
+
+```python
+WS_URL = endpoint.replace("https://", "wss://").rstrip("/") + "/openai/v1"
+client = AsyncOpenAI(websocket_base_url=WS_URL, api_key=api_key)
+
+async with client.realtime.connect(model="gpt-realtime-mini") as conn:
+    await conn.session.update(session={"output_modalities": ["audio"]})
+    await conn.conversation.item.create(item={"type": "message", ...})
+    async for event in conn:
+        if event.type == "response.output_audio.delta":
+            audio_chunks.append(base64.b64decode(event.delta))
+        elif event.type == "response.done":
+            break
+
+# 把裸 PCM（24kHz/16-bit/mono）包 WAV 头 → 可播放 .wav
+```
+
+Skill 强制要求：endpoint **不能**包含 `/openai/v1`、HTTPS→wss、audio-only modality、监听 4 个特定事件类型、PCM 固定 24kHz/16-bit/mono、必须 RIFF/WAVEfmt 头。
+
+→ 完整脚本：[`skill-demos/podcast-generation/generate_evaluation_podcast.py`](skill-demos/podcast-generation/generate_evaluation_podcast.py)
 
 每个产出物都记录了：该 skill 教了什么、我们如何应用、实际产出、以及对 skill 价值的评定。
 
