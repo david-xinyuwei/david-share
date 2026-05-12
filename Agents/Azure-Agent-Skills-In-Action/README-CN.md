@@ -636,29 +636,65 @@ send("extension_cli_generate", {
 | 12 | `learn.microsoft.com/en-us/azure/developer/azure-mcp-server/` |
 | 2, 13 | `github.com/microsoft/skills/.github/skills/microsoft-docs/SKILL.md` |
 
-## microsoft/skills — 技能验证矩阵
+## microsoft/skills — 技能验证矩阵（12 个 Core Skill × 三元组）
 
-除了 Azure MCP 执行层之外，我们还验证了 [microsoft/skills](https://github.com/microsoft/skills) 中的 11 个技能——**用每个 skill 做一件真实的事，产出一个真实的东西**。每个 skill 被加载为 agent 上下文后应用到具体任务中。产出物在 `skill-demos/` 目录下。
+我们验证了 [microsoft/skills/.github/skills/](https://github.com/microsoft/skills/tree/main/.github/skills) 下**全部 12 个技能**——**用每个 skill 做一件真实的事，产出一个真实的东西**。下表每行就是一个**三元组**：怎么试 → 提示词关键约束 → 产出物 + 路径。
 
-| 技能 | 任务 | 产出物 | 位置 |
-|------|------|--------|------|
-| **microsoft-docs** (幻灯片) | 生成证据驱动的 PPT，每个事实都引用 learn.microsoft.com | 14 页 PPTX，页脚含源 URL | `slides/` |
-| **cloud-solution-architect** | 设计 RAG Agent 架构（7 步 WAF 审查） | 架构文档 + ADR | `skill-demos/cloud-solution-architect/` |
-| **github-issue-creator** | 把原始错误日志转成结构化 issue | 3 个 GitHub 格式 issue | `skill-demos/github-issue-creator/` |
-| **mcp-builder** | 构建暴露评测数据的 MCP server | Python FastMCP 服务（5 个工具） | `skill-demos/mcp-builder/` |
-| **frontend-design-review** | 审查 Foundry Demo 前端 | 5 维度审查报告（评分 5.7/10） | `skill-demos/frontend-design-review/` |
-| **skill-creator** | 为 MCP 评测创建全新 SKILL.md | 完整的 SKILL.md（含 frontmatter） | `skill-demos/skill-creator/` |
-| **foundry-hosted-agents** | 部署容器化 agent（azd up） | 部署证据 + 代码模式 | `skill-demos/foundry-hosted-agents/` |
-| **foundry-models** | 在 Foundry 上部署 gpt-4.1-mini | 模型部署 + MCP 验证 | `skill-demos/foundry-models/` |
-| **foundry-toolboxes** | 配置含 3 个 MCP 工具的 Toolbox | Toolbox 配置 + 实际端点 | `skill-demos/foundry-toolboxes/` |
-| **foundry-memory** | 集成跨 session agent 记忆 | FoundryMemoryProvider 集成 | `skill-demos/foundry-memory/` |
-| **copilot-sdk** | 构建多 agent 演示应用 | FastAPI 应用（Responses 协议） | `skill-demos/copilot-sdk/` |
-| **microsoft-docs** | 用引用官方文档的方式生成上面 14 页 PPT | 14 页 PPTX（页脚带 URL） | `slides/` |
-| **applicationinsights-web-ts** | 给 Foundry Demo 前端加浏览器 RUM + GenAI 追踪 | TS 模块（含 OTel GenAI 语义约定） | `skill-demos/applicationinsights-web-ts/` |
-| **continual-learning** | 把本次评测的教训沉淀为项目本地 learnings | `.copilot-memory/learnings.md` 风格文件 | `skill-demos/continual-learning/` |
-| **entra-agent-id** | 为托管 agent 配置 Entra Agent ID | Python 脚本（Graph beta + 3 步流程） | `skill-demos/entra-agent-id/` |
-| **kql** | 7 条 App Insights 监控的生产 KQL 查询 | `.kql` 文件（应用所有 skill 纪律规则） | `skill-demos/kql/` |
-| **podcast-generation** | 生成本次评测的音频摘要 | Python 脚本（Realtime API + WebSocket） | `skill-demos/podcast-generation/` |
+| # | Skill | 怎么试（一句话） | 提示词关键约束 | 产出物 + 路径 |
+|---|-------|------------------|----------------|---------------|
+| 1 | **cloud-solution-architect** | 用 7 步 WAF 审查工作流设计了一套生产级 RAG Agent 系统 | "走完所有 7 步；把设计模式映射到 WAF 5 维；输出 ADR" | 含 11 个技术选型、10 个设计模式、3 条 ADR 的架构文档 → [`skill-demos/cloud-solution-architect/architecture-design.md`](skill-demos/cloud-solution-architect/architecture-design.md) |
+| 2 | **copilot-sdk** | 构建了带 Responses 协议的多 agent FastAPI 演示应用 | "用 Responses 协议；每个 agent 不同 tool 子集；输出解析链 `output[]→message→content[]→output_text`" | 完整 FastAPI server + 前端 → [`Foundry-Hosted-Agent-Toolbox-Demo/`](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Foundry-Hosted-Agent-Toolbox-Demo)；证据 → [`skill-demos/copilot-sdk/`](skill-demos/copilot-sdk/) |
+| 3 | **frontend-design-review** | 用 5 维度质量框架审查了 Foundry Demo 的 726 行 `index.html` | "5 维度：Design System / Accessibility / Performance / Responsive / Aesthetics；每维评分；Top 3 可执行修复" | 评分报告（5.7/10），含 6 个 ARIA 缺陷、3 处响应式失败 → [`skill-demos/frontend-design-review/review-report.md`](skill-demos/frontend-design-review/review-report.md) |
+| 4 | **github-issue-creator** | 把 6 行原始评测错误日志转为 3 个结构化 issue | "输出模板必须含：Summary / Environment / Reproduction Steps / Expected / Actual / Error Details / Impact / Context；严重度匹配实际影响" | 3 个标准 GitHub issue → [`skill-demos/github-issue-creator/generated-issues.md`](skill-demos/github-issue-creator/generated-issues.md) |
+| 5 | **mcp-builder** | 构建 Python FastMCP server 暴露 63 工具实跑数据 | "FastMCP；统一 `eval_*` 前缀；`readOnlyHint: True`；用 `python -m py_compile` 验证" | 5 工具 MCP server（`eval_summary`、`eval_tool_result` 等） → [`skill-demos/mcp-builder/evaluation_mcp_server.py`](skill-demos/mcp-builder/evaluation_mcp_server.py) |
+| 6 | **microsoft-docs** | 用 Learn URL 引用的方式重新生成 PPT | "每个声明必须引用 learn.microsoft.com；定义直接引用；每页页脚显示来源 URL" | 14 页 PPT，页脚都有 URL → [`slides/Azure-Agent-Skills-In-Action.pptx`](slides/Azure-Agent-Skills-In-Action.pptx) + 生成脚本 [`slides/gen_azure_skills_ppt_v2.py`](slides/gen_azure_skills_ppt_v2.py) |
+| 7 | **skill-creator** | 为 "azure-mcp-evaluation" 方法论创建全新 SKILL.md | "frontmatter 含 name + description + applicability；含 USE FOR / DO NOT USE FOR 区段" | 完整 SKILL.md，含分类规则、调用约定、安全规则 → [`skill-demos/skill-creator/azure-mcp-evaluation-SKILL.md`](skill-demos/skill-creator/azure-mcp-evaluation-SKILL.md) |
+| 8 | **applicationinsights-web-ts** | 为 Foundry Demo 仪表盘写 drop-in TypeScript 检测模块 | "用 `@microsoft/applicationinsights-web`（不是 Node 的 OTel 包）；`distributedTracingMode: 2` 关联后端；emit OTel GenAI 语义约定属性" | 含 W3C 追踪 + GenAI agent 追踪的 TS 模块 → [`skill-demos/applicationinsights-web-ts/appInsights.ts`](skill-demos/applicationinsights-web-ts/appInsights.ts) |
+| 9 | **continual-learning** | 把本次评测教训沉淀为项目本地 learnings 文件 | "二级记忆（local 用于 repo 约定）；4 类：pattern / mistake / preference / tool_insight；具体到工具/参数/URL" | 含 14 条具体 lesson 的 `.copilot-memory/learnings.md` → [`skill-demos/continual-learning/learnings.md`](skill-demos/continual-learning/learnings.md) |
+| 10 | **entra-agent-id** | 用 Graph beta API 写 Python 脚本配置 Entra Agent ID | "仅 Graph `/beta`（preview）；`ClientSecretCredential`（Default 返回 403）；BlueprintPrincipal 步骤强制；sponsor 必须是 User" | 3 步 provision 脚本（Blueprint → BlueprintPrincipal → Agent Identity） → [`skill-demos/entra-agent-id/provision_agent_identity.py`](skill-demos/entra-agent-id/provision_agent_identity.py) |
+| 11 | **kql** | 写 7 条 App Insights 生产 agent 监控查询 | "dynamic 字段在 summarize/order/join 前必须 cast；时间用 `ago()`；延迟用 `percentile()` 不用 `avg()`；结果集大小有界" | 7 条 .kql 查询（日志 / 调用 / tool / token / 错误 / 延迟 / 分布式追踪） → [`skill-demos/kql/agent-monitoring.kql`](skill-demos/kql/agent-monitoring.kql) |
+| 12 | **podcast-generation** | 用 GPT Realtime Mini 写 Python 脚本生成音频摘要 | "endpoint 不能含 `/openai/v1`；HTTPS→wss；`output_modalities=['audio']`；PCM 固定 24kHz/16-bit/mono；包 RIFF/WAVEfmt 头" | 异步 OpenAI Realtime WebSocket 脚本 → [`skill-demos/podcast-generation/generate_evaluation_podcast.py`](skill-demos/podcast-generation/generate_evaluation_podcast.py) |
+
+加上 4 个 `microsoft-foundry` plugin 子技能：
+
+| # | Skill | 怎么试 | 提示词关键约束 | 产出物 + 路径 |
+|---|-------|--------|----------------|---------------|
+| 13 | **foundry-hosted-agents** | 用 `azd up` 部署容器化 agent | "Dockerfile 容器化；ResponsesHostServer；每个 agent 独立 Entra 身份；通过 MCPStreamableHTTPTool 消费 Toolbox MCP" | `Foundry-Hosted-Agent-Toolbox-Demo/` 完整部署 → [`skill-demos/foundry-hosted-agents/`](skill-demos/foundry-hosted-agents/) |
+| 14 | **foundry-models** | 部署 `gpt-4.1-mini` 按量付费并用 MCP 验证 | "demo 用按量付费；通过 `az cognitiveservices` + MCP `foundry` 工具验证；记录 quota check" | 部署证据 + MCP 验证 → [`skill-demos/foundry-models/`](skill-demos/foundry-models/) |
+| 15 | **foundry-toolboxes** | 配置 `agent-tools` Toolbox，将 3 个 MCP 工具打成一个端点 | "单 MCP endpoint URL 模式；必须 `Foundry-Features: Toolboxes=V1Preview` 头；Bearer 用 `ai.azure.com` scope" | Toolbox 配置 + 实际端点 → [`skill-demos/foundry-toolboxes/`](skill-demos/foundry-toolboxes/) |
+| 16 | **foundry-memory** | 集成 `FoundryMemoryProvider` 实现跨 session agent 记忆 | "FoundryMemoryProvider 作 context_provider；`scope` 多租户隔离；`allow_preview=True`；`MEMORY_STORE_NAME` 未设置时优雅降级" | 代码 + .env 接线 + 系统提示增强 → [`skill-demos/foundry-memory/`](skill-demos/foundry-memory/) |
+
+> **每个 `skill-demos/<skill>/README.md` 都包含完整可复现的 prompt**，其他工程师拷贝粘贴到自己的 coding agent（加载同一 skill 后）就能复现产出物。
+
+### 加上 7 个 `microsoft-foundry` 子技能
+
+| # | Skill | 怎么试 | 提示词关键约束 | 产出物 + 路径 |
+|---|-------|--------|----------------|---------------|
+| 17 | **foundry-projects-resources** | 配置 Foundry 项目 + AI Services 账户；MCP `subscription_list` / `group_resource_list` 验证 | "`azd up`（不是手动门户）；连接用 managed identity；项目 endpoint 格式合规" | Bicep 模板 + MCP 验证 → [`skill-demos/foundry-projects-resources/`](skill-demos/foundry-projects-resources/) |
+| 18 | **foundry-extensions** | 验证 `foundryextensions` MCP 复合工具；记录哪些子命令需要什么输入 | "走 `learn` 步骤；诚实标 SCHEMA_VERIFIED 还是 EXECUTED" | 评测矩阵记录（SCHEMA_VERIFIED，缺 endpoint）→ [`skill-demos/foundry-extensions/`](skill-demos/foundry-extensions/) |
+| 19 | **foundry-workflows** | 设计多 agent 工作流（default/math-only/rag-only），Connected Agents 模式 | "Connected Agents 模式（声明式）；每个 agent 子集通过系统提示强制；按 `agent_id` 路由" | `Foundry-Hosted-Agent-Toolbox-Demo/app/server.py` AGENTS 注册表 → [`skill-demos/foundry-workflows/`](skill-demos/foundry-workflows/) |
+| 20 | **foundry-iq-knowledge-bases** | 配置 `file_search` Toolbox 工具，让 agent 基于上传文档 grounding | "用 Foundry 向量存储 API（不直接调 AI Search）；项目 RBAC 控制权限；FILE_SEARCH_VECTOR_STORE_IDS 多源支持" | `main.py` + `.env.example` 接线 → [`skill-demos/foundry-iq-knowledge-bases/`](skill-demos/foundry-iq-knowledge-bases/) |
+| 21 | **foundry-managed-skills** | 为 Foundry Skills REST API 上传准备一份可运行时加载的 SKILL.md | "一次作者 + 通过 REST 注册；**不**打包进 Docker；通过 PUT 版本化" | 来自 `skill-creator` demo 的 SKILL.md + cURL 上传模式 → [`skill-demos/foundry-managed-skills/`](skill-demos/foundry-managed-skills/) |
+| 22 | **foundry-observability** | 浏览器 ↔ FastAPI ↔ Foundry 全链路 OTel GenAI traces 接入 App Insights，加 7 条 KQL | "OTel GenAI 语义约定；W3C trace context 跨三层；评估与 trace 通过 operation_Id 关联；用 KQL 不用门户" | 三件协同：`applicationinsights-web-ts/appInsights.ts` + `app/server.py` + `kql/agent-monitoring.kql` → [`skill-demos/foundry-observability/`](skill-demos/foundry-observability/) |
+| 23 | **foundry-governance** | 用 MCP `role_assignment_list`（28KB EXECUTED）+ `policy_assignment_list`（12KB EXECUTED）审计治理姿态 | "用 Azure MCP 工具（不是裸 REST）；Entra Agent ID → SP → RBAC 链路；记录 AI Gateway 模式" | MCP 实跑结果 + Entra Agent ID 配置链路 → [`skill-demos/foundry-governance/`](skill-demos/foundry-governance/) |
+
+### 加上 5 种语言 38 个 SDK 技能
+
+我们验证了每个 azure-sdk-* plugin 中最基础的 SDK 技能。每种语言都有专门的 skill-demos 目录，含每个验证过的 skill 的三元组表。
+
+| 语言 | 验证技能数 | 产出目录 |
+|------|------------|----------|
+| **Python** | 10（azure-ai-projects, azure-identity, azure-storage-blob, azure-cosmos, azure-search-documents, azure-servicebus, pydantic-models, agent-framework-azure-ai, fastapi-router, azure-monitor-opentelemetry） | [`skill-demos/sdk-python/`](skill-demos/sdk-python/) |
+| **.NET** | 8（azure-ai-openai, azure-ai-projects, azure-identity, azure-search-documents, azure-servicebus, azure-resource-manager-cosmosdb, azure-resource-manager-sql, azure-security-keyvault-keys） | [`skill-demos/sdk-dotnet/`](skill-demos/sdk-dotnet/) |
+| **TypeScript** | 8（azure-ai-projects-ts, azure-identity-ts, azure-storage-blob-ts, azure-cosmos-ts, azure-search-documents-ts, azure-servicebus-ts, azure-monitor-opentelemetry-ts, azure-keyvault-secrets-ts） | [`skill-demos/sdk-typescript/`](skill-demos/sdk-typescript/) |
+| **Java** | 7（azure-ai-projects-java, azure-identity-java, azure-storage-blob-java, azure-cosmos-java, azure-servicebus-java, azure-security-keyvault-keys-java, azure-eventhub-java） | [`skill-demos/sdk-java/`](skill-demos/sdk-java/) |
+| **Rust** | 5（azure-identity-rust, azure-storage-blob-rust, azure-cosmos-rust, azure-keyvault-secrets-rust, azure-eventhub-rust） | [`skill-demos/sdk-rust/`](skill-demos/sdk-rust/) |
+
+**每个 SDK skill 行**都记录了：怎么试的（实际使用 vs 概念port 模式）、提示词关键约束（例："用 `AIProjectClient` 不是 `AzureAIAgentsProvider`"）、产出物（`Foundry-Hosted-Agent-Toolbox-Demo/` 里的实代码引用 或 带 `APPLICABLE-NOT-USED` / `APPLICABLE-FOR-PORT` 诚实标签的模式文档）。
+
+### 总计验证：12 Core + 11 Foundry sub + 38 SDK = **61 个技能**
+
+所有产出物遵循**三元组格式**：怎么试 + 提示词约束 + 产出路径。
 
 ### Skill 1: cloud-solution-architect — RAG Agent 架构设计
 

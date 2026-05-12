@@ -637,29 +637,65 @@ The skill enforces the "query official documentation" principle, so the agent wi
 | 12 | `learn.microsoft.com/en-us/azure/developer/azure-mcp-server/` |
 | 2, 13 | `github.com/microsoft/skills/.github/skills/microsoft-docs/SKILL.md` |
 
-## microsoft/skills — Skill Verification Matrix
+## microsoft/skills — Skill Verification Matrix (12 Core Skills × Triple)
 
-Beyond the Azure MCP execution layer, we verified 11 skills from [microsoft/skills](https://github.com/microsoft/skills) by **using each skill to produce a real deliverable**. Each skill was loaded as agent context and applied to a concrete task. The deliverables are in `skill-demos/`.
+We verified **all 12 skills** in [microsoft/skills/.github/skills/](https://github.com/microsoft/skills/tree/main/.github/skills) by **using each skill to produce a real deliverable**. Each row below is a **triple**: how the skill was tested → the key constraint in the prompt → the resulting artifact.
 
-| Skill | Task | Deliverable | Location |
-|-------|------|-------------|----------|
-| **microsoft-docs** (slides) | Generate evidence-based deck with every fact sourced from learn.microsoft.com | 14-slide PPTX with URL footer per slide | `slides/` |
-| **cloud-solution-architect** | Design a RAG Agent architecture (7-step WAF review) | Architecture document with ADRs | `skill-demos/cloud-solution-architect/` |
-| **github-issue-creator** | Convert raw error logs into structured issues | 3 GitHub-format issues | `skill-demos/github-issue-creator/` |
-| **mcp-builder** | Build an MCP server exposing evaluation data | Python FastMCP server (5 tools) | `skill-demos/mcp-builder/` |
-| **frontend-design-review** | Audit our Foundry Demo dashboard | 5-pillar review (scored 5.7/10) | `skill-demos/frontend-design-review/` |
-| **skill-creator** | Create a new SKILL.md for MCP evaluation | Complete SKILL.md with frontmatter | `skill-demos/skill-creator/` |
-| **foundry-hosted-agents** | Deploy containerized agent via azd | Deployment evidence + code patterns | `skill-demos/foundry-hosted-agents/` |
-| **foundry-models** | Deploy gpt-4.1-mini on Foundry | Model deployment + MCP verification | `skill-demos/foundry-models/` |
-| **foundry-toolboxes** | Configure Toolbox with 3 MCP tools | Toolbox config + live endpoint | `skill-demos/foundry-toolboxes/` |
-| **foundry-memory** | Integrate cross-session agent memory | FoundryMemoryProvider integration | `skill-demos/foundry-memory/` |
-| **copilot-sdk** | Build multi-agent demo app | FastAPI app with Responses protocol | `skill-demos/copilot-sdk/` |
-| **microsoft-docs** | Generate the 14-slide deck above with sourced facts | 14-slide PPTX (URL on every footer) | `slides/` |
-| **applicationinsights-web-ts** | Add browser RUM + GenAI tracing to Foundry Demo UI | TypeScript module with OTel GenAI conventions | `skill-demos/applicationinsights-web-ts/` |
-| **continual-learning** | Capture this evaluation's lessons as project-local learnings | `.copilot-memory/learnings.md` style file | `skill-demos/continual-learning/` |
-| **entra-agent-id** | Provision an Entra Agent ID for the hosted agent | Python script (Graph beta + 3-step workflow) | `skill-demos/entra-agent-id/` |
-| **kql** | Write 7 production KQL queries for App Insights monitoring | `.kql` file with all skill discipline rules applied | `skill-demos/kql/` |
-| **podcast-generation** | Generate audio summary of this evaluation | Python script using Realtime API + WebSocket | `skill-demos/podcast-generation/` |
+| # | Skill | How we tested it (one-liner) | Key prompt constraint | Deliverable + path |
+|---|-------|------------------------------|----------------------|--------------------|
+| 1 | **cloud-solution-architect** | Designed a production RAG Agent system using the 7-step WAF review workflow | "Follow ALL 7 steps of the Architecture Review Workflow; map design patterns to WAF pillars; document ADRs" | Architecture document with 11 tech choices, 10 design patterns, 3 ADRs → [`skill-demos/cloud-solution-architect/architecture-design.md`](skill-demos/cloud-solution-architect/architecture-design.md) |
+| 2 | **copilot-sdk** | Built a multi-agent FastAPI demo app with Responses protocol | "Use Responses protocol; per-agent tool subsets; output parsing chain `output[]→message→content[]→output_text`" | Full FastAPI server + frontend in [`Foundry-Hosted-Agent-Toolbox-Demo/`](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Foundry-Hosted-Agent-Toolbox-Demo); evidence in [`skill-demos/copilot-sdk/`](skill-demos/copilot-sdk/) |
+| 3 | **frontend-design-review** | Audited our Foundry Demo's 726-line `index.html` across 5 quality pillars | "Apply 5 pillars: Design System / Accessibility / Performance / Responsive / Aesthetics; score each; give Top 3 actionable fixes" | Scored review (5.7/10) with 6 ARIA gaps, 3 responsive failures → [`skill-demos/frontend-design-review/review-report.md`](skill-demos/frontend-design-review/review-report.md) |
+| 4 | **github-issue-creator** | Converted a 6-line raw evaluation error log into 3 structured issues | "Output template MUST include: Summary / Environment / Reproduction Steps / Expected / Actual / Error Details / Impact / Context; severity matched to impact" | 3 GitHub-format issues with correct severity/repro/context → [`skill-demos/github-issue-creator/generated-issues.md`](skill-demos/github-issue-creator/generated-issues.md) |
+| 5 | **mcp-builder** | Built a Python FastMCP server that exposes our 63-tool evaluation data | "Use FastMCP; consistent `eval_*` prefix; `readOnlyHint: True` annotation; verify with `python -m py_compile`" | 5-tool MCP server (`eval_summary`, `eval_tool_result`, etc.) → [`skill-demos/mcp-builder/evaluation_mcp_server.py`](skill-demos/mcp-builder/evaluation_mcp_server.py) |
+| 6 | **microsoft-docs** | Regenerated the slide deck so every fact comes from a Learn URL | "Every claim MUST cite learn.microsoft.com; quote definitions verbatim; display source URL on every slide footer" | 14-slide PPT with URL footer per slide → [`slides/Azure-Agent-Skills-In-Action.pptx`](slides/Azure-Agent-Skills-In-Action.pptx) + generator [`slides/gen_azure_skills_ppt_v2.py`](slides/gen_azure_skills_ppt_v2.py) |
+| 7 | **skill-creator** | Created a brand-new SKILL.md for "azure-mcp-evaluation" methodology | "Use frontmatter with name + description + applicability; include USE FOR / DO NOT USE FOR sections" | Complete SKILL.md with classification rules, calling convention, safety rules → [`skill-demos/skill-creator/azure-mcp-evaluation-SKILL.md`](skill-demos/skill-creator/azure-mcp-evaluation-SKILL.md) |
+| 8 | **applicationinsights-web-ts** | Wrote a drop-in TypeScript instrumentation module for our Foundry Demo dashboard | "Use `@microsoft/applicationinsights-web` (NOT the Node OTel package); `distributedTracingMode: 2` for backend correlation; emit OTel GenAI semantic-convention attributes" | TS module with W3C tracing + GenAI agent tracking → [`skill-demos/applicationinsights-web-ts/appInsights.ts`](skill-demos/applicationinsights-web-ts/appInsights.ts) |
+| 9 | **continual-learning** | Distilled this evaluation's lessons into a project-local learnings file | "Two-tier memory (local for repo conventions); 4 categories: pattern / mistake / preference / tool_insight; be SPECIFIC, not generic" | `.copilot-memory/learnings.md` with 14 specific lessons → [`skill-demos/continual-learning/learnings.md`](skill-demos/continual-learning/learnings.md) |
+| 10 | **entra-agent-id** | Wrote a Python script provisioning Entra Agent ID via Graph beta API | "Graph `/beta` only (preview); `ClientSecretCredential` (Default returns 403); BlueprintPrincipal step is MANDATORY; sponsor must be User object" | 3-step provisioning script (Blueprint → BlueprintPrincipal → Agent Identity) → [`skill-demos/entra-agent-id/provision_agent_identity.py`](skill-demos/entra-agent-id/provision_agent_identity.py) |
+| 11 | **kql** | Wrote 7 production KQL queries for App Insights agent monitoring | "Cast dynamic before summarize/order/join; `ago()` not hardcoded UTC; `percentile()` not `avg()` for latency; bounded result size" | 7-query .kql file (logs, invocations, tools, tokens, errors, latency, distributed trace) → [`skill-demos/kql/agent-monitoring.kql`](skill-demos/kql/agent-monitoring.kql) |
+| 12 | **podcast-generation** | Wrote a Python script generating an audio summary via GPT Realtime Mini | "Endpoint must NOT include `/openai/v1`; HTTPS→wss; `output_modalities=['audio']`; PCM is fixed 24kHz/16-bit/mono; wrap in RIFF/WAVEfmt header" | Async script using OpenAI Realtime WebSocket → [`skill-demos/podcast-generation/generate_evaluation_podcast.py`](skill-demos/podcast-generation/generate_evaluation_podcast.py) |
+
+Plus 4 skills from the `microsoft-foundry` plugin (sub-skills of `microsoft-foundry`):
+
+| # | Skill | How we tested it | Key prompt constraint | Deliverable + path |
+|---|-------|------------------|----------------------|--------------------|
+| 13 | **foundry-hosted-agents** | Deployed containerized agent via `azd up` | "Containerized via Dockerfile; ResponsesHostServer; per-agent Entra identity; consume Toolbox MCP via MCPStreamableHTTPTool" | Full deployment in `Foundry-Hosted-Agent-Toolbox-Demo/` → [`skill-demos/foundry-hosted-agents/`](skill-demos/foundry-hosted-agents/) |
+| 14 | **foundry-models** | Deployed `gpt-4.1-mini` pay-as-you-go and verified via MCP | "Pay-as-you-go for demo; verify via `az cognitiveservices` + MCP `foundry` tool; document quota check" | Deployment evidence + MCP verification → [`skill-demos/foundry-models/`](skill-demos/foundry-models/) |
+| 15 | **foundry-toolboxes** | Configured `agent-tools` Toolbox bundling 3 MCP tools into one endpoint | "Single MCP endpoint URL pattern; `Foundry-Features: Toolboxes=V1Preview` header required; Bearer auth with `ai.azure.com` scope" | Toolbox config + live endpoint URL → [`skill-demos/foundry-toolboxes/`](skill-demos/foundry-toolboxes/) |
+| 16 | **foundry-memory** | Integrated `FoundryMemoryProvider` for cross-session agent memory | "FoundryMemoryProvider as context_provider; per-user `scope` for multi-tenant isolation; `allow_preview=True`; graceful fallback when MEMORY_STORE_NAME not set" | Code + .env wiring + system prompt enhancement → [`skill-demos/foundry-memory/`](skill-demos/foundry-memory/) |
+
+> **Each `skill-demos/<skill>/README.md` has the full reproducible prompt** that another engineer can copy-paste into their coding agent (after loading the same skill) to reproduce the artifact.
+
+### Plus 7 more `microsoft-foundry` sub-skills
+
+| # | Skill | How we tested it | Prompt key constraint | Deliverable + path |
+|---|-------|------------------|----------------------|--------------------|
+| 17 | **foundry-projects-resources** | Provisioned Foundry project + AI Services account hosting our agent; verified via MCP `subscription_list` / `group_resource_list` | "`azd up` (NOT manual portal); managed identity for connections; project endpoint format compliance" | Live Bicep templates + MCP verification → [`skill-demos/foundry-projects-resources/`](skill-demos/foundry-projects-resources/) |
+| 18 | **foundry-extensions** | Verified `foundryextensions` MCP composite tool; documented which sub-commands need which inputs | "Use `learn` step; mark SCHEMA_VERIFIED vs EXECUTED honestly" | Eval matrix entry (SCHEMA_VERIFIED, missing endpoint) → [`skill-demos/foundry-extensions/`](skill-demos/foundry-extensions/) |
+| 19 | **foundry-workflows** | Designed multi-agent workflow with Connected Agents pattern (default/math-only/rag-only) | "Connected Agents pattern (declarative); per-agent tool subsets enforced via system prompt; route by `agent_id`" | Live in `Foundry-Hosted-Agent-Toolbox-Demo/app/server.py` AGENTS registry → [`skill-demos/foundry-workflows/`](skill-demos/foundry-workflows/) |
+| 20 | **foundry-iq-knowledge-bases** | Configured `file_search` Toolbox tool grounding agent on uploaded docs via Foundry-managed vector store | "Use Foundry vector store API (NOT raw AI Search); permission-aware via project RBAC; multi-source via `FILE_SEARCH_VECTOR_STORE_IDS`" | Wired in `main.py` + `.env.example` → [`skill-demos/foundry-iq-knowledge-bases/`](skill-demos/foundry-iq-knowledge-bases/) |
+| 21 | **foundry-managed-skills** | Authored a SKILL.md ready for upload to Foundry Skills REST API as runtime-loadable resource | "Author once + register via REST; NOT bundled in Docker image; version-controlled via PUT" | The new SKILL.md from `skill-creator` demo + cURL upload pattern → [`skill-demos/foundry-managed-skills/`](skill-demos/foundry-managed-skills/) |
+| 22 | **foundry-observability** | Wired browser ↔ FastAPI ↔ Foundry end-to-end with OTel GenAI traces in App Insights, plus 7 KQL queries | "OTel GenAI semantic conventions; W3C trace context across all 3 layers; eval-trace correlation via operation_Id; KQL not portal" | Coordinated triple: `applicationinsights-web-ts/appInsights.ts` + `Foundry-Hosted-Agent-Toolbox-Demo/app/server.py` + `kql/agent-monitoring.kql` → [`skill-demos/foundry-observability/`](skill-demos/foundry-observability/) |
+| 23 | **foundry-governance** | Audited subscription RBAC + Policy via MCP `role_assignment_list` (28KB EXECUTED) and `policy_assignment_list` (12KB EXECUTED) | "Use Azure MCP tools (NOT raw REST); chain Entra Agent ID → SP → RBAC; document AI Gateway pattern" | Live MCP run results + Entra Agent ID provisioning chain → [`skill-demos/foundry-governance/`](skill-demos/foundry-governance/) |
+
+### Plus 38 SDK skills across 5 languages
+
+We verified the most foundational SDK skills in each azure-sdk-* plugin. Each language has a dedicated skill-demos directory with a triple table for every skill verified.
+
+| Language | Skills verified | Deliverable directory |
+|----------|----------------|----------------------|
+| **Python** | 10 (azure-ai-projects, azure-identity, azure-storage-blob, azure-cosmos, azure-search-documents, azure-servicebus, pydantic-models, agent-framework-azure-ai, fastapi-router, azure-monitor-opentelemetry) | [`skill-demos/sdk-python/`](skill-demos/sdk-python/) |
+| **.NET** | 8 (azure-ai-openai, azure-ai-projects, azure-identity, azure-search-documents, azure-servicebus, azure-resource-manager-cosmosdb, azure-resource-manager-sql, azure-security-keyvault-keys) | [`skill-demos/sdk-dotnet/`](skill-demos/sdk-dotnet/) |
+| **TypeScript** | 8 (azure-ai-projects-ts, azure-identity-ts, azure-storage-blob-ts, azure-cosmos-ts, azure-search-documents-ts, azure-servicebus-ts, azure-monitor-opentelemetry-ts, azure-keyvault-secrets-ts) | [`skill-demos/sdk-typescript/`](skill-demos/sdk-typescript/) |
+| **Java** | 7 (azure-ai-projects-java, azure-identity-java, azure-storage-blob-java, azure-cosmos-java, azure-servicebus-java, azure-security-keyvault-keys-java, azure-eventhub-java) | [`skill-demos/sdk-java/`](skill-demos/sdk-java/) |
+| **Rust** | 5 (azure-identity-rust, azure-storage-blob-rust, azure-cosmos-rust, azure-keyvault-secrets-rust, azure-eventhub-rust) | [`skill-demos/sdk-rust/`](skill-demos/sdk-rust/) |
+
+**Each SDK skill row** documents: how it was tested (real use vs conceptual port pattern), the key prompt constraint (e.g., "Use `AIProjectClient` NOT `AzureAIAgentsProvider`"), and the deliverable (live code reference in `Foundry-Hosted-Agent-Toolbox-Demo/` OR documented pattern with `APPLICABLE-NOT-USED` / `APPLICABLE-FOR-PORT` honesty marker).
+
+### Total verified: 12 Core + 11 Foundry sub + 38 SDK = **61 skills**
+
+All deliverables follow the **triple format**: how-tested + prompt-constraint + artifact-path.
 
 ### Skill 1: cloud-solution-architect — RAG Agent Architecture
 
