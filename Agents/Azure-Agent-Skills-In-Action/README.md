@@ -590,6 +590,53 @@ Full test scripts and raw outputs are in `scripts/run_full_value_evaluation.js`,
 
 A 14-slide deck in [`slides/Azure-Agent-Skills-In-Action.pptx`](slides/Azure-Agent-Skills-In-Action.pptx) was generated using the **microsoft-docs skill** from [microsoft/skills](https://github.com/microsoft/skills): every factual claim on every slide is sourced from a [learn.microsoft.com](https://learn.microsoft.com) URL fetched at generation time, with the source URL displayed on each slide footer. The generator script [`slides/gen_azure_skills_ppt_v2.py`](slides/gen_azure_skills_ppt_v2.py) embeds the source URLs and demonstrates the skill's "query official documentation, do not rely on memory" principle.
 
+### How this deck was generated (reproducible prompt)
+
+Load the `microsoft-docs` skill into your coding agent (e.g. GitHub Copilot, Claude Code) and use this prompt:
+
+> **Prompt template**:
+> ```
+> Generate a 14-slide executive PPTX deck about "Azure Agent Skills In Action" using the
+> microsoft-docs skill. Hard requirements:
+>
+>   1. Every factual claim on every slide MUST come from a learn.microsoft.com URL.
+>   2. Use the microsoft-docs skill to fetch the source page; do NOT rely on memory.
+>   3. Display the exact source URL on each slide's footer (Consolas font, gray, 9pt).
+>   4. Quote key definitions verbatim (in quotes), don't paraphrase.
+>   5. Use python-pptx, 16:9 (13.333" x 7.5"), Microsoft brand colors.
+>   6. Slide structure:
+>        1.  Cover
+>        2.  Methodology — explain the microsoft-docs skill workflow
+>        3.  What is Azure MCP Server (verbatim from /overview)
+>        4.  MCP architecture: Hosts/Clients/Servers (from /overview#concepts)
+>        5.  Supported editors and languages (from /overview#supported-...)
+>        6.  Tools categories (from /tools/)
+>        7.  Authentication: Entra ID + RBAC (verbatim from /overview)
+>        8.  Documented use scenarios (from /overview#scenarios-...)
+>        9.  Our 63-tool verification result
+>        10. Azure Skills Plugin (verbatim from /overview#key-features)
+>        11. Python / .NET SDKs (from /get-started/languages/...)
+>        12. How-to guides catalog (from /how-to/...)
+>        13. Verdict: with/without microsoft-docs skill
+>        14. Closing — list all source URLs used
+>
+>   Output: slides/Azure-Agent-Skills-In-Action.pptx + slides/gen_azure_skills_ppt_v2.py
+> ```
+
+The skill enforces the "query official documentation" principle, so the agent will fetch each source URL via `fetch_webpage` (or `microsoft_docs_search` MCP) before writing the slide content. Without the skill, the same prompt would produce marketing-style content with no traceable sources.
+
+### Sources used in the deck (all fetched 2026-05-12)
+
+| Slide | Source URL |
+|------:|-----------|
+| 3, 7, 8, 10 | `learn.microsoft.com/en-us/azure/developer/azure-mcp-server/overview` |
+| 4 | `learn.microsoft.com/en-us/azure/developer/azure-mcp-server/overview#concepts` |
+| 5 | `learn.microsoft.com/en-us/azure/developer/azure-mcp-server/overview#supported-code-editors-and-tools` |
+| 6 | `learn.microsoft.com/en-us/azure/developer/azure-mcp-server/tools/` |
+| 11 | `learn.microsoft.com/en-us/azure/developer/azure-mcp-server/get-started/languages/python` |
+| 12 | `learn.microsoft.com/en-us/azure/developer/azure-mcp-server/` |
+| 2, 13 | `github.com/microsoft/skills/.github/skills/microsoft-docs/SKILL.md` |
+
 ## microsoft/skills — Skill Verification Matrix
 
 Beyond the Azure MCP execution layer, we verified 11 skills from [microsoft/skills](https://github.com/microsoft/skills) by **using each skill to produce a real deliverable**. Each skill was loaded as agent context and applied to a concrete task. The deliverables are in `skill-demos/`.

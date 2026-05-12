@@ -590,6 +590,52 @@ send("extension_cli_generate", {
 
 [`slides/Azure-Agent-Skills-In-Action.pptx`](slides/Azure-Agent-Skills-In-Action.pptx) 是使用 [microsoft/skills](https://github.com/microsoft/skills) 中的 **microsoft-docs 技能** 生成的 14 页 PPT：每一页上的每一个事实声明都引用自 [learn.microsoft.com](https://learn.microsoft.com)，生成时实时拉取，源 URL 显示在页脚。生成脚本 [`slides/gen_azure_skills_ppt_v2.py`](slides/gen_azure_skills_ppt_v2.py) 嵌入了所有源 URL，演示了该技能“查官方文档、不依靠记忆”的核心原则。
 
+### 生成提示词（可复现）
+
+在 GitHub Copilot 、Claude Code 等 Coding Agent 中加载 `microsoft-docs` 技能，然后使用以下提示词：
+
+> **提示词模板**：
+> ```
+> 使用 microsoft-docs 技能，生成一份关于 "Azure Agent Skills In Action" 的 14 页执行摘要 PPTX。硬性要求：
+>
+>   1. 每一页的每一个事实声明必须引用自 learn.microsoft.com URL。
+>   2. 使用 microsoft-docs 技能拉取源页面，**不准依赖记忆**。
+>   3. 每一页页脚显示准确的源 URL（Consolas 字体，灰色，9pt）。
+>   4. 关键定义使用**原文引用**（加引号），不要 paraphrase。
+>   5. 使用 python-pptx，16:9 比例（宽 13.333" × 高 7.5"），微软品牌色。
+>   6. 页面结构：
+>        1.  封面
+>        2.  方法论 —— 讲解 microsoft-docs 技能的工作流
+>        3.  什么是 Azure MCP Server（/overview 原文）
+>        4.  MCP 架构：Hosts/Clients/Servers（/overview#concepts）
+>        5.  支持的编辑器和语言（/overview#supported-...）
+>        6.  工具分类（/tools/）
+>        7.  身份认证：Entra ID + RBAC（原文引用）
+>        8.  官方使用场景（/overview#scenarios-...）
+>        9.  我们的 63 工具实跑结果
+>        10. Azure Skills Plugin（/overview#key-features 原文）
+>        11. Python / .NET SDK（/get-started/languages/...）
+>        12. How-to 指南目录（/how-to/...）
+>        13. 结论：用与不用 microsoft-docs 技能的区别
+>        14. 收尾——列出所有引用源 URL
+>
+>   输出：slides/Azure-Agent-Skills-In-Action.pptx + slides/gen_azure_skills_ppt_v2.py
+> ```
+
+该技能强制执行“查官方文档”原则，Agent 在写每一页之前都会通过 `fetch_webpage`（或 `microsoft_docs_search` MCP）拉取每个源 URL。**不用该技能**同样提示词会生成营销话术式内容，无法追溯来源。
+
+### PPT 引用的所有源头（均于 2026-05-12 拉取）
+
+| 页 | 源 URL |
+|---:|--------|
+| 3, 7, 8, 10 | `learn.microsoft.com/en-us/azure/developer/azure-mcp-server/overview` |
+| 4 | `learn.microsoft.com/en-us/azure/developer/azure-mcp-server/overview#concepts` |
+| 5 | `learn.microsoft.com/en-us/azure/developer/azure-mcp-server/overview#supported-code-editors-and-tools` |
+| 6 | `learn.microsoft.com/en-us/azure/developer/azure-mcp-server/tools/` |
+| 11 | `learn.microsoft.com/en-us/azure/developer/azure-mcp-server/get-started/languages/python` |
+| 12 | `learn.microsoft.com/en-us/azure/developer/azure-mcp-server/` |
+| 2, 13 | `github.com/microsoft/skills/.github/skills/microsoft-docs/SKILL.md` |
+
 ## microsoft/skills — 技能验证矩阵
 
 除了 Azure MCP 执行层之外，我们还验证了 [microsoft/skills](https://github.com/microsoft/skills) 中的 11 个技能——**用每个 skill 做一件真实的事，产出一个真实的东西**。每个 skill 被加载为 agent 上下文后应用到具体任务中。产出物在 `skill-demos/` 目录下。
