@@ -1,0 +1,7 @@
+Name
+-------------------------------------
+Visual Studio Enterprise Subscription
+ME-MngEnv183724-xinyuwei-1
+AI GBB - AI Services
+AI GBB - AI Infra
+GBB-Pulse

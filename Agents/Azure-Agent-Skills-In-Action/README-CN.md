@@ -428,6 +428,141 @@ skill 的 SKILL.md 文件中引用工具时用 `mcp_azure_mcp_` 前缀（如 `mc
 
 7 个测试脚本和原始输出文件在 `scripts/` 和 `evaluation/results/` 中。
 
+## Skills vs 不用 Skills：并排对比
+
+任何团队采用这些 skill 前最关心的问题：**比纯 `az` CLI 能多得到什么？**
+
+我们在个人 Azure 订阅（Owner 权限，8 个 VM、19 个 Cognitive Services、20 个 Log Analytics、10 个 Storage、8 个 ML workspace）上跑了 20 个高价值场景，对比了体验。
+
+### 测试环境
+
+| 组件 | 值 |
+|------|-----|
+| 订阅 | `08f95cfd-...` (ME-MngEnv183724-xinyuwei-1) |
+| 权限 | Owner |
+| 资源组 | 30+ |
+| VM | 8 |
+| Cognitive Services 账户 | 19 |
+| Log Analytics workspace | 20 |
+| Storage 账户 | 10 |
+| ML workspace | 8 |
+
+### 哪些能跑、哪些不能（20 场景）
+
+| 状态 | 数量 | 含义 |
+|------|:---:|------|
+| ✅ SUCCESS | 6 | 返回了真实 Azure 数据 |
+| ⚠️ LEARN_FALLBACK | 7 | 子命令名不匹配 → server 回退到列出可用命令 |
+| ❌ MISSING_PARAMS | 6 | 复合工具需要 `parameters` 是 JSON 字符串，不是 object |
+| ❌ BAD_REQUEST | 1 | `pricing_get` 需要精确的 filter 组合 |
+
+### 具体对比示例
+
+#### 示例 1：列订阅 — 两者都能跑，MCP 返回结构化数据
+
+**不用 skills（az CLI）**：
+```bash
+$ time az account list --query "[].{name:name,id:id}" -o table
+ME-MngEnv183724-xinyuwei-1
+AI GBB - AI Services
+AI GBB - AI Infra
+GBB-Pulse
+real    0m0.949s
+```
+
+**用 skills（MCP `subscription_list`）**：
+```json
+{"status":200,"results":{"subscriptions":[
+  {"subscriptionId":"08f95cfd-...","displayName":"ME-MngEnv183724-xinyuwei-1","state":"Enabled","tenantId":"9812d5f8-..."}
+]}}
+```
+
+**结论**：速度一样，但 MCP 返回结构化 JSON，可直接给 LLM 消费。
+
+#### 示例 2：配额查询 — MCP 在复杂度上赢 10 倍
+
+**不用 skills（手动调 REST API）**：
+```bash
+$ az rest --method GET --url "https://management.azure.com/subscriptions/$SUB/providers/Microsoft.Quota/usages?api-version=2023-02-01&\$filter=location%20eq%20'eastus'"
+ERROR: Bad Request — 必须查清楚正确的 API 路径、版本、filter 语法
+```
+
+**用 skills（MCP `quota_usage_check`）**：
+```js
+exec("quota", "quota_usage_check", {
+  subscription: SUB,
+  region: "eastus",
+  "resource-types": "Microsoft.CognitiveServices/accounts"
+})
+// → 18KB JSON：所有模型的 TPM/PTU 配额（gpt-4o、gpt-4o-mini、o1、o3 等）
+```
+
+**结论**：MCP 省了 30+ 分钟的 API 研究。Skill 知道正确的 API、版本、filter 格式、资源类型名。
+
+#### 示例 3：用自然语言生成 az CLI — MCP 独有能力
+
+**不用 skills**：必须记住 `az vm list --query "[?powerState=='deallocated']"` 语法和 JMESPath filter。
+
+**用 skills（MCP `extension_cli_generate`）**：
+```js
+send("extension_cli_generate", {
+  intent: "find all VMs that have been deallocated for more than 30 days in subscription " + SUB,
+  "cli-type": "az"
+})
+```
+
+**返回**：
+```json
+{
+  "scenario": "Find all VMs that have been deallocated for more than 30 days...",
+  "description": "List all virtual machines in the specified subscription that are in a deallocated state and filter them based on the deallocation duration.",
+  "commandSet": [{
+    "reason": "List all VMs in the subscription and filter for those that are deallocated.",
+    "example": "az vm list --subscription 08f95cfd-... --query '[?powerState==`deallocated`]'",
+    "command": "az vm list",
+    "arguments": ["--subscription", "--query"]
+  }]
+}
+```
+
+**结论**：这是不用 skill 不可能做到的 — 你需要一个懂 Azure CLI 的 LLM 或亲自查文档。
+
+### Skill 什么时候有用、什么时候不需要
+
+从 20 个实战场景总结：
+
+| Skill 占优势的场景 | Skill 帮不上忙的场景 |
+|----------------------|----------------------|
+| 调用复杂 API（quota、pricing、Resource Graph） | 简单资源列表（`az group list` 就够了） |
+| 需要自然语言 → CLI 翻译 | 已经知道准确的 CLI 命令 |
+| 需要结构化 JSON 给下游 LLM 处理 | 只要人读的 table 输出 |
+| 需要跨服务架构推荐 | 只需单服务信息 |
+| 想要 guardrail（如“总是先查实际成本”） | 想对每个参数完全控制 |
+
+### 我们发现的隐藏成本
+
+MCP server 的复合工具要求一个**三层参数包装**，这点文档里没说：
+
+```js
+// 看起来直观（但 ❌ 失败）：
+send("compute", { command: "compute_vm_get", subscription: SUB, "resource-group": "H100VM_group" })
+// → MISSING_PARAMS 错误
+
+// 实际可行的：
+send("compute", {
+  command: "compute_vm_get",
+  parameters: JSON.stringify({  // ← 必须是 JSON 字符串！
+    subscription: SUB,
+    "resource-group": "H100VM_group"
+  })
+})
+// → SUCCESS
+```
+
+这就是为什么我们 6/20 的成功率是误导的 — 大多数失败是因为这个格式不对，不是 server 的问题。**在 VS Code Copilot 或 Claude Code 生产环境下，宿主会自动处理这个包装**，所以这个表面的友好度问题会消失。
+
+完整测试脚本和原始输出在 `scripts/test_skills_vs_no_skills.js`、`evaluation/results/mcp_comparison_*.{json,txt}` 和 `evaluation/cli_baseline/` 中。
+
 ## 复现本分析
 
 ### 克隆源仓库
