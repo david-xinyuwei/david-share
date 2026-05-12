@@ -20,7 +20,7 @@ The goal is not to repeat what the official README says. The goal is to save oth
 
 The Azure Skills Plugin is not a prompt pack. It is a three-layer capability stack that turns a generic coding agent into an Azure-aware operator.
 
-<div align="center"><img src="images/architecture-overview.png" width="720"/></div>
+<div align="center"><img src="images/architecture-overview.png" width="960"/></div>
 
 | Layer | Component | What It Does | Scale |
 |:-----:|-----------|-------------|:-----:|
@@ -98,7 +98,7 @@ Source: [microsoft/skills README](https://github.com/microsoft/skills) — check
 
 The `azure-prepare → azure-validate → azure-deploy` pipeline is the most opinionated part of the skills ecosystem. It enforces a strict plan-first workflow with hard gates between phases.
 
-<div align="center"><img src="images/deploy-workflow.png" width="720"/></div>
+<div align="center"><img src="images/deploy-workflow.png" width="960"/></div>
 
 ### How It Works
 
@@ -223,7 +223,7 @@ Once an organization's identity model is built on Entra ID with Managed Identity
 
 Not all stickiness is equal. Here is a four-layer model, from shallowest to deepest:
 
-<div align="center"><img src="images/platform-stickiness.png" width="720"/></div>
+<div align="center"><img src="images/platform-stickiness.png" width="960"/></div>
 
 | Layer | Stickiness | Migration Effort | What Gets Locked In |
 |:-----:|:----------:|:----------------:|-------------------|

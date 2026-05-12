@@ -20,7 +20,7 @@
 
 Azure Skills Plugin 不是一个 prompt 包。它是一个三层能力栈，能把通用编码 Agent 变成 Azure 专用操作员。
 
-<div align="center"><img src="images/architecture-overview.png" width="720"/></div>
+<div align="center"><img src="images/architecture-overview.png" width="960"/></div>
 
 | 层级 | 组件 | 功能 | 规模 |
 |:----:|------|------|:----:|
@@ -98,7 +98,7 @@ Azure Skills Plugin 不是一个 prompt 包。它是一个三层能力栈，能�
 
 `azure-prepare → azure-validate → azure-deploy` 流水线是 skills 生态中最有"主见"的部分。它在各阶段之间强制设置硬门控。
 
-<div align="center"><img src="images/deploy-workflow.png" width="720"/></div>
+<div align="center"><img src="images/deploy-workflow.png" width="960"/></div>
 
 ### 工作机制
 
@@ -223,7 +223,7 @@ Azure Skills Plugin 不是一个 prompt 包。它是一个三层能力栈，能�
 
 不是所有粘性都一样。以下是从浅到深的四层模型：
 
-<div align="center"><img src="images/platform-stickiness.png" width="720"/></div>
+<div align="center"><img src="images/platform-stickiness.png" width="960"/></div>
 
 | 层级 | 粘性程度 | 迁移成本 | 被锁定的内容 |
 |:----:|:-------:|:-------:|------------|
