@@ -7,14 +7,14 @@
 - **[microsoft/azure-skills](https://github.com/microsoft/azure-skills)** (v1.1.39) — Azure Skills Plugin，包含 26 个顶层 skill、Azure MCP Server 和 Foundry MCP。
 - **[microsoft/skills](https://github.com/microsoft/skills)** — Agent Skills monorepo，包含 174 个跨 Python、.NET、TypeScript、Java、Rust 的 skill，以及 plugins（deep-wiki、azure-skills）、custom agents、prompts 和 MCP configs。
 
-目标不是复述官方 README，而是替其他工程师省下从头跑完整栈的时间，并回答工程团队在规模化采用这些 skills 之前真正会问的问题：
+目标不是复述官方 README，而是把完整栈实际跑一遍，并回答工程团队在规模化采用这些 skills 前需要确认的问题：
 
-1. **架构到底长什么样？** — 营销文案写得漂亮，但组件之间到底怎么接的？
-2. **部署流水线靠谱吗？** — `prepare → validate → deploy` 号称是强制门控流程，是真的吗？
-3. **用了之后能不能换？** — 哪些 skill 一旦用上，就很难从微软生态里迁出去？
-4. **有人真跑过吗？** — 有。本仓库对真实 Azure 订阅跑了 63 个 MCP 工具，结果全部落盘。
-5. **还差什么？** — 哪些工具需要特定资源才能跑、哪些有外部依赖、哪些不该自动执行。
-6. **怎么挑着用？** — 不是所有 skill 都得装，挑哪些？
+1. **真实架构是什么？** — 各组件如何连接，边界在哪里？
+2. **部署流程是否可用？** — `prepare → validate → deploy` 的门控机制如何工作？
+3. **平台绑定点在哪里？** — 哪些 skill 会增加迁移到非微软生态的成本？
+4. **实测覆盖到什么程度？** — 本仓库对真实 Azure 订阅跑了 63 个 MCP 工具，结果全部落盘。
+5. **哪些能力受环境约束？** — 哪些工具需要特定资源、外部前置条件，或不应自动执行？
+6. **团队应如何选择性采用？** — 哪些 skill 值得安装，哪些可以跳过？
 
 ## 架构全景
 
