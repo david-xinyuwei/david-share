@@ -586,9 +586,9 @@ From the 63-tool full run:
 
 Full test scripts and raw outputs are in `scripts/run_full_value_evaluation.js`, `evaluation/results/full_value_evaluation.json`, `evaluation/results/full_value_matrix.csv`, `evaluation/results/full_value_summary.md`, and `evaluation/cli_baseline/`.
 
-## Slide Deck
+## Slide Deck (built with the microsoft-docs skill)
 
-A 12-slide executive deck summarizing this evaluation is in [`slides/Azure-Agent-Skills-In-Action.pptx`](slides/Azure-Agent-Skills-In-Action.pptx). The deck is generated from the same evidence shown above and covers: test environment, headline result (45/9/5/2/2), high-signal wins, blockers explained, calling convention, skills vs `az` CLI, architecture, platform stickiness, and deliverables. The generator script [`slides/gen_azure_skills_ppt.py`](slides/gen_azure_skills_ppt.py) lets you regenerate the deck after re-running the harness.
+A 14-slide deck in [`slides/Azure-Agent-Skills-In-Action.pptx`](slides/Azure-Agent-Skills-In-Action.pptx) was generated using the **microsoft-docs skill** from [microsoft/skills](https://github.com/microsoft/skills): every factual claim on every slide is sourced from a [learn.microsoft.com](https://learn.microsoft.com) URL fetched at generation time, with the source URL displayed on each slide footer. The generator script [`slides/gen_azure_skills_ppt_v2.py`](slides/gen_azure_skills_ppt_v2.py) embeds the source URLs and demonstrates the skill's "query official documentation, do not rely on memory" principle.
 
 ## microsoft/skills — Skill Verification Matrix
 
@@ -596,7 +596,7 @@ Beyond the Azure MCP execution layer, we verified 11 skills from [microsoft/skil
 
 | Skill | Task | Deliverable | Location |
 |-------|------|-------------|----------|
-| **presenter** (slides) | Generate evaluation summary deck | 12-slide PPTX | `slides/` |
+| **microsoft-docs** (slides) | Generate evidence-based deck with every fact sourced from learn.microsoft.com | 14-slide PPTX with URL footer per slide | `slides/` |
 | **cloud-solution-architect** | Design a RAG Agent architecture (7-step WAF review) | Architecture document with ADRs | `skill-demos/cloud-solution-architect/` |
 | **github-issue-creator** | Convert raw error logs into structured issues | 3 GitHub-format issues | `skill-demos/github-issue-creator/` |
 | **mcp-builder** | Build an MCP server exposing evaluation data | Python FastMCP server (5 tools) | `skill-demos/mcp-builder/` |

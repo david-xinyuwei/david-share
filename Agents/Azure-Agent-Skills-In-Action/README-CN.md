@@ -586,9 +586,9 @@ send("extension_cli_generate", {
 
 完整测试脚本和原始输出在 `scripts/run_full_value_evaluation.js`、`evaluation/results/full_value_evaluation.json`、`evaluation/results/full_value_matrix.csv`、`evaluation/results/full_value_summary.md` 和 `evaluation/cli_baseline/` 中。
 
-## 配套幻灯片
+## 配套幻灯片（使用 microsoft-docs 技能生成）
 
-本评测的 12 页执行摘要 PPT 在 [`slides/Azure-Agent-Skills-In-Action.pptx`](slides/Azure-Agent-Skills-In-Action.pptx)。内容来自上面同一份证据，覆盖：测试环境、头条结果（45/9/5/2/2）、high-signal wins、未完全执行项及原因、调用约定、Skills vs `az` CLI、架构、平台粘性、交付清单。生成脚本 [`slides/gen_azure_skills_ppt.py`](slides/gen_azure_skills_ppt.py) 可在重跑评测后重新生成 PPT。
+[`slides/Azure-Agent-Skills-In-Action.pptx`](slides/Azure-Agent-Skills-In-Action.pptx) 是使用 [microsoft/skills](https://github.com/microsoft/skills) 中的 **microsoft-docs 技能** 生成的 14 页 PPT：每一页上的每一个事实声明都引用自 [learn.microsoft.com](https://learn.microsoft.com)，生成时实时拉取，源 URL 显示在页脚。生成脚本 [`slides/gen_azure_skills_ppt_v2.py`](slides/gen_azure_skills_ppt_v2.py) 嵌入了所有源 URL，演示了该技能“查官方文档、不依靠记忆”的核心原则。
 
 ## microsoft/skills — 技能验证矩阵
 
@@ -596,7 +596,7 @@ send("extension_cli_generate", {
 
 | 技能 | 任务 | 产出物 | 位置 |
 |------|------|--------|------|
-| **presenter** (幻灯片) | 生成评测摘要 PPT | 12 页 PPTX | `slides/` |
+| **microsoft-docs** (幻灯片) | 生成证据驱动的 PPT，每个事实都引用 learn.microsoft.com | 14 页 PPTX，页脚含源 URL | `slides/` |
 | **cloud-solution-architect** | 设计 RAG Agent 架构（7 步 WAF 审查） | 架构文档 + ADR | `skill-demos/cloud-solution-architect/` |
 | **github-issue-creator** | 把原始错误日志转成结构化 issue | 3 个 GitHub 格式 issue | `skill-demos/github-issue-creator/` |
 | **mcp-builder** | 构建暴露评测数据的 MCP server | Python FastMCP 服务（5 个工具） | `skill-demos/mcp-builder/` |
