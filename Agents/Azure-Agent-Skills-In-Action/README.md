@@ -590,6 +590,26 @@ Full test scripts and raw outputs are in `scripts/run_full_value_evaluation.js`,
 
 A 12-slide executive deck summarizing this evaluation is in [`slides/Azure-Agent-Skills-In-Action.pptx`](slides/Azure-Agent-Skills-In-Action.pptx). The deck is generated from the same evidence shown above and covers: test environment, headline result (45/9/5/2/2), high-signal wins, blockers explained, calling convention, skills vs `az` CLI, architecture, platform stickiness, and deliverables. The generator script [`slides/gen_azure_skills_ppt.py`](slides/gen_azure_skills_ppt.py) lets you regenerate the deck after re-running the harness.
 
+## microsoft/skills — Skill Verification Matrix
+
+Beyond the Azure MCP execution layer, we verified 11 skills from [microsoft/skills](https://github.com/microsoft/skills) by **using each skill to produce a real deliverable**. Each skill was loaded as agent context and applied to a concrete task. The deliverables are in `skill-demos/`.
+
+| Skill | Task | Deliverable | Location |
+|-------|------|-------------|----------|
+| **presenter** (slides) | Generate evaluation summary deck | 12-slide PPTX | `slides/Azure-Agent-Skills-In-Action.pptx` |
+| **cloud-solution-architect** | Design a RAG Agent architecture (7-step WAF review) | Architecture document with ADRs | `skill-demos/cloud-solution-architect/` |
+| **github-issue-creator** | Convert raw error logs into structured issues | 3 GitHub-format issues | `skill-demos/github-issue-creator/` |
+| **mcp-builder** | Build an MCP server exposing evaluation data | Python FastMCP server (5 tools) | `skill-demos/mcp-builder/` |
+| **frontend-design-review** | Audit our Foundry Demo dashboard | 5-pillar review (scored 5.7/10) | `skill-demos/frontend-design-review/` |
+| **skill-creator** | Create a new SKILL.md for MCP evaluation | Complete SKILL.md with frontmatter | `skill-demos/skill-creator/` |
+| **foundry-hosted-agents** | Deploy containerized agent via azd | Deployment evidence + code patterns | `skill-demos/foundry-hosted-agents/` |
+| **foundry-models** | Deploy gpt-4.1-mini on Foundry | Model deployment + MCP verification | `skill-demos/foundry-models/` |
+| **foundry-toolboxes** | Configure Toolbox with 3 MCP tools | Toolbox config + live endpoint | `skill-demos/foundry-toolboxes/` |
+| **foundry-memory** | Integrate cross-session agent memory | FoundryMemoryProvider integration | `skill-demos/foundry-memory/` |
+| **copilot-sdk** | Build multi-agent demo app | FastAPI app with Responses protocol | `skill-demos/copilot-sdk/` |
+
+Each deliverable documents: what the skill teaches, how we applied it, the actual output, and a verdict on the skill's value.
+
 ## Reproducing This Analysis
 
 ### Clone the source repos

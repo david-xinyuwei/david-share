@@ -590,6 +590,26 @@ send("extension_cli_generate", {
 
 本评测的 12 页执行摘要 PPT 在 [`slides/Azure-Agent-Skills-In-Action.pptx`](slides/Azure-Agent-Skills-In-Action.pptx)。内容来自上面同一份证据，覆盖：测试环境、头条结果（45/9/5/2/2）、high-signal wins、未完全执行项及原因、调用约定、Skills vs `az` CLI、架构、平台粘性、交付清单。生成脚本 [`slides/gen_azure_skills_ppt.py`](slides/gen_azure_skills_ppt.py) 可在重跑评测后重新生成 PPT。
 
+## microsoft/skills — 技能验证矩阵
+
+除了 Azure MCP 执行层之外，我们还验证了 [microsoft/skills](https://github.com/microsoft/skills) 中的 11 个技能——**用每个 skill 做一件真实的事，产出一个真实的东西**。每个 skill 被加载为 agent 上下文后应用到具体任务中。产出物在 `skill-demos/` 目录下。
+
+| 技能 | 任务 | 产出物 | 位置 |
+|------|------|--------|------|
+| **presenter** (幻灯片) | 生成评测摘要 PPT | 12 页 PPTX | `slides/Azure-Agent-Skills-In-Action.pptx` |
+| **cloud-solution-architect** | 设计 RAG Agent 架构（7 步 WAF 审查） | 架构文档 + ADR | `skill-demos/cloud-solution-architect/` |
+| **github-issue-creator** | 把原始错误日志转成结构化 issue | 3 个 GitHub 格式 issue | `skill-demos/github-issue-creator/` |
+| **mcp-builder** | 构建暴露评测数据的 MCP server | Python FastMCP 服务（5 个工具） | `skill-demos/mcp-builder/` |
+| **frontend-design-review** | 审查 Foundry Demo 前端 | 5 维度审查报告（评分 5.7/10） | `skill-demos/frontend-design-review/` |
+| **skill-creator** | 为 MCP 评测创建全新 SKILL.md | 完整的 SKILL.md（含 frontmatter） | `skill-demos/skill-creator/` |
+| **foundry-hosted-agents** | 部署容器化 agent（azd up） | 部署证据 + 代码模式 | `skill-demos/foundry-hosted-agents/` |
+| **foundry-models** | 在 Foundry 上部署 gpt-4.1-mini | 模型部署 + MCP 验证 | `skill-demos/foundry-models/` |
+| **foundry-toolboxes** | 配置含 3 个 MCP 工具的 Toolbox | Toolbox 配置 + 实际端点 | `skill-demos/foundry-toolboxes/` |
+| **foundry-memory** | 集成跨 session agent 记忆 | FoundryMemoryProvider 集成 | `skill-demos/foundry-memory/` |
+| **copilot-sdk** | 构建多 agent 演示应用 | FastAPI 应用（Responses 协议） | `skill-demos/copilot-sdk/` |
+
+每个产出物都记录了：该 skill 教了什么、我们如何应用、实际产出、以及对 skill 价值的评定。
+
 ## 复现本分析
 
 ### 克隆源仓库
