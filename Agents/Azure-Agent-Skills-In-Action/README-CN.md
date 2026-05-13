@@ -17,6 +17,36 @@
 5. **什么时候才需要 `prepare → validate → deploy`？** — 只有创建或修改资源的部署类 skill 需要这套门控。
 6. **团队应该如何选择性采用？** — 全部加载会造成 context rot，只安装当前项目真正需要的 skill。
 
+## 执行摘要 PPT 预览
+
+如果读者只有几分钟，先看这份 deck。它是本仓库最浓缩的执行摘要：14 页 PPTX，使用 `microsoft-docs` skill 生成，每个事实声明都回链到 `learn.microsoft.com` 或 GitHub 来源。可编辑 PPTX 在这里：[`slides/Azure-Agent-Skills-In-Action.pptx`](slides/Azure-Agent-Skills-In-Action.pptx)。
+
+<div align="center"><img src="slides/preview/slide-01.png" width="780"/></div>
+
+<details>
+<summary>在 GitHub 中浏览全部 14 页预览</summary>
+
+GitHub Markdown 不能内嵌真正可交互翻页的 PPTX viewer，所以本仓库把 deck 导出成静态 PNG，放在 [`slides/preview/`](slides/preview/) 下。需要重新生成时运行 [`slides/export_slide_preview.sh`](slides/export_slide_preview.sh)。
+
+<div align="center">
+  <img src="slides/preview/slide-01.png" width="780"/>
+  <img src="slides/preview/slide-02.png" width="780"/>
+  <img src="slides/preview/slide-03.png" width="780"/>
+  <img src="slides/preview/slide-04.png" width="780"/>
+  <img src="slides/preview/slide-05.png" width="780"/>
+  <img src="slides/preview/slide-06.png" width="780"/>
+  <img src="slides/preview/slide-07.png" width="780"/>
+  <img src="slides/preview/slide-08.png" width="780"/>
+  <img src="slides/preview/slide-09.png" width="780"/>
+  <img src="slides/preview/slide-10.png" width="780"/>
+  <img src="slides/preview/slide-11.png" width="780"/>
+  <img src="slides/preview/slide-12.png" width="780"/>
+  <img src="slides/preview/slide-13.png" width="780"/>
+  <img src="slides/preview/slide-14.png" width="780"/>
+</div>
+
+</details>
+
 ## 先看 Skill Description
 
 对客户来说，理解 skills 最快的方法不是看目录树，而是看 `description` 字段。Agent Skills 规范要求 `description` 同时说明 **这个 skill 做什么** 和 **什么时候使用**；progressive disclosure 机制会在启动时先加载 `name` 和 `description`，只有命中意图后才加载完整 `SKILL.md` 和资源文件。所以 description 是第一层路由入口。
@@ -671,31 +701,7 @@ send("extension_cli_generate", {
 
 该技能强制执行“查官方文档”原则，Agent 在写每一页之前都会通过 `fetch_webpage`（或 `microsoft_docs_search` MCP）拉取每个源 URL。**不用该技能**同样提示词会生成营销话术式内容，无法追溯来源。
 
-### GitHub 中直接预览 PPT
-
-GitHub Markdown 不能内嵌真正可交互翻页的 PPTX viewer。为了让别人不用下载 PPT 也能直接审阅，本仓库把 PPTX 导出成静态 PNG，放在 [`slides/preview/`](slides/preview/) 下。需要重新生成时运行 [`slides/export_slide_preview.sh`](slides/export_slide_preview.sh)。
-
-<details open>
-<summary>展开幻灯片预览</summary>
-
-<div align="center">
-  <img src="slides/preview/slide-01.png" width="780"/>
-  <img src="slides/preview/slide-02.png" width="780"/>
-  <img src="slides/preview/slide-03.png" width="780"/>
-  <img src="slides/preview/slide-04.png" width="780"/>
-  <img src="slides/preview/slide-05.png" width="780"/>
-  <img src="slides/preview/slide-06.png" width="780"/>
-  <img src="slides/preview/slide-07.png" width="780"/>
-  <img src="slides/preview/slide-08.png" width="780"/>
-  <img src="slides/preview/slide-09.png" width="780"/>
-  <img src="slides/preview/slide-10.png" width="780"/>
-  <img src="slides/preview/slide-11.png" width="780"/>
-  <img src="slides/preview/slide-12.png" width="780"/>
-  <img src="slides/preview/slide-13.png" width="780"/>
-  <img src="slides/preview/slide-14.png" width="780"/>
-</div>
-
-</details>
+GitHub 中的 slide 预览已前移到 README 顶部：[执行摘要 PPT 预览](#执行摘要-ppt-预览)。
 
 ### PPT 引用的所有源头（均于 2026-05-12 拉取）
 

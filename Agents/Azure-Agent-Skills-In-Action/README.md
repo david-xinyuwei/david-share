@@ -17,6 +17,36 @@ The goal is not to repeat the official READMEs. The goal is to show what these s
 5. **When does `prepare → validate → deploy` apply?** — Only resource-changing deployment skills need that gate.
 6. **How should teams adopt selectively?** — Loading all skills causes context rot; install only what matches the project.
 
+## Executive Deck Preview
+
+If you only have a few minutes, start with the deck. It is the most compact executive story in this repo: a 14-slide PPTX generated with the `microsoft-docs` skill, with every factual claim tied back to a `learn.microsoft.com` or GitHub source. The full editable deck is here: [`slides/Azure-Agent-Skills-In-Action.pptx`](slides/Azure-Agent-Skills-In-Action.pptx).
+
+<div align="center"><img src="slides/preview/slide-01.png" width="780"/></div>
+
+<details>
+<summary>Browse all 14 slide previews in GitHub</summary>
+
+GitHub Markdown cannot embed an interactive PPTX viewer with real in-page slide flipping, so this repo exports the deck into static PNG previews under [`slides/preview/`](slides/preview/). Use [`slides/export_slide_preview.sh`](slides/export_slide_preview.sh) to regenerate them.
+
+<div align="center">
+  <img src="slides/preview/slide-01.png" width="780"/>
+  <img src="slides/preview/slide-02.png" width="780"/>
+  <img src="slides/preview/slide-03.png" width="780"/>
+  <img src="slides/preview/slide-04.png" width="780"/>
+  <img src="slides/preview/slide-05.png" width="780"/>
+  <img src="slides/preview/slide-06.png" width="780"/>
+  <img src="slides/preview/slide-07.png" width="780"/>
+  <img src="slides/preview/slide-08.png" width="780"/>
+  <img src="slides/preview/slide-09.png" width="780"/>
+  <img src="slides/preview/slide-10.png" width="780"/>
+  <img src="slides/preview/slide-11.png" width="780"/>
+  <img src="slides/preview/slide-12.png" width="780"/>
+  <img src="slides/preview/slide-13.png" width="780"/>
+  <img src="slides/preview/slide-14.png" width="780"/>
+</div>
+
+</details>
+
 ## Start With Skill Descriptions
 
 For a customer, the fastest way to understand skills is not the file tree. It is the `description` field. The Agent Skills specification says `description` is required and should explain both **what the skill does** and **when to use it**; progressive disclosure loads the `name` and `description` metadata at startup before full instructions or resources are loaded. That makes the description the first routing surface.
@@ -672,31 +702,7 @@ Load the `microsoft-docs` skill into your coding agent (e.g. GitHub Copilot, Cla
 
 The skill enforces the "query official documentation" principle, so the agent will fetch each source URL via `fetch_webpage` (or `microsoft_docs_search` MCP) before writing the slide content. Without the skill, the same prompt would produce marketing-style content with no traceable sources.
 
-### GitHub slide preview
-
-GitHub Markdown cannot embed an interactive PPTX viewer with real in-page slide flipping. To make the deck reviewable directly in the repo, this repository exports the PPTX into static PNG previews under [`slides/preview/`](slides/preview/). Use [`slides/export_slide_preview.sh`](slides/export_slide_preview.sh) to regenerate them.
-
-<details open>
-<summary>Open slide preview</summary>
-
-<div align="center">
-  <img src="slides/preview/slide-01.png" width="780"/>
-  <img src="slides/preview/slide-02.png" width="780"/>
-  <img src="slides/preview/slide-03.png" width="780"/>
-  <img src="slides/preview/slide-04.png" width="780"/>
-  <img src="slides/preview/slide-05.png" width="780"/>
-  <img src="slides/preview/slide-06.png" width="780"/>
-  <img src="slides/preview/slide-07.png" width="780"/>
-  <img src="slides/preview/slide-08.png" width="780"/>
-  <img src="slides/preview/slide-09.png" width="780"/>
-  <img src="slides/preview/slide-10.png" width="780"/>
-  <img src="slides/preview/slide-11.png" width="780"/>
-  <img src="slides/preview/slide-12.png" width="780"/>
-  <img src="slides/preview/slide-13.png" width="780"/>
-  <img src="slides/preview/slide-14.png" width="780"/>
-</div>
-
-</details>
+The GitHub-rendered slide preview is intentionally placed near the top of this README: [Executive Deck Preview](#executive-deck-preview).
 
 ### Sources used in the deck (all fetched 2026-05-12)
 
