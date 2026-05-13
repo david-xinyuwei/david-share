@@ -299,7 +299,7 @@ async def generate():
 - ❌ 把裸 PCM 保存为 `.wav` → 没有 WAV 头，文件无法播放
 - ❌ 用错采样率 → 花栗鼠变速或慢动作
 
-产出物：`evaluation-podcast.wav`（24kHz mono）+ 文字 transcript `.txt`。完整脚本：[generate_evaluation_podcast.py](skill-demos/podcast-generation/generate_evaluation_podcast.py)
+产出物：[`evaluation-podcast.wav`](skill-demos/podcast-generation/evaluation-podcast.wav)（4.4 MB，约 90 秒，24kHz 单声道）+ [文字 transcript](skill-demos/podcast-generation/evaluation-podcast-transcript.txt)。完整脚本：[generate_evaluation_podcast.py](skill-demos/podcast-generation/generate_evaluation_podcast.py)
 
 </details>
 

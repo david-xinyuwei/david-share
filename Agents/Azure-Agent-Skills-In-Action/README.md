@@ -299,7 +299,7 @@ async def generate():
 - ❌ Save raw PCM as `.wav` → file is unplayable without WAV header
 - ❌ Use wrong sample rate → chipmunk speed or slow-motion audio
 
-Output: `evaluation-podcast.wav` (24kHz mono) + transcript `.txt`. Full script: [generate_evaluation_podcast.py](skill-demos/podcast-generation/generate_evaluation_podcast.py)
+Output: [`evaluation-podcast.wav`](skill-demos/podcast-generation/evaluation-podcast.wav) (4.4 MB, ~90s, 24kHz mono) + [transcript](skill-demos/podcast-generation/evaluation-podcast-transcript.txt). Full script: [generate_evaluation_podcast.py](skill-demos/podcast-generation/generate_evaluation_podcast.py)
 
 </details>
 
