@@ -23,6 +23,12 @@ If you only have a few minutes, start with the deck. It is the most compact exec
 
 <div align="center"><img src="slides/preview/slide-01.png" width="780"/></div>
 
+**How this deck was generated** — load the `microsoft-docs` skill, then give your coding agent this prompt:
+
+> Generate a 14-slide executive PPTX about "Azure Agent Skills In Action". Every factual claim MUST come from a `learn.microsoft.com` URL fetched at generation time via the microsoft-docs skill — do NOT rely on memory. Display the exact source URL on each slide footer. Quote key definitions verbatim.
+
+The skill enforces "query official docs first", so the agent fetches each URL before writing. Without the skill, the same prompt produces marketing-style content with no traceable sources. Full prompt template and slide-by-slide source table → [Slide Deck section](#slide-deck-built-with-the-microsoft-docs-skill).
+
 <details>
 <summary>Browse all 14 slide previews in GitHub</summary>
 

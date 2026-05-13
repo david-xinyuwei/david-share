@@ -23,6 +23,12 @@
 
 <div align="center"><img src="slides/preview/slide-01.png" width="780"/></div>
 
+**这份 deck 是怎么生成的** —— 加载 `microsoft-docs` skill，然后给 Coding Agent 这段提示词：
+
+> 生成一份关于 "Azure Agent Skills In Action" 的 14 页 PPTX 执行摘要。每个事实声明必须引用通过 microsoft-docs skill 实时拉取的 `learn.microsoft.com` URL——不准依赖记忆。每页页脚显示准确的源 URL。关键定义使用原文引用。
+
+该 skill 强制执行"先查官方文档"原则，Agent 在写每页前会先拉取对应 URL。不用该 skill，同样的提示词会产出无来源的营销话术。完整提示词模板和逐页来源表 → [配套幻灯片章节](#配套幻灯片使用-microsoft-docs-技能生成)。
+
 <details>
 <summary>在 GitHub 中浏览全部 14 页预览</summary>
 
