@@ -19,20 +19,18 @@ The goal is not to repeat the official READMEs. The goal is to show what these s
 
 ## Executive Deck Preview
 
-If you only have a few minutes, start with the deck. It is the most compact executive story in this repo: a 14-slide PPTX generated with the `microsoft-docs` skill, with every factual claim tied back to a `learn.microsoft.com` or GitHub source. The full editable deck is here: [`slides/Azure-Agent-Skills-In-Action.pptx`](slides/Azure-Agent-Skills-In-Action.pptx).
+A 14-slide deck built with the `microsoft-docs` skill — every fact sourced from `learn.microsoft.com` at generation time. Download: [`Azure-Agent-Skills-In-Action.pptx`](slides/Azure-Agent-Skills-In-Action.pptx)
 
 <div align="center"><img src="slides/preview/slide-01.png" width="780"/></div>
 
-**How this deck was generated** — load the `microsoft-docs` skill, then give your coding agent this prompt:
+<details>
+<summary>Browse all 14 slides + the prompt that generated this deck</summary>
+
+**How to reproduce** — load the `microsoft-docs` skill into your coding agent (GitHub Copilot, Claude Code, etc.), then use this prompt:
 
 > Generate a 14-slide executive PPTX about "Azure Agent Skills In Action". Every factual claim MUST come from a `learn.microsoft.com` URL fetched at generation time via the microsoft-docs skill — do NOT rely on memory. Display the exact source URL on each slide footer. Quote key definitions verbatim.
 
-The skill enforces "query official docs first", so the agent fetches each URL before writing. Without the skill, the same prompt produces marketing-style content with no traceable sources. Full prompt template and slide-by-slide source table → [Slide Deck section](#slide-deck-built-with-the-microsoft-docs-skill).
-
-<details>
-<summary>Browse all 14 slide previews in GitHub</summary>
-
-GitHub Markdown cannot embed an interactive PPTX viewer with real in-page slide flipping, so this repo exports the deck into static PNG previews under [`slides/preview/`](slides/preview/). Use [`slides/export_slide_preview.sh`](slides/export_slide_preview.sh) to regenerate them.
+The skill enforces "query official docs first", so the agent fetches each source URL before writing slide content. Without the skill, the same prompt produces marketing-style content with no traceable sources. Full prompt template and source table → [Slide Deck section](#slide-deck-built-with-the-microsoft-docs-skill).
 
 <div align="center">
   <img src="slides/preview/slide-01.png" width="780"/>
@@ -53,9 +51,9 @@ GitHub Markdown cannot embed an interactive PPTX viewer with real in-page slide 
 
 </details>
 
-## Start With Skill Descriptions
+## What Can Skills Actually Do? (Start With the Description)
 
-For a customer, the fastest way to understand skills is not the file tree. It is the `description` field. The Agent Skills specification says `description` is required and should explain both **what the skill does** and **when to use it**; progressive disclosure loads the `name` and `description` metadata at startup before full instructions or resources are loaded. That makes the description the first routing surface.
+The fastest way to understand what skills offer is not the file tree — it is the `description` field in each `SKILL.md`. The [Agent Skills specification](https://agentskills.io/specification) requires `description` to explain both **what the skill does** and **when to use it**. Progressive disclosure loads only `name` + `description` at startup; the full instructions and resources load only when the description matches the user's intent. That makes descriptions the first routing layer.
 
 | Customer asks... | Skill description that should catch it | What this proves |
 |------------------|----------------------------------------|------------------|

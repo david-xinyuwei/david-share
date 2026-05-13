@@ -19,20 +19,18 @@
 
 ## 执行摘要 PPT 预览
 
-如果读者只有几分钟，先看这份 deck。它是本仓库最浓缩的执行摘要：14 页 PPTX，使用 `microsoft-docs` skill 生成，每个事实声明都回链到 `learn.microsoft.com` 或 GitHub 来源。可编辑 PPTX 在这里：[`slides/Azure-Agent-Skills-In-Action.pptx`](slides/Azure-Agent-Skills-In-Action.pptx)。
+使用 `microsoft-docs` skill 生成的 14 页 deck——每个事实都在生成时实时引用自 `learn.microsoft.com`。下载：[`Azure-Agent-Skills-In-Action.pptx`](slides/Azure-Agent-Skills-In-Action.pptx)
 
 <div align="center"><img src="slides/preview/slide-01.png" width="780"/></div>
 
-**这份 deck 是怎么生成的** —— 加载 `microsoft-docs` skill，然后给 Coding Agent 这段提示词：
+<details>
+<summary>浏览全部 14 页 + 生成这份 deck 的提示词</summary>
+
+**如何复现** —— 在 Coding Agent（GitHub Copilot、Claude Code 等）中加载 `microsoft-docs` skill，然后使用这段提示词：
 
 > 生成一份关于 "Azure Agent Skills In Action" 的 14 页 PPTX 执行摘要。每个事实声明必须引用通过 microsoft-docs skill 实时拉取的 `learn.microsoft.com` URL——不准依赖记忆。每页页脚显示准确的源 URL。关键定义使用原文引用。
 
 该 skill 强制执行"先查官方文档"原则，Agent 在写每页前会先拉取对应 URL。不用该 skill，同样的提示词会产出无来源的营销话术。完整提示词模板和逐页来源表 → [配套幻灯片章节](#配套幻灯片使用-microsoft-docs-技能生成)。
-
-<details>
-<summary>在 GitHub 中浏览全部 14 页预览</summary>
-
-GitHub Markdown 不能内嵌真正可交互翻页的 PPTX viewer，所以本仓库把 deck 导出成静态 PNG，放在 [`slides/preview/`](slides/preview/) 下。需要重新生成时运行 [`slides/export_slide_preview.sh`](slides/export_slide_preview.sh)。
 
 <div align="center">
   <img src="slides/preview/slide-01.png" width="780"/>
@@ -53,9 +51,9 @@ GitHub Markdown 不能内嵌真正可交互翻页的 PPTX viewer，所以本仓�
 
 </details>
 
-## 先看 Skill Description
+## Skill 到底能做什么？（从 Description 开始）
 
-对客户来说，理解 skills 最快的方法不是看目录树，而是看 `description` 字段。Agent Skills 规范要求 `description` 同时说明 **这个 skill 做什么** 和 **什么时候使用**；progressive disclosure 机制会在启动时先加载 `name` 和 `description`，只有命中意图后才加载完整 `SKILL.md` 和资源文件。所以 description 是第一层路由入口。
+理解 skills 能做什么，最快的方式不是看目录树，而是看每个 `SKILL.md` 中的 `description` 字段。[Agent Skills 规范](https://agentskills.io/specification) 要求 `description` 同时说明 **这个 skill 做什么** 和 **什么时候使用**。Progressive disclosure 机制在启动时只加载 `name` + `description`，只有 description 命中用户意图后才加载完整指令和资源文件。所以 description 是第一层路由入口。
 
 | 客户怎么问 | 能抓住意图的 skill description | 说明了什么 |
 |------------|-------------------------------|------------|
