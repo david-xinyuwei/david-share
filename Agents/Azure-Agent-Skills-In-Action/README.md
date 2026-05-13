@@ -53,16 +53,164 @@ The skill enforces "query official docs first", so the agent fetches each source
 
 ## Skills We Actually Ran (Quick Look)
 
-The deck above used the `microsoft-docs` skill. But we tested **far more** — 12 core skills, 11 Foundry sub-skills, and 38 SDK skills across 5 languages. Each test follows the same triple: **prompt → skill → deliverable**. Here are 6 of the most different ones:
+The deck above used the `microsoft-docs` skill. But we tested **far more** — 12 core skills, 11 Foundry sub-skills, and 38 SDK skills across 5 languages. Each test follows the same triple: **prompt → skill → deliverable**. Expand any card below to see the actual output rendered inline.
 
-| Skill | What we asked it to do | What it produced |
-|-------|----------------------|------------------|
-| `github-issue-creator` | Turn 6 lines of raw error logs into structured issues | 3 GitHub-format issues with severity, repro steps, and context → [generated-issues.md](skill-demos/github-issue-creator/generated-issues.md) |
-| `frontend-design-review` | Audit a 726-line dashboard UI against 5 quality pillars | Scored review (5.7/10), 6 ARIA gaps, 3 responsive failures → [review-report.md](skill-demos/frontend-design-review/review-report.md) |
-| `mcp-builder` | Build a Python MCP server exposing our evaluation data | 5-tool FastMCP server with read-only annotations → [evaluation_mcp_server.py](skill-demos/mcp-builder/evaluation_mcp_server.py) |
-| `deep-wiki` | Generate a repo wiki with Mermaid diagrams and citations | AI-powered onboarding docs with AGENTS.md and llms.txt |
-| `cloud-solution-architect` | Design a production RAG Agent system using WAF review | Architecture doc with 11 tech choices, 10 patterns, 3 ADRs → [architecture-design.md](skill-demos/cloud-solution-architect/architecture-design.md) |
-| `kql` | Write production KQL queries for agent monitoring | 7-query .kql file (logs, tools, tokens, latency, traces) → [agent-monitoring.kql](skill-demos/kql/agent-monitoring.kql) |
+---
+
+### `github-issue-creator` — Turn error logs into structured GitHub issues
+
+> **Prompt**: "Convert this 6-line raw error log into GitHub issues. Output MUST include Summary / Environment / Reproduction Steps / Expected / Actual / Error Details."
+
+<details>
+<summary>See the generated issue (rendered)</summary>
+
+**Generated Issue #1: extension_cli_install**
+
+| Field | Content |
+|-------|---------|
+| **Summary** | `extension_cli_install` returns 400 BAD_REQUEST — required `--cli-type` parameter not documented in learn schema |
+| **Environment** | Azure MCP Server (`@azure/mcp@latest`), JSON-RPC 2024-11-05 over stdio |
+| **Reproduction** | 1. Start server → 2. Initialize → 3. Send `tools/call` with `extension_cli_install` + `{learn: true}` → 4. Observe 400 |
+| **Expected** | Schema returned or graceful error with usage hint |
+| **Actual** | `"Missing Required options: --cli-type. Invalid CLI type: . Supported values are: az, azd, func"` |
+| **Severity** | Medium — workaround exists (pass `--cli-type az`) |
+
+Full output (3 issues): [generated-issues.md](skill-demos/github-issue-creator/generated-issues.md)
+
+</details>
+
+---
+
+### `frontend-design-review` — Audit a live UI against 5 quality pillars
+
+> **Prompt**: "Apply 5 pillars: Design System / Accessibility / Performance / Responsive / Aesthetics. Score each; give Top 3 actionable fixes."
+
+<details>
+<summary>See the review scorecard (rendered)</summary>
+
+| Pillar | Score | Key Finding |
+|--------|:-----:|-------------|
+| Design System | ✅ Good | Segoe UI + system-ui, Microsoft Blue #0078d4, consistent card patterns |
+| Accessibility | ⚠️ 6 gaps | Missing ARIA labels on agent cards, no `role="status"` on live output, no skip-nav link |
+| Performance | ⚠️ | 726-line all-in-one file, inline styles, no lazy loading for images |
+| Responsive | ❌ 3 failures | Fixed 320px grid columns break below 1200px, no mobile breakpoints |
+| Aesthetics | ✅ Good | Dark theme consistent with Azure portal, gradient banner matches Foundry brand |
+
+**Overall: 5.7 / 10** — functional demo but not production-accessible.
+
+Full report: [review-report.md](skill-demos/frontend-design-review/review-report.md)
+
+</details>
+
+---
+
+### `mcp-builder` — Build a Python MCP server from scratch
+
+> **Prompt**: "Use FastMCP; consistent `eval_*` prefix; `readOnlyHint: True` annotations; verify with `python -m py_compile`."
+
+<details>
+<summary>See the server code (key excerpt)</summary>
+
+```python
+from mcp.server.fastmcp import FastMCP
+
+mcp = FastMCP("azure-skills-evaluation", version="1.0.0")
+
+@mcp.tool(annotations={"readOnlyHint": True})
+def eval_summary() -> dict:
+    """Get the executive summary of the full 63-tool evaluation run."""
+    data = _load()
+    return data.get("summary", {})
+
+@mcp.tool(annotations={"readOnlyHint": True})
+def eval_tool_result(tool_name: str) -> dict:
+    """Get the detailed result for a specific tool by name."""
+    ...
+```
+
+5 tools total: `eval_summary`, `eval_tool_result`, `eval_tools_by_status`, `eval_tools_by_family`, `eval_run_metadata`.
+
+Full source: [evaluation_mcp_server.py](skill-demos/mcp-builder/evaluation_mcp_server.py)
+
+</details>
+
+---
+
+### `cloud-solution-architect` — Design a production system using WAF review
+
+> **Prompt**: "Follow ALL 7 steps of the Architecture Review Workflow; map design patterns to WAF pillars; document ADRs."
+
+<details>
+<summary>See the architecture output (key tables)</summary>
+
+**Step 1 — Requirements**:
+
+| Requirement | Target |
+|-------------|--------|
+| Availability | 99.9% (composite SLA) |
+| Latency (p95) | < 3 seconds end-to-end |
+| Throughput | 100 requests/min sustained |
+| Cost | < $2,000/month for dev/test |
+
+**Step 4 — 11 Technology Choices** (excerpt):
+
+| Component | Choice | WAF Pillar |
+|-----------|--------|-----------|
+| Orchestration | Azure Container Apps | Reliability, Cost |
+| Vector Store | Azure AI Search | Performance |
+| LLM | Azure OpenAI gpt-4o | Performance |
+| Identity | Entra ID + Managed Identity | Security |
+| Observability | App Insights + OTel | Operational Excellence |
+
+Full 7-step document: [architecture-design.md](skill-demos/cloud-solution-architect/architecture-design.md)
+
+</details>
+
+---
+
+### `kql` — Write production monitoring queries
+
+> **Prompt**: "Cast dynamic before summarize; `ago()` not hardcoded UTC; `percentile()` not `avg()` for latency; bounded result size."
+
+<details>
+<summary>See the KQL queries (rendered)</summary>
+
+```kql
+// Q1. Last 50 hosted-agent log entries
+AppTraces
+| where TimeGenerated > ago(1h)
+| top 50 by TimeGenerated desc
+| project TimeGenerated, SeverityLevel, Message
+
+// Q2. Agent invocations per persona (last 24h)
+AppEvents
+| where TimeGenerated > ago(24h)
+| extend agent = tostring(Properties["agent_name"])
+| summarize calls = count(), avg_ms = avg(toint(Properties["elapsed_ms"])) by agent
+| order by calls desc
+
+// Q5. Error rate by tool (last 7d)
+AppExceptions
+| where TimeGenerated > ago(7d)
+| extend tool = tostring(Properties["tool_name"])
+| summarize errors = count() by tool
+| order by errors desc
+| take 20
+```
+
+7 queries total. Full file: [agent-monitoring.kql](skill-demos/kql/agent-monitoring.kql)
+
+</details>
+
+---
+
+### `microsoft-docs` — Generate a sourced slide deck
+
+> **Prompt**: "Every claim MUST cite learn.microsoft.com. Quote definitions verbatim. Display source URL on every slide footer."
+
+Result: the 14-slide deck you saw in [Executive Deck Preview](#executive-deck-preview) above — every slide has a `learn.microsoft.com` URL in its footer.
+
+---
 
 Every `skill-demos/<skill>/README.md` has the **full reproducible prompt** — copy-paste it into your own coding agent after loading the same skill.
 

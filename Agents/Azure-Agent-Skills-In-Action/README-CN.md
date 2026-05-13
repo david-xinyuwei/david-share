@@ -53,16 +53,164 @@
 
 ## 我们实际跑了哪些 Skills（速览）
 
-上面的 deck 用了 `microsoft-docs` skill。但我们测试了**远不止这一个**——12 个 core skill、11 个 Foundry 子 skill、5 种语言 38 个 SDK skill。每个测试遵循同一个三元组：**提示词 → skill → 产出物**。以下是 6 个最有代表性的：
+上面的 deck 用了 `microsoft-docs` skill。但我们测试了**远不止这一个**——12 个 core skill、11 个 Foundry 子 skill、5 种语言 38 个 SDK skill。每个测试遵循同一个三元组：**提示词 → skill → 产出物**。展开任意卡片可以直接看到产出物内容。
 
-| Skill | 我们让它做什么 | 它产出了什么 |
-|-------|----------------|-------------|
-| `github-issue-creator` | 把 6 行原始错误日志整理成结构化 issue | 3 个标准 GitHub issue，含严重度、复现步骤和上下文 → [generated-issues.md](skill-demos/github-issue-creator/generated-issues.md) |
-| `frontend-design-review` | 用 5 维度质量框架审查 726 行仪表盘 UI | 评分报告（5.7/10），6 个 ARIA 缺陷，3 处响应式失败 → [review-report.md](skill-demos/frontend-design-review/review-report.md) |
-| `mcp-builder` | 构建暴露评测数据的 Python MCP Server | 5 工具 FastMCP server，只读注解 → [evaluation_mcp_server.py](skill-demos/mcp-builder/evaluation_mcp_server.py) |
-| `deep-wiki` | 为 repo 生成带 Mermaid 图和引用的 wiki | AI 驱动的 onboarding 文档，含 AGENTS.md 和 llms.txt |
-| `cloud-solution-architect` | 用 WAF 审查工作流设计生产级 RAG Agent 系统 | 架构文档，含 11 个技术选型、10 个模式、3 条 ADR → [architecture-design.md](skill-demos/cloud-solution-architect/architecture-design.md) |
-| `kql` | 写生产级 Agent 监控 KQL 查询 | 7 条 .kql 查询（日志、工具、token、延迟、追踪）→ [agent-monitoring.kql](skill-demos/kql/agent-monitoring.kql) |
+---
+
+### `github-issue-creator` — 把错误日志变成结构化 GitHub Issue
+
+> **提示词**："把这 6 行原始错误日志转为 GitHub issue。输出必须含 Summary / Environment / Reproduction Steps / Expected / Actual / Error Details。"
+
+<details>
+<summary>查看生成的 issue（直接渲染）</summary>
+
+**Generated Issue #1: extension_cli_install**
+
+| 字段 | 内容 |
+|------|------|
+| **Summary** | `extension_cli_install` 返回 400 BAD_REQUEST——必填的 `--cli-type` 参数未在 learn schema 中文档化 |
+| **Environment** | Azure MCP Server (`@azure/mcp@latest`)，JSON-RPC 2024-11-05 over stdio |
+| **Reproduction** | 1. 启动 server → 2. Initialize → 3. 发送 `tools/call` + `extension_cli_install` + `{learn: true}` → 4. 返回 400 |
+| **Expected** | 返回 schema 或带使用提示的优雅错误 |
+| **Actual** | `"Missing Required options: --cli-type. Invalid CLI type: . Supported values are: az, azd, func"` |
+| **Severity** | Medium——有 workaround（传 `--cli-type az`） |
+
+完整输出（3 个 issue）：[generated-issues.md](skill-demos/github-issue-creator/generated-issues.md)
+
+</details>
+
+---
+
+### `frontend-design-review` — 用 5 维度框架审查线上 UI
+
+> **提示词**："5 维度审查：Design System / Accessibility / Performance / Responsive / Aesthetics。每维评分，给 Top 3 可执行修复。"
+
+<details>
+<summary>查看评审记分卡（直接渲染）</summary>
+
+| 维度 | 评分 | 关键发现 |
+|------|:----:|---------|
+| Design System | ✅ Good | Segoe UI + system-ui，Microsoft Blue #0078d4，卡片模式一致 |
+| Accessibility | ⚠️ 6 处缺陷 | Agent card 缺 ARIA label，live output 无 `role="status"`，无 skip-nav |
+| Performance | ⚠️ | 726 行 all-in-one 文件，内联样式，图片无 lazy loading |
+| Responsive | ❌ 3 处失败 | 固定 320px 列在 1200px 以下断裂，无移动端断点 |
+| Aesthetics | ✅ Good | 暗色主题与 Azure 门户一致，渐变 banner 符合 Foundry 品牌 |
+
+**综合评分：5.7 / 10** —— 功能 demo 可用，但不达生产级无障碍标准。
+
+完整报告：[review-report.md](skill-demos/frontend-design-review/review-report.md)
+
+</details>
+
+---
+
+### `mcp-builder` — 从零构建 Python MCP Server
+
+> **提示词**："用 FastMCP；统一 `eval_*` 前缀；`readOnlyHint: True` 注解；`python -m py_compile` 验证。"
+
+<details>
+<summary>查看服务端代码（关键片段）</summary>
+
+```python
+from mcp.server.fastmcp import FastMCP
+
+mcp = FastMCP("azure-skills-evaluation", version="1.0.0")
+
+@mcp.tool(annotations={"readOnlyHint": True})
+def eval_summary() -> dict:
+    """Get the executive summary of the full 63-tool evaluation run."""
+    data = _load()
+    return data.get("summary", {})
+
+@mcp.tool(annotations={"readOnlyHint": True})
+def eval_tool_result(tool_name: str) -> dict:
+    """Get the detailed result for a specific tool by name."""
+    ...
+```
+
+共 5 个工具：`eval_summary`、`eval_tool_result`、`eval_tools_by_status`、`eval_tools_by_family`、`eval_run_metadata`。
+
+完整源码：[evaluation_mcp_server.py](skill-demos/mcp-builder/evaluation_mcp_server.py)
+
+</details>
+
+---
+
+### `cloud-solution-architect` — 用 WAF 审查设计生产系统
+
+> **提示词**："走完所有 7 步 Architecture Review Workflow；把设计模式映射到 WAF 5 维；输出 ADR。"
+
+<details>
+<summary>查看架构输出（关键表格）</summary>
+
+**Step 1 — 需求**：
+
+| 需求 | 目标 |
+|------|------|
+| Availability | 99.9%（复合 SLA） |
+| Latency (p95) | < 3 秒端到端 |
+| Throughput | 100 请求/分钟持续 |
+| Cost | < USD 2,000/月（dev/test） |
+
+**Step 4 — 11 个技术选型**（节选）：
+
+| 组件 | 选型 | WAF 维度 |
+|------|------|---------|
+| 编排 | Azure Container Apps | 可靠性、成本 |
+| 向量存储 | Azure AI Search | 性能 |
+| LLM | Azure OpenAI gpt-4o | 性能 |
+| 身份 | Entra ID + Managed Identity | 安全 |
+| 可观测性 | App Insights + OTel | 卓越运营 |
+
+完整 7 步文档：[architecture-design.md](skill-demos/cloud-solution-architect/architecture-design.md)
+
+</details>
+
+---
+
+### `kql` — 写生产级监控查询
+
+> **提示词**："dynamic 字段在 summarize 前必须 cast；时间用 `ago()`；延迟用 `percentile()` 不用 `avg()`；结果集大小有界。"
+
+<details>
+<summary>查看 KQL 查询（直接渲染）</summary>
+
+```kql
+// Q1. 最近 50 条 hosted-agent 日志
+AppTraces
+| where TimeGenerated > ago(1h)
+| top 50 by TimeGenerated desc
+| project TimeGenerated, SeverityLevel, Message
+
+// Q2. 各 Agent 调用量（24h）
+AppEvents
+| where TimeGenerated > ago(24h)
+| extend agent = tostring(Properties["agent_name"])
+| summarize calls = count(), avg_ms = avg(toint(Properties["elapsed_ms"])) by agent
+| order by calls desc
+
+// Q5. 各工具错误率（7d）
+AppExceptions
+| where TimeGenerated > ago(7d)
+| extend tool = tostring(Properties["tool_name"])
+| summarize errors = count() by tool
+| order by errors desc
+| take 20
+```
+
+共 7 条查询。完整文件：[agent-monitoring.kql](skill-demos/kql/agent-monitoring.kql)
+
+</details>
+
+---
+
+### `microsoft-docs` — 生成带来源的 slide deck
+
+> **提示词**："每个声明必须引用 learn.microsoft.com。定义直接引用。每页页脚显示来源 URL。"
+
+产出物：你在上面 [执行摘要 PPT 预览](#执行摘要-ppt-预览) 中看到的 14 页 deck——每一页页脚都有 `learn.microsoft.com` URL。
+
+---
 
 每个 `skill-demos/<skill>/README.md` 都有**完整可复现的提示词**——加载对应 skill 后直接拷贝粘贴到你的 coding agent 就能复现。
 
