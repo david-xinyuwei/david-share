@@ -1,22 +1,70 @@
-# Azure Agent Skills 实战评测
+# Agent Skills 实战评测：Azure 是实跑样本
 
-> 一份针对 Microsoft Agent Skills 生态的第三方工程评测，覆盖架构、真实工作流、平台粘性分析，以及对所有 Azure MCP 顶层工具的实跑验证。
+> 一份针对 Microsoft Agent Skills 生态的证据型工程评测。Azure 被选作实跑样本，是因为它有真实 MCP 工具、真实部署门控和可度量工作流；更大的主题是：`SKILL.md` 的 description、instructions、tools、agents、prompts 和 MCP configs 如何把通用 Coding Agent 变成面向任务的专业 Agent。
 
-本仓库对两个 Microsoft 仓库做完整、独立评估：
+本仓库通过三个相关 Microsoft 仓库评估 Agent Skills 生态：
 
 - **[microsoft/azure-skills](https://github.com/microsoft/azure-skills)** (v1.1.39) — Azure Skills Plugin，包含 26 个顶层 skill、Azure MCP Server 和 Foundry MCP。
 - **[microsoft/skills](https://github.com/microsoft/skills)** — Agent Skills monorepo，包含 174 个跨 Python、.NET、TypeScript、Java、Rust 的 skill，以及 plugins（deep-wiki、azure-skills）、custom agents、prompts 和 MCP configs。
+- **[MicrosoftDocs/Agent-Skills](https://github.com/MicrosoftDocs/Agent-Skills)** — 从 Azure Learn 文档生成的 skills：193 个 Azure skill，覆盖 19 个类别。
 
-目标不是复述官方 README，而是把完整栈实际跑一遍，并回答工程团队在规模化采用这些 skills 前需要确认的问题：
+目标不是复述官方 README，而是展示这些 skills 实际能做什么、几个仓库的边界在哪里，以及真实团队除了 Azure 资源管理之外还能采用什么。
 
-1. **真实架构是什么？** — 各组件如何连接，边界在哪里？
-2. **部署流程是否可用？** — `prepare → validate → deploy` 的门控机制如何工作？
-3. **平台绑定点在哪里？** — 哪些 skill 会增加迁移到非微软生态的成本？
-4. **实测覆盖到什么程度？** — 本仓库对真实 Azure 订阅跑了 63 个 MCP 工具，结果全部落盘。
-5. **哪些能力受环境约束？** — 哪些工具需要特定资源、外部前置条件，或不应自动执行？
-6. **团队应如何选择性采用？** — 哪些 skill 值得安装，哪些可以跳过？
+1. **什么东西会吸引 Agent 注意力？** — `description` 字段是第一层路由，不只是展示标签。
+2. **哪个仓库覆盖什么？** — `MicrosoftDocs/Agent-Skills`、`microsoft/azure-skills`、`microsoft/skills` 不是一回事。
+3. **除了 Azure 管理还能做什么？** — Issues、文档、前端评审、MCP Server、M365 Agent、SDK 代码、Foundry Agent、PPT。
+4. **为什么用 Azure 做实跑样本？** — Azure 有具体 MCP Server、真实订阅调用，以及 read-only / side-effect 操作边界。
+5. **什么时候才需要 `prepare → validate → deploy`？** — 只有创建或修改资源的部署类 skill 需要这套门控。
+6. **团队应该如何选择性采用？** — 全部加载会造成 context rot，只安装当前项目真正需要的 skill。
 
-## 架构全景
+## 先看 Skill Description
+
+对客户来说，理解 skills 最快的方法不是看目录树，而是看 `description` 字段。Agent Skills 规范要求 `description` 同时说明 **这个 skill 做什么** 和 **什么时候使用**；progressive disclosure 机制会在启动时先加载 `name` 和 `description`，只有命中意图后才加载完整 `SKILL.md` 和资源文件。所以 description 是第一层路由入口。
+
+| 客户怎么问 | 能抓住意图的 skill description | 说明了什么 |
+|------------|-------------------------------|------------|
+| “把这段事故记录整理成 GitHub issue。” | `github-issue-creator`: “Convert raw notes, error logs, or screenshots into structured GitHub issues.” | Skill 可以组织工程流程，不只是调云 API。 |
+| “给内部系统写一个 MCP Server。” | `mcp-builder`: “Build MCP servers for LLM tool integration. Python (FastMCP), Node/TypeScript, or C#/.NET.” | Skill 可以教协议实现模式。 |
+| “客户 demo 前帮我审一下 UI。” | `frontend-design-review`: “Review and create distinctive frontend interfaces. Design system compliance, quality pillars, accessibility, and creative aesthetics.” | Skill 可以编码产品和设计评审标准。 |
+| “给这个 repo 生成 onboarding wiki。” | `deep-wiki`: “AI-powered wiki generator with Mermaid diagrams, source citations, onboarding guides, AGENTS.md, and llms.txt.” | Skill 可以生成文档体系，而不只是代码片段。 |
+| “做一个 M365 Agent 应用。” | `m365-agents-py/dotnet/ts`: Microsoft 365 Agents SDK 的 hosting、routing、streaming、Copilot Studio client 模式。 | 生态已经延伸到协作型 Agent 开发，不只是 Azure ops。 |
+| “把这个 workload 安全部署到 Azure。” | `azure-prepare`、`azure-validate`、`azure-deploy`: 先计划、再验证、最后部署真实资源。 | Azure 是最适合展示 live guardrail 的样本，因为它有真实副作用。 |
+
+来源：[Agent Skills specification](https://agentskills.io/specification)、[microsoft/skills README](https://github.com/microsoft/skills)，2026-05-13 核查。
+
+<div align="center"><img src="images/skills-ecosystem-map.png" width="960"/></div>
+
+## 仓库边界：名字相似，范围不同
+
+| 仓库 | 真实范围 | 应该怎么理解 | 不是 |
+|------|----------|--------------|------|
+| [`MicrosoftDocs/Agent-Skills`](https://github.com/MicrosoftDocs/Agent-Skills) | 从 Azure Learn 文档生成的 skills：193 个 Azure skill，覆盖 19 个类别。README 明确说这些 skills 是 specifically designed for Azure cloud development。 | 把 Azure 文档预编译成可加载的 skills。 | 通用 Office / Microsoft 365 / Word / Excel skill catalog。 |
+| [`microsoft/azure-skills`](https://github.com/microsoft/azure-skills) | Azure operational plugin：26 个顶层 skill、Azure MCP Server、通过 Azure MCP `foundry` 入口暴露的 Foundry MCP。 | 资源操作和部署门控 plugin。 | 整个 Microsoft skills 生态。 |
+| [`microsoft/skills`](https://github.com/microsoft/skills) | 174 个 skill，加上 plugins、custom agents、prompts、MCP configs、测试框架和 docs site。包含同步进来的 `azure-skills` plugin，也包含 SDK、Foundry、deep-wiki、M365 Agent、frontend、MCP-building skills。 | 更大的 Coding Agent skills monorepo。 | 只做“Azure 管理”。 |
+
+从使用和分发角度看，**`microsoft/azure-skills` 是 `microsoft/skills` 的真子集**。但严格说，它不是普通父子源码关系：`microsoft/azure-skills` 是 Azure plugin 的 upstream / canonical source，`microsoft/skills` 里携带的是用于分发和组合的 synced copy。
+
+证据：[`microsoft/skills/.github/plugin/marketplace.json`](https://github.com/microsoft/skills/blob/main/.github/plugin/marketplace.json) 声明 `azure-skills`，并把 `source` 指向 `./.github/plugins/azure-skills`；[`microsoft/skills/.github/CODEOWNERS`](https://github.com/microsoft/skills/blob/main/.github/CODEOWNERS) 把 `.github/plugins/azure-skills/` 标为 “Copilot for Azure skills plugin (synced from upstream)”；[`microsoft/skills/.github/plugins/azure-skills/README.md`](https://github.com/microsoft/skills/blob/main/.github/plugins/azure-skills/README.md) 从 `microsoft/azure-skills` 安装 Azure plugin。
+
+## 宏观视角：这些 skills 到底怎么用
+
+最重要的一点是：**所有 skill 并不共用同一套流程**。Skill 是面向特定任务的 instruction package。有些指导代码生成，有些整理文档，有些抓官方文档，有些调用只读 MCP 工具，只有部署相关 skill 才需要完整的 `prepare → validate → deploy` 门控流程。
+
+| 使用模式 | 典型 Skills | 你怎么问 | Agent 做什么 | 是否需要完整部署门控 |
+|----------|--------------|----------|--------------|:------------------:|
+| **组织工程工作** | `github-issue-creator`, `deep-wiki`, `microsoft-docs`, `kql` | “创建 issue”“生成 wiki”“做带来源的 deck”“写 KQL” | 把松散输入整理成带来源或模板的结构化产出物 | 否 |
+| **生成应用代码** | Python / .NET / TypeScript / Java / Rust SDK skills | “实现这个 SDK 模式” | 生成带认证、重试、遥测和服务约定的代码 | 否 |
+| **评审产品界面** | `frontend-design-review`, `github-primer-brand` | “审 UI”“按品牌改页面” | 应用设计规范、可访问性、组件质量和视觉质量检查 | 否 |
+| **构建 Agent 产品** | `copilot-sdk`, `m365-agents-*`, `microsoft-foundry`, Foundry 子 skill | “构建/部署/观测这个 Agent” | 指导 Agent app 结构、Toolbox、Memory、评估、追踪和路由 | 视场景而定 |
+| **读取云状态** | `subscription_list`, `quota`, `pricing`, `role` 等 Azure MCP 只读工具 | “列订阅”“查配额”“看 RBAC” | 调用只读 MCP 工具，返回结构化 JSON | 否 |
+| **部署 Azure 资源** | `azure-prepare`, `azure-validate`, `azure-deploy` | “把这个应用部署到 Azure” | 先写计划、再验证、最后创建或更新真实资源 | 是 |
+| **有副作用的操作** | 迁移、通信、删除、创建、更新类操作 | “发送”“迁移”“删除”“创建” | 应要求明确批准，或由评测脚本阻断 | 逐项判断 |
+
+所以下面的部署图**不是所有 skill 的默认用法**。它只适用于会创建或修改 Azure 资源的那一类 skill，是为了控制成本、安全和生产变更风险。
+
+## Azure 证据栈：我们实际跑了什么
+
+本仓库用 Azure 做实跑证据栈，是因为 Azure 有具体 MCP Server、真实资源 API，以及 read-only 和会修改资源的操作边界。这让它非常适合验证 skills 方法论。
 
 Azure Skills Plugin 不是一个 prompt 包。它分三层，把一个通用 Coding Agent 变成 Azure 操作员。
 
@@ -80,7 +128,7 @@ Azure Skills Plugin 不是一个 prompt 包。它分三层，把一个通用 Cod
 
 ### microsoft/skills 总仓库（174 个 skill）
 
-更大的 `microsoft/skills` 仓库将 `azure-skills` 作为 plugin 包含，并按语言组织 SDK 级别的 skill：
+更大的 `microsoft/skills` 仓库分发了一个同步进来的 `azure-skills` plugin，并按语言组织 SDK 级别的 skill：
 
 | 语言 | 数量 | 关键分类 |
 |------|:----:|---------|
@@ -94,9 +142,9 @@ Azure Skills Plugin 不是一个 prompt 包。它分三层，把一个通用 Cod
 
 来源: [microsoft/skills README](https://github.com/microsoft/skills) — 2026-05-11 核查。
 
-## 深度拆解：部署工作流
+## 深度拆解：Azure 部署工作流（仅适用于部署类 skill）
 
-`azure-prepare → azure-validate → azure-deploy` 流水线是整套 skill 里约束最强的一部分。它强制先写计划、再做验证、最后部署，并在阶段之间设置硬门控。
+本节讨论的是一个特定使用模式：**创建或修改 Azure 资源**。`azure-prepare → azure-validate → azure-deploy` 流水线是 Azure 部署类 skill 中约束最强的一部分。它强制先写计划、再做验证、最后部署，并在阶段之间设置硬门控，因为部署操作会影响成本、安全和生产可用性。
 
 <div align="center"><img src="images/deploy-workflow.png" width="960"/></div>
 
@@ -236,22 +284,21 @@ Azure Skills Plugin 不是一个 prompt 包。它分三层，把一个通用 Cod
 
 一旦整条链落地，微软就从"云资源供应商"变成了客户的**开发、部署、身份、AI、观测、治理、协作入口**——不仅仅是一个云平台。
 
-## 未覆盖的领域
+## 范围边界
 
-这些 skill 专注于 Azure 云开发和 AI Agent 工作流。以下领域不包含在内：
+这份评测足够展示 Agent Skills 方法论，但并不等于每一种客户工作流都已经有官方 skill。
 
 | 类别 | 状态 | 说明 |
 |------|:----:|------|
-| **Office/PPTX 生成** | **已覆盖** | 我们用 `microsoft-docs` skill 生成了 14 页 PPTX，每个事实都引用自 learn.microsoft.com。这证明了 skill 能驱动真实的 Office 文档产出。详见[“配套幻灯片”章节](#配套幻灯片使用-microsoft-docs-技能生成)。 |
-| **非 Azure 云** | 未覆盖 | `azure-cloud-migrate` 帮助迁移到 Azure，而非从 Azure 迁出 |
-| **移动开发** | 未覆盖 | 没有 iOS/Android/React Native skill |
-| **前端框架** | 部分覆盖 | Core skills 中有 `frontend-design-review`，但没有 React/Vue/Angular SDK skill |
-| **数据库管理** | 部分覆盖 | Cosmos DB 和 SQL 的部署/RBAC 有覆盖，但查询优化和 schema 设计没有 |
-| **网络深度** | 部分覆盖 | `azure-enterprise-infra-planner` 在架构层覆盖 VNet/NSG/防火墙，但不涉及报文级排查 |
-
-`microsoft/skills` 里的 `m365-agents-py/dotnet/ts` skill 是给在 M365/Teams/Copilot Studio 上建 Agent 用的，不是用来操作 Office 文档的。
-
-`azure-ai-translation-document-py` skill 可以翻译 Word/PDF/Excel 文件并保留格式，但这是翻译服务，不是文档自动化工具。
+| **PPTX 产出** | **已演示** | 我们用 `microsoft-docs` skill 加 `python-pptx` 生成了 14 页 PPTX，每个事实都引用自 learn.microsoft.com。详见[“配套幻灯片”章节](#配套幻灯片使用-microsoft-docs-技能生成)。 |
+| **Office Word/Excel/PowerPoint 自动化** | 没有通用 skill set | 当前 repo 里没有通用的“帮我编辑 Word/Excel/PPT 文件”skill。本仓库的 PPTX 是一个被验证过的产出物工作流，不是原生 Office 自动化 skill。 |
+| **M365/Teams/Copilot Studio agents** | Agent 应用开发有覆盖 | `m365-agents-py/dotnet/ts` skill 用来构建 M365/Teams/Copilot Studio Agent，不是文档编辑 skill。 |
+| **文档翻译** | 部分覆盖 | `azure-ai-translation-document-py` 可以翻译 Word/PDF/Excel 并保留格式，但这是翻译服务，不是通用文档创作。 |
+| **非 Azure 云** | 未覆盖 | `azure-cloud-migrate` 帮助迁移到 Azure，而非从 Azure 迁出。 |
+| **移动开发** | 未覆盖 | 没有 iOS/Android/React Native skill。 |
+| **前端框架** | 部分覆盖 | Core skills 中有 `frontend-design-review`，但没有 React/Vue/Angular SDK skill。 |
+| **数据库管理** | 部分覆盖 | Cosmos DB 和 SQL 的部署/RBAC 有覆盖，但查询优化和 schema 设计没有。 |
+| **网络深度** | 部分覆盖 | `azure-enterprise-infra-planner` 在架构层覆盖 VNet/NSG/防火墙，但不涉及报文级排查。 |
 
 ## 安装与验证
 
@@ -623,6 +670,32 @@ send("extension_cli_generate", {
 > ```
 
 该技能强制执行“查官方文档”原则，Agent 在写每一页之前都会通过 `fetch_webpage`（或 `microsoft_docs_search` MCP）拉取每个源 URL。**不用该技能**同样提示词会生成营销话术式内容，无法追溯来源。
+
+### GitHub 中直接预览 PPT
+
+GitHub Markdown 不能内嵌真正可交互翻页的 PPTX viewer。为了让别人不用下载 PPT 也能直接审阅，本仓库把 PPTX 导出成静态 PNG，放在 [`slides/preview/`](slides/preview/) 下。需要重新生成时运行 [`slides/export_slide_preview.sh`](slides/export_slide_preview.sh)。
+
+<details open>
+<summary>展开幻灯片预览</summary>
+
+<div align="center">
+  <img src="slides/preview/slide-01.png" width="780"/>
+  <img src="slides/preview/slide-02.png" width="780"/>
+  <img src="slides/preview/slide-03.png" width="780"/>
+  <img src="slides/preview/slide-04.png" width="780"/>
+  <img src="slides/preview/slide-05.png" width="780"/>
+  <img src="slides/preview/slide-06.png" width="780"/>
+  <img src="slides/preview/slide-07.png" width="780"/>
+  <img src="slides/preview/slide-08.png" width="780"/>
+  <img src="slides/preview/slide-09.png" width="780"/>
+  <img src="slides/preview/slide-10.png" width="780"/>
+  <img src="slides/preview/slide-11.png" width="780"/>
+  <img src="slides/preview/slide-12.png" width="780"/>
+  <img src="slides/preview/slide-13.png" width="780"/>
+  <img src="slides/preview/slide-14.png" width="780"/>
+</div>
+
+</details>
 
 ### PPT 引用的所有源头（均于 2026-05-12 拉取）
 

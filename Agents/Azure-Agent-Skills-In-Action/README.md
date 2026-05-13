@@ -1,22 +1,70 @@
-# Azure Agent Skills In Action
+# Agent Skills In Action: Azure as the Live Test Bed
 
-> A third-party engineering evaluation of Microsoft's Agent Skills ecosystem — covering architecture, real-world workflows, platform stickiness analysis, and a full hands-on run across every Azure MCP top-level tool.
+> An evidence-first review of Microsoft's Agent Skills ecosystem. Azure is the live test bed because it exposes real MCP tools, real deployment guardrails, and measurable workflows; the larger lesson is how `SKILL.md` descriptions, instructions, tools, agents, prompts, and MCP configs turn coding agents into task-specific operators.
 
-This repository provides a comprehensive, independent assessment of two Microsoft repositories:
+This repository provides a comprehensive, independent assessment of the Agent Skills ecosystem through three related Microsoft repositories:
 
 - **[microsoft/azure-skills](https://github.com/microsoft/azure-skills)** (v1.1.39) — The Azure Skills Plugin with 26 top-level skills, Azure MCP Server, and Foundry MCP.
 - **[microsoft/skills](https://github.com/microsoft/skills)** — The Agent Skills monorepo with 174 skills across Python, .NET, TypeScript, Java, and Rust, plus plugins (deep-wiki, azure-skills), custom agents, prompts, and MCP configs.
+- **[MicrosoftDocs/Agent-Skills](https://github.com/MicrosoftDocs/Agent-Skills)** — Azure Learn-derived skills: 193 Azure skills across 19 categories, generated from Microsoft Learn documentation.
 
-The goal is not to repeat what the official README says. The goal is to save other engineers the time of running the whole stack themselves and answer the questions a real engineering team would ask before adopting these skills at scale:
+The goal is not to repeat the official READMEs. The goal is to show what these skills do in practice, where the repo boundaries are, and what a real team can adopt beyond just Azure resource management.
 
-1. **What is the real architecture?** — Not just the marketing pitch, but how the pieces actually connect.
-2. **Does the deployment workflow actually work?** — The `prepare → validate → deploy` pipeline claims to be a hard gate system. We trace through it.
-3. **Where does platform stickiness happen?** — Which skills, once adopted, make it harder to leave Microsoft's ecosystem?
-4. **Did we actually run it?** — Yes. This repo includes a 63-tool Azure MCP run against a real Azure subscription, not just README inspection.
-5. **What are the gaps?** — What requires specific resources, what has external prerequisites, and what should not be executed automatically?
-6. **How should teams adopt this selectively?** — Not everything needs to be installed.
+1. **What catches the agent's attention?** — The `description` field is the first routing layer, not a nice-to-have label.
+2. **Which repo covers what?** — `MicrosoftDocs/Agent-Skills`, `microsoft/azure-skills`, and `microsoft/skills` have different scopes.
+3. **What is useful beyond Azure management?** — Issues, docs, frontend review, MCP servers, M365 agents, SDK code, Foundry agents, and slide decks.
+4. **Why use Azure for the live run?** — Azure gives us a concrete MCP server, real subscription calls, and safe vs unsafe operation boundaries.
+5. **When does `prepare → validate → deploy` apply?** — Only resource-changing deployment skills need that gate.
+6. **How should teams adopt selectively?** — Loading all skills causes context rot; install only what matches the project.
 
-## Architecture Overview
+## Start With Skill Descriptions
+
+For a customer, the fastest way to understand skills is not the file tree. It is the `description` field. The Agent Skills specification says `description` is required and should explain both **what the skill does** and **when to use it**; progressive disclosure loads the `name` and `description` metadata at startup before full instructions or resources are loaded. That makes the description the first routing surface.
+
+| Customer asks... | Skill description that should catch it | What this proves |
+|------------------|----------------------------------------|------------------|
+| "Turn this outage note into GitHub issues." | `github-issue-creator`: "Convert raw notes, error logs, or screenshots into structured GitHub issues." | Skills can structure engineering workflow, not just call cloud APIs. |
+| "Build an MCP server for our internal system." | `mcp-builder`: "Build MCP servers for LLM tool integration. Python (FastMCP), Node/TypeScript, or C#/.NET." | Skills can teach protocol implementation patterns. |
+| "Review this UI before a customer demo." | `frontend-design-review`: "Review and create distinctive frontend interfaces. Design system compliance, quality pillars, accessibility, and creative aesthetics." | Skills can encode product/design review taste. |
+| "Generate a repo wiki for onboarding." | `deep-wiki`: "AI-powered wiki generator with Mermaid diagrams, source citations, onboarding guides, AGENTS.md, and llms.txt." | Skills can produce documentation systems, not just code snippets. |
+| "Build an M365 agent app." | `m365-agents-py/dotnet/ts`: "Microsoft 365 Agents SDK" patterns for hosting, routing, streaming, and Copilot Studio clients. | The ecosystem reaches collaboration-agent development; it is not only Azure ops. |
+| "Deploy this workload to Azure safely." | `azure-prepare`, `azure-validate`, `azure-deploy`: plan, validate, then deploy real resources. | Azure is the best place to demonstrate live guardrails because it has real side effects. |
+
+Sources: [Agent Skills specification](https://agentskills.io/specification), [microsoft/skills README](https://github.com/microsoft/skills), checked 2026-05-13.
+
+<div align="center"><img src="images/skills-ecosystem-map.png" width="960"/></div>
+
+## Repository Scope: Similar Names, Different Boundaries
+
+| Repository | Real Scope | Best Read As | Not This |
+|------------|------------|--------------|----------|
+| [`MicrosoftDocs/Agent-Skills`](https://github.com/MicrosoftDocs/Agent-Skills) | Azure Learn-derived skills: 193 Azure skills across 19 categories. The README says these skills are specifically designed for Azure cloud development. | Broad Azure documentation turned into pre-built skills. | A general Office / Microsoft 365 / Word / Excel skill catalog. |
+| [`microsoft/azure-skills`](https://github.com/microsoft/azure-skills) | Azure operational plugin with 26 top-level skills, Azure MCP Server, and Foundry MCP through the Azure MCP `foundry` entry point. | The resource-operation and deployment-guardrail plugin. | The whole Microsoft skills ecosystem. |
+| [`microsoft/skills`](https://github.com/microsoft/skills) | 174 skills plus plugins, custom agents, prompts, MCP configs, test harness, and docs site. Includes `azure-skills` as a synced plugin plus SDK, Foundry, deep-wiki, M365 agent, frontend, and MCP-building skills. | The broader coding-agent skills monorepo. | Only "Azure management". |
+
+Operationally, **`microsoft/azure-skills` is a proper subset of `microsoft/skills`**. Strictly speaking, it is not a normal parent-child source tree relationship: `microsoft/azure-skills` is the upstream/canonical Azure plugin, while `microsoft/skills` carries a synced copy for distribution and composition.
+
+Evidence: [`microsoft/skills/.github/plugin/marketplace.json`](https://github.com/microsoft/skills/blob/main/.github/plugin/marketplace.json) declares `azure-skills` with `source: "./.github/plugins/azure-skills"`; [`microsoft/skills/.github/CODEOWNERS`](https://github.com/microsoft/skills/blob/main/.github/CODEOWNERS) labels `.github/plugins/azure-skills/` as "Copilot for Azure skills plugin (synced from upstream)"; [`microsoft/skills/.github/plugins/azure-skills/README.md`](https://github.com/microsoft/skills/blob/main/.github/plugins/azure-skills/README.md) installs the Azure plugin from `microsoft/azure-skills`.
+
+## Macro View: How These Skills Are Actually Used
+
+The most important distinction: **there is no single workflow for all skills**. A skill is a task-specific instruction package. Some skills guide code generation, some structure documents, some fetch official docs, some call read-only MCP tools, and only deployment-related skills use the full `prepare → validate → deploy` gate.
+
+| Usage Mode | Typical Skills | What You Ask | What The Agent Does | Full Deployment Gate? |
+|------------|----------------|--------------|---------------------|:---------------------:|
+| **Structure engineering work** | `github-issue-creator`, `deep-wiki`, `microsoft-docs`, `kql` | "Create issues", "generate wiki", "make a sourced deck", "write KQL" | Turns messy input into structured artifacts with source links or templates | No |
+| **Generate app code** | Python / .NET / TypeScript / Java / Rust SDK skills | "Implement this SDK pattern" | Produces code with auth, retries, telemetry, and service-specific conventions | No |
+| **Review product surfaces** | `frontend-design-review`, `github-primer-brand` | "Review this UI", "make it match brand" | Applies design rules, accessibility, component and visual quality checks | No |
+| **Build agent products** | `copilot-sdk`, `m365-agents-*`, `microsoft-foundry`, Foundry sub-skills | "Build/deploy/observe this agent" | Guides agent app structure, toolboxes, memory, evals, traces, and routing | Sometimes |
+| **Read cloud state** | Azure MCP read-only tools such as `subscription_list`, `quota`, `pricing`, `role` | "List subscriptions", "check quota", "show RBAC" | Calls read-only MCP tools and returns structured JSON | No |
+| **Deploy Azure resources** | `azure-prepare`, `azure-validate`, `azure-deploy` | "Deploy this app to Azure" | Writes a plan, validates it, then deploys real resources | Yes |
+| **Side-effect actions** | Migration, communication, delete/update operations | "Send", "migrate", "delete", "create" | Should require explicit approval or be blocked by the harness | Case-by-case |
+
+So the deployment diagram below is **not** the default way to use every skill. It is the safety workflow for the subset of skills that can create or modify Azure resources.
+
+## Azure Evidence Stack: What We Actually Ran
+
+This repo uses Azure as the live evidence stack because Azure exposes a concrete MCP server, real resource APIs, and a clear line between read-only and resource-changing operations. That makes it a useful test bed for the broader skills method.
 
 The Azure Skills Plugin is not a prompt pack. It is a three-layer capability stack that turns a generic coding agent into an Azure-aware operator.
 
@@ -80,7 +128,7 @@ Every skill in `microsoft/azure-skills` is listed below with its file count (a p
 
 ### microsoft/skills Monorepo (174 skills)
 
-The broader `microsoft/skills` repo wraps `azure-skills` as a plugin and adds SDK-level skills organized by language:
+The broader `microsoft/skills` repo distributes a synced `azure-skills` plugin and adds SDK-level skills organized by language:
 
 | Language | Count | Key Categories |
 |----------|:-----:|---------------|
@@ -94,9 +142,9 @@ The broader `microsoft/skills` repo wraps `azure-skills` as a plugin and adds SD
 
 Source: [microsoft/skills README](https://github.com/microsoft/skills) — checked 2026-05-11.
 
-## Deep Dive: The Deployment Workflow
+## Deep Dive: Azure Deployment Workflow (Only for Deployment Skills)
 
-The `azure-prepare → azure-validate → azure-deploy` pipeline is the most opinionated part of the skills ecosystem. It enforces a strict plan-first workflow with hard gates between phases.
+This section covers one specific usage mode: **deploying or modifying Azure resources**. The `azure-prepare → azure-validate → azure-deploy` pipeline is the most opinionated part of the Azure deployment skill family. It enforces a strict plan-first workflow with hard gates between phases because deployment changes can affect cost, security, and production availability.
 
 <div align="center"><img src="images/deploy-workflow.png" width="960"/></div>
 
@@ -236,22 +284,21 @@ Not all stickiness is equal. Here is a four-layer model, from shallowest to deep
 
 Once this full chain is in place, Microsoft becomes the **development, deployment, identity, AI, observability, governance, and collaboration platform** — not just a cloud resource provider.
 
-## What Is NOT Covered
+## Scope Boundaries
 
-These skills focus on Azure cloud development and AI agent workflows. The following are explicitly out of scope:
+This evaluation is broad enough to show the Agent Skills method, but it is not a claim that every customer workflow already has a first-party skill.
 
 | Category | Status | Notes |
 |----------|:------:|-------|
-| **Office/PPTX generation** | **Covered** | We used the `microsoft-docs` skill to generate a 14-slide PPTX deck with every fact sourced from learn.microsoft.com. This demonstrates that skills can drive real Office document output. See [Slide Deck section](#slide-deck-built-with-the-microsoft-docs-skill). |
-| **Non-Azure clouds** | Not covered | `azure-cloud-migrate` helps migrate TO Azure, not FROM Azure |
-| **Mobile development** | Not covered | No iOS/Android/React Native skills |
-| **Frontend frameworks** | Partially | `frontend-design-review` exists in Core skills, but no React/Vue/Angular SDK skills |
-| **Database administration** | Partially | Cosmos DB and SQL are covered for deployment/RBAC, not for query optimization or schema design |
-| **Networking deep-dive** | Partially | `azure-enterprise-infra-planner` covers VNets/NSGs/firewalls at architecture level, not packet-level troubleshooting |
-
-The `m365-agents-py/dotnet/ts` skills in `microsoft/skills` are for building **agents on M365/Teams/Copilot Studio**, not for Office document manipulation.
-
-The `azure-ai-translation-document-py` skill can translate Word/PDF/Excel files with format preservation, but this is a translation service, not a document automation tool.
+| **PPTX output** | **Demonstrated** | We used the `microsoft-docs` skill plus `python-pptx` to generate a 14-slide PPTX deck with every fact sourced from learn.microsoft.com. See [Slide Deck section](#slide-deck-built-with-the-microsoft-docs-skill). |
+| **Office Word/Excel/PowerPoint automation** | Not a general skill set | The repo does not include a general "edit my Word/Excel/PPT file" skill. The PPTX here is a demonstrated artifact workflow, not a native Office automation skill. |
+| **M365/Teams/Copilot Studio agents** | Covered for agent apps | The `m365-agents-py/dotnet/ts` skills build agents on M365/Teams/Copilot Studio; they are not document-editing skills. |
+| **Document translation** | Partially covered | `azure-ai-translation-document-py` can translate Word/PDF/Excel files with format preservation, but that is a translation service, not general document authoring. |
+| **Non-Azure clouds** | Not covered | `azure-cloud-migrate` helps migrate TO Azure, not FROM Azure. |
+| **Mobile development** | Not covered | No iOS/Android/React Native skills. |
+| **Frontend frameworks** | Partially | `frontend-design-review` exists in Core skills, but no React/Vue/Angular SDK skills. |
+| **Database administration** | Partially | Cosmos DB and SQL are covered for deployment/RBAC, not for query optimization or schema design. |
+| **Networking deep-dive** | Partially | `azure-enterprise-infra-planner` covers VNets/NSGs/firewalls at architecture level, not packet-level troubleshooting. |
 
 ## Installation and Verification
 
@@ -624,6 +671,32 @@ Load the `microsoft-docs` skill into your coding agent (e.g. GitHub Copilot, Cla
 > ```
 
 The skill enforces the "query official documentation" principle, so the agent will fetch each source URL via `fetch_webpage` (or `microsoft_docs_search` MCP) before writing the slide content. Without the skill, the same prompt would produce marketing-style content with no traceable sources.
+
+### GitHub slide preview
+
+GitHub Markdown cannot embed an interactive PPTX viewer with real in-page slide flipping. To make the deck reviewable directly in the repo, this repository exports the PPTX into static PNG previews under [`slides/preview/`](slides/preview/). Use [`slides/export_slide_preview.sh`](slides/export_slide_preview.sh) to regenerate them.
+
+<details open>
+<summary>Open slide preview</summary>
+
+<div align="center">
+  <img src="slides/preview/slide-01.png" width="780"/>
+  <img src="slides/preview/slide-02.png" width="780"/>
+  <img src="slides/preview/slide-03.png" width="780"/>
+  <img src="slides/preview/slide-04.png" width="780"/>
+  <img src="slides/preview/slide-05.png" width="780"/>
+  <img src="slides/preview/slide-06.png" width="780"/>
+  <img src="slides/preview/slide-07.png" width="780"/>
+  <img src="slides/preview/slide-08.png" width="780"/>
+  <img src="slides/preview/slide-09.png" width="780"/>
+  <img src="slides/preview/slide-10.png" width="780"/>
+  <img src="slides/preview/slide-11.png" width="780"/>
+  <img src="slides/preview/slide-12.png" width="780"/>
+  <img src="slides/preview/slide-13.png" width="780"/>
+  <img src="slides/preview/slide-14.png" width="780"/>
+</div>
+
+</details>
 
 ### Sources used in the deck (all fetched 2026-05-12)
 

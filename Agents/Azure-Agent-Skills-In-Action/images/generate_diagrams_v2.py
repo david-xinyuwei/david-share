@@ -107,14 +107,70 @@ def gen_three_layer():
     pad_and_save(img, W, H, BASE / "architecture-overview.png")
 
 
+def gen_skills_ecosystem_map():
+    W, H = 1280, 820
+    img = Image.new("RGB", (W, H), "white")
+    d = ImageDraw.Draw(img)
+    TF = font(20, True); BF = font(14); HF = font(27, True); SF = font(13)
+
+    center_text(d, "Agent Skills Ecosystem — Azure Is the Evidence-Rich Slice", 0, 25, W, HF)
+    center_text(d, "The description field routes intent first; full instructions and tools load only when relevant", 0, 65, W, font(16))
+
+    draw_card(d, 70, 105, 1140, 84,
+              "Customer Prompt → SKILL.md description → Right specialist skill",
+              ["Descriptions are startup metadata: they explain what a skill does and when to use it"],
+              "#fefce8", "#ca8a04", font(20, True), font(14))
+
+    y = 220
+    col_w = 360
+    gap = 30
+    x0 = 60
+    repos = [
+        ("MicrosoftDocs/Agent-Skills", "Azure Learn Skills", "#eaf3ff", "#1d4ed8",
+         ["193 Azure skills", "19 Azure service categories", "Docs pre-compiled into", "actions, choices, guardrails", "Not a general Office catalog"]),
+        ("microsoft/azure-skills", "Azure Operational Plugin", "#ecfdf5", "#059669",
+         ["26 top-level Azure skills", "Azure MCP Server", "Foundry via Azure MCP", "Live resource operations", "prepare / validate / deploy"]),
+        ("microsoft/skills", "Broader Skills Monorepo", "#f3e8ff", "#7e22ce",
+         ["174 skills", "SDK + Foundry + M365 agents", "deep-wiki + MCP builder", "custom agents + prompts", "MCP configs + test harness"]),
+    ]
+    for i, (title, subtitle, fill, outline, lines) in enumerate(repos):
+        x = x0 + i * (col_w + gap)
+        draw_card(d, x, y, col_w, 245, [title, subtitle], lines, fill, outline, TF, BF)
+
+    arrow_y = y + 285
+    draw_card(d, 70, arrow_y, 1140, 76,
+              "This Repo's Method: Use Azure for hard evidence, then generalize the skills pattern",
+              ["Azure gives measurable MCP calls and safety boundaries; descriptions show the broader customer-facing value"],
+              "#f8fafc", "#64748b", font(19, True), font(14))
+
+    modes = [
+        ("Artifacts", ["issues", "wiki", "PPT deck"], "#fff7ed", "#ea580c"),
+        ("Code", ["SDK patterns", "MCP servers"], "#eef2ff", "#4f46e5"),
+        ("Agents", ["M365", "Foundry", "Copilot SDK"], "#ecfeff", "#0891b2"),
+        ("Cloud Ops", ["quota", "pricing", "RBAC", "deploy"], "#f0fdf4", "#16a34a"),
+    ]
+    mw = 270
+    mx = 70
+    my = arrow_y + 112
+    for title, lines, fill, outline in modes:
+        draw_card(d, mx, my, mw, 115, title, lines, fill, outline, font(17, True), font(13))
+        mx += mw + 20
+
+    d.text((70, H - 32),
+           "Sources: Agent Skills specification; microsoft/skills README; MicrosoftDocs/Agent-Skills README; microsoft/azure-skills v1.1.39",
+           font=SF, fill="#94a3b8")
+
+    pad_and_save(img, W, H, BASE / "skills-ecosystem-map.png")
+
+
 def gen_deploy_workflow():
     W, H = 1280, 700
     img = Image.new("RGB", (W, H), "white")
     d = ImageDraw.Draw(img)
     TF = font(22, True); BF = font(15); HF = font(28, True)
 
-    center_text(d, "The Mandatory Deployment Workflow: prepare → validate → deploy", 0, 25, W, HF)
-    center_text(d, "Each phase is a hard gate — no shortcuts allowed", 0, 65, W, font(16))
+    center_text(d, "Azure Deployment Skills Only: prepare → validate → deploy", 0, 25, W, HF)
+    center_text(d, "This is the safety gate for creating or modifying Azure resources — not the default flow for all skills", 0, 65, W, font(16))
 
     phases = [
         ("Phase 1: azure-prepare", "#eaf3ff", "#1d4ed8",
@@ -204,6 +260,7 @@ def gen_stickiness():
 
 
 if __name__ == "__main__":
+    gen_skills_ecosystem_map()
     gen_three_layer()
     gen_deploy_workflow()
     gen_stickiness()
