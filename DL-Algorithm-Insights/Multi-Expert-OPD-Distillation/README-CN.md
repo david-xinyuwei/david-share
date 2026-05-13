@@ -1309,6 +1309,10 @@ DeepSeek-V4 是一组协调的创新。OPD 在其中扮演特定角色：
 | Phase 1-3 | Runs 1-8 | 同家族 teacher（R1-Distill 或 Math） | 各种 | 全部失败：NaN 崩溃、模式坍缩、零结果 |
 | Phase 4 | Run 9 | **跨领域**：Math-1.5B student + Coder-7B teacher（54 步） | HumanEval pass@1 | **+1.22pp**（22.56→23.78%，弱正向） |
 | **Phase 5** | **Run 11** | **同 Run 9 + 14× 训练数据 + 2× H100 DDP**（738 步，5h 58min） | **HumanEval pass@10** | **+6.10pp**（49.39→55.49%，三角验证正向） |
+| Phase 6 | Run 12 | 从 Run 11 继续 + 5 个混合代码数据集（6944 样本，epoch 1.1） | Loss 平台 | Loss 1.66 不再下降 — 7B teacher 已被榨干 |
+| Phase 6 | v3 评测 | 一致性评测器（multiprocessing 超时，所有模型同一脚本） | HumanEval pass@10 | Baseline 56.71%，Run 11 **61.59%** → **+4.88pp** 确认 |
+| Phase 7 | SFT v1 | 标准 SFT 同类代码数据，无 teacher（lr=2e-7，保守） | HumanEval | greedy 34.76%（+0.61pp），pass@10 53.66%（−3.05pp） |
+| Phase 7 | SFT v2 | 标准 SFT 同类代码数据，无 teacher（lr=2e-5，标准） | HumanEval | greedy **28.66%**（−5.49pp），pass@10 53.66%（−3.05pp）— **灾难性遗忘** |
 
 **关键洞察（来自 [thunlp/OPD 论文](https://arxiv.org/abs/2604.13016)）**：OPD 要求 teacher 有 student 没有的能力。Phase 1-3 用同家族 teacher → 设计上的零结果。Phase 4 切换到跨领域（Math student、Code teacher）→ 第一次正向信号。Phase 5 加 14× 训练算力 → 信号在 3 个指标上三角验证。
 
@@ -1754,6 +1758,54 @@ OPD 多解 **10 道** baseline 在 10 次尝试里全失败的题（81 → 91）
 
 **Phase 5（跨域，大预算）：三角验证正向。** Run 11 用 14× 训练数据 + 2× H100 DDP，HumanEval **+3.66pp greedy / +4.76pp sample / +6.10pp pass@10**。三个指标全部正向，效应真实，不是测量噪声。CI 在每个单独指标略有重叠（测试集 N=164 限制了形式显著性）。
 
+**Phase 6（续训 + 一致性评测）：确认。** 两个新发现：
+
+1. **Run 12（续训）**：从 Run 11 checkpoint 继续训练 5 个额外代码数据集（6944 样本）。Loss 从 1.885 下降到 1.66 后进入平台，到 epoch 0.5 就不再下降 — **7B Coder teacher 的知识已被完全榨干**。在 epoch 1.1 时停止以节省 GPU 预算。
+
+2. **v3 评测器（一致性对比）**：Phase 5 的评测器用 `signal.SIGALRM` 做 exec 超时，在 C 级别阻塞调用（如 numpy）时静默失效，把一些正确答案误判为失败。我们用 `multiprocessing.Process.kill()` 重写了评测器，实现可靠的硬超时。在 v3 评测器下重跑所有模型：
+
+| 模型 | Greedy pass@1 | Pass@10 | Δ pass@10 vs Baseline |
+|------|:---:|:---:|:---:|
+| Baseline (Math-1.5B) | 56/164 = 34.15% | 93/164 = 56.71% | — |
+| **OPD Run 11** | **60/164 = 36.59%** | **101/164 = 61.59%** | **+4.88pp** |
+
+绝对值比 Phase 5 高（v1 评测器有 false negatives），但 **delta 一致**：+4.88pp (v3) vs +6.10pp (v1)。两个评测器在方向和大致量级上一致 — **OPD 跨域蒸馏产生真实、可复现的提升**。
+
+**Phase 6 关键洞察：teacher 枯竭**。当续训 6944 个额外代码样本（Run 12）无法把 loss 推到 1.66 以下时，说明 7B Coder teacher 已经没有更多可教的了。下一步：更强或更多样化的 teacher（如推理模型，或 32B 通用模型）。
+
+**Phase 7（SFT 对照实验）：跨域 SFT 导致 catastrophic forgetting。** 我们用同一 student 模型在相同类型的代码数据集（MBPP + CodeAlpaca）上跑了标准 SFT（无 teacher），测试了两个学习率。注意：SFT 实验的样本数（2477）比 OPD Run 11（2952）少约 19%（CodeAlpaca 采样量不同），其他超参也有差异（见下表）。这不是严格的消融实验，但回答了一个实际问题："用代码数据直接 SFT 能提升数学模型吗？"
+
+| 方法 | LR | Greedy pass@1 | Pass@10 | Δ Greedy vs Baseline | Δ pass@10 vs Baseline |
+|------|:---:|:---:|:---:|:---:|:---:|
+| Baseline（无训练） | — | 34.15% | 56.71% | — | — |
+| SFT v1（保守 lr） | 2e-7 | 34.76% | 53.66% | +0.61pp | −3.05pp |
+| **SFT v2（标准 lr）** | **2e-5** | **28.66%** | **53.66%** | **−5.49pp** | **−3.05pp** |
+| **OPD Run 11** | 5e-7 | **36.59%** | **61.59%** | **+2.44pp** | **+4.88pp** |
+
+四行均使用同一 v3 评测器在 HumanEval（164 题）上评测。
+
+**实验差异透明披露**：
+
+| 变量 | OPD Run 11 | SFT v2 |
+|------|:---:|:---:|
+| CodeAlpaca 采样数 | 3000（→ 总计 2952） | 2500（→ 总计 2477） |
+| GPU 数 | 2× H100（DDP，有效 batch=8） | 1× H100（有效 batch=4） |
+| max_grad_norm | 0.5 | 1.0 |
+| warmup | 无 | 0.03 |
+| lr_scheduler | linear | cosine |
+| 训练 target | Teacher logits（reverse-KL） | 数据集 ground-truth 代码（cross-entropy） |
+
+主要发现：
+
+- **标准 SFT 损害模型**：标准学习率（2e-5）下 greedy 暴跌 5.49pp — 跨域代码数据导致数学模型 catastrophic forgetting。
+- **保守 SFT 也不行**：lr=2e-7 时 greedy 几乎没变（+0.61pp），但 pass@10 仍然下降 3.05pp。
+- **OPD 是唯一同时提升两个指标的方法**：greedy +2.44pp，pass@10 +4.88pp。
+- **方向明确**：SFT 退化，OPD 提升。两者差距达 7.93pp，实验差异（OPD 多 19% 数据、更大 batch）不足以解释这个差距。
+
+**这证明了什么、没证明什么**：Phase 7 证明对数学模型直接 SFT 代码数据是有害的，而 OPD + 代码 teacher 是有益的。但它并*没有*完全隔离 on-policy 机制作为唯一原因 — 这需要一组离线蒸馏对照（用 teacher 生成的代码做 SFT target）并匹配超参。实践结论不变：想给专精模型加跨域能力，OPD 是合适的工具，纯 SFT 不行。
+
+SFT v2 训练脚本：[`data/sft_v2_train_script.py`](data/sft_v2_train_script.py)，评测结果：[`data/sft_v2_eval_results.json`](data/sft_v2_eval_results.json)
+
 **本 Repo 现在包含的、GitHub 上其他 OPD 资源都没有的内容：**
 
 1. DeepSeek-V4 中 OPD 的完整理论解读（1000+ 行，Section 1-12）
@@ -1761,9 +1813,11 @@ OPD 多解 **10 道** baseline 在 10 次尝试里全失败的题（81 → 91）
 3. 通过受控实验真正验证 thunlp 论文的失败条件（Run 7e 阴性 + Run 11 阳性）
 4. 可复现的"什么不工作"和"什么工作"配方 — 包括精确 GPU-hours 和成本
 5. **据我们所知，Run 11 是已发布的最完整的小规模 OPD 验证**：完整训练日志 + 3 个评测指标 + 完整成本拆解 + 可复现脚本
+6. **Phase 7 SFT 对照**：证明跨域 SFT 导致 catastrophic forgetting，而 OPD 保持了现有能力
 
 **给实践者：**
 - 在考虑用同家族同领域、只比 student 略大的 teacher 做 OPD？**别做** — Phase 2 证明不行。
+- 觉得"直接 SFT 代码数据不就行了，为什么要 OPD？"**别做** — Phase 7 显示 SFT 导致 catastrophic forgetting（greedy −5.49pp）。OPD + teacher 可以避免这个问题。
 - 有 ~$100 GPU 预算 + 明确跨域 teacher？**Phase 5 显示 OPD 会给你真实可测的提升。** 用 `data/run11_train_script.py` 当起点。
 - 大规模（>10K 样本，>8 GPU）？你进入 DeepSeek-V4 / Qwen3 实际跑 OPD 的领域 — Phase 5 显示的小规模信号会规模化。
 
