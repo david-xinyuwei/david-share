@@ -51,6 +51,23 @@
 
 </details>
 
+## 我们实际跑了哪些 Skills（速览）
+
+上面的 deck 用了 `microsoft-docs` skill。但我们测试了**远不止这一个**——12 个 core skill、11 个 Foundry 子 skill、5 种语言 38 个 SDK skill。每个测试遵循同一个三元组：**提示词 → skill → 产出物**。以下是 6 个最有代表性的：
+
+| Skill | 我们让它做什么 | 它产出了什么 |
+|-------|----------------|-------------|
+| `github-issue-creator` | 把 6 行原始错误日志整理成结构化 issue | 3 个标准 GitHub issue，含严重度、复现步骤和上下文 → [generated-issues.md](skill-demos/github-issue-creator/generated-issues.md) |
+| `frontend-design-review` | 用 5 维度质量框架审查 726 行仪表盘 UI | 评分报告（5.7/10），6 个 ARIA 缺陷，3 处响应式失败 → [review-report.md](skill-demos/frontend-design-review/review-report.md) |
+| `mcp-builder` | 构建暴露评测数据的 Python MCP Server | 5 工具 FastMCP server，只读注解 → [evaluation_mcp_server.py](skill-demos/mcp-builder/evaluation_mcp_server.py) |
+| `deep-wiki` | 为 repo 生成带 Mermaid 图和引用的 wiki | AI 驱动的 onboarding 文档，含 AGENTS.md 和 llms.txt |
+| `cloud-solution-architect` | 用 WAF 审查工作流设计生产级 RAG Agent 系统 | 架构文档，含 11 个技术选型、10 个模式、3 条 ADR → [architecture-design.md](skill-demos/cloud-solution-architect/architecture-design.md) |
+| `kql` | 写生产级 Agent 监控 KQL 查询 | 7 条 .kql 查询（日志、工具、token、延迟、追踪）→ [agent-monitoring.kql](skill-demos/kql/agent-monitoring.kql) |
+
+每个 `skill-demos/<skill>/README.md` 都有**完整可复现的提示词**——加载对应 skill 后直接拷贝粘贴到你的 coding agent 就能复现。
+
+**完整验证矩阵**（全部 61 个 skill）：[12 个 Core Skill](#microsoftskills--技能验证矩阵12-个-core-skill--三元组) · [11 个 Foundry 子 skill](#加上-7-个-microsoft-foundry-子技能) · [38 个 SDK skill](#加上-5-种语言-38-个-sdk-技能)
+
 ## Skill 到底能做什么？（从 Description 开始）
 
 理解 skills 能做什么，最快的方式不是看目录树，而是看每个 `SKILL.md` 中的 `description` 字段。[Agent Skills 规范](https://agentskills.io/specification) 要求 `description` 同时说明 **这个 skill 做什么** 和 **什么时候使用**。Progressive disclosure 机制在启动时只加载 `name` + `description`，只有 description 命中用户意图后才加载完整指令和资源文件。所以 description 是第一层路由入口。

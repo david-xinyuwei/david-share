@@ -51,6 +51,23 @@ The skill enforces "query official docs first", so the agent fetches each source
 
 </details>
 
+## Skills We Actually Ran (Quick Look)
+
+The deck above used the `microsoft-docs` skill. But we tested **far more** — 12 core skills, 11 Foundry sub-skills, and 38 SDK skills across 5 languages. Each test follows the same triple: **prompt → skill → deliverable**. Here are 6 of the most different ones:
+
+| Skill | What we asked it to do | What it produced |
+|-------|----------------------|------------------|
+| `github-issue-creator` | Turn 6 lines of raw error logs into structured issues | 3 GitHub-format issues with severity, repro steps, and context → [generated-issues.md](skill-demos/github-issue-creator/generated-issues.md) |
+| `frontend-design-review` | Audit a 726-line dashboard UI against 5 quality pillars | Scored review (5.7/10), 6 ARIA gaps, 3 responsive failures → [review-report.md](skill-demos/frontend-design-review/review-report.md) |
+| `mcp-builder` | Build a Python MCP server exposing our evaluation data | 5-tool FastMCP server with read-only annotations → [evaluation_mcp_server.py](skill-demos/mcp-builder/evaluation_mcp_server.py) |
+| `deep-wiki` | Generate a repo wiki with Mermaid diagrams and citations | AI-powered onboarding docs with AGENTS.md and llms.txt |
+| `cloud-solution-architect` | Design a production RAG Agent system using WAF review | Architecture doc with 11 tech choices, 10 patterns, 3 ADRs → [architecture-design.md](skill-demos/cloud-solution-architect/architecture-design.md) |
+| `kql` | Write production KQL queries for agent monitoring | 7-query .kql file (logs, tools, tokens, latency, traces) → [agent-monitoring.kql](skill-demos/kql/agent-monitoring.kql) |
+
+Every `skill-demos/<skill>/README.md` has the **full reproducible prompt** — copy-paste it into your own coding agent after loading the same skill.
+
+**Full verification matrix** (all 61 skills): [12 Core Skills](#microsoftskills--skill-verification-matrix-12-core-skills--triple) · [11 Foundry sub-skills](#plus-7-more-microsoft-foundry-sub-skills) · [38 SDK skills](#plus-38-sdk-skills-across-5-languages)
+
 ## What Can Skills Actually Do? (Start With the Description)
 
 The fastest way to understand what skills offer is not the file tree — it is the `description` field in each `SKILL.md`. The [Agent Skills specification](https://agentskills.io/specification) requires `description` to explain both **what the skill does** and **when to use it**. Progressive disclosure loads only `name` + `description` at startup; the full instructions and resources load only when the description matches the user's intent. That makes descriptions the first routing layer.
