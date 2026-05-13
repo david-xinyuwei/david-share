@@ -212,6 +212,99 @@ AppExceptions
 
 ---
 
+### `deep-wiki`（Plugin）— 把任意 repo 变成可导航的知识库
+
+> **提示词**：`/deep-wiki:generate` —— 或者直接说"给这个 repo 生成 wiki"，skill 会自动触发。
+
+<details>
+<summary>查看 deep-wiki 能产出什么（命令目录 + 工作流）</summary>
+
+deep-wiki 不是一个单独的 skill——它是一个**插件，包含 13 个命令、3 个 Agent 和 10 个自动触发 skill**。一条命令生成完整 wiki；其他命令针对特定产出：
+
+| 命令 | 产出什么 |
+|------|---------|
+| `/deep-wiki:generate` | 完整 wiki：目录结构 + 全部页面 + onboarding 指南 + VitePress 站点 |
+| `/deep-wiki:crisp` | 快速 wiki：5–8 页精简内容，并行生成，不需要 build |
+| `/deep-wiki:page <topic>` | 单页：带暗色模式 Mermaid 图和源码引用 |
+| `/deep-wiki:onboard` | 4 个受众定制的 onboarding 指南：贡献者、Staff Engineer、高管、PM |
+| `/deep-wiki:agents` | 为关键目录生成 `AGENTS.md`（只在缺失时生成） |
+| `/deep-wiki:llms` | 生成 `llms.txt` + `llms-full.txt`，让 LLM 可以直接读取 repo |
+| `/deep-wiki:research <topic>` | 多轮深度调研，基于证据的分析 |
+| `/deep-wiki:changelog` | 从 git commit 生成结构化 changelog |
+| `/deep-wiki:build` | 把 wiki 打包成 VitePress 暗色主题静态站 |
+| `/deep-wiki:deploy` | 生成 GitHub Actions 工作流，部署 wiki 到 GitHub Pages |
+
+**完整流水线**：
+
+```
+Repository → 扫描 → 目录结构（JSON TOC）
+  → 逐章节页面（Mermaid 图 + file:line 引用）
+  → Onboarding 指南（4 个受众级别）
+  → AGENTS.md + llms.txt（Agent 可发现）
+  → VitePress 站点（暗色主题 + 图表点击放大）
+  → GitHub Pages 部署（可选）
+```
+
+**产出物与普通文档的区别**：
+- 每个声明都引用 `file_path:line_number`，带可点击链接——不含糊
+- 每页至少 3–5 张暗色模式 Mermaid 图（架构、流程、状态、数据模型）
+- 结构化信息用表格而非散文——每张表都有 "Source" 列
+- 所有产出物放在标准路径（root 的 `llms.txt`、目录中的 `AGENTS.md`），coding agent 自动发现
+
+来源：[deep-wiki plugin README](https://github.com/microsoft/skills/tree/main/.github/plugins/deep-wiki)
+
+</details>
+
+---
+
+### `podcast-generation` — 把文本变成可播放的音频
+
+> **提示词**："用 podcast-generation skill 写一个 Python 脚本，生成 Azure Agent Skills 评测的播客式音频摘要。使用 Azure OpenAI Realtime API 的 WebSocket（模型：gpt-realtime-mini）。"
+
+<details>
+<summary>查看生成的脚本（关键片段 + 执行的 skill 规则）</summary>
+
+```python
+from openai import AsyncOpenAI
+
+# Skill 规则：endpoint 不能包含 /openai/v1/——只要 base URL
+ENDPOINT = os.environ.get("AZURE_OPENAI_AUDIO_ENDPOINT")
+
+# Skill 规则：HTTPS → wss:// + 追加 /openai/v1
+WS_URL = ENDPOINT.replace("https://", "wss://").rstrip("/") + "/openai/v1"
+
+async def generate():
+    client = AsyncOpenAI(api_key=API_KEY, base_url=WS_URL)
+    async with client.beta.realtime.connect(model=DEPLOYMENT) as conn:
+        # Skill 规则：纯音频输出
+        await conn.session.update(session={"output_modalities": ["audio"]})
+        await conn.conversation.item.create(...)
+        await conn.response.create()
+
+        # Skill 规则：PCM 固定 24kHz / 16-bit / 单声道
+        async for event in conn:
+            if event.type == "response.output_audio.delta":
+                pcm_chunks.append(base64.b64decode(event.delta))
+            elif event.type == "response.done":
+                break
+
+    # Skill 规则：裸 PCM 必须包 RIFF/WAVEfmt 头
+    wav_bytes = pcm_to_wav(b"".join(pcm_chunks), sample_rate=24000)
+    Path("evaluation-podcast.wav").write_bytes(wav_bytes)
+```
+
+**为什么这个 skill 很重要** —— 没有它，Agent 大概率会：
+- ❌ 用普通 HTTP completion 调用 → 没有真实音频输出
+- ❌ 在 env var 里包含 `/openai/v1/` → URL 重复
+- ❌ 把裸 PCM 保存为 `.wav` → 没有 WAV 头，文件无法播放
+- ❌ 用错采样率 → 花栗鼠变速或慢动作
+
+产出物：`evaluation-podcast.wav`（24kHz mono）+ 文字 transcript `.txt`。完整脚本：[generate_evaluation_podcast.py](skill-demos/podcast-generation/generate_evaluation_podcast.py)
+
+</details>
+
+---
+
 每个 `skill-demos/<skill>/README.md` 都有**完整可复现的提示词**——加载对应 skill 后直接拷贝粘贴到你的 coding agent 就能复现。
 
 **完整验证矩阵**（全部 61 个 skill）：[12 个 Core Skill](#microsoftskills--技能验证矩阵12-个-core-skill--三元组) · [11 个 Foundry 子 skill](#加上-7-个-microsoft-foundry-子技能) · [38 个 SDK skill](#加上-5-种语言-38-个-sdk-技能)

@@ -212,6 +212,99 @@ Result: the 14-slide deck you saw in [Executive Deck Preview](#executive-deck-pr
 
 ---
 
+### `deep-wiki` (Plugin) — Turn any repo into a navigable knowledge base
+
+> **Prompt**: `/deep-wiki:generate` — or just say "generate a wiki for this repo" and the skill auto-triggers.
+
+<details>
+<summary>See what deep-wiki produces (command catalog + workflow)</summary>
+
+deep-wiki is not a single skill — it is a **plugin with 13 commands, 3 agents, and 10 auto-invoked skills**. One command generates a complete wiki; others target specific outputs:
+
+| Command | What it produces |
+|---------|-----------------|
+| `/deep-wiki:generate` | Complete wiki: catalogue + all pages + onboarding guides + VitePress site |
+| `/deep-wiki:crisp` | Fast wiki: 5–8 concise pages, parallelized, no build step |
+| `/deep-wiki:page <topic>` | Single page with dark-mode Mermaid diagrams and source citations |
+| `/deep-wiki:onboard` | 4 audience-tailored onboarding guides: Contributor, Staff Engineer, Executive, PM |
+| `/deep-wiki:agents` | Generates `AGENTS.md` files for key folders (only where missing) |
+| `/deep-wiki:llms` | Generates `llms.txt` + `llms-full.txt` for LLM-friendly repo access |
+| `/deep-wiki:research <topic>` | Multi-turn deep investigation with evidence-based analysis |
+| `/deep-wiki:changelog` | Structured changelog from git commits |
+| `/deep-wiki:build` | Packages wiki as a VitePress dark-theme static site |
+| `/deep-wiki:deploy` | GitHub Actions workflow to deploy wiki to GitHub Pages |
+
+**The pipeline**:
+
+```
+Repository → Scan → Catalogue (JSON TOC)
+  → Per-Section Pages (Mermaid diagrams + file:line citations)
+  → Onboarding Guides (4 audience levels)
+  → AGENTS.md + llms.txt (agent-discoverable)
+  → VitePress Site (dark theme + click-to-zoom diagrams)
+  → GitHub Pages deployment (optional)
+```
+
+**Design principles that make the output different from generic docs**:
+- Every claim cites `file_path:line_number` with clickable links — no hand-waving
+- Minimum 3–5 dark-mode Mermaid diagrams per page (architecture, flows, state, data models)
+- Tables over prose for any structured information — always includes a "Source" column
+- All output placed at standard paths (`llms.txt` at root, `AGENTS.md` in folders) so coding agents find it automatically
+
+Source: [deep-wiki plugin README](https://github.com/microsoft/skills/tree/main/.github/plugins/deep-wiki)
+
+</details>
+
+---
+
+### `podcast-generation` — Turn text into playable audio
+
+> **Prompt**: "Using the podcast-generation skill, write a Python script that generates a podcast-style audio summary of the Azure Agent Skills evaluation. Use Azure OpenAI Realtime API via WebSocket (model: gpt-realtime-mini)."
+
+<details>
+<summary>See the generated script (key excerpt + skill rules enforced)</summary>
+
+```python
+from openai import AsyncOpenAI
+
+# Skill rule: endpoint must NOT include /openai/v1/ — just the base URL
+ENDPOINT = os.environ.get("AZURE_OPENAI_AUDIO_ENDPOINT")
+
+# Skill rule: convert HTTPS → wss:// + append /openai/v1
+WS_URL = ENDPOINT.replace("https://", "wss://").rstrip("/") + "/openai/v1"
+
+async def generate():
+    client = AsyncOpenAI(api_key=API_KEY, base_url=WS_URL)
+    async with client.beta.realtime.connect(model=DEPLOYMENT) as conn:
+        # Skill rule: audio-only output
+        await conn.session.update(session={"output_modalities": ["audio"]})
+        await conn.conversation.item.create(...)
+        await conn.response.create()
+
+        # Skill rule: PCM is fixed 24kHz / 16-bit / mono
+        async for event in conn:
+            if event.type == "response.output_audio.delta":
+                pcm_chunks.append(base64.b64decode(event.delta))
+            elif event.type == "response.done":
+                break
+
+    # Skill rule: wrap raw PCM in proper RIFF/WAVEfmt header
+    wav_bytes = pcm_to_wav(b"".join(pcm_chunks), sample_rate=24000)
+    Path("evaluation-podcast.wav").write_bytes(wav_bytes)
+```
+
+**Why the skill matters** — without it, an agent would likely:
+- ❌ Use a regular HTTP completion call → no real audio output
+- ❌ Include `/openai/v1/` in the env var → URL ends up doubled
+- ❌ Save raw PCM as `.wav` → file is unplayable without WAV header
+- ❌ Use wrong sample rate → chipmunk speed or slow-motion audio
+
+Output: `evaluation-podcast.wav` (24kHz mono) + transcript `.txt`. Full script: [generate_evaluation_podcast.py](skill-demos/podcast-generation/generate_evaluation_podcast.py)
+
+</details>
+
+---
+
 Every `skill-demos/<skill>/README.md` has the **full reproducible prompt** — copy-paste it into your own coding agent after loading the same skill.
 
 **Full verification matrix** (all 61 skills): [12 Core Skills](#microsoftskills--skill-verification-matrix-12-core-skills--triple) · [11 Foundry sub-skills](#plus-7-more-microsoft-foundry-sub-skills) · [38 SDK skills](#plus-38-sdk-skills-across-5-languages)
