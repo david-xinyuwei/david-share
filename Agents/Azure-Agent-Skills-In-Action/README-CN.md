@@ -301,6 +301,10 @@ async def generate():
 
 产出物：[`evaluation-podcast.wav`](skill-demos/podcast-generation/evaluation-podcast.wav)（4.4 MB，约 90 秒，24kHz 单声道）+ [文字 transcript](skill-demos/podcast-generation/evaluation-podcast-transcript.txt)。完整脚本：[generate_evaluation_podcast.py](skill-demos/podcast-generation/generate_evaluation_podcast.py)
 
+**直接听：**
+
+https://github.com/david-xinyuwei/david-share/raw/master/Agents/Azure-Agent-Skills-In-Action/skill-demos/podcast-generation/evaluation-podcast.wav
+
 </details>
 
 ---
