@@ -148,11 +148,17 @@ Once deployed, each run emits traces. Evaluations and Rubric turn those traces i
 
 ### Microsoft Agent Framework
 
-The stable-release [Microsoft Agent Framework](https://github.com/microsoft/agents) provides the **agent harness** — skills, memory, middleware — that lets you build locally and deploy anywhere. It integrates with the GitHub Copilot SDK, Claude Agent SDK, and other coding agent frameworks.
+The stable-release [Microsoft Agent Framework](https://github.com/microsoft/agents) provides the **agent harness** — skills, memory, middleware, and controlled execution — that lets you build locally and deploy anywhere. It integrates with the GitHub Copilot SDK, Claude Agent SDK, and other coding agent frameworks.
+
+BRK241's key framework point was that the harness is not just another tool wrapper. The session described a secure execution environment where an agent can run shell commands and read, write, and execute code under platform control. That shifts the agent from a fixed router over predefined tools into a system that can investigate, author code, and operate against a managed workspace.
 
 ### Foundry Toolkit for VS Code
 
-The generally available **Foundry Toolkit for VS Code** provides a dedicated IDE experience. In the demo, Jeff Hollan opens the `field-ops-agent` project in VS Code, connects the Agent Inspector to the local agent running at `localhost:8088`, and interacts through the Playground:
+The generally available **Foundry Toolkit for VS Code** provides a dedicated IDE experience across agent creation, local debugging, tracing, evaluation, and model management.
+
+The session also showed the creation path before the project exists: start from a sample, or use **Generate with Copilot** to scaffold an agent from a natural-language prompt. The toolkit wires in Foundry best-practice skills and deployment metadata so the generated project is ready for local debugging, tracing, evaluation, and hosted deployment. For local debugging, **F5** starts the agent on localhost, connects it to Toolbox through a single MCP-compatible endpoint, and lets the developer inspect breakpoints and streaming events inside VS Code.
+
+In the demo, Jeff Hollan opens the `field-ops-agent` project in VS Code, connects the Agent Inspector to the local agent running at `localhost:8088`, and interacts through the Playground:
 
 <div align="center"><img src="images/demo-vscode-agent-inspector.png" width="960"></div>
 
@@ -171,6 +177,8 @@ The generally available **Foundry Toolkit for VS Code** provides a dedicated IDE
 | Code Interpreter | Built-in | Foundry native |
 | Site Reliability Agent | Fabric IQ (OneLake Catalog) | Foundry IQ |
 | Work IQ Teams | Microsoft Teams data | MCP |
+
+Two Toolbox details matter for production agents. **Tool Search** lets the Toolbox return only the tools relevant to the current task, reducing context-window waste and keeping the agent focused. **Guardrails** can be configured at the tool boundary, including policies such as preventing PII from leaking through tool results. The same tool surface can include Content Understanding, which converts PDF contracts, specifications, and tables into agent-readable markdown, figures, or JSON.
 
 ### Voice Live API
 
@@ -204,6 +212,10 @@ In the demo, `field-ops-agent` is deployed as a hosted agent. The Foundry Portal
 <div align="center"><img src="images/demo-foundry-portal-playground.png" width="960"></div>
 
 > Source: BRK241 demo — Foundry Portal screenshot showing `field-ops-live` as a hosted agent. The version and date visible in the UI are demo artifacts, not product requirements. Left panel shows Agent info, Code asset, Protocols, Guardrail, and Voice mode. The Playground supports both Chat and "Call agent" (voice) modes.
+
+BRK241 made the isolation problem concrete: if subcontractor A and subcontractor B both interact with the same autonomous agent, files and intermediate state written for one party must not be visible to the other. Hosted Agents address that by giving each conversation or routine its own isolated workspace session while preserving durable state for that session.
+
+The demo then extended this long-running pattern with **Durable Task Scheduler** through the Microsoft Agent Framework extension. In the session, the agent could go idle with no active hosted session while waiting for human approval; Durable Task tracked the workflow state, and approval later resumed the session with the prior investigation files restored. This was shown as a demo architecture pattern, not as a product SLA.
 
 ### Routines
 
@@ -252,13 +264,19 @@ In the demo, Jeff initializes evaluation with a single CLI command:
 
 > Source: BRK241 demo — Terminal showing `azd ai agent eval init` in the `agent-build-demo-jeffhollan` project. This scaffolds `eval.yaml` with evaluation criteria for the agent.
 
+The important operational detail is that `azd ai agent eval init` is not only a file generator. In the demo narrative, Foundry can use historic traces and related agent signals to propose an initial eval dataset when the team does not already have one. It can also recommend evaluator combinations — such as tool selection, tool input/output, retrieval quality, fluency, and custom rubric scoring — based on how the agent is actually being used.
+
 ### Rubric for Custom Evaluation
 
 **Rubric** (Public Preview) automatically generates context-aware evaluation criteria and weighted scoring. Instead of writing custom evaluation logic, you describe what "good" looks like and Rubric creates the scoring framework from real production scenarios.
 
+The BRK241 demo made this concrete with voice-agent feedback. The generated rubric included dimensions such as correct tool use, safety warning, and voice-optimized conciseness. Jeff then adjusted the voice conciseness weight from 3 to 10 as a demo example of developer-controlled rubric tuning, not as a general recommended value.
+
 ### Agent Optimizer
 
 **Agent Optimizer** (Private Preview) analyzes production traces and evaluation results to generate prompt and skill improvement candidates. It compares quality, cost, and latency across candidates, and lets the developer decide whether to deploy — with full lineage and rollback support.
+
+The CLI entry point shown in the session was `azd ai agent optimize`. The optimizer can vary prompts, skills, tool descriptions, and even the target model as experiment variables — for example, the session mentioned comparing model choices such as GPT 5.5 and Anthropic Opus 4.8 as variables in the optimization search. The on-stage run produced four candidates with different trade-offs, letting the developer inspect score details, compare quality/cost/latency, and promote the chosen candidate.
 
 <div align="center"><img src="images/demo-agent-optimizer.png" width="960"></div>
 

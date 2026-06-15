@@ -148,11 +148,17 @@ Agent 部署后，每次 run 都会产生 traces。Evaluation 和 Rubric 把 tra
 
 ### Microsoft Agent Framework
 
-Stable release 的 [Microsoft Agent Framework](https://github.com/microsoft/agents) 提供 **agent harness** — skills、memory、middleware —— 让你在本地开发、部署到任何地方。它和 GitHub Copilot SDK、Claude Agent SDK 等 coding agent framework 都能集成。
+Stable release 的 [Microsoft Agent Framework](https://github.com/microsoft/agents) 提供 **agent harness** — skills、memory、middleware 和受控执行环境 —— 让你在本地开发、部署到任何地方。它和 GitHub Copilot SDK、Claude Agent SDK 等 coding agent framework 都能集成。
+
+BRK241 对 Agent Framework 的关键解释是：harness 不只是另一层 tool wrapper。Session 描述了一个受控执行环境，agent 可以在平台控制下执行 shell commands，并 read、write、execute code。这样 agent 不再只是固定 tools 的 router，而是可以做调查、写代码、并在 managed workspace 里执行任务。
 
 ### Foundry Toolkit for VS Code
 
-GA 的 **Foundry Toolkit for VS Code** 提供 IDE 内的开发体验。Demo 中，Jeff Hollan 在 VS Code 里打开 `field-ops-agent` 项目，通过 Agent Inspector 连接到本地运行在 `localhost:8088` 的 agent，在 Playground 中交互：
+GA 的 **Foundry Toolkit for VS Code** 提供覆盖 agent 创建、本地调试、tracing、evaluation 和 model management 的 IDE 内开发体验。
+
+Session 还展示了项目尚不存在时的创建路径：可以从 sample 开始，也可以用 **Generate with Copilot** 根据自然语言 prompt 生成 agent。Toolkit 会把 Foundry best-practice skills 和 deployment metadata 一起接入，让生成的项目直接进入 local debug、tracing、evaluation 和 hosted deployment 流程。本地调试时，**F5** 启动 localhost 上的 agent，通过单个 MCP-compatible endpoint 连接 Toolbox，并允许开发者在 VS Code 内检查 breakpoint 和 streaming events。
+
+Demo 中，Jeff Hollan 在 VS Code 里打开 `field-ops-agent` 项目，通过 Agent Inspector 连接到本地运行在 `localhost:8088` 的 agent，在 Playground 中交互：
 
 <div align="center"><img src="images/demo-vscode-agent-inspector.png" width="960"></div>
 
@@ -171,6 +177,8 @@ GA 的 **Foundry Toolkit for VS Code** 提供 IDE 内的开发体验。Demo 中�
 | Code Interpreter | 内置 | Foundry native |
 | Site Reliability Agent | Fabric IQ (OneLake Catalog) | Foundry IQ |
 | Work IQ Teams | Microsoft Teams 数据 | MCP |
+
+Toolbox 有两个生产级细节特别重要。**Tool Search** 让 Toolbox 只返回当前任务相关的 tools，减少 context window 浪费，也让 agent 更聚焦。**Guardrails** 可以配置在 tool 边界，比如防止 PII 通过 tool results 泄漏。同一个 tool surface 还可以包含 Content Understanding，把合同、规格书、表格型 PDF 转成 agent 可读的 markdown、figures 或 JSON。
 
 ### Voice Live API
 
@@ -204,6 +212,10 @@ Demo 中 `field-ops-agent` 部署为 hosted agent，Foundry Portal 截图显示 
 <div align="center"><img src="images/demo-foundry-portal-playground.png" width="960"></div>
 
 > Source: BRK241 demo — Foundry Portal 截图显示 `field-ops-live` 作为 hosted agent 运行。UI 中可见的 version 和 date 是 demo 截图里的上下文，不是产品使用要求。左侧面板显示 Agent info、Code asset、Protocols、Guardrail 和 Voice mode。Playground 支持 Chat 和 "Call agent"（语音）两种模式。
+
+BRK241 把 isolation 问题讲得很具体：如果 subcontractor A 和 subcontractor B 都在和同一个 autonomous agent 交互，agent 为 A 写下的文件和中间状态绝不能被 B 看到。Hosted Agents 通过给每个 conversation 或 routine 独立的 workspace session 来解决这个问题，同时保留该 session 的 durable state。
+
+Demo 还通过 Microsoft Agent Framework 的 **Durable Task Scheduler** extension 扩展了这个 long-running pattern。Session 中，agent 等待人工审批时可以进入 idle 状态，不保持活跃 hosted session；Durable Task 负责跟踪 workflow state，审批通过后再恢复 session，并把之前的 investigation files 交还给 agent。这里描述的是 demo architecture pattern，不是产品 SLA。
 
 ### Routines
 
@@ -252,13 +264,19 @@ Demo 中 Jeff 用一条 CLI 命令初始化 evaluation：
 
 > Source: BRK241 demo — 终端显示 `azd ai agent eval init`，在 `agent-build-demo-jeffhollan` 项目中 scaffold `eval.yaml`。
 
+关键的运营细节是，`azd ai agent eval init` 不只是生成文件。Demo 叙述中，Foundry 可以在团队还没有 eval dataset 时，利用历史 traces 和 agent 相关信号提出初始 eval dataset。它也可以基于 agent 的实际使用方式推荐 evaluator 组合，例如 tool selection、tool input/output、retrieval quality、fluency 和 custom rubric scoring。
+
 ### Rubric
 
 **Rubric**（Public Preview）自动生成 context-aware evaluation criteria 和 weighted scoring。不需要写自定义评估逻辑——你描述"好"的样子，Rubric 从真实生产场景创建评分框架。
 
+BRK241 demo 用 voice-agent feedback 把这个机制讲具体了。生成的 rubric 包括 correct tool use、safety warning、voice-optimized conciseness 等维度。Jeff 把 voice conciseness 的权重从 3 调到 10，作为 developer-controlled rubric tuning 的 demo example，而不是通用推荐值。
+
 ### Agent Optimizer
 
 **Agent Optimizer**（Private Preview）分析 production traces 和 evaluation 结果，生成 prompt 和 skill 改进候选。它比较 quality、cost、latency，由开发者决定是否部署——支持 lineage 和 rollback。
+
+Session 中展示的 CLI 入口是 `azd ai agent optimize`。Optimizer 可以把 prompts、skills、tool descriptions，甚至 target model 都作为实验变量；例如 session 提到可以把 GPT 5.5 和 Anthropic Opus 4.8 这类 model choice 放进 optimization search。现场 run 产出了 4 个 candidate，每个 candidate 有不同 trade-off，开发者可以查看 score details，对比 quality/cost/latency，再选择要 promote 的版本。
 
 <div align="center"><img src="images/demo-agent-optimizer.png" width="960"></div>
 
