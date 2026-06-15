@@ -1,0 +1,5 @@
+datasets
+peft
+torch
+transformers
+trl

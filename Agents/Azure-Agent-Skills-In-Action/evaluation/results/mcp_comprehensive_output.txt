@@ -1,0 +1,271 @@
+
+>>> [100] subscription_list
+[id=100] SUCCESS (606 chars)
+  → {"status":200,"message":"Success","results":{"subscriptions":[{"subscriptionId":"ec4eb48c-bf18-4b9b-866c-8d4cfd7cf0c2","displayName":"AI GBB - AI Services","state":"Enabled","tenantId":"19a4a35a-3072-414d-a2e4-7e09491472b0","isDefault":false},{"subscriptionId":"61643109-c1dc-442c-a7a9-a5f58b9b1703",
+
+>>> [101] group_list (AI Infra)
+[id=101] SUCCESS (10231 chars)
+  → {"status":200,"message":"Success","results":{"groups":[{"name":"ratanase-team","id":"/subscriptions/61643109-c1dc-442c-a7a9-a5f58b9b1703/resourceGroups/ratanase-team","location":"eastus2"},{"name":"rg-antonslutsky-1162_ai","id":"/subscriptions/61643109-c1dc-442c-a7a9-a5f58b9b1703/resourceGroups/rg-a
+
+>>> [102] group_resource_list (ND-H100)
+[id=102] SUCCESS (6167 chars)
+  → {"status":200,"message":"Success","results":{"resources":[{"name":"gksshkey","id":"/subscriptions/61643109-c1dc-442c-a7a9-a5f58b9b1703/resourceGroups/ND-H100/providers/Microsoft.Compute/sshPublicKeys/gksshkey","type":"Microsoft.Compute/sshPublicKeys","location":"southafricanorth"},{"name":"gok-h100-
+
+>>> [200] pricing → pricing_get (Cognitive Services, eastus)
+[id=200] BAD_REQUEST (153 chars)
+
+>>> [201] quota → quota_usage_check (CognitiveServices, eastus)
+[id=201] MISSING_PARAMS (2796 chars)
+
+>>> [202] quota → quota_region_availability_list (gpt-4o)
+[id=202] MISSING_PARAMS (3373 chars)
+
+>>> [203] compute → compute_vm_get (ND-H100)
+[id=203] MISSING_PARAMS (2925 chars)
+
+>>> [204] storage → learn
+[id=204] LEARN_OK (18743 chars)
+
+>>> [205] keyvault → learn
+[id=205] LEARN_OK (19215 chars)
+
+>>> [206] cosmos → learn
+[id=206] LEARN_OK (5095 chars)
+
+>>> [207] search → learn
+[id=207] LEARN_OK (13562 chars)
+
+>>> [208] monitor → monitor_workspace_list
+[id=208] MISSING_PARAMS (2646 chars)
+
+>>> [209] role → role_assignment_list
+[id=209] MISSING_PARAMS (2819 chars)
+
+>>> [210] aks → learn
+[id=210] LEARN_OK (4683 chars)
+
+>>> [211] containerapps → learn
+[id=211] LEARN_OK (2513 chars)
+
+>>> [212] appservice → learn
+[id=212] LEARN_OK (22197 chars)
+
+>>> [213] functionapp → learn
+[id=213] LEARN_OK (2610 chars)
+
+>>> [214] sql → learn
+[id=214] LEARN_OK (33768 chars)
+
+>>> [215] redis → learn
+[id=215] LEARN_OK (5100 chars)
+
+>>> [216] eventhubs → learn
+[id=216] LEARN_OK (26224 chars)
+
+>>> [217] servicebus → learn
+[id=217] LEARN_OK (8005 chars)
+
+>>> [218] eventgrid → learn
+[id=218] LEARN_OK (7623 chars)
+
+>>> [219] foundry → models_deployments_list
+
+>>> [220] extension_cli_generate (cost breakdown)
+[id=219] LEARN_OK (51578 chars)
+
+>>> [221] documentation → search Azure MCP
+[id=221] LEARN_OK (5199 chars)
+[id=220] SUCCESS (1180 chars)
+  → {"status":200,"message":"Success","results":{"command":"{\u0022data\u0022: [{\u0022scenario\u0022: \u0022Show Azure cost breakdown for the last 7 days by service for subscription 61643109-c1dc-442c-a7a9-a5f58b9b1703\u0022, \u0022description\u0022: \u0022Retrieve the cost breakdown for the last 7 day
+
+>>> [222] advisor → learn
+[id=222] LEARN_OK (2275 chars)
+
+>>> [223] cloudarchitect → learn
+[id=223] LEARN_OK (7267 chars)
+
+>>> [224] wellarchitectedframework → learn
+[id=224] LEARN_OK (1705 chars)
+
+>>> [225] resourcehealth → learn
+[id=225] LEARN_OK (6104 chars)
+
+>>> [226] policy → learn
+[id=226] LEARN_OK (2724 chars)
+
+>>> [227] mysql → learn
+[id=227] LEARN_OK (15614 chars)
+
+>>> [228] postgres → learn
+[id=228] LEARN_OK (15801 chars)
+
+>>> [229] acr → learn
+[id=229] LEARN_OK (4775 chars)
+
+>>> [230] kusto → learn
+[id=230] LEARN_OK (15257 chars)
+
+>>> [231] signalr → learn
+[id=231] LEARN_OK (2607 chars)
+
+>>> [232] azd → learn
+[id=232] LEARN_OK (2507 chars)
+
+>>> [233] deploy → learn
+[id=233] LEARN_OK (15410 chars)
+
+>>> [234] extension_azqr → learn
+[id=234] BAD_REQUEST (80 chars)
+
+>>> [235] get_azure_bestpractices
+[id=235] LEARN_OK (2736 chars)
+
+>>> [236] speech → learn
+[id=236] LEARN_OK (6756 chars)
+
+>>> [237] fileshares → learn
+[id=237] LEARN_OK (33075 chars)
+
+>>> [238] applicationinsights → learn
+[id=238] LEARN_OK (2483 chars)
+
+>>> [239] applens → learn
+[id=239] LEARN_OK (3196 chars)
+
+>>> [240] appconfig → learn
+[id=240] LEARN_OK (14359 chars)
+
+>>> [241] grafana → learn
+[id=241] LEARN_OK (2413 chars)
+
+>>> [242] bicepschema → learn
+[id=242] LEARN_OK (2614 chars)
+
+>>> [243] azureterraform → learn
+[id=243] LEARN_OK (13791 chars)
+
+>>> [244] loadtesting → learn
+[id=244] LEARN_OK (17397 chars)
+
+>>> [245] communication → learn
+[id=245] LEARN_OK (5880 chars)
+
+>>> [246] confidentialledger → learn
+[id=246] LEARN_OK (4443 chars)
+
+>>> [247] marketplace → learn
+[id=247] LEARN_OK (6307 chars)
+
+>>> [248] foundryextensions → learn
+[id=248] LEARN_OK (20766 chars)
+
+>>> [249] workbooks → learn
+[id=249] LEARN_OK (13166 chars)
+
+>>> [250] virtualdesktop → learn
+[id=250] LEARN_OK (7668 chars)
+
+>>> [251] storagesync → learn
+[id=251] LEARN_OK (43630 chars)
+
+>>> [252] managedlustre → learn
+[id=252] LEARN_OK (55303 chars)
+
+>>> [253] functions → learn
+[id=253] LEARN_OK (4079 chars)
+
+>>> [254] datadog → learn
+[id=254] LEARN_OK (2750 chars)
+
+>>> [255] deviceregistry → learn
+[id=255] LEARN_OK (2542 chars)
+
+>>> [256] azurebackup → learn
+[id=256] LEARN_OK (51634 chars)
+
+>>> [257] azuremigrate → learn
+[id=257] LEARN_OK (11038 chars)
+
+>>> [258] azureterraformbestpractices → learn
+[id=258] LEARN_OK (949 chars)
+
+>>> [259] servicefabric → learn
+[id=259] LEARN_OK (5356 chars)
+
+>>> [260] extension_cli_install → learn
+[id=260] BAD_REQUEST (133 chars)
+
+
+====== COMPREHENSIVE TEST SUMMARY ======
+
+Total: 64 | SUCCESS: 4 | LEARN_OK: 52 | FAILED: 8
+
+Detailed results:
+  [100] SUCCESS (606 chars)
+  [101] SUCCESS (10231 chars)
+  [102] SUCCESS (6167 chars)
+  [200] BAD_REQUEST (153 chars)
+  [201] MISSING_PARAMS (2796 chars)
+  [202] MISSING_PARAMS (3373 chars)
+  [203] MISSING_PARAMS (2925 chars)
+  [204] LEARN_OK (18743 chars)
+  [205] LEARN_OK (19215 chars)
+  [206] LEARN_OK (5095 chars)
+  [207] LEARN_OK (13562 chars)
+  [208] MISSING_PARAMS (2646 chars)
+  [209] MISSING_PARAMS (2819 chars)
+  [210] LEARN_OK (4683 chars)
+  [211] LEARN_OK (2513 chars)
+  [212] LEARN_OK (22197 chars)
+  [213] LEARN_OK (2610 chars)
+  [214] LEARN_OK (33768 chars)
+  [215] LEARN_OK (5100 chars)
+  [216] LEARN_OK (26224 chars)
+  [217] LEARN_OK (8005 chars)
+  [218] LEARN_OK (7623 chars)
+  [219] LEARN_OK (51578 chars)
+  [220] SUCCESS (1180 chars)
+  [221] LEARN_OK (5199 chars)
+  [222] LEARN_OK (2275 chars)
+  [223] LEARN_OK (7267 chars)
+  [224] LEARN_OK (1705 chars)
+  [225] LEARN_OK (6104 chars)
+  [226] LEARN_OK (2724 chars)
+  [227] LEARN_OK (15614 chars)
+  [228] LEARN_OK (15801 chars)
+  [229] LEARN_OK (4775 chars)
+  [230] LEARN_OK (15257 chars)
+  [231] LEARN_OK (2607 chars)
+  [232] LEARN_OK (2507 chars)
+  [233] LEARN_OK (15410 chars)
+  [234] BAD_REQUEST (80 chars)
+  [235] LEARN_OK (2736 chars)
+  [236] LEARN_OK (6756 chars)
+  [237] LEARN_OK (33075 chars)
+  [238] LEARN_OK (2483 chars)
+  [239] LEARN_OK (3196 chars)
+  [240] LEARN_OK (14359 chars)
+  [241] LEARN_OK (2413 chars)
+  [242] LEARN_OK (2614 chars)
+  [243] LEARN_OK (13791 chars)
+  [244] LEARN_OK (17397 chars)
+  [245] LEARN_OK (5880 chars)
+  [246] LEARN_OK (4443 chars)
+  [247] LEARN_OK (6307 chars)
+  [248] LEARN_OK (20766 chars)
+  [249] LEARN_OK (13166 chars)
+  [250] LEARN_OK (7668 chars)
+  [251] LEARN_OK (43630 chars)
+  [252] LEARN_OK (55303 chars)
+  [253] LEARN_OK (4079 chars)
+  [254] LEARN_OK (2750 chars)
+  [255] LEARN_OK (2542 chars)
+  [256] LEARN_OK (51634 chars)
+  [257] LEARN_OK (11038 chars)
+  [258] LEARN_OK (949 chars)
+  [259] LEARN_OK (5356 chars)
+  [260] BAD_REQUEST (133 chars)
+
+Results saved to /root/mcp_comprehensive_results.json
+
+====== ALL TESTS COMPLETE ======

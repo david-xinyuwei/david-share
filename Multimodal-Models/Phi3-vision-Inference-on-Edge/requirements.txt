@@ -1,0 +1,9 @@
+IPython
+Pillow
+onnxruntime_genai
+qwen_vl_utils
+readline
+requests
+torch
+transformers
+vllm

@@ -1,0 +1,21 @@
+# EAGLE3 Speculative Decoding - Requirements
+# Tested on Python 3.10+ with CUDA 12.4
+
+# Core inference engine
+sglang>=0.4.0
+
+# Deep learning framework
+torch>=2.3.0
+
+# Model loading
+transformers>=4.40.0
+accelerate>=0.27.0
+
+# Training (optional - for SpecForge)
+# git clone https://github.com/SafeAILab/SpecForge.git
+# pip install -r SpecForge/requirements.txt
+
+# Utilities
+openai>=1.0.0
+tqdm
+pyyaml

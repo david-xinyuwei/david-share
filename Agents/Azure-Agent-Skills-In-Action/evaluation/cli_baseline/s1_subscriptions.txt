@@ -1,0 +1,7 @@
+Name
+-------------------------------------
+Visual Studio Enterprise Subscription
+demo-subscription
+AI GBB - AI Services
+AI GBB - AI Infra
+GBB-Pulse

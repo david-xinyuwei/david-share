@@ -1,0 +1,7 @@
+# Override root .gitattributes for this project
+# Only track large binary files with LFS
+*.nii.gz filter=lfs diff=lfs merge=lfs -text
+*.dcm filter=lfs diff=lfs merge=lfs -text
+
+# Do NOT use LFS for JSON config files
+*.json -filter -diff -merge text

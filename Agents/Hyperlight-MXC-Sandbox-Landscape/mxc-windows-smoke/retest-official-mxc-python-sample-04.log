@@ -1,0 +1,86 @@
+﻿=== Generated config ===
+{
+  "version": "0.4.0-alpha",
+  "containerId": "official-python-sample-04",
+  "lifecycle": {
+    "destroyOnExit": true,
+    "preservePolicy": false
+  },
+  "process": {
+    "commandLine": "python -c \"import sys; print('OFFICIAL_MXC_PYTHON_04_OK'); print(sys.version)\"",
+    "timeout": 30000
+  },
+  "filesystem": {
+    "readwritePaths": [
+      "C:\\Users\\david\\AppData\\Local\\Temp"
+    ],
+    "readonlyPaths": [
+      "c:\\Users\\david\\AppData\\Roaming\\Code - Insiders\\User\\globalStorage\\github.copilot-chat\\debugCommand",
+      "c:\\Users\\david\\AppData\\Roaming\\Code - Insiders\\User\\globalStorage\\github.copilot-chat\\copilotCli",
+      "C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\wbin",
+      "C:\\Python312\\Scripts",
+      "C:\\Python312",
+      "C:\\Program Files\\nodejs",
+      "C:\\ProgramData\\chocolatey\\bin",
+      "C:\\Program Files\\Git\\cmd",
+      "C:\\Users\\david\\AppData\\Local\\Microsoft\\WindowsApps",
+      "C:\\Users\\david\\AppData\\Local\\GitHubDesktop\\bin",
+      "C:\\Users\\david\\AppData\\Roaming\\npm",
+      "C:\\Users\\david\\.lmstudio\\bin",
+      "C:\\Users\\david\\AppData\\Local\\Pandoc",
+      "C:\\Users\\david\\AppData\\Local\\Programs\\Azure Dev CLI",
+      "C:\\Users\\david\\AppData\\Local\\Microsoft\\WinGet\\Packages\\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\\ffmpeg-8.0-full_build\\bin",
+      "G:\\Microsoft VS Code\\bin",
+      "G:\\Microsoft VS Code Insiders\\bin",
+      "c:\\Users\\david\\.vscode-insiders\\extensions\\ms-python.debugpy-2026.6.0-win32-x64\\bundled\\scripts\\noConfigScripts",
+      "C:\\Users\\david\\OneDrive - Office365\\µûçµíú\\WindowsPowerShell\\Modules",
+      "C:\\Program Files\\WindowsPowerShell\\Modules"
+    ],
+    "deniedPaths": []
+  },
+  "ui": {
+    "disable": true,
+    "clipboard": "none",
+    "injection": false
+  },
+  "network": {
+    "defaultPolicy": "block",
+    "enforcementMode": "capabilities"
+  },
+  "containment": "process",
+  "processContainer": {
+    "name": "official-python-sample-04",
+    "leastPrivilege": false,
+    "capabilities": [],
+    "ui": {
+      "isolation": "container",
+      "desktopSystemControl": false,
+      "systemSettings": "none",
+      "ime": false
+    }
+  }
+}
+node : Filesystem policy error: bfscfg.exe is not available on this Windows bui
+ld. Your config uses schema version '0.4.0-alpha', which requires BFS support. 
+Either update your Windows build to one that includes bfscfg.exe, or update you
+r config to schema version '0.6.0-alpha' or later (which uses the BaseContainer
+ backend and does not require bfscfg.exe).{"error":{"code":"backend_error","mes
+sage":"Filesystem policy error: bfscfg.exe is not available on this Windows bui
+ld. Your config uses schema version '0.4.0-alpha', which requires BFS support. 
+Either update your Windows build to one that includes bfscfg.exe, or update you
+r config to schema version '0.6.0-alpha' or later (which uses the BaseContainer
+ backend and does not require bfscfg.exe)."}}
+At line:1 char:201
++ ... Out-Null }; node .\retest_official_mxc_python_sample_04.mjs 2>&1 | Te ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Filesystem poli...bfscfg.exe)."}} 
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+=== Final result ===
+{
+  "code": 4294967295,
+  "stdout": "",
+  "stderr": "Filesystem policy error: bfscfg.exe is not available on this Windows build. Your config uses schema version '0.4.0-alpha', which requires BFS support. Either update your Windows build to one that includes bfscfg.exe, or update your config to schema version '0.6.0-alpha' or later (which uses the BaseContainer backend and does not require bfscfg.exe).{\"error\":{\"code\":\"backend_error\",\"message\":\"Filesystem policy error: bfscfg.exe is not available on this Windows build. Your config uses schema version '0.4.0-alpha', which requires BFS support. Either update your Windows build to one that includes bfscfg.exe, or update your config to schema version '0.6.0-alpha' or later (which uses the BaseContainer backend and does not require bfscfg.exe).\"}}\n"
+}

@@ -1,0 +1,15 @@
+Name                                                ResourceGroup    Location      Type                                          Status
+--------------------------------------------------  ---------------  ------------  --------------------------------------------  --------
+vault303                                            winvm            koreacentral  Microsoft.RecoveryServices/vaults
+azurevm                                             WINVM            koreacentral  Microsoft.Web/connections
+pythonvm-ip                                         winvm            japanwest     Microsoft.Network/publicIPAddresses
+pythonvm-vnet                                       winvm            japanwest     Microsoft.Network/virtualNetworks
+pythonvm-nsg                                        winvm            japanwest     Microsoft.Network/networkSecurityGroups
+pythonvm612                                         winvm            japanwest     Microsoft.Network/networkInterfaces
+pythonvm                                            WINVM            japanwest     Microsoft.Compute/virtualMachines
+pythonvm_OsDisk_1_bf4164c36ed94dd0b03fd440da757062  WINVM            japanwest     Microsoft.Compute/disks
+pythonvm/MDE.Linux                                  WINVM            japanwest     Microsoft.Compute/virtualMachines/extensions
+vault591                                            winvm            japanwest     Microsoft.RecoveryServices/vaults
+pythonvm/SiteRecovery-Linux                         winvm            japanwest     Microsoft.Compute/virtualMachines/extensions
+pythonvm/SiteRecovery-LinuxUBUNTU2204               winvm            japanwest     Microsoft.Compute/virtualMachines/extensions
+pythonvm-vnet-default-nsg-japanwest                 winvm            japanwest     Microsoft.Network/networkSecurityGroups

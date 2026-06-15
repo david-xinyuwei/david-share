@@ -1,0 +1,25 @@
+# Public example only. Tune these values for your own taxonomy and data volume.
+model_name_or_path: Qwen/Qwen3-VL-8B-Instruct
+stage: sft
+do_train: true
+finetuning_type: lora
+
+# Keep public configs generic; inspect module names before adding projector or vision layers.
+lora_target: q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj
+lora_rank: 16
+lora_alpha: 32
+lora_dropout: 0.05
+
+# Replace with your own multimodal dataset entry.
+dataset: product_tagging_mllm
+template: qwen3_vl
+cutoff_len: 4096
+output_dir: outputs/qwen3vl_product_tagging_lora
+
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 16
+learning_rate: 0.0001
+num_train_epochs: 1
+bf16: true
+logging_steps: 1
+save_strategy: epoch

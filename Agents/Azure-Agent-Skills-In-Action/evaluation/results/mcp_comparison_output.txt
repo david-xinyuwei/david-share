@@ -1,0 +1,120 @@
+
+>>> [1] [Scenario 1] List all subscriptions
+
+[id=1] SUCCESS (264 chars)
+{"status":200,"message":"Success","results":{"subscriptions":[{"subscriptionId":"YOUR-SUBSCRIPTION-ID","displayName":"demo-subscription","state":"Enabled","tenantId":"YOUR-TENANT-ID","isDefault":false}]},"duration":0}
+
+>>> [2] [Scenario 2] List resource groups
+
+[id=2] SUCCESS (7308 chars)
+{"status":200,"message":"Success","results":{"groups":[{"name":"A100VM_group","id":"/subscriptions/YOUR-SUBSCRIPTION-ID/resourceGroups/A100VM_group","location":"australiaeast"},{"name":"NetworkWatcherRG","id":"/subscriptions/YOUR-SUBSCRIPTION-ID/resourceGroups/NetworkWatcherRG","location":"australiaeast"},{"name":"azureapp-auto-alerts-4be8d5-admin_demo-tenant_onmicrosoft_com","id":"/subscriptions/YOUR-SUBSCRIPTION-ID/resourceGroups/azureapp-auto-alerts-4be8d5-admin_demo-tenant_onmicrosoft_com","location":"eastus"},{"name":"Default-ActivityLogAlerts","id":"/subscriptions/YOUR-SUBSCRIPTION-ID/resourceGroups/Default-ActivityLogAlerts","location":"eastus"},{"name":"davidai-di","id":"/subscriptions/YOUR-SUBSCRIPTION-ID/resourceGroups/davidai-di","location":"eastus"},{"name":"rg-david-med-eastus","id":"/subscriptions/YOUR-SUBSCRIPTION-ID/resourceGroups/rg-david-med-eastus","location":"eastus"},{"name":"rg-llm-memory-new","id":"/subscriptions/YOUR-SUBSCRIPTION-ID/resourceGroups/rg-llm-memory-new","location":"eastus"},{"name":"ContentSafetyRG","id":"/subscriptions/YOUR-SUBSCRIPTION-ID/resourceGroups/ContentSafetyRG","location":"eastus"},{"name":"H100VM_group","id":"/subscriptions/YOUR-SUBSCRIPTION-ID/resourceGroups/H100VM_group","location":"koreacentral"},{"name":"winvm","id":"/subscriptions/YOUR-SUBSCRIPTION-ID/resourceGrou
+
+>>> [3] [Scenario 3] List resources in 'winvm' RG
+
+[id=3] SUCCESS (3270 chars)
+{"status":200,"message":"Success","results":{"resources":[{"name":"vault303","id":"/subscriptions/YOUR-SUBSCRIPTION-ID/resourceGroups/winvm/providers/Microsoft.RecoveryServices/vaults/vault303","type":"Microsoft.RecoveryServices/vaults","location":"koreacentral"},{"name":"azurevm","id":"/subscriptions/YOUR-SUBSCRIPTION-ID/resourceGroups/WINVM/providers/Microsoft.Web/connections/azurevm","type":"Microsoft.Web/connections","location":"koreacentral"},{"name":"pythonvm-ip","id":"/subscriptions/YOUR-SUBSCRIPTION-ID/resourceGroups/winvm/providers/Microsoft.Network/publicIPAddresses/pythonvm-ip","type":"Microsoft.Network/publicIPAddresses","location":"japanwest"},{"name":"pythonvm-vnet","id":"/subscriptions/YOUR-SUBSCRIPTION-ID/resourceGroups/winvm/providers/Microsoft.Network/virtualNetworks/pythonvm-vnet","type":"Microsoft.Network/virtualNetworks","location":"japanwest"},{"name":"pythonvm-nsg","id":"/subscriptions/YOUR-SUBSCRIPTION-ID/resourceGroups/winvm/providers/Microsoft.Network/networkSecurityGroups/pythonvm-nsg","type":"Microsoft.Network/networkSecurityGroups","location":"japanwest"},{"name":"pythonvm612","id":"/subscriptions/YOUR-SUBSCRIPTION-ID/resourceGroups/winvm/providers/Microsoft.Network/networkInterfaces/pythonvm612","type":"Microsoft.Network/networkInterfaces","location":"japanwest"},{"name":"pythonvm","id":"/subscriptions/YOUR-SUBSCRIPTION-ID/resourceGroup
+
+>>> [4] [Scenario 4] List VMs in H100VM_group
+
+[id=4] MISSING_PARAMS (2925 chars)
+
+>>> [5] [Scenario 5] Check CognitiveServices quota in eastus
+
+[id=5] MISSING_PARAMS (2796 chars)
+
+>>> [6] [Scenario 6] Find regions where gpt-4o is available
+
+[id=6] MISSING_PARAMS (3373 chars)
+
+>>> [7] [Scenario 7] List storage accounts
+
+[id=7] LEARN_FALLBACK (18743 chars)
+
+>>> [8] [Scenario 8] List Key Vaults (try keyvault_list)
+
+[id=8] LEARN_FALLBACK (19215 chars)
+
+>>> [9] [Scenario 9] List Log Analytics workspaces
+
+[id=9] MISSING_PARAMS (2646 chars)
+
+>>> [10] [Scenario 10] List RBAC role assignments
+
+[id=10] MISSING_PARAMS (2819 chars)
+
+>>> [11] [Scenario 11] List Cognitive Services via group_resource_list filter
+
+[id=11] SUCCESS (944 chars)
+{"status":200,"message":"Success","results":{"resources":[{"name":"vnet-agents6206","id":"/subscriptions/YOUR-SUBSCRIPTION-ID/resourceGroups/rg-aifoundry6206/providers/Microsoft.Network/virtualNetworks/vnet-agents6206","type":"Microsoft.Network/virtualNetworks","location":"koreacentral"},{"name":"vnet-agents6206-snet-agent-nsg-koreacentral","id":"/subscriptions/YOUR-SUBSCRIPTION-ID/resourceGroups/rg-aifoundry6206/providers/Microsoft.Network/networkSecurityGroups/vnet-agents6206-snet-agent-nsg-koreacentral","type":"Microsoft.Network/networkSecurityGroups","location":"koreacentral"},{"name":"vnet-agents6206-snet-pe-nsg-koreacentral","id":"/subscriptions/YOUR-SUBSCRIPTION-ID/resourceGroups/rg-aifoundry6206/providers/Microsoft.Network/networkSecurityGroups/vnet-agents6206-snet-pe-nsg-koreacentral","type":"Microsoft.Network/networkSecurityGroups","location":"koreacentral"}]},"duration":0}
+
+>>> [12] [Scenario 12] Get pricing for Standard_D2ads_v5 in eastus
+
+[id=12] BAD_REQUEST (153 chars)
+
+>>> [13] [Scenario 13] List ML workspaces in rg-aifoundry6206
+
+[id=13] SUCCESS (74 chars)
+{"status":200,"message":"Success","results":{"resources":[]},"duration":0}
+
+>>> [14] [Scenario 14] Generate CLI: 'find all idle VMs > 30 days'
+
+>>> [15] [Scenario 15] Best practices: deploying production AI agents
+
+[id=15] LEARN_FALLBACK (2736 chars)
+
+[id=14] SUCCESS (959 chars)
+{"status":200,"message":"Success","results":{"command":"{\u0022data\u0022: [{\u0022scenario\u0022: \u0022Find all VMs that have been deallocated for more than 30 days in subscription YOUR-SUBSCRIPTION-ID\u0022, \u0022description\u0022: \u0022List all virtual machines in the specified subscription that are in a deallocated state and filter them based on the deallocation duration.\u0022, \u0022commandSet\u0022: [{\u0022reason\u0022: \u0022List all VMs in the subscription and filter for those that are deallocated.\u0022, \u0022example\u0022: \u0022az vm list --subscription YOUR-SUBSCRIPTION-ID --query \u0027[?powerState==\u0060deallocated\u0060]\u0027\u0022, \u0022command\u0022: \u0022az vm list\u0022, \u0022arguments\u0022: [\u0022--subscription\u0022, \u0022--query\u0022]}]}], \u0022error\u0022: null, \u0022status\u0022: 200, \u0022api_version\u0022: \u00221.0.0-prod-20260331.7\u0022}","cliType":"az"},"duration":0}
+
+>>> [16] [Scenario 16] Search docs: 'Azure OpenAI provisioned throughput'
+
+[id=16] LEARN_FALLBACK (241 chars)
+
+>>> [17] [Scenario 17] Get Bicep schema for Microsoft.CognitiveServices/accounts
+
+[id=17] MISSING_PARAMS (2757 chars)
+
+>>> [18] [Scenario 18] Terraform best practices for AOAI
+
+[id=18] LEARN_FALLBACK (241 chars)
+
+>>> [19] [Scenario 19] List Foundry model deployments
+
+[id=19] LEARN_FALLBACK (51578 chars)
+
+>>> [20] [Scenario 20] Architect a RAG agent for 1000 users
+
+[id=20] LEARN_FALLBACK (7267 chars)
+
+
+====== COMPARISON TEST SUMMARY ======
+
+Total: 20
+  SUCCESS: 6
+  MISSING_PARAMS: 6
+  LEARN_FALLBACK: 7
+  BAD_REQUEST: 1
+
+Per-scenario:
+  [1] SUCCESS (264 chars)
+  [2] SUCCESS (7308 chars)
+  [3] SUCCESS (3270 chars)
+  [4] MISSING_PARAMS (2925 chars)
+  [5] MISSING_PARAMS (2796 chars)
+  [6] MISSING_PARAMS (3373 chars)
+  [7] LEARN_FALLBACK (18743 chars)
+  [8] LEARN_FALLBACK (19215 chars)
+  [9] MISSING_PARAMS (2646 chars)
+  [10] MISSING_PARAMS (2819 chars)
+  [11] SUCCESS (944 chars)
+  [12] BAD_REQUEST (153 chars)
+  [13] SUCCESS (74 chars)
+  [14] SUCCESS (959 chars)
+  [15] LEARN_FALLBACK (2736 chars)
+  [16] LEARN_FALLBACK (241 chars)
+  [17] MISSING_PARAMS (2757 chars)
+  [18] LEARN_FALLBACK (241 chars)
+  [19] LEARN_FALLBACK (51578 chars)
+  [20] LEARN_FALLBACK (7267 chars)
+
+Saved to /root/mcp_comparison_results.json
+====== DONE ======

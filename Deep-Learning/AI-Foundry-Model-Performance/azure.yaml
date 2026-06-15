@@ -1,0 +1,144 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+
+name: ai-foundry-model-performance
+metadata:
+  template: ai-foundry-model-performance@0.0.1-beta
+
+# Infrastructure configuration
+infra:
+  provider: bicep
+  path: infra
+  module: main
+  parameters:
+    location: ${AZURE_LOCATION=eastus}
+
+hooks:
+  # Run before provisioning infrastructure
+  preprovision:
+    posix:
+      shell: sh
+      run: |
+        echo "========================================"
+        echo "  Preprovision Hook - Setting Location  "
+        echo "========================================"
+        echo ""
+        
+        # Check if .recommended-region file exists
+        if [ ! -f .recommended-region ]; then
+          echo "❌ ERROR: .recommended-region file not found!"
+          echo "📝 Please run: bash scripts/deployment/check-gpu-quota.sh"
+          exit 1
+        fi
+        
+        # Read recommended region
+        RECOMMENDED_REGION=$(cat .recommended-region | tr -d '\n\r' | xargs)
+        echo "✅ Found recommended region: $RECOMMENDED_REGION"
+        echo ""
+        
+        # Set environment variables
+        echo "Setting azd environment variables..."
+        azd env set location "$RECOMMENDED_REGION"
+        azd env set AZURE_LOCATION "$RECOMMENDED_REGION"
+        
+        # Verify settings
+        echo ""
+        echo "Verifying environment configuration:"
+        echo "  - location: $(azd env get-value location)"
+        echo "  - AZURE_LOCATION: $(azd env get-value AZURE_LOCATION)"
+        echo ""
+        echo "✅ Location configuration complete!"
+        echo "========================================"
+    windows:
+      shell: pwsh
+      run: |
+        Write-Host "========================================"
+        Write-Host "  Preprovision Hook - Setting Location  "
+        Write-Host "========================================"
+        Write-Host ""
+        
+        # Check if .recommended-region file exists
+        if (-not (Test-Path .recommended-region)) {
+          Write-Host "❌ ERROR: .recommended-region file not found!" -ForegroundColor Red
+          Write-Host "📝 Please run: bash scripts/deployment/check-gpu-quota.sh"
+          exit 1
+        }
+        
+        # Read recommended region
+        $recommendedRegion = Get-Content .recommended-region -Raw
+        $recommendedRegion = $recommendedRegion.Trim()
+        Write-Host "✅ Found recommended region: $recommendedRegion" -ForegroundColor Green
+        Write-Host ""
+        
+        # Set environment variables
+        Write-Host "Setting azd environment variables..."
+        azd env set location "$recommendedRegion"
+        azd env set AZURE_LOCATION "$recommendedRegion"
+        
+        # Verify settings
+        Write-Host ""
+        Write-Host "Verifying environment configuration:"
+        $locationValue = azd env get-value location
+        $azureLocationValue = azd env get-value AZURE_LOCATION
+        Write-Host "  - location: $locationValue"
+        Write-Host "  - AZURE_LOCATION: $azureLocationValue"
+        Write-Host ""
+        Write-Host "✅ Location configuration complete!" -ForegroundColor Green
+        Write-Host "========================================"
+
+  # Run after provisioning infrastructure
+  postprovision:
+    posix:
+      shell: sh
+      run: |
+        echo "Infrastructure provisioned successfully"
+        echo "Setting up Python environment..."
+        python3 -m venv venv
+        . venv/bin/activate
+        pip install -r requirements.txt
+    windows:
+      shell: pwsh
+      run: |
+        Write-Host "Infrastructure provisioned successfully"
+        Write-Host "Setting up Python environment..."
+        python -m venv venv
+        .\venv\Scripts\Activate.ps1
+        pip install -r requirements.txt
+
+  # Run before deployment
+  predeploy:
+    posix:
+      shell: sh
+      run: |
+        echo "Preparing deployment..."
+        echo "Validating configuration..."
+    windows:
+      shell: pwsh
+      run: |
+        Write-Host "Preparing deployment..."
+        Write-Host "Validating configuration..."
+
+  # Run after deployment
+  postdeploy:
+    posix:
+      shell: sh
+      run: |
+        echo "Deployment completed successfully"
+        echo "You can now run performance tests"
+    windows:
+      shell: pwsh
+      run: |
+        Write-Host "Deployment completed successfully"
+        Write-Host "You can now run performance tests"
+
+  # Run before destroying resources
+  predestroy:
+    posix:
+      shell: sh
+      run: |
+        echo "Preparing to destroy resources..."
+        echo "This will delete all Azure resources"
+    windows:
+      shell: pwsh
+      run: |
+        Write-Host "Preparing to destroy resources..."
+        Write-Host "This will delete all Azure resources"

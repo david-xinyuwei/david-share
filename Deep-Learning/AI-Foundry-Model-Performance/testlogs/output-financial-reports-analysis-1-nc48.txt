@@ -1,0 +1,1817 @@
+Please enter the Azure ML Endpoint URL: Please enter your Azure ML Endpoint Key or Token: If you need to specify a Deployment Name, enter it now (or press Enter to skip): Please enter a HuggingFace model name for token counting (e.g., 'gpt2'): Loading tokenizer for 'gpt2'...
+Tokenizer loaded successfully!
+
+Starting load tests with multiple 10-K excerpts (short, medium, long, ultra-long)...
+
+
+Scenario: short_10k, Concurrency: 1
+  Request 1:
+    TTFT          : 8.347 s
+    Latency       : 8.347 s
+    Throughput    : 74.76 tokens/s
+    Prompt tokens : 91, Output tokens: 624
+    Completion    : **Risk Factors for MicroExampleCorp**
+
+MicroExampleCorp, a company specializing in software development and small consumer electronics, faces several risk factors that could potentially impact its operations and financial performance. These risks are common in the tech industry and can be categorized into three main areas: software bugs, supply chain constraints, and fluctuations in user demand.
+
+**1. Software Bugs:**
+Software development is inherently complex, and despite rigorous testing, bugs can still occur. These bugs can range from minor inconveniences to major security vulnerabilities that could lead to data breaches or system failures. The risk of software bugs is significant for MicroExampleCorp as it could result in:
+
+- **Loss of Customer Trust:** A single major bug can damage the company's reputation and lead to a loss of customer confidence.
+- **Financial Losses:** Remedying software bugs can be costly, especially if they require extensive patches or even a complete overhaul of the software.
+- **Legal and Regulatory Issues:** If a software bug leads to a data breach, the company could face legal action and regulatory penalties.
+
+**2. Supply Chain Constraints:**
+The production and distribution of consumer electronics depend heavily on a stable and efficient supply chain. MicroExampleCorp faces risks related to supply chain constraints, including:
+
+- **Component Shortages:** Shortages of critical components, such as microchips or batteries, can delay production and lead to lost sales.
+- **Supplier Reliability:** Dependence on a few key suppliers can be risky if those suppliers face disruptions, whether due to natural disasters, labor disputes, or other unforeseen events.
+- **Logistical Challenges:** Issues with logistics, such as transportation delays or increased shipping costs, can impact the company's ability to deliver products on time and at a competitive price.
+
+**3. Fluctuations in User Demand:**
+The consumer electronics market is highly competitive and subject to rapid changes in user preferences and demand. MicroExampleCorp must navigate the following risks:
+
+- **Market Volatility:** Changes in consumer preferences or economic conditions can lead to sudden drops or spikes in demand.
+- **Competition:** Intense competition from established brands and new entrants can erode market share and pricing power.
+- **Technological Obsolescence:** The fast pace of technological innovation means that products can quickly become outdated, leading to reduced demand and the need for continuous investment in research and development.
+
+**Summary:**
+MicroExampleCorp operates in the dynamic and challenging tech industry, where software bugs, supply chain constraints, and fluctuations in user demand pose significant risks. Addressing these risks requires a robust approach to software quality assurance, a diversified and resilient supply chain, and a keen understanding of market trends and consumer behavior. By proactively managing these risk factors, MicroExampleCorp can position itself for sustained growth and success.
+
+  Summary for concurrency 1:
+    Successful requests          : 1
+    Failed requests              : 0
+    Average TTFT per request     : 8.347 s
+    Average throughput per req   : 74.76 tokens/s
+    Overall throughput (sum)     : 74.76 tokens/s
+    Batch duration (wall-clock)  : 8.352 s
+
+Scenario: short_10k, Concurrency: 2
+  Request 1:
+    TTFT          : 11.114 s
+    Latency       : 11.114 s
+    Throughput    : 83.23 tokens/s
+    Prompt tokens : 91, Output tokens: 925
+    Completion    : **Risk Factors for MicroExampleCorp**
+
+**1. Software Bugs and Security Vulnerabilities:**
+
+MicroExampleCorp's primary business revolves around software development. The presence of software bugs and security vulnerabilities poses a significant risk to the company. Bugs can lead to system crashes, data loss, and reduced functionality, which can tarnish the company's reputation and lead to customer dissatisfaction. Security vulnerabilities can expose the company and its customers to cyber-attacks, resulting in data breaches, financial losses, and legal liabilities.
+
+**2. Supply Chain Constraints:**
+
+The company also deals with small consumer electronics, which are subject to the complexities of global supply chains. Constraints such as shortages of raw materials, components, or finished goods can lead to production delays, increased costs, and inability to meet customer demand. These constraints can be caused by various factors, including geopolitical tensions, natural disasters, and pandemics, which can disrupt the supply chain.
+
+**3. Fluctuations in User Demand:**
+
+Consumer electronics are highly sensitive to changes in user demand, which can be influenced by factors such as economic conditions, technological advancements, and consumer preferences. Fluctuations in demand can lead to excess inventory, reduced sales, and lower profitability. The company must be agile in responding to these fluctuations to avoid overproduction or stockouts.
+
+**4. Regulatory Compliance:**
+
+MicroExampleCorp must comply with various regulations governing software development and consumer electronics, including data protection laws, safety standards, and environmental regulations. Non-compliance can result in fines, legal action, and reputational damage. The company must continuously monitor and adapt to changes in regulatory requirements to avoid these risks.
+
+**5. Intellectual Property Disputes:**
+
+The company's products and services are likely to be protected by intellectual property rights, including patents, trademarks, and copyrights. Disputes over these rights can lead to costly litigation, injunctions, and potential loss of market share. The company must ensure that its intellectual property portfolio is robust and that it has the necessary legal protections in place.
+
+**6. Competition:**
+
+MicroExampleCorp operates in highly competitive markets, both in software development and consumer electronics. Intense competition can lead to price pressures, reduced market share, and the need for continuous innovation. The company must differentiate its products and services and maintain a competitive edge to succeed.
+
+**7. Dependence on Key Customers or Suppliers:**
+
+The company may be dependent on a limited number of key customers or suppliers, which can pose a risk if these relationships are disrupted. Loss of a major customer or supplier can lead to significant revenue declines and operational challenges. The company must diversify its customer and supplier base to mitigate this risk.
+
+**8. Currency and Exchange Rate Fluctuations:**
+
+As a global company, MicroExampleCorp is exposed to currency and exchange rate fluctuations, which can impact its financial performance. Changes in exchange rates can affect the company's cost of goods sold, operating expenses, and profitability. The company must manage its foreign exchange risk through hedging strategies and other financial instruments.
+
+**9. Economic Conditions:**
+
+The company's performance is influenced by global and regional economic conditions. Economic downturns can lead to reduced consumer spending, lower business investment, and overall decline in demand for the company's products and services. The company must be prepared to navigate these conditions and adjust its strategies accordingly.
+
+**10. Technological Changes:**
+
+The rapid pace of technological change can pose a risk to MicroExampleCorp. The company must continuously innovate and adapt its products and services to remain competitive. Failure to keep up with technological advancements can lead to obsolescence and loss of market relevance.
+
+**Conclusion:**
+
+MicroExampleCorp faces a range of risk factors that can impact its business operations and financial performance. These risks include software bugs and security vulnerabilities, supply chain constraints, fluctuations in user demand, regulatory compliance, intellectual property disputes, competition, dependence on key customers or suppliers, currency and exchange rate fluctuations, economic conditions, and technological changes. The company must actively manage these risks through robust risk management practices, continuous innovation, and strategic planning to ensure long-term success and sustainability.
+  Request 2:
+    TTFT          : 21.382 s
+    Latency       : 21.382 s
+    Throughput    : 44.34 tokens/s
+    Prompt tokens : 91, Output tokens: 948
+    Completion    : **Risk Factors for MicroExampleCorp**
+
+**Software Development Risks:**
+
+1. **Software Bugs and Defects:** The development and maintenance of software involve inherent risks of bugs, glitches, and defects. These can lead to system failures, security vulnerabilities, and customer dissatisfaction. Despite rigorous testing, it is challenging to identify and rectify all potential issues before release, which can result in costly recalls, patches, and updates.
+
+2. **Complexity and Integration Issues:** As MicroExampleCorp develops complex software solutions, there is a risk of integration issues with existing systems or third-party services. These complexities can lead to delays in product launches, increased development costs, and potential loss of market share if competitors release more stable or integrated solutions.
+
+3. **Intellectual Property (IP) Disputes:** The software industry is highly competitive, and disputes over IP rights can arise. Litigation can be expensive and time-consuming, potentially diverting resources from product development and innovation.
+
+**Supply Chain Constraints:**
+
+1. **Supplier Reliability:** Dependence on key suppliers for components and materials exposes MicroExampleCorp to risks if these suppliers face disruptions, such as natural disasters, strikes, or financial difficulties. Such disruptions can lead to delays in production and increased costs.
+
+2. **Global Supply Chain Volatility:** The global nature of supply chains means that geopolitical tensions, trade disputes, and pandemics can significantly impact the availability and cost of components. This volatility can lead to supply shortages and increased lead times.
+
+3. **Logistics and Distribution Challenges:** Efficient logistics and distribution are critical for meeting customer demand. However, challenges such as transportation delays, increased shipping costs, and customs issues can hinder timely delivery of products.
+
+**Fluctuations in User Demand:**
+
+1. **Market Demand Variability:** The demand for MicroExampleCorp's products can be highly variable, influenced by factors such as economic conditions, consumer preferences, and technological advancements. Sudden drops in demand can lead to excess inventory and reduced revenues.
+
+2. **Competition and Market Saturation:** The presence of strong competitors and the potential for market saturation pose significant risks. MicroExampleCorp must continuously innovate and differentiate its products to maintain market share and attract new customers.
+
+3. **Consumer Behavior Changes:** Changes in consumer behavior, such as shifts towards different technologies or preferences for alternative brands, can impact demand for MicroExampleCorp's products. Adapting to these changes requires agility and a deep understanding of consumer trends.
+
+**Regulatory and Compliance Risks:**
+
+1. **Data Privacy and Security Regulations:** As a company that likely handles significant amounts of user data, MicroExampleCorp must comply with various data privacy and security regulations. Non-compliance can result in hefty fines, legal actions, and damage to the company's reputation.
+
+2. **Environmental and Sustainability Regulations:** Increasingly stringent environmental and sustainability regulations can impact MicroExampleCorp's operations, particularly in the manufacturing and disposal of consumer electronics. Compliance with these regulations may require significant investments in green technologies and processes.
+
+**Financial Risks:**
+
+1. **Market Risk:** Fluctuations in financial markets can impact MicroExampleCorp's cost of capital, making it more expensive to finance operations and growth initiatives. This can affect the company's profitability and ability to invest in new projects.
+
+2. **Currency Risk:** As a global company, MicroExampleCorp is exposed to currency risk. Exchange rate fluctuations can impact the company's revenues and costs, particularly in international markets.
+
+3. **Interest Rate Risk:** Changes in interest rates can affect MicroExampleCorp's borrowing costs and the value of its debt. This can impact the company's financial stability and ability to manage its debt obligations.
+
+**Conclusion:**
+
+MicroExampleCorp faces a range of risk factors that could impact its operations and financial performance. These include risks associated with software development, supply chain constraints, fluctuations in user demand, regulatory and compliance issues, and financial factors. Effective risk management strategies, including robust testing and quality assurance processes, diversified supply chains, market research and product differentiation, compliance with regulations, and financial hedging, will be crucial for the company to navigate these challenges and sustain its growth.
+
+  Summary for concurrency 2:
+    Successful requests          : 2
+    Failed requests              : 0
+    Average TTFT per request     : 16.248 s
+    Average throughput per req   : 63.78 tokens/s
+    Overall throughput (sum)     : 127.56 tokens/s
+    Batch duration (wall-clock)  : 21.386 s
+
+Scenario: short_10k, Concurrency: 3
+[Warning] Attempt 1: HTTP 429 Too Many Requests, backing off 1 seconds.
+[Warning] Attempt 2: HTTP 429 Too Many Requests, backing off 2 seconds.
+[Warning] Attempt 3: HTTP 429 Too Many Requests, backing off 4 seconds.
+  Request 1:
+    TTFT          : 9.135 s
+    Latency       : 9.135 s
+    Throughput    : 85.17 tokens/s
+    Prompt tokens : 91, Output tokens: 778
+    Completion    : **Risk Factors for MicroExampleCorp**
+
+**1. Software Development Risks:**
+- **Software Bugs and Glitches:** The company’s products, which include software, are inherently susceptible to bugs and glitches. These can lead to product recalls, customer dissatisfaction, and potential legal liabilities.
+- **Security Vulnerabilities:** With the increasing prevalence of cyber threats, any security vulnerabilities in the company’s software could result in data breaches, loss of customer trust, and financial penalties.
+
+**2. Supply Chain Constraints:**
+- **Component Shortages:** The production of consumer electronics is highly dependent on the availability of components. Shortages can lead to production delays, increased costs, and inability to meet customer demand.
+- **Supplier Reliability:** Dependence on a limited number of suppliers increases the risk of disruptions due to supplier issues, such as financial instability, labor disputes, or natural disasters.
+
+**3. Fluctuations in User Demand:**
+- **Market Volatility:** Changes in consumer preferences and market trends can lead to fluctuations in demand for the company’s products. This can result in overproduction or underproduction, affecting revenue and profitability.
+- **Competition:** Intense competition in the software and consumer electronics markets can erode market share and pricing power, impacting the company’s financial performance.
+
+**4. Regulatory and Compliance Risks:**
+- **Data Protection Regulations:** Compliance with data protection and privacy regulations, such as the GDPR, is crucial. Non-compliance can result in significant fines and reputational damage.
+- **Intellectual Property Laws:** The company must navigate complex intellectual property laws to protect its software and hardware designs. Infringement claims can be costly and distracting.
+
+**5. Financial Risks:**
+- **Currency Fluctuations:** As a global company, MicroExampleCorp is exposed to currency fluctuations, which can impact financial results and operational costs.
+- **Interest Rate Changes:** Changes in interest rates can affect the company’s borrowing costs and overall financial stability.
+
+**6. Operational Risks:**
+- **Quality Control Issues:** Inadequate quality control can lead to product defects, which can harm the company’s reputation and result in financial losses.
+- **Cybersecurity Threats:** The increasing sophistication of cyberattacks poses a significant threat to the company’s operations and data integrity.
+
+**7. Environmental Risks:**
+- **Sustainability Concerns:** The company must address environmental concerns related to the production and disposal of electronic products. Failure to do so can lead to regulatory penalties and damage to the company’s reputation.
+
+**8. Legal Risks:**
+- **Litigation:** The company faces the risk of litigation related to various aspects of its operations, including contractual disputes, employment issues, and product liability claims.
+- **Regulatory Actions:** Regulatory actions, such as fines or sanctions, can result from non-compliance with laws and regulations.
+
+**Summary:**
+MicroExampleCorp faces a multitude of risks that could impact its operations and financial performance. The primary risk factors include software development challenges, supply chain constraints, and fluctuations in user demand. Additionally, the company must navigate regulatory and compliance risks, financial uncertainties, operational hurdles, environmental concerns, and potential legal liabilities. Effective risk management and mitigation strategies are essential to address these challenges and ensure the company’s long-term success.
+  Request 2:
+    TTFT          : 18.743 s
+    Latency       : 18.743 s
+    Throughput    : 45.78 tokens/s
+    Prompt tokens : 91, Output tokens: 858
+    Completion    : **Risk Factors for MicroExampleCorp**
+
+MicroExampleCorp operates in the dynamic and competitive sectors of software development and small consumer electronics. The company's business model and operations are subject to various risk factors that could impact its financial performance, market position, and overall success. Below are the main risk factors identified from the provided excerpt of the company's 10-K filing for the fiscal year ended December 31, 2022:
+
+1. **Software Bugs and Glitches:**
+   - The development and maintenance of software are inherently complex and prone to errors. MicroExampleCorp faces the risk of software bugs and glitches, which can lead to customer dissatisfaction, loss of revenue, and damage to the company's reputation. The company must invest in robust quality assurance processes to mitigate this risk.
+
+2. **Supply Chain Constraints:**
+   - As a manufacturer of small consumer electronics, MicroExampleCorp relies on a global supply chain to source components and materials. Disruptions in the supply chain, such as shortages of raw materials, delays from suppliers, or geopolitical tensions, can lead to production bottlenecks, increased costs, and difficulties in meeting customer demand.
+
+3. **Fluctuations in User Demand:**
+   - Consumer electronics are subject to rapid changes in market trends and user preferences. MicroExampleCorp must continuously innovate and adapt its product offerings to meet evolving consumer demands. Failure to do so could result in decreased sales and market share.
+
+4. **Competition:**
+   - The software and consumer electronics industries are highly competitive, with numerous players vying for market dominance. MicroExampleCorp must contend with established competitors as well as new entrants, which could erode its competitive position and profitability.
+
+5. **Regulatory Compliance:**
+   - The company must comply with various regulatory requirements, including data privacy laws, consumer protection regulations, and industry-specific standards. Non-compliance could result in legal penalties, fines, and reputational damage.
+
+6. **Intellectual Property Risks:**
+   - MicroExampleCorp's business relies heavily on its intellectual property (IP). The company faces the risk of IP infringement by competitors, which could lead to costly litigation and potential loss of market exclusivity.
+
+7. **Cybersecurity Threats:**
+   - As a software developer, MicroExampleCorp is exposed to cybersecurity threats, including hacking, data breaches, and other forms of cyberattacks. These threats can compromise customer data, disrupt operations, and damage the company's reputation.
+
+8. **Market Saturation:**
+   - There is a risk that the market for small consumer electronics may become saturated, limiting growth opportunities. MicroExampleCorp must find ways to differentiate its products and expand into new markets to sustain growth.
+
+9. **Economic Downturns:**
+   - Economic downturns can lead to reduced consumer spending, which would impact sales of consumer electronics. Additionally, software companies may experience decreased demand for non-essential applications and services during economic slumps.
+
+10. **Currency Fluctuations:**
+    - As a global company, MicroExampleCorp is exposed to currency fluctuations, which can affect the cost of imported components, the competitiveness of its products, and its overall financial performance.
+
+**Summary:**
+
+MicroExampleCorp faces several significant risk factors that could impact its operations and financial health. The primary risks include software bugs and glitches, supply chain constraints, and fluctuations in user demand. Additionally, the company must navigate intense competition, regulatory compliance, intellectual property risks, cybersecurity threats, market saturation, economic downturns, and currency fluctuations. To mitigate these risks, MicroExampleCorp must maintain high-quality software development practices, ensure robust supply chain management, continuously innovate and adapt to market trends, and implement strong cybersecurity measures. By addressing these risk factors proactively, the company can enhance its resilience and sustain long-term growth.
+  Request 3 failed: HTTP Error 429: Too Many Requests
+
+  Summary for concurrency 3:
+    Successful requests          : 2
+    Failed requests              : 1
+    Average TTFT per request     : 13.939 s
+    Average throughput per req   : 65.47 tokens/s
+    Overall throughput (sum)     : 130.95 tokens/s
+    Batch duration (wall-clock)  : 18.746 s
+
+Scenario: short_10k, Concurrency: 4
+[Warning] Attempt 1: HTTP 429 Too Many Requests, backing off 1 seconds.
+[Warning] Attempt 1: HTTP 429 Too Many Requests, backing off 1 seconds.
+[Warning] Attempt 2: HTTP 429 Too Many Requests, backing off 2 seconds.
+[Warning] Attempt 2: HTTP 429 Too Many Requests, backing off 2 seconds.
+[Warning] Attempt 3: HTTP 429 Too Many Requests, backing off 4 seconds.
+[Warning] Attempt 3: HTTP 429 Too Many Requests, backing off 4 seconds.
+  Request 1:
+    TTFT          : 12.356 s
+    Latency       : 12.356 s
+    Throughput    : 82.07 tokens/s
+    Prompt tokens : 91, Output tokens: 1014
+    Completion    : **Risk Factors for MicroExampleCorp**
+
+**1. Software Bugs and Glitches:**
+As a company specializing in software development, MicroExampleCorp is inherently exposed to the risk of software bugs and glitches. These issues can arise from various sources, including but not limited to, coding errors, integration problems, and unforeseen interactions with other software or hardware. The discovery of bugs post-release can lead to customer dissatisfaction, potential loss of revenue, and the need for costly and time-consuming patches and updates. Furthermore, severe bugs could result in legal action if they cause significant harm or data breaches.
+
+**2. Supply Chain Constraints:**
+MicroExampleCorp's involvement in the production of small consumer electronics means that it is subject to the risks associated with supply chain management. Disruptions can occur due to a variety of factors such as geopolitical tensions, natural disasters, or pandemics, which can impact the availability of raw materials and components. Additionally, reliance on a limited number of suppliers or manufacturing facilities can exacerbate these risks. Supply chain constraints can lead to delays in product launches, increased costs, and inventory management challenges.
+
+**3. Fluctuations in User Demand:**
+The consumer electronics market is highly competitive and subject to rapid changes in user preferences and demand. MicroExampleCorp may face risks related to fluctuations in user demand, which can be influenced by economic conditions, technological advancements, and competitive pressures. A decline in demand for its products can result in excess inventory, reduced sales, and lower profitability. Conversely, an unexpected surge in demand may strain the company's production capabilities and supply chain, leading to potential service issues and missed opportunities.
+
+**4. Intellectual Property Risks:**
+In the software and electronics industries, intellectual property (IP) is a critical asset. MicroExampleCorp faces the risk of IP infringement claims from competitors, which can lead to costly litigation, injunctions, and potential damages. Additionally, the company must ensure that its own IP is adequately protected through patents, trademarks, and copyrights. Failure to secure and defend IP rights can weaken the company's competitive position and hinder its ability to innovate and grow.
+
+**5. Regulatory Compliance and Legal Risks:**
+MicroExampleCorp operates in a highly regulated environment, particularly in areas related to data privacy, cybersecurity, and consumer protection. The company must comply with a myriad of laws and regulations, both domestic and international, which can be complex and subject to change. Non-compliance can result in fines, penalties, and reputational damage. Furthermore, the company may face legal risks related to contractual disputes, employment issues, and other legal challenges.
+
+**6. Cybersecurity Threats:**
+With the increasing reliance on digital technologies, MicroExampleCorp is exposed to cybersecurity threats. These threats can include data breaches, hacking, and other forms of cyber attacks that can compromise sensitive customer and business data. The potential financial and reputational costs of a cybersecurity incident are significant, and the company must invest in robust security measures to mitigate these risks.
+
+**7. Competition:**
+The technology sector is characterized by intense competition. MicroExampleCorp must continually innovate and differentiate its products to maintain its market position. The entry of new competitors or the introduction of superior products by existing competitors can erode the company's market share and profitability. Additionally, aggressive pricing strategies by competitors can put pressure on the company's revenue streams.
+
+**8. Market and Economic Conditions:**
+MicroExampleCorp's financial performance is closely tied to broader market and economic conditions. Economic downturns, changes in consumer spending habits, and fluctuations in currency exchange rates can impact the company's sales and profitability. The company must be agile and responsive to these external factors to navigate potential challenges.
+
+**9. Dependence on Key Personnel:**
+The success of MicroExampleCorp is also dependent on its key personnel, including its management team and technical experts. The loss of critical employees due to retirement, resignation, or other reasons can disrupt the company's operations and innovation efforts. Ensuring a robust succession plan and retaining top talent are essential to mitigating this risk.
+
+**10. Environmental and Social Risks:**
+As a responsible corporate citizen, MicroExampleCorp must be aware of and address environmental and social risks. These risks can include the impact of its operations on the environment, labor practices, and community relations. Failure to manage these risks effectively can result in reputational damage and potential legal and regulatory actions.
+
+In summary, MicroExampleCorp faces a range of risk factors that are inherent to its industry and business operations. Effective risk management strategies, including robust quality assurance processes, diversified supply chains, and continuous innovation, are essential to mitigating these risks and ensuring the company's long-term success.
+  Request 2:
+    TTFT          : 22.398 s
+    Latency       : 22.398 s
+    Throughput    : 38.35 tokens/s
+    Prompt tokens : 91, Output tokens: 859
+    Completion    : MicroExampleCorp, a company specializing in software development and small consumer electronics, faces several significant risk factors that could impact its financial performance and operational stability. The primary risk factors include:
+
+1. **Software Bugs and Technical Issues**: As a software development company, MicroExampleCorp is inherently vulnerable to the risk of software bugs and technical issues. These can arise from various sources, including complex coding, integration challenges, or inadequate testing procedures. The presence of bugs can lead to customer dissatisfaction, loss of business, and increased costs associated with debugging and patching software. Moreover, technical issues can disrupt service delivery, leading to potential revenue loss and damage to the company's reputation.
+
+2. **Supply Chain Constraints**: For the consumer electronics segment, supply chain constraints are a critical risk factor. These constraints can be due to shortages of raw materials, components, or finished goods, which are often influenced by global economic conditions, trade policies, and geopolitical events. Supply chain disruptions can lead to delays in product availability, increased production costs, and potential revenue shortfalls. Additionally, the company may face challenges in maintaining inventory levels and meeting customer demand in a timely manner.
+
+3. **Fluctuations in User Demand**: Both software and consumer electronics markets are subject to fluctuations in user demand. For software, changes in market trends, customer preferences, and competitive landscape can significantly impact demand for MicroExampleCorp's products and services. For consumer electronics, demand can be influenced by factors such as technological advancements, seasonal trends, and economic conditions. Fluctuations in demand can lead to underutilization of resources, inventory management issues, and revenue volatility.
+
+4. **Competition**: The competitive landscape is another key risk factor. MicroExampleCorp operates in highly competitive markets, where numerous companies offer similar products and services. Intense competition can lead to price pressures, increased marketing and sales expenses, and the need for continuous innovation to maintain market share. The company must be vigilant in monitoring competitive developments and be prepared to adapt its strategies to stay ahead.
+
+5. **Regulatory and Compliance Risks**: Compliance with relevant regulations and standards is crucial for MicroExampleCorp. The company must ensure that its products and services meet all legal and regulatory requirements, which can vary significantly across different jurisdictions. Failure to comply can result in penalties, legal actions, and reputational damage. Additionally, changes in regulations can impact the company's operations and financial performance.
+
+6. **Cybersecurity Threats**: As a technology company, MicroExampleCorp is exposed to cybersecurity threats. These threats can include data breaches, hacking attempts, and other forms of cyber attacks. The consequences of such threats can be severe, including loss of sensitive information, disruption of operations, and financial losses. The company must invest in robust cybersecurity measures to protect its assets and maintain customer trust.
+
+7. **Intellectual Property Risks**: Intellectual property (IP) is a critical asset for MicroExampleCorp. The company must safeguard its software code, patents, trademarks, and other IP rights against infringement and unauthorized use. Disputes over IP can lead to legal costs, loss of competitive advantage, and damage to the company's reputation. The company must actively manage its IP portfolio and enforce its rights to mitigate these risks.
+
+8. **Dependency on Key Customers or Suppliers**: MicroExampleCorp may be dependent on a limited number of key customers or suppliers. The loss of a major customer or supplier can have a significant impact on the company's revenue and supply chain stability. The company must diversify its customer and supplier base to reduce this dependency and mitigate the associated risks.
+
+In summary, MicroExampleCorp faces a range of risk factors that are critical to its success and stability. These include software bugs, supply chain constraints, fluctuations in user demand, competition, regulatory and compliance risks, cybersecurity threats, intellectual property risks, and dependency on key customers or suppliers. The company must proactively manage these risks through effective strategies, robust cybersecurity measures, and continuous innovation to maintain its competitive edge and ensure long-term growth.
+  Request 3 failed: HTTP Error 429: Too Many Requests
+  Request 4 failed: HTTP Error 429: Too Many Requests
+
+  Summary for concurrency 4:
+    Successful requests          : 2
+    Failed requests              : 2
+    Average TTFT per request     : 17.377 s
+    Average throughput per req   : 60.21 tokens/s
+    Overall throughput (sum)     : 120.42 tokens/s
+    Batch duration (wall-clock)  : 22.402 s
+
+Scenario: short_10k, Concurrency: 5
+[Warning] Attempt 1: HTTP 429 Too Many Requests, backing off 1 seconds.
+[Warning] Attempt 1: HTTP 429 Too Many Requests, backing off 1 seconds.
+[Warning] Attempt 1: HTTP 429 Too Many Requests, backing off 1 seconds.
+[Warning] Attempt 2: HTTP 429 Too Many Requests, backing off 2 seconds.
+[Warning] Attempt 2: HTTP 429 Too Many Requests, backing off 2 seconds.
+[Warning] Attempt 2: HTTP 429 Too Many Requests, backing off 2 seconds.
+[Warning] Attempt 3: HTTP 429 Too Many Requests, backing off 4 seconds.
+[Warning] Attempt 3: HTTP 429 Too Many Requests, backing off 4 seconds.
+[Warning] Attempt 3: HTTP 429 Too Many Requests, backing off 4 seconds.
+  Request 1:
+    TTFT          : 9.698 s
+    Latency       : 9.698 s
+    Throughput    : 85.38 tokens/s
+    Prompt tokens : 91, Output tokens: 828
+    Completion    : **Risk Factors for MicroExampleCorp**
+
+**1. Software Development Risks:**
+
+- **Complexity and Uncertainty:** Software development inherently involves complex processes and a high degree of uncertainty. The company may face challenges in predicting the time, cost, and resources required to complete software projects, which can lead to delays and budget overruns.
+
+- **Technical Challenges:** The development of new software or the enhancement of existing products can encounter technical difficulties that may not be easily solvable. These challenges can result in significant setbacks and increased costs.
+
+- **Software Bugs and Errors:** Despite rigorous testing, software bugs and errors can still occur. These issues can lead to product recalls, customer dissatisfaction, and potential legal liabilities if they result in harm or data breaches.
+
+- **Intellectual Property (IP) Issues:** The company may face risks related to IP infringement, including lawsuits from competitors or the need to license technology from others, which can increase costs and affect product development timelines.
+
+**2. Supply Chain Constraints:**
+
+- **Supplier Reliability:** Dependence on key suppliers can pose a risk if these suppliers fail to deliver critical components on time or at the required quality. This can lead to production delays and increased costs.
+
+- **Cost Fluctuations:** Changes in the cost of raw materials, components, or labor can impact the company's profitability. The company may face challenges in managing these cost fluctuations effectively.
+
+- **Logistical Challenges:** Disruptions in transportation, customs delays, or other logistical issues can affect the timely delivery of products. These challenges can lead to stockouts, lost sales, and increased costs.
+
+- **Geopolitical Risks:** Global supply chains are susceptible to geopolitical risks, including trade disputes, sanctions, and political instability in supplier countries. These risks can lead to supply chain disruptions and increased costs.
+
+**3. Fluctuations in User Demand:**
+
+- **Market Volatility:** The company's profitability is closely tied to user demand for its products. Fluctuations in market demand, driven by economic conditions, consumer preferences, or technological advancements, can impact sales and revenue.
+
+- **Competition:** The company faces intense competition from both established players and new entrants in the software development and consumer electronics markets. This competition can lead to price wars, reduced market share, and challenges in maintaining profitability.
+
+- **Product Lifecycle:** The lifecycle of software and consumer electronics products can be relatively short, with rapid technological advancements and changing consumer preferences. The company may face challenges in keeping its products relevant and competitive.
+
+- **Customer Satisfaction and Retention:** Maintaining high levels of customer satisfaction is critical for retaining customers and generating repeat sales. The company may face risks related to customer dissatisfaction, negative reviews, or the loss of key accounts.
+
+**Summary:**
+
+MicroExampleCorp faces several significant risk factors that could impact its operations and financial performance. The primary risks include:
+
+- **Software Development Risks:** These include complexity and uncertainty, technical challenges, software bugs and errors, and IP issues. These risks can lead to delays, increased costs, and potential legal liabilities.
+
+- **Supply Chain Constraints:** Risks related to supplier reliability, cost fluctuations, logistical challenges, and geopolitical risks can result in production delays, increased costs, and supply chain disruptions.
+
+- **Fluctuations in User Demand:** Market volatility, intense competition, short product lifecycles, and challenges in customer satisfaction and retention can impact sales, revenue, and profitability.
+
+Effective risk management and mitigation strategies are essential for MicroExampleCorp to navigate these challenges and ensure long-term success.
+  Request 2:
+    TTFT          : 18.835 s
+    Latency       : 18.835 s
+    Throughput    : 45.39 tokens/s
+    Prompt tokens : 91, Output tokens: 855
+    Completion    : **Risk Factors for MicroExampleCorp**
+
+MicroExampleCorp operates in the dynamic and competitive sectors of software development and small consumer electronics. The following are the primary risk factors that could impact the company's financial performance and business operations:
+
+1. **Software Bugs and Security Vulnerabilities:**
+   - The nature of software development involves the risk of encountering bugs and security vulnerabilities that can disrupt services, compromise data, and damage the company's reputation. Addressing these issues promptly can be resource-intensive and may require significant investment in development and security teams.
+
+2. **Supply Chain Constraints:**
+   - The production of consumer electronics is highly dependent on a reliable supply chain. Constraints such as shortages of raw materials, components, or disruptions caused by geopolitical events, natural disasters, or pandemics can lead to delays in production, increased costs, and potential loss of revenue.
+
+3. **Fluctuations in User Demand:**
+   - The demand for both software and consumer electronics can be volatile and influenced by various factors including technological advancements, market trends, and consumer preferences. Sudden shifts in demand can affect sales and may require the company to adjust its production and inventory levels quickly.
+
+4. **Competition:**
+   - The software and consumer electronics industries are characterized by intense competition. The company faces the risk of losing market share to competitors who may offer more innovative, cost-effective, or higher-quality products and services.
+
+5. **Intellectual Property Disputes:**
+   - Protecting intellectual property is crucial in the technology sector. The company may face legal disputes over patents, copyrights, or trademarks, which can be costly and divert resources from core business activities.
+
+6. **Regulatory Compliance:**
+   - The company must comply with various regulations and standards governing software development and consumer electronics. Non-compliance can result in fines, legal action, and reputational damage.
+
+7. **Cybersecurity Threats:**
+   - As a technology company, MicroExampleCorp is vulnerable to cybersecurity threats such as hacking, data breaches, and ransomware attacks. These threats can compromise sensitive information, disrupt operations, and erode customer trust.
+
+8. **Market Saturation:**
+   - In mature markets, the company may face challenges due to market saturation. With limited growth opportunities, the company may need to explore new markets or diversify its product offerings to sustain revenue growth.
+
+9. **Economic Conditions:**
+   - General economic conditions, including recessions, inflation, and currency fluctuations, can impact consumer spending and business investment. Adverse economic conditions can lead to reduced demand for the company's products and services.
+
+10. **Dependence on Key Customers:**
+    - The company's financial health may be significantly influenced by its reliance on a small number of key customers. Losing a major customer can have a substantial impact on revenue and profitability.
+
+11. **Technological Changes:**
+    - Rapid technological changes can render existing products and services obsolete. The company must continuously innovate and adapt to stay competitive in the market.
+
+12. **Research and Development (R&D) Costs:**
+    - Investing in R&D is essential for innovation and growth. However, high R&D costs can strain the company's financial resources, especially if the development of new products does not yield expected returns.
+
+In summary, MicroExampleCorp faces a range of risk factors that could impact its operations and financial performance. These include software bugs, supply chain constraints, fluctuations in user demand, competition, intellectual property disputes, regulatory compliance, cybersecurity threats, market saturation, economic conditions, dependence on key customers, technological changes, and high R&D costs. The company must proactively manage these risks to ensure long-term success and stability.
+  Request 3 failed: HTTP Error 429: Too Many Requests
+  Request 4 failed: HTTP Error 429: Too Many Requests
+  Request 5 failed: HTTP Error 429: Too Many Requests
+
+  Summary for concurrency 5:
+    Successful requests          : 2
+    Failed requests              : 3
+    Average TTFT per request     : 14.266 s
+    Average throughput per req   : 65.39 tokens/s
+    Overall throughput (sum)     : 130.77 tokens/s
+    Batch duration (wall-clock)  : 18.840 s
+
+Scenario: medium_10k, Concurrency: 1
+  Request 1:
+    TTFT          : 8.835 s
+    Latency       : 8.835 s
+    Throughput    : 79.23 tokens/s
+    Prompt tokens : 154, Output tokens: 700
+    Completion    : **Risk Factors for TechExampleCorp**
+
+**1. Data Breaches:**
+
+As a company operating in cloud computing services and cybersecurity, TechExampleCorp is exposed to the risk of data breaches. The increasing sophistication of cyber-attacks poses a significant threat to the integrity and confidentiality of the data they hold and process. A data breach could lead to substantial financial losses, damage to the company's reputation, and potential legal liabilities. The company must continuously invest in robust cybersecurity measures to mitigate this risk.
+
+**2. Regulatory Compliance Issues:**
+
+TechExampleCorp operates in multiple jurisdictions, each with its own set of data protection and privacy regulations. The company faces the risk of non-compliance with these regulations, which could result in fines, sanctions, and restrictions on their operations. Compliance with regulations such as the General Data Protection Regulation (GDPR) in the European Union and the California Consumer Privacy Act (CCPA) in the United States is crucial to avoid these potential penalties.
+
+**3. Patent Disputes:**
+
+In the consumer electronics sector, intellectual property (IP) is a critical asset. TechExampleCorp may face patent disputes with competitors or third parties, which could lead to costly litigation, injunctions against their products, or the need to pay royalties. The company must ensure that its products do not infringe on existing patents and that it has a strong IP strategy to protect its own innovations.
+
+**4. Dependencies on Critical Third-Party Providers:**
+
+TechExampleCorp relies on various third-party providers for critical components and services, including cloud infrastructure, cybersecurity solutions, and supply chain logistics. Disruptions in the services provided by these third parties, whether due to technical issues, financial instability, or other reasons, could adversely affect the company's operations. The company needs to have contingency plans and possibly multiple suppliers to minimize this risk.
+
+**Operational Analytics:**
+
+TechExampleCorp uses advanced operational analytics to monitor and manage its business performance. These analytics provide insights into customer behavior, market trends, and operational efficiency. By leveraging data, the company can make informed decisions, optimize its resources, and enhance its competitive advantage. However, the reliance on data also introduces risks related to data quality, privacy, and security.
+
+**Strategic Initiatives in Digital Transformation:**
+
+The company is actively engaged in digital transformation initiatives to stay ahead in the rapidly evolving technology landscape. These initiatives include the development of new cloud computing platforms, the integration of artificial intelligence (AI) and machine learning (ML) in cybersecurity products, and the adoption of IoT technologies in consumer electronics. While these initiatives offer significant growth opportunities, they also come with risks related to technology adoption, market acceptance, and potential disruptions during the transition.
+
+**Conclusion:**
+
+TechExampleCorp faces several key risk factors that could impact its financial performance and operational stability. These risks include data breaches, regulatory compliance issues, patent disputes, and dependencies on critical third-party providers. The company's use of operational analytics and its strategic initiatives in digital transformation are essential to its growth and success but also introduce additional risks. By proactively managing these risks and continuously innovating, TechExampleCorp can maintain its competitive edge and deliver value to its stakeholders.
+
+  Summary for concurrency 1:
+    Successful requests          : 1
+    Failed requests              : 0
+    Average TTFT per request     : 8.835 s
+    Average throughput per req   : 79.23 tokens/s
+    Overall throughput (sum)     : 79.23 tokens/s
+    Batch duration (wall-clock)  : 8.839 s
+
+Scenario: medium_10k, Concurrency: 2
+  Request 1:
+    TTFT          : 9.248 s
+    Latency       : 9.248 s
+    Throughput    : 83.37 tokens/s
+    Prompt tokens : 154, Output tokens: 771
+    Completion    : **Risk Factors for TechExampleCorp**
+
+**1. Data Breaches and Cybersecurity Threats:**
+
+TechExampleCorp operates in the cloud computing and cybersecurity sectors, making it particularly vulnerable to data breaches and cyber-attacks. The company holds sensitive data for its clients, which could be compromised, leading to financial losses, legal liabilities, and reputational damage. The increasing sophistication of cyber threats poses a continuous risk to the company's data security and integrity.
+
+**2. Regulatory Compliance Issues:**
+
+The technology industry is subject to stringent regulatory requirements, including data protection laws (e.g., GDPR, CCPA), cybersecurity standards (e.g., ISO 27001), and industry-specific regulations. Non-compliance with these regulations can result in hefty fines, legal actions, and operational disruptions. TechExampleCorp must navigate these complex regulatory landscapes to avoid such risks.
+
+**3. Patent Disputes and Intellectual Property (IP) Litigation:**
+
+As a company involved in innovation and product development, TechExampleCorp faces the risk of patent disputes and IP litigation. Competitors may challenge the validity of the company's patents or infringe upon its intellectual property, leading to costly legal battles and potential damages to its competitive edge.
+
+**4. Dependencies on Critical Third-Party Providers:**
+
+TechExampleCorp relies on third-party providers for various services and components, including cloud infrastructure, software development, and manufacturing. Disruptions in the supply chain, service outages, or financial instability of these providers can adversely affect the company's operations and financial performance.
+
+**5. Market Competition and Pricing Pressure:**
+
+The technology sector is highly competitive, with numerous players vying for market share. TechExampleCorp faces competition from established companies and emerging startups. Intense competition can lead to pricing pressures, impacting the company's margins and profitability.
+
+**6. Rapid Technological Change and Innovation:**
+
+The pace of technological change is rapid, and companies must continuously innovate to stay relevant. TechExampleCorp must invest in R&D to develop new technologies and features. Failure to keep up with technological advancements can result in a loss of market share and reduced competitiveness.
+
+**7. Economic and Geopolitical Uncertainties:**
+
+Global economic and geopolitical uncertainties can impact the technology industry. Fluctuations in currency exchange rates, trade policies, and economic downturns can affect the company's revenue and cost structures. TechExampleCorp must be prepared to navigate these uncertainties to maintain financial stability.
+
+**Operational Analytics:**
+
+TechExampleCorp has implemented advanced operational analytics to monitor and optimize its business performance. These analytics provide insights into customer behavior, market trends, and operational efficiency, enabling the company to make data-driven decisions and improve its competitive position.
+
+**Strategic Initiatives in Digital Transformation:**
+
+TechExampleCorp is actively pursuing strategic initiatives in digital transformation to enhance its service offerings and operational capabilities. These initiatives include the adoption of artificial intelligence (AI) and machine learning (ML) technologies, the expansion of its cloud computing services, and the integration of IoT (Internet of Things) devices into its cybersecurity solutions.
+
+In conclusion, TechExampleCorp faces several key risk factors, including data breaches, regulatory compliance issues, patent disputes, dependencies on third-party providers, market competition, rapid technological change, and economic uncertainties. The company mitigates these risks through advanced operational analytics and strategic initiatives in digital transformation, ensuring its continued growth and success in the technology industry.
+  Request 2:
+    TTFT          : 19.861 s
+    Latency       : 19.861 s
+    Throughput    : 41.54 tokens/s
+    Prompt tokens : 154, Output tokens: 825
+    Completion    : **Risk Factors for TechExampleCorp**
+
+**1. Data Breaches and Cybersecurity Threats:**
+
+TechExampleCorp operates in the cloud computing and cybersecurity sectors, which inherently involve handling and protecting large volumes of sensitive data. The risk of data breaches is significant, as any unauthorized access to customer data could result in financial losses, legal liabilities, and reputational damage. Cybersecurity threats continue to evolve, and the company must continuously invest in advanced security measures and technologies to safeguard its data and that of its clients.
+
+**2. Regulatory Compliance Issues:**
+
+The company is subject to various regulatory requirements, including data protection laws such as the General Data Protection Regulation (GDPR) and the California Consumer Privacy Act (CCPA). Compliance with these regulations is critical, as non-compliance can lead to hefty fines, legal challenges, and loss of customer trust. Additionally, the company must navigate complex regulatory environments across different jurisdictions, which can be resource-intensive and pose challenges to operational efficiency.
+
+**3. Patent Disputes and Intellectual Property (IP) Infringement:**
+
+As a player in the consumer electronics market, TechExampleCorp relies heavily on its IP portfolio. The risk of patent disputes and IP infringement claims from competitors or other entities is a concern. Such disputes can result in costly litigation, potential damages, and the need to license or redesign products, which can impact the company's market position and financial performance.
+
+**4. Dependencies on Critical Third-Party Providers:**
+
+TechExampleCorp's operations depend on the availability and reliability of third-party providers, including cloud infrastructure partners, software vendors, and component suppliers. Any disruptions in the supply chain or service delivery from these providers can adversely affect the company's ability to meet customer demands and maintain service quality. The company must manage these dependencies carefully to mitigate potential risks.
+
+**5. Competitive Pressures:**
+
+The technology sector is highly competitive, with rapid innovation and the constant emergence of new players. TechExampleCorp faces pressure to stay ahead in terms of technological advancements, product offerings, and market penetration. Failure to keep pace with competitors could result in loss of market share and reduced profitability.
+
+**6. Economic and Market Volatility:**
+
+The company's financial performance is influenced by broader economic and market conditions. Fluctuations in currency exchange rates, changes in consumer spending patterns, and economic downturns can impact revenue growth and operational stability. The company must be adept at managing financial risks and adapting its strategies to changing economic landscapes.
+
+**7. Technological Changes and Obsolescence:**
+
+The pace of technological change is relentless, and there is a constant risk of products or services becoming obsolete. TechExampleCorp must invest in R&D to innovate and develop new technologies that meet evolving customer needs. However, this also involves the risk of investing in technologies that may not achieve market acceptance or become outdated quickly.
+
+**Operational Analytics and Strategic Initiatives:**
+
+TechExampleCorp leverages operational analytics to gain insights into customer behavior, market trends, and internal performance metrics. This data-driven approach enables the company to make informed decisions, optimize operations, and enhance customer satisfaction. Additionally, the company is committed to ongoing digital transformation initiatives, which include the adoption of artificial intelligence, machine learning, and automation technologies to improve efficiency and drive innovation.
+
+**Conclusion:**
+
+TechExampleCorp faces several key risk factors, including data breaches, regulatory compliance issues, patent disputes, dependencies on third-party providers, competitive pressures, economic and market volatility, and technological changes. The company's ability to manage these risks effectively through robust cybersecurity measures, compliance strategies, IP protection, supply chain management, competitive intelligence, financial risk management, and continuous innovation will be crucial for its long-term success.
+
+  Summary for concurrency 2:
+    Successful requests          : 2
+    Failed requests              : 0
+    Average TTFT per request     : 14.554 s
+    Average throughput per req   : 62.45 tokens/s
+    Overall throughput (sum)     : 124.91 tokens/s
+    Batch duration (wall-clock)  : 19.864 s
+
+Scenario: medium_10k, Concurrency: 3
+[Warning] Attempt 1: HTTP 429 Too Many Requests, backing off 1 seconds.
+[Warning] Attempt 2: HTTP 429 Too Many Requests, backing off 2 seconds.
+[Warning] Attempt 3: HTTP 429 Too Many Requests, backing off 4 seconds.
+  Request 1:
+    TTFT          : 11.254 s
+    Latency       : 11.254 s
+    Throughput    : 84.95 tokens/s
+    Prompt tokens : 154, Output tokens: 956
+    Completion    : **TechExampleCorp 10-K Risk Analysis Summary**
+
+**Introduction**
+
+TechExampleCorp operates in the fast-paced and highly competitive sectors of cloud computing services, cybersecurity, and consumer electronics. The company's success hinges on its ability to innovate, maintain robust security measures, and comply with evolving regulatory standards. This summary identifies the main risk factors that could impact TechExampleCorp's operations and financial performance, as outlined in the 10-K filing for the fiscal year ended December 31, 2022.
+
+**Key Risk Factors**
+
+1. **Data Breaches:**
+   - **Impact:** As a provider of cloud computing services and cybersecurity solutions, TechExampleCorp is at a heightened risk of data breaches. A breach could lead to significant financial losses, damage to reputation, and potential legal liabilities.
+   - **Mitigation:** The company invests heavily in security infrastructure and protocols to prevent unauthorized access and data leaks. However, the increasing sophistication of cyber-attacks poses a continuous threat.
+
+2. **Regulatory Compliance Issues:**
+   - **Impact:** The company must navigate a complex web of international and domestic regulations, including data protection laws, cybersecurity standards, and consumer privacy regulations. Non-compliance could result in fines, sanctions, and loss of customer trust.
+   - **Mitigation:** TechExampleCorp has a dedicated compliance team to ensure adherence to all relevant laws and regulations. The team continuously monitors regulatory changes and implements necessary adjustments to company policies and procedures.
+
+3. **Patent Disputes:**
+   - **Impact:** Intellectual property (IP) is a critical asset for TechExampleCorp, particularly in the areas of cloud computing and cybersecurity. Patent disputes could lead to costly litigation, potential loss of IP rights, and disruption of product development and market positioning.
+   - **Mitigation:** The company actively manages its IP portfolio, including securing patents for its technologies and engaging in patent licensing agreements. It also monitors potential infringements and takes proactive measures to protect its IP rights.
+
+4. **Dependencies on Critical Third-Party Providers:**
+   - **Impact:** TechExampleCorp relies on various third-party providers for essential components, such as hardware, software, and cloud infrastructure. Disruptions in the supply chain or service delivery from these providers could impact the company's operations and financial performance.
+   - **Mitigation:** The company diversifies its supplier base and establishes contingency plans to mitigate risks associated with third-party dependencies. It also engages in long-term contracts and partnerships to ensure stable and reliable supply chains.
+
+**Operational Analytics**
+
+TechExampleCorp employs advanced operational analytics to monitor and optimize its performance. Key metrics include:
+
+- **Revenue Growth:** The company reported a revenue growth of 12% over the fiscal year, indicating strong market demand and effective sales strategies.
+- **Operational Costs:** There was an increase in operational costs, particularly in R&D for emerging technologies and expanded marketing efforts. These investments are aimed at sustaining long-term growth and competitive advantage.
+- **Customer Acquisition and Retention:** The company focuses on acquiring new customers and retaining existing ones through innovative products, superior customer service, and targeted marketing campaigns.
+
+**Strategic Initiatives in Digital Transformation**
+
+TechExampleCorp is committed to driving digital transformation across its operations and product offerings. Key strategic initiatives include:
+
+- **Cloud Computing Services:** The company is expanding its cloud infrastructure and services to meet growing customer demand for scalable and secure cloud solutions.
+- **Cybersecurity Solutions:** TechExampleCorp is investing in cutting-edge cybersecurity technologies to protect its customers' data and enhance overall security posture.
+- **Consumer Electronics:** The company is leveraging its expertise in technology to develop and market advanced consumer electronics, including smart devices and wearables.
+
+**Conclusion**
+
+TechExampleCorp faces several significant risk factors, including data breaches, regulatory compliance issues, patent disputes, and dependencies on critical third-party providers. The company's ability to mitigate these risks through robust security measures, compliance strategies, IP management, and diversified supply chains will be crucial to its continued success. Additionally, its focus on operational analytics and strategic initiatives in digital transformation positions the company well to capitalize on emerging opportunities in the cloud computing, cybersecurity, and consumer electronics sectors.
+  Request 2:
+    TTFT          : 19.110 s
+    Latency       : 19.110 s
+    Throughput    : 35.64 tokens/s
+    Prompt tokens : 154, Output tokens: 681
+    Completion    : **Risk Factors for TechExampleCorp**
+
+**1. Data Breaches:**
+TechExampleCorp operates in the cloud computing services and cybersecurity sectors, which inherently involve handling sensitive customer data. The risk of data breaches is significant due to the potential for unauthorized access to data centers, hacking incidents, and insider threats. A data breach could result in substantial financial losses, legal liabilities, and reputational damage. The company must continually invest in robust security measures, including encryption, intrusion detection systems, and employee training, to mitigate this risk.
+
+**2. Regulatory Compliance Issues:**
+As a global company, TechExampleCorp must comply with a myriad of regulations across different jurisdictions, including data protection laws like the GDPR, cybersecurity standards, and export control regulations. Non-compliance can lead to hefty fines, legal actions, and restrictions on business operations. The company must stay abreast of regulatory changes and ensure that its policies and procedures are updated accordingly to avoid compliance risks.
+
+**3. Patent Disputes:**
+The technology industry is highly competitive, and patent disputes are common. TechExampleCorp could face legal challenges from competitors or third parties claiming infringement of their intellectual property rights. Such disputes can be costly, time-consuming, and may result in the need to pay royalties or modify products to avoid infringement. The company must maintain a strong patent portfolio and engage in proactive patent management to reduce the risk of disputes.
+
+**4. Dependencies on Critical Third-Party Providers:**
+TechExampleCorp relies on various third-party providers for critical components and services, including hardware suppliers, software developers, and logistics partners. Disruptions in the supply chain, service outages, or changes in third-party business strategies could impact the company's operations and financial performance. The company must diversify its supplier base, establish contingency plans, and maintain strong relationships with key providers to manage this risk.
+
+**Operational Analytics:**
+TechExampleCorp leverages advanced analytics to drive operational efficiency and strategic decision-making. The company collects and analyzes data from various sources, including customer usage patterns, market trends, and internal processes. This data-driven approach enables the company to identify opportunities for cost savings, improve customer experiences, and stay ahead of competitors in rapidly evolving markets.
+
+**Strategic Initiatives in Digital Transformation:**
+TechExampleCorp is actively pursuing digital transformation initiatives to enhance its competitive position and drive growth. These initiatives include investing in emerging technologies such as artificial intelligence (AI), the Internet of Things (IoT), and blockchain. The company is also focusing on expanding its digital services portfolio, improving its cloud infrastructure, and enhancing its cybersecurity offerings. By embracing digital transformation, TechExampleCorp aims to create innovative solutions that meet the evolving needs of its customers.
+
+**Conclusion:**
+TechExampleCorp faces several key risk factors, including data breaches, regulatory compliance issues, patent disputes, and dependencies on critical third-party providers. The company is addressing these risks through robust security measures, proactive regulatory compliance, strong patent management, and diversified supplier relationships. Additionally, TechExampleCorp is leveraging operational analytics and pursuing strategic initiatives in digital transformation to drive operational efficiency and strategic growth.
+  Request 3 failed: HTTP Error 429: Too Many Requests
+
+  Summary for concurrency 3:
+    Successful requests          : 2
+    Failed requests              : 1
+    Average TTFT per request     : 15.182 s
+    Average throughput per req   : 60.29 tokens/s
+    Overall throughput (sum)     : 120.58 tokens/s
+    Batch duration (wall-clock)  : 19.113 s
+
+Scenario: medium_10k, Concurrency: 4
+[Warning] Attempt 1: HTTP 429 Too Many Requests, backing off 1 seconds.
+[Warning] Attempt 1: HTTP 429 Too Many Requests, backing off 1 seconds.
+[Warning] Attempt 2: HTTP 429 Too Many Requests, backing off 2 seconds.
+[Warning] Attempt 2: HTTP 429 Too Many Requests, backing off 2 seconds.
+[Warning] Attempt 3: HTTP 429 Too Many Requests, backing off 4 seconds.
+[Warning] Attempt 3: HTTP 429 Too Many Requests, backing off 4 seconds.
+  Request 1:
+    TTFT          : 13.460 s
+    Latency       : 13.460 s
+    Throughput    : 90.86 tokens/s
+    Prompt tokens : 154, Output tokens: 1223
+    Completion    : **Main Risk Factors for TechExampleCorp**
+
+TechExampleCorp, a company operating in the cloud computing services, cybersecurity, and consumer electronics sectors, faces several significant risk factors that could impact its financial performance and operational stability. These risks are critical to understand for stakeholders, including investors, customers, and employees. Below is a detailed analysis of the main risk factors identified in the company's 10-K filing for the fiscal year ended December 31, 2022.
+
+### 1. Data Breaches
+
+**Description:**
+Data breaches pose a severe risk to TechExampleCorp due to the sensitive nature of the data handled by its cloud computing and cybersecurity services. A breach could lead to the loss of customer trust, legal liabilities, and financial losses.
+
+**Impact:**
+- **Customer Trust:** A data breach can damage the company's reputation, leading to a loss of current and potential customers.
+- **Legal Liabilities:** The company may face lawsuits and regulatory fines if found negligent in protecting customer data.
+- **Financial Losses:** The direct costs of a breach include remediation, legal fees, and potential fines. Indirect costs may include loss of business and increased cybersecurity insurance premiums.
+
+### 2. Regulatory Compliance Issues
+
+**Description:**
+TechExampleCorp must comply with various regulations, including data protection laws (e.g., GDPR, CCPA), cybersecurity standards, and industry-specific regulations. Failure to comply can result in significant penalties and operational disruptions.
+
+**Impact:**
+- **Penalties:** Non-compliance can lead to fines and other penalties.
+- **Operational Disruptions:** Regulatory investigations can distract management and disrupt normal business operations.
+- **Reputational Damage:** Compliance issues can harm the company's reputation and customer relationships.
+
+### 3. Patent Disputes
+
+**Description:**
+The technology sector is highly competitive, and intellectual property (IP) is a critical asset. TechExampleCorp faces risks related to patent infringement claims and disputes over its own patents.
+
+**Impact:**
+- **Legal Costs:** Patent disputes can be costly and time-consuming.
+- **Operational Distractions:** Ongoing disputes can divert management's attention from core business activities.
+- **Innovation Setbacks:** The threat of litigation can deter investment in R&D and slow down the pace of innovation.
+
+### 4. Dependencies on Critical Third-Party Providers
+
+**Description:**
+TechExampleCorp relies on third-party providers for various components of its operations, including hardware, software, and cloud infrastructure. Any disruption in the supply chain or services provided by these third parties can significantly impact the company's ability to deliver its products and services.
+
+**Impact:**
+- **Service Disruptions:** Issues with third-party providers can lead to downtime and service interruptions.
+- **Increased Costs:** The company may face higher costs if it needs to switch providers or expedite shipping.
+- **Supply Chain Vulnerabilities:** Reliance on a limited number of suppliers increases the risk of supply chain disruptions.
+
+### 5. Cybersecurity Threats
+
+**Description:**
+As a cybersecurity provider, TechExampleCorp must ensure the integrity and security of its own systems and infrastructure. The company faces risks from various cyber threats, including hacking, malware, and ransomware attacks.
+
+**Impact:**
+- **Operational Disruptions:** Cyberattacks can lead to downtime and loss of data.
+- **Financial Losses:** The costs of responding to and recovering from cyberattacks can be substantial.
+- **Reputational Damage:** Successful attacks can undermine the company's credibility as a cybersecurity provider.
+
+### 6. Market Competition
+
+**Description:**
+TechExampleCorp operates in highly competitive markets, with numerous players vying for market share. The company must continuously innovate and differentiate its offerings to maintain its competitive edge.
+
+**Impact:**
+- **Loss of Market Share:** Intense competition can lead to a decline in market share.
+- **Price Pressure:** Competitors may engage in price wars, putting pressure on the company's margins.
+- **Innovation Challenges:** Keeping pace with technological advancements and competitor offerings requires significant investment in R&D.
+
+### 7. Economic Uncertainty
+
+**Description:**
+Economic fluctuations can impact TechExampleCorp's business, particularly in consumer electronics where demand is sensitive to economic conditions. The company faces risks from recessions, currency fluctuations, and changes in consumer spending patterns.
+
+**Impact:**
+- **Reduced Demand:** Economic downturns can lead to lower demand for consumer electronics.
+- **Currency Fluctuations:** Changes in exchange rates can affect the company's profitability.
+- **Supply Chain Disruptions:** Economic instability can disrupt supply chains and increase costs.
+
+### 8. Technological Obsolescence
+
+**Description:**
+The rapid pace of technological change means that TechExampleCorp's products and services could become obsolete quickly. The company must invest in continuous innovation to avoid being left behind by newer technologies.
+
+**Impact:**
+- **Loss of Relevance:** Failure to keep up with technological advancements can render the company's offerings irrelevant.
+- **Decreased Sales:** Technological obsolescence can lead to declining sales as customers
+  Request 2:
+    TTFT          : 20.952 s
+    Latency       : 20.952 s
+    Throughput    : 33.50 tokens/s
+    Prompt tokens : 154, Output tokens: 702
+    Completion    : **TechExampleCorp 10-K Risk Factors and Strategic Initiatives Summary**
+
+**Risk Factors:**
+
+1. **Data Breaches and Cybersecurity Threats:**
+   - The company operates in the cloud computing and cybersecurity sectors, making it highly susceptible to data breaches and cyber-attacks. Any breach could lead to significant financial losses, damage to reputation, and potential legal liabilities.
+
+2. **Regulatory Compliance Issues:**
+   - TechExampleCorp faces various regulatory requirements across different jurisdictions. Non-compliance with these regulations could result in fines, penalties, and operational disruptions.
+
+3. **Patent Disputes:**
+   - The company's reliance on proprietary technologies exposes it to the risk of patent disputes. Such disputes can be costly and may also result in the loss of competitive advantage if the company is unable to enforce its patents.
+
+4. **Dependencies on Critical Third-Party Providers:**
+   - TechExampleCorp depends on third-party providers for critical components and services. Disruptions in the supply chain or services from these providers could impact the company's operations and financial performance.
+
+**Operational Analytics:**
+
+- **Revenue Growth:** TechExampleCorp reported a revenue growth of 12% for the fiscal year ended December 31, 2022. This indicates a positive trend in the company's top line.
+
+- **Increased Operational Costs:** The company experienced increased operational costs in R&D and marketing. R&D costs are essential for maintaining a competitive edge in emerging technologies, while marketing expenses are crucial for driving sales and brand awareness.
+
+**Strategic Initiatives in Digital Transformation:**
+
+- **Investment in Emerging Technologies:**
+  - TechExampleCorp is investing heavily in R&D to develop and integrate emerging technologies into its product and service offerings. This includes advancements in cloud computing, artificial intelligence, and machine learning.
+
+- **Enhancing Cybersecurity Capabilities:**
+  - The company is focusing on enhancing its cybersecurity capabilities to protect its own infrastructure and provide robust security solutions to its customers.
+
+- **Expanding Market Presence:**
+  - TechExampleCorp is expanding its market presence through strategic marketing initiatives and partnerships. This includes entering new markets and strengthening its position in existing ones.
+
+- **Strengthening Regulatory Compliance:**
+  - The company is strengthening its regulatory compliance framework to ensure adherence to all relevant laws and regulations. This includes investing in compliance infrastructure and training.
+
+- **Mitigating Supply Chain Risks:**
+  - TechExampleCorp is working to mitigate supply chain risks by diversifying its supplier base and implementing robust risk management practices.
+
+**Conclusion:**
+
+TechExampleCorp faces several key risk factors, including data breaches, regulatory compliance issues, patent disputes, and dependencies on third-party providers. However, the company is also experiencing positive revenue growth and is actively investing in strategic initiatives to drive digital transformation. By focusing on emerging technologies, enhancing cybersecurity, expanding market presence, strengthening regulatory compliance, and mitigating supply chain risks, TechExampleCorp aims to maintain its competitive edge and ensure long-term success.
+  Request 3 failed: HTTP Error 429: Too Many Requests
+  Request 4 failed: HTTP Error 429: Too Many Requests
+
+  Summary for concurrency 4:
+    Successful requests          : 2
+    Failed requests              : 2
+    Average TTFT per request     : 17.206 s
+    Average throughput per req   : 62.18 tokens/s
+    Overall throughput (sum)     : 124.37 tokens/s
+    Batch duration (wall-clock)  : 20.955 s
+
+Scenario: medium_10k, Concurrency: 5
+[Warning] Attempt 1: HTTP 429 Too Many Requests, backing off 1 seconds.
+[Warning] Attempt 1: HTTP 429 Too Many Requests, backing off 1 seconds.
+[Warning] Attempt 1: HTTP 429 Too Many Requests, backing off 1 seconds.
+[Warning] Attempt 2: HTTP 429 Too Many Requests, backing off 2 seconds.
+[Warning] Attempt 2: HTTP 429 Too Many Requests, backing off 2 seconds.
+[Warning] Attempt 2: HTTP 429 Too Many Requests, backing off 2 seconds.
+[Warning] Attempt 3: HTTP 429 Too Many Requests, backing off 4 seconds.
+[Warning] Attempt 3: HTTP 429 Too Many Requests, backing off 4 seconds.
+[Warning] Attempt 3: HTTP 429 Too Many Requests, backing off 4 seconds.
+  Request 1:
+    TTFT          : 11.250 s
+    Latency       : 11.250 s
+    Throughput    : 84.45 tokens/s
+    Prompt tokens : 154, Output tokens: 950
+    Completion    : **Risk Factors for TechExampleCorp**
+
+TechExampleCorp operates in the highly dynamic and competitive sectors of cloud computing services, cybersecurity, and consumer electronics. The following are the main risk factors that the company faces:
+
+1. **Data Breaches and Cybersecurity Threats:**
+   - As a cybersecurity firm, TechExampleCorp is acutely aware of the risks associated with data breaches. The company's own clients could potentially be targets of cyber-attacks, which could compromise sensitive data and lead to significant financial and reputational damage.
+   - The company also faces the risk of its own systems being breached, which could disrupt operations and lead to loss of customer trust.
+
+2. **Regulatory Compliance Issues:**
+   - The technology industry is subject to stringent regulatory requirements, particularly in areas such as data protection (e.g., GDPR, CCPA) and privacy. Non-compliance with these regulations could result in substantial fines and legal liabilities.
+   - Changes in regulations or the introduction of new laws could also impact the company's operations and require additional investments to ensure compliance.
+
+3. **Patent Disputes:**
+   - Intellectual property (IP) is a critical asset for TechExampleCorp, given its focus on innovation in cloud computing and consumer electronics. The company faces the risk of patent infringement claims from competitors, which could result in costly litigation and potential damages.
+   - Additionally, the company must continuously invest in research and development (R&D) to maintain its competitive edge, which could lead to further patent disputes.
+
+4. **Dependencies on Critical Third-Party Providers:**
+   - TechExampleCorp relies on various third-party providers for its operations, including cloud service providers, hardware manufacturers, and software developers. Any disruption in the services provided by these third parties could significantly impact the company's ability to deliver its products and services.
+   - The company also faces the risk of increased costs or reduced quality from these third-party providers, which could affect its profitability and customer satisfaction.
+
+**Operational Analytics and Strategic Initiatives**
+
+Despite these risk factors, TechExampleCorp has demonstrated a robust growth trajectory, with a revenue increase of 12% over the fiscal year. The company has also been proactive in addressing these risks through various strategic initiatives:
+
+1. **Investment in Cybersecurity:**
+   - TechExampleCorp has significantly increased its investment in cybersecurity measures to protect its clients' data and its own systems. This includes the adoption of advanced encryption technologies, multi-factor authentication, and continuous monitoring of network activity.
+   - The company has also expanded its cybersecurity services to address emerging threats and provide comprehensive solutions to its clients.
+
+2. **Enhanced Regulatory Compliance:**
+   - TechExampleCorp has strengthened its compliance framework to ensure adherence to data protection and privacy regulations. This includes regular audits, staff training programs, and the implementation of robust data governance policies.
+   - The company has also engaged with regulatory authorities to stay abreast of changes in regulations and ensure timely compliance.
+
+3. **Aggressive IP Management:**
+   - TechExampleCorp has bolstered its IP management capabilities to protect its innovations and mitigate the risk of patent disputes. This includes proactive patent filing, regular IP audits, and the establishment of a dedicated IP legal team.
+   - The company has also pursued strategic partnerships and collaborations to leverage complementary IP portfolios and enhance its competitive position.
+
+4. **Diversification of Third-Party Dependencies:**
+   - TechExampleCorp has diversified its reliance on third-party providers to reduce the risk of disruptions and cost increases. This includes the development of in-house capabilities, strategic supplier partnerships, and the exploration of alternative sourcing options.
+   - The company has also implemented stringent supplier performance metrics and continuous improvement programs to ensure high-quality services and products.
+
+**Conclusion**
+
+TechExampleCorp faces several significant risk factors, including data breaches, regulatory compliance issues, patent disputes, and dependencies on critical third-party providers. However, the company has demonstrated a strong commitment to addressing these risks through strategic initiatives in cybersecurity, regulatory compliance, IP management, and supplier diversification. These efforts have contributed to the company's robust revenue growth and enhanced its ability to navigate the complex and competitive technology landscape.
+  Request 2:
+    TTFT          : 19.801 s
+    Latency       : 19.801 s
+    Throughput    : 39.39 tokens/s
+    Prompt tokens : 154, Output tokens: 780
+    Completion    : **Summary of TechExampleCorp's Risk Factors and Strategic Initiatives**
+
+**Risk Factors:**
+
+1. **Data Breaches:**
+   - As a cloud computing services provider, TechExampleCorp is highly susceptible to data breaches. The company holds vast amounts of sensitive data, which could be compromised by cyber-attacks, leading to financial losses and reputational damage.
+
+2. **Regulatory Compliance Issues:**
+   - The technology sector is heavily regulated, and TechExampleCorp must comply with various international, national, and local regulations. Non-compliance could result in significant fines, legal penalties, and operational disruptions.
+
+3. **Patent Disputes:**
+   - The company faces ongoing patent disputes, which could lead to costly litigation, injunctions against the sale of products, and potential licensing fees. These disputes can also hinder innovation and product development.
+
+4. **Dependencies on Critical Third-Party Providers:**
+   - TechExampleCorp relies on third-party providers for critical components, software, and services. Disruptions in the supply chain or issues with these providers could impact the company's operations and ability to deliver products and services.
+
+**Operational Analytics:**
+
+- **Revenue Growth:** TechExampleCorp reported a revenue growth of 12% for the fiscal year ended December 31, 2022. This growth indicates a strong market position and successful sales strategies.
+
+- **Operational Costs:** The company experienced increased operational costs in research and development (R&D) for emerging technologies and expanded marketing efforts. These investments are aimed at driving future growth and maintaining a competitive edge.
+
+**Strategic Initiatives in Digital Transformation:**
+
+- **Investment in Emerging Technologies:**
+  - TechExampleCorp is heavily investing in R&D for emerging technologies such as artificial intelligence (AI), machine learning (ML), and the Internet of Things (IoT). These investments are intended to drive innovation, enhance product offerings, and create new revenue streams.
+
+- **Enhanced Cybersecurity Measures:**
+  - The company is implementing robust cybersecurity measures to protect against data breaches and cyber-attacks. This includes advanced threat detection systems, regular security audits, and employee training programs.
+
+- **Compliance and Regulatory Strategy:**
+  - TechExampleCorp is developing a comprehensive compliance and regulatory strategy to ensure adherence to all relevant laws and regulations. This includes establishing dedicated compliance teams and investing in compliance software and tools.
+
+- **Patent Strategy and Management:**
+  - The company is actively managing its patent portfolio to minimize the risk of disputes and litigation. This includes conducting regular patent audits, pursuing strategic patent filings, and engaging in proactive negotiations with potential infringers.
+
+- **Supplier and Partner Management:**
+  - TechExampleCorp is enhancing its supplier and partner management practices to reduce dependencies on critical third-party providers. This includes diversifying its supplier base, negotiating favorable terms with key partners, and investing in in-house capabilities.
+
+**Conclusion:**
+
+TechExampleCorp faces several significant risk factors, including data breaches, regulatory compliance issues, patent disputes, and dependencies on critical third-party providers. However, the company is proactively addressing these risks through strategic initiatives in digital transformation, including investments in emerging technologies, enhanced cybersecurity measures, comprehensive compliance strategies, proactive patent management, and improved supplier and partner management practices. These efforts are aimed at ensuring the company's long-term success and maintaining its competitive position in the technology sector.
+  Request 3 failed: HTTP Error 429: Too Many Requests
+  Request 4 failed: HTTP Error 429: Too Many Requests
+  Request 5 failed: HTTP Error 429: Too Many Requests
+
+  Summary for concurrency 5:
+    Successful requests          : 2
+    Failed requests              : 3
+    Average TTFT per request     : 15.526 s
+    Average throughput per req   : 61.92 tokens/s
+    Overall throughput (sum)     : 123.84 tokens/s
+    Batch duration (wall-clock)  : 19.806 s
+
+Scenario: long_10k, Concurrency: 1
+  Request 1:
+    TTFT          : 13.329 s
+    Latency       : 13.329 s
+    Throughput    : 86.73 tokens/s
+    Prompt tokens : 252, Output tokens: 1156
+    Completion    : **Risk Factors for MacroExampleInc**
+
+MacroExampleInc, a diversified company engaged in manufacturing large-scale industrial machinery, consumer electronics, and software platforms, has identified several key risk factors that could impact its operations and financial performance. These risk factors are crucial for stakeholders to understand as they navigate the complex and dynamic business environment in which the company operates. Below is a detailed analysis of the principal uncertainties and challenges faced by MacroExampleInc.
+
+**1. Supply Chain Disruptions:**
+
+Supply chain disruptions have become a significant concern for many manufacturing companies, including MacroExampleInc. These disruptions can be caused by various factors such as natural disasters, geopolitical tensions, and pandemics. The company has experienced challenges due to supply chain interruptions, which have affected its ability to produce and deliver products on time. This can lead to increased costs, delayed revenues, and customer dissatisfaction.
+
+**2. Increased Commodity Prices:**
+
+The rise in commodity prices has a direct impact on the cost of raw materials and components used in the production of MacroExampleInc's products. This increase in costs can squeeze profit margins, especially if the company is unable to pass these costs onto its customers. The volatility in commodity prices makes it challenging for the company to predict and manage its cost structure effectively.
+
+**3. Labor Shortages:**
+
+Labor shortages in key production facilities can hinder MacroExampleInc's manufacturing capabilities. This can be due to a lack of skilled workers, high turnover rates, or competition for labor in the market. Labor shortages can lead to production delays, increased labor costs, and a potential decline in product quality if the company is forced to hire less experienced workers.
+
+**4. Expansion into Cloud-Based Solutions:**
+
+While the expansion into cloud-based solutions for real-time analytics and specialized IoT devices has led to a 15% year-over-year increase in revenue, it also introduces new challenges. The company needs to invest heavily in R&D and infrastructure to support these new offerings. Additionally, the rapidly evolving technology landscape means that the company must continuously innovate to stay competitive.
+
+**5. Sharp Rise in Operating Expenses:**
+
+The sharp rise in operating expenses, partially due to acquisitions, enhanced R&D efforts, and higher marketing budgets in global markets, can strain MacroExampleInc's financial resources. While these investments are aimed at driving growth and expanding market presence, they also increase the company's cost base and require careful management to ensure a positive return on investment.
+
+**6. Fluctuating Currency Exchange Rates:**
+
+Fluctuating currency exchange rates can significantly impact MacroExampleInc's financial performance, especially since the company operates in multiple jurisdictions. Adverse currency movements can reduce the value of foreign earnings when converted to the company's reporting currency. This can also affect the cost of imported raw materials and components, further complicating financial planning and management.
+
+**7. Reliance on Strategic Partnerships:**
+
+MacroExampleInc's reliance on strategic partnerships for integrated services can pose risks if these partnerships are not managed effectively. The company needs to ensure that its partners are reliable and that the terms of these partnerships are favorable. Any disruptions or issues with these partnerships can impact the company's ability to deliver products and services to its customers.
+
+**8. Cybersecurity Vulnerabilities:**
+
+As a technology company, MacroExampleInc faces significant cybersecurity risks. Cyberattacks can lead to data breaches, loss of intellectual property, and disruption of operations. The company must invest in robust cybersecurity measures to protect its assets and maintain customer trust.
+
+**9. Evolving Consumer Preferences:**
+
+Evolving consumer preferences for digital offerings can pose a challenge for MacroExampleInc. The company needs to adapt its product and service offerings to meet these changing preferences. Failure to do so can result in a loss of market share and reduced revenues.
+
+**10. Regulatory Compliance:**
+
+Compliance with regulatory requirements across multiple jurisdictions can be complex and costly. MacroExampleInc needs to ensure that it adheres to all relevant regulations to avoid fines, penalties, and reputational damage. Changes in regulations can also require the company to adjust its operations and strategies.
+
+**11. Changing Environmental Standards:**
+
+Changing environmental standards can impact MacroExampleInc's manufacturing processes and product offerings. The company needs to invest in sustainable practices and technologies to meet these standards. Failure to do so can result in increased costs, regulatory issues, and negative public perception.
+
+**12. Intellectual Property Litigation:**
+
+Intellectual property litigation can be costly and time-consuming for MacroExampleInc. The company needs to protect its intellectual property and ensure that it does not infringe on the rights of others. Any legal disputes can impact the company's financial performance and reputation.
+
+**Summary:**
+
+MacroExampleInc faces a range of risk factors that could impact its operations and financial performance. These include supply chain disruptions, increased commodity prices, labor shortages, expansion into new technologies, rising operating expenses, fluctuating currency exchange rates, reliance on strategic partnerships, cybersecurity vulnerabilities, evolving consumer preferences, regulatory compliance, changing environmental standards, and intellectual property litigation. The company must carefully manage these risks to ensure sustainable growth and maintain its competitive position in the global market.
+
+  Summary for concurrency 1:
+    Successful requests          : 1
+    Failed requests              : 0
+    Average TTFT per request     : 13.329 s
+    Average throughput per req   : 86.73 tokens/s
+    Overall throughput (sum)     : 86.73 tokens/s
+    Batch duration (wall-clock)  : 13.334 s
+
+Scenario: long_10k, Concurrency: 2
+  Request 1:
+    TTFT          : 9.177 s
+    Latency       : 9.177 s
+    Throughput    : 80.09 tokens/s
+    Prompt tokens : 252, Output tokens: 735
+    Completion    : MacroExampleInc, a diversified company engaged in manufacturing large-scale industrial machinery, consumer electronics, and software platforms, has outlined several key risk factors in its 10-K filing for the fiscal year ended December 31, 2022. These risks are critical for investors, stakeholders, and the company's management to consider for strategic planning and risk mitigation. Below is a detailed analysis of the main risk factors:
+
+1. **Supply Chain Disruptions**: The company has faced supply chain disruptions, which are a common risk factor in the current global economic environment. These disruptions can be caused by various factors such as natural disasters, geopolitical tensions, or pandemics. For MacroExampleInc, these disruptions have impacted the availability of raw materials and components necessary for manufacturing its products.
+
+2. **Increased Commodity Prices**: Rising commodity prices can significantly affect the cost of goods sold (COGS) for a manufacturing company. MacroExampleInc has experienced increased commodity prices, which have led to higher production costs and squeezed profit margins.
+
+3. **Labor Shortages**: Labor shortages in key production facilities can hinder the company's ability to meet production targets and maintain product quality. This risk factor can be exacerbated by demographic changes, economic conditions, or competition for skilled labor.
+
+4. **Fluctuating Currency Exchange Rates**: As a global company, MacroExampleInc is exposed to the risk of fluctuating currency exchange rates. Changes in exchange rates can affect the company's international sales, cost of imported goods, and overall financial performance.
+
+5. **Reliance on Strategic Partnerships**: The company relies on strategic partnerships for integrated services, which can pose a risk if these partners face financial difficulties, operational challenges, or strategic shifts. The dependency on partners can also limit the company's flexibility in responding to market changes.
+
+6. **Cybersecurity Vulnerabilities**: With a growing emphasis on software platforms and cloud-based solutions, MacroExampleInc faces cybersecurity vulnerabilities. Breaches or attacks can result in data loss, financial losses, and damage to the company's reputation.
+
+7. **Evolving Consumer Preferences for Digital Offerings**: The company needs to adapt to evolving consumer preferences, particularly the increasing demand for digital offerings. Failure to innovate or meet consumer expectations can lead to a decline in market share and revenue.
+
+8. **Regulatory Compliance Across Multiple Jurisdictions**: Compliance with regulations across multiple jurisdictions can be complex and costly. MacroExampleInc must navigate varying regulatory environments, which can pose risks related to non-compliance and potential penalties.
+
+9. **Changing Environmental Standards**: Environmental standards are becoming more stringent, and the company must invest in sustainable practices and technologies to comply with these regulations. Failure to do so can result in reputational damage and financial penalties.
+
+10. **Intellectual Property Litigation**: The company faces the risk of intellectual property litigation, which can arise from disputes over patents, copyrights, or trademarks. Litigation can be costly and divert resources from core business activities.
+
+In summary, MacroExampleInc's main risk factors include supply chain disruptions, increased commodity prices, labor shortages, fluctuating currency exchange rates, reliance on strategic partnerships, cybersecurity vulnerabilities, evolving consumer preferences, regulatory compliance, changing environmental standards, and intellectual property litigation. These risks highlight the challenges the company faces in maintaining operational efficiency, financial stability, and competitive advantage in a dynamic and uncertain global market.
+  Request 2:
+    TTFT          : 19.192 s
+    Latency       : 19.192 s
+    Throughput    : 46.84 tokens/s
+    Prompt tokens : 252, Output tokens: 899
+    Completion    : MacroExampleInc, a diversified company engaged in the manufacturing of large-scale industrial machinery, consumer electronics, and software platforms, has identified several key risk factors in its 10-K filing for the fiscal year ended December 31, 2022. These risk factors are critical to understanding the operational and strategic challenges the company faces. Below is a detailed analysis of these risk factors:
+
+1. **Supply Chain Disruptions:**
+   - MacroExampleInc has experienced supply chain disruptions throughout the year. These disruptions can stem from various sources, including geopolitical tensions, natural disasters, and global pandemics. The company's reliance on a complex supply chain can lead to delays, increased costs, and inventory shortages, which can negatively impact its ability to meet customer demand and maintain profitability.
+
+2. **Increased Commodity Prices:**
+   - The rise in commodity prices is another significant risk factor. Higher costs for raw materials can squeeze profit margins, especially in industries like consumer electronics and industrial machinery, where materials represent a substantial portion of the total cost. The company must manage these cost increases effectively to avoid eroding its competitive position.
+
+3. **Labor Shortages:**
+   - Labor shortages in key production facilities can hinder the company's manufacturing capabilities. Shortages can result from demographic shifts, skill gaps, and increased competition for workers. This can lead to higher labor costs, reduced output, and potential quality control issues, all of which can impact the company's performance.
+
+4. **Fluctuating Currency Exchange Rates:**
+   - MacroExampleInc operates in a global market, which exposes it to the risk of fluctuating currency exchange rates. Adverse currency movements can affect the company's revenue and profitability when international sales are converted back to the reporting currency. The company must employ effective hedging strategies to mitigate this risk.
+
+5. **Reliance on Strategic Partnerships:**
+   - The company relies on strategic partnerships for integrated services, particularly in the software and IoT device sectors. While these partnerships can provide access to new markets and technologies, they also introduce risks related to the performance and stability of partners. Any issues with partners can disrupt the company's operations and growth plans.
+
+6. **Cybersecurity Vulnerabilities:**
+   - As a technology company, MacroExampleInc faces cybersecurity vulnerabilities. Breaches can lead to data loss, intellectual property theft, and damage to the company's reputation. The company must invest in robust cybersecurity measures to protect its assets and maintain customer trust.
+
+7. **Evolving Consumer Preferences for Digital Offerings:**
+   - Changing consumer preferences towards digital offerings pose a risk to the company's traditional product lines. The company must adapt to these changes by investing in digital transformation and innovation to remain relevant in the market.
+
+8. **Regulatory Compliance Across Multiple Jurisdictions:**
+   - The company operates in multiple jurisdictions, each with its own regulatory environment. Compliance with these regulations can be complex and costly. Failure to comply can result in fines, legal action, and damage to the company's reputation.
+
+9. **Changing Environmental Standards:**
+   - Environmental standards are evolving, and companies are increasingly expected to adopt sustainable practices. MacroExampleInc must keep pace with these changes to avoid regulatory penalties and reputational harm. This includes investing in energy-efficient technologies and reducing its environmental footprint.
+
+10. **Intellectual Property Litigation:**
+    - Intellectual property litigation is a risk factor for the company. Legal disputes can result in significant financial costs, loss of competitive advantage, and damage to the company's brand. The company must protect its intellectual property through robust legal strategies and avoid infringing on the rights of others.
+
+In summary, MacroExampleInc faces a range of risk factors that impact its operations and strategic initiatives. These risks include supply chain disruptions, increased commodity prices, labor shortages, fluctuating currency exchange rates, reliance on strategic partnerships, cybersecurity vulnerabilities, evolving consumer preferences, regulatory compliance, changing environmental standards, and intellectual property litigation. The company must address these risks through effective risk management, strategic planning, and continuous adaptation to the changing business environment.
+
+  Summary for concurrency 2:
+    Successful requests          : 2
+    Failed requests              : 0
+    Average TTFT per request     : 14.185 s
+    Average throughput per req   : 63.47 tokens/s
+    Overall throughput (sum)     : 126.93 tokens/s
+    Batch duration (wall-clock)  : 19.196 s
+
+Scenario: long_10k, Concurrency: 3
+[Warning] Attempt 1: HTTP 429 Too Many Requests, backing off 1 seconds.
+[Warning] Attempt 2: HTTP 429 Too Many Requests, backing off 2 seconds.
+[Warning] Attempt 3: HTTP 429 Too Many Requests, backing off 4 seconds.
+  Request 1:
+    TTFT          : 10.751 s
+    Latency       : 10.751 s
+    Throughput    : 83.06 tokens/s
+    Prompt tokens : 252, Output tokens: 893
+    Completion    : **Risk Factors for MacroExampleInc**
+
+MacroExampleInc, a diversified company involved in the manufacturing of large-scale industrial machinery, consumer electronics, and software platforms, faces several significant risk factors that could impact its operations and financial performance. These risks are critical to understand for investors, stakeholders, and management alike. Below is a detailed analysis of the main risk factors identified in the company's 10-K filing for the fiscal year ended December 31, 2022:
+
+1. **Supply Chain Disruptions**: The company has experienced disruptions in its supply chain, which can lead to delays in production and delivery of products. This risk is exacerbated by global events such as the COVID-19 pandemic, natural disasters, and geopolitical tensions that can affect the availability of raw materials and components.
+
+2. **Increased Commodity Prices**: Rising prices of commodities can increase the cost of production for the company. This can squeeze profit margins and lead to higher prices for end consumers, potentially reducing demand for the company's products.
+
+3. **Labor Shortages**: Labor shortages in key production facilities can hinder the company's ability to meet production targets. This can result in increased labor costs due to the need to hire temporary workers or offer higher wages to attract and retain skilled employees.
+
+4. **Expansion into New Markets**: While the company has seen a 15% year-over-year increase in revenue due to its expansion into cloud-based solutions and specialized IoT devices, this move also introduces risks. Entering new markets requires significant investment in R&D, marketing, and infrastructure, which can strain financial resources.
+
+5. **Operating Expenses**: The sharp rise in operating expenses, including acquisitions, enhanced R&D efforts, and higher marketing budgets, can impact the company's profitability. These expenses must be carefully managed to ensure they contribute to long-term growth rather than short-term financial strain.
+
+6. **Fluctuating Currency Exchange Rates**: The company operates in multiple jurisdictions, making it susceptible to currency exchange rate fluctuations. Adverse movements in exchange rates can affect the company's revenue and profitability, especially if it relies heavily on imports or exports.
+
+7. **Reliance on Strategic Partnerships**: The company's success in providing integrated services is heavily dependent on its strategic partnerships. Any disruption or failure in these partnerships can impact the company's ability to deliver competitive products and services.
+
+8. **Cybersecurity Vulnerabilities**: As a technology company, MacroExampleInc is at risk of cybersecurity breaches. These vulnerabilities can lead to data theft, service disruptions, and damage to the company's reputation, affecting customer trust and sales.
+
+9. **Evolving Consumer Preferences**: Consumer preferences for digital offerings are constantly evolving. The company must continuously innovate and adapt its product offerings to meet changing demands, which can be challenging and resource-intensive.
+
+10. **Regulatory Compliance**: The company must comply with regulatory requirements across multiple jurisdictions. Changes in regulations or non-compliance can result in fines, legal action, and reputational damage.
+
+11. **Changing Environmental Standards**: Increasingly stringent environmental standards can impact the company's operations and product development. The company must invest in sustainable practices and technologies to meet these standards and avoid potential penalties.
+
+12. **Intellectual Property Litigation**: The company faces the risk of intellectual property litigation, which can result in significant legal costs, damages, and restrictions on the use of certain technologies or products.
+
+**Summary**
+
+MacroExampleInc operates in a complex and dynamic environment, facing a range of risks that could impact its financial performance and strategic objectives. The company must navigate supply chain disruptions, increased commodity prices, and labor shortages while managing the costs associated with its expansion into new markets and the rise in operating expenses. Additionally, MacroExampleInc must address risks related to fluctuating currency exchange rates, reliance on strategic partnerships, cybersecurity vulnerabilities, evolving consumer preferences, regulatory compliance, changing environmental standards, and intellectual property litigation. By effectively managing these risks, the company can position itself for sustainable growth and continued success in the competitive worldwide market.
+  Request 2:
+    TTFT          : 20.000 s
+    Latency       : 20.000 s
+    Throughput    : 40.80 tokens/s
+    Prompt tokens : 252, Output tokens: 816
+    Completion    : **Risk Factors for MacroExampleInc**
+
+MacroExampleInc operates in a dynamic and challenging global environment, facing a variety of risk factors that could impact its business operations, financial performance, and strategic objectives. The following are the main risk factors identified from the company's 10-K filing for the fiscal year ended December 31, 2022:
+
+1. **Supply Chain Disruptions**: The company has experienced significant disruptions in its supply chain, which can lead to delays in production, increased costs, and potential loss of sales. These disruptions may be caused by various factors, including natural disasters, geopolitical events, or global pandemics.
+
+2. **Increased Commodity Prices**: Rising commodity prices can increase the cost of raw materials and components, affecting the company's profitability. This risk is particularly relevant given the company's involvement in manufacturing large-scale industrial machinery and consumer electronics, which are likely to be sensitive to changes in material costs.
+
+3. **Labor Shortages**: Labor shortages in key production facilities can hinder the company's ability to meet production targets and deliver products on time. This can lead to increased labor costs, reduced operational efficiency, and potential loss of market share.
+
+4. **Fluctuating Currency Exchange Rates**: The company's international operations expose it to the risk of currency exchange rate fluctuations, which can impact the cost of imports and exports, as well as the value of foreign earnings. This risk can lead to volatility in financial performance and may require the company to engage in hedging activities.
+
+5. **Reliance on Strategic Partnerships**: The company relies on strategic partnerships for integrated services, including cloud-based solutions, real-time analytics, and specialized IoT devices. Any disruption or termination of these partnerships can impact the company's ability to deliver services and generate revenue.
+
+6. **Cybersecurity Vulnerabilities**: The company's software platforms and digital offerings are susceptible to cybersecurity threats, which can lead to data breaches, loss of customer trust, and potential legal liabilities. This risk requires the company to invest in robust cybersecurity measures and protocols.
+
+7. **Evolving Consumer Preferences**: Changes in consumer preferences for digital offerings can impact the company's product mix and revenue streams. The company must continuously innovate and adapt to meet evolving consumer demands.
+
+8. **Regulatory Compliance**: The company operates in multiple jurisdictions, each with its own regulatory requirements. Compliance with these regulations can be complex and costly, and any non-compliance can result in penalties, fines, or reputational damage.
+
+9. **Changing Environmental Standards**: The company must adhere to changing environmental standards, which can impact its manufacturing processes, product design, and overall sustainability initiatives. This risk requires the company to invest in environmentally friendly technologies and practices.
+
+10. **Intellectual Property Litigation**: The company faces the risk of intellectual property litigation, which can result in significant legal costs, potential loss of proprietary technology, and reputational damage. This risk requires the company to maintain a strong focus on protecting its intellectual property rights.
+
+**Summary**
+
+MacroExampleInc operates in a highly competitive and complex global market, facing a range of risk factors that could impact its business operations and financial performance. The company's main risk factors include supply chain disruptions, increased commodity prices, labor shortages, fluctuating currency exchange rates, reliance on strategic partnerships, cybersecurity vulnerabilities, evolving consumer preferences, regulatory compliance, changing environmental standards, and intellectual property litigation. To mitigate these risks, the company must focus on enhancing its operational efficiency, diversifying its supply chain, investing in robust cybersecurity measures, continuously innovating to meet consumer demands, and maintaining compliance with regulatory requirements. By addressing these risk factors proactively, MacroExampleInc can position itself for sustainable growth and success in the future.
+  Request 3 failed: HTTP Error 429: Too Many Requests
+
+  Summary for concurrency 3:
+    Successful requests          : 2
+    Failed requests              : 1
+    Average TTFT per request     : 15.376 s
+    Average throughput per req   : 61.93 tokens/s
+    Overall throughput (sum)     : 123.86 tokens/s
+    Batch duration (wall-clock)  : 20.004 s
+
+Scenario: long_10k, Concurrency: 4
+[Warning] Attempt 1: HTTP 429 Too Many Requests, backing off 1 seconds.
+[Warning] Attempt 1: HTTP 429 Too Many Requests, backing off 1 seconds.
+[Warning] Attempt 2: HTTP 429 Too Many Requests, backing off 2 seconds.
+[Warning] Attempt 2: HTTP 429 Too Many Requests, backing off 2 seconds.
+[Warning] Attempt 3: HTTP 429 Too Many Requests, backing off 4 seconds.
+[Warning] Attempt 3: HTTP 429 Too Many Requests, backing off 4 seconds.
+  Request 1:
+    TTFT          : 9.943 s
+    Latency       : 9.943 s
+    Throughput    : 82.67 tokens/s
+    Prompt tokens : 252, Output tokens: 822
+    Completion    : MacroExampleInc's 10-K filing for the fiscal year ended December 31, 2022, highlights several key risk factors that could impact its operations and financial performance. These risks are critical for investors, stakeholders, and the company's management to understand and manage effectively. Below is a concise summary of the main risk factors identified in the excerpt:
+
+1. **Supply Chain Disruptions**: The company faces ongoing challenges with supply chain disruptions. These disruptions can lead to delays in production, increased costs for raw materials, and difficulties in meeting customer demand. The company must continuously adapt and find alternative suppliers to mitigate these risks.
+
+2. **Increased Commodity Prices**: Rising commodity prices can significantly impact the company's cost structure. Higher costs for raw materials and components can squeeze profit margins unless the company can pass these costs onto customers through price increases.
+
+3. **Labor Shortages**: Key production facilities are experiencing labor shortages, which can hinder the company's ability to produce goods at the required scale and pace. This risk may necessitate the company to invest in automation, training, or higher wages to attract and retain workers.
+
+4. **Expansion into New Markets**: The company's expansion into cloud-based solutions for real-time analytics and specialized IoT devices represents both an opportunity and a risk. While this has led to a 15% year-over-year increase in revenue, it also requires significant investment in R&D, marketing, and potentially new talent or acquisitions.
+
+5. **Operating Expenses**: The sharp rise in operating expenses, partly due to acquisitions, enhanced R&D efforts, and higher marketing budgets in global markets, can strain the company's financial resources. Effective cost management and return on investment from these expenditures are crucial.
+
+6. **Fluctuating Currency Exchange Rates**: As a global company, MacroExampleInc is exposed to the risk of currency fluctuations. Changes in exchange rates can affect the company's revenue and profitability, particularly in international markets.
+
+7. **Reliance on Strategic Partnerships**: The company relies on strategic partnerships for integrated services. Any disruptions or changes in these partnerships can impact the company's ability to deliver products and services effectively.
+
+8. **Cybersecurity Vulnerabilities**: With the increasing reliance on digital platforms and IoT devices, the company faces heightened cybersecurity risks. Breaches or attacks can lead to significant financial losses, damage to reputation, and loss of customer trust.
+
+9. **Evolving Consumer Preferences**: Changing consumer preferences for digital offerings can affect the demand for the company's products. The company must stay ahead of these trends and continuously innovate to meet evolving customer needs.
+
+10. **Regulatory Compliance**: Compliance with regulatory requirements across multiple jurisdictions can be complex and costly. Changes in regulations or non-compliance can result in fines, legal action, and reputational damage.
+
+11. **Changing Environmental Standards**: Evolving environmental standards and regulations can impact the company's operations, particularly in the manufacturing sector. The company may need to invest in cleaner technologies and processes to meet these standards.
+
+12. **Intellectual Property Litigation**: The company faces the risk of intellectual property litigation, which can result in significant legal costs, injunctions, and damage to competitive advantage. Protecting and enforcing intellectual property rights is crucial for the company's success.
+
+In summary, MacroExampleInc faces a range of risks that could impact its operations and financial performance. These include supply chain disruptions, increased commodity prices, labor shortages, expansion into new markets, rising operating expenses, currency exchange rate fluctuations, reliance on strategic partnerships, cybersecurity vulnerabilities, evolving consumer preferences, regulatory compliance challenges, changing environmental standards, and intellectual property litigation. The company must implement robust risk management strategies to address these uncertainties and ensure sustainable growth in a competitive worldwide market.
+  Request 2:
+    TTFT          : 20.867 s
+    Latency       : 20.867 s
+    Throughput    : 45.62 tokens/s
+    Prompt tokens : 252, Output tokens: 952
+    Completion    : MacroExampleInc, a diversified company engaged in manufacturing large-scale industrial machinery, consumer electronics, and software platforms, faced several significant risk factors in the fiscal year ended December 31, 2022. These risks are critical to understanding the challenges and uncertainties the company navigates in its pursuit of sustainable growth. The main risk factors identified in the 10-K filing are as follows:
+
+1. **Supply Chain Disruptions**: The company experienced disruptions in its supply chain, which are common in the manufacturing sector. These disruptions can be caused by various factors, including natural disasters, geopolitical tensions, and pandemics. They can lead to delays in production, increased costs, and difficulties in meeting customer demand.
+
+2. **Increased Commodity Prices**: Rising prices of raw materials and commodities can significantly impact the cost of goods sold (COGS) for a manufacturing company. This increase in input costs can squeeze profit margins, especially if the company is unable to pass these costs onto customers through price increases.
+
+3. **Labor Shortages**: Labor shortages in key production facilities can hinder the company's ability to maintain or increase production levels. This can be due to a lack of skilled workers, demographic changes, or competition for labor. Labor shortages can lead to increased labor costs, reduced output, and potential delays in project timelines.
+
+4. **Expansion into New Markets and Technologies**: The company's efforts to expand into cloud-based solutions for real-time analytics and specialized IoT devices represent both an opportunity and a risk. While this expansion can drive revenue growth, it also requires significant investment in R&D, marketing, and potentially new infrastructure. There is a risk that these investments may not yield the expected returns.
+
+5. **Operating Expenses**: The sharp rise in operating expenses, partially due to acquisitions, enhanced R&D efforts, and higher marketing budgets in global markets, can impact the company's profitability. While these expenses are aimed at supporting growth and competitive positioning, they must be carefully managed to ensure they do not outweigh the benefits.
+
+6. **Fluctuating Currency Exchange Rates**: As a global company, MacroExampleInc is exposed to currency exchange rate fluctuations. These fluctuations can impact the company's financial results, including revenue, costs, and profits. Managing currency risk is crucial to maintaining stable financial performance.
+
+7. **Reliance on Strategic Partnerships**: The company relies on strategic partnerships for integrated services. While partnerships can provide access to new markets, technologies, and capabilities, they also introduce risks related to the performance and reliability of partners. Any issues with partners can negatively impact the company's operations and financial results.
+
+8. **Cybersecurity Vulnerabilities**: The company's operations, particularly in the software and IoT sectors, are vulnerable to cybersecurity threats. Breaches can lead to data loss, operational disruptions, and damage to the company's reputation. Investing in robust cybersecurity measures is essential to mitigate these risks.
+
+9. **Evolving Consumer Preferences**: Consumer preferences for digital offerings are evolving rapidly. The company must continuously adapt its product and service offerings to meet these changing preferences. Failure to do so can result in reduced demand and competitive disadvantage.
+
+10. **Regulatory Compliance**: The company operates in multiple jurisdictions, each with its own regulatory requirements. Ensuring compliance with these regulations is critical to avoid legal penalties, reputational damage, and operational disruptions.
+
+11. **Changing Environmental Standards**: Environmental standards are becoming increasingly stringent. The company must comply with these standards to avoid penalties and reputational damage. Additionally, it must invest in sustainable practices and technologies to reduce its environmental impact and meet evolving standards.
+
+12. **Intellectual Property Litigation**: The company faces risks related to intellectual property (IP) litigation. Disputes over IP rights can result in legal costs, operational disruptions, and potential loss of revenue. Protecting and enforcing IP rights is crucial to maintaining competitive advantage and financial stability.
+
+In summary, MacroExampleInc faces a range of risk factors that are critical to its operations and financial performance. These risks include supply chain disruptions, increased commodity prices, labor shortages, expansion into new markets and technologies, rising operating expenses, currency exchange rate fluctuations, reliance on strategic partnerships, cybersecurity vulnerabilities, evolving consumer preferences, regulatory compliance, changing environmental standards, and intellectual property litigation. The company must carefully manage these risks to achieve sustainable growth and maintain its competitive position in the global market.
+  Request 3 failed: HTTP Error 429: Too Many Requests
+  Request 4 failed: HTTP Error 429: Too Many Requests
+
+  Summary for concurrency 4:
+    Successful requests          : 2
+    Failed requests              : 2
+    Average TTFT per request     : 15.405 s
+    Average throughput per req   : 64.14 tokens/s
+    Overall throughput (sum)     : 128.29 tokens/s
+    Batch duration (wall-clock)  : 20.872 s
+
+Scenario: long_10k, Concurrency: 5
+[Warning] Attempt 1: HTTP 429 Too Many Requests, backing off 1 seconds.
+[Warning] Attempt 1: HTTP 429 Too Many Requests, backing off 1 seconds.
+[Warning] Attempt 1: HTTP 429 Too Many Requests, backing off 1 seconds.
+[Warning] Attempt 2: HTTP 429 Too Many Requests, backing off 2 seconds.
+[Warning] Attempt 2: HTTP 429 Too Many Requests, backing off 2 seconds.
+[Warning] Attempt 2: HTTP 429 Too Many Requests, backing off 2 seconds.
+[Warning] Attempt 3: HTTP 429 Too Many Requests, backing off 4 seconds.
+[Warning] Attempt 3: HTTP 429 Too Many Requests, backing off 4 seconds.
+[Warning] Attempt 3: HTTP 429 Too Many Requests, backing off 4 seconds.
+  Request 1:
+    TTFT          : 10.250 s
+    Latency       : 10.250 s
+    Throughput    : 85.37 tokens/s
+    Prompt tokens : 252, Output tokens: 875
+    Completion    : **MacroExampleInc 10-K Excerpt: Risk Factors**
+
+MacroExampleInc, a diversified company engaged in the manufacturing of large-scale industrial machinery, consumer electronics, and software platforms, has outlined several risk factors in its 10-K filing for the fiscal year ended December 31, 2022. These risks are critical to understanding the potential challenges the company may face in the future. Below is a concise summary of the main risk factors:
+
+1. **Supply Chain Disruptions**:
+   - The company has experienced significant supply chain disruptions, which could continue to impact its ability to manufacture and deliver products. These disruptions could be due to various factors, including geopolitical tensions, natural disasters, or pandemics.
+
+2. **Increased Commodity Prices**:
+   - Rising prices of raw materials and commodities could affect the company's cost structure and profitability. Fluctuations in commodity prices can lead to increased production costs and may necessitate price adjustments for the end products.
+
+3. **Labor Shortages**:
+   - Labor shortages in key production facilities could hinder the company's manufacturing capacity. This could result in delays in product delivery and increased labor costs due to the need to attract and retain skilled workers.
+
+4. **Expansion into New Markets**:
+   - While the expansion into cloud-based solutions and IoT devices has led to a 15% year-over-year increase in revenue, it also introduces risks associated with entering new markets. These include the need for additional investments, potential regulatory hurdles, and the challenge of establishing a strong market presence.
+
+5. **Operating Expenses**:
+   - The sharp rise in operating expenses, driven by acquisitions, enhanced R&D efforts, and higher marketing budgets, could strain the company's financial resources. Effective management of these expenses is crucial to maintaining profitability.
+
+6. **Fluctuating Currency Exchange Rates**:
+   - Currency exchange rate fluctuations can impact the company's financial performance, particularly in its international operations. Adverse currency movements could lead to reduced revenue and increased costs.
+
+7. **Reliance on Strategic Partnerships**:
+   - The company's reliance on strategic partnerships for integrated services exposes it to risks related to the performance and reliability of these partners. Any disruption in these partnerships could affect the company's ability to deliver products and services.
+
+8. **Cybersecurity Vulnerabilities**:
+   - As a technology-driven company, MacroExampleInc faces cybersecurity risks. Breaches or attacks could lead to data loss, intellectual property theft, and damage to the company's reputation.
+
+9. **Evolving Consumer Preferences**:
+   - Changing consumer preferences, particularly for digital offerings, could impact the company's product portfolio and market strategy. The company must continuously innovate and adapt to meet these evolving preferences.
+
+10. **Regulatory Compliance**:
+    - Compliance with regulatory requirements across multiple jurisdictions is complex and resource-intensive. Non-compliance could result in fines, legal action, and reputational damage.
+
+11. **Changing Environmental Standards**:
+    - Evolving environmental standards and regulations could necessitate changes in the company's manufacturing processes and product designs. Failure to adapt could result in increased costs and regulatory penalties.
+
+12. **Intellectual Property Litigation**:
+    - The company faces risks related to intellectual property litigation, which could involve costly legal proceedings and potential damages. Protecting intellectual property rights is essential to maintaining competitive advantage.
+
+**Summary**
+
+MacroExampleInc faces a range of risk factors that could impact its operational and financial performance. These include supply chain disruptions, increased commodity prices, labor shortages, expansion into new markets, rising operating expenses, currency exchange rate fluctuations, reliance on strategic partnerships, cybersecurity vulnerabilities, evolving consumer preferences, regulatory compliance challenges, changing environmental standards, and intellectual property litigation. The company's ability to manage these risks effectively will be crucial to its continued growth and success in a competitive worldwide market.
+  Request 2:
+    TTFT          : 19.568 s
+    Latency       : 19.568 s
+    Throughput    : 42.52 tokens/s
+    Prompt tokens : 252, Output tokens: 832
+    Completion    : MacroExampleInc's 10-K filing for the fiscal year ended December 31, 2022, highlights several key risk factors that could impact the company's future performance and growth. These risk factors are critical for investors, stakeholders, and the company itself to understand and manage effectively. Below is a concise summary of the main risk factors identified in the excerpt:
+
+1. **Supply Chain Disruptions:**
+   - The company faced significant supply chain disruptions throughout the year. These disruptions can lead to delays in production, increased costs for raw materials, and challenges in meeting customer demand. The company's ability to manage these disruptions and maintain a steady supply of components is crucial to its operational success.
+
+2. **Increased Commodity Prices:**
+   - Rising commodity prices can directly affect the company's cost of goods sold (COGS). This increase in costs can squeeze profit margins and may necessitate price increases for the company's products, potentially affecting competitiveness and demand.
+
+3. **Labor Shortages:**
+   - Labor shortages in key production facilities can hinder the company's manufacturing capabilities. This can lead to reduced output, increased overtime costs, and potential quality control issues. Addressing labor shortages through recruitment, training, or automation strategies is essential for maintaining production levels.
+
+4. **Fluctuating Currency Exchange Rates:**
+   - As a global company, MacroExampleInc is exposed to currency exchange rate fluctuations. Changes in exchange rates can impact the company's financial results, including revenue, costs, and profitability. Effective currency risk management strategies are needed to mitigate these impacts.
+
+5. **Reliance on Strategic Partnerships:**
+   - The company relies on strategic partnerships for integrated services, including cloud-based solutions and IoT devices. While these partnerships can provide competitive advantages, they also introduce risks related to dependency on partner companies. Any issues with partners, such as financial instability or strategic misalignment, can adversely affect the company's operations and growth prospects.
+
+6. **Cybersecurity Vulnerabilities:**
+   - Cybersecurity vulnerabilities pose a significant risk to the company's digital platforms and data integrity. Breaches or attacks can lead to financial losses, damage to the company's reputation, and legal liabilities. Robust cybersecurity measures and continuous monitoring are essential to protect against these threats.
+
+7. **Evolving Consumer Preferences for Digital Offerings:**
+   - Changing consumer preferences towards digital offerings can impact the demand for the company's products. The company must continuously innovate and adapt its product portfolio to meet these evolving preferences and remain competitive in the market.
+
+8. **Regulatory Compliance Across Multiple Jurisdictions:**
+   - Compliance with regulatory requirements across multiple jurisdictions can be complex and costly. The company must ensure that it meets all relevant laws and regulations, which can vary significantly between countries. Failure to comply can result in fines, legal actions, and reputational damage.
+
+9. **Changing Environmental Standards:**
+   - Environmental standards are evolving, and the company must adapt its manufacturing processes and product designs to meet these new requirements. This can involve investing in cleaner technologies, reducing waste, and improving energy efficiency, all of which can impact costs and operational capabilities.
+
+10. **Intellectual Property Litigation:**
+    - The company faces risks related to intellectual property (IP) litigation. Disputes over patents, trademarks, or copyrights can result in significant legal costs, potential damages, and disruptions to business operations. Protecting IP rights and resolving disputes efficiently are critical for the company's long-term success.
+
+In summary, MacroExampleInc faces a range of risk factors that span operational, financial, and strategic domains. The company's ability to effectively manage these risks will be crucial in maintaining its competitive position and achieving sustainable growth in the global marketplace.
+  Request 3 failed: HTTP Error 429: Too Many Requests
+  Request 4 failed: HTTP Error 429: Too Many Requests
+  Request 5 failed: HTTP Error 429: Too Many Requests
+
+  Summary for concurrency 5:
+    Successful requests          : 2
+    Failed requests              : 3
+    Average TTFT per request     : 14.909 s
+    Average throughput per req   : 63.94 tokens/s
+    Overall throughput (sum)     : 127.89 tokens/s
+    Batch duration (wall-clock)  : 19.572 s
+
+Scenario: ultra_long_10k, Concurrency: 1
+  Request 1:
+    TTFT          : 8.002 s
+    Latency       : 8.002 s
+    Throughput    : 81.48 tokens/s
+    Prompt tokens : 435, Output tokens: 652
+    Completion    : ### Main Risk Factors for GigaExampleLLC
+
+#### 1. Macroeconomic Conditions
+
+- **Global Supply Chain Constraints:** The company faces significant challenges due to disruptions in the global supply chain, which can lead to delays in production and increased costs.
+- **Rising Raw Material Costs:** Fluctuations in the prices of raw materials can impact the company's cost structure and profitability.
+- **Workforce Management Issues:** Managing a skilled workforce is crucial, and any issues related to talent retention or labor shortages can affect operational efficiency.
+
+#### 2. Technological Innovation
+
+- **Integration of Industrial Automation with AI-driven Analytics:** The success of new product lines depends on the effective integration of these technologies, which requires continuous investment and innovation.
+- **Research and Development in Renewable Energy Technologies:** The company's investments in optimizing solar panel technologies and battery storage systems are critical but demand substantial upfront capital, impacting short-term margins.
+
+#### 3. Geopolitical Tensions and Regulatory Compliance
+
+- **Heightened Regulatory Compliance Risks in International Markets:** Geopolitical tensions can lead to increased regulatory scrutiny and compliance costs, especially in diverse regions with varying environmental regulations.
+- **Reconciliation of Environmental Regulations:** The company must navigate and comply with different environmental regulations across regions, leading to additional compliance costs.
+
+#### 4. Financial Services Arm Volatility
+
+- **Volatility in Loan Portfolios:** Fluctuating interest rates and unpredictable consumer behavior can lead to volatility in the company's loan portfolios, necessitating revisions to the risk management framework.
+
+#### 5. Enterprise Software Solutions Segment Challenges
+
+- **Rising Competition:** The segment faces competition from agile startups and larger multinational corporations, requiring increased marketing spend and accelerated product release cycles.
+- **Advanced Cybersecurity Measures:** New software-as-a-service offerings require robust cybersecurity measures to protect client data and maintain regulatory standards.
+
+#### 6. Stakeholder and Board Member Expectations
+
+- **Transparent Reporting on Sustainability Metrics, Corporate Governance, and Community Impact:** The company must meet heightened expectations for transparency and accountability from stakeholders and board members.
+
+### Summary
+
+GigaExampleLLC operates across multiple industries and faces a range of critical risk factors that impact its financial performance and strategic direction. Macroeconomic conditions, including global supply chain constraints and rising raw material costs, pose significant challenges. Technological innovation is crucial for the company's growth, but it requires substantial investments and continuous development. Geopolitical tensions and regulatory compliance risks add complexity to international operations. The financial services arm experiences volatility due to fluctuating interest rates and consumer behavior. The enterprise software solutions segment faces rising competition and the need for advanced cybersecurity measures. Finally, the company must meet heightened expectations for transparency and accountability from stakeholders and board members. These risk factors highlight the need for robust risk management and strategic planning to navigate the evolving global market.
+
+  Summary for concurrency 1:
+    Successful requests          : 1
+    Failed requests              : 0
+    Average TTFT per request     : 8.002 s
+    Average throughput per req   : 81.48 tokens/s
+    Overall throughput (sum)     : 81.48 tokens/s
+    Batch duration (wall-clock)  : 8.006 s
+
+Scenario: ultra_long_10k, Concurrency: 2
+  Request 1:
+    TTFT          : 11.942 s
+    Latency       : 11.942 s
+    Throughput    : 86.59 tokens/s
+    Prompt tokens : 435, Output tokens: 1034
+    Completion    : **Risk Factors for GigaExampleLLC**
+
+GigaExampleLLC, a diversified company operating in advanced manufacturing, enterprise software solutions, financial services, and renewable energy technologies, faces a multitude of risk factors that could impact its financial performance and strategic objectives. The following is a concise summary of the main risk factors identified in the excerpt from their 10-K filing for the fiscal year ended December 31, 2022:
+
+1. **Global Supply Chain Constraints:**
+   - The company has encountered significant challenges due to global supply chain disruptions, which have impacted its ability to source raw materials and components timely and cost-effectively. This has led to potential delays in production and delivery of products and services.
+
+2. **Rising Raw Material Costs:**
+   - Fluctuations in the prices of raw materials have increased the cost of goods sold (COGS) for GigaExampleLLC. This can erode profit margins and may necessitate price increases for customers, potentially affecting demand.
+
+3. **Workforce Management Issues:**
+   - Managing and retaining a skilled workforce has been a challenge, particularly in a competitive labor market. Issues such as workforce shortages, high turnover rates, and the need for continuous training can impact operational efficiency and productivity.
+
+4. **Geopolitical Tensions and Regulatory Compliance Risks:**
+   - Geopolitical tensions have introduced heightened regulatory compliance risks in international markets. This requires the company to invest more in legal oversight and compliance measures, increasing operational costs and complexity.
+
+5. **Volatility in Financial Services:**
+   - The financial services arm has experienced volatility in loan portfolios due to fluctuating interest rates and unpredictable consumer behavior. This necessitates revisions to the company’s risk management framework and can impact financial stability.
+
+6. **Research and Development Costs:**
+   - The renewable energy division has engaged in extensive research and development (R&D) to optimize next-generation solar panel technologies and battery storage systems. While these initiatives are crucial for long-term growth, they require substantial upfront capital expenditures, which can weigh on short-term margins.
+
+7. **Environmental Regulations and Compliance Costs:**
+   - The company faces the challenge of reconciling environmental regulations across diverse regions, leading to additional compliance costs. This can impact profitability and may require adjustments to operational practices.
+
+8. **Rising Competition in Enterprise Software Solutions:**
+   - The enterprise software solutions segment confronts rising competition from agile startups and larger multinational corporations. This has led to an escalation in marketing spend and accelerated product release cycles, increasing operational costs and the need for continuous innovation.
+
+9. **Cybersecurity Risks:**
+   - New software-as-a-service offerings require advanced cybersecurity measures to protect client data and maintain regulatory standards. The threat of cyberattacks and data breaches poses a significant risk to the company’s reputation and financial performance.
+
+10. **Stakeholder and Board Member Expectations:**
+    - Heightened expectations from stakeholders and board members emphasize the need for transparent reporting on sustainability metrics, corporate governance, and community impact. Failure to meet these expectations can affect investor confidence and market valuation.
+
+11. **Macro-Economic Conditions:**
+    - The company’s performance is influenced by macroeconomic conditions, including economic growth, inflation rates, and currency fluctuations. Adverse macroeconomic conditions can impact demand for products and services and increase operational costs.
+
+12. **Technological Innovation and Adoption:**
+    - Staying competitive in rapidly evolving technological landscapes requires continuous innovation and adoption of new technologies. The company must invest in R&D and technology upgrades to meet market demands and avoid obsolescence.
+
+13. **Talent Retention and Acquisition:**
+    - Attracting and retaining top talent is crucial for maintaining a competitive edge. The company faces challenges in a competitive labor market, where skilled professionals are in high demand.
+
+14. **Global Compliance Harmonization:**
+    - Achieving compliance with diverse regulatory frameworks across different regions is complex and resource-intensive. The company must navigate these challenges to avoid legal and financial penalties.
+
+In summary, GigaExampleLLC faces a wide range of risk factors, including global supply chain constraints, rising raw material costs, workforce management issues, geopolitical tensions, volatility in financial services, R&D costs, environmental regulations, rising competition, cybersecurity risks, stakeholder expectations, macroeconomic conditions, technological innovation, talent retention, and global compliance harmonization. These risks require the company to adopt robust risk management strategies and continuously adapt its operations to mitigate potential impacts.
+  Request 2:
+    TTFT          : 21.726 s
+    Latency       : 21.726 s
+    Throughput    : 41.98 tokens/s
+    Prompt tokens : 435, Output tokens: 912
+    Completion    : **Risk Factors for GigaExampleLLC**
+
+1. **Global Supply Chain Constraints**
+   - The company faced significant challenges from global supply chain constraints, which can lead to delays in production, increased costs, and potential shortages of key components.
+
+2. **Rising Raw Material Costs**
+   - Rising raw material costs can erode profit margins and increase the overall cost of goods sold, impacting the company's financial performance.
+
+3. **Workforce Management Issues**
+   - Workforce management issues, including talent retention and labor shortages, can affect operational efficiency and the ability to meet production targets.
+
+4. **Geopolitical Tensions and Regulatory Compliance Risks**
+   - Geopolitical tensions can introduce heightened regulatory compliance risks in international markets, requiring more robust oversight and increased legal expenditure.
+
+5. **Volatility in Loan Portfolios**
+   - The financial services arm experienced volatility in loan portfolios due to fluctuating interest rates and unpredictable consumer behavior, prompting revisions to the company’s risk management framework.
+
+6. **Research and Development Costs**
+   - The renewable energy division engaged in extensive research and development to optimize next-generation solar panel technologies and battery storage systems, demanding substantial upfront capital expenditures, which weighed on short-term margins.
+
+7. **Reconciling Environmental Regulations**
+   - The company faced complexity in reconciling environmental regulations across diverse regions, leading to additional compliance costs.
+
+8. **Rising Competition in Enterprise Software Solutions**
+   - The enterprise software solutions segment confronted rising competition from agile startups and larger multinational corporations, spurring an escalation in marketing spend and accelerated product release cycles.
+
+9. **Cybersecurity Measures**
+   - New software-as-a-service offerings required advanced cybersecurity measures to protect client data and maintain regulatory standards.
+
+10. **Stakeholder and Board Member Expectations**
+    - Heightened expectations from stakeholders and board members further emphasized the need for transparent reporting on sustainability metrics, corporate governance, and community impact.
+
+**Summary**
+
+GigaExampleLLC, a diversified company operating across advanced manufacturing, enterprise software solutions, financial services, and renewable energy technologies, faced a multitude of risk factors during the fiscal year ended December 31, 2022. These risks can be broadly categorized into macroeconomic conditions, technological innovation, talent retention, and global compliance harmonization.
+
+The company's revenue grew by 18% compared to the prior year, driven by strategic alliances and investments in new product lines. However, this growth was tempered by several challenges:
+
+- **Global Supply Chain Constraints:** Disruptions in the global supply chain led to production delays and increased costs.
+- **Rising Raw Material Costs:** The cost of raw materials rose, impacting profit margins.
+- **Workforce Management Issues:** The company grappled with talent retention and labor shortages, affecting operational efficiency.
+- **Geopolitical Tensions:** Heightened regulatory compliance risks in international markets due to geopolitical tensions required increased legal oversight.
+- **Volatility in Loan Portfolios:** The financial services arm faced volatility in loan portfolios, necessitating revisions to the risk management framework.
+- **Research and Development Costs:** Significant capital expenditures in the renewable energy division for R&D activities weighed on short-term margins.
+- **Reconciling Environmental Regulations:** Diverse environmental regulations across regions led to additional compliance costs.
+- **Rising Competition:** The enterprise software solutions segment faced increased competition, leading to higher marketing spend and accelerated product release cycles.
+- **Cybersecurity Measures:** New software offerings required advanced cybersecurity measures.
+- **Stakeholder Expectations:** Heightened expectations from stakeholders and board members emphasized the need for transparent reporting on various metrics.
+
+GigaExampleLLC's management acknowledged these risks and outlined strategies to mitigate them, including enhancing supply chain resilience, optimizing R&D investments, and strengthening cybersecurity measures. The company also emphasized the importance of transparent reporting and stakeholder engagement to navigate the evolving global market landscape.
+
+  Summary for concurrency 2:
+    Successful requests          : 2
+    Failed requests              : 0
+    Average TTFT per request     : 16.834 s
+    Average throughput per req   : 64.28 tokens/s
+    Overall throughput (sum)     : 128.56 tokens/s
+    Batch duration (wall-clock)  : 21.731 s
+
+Scenario: ultra_long_10k, Concurrency: 3
+[Warning] Attempt 1: HTTP 429 Too Many Requests, backing off 1 seconds.
+[Warning] Attempt 2: HTTP 429 Too Many Requests, backing off 2 seconds.
+[Warning] Attempt 3: HTTP 429 Too Many Requests, backing off 4 seconds.
+  Request 1:
+    TTFT          : 8.180 s
+    Latency       : 8.180 s
+    Throughput    : 81.30 tokens/s
+    Prompt tokens : 435, Output tokens: 665
+    Completion    : Given the extensive nature of the provided excerpt, a concise summary of the main risk factors for GigaExampleLLC for the fiscal year ended December 31, 2022, is as follows:
+
+**1. Global Supply Chain Constraints:**
+   - GigaExampleLLC faced significant challenges due to disruptions in the global supply chain, which impacted the timely delivery of raw materials and components necessary for production.
+
+**2. Rising Raw Material Costs:**
+   - The company experienced an increase in the cost of raw materials, which contributed to higher production costs and squeezed profit margins.
+
+**3. Workforce Management Issues:**
+   - Managing the workforce effectively was a challenge, potentially due to the need for specialized skills in new product lines and the impact of labor market conditions.
+
+**4. Geopolitical Tensions and Regulatory Compliance Risks:**
+   - Heightened geopolitical tensions introduced regulatory compliance risks, particularly in international markets. This required the company to invest in more robust oversight and legal resources to navigate complex regulatory environments.
+
+**5. Financial Services Arm Volatility:**
+   - The financial services division encountered volatility in its loan portfolios, influenced by fluctuating interest rates and unpredictable consumer behavior. This prompted the company to revise its risk management framework to better address these uncertainties.
+
+**6. Renewable Energy Division Capital Expenditures:**
+   - The renewable energy segment engaged in extensive research and development, necessitating substantial upfront capital expenditures. While these initiatives were supported by strong investor interest, they weighed on short-term margins.
+
+**7. Environmental Regulation Compliance Costs:**
+   - Reconciling environmental regulations across diverse regions led to additional compliance costs, further impacting the company's financial performance.
+
+**8. Enterprise Software Solutions Segment Competition:**
+   - The company faced rising competition from both agile startups and larger multinational corporations in the enterprise software solutions segment. This spurred an increase in marketing spend and accelerated product release cycles to maintain market share.
+
+**9. Cybersecurity Measures for Software-as-a-Service Offerings:**
+   - New software-as-a-service offerings required advanced cybersecurity measures to protect client data and comply with regulatory standards, adding to operational costs.
+
+**10. Stakeholder and Board Member Expectations:**
+    - Heightened expectations from stakeholders and board members emphasized the need for transparent reporting on sustainability metrics, corporate governance, and community impact. This necessitated additional resources to meet these reporting requirements.
+
+In summary, GigaExampleLLC's main risk factors for the fiscal year ended December 31, 2022, include global supply chain constraints, rising raw material costs, workforce management issues, geopolitical tensions and regulatory compliance risks, volatility in the financial services arm, capital expenditures in the renewable energy division, environmental regulation compliance costs, competition in the enterprise software solutions segment, cybersecurity measures for new offerings, and increased stakeholder expectations for transparency and reporting. These factors collectively influenced the company's financial performance and strategic outlook.
+  Request 2:
+    TTFT          : 14.271 s
+    Latency       : 14.271 s
+    Throughput    : 39.03 tokens/s
+    Prompt tokens : 435, Output tokens: 557
+    Completion    : Given the complexity and length of the provided excerpt, a summary of 4096 words would be excessively detailed for this platform. However, I can provide a concise summary that encapsulates the main risk factors for GigaExampleLLC as outlined in the excerpt. Here is a summary:
+
+**Summary of Main Risk Factors for GigaExampleLLC:**
+
+1. **Global Supply Chain Constraints:** GigaExampleLLC faces challenges due to disruptions in the global supply chain, which can lead to delays in production, increased costs, and difficulties in meeting customer demand.
+
+2. **Rising Raw Material Costs:** The increase in the cost of raw materials can impact the company's profitability, as higher input costs may not be fully passed on to customers.
+
+3. **Workforce Management Issues:** Managing a skilled workforce is critical, and any issues related to talent retention, labor shortages, or workforce inefficiencies can adversely affect the company's operations and growth.
+
+4. **Geopolitical Tensions and Regulatory Compliance Risks:** Heightened geopolitical tensions can lead to increased regulatory compliance risks, especially in international markets. This requires robust oversight and can result in higher legal and compliance costs.
+
+5. **Volatility in Financial Services:** The financial services arm of GigaExampleLLC experiences volatility in loan portfolios due to fluctuating interest rates and unpredictable consumer behavior, necessitating revisions to the risk management framework.
+
+6. **Research and Development Costs in Renewable Energy:** The renewable energy division's extensive R&D efforts to optimize solar panel technologies and battery storage systems demand substantial upfront capital expenditures, which can strain short-term margins.
+
+7. **Environmental Regulations Compliance Costs:** Reconciling environmental regulations across diverse regions introduces additional compliance costs and complexities.
+
+8. **Rising Competition in Enterprise Software Solutions:** The enterprise software solutions segment faces increasing competition from agile startups and larger multinational corporations, leading to higher marketing spend and accelerated product release cycles.
+
+9. **Cybersecurity Risks:** New software-as-a-service offerings require advanced cybersecurity measures to protect client data and maintain regulatory standards, posing ongoing risks.
+
+10. **Stakeholder Expectations:** Heightened expectations from stakeholders and board members emphasize the need for transparent reporting on sustainability metrics, corporate governance, and community impact, which can add pressure on the company's performance and reputation.
+
+These risk factors highlight the challenges GigaExampleLLC faces in maintaining its competitive edge and ensuring sustainable growth in a dynamic and complex global market.
+  Request 3 failed: HTTP Error 429: Too Many Requests
+
+  Summary for concurrency 3:
+    Successful requests          : 2
+    Failed requests              : 1
+    Average TTFT per request     : 11.225 s
+    Average throughput per req   : 60.16 tokens/s
+    Overall throughput (sum)     : 120.33 tokens/s
+    Batch duration (wall-clock)  : 14.274 s
+
+Scenario: ultra_long_10k, Concurrency: 4
+[Warning] Attempt 1: HTTP 429 Too Many Requests, backing off 1 seconds.
+[Warning] Attempt 1: HTTP 429 Too Many Requests, backing off 1 seconds.
+[Warning] Attempt 2: HTTP 429 Too Many Requests, backing off 2 seconds.
+[Warning] Attempt 2: HTTP 429 Too Many Requests, backing off 2 seconds.
+[Warning] Attempt 3: HTTP 429 Too Many Requests, backing off 4 seconds.
+[Warning] Attempt 3: HTTP 429 Too Many Requests, backing off 4 seconds.
+  Request 1:
+    TTFT          : 9.444 s
+    Latency       : 9.444 s
+    Throughput    : 86.08 tokens/s
+    Prompt tokens : 435, Output tokens: 813
+    Completion    : **Summary of Risk Factors for GigaExampleLLC**
+
+GigaExampleLLC, a diversified company operating in advanced manufacturing, enterprise software solutions, financial services, and renewable energy technologies, faces a multitude of risk factors that could impact its operations and financial performance. These risks are categorized into several key areas:
+
+**1. Macroeconomic Conditions:**
+   - **Global Supply Chain Constraints:** The company experienced significant challenges due to disruptions in the global supply chain, which affected the availability of raw materials and components necessary for production.
+   - **Rising Raw Material Costs:** Increased costs of raw materials have put pressure on the company's profit margins and operational efficiency.
+   - **Workforce Management Issues:** Managing a skilled workforce has become more complex, impacting productivity and increasing labor costs.
+
+**2. Geopolitical Tensions:**
+   - **Regulatory Compliance Risks:** Heightened geopolitical tensions have introduced increased regulatory compliance risks, particularly in international markets, necessitating robust oversight and legal expenditure.
+
+**3. Financial Services:**
+   - **Volatility in Loan Portfolios:** The financial services arm faced volatility in loan portfolios due to fluctuating interest rates and unpredictable consumer behavior, leading to revisions in the company's risk management framework.
+
+**4. Renewable Energy Technologies:**
+   - **Upfront Capital Expenditures:** Extensive research and development in next-generation solar panel technologies and battery storage systems required substantial upfront capital expenditures, affecting short-term margins.
+   - **Environmental Regulations:** Reconciling environmental regulations across diverse regions led to additional compliance costs.
+
+**5. Enterprise Software Solutions:**
+   - **Rising Competition:** The enterprise software solutions segment encountered rising competition from agile startups and larger multinational corporations, necessitating increased marketing spend and accelerated product release cycles.
+   - **Cybersecurity Measures:** New software-as-a-service offerings required advanced cybersecurity measures to protect client data and maintain regulatory standards.
+
+**6. Stakeholder Expectations:**
+   - **Transparent Reporting:** Heightened expectations from stakeholders and board members emphasized the need for transparent reporting on sustainability metrics, corporate governance, and community impact.
+
+**7. Technological Innovation:**
+   - **Integration of Industrial Automation with AI-Driven Analytics:** The company's investment in new product lines integrating industrial automation with AI-driven analytics represents both an opportunity and a risk, as it requires continuous innovation and adaptation.
+
+**8. Talent Retention:**
+   - **Maintaining a Skilled Workforce:** Retaining a skilled workforce is critical for the company's success, but it faces challenges in attracting and retaining top talent in a competitive market.
+
+**9. Global Compliance Harmonization:**
+   - **Reconciling Compliance Across Regions:** The company must navigate and harmonize compliance with diverse environmental regulations across different regions, which is a complex and ongoing process.
+
+**10. Forward-Looking Strategies:**
+   - **Positioning for Competitive Advantage:** GigaExampleLLC aims to position itself competitively in an evolving global market through forward-looking strategies designed to address these risks and capitalize on opportunities.
+
+In summary, GigaExampleLLC faces a range of risk factors related to macroeconomic conditions, geopolitical tensions, financial services volatility, renewable energy technology development, enterprise software competition, stakeholder expectations, technological innovation, talent retention, global compliance harmonization, and the need for forward-looking strategies. The company must continue to monitor and address these risks to ensure long-term success and stability.
+  Request 2:
+    TTFT          : 17.595 s
+    Latency       : 17.595 s
+    Throughput    : 43.08 tokens/s
+    Prompt tokens : 435, Output tokens: 758
+    Completion    : **Main Risk Factors for GigaExampleLLC**
+
+GigaExampleLLC, a diversified company operating in advanced manufacturing, enterprise software solutions, financial services, and renewable energy technologies, faces a multitude of risk factors that can impact its financial stability and operational effectiveness. These risks are categorized into several key areas:
+
+1. **Macroeconomic Conditions:**
+   - **Global Supply Chain Constraints:** The company's ability to source materials and components is heavily dependent on the global supply chain, which has been disrupted due to various factors such as the COVID-19 pandemic, natural disasters, and geopolitical tensions.
+   - **Rising Raw Material Costs:** Fluctuations in the prices of raw materials can significantly affect the company's cost structure and profitability.
+   - **Workforce Management Issues:** Challenges in attracting, retaining, and managing talent can lead to increased labor costs and potential disruptions in operations.
+
+2. **Technological Innovation:**
+   - **Integration of Industrial Automation with AI-driven Analytics:** The company's investment in new product lines requires continuous innovation and technological advancements, which can be costly and risky if the market does not accept the new offerings.
+   - **Research and Development in Renewable Energy:** Extensive R&D efforts to optimize solar panel technologies and battery storage systems demand substantial upfront capital expenditures and carry the risk of technological obsolescence or failure to achieve desired results.
+
+3. **Financial Services Volatility:**
+   - **Fluctuating Interest Rates:** Changes in interest rates can impact the company's loan portfolios, affecting both the cost of borrowing and the returns on loans.
+   - **Unpredictable Consumer Behavior:** Variability in consumer behavior can lead to volatility in loan repayments and financial stability.
+
+4. **Regulatory Compliance Risks:**
+   - **Geopolitical Tensions and Heightened Regulatory Compliance:** Operating in international markets exposes the company to geopolitical tensions and varying regulatory standards, necessitating robust oversight and increased legal expenditure.
+   - **Environmental Regulations:** The company must navigate and comply with diverse environmental regulations across different regions, leading to additional compliance costs.
+
+5. **Competition in Enterprise Software Solutions:**
+   - **Rising Competition from Agile Startups and Larger Multinational Corporations:** The company faces intense competition, requiring increased marketing spend and accelerated product release cycles.
+   - **Advanced Cybersecurity Measures:** New software-as-a-service offerings require advanced cybersecurity measures to protect client data and maintain regulatory standards.
+
+6. **Stakeholder and Board Member Expectations:**
+   - **Heightened Expectations for Transparent Reporting:** The company is under pressure to provide transparent reporting on sustainability metrics, corporate governance, and community impact to meet the expectations of stakeholders and board members.
+
+**Summary**
+
+GigaExampleLLC operates in a complex and dynamic global market, facing numerous risk factors across its various business segments. The company's growth and success are contingent on its ability to navigate macroeconomic conditions, technological innovation, financial services volatility, regulatory compliance risks, and competition in the enterprise software solutions segment. Additionally, the company must address stakeholder and board member expectations for transparency and accountability. By implementing forward-looking strategies and robust risk management frameworks, GigaExampleLLC aims to position itself competitively and sustainably in the evolving global market.
+  Request 3 failed: HTTP Error 429: Too Many Requests
+  Request 4 failed: HTTP Error 429: Too Many Requests
+
+  Summary for concurrency 4:
+    Successful requests          : 2
+    Failed requests              : 2
+    Average TTFT per request     : 13.520 s
+    Average throughput per req   : 64.58 tokens/s
+    Overall throughput (sum)     : 129.16 tokens/s
+    Batch duration (wall-clock)  : 17.599 s
+
+Scenario: ultra_long_10k, Concurrency: 5
+[Warning] Attempt 1: HTTP 429 Too Many Requests, backing off 1 seconds.
+[Warning] Attempt 1: HTTP 429 Too Many Requests, backing off 1 seconds.
+[Warning] Attempt 1: HTTP 429 Too Many Requests, backing off 1 seconds.
+[Warning] Attempt 2: HTTP 429 Too Many Requests, backing off 2 seconds.
+[Warning] Attempt 2: HTTP 429 Too Many Requests, backing off 2 seconds.
+[Warning] Attempt 2: HTTP 429 Too Many Requests, backing off 2 seconds.
+[Warning] Attempt 3: HTTP 429 Too Many Requests, backing off 4 seconds.
+[Warning] Attempt 3: HTTP 429 Too Many Requests, backing off 4 seconds.
+[Warning] Attempt 3: HTTP 429 Too Many Requests, backing off 4 seconds.
+  Request 1:
+    TTFT          : 10.472 s
+    Latency       : 10.472 s
+    Throughput    : 83.74 tokens/s
+    Prompt tokens : 435, Output tokens: 877
+    Completion    : **Summary of Main Risk Factors for GigaExampleLLC**
+
+GigaExampleLLC, a diversified company operating in advanced manufacturing, enterprise software solutions, financial services, and renewable energy technologies, faces a multitude of risk factors that impact its operations and financial performance. These risks can be categorized into several key areas:
+
+1. **Global Supply Chain Constraints and Rising Raw Material Costs:**
+   - The company has experienced significant challenges due to global supply chain disruptions, which have led to delays in production and increased costs for raw materials. This has impacted the company's ability to maintain consistent product availability and profitability.
+
+2. **Workforce Management Issues:**
+   - Workforce management has been a concern, with issues related to talent retention and the need to attract skilled workers to support the company's expansion and technological initiatives. These challenges can affect operational efficiency and the quality of products and services offered.
+
+3. **Geopolitical Tensions and Regulatory Compliance Risks:**
+   - Geopolitical tensions have introduced heightened regulatory compliance risks, particularly in international markets. The company has had to invest more in robust oversight and legal expenditure to navigate these complexities and ensure compliance with diverse regulatory environments.
+
+4. **Volatility in Loan Portfolios:**
+   - The financial services arm has faced volatility in loan portfolios due to fluctuating interest rates and unpredictable consumer behavior. This has prompted the company to revise its risk management framework to better mitigate potential losses.
+
+5. **Research and Development Costs:**
+   - The renewable energy division has engaged in extensive research and development to optimize next-generation solar panel technologies and battery storage systems. While this has the potential to yield significant long-term benefits, the substantial upfront capital expenditures have weighed on short-term margins.
+
+6. **Environmental Regulation Compliance Costs:**
+   - The company has faced additional compliance costs due to the need to reconcile environmental regulations across diverse regions. This has impacted the company's ability to manage costs effectively and maintain profitability.
+
+7. **Competition in Enterprise Software Solutions:**
+   - The enterprise software solutions segment has encountered rising competition from agile startups and larger multinational corporations. This has necessitated an escalation in marketing spend and accelerated product release cycles to remain competitive.
+
+8. **Cybersecurity Measures:**
+   - New software-as-a-service offerings have required advanced cybersecurity measures to protect client data and maintain regulatory standards. This has led to increased investment in cybersecurity infrastructure and expertise.
+
+9. **Stakeholder and Board Member Expectations:**
+   - Heightened expectations from stakeholders and board members have emphasized the need for transparent reporting on sustainability metrics, corporate governance, and community impact. This has required the company to enhance its reporting practices and demonstrate its commitment to these areas.
+
+10. **Macroeconomic Conditions:**
+    - The company is exposed to macroeconomic conditions, including economic downturns, inflation, and currency fluctuations, which can impact its revenue and profitability.
+
+11. **Technological Innovation and Talent Retention:**
+    - The need to continuously innovate and retain top talent is crucial for the company's long-term success. Failure to do so can result in a loss of competitive edge and operational inefficiencies.
+
+12. **Global Compliance Harmonization:**
+    - Harmonizing compliance across global markets is a complex and ongoing challenge. The company must navigate diverse regulatory environments and ensure that its operations are compliant with all relevant laws and regulations.
+
+In conclusion, GigaExampleLLC faces a wide range of risk factors that require careful management and strategic planning to mitigate. These risks span across supply chain, workforce, regulatory compliance, financial services, renewable energy, competition, cybersecurity, stakeholder expectations, macroeconomic conditions, technological innovation, talent retention, and global compliance harmonization. Addressing these challenges will be critical for the company to maintain its competitive position and achieve long-term success in an evolving global market.
+  Request 2:
+    TTFT          : 16.609 s
+    Latency       : 16.609 s
+    Throughput    : 34.26 tokens/s
+    Prompt tokens : 435, Output tokens: 569
+    Completion    : Given the constraints of the platform, providing a summary of 4096 words is not feasible. However, I can provide a concise summary that encapsulates the main risk factors for GigaExampleLLC as outlined in the excerpt.
+
+**Concise Summary of Main Risk Factors for GigaExampleLLC:**
+
+1. **Global Supply Chain Constraints:**
+   - The company faces challenges due to disruptions in the global supply chain, which can affect the availability of raw materials and components necessary for production.
+
+2. **Rising Raw Material Costs:**
+   - Increasing costs of raw materials can impact the company's profitability and may necessitate price adjustments for its products and services.
+
+3. **Workforce Management Issues:**
+   - Effective management of human resources is crucial, and any issues in this area can affect productivity and operational efficiency.
+
+4. **Geopolitical Tensions and Regulatory Compliance Risks:**
+   - Geopolitical tensions can introduce regulatory compliance risks in international markets, requiring robust oversight and potentially increasing legal expenditures.
+
+5. **Volatility in Loan Portfolios:**
+   - The financial services arm experiences volatility in loan portfolios due to fluctuating interest rates and unpredictable consumer behavior, impacting the company's financial stability.
+
+6. **Research and Development Capital Expenditures:**
+   - Extensive R&D initiatives, particularly in the renewable energy division, demand substantial upfront capital, which can strain short-term margins.
+
+7. **Environmental Regulations Compliance Costs:**
+   - Reconciling environmental regulations across diverse regions leads to additional compliance costs, affecting the company's financial performance.
+
+8. **Rising Competition in Enterprise Software Solutions:**
+   - Increased competition from startups and larger corporations necessitates higher marketing spend and accelerated product release cycles, impacting resource allocation and profitability.
+
+9. **Cybersecurity Measures:**
+   - New software-as-a-service offerings require advanced cybersecurity measures to protect client data and maintain regulatory standards, which can be costly to implement and maintain.
+
+10. **Stakeholder and Board Member Expectations:**
+    - Heightened expectations from stakeholders and board members for transparent reporting on sustainability metrics, corporate governance, and community impact require additional efforts and resources.
+
+These risk factors highlight the complexities and challenges GigaExampleLLC faces in maintaining its competitive edge and financial stability in a dynamic global market. The company's strategies to address these risks will be crucial for its long-term success.
+  Request 3 failed: HTTP Error 429: Too Many Requests
+  Request 4 failed: HTTP Error 429: Too Many Requests
+  Request 5 failed: HTTP Error 429: Too Many Requests
+
+  Summary for concurrency 5:
+    Successful requests          : 2
+    Failed requests              : 3
+    Average TTFT per request     : 13.541 s
+    Average throughput per req   : 59.00 tokens/s
+    Overall throughput (sum)     : 118.00 tokens/s
+    Batch duration (wall-clock)  : 16.613 s

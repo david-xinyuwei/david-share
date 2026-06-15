@@ -1,0 +1,116 @@
+# ============================================
+# david-share Repository .gitignore
+# ============================================
+
+# === AI/Chat Related (CRITICAL) ===
+**/AI-Super-Agent/
+**/*Meta-Prompt*
+**/*SOP-*
+**/\[CHAT\]_*.md
+**/.copilot/
+**/.github/copilot/
+**/chat-history/
+**/conversation-*.json
+**/session-*.json
+
+# === Temporary & Cache Files ===
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
+.cache/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# === IDE & Editor ===
+.vscode/settings.json
+.vscode/launch.json
+.vscode/*.log
+.idea/
+*.sublime-*
+.project
+.classpath
+
+# === Environment & Secrets ===
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*_secret*
+*_credentials*
+config.local.*
+secrets/
+credentials/
+
+# === Build Artifacts ===
+dist/
+build/
+*.egg-info/
+node_modules/
+vendor/
+*.min.js
+*.min.css
+
+# === Large Files (use LFS or external storage) ===
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.m4a
+*.wav
+*.mp3
+*.zip
+*.tar.gz
+*.rar
+*.7z
+# Exceptions for necessary media
+!**/demo/*.mp4
+!**/sample/*.mp4
+
+# === OS Generated ===
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.lnk
+
+# === Jupyter Notebooks Checkpoints ===
+.ipynb_checkpoints/
+*.ipynb_checkpoints/
+
+# === Logs ===
+*.log
+logs/
+*.log.*
+
+# === Data Files (too large) ===
+*.csv.gz
+*.jsonl.gz
+*.parquet
+# Keep small data samples
+!**/sample_data/*.csv
+!**/examples/*.json
+
+# === Model Files (use external storage) ===
+*.bin
+*.pt
+*.pth
+*.onnx
+*.safetensors
+# Keep small model configs
+!**/config.json
+!**/tokenizer.json
+
+# === Local Development ===
+.local/
+local/
+*.local.*
+scratch/
+temp/
+tmp/

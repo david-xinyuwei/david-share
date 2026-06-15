@@ -1,0 +1,35 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/microsoft/AgentSchema/refs/heads/main/schemas/v1.0/ContainerAgent.yaml
+
+kind: hosted
+name: hosted-agent-toolbox-demo
+description: |
+    A Microsoft Agent Framework hosted agent that consumes a Microsoft Foundry Toolbox.
+metadata:
+    tags:
+        - Agent Framework
+        - Foundry Hosted Agents
+        - Foundry Toolbox
+        - Responses Protocol
+protocols:
+    - protocol: responses
+      version: 1.0.0
+resources:
+    cpu: "0.25"
+    memory: 0.5Gi
+environment_variables:
+    - name: AZURE_AI_PROJECT_ENDPOINT
+      value: ${AZURE_AI_PROJECT_ENDPOINT}
+    - name: FOUNDRY_PROJECT_ENDPOINT
+      value: ${FOUNDRY_PROJECT_ENDPOINT}
+    - name: AZURE_AI_MODEL_DEPLOYMENT_NAME
+      value: ${AZURE_AI_MODEL_DEPLOYMENT_NAME}
+    - name: TOOLBOX_NAME
+      value: ${TOOLBOX_NAME}
+    - name: ENABLE_DIRECT_WEB_SEARCH
+      value: ${ENABLE_DIRECT_WEB_SEARCH}
+    - name: MEMORY_STORE_NAME
+      value: ${MEMORY_STORE_NAME}
+    - name: MEMORY_PROJECT_ENDPOINT
+      value: ${MEMORY_PROJECT_ENDPOINT}
+    - name: MEMORY_UPDATE_DELAY_SECONDS
+      value: ${MEMORY_UPDATE_DELAY_SECONDS}

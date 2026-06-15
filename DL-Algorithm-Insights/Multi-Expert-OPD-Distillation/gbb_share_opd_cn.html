@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; line-height: 1.6; color: #333; font-size: 14px; }
+        table { border-collapse: collapse; margin: 12px 0; }
+        th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+        th { background: #f5f5f5; }
+        a { color: #0078d4; }
+    </style>
+</head>
+<body>
+<p>Hi Team,</p>
+<p>分享一下 DeepSeek-V4 的 post-training 架构研究——V4 用 On-Policy Distillation (OPD) 完全替代了 Mixed RL，把 10+ 个领域专家模型融合成一个生产模型。我在 Azure H100 上做了端到端验证。</p>
+<p><b>背景</b>：企业客户有多个 fine-tuned 模型（数学、代码、写作、Agent 等）时，部署 N 个模型 = N 倍推理成本。DeepSeek-V4 用 OPD 解决：在 student 自己的 trajectory 上做 logit 层对齐，把所有专家蒸馏到一个模型。</p>
+<p><b>跑在 Azure 上</b>：全部 11 轮训练和评测都在 <a href="https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/ncadsh100v5-series">Standard_NC80adis_H100_v5</a>（2× H100 NVL，每张 94 GB）上完成。单台 VM 即可跑完全流程，不需要集群。</p>
+<p><b>结果（Run 11，HumanEval 164 题）</b>：</p>
+<table>
+    <tr><th>指标</th><th>基线</th><th>OPD</th><th>提升</th></tr>
+    <tr><td>Greedy pass@1</td><td>22.56%</td><td>26.22%</td><td>+3.66 pp</td></tr>
+    <tr><td>Sampling pass@1（10 次均值）</td><td>18.72%</td><td>23.48%</td><td>+4.76 pp</td></tr>
+    <tr><td>pass@10（生产指标）</td><td>49.39%</td><td><b>55.49%</b></td><td><b>+6.10 pp</b></td></tr>
+</table>
+<p>SFT 对照实验证实：跨领域 SFT 导致灾难性遗忘（greedy -5.49 pp），OPD 两个指标都提升。Repo 包含 1900+ 行理论分析、11 轮实验工程记录、完整脚本和成本明细。</p>
+<p>Repo：<br/><a href="https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/Multi-Expert-OPD-Distillation">https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/Multi-Expert-OPD-Distillation</a></p>
+<p>如果你的客户在评估 DeepSeek 或需要整合多个 fine-tuned 模型，可以参考。有问题随时找我。</p>
+<p>Xinyu</p>
+</body>
+</html>

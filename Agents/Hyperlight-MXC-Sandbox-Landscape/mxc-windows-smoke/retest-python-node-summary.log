@@ -1,0 +1,37 @@
+2026-06-08 processcontainer Python/Node.js retest (schema 0.4.0-alpha AppContainer fallback)
+
+Environment:
+- Python: C:\Python312\python.exe (Python 3.12.6)
+- Node.js: C:\Program Files\nodejs\node.exe (v20.18.0)
+- Executor: @microsoft/mxc-sdk/bin/x64/wxc-exec.exe
+
+Results:
+1. python relative path
+   commandLine: python -c "print('PY_RELATIVE_OK')"
+   exit: -1073741515 (0xC0000135 / STATUS_DLL_NOT_FOUND)
+   stdout/stderr: empty
+   result: FAIL
+
+2. python absolute path
+   commandLine: C:\Python312\python.exe -c "print('PY_ABSOLUTE_OK')"
+   exit: -1073741515 (0xC0000135 / STATUS_DLL_NOT_FOUND)
+   stdout/stderr: empty
+   result: FAIL
+
+3. node relative path
+   commandLine: node -e "console.log('NODE_RELATIVE_OK')"
+   exit: -1073741502 (0xC0000142 / STATUS_DLL_INIT_FAILED)
+   stdout/stderr: empty
+   result: FAIL
+
+4. node absolute path
+   commandLine: "C:\Program Files\nodejs\node.exe" -e "console.log('NODE_ABSOLUTE_OK')"
+   exit: -1 (CreateProcessW failed: Access denied / 0x80070005)
+   result: FAIL
+
+Interpretation:
+- This confirms that Python/Node.js do not run under the current 0.4 AppContainer fallback policy.
+- The likely blocker is AppContainer default-deny filesystem/DLL access.
+- This does NOT prove processcontainer can never run Python/Node.js.
+- It means this repo has not found a working Python/Node.js processcontainer configuration on this Windows build.
+- A future test should retry with BaseContainer 0.6 + filesystem policy after the required Windows velocity keys / BFS-equivalent support are available.

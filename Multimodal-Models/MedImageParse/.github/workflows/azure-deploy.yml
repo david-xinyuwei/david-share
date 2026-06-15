@@ -1,0 +1,72 @@
+name: Azure Deployment
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r src/requirements.txt
+        pip install pytest pytest-cov
+
+    - name: Run tests
+      run: |
+        pytest tests/ --cov=src --cov-report=xml --cov-report=html
+
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install azd
+      uses: Azure/setup-azd@v0.1.0
+
+    - name: Log in with Azure (Client Credentials)
+      uses: azure/login@v1
+      with:
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+    - name: Deploy to Azure
+      run: |
+        azd auth login --client-id ${{ secrets.AZURE_CLIENT_ID }} --tenant-id ${{ secrets.AZURE_TENANT_ID }}
+        azd deploy --no-prompt
+      env:
+        AZURE_ENV_NAME: ${{ secrets.AZURE_ENV_NAME }}
+        AZURE_LOCATION: ${{ secrets.AZURE_LOCATION }}
+        AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        AZURE_OPENAI_ENDPOINT_2D: ${{ secrets.AZURE_OPENAI_ENDPOINT_2D }}
+        AZURE_OPENAI_KEY_2D: ${{ secrets.AZURE_OPENAI_KEY_2D }}
+        AZURE_OPENAI_ENDPOINT_3D: ${{ secrets.AZURE_OPENAI_ENDPOINT_3D }}
+        AZURE_OPENAI_KEY_3D: ${{ secrets.AZURE_OPENAI_KEY_3D }}

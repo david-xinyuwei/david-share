@@ -1,0 +1,33 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment variables
+.env
+.env.local
+*.env
+
+# API Keys (never commit!)
+*credentials*
+*secrets*
+*.key
+*.pem
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Output files
+outputs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Chat history (internal)
+[CHAT]_*.md
+[STARLINK]_*.md

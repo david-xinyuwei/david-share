@@ -1,0 +1,6 @@
+datasets
+peft
+torch
+transformers
+trl
+vllm

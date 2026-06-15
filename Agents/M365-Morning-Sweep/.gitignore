@@ -1,0 +1,8 @@
+.env
+*.json
+!morning_sweep_output.json
+history/
+__pycache__/
+*.pyc
+morning_sweep_dashboard.html
+~/.morning_sweep_token_cache.json

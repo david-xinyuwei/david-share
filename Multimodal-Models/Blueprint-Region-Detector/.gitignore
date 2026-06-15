@@ -1,0 +1,65 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# SAM model weights (large files)
+*.pth
+*.pt
+*.bin
+
+# Output files
+*_v11.png
+*_v11.json
+output/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+wget-log*
+
+# Temporary files
+*.tmp
+*.bak
+
+# Sensitive files
+.env*
+*credentials*
+*secret*
+
+# Sample data
+samples/

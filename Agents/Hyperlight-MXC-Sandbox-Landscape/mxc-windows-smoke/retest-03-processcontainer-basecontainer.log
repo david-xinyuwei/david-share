@@ -1,0 +1,107 @@
+﻿SECTION: Request simplified
+Container ID: mxc-processcontainer-smoke
+Platform: windows
+Script code length: 56
+Working directory: 
+Script timeout: 30000
+Container name: mxc-processcontainer-smoke
+SECTION: Full `ExecutionRequest` configuration (redacted)
+{
+  "schema_version": "0.6.0-alpha",
+  "container_id": "mxc-processcontainer-smoke",
+  "platform": "windows",
+  "env": [],
+  "script_code": "cmd.exe /c echo MXC_PROCESSCONTAINER_OK && whoami && ver",
+  "working_directory": "",
+  "script_timeout": 30000,
+  "containment": "processcontainer",
+  "lifecycle": {
+    "destroy_on_exit": true,
+    "preserve_policy": false
+  },
+  "policy": {
+    "least_privilege_mode": false,
+    "capabilities": [],
+    "readwrite_paths": [],
+    "readonly_paths": [],
+    "denied_paths": [],
+    "fallback": {
+      "allow_dacl_mutation": true
+    },
+    "default_network_policy": "block",
+    "network_enforcement_mode": "capabilities",
+    "allow_local_network": false,
+    "allowed_hosts": [],
+    "blocked_hosts": [],
+    "ui": {
+      "disable": true,
+      "clipboard": "none",
+      "injection": false
+    },
+    "base_process_ui": {
+      "isolation": "container",
+      "desktopSystemControl": false,
+      "systemSettings": "none",
+      "ime": false
+    }
+  },
+  "lxc_config": {
+    "distribution": "",
+    "release": ""
+  },
+  "experimental_enabled": false,
+  "experimental": {
+    "test": null,
+    "windows_sandbox": null,
+    "wslc": null,
+    "isolation_session": null,
+    "seatbelt": null
+  },
+  "dry_run": false
+}
+[network_proxy: disabled]
+Using BaseContainer-fallback dispatcher (schema version 0.6.0-alpha)
+selected isolation tier: base-container
+Γû╢ SECTION: Backend runner 'BaseContainer'
+Γû╢ SECTION: Build sandbox spec
+sandbox spec built (version=0.1.0, 64 bytes)
+[token]
+  integrity:       ΓÜ¬ system_default
+  app_container:   ΓÜ¬ on (least_privilege: off)
+[network]
+  <unspecified>
+[ui subsystem]
+  win32k_system_calls: Γ¥î blocked
+  uilimits allowed Γ£à: <none>
+  uilimits blocked Γ¥î: handles, read_clip, write_clip, sys_params, display, atoms, desktop, exit_windows, ime, injection (0x03FF)
+Γû╢ SECTION: Load API
+loaded Experimental_CreateProcessInSandbox from processmodel.dll
+Γû╢ SECTION: Launch process
+ΓÜá destroy_on_exit=true: overriding caller identity 'mxc-processcontainer-smoke' -> 'sandbox-f709e4ee1f484f1a' for ephemeral cleanup
+derived SID: S-1-15-2-90404272-2576748382-1510244218-4041511094-2225802223-1865091024-3899877475
+tracking entry written: Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\ProcessSandboxes\Mappings\S-1-15-2-90404272-2576748382-1510244218-4041511094-2225802223-1865091024-3899877475
+STDIO mode: passthrough (forwarding parent handles to child)
+launching: cmd.exe /c echo MXC_PROCESSCONTAINER_OK && whoami && ver
+identity: sandbox-f709e4ee1f484f1a
+AppContainerSID: S-1-15-2-90404272-2576748382-1510244218-4041511094-2225802223-1865091024-3899877475
+Γû╢ SECTION: Lifecycle cleanup (skipping -- child process tracking not yet implemented)
+Error: Experimental_CreateProcessInSandbox failed: WIN32_ERROR(120)
+Error: Launch diagnostic [feature_not_enabled]: Experimental_CreateProcessInSandbox returned E_NOTIMPL. The following velocity keys are not enabled: 61389575, 61155944. Enable them and retry, or use schema version '0.4.0-alpha' to fall back to the AppContainer backend.
+Runner completed in 3ms
+Exit code: -1 (0xFFFFFFFF)
+Error: Experimental_CreateProcessInSandbox returned E_NOTIMPL. The following velocity keys are not enabled: 61389575, 61155944. Enable them and retry, or use schema version '0.4.0-alpha' to fall back to the AppContainer backend.
+wxc-exec.exe : Experimental_CreateProcessInSandbox returned E_NOTIMPL. The foll
+owing velocity keys are not enabled: 61389575, 61155944. Enable them and retry,
+ or use schema version '0.4.0-alpha' to fall back to the AppContainer backend.{
+"error":{"code":"backend_error","extended_error":"Experimental_CreateProcessInS
+andbox failed: WIN32_ERROR(120)","message":"Experimental_CreateProcessInSandbox
+ returned E_NOTIMPL. The following velocity keys are not enabled: 61389575, 611
+55944. Enable them and retry, or use schema version '0.4.0-alpha' to fall back 
+to the AppContainer backend."}}
+At line:1 char:600
++ ... NTAINER ==='; & $exe --debug processcontainer_hello.json 2>&1 | Tee-O ...
++                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Experimental_Cr...ner backend."}} 
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 

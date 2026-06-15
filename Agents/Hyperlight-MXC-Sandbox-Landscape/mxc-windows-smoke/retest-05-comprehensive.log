@@ -1,0 +1,43 @@
+﻿[2026-06-08T11:13:44.943Z] === TEST 1: Platform Probe ===
+[2026-06-08T11:13:45.034Z] isSupported: true
+[2026-06-08T11:13:45.035Z] availableMethods: ["processcontainer"]
+[2026-06-08T11:13:45.035Z] isolationTier: base-container
+[2026-06-08T11:13:45.035Z] isolationWarnings: []
+[2026-06-08T11:13:45.035Z] 
+=== TEST 2: wxc-exec --probe ===
+[2026-06-08T11:13:45.054Z] tier: base-container
+[2026-06-08T11:13:45.054Z] probes: {"baseContainerApiPresent":true,"bfscfgPresent":false,"bfsCompiledIn":false}
+[2026-06-08T11:13:45.055Z] warnings: []
+[2026-06-08T11:13:45.055Z] 
+=== TEST 3: processcontainer echo (0.4.0 AppContainer) ===
+[2026-06-08T11:13:45.099Z] output: MXC_PROCESSCONTAINER_ECHO_ONLY_OK
+[2026-06-08T11:13:45.099Z] PASS
+[2026-06-08T11:13:45.100Z] 
+=== TEST 4: processcontainer Python (0.4.0) ===
+[2026-06-08T11:13:45.142Z] exit code: 3221225781
+[2026-06-08T11:13:45.142Z] stdout: 
+[2026-06-08T11:13:45.142Z] stderr: 
+[2026-06-08T11:13:45.142Z] 
+=== TEST 5: processcontainer Node.js (0.4.0) ===
+[2026-06-08T11:13:45.197Z] exit code: 3221225794
+[2026-06-08T11:13:45.197Z] stdout: 
+[2026-06-08T11:13:45.197Z] stderr: 
+[2026-06-08T11:13:45.197Z] 
+=== TEST 6: hyperlight backend (experimental micro-VM) ===
+node : MXC_HYPERLIGHT_COMPREHENSIVE_OK Python 3.12.0 on Unikraft
+At line:1 char:988
++ ... == 5 COMPREHENSIVE ==='; node test_mxc_comprehensive.mjs 2>&1 | Tee-O ...
++                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (MXC_HYPERLIGHT_...2.0 on Unikraft 
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[2026-06-08T11:13:45.531Z] output: 
+[2026-06-08T11:13:45.532Z] PASS
+[2026-06-08T11:13:45.532Z] 
+=== TEST 7: hyperlight numpy+pandas (experimental) ===
+{'x': 10, 'y': 30}
+[2026-06-08T11:13:46.173Z] output: 
+[2026-06-08T11:13:46.173Z] PASS
+[2026-06-08T11:13:46.173Z] 
+=== ALL TESTS DONE ===

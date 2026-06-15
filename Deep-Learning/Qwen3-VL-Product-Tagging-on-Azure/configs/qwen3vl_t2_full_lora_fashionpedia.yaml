@@ -1,0 +1,47 @@
+# LLaMA-Factory Full LoRA SFT for Qwen3-VL-8B on Fashionpedia
+# Stage T2 ablation: BF16 base, 200 training images, 5 epochs
+
+### model
+model_name_or_path: Qwen/Qwen3-VL-8B-Instruct
+trust_remote_code: true
+
+### method
+stage: sft
+do_train: true
+finetuning_type: lora
+lora_target: q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj
+lora_rank: 16
+lora_alpha: 32
+lora_dropout: 0.05
+
+### freeze
+freeze_vision_tower: true
+freeze_multi_modal_projector: true
+
+### dataset
+dataset_dir: ./configs
+dataset: fashionpedia_train
+template: qwen2_vl
+cutoff_len: 4096
+max_samples: 200
+overwrite_cache: true
+preprocessing_num_workers: 4
+
+### output
+output_dir: ./output/qwen3vl_t2_full_lora_200
+logging_steps: 5
+save_steps: 500
+plot_loss: true
+overwrite_output_dir: true
+
+### train
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 8
+learning_rate: 1.0e-4
+num_train_epochs: 5.0
+lr_scheduler_type: cosine
+warmup_ratio: 0.05
+bf16: true
+ddp_timeout: 180000000
+optim: adamw_torch
+report_to: none

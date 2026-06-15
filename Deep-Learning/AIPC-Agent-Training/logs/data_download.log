@@ -1,0 +1,32 @@
+=== Downloading datasets ===
+/root/miniconda3/envs/aipc_test/lib/python3.11/site-packages/requests/__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (7.1.0)/charset_normalizer (3.4.5) doesn't match a supported version!
+  warnings.warn(
+Downloading bitext/Bitext-customer-support-llm-chatbot-training-dataset...
+Generating train split:   0%|          | 0/26872 [00:00<?, ? examples/s]Generating train split:  74%|███████▍  | 20000/26872 [00:00<00:00, 126758.45 examples/s]Generating train split: 100%|██████████| 26872/26872 [00:00<00:00, 128051.29 examples/s]
+  bitext: 26872 rows, columns=['flags', 'instruction', 'category', 'intent', 'response']
+Downloading Console-AI/IT-helpdesk-synthetic-tickets...
+Generating train split:   0%|          | 0/500 [00:00<?, ? examples/s]Generating train split: 100%|██████████| 500/500 [00:00<00:00, 57892.39 examples/s]
+  IT helpdesk: 500 rows, columns=['id', 'subject', 'description', 'priority', 'category', 'createdAt', 'requesterEmail']
+Downloading debabrata-ai/llama3-customer-support-preference...
+  DPO preference download failed: The directory at hf://datasets/debabrata-ai/llama3-customer-support-preference@b9de8c80de58d6ae6fa2b2350ddc930e6e84b0a6 doesn't contain any data files
+
+=== Converting SFT data ===
+Total SFT samples: 900
+SFT train: 850, val: 50
+
+=== Converting DPO data ===
+  DPO preference dataset not available, generating from bitext...
+  aipc_style_dpo: 33 pairs
+  aipc_feedback_v1.3: 33 pairs
+  aipc_code_feedback_v1.4: 34 pairs
+
+=== Data preparation complete ===
+  data/aipc_code_feedback_v1.4.jsonl: 34 rows
+  data/aipc_feedback_v1.3.jsonl: 33 rows
+  data/aipc_sft_train.jsonl: 850 rows
+  data/aipc_sft_val.jsonl: 50 rows
+  data/aipc_style_dpo.jsonl: 33 rows
+  data/sample_code_feedback_v1.4.jsonl: 34 rows
+  data/sample_feedback_v1.3.jsonl: 33 rows
+  data/sample_sft.jsonl: 850 rows
+  data/sample_style_dpo.jsonl: 33 rows

@@ -1,0 +1,124 @@
+﻿
+=== Platform support ===
+{
+  "isSupported": true,
+  "reason": "",
+  "availableMethods": [
+    "processcontainer"
+  ],
+  "isolationTier": "base-container"
+}
+
+=== tools.readonlyPaths ===
+[
+  "c:\\Users\\david\\AppData\\Roaming\\Code - Insiders\\User\\globalStorage\\github.copilot-chat\\debugCommand",
+  "c:\\Users\\david\\AppData\\Roaming\\Code - Insiders\\User\\globalStorage\\github.copilot-chat\\copilotCli",
+  "C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\wbin",
+  "C:\\Python312\\Scripts",
+  "C:\\Python312",
+  "C:\\Program Files\\nodejs",
+  "C:\\ProgramData\\chocolatey\\bin",
+  "C:\\Program Files\\Git\\cmd",
+  "C:\\Users\\david\\AppData\\Local\\Microsoft\\WindowsApps",
+  "C:\\Users\\david\\AppData\\Local\\GitHubDesktop\\bin",
+  "C:\\Users\\david\\AppData\\Roaming\\npm",
+  "C:\\Users\\david\\.lmstudio\\bin",
+  "C:\\Users\\david\\AppData\\Local\\Pandoc",
+  "C:\\Users\\david\\AppData\\Local\\Programs\\Azure Dev CLI",
+  "C:\\Users\\david\\AppData\\Local\\Microsoft\\WinGet\\Packages\\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\\ffmpeg-8.0-full_build\\bin",
+  "G:\\Microsoft VS Code\\bin",
+  "G:\\Microsoft VS Code Insiders\\bin",
+  "c:\\Users\\david\\.vscode-insiders\\extensions\\ms-python.debugpy-2026.6.0-win32-x64\\bundled\\scripts\\noConfigScripts",
+  "C:\\Users\\david\\OneDrive - Office365\\µûçµíú\\WindowsPowerShell\\Modules",
+  "C:\\Program Files\\WindowsPowerShell\\Modules"
+]
+
+=== temp.readwritePaths ===
+[
+  "C:\\Users\\david\\AppData\\Local\\Temp"
+]
+
+=== Generated config ===
+{
+  "version": "0.5.0-alpha",
+  "containerId": "official-python-sample",
+  "lifecycle": {
+    "destroyOnExit": true,
+    "preservePolicy": false
+  },
+  "process": {
+    "commandLine": "python -c \"import sys; print('OFFICIAL_MXC_PYTHON_SAMPLE_OK'); print(sys.version)\"",
+    "timeout": 30000
+  },
+  "filesystem": {
+    "readwritePaths": [
+      "C:\\Users\\david\\AppData\\Local\\Temp"
+    ],
+    "readonlyPaths": [
+      "c:\\Users\\david\\AppData\\Roaming\\Code - Insiders\\User\\globalStorage\\github.copilot-chat\\debugCommand",
+      "c:\\Users\\david\\AppData\\Roaming\\Code - Insiders\\User\\globalStorage\\github.copilot-chat\\copilotCli",
+      "C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\wbin",
+      "C:\\Python312\\Scripts",
+      "C:\\Python312",
+      "C:\\Program Files\\nodejs",
+      "C:\\ProgramData\\chocolatey\\bin",
+      "C:\\Program Files\\Git\\cmd",
+      "C:\\Users\\david\\AppData\\Local\\Microsoft\\WindowsApps",
+      "C:\\Users\\david\\AppData\\Local\\GitHubDesktop\\bin",
+      "C:\\Users\\david\\AppData\\Roaming\\npm",
+      "C:\\Users\\david\\.lmstudio\\bin",
+      "C:\\Users\\david\\AppData\\Local\\Pandoc",
+      "C:\\Users\\david\\AppData\\Local\\Programs\\Azure Dev CLI",
+      "C:\\Users\\david\\AppData\\Local\\Microsoft\\WinGet\\Packages\\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\\ffmpeg-8.0-full_build\\bin",
+      "G:\\Microsoft VS Code\\bin",
+      "G:\\Microsoft VS Code Insiders\\bin",
+      "c:\\Users\\david\\.vscode-insiders\\extensions\\ms-python.debugpy-2026.6.0-win32-x64\\bundled\\scripts\\noConfigScripts",
+      "C:\\Users\\david\\OneDrive - Office365\\µûçµíú\\WindowsPowerShell\\Modules",
+      "C:\\Program Files\\WindowsPowerShell\\Modules"
+    ],
+    "deniedPaths": []
+  },
+  "ui": {
+    "disable": true,
+    "clipboard": "none",
+    "injection": false
+  },
+  "network": {
+    "defaultPolicy": "block",
+    "enforcementMode": "capabilities"
+  },
+  "containment": "process",
+  "processContainer": {
+    "name": "official-python-sample",
+    "leastPrivilege": false,
+    "capabilities": [],
+    "ui": {
+      "isolation": "container",
+      "desktopSystemControl": false,
+      "systemSettings": "none",
+      "ime": false
+    }
+  }
+}
+node : Experimental_CreateProcessInSandbox returned E_NOTIMPL. The following ve
+locity keys are not enabled: 61389575, 61155944. Enable them and retry, or use 
+schema version '0.4.0-alpha' to fall back to the AppContainer backend.{"error":
+{"code":"backend_error","extended_error":"Experimental_CreateProcessInSandbox f
+ailed: WIN32_ERROR(120)","message":"Experimental_CreateProcessInSandbox returne
+d E_NOTIMPL. The following velocity keys are not enabled: 61389575, 61155944. E
+nable them and retry, or use schema version '0.4.0-alpha' to fall back to the A
+ppContainer backend."}}
+At line:1 char:201
++ ... Out-Null }; node .\retest_official_mxc_python_sample.mjs 2>&1 | Tee-O ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Experimental_Cr...ner backend."}} 
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+=== Final result ===
+{
+  "code": 4294967295,
+  "stdout": "",
+  "stderr": "Experimental_CreateProcessInSandbox returned E_NOTIMPL. The following velocity keys are not enabled: 61389575, 61155944. Enable them and retry, or use schema version '0.4.0-alpha' to fall back to the AppContainer backend.{\"error\":{\"code\":\"backend_error\",\"extended_error\":\"Experimental_CreateProcessInSandbox failed: WIN32_ERROR(120)\",\"message\":\"Experimental_CreateProcessInSandbox returned E_NOTIMPL. The following velocity keys are not enabled: 61389575, 61155944. Enable them and retry, or use schema version '0.4.0-alpha' to fall back to the AppContainer backend.\"}}\n"
+}

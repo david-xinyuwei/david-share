@@ -1,0 +1,19 @@
+[Alex]: Welcome to our deep dive into the Azure Agent Skills evaluation. So, Microsoft published 174 agent skills in their skills repo, plus 26 Azure-specific operational ones. That is a LOT of markdown.
+
+[Sam]: So... they wrote some markdown files. Big deal. Every vendor has a docs repo.
+
+[Alex]: Fair point. But here is where it gets interesting. We actually ran 63 Azure MCP tools against a real subscription with Owner permission. Not mock tests. Real API calls.
+
+[Sam]: Wait, hold on. You mean actual live calls to Azure? Like, list-my-VMs, check-my-quota, show-my-RBAC kind of calls?
+
+[Alex]: Exactly. 45 out of 63 executed successfully and returned real Azure data. 9 had valid schemas but needed resources we did not have provisioned. Only 5 had actual errors.
+
+[Sam]: OK that is more convincing. But skills are supposed to be more than just calling APIs, right?
+
+[Alex]: Right. So we used 12 individual skills to produce real deliverables. The cloud-solution-architect skill designed a full RAG agent system using the 7-step Well-Architected Framework. The github-issue-creator turned 6 lines of error logs into 3 structured issues. The mcp-builder produced a working FastMCP server. And the microsoft-docs skill generated a 14-slide deck where every fact came from a learn.microsoft.com URL.
+
+[Sam]: And this podcast? Let me guess...
+
+[Alex]: Yes. This podcast itself was generated using the podcast-generation skill. Two different voices, scripted dialogue, real audio output. We are literally the proof that skills produce real artifacts, not just documentation.
+
+[Sam]: OK, I am convinced. Skills turn generic coding agents into task-specific operators. Not bad, Microsoft. Not bad at all.

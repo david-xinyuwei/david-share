@@ -1,0 +1,75 @@
+﻿SECTION: Request simplified
+Container ID: mxc-hyperlight-smoke
+Platform: windows
+Script code length: 26
+Working directory: 
+Script timeout: 30000
+Container name: mxc-hyperlight-smoke
+SECTION: Full `ExecutionRequest` configuration (redacted)
+{
+  "schema_version": "0.7.0-dev",
+  "container_id": "mxc-hyperlight-smoke",
+  "platform": "windows",
+  "env": [],
+  "script_code": "print('MXC_HYPERLIGHT_OK')",
+  "working_directory": "",
+  "script_timeout": 30000,
+  "containment": "hyperlight",
+  "lifecycle": {
+    "destroy_on_exit": true,
+    "preserve_policy": false
+  },
+  "policy": {
+    "least_privilege_mode": false,
+    "capabilities": [],
+    "readwrite_paths": [],
+    "readonly_paths": [],
+    "denied_paths": [],
+    "fallback": {
+      "allow_dacl_mutation": true
+    },
+    "default_network_policy": "block",
+    "network_enforcement_mode": "capabilities",
+    "allow_local_network": false,
+    "allowed_hosts": [],
+    "blocked_hosts": [],
+    "ui": {
+      "disable": true,
+      "clipboard": "none",
+      "injection": false
+    },
+    "base_process_ui": {
+      "isolation": "container",
+      "desktopSystemControl": false,
+      "systemSettings": "none",
+      "ime": false
+    }
+  },
+  "lxc_config": {
+    "distribution": "",
+    "release": ""
+  },
+  "experimental_enabled": true,
+  "experimental": {
+    "test": null,
+    "windows_sandbox": null,
+    "wslc": null,
+    "isolation_session": null,
+    "seatbelt": null
+  },
+  "dry_run": false
+}
+[network_proxy: disabled]
+hyperlight: using image home "C:\\Users\\david\\AppData\\Local\\pyhl"
+hyperlight: timeout set to 30000ms
+wxc-exec.exe : MXC_HYPERLIGHT_OK
+At line:1 char:803
++ ... CKEND ==='; & $exe --experimental --debug hyperlight_hello.json 2>&1  ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (MXC_HYPERLIGHT_OK:String) [], Rem 
+   oteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+hyperlight: run ok (restore=0.0ms call=105.9ms exit=0)
+Runner completed in 221ms
+Exit code: 0 (0x00000000)

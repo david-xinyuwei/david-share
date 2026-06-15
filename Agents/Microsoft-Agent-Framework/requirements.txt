@@ -1,0 +1,6 @@
+agent_framework
+asyncio
+hitl_agent
+magentic_agent
+python-dotenv
+webbrowser

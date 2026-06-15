@@ -1,0 +1,71 @@
+﻿SECTION: Request simplified
+Container ID: mxc-processcontainer-echo-smoke
+Platform: windows
+Script code length: 64
+Working directory: 
+Script timeout: 30000
+Container name: mxc-processcontainer-echo-smoke
+SECTION: Full `ExecutionRequest` configuration (redacted)
+{
+  "schema_version": "0.4.0-alpha",
+  "container_id": "mxc-processcontainer-echo-smoke",
+  "platform": "windows",
+  "env": [],
+  "script_code": "cmd.exe /d /c echo MXC_PROCESSCONTAINER_ECHO_ONLY_OK & exit /b 0",
+  "working_directory": "",
+  "script_timeout": 30000,
+  "containment": "processcontainer",
+  "lifecycle": {
+    "destroy_on_exit": true,
+    "preserve_policy": false
+  },
+  "policy": {
+    "least_privilege_mode": false,
+    "capabilities": [],
+    "readwrite_paths": [],
+    "readonly_paths": [],
+    "denied_paths": [],
+    "fallback": {
+      "allow_dacl_mutation": true
+    },
+    "default_network_policy": "block",
+    "network_enforcement_mode": "capabilities",
+    "allow_local_network": false,
+    "allowed_hosts": [],
+    "blocked_hosts": [],
+    "ui": {
+      "disable": true,
+      "clipboard": "none",
+      "injection": false
+    },
+    "base_process_ui": {
+      "isolation": "container",
+      "desktopSystemControl": false,
+      "systemSettings": "none",
+      "ime": false
+    }
+  },
+  "lxc_config": {
+    "distribution": "",
+    "release": ""
+  },
+  "experimental_enabled": false,
+  "experimental": {
+    "test": null,
+    "windows_sandbox": null,
+    "wslc": null,
+    "isolation_session": null,
+    "seatbelt": null
+  },
+  "dry_run": false
+}
+[network_proxy: disabled]
+AppContainerSID: S-1-15-2-765016552-963608011-301857611-2469397557-874068371-312889715-2281680143
+No BFS paths to configure.
+STDIO mode: passthrough (forwarding parent handles to child)
+Win32k mitigation applied to child process
+Process created successfully (PID: 24044)
+UI Job Object assigned to child process
+MXC_PROCESSCONTAINER_ECHO_ONLY_OK 
+Runner completed in 29ms
+Exit code: 0 (0x00000000)

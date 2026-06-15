@@ -1,0 +1,12 @@
+/root/miniconda3/envs/aipc_test/lib/python3.11/site-packages/requests/__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (7.1.0)/charset_normalizer (3.4.5) doesn't match a supported version!
+  warnings.warn(
+`torch_dtype` is deprecated! Use `dtype` instead!
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  1.48it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.51it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00,  2.27it/s]
+The model is already on multiple devices. Skipping the move to device specified in `args`.
+🚀 Starting SFT Training...
+The tokenizer has new PAD/BOS/EOS tokens that differ from the model config and generation config. The model config and generation config were aligned accordingly, being updated with the tokenizer's values. Updated tokens: {'eos_token_id': 128009, 'pad_token_id': 128009}.
+  0%|          | 0/2 [00:00<?, ?it/s] 50%|█████     | 1/2 [00:01<00:01,  1.26s/it]                                             {'loss': 10.6573, 'grad_norm': 476.0, 'learning_rate': 2e-05, 'epoch': 1.0}
+ 50%|█████     | 1/2 [00:01<00:01,  1.26s/it]100%|██████████| 2/2 [00:02<00:00,  1.14s/it]                                             {'loss': 1.3019, 'grad_norm': 106.0, 'learning_rate': 1e-05, 'epoch': 2.0}
+100%|██████████| 2/2 [00:02<00:00,  1.14s/it]                                             {'train_runtime': 36.8392, 'train_samples_per_second': 0.163, 'train_steps_per_second': 0.054, 'train_loss': 5.979596734046936, 'epoch': 2.0}
+100%|██████████| 2/2 [00:36<00:00,  1.14s/it]100%|██████████| 2/2 [00:36<00:00, 18.42s/it]
+✅ Training complete. Model saved to checkpoints/aipc_sft_v1

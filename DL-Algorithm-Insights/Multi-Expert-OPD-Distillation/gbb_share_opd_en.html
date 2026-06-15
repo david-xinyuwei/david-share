@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; line-height: 1.6; color: #333; font-size: 14px; }
+        table { border-collapse: collapse; margin: 12px 0; }
+        th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+        th { background: #f5f5f5; }
+        a { color: #0078d4; }
+    </style>
+</head>
+<body>
+<p>Hi Team,</p>
+<p>Sharing a deep dive into DeepSeek-V4's post-training architecture — specifically how they replaced Mixed RL with On-Policy Distillation (OPD) to merge 10+ domain-specialist models into one production model. I verified the mechanism end-to-end on Azure H100.</p>
+<p><b>Background</b>: Enterprise customers with multiple fine-tuned models (math, code, writing, agent, etc.) face a consolidation problem — deploying N models means N× inference cost. DeepSeek-V4 solved this with OPD: distill all specialists into one model via logit-level alignment on the student's own trajectories.</p>
+<p><b>Running on Azure</b>: All 11 training runs and evaluations ran on <a href="https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/ncadsh100v5-series">Standard_NC80adis_H100_v5</a> (2× H100 NVL, 94 GB each). Single VM, no cluster required.</p>
+<p><b>Results (Run 11, HumanEval 164 problems)</b>:</p>
+<table>
+    <tr><th>Metric</th><th>Baseline</th><th>OPD</th><th>Delta</th></tr>
+    <tr><td>Greedy pass@1</td><td>22.56%</td><td>26.22%</td><td>+3.66 pp</td></tr>
+    <tr><td>Sampling pass@1 (mean of 10)</td><td>18.72%</td><td>23.48%</td><td>+4.76 pp</td></tr>
+    <tr><td>pass@10 (production metric)</td><td>49.39%</td><td><b>55.49%</b></td><td><b>+6.10 pp</b></td></tr>
+</table>
+<p>SFT control experiment confirms that plain cross-domain SFT causes catastrophic forgetting (−5.49 pp greedy), while OPD improves both metrics. The repo includes 1900+ lines of theory, 11-run engineering trail, complete scripts, and cost breakdown.</p>
+<p>Repo:<br/><a href="https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/Multi-Expert-OPD-Distillation">https://github.com/david-xinyuwei/david-share/tree/master/DL-Algorithm-Insights/Multi-Expert-OPD-Distillation</a></p>
+<p>If you have customers evaluating DeepSeek or looking to consolidate multiple fine-tuned models, this may be a useful reference. Happy to discuss.</p>
+<p>Xinyu</p>
+</body>
+</html>

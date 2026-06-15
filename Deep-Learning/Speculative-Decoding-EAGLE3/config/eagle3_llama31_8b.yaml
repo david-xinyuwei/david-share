@@ -1,0 +1,55 @@
+# EAGLE3 Training Configuration for Llama-3.1-8B-Instruct
+# Reference: https://github.com/SafeAILab/SpecForge
+
+# Model Configuration
+model:
+  base_model: "meta-llama/Llama-3.1-8B-Instruct"
+  draft_model_type: "eagle3"
+  
+# Training Data
+data:
+  # Use ShareGPT format or similar instruction dataset
+  train_data: "/path/to/your/training_data.json"
+  max_length: 2048
+  
+# Training Hyperparameters
+training:
+  batch_size: 1                    # Single sample per step
+  gradient_accumulation_steps: 8   # Effective batch size = 8
+  learning_rate: 3.0e-5
+  weight_decay: 0.0
+  warmup_steps: 100
+  max_steps: 7000                  # ~45 min on H100
+  
+  # Optimizer
+  optimizer: "adamw"
+  adam_beta1: 0.9
+  adam_beta2: 0.999
+  adam_epsilon: 1.0e-8
+  
+  # Learning rate schedule
+  lr_scheduler: "cosine"
+  
+  # Precision
+  bf16: true
+  tf32: true
+  
+# Checkpointing
+checkpoint:
+  save_steps: 500
+  output_dir: "./output/eagle3-llama31-8b"
+  save_total_limit: 5              # Keep last 5 checkpoints
+  
+# Evaluation
+evaluation:
+  eval_steps: 500
+  
+# Hardware
+hardware:
+  # Recommended: H100 80GB or A100 80GB
+  gradient_checkpointing: false    # Enable if OOM
+  
+# Notes:
+# - Peak accuracy typically at step 5000, consider using that checkpoint
+# - Training may segfault at end (harmless, checkpoints are saved)
+# - Monitor loss/acc trends, not individual step values (batch_size=1 causes variance)

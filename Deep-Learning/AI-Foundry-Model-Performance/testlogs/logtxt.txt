@@ -1,0 +1,156 @@
+Azure ML 新版 Python SDK（azure‐ai‐ml）里，获取在线推理端点密钥的方法并不是 list_keys(...)，而是 get_keys(name=...)。
+因此，你的代码抛出 AttributeError: 'OnlineEndpointOperations' object has no attribute 'list_keys'，只需要将脚本里所有 ml_client.online_endpoints.list_keys(endpoint_name) 改为 ml_client.online_endpoints.get_keys(endpoint_name) 即可。
+
+下面给出一个示例完整脚本，其中仅修改了 deploy_model 函数里获取密钥的那一行。你可以直接复制并运行（其余逻辑保持与你之前的代码相同），确保能成功打印出 Endpoint 信息和 Primary Key。
+
+────────────────────────────────────────────────────────
+示例修正后完整脚本
+────────────────────────────────────────────────────────
+#!/usr/bin/env python3
+
+-- coding: utf-8 --
+ 
+import sys
+import subprocess
+import json
+import time
+import logging
+from azure.ai.ml import MLClient
+from azure.ai.ml.entities import ManagedOnlineEndpoint, ManagedOnlineDeployment
+from azure.identity import DefaultAzureCredential
+
+##############################################################################
+
+Force input for subscription ID, resource group, and workspace
+##############################################################################
+IS_PRODUCTION = False
+
+##############################################################################
+
+Logger setup
+##############################################################################
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(name)
+
+##############################################################################
+
+Helper: prompt_or_default
+##############################################################################
+def prompt_or_default(prompt_text, default_value, is_production):
+"""
+Prompt the user for input, with a default value fallback.
+If is_production=True, input is mandatory.
+"""
+while True:
+user_input = input(prompt_text).strip()
+if user_input:
+return user_input
+if is_production:
+print("Input is mandatory in this environment.在新版 v2 的 azure‐ai‐ml SDK 中，不再使用 list_keys 方法来获取线上端点的密钥，而是用 get_test_keys。
+因此，您脚本中 Please try again.")
+else:
+if default_value:
+return default_value
+else:
+print("No default value available. Please try again.")
+
+##############################################################################
+
+Query GPU quotas (optional)
+##############################################################################
+def get_all_valid_regions():
+# 改成 az.cmd 或者 python -m azure.cli (根据你的环境)
+command =
+keys = ml_client.online_endpoints.list_keys(endpoint_name)
+需要改成
+keys = ml_client.online_endpoints.get_test_keys(endpoint_name)
+
+这样才不会报 AttributeError 并且可正确获取 primary_key、secondary_key ["az.cmd", "account", "list-locations", "--query", "[].name", "-o", "json"]
+result = subprocess.run(command, stdout=subprocess.PIPE, text=True, check=True)
+return json.loads(result.stdout)
+
+def get_ml_quota_in_region(region, resource_group, workspace_name):
+command = [
+"az.cmd", "ml", "compute", "list-usage",
+"--resource-group", resource_group,
+"--workspace-name", workspace_name,
+"--location", region,
+"-o",。
+此外，如果脚本在报错后就退出，自然也就不会打印后续的“REST endpoint”与“Key”。只 "json"
+]
+result = subprocess.run(command, stdout=subprocess.PIPE, text=True, check=True)
+return json.loads(result.stdout)
+
+def check_gpu_quota(resource_group, workspace_name):
+"""
+Briefly print GPU quota information (Limit > 1) to help users understand available quotas.
+"""
+KEYWORDS = ["NCADSA100v4", "NCADSH100v5"]
+SUPPORTED_AML_REGIONS = {
+"northcentralus", "canadacentral",要修复此处，脚本执行成功后即可看到输出。
+
+下面是一段示例如何修改的核心片段（与您原脚本其余部分保持一致即可）：
+部署并获取 Endpoint 的 URI、Key
+def deploy_model(subscription_id, resource_group, workspace_name,
+model_name, model_version, instance_type, instance_count):
+# … (与您原来的逻辑相同)
+endpoint = ml_client.online_endpoints.get(endpoint_name)
+
+
+# 使用 get_test_keys 而不是 list_keys  
+keys = ml_client.online_endpoints.get_test_keys(endpoint_name)  
+primary_key = keys.primary "centralindia", "uksouth", "westus",  
+    "centralus", "eastasia", "japaneast", "japanwest", "westus3", "jioindiawest",  
+    "germanywestcentral", "switzerlandnorth", "uaenorth", "southafricanorth",  
+    "norwayeast", "eastus", "northeurope", "koreacentral", "brazilsouth",  
+    "francecentral_key  
+
+scoring_uri = endpoint.scoring_uri  
+swagger_uri = endpoint.swagger_uri  # 如果想要打印 Swagger URI  
+
+logger.info("\n===== Deployment Successful. Endpoint Information =====")  
+logger.info(f"Endpoint name: {endpoint_name}")  
+logger.info(f"Scoring URI:   {scoring_uri}")  
+logger.info(f"Primary Key:   {primary_key}")  
+logger.info(f"Swagger URI:   {swagger_uri}")  
+
+return endpoint_name, scoring_uri, primary_key  
+ 
+
+将原先的
+keys = ml_client.online_endpoints.list_keys(endpoint_name", "australiaeast", "eastus2", "westus2", "westcentralus",
+"southeastasia", "westeurope", "southcentralus", "canadaeast", "swedencentral",
+"ukwest", "australiasoutheast", "qatarcentral", "southindia", "polandcentral",
+"switzerlandwest", "italynorth", "spaincentral", "israelcentral"
+}
+
+try:
+all_regions = get_all_valid_regions()
+except subprocess.CalledProcessError as e:
+logger.error(f"Failed to fetch region list: {e}")
+return
+
+to_query = [r for r in all_regions if r in SUPPORTED_AML_REGIONS]
+print("\n========== GPU Quota (Limit > 1) ==========")
+print("Region,ResourceName,LocalizedValue,Usage,Limit")
+
+for region in to_query:
+try:
+quota_items = get_ml_quota_in_region(region, resource_group, workspace_name)
+if not isinstance(quota_items, list):
+continue
+for item in quota_items:
+name_dict = item.get("name", {})
+resource_name = name_dict.get("value", "")
+localized_value = name_dict.get("localizedValue", "")
+usage = item.get("currentValue", 0)
+limit = item.get("limit", 0)
+if limit > )
+primary_key = keys.primary_key
+替换为
+keys = ml_client.online_endpoints.get_test_keys(endpoint_name)
+primary_key = keys.primary_key
+
+如果还想打印出 Swagger URI，也可直接通过 endpoint.swagger_uri 获取并打印。
+
+这样脚本不会再因为找不到 list_keys 而报错，执行完毕后自然就能打印出您想要的 “REST endpoint” 和 “key”。

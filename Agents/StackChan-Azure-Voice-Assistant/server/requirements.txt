@@ -1,0 +1,8 @@
+fastapi>=0.115
+uvicorn[standard]>=0.34
+websockets>=14.0
+azure-cognitiveservices-speech>=1.42
+openai>=1.60
+opuslib>=3.0
+python-dotenv>=1.0
+azure-identity>=1.19

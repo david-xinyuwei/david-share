@@ -1,0 +1,67 @@
+[1780905585] SECTION: Request simplified
+[1780905585] Container ID: [1780905585] mxc-hyperlight-smoke[1780905585] 
+[1780905585] Platform: [1780905585] windows[1780905585] 
+[1780905585] Script code length: [1780905585] 26[1780905585] 
+[1780905585] Working directory: [1780905585] [1780905585] 
+[1780905585] Script timeout: [1780905585] 30000[1780905585] 
+[1780905585] Container name: [1780905585] mxc-hyperlight-smoke[1780905585] 
+[1780905585] SECTION: Full `ExecutionRequest` configuration (redacted)
+[1780905585] {
+  "schema_version": "0.7.0-dev",
+  "container_id": "mxc-hyperlight-smoke",
+  "platform": "windows",
+  "env": [],
+  "script_code": "print('MXC_HYPERLIGHT_OK')",
+  "working_directory": "",
+  "script_timeout": 30000,
+  "containment": "hyperlight",
+  "lifecycle": {
+    "destroy_on_exit": true,
+    "preserve_policy": false
+  },
+  "policy": {
+    "least_privilege_mode": false,
+    "capabilities": [],
+    "readwrite_paths": [],
+    "readonly_paths": [],
+    "denied_paths": [],
+    "fallback": {
+      "allow_dacl_mutation": true
+    },
+    "default_network_policy": "block",
+    "network_enforcement_mode": "capabilities",
+    "allow_local_network": false,
+    "allowed_hosts": [],
+    "blocked_hosts": [],
+    "ui": {
+      "disable": true,
+      "clipboard": "none",
+      "injection": false
+    },
+    "base_process_ui": {
+      "isolation": "container",
+      "desktopSystemControl": false,
+      "systemSettings": "none",
+      "ime": false
+    }
+  },
+  "lxc_config": {
+    "distribution": "",
+    "release": ""
+  },
+  "experimental_enabled": true,
+  "experimental": {
+    "test": null,
+    "windows_sandbox": null,
+    "wslc": null,
+    "isolation_session": null,
+    "seatbelt": null
+  },
+  "dry_run": false
+}
+[network_proxy: disabled][1780905585] 
+[1780905585] hyperlight: using image home "C:\\Users\\david\\AppData\\Local\\pyhl"
+[1780905585] hyperlight: timeout set to 30000ms
+[1780905586] hyperlight: run ok (restore=0.0ms call=112.6ms exit=0)
+[1780905586] Runner completed in [1780905586] 251[1780905586] ms
+[1780905586] Exit code: [1780905586] 0[1780905586]  (0x[1780905586] 0[1780905586] 0[1780905586] 0[1780905586] 0[1780905586] 0[1780905586] 0[1780905586] 0[1780905586] 0[1780905586] )

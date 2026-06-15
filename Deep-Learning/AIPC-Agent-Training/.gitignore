@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Logs
+logs/
+*.log
+
+# Model checkpoints (too large for git)
+output/
+checkpoints/
+*.pt
+*.pth
+*.bin
+*.safetensors
+
+# Data (examples are kept, full datasets are not)
+# data/*.jsonl is tracked, but generated outputs are not
+data/v3_bad_samples.jsonl
+
+# Test scripts (not part of the pipeline)
+test_*.py
+
+# OS
+.DS_Store
+Thumbs.db

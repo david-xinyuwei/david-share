@@ -1,0 +1,2697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Microsoft Foundry Agent Lifecycle Demo</title>
+<style>
+:root {
+  --bg: #f4f7fb;
+  --surface: #ffffff;
+  --surface-muted: #f8fafc;
+  --line: #d9e2ec;
+  --line-strong: #c7d3df;
+  --text: #182230;
+  --muted: #627085;
+  --subtle: #8a96a8;
+  --blue: #0078d4;
+  --blue-dark: #005a9e;
+  --green: #107c10;
+  --amber: #b76e00;
+  --red: #c4314b;
+  --navy: #10233f;
+  --shadow: 0 12px 30px rgba(16, 35, 63, 0.08);
+  --radius: 8px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+button, input, textarea, select { font: inherit; }
+button { border: none; }
+a { color: var(--blue); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font-family: "Cascadia Mono", Consolas, monospace; }
+
+.topbar {
+  background: var(--navy);
+  color: #fff;
+  padding: 18px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  box-shadow: 0 2px 16px rgba(16, 35, 63, 0.18);
+}
+
+.brand-kicker {
+  color: #9ccdf5;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.topbar h1 {
+  font-size: 20px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 28px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
+  color: #eaf4ff;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #37c675;
+  box-shadow: 0 0 0 4px rgba(55, 198, 117, 0.18);
+}
+
+.page {
+  width: min(1480px, calc(100vw - 32px));
+  margin: 22px auto 34px;
+}
+
+.overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(420px, 1fr);
+  gap: 16px;
+  align-items: stretch;
+  margin-bottom: 16px;
+}
+
+.overview-main,
+.overview-stats {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.overview-main { padding: 22px; }
+.overview-stats { padding: 16px; }
+
+.eyebrow {
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+}
+
+.overview h2 {
+  font-size: 28px;
+  line-height: 1.16;
+  font-weight: 700;
+  letter-spacing: 0;
+  max-width: 900px;
+}
+
+.overview-copy {
+  color: var(--muted);
+  margin-top: 10px;
+  max-width: 900px;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  height: 100%;
+}
+
+.stat {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px;
+  background: var(--surface-muted);
+  min-height: 88px;
+}
+
+.stat-value {
+  display: block;
+  font-size: 28px;
+  line-height: 1;
+  font-weight: 750;
+  color: var(--navy);
+  margin-bottom: 8px;
+}
+
+.stat-label {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.lifecycle {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(130px, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 10px;
+  background: rgba(244, 247, 251, 0.94);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 24px rgba(16, 35, 63, 0.06);
+  overflow-x: auto;
+}
+
+.lc-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 10px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+}
+
+.lc-step:hover,
+.lc-step.active {
+  border-color: var(--blue);
+  box-shadow: 0 6px 18px rgba(0, 120, 212, 0.12);
+  transform: translateY(-1px);
+}
+
+.lc-step.done .lc-num { background: #e7f5ea; color: var(--green); border-color: #b7dfbf; }
+.lc-step.active .lc-num { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+.lc-num {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 800;
+  background: #f4f7fb;
+  color: var(--muted);
+}
+
+.lc-copy strong { display: block; font-size: 13px; }
+.lc-copy span { display: block; color: var(--subtle); font-size: 11px; margin-top: 2px; }
+
+.stage {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.stage-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.stage-title {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.stage-num {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: inline-grid;
+  place-items: center;
+  color: #fff;
+  background: var(--blue);
+  font-weight: 800;
+  flex: 0 0 auto;
+}
+
+.stage-title h3 {
+  font-size: 18px;
+  line-height: 1.2;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.stage-title p {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.stage-body { padding: 18px 20px 20px; }
+
+.surface {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+  min-width: 0;
+}
+
+.surface-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.surface-head h4 {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.surface-body { padding: 14px; }
+
+.toolbox-grid,
+.deploy-grid,
+.test-grid,
+.eval-grid,
+.trace-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.toolbox-grid { grid-template-columns: minmax(0, 1.45fr) minmax(360px, 1fr); }
+.deploy-grid { grid-template-columns: minmax(300px, 0.86fr) minmax(0, 1.14fr); }
+.runtime-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.test-grid { grid-template-columns: minmax(0, 1.52fr) minmax(340px, 0.8fr); }
+.eval-grid { grid-template-columns: minmax(0, 1fr) minmax(380px, 0.72fr); }
+.trace-grid { grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.8fr); }
+
+.stack { display: grid; gap: 12px; }
+.compact-stack { display: grid; gap: 8px; }
+
+.eval-picker {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 12px;
+}
+
+.eval-picker label {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+
+.eval-picker select {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: var(--text);
+  background: #fff;
+}
+
+.btn {
+  min-height: 36px;
+  padding: 8px 13px;
+  border-radius: 6px;
+  border: 1px solid var(--line-strong);
+  background: #fff;
+  color: var(--text);
+  font-weight: 650;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.btn:hover { border-color: var(--blue); color: var(--blue-dark); }
+.btn.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+.btn.primary:hover { background: var(--blue-dark); color: #fff; }
+.btn.success { background: var(--green); border-color: var(--green); color: #fff; }
+.btn.subtle { background: var(--surface-muted); }
+.btn.danger:hover { border-color: var(--red); color: var(--red); }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.link-btn {
+  color: var(--blue);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.choice-row,
+.agent-card,
+.tool-card,
+.data-row,
+.template-card {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface-muted);
+}
+.data-row.selected {
+  border-color: rgba(31, 111, 235, 0.42);
+  background: #f5f9ff;
+}
+
+.choice-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  padding: 10px;
+  cursor: pointer;
+}
+
+.choice-row + .choice-row { margin-top: 8px; }
+.choice-row.selected { border-color: var(--blue); background: #f0f7ff; }
+.choice-row strong { display: block; color: var(--text); }
+.choice-row span { display: block; color: var(--muted); font-size: 12px; word-break: break-all; }
+
+.agent-card {
+  padding: 12px;
+  cursor: pointer;
+  transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+}
+
+.agent-card + .agent-card { margin-top: 8px; }
+.agent-card:hover { border-color: var(--blue); }
+.agent-card.selected { border-color: var(--blue); background: #f0f7ff; box-shadow: 0 6px 16px rgba(0, 120, 212, 0.08); }
+
+.agent-name { font-weight: 750; color: var(--navy); }
+.agent-meta { color: var(--muted); font-size: 12px; margin-top: 3px; }
+.agent-actions { display: flex; gap: 8px; margin-top: 10px; }
+.agent-actions .btn { flex: 1; min-height: 30px; padding: 5px 8px; font-size: 12px; }
+
+.chip-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #eef4fb;
+  color: #34506f;
+  font-size: 11px;
+  border: 1px solid #dbe7f3;
+  font-family: "Cascadia Mono", Consolas, monospace;
+}
+.chip.green { background: #e7f5ea; color: var(--green); border-color: #c7e7ce; }
+.chip.blue { background: #e7f2fb; color: var(--blue-dark); border-color: #c8def2; }
+.chip.amber { background: #fff4df; color: var(--amber); border-color: #f2d8a9; }
+.chip.red { background: #fdecef; color: var(--red); border-color: #f2c9d1; }
+
+.detail-box {
+  background: var(--surface-muted);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.detail-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 5px 0;
+  border-bottom: 1px solid #edf2f7;
+}
+.detail-row:last-child { border-bottom: none; }
+.detail-row span:first-child { color: var(--subtle); }
+.detail-row span:last-child { color: var(--text); text-align: right; min-width: 0; word-break: break-word; }
+
+.memory-summary {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fff;
+  padding: 11px;
+}
+.memory-outcome {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.memory-outcome strong { color: var(--navy); font-size: 13px; line-height: 1.25; }
+.memory-outcome span {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 800;
+  border: 1px solid var(--line);
+}
+.memory-outcome .pass { color: var(--green); background: #e7f5ea; border-color: #b7dfbf; }
+.memory-outcome .warn { color: var(--amber); background: #fff4df; border-color: #f2d8a9; }
+.memory-outcome .fail { color: var(--red); background: #fff5f6; border-color: #f2c9d1; }
+.memory-summary p { color: var(--muted); font-size: 12px; margin-bottom: 9px; }
+.memory-evidence {
+  margin-top: 9px;
+  border-top: 1px solid #edf2f7;
+  padding-top: 8px;
+}
+.memory-evidence summary {
+  color: var(--blue-dark);
+  cursor: pointer;
+  font-weight: 750;
+  font-size: 12px;
+}
+.memory-item {
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-muted);
+}
+.memory-item .meta { color: var(--muted); font-size: 11px; margin-bottom: 5px; }
+.memory-item .content { color: var(--text); font-size: 12px; }
+
+.selected-agent-header {
+  border: 1px solid #b9d8f2;
+  background: #f0f7ff;
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 12px;
+}
+.selected-agent-header .name { color: var(--navy); font-size: 20px; font-weight: 750; }
+.selected-agent-header .toolset { color: var(--muted); margin-top: 8px; }
+
+.quick-prompts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.quick-prompts button {
+  min-height: 30px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+}
+.quick-prompts button:hover { border-color: var(--blue); color: var(--blue-dark); background: #f0f7ff; }
+
+.input-area {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.input-area input,
+.modal input,
+.modal textarea,
+.modal select {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: var(--text);
+  background: #fff;
+  outline: none;
+}
+.input-area input:focus,
+.modal input:focus,
+.modal textarea:focus,
+.modal select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.12); }
+
+.output {
+  min-height: 330px;
+  max-height: 540px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fbfdff;
+  padding: 12px;
+}
+
+.empty-state {
+  color: var(--subtle);
+  text-align: center;
+  padding: 44px 18px;
+}
+
+.trace-step {
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--blue);
+  border-radius: 7px;
+  background: #fff;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.trace-step.active { border-left-color: var(--amber); background: #fffaf1; }
+.trace-step.done { border-left-color: var(--green); }
+.trace-step.error { border-left-color: var(--red); background: #fff5f6; }
+.trace-step .num { color: var(--blue-dark); font-weight: 800; margin-right: 8px; }
+.trace-step .label { font-weight: 750; color: var(--navy); }
+.trace-step .detail { color: var(--muted); font-size: 12px; margin-top: 5px; padding-left: 22px; white-space: pre-wrap; }
+
+.final-answer {
+  border: 1px solid #b7dfbf;
+  border-left: 4px solid var(--green);
+  border-radius: 7px;
+  background: #f3fbf5;
+  padding: 12px;
+  color: var(--text);
+}
+.final-answer .label { color: var(--green); font-size: 12px; font-weight: 800; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+.final-answer img { max-width: 100%; border-radius: 6px; margin-top: 10px; border: 1px solid var(--line); }
+.final-answer.error { border-color: #f2c9d1; border-left-color: var(--red); background: #fff5f6; }
+.final-answer.error .label { color: var(--red); }
+
+.tool-card {
+  padding: 10px;
+  margin-bottom: 8px;
+}
+.tool-card.active { border-color: var(--blue); background: #f0f7ff; box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.08); }
+.tool-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.tool-name { font-family: "Cascadia Mono", Consolas, monospace; font-size: 12px; font-weight: 750; color: var(--navy); }
+.tool-type { font-size: 10px; font-weight: 800; color: var(--blue-dark); background: #e7f2fb; border: 1px solid #c8def2; padding: 2px 6px; border-radius: 999px; }
+.tool-type.toolbox { color: var(--green); background: #e7f5ea; border-color: #c7e7ce; }
+.tool-desc { color: var(--muted); font-size: 12px; margin-top: 5px; }
+
+.data-row {
+  padding: 10px;
+  margin-bottom: 8px;
+}
+.data-row strong { color: var(--navy); }
+.data-row .meta { color: var(--muted); font-size: 12px; margin-top: 3px; }
+
+.history-list,
+.log-box,
+.eval-details,
+.trace-list {
+  max-height: 280px;
+  overflow-y: auto;
+}
+.log-box {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #111827;
+  color: #d6e4ff;
+  padding: 10px;
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 11px;
+}
+.log-line { padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.07); white-space: pre-wrap; }
+
+.score-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.score-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-muted);
+  padding: 12px;
+}
+.score-card.pass { border-color: #b7dfbf; background: #f3fbf5; }
+.score-card.fail { border-color: #f2c9d1; background: #fff5f6; }
+.sc-name { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+.sc-score { font-size: 24px; line-height: 1.1; font-weight: 800; color: var(--navy); margin: 5px 0; }
+.score-card.pass .sc-score { color: var(--green); }
+.score-card.fail .sc-score { color: var(--red); }
+.sc-label { color: var(--muted); font-size: 12px; }
+
+.fleet-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.fleet-table th {
+  text-align: left;
+  padding: 9px 8px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.fleet-table td { padding: 10px 8px; border-bottom: 1px solid #edf2f7; vertical-align: top; }
+.fleet-table tr:hover { background: #f8fafc; }
+
+.mini-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.mini-metric {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px;
+  background: var(--surface-muted);
+}
+.mini-metric strong { display: block; color: var(--navy); font-size: 24px; line-height: 1; margin-bottom: 6px; }
+.mini-metric span { color: var(--muted); font-size: 12px; }
+
+.modal-bg {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.58);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 18px;
+}
+.modal-bg.show { display: flex; }
+.modal {
+  width: min(680px, 100%);
+  max-height: calc(100vh - 36px);
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.26);
+  padding: 22px;
+}
+.modal h2 { color: var(--navy); font-size: 20px; margin-bottom: 12px; }
+.modal label {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  margin: 12px 0 5px;
+}
+.modal .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+.modal .actions .btn { min-width: 120px; }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.tool-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px; }
+.tool-section-title {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  margin: 6px 0 0;
+}
+.tool-grid label,
+.checkbox-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 10px;
+  background: var(--surface-muted);
+  color: var(--text);
+  cursor: pointer;
+  margin: 0;
+}
+.checkbox-card.disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+.tool-grid label.disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+.checkbox-card.plan {
+  background: #fffaf0;
+  border-color: #f4d7a1;
+}
+.checkbox-card.ready {
+  background: #f7fbff;
+}
+.checkbox-card .tool-kind {
+  display: inline-flex;
+  width: fit-content;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #334155;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.checkbox-card.plan .tool-kind { background: #fff1d6; color: var(--amber); }
+.checkbox-card.ready .tool-kind { background: #e7f5ea; color: var(--green); }
+.checkbox-card.agent-info {
+  background: var(--surface-muted);
+  border-color: var(--line);
+  cursor: default;
+  opacity: 0.8;
+}
+.checkbox-card.agent-info .tool-kind { background: #eef2ff; color: #6366f1; }
+.tool-config-form {
+  grid-column: 1 / -1;
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 8px 0 0;
+  border-top: 1px dashed var(--line);
+  margin-top: 6px;
+}
+.tool-config-form .cfg-field {
+  display: flex; flex-direction: column; flex: 1 1 200px; min-width: 0;
+}
+.tool-config-form .cfg-field label {
+  display: block; font-size: 11px; color: var(--muted); margin: 0 0 2px; padding: 0; border: none; background: none; cursor: default;
+}
+.tool-config-form .cfg-field input {
+  padding: 5px 8px; font-size: 12px; border: 1px solid var(--line); border-radius: 5px;
+  background: var(--bg); color: var(--text);
+}
+.template-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.template-card { padding: 12px; text-align: left; cursor: pointer; }
+.template-card:hover { border-color: var(--blue); background: #f0f7ff; }
+.template-card strong { display: block; color: var(--navy); margin-bottom: 4px; }
+.template-card span { display: block; color: var(--muted); font-size: 12px; }
+
+.sr-note { color: var(--subtle); font-size: 12px; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.source-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 2px 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+.skill-browser {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.45fr);
+  gap: 12px;
+  margin-top: 10px;
+}
+.skill-list,
+.loaded-skill-list {
+  max-height: 360px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface-muted);
+  padding: 8px;
+}
+.skill-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 9px;
+  border-bottom: 1px solid #e5e7eb;
+}
+.skill-row:last-child { border-bottom: 0; }
+.skill-row strong { color: var(--navy); font-size: 13px; }
+.skill-row .meta { color: var(--muted); font-size: 11px; margin-top: 2px; }
+.skill-row button { min-width: 72px; }
+.skill-search { display: grid; grid-template-columns: minmax(0, 1fr) 160px; gap: 8px; }
+.loaded-skill-list .skill-row { grid-template-columns: minmax(0, 1fr) auto; background: #fff; border-radius: 6px; margin-bottom: 6px; border-bottom: 0; }
+
+@media (max-width: 1180px) {
+  .overview,
+  .toolbox-grid,
+  .deploy-grid,
+  .test-grid,
+  .eval-grid,
+  .trace-grid { grid-template-columns: 1fr; }
+  .overview-stats { min-width: 0; }
+}
+
+@media (max-width: 760px) {
+  .topbar { align-items: flex-start; flex-direction: column; padding: 16px; }
+  .page { width: min(100vw - 20px, 1480px); margin-top: 12px; }
+  .overview h2 { font-size: 22px; }
+  .stat-grid,
+  .runtime-grid,
+  .score-grid,
+  .mini-metrics,
+  .eval-picker,
+  .form-grid,
+  .skill-browser,
+  .skill-search,
+  .template-grid,
+  .two-col { grid-template-columns: 1fr; }
+  .stage-head { flex-direction: column; }
+  .input-area { grid-template-columns: 1fr; }
+  .lifecycle { grid-template-columns: repeat(6, minmax(150px, 1fr)); }
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div>
+    <div class="brand-kicker">Microsoft Foundry</div>
+    <h1>Agent Lifecycle Control Center</h1>
+  </div>
+  <div class="topbar-actions">
+    <span class="pill"><span class="status-dot"></span>Live Foundry + demo registry</span>
+    <a class="pill" href="https://learn.microsoft.com/en-us/azure/foundry/" target="_blank">Official docs</a>
+  </div>
+</header>
+
+<main class="page">
+  <section class="overview">
+    <div class="overview-main">
+      <div class="eyebrow">Enterprise platform decision demo</div>
+      <h2>One lifecycle for building, evaluating, tracing, and governing enterprise agents.</h2>
+      <p class="overview-copy">This demo combines live Foundry calls, Application Insights telemetry, and local demo registries so each lifecycle step has a visible proof point.</p>
+    </div>
+    <div class="overview-stats">
+      <div class="stat-grid">
+        <div class="stat"><span class="stat-value" id="summaryAgents">-</span><span class="stat-label">Foundry agents</span></div>
+        <div class="stat"><span class="stat-value" id="summaryHosted">-</span><span class="stat-label">Hosted runtimes</span></div>
+        <div class="stat"><span class="stat-value" id="summaryTools">-</span><span class="stat-label">Toolbox tools</span></div>
+        <div class="stat"><span class="stat-value" id="summaryCalls">-</span><span class="stat-label">Demo calls</span></div>
+      </div>
+    </div>
+  </section>
+
+  <nav class="lifecycle" id="lifecycleBar" aria-label="Foundry lifecycle">
+    <button class="lc-step done" onclick="scrollToSection('toolboxMgmt')" id="lc1"><span class="lc-num">1</span><span class="lc-copy"><strong>Build Toolbox</strong><span>Govern tools</span></span></button>
+    <button class="lc-step" onclick="scrollToSection('deploySection')" id="lc2"><span class="lc-num">2</span><span class="lc-copy"><strong>Deploy Agent</strong><span>Bind runtime</span></span></button>
+    <button class="lc-step" onclick="scrollToSection('testSection')" id="lc3"><span class="lc-num">3</span><span class="lc-copy"><strong>Test</strong><span>Run live call</span></span></button>
+    <button class="lc-step" onclick="scrollToSection('evalPanel')" id="lc4"><span class="lc-num">4</span><span class="lc-copy"><strong>Evaluate</strong><span>Quality and safety</span></span></button>
+    <button class="lc-step" onclick="scrollToSection('tracingPanel')" id="lc5"><span class="lc-num">5</span><span class="lc-copy"><strong>Trace</strong><span>Span detail</span></span></button>
+    <button class="lc-step" onclick="scrollToSection('fleetPanel')" id="lc6"><span class="lc-num">6</span><span class="lc-copy"><strong>Govern Fleet</strong><span>Control plane</span></span></button>
+  </nav>
+
+  <section class="stage" id="toolboxMgmt">
+    <div class="stage-head">
+      <div class="stage-title">
+        <span class="stage-num">1</span>
+        <div>
+          <h3>Build Toolbox</h3>
+          <p>Publish a governed MCP tool surface that multiple agents can consume.</p>
+        </div>
+      </div>
+      <a href="https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/tools/toolbox" target="_blank" class="btn subtle">Toolbox docs</a>
+    </div>
+    <div class="stage-body toolbox-grid">
+      <div class="surface">
+        <div class="surface-head">
+          <h4>Toolbox inventory</h4>
+          <button class="btn primary" onclick="openToolboxModal()">+ Create toolbox</button>
+        </div>
+        <div class="surface-body">
+          <div id="toolboxMgmtList" class="compact-stack"><div class="sr-note">Loading toolboxes...</div></div>
+        </div>
+      </div>
+      <div class="surface">
+        <div class="surface-head"><h4>Governance model</h4></div>
+        <div class="surface-body compact-stack">
+          <div class="data-row"><strong>One endpoint</strong><div class="meta">Agents connect to a single MCP endpoint instead of each team wiring tools by hand.</div></div>
+          <div class="data-row"><strong>Versioned tools</strong><div class="meta">Toolboxes can be versioned and promoted while agent code stays stable.</div></div>
+          <div class="data-row"><strong>Enterprise boundary</strong><div class="meta">Tool access, auth, and inventory become a platform concern rather than an app concern.</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="stage" id="deploySection">
+    <div class="stage-head">
+      <div class="stage-title">
+        <span class="stage-num">2</span>
+        <div>
+          <h3>Deploy Agent</h3>
+          <p>Bind each Foundry agent to a hosted runtime, model, toolbox, and memory store.</p>
+        </div>
+      </div>
+      <button class="btn primary" onclick="openCreateModal()">+ Create agent</button>
+    </div>
+    <div class="stage-body deploy-grid">
+      <div class="stack">
+        <div class="surface">
+          <div class="surface-head"><h4>Endpoint</h4></div>
+          <div class="surface-body" id="endpointSelector">
+            <div id="endpointList" class="compact-stack"></div>
+            <div id="endpointDesc" class="sr-note" style="margin-top:10px"></div>
+          </div>
+        </div>
+        <div class="runtime-grid">
+          <div class="surface">
+            <div class="surface-head"><h4>Runtime health</h4></div>
+            <div class="surface-body"><div id="runtimeHealthCard" class="detail-box">Checking...</div></div>
+          </div>
+          <div class="surface">
+            <div class="surface-head"><h4>Agent Memory <span id="memoryStatus" class="sr-note">loading</span></h4></div>
+            <div class="surface-body"><div id="memoryCard" class="detail-box">Checking...</div></div>
+          </div>
+        </div>
+        <div class="surface">
+          <div class="surface-head"><h4>Selected hosted runtime <span id="hostedAgentLabel" class="sr-note"></span></h4></div>
+          <div class="surface-body"><div id="hostedAgentCard" class="detail-box">Select an agent to see its hosted runtime.</div></div>
+        </div>
+      </div>
+
+      <div class="surface">
+        <div class="surface-head"><h4>Demo agent registry</h4><span class="source-badge">local registry</span></div>
+        <div class="surface-body">
+          <div id="agentList" class="compact-stack"><div class="sr-note">Loading agents...</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="stage" id="testSection">
+    <div class="stage-head">
+      <div class="stage-title">
+        <span class="stage-num">3</span>
+        <div>
+          <h3>Test Agent</h3>
+          <p>Run a live request and watch model planning, tool invocation, latency, and tokens.</p>
+        </div>
+      </div>
+    </div>
+    <div class="stage-body test-grid">
+      <div class="surface">
+        <div class="surface-body">
+          <div id="selectedAgentHeader" class="selected-agent-header">
+            <div class="name" id="selName">No agent selected</div>
+            <div class="toolset" id="selTools">Pick an agent from the registry.</div>
+          </div>
+          <div class="quick-prompts" id="quickPrompts"></div>
+          <div class="input-area">
+            <input type="text" id="promptInput" placeholder="Ask the selected agent..." onkeydown="if(event.key==='Enter')sendChat();">
+            <button class="btn subtle" id="micBtn" onclick="toggleRecord()" title="Voice input via Whisper">Mic</button>
+            <button class="btn primary" id="askBtn" onclick="sendChat()">Ask</button>
+          </div>
+          <div class="output" id="output">
+            <div class="empty-state">Select an agent, choose a prompt, then run the request.</div>
+          </div>
+        </div>
+      </div>
+      <div class="stack">
+        <div class="surface">
+          <div class="surface-head"><h4>Tool catalog</h4></div>
+          <div class="surface-body"><div id="toolboxList">Loading tools...</div></div>
+        </div>
+        <div class="surface">
+          <div class="surface-head"><h4>Recent calls</h4></div>
+          <div class="surface-body"><div id="historyList" class="history-list sr-note">No calls yet.</div></div>
+        </div>
+        <div class="surface">
+          <div class="surface-head">
+            <h4>Hosted agent log <span id="logSrc" class="sr-note">local</span></h4>
+            <button class="btn subtle" onclick="pollLog()">Refresh</button>
+          </div>
+          <div class="surface-body">
+            <div id="logHint" class="sr-note" style="margin-bottom:8px"></div>
+            <div id="logTail" class="log-box">Loading...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="stage" id="evalPanel">
+    <div class="stage-head">
+      <div class="stage-title">
+        <span class="stage-num">4</span>
+        <div>
+          <h3>Evaluate Agent</h3>
+          <p>Run quality, tool-behavior, and safety checks before promoting agent behavior.</p>
+        </div>
+      </div>
+      <a class="btn subtle" href="https://learn.microsoft.com/en-us/azure/foundry/concepts/built-in-evaluators" target="_blank">Evaluator docs</a>
+    </div>
+    <div class="stage-body eval-grid">
+      <div class="surface">
+        <div class="surface-head">
+          <h4>Evaluation run</h4>
+        </div>
+        <div class="surface-body">
+          <div class="eval-picker">
+            <div>
+              <label for="evalAgentSelect">Agent to evaluate</label>
+              <select id="evalAgentSelect" onchange="setEvaluationAgent(this.value)">
+                <option value="">Loading agents...</option>
+              </select>
+            </div>
+            <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
+              <button class="btn subtle" onclick="refreshAgentSelectors()">Refresh agents</button>
+              <button id="evalBtn" class="btn primary" onclick="runEvaluation()">Run evaluation</button>
+            </div>
+          </div>
+          <div id="evalStatus" class="sr-note" style="margin-bottom:12px">Select an agent, then run evaluation.</div>
+          <div id="evalScores" class="score-grid"></div>
+          <div id="evalDetails" class="eval-details"></div>
+        </div>
+      </div>
+      <div class="surface">
+        <div class="surface-head"><h4>Coverage</h4></div>
+        <div class="surface-body compact-stack">
+          <div class="data-row"><strong>Agent behavior</strong><div class="meta">task completion, task adherence, intent resolution, navigation efficiency.</div></div>
+          <div class="data-row"><strong>Tool process</strong><div class="meta">tool selection, input accuracy, call success, output utilization.</div></div>
+          <div class="data-row"><strong>Quality</strong><div class="meta">coherence, fluency, groundedness, relevance, completeness.</div></div>
+          <div class="data-row"><strong>Safety</strong><div class="meta">violence, self-harm, hate, protected material, XPIA, data leakage.</div></div>
+          <div class="data-row"><strong>Operations</strong><div class="meta">one-shot runs, continuous evaluation, scheduled evaluation, red teaming.</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="stage" id="tracingPanel">
+    <div class="stage-head">
+      <div class="stage-title">
+        <span class="stage-num">5</span>
+        <div>
+          <h3>Trace Spans</h3>
+          <p>Inspect agent calls as OpenTelemetry spans in Application Insights.</p>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <a class="btn subtle" href="https://learn.microsoft.com/en-us/azure/foundry/observability/concepts/trace-agent-concept" target="_blank">Tracing docs</a>
+        <button class="btn primary" onclick="loadTracing()">Load traces</button>
+      </div>
+    </div>
+    <div class="stage-body trace-grid">
+      <div class="surface">
+        <div class="surface-head"><h4>Recent traces</h4></div>
+        <div class="surface-body">
+          <div class="eval-picker">
+            <div>
+              <label for="traceAgentSelect">Agent to inspect</label>
+              <select id="traceAgentSelect" onchange="setTraceAgent(this.value)">
+                <option value="">Loading agents...</option>
+              </select>
+            </div>
+            <button class="btn subtle" onclick="refreshAgentSelectors()">Refresh agents</button>
+          </div>
+          <div id="tracingList" class="trace-list sr-note">Traces load automatically after traffic is generated.</div>
+        </div>
+      </div>
+      <div class="surface">
+        <div class="surface-head"><h4>Trace value</h4></div>
+        <div class="surface-body compact-stack">
+          <div class="data-row"><strong>Latency breakdown</strong><div class="meta">See time spent in agent, model, and tools.</div></div>
+          <div class="data-row"><strong>Tool visibility</strong><div class="meta">Confirm which tool was selected and whether the call succeeded.</div></div>
+          <div class="data-row"><strong>Operations-ready</strong><div class="meta">Use the same telemetry backbone as Azure Monitor and App Insights.</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="stage" id="fleetPanel">
+    <div class="stage-head">
+      <div class="stage-title">
+        <span class="stage-num">6</span>
+        <div>
+          <h3>Govern Fleet</h3>
+          <p>Find agents that need action before demo handoff: missing tools, toolbox drift, runtime gaps, and telemetry risk.</p>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <a class="btn subtle" href="https://learn.microsoft.com/en-us/azure/foundry/control-plane/overview" target="_blank">Control plane docs</a>
+        <button class="btn primary" onclick="loadFleet()">Load fleet</button>
+      </div>
+    </div>
+    <div class="stage-body">
+      <div id="fleetContent" class="sr-note">Fleet data loads automatically.</div>
+    </div>
+  </section>
+</main>
+
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h2 id="modalTitle">Create new agent</h2>
+    <label>Agent name</label>
+    <input type="text" id="modalName" placeholder="Research agent">
+    <label>Instructions</label>
+    <textarea id="modalInstr" rows="2" placeholder="You are a helpful research assistant."></textarea>
+    <label>Model deployment</label>
+    <select id="modalModel"><option value="">Loading deployments...</option></select>
+    <label>Hosted runtime</label>
+    <select id="modalHostedAgent"><option value="default">Loading...</option></select>
+    <div id="hostedAgentDetail" class="detail-box" style="margin-top:8px"></div>
+    <label>Toolbox binding</label>
+    <select id="modalToolbox"><option value="agent-tools">Loading toolboxes...</option></select>
+    <div id="toolboxDetail" class="detail-box" style="margin-top:8px"></div>
+    <div style="text-align:right;margin-top:8px">
+      <button type="button" onclick="openCreateHostedAgentModal()" class="link-btn">+ Register hosted runtime</button>
+    </div>
+    <label>Agent tools from selected Toolbox</label>
+    <div class="tool-grid" id="modalTools"></div>
+    <div class="actions">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn primary" id="modalSave" onclick="saveAgent()">Create</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="skillsModalBg">
+  <div class="modal" style="width:min(920px,100%)">
+    <h2 id="skillsModalTitle">Load Microsoft skills</h2>
+    <div class="sr-note">Attach selected SKILL.md guidance from microsoft/skills to this agent. Skills shape behavior and SDK patterns; tools still come from the agent tool list.</div>
+    <div class="skill-search">
+      <input type="text" id="skillSearch" placeholder="Search skills, e.g. foundry, azure-ai-projects-py, cosmos" oninput="renderSkillsModal()">
+      <select id="skillCategory" onchange="renderSkillsModal()">
+        <option value="">All categories</option>
+      </select>
+    </div>
+    <div class="skill-browser">
+      <div>
+        <label>Catalog</label>
+        <div class="skill-list" id="skillCatalogList"><div class="sr-note">Loading microsoft/skills catalog...</div></div>
+      </div>
+      <div>
+        <label>Loaded on this agent</label>
+        <div class="loaded-skill-list" id="loadedSkillList"><div class="sr-note">No skills loaded.</div></div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn" onclick="closeSkillsModal()">Close</button>
+      <a class="btn subtle" href="https://github.com/microsoft/skills" target="_blank" rel="noreferrer">Open microsoft/skills</a>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="haModalBg">
+  <div class="modal" style="width:min(680px,100%)">
+    <h2>Register hosted runtime</h2>
+    <div class="sr-note">Register a team-owned agent runtime with its language, framework, endpoint, toolbox, and memory configuration.</div>
+    <label>Template</label>
+    <div class="template-grid" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+      <div onclick="fillHaTemplate('python', this)" class="template-card"><svg width="28" height="28" viewBox="0 0 256 255" style="vertical-align:middle;margin-bottom:6px"><defs><linearGradient id="pyA" x1="12.96" y1="12.04" x2="166.1" y2="152.46" gradientUnits="userSpaceOnUse"><stop stop-color="#387EB8"/><stop offset="1" stop-color="#366994"/></linearGradient><linearGradient id="pyB" x1="89.9" y1="102.54" x2="243.1" y2="242.96" gradientUnits="userSpaceOnUse"><stop stop-color="#FFE052"/><stop offset="1" stop-color="#FFC331"/></linearGradient></defs><path d="M126.916.072c-64.832 0-60.784 28.115-60.784 28.115l.072 29.128h61.868v8.745H41.631S.145 61.355.145 126.77c0 65.417 36.21 63.097 36.21 63.097h21.61v-30.356s-1.165-36.21 35.632-36.21h61.362s34.475.557 34.475-33.319V33.97S194.67.072 126.916.072zM92.802 19.66a11.12 11.12 0 1 1 0 22.24 11.12 11.12 0 0 1 0-22.24z" fill="url(#pyA)"/><path d="M128.757 254.126c64.832 0 60.784-28.115 60.784-28.115l-.072-29.127H127.6v-8.746h86.441s41.486 4.705 41.486-60.712c0-65.416-36.21-63.096-36.21-63.096h-21.61v30.355s1.165 36.21-35.632 36.21h-61.362s-34.475-.557-34.475 33.32v56.013s-5.235 33.897 62.518 33.897zm34.114-19.586a11.12 11.12 0 1 1 0-22.24 11.12 11.12 0 0 1 0 22.24z" fill="url(#pyB)"/></svg><br><strong>Python</strong><span>Agent Framework</span></div>
+      <div onclick="fillHaTemplate('nodejs', this)" class="template-card"><svg width="28" height="28" viewBox="0 0 256 289" style="vertical-align:middle;margin-bottom:6px"><path d="M128 288.464c-3.975 0-7.685-1.06-11.13-2.915l-35.247-20.936c-5.3-2.915-2.65-3.975-1.06-4.505 7.155-2.385 8.48-2.915 15.9-7.155.795-.53 1.855-.265 2.65.265l27.032 16.166c1.06.53 2.385.53 3.18 0l105.74-61.217c1.06-.53 1.59-1.59 1.59-2.915V83.08c0-1.325-.53-2.385-1.59-2.915L129.325 19.213c-1.06-.53-2.385-.53-3.18 0L20.14 80.165c-1.06.53-1.59 1.855-1.59 2.915v122.17c0 1.06.53 2.385 1.59 2.915l28.887 16.695c15.635 7.95 25.44-1.325 25.44-10.6V93.15c0-1.59 1.325-3.18 3.18-3.18h13.25c1.59 0 3.18 1.325 3.18 3.18v121.11c0 20.936-11.395 33.126-31.27 33.126-6.095 0-10.865 0-24.38-6.625L10.335 224.6C3.975 221.155 0 214.265 0 206.845V84.675c0-7.42 3.975-14.31 10.335-17.755L116.075 5.173c6.095-3.445 14.31-3.445 20.405 0L242.22 66.92c6.36 3.445 10.335 10.335 10.335 17.755v122.17c0 7.42-3.975 14.31-10.335 17.755L136.48 285.817c-2.65 1.59-5.565 2.65-8.48 2.65z" fill="#539E43"/><path d="M160.066 206.315c-44.787 0-54.327-20.67-54.327-37.896 0-1.59 1.325-3.18 3.18-3.18h13.515c1.59 0 2.915 1.06 2.915 2.65 2.12 13.78 8.215 20.67 36.307 20.67 22.26 0 31.8-5.035 31.8-16.96 0-6.89-2.65-11.925-37.367-15.37-28.887-2.915-46.907-9.275-46.907-32.33 0-21.465 18.02-34.185 48.232-34.185 33.92 0 50.615 11.66 52.735 37.102 0 .795-.265 1.59-.795 2.385-.53.53-1.325 1.06-2.12 1.06h-13.515c-1.325 0-2.65-1.06-2.915-2.385-3.18-14.575-11.395-19.345-33.39-19.345-24.645 0-27.56 8.48-27.56 14.84 0 7.685 3.445 10.07 36.307 14.31 32.595 4.24 47.967 10.335 47.967 33.126-.265 23.32-19.345 36.572-53.06 36.572z" fill="#539E43"/></svg><br><strong>Node.js</strong><span>TypeScript runtime</span></div>
+      <div onclick="fillHaTemplate('java', this)" class="template-card"><svg width="28" height="28" viewBox="0 0 256 346" style="vertical-align:middle;margin-bottom:6px"><path d="M82.554 267.473s-13.198 7.675 9.393 10.272c27.369 3.122 41.356 2.675 71.517-3.034 0 0 7.93 4.972 19.003 9.279-67.611 28.977-153.019-1.679-99.913-16.517M74.292 229.659s-14.803 10.958 7.805 13.296c29.236 3.016 52.324 3.263 92.276-4.43 0 0 5.526 5.602 14.215 8.666-81.747 23.904-172.842 1.885-114.296-17.532" fill="#5382A1"/><path d="M143.942 165.515c16.66 19.18-4.377 36.44-4.377 36.44s42.301-21.837 22.874-49.183c-18.144-25.5-32.059-38.172 43.268-81.858 0 0-118.238 29.53-61.765 94.6" fill="#E76F00"/><path d="M233.364 295.442s9.767 8.047-10.757 14.273c-39.026 11.823-162.432 15.393-196.714.471-12.323-5.36 10.787-12.8 18.056-14.362 7.581-1.644 11.914-1.337 11.914-1.337-13.705-9.655-88.583 18.957-38.034 27.15 137.853 22.356 251.292-10.066 215.535-26.195M88.9 190.48s-62.771 14.908-22.228 20.323c17.118 2.292 51.243 1.774 83.03-.89 25.978-2.187 52.063-6.85 52.063-6.85s-9.16 3.923-15.787 8.448c-63.744 16.765-186.886 8.966-151.435-8.183 29.981-14.492 54.358-12.848 54.358-12.848M201.506 253.422c64.8-33.672 34.839-66.03 13.927-61.67-5.126 1.066-7.411 1.99-7.411 1.99s1.903-2.98 5.537-4.27c41.37-14.545 73.187 42.897-13.355 65.647 0 .001.098-.089 1.302-1.697" fill="#5382A1"/><path d="M162.439.371s35.887 35.9-34.037 91.101c-56.071 44.282-12.786 69.53-.023 98.377-32.73-29.53-56.75-55.526-40.635-79.72C111.395 74.612 176.918 57.393 162.439.371" fill="#E76F00"/><path d="M95.268 344.665c62.199 3.982 157.712-2.209 159.974-31.64 0 0-4.348 11.158-51.404 20.018-53.088 9.99-118.564 8.824-157.399 2.421.001 0 7.95 6.58 48.83 9.201" fill="#5382A1"/></svg><br><strong>Java</strong><span>Semantic Kernel</span></div>
+      <div onclick="fillHaTemplate('custom', this)" class="template-card"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-bottom:6px"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><br><strong>Custom</strong><span>Start from scratch</span></div>
+    </div>
+    <div class="form-grid">
+      <div><label>Name</label><input type="text" id="haName" placeholder="order-processor"></div>
+      <div><label>Team</label><input type="text" id="haTeam" placeholder="Commerce Team"></div>
+      <div><label>Language</label><input type="text" id="haLang" placeholder="Python 3.12"></div>
+      <div><label>Framework</label><input type="text" id="haFramework" placeholder="Microsoft Agent Framework"></div>
+      <div><label>Resources</label><input type="text" id="haResources" placeholder="CPU 0.25 / 0.5Gi"></div>
+    </div>
+    <label>Toolbox</label>
+    <input type="text" id="haToolbox" placeholder="code_interpreter, file_search, web_search">
+    <label>Memory store</label>
+    <input type="text" id="haMemory" placeholder="agent-memory">
+    <label>Endpoint URL</label>
+    <input type="text" id="haUrl" placeholder="https://.../responses?api-version=...">
+    <label>Description</label>
+    <textarea id="haDesc" rows="2" placeholder="What does this hosted runtime do?"></textarea>
+    <div class="actions">
+      <button class="btn" onclick="closeHaModal()">Cancel</button>
+      <button class="btn primary" onclick="saveHostedAgent()">Register</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="tbModalBg">
+  <div class="modal">
+    <h2>Create toolbox</h2>
+    <div class="sr-note">Create a governed set of tools exposed through one MCP endpoint.</div>
+    <label>Toolbox name</label>
+    <input type="text" id="tbName" placeholder="team-tools">
+    <label>Description</label>
+    <input type="text" id="tbDesc" placeholder="Tools for this agent team">
+    <label>Tools</label>
+    <div class="tool-grid" id="tbToolGrid">
+      <div class="sr-note">Loading Toolbox catalog...</div>
+    </div>
+    <div class="actions">
+      <button class="btn" onclick="document.getElementById('tbModalBg').classList.remove('show')">Cancel</button>
+      <button class="btn primary" id="tbSaveBtn" onclick="saveToolbox()">Create toolbox</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let SELECTED = null;
+let ALL_TOOLS = {};
+let TOOLBOX_CATALOG = [];
+let TOOLBOXES_CACHE = [];
+let SELECTED_TOOLBOX_NAME = 'agent-tools';
+let SKILL_CATALOG = [];
+let ALL_HOSTED_AGENTS = {};
+let AGENTS_CACHE = [];
+let RUNTIME_HEALTH = null;
+let EDITING_AGENT = null;
+let ACTIVE_SKILL_AGENT = null;
+let DEFAULT_AGENT_MODEL = 'gpt-4-1-mini';
+
+const $ = (id) => document.getElementById(id);
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text == null ? '' : String(text);
+  return div.innerHTML;
+}
+
+function shortText(text, length) {
+  const value = text == null ? '' : String(text);
+  return value.length > length ? value.slice(0, length) + '...' : value;
+}
+
+function toolChip(name, tone) {
+  const cls = tone ? `chip ${tone}` : 'chip';
+  return `<span class="${cls}">${escapeHtml(name)}</span>`;
+}
+
+function detailRows(rows) {
+  return rows.map(([label, value]) => `
+    <div class="detail-row"><span>${escapeHtml(label)}</span><span>${value || '-'}</span></div>
+  `).join('');
+}
+
+function fetchWithTimeout(url, options = {}, timeoutMs = 45000) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, {...options, signal: controller.signal})
+    .finally(() => clearTimeout(timeoutId));
+}
+
+async function readJsonResponse(response) {
+  let data = {};
+  try {
+    data = await response.json();
+  } catch (error) {
+    data = {};
+  }
+  if (!response.ok) {
+    const message = data.detail || data.error || data.text || response.statusText || 'Request failed';
+    throw new Error(`${response.status} ${message}`);
+  }
+  return data;
+}
+
+function setLifecycle(step, state) {
+  const el = $(`lc${step}`);
+  if (!el) return;
+  if (state === 'active') el.classList.add('active');
+  if (state === 'done') el.classList.add('done');
+  if (state === 'idle') el.classList.remove('active');
+}
+
+function scrollToSection(id) {
+  const map = {toolboxMgmt: 1, deploySection: 2, testSection: 3, evalPanel: 4, tracingPanel: 5, fleetPanel: 6};
+  document.querySelectorAll('.lc-step').forEach(step => step.classList.remove('active'));
+  if (map[id]) setLifecycle(map[id], 'active');
+  const target = $(id);
+  if (target) target.scrollIntoView({behavior: 'smooth', block: 'start'});
+  if (id === 'toolboxMgmt') loadToolboxes();
+  if (id === 'evalPanel') loadAgents();
+  if (id === 'tracingPanel') loadAgents().then(loadTracing).catch(() => loadTracing());
+  if (id === 'fleetPanel') loadFleet();
+}
+
+async function switchEndpoint(id) {
+  const response = await fetchWithTimeout('/api/endpoints/select', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({id})
+  }, 15000);
+  await readJsonResponse(response);
+  await loadInfo();
+  pollHealth();
+}
+
+async function loadHostedAgents() {
+  try {
+    const response = await fetchWithTimeout('/api/hosted-agents', {}, 15000);
+    const data = await readJsonResponse(response);
+    ALL_HOSTED_AGENTS = {};
+    (data.hosted_agents || []).forEach(agent => ALL_HOSTED_AGENTS[agent.id] = agent);
+    $('summaryHosted').textContent = Object.keys(ALL_HOSTED_AGENTS).length;
+  } catch (error) {
+    console.warn('loadHostedAgents error', error);
+  }
+}
+
+async function loadInfo() {
+  const response = await fetchWithTimeout('/api/toolbox-info', {}, 15000);
+  const data = await readJsonResponse(response);
+  ALL_TOOLS = data.all_tools || {};
+  TOOLBOX_CATALOG = data.toolbox_catalog || [];
+  DEFAULT_AGENT_MODEL = data.default_agent_model || DEFAULT_AGENT_MODEL;
+
+  const endpoints = Object.values(data.endpoints || {});
+  const current = data.current_endpoint || 'local';
+  $('endpointList').innerHTML = endpoints.map(endpoint => `
+    <label class="choice-row ${endpoint.id === current ? 'selected' : ''}">
+      <input type="radio" name="endpoint" value="${escapeHtml(endpoint.id)}" ${endpoint.id === current ? 'checked' : ''} onchange="switchEndpoint('${escapeHtml(endpoint.id)}')">
+      <span><strong>${escapeHtml(endpoint.label)}</strong><span>${escapeHtml(shortText(endpoint.url, 86))}</span></span>
+    </label>
+  `).join('') || '<div class="sr-note">No endpoint configured.</div>';
+  const endpoint = (data.endpoints || {})[current] || {};
+  $('endpointDesc').textContent = endpoint.description || '';
+
+  const toolboxTools = (data.toolbox_tools || []).filter(tool => tool.name && tool.name !== 'error');
+  const directTools = Object.entries(ALL_TOOLS).filter(([, value]) => value.source === 'direct');
+  $('summaryTools').textContent = toolboxTools.length || Object.keys(ALL_TOOLS).length;
+
+  let html = toolboxTools.map(tool => `
+    <div class="tool-card" id="tool-${escapeHtml(tool.name)}">
+      <div class="tool-row"><span class="tool-name">${escapeHtml(tool.name)}</span><span class="tool-type toolbox">TOOLBOX</span></div>
+      <div class="tool-desc">${escapeHtml(tool.description || '')}</div>
+    </div>
+  `).join('');
+  if (directTools.length) {
+    html += '<div class="sr-note" style="margin:10px 0 6px">Direct tools in agent code</div>';
+    html += directTools.map(([name, value]) => `
+      <div class="tool-card" id="tool-${escapeHtml(name)}">
+        <div class="tool-row"><span class="tool-name">${escapeHtml(name)}</span><span class="tool-type">DIRECT</span></div>
+        <div class="tool-desc">${escapeHtml(value.desc || '')}</div>
+      </div>
+    `).join('');
+  }
+  $('toolboxList').innerHTML = html || '<div class="sr-note">No tools loaded.</div>';
+}
+
+async function loadAgents() {
+  try {
+    const response = await fetchWithTimeout('/api/agents', {}, 15000);
+    const data = await readJsonResponse(response);
+    AGENTS_CACHE = data.agents || [];
+    if (!SELECTED && AGENTS_CACHE.length) SELECTED = AGENTS_CACHE[0].id;
+    if (SELECTED && !AGENTS_CACHE.some(agent => agent.id === SELECTED) && AGENTS_CACHE.length) SELECTED = AGENTS_CACHE[0].id;
+    renderAgentList();
+    renderSelectedAgent();
+    renderEvaluationAgentSelect();
+    renderMemoryAgentSelect();
+    renderTraceAgentSelect();
+    $('summaryAgents').textContent = AGENTS_CACHE.length;
+    $('summaryCalls').textContent = AGENTS_CACHE.reduce((sum, agent) => sum + (agent.calls || 0), 0);
+  } catch (error) {
+    $('agentList').innerHTML = `<div class="sr-note">Failed to load agents: ${escapeHtml(error.message)}</div>`;
+  }
+}
+
+function renderAgentList() {
+  $('agentList').innerHTML = AGENTS_CACHE.map(agent => {
+    const hosted = ALL_HOSTED_AGENTS[agent.hosted_agent_id || 'default'] || {};
+    const builtIn = ['default', 'math-only', 'rag-only'].includes(agent.id);
+    const loadedSkills = agent.loaded_skills || [];
+    return `
+      <div class="agent-card ${SELECTED === agent.id ? 'selected' : ''}" onclick="selectAgent('${agent.id}')">
+        <div class="agent-name">${escapeHtml(agent.name)}</div>
+        <div class="agent-meta">${escapeHtml(agent.id)} | ${escapeHtml(agent.model || DEFAULT_AGENT_MODEL)} | Toolbox: ${escapeHtml(agent.toolbox_name || SELECTED_TOOLBOX_NAME || 'agent-tools')} | ${agent.calls || 0} calls | ${loadedSkills.length} skills | ${escapeHtml(hosted.name || 'default runtime')}</div>
+        <div class="chip-list">${(agent.tools || []).map(tool => toolChip(tool, 'blue')).join('')}</div>
+        <div class="chip-list">${loadedSkills.slice(0, 4).map(skill => toolChip(skill.name || skill.label || skill.id, 'green')).join('')}</div>
+        <div class="agent-actions" onclick="event.stopPropagation()">
+          <button class="btn subtle" onclick="openEditModal('${agent.id}')">Edit tools</button>
+          <button class="btn subtle" onclick="openSkillsModal('${agent.id}')">Load skills</button>
+          ${builtIn ? '' : `<button class="btn danger" onclick="deleteAgent('${agent.id}')">Delete</button>`}
+        </div>
+      </div>
+    `;
+  }).join('') || '<div class="sr-note">No agents registered.</div>';
+}
+
+function _renderAgentSelect(selectId, currentSelectedId) {
+  const select = $(selectId);
+  if (!select) return;
+  const prev = select.value;
+  const keepPrev = prev && AGENTS_CACHE.some(a => a.id === prev);
+  const effectiveId = keepPrev ? prev : (currentSelectedId || SELECTED);
+  select.innerHTML = AGENTS_CACHE.map(agent => `
+    <option value="${escapeHtml(agent.id)}" ${agent.id === effectiveId ? 'selected' : ''}>${escapeHtml(agent.name)} (${escapeHtml(agent.id)})</option>
+  `).join('') || '<option value="">No agents available</option>';
+}
+
+function renderEvaluationAgentSelect() { _renderAgentSelect('evalAgentSelect'); }
+function renderTraceAgentSelect() { _renderAgentSelect('traceAgentSelect'); }
+function renderMemoryAgentSelect() { _renderAgentSelect('memoryAgentSelect'); }
+
+async function refreshAgentSelectors() {
+  await loadAgents();
+  const agent = AGENTS_CACHE.find(item => item.id === SELECTED);
+  const status = $('evalStatus');
+  if (status) status.textContent = agent ? `Agent list refreshed. Ready to evaluate ${agent.name}.` : 'Agent list refreshed. Create an agent in Step 2 first.';
+}
+
+async function refreshMemoryPanel() {
+  await loadAgents();
+  await loadMemoryStatus();
+}
+
+function setEvaluationAgent(id) {
+  if (!id) return;
+  const agent = AGENTS_CACHE.find(item => item.id === id);
+  $('evalStatus').textContent = agent ? `Ready to evaluate ${agent.name}.` : 'Select an agent, then run evaluation.';
+  $('evalScores').innerHTML = '';
+  $('evalDetails').innerHTML = '';
+}
+
+function setMemoryAgent(id) {
+  if (!id) return;
+  loadMemoryStatus();
+}
+
+function setTraceAgent(id) {
+  if (!id) return;
+  loadTracing();
+}
+
+function selectAgent(id) {
+  SELECTED = id;
+  renderAgentList();
+  renderSelectedAgent();
+}
+
+function renderSelectedAgent() {
+  const agent = AGENTS_CACHE.find(item => item.id === SELECTED);
+  if (!agent) return;
+  $('selName').textContent = agent.name;
+  const loadedSkills = agent.loaded_skills || [];
+  const skillLine = loadedSkills.length
+    ? `<strong>Loaded skills:</strong><div class="chip-list">${loadedSkills.map(skill => toolChip(skill.name || skill.label || skill.id, 'blue')).join('')}</div>`
+    : '<span class="sr-note">No skills loaded yet.</span>';
+  $('selTools').innerHTML = `<strong>Bound toolbox:</strong> <code>${escapeHtml(agent.toolbox_name || SELECTED_TOOLBOX_NAME || 'agent-tools')}</code><br><strong>Available tools:</strong><div class="chip-list">${(agent.tools || []).map(tool => toolChip(tool, 'green')).join('') || '<span class="sr-note">No tools selected</span>'}</div>${skillLine}<div style="margin-top:8px"><button class="btn subtle" onclick="openSkillsModal('${agent.id}')">Load Microsoft skills</button></div>`;
+  renderHostedRuntime(agent);
+  renderPromptButtons(agent);
+}
+
+async function loadSkillsCatalog(refresh = false) {
+  const url = refresh ? '/api/skills?refresh=true' : '/api/skills';
+  const response = await fetchWithTimeout(url, {}, 30000);
+  const data = await readJsonResponse(response);
+  SKILL_CATALOG = data.skills || [];
+  const categories = [...new Set(SKILL_CATALOG.map(skill => skill.category || 'Other'))].sort();
+  $('skillCategory').innerHTML = '<option value="">All categories</option>' + categories.map(category => `<option value="${escapeHtml(category)}">${escapeHtml(category)}</option>`).join('');
+}
+
+async function openSkillsModal(agentId) {
+  ACTIVE_SKILL_AGENT = agentId;
+  const agent = AGENTS_CACHE.find(item => item.id === agentId);
+  if (!agent) return;
+  $('skillsModalTitle').textContent = 'Load skills for ' + agent.name;
+  $('skillSearch').value = '';
+  $('skillCategory').value = '';
+  $('skillsModalBg').classList.add('show');
+  $('skillCatalogList').innerHTML = '<div class="sr-note">Loading microsoft/skills catalog...</div>';
+  renderLoadedSkillList(agent);
+  try {
+    if (!SKILL_CATALOG.length) await loadSkillsCatalog(false);
+    renderSkillsModal();
+  } catch (error) {
+    $('skillCatalogList').innerHTML = `<div class="sr-note">Failed to load skills: ${escapeHtml(error.message)}</div>`;
+  }
+}
+
+function closeSkillsModal() {
+  $('skillsModalBg').classList.remove('show');
+  ACTIVE_SKILL_AGENT = null;
+}
+
+function renderLoadedSkillList(agent) {
+  const loaded = agent.loaded_skills || [];
+  $('loadedSkillList').innerHTML = loaded.map(skill => `
+    <div class="skill-row">
+      <div><strong>${escapeHtml(skill.name || skill.label || skill.id)}</strong><div class="meta">${escapeHtml(skill.category || 'Skill')} | ${escapeHtml(shortText(skill.description || '', 100))}</div></div>
+      <button class="btn subtle" onclick="removeSkillFromAgent('${escapeHtml(skill.id)}')">Remove</button>
+    </div>
+  `).join('') || '<div class="sr-note">No skills loaded.</div>';
+}
+
+function renderSkillsModal() {
+  const agent = AGENTS_CACHE.find(item => item.id === ACTIVE_SKILL_AGENT);
+  if (!agent) return;
+  const loadedIds = new Set((agent.loaded_skills || []).map(skill => skill.id));
+  const term = $('skillSearch').value.trim().toLowerCase();
+  const category = $('skillCategory').value;
+  const filtered = SKILL_CATALOG.filter(skill => {
+    const text = `${skill.name || ''} ${skill.label || ''} ${skill.description || ''} ${skill.category || ''}`.toLowerCase();
+    return (!category || skill.category === category) && (!term || text.includes(term));
+  }).slice(0, 80);
+  $('skillCatalogList').innerHTML = filtered.map(skill => {
+    const loaded = loadedIds.has(skill.id);
+    return `
+      <div class="skill-row">
+        <div><strong>${escapeHtml(skill.label || skill.name)}</strong><div class="meta">${escapeHtml(skill.category || 'Other')} | ${escapeHtml(skill.name || '')}</div><div class="meta">${escapeHtml(shortText(skill.description || '', 140))}</div></div>
+        <button class="btn ${loaded ? 'subtle' : 'primary'}" ${loaded ? 'disabled' : ''} onclick="loadSkillToAgent('${escapeHtml(skill.id)}')">${loaded ? 'Loaded' : 'Load'}</button>
+      </div>
+    `;
+  }).join('') || '<div class="sr-note">No skills match this filter.</div>';
+  renderLoadedSkillList(agent);
+}
+
+async function loadSkillToAgent(skillId) {
+  if (!ACTIVE_SKILL_AGENT) return;
+  try {
+    const response = await fetchWithTimeout('/api/agents/' + ACTIVE_SKILL_AGENT + '/skills', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({skill_id: skillId})
+    }, 45000);
+    const updated = await readJsonResponse(response);
+    AGENTS_CACHE = AGENTS_CACHE.map(agent => agent.id === updated.id ? updated : agent);
+    renderAgentList();
+    renderSelectedAgent();
+    renderSkillsModal();
+  } catch (error) {
+    alert('Failed to load skill: ' + error.message);
+  }
+}
+
+async function removeSkillFromAgent(skillId) {
+  if (!ACTIVE_SKILL_AGENT) return;
+  try {
+    const response = await fetchWithTimeout('/api/agents/' + ACTIVE_SKILL_AGENT + '/skills/remove', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({skill_id: skillId})
+    }, 20000);
+    const updated = await readJsonResponse(response);
+    AGENTS_CACHE = AGENTS_CACHE.map(agent => agent.id === updated.id ? updated : agent);
+    renderAgentList();
+    renderSelectedAgent();
+    renderSkillsModal();
+  } catch (error) {
+    alert('Failed to remove skill: ' + error.message);
+  }
+}
+
+function renderHostedRuntime(agent) {
+  const hosted = ALL_HOSTED_AGENTS[agent.hosted_agent_id || 'default'] || {};
+  const defaultRuntime = (agent.hosted_agent_id || 'default') === 'default';
+  const liveStatus = RUNTIME_HEALTH && RUNTIME_HEALTH.alive
+    ? '<span style="color:var(--green);font-weight:700">Live</span>'
+    : '<span style="color:var(--red);font-weight:700">Down</span>';
+  const status = defaultRuntime && RUNTIME_HEALTH
+    ? liveStatus
+    : '<span style="color:var(--amber);font-weight:700">Registered</span>';
+  const statusSource = defaultRuntime && RUNTIME_HEALTH ? 'live health probe' : 'local registry only';
+  $('hostedAgentLabel').textContent = hosted.name ? `(${hosted.name})` : '';
+  $('hostedAgentCard').innerHTML = detailRows([
+    ['Status', status],
+    ['Status source', escapeHtml(statusSource)],
+    ['Name', escapeHtml(hosted.name || 'default')],
+    ['Team', escapeHtml(hosted.team || '-')],
+    ['Language', escapeHtml(hosted.language || '-')],
+    ['Framework', escapeHtml(hosted.framework || '-')],
+    ['Agent toolbox binding', escapeHtml(agent.toolbox_name || SELECTED_TOOLBOX_NAME || 'agent-tools')],
+    ['Toolbox', escapeHtml(hosted.toolbox || '-')],
+    ['Memory', hosted.memory_store ? `<span style="color:var(--green);font-weight:700">${escapeHtml(hosted.memory_store)}</span>` : '-']
+  ]);
+}
+
+function renderPromptButtons(agent) {
+  const tools = agent.tools || [];
+  const prompts = [];
+  if (tools.length >= 3 && tools.includes('code_interpreter') && (tools.includes('web_search') || tools.includes('direct_web_search'))) {
+    prompts.push(['Web + math', 'Search the web for current Microsoft stock price, then use code_interpreter to compute a simple 30-day volatility scenario.']);
+  }
+  if (tools.includes('code_interpreter')) {
+    prompts.push(['Factorial', 'Use code_interpreter to compute factorial of 20.']);
+    prompts.push(['Fibonacci', 'Use code_interpreter to compute the 30th Fibonacci number.']);
+  }
+  if (tools.includes('file_search')) {
+    prompts.push(['Customer constraints', 'Use file_search: list the 6 customer constraints with their meanings.']);
+    prompts.push(['MCP rationale', 'Use file_search: why MCP, not function calling? Cite the document.']);
+  }
+  if (tools.includes('web_search') || tools.includes('direct_web_search')) {
+    prompts.push(['Foundry news', 'Find the latest Microsoft Foundry news with source URLs.']);
+    prompts.push(['Hosted Agents', 'What are Microsoft Foundry Hosted Agents? Cite sources.']);
+  }
+  if (tools.includes('direct_image_generate')) {
+    prompts.push(['Generate image', 'Create a photo-realistic image of a modern enterprise agent operations room.']);
+  }
+  $('quickPrompts').innerHTML = prompts.map(([label, prompt]) => `<button onclick="setPrompt('${prompt.replace(/'/g, "\\'")}')">${escapeHtml(label)}</button>`).join('');
+}
+
+function setPrompt(prompt) { $('promptInput').value = prompt; }
+
+function populateHostedAgentSelect(selectedId) {
+  const select = $('modalHostedAgent');
+  select.innerHTML = Object.values(ALL_HOSTED_AGENTS).map(agent => `
+    <option value="${escapeHtml(agent.id)}" ${agent.id === selectedId ? 'selected' : ''}>${escapeHtml(agent.name)} (${escapeHtml(agent.team || 'no team')}) - ${escapeHtml(agent.language || '?')}</option>
+  `).join('');
+  showHostedAgentDetail(selectedId || 'default');
+  select.onchange = () => showHostedAgentDetail(select.value);
+}
+
+async function loadModelDeployments(selectedModel) {
+  const select = $('modalModel');
+  if (!select) return;
+  select.innerHTML = '<option value="">Loading...</option>';
+  try {
+    const response = await fetchWithTimeout('/api/model-deployments', {}, 15000);
+    const data = await readJsonResponse(response);
+    const deployments = data.deployments || [];
+    if (!deployments.length) {
+      select.innerHTML = `<option value="${escapeHtml(data.default_model || DEFAULT_AGENT_MODEL)}">${escapeHtml(data.default_model || DEFAULT_AGENT_MODEL)} (fallback)</option>`;
+    } else {
+      select.innerHTML = deployments.map(d => {
+        const label = d.model && d.model !== d.id ? `${d.id} (${d.model})` : d.id;
+        return `<option value="${escapeHtml(d.id)}">${escapeHtml(label)}</option>`;
+      }).join('');
+    }
+    if (selectedModel) select.value = selectedModel;
+    if (!select.value && select.options.length) select.value = select.options[0].value;
+  } catch (error) {
+    select.innerHTML = `<option value="${escapeHtml(DEFAULT_AGENT_MODEL)}">${escapeHtml(DEFAULT_AGENT_MODEL)} (fallback)</option>`;
+    if (selectedModel) select.value = selectedModel;
+  }
+}
+
+function showHostedAgentDetail(id) {
+  const agent = ALL_HOSTED_AGENTS[id];
+  if (!agent) {
+    $('hostedAgentDetail').innerHTML = '';
+    return;
+  }
+  $('hostedAgentDetail').innerHTML = detailRows([
+    ['Runtime', escapeHtml(agent.name)],
+    ['Team', escapeHtml(agent.team || '-')],
+    ['Language', escapeHtml(agent.language || '-')],
+    ['Framework', escapeHtml(agent.framework || '-')],
+    ['Toolbox', escapeHtml(agent.toolbox || '-')],
+    ['Memory', escapeHtml(agent.memory_store || '-')]
+  ]);
+}
+
+function renderModalTools(selected, toolboxName) {
+  const liveToolIds = getLiveToolIdsForToolbox(toolboxName || SELECTED_TOOLBOX_NAME);
+  const restrictToolboxTools = liveToolIds.length > 0;
+  $('modalTools').innerHTML = Object.entries(ALL_TOOLS).map(([name, value]) => {
+    const isToolboxTool = value.source === 'toolbox';
+    const disabled = isToolboxTool && restrictToolboxTools && !liveToolIds.includes(name);
+    const checked = !disabled && selected.includes(name) ? 'checked' : '';
+    const note = disabled
+      ? `Not in selected toolbox: ${toolboxName || SELECTED_TOOLBOX_NAME}`
+      : (value.desc || '');
+    return `
+      <label class="${disabled ? 'disabled' : ''}"><input type="checkbox" value="${escapeHtml(name)}" ${checked} ${disabled ? 'disabled' : ''}><span><strong>${escapeHtml(value.label || name)}</strong><br><span class="sr-note">${escapeHtml(note)}</span></span></label>
+    `;
+  }).join('');
+}
+
+async function openCreateModal() {
+  if (!TOOLBOXES_CACHE.length) await loadToolboxes().catch(error => console.warn('loadToolboxes error', error));
+  EDITING_AGENT = null;
+  $('modalTitle').textContent = 'Create new agent';
+  $('modalSave').textContent = 'Create';
+  $('modalName').value = '';
+  $('modalName').disabled = false;
+  $('modalInstr').value = '';
+  loadModelDeployments(DEFAULT_AGENT_MODEL);
+  populateToolboxSelect(SELECTED_TOOLBOX_NAME);
+  renderModalTools(agentToolDefaultsForToolbox(SELECTED_TOOLBOX_NAME, []), SELECTED_TOOLBOX_NAME);
+  populateHostedAgentSelect('default');
+  $('modalBg').classList.add('show');
+}
+
+async function openEditModal(agentId) {
+  if (!TOOLBOXES_CACHE.length) await loadToolboxes().catch(error => console.warn('loadToolboxes error', error));
+  const agent = AGENTS_CACHE.find(item => item.id === agentId);
+  if (!agent) return;
+  EDITING_AGENT = agentId;
+  $('modalTitle').textContent = 'Edit ' + agent.name;
+  $('modalSave').textContent = 'Save';
+  $('modalName').value = agent.name;
+  $('modalName').disabled = true;
+  $('modalInstr').value = agent.instructions || '';
+  loadModelDeployments(agent.model || DEFAULT_AGENT_MODEL);
+  const hasSavedTools = (agent.tools || []).length > 0;
+  const toolboxName = hasSavedTools ? (agent.toolbox_name || SELECTED_TOOLBOX_NAME || 'agent-tools') : (SELECTED_TOOLBOX_NAME || agent.toolbox_name || 'agent-tools');
+  SELECTED_TOOLBOX_NAME = toolboxName;
+  populateToolboxSelect(toolboxName);
+  const selectedTools = hasSavedTools ? (agent.tools || []) : agentToolDefaultsForToolbox(toolboxName, []);
+  renderModalTools(selectedTools, toolboxName);
+  populateHostedAgentSelect(agent.hosted_agent_id || 'default');
+  $('modalBg').classList.add('show');
+}
+
+function closeModal() {
+  $('modalBg').classList.remove('show');
+  $('modalName').disabled = false;
+}
+
+async function saveAgent() {
+  const tools = [...document.querySelectorAll('#modalTools input:checked')].map(input => input.value);
+  const hostedAgentId = $('modalHostedAgent').value || 'default';
+  const toolboxName = $('modalToolbox').value || SELECTED_TOOLBOX_NAME || 'agent-tools';
+  const modelId = $('modalModel').value || DEFAULT_AGENT_MODEL;
+  const saveButton = $('modalSave');
+  const oldText = saveButton.textContent;
+  saveButton.textContent = 'Saving...';
+  saveButton.disabled = true;
+  try {
+    if (EDITING_AGENT) {
+      const response = await fetchWithTimeout('/api/agents/' + EDITING_AGENT, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({tools, hosted_agent_id: hostedAgentId, model: modelId, toolbox_name: toolboxName})
+      }, 20000);
+      await readJsonResponse(response);
+    } else {
+      const response = await fetchWithTimeout('/api/agents', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          name: $('modalName').value.trim() || 'Untitled agent',
+          tools,
+          instructions: $('modalInstr').value.trim() || 'You are a helpful assistant.',
+          hosted_agent_id: hostedAgentId,
+          model: modelId,
+          toolbox_name: toolboxName
+        })
+      }, 20000);
+      SELECTED = (await readJsonResponse(response)).id;
+    }
+    closeModal();
+    await loadAgents();
+    setLifecycle(2, 'done');
+  } catch (error) {
+    alert('Failed to save agent: ' + error.message);
+  } finally {
+    saveButton.textContent = oldText;
+    saveButton.disabled = false;
+  }
+}
+
+async function deleteAgent(agentId) {
+  if (!confirm('Delete this agent?')) return;
+  try {
+    const response = await fetchWithTimeout('/api/agents/' + agentId, {method: 'DELETE'}, 20000);
+    await readJsonResponse(response);
+    if (SELECTED === agentId) SELECTED = null;
+    await loadAgents();
+  } catch (error) {
+    alert('Failed to delete agent: ' + error.message);
+  }
+}
+
+async function deleteToolbox(name) {
+  if (!confirm('Delete toolbox "' + name + '"?')) return;
+  try {
+    const response = await fetchWithTimeout('/api/toolboxes/' + encodeURIComponent(name), {method: 'DELETE'}, 20000);
+    await readJsonResponse(response);
+    await loadToolboxes();
+  } catch (error) {
+    alert('Failed to delete toolbox: ' + error.message);
+  }
+}
+
+function openCreateHostedAgentModal() {
+  ['haName', 'haTeam', 'haLang', 'haFramework', 'haResources', 'haToolbox', 'haMemory', 'haUrl', 'haDesc'].forEach(id => {
+    const field = $(id);
+    if (field) field.value = '';
+  });
+  $('haModalBg').classList.add('show');
+}
+
+const HA_TEMPLATES = {
+  python: {name: 'python-agent', lang: 'Python 3.12', framework: 'Microsoft Agent Framework', resources: 'CPU 0.25 / 0.5Gi', toolbox: 'code_interpreter, file_search, web_search', memory: 'agent-memory', desc: 'Python runtime with Toolbox MCP and Memory support.'},
+  nodejs: {name: 'nodejs-agent', lang: 'TypeScript / Node 20', framework: 'LangGraph.js', resources: 'CPU 0.5 / 1Gi', toolbox: 'code_interpreter, web_search, custom MCP', memory: 'agent-memory', desc: 'TypeScript runtime for real-time analytics workflows.'},
+  java: {name: 'java-agent', lang: 'Java 21', framework: 'Semantic Kernel', resources: 'CPU 1.0 / 2Gi', toolbox: 'Azure AI Search, SQL connector', memory: '', desc: 'Enterprise Java runtime for structured workflow agents.'},
+  custom: {name: '', lang: '', framework: '', resources: '', toolbox: '', memory: '', desc: ''}
+};
+
+function fillHaTemplate(template, target) {
+  const value = HA_TEMPLATES[template];
+  if (!value) return;
+  $('haName').value = value.name;
+  $('haLang').value = value.lang;
+  $('haFramework').value = value.framework;
+  $('haResources').value = value.resources;
+  $('haToolbox').value = value.toolbox;
+  $('haMemory').value = value.memory || '';
+  $('haDesc').value = value.desc;
+  document.querySelectorAll('#haModalBg .template-card').forEach(card => card.style.borderColor = 'var(--line)');
+  if (target) target.style.borderColor = 'var(--blue)';
+}
+
+function closeHaModal() { $('haModalBg').classList.remove('show'); }
+
+async function saveHostedAgent() {
+  const body = {
+    name: $('haName').value.trim() || 'Untitled runtime',
+    team: $('haTeam').value.trim(),
+    language: $('haLang').value.trim(),
+    framework: $('haFramework').value.trim(),
+    toolbox: $('haToolbox').value.trim(),
+    memory_store: $('haMemory').value.trim(),
+    resources: $('haResources').value.trim(),
+    url: $('haUrl').value.trim(),
+    description: $('haDesc').value.trim()
+  };
+  const button = document.querySelector('#haModalBg .btn.primary');
+  const oldText = button.textContent;
+  button.textContent = 'Registering...';
+  button.disabled = true;
+  try {
+    const response = await fetchWithTimeout('/api/hosted-agents', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)}, 20000);
+    await readJsonResponse(response);
+    closeHaModal();
+    await loadHostedAgents();
+    populateHostedAgentSelect(Object.keys(ALL_HOSTED_AGENTS).pop());
+  } catch (error) {
+    alert('Failed to register hosted runtime: ' + error.message);
+  } finally {
+    button.textContent = oldText;
+    button.disabled = false;
+  }
+}
+
+function clearOutput() { $('output').innerHTML = ''; }
+
+function addStep(num, label, detail, status) {
+  const div = document.createElement('div');
+  div.className = 'trace-step ' + (status || '');
+  div.innerHTML = `<span class="num">${escapeHtml(num)}</span><span class="label">${escapeHtml(label)}</span>${detail ? `<div class="detail">${detail}</div>` : ''}`;
+  $('output').appendChild(div);
+  div.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+  return div;
+}
+
+function showFinalAnswer(text, imageB64) {
+  const div = document.createElement('div');
+  div.className = 'final-answer';
+  div.innerHTML = `<div class="label">Final answer</div><div>${escapeHtml(text)}</div>`;
+  if (imageB64) {
+    const image = document.createElement('img');
+    image.src = 'data:image/png;base64,' + imageB64;
+    div.appendChild(image);
+  }
+  $('output').appendChild(div);
+  div.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+}
+
+function showFinalError(text) {
+  const div = document.createElement('div');
+  div.className = 'final-answer error';
+  div.innerHTML = `<div class="label">Request failed</div><div>${escapeHtml(text)}</div>`;
+  $('output').appendChild(div);
+  div.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+}
+
+function memoryProofRows(proof) {
+  if (!proof) {
+    return `
+      <div class="memory-summary">
+        <div class="memory-outcome"><strong>No Memory evidence captured yet</strong><span class="warn">Not run</span></div>
+        <p>Click Validate Memory to write a preference, then read back the managed Foundry Memory Store evidence.</p>
+      </div>
+    `;
+  }
+  const store = proof.store_evidence || {};
+  const recall = proof.recall || {};
+  const memories = store.memories || [];
+  const storeHasItems = memories.length > 0 || Number(store.returned || 0) > 0;
+  const firstMemory = memories.length ? memories[0] : {};
+  const firstContent = firstMemory.content || store.error || '-';
+  const writeStatus = proof.write
+    ? '<span style="color:var(--green);font-weight:700">Request sent</span>'
+    : `<span style="color:var(--amber);font-weight:700">${escapeHtml(proof.message || 'Not started')}</span>`;
+  const storeStatus = storeHasItems
+    ? '<span style="color:var(--green);font-weight:700">Evidence returned</span>'
+    : `<span style="color:var(--amber);font-weight:700">${escapeHtml(store.status || proof.verdict || 'Not observed')}</span>`;
+  const recallStatus = proof.recall
+    ? (recall.remembered
+      ? '<span style="color:var(--green);font-weight:700">Recalled by agent</span>'
+      : '<span style="color:var(--amber);font-weight:700">Needs attention</span>')
+    : '<span style="color:var(--subtle);font-weight:700">Not checked</span>';
+  let title = 'Memory evidence not found yet';
+  let badge = '<span class="warn">Retry / wait</span>';
+  let takeaway = 'The write request completed, but the Memory Store search did not return the expected stored item yet.';
+  if (store.remembered && recall.remembered) {
+    title = 'Managed Memory is stored and usable';
+    badge = '<span class="pass">Ready</span>';
+    takeaway = 'Foundry returned the persisted memory item and the hosted agent recalled it without chat history.';
+  } else if (store.remembered) {
+    title = 'Managed Memory Store is verified';
+    badge = '<span class="warn">Store OK</span>';
+    takeaway = 'Foundry returned the persisted memory item. The hosted agent recall path still needs tuning, but the durable store is working.';
+  } else if (storeHasItems && recall.remembered) {
+    title = 'Memory Store evidence returned';
+    badge = '<span class="pass">Evidence</span>';
+    takeaway = 'Foundry returned real Memory Store items and the hosted agent recalled the preference. The exact semantic verifier did not mark the store search as a full match, so the evidence is shown below.';
+  } else if (storeHasItems) {
+    title = 'Memory Store evidence returned';
+    badge = '<span class="warn">Review evidence</span>';
+    takeaway = 'Foundry returned real Memory Store items. Review the item content below to confirm it matches the expected enterprise memory preference.';
+  } else if (proof.verdict === 'write_failed') {
+    title = 'Memory write request failed';
+    badge = '<span class="fail">Failed</span>';
+    takeaway = 'The agent call failed before a Memory Store search could validate persistence.';
+  } else if (proof.verdict === 'disabled') {
+    title = 'Memory is not configured';
+    badge = '<span class="warn">Disabled</span>';
+    takeaway = 'Set MEMORY_STORE_NAME to connect this demo to Foundry managed Memory.';
+  }
+  const recallText = recall.response ? shortText(recall.response, 150) : '';
+  const usage = store.usage || {};
+  const memoryItems = memories.length ? memories.map((memory, index) => `
+    <div class="memory-item">
+      <div class="meta">Item ${index + 1}${memory.id ? ` | ID: ${escapeHtml(memory.id)}` : ''}${memory.kind ? ` | Kind: ${escapeHtml(memory.kind)}` : ''}${memory.updated_at ? ` | Updated: ${escapeHtml(shortText(memory.updated_at, 32))}` : ''}</div>
+      <div class="content">${escapeHtml(shortText(memory.content || '-', 260))}</div>
+    </div>
+  `).join('') : `<div class="memory-item"><div class="content">${escapeHtml(proof.message || firstContent || 'No Memory Store item returned yet.')}</div></div>`;
+  return `
+    <div class="memory-summary">
+      <div class="memory-outcome"><strong>${escapeHtml(title)}</strong>${badge}</div>
+      <p>${escapeHtml(takeaway)}</p>
+      ${detailRows([
+        ['Stored in', 'Foundry managed Memory Store, not a VM file'],
+        ['Proof agent', `${escapeHtml(proof.agent_name || '-')} (${escapeHtml(proof.agent_id || '-')})`],
+        ['Store / scope', `${escapeHtml(proof.store_name || '-')} / ${escapeHtml(store.scope || proof.scope || 'default')}`],
+        ['Search API', escapeHtml(store.api || 'client.beta.memory_stores.search_memories')],
+        ['Search ID', escapeHtml(store.search_id || 'not returned by SDK')],
+        ['Memory item ID', escapeHtml(firstMemory.id || '-')],
+        ['Write request', writeStatus],
+        ['Store evidence', storeStatus],
+        ['Agent recall', recallStatus]
+      ])}
+      <details class="memory-evidence" ${storeHasItems ? 'open' : ''}>
+        <summary>Open Memory Store evidence</summary>
+        ${detailRows([
+          ['Project endpoint', escapeHtml(shortText(store.endpoint || proof.project_endpoint || '-', 92))],
+          ['Query', escapeHtml(shortText(store.query || '-', 120))],
+          ['Returned items', escapeHtml(`${store.returned || 0}/${store.count || 0}`)],
+          ['Token usage', escapeHtml(usage.total_tokens ? `${usage.total_tokens} total` : '-')],
+          ['SDK source', `<a href="${escapeHtml(proof.sdk_source || '#')}" target="_blank">FoundryMemoryProvider</a>`],
+          ['Product source', `<a href="${escapeHtml(proof.source || '#')}" target="_blank">Azure Update 560992</a>`],
+          ['Recall response', escapeHtml(recallText || '-')]
+        ])}
+        ${memoryItems}
+      </details>
+    </div>
+  `;
+}
+
+function renderMemoryProof(proof) {
+  return `<div id="memoryProofResult" style="margin-top:10px">${memoryProofRows(proof)}</div>`;
+}
+
+async function runMemoryProof() {
+  const button = $('memoryProofBtn');
+  const result = $('memoryProofResult');
+  const memoryAgentId = ($('memoryAgentSelect') && $('memoryAgentSelect').value) || SELECTED || 'default';
+  const memoryAgent = AGENTS_CACHE.find(agent => agent.id === memoryAgentId);
+  if (button) {
+    button.disabled = true;
+    button.textContent = 'Validating...';
+  }
+  if (result) result.innerHTML = detailRows([
+    ['Selected agent', memoryAgent ? `${escapeHtml(memoryAgent.name)} (${escapeHtml(memoryAgent.id)})` : escapeHtml(memoryAgentId)],
+    ['Validation', 'Writing as this agent, then reading back Foundry managed Memory Store evidence.']
+  ]);
+  try {
+    const form = new FormData();
+    form.append('agent_id', memoryAgentId);
+    const response = await fetchWithTimeout('/api/memory-demo/run', {method: 'POST', body: form}, 180000);
+    const proof = await readJsonResponse(response);
+    if (result) result.innerHTML = memoryProofRows(proof);
+    pollHistory().catch(() => {});
+  } catch (error) {
+    if (result) result.innerHTML = detailRows([['Proof', `<span style="color:var(--red);font-weight:700">${escapeHtml(error.message)}</span>`]]);
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = 'Validate Memory';
+    }
+  }
+}
+
+function highlightTool(name) {
+  document.querySelectorAll('.tool-card').forEach(card => card.classList.remove('active'));
+  const card = $('tool-' + name);
+  if (card) card.classList.add('active');
+}
+
+async function sendChat() {
+  if (!SELECTED) return alert('Pick an agent first.');
+  const message = $('promptInput').value.trim();
+  if (!message) return;
+  const askButton = $('askBtn');
+  const oldAskText = askButton ? askButton.textContent : '';
+  if (askButton) {
+    askButton.disabled = true;
+    askButton.textContent = 'Running...';
+  }
+  $('promptInput').disabled = true;
+  $('promptInput').value = '';
+  clearOutput();
+  setLifecycle(3, 'active');
+
+  try {
+    let agent = AGENTS_CACHE.find(item => item.id === SELECTED);
+    if (!agent) {
+      await loadAgents();
+      agent = AGENTS_CACHE.find(item => item.id === SELECTED);
+    }
+    if (!agent) throw new Error('Selected agent no longer exists.');
+    const tools = agent.tools || [];
+    const isImage = /image|picture|generate.*pic|draw|paint/i.test(message) && tools.includes('direct_image_generate');
+    const hosted = ALL_HOSTED_AGENTS[agent.hosted_agent_id || 'default'] || {};
+    addStep('1', 'Request received', `Agent: ${escapeHtml(agent.name)}\nRuntime: ${escapeHtml(hosted.name || 'default')}\nAllowed tools: ${escapeHtml(tools.join(', '))}\nPrompt: ${escapeHtml(shortText(message, 180))}`, 'active');
+
+    const form = new FormData();
+    form.append(isImage ? 'prompt' : 'message', message);
+    form.append('agent_id', SELECTED);
+    const response = await fetchWithTimeout(isImage ? '/api/image' : '/api/chat', {method: 'POST', body: form}, 210000);
+    const data = await readJsonResponse(response);
+    addStep('2', 'Model planned the request', `Model selected from: ${escapeHtml(tools.join(', '))}`, 'done');
+    (data.tool_calls || []).forEach(call => {
+      const inferred = ['code_interpreter', 'file_search', 'web_search', 'direct_web_search', 'direct_image_generate']
+        .find(name => (data.call_chain || []).some(item => String(item).includes(name))) || call.name || 'tool';
+      addStep('3', `Tool invoked: ${inferred}`, escapeHtml(shortText(call.output || 'Executed', 260)), 'done');
+      highlightTool(inferred);
+    });
+    const tokenInfo = (data.input_tokens || data.output_tokens) ? `\nInput tokens: ${data.input_tokens || 0} | Output tokens: ${data.output_tokens || 0} | Total: ${data.total_tokens || 0}` : '';
+    addStep('4', 'Answer returned', `Elapsed: ${data.elapsed_ms || 0} ms${tokenInfo}`, 'done');
+    showFinalAnswer(data.text || '(no text response)', data.image_b64);
+    setLifecycle(3, 'done');
+    loadAgents().catch(() => {});
+    pollHistory().catch(() => {});
+  } catch (error) {
+    const message = error.name === 'AbortError'
+      ? 'Request timed out in the browser after 210 seconds. The backend may still finish, but the UI has released the button.'
+      : error.message;
+    addStep('!', 'Request failed', escapeHtml(message), 'error');
+    showFinalError(message);
+    setLifecycle(3, 'idle');
+  } finally {
+    $('promptInput').disabled = false;
+    if (askButton) {
+      askButton.disabled = false;
+      askButton.textContent = oldAskText;
+    }
+  }
+}
+
+let isRecording = false;
+let mediaRecorder = null;
+let audioChunks = [];
+
+async function toggleRecord() {
+  if (!SELECTED) return alert('Pick an agent first.');
+  const button = $('micBtn');
+  if (!isRecording) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({audio: true});
+      mediaRecorder = new MediaRecorder(stream, {mimeType: 'audio/webm'});
+      audioChunks = [];
+      mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach(track => track.stop());
+        const blob = new Blob(audioChunks, {type: 'audio/webm'});
+        clearOutput();
+        addStep('1', 'Voice captured', `Audio size: ${(blob.size / 1024).toFixed(1)} KB`, 'done');
+        addStep('2', 'Whisper transcription', 'Transcribing audio...', 'active');
+        const form = new FormData();
+        form.append('audio', blob, 'recording.webm');
+        form.append('agent_id', SELECTED);
+        try {
+          const response = await fetchWithTimeout('/api/voice', {method: 'POST', body: form}, 240000);
+          const data = await readJsonResponse(response);
+          addStep('2', 'Transcription complete', escapeHtml(data.transcript || ''), 'done');
+          (data.tool_calls || []).forEach(call => {
+            const inferred = ['code_interpreter', 'file_search', 'web_search', 'direct_web_search', 'direct_image_generate']
+              .find(name => (data.call_chain || []).some(item => String(item).includes(name))) || call.name || 'tool';
+            addStep('3', `Tool invoked: ${inferred}`, escapeHtml(shortText(call.output || '', 260)), 'done');
+            highlightTool(inferred);
+          });
+          addStep('4', 'Answer returned', `${data.elapsed_ms || 0} ms`, 'done');
+          showFinalAnswer(data.text || '(no text response)', null);
+          loadAgents().catch(() => {});
+        } catch (error) {
+          const message = error.name === 'AbortError'
+            ? 'Voice request timed out in the browser after 240 seconds.'
+            : error.message;
+          addStep('!', 'Request failed', escapeHtml(message), 'error');
+          showFinalError(message);
+        }
+      };
+      mediaRecorder.start();
+      isRecording = true;
+      button.textContent = 'Stop';
+    } catch (error) {
+      alert('Mic error: ' + error.message);
+    }
+  } else {
+    mediaRecorder.stop();
+    isRecording = false;
+    button.textContent = 'Mic';
+  }
+}
+
+async function loadMemoryStatus() {
+  try {
+    const response = await fetchWithTimeout('/api/memory-status', {}, 15000);
+    const data = await readJsonResponse(response);
+    const memoryAgentId = ($('memoryAgentSelect') && $('memoryAgentSelect').value) || SELECTED || (AGENTS_CACHE[0] && AGENTS_CACHE[0].id) || '';
+    const memoryAgent = AGENTS_CACHE.find(agent => agent.id === memoryAgentId) || AGENTS_CACHE[0] || null;
+    if (memoryAgent && !SELECTED) SELECTED = memoryAgent.id;
+    const hosted = memoryAgent ? (ALL_HOSTED_AGENTS[memoryAgent.hosted_agent_id || 'default'] || {}) : {};
+    const selectedProbe = data.last_probe && (!memoryAgent || data.last_probe.agent_id === memoryAgent.id) ? data.last_probe : null;
+    const otherProbeNote = data.last_probe && memoryAgent && data.last_probe.agent_id !== memoryAgent.id
+      ? `<div class="sr-note" style="margin-top:8px">Last proof was captured for ${escapeHtml(data.last_probe.agent_name || data.last_probe.agent_id || 'another agent')}. Validate this agent to capture its own Memory evidence.</div>`
+      : '';
+    $('memoryStatus').textContent = data.enabled ? 'enabled' : 'disabled';
+    $('memoryStatus').style.color = data.enabled ? 'var(--green)' : 'var(--subtle)';
+    $('memoryCard').innerHTML = data.enabled ? `
+      <div class="eval-picker" style="margin-bottom:10px">
+        <div>
+          <label for="memoryAgentSelect">Agent memory view</label>
+          <select id="memoryAgentSelect" onchange="setMemoryAgent(this.value)">
+            <option value="">Loading agents...</option>
+          </select>
+        </div>
+        <button class="btn subtle" onclick="refreshMemoryPanel()">Refresh agents</button>
+      </div>
+      ${detailRows([
+        ['Selected agent', memoryAgent ? `${escapeHtml(memoryAgent.name)} (${escapeHtml(memoryAgent.id)})` : '-'],
+        ['Hosted runtime', `${escapeHtml(hosted.name || 'default')}`],
+        ['Status', '<span style="color:var(--green);font-weight:700">Enabled</span>'],
+        ['Persistence', 'Foundry managed Memory Store, not a local file'],
+        ['Store', escapeHtml(data.store_name || '-')],
+        ['Scope', escapeHtml(data.scope || 'default')],
+        ['Update delay', `${escapeHtml(data.update_delay_seconds || '-') } s`],
+        ['Source', `<a href="${escapeHtml(data.source || '#')}" target="_blank">Azure Update 560992</a>`]
+      ])}
+      <div style="display:flex;gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap">
+        <button class="btn primary" id="memoryProofBtn" onclick="runMemoryProof()">Validate Memory</button>
+        <a class="btn subtle" href="https://ai.azure.com" target="_blank">Open Foundry</a>
+        <span class="sr-note">runs as the selected agent</span>
+      </div>
+      ${otherProbeNote}
+      ${renderMemoryProof(selectedProbe)}
+    ` : detailRows([
+      ['Status', 'Disabled'],
+      ['Action', 'Set MEMORY_STORE_NAME to enable']
+    ]);
+    renderMemoryAgentSelect();
+  } catch (error) {
+    $('memoryCard').textContent = 'Unable to read memory status.';
+  }
+}
+
+async function pollHealth() {
+  try {
+    const response = await fetchWithTimeout('/api/agent-health', {}, 7000);
+    const data = await readJsonResponse(response);
+    RUNTIME_HEALTH = data;
+    const status = data.alive ? '<span style="color:var(--green);font-weight:700">Live</span>' : '<span style="color:var(--red);font-weight:700">Down</span>';
+    $('runtimeHealthCard').innerHTML = detailRows([
+      ['Status', status],
+      ['Mode', escapeHtml(data.mode || '-')],
+      ['Endpoint', escapeHtml(shortText(data.endpoint || '', 80))],
+      ['Probe', data.probe_latency_ms ? `${data.probe_latency_ms} ms` : '-'],
+      ['Last error', escapeHtml(data.last_error || '-')]
+    ]);
+    const agent = AGENTS_CACHE.find(item => item.id === SELECTED);
+    if (agent) renderHostedRuntime(agent);
+  } catch (error) {
+    $('runtimeHealthCard').textContent = 'Health probe failed.';
+  }
+}
+
+async function pollHistory() {
+  try {
+    const response = await fetchWithTimeout('/api/history', {}, 5000);
+    const data = await readJsonResponse(response);
+    const history = data.history || [];
+    if (!history.length) {
+      $('historyList').innerHTML = '<div class="sr-note">No calls yet.</div>';
+      return;
+    }
+    $('historyList').innerHTML = history.slice(0, 10).map(item => {
+      const tools = item.tools_used && item.tools_used.length ? item.tools_used.map(tool => toolChip(tool, 'green')).join('') : '<span class="sr-note">No tools</span>';
+      return `<div class="data-row"><strong>${escapeHtml(item.agent_name || '?')}</strong><div class="meta">${new Date(item.ts * 1000).toLocaleTimeString()} | ${item.elapsed_ms || 0} ms</div><div class="chip-list">${tools}</div><div class="meta">${escapeHtml(shortText(item.prompt || '', 74))}</div></div>`;
+    }).join('');
+  } catch (error) {
+    console.warn('pollHistory error', error);
+  }
+}
+
+async function pollLog() {
+  try {
+    const response = await fetchWithTimeout('/api/agent-logs', {}, 12000);
+    const data = await readJsonResponse(response);
+    $('logSrc').textContent = data.endpoint || 'local';
+    $('logHint').textContent = data.hint || '';
+    $('logTail').innerHTML = (data.lines || []).slice(-25).map(line => `<div class="log-line">${escapeHtml(shortText(line, 320))}</div>`).join('') || `<div class="sr-note">${escapeHtml(data.log_path || 'No logs yet.')}</div>`;
+  } catch (error) {
+    $('logTail').innerHTML = `<div class="log-line">${escapeHtml(error.message)}</div>`;
+  }
+}
+
+function getToolboxByName(name) {
+  return TOOLBOXES_CACHE.find(box => box.name === name) || null;
+}
+
+function getLiveToolIdsForToolbox(name) {
+  const box = getToolboxByName(name);
+  return box ? (box.tools || []).map(tool => tool.name).filter(Boolean) : [];
+}
+
+function getPlannedToolLabelsForToolbox(name) {
+  const box = getToolboxByName(name);
+  return box ? (box.planned_tools || []).map(tool => tool.label || tool.id).filter(Boolean) : [];
+}
+
+function agentToolDefaultsForToolbox(name, existingTools = []) {
+  const liveToolIds = getLiveToolIdsForToolbox(name).filter(tool => ALL_TOOLS[tool]);
+  const existingDirectTools = existingTools.filter(tool => ALL_TOOLS[tool]?.source === 'direct');
+  if (liveToolIds.length) return [...new Set([...liveToolIds, ...existingDirectTools])];
+  return existingTools;
+}
+
+function selectToolboxForAgent(name) {
+  SELECTED_TOOLBOX_NAME = name || SELECTED_TOOLBOX_NAME;
+  if (TOOLBOXES_CACHE.length) loadToolboxes().catch(error => console.warn('loadToolboxes error', error));
+  if ($('modalBg').classList.contains('show')) {
+    populateToolboxSelect(SELECTED_TOOLBOX_NAME);
+    applyToolboxToModalTools(true);
+  }
+  scrollToSection('deploySection');
+}
+
+function populateToolboxSelect(selectedName) {
+  const select = $('modalToolbox');
+  if (!select) return;
+  const fallback = selectedName || SELECTED_TOOLBOX_NAME || 'agent-tools';
+  const boxes = TOOLBOXES_CACHE.length ? TOOLBOXES_CACHE : [{name: fallback, tools: [], planned_tools: [], status: 'registered'}];
+  const uniqueBoxes = [];
+  for (const box of boxes) {
+    if (box && box.name && !uniqueBoxes.some(item => item.name === box.name)) uniqueBoxes.push(box);
+  }
+  if (!uniqueBoxes.some(box => box.name === fallback)) uniqueBoxes.unshift({name: fallback, tools: [], planned_tools: [], status: 'registered'});
+  select.innerHTML = uniqueBoxes.map(box => {
+    const liveCount = (box.tools || []).length;
+    const plannedCount = (box.planned_tools || []).length;
+    const label = `${box.name} (${liveCount} live${plannedCount ? `, ${plannedCount} planned` : ''})`;
+    return `<option value="${escapeHtml(box.name)}" ${box.name === fallback ? 'selected' : ''}>${escapeHtml(label)}</option>`;
+  }).join('');
+  select.value = fallback;
+  showToolboxDetail(fallback);
+  select.onchange = () => {
+    SELECTED_TOOLBOX_NAME = select.value;
+    showToolboxDetail(select.value);
+    applyToolboxToModalTools(true);
+  };
+}
+
+function showToolboxDetail(name) {
+  const box = getToolboxByName(name);
+  const liveToolIds = getLiveToolIdsForToolbox(name);
+  const plannedLabels = getPlannedToolLabelsForToolbox(name);
+  const endpoint = box?.mcp_endpoint || '-';
+  $('toolboxDetail').innerHTML = detailRows([
+    ['Toolbox', escapeHtml(name || '-')],
+    ['Status', escapeHtml(box?.status || 'registered')],
+    ['Live tools', liveToolIds.length ? liveToolIds.map(tool => toolChip(tool, 'green')).join('') : '<span class="sr-note">No live tool metadata yet</span>'],
+    ['Planned tools', plannedLabels.length ? plannedLabels.map(tool => toolChip(tool, 'amber')).join('') : '-'],
+    ['MCP endpoint', escapeHtml(shortText(endpoint, 96))]
+  ]);
+}
+
+function applyToolboxToModalTools(preserveDirectTools) {
+  const toolboxName = $('modalToolbox')?.value || SELECTED_TOOLBOX_NAME;
+  const currentTools = [...document.querySelectorAll('#modalTools input:checked')].map(input => input.value);
+  const liveToolIds = getLiveToolIdsForToolbox(toolboxName).filter(tool => ALL_TOOLS[tool]);
+  const directTools = preserveDirectTools ? currentTools.filter(tool => ALL_TOOLS[tool]?.source === 'direct') : [];
+  const nextTools = liveToolIds.length ? [...new Set([...liveToolIds, ...directTools])] : currentTools;
+  renderModalTools(nextTools, toolboxName);
+}
+
+async function loadToolboxes() {
+  try {
+    const response = await fetchWithTimeout('/api/toolboxes', {}, 60000);
+    const data = await readJsonResponse(response);
+    const toolboxes = data.toolboxes || [];
+    TOOLBOXES_CACHE = toolboxes;
+    if (!TOOLBOXES_CACHE.some(box => box.name === SELECTED_TOOLBOX_NAME) && TOOLBOXES_CACHE.length) {
+      const defaultBox = TOOLBOXES_CACHE.find(box => box.name === 'agent-tools') || TOOLBOXES_CACHE[0];
+      SELECTED_TOOLBOX_NAME = defaultBox.name;
+    }
+    $('toolboxMgmtList').innerHTML = toolboxes.map(box => {
+      const liveTools = (box.tools || []).map(tool => toolChip(tool.name, 'green')).join('');
+      const plannedTools = (box.planned_tools || []).map(tool => toolChip(tool.label || tool.id, 'amber')).join('');
+      const tools = liveTools || '<span class="sr-note">No live tools published</span>';
+      const planLine = plannedTools ? `<div class="meta" style="margin-top:8px">Design plan</div><div class="chip-list">${plannedTools}</div>` : '';
+      const status = box.status || ((box.tools || []).length ? 'live' : 'plan');
+      const selected = box.name === SELECTED_TOOLBOX_NAME;
+      const nameJson = JSON.stringify(box.name);
+      return `<div class="data-row ${selected ? 'selected' : ''}"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><strong>${escapeHtml(box.name)}</strong><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="source-badge">${selected ? 'selected for Step 2' : escapeHtml(status)}</span><button class="btn subtle" style="padding:2px 8px;font-size:11px" onclick='selectToolboxForAgent(${nameJson})'>Use in Step 2</button><button class="btn danger" style="padding:2px 8px;font-size:11px" onclick='deleteToolbox(${nameJson})'>Delete</button></div></div><div class="meta">${(box.tools || []).length} live tools | ${(box.planned_tools || []).length} planned | default version ${escapeHtml(box.default_version || '-')}</div><div class="chip-list">${tools}</div>${planLine}<div class="meta">MCP: ${escapeHtml(shortText(box.mcp_endpoint || '-', 100))}</div></div>`;
+    }).join('') || '<div class="sr-note">No toolboxes found.</div>';
+    const count = toolboxes.reduce((sum, box) => sum + ((box.tools || []).length), 0);
+    if (count) $('summaryTools').textContent = count;
+    setLifecycle(1, 'done');
+  } catch (error) {
+    $('toolboxMgmtList').innerHTML = `<div class="sr-note">Failed to load toolboxes: ${escapeHtml(error.message)}</div>`;
+  }
+}
+
+function openToolboxModal() {
+  $('tbName').value = '';
+  $('tbDesc').value = '';
+  renderToolboxCatalog();
+  $('tbModalBg').classList.add('show');
+}
+
+function renderToolboxCatalog() {
+  const catalog = TOOLBOX_CATALOG.length ? TOOLBOX_CATALOG : [
+    {id: 'code_interpreter', label: 'Code Interpreter', kind: 'built-in', surface: 'Toolbox', enabled: true, default_selected: true, description: 'Execute Python code for calculations and data analysis.', config_hint: 'No extra project connection required.', config_fields: []},
+    {id: 'file_search', label: 'File Search', kind: 'built-in', surface: 'Toolbox', enabled: true, default_selected: true, description: 'Search uploaded files stored in a Foundry vector store.', config_hint: 'Requires vector store configuration.', config_fields: []},
+    {id: 'web_search', label: 'Web Search', kind: 'built-in', surface: 'Toolbox', enabled: true, default_selected: true, description: 'Ground answers with current public web results and citations.', config_hint: 'No project connection required.', config_fields: []}
+  ];
+  const groups = [
+    {surface: 'Toolbox', title: 'Toolbox version tools'},
+    {surface: 'Agent', title: 'Agent-level tools (informational — configured at Agent level, not Toolbox)'}
+  ];
+  const bySurface = catalog.reduce((acc, tool) => {
+    const surface = tool.surface || 'Toolbox';
+    if (!acc[surface]) acc[surface] = [];
+    acc[surface].push(tool);
+    return acc;
+  }, {});
+  $('tbToolGrid').innerHTML = groups.map(group => {
+    const tools = bySurface[group.surface] || [];
+    if (!tools.length) return '';
+    const isAgent = group.surface === 'Agent';
+    const cards = tools.map(tool => {
+      if (isAgent) {
+        const sourceLink = tool.source_url ? ` · <a class="sr-note" href="${escapeHtml(tool.source_url)}" target="_blank" rel="noreferrer">Learn</a>` : '';
+        return `
+          <div class="checkbox-card agent-info">
+            <span style="padding-top:2px">ℹ️</span>
+            <span>
+              <strong>${escapeHtml(tool.label || tool.id)}<span class="tool-kind">AGENT</span></strong><br>
+              <span class="sr-note">${escapeHtml(tool.description || '')}${sourceLink}</span>
+            </span>
+          </div>`;
+      }
+      const liveReady = tool.enabled !== false;
+      const checked = tool.default_selected ? 'checked' : '';
+      const cls = liveReady ? 'checkbox-card ready' : 'checkbox-card plan';
+      const status = liveReady ? 'READY' : 'NEEDS CONFIG';
+      const detail = liveReady ? tool.config_hint : tool.config_hint || '';
+      const sourceLink = tool.source_url ? `<br><a class="sr-note" href="${escapeHtml(tool.source_url)}" target="_blank" rel="noreferrer">Microsoft Learn</a>` : '';
+      const fields = (tool.config_fields || []);
+      const configForm = (!liveReady && fields.length) ? `
+        <div class="tool-config-form" data-tool-id="${escapeHtml(tool.id)}" style="display:none">
+          ${fields.map(f => `
+            <div class="cfg-field">
+              <label>${escapeHtml(f.label)}${f.required ? ' *' : ''}</label>
+              <input type="text" data-cfg-key="${escapeHtml(f.key)}" placeholder="${escapeHtml(f.placeholder || '')}" value="${escapeHtml(f.value || '')}" ${f.required ? 'required' : ''}>
+            </div>`).join('')}
+        </div>` : '';
+      return `
+        <label class="${cls}">
+          <input type="checkbox" value="${escapeHtml(tool.id)}" ${checked} onchange="toggleToolConfig(this, '${escapeHtml(tool.id)}')">
+          <span>
+            <strong>${escapeHtml(tool.label || tool.id)}<span class="tool-kind">${escapeHtml(status)}</span></strong><br>
+            <span class="sr-note">${escapeHtml(tool.description || '')}</span><br>
+            <span class="sr-note">${escapeHtml(detail)}</span>${sourceLink}
+          </span>
+          ${configForm}
+        </label>
+      `;
+    }).join('');
+    return `<div class="tool-section-title">${escapeHtml(group.title)}</div>${cards}`;
+  }).join('');
+}
+
+function toggleToolConfig(checkbox, toolId) {
+  const form = checkbox.closest('.checkbox-card')?.querySelector(`.tool-config-form[data-tool-id="${toolId}"]`);
+  if (form) form.style.display = checkbox.checked ? 'flex' : 'none';
+}
+
+async function saveToolbox() {
+  const name = $('tbName').value.trim();
+  if (!name) return alert('Name is required.');
+  const tools = [...document.querySelectorAll('#tbToolGrid input[type=checkbox]:checked')].map(input => input.value);
+  if (!tools.length) return alert('Select at least one tool.');
+  // Collect inline config for NEEDS CONFIG tools.
+  const tool_configs = {};
+  document.querySelectorAll('#tbToolGrid .tool-config-form').forEach(form => {
+    const toolId = form.dataset.toolId;
+    if (!tools.includes(toolId)) return;
+    if (form.style.display === 'none') return;
+    const cfg = {};
+    form.querySelectorAll('input[data-cfg-key]').forEach(input => {
+      const val = input.value.trim();
+      if (val) cfg[input.dataset.cfgKey] = val;
+    });
+    if (Object.keys(cfg).length) tool_configs[toolId] = cfg;
+  });
+  const button = $('tbSaveBtn');
+  const oldText = button.textContent;
+  button.textContent = 'Creating...';
+  button.disabled = true;
+  try {
+    const response = await fetchWithTimeout('/api/toolboxes', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({name, description: $('tbDesc').value.trim(), tools, tool_configs})
+    }, 90000);
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || data.detail || response.statusText);
+    $('tbModalBg').classList.remove('show');
+    SELECTED_TOOLBOX_NAME = data.name || name;
+    const planned = data.planned_tools_count || 0;
+    const live = data.tools_count || 0;
+    if (planned && live) {
+      alert(`Toolbox created! ${live} tool(s) published live. ${planned} tool(s) still need configuration — fill in their fields and recreate to publish them.`);
+    } else if (planned && !live) {
+      alert(`No tools could be published yet. ${planned} tool(s) need configuration — fill in the required fields and recreate.`);
+    }
+    await loadToolboxes();
+    scrollToSection('deploySection');
+  } catch (error) {
+    alert('Failed to create toolbox: ' + error.message);
+  } finally {
+    button.textContent = oldText;
+    button.disabled = false;
+  }
+}
+
+async function runEvaluation() {
+  const selectedAgentId = ($('evalAgentSelect') && $('evalAgentSelect').value) || SELECTED;
+  if (!selectedAgentId) return alert('Select an agent to evaluate first.');
+  const button = $('evalBtn');
+  const oldText = button.textContent;
+  button.disabled = true;
+  button.textContent = 'Running...';
+  const selectedAgent = AGENTS_CACHE.find(agent => agent.id === selectedAgentId);
+  $('evalStatus').textContent = `Sending test queries to ${selectedAgent ? selectedAgent.name : selectedAgentId}.`;
+  $('evalScores').innerHTML = '';
+  $('evalDetails').innerHTML = '';
+  setLifecycle(4, 'active');
+  try {
+    const form = new FormData();
+    form.append('agent_id', selectedAgentId);
+    const response = await fetchWithTimeout('/api/evaluation/run', {method: 'POST', body: form}, 90000);
+    const data = await readJsonResponse(response);
+    const summary = data.summary || {};
+    const parts = String(summary.pass_rate || '0/0').split('/').map(Number);
+    const passed = parts[0] || 0;
+    const total = parts[1] || 0;
+    const pct = total ? Math.round((passed / total) * 100) : 0;
+    const tokensAvailable = summary.avg_tokens !== null && summary.avg_tokens !== undefined;
+    $('evalScores').innerHTML = `
+      <div class="score-card ${pct >= 80 ? 'pass' : 'fail'}"><div class="sc-name">Pass rate</div><div class="sc-score">${pct}%</div><div class="sc-label">${passed}/${total} passed</div></div>
+      <div class="score-card pass"><div class="sc-name">Avg latency</div><div class="sc-score">${((summary.avg_latency_ms || 0) / 1000).toFixed(1)}s</div><div class="sc-label">${summary.avg_latency_ms || 0} ms</div></div>
+      <div class="score-card pass"><div class="sc-name">Avg tokens</div><div class="sc-score">${tokensAvailable ? summary.avg_tokens : 'N/A'}</div><div class="sc-label">${tokensAvailable ? 'per query' : 'not returned'}</div></div>
+      <div class="score-card ${(summary.tool_usage_rate || '0/0').startsWith('0/') ? 'fail' : 'pass'}"><div class="sc-name">Tool usage</div><div class="sc-score">${escapeHtml(summary.tool_usage_rate || '0/0')}</div><div class="sc-label">queries using tools</div></div>
+    `;
+    let details = (data.test_results || []).map(item => `
+      <div class="data-row">
+        <strong style="color:${item.status === 'pass' ? 'var(--green)' : 'var(--red)'}">${escapeHtml(String(item.status || '').toUpperCase())}</strong>
+        <div class="meta">${item.elapsed_ms || 0} ms | ${item.tokens || 0} tokens | tools: ${(item.tools_used || []).map(escapeHtml).join(', ') || 'none'}</div>
+        ${item.failure_reason ? `<div class="meta" style="color:var(--red)">Reason: ${escapeHtml(item.failure_reason)}</div>` : ''}
+        <div class="meta">Q: ${escapeHtml(item.query || '')}</div>
+        <div class="meta">A: ${escapeHtml(shortText(item.response || '', 180))}</div>
+      </div>
+    `).join('');
+    if (data.foundry_eval) {
+      details += `<div class="data-row"><strong>Foundry Evaluation API</strong><div class="meta">Status: ${escapeHtml(data.foundry_eval.status || 'not available')}</div>${data.foundry_eval.report_url ? `<div class="meta"><a href="${escapeHtml(data.foundry_eval.report_url)}" target="_blank">Open full report</a></div>` : ''}${data.foundry_eval.message ? `<div class="meta">${escapeHtml(data.foundry_eval.message)}</div>` : ''}</div>`;
+    }
+    $('evalDetails').innerHTML = details;
+    $('evalStatus').textContent = `Evaluation complete for ${data.agent_name || 'selected agent'}.`;
+    setLifecycle(4, 'done');
+    await loadAgents();
+    await pollHistory();
+    await loadFleet();
+  } catch (error) {
+    const message = error.name === 'AbortError'
+      ? 'Evaluation timed out after 90 seconds. The backend may still finish, but the UI has released the button.'
+      : 'Evaluation failed: ' + error.message;
+    $('evalStatus').textContent = message;
+    $('evalDetails').innerHTML = `<div class="data-row"><strong style="color:var(--red)">FAILED</strong><div class="meta">${escapeHtml(message)}</div></div>`;
+    setLifecycle(4, 'idle');
+  } finally {
+    button.textContent = oldText;
+    button.disabled = false;
+  }
+}
+
+async function loadTracing() {
+  $('tracingList').innerHTML = '<div class="sr-note">Loading traces...</div>';
+  setLifecycle(5, 'active');
+  try {
+    const traceAgentId = ($('traceAgentSelect') && $('traceAgentSelect').value) || SELECTED || '';
+    const url = traceAgentId ? `/api/tracing/recent?agent_id=${encodeURIComponent(traceAgentId)}` : '/api/tracing/recent';
+    const response = await fetchWithTimeout(url, {}, 30000);
+    const data = await readJsonResponse(response);
+    const traces = data.traces || [];
+    const context = data.agent_context || {};
+    const history = context.history || [];
+    const contextBlock = context.agent_id ? `
+      <div class="data-row">
+        <strong>Selected agent</strong>
+        <div class="meta">${escapeHtml(context.agent_name || context.agent_id)} (${escapeHtml(context.agent_id)})</div>
+        <div class="meta">Local calls captured for this agent: ${history.length}</div>
+      </div>
+    ` : '';
+    const historyBlock = history.length ? `
+      <div class="data-row">
+        <strong>Recent demo calls for selected agent</strong>
+        ${history.slice().reverse().map(item => `
+          <div class="meta">${new Date((item.ts || 0) * 1000).toLocaleTimeString()} | ${escapeHtml(shortText(item.prompt || '', 80))} | ${item.elapsed_ms || 0} ms | tools: ${(item.tools_used || []).map(escapeHtml).join(', ') || 'none'}</div>
+        `).join('')}
+      </div>
+    ` : '<div class="data-row"><strong>No local calls for selected agent yet</strong><div class="meta">Run a request in Step 3, then reload traces.</div></div>';
+    if (!traces.length) {
+      $('tracingList').innerHTML = `${contextBlock}${historyBlock}<div class="sr-note" style="margin-top:10px">${escapeHtml(data.hint || data.error || 'No traces found. Send a request first.')}</div>`;
+      setLifecycle(5, 'idle');
+      return;
+    }
+    const traceBlock = traces.map(trace => {
+      const spans = (trace.spans || []).map(span => {
+        const width = Math.max(Math.min((Number(span.duration_ms) || 0) / 45, 210), 24);
+        return `<div class="detail-row"><span>${escapeHtml(shortText(span.name || '?', 34))}</span><span><span style="display:inline-block;width:${width}px;height:10px;background:var(--blue);border-radius:999px;margin-right:8px"></span>${span.duration_ms || 0} ms</span></div>`;
+      }).join('');
+      return `<div class="data-row"><strong>${escapeHtml(shortText(trace.trace_id || '?', 26))}</strong><div class="meta">Total duration: ${trace.total_duration_ms || 0} ms</div><div style="margin-top:8px">${spans}</div></div>`;
+    }).join('');
+    $('tracingList').innerHTML = `${contextBlock}${historyBlock}${traceBlock}`;
+    setLifecycle(5, 'done');
+  } catch (error) {
+    $('tracingList').innerHTML = `<div class="sr-note">Trace load failed: ${escapeHtml(error.message)}</div>`;
+    setLifecycle(5, 'idle');
+  }
+}
+
+async function loadFleet() {
+  $('fleetContent').innerHTML = '<div class="sr-note">Loading fleet data...</div>';
+  setLifecycle(6, 'active');
+  try {
+    const response = await fetchWithTimeout('/api/control-plane', {}, 30000);
+    const data = await readJsonResponse(response);
+    const fleet = data.fleet || [];
+    const summary = data.governance_summary || {};
+    $('summaryAgents').textContent = data.agents_count ?? fleet.length;
+    $('summaryHosted').textContent = data.hosted_agents_count ?? Object.keys(ALL_HOSTED_AGENTS).length;
+    $('summaryCalls').textContent = data.total_calls ?? 0;
+
+    const metrics = `
+      <div class="mini-metrics">
+        <div class="mini-metric"><strong>${summary.ready ?? 0}/${data.agents_count ?? fleet.length}</strong><span>Ready agents</span></div>
+        <div class="mini-metric"><strong>${summary.needs_review ?? 0}</strong><span>Needs review</span></div>
+        <div class="mini-metric"><strong>${summary.empty_tools ?? 0}</strong><span>No tools bound</span></div>
+        <div class="mini-metric"><strong>${escapeHtml(summary.telemetry || 'not configured')}</strong><span>Telemetry</span></div>
+      </div>
+    `;
+    const statusTone = status => ({ready: 'green', 'needs review': 'red', watch: 'amber', 'not exercised': 'blue'}[status] || 'amber');
+    const checkTone = severity => ({ok: 'green', critical: 'red', warning: 'amber', info: 'blue'}[severity] || 'blue');
+    const renderChecks = checks => (checks || []).map(check => {
+      const detail = check.detail ? ` title="${escapeHtml(check.detail)}"` : '';
+      return `<span class="chip ${checkTone(check.severity)}"${detail}>${escapeHtml(check.label || '-')}</span>`;
+    }).join('') || '<span class="chip blue">No checks</span>';
+    const rows = fleet.map(agent => `
+      <tr>
+        <td><strong>${escapeHtml(agent.agent_name || '?')}</strong><div class="meta">${escapeHtml(agent.agent_id || '')}</div></td>
+        <td>${escapeHtml(agent.hosted_agent || '-')}<div class="meta">Toolbox: ${escapeHtml(agent.toolbox_name || 'agent-tools')}</div></td>
+        <td><code>${escapeHtml(agent.model || '-')}</code><div class="meta">${escapeHtml(agent.model_source || 'local agent registry')}</div></td>
+        <td>${agent.calls || 0}<div class="meta">${escapeHtml(agent.error_rate || '0/0')} errors | ${agent.avg_latency_ms || 0} ms</div></td>
+        <td><div class="chip-list">${(agent.tools || []).slice(0, 5).map(tool => toolChip(tool, 'blue')).join('') || '<span class="chip red">no tools</span>'}</div></td>
+        <td><div class="chip-list">${renderChecks(agent.governance_checks)}</div></td>
+        <td>${escapeHtml(agent.recommended_action || '-')}</td>
+        <td><span class="chip ${statusTone(agent.status)}">${escapeHtml(agent.status || 'registered')}</span><div class="meta">${escapeHtml(agent.status_source || 'local demo registry')}</div></td>
+      </tr>
+    `).join('');
+    const table = `<table class="fleet-table"><thead><tr><th>Agent</th><th>Runtime / Toolbox</th><th>Model</th><th>Traffic</th><th>Tools</th><th>Governance checks</th><th>Next action</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>`;
+    const roles = (data.rbac_roles || []).map(role => `<span class="chip amber" title="${escapeHtml(role.desc || '')}">${escapeHtml(role.role)}</span>`).join('');
+    const sources = data.data_sources || {};
+    const sourceNote = `<div class="data-row"><strong>Data sources</strong><div class="meta">Fleet: ${escapeHtml(sources.fleet || 'local demo registry')}</div><div class="meta">Telemetry: ${escapeHtml(sources.telemetry || 'Application Insights when configured')}</div><div class="meta">Roles/compliance: ${escapeHtml(sources.roles_and_compliance || 'static demo reference')}</div></div>`;
+    const appInsights = data.app_insights ? `<div class="data-row"><strong>Application Insights, last 24h</strong><span class="source-badge">live telemetry</span><div class="meta">Runs: ${data.app_insights.total_runs_24h || 0} | Errors: ${data.app_insights.total_errors_24h || 0}</div><div class="meta">${escapeHtml(data.app_insights.source || '')}</div></div>` : '';
+    $('fleetContent').innerHTML = `${metrics}<div class="surface"><div class="surface-body">${table}</div></div><div class="two-col" style="margin-top:12px">${sourceNote}<div class="data-row"><strong>RBAC roles</strong><span class="source-badge">static reference</span><div class="chip-list">${roles}</div></div></div><div class="two-col" style="margin-top:12px">${appInsights || '<div class="data-row"><strong>Application Insights</strong><div class="meta">No workspace metrics returned yet.</div></div>'}<div class="data-row"><strong>Control plane scope</strong><div class="meta">This view is a demo control surface, not a full Foundry inventory API replacement.</div></div></div><div style="text-align:center;margin-top:12px"><a href="${escapeHtml(data.portal_url || 'https://ai.azure.com')}" target="_blank" class="btn subtle">Open Foundry portal</a></div>`;
+    setLifecycle(6, 'done');
+  } catch (error) {
+    $('fleetContent').innerHTML = `<div class="sr-note">Fleet load failed: ${escapeHtml(error.message)}</div>`;
+    setLifecycle(6, 'idle');
+  }
+}
+
+async function init() {
+  try {
+    await loadHostedAgents();
+    await loadInfo().catch(error => {
+      console.warn('loadInfo error', error);
+      $('toolboxList').innerHTML = '<div class="sr-note">Toolbox metadata is not available yet.</div>';
+    });
+    await loadAgents();
+    loadMemoryStatus();
+    pollHealth();
+    setTimeout(loadToolboxes, 900);
+    setTimeout(pollHistory, 1400);
+    setTimeout(pollLog, 2200);
+    setTimeout(loadTracing, 4200);
+    setTimeout(loadFleet, 6200);
+    setInterval(pollHealth, 15000);
+    setInterval(pollHistory, 10000);
+    setInterval(pollLog, 30000);
+  } catch (error) {
+    console.error('init error', error);
+  }
+}
+
+init();
+</script>
+</body>
+</html>

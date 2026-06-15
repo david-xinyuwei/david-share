@@ -1,0 +1,38 @@
+
+>>> TEST 1: subscription_list
+
+=== RESULT id=10 ===
+{"status":200,"message":"Success","results":{"subscriptions":[{"subscriptionId":"ec4eb48c-bf18-4b9b-866c-8d4cfd7cf0c2","displayName":"AI GBB - AI Services","state":"Enabled","tenantId":"19a4a35a-3072-414d-a2e4-7e09491472b0","isDefault":false},{"subscriptionId":"61643109-c1dc-442c-a7a9-a5f58b9b1703","displayName":"AI GBB - AI Infra","state":"Enabled","tenantId":"19a4a35a-3072-414d-a2e4-7e09491472b0","isDefault":false},{"subscriptionId":"e204a568-de1c-4fe5-aa1b-abd35aa6bf39","displayName":"GBB-Pulse","state":"Enabled","tenantId":"19a4a35a-3072-414d-a2e4-7e09491472b0","isDefault":false}]},"duration":0}
+
+>>> TEST 2: group_list
+
+=== RESULT id=11 ===
+{"status":400,"message":"Missing Required options: --subscription","duration":0}
+
+>>> TEST 3: pricing
+
+=== RESULT id=12 ===
+    The "command" parameters are required when not learning
+    Run again with the "learn" argument to get a list of available tools and their parameters.
+    To learn about a specific tool, use the "tool" argument with the name of the tool.
+
+>>> TEST 4: quota
+
+=== RESULT id=13 ===
+    The "command" parameters are required when not learning
+    Run again with the "learn" argument to get a list of available tools and their parameters.
+    To learn about a specific tool, use the "tool" argument with the name of the tool.
+
+>>> TEST 5: foundry
+
+=== RESULT id=14 ===
+    The "command" parameters are required when not learning
+    Run again with the "learn" argument to get a list of available tools and their parameters.
+    To learn about a specific tool, use the "tool" argument with the name of the tool.
+
+>>> TEST 6: extension_cli_generate (list AOAI resources)
+
+=== RESULT id=15 ===
+{"status":200,"message":"Success","results":{"command":"{\u0022data\u0022: [{\u0022scenario\u0022: \u0022List all Azure OpenAI resources in the subscription\u0022, \u0022description\u0022: \u0022Retrieve a list of all Azure OpenAI resources in the subscription using the appropriate resource type.\u0022, \u0022commandSet\u0022: [{\u0022reason\u0022: \u0022List all Azure OpenAI resources by querying the specific resource type.\u0022, \u0022example\u0022: \u0022az resource list --resource-type Microsoft.CognitiveServices/accounts --query \u0027[].{Name:name, ResourceGroup:resourceGroup}\u0027 --output table\u0022, \u0022command\u0022: \u0022az resource list\u0022, \u0022arguments\u0022: [\u0022--resource-type\u0022, \u0022--query\u0022, \u0022--output\u0022]}]}], \u0022error\u0022: null, \u0022status\u0022: 200, \u0022api_version\u0022: \u00221.0.0-prod-20260331.7\u0022}","cliType":"az"},"duration":0}
+
+=== ALL 6 TESTS COMPLETE ===

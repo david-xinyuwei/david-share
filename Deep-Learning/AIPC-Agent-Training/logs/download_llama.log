@@ -1,0 +1,3 @@
+Downloading Llama-3.2-3B-Instruct...
+Fetching 16 files:   0%|          | 0/16 [00:00<?, ?it/s]Fetching 16 files:   6%|▋         | 1/16 [00:00<00:05,  2.97it/s]Fetching 16 files:  44%|████▍     | 7/16 [00:06<00:08,  1.06it/s]Fetching 16 files:  62%|██████▎   | 10/16 [00:07<00:04,  1.33it/s]Fetching 16 files: 100%|██████████| 16/16 [00:07<00:00,  2.05it/s]
+Done: /root/Llama-3.2-3B-Instruct

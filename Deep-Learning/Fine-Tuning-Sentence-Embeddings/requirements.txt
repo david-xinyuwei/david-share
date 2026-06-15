@@ -1,0 +1,7 @@
+torch>=2.1
+sentence-transformers>=2.6
+datasets
+faiss-gpu
+openai
+python-dotenv
+tqdm

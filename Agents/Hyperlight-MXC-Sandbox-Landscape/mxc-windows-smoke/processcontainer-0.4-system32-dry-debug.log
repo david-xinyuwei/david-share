@@ -1,0 +1,66 @@
+[1780905444] SECTION: Request simplified
+[1780905444] Container ID: [1780905444] mxc-processcontainer-system32-smoke[1780905444] 
+[1780905444] Platform: [1780905444] windows[1780905444] 
+[1780905444] Script code length: [1780905444] 51[1780905444] 
+[1780905444] Working directory: [1780905444] C:\Windows\System32[1780905444] 
+[1780905444] Script timeout: [1780905444] 30000[1780905444] 
+[1780905444] Container name: [1780905444] mxc-processcontainer-system32-smoke[1780905444] 
+[1780905444] SECTION: Full `ExecutionRequest` configuration (redacted)
+[1780905444] {
+  "schema_version": "0.4.0-alpha",
+  "container_id": "mxc-processcontainer-system32-smoke",
+  "platform": "windows",
+  "env": [],
+  "script_code": "cmd.exe /d /c echo MXC_PROCESSCONTAINER_SYSTEM32_OK",
+  "working_directory": "C:\\Windows\\System32",
+  "script_timeout": 30000,
+  "containment": "processcontainer",
+  "lifecycle": {
+    "destroy_on_exit": true,
+    "preserve_policy": false
+  },
+  "policy": {
+    "least_privilege_mode": false,
+    "capabilities": [],
+    "readwrite_paths": [],
+    "readonly_paths": [
+      "C:\\Windows\\System32"
+    ],
+    "denied_paths": [],
+    "fallback": {
+      "allow_dacl_mutation": true
+    },
+    "default_network_policy": "block",
+    "network_enforcement_mode": "capabilities",
+    "allow_local_network": false,
+    "allowed_hosts": [],
+    "blocked_hosts": [],
+    "ui": {
+      "disable": true,
+      "clipboard": "none",
+      "injection": false
+    },
+    "base_process_ui": {
+      "isolation": "container",
+      "desktopSystemControl": false,
+      "systemSettings": "none",
+      "ime": false
+    }
+  },
+  "lxc_config": {
+    "distribution": "",
+    "release": ""
+  },
+  "experimental_enabled": false,
+  "experimental": {
+    "test": null,
+    "windows_sandbox": null,
+    "wslc": null,
+    "isolation_session": null,
+    "seatbelt": null
+  },
+  "dry_run": true
+}
+[network_proxy: disabled][1780905444] 
+[1780905444] Runner completed in [1780905444] 0[1780905444] ms
+[1780905444] Dry run completed. Result: validation passed

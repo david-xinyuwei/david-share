@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="360" viewBox="0 0 960 360" role="img" aria-labelledby="title desc">
+  <title id="title">Foundry Hosted Agent Toolbox Architecture</title>
+  <desc id="desc">A high level architecture diagram showing app, hosted agent, model, toolbox, memory, telemetry, and governance layers.</desc>
+  <rect width="960" height="360" fill="#ffffff"/>
+  <rect x="12" y="12" width="936" height="336" rx="10" fill="#ffffff" stroke="#dcdee2"/>
+  <g font-family="Segoe UI, Arial, sans-serif" font-size="18" fill="#1f2937">
+    <text x="48" y="54" font-weight="700">Microsoft Foundry Agent Lifecycle Control Center</text>
+  </g>
+  <g font-family="Segoe UI, Arial, sans-serif" font-size="15" fill="#111827">
+    <rect x="48" y="96" width="150" height="70" rx="8" fill="#eff6ff" stroke="#93c5fd"/>
+    <text x="76" y="126" font-weight="600">Web App</text>
+    <text x="70" y="149" fill="#4b5563">control center</text>
+
+    <rect x="270" y="96" width="170" height="70" rx="8" fill="#ecfdf5" stroke="#86efac"/>
+    <text x="302" y="126" font-weight="600">Hosted Agent</text>
+    <text x="303" y="149" fill="#4b5563">Responses endpoint</text>
+
+    <rect x="512" y="60" width="150" height="62" rx="8" fill="#fefce8" stroke="#fde047"/>
+    <text x="542" y="90" font-weight="600">Agent model</text>
+    <text x="529" y="111" fill="#4b5563">selected deployment</text>
+
+    <rect x="512" y="160" width="150" height="80" rx="8" fill="#fff7ed" stroke="#fdba74"/>
+    <text x="548" y="191" font-weight="600">Toolbox</text>
+    <text x="536" y="214" fill="#4b5563">MCP tool bundle</text>
+
+    <rect x="734" y="60" width="150" height="62" rx="8" fill="#f5f3ff" stroke="#c4b5fd"/>
+    <text x="778" y="90" font-weight="600">Memory</text>
+    <text x="763" y="111" fill="#4b5563">cross-session</text>
+
+    <rect x="734" y="160" width="150" height="80" rx="8" fill="#f0fdfa" stroke="#5eead4"/>
+    <text x="768" y="191" font-weight="600">Telemetry</text>
+    <text x="759" y="214" fill="#4b5563">traces and logs</text>
+
+    <rect x="270" y="250" width="392" height="56" rx="8" fill="#f9fafb" stroke="#d1d5db"/>
+    <text x="334" y="283" font-weight="600">Evaluation and Control Plane</text>
+  </g>
+  <g stroke="#6b7280" stroke-width="2" fill="none" marker-end="url(#arrow)">
+    <path d="M198 131 H270"/>
+    <path d="M440 119 C470 100 485 90 512 90"/>
+    <path d="M440 143 C470 175 485 198 512 198"/>
+    <path d="M662 91 H734"/>
+    <path d="M662 199 H734"/>
+    <path d="M355 166 V250"/>
+  </g>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#6b7280"/>
+    </marker>
+  </defs>
+</svg>

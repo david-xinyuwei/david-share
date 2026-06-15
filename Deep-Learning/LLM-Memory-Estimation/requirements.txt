@@ -1,0 +1,12 @@
+# LLM Inference Memory Estimation Tool - Dependencies
+# Python 3.8+ required
+
+# Core dependencies (order matters for faster Azure deployment)
+streamlit>=1.28.0
+transformers>=4.30.0
+torch>=2.0.0
+
+# Optional: For Jupyter Notebook support
+# jupyter>=1.0.0
+# notebook>=7.0.0
+# ipywidgets>=8.0.0

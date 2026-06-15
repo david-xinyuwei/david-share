@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StackChan Azure Voice Demo</title>
+<style>
+  :root { --bg: #0f172a; --card: #1e293b; --accent: #3b82f6; --green: #22c55e; --text: #e2e8f0; --dim: #94a3b8; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
+  h1 { margin: 32px 0 8px; font-size: 24px; }
+  .subtitle { color: var(--dim); font-size: 14px; margin-bottom: 24px; }
+  .card { background: var(--card); border-radius: 16px; padding: 24px; width: 90%; max-width: 520px; margin-bottom: 16px; }
+  .emotion-face { font-size: 64px; text-align: center; margin: 12px 0; transition: all .3s; }
+  #recordBtn { width: 100%; padding: 16px; border: none; border-radius: 12px; font-size: 18px; font-weight: 600; cursor: pointer; transition: all .2s; }
+  #recordBtn.idle { background: var(--accent); color: #fff; }
+  #recordBtn.recording { background: #ef4444; color: #fff; animation: pulse 1s infinite; }
+  #recordBtn.processing { background: #6366f1; color: #fff; cursor: wait; }
+  #recordBtn:disabled { opacity: .5; cursor: not-allowed; }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.03); } }
+  .chat { margin-top: 16px; max-height: 360px; overflow-y: auto; }
+  .msg { padding: 10px 14px; border-radius: 12px; margin: 6px 0; max-width: 85%; font-size: 15px; line-height: 1.5; }
+  .msg.user { background: var(--accent); margin-left: auto; text-align: right; }
+  .msg.bot { background: #334155; }
+  .msg .label { font-size: 11px; color: var(--dim); margin-bottom: 2px; }
+  .status { text-align: center; color: var(--dim); font-size: 13px; margin-top: 8px; }
+  .arch { text-align: center; color: var(--dim); font-size: 12px; margin: 4px 0; }
+  .arch span { display: inline-block; background: #334155; padding: 2px 8px; border-radius: 6px; margin: 2px; }
+  footer { color: var(--dim); font-size: 12px; margin: 24px 0; }
+</style>
+</head>
+<body>
+
+<h1>🤖 StackChan Azure Voice Demo</h1>
+<p class="subtitle">语音输入 → Azure Whisper STT → GPT → TTS → 语音回复</p>
+
+<div class="card">
+  <div class="emotion-face" id="face">😊</div>
+  <button id="recordBtn" class="idle">🎤 按住说话</button>
+  <p class="status" id="status">点击按钮开始录音</p>
+</div>
+
+<div class="card arch">
+  <span>StackChan 设备</span> → <span>Azure Whisper (STT)</span> → <span>GPT-4.1-mini</span> → <span>gpt-4o-mini-tts</span> → <span>设备播放</span>
+</div>
+
+<div class="card chat" id="chat"></div>
+
+<footer>Lenovo × Microsoft StackChan Demo · Azure AI Foundry + Entra Token Auth</footer>
+
+<script>
+const btn = document.getElementById('recordBtn');
+const status = document.getElementById('status');
+const chat = document.getElementById('chat');
+const face = document.getElementById('face');
+
+const EMOTIONS = {
+  happy: '😄', sad: '😢', surprised: '😮', angry: '😠',
+  neutral: '😊', laughing: '🤣', shy: '😳', confused: '🤔'
+};
+
+let mediaRecorder, audioChunks = [], isRecording = false;
+
+// ── Recording ──
+btn.addEventListener('mousedown', startRec);
+btn.addEventListener('mouseup', stopRec);
+btn.addEventListener('touchstart', e => { e.preventDefault(); startRec(); });
+btn.addEventListener('touchend', e => { e.preventDefault(); stopRec(); });
+
+async function startRec() {
+  if (isRecording) return;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { sampleRate: 16000, channelCount: 1 } });
+    mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
+    audioChunks = [];
+    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+    mediaRecorder.start();
+    isRecording = true;
+    btn.className = 'recording';
+    btn.textContent = '🔴 录音中…松开发送';
+    status.textContent = '正在录音…';
+  } catch (e) {
+    status.textContent = '麦克风权限被拒绝';
+  }
+}
+
+function stopRec() {
+  if (!isRecording || !mediaRecorder) return;
+  mediaRecorder.onstop = () => sendAudio(new Blob(audioChunks, { type: 'audio/webm' }));
+  mediaRecorder.stop();
+  mediaRecorder.stream.getTracks().forEach(t => t.stop());
+  isRecording = false;
+  btn.className = 'processing';
+  btn.textContent = '⏳ 处理中…';
+  btn.disabled = true;
+  status.textContent = '语音识别 → GPT 对话 → 语音合成…';
+}
+
+// ── Convert webm to WAV (16kHz mono 16bit) ──
+async function webmToWav(blob) {
+  const ctx = new OfflineAudioContext(1, 1, 16000);
+  const buf = await blob.arrayBuffer();
+  const audioBuf = await ctx.decodeAudioData(buf);
+
+  // Resample to 16kHz mono
+  const offCtx = new OfflineAudioContext(1, Math.ceil(audioBuf.duration * 16000), 16000);
+  const src = offCtx.createBufferSource();
+  src.buffer = audioBuf;
+  src.connect(offCtx.destination);
+  src.start();
+  const rendered = await offCtx.startRendering();
+
+  const pcm = rendered.getChannelData(0);
+  const wavBuf = new ArrayBuffer(44 + pcm.length * 2);
+  const view = new DataView(wavBuf);
+  // WAV header
+  const writeStr = (o, s) => { for (let i = 0; i < s.length; i++) view.setUint8(o + i, s.charCodeAt(i)); };
+  writeStr(0, 'RIFF'); view.setUint32(4, 36 + pcm.length * 2, true); writeStr(8, 'WAVE');
+  writeStr(12, 'fmt '); view.setUint32(16, 16, true); view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true); view.setUint32(24, 16000, true); view.setUint32(28, 32000, true);
+  view.setUint16(32, 2, true); view.setUint16(34, 16, true);
+  writeStr(36, 'data'); view.setUint32(40, pcm.length * 2, true);
+  for (let i = 0; i < pcm.length; i++) {
+    const s = Math.max(-1, Math.min(1, pcm[i]));
+    view.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+  }
+  return new Blob([wavBuf], { type: 'audio/wav' });
+}
+
+// ── Send to server ──
+async function sendAudio(webmBlob) {
+  try {
+    const wavBlob = await webmToWav(webmBlob);
+    const fd = new FormData();
+    fd.append('audio', wavBlob, 'recording.wav');
+
+    const resp = await fetch('/api/voice', { method: 'POST', body: fd });
+    const data = await resp.json();
+
+    // Show STT
+    if (data.stt) {
+      addMsg('user', data.stt);
+    }
+    // Show reply
+    if (data.reply) {
+      addMsg('bot', data.reply, data.emotion);
+      face.textContent = EMOTIONS[data.emotion] || '😊';
+    }
+    // Play TTS audio
+    if (data.audio) {
+      playPcm(data.audio, data.audio_sample_rate || 24000);
+    }
+
+    status.textContent = data.stt ? '✅ 完成' : '没有识别到语音，请重试';
+  } catch (e) {
+    status.textContent = '❌ 请求失败: ' + e.message;
+  } finally {
+    btn.className = 'idle';
+    btn.textContent = '🎤 按住说话';
+    btn.disabled = false;
+  }
+}
+
+// ── Play raw PCM (24kHz 16bit mono from base64) ──
+function playPcm(b64, sampleRate) {
+  const raw = atob(b64);
+  const buf = new ArrayBuffer(raw.length);
+  const view = new Uint8Array(buf);
+  for (let i = 0; i < raw.length; i++) view[i] = raw.charCodeAt(i);
+
+  const samples = new Int16Array(buf);
+  const ctx = new AudioContext({ sampleRate });
+  const audioBuf = ctx.createBuffer(1, samples.length, sampleRate);
+  const ch = audioBuf.getChannelData(0);
+  for (let i = 0; i < samples.length; i++) ch[i] = samples[i] / 32768;
+
+  const src = ctx.createBufferSource();
+  src.buffer = audioBuf;
+  src.connect(ctx.destination);
+  src.start();
+}
+
+// ── Chat UI ──
+function addMsg(role, text, emotion) {
+  const d = document.createElement('div');
+  d.className = 'msg ' + role;
+  const label = role === 'user' ? '🗣️ 你说' : `🤖 StackChan (${emotion || 'neutral'})`;
+  d.innerHTML = `<div class="label">${label}</div>${text}`;
+  chat.appendChild(d);
+  chat.scrollTop = chat.scrollHeight;
+}
+</script>
+</body>
+</html>

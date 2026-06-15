@@ -1,0 +1,10 @@
+﻿{
+  "tier": "base-container",
+  "needsDaclAugmentation": false,
+  "warnings": [],
+  "probes": {
+    "baseContainerApiPresent": true,
+    "bfscfgPresent": false,
+    "bfsCompiledIn": false
+  }
+}
