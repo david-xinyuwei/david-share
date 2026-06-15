@@ -114,7 +114,7 @@ The slide below shows the four categories of additional control available when t
 
 <div align="center"><img src="images/slide-custom-control-options.png" width="960"></div>
 
-> Source: BRK232 Slide 23 — "What if you need more control?" Four dimensions: custom rewards (your judges, rubrics, business rules), custom rollout environments (simulators, tool servers, multi-turn worlds), custom data curation (your filters, splits, labeling), and full hyperparameter control (reasoning effort, compute multiplier, batch size, learning rate).
+> Source: Clean redrawn summary based on BRK232 Slide 23 — "What if you need more control?" Four dimensions: custom rewards (your judges, rubrics, business rules), custom rollout environments (simulators, tool servers, multi-turn worlds), custom data curation (your filters, splits, labeling), and full hyperparameter control (reasoning effort, compute multiplier, batch size, learning rate).
 
 > **Note on acronyms**: SFT = Supervised Fine-Tuning. RFT = Reinforcement Fine-Tuning. GRPO = Group Relative Policy Optimization. SLIME = Scalable Language Model Inference and Multi-Environment training. SGLang = a high-throughput serving/inference engine. TRL = Transformer Reinforcement Learning (Hugging Face library).
 
@@ -152,11 +152,11 @@ Production Agent (GPT-5.4)
 
 ### The Trace-to-Training Pipeline
 
-The on-stage demo showed the complete SFT → RFT submission pipeline in a single VS Code notebook — dataset configuration, compute selection, and job chaining all in Python:
+The on-stage demo showed the Python handoff from SFT into RFT warm-start in a single VS Code notebook — dataset configuration, compute selection, SFT job submission, and the `wait_for_sft_lora()` step that retrieves the LoRA adapter for the next job:
 
 <div align="center"><img src="images/brk232-sft-rft-code.png" width="960"></div>
 
-> Source: BRK232 on-stage demo — SFT job submission (top) chains into RFT job submission (bottom) via `wait_for_sft_lora()`. [Watch session](https://build.microsoft.com/en-US/sessions/BRK232)
+> Source: BRK232 on-stage demo — visible notebook section showing SFT job submission and the `wait_for_sft_lora()` handoff used to warm-start RFT. [Watch session](https://build.microsoft.com/en-US/sessions/BRK232)
 
 What makes Foundry's approach unique is the **trace → dataset → training** pipeline is integrated end-to-end:
 
@@ -311,11 +311,11 @@ BRK231 showed the key architectural distinction between the two training paths �
 
 ### "PyTorch as a Service"
 
-The Low-Level Training API architecture was revealed on stage — **"A small Python loop. A huge GPU cluster. Three calls between them"**:
+The Low-Level Training API architecture was revealed on stage — **"A small Python loop. A huge GPU cluster. Three calls between them"**. The visible slide region shows the local training loop calling the managed GPU cluster for sampling, forward/backward work, and weight synchronization:
 
 <div align="center"><img src="images/brk232-low-level-api-architecture.png" width="960"></div>
 
-> Source: BRK232 on-stage slide — Your local `training_loop.py` makes 3 API calls (`client.sample()`, `client.forward_backward()`, `client.sync_weights()`) to a managed GPU cluster running Sampler + Trainer + Adapter Store.
+> Source: BRK232 on-stage slide — visible calls include `client.sample()`, `client.forward_backward()`, and `client.sync_weights()` between local code and the Foundry-managed GPU cluster.
 
 The Foundry Portal shows the training session in real time — checkpoint creation, weight sync events, gradient norms, and job completion status:
 
@@ -349,11 +349,11 @@ client.train(rollouts=rollouts, rewards=grader.score(rollouts), algorithm="grpo"
 
 The training loop runs on **your laptop** (or an Azure VM for long sessions). GPU compute for `sample()` and `train()` happens on Azure. The architecture has two nodes: a **training node** (forward/backward pass, gradients) and a **sampling node** (rollout generation). `sync()` synchronizes LoRA weights between them.
 
-Here's what it looks like in practice — the on-stage demo launched a training session from a local terminal with `./launcher.sh`, showing the full hyperparameter configuration (lr=5e-5, group_size=16, lora_rank=32, max_iters=25):
+Here's what it looks like in practice — the on-stage demo launched a training session from a local terminal with `./launcher.sh`, showing key hyperparameters including `lr=5e-5`, `group_size=16`, `lora_rank=32`, and `max_iters=25`:
 
 <div align="center"><img src="images/brk231-local-launcher-terminal.png" width="960"></div>
 
-> Source: BRK231 on-stage demo — Local terminal running `./launcher.sh` for `retail_rl-Qwen-Qwen3-32B`. Config shows `lr=5e-5`, `group_size=16`, `groups_per_batch=32`, `max_tokens=768`, `lora_rank=32`, `max_iters=25`, `loss_fn=importance_sampling`, `eval_every=2`, `seed=42`. The session connects to a Foundry project endpoint via `AZURE_AI_API_KEY`.
+> Source: BRK231 on-stage demo — Local terminal running `./launcher.sh` for `retail_rl-Qwen-Qwen3-32B`. The visible config includes `lr=5e-5`, `group_size=16`, `groups_per_batch=32`, `max_tokens=768`, `lora_rank=32`, `max_iters=25`, `loss_fn=importance_sampling`, `eval_group_size=1`, `eval_full_test_set=True`, and `seed=42`. The session connects to a Foundry project endpoint via `AZURE_AI_API_KEY`.
 
 ### Demo Results (BRK232 Stage 3)
 
@@ -416,11 +416,11 @@ Fine-tuned models consume fewer tokens (instructions baked into weights, no long
 
 ## The Leaderboard: Quality Progression
 
-The hill-climbing data from the session shows quality improving at **every stage** of the post-training loop:
+The hill-climbing data from the session shows OSS model selection starts below the frontier baseline, then SFT and RFT lift Qwen3-14B above the 0.90 quality target:
 
 <div align="center"><img src="images/slide-hill-climbing-quality.png" width="960"></div>
 
-> Source: BRK232 Slide 14 — This chart tracks **Qwen3-14B** through the post-training stages. The leaderboard table below tracks the **full model portfolio** (including GPT-5.4, o4-mini, GPT-4.1 mini, and Qwen3-32B) on the same `retail_quality` metric. Absolute values differ because the 14B and 32B runs used different model sizes and evaluation checkpoints.
+> Source: Clean redrawn summary based on BRK232 Slide 14 — Tracks **Qwen3-14B** through selection, SFT, and RFT stages. The leaderboard table below tracks the **full model portfolio** (including GPT-5.4, o4-mini, GPT-4.1 mini, and Qwen3-32B) on the same `retail_quality` metric. Absolute values differ because the 14B and 32B runs used different model sizes and evaluation checkpoints.
 
 The complete demo tracked quality across all fine-tuning iterations:
 
@@ -503,17 +503,17 @@ Once your model is trained (via any of the three layers), BRK232 showed the comp
 
 > Source: BRK232 on-stage demo — Foundry Models page showing three registered custom models: `finetuned-byow-model` (Qwen3-14B), `custom-qwen3-32B`, and `qwen14b-RFT`.
 
-**Step 2: Choose your deployment path** — The official slide shows the complete picture — BYOW vs BYOC, both converging to the same Foundry endpoint:
+**Step 2: Choose your deployment path** — The deployment path has two branches — BYOW vs BYOC — both converging to the same Foundry endpoint:
 
 <div align="center"><img src="images/slide-train-deploy-scale.png" width="960"></div>
 
-> Source: BRK232 Slide 22 — "Train custom models anywhere, deploy and scale in Foundry." BYOW path: catalog runtime → Managed Compute / Fireworks. BYOC path: custom image → your cluster. Both share the same inference endpoint, auth, SDK, evals, agents, and observability.
+> Source: Clean redrawn summary based on BRK232 Slide 22 — "Train custom models anywhere, deploy and scale in Foundry." BYOW path: catalog runtime → Managed Compute / Fireworks. BYOC path: custom image → your cluster. Both share the same inference endpoint, auth, SDK, evals, agents, and observability.
 
-The BRK232 slide below details the full custom model lifecycle on Managed Compute — where models come from (upload / training job / Hugging Face), what formats are supported (full weights / LoRA adapters), what asset types ship (BYOW vs BYOC), and where they run (Managed Compute / Fireworks PTU):
+The clean summary below details the full custom model lifecycle on Managed Compute — where models come from (upload / training job / Hugging Face), what formats are supported (full weights / LoRA adapters), what asset types ship (BYOW vs BYOC), and where they run (Managed Compute / Fireworks PTU):
 
 <div align="center"><img src="images/slide-custom-models-managed-compute.png" width="960"></div>
 
-> Source: BRK232 Slide 33 — "Custom models on Managed Compute: What you bring, what it becomes, where it runs." Four columns: (1) Custom models — upload from your environment, register from a training job, or import from Hugging Face. (2) Formats — full weights or LoRA adapters. (3) Assets — BYOW (Foundry picks the runtime) or BYOC (your serving image, weights mounted in). (4) Compute — Managed Compute (Foundry-managed GPU or your training cluster) or Fireworks (PTU).
+> Source: Clean redrawn summary based on BRK232 Slide 33 — "Custom models on Managed Compute: What you bring, what it becomes, where it runs." Four rows: (1) Custom models — upload from your environment, register from a training job, or import from Hugging Face. (2) Formats — full weights or LoRA adapters. (3) Assets — BYOW (Foundry picks the runtime) or BYOC (your serving image, weights mounted in). (4) Compute — Managed Compute (Foundry-managed GPU or your training cluster) or Fireworks (PTU).
 
 In the on-stage transcript, BRK232 described custom containers as part of the custom-model deployment story: *"You can bring custom models with custom containers that have highly optimized runtimes using things like speculative decoding or draft models."* — Chris Lauren, BRK232. Supported runtime and compute combinations should be verified against the [product documentation](https://learn.microsoft.com/azure/ai-foundry/).
 

@@ -114,7 +114,7 @@ BRK232 现场明确区分了后两种执行模型。Code-First 路径需要用�
 
 <div align="center"><img src="images/slide-custom-control-options.png" width="960"></div>
 
-> 来源：BRK232 Slide 23 — "What if you need more control?" 四个维度：custom rewards（你的 judges、rubrics、业务规则）、custom rollout environments（模拟器、tool servers、多轮世界）、custom data curation（你的 filters、splits、labeling）、full hyperparameter control（reasoning effort、compute multiplier、batch size、learning rate）。
+> 来源：基于 BRK232 Slide 23 重绘的清晰摘要图 — "What if you need more control?" 四个维度：custom rewards（你的 judges、rubrics、业务规则）、custom rollout environments（模拟器、tool servers、多轮世界）、custom data curation（你的 filters、splits、labeling）、full hyperparameter control（reasoning effort、compute multiplier、batch size、learning rate）。
 
 > **缩写说明**：SFT = Supervised Fine-Tuning。RFT = Reinforcement Fine-Tuning。GRPO = Group Relative Policy Optimization。SLIME = Scalable Language Model Inference and Multi-Environment training。SGLang = 高吞吐 serving/inference 引擎。TRL = Transformer Reinforcement Learning（Hugging Face 库）。
 
@@ -152,11 +152,11 @@ BRK232 现场明确区分了后两种执行模型。Code-First 路径需要用�
 
 ### Trace → Dataset → Training 一体化
 
-现场 demo 展示了完整的 SFT → RFT 提交流程——数据集配置、算力选择、任务链接，全在一个 VS Code notebook 里：
+现场 demo 展示了从 SFT 进入 RFT warm-start 的 Python 链路——数据集配置、算力选择、SFT job 提交，以及通过 `wait_for_sft_lora()` 取回 LoRA adapter 供下一步任务使用：
 
 <div align="center"><img src="images/brk232-sft-rft-code.png" width="960"></div>
 
-> 来源：BRK232 现场 demo — SFT job 提交（上方）通过 `wait_for_sft_lora()` 链接到 RFT job 提交（下方）。[观看 session](https://build.microsoft.com/en-US/sessions/BRK232)
+> 来源：BRK232 现场 demo — 可见 notebook 片段展示 SFT job 提交，以及用于 warm-start RFT 的 `wait_for_sft_lora()` handoff。[观看 session](https://build.microsoft.com/en-US/sessions/BRK232)
 
 Foundry 的独到之处在于全链路打通：
 
@@ -311,11 +311,11 @@ BRK231 展示了两条训练路径的核心架构区别——**Path A（托管�
 
 ### "PyTorch as a Service"
 
-Low-Level Training API 的架构在现场揭开——**"一个小 Python 循环，一个大 GPU 集群，三次 API 调用连起来"**：
+Low-Level Training API 的架构在现场揭开——**"一个小 Python 循环，一个大 GPU 集群，三次 API 调用连起来"**。截图可见区域展示了本地训练循环调用托管 GPU 集群完成 sampling、forward/backward 和权重同步：
 
 <div align="center"><img src="images/brk232-low-level-api-architecture.png" width="960"></div>
 
-> 来源：BRK232 现场 slide — 你本地的 `training_loop.py` 通过 3 个 API 调用（`client.sample()`、`client.forward_backward()`、`client.sync_weights()`）驱动托管 GPU 集群上的 Sampler + Trainer + Adapter Store。
+> 来源：BRK232 现场 slide — 可见调用包括 `client.sample()`、`client.forward_backward()`、`client.sync_weights()`，连接本地代码与 Foundry 托管 GPU 集群。
 
 Foundry Portal 实时显示训练 session——checkpoint 创建、权重同步事件、gradient norm 和 job 完成状态：
 
@@ -349,11 +349,11 @@ client.train(rollouts=rollouts, rewards=grader.score(rollouts), algorithm="grpo"
 
 训练循环跑在**你的笔记本上**（或 Azure VM）。GPU 计算通过 `sample()` 和 `train()` 在 Azure 执行。架构有两个节点：training node（前向/反向传播）和 sampling node（rollout 生成）。`sync()` 在两者之间同步 LoRA 权重。
 
-现场 demo 从本地终端启动训练 session，`./launcher.sh` 显示完整超参配置（lr=5e-5, group_size=16, lora_rank=32, max_iters=25）：
+现场 demo 从本地终端启动训练 session，`./launcher.sh` 显示关键超参配置，包括 `lr=5e-5`、`group_size=16`、`lora_rank=32`、`max_iters=25`：
 
 <div align="center"><img src="images/brk231-local-launcher-terminal.png" width="960"></div>
 
-> 来源：BRK231 现场 demo — 本地终端跑 `./launcher.sh`，启动 `retail_rl-Qwen-Qwen3-32B` 训练。配置显示 `lr=5e-5`、`group_size=16`、`groups_per_batch=32`、`max_tokens=768`、`lora_rank=32`、`max_iters=25`、`loss_fn=importance_sampling`、`eval_every=2`、`seed=42`。通过 `AZURE_AI_API_KEY` 连接到 Foundry 项目 endpoint。
+> 来源：BRK231 现场 demo — 本地终端跑 `./launcher.sh`，启动 `retail_rl-Qwen-Qwen3-32B` 训练。可见配置包括 `lr=5e-5`、`group_size=16`、`groups_per_batch=32`、`max_tokens=768`、`lora_rank=32`、`max_iters=25`、`loss_fn=importance_sampling`、`eval_group_size=1`、`eval_full_test_set=True`、`seed=42`。通过 `AZURE_AI_API_KEY` 连接到 Foundry 项目 endpoint。
 
 ### BRK232 Demo 结果
 
@@ -414,11 +414,11 @@ Fine-tuned 模型消耗更少 token（指令 bake 进权重，不需要长 promp
 
 ## Leaderboard：质量递进
 
-Session 数据显示质量在 post-training 循环的**每个阶段**都在提升：
+Session 数据显示：OSS model selection 起点低于 frontier baseline，但经过 SFT 和 RFT 后，Qwen3-14B 被拉升到 0.90 quality target 之上：
 
 <div align="center"><img src="images/slide-hill-climbing-quality.png" width="960"></div>
 
-> 来源：BRK232 Slide 14 — 这张图跟踪的是 **Qwen3-14B** 的 post-training 各阶段。下方 leaderboard 表格跟踪的是**全模型组合**（含 GPT-5.4、o4-mini、GPT-4.1 mini 和 Qwen3-32B）在同一个 `retail_quality` 指标上的表现。绝对值不同是因为 14B 和 32B 使用了不同的模型大小和 evaluation checkpoints。
+> 来源：基于 BRK232 Slide 14 重绘的清晰摘要图 — 跟踪 **Qwen3-14B** 从 model selection 到 SFT、RFT 的阶段变化。下方 leaderboard 表格跟踪的是**全模型组合**（含 GPT-5.4、o4-mini、GPT-4.1 mini 和 Qwen3-32B）在同一个 `retail_quality` 指标上的表现。绝对值不同是因为 14B 和 32B 使用了不同的模型大小和 evaluation checkpoints。
 
 Demo 在同一个零售退货任务上跟踪了所有 fine-tuning 迭代的质量：
 
@@ -501,17 +501,17 @@ Copilot Fine-Tuning Skill：
 
 > 来源：BRK232 现场 demo — Foundry Models 页面，显示三个已注册的自定义模型：`finetuned-byow-model`（Qwen3-14B）、`custom-qwen3-32B`、`qwen14b-RFT`。
 
-**Step 2: 选择部署路径** — 官方 slide 展示了完整图景——BYOW vs BYOC，两者汇聚到同一个 Foundry endpoint：
+**Step 2: 选择部署路径** — 部署路径分成 BYOW 与 BYOC 两条分支，最终汇聚到同一个 Foundry endpoint：
 
 <div align="center"><img src="images/slide-train-deploy-scale.png" width="960"></div>
 
-> 来源：BRK232 Slide 22 — "Train custom models anywhere, deploy and scale in Foundry."。BYOW 路径：catalog runtime → Managed Compute / Fireworks。BYOC 路径：自定义镜像 → 自有集群。两者共享同一个 inference endpoint、auth、SDK、evals、agents 和 observability。
+> 来源：基于 BRK232 Slide 22 重绘的清晰摘要图 — "Train custom models anywhere, deploy and scale in Foundry."。BYOW 路径：catalog runtime → Managed Compute / Fireworks。BYOC 路径：自定义镜像 → 自有集群。两者共享同一个 inference endpoint、auth、SDK、evals、agents 和 observability。
 
-下面这张 BRK232 slide 展示了自定义模型在 Managed Compute 上的完整生命周期——模型从哪来（上传 / 训练 job / Hugging Face），支持什么格式（full weights / LoRA），产物类型（BYOW vs BYOC），以及跑在哪（Managed Compute / Fireworks PTU）：
+下面这张清晰摘要图展示了自定义模型在 Managed Compute 上的完整生命周期——模型从哪来（上传 / 训练 job / Hugging Face），支持什么格式（full weights / LoRA），产物类型（BYOW vs BYOC），以及跑在哪（Managed Compute / Fireworks PTU）：
 
 <div align="center"><img src="images/slide-custom-models-managed-compute.png" width="960"></div>
 
-> 来源：BRK232 Slide 33 — "Custom models on Managed Compute: What you bring, what it becomes, where it runs."。四列：(1) Custom models — 从你的环境上传、从训练 job 注册、或从 Hugging Face 导入。(2) Formats — full weights 或 LoRA adapters。(3) Assets — BYOW（Foundry 选 runtime）或 BYOC（你的 serving 镜像，权重挂载）。(4) Compute — Managed Compute（Foundry 管理的 GPU 或你自己的训练集群）或 Fireworks（PTU）。
+> 来源：基于 BRK232 Slide 33 重绘的清晰摘要图 — "Custom models on Managed Compute: What you bring, what it becomes, where it runs."。四行：(1) Custom models — 从你的环境上传、从训练 job 注册、或从 Hugging Face 导入。(2) Formats — full weights 或 LoRA adapters。(3) Assets — BYOW（Foundry 选 runtime）或 BYOC（你的 serving 镜像，权重挂载）。(4) Compute — Managed Compute（Foundry 管理的 GPU 或你自己的训练集群）或 Fireworks（PTU）。
 
 BRK232 现场 transcript 描述了 custom containers 作为自定义模型部署故事的一部分：*"You can bring custom models with custom containers that have highly optimized runtimes using things like speculative decoding or draft models."* — Chris Lauren, BRK232。具体支持的 runtime 和 compute 组合请以[产品文档](https://learn.microsoft.com/azure/ai-foundry/)为准。
 
