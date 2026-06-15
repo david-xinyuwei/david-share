@@ -96,6 +96,26 @@ The progression from simple distillation to full algorithmic control follows a c
 > RFT: "Don't teach what to do. **Reward what wins.**"
 > — BRK232 Slides, Chris Lauren
 
+### Training Execution Models: Who Manages the GPUs?
+
+The three training *methods* (SFT, RFT, Low-Level API) are separate from the three *execution modes* that determine where GPU compute comes from. RFT, for example, can run via either the managed path or the code-first path:
+
+| Execution Mode | GPU Compute Source | User Provisions Cluster? | On-Stage Evidence |
+|:---------------|:-------------------|:------------------------:|:------------------|
+| **Managed Fine-Tuning** (Layers 1–2) | Foundry-managed | No | "fire and forget" — BRK232 transcript |
+| **Code-First / Ray / SLIME** (Layer 2 advanced) | User's own Azure GPU quota (e.g., 4× ND96 H100) | Yes — cluster provisioning, Ray, networking | "expert heavy-duty work" — BRK232 transcript |
+| **Low-Level Training API** (Layer 3) | Foundry-managed | No — "no cluster, no nothing" | "the server manages all the infra" — BRK232 transcript |
+
+The BRK232 session explicitly distinguished the latter two execution models. For the Code-First path, the speaker described provisioning clusters, managing Ray, and debugging network topology as "expert heavy-duty work." For the Low-Level Training API, the speaker emphasized: *"The previous one you need to have GPUs. Everybody may not have GPUs but everybody has a laptop."*
+
+> **Evidence boundary**: The public Build transcript proves that Foundry manages the GPU cluster for the Low-Level Training API path. It does not expose the exact underlying capacity source or quota model.
+
+The slide below shows the four categories of additional control available when the managed pipeline isn't enough — custom rewards, custom rollout environments, custom data curation, and full hyperparameter control:
+
+<div align="center"><img src="images/slide-custom-control-options.png" width="960"></div>
+
+> Source: BRK232 Slide 23 — "What if you need more control?" Four dimensions: custom rewards (your judges, rubrics, business rules), custom rollout environments (simulators, tool servers, multi-turn worlds), custom data curation (your filters, splits, labeling), and full hyperparameter control (reasoning effort, compute multiplier, batch size, learning rate).
+
 > **Note on acronyms**: SFT = Supervised Fine-Tuning. RFT = Reinforcement Fine-Tuning. GRPO = Group Relative Policy Optimization. SLIME = Scalable Language Model Inference and Multi-Environment training. SGLang = a high-throughput serving/inference engine. TRL = Transformer Reinforcement Learning (Hugging Face library).
 
 The rest of this document walks through each layer with concrete examples — using the same retail return scenario (a customer service agent processing refunds) that both sessions used on stage.
@@ -489,6 +509,14 @@ Once your model is trained (via any of the three layers), BRK232 showed the comp
 
 > Source: BRK232 Slide 22 — "Train custom models anywhere, deploy and scale in Foundry." BYOW path: catalog runtime → Managed Compute / Fireworks. BYOC path: custom image → your cluster. Both share the same inference endpoint, auth, SDK, evals, agents, and observability.
 
+The BRK232 slide below details the full custom model lifecycle on Managed Compute — where models come from (upload / training job / Hugging Face), what formats are supported (full weights / LoRA adapters), what asset types ship (BYOW vs BYOC), and where they run (Managed Compute / Fireworks PTU):
+
+<div align="center"><img src="images/slide-custom-models-managed-compute.png" width="960"></div>
+
+> Source: BRK232 Slide 33 — "Custom models on Managed Compute: What you bring, what it becomes, where it runs." Four columns: (1) Custom models — upload from your environment, register from a training job, or import from Hugging Face. (2) Formats — full weights or LoRA adapters. (3) Assets — BYOW (Foundry picks the runtime) or BYOC (your serving image, weights mounted in). (4) Compute — Managed Compute (Foundry-managed GPU or your training cluster) or Fireworks (PTU).
+
+In the on-stage transcript, BRK232 described custom containers as part of the custom-model deployment story: *"You can bring custom models with custom containers that have highly optimized runtimes using things like speculative decoding or draft models."* — Chris Lauren, BRK232. Supported runtime and compute combinations should be verified against the [product documentation](https://learn.microsoft.com/azure/ai-foundry/).
+
 Foundry also offers **Managed Compute** as a dedicated serving substrate for open-source models — now in Public Preview:
 
 <div align="center"><img src="images/slide-managed-compute-preview.png" width="960"></div>
@@ -545,9 +573,9 @@ pip install --pre -r src/requirements.txt
 | 2 | `src/Retail_Customer_Agent_Post_Training.ipynb` | Qwen3-14B | GRPO RFT (warm-started from Stage 1 LoRA) |
 | 3 | `src/Retail_Customer_Agent_Training_API.ipynb` | Qwen3-32B | Low-Level API (Private Preview) |
 
-> ⚠️ **GPU compute required**: 4 nodes of H100 or A100. Start small to validate.
+> ⚠️ **Stage 1–2 GPU compute required**: 4 nodes of H100 or A100 (your own Azure GPU quota). Start small to validate.
 >
-> ⚠️ **Low-Level API is Private Preview**: [aka.ms/FoundryTrainingPrPrSignup](https://aka.ms/FoundryTrainingPrPrSignup)
+> ⚠️ **Stage 3 (Low-Level API)**: No BYO GPU quota needed — Foundry manages the GPU cluster. Requires [Private Preview access](https://aka.ms/FoundryTrainingPrPrSignup).
 
 ---
 
@@ -590,7 +618,7 @@ pip install --pre -r src/requirements.txt
 | Training control plane | Microsoft Foundry | Standard |
 | SFT compute | Foundry Custom Code training (BYO AML GPU quota) | 4× ND96amsr_A100_v4 or ND96r_H100_v5 |
 | RFT compute | Foundry Custom Code training (BYO AML GPU quota) | 4× ND96r_H100_v5 (recommended) |
-| Low-Level API compute | Foundry Fine-Tuning Low-Level API | 4× H100 (Private Preview) |
+| Low-Level API compute | Foundry Fine-Tuning Low-Level API (Foundry-managed GPU) | H100 cluster (Private Preview) |
 | Model hosting | Foundry Managed Compute | Dedicated GPU (hourly metered) |
 | Evaluation | Foundry Evaluations | Included |
 | Traces & observability | Foundry Tracing + Azure Monitor | Included |

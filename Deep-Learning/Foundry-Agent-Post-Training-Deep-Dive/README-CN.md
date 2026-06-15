@@ -96,6 +96,26 @@ Build 2026 展示了 Foundry 里三个不同的模型定制入口——从"我�
 > RFT: "Don't teach what to do. **Reward what wins.**"
 > — BRK232 Slides, Chris Lauren
 
+### 训练执行模型：GPU 谁来管？
+
+三种训练*方法*（SFT、RFT、Low-Level API）和三种*执行模式*是独立的。例如 RFT 可以通过托管路径跑，也可以通过 Code-First 路径跑：
+
+| 执行模式 | GPU 算力来源 | 用户需要自己管集群？ | 现场证据 |
+|:---------|:---------|:---------:|:---------|
+| **托管 Fine-Tuning**（Layer 1–2） | Foundry 管理 | 否 | "fire and forget" — BRK232 transcript |
+| **Code-First / Ray / SLIME**（Layer 2 进阶） | 用户自己的 Azure GPU quota（4× ND96 H100） | 是——集群、Ray、网络都要自己管 | "expert heavy-duty work" — BRK232 transcript |
+| **Low-Level Training API**（Layer 3） | Foundry 管理 | 否——"no cluster, no nothing" | "the server manages all the infra" — BRK232 transcript |
+
+BRK232 现场明确区分了后两种执行模型。Code-First 路径需要用户 provision 集群、管理 Ray、调试网络拓扑，讲者称之为 "expert heavy-duty work"。Low-Level Training API 则强调：*"前一个方案你得有 GPU。但并不是每个人都有 GPU，每个人都有笔记本就够了。"*
+
+> **证据边界**：公开的 Build transcript 证明 Foundry 管理 Low-Level Training API 路径的 GPU 集群，但没有披露底层的具体算力源或 quota 模型。
+
+下面这张 slide 展示了当托管流水线不够用时，四个维度的额外控制力——自定义 reward、自定义 rollout 环境、自定义数据清洗、完整超参控制：
+
+<div align="center"><img src="images/slide-custom-control-options.png" width="960"></div>
+
+> 来源：BRK232 Slide 23 — "What if you need more control?" 四个维度：custom rewards（你的 judges、rubrics、业务规则）、custom rollout environments（模拟器、tool servers、多轮世界）、custom data curation（你的 filters、splits、labeling）、full hyperparameter control（reasoning effort、compute multiplier、batch size、learning rate）。
+
 > **缩写说明**：SFT = Supervised Fine-Tuning。RFT = Reinforcement Fine-Tuning。GRPO = Group Relative Policy Optimization。SLIME = Scalable Language Model Inference and Multi-Environment training。SGLang = 高吞吐 serving/inference 引擎。TRL = Transformer Reinforcement Learning（Hugging Face 库）。
 
 下文用同一个零售退货场景（客服 Agent 处理退款）把每一层走一遍——这是 BRK231 和 BRK232 两个 session 的共同 demo 场景。
@@ -487,6 +507,14 @@ Copilot Fine-Tuning Skill：
 
 > 来源：BRK232 Slide 22 — "Train custom models anywhere, deploy and scale in Foundry."。BYOW 路径：catalog runtime → Managed Compute / Fireworks。BYOC 路径：自定义镜像 → 自有集群。两者共享同一个 inference endpoint、auth、SDK、evals、agents 和 observability。
 
+下面这张 BRK232 slide 展示了自定义模型在 Managed Compute 上的完整生命周期——模型从哪来（上传 / 训练 job / Hugging Face），支持什么格式（full weights / LoRA），产物类型（BYOW vs BYOC），以及跑在哪（Managed Compute / Fireworks PTU）：
+
+<div align="center"><img src="images/slide-custom-models-managed-compute.png" width="960"></div>
+
+> 来源：BRK232 Slide 33 — "Custom models on Managed Compute: What you bring, what it becomes, where it runs."。四列：(1) Custom models — 从你的环境上传、从训练 job 注册、或从 Hugging Face 导入。(2) Formats — full weights 或 LoRA adapters。(3) Assets — BYOW（Foundry 选 runtime）或 BYOC（你的 serving 镜像，权重挂载）。(4) Compute — Managed Compute（Foundry 管理的 GPU 或你自己的训练集群）或 Fireworks（PTU）。
+
+BRK232 现场 transcript 描述了 custom containers 作为自定义模型部署故事的一部分：*"You can bring custom models with custom containers that have highly optimized runtimes using things like speculative decoding or draft models."* — Chris Lauren, BRK232。具体支持的 runtime 和 compute 组合请以[产品文档](https://learn.microsoft.com/azure/ai-foundry/)为准。
+
 Foundry 还提供 **Managed Compute** 作为开源模型的专用 serving 底座——现已 Public Preview：
 
 <div align="center"><img src="images/slide-managed-compute-preview.png" width="960"></div>
@@ -543,9 +571,9 @@ pip install --pre -r src/requirements.txt
 | 2 | `src/Retail_Customer_Agent_Post_Training.ipynb` | Qwen3-14B | GRPO RFT（从 Stage 1 LoRA warm-start） |
 | 3 | `src/Retail_Customer_Agent_Training_API.ipynb` | Qwen3-32B | Low-Level API（Private Preview） |
 
-> ⚠️ **需要 GPU 集群**：4 节点 H100 或 A100。先小规模验证。
+> ⚠️ **Stage 1–2 需要 GPU 集群**：4 节点 H100 或 A100（你自己的 Azure GPU quota）。先小规模验证。
 >
-> ⚠️ **Low-Level API 是 Private Preview**：[aka.ms/FoundryTrainingPrPrSignup](https://aka.ms/FoundryTrainingPrPrSignup)
+> ⚠️ **Stage 3（Low-Level API）**：不需要自备 GPU quota——Foundry 管理 GPU 集群。需要 [Private Preview 权限](https://aka.ms/FoundryTrainingPrPrSignup)。
 
 ---
 
@@ -588,7 +616,7 @@ pip install --pre -r src/requirements.txt
 | 训练控制平面 | Microsoft Foundry | Standard |
 | SFT 算力 | Foundry Custom Code training（BYO AML GPU quota） | 4× ND96amsr_A100_v4 或 ND96r_H100_v5 |
 | RFT 算力 | Foundry Custom Code training（BYO AML GPU quota） | 4× ND96r_H100_v5（推荐） |
-| Low-Level API 算力 | Foundry Fine-Tuning Low-Level API | 4× H100（Private Preview） |
+| Low-Level API 算力 | Foundry Fine-Tuning Low-Level API（Foundry 管理的 GPU） | H100 集群（Private Preview） |
 | 模型托管 | Foundry Managed Compute | Dedicated GPU（按小时计费） |
 | 评估 | Foundry Evaluations | 包含 |
 | Traces 和可观测性 | Foundry Tracing + Azure Monitor | 包含 |
