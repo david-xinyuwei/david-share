@@ -41,7 +41,28 @@ Tested across 5 candidate models using the **customer's actual architecture** (R
 | **Output pricing** (per 1M tokens) | $0.60 | $1.25 | — |
 | **Cached input** (per 1M tokens) | $0.075 | $0.02 | — |
 
-> All TTFT measured as P50 (median) across **120 samples per model per scenario** (5 independent runs). Test environment: East Asia → East US 2 (PAYGO GlobalStandard). Customer PTU environment will have lower TTFT.
+### WebIQ Addendum: Explicit Retrieval Path (June 2026)
+
+Microsoft describes Web IQ as "a suite of AI-native APIs that gives applications access to fresh, real-world intelligence from across the web - including web pages, news, images, and videos" ([Microsoft WebIQ](https://www.microsoft.com/en-us/webiq), accessed 2026-06-16). This repo now includes WebIQ as an explicit retrieval path, separate from the built-in `web_search_preview` tool orchestration path.
+
+Two benchmark layers are reported separately:
+
+| Layer | What is measured | Primary use |
+|------|------------------|-------------|
+| **Search-only** | WebIQ retrieval latency before any model generation | Search service latency and retrieval sanity check |
+| **End-to-end** | WebIQ retrieval + AOAI Responses API generation, compared with `web_search_preview` E2E | User-visible assistant latency |
+
+On the original migration benchmark scenarios (`pricing`, `news`, `weather`), WebIQ retrieval alone measured **183 ms P50 / 194 ms P95** with **24/24** retrieval sanity checks passing. In end-to-end mode, WebIQ reduced user-visible TTFT by **17-39%** versus `web_search_preview` on the same scenarios, same endpoint, and same model set. This addendum uses three independent runs; warmup samples are excluded, and effective E2E sample counts vary from 33 to 36 per model because rate-limit and tool-call-limit failures are preserved rather than hidden.
+
+| Model | WebIQ E2E P50 | `web_search_preview` P50 | Delta | WebIQ P95 | `web_search_preview` P95 |
+|-------|--------------:|-------------------------:|------:|----------:|-------------------------:|
+| gpt-4o-mini | **1.38s** | 1.99s | **30.7% faster** | 1.80s | 4.50s |
+| gpt-5.4-nano | **1.52s** | 1.83s | **16.8% faster** | 2.00s | 3.22s |
+| gpt-5.4-mini | **1.17s** | 1.92s | **38.9% faster** | 1.52s | 8.21s |
+
+> Scope note: WebIQ is tested here as **explicit retrieval + context injection**, while `web_search_preview` is tested as a **built-in tool orchestration** path. The `quality_pass` and `source_used` checks are lightweight sanity checks, not a human answer-quality evaluation. `web_search_preview` does not expose internal search latency, so search-layer latency is reported only for WebIQ.
+
+> Original benchmark note: the web_search, Foundry+Bing, and Direct rows above were measured as P50 (median) across **120 samples per model per scenario** (5 independent runs). The WebIQ addendum uses the separate June 2026 runs described above. Test environment: East Asia → East US 2 (PAYGO GlobalStandard). Customer PTU environment will have lower TTFT.
 
 **Production settings for web_search path** (customer's architecture):
 
@@ -773,6 +794,35 @@ python scripts/benchmark_websearch_guardrails.py \
   --api-key YOUR_API_KEY
 ```
 
+**WebIQ personal-search benchmark** (explicit grounding path):
+
+```bash
+export WEBIQ_API_KEY="YOUR_WEBIQ_API_KEY"
+
+# Search-only retrieval latency and result-quality smoke test
+python scripts/benchmark_webiq_personal_search.py \
+  --mode search --iterations 5 --warmup 1
+
+# End-to-end: WebIQ search + AOAI Responses API generation
+export AZURE_OPENAI_ENDPOINT="https://<your-resource>.openai.azure.com"
+export AZURE_OPENAI_API_KEY="YOUR_AOAI_API_KEY"
+python scripts/benchmark_webiq_personal_search.py \
+  --mode e2e --iterations 5 --warmup 1 \
+  --models gpt-4o-mini,gpt-5.4-nano,gpt-5.4-mini
+```
+
+Use `--scenario-file <local-json>` to reproduce the original `pricing` / `news` / `weather` migration scenarios. Keep customer-specific scenario files under `outputs/` or another ignored local path.
+
+**web_search_preview with the same personal-search scenario format**:
+
+```bash
+export AZURE_OPENAI_ENDPOINT="https://<your-resource>.openai.azure.com"
+export AZURE_OPENAI_API_KEY="YOUR_AOAI_API_KEY"
+python scripts/benchmark_websearch_personal_search.py \
+  --iterations 5 --warmup 1 \
+  --models gpt-4o-mini,gpt-5.4-nano,gpt-5.4-mini
+```
+
 **Foundry Agent + Bing Grounding benchmark** (alternative path):
 
 ```bash
@@ -805,6 +855,8 @@ The 5-run web_search dataset (`data/benchmark_websearch_guardrails_*.json`) cont
 | Script | Purpose | Parameters |
 |--------|---------|------------|
 | `benchmark_websearch_guardrails.py` | web_search + GUARDRAILS 1066-token prompt | `--endpoint`, `--api-key` |
+| `benchmark_webiq_personal_search.py` | WebIQ personal-search grounding benchmark; search-only or WebIQ + AOAI E2E | `WEBIQ_API_KEY`, optional `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `--mode` |
+| `benchmark_websearch_personal_search.py` | `web_search_preview` benchmark using the same scenario schema and sanity checks as the WebIQ script | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, optional `--scenario-file` |
 | `benchmark_3s_detective.py` | Foundry Agent + Bing, 3 scenarios × 5 models | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_AI_PROJECT_ENDPOINT`, `BING_CONNECTION_NAME` |
 | `benchmark_3s_cached.py` | Prompt caching version (1066-token system prompt) | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_AI_PROJECT_ENDPOINT`, `BING_CONNECTION_NAME` |
 | `benchmark_intent_classification.py` | Short-output intent classification cost analysis | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY` |

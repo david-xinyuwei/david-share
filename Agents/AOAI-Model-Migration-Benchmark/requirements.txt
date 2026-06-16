@@ -4,3 +4,4 @@ numpy==2.2.1
 requests==2.32.3
 azure-ai-projects==2.0.0b2
 azure-identity==1.19.0
+webiq==0.1.0

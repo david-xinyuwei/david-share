@@ -41,7 +41,28 @@
 | **Output 单价** (每 1M tokens) | $0.60 | $1.25 | — |
 | **缓存 Input** (每 1M tokens) | $0.075 | $0.02 | — |
 
-> 所有 TTFT 为 P50（中位数），基于**每模型每场景 120 个样本**（5 轮独立测试）。测试环境：东亚 → East US 2（PAYGO GlobalStandard）。客户 PTU 环境 TTFT 将更低。
+### WebIQ 补充测试：显式 Retrieval 路径（2026-06）
+
+Microsoft 对 WebIQ 的官方描述是："a suite of AI-native APIs that gives applications access to fresh, real-world intelligence from across the web - including web pages, news, images, and videos"（来源：[Microsoft WebIQ](https://www.microsoft.com/en-us/webiq)，访问日期 2026-06-16）。本 repo 现在将 WebIQ 作为一条显式 retrieval 路径加入测试，和内置 `web_search_preview` tool orchestration 路径分开对比。
+
+测试分两层：
+
+| 层级 | 测什么 | 用途 |
+|------|--------|------|
+| **Search-only** | 只测 WebIQ 检索延迟，不包含模型生成 | 看搜索服务自身延迟和 retrieval sanity check |
+| **End-to-end** | WebIQ 检索 + AOAI Responses API 生成，对比 `web_search_preview` E2E | 看用户体感的 AI 助手延迟 |
+
+在原始迁移 benchmark 场景（`pricing`、`news`、`weather`）下，WebIQ 单独检索为 **183 ms P50 / 194 ms P95**，retrieval sanity check **24/24** 通过。在端到端模式下，同一组场景、同一 endpoint、同一组模型中，WebIQ 相比 `web_search_preview` 将用户体感 TTFT 降低 **17-39%**。本补充测试使用 3 轮独立运行，排除 warmup；rate limit 和 tool-call limit 失败保留在 JSON 中而不是隐藏，因此 E2E 有效样本数按模型为 33-36 条。
+
+| 模型 | WebIQ E2E P50 | `web_search_preview` P50 | 降幅 | WebIQ P95 | `web_search_preview` P95 |
+|------|--------------:|-------------------------:|-----:|----------:|-------------------------:|
+| gpt-4o-mini | **1.38s** | 1.99s | **快 30.7%** | 1.80s | 4.50s |
+| gpt-5.4-nano | **1.52s** | 1.83s | **快 16.8%** | 2.00s | 3.22s |
+| gpt-5.4-mini | **1.17s** | 1.92s | **快 38.9%** | 1.52s | 8.21s |
+
+> 范围说明：这里的 WebIQ 路径是 **显式 retrieval + context injection**，`web_search_preview` 是 **内置 tool orchestration**。`quality_pass` 和 `source_used` 只是轻量 sanity check，不是人工答案质量评测。`web_search_preview` 不暴露内部搜索延迟，所以 search-layer latency 只对 WebIQ 单独报告。
+
+> 原始 benchmark 说明：上方 web_search、Foundry+Bing 和 Direct 行的 TTFT 为 P50（中位数），基于**每模型每场景 120 个样本**（5 轮独立测试）。WebIQ 补充测试使用上文所述的 2026-06 独立运行。测试环境：东亚 → East US 2（PAYGO GlobalStandard）。客户 PTU 环境 TTFT 将更低。
 
 **web_search 路径生产配置**（客户实际架构）：
 
@@ -773,6 +794,35 @@ python scripts/benchmark_websearch_guardrails.py \
   --api-key YOUR_API_KEY
 ```
 
+**WebIQ personal-search benchmark**（显式 grounding 路径）：
+
+```bash
+export WEBIQ_API_KEY="YOUR_WEBIQ_API_KEY"
+
+# Search-only：只测 WebIQ 检索延迟和结果质量
+python scripts/benchmark_webiq_personal_search.py \
+  --mode search --iterations 5 --warmup 1
+
+# End-to-end：WebIQ 检索 + AOAI Responses API 生成
+export AZURE_OPENAI_ENDPOINT="https://<your-resource>.openai.azure.com"
+export AZURE_OPENAI_API_KEY="YOUR_AOAI_API_KEY"
+python scripts/benchmark_webiq_personal_search.py \
+  --mode e2e --iterations 5 --warmup 1 \
+  --models gpt-4o-mini,gpt-5.4-nano,gpt-5.4-mini
+```
+
+如需复现原始 `pricing` / `news` / `weather` 迁移场景，可使用 `--scenario-file <local-json>`。客户相关 scenario 文件建议放在 `outputs/` 或其他 ignored 本地路径下，不提交。
+
+**使用同一 scenario schema 跑 `web_search_preview`：**
+
+```bash
+export AZURE_OPENAI_ENDPOINT="https://<your-resource>.openai.azure.com"
+export AZURE_OPENAI_API_KEY="YOUR_AOAI_API_KEY"
+python scripts/benchmark_websearch_personal_search.py \
+  --iterations 5 --warmup 1 \
+  --models gpt-4o-mini,gpt-5.4-nano,gpt-5.4-mini
+```
+
 **Foundry Agent + Bing Grounding benchmark**（替代路径）：
 
 ```bash
@@ -805,6 +855,8 @@ Public repo 不包含逐请求 raw JSON 文件；这些文件保留在 private s
 | 脚本 | 用途 | 参数 |
 |------|------|------|
 | `benchmark_websearch_guardrails.py` | web_search + GUARDRAILS 1066-token prompt | `--endpoint`, `--api-key` |
+| `benchmark_webiq_personal_search.py` | WebIQ personal-search grounding benchmark；支持 search-only 或 WebIQ + AOAI E2E | `WEBIQ_API_KEY`，可选 `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `--mode` |
+| `benchmark_websearch_personal_search.py` | 使用与 WebIQ 脚本相同的 scenario schema 和 sanity check 跑 `web_search_preview` | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`，可选 `--scenario-file` |
 | `benchmark_3s_detective.py` | Foundry Agent + Bing，3 场景 × 5 模型 | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_AI_PROJECT_ENDPOINT`, `BING_CONNECTION_NAME` |
 | `benchmark_3s_cached.py` | Prompt Caching 版本（1066-token 系统提示词） | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_AI_PROJECT_ENDPOINT`, `BING_CONNECTION_NAME` |
 | `benchmark_intent_classification.py` | 短输出意图分类成本分析 | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY` |
