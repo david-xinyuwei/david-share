@@ -165,7 +165,7 @@ nssm set SandboxAPI AppRestartDelay 3000
 nssm set SandboxAPI AppEnvironmentExtra AOAI_ENDPOINT=... AOAI_KEY=... AOAI_MODEL=...
 nssm set SandboxAPI AppStdout "C:\Users\aipcadmin\Desktop\sandbox_service.log"
 nssm set SandboxAPI AppStderr "C:\Users\aipcadmin\Desktop\sandbox_service.log"
-nssm set SandboxAPI ObjectName .\aipcadmin "password"
+nssm set SandboxAPI ObjectName .\aipcadmin "<your-password>"  # or set NSSM_SERVICE_PASSWORD env var
 nssm start SandboxAPI
 ```
 
@@ -195,6 +195,7 @@ Invoke-WebRequest -Method POST http://localhost:8507/api/sandbox/run `
 │       └── index.html         # Portal frontend (single-page, SSE streaming)
 ├── aipc/
 │   ├── install-nssm-service.ps1 # NSSM Windows Service installer (auto-restart, logging, env vars)
+│   ├── capture_screenshot.ps1 # Screenshot helper (schtask /IT, runs in RDP session for desktop access)
 │   ├── start-sandbox.ps1      # Standalone launcher (reads Machine env vars, for manual start)
 │   ├── start-sandbox.bat      # Batch wrapper
 │   ├── capture_now.ps1        # One-shot desktop screenshot (GDI CopyFromScreen)
