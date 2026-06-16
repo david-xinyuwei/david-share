@@ -10,3 +10,9 @@ venv/
 node_modules/
 dist/
 build/
+*.tmp
+last_sandbox_run.json
+last_codeact_run.json
+last_screenshot.png
+runtime/
+data/

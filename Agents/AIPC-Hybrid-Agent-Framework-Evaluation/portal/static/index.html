@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>AIPC Agent Framework Comparison</title>
+<style>
+:root{--page:#f5f7fb;--card:#ffffff;--line:#dde4f0;--line-soft:#edf1f7;--text:#172033;--muted:#667085;--muted2:#98a2b3;--accent:#2563eb;--accent2:#0f766e;--red:#dc2626;--orange:#d97706;--green:#15803d;--cyan:#0891b2;--purple:#7c3aed;--radius:8px;--shadow:0 8px 24px rgba(15,23,42,.07)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,sans-serif;background:#e9eef6;min-height:100vh;color:var(--text);font-size:14px;overflow:hidden;padding:18px}
+.app{max-width:1440px;height:calc(100vh - 36px);margin:0 auto;display:flex;flex-direction:column;background:#f8fafc;border:1px solid #cbd5e1;border-radius:16px;box-shadow:0 28px 70px rgba(15,23,42,.18);overflow:hidden}
+
+/* Window bar */
+.window-bar{height:42px;display:flex;align-items:center;gap:12px;padding:0 16px;background:#f8fafc;border-bottom:1px solid var(--line);user-select:none}
+.traffic{display:flex;gap:7px;align-items:center}.traffic span{width:11px;height:11px;border-radius:50%;display:block;border:1px solid rgba(0,0,0,.08)}
+.traffic .r{background:#ff5f57}.traffic .y{background:#ffbd2e}.traffic .g{background:#28c840}
+.win-title{font-size:12px;font-weight:700;color:#334155;display:flex;align-items:center;gap:8px}
+.win-title .icon{width:22px;height:22px;border-radius:6px;background:var(--accent);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px}
+.win-info{margin-left:auto;font-size:11px;color:var(--muted2)}
+.live{display:inline-flex;align-items:center;gap:5px;background:#e0f2fe;color:#075985;font-size:10px;padding:3px 8px;border-radius:999px;margin-left:10px;font-weight:700;border:1px solid #bae6fd}
+.live::before{content:'';width:6px;height:6px;border-radius:50%;background:#0284c7;display:inline-block}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+/* Nav rail */
+.plugin-layout{flex:1;min-height:0;display:grid;grid-template-columns:60px minmax(0,1fr);background:#f8fafc}
+.nav-rail{border-right:1px solid var(--line);background:#f1f5f9;padding:12px 8px;display:flex;flex-direction:column;align-items:center;gap:8px}
+.rail-btn{width:42px;height:42px;border-radius:11px;border:1px solid transparent;background:transparent;color:#475569;display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;position:relative;transition:.15s}
+.rail-btn:hover{background:#fff;border-color:#dbe3ef}.rail-btn.active{background:#fff;border-color:#dbe3ef;box-shadow:0 8px 18px rgba(15,23,42,.08);color:#1d4ed8}
+.rail-label{font-size:8px;color:var(--muted2);text-align:center;margin-top:-2px}
+.rail-spacer{flex:1}
+
+/* Content area */
+.content{min-width:0;overflow:auto;padding:14px 16px;display:flex;flex-direction:column;gap:14px}
+
+/* Hero */
+.hero{background:#fff;border-radius:var(--radius);padding:16px 20px;border:1px solid var(--line);box-shadow:var(--shadow);position:relative}
+.hero::before{content:'';position:absolute;left:0;top:0;bottom:0;width:5px;background:linear-gradient(180deg,#2563eb,#0f766e);border-radius:8px 0 0 8px}
+.hero h1{font-size:22px;font-weight:400;color:#172033;margin:0 0 8px}.hero h1 b{font-weight:600}
+.hero-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.hero textarea{flex:1;min-width:300px;min-height:36px;max-height:120px;padding:7px 12px;border:1px solid var(--line);border-radius:var(--radius);font-size:13px;font-family:inherit;color:var(--text);resize:vertical;background:#f8fafc}
+.hero textarea:focus{outline:none;border-color:var(--accent);background:#fff}
+.prompt-select{height:36px;min-width:132px;padding:0 10px;border:1px solid var(--line);border-radius:var(--radius);background:#fff;color:var(--text);font-size:12px;font-weight:700;cursor:pointer}
+.prompt-select:focus{outline:none;border-color:var(--accent)}
+.truth{background:#fff7ed;border:1px solid #fed7aa;border-left:5px solid #f97316;border-radius:var(--radius);padding:10px 14px;margin-bottom:12px;color:#7c2d12;font-size:12px;line-height:1.55}
+.truth b{color:#9a3412}.truth code{background:#ffedd5;padding:1px 4px;border-radius:4px}
+.btn{padding:7px 14px;border-radius:7px;font-size:12px;border:none;cursor:pointer;font-weight:700;transition:.15s}
+.btn-run{background:var(--accent);color:#fff}.btn-run:hover{background:#1d4ed8}
+.btn-run:disabled{background:#e2e8f0;color:#94a3b8;cursor:not-allowed}
+.btn-clear{background:#eef2f7;color:#344054}.btn-clear:hover{background:#e2e8f0}
+.btn-lang{background:#f0fdf4;color:#166534;border:1px solid #86efac;font-size:12px;padding:7px 14px}.btn-lang:hover{background:#dcfce7;border-color:#4ade80}
+
+/* 3-column grid with resizable columns */
+.fw-grid{display:grid;grid-template-columns:1fr 14px 1fr 14px 1fr;flex:1;min-height:0;gap:0;width:100%;min-width:0}
+.fw-card{background:var(--card);border-radius:var(--radius);border:1px solid var(--line);box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden;transition:box-shadow .2s;min-width:0}
+.fw-card:hover{box-shadow:0 10px 30px rgba(15,23,42,.1)}
+.fw-resizer{cursor:col-resize;background:linear-gradient(180deg,transparent 30%,#e2e8f0 30%,#e2e8f0 70%,transparent 70%);display:flex;align-items:center;justify-content:center;transition:background .15s;position:relative}
+.fw-resizer::before{content:'';position:absolute;top:0;bottom:0;left:50%;width:1px;background:#dde4f0}
+.fw-resizer:hover,.fw-resizer.active{background:#dbeafe}
+.fw-resizer::after{content:'⋮⋮';font-size:14px;color:#94a3b8;letter-spacing:-3px;transition:color .15s;position:relative;z-index:1}
+.fw-resizer:hover::after,.fw-resizer.active::after{color:#3b82f6}
+
+/* Card header */
+.fw-hd{padding:10px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
+.fw-dot{width:10px;height:10px;border-radius:50%}
+.fw-hd.lc .fw-dot{background:#1C3C3C}.fw-hd.lg .fw-dot{background:#2d6a4f}.fw-hd.mf .fw-dot{background:#2563eb}
+.fw-name{font-size:14px;font-weight:700;color:#263244}
+.fw-tag{font-size:11px;color:var(--muted2);margin-left:auto}
+
+/* Topology */
+.fw-topo{padding:6px 12px;background:#f1f5f9;border-bottom:1px solid var(--line-soft);font-size:10px;color:var(--muted);font-family:'SF Mono',Consolas,monospace;max-height:50px;overflow-y:auto;white-space:pre-wrap;line-height:1.5}
+
+/* Trace */
+.fw-trace{flex:1;overflow-y:auto;padding:10px 12px;font-size:12px;line-height:1.7;min-height:0;max-height:300px}
+.te{padding:5px 8px;margin-bottom:4px;border-radius:6px;background:#fbfcff;border:1px solid var(--line-soft);animation:cardIn .3s ease}
+@keyframes cardIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.te .nd{font-weight:700;color:var(--accent);font-size:12px}
+.te .st{font-size:10px;padding:1px 6px;border-radius:4px;margin-left:4px;font-weight:700}
+.st-running{background:#fef9c3;color:#854d0e}.st-done{background:#dcfce7;color:#166534}
+.st-error{background:#fef2f2;color:#991b1b}.st-paused{background:#f3e8ff;color:#6b21a8}
+.st-tools{background:#eff6ff;color:#1d4ed8}.st-info{background:#f1f5f9;color:#667085}
+.st-warning{background:#fef9c3;color:#854d0e}
+.st-otel{background:#ecfeff;color:#0e7490;border:1px solid #a5f3fc}
+.te .tb{font-size:10px;color:var(--muted2);float:right}
+.te .dt{color:var(--muted);margin-top:2px;font-size:11px;white-space:pre-wrap;line-height:1.5}
+.te .tn{color:var(--green);font-family:Consolas,monospace;font-size:11px;font-weight:700}
+.te .ck{color:var(--purple);font-size:10px;font-weight:700}
+.te .hl{background:var(--purple);color:#fff;font-size:9px;padding:1px 5px;border-radius:3px;font-weight:800}
+.te .par{color:var(--orange);font-size:10px;font-weight:700}
+.code-sec{color:var(--accent);font-weight:700;font-size:11px;margin-top:6px}
+.code-block{background:#f8fafc;border:1px solid var(--line);border-radius:6px;padding:6px 8px;margin:3px 0;font-family:'SF Mono',Consolas,monospace;font-size:11px;white-space:pre-wrap;color:#334155;line-height:1.5}
+
+/* Result area */
+.fw-result{border-top:1px solid var(--line);background:#fbfcff;max-height:60vh;overflow-y:auto;display:none;width:100%;min-width:0}
+.fw-rh{padding:8px 12px;font-size:12px;font-weight:700;color:#263244;border-bottom:1px solid var(--line-soft);display:flex;align-items:center;gap:6px}
+.fw-rc{padding:8px 12px;font-size:12px;white-space:pre-wrap;line-height:1.6;color:var(--text)}
+.artifact-card{padding:10px 12px;border-bottom:1px solid var(--line-soft);background:#fff}
+.artifact-title{font-weight:700;margin-bottom:8px;color:var(--text);font-size:12px}
+.artifact-img{display:block;width:100%;max-width:100%;max-height:400px;object-fit:contain;border:3px solid #3b82f6;border-radius:8px;background:#1e293b;padding:4px;box-sizing:border-box}
+.diff{display:grid;grid-template-columns:auto 1fr;gap:2px 8px;font-size:11px;padding:6px 12px;background:#f1f5f9;border-bottom:1px solid var(--line-soft)}
+.diff .dk{color:var(--muted);font-weight:600}.diff .dv{color:var(--text)}
+.diff .dv.y{color:var(--green);font-weight:700}.diff .dv.n{color:var(--red);font-weight:700}.diff .dv.w{color:var(--orange);font-weight:700}
+
+/* Summary — collapsible AI analysis */
+.summary-card{background:#fff;border-radius:var(--radius);padding:0;border:1px solid var(--line);box-shadow:var(--shadow);font-size:12px;display:none}
+.summary-card .sum-toggle{display:flex;align-items:center;gap:6px;padding:10px 16px;cursor:pointer;font-weight:700;color:var(--accent);font-size:12px;user-select:none;border-bottom:1px solid var(--line)}
+.summary-card .sum-toggle::before{content:'▸';transition:transform .2s}
+.summary-card.open .sum-toggle::before{transform:rotate(90deg)}
+.summary-card .sum-body{display:none;padding:10px 16px}
+.summary-card.open .sum-body{display:flex;gap:16px}
+.summary-card .sv{color:var(--accent);font-weight:700}
+
+/* Sandbox-specific */
+.te .sandbox-vm{display:inline-flex;align-items:center;gap:4px;background:#eff6ff;border:1px solid #bfdbfe;padding:2px 8px;border-radius:4px;font-size:10px;color:#1e40af;font-weight:700}
+.te .sandbox-vm::before{content:'🖥';font-size:12px}
+@keyframes sandboxPulse{0%,100%{box-shadow:0 0 0 0 rgba(37,99,235,.3)}50%{box-shadow:0 0 0 6px rgba(37,99,235,0)}}
+.te.sandbox-active{animation:sandboxPulse 1.5s ease infinite;border-color:#93c5fd}
+
+/* Scenario description — collapsible */
+.scenario-desc{background:#f8fafc;border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:var(--radius);padding:0;margin-bottom:12px;font-size:12.5px;line-height:1.6;color:#334155;overflow:hidden}
+.scenario-desc .sdesc-toggle{display:flex;align-items:center;gap:6px;padding:8px 14px;cursor:pointer;font-weight:700;color:var(--accent);font-size:13px;user-select:none}
+.scenario-desc .sdesc-toggle::before{content:'▸';transition:transform .2s}
+.scenario-desc.open .sdesc-toggle::before{transform:rotate(90deg)}
+.scenario-desc .sdesc-body{display:none;padding:0 14px 10px}
+.scenario-desc.open .sdesc-body{display:block}
+.scenario-desc b{color:#1e40af}
+.scenario-desc .scenario-title{font-weight:700;color:var(--accent);font-size:13px;margin-bottom:4px}
+
+/* HITL approve buttons */
+.hitl-btns{display:flex;gap:6px;margin:6px 0}
+.hitl-btn{padding:5px 16px;border-radius:6px;border:2px solid var(--purple);background:#f5f3ff;color:var(--purple);font-weight:800;font-size:12px;cursor:pointer;transition:.15s}
+.hitl-btn:hover{background:var(--purple);color:#fff}
+
+/* AI explanation */
+.ai-explain{background:#eff6ff;border:1px solid #bfdbfe;border-radius:var(--radius);padding:10px 14px;font-size:12.5px;line-height:1.6;color:#1e3a5f;margin-top:8px}
+.ai-explain b{color:#1d4ed8}
+.ai-explain .loading{color:#94a3b8;font-style:italic}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Window bar -->
+  <div class="window-bar">
+    <div class="traffic"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+    <div class="win-title"><div class="icon">🔬</div>AIPC Agent Framework Comparison</div>
+    <span class="live">ARCHITECTURE VIEW</span>
+    <span class="win-info" id="mi">Loading...</span>
+  </div>
+
+  <div class="plugin-layout">
+    <!-- Nav rail (scenarios) -->
+    <div class="nav-rail">
+      <button class="rail-btn active" data-s="1" title="Framework Overview">▦</button>
+      <div class="rail-label">Overview</div>
+      <button class="rail-btn" data-s="2" title="Crash & Recovery">💥</button>
+      <div class="rail-label">Recovery</div>
+      <button class="rail-btn" data-s="3" title="Human-in-the-Loop">⏸</button>
+      <div class="rail-label">HITL</div>
+      <button class="rail-btn" data-s="4" title="Hybrid Execution">🖥️</button>
+      <div class="rail-label">Hybrid Exec</div>
+      <div class="rail-spacer"></div>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+      <div class="truth">
+        <b>Boundary:</b> this portal compares three open-source agent frameworks for AIPC hybrid compute. <b>Overview</b> = what they are; <b>Recovery</b> = what happens when a step crashes; <b>HITL</b> = can the agent pause for human approval; <b>Hybrid Execution</b> = LLM generates code (cloud or local Ollama) → executes inside a Hyperlight micro-VM on Windows AIPC with WHP isolation.
+      </div>
+
+      <!-- Hero -->
+      <div class="hero">
+        <h1><b>Agent Framework</b> Comparison for AIPC Hybrid Runtime</h1>
+        <div class="hero-row">
+          <select id="promptPreset" class="prompt-select" onchange="applyPromptPreset(this.value)">
+            <option value="math">Math</option>
+            <option value="travel">Trip plan</option>
+            <option value="sandbox">AIPC Sandbox</option>
+            <option value="runtimeproof">Runtime proof</option>
+            <option value="tree">Christmas tree</option>
+            <option value="hosttool">📂 读CSV分析</option>
+            <option value="hostscreen">📸 截取宿主桌面</option>
+            <option value="hostfiles">📋 列出宿主文件</option>
+            <option value="hostsysinfo">💻 宿主系统信息</option>
+            <option value="custom">Custom</option>
+          </select>
+          <textarea id="qi">请帮我算一下 123 × 456 + 789</textarea>
+          <button class="btn btn-run run-btn" onclick="runOne('lc')">▶ LangChain</button>
+          <button class="btn btn-run run-btn" onclick="runOne('lg')">▶ LangGraph</button>
+          <button class="btn btn-run run-btn" onclick="runOne('mf')">▶ MAF</button>
+          <button class="btn btn-run run-btn" id="rb" onclick="runAllSequential()">▶ Run Sequential</button>
+          <button class="btn btn-clear" onclick="clearAll()">Clear</button>
+          <button class="btn btn-lang" id="langBtn" onclick="toggleLang()">🌐 EN</button>
+        </div>
+      </div>
+
+      <!-- Scenario description (changes per tab) -->
+      <div class="scenario-desc" id="sdesc"></div>
+
+      <!-- Framework grid (resizable columns) -->
+      <div class="fw-grid" id="fwGrid">
+        <div class="fw-card" id="col-lc">
+          <div class="fw-hd lc"><div class="fw-dot"></div><span class="fw-name">LangChain</span><span class="fw-tag" id="lc-t">—</span></div>
+          <div class="fw-topo" id="lc-g">—</div>
+          <div class="fw-trace" id="lc-tr"></div>
+          <div class="fw-result" id="lc-r"></div>
+        </div>
+        <div class="fw-resizer" id="resizer1"></div>
+        <div class="fw-card" id="col-lg">
+          <div class="fw-hd lg"><div class="fw-dot"></div><span class="fw-name">LangGraph</span><span class="fw-tag" id="lg-t">—</span></div>
+          <div class="fw-topo" id="lg-g">—</div>
+          <div class="fw-trace" id="lg-tr"></div>
+          <div class="fw-result" id="lg-r"></div>
+        </div>
+        <div class="fw-resizer" id="resizer2"></div>
+        <div class="fw-card" id="col-mf">
+          <div class="fw-hd mf"><div class="fw-dot"></div><span class="fw-name">Microsoft Agent Framework</span><span class="fw-tag" id="mf-t">—</span></div>
+          <div class="fw-topo" id="mf-g">—</div>
+          <div class="fw-trace" id="mf-tr"></div>
+          <div class="fw-result" id="mf-r"></div>
+        </div>
+      </div>
+
+      <!-- Summary -->
+      <div class="summary-card" id="sum"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const FW=['lc','lg','mf'],FN={lc:'langchain',lg:'langgraph',mf:'maf'},FL={lc:'LangChain',lg:'LangGraph',mf:'MAF'};
+const PRESETS_BY_SCENARIO={
+  '1':['math','travel','custom'],
+  '2':['math','travel','custom'],
+  '3':['math','travel','custom'],
+  '4':['sandbox','runtimeproof','tree','hosttool','hostscreen','hostfiles','hostsysinfo','custom']
+};
+const PROMPTS={
+  cn:{
+    math:{label:'计算题',text:'请帮我算一下 123 × 456 + 789'},
+    travel:{label:'旅行计划',text:'帮我规划下周从北京去东京的3天旅行计划，中等预算。需要查天气、搜机票、搜酒店，然后制定完整行程。'},
+    sandbox:{label:'☁️🖥️ 沙箱任务 (LC/LG=Cloud, MAF=Ollama)',text:'请完成一个本地计算任务：计算 1 到 100 的平方和，输出公式、结果和一行校验。'},
+    runtimeproof:{label:'☁️🖥️ 运行时证明 (LC/LG=Cloud, MAF=Ollama)',text:'请生成 Python 代码并在本地运行时执行：打印 EXECUTION_PROOF、Python 版本、sys.executable、os.getpid()、os.getcwd()，再生成一个运行时 nonce 并打印。'},
+    tree:{label:'☁️🖥️ 圣诞树 (LC/LG=Cloud, MAF=Ollama)',text:'请生成 Python 代码，在本地运行时打印一棵 7 层 ASCII 圣诞树，树顶有星号，树干在底部。'},
+    hosttool:{label:'📂 读CSV [MAF=gpt-5.4 + HyperlightProvider]',text:'读取宿主机桌面上的 sales_data.csv，分析各产品线的总销售额，打印结果'},
+    hostscreen:{label:'📸 截屏 [MAF=gpt-5.4 + HyperlightProvider]',text:'截取宿主机桌面的截图，返回截图信息（格式、大小），并描述截图中看到了什么'},
+    hostfiles:{label:'📋 列文件 [MAF=gpt-5.4 + HyperlightProvider]',text:'列出宿主机桌面上所有的 CSV 文件，然后读取第一个 CSV 的前3行数据'},
+    hostsysinfo:{label:'💻 系统信息 [MAF=gpt-5.4 + HyperlightProvider]',text:'获取宿主机的系统信息（主机名、操作系统、架构、Python版本），打印完整报告'},
+    custom:{label:'自定义',text:''}
+  },
+  en:{
+    math:{label:'Math',text:'Calculate 123 × 456 + 789.'},
+    travel:{label:'Trip plan',text:'Plan a 3-day mid-budget trip from Beijing to Tokyo next week. Check weather, search flights and hotels, then create a complete itinerary.'},
+    sandbox:{label:'☁️🖥️ Sandbox (LC/LG=Cloud, MAF=Ollama)',text:'Complete a local computation task: calculate the sum of squares from 1 to 100, then output the formula, result, and one validation line.'},
+    runtimeproof:{label:'☁️🖥️ Runtime proof (LC/LG=Cloud, MAF=Ollama)',text:'Generate Python code and execute it locally: print EXECUTION_PROOF, Python version, sys.executable, os.getpid(), os.getcwd(), then generate and print a runtime nonce.'},
+    tree:{label:'☁️🖥️ Tree (LC/LG=Cloud, MAF=Ollama)',text:'Generate Python code and execute it locally: print a 7-level ASCII Christmas tree, with a star at the top and a trunk at the bottom.'},
+    hosttool:{label:'📂 CSV [MAF=gpt-5.4 + HyperlightProvider]',text:'Read sales_data.csv from host Desktop, analyze total revenue by product line, print results'},
+    hostscreen:{label:'📸 Screenshot [MAF=gpt-5.4 + HyperlightProvider]',text:'Capture a screenshot of the host desktop, return image metadata (format, size), describe what you see'},
+    hostfiles:{label:'📋 Files [MAF=gpt-5.4 + HyperlightProvider]',text:'List all CSV files on host Desktop, then read the first 3 rows of the first CSV'},
+    hostsysinfo:{label:'💻 SysInfo [MAF=gpt-5.4 + HyperlightProvider]',text:'Get host system information (hostname, OS, architecture, Python version), print a full report'},
+    custom:{label:'Custom',text:''}
+  }
+};
+// Tab mapping: UI scenario → server scenario
+const SMAP={'1':'1','2':'3','3':'4','4':'6'};
+const SDESC={
+  '1':'<div class="scenario-title">▶ Happy Path — 三个框架跑同一个任务</div><b>模型：</b>三列统一用 ☁️ <b>gpt-5.4</b>（Cloud Chat API via APIM）<br>• LangChain：bind_tools + ReAct loop ☁️ gpt-5.4<br>• LangGraph：StateGraph + MemorySaver + conditional_edges ☁️ gpt-5.4<br>• MAF：Agent + OpenAIChatClient + @tool ☁️ gpt-5.4<br><b>关注点：</b>谁有真实 checkpoint（💾）、谁能并行查询（⚡）、架构差异。',
+  '2':'<div class="scenario-title">Architecture Comparison — 崩溃恢复 API 对比</div><b>模型：</b>无 LLM 调用（静态代码对比 + 官方文档链接）<br>• LangChain：无内置 checkpoint<br>• LangGraph：MemorySaver / SqliteSaver（本 demo 已实测）<br>• MAF：WorkflowBuilder + InMemoryCheckpointStorage（本 demo 已实测）',
+  '3':'<div class="scenario-title">⏸ HITL — 人类审批实测</div><b>模型：</b>LangGraph / MAF 用 ☁️ <b>gpt-5.4</b>（Cloud Chat API）；LangChain 无 HITL（静态展示）<br>• LangChain：无 HITL API，直接输出结果（无 LLM）<br>• LangGraph：真实 interrupt() + Command(resume) ☁️ gpt-5.4<br>• MAF：真实 WorkflowBuilder + request_info() ☁️ gpt-5.4',
+  '4':'<div class="scenario-title">🖥️ Hybrid Execution — 云端/本地 LLM 生成代码 → Hyperlight 安全执行</div><b>模型路由（按 preset 区分）：</b><br>• <b>沙箱/圣诞树/运行时证明 preset：</b>LangChain/LangGraph → ☁️ gpt-5.4（Cloud 代码生成）；MAF → 🖥️ <b>Ollama qwen3:1.7b</b>（AIPC 本地，零云依赖）<br>• <b>宿主工具 preset（📂📸📋💻）：</b>仅 MAF → 🔌 <b>gpt-5.4 + HyperlightCodeActProvider</b>（Provider 自动注入 execute_code，真实宿主工具回调）；LangChain/LangGraph → ❌ 不支持（无 Provider）<br><b>集成差异：</b>LC = ⚠️ Wrapper | LG = ⚠️ Graph Node | MAF = ✅ HyperlightCodeActProvider 原生'
+};
+let scenario='1',results={},sources={},lang='cn';
+const SDESC_EN={
+  '1':'<div class="scenario-title">▶ Happy Path — all 3 frameworks run the same task</div><b>Model:</b> All three use ☁️ <b>gpt-5.4</b> (Cloud Chat API via APIM)<br>• LangChain: bind_tools + ReAct loop ☁️ gpt-5.4<br>• LangGraph: StateGraph + MemorySaver ☁️ gpt-5.4<br>• MAF: Agent + OpenAIChatClient + @tool ☁️ gpt-5.4<br><b>Watch:</b> checkpoints (💾), parallel queries (⚡), architecture diffs.',
+  '2':'<div class="scenario-title">Architecture Comparison — crash recovery API</div><b>Model:</b> No LLM calls (static code comparison + official doc links)<br>• LangChain: no built-in checkpoint<br>• LangGraph: MemorySaver / SqliteSaver (tested)<br>• MAF: WorkflowBuilder + InMemoryCheckpointStorage (tested)',
+  '3':'<div class="scenario-title">⏸ HITL — real human approval</div><b>Model:</b> LangGraph/MAF use ☁️ <b>gpt-5.4</b>; LangChain has no HITL (static)<br>• LangChain: no HITL API (no LLM)<br>• LangGraph: real interrupt() + Command(resume) ☁️ gpt-5.4<br>• MAF: real WorkflowBuilder + request_info() ☁️ gpt-5.4',
+  '4':'<div class="scenario-title">🖥️ Hybrid Execution — cloud/local code gen → Hyperlight</div><b>Model routing (by preset):</b><br>• <b>Sandbox/Tree/Runtime presets:</b> LC/LG → ☁️ gpt-5.4 (Cloud codegen); MAF → 🖥️ <b>Ollama qwen3:1.7b</b> (AIPC local, zero cloud)<br>• <b>Host tool presets (📂📸📋💻):</b> MAF only → 🔌 <b>gpt-5.4 + HyperlightCodeActProvider</b> (provider-injected execute_code + real host tools); LC/LG → ❌ no Provider<br><b>Integration:</b> LC = ⚠️ Wrapper | LG = ⚠️ Graph Node | MAF = ✅ HyperlightCodeActProvider native'
+};
+/* SCONC_EN removed — conclusions are now AI-generated from actual execution results */
+function toggleLang(){lang=lang==='cn'?'en':'cn';document.getElementById('langBtn').textContent=lang==='cn'?'🌐 EN':'🌐 中文';updatePromptPresetLabels(true);updateDesc();if(Object.keys(results).length>=3)updateSum()}
+document.querySelectorAll('.rail-btn').forEach(b=>b.onclick=()=>{document.querySelectorAll('.rail-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');scenario=b.dataset.s;updateDesc();updatePromptPresetLabels(true);clearAll()});
+function updateDesc(){
+  const raw=(lang==='cn'?SDESC:SDESC_EN)[scenario]||'';
+  if(!raw){document.getElementById('sdesc').innerHTML='';return}
+  // Extract title from <div class="scenario-title">...</div>
+  const m=raw.match(/<div class="scenario-title">(.*?)<\/div>/);
+  const title=m?m[1]:'Details';
+  const body=raw.replace(/<div class="scenario-title">.*?<\/div>/,'');
+  document.getElementById('sdesc').className='scenario-desc';
+  document.getElementById('sdesc').innerHTML='<div class="sdesc-toggle" onclick="this.parentElement.classList.toggle(\'open\')">'+title+'</div><div class="sdesc-body">'+body+'</div>';
+}
+function updatePromptPresetLabels(updateText=false){const sel=document.getElementById('promptPreset');if(!sel)return;const allowed=PRESETS_BY_SCENARIO[scenario]||['math','custom'];const current=sel.value;sel.innerHTML='';allowed.forEach(k=>{const p=PROMPTS[lang][k];if(!p)return;const opt=document.createElement('option');opt.value=k;opt.textContent=p.label;sel.appendChild(opt)});sel.value=allowed.includes(current)?current:allowed[0];if(updateText)applyPromptPreset(sel.value)}
+function applyPromptPreset(key){const p=PROMPTS[lang][key];if(p&&p.text)document.getElementById('qi').value=p.text}
+async function init(){try{const xhr=new XMLHttpRequest();xhr.open('GET','/api/health',false);xhr.send();if(xhr.status===200){const d=JSON.parse(xhr.responseText);document.getElementById('mi').textContent=`Model: ${d.model}`}}catch(e){document.getElementById('mi').textContent=''}updatePromptPresetLabels(true);updateDesc()}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function addT(fw,html,extraCls){const el=document.getElementById(fw+'-tr');el.insertAdjacentHTML('beforeend',`<div class="te${extraCls||''}">${html}</div>`);el.scrollTop=el.scrollHeight}
+function resetGridLayout(){const g=document.getElementById('fwGrid');if(g)g.style.gridTemplateColumns='1fr 14px 1fr 14px 1fr'}
+function showR(fw,data){
+  results[fw]=data;const el=document.getElementById(fw+'-r');el.style.display='block';
+  const d=data.diff||{};let dh='';
+  for(const[k,v] of Object.entries(d)){if(k==='type')continue;let cls='';if(String(v).startsWith('✅'))cls='y';else if(String(v).startsWith('❌'))cls='n';else if(String(v).startsWith('⚠'))cls='w';
+  dh+=`<span class="dk">${esc(k)}:</span><span class="dv ${cls}">${esc(v)}</span>`}
+  const planHtml=truncPlan(data.plan||'');
+  let artifactHtml='';
+  if(data.artifact&&data.artifact.type==='image'&&data.artifact.url){
+    const sep=data.artifact.url.includes('?')?'&':'?';
+    artifactHtml=`<div class="artifact-card"><div class="artifact-title">🖼 ${esc(data.artifact.title||'Image artifact')}</div><img class="artifact-img" src="${esc(data.artifact.url+sep+'t='+Date.now())}" /></div>`;
+  }
+  el.innerHTML=`<div class="fw-rh">📋 结果 + 差异分析</div>${artifactHtml}${dh?`<div class="diff">${dh}</div>`:''}<div class="fw-rc">${planHtml}</div>`;
+  document.getElementById(fw+'-t').textContent=data.time?data.time+'s':'✅';updateSum()
+}
+function truncPlan(text){if(!text||text.length<300)return esc(text||'');const id='plan-'+Math.random().toString(36).slice(2);return `<span id="${id}-short">${esc(text.slice(0,280))}... <a href="#" onclick="document.getElementById('${id}-short').style.display='none';document.getElementById('${id}-full').style.display='block';return false" style="color:var(--accent);font-weight:700">[展开全文]</a></span><span id="${id}-full" style="display:none">${esc(text)} <a href="#" onclick="document.getElementById('${id}-full').style.display='none';document.getElementById('${id}-short').style.display='inline';return false" style="color:var(--accent);font-weight:700">[收起]</a></span>`}
+/* SCONC removed — conclusions are now AI-generated from actual execution results */
+function updateSum(){if(Object.keys(results).length<3)return;const s=document.getElementById('sum');s.style.display='block';
+  const label=lang==='cn'?'🤖 AI 对比分析（点击展开）':'🤖 AI Comparison Analysis (click to expand)';
+  s.innerHTML=`<div class="sum-toggle" onclick="this.parentElement.classList.toggle('open')">${label}</div><div class="sum-body"><div class="ai-explain" id="aiconc"><span class="loading">${lang==='cn'?'📋 生成中...':'📋 Generating...'}</span></div><div class="ai-explain" id="aiex"><span class="loading">${lang==='cn'?'🤖 分析中...':'🤖 Analyzing...'}</span></div></div>`;
+  try{const xhr=new XMLHttpRequest();xhr.open('POST','/api/explain',true);xhr.setRequestHeader('Content-Type','application/json');xhr.onload=function(){if(xhr.status===200){const d=JSON.parse(xhr.responseText);const conc=document.getElementById('aiconc');if(conc)conc.innerHTML='<b>'+(lang==='cn'?'📋 结论：':'📋 Conclusion:')+'</b> '+esc(d.conclusion||'');const el=document.getElementById('aiex');if(el)el.innerHTML='<b>🤖 Analysis:</b> '+esc(d.explanation||'')}};xhr.send(JSON.stringify({scenario:SMAP[scenario]||scenario,results,lang}))}catch(e){}}
+async function approveHITL(fw,choice){
+  const btns=[...document.querySelectorAll(`.hitl-btn[data-fw="${fw}"]`)];
+  const url=location.protocol+'//'+location.host+`/api/hitl/approve?fw=${encodeURIComponent(fw)}&choice=${encodeURIComponent(choice)}`;
+  try{
+    const res=await fetch(url,{method:'POST'});
+    if(!res.ok)throw new Error(await res.text());
+    btns.forEach(b=>{b.disabled=true;b.style.opacity='0.5'});
+  }catch(e){
+    btns.forEach(b=>{b.disabled=false;b.style.opacity='1'});
+    addT(fw==='langgraph'?'lg':'mf',`<span class="st st-error">APPROVE ERROR</span><div class="dt">${esc(e.message||e)}</div>`);
+  }
+}
+document.addEventListener('click',e=>{const b=e.target.closest('.hitl-btn[data-fw]');if(b)approveHITL(b.dataset.fw,b.dataset.choice)})
+function runFW(fw){
+  return new Promise((resolve)=>{
+  resetGridLayout();
+  const q=encodeURIComponent(document.getElementById('qi').value);
+  if(sources[fw])sources[fw].close();
+  const preset=document.getElementById('promptPreset').value;
+  const es=new EventSource(`/api/run/${SMAP[scenario]||scenario}/${FN[fw]}?q=${q}&preset=${preset}&lang=${lang}`);sources[fw]=es;
+  es.addEventListener('graph',e=>{const d=JSON.parse(e.data);let t=d.note||'';if(d.nodes)t+='\n'+d.nodes.join(' → ');if(d.edges)t+='\n'+d.edges.map(e=>e.join('→')).join(' | ');document.getElementById(fw+'-g').textContent=t});
+  es.addEventListener('step',e=>{const d=JSON.parse(e.data);let h=`<span class="nd">${esc(d.node||d.n||'')}</span>`;const st=d.s||d.status||'';const isOtel=(d.node||'').toLowerCase()==='otel';const stCls=isOtel?'st-otel':`st-${st}`;h+=`<span class="st ${stCls}">${isOtel?'📡 OTel':st}</span>`;if(d.t||d.llm_time)h+=`<span class="tb">${d.t||d.llm_time}s</span>`;if(d.ck||d.checkpoint)h+=` <span class="ck">💾</span>`;if(d.hitl)h+=` <span class="hl">HITL</span>`;if(d.par||d.parallel)h+=` <span class="par">⚡parallel</span>`;const dt=d.d||d.detail||'';const isSandbox=scenario==='4';const vmNodes=['micro_vm','inject','execute','create','sandbox_connect','register_tool'];const isVmStep=vmNodes.includes(d.node||'');if(isSandbox&&isVmStep)h+=` <span class="sandbox-vm">micro-VM</span>`;if(dt)h+=`<div class="dt">${esc(dt)}</div>`;const cls=isSandbox&&isVmStep&&st==='running'?' sandbox-active':'';addT(fw,h,cls)});
+  es.addEventListener('hitl_prompt',e=>{const d=JSON.parse(e.data);const opts=d.options||['A','B','C'];const msg=d.message||'';let h='<div class="dt" style="white-space:pre-wrap;margin-bottom:8px"><b>🤖 Agent 生成了以下方案，请选择：</b>\n\n'+esc(msg)+'</div>';h+='<div class="hitl-btns">';opts.forEach(o=>{h+=`<button class="hitl-btn" data-fw="${d.fw}" data-choice="${o}">${o}</button>`});h+='</div>';addT(fw,h)});
+  es.addEventListener('tool',e=>{const d=JSON.parse(e.data);let h=`<span class="tn">🔧 ${esc(d.name)}</span><span class="st st-${d.s||d.status}">${d.s||d.status}</span>`;if(d.d||d.detail)h+=`<div class="dt">${esc((d.d||d.detail||'').substring(0,120))}</div>`;addT(fw,h)});
+  es.addEventListener('code',e=>{const d=JSON.parse(e.data);addT(fw,`<div class="code-sec">${esc(d.section)}</div><div class="code-block">${esc(d.code)}</div>`)});
+  es.addEventListener('token',e=>{const d=JSON.parse(e.data);let el=document.getElementById(fw+'-stext');if(!el){document.getElementById(fw+'-tr').insertAdjacentHTML('beforeend','<div class="te" id="'+fw+'-stream"><span class="nd">result</span><span class="st st-running">streaming</span><div class="dt" id="'+fw+'-stext" style="white-space:pre-wrap"></div></div>');el=document.getElementById(fw+'-stext')}if(el){el.textContent+=d.t;const tr=document.getElementById(fw+'-tr');if(tr)tr.scrollTop=tr.scrollHeight}});
+  es.addEventListener('error',e=>{if(e.data){const d=JSON.parse(e.data);addT(fw,`<span class="st st-error">ERROR</span> ${esc(d.msg||d.message)}`);}es.close();resolve(false)});
+  es.addEventListener('result',e=>{const se=document.getElementById(fw+'-stream');if(se)se.remove();showR(fw,JSON.parse(e.data));es.close();resolve(true)});
+  es.onerror=()=>{es.close();resolve(false)}
+  })
+}
+function resetFW(fw){resetGridLayout();document.getElementById(fw+'-tr').innerHTML='';document.getElementById(fw+'-r').style.display='none';document.getElementById(fw+'-t').textContent='⏳';document.getElementById(fw+'-g').textContent='—'}
+function setRunButtons(disabled){document.querySelectorAll('.run-btn').forEach(b=>b.disabled=disabled)}
+async function runOne(fw){delete results[fw];document.getElementById('sum').style.display='none';resetFW(fw);setRunButtons(true);await runFW(fw);setRunButtons(false)}
+async function runAllSequential(){results={};document.getElementById('sum').style.display='none';FW.forEach(resetFW);setRunButtons(true);for(const fw of FW){await runFW(fw)}setRunButtons(false)}
+function clearAll(){results={};Object.values(sources).forEach(s=>s&&s.close());sources={};document.getElementById('sum').style.display='none';setRunButtons(false);resetGridLayout();FW.forEach(fw=>{document.getElementById(fw+'-tr').innerHTML='';document.getElementById(fw+'-r').style.display='none';document.getElementById(fw+'-t').textContent='—';document.getElementById(fw+'-g').textContent='—'})}
+init();resetGridLayout();
+/* Column resizer drag logic — mutate grid-template-columns */
+(function(){
+  const grid=document.getElementById('fwGrid');
+  const cards=[document.getElementById('col-lc'),document.getElementById('col-lg'),document.getElementById('col-mf')];
+  const resizers=[document.getElementById('resizer1'),document.getElementById('resizer2')];
+  let active=null,sx=0,initFrs=[1,1,1];
+  function totalFrWidth(){return grid.getBoundingClientRect().width-28}
+  resizers.forEach((r,i)=>{
+    r.addEventListener('mousedown',e=>{
+      e.preventDefault();
+      active=i;sx=e.clientX;
+      const tw=totalFrWidth();
+      initFrs=cards.map(c=>c.getBoundingClientRect().width/tw);
+      r.classList.add('active');
+      document.body.style.cursor='col-resize';
+      document.body.style.userSelect='none';
+    });
+  });
+  document.addEventListener('mousemove',e=>{
+    if(active===null)return;
+    const tw=totalFrWidth();
+    const dxFr=(e.clientX-sx)/tw;
+    const frs=[...initFrs];
+    frs[active]+=dxFr;frs[active+1]-=dxFr;
+    if(frs[active]>=0.15&&frs[active+1]>=0.15){
+      grid.style.gridTemplateColumns=frs[0]+'fr 14px '+frs[1]+'fr 14px '+frs[2]+'fr';
+    }
+  });
+  document.addEventListener('mouseup',()=>{
+    if(active!==null){
+      resizers[active].classList.remove('active');
+      active=null;
+      document.body.style.cursor='';
+      document.body.style.userSelect='';
+    }
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 # AIPC Hybrid Agent Framework Evaluation
 
-[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/) [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg)](https://fastapi.tiangolo.com/) [![Hyperlight](https://img.shields.io/badge/Hyperlight-Sandbox-purple.svg)](https://github.com/hyperlight-dev/hyperlight) [![License: Private](https://img.shields.io/badge/license-private-red.svg)]()
+[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/) [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg)](https://fastapi.tiangolo.com/) [![Hyperlight](https://img.shields.io/badge/Hyperlight-Sandbox-purple.svg)](https://github.com/hyperlight-dev/hyperlight) [![License: Sample](https://img.shields.io/badge/license-sample-lightgrey.svg)]()
 
 Side-by-side comparison portal for three open-source agent frameworks — **LangChain**, **LangGraph**, and **Microsoft Agent Framework (MAF)** — running on a hybrid Cloud + AIPC architecture with Hyperlight micro-VM sandboxed code execution.
 
@@ -12,25 +12,22 @@ https://github.com/user-attachments/assets/c2554bf2-da92-4a32-8692-0c576d7af376
 
 ---
 
+## What's Real vs What's Demo
+
+| Area | What actually runs | Boundary |
+|------|--------------------|----------|
+| Portal streaming | FastAPI SSE endpoints stream live step/tool/token/result events | Real runtime path |
+| LangChain / LangGraph portal tabs | Azure OpenAI calls + real wttr.in weather API + optional SerpAPI flight/hotel calls | If `SERPAPI_API_KEY` is empty, returns explicit `unavailable` results, not mock data |
+| Hybrid sandbox presets | LLM-generated Python is executed by the AIPC Sandbox API in Hyperlight | Real code execution |
+| MAF host tools | `read_csv`, `list_host_files`, `host_system_info`, `capture_screenshot` bridge host tools into CodeAct | Real host tool callbacks |
+| Standalone `scenarios/*travel*` scripts | Mock weather/flight/hotel fixtures | Intentional fixtures for fair cross-framework comparison |
+| MAF HITL portal demo | `request_info()` pause is demonstrated, then UI choice is forwarded to the next LLM call | Full `workflow.run(responses=...)` resume is not claimed |
+
 ## Architecture
 
-```
-Browser (any device)
-  │
-  ▼
-Portal Backend (Linux VM — FastAPI + SSE, port 8506)
-  │
-  ├──▶ Cloud LLM (Azure OpenAI via APIM) ← LangChain / LangGraph scenarios
-  │
-  └──▶ AIPC Sandbox API (Windows VM — FastAPI, port 8507)
-         │
-         ├──▶ Ollama (local qwen3:1.7b) ← code generation for Sandbox presets
-         │
-         └──▶ MAF Agent + HyperlightCodeActProvider (gpt-5.4)
-                │
-                ├──▶ Hyperlight micro-VM (WHP isolation)
-                └──▶ Host tools: read_csv, list_host_files, host_system_info, capture_screenshot
-```
+<div align="center">
+  <img src="images/architecture.png" width="960" alt="AIPC Hybrid Agent Framework architecture">
+</div>
 
 ## Running on Azure
 
@@ -62,7 +59,7 @@ Portal Backend (Linux VM — FastAPI + SSE, port 8506)
 ### Portal (Linux VM)
 
 ```bash
-pip install fastapi uvicorn httpx python-dotenv langchain langchain-openai langgraph
+pip install -r requirements.txt
 cp .env.example .env  # fill in your keys
 python portal/server.py  # → http://0.0.0.0:8506
 ```
@@ -131,6 +128,13 @@ az network nsg rule create \
 [System.Environment]::SetEnvironmentVariable("AOAI_ENDPOINT", "https://your-apim.azure-api.net", "Machine")
 [System.Environment]::SetEnvironmentVariable("AOAI_KEY", "your-apim-key", "Machine")
 [System.Environment]::SetEnvironmentVariable("AOAI_MODEL", "gpt-5.4", "Machine")
+
+# Optional path overrides. Defaults target the logged-in user's Desktop.
+[System.Environment]::SetEnvironmentVariable("AIPC_APP_DIR", "C:\Users\aipcadmin\Desktop", "Machine")
+[System.Environment]::SetEnvironmentVariable("AIPC_HOST_DATA_DIR", "C:\Users\aipcadmin\Desktop", "Machine")
+[System.Environment]::SetEnvironmentVariable("AIPC_RUNTIME_DIR", "C:\Users\aipcadmin\Desktop", "Machine")
+[System.Environment]::SetEnvironmentVariable("AIPC_SCREENSHOT_PATH", "C:\Users\aipcadmin\Desktop\last_screenshot.png", "Machine")
+[System.Environment]::SetEnvironmentVariable("PYTHON_EXE", "C:\Program Files\Python312\python.exe", "Machine")
 ```
 
 > **Important**: After setting Machine env vars, you must start a **new** process (or reboot) for them to take effect. Existing processes do NOT pick up changes.
@@ -158,20 +162,17 @@ Invoke-WebRequest -Uri https://nssm.cc/release/nssm-2.24.zip -OutFile nssm.zip
 Expand-Archive nssm.zip -DestinationPath nssm-tmp
 Copy-Item nssm-tmp\nssm-2.24\win64\nssm.exe C:\Users\aipcadmin\Desktop\nssm.exe
 
-# Install service (or run aipc\install-nssm-service.ps1)
-nssm install SandboxAPI "C:\Program Files\Python312\python.exe" "C:\Users\aipcadmin\Desktop\sandbox_api.py"
-nssm set SandboxAPI AppDirectory "C:\Users\aipcadmin\Desktop"
-nssm set SandboxAPI AppRestartDelay 3000
-nssm set SandboxAPI AppEnvironmentExtra AOAI_ENDPOINT=... AOAI_KEY=... AOAI_MODEL=...
-nssm set SandboxAPI AppStdout "C:\Users\aipcadmin\Desktop\sandbox_service.log"
-nssm set SandboxAPI AppStderr "C:\Users\aipcadmin\Desktop\sandbox_service.log"
-nssm set SandboxAPI ObjectName .\aipcadmin "<your-password>"  # or set NSSM_SERVICE_PASSWORD env var
-nssm start SandboxAPI
+# Install service and create the ScreenshotHelper scheduled task.
+# Set NSSM_SERVICE_PASSWORD or let the script prompt interactively.
+$env:NSSM_SERVICE_PASSWORD = "<your-password>"
+.\aipc\install-nssm-service.ps1
 ```
 
 > **Why NSSM instead of schtask?** schtask is a trigger (like cron) — it starts a process once and doesn't care if it dies. NSSM is a service manager (like systemd) — it monitors the process and auto-restarts on crash with configurable delay. Demo services need auto-restart; schtask doesn't provide it.
 
 > **Why `ObjectName .\aipcadmin`?** SYSTEM account runs in Session 0 with no desktop — `capture_screenshot` returns blank. Running as the interactive user gives access to the RDP desktop for GDI CopyFromScreen.
+
+> **ScreenshotHelper task**: `install-nssm-service.ps1` creates a `ScreenshotHelper` scheduled task using `/IT` so `capture_screenshot.ps1` runs in the interactive RDP session. The API triggers it with `schtasks /Run /TN ScreenshotHelper`.
 
 #### 8. Verify
 
@@ -193,6 +194,8 @@ Invoke-WebRequest -Method POST http://localhost:8507/api/sandbox/run `
 │   ├── sandbox_api.py         # AIPC Sandbox API (Hyperlight + MAF CodeAct)
 │   └── static/
 │       └── index.html         # Portal frontend (single-page, SSE streaming)
+├── images/
+│   └── architecture.png       # Architecture diagram used by README
 ├── aipc/
 │   ├── install-nssm-service.ps1 # NSSM Windows Service installer (auto-restart, logging, env vars)
 │   ├── capture_screenshot.ps1 # Screenshot helper (schtask /IT, runs in RDP session for desktop access)
@@ -216,7 +219,7 @@ Invoke-WebRequest -Method POST http://localhost:8507/api/sandbox/run `
 └── README.md
 ```
 
-> **Source**: [`xinyuwei-david/AIPC-Hybrid-Agent-Framework-Evaluation`](https://github.com/xinyuwei-david/AIPC-Hybrid-Agent-Framework-Evaluation) (private)
+> **Public mirror**: [`david-share/Agents/AIPC-Hybrid-Agent-Framework-Evaluation`](https://github.com/david-xinyuwei/david-share/tree/master/Agents/AIPC-Hybrid-Agent-Framework-Evaluation)
 
 ## Key Technical Decisions
 
@@ -238,8 +241,14 @@ Invoke-WebRequest -Method POST http://localhost:8507/api/sandbox/run `
 | `AOAI_MODEL` | AIPC Machine env | Deployment name (e.g., `gpt-5.4`) |
 | `AZURE_OPENAI_ENDPOINT` | Portal .env | Same, for portal-side LangChain/LangGraph |
 | `AZURE_OPENAI_API_KEY` | Portal .env | Same |
+| `SERPAPI_API_KEY` | Portal .env | Optional real Google Flights/Hotels data via SerpAPI |
 | `OLLAMA_BASE_URL` | AIPC | Ollama endpoint for local code gen |
 | `AIPC_SANDBOX_URL` | Portal .env | URL to AIPC Sandbox API |
+| `AIPC_APP_DIR` | AIPC Machine env | Directory containing `sandbox_api.py`, scripts, logs |
+| `AIPC_HOST_DATA_DIR` | AIPC Machine env | Directory exposed to host tools such as `read_csv` |
+| `AIPC_RUNTIME_DIR` | AIPC Machine env | Directory for last-run JSON evidence files |
+| `AIPC_SCREENSHOT_PATH` | AIPC Machine env | Screenshot artifact path written by `ScreenshotHelper` |
+| `PYTHON_EXE` | AIPC Machine env | Python executable used by NSSM |
 
 ## Tech Stack
 
