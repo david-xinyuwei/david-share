@@ -18,7 +18,7 @@
 | 项目 | 配置 |
 |------|------|
 | Web IQ API | `https://api.microsoft.ai/v3` — limited access（[portal](https://aka.ms/webiq-portal)） |
-| AOAI Endpoint | Azure API Management (GBB APIM) → East US 2 |
+| AOAI Endpoint | 通过 API Management 暴露的 Azure OpenAI-compatible endpoint → East US 2 |
 | Models | gpt-4o-mini, gpt-5.4-nano, gpt-5.4-mini |
 | SDK | `webiq==0.1.0` (Python, MIT license) |
 | 对比基线 | Responses API `web_search_preview`，`search_context_size=low` |
@@ -96,7 +96,7 @@ Web IQ 的核心价值（来源：[PyPI webiq SDK](https://pypi.org/project/webi
 | 1 | `web.search()` | "ThinkPad X1 Carbon 2026 price" | 454ms | 3 个带价格的产品页 | ✅ |
 | 2 | `news.search()` | "AI artificial intelligence" | 276ms | 5 条新闻 + 来源媒体 | ✅ |
 | 3 | `videos.search()` | "How to set up Lenovo AI PC" | 159ms | 3 个 YouTube 视频 + 播放量 | ✅ |
-| 4 | `images.search()` | "Lenovo ThinkPad X1 Carbon 2026" | 192ms | 5 张产品图片（CES 2026 等来源） | ✅ |
+| 4 | `images.search()` | "Lenovo ThinkPad X1 Carbon 2026" | 192ms | 5 张产品图片 | ✅ |
 | 5 | `browse.fetch()` | Lenovo.com ThinkPad 页面 | 536ms | `result is dropped` | ⚠️ |
 | 6 | `classic.search()` | "Seattle weather today" | 513ms | 结构化 weather JSON + web results | ✅ |
 
@@ -287,9 +287,9 @@ c = client.classic.search("query", response_filter=["webResults", "weatherResult
 
 | 文件 | 内容 |
 |------|------|
-| `passage_e2e_results.json` | passage 模式 E2E 测试（3 queries × 3 models，包含完整回答） |
-| `outputs/quality_comparison_20260616.html` | WebIQ vs web_search_preview 并排回答对比 |
-| `outputs/quality_comparison_20260616.json` | 完整回答原始 JSON |
+| `passage_e2e_results.json` | passage 模式 E2E 测试（3 queries × 3 models，包含完整回答），本地保存，不提交 |
+| `outputs/quality_comparison_20260616.html` | WebIQ vs web_search_preview 并排回答对比，本地保存，不提交 |
+| `outputs/quality_comparison_20260616.json` | 完整回答原始 JSON，本地保存，不提交 |
 
 ### C. 已知限制
 

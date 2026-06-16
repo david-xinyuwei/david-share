@@ -18,7 +18,7 @@ Comprehensive benchmark of Microsoft Web IQ — a suite of AI-native APIs for we
 | Area | Configuration |
 |------|---------------|
 | Web IQ API | `https://api.microsoft.ai/v3` — limited access ([portal](https://aka.ms/webiq-portal)) |
-| AOAI Endpoint | Azure API Management (GBB APIM) → East US 2 |
+| AOAI Endpoint | Azure OpenAI-compatible endpoint through API Management → East US 2 |
 | Models | gpt-4o-mini, gpt-5.4-nano, gpt-5.4-mini |
 | SDK | `webiq==0.1.0` (Python, MIT license) |
 | Comparison baseline | Responses API `web_search_preview` with `search_context_size=low` |
@@ -95,7 +95,7 @@ All tested with Lenovo AI assistant scenarios on 2026-06-16.
 | 1 | `web.search()` | "ThinkPad X1 Carbon 2026 price" | 454ms | 3 products with prices | ✅ |
 | 2 | `news.search()` | "AI artificial intelligence" | 276ms | 5 news articles + sources | ✅ |
 | 3 | `videos.search()` | "How to set up Lenovo AI PC" | 159ms | 3 YouTube videos + view counts | ✅ |
-| 4 | `images.search()` | "Lenovo ThinkPad X1 Carbon 2026" | 192ms | 5 product images (CES 2026) | ✅ |
+| 4 | `images.search()` | "Lenovo ThinkPad X1 Carbon 2026" | 192ms | 5 product images | ✅ |
 | 5 | `browse.fetch()` | Lenovo.com ThinkPad page | 536ms | ❌ "result is dropped" | ⚠️ |
 | 6 | `classic.search()` | "Seattle weather today" | 513ms | Structured weather JSON + web results | ✅ |
 
@@ -285,9 +285,9 @@ c = client.classic.search("query", response_filter=["webResults", "weatherResult
 
 | File | Content |
 |------|---------|
-| `passage_e2e_results.json` | Passage-mode E2E test (3 queries × 3 models, full answers) |
-| `outputs/quality_comparison_20260616.html` | Side-by-side answer comparison (human-readable) |
-| `outputs/quality_comparison_20260616.json` | Full answers (machine-readable) |
+| `passage_e2e_results.json` | Passage-mode E2E test (3 queries × 3 models, full answers), stored locally and not committed |
+| `outputs/quality_comparison_20260616.html` | Side-by-side answer comparison (human-readable), stored locally and not committed |
+| `outputs/quality_comparison_20260616.json` | Full answers (machine-readable), stored locally and not committed |
 
 ### C. Known Limitations
 
