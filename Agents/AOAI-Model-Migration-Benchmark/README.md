@@ -1,5 +1,5 @@
 # Azure OpenAI Model Migration Benchmark & PTU Traffic Management
-## gpt-4o-mini → gpt-5.4-nano | Spillover vs APIM Proactive Routing
+## gpt-4o-mini → gpt-5.4-nano | Web Search Grounding + PTU Traffic Management
 
 ![Azure OpenAI](https://img.shields.io/badge/Azure%20OpenAI-Model%20Migration-0078D4)
 ![Responses API](https://img.shields.io/badge/API-Responses%20%2B%20Streaming-107C10)
@@ -61,6 +61,56 @@ On the original migration benchmark scenarios (`pricing`, `news`, `weather`), We
 | gpt-5.4-mini | **1.17s** | 1.92s | **38.9% faster** | 1.52s | 8.21s |
 
 > Scope note: WebIQ is tested here as **explicit retrieval + context injection**, while `web_search_preview` is tested as a **built-in tool orchestration** path. The `quality_pass` and `source_used` checks are lightweight sanity checks, not a human answer-quality evaluation. `web_search_preview` does not expose internal search latency, so search-layer latency is reported only for WebIQ.
+
+#### Capability Matrix: 6 WebIQ APIs
+
+WebIQ is broader than a single web-search endpoint. The Python SDK exposes web, news, videos, images, browse, and classic search surfaces. The table below summarizes a quick capability exploration using Lenovo/Qira-style scenarios; these are single-run smoke tests, not the statistically robust latency benchmark in Section 3.
+
+| API | Lenovo/Qira-style scenario | Observed latency | Returned result | Fit |
+|-----|----------------------------|-----------------:|-----------------|-----|
+| `web.search()` | ThinkPad X1 Carbon 2026 price | 454 ms | 3 product pages with product names/specs/prices | Product Q&A, specs, pricing |
+| `news.search()` | Current AI news | 276 ms | 5 news results with source media | Briefings, market/news updates |
+| `videos.search()` | How to set up Lenovo AI PC | 159 ms | 3 YouTube videos with duration/view counts | Tutorial/help recommendations |
+| `images.search()` | Lenovo ThinkPad X1 Carbon product images | 192 ms | 5 image results with dimensions/source pages | Product image retrieval |
+| `browse.fetch()` | Lenovo ThinkPad page | 536 ms | `result is dropped` | URL reading; may fail on protected sites |
+| `classic.search()` | Seattle weather today | 513 ms | Web results + structured weather JSON | Weather/finance/sports-style structured answers |
+
+> Input limitation: WebIQ search APIs accept text queries. They do not provide image-to-image or video-to-search input in this SDK. Use `images.search()` / `videos.search()` for text-to-image and text-to-video search.
+
+#### Token Efficiency: `passage` vs `html`
+
+The SDK supports `ContentFormat.passage`, `text`, `html`, and `markdown` for web/news/classic search. `passage` is the closest fit for LLM grounding because it returns selected text passages instead of HTML markup.
+
+| Scenario | HTML estimated tokens | Passage estimated tokens | Reduction |
+|----------|----------------------:|-------------------------:|----------:|
+| pricing | 11,397 | 11,274 | 1% |
+| news | 6,118 | 4,738 | 23% |
+| weather | 3,242 | 2,340 | 28% |
+
+In this test, `passage` reduced token volume substantially for news/weather, while pricing pages were dense enough that passage and HTML sizes were nearly identical. Search latency stayed in the same ~180 ms tier.
+
+#### Sampled Answer Quality
+
+Side-by-side answer checks used the original migration scenarios and gpt-5.4-mini. These observations are qualitative, not a full human-evaluation suite.
+
+| Scenario | WebIQ answer | `web_search_preview` answer | Assessment |
+|----------|--------------|-----------------------------|------------|
+| pricing | Specific product + price (`ASUS ExpertBook Ultra`, USD 3,600) with source URL | Generic USD 1,500-2,500+ range and stated no search results | WebIQ more specific |
+| news | Multiple concrete AI news stories with source URLs | Concrete but different AI news stories with source URLs | Comparable |
+| weather | NOAA/AccuWeather-style current conditions with source URLs | AccuWeather current conditions and forecast | Comparable |
+
+#### When WebIQ Fits
+
+| Scenario | Recommended WebIQ API | Why |
+|----------|-----------------------|-----|
+| AI assistant grounding | `web.search(content_format=passage)` | Fast, compact, source-grounded context for model prompts |
+| News/current-awareness briefing | `news.search()` | Dedicated news results with media attribution |
+| Tutorial/help recommendations | `videos.search()` | Returns video metadata such as duration and view count |
+| Product image retrieval | `images.search()` | Returns image URLs, dimensions, and host pages |
+| Structured real-time facts | `classic.search()` | Can return weather and other structured answer types |
+| Reading a specific URL | `browse.fetch()` | Useful for page-level extraction, but site compatibility varies |
+
+Less ideal fits: no-search tasks, zero-code orchestration requirements, image-to-image search, and sites with bot protection.
 
 > Original benchmark note: the web_search, Foundry+Bing, and Direct rows above were measured as P50 (median) across **120 samples per model per scenario** (5 independent runs). The WebIQ addendum uses the separate June 2026 runs described above. Test environment: East Asia → East US 2 (PAYGO GlobalStandard). Customer PTU environment will have lower TTFT.
 

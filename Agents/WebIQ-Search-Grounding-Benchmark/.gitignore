@@ -1,8 +1,0 @@
-outputs/
-*.json
-*.html
-.env
-.env.*
-__pycache__/
-*.py[cod]
-*.log

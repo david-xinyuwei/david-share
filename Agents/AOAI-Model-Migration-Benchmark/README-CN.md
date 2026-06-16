@@ -1,5 +1,5 @@
 # Azure OpenAI 模型迁移 Benchmark 与 PTU 流量管理
-## gpt-4o-mini → gpt-5.4-nano | Spillover vs APIM 主动路由
+## gpt-4o-mini → gpt-5.4-nano | Web Search Grounding + PTU 流量管理
 
 ![Azure OpenAI](https://img.shields.io/badge/Azure%20OpenAI-Model%20Migration-0078D4)
 ![Responses API](https://img.shields.io/badge/API-Responses%20%2B%20Streaming-107C10)
@@ -61,6 +61,56 @@ Microsoft 对 WebIQ 的官方描述是："a suite of AI-native APIs that gives a
 | gpt-5.4-mini | **1.17s** | 1.92s | **快 38.9%** | 1.52s | 8.21s |
 
 > 范围说明：这里的 WebIQ 路径是 **显式 retrieval + context injection**，`web_search_preview` 是 **内置 tool orchestration**。`quality_pass` 和 `source_used` 只是轻量 sanity check，不是人工答案质量评测。`web_search_preview` 不暴露内部搜索延迟，所以 search-layer latency 只对 WebIQ 单独报告。
+
+#### Capability Matrix：6 个 WebIQ API
+
+WebIQ 不只是单一 web-search endpoint。Python SDK 暴露了 web、news、videos、images、browse 和 classic search 六类能力。下表是基于 Lenovo/Qira 风格场景的快速能力探索；这些是单轮 smoke test，不是第 3 节里的统计型 latency benchmark。
+
+| API | Lenovo/Qira 风格场景 | 实测延迟 | 返回结果 | 适合用途 |
+|-----|----------------------|---------:|----------|----------|
+| `web.search()` | ThinkPad X1 Carbon 2026 price | 454 ms | 3 个产品页，含产品名/规格/价格 | 产品问答、规格、价格 |
+| `news.search()` | 当前 AI 新闻 | 276 ms | 5 条新闻结果，含 source media | 新闻简报、市场动态 |
+| `videos.search()` | How to set up Lenovo AI PC | 159 ms | 3 个 YouTube 视频，含时长/播放量 | 教程/帮助推荐 |
+| `images.search()` | Lenovo ThinkPad X1 Carbon 产品图 | 192 ms | 5 张图片，含尺寸/来源页 | 产品图片检索 |
+| `browse.fetch()` | Lenovo ThinkPad 页面 | 536 ms | `result is dropped` | URL 读取；受保护站点可能失败 |
+| `classic.search()` | Seattle weather today | 513 ms | Web results + 结构化 weather JSON | 天气/金融/体育等结构化答案 |
+
+> 输入限制：WebIQ search API 接收文本 query。这个 SDK 不提供 image-to-image 或 video-to-search 输入。`images.search()` / `videos.search()` 对应的是 text-to-image 和 text-to-video search。
+
+#### Token Efficiency：`passage` vs `html`
+
+SDK 对 web/news/classic search 支持 `ContentFormat.passage`、`text`、`html` 和 `markdown`。其中 `passage` 最接近 LLM grounding 场景，因为它返回精选文本段落，而不是 HTML markup。
+
+| 场景 | HTML 估算 tokens | Passage 估算 tokens | 降低 |
+|------|-----------------:|--------------------:|-----:|
+| pricing | 11,397 | 11,274 | 1% |
+| news | 6,118 | 4,738 | 23% |
+| weather | 3,242 | 2,340 | 28% |
+
+这次测试里，`passage` 对 news/weather 明显减少 token；pricing 页面信息密度高，passage 和 HTML 大小接近。搜索延迟仍在 ~180 ms 级别。
+
+#### Sampled Answer Quality
+
+回答质量并排检查使用原始 migration 场景和 gpt-5.4-mini。以下是定性观察，不是完整人工评测。
+
+| 场景 | WebIQ 回答 | `web_search_preview` 回答 | 判断 |
+|------|------------|--------------------------|------|
+| pricing | 具体产品 + 价格（`ASUS ExpertBook Ultra`, USD 3,600）+ source URL | 泛化 USD 1,500-2,500+ 区间，并提示没有搜索结果 | WebIQ 更具体 |
+| news | 多条具体 AI 新闻 + source URL | 也有具体 AI 新闻 + source URL，但内容不同 | 相当 |
+| weather | NOAA/AccuWeather 风格当前天气 + source URL | AccuWeather 当前天气与 forecast | 相当 |
+
+#### When WebIQ Fits
+
+| 场景 | 推荐 WebIQ API | 原因 |
+|------|----------------|------|
+| AI assistant grounding | `web.search(content_format=passage)` | 快、紧凑、可溯源，适合塞进 model prompt |
+| 新闻/动态简报 | `news.search()` | 专门的 news results 和媒体来源 |
+| 教程/帮助推荐 | `videos.search()` | 返回视频时长、播放量等 metadata |
+| 产品图片检索 | `images.search()` | 返回图片 URL、尺寸和 host page |
+| 结构化实时事实 | `classic.search()` | 可返回天气等结构化 answer types |
+| 读取指定 URL | `browse.fetch()` | 适合单页抽取，但站点兼容性不稳定 |
+
+不适合的场景：不需要搜索的任务、需要零代码平台编排的任务、image-to-image search、以及带 bot protection 的站点。
 
 > 原始 benchmark 说明：上方 web_search、Foundry+Bing 和 Direct 行的 TTFT 为 P50（中位数），基于**每模型每场景 120 个样本**（5 轮独立测试）。WebIQ 补充测试使用上文所述的 2026-06 独立运行。测试环境：东亚 → East US 2（PAYGO GlobalStandard）。客户 PTU 环境 TTFT 将更低。
 
