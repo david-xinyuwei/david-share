@@ -606,3 +606,14 @@ uvicorn server:app --host 0.0.0.0 --port 8506
 | MAF Learn Documentation | https://learn.microsoft.com/en-us/agent-framework/ |
 | MAF Provider Comparison | https://github.com/microsoft/agent-framework#key-features |
 | Ollama | https://ollama.com/ |
+
+---
+
+## Live Demo & Source Code
+
+| Resource | URL |
+|----------|-----|
+| Live Portal | http://linuxworkvm1-work.eastasia.cloudapp.azure.com:8506/ |
+| Source Code (private) | [xinyuwei-david/AIPC-Hybrid-Agent-Framework-Evaluation](https://github.com/xinyuwei-david/AIPC-Hybrid-Agent-Framework-Evaluation) — [request access](https://github.com/xinyuwei-david/AIPC-Hybrid-Agent-Framework-Evaluation/issues) |
+
+The portal source code, AIPC Sandbox API, NSSM service installer, Hyperlight stress tests, and deployment scripts are maintained in the private repo above. This public repo contains the framework comparison analysis and architecture documentation.
