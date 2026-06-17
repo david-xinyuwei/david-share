@@ -352,11 +352,13 @@ API：`responses.create(agent_reference=..., tool_choice="required", stream=True
 
 > 5 轮合并，每 query 每模型 40 有效样本。
 
-#### TTFT 总览（Foundry+Bing）
+#### TTFT 总览（仅 Foundry+Bing）
 
 ![TTFT P50 by Model and Scenario](images/ttft_by_scenario.png)
 
-#### 3.3.3 汇总（Foundry+Bing，5 轮合并（5 轮合并，120 样本/模型/场景）
+> 这张图只覆盖 Section 3.3 的 Foundry Agent 备选路径；WebIQ 的 S1/S4/S5 E2E 对比见 Section 3.4。
+
+#### 3.3.3 汇总（Foundry+Bing，5 轮合并，120 样本/模型/场景）
 
 | 模型 | effort | 直连 AOAI P50 | Foundry（无Bing）P50 | Foundry+Bing P50 | Bing σ | N |
 |------|:------:|:------:|:------:|:------:|:----:|:---:|
@@ -392,7 +394,13 @@ API：`responses.create(agent_reference=..., tool_choice="required", stream=True
 >
 > **S4（`web_search_preview`）**：应用调用 AOAI Responses API 并指定 `web_search_preview` tool → 模型内部触发 Bing 搜索 → 流式生成。单次调用 tool orchestration 路径。
 
-7 轮 benchmark，2 轮 warmup 丢弃 → **每模型 15 个有效样本**。与 S1/S4 同 endpoint、同 query、同 session。WebIQ search API key：`***REDACTED_WEBIQ_KEY***`，每 query 最多 5 个结果。
+7 轮 benchmark，2 轮 warmup 丢弃 → **每模型 15 个有效样本**。与 S1/S4 同 endpoint、同 query、同 session。WebIQ 凭据通过 `WEBIQ_API_KEY` / `--webiq-key` 提供，文档中不发布明文 key；每 query 最多 5 个结果。
+
+#### 视觉总览 — S1 vs S4 vs S5
+
+![Direct vs web_search_preview vs WebIQ E2E](images/webiq_s1_s4_s5.png)
+
+> S5 **不是** WebIQ 搜索本身的延迟，而是 WebIQ retrieval + AOAI 生成的端到端延迟。WebIQ search-layer 本身只有 ~184–195 ms P50；剩余时间来自模型生成。因此 gpt-5-mini / gpt-5-nano 仍然显得慢，而 gpt-5.4-mini 和 gpt-5.4-nano 接近直连层级。
 
 #### 3.4.1 总汇表 — S1 vs S4 vs S5
 

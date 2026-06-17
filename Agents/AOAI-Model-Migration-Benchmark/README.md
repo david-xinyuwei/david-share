@@ -352,9 +352,11 @@ API: `responses.create(agent_reference=..., tool_choice="required", stream=True)
 
 > 5 runs merged, 40 effective samples per query per model.
 
-#### TTFT Overview (Foundry+Bing)
+#### TTFT Overview (Foundry+Bing Only)
 
 ![TTFT P50 by Model and Scenario](images/ttft_by_scenario.png)
+
+> This chart covers only the Foundry Agent alternative path in Section 3.3. The WebIQ E2E comparison is shown separately in Section 3.4.
 
 #### 3.3.3 Summary (Foundry+Bing, 5 runs merged, 120 samples/model/scenario)
 
@@ -392,7 +394,13 @@ API: `responses.create(agent_reference=..., tool_choice="required", stream=True)
 >
 > **S4 (`web_search_preview`)**: Application calls AOAI Responses API with `web_search_preview` tool → model internally triggers Bing search → streaming generation. Single-call tool orchestration path.
 
-7-iteration benchmark, 2 warmup discarded → **15 effective samples per model**. Same endpoint, same queries, same session as S1/S4. WebIQ search API key: `***REDACTED_WEBIQ_KEY***`, max 5 results per query.
+7-iteration benchmark, 2 warmup discarded → **15 effective samples per model**. Same endpoint, same queries, same session as S1/S4. WebIQ credentials were supplied via `WEBIQ_API_KEY` / `--webiq-key` and are intentionally not published; max 5 results per query.
+
+#### Visual Overview — S1 vs S4 vs S5
+
+![Direct vs web_search_preview vs WebIQ E2E](images/webiq_s1_s4_s5.png)
+
+> S5 is **not** WebIQ search latency alone. It is WebIQ retrieval plus AOAI generation. WebIQ search itself is ~184–195 ms P50; the remaining latency is model generation. That is why gpt-5-mini / gpt-5-nano still look slow, while gpt-5.4-mini and gpt-5.4-nano stay near the direct-call tier.
 
 #### 3.4.1 Grand Summary — S1 vs S4 vs S5
 
