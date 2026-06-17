@@ -7,7 +7,7 @@
 ![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB)
 ![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933)
 
-Production-grade benchmark and traffic-management toolkit for migrating a low-latency AI assistant from gpt-4o-mini to newer Azure OpenAI / OpenAI model families.
+Production-grade benchmark and traffic-management toolkit for migrating a low-latency AI assistant from gpt-4o-mini to newer Azure OpenAI / OpenAI model families. Every web-grounded path is measured with both the built-in search option and a WebIQ explicit-retrieval counterpart.
 
 > **Author**: Xinyu Wei (魏新宇), Microsoft AI and Apps Global Black Belt (GBB) Senior System Engineer | **Date**: 2026-03-28
 
@@ -20,7 +20,7 @@ Production-grade benchmark and traffic-management toolkit for migrating a low-la
 | Area | Configuration |
 |------|---------------|
 | Azure service | Azure OpenAI Service + Azure API Management + Azure Monitor / Application Insights |
-| Primary API path | Responses API with `stream=True` and `web_search_preview` |
+| Primary API path | Responses API with `stream=True`; `web_search_preview` and WebIQ explicit retrieval are both benchmarked for every web-search scenario |
 | Models tested | gpt-4o-mini, gpt-5.4-nano, gpt-5.4-mini, gpt-5-nano, gpt-5-mini |
 | Traffic management | PTU first, APIM proactive routing to PAYGO at high utilization, 429 retry safety net |
 | Runtime | Python benchmark scripts + optional Node.js PTU monitor proxy |
@@ -30,11 +30,12 @@ Production-grade benchmark and traffic-management toolkit for migrating a low-la
 
 **gpt-5.4-nano** is the recommended successor for gpt-4o-mini in the AI assistant.
 
-Tested across 5 candidate models using the **customer's actual architecture** (Responses API + `web_search_preview` + streaming) and an alternative path (Foundry Agent + BingGroundingAgentTool). gpt-5.4-nano delivers **equivalent Bing latency** (~2s) in both architectures while being the only viable successor after gpt-4o-mini retirement (2026-10-01).
+Tested across 5 candidate models using the **customer's actual architecture** (Responses API + `web_search_preview` + streaming), an explicit WebIQ retrieval path, and an alternative path (Foundry Agent + BingGroundingAgentTool). gpt-5.4-nano delivers **equivalent Bing latency** (~2s) in both Bing architectures while WebIQ reduces the user-visible search-grounded TTFT to **0.99s** in the same original migration scenarios.
 
 | Metric | gpt-4o-mini (current) | gpt-5.4-nano (recommended) | Test conditions |
 |--------|:---------------------:|:--------------------------:|-----------------|
 | **web_search TTFT** (P50) | **1.57s** | 2.08s | Responses API, `stream=True`, `web_search_preview`, `search_context_size=low`, `reasoning_effort=none`, GUARDRAILS prompt (~1066 tokens) |
+| **WebIQ E2E TTFT** (P50) | 1.10s | **0.99s** | WebIQ `web.search()` explicit retrieval + Responses API generation, same 3 migration queries, `max_results=5`, GUARDRAILS prompt (~1066 tokens) |
 | **Foundry+Bing TTFT** (P50) | 1.99s | **1.85s** | Responses API, `stream=True`, Foundry Agent V2, `BingGroundingAgentTool`, `tool_choice=required`, `reasoning_effort=none` |
 | **Direct TTFT** (P50) | 0.57s | **0.59s** | Responses API, `stream=True`, `reasoning_effort=none`, no tools |
 | **Input pricing** (per 1M tokens) | $0.15 | $0.20 | — |
@@ -52,7 +53,7 @@ Two benchmark layers are reported separately:
 | **Search-only** | WebIQ retrieval latency before any model generation | Search service latency and retrieval sanity check |
 | **End-to-end** | WebIQ retrieval + AOAI Responses API generation, compared with `web_search_preview` E2E | User-visible assistant latency |
 
-On the original migration benchmark scenarios (`pricing`, `news`, `weather`), WebIQ retrieval alone measured **183 ms P50 / 194 ms P95** with **24/24** retrieval sanity checks passing. In a 7-iteration end-to-end benchmark (15 effective samples per model, warmup excluded), WebIQ reduced user-visible TTFT by **36–60%** versus `web_search_preview` across all 5 candidate models under identical conditions (same session, same endpoint, same queries). See **Section 3.4** for the full side-by-side comparison.
+On the original migration benchmark scenarios (`pricing`, `news`, `weather`), WebIQ retrieval alone measured **183 ms P50 / 194 ms P95** with **24/24** retrieval sanity checks passing. In a 7-iteration end-to-end benchmark (15 effective S1/S5 samples per model, warmup excluded; S4 computed from search-verified success records), WebIQ reduced user-visible TTFT by **36–60%** versus `web_search_preview` across all 5 candidate models under the same endpoint and query set. See **Section 3.4** for the full side-by-side comparison.
 
 | Model | WebIQ E2E P50 | `web_search_preview` P50 | Delta | WebIQ Search P50 |
 |-------|--------------:|-------------------------:|------:|-----------------:|
@@ -200,29 +201,37 @@ Required regions: East US 2, Sweden Central, Southeast Asia.
 
 ## 2. Methodology
 
-### 3-Scenario Latency Decomposition
+### 5-Scenario Latency Decomposition
 
-All scenarios use **Responses API + streaming** for fair layer-by-layer comparison:
+All model-facing scenarios use **Responses API + streaming** for fair layer-by-layer comparison. Web-grounded scenarios are always reported with both a built-in search path and a WebIQ explicit-retrieval path.
 
 | Scenario | Measures | API | Bing |
 |----------|----------|-----|:----:|
 | **S1** Direct AOAI | Model inference | `responses.create(model=...)` | No |
 | **S2** Foundry Agent | Model + orchestration | `responses.create(agent_reference=...)` | No |
 | **S3** Foundry + Bing | Full production stack | `responses.create(agent_reference=..., tool_choice="required")` | Yes |
+| **S4** Direct AOAI + `web_search_preview` | Customer's production built-in web-search path | `responses.create(model=..., tools=[{"type":"web_search_preview"}])` | Yes |
+| **S5** WebIQ + Direct AOAI | Explicit retrieval + context injection + model generation | WebIQ `web.search()` followed by `responses.create(model=...)` | WebIQ |
 
 Latency at each layer is isolated by subtraction:
 
 ```
 Total TTFT = [Model Inference] + [Foundry Overhead] + [Bing Overhead]
                   S1                 S2 - S1             S3 - S2
+
+Built-in search overhead = S4 - S1
+WebIQ explicit-retrieval overhead = S5 - S1
 ```
 
 ### Test Parameters
 
 - **5 models**, 3 queries, 10 iterations/query (2 warmup discarded) = **24 effective samples/model/scenario/run**
 - **5 independent runs** = **120 effective samples per model per scenario** (2,250 total API calls)
+- **WebIQ S5 comparison run**: 7 iterations/query (2 warmup discarded) = **15 effective samples/model/scenario** for S1/S5; S4 uses search-verified success records from the same run and excludes terminal-encoding error records
 - `reasoning_effort` at model minimum: `none` for gpt-5.4, `minimal` for gpt-5
 - S3 system instruction: `"Perform exactly ONE search. Do NOT refine or repeat searches."`
+- S4 system instruction: `"Search the web for current information"` + GUARDRAILS, with web_search streaming events used to verify search trigger
+- S5 retrieval: WebIQ `web.search(max_results=5)` followed by Responses API generation with the same GUARDRAILS prompt and the WebIQ context injected into the user message
 - SDK: `openai==2.14.0`, `azure-ai-projects==2.0.0b2`
 - **Test environment**: Windows VM (East Asia) → East US 2 deployment. Cross-Pacific network adds ~100-200ms RTT. Customer's production environment (US-based clients → East US 2) will have ~30-50ms RTT, yielding ~70-170ms lower TTFT than reported here.
 
@@ -304,19 +313,21 @@ The customer confirmed their AI assistant uses `web_search_preview` (Responses A
 
 > gpt-5-nano and gpt-5-mini have N=119 because one effective sample failed during the web_search run and was excluded from the search-verified subset. The public scripts now preserve failed records in JSON output for reproducibility.
 
-**Cross-architecture comparison** — Bing TTFT P50 across both architectures:
+**Cross-architecture comparison** — every web-grounded path has a WebIQ counterpart:
 
-| Model | S3: Foundry+Bing | S4: web_search | Consistent? |
-|-------|:-:|:-:|:-:|
-| gpt-4o-mini | 1.99s | **1.57s** | ✅ Same tier (~2s) |
-| **gpt-5.4-mini** | 1.96s | **1.90s** | ✅ Same tier (~2s) |
-| **gpt-5.4-nano** | **1.85s** | 2.08s | ✅ Same tier (~2s) |
-| gpt-5-nano | 3.56s | 8.93s | ❌ web_search worse (effort=low forced) |
-| gpt-5-mini | 3.80s | 6.75s | ❌ web_search worse (effort=low forced) |
+| Model | S3: Foundry+Bing | S4: `web_search_preview` | S5: WebIQ E2E | Consistent? |
+|-------|:-:|:-:|:-:|:-:|
+| gpt-4o-mini | 1.99s | **1.57s** | 1.10s | ✅ Bing paths same tier; WebIQ faster |
+| **gpt-5.4-mini** | 1.96s | **1.90s** | **0.84s** | ✅ Bing paths same tier; WebIQ fastest |
+| **gpt-5.4-nano** | **1.85s** | 2.08s | 0.99s | ✅ Bing paths same tier; WebIQ sub-second |
+| gpt-5-nano | 3.56s | 8.93s | 2.02s | ❌ built-in web_search worse; WebIQ reduces overhead |
+| gpt-5-mini | 3.80s | 6.75s | 3.02s | ❌ built-in web_search worse; WebIQ reduces overhead |
 
 > **Note**: gpt-5.4-nano is 0.18s slower than gpt-5.4-mini in web_search scenarios. This is consistent with [OpenAI's official evaluation](https://openai.com/index/introducing-gpt-5-4-mini-and-nano/) where nano scores lower than mini on tool-calling benchmarks (Toolathlon: nano 35.5% vs mini 42.9%). The 0.18s difference is within measurement noise (σ > 2s) and imperceptible to end users. nano's advantage is **73% lower input pricing** ($0.20 vs $0.75/1M tokens).
 
-> **Conclusion**: All three models (gpt-4o-mini, gpt-5.4-mini, gpt-5.4-nano) deliver ~2s web_search TTFT. The migration recommendation holds for both Foundry Agent and web_search paths. gpt-5 series is unsuitable in both architectures.
+> **WebIQ data-set note**: S5 values come from the dedicated 7-iteration WebIQ E2E run in Section 3.4, not the older 5-run S3/S4 merge. They are included here to make the web-grounding trade-off visible in the same decision table.
+
+> **Conclusion**: All three models (gpt-4o-mini, gpt-5.4-mini, gpt-5.4-nano) deliver ~2s TTFT through the built-in Bing paths. WebIQ provides the faster explicit-retrieval option for the same web-grounded workloads, with gpt-5.4-nano reaching 0.99s E2E. gpt-5 series remains unsuitable for built-in web_search paths, but WebIQ reduces the penalty by moving retrieval outside the model tool loop.
 
 ---
 
@@ -387,6 +398,7 @@ API: `responses.create(agent_reference=..., tool_choice="required", stream=True)
 2. **Bing search adds +1.04~2.07s** (includes Bing API + result injection + model processing)
 3. **gpt-5.4-nano has lowest Bing overhead (+1.04s)** — 20% less than gpt-4o-mini (+1.30s)
 4. **gpt-5 series is unsuitable for Bing** — 3.6~4.4s TTFT even with all optimizations
+5. **WebIQ is the explicit-retrieval counterpart** — Section 3.4 tests the same web-grounded question class with retrieval moved out of the model tool loop
 
 ### 3.4 WebIQ Explicit Retrieval vs `web_search_preview` — E2E Comparison
 
@@ -394,7 +406,7 @@ API: `responses.create(agent_reference=..., tool_choice="required", stream=True)
 >
 > **S4 (`web_search_preview`)**: Application calls AOAI Responses API with `web_search_preview` tool → model internally triggers Bing search → streaming generation. Single-call tool orchestration path.
 
-7-iteration benchmark, 2 warmup discarded → **15 effective samples per model**. Same endpoint, same queries, same session as S1/S4. WebIQ credentials were supplied via `WEBIQ_API_KEY` / `--webiq-key` and are intentionally not published; max 5 results per query.
+7-iteration benchmark, 2 warmup discarded → **15 effective S1/S5 samples per model**. S4 reports search-verified success records from the same run; older Windows terminal output used a non-UTF-8 code page, so terminal-encoding failure records are excluded from S4 statistics. WebIQ credentials were supplied via `WEBIQ_API_KEY` / `--webiq-key` and are intentionally not published; max 5 results per query.
 
 #### Visual Overview — S1 vs S4 vs S5
 
@@ -404,13 +416,13 @@ API: `responses.create(agent_reference=..., tool_choice="required", stream=True)
 
 #### 3.4.1 Grand Summary — S1 vs S4 vs S5
 
-| Model | effort | S1 Direct P50 | S4 `web_search` P50 | S5 WebIQ P50 | WS Overhead | WebIQ Overhead | S5 faster than S4 |
+| Model | effort | S1 Direct P50 / N | S4 `web_search` P50 / N | S5 WebIQ P50 / N | WS Overhead | WebIQ Overhead | S5 faster than S4 |
 |-------|:------:|:------:|:------:|:------:|:------:|:------:|:------:|
-| **gpt-4o-mini** | N/A | 0.66s | 1.83s | **1.10s** | +1.17s | +0.44s | **40.0%** |
-| **gpt-5.4-mini** | none | 0.68s | 1.75s | **0.84s** | +1.08s | +0.16s | **52.3%** |
-| **gpt-5.4-nano** | none | 0.75s | 2.45s | **0.99s** | +1.71s | +0.24s | **59.8%** |
-| gpt-5-nano | minimal | 0.69s | 4.70s | **2.02s** | +4.01s | +1.33s | **57.0%** |
-| gpt-5-mini | minimal | 0.81s | 4.70s | **3.02s** | +3.89s | +2.21s | **35.8%** |
+| **gpt-4o-mini** | N/A | 0.66s / 15 | 1.83s / 15 | **1.10s / 15** | +1.17s | +0.44s | **40.0%** |
+| **gpt-5.4-mini** | none | 0.68s / 15 | 1.75s / 15 | **0.84s / 15** | +1.08s | +0.16s | **52.3%** |
+| **gpt-5.4-nano** | none | 0.75s / 15 | 2.45s / 15 | **0.99s / 15** | +1.71s | +0.24s | **59.8%** |
+| gpt-5-nano | minimal | 0.69s / 15 | 4.70s / 13 | **2.02s / 15** | +4.01s | +1.33s | **57.0%** |
+| gpt-5-mini | minimal | 0.81s / 15 | 4.70s / 10 | **3.02s / 15** | +3.89s | +2.21s | **35.8%** |
 
 > **WS Overhead** = S4 P50 − S1 P50 (cost of built-in `web_search_preview` orchestration). **WebIQ Overhead** = S5 P50 − S1 P50 (cost of explicit WebIQ retrieval + context injection). **S5 faster** = (S4 P50 − S5 P50) / S4 P50.
 
@@ -434,7 +446,7 @@ API: `responses.create(agent_reference=..., tool_choice="required", stream=True)
 4. **gpt-5.4-nano + WebIQ at 0.99s** — sub-second search-grounded TTFT, suitable for real-time assistant
 5. **Trade-off**: WebIQ requires application-level search orchestration code; `web_search_preview` is zero-code but slower
 
-> Data source: `outputs/benchmark_websearch_guardrails_20260617_103004.json` (7 iterations, 2 warmup). S4 data from same run; S4 gbk encoding note: the pipe through `Select-String` caused emoji encoding errors in terminal display but JSON data was saved correctly.
+> Data source: `outputs/benchmark_websearch_guardrails_20260617_103004.json` (7 iterations, 2 warmup). S4 rows above use only search-verified success records. The public script now uses ASCII status labels and explicit `success` flags so future runs do not append duplicate terminal-encoding failure records.
 
 
 ## 4. Prompt Caching: Cost Reduction Analysis
@@ -449,6 +461,8 @@ For the AI assistant's production scenario, the GUARDRAILS system prompt (12 beh
 
 Prompt caching reduces **billing cost**, not **latency**. TTFT is dominated by network RTT, KV-cache lookup, and first-token generation — all unaffected by whether input tokens are billed as cached or uncached.
 
+WebIQ follows the same AOAI prompt-caching rule for the generation step: keep GUARDRAILS as the stable prefix, then inject WebIQ context after that static block. WebIQ retrieval itself is outside AOAI prompt caching; its measured retrieval latency is reported separately in Section 3.4.
+
 Verified with 2-run cached benchmark (1066-token system prompt, 120 samples/model/scenario = 60/cell):
 
 | Model | S1 Uncached P50 | S1 Cached P50 | Δ TTFT | S3 Uncached P50 | S3 Cached P50 | Δ TTFT |
@@ -460,6 +474,8 @@ Verified with 2-run cached benchmark (1066-token system prompt, 120 samples/mode
 | gpt-5-nano | 1.05s | 1.35s | +0.30s | 3.50s | 4.79s | +1.29s |
 
 > All Δ values are within measurement noise (σ > 0.5s for most cells). No statistically significant TTFT change.
+
+> WebIQ scope note: S5 was not rerun in a separate cached-vs-uncached experiment. The cached billing impact applies to the AOAI generation tokens in S5; WebIQ API pricing and retrieval latency must be tracked separately from AOAI cached input billing.
 
 ### 4.2 Cost Savings with Prompt Caching
 
@@ -480,6 +496,16 @@ Assuming the 1066-token GUARDRAILS prefix is cached on every production request:
 | **gpt-5.4-nano** | **$2,000** | **$25,000** | **$27,000** | **+38%** |
 
 > gpt-5.4-nano monthly TCO is ~38% higher than gpt-4o-mini, driven by 2x output pricing ($1.25 vs $0.60). However, it delivers **7% lower Bing TTFT** (1.85s vs 1.99s) and is the **only available successor** after gpt-4o-mini retirement (2026-10-01). The cached input rate ($0.02/1M) is 73% cheaper than gpt-4o-mini cached ($0.075/1M), partially offsetting the output premium.
+
+**WebIQ TCO add-on** — WebIQ changes the cost model because retrieval happens before AOAI generation:
+
+| Component | Applies to | How to model |
+|-----------|------------|--------------|
+| AOAI generation | S5 WebIQ E2E | Same model token pricing as S1/S4; GUARDRAILS prefix can still benefit from prompt caching |
+| Injected WebIQ context | S5 WebIQ E2E | Adds prompt tokens after the stable cached prefix; measure actual context tokens per query before production sizing |
+| WebIQ API usage | S5 retrieval | Public WebIQ page describes limited-access API and performance claims, but does not publish a price list; validate commercial terms with Microsoft account team before final TCO |
+
+> Public source: Microsoft WebIQ describes the service as limited access via waitlist and emphasizes 164 ms p95 speed plus token efficiency, but it does not expose a public pricing table on the WebIQ product page ([Microsoft WebIQ](https://www.microsoft.com/en-us/webiq), accessed 2026-06-17). Therefore this README does not invent WebIQ unit pricing.
 
 ### 4.3 Short-Output Scenario: Intent Classification (gpt-5.4-nano is 48% cheaper)
 
@@ -535,6 +561,20 @@ Source: [Microsoft Learn](https://learn.microsoft.com/en-us/azure/ai-services/op
 
 > `reasoning_effort` must be set in the agent definition, not in `responses.create()`.
 
+### WebIQ Explicit Retrieval Configuration
+
+Every built-in web-search benchmark has a WebIQ counterpart in this repo. The WebIQ path keeps retrieval outside the model tool loop and passes compact search context into the same Responses API generation step.
+
+| Setting | Value | Purpose |
+|---------|-------|---------|
+| WebIQ credential | `WEBIQ_API_KEY` or `--webiq-key` | Keep API keys out of README and git history |
+| Retrieval API | `WebIQClient(...).web.search(query=..., max_results=5)` | Fast explicit web retrieval before AOAI generation |
+| Context placement | Inject WebIQ results after the stable GUARDRAILS prefix | Preserve AOAI prompt-cache eligibility for the static prefix |
+| Source handling | Include source URLs from WebIQ results in model prompt | Preserve source-grounded answer behavior |
+| Failure policy | No silent fallback to fake data | Retrieval/API failures are recorded as failed benchmark records |
+
+> Operational trade-off: WebIQ is faster in the measured E2E path, but it requires application-level retrieval orchestration. `web_search_preview` is slower in these tests but keeps orchestration inside the Responses API call.
+
 ---
 
 ## 6. Migration Path
@@ -544,6 +584,16 @@ Phase 1 (Now → go-live):     gpt-4o-mini (current)
 Phase 2 (SEA availability):  Deploy gpt-5.4-nano with 4 production keys, A/B test
 Phase 3:                     Full migration to gpt-5.4-nano
 ```
+
+Search-grounding migration should be evaluated in parallel with the model migration:
+
+| Phase | Model path | Search-grounding path |
+|-------|------------|-----------------------|
+| Phase 1 | Keep gpt-4o-mini until retirement plan is approved | Keep `web_search_preview` as the zero-code production path; run WebIQ shadow tests on the same query classes |
+| Phase 2 | A/B test gpt-5.4-nano as the successor model | Add WebIQ as an explicit retrieval option for latency-sensitive web-grounded features |
+| Phase 3 | Full gpt-5.4-nano migration after regional readiness | Decide per feature: WebIQ for fastest explicit grounding, `web_search_preview` for lowest application-orchestration complexity |
+
+> Decision rule: any production feature that depends on fresh web grounding should have both S4 (`web_search_preview`) and S5 (WebIQ explicit retrieval) numbers before migration sign-off. No web-search-only conclusion should be made without its WebIQ counterpart.
 
 ---
 
@@ -877,6 +927,7 @@ Key findings (216 records, IQR denoised): **TPS +30~43%** for outputs ≥50 toke
 - Python 3.10+
 - Azure OpenAI deployment with API key
 - For web_search tests: Responses API access (`2025-04-01-preview`)
+- For WebIQ tests: `WEBIQ_API_KEY` or `--webiq-key` and the `webiq==0.1.0` package from `requirements.txt`
 
 ### 9.2 Setup
 
@@ -957,7 +1008,9 @@ python scripts/stress_test_tpm_utilization.py \
 
 The public repo does not include raw per-request JSON files. Those files live in the private source repo to avoid publishing customer-specific traces. The filenames below are retained as a reproducibility ledger, and the public scripts can regenerate equivalent JSON outputs under `outputs/`.
 
-The 5-run web_search dataset (`data/benchmark_websearch_guardrails_*.json`) contains 1,199 records across 5 models × 4 scenarios × ~120 samples.
+The 5-run web_search dataset (`data/benchmark_websearch_guardrails_*.json`) contains 1,199 records across 5 models × 4 scenarios × ~120 samples. The WebIQ E2E dataset (`outputs/benchmark_websearch_guardrails_20260617_103004.json`) contains S1/S4/S5 records for the same original migration queries; S4 statistics must be computed from search-verified success records only.
+
+Data-integrity rule for future runs: if a web-grounded table reports S4, it must also report the matching S5 WebIQ result or explicitly state why WebIQ was not run. The current public script avoids terminal-encoding duplicate records by using ASCII status labels and explicit `success` flags.
 
 ### 9.5 Scripts Inventory
 
@@ -989,6 +1042,8 @@ The 5-run web_search dataset (`data/benchmark_websearch_guardrails_*.json`) cont
 
 > **Important**: This table uses the older **Chat Completions API**, which has ~2x higher TTFT than the Responses API used in Section 3. The absolute TTFT values here are not comparable to Section 3, but the **relative model ranking** across features remains informative. In particular, gpt-5.4-nano's higher Bing TTFT here (2.54s) improves to 1.85s (P50) with Responses API + streaming + `tool_choice="required"`.
 
+> WebIQ counterpart: the `Bing Grounding` feature is the WebIQ-relevant row in this historical feature table. For the current Responses API comparison, use Section 3.4: gpt-5.4-nano measured 0.99s WebIQ E2E versus 2.45s `web_search_preview` on the same original migration queries.
+
 ### B. Non-Streaming Behavior
 
 `reasoning_effort=none` in non-streaming mode still produces 30-150 reasoning tokens/request. Streaming produces 0. **Always use `stream=True`.**
@@ -1011,6 +1066,11 @@ The 5-run web_search dataset (`data/benchmark_websearch_guardrails_*.json`) cont
 | `data/benchmark_websearch_20260327_230815.json` | web_search Run (short prompt, 24 samples/cell) |
 | `data/benchmark_websearch_guardrails_*.json` | web_search + GUARDRAILS 5 Runs (120 samples/cell, search verified) |
 | `scripts/benchmark_websearch_guardrails.py` | web_search + GUARDRAILS benchmark (customer path, argparse) |
+| `outputs/benchmark_websearch_guardrails_20260617_103004.json` | S1/S4/S5 WebIQ E2E comparison run; compute S4 from search-verified success records only |
+| `outputs/benchmark_webiq_personal_search_search_*.json` | WebIQ search-only retrieval latency and sanity-check runs |
+| `outputs/benchmark_webiq_personal_search_e2e_*.json` | WebIQ explicit retrieval + AOAI generation E2E runs |
+| `scripts/benchmark_webiq_personal_search.py` | WebIQ search-only and WebIQ + AOAI E2E benchmark script |
+| `scripts/benchmark_websearch_personal_search.py` | `web_search_preview` counterpart using the same scenario schema as the WebIQ script |
 | `scripts/stress_test_tpm_utilization.py` | PTU/PAYGO TPM utilization stress test (concurrent, header capture) |
 
 ### D. Prompt Caching: Self-Consistency Analysis
@@ -1019,6 +1079,7 @@ The cached benchmark used a **70x longer system prompt** (1066 tokens vs 15 toke
 
 - **S1/S2 (non-Bing)**: Systematic +0.02~0.21s increase — **expected and consistent**. Even with cache hit, the KV-cache lookup and memory transfer for 1066 tokens has non-zero overhead. Also, the first request of each run is always a cache miss (cold start), pulling up the average.
 - **S3 (Bing)**: Negligible difference — Bing API latency (~1-2s) dominates, so 50-100ms prompt overhead is completely masked.
+- **S4/S5 (web_search/WebIQ)**: The same principle applies to AOAI generation tokens. S4 built-in search and S5 WebIQ retrieval should be compared on E2E latency, while prompt caching should be treated as a billing optimization for the model-generation portion.
 - **Model ranking preservation**: Cached ranking (5.4-nano < 5.4-mini < 4o-mini < 5-nano < 5-mini) is **identical** to uncached ranking across all 3 scenarios, confirming caching does not alter model selection.
 - **gpt-5-nano S3 anomaly** (4.79s cached vs 3.50s uncached): σ=7.19 indicates extreme outliers from multi-step Bing searches. With only 60 samples (vs 120 uncached), the P50 is more sensitive to outlier contamination. This does not invalidate the conclusion — gpt-5 series is not recommended regardless.
 
@@ -1032,8 +1093,12 @@ gpt-5-mini shows σ=6.27s in Bing scenarios — an order of magnitude higher tha
 
 Customer uses `tool_choice` default (`auto`) — verified that system prompt instruction "Search the web for current information" triggers web_search 100% of the time (confirmed via `response.web_search_call.searching` streaming events, 0% skip rate across 24 samples per model).
 
+WebIQ counterpart: S5 explicit retrieval does not depend on `tool_choice="required"`, so it avoids this Responses tool-result injection failure mode. The application still owns the WebIQ context token budget before passing search results into AOAI generation.
+
 ### G. gpt-5 series + web_search Compatibility
 
 gpt-5-mini and gpt-5-nano do not support `web_search_preview` with `reasoning_effort="minimal"` (returns 400 error). Must use `effort="low"` minimum, which increases reasoning overhead to 7-14s TTFT. This makes gpt-5 series unsuitable for web_search scenarios.
+
+WebIQ counterpart: S5 moves retrieval outside the model tool loop, so it is not blocked by the `web_search_preview` + `reasoning_effort` compatibility issue. Use Section 3.4 E2E numbers for final judgment, because AOAI generation latency still applies after WebIQ retrieval.
 
 ---

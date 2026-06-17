@@ -7,7 +7,7 @@
 ![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB)
 ![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933)
 
-面向低延迟 AI assistant 的生产级 benchmark 与流量管理工具集，用于从 gpt-4o-mini 迁移到更新的 Azure OpenAI / OpenAI 模型家族。
+面向低延迟 AI assistant 的生产级 benchmark 与流量管理工具集，用于从 gpt-4o-mini 迁移到更新的 Azure OpenAI / OpenAI 模型家族。所有 web grounding 路径都同时测试内置 search 方案和 WebIQ 显式 retrieval 对照。
 
 > **Author**: Xinyu Wei (魏新宇), Microsoft AI and Apps Global Black Belt (GBB) Senior System Engineer | **Date**: 2026-03-28
 
@@ -20,7 +20,7 @@
 | 维度 | 配置 |
 |------|------|
 | Azure service | Azure OpenAI Service + Azure API Management + Azure Monitor / Application Insights |
-| 主 API 路径 | Responses API + `stream=True` + `web_search_preview` |
+| 主 API 路径 | Responses API + `stream=True`；所有 web-search 场景都同时测试 `web_search_preview` 和 WebIQ 显式 retrieval |
 | 测试模型 | gpt-4o-mini, gpt-5.4-nano, gpt-5.4-mini, gpt-5-nano, gpt-5-mini |
 | 流量管理 | PTU 优先，高利用率时 APIM 主动路由到 PAYGO，429 retry 作为安全网 |
 | Runtime | Python benchmark scripts + 可选 Node.js PTU monitor proxy |
@@ -30,11 +30,12 @@
 
 **gpt-5.4-nano** 是 gpt-4o-mini 在 AI 助手中的推荐替代模型。
 
-使用**客户实际架构**（Responses API + `web_search_preview` + streaming）和备选路径（Foundry Agent + BingGroundingAgentTool）对 5 个候选模型进行测试。gpt-5.4-nano 在两种架构下均实现**等效的 Bing 延迟**（~2s），且是 gpt-4o-mini 退役（2026-10-01）后唯一可用的继任者。
+使用**客户实际架构**（Responses API + `web_search_preview` + streaming）、WebIQ 显式 retrieval 路径和备选路径（Foundry Agent + BingGroundingAgentTool）对 5 个候选模型进行测试。gpt-5.4-nano 在两种 Bing 架构下均实现**等效的 Bing 延迟**（~2s），而 WebIQ 在同一批原始迁移场景中将 search-grounded TTFT 降到 **0.99s**。
 
 | 指标 | gpt-4o-mini（当前） | gpt-5.4-nano（推荐） | 测试条件 |
 |------|:-------------------:|:--------------------:|----------|
 | **web_search TTFT** (P50) | **1.57s** | 2.08s | Responses API, `stream=True`, `web_search_preview`, `search_context_size=low`, `reasoning_effort=none`, GUARDRAILS prompt (~1066 tokens) |
+| **WebIQ E2E TTFT** (P50) | 1.10s | **0.99s** | WebIQ `web.search()` 显式 retrieval + Responses API 生成，同 3 个迁移 query，`max_results=5`，GUARDRAILS prompt (~1066 tokens) |
 | **Foundry+Bing TTFT** (P50) | 1.99s | **1.85s** | Responses API, `stream=True`, Foundry Agent V2, `BingGroundingAgentTool`, `tool_choice=required`, `reasoning_effort=none` |
 | **Direct TTFT** (P50) | 0.57s | **0.59s** | Responses API, `stream=True`, `reasoning_effort=none`, 无 tools |
 | **Input 单价** (每 1M tokens) | $0.15 | $0.20 | — |
@@ -52,7 +53,7 @@ Microsoft 对 WebIQ 的官方描述是："a suite of AI-native APIs that gives a
 | **Search-only** | 只测 WebIQ 检索延迟，不包含模型生成 | 看搜索服务自身延迟和 retrieval sanity check |
 | **End-to-end** | WebIQ 检索 + AOAI Responses API 生成，对比 `web_search_preview` E2E | 看用户体感的 AI 助手延迟 |
 
-在原始迁移 benchmark 场景（`pricing`、`news`、`weather`）下，WebIQ 单独检索为 **183 ms P50 / 194 ms P95**，retrieval sanity check **24/24** 通过。在 7 轮端到端 benchmark 中（每模型 15 个有效样本，排除 warmup），同一 session、同一 endpoint、同一 query 下，WebIQ 相比 `web_search_preview` 将用户体感 TTFT 降低 **36–60%**，覆盖全部 5 个候选模型。详见 **Section 3.4**。
+在原始迁移 benchmark 场景（`pricing`、`news`、`weather`）下，WebIQ 单独检索为 **183 ms P50 / 194 ms P95**，retrieval sanity check **24/24** 通过。在 7 轮端到端 benchmark 中（每模型 15 个 S1/S5 有效样本，排除 warmup；S4 从 search-verified success records 计算），同一 endpoint、同一 query set 下，WebIQ 相比 `web_search_preview` 将用户体感 TTFT 降低 **36–60%**，覆盖全部 5 个候选模型。详见 **Section 3.4**。
 
 | 模型 | WebIQ E2E P50 | `web_search_preview` P50 | 降幅 | WebIQ Search P50 |
 |------|--------------:|-------------------------:|-----:|-----------------:|
@@ -200,29 +201,37 @@ flowchart LR
 
 ## 2. 测试方法
 
-### 三场景延迟分层
+### 五场景延迟分层
 
-所有场景均使用 **Responses API + streaming**，确保公平对比：
+所有模型生成相关场景均使用 **Responses API + streaming**，确保公平对比。所有 web grounding 场景都同时报告内置 search 路径和 WebIQ 显式 retrieval 路径。
 
 | 场景 | 测量内容 | API | Bing |
 |------|----------|-----|:----:|
 | **S1** Direct AOAI | 模型推理延迟 | `responses.create(model=...)` | No |
 | **S2** Foundry Agent | 模型 + 编排开销 | `responses.create(agent_reference=...)` | No |
 | **S3** Foundry + Bing | 完整生产链路延迟 | `responses.create(agent_reference=..., tool_choice="required")` | Yes |
+| **S4** Direct AOAI + `web_search_preview` | 客户生产中的内置 web-search 路径 | `responses.create(model=..., tools=[{"type":"web_search_preview"}])` | Yes |
+| **S5** WebIQ + Direct AOAI | 显式 retrieval + context injection + 模型生成 | WebIQ `web.search()` 后接 `responses.create(model=...)` | WebIQ |
 
 逐层延迟通过减法隔离：
 
 ```
 Total TTFT = [模型推理] + [Foundry 编排] + [Bing 搜索]
                 S1          S2 - S1         S3 - S2
+
+内置 search overhead = S4 - S1
+WebIQ 显式 retrieval overhead = S5 - S1
 ```
 
 ### 测试参数
 
 - **5 模型**，3 个 query，10 轮/query（2 轮 warmup 丢弃）= **24 有效样本/模型/场景/轮**
 - **5 轮独立测试** = **120 有效样本/模型/场景**（2,250 次 API 调用）
+- **WebIQ S5 对比运行**：7 轮/query（2 轮 warmup 丢弃）= **15 个 S1/S5 有效样本/模型/场景**；S4 只统计同一运行中的 search-verified success records，并排除终端编码导致的 error records
 - `reasoning_effort` 设到模型最低：gpt-5.4 用 `none`，gpt-5 用 `minimal`
 - S3 系统指令：`"Perform exactly ONE search. Do NOT refine or repeat searches."`
+- S4 系统指令：`"Search the web for current information"` + GUARDRAILS，并通过 web_search streaming events 验证 search trigger
+- S5 retrieval：WebIQ `web.search(max_results=5)` 后接 Responses API 生成，使用同一 GUARDRAILS prompt，并将 WebIQ context 注入 user message
 - SDK：`openai==2.14.0`，`azure-ai-projects==2.0.0b2`
 - **测试环境**：Windows VM（东亚）→ East US 2 部署。跨太平洋网络增加 ~100-200ms RTT。客户生产环境（美国客户端 → East US 2）RTT ~30-50ms，TTFT 将比本报告低 ~70-170ms。
 
@@ -304,19 +313,21 @@ API：`responses.create(model=..., stream=True)` | 40 样本/格（5 轮合并�
 
 > gpt-5-nano 和 gpt-5-mini 的 N=119，是因为 web_search run 中各有 1 个有效样本失败，未纳入 search-verified 子集。当前 public scripts 已保留失败记录到 JSON 输出，便于复现排查。
 
-**跨架构对比** — 两种 Bing 路径的 TTFT P50：
+**跨架构对比** — 每条 web grounding 路径都有 WebIQ 对照：
 
-| 模型 | S3: Foundry+Bing | S4: web_search | 一致？ |
-|------|:-:|:-:|:-:|
-| gpt-4o-mini | 1.99s | **1.57s** | ✅ 同级（~2s） |
-| **gpt-5.4-mini** | 1.96s | **1.90s** | ✅ 同级（~2s） |
-| **gpt-5.4-nano** | **1.85s** | 2.08s | ✅ 同级（~2s） |
-| gpt-5-nano | 3.56s | 8.93s | ❌ web_search 更慢（effort=low 被迫） |
-| gpt-5-mini | 3.80s | 6.75s | ❌ web_search 更慢（effort=low 被迫） |
+| 模型 | S3: Foundry+Bing | S4: `web_search_preview` | S5: WebIQ E2E | 一致？ |
+|------|:-:|:-:|:-:|:-:|
+| gpt-4o-mini | 1.99s | **1.57s** | 1.10s | ✅ Bing 路径同级；WebIQ 更快 |
+| **gpt-5.4-mini** | 1.96s | **1.90s** | **0.84s** | ✅ Bing 路径同级；WebIQ 最快 |
+| **gpt-5.4-nano** | **1.85s** | 2.08s | 0.99s | ✅ Bing 路径同级；WebIQ sub-second |
+| gpt-5-nano | 3.56s | 8.93s | 2.02s | ❌ 内置 web_search 更慢；WebIQ 降低开销 |
+| gpt-5-mini | 3.80s | 6.75s | 3.02s | ❌ 内置 web_search 更慢；WebIQ 降低开销 |
 
 > **说明**：gpt-5.4-nano 在 web_search 场景下比 gpt-5.4-mini 慢 0.18s。这与 [OpenAI 官方评测](https://openai.com/index/introducing-gpt-5-4-mini-and-nano/)一致，nano 在 tool calling 基准测试中得分低于 mini（Toolathlon: nano 35.5% vs mini 42.9%）。0.18s 差距在测量噪声范围内（σ > 2s），用户无感。nano 的优势是 **Input 价格便宜 73%**（$0.20 vs $0.75/1M tokens）。
 
-> **结论**：三个模型（gpt-4o-mini、gpt-5.4-mini、gpt-5.4-nano）均实现 ~2s web_search TTFT。迁移建议对 Foundry Agent 和 web_search 两种路径均适用。gpt-5 系列在两种架构下均不适合。
+> **WebIQ 数据集说明**：S5 来自 Section 3.4 的 7 轮 WebIQ E2E 专项运行，不是旧的 S3/S4 5 轮合并数据。这里把它放进同一张决策表，是为了让 web grounding 的取舍更直观。
+
+> **结论**：三个模型（gpt-4o-mini、gpt-5.4-mini、gpt-5.4-nano）在内置 Bing 路径下都能达到 ~2s TTFT。WebIQ 是同类 web-grounded workload 的更快显式 retrieval 选项，gpt-5.4-nano + WebIQ 达到 0.99s E2E。gpt-5 系列仍不适合内置 web_search 路径，但 WebIQ 通过把 retrieval 移出模型 tool loop 显著降低了惩罚。
 
 ---
 
@@ -387,6 +398,7 @@ API：`responses.create(agent_reference=..., tool_choice="required", stream=True
 2. **Bing 搜索开销 +1.04~2.07s**，包含 Bing API 调用 + 结果注入 + 模型处理
 3. **gpt-5.4-nano Bing 开销最低 (+1.04s)** — 比 gpt-4o-mini (+1.30s) 低 20%
 4. **gpt-5 系列不适合 Bing** — 即使全部优化配置后 TTFT 仍 3.6~4.4s
+5. **WebIQ 是显式 retrieval 对照路径** — Section 3.4 将同一类 web-grounded 问题从模型 tool loop 中移出 retrieval，再做 E2E 对比
 
 ### 3.4 WebIQ 显式 Retrieval vs `web_search_preview` — E2E 对比
 
@@ -394,7 +406,7 @@ API：`responses.create(agent_reference=..., tool_choice="required", stream=True
 >
 > **S4（`web_search_preview`）**：应用调用 AOAI Responses API 并指定 `web_search_preview` tool → 模型内部触发 Bing 搜索 → 流式生成。单次调用 tool orchestration 路径。
 
-7 轮 benchmark，2 轮 warmup 丢弃 → **每模型 15 个有效样本**。与 S1/S4 同 endpoint、同 query、同 session。WebIQ 凭据通过 `WEBIQ_API_KEY` / `--webiq-key` 提供，文档中不发布明文 key；每 query 最多 5 个结果。
+7 轮 benchmark，2 轮 warmup 丢弃 → **每模型 15 个 S1/S5 有效样本**。S4 只统计同一次运行中的 search-verified success records；旧版 Windows 终端使用非 UTF-8 code page，因此终端编码失败记录不纳入 S4 统计。WebIQ 凭据通过 `WEBIQ_API_KEY` / `--webiq-key` 提供，文档中不发布明文 key；每 query 最多 5 个结果。
 
 #### 视觉总览 — S1 vs S4 vs S5
 
@@ -404,13 +416,13 @@ API：`responses.create(agent_reference=..., tool_choice="required", stream=True
 
 #### 3.4.1 总汇表 — S1 vs S4 vs S5
 
-| 模型 | effort | S1 直连 P50 | S4 `web_search` P50 | S5 WebIQ P50 | WS 开销 | WebIQ 开销 | S5 比 S4 快 |
+| 模型 | effort | S1 直连 P50 / N | S4 `web_search` P50 / N | S5 WebIQ P50 / N | WS 开销 | WebIQ 开销 | S5 比 S4 快 |
 |------|:------:|:------:|:------:|:------:|:------:|:------:|:------:|
-| **gpt-4o-mini** | N/A | 0.66s | 1.83s | **1.10s** | +1.17s | +0.44s | **40.0%** |
-| **gpt-5.4-mini** | none | 0.68s | 1.75s | **0.84s** | +1.08s | +0.16s | **52.3%** |
-| **gpt-5.4-nano** | none | 0.75s | 2.45s | **0.99s** | +1.71s | +0.24s | **59.8%** |
-| gpt-5-nano | minimal | 0.69s | 4.70s | **2.02s** | +4.01s | +1.33s | **57.0%** |
-| gpt-5-mini | minimal | 0.81s | 4.70s | **3.02s** | +3.89s | +2.21s | **35.8%** |
+| **gpt-4o-mini** | N/A | 0.66s / 15 | 1.83s / 15 | **1.10s / 15** | +1.17s | +0.44s | **40.0%** |
+| **gpt-5.4-mini** | none | 0.68s / 15 | 1.75s / 15 | **0.84s / 15** | +1.08s | +0.16s | **52.3%** |
+| **gpt-5.4-nano** | none | 0.75s / 15 | 2.45s / 15 | **0.99s / 15** | +1.71s | +0.24s | **59.8%** |
+| gpt-5-nano | minimal | 0.69s / 15 | 4.70s / 13 | **2.02s / 15** | +4.01s | +1.33s | **57.0%** |
+| gpt-5-mini | minimal | 0.81s / 15 | 4.70s / 10 | **3.02s / 15** | +3.89s | +2.21s | **35.8%** |
 
 > **WS 开销** = S4 P50 − S1 P50（内置 `web_search_preview` orchestration 的代价）。**WebIQ 开销** = S5 P50 − S1 P50（显式 WebIQ 检索 + context injection 的代价）。**S5 比 S4 快** = (S4 P50 − S5 P50) / S4 P50。
 
@@ -434,7 +446,7 @@ API：`responses.create(agent_reference=..., tool_choice="required", stream=True
 4. **gpt-5.4-nano + WebIQ 0.99s** — 亚秒级搜索增强 TTFT，适合实时 AI 助手
 5. **取舍**：WebIQ 需要应用层搜索编排代码；`web_search_preview` 零代码但更慢
 
-> 数据来源：`outputs/benchmark_websearch_guardrails_20260617_103004.json`（7 轮迭代，2 轮 warmup）。S4 数据来自同一次运行。
+> 数据来源：`outputs/benchmark_websearch_guardrails_20260617_103004.json`（7 轮迭代，2 轮 warmup）。上表 S4 只使用 search-verified success records。当前 public script 已改为 ASCII 状态标签和显式 `success` 字段，后续运行不会再追加终端编码导致的重复 failure records。
 
 
 ## 4. Prompt Caching：降本分析
@@ -449,6 +461,8 @@ AI 助手生产场景中，GUARDRAILS 系统提示词（12 个行为规范章节
 
 Prompt Caching 降低**计费成本**，不影响**延迟**。TTFT 主要由网络 RTT、KV-cache 查找、首 token 生成决定，与 input tokens 是否按缓存价计费无关。
 
+WebIQ 路径中的 AOAI 生成步骤也遵循同样的 Prompt Caching 规则：保持 GUARDRAILS 为稳定前缀，再把 WebIQ context 放在静态块之后。WebIQ retrieval 本身不属于 AOAI Prompt Caching；其检索延迟已在 Section 3.4 单独报告。
+
 2 轮 Cached Benchmark 验证（1066-token 系统提示词，120 samples/model/scenario = 60/cell）：
 
 | 模型 | S1 未缓存 P50 | S1 已缓存 P50 | Δ TTFT | S3 未缓存 P50 | S3 已缓存 P50 | Δ TTFT |
@@ -460,6 +474,8 @@ Prompt Caching 降低**计费成本**，不影响**延迟**。TTFT 主要由网�
 | gpt-5-nano | 1.05s | 1.35s | +0.30s | 3.50s | 4.79s | +1.29s |
 
 > 所有 Δ 值均在测量噪声范围内（多数 cell σ > 0.5s），统计上无显著 TTFT 变化。
+
+> WebIQ 范围说明：S5 没有单独重跑 cached vs uncached 实验。缓存计费影响的是 S5 中 AOAI 生成部分的 tokens；WebIQ API 定价和 retrieval latency 需要与 AOAI cached input 计费分开跟踪。
 
 ### 4.2 Prompt Caching 节省成本估算
 
@@ -480,6 +496,16 @@ Prompt Caching 降低**计费成本**，不影响**延迟**。TTFT 主要由网�
 | **gpt-5.4-nano** | **$2,000** | **$25,000** | **$27,000** | **+38%** |
 
 > gpt-5.4-nano 月度 TCO 比 gpt-4o-mini 高约 38%，主要因为 output 单价贵 2 倍（$1.25 vs $0.60）。但它 **Bing TTFT 低 7%**（1.85s vs 1.99s），且是 gpt-4o-mini 退役（2026-10-01）后**唯一可用的继任者**。缓存 input 单价（$0.02/1M）比 gpt-4o-mini 缓存（$0.075/1M）便宜 73%，部分抵消 output 溢价。
+
+**WebIQ TCO 追加项** — WebIQ 会改变成本模型，因为 retrieval 发生在 AOAI 生成之前：
+
+| 组件 | 适用路径 | 建模方式 |
+|------|----------|----------|
+| AOAI 生成 | S5 WebIQ E2E | 与 S1/S4 使用相同模型 token 定价；GUARDRAILS 静态前缀仍可享受 Prompt Caching |
+| 注入的 WebIQ context | S5 WebIQ E2E | 会增加静态前缀之后的 prompt tokens；生产 sizing 前应按 query 实测 context tokens |
+| WebIQ API 调用 | S5 retrieval | WebIQ public page 说明该 API limited access，但未公开价目表；最终 TCO 需和 Microsoft account team 确认 commercial terms |
+
+> 公开来源：Microsoft WebIQ 页面强调 limited access / waitlist、164 ms p95 speed 和 token efficiency，但没有公开 pricing table（[Microsoft WebIQ](https://www.microsoft.com/en-us/webiq)，访问日期 2026-06-17）。因此本 README 不编写 WebIQ 单价。
 
 ### 4.3 短输出场景：意图分类（gpt-5.4-nano 便宜 48%）
 
@@ -535,6 +561,20 @@ Bing 场景必须设置以下两项（在 `stream=True` 和 `reasoning_effort` �
 
 > `reasoning_effort` 必须在 agent definition 中设置，不能在 `responses.create()` 中传递。
 
+### WebIQ 显式 Retrieval 配置
+
+本 repo 中每个内置 web-search benchmark 都有 WebIQ 对照。WebIQ 路径将 retrieval 放在模型 tool loop 之外，再把精简搜索上下文传入同一个 Responses API 生成步骤。
+
+| 设置 | 值 | 目的 |
+|------|----|------|
+| WebIQ credential | `WEBIQ_API_KEY` 或 `--webiq-key` | API key 不进入 README 和 git history |
+| Retrieval API | `WebIQClient(...).web.search(query=..., max_results=5)` | 在 AOAI 生成前做快速显式 web retrieval |
+| Context 位置 | 将 WebIQ 结果放在稳定 GUARDRAILS 前缀之后 | 保留 AOAI Prompt Caching 对静态前缀的适用性 |
+| Source 处理 | 在 prompt 中保留 WebIQ 结果 URL | 维持 source-grounded answer 行为 |
+| 失败策略 | 不静默 fallback 到假数据 | Retrieval/API 失败记录为 failed benchmark record |
+
+> 取舍：本次 E2E 测试中 WebIQ 更快，但需要应用层 retrieval orchestration；`web_search_preview` 更慢，但 orchestration 留在 Responses API 单次调用内部。
+
 ---
 
 ## 6. 迁移路径
@@ -544,6 +584,16 @@ Phase 1（现在 → go-live）：   gpt-4o-mini（当前方案）
 Phase 2（SEA 可用后）：       部署 gpt-5.4-nano + 4 项生产配置，A/B 测试
 Phase 3：                    全量迁移到 gpt-5.4-nano
 ```
+
+Search grounding 迁移应和模型迁移并行评估：
+
+| 阶段 | 模型路径 | Search-grounding 路径 |
+|------|----------|-----------------------|
+| Phase 1 | 在迁移方案批准前保留 gpt-4o-mini | 保留 `web_search_preview` 作为零代码生产路径；对同类 query 做 WebIQ shadow test |
+| Phase 2 | 将 gpt-5.4-nano 作为继任模型做 A/B test | 对延迟敏感的 web-grounded 功能加入 WebIQ 显式 retrieval 选项 |
+| Phase 3 | 区域就绪后全量迁移到 gpt-5.4-nano | 按功能决策：WebIQ 用于最快显式 grounding，`web_search_preview` 用于最低应用编排复杂度 |
+
+> 决策规则：任何依赖实时 web grounding 的生产功能，sign-off 前都必须同时有 S4（`web_search_preview`）和 S5（WebIQ 显式 retrieval）数据。不能只有 web_search 结论而没有 WebIQ 对照。
 
 ---
 
@@ -877,6 +927,7 @@ Priority Processing 的完整多维度基准测试（性能分析、并发负载
 - Python 3.10+
 - Azure OpenAI 部署 + API key
 - web_search 测试需要：Responses API 访问权限（`2025-04-01-preview`）
+- WebIQ 测试需要：`WEBIQ_API_KEY` 或 `--webiq-key`，以及 `requirements.txt` 中的 `webiq==0.1.0`
 
 ### 9.2 环境搭建
 
@@ -957,7 +1008,9 @@ python scripts/stress_test_tpm_utilization.py \
 
 Public repo 不包含逐请求 raw JSON 文件；这些文件保留在 private source repo 中，避免发布客户相关 trace。下面的文件名作为可追溯 ledger 保留；public scripts 会在 `outputs/` 下重新生成等价 JSON 输出。
 
-5 轮 web_search 数据集（`data/benchmark_websearch_guardrails_*.json`）包含 1,199 条记录，覆盖 5 个模型 × 4 个场景 × ~120 样本。
+5 轮 web_search 数据集（`data/benchmark_websearch_guardrails_*.json`）包含 1,199 条记录，覆盖 5 个模型 × 4 个场景 × ~120 样本。WebIQ E2E 数据集（`outputs/benchmark_websearch_guardrails_20260617_103004.json`）包含同一批原始迁移 query 的 S1/S4/S5 records；S4 统计必须只使用 search-verified success records。
+
+后续数据完整性规则：任何 web-grounded benchmark 表只要报告 S4，就必须同时报告匹配的 S5 WebIQ 结果，或者明确说明为什么没有运行 WebIQ。当前 public script 使用 ASCII 状态标签和显式 `success` 字段，避免终端编码导致重复 failure records。
 
 ### 9.5 脚本清单
 
@@ -989,6 +1042,8 @@ Public repo 不包含逐请求 raw JSON 文件；这些文件保留在 private s
 
 > **重要说明**：此表使用旧版 **Chat Completions API**，TTFT 比 Section 3 使用的 Responses API 高约 2 倍。绝对 TTFT 值不可与 Section 3 直接比较，但模型间的**相对排名**仍可参考。特别是，gpt-5.4-nano 在此表中 Bing TTFT 较高（2.54s），但使用 Responses API + streaming + `tool_choice="required"` 后改善为 1.85s (P50)。
 
+> WebIQ 对照：此历史功能表中与 WebIQ 相关的是 `Bing Grounding` 行。当前 Responses API 对比请看 Section 3.4：同一批原始迁移 query 中，gpt-5.4-nano 的 WebIQ E2E 为 0.99s，而 `web_search_preview` 为 2.45s。
+
 ### B. Non-Streaming 行为
 
 `reasoning_effort=none` 在非 streaming 模式下仍产生 30-150 reasoning tokens/请求。Streaming 模式下为 0。**生产必须使用 `stream=True`。**
@@ -1011,6 +1066,11 @@ Public repo 不包含逐请求 raw JSON 文件；这些文件保留在 private s
 | `data/benchmark_websearch_20260327_230815.json` | web_search Run（短 prompt，24 样本/cell） |
 | `data/benchmark_websearch_guardrails_*.json` | web_search + GUARDRAILS 5 轮（120 样本/cell，搜索已验证） |
 | `scripts/benchmark_websearch_guardrails.py` | web_search + GUARDRAILS benchmark（客户路径，argparse） |
+| `outputs/benchmark_websearch_guardrails_20260617_103004.json` | S1/S4/S5 WebIQ E2E 对比运行；S4 只从 search-verified success records 计算 |
+| `outputs/benchmark_webiq_personal_search_search_*.json` | WebIQ search-only retrieval latency 和 sanity-check runs |
+| `outputs/benchmark_webiq_personal_search_e2e_*.json` | WebIQ 显式 retrieval + AOAI 生成 E2E runs |
+| `scripts/benchmark_webiq_personal_search.py` | WebIQ search-only 与 WebIQ + AOAI E2E benchmark 脚本 |
+| `scripts/benchmark_websearch_personal_search.py` | 使用与 WebIQ 脚本相同 scenario schema 的 `web_search_preview` 对照脚本 |
 | `scripts/stress_test_tpm_utilization.py` | PTU/PAYGO TPM 利用率压测（并发流式，header 捕获） |
 
 ### D. Prompt Caching 自洽性分析
@@ -1019,6 +1079,7 @@ Cached benchmark 使用了 **70 倍长的 system prompt**（1066 tokens vs 15 to
 
 - **S1/S2（非 Bing）**：系统性上升 +0.02~0.21s — **符合预期且自洽**。即使 cache 命中，1066 token 的 KV-cache 查找和内存传输有非零开销。此外每轮首次请求必为 cache miss（冷启动），拉高均值。
 - **S3（Bing）**：差异可忽略 — Bing API 延迟（~1-2s）占主导，50-100ms 的 prompt 开销被完全淹没。
+- **S4/S5（web_search/WebIQ）**：同一原则适用于 AOAI 生成 tokens。S4 内置搜索和 S5 WebIQ retrieval 应按 E2E latency 对比；Prompt Caching 只作为模型生成部分的计费优化处理。
 - **模型排名不变**：Cached 排名（5.4-nano < 5.4-mini < 4o-mini < 5-nano < 5-mini）与 uncached 在全部 3 个场景中**完全一致**，确认缓存不影响模型选型结论。
 - **gpt-5-nano S3 异常**（4.79s cached vs 3.50s uncached）：σ=7.19 显示存在极端异常值（多步 Bing 搜索）。60 样本（vs 120 uncached）对异常值更敏感。不影响结论——gpt-5 系列本身不推荐。
 
@@ -1032,8 +1093,12 @@ gpt-5-mini 在 Bing 场景中 σ=6.27s — 比其他模型（σ=0.60-1.05s）高
 
 客户使用 `tool_choice` 默认值（`auto`）— 通过系统提示词 "Search the web for current information" 引导搜索，经 `response.web_search_call.searching` streaming event 验证，搜索触发率 100%（24 样本/模型，0% 跳过率）。
 
+WebIQ 对照：S5 显式 retrieval 不依赖 `tool_choice="required"`，因此不会触发这类 Responses tool-result injection 失败模式。但应用侧仍需要控制 WebIQ context token budget，再把搜索结果传入 AOAI 生成。
+
 ### G. gpt-5 系列 + web_search 兼容性
 
 gpt-5-mini 和 gpt-5-nano 不支持 `web_search_preview` + `reasoning_effort="minimal"`（返回 400 error）。最低需要 `effort="low"`，导致推理开销增大至 7-14s TTFT。gpt-5 系列不适合 web_search 场景。
+
+WebIQ 对照：S5 将 retrieval 移出模型 tool loop，因此不受 `web_search_preview` + `reasoning_effort` 兼容性问题阻断。最终仍应以 Section 3.4 的 E2E 数据判断，因为 WebIQ retrieval 之后仍有 AOAI 生成延迟。
 
 ---

@@ -3,7 +3,8 @@
 AI assistant web_search Benchmark — Comprehensive (Customer Actual Architecture)
 ========================================================================
 Tests the customer production path:
-  - Responses API + web_search_preview (NOT Foundry Agent)
+    - Responses API + web_search_preview (NOT Foundry Agent)
+    - Optional WebIQ explicit retrieval path for every web-search scenario
   - GUARDRAILS system prompt (~1066 tokens, triggers prompt caching)
   - search_context_size="low"
   - tool_choice="auto" (verified 100% search trigger via streaming events)
@@ -261,6 +262,7 @@ def main():
                     results.append({
                         "scenario": "S1_direct_guardrails", "model": name,
                         "query": qname, "iter": i, "warmup": is_wu,
+                        "success": True,
                         "ttft": round(ttft, 3), "e2e": round(e2e, 3), "len": tlen,
                     })
                     print(f"  {prefix} i{i:2d} {name:15s} TTFT={ttft:.2f}s E2E={e2e:.2f}s len={tlen}")
@@ -277,7 +279,7 @@ def main():
     print("  S1 Summary (GUARDRAILS, warmup discarded)")
     print("=" * 70)
     for name, _, effort_s1, _ in MODELS:
-        recs = [r for r in results if r["scenario"] == "S1_direct_guardrails" and r["model"] == name and not r["warmup"]]
+        recs = [r for r in results if r["scenario"] == "S1_direct_guardrails" and r["model"] == name and not r["warmup"] and r.get("success", True)]
         if recs:
             arr = np.array([r["ttft"] for r in recs])
             eff = effort_s1 or "N/A"
@@ -295,10 +297,11 @@ def main():
             for name, deploy, _, effort_ws in MODELS:
                 try:
                     ttft, e2e, tlen, searched = run_s4(client, deploy, effort_ws, qtext, maxtok)
-                    tag = "🔍" if searched else "⚠️NS"
+                    tag = "SEARCH" if searched else "NO_SEARCH"
                     results.append({
                         "scenario": "S4_websearch_guardrails", "model": name,
                         "query": qname, "iter": i, "warmup": is_wu,
+                        "success": True,
                         "ttft": round(ttft, 3), "e2e": round(e2e, 3), "len": tlen,
                         "searched": searched,
                     })
@@ -317,7 +320,7 @@ def main():
     print("=" * 70)
     for name, _, _, effort_ws in MODELS:
         all_recs = [r for r in results if r["scenario"] == "S4_websearch_guardrails" and r["model"] == name and not r["warmup"]]
-        recs = [r for r in all_recs if r.get("searched", True)]
+        recs = [r for r in all_recs if r.get("success", True) and r.get("searched", True)]
         skip = len(all_recs) - len(recs)
         if recs:
             arr = np.array([r["ttft"] for r in recs])
@@ -328,7 +331,7 @@ def main():
     webiq_client = None
     if args.webiq_key:
         if not WEBIQ_AVAILABLE:
-            print("\n⚠️  webiq package not installed. Skipping S5. pip install webiq")
+            print("\nWARNING: webiq package not installed. Skipping S5. pip install webiq")
         else:
             webiq_client = WebIQClient(auth=ApiKeyAuth(api_key=args.webiq_key))
             print("\n" + "=" * 70)
@@ -347,6 +350,7 @@ def main():
                             results.append({
                                 "scenario": "S5_webiq_guardrails", "model": name,
                                 "query": qname, "iter": i, "warmup": is_wu,
+                                "success": True,
                                 "ttft": round(total_ttft, 3), "e2e": round(total_e2e, 3),
                                 "search_lat": round(search_lat, 3),
                                 "model_ttft": round(model_ttft, 3),
@@ -387,8 +391,8 @@ def main():
         print(f"  {'Model':<16} | {'S1 P50':>8} | {'S4 P50':>8} | {'WS OH':>8}")
         print("  " + "-" * 55)
     for name, _, effort_s1, effort_ws in MODELS:
-        s1 = [r["ttft"] for r in results if r["scenario"] == "S1_direct_guardrails" and r["model"] == name and not r["warmup"]]
-        s4 = [r["ttft"] for r in results if r["scenario"] == "S4_websearch_guardrails" and r["model"] == name and not r["warmup"] and r.get("searched", True)]
+        s1 = [r["ttft"] for r in results if r["scenario"] == "S1_direct_guardrails" and r["model"] == name and not r["warmup"] and r.get("success", True)]
+        s4 = [r["ttft"] for r in results if r["scenario"] == "S4_websearch_guardrails" and r["model"] == name and not r["warmup"] and r.get("success", True) and r.get("searched", True)]
         s5 = [r["ttft"] for r in results if r["scenario"] == "S5_webiq_guardrails" and r["model"] == name and not r["warmup"] and r.get("success", True)] if webiq_client else []
         if s1 and s4:
             s1p = np.percentile(s1, 50)
