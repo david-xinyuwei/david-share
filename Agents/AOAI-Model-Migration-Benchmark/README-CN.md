@@ -52,13 +52,15 @@ Microsoft 对 WebIQ 的官方描述是："a suite of AI-native APIs that gives a
 | **Search-only** | 只测 WebIQ 检索延迟，不包含模型生成 | 看搜索服务自身延迟和 retrieval sanity check |
 | **End-to-end** | WebIQ 检索 + AOAI Responses API 生成，对比 `web_search_preview` E2E | 看用户体感的 AI 助手延迟 |
 
-在原始迁移 benchmark 场景（`pricing`、`news`、`weather`）下，WebIQ 单独检索为 **183 ms P50 / 194 ms P95**，retrieval sanity check **24/24** 通过。在端到端模式下，同一组场景、同一 endpoint、同一组模型中，WebIQ 相比 `web_search_preview` 将用户体感 TTFT 降低 **17-39%**。本补充测试使用 3 轮独立运行，排除 warmup；rate limit 和 tool-call limit 失败保留在 JSON 中而不是隐藏，因此 E2E 有效样本数按模型为 33-36 条。
+在原始迁移 benchmark 场景（`pricing`、`news`、`weather`）下，WebIQ 单独检索为 **183 ms P50 / 194 ms P95**，retrieval sanity check **24/24** 通过。在 7 轮端到端 benchmark 中（每模型 15 个有效样本，排除 warmup），同一 session、同一 endpoint、同一 query 下，WebIQ 相比 `web_search_preview` 将用户体感 TTFT 降低 **36–60%**，覆盖全部 5 个候选模型。详见 **Section 3.4**。
 
-| 模型 | WebIQ E2E P50 | `web_search_preview` P50 | 降幅 | WebIQ P95 | `web_search_preview` P95 |
-|------|--------------:|-------------------------:|-----:|----------:|-------------------------:|
-| gpt-4o-mini | **1.38s** | 1.99s | **快 30.7%** | 1.80s | 4.50s |
-| gpt-5.4-nano | **1.52s** | 1.83s | **快 16.8%** | 2.00s | 3.22s |
-| gpt-5.4-mini | **1.17s** | 1.92s | **快 38.9%** | 1.52s | 8.21s |
+| 模型 | WebIQ E2E P50 | `web_search_preview` P50 | 降幅 | WebIQ Search P50 |
+|------|--------------:|-------------------------:|-----:|-----------------:|
+| **gpt-4o-mini** | **1.10s** | 1.83s | **快 40.0%** | 195 ms |
+| **gpt-5.4-mini** | **0.84s** | 1.75s | **快 52.3%** | 184 ms |
+| **gpt-5.4-nano** | **0.99s** | 2.45s | **快 59.8%** | 186 ms |
+| gpt-5-nano | **2.02s** | 4.70s | **快 57.0%** | 184 ms |
+| gpt-5-mini | **3.02s** | 4.70s | **快 35.8%** | 188 ms |
 
 > 范围说明：这里的 WebIQ 路径是 **显式 retrieval + context injection**，`web_search_preview` 是 **内置 tool orchestration**。`quality_pass` 和 `source_used` 只是轻量 sanity check，不是人工答案质量评测。`web_search_preview` 不暴露内部搜索延迟，所以 search-layer latency 只对 WebIQ 单独报告。
 
@@ -112,7 +114,7 @@ SDK 对 web/news/classic search 支持 `ContentFormat.passage`、`text`、`html`
 
 不适合的场景：不需要搜索的任务、需要零代码平台编排的任务、image-to-image search、以及带 bot protection 的站点。
 
-> 原始 benchmark 说明：上方 web_search、Foundry+Bing 和 Direct 行的 TTFT 为 P50（中位数），基于**每模型每场景 120 个样本**（5 轮独立测试）。WebIQ 补充测试使用上文所述的 2026-06 独立运行。测试环境：东亚 → East US 2（PAYGO GlobalStandard）。客户 PTU 环境 TTFT 将更低。
+> 原始 benchmark 说明：上方 web_search、Foundry+Bing 和 Direct 行的 TTFT 为 P50（中位数），基于**每模型每场景 120 个样本**（5 轮独立测试）。WebIQ E2E 对比（Section 3.4）使用 7 轮独立运行，每模型 15 个有效样本。测试环境：东亚 → East US 2（PAYGO GlobalStandard）。客户 PTU 环境 TTFT 将更低。
 
 **web_search 路径生产配置**（客户实际架构）：
 
@@ -383,6 +385,48 @@ API：`responses.create(agent_reference=..., tool_choice="required", stream=True
 2. **Bing 搜索开销 +1.04~2.07s**，包含 Bing API 调用 + 结果注入 + 模型处理
 3. **gpt-5.4-nano Bing 开销最低 (+1.04s)** — 比 gpt-4o-mini (+1.30s) 低 20%
 4. **gpt-5 系列不适合 Bing** — 即使全部优化配置后 TTFT 仍 3.6~4.4s
+
+### 3.4 WebIQ 显式 Retrieval vs `web_search_preview` — E2E 对比
+
+> **S5（WebIQ）**：应用调用 WebIQ `web.search()` → 去除 HTML → 将搜索上下文注入 AOAI Responses API prompt → 流式生成。两跳显式 retrieval 路径。
+>
+> **S4（`web_search_preview`）**：应用调用 AOAI Responses API 并指定 `web_search_preview` tool → 模型内部触发 Bing 搜索 → 流式生成。单次调用 tool orchestration 路径。
+
+7 轮 benchmark，2 轮 warmup 丢弃 → **每模型 15 个有效样本**。与 S1/S4 同 endpoint、同 query、同 session。WebIQ search API key：`***REDACTED_WEBIQ_KEY***`，每 query 最多 5 个结果。
+
+#### 3.4.1 总汇表 — S1 vs S4 vs S5
+
+| 模型 | effort | S1 直连 P50 | S4 `web_search` P50 | S5 WebIQ P50 | WS 开销 | WebIQ 开销 | S5 比 S4 快 |
+|------|:------:|:------:|:------:|:------:|:------:|:------:|:------:|
+| **gpt-4o-mini** | N/A | 0.66s | 1.83s | **1.10s** | +1.17s | +0.44s | **40.0%** |
+| **gpt-5.4-mini** | none | 0.68s | 1.75s | **0.84s** | +1.08s | +0.16s | **52.3%** |
+| **gpt-5.4-nano** | none | 0.75s | 2.45s | **0.99s** | +1.71s | +0.24s | **59.8%** |
+| gpt-5-nano | minimal | 0.69s | 4.70s | **2.02s** | +4.01s | +1.33s | **57.0%** |
+| gpt-5-mini | minimal | 0.81s | 4.70s | **3.02s** | +3.89s | +2.21s | **35.8%** |
+
+> **WS 开销** = S4 P50 − S1 P50（内置 `web_search_preview` orchestration 的代价）。**WebIQ 开销** = S5 P50 − S1 P50（显式 WebIQ 检索 + context injection 的代价）。**S5 比 S4 快** = (S4 P50 − S5 P50) / S4 P50。
+
+#### 3.4.2 WebIQ Search-Layer 延迟
+
+| 模型 | Search P50 | N |
+|------|:----------:|:---:|
+| gpt-4o-mini | 195 ms | 15 |
+| gpt-5.4-mini | 184 ms | 15 |
+| gpt-5.4-nano | 186 ms | 15 |
+| gpt-5-nano | 184 ms | 15 |
+| gpt-5-mini | 188 ms | 15 |
+
+> Search 延迟与模型无关（~185–195 ms P50）。S5 总延迟的差异来自 AOAI 模型生成时间，而非 WebIQ 搜索。
+
+#### 主要结论（WebIQ vs `web_search_preview`）
+
+1. **WebIQ 比 `web_search_preview` 快 36–60%** — 覆盖全部 5 个模型的 E2E TTFT
+2. **Search-layer 延迟 ~185 ms P50** — 与模型无关
+3. **gpt-5.4-mini + WebIQ 实现 0.84s E2E** — 本次测试中最快的搜索增强配置
+4. **gpt-5.4-nano + WebIQ 0.99s** — 亚秒级搜索增强 TTFT，适合实时 AI 助手
+5. **取舍**：WebIQ 需要应用层搜索编排代码；`web_search_preview` 零代码但更慢
+
+> 数据来源：`outputs/benchmark_websearch_guardrails_20260617_103004.json`（7 轮迭代，2 轮 warmup）。S4 数据来自同一次运行。
 
 
 ## 4. Prompt Caching：降本分析
@@ -842,6 +886,13 @@ pip install -r requirements.txt
 python scripts/benchmark_websearch_guardrails.py \
   --endpoint https://<your-resource>.openai.azure.com \
   --api-key YOUR_API_KEY
+
+# 加上 WebIQ S5 场景（显式 retrieval + AOAI 生成）：
+python scripts/benchmark_websearch_guardrails.py \
+  --endpoint https://<your-resource>.openai.azure.com \
+  --api-key YOUR_API_KEY \
+  --webiq-key YOUR_WEBIQ_API_KEY \
+  --iterations 7 --warmup 2
 ```
 
 **WebIQ personal-search benchmark**（显式 grounding 路径）：
@@ -904,7 +955,7 @@ Public repo 不包含逐请求 raw JSON 文件；这些文件保留在 private s
 
 | 脚本 | 用途 | 参数 |
 |------|------|------|
-| `benchmark_websearch_guardrails.py` | web_search + GUARDRAILS 1066-token prompt | `--endpoint`, `--api-key` |
+| `benchmark_websearch_guardrails.py` | S1 直连 + S4 web_search + S5 WebIQ E2E，GUARDRAILS 1066-token prompt | `--endpoint`, `--api-key`，可选 `--webiq-key` 启用 S5 |
 | `benchmark_webiq_personal_search.py` | WebIQ personal-search grounding benchmark；支持 search-only 或 WebIQ + AOAI E2E | `WEBIQ_API_KEY`，可选 `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `--mode` |
 | `benchmark_websearch_personal_search.py` | 使用与 WebIQ 脚本相同的 scenario schema 和 sanity check 跑 `web_search_preview` | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`，可选 `--scenario-file` |
 | `benchmark_3s_detective.py` | Foundry Agent + Bing，3 场景 × 5 模型 | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_AI_PROJECT_ENDPOINT`, `BING_CONNECTION_NAME` |

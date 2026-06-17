@@ -9,9 +9,10 @@ Tests the customer production path:
   - tool_choice="auto" (verified 100% search trigger via streaming events)
   - reasoning_effort: none for 5.4, low for 5 (minimal not supported with web_search)
 
-2 Scenarios per run:
+3 Scenarios per run:
   S1: Direct AOAI (no search, with GUARDRAILS prompt)
   S4: Direct AOAI + web_search_preview (with GUARDRAILS prompt)
+  S5: WebIQ search + AOAI generation (explicit retrieval, optional --webiq-key)
 
 5 Models × 3 Queries × 10 iterations (2 warmup) = 24 samples/model/scenario/run
 Run multiple times for statistical robustness.
@@ -19,9 +20,15 @@ Run multiple times for statistical robustness.
 Author: Xinyu Wei (魏新宇)
 """
 
-import json, time, datetime, os, argparse
+import json, time, datetime, os, argparse, re
 import numpy as np
 from openai import AzureOpenAI
+
+try:
+    from webiq import WebIQClient, ApiKeyAuth
+    WEBIQ_AVAILABLE = True
+except ImportError:
+    WEBIQ_AVAILABLE = False
 
 # ── GUARDRAILS system prompt (1066 tokens — triggers prompt caching) ──
 GUARDRAILS = """
@@ -93,6 +100,11 @@ def parse_args():
     parser.add_argument("--iterations", type=int, default=10, help="Iterations per query (default: 10)")
     parser.add_argument("--warmup", type=int, default=2, help="Warmup iterations (default: 2)")
     parser.add_argument("--output-dir", dest="output_dir", default="outputs")
+    parser.add_argument("--webiq-key", dest="webiq_key",
+                        default=os.environ.get("WEBIQ_API_KEY", ""),
+                        help="WebIQ API key. If set, runs S5 (WebIQ E2E) for comparison.")
+    parser.add_argument("--webiq-max-results", dest="webiq_max_results", type=int, default=5,
+                        help="WebIQ max search results (default: 5)")
     return parser.parse_args()
 
 
@@ -155,6 +167,66 @@ def run_s4(client, deploy, effort, query, max_tokens):
     if ttft is None:
         ttft = e2e
     return ttft, e2e, len(txt), searched
+
+
+WEBIQ_SYSTEM_MSG = (
+    "You are a helpful AI assistant. Answer concisely using only the provided "
+    "WebIQ search context. Include source URLs from the context for factual claims.\n"
+    + GUARDRAILS
+)
+
+
+def run_s5(aoai_client, webiq_client, deploy, effort, query, max_tokens, max_results=5):
+    """S5: WebIQ search + AOAI Responses API generation (explicit retrieval path)"""
+    # Step 1: WebIQ search
+    t0 = time.perf_counter()
+    response = webiq_client.web.search(query=query, max_results=max_results)
+    search_lat = time.perf_counter() - t0
+
+    web_results = getattr(response, "webResults", []) or []
+    context_parts = []
+    for i, r in enumerate(web_results, 1):
+        title = getattr(r, "title", "") or ""
+        url = getattr(r, "url", "") or ""
+        content = getattr(r, "content", "") or ""
+        plain = re.sub(r"<[^>]+>", " ", content)
+        plain = re.sub(r"\s+", " ", plain).strip()
+        context_parts.append(f"[{i}] {title}\nURL: {url}\n{plain[:1600]}")
+    context = "\n\n".join(context_parts)
+
+    # Step 2: AOAI generation with WebIQ context
+    user_msg = (
+        f"Based on the following search results, answer the question.\n\n"
+        f"--- SEARCH RESULTS ---\n{context}\n--- END ---\n\n"
+        f"Question: {query}"
+    )
+    kwargs = {
+        "model": deploy,
+        "stream": True,
+        "input": [
+            {"role": "system", "content": WEBIQ_SYSTEM_MSG},
+            {"role": "user", "content": user_msg},
+        ],
+        "max_output_tokens": max_tokens,
+    }
+    if effort:
+        kwargs["reasoning"] = {"effort": effort}
+
+    t1 = time.perf_counter()
+    ttft = None
+    txt = ""
+    stream = aoai_client.responses.create(**kwargs)
+    for ev in stream:
+        if getattr(ev, "type", "") == "response.output_text.delta":
+            if ttft is None:
+                ttft = time.perf_counter() - t1
+            txt += ev.delta
+    model_e2e = time.perf_counter() - t1
+    if ttft is None:
+        ttft = model_e2e
+    total_ttft = search_lat + ttft
+    total_e2e = search_lat + model_e2e
+    return total_ttft, total_e2e, len(txt), search_lat, ttft
 
 
 def main():
@@ -252,19 +324,81 @@ def main():
             eff = effort_ws or "N/A"
             print(f"  {name:<16} {eff:<8} P50={np.percentile(arr,50):.2f}s σ={np.std(arr):.2f}s N={len(arr)} Skip={skip}")
 
+    # ─── S5: WebIQ E2E (optional, runs if --webiq-key is set) ───
+    webiq_client = None
+    if args.webiq_key:
+        if not WEBIQ_AVAILABLE:
+            print("\n⚠️  webiq package not installed. Skipping S5. pip install webiq")
+        else:
+            webiq_client = WebIQClient(auth=ApiKeyAuth(api_key=args.webiq_key))
+            print("\n" + "=" * 70)
+            print("  S5: WebIQ search + AOAI generation (explicit retrieval path)")
+            print("=" * 70)
+            for qname, qtext, maxtok in QUERIES:
+                print(f"\n  [{qname}] max_tokens={maxtok}")
+                for i in range(1, args.iterations + 1):
+                    is_wu = i <= args.warmup
+                    prefix = "WU" if is_wu else "  "
+                    for name, deploy, _, effort_ws in MODELS:
+                        try:
+                            total_ttft, total_e2e, tlen, search_lat, model_ttft = run_s5(
+                                client, webiq_client, deploy, effort_ws, qtext, maxtok, args.webiq_max_results
+                            )
+                            results.append({
+                                "scenario": "S5_webiq_guardrails", "model": name,
+                                "query": qname, "iter": i, "warmup": is_wu,
+                                "ttft": round(total_ttft, 3), "e2e": round(total_e2e, 3),
+                                "search_lat": round(search_lat, 3),
+                                "model_ttft": round(model_ttft, 3),
+                                "len": tlen,
+                            })
+                            print(f"  {prefix} i{i:2d} {name:15s} Search={search_lat*1000:.0f}ms Model={model_ttft*1000:.0f}ms Total={total_ttft:.2f}s len={tlen}")
+                        except Exception as e:
+                            results.append({
+                                "scenario": "S5_webiq_guardrails", "model": name,
+                                "query": qname, "iter": i, "warmup": is_wu,
+                                "success": False, "error": str(e)[:500],
+                            })
+                            print(f"  {prefix} i{i:2d} {name:15s} ERROR: {str(e)[:80]}")
+
+            # S5 summary
+            print("\n" + "=" * 70)
+            print("  S5 Summary (WebIQ + AOAI, warmup discarded)")
+            print("=" * 70)
+            for name, _, _, effort_ws in MODELS:
+                recs = [r for r in results if r["scenario"] == "S5_webiq_guardrails" and r["model"] == name and not r["warmup"] and r.get("success", True)]
+                if recs:
+                    arr = np.array([r["ttft"] for r in recs])
+                    search_arr = np.array([r["search_lat"] for r in recs])
+                    eff = effort_ws or "N/A"
+                    print(f"  {name:<16} {eff:<8} P50={np.percentile(arr,50):.2f}s Search_P50={np.percentile(search_arr,50)*1000:.0f}ms N={len(arr)}")
+
     # Grand summary
     print("\n" + "=" * 70)
-    print("  GRAND SUMMARY — S1 (GUARDRAILS) vs S4 (GUARDRAILS + web_search)")
+    header = "  GRAND SUMMARY — S1 vs S4 (web_search_preview)"
+    if webiq_client:
+        header += " vs S5 (WebIQ)"
+    print(header)
     print("=" * 70)
-    print(f"  {'Model':<16} | {'S1 P50':>8} | {'S4 P50':>8} | {'WS OH':>8}")
-    print("  " + "-" * 55)
+    if webiq_client:
+        print(f"  {'Model':<16} | {'S1 P50':>8} | {'S4 P50':>8} | {'S5 P50':>8} | {'WS OH':>8} | {'WebIQ OH':>8} | {'S5 faster':>10}")
+        print("  " + "-" * 90)
+    else:
+        print(f"  {'Model':<16} | {'S1 P50':>8} | {'S4 P50':>8} | {'WS OH':>8}")
+        print("  " + "-" * 55)
     for name, _, effort_s1, effort_ws in MODELS:
         s1 = [r["ttft"] for r in results if r["scenario"] == "S1_direct_guardrails" and r["model"] == name and not r["warmup"]]
         s4 = [r["ttft"] for r in results if r["scenario"] == "S4_websearch_guardrails" and r["model"] == name and not r["warmup"] and r.get("searched", True)]
+        s5 = [r["ttft"] for r in results if r["scenario"] == "S5_webiq_guardrails" and r["model"] == name and not r["warmup"] and r.get("success", True)] if webiq_client else []
         if s1 and s4:
             s1p = np.percentile(s1, 50)
             s4p = np.percentile(s4, 50)
-            print(f"  {name:<16} | {s1p:>7.2f}s | {s4p:>7.2f}s | {'+'+f'{s4p-s1p:.2f}s':>8}")
+            if s5:
+                s5p = np.percentile(s5, 50)
+                delta_pct = (s4p - s5p) / s4p * 100
+                print(f"  {name:<16} | {s1p:>7.2f}s | {s4p:>7.2f}s | {s5p:>7.2f}s | {'+'+f'{s4p-s1p:.2f}s':>8} | {'+'+f'{s5p-s1p:.2f}s':>8} | {delta_pct:>9.1f}%")
+            else:
+                print(f"  {name:<16} | {s1p:>7.2f}s | {s4p:>7.2f}s | {'+'+f'{s4p-s1p:.2f}s':>8}")
 
     # Save
     outfile = os.path.join(args.output_dir, f"benchmark_websearch_guardrails_{ts}.json")
@@ -281,6 +415,8 @@ def main():
                 "system_prompt_tokens": "~1066 (GUARDRAILS)",
                 "search_context_size": "low",
                 "tool_choice": "auto (100% trigger verified)",
+                "webiq_enabled": bool(webiq_client),
+                "webiq_max_results": args.webiq_max_results if webiq_client else None,
             },
             "results": results,
         }, f, indent=2)

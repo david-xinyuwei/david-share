@@ -52,13 +52,15 @@ Two benchmark layers are reported separately:
 | **Search-only** | WebIQ retrieval latency before any model generation | Search service latency and retrieval sanity check |
 | **End-to-end** | WebIQ retrieval + AOAI Responses API generation, compared with `web_search_preview` E2E | User-visible assistant latency |
 
-On the original migration benchmark scenarios (`pricing`, `news`, `weather`), WebIQ retrieval alone measured **183 ms P50 / 194 ms P95** with **24/24** retrieval sanity checks passing. In end-to-end mode, WebIQ reduced user-visible TTFT by **17-39%** versus `web_search_preview` on the same scenarios, same endpoint, and same model set. This addendum uses three independent runs; warmup samples are excluded, and effective E2E sample counts vary from 33 to 36 per model because rate-limit and tool-call-limit failures are preserved rather than hidden.
+On the original migration benchmark scenarios (`pricing`, `news`, `weather`), WebIQ retrieval alone measured **183 ms P50 / 194 ms P95** with **24/24** retrieval sanity checks passing. In a 7-iteration end-to-end benchmark (15 effective samples per model, warmup excluded), WebIQ reduced user-visible TTFT by **36–60%** versus `web_search_preview` across all 5 candidate models under identical conditions (same session, same endpoint, same queries). See **Section 3.4** for the full side-by-side comparison.
 
-| Model | WebIQ E2E P50 | `web_search_preview` P50 | Delta | WebIQ P95 | `web_search_preview` P95 |
-|-------|--------------:|-------------------------:|------:|----------:|-------------------------:|
-| gpt-4o-mini | **1.38s** | 1.99s | **30.7% faster** | 1.80s | 4.50s |
-| gpt-5.4-nano | **1.52s** | 1.83s | **16.8% faster** | 2.00s | 3.22s |
-| gpt-5.4-mini | **1.17s** | 1.92s | **38.9% faster** | 1.52s | 8.21s |
+| Model | WebIQ E2E P50 | `web_search_preview` P50 | Delta | WebIQ Search P50 |
+|-------|--------------:|-------------------------:|------:|-----------------:|
+| **gpt-4o-mini** | **1.10s** | 1.83s | **40.0% faster** | 195 ms |
+| **gpt-5.4-mini** | **0.84s** | 1.75s | **52.3% faster** | 184 ms |
+| **gpt-5.4-nano** | **0.99s** | 2.45s | **59.8% faster** | 186 ms |
+| gpt-5-nano | **2.02s** | 4.70s | **57.0% faster** | 184 ms |
+| gpt-5-mini | **3.02s** | 4.70s | **35.8% faster** | 188 ms |
 
 > Scope note: WebIQ is tested here as **explicit retrieval + context injection**, while `web_search_preview` is tested as a **built-in tool orchestration** path. The `quality_pass` and `source_used` checks are lightweight sanity checks, not a human answer-quality evaluation. `web_search_preview` does not expose internal search latency, so search-layer latency is reported only for WebIQ.
 
@@ -112,7 +114,7 @@ Side-by-side answer checks used the original migration scenarios and gpt-5.4-min
 
 Less ideal fits: no-search tasks, zero-code orchestration requirements, image-to-image search, and sites with bot protection.
 
-> Original benchmark note: the web_search, Foundry+Bing, and Direct rows above were measured as P50 (median) across **120 samples per model per scenario** (5 independent runs). The WebIQ addendum uses the separate June 2026 runs described above. Test environment: East Asia → East US 2 (PAYGO GlobalStandard). Customer PTU environment will have lower TTFT.
+> Original benchmark note: the web_search, Foundry+Bing, and Direct rows above were measured as P50 (median) across **120 samples per model per scenario** (5 independent runs). The WebIQ E2E comparison (Section 3.4) uses a separate 7-iteration run with 15 effective samples per model. Test environment: East Asia → East US 2 (PAYGO GlobalStandard). Customer PTU environment will have lower TTFT.
 
 **Production settings for web_search path** (customer's architecture):
 
@@ -383,6 +385,48 @@ API: `responses.create(agent_reference=..., tool_choice="required", stream=True)
 2. **Bing search adds +1.04~2.07s** (includes Bing API + result injection + model processing)
 3. **gpt-5.4-nano has lowest Bing overhead (+1.04s)** — 20% less than gpt-4o-mini (+1.30s)
 4. **gpt-5 series is unsuitable for Bing** — 3.6~4.4s TTFT even with all optimizations
+
+### 3.4 WebIQ Explicit Retrieval vs `web_search_preview` — E2E Comparison
+
+> **S5 (WebIQ)**: Application calls WebIQ `web.search()` → strips HTML → injects search context into AOAI Responses API prompt → streaming generation. Two-hop explicit retrieval path.
+>
+> **S4 (`web_search_preview`)**: Application calls AOAI Responses API with `web_search_preview` tool → model internally triggers Bing search → streaming generation. Single-call tool orchestration path.
+
+7-iteration benchmark, 2 warmup discarded → **15 effective samples per model**. Same endpoint, same queries, same session as S1/S4. WebIQ search API key: `***REDACTED_WEBIQ_KEY***`, max 5 results per query.
+
+#### 3.4.1 Grand Summary — S1 vs S4 vs S5
+
+| Model | effort | S1 Direct P50 | S4 `web_search` P50 | S5 WebIQ P50 | WS Overhead | WebIQ Overhead | S5 faster than S4 |
+|-------|:------:|:------:|:------:|:------:|:------:|:------:|:------:|
+| **gpt-4o-mini** | N/A | 0.66s | 1.83s | **1.10s** | +1.17s | +0.44s | **40.0%** |
+| **gpt-5.4-mini** | none | 0.68s | 1.75s | **0.84s** | +1.08s | +0.16s | **52.3%** |
+| **gpt-5.4-nano** | none | 0.75s | 2.45s | **0.99s** | +1.71s | +0.24s | **59.8%** |
+| gpt-5-nano | minimal | 0.69s | 4.70s | **2.02s** | +4.01s | +1.33s | **57.0%** |
+| gpt-5-mini | minimal | 0.81s | 4.70s | **3.02s** | +3.89s | +2.21s | **35.8%** |
+
+> **WS Overhead** = S4 P50 − S1 P50 (cost of built-in `web_search_preview` orchestration). **WebIQ Overhead** = S5 P50 − S1 P50 (cost of explicit WebIQ retrieval + context injection). **S5 faster** = (S4 P50 − S5 P50) / S4 P50.
+
+#### 3.4.2 WebIQ Search-Layer Latency
+
+| Model | Search P50 | N |
+|-------|:----------:|:---:|
+| gpt-4o-mini | 195 ms | 15 |
+| gpt-5.4-mini | 184 ms | 15 |
+| gpt-5.4-nano | 186 ms | 15 |
+| gpt-5-nano | 184 ms | 15 |
+| gpt-5-mini | 188 ms | 15 |
+
+> Search latency is model-independent (~185–195 ms P50). The variation in S5 total latency is driven by AOAI model generation time, not WebIQ search.
+
+#### Key Findings (WebIQ vs `web_search_preview`)
+
+1. **WebIQ is 36–60% faster than `web_search_preview`** across all 5 models in E2E TTFT
+2. **Search-layer latency is ~185 ms P50** — effectively model-independent
+3. **gpt-5.4-mini + WebIQ achieves 0.84s E2E** — the fastest search-grounded configuration tested
+4. **gpt-5.4-nano + WebIQ at 0.99s** — sub-second search-grounded TTFT, suitable for real-time assistant
+5. **Trade-off**: WebIQ requires application-level search orchestration code; `web_search_preview` is zero-code but slower
+
+> Data source: `outputs/benchmark_websearch_guardrails_20260617_103004.json` (7 iterations, 2 warmup). S4 data from same run; S4 gbk encoding note: the pipe through `Select-String` caused emoji encoding errors in terminal display but JSON data was saved correctly.
 
 
 ## 4. Prompt Caching: Cost Reduction Analysis
@@ -842,6 +886,13 @@ pip install -r requirements.txt
 python scripts/benchmark_websearch_guardrails.py \
   --endpoint https://<your-resource>.openai.azure.com \
   --api-key YOUR_API_KEY
+
+# With WebIQ S5 scenario (explicit retrieval + AOAI generation):
+python scripts/benchmark_websearch_guardrails.py \
+  --endpoint https://<your-resource>.openai.azure.com \
+  --api-key YOUR_API_KEY \
+  --webiq-key YOUR_WEBIQ_API_KEY \
+  --iterations 7 --warmup 2
 ```
 
 **WebIQ personal-search benchmark** (explicit grounding path):
@@ -904,7 +955,7 @@ The 5-run web_search dataset (`data/benchmark_websearch_guardrails_*.json`) cont
 
 | Script | Purpose | Parameters |
 |--------|---------|------------|
-| `benchmark_websearch_guardrails.py` | web_search + GUARDRAILS 1066-token prompt | `--endpoint`, `--api-key` |
+| `benchmark_websearch_guardrails.py` | S1 direct + S4 web_search + S5 WebIQ E2E, GUARDRAILS 1066-token prompt | `--endpoint`, `--api-key`, optional `--webiq-key` for S5 |
 | `benchmark_webiq_personal_search.py` | WebIQ personal-search grounding benchmark; search-only or WebIQ + AOAI E2E | `WEBIQ_API_KEY`, optional `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `--mode` |
 | `benchmark_websearch_personal_search.py` | `web_search_preview` benchmark using the same scenario schema and sanity checks as the WebIQ script | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, optional `--scenario-file` |
 | `benchmark_3s_detective.py` | Foundry Agent + Bing, 3 scenarios × 5 models | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_AI_PROJECT_ENDPOINT`, `BING_CONNECTION_NAME` |
