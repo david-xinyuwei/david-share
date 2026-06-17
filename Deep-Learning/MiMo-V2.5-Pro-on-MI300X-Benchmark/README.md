@@ -343,7 +343,26 @@ MiMo-V2.5-Pro has `num_kv_heads=8 = tp_size=8`. DP attention requires `num_kv_he
 | Cross-node MORI-EP=16 | ❌ Blocked | RCCL deadlock with Mooncake when using 16-GPU EP across 2 nodes. Limits us to EP=8 per node. | [ROCm/mori#168](https://github.com/ROCm/mori/issues/168) |
 | MTP/EAGLE + BS > cuda-graph-max-bs | ❌ Crash | EAGLE eager path SWA buffer fault at high BS | This repo |
 | DP attention on V2.5-Pro | ❌ N/A | kv_heads=8=tp_size, cannot split KV heads across DP ranks | Model architecture |
-| 256K PD router drain | ⚠️ Investigating | Concurrent 256K requests trigger `Error consuming prefill response` in router | This repo |
+| 256K PD router drain | ⚠️ Investigating | Concurrent 256K requests trigger `Error consuming prefill response` in router. Likely related to missing etcd/UCX infrastructure (see below). | This repo |
+
+### PD Disaggregation Infrastructure Gap
+
+Our PD setup differs from AMD's reference guide ([TianHao65/sglang MiMo-V2-Flash 1P1D Guide](https://github.com/TianHao65/sglang/blob/Mimo_Swa_Eable/MiMo-V2-Flash-MI308X_1P1D_Disaggregated_Inference_Guide.md)). AMD's standard PD uses additional infrastructure components that we have not yet deployed:
+
+| Component | AMD Standard PD | Our Current Setup | Gap |
+|-----------|:---:|:---:|------|
+| etcd (cluster metadata) | ✅ `install_etcd.sh` | ❌ | PD coordination / service discovery |
+| ROCm-aware UCX | ✅ Source build `--with-rocm` | ❌ | Optimized RDMA transport for GPU memory |
+| ROCm-aware OpenMPI | ✅ Source build | ❌ | Cross-node process orchestration |
+| RCCL 16-GPU all_reduce test | ✅ via mpirun | ❌ | Cross-node collective verification |
+| `--page-size` | 64 | 1 | KV cache page granularity |
+| `--chunked-prefill-size` | 32768 | 16384 | Prefill chunk size |
+| SSH between containers | ✅ passwordless | N/A (VM-level SSH) | Process launch mechanism |
+| `llm-distributed-inference` helper repo | ✅ [sammysun0711/llm-distributed-inference](https://github.com/sammysun0711/llm-distributed-inference) | ❌ | Setup automation scripts |
+
+> **Impact hypothesis**: The 256K PD router drain issue and the overall PD stability gap may stem from missing etcd/UCX/OpenMPI infrastructure. AMD's guide installs these as prerequisites before launching PD servers. Our setup relies on bare SGLang router + Mooncake without etcd coordination or UCX transport optimization.
+>
+> **Next step**: Deploy AMD-standard PD infrastructure (etcd + ROCm-aware UCX + OpenMPI) on our MI300X cluster, then re-run the full H200 matrix to see if 256K stabilizes and overall performance improves.
 
 ---
 
