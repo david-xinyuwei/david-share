@@ -23,17 +23,55 @@ Two-round recovery script now running: [`scripts/bench_micro_matrix_2x.sh`](scri
 
 ### Current Summary
 
-| Workload | MI300X result | H200 reference | Status |
-|---|---:|---:|---|
-| Prefill 8K | 14,435.91 tok/s | 31,950 (EP16/DP2) / 27,500 (EP32/DP4) | 45.2% / 52.5% of H200 |
-| Prefill 64K | 11,445.42 tok/s | 27,400 (EP16/DP2) / 23,000 (EP32/DP4) | 41.8% / 49.8% of H200 |
-| Decode 8K | TPOT 14.74-22.78 ms | TPOT 11.59-27.38 ms | Competitive at higher batch; all H200 batch points completed |
-| Decode 64K | TPOT 23.60-23.77 ms | TPOT 11.99-19.63 ms | 1.20-1.97x slower; all H200 batch points completed |
-| 256K long context | Partial / unstable | H200 256K reference available | Being re-tested with bounded two-round micro-matrix |
+#### H200 Alignment Matrix — 6 Scenarios
 
-### Initial Readout
+**Prefill Throughput** (input=context_len, output=1, BS=4, MTP=3)
 
-The completed 8K and 64K workloads show that the current MI300X PD+MTP setup is close on decode TPOT at medium-to-high batch sizes, while prefill throughput is still roughly half of the H200 reference. The 256K long-context path is not yet stable in the monolithic run and is being re-tested as smaller bounded cases.
+| Context | MI300X EP8 (tok/s) | H200 EP16/DP2 (tok/s) | H200 EP32/DP4 (tok/s) | MI300X / H200 EP16 | Status |
+|---:|---:|---:|---:|---:|:---:|
+| **8K** | 14,436 | 31,950 | 27,500 | **45.2%** | ✅ |
+| **64K** | 11,445 | 27,400 | 23,000 | **41.8%** | ✅ |
+| **256K** | ~7,315 (single-req) | 17,400 | 13,425 | ~42% single / ❌ concurrent | ⚠️ |
+
+> 256K concurrent prefill unstable (PD router drain issue); single-request diagnostic confirms ~7,315 tok/s.
+
+**Decode TPOT** (input=context_len, output=1024, MTP=3)
+
+| Context | BS | MI300X TPOT (ms) | H200 EP32/DP4 TPOT (ms) | Ratio | Status |
+|---:|---:|---:|---:|---:|:---:|
+| **8K** | 16 | 14.74 | 11.59 | 1.27× | ✅ |
+| | 32 | 19.07 | 12.56 | 1.52× | ✅ |
+| | 64 | 22.57 | 14.28 | 1.58× | ✅ |
+| | 128 | 22.62 | 18.25 | 1.24× | ✅ |
+| | 192 | 22.79 | 23.29 | **0.98×** ✅ | ✅ |
+| | 256 | 22.78 | 27.38 | **0.83×** ✅ | ✅ |
+| **64K** | 16 | 23.65 | 11.99 | 1.97× | ✅ |
+| | 32 | 23.61 | 14.31 | 1.65× | ✅ |
+| | 64 | 23.77 | 16.33 | 1.46× | ✅ |
+| | 96 | 23.60 | 19.63 | 1.20× | ✅ |
+| **256K** | 16 | 59.40 | 13.93 | 4.26× | ❌ unstable |
+| | 32 | — | 16.94 | — | ❌ stuck |
+
+### Key Findings
+
+1. **Decode 8K (BS≥192): MI300X matches or beats H200.** MI300X TPOT plateaus at ~22ms from BS64+, while H200 degrades linearly. Crossover at BS192.
+2. **Decode 64K: 1.2-2.0× slower.** Flat ~23.6ms regardless of BS — memory-bandwidth bound on long-context KV access.
+3. **Prefill: ~45% of H200 EP16.** Biggest gap. Root cause: **attention backend stuck on triton** — aiter CK attention kernel does not support MiMo's hybrid SWA+GQA yet ([ROCm/aiter#1542](https://github.com/ROCm/aiter/issues/1542)). AMD acknowledged this in the 2026-05-09 sync meeting.
+4. **256K: PD router response-drain issue.** Not a compute or OOM problem — single-request works fine. Concurrent 256K requests trigger router-level failures.
+5. **Topology disadvantage**: MI300X uses EP=8/DP=1 (model constraint: kv_heads=8=tp_size). H200 uses EP16-32/DP2-4. This alone accounts for a significant portion of the prefill gap.
+
+### aiter Coverage (Current State)
+
+| Component | aiter Enabled | Backend | Notes |
+|-----------|:---:|:---:|------|
+| MoE expert dispatch (fused_moe) | ✅ | CK kernel | 384-expert routing |
+| MoE topk routing | ✅ | aiter topk | Expert selection |
+| MORI-EP token dispatcher | ✅ | aiter FP8 quant | Cross-GPU communication |
+| FP8 quantization | ✅ | aiter per-token FP8 | Weight/activation quantization |
+| LayerNorm | ✅ | aiter fused | Fused normalization |
+| **Attention (prefill + decode)** | **❌** | **triton** | **Blocked: hybrid SWA+GQA layout** ([ROCm/aiter#1542](https://github.com/ROCm/aiter/issues/1542)) |
+
+> Attention is the single most compute-intensive operation. Prefill throughput is directly bottlenecked by the triton fallback. AMD confirmed this gap in the 2026-05-09 sync and has a CK MHA kernel in development, but it does not yet support hybrid SWA+GQA models.
 
 ---
 
@@ -56,7 +94,7 @@ The completed 8K and 64K workloads show that the current MI300X PD+MTP setup is 
 | Docker image | `rocm/sgl-dev:v0.5.11-rocm720-mi30x-20260510` | AMD 0510 build |
 | SGLang | `0.5.12.post2.dev2+gb5e695251` | AMD fork: [TianHao65/sglang](https://github.com/TianHao65/sglang) branch `Mimo_mtp_enable` |
 | ROCm | 7.2.0 | |
-| aiter | `0.1.12.post2.dev150` | GEMM/fused MoE enabled via `SGLANG_USE_AITER=1`; attention backend still triton |
+| aiter | `0.1.12.post2.dev150` | MoE/GEMM/FP8/LayerNorm enabled; **attention still triton** (hybrid SWA+GQA blocked, [ROCm/aiter#1542](https://github.com/ROCm/aiter/issues/1542)) |
 | Mooncake | `0.3.11.post1` | KV cache transfer for PD disaggregation |
 | PyTorch | 2.9.1 | ROCm backend |
 
@@ -241,22 +279,37 @@ export SGLANG_DISAGGREGATION_WAITING_TIMEOUT=5000
 
 ### Results — PD Disaggregated Decode (H200 Customer Alignment: context 8K)
 
-*Results pending — benchmark in progress*
-
 | BS (total) | Output Throughput (tok/s) | Median TPOT (ms) | H200 TPOT (ms) | Ratio | Status |
 |---:|---:|---:|---:|---:|:---:|
-| 16 | *pending* | *pending* | 11.59 | — | ⏳ |
-| 32 | *pending* | *pending* | 12.56 | — | ⏳ |
-| 64 | *pending* | *pending* | 14.28 | — | ⏳ |
-| 128 | *pending* | *pending* | 18.25 | — | ⏳ |
+| 16 | 7,170.84 | 14.74 | 11.59 | 1.27× slower | ✅ |
+| 32 | 10,763.28 | 19.07 | 12.56 | 1.52× slower | ✅ |
+| 64 | 12,776.32 | 22.57 | 14.28 | 1.58× slower | ✅ |
+| 128 | 12,875.40 | 22.62 | 18.25 | 1.24× slower | ✅ |
+| 192 | 13,248.56 | 22.79 | 23.29 | **0.98× (parity)** | ✅ |
+| 256 | 13,025.30 | 22.78 | 27.38 | **0.83× (faster)** | ✅ |
+
+> MI300X TPOT is flat ~22ms across BS128-256 (likely hitting EAGLE draft batch ceiling), while H200 TPOT degrades linearly. At BS≥192 MI300X matches or beats H200.
 
 ### Results — PD Disaggregated Decode (H200 Customer Alignment: context 64K)
 
-*Results pending*
+| BS (total) | Output Throughput (tok/s) | Median TPOT (ms) | H200 TPOT (ms) | Ratio | Status |
+|---:|---:|---:|---:|---:|:---:|
+| 16 | 11,494.38 | 23.65 | 11.99 | 1.97× slower | ✅ |
+| 32 | 11,477.83 | 23.61 | 14.31 | 1.65× slower | ✅ |
+| 64 | 11,508.16 | 23.77 | 16.33 | 1.46× slower | ✅ |
+| 96 | 11,454.83 | 23.60 | 19.63 | 1.20× slower | ✅ |
+
+> 64K context decode TPOT is flat ~23.6ms regardless of BS, suggesting memory-bandwidth saturation on long-context KV access.
 
 ### Results — Prefill Throughput (output=1)
 
-*Results pending*
+| Context | MI300X (tok/s) | H200 EP16/DP2 (tok/s) | H200 EP32/DP4 (tok/s) | vs EP16 | vs EP32 | Status |
+|---:|---:|---:|---:|---:|---:|:---:|
+| 8K | 14,435.91 | 31,950 | 27,500 | 45.2% | 52.5% | ✅ |
+| 64K | 11,445.42 | 27,400 | 23,000 | 41.8% | 49.8% | ✅ |
+| 256K | 217.38 | 17,400 | 13,425 | 1.2% | 1.6% | ❌ unstable |
+
+> 256K prefill is not stable — only 6/20 requests succeeded (PD router response-drain issue). Single-request diagnostic confirms 256K works (~7,315 tok/s for 1 request), but concurrent load triggers failures.
 
 ---
 
@@ -286,10 +339,11 @@ MiMo-V2.5-Pro has `num_kv_heads=8 = tp_size=8`. DP attention requires `num_kv_he
 
 | Issue | Status | Impact | Reference |
 |-------|--------|--------|-----------|
-| MTP/EAGLE + BS > cuda-graph-max-bs | ❌ Crash | EAGLE eager path SWA buffer fault | This repo |
-| aiter attention backend | ❌ Blocked | `ValueError: K/V linear layout must match` for hybrid SWA+GQA | [ROCm/aiter#1542](https://github.com/ROCm/aiter/issues/1542) |
-| DP attention on V2.5-Pro | ❌ N/A | kv_heads=8=tp_size, cannot split | Model architecture |
-| Cross-node MORI-EP | ❌ Blocked | RCCL deadlock with Mooncake | [ROCm/mori#168](https://github.com/ROCm/mori/issues/168) |
+| **aiter attention backend** | **❌ Blocked** | Attention (prefill+decode) stuck on triton; hybrid SWA+GQA K/V layout not supported by CK kernel. **This is the #1 perf bottleneck.** AMD acknowledged 2026-05-09. | [ROCm/aiter#1542](https://github.com/ROCm/aiter/issues/1542) |
+| Cross-node MORI-EP=16 | ❌ Blocked | RCCL deadlock with Mooncake when using 16-GPU EP across 2 nodes. Limits us to EP=8 per node. | [ROCm/mori#168](https://github.com/ROCm/mori/issues/168) |
+| MTP/EAGLE + BS > cuda-graph-max-bs | ❌ Crash | EAGLE eager path SWA buffer fault at high BS | This repo |
+| DP attention on V2.5-Pro | ❌ N/A | kv_heads=8=tp_size, cannot split KV heads across DP ranks | Model architecture |
+| 256K PD router drain | ⚠️ Investigating | Concurrent 256K requests trigger `Error consuming prefill response` in router | This repo |
 
 ---
 
