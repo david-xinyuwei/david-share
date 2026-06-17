@@ -46,6 +46,20 @@ Tested across 5 candidate models using the **customer's actual architecture** (R
 
 Microsoft describes Web IQ as "a suite of AI-native APIs that gives applications access to fresh, real-world intelligence from across the web - including web pages, news, images, and videos" ([Microsoft WebIQ](https://www.microsoft.com/en-us/webiq), accessed 2026-06-16). This repo now includes WebIQ as an explicit retrieval path, separate from the built-in `web_search_preview` tool orchestration path.
 
+#### Public WebIQ Resources and Activation
+
+The table below keeps only public-safe WebIQ resources. Internal-only enablement details are intentionally omitted from this public repo.
+
+| Resource | Link | Why it matters |
+|----------|------|----------------|
+| WebIQ product page | [aka.ms/WebIQ](https://aka.ms/WebIQ) | Official public overview; describes WebIQ as fresh web, news, image, and video intelligence for AI agents |
+| WebIQ portal | [webiq.microsoft.ai](https://webiq.microsoft.ai/) | Public gated portal for access and profile/key management |
+| Announcement blog | [aka.ms/nextgengrounding](https://aka.ms/nextgengrounding) | Architecture and design principles: Bing foundation, passage-level evidence, latency, quality, and token efficiency |
+| Customer waitlist | [aka.ms/webiq-waitlist](https://aka.ms/webiq-waitlist) | Public customer activation path for limited-access WebIQ onboarding |
+| Workload calculator | [aka.ms/webiq-calculator](https://aka.ms/webiq-calculator) | Sizing aid for workload and capacity planning; access may require Microsoft account permissions |
+| Grounding Arena demo | [WebIQ Grounding Arena](https://groundingarenawebapp-hmb0fvfqd4ggh2g4.westus2-01.azurewebsites.net/) | Public demo for comparing no-grounding vs Microsoft WebIQ responses |
+| Grounding API Explorer | [Grounding API Explorer](https://salmon-water-00ce88d10.1.azurestaticapps.net/) | Public explorer covering Web, News, Video, Image, and Browse API surfaces |
+
 Two benchmark layers are reported separately:
 
 | Layer | What is measured | Primary use |

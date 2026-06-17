@@ -46,6 +46,20 @@
 
 Microsoft 对 WebIQ 的官方描述是："a suite of AI-native APIs that gives applications access to fresh, real-world intelligence from across the web - including web pages, news, images, and videos"（来源：[Microsoft WebIQ](https://www.microsoft.com/en-us/webiq)，访问日期 2026-06-16）。本 repo 现在将 WebIQ 作为一条显式 retrieval 路径加入测试，和内置 `web_search_preview` tool orchestration 路径分开对比。
 
+#### WebIQ 公开资源与客户激活路径
+
+下表只保留可公开引用的 WebIQ 资源。内部 enablement 细节不会写入这个 public repo。
+
+| 资源 | 链接 | 价值 |
+|------|------|------|
+| WebIQ 产品页 | [aka.ms/WebIQ](https://aka.ms/WebIQ) | 官方公开介绍；说明 WebIQ 为 AI agents 提供 fresh web、news、image、video intelligence |
+| WebIQ portal | [webiq.microsoft.ai](https://webiq.microsoft.ai/) | 公开 gated portal，用于 access、profile 和 key management |
+| 公告博客 | [aka.ms/nextgengrounding](https://aka.ms/nextgengrounding) | 架构与设计原则：Bing foundation、passage-level evidence、latency、quality、token efficiency |
+| Customer waitlist | [aka.ms/webiq-waitlist](https://aka.ms/webiq-waitlist) | 客户 limited-access WebIQ onboarding 的公开激活路径 |
+| Workload calculator | [aka.ms/webiq-calculator](https://aka.ms/webiq-calculator) | 用于 workload / capacity planning 的 sizing aid；访问可能需要 Microsoft account 权限 |
+| Grounding Arena demo | [WebIQ Grounding Arena](https://groundingarenawebapp-hmb0fvfqd4ggh2g4.westus2-01.azurewebsites.net/) | 对比 no-grounding vs Microsoft WebIQ response 的公开 demo |
+| Grounding API Explorer | [Grounding API Explorer](https://salmon-water-00ce88d10.1.azurestaticapps.net/) | 覆盖 Web、News、Video、Image、Browse API surfaces 的公开 explorer |
+
 测试分两层：
 
 | 层级 | 测什么 | 用途 |
