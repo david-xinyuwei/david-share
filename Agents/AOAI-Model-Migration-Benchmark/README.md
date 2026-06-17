@@ -363,11 +363,11 @@ API: `responses.create(agent_reference=..., tool_choice="required", stream=True)
 
 > 5 runs merged, 40 effective samples per query per model.
 
-#### TTFT Overview (Foundry+Bing Only)
+#### TTFT Overview (Foundry+Bing + web_search + WebIQ)
 
 ![TTFT P50 by Model and Scenario](images/ttft_by_scenario.png)
 
-> This chart covers only the Foundry Agent alternative path in Section 3.3. The WebIQ E2E comparison is shown separately in Section 3.4.
+> This chart combines the 5-run Foundry Agent dataset (S1/S2/S3) with the WebIQ E2E comparison run (S4/S5), so every web-grounded path is visible in one view. S5 uses the 7-iteration WebIQ run from Section 3.4.
 
 #### 3.3.3 Summary (Foundry+Bing, 5 runs merged, 120 samples/model/scenario)
 
@@ -388,9 +388,11 @@ API: `responses.create(agent_reference=..., tool_choice="required", stream=True)
 | **Bing overhead** | +1.30s | **+1.04s** | +1.08s | +1.93s | +2.07s |
 | **Foundry+Bing total** (P50) | 1.99s | **1.85s** | 1.95s | 3.56s | 3.80s |
 
-#### Latency Decomposition Chart
+#### Latency Decomposition Chart — Foundry+Bing vs web_search vs WebIQ
 
 ![Latency Decomposition](images/latency_decomposition.png)
+
+> The grouped bars compare S3 Foundry+Bing, S4 built-in `web_search_preview`, and S5 WebIQ explicit retrieval. S4/S5 overheads are computed from the Section 3.4 S1/S4/S5 run, while S3 uses the 5-run Foundry dataset in Section 3.3.
 
 #### Key Findings (Foundry+Bing)
 

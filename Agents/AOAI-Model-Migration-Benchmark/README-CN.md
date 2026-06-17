@@ -363,11 +363,11 @@ API：`responses.create(agent_reference=..., tool_choice="required", stream=True
 
 > 5 轮合并，每 query 每模型 40 有效样本。
 
-#### TTFT 总览（仅 Foundry+Bing）
+#### TTFT 总览（Foundry+Bing + web_search + WebIQ）
 
 ![TTFT P50 by Model and Scenario](images/ttft_by_scenario.png)
 
-> 这张图只覆盖 Section 3.3 的 Foundry Agent 备选路径；WebIQ 的 S1/S4/S5 E2E 对比见 Section 3.4。
+> 这张图将 5 轮 Foundry Agent 数据集（S1/S2/S3）和 WebIQ E2E 对比运行（S4/S5）放在同一视图里，确保所有 web-grounded 路径都可见。S5 使用 Section 3.4 的 7 轮 WebIQ run。
 
 #### 3.3.3 汇总（Foundry+Bing，5 轮合并，120 样本/模型/场景）
 
@@ -388,9 +388,11 @@ API：`responses.create(agent_reference=..., tool_choice="required", stream=True
 | **Bing 搜索开销** | +1.30s | **+1.04s** | +1.08s | +1.93s | +2.07s |
 | **Foundry+Bing 总计** (P50) | 1.99s | **1.85s** | 1.95s | 3.56s | 3.80s |
 
-#### 延迟分层图
+#### 延迟分层图 — Foundry+Bing vs web_search vs WebIQ
 
 ![延迟分层图](images/latency_decomposition.png)
+
+> 分组堆叠条分别对比 S3 Foundry+Bing、S4 内置 `web_search_preview` 和 S5 WebIQ 显式 retrieval。S4/S5 overhead 来自 Section 3.4 的 S1/S4/S5 run；S3 使用 Section 3.3 的 5 轮 Foundry 数据集。
 
 #### 主要结论（Foundry+Bing）
 
