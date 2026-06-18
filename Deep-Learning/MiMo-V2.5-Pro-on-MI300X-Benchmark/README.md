@@ -21,6 +21,7 @@ There is now a separate topology probe for the H200 prefill shape: `--tp-size 16
 
 Full two-round report: [`reports/micro_matrix_2x_report_20260618.md`](reports/micro_matrix_2x_report_20260618.md)
 Raw two-round summary: [`data/micro_matrix_2x_summary_20260618.tsv`](data/micro_matrix_2x_summary_20260618.tsv)
+Final MI300X vs H200 comparison: [`reports/final_mi300x_vs_h200_comparison_20260618.md`](reports/final_mi300x_vs_h200_comparison_20260618.md)
 256K diagnostic report: [`reports/diagnostic_256k_minimal_20260618.md`](reports/diagnostic_256k_minimal_20260618.md)
 Raw 256K diagnostic summary: [`data/diagnostic_256k_minimal_20260618.tsv`](data/diagnostic_256k_minimal_20260618.tsv)
 Long-context prefill sweep: [`reports/prefill_context_sweep_20260618.md`](reports/prefill_context_sweep_20260618.md)
