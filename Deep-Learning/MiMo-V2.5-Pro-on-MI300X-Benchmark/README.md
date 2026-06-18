@@ -13,13 +13,30 @@ This repo provides full reproduction scripts, launch commands, benchmark results
 
 ---
 
-## Latest H200-Aligned Result (2026-06-17)
+## Latest H200-Aligned Result (2026-06-18)
 
-The latest valid run uses the PD router path, fixed random input lengths, `chunked-prefill-size=16384`, and MTP/EAGLE layer=3. The current MI300X topology is `TP=8, EP=8`; Xiaomi's H200 reference uses stronger EP/DP settings (`EP=16/DP=2` for prefill and `EP=32/DP=4` for decode), so this is an aligned workload comparison rather than an identical-topology comparison.
+The latest valid run uses the PD router path, fixed random input lengths, `chunked-prefill-size=16384`, and MTP/EAGLE layer=3. The completed MI300X baseline is `TP=8, local EP=8, DP=1`; Xiaomi's H200 reference uses stronger global EP/DP settings (`attn TP=8, DP=2, global EP=16` for prefill and `attn TP=8, DP=4, global EP=32` for decode), so the completed numbers below are an aligned workload comparison rather than an identical-topology comparison.
 
-Full initial report: [`reports/initial_h200_aligned_report_20260617.md`](reports/initial_h200_aligned_report_20260617.md)  
-Raw parsed summary: [`data/initial_router_valid_summary_20260617.tsv`](data/initial_router_valid_summary_20260617.tsv)  
-Two-round recovery script now running: [`scripts/bench_micro_matrix_2x.sh`](scripts/bench_micro_matrix_2x.sh)
+There is now a separate topology probe for the H200 prefill shape: `--tp-size 16 --dp-size 2 --enable-dp-attention`. In the current SGLang AMD fork, this gives `effective_attn_tp = tp_size / dp_size = 8`, matching MiMo-V2.5-Pro's fused-QKV requirement (`num_key_value_heads=8`). The probe passed the model/config validation path but failed before server readiness with MORI dispatch heap pressure, so it has **no performance numbers yet**.
+
+Full two-round report: [`reports/micro_matrix_2x_report_20260618.md`](reports/micro_matrix_2x_report_20260618.md)  
+Raw two-round summary: [`data/micro_matrix_2x_summary_20260618.tsv`](data/micro_matrix_2x_summary_20260618.tsv)  
+256K diagnostic report: [`reports/diagnostic_256k_minimal_20260618.md`](reports/diagnostic_256k_minimal_20260618.md)  
+Raw 256K diagnostic summary: [`data/diagnostic_256k_minimal_20260618.tsv`](data/diagnostic_256k_minimal_20260618.tsv)  
+Initial report: [`reports/initial_h200_aligned_report_20260617.md`](reports/initial_h200_aligned_report_20260617.md)  
+Initial parsed summary: [`data/initial_router_valid_summary_20260617.tsv`](data/initial_router_valid_summary_20260617.tsv)  
+Topology probe report: [`reports/tp16_dp2_topology_probe_20260617.md`](reports/tp16_dp2_topology_probe_20260617.md)  
+Topology probe status TSV: [`data/tp16_dp2_probe_status_20260617.tsv`](data/tp16_dp2_probe_status_20260617.tsv)  
+Two-round matrix script: [`scripts/bench_micro_matrix_2x.sh`](scripts/bench_micro_matrix_2x.sh)  
+256K diagnostic script: [`scripts/bench_256k_prefill_minimal.sh`](scripts/bench_256k_prefill_minimal.sh)
+
+### Validated vs Investigating
+
+| Track | Topology | Status | What it proves |
+|-------|----------|--------|----------------|
+| EP8/DP1 baseline | `TP=8, local EP=8, DP=1`, 1P+1D PD router | Two-round data complete for 8K/64K prefill and 8K/64K decode; 256K repeated/concurrent runs are unstable | MI300X can run the H200 workload shape with real routing, MTP=3, and fixed random input lengths |
+| 256K isolated diagnostic | `TP=8, local EP=8, DP=1`, single 256K request through PD router | 5/5 isolated 256K prefill requests succeeded, average 7,239 tok/s; sequential `n=4` still stalled after 2/4 | 256K compute path works; instability is in repeated/concurrent PD-router response-drain state |
+| TP16/DP2 probe | `TP=16, DP=2, enable-dp-attention`, 2-node single server | Startup probe failed before ready: MORI heap OOM plus HIP invalid argument in dispatch/combine | The corrected H200 topology expression passes the MiMo-V2.5-Pro effective-attention-TP validation, but current MORI/runtime sizing cannot yet sustain the server |
 
 ### Current Summary
 
@@ -29,36 +46,36 @@ Two-round recovery script now running: [`scripts/bench_micro_matrix_2x.sh`](scri
 
 | Context | MI300X EP8 (tok/s) | H200 EP16/DP2 (tok/s) | H200 EP32/DP4 (tok/s) | MI300X / H200 EP16 | Status |
 |---:|---:|---:|---:|---:|:---:|
-| **8K** | 14,436 | 31,950 | 27,500 | **45.2%** | ✅ |
-| **64K** | 11,445 | 27,400 | 23,000 | **41.8%** | ✅ |
-| **256K** | ~7,315 (single-req) | 17,400 | 13,425 | ~42% single / ❌ concurrent | ⚠️ |
+| **8K** | 13,531 | 31,950 | 27,500 | **42.4%** | ✅ |
+| **64K** | 11,500 | 27,400 | 23,000 | **42.0%** | ✅ |
+| **256K** | 7,239 (isolated single-req avg) | 17,400 | 13,425 | **41.6% single / ❌ concurrent** | ⚠️ |
 
-> 256K concurrent prefill unstable (PD router drain issue); single-request diagnostic confirms ~7,315 tok/s.
+> 256K repeated/concurrent prefill remains unstable. The isolated single-request diagnostic confirms the compute path is viable at ~7.2K tok/s, but sequential `n=4` stalls after partial progress.
 
 **Decode TPOT** (input=context_len, output=1024, MTP=3)
 
 | Context | BS | MI300X TPOT (ms) | H200 EP32/DP4 TPOT (ms) | Ratio | Status |
 |---:|---:|---:|---:|---:|:---:|
-| **8K** | 16 | 14.74 | 11.59 | 1.27× | ✅ |
-| | 32 | 19.07 | 12.56 | 1.52× | ✅ |
-| | 64 | 22.57 | 14.28 | 1.58× | ✅ |
-| | 128 | 22.62 | 18.25 | 1.24× | ✅ |
-| | 192 | 22.79 | 23.29 | **0.98×** ✅ | ✅ |
-| | 256 | 22.78 | 27.38 | **0.83×** ✅ | ✅ |
-| **64K** | 16 | 23.65 | 11.99 | 1.97× | ✅ |
-| | 32 | 23.61 | 14.31 | 1.65× | ✅ |
-| | 64 | 23.77 | 16.33 | 1.46× | ✅ |
-| | 96 | 23.60 | 19.63 | 1.20× | ✅ |
-| **256K** | 16 | 59.40 | 13.93 | 4.26× | ❌ unstable |
+| **8K** | 16 | 13.71 | 11.59 | 1.18× | ✅ |
+| | 32 | 16.53 | 12.56 | 1.32× | ✅ |
+| | 64 | 19.70 | 14.28 | 1.38× | ✅ |
+| | 128 | 22.16 | 18.25 | 1.21× | ✅ |
+| | 192 | 22.56 | 23.29 | **0.97×** ✅ | ✅ |
+| | 256 | 22.86 | 27.38 | **0.83×** ✅ | ✅ |
+| **64K** | 16 | 23.36 | 11.99 | 1.95× | ✅ |
+| | 32 | 23.37 | 14.31 | 1.63× | ✅ |
+| | 64 | 24.39 | 16.33 | 1.49× | ✅ |
+| | 96 | 24.18 | 19.63 | 1.23× | ✅ |
+| **256K** | 16 | — | 13.93 | — | ❌ stuck |
 | | 32 | — | 16.94 | — | ❌ stuck |
 
 ### Key Findings
 
 1. **Decode 8K (BS≥192): MI300X matches or beats H200.** MI300X TPOT plateaus at ~22ms from BS64+, while H200 degrades linearly. Crossover at BS192.
-2. **Decode 64K: 1.2-2.0× slower.** Flat ~23.6ms regardless of BS — memory-bandwidth bound on long-context KV access.
-3. **Prefill: ~45% of H200 EP16.** Biggest gap. Root cause: **attention backend stuck on triton** — aiter CK attention kernel does not support MiMo's hybrid SWA+GQA yet ([ROCm/aiter#1542](https://github.com/ROCm/aiter/issues/1542)). AMD acknowledged this in the 2026-05-09 sync meeting.
-4. **256K: PD router response-drain issue.** Not a compute or OOM problem — single-request works fine. Concurrent 256K requests trigger router-level failures.
-5. **Topology disadvantage**: MI300X uses EP=8/DP=1 (model constraint: kv_heads=8=tp_size). H200 uses EP16-32/DP2-4. This alone accounts for a significant portion of the prefill gap.
+2. **Decode 64K: 1.23-1.95× slower.** Flat ~23-24ms regardless of BS — memory-bandwidth bound on long-context KV access.
+3. **Prefill: ~42% of H200 EP16.** Biggest gap. Root cause: **attention backend stuck on triton** — aiter CK attention kernel does not support MiMo's hybrid SWA+GQA yet ([ROCm/aiter#1542](https://github.com/ROCm/aiter/issues/1542)). AMD acknowledged this in the 2026-05-09 sync meeting.
+4. **256K: compute path works, repeated/concurrent PD-router path stalls.** Five isolated 256K prefill requests succeeded at 7,239 tok/s average, but sequential `n=4` stalled at 2/4 with GPU idle and healthy router/prefill endpoints.
+5. **Topology gap remains open.** The completed MI300X data is EP8/DP1. H200's `ep_size` in the customer sheet is a global topology field (`attn_tp_size * dp_size`), not the same as SGLang's local `--ep-size`. The closest SGLang expression of H200 prefill EP16/DP2 for MiMo-V2.5-Pro is `--tp-size 16 --dp-size 2 --enable-dp-attention`, which is now tracked as a separate probe rather than mixed into the EP8 baseline.
 
 ### aiter Coverage (Current State)
 
@@ -241,7 +258,7 @@ Node 1 (8× MI300X)               Node 2 (8× MI300X)
 | `--chunked-prefill-size` | **16384** | Matches H200 customer report `chunk_size=16384` |
 | `--disable-radix-cache` | Yes | Matches H200 customer report |
 | `--context-length` | 262144 | Covers H200 decode matrix (up to 256K context) |
-| `--tp-size` | 8 | Matches H200 `attn_tp=8` |
+| `--tp-size` | 8 | Completed EP8/DP1 baseline. With DP attention enabled, H200 `attn_tp=8` maps to effective attention TP, not necessarily the raw CLI `--tp-size`. |
 | MTP layers | 3 (model built-in) | Matches H200 `mtp_layer_num=3` |
 | IB devices | 8× CX7 400G | All NICs used for maximum KV transfer bandwidth |
 
@@ -281,12 +298,12 @@ export SGLANG_DISAGGREGATION_WAITING_TIMEOUT=5000
 
 | BS (total) | Output Throughput (tok/s) | Median TPOT (ms) | H200 TPOT (ms) | Ratio | Status |
 |---:|---:|---:|---:|---:|:---:|
-| 16 | 7,170.84 | 14.74 | 11.59 | 1.27× slower | ✅ |
-| 32 | 10,763.28 | 19.07 | 12.56 | 1.52× slower | ✅ |
-| 64 | 12,776.32 | 22.57 | 14.28 | 1.58× slower | ✅ |
-| 128 | 12,875.40 | 22.62 | 18.25 | 1.24× slower | ✅ |
-| 192 | 13,248.56 | 22.79 | 23.29 | **0.98× (parity)** | ✅ |
-| 256 | 13,025.30 | 22.78 | 27.38 | **0.83× (faster)** | ✅ |
+| 16 | 682.36 | 13.71 | 11.59 | 1.18× slower | ✅ |
+| 32 | 961.58 | 16.53 | 12.56 | 1.32× slower | ✅ |
+| 64 | 1,244.16 | 19.70 | 14.28 | 1.38× slower | ✅ |
+| 128 | 1,513.52 | 22.16 | 18.25 | 1.21× slower | ✅ |
+| 192 | 1,609.61 | 22.56 | 23.29 | **0.97× (parity)** | ✅ |
+| 256 | 1,694.96 | 22.86 | 27.38 | **0.83× (faster)** | ✅ |
 
 > MI300X TPOT is flat ~22ms across BS128-256 (likely hitting EAGLE draft batch ceiling), while H200 TPOT degrades linearly. At BS≥192 MI300X matches or beats H200.
 
@@ -294,10 +311,10 @@ export SGLANG_DISAGGREGATION_WAITING_TIMEOUT=5000
 
 | BS (total) | Output Throughput (tok/s) | Median TPOT (ms) | H200 TPOT (ms) | Ratio | Status |
 |---:|---:|---:|---:|---:|:---:|
-| 16 | 11,494.38 | 23.65 | 11.99 | 1.97× slower | ✅ |
-| 32 | 11,477.83 | 23.61 | 14.31 | 1.65× slower | ✅ |
-| 64 | 11,508.16 | 23.77 | 16.33 | 1.46× slower | ✅ |
-| 96 | 11,454.83 | 23.60 | 19.63 | 1.20× slower | ✅ |
+| 16 | 143.06 | 23.36 | 11.99 | 1.95× slower | ✅ |
+| 32 | 157.64 | 23.37 | 14.31 | 1.63× slower | ✅ |
+| 64 | 171.81 | 24.39 | 16.33 | 1.49× slower | ✅ |
+| 96 | 176.82 | 24.18 | 19.63 | 1.23× slower | ✅ |
 
 > 64K context decode TPOT is flat ~23.6ms regardless of BS, suggesting memory-bandwidth saturation on long-context KV access.
 
@@ -305,11 +322,11 @@ export SGLANG_DISAGGREGATION_WAITING_TIMEOUT=5000
 
 | Context | MI300X (tok/s) | H200 EP16/DP2 (tok/s) | H200 EP32/DP4 (tok/s) | vs EP16 | vs EP32 | Status |
 |---:|---:|---:|---:|---:|---:|:---:|
-| 8K | 14,435.91 | 31,950 | 27,500 | 45.2% | 52.5% | ✅ |
-| 64K | 11,445.42 | 27,400 | 23,000 | 41.8% | 49.8% | ✅ |
-| 256K | 217.38 | 17,400 | 13,425 | 1.2% | 1.6% | ❌ unstable |
+| 8K | 13,530.83 | 31,950 | 27,500 | 42.4% | 49.2% | ✅ |
+| 64K | 11,500.10 | 27,400 | 23,000 | 42.0% | 50.0% | ✅ |
+| 256K | 7,239.08 (isolated single request) | 17,400 | 13,425 | 41.6% | 53.9% | ⚠️ isolated only |
 
-> 256K prefill is not stable — only 6/20 requests succeeded (PD router response-drain issue). Single-request diagnostic confirms 256K works (~7,315 tok/s for 1 request), but concurrent load triggers failures.
+> 256K prefill is not stable under repeated/concurrent PD-router traffic. Five isolated single-request runs succeeded at 7,239.08 tok/s average, while sequential `n=4` stalled at 2/4 with GPU idle and healthy router/prefill endpoints.
 
 ---
 
@@ -321,17 +338,56 @@ The Xiaomi H200 reference data uses a different parallelism topology:
 
 | | H200 (Customer) | MI300X (This Work) |
 |---|---|---|
-| TP | 8 | 8 |
-| EP | **32** | **None** (V2.5-Pro constraint) |
-| DP | **4** | **1** (V2.5-Pro kv_heads=8=tp_size) |
+| Attention TP | 8 | 8 effective attention TP in the completed EP8/DP1 baseline |
+| Global EP | **16 / 32** | **8 local EP** in completed baseline |
+| DP | **2 / 4** | **1** in completed baseline |
 | Nodes | Multiple (implied by EP=32) | 2 (1P+1D) |
 | GPU Memory | 141 GB HBM3e × 8 = 1,128 GB | **192 GB HBM3e × 8 = 1,536 GB** |
 
-The H200 report's `bs (per DP)` column means **per data-parallel rank**. With DP=4, total actual concurrency = bs × 4. MI300X uses DP=1, so our BS = total concurrency.
+The H200 report's `bs (per DP)` column means **per data-parallel rank**. With DP=4, total actual concurrency = bs × 4. MI300X uses DP=1 in the completed baseline, so our BS = total concurrency. H200 system-level decode throughput = reported per-DP TPS × DP.
 
-### Why DP Attention Is Not Available on MI300X
+#### Topology Semantics Correction
 
-MiMo-V2.5-Pro has `num_kv_heads=8 = tp_size=8`. DP attention requires `num_kv_heads > tp_size` to split KV heads across DP ranks. This is a model architecture constraint, not a hardware limitation.
+The H200 sheet uses:
+
+```text
+global ep_size = attn_tp_size * dp_size
+```
+
+Examples from the H200 table:
+
+| H200 row | attn TP | DP | global EP |
+|----------|--------:|---:|----------:|
+| Prefill group 1 | 8 | 2 | 16 |
+| Prefill group 2 | 8 | 4 | 32 |
+| Decode group | 8 | 4 | 32 |
+
+Current SGLang has a different local CLI constraint for MoE EP. For `MiMoV2ForCausalLM` with `attention_projection_layout=fused_qkv`, the AMD fork computes:
+
+```text
+effective_attn_tp_size = tp_size / dp_size / attn_cp_size
+expected_effective_attn_tp = num_key_value_heads = 8
+```
+
+Therefore:
+
+- `--tp-size 8 --dp-size 2 --enable-dp-attention` would imply effective attention TP=4 for MiMo-V2.5-Pro and should not match the fused-QKV requirement.
+- `--tp-size 16 --dp-size 2 --enable-dp-attention` implies effective attention TP=8 and is the current probe for H200 prefill EP16/DP2 shape.
+- This probe is reported separately because it did not reach server readiness and has no benchmark numbers yet.
+
+### Benchmark Methodology Differences
+
+| Factor | H200 Reference | MI300X (This Work) | Impact |
+|--------|------|------|--------|
+| **Expert routing** | `fake_topk_ids` (perfectly balanced) | Real model routing (natural imbalance) | H200 numbers are **best-case** with zero straggler overhead. MI300X includes real routing overhead. The gap may be overstated by ~5-15%. |
+| **Chunk size** | `16384 per DP` × DP=2 = 32768 total | `chunked-prefill-size=32768` (DP=1) | Total chunk throughput aligned. But single-rank processing a 32K chunk hits higher attention peak memory than two ranks each processing 16K. |
+| **Attention backend** | CUDA kernels (FlashAttention / vendor-optimized) | triton (aiter CK blocked for hybrid SWA+GQA) | This is the #1 bottleneck. Prefill throughput is directly limited by triton fallback. |
+
+> **Key caveat for readers**: The H200 reference data was generated with `fake_topk_ids` which forces all 384 experts to receive exactly equal token counts, eliminating MoE load imbalance. Our MI300X benchmark uses real model routing where expert load follows natural distribution. This means a portion of the observed gap is methodology-driven, not hardware-driven.
+
+### DP Attention Status
+
+DP attention is not available in the completed EP8/DP1 baseline because the baseline uses raw `--tp-size 8`, and MiMo-V2.5-Pro expects effective attention TP=8. Under DP attention, current SGLang divides raw `tp_size` by `dp_size`, so a two-node topology must raise raw `--tp-size` to 16 to keep effective attention TP at 8. That TP16/DP2 path now passes the model/config validation path but fails later in MORI dispatch heap allocation before the server becomes ready.
 
 ---
 
@@ -340,9 +396,9 @@ MiMo-V2.5-Pro has `num_kv_heads=8 = tp_size=8`. DP attention requires `num_kv_he
 | Issue | Status | Impact | Reference |
 |-------|--------|--------|-----------|
 | **aiter attention backend** | **❌ Blocked** | Attention (prefill+decode) stuck on triton; hybrid SWA+GQA K/V layout not supported by CK kernel. **This is the #1 perf bottleneck.** AMD acknowledged 2026-05-09. | [ROCm/aiter#1542](https://github.com/ROCm/aiter/issues/1542) |
-| Cross-node MORI-EP=16 | ❌ Blocked | RCCL deadlock with Mooncake when using 16-GPU EP across 2 nodes. Limits us to EP=8 per node. | [ROCm/mori#168](https://github.com/ROCm/mori/issues/168) |
+| TP16/DP2 DP-attention server | ❌ Blocked before ready | Corrected H200 prefill topology probe passes effective-attention-TP validation, then fails with MORI dispatch heap OOM and HIP invalid argument in dispatch/combine. | This repo: [`reports/tp16_dp2_topology_probe_20260617.md`](reports/tp16_dp2_topology_probe_20260617.md) |
+| Cross-node MORI-EP=16 | ❌ Blocked | RCCL / MORI instability when using 16-GPU expert-dispatch style layouts across 2 nodes. Limits the completed baseline to EP=8 per node. | [ROCm/mori#168](https://github.com/ROCm/mori/issues/168) |
 | MTP/EAGLE + BS > cuda-graph-max-bs | ❌ Crash | EAGLE eager path SWA buffer fault at high BS | This repo |
-| DP attention on V2.5-Pro | ❌ N/A | kv_heads=8=tp_size, cannot split KV heads across DP ranks | Model architecture |
 | 256K PD router drain | ⚠️ Investigating | Concurrent 256K requests trigger `Error consuming prefill response` in router. Likely related to missing etcd/UCX infrastructure (see below). | This repo |
 
 ### PD Disaggregation Infrastructure Gap
@@ -355,8 +411,8 @@ Our PD setup differs from AMD's reference guide ([TianHao65/sglang MiMo-V2-Flash
 | ROCm-aware UCX | ✅ Source build `--with-rocm` | ❌ | Optimized RDMA transport for GPU memory |
 | ROCm-aware OpenMPI | ✅ Source build | ❌ | Cross-node process orchestration |
 | RCCL 16-GPU all_reduce test | ✅ via mpirun | ❌ | Cross-node collective verification |
-| `--page-size` | 64 | 1 | KV cache page granularity |
-| `--chunked-prefill-size` | 32768 | 16384 | Prefill chunk size |
+| `--page-size` | 64 | 1 for stable v3 baseline; 64 tested separately | KV cache page granularity |
+| `--chunked-prefill-size` | 32768 | 16384 for stable EP8 baseline; 32768 triggered MORI heap pressure | Prefill chunk size |
 | SSH between containers | ✅ passwordless | N/A (VM-level SSH) | Process launch mechanism |
 | `llm-distributed-inference` helper repo | ✅ [sammysun0711/llm-distributed-inference](https://github.com/sammysun0711/llm-distributed-inference) | ❌ | Setup automation scripts |
 
@@ -404,6 +460,7 @@ docker run -d -it \
   1. Decode node: `bash scripts/launch_decode.sh`
   2. Prefill node: `bash scripts/launch_prefill.sh`
   3. Prefill node: `bash scripts/launch_router.sh`
+- **TP16/DP2 topology probe**: export a `DIST_INIT_ADDR` reachable from both nodes, then run `scripts/launch_tp16_dp2_node0.sh` on node 0 and `scripts/launch_tp16_dp2_node1.sh` on node 1. This is a diagnostic path only until MORI heap sizing is fixed.
 
 ### Step 5 — Run benchmarks
 
@@ -422,7 +479,10 @@ bash scripts/bench_h200_alignment.sh
 │   ├── launch_prefill.sh         ← PD prefill server
 │   ├── launch_decode.sh          ← PD decode server
 │   ├── launch_router.sh          ← PD router
-│   └── bench_h200_alignment.sh   ← H200-aligned benchmark
+│   ├── bench_h200_alignment.sh   ← H200-aligned benchmark
+│   ├── bench_full_h200_matrix_v3.sh ← Full EP8/DP1 matrix, page-size=1 baseline
+│   ├── launch_tp16_dp2_node0.sh  ← Node 0 for H200 EP16/DP2 topology probe
+│   └── launch_tp16_dp2_node1.sh  ← Node 1 for H200 EP16/DP2 topology probe
 ├── data/                         ← Raw benchmark JSON results
 ├── logs/                         ← Server logs (sanitized)
 └── images/                       ← Diagrams
@@ -439,4 +499,4 @@ bash scripts/bench_h200_alignment.sh
 
 ---
 
-*Last updated: 2026-06-16*
+*Last updated: 2026-06-17*
