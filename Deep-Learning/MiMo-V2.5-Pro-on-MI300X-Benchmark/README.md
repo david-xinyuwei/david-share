@@ -27,6 +27,8 @@ Long-context prefill sweep: [`reports/prefill_context_sweep_20260618.md`](report
 Raw prefill context sweep: [`data/prefill_context_sweep_20260618.tsv`](data/prefill_context_sweep_20260618.tsv)
 Streaming decode boundary report: [`reports/decode_context_boundary_20260618.md`](reports/decode_context_boundary_20260618.md)
 Raw decode boundary summary: [`data/decode_context_boundary_20260618.tsv`](data/decode_context_boundary_20260618.tsv)
+255.375K output-length diagnostic: [`reports/decode_output_len_diag_255375k_20260618.md`](reports/decode_output_len_diag_255375k_20260618.md)
+Raw 255.375K output-length diagnostic: [`data/decode_output_len_diag_255375k_20260618.tsv`](data/decode_output_len_diag_255375k_20260618.tsv)
 Initial report: [`reports/initial_h200_aligned_report_20260617.md`](reports/initial_h200_aligned_report_20260617.md)
 Initial parsed summary: [`data/initial_router_valid_summary_20260617.tsv`](data/initial_router_valid_summary_20260617.tsv)
 Topology probe report: [`reports/tp16_dp2_topology_probe_20260617.md`](reports/tp16_dp2_topology_probe_20260617.md)
@@ -42,6 +44,7 @@ Two-round matrix script: [`scripts/bench_micro_matrix_2x.sh`](scripts/bench_micr
 | 256K isolated diagnostic | `TP=8, local EP=8, DP=1`, single 256K request through PD router | 5/5 isolated 256K prefill requests succeeded, average 7,239 tok/s; sequential `n=4` still stalled after 2/4 | 256K compute path works; instability is in repeated/concurrent PD-router response-drain state |
 | Long-context prefill sweep | `TP=8, local EP=8, DP=1`, isolated single requests with router restart | 64K, 128K, 192K, and 256K prefill all completed; latest 256K isolated result is 7,294 tok/s | The isolated prefill compute path is viable through 256K |
 | Streaming decode boundary | `TP=8, local EP=8, DP=1`, BS=1, output=1024, streaming | 64K through 255.25K completed; 255.375K, 255.5K, and 256K hit the 300s stale rule with idle GPU | The single-request streaming decode boundary is between 255.25K and 255.375K |
+| 255.375K output-length diagnostic | Same PD-router path, same context, output length changed only | output=1/64/256 completed; output=1024 stale | The failing boundary is not a mandatory prefill-to-decode handoff failure; long decode generation / streaming response-drain is the likely failing segment |
 | TP16/DP2 probe | `TP=16, DP=2, enable-dp-attention`, 2-node single server | Startup probe failed before ready: MORI heap OOM plus HIP invalid argument in dispatch/combine | The corrected H200 topology expression passes the MiMo-V2.5-Pro effective-attention-TP validation, but current MORI/runtime sizing cannot yet sustain the server |
 
 ### Current Summary
@@ -98,7 +101,8 @@ Two-round matrix script: [`scripts/bench_micro_matrix_2x.sh`](scripts/bench_micr
 3. **Prefill: ~42% of H200 EP16.** Biggest gap. Root cause: **attention backend stuck on triton** — aiter CK attention kernel does not support MiMo's hybrid SWA+GQA yet ([ROCm/aiter#1542](https://github.com/ROCm/aiter/issues/1542)). AMD acknowledged this in the 2026-05-09 sync meeting.
 4. **256K prefill: compute path works, repeated/concurrent PD-router path stalls.** Five isolated 256K prefill requests succeeded at 7,239 tok/s average, and a later isolated context sweep produced 7,294 tok/s. Sequential `n=4` still stalled at 2/4 with GPU idle and healthy router/prefill endpoints.
 5. **Decode long-context boundary is now narrowed to 255.25K-255.375K for BS=1 streaming.** Single-request streaming decode works from 64K through 255.25K. The 255.375K, 255.5K, and 256K strict runs hit the 300s stale rule with idle GPU and healthy services, so they are not valid performance numbers.
-6. **Topology gap remains open.** The completed MI300X data is EP8/DP1. H200's `ep_size` in the customer sheet is a global topology field (`attn_tp_size * dp_size`), not the same as SGLang's local `--ep-size`. The closest SGLang expression of H200 prefill EP16/DP2 for MiMo-V2.5-Pro is `--tp-size 16 --dp-size 2 --enable-dp-attention`, which is now tracked as a separate probe rather than mixed into the EP8 baseline.
+6. **255.375K output-length diagnostic localizes the stale segment.** At the failing context, output lengths 1, 64, and 256 all complete, while output=1024 stalls. This means the initial prefill-to-decode handoff is viable; the stale behavior appears in long decode generation, scheduler state, or streaming response-drain.
+7. **Topology gap remains open.** The completed MI300X data is EP8/DP1. H200's `ep_size` in the customer sheet is a global topology field (`attn_tp_size * dp_size`), not the same as SGLang's local `--ep-size`. The closest SGLang expression of H200 prefill EP16/DP2 for MiMo-V2.5-Pro is `--tp-size 16 --dp-size 2 --enable-dp-attention`, which is now tracked as a separate probe rather than mixed into the EP8 baseline.
 
 ### aiter Coverage (Current State)
 
