@@ -41,7 +41,7 @@ Two-round matrix script: [`scripts/bench_micro_matrix_2x.sh`](scripts/bench_micr
 | EP8/DP1 baseline | `TP=8, local EP=8, DP=1`, 1P+1D PD router | Two-round data complete for 8K/64K prefill and 8K/64K decode; 256K repeated/concurrent runs are unstable | MI300X can run the H200 workload shape with real routing, MTP=3, and fixed random input lengths |
 | 256K isolated diagnostic | `TP=8, local EP=8, DP=1`, single 256K request through PD router | 5/5 isolated 256K prefill requests succeeded, average 7,239 tok/s; sequential `n=4` still stalled after 2/4 | 256K compute path works; instability is in repeated/concurrent PD-router response-drain state |
 | Long-context prefill sweep | `TP=8, local EP=8, DP=1`, isolated single requests with router restart | 64K, 128K, 192K, and 256K prefill all completed; latest 256K isolated result is 7,294 tok/s | The isolated prefill compute path is viable through 256K |
-| Streaming decode boundary | `TP=8, local EP=8, DP=1`, BS=1, output=1024, streaming | 64K through 255K completed; 255.5K and 256K hit the 300s stale rule with idle GPU | The single-request streaming decode boundary is between 255K and 255.5K |
+| Streaming decode boundary | `TP=8, local EP=8, DP=1`, BS=1, output=1024, streaming | 64K through 255.25K completed; 255.375K, 255.5K, and 256K hit the 300s stale rule with idle GPU | The single-request streaming decode boundary is between 255.25K and 255.375K |
 | TP16/DP2 probe | `TP=16, DP=2, enable-dp-attention`, 2-node single server | Startup probe failed before ready: MORI heap OOM plus HIP invalid argument in dispatch/combine | The corrected H200 topology expression passes the MiMo-V2.5-Pro effective-attention-TP validation, but current MORI/runtime sizing cannot yet sustain the server |
 
 ### Current Summary
@@ -84,6 +84,8 @@ Two-round matrix script: [`scripts/bench_micro_matrix_2x.sh`](scripts/bench_micr
 | **252K boundary** | 1 | 58.86 | — | — | ✅ |
 | **254K boundary** | 1 | 59.29 | — | — | ✅ |
 | **255K boundary** | 1 | 59.45 | — | — | ✅ |
+| **255.25K boundary** | 1 | 59.49 | — | — | ✅ |
+| **255.375K boundary** | 1 | — | — | — | ❌ stale |
 | **255.5K boundary** | 1 | — | — | — | ❌ stale |
 | **256K boundary** | 1 | — | — | — | ❌ stale |
 | **256K** | 16 | — | 13.93 | — | ❌ stuck |
@@ -95,7 +97,7 @@ Two-round matrix script: [`scripts/bench_micro_matrix_2x.sh`](scripts/bench_micr
 2. **Decode 64K: 1.23-1.95× slower.** Flat ~23-24ms regardless of BS — memory-bandwidth bound on long-context KV access.
 3. **Prefill: ~42% of H200 EP16.** Biggest gap. Root cause: **attention backend stuck on triton** — aiter CK attention kernel does not support MiMo's hybrid SWA+GQA yet ([ROCm/aiter#1542](https://github.com/ROCm/aiter/issues/1542)). AMD acknowledged this in the 2026-05-09 sync meeting.
 4. **256K prefill: compute path works, repeated/concurrent PD-router path stalls.** Five isolated 256K prefill requests succeeded at 7,239 tok/s average, and a later isolated context sweep produced 7,294 tok/s. Sequential `n=4` still stalled at 2/4 with GPU idle and healthy router/prefill endpoints.
-5. **Decode long-context boundary is now narrowed to 255K-255.5K for BS=1 streaming.** Single-request streaming decode works from 64K through 255K. The 255.5K and 256K strict runs hit the 300s stale rule with idle GPU and healthy services, so they are not valid performance numbers.
+5. **Decode long-context boundary is now narrowed to 255.25K-255.375K for BS=1 streaming.** Single-request streaming decode works from 64K through 255.25K. The 255.375K, 255.5K, and 256K strict runs hit the 300s stale rule with idle GPU and healthy services, so they are not valid performance numbers.
 6. **Topology gap remains open.** The completed MI300X data is EP8/DP1. H200's `ep_size` in the customer sheet is a global topology field (`attn_tp_size * dp_size`), not the same as SGLang's local `--ep-size`. The closest SGLang expression of H200 prefill EP16/DP2 for MiMo-V2.5-Pro is `--tp-size 16 --dp-size 2 --enable-dp-attention`, which is now tracked as a separate probe rather than mixed into the EP8 baseline.
 
 ### aiter Coverage (Current State)

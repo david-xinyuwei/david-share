@@ -33,14 +33,16 @@ Raw summary TSV: [`../data/decode_context_boundary_20260618.tsv`](../data/decode
 | 252K | OK | 1 | 2,713.32 | 10.77 | 34,886.93 | 58.86 | Final high-context sweep succeeds. |
 | 254K | OK | 1 | 2,707.26 | 10.66 | 35,410.47 | 59.29 | Final high-context sweep succeeds. |
 | 255K | OK | 1 | 2,705.20 | 10.61 | 35,704.00 | 59.45 | Highest successful strict point so far. |
+| 255.25K | OK | 1 | 2,716.38 | 10.64 | 35,363.74 | 59.49 | Highest successful strict point so far. |
+| 255.375K | `STALE_KILLED` | — | — | — | — | — | Hit the 300s stale rule with idle GPU; not a performance number. |
 | 255.5K | `STALE_KILLED` | — | — | — | — | — | Hit the 300s stale rule with idle GPU; not a performance number. |
 | 256K | `STALE_KILLED` | — | — | — | — | — | Hit the 300s stale rule with idle GPU; not a performance number. |
 
 ## Boundary Conclusion
 
-The current proven decode boundary is **between 255K and 255.5K** for single-request streaming decode with 1024 generated tokens.
+The current proven decode boundary is **between 255.25K and 255.375K** for single-request streaming decode with 1024 generated tokens.
 
-The next useful sweep is 255.25K and 255.375K. If 255.25K fails, the boundary is 255K-255.25K. If 255.25K succeeds and 255.375K fails, the boundary is 255.25K-255.375K. If both succeed, retry 255.5K once more to check whether the 255.5K stale result is deterministic.
+The next useful sweep is 255.3125K and 255.34375K. If 255.3125K fails, the boundary is 255.25K-255.3125K. If 255.3125K succeeds and 255.34375K fails, the boundary is 255.3125K-255.34375K. If both succeed, retry 255.375K once more to check whether the stale result is deterministic.
 
 ## Data Integrity Note
 
@@ -48,6 +50,8 @@ The 80K metrics are sourced from the per-case serving benchmark log, which emitt
 
 The earlier 128K stuck note is superseded by the strict rerun. The strict 128K run completed with `Successful requests: 1`, so it is reported as a valid performance number.
 
-The 255.5K result is a strict stale result: elapsed time reached 364 seconds, log age reached 316 seconds, GPU utilization remained idle, and the benchmark client was killed. It is intentionally not reported as a performance number.
+The 255.375K result is a strict stale result. It is intentionally not reported as a performance number.
+
+The 255.5K result is also a strict stale result: elapsed time reached 364 seconds, log age reached 316 seconds, GPU utilization remained idle, and the benchmark client was killed. It is intentionally not reported as a performance number.
 
 The 256K result is also a strict stale result: elapsed time reached 364 seconds, log age reached 317 seconds, GPU utilization remained idle, and the benchmark client was killed. It is intentionally not reported as a performance number.
