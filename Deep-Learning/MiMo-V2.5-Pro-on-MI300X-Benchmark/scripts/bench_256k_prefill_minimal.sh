@@ -7,12 +7,7 @@ MODEL="${MODEL:-/data/models/MiMo-V2.5-Pro}"
 SUMMARY="$DIR/summary.tsv"
 RESULTS="$DIR/results.log"
 STALE_SECONDS="${STALE_SECONDS:-300}"
-ROUTER_HOST="${ROUTER_HOST:-127.0.0.1}"
-ROUTER_PORT="${ROUTER_PORT:-40000}"
-ROUTER_BASE_URL="${ROUTER_BASE_URL:-http://${ROUTER_HOST}:${ROUTER_PORT}}"
-PREFILL_BASE_URL="${PREFILL_BASE_URL:-http://127.0.0.1:30000}"
-DECODE_BASE_URL="${DECODE_BASE_URL:-}"
-BASE=(--backend sglang --host "$ROUTER_HOST" --port "$ROUTER_PORT" --model "$MODEL" --tokenizer "$MODEL" --dataset-name random --random-range-ratio 1.0 --flush-cache --seed 12345)
+BASE=(--backend sglang --host 127.0.0.1 --port 40000 --model "$MODEL" --tokenizer "$MODEL" --dataset-name random --random-range-ratio 1.0 --flush-cache --seed 12345)
 
 mkdir -p "$DIR"
 printf "case\tinput_len\toutput_len\tbs\tnum_prompts\tstream\ttimeout_s\tstale_s\texit_code\tstatus\tsuccess\tinput_tps\toutput_tps\tmedian_ttft_ms\tmedian_tpot_ms\n" > "$SUMMARY"
@@ -43,18 +38,14 @@ gpu_busy_max() {
 }
 
 health_check() {
-  curl -fsS --max-time 10 "$PREFILL_BASE_URL/v1/models" >/dev/null 2>&1 || return 1
-  if [[ -n "$DECODE_BASE_URL" ]]; then
-    curl -fsS --max-time 10 "$DECODE_BASE_URL/v1/models" >/dev/null 2>&1 || return 1
-  else
-    log "decode_health_skipped set_DECODE_BASE_URL_to_enable"
-  fi
-  curl -fsS --max-time 10 "$ROUTER_BASE_URL/v1/models" >/dev/null 2>&1 || return 1
+  curl -fsS --max-time 10 http://127.0.0.1:30000/v1/models >/dev/null 2>&1 || return 1
+  curl -fsS --max-time 10 http://172.16.1.122:30001/v1/models >/dev/null 2>&1 || return 1
+  curl -fsS --max-time 10 http://127.0.0.1:40000/v1/models >/dev/null 2>&1 || return 1
   return 0
 }
 
 flush_cache() {
-  curl -sS --max-time 30 -X POST "$ROUTER_BASE_URL/flush_cache" >/dev/null 2>&1 || true
+  curl -sS --max-time 30 -X POST http://127.0.0.1:40000/flush_cache >/dev/null 2>&1 || true
 }
 
 restart_router() {
@@ -68,7 +59,7 @@ restart_router() {
   done
   nohup bash /data/bench_ep8_full/launch_router.sh > "$DIR/router_restart_$(date -u +%H%M%S).log" 2>&1 </dev/null &
   for i in $(seq 1 48); do
-    if curl -fsS --max-time 5 "$ROUTER_BASE_URL/v1/models" >/dev/null 2>&1; then
+    if curl -fsS --max-time 5 http://127.0.0.1:40000/v1/models >/dev/null 2>&1; then
       log "router_restart_ready attempt=$i"
       return 0
     fi
@@ -146,11 +137,7 @@ run_case() {
 }
 
 log "DIAG_START dir=$DIR"
-decode_health="skipped"
-if [[ -n "$DECODE_BASE_URL" ]]; then
-  decode_health=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$DECODE_BASE_URL/health")
-fi
-log "SERVICE_HEALTH router=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$ROUTER_BASE_URL/health") prefill=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$PREFILL_BASE_URL/health") decode=$decode_health"
+log "SERVICE_HEALTH router=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 http://127.0.0.1:40000/health) prefill=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 http://127.0.0.1:29000/health)"
 
 run_case prefill_256k_n1_stream 262144 1 1 1 stream 600 "$STALE_SECONDS"
 run_case prefill_256k_n4_nostream_seq 262144 1 1 4 no-stream 1200 "$STALE_SECONDS" --disable-stream
