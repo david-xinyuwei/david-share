@@ -23,6 +23,10 @@ Full two-round report: [`reports/micro_matrix_2x_report_20260618.md`](reports/mi
 Raw two-round summary: [`data/micro_matrix_2x_summary_20260618.tsv`](data/micro_matrix_2x_summary_20260618.tsv)  
 256K diagnostic report: [`reports/diagnostic_256k_minimal_20260618.md`](reports/diagnostic_256k_minimal_20260618.md)  
 Raw 256K diagnostic summary: [`data/diagnostic_256k_minimal_20260618.tsv`](data/diagnostic_256k_minimal_20260618.tsv)  
+Long-context prefill sweep: [`reports/prefill_context_sweep_20260618.md`](reports/prefill_context_sweep_20260618.md)
+Raw prefill context sweep: [`data/prefill_context_sweep_20260618.tsv`](data/prefill_context_sweep_20260618.tsv)
+Streaming decode boundary report: [`reports/decode_context_boundary_20260618.md`](reports/decode_context_boundary_20260618.md)
+Raw decode boundary summary: [`data/decode_context_boundary_20260618.tsv`](data/decode_context_boundary_20260618.tsv)
 Initial report: [`reports/initial_h200_aligned_report_20260617.md`](reports/initial_h200_aligned_report_20260617.md)  
 Initial parsed summary: [`data/initial_router_valid_summary_20260617.tsv`](data/initial_router_valid_summary_20260617.tsv)  
 Topology probe report: [`reports/tp16_dp2_topology_probe_20260617.md`](reports/tp16_dp2_topology_probe_20260617.md)  
@@ -36,6 +40,8 @@ Two-round matrix script: [`scripts/bench_micro_matrix_2x.sh`](scripts/bench_micr
 |-------|----------|--------|----------------|
 | EP8/DP1 baseline | `TP=8, local EP=8, DP=1`, 1P+1D PD router | Two-round data complete for 8K/64K prefill and 8K/64K decode; 256K repeated/concurrent runs are unstable | MI300X can run the H200 workload shape with real routing, MTP=3, and fixed random input lengths |
 | 256K isolated diagnostic | `TP=8, local EP=8, DP=1`, single 256K request through PD router | 5/5 isolated 256K prefill requests succeeded, average 7,239 tok/s; sequential `n=4` still stalled after 2/4 | 256K compute path works; instability is in repeated/concurrent PD-router response-drain state |
+| Long-context prefill sweep | `TP=8, local EP=8, DP=1`, isolated single requests with router restart | 64K, 128K, 192K, and 256K prefill all completed; latest 256K isolated result is 7,294 tok/s | The isolated prefill compute path is viable through 256K |
+| Streaming decode boundary | `TP=8, local EP=8, DP=1`, BS=1, output=1024, streaming | 64K and 80K completed; 128K stuck at 0/1 with idle GPU and healthy services | The current decode failure boundary is above 80K and at or below 128K; 96K/112K remain to be measured |
 | TP16/DP2 probe | `TP=16, DP=2, enable-dp-attention`, 2-node single server | Startup probe failed before ready: MORI heap OOM plus HIP invalid argument in dispatch/combine | The corrected H200 topology expression passes the MiMo-V2.5-Pro effective-attention-TP validation, but current MORI/runtime sizing cannot yet sustain the server |
 
 ### Current Summary
@@ -48,9 +54,9 @@ Two-round matrix script: [`scripts/bench_micro_matrix_2x.sh`](scripts/bench_micr
 |---:|---:|---:|---:|---:|:---:|
 | **8K** | 13,531 | 31,950 | 27,500 | **42.4%** | ✅ |
 | **64K** | 11,500 | 27,400 | 23,000 | **42.0%** | ✅ |
-| **256K** | 7,239 (isolated single-req avg) | 17,400 | 13,425 | **41.6% single / ❌ concurrent** | ⚠️ |
+| **256K** | 7,239 avg / 7,294 latest isolated | 17,400 | 13,425 | **41.6-41.9% single / ❌ concurrent** | ⚠️ |
 
-> 256K repeated/concurrent prefill remains unstable. The isolated single-request diagnostic confirms the compute path is viable at ~7.2K tok/s, but sequential `n=4` stalls after partial progress.
+> 256K repeated/concurrent prefill remains unstable. The isolated single-request diagnostic and context sweep confirm the compute path is viable at ~7.2-7.3K tok/s, but sequential `n=4` stalls after partial progress.
 
 **Decode TPOT** (input=context_len, output=1024, MTP=3)
 
@@ -66,6 +72,9 @@ Two-round matrix script: [`scripts/bench_micro_matrix_2x.sh`](scripts/bench_micr
 | | 32 | 23.37 | 14.31 | 1.63× | ✅ |
 | | 64 | 24.39 | 16.33 | 1.49× | ✅ |
 | | 96 | 24.18 | 19.63 | 1.23× | ✅ |
+| **64K boundary** | 1 | 23.03 | — | — | ✅ |
+| **80K boundary** | 1 | 26.07 | — | — | ✅ |
+| **128K boundary** | 1 | — | — | — | ❌ stuck |
 | **256K** | 16 | — | 13.93 | — | ❌ stuck |
 | | 32 | — | 16.94 | — | ❌ stuck |
 
@@ -74,8 +83,9 @@ Two-round matrix script: [`scripts/bench_micro_matrix_2x.sh`](scripts/bench_micr
 1. **Decode 8K (BS≥192): MI300X matches or beats H200.** MI300X TPOT plateaus at ~22ms from BS64+, while H200 degrades linearly. Crossover at BS192.
 2. **Decode 64K: 1.23-1.95× slower.** Flat ~23-24ms regardless of BS — memory-bandwidth bound on long-context KV access.
 3. **Prefill: ~42% of H200 EP16.** Biggest gap. Root cause: **attention backend stuck on triton** — aiter CK attention kernel does not support MiMo's hybrid SWA+GQA yet ([ROCm/aiter#1542](https://github.com/ROCm/aiter/issues/1542)). AMD acknowledged this in the 2026-05-09 sync meeting.
-4. **256K: compute path works, repeated/concurrent PD-router path stalls.** Five isolated 256K prefill requests succeeded at 7,239 tok/s average, but sequential `n=4` stalled at 2/4 with GPU idle and healthy router/prefill endpoints.
-5. **Topology gap remains open.** The completed MI300X data is EP8/DP1. H200's `ep_size` in the customer sheet is a global topology field (`attn_tp_size * dp_size`), not the same as SGLang's local `--ep-size`. The closest SGLang expression of H200 prefill EP16/DP2 for MiMo-V2.5-Pro is `--tp-size 16 --dp-size 2 --enable-dp-attention`, which is now tracked as a separate probe rather than mixed into the EP8 baseline.
+4. **256K prefill: compute path works, repeated/concurrent PD-router path stalls.** Five isolated 256K prefill requests succeeded at 7,239 tok/s average, and a later isolated context sweep produced 7,294 tok/s. Sequential `n=4` still stalled at 2/4 with GPU idle and healthy router/prefill endpoints.
+5. **Decode long-context boundary is now narrowed.** Single-request streaming decode works at 64K and 80K, but 128K remains stuck at 0/1 with idle GPU and healthy services. The next gap to measure is 96K/112K.
+6. **Topology gap remains open.** The completed MI300X data is EP8/DP1. H200's `ep_size` in the customer sheet is a global topology field (`attn_tp_size * dp_size`), not the same as SGLang's local `--ep-size`. The closest SGLang expression of H200 prefill EP16/DP2 for MiMo-V2.5-Pro is `--tp-size 16 --dp-size 2 --enable-dp-attention`, which is now tracked as a separate probe rather than mixed into the EP8 baseline.
 
 ### aiter Coverage (Current State)
 
