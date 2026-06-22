@@ -11,6 +11,8 @@ This repo provides full reproduction scripts, launch commands, benchmark results
 
 > Author: 魏新宇 (Xinyu Wei) — Microsoft AI and Apps Global Black Belt (GBB)
 
+English | [中文版](README-CN.md)
+
 ---
 
 ## Latest H200-Aligned Result (2026-06-18)
@@ -71,13 +73,15 @@ Two-round matrix script: [`scripts/bench_micro_matrix_2x.sh`](scripts/bench_micr
 
 ### Key Findings
 
-1. **Decode 8K (BS≥192): MI300X matches or beats H200.** MI300X TPOT plateaus at ~22ms from BS64+, while H200 degrades linearly. Crossover at BS192.
-2. **Decode 64K: 1.23-1.95× slower.** Flat ~23-24ms regardless of BS — memory-bandwidth bound on long-context KV access.
-3. **Prefill: ~42% of H200 EP16.** Biggest gap. Root cause: **attention backend stuck on triton** — aiter CK attention kernel does not support MiMo's hybrid SWA+GQA yet ([ROCm/aiter#1542](https://github.com/ROCm/aiter/issues/1542)). AMD acknowledged this in the 2026-05-09 sync meeting.
-4. **256K: compute path works, repeated/concurrent PD-router path stalls.** Five isolated 256K prefill requests succeeded at 7,239 tok/s average, but sequential `n=4` stalled at 2/4 with GPU idle and healthy router/prefill endpoints.
-5. **Topology gap remains open.** The completed MI300X data is EP8/DP1. H200's `ep_size` in the customer sheet is a global topology field (`attn_tp_size * dp_size`), not the same as SGLang's local `--ep-size`. The closest SGLang expression of H200 prefill EP16/DP2 for MiMo-V2.5-Pro is `--tp-size 16 --dp-size 2 --enable-dp-attention`, which is now tracked as a separate probe rather than mixed into the EP8 baseline.
+1. **Decode 8K (BS≥192): MI300X matches or beats H200 with triton+MTP.** MI300X TPOT plateaus at ~22ms from BS64+, while H200 degrades linearly. Crossover at BS192.
+2. **Decode 64K: 1.23-1.95× slower (triton+MTP) / 1.4-1.7× slower (aiter no-MTP).** Flat TPOT regardless of BS — memory-bandwidth bound on long-context KV access. aiter is slightly better for 64K decode.
+3. **Prefill: ~42% of H200 (triton) → ~50-66% of H200 (aiter).** aiter attention kernel unlocks +12%~56% prefill improvement. Biggest gain at 256K context (triton=7.3K → aiter=11.4K tok/s).
+4. **aiter + MTP incompatible**: MTP acceptance rate drops from 0.666 → 0.2 when switching triton→aiter attention. Draft model predictions mismatch due to numerical differences. AMD needs to retrain/calibrate the MTP draft model against aiter attention outputs.
+5. **CUDA Graph critical for decode (discovered 2026-06-19)**: Decode server `--disable-cuda-graph` causes 5× TPOT regression (23ms → 120ms). Only prefill should disable CUDA graph.
+6. **256K: compute path works, repeated/concurrent PD-router path stalls.** Five isolated 256K prefill requests succeeded at 7,239 tok/s (triton) / 11,410 tok/s (aiter), while sequential `n=4` stalls.
+7. **Topology gap remains open.** H200's EP16/DP2 vs MI300X's EP8/DP1 is still a structural difference that contributes to the gap.
 
-### aiter Coverage (Current State)
+### aiter Coverage (Updated 2026-06-19)
 
 | Component | aiter Enabled | Backend | Notes |
 |-----------|:---:|:---:|------|
@@ -86,9 +90,9 @@ Two-round matrix script: [`scripts/bench_micro_matrix_2x.sh`](scripts/bench_micr
 | MORI-EP token dispatcher | ✅ | aiter FP8 quant | Cross-GPU communication |
 | FP8 quantization | ✅ | aiter per-token FP8 | Weight/activation quantization |
 | LayerNorm | ✅ | aiter fused | Fused normalization |
-| **Attention (prefill + decode)** | **❌** | **triton** | **Blocked: hybrid SWA+GQA layout** ([ROCm/aiter#1542](https://github.com/ROCm/aiter/issues/1542)) |
+| **Attention (prefill + decode)** | **✅** | **aiter `mha_batch_prefill`** | **Enabled since 2026-06-18 commit `f5fe8e944`** |
 
-> Attention is the single most compute-intensive operation. Prefill throughput is directly bottlenecked by the triton fallback. AMD confirmed this gap in the 2026-05-09 sync and has a CK MHA kernel in development, but it does not yet support hybrid SWA+GQA models.
+> **2026-06-19 Update**: AMD resolved the hybrid SWA+GQA attention gap. The `Mimo_mtp_enable` branch commit `f5fe8e944` enables `--attention-backend aiter` for MiMo-V2.5-Pro. Prefill throughput improved +12%~56% (longer sequences benefit more, matching AMD's kernel-level 5.6× speedup on the attention operator). However, **aiter + MTP is incompatible** — MTP acceptance rate drops from 0.666 to 0.2, making speculative decoding ineffective. See Scenario 3 below.
 
 ---
 
@@ -109,9 +113,9 @@ Two-round matrix script: [`scripts/bench_micro_matrix_2x.sh`](scripts/bench_micr
 | Component | Version | Notes |
 |-----------|---------|-------|
 | Docker image | `rocm/sgl-dev:v0.5.11-rocm720-mi30x-20260510` | AMD 0510 build |
-| SGLang | `0.5.12.post2.dev2+gb5e695251` | AMD fork: [TianHao65/sglang](https://github.com/TianHao65/sglang) branch `Mimo_mtp_enable` |
+| SGLang | `0.5.12.post2.dev4` | AMD fork: [TianHao65/sglang](https://github.com/TianHao65/sglang) branch `Mimo_mtp_enable`, commit `f5fe8e944` ("aiter_backend enable") |
 | ROCm | 7.2.0 | |
-| aiter | `0.1.12.post2.dev150` | MoE/GEMM/FP8/LayerNorm enabled; **attention still triton** (hybrid SWA+GQA blocked, [ROCm/aiter#1542](https://github.com/ROCm/aiter/issues/1542)) |
+| aiter | `0.1.12.post2.dev150` | MoE/GEMM/FP8/LayerNorm/Attention all enabled. sgl-kernel 0.4.2.post1. |
 | Mooncake | `0.3.11.post1` | KV cache transfer for PD disaggregation |
 | PyTorch | 2.9.1 | ROCm backend |
 
@@ -248,8 +252,10 @@ Node 1 (8× MI300X)               Node 2 (8× MI300X)
 
 - **KV Transfer**: Mooncake over InfiniBand (all 8× `mlx5_ib0..7`, 400 Gbps NDR each)
 - **MTP/EAGLE**: Enabled on both Prefill and Decode servers
-- **Prefill**: `--disable-cuda-graph` (prefill does not benefit from cuda graph)
-- **Decode**: `--cuda-graph-max-bs 32` (cuda graph ON for decode acceleration)
+- **Prefill**: `--disable-cuda-graph` (prefill does not benefit from cuda graph; long sequences need dynamic memory allocation)
+- **Decode**: cuda graph **ON** (no `--disable-cuda-graph` flag — this is critical! Disabling it causes 5× TPOT regression)
+
+> **⚠️ Critical Configuration Note (discovered 2026-06-19)**: The decode server must NOT have `--disable-cuda-graph`. In earlier testing, `--disable-cuda-graph` was mistakenly applied to both P and D servers, causing decode TPOT to degrade from 23ms to 120ms. After removing the flag from decode only, TPOT returned to normal. This applies to both triton and aiter attention backends.
 
 ### Key Parameters (Aligned to Xiaomi H200 Test Protocol)
 
@@ -330,6 +336,78 @@ export SGLANG_DISAGGREGATION_WAITING_TIMEOUT=5000
 
 ---
 
+## Scenario 3 — aiter Backend, No MTP (2026-06-19)
+
+### Background
+
+AMD's `Mimo_mtp_enable` branch commit `f5fe8e944` enables `--attention-backend aiter` for MiMo-V2.5-Pro. This replaces the triton attention kernel with AMD's optimized CK-based `mha_batch_prefill` (prefill) and fused decode attention. Testing revealed that **aiter + MTP is incompatible** (acceptance rate drops to 0.2), so this scenario runs without speculative decoding.
+
+### Configuration
+
+```
+Prefill (VM8):  --attention-backend aiter --kv-cache-dtype fp8_e4m3 --page-size 32 --disable-cuda-graph --mem-fraction-static 0.9
+Decode  (VM10): --attention-backend aiter --kv-cache-dtype fp8_e4m3 --page-size 32 --mem-fraction-static 0.9
+                (NO --disable-cuda-graph on decode!)
+Router:         python3 -m sglang_router.launch_router --pd-disaggregation --prefill ... --decode ...
+```
+
+### Results — Prefill Throughput (aiter no-MTP vs triton+MTP)
+
+| Context | aiter no-MTP (tok/s) | triton+MTP (tok/s) | Improvement | H200 (tok/s) |
+|:-------:|:---:|:---:|:---:|:---:|
+| **8K** | **15,133** | 13,531 | **+12%** | 31,950 |
+| **64K** | **16,125** | 11,500 | **+40%** | 27,400 |
+| **256K** | **11,410** | 7,294 | **+56%** | 17,400 |
+
+> aiter attention kernel acceleration matches AMD's reported kernel-level speedup (triton 1678μs → aiter 298μs = 5.6×). End-to-end improvement is 12-56% because attention is only part of the pipeline; longer sequences have larger attention fraction → bigger improvement.
+
+### Results — Decode TPOT (aiter no-MTP, CUDA Graph ON)
+
+**8K Context:**
+
+| BS | aiter no-MTP TPOT (ms) | triton+MTP TPOT (ms) | H200 (ms) | aiter/H200 |
+|:--:|:---:|:---:|:---:|:---:|
+| 16 | 23.23 | 13.71 | 11.59 | 2.0× |
+| 32 | 27.29 | 16.53 | 12.56 | 2.2× |
+| 64 | 34.62 | 19.70 | 14.28 | 2.4× |
+| 128 | 35.96 | 22.16 | 18.25 | 2.0× |
+| 192 | 41.79 | 22.56 | 23.29 | 1.8× |
+| 256 | 43.64 | 22.86 | 27.38 | 1.6× |
+
+**64K Context:**
+
+| BS | aiter no-MTP TPOT (ms) | triton+MTP TPOT (ms) | H200 (ms) | aiter/H200 |
+|:--:|:---:|:---:|:---:|:---:|
+| 16 | 20.25 | 23.36 | 11.99 | 1.7× |
+| 32 | 20.58 | 23.37 | 14.31 | 1.4× |
+| 64 | 22.27 | 24.39 | 16.33 | 1.4× |
+| 96 | OOM | 24.18 | 19.63 | — |
+
+### aiter + MTP Incompatibility
+
+| Metric | triton + MTP=3 | aiter + MTP=3 | aiter no-MTP |
+|--------|:---:|:---:|:---:|
+| MTP acceptance_rate | **0.666** | 0.2 | N/A |
+| MTP accept_length | **3.2** | 1.6 | N/A |
+| Effective speedup from MTP | ~3× | ~1.05× (broken) | — |
+| Decode 8K BS16 TPOT | **13.71ms** | 22.78ms | 23.23ms |
+
+> **Root cause**: aiter attention produces numerically different outputs than triton for the same inputs. The MTP draft model was trained/calibrated against triton attention outputs, so when the target model switches to aiter, draft predictions become inaccurate and are rejected ~80% of the time.
+
+### Key Insight — Three Configuration Trade-off
+
+| Config | Prefill tok/s (64K) | Decode 8K TPOT (ms) | Best for |
+|--------|:---:|:---:|------|
+| ① triton + MTP=3 | 11,500 | **13.71** | Decode-heavy workloads |
+| ② aiter + MTP=3 | ~16,000 | 22.78 | ❌ Worst of both — MTP broken |
+| ③ aiter + no-MTP | **16,125** | 23.23 | Prefill-heavy / long-context workloads |
+
+**Conclusion**: Until AMD fixes aiter + MTP compatibility, the optimal choice depends on workload:
+- **Short-context, high-BS decode** → Use triton + MTP=3 (config ①)
+- **Long-context prefill-heavy** → Use aiter no-MTP (config ③)
+
+---
+
 ## Comparison vs H200 — Important Context
 
 ### What Cannot Be Directly Compared
@@ -381,7 +459,7 @@ Therefore:
 |--------|------|------|--------|
 | **Expert routing** | `fake_topk_ids` (perfectly balanced) | Real model routing (natural imbalance) | H200 numbers are **best-case** with zero straggler overhead. MI300X includes real routing overhead. The gap may be overstated by ~5-15%. |
 | **Chunk size** | `16384 per DP` × DP=2 = 32768 total | `chunked-prefill-size=32768` (DP=1) | Total chunk throughput aligned. But single-rank processing a 32K chunk hits higher attention peak memory than two ranks each processing 16K. |
-| **Attention backend** | CUDA kernels (FlashAttention / vendor-optimized) | triton (aiter CK blocked for hybrid SWA+GQA) | This is the #1 bottleneck. Prefill throughput is directly limited by triton fallback. |
+| **Attention backend** | CUDA kernels (FlashAttention / vendor-optimized) | aiter CK (enabled since 2026-06-18) or triton fallback | With aiter enabled, prefill gap narrows from 42% to 50-66% of H200. The remaining gap is primarily topology (EP8/DP1 vs EP16/DP2). |
 
 > **Key caveat for readers**: The H200 reference data was generated with `fake_topk_ids` which forces all 384 experts to receive exactly equal token counts, eliminating MoE load imbalance. Our MI300X benchmark uses real model routing where expert load follows natural distribution. This means a portion of the observed gap is methodology-driven, not hardware-driven.
 
@@ -395,7 +473,9 @@ DP attention is not available in the completed EP8/DP1 baseline because the base
 
 | Issue | Status | Impact | Reference |
 |-------|--------|--------|-----------|
-| **aiter attention backend** | **❌ Blocked** | Attention (prefill+decode) stuck on triton; hybrid SWA+GQA K/V layout not supported by CK kernel. **This is the #1 perf bottleneck.** AMD acknowledged 2026-05-09. | [ROCm/aiter#1542](https://github.com/ROCm/aiter/issues/1542) |
+| ~~aiter attention backend~~ | **✅ Resolved** | Fixed in commit `f5fe8e944` (2026-06-18). `--attention-backend aiter` now works for MiMo-V2.5-Pro. Prefill +12%~56%. | [TianHao65/sglang@f5fe8e94](https://github.com/TianHao65/sglang/commit/f5fe8e944) |
+| **aiter + MTP incompatibility** | **❌ New** | When aiter attention is enabled, MTP acceptance rate drops from 0.666 to 0.2 (draft predictions rejected). Root cause: aiter attention numerical output differs from triton, causing draft model mismatch. **Blocks achieving best decode performance with aiter.** | This repo, Scenario 3 |
+| **CUDA Graph on decode** | **⚠️ Critical config** | Decode server **must NOT** use `--disable-cuda-graph`. Disabling it causes 5× TPOT regression (23ms → 120ms). Prefill server should keep `--disable-cuda-graph` (long sequences need dynamic memory). | This repo, verified 2026-06-19 |
 | TP16/DP2 DP-attention server | ❌ Blocked before ready | Corrected H200 prefill topology probe passes effective-attention-TP validation, then fails with MORI dispatch heap OOM and HIP invalid argument in dispatch/combine. | This repo: [`reports/tp16_dp2_topology_probe_20260617.md`](reports/tp16_dp2_topology_probe_20260617.md) |
 | Cross-node MORI-EP=16 | ❌ Blocked | RCCL / MORI instability when using 16-GPU expert-dispatch style layouts across 2 nodes. Limits the completed baseline to EP=8 per node. | [ROCm/mori#168](https://github.com/ROCm/mori/issues/168) |
 | MTP/EAGLE + BS > cuda-graph-max-bs | ❌ Crash | EAGLE eager path SWA buffer fault at high BS | This repo |
@@ -499,4 +579,4 @@ bash scripts/bench_h200_alignment.sh
 
 ---
 
-*Last updated: 2026-06-17*
+*Last updated: 2026-06-22*
