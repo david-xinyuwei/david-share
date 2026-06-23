@@ -16,17 +16,17 @@ The largest cache lever is **not** a model parameter. It is prompt layout: keep 
 
 Primary evidence comes from a catalog `FW-GLM-5.1` AI companion multi-turn test on Azure AI Foundry Fireworks PAYGO: **6 groups x 8 sessions x 8 turns = 384 successful streaming requests**. Custom full-weight customer models must still be revalidated on Provisioned/PTU.
 
-| Setting / Control | What To Set | Cache Hit-Rate Lift | TTFT Impact | Recommendation |
+| Setting / Control | What To Set | Measured Comparison | TTFT Impact | Recommendation |
 |---|---|---:|---:|---|
 | Stable prompt prefix | Put persona, policy, tools, and deterministic memory first; append volatile user/request data last | **1.30% -> 99.64%**, **+98.34 pp**, **76.65x** vs dynamic-prefix anti-pattern | P50 **0.969s -> 0.121s** (-87.5%); P95 **1.1221s -> 0.1689s** (-84.9%) | Always. This is the biggest lever. |
 | Deterministic memory order | Serialize companion memory in the same order across turns | **26.67% -> 99.64%**, **+72.97 pp**, **3.74x** vs shuffled-memory anti-pattern | P50 **0.9995s -> 0.121s** (-87.9%); P95 **1.1872s -> 0.1689s** (-85.8%) | Required for AI companion, agent memory, and profile/context blocks. |
-| `x-session-affinity` | Stable header value per user/session | In a warmed catalog run cache was already high: **99.63% -> 99.64%**, +0.01 pp | P95 **1.2434s -> 0.1689s** (-86.4%) vs no explicit affinity | Best default when the client can set headers; improves tail latency and cache locality. |
-| `prompt_cache_key` | Stable request-body value per user/session | **1.30% -> 97.99%**, **+96.69 pp** vs dynamic-prefix anti-pattern | P50 **0.969s -> 0.1535s** (-84.2%); P95 **1.1221s -> 0.8557s** (-23.7%) | Use when request-body control is easier than custom headers. |
-| `x-session-affinity` + `prompt_cache_key` | Stable value for both | **1.30% -> 98.63%**, **+97.33 pp** vs dynamic-prefix anti-pattern | P50 **0.969s -> 0.1465s** (-84.9%); P95 **1.1221s -> 0.6725s** (-40.1%) | Valid, but not better than `x-session-affinity` alone in this run. |
+| `x-session-affinity` | Stable header value per user/session | With stable prompt already in place: **99.63% -> 99.64%**, +0.01 pp vs no explicit affinity | P95 **1.2434s -> 0.1689s** (-86.4%) vs no explicit affinity | Best default when the client can set headers; improves tail latency and cache locality. |
+| `prompt_cache_key` | Stable request-body value per user/session | Full stable-layout group: **1.30% -> 97.99%**, +96.69 pp vs dynamic-prefix anti-pattern. This includes prompt-layout correction, not only the parameter. | P50 **0.969s -> 0.1535s** (-84.2%); P95 **1.1221s -> 0.8557s** (-23.7%) | Use when request-body control is easier than custom headers. |
+| `x-session-affinity` + `prompt_cache_key` | Stable value for both | Full stable-layout group: **1.30% -> 98.63%**, +97.33 pp vs dynamic-prefix anti-pattern. This is **not** the isolated lift of adding both parameters. | P50 **0.969s -> 0.1465s** (-84.9%); P95 **1.1221s -> 0.6725s** (-40.1%) | Valid, but not better than `x-session-affinity` alone in this run. |
 | `prompt_cache_isolation_key` | Keep stable only when namespace isolation is required | Not a cache-lift knob; varying it separates cache entries | Can reduce sharing if varied per request | Use for tenant/privacy isolation, not higher hit rate. |
 | `temperature`, `top_p`, `max_tokens` | Generation controls | No measured cache-hit lift | Affect output shape, cost, and generation time | Tune after cache layout and routing are correct. |
 
-**Field takeaway:** fix prompt layout first, then add a stable session routing key. Request parameters cannot rescue a prompt whose first tokens keep changing.
+**Field takeaway:** fix prompt layout first, then add a stable session routing key. The 97-98 pp gains above compare full stable-layout groups against anti-pattern prompts; they should not be read as the isolated effect of a single request parameter.
 
 ### Best-Practice Request Pattern
 

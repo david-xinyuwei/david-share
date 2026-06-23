@@ -16,17 +16,17 @@
 
 主测试使用 Azure AI Foundry Fireworks PAYGO 上的 catalog `FW-GLM-5.1`。下表来自一个完整 repeat：**6 组 x 8 sessions x 8 turns = 384 个 streaming requests 全部成功**。第二个 repeat 曾启动，但遇到 streaming connection 偶发卡住；partial 数据保留在 JSON 里追溯，不放进主推荐表。
 
-| Setting / Control | 怎么设置 | Cache Hit-Rate 提升 | TTFT 影响 | 建议 |
+| Setting / Control | 怎么设置 | 实测对比 | TTFT 影响 | 建议 |
 |---|---|---:|---:|---|
 | Stable prompt prefix | persona、policy、tools、deterministic memory 放前面；volatile user/request data 放最后 | **1.30% -> 99.64%**，**+98.34 pp**，比 dynamic-prefix anti-pattern 高 **76.65x** | P50 **0.969s -> 0.121s** (-87.5%)；P95 **1.1221s -> 0.1689s** (-84.9%) | 永远第一优先级，这是最大杠杆 |
 | Deterministic memory order | companion memory 每轮按固定顺序序列化 | **26.67% -> 99.64%**，**+72.97 pp**，比 shuffled-memory anti-pattern 高 **3.74x** | P50 **0.9995s -> 0.121s** (-87.9%)；P95 **1.1872s -> 0.1689s** (-85.8%) | AI companion、agent memory、用户 profile/context block 必做 |
-| `x-session-affinity` | 每个 user/session 固定一个 header 值 | warmed catalog run 里 cache 本来已高：**99.63% -> 99.64%**，+0.01 pp | P95 **1.2434s -> 0.1689s** (-86.4%)，对比 no explicit affinity | 客户端能加 header 时的默认推荐；明显改善 tail latency 和 cache locality |
-| `prompt_cache_key` | 每个 user/session 固定一个 request body 值 | **1.30% -> 97.99%**，**+96.69 pp**，对比 dynamic-prefix anti-pattern | P50 **0.969s -> 0.1535s** (-84.2%)；P95 **1.1221s -> 0.8557s** (-23.7%) | 如果 body 参数比自定义 header 更容易控制，就用它 |
-| `x-session-affinity` + `prompt_cache_key` | 两个都设置为稳定值 | **1.30% -> 98.63%**，**+97.33 pp**，对比 dynamic-prefix anti-pattern | P50 **0.969s -> 0.1465s** (-84.9%)；P95 **1.1221s -> 0.6725s** (-40.1%) | 可用，但本轮没有优于单独 `x-session-affinity` |
+| `x-session-affinity` | 每个 user/session 固定一个 header 值 | 在 stable prompt 已经正确时：**99.63% -> 99.64%**，+0.01 pp，对比 no explicit affinity | P95 **1.2434s -> 0.1689s** (-86.4%)，对比 no explicit affinity | 客户端能加 header 时的默认推荐；明显改善 tail latency 和 cache locality |
+| `prompt_cache_key` | 每个 user/session 固定一个 request body 值 | full stable-layout group：**1.30% -> 97.99%**，+96.69 pp，对比 dynamic-prefix anti-pattern。这里包含 prompt layout 修正，不是单独参数收益。 | P50 **0.969s -> 0.1535s** (-84.2%)；P95 **1.1221s -> 0.8557s** (-23.7%) | 如果 body 参数比自定义 header 更容易控制，就用它 |
+| `x-session-affinity` + `prompt_cache_key` | 两个都设置为稳定值 | full stable-layout group：**1.30% -> 98.63%**，+97.33 pp，对比 dynamic-prefix anti-pattern。这个数不是“两个参数本身”的孤立收益。 | P50 **0.969s -> 0.1465s** (-84.9%)；P95 **1.1221s -> 0.6725s** (-40.1%) | 可用，但本轮没有优于单独 `x-session-affinity` |
 | `prompt_cache_isolation_key` | 只有需要 cache namespace isolation 时稳定设置 | 不是提升 cache 的旋钮；变化它会拆分 cache entries | 每个 request 都变会降低共享 | 用于多租户隔离 / privacy boundary，不用于提命中率 |
 | `temperature`, `top_p`, `max_tokens` | generation controls | 没有实测 cache-hit lift | 影响输出形态、成本和 generation time | cache layout/routing 调对后再调 |
 
-**现场结论：**先修 prompt layout，再加 stable session routing key。如果 prompt 开头每轮都变，任何 request 参数都救不了 cache。
+**现场结论：**先修 prompt layout，再加 stable session routing key。上面 97-98 pp 的提升，是 full stable-layout group 对比反模式 prompt 的结果，不能解读为单个 request 参数的孤立收益。
 
 ### 最佳实践调用代码
 
