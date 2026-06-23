@@ -30,21 +30,9 @@
 
 ### 最佳实践调用代码
 
-生产代码建议使用这个形态：stable prefix 放前面，dynamic content 放最后，每个 user/session 固定一个 routing key。
+生产代码建议使用这个形态：stable prefix 放前面，dynamic content 放最后，每个 user/session 固定一个 routing key。完整可执行版本在 `scripts/cache_friendly_request_example.py`。
 
 ```python
-#!/usr/bin/env python3
-"""Minimal Azure AI Foundry Fireworks chat call with prompt-cache-friendly settings."""
-
-import json
-import os
-import urllib.request
-
-endpoint = os.environ["FIREWORKS_AZURE_ENDPOINT"].rstrip("/")
-deployment = os.environ["FIREWORKS_DEPLOYMENT"]
-api_version = os.getenv("FIREWORKS_API_VERSION", "2025-04-01-preview")
-token = os.environ["FIREWORKS_BEARER_TOKEN"]
-
 user_id = "user-123"          # 真实用户 ID，保持稳定。
 conversation_id = "chat-456"  # 多轮会话 ID，保持稳定。
 session_key = f"{user_id}:{conversation_id}"
@@ -86,7 +74,6 @@ messages = [
     },
 ]
 
-url = f"{endpoint}/openai/deployments/{deployment}/chat/completions?api-version={api_version}"
 payload = {
     "messages": messages,
     "temperature": 0,
@@ -98,24 +85,31 @@ payload = {
 }
 headers = {
     "Content-Type": "application/json",
-    "Authorization": f"Bearer {token}",
     # Header-level session routing key。本轮实测 tail TTFT 最好。
     "x-session-affinity": session_key,
 }
-
-request = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST")
-with urllib.request.urlopen(request, timeout=60) as response:
-    body = json.loads(response.read().decode("utf-8"))
-
-usage = body.get("usage", {})
-details = usage.get("prompt_tokens_details", {})
-perf = body.get("perf_metrics", {})
-
-print("answer:", body["choices"][0]["message"]["content"])
-print("prompt_tokens:", usage.get("prompt_tokens"))
-print("cached_tokens:", details.get("cached_tokens"))
-print("server_ttft_sec:", perf.get("server-time-to-first-token"))
 ```
+
+直接运行：
+
+```bash
+python scripts/cache_friendly_request_example.py \
+  --endpoint "$FIREWORKS_AZURE_ENDPOINT" \
+  --deployment "$FIREWORKS_DEPLOYMENT" \
+  --bearer-token "$FIREWORKS_BEARER_TOKEN" \
+  --user-id user-123 \
+  --conversation-id chat-456
+
+# 同一个 user/session 连续跑两次，可以观察 repeat call 的 cached_tokens 是否上升。
+python scripts/cache_friendly_request_example.py \
+  --endpoint "$FIREWORKS_AZURE_ENDPOINT" \
+  --deployment "$FIREWORKS_DEPLOYMENT" \
+  --bearer-token "$FIREWORKS_BEARER_TOKEN" \
+  --user-id user-123 \
+  --conversation-id chat-456
+```
+
+这个脚本已经可执行，会打印 `prompt_tokens`、`cached_tokens`，以及 deployment 在 non-streaming body 中返回的 `server_ttft_sec`。本次 Azure 路径实测里，non-streaming response 返回了 token accounting，但 body 里没有 TTFT；TTFT 请用 `streaming_ttft_loadtest.py` 或 `companion_multiturn_loadtest.py` 测。
 
 等价 curl 写法：
 

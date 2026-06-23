@@ -30,21 +30,9 @@ Primary evidence comes from a catalog `FW-GLM-5.1` AI companion multi-turn test 
 
 ### Best-Practice Request Pattern
 
-Use this shape in production code: stable prefix first, dynamic content last, and one stable routing key per user/session.
+Use this shape in production code: stable prefix first, dynamic content last, and one stable routing key per user/session. The complete executable version is in `scripts/cache_friendly_request_example.py`.
 
 ```python
-#!/usr/bin/env python3
-"""Minimal Azure AI Foundry Fireworks chat call with prompt-cache-friendly settings."""
-
-import json
-import os
-import urllib.request
-
-endpoint = os.environ["FIREWORKS_AZURE_ENDPOINT"].rstrip("/")
-deployment = os.environ["FIREWORKS_DEPLOYMENT"]
-api_version = os.getenv("FIREWORKS_API_VERSION", "2025-04-01-preview")
-token = os.environ["FIREWORKS_BEARER_TOKEN"]
-
 user_id = "user-123"          # Stable for the real end user.
 conversation_id = "chat-456"  # Stable for the multi-turn conversation.
 session_key = f"{user_id}:{conversation_id}"
@@ -86,7 +74,6 @@ messages = [
     },
 ]
 
-url = f"{endpoint}/openai/deployments/{deployment}/chat/completions?api-version={api_version}"
 payload = {
     "messages": messages,
     "temperature": 0,
@@ -98,24 +85,31 @@ payload = {
 }
 headers = {
     "Content-Type": "application/json",
-    "Authorization": f"Bearer {token}",
     # Header-level session routing key. Best measured tail TTFT in this run.
     "x-session-affinity": session_key,
 }
-
-request = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST")
-with urllib.request.urlopen(request, timeout=60) as response:
-    body = json.loads(response.read().decode("utf-8"))
-
-usage = body.get("usage", {})
-details = usage.get("prompt_tokens_details", {})
-perf = body.get("perf_metrics", {})
-
-print("answer:", body["choices"][0]["message"]["content"])
-print("prompt_tokens:", usage.get("prompt_tokens"))
-print("cached_tokens:", details.get("cached_tokens"))
-print("server_ttft_sec:", perf.get("server-time-to-first-token"))
 ```
+
+Run it directly:
+
+```bash
+python scripts/cache_friendly_request_example.py \
+  --endpoint "$FIREWORKS_AZURE_ENDPOINT" \
+  --deployment "$FIREWORKS_DEPLOYMENT" \
+  --bearer-token "$FIREWORKS_BEARER_TOKEN" \
+  --user-id user-123 \
+  --conversation-id chat-456
+
+# Run the same user/session twice to observe cached_tokens increase on the repeat call.
+python scripts/cache_friendly_request_example.py \
+  --endpoint "$FIREWORKS_AZURE_ENDPOINT" \
+  --deployment "$FIREWORKS_DEPLOYMENT" \
+  --bearer-token "$FIREWORKS_BEARER_TOKEN" \
+  --user-id user-123 \
+  --conversation-id chat-456
+```
+
+The script is executable and prints `prompt_tokens`, `cached_tokens`, and `server_ttft_sec` when the deployment returns non-streaming perf metrics. In the tested Azure path, non-streaming responses returned token accounting but not body TTFT; use `streaming_ttft_loadtest.py` or `companion_multiturn_loadtest.py` for TTFT measurement.
 
 Equivalent curl pattern:
 
