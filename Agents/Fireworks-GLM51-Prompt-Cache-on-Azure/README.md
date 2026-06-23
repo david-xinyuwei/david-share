@@ -28,6 +28,136 @@ Primary evidence comes from a catalog `FW-GLM-5.1` AI companion multi-turn test 
 
 **Field takeaway:** fix prompt layout first, then add a stable session routing key. Request parameters cannot rescue a prompt whose first tokens keep changing.
 
+### Best-Practice Request Pattern
+
+Use this shape in production code: stable prefix first, dynamic content last, and one stable routing key per user/session.
+
+```python
+#!/usr/bin/env python3
+"""Minimal Azure AI Foundry Fireworks chat call with prompt-cache-friendly settings."""
+
+import json
+import os
+import urllib.request
+
+endpoint = os.environ["FIREWORKS_AZURE_ENDPOINT"].rstrip("/")
+deployment = os.environ["FIREWORKS_DEPLOYMENT"]
+api_version = os.getenv("FIREWORKS_API_VERSION", "2025-04-01-preview")
+token = os.environ["FIREWORKS_BEARER_TOKEN"]
+
+user_id = "user-123"          # Stable for the real end user.
+conversation_id = "chat-456"  # Stable for the multi-turn conversation.
+session_key = f"{user_id}:{conversation_id}"
+
+# Keep this section byte/token-stable across turns.
+stable_persona = """
+You are a warm AI companion. Be concise, supportive, and practical.
+Do not mention internal cache, routing, or benchmark details to the user.
+""".strip()
+
+# Serialize memory in deterministic order. Do not shuffle this list per request.
+stable_memory_items = [
+    "The user prefers short replies with one concrete next step.",
+    "The user values gentle encouragement over direct criticism.",
+    "The user is building a calmer evening routine.",
+]
+stable_memory = "\n".join(f"- {item}" for item in stable_memory_items)
+
+static_app_policy = """
+Prompt layout rules:
+1. Stable persona and policy first.
+2. Stable memory in deterministic order.
+3. Conversation history in chronological order.
+4. Current user message and volatile request context last.
+""".strip()
+
+# Only this tail should change every turn.
+current_user_message = "I feel tired today. Help me decide one small next step."
+volatile_tail_context = "request_id=req-789; client_time_bucket=2026-06-23T09:00Z"
+
+messages = [
+    {
+        "role": "system",
+        "content": f"{stable_persona}\n\nStable user memory:\n{stable_memory}\n\n{static_app_policy}",
+    },
+    {
+        "role": "user",
+        "content": f"{current_user_message}\n\nVolatile context, placed last:\n{volatile_tail_context}",
+    },
+]
+
+url = f"{endpoint}/openai/deployments/{deployment}/chat/completions?api-version={api_version}"
+payload = {
+    "messages": messages,
+    "temperature": 0,
+    "max_tokens": 128,
+    # Body-level cache/session routing key. Keep stable per user/session.
+    "prompt_cache_key": session_key,
+    # Ask Fireworks to return server TTFT and cached-token metrics.
+    "perf_metrics_in_response": True,
+}
+headers = {
+    "Content-Type": "application/json",
+    "Authorization": f"Bearer {token}",
+    # Header-level session routing key. Best measured tail TTFT in this run.
+    "x-session-affinity": session_key,
+}
+
+request = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST")
+with urllib.request.urlopen(request, timeout=60) as response:
+    body = json.loads(response.read().decode("utf-8"))
+
+usage = body.get("usage", {})
+details = usage.get("prompt_tokens_details", {})
+perf = body.get("perf_metrics", {})
+
+print("answer:", body["choices"][0]["message"]["content"])
+print("prompt_tokens:", usage.get("prompt_tokens"))
+print("cached_tokens:", details.get("cached_tokens"))
+print("server_ttft_sec:", perf.get("server-time-to-first-token"))
+```
+
+Equivalent curl pattern:
+
+```bash
+SESSION_KEY="user-123:chat-456"
+
+curl -sS "$FIREWORKS_AZURE_ENDPOINT/openai/deployments/$FIREWORKS_DEPLOYMENT/chat/completions?api-version=2025-04-01-preview" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $FIREWORKS_BEARER_TOKEN" \
+  -H "x-session-affinity: $SESSION_KEY" \
+  -d @- <<'JSON'
+{
+  "temperature": 0,
+  "max_tokens": 128,
+  "prompt_cache_key": "user-123:chat-456",
+  "perf_metrics_in_response": true,
+  "messages": [
+    {
+      "role": "system",
+      "content": "Stable persona and policy first.\n\nStable user memory:\n- The user prefers short replies with one concrete next step.\n- The user values gentle encouragement over direct criticism.\n\nStatic app policy: keep dynamic request metadata at the end."
+    },
+    {
+      "role": "user",
+      "content": "I feel tired today. Help me decide one small next step.\n\nVolatile context, placed last: request_id=req-789."
+    }
+  ]
+}
+JSON
+```
+
+Avoid this anti-pattern:
+
+```python
+# Bad: timestamp/request_id before the stable persona destroys exact-prefix reuse.
+system_prompt = f"""
+request_id={request_id}; timestamp={now_iso}
+You are a warm AI companion...
+Stable user memory:
+{stable_memory}
+"""
+```
+
 ---
 
 ## Scope Definition
