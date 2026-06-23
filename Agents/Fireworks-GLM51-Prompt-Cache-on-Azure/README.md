@@ -140,6 +140,56 @@ curl -sS "$FIREWORKS_AZURE_ENDPOINT/openai/deployments/$FIREWORKS_DEPLOYMENT/cha
 JSON
 ```
 
+
+Quick three-run cache verification CLI:
+
+```bash
+export SESSION_KEY="user-123:chat-456"
+
+for i in 1 2 3; do
+  echo "===== RUN $i ====="
+  curl -sS "$FIREWORKS_AZURE_ENDPOINT/openai/deployments/$FIREWORKS_DEPLOYMENT/chat/completions?api-version=2025-04-01-preview" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $FIREWORKS_BEARER_TOKEN" \
+    -H "x-session-affinity: $SESSION_KEY" \
+    -d @- <<'JSON' | python3 -c '
+import json, sys
+r=json.load(sys.stdin)
+u=r.get("usage", {})
+d=u.get("prompt_tokens_details", {})
+p=u.get("prompt_tokens") or 0
+c=d.get("cached_tokens") or 0
+print("http_ok:", "choices" in r)
+print("prompt_tokens:", p)
+print("cached_tokens:", c)
+print("cache_ratio:", round(c/p, 4) if p else None)
+print("completion_tokens:", u.get("completion_tokens"))
+print("finish_reason:", r.get("choices", [{}])[0].get("finish_reason"))
+'
+{
+  "temperature": 0,
+  "top_p": 1,
+  "max_tokens": 8,
+  "user": "user-123",
+  "prompt_cache_key": "user-123:chat-456",
+  "perf_metrics_in_response": true,
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a warm AI companion. Be concise, supportive, and practical.\n\nStable user memory:\n- The user prefers short replies with one concrete next step.\n- The user values gentle encouragement over direct criticism.\n- The user is building a calmer evening routine.\n\nPrompt layout rules:\n1. Stable persona and policy first.\n2. Stable memory in deterministic order.\n3. Conversation history in chronological order.\n4. Current user message and volatile request context last."
+    },
+    {
+      "role": "user",
+      "content": "I feel tired today. Help me decide one small next step.\n\nVolatile context, placed last: request_id=req-789."
+    }
+  ]
+}
+JSON
+done
+```
+
+Read it this way: `http_ok: True` proves the request was accepted. The first run usually warms cache. The second and third runs prove cache reuse only if `cached_tokens / prompt_tokens` rises clearly, ideally near 0.9 or higher.
+
 Avoid this anti-pattern:
 
 ```python
@@ -311,6 +361,36 @@ python scripts/verify_glm51_request_parameters.py \
 ```
 
 The script tests `x-session-affinity`, `user`, `prompt_cache_key`, `prompt_cache_isolation_key`, generation controls, and `perf_metrics_in_response`. It prints HTTP status, token accounting, and repeat-call cache ratio for each case.
+
+Summary CSV fields:
+
+| Field | Meaning | How to read it |
+|---|---|---|
+| `case` | Parameter combination being tested | Example: `x_session_affinity_header`, `prompt_cache_key_body_field` |
+| `accepted_runs` | Number of successful HTTP 200 calls | If this equals `total_runs`, the parameter combination is accepted by the deployment |
+| `total_runs` | Number of calls attempted for the case | Default is 2, so the second call can show repeat-cache behavior |
+| `repeat_cache_ratio` | Cache ratio from the last call for the case | `cached_tokens / prompt_tokens` on the repeat call; this is the quickest cache signal |
+| `repeat_cached_tokens` | Cached prompt tokens from the last call | Higher is better when prompt text and routing key are stable |
+| `repeat_prompt_tokens` | Total prompt tokens from the last call | Denominator for cache ratio |
+| `repeat_server_ttft_sec` | Server TTFT from the last call if returned in non-streaming body | Can be empty on Azure non-streaming paths; use streaming scripts for TTFT |
+| `note` | Expected behavior and interpretation | Describes whether a parameter is a cache-routing hint, isolation key, or generation control |
+
+Per-request JSONL fields:
+
+| Field | Meaning | How to read it |
+|---|---|---|
+| `case` | Parameter combination tested | Join with CSV `case` |
+| `run` | Call number within that case | `1` is warm-up, `2` is repeat by default |
+| `accepted` | Whether the request succeeded | `true` means HTTP 200 and the parameter was accepted by the deployment |
+| `http` | HTTP status code or `exception` | Use this to diagnose 401/404/429/network failures |
+| `elapsed_sec` | Client-side end-to-end elapsed time | Useful for smoke diagnostics, not server-side TTFT |
+| `prompt_tokens` | Prompt token count returned by API usage | Denominator for `cache_ratio` |
+| `cached_tokens` | Cached prompt tokens returned by API usage | Direct evidence of prompt-cache reuse |
+| `cache_ratio` | `cached_tokens / prompt_tokens` | Main cache-hit metric for that individual request |
+| `completion_tokens` | Output tokens generated | Useful to check output length consistency |
+| `server_ttft_sec` | Server TTFT if available in body perf metrics | May be null for non-streaming Azure calls |
+| `perf_metrics_in_body` | Whether `perf_metrics` appeared in the non-streaming response body | If false, run streaming TTFT tests for TTFT |
+| `error_body` / `exception` | Error details if the request failed | Only present on failed requests |
 
 ---
 

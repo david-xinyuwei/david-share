@@ -140,6 +140,56 @@ curl -sS "$FIREWORKS_AZURE_ENDPOINT/openai/deployments/$FIREWORKS_DEPLOYMENT/cha
 JSON
 ```
 
+
+快速 3 次验证 CLI：
+
+```bash
+export SESSION_KEY="user-123:chat-456"
+
+for i in 1 2 3; do
+  echo "===== RUN $i ====="
+  curl -sS "$FIREWORKS_AZURE_ENDPOINT/openai/deployments/$FIREWORKS_DEPLOYMENT/chat/completions?api-version=2025-04-01-preview" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $FIREWORKS_BEARER_TOKEN" \
+    -H "x-session-affinity: $SESSION_KEY" \
+    -d @- <<'JSON' | python3 -c '
+import json, sys
+r=json.load(sys.stdin)
+u=r.get("usage", {})
+d=u.get("prompt_tokens_details", {})
+p=u.get("prompt_tokens") or 0
+c=d.get("cached_tokens") or 0
+print("http_ok:", "choices" in r)
+print("prompt_tokens:", p)
+print("cached_tokens:", c)
+print("cache_ratio:", round(c/p, 4) if p else None)
+print("completion_tokens:", u.get("completion_tokens"))
+print("finish_reason:", r.get("choices", [{}])[0].get("finish_reason"))
+'
+{
+  "temperature": 0,
+  "top_p": 1,
+  "max_tokens": 8,
+  "user": "user-123",
+  "prompt_cache_key": "user-123:chat-456",
+  "perf_metrics_in_response": true,
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a warm AI companion. Be concise, supportive, and practical.\n\nStable user memory:\n- The user prefers short replies with one concrete next step.\n- The user values gentle encouragement over direct criticism.\n- The user is building a calmer evening routine.\n\nPrompt layout rules:\n1. Stable persona and policy first.\n2. Stable memory in deterministic order.\n3. Conversation history in chronological order.\n4. Current user message and volatile request context last."
+    },
+    {
+      "role": "user",
+      "content": "I feel tired today. Help me decide one small next step.\n\nVolatile context, placed last: request_id=req-789."
+    }
+  ]
+}
+JSON
+done
+```
+
+解读方式：`http_ok: True` 只能证明请求被接受。第一轮通常是 warm cache。只有第二、三轮的 `cached_tokens / prompt_tokens` 明显上升，最好接近 0.9 或更高，才说明 cache 复用有效。
+
 不要这样写：
 
 ```python
@@ -311,6 +361,36 @@ python scripts/verify_glm51_request_parameters.py \
 ```
 
 这个脚本会测试 `x-session-affinity`、`user`、`prompt_cache_key`、`prompt_cache_isolation_key`、generation controls 和 `perf_metrics_in_response`，并输出每个 case 的 HTTP 状态、token accounting 和 repeat-call cache ratio。
+
+Summary CSV 字段说明：
+
+| 字段 | 含义 | 怎么解读 |
+|---|---|---|
+| `case` | 正在测试的参数组合 | 例如 `x_session_affinity_header`、`prompt_cache_key_body_field` |
+| `accepted_runs` | HTTP 200 成功次数 | 如果等于 `total_runs`，说明该参数组合被 deployment 接受 |
+| `total_runs` | 该 case 总共发起的请求数 | 默认是 2，第二次用于观察 repeat cache 行为 |
+| `repeat_cache_ratio` | 最后一次请求的 cache ratio | `cached_tokens / prompt_tokens`；这是最快判断 cache 的字段 |
+| `repeat_cached_tokens` | 最后一次请求的 cached prompt tokens | prompt 和 routing key 稳定时，这个值应该明显上升 |
+| `repeat_prompt_tokens` | 最后一次请求的 total prompt tokens | cache ratio 的分母 |
+| `repeat_server_ttft_sec` | 如果 non-streaming body 返回 TTFT，这里会显示最后一次请求的 server TTFT | 当前 Azure non-streaming path 可能为空；TTFT 用 streaming 脚本测更稳 |
+| `note` | 预期行为和解读 | 标明该参数是 cache routing hint、isolation key，还是 generation control |
+
+Per-request JSONL 字段说明：
+
+| 字段 | 含义 | 怎么解读 |
+|---|---|---|
+| `case` | 正在测试的参数组合 | 和 CSV 的 `case` 对应 |
+| `run` | 该 case 内的第几次请求 | 默认 `1` 是 warm-up，`2` 是 repeat |
+| `accepted` | 请求是否成功 | `true` 表示 HTTP 200，该参数组合被 deployment 接受 |
+| `http` | HTTP status code 或 `exception` | 用来诊断 401/404/429/网络错误 |
+| `elapsed_sec` | 客户端测得的端到端耗时 | 适合 smoke diagnostics，不等于 server-side TTFT |
+| `prompt_tokens` | API usage 返回的 prompt token 数 | `cache_ratio` 的分母 |
+| `cached_tokens` | API usage 返回的 cached prompt tokens | prompt-cache 复用的直接证据 |
+| `cache_ratio` | `cached_tokens / prompt_tokens` | 单次请求的主要 cache-hit 指标 |
+| `completion_tokens` | 生成的输出 tokens | 用于确认输出长度是否一致 |
+| `server_ttft_sec` | 如果 body perf metrics 有 TTFT，这里会显示 server TTFT | Azure non-streaming call 可能是 null |
+| `perf_metrics_in_body` | non-streaming response body 是否包含 `perf_metrics` | 如果是 false，用 streaming TTFT 脚本测 TTFT |
+| `error_body` / `exception` | 失败时的错误详情 | 只在失败请求里出现 |
 
 ---
 
