@@ -298,6 +298,20 @@ System:
 | `user` | End-user identifier / fallback routing hint | Fireworks prompt-cache guide 提到 `user`；API docs 写明 `prompt_cache_key` 优先 |
 | `temperature`, `top_p`, `max_tokens` | Generation controls | 影响输出和成本，不影响 prefix matching |
 
+如果客户想在自己的 Azure Fireworks deployment 上确认这些参数是否被接受，可以直接运行：
+
+```bash
+python scripts/verify_glm51_request_parameters.py \
+  --endpoint "$FIREWORKS_AZURE_ENDPOINT" \
+  --deployment "$FIREWORKS_DEPLOYMENT" \
+  --bearer-token "$FIREWORKS_BEARER_TOKEN" \
+  --runs 2 \
+  --output data/request-parameter-verification.jsonl \
+  --summary data/request-parameter-verification-summary.csv
+```
+
+这个脚本会测试 `x-session-affinity`、`user`、`prompt_cache_key`、`prompt_cache_isolation_key`、generation controls 和 `perf_metrics_in_response`，并输出每个 case 的 HTTP 状态、token accounting 和 repeat-call cache ratio。
+
 ---
 
 ## Running On Azure
@@ -417,6 +431,8 @@ python scripts/loadtest_fireworks.py \
 | `data/loadtest_summary.json` | 64 并发 smoke summary |
 | `data/cache_probe_results.json` | 小型 exact-prefix cache probe matrix |
 | `data/custom_paygo_boundary.json` | custom full-weight PAYGO Provisioned-only boundary 的脱敏证据 |
+
+本地生成的验证文件，例如 `data/request-parameter-verification.jsonl` 和 `data/request-parameter-verification-summary.csv`，默认不提交到 repo。
 
 原始 endpoint 名称、subscription ID、resource group、request ID 和 credentials 已有意排除。
 

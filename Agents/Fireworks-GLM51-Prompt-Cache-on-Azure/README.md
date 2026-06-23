@@ -298,6 +298,20 @@ System:
 | `user` | End-user identifier and fallback routing hint | Fireworks prompt-cache guide mentions `user`; API docs say `prompt_cache_key` takes priority |
 | `temperature`, `top_p`, `max_tokens` | Generation controls | Affect output and cost, not prefix cache matching |
 
+To verify parameter acceptance on your own Azure Fireworks deployment, run:
+
+```bash
+python scripts/verify_glm51_request_parameters.py \
+  --endpoint "$FIREWORKS_AZURE_ENDPOINT" \
+  --deployment "$FIREWORKS_DEPLOYMENT" \
+  --bearer-token "$FIREWORKS_BEARER_TOKEN" \
+  --runs 2 \
+  --output data/request-parameter-verification.jsonl \
+  --summary data/request-parameter-verification-summary.csv
+```
+
+The script tests `x-session-affinity`, `user`, `prompt_cache_key`, `prompt_cache_isolation_key`, generation controls, and `perf_metrics_in_response`. It prints HTTP status, token accounting, and repeat-call cache ratio for each case.
+
 ---
 
 ## Running On Azure
@@ -417,6 +431,8 @@ Use lower concurrency first if your deployment capacity is small.
 | `data/loadtest_summary.json` | 64-concurrency smoke summary |
 | `data/cache_probe_results.json` | Small exact-prefix cache probe matrix |
 | `data/custom_paygo_boundary.json` | Sanitized evidence of custom full-weight PAYGO Provisioned-only boundary |
+
+Generated verification files such as `data/request-parameter-verification.jsonl` and `data/request-parameter-verification-summary.csv` are intentionally not committed by default.
 
 Raw endpoint names, subscription IDs, resource groups, request IDs, and credentials are intentionally excluded.
 
