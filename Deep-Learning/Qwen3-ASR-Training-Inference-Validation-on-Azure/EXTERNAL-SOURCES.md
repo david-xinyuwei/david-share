@@ -1,18 +1,21 @@
 # External Sources
 
-| Topic | Source |
-|---|---|
-| Qwen3-ASR model card | https://huggingface.co/Qwen/Qwen3-ASR-1.7B |
-| Qwen3-ASR GitHub repo | https://github.com/QwenLM/Qwen3-ASR |
-| vLLM supported models | https://docs.vllm.ai/en/latest/models/supported_models/ |
-| SGLang docs | https://docs.sglang.io/ |
-| TensorRT-LLM multimodal support | https://nvidia.github.io/TensorRT-LLM/features/multi-modality.html |
-| Hugging Face Accelerate | https://huggingface.co/docs/accelerate/index |
-| Hugging Face Transformers | https://huggingface.co/docs/transformers/index |
-| Hugging Face TRL | https://huggingface.co/docs/trl/index |
-| Whisper | https://github.com/openai/whisper |
-| faster-whisper | https://github.com/SYSTRAN/faster-whisper |
-| WhisperX | https://github.com/m-bain/whisperX |
-| FunASR | https://github.com/modelscope/FunASR |
-| SenseVoice | https://github.com/FunAudioLLM/SenseVoice |
-| NeMo | https://github.com/NVIDIA-NeMo/NeMo |
+| Topic | Source | Used for |
+|---|---|---|
+| Qwen3-ASR model card | https://huggingface.co/Qwen/Qwen3-ASR-1.7B | Official Qwen3-ASR capabilities, package usage, vLLM backend, public sample URL |
+| Qwen3-ASR GitHub repo | https://github.com/QwenLM/Qwen3-ASR | Official examples and package behavior |
+| vLLM supported models | https://docs.vllm.ai/en/latest/models/supported_models/ | ASR/transcription support matrix and Qwen3-ASR architecture rows |
+| vLLM speech-to-text API | https://docs.vllm.ai/en/latest/api/vllm/entrypoints/speech_to_text/ | Serving API reference |
+| SGLang docs | https://docs.sglang.io/ | Serving-engine positioning |
+| TensorRT-LLM multimodal support | https://nvidia.github.io/TensorRT-LLM/features/multi-modality.html | TensorRT-LLM positioning |
+| Hugging Face Accelerate | https://huggingface.co/docs/accelerate/index | Distributed training positioning |
+| Hugging Face Transformers | https://huggingface.co/docs/transformers/index | Training/model ecosystem positioning |
+| Hugging Face TRL | https://huggingface.co/docs/trl/index | SFT/DPO/GRPO training stack positioning |
+| Whisper | https://github.com/openai/whisper | Whisper baseline reference |
+| faster-whisper | https://github.com/SYSTRAN/faster-whisper | CTranslate2 Whisper baseline reference |
+| WhisperX | https://github.com/m-bain/whisperX | Whisper + alignment/diarization reference |
+| FunASR | https://github.com/modelscope/FunASR | China ecosystem ASR reference |
+| SenseVoice | https://github.com/FunAudioLLM/SenseVoice | ASR model family reference |
+| NeMo | https://github.com/NVIDIA-NeMo/NeMo | Training/ASR toolkit reference |
+| Azure ND-H100-v5 | https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/ndh100v5-series | H100 VM specs and positioning |
+

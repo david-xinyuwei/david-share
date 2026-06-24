@@ -1,0 +1,15 @@
+# Example only. Replace with the customer's real Accelerate config before diagnosing training.
+compute_environment: LOCAL_MACHINE
+debug: false
+distributed_type: DEEPSPEED
+mixed_precision: bf16
+num_machines: 1
+num_processes: 8
+machine_rank: 0
+main_training_function: main
+device_placement: true
+rdzv_backend: static
+deep_speed_config:
+  deepspeed_config_file: configs/deepspeed.zero2.example.json
+  zero3_init_flag: false
+
