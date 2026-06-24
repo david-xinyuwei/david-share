@@ -353,6 +353,44 @@ Fine-tuning should follow error analysis, not intuition.
 | Quality drops only under serving engine | Compare transformers vs serving engine with identical decoding |
 | Training loss unstable | Diagnose data/runtime/optimizer first |
 
+### 4.5 Speech Fine-Tuning Best Practices
+
+The most useful internal reference for this repo is the existing Phi-4 multimodal audio SFT work: [`Multimodal-Models/SFT-Phi-4-mm`](../../Multimodal-Models/SFT-Phi-4-mm/readme.md). That repo fine-tunes `microsoft/Phi-4-multimodal-instruct` for a speech translation task on Azure H100 with LoRA/PEFT, DeepSpeed/Accelerate-style training, CoVoST/Common Voice audio, and before/after programmatic evaluation.
+
+The Phi-4-mm repo is not used here as an ASR benchmark. It is used as an **audio fine-tuning engineering pattern**.
+
+| Practice from Phi-4-mm audio SFT | Why it matters for Qwen/Gemma ASR work |
+|---|---|
+| Keep the audio task explicit in the prompt, e.g. `<audio> + instruction -> target text` | Prevents the model from learning a vague chat task instead of speech-to-text or speech translation |
+| Build the sample around audio tensor + sampling rate + target answer | ASR fine-tuning must preserve audio frontend inputs, not only text tokens |
+| Mask the prompt side of labels with ignore index and train only the answer span | Prevents the model from being trained to predict the user prompt or audio placeholder |
+| Preserve audio embedding sizes and audio attention mask in the collator | Audio batches are not plain text batches; padding text tokens is not enough |
+| Evaluate before and after fine-tuning with task metrics | Loss alone is insufficient; use BLEU for speech translation and WER/CER/hotword recall for ASR |
+| Gather distributed eval outputs before scoring | Multi-GPU eval must score the full set, not one rank's shard |
+| Pin package versions for torch, transformers, accelerate, peft, flash-attn, soundfile | Audio/multimodal stacks are version-sensitive; unpinned packages cause silent runtime drift |
+| Save generated outputs and labels as JSON | Aggregate scores are not enough; hard samples must feed the next data iteration |
+
+For ASR, replace the Phi-4 speech-translation target with the customer transcript target:
+
+```text
+User: <audio>
+Instruction: Transcribe the audio in the original language. Return only the transcript.
+Assistant label: <ground-truth transcript><eos>
+```
+
+For audio LLM routes such as Qwen2-Audio, Qwen2.5-Omni, Gemma 3n, or Phi-4-mm-like models, this supervised pattern is often the safest starting point. For dedicated ASR routes such as Qwen3-ASR or Whisper-style models, use the model's official ASR training path when available, but keep the same engineering gates: frozen eval set, label masking, audio-aware collator, before/after metric, and saved hard samples.
+
+### 4.6 Fine-Tuning Decision Table
+
+| Scenario | Start here | Do not start here |
+|---|---|---|
+| Baseline transcript is mostly correct but misses customer terms | Hotword list, contextual correction, small domain SFT | Full model training without error analysis |
+| Dedicated ASR checkpoint has domain errors | LoRA/domain SFT if official route supports it; fixed WER/CER eval | Changing serving engine and calling it quality improvement |
+| Audio LLM route handles audio but output format drifts | Prompt-supervised SFT with audio input and transcript/translation labels | Training on text-only transcript pairs |
+| Quantized training is unstable | Reproduce BF16 or LoRA baseline first, then isolate QLoRA/FP8/INT path | Changing data, model, and quantization in one run |
+| Long meeting audio fails | VAD/chunk/stitching/diarization pipeline | More epochs before fixing pipeline boundary errors |
+| Training throughput is low | Profile storage, decode, feature extraction, dataloader, GPU utilization | Assuming A100/H100 automatically fixes it |
+
 ---
 
 ## 5. Serving Engine Selection
@@ -583,6 +621,7 @@ Use these questions in the first technical meeting.
 | `results/benchmark_endpoint_mock_success.json` | Mock endpoint success output |
 | `results/benchmark_endpoint_mock_failure.json` | Mock endpoint failure output |
 | `docs/vllm-asr-support-matrix.md` | vLLM ASR/audio support matrix |
+| `docs/speech-finetuning-best-practices.md` | Speech fine-tuning checklist distilled from Phi-4-mm audio SFT |
 | `docs/benchmark-methodology.md` | Detailed benchmark method and fairness controls |
 | `docs/azure-poc-plan.md` | Azure PoC phasing template |
 | `docs/customer-discovery-checklist.md` | Meeting question checklist |
@@ -647,6 +686,7 @@ The harness can run inside the customer environment if audio cannot leave their 
 |---|---|
 | Qwen3-ASR | https://huggingface.co/Qwen/Qwen3-ASR-1.7B |
 | Qwen3-ASR GitHub | https://github.com/QwenLM/Qwen3-ASR |
+| Phi-4 multimodal audio SFT reference | ../../Multimodal-Models/SFT-Phi-4-mm/readme.md |
 | vLLM supported models | https://docs.vllm.ai/en/latest/models/supported_models/ |
 | vLLM speech-to-text API | https://docs.vllm.ai/en/latest/api/vllm/entrypoints/speech_to_text/ |
 | SGLang | https://docs.sglang.io/ |

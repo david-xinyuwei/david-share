@@ -353,6 +353,44 @@ Fine-tuning 应该来自 error analysis，而不是直觉。
 | Quality drops only under serving engine | 用相同 decoding 对比 transformers vs serving engine |
 | Training loss unstable | 先诊断 data/runtime/optimizer |
 
+### 4.5 Speech Fine-Tuning Best Practices
+
+这个 repo 最有价值的内部参考，是已有的 Phi-4 multimodal audio SFT 工作：[`Multimodal-Models/SFT-Phi-4-mm`](../../Multimodal-Models/SFT-Phi-4-mm/readme.md)。那份 repo 在 Azure H100 上用 LoRA/PEFT、DeepSpeed/Accelerate-style training、CoVoST/Common Voice audio，对 `microsoft/Phi-4-multimodal-instruct` 做 speech translation fine-tuning，并用程序做 before/after evaluation。
+
+这里不是把 Phi-4-mm 当作 Qwen3-ASR benchmark，而是把它作为 **audio fine-tuning engineering pattern** 复用。
+
+| Phi-4-mm audio SFT 经验 | 对 Qwen/Gemma ASR 的意义 |
+|---|---|
+| 在 prompt 里明确 audio task，比如 `<audio> + instruction -> target text` | 避免模型学成泛泛 chat task，而不是 speech-to-text / speech translation |
+| 样本结构必须包含 audio tensor + sampling rate + target answer | ASR fine-tuning 要保留 audio frontend 输入，不只是 text tokens |
+| prompt 部分 label 用 ignore index mask，只训练 answer span | 避免模型学习预测用户 prompt 或 audio placeholder |
+| collator 必须保留 audio embedding sizes 和 audio attention mask | Audio batch 不是普通 text batch，只 padding text token 不够 |
+| fine-tuning 前后都要用任务指标评估 | loss 不够；speech translation 用 BLEU，ASR 用 WER/CER/hotword recall |
+| 多 GPU eval 后先 gather 全部输出再算分 | 分布式评估不能只算某个 rank 的 shard |
+| 锁定 torch、transformers、accelerate、peft、flash-attn、soundfile 等版本 | Audio/multimodal stack 对版本很敏感，不锁版本容易漂移 |
+| 保存 generated outputs 和 labels 到 JSON | 不能只留 aggregate score；hard samples 要进入下一轮数据迭代 |
+
+对 ASR 来说，把 Phi-4 speech translation 的 target 换成客户 transcript：
+
+```text
+User: <audio>
+Instruction: Transcribe the audio in the original language. Return only the transcript.
+Assistant label: <ground-truth transcript><eos>
+```
+
+对 Qwen2-Audio、Qwen2.5-Omni、Gemma 3n、Phi-4-mm 这类 audio LLM route，这种 supervised pattern 通常是最稳的起点。对 Qwen3-ASR、Whisper-style 这类 dedicated ASR route，如果官方有 ASR training path，优先按官方路径；但工程 gate 一样不能少：fixed eval set、label masking、audio-aware collator、before/after metric、保存 hard samples。
+
+### 4.6 Fine-Tuning Decision Table
+
+| 场景 | 优先从这里开始 | 不要从这里开始 |
+|---|---|---|
+| 基础 transcript 大体对，但客户专有词错 | Hotword list、contextual correction、小规模 domain SFT | 没做 error analysis 就 full model training |
+| Dedicated ASR checkpoint 有领域错误 | 官方支持时用 LoRA/domain SFT，并固定 WER/CER eval | 换 serving engine 然后声称质量提升 |
+| Audio LLM 能听音频但输出格式漂移 | 用 audio input + transcript/translation label 做 prompt-supervised SFT | 只用 text-only transcript pairs 训练 |
+| Quantized training 不稳定 | 先复现 BF16 或 LoRA baseline，再隔离 QLoRA/FP8/INT path | 一次同时改 data、model、quantization |
+| 长会议音频失败 | 先修 VAD/chunk/stitching/diarization pipeline | 没修 boundary error 就增加 epoch |
+| 训练吞吐低 | 先 profile storage、decode、feature extraction、dataloader、GPU utilization | 直接假设 A100/H100 能解决 |
+
 ---
 
 ## 5. Serving Engine Selection
@@ -583,6 +621,7 @@ python3 scripts/qwen3_asr_transformers_smoke.py \
 | `results/benchmark_endpoint_mock_success.json` | mock endpoint success output |
 | `results/benchmark_endpoint_mock_failure.json` | mock endpoint failure output |
 | `docs/vllm-asr-support-matrix.md` | vLLM ASR/audio support matrix |
+| `docs/speech-finetuning-best-practices.md` | 从 Phi-4-mm audio SFT 提炼的 speech fine-tuning checklist |
 | `docs/benchmark-methodology.md` | benchmark 方法与 fairness controls |
 | `docs/azure-poc-plan.md` | Azure PoC 分阶段模板 |
 | `docs/customer-discovery-checklist.md` | 会议问题清单 |
@@ -647,6 +686,7 @@ customer-evidence-pack/
 |---|---|
 | Qwen3-ASR | https://huggingface.co/Qwen/Qwen3-ASR-1.7B |
 | Qwen3-ASR GitHub | https://github.com/QwenLM/Qwen3-ASR |
+| Phi-4 multimodal audio SFT reference | ../../Multimodal-Models/SFT-Phi-4-mm/readme.md |
 | vLLM supported models | https://docs.vllm.ai/en/latest/models/supported_models/ |
 | vLLM speech-to-text API | https://docs.vllm.ai/en/latest/api/vllm/entrypoints/speech_to_text/ |
 | SGLang | https://docs.sglang.io/ |

@@ -4,6 +4,8 @@
 |---|---|---|
 | Qwen3-ASR model card | https://huggingface.co/Qwen/Qwen3-ASR-1.7B | Official Qwen3-ASR capabilities, package usage, vLLM backend, public sample URL |
 | Qwen3-ASR GitHub repo | https://github.com/QwenLM/Qwen3-ASR | Official examples and package behavior |
+| Phi-4 multimodal audio SFT reference | ../../Multimodal-Models/SFT-Phi-4-mm/readme.md | Internal audio SFT engineering pattern: audio-aware samples, label masking, collator, before/after evaluation |
+| Phi-4 multimodal model card | https://huggingface.co/microsoft/Phi-4-multimodal-instruct | Source model referenced by the Phi-4-mm audio SFT project |
 | vLLM supported models | https://docs.vllm.ai/en/latest/models/supported_models/ | ASR/transcription support matrix and Qwen3-ASR architecture rows |
 | vLLM speech-to-text API | https://docs.vllm.ai/en/latest/api/vllm/entrypoints/speech_to_text/ | Serving API reference |
 | SGLang docs | https://docs.sglang.io/ | Serving-engine positioning |
