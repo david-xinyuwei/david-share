@@ -1,0 +1,10 @@
+# Core harness scripts have zero mandatory external dependencies.
+# eval_asr_metrics.py and benchmark_endpoint.py use only the Python standard library.
+# collect_training_env.py uses only the Python standard library.
+# run_harness_tests.py uses only the Python standard library.
+
+# Optional: install these to run the Qwen3-ASR smoke test on a GPU machine.
+# qwen-asr>=0.0.6
+# torch>=2.6.0
+# librosa>=0.11.0
+# soundfile>=0.14.0
