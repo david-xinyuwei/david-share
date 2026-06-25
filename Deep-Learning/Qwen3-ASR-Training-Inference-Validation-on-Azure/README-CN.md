@@ -35,6 +35,9 @@
 | **LoRA SFT** | **rank=16 只训练 0.78% 参数，80 条 FLEURS 检查 CER=5.48%** | `results/lora_param_info.json`, `results/lora_sft_result.json` |
 | **Encoder-only SFT** | **Encoder=186M(23.8%)；只训 encoder 后 80 条 FLEURS 检查 CER=6.26%** | `results/encoder_decoder_split.json`, `results/encoder_only_sft_result.json` |
 | **LR stability smoke** | **fp32 下 2e-5/1e-5/5e-6/2e-6 四档小样本训练均无 NaN** | `results/lr_stability_smoke.json` |
+| **4-bit NF4 推理准确率** | **同一批 80 条 FLEURS：4-bit NF4 CER=5.99%，bf16 baseline=5.28%** | `results/qwen3_asr_0.6b_4bit_cer_comparison.json` |
+| **QLoRA SFT** | **4-bit NF4 + LoRA rank=16 训练完成，80 条 CER=5.69%** | `results/qlora_sft_result.json` |
+| **FP8 支持检查** | **PyTorch 有 float8 dtype，但当前环境没有 TransformerEngine/torchao；没有现成 FP8 SFT recipe** | `results/fp8_support_check.json` |
 | **Checkpoint resume** | **官方 SFT checkpoint/resume smoke 已在 20 条样本上跑通** | `results/checkpoint_resume_smoke.json` |
 | **4-bit 量化 smoke** | **BitsAndBytes 4-bit load + transcribe smoke 可跑 Qwen3-ASR-0.6B** | `results/qlora_4bit_load_smoke.json` |
 | **成本 proxy** | **Korea Central H100 Linux PayGo 价格来自 Azure Retail Prices API；serial proxy 约 $0.626/audio-hour** | `results/cost_proxy.json` |
@@ -278,7 +281,7 @@ results/h100/h100_vllm_serving_benchmark.json
 - LoRA rank=16 已做 SFT 并跑了 80 条 FLEURS CER；客户域 LoRA 结论仍需客户数据复验。
 - Encoder-only SFT 已跑，并做了 80 条 FLEURS CER；是否适合客户口音/噪声/设备域仍需客户数据复验。
 - Gemma 3n 官方支持 audio/ASR，但本 repo 尚未跑 Gemma 的 FLEURS CER 或 H100 serving benchmark。
-- 4-bit load/transcribe smoke 已跑通，但 QLoRA/FP8 微调 before/after CER 尚未测。
+- 4-bit NF4 推理和 QLoRA SFT 已有 FLEURS CER；FP8 微调仍需要 TransformerEngine/torchao 这类 recipe 验证。
 - checkpoint/resume smoke 已在单张 H100 上跑通；multi-GPU torchrun 仍需要多 GPU 或客户拓扑。
 - fp32 LR smoke 覆盖 2e-5/1e-5/5e-6/2e-6 且无 NaN；数据量梯度和 mixed precision recipe 仍需后续验证。
 - SGLang 和 TensorRT-LLM 对 Qwen3-ASR 不是已验证推荐：SGLang 未见 Qwen3-ASR registry，TensorRT-LLM ASR 路径主要是 Whisper。

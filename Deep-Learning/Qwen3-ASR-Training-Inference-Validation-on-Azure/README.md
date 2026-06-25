@@ -35,6 +35,9 @@ The table below is the current public evidence. It is intentionally scoped to pu
 | **LoRA SFT** | **LoRA rank=16 trains only 0.78% params and reaches 5.48% CER on an 80-sample FLEURS check** | `results/lora_param_info.json`, `results/lora_sft_result.json` |
 | **Encoder-only SFT** | **Encoder=186M (23.8%); encoder-only SFT reaches 6.26% CER on an 80-sample FLEURS check** | `results/encoder_decoder_split.json`, `results/encoder_only_sft_result.json` |
 | **LR stability smoke** | **FP32 LR smoke at 2e-5/1e-5/5e-6/2e-6 showed no NaN on 40-sample runs** | `results/lr_stability_smoke.json` |
+| **4-bit NF4 inference accuracy** | **BitsAndBytes 4-bit NF4 CER=5.99% vs bf16 baseline 5.28% on the same 80 FLEURS samples** | `results/qwen3_asr_0.6b_4bit_cer_comparison.json` |
+| **QLoRA SFT** | **4-bit NF4 + LoRA rank=16 training completed; 80-sample CER=5.69%** | `results/qlora_sft_result.json` |
+| **FP8 support check** | **PyTorch has float8 dtypes, but TransformerEngine/torchao are not installed; no ready FP8 SFT recipe in this env** | `results/fp8_support_check.json` |
 | **Checkpoint resume** | **Official SFT checkpoint/resume smoke ran on 20 samples and resumed from latest checkpoint** | `results/checkpoint_resume_smoke.json` |
 | **4-bit quantization smoke** | **BitsAndBytes 4-bit load + transcribe smoke worked for Qwen3-ASR-0.6B** | `results/qlora_4bit_load_smoke.json` |
 | **Cost proxy** | **Estimated $0.626/audio-hour serial on Korea Central H100 Linux PayGo; source is Azure Retail Prices API (2026-06-25)** | `results/cost_proxy.json` |
@@ -336,7 +339,7 @@ results/h100/h100_vllm_serving_benchmark.json
 - ~~vLLM serving is officially supported, but our first endpoint attempt failed.~~ **Done**: Clean env works; CUDA Graph path showed no CER regression on a 20-sample check.
 - The concurrent vLLM benchmark is available through concurrency 16; higher concurrency levels should be remeasured on customer audio duration and SLA.
 - LoRA rank=16 was trained and evaluated on the public FLEURS subset; customer-domain LoRA CER still requires customer data.
-- 4-bit load/transcribe smoke works, but QLoRA/FP8 fine-tuning before/after CER is still not measured.
+- 4-bit NF4 inference and QLoRA SFT have public FLEURS CER checks; FP8 fine-tuning still needs a validated TransformerEngine/torchao-style recipe.
 - Checkpoint/resume smoke works on one H100; multi-GPU torchrun behavior still requires a multi-GPU or customer topology.
 - FP32 LR smoke covered 2e-5/1e-5/5e-6/2e-6 without NaN; data-size gradient and mixed-precision recipes remain future work.
 - SGLang does not have Qwen3-ASR in its model registry; TensorRT-LLM only supports Whisper for ASR.
