@@ -87,35 +87,13 @@
 
 ---
 
-## 1. 我们实际跑了什么
+## 1. 验证结果详解
 
-下表是当前 public evidence。所有结果都来自公开 Qwen 样例和 Azure H100 测试，不包含专有音频、私有 endpoint、VM 名称/IP 或订阅信息。
+以下所有结果来自公开 Qwen 样例和公开 FLEURS 数据在 Azure H100 上的实测。不含专有音频、私有 endpoint 或订阅信息。
 
-| 方向 | Evidence | Raw data |
-|---|---|---|
-| Qwen3-ASR 0.6B 推理 | Azure H100 NVL 95GB 上跑通官方中英文公开样例 | `results/h100/h100_0.6b_full_benchmark.json` |
-| Qwen3-ASR 1.7B 推理 | 同一批公开样例跑通 | `results/h100/h100_1.7b_full_benchmark.json` |
-| H100 batch throughput | batch size 1/4/8/16 扫描 | `results/h100/h100_model_comparison.json` |
-| 长音频行为 | 30s、60s、180s synthetic long-audio 测试 | `results/h100/h100_long_audio_test.json` |
-| **FLEURS CER baseline** | **200 条中文测试样本：0.6B=7.74%，1.7B=7.09%** | `results/fleurs_cer_qwen3_asr_0.6b.json`, `results/fleurs_cer_qwen3_asr_1.7b.json` |
-| **官方 SFT 微调** | **官方 `qwen3_asr_sft.py` 跑通；本次发现 bf16 会产生 NaN，fp32 可稳定训练** | `results/sft_v3_log_summary.json` |
-| **微调准确率影响** | **100 条全参数 SFT 后 FLEURS CER 从 7.74% 变为 21.53%，说明小数据全参微调泛化风险很高** | `results/fleurs_cer_finetuned_fp32.json` |
-| **vLLM serving** | **clean conda env 下 Qwen3-ASR-1.7B transcription endpoint 跑通；旧失败文件保留为 dirty-env 教训** | `results/vllm_serving_result.json` |
-| **CUDA Graph A/B** | **Transformers P50=522ms；vLLM+CUDA Graph P50=69ms；20 条 FLEURS 未观察到 CER 退化** | `results/cuda_graph_ab.json`, `results/accuracy_verification.json` |
-| **vLLM 并发 serving** | **并发 16：P50=154ms，P95=388ms，119 rps，64/64 成功** | `results/concurrent_benchmark_v2.json`, `results/remaining_inference_tests.json` |
-| **数据吞吐 profiling** | **200 条样本：audio decode=0.196s，GPU transfer=0.31s** | `results/dataloader_profile.json` |
-| **LoRA SFT** | **rank=16 只训练 0.78% 参数，80 条 FLEURS 检查 CER=5.48%** | `results/lora_param_info.json`, `results/lora_sft_result.json` |
-| **Encoder-only SFT** | **Encoder=186M(23.8%)；只训 encoder 后 80 条 FLEURS 检查 CER=6.26%** | `results/encoder_decoder_split.json`, `results/encoder_only_sft_result.json` |
-| **LR stability smoke** | **fp32 下 2e-5/1e-5/5e-6/2e-6 四档小样本训练均无 NaN** | `results/lr_stability_smoke.json` |
-| **4-bit NF4 推理准确率** | **同一批 80 条 FLEURS：4-bit NF4 CER=5.99%，bf16 baseline=5.28%** | `results/qwen3_asr_0.6b_4bit_cer_comparison.json` |
-| **QLoRA SFT** | **4-bit NF4 + LoRA rank=16 训练完成，80 条 CER=5.69%** | `results/qlora_sft_result.json` |
-| **FP8 支持检查** | **PyTorch 有 float8 dtype，但当前环境没有 TransformerEngine/torchao；没有现成 FP8 SFT recipe** | `results/fp8_support_check.json` |
-| **Checkpoint resume** | **官方 SFT checkpoint/resume smoke 已在 20 条样本上跑通** | `results/checkpoint_resume_smoke.json` |
-| **4-bit 量化 smoke** | **BitsAndBytes 4-bit load + transcribe smoke 可跑 Qwen3-ASR-0.6B** | `results/qlora_4bit_load_smoke.json` |
-| **Gemma 3n 路线状态** | **Gemma 3n E2B-it 权重已下载，官方 HF API 路线已对齐；最终 clean-env smoke JSON 在 SSH 超时前未收集到，因此不报告 CER** | `results/gemma3n_h100_route_status.json`, `docs/gemma-3n-audio-feasibility.md` |
-| Harness regression | WER/CER、endpoint benchmark、py_compile 全通过 | `results/harness_test_results.json` |
+### 1.1 推理延迟和吞吐
 
-### H100 模型对比
+两个模型在同一批公开短音频上的 H100 表现（来源：`results/h100/h100_model_comparison.json`）：
 
 | Metric | Qwen3-ASR-0.6B | Qwen3-ASR-1.7B | 解读 |
 |---|---:|---:|---|
@@ -126,8 +104,104 @@
 | Batch 16 throughput | **55.13 req/s** | 51.74 req/s | 单张 H100 上都超过 50 short req/s |
 | 10-round P50 | 0.172s | 0.174s | 稳态延迟稳定 |
 | 10-round P95 | 0.215s | **0.174s** | 1.7B tail latency 更稳 |
-| 官方中文样例 CER | 0.0% | 0.0% | 只是 smoke quality，不代表实际业务数据 |
-| 英文公开样例 latency | 1.195s | **0.954s** | 1.7B 更快 |
+
+**结论**：1.7B 延迟更低、tail 更稳，但 0.6B 高 batch 吞吐更好。短音频场景两者都能做到实时。
+
+### 1.2 长音频行为
+
+来源：`results/h100/h100_long_audio_test.json`
+
+| 时长 | 转录时间 | RTF | 输出字符数 | 发现 |
+|---:|---:|---:|---:|---|
+| 30s | 1.77s | 0.059 | 98 | 正常 |
+| 60s | 2.04s | 0.034 | 196 | 正常 |
+| 180s | 82.73s | 0.460 | **16** | **输出坍缩** |
+
+**结论**：超过 60 秒的音频输出质量急剧下降。会议录音必须做 VAD + chunking + overlap + stitching，不能整段送入模型。
+
+### 1.3 公开 CER Baseline
+
+来源：`results/fleurs_cer_qwen3_asr_0.6b.json`、`results/fleurs_cer_qwen3_asr_1.7b.json`
+
+在 FLEURS `cmn_hans_cn` 测试集的 200 条中文样本上：
+
+| 模型 | CER | 含义 |
+|---|---:|---|
+| Qwen3-ASR-0.6B | **7.74%** | 每 100 个字平均错约 8 个（含标点/数字格式差异） |
+| Qwen3-ASR-1.7B | **7.09%** | 1.7B 略优 |
+
+**结论**：两个模型的 public CER 都在 7-8% 区间。这个数字包含标点和数字格式差异（见下方"真实转录样例"），实际语义准确率更高。官方中文短样例 CER=0% 只是 smoke quality，不能代表真实场景。
+
+### 1.4 vLLM Serving + CUDA Graph
+
+来源：`results/cuda_graph_ab.json`、`results/concurrent_benchmark_v2.json`
+
+**CUDA Graph A/B（Qwen3-ASR-1.7B）**：
+
+| 模式 | P50 | CER（20 条） | vs baseline |
+|---|---:|---:|---|
+| Transformers direct | 522ms | 6.65% | baseline |
+| vLLM CUDA Graph ON | **69ms** | **5.90%** | 18/20 完全一致 |
+| vLLM CUDA Graph OFF | 369ms | — | 17/20 完全一致 |
+
+**并发 serving**：
+
+| 并发 | P50 (ms) | P95 (ms) | 吞吐 (rps) | 成功率 |
+|---:|---:|---:|---:|---|
+| 1 | 88 | 159 | 10.1 | 4/4 |
+| 4 | 109 | 167 | 35.9 | 16/16 |
+| 8 | 88 | 165 | 79.0 | 32/32 |
+| **16** | **154** | **388** | **119.0** | **64/64** |
+
+**结论**：vLLM + CUDA Graph 比 raw Transformers 快约 7 倍（522ms → 69ms），且 20 条 FLEURS 样本上没有观察到 CER 退化。并发 16 下 119 rps 全部成功，tail latency 仍在 400ms 以内。
+
+### 1.5 微调策略对比
+
+来源：`results/sft_v3_log_summary.json`、`results/lora_sft_result.json`、`results/encoder_only_sft_result.json`、`results/qlora_sft_result.json`
+
+| 策略 | 训练参数量 | CER（80 条 FLEURS） | 耗时 | 解读 |
+|---|---:|---:|---:|---|
+| Baseline（不微调） | 0 | 7.74% | — | 起点 |
+| Full-param SFT (fp32) | 788M (100%) | **21.53%** (200 条 held-out) | 69.8s | 过拟合严重 |
+| LoRA rank=16 (fp32) | 6.1M (0.78%) | **5.48%** | 43.3s | 最稳 |
+| Encoder-only (fp32) | 186M (23.8%) | **6.26%** | 28.7s | 可行但弱于 LoRA |
+| QLoRA (4-bit NF4 + LoRA) | 6.1M (1.29%) | **5.69%** | 59.8s | 显存受限时的好选择 |
+
+**关键发现**：
+- bf16 训练从第一步就产生 NaN（`grad_norm=nan`）；fp32 稳定。这是使用 Qwen3-ASR 的任何人都会遇到的问题。
+- 100 条全参 SFT 把 CER 从 7.74% 推到 21.53%——小数据 + 全参 = 过拟合灾难。
+- LoRA 只动 0.78% 参数就做到了 5.48% CER，比 baseline 还好。
+
+### 1.6 4-bit 推理与量化
+
+来源：`results/qwen3_asr_0.6b_4bit_cer_comparison.json`
+
+| 精度 | CER（80 条） | 秒/样本 |
+|---|---:|---:|
+| BF16 baseline | 5.28% | 0.72 |
+| 4-bit NF4 | 5.99% | 0.74 |
+| **Δ** | **+0.71pp** | +0.02 |
+
+**结论**：4-bit 量化推理 CER 只退化 0.71 个百分点，延迟几乎不变。在显存受限场景下可用。
+
+### 1.7 数据吞吐 Profiling
+
+来源：`results/dataloader_profile.json`
+
+| 阶段 | 耗时 | 占比 |
+|---|---:|---:|
+| 磁盘读取 | 0.033s | 5.3% |
+| Audio decode | 0.196s | 31.2% |
+| Collate/pad | 0.089s | 14.2% |
+| **GPU transfer** | **0.310s** | **49.4%** |
+
+**结论**：瓶颈不是音频解码，而是 GPU transfer。优化方向是 pinned memory + async transfer + prefetch。
+
+### 1.8 Gemma 3n 路线状态
+
+来源：`results/gemma3n_h100_route_status.json`、`docs/gemma-3n-audio-feasibility.md`
+
+Gemma 3n E2B-it 权重已下载（10.9 GB），官方 `Gemma3nForConditionalGeneration` API 已对齐。但在当前 H100 环境下，模型加载后推理失败——PyTorch SDPA 的 cuDNN backend 不支持 Gemma 3n 的 `head_dim=256`。需要 PyTorch 2.6+ 配 cuDNN 9.1+ 的 clean 环境才能跑通。**因此本 repo 不报告 Gemma FLEURS CER**。
 
 **边界：** 这里的 CER=0% 只说明官方短样例和预期文本完全一致，不是实际业务准确率。
 

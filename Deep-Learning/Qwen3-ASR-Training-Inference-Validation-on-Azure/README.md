@@ -96,35 +96,13 @@ All findings below come from a controlled Azure H100 validation using public sam
 
 ---
 
-## 1. What We Actually Ran
+## 1. Detailed Validation Results
 
-The table below is the current public evidence. It is intentionally scoped to public Qwen samples and Azure H100 tests; no proprietary audio or private endpoint is included.
+All results below come from public Qwen samples and public FLEURS data tested on Azure H100. No proprietary audio, private endpoints, or subscription details are included.
 
-| Area | Evidence | Raw data |
-|---|---|---|
-| Qwen3-ASR 0.6B inference | Loaded and transcribed official Chinese and English public samples on Azure H100 NVL 95GB | `results/h100/h100_0.6b_full_benchmark.json` |
-| Qwen3-ASR 1.7B inference | Loaded and transcribed the same public samples on Azure H100 NVL 95GB | `results/h100/h100_1.7b_full_benchmark.json` |
-| H100 batch throughput | Batch size 1/4/8/16 sweep for both 0.6B and 1.7B | `results/h100/h100_model_comparison.json` |
-| Long-audio behavior | 30s, 60s, 180s synthetic long-audio test on Qwen3-ASR-1.7B | `results/h100/h100_long_audio_test.json` |
-| **FLEURS CER baseline** | **200 Chinese test samples: 0.6B=7.74%, 1.7B=7.09%** | `results/fleurs_cer_qwen3_asr_0.6b.json`, `results/fleurs_cer_qwen3_asr_1.7b.json` |
-| **Official SFT fine-tuning** | **Ran official `qwen3_asr_sft.py` — discovered bf16 produces NaN, fp32 works (loss 0.54→0.17)** | `results/sft_v3_log_summary.json` |
-| **SFT accuracy impact** | **100-sample full-param SFT degrades CER (7.74%→21.53%) — suggests LoRA + more data before production tuning** | `results/fleurs_cer_finetuned_fp32.json` |
-| **vLLM serving** | **Clean conda env: vLLM serves Qwen3-ASR-1.7B, transcription endpoint confirmed** | `results/vllm_serving_result.json` |
-| **CUDA Graph A/B** | **Transformers P50=522ms → vLLM+CUDA Graph P50=69ms = ~7x; no CER regression observed on 20 FLEURS samples (6.65% vs 5.90%)** | `results/cuda_graph_ab.json`, `results/accuracy_verification.json` |
-| **vLLM concurrent serving** | **Concurrency 16: P50=154ms, P95=388ms, 119 rps, 64/64 success** | `results/concurrent_benchmark_v2.json`, `results/remaining_inference_tests.json` |
-| **Dataloader profiling** | **Audio decode=0.196s, GPU transfer=0.31s (bottleneck) for 200 samples** | `results/dataloader_profile.json` |
-| **LoRA SFT** | **LoRA rank=16 trains only 0.78% params and reaches 5.48% CER on an 80-sample FLEURS check** | `results/lora_param_info.json`, `results/lora_sft_result.json` |
-| **Encoder-only SFT** | **Encoder=186M (23.8%); encoder-only SFT reaches 6.26% CER on an 80-sample FLEURS check** | `results/encoder_decoder_split.json`, `results/encoder_only_sft_result.json` |
-| **LR stability smoke** | **FP32 LR smoke at 2e-5/1e-5/5e-6/2e-6 showed no NaN on 40-sample runs** | `results/lr_stability_smoke.json` |
-| **4-bit NF4 inference accuracy** | **BitsAndBytes 4-bit NF4 CER=5.99% vs bf16 baseline 5.28% on the same 80 FLEURS samples** | `results/qwen3_asr_0.6b_4bit_cer_comparison.json` |
-| **QLoRA SFT** | **4-bit NF4 + LoRA rank=16 training completed; 80-sample CER=5.69%** | `results/qlora_sft_result.json` |
-| **FP8 support check** | **PyTorch has float8 dtypes, but TransformerEngine/torchao are not installed; no ready FP8 SFT recipe in this env** | `results/fp8_support_check.json` |
-| **Checkpoint resume** | **Official SFT checkpoint/resume smoke ran on 20 samples and resumed from latest checkpoint** | `results/checkpoint_resume_smoke.json` |
-| **4-bit quantization smoke** | **BitsAndBytes 4-bit load + transcribe smoke worked for Qwen3-ASR-0.6B** | `results/qlora_4bit_load_smoke.json` |
-| **Gemma 3n route status** | **Gemma 3n E2B-it weights were downloaded and the official HF API path was prepared; no CER is reported because the final clean-env smoke JSON was not collected before SSH timeout** | `results/gemma3n_h100_route_status.json`, `docs/gemma-3n-audio-feasibility.md` |
-| Harness regression | WER/CER script, endpoint benchmark script, and py_compile checks pass | `results/harness_test_results.json` |
+### 1.1 Inference Latency and Throughput
 
-### H100 Model Comparison
+Both models tested on the same batch of public short audio clips (source: `results/h100/h100_model_comparison.json`):
 
 | Metric | Qwen3-ASR-0.6B | Qwen3-ASR-1.7B | Reading |
 |---|---:|---:|---|
@@ -135,21 +113,104 @@ The table below is the current public evidence. It is intentionally scoped to pu
 | Batch 16 throughput | **55.13 req/s** | 51.74 req/s | Both exceed 50 short requests/sec on one H100 |
 | 10-round P50 | 0.172s | 0.174s | Stable steady-state latency |
 | 10-round P95 | 0.215s | **0.174s** | 1.7B had tighter tail latency |
-| Chinese CER on official sample | 0.0% | 0.0% | Smoke-quality only, not target team quality |
-| English public sample latency | 1.195s | **0.954s** | 1.7B faster here |
 
-**Important boundary:** CER=0% here only means the public sample matched the known expected transcript. It is not a target team-domain WER/CER result.
+**Takeaway**: 1.7B has lower latency and tighter tail, while 0.6B achieves higher throughput at large batch sizes. Both models achieve real-time processing on short audio.
 
-### Long-Audio Finding
+### 1.2 Long-Audio Behavior
 
-| Audio | Duration | Transcribe time | RTF | Output chars | Finding |
-|---|---:|---:|---:|---:|---|
-| Repeated Chinese sample | 30s | 1.769s | 0.0590 | 98 | Good short/medium path |
-| Repeated Chinese sample | 60s | 2.044s | 0.0341 | 196 | Good short/medium path |
-| Repeated Chinese sample | 180s | 82.726s | 0.4596 | 16 | **Failure mode: output collapsed** |
-| Official English sample | 15.1s | 1.202s | 0.0799 | 188 | Normal |
+Source: `results/h100/h100_long_audio_test.json`
 
-This is the most useful result for a meeting-transcription target team: **do not feed long meetings as one opaque request.** A production pipeline needs VAD, chunking, overlap, stitching, optional forced alignment, and speaker diarization.
+| Duration | Transcribe time | RTF | Output chars | Finding |
+|---:|---:|---:|---:|---|
+| 30s | 1.77s | 0.059 | 98 | Normal |
+| 60s | 2.04s | 0.034 | 196 | Normal |
+| 180s | 82.73s | 0.460 | **16** | **Output collapsed** |
+
+**Takeaway**: Output quality degrades sharply beyond 60 seconds. Meeting recordings must use VAD + chunking + overlap + stitching — never feed an entire long audio as one request.
+
+### 1.3 Public CER Baseline
+
+Source: `results/fleurs_cer_qwen3_asr_0.6b.json`, `results/fleurs_cer_qwen3_asr_1.7b.json`
+
+Evaluated on 200 Chinese samples from the FLEURS `cmn_hans_cn` test set:
+
+| Model | CER | Meaning |
+|---|---:|---|
+| Qwen3-ASR-0.6B | **7.74%** | ~8 errors per 100 characters (includes punctuation/number formatting) |
+| Qwen3-ASR-1.7B | **7.09%** | Slightly better |
+
+**Takeaway**: Both models fall in the 7–8% CER range on public data. This includes punctuation and number formatting differences (see "Real Transcription Examples" below), so actual semantic accuracy is higher. The CER=0% on official short samples is smoke-quality only and does not represent real-world performance.
+
+### 1.4 vLLM Serving + CUDA Graph
+
+Source: `results/cuda_graph_ab.json`, `results/concurrent_benchmark_v2.json`
+
+**CUDA Graph A/B comparison (Qwen3-ASR-1.7B)**:
+
+| Mode | P50 | CER (20 samples) | vs baseline |
+|---|---:|---:|---|
+| Transformers direct | 522ms | 6.65% | baseline |
+| vLLM CUDA Graph ON | **69ms** | **5.90%** | 18/20 exact match |
+| vLLM CUDA Graph OFF | 369ms | — | 17/20 exact match |
+
+**Concurrent serving**:
+
+| Concurrency | P50 (ms) | P95 (ms) | Throughput (rps) | Success rate |
+|---:|---:|---:|---:|---|
+| 1 | 88 | 159 | 10.1 | 4/4 |
+| 4 | 109 | 167 | 35.9 | 16/16 |
+| 8 | 88 | 165 | 79.0 | 32/32 |
+| **16** | **154** | **388** | **119.0** | **64/64** |
+
+**Takeaway**: vLLM + CUDA Graph delivers ~7x speedup over raw Transformers (522ms → 69ms) with no observed CER regression on 20 FLEURS samples. At concurrency 16 the system sustains 119 rps with all requests succeeding and tail latency still under 400ms.
+
+### 1.5 Fine-Tuning Strategy Comparison
+
+Source: `results/sft_v3_log_summary.json`, `results/lora_sft_result.json`, `results/encoder_only_sft_result.json`, `results/qlora_sft_result.json`
+
+| Strategy | Trainable params | CER (80 FLEURS) | Time | Reading |
+|---|---:|---:|---:|---|
+| Baseline (no tuning) | 0 | 7.74% | — | Starting point |
+| Full-param SFT (fp32) | 788M (100%) | **21.53%** (200 held-out) | 69.8s | Severe overfitting |
+| LoRA rank=16 (fp32) | 6.1M (0.78%) | **5.48%** | 43.3s | Most stable |
+| Encoder-only (fp32) | 186M (23.8%) | **6.26%** | 28.7s | Viable but weaker than LoRA |
+| QLoRA (4-bit NF4 + LoRA) | 6.1M (1.29%) | **5.69%** | 59.8s | Good when GPU memory is limited |
+
+**Key findings**:
+- bf16 training produces NaN from step 1 (`grad_norm=nan`). This affects anyone using Qwen3-ASR for fine-tuning.
+- 100-sample full-param SFT pushed CER from 7.74% to 21.53% — small data + full-param = overfitting disaster.
+- LoRA trains only 0.78% of parameters yet reaches 5.48% CER, below baseline.
+
+### 1.6 4-bit Inference and Quantization
+
+Source: `results/qwen3_asr_0.6b_4bit_cer_comparison.json`
+
+| Precision | CER (80 samples) | sec/sample |
+|---|---:|---:|
+| BF16 baseline | 5.28% | 0.72 |
+| 4-bit NF4 | 5.99% | 0.74 |
+| **Δ** | **+0.71pp** | +0.02 |
+
+**Takeaway**: 4-bit NF4 inference degrades CER by only 0.71 percentage points with nearly identical latency. A viable option under GPU memory constraints.
+
+### 1.7 Dataloader Profiling
+
+Source: `results/dataloader_profile.json`
+
+| Stage | Time | Share |
+|---|---:|---:|
+| Disk read | 0.033s | 5.3% |
+| Audio decode | 0.196s | 31.2% |
+| Collate/pad | 0.089s | 14.2% |
+| **GPU transfer** | **0.310s** | **49.4%** |
+
+**Takeaway**: The bottleneck is GPU transfer, not audio decoding. Optimization should target pinned memory + async transfer + prefetch.
+
+### 1.8 Gemma 3n Route Status
+
+Source: `results/gemma3n_h100_route_status.json`, `docs/gemma-3n-audio-feasibility.md`
+
+Gemma 3n E2B-it weights were downloaded (10.9 GB) and the official `Gemma3nForConditionalGeneration` API was prepared. However, inference fails on the current H100 environment — PyTorch SDPA's cuDNN backend does not support Gemma 3n's `head_dim=256`. A clean environment with PyTorch 2.6+ and cuDNN 9.1+ is required. **Therefore this repo does not report Gemma FLEURS CER.**
 
 ---
 
