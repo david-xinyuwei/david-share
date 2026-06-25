@@ -30,10 +30,14 @@ The table below is the current public evidence. It is intentionally scoped to pu
 | **SFT accuracy impact** | **100-sample full-param SFT degrades CER (7.74%→21.53%) — suggests LoRA + more data before production tuning** | `results/fleurs_cer_finetuned_fp32.json` |
 | **vLLM serving** | **Clean conda env: vLLM serves Qwen3-ASR-1.7B, transcription endpoint confirmed** | `results/vllm_serving_result.json` |
 | **CUDA Graph A/B** | **Transformers P50=522ms → vLLM+CUDA Graph P50=69ms = ~7x; no CER regression observed on 20 FLEURS samples (6.65% vs 5.90%)** | `results/cuda_graph_ab.json`, `results/accuracy_verification.json` |
+| **vLLM concurrent serving** | **Concurrency 16: P50=154ms, P95=388ms, 119 rps, 64/64 success** | `results/concurrent_benchmark_v2.json`, `results/remaining_inference_tests.json` |
 | **Dataloader profiling** | **Audio decode=0.196s, GPU transfer=0.31s (bottleneck) for 200 samples** | `results/dataloader_profile.json` |
-| **LoRA feasibility** | **LoRA rank=16 on Qwen3-ASR: only 0.78% params trainable (6.1M/788M)** | `results/lora_param_info.json` |
-| **Model architecture** | **Encoder=186M (23.8%), Decoder=596M (76.2%)** | `results/encoder_decoder_split.json` |
-| **Cost proxy** | **Estimated $0.24/audio-hour serial on H100; treat as proxy until region/SKU price source is pinned** | `results/cost_proxy.json` |
+| **LoRA SFT** | **LoRA rank=16 trains only 0.78% params and reaches 5.48% CER on an 80-sample FLEURS check** | `results/lora_param_info.json`, `results/lora_sft_result.json` |
+| **Encoder-only SFT** | **Encoder=186M (23.8%); encoder-only SFT reaches 6.26% CER on an 80-sample FLEURS check** | `results/encoder_decoder_split.json`, `results/encoder_only_sft_result.json` |
+| **LR stability smoke** | **FP32 LR smoke at 2e-5/1e-5/5e-6/2e-6 showed no NaN on 40-sample runs** | `results/lr_stability_smoke.json` |
+| **Checkpoint resume** | **Official SFT checkpoint/resume smoke ran on 20 samples and resumed from latest checkpoint** | `results/checkpoint_resume_smoke.json` |
+| **4-bit quantization smoke** | **BitsAndBytes 4-bit load + transcribe smoke worked for Qwen3-ASR-0.6B** | `results/qlora_4bit_load_smoke.json` |
+| **Cost proxy** | **Estimated $0.626/audio-hour serial on Korea Central H100 Linux PayGo; source is Azure Retail Prices API (2026-06-25)** | `results/cost_proxy.json` |
 | Harness regression | WER/CER script, endpoint benchmark script, and py_compile checks pass | `results/harness_test_results.json` |
 
 ### H100 Model Comparison
@@ -144,12 +148,12 @@ This is a critical engineering finding for anyone fine-tuning Qwen3-ASR.
 
 ### Fine-Tuning Strategy Recommendations
 
-| Strategy | Params changed | Best for | Risk |
-|---|---|---|---|
-| Full-param SFT (fp32) | 788M (100%) | Large dataset (10K+ samples) | Small data → overfitting (100 samples degraded CER from 7.74%→21.53%) |
-| LoRA on decoder (rank=16) | 6.1M (0.78%) | Medium dataset (1K-10K) | Feasible by parameter count; CER comparison still needed |
-| Encoder-only | 186M (23.8%) | New audio domain (dialect/accent/noise) | Structural option; encoder-only SFT effect not yet measured |
-| Encoder + LoRA decoder | 186M + 6.1M | Full adaptation | Promising hypothesis; needs customer-data validation |
+| Strategy | Params changed | H100 validation result | Reading |
+|---|---:|---|---|
+| Full-param SFT (fp32) | 788M (100%) | 100-sample SFT was numerically stable but degraded 200-sample held-out CER from 7.74% to 21.53% | Too risky for small data; reserve for large, well-curated corpora |
+| LoRA on decoder (rank=16) | 6.1M (0.78%) | 100-sample LoRA SFT reached 5.48% CER on an 80-sample FLEURS check | Best first experiment for limited data |
+| Encoder-only | 186M (23.8%) | Encoder-only SFT reached 6.26% CER on the same 80-sample check | Viable for acoustic-domain adaptation, but weaker than LoRA in this run |
+| Encoder + LoRA decoder | 186M + 6.1M | Not run yet | Promising next step when customer data is available |
 
 ### Multi-GPU Fine-Tune
 
@@ -330,10 +334,12 @@ results/h100/h100_vllm_serving_benchmark.json
 - ~~We have not yet run FLEURS or customer-data before/after WER/CER.~~ **Partially done**: FLEURS baseline CER is available; customer-domain CER still requires customer data.
 - Gemma 3n audio is documented as ASR-capable, but this repo has not run Gemma ASR inference or serving.
 - ~~vLLM serving is officially supported, but our first endpoint attempt failed.~~ **Done**: Clean env works; CUDA Graph path showed no CER regression on a 20-sample check.
-- The concurrent vLLM benchmark is now available through concurrency 8; concurrency 16 is not yet measured.
-- LoRA feasibility is confirmed by parameter count, but LoRA fine-tuning CER has not been measured yet.
+- The concurrent vLLM benchmark is available through concurrency 16; higher concurrency levels should be remeasured on customer audio duration and SLA.
+- LoRA rank=16 was trained and evaluated on the public FLEURS subset; customer-domain LoRA CER still requires customer data.
+- 4-bit load/transcribe smoke works, but QLoRA/FP8 fine-tuning before/after CER is still not measured.
+- Checkpoint/resume smoke works on one H100; multi-GPU torchrun behavior still requires a multi-GPU or customer topology.
+- FP32 LR smoke covered 2e-5/1e-5/5e-6/2e-6 without NaN; data-size gradient and mixed-precision recipes remain future work.
 - SGLang does not have Qwen3-ASR in its model registry; TensorRT-LLM only supports Whisper for ASR.
-- LoRA fine-tuning feasibility confirmed (0.78% params), but LoRA CER comparison not yet run.
 - Public samples do not represent the customer's meeting audio, device microphones, accents, noise, diarization, or hotwords.
 
 ---

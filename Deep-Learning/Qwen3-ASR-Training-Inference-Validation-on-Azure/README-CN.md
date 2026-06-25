@@ -30,11 +30,14 @@
 | **微调准确率影响** | **100 条全参数 SFT 后 FLEURS CER 从 7.74% 变为 21.53%，说明小数据全参微调泛化风险很高** | `results/fleurs_cer_finetuned_fp32.json` |
 | **vLLM serving** | **clean conda env 下 Qwen3-ASR-1.7B transcription endpoint 跑通；旧失败文件保留为 dirty-env 教训** | `results/vllm_serving_result.json` |
 | **CUDA Graph A/B** | **Transformers P50=522ms；vLLM+CUDA Graph P50=69ms；20 条 FLEURS 未观察到 CER 退化** | `results/cuda_graph_ab.json`, `results/accuracy_verification.json` |
-| **vLLM 并发 serving** | **并发 8：P50=88ms，79 rps，32/32 成功** | `results/concurrent_benchmark_v2.json` |
+| **vLLM 并发 serving** | **并发 16：P50=154ms，P95=388ms，119 rps，64/64 成功** | `results/concurrent_benchmark_v2.json`, `results/remaining_inference_tests.json` |
 | **数据吞吐 profiling** | **200 条样本：audio decode=0.196s，GPU transfer=0.31s** | `results/dataloader_profile.json` |
-| **LoRA 可行性** | **rank=16 时仅 0.78% 参数可训练（6.1M/788M），但 LoRA CER 尚未测** | `results/lora_param_info.json` |
-| **模型结构拆分** | **Encoder=186M(23.8%)，Decoder=596M(76.2%)** | `results/encoder_decoder_split.json` |
-| **成本 proxy** | **H100 serial 推理估算约 $0.24/audio-hour；需补价格来源/区域后再对外精确引用** | `results/cost_proxy.json` |
+| **LoRA SFT** | **rank=16 只训练 0.78% 参数，80 条 FLEURS 检查 CER=5.48%** | `results/lora_param_info.json`, `results/lora_sft_result.json` |
+| **Encoder-only SFT** | **Encoder=186M(23.8%)；只训 encoder 后 80 条 FLEURS 检查 CER=6.26%** | `results/encoder_decoder_split.json`, `results/encoder_only_sft_result.json` |
+| **LR stability smoke** | **fp32 下 2e-5/1e-5/5e-6/2e-6 四档小样本训练均无 NaN** | `results/lr_stability_smoke.json` |
+| **Checkpoint resume** | **官方 SFT checkpoint/resume smoke 已在 20 条样本上跑通** | `results/checkpoint_resume_smoke.json` |
+| **4-bit 量化 smoke** | **BitsAndBytes 4-bit load + transcribe smoke 可跑 Qwen3-ASR-0.6B** | `results/qlora_4bit_load_smoke.json` |
+| **成本 proxy** | **Korea Central H100 Linux PayGo 价格来自 Azure Retail Prices API；serial proxy 约 $0.626/audio-hour** | `results/cost_proxy.json` |
 | Harness regression | WER/CER、endpoint benchmark、py_compile 全通过 | `results/harness_test_results.json` |
 
 ### H100 模型对比
@@ -72,12 +75,12 @@
 |---|---|---|
 | Qwen/Gemma backbone | Qwen3-ASR 0.6B/1.7B H100 推理和长音频证据 | 客户 exact checkpoint；如果用 Gemma，需要确认 Gemma 3n 或自研 Gemma audio route |
 | HF training stack | Qwen3-ASR 官方 fine-tuning 已跑通；fp32 稳定，bf16 产生 NaN | 客户 training command、Accelerate/DeepSpeed/FSDP config、失败日志 |
-| vLLM/SGLang/TensorRT-LLM serving | vLLM clean env serving、CUDA Graph A/B、并发 8 benchmark 已跑；SGLang/TRT-LLM 边界已查 | 客户 exact checkpoint 上的 serving config 和 SLA |
+| vLLM/SGLang/TensorRT-LLM serving | vLLM clean env serving、CUDA Graph A/B、并发 16 benchmark 已跑；SGLang/TRT-LLM 边界已查 | 客户 exact checkpoint 上的 serving config 和 SLA |
 | 数据存储/传输/吞吐 | 有 profiling 方法和脚本基础 | 数据规模、存储位置、音频时长、codec、train/eval manifest |
 | 训练稳定性和速度 | 单卡 fp32 SFT 稳定跑通；训练诊断清单已写 | multi-GPU/resume 仍需客户 config 和日志 |
-| 量化训练稳定性 | 已实测 bf16 NaN；fp32 稳定 | QLoRA/FP8 before-after CER 仍需补测 |
-| 推理延迟和成本 | H100 batch throughput、CUDA Graph A/B、vLLM 并发 8、成本 proxy | 当前 baseline cost、SLA、region/SKU pricing |
-| 准确率提升 | FLEURS 200 条 baseline + full-param SFT before/after | 客户或更大公开 eval dataset 上的 LoRA / encoder-only before-after |
+| 量化训练稳定性 | 已实测 bf16 NaN；fp32 稳定；LoRA SFT 已跑 | QLoRA/FP8 before-after CER 仍需补测 |
+| 推理延迟和成本 | H100 batch throughput、CUDA Graph A/B、vLLM 并发 16、成本 proxy | 当前 baseline cost、SLA、region/SKU pricing |
+| 准确率提升 | FLEURS baseline + full-param / LoRA / encoder-only before-after | 客户或更大公开 eval dataset 上的复验 |
 
 ---
 
@@ -271,12 +274,15 @@ results/h100/h100_vllm_serving_benchmark.json
 
 - Qwen3-ASR 官方 SFT 已跑通，但目前只验证了 100 条 FLEURS 子集；客户域结论仍需客户脱敏音频和人工 transcript。
 - bf16 SFT 在本次 H100 实验中产生 NaN；fp32 稳定。是否可用 mixed precision 需要额外 recipe 验证。
-- vLLM serving、CUDA Graph A/B 和并发 8 已验证；并发 16 尚未测。
-- LoRA 参数可行性已验证（0.78% 可训练参数），但 LoRA 微调后的 CER 尚未跑。
-- Encoder/decoder 参数拆分已完成，但 encoder-only 微调效果尚未实测。
+- vLLM serving、CUDA Graph A/B 和并发 16 已验证；更高并发需按客户音频时长和 SLA 复测。
+- LoRA rank=16 已做 SFT 并跑了 80 条 FLEURS CER；客户域 LoRA 结论仍需客户数据复验。
+- Encoder-only SFT 已跑，并做了 80 条 FLEURS CER；是否适合客户口音/噪声/设备域仍需客户数据复验。
 - Gemma 3n 官方支持 audio/ASR，但本 repo 尚未跑 Gemma 的 FLEURS CER 或 H100 serving benchmark。
+- 4-bit load/transcribe smoke 已跑通，但 QLoRA/FP8 微调 before/after CER 尚未测。
+- checkpoint/resume smoke 已在单张 H100 上跑通；multi-GPU torchrun 仍需要多 GPU 或客户拓扑。
+- fp32 LR smoke 覆盖 2e-5/1e-5/5e-6/2e-6 且无 NaN；数据量梯度和 mixed precision recipe 仍需后续验证。
 - SGLang 和 TensorRT-LLM 对 Qwen3-ASR 不是已验证推荐：SGLang 未见 Qwen3-ASR registry，TensorRT-LLM ASR 路径主要是 Whisper。
-- 成本数字是 proxy，正式对外报价必须补 Azure 区域、SKU、价格来源和日期。
+- 成本数字是 proxy，已补 Azure Retail Prices API 来源；正式报价仍需按客户 region/SKU/折扣/利用率计算。
 - 公开样例不能代表客户的会议音频、设备麦克风、口音、噪音、diarization 或 hotwords。
 
 ---
