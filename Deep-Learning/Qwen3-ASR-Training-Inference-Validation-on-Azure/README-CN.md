@@ -237,7 +237,109 @@ dtype=torch.float32
 | Full-param SFT (fp32) | 788M (100%) | 数值稳定，但 100 条样本微调后 200 条 held-out CER 从 7.74% 退化到 21.53% | 小数据风险太高；只适合更大、更干净的数据集 |
 | Decoder LoRA (rank=16) | 6.1M (0.78%) | 80 条 FLEURS 检查 CER=5.48% | 小数据第一轮最值得跑 |
 | Encoder-only | 186M (23.8%) | 同一批 80 条检查 CER=6.26% | 可用于声学域适配，但本次弱于 LoRA |
+| QLoRA (4-bit NF4 + LoRA rank=16) | 6.1M (1.29% of quantized) | 59.8s 完成训练；80 条 CER=5.69% | 显存受限时的强选择 |
 | Encoder + LoRA decoder | 186M + 6.1M | 尚未运行 | 拿到客户数据后值得作为下一阶段 |
+
+### 训练 Run 详情
+
+以下所有微调都使用 FLEURS `cmn_hans_cn` 训练子集和官方 `qwen3_asr_sft.py` 脚本。
+
+**Full-param SFT (fp32)**
+
+| 参数 | 值 |
+|---|---|
+| 模型 | Qwen3-ASR-0.6B |
+| 精度 | fp32（bf16 会 NaN） |
+| 样本数 | 100 |
+| Epochs | 3 |
+| Batch size | 1 |
+| Gradient accumulation | 4 |
+| LR | 5e-6 |
+| Warmup ratio | 0.1 |
+| 运行时间 | 69.8s |
+| 最终 loss | 0.17 |
+| 训练后 CER（200 条 held-out） | 21.53%（过拟合） |
+| Evidence | `results/sft_v3_log_summary.json`, `results/fleurs_cer_finetuned_fp32.json` |
+
+**LoRA SFT（decoder only, rank=16）**
+
+| 参数 | 值 |
+|---|---|
+| 模型 | Qwen3-ASR-0.6B |
+| 精度 | fp32 |
+| LoRA target | decoder (thinker) layers |
+| 可训练参数 | 6.1M / 788M = 0.78% |
+| 样本数 | 100（80 train / 20 eval split） |
+| 运行时间 | 43.3s |
+| 最终 loss | 0.81 |
+| Loss 曲线 | 1.11 → 0.93 → 0.97 → 0.85 → 0.78（稳定，无 NaN） |
+| 训练后 CER（80 条） | 5.48% |
+| Evidence | `results/lora_sft_result.json`, `results/lora_sft_cer.json` |
+
+**Encoder-only SFT**
+
+| 参数 | 值 |
+|---|---|
+| 模型 | Qwen3-ASR-0.6B |
+| 精度 | fp32 |
+| 可训练 | Audio encoder only（186M / 782M = 23.8%） |
+| 冻结 | LM decoder + embeddings |
+| 样本数 | 80 |
+| 运行时间 | 28.7s |
+| 最终 loss | 2.08 |
+| 训练后 CER（80 条） | 6.26% |
+| Evidence | `results/encoder_only_sft_result.json`, `results/encoder_decoder_split.json` |
+
+**QLoRA SFT（4-bit NF4 + LoRA rank=16）**
+
+| 参数 | 值 |
+|---|---|
+| 模型 | Qwen3-ASR-0.6B，BitsAndBytes 4-bit NF4 加载 |
+| LoRA target | thinker (decoder) layers |
+| 可训练参数 | 6.1M / 477M = 1.29% |
+| 样本数 | 80 |
+| 运行时间 | 59.8s |
+| 最终 loss | 3.48 |
+| Loss 曲线 | 4.38 → 3.89 → 4.02 → 3.52 → 3.45（无 NaN） |
+| 训练后 CER（80 条） | 5.69% |
+| Evidence | `results/qlora_sft_result.json` |
+
+### 4-bit NF4 推理准确率
+
+| 精度 | CER（80 条 FLEURS） | CER median | 完美匹配 | 秒/样本 |
+|---|---:|---:|---:|---:|
+| BF16 baseline | 5.28% | 0.0% | 45/80 | 0.72 |
+| BitsAndBytes 4-bit NF4 | 5.99% | 2.35% | 39/80 | 0.74 |
+| **Δ** | **+0.71pp** | — | −6 | — |
+
+来源：`results/qwen3_asr_0.6b_4bit_cer_comparison.json`
+
+### LR Stability Sweep（fp32）
+
+四档 LR 在 40 条样本上均无 NaN：
+
+| LR | Train loss | grad_norm (step 5) | NaN? |
+|---:|---:|---:|---|
+| 2e-5 | 3.03 | 206.0 | 无 |
+| 1e-5 | 2.54 | — | 无 |
+| 5e-6 | 2.72 | — | 无 |
+| 2e-6 | 3.06 | — | 无 |
+
+来源：`results/lr_stability_smoke.json`
+
+### Dataloader Profiling（200 条 FLEURS 样本）
+
+| 阶段 | 耗时 | 占比 |
+|---|---:|---:|
+| 磁盘读取 | 0.033s | 5.3% |
+| Audio decode | 0.196s | 31.2% |
+| Collate/pad | 0.089s | 14.2% |
+| **GPU transfer** | **0.310s** | **49.4%** |
+| **合计** | **0.628s** | 100% |
+
+瓶颈在 GPU transfer，不在 audio decode。优化方向是 GPU pipeline（pinned memory、async transfer、prefetch），不是 codec。
+
+来源：`results/dataloader_profile.json`
 
 ### 多卡微调
 
@@ -298,6 +400,38 @@ FLEURS 这种公开数据集可以证明训练 harness；领域真实结论仍�
 - CUDA Graph 在这个短音频测试里把 latency 从 369ms 降到 69ms，约 **5x**。
 - vLLM 的组合优化（CUDA Graph + PagedAttention + scheduling）相对 raw transformers 约 **7x**。
 - 20 条 FLEURS 检查里没有观察到 CER 退化（5.90% vs 6.65%）。这只是实测检查，不是通用保证。
+
+### vLLM 并发 Serving Benchmark（H100 NVL，Qwen3-ASR-1.7B）
+
+| 并发数 | 请求数 | 成功 | P50 (ms) | P95 (ms) | 吞吐 (rps) |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 4 | 4 | 88 | 159 | 10.1 |
+| 2 | 8 | 8 | 99 | 146 | 19.8 |
+| 4 | 16 | 16 | 109 | 167 | 35.9 |
+| 8 | 32 | 32 | 88 | 165 | 79.0 |
+| **16** | **64** | **64** | **154** | **388** | **119.0** |
+
+所有并发档位**零失败**。P50 在 c16 下也保持在 160ms 以内。吞吐从 c1 到 c8 近线性增长（10→79 rps），c16 继续到 119 rps，tail latency 有所上升。
+
+来源：`results/concurrent_benchmark_v2.json`
+
+### 成本 Proxy（Azure H100 PayGo）
+
+| 项目 | 值 | 来源 |
+|---|---|---|
+| VM SKU | NC40ads_H100_v5 | Azure Retail Prices API |
+| Region | Korea Central | Azure Retail Prices API |
+| OS | Linux | Azure Retail Prices API |
+| 价格类型 | PayGo (Consumption) | Azure Retail Prices API |
+| **零售价** | **$9.423/小时** | Azure Retail Prices API，生效日 2024-05-01 |
+| 平均音频长度/样本 | ~10s | FLEURS 中文测试样本 |
+| Serial throughput (0.6B) | 5,422 样本/小时 = 15.06 音频小时/GPU 小时 | Transformers 推理，无 batching |
+| Serial throughput (1.7B) | 5,414 样本/小时 = 15.04 音频小时/GPU 小时 | Transformers 推理，无 batching |
+| **Serial 成本 proxy** | **$0.626/音频小时** | $9.423 / 15.06 |
+
+注意：这是 serial 单请求 proxy。vLLM c16 下每秒处理 119 个短请求，实际成本会大幅下降。正式成本取决于音频时长、并发、batching、region、承诺折扣和 GPU 利用率。
+
+来源：`results/cost_proxy.json`
 
 ### 推理加速后必须复查准确率
 

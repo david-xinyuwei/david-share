@@ -56,10 +56,18 @@ All findings below come from a controlled Azure H100 validation using public sam
 | Finding | Measured result | Action |
 |---|---|---|
 | Qwen3-ASR public CER baseline is usable for harness validation | 0.6B=**7.74%**, 1.7B=**7.09%** on 200 FLEURS Chinese samples | Use it as the public regression baseline, not as customer-domain quality |
+| BF16 training produces NaN from step 1 | `grad_norm=nan`, loss meaningless, model destroyed | Always start with FP32; validate mixed precision separately |
 | Small-data full-param SFT overfits badly | CER degraded from **7.74%** to **21.53%** | Do not start with full-param SFT on limited data |
-| LoRA is the best first tuning route in this run | LoRA rank=16 reached **5.48% CER** on an 80-sample check | Use LoRA before full-param updates |
-| vLLM + CUDA Graph is the strongest serving path | P50 **69ms** vs transformers **522ms** on the short-audio benchmark | Use vLLM for first serving PoC after quality is verified |
-| Long audio needs pipeline treatment | 180s synthetic long audio collapsed to 16 output chars | Add VAD/chunk/overlap/stitching before production |
+| LoRA is the best first tuning route in this run | LoRA rank=16: only **0.78%** params, reached **5.48%** CER on 80-sample check | Use LoRA before full-param updates |
+| Encoder-only SFT is viable but weaker than LoRA | Encoder=186M (**23.8%** params), CER=**6.26%** on same check | Reserve for acoustic-domain adaptation |
+| QLoRA (4-bit NF4 + LoRA) trains and produces usable quality | CER=**5.69%** on 80-sample check | Strong option when GPU memory is limited |
+| 4-bit NF4 inference has small CER degradation | CER=**5.99%** vs bf16 baseline **5.28%** (+0.71pp) on same 80 FLEURS samples | Viable for memory-constrained deployment with CER monitoring |
+| vLLM + CUDA Graph is the strongest serving path | P50 **69ms** vs transformers **522ms** (~7x); no CER regression on 20-sample check | Use vLLM for first serving PoC |
+| vLLM concurrent serving scales to 16 | c16: P50=**154ms**, P95=**388ms**, **119 rps**, 64/64 success | Sufficient for initial production capacity planning |
+| Dataloader bottleneck is GPU transfer, not audio decode | Audio decode=0.196s, GPU transfer=**0.31s** (bottleneck) for 200 samples | Optimize GPU pipeline, not codec |
+| Long audio needs pipeline treatment | 180s synthetic long audio collapsed to **16 output chars** | Add VAD/chunk/overlap/stitching before production |
+| Serial cost proxy on H100 PayGo | **$0.626/audio-hour** (Korea Central NC40ads H100 Linux PayGo $9.423/hr) | Source: Azure Retail Prices API 2026-06-25 |
+| Gemma 3n route requires stricter environment than Qwen3-ASR | Model loads but SDPA/cuDNN fails on head_dim=256; clean venv with PyTorch 2.6+/cuDNN 9.1+ prepared | Do not claim Gemma CER until clean-env smoke passes |
 
 ### Recommended Production Configuration
 
@@ -240,7 +248,109 @@ This is a critical engineering finding for anyone fine-tuning Qwen3-ASR.
 | Full-param SFT (fp32) | 788M (100%) | 100-sample SFT was numerically stable but degraded 200-sample held-out CER from 7.74% to 21.53% | Too risky for small data; reserve for large, well-curated corpora |
 | LoRA on decoder (rank=16) | 6.1M (0.78%) | 100-sample LoRA SFT reached 5.48% CER on an 80-sample FLEURS check | Best first experiment for limited data |
 | Encoder-only | 186M (23.8%) | Encoder-only SFT reached 6.26% CER on the same 80-sample check | Viable for acoustic-domain adaptation, but weaker than LoRA in this run |
+| QLoRA (4-bit NF4 + LoRA rank=16) | 6.1M (1.29% of quantized) | QLoRA SFT completed in 59.8s; 80-sample CER=5.69% | Strong when GPU memory is limited |
 | Encoder + LoRA decoder | 186M + 6.1M | Not run yet | Promising next step when customer data is available |
+
+### Training Run Details
+
+All fine-tuning runs below used the same FLEURS `cmn_hans_cn` training subset and the official `qwen3_asr_sft.py` script from https://github.com/QwenLM/Qwen3-ASR/tree/main/finetuning.
+
+**Full-param SFT (fp32)**
+
+| Parameter | Value |
+|---|---|
+| Model | Qwen3-ASR-0.6B |
+| Precision | fp32 (bf16 produced NaN) |
+| Samples | 100 |
+| Epochs | 3 |
+| Batch size | 1 |
+| Gradient accumulation | 4 |
+| LR | 5e-6 |
+| Warmup ratio | 0.1 |
+| Runtime | 69.8s |
+| Final loss | 0.17 |
+| Post-training CER (200 held-out) | 21.53% (overfit) |
+| Evidence | `results/sft_v3_log_summary.json`, `results/fleurs_cer_finetuned_fp32.json` |
+
+**LoRA SFT (decoder only, rank=16)**
+
+| Parameter | Value |
+|---|---|
+| Model | Qwen3-ASR-0.6B |
+| Precision | fp32 |
+| LoRA target | decoder (thinker) layers |
+| Trainable params | 6.1M / 788M = 0.78% |
+| Samples | 100 (80 train / 20 eval split) |
+| Runtime | 43.3s |
+| Final loss | 0.81 |
+| Loss curve | 1.11 → 0.93 → 0.97 → 0.85 → 0.78 (stable, no NaN) |
+| Post-training CER (80 samples) | 5.48% |
+| Evidence | `results/lora_sft_result.json`, `results/lora_sft_cer.json` |
+
+**Encoder-only SFT**
+
+| Parameter | Value |
+|---|---|
+| Model | Qwen3-ASR-0.6B |
+| Precision | fp32 |
+| Trainable | Audio encoder only (186M / 782M = 23.8%) |
+| Frozen | LM decoder + embeddings |
+| Samples | 80 |
+| Runtime | 28.7s |
+| Final loss | 2.08 |
+| Post-training CER (80 samples) | 6.26% |
+| Evidence | `results/encoder_only_sft_result.json`, `results/encoder_decoder_split.json` |
+
+**QLoRA SFT (4-bit NF4 + LoRA rank=16)**
+
+| Parameter | Value |
+|---|---|
+| Model | Qwen3-ASR-0.6B, loaded with BitsAndBytes 4-bit NF4 |
+| LoRA target | thinker (decoder) layers |
+| Trainable params | 6.1M / 477M = 1.29% |
+| Samples | 80 |
+| Runtime | 59.8s |
+| Final loss | 3.48 |
+| Loss curve | 4.38 → 3.89 → 4.02 → 3.52 → 3.45 (no NaN) |
+| Post-training CER (80 samples) | 5.69% |
+| Evidence | `results/qlora_sft_result.json` |
+
+### 4-bit NF4 Inference Accuracy
+
+| Precision | CER (80 FLEURS) | CER median | Perfect matches | Seconds/sample |
+|---|---:|---:|---:|---:|
+| BF16 baseline | 5.28% | 0.0% | 45/80 | 0.72 |
+| BitsAndBytes 4-bit NF4 | 5.99% | 2.35% | 39/80 | 0.74 |
+| **Δ** | **+0.71pp** | — | −6 | — |
+
+Source: `results/qwen3_asr_0.6b_4bit_cer_comparison.json`
+
+### LR Stability Sweep (fp32)
+
+All four LR values produced stable training with no NaN on 40-sample runs:
+
+| LR | Train loss | grad_norm (step 5) | NaN? |
+|---:|---:|---:|---|
+| 2e-5 | 3.03 | 206.0 | No |
+| 1e-5 | 2.54 | — | No |
+| 5e-6 | 2.72 | — | No |
+| 2e-6 | 3.06 | — | No |
+
+Source: `results/lr_stability_smoke.json`
+
+### Dataloader Profiling (200 FLEURS samples)
+
+| Stage | Time | % of total |
+|---|---:|---:|
+| Disk read | 0.033s | 5.3% |
+| Audio decode | 0.196s | 31.2% |
+| Collate/pad | 0.089s | 14.2% |
+| **GPU transfer** | **0.310s** | **49.4%** |
+| **Total** | **0.628s** | 100% |
+
+The bottleneck is GPU transfer, not audio decode. Optimize the GPU pipeline (pinned memory, async transfer, prefetch) before optimizing the codec.
+
+Source: `results/dataloader_profile.json`
 
 ### Multi-GPU Fine-Tune
 
@@ -301,6 +411,38 @@ Start with the transformers backend to confirm quality, then move to vLLM for se
 - Combined vLLM optimizations (CUDA Graph + PagedAttention + scheduling) are **~7x faster** than raw transformers on this sample set
 - 18/20 transcriptions are byte-for-byte identical to transformers output
 - No CER regression was observed on this 20-sample FLEURS check (5.90% vs 6.65%). This is an empirical check, not a universal accuracy guarantee.
+
+### vLLM Concurrent Serving Benchmark (H100 NVL, Qwen3-ASR-1.7B)
+
+| Concurrency | Requests | Success | P50 (ms) | P95 (ms) | Throughput (rps) |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 4 | 4 | 88 | 159 | 10.1 |
+| 2 | 8 | 8 | 99 | 146 | 19.8 |
+| 4 | 16 | 16 | 109 | 167 | 35.9 |
+| 8 | 32 | 32 | 88 | 165 | 79.0 |
+| **16** | **64** | **64** | **154** | **388** | **119.0** |
+
+All concurrency levels had **zero failures**. P50 stays under 160ms even at c16. Throughput scales near-linearly from c1 to c8 (10→79 rps) and continues to c16 (119 rps) with tail latency increase.
+
+Source: `results/concurrent_benchmark_v2.json`
+
+### Cost Proxy (Azure H100 PayGo)
+
+| Item | Value | Source |
+|---|---|---|
+| VM SKU | NC40ads_H100_v5 | Azure Retail Prices API |
+| Region | Korea Central | Azure Retail Prices API |
+| OS | Linux | Azure Retail Prices API |
+| Price type | PayGo (Consumption) | Azure Retail Prices API |
+| **Retail price** | **$9.423/hour** | Azure Retail Prices API, effective 2024-05-01 |
+| Avg audio/sample | ~10s | FLEURS Chinese test samples |
+| Serial throughput (0.6B) | 5,422 samples/hr = 15.06 audio-hours/GPU-hour | Transformers inference, no batching |
+| Serial throughput (1.7B) | 5,414 samples/hr = 15.04 audio-hours/GPU-hour | Transformers inference, no batching |
+| **Serial cost proxy** | **$0.626/audio-hour** | $9.423 / 15.06 |
+
+Important: this is a serial single-request proxy. vLLM batching at c16 processes 119 short requests/sec, which would dramatically reduce per-audio-hour cost. Actual production cost depends on audio duration, concurrency, batching, region, commitment discounts, and GPU utilization.
+
+Source: `results/cost_proxy.json`
 
 ### Inference Acceleration: What Should Be Rechecked for Accuracy
 
