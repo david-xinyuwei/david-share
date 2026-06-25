@@ -487,7 +487,7 @@ A public proxy dataset such as FLEURS can prove the training harness. Customer d
 
 ---
 
-## 4. Inference Optimization After Fine-Tuning
+## 5. Inference Optimization After Fine-Tuning
 
 Start with the transformers backend to confirm quality, then move to vLLM for serving optimization.
 
@@ -585,7 +585,7 @@ Do not claim SGLang or TensorRT-LLM supports the customer's ASR model until the 
 
 ---
 
-## 7. Reproduce the Current Evidence
+## 6. Reproduce the Current Evidence
 
 ### Local Harness
 
@@ -642,7 +642,7 @@ results/h100/h100_vllm_serving_benchmark.json
 
 ---
 
-## 8. What to Ask the Customer Onsite
+## 7. What to Ask the Customer Onsite
 
 1. What exact Qwen/Gemma checkpoint are you training?
 2. Is the architecture dedicated ASR, audio LLM, Gemma audio, or custom audio encoder + LLM?
@@ -655,7 +655,7 @@ results/h100/h100_vllm_serving_benchmark.json
 
 ---
 
-## 9. Current Limitations
+## 8. Current Limitations
 
 - ~~We have not yet run Qwen3-ASR fine-tuning in this repo.~~ **Done**: SFT runs in fp32; bf16 produced NaN in this run.
 - ~~We have not yet run FLEURS or customer-data before/after WER/CER.~~ **Partially done**: FLEURS baseline CER is available; customer-domain CER still requires customer data.
