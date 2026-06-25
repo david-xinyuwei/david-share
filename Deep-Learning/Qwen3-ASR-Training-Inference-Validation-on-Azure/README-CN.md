@@ -23,7 +23,56 @@
 
 本 public repo 里已完成的实验都使用公开音频样例或公开 FLEURS 数据。私有音频、私有 endpoint 和订阅信息不进入本 public artifact。
 
-![架构总览](images/solution_architecture.png)
+### Pipeline 总览
+
+```mermaid
+flowchart TB
+    subgraph 输入
+        A1["音频集<br/>脱敏文件<br/>时长 + 语言<br/>说话人元数据"]
+        A2["Ground truth<br/>人工转录文本<br/>hotwords<br/>可选时间戳"]
+    end
+    subgraph 模型
+        B1["模型路线<br/>Qwen3-ASR / Whisper<br/>Gemma audio<br/>自定义 encoder"]
+        B2["Serving 路线<br/>Transformers / vLLM<br/>SGLang / TensorRT<br/>当前 baseline"]
+    end
+    subgraph Azure
+        C1["Azure 目标<br/>A10 smoke<br/>A100/H100 PoC<br/>capacity check"]
+    end
+    A1 --> B1
+    A2 --> B1
+    B1 --> B2
+    B2 --> C1
+
+    subgraph 验证门
+        G1["Quality gate<br/>WER / CER<br/>hotword recall<br/>DER（有标签时）"]
+        G2["Serving gate<br/>RTF + P50/P95<br/>throughput<br/>failure rate"]
+        G3["Training gate<br/>data loader<br/>NCCL / checkpoint<br/>quantized stability"]
+    end
+    B1 --> G1
+    B2 --> G2
+    C1 --> G3
+    G1 --> G2
+    G2 --> G3
+
+    G3 --> OUT["输出<br/>可复现 baseline 包：<br/>metrics JSON、endpoint benchmark JSON、<br/>环境信息、风险登记表、<br/>Azure PoC 决策表"]
+```
+
+### 本文关键术语速查
+
+如果你不熟悉 ASR 工程术语，这张表可以作为全文阅读的参考：
+
+| 术语 | 是什么 | 为什么重要 |
+|---|---|---|
+| **CER** | Character Error Rate——模型输出与 reference 之间的编辑距离除以 reference 长度 | 中文 ASR 的核心准确率指标（中文没有自然分词边界） |
+| **WER** | Word Error Rate——同样的概念但按词计算 | 用于英文等有空格分词的语言 |
+| **RTF** | Real-Time Factor = 处理时间 / 音频时长。RTF < 1 表示比实时快 | 决定系统能做实时流式还是只能离线 |
+| **P50 / P95** | 中位数延迟和第 95 百分位延迟 | P50 = 典型体验；P95 = 影响 SLA 的 tail spike |
+| **Throughput (rps)** | serving endpoint 每秒能处理的请求数 | 并发用户容量规划 |
+| **FLEURS** | Google 的多语言语音 benchmark 数据集（Apache 2.0） | 本 repo 用来做 CER baseline 的公开评测数据 |
+| **LoRA / QLoRA** | Low-Rank Adaptation——只微调一个小 adapter 而不动全部权重；QLoRA 额外加 4-bit 量化 | 减少显存占用和小数据过拟合风险 |
+| **CUDA Graph** | 录制并重放固定的 GPU kernel 序列，跳过启动开销 | 本 repo vLLM ASR benchmark 中约 5x 延迟降低 |
+| **VAD** | Voice Activity Detection——在音频中找到有语音的段落 | 长录音送入模型前的必要预处理 |
+| **NaN gradient** | 训练步中梯度值变成 Not-a-Number | 本 repo 发现 Qwen3-ASR 的 audio encoder 在 BF16 训练下会产生 NaN |
 
 ---
 

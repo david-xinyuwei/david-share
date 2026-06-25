@@ -25,7 +25,56 @@ This repo is not a one-off ASR demo. It documents a **validation-first engineeri
 
 All completed experiments in this public repo use public audio samples or public FLEURS data. Proprietary audio, private endpoints, and subscription details stay outside this public artifact.
 
-![Solution architecture](images/solution_architecture.png)
+### Pipeline Overview
+
+```mermaid
+flowchart TB
+    subgraph Input
+        A1["Audio set<br/>De-identified files<br/>duration + language<br/>speaker metadata"]
+        A2["Ground truth<br/>Human transcript<br/>hotwords<br/>optional timestamps"]
+    end
+    subgraph Model
+        B1["Model route<br/>Qwen3-ASR / Whisper<br/>Gemma audio<br/>custom encoder"]
+        B2["Serving route<br/>Transformers / vLLM<br/>SGLang / TensorRT<br/>current baseline"]
+    end
+    subgraph Azure
+        C1["Azure target<br/>A10 smoke<br/>A100/H100 PoC<br/>capacity check"]
+    end
+    A1 --> B1
+    A2 --> B1
+    B1 --> B2
+    B2 --> C1
+
+    subgraph Gates
+        G1["Quality gate<br/>WER / CER<br/>hotword recall<br/>DER if labels exist"]
+        G2["Serving gate<br/>RTF + P50/P95<br/>throughput<br/>failure rate"]
+        G3["Training gate<br/>data loader<br/>NCCL / checkpoint<br/>quantized stability"]
+    end
+    B1 --> G1
+    B2 --> G2
+    C1 --> G3
+    G1 --> G2
+    G2 --> G3
+
+    G3 --> OUT["Output<br/>Reproducible baseline pack:<br/>metrics JSON, endpoint benchmark JSON,<br/>environment facts, risk register,<br/>Azure PoC decision table"]
+```
+
+### Key Terms Used in This Repo
+
+If you are new to ASR engineering, here is a quick reference for terms that appear throughout this document:
+
+| Term | What it is | Why it matters |
+|---|---|---|
+| **CER** | Character Error Rate — edit distance between model output and reference, divided by reference length | The primary accuracy metric for Chinese ASR (no natural word boundaries) |
+| **WER** | Word Error Rate — same concept but at word level | Used for English and other space-delimited languages |
+| **RTF** | Real-Time Factor = processing time / audio duration. RTF < 1 means faster than real-time | Determines live-streaming vs offline capacity |
+| **P50 / P95** | Median and 95th-percentile latency | P50 = typical experience; P95 = tail spikes that affect SLA |
+| **Throughput (rps)** | Requests per second the serving endpoint can handle | Capacity planning for concurrent users |
+| **FLEURS** | Google's multilingual speech benchmark dataset (Apache 2.0) | Public eval data used in this repo for CER baseline |
+| **LoRA / QLoRA** | Low-Rank Adaptation — fine-tunes only a small adapter instead of all model weights; QLoRA adds 4-bit quantization | Reduces GPU memory and overfitting risk on small datasets |
+| **CUDA Graph** | Records and replays a fixed GPU kernel sequence, skipping launch overhead | ~5x latency reduction in our vLLM ASR benchmark |
+| **VAD** | Voice Activity Detection — finds speech segments in audio | Required before sending long recordings to the model |
+| **NaN gradient** | A training step where gradient values become Not-a-Number | In this repo, Qwen3-ASR's audio encoder produces NaN in BF16 training |
 
 ---
 
