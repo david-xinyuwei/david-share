@@ -130,7 +130,7 @@
 
 ---
 
-## 2. 客户诉求与当前证据
+## 2. 客户问题与证据映射
 
 | 客户诉求 | 现在能展示什么 | 还需要客户给什么 |
 |---|---|---|
@@ -143,7 +143,7 @@
 | 推理延迟和成本 | H100 batch throughput、CUDA Graph A/B、vLLM 并发 16、成本 proxy | 当前 baseline cost、SLA、region/SKU pricing |
 | 准确率提升 | FLEURS baseline + full-param / LoRA / encoder-only before-after | 客户或更大公开 eval dataset 上的复验 |
 
-### 作战目标覆盖表
+### 验证目标覆盖矩阵
 
 下表对应客户会议准备时的 17 个验证目标。✅ 表示 repo 里已有 raw evidence；⚠️ 表示路线和边界已写清，但还需要客户拓扑、clean env 复测或客户数据。
 

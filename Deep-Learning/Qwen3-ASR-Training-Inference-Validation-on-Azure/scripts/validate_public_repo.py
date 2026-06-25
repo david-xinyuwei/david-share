@@ -82,11 +82,11 @@ def check_bilingual_sections(errors: list[str]) -> None:
     cn_major = re.findall(r"^## ", readme_cn, flags=re.MULTILINE)
     if len(en_major) != len(cn_major):
         fail(f"major section count mismatch: README.md={len(en_major)} README-CN.md={len(cn_major)}", errors)
-    required_phrases = ["Mission Coverage Snapshot", "Current Limitations", "References"]
+    required_phrases = ["Validation Coverage Matrix", "Current Limitations", "References"]
     for phrase in required_phrases:
         if phrase not in readme:
             fail(f"README.md missing phrase: {phrase}", errors)
-    required_cn_phrases = ["作战目标覆盖表", "当前限制", "References"]
+    required_cn_phrases = ["验证目标覆盖矩阵", "当前限制", "References"]
     for phrase in required_cn_phrases:
         if phrase not in readme_cn:
             fail(f"README-CN.md missing phrase: {phrase}", errors)

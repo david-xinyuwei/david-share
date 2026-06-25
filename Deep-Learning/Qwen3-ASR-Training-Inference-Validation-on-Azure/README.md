@@ -140,7 +140,7 @@ This is the most useful result for a meeting-transcription customer: **do not fe
 
 ---
 
-## 2. Customer Requirements Mapped to Evidence
+## 2. Customer Questions Mapped to Evidence
 
 | Customer requirement | What this repo can already show | What still needs customer input |
 |---|---|---|
@@ -153,7 +153,7 @@ This is the most useful result for a meeting-transcription customer: **do not fe
 | Inference latency and cost | H100 batch throughput, RTF, long-audio failure mode | Current baseline cost, target SLA, region/SKU pricing |
 | Accuracy improvement | CER script and public-sample smoke CER | Customer or public eval dataset before/after fine-tuning |
 
-### Mission Coverage Snapshot
+### Validation Coverage Matrix
 
 This repo maps back to the 17 validation goals used for the customer meeting prep. A checkmark means the repo has raw evidence. A warning means the route is documented, but the remaining step requires customer topology, a clean follow-up run, or customer data.
 
