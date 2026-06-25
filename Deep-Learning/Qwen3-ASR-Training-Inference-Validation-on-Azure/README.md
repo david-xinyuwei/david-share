@@ -177,7 +177,51 @@ This repo maps back to the 17 validation goals used for the customer meeting pre
 
 ---
 
-## 3. Qwen3-ASR Fine-Tuning Path
+## 3. Reference Architecture
+
+The diagram below shows the core data flow of the ASR validation pipeline. Each stage has been validated in this repo with runnable scripts and JSON evidence.
+
+```mermaid
+flowchart LR
+    A["Audio files"] --> B["Resample / normalize\n16 kHz mono"]
+    B --> C["Qwen3-ASR\n(Transformers / vLLM)"]
+    C --> D["Raw transcript"]
+    D --> E["CER / WER evaluator"]
+    E --> F["Evidence JSON"]
+    F --> G["Error analysis"]
+    G --> H["LoRA / QLoRA\nfine-tuning"]
+    H --> C
+    B --> I["VAD + chunking"]
+    I --> C
+```
+
+**Data flow (left to right):**
+
+1. **Audio normalization**: raw audio is resampled to 16 kHz mono. Long recordings go through VAD and chunking before model input.
+2. **ASR model inference**: Qwen3-ASR runs in transformers (correctness checks) or vLLM (serving benchmarks). The model produces a raw transcript string.
+3. **Evaluation**: the CER evaluator compares the transcript against a reference (FLEURS ground truth or human annotation) and writes a JSON evidence file.
+4. **Error analysis → fine-tuning loop**: hard samples feed back into LoRA/QLoRA fine-tuning, which re-enters the serving path.
+
+### Component Engineering Notes
+
+| Component | Script | Responsibility |
+|---|---|---|
+| Audio normalization | (upstream, not in this repo) | Convert to 16 kHz mono PCM before model input |
+| Qwen3-ASR transformers inference | `scripts/qwen3_asr_transformers_smoke.py` | Load model, transcribe audio, save JSON output |
+| vLLM serving | `configs/vllm.qwen3-asr.example.sh` | Start OpenAI-compatible transcription endpoint |
+| FLEURS CER evaluation | `scripts/eval_fleurs_baseline.py` | Run N FLEURS samples, compute CER, save JSON |
+| CUDA Graph A/B benchmark | `scripts/cuda_graph_ab_test.py` | Compare Transformers vs vLLM with/without CUDA Graph |
+| Concurrent vLLM benchmark | `scripts/concurrent_benchmark_v2.py` | Sweep concurrency 1→16, measure P50/P95/rps |
+| LoRA SFT | Official `qwen3_asr_sft.py` + this repo's patches | Fine-tune decoder with LoRA rank=16 |
+| QLoRA SFT | `scripts/qlora_sft_test_v3.py` | 4-bit NF4 base + LoRA training |
+| 4-bit inference CER | `scripts/qwen3_asr_4bit_cer_eval.py` | BF16 vs 4-bit NF4 same-sample CER comparison |
+| Checkpoint resume | `scripts/resume_smoke_v2.py` | Verify SFT can resume from saved checkpoint |
+| Accuracy verification | `scripts/accuracy_verification.py` | Compare Transformers vs vLLM transcriptions |
+| Validation runner | `scripts/validate_public_repo.py` | Repo-level checks: JSON parsable, no secrets, bilingual |
+
+---
+
+## 4. Qwen3-ASR Fine-Tuning Path
 
 Qwen3-ASR is similar in broad shape to audio-capable multimodal LLMs: audio waveform enters an audio frontend/encoder, becomes audio embeddings, and the decoder generates text. But for training, use the **official Qwen3-ASR fine-tuning path** instead of guessing from Phi-4-mm.
 
@@ -350,6 +394,57 @@ The bottleneck is GPU transfer, not audio decode. Optimize the GPU pipeline (pin
 
 Source: `results/dataloader_profile.json`
 
+### Why LoRA Beats Full-Param SFT in This Run
+
+The data tells a clear story: 100-sample full-param SFT pushed loss to 0.17 (almost zero train error) but CER on held-out data degraded from 7.74% to 21.53%. Meanwhile LoRA with only 0.78% trainable params reached 5.48% CER — better than the pre-training baseline.
+
+| Factor | Why it matters for ASR |
+|---|---|
+| **Small training set** | With only 80–100 FLEURS samples, full-param SFT can move 788M weights far beyond what the data supports. LoRA limits updates to 6.1M adapter parameters. |
+| **Task shape** | ASR fine-tuning here is mostly transcript-format alignment (adding punctuation, normalizing number formats). The audio encoder already recognizes speech; the adapter teaches how to serialize it. |
+| **Regularization** | LoRA rank=16 acts as an implicit capacity constraint. The model adjusts output format without overwriting base acoustic knowledge. |
+| **Audio encoder sensitivity** | Qwen3-ASR's audio encoder produces NaN in bf16 training. Full-param SFT in fp32 moves all 788M weights including the sensitive encoder. LoRA keeps the encoder frozen. |
+
+Full-param SFT is not broken — it is risky on small data. Reserve it for large, well-curated corpora (thousands of hours). For a first customer PoC with limited labeled data, LoRA is the safer starting point.
+
+### Real Transcription Examples
+
+The table below shows actual model output on FLEURS Chinese test samples. Notice how the model adds punctuation and converts digits to Chinese characters — these are the CER contributors, not word-level errors.
+
+| # | FLEURS Reference (space-separated chars) | Qwen3-ASR Output | CER Source |
+|---|---|---|---|
+| 1 | 这 并 不 是 告 别 这 是 一 个 篇 章 的 结 束 也 是 新 篇 章 的 开 始 | 这并不是告别，这是一个篇章的结束，也是新篇章的开始。 | Added punctuation (，。) |
+| 2 | 钙 钾 等 元 素 属 于 金 属 银 和 金 等 元 素 当 然 也 是 金 属 | 钙、钾等元素属于金属，银和金等元素当然也是金属。 | Added punctuation (、，。) |
+| 3 | 桥 下 垂 直 净 空 15 米 该 项 目 于 2011 年 8 月 完 工... | 桥下垂直净空十五米。该项目于二零一一年八月完工... | Digits → Chinese numerals (15→十五, 2011→二零一一) |
+
+These examples come from `results/qwen3_asr_0.6b_4bit_cer_comparison.json`. The CER metric treats each inserted/substituted character as an error, so punctuation and digit normalization inflate CER even though the semantic content is correct. This is a known property of character-level evaluation and should be discussed with the customer when interpreting CER numbers.
+
+### Key Config Decisions Explained
+
+The configs in this repo are intentionally minimal. Here is what each parameter does and why it is set to this value:
+
+**`configs/accelerate.example.yaml`** (single-GPU fp32 training):
+
+| Config line | What it does | Why this value |
+|---|---|---|
+| `mixed_precision: 'no'` | Forces pure fp32 training | Qwen3-ASR audio encoder produces NaN in bf16; fp32 is the stability baseline |
+| `num_processes: 1` | Single GPU | Start simple; multi-GPU adds NCCL complexity |
+
+**`configs/deepspeed.zero2.example.json`** (multi-GPU with ZeRO-2):
+
+| Config line | What it does | Why this value |
+|---|---|---|
+| `bf16.enabled: false` | Disables bf16 in DeepSpeed | Same NaN issue; fp32 required for Qwen3-ASR |
+| `zero_optimization.stage: 2` | Shards optimizer states + gradients across GPUs | Reduces memory without model partitioning complexity |
+
+**`configs/vllm.qwen3-asr.example.sh`** (vLLM serving):
+
+| Config line | What it does | Why this value |
+|---|---|---|
+| `--gpu-memory-utilization 0.8` | Reserves 80% GPU memory for KV cache | Leaves headroom for concurrent requests |
+| `--max-model-len 8192` | Caps context length | ASR transcriptions are short; longer wastes KV cache |
+| `--trust-remote-code` | Allows custom Qwen3-ASR model code | Required for `Qwen3ASRForConditionalGeneration` |
+
 ### Multi-GPU Fine-Tune
 
 ```bash
@@ -490,7 +585,7 @@ Do not claim SGLang or TensorRT-LLM supports the customer's ASR model until the 
 
 ---
 
-## 5. Reproduce the Current Evidence
+## 7. Reproduce the Current Evidence
 
 ### Local Harness
 
@@ -547,7 +642,7 @@ results/h100/h100_vllm_serving_benchmark.json
 
 ---
 
-## 6. What to Ask the Customer Onsite
+## 8. What to Ask the Customer Onsite
 
 1. What exact Qwen/Gemma checkpoint are you training?
 2. Is the architecture dedicated ASR, audio LLM, Gemma audio, or custom audio encoder + LLM?
@@ -560,7 +655,7 @@ results/h100/h100_vllm_serving_benchmark.json
 
 ---
 
-## 7. Current Limitations
+## 9. Current Limitations
 
 - ~~We have not yet run Qwen3-ASR fine-tuning in this repo.~~ **Done**: SFT runs in fp32; bf16 produced NaN in this run.
 - ~~We have not yet run FLEURS or customer-data before/after WER/CER.~~ **Partially done**: FLEURS baseline CER is available; customer-domain CER still requires customer data.

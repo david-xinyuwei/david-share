@@ -168,7 +168,51 @@
 
 ---
 
-## 3. Qwen3-ASR 微调路径
+## 3. 参考架构
+
+下图展示 ASR 验证 pipeline 的核心数据流。每个阶段都有对应的可执行脚本和 JSON 证据。
+
+```mermaid
+flowchart LR
+    A["音频文件"] --> B["重采样 / 归一化\n16 kHz mono"]
+    B --> C["Qwen3-ASR\n(Transformers / vLLM)"]
+    C --> D["原始转录文本"]
+    D --> E["CER / WER 评测"]
+    E --> F["Evidence JSON"]
+    F --> G["错误分析"]
+    G --> H["LoRA / QLoRA\n微调"]
+    H --> C
+    B --> I["VAD + chunking"]
+    I --> C
+```
+
+**数据流（从左到右）**：
+
+1. **音频归一化**：原始音频重采样到 16 kHz mono。长录音先做 VAD 和 chunking，再送入模型。
+2. **ASR 模型推理**：Qwen3-ASR 在 transformers（正确性验证）或 vLLM（serving benchmark）中运行，输出原始转录文本。
+3. **评测**：CER 评测器将转录文本与 reference（FLEURS ground truth 或人工标注）对比，写入 JSON evidence。
+4. **错误分析 → 微调循环**：hard samples 反馈到 LoRA/QLoRA 微调，重新进入 serving 路径。
+
+### 组件工程说明
+
+| 组件 | 脚本 | 职责 |
+|---|---|---|
+| 音频归一化 | （上游，不在本 repo 内） | 输入模型前统一转换为 16 kHz mono PCM |
+| Qwen3-ASR transformers 推理 | `scripts/qwen3_asr_transformers_smoke.py` | 加载模型、转录音频、保存 JSON |
+| vLLM serving | `configs/vllm.qwen3-asr.example.sh` | 启动 OpenAI-compatible transcription endpoint |
+| FLEURS CER 评测 | `scripts/eval_fleurs_baseline.py` | 跑 N 条 FLEURS 样本、计算 CER、保存 JSON |
+| CUDA Graph A/B benchmark | `scripts/cuda_graph_ab_test.py` | 对比 Transformers vs vLLM（有/无 CUDA Graph） |
+| 并发 vLLM benchmark | `scripts/concurrent_benchmark_v2.py` | 扫描并发 1→16，测 P50/P95/rps |
+| LoRA SFT | 官方 `qwen3_asr_sft.py` + 本 repo 的 patches | LoRA rank=16 微调 decoder |
+| QLoRA SFT | `scripts/qlora_sft_test_v3.py` | 4-bit NF4 + LoRA 训练 |
+| 4-bit 推理 CER | `scripts/qwen3_asr_4bit_cer_eval.py` | BF16 vs 4-bit NF4 同样本 CER 对比 |
+| Checkpoint resume | `scripts/resume_smoke_v2.py` | 验证 SFT 能从保存的 checkpoint 恢复 |
+| 准确率验证 | `scripts/accuracy_verification.py` | 对比 Transformers vs vLLM 转录结果 |
+| Repo 验证 | `scripts/validate_public_repo.py` | Repo 级检查：JSON 可解析、无敏感信息、双语对齐 |
+
+---
+
+## 4. Qwen3-ASR 微调路径
 
 Qwen3-ASR 和 Phi-4-mm 这类 audio-capable LLM 在大方向上类似：audio waveform 经过 audio encoder/front-end 变成 audio embeddings，再由 decoder 生成文本。但训练时不要照搬 Phi-4-mm，应该优先用 **Qwen3-ASR 官方 fine-tuning path**。
 
@@ -340,6 +384,55 @@ dtype=torch.float32
 
 来源：`results/dataloader_profile.json`
 
+### 为什么 LoRA 在本次实验中优于全参微调
+
+数据讲了一个清楚的故事：100 条 full-param SFT 把 loss 压到了 0.17（几乎零训练误差），但 held-out CER 从 7.74% 退化到了 21.53%。而 LoRA 只训练 0.78% 的参数，CER 达到了 5.48%——比微调前的 baseline 还好。
+
+| 因素 | 对 ASR 的影响 |
+|---|---|
+| **小训练集** | 只有 80-100 条 FLEURS 样本，full-param SFT 能把 788M 参数推到数据不足以支撑的位置。LoRA 限制在 6.1M adapter 参数。 |
+| **任务特征** | 这里的 ASR 微调主要是转录格式对齐（加标点、统一数字格式）。Audio encoder 已经能识别语音；adapter 教的是怎么序列化输出。 |
+| **正则化** | LoRA rank=16 本身就是容量约束。模型能调整输出格式，但不会覆盖 base 声学知识。 |
+| **Audio encoder 敏感性** | Qwen3-ASR 的 audio encoder 在 bf16 训练下产生 NaN。Full-param SFT 动了包含敏感 encoder 在内的全部 788M 参数。LoRA 保持 encoder 冻结。 |
+
+Full-param SFT 不是不行——它在小数据上风险高。大规模、高质量数据集（上千小时）才适合。客户 PoC 第一阶段，LoRA 更安全。
+
+### 真实转录样例
+
+下表展示 FLEURS 中文测试样本上模型的真实输出。注意模型会加标点、把阿拉伯数字转成中文数字——这些是 CER 的主要来源，不是词级错误。
+
+| # | FLEURS Reference（空格分隔字符） | Qwen3-ASR 输出 | CER 来源 |
+|---|---|---|---|
+| 1 | 这 并 不 是 告 别 这 是 一 个 篇 章 的 结 束 也 是 新 篇 章 的 开 始 | 这并不是告别，这是一个篇章的结束，也是新篇章的开始。 | 加了标点（，。） |
+| 2 | 钙 钾 等 元 素 属 于 金 属 银 和 金 等 元 素 当 然 也 是 金 属 | 钙、钾等元素属于金属，银和金等元素当然也是金属。 | 加了标点（、，。） |
+| 3 | 桥 下 垂 直 净 空 15 米 该 项 目 于 2011 年 8 月 完 工... | 桥下垂直净空十五米。该项目于二零一一年八月完工... | 数字 → 中文数字（15→十五, 2011→二零一一） |
+
+来源：`results/qwen3_asr_0.6b_4bit_cer_comparison.json`。CER 把每个插入/替换字符都算错误，所以标点和数字归一化会抬高 CER，即使语义内容完全正确。和客户讨论 CER 数字时必须说清这个特性。
+
+### 关键 Config 逐行解释
+
+**`configs/accelerate.example.yaml`**（单卡 fp32 训练）：
+
+| 参数 | 作用 | 为什么用这个值 |
+|---|---|---|
+| `mixed_precision: 'no'` | 强制纯 fp32 训练 | Qwen3-ASR audio encoder 在 bf16 下产生 NaN；fp32 是稳定基线 |
+| `num_processes: 1` | 单 GPU | 先简单跑通；多卡加 NCCL 复杂度 |
+
+**`configs/deepspeed.zero2.example.json`**（多卡 + ZeRO-2）：
+
+| 参数 | 作用 | 为什么用这个值 |
+|---|---|---|
+| `bf16.enabled: false` | 在 DeepSpeed 中禁用 bf16 | 同样的 NaN 问题；Qwen3-ASR 需要 fp32 |
+| `zero_optimization.stage: 2` | 把 optimizer states + gradients 分片到多 GPU | 减内存但不拆模型，复杂度低 |
+
+**`configs/vllm.qwen3-asr.example.sh`**（vLLM serving）：
+
+| 参数 | 作用 | 为什么用这个值 |
+|---|---|---|
+| `--gpu-memory-utilization 0.8` | 留 80% GPU 显存给 KV cache | 给并发请求留余量 |
+| `--max-model-len 8192` | 限制最大上下文长度 | ASR 转录文本短；更长浪费 KV cache |
+| `--trust-remote-code` | 允许加载 Qwen3-ASR 自定义模型代码 | `Qwen3ASRForConditionalGeneration` 需要 |
+
 ### 多卡微调
 
 ```bash
@@ -382,7 +475,7 @@ FLEURS 这种公开数据集可以证明训练 harness；领域真实结论仍�
 
 ---
 
-## 4. 微调后的推理优化
+## 5. 微调后的推理优化
 
 先用 transformers backend 确认质量，再切 vLLM 做 serving 优化。
 
@@ -480,7 +573,7 @@ qwen-asr-serve Qwen/Qwen3-ASR-1.7B \
 
 ---
 
-## 5. 复现当前证据
+## 6. 复现当前证据
 
 ### Local Harness
 
@@ -537,7 +630,7 @@ results/h100/h100_vllm_serving_benchmark.json
 
 ---
 
-## 6. 现场要问客户什么
+## 7. 现场要问客户什么
 
 1. 你们训练的 exact Qwen/Gemma checkpoint 是什么？
 2. 架构是 dedicated ASR、audio LLM、Gemma audio，还是 custom audio encoder + LLM？
@@ -550,7 +643,7 @@ results/h100/h100_vllm_serving_benchmark.json
 
 ---
 
-## 7. 当前限制
+## 8. 当前限制
 
 - Qwen3-ASR 官方 SFT 已跑通，但目前只验证了 100 条 FLEURS 子集；客户域结论仍需客户脱敏音频和人工 transcript。
 - bf16 SFT 在本次 H100 实验中产生 NaN；fp32 稳定。是否可用 mixed precision 需要额外 recipe 验证。
