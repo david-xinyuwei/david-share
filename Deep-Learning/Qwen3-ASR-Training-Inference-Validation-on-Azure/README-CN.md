@@ -23,40 +23,6 @@
 
 本 public repo 里已完成的实验都使用公开音频样例或公开 FLEURS 数据。私有音频、私有 endpoint 和订阅信息不进入本 public artifact。
 
-### Pipeline 总览
-
-```mermaid
-flowchart TB
-    subgraph 输入
-        A1["音频集<br/>脱敏文件<br/>时长 + 语言<br/>说话人元数据"]
-        A2["Ground truth<br/>人工转录文本<br/>hotwords<br/>可选时间戳"]
-    end
-    subgraph 模型
-        B1["模型路线<br/>Qwen3-ASR / Whisper<br/>Gemma audio<br/>自定义 encoder"]
-        B2["Serving 路线<br/>Transformers / vLLM<br/>SGLang / TensorRT<br/>当前 baseline"]
-    end
-    subgraph Azure
-        C1["Azure 目标<br/>A10 smoke<br/>A100/H100 PoC<br/>capacity check"]
-    end
-    A1 --> B1
-    A2 --> B1
-    B1 --> B2
-    B2 --> C1
-
-    subgraph 验证门
-        G1["Quality gate<br/>WER / CER<br/>hotword recall<br/>DER（有标签时）"]
-        G2["Serving gate<br/>RTF + P50/P95<br/>throughput<br/>failure rate"]
-        G3["Training gate<br/>data loader<br/>NCCL / checkpoint<br/>quantized stability"]
-    end
-    B1 --> G1
-    B2 --> G2
-    C1 --> G3
-    G1 --> G2
-    G2 --> G3
-
-    G3 --> OUT["输出<br/>可复现 baseline 包：<br/>metrics JSON、endpoint benchmark JSON、<br/>环境信息、风险登记表、<br/>Azure PoC 决策表"]
-```
-
 ### 本文关键术语速查
 
 如果你不熟悉 ASR 工程术语，这张表可以作为全文阅读的参考：

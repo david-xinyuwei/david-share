@@ -25,40 +25,6 @@ This repo is not a one-off ASR demo. It documents a **validation-first engineeri
 
 All completed experiments in this public repo use public audio samples or public FLEURS data. Proprietary audio, private endpoints, and subscription details stay outside this public artifact.
 
-### Pipeline Overview
-
-```mermaid
-flowchart TB
-    subgraph Input
-        A1["Audio set<br/>De-identified files<br/>duration + language<br/>speaker metadata"]
-        A2["Ground truth<br/>Human transcript<br/>hotwords<br/>optional timestamps"]
-    end
-    subgraph Model
-        B1["Model route<br/>Qwen3-ASR / Whisper<br/>Gemma audio<br/>custom encoder"]
-        B2["Serving route<br/>Transformers / vLLM<br/>SGLang / TensorRT<br/>current baseline"]
-    end
-    subgraph Azure
-        C1["Azure target<br/>A10 smoke<br/>A100/H100 PoC<br/>capacity check"]
-    end
-    A1 --> B1
-    A2 --> B1
-    B1 --> B2
-    B2 --> C1
-
-    subgraph Gates
-        G1["Quality gate<br/>WER / CER<br/>hotword recall<br/>DER if labels exist"]
-        G2["Serving gate<br/>RTF + P50/P95<br/>throughput<br/>failure rate"]
-        G3["Training gate<br/>data loader<br/>NCCL / checkpoint<br/>quantized stability"]
-    end
-    B1 --> G1
-    B2 --> G2
-    C1 --> G3
-    G1 --> G2
-    G2 --> G3
-
-    G3 --> OUT["Output<br/>Reproducible baseline pack:<br/>metrics JSON, endpoint benchmark JSON,<br/>environment facts, risk register,<br/>Azure PoC decision table"]
-```
-
 ### Key Terms Used in This Repo
 
 If you are new to ASR engineering, here is a quick reference for terms that appear throughout this document:
