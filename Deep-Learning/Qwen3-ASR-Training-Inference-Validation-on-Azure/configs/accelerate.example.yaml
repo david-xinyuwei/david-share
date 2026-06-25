@@ -1,8 +1,11 @@
 # Example only. Replace with the customer's real Accelerate config before diagnosing training.
+# Qwen3-ASR SFT note: our H100 validation found bf16 training can produce NaN
+# gradients. Start with fp32/no mixed precision unless a mixed-precision recipe
+# has been validated on the exact checkpoint and dataset.
 compute_environment: LOCAL_MACHINE
 debug: false
 distributed_type: DEEPSPEED
-mixed_precision: bf16
+mixed_precision: 'no'
 num_machines: 1
 num_processes: 8
 machine_rank: 0

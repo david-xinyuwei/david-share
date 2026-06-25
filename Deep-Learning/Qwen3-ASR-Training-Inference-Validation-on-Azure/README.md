@@ -27,13 +27,13 @@ The table below is the current public evidence. It is intentionally scoped to pu
 | Long-audio behavior | 30s, 60s, 180s synthetic long-audio test on Qwen3-ASR-1.7B | `results/h100/h100_long_audio_test.json` |
 | **FLEURS CER baseline** | **200 Chinese test samples: 0.6B=7.74%, 1.7B=7.09%** | `results/fleurs_cer_qwen3_asr_0.6b.json`, `results/fleurs_cer_qwen3_asr_1.7b.json` |
 | **Official SFT fine-tuning** | **Ran official `qwen3_asr_sft.py` — discovered bf16 produces NaN, fp32 works (loss 0.54→0.17)** | `results/sft_v3_log_summary.json` |
-| **SFT accuracy impact** | **100-sample full-param SFT degrades CER (7.74%→21.53%) — proves need for LoRA + more data** | `results/fleurs_cer_finetuned_fp32.json` |
+| **SFT accuracy impact** | **100-sample full-param SFT degrades CER (7.74%→21.53%) — suggests LoRA + more data before production tuning** | `results/fleurs_cer_finetuned_fp32.json` |
 | **vLLM serving** | **Clean conda env: vLLM serves Qwen3-ASR-1.7B, transcription endpoint confirmed** | `results/vllm_serving_result.json` |
-| **CUDA Graph A/B** | **Transformers P50=522ms → vLLM+CUDA Graph P50=69ms = ~7x; accuracy verified lossless (CER 6.65% vs 5.90%)** | `results/cuda_graph_ab.json`, `results/accuracy_verification.json` |
+| **CUDA Graph A/B** | **Transformers P50=522ms → vLLM+CUDA Graph P50=69ms = ~7x; no CER regression observed on 20 FLEURS samples (6.65% vs 5.90%)** | `results/cuda_graph_ab.json`, `results/accuracy_verification.json` |
 | **Dataloader profiling** | **Audio decode=0.196s, GPU transfer=0.31s (bottleneck) for 200 samples** | `results/dataloader_profile.json` |
 | **LoRA feasibility** | **LoRA rank=16 on Qwen3-ASR: only 0.78% params trainable (6.1M/788M)** | `results/lora_param_info.json` |
 | **Model architecture** | **Encoder=186M (23.8%), Decoder=596M (76.2%)** | `results/encoder_decoder_split.json` |
-| **Cost proxy** | **$0.24/audio-hour serial on H100 (batch=8 would be ~8x cheaper)** | `results/cost_proxy.json` |
+| **Cost proxy** | **Estimated $0.24/audio-hour serial on H100; treat as proxy until region/SKU price source is pinned** | `results/cost_proxy.json` |
 | Harness regression | WER/CER script, endpoint benchmark script, and py_compile checks pass | `results/harness_test_results.json` |
 
 ### H100 Model Comparison
@@ -123,7 +123,7 @@ python qwen3_asr_sft.py \
 
 ### Critical Finding: BF16 Produces NaN Gradients
 
-**Discovered on H100 NVL 95GB**: The official SFT script's default `bf16=True` mode causes `grad_norm=nan` from the very first training step. The audio encoder's forward pass produces NaN in BF16 precision.
+**Discovered on H100 NVL 95GB**: The official SFT script's default `bf16=True` path produced `grad_norm=nan` from the first logged training step. FP32 training with lower LR and warmup completed without NaN.
 
 | Precision | grad_norm | Loss | Model output after training |
 |---|---|---|---|
@@ -147,9 +147,9 @@ This is a critical engineering finding for anyone fine-tuning Qwen3-ASR.
 | Strategy | Params changed | Best for | Risk |
 |---|---|---|---|
 | Full-param SFT (fp32) | 788M (100%) | Large dataset (10K+ samples) | Small data → overfitting (100 samples degraded CER from 7.74%→21.53%) |
-| LoRA on decoder (rank=16) | 6.1M (0.78%) | Medium dataset (1K-10K) | Safe, recommended starting point |
-| Encoder-only | 186M (23.8%) | New audio domain (dialect/accent/noise) | Preserves decoder generalization |
-| Encoder + LoRA decoder | 186M + 6.1M | Full adaptation | Best balance |
+| LoRA on decoder (rank=16) | 6.1M (0.78%) | Medium dataset (1K-10K) | Feasible by parameter count; CER comparison still needed |
+| Encoder-only | 186M (23.8%) | New audio domain (dialect/accent/noise) | Structural option; encoder-only SFT effect not yet measured |
+| Encoder + LoRA decoder | 186M + 6.1M | Full adaptation | Promising hypothesis; needs customer-data validation |
 
 ### Multi-GPU Fine-Tune
 
@@ -158,12 +158,14 @@ export CUDA_VISIBLE_DEVICES=0,1
 torchrun --nproc_per_node=2 qwen3_asr_sft.py \
   --model_path Qwen/Qwen3-ASR-1.7B \
   --train_file ./train.jsonl \
+  --eval_file ./eval.jsonl \
   --output_dir ./qwen3-asr-finetuning-out \
-  --batch_size 32 \
+  --batch_size 1 \
   --grad_acc 4 \
-  --lr 2e-5 \
-  --epochs 1 \
-  --save_steps 200
+  --lr 5e-6 \
+  --warmup_ratio 0.1 \
+  --epochs 3 \
+  --save_strategy epoch
 ```
 
 ### Training Optimization Checklist
@@ -172,9 +174,9 @@ torchrun --nproc_per_node=2 qwen3_asr_sft.py \
 |---|---|---|
 | Data quality | transcript normalization, language prefix, bad-audio filtering | WER/CER and hard samples |
 | Data throughput | `num_workers`, `pin_memory`, `persistent_workers`, `prefetch_factor`, local cache | samples/sec, audio-hours/sec, dataloader wait |
-| GPU efficiency | BF16, FlashAttention 2, batch size, grad accumulation | step time, GPU utilization, HBM |
+| GPU efficiency | start with FP32 for Qwen3-ASR SFT, then validate mixed precision; tune batch size and grad accumulation | step time, GPU utilization, HBM, `grad_norm` |
 | Stability | save/resume, checkpoint interval, NCCL logs, loss spike monitoring | resume success, failure interval |
-| Quantization | BF16 baseline first, then QLoRA/FP8 only with same data/eval | loss curve, WER/CER delta, memory |
+| Quantization | FP32 stability baseline first; QLoRA/FP8 only with same data/eval and CER before/after | loss curve, WER/CER delta, memory |
 
 ### Accuracy Validation
 
@@ -204,19 +206,19 @@ Start with the transformers backend to confirm quality, then move to vLLM for se
 | vLLM --enforce-eager (CUDA Graph OFF) | 369ms | — | 17/20 identical |
 
 **Key findings:**
-- CUDA Graph provides **~5x decode acceleration** (369ms → 69ms) with **zero accuracy loss**
-- Combined vLLM optimizations (CUDA Graph + PagedAttention + scheduling) = **~7x** vs raw transformers
+- CUDA Graph provides **~5x latency reduction** in this short-audio test (369ms → 69ms)
+- Combined vLLM optimizations (CUDA Graph + PagedAttention + scheduling) are **~7x faster** than raw transformers on this sample set
 - 18/20 transcriptions are byte-for-byte identical to transformers output
-- CER is slightly better with vLLM (5.90% vs 6.65%) — likely due to different decoding parameters
+- No CER regression was observed on this 20-sample FLEURS check (5.90% vs 6.65%). This is an empirical check, not a universal accuracy guarantee.
 
-### Inference Acceleration: What Is Lossless
+### Inference Acceleration: What Should Be Rechecked for Accuracy
 
-| Technique | Speed gain | Accuracy impact | Notes |
+| Technique | Speed gain | Accuracy expectation | Notes |
 |---|---|---|---|
-| CUDA Graph | ~5x decode | ❌ None | Replays identical kernel sequence |
-| Flash Attention | 2-4x attention | ❌ None | Mathematically equivalent |
-| PagedAttention | Memory efficiency | ❌ None | KV-cache management |
-| Continuous Batching | Throughput | ❌ None | Scheduling optimization |
+| CUDA Graph | ~5x decode in this run | Expected no model-quality change | Replays the same kernel sequence, but still validate output path for ASR endpoints |
+| Flash Attention | 2-4x attention | Expected no model-quality change | Mathematically equivalent within numeric precision |
+| PagedAttention | Memory efficiency | Expected no model-quality change | KV-cache management |
+| Continuous Batching | Throughput | Expected no model-quality change | Scheduling optimization; verify no request-mixing bugs |
 | FP8/INT8 quantization | 1.5-2x | ⚠️ Must validate CER | 0.1-0.5% typical degradation |
 | INT4 quantization (GPTQ/AWQ) | 2-3x memory | ⚠️ Must validate CER | 0.5-2% typical degradation |
 
@@ -324,11 +326,12 @@ results/h100/h100_vllm_serving_benchmark.json
 
 ## 7. Current Limitations
 
-- ~~We have not yet run Qwen3-ASR fine-tuning in this repo.~~ **Done**: SFT runs in fp32; bf16 produces NaN.
-- ~~We have not yet run FLEURS or customer-data before/after WER/CER.~~ **Done**: FLEURS baseline CER 0.6B=7.74%, 1.7B=7.09%.
-- ~~We have not yet validated Gemma audio models.~~ **Done**: Feasibility report confirms Gemma 3n supports ASR via vLLM/SGLang.
-- ~~vLLM serving is officially supported, but our first endpoint attempt failed.~~ **Done**: Clean env works; CUDA Graph verified lossless.
-- The concurrent vLLM benchmark needs correct multipart form request format (not JSON body).
+- ~~We have not yet run Qwen3-ASR fine-tuning in this repo.~~ **Done**: SFT runs in fp32; bf16 produced NaN in this run.
+- ~~We have not yet run FLEURS or customer-data before/after WER/CER.~~ **Partially done**: FLEURS baseline CER is available; customer-domain CER still requires customer data.
+- Gemma 3n audio is documented as ASR-capable, but this repo has not run Gemma ASR inference or serving.
+- ~~vLLM serving is officially supported, but our first endpoint attempt failed.~~ **Done**: Clean env works; CUDA Graph path showed no CER regression on a 20-sample check.
+- The concurrent vLLM benchmark is now available through concurrency 8; concurrency 16 is not yet measured.
+- LoRA feasibility is confirmed by parameter count, but LoRA fine-tuning CER has not been measured yet.
 - SGLang does not have Qwen3-ASR in its model registry; TensorRT-LLM only supports Whisper for ASR.
 - LoRA fine-tuning feasibility confirmed (0.78% params), but LoRA CER comparison not yet run.
 - Public samples do not represent the customer's meeting audio, device microphones, accents, noise, diarization, or hotwords.

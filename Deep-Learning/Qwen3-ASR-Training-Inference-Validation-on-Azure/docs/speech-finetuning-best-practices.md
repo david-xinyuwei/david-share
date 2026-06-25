@@ -1,6 +1,6 @@
 # Speech Fine-Tuning Best Practices
 
-This checklist distills the audio SFT engineering pattern from [`../../Multimodal-Models/SFT-Phi-4-mm/readme.md`](../../Multimodal-Models/SFT-Phi-4-mm/readme.md) and adapts it for Qwen/Gemma-style ASR validation.
+This checklist distills the audio SFT engineering pattern from the public Phi-4 multimodal fine-tuning workflow and adapts it for Qwen/Gemma-style ASR validation. See the Microsoft Phi model family documentation for the underlying multimodal model context: https://huggingface.co/microsoft/Phi-4-multimodal-instruct
 
 The Phi-4-mm reference is a speech-translation fine-tuning project, not a Qwen3-ASR benchmark. Use it for training mechanics: data contract, label masking, audio-aware collation, distributed evaluation, and before/after scoring.
 

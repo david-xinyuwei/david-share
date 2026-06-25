@@ -25,7 +25,16 @@
 | Qwen3-ASR 1.7B 推理 | 同一批公开样例跑通 | `results/h100/h100_1.7b_full_benchmark.json` |
 | H100 batch throughput | batch size 1/4/8/16 扫描 | `results/h100/h100_model_comparison.json` |
 | 长音频行为 | 30s、60s、180s synthetic long-audio 测试 | `results/h100/h100_long_audio_test.json` |
-| vLLM serving feasibility | 第一次 vLLM endpoint 尝试因 package/API 版本不匹配失败 | `results/h100/h100_vllm_serving_benchmark.json` |
+| **FLEURS CER baseline** | **200 条中文测试样本：0.6B=7.74%，1.7B=7.09%** | `results/fleurs_cer_qwen3_asr_0.6b.json`, `results/fleurs_cer_qwen3_asr_1.7b.json` |
+| **官方 SFT 微调** | **官方 `qwen3_asr_sft.py` 跑通；本次发现 bf16 会产生 NaN，fp32 可稳定训练** | `results/sft_v3_log_summary.json` |
+| **微调准确率影响** | **100 条全参数 SFT 后 FLEURS CER 从 7.74% 变为 21.53%，说明小数据全参微调泛化风险很高** | `results/fleurs_cer_finetuned_fp32.json` |
+| **vLLM serving** | **clean conda env 下 Qwen3-ASR-1.7B transcription endpoint 跑通；旧失败文件保留为 dirty-env 教训** | `results/vllm_serving_result.json` |
+| **CUDA Graph A/B** | **Transformers P50=522ms；vLLM+CUDA Graph P50=69ms；20 条 FLEURS 未观察到 CER 退化** | `results/cuda_graph_ab.json`, `results/accuracy_verification.json` |
+| **vLLM 并发 serving** | **并发 8：P50=88ms，79 rps，32/32 成功** | `results/concurrent_benchmark_v2.json` |
+| **数据吞吐 profiling** | **200 条样本：audio decode=0.196s，GPU transfer=0.31s** | `results/dataloader_profile.json` |
+| **LoRA 可行性** | **rank=16 时仅 0.78% 参数可训练（6.1M/788M），但 LoRA CER 尚未测** | `results/lora_param_info.json` |
+| **模型结构拆分** | **Encoder=186M(23.8%)，Decoder=596M(76.2%)** | `results/encoder_decoder_split.json` |
+| **成本 proxy** | **H100 serial 推理估算约 $0.24/audio-hour；需补价格来源/区域后再对外精确引用** | `results/cost_proxy.json` |
 | Harness regression | WER/CER、endpoint benchmark、py_compile 全通过 | `results/harness_test_results.json` |
 
 ### H100 模型对比
@@ -62,13 +71,13 @@
 | 客户诉求 | 现在能展示什么 | 还需要客户给什么 |
 |---|---|---|
 | Qwen/Gemma backbone | Qwen3-ASR 0.6B/1.7B H100 推理和长音频证据 | 客户 exact checkpoint；如果用 Gemma，需要确认 Gemma 3n 或自研 Gemma audio route |
-| HF training stack | Qwen3-ASR 官方 fine-tuning 入口和 JSONL 格式已确认 | training command、Accelerate/DeepSpeed/FSDP config、失败日志 |
-| vLLM/SGLang/TensorRT-LLM serving | vLLM 官方支持 Qwen3-ASR transcription；transformers backend 已有 benchmark | clean vLLM env benchmark；SGLang/TRT-LLM 对 exact model 的 feasibility |
+| HF training stack | Qwen3-ASR 官方 fine-tuning 已跑通；fp32 稳定，bf16 产生 NaN | 客户 training command、Accelerate/DeepSpeed/FSDP config、失败日志 |
+| vLLM/SGLang/TensorRT-LLM serving | vLLM clean env serving、CUDA Graph A/B、并发 8 benchmark 已跑；SGLang/TRT-LLM 边界已查 | 客户 exact checkpoint 上的 serving config 和 SLA |
 | 数据存储/传输/吞吐 | 有 profiling 方法和脚本基础 | 数据规模、存储位置、音频时长、codec、train/eval manifest |
-| 训练稳定性和速度 | 有官方 SFT 路径和训练诊断清单 | 真实 training log、checkpoint、multi-node topology |
-| 量化训练稳定性 | 有 BF16 → QLoRA/FP8 的验证设计 | 实际 fine-tuning run 和 quantized training config |
-| 推理延迟和成本 | H100 batch throughput、RTF、长音频退化证据 | 当前 baseline cost、SLA、region/SKU pricing |
-| 准确率提升 | CER 脚本和公开样例 smoke CER | 客户或公开 eval dataset 上的 before/after fine-tuning |
+| 训练稳定性和速度 | 单卡 fp32 SFT 稳定跑通；训练诊断清单已写 | multi-GPU/resume 仍需客户 config 和日志 |
+| 量化训练稳定性 | 已实测 bf16 NaN；fp32 稳定 | QLoRA/FP8 before-after CER 仍需补测 |
+| 推理延迟和成本 | H100 batch throughput、CUDA Graph A/B、vLLM 并发 8、成本 proxy | 当前 baseline cost、SLA、region/SKU pricing |
+| 准确率提升 | FLEURS 200 条 baseline + full-param SFT before/after | 客户或更大公开 eval dataset 上的 LoRA / encoder-only before-after |
 
 ---
 
@@ -119,12 +128,14 @@ export CUDA_VISIBLE_DEVICES=0,1
 torchrun --nproc_per_node=2 qwen3_asr_sft.py \
   --model_path Qwen/Qwen3-ASR-1.7B \
   --train_file ./train.jsonl \
+  --eval_file ./eval.jsonl \
   --output_dir ./qwen3-asr-finetuning-out \
-  --batch_size 32 \
+  --batch_size 1 \
   --grad_acc 4 \
-  --lr 2e-5 \
-  --epochs 1 \
-  --save_steps 200
+  --lr 5e-6 \
+  --warmup_ratio 0.1 \
+  --epochs 3 \
+  --save_strategy epoch
 ```
 
 ### 训练优化清单
@@ -133,9 +144,9 @@ torchrun --nproc_per_node=2 qwen3_asr_sft.py \
 |---|---|---|
 | 数据质量 | transcript normalization、language prefix、坏音频过滤 | WER/CER、hard samples |
 | 数据吞吐 | `num_workers`、`pin_memory`、`persistent_workers`、`prefetch_factor`、local cache | samples/sec、audio-hours/sec、dataloader wait |
-| GPU 效率 | BF16、FlashAttention 2、batch size、grad accumulation | step time、GPU utilization、HBM |
+| GPU 效率 | Qwen3-ASR SFT 先用 FP32 稳定基线，再验证 mixed precision；调 batch size 和 grad accumulation | step time、GPU utilization、HBM、`grad_norm` |
 | 稳定性 | save/resume、checkpoint interval、NCCL logs、loss spike monitoring | resume success、failure interval |
-| 量化 | 先做 BF16 baseline，再同数据同 eval 做 QLoRA/FP8 | loss curve、WER/CER delta、memory |
+| 量化 | 先做 FP32 稳定基线；QLoRA/FP8 必须同数据同 eval 做 before/after CER | loss curve、WER/CER delta、memory |
 
 ### 准确率验证
 
@@ -258,11 +269,14 @@ results/h100/h100_vllm_serving_benchmark.json
 
 ## 7. 当前限制
 
-- 当前 repo 还没有跑 Qwen3-ASR fine-tuning。
-- 当前 repo 还没有 FLEURS 或客户数据 before/after WER/CER。
-- 当前 repo 还没有验证 Gemma audio model。
-- vLLM serving 是官方支持路径，但第一次 endpoint 尝试因 package API mismatch 失败。
-- SGLang 和 TensorRT-LLM 对 ASR 仍是 feasibility check，不是已确认推荐。
+- Qwen3-ASR 官方 SFT 已跑通，但目前只验证了 100 条 FLEURS 子集；客户域结论仍需客户脱敏音频和人工 transcript。
+- bf16 SFT 在本次 H100 实验中产生 NaN；fp32 稳定。是否可用 mixed precision 需要额外 recipe 验证。
+- vLLM serving、CUDA Graph A/B 和并发 8 已验证；并发 16 尚未测。
+- LoRA 参数可行性已验证（0.78% 可训练参数），但 LoRA 微调后的 CER 尚未跑。
+- Encoder/decoder 参数拆分已完成，但 encoder-only 微调效果尚未实测。
+- Gemma 3n 官方支持 audio/ASR，但本 repo 尚未跑 Gemma 的 FLEURS CER 或 H100 serving benchmark。
+- SGLang 和 TensorRT-LLM 对 Qwen3-ASR 不是已验证推荐：SGLang 未见 Qwen3-ASR registry，TensorRT-LLM ASR 路径主要是 Whisper。
+- 成本数字是 proxy，正式对外报价必须补 Azure 区域、SKU、价格来源和日期。
 - 公开样例不能代表客户的会议音频、设备麦克风、口音、噪音、diarization 或 hotwords。
 
 ---
