@@ -13,15 +13,15 @@
 
 ## 在 Azure 上运行
 
-这个 repo 不是一次性的 ASR demo，而是一条 **validation-first 的工程验证链路**：把客户自研 Qwen/Gemma 风格 ASR 路线，从 backbone 选择一路推到 serving、微调和生产验收决策。整个路径按顺序分成五步：
+这个 repo 不是一次性的 ASR demo，而是一条 **validation-first 的工程验证链路**：在 Azure GPU 上评估 Qwen/Gemma 风格 ASR 技术栈——从 backbone 选择一路到 serving 和微调决策。整个路径分成五步：
 
-1. **Backbone smoke 和公开 CER** — 先证明 Qwen3-ASR 能加载、能转录、有 FLEURS baseline，再碰客户音频
-2. **长音频和数据路径验证** — 优化训练前，先检查 chunking 风险、audio decode、dataloader wait、GPU transfer
+1. **Backbone smoke 和公开 CER** — 先证明 Qwen3-ASR 能加载、能转录、有 FLEURS baseline，再使用任何私有音频
+2. **长音频和数据路径验证** — 优化训练前先确认四件事：长录音是否会导致输出坍缩（chunking 风险）、音频文件解码是否成为瓶颈（audio decode）、训练数据 pipeline 是否让 GPU 空等（dataloader wait）、音频 tensor 搬到 GPU 是否是最慢的一步（GPU transfer）
 3. **微调策略** — 用 before/after CER 对比 full-param SFT、LoRA、encoder-only、QLoRA 和精度稳定性
 4. **Serving framework 选型** — 用原始 endpoint evidence 验证 vLLM transcription、CUDA Graph 和并发
-5. **替代 backbone 和生产 gate** — 写清 Gemma 3n 前置条件、SGLang/TRT-LLM 边界和客户数据验收标准
+5. **替代 backbone 和生产验收** — 写清 Gemma 3n 的环境要求（需要 PyTorch 2.6+ 和 cuDNN 9.1+，因为 head_dim=256 与旧版 SDPA 不兼容；详见 `docs/gemma-3n-audio-feasibility.md`），确认 SGLang/TRT-LLM 的 ASR 支持边界，并定义生产音频评估的验收标准
 
-本 public repo 里已完成的实验都使用公开音频样例或公开 FLEURS 数据。客户音频、私有 endpoint 和订阅信息不需要进入 public artifact。
+本 public repo 里已完成的实验都使用公开音频样例或公开 FLEURS 数据。私有音频、私有 endpoint 和订阅信息不进入本 public artifact。
 
 ![架构总览](images/solution_architecture.png)
 
@@ -49,11 +49,11 @@
 | 模型 | `Qwen/Qwen3-ASR-0.6B`, `Qwen/Qwen3-ASR-1.7B`, `google/gemma-3n-E2B-it` route check |
 | 公开 eval | FLEURS `cmn_hans_cn` test split；Qwen CER 使用 200 条样本 |
 | Serving | Qwen3-ASR 的 vLLM transcription endpoint + transformers baseline |
-| 公平性 | 同一批公开音频/eval split、同一 metric script；repo 不包含客户音频或私有 endpoint |
+| 公平性 | 同一批公开音频/eval split、同一 metric script；repo 不包含专有音频或私有 endpoint |
 
 | 结论 | 实测结果 | 行动建议 |
 |---|---|---|
-| Qwen3-ASR public CER baseline 可用于 harness 验证 | 200 条 FLEURS 中文：0.6B=**7.74%**，1.7B=**7.09%** | 用作 public regression baseline，不当作客户域质量 |
+| Qwen3-ASR public CER baseline 可用于 harness 验证 | 200 条 FLEURS 中文：0.6B=**7.74%**，1.7B=**7.09%** | 用作 public regression baseline，不当作领域质量 |
 | 小数据 full-param SFT 泛化风险高 | CER 从 **7.74%** 退化到 **21.53%** | 小数据不要从 full-param SFT 起步 |
 | LoRA 是本次最稳的第一轮微调路线 | LoRA rank=16 在 80 条检查中达到 **5.48% CER** | 优先 LoRA，再考虑更大范围参数更新 |
 | vLLM + CUDA Graph 是当前最强 serving 路线 | 短音频 benchmark P50 **69ms**，transformers 是 **522ms** | 质量验证通过后，用 vLLM 做第一阶段 serving PoC |
@@ -68,13 +68,13 @@
 | 精度 | FP32 稳定基线；mixed precision 必须先过 grad_norm 和 CER 检查 | 避免 NaN 或 checkpoint 被悄悄破坏 |
 | Serving engine | vLLM Qwen3-ASR transcription endpoint | clean env 路线已验证，并有延迟/并发数据 |
 | 音频输入 | VAD + chunk + overlap + stitching | 避免长音频坍缩，延迟更可控 |
-| 验收数据 | 客户脱敏音频 + 人工 transcript + hotwords | FLEURS 只证明 harness，客户域数据决定生产质量 |
+| 验收数据 | 脱敏领域音频 + 人工 transcript + hotwords | FLEURS 只证明 harness，领域数据决定生产质量 |
 
 ---
 
 ## 1. 我们实际跑了什么
 
-下表是当前 public evidence。所有结果都来自公开 Qwen 样例和 Azure H100 测试，不包含客户音频、私有 endpoint、VM 名称/IP 或订阅信息。
+下表是当前 public evidence。所有结果都来自公开 Qwen 样例和 Azure H100 测试，不包含专有音频、私有 endpoint、VM 名称/IP 或订阅信息。
 
 | 方向 | Evidence | Raw data |
 |---|---|---|
@@ -111,10 +111,10 @@
 | Batch 16 throughput | **55.13 req/s** | 51.74 req/s | 单张 H100 上都超过 50 short req/s |
 | 10-round P50 | 0.172s | 0.174s | 稳态延迟稳定 |
 | 10-round P95 | 0.215s | **0.174s** | 1.7B tail latency 更稳 |
-| 官方中文样例 CER | 0.0% | 0.0% | 只是 smoke quality，不代表客户数据 |
+| 官方中文样例 CER | 0.0% | 0.0% | 只是 smoke quality，不代表实际业务数据 |
 | 英文公开样例 latency | 1.195s | **0.954s** | 1.7B 更快 |
 
-**边界：** 这里的 CER=0% 只说明官方短样例和预期文本完全一致，不是客户业务准确率。
+**边界：** 这里的 CER=0% 只说明官方短样例和预期文本完全一致，不是实际业务准确率。
 
 ### 长音频发现
 
@@ -125,26 +125,26 @@
 | 重复中文样例 | 180s | 82.726s | 0.4596 | 16 | **失败：输出坍缩** |
 | 官方英文样例 | 15.1s | 1.202s | 0.0799 | 188 | 正常 |
 
-这条结果对会议转录客户最重要：**长会议音频不应作为单个未切分请求直接送入模型。** 生产 pipeline 必须做 VAD、chunking、overlap、stitching、可选 forced alignment 和 diarization。
+这条结果对会议转录场景最重要：**长会议音频不应作为单个未切分请求直接送入模型。** 生产 pipeline 必须做 VAD、chunking、overlap、stitching、可选 forced alignment 和 diarization。
 
 ---
 
-## 2. 客户问题与证据映射
+## 2. 应用问题与证据映射
 
-| 客户诉求 | 现在能展示什么 | 还需要客户给什么 |
+| 应用问题 | 现在能展示什么 | 还需要什么输入 |
 |---|---|---|
-| Qwen/Gemma backbone | Qwen3-ASR 0.6B/1.7B H100 推理和长音频证据；Gemma 3n E2B-it 官方 HF 路线和环境前置条件已记录 | 客户 exact checkpoint；如果选择 Gemma 做 ASR backbone，需要在 clean env 下补 audio smoke 和 CER |
-| HF training stack | Qwen3-ASR 官方 fine-tuning 已跑通；fp32 稳定，bf16 产生 NaN | 客户 training command、Accelerate/DeepSpeed/FSDP config、失败日志 |
-| vLLM/SGLang/TensorRT-LLM serving | vLLM clean env serving、CUDA Graph A/B、并发 16 benchmark 已跑；SGLang/TRT-LLM 边界已查 | 客户 exact checkpoint 上的 serving config 和 SLA |
+| Qwen/Gemma backbone | Qwen3-ASR 0.6B/1.7B H100 推理和长音频证据；Gemma 3n E2B-it 官方 HF 路线和环境前置条件已记录 | 目标 exact checkpoint；如果选择 Gemma 做 ASR backbone，需要在 clean env 下补 audio smoke 和 CER |
+| HF training stack | Qwen3-ASR 官方 fine-tuning 已跑通；fp32 稳定，bf16 产生 NaN | 目标 training command、Accelerate/DeepSpeed/FSDP config、失败日志 |
+| vLLM/SGLang/TensorRT-LLM serving | vLLM clean env serving、CUDA Graph A/B、并发 16 benchmark 已跑；SGLang/TRT-LLM 边界已查 | 目标 exact checkpoint 上的 serving config 和 SLA |
 | 数据存储/传输/吞吐 | 有 profiling 方法和脚本基础 | 数据规模、存储位置、音频时长、codec、train/eval manifest |
-| 训练稳定性和速度 | 单卡 fp32 SFT 稳定跑通；训练诊断清单已写 | multi-GPU/resume 仍需客户 config 和日志 |
+| 训练稳定性和速度 | 单卡 fp32 SFT 稳定跑通；训练诊断清单已写 | multi-GPU/resume 仍需目标 config 和日志 |
 | 量化训练稳定性 | 已实测 bf16 NaN；fp32 稳定；LoRA SFT 已跑 | QLoRA/FP8 before-after CER 仍需补测 |
 | 推理延迟和吞吐 | H100 batch throughput、CUDA Graph A/B、vLLM 并发 16 | 目标 SLA、代表性音频时长和 serving 拓扑 |
-| 准确率提升 | FLEURS baseline + full-param / LoRA / encoder-only before-after | 客户或更大公开 eval dataset 上的复验 |
+| 准确率提升 | FLEURS baseline + full-param / LoRA / encoder-only before-after | 领域或更大公开 eval dataset 上的复验 |
 
 ### 验证目标覆盖矩阵
 
-下表对应客户会议准备时的 17 个验证目标。✅ 表示 repo 里已有 raw evidence；⚠️ 表示路线和边界已写清，但还需要客户拓扑、clean env 复测或客户数据。
+下表对应本验证中的 17 个验证目标。✅ 表示 repo 里已有 raw evidence；⚠️ 表示路线和边界已写清，但还需要目标拓扑、clean env 复测或领域数据。
 
 | # | 验证目标 | Repo 状态 | Evidence |
 |---:|---|---|---|
@@ -209,6 +209,25 @@ flowchart LR
 | Checkpoint resume | `scripts/resume_smoke_v2.py` | 验证 SFT 能从保存的 checkpoint 恢复 |
 | 准确率验证 | `scripts/accuracy_verification.py` | 对比 Transformers vs vLLM 转录结果 |
 | Repo 验证 | `scripts/validate_public_repo.py` | Repo 级检查：JSON 可解析、无敏感信息、双语对齐 |
+
+### 验证门
+
+![验证门](images/validation_gates.png)
+
+上图展示 ASR 模型上线前必须通过的三道验证门。各术语含义如下：
+
+| 术语 | 是什么 | 为什么重要 |
+|---|---|---|
+| **WER / CER** | Word Error Rate / Character Error Rate（词错误率 / 字符错误率）——模型转录与人工标注 reference 之间的差异比例 | ASR 最核心的准确率指标；中文用 CER，因为中文没有自然分词边界 |
+| **Hotword recall** | 领域专有词（产品名、医学术语、人名地名）是否被正确转录 | 通用 ASR 模型经常漏掉稀有或专业词汇，而这些往往是业务最关心的 |
+| **DER** | Diarization Error Rate（说话人分离错误率）——系统识别"谁在说哪一段"的准确程度 | 只在有说话人标签时才需要；会议转录场景的关键指标 |
+| **RTF** | Real-Time Factor = 处理时间 / 音频时长。RTF < 1 表示比实时快 | 决定系统能做实时流式还是只能离线处理 |
+| **P50 / P95** | 转录请求的中位数延迟和第 95 百分位延迟 | P50 反映典型用户体验；P95 捕捉影响 SLA 的 tail latency |
+| **Throughput** | 每秒处理请求数（rps）或每 GPU 小时处理的音频小时数 | 决定系统能同时服务多少用户或录音 |
+| **Failure rate** | 在并发负载下返回错误或空转录的请求占比 | 并发=1 时能跑不代表并发=16 时还能跑 |
+| **Data loader** | 读取音频文件、解码、把 tensor 送到 GPU 的 pipeline | data loader 慢 = GPU 空等数据 = 训练吞吐下降 |
+| **NCCL / checkpoint** | NCCL 是 NVIDIA 的 GPU 间通信库；checkpoint 是保存的模型快照 | 多卡训练中 NCCL 超时或 checkpoint 损坏会导致静默失败 |
+| **Quantized stability** | 在低精度（BF16、FP8、INT4）下训练是否会产生 NaN 梯度或质量退化 | Qwen3-ASR 的 audio encoder 在 BF16 下会产生 NaN——这是真实风险，不是理论问题 |
 
 ---
 
@@ -281,7 +300,7 @@ dtype=torch.float32
 | Decoder LoRA (rank=16) | 6.1M (0.78%) | 80 条 FLEURS 检查 CER=5.48% | 小数据第一轮最值得跑 |
 | Encoder-only | 186M (23.8%) | 同一批 80 条检查 CER=6.26% | 可用于声学域适配，但本次弱于 LoRA |
 | QLoRA (4-bit NF4 + LoRA rank=16) | 6.1M (1.29% of quantized) | 59.8s 完成训练；80 条 CER=5.69% | 显存受限时的强选择 |
-| Encoder + LoRA decoder | 186M + 6.1M | 尚未运行 | 拿到客户数据后值得作为下一阶段 |
+| Encoder + LoRA decoder | 186M + 6.1M | 尚未运行 | 拿到领域数据后值得作为下一阶段 |
 
 ### 训练 Run 详情
 
@@ -395,7 +414,7 @@ dtype=torch.float32
 | **正则化** | LoRA rank=16 本身就是容量约束。模型能调整输出格式，但不会覆盖 base 声学知识。 |
 | **Audio encoder 敏感性** | Qwen3-ASR 的 audio encoder 在 bf16 训练下产生 NaN。Full-param SFT 动了包含敏感 encoder 在内的全部 788M 参数。LoRA 保持 encoder 冻结。 |
 
-Full-param SFT 不是不行——它在小数据上风险高。大规模、高质量数据集（上千小时）才适合。客户 PoC 第一阶段，LoRA 更安全。
+Full-param SFT 不是不行——它在小数据上风险高。大规模、高质量数据集（上千小时）才适合。首轮 PoC 第一阶段，LoRA 更安全。
 
 ### 真实转录样例
 
@@ -407,7 +426,7 @@ Full-param SFT 不是不行——它在小数据上风险高。大规模、高�
 | 2 | 钙 钾 等 元 素 属 于 金 属 银 和 金 等 元 素 当 然 也 是 金 属 | 钙、钾等元素属于金属，银和金等元素当然也是金属。 | 加了标点（、，。） |
 | 3 | 桥 下 垂 直 净 空 15 米 该 项 目 于 2011 年 8 月 完 工... | 桥下垂直净空十五米。该项目于二零一一年八月完工... | 数字 → 中文数字（15→十五, 2011→二零一一） |
 
-来源：`results/qwen3_asr_0.6b_4bit_cer_comparison.json`。CER 把每个插入/替换字符都算错误，所以标点和数字归一化会抬高 CER，即使语义内容完全正确。和客户讨论 CER 数字时必须说清这个特性。
+来源：`results/qwen3_asr_0.6b_4bit_cer_comparison.json`。CER 把每个插入/替换字符都算错误，所以标点和数字归一化会抬高 CER，即使语义内容完全正确。讨论 CER 数字时必须说清这个特性。
 
 ### 关键 Config 逐行解释
 
@@ -471,7 +490,7 @@ same eval audio + same ground truth
     -> WER/CER/hotword comparison
 ```
 
-FLEURS 这种公开数据集可以证明训练 harness；领域真实结论仍然需要客户脱敏音频和人工 transcript。
+FLEURS 这种公开数据集可以证明训练 harness；领域真实结论仍然需要脱敏领域音频和人工 transcript。
 
 ---
 
@@ -569,7 +588,7 @@ qwen-asr-serve Qwen/Qwen3-ASR-1.7B \
 | SGLang | 是高性能 LLM/multimodal serving framework，但本次未查到明确 Qwen3-ASR transcription endpoint 支持 |
 | TensorRT-LLM | 对 decoder-heavy LLM path 有价值，但完整 audio frontend + ASR pipeline 要逐模型验证 |
 
-不要在没有实际跑通前说 SGLang 或 TensorRT-LLM 支持客户 ASR 模型。
+不要在没有实际跑通前说 SGLang 或 TensorRT-LLM 支持目标 ASR 模型。
 
 ---
 
@@ -645,11 +664,11 @@ results/h100/h100_vllm_serving_benchmark.json
 
 ## 8. 当前限制
 
-- Qwen3-ASR 官方 SFT 已跑通，但目前只验证了 100 条 FLEURS 子集；客户域结论仍需客户脱敏音频和人工 transcript。
+- Qwen3-ASR 官方 SFT 已跑通，但目前只验证了 100 条 FLEURS 子集；客户域结论仍需脱敏领域音频和人工 transcript。
 - bf16 SFT 在本次 H100 实验中产生 NaN；fp32 稳定。是否可用 mixed precision 需要额外 recipe 验证。
 - vLLM serving、CUDA Graph A/B 和并发 16 已验证；更高并发需按客户音频时长和 SLA 复测。
-- LoRA rank=16 已做 SFT 并跑了 80 条 FLEURS CER；客户域 LoRA 结论仍需客户数据复验。
-- Encoder-only SFT 已跑，并做了 80 条 FLEURS CER；是否适合客户口音/噪声/设备域仍需客户数据复验。
+- LoRA rank=16 已做 SFT 并跑了 80 条 FLEURS CER；客户域 LoRA 结论仍需领域数据复验。
+- Encoder-only SFT 已跑，并做了 80 条 FLEURS CER；是否适合客户口音/噪声/设备域仍需领域数据复验。
 - Gemma 3n 官方支持 audio/ASR。本次已下载 E2B-it 权重并对齐官方 HF API 路线，但 SSH 超时前没有收集到最终 clean-env smoke JSON，因此本 repo 不能声明 Gemma FLEURS CER。
 - 4-bit NF4 推理和 QLoRA SFT 已有 FLEURS CER；FP8 微调仍需要 TransformerEngine/torchao 这类 recipe 验证。
 - checkpoint/resume smoke 已在单张 H100 上跑通；multi-GPU torchrun 仍需要多 GPU 或客户拓扑。

@@ -15,15 +15,15 @@ The point is not to claim that one public model solves the customer's production
 
 ## Running on Azure
 
-This repo is not a one-off ASR demo. It documents a **validation-first engineering pipeline** for taking a customer-owned Qwen/Gemma-style ASR route from backbone selection to serving and fine-tuning decisions on Azure GPU infrastructure. The path covers five stages, executed in this order:
+This repo is not a one-off ASR demo. It documents a **validation-first engineering pipeline** for evaluating a Qwen/Gemma-style ASR stack on Azure GPU infrastructure — from backbone selection to serving and fine-tuning decisions. The path covers five stages, executed in this order:
 
-1. **Backbone smoke and public CER** — prove Qwen3-ASR loads, transcribes, and has a public FLEURS baseline before touching customer audio
-2. **Long-audio and data-path validation** — test chunking risk, audio decode, dataloader wait, and GPU transfer before optimizing training
+1. **Backbone smoke and public CER** — prove Qwen3-ASR loads, transcribes, and has a public FLEURS baseline before using any proprietary audio
+2. **Long-audio and data-path validation** — before optimizing training, verify that long recordings do not cause output collapse (chunking risk), that audio file decoding is not a bottleneck (audio decode), that the training data pipeline does not starve the GPU (dataloader wait), and that moving audio tensors to GPU is not the slowest step (GPU transfer)
 3. **Fine-tuning strategy** — compare full-param SFT, LoRA, encoder-only, QLoRA, and precision stability with before/after CER
 4. **Serving framework selection** — validate vLLM transcription, CUDA Graph behavior, and concurrency using raw endpoint evidence
-5. **Backbone alternatives and production gates** — document Gemma 3n route prerequisites, SGLang/TRT-LLM boundaries, and customer-data acceptance criteria
+5. **Backbone alternatives and production gates** — document the Gemma 3n route (requires PyTorch 2.6+ with cuDNN 9.1+ due to head_dim=256 SDPA compatibility; see `docs/gemma-3n-audio-feasibility.md`), confirm SGLang/TRT-LLM ASR support boundaries, and define acceptance criteria for production audio evaluation
 
-All completed experiments in this public repo use public audio samples or public FLEURS data. The repo is designed so customer audio, private endpoints, and subscription details can stay outside the public artifact.
+All completed experiments in this public repo use public audio samples or public FLEURS data. Proprietary audio, private endpoints, and subscription details stay outside this public artifact.
 
 ![Solution architecture](images/solution_architecture.png)
 
@@ -218,6 +218,25 @@ flowchart LR
 | Checkpoint resume | `scripts/resume_smoke_v2.py` | Verify SFT can resume from saved checkpoint |
 | Accuracy verification | `scripts/accuracy_verification.py` | Compare Transformers vs vLLM transcriptions |
 | Validation runner | `scripts/validate_public_repo.py` | Repo-level checks: JSON parsable, no secrets, bilingual |
+
+### Validation Gates
+
+![Validation gates](images/validation_gates.png)
+
+The diagram above shows the three validation gates every ASR model should pass before production. Here is what each term means:
+
+| Term | What it is | Why it matters |
+|---|---|---|
+| **WER / CER** | Word Error Rate / Character Error Rate — the percentage of words or characters that differ between the model's transcript and a human-verified reference | The primary accuracy metric; CER is used for Chinese because Chinese text has no natural word boundaries |
+| **Hotword recall** | Whether domain-specific terms (product names, medical terms, proper nouns) are correctly transcribed | Generic ASR models often miss rare or specialized vocabulary that matters most to the business |
+| **DER** | Diarization Error Rate — measures how accurately the system identifies who spoke which segment | Only relevant when speaker labels exist; critical for meeting transcription |
+| **RTF** | Real-Time Factor = processing time / audio duration. RTF < 1 means faster than real-time | Determines whether the system can handle live streaming or must run offline |
+| **P50 / P95** | The median and 95th-percentile latency of transcription requests | P50 reflects typical user experience; P95 catches tail-latency spikes that affect SLA |
+| **Throughput** | Requests per second (rps) or audio-hours processed per GPU-hour | Determines how many concurrent users or recordings the system can handle |
+| **Failure rate** | Percentage of requests that return errors or empty transcripts under load | A model that works at concurrency=1 may fail at concurrency=16 |
+| **Data loader** | The pipeline that reads audio files, decodes them, and feeds tensors to the GPU | If the data loader is slow, the GPU sits idle waiting for data — training throughput drops |
+| **NCCL / checkpoint** | NCCL is NVIDIA's GPU-to-GPU communication library; checkpoints are saved model snapshots | Multi-GPU training can fail silently if NCCL times out or checkpoints are corrupted |
+| **Quantized stability** | Whether training in reduced precision (BF16, FP8, INT4) produces NaN gradients or quality degradation | Qwen3-ASR's audio encoder produces NaN in BF16 — this is a real risk, not theoretical |
 
 ---
 
