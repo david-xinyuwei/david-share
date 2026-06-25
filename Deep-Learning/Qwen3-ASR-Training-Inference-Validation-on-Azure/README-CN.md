@@ -649,7 +649,7 @@ results/h100/h100_vllm_serving_benchmark.json
 
 ---
 
-## 7. 现场要问客户什么
+## 7. 现场技术 Discovery 问题
 
 1. 你们训练的 exact Qwen/Gemma checkpoint 是什么？
 2. 架构是 dedicated ASR、audio LLM、Gemma audio，还是 custom audio encoder + LLM？
@@ -664,17 +664,17 @@ results/h100/h100_vllm_serving_benchmark.json
 
 ## 8. 当前限制
 
-- Qwen3-ASR 官方 SFT 已跑通，但目前只验证了 100 条 FLEURS 子集；客户域结论仍需脱敏领域音频和人工 transcript。
+- Qwen3-ASR 官方 SFT 已跑通，但目前只验证了 100 条 FLEURS 子集；领域结论仍需脱敏领域音频和人工 transcript。
 - bf16 SFT 在本次 H100 实验中产生 NaN；fp32 稳定。是否可用 mixed precision 需要额外 recipe 验证。
-- vLLM serving、CUDA Graph A/B 和并发 16 已验证；更高并发需按客户音频时长和 SLA 复测。
-- LoRA rank=16 已做 SFT 并跑了 80 条 FLEURS CER；客户域 LoRA 结论仍需领域数据复验。
-- Encoder-only SFT 已跑，并做了 80 条 FLEURS CER；是否适合客户口音/噪声/设备域仍需领域数据复验。
+- vLLM serving、CUDA Graph A/B 和并发 16 已验证；更高并发需按目标音频时长和 SLA 复测。
+- LoRA rank=16 已做 SFT 并跑了 80 条 FLEURS CER；领域 LoRA 结论仍需领域数据复验。
+- Encoder-only SFT 已跑，并做了 80 条 FLEURS CER；是否适合目标口音/噪声/设备域仍需领域数据复验。
 - Gemma 3n 官方支持 audio/ASR。本次已下载 E2B-it 权重并对齐官方 HF API 路线，但 SSH 超时前没有收集到最终 clean-env smoke JSON，因此本 repo 不能声明 Gemma FLEURS CER。
 - 4-bit NF4 推理和 QLoRA SFT 已有 FLEURS CER；FP8 微调仍需要 TransformerEngine/torchao 这类 recipe 验证。
-- checkpoint/resume smoke 已在单张 H100 上跑通；multi-GPU torchrun 仍需要多 GPU 或客户拓扑。
+- checkpoint/resume smoke 已在单张 H100 上跑通；multi-GPU torchrun 仍需要多 GPU 或目标拓扑。
 - fp32 LR smoke 覆盖 2e-5/1e-5/5e-6/2e-6 且无 NaN；数据量梯度和 mixed precision recipe 仍需后续验证。
 - SGLang 和 TensorRT-LLM 对 Qwen3-ASR 不是已验证推荐：SGLang 未见 Qwen3-ASR registry，TensorRT-LLM ASR 路径主要是 Whisper。
-- 公开样例不能代表客户的会议音频、设备麦克风、口音、噪音、diarization 或 hotwords。
+- 公开样例不能代表实际的会议音频、设备麦克风、口音、噪音、diarization 或 hotwords。
 
 ---
 
