@@ -65,8 +65,8 @@ If you are new to ASR engineering, here is a quick reference for terms that appe
 
 | Term | What it is | Why it matters |
 |---|---|---|
-| **CER** | Character Error Rate — edit distance between model output and reference, divided by reference length | The primary accuracy metric for Chinese ASR (no natural word boundaries) |
-| **WER** | Word Error Rate — same concept but at word level | Used for English and other space-delimited languages |
+| **CER** | Character Error Rate — compare the model's transcript against a correct human transcript, character by character. Example: if the reference is 10 characters and the model got 1 wrong, CER = 10%. In this repo, Qwen3-ASR-0.6B scored 7.74% CER on 200 FLEURS Chinese samples. | The primary accuracy metric for Chinese ASR. Chinese has no spaces between words, so character-level comparison is the standard. |
+| **WER** | Word Error Rate — same idea as CER but counting whole words. Example: "the cat sat" vs "the cat sat down" → 1 insertion out of 3 words = 33% WER. | Used for English and other languages that have spaces between words. |
 | **RTF** | Real-Time Factor = processing time / audio duration. RTF < 1 means faster than real-time | Determines live-streaming vs offline capacity |
 | **P50 / P95** | Median and 95th-percentile latency | P50 = typical experience; P95 = tail spikes that affect SLA |
 | **Throughput (rps)** | Requests per second the serving endpoint can handle | Capacity planning for concurrent users |

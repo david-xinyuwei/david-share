@@ -63,8 +63,8 @@ flowchart TB
 
 | 术语 | 是什么 | 为什么重要 |
 |---|---|---|
-| **CER** | Character Error Rate——模型输出与 reference 之间的编辑距离除以 reference 长度 | 中文 ASR 的核心准确率指标（中文没有自然分词边界） |
-| **WER** | Word Error Rate——同样的概念但按词计算 | 用于英文等有空格分词的语言 |
+| **CER** | Character Error Rate（字符错误率）——把模型转录的文字和正确的人工标注文字逐字对比，数错了多少个字。举例：人工标注 10 个字，模型错了 1 个字，CER = 10%。本 repo 中 Qwen3-ASR-0.6B 在 200 条 FLEURS 中文样本上 CER = 7.74%。 | 中文 ASR 的核心准确率指标。中文没有空格分词，所以按字符对比是标准做法。 |
+| **WER** | Word Error Rate（词错误率）——和 CER 一样的思路，但按整词计算。举例："the cat sat" vs "the cat sat down" → 多了 1 个词，3 个词里错 1 个 = 33% WER。 | 用于英文等有空格分词的语言。 |
 | **RTF** | Real-Time Factor = 处理时间 / 音频时长。RTF < 1 表示比实时快 | 决定系统能做实时流式还是只能离线 |
 | **P50 / P95** | 中位数延迟和第 95 百分位延迟 | P50 = 典型体验；P95 = 影响 SLA 的 tail spike |
 | **Throughput (rps)** | serving endpoint 每秒能处理的请求数 | 并发用户容量规划 |
