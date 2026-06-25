@@ -23,6 +23,10 @@
 
 本 public repo 里已完成的实验都使用公开音频样例或公开 FLEURS 数据。私有音频、私有 endpoint 和订阅信息不进入本 public artifact。
 
+下图展示了整条 pipeline 的核心数据流；Section 3 有逐步详解。
+
+<div align="center"><img src="images/solution_architecture.png" width="960"></div>
+
 ### 本文关键术语速查
 
 如果你不熟悉 ASR 工程术语，这张表可以作为全文阅读的参考：
@@ -259,21 +263,7 @@ Gemma 3n E2B-it 权重已下载（10.9 GB），官方 `Gemma3nForConditionalGene
 
 ## 3. 参考架构
 
-下图展示 ASR 验证 pipeline 的核心数据流。每个阶段都有对应的可执行脚本和 JSON 证据。
-
-```mermaid
-flowchart LR
-    A["音频文件"] --> B["重采样 / 归一化\n16 kHz mono"]
-    B --> C["Qwen3-ASR\n(Transformers / vLLM)"]
-    C --> D["原始转录文本"]
-    D --> E["CER / WER 评测"]
-    E --> F["Evidence JSON"]
-    F --> G["错误分析"]
-    G --> H["LoRA / QLoRA\n微调"]
-    H --> C
-    B --> I["VAD + chunking"]
-    I --> C
-```
+架构图（见上方"在 Azure 上运行"章节）展示了核心数据流。每个阶段都有对应的可执行脚本和 JSON 证据。
 
 **数据流（从左到右）**：
 
