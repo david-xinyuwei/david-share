@@ -41,7 +41,7 @@ Only change one variable per comparison.
 - Do not report framework superiority unless input, model, decoding, pipeline, and hardware are controlled.
 - Do not treat mock endpoint speed as ASR speed.
 - Do not average short and long audio without showing duration buckets.
-- Do not convert throughput to cost until region-specific GPU price and utilization are known.
+- Do not turn throughput into business claims until utilization and serving topology are measured.
 
 ## 5. Evidence Block Template
 

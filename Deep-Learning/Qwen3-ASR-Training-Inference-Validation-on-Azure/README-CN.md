@@ -67,7 +67,7 @@
 | 微调方式 | 先做 LoRA rank=16；如果需要声学域适配，再试 encoder+LoRA | 比 full-param SFT 风险小，小数据表现更好 |
 | 精度 | FP32 稳定基线；mixed precision 必须先过 grad_norm 和 CER 检查 | 避免 NaN 或 checkpoint 被悄悄破坏 |
 | Serving engine | vLLM Qwen3-ASR transcription endpoint | clean env 路线已验证，并有延迟/并发数据 |
-| 音频输入 | VAD + chunk + overlap + stitching | 避免长音频坍缩，延迟和成本更可控 |
+| 音频输入 | VAD + chunk + overlap + stitching | 避免长音频坍缩，延迟更可控 |
 | 验收数据 | 客户脱敏音频 + 人工 transcript + hotwords | FLEURS 只证明 harness，客户域数据决定生产质量 |
 
 ---
@@ -98,7 +98,6 @@
 | **Checkpoint resume** | **官方 SFT checkpoint/resume smoke 已在 20 条样本上跑通** | `results/checkpoint_resume_smoke.json` |
 | **4-bit 量化 smoke** | **BitsAndBytes 4-bit load + transcribe smoke 可跑 Qwen3-ASR-0.6B** | `results/qlora_4bit_load_smoke.json` |
 | **Gemma 3n 路线状态** | **Gemma 3n E2B-it 权重已下载，官方 HF API 路线已对齐；最终 clean-env smoke JSON 在 SSH 超时前未收集到，因此不报告 CER** | `results/gemma3n_h100_route_status.json`, `docs/gemma-3n-audio-feasibility.md` |
-| **成本 proxy** | **Korea Central H100 Linux PayGo 价格来自 Azure Retail Prices API；serial proxy 约 $0.626/audio-hour** | `results/cost_proxy.json` |
 | Harness regression | WER/CER、endpoint benchmark、py_compile 全通过 | `results/harness_test_results.json` |
 
 ### H100 模型对比
@@ -126,7 +125,7 @@
 | 重复中文样例 | 180s | 82.726s | 0.4596 | 16 | **失败：输出坍缩** |
 | 官方英文样例 | 15.1s | 1.202s | 0.0799 | 188 | 正常 |
 
-这条结果对会议转录客户最重要：**长会议音频不能整段一把梭。** 生产 pipeline 必须做 VAD、chunking、overlap、stitching、可选 forced alignment 和 diarization。
+这条结果对会议转录客户最重要：**长会议音频不应作为单个未切分请求直接送入模型。** 生产 pipeline 必须做 VAD、chunking、overlap、stitching、可选 forced alignment 和 diarization。
 
 ---
 
@@ -140,7 +139,7 @@
 | 数据存储/传输/吞吐 | 有 profiling 方法和脚本基础 | 数据规模、存储位置、音频时长、codec、train/eval manifest |
 | 训练稳定性和速度 | 单卡 fp32 SFT 稳定跑通；训练诊断清单已写 | multi-GPU/resume 仍需客户 config 和日志 |
 | 量化训练稳定性 | 已实测 bf16 NaN；fp32 稳定；LoRA SFT 已跑 | QLoRA/FP8 before-after CER 仍需补测 |
-| 推理延迟和成本 | H100 batch throughput、CUDA Graph A/B、vLLM 并发 16、成本 proxy | 当前 baseline cost、SLA、region/SKU pricing |
+| 推理延迟和吞吐 | H100 batch throughput、CUDA Graph A/B、vLLM 并发 16 | 目标 SLA、代表性音频时长和 serving 拓扑 |
 | 准确率提升 | FLEURS baseline + full-param / LoRA / encoder-only before-after | 客户或更大公开 eval dataset 上的复验 |
 
 ### 验证目标覆盖矩阵
@@ -160,7 +159,7 @@
 | 9 | 量化训练稳定性 | ✅ bf16/4-bit/QLoRA 已覆盖 | `results/qwen3_asr_0.6b_4bit_cer_comparison.json`, `results/qlora_sft_result.json`, `results/fp8_support_check.json` |
 | 10 | 公开 CER baseline | ✅ 已完成 | `results/fleurs_cer_qwen3_asr_0.6b.json`, `results/fleurs_cer_qwen3_asr_1.7b.json` |
 | 11 | Gemma backbone route | ⚠️ 路线已准备，不声明 CER | `results/gemma3n_h100_route_status.json`, `docs/gemma-3n-audio-feasibility.md` |
-| 12 | 成本 proxy | ✅ 已完成 | `results/cost_proxy.json` |
+| 12 | Serving capacity proxy | ✅ 已完成 | `results/concurrent_benchmark_v2.json`, `results/vllm_serving_result.json` |
 | 13 | CUDA Graph / compile 可行性 | ✅ 已完成 | `results/cuda_graph_ab.json`, `results/accuracy_verification.json` |
 | 14 | 并发 serving | ✅ 已完成 | `results/concurrent_benchmark_v2.json` |
 | 15 | LoRA vs 全参数 | ✅ 已完成 | `results/lora_sft_result.json`, `results/fleurs_cer_finetuned_fp32.json` |
@@ -415,24 +414,6 @@ FLEURS 这种公开数据集可以证明训练 harness；领域真实结论仍�
 
 来源：`results/concurrent_benchmark_v2.json`
 
-### 成本 Proxy（Azure H100 PayGo）
-
-| 项目 | 值 | 来源 |
-|---|---|---|
-| VM SKU | NC40ads_H100_v5 | Azure Retail Prices API |
-| Region | Korea Central | Azure Retail Prices API |
-| OS | Linux | Azure Retail Prices API |
-| 价格类型 | PayGo (Consumption) | Azure Retail Prices API |
-| **零售价** | **$9.423/小时** | Azure Retail Prices API，生效日 2024-05-01 |
-| 平均音频长度/样本 | ~10s | FLEURS 中文测试样本 |
-| Serial throughput (0.6B) | 5,422 样本/小时 = 15.06 音频小时/GPU 小时 | Transformers 推理，无 batching |
-| Serial throughput (1.7B) | 5,414 样本/小时 = 15.04 音频小时/GPU 小时 | Transformers 推理，无 batching |
-| **Serial 成本 proxy** | **$0.626/音频小时** | $9.423 / 15.06 |
-
-注意：这是 serial 单请求 proxy。vLLM c16 下每秒处理 119 个短请求，实际成本会大幅下降。正式成本取决于音频时长、并发、batching、region、承诺折扣和 GPU 利用率。
-
-来源：`results/cost_proxy.json`
-
 ### 推理加速后必须复查准确率
 
 | 技术 | 速度收益 | 对准确率的预期 | 备注 |
@@ -541,7 +522,7 @@ results/h100/h100_vllm_serving_benchmark.json
 4. 数据存储在哪里？object store、disk、NFS、local cache、feature cache？
 5. 训练失败点是什么？data loader、OOM、NCCL、checkpoint、quantized training，还是 eval WER？
 6. 生产推理路径是什么？vLLM、SGLang、TensorRT-LLM、TensorRT，还是 custom endpoint？
-7. 当前 RTF、P50/P95、throughput、GPU utilization、每小时音频成本是多少？
+7. 当前 RTF、P50/P95、throughput、GPU utilization 和 SLA 目标是多少？
 8. 是否能提供 30-60 分钟脱敏音频、人工 transcript 和 hotword list？
 
 ---
@@ -558,7 +539,6 @@ results/h100/h100_vllm_serving_benchmark.json
 - checkpoint/resume smoke 已在单张 H100 上跑通；multi-GPU torchrun 仍需要多 GPU 或客户拓扑。
 - fp32 LR smoke 覆盖 2e-5/1e-5/5e-6/2e-6 且无 NaN；数据量梯度和 mixed precision recipe 仍需后续验证。
 - SGLang 和 TensorRT-LLM 对 Qwen3-ASR 不是已验证推荐：SGLang 未见 Qwen3-ASR registry，TensorRT-LLM ASR 路径主要是 Whisper。
-- 成本数字是 proxy，已补 Azure Retail Prices API 来源；正式报价仍需按客户 region/SKU/折扣/利用率计算。
 - 公开样例不能代表客户的会议音频、设备麦克风、口音、噪音、diarization 或 hotwords。
 
 ---

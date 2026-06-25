@@ -55,11 +55,11 @@ def edit_distance(reference: list[str], hypothesis: list[str]) -> int:
     for row in range(1, rows):
         current = [row] + [0] * (cols - 1)
         for col in range(1, cols):
-            substitution_cost = 0 if reference[row - 1] == hypothesis[col - 1] else 1
+            substitution_penalty = 0 if reference[row - 1] == hypothesis[col - 1] else 1
             current[col] = min(
                 previous[col] + 1,
                 current[col - 1] + 1,
-                previous[col - 1] + substitution_cost,
+                previous[col - 1] + substitution_penalty,
             )
         previous = current
     return previous[-1]

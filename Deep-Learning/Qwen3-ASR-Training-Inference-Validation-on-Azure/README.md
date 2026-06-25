@@ -66,7 +66,6 @@ All findings below come from a controlled Azure H100 validation using public sam
 | vLLM concurrent serving scales to 16 | c16: P50=**154ms**, P95=**388ms**, **119 rps**, 64/64 success | Sufficient for initial production capacity planning |
 | Dataloader bottleneck is GPU transfer, not audio decode | Audio decode=0.196s, GPU transfer=**0.31s** (bottleneck) for 200 samples | Optimize GPU pipeline, not codec |
 | Long audio needs pipeline treatment | 180s synthetic long audio collapsed to **16 output chars** | Add VAD/chunk/overlap/stitching before production |
-| Serial cost proxy on H100 PayGo | **$0.626/audio-hour** (Korea Central NC40ads H100 Linux PayGo $9.423/hr) | Source: Azure Retail Prices API 2026-06-25 |
 | Gemma 3n route requires stricter environment than Qwen3-ASR | Model loads but SDPA/cuDNN fails on head_dim=256; clean venv with PyTorch 2.6+/cuDNN 9.1+ prepared | Do not claim Gemma CER until clean-env smoke passes |
 
 ### Recommended Production Configuration
@@ -77,7 +76,7 @@ All findings below come from a controlled Azure H100 validation using public sam
 | Fine-tuning method | LoRA rank=16 first; then encoder+LoRA if acoustic adaptation is needed | Lower blast radius and better small-data behavior than full-param SFT |
 | Precision | FP32 stability baseline; mixed precision only after grad_norm/CER checks | Prevents silent NaN or destroyed checkpoints |
 | Serving engine | vLLM Qwen3-ASR transcription endpoint | Verified clean-env route and strong latency/concurrency data |
-| Audio ingestion | Chunked audio with VAD + overlap + stitching | Avoids long-audio collapse and keeps latency/cost predictable |
+| Audio ingestion | Chunked audio with VAD + overlap + stitching | Avoids long-audio collapse and keeps latency predictable |
 | Acceptance data | Customer de-identified audio + human transcript + hotwords | Public FLEURS proves harness only; customer domain decides production quality |
 
 ---
@@ -108,7 +107,6 @@ The table below is the current public evidence. It is intentionally scoped to pu
 | **Checkpoint resume** | **Official SFT checkpoint/resume smoke ran on 20 samples and resumed from latest checkpoint** | `results/checkpoint_resume_smoke.json` |
 | **4-bit quantization smoke** | **BitsAndBytes 4-bit load + transcribe smoke worked for Qwen3-ASR-0.6B** | `results/qlora_4bit_load_smoke.json` |
 | **Gemma 3n route status** | **Gemma 3n E2B-it weights were downloaded and the official HF API path was prepared; no CER is reported because the final clean-env smoke JSON was not collected before SSH timeout** | `results/gemma3n_h100_route_status.json`, `docs/gemma-3n-audio-feasibility.md` |
-| **Cost proxy** | **Estimated $0.626/audio-hour serial on Korea Central H100 Linux PayGo; source is Azure Retail Prices API (2026-06-25)** | `results/cost_proxy.json` |
 | Harness regression | WER/CER script, endpoint benchmark script, and py_compile checks pass | `results/harness_test_results.json` |
 
 ### H100 Model Comparison
@@ -150,7 +148,7 @@ This is the most useful result for a meeting-transcription customer: **do not fe
 | Data storage and throughput | Scripts and methodology to profile audio decode / dataloader / endpoint throughput | Customer data layout, storage path, audio hours, codec, train/eval manifest |
 | Training stability and speed | Training diagnosis checklist and official Qwen3-ASR SFT route | Real training logs, checkpoint behavior, multi-node topology |
 | Quantized training stability | Decision table for BF16 vs QLoRA/FP8 validation | A real fine-tuning run and quantized training config |
-| Inference latency and cost | H100 batch throughput, RTF, long-audio failure mode | Current baseline cost, target SLA, region/SKU pricing |
+| Inference latency and throughput | H100 batch throughput, RTF, long-audio failure mode | Target SLA, representative audio duration, and serving topology |
 | Accuracy improvement | CER script and public-sample smoke CER | Customer or public eval dataset before/after fine-tuning |
 
 ### Validation Coverage Matrix
@@ -170,7 +168,7 @@ This repo maps back to the 17 validation goals used for the customer meeting pre
 | 9 | Quantized training stability | ✅ Done for bf16/4-bit/QLoRA | `results/qwen3_asr_0.6b_4bit_cer_comparison.json`, `results/qlora_sft_result.json`, `results/fp8_support_check.json` |
 | 10 | Public CER baseline | ✅ Done | `results/fleurs_cer_qwen3_asr_0.6b.json`, `results/fleurs_cer_qwen3_asr_1.7b.json` |
 | 11 | Gemma backbone route | ⚠️ Route prepared, no CER claim | `results/gemma3n_h100_route_status.json`, `docs/gemma-3n-audio-feasibility.md` |
-| 12 | Cost proxy | ✅ Done | `results/cost_proxy.json` |
+| 12 | Serving capacity proxy | ✅ Done | `results/concurrent_benchmark_v2.json`, `results/vllm_serving_result.json` |
 | 13 | CUDA Graph / compile feasibility | ✅ Done | `results/cuda_graph_ab.json`, `results/accuracy_verification.json` |
 | 14 | Concurrent serving | ✅ Done | `results/concurrent_benchmark_v2.json` |
 | 15 | LoRA vs full-param | ✅ Done | `results/lora_sft_result.json`, `results/fleurs_cer_finetuned_fp32.json` |
@@ -426,24 +424,6 @@ All concurrency levels had **zero failures**. P50 stays under 160ms even at c16.
 
 Source: `results/concurrent_benchmark_v2.json`
 
-### Cost Proxy (Azure H100 PayGo)
-
-| Item | Value | Source |
-|---|---|---|
-| VM SKU | NC40ads_H100_v5 | Azure Retail Prices API |
-| Region | Korea Central | Azure Retail Prices API |
-| OS | Linux | Azure Retail Prices API |
-| Price type | PayGo (Consumption) | Azure Retail Prices API |
-| **Retail price** | **$9.423/hour** | Azure Retail Prices API, effective 2024-05-01 |
-| Avg audio/sample | ~10s | FLEURS Chinese test samples |
-| Serial throughput (0.6B) | 5,422 samples/hr = 15.06 audio-hours/GPU-hour | Transformers inference, no batching |
-| Serial throughput (1.7B) | 5,414 samples/hr = 15.04 audio-hours/GPU-hour | Transformers inference, no batching |
-| **Serial cost proxy** | **$0.626/audio-hour** | $9.423 / 15.06 |
-
-Important: this is a serial single-request proxy. vLLM batching at c16 processes 119 short requests/sec, which would dramatically reduce per-audio-hour cost. Actual production cost depends on audio duration, concurrency, batching, region, commitment discounts, and GPU utilization.
-
-Source: `results/cost_proxy.json`
-
 ### Inference Acceleration: What Should Be Rechecked for Accuracy
 
 | Technique | Speed gain | Accuracy expectation | Notes |
@@ -552,7 +532,7 @@ results/h100/h100_vllm_serving_benchmark.json
 4. What is the current data layout: object store, disk, NFS, local cache, feature cache?
 5. What fails in training: data loader, OOM, NCCL, checkpoint, quantized training, or eval WER?
 6. Which serving path is production: vLLM, SGLang, TensorRT-LLM, TensorRT, or custom endpoint?
-7. What are the current RTF, P50/P95, throughput, GPU utilization, and cost per audio hour?
+7. What are the current RTF, P50/P95, throughput, GPU utilization, and SLA target?
 8. Can they provide 30-60 minutes of de-identified audio with human transcript and hotwords?
 
 ---

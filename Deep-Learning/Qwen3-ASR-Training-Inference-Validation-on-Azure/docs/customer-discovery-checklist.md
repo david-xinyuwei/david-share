@@ -37,6 +37,6 @@ Use this checklist in the first technical meeting.
 
 - Region, timeline, and GPU count.
 - Whether customer data can move to Azure.
-- Current cloud baseline and cost model.
+- Current cloud baseline and capacity model.
 - Security/compliance constraints.
 

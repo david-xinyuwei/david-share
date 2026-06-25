@@ -18,7 +18,6 @@ This repo is a public engineering guide built around public model, dataset, fram
 | Hugging Face Transformers | https://huggingface.co/docs/transformers/index |
 | Hugging Face TRL | https://huggingface.co/docs/trl/index |
 | Azure GPU VM sizes | https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/ |
-| Azure Retail Prices API | https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices |
 
 ## Public Assets
 

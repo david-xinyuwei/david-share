@@ -164,7 +164,7 @@ model = get_peft_model(model, lora_config)
 | Training node instability | ND-series VMs with InfiniBand, auto-restart on failure |
 | Multi-node NCCL | Azure VMSS with proximity placement group |
 | Checkpoint storage | Azure Files Premium (NFS) mounted to all nodes |
-| Cost optimization | Spot VMs for non-critical runs, Reserved Instances for production |
+| Capacity planning | Right-size GPU pool for training and production windows |
 | Monitoring | Azure ML job monitoring or custom Prometheus + Grafana |
 
 ## Onsite Questions for Customer

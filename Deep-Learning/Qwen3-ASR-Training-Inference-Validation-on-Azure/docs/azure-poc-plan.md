@@ -50,5 +50,5 @@ Exit criteria: failures are classified by data, runtime, memory, optimizer, chec
 | Expected volume | GPU-hour estimate |
 | SLA and compliance constraints | Production risk register |
 
-Exit criteria: capacity, cost, monitoring, and rollback plan are explicit.
+Exit criteria: capacity, monitoring, and rollback plan are explicit.
 
