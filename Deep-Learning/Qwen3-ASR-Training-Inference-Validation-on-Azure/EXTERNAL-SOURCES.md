@@ -21,4 +21,6 @@
 | SenseVoice | https://github.com/FunAudioLLM/SenseVoice | ASR model family reference |
 | NeMo | https://github.com/NVIDIA-NeMo/NeMo | Training/ASR toolkit reference |
 | Azure ND-H100-v5 | https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/gpu-accelerated/ndh100v5-series | H100 VM specs and positioning |
+| Gemma 3n E2B-it model card | https://huggingface.co/google/gemma-3n-E2B-it | Official Gemma 3n multimodal/audio capabilities and HF usage |
+| Gemma3n Transformers docs | https://huggingface.co/docs/transformers/main/en/model_doc/gemma3n | Official `Gemma3nForConditionalGeneration`, processor, audio feature extractor, and SDPA usage |
 

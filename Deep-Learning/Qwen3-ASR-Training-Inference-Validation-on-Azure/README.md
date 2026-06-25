@@ -1,17 +1,76 @@
 # Qwen3-ASR Training and Inference Validation on Azure
 
+> **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
+
+English | [中文版](README-CN.md)
+
 [![Azure GPU](https://img.shields.io/badge/Azure-H100%20NVL-0078D4)](https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/)
 [![Qwen3-ASR](https://img.shields.io/badge/Model-Qwen3--ASR-7B68EE)](https://huggingface.co/Qwen/Qwen3-ASR-1.7B)
 [![vLLM](https://img.shields.io/badge/Serving-vLLM-16A34A)](https://docs.vllm.ai/en/latest/models/supported_models/)
 [![ASR](https://img.shields.io/badge/Workload-ASR%20Engineering-4B8BBE)](https://huggingface.co/tasks/automatic-speech-recognition)
 
-> **Author**: Xinyu Wei (Wei Xinyu) — Microsoft AI and Apps Global Black Belt (GBB) Senior System Engineer
-
-English | [中文版](README-CN.md)
-
-This repo is a field guide and validation harness for a customer-owned ASR stack: Qwen/Gemma-style backbone, Hugging Face training stack, and high-throughput serving engines such as vLLM, SGLang, and TensorRT-LLM.
+Field guide and validation harness for customer-owned ASR stacks: Qwen/Gemma-style backbone, Hugging Face training, and high-throughput serving engines (vLLM, SGLang, TensorRT-LLM).
 
 The point is not to claim that one public model solves the customer's production workload. The point is to show how to validate the exact model route, training bottlenecks, serving latency, long-audio behavior, and Azure GPU fit with runnable scripts and raw JSON evidence.
+
+## Running on Azure
+
+This repo is not a one-off ASR demo. It documents a **validation-first engineering pipeline** for taking a customer-owned Qwen/Gemma-style ASR route from backbone selection to serving and fine-tuning decisions on Azure GPU infrastructure. The path covers five stages, executed in this order:
+
+1. **Backbone smoke and public CER** — prove Qwen3-ASR loads, transcribes, and has a public FLEURS baseline before touching customer audio
+2. **Long-audio and data-path validation** — test chunking risk, audio decode, dataloader wait, and GPU transfer before optimizing training
+3. **Fine-tuning strategy** — compare full-param SFT, LoRA, encoder-only, QLoRA, and precision stability with before/after CER
+4. **Serving framework selection** — validate vLLM transcription, CUDA Graph behavior, and concurrency using raw endpoint evidence
+5. **Backbone alternatives and production gates** — document Gemma 3n route prerequisites, SGLang/TRT-LLM boundaries, and customer-data acceptance criteria
+
+All completed experiments in this public repo use public audio samples or public FLEURS data. The repo is designed so customer audio, private endpoints, and subscription details can stay outside the public artifact.
+
+![Solution architecture](images/solution_architecture.png)
+
+---
+
+## Executive Summary
+
+### Recommended Path
+
+| Decision area | Recommendation | Why it matters |
+|---|---|---|
+| **Backbone** | Start with Qwen3-ASR for pure ASR, keep Gemma 3n as a candidate multimodal route | Qwen3-ASR produced public CER and serving evidence; Gemma 3n still needs clean-env smoke and CER in this repo |
+| **Fine-tuning** | Start with decoder LoRA; avoid small-data full-param SFT | LoRA changed only 0.78% parameters and beat the small full-param run on the public FLEURS check |
+| **Precision** | Establish an FP32 stability baseline before mixed precision or quantized training | bf16 SFT produced NaN gradients from step 1 in this H100 run |
+| **Serving** | Use vLLM first for Qwen3-ASR transcription serving | Clean-env vLLM serving worked and CUDA Graph delivered the strongest latency result |
+| **Long audio** | Do not send full meeting recordings as one opaque request | 180s synthetic long audio caused output collapse; use VAD/chunk/overlap/stitching |
+
+### Key Findings (Validation Conditions)
+
+All findings below come from a controlled Azure H100 validation using public samples and public FLEURS data.
+
+| Condition | Value |
+|---|---|
+| GPU | 1× NVIDIA H100-class Azure GPU with 95 GB visible memory |
+| Models | `Qwen/Qwen3-ASR-0.6B`, `Qwen/Qwen3-ASR-1.7B`, `google/gemma-3n-E2B-it` route check |
+| Public eval | FLEURS `cmn_hans_cn` test split; Qwen CER measured on 200 samples |
+| Serving | vLLM transcription endpoint and transformers baseline for Qwen3-ASR |
+| Fairness | Same public audio/eval split, same metric script, no customer audio or private endpoint in repo |
+
+| Finding | Measured result | Action |
+|---|---|---|
+| Qwen3-ASR public CER baseline is usable for harness validation | 0.6B=**7.74%**, 1.7B=**7.09%** on 200 FLEURS Chinese samples | Use it as the public regression baseline, not as customer-domain quality |
+| Small-data full-param SFT overfits badly | CER degraded from **7.74%** to **21.53%** | Do not start with full-param SFT on limited data |
+| LoRA is the best first tuning route in this run | LoRA rank=16 reached **5.48% CER** on an 80-sample check | Use LoRA before full-param updates |
+| vLLM + CUDA Graph is the strongest serving path | P50 **69ms** vs transformers **522ms** on the short-audio benchmark | Use vLLM for first serving PoC after quality is verified |
+| Long audio needs pipeline treatment | 180s synthetic long audio collapsed to 16 output chars | Add VAD/chunk/overlap/stitching before production |
+
+### Recommended Production Configuration
+
+| Parameter | Recommended value | Rationale |
+|---|---|---|
+| ASR model route | Qwen3-ASR 1.7B for first cloud PoC | Better public CER baseline and dedicated transcription route in this repo |
+| Fine-tuning method | LoRA rank=16 first; then encoder+LoRA if acoustic adaptation is needed | Lower blast radius and better small-data behavior than full-param SFT |
+| Precision | FP32 stability baseline; mixed precision only after grad_norm/CER checks | Prevents silent NaN or destroyed checkpoints |
+| Serving engine | vLLM Qwen3-ASR transcription endpoint | Verified clean-env route and strong latency/concurrency data |
+| Audio ingestion | Chunked audio with VAD + overlap + stitching | Avoids long-audio collapse and keeps latency/cost predictable |
+| Acceptance data | Customer de-identified audio + human transcript + hotwords | Public FLEURS proves harness only; customer domain decides production quality |
 
 ---
 
@@ -40,6 +99,7 @@ The table below is the current public evidence. It is intentionally scoped to pu
 | **FP8 support check** | **PyTorch has float8 dtypes, but TransformerEngine/torchao are not installed; no ready FP8 SFT recipe in this env** | `results/fp8_support_check.json` |
 | **Checkpoint resume** | **Official SFT checkpoint/resume smoke ran on 20 samples and resumed from latest checkpoint** | `results/checkpoint_resume_smoke.json` |
 | **4-bit quantization smoke** | **BitsAndBytes 4-bit load + transcribe smoke worked for Qwen3-ASR-0.6B** | `results/qlora_4bit_load_smoke.json` |
+| **Gemma 3n route status** | **Gemma 3n E2B-it weights were downloaded and the official HF API path was prepared; no CER is reported because the final clean-env smoke JSON was not collected before SSH timeout** | `results/gemma3n_h100_route_status.json`, `docs/gemma-3n-audio-feasibility.md` |
 | **Cost proxy** | **Estimated $0.626/audio-hour serial on Korea Central H100 Linux PayGo; source is Azure Retail Prices API (2026-06-25)** | `results/cost_proxy.json` |
 | Harness regression | WER/CER script, endpoint benchmark script, and py_compile checks pass | `results/harness_test_results.json` |
 
@@ -76,7 +136,7 @@ This is the most useful result for a meeting-transcription customer: **do not fe
 
 | Customer requirement | What this repo can already show | What still needs customer input |
 |---|---|---|
-| Qwen/Gemma backbone | Qwen3-ASR 0.6B/1.7B H100 inference and long-audio evidence | Exact customer checkpoint; Gemma route if they use Gemma 3n or a custom Gemma audio model |
+| Qwen/Gemma backbone | Qwen3-ASR 0.6B/1.7B H100 inference and long-audio evidence; Gemma 3n E2B-it official HF route and environment prerequisites documented | Exact customer checkpoint; Gemma 3n clean-env audio smoke and CER if they choose Gemma as the ASR backbone |
 | Training with HF ecosystem | Official Qwen3-ASR fine-tuning entry point and JSONL format are documented | Customer training command, Accelerate/DeepSpeed/FSDP config, failure logs |
 | vLLM/SGLang/TensorRT-LLM serving | vLLM officially supports Qwen3-ASR transcription; transformers backend benchmark is done | Clean vLLM env benchmark; SGLang/TRT-LLM feasibility for the exact model |
 | Data storage and throughput | Scripts and methodology to profile audio decode / dataloader / endpoint throughput | Customer data layout, storage path, audio hours, codec, train/eval manifest |
@@ -84,6 +144,30 @@ This is the most useful result for a meeting-transcription customer: **do not fe
 | Quantized training stability | Decision table for BF16 vs QLoRA/FP8 validation | A real fine-tuning run and quantized training config |
 | Inference latency and cost | H100 batch throughput, RTF, long-audio failure mode | Current baseline cost, target SLA, region/SKU pricing |
 | Accuracy improvement | CER script and public-sample smoke CER | Customer or public eval dataset before/after fine-tuning |
+
+### Mission Coverage Snapshot
+
+This repo maps back to the 17 validation goals used for the customer meeting prep. A checkmark means the repo has raw evidence. A warning means the route is documented, but the remaining step requires customer topology, a clean follow-up run, or customer data.
+
+| # | Validation goal | Repo status | Evidence |
+|---:|---|---|---|
+| 1 | Qwen inference latency | ✅ Done | `results/h100/h100_model_comparison.json` |
+| 2 | Throughput-latency balance | ✅ Done | `results/h100/h100_model_comparison.json`, `results/concurrent_benchmark_v2.json` |
+| 3 | Long-audio degradation | ✅ Done | `results/h100/h100_long_audio_test.json` |
+| 4 | vLLM serving | ✅ Done | `results/vllm_serving_result.json` |
+| 5 | SGLang / TensorRT-LLM boundary | ✅ Done | `docs/sglang-trtllm-asr-boundary.md` |
+| 6 | Official Qwen3-ASR SFT path | ✅ Done | `results/sft_v3_log_summary.json` |
+| 7 | Dataloader/audio decode profiling | ✅ Done | `results/dataloader_profile.json` |
+| 8 | Training stability and resume | ⚠️ Partial | `results/checkpoint_resume_smoke.json`; multi-GPU still needs target topology |
+| 9 | Quantized training stability | ✅ Done for bf16/4-bit/QLoRA | `results/qwen3_asr_0.6b_4bit_cer_comparison.json`, `results/qlora_sft_result.json`, `results/fp8_support_check.json` |
+| 10 | Public CER baseline | ✅ Done | `results/fleurs_cer_qwen3_asr_0.6b.json`, `results/fleurs_cer_qwen3_asr_1.7b.json` |
+| 11 | Gemma backbone route | ⚠️ Route prepared, no CER claim | `results/gemma3n_h100_route_status.json`, `docs/gemma-3n-audio-feasibility.md` |
+| 12 | Cost proxy | ✅ Done | `results/cost_proxy.json` |
+| 13 | CUDA Graph / compile feasibility | ✅ Done | `results/cuda_graph_ab.json`, `results/accuracy_verification.json` |
+| 14 | Concurrent serving | ✅ Done | `results/concurrent_benchmark_v2.json` |
+| 15 | LoRA vs full-param | ✅ Done | `results/lora_sft_result.json`, `results/fleurs_cer_finetuned_fp32.json` |
+| 16 | Encoder-only vs full model | ✅ Done | `results/encoder_only_sft_result.json`, `results/encoder_decoder_split.json` |
+| 17 | LR/data/precision best practices | ⚠️ Partial | `results/lr_stability_smoke.json`; data-size gradient and mixed-precision recipe remain future work |
 
 ---
 
@@ -335,7 +419,7 @@ results/h100/h100_vllm_serving_benchmark.json
 
 - ~~We have not yet run Qwen3-ASR fine-tuning in this repo.~~ **Done**: SFT runs in fp32; bf16 produced NaN in this run.
 - ~~We have not yet run FLEURS or customer-data before/after WER/CER.~~ **Partially done**: FLEURS baseline CER is available; customer-domain CER still requires customer data.
-- Gemma 3n audio is documented as ASR-capable, but this repo has not run Gemma ASR inference or serving.
+- Gemma 3n audio is documented as ASR-capable. In this run, the E2B-it weights were downloaded and the official HF API path was prepared, but a final clean-env smoke JSON was not collected before SSH timeout. Do not claim Gemma FLEURS CER from this repo yet.
 - ~~vLLM serving is officially supported, but our first endpoint attempt failed.~~ **Done**: Clean env works; CUDA Graph path showed no CER regression on a 20-sample check.
 - The concurrent vLLM benchmark is available through concurrency 16; higher concurrency levels should be remeasured on customer audio duration and SLA.
 - LoRA rank=16 was trained and evaluated on the public FLEURS subset; customer-domain LoRA CER still requires customer data.
@@ -361,3 +445,5 @@ results/h100/h100_vllm_serving_benchmark.json
 | Hugging Face Transformers | https://huggingface.co/docs/transformers/index |
 | Hugging Face TRL | https://huggingface.co/docs/trl/index |
 | FLEURS dataset | https://huggingface.co/datasets/google/fleurs |
+| Gemma 3n E2B-it model card | https://huggingface.co/google/gemma-3n-E2B-it |
+| Gemma3n Transformers docs | https://huggingface.co/docs/transformers/main/en/model_doc/gemma3n |

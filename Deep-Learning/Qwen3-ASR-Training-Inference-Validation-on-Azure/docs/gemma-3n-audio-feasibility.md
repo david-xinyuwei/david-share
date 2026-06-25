@@ -1,11 +1,13 @@
 # Gemma 3n Audio/ASR Feasibility Report
 
 Generated: 2026-06-25
-Source: HuggingFace model card + Google AI docs
+Source: HuggingFace model card + Transformers Gemma3n docs + H100 route attempt
 
 ## Key Finding
 
-**Gemma 3n (E2B/E4B) officially supports audio input including ASR.**
+**Gemma 3n (E2B/E4B) officially supports audio input including ASR, but this repo does not yet report Gemma FLEURS CER.**
+
+In this validation run, Gemma 3n E2B-it was made accessible, the 10.9 GB model was downloaded, and a clean Python environment was prepared. The system Python environment hit a PyTorch SDPA/cuDNN frontend failure before a valid audio CER measurement could be collected. A clean venv with PyTorch 2.6.0+cu124 and cuDNN 9.1.0 was created, but the final official text/audio smoke JSON was not collected before SSH timeout. This is an engineering route status, not an ASR-quality result.
 
 ## Evidence
 
@@ -20,6 +22,53 @@ Source: HuggingFace model card + Google AI docs
 | Languages | 140+ spoken languages trained | Model card |
 | vLLM support | ✅ `Gemma3nForConditionalGeneration` listed in vLLM supported models | [vLLM docs](https://docs.vllm.ai/en/latest/models/supported_models/) |
 | SGLang support | ✅ Listed on HuggingFace local-app links | [HuggingFace model page](https://huggingface.co/google/gemma-3n-E4B-it?local-app=sglang) |
+
+## H100 Route Status (2026-06-25)
+
+| Check | Result | Evidence |
+|---|---|---|
+| License access | Accepted by operator before download | HuggingFace gated access was unlocked |
+| Model download | Completed to `/root/gemma-3n-E2B-it`; observed size ~11 GB; 3 safetensors shards | `results/gemma3n_h100_route_status.json` |
+| Official model class | `Gemma3nForConditionalGeneration` | [HF model card](https://huggingface.co/google/gemma-3n-E2B-it), [Transformers docs](https://huggingface.co/docs/transformers/main/en/model_doc/gemma3n) |
+| System Python smoke | Model loads, then text-only generation fails in PyTorch SDPA/cuDNN frontend | `results/gemma3n_h100_route_status.json` |
+| Clean environment | `/root/gemma3n_env` created with PyTorch 2.6.0+cu124 and cuDNN 9.1.0 | `results/gemma3n_h100_route_status.json` |
+| Final CER | Not available | No valid Gemma ASR transcript/CER was collected |
+
+### Correct Official API Shape
+
+Use the official class and processor path first. Do not infer Gemma 3n usage from Qwen3-ASR or other multimodal models.
+
+```python
+from transformers import AutoProcessor, Gemma3nForConditionalGeneration
+import torch
+
+model = Gemma3nForConditionalGeneration.from_pretrained(
+	"google/gemma-3n-E2B-it",
+	device_map="auto",
+	attn_implementation="sdpa",
+	torch_dtype=torch.bfloat16,
+).eval()
+processor = AutoProcessor.from_pretrained("google/gemma-3n-E2B-it", padding_side="left")
+
+messages = [
+	{"role": "user", "content": [{"type": "text", "text": "Say hello in Chinese."}]}
+]
+inputs = processor.apply_chat_template(
+	messages,
+	tokenize=True,
+	return_dict=True,
+	return_tensors="pt",
+	add_generation_prompt=True,
+).to(model.device)
+```
+
+### Why the Failed Attempt Still Matters
+
+The failed run is not a quality result, but it is useful for engineering triage:
+
+- Qwen3-ASR ran in the same broader H100 workflow with a dedicated package and vLLM transcription endpoint.
+- Gemma 3n requires a stricter Transformers/PyTorch/cuDNN stack and should be validated in a clean environment before any customer-facing CER or latency claim.
+- For customer discussion, Gemma should be framed as a candidate multimodal backbone, not as a drop-in replacement for Qwen3-ASR until this route passes text-only smoke, audio smoke, and FLEURS/customer CER.
 
 ## Model Sizes
 
@@ -73,6 +122,8 @@ tasks where audio is one input modality?'"
 ```
 
 ## Validation TODO (if customer confirms Gemma use)
-- [ ] Run Gemma 3n on FLEURS zh_cn and compare CER with Qwen3-ASR
-- [ ] Test vLLM serving with Gemma 3n audio transcription
+- [ ] Run official text-only smoke in `/root/gemma3n_env` and save JSON evidence
+- [ ] Run Gemma 3n audio smoke using the official `Gemma3nForConditionalGeneration` + `processor.apply_chat_template()` route
+- [ ] Run Gemma 3n on FLEURS `cmn_hans_cn` and compare CER with Qwen3-ASR
+- [ ] Test vLLM/SGLang serving only after local transformers route passes
 - [ ] Profile inference speed comparison on H100
