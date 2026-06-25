@@ -500,6 +500,29 @@ python3 scripts/qwen3_asr_transformers_smoke.py \
   --output results/qwen3_asr_smoke.json
 ```
 
+### 脚本清单
+
+本 repo 中每项验证都有对应的可执行脚本。下表列出验证方向、脚本和原始 JSON 输出。
+
+| 验证方向 | 脚本 | 输出 |
+|---|---|---|
+| FLEURS CER baseline | `scripts/eval_fleurs_baseline.py` | `results/fleurs_cer_qwen3_asr_0.6b.json`, `results/fleurs_cer_qwen3_asr_1.7b.json` |
+| QLoRA SFT（4-bit NF4 + LoRA） | `scripts/qlora_sft_test_v3.py` | `results/qlora_sft_result.json` |
+| 4-bit 推理 CER 对比 | `scripts/qwen3_asr_4bit_cer_eval.py` | `results/qwen3_asr_0.6b_4bit_cer_comparison.json` |
+| CUDA Graph A/B 测试 | `scripts/cuda_graph_ab_test.py` | `results/cuda_graph_ab.json` |
+| 准确率验证（transformers vs vLLM） | `scripts/accuracy_verification.py` | `results/accuracy_verification.json` |
+| vLLM 并发 benchmark（c1–c16） | `scripts/concurrent_benchmark_v2.py` | `results/concurrent_benchmark_v2.json` |
+| Checkpoint/resume smoke | `scripts/resume_smoke_v2.py` | `results/checkpoint_resume_smoke.json` |
+| 补测推理 | `scripts/remaining_inference_tests.py` | `results/remaining_inference_tests.json` |
+| 补测训练 | `scripts/remaining_training_tests_v2.py` | `results/remaining_training_tests_v2_summary.json` |
+| Gemma 3n 官方 smoke | `scripts/gemma3n_hf_official_smoke.py` | `results/gemma3n_h100_route_status.json` |
+| 训练环境采集 | `scripts/collect_training_env.py` | `results/training_env_a10vm.json`, `results/training_env_winvm2.json` |
+| Public repo 验证 | `scripts/validate_public_repo.py` | （stdout pass/fail） |
+| WER/CER 指标计算 | `scripts/eval_asr_metrics.py` | （被其他脚本调用） |
+| Endpoint benchmark | `scripts/benchmark_endpoint.py` | `results/benchmark_endpoint_smoke.json` |
+| Transformers smoke test | `scripts/qwen3_asr_transformers_smoke.py` | `results/qwen3_asr_0_6b_official_sample_v2.json` |
+| Local harness regression | `scripts/run_harness_tests.py` | `results/harness_test_results.json` |
+
 ### H100 Benchmark Results
 
 Raw files:

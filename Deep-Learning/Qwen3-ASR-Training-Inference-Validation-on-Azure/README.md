@@ -510,6 +510,29 @@ python3 scripts/qwen3_asr_transformers_smoke.py \
   --output results/qwen3_asr_smoke.json
 ```
 
+### Script Inventory
+
+Every experiment in this repo has a corresponding runnable script. The table below maps each validation area to the script that produced it and the raw JSON output.
+
+| Validation area | Script | Output |
+|---|---|---|
+| FLEURS CER baseline | `scripts/eval_fleurs_baseline.py` | `results/fleurs_cer_qwen3_asr_0.6b.json`, `results/fleurs_cer_qwen3_asr_1.7b.json` |
+| QLoRA SFT (4-bit NF4 + LoRA) | `scripts/qlora_sft_test_v3.py` | `results/qlora_sft_result.json` |
+| 4-bit inference CER comparison | `scripts/qwen3_asr_4bit_cer_eval.py` | `results/qwen3_asr_0.6b_4bit_cer_comparison.json` |
+| CUDA Graph A/B test | `scripts/cuda_graph_ab_test.py` | `results/cuda_graph_ab.json` |
+| Accuracy verification (transformers vs vLLM) | `scripts/accuracy_verification.py` | `results/accuracy_verification.json` |
+| Concurrent vLLM benchmark (c1–c16) | `scripts/concurrent_benchmark_v2.py` | `results/concurrent_benchmark_v2.json` |
+| Checkpoint/resume smoke | `scripts/resume_smoke_v2.py` | `results/checkpoint_resume_smoke.json` |
+| Remaining inference tests | `scripts/remaining_inference_tests.py` | `results/remaining_inference_tests.json` |
+| Remaining training tests | `scripts/remaining_training_tests_v2.py` | `results/remaining_training_tests_v2_summary.json` |
+| Gemma 3n official smoke | `scripts/gemma3n_hf_official_smoke.py` | `results/gemma3n_h100_route_status.json` |
+| Training environment collection | `scripts/collect_training_env.py` | `results/training_env_a10vm.json`, `results/training_env_winvm2.json` |
+| Public repo validation | `scripts/validate_public_repo.py` | (stdout pass/fail) |
+| WER/CER metric evaluation | `scripts/eval_asr_metrics.py` | (used by other scripts) |
+| Endpoint benchmark | `scripts/benchmark_endpoint.py` | `results/benchmark_endpoint_smoke.json` |
+| Transformers smoke test | `scripts/qwen3_asr_transformers_smoke.py` | `results/qwen3_asr_0_6b_official_sample_v2.json` |
+| Local harness regression | `scripts/run_harness_tests.py` | `results/harness_test_results.json` |
+
 ### H100 Benchmark Results
 
 Raw files:
