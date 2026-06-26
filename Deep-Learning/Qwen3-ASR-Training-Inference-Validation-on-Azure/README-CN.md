@@ -91,6 +91,48 @@
 
 ---
 
+## 0. 背景
+
+### 0.1 Qwen3-ASR 架构
+
+Qwen3-ASR 是阿里巴巴发布的语音转文字模型，核心架构是 pretrained Audio Transformer (AuT) encoder + Qwen3 语言模型 decoder：
+
+- **Audio encoder (AuT)**：32 层 self-attention + 3 层 Conv2d 降采样。输入 16 kHz mono 波形（100 Hz 帧率），输出 12.5 Hz audio embedding（8× 时间压缩）。
+- **Language decoder**：Qwen3 causal LM，基于 audio embedding 生成文本 token。
+- **两个尺寸**：0.6B（更快，CER 略高）和 1.7B（CER 更好，短音频吞吐相近）。
+
+来源：[Qwen3-ASR model card](https://huggingface.co/Qwen/Qwen3-ASR-1.7B)、[Qwen3-ASR GitHub](https://github.com/QwenLM/Qwen3-ASR)
+
+### 0.2 为什么 ASR 验证不是通用 LLM benchmark
+
+ASR 验证和文本 LLM 评测有本质区别，这些区别直接影响工程决策：
+
+| 维度 | 文本 LLM | ASR 模型 |
+|---|---|---|
+| **输入** | 文本 token | 原始波形（16 kHz，变长） |
+| **输出指标** | Perplexity、BLEU、人工偏好 | CER/WER（与人工标注逐字对比） |
+| **延迟敏感度** | 生成可接受秒级延迟 | 要求 RTF < 1（比实时快） |
+| **数据 pipeline** | tokenize 文本 | 解码音频 → 重采样 → 归一化 → GPU transfer |
+| **失败模式** | 回答错误 | 长音频输出坍缩、bf16 训练 NaN |
+| **Serving 路径** | 标准 OpenAI-compatible chat | Transcription 专用 endpoint（multipart 音频上传） |
+
+通用 LLM 排行榜分数不能预测 ASR 质量。一个文本生成流畅的模型，可能转录出乱码、在长音频上坍缩、或者处理不了领域专有词汇（hotwords）。
+
+### 0.3 为什么选 Qwen3-ASR 而不是 Whisper 或其他 ASR 模型
+
+| 选型标准 | Qwen3-ASR 的理由 |
+|---|---|
+| **开源 + HuggingFace 生态** | 完整权重在 HF 上；有官方微调脚本；可接入 transformers、accelerate、vLLM |
+| **vLLM serving 支持** | vLLM 官方列为 transcription model；Whisper 不在 vLLM 支持列表里 |
+| **微调灵活性** | 官方脚本支持 LoRA、QLoRA、encoder-only、full-param SFT；Whisper 微调需要不同工具链 |
+| **中文 + 多语言** | Qwen tokenizer 对中日韩文字支持好；有 dedicated language-prefix routing |
+| **架构透明** | AuT encoder + Qwen3 decoder 文档清晰；可以按需冻结 encoder 或 decoder |
+| **模型尺寸选择** | 0.6B 和 1.7B 都能放进单卡，且留有 batching 和 KV cache 空间 |
+
+这不是说 Qwen3-ASR 是最好的 ASR 模型。而是说在本次验证的具体需求——评估训练稳定性、serving 延迟、微调策略和 Azure GPU 适配——Qwen3-ASR 提供了 HuggingFace 生态里最完整的开源工具链。
+
+---
+
 ## 1. 验证结果详解
 
 以下所有结果来自公开 Qwen 样例和公开 FLEURS 数据在 Azure H100 上的实测。不含专有音频、私有 endpoint 或订阅信息。
@@ -140,6 +182,8 @@
 
 来源：`results/cuda_graph_ab.json`、`results/accuracy_verification.json`、`results/concurrent_benchmark_v2.json`、`results/remaining_inference_tests.json`
 
+<div align="center"><img src="images/serving_latency.png" width="960"></div>
+
 **单请求延迟 benchmark（同一条短音频，重复请求 10 次）**：
 
 | 模式 | P50 单请求延迟 | P95 单请求延迟 | 这行在测什么 |
@@ -175,6 +219,8 @@
 
 来源：`results/sft_v3_log_summary.json`、`results/lora_sft_result.json`、`results/encoder_only_sft_result.json`、`results/qlora_sft_result.json`
 
+<div align="center"><img src="images/cer_comparison.png" width="960"></div>
+
 | 策略 | 训练参数量 | CER（80 条 FLEURS） | 耗时 | 解读 |
 |---|---:|---:|---:|---|
 | Baseline（不微调） | 0 | 7.74% | — | 起点 |
@@ -203,6 +249,8 @@
 ### 1.7 数据吞吐 Profiling
 
 来源：`results/dataloader_profile.json`
+
+<div align="center"><img src="images/dataloader_profile.png" width="800"></div>
 
 | 阶段 | 耗时 | 占比 |
 |---|---:|---:|
@@ -717,6 +765,81 @@ python3 scripts/qwen3_asr_transformers_smoke.py \
 ### 脚本清单
 
 本 repo 中每项验证都有对应的可执行脚本。下表列出验证方向、脚本和原始 JSON 输出。
+
+### 操作指南：LoRA 微调（Step-by-Step）
+
+**Step 1 — 准备训练数据**（下载 FLEURS 中文测试集并提取 WAV）：
+
+```bash
+python3 scripts/eval_fleurs_baseline.py --model Qwen/Qwen3-ASR-0.6B --n 100 --output-wavs ./fleurs_wav
+```
+
+预期：`./fleurs_wav/` 下有 100 个 16 kHz WAV 文件。
+
+**Step 2 — 运行 LoRA SFT**（使用官方 Qwen3-ASR 微调脚本）：
+
+```bash
+python qwen3_asr_sft.py \
+  --model_path Qwen/Qwen3-ASR-0.6B \
+  --train_file ./train.jsonl \
+  --output_dir ./qwen3-asr-lora-out \
+  --batch_size 1 --grad_acc 4 --lr 5e-6 \
+  --warmup_ratio 0.1 --epochs 3 --save_strategy epoch
+```
+
+预期终端输出（LoRA rank=16，H100 NVL）：
+```
+trainable params: 6,135,808 / 788,036,608 = 0.78%
+Step 5: loss=0.78, grad_norm=12.3, lr=5e-6
+Training completed in 43.3s
+```
+
+**Step 3 — 评测 CER**（同一评测脚本，指向微调后 checkpoint）：
+
+```bash
+python3 scripts/eval_fleurs_baseline.py --model ./qwen3-asr-lora-out --n 80 --output results/lora_sft_cer.json
+```
+
+预期：`cer_overall: 0.0548`（5.48%）
+
+### 操作指南：vLLM Serving（Step-by-Step）
+
+**Step 1 — 创建 clean conda env 并安装**：
+
+```bash
+conda create -n asr-vllm python=3.11 -y && conda activate asr-vllm
+pip install qwen-asr[vllm]
+```
+
+**Step 2 — 启动 vLLM transcription 服务**：
+
+```bash
+qwen-asr-serve Qwen/Qwen3-ASR-1.7B \
+  --gpu-memory-utilization 0.8 \
+  --host 0.0.0.0 --port 8000
+```
+
+预期终端输出：
+```
+INFO: Supported tasks: ['generate', 'transcription']
+INFO: Encoder cache initialized with budget of 8192 tokens
+INFO: Started server process [PID]
+INFO: Uvicorn running on http://0.0.0.0:8000
+```
+
+**Step 3 — 发送转录请求**：
+
+```bash
+curl -X POST http://localhost:8000/v1/audio/transcriptions \
+  -F file=@sample.wav -F model=Qwen/Qwen3-ASR-1.7B -F language=Chinese
+```
+
+预期响应：
+```json
+{"text": "这并不是告别，这是一个篇章的结束，也是新篇章的开始。"}
+```
+
+### 脚本清单（续）
 
 | 验证方向 | 脚本 | 输出 |
 |---|---|---|

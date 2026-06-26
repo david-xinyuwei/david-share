@@ -100,6 +100,48 @@ All findings below come from a controlled Azure H100 validation using public sam
 
 ---
 
+## 0. Background
+
+### 0.1 Qwen3-ASR Architecture
+
+Qwen3-ASR is a speech-to-text model from Alibaba that combines a pretrained Audio Transformer (AuT) encoder with a Qwen3 language model decoder. The architecture:
+
+- **Audio encoder (AuT)**: 32 self-attention layers + 3 Conv2d subsampling layers. Input: 16 kHz mono waveform at 100 Hz frame rate. Output: audio embeddings at 12.5 Hz (8× temporal compression).
+- **Language decoder**: Qwen3 causal LM that generates text tokens conditioned on audio embeddings.
+- **Two sizes**: 0.6B (faster, slightly lower CER) and 1.7B (better CER, similar throughput on short audio).
+
+Source: [Qwen3-ASR model card](https://huggingface.co/Qwen/Qwen3-ASR-1.7B), [Qwen3-ASR GitHub](https://github.com/QwenLM/Qwen3-ASR)
+
+### 0.2 Why ASR Validation Is Not a Generic LLM Benchmark
+
+ASR validation differs from text-only LLM evaluation in several ways that affect engineering decisions:
+
+| Dimension | Text LLM | ASR model |
+|---|---|---|
+| **Input** | Text tokens | Raw waveform (16 kHz, variable length) |
+| **Output metric** | Perplexity, BLEU, human preference | CER/WER against human transcript |
+| **Latency sensitivity** | Seconds acceptable for generation | Real-time factor < 1 expected |
+| **Data pipeline** | Tokenize text | Decode audio → resample → normalize → GPU transfer |
+| **Failure mode** | Wrong answer | Output collapse on long audio, NaN in bf16 training |
+| **Serving path** | Standard OpenAI-compatible chat | Transcription-specific endpoint (multipart audio upload) |
+
+Generic LLM leaderboard scores do not predict ASR quality. A model that generates fluent text may still produce garbled transcripts, collapse on long audio, or fail to handle domain-specific vocabulary (hotwords).
+
+### 0.3 Why Qwen3-ASR and Not Whisper or Other ASR Models
+
+| Selection criterion | Qwen3-ASR reasoning |
+|---|---|
+| **Open-source + HuggingFace ecosystem** | Full model weights on HF; official fine-tuning script; integrates with transformers, accelerate, vLLM |
+| **vLLM serving support** | Officially listed as a transcription model in vLLM; Whisper is not in vLLM's supported model list |
+| **Fine-tuning flexibility** | Supports LoRA, QLoRA, encoder-only, and full-param SFT via official script; Whisper fine-tuning requires different tooling |
+| **Chinese + multilingual** | Strong CJK support via Qwen tokenizer; dedicated language-prefix routing |
+| **Architecture transparency** | AuT encoder + Qwen3 decoder is well-documented; allows targeted freezing (encoder vs decoder) |
+| **Model size options** | 0.6B and 1.7B both fit on single GPU with room for batching and KV cache |
+
+This is not a claim that Qwen3-ASR is the best ASR model. It is a statement that for this validation — evaluating training stability, serving latency, fine-tuning strategies, and Azure GPU fit — Qwen3-ASR provides the most complete open-source toolchain in the HuggingFace ecosystem.
+
+---
+
 ## 1. Detailed Validation Results
 
 All results below come from public Qwen samples and public FLEURS data tested on Azure H100. No proprietary audio, private endpoints, or subscription details are included.
@@ -149,6 +191,8 @@ Evaluated on 200 Chinese samples from the FLEURS `cmn_hans_cn` test set:
 
 Source: `results/cuda_graph_ab.json`, `results/accuracy_verification.json`, `results/concurrent_benchmark_v2.json`, `results/remaining_inference_tests.json`
 
+<div align="center"><img src="images/serving_latency.png" width="960"></div>
+
 **Single-request latency benchmark (same short audio, 10 repeated requests)**:
 
 | Mode | P50 per-request latency | P95 per-request latency | What this row measures |
@@ -184,6 +228,8 @@ Source: `results/cuda_graph_ab.json`, `results/accuracy_verification.json`, `res
 
 Source: `results/sft_v3_log_summary.json`, `results/lora_sft_result.json`, `results/encoder_only_sft_result.json`, `results/qlora_sft_result.json`
 
+<div align="center"><img src="images/cer_comparison.png" width="960"></div>
+
 | Strategy | Trainable params | CER (80 FLEURS) | Time | Reading |
 |---|---:|---:|---:|---|
 | Baseline (no tuning) | 0 | 7.74% | — | Starting point |
@@ -212,6 +258,8 @@ Source: `results/qwen3_asr_0.6b_4bit_cer_comparison.json`
 ### 1.7 Dataloader Profiling
 
 Source: `results/dataloader_profile.json`
+
+<div align="center"><img src="images/dataloader_profile.png" width="800"></div>
 
 | Stage | Time | Share |
 |---|---:|---:|
@@ -716,6 +764,81 @@ python3 scripts/qwen3_asr_transformers_smoke.py \
 ### Script Inventory
 
 Every experiment in this repo has a corresponding runnable script. The table below maps each validation area to the script that produced it and the raw JSON output.
+
+### How to Run: LoRA Fine-Tuning (Step-by-Step)
+
+**Step 1 — Prepare training data** (download FLEURS Chinese test split and extract WAV files):
+
+```bash
+python3 scripts/eval_fleurs_baseline.py --model Qwen/Qwen3-ASR-0.6B --n 100 --output-wavs ./fleurs_wav
+```
+
+Expected: `./fleurs_wav/` directory with 100 WAV files at 16 kHz.
+
+**Step 2 — Run LoRA SFT** (using official Qwen3-ASR fine-tuning script):
+
+```bash
+python qwen3_asr_sft.py \
+  --model_path Qwen/Qwen3-ASR-0.6B \
+  --train_file ./train.jsonl \
+  --output_dir ./qwen3-asr-lora-out \
+  --batch_size 1 --grad_acc 4 --lr 5e-6 \
+  --warmup_ratio 0.1 --epochs 3 --save_strategy epoch
+```
+
+Expected terminal output (LoRA rank=16, H100 NVL):
+```
+trainable params: 6,135,808 / 788,036,608 = 0.78%
+Step 5: loss=0.78, grad_norm=12.3, lr=5e-6
+Training completed in 43.3s
+```
+
+**Step 3 — Evaluate CER** (same eval script, pointing to fine-tuned checkpoint):
+
+```bash
+python3 scripts/eval_fleurs_baseline.py --model ./qwen3-asr-lora-out --n 80 --output results/lora_sft_cer.json
+```
+
+Expected: `cer_overall: 0.0548` (5.48%)
+
+### How to Run: vLLM Serving (Step-by-Step)
+
+**Step 1 — Create clean conda env and install**:
+
+```bash
+conda create -n asr-vllm python=3.11 -y && conda activate asr-vllm
+pip install qwen-asr[vllm]
+```
+
+**Step 2 — Start vLLM transcription server**:
+
+```bash
+qwen-asr-serve Qwen/Qwen3-ASR-1.7B \
+  --gpu-memory-utilization 0.8 \
+  --host 0.0.0.0 --port 8000
+```
+
+Expected terminal output:
+```
+INFO: Supported tasks: ['generate', 'transcription']
+INFO: Encoder cache initialized with budget of 8192 tokens
+INFO: Started server process [PID]
+INFO: Uvicorn running on http://0.0.0.0:8000
+```
+
+**Step 3 — Send a transcription request**:
+
+```bash
+curl -X POST http://localhost:8000/v1/audio/transcriptions \
+  -F file=@sample.wav -F model=Qwen/Qwen3-ASR-1.7B -F language=Chinese
+```
+
+Expected response:
+```json
+{"text": "这并不是告别，这是一个篇章的结束，也是新篇章的开始。"}
+```
+
+### Script Inventory (continued)
 
 | Validation area | Script | Output |
 |---|---|---|
