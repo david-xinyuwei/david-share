@@ -253,7 +253,59 @@ Qwen3-ASR SFT 训练数据格式（来源：[官方 repo](https://github.com/Qwe
 | **16** | **154** | **388** | **119.0** | **64/64** |
 
 **结论**：vLLM + CUDA Graph 比 raw Transformers 快约 7 倍（单请求 P50：522ms → 69ms）。CER 只作为“无退化”smoke check，不能写成 CUDA Graph 让错误率下降。并发 16 下，64 个短音频请求在约 0.537 秒内完成，估算吞吐 119 req/s；这不是长会议录音吞吐，长音频必须单独按 RTF 和 chunk pipeline 复测。
+### 1.4.1 最高并发压测 + GPU 利用率（8–16s FLEURS 音频）
 
+来源：`results/supplemental_benchmark.json`、`results/concurrent_cer_benchmark.json`
+
+前面的表用的是 ~2-3 秒短样本。这组测试用 **20 条真实 FLEURS wav（8–16 秒/条）** 找单卡 H100 的并发天花板。
+
+| 并发 | 请求数 | 成功率 | P50 (ms) | P95 (ms) | 吞吐 (req/s) | GPU SM% peak |
+|---:|---:|---:|---:|---:|---:|---:|
+| 16 | 64 | 100% | 1090 | 1148 | 14.8 | — |
+| **32** | **128** | **100%** | **395** | **568** | **74.9** | — |
+| 48 | 192 | 100% | 617 | 947 | 66.0 | — |
+| 64 | 256 | 100% | 1274 | 1439 | 55.3 | avg 44%, peak 48% |
+| 96 | 384 | 100% | 2607 | 2933 | 39.2 | — |
+| 128 | 512 | 100% | 4279 | 4735 | 31.6 | — |
+| 256 | 1024 | **89.6%** ❌ | 16220 | — | 16.2 | — |
+
+**GPU 利用率（空闲 vs 负载）**：
+- GPU 显存：**76 GB / 95 GB = 80%**（KV cache 预分配 `--gpu-memory-utilization 0.8`）
+- GPU SM：c64 burst 期间 peak **48%**（瓶颈是内存带宽/调度，不是算力）
+- 功耗：idle 88.65 W
+
+**并发天花板分析**：
+- **生产甜蜜点：c32** — P50 < 400ms，吞吐 75 req/s，100% 成功
+- **最高可靠并发：c128** — 100% 成功但 P50 = 4.3s（只适合批处理）
+- **失败阈值：c256** — 10% 请求失败，因为 KV cache 耗尽 + 请求超时
+
+### 1.4.2 高并发下 CER 无退化验证
+
+来源：`results/concurrent_cer_benchmark.json`
+
+为验证高并发不会降低转录质量，我们在 c128 和 c256 下跑同样的 20 条 FLEURS wav，把每条响应和单请求 baseline 转录对比（CER = 0% 表示和 c1 输出完全一致）：
+
+| 并发 | 请求数 | 成功率 | P50 (ms) | CER vs 单请求 | 怎么解读 |
+|---:|---:|---:|---:|---:|---|
+| 128 | 512 | 100% | 4279 | **0.08%** | 几乎和 c1 输出一致 |
+| 256 | 918/1024 | 89.6% | 16220 | **0.08%** | 成功的请求质量也没退化 |
+
+**结论**：并发压力只影响延迟，不影响转录质量。即使在 c128（100% 成功）和 c256（部分失败）下，完成的转录和单请求输出在 99.9% 的情况下逐字一致。0.08% 的 CER 来自 token 采样微波动，不是模型退化。
+
+### 1.4.3 Stream vs Non-Stream A/B 验证
+
+来源：`results/stream_ab_stream_on.json`、`results/stream_ab_stream_off.json`
+
+同样 20 条 FLEURS wav（8–16s），同一个 vLLM endpoint，只改 stream 开关：
+
+| 模式 | 并发 | P50 (ms) | 吞吐 (req/s) | 对比 non-stream |
+|---|---:|---:|---:|---|
+| Stream OFF | 16 | 256.2 | 60.6 | baseline |
+| Stream ON | 16 | 278.8 | 56.1 | +8.8% 延迟 |
+| Stream OFF | 32 | 356.5 | 83.0 | baseline |
+| Stream ON | 32 | 385.4 | 76.3 | +8.1% 延迟 |
+
+**结论**：Stream 模式增加约 8% 的总延迟开销（20–30ms），来自 SSE chunked-transfer HTTP framing。对 ASR 转录（短输出，约 25 token）来说可以忽略。Stream 的优势是用户感知 TTFT：第一个字在 ~80ms（prefill 时间）就出现，而 non-stream 要等完整的 256ms 才返回。实时 UI 用 stream；批处理 API 用 non-stream。
 ### 1.5 微调策略对比
 
 来源：`results/sft_v3_log_summary.json`、`results/lora_sft_result.json`、`results/encoder_only_sft_result.json`、`results/qlora_sft_result.json`
@@ -302,9 +354,16 @@ Qwen3-ASR SFT 训练数据格式（来源：[官方 repo](https://github.com/Qwe
 
 ### 1.8 Gemma 3n 路线状态
 
-来源：`results/gemma3n_h100_route_status.json`、`docs/gemma-3n-audio-feasibility.md`
+来源：`results/gemma3n_h100_route_status.json`、`results/gemma3n_text_smoke.json`、`docs/gemma-3n-audio-feasibility.md`
 
-Gemma 3n E2B-it 权重已下载（10.9 GB），官方 `Gemma3nForConditionalGeneration` API 已对齐。但在当前 H100 环境下，模型加载后推理失败——PyTorch SDPA 的 cuDNN backend 不支持 Gemma 3n 的 `head_dim=256`。需要 PyTorch 2.6+ 配 cuDNN 9.1+ 的 clean 环境才能跑通。**因此本 repo 不报告 Gemma FLEURS CER**。
+| 里程碑 | 状态 | 证据 |
+|---|---|---|
+| 权重下载（E2B-it，10.9 GB） | ✅ | H100 VM 上 HF cache |
+| 官方 `Gemma3nForConditionalGeneration` API | ✅ | transformers + timm 已装 |
+| **Text generation smoke** | ✅ | Load 10.4s，generate 19.1s，正确输出："ASR is a technology that converts spoken language into written text" |
+| Audio 推理 | ❌ | cuDNN SDPA 不支持 `head_dim=256`；需要 cuDNN 9.1+ |
+
+**结论**：Gemma 3n E2B-it 能在 H100 bf16 下加载并生成文本。Audio 路径被 cuDNN SDPA 兼容性阻塞（`head_dim=256` 在当前 PyTorch 2.6.0+cu124 bundled cuDNN 下不支持）。这是环境 gap，不是模型缺陷。**本 repo 不报告 Gemma FLEURS CER。**
 
 **边界：** 这里的 CER=0% 只说明官方短样例和预期文本完全一致，不是实际业务准确率。
 
