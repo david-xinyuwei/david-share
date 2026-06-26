@@ -37,7 +37,7 @@
 | **WER** | Word Error Rate（词错误率）——和 CER 一样的思路，但按整词计算。举例："the cat sat" vs "the cat sat down" → 多了 1 个词，3 个词里错 1 个 = 33% WER。 | 用于英文等有空格分词的语言。 |
 | **RTF** | Real-Time Factor = 处理时间 / 音频时长。RTF < 1 表示比实时快 | 决定系统能做实时流式还是只能离线 |
 | **P50 / P95** | 中位数延迟和第 95 百分位延迟 | P50 = 典型体验；P95 = 影响 SLA 的高分位延迟波动 |
-| **Throughput (rps)** | serving endpoint 每秒能处理的请求数 | 并发用户容量规划 |
+| **Throughput (rps)** | serving endpoint 每秒完成的请求数。本 repo 的 rps 是短音频请求吞吐，不是每秒处理多少小时音频。 | 并发用户容量规划 |
 | **FLEURS** | Google 的多语言语音 benchmark 数据集（Apache 2.0） | 本 repo 用来做 CER baseline 的公开评测数据 |
 | **LoRA / QLoRA** | Low-Rank Adaptation——只微调一个小 adapter 而不动全部权重；QLoRA 额外加 4-bit 量化 | 减少显存占用和小数据过拟合风险 |
 | **CUDA Graph** | 录制并重放固定的 GPU kernel 序列，跳过启动开销 | 本 repo vLLM ASR benchmark 中约 5x 延迟降低 |
@@ -73,7 +73,7 @@
 | 结论 | 实测结果 | 行动建议 |
 |---|---|---|
 | Qwen3-ASR public CER baseline 可用于 harness 验证 | 200 条 FLEURS 中文：0.6B=**7.74%**，1.7B=**7.09%** | 用作 public regression baseline，不当作领域质量 |
-| 小数据 full-param SFT 泛化风险高 | CER 从 **7.74%** 退化到 **21.53%** | 小数据不要从 full-param SFT 起步 |
+| 小数据 full-param SFT 泛化风险高 | 本次 100 条样本全参微调后，held-out CER 从 **7.74%** 退化到 **21.53%** | 小数据不要从 full-param SFT 起步 |
 | LoRA 是本次最稳的第一轮微调路线 | LoRA rank=16 在 80 条检查中达到 **5.48% CER** | 优先 LoRA，再考虑更大范围参数更新 |
 | vLLM + CUDA Graph 是当前最强 serving 路线 | 短音频 benchmark P50 **69ms**，transformers 是 **522ms**；20 条样本未观察到 CER 退化 | 用 vLLM 做第一阶段 serving PoC；不要把 CUDA Graph 解读成准确率提升 |
 | 长音频必须 pipeline 化 | 180s synthetic long audio 只输出 16 个字符 | 生产前必须做 VAD/chunk/overlap/stitching |
@@ -138,11 +138,11 @@
 
 ### 1.4 vLLM Serving + CUDA Graph
 
-来源：`results/cuda_graph_ab.json`、`results/accuracy_verification.json`、`results/concurrent_benchmark_v2.json`
+来源：`results/cuda_graph_ab.json`、`results/accuracy_verification.json`、`results/concurrent_benchmark_v2.json`、`results/remaining_inference_tests.json`
 
 **CUDA Graph A/B（Qwen3-ASR-1.7B）**：
 
-| 模式 | P50 | CER（20 条小样本观测） | 与 Transformers 文本一致性 |
+| 模式 | P50 单请求延迟 | CER（20 条小样本观测） | 与 Transformers 文本一致性 |
 |---|---:|---:|---|
 | Transformers direct | 522ms | 6.65% | baseline |
 | vLLM CUDA Graph ON | **69ms** | **5.90%** | 18/20 完全一致 |
@@ -150,16 +150,18 @@
 
 **注意**：这里的 5.90% 不能解读为 CUDA Graph 提升准确率。CUDA Graph ON 和 OFF 的 CER 都是 5.90%；与 Transformers 6.65% 的差异来自 vLLM 与 Transformers 推理路径、输出格式和 20 条小样本波动。本实验只能支持两个结论：vLLM + CUDA Graph 显著降低延迟；20 条样本上没有观察到 CER 退化。
 
+**延迟口径**：522ms、69ms、369ms 都是**单个短音频请求从发起到返回 transcript 的端到端完成时间**，表里写的是 P50（重复请求的中位数），不是一批请求的总耗时，也不是每秒音频处理量。
+
 **并发 serving**：
 
-| 并发 | P50 (ms) | P95 (ms) | 吞吐 (rps) | 成功率 |
+| 并发 | P50 单请求延迟 (ms) | P95 单请求延迟 (ms) | 短请求吞吐 (req/s) | 成功率 |
 |---:|---:|---:|---:|---|
 | 1 | 88 | 159 | 10.1 | 4/4 |
 | 4 | 109 | 167 | 35.9 | 16/16 |
 | 8 | 88 | 165 | 79.0 | 32/32 |
 | **16** | **154** | **388** | **119.0** | **64/64** |
 
-**结论**：vLLM + CUDA Graph 比 raw Transformers 快约 7 倍（522ms → 69ms）。CER 只作为“无退化”smoke check，不能写成 CUDA Graph 让错误率下降。并发 16 下 119 rps 全部成功，P95 尾部延迟仍在 400ms 以内。
+**结论**：vLLM + CUDA Graph 比 raw Transformers 快约 7 倍（单请求 P50：522ms → 69ms）。CER 只作为“无退化”smoke check，不能写成 CUDA Graph 让错误率下降。并发 16 下，64 个短音频请求在约 0.537 秒内完成，估算吞吐 119 req/s；这不是长会议录音吞吐，长音频必须单独按 RTF 和 chunk pipeline 复测。
 
 ### 1.5 微调策略对比
 
@@ -168,15 +170,15 @@
 | 策略 | 训练参数量 | CER（80 条 FLEURS） | 耗时 | 解读 |
 |---|---:|---:|---:|---|
 | Baseline（不微调） | 0 | 7.74% | — | 起点 |
-| Full-param SFT (fp32) | 788M (100%) | **21.53%** (200 条 held-out) | 69.8s | 过拟合严重 |
+| Full-param SFT (fp32) | 788M (100%) | **21.53%** (200 条 held-out) | 69.8s | 本次小样本设置下明显过拟合 |
 | LoRA rank=16 (fp32) | 6.1M (0.78%) | **5.48%** | 43.3s | 最稳 |
 | Encoder-only (fp32) | 186M (23.8%) | **6.26%** | 28.7s | 可行但弱于 LoRA |
 | QLoRA (4-bit NF4 + LoRA) | 6.1M (1.29%) | **5.69%** | 59.8s | 显存受限时的好选择 |
 
 **关键发现**：
 - bf16 训练从第一步就产生 NaN（`grad_norm=nan`）；fp32 稳定。这是使用 Qwen3-ASR 的任何人都会遇到的问题。
-- 100 条全参 SFT 把 CER 从 7.74% 推到 21.53%——小数据 + 全参 = 过拟合灾难。
-- LoRA 只动 0.78% 参数就做到了 5.48% CER，比 baseline 还好。
+- 本次 100 条小样本 full-param SFT：训练 loss 降到 0.17，但 held-out CER 从 7.74% 退化到 21.53%。这说明模型更像是在记住小训练集，而不是学到可泛化的 ASR 能力。
+- LoRA 只训练 0.78% 参数，在 80 条 FLEURS 检查中达到 5.48% CER。这个结果不等于“LoRA 永远比全参微调准”，而是说明在小数据 PoC 阶段，LoRA 的更新范围更可控、过拟合风险更低。
 
 ### 1.6 4-bit 推理与量化
 
@@ -244,7 +246,7 @@ Gemma 3n E2B-it 权重已下载（10.9 GB），官方 `Gemma3nForConditionalGene
 | # | 验证目标 | Repo 状态 | Evidence |
 |---:|---|---|---|
 | 1 | Qwen 推理延迟 | ✅ 已完成 | `results/h100/h100_model_comparison.json` |
-| 2 | 吞吐-延迟平衡 | ✅ 已完成 | `results/h100/h100_model_comparison.json`, `results/concurrent_benchmark_v2.json` |
+| 2 | 吞吐-延迟平衡 | ✅ 已完成 | `results/h100/h100_model_comparison.json`, `results/concurrent_benchmark_v2.json`, `results/remaining_inference_tests.json` |
 | 3 | 长音频退化 | ✅ 已完成 | `results/h100/h100_long_audio_test.json` |
 | 4 | vLLM serving | ✅ 已完成 | `results/vllm_serving_result.json` |
 | 5 | SGLang / TensorRT-LLM 边界 | ✅ 已完成 | `docs/sglang-trtllm-asr-boundary.md` |
@@ -254,9 +256,9 @@ Gemma 3n E2B-it 权重已下载（10.9 GB），官方 `Gemma3nForConditionalGene
 | 9 | 量化训练稳定性 | ✅ bf16/4-bit/QLoRA 已覆盖 | `results/qwen3_asr_0.6b_4bit_cer_comparison.json`, `results/qlora_sft_result.json`, `results/fp8_support_check.json` |
 | 10 | 公开 CER baseline | ✅ 已完成 | `results/fleurs_cer_qwen3_asr_0.6b.json`, `results/fleurs_cer_qwen3_asr_1.7b.json` |
 | 11 | Gemma backbone route | ⚠️ 路线已准备，不声明 CER | `results/gemma3n_h100_route_status.json`, `docs/gemma-3n-audio-feasibility.md` |
-| 12 | Serving capacity proxy | ✅ 已完成 | `results/concurrent_benchmark_v2.json`, `results/vllm_serving_result.json` |
+| 12 | Serving capacity proxy | ✅ 已完成 | `results/concurrent_benchmark_v2.json`, `results/remaining_inference_tests.json`, `results/vllm_serving_result.json` |
 | 13 | CUDA Graph / compile 可行性 | ✅ 已完成 | `results/cuda_graph_ab.json`, `results/accuracy_verification.json` |
-| 14 | 并发 serving | ✅ 已完成 | `results/concurrent_benchmark_v2.json` |
+| 14 | 并发 serving | ✅ 已完成 | `results/concurrent_benchmark_v2.json`, `results/remaining_inference_tests.json` |
 | 15 | LoRA vs 全参数 | ✅ 已完成 | `results/lora_sft_result.json`, `results/fleurs_cer_finetuned_fp32.json` |
 | 16 | Encoder-only vs 全模型 | ✅ 已完成 | `results/encoder_only_sft_result.json`, `results/encoder_decoder_split.json` |
 | 17 | LR/数据量/精度最佳实践 | ⚠️ 部分完成 | `results/lr_stability_smoke.json`；数据量梯度和 mixed-precision recipe 仍待补 |
@@ -283,7 +285,7 @@ Gemma 3n E2B-it 权重已下载（10.9 GB），官方 `Gemma3nForConditionalGene
 | vLLM serving | `configs/vllm.qwen3-asr.example.sh` | 启动 OpenAI-compatible transcription endpoint |
 | FLEURS CER 评测 | `scripts/eval_fleurs_baseline.py` | 跑 N 条 FLEURS 样本、计算 CER、保存 JSON |
 | CUDA Graph A/B benchmark | `scripts/cuda_graph_ab_test.py` | 对比 Transformers vs vLLM（有/无 CUDA Graph） |
-| 并发 vLLM benchmark | `scripts/concurrent_benchmark_v2.py` | 扫描并发 1→16，测 P50/P95/rps |
+| 并发 vLLM benchmark | `scripts/concurrent_benchmark_v2.py` + `scripts/remaining_inference_tests.py` | 扫描并发 1→16，测 P50/P95/rps；c16 补测来自 `remaining_inference_tests.json` |
 | LoRA SFT | 官方 `qwen3_asr_sft.py` + 本 repo 的 patches | LoRA rank=16 微调 decoder |
 | QLoRA SFT | `scripts/qlora_sft_test_v3.py` | 4-bit NF4 + LoRA 训练 |
 | 4-bit 推理 CER | `scripts/qwen3_asr_4bit_cer_eval.py` | BF16 vs 4-bit NF4 同样本 CER 对比 |
@@ -486,7 +488,7 @@ dtype=torch.float32
 
 ### 为什么 LoRA 在本次实验中优于全参微调
 
-数据讲了一个清楚的故事：100 条 full-param SFT 把 loss 压到了 0.17（几乎零训练误差），但 held-out CER 从 7.74% 退化到了 21.53%。而 LoRA 只训练 0.78% 的参数，CER 达到了 5.48%——比微调前的 baseline 还好。
+数据讲了一个清楚的故事：100 条 full-param SFT 把 loss 压到了 0.17（几乎零训练误差），但 held-out CER 从 7.74% 退化到了 21.53%。这不是说 full-param SFT 本质不行，而是说明在这次小样本设置里，它把全部 788M 参数推得太远，泛化变差。LoRA 只训练 0.78% 的参数，在 80 条 FLEURS 检查中达到 5.48% CER，更适合作为小数据 PoC 的第一步。
 
 | 因素 | 对 ASR 的影响 |
 |---|---|
@@ -495,7 +497,7 @@ dtype=torch.float32
 | **正则化** | LoRA rank=16 本身就是容量约束。模型能调整输出格式，但不会覆盖 base 声学知识。 |
 | **Audio encoder 敏感性** | Qwen3-ASR 的 audio encoder 在 bf16 训练下产生 NaN。Full-param SFT 动了包含敏感 encoder 在内的全部 788M 参数。LoRA 保持 encoder 冻结。 |
 
-Full-param SFT 不是不行——它在小数据上风险高。大规模、高质量数据集（上千小时）才适合。首轮 PoC 第一阶段，LoRA 更安全。
+Full-param SFT 不是不行——它在小数据上风险高。大规模、高质量、分布匹配的数据集（通常是成百上千小时级别）才更适合全参更新。首轮 PoC 阶段，LoRA 更安全。
 
 ### 真实转录样例
 
@@ -596,7 +598,7 @@ FLEURS 这种公开数据集可以证明训练 harness；领域真实结论仍�
 
 ### vLLM 并发 Serving Benchmark（H100 NVL，Qwen3-ASR-1.7B）
 
-| 并发数 | 请求数 | 成功 | P50 (ms) | P95 (ms) | 吞吐 (rps) |
+| 并发数 | 请求数 | 成功 | P50 单请求延迟 (ms) | P95 单请求延迟 (ms) | 短请求吞吐 (req/s) |
 |---:|---:|---:|---:|---:|---:|
 | 1 | 4 | 4 | 88 | 159 | 10.1 |
 | 2 | 8 | 8 | 99 | 146 | 19.8 |
@@ -604,9 +606,9 @@ FLEURS 这种公开数据集可以证明训练 harness；领域真实结论仍�
 | 8 | 32 | 32 | 88 | 165 | 79.0 |
 | **16** | **64** | **64** | **154** | **388** | **119.0** |
 
-所有并发档位**零失败**。P50 在 c16 下也保持在 160ms 以内。吞吐从 c1 到 c8 近线性增长（10→79 rps），c16 继续到 119 rps，P95 尾部延迟有所上升。
+所有并发档位**零失败**。P50 在 c16 下也保持在 160ms 以内。吞吐从 c1 到 c8 近线性增长（10→79 req/s），c16 继续到约 119 req/s。这里的 req/s 是短音频请求吞吐；长会议录音的容量要看音频时长、chunk 数、RTF 和拼接 pipeline。P95 尾部延迟有所上升。
 
-来源：`results/concurrent_benchmark_v2.json`
+来源：`results/concurrent_benchmark_v2.json`、`results/remaining_inference_tests.json`
 
 ### 推理加速后必须复查准确率
 
@@ -705,7 +707,7 @@ python3 scripts/qwen3_asr_transformers_smoke.py \
 | 4-bit 推理 CER 对比 | `scripts/qwen3_asr_4bit_cer_eval.py` | `results/qwen3_asr_0.6b_4bit_cer_comparison.json` |
 | CUDA Graph A/B 测试 | `scripts/cuda_graph_ab_test.py` | `results/cuda_graph_ab.json` |
 | 准确率验证（transformers vs vLLM） | `scripts/accuracy_verification.py` | `results/accuracy_verification.json` |
-| vLLM 并发 benchmark（c1–c16） | `scripts/concurrent_benchmark_v2.py` | `results/concurrent_benchmark_v2.json` |
+| vLLM 并发 benchmark（c1–c16） | `scripts/concurrent_benchmark_v2.py` + `scripts/remaining_inference_tests.py` | `results/concurrent_benchmark_v2.json`, `results/remaining_inference_tests.json` |
 | Checkpoint/resume smoke | `scripts/resume_smoke_v2.py` | `results/checkpoint_resume_smoke.json` |
 | 补测推理 | `scripts/remaining_inference_tests.py` | `results/remaining_inference_tests.json` |
 | 补测训练 | `scripts/remaining_training_tests_v2.py` | `results/remaining_training_tests_v2_summary.json` |

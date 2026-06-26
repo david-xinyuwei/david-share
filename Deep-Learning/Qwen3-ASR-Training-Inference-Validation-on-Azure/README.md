@@ -39,7 +39,7 @@ If you are new to ASR engineering, here is a quick reference for terms that appe
 | **WER** | Word Error Rate — same idea as CER but counting whole words. Example: "the cat sat" vs "the cat sat down" → 1 insertion out of 3 words = 33% WER. | Used for English and other languages that have spaces between words. |
 | **RTF** | Real-Time Factor = processing time / audio duration. RTF < 1 means faster than real-time | Determines live-streaming vs offline capacity |
 | **P50 / P95** | Median and 95th-percentile latency | P50 = typical experience; P95 = tail spikes that affect SLA |
-| **Throughput (rps)** | Requests per second the serving endpoint can handle | Capacity planning for concurrent users |
+| **Throughput (rps)** | Requests per second completed by the serving endpoint. In this repo, rps means short-audio request throughput, not audio-hours processed per second. | Capacity planning for concurrent users |
 | **FLEURS** | Google's multilingual speech benchmark dataset (Apache 2.0) | Public eval data used in this repo for CER baseline |
 | **LoRA / QLoRA** | Low-Rank Adaptation — fine-tunes only a small adapter instead of all model weights; QLoRA adds 4-bit quantization | Reduces GPU memory and overfitting risk on small datasets |
 | **CUDA Graph** | Records and replays a fixed GPU kernel sequence, skipping launch overhead | ~5x latency reduction in our vLLM ASR benchmark |
@@ -76,7 +76,7 @@ All findings below come from a controlled Azure H100 validation using public sam
 |---|---|---|
 | Qwen3-ASR public CER baseline is usable for harness validation | 0.6B=**7.74%**, 1.7B=**7.09%** on 200 FLEURS Chinese samples | Use it as the public regression baseline, not as domain-specific quality |
 | BF16 training produces NaN from step 1 | `grad_norm=nan`, loss meaningless, model destroyed | Always start with FP32; validate mixed precision separately |
-| Small-data full-param SFT overfits badly | CER degraded from **7.74%** to **21.53%** | Do not start with full-param SFT on limited data |
+| Small-data full-param SFT overfits badly | In this 100-sample run, held-out CER degraded from **7.74%** to **21.53%** | Do not start with full-param SFT on limited data |
 | LoRA is the best first tuning route in this run | LoRA rank=16: only **0.78%** params, reached **5.48%** CER on 80-sample check | Use LoRA before full-param updates |
 | Encoder-only SFT is viable but weaker than LoRA | Encoder=186M (**23.8%** params), CER=**6.26%** on same check | Reserve for acoustic-domain adaptation |
 | QLoRA (4-bit NF4 + LoRA) trains and produces usable quality | CER=**5.69%** on 80-sample check | Strong option when GPU memory is limited |
@@ -147,11 +147,11 @@ Evaluated on 200 Chinese samples from the FLEURS `cmn_hans_cn` test set:
 
 ### 1.4 vLLM Serving + CUDA Graph
 
-Source: `results/cuda_graph_ab.json`, `results/accuracy_verification.json`, `results/concurrent_benchmark_v2.json`
+Source: `results/cuda_graph_ab.json`, `results/accuracy_verification.json`, `results/concurrent_benchmark_v2.json`, `results/remaining_inference_tests.json`
 
 **CUDA Graph A/B comparison (Qwen3-ASR-1.7B)**:
 
-| Mode | P50 | CER (20-sample smoke) | Text match vs Transformers |
+| Mode | P50 per-request latency | CER (20-sample smoke) | Text match vs Transformers |
 |---|---:|---:|---|
 | Transformers direct | 522ms | 6.65% | baseline |
 | vLLM CUDA Graph ON | **69ms** | **5.90%** | 18/20 exact match |
@@ -159,16 +159,18 @@ Source: `results/cuda_graph_ab.json`, `results/accuracy_verification.json`, `res
 
 **Important**: 5.90% should not be interpreted as CUDA Graph improving accuracy. CUDA Graph ON and OFF both measured 5.90% CER; the small difference versus Transformers (6.65%) is a vLLM-vs-Transformers path/output-format observation on a 20-sample smoke set. The supported claim is lower latency with no observed CER regression in this small check.
 
+**Latency definition**: 522ms, 69ms, and 369ms are end-to-end completion times for one short audio request, measured from request start to returned transcript. The table reports P50 over repeated requests; it is not total batch time and not audio-hours throughput.
+
 **Concurrent serving**:
 
-| Concurrency | P50 (ms) | P95 (ms) | Throughput (rps) | Success rate |
+| Concurrency | P50 per-request latency (ms) | P95 per-request latency (ms) | Short-request throughput (req/s) | Success rate |
 |---:|---:|---:|---:|---|
 | 1 | 88 | 159 | 10.1 | 4/4 |
 | 4 | 109 | 167 | 35.9 | 16/16 |
 | 8 | 88 | 165 | 79.0 | 32/32 |
 | **16** | **154** | **388** | **119.0** | **64/64** |
 
-**Takeaway**: vLLM + CUDA Graph delivers ~7x speedup over raw Transformers (522ms → 69ms). CER is used here only as a no-regression smoke check, not as evidence that CUDA Graph reduces error rate. At concurrency 16 the system sustains 119 rps with all requests succeeding and tail latency still under 400ms.
+**Takeaway**: vLLM + CUDA Graph delivers ~7x speedup over raw Transformers (single-request P50: 522ms → 69ms). CER is used here only as a no-regression smoke check, not as evidence that CUDA Graph reduces error rate. At concurrency 16, 64 short-audio requests completed in about 0.537 seconds, giving an estimated 119 req/s. This is not long-meeting throughput; long audio must be remeasured with RTF and the chunking pipeline.
 
 ### 1.5 Fine-Tuning Strategy Comparison
 
@@ -177,15 +179,15 @@ Source: `results/sft_v3_log_summary.json`, `results/lora_sft_result.json`, `resu
 | Strategy | Trainable params | CER (80 FLEURS) | Time | Reading |
 |---|---:|---:|---:|---|
 | Baseline (no tuning) | 0 | 7.74% | — | Starting point |
-| Full-param SFT (fp32) | 788M (100%) | **21.53%** (200 held-out) | 69.8s | Severe overfitting |
+| Full-param SFT (fp32) | 788M (100%) | **21.53%** (200 held-out) | 69.8s | Clear overfitting in this small-data setting |
 | LoRA rank=16 (fp32) | 6.1M (0.78%) | **5.48%** | 43.3s | Most stable |
 | Encoder-only (fp32) | 186M (23.8%) | **6.26%** | 28.7s | Viable but weaker than LoRA |
 | QLoRA (4-bit NF4 + LoRA) | 6.1M (1.29%) | **5.69%** | 59.8s | Good when GPU memory is limited |
 
 **Key findings**:
 - bf16 training produces NaN from step 1 (`grad_norm=nan`). This affects anyone using Qwen3-ASR for fine-tuning.
-- 100-sample full-param SFT pushed CER from 7.74% to 21.53% — small data + full-param = overfitting disaster.
-- LoRA trains only 0.78% of parameters yet reaches 5.48% CER, below baseline.
+- In this 100-sample full-param SFT run, training loss fell to 0.17, but held-out CER degraded from 7.74% to 21.53%. The model memorized the small training set instead of improving generalization.
+- LoRA trains only 0.78% of parameters and reached 5.48% CER on an 80-sample FLEURS check. This does not prove LoRA is always more accurate than full fine-tuning; it shows LoRA is the safer first route for a small-data PoC.
 
 ### 1.6 4-bit Inference and Quantization
 
@@ -240,7 +242,7 @@ This repo maps back to the 17 validation goals used for the engineering meeting 
 | # | Validation goal | Repo status | Evidence |
 |---:|---|---|---|
 | 1 | Qwen inference latency | ✅ Done | `results/h100/h100_model_comparison.json` |
-| 2 | Throughput-latency balance | ✅ Done | `results/h100/h100_model_comparison.json`, `results/concurrent_benchmark_v2.json` |
+| 2 | Throughput-latency balance | ✅ Done | `results/h100/h100_model_comparison.json`, `results/concurrent_benchmark_v2.json`, `results/remaining_inference_tests.json` |
 | 3 | Long-audio degradation | ✅ Done | `results/h100/h100_long_audio_test.json` |
 | 4 | vLLM serving | ✅ Done | `results/vllm_serving_result.json` |
 | 5 | SGLang / TensorRT-LLM boundary | ✅ Done | `docs/sglang-trtllm-asr-boundary.md` |
@@ -250,9 +252,9 @@ This repo maps back to the 17 validation goals used for the engineering meeting 
 | 9 | Quantized training stability | ✅ Done for bf16/4-bit/QLoRA | `results/qwen3_asr_0.6b_4bit_cer_comparison.json`, `results/qlora_sft_result.json`, `results/fp8_support_check.json` |
 | 10 | Public CER baseline | ✅ Done | `results/fleurs_cer_qwen3_asr_0.6b.json`, `results/fleurs_cer_qwen3_asr_1.7b.json` |
 | 11 | Gemma backbone route | ⚠️ Route prepared, no CER claim | `results/gemma3n_h100_route_status.json`, `docs/gemma-3n-audio-feasibility.md` |
-| 12 | Serving capacity proxy | ✅ Done | `results/concurrent_benchmark_v2.json`, `results/vllm_serving_result.json` |
+| 12 | Serving capacity proxy | ✅ Done | `results/concurrent_benchmark_v2.json`, `results/remaining_inference_tests.json`, `results/vllm_serving_result.json` |
 | 13 | CUDA Graph / compile feasibility | ✅ Done | `results/cuda_graph_ab.json`, `results/accuracy_verification.json` |
-| 14 | Concurrent serving | ✅ Done | `results/concurrent_benchmark_v2.json` |
+| 14 | Concurrent serving | ✅ Done | `results/concurrent_benchmark_v2.json`, `results/remaining_inference_tests.json` |
 | 15 | LoRA vs full-param | ✅ Done | `results/lora_sft_result.json`, `results/fleurs_cer_finetuned_fp32.json` |
 | 16 | Encoder-only vs full model | ✅ Done | `results/encoder_only_sft_result.json`, `results/encoder_decoder_split.json` |
 | 17 | LR/data/precision best practices | ⚠️ Partial | `results/lr_stability_smoke.json`; data-size gradient and mixed-precision recipe remain future work |
@@ -279,7 +281,7 @@ The architecture diagram (shown in the "Running on Azure" section above) illustr
 | vLLM serving | `configs/vllm.qwen3-asr.example.sh` | Start OpenAI-compatible transcription endpoint |
 | FLEURS CER evaluation | `scripts/eval_fleurs_baseline.py` | Run N FLEURS samples, compute CER, save JSON |
 | CUDA Graph A/B benchmark | `scripts/cuda_graph_ab_test.py` | Compare Transformers vs vLLM with/without CUDA Graph |
-| Concurrent vLLM benchmark | `scripts/concurrent_benchmark_v2.py` | Sweep concurrency 1→16, measure P50/P95/rps |
+| Concurrent vLLM benchmark | `scripts/concurrent_benchmark_v2.py` + `scripts/remaining_inference_tests.py` | Sweep concurrency 1→16, measure P50/P95/rps; c16 supplement comes from `remaining_inference_tests.json` |
 | LoRA SFT | Official `qwen3_asr_sft.py` + this repo's patches | Fine-tune decoder with LoRA rank=16 |
 | QLoRA SFT | `scripts/qlora_sft_test_v3.py` | 4-bit NF4 base + LoRA training |
 | 4-bit inference CER | `scripts/qwen3_asr_4bit_cer_eval.py` | BF16 vs 4-bit NF4 same-sample CER comparison |
@@ -483,7 +485,7 @@ Source: `results/dataloader_profile.json`
 
 ### Why LoRA Beats Full-Param SFT in This Run
 
-The data tells a clear story: 100-sample full-param SFT pushed loss to 0.17 (almost zero train error) but CER on held-out data degraded from 7.74% to 21.53%. Meanwhile LoRA with only 0.78% trainable params reached 5.48% CER — better than the pre-training baseline.
+The data tells a clear story: 100-sample full-param SFT pushed loss to 0.17 (almost zero train error) but CER on held-out data degraded from 7.74% to 21.53%. That does not mean full-param SFT is inherently bad. It means that in this small-data setting, updating all 788M parameters moved the model too far and hurt generalization. LoRA trained only 0.78% of parameters and reached 5.48% CER on an 80-sample FLEURS check, making it the safer first route for a small-data PoC.
 
 | Factor | Why it matters for ASR |
 |---|---|
@@ -492,7 +494,7 @@ The data tells a clear story: 100-sample full-param SFT pushed loss to 0.17 (alm
 | **Regularization** | LoRA rank=16 acts as an implicit capacity constraint. The model adjusts output format without overwriting base acoustic knowledge. |
 | **Audio encoder sensitivity** | Qwen3-ASR's audio encoder produces NaN in bf16 training. Full-param SFT in fp32 moves all 788M weights including the sensitive encoder. LoRA keeps the encoder frozen. |
 
-Full-param SFT is not broken — it is risky on small data. Reserve it for large, well-curated corpora (thousands of hours). For a first a PoC with limited labeled data, LoRA is the safer starting point.
+Full-param SFT is not broken — it is risky on small data. Reserve it for large, well-curated, distribution-matched corpora, usually at hundreds to thousands of hours. For a first PoC with limited labeled data, LoRA is the safer starting point.
 
 ### Real Transcription Examples
 
@@ -595,7 +597,7 @@ Start with the transformers backend to confirm quality, then move to vLLM for se
 
 ### vLLM Concurrent Serving Benchmark (H100 NVL, Qwen3-ASR-1.7B)
 
-| Concurrency | Requests | Success | P50 (ms) | P95 (ms) | Throughput (rps) |
+| Concurrency | Requests | Success | P50 per-request latency (ms) | P95 per-request latency (ms) | Short-request throughput (req/s) |
 |---:|---:|---:|---:|---:|---:|
 | 1 | 4 | 4 | 88 | 159 | 10.1 |
 | 2 | 8 | 8 | 99 | 146 | 19.8 |
@@ -603,9 +605,9 @@ Start with the transformers backend to confirm quality, then move to vLLM for se
 | 8 | 32 | 32 | 88 | 165 | 79.0 |
 | **16** | **64** | **64** | **154** | **388** | **119.0** |
 
-All concurrency levels had **zero failures**. P50 stays under 160ms even at c16. Throughput scales near-linearly from c1 to c8 (10→79 rps) and continues to c16 (119 rps) with tail latency increase.
+All concurrency levels had **zero failures**. P50 stays under 160ms even at c16. Throughput scales near-linearly from c1 to c8 (10→79 req/s) and continues to c16 (~119 req/s). This is short-audio request throughput; long meeting recordings depend on audio duration, chunk count, RTF, and stitching overhead. Tail latency increases at c16.
 
-Source: `results/concurrent_benchmark_v2.json`
+Source: `results/concurrent_benchmark_v2.json`, `results/remaining_inference_tests.json`
 
 ### Inference Acceleration: What Should Be Rechecked for Accuracy
 
@@ -704,7 +706,7 @@ Every experiment in this repo has a corresponding runnable script. The table bel
 | 4-bit inference CER comparison | `scripts/qwen3_asr_4bit_cer_eval.py` | `results/qwen3_asr_0.6b_4bit_cer_comparison.json` |
 | CUDA Graph A/B test | `scripts/cuda_graph_ab_test.py` | `results/cuda_graph_ab.json` |
 | Accuracy verification (transformers vs vLLM) | `scripts/accuracy_verification.py` | `results/accuracy_verification.json` |
-| Concurrent vLLM benchmark (c1–c16) | `scripts/concurrent_benchmark_v2.py` | `results/concurrent_benchmark_v2.json` |
+| Concurrent vLLM benchmark (c1–c16) | `scripts/concurrent_benchmark_v2.py` + `scripts/remaining_inference_tests.py` | `results/concurrent_benchmark_v2.json`, `results/remaining_inference_tests.json` |
 | Checkpoint/resume smoke | `scripts/resume_smoke_v2.py` | `results/checkpoint_resume_smoke.json` |
 | Remaining inference tests | `scripts/remaining_inference_tests.py` | `results/remaining_inference_tests.json` |
 | Remaining training tests | `scripts/remaining_training_tests_v2.py` | `results/remaining_training_tests_v2_summary.json` |
