@@ -156,6 +156,24 @@ ASR 验证和文本 LLM 评测有本质区别，这些区别直接影响工程�
 - 同一精度（fp32 vs fp32，或 bf16 vs bf16）
 - 每次只改一个变量
 
+### 本 Repo 使用的测试音频数据
+
+所有 Qwen3-ASR 实验都使用**真实音频文件**作为输入（不是文本 prompt）。下表列出每项测试到底喂了什么音频：
+
+| 测试类别 | 音频来源 | 格式 | 时长 | 样本数 | 怎么用 |
+|---|---|---|---|---|---|
+| CER baseline（0.6B/1.7B） | FLEURS `cmn_hans_cn` test split | 16 kHz mono WAV | 8–16s/条 | 200 | 完整转录 → 逐字 CER 对比人工标注 |
+| 微调（LoRA/QLoRA/Encoder/全参） | FLEURS `cmn_hans_cn` test split | 16 kHz mono WAV | 8–16s/条 | 80–100 | SFT 训练 + held-out CER 评测 |
+| CUDA Graph A/B | FLEURS `cmn_hans_cn` test split | 16 kHz mono WAV | 8–16s/条 | 20 | 对比 Transformers vs vLLM CER |
+| 并发 benchmark（c1–c16） | 官方 Qwen 短样例 | 16 kHz mono WAV | ~2–3s | 1 条重复发 | 并发下延迟/吞吐 |
+| 最高并发（c16–c256） | FLEURS `cmn_hans_cn` test split | 16 kHz mono WAV | 8–16s/条 | 20 条重复发 | 真实时长下延迟 + CER |
+| Stream A/B | FLEURS `cmn_hans_cn` test split | 16 kHz mono WAV | 8–16s/条 | 20 | stream vs non-stream 延迟对比 |
+| 长音频测试 | 合成（官方样例循环拼接） | 16 kHz mono WAV | 30s/60s/180s | 3 | 失效模式检测 |
+| Dataloader profiling | FLEURS `cmn_hans_cn` test split | 16 kHz mono WAV | 8–16s/条 | 200 | 测量 decode/transfer 瓶颈 |
+| Gemma 3n smoke | ❌ 无音频（纯文本） | N/A | N/A | 1 条文本 | 只验证模型加载+文本生成；audio 被 cuDNN 阻塞 |
+
+**注意**：早期 c1–c16 并发 benchmark 用的是单条 ~2–3s 官方短样例重复发。后来的最高并发测试（c16–c256）用了 20 条真实 FLEURS 文件（8–16s/条）。音频时长差异解释了 c16 P50 154ms vs 1090ms 的差距——不是 stream 或模型退化造成的。
+
 ### 微调数据准备
 
 Qwen3-ASR SFT 训练数据格式（来源：[官方 repo](https://github.com/QwenLM/Qwen3-ASR/tree/main/finetuning)）：

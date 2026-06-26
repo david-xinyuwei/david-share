@@ -165,6 +165,24 @@ Every comparison in this repo uses:
 - Same model precision per comparison (fp32 vs fp32, or bf16 vs bf16)
 - One variable changed per experiment
 
+### Test Audio Data Used in This Repo
+
+All Qwen3-ASR experiments use **real audio files** as input (not text prompts). The table below shows exactly what audio was fed into each test:
+
+| Test category | Audio source | Format | Duration | Samples | How used |
+|---|---|---|---|---|---|
+| CER baseline (0.6B/1.7B) | FLEURS `cmn_hans_cn` test split | 16 kHz mono WAV | 8–16s per clip | 200 | Full transcription → CER vs human reference |
+| Fine-tuning (LoRA/QLoRA/Encoder/Full) | FLEURS `cmn_hans_cn` test split | 16 kHz mono WAV | 8–16s per clip | 80–100 | SFT training + held-out CER eval |
+| CUDA Graph A/B | FLEURS `cmn_hans_cn` test split | 16 kHz mono WAV | 8–16s per clip | 20 | Compare Transformers vs vLLM CER |
+| Concurrent benchmark (c1–c16) | Single official Qwen sample | 16 kHz mono WAV | ~2–3s | 1 file × repeated | Latency/throughput under concurrent load |
+| Max concurrency (c16–c256) | FLEURS `cmn_hans_cn` test split | 16 kHz mono WAV | 8–16s per clip | 20 files × repeated | Real-duration latency + CER under load |
+| Stream A/B | FLEURS `cmn_hans_cn` test split | 16 kHz mono WAV | 8–16s per clip | 20 | Stream vs non-stream latency comparison |
+| Long-audio test | Synthetic (official sample looped) | 16 kHz mono WAV | 30s/60s/180s | 3 | Failure-mode detection |
+| Dataloader profiling | FLEURS `cmn_hans_cn` test split | 16 kHz mono WAV | 8–16s per clip | 200 | Measure decode/transfer bottleneck |
+| Gemma 3n smoke | ❌ No audio (text-only) | N/A | N/A | 1 text prompt | Model-loading + text-gen only; audio blocked by cuDNN |
+
+**Important**: The early c1–c16 concurrent benchmark used a single ~2–3s audio sample (official Qwen demo). The later max-concurrency sweep (c16–c256) used 20 real FLEURS files (8–16s each). This difference in audio duration explains the P50 difference (154ms vs 1090ms at c16) — it is not caused by streaming or model degradation.
+
 ### Data Preparation for Fine-Tuning
 
 Training data format for Qwen3-ASR SFT (from the [official repo](https://github.com/QwenLM/Qwen3-ASR/tree/main/finetuning)):
