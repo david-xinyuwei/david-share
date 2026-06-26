@@ -142,6 +142,45 @@ This is not a claim that Qwen3-ASR is the best ASR model. It is a statement that
 
 ---
 
+## 0.5 Methodology
+
+### Evaluation Gates
+
+Every ASR model in this repo must pass through validation gates before production claims. These are the same gates shown in the [validation gates diagram](images/validation_gates.png):
+
+| Gate | What it checks | Pass criteria |
+|---|---|---|
+| **G0** Audio smoke | Model loads and produces non-empty transcript from a known audio file | Output ≠ empty; latency < 10s for a 10s clip |
+| **G1** Public CER | CER on public FLEURS samples is in a reasonable range | CER < 15% on 200 Chinese samples (empirical sanity check) |
+| **G2** Serving gate | vLLM endpoint responds under concurrency | Zero failures at target concurrency; P50 within SLA |
+| **G3** Fine-tuning gate | SFT runs without NaN or divergence; CER does not degrade on held-out set | grad_norm finite; held-out CER ≤ baseline or explainably higher |
+| **G4** Regression gate | Re-running the same test produces consistent results | CER variance < 1pp across 3 runs on same data |
+
+### Fairness Controls
+
+Every comparison in this repo uses:
+- Same audio samples (public FLEURS `cmn_hans_cn` test split or official Qwen samples)
+- Same CER evaluation script (`scripts/eval_asr_metrics.py`)
+- Same GPU (single H100 NVL 95 GB)
+- Same model precision per comparison (fp32 vs fp32, or bf16 vs bf16)
+- One variable changed per experiment
+
+### Data Preparation for Fine-Tuning
+
+Training data format for Qwen3-ASR SFT (from the [official repo](https://github.com/QwenLM/Qwen3-ASR/tree/main/finetuning)):
+
+```jsonl
+{"audio":"/path/to/audio.wav","text":"language Chinese<asr_text>这是训练文本。"}
+```
+
+Requirements:
+- Audio must be 16 kHz mono WAV (resample if needed)
+- Language prefix must match: `language Chinese`, `language English`, or `language None`
+- Ground-truth transcript must be character-accurate (no hallucinated punctuation)
+- Train/eval split must be non-overlapping
+
+---
+
 ## 1. Detailed Validation Results
 
 All results below come from public Qwen samples and public FLEURS data tested on Azure H100. No proprietary audio, private endpoints, or subscription details are included.
@@ -899,6 +938,42 @@ results/h100/h100_vllm_serving_benchmark.json
 - FP32 LR smoke covered 2e-5/1e-5/5e-6/2e-6 without NaN; data-size gradient and mixed-precision recipes remain future work.
 - SGLang does not have Qwen3-ASR in its model registry; TensorRT-LLM only supports Whisper for ASR.
 - Public samples do not represent a production team's meeting audio, device microphones, accents, noise, diarization, or hotwords.
+
+---
+
+## 9. Azure Deployment Notes
+
+### GPU Sizing
+
+| Workload | Recommended Azure SKU | Rationale |
+|---|---|---|
+| Serving PoC (single model, ≤32 concurrent) | NC40ads H100 v5 (1× H100 NVL 95 GB) | Single card handles c32 at P50 < 400ms; KV cache fits at 80% utilization |
+| Serving production (>32 concurrent, SLA < 500ms) | 2× NC40ads H100 v5 + load balancer | Horizontal scale; each card handles c32 sweet spot |
+| LoRA fine-tuning (≤500 samples) | NC40ads H100 v5 | FP32 LoRA completes in < 60s on single H100; no multi-GPU needed |
+| Full-param SFT (>1000 hours audio) | NC80adis H100 v5 (2× H100) or ND96isr H100 v5 (8× H100) | Large corpus + full-param needs sharded optimizer (DeepSpeed ZeRO-2/3) |
+
+### Deployment Topology
+
+- **Single-card serving**: vLLM with `--gpu-memory-utilization 0.8` + CUDA Graph ON. Achieves c32 ≈ 75 rps with P50 < 400ms on 8–16s audio.
+- **Multi-card serving**: multiple independent vLLM instances behind Azure Load Balancer or API Management. No tensor-parallel needed for 1.7B model.
+- **Storage**: model weights from HuggingFace Hub cache on local SSD; audio data from Azure Blob via azcopy to local disk before training.
+- **Networking**: single-card serving requires no NCCL. Multi-GPU training needs InfiniBand (ND-series) or NVLink (within-node only).
+
+---
+
+## 10. What Is Deliberately Not Included
+
+This repo intentionally does **not** include:
+
+| Excluded item | Why |
+|---|---|
+| Proprietary audio or transcripts | Public FLEURS only; domain data stays outside this artifact |
+| Production SLA commitments | Benchmark numbers are measured, not guaranteed; repeat on target audio before promising |
+| Speaker diarization | Qwen3-ASR is single-speaker transcription; diarization requires a separate pipeline |
+| Real-time streaming ASR | This repo tests offline (file-based) transcription; real-time WebSocket streaming needs additional validation |
+| Whisper/Conformer comparison | Different model families require separate evaluation setups; out of scope for this Qwen/Gemma-focused repo |
+| Multi-language mixing within one utterance | All tests use single-language audio (Chinese or English); code-switching behavior is not validated |
+| Cost optimization (spot instances, auto-scaling) | Azure cost is reported as a proxy; production cost engineering depends on traffic patterns |
 
 ---
 

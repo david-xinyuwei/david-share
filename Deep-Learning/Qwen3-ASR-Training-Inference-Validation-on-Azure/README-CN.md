@@ -133,6 +133,45 @@ ASR 验证和文本 LLM 评测有本质区别，这些区别直接影响工程�
 
 ---
 
+## 0.5 方法论
+
+### 评估门（Validation Gates）
+
+本 repo 中每个 ASR 模型都必须通过以下验证门才能做生产声明。详见[验证门图](images/validation_gates.png)：
+
+| Gate | 检查什么 | 通过标准 |
+|---|---|---|
+| **G0** 音频 smoke | 模型能加载并从已知音频产出非空转录 | 输出非空；10s 音频延迟 < 10s |
+| **G1** 公开 CER | 公开 FLEURS 上的 CER 在合理范围 | 200 条中文 CER < 15%（经验性 sanity check） |
+| **G2** Serving gate | vLLM endpoint 在并发下正常响应 | 目标并发下零失败；P50 在 SLA 内 |
+| **G3** 微调 gate | SFT 跑通无 NaN/发散；held-out CER 不退化 | grad_norm 有限；held-out CER ≤ baseline 或可解释地更高 |
+| **G4** 回归 gate | 相同测试重复跑产出一致结果 | 同数据 3 次运行 CER 方差 < 1pp |
+
+### 公平性控制
+
+本 repo 中每次对比都使用：
+- 同一批音频样本（公开 FLEURS `cmn_hans_cn` test split 或官方 Qwen 样例）
+- 同一个 CER 评测脚本（`scripts/eval_asr_metrics.py`）
+- 同一张 GPU（单张 H100 NVL 95 GB）
+- 同一精度（fp32 vs fp32，或 bf16 vs bf16）
+- 每次只改一个变量
+
+### 微调数据准备
+
+Qwen3-ASR SFT 训练数据格式（来源：[官方 repo](https://github.com/QwenLM/Qwen3-ASR/tree/main/finetuning)）：
+
+```jsonl
+{"audio":"/path/to/audio.wav","text":"language Chinese<asr_text>这是训练文本。"}
+```
+
+要求：
+- 音频必须是 16 kHz mono WAV（需要时先重采样）
+- Language prefix 必须匹配：`language Chinese`、`language English` 或 `language None`
+- Ground-truth transcript 必须字符准确（不能有幻觉标点）
+- 训练/评测 split 必须不重叠
+
+---
+
 ## 1. 验证结果详解
 
 以下所有结果来自公开 Qwen 样例和公开 FLEURS 数据在 Azure H100 上的实测。不含专有音频、私有 endpoint 或订阅信息。
@@ -900,6 +939,40 @@ results/h100/h100_vllm_serving_benchmark.json
 - fp32 LR smoke 覆盖 2e-5/1e-5/5e-6/2e-6 且无 NaN；数据量梯度和 mixed precision recipe 仍需后续验证。
 - SGLang 和 TensorRT-LLM 对 Qwen3-ASR 不是已验证推荐：SGLang 未见 Qwen3-ASR registry，TensorRT-LLM ASR 路径主要是 Whisper。
 - 公开样例不能代表实际的会议音频、设备麦克风、口音、噪音、diarization 或 hotwords。
+
+---
+
+## 9. Azure 部署建议
+
+### GPU 选型
+
+| 场景 | 推荐 Azure SKU | 理由 |
+|---|---|---|
+| Serving PoC（单模型，≤32 并发） | NC40ads H100 v5（1× H100 NVL 95 GB） | 单卡在 c32 下 P50 < 400ms；KV cache 在 80% 利用率下放得下 |
+| Serving 生产（>32 并发，SLA < 500ms） | 2× NC40ads H100 v5 + 负载均衡 | 水平扩展；每张卡跑 c32 甜蜜点 |
+| LoRA 微调（≤500 条样本） | NC40ads H100 v5 | FP32 LoRA 在单张 H100 上 < 60s 完成；不需要多卡 |
+| 全参 SFT（>1000 小时音频） | NC80adis H100 v5（2× H100）或 ND96isr H100 v5（8× H100） | 大语料 + 全参需要分片 optimizer（DeepSpeed ZeRO-2/3） |
+
+### 部署拓扑
+
+- **单卡 serving**：vLLM + `--gpu-memory-utilization 0.8` + CUDA Graph ON。8–16s 音频下 c32 ≈ 75 rps，P50 < 400ms。
+- **多卡 serving**：多个独立 vLLM 实例 + Azure Load Balancer / API Management。1.7B 模型不需要 tensor parallel。
+- **存储**：模型权重从 HuggingFace Hub cache 到本地 SSD；音频数据通过 azcopy 从 Azure Blob 拉到本地磁盘再训练。
+- **网络**：单卡 serving 不需要 NCCL。多卡训练需要 InfiniBand（ND 系列）或 NVLink（节点内）。
+
+---
+
+## 10. 本 Repo 刻意不包含的内容
+
+| 不包含的内容 | 原因 |
+|---|---|
+| 专有音频或转录文本 | 只使用公开 FLEURS；领域数据不进入本 artifact |
+| 生产 SLA 承诺 | benchmark 数字是实测结果，不是保证；上线前必须在目标音频上复测 |
+| 说话人分离（diarization） | Qwen3-ASR 是单说话人转录；diarization 需要独立 pipeline |
+| 实时流式 ASR | 本 repo 测试离线（文件）转录；WebSocket 实时流需要额外验证 |
+| Whisper/Conformer 对比 | 不同模型族需要独立评测环境；不在本 Qwen/Gemma 聚焦 repo 范围 |
+| 单句内多语言混合 | 所有测试使用单语音频（中文或英文）；code-switching 行为未验证 |
+| 成本优化（Spot 实例、自动伸缩） | Azure 成本以 proxy 形式报告；生产成本工程取决于流量模式 |
 
 ---
 
