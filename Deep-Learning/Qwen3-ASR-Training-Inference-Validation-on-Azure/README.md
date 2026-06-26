@@ -81,7 +81,7 @@ All findings below come from a controlled Azure H100 validation using public sam
 | Encoder-only SFT is viable but weaker than LoRA | Encoder=186M (**23.8%** params), CER=**6.26%** on same check | Reserve for acoustic-domain adaptation |
 | QLoRA (4-bit NF4 + LoRA) trains and produces usable quality | CER=**5.69%** on 80-sample check | Strong option when GPU memory is limited |
 | 4-bit NF4 inference has small CER degradation | CER=**5.99%** vs bf16 baseline **5.28%** (+0.71pp) on same 80 FLEURS samples | Viable for memory-constrained deployment with CER monitoring |
-| vLLM + CUDA Graph is the strongest serving path | P50 **69ms** vs transformers **522ms** (~7x); no CER regression on 20-sample check | Use vLLM for first serving PoC |
+| vLLM + CUDA Graph is the strongest serving path | P50 **69ms** vs transformers **522ms** (~7x); no CER regression observed in a 20-sample smoke check | Use vLLM for first serving PoC; do not read CUDA Graph as an accuracy improvement |
 | vLLM concurrent serving scales to 16 | c16: P50=**154ms**, P95=**388ms**, **119 rps**, 64/64 success | Sufficient for initial production capacity planning |
 | Dataloader bottleneck is GPU transfer, not audio decode | Audio decode=0.196s, GPU transfer=**0.31s** (bottleneck) for 200 samples | Optimize GPU pipeline, not codec |
 | Long audio needs pipeline treatment | 180s synthetic long audio collapsed to **16 output chars** | Add VAD/chunk/overlap/stitching before production |
@@ -147,15 +147,17 @@ Evaluated on 200 Chinese samples from the FLEURS `cmn_hans_cn` test set:
 
 ### 1.4 vLLM Serving + CUDA Graph
 
-Source: `results/cuda_graph_ab.json`, `results/concurrent_benchmark_v2.json`
+Source: `results/cuda_graph_ab.json`, `results/accuracy_verification.json`, `results/concurrent_benchmark_v2.json`
 
 **CUDA Graph A/B comparison (Qwen3-ASR-1.7B)**:
 
-| Mode | P50 | CER (20 samples) | vs baseline |
+| Mode | P50 | CER (20-sample smoke) | Text match vs Transformers |
 |---|---:|---:|---|
 | Transformers direct | 522ms | 6.65% | baseline |
 | vLLM CUDA Graph ON | **69ms** | **5.90%** | 18/20 exact match |
-| vLLM CUDA Graph OFF | 369ms | — | 17/20 exact match |
+| vLLM CUDA Graph OFF | 369ms | **5.90%** | 17/20 exact match |
+
+**Important**: 5.90% should not be interpreted as CUDA Graph improving accuracy. CUDA Graph ON and OFF both measured 5.90% CER; the small difference versus Transformers (6.65%) is a vLLM-vs-Transformers path/output-format observation on a 20-sample smoke set. The supported claim is lower latency with no observed CER regression in this small check.
 
 **Concurrent serving**:
 
@@ -166,7 +168,7 @@ Source: `results/cuda_graph_ab.json`, `results/concurrent_benchmark_v2.json`
 | 8 | 88 | 165 | 79.0 | 32/32 |
 | **16** | **154** | **388** | **119.0** | **64/64** |
 
-**Takeaway**: vLLM + CUDA Graph delivers ~7x speedup over raw Transformers (522ms → 69ms) with no observed CER regression on 20 FLEURS samples. At concurrency 16 the system sustains 119 rps with all requests succeeding and tail latency still under 400ms.
+**Takeaway**: vLLM + CUDA Graph delivers ~7x speedup over raw Transformers (522ms → 69ms). CER is used here only as a no-regression smoke check, not as evidence that CUDA Graph reduces error rate. At concurrency 16 the system sustains 119 rps with all requests succeeding and tail latency still under 400ms.
 
 ### 1.5 Fine-Tuning Strategy Comparison
 
@@ -578,17 +580,18 @@ Start with the transformers backend to confirm quality, then move to vLLM for se
 
 ### CUDA Graph A/B Benchmark (H100 NVL, Qwen3-ASR-1.7B)
 
-| Mode | P50 Latency | CER (20 samples) | Text Match vs Baseline |
+| Mode | P50 Latency | CER (20-sample smoke) | Text Match vs Transformers |
 |---|---:|---:|---|
 | Transformers direct | 522ms | 6.65% | baseline |
 | vLLM CUDA Graph ON (default) | **69ms** | **5.90%** | 18/20 identical |
-| vLLM --enforce-eager (CUDA Graph OFF) | 369ms | — | 17/20 identical |
+| vLLM --enforce-eager (CUDA Graph OFF) | 369ms | **5.90%** | 17/20 identical |
 
 **Key findings:**
 - CUDA Graph provides **~5x latency reduction** in this short-audio test (369ms → 69ms)
 - Combined vLLM optimizations (CUDA Graph + PagedAttention + scheduling) are **~7x faster** than raw transformers on this sample set
 - 18/20 transcriptions are byte-for-byte identical to transformers output
 - No CER regression was observed on this 20-sample FLEURS check (5.90% vs 6.65%). This is an empirical check, not a universal accuracy guarantee.
+- Do not read 5.90% vs 6.65% as “CUDA Graph improved accuracy.” CUDA Graph ON/OFF measured the same CER; the result only shows that the faster path did not introduce visible quality regression in this small sample.
 
 ### vLLM Concurrent Serving Benchmark (H100 NVL, Qwen3-ASR-1.7B)
 

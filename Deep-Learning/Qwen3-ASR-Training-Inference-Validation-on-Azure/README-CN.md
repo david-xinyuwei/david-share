@@ -36,7 +36,7 @@
 | **CER** | Character Error Rate（字符错误率）——把模型转录的文字和正确的人工标注文字逐字对比，数错了多少个字。举例：人工标注 10 个字，模型错了 1 个字，CER = 10%。本 repo 中 Qwen3-ASR-0.6B 在 200 条 FLEURS 中文样本上 CER = 7.74%。 | 中文 ASR 的核心准确率指标。中文没有空格分词，所以按字符对比是标准做法。 |
 | **WER** | Word Error Rate（词错误率）——和 CER 一样的思路，但按整词计算。举例："the cat sat" vs "the cat sat down" → 多了 1 个词，3 个词里错 1 个 = 33% WER。 | 用于英文等有空格分词的语言。 |
 | **RTF** | Real-Time Factor = 处理时间 / 音频时长。RTF < 1 表示比实时快 | 决定系统能做实时流式还是只能离线 |
-| **P50 / P95** | 中位数延迟和第 95 百分位延迟 | P50 = 典型体验；P95 = 影响 SLA 的 tail spike |
+| **P50 / P95** | 中位数延迟和第 95 百分位延迟 | P50 = 典型体验；P95 = 影响 SLA 的高分位延迟波动 |
 | **Throughput (rps)** | serving endpoint 每秒能处理的请求数 | 并发用户容量规划 |
 | **FLEURS** | Google 的多语言语音 benchmark 数据集（Apache 2.0） | 本 repo 用来做 CER baseline 的公开评测数据 |
 | **LoRA / QLoRA** | Low-Rank Adaptation——只微调一个小 adapter 而不动全部权重；QLoRA 额外加 4-bit 量化 | 减少显存占用和小数据过拟合风险 |
@@ -75,7 +75,7 @@
 | Qwen3-ASR public CER baseline 可用于 harness 验证 | 200 条 FLEURS 中文：0.6B=**7.74%**，1.7B=**7.09%** | 用作 public regression baseline，不当作领域质量 |
 | 小数据 full-param SFT 泛化风险高 | CER 从 **7.74%** 退化到 **21.53%** | 小数据不要从 full-param SFT 起步 |
 | LoRA 是本次最稳的第一轮微调路线 | LoRA rank=16 在 80 条检查中达到 **5.48% CER** | 优先 LoRA，再考虑更大范围参数更新 |
-| vLLM + CUDA Graph 是当前最强 serving 路线 | 短音频 benchmark P50 **69ms**，transformers 是 **522ms** | 质量验证通过后，用 vLLM 做第一阶段 serving PoC |
+| vLLM + CUDA Graph 是当前最强 serving 路线 | 短音频 benchmark P50 **69ms**，transformers 是 **522ms**；20 条样本未观察到 CER 退化 | 用 vLLM 做第一阶段 serving PoC；不要把 CUDA Graph 解读成准确率提升 |
 | 长音频必须 pipeline 化 | 180s synthetic long audio 只输出 16 个字符 | 生产前必须做 VAD/chunk/overlap/stitching |
 
 ### 推荐生产配置
@@ -107,9 +107,9 @@
 | Batch 8 throughput | **35.05 req/s** | 28.93 req/s | 0.6B 更高 |
 | Batch 16 throughput | **55.13 req/s** | 51.74 req/s | 单张 H100 上都超过 50 short req/s |
 | 10-round P50 | 0.172s | 0.174s | 稳态延迟稳定 |
-| 10-round P95 | 0.215s | **0.174s** | 1.7B tail latency 更稳 |
+| 10-round P95 | 0.215s | **0.174s** | 1.7B 的 P95 更低，高分位延迟更稳定 |
 
-**结论**：1.7B 延迟更低、tail 更稳，但 0.6B 高 batch 吞吐更好。短音频场景两者都能做到实时。
+**结论**：1.7B 延迟更低、P95 尾部延迟更稳，但 0.6B 高 batch 吞吐更好。短音频场景两者都能做到实时。
 
 ### 1.2 长音频行为
 
@@ -138,15 +138,17 @@
 
 ### 1.4 vLLM Serving + CUDA Graph
 
-来源：`results/cuda_graph_ab.json`、`results/concurrent_benchmark_v2.json`
+来源：`results/cuda_graph_ab.json`、`results/accuracy_verification.json`、`results/concurrent_benchmark_v2.json`
 
 **CUDA Graph A/B（Qwen3-ASR-1.7B）**：
 
-| 模式 | P50 | CER（20 条） | vs baseline |
+| 模式 | P50 | CER（20 条小样本观测） | 与 Transformers 文本一致性 |
 |---|---:|---:|---|
 | Transformers direct | 522ms | 6.65% | baseline |
 | vLLM CUDA Graph ON | **69ms** | **5.90%** | 18/20 完全一致 |
-| vLLM CUDA Graph OFF | 369ms | — | 17/20 完全一致 |
+| vLLM CUDA Graph OFF | 369ms | **5.90%** | 17/20 完全一致 |
+
+**注意**：这里的 5.90% 不能解读为 CUDA Graph 提升准确率。CUDA Graph ON 和 OFF 的 CER 都是 5.90%；与 Transformers 6.65% 的差异来自 vLLM 与 Transformers 推理路径、输出格式和 20 条小样本波动。本实验只能支持两个结论：vLLM + CUDA Graph 显著降低延迟；20 条样本上没有观察到 CER 退化。
 
 **并发 serving**：
 
@@ -157,7 +159,7 @@
 | 8 | 88 | 165 | 79.0 | 32/32 |
 | **16** | **154** | **388** | **119.0** | **64/64** |
 
-**结论**：vLLM + CUDA Graph 比 raw Transformers 快约 7 倍（522ms → 69ms），且 20 条 FLEURS 样本上没有观察到 CER 退化。并发 16 下 119 rps 全部成功，tail latency 仍在 400ms 以内。
+**结论**：vLLM + CUDA Graph 比 raw Transformers 快约 7 倍（522ms → 69ms）。CER 只作为“无退化”smoke check，不能写成 CUDA Graph 让错误率下降。并发 16 下 119 rps 全部成功，P95 尾部延迟仍在 400ms 以内。
 
 ### 1.5 微调策略对比
 
@@ -301,7 +303,7 @@ Gemma 3n E2B-it 权重已下载（10.9 GB），官方 `Gemma3nForConditionalGene
 | **Hotword recall** | 领域专有词（产品名、医学术语、人名地名）是否被正确转录 | 通用 ASR 模型经常漏掉稀有或专业词汇，而这些往往是业务最关心的 |
 | **DER** | Diarization Error Rate（说话人分离错误率）——系统识别"谁在说哪一段"的准确程度 | 只在有说话人标签时才需要；会议转录场景的关键指标 |
 | **RTF** | Real-Time Factor = 处理时间 / 音频时长。RTF < 1 表示比实时快 | 决定系统能做实时流式还是只能离线处理 |
-| **P50 / P95** | 转录请求的中位数延迟和第 95 百分位延迟 | P50 反映典型用户体验；P95 捕捉影响 SLA 的 tail latency |
+| **P50 / P95** | 转录请求的中位数延迟和第 95 百分位延迟 | P50 反映典型用户体验；P95 捕捉影响 SLA 的高分位延迟 |
 | **Throughput** | 每秒处理请求数（rps）或每 GPU 小时处理的音频小时数 | 决定系统能同时服务多少用户或录音 |
 | **Failure rate** | 在并发负载下返回错误或空转录的请求占比 | 并发=1 时能跑不代表并发=16 时还能跑 |
 | **Data loader** | 读取音频文件、解码、把 tensor 送到 GPU 的 pipeline | data loader 慢 = GPU 空等数据 = 训练吞吐下降 |
@@ -579,17 +581,18 @@ FLEURS 这种公开数据集可以证明训练 harness；领域真实结论仍�
 
 ### CUDA Graph A/B Benchmark（H100 NVL，Qwen3-ASR-1.7B）
 
-| 模式 | P50 latency | CER（20 条样本） | 与 baseline 文本一致性 |
+| 模式 | P50 latency | CER（20 条小样本观测） | 与 Transformers 文本一致性 |
 |---|---:|---:|---|
 | Transformers direct | 522ms | 6.65% | baseline |
 | vLLM CUDA Graph ON（默认） | **69ms** | **5.90%** | 18/20 完全一致 |
-| vLLM `--enforce-eager`（CUDA Graph OFF） | 369ms | — | 17/20 完全一致 |
+| vLLM `--enforce-eager`（CUDA Graph OFF） | 369ms | **5.90%** | 17/20 完全一致 |
 
 核心结论：
 
 - CUDA Graph 在这个短音频测试里把 latency 从 369ms 降到 69ms，约 **5x**。
 - vLLM 的组合优化（CUDA Graph + PagedAttention + scheduling）相对 raw transformers 约 **7x**。
 - 20 条 FLEURS 检查里没有观察到 CER 退化（5.90% vs 6.65%）。这只是实测检查，不是通用保证。
+- 不要把 5.90% vs 6.65% 解读成“打开 CUDA Graph 提升准确率”。CUDA Graph ON/OFF 的 CER 一样；它证明的是加速路径没有在这个小样本上引入可见质量退化。
 
 ### vLLM 并发 Serving Benchmark（H100 NVL，Qwen3-ASR-1.7B）
 
@@ -601,7 +604,7 @@ FLEURS 这种公开数据集可以证明训练 harness；领域真实结论仍�
 | 8 | 32 | 32 | 88 | 165 | 79.0 |
 | **16** | **64** | **64** | **154** | **388** | **119.0** |
 
-所有并发档位**零失败**。P50 在 c16 下也保持在 160ms 以内。吞吐从 c1 到 c8 近线性增长（10→79 rps），c16 继续到 119 rps，tail latency 有所上升。
+所有并发档位**零失败**。P50 在 c16 下也保持在 160ms 以内。吞吐从 c1 到 c8 近线性增长（10→79 rps），c16 继续到 119 rps，P95 尾部延迟有所上升。
 
 来源：`results/concurrent_benchmark_v2.json`
 
