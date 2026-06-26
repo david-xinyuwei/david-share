@@ -140,15 +140,23 @@
 
 来源：`results/cuda_graph_ab.json`、`results/accuracy_verification.json`、`results/concurrent_benchmark_v2.json`、`results/remaining_inference_tests.json`
 
-**CUDA Graph A/B（Qwen3-ASR-1.7B）**：
+**单请求延迟 benchmark（同一条短音频，重复请求 10 次）**：
 
-| 模式 | P50 单请求延迟 | CER（20 条小样本观测） | 与 Transformers 文本一致性 |
+| 模式 | P50 单请求延迟 | P95 单请求延迟 | 这行在测什么 |
 |---|---:|---:|---|
-| Transformers direct | 522ms | 6.65% | baseline |
-| vLLM CUDA Graph ON | **69ms** | **5.90%** | 18/20 完全一致 |
-| vLLM CUDA Graph OFF | 369ms | **5.90%** | 17/20 完全一致 |
+| Transformers direct | 522ms | 525ms | transformers 直接推理 baseline |
+| vLLM CUDA Graph ON | **69ms** | 420ms | vLLM 默认 serving 路径，CUDA Graph 开启 |
+| vLLM CUDA Graph OFF | 369ms | 609ms | vLLM eager 路径，关闭 CUDA Graph |
 
-**注意**：这里的 5.90% 不能解读为 CUDA Graph 提升准确率。CUDA Graph ON 和 OFF 的 CER 都是 5.90%；与 Transformers 6.65% 的差异来自 vLLM 与 Transformers 推理路径、输出格式和 20 条小样本波动。本实验只能支持两个结论：vLLM + CUDA Graph 显著降低延迟；20 条样本上没有观察到 CER 退化。
+**质量 smoke check（20 条 FLEURS 样本）**：
+
+| 对比对象 | CER（20 条小样本观测） | 与 Transformers 文本一致性 | 怎么解读 |
+|---|---:|---:|---|
+| Transformers direct | 6.65% | baseline | 质量参考线 |
+| vLLM CUDA Graph ON | 5.90% | 18/20 完全一致 | 没观察到质量退化 |
+| vLLM CUDA Graph OFF | 5.90% | 17/20 完全一致 | 同样没观察到质量退化 |
+
+**注意**：CUDA Graph 表只证明延迟下降，不证明准确率提升。CER 表是另一个 smoke check，用来确认 vLLM 路径没有在 20 条样本上引入可见质量退化。5.90% vs 6.65% 不能写成“打开 CUDA Graph 让错误率下降”。
 
 **延迟口径**：522ms、69ms、369ms 都是**单个短音频请求从发起到返回 transcript 的端到端完成时间**，表里写的是 P50（重复请求的中位数），不是一批请求的总耗时，也不是每秒音频处理量。
 
@@ -177,7 +185,7 @@
 
 **关键发现**：
 - bf16 训练从第一步就产生 NaN（`grad_norm=nan`）；fp32 稳定。这是使用 Qwen3-ASR 的任何人都会遇到的问题。
-- 本次 100 条小样本 full-param SFT：训练 loss 降到 0.17，但 held-out CER 从 7.74% 退化到 21.53%。这说明模型更像是在记住小训练集，而不是学到可泛化的 ASR 能力。
+- 本次 100 条小样本 full-param SFT：训练 loss 降到 0.17，但 200 条 held-out CER 从 7.74% 退化到 21.53%，perfect match 从 95/200 掉到 10/200。200 条校验集不是最终生产评测，但这个退化幅度已经足够说明模型更像是在记住小训练集，而不是学到可泛化的 ASR 能力。
 - LoRA 只训练 0.78% 参数，在 80 条 FLEURS 检查中达到 5.48% CER。这个结果不等于“LoRA 永远比全参微调准”，而是说明在小数据 PoC 阶段，LoRA 的更新范围更可控、过拟合风险更低。
 
 ### 1.6 4-bit 推理与量化
@@ -187,10 +195,10 @@
 | 精度 | CER（80 条） | 秒/样本 |
 |---|---:|---:|
 | BF16 baseline | 5.28% | 0.72 |
-| 4-bit NF4 | 5.99% | 0.74 |
-| **Δ** | **+0.71pp** | +0.02 |
+| 4-bit NF4 | 5.99% | 0.97 |
+| **Δ** | **+0.71pp** | +0.25 |
 
-**结论**：4-bit 量化推理 CER 只退化 0.71 个百分点，延迟几乎不变。在显存受限场景下可用。
+**结论**：BitsAndBytes 4-bit NF4 推理 CER 退化 0.71 个百分点；但在这次环境里没有变快，单样本耗时从 0.72s 增到 0.97s。它更像是显存压力下的可用路线，不是本次 latency 优化路线。
 
 ### 1.7 数据吞吐 Profiling
 
@@ -454,8 +462,8 @@ dtype=torch.float32
 | 精度 | CER（80 条 FLEURS） | CER median | 完美匹配 | 秒/样本 |
 |---|---:|---:|---:|---:|
 | BF16 baseline | 5.28% | 0.0% | 45/80 | 0.72 |
-| BitsAndBytes 4-bit NF4 | 5.99% | 2.35% | 39/80 | 0.74 |
-| **Δ** | **+0.71pp** | — | −6 | — |
+| BitsAndBytes 4-bit NF4 | 5.99% | 2.35% | 39/80 | 0.97 |
+| **Δ** | **+0.71pp** | — | −6 | +0.25s |
 
 来源：`results/qwen3_asr_0.6b_4bit_cer_comparison.json`
 
@@ -488,10 +496,11 @@ dtype=torch.float32
 
 ### 为什么 LoRA 在本次实验中优于全参微调
 
-数据讲了一个清楚的故事：100 条 full-param SFT 把 loss 压到了 0.17（几乎零训练误差），但 held-out CER 从 7.74% 退化到了 21.53%。这不是说 full-param SFT 本质不行，而是说明在这次小样本设置里，它把全部 788M 参数推得太远，泛化变差。LoRA 只训练 0.78% 的参数，在 80 条 FLEURS 检查中达到 5.48% CER，更适合作为小数据 PoC 的第一步。
+数据讲了一个清楚的故事：100 条 full-param SFT 把 loss 压到了 0.17（几乎零训练误差），但 200 条 held-out CER 从 7.74% 退化到了 21.53%，median CER 从 1.92% 到 17.19%，perfect match 从 95/200 到 10/200。校验集当然不算大，不能当最终生产结论；但这个退化幅度太大，不太像纯评测噪声，更像小数据全参微调造成的过拟合。这不是说 full-param SFT 本质不行，而是说明在这次小样本设置里，它把全部 788M 参数推得太远，泛化变差。LoRA 只训练 0.78% 的参数，在 80 条 FLEURS 检查中达到 5.48% CER，更适合作为小数据 PoC 的第一步。
 
 | 因素 | 对 ASR 的影响 |
 |---|---|
+| **校验集规模** | 200 条 held-out FLEURS 只是 public proxy，不足以做最终生产质量结论。但 7.74% → 21.53% 加上 perfect match 95/200 → 10/200，是明显退化信号。 |
 | **小训练集** | 只有 80-100 条 FLEURS 样本，full-param SFT 能把 788M 参数推到数据不足以支撑的位置。LoRA 限制在 6.1M adapter 参数。 |
 | **任务特征** | 这里的 ASR 微调主要是转录格式对齐（加标点、统一数字格式）。Audio encoder 已经能识别语音；adapter 教的是怎么序列化输出。 |
 | **正则化** | LoRA rank=16 本身就是容量约束。模型能调整输出格式，但不会覆盖 base 声学知识。 |
@@ -581,20 +590,28 @@ FLEURS 这种公开数据集可以证明训练 harness；领域真实结论仍�
 
 先用 transformers backend 确认质量，再切 vLLM 做 serving 优化。
 
-### CUDA Graph A/B Benchmark（H100 NVL，Qwen3-ASR-1.7B）
+### 单请求延迟 Benchmark（H100 NVL，Qwen3-ASR-1.7B）
 
-| 模式 | P50 latency | CER（20 条小样本观测） | 与 Transformers 文本一致性 |
+| 模式 | P50 单请求延迟 | P95 单请求延迟 | 这行在测什么 |
 |---|---:|---:|---|
-| Transformers direct | 522ms | 6.65% | baseline |
-| vLLM CUDA Graph ON（默认） | **69ms** | **5.90%** | 18/20 完全一致 |
-| vLLM `--enforce-eager`（CUDA Graph OFF） | 369ms | **5.90%** | 17/20 完全一致 |
+| Transformers direct | 522ms | 525ms | transformers 直接推理 baseline |
+| vLLM CUDA Graph ON（默认） | **69ms** | 420ms | vLLM 默认 serving 路径，CUDA Graph 开启 |
+| vLLM `--enforce-eager`（CUDA Graph OFF） | 369ms | 609ms | vLLM eager 路径，关闭 CUDA Graph |
+
+### 质量 Smoke Check（20 条 FLEURS 样本）
+
+| 对比对象 | CER（20 条小样本观测） | 与 Transformers 文本一致性 | 怎么解读 |
+|---|---:|---:|---|
+| Transformers direct | 6.65% | baseline | 质量参考线 |
+| vLLM CUDA Graph ON（默认） | 5.90% | 18/20 完全一致 | 没观察到质量退化 |
+| vLLM `--enforce-eager`（CUDA Graph OFF） | 5.90% | 17/20 完全一致 | 同样没观察到质量退化 |
 
 核心结论：
 
 - CUDA Graph 在这个短音频测试里把 latency 从 369ms 降到 69ms，约 **5x**。
 - vLLM 的组合优化（CUDA Graph + PagedAttention + scheduling）相对 raw transformers 约 **7x**。
-- 20 条 FLEURS 检查里没有观察到 CER 退化（5.90% vs 6.65%）。这只是实测检查，不是通用保证。
-- 不要把 5.90% vs 6.65% 解读成“打开 CUDA Graph 提升准确率”。CUDA Graph ON/OFF 的 CER 一样；它证明的是加速路径没有在这个小样本上引入可见质量退化。
+- 20 条 FLEURS 检查里没有观察到 CER 退化。这只是实测检查，不是通用保证。
+- 不要把 5.90% vs 6.65% 解读成“打开 CUDA Graph 提升准确率”。CER 检查只证明加速路径没有在这个小样本上引入可见质量退化。
 
 ### vLLM 并发 Serving Benchmark（H100 NVL，Qwen3-ASR-1.7B）
 
@@ -612,16 +629,17 @@ FLEURS 这种公开数据集可以证明训练 harness；领域真实结论仍�
 
 ### 推理加速后必须复查准确率
 
-| 技术 | 速度收益 | 对准确率的预期 | 备注 |
-|---|---|---|---|
-| CUDA Graph | 本次约 5x decode | 理论上不改变模型质量 | replay 同一 kernel sequence，但 ASR endpoint 仍要复查输出 |
-| Flash Attention | attention 约 2-4x | 数值精度范围内等价 | 仍需抽样核对转录 |
-| PagedAttention | 提升 KV cache 管理效率 | 理论上不改变质量 | 更偏 serving 内存管理 |
-| Continuous Batching | 提高吞吐 | 理论上不改变质量 | 要防 request mixing / 调度 bug |
-| FP8 / INT8 quantization | 约 1.5-2x | ⚠️ 必须实测 CER | 不能只看 latency |
-| INT4 quantization (GPTQ/AWQ) | 显存收益大 | ⚠️ 必须实测 CER | 可能有 0.5-2% 级别退化 |
+这张表区分“本 repo 已经实测”和“仍需补测”。不能把“必须实测 CER”写得像“已经测过”。
 
-注意：Qwen3-ASR 的 audio encoder 在训练时对数值精度敏感（bf16 会 NaN）。任何 FP8/INT4 推理或训练优化，都必须用 CER 做 before/after 验收。
+| 技术 | 本 repo 是否已测 CER | 证据 | 当前结论 |
+|---|---|---|---|
+| CUDA Graph / vLLM path | ✅ 已做 20 条 smoke check | `results/accuracy_verification.json` | 延迟明显下降；未观察到 CER 退化；不能解读成准确率提升 |
+| BitsAndBytes 4-bit NF4 推理 | ✅ 已做 80 条 before/after CER | `results/qwen3_asr_0.6b_4bit_cer_comparison.json` | CER 5.28% → 5.99%（+0.71pp）；本次没有变快，0.72s/sample → 0.97s/sample |
+| QLoRA（4-bit NF4 + LoRA） | ✅ 已做 80 条 CER 检查 | `results/qlora_sft_result.json` | 训练完成，80 条 CER=5.69% |
+| FP8 / INT8 quantization | ❌ 未完成 CER 实测 | `results/fp8_support_check.json` | 只确认 PyTorch 有 float8 dtype；当前环境没有 TransformerEngine/torchao，不能报告 FP8/INT8 CER |
+| GPTQ/AWQ INT4 | ❌ 未完成 CER 实测 | 无 | 需要单独接入 GPTQ/AWQ recipe 后，用同一批 FLEURS/领域样本做 before/after CER |
+
+注意：Qwen3-ASR 的 audio encoder 在训练时对数值精度敏感（bf16 会 NaN）。任何新的 FP8/INT8/INT4 推理或训练优化，都必须用同一批样本做 before/after CER 验收。
 
 ### Transformers Backend
 

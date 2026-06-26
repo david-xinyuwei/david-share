@@ -149,15 +149,23 @@ Evaluated on 200 Chinese samples from the FLEURS `cmn_hans_cn` test set:
 
 Source: `results/cuda_graph_ab.json`, `results/accuracy_verification.json`, `results/concurrent_benchmark_v2.json`, `results/remaining_inference_tests.json`
 
-**CUDA Graph A/B comparison (Qwen3-ASR-1.7B)**:
+**Single-request latency benchmark (same short audio, 10 repeated requests)**:
 
-| Mode | P50 per-request latency | CER (20-sample smoke) | Text match vs Transformers |
+| Mode | P50 per-request latency | P95 per-request latency | What this row measures |
 |---|---:|---:|---|
-| Transformers direct | 522ms | 6.65% | baseline |
-| vLLM CUDA Graph ON | **69ms** | **5.90%** | 18/20 exact match |
-| vLLM CUDA Graph OFF | 369ms | **5.90%** | 17/20 exact match |
+| Transformers direct | 522ms | 525ms | Transformers direct inference baseline |
+| vLLM CUDA Graph ON | **69ms** | 420ms | vLLM default serving path with CUDA Graph enabled |
+| vLLM CUDA Graph OFF | 369ms | 609ms | vLLM eager path with CUDA Graph disabled |
 
-**Important**: 5.90% should not be interpreted as CUDA Graph improving accuracy. CUDA Graph ON and OFF both measured 5.90% CER; the small difference versus Transformers (6.65%) is a vLLM-vs-Transformers path/output-format observation on a 20-sample smoke set. The supported claim is lower latency with no observed CER regression in this small check.
+**Quality smoke check (20 FLEURS samples)**:
+
+| Comparison target | CER (20-sample smoke) | Text match vs Transformers | Interpretation |
+|---|---:|---:|---|
+| Transformers direct | 6.65% | baseline | Quality reference |
+| vLLM CUDA Graph ON | 5.90% | 18/20 exact match | No visible quality regression |
+| vLLM CUDA Graph OFF | 5.90% | 17/20 exact match | Also no visible quality regression |
+
+**Important**: The latency table proves lower latency; it does not prove accuracy improvement. The CER table is a separate smoke check showing that the vLLM path did not introduce visible quality regression on 20 samples. Do not read 5.90% vs 6.65% as “CUDA Graph reduced the error rate.”
 
 **Latency definition**: 522ms, 69ms, and 369ms are end-to-end completion times for one short audio request, measured from request start to returned transcript. The table reports P50 over repeated requests; it is not total batch time and not audio-hours throughput.
 
@@ -186,7 +194,7 @@ Source: `results/sft_v3_log_summary.json`, `results/lora_sft_result.json`, `resu
 
 **Key findings**:
 - bf16 training produces NaN from step 1 (`grad_norm=nan`). This affects anyone using Qwen3-ASR for fine-tuning.
-- In this 100-sample full-param SFT run, training loss fell to 0.17, but held-out CER degraded from 7.74% to 21.53%. The model memorized the small training set instead of improving generalization.
+- In this 100-sample full-param SFT run, training loss fell to 0.17, but 200-sample held-out CER degraded from 7.74% to 21.53%, and perfect matches dropped from 95/200 to 10/200. The held-out set is not a production benchmark, but the degradation is large enough to indicate memorization rather than improved generalization.
 - LoRA trains only 0.78% of parameters and reached 5.48% CER on an 80-sample FLEURS check. This does not prove LoRA is always more accurate than full fine-tuning; it shows LoRA is the safer first route for a small-data PoC.
 
 ### 1.6 4-bit Inference and Quantization
@@ -196,10 +204,10 @@ Source: `results/qwen3_asr_0.6b_4bit_cer_comparison.json`
 | Precision | CER (80 samples) | sec/sample |
 |---|---:|---:|
 | BF16 baseline | 5.28% | 0.72 |
-| 4-bit NF4 | 5.99% | 0.74 |
-| **Δ** | **+0.71pp** | +0.02 |
+| 4-bit NF4 | 5.99% | 0.97 |
+| **Δ** | **+0.71pp** | +0.25 |
 
-**Takeaway**: 4-bit NF4 inference degrades CER by only 0.71 percentage points with nearly identical latency. A viable option under GPU memory constraints.
+**Takeaway**: BitsAndBytes 4-bit NF4 inference degraded CER by 0.71 percentage points. It did not speed up in this run: seconds/sample increased from 0.72s to 0.97s. Treat it as a memory-pressure fallback path, not as the latency-optimization path validated here.
 
 ### 1.7 Dataloader Profiling
 
@@ -451,8 +459,8 @@ All fine-tuning runs below used the same FLEURS `cmn_hans_cn` training subset an
 | Precision | CER (80 FLEURS) | CER median | Perfect matches | Seconds/sample |
 |---|---:|---:|---:|---:|
 | BF16 baseline | 5.28% | 0.0% | 45/80 | 0.72 |
-| BitsAndBytes 4-bit NF4 | 5.99% | 2.35% | 39/80 | 0.74 |
-| **Δ** | **+0.71pp** | — | −6 | — |
+| BitsAndBytes 4-bit NF4 | 5.99% | 2.35% | 39/80 | 0.97 |
+| **Δ** | **+0.71pp** | — | −6 | +0.25s |
 
 Source: `results/qwen3_asr_0.6b_4bit_cer_comparison.json`
 
@@ -485,10 +493,11 @@ Source: `results/dataloader_profile.json`
 
 ### Why LoRA Beats Full-Param SFT in This Run
 
-The data tells a clear story: 100-sample full-param SFT pushed loss to 0.17 (almost zero train error) but CER on held-out data degraded from 7.74% to 21.53%. That does not mean full-param SFT is inherently bad. It means that in this small-data setting, updating all 788M parameters moved the model too far and hurt generalization. LoRA trained only 0.78% of parameters and reached 5.48% CER on an 80-sample FLEURS check, making it the safer first route for a small-data PoC.
+The data tells a clear story: 100-sample full-param SFT pushed loss to 0.17 (almost zero train error), but 200-sample held-out CER degraded from 7.74% to 21.53%; median CER moved from 1.92% to 17.19%; perfect matches dropped from 95/200 to 10/200. The validation set is small and should not be treated as a final production benchmark, but the degradation is too large to dismiss as evaluation noise. It is consistent with small-data full-parameter overfitting. That does not mean full-param SFT is inherently bad. It means that in this small-data setting, updating all 788M parameters moved the model too far and hurt generalization. LoRA trained only 0.78% of parameters and reached 5.48% CER on an 80-sample FLEURS check, making it the safer first route for a small-data PoC.
 
 | Factor | Why it matters for ASR |
 |---|---|
+| **Validation set size** | The 200-sample held-out FLEURS set is only a public proxy, not a final production-quality benchmark. But 7.74% → 21.53% plus perfect matches 95/200 → 10/200 is a clear degradation signal. |
 | **Small training set** | With only 80–100 FLEURS samples, full-param SFT can move 788M weights far beyond what the data supports. LoRA limits updates to 6.1M adapter parameters. |
 | **Task shape** | ASR fine-tuning here is mostly transcript-format alignment (adding punctuation, normalizing number formats). The audio encoder already recognizes speech; the adapter teaches how to serialize it. |
 | **Regularization** | LoRA rank=16 acts as an implicit capacity constraint. The model adjusts output format without overwriting base acoustic knowledge. |
@@ -580,20 +589,28 @@ A public proxy dataset such as FLEURS can prove the training harness. Domain-spe
 
 Start with the transformers backend to confirm quality, then move to vLLM for serving optimization.
 
-### CUDA Graph A/B Benchmark (H100 NVL, Qwen3-ASR-1.7B)
+### Single-Request Latency Benchmark (H100 NVL, Qwen3-ASR-1.7B)
 
-| Mode | P50 Latency | CER (20-sample smoke) | Text Match vs Transformers |
+| Mode | P50 per-request latency | P95 per-request latency | What this row measures |
 |---|---:|---:|---|
-| Transformers direct | 522ms | 6.65% | baseline |
-| vLLM CUDA Graph ON (default) | **69ms** | **5.90%** | 18/20 identical |
-| vLLM --enforce-eager (CUDA Graph OFF) | 369ms | **5.90%** | 17/20 identical |
+| Transformers direct | 522ms | 525ms | Transformers direct inference baseline |
+| vLLM CUDA Graph ON (default) | **69ms** | 420ms | vLLM default serving path with CUDA Graph enabled |
+| vLLM --enforce-eager (CUDA Graph OFF) | 369ms | 609ms | vLLM eager path with CUDA Graph disabled |
+
+### Quality Smoke Check (20 FLEURS Samples)
+
+| Comparison target | CER (20-sample smoke) | Text Match vs Transformers | Interpretation |
+|---|---:|---:|---|
+| Transformers direct | 6.65% | baseline | Quality reference |
+| vLLM CUDA Graph ON (default) | 5.90% | 18/20 identical | No visible quality regression |
+| vLLM --enforce-eager (CUDA Graph OFF) | 5.90% | 17/20 identical | Also no visible quality regression |
 
 **Key findings:**
 - CUDA Graph provides **~5x latency reduction** in this short-audio test (369ms → 69ms)
 - Combined vLLM optimizations (CUDA Graph + PagedAttention + scheduling) are **~7x faster** than raw transformers on this sample set
 - 18/20 transcriptions are byte-for-byte identical to transformers output
-- No CER regression was observed on this 20-sample FLEURS check (5.90% vs 6.65%). This is an empirical check, not a universal accuracy guarantee.
-- Do not read 5.90% vs 6.65% as “CUDA Graph improved accuracy.” CUDA Graph ON/OFF measured the same CER; the result only shows that the faster path did not introduce visible quality regression in this small sample.
+- No CER regression was observed on this 20-sample FLEURS check. This is an empirical check, not a universal accuracy guarantee.
+- Do not read 5.90% vs 6.65% as “CUDA Graph improved accuracy.” The CER check only shows that the faster path did not introduce visible quality regression in this small sample.
 
 ### vLLM Concurrent Serving Benchmark (H100 NVL, Qwen3-ASR-1.7B)
 
@@ -609,18 +626,19 @@ All concurrency levels had **zero failures**. P50 stays under 160ms even at c16.
 
 Source: `results/concurrent_benchmark_v2.json`, `results/remaining_inference_tests.json`
 
-### Inference Acceleration: What Should Be Rechecked for Accuracy
+### Inference Acceleration: What Was Rechecked for Accuracy
 
-| Technique | Speed gain | Accuracy expectation | Notes |
+This table separates what this repo actually measured from what remains a required follow-up. Do not treat “must validate CER” as already validated.
+
+| Technique | CER measured in this repo? | Evidence | Current conclusion |
 |---|---|---|---|
-| CUDA Graph | ~5x decode in this run | Expected no model-quality change | Replays the same kernel sequence, but still validate output path for ASR endpoints |
-| Flash Attention | 2-4x attention | Expected no model-quality change | Mathematically equivalent within numeric precision |
-| PagedAttention | Memory efficiency | Expected no model-quality change | KV-cache management |
-| Continuous Batching | Throughput | Expected no model-quality change | Scheduling optimization; verify no request-mixing bugs |
-| FP8/INT8 quantization | 1.5-2x | ⚠️ Must validate CER | 0.1-0.5% typical degradation |
-| INT4 quantization (GPTQ/AWQ) | 2-3x memory | ⚠️ Must validate CER | 0.5-2% typical degradation |
+| CUDA Graph / vLLM path | ✅ 20-sample smoke check | `results/accuracy_verification.json` | Lower latency; no observed CER regression; not an accuracy improvement claim |
+| BitsAndBytes 4-bit NF4 inference | ✅ 80-sample before/after CER | `results/qwen3_asr_0.6b_4bit_cer_comparison.json` | CER 5.28% → 5.99% (+0.71pp); slower in this run, 0.72s/sample → 0.97s/sample |
+| QLoRA (4-bit NF4 + LoRA) | ✅ 80-sample CER check | `results/qlora_sft_result.json` | Training completed; 80-sample CER=5.69% |
+| FP8 / INT8 quantization | ❌ Not yet | `results/fp8_support_check.json` | PyTorch has float8 dtypes, but this env lacks TransformerEngine/torchao; no FP8/INT8 CER claim |
+| GPTQ/AWQ INT4 | ❌ Not yet | None | Needs a separate GPTQ/AWQ recipe and same-sample before/after CER |
 
-**Warning**: Qwen3-ASR's audio encoder has numerical sensitivity in BF16 (causes NaN in training). Quantized inference (FP8/INT4) must be validated with CER measurements before production use.
+**Warning**: Qwen3-ASR's audio encoder has numerical sensitivity in BF16 (causes NaN in training). Any new FP8/INT8/INT4 inference or training path must be validated with before/after CER on the same samples before production use.
 
 ### Transformers Backend
 
