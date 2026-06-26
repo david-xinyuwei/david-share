@@ -170,7 +170,6 @@ ASR 验证和文本 LLM 评测有本质区别，这些区别直接影响工程�
 | Stream A/B | FLEURS `cmn_hans_cn` test split | 16 kHz mono WAV | 8–16s/条 | 20 | stream vs non-stream 延迟对比 |
 | 长音频测试 | 合成（官方样例循环拼接） | 16 kHz mono WAV | 30s/60s/180s | 3 | 失效模式检测 |
 | Dataloader profiling | FLEURS `cmn_hans_cn` test split | 16 kHz mono WAV | 8–16s/条 | 200 | 测量 decode/transfer 瓶颈 |
-| Gemma 3n smoke | ❌ 无音频（纯文本） | N/A | N/A | 1 条文本 | 只验证模型加载+文本生成；audio 被 cuDNN 阻塞 |
 
 **注意**：早期 c1–c16 并发 benchmark 用的是单条 ~2–3s 官方短样例重复发。后来的最高并发测试（c16–c256）用了 20 条真实 FLEURS 文件（8–16s/条）。音频时长差异解释了 c16 P50 154ms vs 1090ms 的差距——不是 stream 或模型退化造成的。
 
@@ -372,29 +371,35 @@ Qwen3-ASR SFT 训练数据格式（来源：[官方 repo](https://github.com/Qwe
 
 ### 1.8 Gemma 3n 路线状态
 
-来源：`results/gemma3n_h100_route_status.json`、`results/gemma3n_text_smoke.json`、`docs/gemma-3n-audio-feasibility.md`
+来源：`results/gemma3n_h100_route_status.json`、`results/gemma3n_audio_smoke.json`、`results/gemma3n_instruction_test.json`、`docs/gemma-3n-audio-feasibility.md`
 
 | 里程碑 | 状态 | 证据 |
 |---|---|---|
 | 权重下载（E2B-it，10.9 GB） | ✅ | H100 VM 上 HF cache |
 | 官方 `Gemma3nForConditionalGeneration` API | ✅ | transformers + timm 已装 |
-| **Text generation smoke** | ✅ | Load 10.4s，generate 19.1s，正确输出："ASR is a technology that converts spoken language into written text" |
-| Audio 推理 | ❌ | cuDNN SDPA 不支持 `head_dim=256`；需要 cuDNN 9.1+ |
+| cuDNN SDPA 绕过 | ✅ | `attn_implementation="eager"` 绕过 head_dim=256 限制 |
+| **音频转录（带中文提示）** | ✅ | 输入：10.4s FLEURS wav + "请把这段音频里说的话逐字写出来" → 输出："这并不是告别，这是一个篇章的结束，也是新篇章的开始。"（完美匹配） |
+| 纯音频（不给文本 prompt） | ❌ | 空输出——Gemma 必须给明确文本指令 |
+| **指令跟随能力** | ✅ 4/5 | 逐字转录 ✅、理顺书面 ✅、会议纪要 ✅、英文翻译 ❌、一句话摘要 ✅ |
 
-**结论**：Gemma 3n E2B-it 能在 H100 bf16 下加载并生成文本。Audio 路径被 cuDNN SDPA 兼容性阻塞（`head_dim=256` 在当前 PyTorch 2.6.0+cu124 bundled cuDNN 下不支持）。这是环境 gap，不是模型缺陷。**本 repo 不报告 Gemma FLEURS CER。**
+**核心发现**：Gemma 3n E2B-it **不是专用 ASR 模型**——它是一个多模态理解模型，在给出明确文本指令时可以做音频转录。跟 Qwen3-ASR（纯音频自动转录）不同，Gemma 3n 必须告诉它"你要我做什么"。优势是：Gemma 可以在一步内完成转录 + 后处理（会议纪要、摘要），不需要单独的 LLM pipeline。
 
-**边界：** 这里的 CER=0% 只说明官方短样例和预期文本完全一致，不是实际业务准确率。
+### 1.9 Qwen3-ASR vs Gemma 3n 能力对比
 
-### 长音频发现
+来源：`results/gemma3n_instruction_test.json`、Qwen3-ASR prompt 测试（3 种 prompt → 输出完全一样）
 
-| Audio | Duration | Transcribe time | RTF | Output chars | 发现 |
-|---|---:|---:|---:|---:|---|
-| 重复中文样例 | 30s | 1.769s | 0.0590 | 98 | 短/中音频正常 |
-| 重复中文样例 | 60s | 2.044s | 0.0341 | 196 | 短/中音频正常 |
-| 重复中文样例 | 180s | 82.726s | 0.4596 | 16 | **失败：输出坍缩** |
-| 官方英文样例 | 15.1s | 1.202s | 0.0799 | 188 | 正常 |
+| 能力 | Qwen3-ASR | Gemma 3n E2B-it | 证据 |
+|---|---|---|---|
+| 纯音频 → 转录 | ✅ 不需要 prompt（language 参数可选） | ❌ 必须给文本 prompt | Qwen: vLLM API 不传 language=200 OK；Gemma: 纯音频=空 |
+| 响应不同 prompt 指令 | ❌ 忽略 prompt（3 种 prompt 输出一样） | ✅ 按指令输出不同格式（4/5 通过） | Qwen: prompt test；Gemma: instruction test |
+| 转录 + 会议纪要 | ❌ 需要额外 LLM 后处理 | ✅ 一步到位（自动生成标题+要点+结论） | Gemma: "整理成会议纪要" → 格式化输出 |
+| 转录 + 摘要 | ❌ 需要额外 LLM | ✅ 一步到位 | Gemma: "一句话概括" → 精炼摘要 |
+| 跨语言翻译 | ❌ | ❌ 英文 prompt → 空输出 | Gemma: 翻译测试失败 |
+| 延迟（transformers，10s 音频） | 522ms | 1,500–3,400ms（warmup 后，3–7x 慢） | cuda_graph_ab.json / gemma3n_instruction_test.json |
+| 延迟（vLLM 优化后） | 69ms（CUDA Graph） | N/A（vLLM 不支持 Gemma 3n transcription） | — |
+| 适合场景 | 高吞吐批量 ASR pipeline | 灵活音频理解 + 指令跟随 | — |
 
-这条结果对会议转录场景最重要：**长会议音频不应作为单个未切分请求直接送入模型。** 生产 pipeline 必须做 VAD、chunking、overlap、stitching、可选 forced alignment 和 diarization。
+**工程建议**：如果生产需求是纯高速转录，用 Qwen3-ASR + vLLM。如果需求包含转录 + 内容整理/摘要一步完成，Gemma 3n 可以省掉单独的 LLM 后处理环节——代价是 3–7x 延迟和必须给文本 prompt。
 
 ---
 

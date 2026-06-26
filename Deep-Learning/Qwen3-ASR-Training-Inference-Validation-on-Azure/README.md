@@ -179,7 +179,6 @@ All Qwen3-ASR experiments use **real audio files** as input (not text prompts). 
 | Stream A/B | FLEURS `cmn_hans_cn` test split | 16 kHz mono WAV | 8–16s per clip | 20 | Stream vs non-stream latency comparison |
 | Long-audio test | Synthetic (official sample looped) | 16 kHz mono WAV | 30s/60s/180s | 3 | Failure-mode detection |
 | Dataloader profiling | FLEURS `cmn_hans_cn` test split | 16 kHz mono WAV | 8–16s per clip | 200 | Measure decode/transfer bottleneck |
-| Gemma 3n smoke | ❌ No audio (text-only) | N/A | N/A | 1 text prompt | Model-loading + text-gen only; audio blocked by cuDNN |
 
 **Important**: The early c1–c16 concurrent benchmark used a single ~2–3s audio sample (official Qwen demo). The later max-concurrency sweep (c16–c256) used 20 real FLEURS files (8–16s each). This difference in audio duration explains the P50 difference (154ms vs 1090ms at c16) — it is not caused by streaming or model degradation.
 
@@ -383,16 +382,35 @@ Source: `results/dataloader_profile.json`
 
 ### 1.8 Gemma 3n Route Status
 
-Source: `results/gemma3n_h100_route_status.json`, `results/gemma3n_text_smoke.json`, `docs/gemma-3n-audio-feasibility.md`
+Source: `results/gemma3n_h100_route_status.json`, `results/gemma3n_audio_smoke.json`, `results/gemma3n_instruction_test.json`, `docs/gemma-3n-audio-feasibility.md`
 
 | Milestone | Status | Evidence |
 |---|---|---|
 | Weights downloaded (E2B-it, 10.9 GB) | ✅ | HF cache on H100 VM |
 | Official `Gemma3nForConditionalGeneration` API | ✅ | transformers + timm installed |
-| **Text generation smoke** | ✅ | Load 10.4s, generate 19.1s, correct output: "ASR is a technology that converts spoken language into written text" |
-| Audio inference | ❌ | cuDNN SDPA fails on `head_dim=256`; needs cuDNN 9.1+ |
+| cuDNN SDPA workaround | ✅ | `attn_implementation="eager"` bypasses head_dim=256 limitation |
+| **Audio transcription (with Chinese prompt)** | ✅ | Input: 10.4s FLEURS wav + "请把这段音频里说的话逐字写出来" → Output: "这并不是告别，这是一个篇章的结束，也是新篇章的开始。" (perfect match) |
+| Audio-only (no text prompt) | ❌ | Empty output — Gemma requires explicit text instruction |
+| **Instruction-following from audio** | ✅ 4/5 | Verbatim transcription ✅, polished text ✅, meeting minutes ✅, English translation ❌, one-sentence summary ✅ |
 
-**Takeaway**: Gemma 3n E2B-it can load and generate text on H100 in bf16. The audio pathway is blocked by a cuDNN SDPA compatibility issue (`head_dim=256` not supported in the current PyTorch 2.6.0+cu124 bundled cuDNN). This is a known environment gap, not a model defect. A clean environment with PyTorch 2.6+ and cuDNN 9.1+ is required for audio inference. **This repo does not report Gemma FLEURS CER.**
+**Key finding**: Gemma 3n E2B-it is **not a dedicated ASR model** — it is a multimodal understanding model that can transcribe audio when given an explicit text instruction. Unlike Qwen3-ASR (which transcribes automatically from pure audio), Gemma 3n requires a prompt telling it what to do. The upside is that Gemma can do transcription + post-processing in one step (meeting minutes, summaries) without a separate LLM pipeline.
+
+### 1.9 Qwen3-ASR vs Gemma 3n: Capability Comparison
+
+Source: `results/gemma3n_instruction_test.json`, Qwen3-ASR prompt test (3 prompts → identical output)
+
+| Capability | Qwen3-ASR | Gemma 3n E2B-it | Evidence |
+|---|---|---|---|
+| Pure audio → transcription | ✅ No prompt needed (language param optional) | ❌ Must provide text prompt | Qwen: vLLM API without language=200 OK; Gemma: audio-only=empty |
+| Responds to different prompts | ❌ Ignores prompt (3 prompts → same output) | ✅ Outputs different format per instruction (4/5 passed) | Qwen: prompt test; Gemma: instruction test |
+| Transcription + meeting minutes | ❌ Requires separate LLM post-processing | ✅ One-step (auto-generated title + key info + conclusion) | Gemma: "整理成会议纪要" → formatted output |
+| Transcription + summary | ❌ Requires separate LLM | ✅ One-step | Gemma: "一句话概括" → concise summary |
+| Cross-language translation | ❌ | ❌ English prompt → empty output | Gemma: translation test failed |
+| Latency (transformers, 10s audio) | 522ms | 1,500–3,400ms (after warmup, 3–7x slower) | cuda_graph_ab.json / gemma3n_instruction_test.json |
+| Latency (vLLM optimized) | 69ms (CUDA Graph) | N/A (vLLM does not support Gemma 3n transcription) | — |
+| Best for | High-throughput batch ASR pipeline | Flexible audio understanding with instruction following | — |
+
+**Engineering implication**: If the production requirement is pure high-speed transcription, use Qwen3-ASR + vLLM. If the requirement includes transcription + content cleanup/summarization in one call, Gemma 3n can eliminate the separate LLM post-processing step — at the cost of 3–7x higher latency and the requirement for explicit text prompts.
 
 ---
 
@@ -400,7 +418,7 @@ Source: `results/gemma3n_h100_route_status.json`, `results/gemma3n_text_smoke.js
 
 | Production requirement | What this repo can already show | What still needs production team input |
 |---|---|---|
-| Qwen/Gemma backbone | Qwen3-ASR 0.6B/1.7B H100 inference and long-audio evidence; Gemma 3n E2B-it official HF route and environment prerequisites documented | Exact target checkpoint; Gemma 3n clean-env audio smoke and CER if they choose Gemma as the ASR backbone |
+| Qwen/Gemma backbone | Qwen3-ASR 0.6B/1.7B H100 inference, serving, and fine-tuning evidence; Gemma 3n audio transcription verified with instruction-following (requires prompt, 3–7x slower) | Exact target checkpoint; whether instruction-following capability justifies Gemma's latency cost |
 | Training with HF ecosystem | Official Qwen3-ASR fine-tuning entry point and JSONL format are documented | The team's training command, Accelerate/DeepSpeed/FSDP config, failure logs |
 | vLLM/SGLang/TensorRT-LLM serving | vLLM officially supports Qwen3-ASR transcription; transformers backend benchmark is done | Clean vLLM env benchmark; SGLang/TRT-LLM feasibility for the exact model |
 | Data storage and throughput | Scripts and methodology to profile audio decode / dataloader / endpoint throughput | The team's data layout, storage path, audio hours, codec, train/eval manifest |
