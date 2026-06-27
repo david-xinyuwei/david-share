@@ -29,10 +29,10 @@ AMD 6 月 26 日提供了新的 1P1D MI300X 测试栈：`sammysun0711/sglang` �
 
 | 维度 | 对齐点 | MI300X / H200 | 结论 |
 |------|------|------|------|
-| Prefill vs H200 EP16/DP2 | 8K、64K，BS=4 | 0.51-0.55x | H200 大约 **快 1.8-2.0x** |
-| Prefill vs H200 EP16/DP2 | 256K，BS=4 | 2.14x | 这次 6/26 单点 MI300X **快 2.14x**；考虑到历史上 256K PD router drain 不稳定，先把它当作 6/26 特定长上下文结果 |
+| Prefill throughput vs H200 EP16/DP2 | 8K、64K，BS=4，output=1 | 0.51-0.55x tok/s | H200 大约 **快 1.8-2.0x**；Prefill 场景主指标是 tok/s，不是 TPOT |
+| Prefill throughput vs H200 EP16/DP2 | 256K，BS=4，output=1 | 2.14x tok/s | 这次 6/26 单点 MI300X **快 2.14x**；考虑到历史上 256K PD router drain 不稳定，先把它当作 6/26 特定长上下文结果 |
 | Decode 8K/1K（真实 accept） | H200 表里同一组 BS 行，MI300X 真实 accept 0.38-0.46 vs H200 模拟固定 0.75 | 0.50x → 0.20x throughput | H200 在 BS16 **快 2.0x**，BS128 **快 5.0x** — 但此对比**口径不同**（见下方） |
-| **Decode 8K/1K（同口径）** | 两边都用 `SGLANG_SIMULATE_ACC_LEN=3` 固定 accept_length=3 | **Median TPOT 差距仅 1.11-1.43x** | **BS≥128 时 MI300X 只差 H200 单路 TPOT 11%** |
+| **Decode 8K/1K（同口径）** | 两边都用 `SGLANG_SIMULATE_ACC_LEN=3` 固定 accept_length=3 | **TPOT: 1.11-1.43x**；**tok/s: 0.70x → 0.26x** | BS≥128 时 MI300X 只差 H200 单路 TPOT 11%，但 tok/s 仍显示 DP/topology 吞吐差距 |
 
 H200 decode 表里写的是 `bs (per DP)`，`dp size=4`，但右侧“单机 decode 吞吐”实际等于 `BS * 1000 / TPOT`，没有再乘 DP=4。因此本 repo 主比较采用 H200 表自己给出的吞吐列，称为 **visible-BS-row comparison**；否则会把 H200 表中的吞吐口径二次放大。
 

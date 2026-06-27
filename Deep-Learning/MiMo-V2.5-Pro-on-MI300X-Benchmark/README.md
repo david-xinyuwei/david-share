@@ -25,9 +25,9 @@ English | [中文版](README-CN.md)
 
 | Dimension | MI300X (6/26 aiter+MTP3) | H200 Reference | Gap | Notes |
 |-----------|:---:|:---:|:---:|------|
-| **Prefill 8K/64K** | 16,323 / 15,047 tok/s | 31,950 / 27,400 tok/s | H200 1.8-2.0× faster | MI300X EP8/DP1 vs H200 EP16/DP2; both use `fake_topk_ids`=NO on MI300X side |
-| **Prefill 256K** | 37,252 tok/s | 17,400 tok/s | MI300X 2.14× faster | Single validated point; requires repeated-run stability confirmation |
-| **Decode TPOT (same methodology)** | 14.75-20.31 ms | 11.59-18.25 ms | H200 11-43% faster | Both sides: `SIMULATE_ACC_LEN=3`; BS≥128 gap is only 11% |
+| **Prefill throughput 8K/64K** | 16,323 / 15,047 tok/s | 31,950 / 27,400 tok/s | H200 1.8-2.0× faster | Prefill test uses output=1, so tok/s is the primary metric; MI300X EP8/DP1 vs H200 EP16/DP2 |
+| **Prefill throughput 256K** | 37,252 tok/s | 17,400 tok/s | MI300X 2.14× faster | Single validated long-context point; requires repeated-run stability confirmation |
+| **Decode TPOT + throughput (same methodology)** | 14.75-20.31 ms;<br>973-1,852 tok/s | 11.59-18.25 ms;<br>1,381-7,013 tok/s | TPOT: H200 11-43% faster;<br>tok/s: H200 1.4-3.8× faster | Both sides: `SIMULATE_ACC_LEN=3`; TPOT shows latency gap, tok/s shows system throughput / DP topology gap |
 | **Key discovery** | H200 accept_rate=0.75 is simulated via `SGLANG_SIMULATE_ACC_LEN=3` | — | — | Confirmed during AMD/SGLang technical review; H200 TPOT reflects ideal MTP, not real draft accuracy |
 
 ### Methodology Note
