@@ -48,7 +48,7 @@ AMD 6 月 26 日提供了新的 1P1D MI300X 测试栈：`sammysun0711/sglang` �
 | 64 | 20.42 ms | 14.28 ms | 1,852 | 4,483 | MI300X 到达吞吐天花板 |
 | 128 | 20.31 ms | 18.25 ms | 1,852 | 7,013 | TPOT 只差 11%，tok/s 仍差 3.8x |
 
-H200 decode 表里写的是 `bs (per DP)`，`dp size=4`，但右侧“单机 decode 吞吐”实际等于 `BS * 1000 / TPOT`，没有再乘 DP=4。因此本 repo 主比较采用 H200 表自己给出的吞吐列，称为 **visible-BS-row comparison**；否则会把 H200 表中的吞吐口径二次放大。
+**指标来源说明**：MI300X 的 TPOT 和 output tok/s 都来自 SGLang `bench_serving` 原始日志，是本次 MI300X 实测值。H200 的 TPOT 和 output tok/s 来自小米 H200 reference sheet；其中 H200 output tok/s 列与 `BS * 1000 / TPOT` 一致，没有再乘 DP=4。因此本 repo 主比较采用 H200 表自己给出的吞吐列，称为 **visible-BS-row comparison**；否则会把 H200 表中的吞吐口径二次放大。
 
 ### Prefill 吞吐 — 2026-06-26
 
@@ -96,7 +96,7 @@ N = 256 requests/BS 点；input=8192, output=1024, seed=12345, warmup=32。
 即使 TPOT 同口径后差距很小，MI300X 吞吐在 BS≥64 时封顶在 ~1,852 tok/s，而 H200 报 4,483-7,013 tok/s。原因：
 
 1. **DP=1 vs DP=4**：MI300X 单 decode server 承载所有并发；H200 的吞吐虽然是 per-DP-rank 值但有 4 路并行
-2. **H200 吞吐是公式计算值**（`BS × 1000 / TPOT`），MI300X 吞吐是端到端实测值（包含 PD router 开销、KV transfer 延迟、scheduler 间隙）
+2. **H200 吞吐来自 reference sheet，且与 `BS × 1000 / TPOT` 一致**；MI300X 吞吐是 `bench_serving` 端到端实测值（包含 PD router 开销、KV transfer 延迟、scheduler 间隙）
 3. **MI300X scheduler 饱和**：output throughput 在 BS≥64 后不再增长，说明单 decode server 达到调度天花板
 
 ### 关键配置发现：CUDA Graph

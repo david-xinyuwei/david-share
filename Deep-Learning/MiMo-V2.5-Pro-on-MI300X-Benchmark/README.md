@@ -69,7 +69,7 @@ AMD provided an updated 1P1D MI300X test stack on 2026-06-26:
 
 > **Raw benchmark logs** for reproducibility verification are archived under [`data/raw-logs/`](data/raw-logs/) (12 decode + prefill logs from real-accept and simulated-accept runs).
 
-> **H200 decode throughput note**: The H200 sheet labels `bs (per DP)` with `dp size=4`, but its throughput column equals `BS × 1000 / TPOT`, not `BS × DP × 1000 / TPOT`. All decode comparisons below use the sheet-provided throughput column as-is (visible-BS-row comparison).
+> **Decode metric provenance**: MI300X TPOT and output tok/s are measured directly from SGLang `bench_serving` logs. H200 TPOT and output tok/s are taken from Xiaomi's H200 reference sheet; the H200 throughput column equals `BS × 1000 / TPOT`, not `BS × DP × 1000 / TPOT`. All decode comparisons below use the sheet-provided H200 throughput column as-is (visible-BS-row comparison).
 
 ### Prefill Throughput — 2026-06-26
 
@@ -146,7 +146,7 @@ P99 TPOT (ms):                           20.52
 Even with same-methodology TPOT, MI300X throughput plateaus at ~1,852 tok/s at BS≥64 while H200 reports 4,483-7,013 tok/s. This is because:
 
 1. **DP=1 vs DP=4**: MI300X has a single decode server; H200's throughput is per-DP-rank but with 4x more parallelism available
-2. **H200 throughput is formula-computed** (`BS × 1000 / TPOT`), while MI300X throughput is end-to-end measured (includes PD router overhead, KV transfer latency, scheduler gaps)
+2. **H200 throughput is sheet-reported and matches `BS × 1000 / TPOT`**, while MI300X throughput is end-to-end measured by `bench_serving` (includes PD router overhead, KV transfer latency, scheduler gaps)
 3. **MI300X scheduler saturation**: output throughput stops growing at BS≥64, indicating the single decode server hits a scheduling ceiling
 
 ---
