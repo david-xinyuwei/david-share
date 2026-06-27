@@ -59,16 +59,7 @@ Evidence and parsed alignment files:
 - Parsed TSV: [`data/amd_aiter_mtp_20260626_h200_alignment.tsv`](data/amd_aiter_mtp_20260626_h200_alignment.tsv)
 - Raw logs: [`data/raw-logs/20260626-amd-aiter-mtp/`](data/raw-logs/20260626-amd-aiter-mtp/)
 
-### Short Answer: Matched 2026-06-26 Ratio
-
-| Track | Matched point | MI300X / H200 | Readout |
-|-------|---------------|---------------|---------|
-| Prefill vs H200 EP16/DP2 | 8K and 64K, BS=4 | 0.51-0.55x | H200 is about **1.8-2.0x faster** |
-| Prefill vs H200 EP16/DP2 | 256K, BS=4 | 2.14x | MI300X is **2.14x faster** in this specific 6/26 long-context run; keep this as a validated 6/26 point, not a general 256K stability claim |
-| Decode 8K/1K (real accept) | Same visible BS rows, MI300X real accept 0.38-0.46 vs H200 simulated 0.75 | 0.50x → 0.20x throughput | H200 is **2.0x faster at BS16**, **5.0x faster at BS128** — but this comparison is **not same-methodology** (see below) |
-| **Decode 8K/1K (same methodology)** | Both sides use `SGLANG_SIMULATE_ACC_LEN=3` to fix accept_length=3 | **Median TPOT gap = 1.11-1.43x only** | **BS≥128: MI300X within 11% of H200 per-path TPOT** |
-
-The key cleanup is the H200 decode denominator. The H200 sheet labels `bs (per DP)` with `dp size=4`, but its throughput column equals `BS * 1000 / TPOT`, not `BS * DP * 1000 / TPOT`. Therefore the main decode comparison below uses the sheet-provided throughput column as a **visible-BS-row comparison**. Multiplying the H200 sheet again by DP=4 would change the definition of the published H200 number.
+> **H200 decode throughput note**: The H200 sheet labels `bs (per DP)` with `dp size=4`, but its throughput column equals `BS × 1000 / TPOT`, not `BS × DP × 1000 / TPOT`. All decode comparisons below use the sheet-provided throughput column as-is (visible-BS-row comparison).
 
 ### Prefill Throughput — 2026-06-26
 
