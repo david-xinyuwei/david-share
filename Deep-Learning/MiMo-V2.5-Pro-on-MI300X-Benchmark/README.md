@@ -15,7 +15,83 @@ English | [中文版](README-CN.md)
 
 ---
 
-## Latest H200-Aligned Result (2026-06-18)
+## Latest 2026-06-26 AMD aiter+MTP3 Result
+
+AMD provided an updated 1P1D MI300X test stack on 2026-06-26:
+
+| Component | 2026-06-26 stack |
+|-----------|------------------|
+| SGLang | `sammysun0711/sglang` branch `mimo_aiter_attn`, local package `0.0.0.dev14146+gdb840d935.d20260626` |
+| aiter | `amd-aiter 0.1.14rc1.dev213+g7a8ff7dd4` |
+| Runtime | 1P1D PD router, prefill and decode both using `aiter backend + MTP=3` |
+
+Evidence and parsed alignment files:
+
+- 2026-06-26 alignment report: [`reports/amd_aiter_mtp_20260626_h200_alignment.md`](reports/amd_aiter_mtp_20260626_h200_alignment.md)
+- Parsed TSV: [`data/amd_aiter_mtp_20260626_h200_alignment.tsv`](data/amd_aiter_mtp_20260626_h200_alignment.tsv)
+- Raw logs: [`data/raw-logs/20260626-amd-aiter-mtp/`](data/raw-logs/20260626-amd-aiter-mtp/)
+
+### Short Answer: Matched 2026-06-26 Ratio
+
+| Track | Matched point | MI300X / H200 | Readout |
+|-------|---------------|---------------|---------|
+| Prefill vs H200 EP16/DP2 | 8K and 64K, BS=4 | 0.51-0.55x | H200 is about **1.8-2.0x faster** |
+| Prefill vs H200 EP16/DP2 | 256K, BS=4 | 2.14x | MI300X is **2.14x faster** in this specific 6/26 long-context run; keep this as a validated 6/26 point, not a general 256K stability claim |
+| Decode 8K/1K (real accept) | Same visible BS rows, MI300X real accept 0.38-0.46 vs H200 simulated 0.75 | 0.50x → 0.20x throughput | H200 is **2.0x faster at BS16**, **5.0x faster at BS128** — but this comparison is **not same-methodology** (see below) |
+| **Decode 8K/1K (same methodology)** | Both sides use `SGLANG_SIMULATE_ACC_LEN=3` to fix accept_length=3 | **Median TPOT gap = 1.11-1.43x only** | **BS≥128: MI300X within 11% of H200 per-path TPOT** |
+
+The key cleanup is the H200 decode denominator. The H200 sheet labels `bs (per DP)` with `dp size=4`, but its throughput column equals `BS * 1000 / TPOT`, not `BS * DP * 1000 / TPOT`. Therefore the main decode comparison below uses the sheet-provided throughput column as a **visible-BS-row comparison**. Multiplying the H200 sheet again by DP=4 would change the definition of the published H200 number.
+
+### Prefill Throughput — 2026-06-26
+
+| Input | MI300X aiter+MTP3 tok/s | H200 EP16/DP2 tok/s | MI/H200 | H200 faster | H200 EP32/DP4 tok/s | MI/H200 | H200 faster |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 8K | 16,323.45 | 31,950 | 51.1% | 1.96x | 27,500 | 59.4% | 1.68x |
+| 64K | 15,047.08 | 27,400 | 54.9% | 1.82x | 23,000 | 65.4% | 1.53x |
+| 256K | 37,251.55 | 17,400 | 214.1% | 0.47x | 13,425 | 277.5% | 0.36x |
+
+### Decode 8K/1K — 2026-06-26
+
+| BS row | MI300X TPOT ms | H200 TPOT ms | MI latency slower | MI300X output tok/s | H200 output tok/s | MI/H200 throughput | H200 faster | MI accept len/rate | H200 accept rate |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 16 | 21.61 | 11.59 | 1.86x | 689.22 | 1,380.71 | 49.9% | 2.00x | 2.38/0.46 | 0.75 |
+| 32 | 27.94 | 12.56 | 2.22x | 1,017.58 | 2,548.66 | 39.9% | 2.50x | 2.34/0.44 | 0.75 |
+| 64 | 34.78 | 14.28 | 2.44x | 1,391.54 | 4,482.93 | 31.0% | 3.22x | 2.25/0.41 | 0.75 |
+| 128 | 34.70 | 18.25 | 1.90x | 1,396.29 | 7,013.05 | 19.9% | 5.02x | 2.15/0.38 | 0.75 |
+
+**Interpretation**: the 6/26 stack improves aiter+MTP acceptance versus the 6/19 run (`accept_length` rises from ~1.6 to 2.15-2.38), but it still does not reach H200's 0.75 accept rate and decode throughput remains H200-led on the 8K/1K sheet rows.
+
+### Critical Discovery: H200 accept_rate = 0.75 Is Simulated, Not Real
+
+The Xiaomi H200 reference sheet uses `SGLANG_SIMULATE_ACC_LEN=3` with `SGLANG_SIMULATE_ACC_METHOD=match-expected` to **fix MTP accept_length at 3.0** across all scenarios. This was confirmed by AMD's SGLang team (source: AMD engineer 孙霞克, 2026-06-26 WeChat). The SGLang source code (`sglang/srt/speculative/eagle_utils.py` L519-530) shows that when `SIMULATE_ACC_LEN > 0`, the real verification result is **completely replaced** with a simulated accept_index — `predict.fill_(100)` and `num_correct_drafts.fill_(simulate_acc_len - 1)`. The H200 sheet's constant 0.75 accept_rate across all BS/context combinations (zero variance) is consistent with this simulated behavior.
+
+This means the H200 TPOT numbers reflect **pure kernel latency with ideal MTP acceleration**, not real draft model prediction accuracy. The correct same-methodology comparison requires running MI300X with the same `SIMULATE_ACC_LEN=3` setting.
+
+### Decode 8K/1K — Same Methodology (both sides SIMULATE_ACC_LEN=3)
+
+Raw logs: [`data/raw-logs/20260626-simulate-acc3/`](data/raw-logs/20260626-simulate-acc3/)  
+N = 256 requests per BS point; input=8192, output=1024, seed=12345, warmup=32.
+
+| BS | MI300X Median TPOT (ms) | MI300X P99 (ms) | H200 TPOT (ms) | MI300X slower | Gap |
+|---:|---:|---:|---:|---:|---:|
+| 16 | 14.75 | 15.32 | 11.59 | 1.27x | H200 faster by 27% |
+| 32 | 17.82 | 18.39 | 12.56 | 1.42x | H200 faster by 42% |
+| 64 | 20.42 | 20.62 | 14.28 | 1.43x | H200 faster by 43% |
+| 128 | 20.31 | 20.52 | 18.25 | **1.11x** | H200 faster by **11%** |
+
+**Key takeaway**: with the same simulated accept_length=3 (matching the H200 test methodology), the MI300X decode Median TPOT gap shrinks from 1.86-2.44x to **1.11-1.43x**. At BS≥128, MI300X is within 11% of H200 per-path decode latency (N=256, P99 spread <1ms). The remaining gap at lower BS is primarily due to topology differences (MI300X EP8/DP1 vs H200 EP32/DP4) and the aiter vs FA3 kernel efficiency difference.
+
+### Remaining Decode Throughput Gap Explained
+
+Even with same-methodology TPOT, MI300X throughput plateaus at ~1,852 tok/s at BS≥64 while H200 reports 4,483-7,013 tok/s. This is because:
+
+1. **DP=1 vs DP=4**: MI300X has a single decode server; H200's throughput is per-DP-rank but with 4x more parallelism available
+2. **H200 throughput is formula-computed** (`BS × 1000 / TPOT`), while MI300X throughput is end-to-end measured (includes PD router overhead, KV transfer latency, scheduler gaps)
+3. **MI300X scheduler saturation**: output throughput stops growing at BS≥64, indicating the single decode server hits a scheduling ceiling
+
+---
+
+## Previous H200-Aligned Baseline (2026-06-18)
 
 The latest valid run uses the PD router path, fixed random input lengths, `chunked-prefill-size=16384`, and MTP/EAGLE layer=3. The completed MI300X baseline is `TP=8, local EP=8, DP=1`; Xiaomi's H200 reference uses stronger global EP/DP settings (`attn TP=8, DP=2, global EP=16` for prefill and `attn TP=8, DP=4, global EP=32` for decode), so the completed numbers below are an aligned workload comparison rather than an identical-topology comparison.
 
@@ -76,7 +152,7 @@ Two-round matrix script: [`scripts/bench_micro_matrix_2x.sh`](scripts/bench_micr
 1. **Decode 8K (BS≥192): MI300X matches or beats H200 with triton+MTP.** MI300X TPOT plateaus at ~22ms from BS64+, while H200 degrades linearly. Crossover at BS192.
 2. **Decode 64K: 1.23-1.95× slower (triton+MTP) / 1.4-1.7× slower (aiter no-MTP).** Flat TPOT regardless of BS — memory-bandwidth bound on long-context KV access. aiter is slightly better for 64K decode.
 3. **Prefill: ~42% of H200 (triton) → ~50-66% of H200 (aiter).** aiter attention kernel unlocks +12%~56% prefill improvement. Biggest gain at 256K context (triton=7.3K → aiter=11.4K tok/s).
-4. **aiter + MTP incompatible**: MTP acceptance rate drops from 0.666 → 0.2 when switching triton→aiter attention. Draft model predictions mismatch due to numerical differences. AMD needs to retrain/calibrate the MTP draft model against aiter attention outputs.
+4. **aiter + MTP improved on 2026-06-26, but still trails H200 decode.** The 6/19 aiter+MTP run had acceptance rate ~0.2 / accept length ~1.6; the 6/26 stack improves to accept length 2.15-2.38 and accept rate 0.38-0.46 on 8K/1K decode. H200's sheet still reports 0.75 accept rate, and H200 remains 2.0-5.0× faster by the sheet's output-throughput column across BS16-128.
 5. **CUDA Graph critical for decode (discovered 2026-06-19)**: Decode server `--disable-cuda-graph` causes 5× TPOT regression (23ms → 120ms). Only prefill should disable CUDA graph.
 6. **256K: compute path works, repeated/concurrent PD-router path stalls.** Five isolated 256K prefill requests succeeded at 7,239 tok/s (triton) / 11,410 tok/s (aiter), while sequential `n=4` stalls.
 7. **Topology gap remains open.** H200's EP16/DP2 vs MI300X's EP8/DP1 is still a structural difference that contributes to the gap.
@@ -92,7 +168,7 @@ Two-round matrix script: [`scripts/bench_micro_matrix_2x.sh`](scripts/bench_micr
 | LayerNorm | ✅ | aiter fused | Fused normalization |
 | **Attention (prefill + decode)** | **✅** | **aiter `mha_batch_prefill`** | **Enabled since 2026-06-18 commit `f5fe8e944`** |
 
-> **2026-06-19 Update**: AMD resolved the hybrid SWA+GQA attention gap. The `Mimo_mtp_enable` branch commit `f5fe8e944` enables `--attention-backend aiter` for MiMo-V2.5-Pro. Prefill throughput improved +12%~56% (longer sequences benefit more, matching AMD's kernel-level 5.6× speedup on the attention operator). However, **aiter + MTP is incompatible** — MTP acceptance rate drops from 0.666 to 0.2, making speculative decoding ineffective. See Scenario 3 below.
+> **2026-06-26 Update**: AMD's newer `mimo_aiter_attn` stack with `amd-aiter 0.1.14rc1.dev213+g7a8ff7dd4` improves aiter+MTP acceptance length from ~1.6 to 2.15-2.38 on 8K/1K decode. It is a real improvement, but not enough to close the H200 decode gap on the published H200 sheet rows. See the latest section above for the matched 6/26 ratios.
 
 ---
 
@@ -134,42 +210,76 @@ Two-round matrix script: [`scripts/bench_micro_matrix_2x.sh`](scripts/bench_micr
 
 ---
 
-## Setup — AMD Fork SGLang Installation
+## Reproducing 2026-06-26 Results (Latest)
 
-The stock SGLang in the Docker image does NOT support MTP + cuda graph together on MiMo models. You must install the AMD fork:
+All scripts, environment info, and raw logs needed to reproduce the 6/26 benchmark are archived in this repo under [`scripts/20260626-amd-stack/`](scripts/20260626-amd-stack/).
+
+### Prerequisites
+
+- 2× Azure `Standard_ND96isr_MI300X_v5` nodes (VMSS, same placement group for IB)
+- Docker image: `rocm/sgl-dev:v0.5.11-rocm720-mi30x-20260510` (SHA: `bb9d2e5ab1a6`)
+- Model: [XiaomiMiMo/MiMo-V2.5-Pro](https://huggingface.co/XiaomiMiMo/MiMo-V2.5-Pro) downloaded to `/data/models/MiMo-V2.5-Pro`
+- SGLang: `sammysun0711/sglang` branch `mimo_aiter_attn`, commit `db840d935` — source at `/sgl-workspace/sglang_0625`
+- aiter: `amd-aiter 0.1.14rc1.dev213+g7a8ff7dd4`, commit `7a8ff7dd4` — source at `/sgl-workspace/aiter_0625`
+
+### Step-by-Step
 
 ```bash
-# Inside the container
-pip uninstall -y sglang
-git clone https://github.com/TianHao65/sglang.git sglang-amd
-cd sglang-amd
-git checkout Mimo_mtp_enable
+# 1. Start container on both nodes
+docker run -d --name sglang --ipc=host --network=host --device=/dev/kfd --device=/dev/dri \
+  --group-add video --cap-add=SYS_PTRACE --security-opt seccomp=unconfined \
+  -v /data:/data rocm/sgl-dev:v0.5.11-rocm720-mi30x-20260510 sleep infinity
 
-# Compile sgl-kernel for ROCm
-pip install --upgrade pip
-cd sgl-kernel
-python3 setup_rocm.py install
-
-# Install sglang
-cd ..
-rm -rf python/pyproject.toml && mv python/pyproject_other.toml python/pyproject.toml
-pip install -e "python[all_hip]"
-
-# Install Mooncake for PD disaggregation
+# 2. Install SGLang + aiter inside container (both nodes)
+docker exec -it sglang bash
+cd /sgl-workspace/sglang_0625/python && pip install -e ".[all_hip]"
+cd /sgl-workspace/aiter_0625 && pip install -e .
 pip install mooncake-transfer-engine
 
-# Fix editable install import resolution
-echo /path/to/sglang-amd/python > /opt/venv/lib/python3.10/site-packages/sglang_path.pth
+# 3. Launch Prefill server (Node 1 / VM8)
+cd /data/xisun && bash launch_tp8_noep_prefill_aiter_mtp.sh
+# See: scripts/20260626-amd-stack/launch_tp8_noep_prefill_aiter_mtp.sh
+
+# 4. Launch Decode server (Node 2 / VM10)
+cd /data/xisun && bash launch_tp8_noep_decode_aiter_mtp.sh
+# See: scripts/20260626-amd-stack/launch_tp8_noep_decode_aiter_mtp.sh
+
+# 5. Launch PD Router (Node 1, after both servers are healthy)
+cd /data/xisun && bash launch_router.sh
+# See: scripts/20260626-amd-stack/launch_router.sh
+
+# 6. Run benchmarks (Node 1, through router port 40000)
+cd /data/xisun && bash run_benchmark_mimo_pro_decode.sh    # Decode: 8K/1K, BS=16/32/64/128
+cd /data/xisun && bash run_benchmark_mimo_pro_prefill.sh   # Prefill: 8K/64K/256K, BS=4
+
+# 7. (Optional) Same-methodology decode with simulated accept_length=3
+export SGLANG_SIMULATE_ACC_LEN=3
+export SGLANG_SIMULATE_ACC_METHOD=match-expected
+# Restart decode server with these env vars, then re-run decode benchmark
 ```
 
-Verify:
-```bash
-pip show sglang | grep Version
-# Expected: 0.5.12.post2.dev2+gb5e695251
+### Archived Evidence
 
-python3 -c "from sglang.benchmark.datasets import get_dataset; print('OK')"
-# Expected: OK
+| Path | Content |
+|------|---------|
+| [`scripts/20260626-amd-stack/`](scripts/20260626-amd-stack/) | All launch + benchmark scripts + environment snapshot |
+| [`scripts/20260626-amd-stack/environment_snapshot.txt`](scripts/20260626-amd-stack/environment_snapshot.txt) | Full pip list, git commits, docker image SHA, VM IPs |
+| [`data/raw-logs/20260626-amd-aiter-mtp/`](data/raw-logs/20260626-amd-aiter-mtp/) | Raw benchmark logs (real acceptance) |
+| [`data/raw-logs/20260626-simulate-acc3/`](data/raw-logs/20260626-simulate-acc3/) | Raw benchmark logs (simulated accept_length=3) |
+
+### Environment Snapshot (2026-06-26)
+
 ```
+Docker: rocm/sgl-dev:v0.5.11-rocm720-mi30x-20260510
+SGLang: 0.0.0.dev14146+gdb840d935.d20260626 (sammysun0711/sglang@mimo_aiter_attn)
+aiter:  amd-aiter 0.1.14rc1.dev213+g7a8ff7dd4
+torch:  2.9.1+rocm7.2.0.lw.git7e1940d4
+triton: 3.6.0+git42270451
+sglang-kernel: 0.4.3
+mooncake: 0.3.7.post2
+```
+
+---
 
 ---
 
@@ -340,7 +450,7 @@ export SGLANG_DISAGGREGATION_WAITING_TIMEOUT=5000
 
 ### Background
 
-AMD's `Mimo_mtp_enable` branch commit `f5fe8e944` enables `--attention-backend aiter` for MiMo-V2.5-Pro. This replaces the triton attention kernel with AMD's optimized CK-based `mha_batch_prefill` (prefill) and fused decode attention. Testing revealed that **aiter + MTP is incompatible** (acceptance rate drops to 0.2), so this scenario runs without speculative decoding.
+AMD's `Mimo_mtp_enable` branch commit `f5fe8e944` enables `--attention-backend aiter` for MiMo-V2.5-Pro. This replaces the triton attention kernel with AMD's optimized CK-based `mha_batch_prefill` (prefill) and fused decode attention. The original 2026-06-19 test showed poor aiter+MTP acceptance, so this historical scenario ran without speculative decoding. AMD's 2026-06-26 stack improves aiter+MTP acceptance; those newer numbers are reported in the latest section at the top of this README.
 
 ### Configuration
 
@@ -383,28 +493,28 @@ Router:         python3 -m sglang_router.launch_router --pd-disaggregation --pre
 | 64 | 22.27 | 24.39 | 16.33 | 1.4× |
 | 96 | OOM | 24.18 | 19.63 | — |
 
-### aiter + MTP Incompatibility
+### aiter + MTP Compatibility Status
 
-| Metric | triton + MTP=3 | aiter + MTP=3 | aiter no-MTP |
-|--------|:---:|:---:|:---:|
-| MTP acceptance_rate | **0.666** | 0.2 | N/A |
-| MTP accept_length | **3.2** | 1.6 | N/A |
-| Effective speedup from MTP | ~3× | ~1.05× (broken) | — |
-| Decode 8K BS16 TPOT | **13.71ms** | 22.78ms | 23.23ms |
+| Metric | triton + MTP=3 | aiter + MTP=3 (2026-06-19) | aiter + MTP=3 (2026-06-26) | aiter no-MTP |
+|--------|:---:|:---:|:---:|:---:|
+| MTP acceptance_rate | **0.666** | 0.2 | 0.38-0.46 on BS16-128 | N/A |
+| MTP accept_length | **3.2** | 1.6 | 2.15-2.38 on BS16-128 | N/A |
+| Decode 8K BS16 TPOT | **13.71ms** | 22.78ms | 21.61ms | 23.23ms |
+| Decode 8K BS16 output tok/s | — | — | 689.22 | — |
 
-> **Root cause**: aiter attention produces numerically different outputs than triton for the same inputs. The MTP draft model was trained/calibrated against triton attention outputs, so when the target model switches to aiter, draft predictions become inaccurate and are rejected ~80% of the time.
+> **Status**: the 6/26 stack shows the aiter+MTP path is no longer the 6/19 failure mode, but it is still below both the prior triton+MTP decode latency and H200's 0.75 accept rate. The remaining gap is visible in output throughput: H200 is 2.0× faster at BS16 and 5.0× faster at BS128 on the 6/26 H200 sheet rows.
 
 ### Key Insight — Three Configuration Trade-off
 
 | Config | Prefill tok/s (64K) | Decode 8K TPOT (ms) | Best for |
 |--------|:---:|:---:|------|
 | ① triton + MTP=3 | 11,500 | **13.71** | Decode-heavy workloads |
-| ② aiter + MTP=3 | ~16,000 | 22.78 | ❌ Worst of both — MTP broken |
+| ② aiter + MTP=3 (2026-06-26) | 15,047 | 21.61 | Improved, but still slower than triton+MTP and H200 decode |
 | ③ aiter + no-MTP | **16,125** | 23.23 | Prefill-heavy / long-context workloads |
 
-**Conclusion**: Until AMD fixes aiter + MTP compatibility, the optimal choice depends on workload:
+**Conclusion**: aiter+MTP improved on 2026-06-26, but the optimal choice still depends on workload:
 - **Short-context, high-BS decode** → Use triton + MTP=3 (config ①)
-- **Long-context prefill-heavy** → Use aiter no-MTP (config ③)
+- **Long-context prefill-heavy** → Use the latest aiter path, while treating the 256K 6/26 result as a point that still needs repeated-run stability validation
 
 ---
 
@@ -474,7 +584,7 @@ DP attention is not available in the completed EP8/DP1 baseline because the base
 | Issue | Status | Impact | Reference |
 |-------|--------|--------|-----------|
 | ~~aiter attention backend~~ | **✅ Resolved** | Fixed in commit `f5fe8e944` (2026-06-18). `--attention-backend aiter` now works for MiMo-V2.5-Pro. Prefill +12%~56%. | [TianHao65/sglang@f5fe8e94](https://github.com/TianHao65/sglang/commit/f5fe8e944) |
-| **aiter + MTP incompatibility** | **❌ New** | When aiter attention is enabled, MTP acceptance rate drops from 0.666 to 0.2 (draft predictions rejected). Root cause: aiter attention numerical output differs from triton, causing draft model mismatch. **Blocks achieving best decode performance with aiter.** | This repo, Scenario 3 |
+| **aiter + MTP acceptance gap** | **⚠️ Improved, still open** | 2026-06-19: acceptance rate ~0.2 / accept length ~1.6. 2026-06-26: accept length improves to 2.15-2.38 and accept rate 0.38-0.46 on 8K/1K, but H200 still reports 0.75 accept rate and 2.0-5.0× higher output throughput on the same visible BS rows. | This repo, latest 2026-06-26 section |
 | **CUDA Graph on decode** | **⚠️ Critical config** | Decode server **must NOT** use `--disable-cuda-graph`. Disabling it causes 5× TPOT regression (23ms → 120ms). Prefill server should keep `--disable-cuda-graph` (long sequences need dynamic memory). | This repo, verified 2026-06-19 |
 | TP16/DP2 DP-attention server | ❌ Blocked before ready | Corrected H200 prefill topology probe passes effective-attention-TP validation, then fails with MORI dispatch heap OOM and HIP invalid argument in dispatch/combine. | This repo: [`reports/tp16_dp2_topology_probe_20260617.md`](reports/tp16_dp2_topology_probe_20260617.md) |
 | Cross-node MORI-EP=16 | ❌ Blocked | RCCL / MORI instability when using 16-GPU expert-dispatch style layouts across 2 nodes. Limits the completed baseline to EP=8 per node. | [ROCm/mori#168](https://github.com/ROCm/mori/issues/168) |
@@ -579,4 +689,4 @@ bash scripts/bench_h200_alignment.sh
 
 ---
 
-*Last updated: 2026-06-22*
+*Last updated: 2026-06-26*

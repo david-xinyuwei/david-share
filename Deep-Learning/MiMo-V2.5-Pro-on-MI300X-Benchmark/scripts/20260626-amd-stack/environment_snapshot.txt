@@ -1,0 +1,40 @@
+=== IMAGE ===
+NO_IMAGE_INFO
+=== PIP ===
+amd-aiter                                0.1.14rc1.dev213+g7a8ff7dd4         /sgl-workspace/aiter_0625
+mooncake-transfer-engine                 0.3.7.post2
+sglang                                   0.0.0.dev14146+gdb840d935.d20260626 /sgl-workspace/sglang_0625/python
+sglang-kernel                            0.4.3
+sglang-router                            0.3.2
+torch                                    2.9.1+rocm7.2.0.lw.git7e1940d4
+torch_memory_saver                       0.0.9.post1
+torchao                                  0.9.0
+torchaudio                               2.9.0+rocm7.2.0.gite3c6ee2b
+torchvision                              0.24.0+rocm7.2.0.gitb919bd0c
+triton                                   3.6.0+git42270451                   /sgl-workspace/triton-custom
+=== GIT ===
+db840d935 [AMD] Fix aiter SWA handling in draft_extend_v2 for MTP speculative decoding   1. Missing swa_page_table in draft_extend_v2 metadata: The non-MLA      draft_extend_v2 path in both init_forward_metadata and the CUDA graph      path (_apply_cuda_graph_metadata) never computed swa_page_table, so      SWA layers read from the full attention KV pool instead of the sliding      window pool.
+ea10c2f7d Enable triton backend with MTP
+5128391fd [AMD] Zero-pad V head dim for aiter attention backend on MiMo-V2-Flash
+=== AITER_GIT ===
+7a8ff7dd4 flydsl moe: EP reduce path with masked gather + tuned-key fix (#3377)
+d677820e6 Fix OPUS warning on gfx1250 (#3524)
+4689f485c [FLYDSL][GEMM] Full re-tuning for mixed stream-k a16w16 gemm & enhance co-issue (#3469)
+
+=== DOCKER IMAGE ===
+Container name: sglang
+Image: rocm/sgl-dev:v0.5.11-rocm720-mi30x-20260510
+Image SHA: sha256:bb9d2e5ab1a6b66bff693e9a5d972be378e6059dc2058066aed70ebc3ed3993b
+
+=== VM INFO ===
+VM8 (Prefill): 20.102.171.186:33901, hostname=mi30011c6000008, IB=172.16.1.26
+VM10 (Decode): 20.252.129.69:33901, hostname=mi30011c600000A, IB=172.16.1.122
+Container: docker exec -it sglang bash
+Model path: /data/models/MiMo-V2.5-Pro
+Working dir: /data/xisun
+SGLang source: /sgl-workspace/sglang_0625 (branch mimo_aiter_attn from sammysun0711/sglang)
+Aiter source: /sgl-workspace/aiter_0625
+
+=== KEY COMMITS ===
+SGLang: db840d935 "[AMD] Fix aiter SWA handling in draft_extend_v2 for MTP speculative decoding"
+Aiter: 7a8ff7dd4 "flydsl moe: EP reduce path with masked gather + tuned-key fix"
