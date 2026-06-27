@@ -87,14 +87,14 @@ This means the H200 TPOT numbers reflect **pure kernel latency with ideal MTP ac
 Raw logs: [`data/raw-logs/20260626-simulate-acc3/`](data/raw-logs/20260626-simulate-acc3/)  
 N = 256 requests per BS point; input=8192, output=1024, seed=12345, warmup=32.
 
-| BS | MI300X Median TPOT (ms) | MI300X P99 (ms) | H200 TPOT (ms) | MI300X slower | Gap |
-|---:|---:|---:|---:|---:|---:|
-| 16 | 14.75 | 15.32 | 11.59 | 1.27x | H200 faster by 27% |
-| 32 | 17.82 | 18.39 | 12.56 | 1.42x | H200 faster by 42% |
-| 64 | 20.42 | 20.62 | 14.28 | 1.43x | H200 faster by 43% |
-| 128 | 20.31 | 20.52 | 18.25 | **1.11x** | H200 faster by **11%** |
+| BS | MI300X Median TPOT (ms) | MI300X P99 (ms) | H200 TPOT (ms) | MI300X slower | MI300X output tok/s | H200 output tok/s | MI/H200 tok/s |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 16 | 14.75 | 15.32 | 11.59 | 1.27x | 973.06 | 1,380.71 | 70.5% |
+| 32 | 17.82 | 18.39 | 12.56 | 1.42x | 1,518.15 | 2,548.66 | 59.6% |
+| 64 | 20.42 | 20.62 | 14.28 | 1.43x | 1,852.16 | 4,482.93 | 41.3% |
+| 128 | 20.31 | 20.52 | 18.25 | **1.11x** | 1,851.63 | 7,013.05 | **26.4%** |
 
-**Key takeaway**: with the same simulated accept_length=3 (matching the H200 test methodology), the MI300X decode Median TPOT gap shrinks from 1.86-2.44x to **1.11-1.43x**. At BS≥128, MI300X is within 11% of H200 per-path decode latency (N=256, P99 spread <1ms). The remaining gap at lower BS is primarily due to topology differences (MI300X EP8/DP1 vs H200 EP32/DP4) and the aiter vs FA3 kernel efficiency difference.
+**Key takeaway**: with the same simulated accept_length=3 (matching the H200 test methodology), the MI300X decode Median TPOT gap shrinks from 1.86-2.44x to **1.11-1.43x**. At BS≥128, MI300X is within 11% of H200 per-path decode latency (N=256, P99 spread <1ms). However, output tok/s still shows the system-level topology gap: MI300X reaches ~973-1,852 tok/s, while H200 reports ~1,381-7,013 tok/s. TPOT reflects per-path latency; output tok/s reflects total serving throughput, DP parallelism, scheduler behavior, router overhead, and KV transfer.
 
 ### Real Benchmark Output Sample
 

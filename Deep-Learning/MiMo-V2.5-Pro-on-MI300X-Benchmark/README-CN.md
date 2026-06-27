@@ -59,7 +59,7 @@ H200 decode 表里写的是 `bs (per DP)`，`dp size=4`，但右侧“单机 dec
 
 ### 关键发现：H200 的 accept_rate = 0.75 是模拟值，不是真实值
 
-小米 H200 参考表使用了 `SGLANG_SIMULATE_ACC_LEN=3` + `SGLANG_SIMULATE_ACC_METHOD=match-expected` 来**固定 MTP accept_length = 3.0**。此信息来源：AMD SGLang 工程师孙霞克 2026-06-26 微信确认。SGLang 源码（`sglang/srt/speculative/eagle_utils.py` L519-530）显示当 `SIMULATE_ACC_LEN > 0` 时，真实 verification 结果被**完全替换**为模拟值（`predict.fill_(100)`, `num_correct_drafts.fill_(simulate_acc_len - 1)`）。H200 表中所有场景的 accept_rate 恒定为 0.75（零方差）与此一致。
+小米 H200 参考表使用了 `SGLANG_SIMULATE_ACC_LEN=3` + `SGLANG_SIMULATE_ACC_METHOD=match-expected` 来**固定 MTP accept_length = 3.0**。这一点来自 AMD/SGLang 技术复核，并且可以从 SGLang 源码（`sglang/srt/speculative/eagle_utils.py` L519-530）直接验证：当 `SIMULATE_ACC_LEN > 0` 时，真实 verification 结果会被**完全替换**为模拟值（`predict.fill_(100)`, `num_correct_drafts.fill_(simulate_acc_len - 1)`）。H200 表中所有场景的 accept_rate 恒定为 0.75（零方差）与此一致。
 
 这意味着 H200 的 TPOT 数字反映的是**理想 MTP 加速下的纯 kernel 延迟**，不是真实 draft model 预测准确率。正确的同口径对比需要 MI300X 也使用相同的 `SIMULATE_ACC_LEN=3` 设置。
 
@@ -68,14 +68,14 @@ H200 decode 表里写的是 `bs (per DP)`，`dp size=4`，但右侧“单机 dec
 原始日志：[`data/raw-logs/20260626-simulate-acc3/`](data/raw-logs/20260626-simulate-acc3/)  
 N = 256 requests/BS 点；input=8192, output=1024, seed=12345, warmup=32。
 
-| BS | MI300X Median TPOT (ms) | MI300X P99 (ms) | H200 TPOT (ms) | MI300X 慢几倍 | 差距 |
-|---:|---:|---:|---:|---:|---:|
-| 16 | 14.75 | 15.32 | 11.59 | 1.27x | H200 快 27% |
-| 32 | 17.82 | 18.39 | 12.56 | 1.42x | H200 快 42% |
-| 64 | 20.42 | 20.62 | 14.28 | 1.43x | H200 快 43% |
-| 128 | 20.31 | 20.52 | 18.25 | **1.11x** | H200 快 **11%** |
+| BS | MI300X Median TPOT (ms) | MI300X P99 (ms) | H200 TPOT (ms) | MI300X 慢几倍 | MI300X output tok/s | H200 output tok/s | MI/H200 tok/s |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 16 | 14.75 | 15.32 | 11.59 | 1.27x | 973.06 | 1,380.71 | 70.5% |
+| 32 | 17.82 | 18.39 | 12.56 | 1.42x | 1,518.15 | 2,548.66 | 59.6% |
+| 64 | 20.42 | 20.62 | 14.28 | 1.43x | 1,852.16 | 4,482.93 | 41.3% |
+| 128 | 20.31 | 20.52 | 18.25 | **1.11x** | 1,851.63 | 7,013.05 | **26.4%** |
 
-**核心结论**：在同口径（`SIMULATE_ACC_LEN=3`，和 H200 测试方法一致）下，MI300X decode Median TPOT 差距从 1.86-2.44x 缩小到 **1.11-1.43x**。BS≥128 时 MI300X 只差 H200 单路 decode 延迟 11%（N=256，P99 波动 <1ms）。低 BS 下的剩余差距主要来自拓扑差异（MI300X EP8/DP1 vs H200 EP32/DP4）和 aiter vs FA3 kernel 效率差异。
+**核心结论**：在同口径（`SIMULATE_ACC_LEN=3`，和 H200 测试方法一致）下，MI300X decode Median TPOT 差距从 1.86-2.44x 缩小到 **1.11-1.43x**。BS≥128 时 MI300X 只差 H200 单路 decode 延迟 11%（N=256，P99 波动 <1ms）。但 output tok/s 仍然显示系统级拓扑差距：MI300X 约 973-1,852 tok/s，H200 报 1,381-7,013 tok/s。TPOT 反映单路延迟；output tok/s 同时反映 DP 并行度、scheduler、router 开销和 KV transfer。
 
 ### Decode 吞吐差距解释
 
