@@ -53,11 +53,7 @@ AMD provided an updated 1P1D MI300X test stack on 2026-06-26:
 | aiter | `amd-aiter 0.1.14rc1.dev213+g7a8ff7dd4` |
 | Runtime | 1P1D PD router, prefill and decode both using `aiter backend + MTP=3` |
 
-Evidence and parsed alignment files:
-
-- 2026-06-26 alignment report: [`reports/amd_aiter_mtp_20260626_h200_alignment.md`](reports/amd_aiter_mtp_20260626_h200_alignment.md)
-- Parsed TSV: [`data/amd_aiter_mtp_20260626_h200_alignment.tsv`](data/amd_aiter_mtp_20260626_h200_alignment.tsv)
-- Raw logs: [`data/raw-logs/20260626-amd-aiter-mtp/`](data/raw-logs/20260626-amd-aiter-mtp/)
+> **Raw benchmark logs** for reproducibility verification are archived under [`data/raw-logs/`](data/raw-logs/) (12 decode + prefill logs from real-accept and simulated-accept runs).
 
 > **H200 decode throughput note**: The H200 sheet labels `bs (per DP)` with `dp size=4`, but its throughput column equals `BS × 1000 / TPOT`, not `BS × DP × 1000 / TPOT`. All decode comparisons below use the sheet-provided throughput column as-is (visible-BS-row comparison).
 
