@@ -225,10 +225,13 @@ cd aiter_0625 && git checkout 7a8ff7dd4
 #    bash /data/xisun/setup_amd_pd_infra.sh
 
 # 4. Install SGLang + aiter + Mooncake (both nodes)
+#    IMPORTANT: use --no-deps to preserve the base image's ROCm torch/sglang-kernel stack.
+#    Without --no-deps, pip will pull CUDA versions of torch, sglang-kernel, and
+#    torch_c_dlpack_ext, which breaks the ROCm environment.
+cd /sgl-workspace/sglang_0625 && pip install -e "python[all_hip]" --no-deps
 cd /sgl-workspace/sglang_0625/sgl-kernel && python3 setup_rocm.py install
-cd /sgl-workspace/sglang_0625 && pip install -e "python[all_hip]"
-cd /sgl-workspace/aiter_0625 && pip install -e .
-pip install mooncake-transfer-engine==0.3.7.post2
+cd /sgl-workspace/aiter_0625 && pip install -e . --no-deps
+pip install mooncake-transfer-engine==0.3.7.post2 --no-deps
 
 # 5. Download model (both nodes, or shared storage)
 huggingface-cli download XiaomiMiMo/MiMo-V2.5-Pro --local-dir /data/models/MiMo-V2.5-Pro
