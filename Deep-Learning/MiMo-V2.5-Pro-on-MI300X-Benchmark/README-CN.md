@@ -28,7 +28,7 @@ AMD 6 月 26 日提供了新的 1P1D MI300X 测试栈：`sammysun0711/sglang` �
 ### 对口倍数结论
 
 - **Prefill**：8K/64K 吞吐仍是 H200 快 1.8-2.0x；256K 长上下文单点 MI300X 快 2.14x。
-- **Decode**：两边都固定 `SIMULATE_ACC_LEN=3` 后，MI300X 的 TPOT latency 接近 H200；但 output tok/s 仍明显落后，因为 H200 有更多 DP/topology 并行度。
+- **Decode**：两边都固定 `SIMULATE_ACC_LEN=3` 后，MI300X 的 TPOT latency 接近 H200；但 output tok/s 仍然封顶，因为这次 MI300X 只跑了单个 decode service（`tp=8`，没有 DP/EP 扩展）。
 - **关键发现**：H200 的 `accept_rate=0.75` 是通过 `SGLANG_SIMULATE_ACC_LEN=3` 模拟固定出来的，不是真实 draft model accuracy。
 
 **Prefill throughput（output=1，主指标是 tok/s）**
@@ -95,7 +95,7 @@ N = 256 requests/BS 点；input=8192, output=1024, seed=12345, warmup=32。
 
 即使 TPOT 同口径后差距很小，MI300X 吞吐在 BS≥64 时封顶在 ~1,852 tok/s，而 H200 报 4,483-7,013 tok/s。原因：
 
-1. **DP=1 vs DP=4**：MI300X 单 decode server 承载所有并发；H200 的吞吐虽然是 per-DP-rank 值但有 4 路并行
+1. **单 decode service 天花板**：这次 MI300X 只启动了一个 `--tp-size 8` 的 decode server，没有 DP/EP 参数。BS≥64 后 output tok/s 不再增长，说明继续加并发主要增加排队，而不是增加 decode 产能。
 2. **H200 吞吐来自 reference sheet，且与 `BS × 1000 / TPOT` 一致**；MI300X 吞吐是 `bench_serving` 端到端实测值（包含 PD router 开销、KV transfer 延迟、scheduler 间隙）
 3. **MI300X scheduler 饱和**：output throughput 在 BS≥64 后不再增长，说明单 decode server 达到调度天花板
 
@@ -239,7 +239,7 @@ Node 1 (8× MI300X)               Node 2 (8× MI300X)
 1. **Prefill 8K/64K 达到 H200 EP16/DP2 的 51-55%**：H200 仍快约 1.8-2.0x，主因是拓扑差异（EP8/DP1 vs EP16/DP2）
 2. **256K Prefill 在 6/26 单点反超 H200 2.14x**：需要 repeated-run 验证
 3. **Decode 同口径（SIMULATE_ACC_LEN=3）下 Median TPOT 差距仅 1.11-1.43x**：BS≥128 时只差 11%，基本打平。H200 表的 accept_rate=0.75 是用 `SGLANG_SIMULATE_ACC_LEN=3` 模拟固定的（来源：AMD 工程师孙霞克 2026-06-26 微信确认），不是真实 draft model 预测准确率
-4. **Decode 吞吐差距主因是 DP=1 vs DP=4**：MI300X 单 decode server 在 BS≥64 时吞吐封顶 ~1852 tok/s，不是 kernel 慢
+4. **Decode 吞吐差距主因是单 decode service 已饱和**：这次 MI300X 没有跑多 DP/EP，BS≥64 时吞吐封顶 ~1852 tok/s；继续提升需要新的多路 decode/EP 拓扑，而不是单纯加并发
 5. **CUDA Graph 对 decode 性能至关重要**：decode server 禁用 = 5× 性能退化
 
 ---

@@ -24,7 +24,7 @@ English | [中文版](README-CN.md)
 ## Executive Summary
 
 - **Prefill:** H200 is still 1.8-2.0x faster at 8K/64K throughput, while MI300X wins the validated 256K long-context point by 2.14x.
-- **Decode:** with aligned MTP acceptance (`SIMULATE_ACC_LEN=3` on both sides), MI300X is close on TPOT latency, but H200 still leads on output tok/s because it has more DP/topology parallelism.
+- **Decode:** with aligned MTP acceptance (`SIMULATE_ACC_LEN=3` on both sides), MI300X is close on TPOT latency, but output tok/s still plateaus because the MI300X run uses a single decode service (`tp=8`, no DP/EP scaling in this run).
 - **Key discovery:** H200's constant `accept_rate=0.75` is simulated via `SGLANG_SIMULATE_ACC_LEN=3`, so H200 TPOT reflects ideal MTP acceptance rather than real draft-model accuracy.
 
 **Prefill throughput (output=1, tok/s is the primary metric)**
@@ -145,7 +145,7 @@ P99 TPOT (ms):                           20.52
 
 Even with same-methodology TPOT, MI300X throughput plateaus at ~1,852 tok/s at BS≥64 while H200 reports 4,483-7,013 tok/s. This is because:
 
-1. **DP=1 vs DP=4**: MI300X has a single decode server; H200's throughput is per-DP-rank but with 4x more parallelism available
+1. **Single decode service ceiling**: the MI300X run launches one decode server with `--tp-size 8` and no DP/EP flags. Output tok/s stops increasing after BS=64, so more concurrency mostly adds queueing instead of more decode capacity.
 2. **H200 throughput is sheet-reported and matches `BS × 1000 / TPOT`**, while MI300X throughput is end-to-end measured by `bench_serving` (includes PD router overhead, KV transfer latency, scheduler gaps)
 3. **MI300X scheduler saturation**: output throughput stops growing at BS≥64, indicating the single decode server hits a scheduling ceiling
 
@@ -315,7 +315,7 @@ mooncake: 0.3.7.post2
 |-------|--------|--------|
 | **aiter + MTP acceptance gap** | ⚠️ Improved, still open | accept_length 2.15-2.38 / accept_rate 0.38-0.46 on MI300X vs H200 simulated 0.75. Gap is software (draft model calibration), not hardware. |
 | **CUDA Graph on decode** | ⚠️ Critical config | Decode server must NOT use `--disable-cuda-graph`. Disabling causes 5× TPOT regression. Prefill server should disable it. |
-| **DP=1 throughput ceiling** | ⚠️ Topology limitation | Single decode server saturates at ~1,852 tok/s (BS≥64). H200 uses DP=4. AMD working on TP16/DP2 support. |
+| **Single decode-service throughput ceiling** | ⚠️ Topology limitation | This MI300X run uses one `tp=8` decode server with no DP/EP scaling; throughput saturates at ~1,852 tok/s (BS≥64). TP16/DP2 remains a separate unvalidated topology probe. |
 | **256K repeated prefill** | ⚠️ Stability | Single 256K requests work (37,252 tok/s); concurrent/repeated may stall via PD router drain. |
 
 
