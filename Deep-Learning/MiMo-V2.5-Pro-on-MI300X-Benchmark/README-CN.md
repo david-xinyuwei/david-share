@@ -233,10 +233,99 @@ Node 1 (8× MI300X)               Node 2 (8× MI300X)
 ## 参考资料
 
 - [MiMo-V2.5-Pro Model Card](https://huggingface.co/XiaomiMiMo/MiMo-V2.5-Pro)
-- [AMD SGLang Fork (Mimo_mtp_enable)](https://github.com/TianHao65/sglang/tree/Mimo_mtp_enable)
+- [AMD SGLang Fork — `mimo_aiter_attn` 分支（6/26 最新）](https://github.com/sammysun0711/sglang/tree/mimo_aiter_attn)
+- [AMD aiter (ROCm)](https://github.com/ROCm/aiter)
+- [AMD SGLang Fork — `Mimo_mtp_enable` 分支（6/18 历史）](https://github.com/TianHao65/sglang/tree/Mimo_mtp_enable)
 - [AMD MI308X PD Disaggregation Guide](https://github.com/TianHao65/sglang/blob/Mimo_Swa_Eable/MiMo-V2-Flash-MI308X_1P1D_Disaggregated_Inference_Guide.md)
 - [SGLang PD Disaggregation Docs](https://docs.sglang.io/docs/advanced_features/pd_disaggregation.md)
 
 ---
 
-*最后更新: 2026-06-26*
+## 复现 2026-06-26 结果
+
+所有脚本、环境信息和原始日志都在本 repo 的 [`scripts/20260626-amd-stack/`](scripts/20260626-amd-stack/) 下。
+
+### 前置条件
+
+- 2× Azure `Standard_ND96isr_MI300X_v5` 节点（VMSS，相同 placement group 保证 IB）
+- Docker 镜像：`rocm/sgl-dev:v0.5.11-rocm720-mi30x-20260510`（SHA: `bb9d2e5ab1a6`）
+- 模型：[XiaomiMiMo/MiMo-V2.5-Pro](https://huggingface.co/XiaomiMiMo/MiMo-V2.5-Pro) 下载到 `/data/models/MiMo-V2.5-Pro`
+- SGLang：`sammysun0711/sglang` 分支 `mimo_aiter_attn`，commit `db840d935`
+- aiter：`ROCm/aiter`，commit `7a8ff7dd4`
+
+### 执行步骤
+
+```bash
+# 1. 两个节点启动容器
+docker run -d --name sglang --ipc=host --network=host --device=/dev/kfd --device=/dev/dri \
+  --group-add video --cap-add=SYS_PTRACE --security-opt seccomp=unconfined \
+  -v /data:/data rocm/sgl-dev:v0.5.11-rocm720-mi30x-20260510 sleep infinity
+
+# 2. 容器内 clone 源码（两个节点都做）
+docker exec -it sglang bash
+mkdir -p /sgl-workspace && cd /sgl-workspace
+git clone https://github.com/sammysun0711/sglang.git sglang_0625
+cd sglang_0625 && git checkout db840d935
+cd /sgl-workspace
+git clone https://github.com/ROCm/aiter.git aiter_0625
+cd aiter_0625 && git checkout 7a8ff7dd4
+
+# 3. 安装 SGLang + aiter + Mooncake（两个节点）
+cd /sgl-workspace/sglang_0625/sgl-kernel && python3 setup_rocm.py install
+cd /sgl-workspace/sglang_0625 && pip install -e "python[all_hip]"
+cd /sgl-workspace/aiter_0625 && pip install -e .
+pip install mooncake-transfer-engine
+
+# 4. 下载模型（两个节点或共享存储）
+huggingface-cli download XiaomiMiMo/MiMo-V2.5-Pro --local-dir /data/models/MiMo-V2.5-Pro
+
+# 5. 部署 benchmark 脚本到容器工作目录
+#    在宿主机 clone 本 repo，然后 docker cp 脚本进容器：
+git clone https://github.com/david-xinyuwei/david-share.git
+DIR=david-share/Deep-Learning/MiMo-V2.5-Pro-on-MI300X-Benchmark/scripts/20260626-amd-stack
+docker cp $DIR/launch_tp8_noep_prefill_aiter_mtp.sh sglang:/data/xisun/
+docker cp $DIR/launch_tp8_noep_decode_aiter_mtp.sh sglang:/data/xisun/
+docker cp $DIR/launch_router.sh sglang:/data/xisun/
+docker cp $DIR/run_benchmark_mimo_pro_decode.sh sglang:/data/xisun/
+docker cp $DIR/run_benchmark_mimo_pro_prefill.sh sglang:/data/xisun/
+
+# 6. 查找你的两个节点的 IB IP
+#    在每个节点执行：ibdev2netdev | grep mlx5
+export PREFILL_IB_IP=<你的 prefill 节点 IB IP>   # 例如 172.16.1.26
+export DECODE_IB_IP=<你的 decode 节点 IB IP>      # 例如 172.16.1.122
+
+# 7. 启动 server（每个 server 在独立终端/tmux pane 中运行，它们是前台常驻进程）
+# 终端 A — Node 1 (prefill):
+docker exec sglang bash -c "cd /data/xisun && bash launch_tp8_noep_prefill_aiter_mtp.sh"
+# 终端 B — Node 2 (decode):
+docker exec sglang bash -c "cd /data/xisun && bash launch_tp8_noep_decode_aiter_mtp.sh"
+# 终端 C — Node 1 (router, 等两个 server 打印 'ready' 后再启动):
+docker exec sglang bash -c "cd /data/xisun && PREFILL_IB_IP=$PREFILL_IB_IP DECODE_IB_IP=$DECODE_IB_IP bash launch_router.sh"
+
+# 8. 跑 benchmark（Node 1，通过 router 端口 40000）
+docker exec sglang bash -c "cd /data/xisun && bash run_benchmark_mimo_pro_decode.sh"   # Decode: 8K/1K, BS=16/32/64/128
+docker exec sglang bash -c "cd /data/xisun && bash run_benchmark_mimo_pro_prefill.sh"  # Prefill: 8K/64K/256K, BS=4
+
+# 9.（可选）同口径 decode：模拟 accept_length=3
+#    在 decode server 启动时加这两个环境变量，重启后重跑 decode benchmark：
+#    export SGLANG_SIMULATE_ACC_LEN=3
+#    export SGLANG_SIMULATE_ACC_METHOD=match-expected
+```
+
+> **关于 `--dataset-path`**：benchmark 脚本引用了 `/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json`。使用 `--dataset-name random` 时实际 prompt 是随机生成的，该文件仅用于 tokenizer 词表。可从 [HuggingFace](https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/tree/main) 下载，或直接删除 `--dataset-path` 行（SGLang ≥ 0.5.x 内置随机生成器）。
+
+### 环境快照（2026-06-26）
+
+```
+Docker: rocm/sgl-dev:v0.5.11-rocm720-mi30x-20260510
+SGLang: 0.0.0.dev14146+gdb840d935.d20260626 (sammysun0711/sglang@mimo_aiter_attn)
+aiter:  amd-aiter 0.1.14rc1.dev213+g7a8ff7dd4
+torch:  2.9.1+rocm7.2.0.lw.git7e1940d4
+triton: 3.6.0+git42270451
+sglang-kernel: 0.4.3
+mooncake: 0.3.7.post2
+```
+
+---
+
+*最后更新: 2026-06-27*
