@@ -188,12 +188,13 @@ Two-round matrix script: [`scripts/bench_micro_matrix_2x.sh`](scripts/bench_micr
 
 | Component | Version | Notes |
 |-----------|---------|-------|
-| Docker image | `rocm/sgl-dev:v0.5.11-rocm720-mi30x-20260510` | AMD 0510 build |
-| SGLang | `0.5.12.post2.dev4` | AMD fork: [TianHao65/sglang](https://github.com/TianHao65/sglang) branch `Mimo_mtp_enable`, commit `f5fe8e944` ("aiter_backend enable") |
+| Docker image | `rocm/sgl-dev:v0.5.11-rocm720-mi30x-20260510` | AMD 0510 build, SHA `bb9d2e5ab1a6` |
+| SGLang | `0.0.0.dev14146+gdb840d935.d20260626` | AMD fork: [sammysun0711/sglang](https://github.com/sammysun0711/sglang) branch `mimo_aiter_attn`, commit `db840d935` |
 | ROCm | 7.2.0 | |
-| aiter | `0.1.12.post2.dev150` | MoE/GEMM/FP8/LayerNorm/Attention all enabled. sgl-kernel 0.4.2.post1. |
-| Mooncake | `0.3.11.post1` | KV cache transfer for PD disaggregation |
-| PyTorch | 2.9.1 | ROCm backend |
+| aiter | `amd-aiter 0.1.14rc1.dev213+g7a8ff7dd4` | [ROCm/aiter](https://github.com/ROCm/aiter), commit `7a8ff7dd4`. MoE/GEMM/FP8/LayerNorm/Attention all enabled. sglang-kernel 0.4.3 |
+| Mooncake | `0.3.7.post2` | KV cache transfer for PD disaggregation |
+| PyTorch | 2.9.1+rocm7.2.0 | ROCm backend |
+| triton | 3.6.0+git42270451 | Custom ROCm build |
 
 ### Model
 
@@ -230,33 +231,59 @@ docker run -d --name sglang --ipc=host --network=host --device=/dev/kfd --device
   --group-add video --cap-add=SYS_PTRACE --security-opt seccomp=unconfined \
   -v /data:/data rocm/sgl-dev:v0.5.11-rocm720-mi30x-20260510 sleep infinity
 
-# 2. Install SGLang + aiter inside container (both nodes)
+# 2. Clone SGLang + aiter source inside container (both nodes)
 docker exec -it sglang bash
-cd /sgl-workspace/sglang_0625/python && pip install -e ".[all_hip]"
+cd /sgl-workspace
+git clone https://github.com/sammysun0711/sglang.git sglang_0625
+cd sglang_0625 && git checkout db840d935
+cd /sgl-workspace
+git clone https://github.com/ROCm/aiter.git aiter_0625
+cd aiter_0625 && git checkout 7a8ff7dd4
+
+# 3. Install SGLang + aiter + Mooncake (both nodes)
+cd /sgl-workspace/sglang_0625/sgl-kernel && python3 setup_rocm.py install
+cd /sgl-workspace/sglang_0625 && pip install -e "python[all_hip]"
 cd /sgl-workspace/aiter_0625 && pip install -e .
 pip install mooncake-transfer-engine
 
-# 3. Launch Prefill server (Node 1 / VM8)
-cd /data/xisun && bash launch_tp8_noep_prefill_aiter_mtp.sh
-# See: scripts/20260626-amd-stack/launch_tp8_noep_prefill_aiter_mtp.sh
+# 4. Download model (both nodes, or shared storage)
+huggingface-cli download XiaomiMiMo/MiMo-V2.5-Pro --local-dir /data/models/MiMo-V2.5-Pro
 
-# 4. Launch Decode server (Node 2 / VM10)
-cd /data/xisun && bash launch_tp8_noep_decode_aiter_mtp.sh
-# See: scripts/20260626-amd-stack/launch_tp8_noep_decode_aiter_mtp.sh
+# 5. Deploy benchmark scripts from this repo to working directory
+#    Clone this repo on the host, then copy scripts into the container:
+git clone https://github.com/david-xinyuwei/david-share.git
+DIR=david-share/Deep-Learning/MiMo-V2.5-Pro-on-MI300X-Benchmark/scripts/20260626-amd-stack
+docker cp $DIR/launch_tp8_noep_prefill_aiter_mtp.sh sglang:/data/xisun/
+docker cp $DIR/launch_tp8_noep_decode_aiter_mtp.sh sglang:/data/xisun/
+docker cp $DIR/launch_router.sh sglang:/data/xisun/
+docker cp $DIR/run_benchmark_mimo_pro_decode.sh sglang:/data/xisun/
+docker cp $DIR/run_benchmark_mimo_pro_prefill.sh sglang:/data/xisun/
 
-# 5. Launch PD Router (Node 1, after both servers are healthy)
-cd /data/xisun && bash launch_router.sh
-# See: scripts/20260626-amd-stack/launch_router.sh
+# 6. Find IB IPs for your two nodes
+#    Run on each node: ibdev2netdev | grep mlx5
+#    Then set in router script or override via env:
+export PREFILL_IB_IP=<your-prefill-node-ib-ip>   # e.g. 172.16.1.26
+export DECODE_IB_IP=<your-decode-node-ib-ip>      # e.g. 172.16.1.122
 
-# 6. Run benchmarks (Node 1, through router port 40000)
-cd /data/xisun && bash run_benchmark_mimo_pro_decode.sh    # Decode: 8K/1K, BS=16/32/64/128
-cd /data/xisun && bash run_benchmark_mimo_pro_prefill.sh   # Prefill: 8K/64K/256K, BS=4
+# 7. Launch servers (in order)
+# On Node 1 (prefill):
+docker exec -it sglang bash -c "cd /data/xisun && bash launch_tp8_noep_prefill_aiter_mtp.sh"
+# On Node 2 (decode):
+docker exec -it sglang bash -c "cd /data/xisun && bash launch_tp8_noep_decode_aiter_mtp.sh"
+# On Node 1 (router, after both servers healthy):
+docker exec -it sglang bash -c "cd /data/xisun && PREFILL_IB_IP=$PREFILL_IB_IP DECODE_IB_IP=$DECODE_IB_IP bash launch_router.sh"
 
-# 7. (Optional) Same-methodology decode with simulated accept_length=3
-export SGLANG_SIMULATE_ACC_LEN=3
-export SGLANG_SIMULATE_ACC_METHOD=match-expected
-# Restart decode server with these env vars, then re-run decode benchmark
+# 8. Run benchmarks (Node 1, through router port 40000)
+docker exec -it sglang bash -c "cd /data/xisun && bash run_benchmark_mimo_pro_decode.sh"   # Decode: 8K/1K, BS=16/32/64/128
+docker exec -it sglang bash -c "cd /data/xisun && bash run_benchmark_mimo_pro_prefill.sh"  # Prefill: 8K/64K/256K, BS=4
+
+# 9. (Optional) Same-methodology decode with simulated accept_length=3
+#    Add these env vars to decode server, restart, then re-run decode benchmark:
+#    export SGLANG_SIMULATE_ACC_LEN=3
+#    export SGLANG_SIMULATE_ACC_METHOD=match-expected
 ```
+
+> **Note on `--dataset-path`**: The benchmark scripts reference `/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json`. With `--dataset-name random`, the actual prompts are randomly generated and the dataset file is only used for tokenizer vocabulary. You can download it from [HuggingFace](https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/tree/main) or simply remove the `--dataset-path` line if using SGLang ≥ 0.5.x which has a built-in random generator.
 
 ### Archived Evidence
 
@@ -264,6 +291,9 @@ export SGLANG_SIMULATE_ACC_METHOD=match-expected
 |------|---------|
 | [`scripts/20260626-amd-stack/`](scripts/20260626-amd-stack/) | All launch + benchmark scripts + environment snapshot |
 | [`scripts/20260626-amd-stack/environment_snapshot.txt`](scripts/20260626-amd-stack/environment_snapshot.txt) | Full pip list, git commits, docker image SHA, VM IPs |
+| [`scripts/20260626-amd-stack/Dockerfile.sglang`](scripts/20260626-amd-stack/Dockerfile.sglang) | SGLang Docker build file (from container) |
+| [`scripts/20260626-amd-stack/Dockerfile.mooncake`](scripts/20260626-amd-stack/Dockerfile.mooncake) | Mooncake Docker build file |
+| [`scripts/20260626-amd-stack/setup_amd_pd_infra.sh`](scripts/20260626-amd-stack/setup_amd_pd_infra.sh) | AMD PD infrastructure setup (etcd, UCX, OpenMPI) |
 | [`data/raw-logs/20260626-amd-aiter-mtp/`](data/raw-logs/20260626-amd-aiter-mtp/) | Raw benchmark logs (real acceptance) |
 | [`data/raw-logs/20260626-simulate-acc3/`](data/raw-logs/20260626-simulate-acc3/) | Raw benchmark logs (simulated accept_length=3) |
 
