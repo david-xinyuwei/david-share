@@ -15,6 +15,12 @@ English | [中文版](README-CN.md)
 
 ---
 
+## Architecture
+
+<div align="center"><img src="images/pd_architecture.png" width="960"></div>
+
+---
+
 ## Executive Summary
 
 | Dimension | MI300X (6/26 aiter+MTP3) | H200 Reference | Gap | Notes |
@@ -103,6 +109,37 @@ N = 256 requests per BS point; input=8192, output=1024, seed=12345, warmup=32.
 | 128 | 20.31 | 20.52 | 18.25 | **1.11x** | H200 faster by **11%** |
 
 **Key takeaway**: with the same simulated accept_length=3 (matching the H200 test methodology), the MI300X decode Median TPOT gap shrinks from 1.86-2.44x to **1.11-1.43x**. At BS≥128, MI300X is within 11% of H200 per-path decode latency (N=256, P99 spread <1ms). The remaining gap at lower BS is primarily due to topology differences (MI300X EP8/DP1 vs H200 EP32/DP4) and the aiter vs FA3 kernel efficiency difference.
+
+### Real Benchmark Output Sample
+
+Below is a representative raw output from the same-methodology decode benchmark (BS=128, `SIMULATE_ACC_LEN=3`), showing exactly what the benchmark tool reports:
+
+```
+============ Serving Benchmark Result ============
+Traffic request rate:                    inf
+Max request concurrency:                 128
+Successful requests:                     256
+Benchmark duration (s):                  141.68
+Total input tokens:                      2,097,152
+Total generated tokens:                  262,144
+Request throughput (req/s):              1.81
+Input token throughput (tok/s):          14,803.47
+Output token throughput (tok/s):         1,851.63
+Peak concurrent requests:                133
+Total token throughput (tok/s):          16,655.10
+Concurrency:                             104.85
+Median E2E Latency (ms):                 62,099.76
+---------------Time to First Token----------------
+Median TTFT (ms):                        41,716.67
+-----Time per Output Token (excl. 1st token)------
+Mean TPOT (ms):                          19.71
+Median TPOT (ms):                        20.31
+P90 TPOT (ms):                           20.45
+P95 TPOT (ms):                           20.49
+P99 TPOT (ms):                           20.52
+```
+
+> Source: [`data/raw-logs/20260626-simulate-acc3/decode_8k1k_bs128.txt`](data/raw-logs/20260626-simulate-acc3/decode_8k1k_bs128.txt). The H200 reference reports Median TPOT = 18.25 ms at the same BS=128, giving a ratio of 20.31/18.25 = **1.11×**.
 
 ### Remaining Decode Throughput Gap Explained
 
