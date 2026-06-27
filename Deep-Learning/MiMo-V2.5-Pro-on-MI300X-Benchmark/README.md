@@ -15,6 +15,29 @@ English | [中文版](README-CN.md)
 
 ---
 
+## Executive Summary
+
+| Dimension | MI300X (6/26 aiter+MTP3) | H200 Reference | Gap | Notes |
+|-----------|:---:|:---:|:---:|------|
+| **Prefill 8K/64K** | 16,323 / 15,047 tok/s | 31,950 / 27,400 tok/s | H200 1.8-2.0× faster | MI300X EP8/DP1 vs H200 EP16/DP2; both use `fake_topk_ids`=NO on MI300X side |
+| **Prefill 256K** | 37,252 tok/s | 17,400 tok/s | MI300X 2.14× faster | Single validated point; requires repeated-run stability confirmation |
+| **Decode TPOT (same methodology)** | 14.75-20.31 ms | 11.59-18.25 ms | H200 11-43% faster | Both sides: `SIMULATE_ACC_LEN=3`; BS≥128 gap is only 11% |
+| **Decode TPOT (real accept)** | 21.61-34.70 ms | 11.59-18.25 ms | H200 1.86-2.44× faster | MI300X real accept 0.38-0.46 vs H200 simulated 0.75 — **not same methodology** |
+| **Key discovery** | H200 accept_rate=0.75 is simulated via `SGLANG_SIMULATE_ACC_LEN=3` | — | — | Confirmed by AMD engineer; H200 TPOT reflects ideal MTP, not real draft accuracy |
+
+### Methodology Note
+
+The H200 reference data uses two conditions that inflate its numbers beyond real-world behavior:
+
+1. **`fake_topk_ids`** — forces perfectly balanced expert routing (zero straggler overhead)
+2. **`SGLANG_SIMULATE_ACC_LEN=3`** — fixes MTP accept_length at 3.0, bypassing real draft model verification
+
+Therefore, the "same methodology" comparison (both sides use `SIMULATE_ACC_LEN=3`) isolates **pure kernel latency** and is the fairest decode comparison. The "real accept" comparison shows what happens when MI300X uses real MTP verification while H200 uses simulated — it overstates the gap by mixing methodology.
+
+All MI300X numbers use **real expert routing** (not `fake_topk_ids`), adding 5-15% overhead vs the H200 ideal baseline.
+
+---
+
 ## Latest 2026-06-26 AMD aiter+MTP3 Result
 
 AMD provided an updated 1P1D MI300X test stack on 2026-06-26:
@@ -116,7 +139,9 @@ Two-round matrix script: [`scripts/bench_micro_matrix_2x.sh`](scripts/bench_micr
 | 256K isolated diagnostic | `TP=8, local EP=8, DP=1`, single 256K request through PD router | 5/5 isolated 256K prefill requests succeeded, average 7,239 tok/s; sequential `n=4` still stalled after 2/4 | 256K compute path works; instability is in repeated/concurrent PD-router response-drain state |
 | TP16/DP2 probe | `TP=16, DP=2, enable-dp-attention`, 2-node single server | Startup probe failed before ready: MORI heap OOM plus HIP invalid argument in dispatch/combine | The corrected H200 topology expression passes the MiMo-V2.5-Pro effective-attention-TP validation, but current MORI/runtime sizing cannot yet sustain the server |
 
-### Current Summary
+### Historical 6/18 Summary (triton+MTP baseline)
+
+> **Note**: These numbers used `--attention-backend triton` and the older `Mimo_mtp_enable` branch. They are kept for historical comparison; the 6/26 results at the top of this README supersede them for current gap assessment.
 
 #### H200 Alignment Matrix — 6 Scenarios
 
@@ -233,7 +258,7 @@ docker run -d --name sglang --ipc=host --network=host --device=/dev/kfd --device
 
 # 2. Clone SGLang + aiter source inside container (both nodes)
 docker exec -it sglang bash
-cd /sgl-workspace
+mkdir -p /sgl-workspace && cd /sgl-workspace
 git clone https://github.com/sammysun0711/sglang.git sglang_0625
 cd sglang_0625 && git checkout db840d935
 cd /sgl-workspace
@@ -265,13 +290,14 @@ docker cp $DIR/run_benchmark_mimo_pro_prefill.sh sglang:/data/xisun/
 export PREFILL_IB_IP=<your-prefill-node-ib-ip>   # e.g. 172.16.1.26
 export DECODE_IB_IP=<your-decode-node-ib-ip>      # e.g. 172.16.1.122
 
-# 7. Launch servers (in order)
-# On Node 1 (prefill):
-docker exec -it sglang bash -c "cd /data/xisun && bash launch_tp8_noep_prefill_aiter_mtp.sh"
-# On Node 2 (decode):
-docker exec -it sglang bash -c "cd /data/xisun && bash launch_tp8_noep_decode_aiter_mtp.sh"
-# On Node 1 (router, after both servers healthy):
-docker exec -it sglang bash -c "cd /data/xisun && PREFILL_IB_IP=$PREFILL_IB_IP DECODE_IB_IP=$DECODE_IB_IP bash launch_router.sh"
+# 7. Launch servers (each in a SEPARATE terminal/tmux pane — they run in foreground)
+# Terminal A — Node 1 (prefill):
+docker exec sglang bash -c "cd /data/xisun && bash launch_tp8_noep_prefill_aiter_mtp.sh"
+# Terminal B — Node 2 (decode):
+docker exec sglang bash -c "cd /data/xisun && bash launch_tp8_noep_decode_aiter_mtp.sh"
+# Terminal C — Node 1 (router, AFTER both servers print 'ready'):
+docker exec sglang bash -c "cd /data/xisun && PREFILL_IB_IP=$PREFILL_IB_IP DECODE_IB_IP=$DECODE_IB_IP bash launch_router.sh"
+# Wait for router to print 'Uvicorn running' before proceeding to step 8.
 
 # 8. Run benchmarks (Node 1, through router port 40000)
 docker exec -it sglang bash -c "cd /data/xisun && bash run_benchmark_mimo_pro_decode.sh"   # Decode: 8K/1K, BS=16/32/64/128
@@ -308,8 +334,6 @@ triton: 3.6.0+git42270451
 sglang-kernel: 0.4.3
 mooncake: 0.3.7.post2
 ```
-
----
 
 ---
 
@@ -690,33 +714,55 @@ bash scripts/bench_h200_alignment.sh
 
 ---
 
-## File Structure
+## Scripts and Files Inventory
 
-```
-├── README.md                     ← This file
-├── scripts/
-│   ├── launch_single_node_mtp.sh ← Single-node MTP server
-│   ├── launch_prefill.sh         ← PD prefill server
-│   ├── launch_decode.sh          ← PD decode server
-│   ├── launch_router.sh          ← PD router
-│   ├── bench_h200_alignment.sh   ← H200-aligned benchmark
-│   ├── bench_full_h200_matrix_v3.sh ← Full EP8/DP1 matrix, page-size=1 baseline
-│   ├── launch_tp16_dp2_node0.sh  ← Node 0 for H200 EP16/DP2 topology probe
-│   └── launch_tp16_dp2_node1.sh  ← Node 1 for H200 EP16/DP2 topology probe
-├── data/                         ← Raw benchmark JSON results
-├── logs/                         ← Server logs (sanitized)
-└── images/                       ← Diagrams
-```
+### 2026-06-26 AMD Stack (Latest)
+
+| Script | Purpose | Run on |
+|--------|---------|--------|
+| [`scripts/20260626-amd-stack/launch_tp8_noep_prefill_aiter_mtp.sh`](scripts/20260626-amd-stack/launch_tp8_noep_prefill_aiter_mtp.sh) | Start prefill server (aiter+MTP3, port 30000) | Node 1 |
+| [`scripts/20260626-amd-stack/launch_tp8_noep_decode_aiter_mtp.sh`](scripts/20260626-amd-stack/launch_tp8_noep_decode_aiter_mtp.sh) | Start decode server (aiter+MTP3, port 30001) | Node 2 |
+| [`scripts/20260626-amd-stack/launch_router.sh`](scripts/20260626-amd-stack/launch_router.sh) | Start PD router (port 40000) | Node 1 |
+| [`scripts/20260626-amd-stack/run_benchmark_mimo_pro_decode.sh`](scripts/20260626-amd-stack/run_benchmark_mimo_pro_decode.sh) | Decode benchmark: 8K/1K, BS=16/32/64/128 | Node 1 |
+| [`scripts/20260626-amd-stack/run_benchmark_mimo_pro_prefill.sh`](scripts/20260626-amd-stack/run_benchmark_mimo_pro_prefill.sh) | Prefill benchmark: 8K/64K/256K, BS=4 | Node 1 |
+| [`scripts/20260626-amd-stack/setup_amd_pd_infra.sh`](scripts/20260626-amd-stack/setup_amd_pd_infra.sh) | Install etcd + UCX + OpenMPI (AMD PD infra) | Both |
+| [`scripts/20260626-amd-stack/Dockerfile.sglang`](scripts/20260626-amd-stack/Dockerfile.sglang) | SGLang container build (reference) | — |
+| [`scripts/20260626-amd-stack/Dockerfile.mooncake`](scripts/20260626-amd-stack/Dockerfile.mooncake) | Mooncake container build (reference) | — |
+| [`scripts/20260626-amd-stack/environment_snapshot.txt`](scripts/20260626-amd-stack/environment_snapshot.txt) | Full pip list + git commits + docker SHA + VM IPs | — |
+
+### Data and Logs
+
+| Path | Content |
+|------|------|
+| `data/raw-logs/20260626-amd-aiter-mtp/` | 8 benchmark logs (real MTP acceptance) |
+| `data/raw-logs/20260626-simulate-acc3/` | 4 decode logs (simulated accept_length=3) |
+| `data/amd_aiter_mtp_20260626_h200_alignment.tsv` | Parsed alignment ratios (10 rows) |
+| `reports/amd_aiter_mtp_20260626_h200_alignment.md` | Structured alignment analysis |
+
+### Historical Scripts (6/18 baseline)
+
+| Script | Purpose |
+|--------|------|
+| `scripts/bench_micro_matrix_2x.sh` | Two-round EP8/DP1 matrix |
+| `scripts/bench_256k_prefill_minimal.sh` | 256K isolated diagnostic |
+| `scripts/launch_prefill.sh` | PD prefill (6/18 triton) |
+| `scripts/launch_decode.sh` | PD decode (6/18 triton) |
+| `scripts/launch_router.sh` | PD router (6/18) |
+| `scripts/launch_single_node_mtp.sh` | Single-node MTP server |
+| `scripts/launch_tp16_dp2_node0.sh` | TP16/DP2 topology probe Node 0 |
+| `scripts/launch_tp16_dp2_node1.sh` | TP16/DP2 topology probe Node 1 |
 
 ---
 
 ## References
 
 - [MiMo-V2.5-Pro Model Card](https://huggingface.co/XiaomiMiMo/MiMo-V2.5-Pro)
-- [AMD SGLang Fork (Mimo_mtp_enable)](https://github.com/TianHao65/sglang/tree/Mimo_mtp_enable)
+- [AMD SGLang Fork — `mimo_aiter_attn` branch (6/26 latest)](https://github.com/sammysun0711/sglang/tree/mimo_aiter_attn)
+- [AMD aiter (ROCm)](https://github.com/ROCm/aiter)
+- [AMD SGLang Fork — `Mimo_mtp_enable` branch (6/18 historical)](https://github.com/TianHao65/sglang/tree/Mimo_mtp_enable)
 - [AMD MI308X PD Disaggregation Guide](https://github.com/TianHao65/sglang/blob/Mimo_Swa_Eable/MiMo-V2-Flash-MI308X_1P1D_Disaggregated_Inference_Guide.md)
 - [SGLang PD Disaggregation Docs](https://docs.sglang.io/docs/advanced_features/pd_disaggregation.md)
 
 ---
 
-*Last updated: 2026-06-26*
+*Last updated: 2026-06-27*
