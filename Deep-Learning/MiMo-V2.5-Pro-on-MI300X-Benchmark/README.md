@@ -28,7 +28,7 @@ English | [中文版](README-CN.md)
 | **Prefill 8K/64K** | 16,323 / 15,047 tok/s | 31,950 / 27,400 tok/s | H200 1.8-2.0× faster | MI300X EP8/DP1 vs H200 EP16/DP2; both use `fake_topk_ids`=NO on MI300X side |
 | **Prefill 256K** | 37,252 tok/s | 17,400 tok/s | MI300X 2.14× faster | Single validated point; requires repeated-run stability confirmation |
 | **Decode TPOT (same methodology)** | 14.75-20.31 ms | 11.59-18.25 ms | H200 11-43% faster | Both sides: `SIMULATE_ACC_LEN=3`; BS≥128 gap is only 11% |
-| **Key discovery** | H200 accept_rate=0.75 is simulated via `SGLANG_SIMULATE_ACC_LEN=3` | — | — | Confirmed by AMD engineer; H200 TPOT reflects ideal MTP, not real draft accuracy |
+| **Key discovery** | H200 accept_rate=0.75 is simulated via `SGLANG_SIMULATE_ACC_LEN=3` | — | — | Confirmed during AMD/SGLang technical review; H200 TPOT reflects ideal MTP, not real draft accuracy |
 
 ### Methodology Note
 
@@ -78,7 +78,7 @@ AMD provided an updated 1P1D MI300X test stack on 2026-06-26:
 
 ### Critical Discovery: H200 accept_rate = 0.75 Is Simulated, Not Real
 
-The Xiaomi H200 reference sheet uses `SGLANG_SIMULATE_ACC_LEN=3` with `SGLANG_SIMULATE_ACC_METHOD=match-expected` to **fix MTP accept_length at 3.0** across all scenarios. This was confirmed by AMD's SGLang team (source: AMD engineer 孙霞克, 2026-06-26 WeChat). The SGLang source code (`sglang/srt/speculative/eagle_utils.py` L519-530) shows that when `SIMULATE_ACC_LEN > 0`, the real verification result is **completely replaced** with a simulated accept_index — `predict.fill_(100)` and `num_correct_drafts.fill_(simulate_acc_len - 1)`. The H200 sheet's constant 0.75 accept_rate across all BS/context combinations (zero variance) is consistent with this simulated behavior.
+The Xiaomi H200 reference sheet uses `SGLANG_SIMULATE_ACC_LEN=3` with `SGLANG_SIMULATE_ACC_METHOD=match-expected` to **fix MTP accept_length at 3.0** across all scenarios. This was confirmed during AMD/SGLang technical review and is also visible in the SGLang source code (`sglang/srt/speculative/eagle_utils.py` L519-530): when `SIMULATE_ACC_LEN > 0`, the real verification result is **completely replaced** with a simulated accept_index — `predict.fill_(100)` and `num_correct_drafts.fill_(simulate_acc_len - 1)`. The H200 sheet's constant 0.75 accept_rate across all BS/context combinations (zero variance) is consistent with this simulated behavior.
 
 This means the H200 TPOT numbers reflect **pure kernel latency with ideal MTP acceleration**, not real draft model prediction accuracy. The correct same-methodology comparison requires running MI300X with the same `SIMULATE_ACC_LEN=3` setting.
 
