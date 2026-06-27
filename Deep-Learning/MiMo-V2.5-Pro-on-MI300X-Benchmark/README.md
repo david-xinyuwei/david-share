@@ -23,12 +23,26 @@ English | [中文版](README-CN.md)
 
 ## Executive Summary
 
-| Dimension | MI300X (6/26 aiter+MTP3) | H200 Reference | Gap | Notes |
-|-----------|:---:|:---:|:---:|------|
-| **Prefill throughput 8K/64K** | 16,323 / 15,047 tok/s | 31,950 / 27,400 tok/s | H200 1.8-2.0× faster | Prefill test uses output=1, so tok/s is the primary metric; MI300X EP8/DP1 vs H200 EP16/DP2 |
-| **Prefill throughput 256K** | 37,252 tok/s | 17,400 tok/s | MI300X 2.14× faster | Single validated long-context point; requires repeated-run stability confirmation |
-| **Decode TPOT + throughput (same methodology)** | 14.75-20.31 ms;<br>973-1,852 tok/s | 11.59-18.25 ms;<br>1,381-7,013 tok/s | TPOT: H200 11-43% faster;<br>tok/s: H200 1.4-3.8× faster | Both sides: `SIMULATE_ACC_LEN=3`; TPOT shows latency gap, tok/s shows system throughput / DP topology gap |
-| **Key discovery** | H200 accept_rate=0.75 is simulated via `SGLANG_SIMULATE_ACC_LEN=3` | — | — | Confirmed during AMD/SGLang technical review; H200 TPOT reflects ideal MTP, not real draft accuracy |
+- **Prefill:** H200 is still 1.8-2.0x faster at 8K/64K throughput, while MI300X wins the validated 256K long-context point by 2.14x.
+- **Decode:** with aligned MTP acceptance (`SIMULATE_ACC_LEN=3` on both sides), MI300X is close on TPOT latency, but H200 still leads on output tok/s because it has more DP/topology parallelism.
+- **Key discovery:** H200's constant `accept_rate=0.75` is simulated via `SGLANG_SIMULATE_ACC_LEN=3`, so H200 TPOT reflects ideal MTP acceptance rather than real draft-model accuracy.
+
+**Prefill throughput (output=1, tok/s is the primary metric)**
+
+| Context | MI300X tok/s | H200 tok/s | Result |
+|---:|---:|---:|---|
+| 8K | 16,323 | 31,950 | H200 1.96x faster |
+| 64K | 15,047 | 27,400 | H200 1.82x faster |
+| 256K | 37,252 | 17,400 | MI300X 2.14x faster |
+
+**Decode 8K/1K, same methodology (`SIMULATE_ACC_LEN=3` on both sides)**
+
+| BS | MI300X TPOT | H200 TPOT | MI300X tok/s | H200 tok/s | Takeaway |
+|---:|---:|---:|---:|---:|---|
+| 16 | 14.75 ms | 11.59 ms | 973 | 1,381 | H200 lower latency and higher throughput |
+| 32 | 17.82 ms | 12.56 ms | 1,518 | 2,549 | H200 throughput 1.7x higher |
+| 64 | 20.42 ms | 14.28 ms | 1,852 | 4,483 | MI300X reaches throughput ceiling |
+| 128 | 20.31 ms | 18.25 ms | 1,852 | 7,013 | TPOT gap only 11%, tok/s still 3.8x gap |
 
 ### Methodology Note
 
