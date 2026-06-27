@@ -285,11 +285,12 @@ git clone https://github.com/ROCm/aiter.git aiter_0625
 cd aiter_0625 && git checkout 7a8ff7dd4
 
 # 3. 安装 SGLang + aiter + Mooncake（两个节点）
-#    重要：必须使用 --no-deps，保留基础镜像的 ROCm torch/sglang-kernel 栈。
+#    重要：SGLang 必须使用 --no-deps，保留基础镜像的 ROCm torch/sglang-kernel 栈。
 #    不加 --no-deps 会从 PyPI 拉 CUDA 版 torch、sglang-kernel 和 torch_c_dlpack_ext，破坏 ROCm 环境。
+#    注意：aiter 不能加 --no-deps（其 editable stub 需要 build deps 才能正确工作）。
 cd /sgl-workspace/sglang_0625 && pip install -e "python[all_hip]" --no-deps
 cd /sgl-workspace/sglang_0625/sgl-kernel && python3 setup_rocm.py install
-cd /sgl-workspace/aiter_0625 && pip install -e . --no-deps
+cd /sgl-workspace/aiter_0625 && pip install -e .
 pip install mooncake-transfer-engine==0.3.7.post2 --no-deps
 
 # 4. 下载模型（两个节点或共享存储）
