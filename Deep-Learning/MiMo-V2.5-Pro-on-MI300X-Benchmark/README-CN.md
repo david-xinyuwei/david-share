@@ -7,7 +7,7 @@
 
 在 Azure **AMD Instinct MI300X** 上运行 **小米 MiMo-V2.5-Pro（1.02T MoE / 42B 活跃参数 / FP8）**，使用 SGLang + AMD fork MTP/EAGLE，与小米 H200 参考数据对齐 benchmark。
 
-本 repo 提供完整的复现脚本、启动命令、benchmark 结果和 server 日志——任何有相同硬件的人都可以复现每一个数字。
+本 repo 提供完整的复现脚本、启动命令、benchmark 结果和 server 日志。使用 2 台 Azure ND96isr_MI300X_v5 和指定 Docker 镜像，可以按下面步骤从 clean-room 容器重建 MI300X 环境，并运行 AMD 同一套 benchmark 脚本。PD-separated decode 必须把 RDMA 设备暴露给容器（`--privileged`、`/dev/mem`、`CAP_SYS_ADMIN`），否则 Mooncake 可能 fallback 到 TCP，使高并发吞吐结果失效。
 
 > Author: 魏新宇 (Xinyu Wei) — Microsoft AI and Apps Global Black Belt (GBB)
 
@@ -267,16 +267,43 @@ Node 1 (8× MI300X)               Node 2 (8× MI300X)
 - SGLang：`sammysun0711/sglang` 分支 `mimo_aiter_attn`，commit `db840d935`
 - aiter：`ROCm/aiter`，commit `7a8ff7dd4`
 
+### 容器运行时要求
+
+AMD reference 路径依赖容器级 RDMA 访问能力。以下要求是复现 recipe 的一部分，不是可选优化：
+
+| 要求 | 为什么重要 | 验证方式 |
+|---|---|---|
+| `--privileged`、`/dev/mem`、`CAP_SYS_ADMIN` | 让 Mooncake 能发现并使用 RDMA HCA 进行 KV-cache transfer | 容器内执行 `ls /dev/infiniband/uverbs0 && ls /dev/mem` |
+| 不存在旧同名源码目录，尤其是 `/sgl-workspace/aiter` | 避免 Python import 抢占 `/sgl-workspace/aiter_0625` | `test ! -d /sgl-workspace/aiter` |
+| benchmark 显式指定 source tree | 避免 benchmark client 解析到错误 namespace package | 设置 `PYTHONPATH=/sgl-workspace/sglang_0625/python` 并验证 `sglang.benchmark.datasets` |
+
+AMD original 的 BS16/32/64/128 fixed-acceptance 完整矩阵已经归档在本 repo。下面步骤说明如何在新的 MI300X VM 上重建环境，并运行同一套 AMD benchmark 脚本。
+
+### Clean-room 运行门禁
+
+以下门禁必须执行。此前出错主要集中在旧 `sglang.launch_server` 进程残留、router circuit breaker 状态残留、只看 `/health` 不做 worker registry 验证、以及 benchmark 日志被覆盖。
+
 ### 执行步骤
 
 ```bash
-# 1. 两个节点启动容器
-docker run -d --name sglang --ipc=host --network=host --device=/dev/kfd --device=/dev/dri \
-  --group-add video --cap-add=SYS_PTRACE --security-opt seccomp=unconfined \
+# 1. 两个节点启动干净容器
+#    每次 clean-room 复现建议使用新的容器名。
+CONTAINER=sglang
+docker run -d --name $CONTAINER \
+  --privileged \
+  --ipc=host --network=host --shm-size=256g \
+  --device=/dev/kfd --device=/dev/dri --device=/dev/mem \
+  --group-add video \
+  --cap-add=CAP_SYS_ADMIN --cap-add=SYS_PTRACE \
+  --security-opt seccomp=unconfined --security-opt label=disable \
   -v /data:/data rocm/sgl-dev:v0.5.11-rocm720-mi30x-20260510 sleep infinity
 
+# 1a. RDMA gate（两个节点都做，安装前先确认）
+#    这一步必须通过；否则 Mooncake 会 fallback 到 TCP，BS64 吞吐会掉约 3 倍。
+docker exec $CONTAINER bash -c "ls /dev/infiniband/uverbs0 && ls /dev/mem && echo RDMA_DEVICE_OK"
+
 # 2. 容器内 clone 源码（两个节点都做）
-docker exec -it sglang bash
+docker exec -it $CONTAINER bash
 mkdir -p /sgl-workspace && cd /sgl-workspace
 git clone https://github.com/sammysun0711/sglang.git sglang_0625
 cd sglang_0625 && git checkout db840d935
@@ -287,43 +314,95 @@ cd aiter_0625 && git checkout 7a8ff7dd4
 # 3. 安装 SGLang + aiter + Mooncake（两个节点）
 #    重要：SGLang 必须使用 --no-deps，保留基础镜像的 ROCm torch/sglang-kernel 栈。
 #    不加 --no-deps 会从 PyPI 拉 CUDA 版 torch、sglang-kernel 和 torch_c_dlpack_ext，破坏 ROCm 环境。
-#    注意：aiter 不能加 --no-deps（其 editable stub 需要 build deps 才能正确工作）。
+#    AITER 0625 需要 flydsl >=0.1.8；AMD 原始容器使用 flydsl 0.2.0。
+#    先安装 flydsl，再给 aiter 使用 --no-deps，避免改动其他包。
 cd /sgl-workspace/sglang_0625 && pip install -e "python[all_hip]" --no-deps
-cd /sgl-workspace/sglang_0625/sgl-kernel && python3 setup_rocm.py install
-cd /sgl-workspace/aiter_0625 && pip install -e .
+pip install flydsl==0.2.0 --no-deps
+cd /sgl-workspace/aiter_0625 && pip install -e . --no-deps
 pip install mooncake-transfer-engine==0.3.7.post2 --no-deps
+
+# 3a. kernel parity gate（分节点处理）
+# AMD 原始 runtime 的有效 sglang-kernel import path 是分节点的：
+# - Prefill/router 节点：sglang-kernel 0.4.3
+# - Decode 节点：sglang-kernel 0.4.2.post1 优先进入 sys.path
+# 所以如果目标是性能 parity，不要在两个节点都无脑执行 setup_rocm.py。
+# 只在 prefill/router 节点执行：
+cd /sgl-workspace/sglang_0625/sgl-kernel && python3 setup_rocm.py install
+# 在 decode 节点先检查当前 import path：
+python3 - <<'PY'
+import sgl_kernel
+print(sgl_kernel.__file__)
+PY
+
+# 3b. benchmark client import gate
+# benchmark 必须解析到预期 source tree，避免 namespace package 漂移。
+export PYTHONPATH=/sgl-workspace/sglang_0625/python:${PYTHONPATH:-}
+python3 - <<'PY'
+import sglang.benchmark.datasets as datasets
+print(datasets.__file__)
+PY
+
+# 3c. 源码目录污染门禁
+# 旧 /sgl-workspace/aiter 会抢占 /sgl-workspace/aiter_0625；AMD original 没有这个旧目录。
+test ! -d /sgl-workspace/aiter || { echo "ERROR: stale /sgl-workspace/aiter shadows aiter_0625"; exit 1; }
 
 # 4. 下载模型（两个节点或共享存储）
 huggingface-cli download XiaomiMiMo/MiMo-V2.5-Pro --local-dir /data/models/MiMo-V2.5-Pro
 
 # 5. 部署 benchmark 脚本到容器工作目录
 #    在宿主机 clone 本 repo，然后 docker cp 脚本进容器：
+docker exec $CONTAINER mkdir -p /data/xisun
 git clone https://github.com/david-xinyuwei/david-share.git
 DIR=david-share/Deep-Learning/MiMo-V2.5-Pro-on-MI300X-Benchmark/scripts/20260626-amd-stack
-docker cp $DIR/launch_tp8_noep_prefill_aiter_mtp.sh sglang:/data/xisun/
-docker cp $DIR/launch_tp8_noep_decode_aiter_mtp.sh sglang:/data/xisun/
-docker cp $DIR/launch_router.sh sglang:/data/xisun/
-docker cp $DIR/run_benchmark_mimo_pro_decode.sh sglang:/data/xisun/
-docker cp $DIR/run_benchmark_mimo_pro_prefill.sh sglang:/data/xisun/
+docker cp $DIR/launch_tp8_noep_prefill_aiter_mtp.sh $CONTAINER:/data/xisun/
+docker cp $DIR/launch_tp8_noep_decode_aiter_mtp.sh $CONTAINER:/data/xisun/
+docker cp $DIR/launch_router.sh $CONTAINER:/data/xisun/
+docker cp $DIR/run_benchmark_mimo_pro_decode.sh $CONTAINER:/data/xisun/
+docker cp $DIR/run_benchmark_mimo_pro_prefill.sh $CONTAINER:/data/xisun/
 
 # 6. 查找你的两个节点的 IB IP
 #    在每个节点执行：ibdev2netdev | grep mlx5
 export PREFILL_IB_IP=<你的 prefill 节点 IB IP>   # 例如 172.16.1.26
 export DECODE_IB_IP=<你的 decode 节点 IB IP>      # 例如 172.16.1.122
 
-# 7. 启动 server（每个 server 在独立终端/tmux pane 中运行，它们是前台常驻进程）
+# 7. 启动前清理旧进程和端口（两个节点都做）
+#    每次 clean-room run 前都要做；旧 router/worker 状态会让 /health 误导你。
+docker exec $CONTAINER bash -c "pkill -f 'sglang.launch_server|sglang_router.launch_router|bench_serving' || true"
+docker exec $CONTAINER bash -c "ss -ltnp | grep -E ':(30000|30001|40000)' || true"
+docker exec $CONTAINER bash -c "ps -eo pid,stat,cmd | grep defunct | grep -v grep || true"
+
+# 8. 启动 server（每个 server 在独立终端/tmux pane 中运行，它们是前台常驻进程）
 # 终端 A — Node 1 (prefill):
-docker exec sglang bash -c "cd /data/xisun && bash launch_tp8_noep_prefill_aiter_mtp.sh"
+docker exec $CONTAINER bash -c "cd /data/xisun && LOG_DIR=/data/xisun/cleanroom_logs bash launch_tp8_noep_prefill_aiter_mtp.sh"
 # 终端 B — Node 2 (decode):
-docker exec sglang bash -c "cd /data/xisun && bash launch_tp8_noep_decode_aiter_mtp.sh"
+docker exec $CONTAINER bash -c "cd /data/xisun && LOG_DIR=/data/xisun/cleanroom_logs bash launch_tp8_noep_decode_aiter_mtp.sh"
 # 终端 C — Node 1 (router, 等两个 server 打印 'ready' 后再启动):
-docker exec sglang bash -c "cd /data/xisun && PREFILL_IB_IP=$PREFILL_IB_IP DECODE_IB_IP=$DECODE_IB_IP bash launch_router.sh"
+docker exec $CONTAINER bash -c "cd /data/xisun && PREFILL_IB_IP=$PREFILL_IB_IP DECODE_IB_IP=$DECODE_IB_IP LOG_DIR=/data/xisun/cleanroom_logs bash launch_router.sh"
 
-# 8. 跑 benchmark（Node 1，通过 router 端口 40000）
-docker exec sglang bash -c "cd /data/xisun && bash run_benchmark_mimo_pro_decode.sh"   # Decode: 8K/1K, BS=16/32/64/128
-docker exec sglang bash -c "cd /data/xisun && bash run_benchmark_mimo_pro_prefill.sh"  # Prefill: 8K/64K/256K, BS=4
+# 9. health + router registry smoke
+#    只看 /health 不够，必须发一个小请求，确认 router 已注册 prefill/decode worker。
+curl -fsS http://127.0.0.1:30000/health                 # prefill 节点
+ssh <decode-node> "curl -fsS http://127.0.0.1:30001/health"  # decode 节点
+curl -fsS http://127.0.0.1:40000/health                 # router 节点
 
-# 9.（可选）同口径 decode：模拟 accept_length=3
+docker exec $CONTAINER bash -c "python3 -m sglang.bench_serving \
+  --backend sglang --model /data/models/MiMo-V2.5-Pro --host 0.0.0.0 --port 40000 \
+  --dataset-name random --random-input-len 128 --random-output-len 16 \
+  --num-prompts 2 --warmup-requests 1 --max-concurrency 1 --pd-separated"
+
+# 10. 跑 benchmark（Node 1，通过 router 端口 40000）
+#     每次用唯一目录保存 stdout 和 rc，避免覆盖旧证据。
+RUN_DIR=/data/xisun/verify-cleanroom-$(date +%Y%m%d-%H%M%S)
+docker exec $CONTAINER bash -c "mkdir -p $RUN_DIR/bench_decode && cd /data/xisun && LOG_DIR=$RUN_DIR/bench_decode bash run_benchmark_mimo_pro_decode.sh > $RUN_DIR/decode_full.out 2>&1; echo \$? > $RUN_DIR/decode_full.rc"
+docker exec $CONTAINER bash -c "mkdir -p $RUN_DIR/bench_prefill && cd /data/xisun && LOG_DIR=$RUN_DIR/bench_prefill bash run_benchmark_mimo_pro_prefill.sh > $RUN_DIR/prefill_full.out 2>&1; echo \$? > $RUN_DIR/prefill_full.rc"
+
+# 必须满足的通过条件：decode rc=0、prefill rc=0；decode 有 4 个 Successful requests 汇总；prefill 有 3 个。
+docker exec $CONTAINER bash -c "cat $RUN_DIR/decode_full.rc $RUN_DIR/prefill_full.rc"
+docker exec $CONTAINER bash -c "grep -c 'Successful requests' $RUN_DIR/decode_full.out"    # 期望 4
+docker exec $CONTAINER bash -c "grep -c 'Successful requests' $RUN_DIR/prefill_full.out"   # 期望 3
+docker exec $CONTAINER bash -c "grep -c ClientPayloadError $RUN_DIR/decode_full.out $RUN_DIR/prefill_full.out || true"  # 期望均为 0
+
+# 11.（可选）同口径 decode：模拟 accept_length=3
 #    在 decode server 启动时加这两个环境变量，重启后重跑 decode benchmark：
 #    export SGLANG_SIMULATE_ACC_LEN=3
 #    export SGLANG_SIMULATE_ACC_METHOD=match-expected
@@ -339,7 +418,7 @@ SGLang: 0.0.0.dev14146+gdb840d935.d20260626 (sammysun0711/sglang@mimo_aiter_attn
 aiter:  amd-aiter 0.1.14rc1.dev213+g7a8ff7dd4
 torch:  2.9.1+rocm7.2.0.lw.git7e1940d4
 triton: 3.6.0+git42270451
-sglang-kernel: 0.4.3
+sglang-kernel: prefill/router 节点 0.4.3；decode 节点在 AMD 原始 runtime 中为 0.4.2.post1 优先
 mooncake: 0.3.7.post2
 ```
 

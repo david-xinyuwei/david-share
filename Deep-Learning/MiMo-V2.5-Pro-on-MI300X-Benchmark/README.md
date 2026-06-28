@@ -7,7 +7,7 @@
 
 Running **Xiaomi MiMo-V2.5-Pro (1.02T MoE / 42B active / FP8)** on Azure **AMD Instinct MI300X** with SGLang + AMD fork MTP/EAGLE, benchmarked against Xiaomi's H200 reference data.
 
-This repo provides full reproduction scripts, launch commands, benchmark results, and server logs — so anyone with 2× Azure ND96isr_MI300X_v5 nodes and the specified Docker image can reproduce the benchmarks following the step-by-step guide below.
+This repo provides full reproduction scripts, launch commands, benchmark results, and server logs. With 2× Azure ND96isr_MI300X_v5 nodes and the specified Docker image, the steps below rebuild a clean-room MI300X environment and run the same AMD benchmark scripts. For PD-separated decode, the container must expose RDMA devices (`--privileged`, `/dev/mem`, and `CAP_SYS_ADMIN`); otherwise Mooncake may fall back to TCP and invalidate high-concurrency throughput results.
 
 > Author: 魏新宇 (Xinyu Wei) — Microsoft AI and Apps Global Black Belt (GBB)
 
@@ -202,16 +202,43 @@ All scripts, environment info, and raw logs needed to reproduce the 6/26 benchma
 - SGLang: `sammysun0711/sglang` branch `mimo_aiter_attn`, commit `db840d935` — source at `/sgl-workspace/sglang_0625`
 - aiter: `amd-aiter 0.1.14rc1.dev213+g7a8ff7dd4`, commit `7a8ff7dd4` — source at `/sgl-workspace/aiter_0625`
 
+### Container Runtime Requirements
+
+The AMD reference path depends on container-level RDMA access. These requirements are part of the reproduction recipe, not optional tuning:
+
+| Requirement | Why it matters | Verification |
+|---|---|---|
+| `--privileged`, `/dev/mem`, `CAP_SYS_ADMIN` | Allows Mooncake to discover and use RDMA HCAs for KV-cache transfer | `ls /dev/infiniband/uverbs0 && ls /dev/mem` inside the container |
+| No stale same-name source tree, especially `/sgl-workspace/aiter` | Prevents Python import shadowing of `/sgl-workspace/aiter_0625` | `test ! -d /sgl-workspace/aiter` |
+| Explicit benchmark source tree | Prevents namespace-package drift in benchmark client imports | `PYTHONPATH=/sgl-workspace/sglang_0625/python` and import-check `sglang.benchmark.datasets` |
+
+The original AMD BS16/32/64/128 fixed-acceptance matrix is already archived in this repo. The section below documents how to rebuild a new environment so the same AMD benchmark scripts can be run on fresh MI300X VMs.
+
+### Clean-Room Run Gates
+
+These gates are required. They are the failure points that caused earlier false starts: stale `sglang.launch_server` processes, router circuit-breaker state, health checks without worker registration, and overwritten benchmark logs.
+
 ### Step-by-Step
 
 ```bash
-# 1. Start container on both nodes
-docker run -d --name sglang --ipc=host --network=host --device=/dev/kfd --device=/dev/dri \
-  --group-add video --cap-add=SYS_PTRACE --security-opt seccomp=unconfined \
+# 1. Start a fresh container on both nodes.
+#    Use a new container name for each clean-room reproduction run.
+CONTAINER=sglang
+docker run -d --name $CONTAINER \
+  --privileged \
+  --ipc=host --network=host --shm-size=256g \
+  --device=/dev/kfd --device=/dev/dri --device=/dev/mem \
+  --group-add video \
+  --cap-add=CAP_SYS_ADMIN --cap-add=SYS_PTRACE \
+  --security-opt seccomp=unconfined --security-opt label=disable \
   -v /data:/data rocm/sgl-dev:v0.5.11-rocm720-mi30x-20260510 sleep infinity
 
+# 1a. RDMA gate (both nodes, before installing anything)
+#    This must pass. If it fails, Mooncake will fall back to TCP and BS64 throughput drops by about 3x.
+docker exec $CONTAINER bash -c "ls /dev/infiniband/uverbs0 && ls /dev/mem && echo RDMA_DEVICE_OK"
+
 # 2. Clone SGLang + aiter source inside container (both nodes)
-docker exec -it sglang bash
+docker exec -it $CONTAINER bash
 mkdir -p /sgl-workspace && cd /sgl-workspace
 git clone https://github.com/sammysun0711/sglang.git sglang_0625
 cd sglang_0625 && git checkout db840d935
@@ -228,59 +255,112 @@ cd aiter_0625 && git checkout 7a8ff7dd4
 #    IMPORTANT: use --no-deps for SGLang to preserve the base image's ROCm torch/sglang-kernel stack.
 #    Without --no-deps, pip will pull CUDA versions of torch, sglang-kernel, and
 #    torch_c_dlpack_ext, which breaks the ROCm environment.
-#    NOTE: aiter must NOT use --no-deps (its editable stub needs build deps to work).
+#    AITER 0625 expects flydsl >=0.1.8; the AMD original container used flydsl 0.2.0.
+#    Install flydsl first, then use --no-deps for aiter to avoid changing unrelated packages.
 cd /sgl-workspace/sglang_0625 && pip install -e "python[all_hip]" --no-deps
-cd /sgl-workspace/sglang_0625/sgl-kernel && python3 setup_rocm.py install
-cd /sgl-workspace/aiter_0625 && pip install -e .
+pip install flydsl==0.2.0 --no-deps
+cd /sgl-workspace/aiter_0625 && pip install -e . --no-deps
 pip install mooncake-transfer-engine==0.3.7.post2 --no-deps
+
+# 4a. Kernel parity gate (node-specific)
+# AMD original runtime used different effective sglang-kernel import precedence:
+# - Prefill/router node: sglang-kernel 0.4.3
+# - Decode node: sglang-kernel 0.4.2.post1 first in sys.path
+# Therefore, do NOT blindly run setup_rocm.py on both nodes if the goal is performance parity.
+# On the prefill/router node only:
+cd /sgl-workspace/sglang_0625/sgl-kernel && python3 setup_rocm.py install
+# On the decode node, first verify the import path before changing anything:
+python3 - <<'PY'
+import sgl_kernel
+print(sgl_kernel.__file__)
+PY
+
+# 4b. Benchmark-client import gate
+# The benchmark must resolve sglang.benchmark.datasets from the intended source tree.
+export PYTHONPATH=/sgl-workspace/sglang_0625/python:${PYTHONPATH:-}
+python3 - <<'PY'
+import sglang.benchmark.datasets as datasets
+print(datasets.__file__)
+PY
+
+# 4c. Source-tree shadowing gate
+# A stale /sgl-workspace/aiter directory can shadow /sgl-workspace/aiter_0625.
+# AMD original did not have this stale directory.
+test ! -d /sgl-workspace/aiter || { echo "ERROR: stale /sgl-workspace/aiter shadows aiter_0625"; exit 1; }
 
 # 5. Download model (both nodes, or shared storage)
 huggingface-cli download XiaomiMiMo/MiMo-V2.5-Pro --local-dir /data/models/MiMo-V2.5-Pro
 
 # 6. Deploy benchmark scripts from this repo to working directory
 #    Exit container first (Ctrl-D), then run on the HOST:
-docker exec sglang mkdir -p /data/xisun
+docker exec $CONTAINER mkdir -p /data/xisun
 git clone https://github.com/david-xinyuwei/david-share.git
 DIR=david-share/Deep-Learning/MiMo-V2.5-Pro-on-MI300X-Benchmark/scripts/20260626-amd-stack
-docker cp $DIR/launch_tp8_noep_prefill_aiter_mtp.sh sglang:/data/xisun/
-docker cp $DIR/launch_tp8_noep_decode_aiter_mtp.sh sglang:/data/xisun/
-docker cp $DIR/launch_router.sh sglang:/data/xisun/
-docker cp $DIR/run_benchmark_mimo_pro_decode.sh sglang:/data/xisun/
-docker cp $DIR/run_benchmark_mimo_pro_prefill.sh sglang:/data/xisun/
-docker cp $DIR/setup_amd_pd_infra.sh sglang:/data/xisun/
+docker cp $DIR/launch_tp8_noep_prefill_aiter_mtp.sh $CONTAINER:/data/xisun/
+docker cp $DIR/launch_tp8_noep_decode_aiter_mtp.sh $CONTAINER:/data/xisun/
+docker cp $DIR/launch_router.sh $CONTAINER:/data/xisun/
+docker cp $DIR/run_benchmark_mimo_pro_decode.sh $CONTAINER:/data/xisun/
+docker cp $DIR/run_benchmark_mimo_pro_prefill.sh $CONTAINER:/data/xisun/
+docker cp $DIR/setup_amd_pd_infra.sh $CONTAINER:/data/xisun/
 
 # 7. Verify environment (both nodes, inside container)
 #    Run these checks before launching servers:
-docker exec sglang bash -c "ibdev2netdev | grep mlx5"          # should show mlx5_ib0..7 Up
-docker exec sglang bash -c "pip show sglang amd-aiter mooncake-transfer-engine | grep -E 'Name:|Version:'"
+docker exec $CONTAINER bash -c "ibdev2netdev | grep mlx5"          # should show mlx5_ib0..7 Up
+docker exec $CONTAINER bash -c "pip show sglang amd-aiter mooncake-transfer-engine | grep -E 'Name:|Version:'"
 #    Expected: sglang 0.0.0.dev14146+..., amd-aiter 0.1.14rc1.dev213+..., mooncake 0.3.7.post2
 
 # 8. Find IB IPs for your two nodes
 #    Run on each node (HOST shell):
-docker exec sglang ibdev2netdev | head -1   # e.g. mlx5_ib0 port 1 ==> ib0 (Up)
-docker exec sglang bash -c "ip addr show ib0 | grep inet"  # get the 172.16.x.x IP
+docker exec $CONTAINER ibdev2netdev | head -1   # e.g. mlx5_ib0 port 1 ==> ib0 (Up)
+docker exec $CONTAINER bash -c "ip addr show ib0 | grep inet"  # get the 172.16.x.x IP
 export PREFILL_IB_IP=<your-prefill-node-ib-ip>   # e.g. 172.16.1.26
 export DECODE_IB_IP=<your-decode-node-ib-ip>      # e.g. 172.16.1.122
 
-# 9. Launch servers (each in a SEPARATE terminal/tmux pane — they run in foreground)
+# 9. Clean process and port gate before launching servers (both nodes)
+#    Do this before every clean-room run. Router / worker state from a previous run can make /health misleading.
+docker exec $CONTAINER bash -c "pkill -f 'sglang.launch_server|sglang_router.launch_router|bench_serving' || true"
+docker exec $CONTAINER bash -c "ss -ltnp | grep -E ':(30000|30001|40000)' || true"
+docker exec $CONTAINER bash -c "ps -eo pid,stat,cmd | grep defunct | grep -v grep || true"
+
+# 10. Launch servers (each in a SEPARATE terminal/tmux pane — they run in foreground)
 # Terminal A — Node 1 (prefill):
-docker exec sglang bash -c "cd /data/xisun && bash launch_tp8_noep_prefill_aiter_mtp.sh"
+docker exec $CONTAINER bash -c "cd /data/xisun && LOG_DIR=/data/xisun/cleanroom_logs bash launch_tp8_noep_prefill_aiter_mtp.sh"
 # Terminal B — Node 2 (decode):
-docker exec sglang bash -c "cd /data/xisun && bash launch_tp8_noep_decode_aiter_mtp.sh"
+docker exec $CONTAINER bash -c "cd /data/xisun && LOG_DIR=/data/xisun/cleanroom_logs bash launch_tp8_noep_decode_aiter_mtp.sh"
 # Terminal C — Node 1 (router, AFTER both servers print 'ready'):
-docker exec sglang bash -c "cd /data/xisun && PREFILL_IB_IP=$PREFILL_IB_IP DECODE_IB_IP=$DECODE_IB_IP bash launch_router.sh"
-# Wait for router to print 'Uvicorn running' before proceeding to step 10.
+docker exec $CONTAINER bash -c "cd /data/xisun && PREFILL_IB_IP=$PREFILL_IB_IP DECODE_IB_IP=$DECODE_IB_IP LOG_DIR=/data/xisun/cleanroom_logs bash launch_router.sh"
+# Wait for router to print 'Uvicorn running' before proceeding.
 
-# 10. Run benchmarks (Node 1, through router port 40000)
-docker exec -it sglang bash -c "cd /data/xisun && bash run_benchmark_mimo_pro_decode.sh"   # Decode: 8K/1K, BS=16/32/64/128
-docker exec -it sglang bash -c "cd /data/xisun && bash run_benchmark_mimo_pro_prefill.sh"  # Prefill: 8K/64K/256K, BS=4
+# 11. Health and router registry gate
+# Run on the prefill node after prefill/decode/router are up.
+curl -fsS http://127.0.0.1:30000/health   # prefill node
+ssh <decode-node> "curl -fsS http://127.0.0.1:30001/health"   # decode node
+curl -fsS http://127.0.0.1:40000/health   # router on prefill node
 
-# 11. Same-methodology decode for H200 comparison (simulated accept_length=3)
+# A tiny request must pass before full benchmark. /health alone is not enough.
+docker exec $CONTAINER bash -c "python3 -m sglang.bench_serving \
+  --backend sglang --model /data/models/MiMo-V2.5-Pro --host 0.0.0.0 --port 40000 \
+  --dataset-name random --random-input-len 128 --random-output-len 16 \
+  --num-prompts 2 --warmup-requests 1 --max-concurrency 1 --pd-separated"
+
+# 12. Run benchmarks (Node 1, through router port 40000)
+# Use a unique evidence directory for every clean-room attempt to avoid overwriting old logs.
+RUN_DIR=/data/xisun/verify-cleanroom-$(date +%Y%m%d-%H%M%S)
+docker exec $CONTAINER bash -c "mkdir -p $RUN_DIR/bench_decode && cd /data/xisun && LOG_DIR=$RUN_DIR/bench_decode bash run_benchmark_mimo_pro_decode.sh > $RUN_DIR/decode_full.out 2>&1; echo \$? > $RUN_DIR/decode_full.rc"
+docker exec $CONTAINER bash -c "mkdir -p $RUN_DIR/bench_prefill && cd /data/xisun && LOG_DIR=$RUN_DIR/bench_prefill bash run_benchmark_mimo_pro_prefill.sh > $RUN_DIR/prefill_full.out 2>&1; echo \$? > $RUN_DIR/prefill_full.rc"
+
+# Required pass criteria:
+docker exec $CONTAINER bash -c "cat $RUN_DIR/decode_full.rc $RUN_DIR/prefill_full.rc"
+docker exec $CONTAINER bash -c "grep -c 'Successful requests' $RUN_DIR/decode_full.out"    # expected: 4
+docker exec $CONTAINER bash -c "grep -c 'Successful requests' $RUN_DIR/prefill_full.out"   # expected: 3
+docker exec $CONTAINER bash -c "grep -c ClientPayloadError $RUN_DIR/decode_full.out $RUN_DIR/prefill_full.out || true"  # expected: 0 each
+
+# 13. Same-methodology decode for H200 comparison (simulated accept_length=3)
 #     This reproduces the "Same Methodology" table in the README.
 #     Stop the decode server (Ctrl-C in Terminal B), then restart with:
-docker exec sglang bash -c "cd /data/xisun && SGLANG_SIMULATE_ACC_LEN=3 SGLANG_SIMULATE_ACC_METHOD=match-expected bash launch_tp8_noep_decode_aiter_mtp.sh"
+docker exec $CONTAINER bash -c "cd /data/xisun && SGLANG_SIMULATE_ACC_LEN=3 SGLANG_SIMULATE_ACC_METHOD=match-expected LOG_DIR=/data/xisun/cleanroom_logs bash launch_tp8_noep_decode_aiter_mtp.sh"
 #     After decode server prints 'ready', re-run decode benchmark:
-docker exec -it sglang bash -c "cd /data/xisun && bash run_benchmark_mimo_pro_decode.sh"
+docker exec -it $CONTAINER bash -c "cd /data/xisun && bash run_benchmark_mimo_pro_decode.sh"
 ```
 
 > **Note on `--dataset-path`**: The benchmark scripts reference `/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json`. With `--dataset-name random`, the actual prompts are randomly generated and the dataset file is only used for tokenizer vocabulary. You can download it from [HuggingFace](https://huggingface.co/datasets/anon8231489123/ShareGPT_Vicuna_unfiltered/tree/main) or simply remove the `--dataset-path` line if using SGLang ≥ 0.5.x which has a built-in random generator.
@@ -305,7 +385,7 @@ SGLang: 0.0.0.dev14146+gdb840d935.d20260626 (sammysun0711/sglang@mimo_aiter_attn
 aiter:  amd-aiter 0.1.14rc1.dev213+g7a8ff7dd4
 torch:  2.9.1+rocm7.2.0.lw.git7e1940d4
 triton: 3.6.0+git42270451
-sglang-kernel: 0.4.3
+sglang-kernel: prefill/router node 0.4.3; decode node 0.4.2.post1 in the AMD original runtime
 mooncake: 0.3.7.post2
 ```
 
