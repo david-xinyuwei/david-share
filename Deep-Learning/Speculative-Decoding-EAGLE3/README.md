@@ -187,7 +187,7 @@ EAGLE-3's "draft + verify" approach is effective because verification of multipl
 
 ---
 
-## Speculative Decoding Taxonomy: EAGLE3 vs Native MTP
+## Speculative Decoding Taxonomy: EAGLE3 vs Native MTP vs DFlash
 
 All speculative decoding systems share the same outer loop: a cheap drafter proposes future tokens, then the target model verifies those tokens in parallel. The important engineering question is where the drafter comes from.
 
@@ -195,6 +195,7 @@ All speculative decoding systems share the same outer loop: a cheap drafter prop
 |--------|---------------------|--------------------|----------------------------------|--------------------|------------------|-----------|
 | **EAGLE3** | A trained draft head/model that reads target-model hidden features from multiple layers | Trained after the target model is fixed, either by the vendor or by you | Loaded as an extra draft model/head beside the target model | +2.21 GiB draft model in the Phase 1 SGLang log | High speedup when the official draft model is available; self-training is possible | Training quality and task distribution matter; bad draft data can slow some workloads |
 | **Gemma 4 MTP** | A Google-published MTP assistant checkpoint (~0.5B params, 4-layer drafter); it uses target model activations and shared KV-cache to improve draft quality (source: [Google MTP docs](https://ai.google.dev/gemma/docs/mtp/mtp)) | Produced by Google as an official assistant checkpoint; this repo does not train it | Loaded as an additional assistant/drafter model; shares target embedding weights and maps to target layers (vLLM log: draft layers mapped to target layers 58/59) | +0.87 GiB assistant weights; KV cache budget -4.86 GiB in this vLLM run | No local draft training required; stable 1.73x in this H100 test | Serving stack must support the assistant architecture; this run required a vLLM config shim |
+| **DFlash** | A target-conditioned block diffusion drafter checkpoint that fuses target context features and drafts a token block in one parallel forward pass (source: [DFlash project](https://z-lab.ai/projects/dflash/) and [arXiv:2602.06036](https://arxiv.org/abs/2602.06036)) | Trained separately for a target model family/checkpoint; public draft checkpoints are published under `z-lab/*-DFlash` | Loaded as a DFlash draft model in a DFlash-aware serving stack such as SGLang or vLLM builds with DFlash support | Not measured in this repo | Makes the draft stage itself block-parallel instead of autoregressive; useful when an official DFlash checkpoint and engine support exist | More memory and engine-version sensitivity; block size, context length, and workload distribution must be benchmarked |
 | **DeepSeek-style MTP** | MTP heads/modules inside the model family, not measured here as a separate external assistant | Release-specific; generally trained with the model-family MTP design | Exposed by that model's own inference stack rather than by Gemma-style assistant loading | Not measured in this repo | Can make MTP part of the training/inference design instead of an external add-on | Implementation details are release-specific; do not assume EAGLE flags or Gemma assistant loading will work |
 | **MiMo-V2.5-style MTP** | Model-family draft path aimed at reasoning-heavy workloads | Release-specific; treated as part of the model-family design | Depends on that release's serving stack | Not measured in this repo | Potentially better acceptance on the model's own reasoning distribution | Needs workload-specific measurement; high-entropy tasks can still erase the benefit |
 
@@ -204,10 +205,11 @@ The word "drafter" does not always mean "a full standalone LLM loaded next to th
 |--------|--------------------------------------|-------------------------------------|--------------|
 | **EAGLE3** | Yes, but they are separate draft-model/head weights, not a copy of the full target model | No | Separate draft-model weights, not full target-model weights |
 | **Gemma 4 MTP** | Yes. Google publishes a separate assistant drafter checkpoint | No | Separate assistant drafter checkpoint |
+| **DFlash** | Yes. Z-Lab publishes separate DFlash draft checkpoints for specific targets | No | Target-conditioned block diffusion draft checkpoint |
 | **DeepSeek-style MTP** | Usually represented as native MTP heads/modules inside the model-family checkpoint, release-specific | No | Native MTP module weights inside the model family |
 | **MiMo-V2.5-style MTP** | Release-specific; treat it as a model-family draft path unless an official separate assistant checkpoint is published | No | Model-family MTP/draft-path weights, release-specific |
 
-The diagram below shows where the drafter lives in each route. For DeepSeek-style and MiMo-V2.5-style MTP, the drawing is intentionally conceptual because this repo did not inspect or benchmark those release-specific implementations.
+The diagram below shows where the drafter lives in each route. For DeepSeek-style and MiMo-V2.5-style MTP, the drawing is intentionally conceptual because this repo did not inspect or benchmark those release-specific implementations. DFlash is also target-conditioned, but its distinguishing feature is that the draft generator is a block diffusion model rather than an autoregressive draft head.
 
 ```mermaid
 flowchart LR
@@ -233,6 +235,17 @@ flowchart LR
     G4T --> G4V
   end
 
+  subgraph DF["DFlash<br/>block diffusion drafter"]
+    DFT["Target model<br/>for example Qwen3.x or Gemma 4"]
+    DFF["Target context features<br/>fused from selected layers"]
+    DFD["DFlash drafter<br/>separate checkpoint<br/>block diffusion"]
+    DFV["Target verifies<br/>draft block"]
+    DFT --> DFF
+    DFF --> DFD
+    DFD --> DFV
+    DFT --> DFV
+  end
+
   subgraph DS["DeepSeek-style MTP<br/>native modules"]
     DST["Model-family checkpoint<br/>target plus MTP modules"]
     DSH["MTP heads or modules<br/>inside model family"]
@@ -254,33 +267,34 @@ flowchart LR
   classDef target fill:#eef6ff,stroke:#1f6feb,color:#0b1f3a
   classDef drafter fill:#fff7e6,stroke:#d97706,color:#3b2500
   classDef verify fill:#ecfdf5,stroke:#059669,color:#042f2e
-  class E3T,G4T,DST,MMT target
-  class E3D,G4D,DSH,MMD drafter
-  class E3V,G4V,DSV,MMV verify
+  class E3T,G4T,DFT,DST,MMT target
+  class E3D,G4D,DFD,DSH,MMD drafter
+  class E3V,G4V,DFV,DSV,MMV verify
 ```
 
 ### Deep Comparison: How Each Drafter Actually Works
 
-| Dimension | Classic Speculative Decoding | EAGLE3 | Gemma 4 MTP | DeepSeek / MiMo MTP |
-|-----------|------------------------------|--------|-------------|---------------------|
-| What the drafter reads from target | Nothing; a separate small LM runs independently | Hidden states from 3 mid-layers (layers 2, 16, 29 in Llama 8B) | Target activations from the last few layers + shared KV-cache (layers 58/59 in Gemma 31B) | MTP heads branch directly from the model forward path |
-| Drafter size | A full small LM (e.g. 68M Llama-68M) | ~223M params, 1 decoder layer | ~0.5B params, 4 decoder layers | Native MTP modules inside the model checkpoint |
-| Can you train it yourself | Use any off-the-shelf small LM; no special training | Yes (SpecForge, 45 min on a single GPU) | No, only Google publishes it | No, the model vendor builds it during pre-training |
-| What happens after fine-tuning the target | Drafter is independent, so it still works but acceptance rate may drop because output distributions diverge | Re-train the draft head to match the new distribution | Can only hope the original assistant still works; cannot re-train it (speculation, not measured in this repo) | MTP modules are part of the model, so fine-tuning changes both together |
-| Switch to a different target model | Just swap the small LM; no dependency on target internals | Re-train a new draft head | Cannot; the assistant only pairs with its own Gemma family | Not applicable; the MTP modules are inseparable from the model |
-| Serving stack | Any framework that supports assisted generation | SGLang native EAGLE3 support, one flag | vLLM speculative-config; needed a config shim in this test | Depends on the model vendor's own inference stack |
-| Coupling to target | None (loosest) | Tight (reads mid-layer hidden states) | Tight (reads last-layer activations + shared KV-cache) | Tightest (native modules inside model) |
+| Dimension | Classic Speculative Decoding | EAGLE3 | Gemma 4 MTP | DFlash | DeepSeek / MiMo MTP |
+|-----------|------------------------------|--------|-------------|--------|---------------------|
+| What the drafter reads from target | Nothing; a separate small LM runs independently | Hidden states from 3 mid-layers (layers 2, 16, 29 in Llama 8B) | Target activations from the last few layers + shared KV-cache (layers 58/59 in Gemma 31B) | Fused target context features injected into the draft layers' KV cache | MTP heads branch directly from the model forward path |
+| Drafter size | A full small LM (e.g. 68M Llama-68M) | ~223M params, 1 decoder layer | ~0.5B params, 4 decoder layers | Lightweight block diffusion checkpoint; target-specific size, not measured here | Native MTP modules inside the model checkpoint |
+| Drafting pattern | Autoregressive draft LM | Autoregressive draft head/model | Autoregressive assistant drafter | Block diffusion; drafts a token block in one parallel forward pass | Native future-token prediction path inside the model family |
+| Can you train it yourself | Use any off-the-shelf small LM; no special training | Yes (SpecForge, 45 min on a single GPU) | No, only Google publishes it | Requires a target-specific DFlash training recipe/checkpoint; this repo did not train one | No, the model vendor builds it during pre-training |
+| What happens after fine-tuning the target | Drafter is independent, so it still works but acceptance rate may drop because output distributions diverge | Re-train the draft head to match the new distribution | Can only hope the original assistant still works; cannot re-train it (speculation, not measured in this repo) | Re-validate or retrain the DFlash checkpoint; target-feature distribution changes can hurt acceptance | MTP modules are part of the model, so fine-tuning changes both together |
+| Switch to a different target model | Just swap the small LM; no dependency on target internals | Re-train a new draft head | Cannot; the assistant only pairs with its own Gemma family | Cannot assume reuse; use a DFlash checkpoint trained for that target | Not applicable; the MTP modules are inseparable from the model |
+| Serving stack | Any framework that supports assisted generation | SGLang native EAGLE3 support, one flag | vLLM speculative-config; needed a config shim in this test | DFlash-aware SGLang / vLLM builds; engine version matters | Depends on the model vendor's own inference stack |
+| Coupling to target | None (loosest) | Tight (reads mid-layer hidden states) | Tight (reads last-layer activations + shared KV-cache) | Tight (reads target features, but remains an external checkpoint) | Tightest (native modules inside model) |
 
 ### Algorithm Philosophy: Post-Hoc vs Native
 
-EAGLE3 and Gemma/DeepSeek MTP represent two different design philosophies, not a simple "old vs new" progression:
+EAGLE3, Gemma/DeepSeek MTP, and DFlash represent different design philosophies, not a simple "old vs new" progression:
 
-| Dimension | EAGLE3 (post-hoc) | Gemma 4 MTP (hybrid) | DeepSeek / MiMo MTP (native) |
-|-----------|--------------------|----------------------|------------------------------|
-| Core question | Target is fixed; how to build the best drafter after the fact? | Co-train the drafter with the target, but publish it as a separate checkpoint | Make MTP part of the pre-training objective itself |
-| Key innovation | Solved the train-test gap: training uses the drafter's own predicted features instead of ground-truth features, so training matches inference (EAGLE-3, NeurIPS 2025) | Activation sharing + KV-cache reuse between target and assistant | MTP as a training objective, not just an inference trick; may also improve representation learning during pre-training |
-| Academic record | EAGLE (ICML 2024), EAGLE-2 (EMNLP 2024), EAGLE-3 (NeurIPS 2025) | Model card only; no dedicated MTP paper | Described in DeepSeek-V2/V3 papers |
-| Industry trend | Universal retrofit: works on any target model | Middle ground: co-trained but separately deployable | Forward-looking: more vendors will build MTP into training |
+| Dimension | EAGLE3 (post-hoc) | Gemma 4 MTP (hybrid) | DFlash (external block diffusion) | DeepSeek / MiMo MTP (native) |
+|-----------|--------------------|----------------------|-----------------------------------|------------------------------|
+| Core question | Target is fixed; how to build the best drafter after the fact? | Co-train the drafter with the target, but publish it as a separate checkpoint | Can an external drafter remove the draft-stage sequential bottleneck by predicting a whole block at once? | Make MTP part of the pre-training objective itself |
+| Key innovation | Solved the train-test gap: training uses the drafter's own predicted features instead of ground-truth features, so training matches inference (EAGLE-3, NeurIPS 2025) | Activation sharing + KV-cache reuse between target and assistant | Target feature fusion + KV injection + block diffusion parallel drafting | MTP as a training objective, not just an inference trick; may also improve representation learning during pre-training |
+| Academic record | EAGLE (ICML 2024), EAGLE-2 (EMNLP 2024), EAGLE-3 (NeurIPS 2025) | Model card only; no dedicated MTP paper | DFlash paper: arXiv:2602.06036, ICML 2026 | Described in DeepSeek-V2/V3 papers |
+| Industry trend | Universal retrofit: works on any target model | Middle ground: co-trained but separately deployable | New external drafter family: target-conditioned but block-parallel | Forward-looking: more vendors will build MTP into training |
 
 Neither route will disappear. Post-hoc drafters (EAGLE3) remain essential when you need to accelerate an existing model you cannot re-train. Native MTP (DeepSeek/MiMo) is the direction for new model families designed with speculative decoding in mind.
 
@@ -290,12 +304,199 @@ Neither route will disappear. Post-hoc drafters (EAGLE3) remain essential when y
 |----------|-------------------|-----|
 | Quick PoC with Gemma, no training | **Gemma 4 MTP** | Zero cost, stable 1.73x, download and run |
 | Maximum speedup on a supported model | **EAGLE3** | 2.67x measured (vs 1.73x Gemma MTP) |
+| Official DFlash checkpoint exists and the serving engine supports it | **DFlash** | Drafting itself becomes block-parallel; validate memory, block size, and acceptance rate on your workload |
 | Will fine-tune the target model | **EAGLE3** | Can re-train the draft head to match the fine-tuned target |
 | Using a non-Gemma model (Llama, Qwen, etc.) | **EAGLE3** | Gemma assistant only pairs with the Gemma family |
 | Model vendor ships native MTP | **Use the vendor's MTP** | No extra deployment; already built in |
+| Long-context or memory-constrained serving | **Benchmark before enabling DFlash** | DFlash adds draft weights and engine-specific paths; larger draft blocks can waste work if acceptance is low |
 | Long-term production without vendor dependency | **EAGLE3** | Community-driven (SafeAI Lab); does not depend on a single vendor publishing assistant checkpoints |
 
-The practical difference is simple: EAGLE3 asks you to manage a trained feature-based draft head that reads multiple mid-layer hidden states; Gemma 4 MTP gives you a published assistant model that reads target activations and shares the KV-cache; DeepSeek/MiMo-style MTP moves the draft mechanism deeper into the model family as native modules. All three read target-model internal information — the difference is how the drafter is packaged and deployed, not whether it is "independent." They are all speculative decoding, but they are not interchangeable deployment recipes.
+The practical difference is simple: EAGLE3 asks you to manage a trained feature-based draft head that reads multiple mid-layer hidden states; Gemma 4 MTP gives you a published assistant model that reads target activations and shares the KV-cache; DFlash gives you a target-conditioned diffusion drafter that predicts a block of draft tokens in one parallel forward pass; DeepSeek/MiMo-style MTP moves the draft mechanism deeper into the model family as native modules. All four read or depend on target-model internal information in different ways — the difference is how the drafter is packaged, how it drafts, and how tightly it is tied to the serving stack. They are all speculative decoding, but they are not interchangeable deployment recipes.
+
+### Practical Benchmark Matrix: DFlash vs MTP on Qwen3.6
+
+The next benchmark question is not "is DFlash faster than MTP?" in the abstract. The public-safe question is:
+
+> For a specific Qwen3.6 target, backend, quantization level, concurrency mode, context length, task domain, and speculative window, which route gives the best accepted-token throughput and latency?
+
+This matrix turns the DFlash/MTP comparison into a reproducible benchmark plan. It is based on public DFlash / vLLM / llama.cpp mechanisms plus a third-party article and notebook review; the numbers from that review are **directional evidence only** until this repo reruns the benchmark and archives raw logs.
+
+| Axis | Values to test | Why it matters |
+|------|----------------|----------------|
+| Target model | Qwen3.6-27B dense; Qwen3.6-35B-A3B MoE | Dense and MoE models can prefer different speculation routes. Do not transfer a 27B conclusion directly to the 35B-A3B model. |
+| Backend | vLLM; llama.cpp | vLLM is the natural multi-user serving baseline; llama.cpp can be very strong for single-user local serving, especially with GGUF quantization. |
+| Speculation route | Baseline; native Qwen MTP; DFlash; llama.cpp MTP GGUF | Each route changes a different variable: no drafter, model-family MTP, target-conditioned block diffusion, or quantized local MTP. |
+| Serving mode | Single-stream latency; concurrent throughput | Single-request interactivity and multi-user serving are different products. A route can win one and lose the other. |
+| Task domain | Coding, math, chat | Acceptance rate is domain-dependent. Structured code/math outputs usually differ from open-ended chat. |
+| Speculative window | MTP: small sweep around 3-8 draft tokens; DFlash: block-size sweep such as 8 vs 15/16 where supported | More draft tokens are not automatically better. If an early draft token is rejected, later draft work is wasted. |
+| Context length | Short prompt; long-context service profile | DFlash adds draft weights and engine-specific paths; long-context serving needs explicit KV-cache and memory checks. |
+
+Recommended public benchmark reporting:
+
+| Metric | Required? | Notes |
+|--------|-----------|-------|
+| Output tokens/sec | Yes | Report both engine throughput and accepted/output throughput when available. |
+| TTFT / latency | Yes | Throughput-only reporting can hide single-user latency regressions. |
+| Acceptance length or acceptance rate | Yes, if exposed | This is the main explanation for why a route speeds up or slows down. |
+| GPU memory and KV-cache budget | Yes | Especially important for DFlash and long-context configurations. |
+| Engine version / commit | Yes | DFlash support is engine-version-sensitive; "vLLM" alone is not enough. |
+| Accuracy / output quality spot checks | Yes for quantized llama.cpp | Quantized GGUF speed is not directly comparable to bf16/vLLM unless quality is checked. |
+| Failure notes | Yes | Crashes, unsupported block sizes, and context-length limits are part of the engineering result. |
+
+Public wording rule:
+
+| If the data source is... | Write it as... |
+|--------------------------|-------------|
+| Third-party article or chart | "Third-party benchmarks suggest..." |
+| Local notebook command cue | "A reproduction path to test is..." |
+| This repo's own raw logs | "This repo measured..." with file paths and command evidence |
+
+#### This Repo's H100 Benchmark: DFlash vs Native MTP vs llama.cpp MTP
+
+This repo measured single-stream (concurrency=1) latency and generation TPS on NVIDIA H100 NVL 96GB. Target model: `Qwen/Qwen3.6-27B` bf16 for vLLM routes, `unsloth/Qwen3.6-27B-MTP-GGUF:UD-Q4_K_XL` for llama.cpp. Three domains (Coding/Math/Chat), warmup 1 round + 3 timed runs, median reported. Non-streaming API, TPS = `usage.completion_tokens / total_time`.
+
+**Test Environment:**
+
+| Item | Value |
+|------|-------|
+| GPU | NVIDIA H100 NVL, 95830 MiB, driver 580.159.03 |
+| vLLM | 0.21.0 (stock install, `VLLM_DEEP_GEMM_WARMUP=skip`) |
+| llama.cpp | commit `27c8bb4`, CUDA build with OpenSSL |
+| Target model | `Qwen/Qwen3.6-27B` (bf16, 51.89 GiB) |
+| DFlash draft | `z-lab/Qwen3.6-27B-DFlash` (3.22 GiB, block diffusion drafter) |
+| llama.cpp GGUF | `unsloth/Qwen3.6-27B-MTP-GGUF:UD-Q4_K_XL` (17.9 GiB, Q4 quantized) |
+
+**Results (single-stream, median of 3 runs):**
+
+| Route | Backend | Quant | Spec Tokens | Domain | Med Total (s) | Med TPS |
+|-------|---------|-------|:-----------:|--------|:-------------:|:-------:|
+| **vLLM native MTP** | vLLM 0.21.0 | bf16 | 5 | Coding | 3.49 | **146.7** |
+| | | | | Math | 1.51 | **169.1** |
+| | | | | Chat | 1.65 | **155.4** |
+| **vLLM DFlash** | vLLM 0.21.0 | bf16 | 15 | Coding | 2.67 | **191.7** |
+| | | | | Math | 1.32 | **193.5** |
+| | | | | Chat | 1.64 | **156.1** |
+| **llama.cpp MTP** | llama.cpp (CUDA) | Q4_K_XL | 5 | Coding | 4.77 | **107.3** |
+| | | | | Math | 2.15 | **118.9** |
+| | | | | Chat | 2.48 | **103.1** |
+
+**Key Findings:**
+
+1. **DFlash with 15 spec tokens shows +14–31% higher TPS than native MTP with 5 spec tokens** on longer-output tasks (Coding: 191.7 vs 146.7). The gap narrows on short-output tasks (Chat: ~0%).
+2. **The comparison is not fully controlled**: DFlash uses 15 speculative tokens (block diffusion, 1 parallel forward), while native MTP uses 5 (1-layer MTP head, 5 serial forwards). A controlled comparison requires matching spec token counts.
+3. **llama.cpp Q4 quantized MTP is not directly comparable to vLLM bf16**: different precision, different engine. The llama.cpp numbers are useful for "what TPS can I get with a 17.9GB quantized model on a single GPU" but not for "is MTP faster than DFlash."
+4. **No baseline without speculation was measured in this run.** Acceleration ratios require a pure Qwen3.6-27B vLLM baseline; this is left for future work.
+
+**Runtime Knobs Discovered During Reproduction:**
+
+| Issue | Root Cause | Fix |
+|-------|-----------|-----|
+| vLLM `max_num_seqs (1024) exceeds available Mamba cache blocks` | Qwen3.6 hybrid Mamba+Attention architecture with 262K context leaves only 468 Mamba cache blocks | Add `--max-num-seqs 256` |
+| vLLM `DeepGEMM backend is not available or outdated` | vLLM 0.21.0 tries DeepGEMM warmup but the package is missing | Set `VLLM_DEEP_GEMM_WARMUP=skip` |
+| vLLM DFlash `KV cache memory (26.74 GiB) < required (27.69 GiB)` at 262K context | DFlash draft model takes extra VRAM vs native MTP | Lower `--max-model-len` to 252000 |
+| llama.cpp `HTTPS is not supported` for `-hf` download | Built without OpenSSL | Install `libssl-dev` and rebuild with `-DLLAMA_OPENSSL=ON` |
+
+### Understanding MTP Layers and Speculative Decoding Hyperparameters
+
+MTP (Multi-Token Prediction) layers are independent draft heads trained into the model during pretraining. The number of MTP layers directly determines how speculative decoding should be configured.
+
+**MTP Layer Count Across Models (source: official HF config.json and SGLang docs):**
+
+| Model | MTP Layers | Architecture | Source |
+|-------|:----------:|-------------|--------|
+| Qwen3.6-27B | **1** | Single MTP head, reused N times for N draft tokens | HF `config.json` |
+| MiMo-7B-RL | **1** | Single MTP head | HF `config.json`: `"num_nextn_predict_layers": 1` |
+| MiMo-V2.5-Pro (1.02T) | **3** | 3-layer multi-layer EAGLE | SGLang cookbook: "3-layer MTP module" |
+| MiMo-V2.5 (310B) | **3** | 3-layer multi-layer EAGLE | SGLang cookbook |
+| DeepSeek-V3 / R1 | **1** | Single MTP head | Official paper |
+
+**Why Layer Count Matters:**
+
+- **N layers = N independent draft heads**, each predicting a different future position (+1, +2, ..., +N) in **1 forward pass per layer**.
+- **1-layer models** (Qwen3.6, DeepSeek) must **serially reuse the same head** when `num_speculative_tokens > 1`. The further the prediction, the more error accumulates, and acceptance rate drops.
+- **3-layer models** (MiMo V2.5) can do **3 parallel predictions in 3 independent forward passes**, with no error accumulation between layers.
+
+**The 3 Key Hyperparameters (SGLang EAGLE Multi-Layer MTP):**
+
+<div align="center"><img src="images/eagle_mtp_3params_explained.png" width="960" /></div>
+
+| Parameter | What it controls | Recommended value |
+|-----------|-----------------|-------------------|
+| `--speculative-num-steps N` | How many draft steps to run (should match MTP layer count) | N = number of MTP layers (e.g. 3 for MiMo V2.5 Pro) |
+| `--speculative-eagle-topk K` | How many candidates per step (1 = linear chain, K > 1 = tree) | 1 for most workloads (greedy, minimal overhead) |
+| `--speculative-num-draft-tokens D` | Maximum buffer size for draft tokens | D = tree_size + 1 (e.g. 4 for topk=1, steps=3) |
+
+**topk=1 (linear chain) vs topk=2 (binary tree):**
+
+```
+topk=1: each step produces 1 candidate → linear chain
+  Step 1: 1 candidate     Total: 1 + 1 + 1 = 3 draft tokens
+  Step 2: 1 candidate     + 1 verify bonus = 4
+  Step 3: 1 candidate     → set num-draft-tokens = 4
+
+topk=2: each step doubles → binary tree
+  Step 1: 2 candidates    Total: 2 + 4 + 8 = 14 draft tokens
+  Step 2: 4 candidates    + 1 verify bonus = 15
+  Step 3: 8 candidates    → set num-draft-tokens = 15
+```
+
+The **verify bonus** token is a free byproduct of target verification: when the target model verifies N draft tokens in 1 forward pass, it computes N+1 positions of logits. The last position has no draft to verify, so it is directly sampled as a guaranteed correct token. This is why speculative decoding **never performs worse than standard autoregressive decoding** — every verify step produces at least 1 correct token.
+
+**MiMo V2.5 Pro Real-World Performance (source: SGLang official cookbook, B200 8×GPU):**
+
+| Batch Size / DP rank | Without MTP | 3-layer MTP, accept=3 | 3-layer MTP, accept=4 |
+|:--------------------:|:-----------:|:---------------------:|:---------------------:|
+| 64 | 1,875 tok/s | 3,873 tok/s (2.07×) | 5,103 tok/s (2.72×) |
+| 96 | 2,564 tok/s | 4,840 tok/s (1.89×) | 6,225 tok/s (2.43×) |
+
+On natural text (GSM8K), MiMo V2.5 Pro achieves **accept rate 0.755** and **accept length 3.27** (out of max 4). On random token streams, accept rate drops to 0.13–0.27 — MTP is trained on natural language distributions and has no signal on random bytes.
+
+For DFlash guidance: use DFlash when an official draft checkpoint exists, the serving engine has stable support, memory headroom is sufficient, and workload-specific acceptance is high. Otherwise, benchmark native MTP and DFlash side by side.
+
+#### Reproducing the H100 Benchmark
+
+All scripts, raw JSON results, and server startup logs are archived in this repo for full reproducibility.
+
+**Step 1: Build llama.cpp with CUDA + OpenSSL (for Route 3 only)**
+
+```bash
+bash scripts/mtp_llamacpp_qwen36_mtp_build.sh
+# Clones llama.cpp, builds with CUDA 90 + OpenSSL for HTTPS model download
+```
+
+**Step 2: Launch servers and run the 3-route benchmark sequentially**
+
+```bash
+# Option A: Run all 3 routes automatically (start→wait→benchmark→stop→next)
+bash scripts/mtp_benchmark_orchestrator.sh
+
+# Option B: Run manually one route at a time
+# Route 1 — vLLM native MTP
+VLLM_DEEP_GEMM_WARMUP=skip MAX_NUM_SEQS=256 bash scripts/mtp_vllm_qwen36_mtp_launch.sh
+python3 scripts/mtp_benchmark_client.py --base-url http://127.0.0.1:8000 \
+  --label vllm-native-mtp --runs 3 --warmup 1 --no-stream --output results_mtp.json
+
+# Route 2 — vLLM DFlash
+VLLM_DEEP_GEMM_WARMUP=skip MAX_MODEL_LEN=252000 MAX_NUM_SEQS=256 \
+  bash scripts/mtp_vllm_qwen36_dflash_launch.sh
+python3 scripts/mtp_benchmark_client.py --base-url http://127.0.0.1:8000 \
+  --label vllm-dflash --runs 3 --warmup 1 --no-stream --output results_dflash.json
+
+# Route 3 — llama.cpp MTP GGUF
+bash scripts/mtp_llamacpp_qwen36_mtp_launch.sh
+python3 scripts/mtp_benchmark_client.py --base-url http://127.0.0.1:8080 \
+  --label llamacpp-mtp-q4kxl --runs 3 --warmup 1 --no-stream --output results_llamacpp.json
+```
+
+**Archived Evidence:**
+
+| Type | Files |
+|------|-------|
+| Benchmark raw JSON | [`data/h100_vllm_native_mtp.json`](data/h100_vllm_native_mtp.json), [`data/h100_vllm_dflash.json`](data/h100_vllm_dflash.json), [`data/h100_llamacpp_mtp_q4kxl.json`](data/h100_llamacpp_mtp_q4kxl.json) |
+| Server startup logs | [`logs/h100_vllm_native_mtp_startup.log`](logs/h100_vllm_native_mtp_startup.log), [`logs/h100_vllm_dflash_startup.log`](logs/h100_vllm_dflash_startup.log), [`logs/h100_llamacpp_mtp_startup.log`](logs/h100_llamacpp_mtp_startup.log) |
+| Benchmark client | [`scripts/mtp_benchmark_client.py`](scripts/mtp_benchmark_client.py) |
+| Orchestrator | [`scripts/mtp_benchmark_orchestrator.sh`](scripts/mtp_benchmark_orchestrator.sh) |
+| Launch scripts | [`scripts/mtp_vllm_qwen36_mtp_launch.sh`](scripts/mtp_vllm_qwen36_mtp_launch.sh), [`scripts/mtp_vllm_qwen36_dflash_launch.sh`](scripts/mtp_vllm_qwen36_dflash_launch.sh), [`scripts/mtp_llamacpp_qwen36_mtp_build.sh`](scripts/mtp_llamacpp_qwen36_mtp_build.sh), [`scripts/mtp_llamacpp_qwen36_mtp_launch.sh`](scripts/mtp_llamacpp_qwen36_mtp_launch.sh) |
 
 ---
 
@@ -1009,6 +1210,9 @@ EAGLE (Extrapolation Algorithm for Greater Language-model Efficiency) is develop
 | Gemma 4 31B Target | [google/gemma-4-31B-it](https://huggingface.co/google/gemma-4-31B-it) |
 | Gemma 4 MTP Assistant | [google/gemma-4-31B-it-assistant](https://huggingface.co/google/gemma-4-31B-it-assistant) |
 | Gemma MTP Documentation | [Google AI for Developers: MTP](https://ai.google.dev/gemma/docs/mtp/mtp) |
+| DFlash Paper | [arXiv:2602.06036](https://arxiv.org/abs/2602.06036) |
+| DFlash Project | [Z-Lab: DFlash](https://z-lab.ai/projects/dflash/) |
+| DFlash Code and Models | [z-lab/dflash](https://github.com/z-lab/dflash) |
 
 ---
 
@@ -1016,7 +1220,7 @@ EAGLE (Extrapolation Algorithm for Greater Language-model Efficiency) is develop
 
 ## When Does Speculative Decoding Actually Help?
 
-Understanding when speculative decoding provides real benefits is crucial for production deployment. The concurrency analysis below uses EAGLE3 data, but the same principle applies to all draft-and-verify routes (Gemma MTP, DeepSeek MTP, etc.): speculative decoding helps most when the GPU is underutilized. Based on empirical analysis ([Benjamin Marie](https://kaitchup.substack.com/p/eagle-3-speculators-when-to-use-them)):
+Understanding when speculative decoding provides real benefits is crucial for production deployment. The concurrency analysis below uses EAGLE3 data, but the same principle applies to all draft-and-verify routes (Gemma MTP, DFlash, DeepSeek MTP, etc.): speculative decoding helps most when the GPU is underutilized. Based on empirical analysis ([Benjamin Marie](https://kaitchup.substack.com/p/eagle-3-speculators-when-to-use-them)):
 
 ### High Concurrency (Continuous Batching) - ❌ Limited Benefit
 
