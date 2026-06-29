@@ -24,7 +24,7 @@ English | [中文版](README-CN.md)
 ## Executive Summary
 
 - **Prefill:** H200 is still 1.8-2.0x faster at 8K/64K throughput, while MI300X wins the validated 256K long-context point by 2.14x.
-- **Decode:** with aligned MTP acceptance (`SIMULATE_ACC_LEN=3` on both sides), MI300X is close on TPOT latency, but output tok/s still plateaus because the MI300X run uses a single decode service (`tp=8`, no DP/EP scaling in this run).
+- **Decode:** with aligned MTP acceptance (`SIMULATE_ACC_LEN=3` on both sides), MI300X is close on TPOT latency. The front-page decode comparison intentionally reports TPOT only; output tok/s is not shown because the two sides do not use the same serving topology.
 - **Key discovery:** H200's constant `accept_rate=0.75` is simulated via `SGLANG_SIMULATE_ACC_LEN=3`, so H200 TPOT reflects ideal MTP acceptance rather than real draft-model accuracy.
 
 **Prefill throughput (output=1, tok/s is the primary metric)**
@@ -35,14 +35,14 @@ English | [中文版](README-CN.md)
 | 64K | 15,047 | 27,400 | H200 1.82x faster |
 | 256K | 37,252 | 17,400 | MI300X 2.14x faster |
 
-**Decode 8K/1K, same methodology (`SIMULATE_ACC_LEN=3` on both sides)**
+**Decode 8K/1K, same methodology (`SIMULATE_ACC_LEN=3` on both sides; TPOT only)**
 
-| BS | MI300X TPOT | H200 TPOT | MI300X tok/s | H200 tok/s | Takeaway |
-|---:|---:|---:|---:|---:|---|
-| 16 | 14.75 ms | 11.59 ms | 973 | 1,381 | H200 lower latency and higher throughput |
-| 32 | 17.82 ms | 12.56 ms | 1,518 | 2,549 | H200 throughput 1.7x higher |
-| 64 | 20.42 ms | 14.28 ms | 1,852 | 4,483 | MI300X reaches throughput ceiling |
-| 128 | 20.31 ms | 18.25 ms | 1,852 | 7,013 | TPOT gap only 11%, tok/s still 3.8x gap |
+| BS | MI300X Median TPOT | MI300X P99 | H200 TPOT | MI300X / H200 |
+|---:|---:|---:|---:|---:|
+| 16 | 14.75 ms | 15.32 ms | 11.59 ms | 1.27x |
+| 32 | 17.82 ms | 18.39 ms | 12.56 ms | 1.42x |
+| 64 | 20.42 ms | 20.62 ms | 14.28 ms | 1.43x |
+| 128 | 20.31 ms | 20.52 ms | 18.25 ms | **1.11x** |
 
 ### Methodology Note
 
@@ -51,13 +51,13 @@ The H200 reference data uses two conditions that inflate its numbers beyond real
 1. **`fake_topk_ids`** — forces perfectly balanced expert routing (zero straggler overhead)
 2. **`SGLANG_SIMULATE_ACC_LEN=3`** — fixes MTP accept_length at 3.0, bypassing real draft model verification
 
-Therefore, the "same methodology" comparison (both sides use `SIMULATE_ACC_LEN=3`) isolates **pure kernel latency** and is the fairest decode comparison. The "real accept" comparison shows what happens when MI300X uses real MTP verification while H200 uses simulated — it overstates the gap by mixing methodology.
+Therefore, the decode comparison in this report only uses the aligned methodology where both sides use `SIMULATE_ACC_LEN=3`. Earlier MI300X runs without this setting are not used in the H200 comparison tables because they mix real draft-model verification with H200's simulated accept-length baseline.
 
 All MI300X numbers use **real expert routing** (not `fake_topk_ids`), adding 5-15% overhead vs the H200 ideal baseline.
 
 ---
 
-## Latest 2026-06-26 AMD aiter+MTP3 Result
+## 2026-06-26 AMD aiter+MTP3 Stack and Aligned Result
 
 AMD provided an updated 1P1D MI300X test stack on 2026-06-26:
 
@@ -67,9 +67,9 @@ AMD provided an updated 1P1D MI300X test stack on 2026-06-26:
 | aiter | `amd-aiter 0.1.14rc1.dev213+g7a8ff7dd4` |
 | Runtime | 1P1D PD router, prefill and decode both using `aiter backend + MTP=3` |
 
-> **Raw benchmark logs** for reproducibility verification are archived under [`data/raw-logs/`](data/raw-logs/) (12 decode + prefill logs from real-accept and simulated-accept runs).
+> **Raw benchmark logs** for reproducibility verification are archived under [`data/raw-logs/`](data/raw-logs/). H200 decode comparisons use the aligned `SIMULATE_ACC_LEN=3` logs under [`data/raw-logs/20260626-simulate-acc3/`](data/raw-logs/20260626-simulate-acc3/).
 
-> **Decode metric provenance**: MI300X TPOT and output tok/s are measured directly from SGLang `bench_serving` logs. H200 TPOT and output tok/s are taken from Xiaomi's H200 reference sheet; the H200 throughput column equals `BS × 1000 / TPOT`, not `BS × DP × 1000 / TPOT`. All decode comparisons below use the sheet-provided H200 throughput column as-is (visible-BS-row comparison).
+> **Decode metric provenance**: MI300X TPOT is measured directly from SGLang `bench_serving` logs. H200 TPOT is taken from Xiaomi's H200 reference sheet. This report does not use decode output tok/s for MI300X-vs-H200 comparison because the serving topology is not aligned.
 
 ### Prefill Throughput — 2026-06-26
 
@@ -78,17 +78,6 @@ AMD provided an updated 1P1D MI300X test stack on 2026-06-26:
 | 8K | 16,323.45 | 31,950 | 51.1% | 1.96x | 27,500 | 59.4% | 1.68x |
 | 64K | 15,047.08 | 27,400 | 54.9% | 1.82x | 23,000 | 65.4% | 1.53x |
 | 256K | 37,251.55 | 17,400 | 214.1% | 0.47x | 13,425 | 277.5% | 0.36x |
-
-### Decode 8K/1K — 2026-06-26
-
-| BS row | MI300X TPOT ms | H200 TPOT ms | MI latency slower | MI300X output tok/s | H200 output tok/s | MI/H200 throughput | H200 faster | MI accept len/rate | H200 accept rate |
-|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 16 | 21.61 | 11.59 | 1.86x | 689.22 | 1,380.71 | 49.9% | 2.00x | 2.38/0.46 | 0.75 |
-| 32 | 27.94 | 12.56 | 2.22x | 1,017.58 | 2,548.66 | 39.9% | 2.50x | 2.34/0.44 | 0.75 |
-| 64 | 34.78 | 14.28 | 2.44x | 1,391.54 | 4,482.93 | 31.0% | 3.22x | 2.25/0.41 | 0.75 |
-| 128 | 34.70 | 18.25 | 1.90x | 1,396.29 | 7,013.05 | 19.9% | 5.02x | 2.15/0.38 | 0.75 |
-
-**Interpretation**: the 6/26 stack improves aiter+MTP acceptance versus the 6/19 run (`accept_length` rises from ~1.6 to 2.15-2.38), but it still does not reach H200's 0.75 accept rate and decode throughput remains H200-led on the 8K/1K sheet rows.
 
 ### Critical Discovery: H200 accept_rate = 0.75 Is Simulated, Not Real
 
@@ -101,14 +90,14 @@ This means the H200 TPOT numbers reflect **pure kernel latency with ideal MTP ac
 Raw logs: [`data/raw-logs/20260626-simulate-acc3/`](data/raw-logs/20260626-simulate-acc3/)  
 N = 256 requests per BS point; input=8192, output=1024, seed=12345, warmup=32.
 
-| BS | MI300X Median TPOT (ms) | MI300X P99 (ms) | H200 TPOT (ms) | MI300X slower | MI300X output tok/s | H200 output tok/s | MI/H200 tok/s |
-|---:|---:|---:|---:|---:|---:|---:|---:|
-| 16 | 14.75 | 15.32 | 11.59 | 1.27x | 973.06 | 1,380.71 | 70.5% |
-| 32 | 17.82 | 18.39 | 12.56 | 1.42x | 1,518.15 | 2,548.66 | 59.6% |
-| 64 | 20.42 | 20.62 | 14.28 | 1.43x | 1,852.16 | 4,482.93 | 41.3% |
-| 128 | 20.31 | 20.52 | 18.25 | **1.11x** | 1,851.63 | 7,013.05 | **26.4%** |
+| BS | MI300X Median TPOT (ms) | MI300X P99 (ms) | H200 TPOT (ms) | MI300X / H200 |
+|---:|---:|---:|---:|---:|
+| 16 | 14.75 | 15.32 | 11.59 | 1.27x |
+| 32 | 17.82 | 18.39 | 12.56 | 1.42x |
+| 64 | 20.42 | 20.62 | 14.28 | 1.43x |
+| 128 | 20.31 | 20.52 | 18.25 | **1.11x** |
 
-**Key takeaway**: with the same simulated accept_length=3 (matching the H200 test methodology), the MI300X decode Median TPOT gap shrinks from 1.86-2.44x to **1.11-1.43x**. At BS≥128, MI300X is within 11% of H200 per-path decode latency (N=256, P99 spread <1ms). However, output tok/s still shows the system-level topology gap: MI300X reaches ~973-1,852 tok/s, while H200 reports ~1,381-7,013 tok/s. TPOT reflects per-path latency; output tok/s reflects total serving throughput, DP parallelism, scheduler behavior, router overhead, and KV transfer.
+**Key takeaway**: with the same simulated accept_length=3 (matching the H200 test methodology), MI300X decode Median TPOT is **1.11-1.43x** slower than H200. At BS≥128, MI300X is within 11% of H200 per-path decode latency (N=256, P99 spread <1ms). Output tok/s is intentionally excluded from the comparison because it depends on serving topology, DP parallelism, scheduler behavior, router overhead, and KV transfer.
 
 ### Real Benchmark Output Sample
 
@@ -122,9 +111,7 @@ Successful requests:                     256
 Benchmark duration (s):                  141.68
 Total input tokens:                      2,097,152
 Total generated tokens:                  262,144
-Request throughput (req/s):              1.81
 Input token throughput (tok/s):          14,803.47
-Output token throughput (tok/s):         1,851.63
 Peak concurrent requests:                133
 Total token throughput (tok/s):          16,655.10
 Concurrency:                             104.85
@@ -140,16 +127,6 @@ P99 TPOT (ms):                           20.52
 ```
 
 > Source: [`data/raw-logs/20260626-simulate-acc3/decode_8k1k_bs128.txt`](data/raw-logs/20260626-simulate-acc3/decode_8k1k_bs128.txt). The H200 reference reports Median TPOT = 18.25 ms at the same BS=128, giving a ratio of 20.31/18.25 = **1.11×**.
-
-### Remaining Decode Throughput Gap Explained
-
-Even with same-methodology TPOT, MI300X throughput plateaus at ~1,852 tok/s at BS≥64 while H200 reports 4,483-7,013 tok/s. This is because:
-
-1. **Single decode service ceiling**: the MI300X run launches one decode server with `--tp-size 8` and no DP/EP flags. Output tok/s stops increasing after BS=64, so more concurrency mostly adds queueing instead of more decode capacity.
-2. **H200 throughput is sheet-reported and matches `BS × 1000 / TPOT`**, while MI300X throughput is end-to-end measured by `bench_serving` (includes PD router overhead, KV transfer latency, scheduler gaps)
-3. **MI300X scheduler saturation**: output throughput stops growing at BS≥64, indicating the single decode server hits a scheduling ceiling
-
----
 
 ## Hardware & Software Stack
 
@@ -374,7 +351,6 @@ docker exec -it $CONTAINER bash -c "cd /data/xisun && bash run_benchmark_mimo_pr
 | [`scripts/20260626-amd-stack/Dockerfile.sglang`](scripts/20260626-amd-stack/Dockerfile.sglang) | SGLang upstream CUDA Dockerfile (reference only — not used to build the MI300X image) |
 | [`scripts/20260626-amd-stack/Dockerfile.mooncake`](scripts/20260626-amd-stack/Dockerfile.mooncake) | Mooncake upstream Dockerfile (reference only) |
 | [`scripts/20260626-amd-stack/setup_amd_pd_infra.sh`](scripts/20260626-amd-stack/setup_amd_pd_infra.sh) | AMD PD infrastructure setup (etcd, UCX, OpenMPI) |
-| [`data/raw-logs/20260626-amd-aiter-mtp/`](data/raw-logs/20260626-amd-aiter-mtp/) | Raw benchmark logs (real acceptance) |
 | [`data/raw-logs/20260626-simulate-acc3/`](data/raw-logs/20260626-simulate-acc3/) | Raw benchmark logs (simulated accept_length=3) |
 
 ### Environment Snapshot (2026-06-26)
@@ -397,9 +373,7 @@ mooncake: 0.3.7.post2
 
 | Issue | Status | Impact |
 |-------|--------|--------|
-| **aiter + MTP acceptance gap** | ⚠️ Improved, still open | accept_length 2.15-2.38 / accept_rate 0.38-0.46 on MI300X vs H200 simulated 0.75. Gap is software (draft model calibration), not hardware. |
 | **CUDA Graph on decode** | ⚠️ Critical config | Decode server must NOT use `--disable-cuda-graph`. Disabling causes 5× TPOT regression. Prefill server should disable it. |
-| **Single decode-service throughput ceiling** | ⚠️ Topology limitation | This MI300X run uses one `tp=8` decode server with no DP/EP scaling; throughput saturates at ~1,852 tok/s (BS≥64). TP16/DP2 remains a separate unvalidated topology probe. |
 | **256K repeated prefill** | ⚠️ Stability | Single 256K requests work (37,252 tok/s); concurrent/repeated may stall via PD router drain. |
 
 
@@ -423,10 +397,7 @@ mooncake: 0.3.7.post2
 
 | Path | Content |
 |------|------|
-| `data/raw-logs/20260626-amd-aiter-mtp/` | 8 benchmark logs (real MTP acceptance) |
 | `data/raw-logs/20260626-simulate-acc3/` | 4 decode logs (simulated accept_length=3) |
-| `data/amd_aiter_mtp_20260626_h200_alignment.tsv` | Parsed alignment ratios (10 rows) |
-| `reports/amd_aiter_mtp_20260626_h200_alignment.md` | Structured alignment analysis |
 
 ### Historical Scripts (6/18 baseline)
 

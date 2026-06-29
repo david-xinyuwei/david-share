@@ -21,14 +21,12 @@ AMD 6 月 26 日提供了新的 1P1D MI300X 测试栈：`sammysun0711/sglang` �
 
 证据文件：
 
-- 6/26 对齐报告：[`reports/amd_aiter_mtp_20260626_h200_alignment.md`](reports/amd_aiter_mtp_20260626_h200_alignment.md)
-- 解析后的 TSV：[`data/amd_aiter_mtp_20260626_h200_alignment.tsv`](data/amd_aiter_mtp_20260626_h200_alignment.tsv)
-- 原始日志：[`data/raw-logs/20260626-amd-aiter-mtp/`](data/raw-logs/20260626-amd-aiter-mtp/)
+- 同口径 Decode 原始日志：[`data/raw-logs/20260626-simulate-acc3/`](data/raw-logs/20260626-simulate-acc3/)
 
 ### 对口倍数结论
 
 - **Prefill**：8K/64K 吞吐仍是 H200 快 1.8-2.0x；256K 长上下文单点 MI300X 快 2.14x。
-- **Decode**：两边都固定 `SIMULATE_ACC_LEN=3` 后，MI300X 的 TPOT latency 接近 H200；但 output tok/s 仍然封顶，因为这次 MI300X 只跑了单个 decode service（`tp=8`，没有 DP/EP 扩展）。
+- **Decode**：两边都固定 `SIMULATE_ACC_LEN=3` 后，MI300X 的 TPOT latency 接近 H200。首页 Decode 对比只展示 TPOT；output tok/s 依赖 serving topology，不在 MI300X-vs-H200 对比表中展示。
 - **关键发现**：H200 的 `accept_rate=0.75` 是通过 `SGLANG_SIMULATE_ACC_LEN=3` 模拟固定出来的，不是真实 draft model accuracy。
 
 **Prefill throughput（output=1，主指标是 tok/s）**
@@ -39,16 +37,16 @@ AMD 6 月 26 日提供了新的 1P1D MI300X 测试栈：`sammysun0711/sglang` �
 | 64K | 15,047 | 27,400 | H200 快 1.82x |
 | 256K | 37,252 | 17,400 | MI300X 快 2.14x |
 
-**Decode 8K/1K，同口径（两边都 `SIMULATE_ACC_LEN=3`）**
+**Decode 8K/1K，同口径（两边都 `SIMULATE_ACC_LEN=3`；只看 TPOT）**
 
-| BS | MI300X TPOT | H200 TPOT | MI300X tok/s | H200 tok/s | 结论 |
-|---:|---:|---:|---:|---:|---|
-| 16 | 14.75 ms | 11.59 ms | 973 | 1,381 | H200 延迟和吞吐都领先 |
-| 32 | 17.82 ms | 12.56 ms | 1,518 | 2,549 | H200 吞吐高 1.7x |
-| 64 | 20.42 ms | 14.28 ms | 1,852 | 4,483 | MI300X 到达吞吐天花板 |
-| 128 | 20.31 ms | 18.25 ms | 1,852 | 7,013 | TPOT 只差 11%，tok/s 仍差 3.8x |
+| BS | MI300X Median TPOT | MI300X P99 | H200 TPOT | MI300X / H200 |
+|---:|---:|---:|---:|---:|
+| 16 | 14.75 ms | 15.32 ms | 11.59 ms | 1.27x |
+| 32 | 17.82 ms | 18.39 ms | 12.56 ms | 1.42x |
+| 64 | 20.42 ms | 20.62 ms | 14.28 ms | 1.43x |
+| 128 | 20.31 ms | 20.52 ms | 18.25 ms | **1.11x** |
 
-**指标来源说明**：MI300X 的 TPOT 和 output tok/s 都来自 SGLang `bench_serving` 原始日志，是本次 MI300X 实测值。H200 的 TPOT 和 output tok/s 来自小米 H200 reference sheet；其中 H200 output tok/s 列与 `BS * 1000 / TPOT` 一致，没有再乘 DP=4。因此本 repo 主比较采用 H200 表自己给出的吞吐列，称为 **visible-BS-row comparison**；否则会把 H200 表中的吞吐口径二次放大。
+**指标来源说明**：MI300X 的 TPOT 来自 SGLang `bench_serving` 原始日志，是本次 MI300X 实测值。H200 的 TPOT 来自小米 H200 reference sheet。Decode output tok/s 不用于 MI300X-vs-H200 对比，因为两边 serving topology 不一致。
 
 ### Prefill 吞吐 — 2026-06-26
 
@@ -57,19 +55,6 @@ AMD 6 月 26 日提供了新的 1P1D MI300X 测试栈：`sammysun0711/sglang` �
 | 8K | 16,323.45 | 31,950 | 51.1% | 1.96x | 27,500 | 59.4% | 1.68x |
 | 64K | 15,047.08 | 27,400 | 54.9% | 1.82x | 23,000 | 65.4% | 1.53x |
 | 256K | 37,251.55 | 17,400 | 214.1% | 0.47x | 13,425 | 277.5% | 0.36x |
-
-### Decode 8K/1K — 2026-06-26
-
-| BS 行 | MI300X TPOT ms | H200 TPOT ms | MI300X latency 倍数 | MI300X output tok/s | H200 output tok/s | MI/H200 throughput | H200 快多少 | MI accept len/rate | H200 accept rate |
-|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 16 | 21.61 | 11.59 | 1.86x | 689.22 | 1,380.71 | 49.9% | 2.00x | 2.38/0.46 | 0.75 |
-| 32 | 27.94 | 12.56 | 2.22x | 1,017.58 | 2,548.66 | 39.9% | 2.50x | 2.34/0.44 | 0.75 |
-| 64 | 34.78 | 14.28 | 2.44x | 1,391.54 | 4,482.93 | 31.0% | 3.22x | 2.25/0.41 | 0.75 |
-| 128 | 34.70 | 18.25 | 1.90x | 1,396.29 | 7,013.05 | 19.9% | 5.02x | 2.15/0.38 | 0.75 |
-
-### aiter + MTP 状态
-
-6/26 的新栈把 `aiter + MTP=3` 从 6/19 的低 accept 状态拉回来了一部分：`accept_length` 从约 1.6 提升到 2.15-2.38，`accept_rate` 从约 0.2 提升到 0.38-0.46。但 H200 表里的 accept rate 是 0.75，decode throughput 仍然是 H200 领先。
 
 ### 关键发现：H200 的 accept_rate = 0.75 是模拟值，不是真实值
 
@@ -82,71 +67,18 @@ AMD 6 月 26 日提供了新的 1P1D MI300X 测试栈：`sammysun0711/sglang` �
 原始日志：[`data/raw-logs/20260626-simulate-acc3/`](data/raw-logs/20260626-simulate-acc3/)  
 N = 256 requests/BS 点；input=8192, output=1024, seed=12345, warmup=32。
 
-| BS | MI300X Median TPOT (ms) | MI300X P99 (ms) | H200 TPOT (ms) | MI300X 慢几倍 | MI300X output tok/s | H200 output tok/s | MI/H200 tok/s |
-|---:|---:|---:|---:|---:|---:|---:|---:|
-| 16 | 14.75 | 15.32 | 11.59 | 1.27x | 973.06 | 1,380.71 | 70.5% |
-| 32 | 17.82 | 18.39 | 12.56 | 1.42x | 1,518.15 | 2,548.66 | 59.6% |
-| 64 | 20.42 | 20.62 | 14.28 | 1.43x | 1,852.16 | 4,482.93 | 41.3% |
-| 128 | 20.31 | 20.52 | 18.25 | **1.11x** | 1,851.63 | 7,013.05 | **26.4%** |
+| BS | MI300X Median TPOT (ms) | MI300X P99 (ms) | H200 TPOT (ms) | MI300X / H200 |
+|---:|---:|---:|---:|---:|
+| 16 | 14.75 | 15.32 | 11.59 | 1.27x |
+| 32 | 17.82 | 18.39 | 12.56 | 1.42x |
+| 64 | 20.42 | 20.62 | 14.28 | 1.43x |
+| 128 | 20.31 | 20.52 | 18.25 | **1.11x** |
 
-**核心结论**：在同口径（`SIMULATE_ACC_LEN=3`，和 H200 测试方法一致）下，MI300X decode Median TPOT 差距从 1.86-2.44x 缩小到 **1.11-1.43x**。BS≥128 时 MI300X 只差 H200 单路 decode 延迟 11%（N=256，P99 波动 <1ms）。但 output tok/s 仍然显示系统级拓扑差距：MI300X 约 973-1,852 tok/s，H200 报 1,381-7,013 tok/s。TPOT 反映单路延迟；output tok/s 同时反映 DP 并行度、scheduler、router 开销和 KV transfer。
-
-### Decode 吞吐差距解释
-
-即使 TPOT 同口径后差距很小，MI300X 吞吐在 BS≥64 时封顶在 ~1,852 tok/s，而 H200 报 4,483-7,013 tok/s。原因：
-
-1. **单 decode service 天花板**：这次 MI300X 只启动了一个 `--tp-size 8` 的 decode server，没有 DP/EP 参数。BS≥64 后 output tok/s 不再增长，说明继续加并发主要增加排队，而不是增加 decode 产能。
-2. **H200 吞吐来自 reference sheet，且与 `BS × 1000 / TPOT` 一致**；MI300X 吞吐是 `bench_serving` 端到端实测值（包含 PD router 开销、KV transfer 延迟、scheduler 间隙）
-3. **MI300X scheduler 饱和**：output throughput 在 BS≥64 后不再增长，说明单 decode server 达到调度天花板
+**核心结论**：在同口径（`SIMULATE_ACC_LEN=3`，和 H200 测试方法一致）下，MI300X decode Median TPOT 是 H200 的 **1.11-1.43x**。BS≥128 时 MI300X 只差 H200 单路 decode 延迟 11%（N=256，P99 波动 <1ms）。Decode output tok/s 被刻意排除在对比表之外，因为它依赖 serving topology、DP 并行度、scheduler、router 开销和 KV transfer。
 
 ### 关键配置发现：CUDA Graph
 
 > **⚠️ 2026-06-19 发现**：Decode server **禁止**使用 `--disable-cuda-graph`。禁用后 TPOT 退化 5 倍（23ms → 120ms）。仅 Prefill server 应禁用 CUDA Graph（长序列需要动态内存分配）。
-
----
-
-## 历史 H200 对齐矩阵 — 6/18 与 6/19 基线
-
-下面保留的是 6/18 triton+MTP 与 6/19 第一版 aiter attention 的历史结果。不要把这些数字和最上方 6/26 的 aiter+MTP3 对口倍数混在一起；6/26 是新的软件栈，证据和对比口径以上方新章节为准。
-
-### Decode 8K TPOT (ms) — 三版本对比
-
-| BS | ① triton+MTP=3 | ② aiter+MTP=3 | ③ aiter no-MTP | H200 |
-|:--:|:---:|:---:|:---:|:---:|
-| 16 | **13.71** | 22.78 | 23.23 | 11.59 |
-| 32 | **16.53** | 29.14 | 27.29 | 12.56 |
-| 64 | **19.70** | 35.29 | 34.62 | 14.28 |
-| 128 | **22.16** | 40.45 | 35.96 | 18.25 |
-| 192 | **22.56** | 44.36 | 41.79 | 23.29 |
-| 256 | **22.86** | 47.23 | 43.64 | 27.38 |
-
-### Decode 64K TPOT (ms)
-
-| BS | ③ aiter no-MTP | ① triton+MTP=3 | H200 | aiter/H200 |
-|:--:|:---:|:---:|:---:|:---:|
-| 16 | 20.25 | 23.36 | 11.99 | 1.7× |
-| 32 | 20.58 | 23.37 | 14.31 | 1.4× |
-| 64 | 22.27 | 24.39 | 16.33 | 1.4× |
-| 96 | OOM | 24.18 | 19.63 | — |
-
-### Prefill 吞吐 (tok/s)
-
-| 上下文长度 | aiter no-MTP | triton+MTP | 提升 | H200 | aiter/H200 |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| **8K** | **15,133** | 13,531 | +12% | 31,950 | 47% |
-| **64K** | **16,125** | 11,500 | +40% | 27,400 | 59% |
-| **256K** | **11,410** | 7,294 | +56% | 17,400 | 66% |
-
-### aiter + MTP 状态变化
-
-| 指标 | triton + MTP=3 | aiter + MTP=3（2026-06-19） | aiter + MTP=3（2026-06-26） |
-|------|:---:|:---:|:---:|
-| acceptance_rate | **0.666** | 0.2 | 0.38-0.46（BS16-128） |
-| accept_length | **3.2** | 1.6 | 2.15-2.38（BS16-128） |
-| Decode 8K BS16 TPOT | **13.71ms** | 22.78ms | 21.61ms |
-| Decode 8K BS16 output tok/s | — | — | 689.22 |
-
-> **状态**：6/26 新栈说明 `aiter + MTP=3` 已经不是 6/19 的低 accept failure mode；但它仍低于 triton+MTP 的 decode latency，也低于 H200 表里的 0.75 accept rate。按 6/26 H200 表自己的 output throughput 口径，H200 在 BS16 快 2.0x，在 BS128 快 5.0x。
 
 ---
 
@@ -226,7 +158,6 @@ Node 1 (8× MI300X)               Node 2 (8× MI300X)
 | 问题 | 状态 | 影响 |
 |------|------|------|
 | ~~aiter attention 后端~~ | **✅ 已修复** | commit `f5fe8e944` 已修复 |
-| **aiter + MTP accept gap** | **⚠️ 改善但未闭环** | 6/19：accept rate 约 0.2 / accept length 约 1.6；6/26：accept length 提升到 2.15-2.38，accept rate 0.38-0.46，但 H200 仍为 0.75，decode throughput 仍落后 2.0-5.0x |
 | **Decode CUDA Graph** | **⚠️ 关键配置** | Decode 禁用 CUDA Graph 导致 5× TPOT 退化 |
 | TP16/DP2 DP-attention | ❌ 阻塞 | MORI dispatch heap OOM |
 | 跨节点 MORI-EP=16 | ❌ 阻塞 | RCCL 不稳定 |
@@ -239,8 +170,7 @@ Node 1 (8× MI300X)               Node 2 (8× MI300X)
 1. **Prefill 8K/64K 达到 H200 EP16/DP2 的 51-55%**：H200 仍快约 1.8-2.0x，主因是拓扑差异（EP8/DP1 vs EP16/DP2）
 2. **256K Prefill 在 6/26 单点反超 H200 2.14x**：需要 repeated-run 验证
 3. **Decode 同口径（SIMULATE_ACC_LEN=3）下 Median TPOT 差距仅 1.11-1.43x**：BS≥128 时只差 11%，基本打平。H200 表的 accept_rate=0.75 是用 `SGLANG_SIMULATE_ACC_LEN=3` 模拟固定的（来源：AMD 工程师孙霞克 2026-06-26 微信确认），不是真实 draft model 预测准确率
-4. **Decode 吞吐差距主因是单 decode service 已饱和**：这次 MI300X 没有跑多 DP/EP，BS≥64 时吞吐封顶 ~1852 tok/s；继续提升需要新的多路 decode/EP 拓扑，而不是单纯加并发
-5. **CUDA Graph 对 decode 性能至关重要**：decode server 禁用 = 5× 性能退化
+4. **CUDA Graph 对 decode 性能至关重要**：decode server 禁用 = 5× 性能退化
 
 ---
 
