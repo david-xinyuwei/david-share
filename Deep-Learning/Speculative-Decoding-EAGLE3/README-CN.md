@@ -197,7 +197,7 @@ Target model **在单次 forward pass 中验证所有分支**，接受最长匹�
 | **Gemma 4 MTP** | Google 发布的 MTP assistant checkpoint（~0.5B 参数，4 层 drafter）；它使用 target model activations 和共享 KV-cache 来提高 draft 质量（来源：[Google MTP docs](https://ai.google.dev/gemma/docs/mtp/mtp)） | Google 作为官方 assistant checkpoint 发布，本 repo 不训练它 | 作为额外 assistant/drafter model 加载；共享 target embedding 权重并映射到 target layers（vLLM 日志：draft layers mapped to target layers 58/59） | assistant 权重 +0.87 GiB；本次 vLLM run 的 KV cache 预算 -4.86 GiB | 不需要本地训练；本次 H100 实测稳定 1.73x | serving stack 必须支持 assistant 架构；本次 vLLM 需要 config shim |
 | **DFlash** | 读取 target context features 的 block diffusion drafter checkpoint，一次 forward 并行草拟一个 token block（来源：[DFlash project](https://z-lab.ai/projects/dflash/) 和 [arXiv:2602.06036](https://arxiv.org/abs/2602.06036)） | 针对某个 target model family/checkpoint 单独训练；公开 checkpoint 发布在 `z-lab/*-DFlash` | 在支持 DFlash 的 serving stack 中作为 draft model 加载，例如 SGLang 或带 DFlash 支持的 vLLM build | 本 repo 未实测 | draft 阶段本身从顺序生成变成 block 并行生成；官方 checkpoint 和 engine 支持齐全时很有潜力 | 更吃显存和 engine 版本；block size、context length、任务分布都必须 benchmark |
 | **DeepSeek-style MTP** | model family 内部的 MTP heads/modules；本 repo 没把它当外部 assistant 单独实测 | release-specific，通常随 model-family MTP 设计一起训练 | 由该模型自己的 inference stack 暴露，不是 Gemma-style assistant loading | 本 repo 未实测 | MTP 是模型训练/推理设计的一部分，不是外接小模型 | 具体实现随 release 变化，不能照搬 EAGLE/Gemma 的启动参数 |
-| **MiMo-V2.5-style MTP** | 面向 reasoning workload 的 model-family draft path | release-specific，按 model-family 设计理解 | 取决于该 release 的 serving stack | 本 repo 未实测 | 有机会在自身 reasoning 分布上获得更高接受率 | 必须按 workload 实测，高熵输出仍可能吃掉收益 |
+| **MiMo-V2.5-style MTP** | 打包在同一个 model repo/directory 里的 model-family draft modules；MiMo-V2.5-Pro 有单独的 `model_mtp.safetensors`，其中包含 `model.mtp.layers.0/1/2` tensors | release-specific，作为 model-family 设计的一部分训练 | serving stack 指向同一个 model directory 即可；不需要额外 external draft-model path，但 MTP 权重是在目录中的单独文件里 | 本 repo 未实测 | 有机会在自身 reasoning 分布上获得更高接受率 | 必须按 workload 实测，高熵输出仍可能吃掉收益 |
 
 这里的 “drafter” 不能统一理解成“旁边外挂一个完整 LLM”。不同路线的权重形态不一样：
 
@@ -207,9 +207,9 @@ Target model **在单次 forward pass 中验证所有分支**，接受最长匹�
 | **Gemma 4 MTP** | 有。Google 单独发布 assistant drafter checkpoint | 不是 | separate assistant drafter checkpoint |
 | **DFlash** | 有。Z-Lab 针对特定 target 发布单独 DFlash draft checkpoint | 不是 | target-conditioned block diffusion draft checkpoint |
 | **DeepSeek-style MTP** | 通常表现为 model-family checkpoint 内部的 MTP heads/modules，具体随 release 而定 | 不是 | native MTP module weights inside the model family |
-| **MiMo-V2.5-style MTP** | release-specific；除非官方单独发布 assistant checkpoint，否则应按 model-family draft path 理解 | 不是 | model-family MTP/draft-path weights, release-specific |
+| **MiMo-V2.5-style MTP** | 有。以 MiMo-V2.5-Pro 为例，HF 文件列表显示同一 model directory 下有单独的 `model_mtp.safetensors`，里面包含 `model.mtp.layers.0/1/2` tensors | 不是 | 同一 model repo/directory 内的 native MTP weights，以 `model_mtp.safetensors` 单独打包 |
 
-下图把几条路线里 drafter 的位置画出来。DeepSeek-style 和 MiMo-V2.5-style MTP 这里画的是概念位置，因为本 repo 没有检查或实测这些 release-specific 实现。DFlash 也读取 target 信息，但它最特别的地方是 drafter 本身是 block diffusion，不是 autoregressive draft head。
+下图把几条路线里 drafter 的位置画出来。DeepSeek-style MTP 这里仍是概念位置，因为本 repo 没有检查该 release-specific 实现。MiMo-V2.5-Pro 的公开 HF 文件列表则显示，MTP modules 以 `model_mtp.safetensors` 单独打包在同一个 model directory 里，包含 `model.mtp.layers.0/1/2`。DFlash 也读取 target 信息，但它最特别的地方是 drafter 本身是 block diffusion，不是 autoregressive draft head。
 
 ```mermaid
 flowchart LR
@@ -255,9 +255,9 @@ flowchart LR
         DST --> DSV
     end
 
-    subgraph MM["MiMo-V2.5-style MTP<br/>model-family draft path"]
+    subgraph MM["MiMo-V2.5-style MTP<br/>model_mtp.safetensors"]
         MMT["Model-family checkpoint"]
-        MMD["Draft path 或 MTP modules<br/>release-specific"]
+        MMD["MTP modules<br/>model.mtp.layers.0/1/2<br/>同目录单独文件"]
         MMV["Serving stack<br/>draft and verify"]
         MMT --> MMD
         MMD --> MMV

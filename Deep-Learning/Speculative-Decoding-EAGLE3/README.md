@@ -197,7 +197,7 @@ All speculative decoding systems share the same outer loop: a cheap drafter prop
 | **Gemma 4 MTP** | A Google-published MTP assistant checkpoint (~0.5B params, 4-layer drafter); it uses target model activations and shared KV-cache to improve draft quality (source: [Google MTP docs](https://ai.google.dev/gemma/docs/mtp/mtp)) | Produced by Google as an official assistant checkpoint; this repo does not train it | Loaded as an additional assistant/drafter model; shares target embedding weights and maps to target layers (vLLM log: draft layers mapped to target layers 58/59) | +0.87 GiB assistant weights; KV cache budget -4.86 GiB in this vLLM run | No local draft training required; stable 1.73x in this H100 test | Serving stack must support the assistant architecture; this run required a vLLM config shim |
 | **DFlash** | A target-conditioned block diffusion drafter checkpoint that fuses target context features and drafts a token block in one parallel forward pass (source: [DFlash project](https://z-lab.ai/projects/dflash/) and [arXiv:2602.06036](https://arxiv.org/abs/2602.06036)) | Trained separately for a target model family/checkpoint; public draft checkpoints are published under `z-lab/*-DFlash` | Loaded as a DFlash draft model in a DFlash-aware serving stack such as SGLang or vLLM builds with DFlash support | Not measured in this repo | Makes the draft stage itself block-parallel instead of autoregressive; useful when an official DFlash checkpoint and engine support exist | More memory and engine-version sensitivity; block size, context length, and workload distribution must be benchmarked |
 | **DeepSeek-style MTP** | MTP heads/modules inside the model family, not measured here as a separate external assistant | Release-specific; generally trained with the model-family MTP design | Exposed by that model's own inference stack rather than by Gemma-style assistant loading | Not measured in this repo | Can make MTP part of the training/inference design instead of an external add-on | Implementation details are release-specific; do not assume EAGLE flags or Gemma assistant loading will work |
-| **MiMo-V2.5-style MTP** | Model-family draft path aimed at reasoning-heavy workloads | Release-specific; treated as part of the model-family design | Depends on that release's serving stack | Not measured in this repo | Potentially better acceptance on the model's own reasoning distribution | Needs workload-specific measurement; high-entropy tasks can still erase the benefit |
+| **MiMo-V2.5-style MTP** | Model-family draft modules packaged in the same model repo/directory; MiMo-V2.5-Pro exposes a separate `model_mtp.safetensors` file with `model.mtp.layers.0/1/2` tensors | Release-specific; trained as part of the model-family design | Loaded by pointing the serving stack at the model directory; no separate external draft-model path is required, but the MTP weights are a separate file inside that directory | Not measured in this repo | Potentially better acceptance on the model's own reasoning distribution | Needs workload-specific measurement; high-entropy tasks can still erase the benefit |
 
 The word "drafter" does not always mean "a full standalone LLM loaded next to the target." The weight form is different across families:
 
@@ -207,9 +207,9 @@ The word "drafter" does not always mean "a full standalone LLM loaded next to th
 | **Gemma 4 MTP** | Yes. Google publishes a separate assistant drafter checkpoint | No | Separate assistant drafter checkpoint |
 | **DFlash** | Yes. Z-Lab publishes separate DFlash draft checkpoints for specific targets | No | Target-conditioned block diffusion draft checkpoint |
 | **DeepSeek-style MTP** | Usually represented as native MTP heads/modules inside the model-family checkpoint, release-specific | No | Native MTP module weights inside the model family |
-| **MiMo-V2.5-style MTP** | Release-specific; treat it as a model-family draft path unless an official separate assistant checkpoint is published | No | Model-family MTP/draft-path weights, release-specific |
+| **MiMo-V2.5-style MTP** | Yes. For MiMo-V2.5-Pro, HF lists a separate `model_mtp.safetensors` file containing `model.mtp.layers.0/1/2` tensors in the same model directory | No | Native MTP weights in the same model repo/directory, packaged as `model_mtp.safetensors` |
 
-The diagram below shows where the drafter lives in each route. For DeepSeek-style and MiMo-V2.5-style MTP, the drawing is intentionally conceptual because this repo did not inspect or benchmark those release-specific implementations. DFlash is also target-conditioned, but its distinguishing feature is that the draft generator is a block diffusion model rather than an autoregressive draft head.
+The diagram below shows where the drafter lives in each route. For DeepSeek-style MTP the drawing is conceptual because this repo did not inspect that release-specific implementation. For MiMo-V2.5-Pro, the public HF file listing shows the MTP modules packaged as `model_mtp.safetensors` with `model.mtp.layers.0/1/2`, in the same model directory as the target shards. DFlash is also target-conditioned, but its distinguishing feature is that the draft generator is a block diffusion model rather than an autoregressive draft head.
 
 ```mermaid
 flowchart LR
@@ -255,9 +255,9 @@ flowchart LR
     DST --> DSV
   end
 
-  subgraph MM["MiMo-V2.5-style MTP<br/>model-family draft path"]
+  subgraph MM["MiMo-V2.5-style MTP<br/>model_mtp.safetensors"]
     MMT["Model-family checkpoint"]
-    MMD["Draft path or MTP modules<br/>release-specific"]
+    MMD["MTP modules<br/>model.mtp.layers.0/1/2<br/>separate file in same directory"]
     MMV["Serving stack<br/>draft and verify"]
     MMT --> MMD
     MMD --> MMV
