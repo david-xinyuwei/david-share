@@ -11,7 +11,7 @@
 [![SpecForge](https://img.shields.io/badge/Training-SpecForge-green.svg)](https://github.com/SafeAILab/SpecForge)
 [![Gemma 4](https://img.shields.io/badge/Model-Gemma_4-orange.svg)](https://huggingface.co/google/gemma-4-31B-it)
 
-Engineering guide to speculative decoding: validate an official EAGLE3 draft model, self-train a draft head on a single GPU in 45 minutes, and benchmark Google's native Gemma 4 MTP assistant — all on Azure H100.
+Engineering guide to speculative decoding: validate an official EAGLE3 draft model, self-train a draft head on a single GPU in 45 minutes, benchmark Google's native Gemma 4 MTP assistant, and compare Qwen3.6 DFlash vs Native MTP vs llama.cpp on Azure H100.
 
 
 ## Running on Azure
