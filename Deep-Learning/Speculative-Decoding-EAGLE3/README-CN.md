@@ -474,6 +474,8 @@ real performance = draft model capability × runtime system capability
 
 在自然文本（GSM8K）场景中，MiMo V2.5 Pro 在引用的 SGLang context 里报告 **accept rate 0.755** 和 **accept length 3.27**（max 4）。在 random token streams 中，accept rate 会降到 0.13-0.27，因为 MTP 是按自然语言分布训练的，对随机字节没有有效信号。另一个真实 MI300X run（不开 simulated acceptance）中，2026-06-26 stack 测得 accept_length 2.15-2.38、accept_rate 0.38-0.46。
 
+MiMo MTP 对 serving stack 版本有要求。SGLang MiMo-V2.5 cookbook 把 H100/H200 Hopper 部署固定到 `lmsysorg/sglang:nightly-dev-20260511-044bb88a`，并明确提醒 `lmsysorg/sglang:latest` 不能加载 MiMo-V2.5 checkpoints。不要把 MI300X 的 AMD/ROCm fork（`sammysun0711/sglang@mimo_aiter_attn`, commit `db840d935`）套到 H200；它是 ROCm/aiter/MI300X 复现路径。若要复现 MiMo-V2.5 310B 的 H200 benchmark，SGLang cookbook 记录的 benchmark 环境是 `lmsysorg/sglang:dev-mimo-v2.5` / `sglang 0.0.0.dev1+g7d99af439`。
+
 DFlash 使用建议仍然应该保持工程化：当官方 draft checkpoint 存在、serving engine 支持稳定、显存余量足够、且 workload-specific acceptance 足够高时，DFlash 值得测试。否则应该把 native MTP 和 DFlash 放在同一套 workload 上并排 benchmark。
 
 #### 复现 H100 Benchmark
