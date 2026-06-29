@@ -37,6 +37,8 @@ AMD 6 月 26 日提供了新的 1P1D MI300X 测试栈：`sammysun0711/sglang` �
 | 64K | 15,047 | 27,400 | 54.9% |
 | 256K | 37,252 | 17,400 | **214.1%** |
 
+Prefill 不展示 TPOT，因为这个测试是 `output=1`：首 token 之后没有稳定的 decode-token 阶段。Prefill 用 input-token throughput（`tok/s`）对比；TPOT 放在下面 Decode 表里。
+
 **Decode 8K/1K，同口径（两边都 `SIMULATE_ACC_LEN=3`）**
 
 | BS | MI300X Median TPOT | MI300X P99 | H200 TPOT | MI300X/H200 TPOT | MI300X output tok/s | H200 output tok/s | MI300X/H200 tok/s |
@@ -57,6 +59,8 @@ TPOT 越低越好；output tok/s 越高越好。
 | 8K | 16,323.45 | 31,950 | 51.1% | 27,500 | 59.4% |
 | 64K | 15,047.08 | 27,400 | 54.9% | 23,000 | 65.4% |
 | 256K | 37,251.55 | 17,400 | 214.1% | 13,425 | 277.5% |
+
+本节只报告 Prefill 吞吐。因为运行只生成 1 个 token（`output=1`），这里没有可用于计算稳定 TPOT 的 decode 阶段。
 
 ### 关键发现：H200 的 accept_rate = 0.75 是模拟值，不是真实值
 

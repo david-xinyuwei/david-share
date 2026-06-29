@@ -35,6 +35,8 @@ English | [中文版](README-CN.md)
 | 64K | 15,047 | 27,400 | 54.9% |
 | 256K | 37,252 | 17,400 | **214.1%** |
 
+Prefill does not report TPOT because this benchmark uses `output=1`: there is no steady decode-token phase after the first generated token. Prefill is compared by input-token throughput (`tok/s`); TPOT is reported in the Decode table below.
+
 **Decode 8K/1K, same methodology (`SIMULATE_ACC_LEN=3` on both sides)**
 
 | BS | MI300X Median TPOT | MI300X P99 | H200 TPOT | MI300X/H200 TPOT | MI300X output tok/s | H200 output tok/s | MI300X/H200 tok/s |
@@ -80,6 +82,8 @@ AMD provided an updated 1P1D MI300X test stack on 2026-06-26:
 | 8K | 16,323.45 | 31,950 | 51.1% | 27,500 | 59.4% |
 | 64K | 15,047.08 | 27,400 | 54.9% | 23,000 | 65.4% |
 | 256K | 37,251.55 | 17,400 | 214.1% | 13,425 | 277.5% |
+
+This prefill section reports throughput only. Since the run generates one token (`output=1`), TPOT is not a meaningful steady-state metric here.
 
 ### Critical Discovery: H200 accept_rate = 0.75 Is Simulated, Not Real
 
