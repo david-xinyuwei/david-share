@@ -23,26 +23,28 @@ English | [中文版](README-CN.md)
 
 ## Executive Summary
 
-- **Prefill:** H200 is still 1.8-2.0x faster at 8K/64K throughput, while MI300X wins the validated 256K long-context point by 2.14x.
-- **Decode:** with aligned MTP acceptance (`SIMULATE_ACC_LEN=3` on both sides), MI300X is close on TPOT latency. The front-page decode comparison intentionally reports TPOT only; output tok/s is not shown because the two sides do not use the same serving topology.
+- **Prefill:** MI300X/H200 throughput is 51.1% at 8K, 54.9% at 64K, and 214.1% at the validated 256K long-context point.
+- **Decode:** with aligned MTP acceptance (`SIMULATE_ACC_LEN=3` on both sides), MI300X is close on TPOT latency; output tok/s is also shown with the same visible-BS-row methodology.
 - **Key discovery:** H200's constant `accept_rate=0.75` is simulated via `SGLANG_SIMULATE_ACC_LEN=3`, so H200 TPOT reflects ideal MTP acceptance rather than real draft-model accuracy.
 
-**Prefill throughput (output=1, tok/s is the primary metric)**
+**Prefill throughput (output=1; higher is better)**
 
-| Context | MI300X tok/s | H200 tok/s | Result |
-|---:|---:|---:|---|
-| 8K | 16,323 | 31,950 | H200 1.96x faster |
-| 64K | 15,047 | 27,400 | H200 1.82x faster |
-| 256K | 37,252 | 17,400 | MI300X 2.14x faster |
+| Context | MI300X tok/s | H200 tok/s | MI300X / H200 |
+|---:|---:|---:|---:|
+| 8K | 16,323 | 31,950 | 51.1% |
+| 64K | 15,047 | 27,400 | 54.9% |
+| 256K | 37,252 | 17,400 | **214.1%** |
 
-**Decode 8K/1K, same methodology (`SIMULATE_ACC_LEN=3` on both sides; TPOT only)**
+**Decode 8K/1K, same methodology (`SIMULATE_ACC_LEN=3` on both sides)**
 
-| BS | MI300X Median TPOT | MI300X P99 | H200 TPOT | MI300X / H200 |
-|---:|---:|---:|---:|---:|
-| 16 | 14.75 ms | 15.32 ms | 11.59 ms | 1.27x |
-| 32 | 17.82 ms | 18.39 ms | 12.56 ms | 1.42x |
-| 64 | 20.42 ms | 20.62 ms | 14.28 ms | 1.43x |
-| 128 | 20.31 ms | 20.52 ms | 18.25 ms | **1.11x** |
+| BS | MI300X Median TPOT | MI300X P99 | H200 TPOT | MI300X/H200 TPOT | MI300X output tok/s | H200 output tok/s | MI300X/H200 tok/s |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 16 | 14.75 ms | 15.32 ms | 11.59 ms | 1.27x | 973 | 1,381 | 70.5% |
+| 32 | 17.82 ms | 18.39 ms | 12.56 ms | 1.42x | 1,518 | 2,549 | 59.6% |
+| 64 | 20.42 ms | 20.62 ms | 14.28 ms | 1.43x | 1,852 | 4,483 | 41.3% |
+| 128 | 20.31 ms | 20.52 ms | 18.25 ms | **1.11x** | 1,852 | 7,013 | 26.4% |
+
+TPOT: lower is better. Output tok/s: higher is better.
 
 ### Methodology Note
 
@@ -69,15 +71,15 @@ AMD provided an updated 1P1D MI300X test stack on 2026-06-26:
 
 > **Raw benchmark logs** for reproducibility verification are archived under [`data/raw-logs/`](data/raw-logs/). H200 decode comparisons use the aligned `SIMULATE_ACC_LEN=3` logs under [`data/raw-logs/20260626-simulate-acc3/`](data/raw-logs/20260626-simulate-acc3/).
 
-> **Decode metric provenance**: MI300X TPOT is measured directly from SGLang `bench_serving` logs. H200 TPOT is taken from Xiaomi's H200 reference sheet. This report does not use decode output tok/s for MI300X-vs-H200 comparison because the serving topology is not aligned.
+> **Decode metric provenance**: MI300X TPOT and output tok/s are measured directly from SGLang `bench_serving` logs. H200 TPOT and output tok/s are taken from Xiaomi's H200 reference sheet. The H200 output tok/s column equals `BS × 1000 / TPOT` and is shown as the sheet's visible-BS-row throughput.
 
 ### Prefill Throughput — 2026-06-26
 
-| Input | MI300X aiter+MTP3 tok/s | H200 EP16/DP2 tok/s | MI/H200 | H200 faster | H200 EP32/DP4 tok/s | MI/H200 | H200 faster |
-|---:|---:|---:|---:|---:|---:|---:|---:|
-| 8K | 16,323.45 | 31,950 | 51.1% | 1.96x | 27,500 | 59.4% | 1.68x |
-| 64K | 15,047.08 | 27,400 | 54.9% | 1.82x | 23,000 | 65.4% | 1.53x |
-| 256K | 37,251.55 | 17,400 | 214.1% | 0.47x | 13,425 | 277.5% | 0.36x |
+| Input | MI300X aiter+MTP3 tok/s | H200 EP16/DP2 tok/s | MI300X/H200 EP16/DP2 | H200 EP32/DP4 tok/s | MI300X/H200 EP32/DP4 |
+|---:|---:|---:|---:|---:|---:|
+| 8K | 16,323.45 | 31,950 | 51.1% | 27,500 | 59.4% |
+| 64K | 15,047.08 | 27,400 | 54.9% | 23,000 | 65.4% |
+| 256K | 37,251.55 | 17,400 | 214.1% | 13,425 | 277.5% |
 
 ### Critical Discovery: H200 accept_rate = 0.75 Is Simulated, Not Real
 
@@ -90,14 +92,14 @@ This means the H200 TPOT numbers reflect **pure kernel latency with ideal MTP ac
 Raw logs: [`data/raw-logs/20260626-simulate-acc3/`](data/raw-logs/20260626-simulate-acc3/)  
 N = 256 requests per BS point; input=8192, output=1024, seed=12345, warmup=32.
 
-| BS | MI300X Median TPOT (ms) | MI300X P99 (ms) | H200 TPOT (ms) | MI300X / H200 |
-|---:|---:|---:|---:|---:|
-| 16 | 14.75 | 15.32 | 11.59 | 1.27x |
-| 32 | 17.82 | 18.39 | 12.56 | 1.42x |
-| 64 | 20.42 | 20.62 | 14.28 | 1.43x |
-| 128 | 20.31 | 20.52 | 18.25 | **1.11x** |
+| BS | MI300X Median TPOT (ms) | MI300X P99 (ms) | H200 TPOT (ms) | MI300X/H200 TPOT | MI300X output tok/s | H200 output tok/s | MI300X/H200 tok/s |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 16 | 14.75 | 15.32 | 11.59 | 1.27x | 973.06 | 1,380.71 | 70.5% |
+| 32 | 17.82 | 18.39 | 12.56 | 1.42x | 1,518.15 | 2,548.66 | 59.6% |
+| 64 | 20.42 | 20.62 | 14.28 | 1.43x | 1,852.16 | 4,482.93 | 41.3% |
+| 128 | 20.31 | 20.52 | 18.25 | **1.11x** | 1,851.63 | 7,013.05 | 26.4% |
 
-**Key takeaway**: with the same simulated accept_length=3 (matching the H200 test methodology), MI300X decode Median TPOT is **1.11-1.43x** slower than H200. At BS≥128, MI300X is within 11% of H200 per-path decode latency (N=256, P99 spread <1ms). Output tok/s is intentionally excluded from the comparison because it depends on serving topology, DP parallelism, scheduler behavior, router overhead, and KV transfer.
+**Key takeaway**: with the same simulated accept_length=3 (matching the H200 test methodology), MI300X decode Median TPOT is **1.11-1.43x** of H200. At BS=128, MI300X is within 11% of H200 per-path decode latency (N=256, P99 spread <1ms). The output tok/s ratio is lower because it reflects serving topology and scheduling in addition to per-token latency.
 
 ### Real Benchmark Output Sample
 
@@ -111,7 +113,9 @@ Successful requests:                     256
 Benchmark duration (s):                  141.68
 Total input tokens:                      2,097,152
 Total generated tokens:                  262,144
+Request throughput (req/s):              1.81
 Input token throughput (tok/s):          14,803.47
+Output token throughput (tok/s):         1,851.63
 Peak concurrent requests:                133
 Total token throughput (tok/s):          16,655.10
 Concurrency:                             104.85

@@ -25,36 +25,38 @@ AMD 6 月 26 日提供了新的 1P1D MI300X 测试栈：`sammysun0711/sglang` �
 
 ### 对口倍数结论
 
-- **Prefill**：8K/64K 吞吐仍是 H200 快 1.8-2.0x；256K 长上下文单点 MI300X 快 2.14x。
-- **Decode**：两边都固定 `SIMULATE_ACC_LEN=3` 后，MI300X 的 TPOT latency 接近 H200。首页 Decode 对比只展示 TPOT；output tok/s 依赖 serving topology，不在 MI300X-vs-H200 对比表中展示。
+- **Prefill**：MI300X/H200 吞吐比例为 8K 51.1%、64K 54.9%、256K 长上下文单点 214.1%。
+- **Decode**：两边都固定 `SIMULATE_ACC_LEN=3` 后，MI300X 的 TPOT latency 接近 H200；output tok/s 也按同一 visible-BS-row 口径展示。
 - **关键发现**：H200 的 `accept_rate=0.75` 是通过 `SGLANG_SIMULATE_ACC_LEN=3` 模拟固定出来的，不是真实 draft model accuracy。
 
-**Prefill throughput（output=1，主指标是 tok/s）**
+**Prefill throughput（output=1；越高越好）**
 
-| Context | MI300X tok/s | H200 tok/s | 结论 |
-|---:|---:|---:|---|
-| 8K | 16,323 | 31,950 | H200 快 1.96x |
-| 64K | 15,047 | 27,400 | H200 快 1.82x |
-| 256K | 37,252 | 17,400 | MI300X 快 2.14x |
+| Context | MI300X tok/s | H200 tok/s | MI300X / H200 |
+|---:|---:|---:|---:|
+| 8K | 16,323 | 31,950 | 51.1% |
+| 64K | 15,047 | 27,400 | 54.9% |
+| 256K | 37,252 | 17,400 | **214.1%** |
 
-**Decode 8K/1K，同口径（两边都 `SIMULATE_ACC_LEN=3`；只看 TPOT）**
+**Decode 8K/1K，同口径（两边都 `SIMULATE_ACC_LEN=3`）**
 
-| BS | MI300X Median TPOT | MI300X P99 | H200 TPOT | MI300X / H200 |
-|---:|---:|---:|---:|---:|
-| 16 | 14.75 ms | 15.32 ms | 11.59 ms | 1.27x |
-| 32 | 17.82 ms | 18.39 ms | 12.56 ms | 1.42x |
-| 64 | 20.42 ms | 20.62 ms | 14.28 ms | 1.43x |
-| 128 | 20.31 ms | 20.52 ms | 18.25 ms | **1.11x** |
+| BS | MI300X Median TPOT | MI300X P99 | H200 TPOT | MI300X/H200 TPOT | MI300X output tok/s | H200 output tok/s | MI300X/H200 tok/s |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 16 | 14.75 ms | 15.32 ms | 11.59 ms | 1.27x | 973 | 1,381 | 70.5% |
+| 32 | 17.82 ms | 18.39 ms | 12.56 ms | 1.42x | 1,518 | 2,549 | 59.6% |
+| 64 | 20.42 ms | 20.62 ms | 14.28 ms | 1.43x | 1,852 | 4,483 | 41.3% |
+| 128 | 20.31 ms | 20.52 ms | 18.25 ms | **1.11x** | 1,852 | 7,013 | 26.4% |
 
-**指标来源说明**：MI300X 的 TPOT 来自 SGLang `bench_serving` 原始日志，是本次 MI300X 实测值。H200 的 TPOT 来自小米 H200 reference sheet。Decode output tok/s 不用于 MI300X-vs-H200 对比，因为两边 serving topology 不一致。
+TPOT 越低越好；output tok/s 越高越好。
+
+**指标来源说明**：MI300X 的 TPOT 和 output tok/s 来自 SGLang `bench_serving` 原始日志，是本次 MI300X 实测值。H200 的 TPOT 和 output tok/s 来自小米 H200 reference sheet；H200 output tok/s 列等于 `BS × 1000 / TPOT`，这里按 H200 表自己的 visible-BS-row throughput 展示。
 
 ### Prefill 吞吐 — 2026-06-26
 
-| Input | MI300X aiter+MTP3 tok/s | H200 EP16/DP2 tok/s | MI/H200 | H200 快多少 | H200 EP32/DP4 tok/s | MI/H200 | H200 快多少 |
-|---:|---:|---:|---:|---:|---:|---:|---:|
-| 8K | 16,323.45 | 31,950 | 51.1% | 1.96x | 27,500 | 59.4% | 1.68x |
-| 64K | 15,047.08 | 27,400 | 54.9% | 1.82x | 23,000 | 65.4% | 1.53x |
-| 256K | 37,251.55 | 17,400 | 214.1% | 0.47x | 13,425 | 277.5% | 0.36x |
+| Input | MI300X aiter+MTP3 tok/s | H200 EP16/DP2 tok/s | MI300X/H200 EP16/DP2 | H200 EP32/DP4 tok/s | MI300X/H200 EP32/DP4 |
+|---:|---:|---:|---:|---:|---:|
+| 8K | 16,323.45 | 31,950 | 51.1% | 27,500 | 59.4% |
+| 64K | 15,047.08 | 27,400 | 54.9% | 23,000 | 65.4% |
+| 256K | 37,251.55 | 17,400 | 214.1% | 13,425 | 277.5% |
 
 ### 关键发现：H200 的 accept_rate = 0.75 是模拟值，不是真实值
 
@@ -67,14 +69,14 @@ AMD 6 月 26 日提供了新的 1P1D MI300X 测试栈：`sammysun0711/sglang` �
 原始日志：[`data/raw-logs/20260626-simulate-acc3/`](data/raw-logs/20260626-simulate-acc3/)  
 N = 256 requests/BS 点；input=8192, output=1024, seed=12345, warmup=32。
 
-| BS | MI300X Median TPOT (ms) | MI300X P99 (ms) | H200 TPOT (ms) | MI300X / H200 |
-|---:|---:|---:|---:|---:|
-| 16 | 14.75 | 15.32 | 11.59 | 1.27x |
-| 32 | 17.82 | 18.39 | 12.56 | 1.42x |
-| 64 | 20.42 | 20.62 | 14.28 | 1.43x |
-| 128 | 20.31 | 20.52 | 18.25 | **1.11x** |
+| BS | MI300X Median TPOT (ms) | MI300X P99 (ms) | H200 TPOT (ms) | MI300X/H200 TPOT | MI300X output tok/s | H200 output tok/s | MI300X/H200 tok/s |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 16 | 14.75 | 15.32 | 11.59 | 1.27x | 973.06 | 1,380.71 | 70.5% |
+| 32 | 17.82 | 18.39 | 12.56 | 1.42x | 1,518.15 | 2,548.66 | 59.6% |
+| 64 | 20.42 | 20.62 | 14.28 | 1.43x | 1,852.16 | 4,482.93 | 41.3% |
+| 128 | 20.31 | 20.52 | 18.25 | **1.11x** | 1,851.63 | 7,013.05 | 26.4% |
 
-**核心结论**：在同口径（`SIMULATE_ACC_LEN=3`，和 H200 测试方法一致）下，MI300X decode Median TPOT 是 H200 的 **1.11-1.43x**。BS≥128 时 MI300X 只差 H200 单路 decode 延迟 11%（N=256，P99 波动 <1ms）。Decode output tok/s 被刻意排除在对比表之外，因为它依赖 serving topology、DP 并行度、scheduler、router 开销和 KV transfer。
+**核心结论**：在同口径（`SIMULATE_ACC_LEN=3`，和 H200 测试方法一致）下，MI300X decode Median TPOT 是 H200 的 **1.11-1.43x**。BS=128 时 MI300X 只差 H200 单路 decode 延迟 11%（N=256，P99 波动 <1ms）。output tok/s 比例较低，因为它除了 per-token latency，还受 serving topology 和 scheduler 影响。
 
 ### 关键配置发现：CUDA Graph
 
