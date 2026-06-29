@@ -22,7 +22,7 @@ All experiments in this project were conducted on an **Azure GPU VM**.
 |---|---|
 | **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
 | **GPU** | NVIDIA H100 80GB |
-| **Frameworks** | vLLM, SGLang |
+| **Frameworks** | vLLM, SGLang, llama.cpp |
 
 
 ## Executive Summary
@@ -442,14 +442,35 @@ topk=2: each step doubles → binary tree
 
 The **verify bonus** token is a free byproduct of target verification: when the target model verifies N draft tokens in 1 forward pass, it computes N+1 positions of logits. The last position has no draft to verify, so it is directly sampled as a guaranteed correct token. This is why speculative decoding **never performs worse than standard autoregressive decoding** — every verify step produces at least 1 correct token.
 
-**MiMo V2.5 Pro Real-World Performance (source: SGLang official cookbook, B200 8×GPU):**
+**MiMo V2.5 Pro Fixed-Acceptance Benchmark Context (source: SGLang official cookbook and MiMo MI300X benchmark repo):**
 
 | Batch Size / DP rank | Without MTP | 3-layer MTP, accept=3 | 3-layer MTP, accept=4 |
 |:--------------------:|:-----------:|:---------------------:|:---------------------:|
 | 64 | 1,875 tok/s | 3,873 tok/s (2.07×) | 5,103 tok/s (2.72×) |
 | 96 | 2,564 tok/s | 4,840 tok/s (1.89×) | 6,225 tok/s (2.43×) |
 
-On natural text (GSM8K), MiMo V2.5 Pro achieves **accept rate 0.755** and **accept length 3.27** (out of max 4). On random token streams, accept rate drops to 0.13–0.27 — MTP is trained on natural language distributions and has no signal on random bytes.
+The `accept=3/4` columns should be read as fixed-acceptance or simulated-acceptance benchmark settings, not as proof that the draft model naturally reaches those acceptance rates on every workload. In SGLang, `SGLANG_SIMULATE_ACC_LEN=3` fixes `accept_length=3`; with a 4-token draft window, this corresponds to:
+
+```text
+accept_rate = accept_length / max_accept_length = 3 / 4 = 0.75
+```
+
+The prompt, target forward pass, and runtime path still execute, so TPOT can decrease and output tok/s can increase. The speedup comes from the runtime being told to advance by three accepted tokens per decode step. For example:
+
+```text
+1024 output tokens / 1 token per step = 1024 decode steps
+1024 output tokens / 3 tokens per step ≈ 341 decode steps
+```
+
+The tradeoff is that this no longer measures truthful generation quality or real draft-model acceptance. It is a diagnostic / upper-bound benchmark switch for separating draft-model capability from runtime-system capability:
+
+```text
+real performance = draft model capability × runtime system capability
+```
+
+Use this setting to compare kernel, scheduler, KV-cache, or PD-disaggregation paths under the same fixed acceptance assumption. Do not report it as `real accept_rate=0.75`; write `fixed/simulated accept_length=3, equivalent to accept_rate=0.75 under a 4-token draft window`.
+
+On natural text (GSM8K), MiMo V2.5 Pro reports **accept rate 0.755** and **accept length 3.27** (out of max 4) in the cited SGLang context. On random token streams, accept rate drops to 0.13–0.27 — MTP is trained on natural language distributions and has no signal on random bytes. For real MI300X runs without simulated acceptance, the 2026-06-26 stack measured accept_length 2.15-2.38 and accept_rate 0.38-0.46.
 
 For DFlash guidance: use DFlash when an official draft checkpoint exists, the serving engine has stable support, memory headroom is sufficient, and workload-specific acceptance is high. Otherwise, benchmark native MTP and DFlash side by side.
 
@@ -1159,16 +1180,29 @@ Speculative-Decoding-EAGLE3/
 ├── requirements.txt
 ├── data/
 │   ├── gemma4_mtp_h100_baseline.json
-│   └── gemma4_mtp_h100_mtp.json
+│   ├── gemma4_mtp_h100_mtp.json
+│   ├── h100_vllm_native_mtp.json
+│   ├── h100_vllm_dflash.json
+│   └── h100_llamacpp_mtp_q4kxl.json
 ├── images/
 │   ├── eagle3-architecture.png
-│   └── eagle3-training-comparison.png
+│   ├── eagle3-training-comparison.png
+│   └── eagle_mtp_3params_explained.png
 ├── logs/
 │   ├── server_startup.log
-│   └── training_sample.log
+│   ├── training_sample.log
+│   ├── h100_vllm_native_mtp_startup.log
+│   ├── h100_vllm_dflash_startup.log
+│   └── h100_llamacpp_mtp_startup.log
 ├── scripts/
 │   ├── deploy_server.sh
 │   ├── gemma4_mtp_benchmark.py
+│   ├── mtp_benchmark_client.py
+│   ├── mtp_benchmark_orchestrator.sh
+│   ├── mtp_vllm_qwen36_mtp_launch.sh
+│   ├── mtp_vllm_qwen36_dflash_launch.sh
+│   ├── mtp_llamacpp_qwen36_mtp_build.sh
+│   ├── mtp_llamacpp_qwen36_mtp_launch.sh
 │   ├── prepare_data.py
 │   ├── prepare_data.sh
 │   └── train_eagle3.sh
@@ -1305,6 +1339,12 @@ pip install -r requirements.txt
 | `scripts/prepare_data.sh` | Prepare Data |
 | `scripts/train_eagle3.sh` | Train Eagle3 |
 | `scripts/gemma4_mtp_benchmark.py` | Benchmark Gemma 4 baseline vs MTP assistant through a vLLM OpenAI-compatible endpoint |
+| `scripts/mtp_benchmark_client.py` | H100 MTP/DFlash benchmark client with streaming and non-streaming modes |
+| `scripts/mtp_benchmark_orchestrator.sh` | Three-route H100 benchmark orchestrator: start → wait → benchmark → stop → next |
+| `scripts/mtp_vllm_qwen36_mtp_launch.sh` | Launch vLLM native MTP server for Qwen3.6-27B |
+| `scripts/mtp_vllm_qwen36_dflash_launch.sh` | Launch vLLM DFlash server for Qwen3.6-27B |
+| `scripts/mtp_llamacpp_qwen36_mtp_build.sh` | Build llama.cpp with CUDA + OpenSSL for Qwen3.6 MTP GGUF |
+| `scripts/mtp_llamacpp_qwen36_mtp_launch.sh` | Launch llama.cpp MTP GGUF server |
 | `test_performance.py` | Test Performance |
 
 ### Data Files
@@ -1313,3 +1353,6 @@ pip install -r requirements.txt
 |------|-------------|
 | `data/gemma4_mtp_h100_baseline.json` | Gemma 4 31B target-only H100 benchmark results |
 | `data/gemma4_mtp_h100_mtp.json` | Gemma 4 31B + assistant MTP H100 benchmark results |
+| `data/h100_vllm_native_mtp.json` | H100 vLLM native MTP benchmark raw results |
+| `data/h100_vllm_dflash.json` | H100 vLLM DFlash benchmark raw results |
+| `data/h100_llamacpp_mtp_q4kxl.json` | H100 llama.cpp Q4 MTP benchmark raw results |
