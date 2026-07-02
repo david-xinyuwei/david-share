@@ -87,6 +87,38 @@ All findings below come from a controlled Azure H100 validation using public sam
 | Long audio needs pipeline treatment | 180s synthetic long audio collapsed to **16 output chars** | Add VAD/chunk/overlap/stitching before production |
 | Gemma 3n route requires stricter environment than Qwen3-ASR | Model loads but SDPA/cuDNN fails on head_dim=256; clean venv with PyTorch 2.6+/cuDNN 9.1+ prepared | Do not claim Gemma CER until clean-env smoke passes |
 
+### Post-Meeting Technical Sizing Addendum
+
+This repo is responsible for the technical comparison only. It should compare runtime behavior across candidate serving paths and GPU shapes, then hand off the measured technical throughput to a separate non-technical process. Commercial terms are out of scope for this artifact.
+
+The technical capacity metric is:
+
+```text
+audio_hours_processed_per_gpu_hour = total_audio_seconds_processed / benchmark_wall_seconds
+```
+
+Use the measured H100 results in this repo as the Azure-side benchmark shape, then re-run the same script with the customer's current baseline endpoint and representative audio. Keep the comparison technical: same audio set, same chunking policy, same concurrency sweep, same endpoint contract, and same output schema.
+
+| Decision item | Repo evidence now | Follow-up needed before customer commitment |
+|---|---|---|
+| **Technical capacity** | H100 serving throughput, c32 sweet spot, c128 reliable batch ceiling | Re-run the same benchmark on each candidate GPU/runtime and report audio-hours/GPU-hour |
+| **Concurrency setting** | For 8-16s FLEURS audio, c32 was the best throughput/latency point; c128 was reliable but high-latency batch mode; c256 failed partially | Re-run with the customer's 30s chunks and target timeout/SLA |
+| **Long-audio setting** | 180s direct input collapsed; 30s and 60s direct inputs remained normal in this smoke test | Production pipeline should chunk around 30s, with VAD, overlap, stitching, and a meeting-length end-to-end check |
+
+Recommended starting configuration for a first customer-aligned benchmark:
+
+| Parameter | Starting value | Why |
+|---|---|---|
+| Audio duration bucket | 30s chunks, plus 8-16s short clips and one meeting-length stitched sample | Matches production chunking better than 2-3s demo clips |
+| Concurrency sweep | `1, 4, 8, 16, 32, 64, 128` | Finds the knee point instead of only proving the endpoint works |
+| Production sweet spot candidate | Start at c32 for H100, then adjust by P95/SLA | c32 gave the best measured throughput/latency balance on 8-16s FLEURS audio |
+| Batch-only upper bound | c128 | 100% success but P50 4.3s, so it is not an interactive default |
+| Failure boundary | c256 | 89.6% success; use it as a stress point, not a production target |
+| Streaming | OFF for batch API; ON only for UI TTFT | Stream added ~8% total latency but improves perceived first-token response |
+| Technical output | Always report `P50/P95`, `RTF`, `req/s`, `audio-hours/GPU-hour`, `success rate`, and `GPU utilization` | This repo stops at technical throughput; commercial analysis happens outside this artifact |
+
+See `docs/technical-sizing-checklist.md` for the full technical throughput, concurrency, and long-audio checklist.
+
 ### Recommended Production Configuration
 
 | Parameter | Recommended value | Rationale |
@@ -230,6 +262,16 @@ Source: `results/h100/h100_long_audio_test.json`
 
 **Takeaway**: Output quality degrades sharply beyond 60 seconds. Meeting recordings must use VAD + chunking + overlap + stitching — never feed an entire long audio as one request.
 
+**Production default**: treat 30 seconds as the first chunk-size candidate, not because it is universally optimal, but because it matches the safe side of this smoke test and the vLLM serving path can then scale by concurrency. Validate 15s, 30s, and 45s chunks on the customer's own audio, then pick the smallest chunk that preserves accuracy while keeping stitching overhead acceptable.
+
+| Long-audio control | Starting value | Must validate |
+|---|---|---|
+| Normalize | 16 kHz mono PCM | Codec and resampling do not change transcript quality |
+| VAD chunk target | 30s speech chunks | WER/CER vs human transcript, not just non-empty output |
+| Overlap | 1-2s | Boundary words are not dropped or duplicated |
+| Max direct request | Do not use 180s direct input as production mode | 180s collapsed in this repo's smoke test |
+| End-to-end test | One meeting-length sample after stitching | Segment order, timestamps, hotwords, and speaker labels remain coherent |
+
 ### 1.3 Public CER Baseline
 
 Source: `results/fleurs_cer_qwen3_asr_0.6b.json`, `results/fleurs_cer_qwen3_asr_1.7b.json`
@@ -305,6 +347,16 @@ The previous table used a ~2-3 second sample. This sweep uses **20 real FLEURS w
 - **Production sweet spot: c32** — P50 < 400ms, throughput 75 req/s, 100% success
 - **Max reliable concurrency: c128** — 100% success but P50 = 4.3s (batch processing only)
 - **Failure threshold: c256** — 10% failures due to KV cache exhaustion and request timeout
+
+**How to use these settings**:
+
+| Use case | Recommended concurrency band | Reason |
+|---|---:|---|
+| Interactive UI / short clips | c16-c32 | Keeps P50 under roughly 0.4s on the measured 8-16s audio set |
+| Batch transcription | c64-c128 | Higher queueing is acceptable when the target is audio-hours/GPU-hour |
+| Stress test only | c256 | Partial failures start here; do not size production to this point |
+
+The endpoint should expose both latency and audio-hour throughput. Request throughput (`req/s`) is useful only when chunk duration is fixed; for technical sizing, report `audio_hours_processed_per_gpu_hour`.
 
 ### 1.4.2 CER Under High Concurrency (No Degradation)
 
@@ -410,7 +462,7 @@ Source: `results/gemma3n_instruction_test.json`, Qwen3-ASR prompt test (3 prompt
 | Latency (vLLM optimized) | 69ms (CUDA Graph) | N/A (vLLM does not support Gemma 3n transcription) | — |
 | Best for | High-throughput batch ASR pipeline | Flexible audio understanding with instruction following | — |
 
-**Engineering implication**: If the production requirement is pure high-speed transcription, use Qwen3-ASR + vLLM. If the requirement includes transcription + content cleanup/summarization in one call, Gemma 3n can eliminate the separate LLM post-processing step — at the cost of 3–7x higher latency and the requirement for explicit text prompts.
+**Engineering implication**: If the production requirement is pure high-speed transcription, use Qwen3-ASR + vLLM. If the requirement includes transcription + content cleanup/summarization in one call, Gemma 3n can eliminate the separate LLM post-processing step — with 3–7x higher latency and the requirement for explicit text prompts.
 
 ---
 
@@ -418,7 +470,7 @@ Source: `results/gemma3n_instruction_test.json`, Qwen3-ASR prompt test (3 prompt
 
 | Production requirement | What this repo can already show | What still needs production team input |
 |---|---|---|
-| Qwen/Gemma backbone | Qwen3-ASR 0.6B/1.7B H100 inference, serving, and fine-tuning evidence; Gemma 3n audio transcription verified with instruction-following (requires prompt, 3–7x slower) | Exact target checkpoint; whether instruction-following capability justifies Gemma's latency cost |
+| Qwen/Gemma backbone | Qwen3-ASR 0.6B/1.7B H100 inference, serving, and fine-tuning evidence; Gemma 3n audio transcription verified with instruction-following (requires prompt, 3–7x slower) | Exact target checkpoint; whether instruction-following capability justifies Gemma's latency overhead |
 | Training with HF ecosystem | Official Qwen3-ASR fine-tuning entry point and JSONL format are documented | The team's training command, Accelerate/DeepSpeed/FSDP config, failure logs |
 | vLLM/SGLang/TensorRT-LLM serving | vLLM officially supports Qwen3-ASR transcription; transformers backend benchmark is done | Clean vLLM env benchmark; SGLang/TRT-LLM feasibility for the exact model |
 | Data storage and throughput | Scripts and methodology to profile audio decode / dataloader / endpoint throughput | The team's data layout, storage path, audio hours, codec, train/eval manifest |
@@ -808,6 +860,8 @@ Start with the transformers backend to confirm quality, then move to vLLM for se
 
 All concurrency levels had **zero failures**. P50 stays under 160ms even at c16. Throughput scales near-linearly from c1 to c8 (10→79 req/s) and continues to c16 (~119 req/s). This is short-audio request throughput; long meeting recordings depend on audio duration, chunk count, RTF, and stitching overhead. Tail latency increases at c16.
 
+For production sizing, do not stop at c16. Use this table only as the quick-smoke stage, then run the c16→c256 sweep from Section 1.4.1 with representative 30s chunks. The customer-facing result should include both `req/s` and `audio-hours/GPU-hour`.
+
 Source: `results/concurrent_benchmark_v2.json`, `results/remaining_inference_tests.json`
 
 ### Inference Acceleration: What Was Rechecked for Accuracy
@@ -1070,7 +1124,7 @@ This repo intentionally does **not** include:
 | Real-time streaming ASR | This repo tests offline (file-based) transcription; real-time WebSocket streaming needs additional validation |
 | Whisper/Conformer comparison | Different model families require separate evaluation setups; out of scope for this Qwen/Gemma-focused repo |
 | Multi-language mixing within one utterance | All tests use single-language audio (Chinese or English); code-switching behavior is not validated |
-| Cost optimization (spot instances, auto-scaling) | Azure cost is reported as a proxy; production cost engineering depends on traffic patterns |
+| Commercial optimization | Non-technical commercial analysis is out of scope for this technical benchmark repo |
 
 ---
 

@@ -78,6 +78,38 @@
 | vLLM + CUDA Graph 是当前最强 serving 路线 | 短音频 benchmark P50 **69ms**，transformers 是 **522ms**；20 条样本未观察到 CER 退化 | 用 vLLM 做第一阶段 serving PoC；不要把 CUDA Graph 解读成准确率提升 |
 | 长音频必须 pipeline 化 | 180s synthetic long audio 只输出 16 个字符 | 生产前必须做 VAD/chunk/overlap/stitching |
 
+### 会后 Technical Sizing 补充
+
+这个 repo 只负责技术对比：比较不同 serving path、GPU shape、并发和长音频 pipeline 下的运行表现，然后把技术吞吐数据交给单独的非技术流程。商业条款不在本 repo 范围内。
+
+技术容量指标是：
+
+```text
+audio_hours_processed_per_gpu_hour = total_audio_seconds_processed / benchmark_wall_seconds
+```
+
+本 repo 里的 H100 实测结果可以作为 Azure 侧 benchmark 形状；下一步需要用客户当前 baseline endpoint 和代表性音频重跑同一套脚本。比较时保持技术口径一致：同一批音频、同一 chunking 策略、同一并发 sweep、同一 endpoint contract、同一输出 schema。
+
+| 决策项 | 现在 repo 里已有证据 | 对客户承诺前还需要补什么 |
+|---|---|---|
+| **技术容量** | H100 serving throughput、c32 甜蜜点、c128 可靠 batch 上限 | 在每个候选 GPU/runtime 上重跑同一套 benchmark，并报告 audio-hours/GPU-hour |
+| **并发设置** | 8-16s FLEURS 音频下，c32 是吞吐/延迟最平衡点；c128 可做 batch；c256 开始部分失败 | 用客户 30s chunk 和目标 timeout/SLA 复测 |
+| **长音频设置** | 180s 直接输入坍缩；30s/60s 直接输入在 smoke test 中正常 | 生产 pipeline 应按 30s 左右 chunk，加 VAD、overlap、stitching，并做会议长度端到端验证 |
+
+建议第一轮客户对齐 benchmark 从下面这组参数开始：
+
+| 参数 | 起始值 | 原因 |
+|---|---|---|
+| 音频时长桶 | 30s chunks，外加 8-16s 短音频和一条会议长度 stitched sample | 比 2-3s demo clip 更接近生产 chunking |
+| 并发 sweep | `1, 4, 8, 16, 32, 64, 128` | 找到 knee point，而不只是证明 endpoint 能跑 |
+| 生产甜蜜点候选 | H100 先从 c32 开始，再按 P95/SLA 调整 | c32 在 8-16s FLEURS 音频上吞吐/延迟最平衡 |
+| Batch 上限 | c128 | 100% 成功但 P50 4.3s，不适合做交互默认值 |
+| 失败边界 | c256 | 成功率 89.6%，只作为 stress 点 |
+| Streaming | Batch API 关；实时 UI 才开 | stream 总延迟约 +8%，但能改善感知 TTFT |
+| 技术输出 | 必须同时报 `P50/P95`、`RTF`、`req/s`、`audio-hours/GPU-hour`、`success rate`、`GPU utilization` | 这个 repo 到技术吞吐为止；商务分析在 repo 外完成 |
+
+完整 checklist 见 `docs/technical-sizing-checklist.md`。
+
 ### 推荐生产配置
 
 | 参数 | 推荐值 | 原因 |
@@ -221,6 +253,16 @@ Qwen3-ASR SFT 训练数据格式（来源：[官方 repo](https://github.com/Qwe
 
 **结论**：超过 60 秒的音频输出质量急剧下降。会议录音必须做 VAD + chunking + overlap + stitching，不能整段送入模型。
 
+**生产默认建议**：先把 30 秒作为第一版 chunk-size 候选。它不是永远最优，而是站在本次 smoke test 的安全侧，同时能让 vLLM serving 通过并发来扩吞吐。客户真实音频上应验证 15s、30s、45s 三档，然后选择准确率稳定且 stitching 开销可接受的最小 chunk。
+
+| 长音频控制项 | 起始值 | 必须验证 |
+|---|---|---|
+| Normalize | 16 kHz mono PCM | codec/resample 不改变转录质量 |
+| VAD chunk target | 30s speech chunks | 用人工 transcript 算 WER/CER，不只看输出非空 |
+| Overlap | 1-2s | 边界词不丢、不重复 |
+| 最大直接请求 | 不把 180s 直接输入当生产模式 | 本 repo 的 180s smoke test 已输出坍缩 |
+| 端到端测试 | 一条会议长度 stitched sample | 段落顺序、timestamp、hotword、speaker label 都保持一致 |
+
 ### 1.3 公开 CER Baseline
 
 来源：`results/fleurs_cer_qwen3_asr_0.6b.json`、`results/fleurs_cer_qwen3_asr_1.7b.json`
@@ -270,6 +312,9 @@ Qwen3-ASR SFT 训练数据格式（来源：[官方 repo](https://github.com/Qwe
 | **16** | **154** | **388** | **119.0** | **64/64** |
 
 **结论**：vLLM + CUDA Graph 比 raw Transformers 快约 7 倍（单请求 P50：522ms → 69ms）。CER 只作为“无退化”smoke check，不能写成 CUDA Graph 让错误率下降。并发 16 下，64 个短音频请求在约 0.537 秒内完成，估算吞吐 119 req/s；这不是长会议录音吞吐，长音频必须单独按 RTF 和 chunk pipeline 复测。
+
+生产 sizing 不能停在 c16。这个表只适合作为 quick smoke；之后必须用 Section 1.4.1 的 c16→c256 sweep，配合代表性 30s chunks 复测。给客户看的结果应同时包含 `req/s` 和 `audio-hours/GPU-hour`。
+
 ### 1.4.1 最高并发压测 + GPU 利用率（8–16s FLEURS 音频）
 
 来源：`results/supplemental_benchmark.json`、`results/concurrent_cer_benchmark.json`
@@ -295,6 +340,16 @@ Qwen3-ASR SFT 训练数据格式（来源：[官方 repo](https://github.com/Qwe
 - **生产甜蜜点：c32** — P50 < 400ms，吞吐 75 req/s，100% 成功
 - **最高可靠并发：c128** — 100% 成功但 P50 = 4.3s（只适合批处理）
 - **失败阈值：c256** — 10% 请求失败，因为 KV cache 耗尽 + 请求超时
+
+**如何使用这些并发设置**：
+
+| 场景 | 推荐并发区间 | 原因 |
+|---|---:|---|
+| 交互式 UI / 短音频 | c16-c32 | 本次 8-16s 音频下 P50 大致能压在 0.4s 内 |
+| 批量转录 | c64-c128 | 只要目标是 audio-hours/GPU-hour，可以接受更高排队延迟 |
+| Stress test | c256 | 这里开始有部分失败，不能作为 production sizing 目标 |
+
+endpoint 应同时输出 latency 和 audio-hour throughput。`req/s` 只有在 chunk duration 固定时才有意义；技术 sizing 应报告 `audio_hours_processed_per_gpu_hour`。
 
 ### 1.4.2 高并发下 CER 无退化验证
 
@@ -1054,7 +1109,7 @@ results/h100/h100_vllm_serving_benchmark.json
 | 实时流式 ASR | 本 repo 测试离线（文件）转录；WebSocket 实时流需要额外验证 |
 | Whisper/Conformer 对比 | 不同模型族需要独立评测环境；不在本 Qwen/Gemma 聚焦 repo 范围 |
 | 单句内多语言混合 | 所有测试使用单语音频（中文或英文）；code-switching 行为未验证 |
-| 成本优化（Spot 实例、自动伸缩） | Azure 成本以 proxy 形式报告；生产成本工程取决于流量模式 |
+| 商业优化 | 非技术商业分析不在这个技术 benchmark repo 范围内 |
 
 ---
 

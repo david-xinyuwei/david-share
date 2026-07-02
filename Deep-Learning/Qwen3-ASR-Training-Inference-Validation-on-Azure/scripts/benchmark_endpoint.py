@@ -123,22 +123,25 @@ def percentile(values: list[float], percent: float) -> float | None:
     return values[index]
 
 
-def summarize(results: list[RequestResult]) -> dict[str, object]:
+def summarize(results: list[RequestResult], benchmark_wall_seconds: float) -> dict[str, object]:
     latencies = [item.latency_seconds for item in results]
     rtfs = [item.rtf for item in results if item.rtf is not None]
     successes = [item for item in results if item.error is None and item.status and 200 <= item.status < 300]
     audio_seconds = sum(item.audio_seconds for item in results)
-    wall_seconds = sum(item.latency_seconds for item in results)
+    summed_latency_seconds = sum(item.latency_seconds for item in results)
+    audio_hours_per_gpu_hour = (audio_seconds / benchmark_wall_seconds) if benchmark_wall_seconds else None
     return {
         "requests": len(results),
         "successes": len(successes),
         "failures": len(results) - len(successes),
         "audio_seconds_total": audio_seconds,
+        "benchmark_wall_seconds": benchmark_wall_seconds,
         "latency_p50_seconds": percentile(latencies, 50),
         "latency_p95_seconds": percentile(latencies, 95),
         "rtf_p50": percentile(rtfs, 50),
         "rtf_p95": percentile(rtfs, 95),
-        "audio_hours_per_wall_hour_sum_latency": (audio_seconds / wall_seconds) if wall_seconds else None,
+        "audio_hours_per_gpu_hour": audio_hours_per_gpu_hour,
+        "audio_hours_per_summed_latency_hour": (audio_seconds / summed_latency_seconds) if summed_latency_seconds else None,
     }
 
 
@@ -161,14 +164,19 @@ def main() -> None:
         if not audio.exists():
             raise FileNotFoundError(audio)
 
+    benchmark_started = time.perf_counter()
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.concurrency) as executor:
         futures = [
             executor.submit(post_audio, args.url, audio, args.field_name, headers, args.timeout)
             for audio in args.audio
         ]
         results = [future.result() for future in concurrent.futures.as_completed(futures)]
+    benchmark_wall_seconds = time.perf_counter() - benchmark_started
 
-    payload = {"summary": summarize(results), "results": [asdict(item) for item in results]}
+    payload = {
+        "summary": summarize(results, benchmark_wall_seconds),
+        "results": [asdict(item) for item in results],
+    }
     print(json.dumps(payload, ensure_ascii=False, indent=2))
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)

@@ -30,7 +30,16 @@ Exit criteria: baseline quality numbers are reproducible and source-linked.
 | Same audio set and decoding params | Fairness table |
 | Framework startup commands | Environment and reproducibility notes |
 
-Exit criteria: at least three warm runs per concurrency point.
+Exit criteria: at least three warm runs per concurrency point, covering c1/c4/c8/c16/c32/c64/c128 when the endpoint supports it. Report both request throughput and audio-hours/GPU-hour.
+
+Recommended benchmark shape:
+
+| Sweep | Starting values | Output |
+|---|---|---|
+| Short clip smoke | 8-16s audio, c1-c32 | Latency and quick regression signal |
+| Production chunk | 30s chunks, c1-c128 | Throughput and capacity basis |
+| Stress boundary | c256 or until >5-10% failures | Failure mode and timeout policy |
+| Stream A/B | Stream OFF vs ON at c16/c32 | Batch API vs UI TTFT decision |
 
 ## Phase A3 - Training Diagnosis
 
@@ -47,8 +56,18 @@ Exit criteria: failures are classified by data, runtime, memory, optimizer, chec
 | Input | Output |
 |---|---|
 | Target region and timeline | Quota/capacity check plan |
-| Expected volume | GPU-hour estimate |
+| Expected volume | Technical GPU-hour estimate |
 | SLA and compliance constraints | Production risk register |
 
-Exit criteria: capacity, monitoring, and rollback plan are explicit.
+Exit criteria: technical capacity, monitoring, rollback plan, and failure boundaries are explicit. Pricing and commercial assumptions are handled outside this repo.
+
+Sizing worksheet columns:
+
+| Column | Meaning |
+|---|---|
+| Region / data zone | Where audio can be processed |
+| SKU | GPU family and instance shape |
+| audio-hours/GPU-hour | Measured from the same benchmark script |
+| Capacity risk | Available now, request needed, or uncertain |
+| Production role | Primary, overflow, batch-only, or stress-only |
 

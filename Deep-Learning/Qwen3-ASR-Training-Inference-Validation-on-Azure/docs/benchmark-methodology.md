@@ -34,6 +34,7 @@ Only change one variable per comparison.
 | Serving | RTF P50/P95, latency P50/P95, success rate, timeout count, audio-hours/GPU-hour |
 | Environment | GPU SKU, driver, CUDA, PyTorch, transformers, vLLM/SGLang/TRT versions |
 | Data | audio file ID, duration, language, speaker count, codec/sample rate |
+| Technical capacity | Region/data zone, GPU SKU, runtime, concurrency, audio-hours/GPU-hour, failure boundary |
 
 ## 4. Interpretation Rules
 
@@ -42,8 +43,34 @@ Only change one variable per comparison.
 - Do not treat mock endpoint speed as ASR speed.
 - Do not average short and long audio without showing duration buckets.
 - Do not turn throughput into business claims until utilization and serving topology are measured.
+- Keep non-technical commercial terms outside this benchmark artifact.
 
-## 5. Evidence Block Template
+## 5. Technical Sizing Protocol
+
+Run serving tests in two passes:
+
+1. **Latency pass**: report P50/P95 and success rate per concurrency level.
+2. **Throughput pass**: report audio-hours processed per GPU-hour.
+
+Recommended first sweep:
+
+| Dimension | Starting values | Notes |
+|---|---|---|
+| Audio duration buckets | 8-16s, 30s chunks, one meeting-length stitched sample | Do not infer meeting behavior from 2-3s demo clips. |
+| Concurrency | 1, 4, 8, 16, 32, 64, 128, optional 256 stress | Pick a knee point, not the largest number that starts. |
+| Stream mode | OFF for batch, ON for UI TTFT test | Report stream and non-stream separately. |
+| GPU memory utilization | Start at 0.80 | Raising it may improve KV capacity but reduces headroom. |
+| Timeout | Set from SLA and chunk duration | A 30s chunk needs a different timeout than a 2s clip. |
+
+Technical throughput formula:
+
+```text
+audio_hours_per_gpu_hour = total_audio_seconds_processed / wall_seconds
+```
+
+Pricing can be calculated outside this repo from the measured technical throughput. This repo should stop at latency, success rate, RTF, req/s, GPU utilization, and audio-hours/GPU-hour.
+
+## 6. Evidence Block Template
 
 ```text
 Environment: <GPU SKU>, <driver>, <CUDA>, <framework versions>
@@ -52,6 +79,7 @@ Audio set: <N files>, <total duration>, <language mix>, <ground truth source>
 Command: <exact command>
 Result files: <paths>
 Key results: WER/CER/hotword, RTF, P50/P95, success rate
+Sizing: audio-hours/GPU-hour, concurrency knee point, failure boundary
 Limitations: <what this run does not prove>
 ```
 

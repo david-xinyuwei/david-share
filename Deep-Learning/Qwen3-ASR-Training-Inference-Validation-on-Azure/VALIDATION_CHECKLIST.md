@@ -11,6 +11,8 @@ Use this checklist before sharing the repo with a customer or publishing updates
 - Confirm no customer names, VM FQDNs, SSH ports, subscription IDs, private paths, tokens, or secrets appear in text files.
 - Confirm sample data uses public or synthetic audio only.
 - Confirm every headline metric in the README points to a raw JSON file under `results/`.
+- Confirm the repo stays within technical benchmark scope and excludes non-technical commercial terms.
+- Confirm concurrency recommendations distinguish interactive, batch, and stress-test settings.
 
 ## ASR-Specific Gates
 
@@ -22,6 +24,7 @@ Use this checklist before sharing the repo with a customer or publishing updates
 | A3 training stability gate | Loss, grad_norm, checkpoint/resume, and precision mode recorded |
 | A4 serving gate | P50/P95/throughput/error rate measured under concurrency using the production endpoint shape |
 | A5 quantization gate | Quantized model has before/after CER, not only memory or latency |
+| A6 technical sizing gate | audio-hours/GPU-hour is reported only after audio duration, concurrency, and endpoint contract are frozen |
 
 ## Customer Acceptance
 
@@ -30,3 +33,4 @@ Use this checklist before sharing the repo with a customer or publishing updates
 - Re-check long-audio chunking, stitching, hotwords, and diarization for meeting recordings.
 - Re-check serving metrics after any model, vLLM, CUDA, cuDNN, or container image change.
 - Treat Gemma 3n as a candidate route until text-only smoke, audio smoke, and CER all pass in a clean environment.
+- Re-run c1/c4/c8/c16/c32/c64/c128 on representative 30s chunks before using the repo for production technical sizing.
