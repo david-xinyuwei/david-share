@@ -1,4 +1,4 @@
-# Speculative Decoding on Azure: EAGLE3, Self-Training, and Native MTP
+# Speculative Decoding
 
 > **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
 
@@ -11,23 +11,23 @@
 [![SpecForge](https://img.shields.io/badge/Training-SpecForge-green.svg)](https://github.com/SafeAILab/SpecForge)
 [![Gemma 4](https://img.shields.io/badge/Model-Gemma_4-orange.svg)](https://huggingface.co/google/gemma-4-31B-it)
 
-Speculative Decoding 工程指南：验证官方 EAGLE3 draft model、单卡 45 分钟自训练 draft head、实测 Google 原生 Gemma 4 MTP assistant，并在 Azure H100 上完成 Qwen3.6 的 DFlash vs Native MTP vs llama.cpp 三路 benchmark。
+Draft-and-verify 加速工程指南：用可复现 benchmark 对比 EAGLE3、自训练 draft head、原生 MTP assistant、DFlash 和 llama.cpp MTP。
 
 
-## 在 Azure 上运行
+## Benchmark 环境
 
-本项目的所有实验均在 **Azure GPU 虚拟机**上完成。
+本项目使用下面的 GPU 环境完成实验。Azure 只是本次 benchmark 的测试基础设施，不是 Speculative Decoding 技术本身的依赖。
 
 | 项目 | 详情 |
 |---|---|
-| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **Benchmark 使用的 GPU VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
 | **GPU** | NVIDIA H100 80GB |
 | **框架** | vLLM, SGLang, llama.cpp |
 
 
 ## 核心成果
 
-本项目记录 Speculative Decoding 的完整研究流程：先验证 EAGLE3，再尝试自训练 draft head，最后补充 Gemma 4 原生 MTP assistant 的 H100 实测。
+本项目记录多条 Speculative Decoding / draft-and-verify 路线的完整研究流程：官方 EAGLE3 验证、自训练 draft head、原生 MTP assistant，以及 DFlash/MTP serving 实验。
 
 | 阶段 | 模型 | 实测结果 | 测试条件 | 关键洞察 |
 |------|------|----------|----------|----------|
@@ -196,8 +196,7 @@ Target model **在单次 forward pass 中验证所有分支**，接受最长匹�
 | **EAGLE3** | 读取 target model 多层 hidden features 的训练后 draft head/model | target model 固定后再训练，可以是官方训练，也可以自己训练 | 作为额外 draft model/head 和 target model 一起加载 | Phase 1 SGLang 日志显示 draft model +2.21 GiB | 官方 draft model 可用时 speedup 很高；也可以自训练 | 训练数据质量和任务分布很关键，draft 数据差会拖慢部分任务 |
 | **Gemma 4 MTP** | Google 发布的 MTP assistant checkpoint（~0.5B 参数，4 层 drafter）；它使用 target model activations 和共享 KV-cache 来提高 draft 质量（来源：[Google MTP docs](https://ai.google.dev/gemma/docs/mtp/mtp)） | Google 作为官方 assistant checkpoint 发布，本 repo 不训练它 | 作为额外 assistant/drafter model 加载；共享 target embedding 权重并映射到 target layers（vLLM 日志：draft layers mapped to target layers 58/59） | assistant 权重 +0.87 GiB；本次 vLLM run 的 KV cache 预算 -4.86 GiB | 不需要本地训练；本次 H100 实测稳定 1.73x | serving stack 必须支持 assistant 架构；本次 vLLM 需要 config shim |
 | **DFlash** | 读取 target context features 的 block diffusion drafter checkpoint，一次 forward 并行草拟一个 token block（来源：[DFlash project](https://z-lab.ai/projects/dflash/) 和 [arXiv:2602.06036](https://arxiv.org/abs/2602.06036)） | 针对某个 target model family/checkpoint 单独训练；公开 checkpoint 发布在 `z-lab/*-DFlash` | 在支持 DFlash 的 serving stack 中作为 draft model 加载，例如 SGLang 或带 DFlash 支持的 vLLM build | 本 repo 未实测 | draft 阶段本身从顺序生成变成 block 并行生成；官方 checkpoint 和 engine 支持齐全时很有潜力 | 更吃显存和 engine 版本；block size、context length、任务分布都必须 benchmark |
-| **DeepSeek-style MTP** | model family 内部的 MTP heads/modules；本 repo 没把它当外部 assistant 单独实测 | release-specific，通常随 model-family MTP 设计一起训练 | 由该模型自己的 inference stack 暴露，不是 Gemma-style assistant loading | 本 repo 未实测 | MTP 是模型训练/推理设计的一部分，不是外接小模型 | 具体实现随 release 变化，不能照搬 EAGLE/Gemma 的启动参数 |
-| **MiMo-V2.5-style MTP** | 打包在同一个 model repo/directory 里的 model-family draft modules；MiMo-V2.5-Pro 有单独的 `model_mtp.safetensors`，其中包含 `model.mtp.layers.0/1/2` tensors | release-specific，作为 model-family 设计的一部分训练 | serving stack 指向同一个 model directory 即可；不需要额外 external draft-model path，但 MTP 权重是在目录中的单独文件里 | 本 repo 未实测 | 有机会在自身 reasoning 分布上获得更高接受率 | 必须按 workload 实测，高熵输出仍可能吃掉收益 |
+| **Native model-family MTP** | 随 target model family 一起打包的 MTP heads/modules，有时表现为同一 model directory 内的单独 MTP 权重 | release-specific，作为 model-family 设计的一部分训练 | 通过该 model family 的原生 inference stack 或 model-directory 约定加载，而不是使用独立 assistant 路径 | 本 repo 未实测 | MTP 成为 model-family serving design 的一部分，而不是事后外挂 | 具体实现随 release 变化，不能照搬 EAGLE/Gemma 的启动参数 |
 
 这里的 “drafter” 不能统一理解成“旁边外挂一个完整 LLM”。不同路线的权重形态不一样：
 
@@ -206,10 +205,9 @@ Target model **在单次 forward pass 中验证所有分支**，接受最长匹�
 | **EAGLE3** | 有，但它是单独的 draft-model/head 权重，不是完整 target model 权重副本 | 不是 | separate draft-model weights, not full target-model weights |
 | **Gemma 4 MTP** | 有。Google 单独发布 assistant drafter checkpoint | 不是 | separate assistant drafter checkpoint |
 | **DFlash** | 有。Z-Lab 针对特定 target 发布单独 DFlash draft checkpoint | 不是 | target-conditioned block diffusion draft checkpoint |
-| **DeepSeek-style MTP** | 通常表现为 model-family checkpoint 内部的 MTP heads/modules，具体随 release 而定 | 不是 | native MTP module weights inside the model family |
-| **MiMo-V2.5-style MTP** | 有。以 MiMo-V2.5-Pro 为例，HF 文件列表显示同一 model directory 下有单独的 `model_mtp.safetensors`，里面包含 `model.mtp.layers.0/1/2` tensors | 不是 | 同一 model repo/directory 内的 native MTP weights，以 `model_mtp.safetensors` 单独打包 |
+| **Native model-family MTP** | 随 release 而定。有些 model family 把 MTP 表现为 checkpoint 内部的 native heads/modules，也可能以同目录 MTP 权重形式打包 | 不是 | 随 model family 一起打包的 native MTP weights，不是完整 target model 副本 |
 
-下图把几条路线里 drafter 的位置画出来。DeepSeek-style MTP 这里仍是概念位置，因为本 repo 没有检查该 release-specific 实现。MiMo-V2.5-Pro 的公开 HF 文件列表则显示，MTP modules 以 `model_mtp.safetensors` 单独打包在同一个 model directory 里，包含 `model.mtp.layers.0/1/2`。DFlash 也读取 target 信息，但它最特别的地方是 drafter 本身是 block diffusion，不是 autoregressive draft head。
+下图把几条路线里 drafter 的位置画出来。Native model-family MTP 这里是通用概念位置，因为每个 model family 的打包方式和 serving interface 都可能不同。DFlash 也读取 target 信息，但它最特别的地方是 drafter 本身是 block diffusion，不是 autoregressive draft head。
 
 ```mermaid
 flowchart LR
@@ -255,32 +253,32 @@ flowchart LR
         DST --> DSV
     end
 
-    subgraph MM["MiMo-V2.5-style MTP<br/>model_mtp.safetensors"]
-        MMT["Model-family checkpoint"]
-        MMD["MTP modules<br/>model.mtp.layers.0/1/2<br/>同目录单独文件"]
-        MMV["Serving stack<br/>draft and verify"]
-        MMT --> MMD
-        MMD --> MMV
-        MMT --> MMV
+    subgraph NM["Native model-family MTP<br/>release-specific packaging"]
+        NMT["Model-family checkpoint"]
+        NMD["Native MTP heads 或 modules<br/>随 target family 一起打包"]
+        NMV["Serving stack<br/>draft and verify"]
+        NMT --> NMD
+        NMD --> NMV
+        NMT --> NMV
     end
 
     classDef target fill:#eef6ff,stroke:#1f6feb,color:#0b1f3a
     classDef drafter fill:#fff7e6,stroke:#d97706,color:#3b2500
     classDef verify fill:#ecfdf5,stroke:#059669,color:#042f2e
-    class E3T,G4T,DFT,DST,MMT target
-    class E3D,G4D,DFD,DSH,MMD drafter
-    class E3V,G4V,DFV,DSV,MMV verify
+    class E3T,G4T,DFT,DST,NMT target
+    class E3D,G4D,DFD,DSH,NMD drafter
+    class E3V,G4V,DFV,DSV,NMV verify
 ```
 
 ### 深度对比：每种 Drafter 到底怎么工作
 
-| 维度 | Classic Speculative Decoding | EAGLE3 | Gemma 4 MTP | DFlash | DeepSeek / MiMo MTP |
+| 维度 | Classic Speculative Decoding | EAGLE3 | Gemma 4 MTP | DFlash | Native model-family MTP |
 |------|------------------------------|--------|-------------|--------|---------------------|
 | Drafter 读 target 哪里 | 不读；一个独立的小 LM 完全独立推理 | 读 3 个中间层的 hidden states（Llama 8B 的第 2/16/29 层） | 读最后几层的 target activations + 共享 KV-cache（Gemma 31B 的第 58/59 层） | 读取并融合 target context features，并注入 draft layers 的 KV cache | MTP heads 直接从 model forward path 分支出来 |
 | Drafter 多大 | 一个完整的小 LM（如 68M Llama-68M） | ~223M 参数，1 个 decoder 层 | ~0.5B 参数，4 个 decoder 层 | 轻量 block diffusion checkpoint；大小随 target 而变，本 repo 未实测 | model checkpoint 内部的原生 MTP modules |
 | Draft 方式 | autoregressive draft LM | autoregressive draft head/model | autoregressive assistant drafter | block diffusion，一次 forward 并行草拟一个 token block | 模型家族内部的 future-token prediction path |
 | 能不能自己训练 | 拿现成的小 LM 直接用，不需要专门训练 | 能（SpecForge，单卡 45 分钟） | 不能，只能用 Google 发布的 | 需要 target-specific DFlash 训练 recipe/checkpoint；本 repo 未训练 | 不能，模型厂商在 pre-training 时做好了 |
-| 微调 target 后怎么办 | Drafter 独立，仍然能用，但 acceptance rate 可能降低（输出分布偏移） | 重新训练 draft head 来适配新分布 | 只能赌原 assistant 还能用，不能自己重训（推测，本 repo 未实测） | 需要重新验证或重训 DFlash checkpoint；target feature 分布变化会影响接受率 | MTP modules 是模型的一部分，微调会同时改变两者 |
+| 微调 target 后怎么办 | Drafter 独立，仍然能用，但 acceptance rate 可能降低（输出分布偏移） | 重新训练 draft head 来适配新分布 | 只能赌原 assistant 还能用，不能自己重训（推测，本 repo 未实测） | 需要重新验证或重训 DFlash checkpoint；target feature 分布变化会影响接受率 | Native MTP modules 属于 model family 的一部分，微调和 serving 支持需要一起验证 |
 | 换一个 target model | 直接换小 LM，不依赖 target 内部结构 | 重新训练一个新的 draft head | 不行，assistant 只配对应的 Gemma family | 不能假设复用；要换成针对该 target 的 DFlash checkpoint | 不适用，MTP modules 和模型不可分离 |
 | Serving stack | 任何支持 assisted generation 的框架 | SGLang 原生 EAGLE3 支持，一行参数 | vLLM speculative-config；本次测试需要 config shim | 需要 DFlash-aware SGLang / vLLM build；engine 版本很关键 | 取决于模型厂商自己的 inference stack |
 | 和 target 的耦合度 | 无（最松） | 紧（读中间层 hidden states） | 紧（读最后几层 activations + 共享 KV-cache） | 紧（读取 target features，但仍是外置 checkpoint） | 最紧（原生模块内置在模型里） |
@@ -289,14 +287,14 @@ flowchart LR
 
 EAGLE3、Gemma/DeepSeek MTP 和 DFlash 代表不同的设计理念，不是简单的“新 vs 旧”：
 
-| 维度 | EAGLE3（后装） | Gemma 4 MTP（混合） | DFlash（外置 block diffusion） | DeepSeek / MiMo MTP（原生） |
+| 维度 | EAGLE3（后装） | Gemma 4 MTP（混合） | DFlash（外置 block diffusion） | Native model-family MTP |
 |------|----------------|---------------------|-------------------------------|-------------------------|
 | 核心问题 | target 已经固定，怎么事后造一个最好的 drafter？ | 和 target 一起训练，但拆成独立 checkpoint 发布 | 能不能让外置 drafter 一次并行草拟一整块 token，去掉 draft 阶段的顺序瓶颈？ | 把 MTP 做进 pre-training objective 本身 |
 | 关键创新 | 解决了 train-test gap：训练时用 drafter 自己的预测特征而不是 ground truth 特征，让训练和推理一致（EAGLE-3, NeurIPS 2025） | activation sharing + KV-cache 复用 | target feature fusion + KV injection + block diffusion parallel drafting | MTP 作为 training objective，不只是 inference trick；可能还改善 pre-training 的表征学习 |
 | 学术记录 | EAGLE (ICML 2024)、EAGLE-2 (EMNLP 2024)、EAGLE-3 (NeurIPS 2025) | 只有 model card，没有独立 MTP 论文 | DFlash paper: arXiv:2602.06036, ICML 2026 | 在 DeepSeek-V2/V3 论文中描述 |
 | 产业趋势 | 通用后装：任何 target model 都能用 | 中间地带：co-trained 但单独部署 | 新的外置 drafter 路线：依赖 target features，但 draft 是 block-parallel | 前沿方向：越来越多厂商会在训练时就内置 MTP |
 
-两条路线会长期共存。后装 drafter（EAGLE3）在你需要加速一个已有的、不能重训的 target model 时仍然不可替代。原生 MTP（DeepSeek/MiMo）是新 model family 的设计方向。
+两条路线会长期共存。后装 drafter（EAGLE3）在你需要加速一个已有的、不能重训的 target model 时仍然不可替代。Native model-family MTP 是新 model family 的设计方向。
 
 ### 选型指南：什么场景选哪条路线
 
@@ -311,7 +309,7 @@ EAGLE3、Gemma/DeepSeek MTP 和 DFlash 代表不同的设计理念，不是简�
 | 长上下文或显存紧张服务 | **先 benchmark 再启用 DFlash** | DFlash 会增加 draft 权重和 engine-specific path；block 太大、acceptance 低时会浪费算力 |
 | 长期生产、不依赖单一厂商 | **EAGLE3** | 社区驱动（SafeAI Lab），不依赖厂商发布 assistant |
 
-一句话：EAGLE3 要管理 feature-based draft head（读多个中间层 hidden states）；Gemma 4 MTP 给你官方 assistant model（读 target activations + 共享 KV-cache）；DFlash 给你一个 target-conditioned diffusion drafter，一次 forward 并行草拟一个 token block；DeepSeek/MiMo-style MTP 则把 draft 机制更深地放进 model family 作为原生模块。四者都以不同方式读取或依赖 target 内部信息，区别在于 drafter 怎么打包、怎么 draft、和 serving stack 绑定多深。它们都属于 Speculative Decoding，但部署方法不能混用。
+一句话：EAGLE3 要管理 feature-based draft head（读多个中间层 hidden states）；Gemma 4 MTP 给你官方 assistant model（读 target activations + 共享 KV-cache）；DFlash 给你一个 target-conditioned diffusion drafter，一次 forward 并行草拟一个 token block；Native model-family MTP 则把 draft 机制更深地放进 model family 作为原生模块。四者都以不同方式读取或依赖 target 内部信息，区别在于 drafter 怎么打包、怎么 draft、和 serving stack 绑定多深。它们都属于 Speculative Decoding，但部署方法不能混用。
 
 ### 实用 Benchmark 矩阵：Qwen3.6 上的 DFlash vs MTP
 
@@ -400,81 +398,98 @@ EAGLE3、Gemma/DeepSeek MTP 和 DFlash 代表不同的设计理念，不是简�
 
 MTP（Multi-Token Prediction）layers 是模型 pretraining 阶段训练出来的 draft heads。MTP 层数直接决定 speculative decoding 应该怎么配置。
 
-**各模型 MTP 层数（来源：官方 HF `config.json` 和 SGLang 文档）：**
+**MTP layer-count patterns：**
 
-| 模型 | MTP 层数 | 架构 | 来源 |
-|------|:--------:|------|------|
-| Qwen3.6-27B | **1** | 单个 MTP head，生成多个 draft tokens 时复用 N 次 | HF `config.json` |
-| MiMo-7B-RL | **1** | 单个 MTP head | HF `config.json`: `"num_nextn_predict_layers": 1` |
-| MiMo-V2.5-Pro (1.02T) | **3** | 3-layer multi-layer EAGLE | SGLang cookbook: "3-layer MTP module" |
-| MiMo-V2.5 (310B) | **3** | 3-layer multi-layer EAGLE | SGLang cookbook |
-| DeepSeek-V3 / R1 | **1** | 单个 MTP head | Official paper |
+| Pattern | MTP layers | Draft 形态 | Serving 含义 |
+|---------|:----------:|------------|--------------|
+| Single-layer native MTP | 1 | 一个 MTP head 反复用于多个未来位置 | draft tokens 越多，同一个 head 看得越远，误差越容易累积 |
+| Multi-layer native MTP | N | N 个 native heads/modules 可以表示 N 个未来位置 | `--speculative-num-steps` 通常先按 native MTP layer count 设置，再 benchmark |
+| External assistant MTP | 取决于实现 | 额外 assistant/drafter checkpoint 预测未来 token | 通过 serving engine 的 assistant/speculative config 配置，而不是 native MTP layer flags |
+| DFlash-style drafter | block-level | target-conditioned drafter 并行草拟 token block | 需要调 block size 和显存余量；不能和 autoregressive MTP flags 混用 |
 
 **层数为什么重要：**
 
-- **N 层 = N 个独立 draft heads**，每一层预测不同未来位置（+1, +2, ..., +N），每层一次 forward。
-- **1-layer 模型**（Qwen3.6、DeepSeek）在 `num_speculative_tokens > 1` 时必须串行复用同一个 head。预测越远，误差累积越明显，acceptance rate 越容易下降。
-- **3-layer 模型**（MiMo V2.5）可以用 3 个独立 head 预测 3 个未来位置，层与层之间不需要把上一步预测当真值继续滚动。
+- **N 个 native layers 可以表示 N 个未来位置**（`t+1`, `t+2`, ..., `t+N`）。
+- **1-layer MTP** 也能草拟多个未来 token，但需要重复使用同一个 head；预测越远，误差越容易累积。
+- **Multi-layer MTP** 可以把不同 native heads/modules 分配给不同未来位置，因此 `num_steps` 通常先从 native MTP layer count 附近开始调。
 
-**3 个关键超参数（SGLang EAGLE Multi-Layer MTP）：**
+**用一句话看懂 token timeline：`今天天气真好，我要去公园玩`**
+
+假设模型已经生成了上下文 `今天天气真好`。当前上下文里的最后一个真实 token 是 `t = 好`。它不是本轮 speculative step 新生成的 token，而是本轮开始前已经存在的起点。
+
+```text
+已经生成的上下文：
+    ... 今天天气真 好
+                                    ^
+                                    t = 已经存在的 target token
+
+Draft/MTP 草拟三个未来位置：
+    t+1 = ，
+    t+2 = 我
+    t+3 = 要
+
+Target verification 用一次 forward pass 检查这些 draft tokens：
+    verify t+1, t+2, t+3
+
+Target verification 同时顺手得到下一个位置的 logits：
+    t+4 = 去   ← verify bonus，不是 token t 本身
+```
+
+所以 `target token t already generated` 和 `t+4 bonus from target verify` 不是一码事：
+
+| 符号 | 在这个例子里的含义 | 谁产生的 |
+|------|--------------------|----------|
+| `t` | 上下文里已经存在的 `好`，本轮从这里开始 | 本轮之前已经生成 |
+| `t+1..t+3` | draft 猜的 `， 我 要` | Draft/MTP |
+| `t+4` | verify 过程中顺手得到的 `去` | Target verify |
+
+**超参分两组：draft 形状 vs simulated acceptance**
 
 <div align="center"><img src="images/eagle_mtp_3params_explained.png" width="960" /></div>
 
-| 参数 | 控制什么 | 推荐值 |
-|------|----------|--------|
-| `--speculative-num-steps N` | 运行多少个 draft steps（应匹配 MTP 层数） | N = MTP 层数，例如 MiMo V2.5 Pro 用 3 |
-| `--speculative-eagle-topk K` | 每步保留多少候选（1 = 线性链，K > 1 = 树） | 多数 workload 用 1，开销最小 |
-| `--speculative-num-draft-tokens D` | draft token buffer 上限 | D = tree_size + 1，例如 topk=1、steps=3 时 D=4 |
+这些设置放在一起会很乱，拆成两组就清楚了：
 
-**topk=1（线性链）vs topk=2（二叉树）：**
+| 组别 | 参数 | 示例值 | 控制什么 |
+|------|------|-------:|----------|
+| Draft shape | `--speculative-num-steps` | `3` | draft 尝试多少个未来位置（例子里的 `t+1..t+3`） |
+| Draft shape | `--speculative-eagle-topk` | `1` | tree width。`1` 是线性链；更大值会产生候选树 |
+| Draft buffer | `--speculative-num-draft-tokens` | `4` | buffer 大小：3 个 draft positions + 1 个 target-verify bonus position |
+| Simulation | `SGLANG_SIMULATE_ACC_LEN` | `3` | 强制 runtime 按“接受 3 个 draft tokens”的效果前进 |
+| Simulation | `SGLANG_SIMULATE_ACC_METHOD` | `match-expected` | 用 simulated accept index 替换真实 verification decision |
 
-```text
-topk=1: 每步产生 1 个候选 → 线性链
-    Step 1: 1 candidate     Total: 1 + 1 + 1 = 3 draft tokens
-    Step 2: 1 candidate     + 1 verify bonus = 4
-    Step 3: 1 candidate     → set num-draft-tokens = 4
-
-topk=2: 每步翻倍 → 二叉树
-    Step 1: 2 candidates    Total: 2 + 4 + 8 = 14 draft tokens
-    Step 2: 4 candidates    + 1 verify bonus = 15
-    Step 3: 8 candidates    → set num-draft-tokens = 15
-```
-
-**verify bonus** token 是 target verification 的副产品：target model 在 1 次 forward 里验证 N 个 draft tokens 时，会算出 N+1 个位置的 logits。最后一个位置没有 draft token 需要验证，所以可以直接 sample 成一个 guaranteed correct token。因此 speculative decoding 的每轮 verify 至少会产出 1 个正确 token。
-
-**MiMo V2.5 Pro fixed-acceptance benchmark context（来源：SGLang official cookbook + MiMo MI300X benchmark repo，B200 8×GPU）：**
-
-| Batch Size / DP rank | Without MTP | 3-layer MTP, accept=3 | 3-layer MTP, accept=4 |
-|:--------------------:|:-----------:|:---------------------:|:---------------------:|
-| 64 | 1,875 tok/s | 3,873 tok/s (2.07×) | 5,103 tok/s (2.72×) |
-| 96 | 2,564 tok/s | 4,840 tok/s (1.89×) | 6,225 tok/s (2.43×) |
-
-这里的 `accept=3/4` 应理解为 fixed/simulated acceptance benchmark setting，而不是 draft model 在任意 workload 上都真实达到这个 acceptance。SGLang 的 `SGLANG_SIMULATE_ACC_LEN=3` 固定的是 `accept_length=3`，不是直接写死 `accept_rate=0.75`。在 `--speculative-num-draft-tokens=4` 的 4-token draft window 下：
+在 4-token draft window 且 simulated accept length = 3 时，看到的接受率是一种配置出来的效果：
 
 ```text
 accept_rate = accept_length / max_accept_length = 3 / 4 = 0.75
 ```
 
-真实 prompt、target forward 和 kernel path 仍然运行，所以 TPOT 会下降、output tok/s 会提升；变快来自 accept decision 被模拟覆盖，runtime 每轮按“接受 3 个 token”推进，从而减少 decode loop 次数：
+这不等于模型自己证明了“真实接受率 75%”。它表示 benchmark 在 fixed-acceptance 假设下运行。
+
+**为什么需要 simulated acceptance**
+
+| 角度 | 有什么用 | 不能证明什么 |
+|------|----------|--------------|
+| Kernel/runtime benchmark | 在相同 acceptance 假设下隔离 scheduler、kernel、KV-cache、disaggregation 行为 | 真实 draft-model 质量 |
+| Upper-bound analysis | 看 runtime 在“每轮稳定提供 3 个有效 token”时最多能跑多快 | 生产端到端吞吐 |
+| Cross-system alignment | 让两个系统比较同一个 decode-loop 形状 | 输出文本真实、高质量 |
+
+prompt、target forward pass 和 runtime path 仍然真实执行，所以 TPOT 会下降，output tok/s 会提高。加速来自 runtime 被告知“每轮 decode step 接受 3 个 token”：
 
 ```text
 1024 output tokens / 1 token per step = 1024 decode steps
 1024 output tokens / 3 tokens per step ≈ 341 decode steps
 ```
 
-代价是：输出质量不再代表 target model 真实逐 token 生成；reported `accept_length=3` / `accept_rate≈0.75` 是实验设置，不是模型能力；端到端吞吐是理想化上限，不是 production truthful throughput；draft model calibration、workload distribution 和 real verification rejection 问题会被掩盖。
+**Simulated acceptance 的好处和代价：**
 
-这个开关的价值是 diagnostic / upper-bound benchmark：它把
+| 好处 | 代价 / 风险 |
+|------|-------------|
+| 适合做同口径 runtime 对比 | 输出质量不能代表 truthful generation quality |
+| 适合看 TPOT / throughput 上限 | `accept_rate=0.75` 是配置效果，不是模型实测能力 |
+| 适合隔离 kernel 和 serving-stack bottleneck | 会掩盖 draft-model calibration、workload distribution 和真实 rejection 行为 |
+| 稳定、可复现，适合工程诊断 | 如果不加 caveat，会高估生产吞吐 |
 
-```text
-real performance = draft model capability × runtime system capability
-```
-
-拆开看。固定 acceptance 后可以单独比较 kernel、scheduler、KV cache、PD disaggregation、router 等 runtime path 的上限。推荐写法是：`fixed/simulated accept_length=3, equivalent to accept_rate=0.75 under a 4-token draft window`，不要写成 `real accept_rate=0.75`。
-
-在自然文本（GSM8K）场景中，MiMo V2.5 Pro 在引用的 SGLang context 里报告 **accept rate 0.755** 和 **accept length 3.27**（max 4）。在 random token streams 中，accept rate 会降到 0.13-0.27，因为 MTP 是按自然语言分布训练的，对随机字节没有有效信号。另一个真实 MI300X run（不开 simulated acceptance）中，2026-06-26 stack 测得 accept_length 2.15-2.38、accept_rate 0.38-0.46。
-
-MiMo MTP 对 serving stack 版本有要求。SGLang MiMo-V2.5 cookbook 把 H100/H200 Hopper 部署固定到 `lmsysorg/sglang:nightly-dev-20260511-044bb88a`，并明确提醒 `lmsysorg/sglang:latest` 不能加载 MiMo-V2.5 checkpoints。不要把 MI300X 的 AMD/ROCm fork（`sammysun0711/sglang@mimo_aiter_attn`, commit `db840d935`）套到 H200；它是 ROCm/aiter/MI300X 复现路径。若要复现 MiMo-V2.5 310B 的 H200 benchmark，SGLang cookbook 记录的 benchmark 环境是 `lmsysorg/sglang:dev-mimo-v2.5` / `sglang 0.0.0.dev1+g7d99af439`。
+推荐写法：`fixed/simulated accept_length=3, equivalent to accept_rate=0.75 under a 4-token draft window`。不要写成 `real accept_rate=0.75`。
 
 DFlash 使用建议仍然应该保持工程化：当官方 draft checkpoint 存在、serving engine 支持稳定、显存余量足够、且 workload-specific acceptance 足够高时，DFlash 值得测试。否则应该把 native MTP 和 DFlash 放在同一套 workload 上并排 benchmark。
 
@@ -1180,7 +1195,7 @@ gradient_checkpointing: true
 ## 仓库结构
 
 ```
-Speculative-Decoding-EAGLE3/
+speculative-decoding/
 ├── README.md
 ├── README-CN.md
 ├── requirements.txt
@@ -1215,6 +1230,26 @@ Speculative-Decoding-EAGLE3/
 └── test_performance.py
 ```
 
+
+---
+
+## 关于 EAGLE
+
+EAGLE (Extrapolation Algorithm for Greater Language-model Efficiency) 由以下团队开发：
+
+| 作者 | 所属机构 |
+|------|----------|
+| **李宇辉 (Yuhui Li)** | 北京大学 |
+| **魏芳云 (Fangyun Wei)** | 微软亚洲研究院 |
+| **Chao Zhang** | - |
+| **Hongyang Zhang** | SafeAI Lab (SAIL) |
+
+- **组织**: [SafeAI Lab (SAIL)](https://github.com/SafeAILab)
+- **许可证**: Apache 2.0
+- **论文发表**:
+  - EAGLE (ICML 2024)
+  - EAGLE-2 (EMNLP 2024)
+  - EAGLE-3 (NeurIPS 2025)
 
 ---
 
@@ -1286,23 +1321,18 @@ Speculative-Decoding-EAGLE3/
 4. 任务相关性很强：自训练 EAGLE3 在代码任务收益最大，high entropy creative writing 可能变慢
 5. Serving stack 很关键：EAGLE3 在 SGLang 路径最顺，Gemma 4 MTP 在 vLLM 中需要 assistant config shim
 
-## 关于 EAGLE
+---
 
-EAGLE (Extrapolation Algorithm for Greater Language-model Efficiency) 由以下团队开发：
+## 引用
 
-| 作者 | 所属机构 |
-|------|----------|
-| **李宇辉 (Yuhui Li)** | 北京大学 |
-| **魏芳云 (Fangyun Wei)** | 微软亚洲研究院 |
-| **Chao Zhang** | - |
-| **Hongyang Zhang** | SafeAI Lab (SAIL) |
-
-- **组织**: [SafeAI Lab (SAIL)](https://github.com/SafeAILab)
-- **许可证**: Apache 2.0
-- **论文发表**:
-  - EAGLE (ICML 2024)
-  - EAGLE-2 (EMNLP 2024)
-  - EAGLE-3 (NeurIPS 2025)
+```bibtex
+@article{li2024eagle,
+  title={EAGLE: Speculative Sampling Requires Rethinking Feature Uncertainty},
+  author={Li, Yuhui and Wei, Fangyun and Zhang, Chao and Zhang, Hongyang},
+  journal={arXiv preprint arXiv:2401.15077},
+  year={2024}
+}
+```
 
 ---
 

@@ -1,4 +1,4 @@
-# Speculative Decoding on Azure: EAGLE3, Self-Training, and Native MTP
+# Speculative Decoding
 
 > **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
 
@@ -11,23 +11,23 @@
 [![SpecForge](https://img.shields.io/badge/Training-SpecForge-green.svg)](https://github.com/SafeAILab/SpecForge)
 [![Gemma 4](https://img.shields.io/badge/Model-Gemma_4-orange.svg)](https://huggingface.co/google/gemma-4-31B-it)
 
-Engineering guide to speculative decoding: validate an official EAGLE3 draft model, self-train a draft head on a single GPU in 45 minutes, benchmark Google's native Gemma 4 MTP assistant, and compare Qwen3.6 DFlash vs Native MTP vs llama.cpp on Azure H100.
+Engineering guide to draft-and-verify acceleration: compare EAGLE3, self-trained draft heads, native MTP assistants, DFlash, and llama.cpp MTP with reproducible benchmark evidence.
 
 
-## Running on Azure
+## Benchmark Environment
 
-All experiments in this project were conducted on an **Azure GPU VM**.
+The experiments in this project were run on the following GPU environment. Azure is the test infrastructure here, not a dependency of the speculative decoding technique.
 
 | Item | Details |
 |---|---|
-| **Azure VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU VM used for benchmarks** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
 | **GPU** | NVIDIA H100 80GB |
 | **Frameworks** | vLLM, SGLang, llama.cpp |
 
 
 ## Executive Summary
 
-This project documents a complete research workflow for speculative decoding, from EAGLE3 validation and self-training to a new Gemma 4 native MTP assistant benchmark:
+This project documents a complete research workflow for speculative decoding across multiple draft-and-verify routes: official EAGLE3 validation, self-trained draft heads, native MTP assistants, and DFlash/MTP serving experiments:
 
 | Phase | Model | Measured Result | Test Conditions | Key Insight |
 |-------|-------|-----------------|-----------------|-------------|
@@ -196,8 +196,7 @@ All speculative decoding systems share the same outer loop: a cheap drafter prop
 | **EAGLE3** | A trained draft head/model that reads target-model hidden features from multiple layers | Trained after the target model is fixed, either by the vendor or by you | Loaded as an extra draft model/head beside the target model | +2.21 GiB draft model in the Phase 1 SGLang log | High speedup when the official draft model is available; self-training is possible | Training quality and task distribution matter; bad draft data can slow some workloads |
 | **Gemma 4 MTP** | A Google-published MTP assistant checkpoint (~0.5B params, 4-layer drafter); it uses target model activations and shared KV-cache to improve draft quality (source: [Google MTP docs](https://ai.google.dev/gemma/docs/mtp/mtp)) | Produced by Google as an official assistant checkpoint; this repo does not train it | Loaded as an additional assistant/drafter model; shares target embedding weights and maps to target layers (vLLM log: draft layers mapped to target layers 58/59) | +0.87 GiB assistant weights; KV cache budget -4.86 GiB in this vLLM run | No local draft training required; stable 1.73x in this H100 test | Serving stack must support the assistant architecture; this run required a vLLM config shim |
 | **DFlash** | A target-conditioned block diffusion drafter checkpoint that fuses target context features and drafts a token block in one parallel forward pass (source: [DFlash project](https://z-lab.ai/projects/dflash/) and [arXiv:2602.06036](https://arxiv.org/abs/2602.06036)) | Trained separately for a target model family/checkpoint; public draft checkpoints are published under `z-lab/*-DFlash` | Loaded as a DFlash draft model in a DFlash-aware serving stack such as SGLang or vLLM builds with DFlash support | Not measured in this repo | Makes the draft stage itself block-parallel instead of autoregressive; useful when an official DFlash checkpoint and engine support exist | More memory and engine-version sensitivity; block size, context length, and workload distribution must be benchmarked |
-| **DeepSeek-style MTP** | MTP heads/modules inside the model family, not measured here as a separate external assistant | Release-specific; generally trained with the model-family MTP design | Exposed by that model's own inference stack rather than by Gemma-style assistant loading | Not measured in this repo | Can make MTP part of the training/inference design instead of an external add-on | Implementation details are release-specific; do not assume EAGLE flags or Gemma assistant loading will work |
-| **MiMo-V2.5-style MTP** | Model-family draft modules packaged in the same model repo/directory; MiMo-V2.5-Pro exposes a separate `model_mtp.safetensors` file with `model.mtp.layers.0/1/2` tensors | Release-specific; trained as part of the model-family design | Loaded by pointing the serving stack at the model directory; no separate external draft-model path is required, but the MTP weights are a separate file inside that directory | Not measured in this repo | Potentially better acceptance on the model's own reasoning distribution | Needs workload-specific measurement; high-entropy tasks can still erase the benefit |
+| **Native model-family MTP** | MTP heads/modules packaged with the target model family, sometimes as separate MTP weights inside the same model directory | Release-specific; trained as part of the model-family design | Loaded through that model's native inference stack or model-directory convention rather than by a separate assistant path | Not measured in this repo | Makes MTP part of the model-family serving design instead of a post-hoc add-on | Implementation details are release-specific; do not assume EAGLE flags or Gemma assistant loading will work |
 
 The word "drafter" does not always mean "a full standalone LLM loaded next to the target." The weight form is different across families:
 
@@ -206,10 +205,9 @@ The word "drafter" does not always mean "a full standalone LLM loaded next to th
 | **EAGLE3** | Yes, but they are separate draft-model/head weights, not a copy of the full target model | No | Separate draft-model weights, not full target-model weights |
 | **Gemma 4 MTP** | Yes. Google publishes a separate assistant drafter checkpoint | No | Separate assistant drafter checkpoint |
 | **DFlash** | Yes. Z-Lab publishes separate DFlash draft checkpoints for specific targets | No | Target-conditioned block diffusion draft checkpoint |
-| **DeepSeek-style MTP** | Usually represented as native MTP heads/modules inside the model-family checkpoint, release-specific | No | Native MTP module weights inside the model family |
-| **MiMo-V2.5-style MTP** | Yes. For MiMo-V2.5-Pro, HF lists a separate `model_mtp.safetensors` file containing `model.mtp.layers.0/1/2` tensors in the same model directory | No | Native MTP weights in the same model repo/directory, packaged as `model_mtp.safetensors` |
+| **Native model-family MTP** | Release-specific. Some model families represent MTP as native heads/modules inside the model-family checkpoint or as separate MTP weights in the same model directory | No | Native MTP weights packaged with the model family, not a full target-model replacement |
 
-The diagram below shows where the drafter lives in each route. For DeepSeek-style MTP the drawing is conceptual because this repo did not inspect that release-specific implementation. For MiMo-V2.5-Pro, the public HF file listing shows the MTP modules packaged as `model_mtp.safetensors` with `model.mtp.layers.0/1/2`, in the same model directory as the target shards. DFlash is also target-conditioned, but its distinguishing feature is that the draft generator is a block diffusion model rather than an autoregressive draft head.
+The diagram below shows where the drafter lives in each route. Native model-family MTP is drawn conceptually because each model family chooses its own packaging and serving interface. DFlash is also target-conditioned, but its distinguishing feature is that the draft generator is a block diffusion model rather than an autoregressive draft head.
 
 ```mermaid
 flowchart LR
@@ -255,32 +253,32 @@ flowchart LR
     DST --> DSV
   end
 
-  subgraph MM["MiMo-V2.5-style MTP<br/>model_mtp.safetensors"]
-    MMT["Model-family checkpoint"]
-    MMD["MTP modules<br/>model.mtp.layers.0/1/2<br/>separate file in same directory"]
-    MMV["Serving stack<br/>draft and verify"]
-    MMT --> MMD
-    MMD --> MMV
-    MMT --> MMV
+  subgraph NM["Native model-family MTP<br/>release-specific packaging"]
+    NMT["Model-family checkpoint"]
+    NMD["Native MTP heads or modules<br/>packaged with the target family"]
+    NMV["Serving stack<br/>draft and verify"]
+    NMT --> NMD
+    NMD --> NMV
+    NMT --> NMV
   end
 
   classDef target fill:#eef6ff,stroke:#1f6feb,color:#0b1f3a
   classDef drafter fill:#fff7e6,stroke:#d97706,color:#3b2500
   classDef verify fill:#ecfdf5,stroke:#059669,color:#042f2e
-  class E3T,G4T,DFT,DST,MMT target
-  class E3D,G4D,DFD,DSH,MMD drafter
-  class E3V,G4V,DFV,DSV,MMV verify
+  class E3T,G4T,DFT,DST,NMT target
+  class E3D,G4D,DFD,DSH,NMD drafter
+  class E3V,G4V,DFV,DSV,NMV verify
 ```
 
 ### Deep Comparison: How Each Drafter Actually Works
 
-| Dimension | Classic Speculative Decoding | EAGLE3 | Gemma 4 MTP | DFlash | DeepSeek / MiMo MTP |
+| Dimension | Classic Speculative Decoding | EAGLE3 | Gemma 4 MTP | DFlash | Native model-family MTP |
 |-----------|------------------------------|--------|-------------|--------|---------------------|
 | What the drafter reads from target | Nothing; a separate small LM runs independently | Hidden states from 3 mid-layers (layers 2, 16, 29 in Llama 8B) | Target activations from the last few layers + shared KV-cache (layers 58/59 in Gemma 31B) | Fused target context features injected into the draft layers' KV cache | MTP heads branch directly from the model forward path |
 | Drafter size | A full small LM (e.g. 68M Llama-68M) | ~223M params, 1 decoder layer | ~0.5B params, 4 decoder layers | Lightweight block diffusion checkpoint; target-specific size, not measured here | Native MTP modules inside the model checkpoint |
 | Drafting pattern | Autoregressive draft LM | Autoregressive draft head/model | Autoregressive assistant drafter | Block diffusion; drafts a token block in one parallel forward pass | Native future-token prediction path inside the model family |
 | Can you train it yourself | Use any off-the-shelf small LM; no special training | Yes (SpecForge, 45 min on a single GPU) | No, only Google publishes it | Requires a target-specific DFlash training recipe/checkpoint; this repo did not train one | No, the model vendor builds it during pre-training |
-| What happens after fine-tuning the target | Drafter is independent, so it still works but acceptance rate may drop because output distributions diverge | Re-train the draft head to match the new distribution | Can only hope the original assistant still works; cannot re-train it (speculation, not measured in this repo) | Re-validate or retrain the DFlash checkpoint; target-feature distribution changes can hurt acceptance | MTP modules are part of the model, so fine-tuning changes both together |
+| What happens after fine-tuning the target | Drafter is independent, so it still works but acceptance rate may drop because output distributions diverge | Re-train the draft head to match the new distribution | Can only hope the original assistant still works; cannot re-train it (speculation, not measured in this repo) | Re-validate or retrain the DFlash checkpoint; target-feature distribution changes can hurt acceptance | Native MTP modules are part of the model family, so fine-tuning and serving support must be validated together |
 | Switch to a different target model | Just swap the small LM; no dependency on target internals | Re-train a new draft head | Cannot; the assistant only pairs with its own Gemma family | Cannot assume reuse; use a DFlash checkpoint trained for that target | Not applicable; the MTP modules are inseparable from the model |
 | Serving stack | Any framework that supports assisted generation | SGLang native EAGLE3 support, one flag | vLLM speculative-config; needed a config shim in this test | DFlash-aware SGLang / vLLM builds; engine version matters | Depends on the model vendor's own inference stack |
 | Coupling to target | None (loosest) | Tight (reads mid-layer hidden states) | Tight (reads last-layer activations + shared KV-cache) | Tight (reads target features, but remains an external checkpoint) | Tightest (native modules inside model) |
@@ -289,14 +287,14 @@ flowchart LR
 
 EAGLE3, Gemma/DeepSeek MTP, and DFlash represent different design philosophies, not a simple "old vs new" progression:
 
-| Dimension | EAGLE3 (post-hoc) | Gemma 4 MTP (hybrid) | DFlash (external block diffusion) | DeepSeek / MiMo MTP (native) |
+| Dimension | EAGLE3 (post-hoc) | Gemma 4 MTP (hybrid) | DFlash (external block diffusion) | Native model-family MTP |
 |-----------|--------------------|----------------------|-----------------------------------|------------------------------|
 | Core question | Target is fixed; how to build the best drafter after the fact? | Co-train the drafter with the target, but publish it as a separate checkpoint | Can an external drafter remove the draft-stage sequential bottleneck by predicting a whole block at once? | Make MTP part of the pre-training objective itself |
 | Key innovation | Solved the train-test gap: training uses the drafter's own predicted features instead of ground-truth features, so training matches inference (EAGLE-3, NeurIPS 2025) | Activation sharing + KV-cache reuse between target and assistant | Target feature fusion + KV injection + block diffusion parallel drafting | MTP as a training objective, not just an inference trick; may also improve representation learning during pre-training |
 | Academic record | EAGLE (ICML 2024), EAGLE-2 (EMNLP 2024), EAGLE-3 (NeurIPS 2025) | Model card only; no dedicated MTP paper | DFlash paper: arXiv:2602.06036, ICML 2026 | Described in DeepSeek-V2/V3 papers |
 | Industry trend | Universal retrofit: works on any target model | Middle ground: co-trained but separately deployable | New external drafter family: target-conditioned but block-parallel | Forward-looking: more vendors will build MTP into training |
 
-Neither route will disappear. Post-hoc drafters (EAGLE3) remain essential when you need to accelerate an existing model you cannot re-train. Native MTP (DeepSeek/MiMo) is the direction for new model families designed with speculative decoding in mind.
+Neither route will disappear. Post-hoc drafters (EAGLE3) remain essential when you need to accelerate an existing model you cannot re-train. Native model-family MTP is the direction for new model families designed with speculative decoding in mind.
 
 ### Decision Guide: Which Route to Use
 
@@ -311,7 +309,7 @@ Neither route will disappear. Post-hoc drafters (EAGLE3) remain essential when y
 | Long-context or memory-constrained serving | **Benchmark before enabling DFlash** | DFlash adds draft weights and engine-specific paths; larger draft blocks can waste work if acceptance is low |
 | Long-term production without vendor dependency | **EAGLE3** | Community-driven (SafeAI Lab); does not depend on a single vendor publishing assistant checkpoints |
 
-The practical difference is simple: EAGLE3 asks you to manage a trained feature-based draft head that reads multiple mid-layer hidden states; Gemma 4 MTP gives you a published assistant model that reads target activations and shares the KV-cache; DFlash gives you a target-conditioned diffusion drafter that predicts a block of draft tokens in one parallel forward pass; DeepSeek/MiMo-style MTP moves the draft mechanism deeper into the model family as native modules. All four read or depend on target-model internal information in different ways — the difference is how the drafter is packaged, how it drafts, and how tightly it is tied to the serving stack. They are all speculative decoding, but they are not interchangeable deployment recipes.
+The practical difference is simple: EAGLE3 asks you to manage a trained feature-based draft head that reads multiple mid-layer hidden states; Gemma 4 MTP gives you a published assistant model that reads target activations and shares the KV-cache; DFlash gives you a target-conditioned diffusion drafter that predicts a block of draft tokens in one parallel forward pass; native model-family MTP moves the draft mechanism deeper into the model family as native modules. All four read or depend on target-model internal information in different ways — the difference is how the drafter is packaged, how it drafts, and how tightly it is tied to the serving stack. They are all speculative decoding, but they are not interchangeable deployment recipes.
 
 ### Practical Benchmark Matrix: DFlash vs MTP on Qwen3.6
 
@@ -400,79 +398,98 @@ This repo measured single-stream (concurrency=1) latency and generation TPS on N
 
 MTP (Multi-Token Prediction) layers are independent draft heads trained into the model during pretraining. The number of MTP layers directly determines how speculative decoding should be configured.
 
-**MTP Layer Count Across Models (source: official HF config.json and SGLang docs):**
+**MTP layer-count patterns:**
 
-| Model | MTP Layers | Architecture | Source |
-|-------|:----------:|-------------|--------|
-| Qwen3.6-27B | **1** | Single MTP head, reused N times for N draft tokens | HF `config.json` |
-| MiMo-7B-RL | **1** | Single MTP head | HF `config.json`: `"num_nextn_predict_layers": 1` |
-| MiMo-V2.5-Pro (1.02T) | **3** | 3-layer multi-layer EAGLE | SGLang cookbook: "3-layer MTP module" |
-| MiMo-V2.5 (310B) | **3** | 3-layer multi-layer EAGLE | SGLang cookbook |
-| DeepSeek-V3 / R1 | **1** | Single MTP head | Official paper |
+| Pattern | MTP layers | Draft shape | Serving implication |
+|---------|:----------:|-------------|---------------------|
+| Single-layer native MTP | 1 | One MTP head is reused across multiple future positions | More draft tokens require repeated use of the same head, so error can accumulate as the prediction moves farther ahead |
+| Multi-layer native MTP | N | N native heads/modules can represent N future positions | `--speculative-num-steps` should usually start near the native MTP layer count, then be benchmarked |
+| External assistant MTP | Implementation-specific | A separate assistant/drafter checkpoint proposes future tokens | Configure through the serving engine's assistant/speculative config rather than native MTP layer flags |
+| DFlash-style drafter | Block-level | A target-conditioned drafter proposes a token block in parallel | Tune block size and memory headroom; it is not interchangeable with autoregressive MTP flags |
 
-**Why Layer Count Matters:**
+**Why layer count matters:**
 
-- **N layers = N independent draft heads**, each predicting a different future position (+1, +2, ..., +N) in **1 forward pass per layer**.
-- **1-layer models** (Qwen3.6, DeepSeek) must **serially reuse the same head** when `num_speculative_tokens > 1`. The further the prediction, the more error accumulates, and acceptance rate drops.
-- **3-layer models** (MiMo V2.5) can do **3 parallel predictions in 3 independent forward passes**, with no error accumulation between layers.
+- **N native layers can represent N future positions** (`t+1`, `t+2`, ..., `t+N`).
+- **1-layer MTP** can still draft multiple future tokens, but it must reuse the same head repeatedly; the farther it looks ahead, the more errors can accumulate.
+- **Multi-layer MTP** can assign different native heads/modules to different future positions, so it is often configured with `num_steps` close to the native MTP layer count.
 
-**The 3 Key Hyperparameters (SGLang EAGLE Multi-Layer MTP):**
+**Concrete token example: "今天天气真好，我要去公园玩"**
+
+Assume the model has already generated the context `今天天气真好`. The last real token in the current context is `t = 好`. It is not a new token produced by this speculative step; it is simply the starting point.
+
+```text
+Already generated context:
+  ... 今天天气真 好
+                  ^
+                  t = already generated target token
+
+Draft/MTP proposes three future positions:
+  t+1 = ，
+  t+2 = 我
+  t+3 = 要
+
+Target verification checks those draft tokens in one forward pass:
+  verify t+1, t+2, t+3
+
+Target verification also produces one extra next-token logit:
+  t+4 = 去   ← bonus from target verify, not the same thing as token t
+```
+
+So `target token t already generated` and `t+4 bonus from target verify` are different things:
+
+| Symbol | Meaning in this example | Who produces it? |
+|--------|-------------------------|------------------|
+| `t` | The existing context token `好`; the step starts here | Already produced before this step |
+| `t+1..t+3` | Draft guesses: `， 我 要` | Draft/MTP |
+| `t+4` | The next token `去` obtained as a verification byproduct | Target verify |
+
+**Hyperparameters: draft shape vs simulated acceptance**
 
 <div align="center"><img src="images/eagle_mtp_3params_explained.png" width="960" /></div>
 
-| Parameter | What it controls | Recommended value |
-|-----------|-----------------|-------------------|
-| `--speculative-num-steps N` | How many draft steps to run (should match MTP layer count) | N = number of MTP layers (e.g. 3 for MiMo V2.5 Pro) |
-| `--speculative-eagle-topk K` | How many candidates per step (1 = linear chain, K > 1 = tree) | 1 for most workloads (greedy, minimal overhead) |
-| `--speculative-num-draft-tokens D` | Maximum buffer size for draft tokens | D = tree_size + 1 (e.g. 4 for topk=1, steps=3) |
+The settings are easier to read if they are split into two groups:
 
-**topk=1 (linear chain) vs topk=2 (binary tree):**
+| Group | Parameter | Example value | What it controls |
+|-------|-----------|--------------:|------------------|
+| Draft shape | `--speculative-num-steps` | `3` | How many draft steps/positions the drafter attempts (`t+1..t+3` in the example) |
+| Draft shape | `--speculative-eagle-topk` | `1` | Tree width. `1` means a linear chain; larger values create a tree of alternatives |
+| Draft buffer | `--speculative-num-draft-tokens` | `4` | Buffer size: 3 draft positions plus 1 target-verify bonus position |
+| Simulation | `SGLANG_SIMULATE_ACC_LEN` | `3` | Force the runtime to behave as if 3 draft tokens were accepted |
+| Simulation | `SGLANG_SIMULATE_ACC_METHOD` | `match-expected` | Replace the real verification decision with a simulated accept index |
 
-```
-topk=1: each step produces 1 candidate → linear chain
-  Step 1: 1 candidate     Total: 1 + 1 + 1 = 3 draft tokens
-  Step 2: 1 candidate     + 1 verify bonus = 4
-  Step 3: 1 candidate     → set num-draft-tokens = 4
-
-topk=2: each step doubles → binary tree
-  Step 1: 2 candidates    Total: 2 + 4 + 8 = 14 draft tokens
-  Step 2: 4 candidates    + 1 verify bonus = 15
-  Step 3: 8 candidates    → set num-draft-tokens = 15
-```
-
-The **verify bonus** token is a free byproduct of target verification: when the target model verifies N draft tokens in 1 forward pass, it computes N+1 positions of logits. The last position has no draft to verify, so it is directly sampled as a guaranteed correct token. This is why speculative decoding **never performs worse than standard autoregressive decoding** — every verify step produces at least 1 correct token.
-
-**MiMo V2.5 Pro Fixed-Acceptance Benchmark Context (source: SGLang official cookbook and MiMo MI300X benchmark repo):**
-
-| Batch Size / DP rank | Without MTP | 3-layer MTP, accept=3 | 3-layer MTP, accept=4 |
-|:--------------------:|:-----------:|:---------------------:|:---------------------:|
-| 64 | 1,875 tok/s | 3,873 tok/s (2.07×) | 5,103 tok/s (2.72×) |
-| 96 | 2,564 tok/s | 4,840 tok/s (1.89×) | 6,225 tok/s (2.43×) |
-
-The `accept=3/4` columns should be read as fixed-acceptance or simulated-acceptance benchmark settings, not as proof that the draft model naturally reaches those acceptance rates on every workload. In SGLang, `SGLANG_SIMULATE_ACC_LEN=3` fixes `accept_length=3`; with a 4-token draft window, this corresponds to:
+With a 4-token draft window and a simulated accept length of 3, the reported acceptance rate is a configured effect:
 
 ```text
 accept_rate = accept_length / max_accept_length = 3 / 4 = 0.75
 ```
 
-The prompt, target forward pass, and runtime path still execute, so TPOT can decrease and output tok/s can increase. The speedup comes from the runtime being told to advance by three accepted tokens per decode step. For example:
+This is not the same as the model proving that it naturally accepts 75% of draft positions. It means the benchmark is running under a fixed-acceptance assumption.
+
+**Why simulated acceptance exists**
+
+| Aspect | What it helps with | What it does not prove |
+|--------|--------------------|------------------------|
+| Kernel/runtime benchmarking | Isolates scheduler, kernel, KV-cache, and disaggregation behavior under the same acceptance assumption | Real draft-model quality |
+| Upper-bound analysis | Shows how fast the runtime could be if the drafter reliably provided 3 useful tokens per step | Production end-to-end throughput |
+| Cross-system alignment | Lets two systems compare the same decode-loop shape | That the output text is faithful or high quality |
+
+The prompt, target forward pass, and runtime path still execute, so TPOT can decrease and output tok/s can increase. The speedup comes from the runtime being told to advance by three accepted tokens per decode step:
 
 ```text
 1024 output tokens / 1 token per step = 1024 decode steps
 1024 output tokens / 3 tokens per step ≈ 341 decode steps
 ```
 
-The tradeoff is that this no longer measures truthful generation quality or real draft-model acceptance. It is a diagnostic / upper-bound benchmark switch for separating draft-model capability from runtime-system capability:
+**Tradeoffs of simulated acceptance:**
 
-```text
-real performance = draft model capability × runtime system capability
-```
+| Benefit | Cost / risk |
+|---------|-------------|
+| Good for apples-to-apples runtime comparison | Output quality is not a truthful generation-quality signal |
+| Good for upper-bound TPOT / throughput analysis | `accept_rate=0.75` is a configured setting, not measured model capability |
+| Good for isolating kernel and serving-stack bottlenecks | It can hide draft-model calibration, workload distribution, and real rejection behavior |
+| Reproducible and stable for engineering diagnosis | It can overstate production throughput if reported without caveats |
 
-Use this setting to compare kernel, scheduler, KV-cache, or PD-disaggregation paths under the same fixed acceptance assumption. Do not report it as `real accept_rate=0.75`; write `fixed/simulated accept_length=3, equivalent to accept_rate=0.75 under a 4-token draft window`.
-
-On natural text (GSM8K), MiMo V2.5 Pro reports **accept rate 0.755** and **accept length 3.27** (out of max 4) in the cited SGLang context. On random token streams, accept rate drops to 0.13–0.27 — MTP is trained on natural language distributions and has no signal on random bytes. For real MI300X runs without simulated acceptance, the 2026-06-26 stack measured accept_length 2.15-2.38 and accept_rate 0.38-0.46.
-
-Serving-stack version matters for MiMo MTP. The SGLang MiMo-V2.5 cookbook pins H100/H200 Hopper deployments to `lmsysorg/sglang:nightly-dev-20260511-044bb88a` and explicitly warns that `lmsysorg/sglang:latest` will not load the MiMo-V2.5 checkpoints. Do not apply the MI300X AMD/ROCm fork (`sammysun0711/sglang@mimo_aiter_attn`, commit `db840d935`) to H200 runs; that fork is specific to the ROCm/aiter MI300X reproduction path. If reproducing the MiMo-V2.5 310B H200 benchmark, the SGLang cookbook reports `lmsysorg/sglang:dev-mimo-v2.5` / `sglang 0.0.0.dev1+g7d99af439` for that benchmark environment.
+Recommended wording: write `fixed/simulated accept_length=3, equivalent to accept_rate=0.75 under a 4-token draft window`. Do not write `real accept_rate=0.75`.
 
 For DFlash guidance: use DFlash when an official draft checkpoint exists, the serving engine has stable support, memory headroom is sufficient, and workload-specific acceptance is high. Otherwise, benchmark native MTP and DFlash side by side.
 
@@ -1176,7 +1193,7 @@ Check:
 ## Repository Structure
 
 ```
-Speculative-Decoding-EAGLE3/
+speculative-decoding/
 ├── README.md
 ├── README-CN.md
 ├── requirements.txt
