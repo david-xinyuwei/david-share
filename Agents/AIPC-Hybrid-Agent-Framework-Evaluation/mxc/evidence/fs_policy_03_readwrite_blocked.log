@@ -1,0 +1,74 @@
+wxc-exec.exe : error: BaseContainer is unavailable; DACL fallback requires writ
+e-DAC permission on 'C:\temp\mxc-fs-OTHER-dir', which the current user lacks (τ
+│╗τ╗ƒµë╛Σ╕ìσê░µîçσ«ÜτÜäµûçΣ╗╢πÇé (os error 2)).
+At G:\AI-Super-Agent\Lenovo-Open source agent AI framework discussion\_run_fs_t
+ests.ps1:23 char:15
++     $output = & $wxc $policyFile 2>&1 | Out-String
++               ~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (error: BaseCont... (os error 2)). 
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+SECTION: Request simplified
+Script code length: 110
+Working directory: 
+Script timeout: 15000
+Container name: CLI
+SECTION: Full `ExecutionRequest` configuration (redacted)
+{
+  "schema_version": "0.7.0-alpha",
+  "container_id": "",
+  "env": [],
+  "script_code": "cmd.exe /c echo MXC_FS_WRITE_BLOCKED > C:\\temp\\mxc-fs-test\
+\blocked.txt && type C:\\temp\\mxc-fs-test\\blocked.txt",
+  "working_directory": "",
+  "script_timeout": 15000,
+  "containment": "processcontainer",
+  "lifecycle": {
+    "destroy_on_exit": true,
+    "preserve_policy": false
+  },
+  "policy": {
+    "least_privilege_mode": false,
+    "capabilities": [],
+    "readwrite_paths": [
+      "C:\\temp\\mxc-fs-OTHER-dir"
+    ],
+    "readonly_paths": [],
+    "denied_paths": [],
+    "fallback": {
+      "allow_dacl_mutation": true
+    },
+    "default_network_policy": "block",
+    "network_enforcement_mode": "capabilities",
+    "allow_local_network": false,
+    "allowed_hosts": [],
+    "blocked_hosts": [],
+    "ui": {
+      "disable": true,
+      "clipboard": "none",
+      "injection": false
+    },
+    "base_process_ui": {
+      "isolation": "container",
+      "desktopSystemControl": false,
+      "systemSettings": "none",
+      "ime": false
+    }
+  },
+  "lxc_config": {
+    "distribution": "",
+    "release": ""
+  },
+  "seatbelt": null,
+  "experimental_enabled": false,
+  "experimental": {
+    "test": null,
+    "windows_sandbox": null,
+    "wslc": null,
+    "isolation_session": null
+  },
+  "dry_run": false
+}
+[network_proxy: disabled]
+Using BaseContainer-fallback dispatcher (schema version 0.7.0-alpha)

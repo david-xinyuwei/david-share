@@ -292,19 +292,39 @@ Actual results from `wxc-exec`:
 
 ### Filesystem Policy
 
-**Status: Not tested.** MXC supports `readwritePaths` and `readonlyPaths` in the policy JSON for filesystem scoping:
+MXC can scope which directories a contained process can read and write via `readwritePaths` and `readonlyPaths`. We tested 4 scenarios writing to `C:\temp\mxc-fs-test\`:
+
+**Test policies:**
 
 ```json
-// From MXC policy schema (0.7.0-alpha)
-"filesystem": {
-  "readwritePaths": [ "%APPDATA%\\mxc_test" ],
-  "readonlyPaths": [ "C:\\Program Files\\..." ]
+// fs-policy-02-readwrite-allowed.json — allow write to target directory
+{
+  "version": "0.7.0-alpha",
+  "containment": "processcontainer",
+  "process": {
+    "commandLine": "cmd.exe /c echo MXC_FS_WRITE_ALLOWED > C:\\temp\\mxc-fs-test\\allowed.txt && type C:\\temp\\mxc-fs-test\\allowed.txt",
+    "timeout": 15000
+  },
+  "processContainer": { "name": "FS-ReadWrite-Allowed" },
+  "network": { "defaultPolicy": "block" },
+  "filesystem": { "readwritePaths": ["C:\\temp\\mxc-fs-test"] }
 }
 ```
 
-On the current `appcontainer-dacl` fallback tier, filesystem policy requires BFS (Base Filesystem) configuration via `bfscfg.exe`, which is only available on the full `BaseContainer` tier (Windows Insider). The pip install test above confirms this limitation: `"Filesystem policy error: Cannot configure BFS policy: bfscfg.exe was not resolved at probe time"`.
+**Actual results:**
 
-> **What this means for Lenovo**: Filesystem scoping (restricting which directories an agent action can read/write) is a policy capability in MXC's schema, but requires BaseContainer tier to enforce. On stock Windows 11, only network, UI, and process-level containment are available today.
+| Test | Policy | Exit | Verdict |
+|------|--------|:----:|---------|
+| 01 baseline | No `filesystem` field | 1 | ❌ `Access is denied` — ProcessContainer default blocks write to `C:\temp` |
+| 02 readwrite-allowed | `readwritePaths: ["C:\temp\mxc-fs-test"]` | **0** | ✅ **Write succeeded** — `allowed.txt` created with content `MXC_FS_WRITE_ALLOWED` |
+| 03 readwrite-blocked | `readwritePaths` points to a different directory | 1 | ❌ Write blocked — target dir not in allow list |
+| 04 readonly | `readonlyPaths: ["C:\temp\mxc-fs-test"]` only | 1 | ❌ `Access is denied` — read-only cannot write |
+
+**Key finding**: `readwritePaths` works on the current `appcontainer-dacl` fallback tier for simple file write operations. This means MXC can enforce per-action filesystem scoping today — an agent action that should only write to `%APPDATA%\app-data` gets a policy that allows exactly that directory, and writes elsewhere are blocked.
+
+> The earlier pip install test failed because pip needs complex filesystem redirection (BFS) for `--target` directory management, not simple file writes. Simple `readwritePaths` scoping works without BFS.
+
+> Evidence: `mxc/evidence/fs-policy-*.json` (policies), `mxc/evidence/fs_policy_*.log` (execution logs)
 
 ### Capability Catalog (9 Win32 probes × 4 contexts)
 

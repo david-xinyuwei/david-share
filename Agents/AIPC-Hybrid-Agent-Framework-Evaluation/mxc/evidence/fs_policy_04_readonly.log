@@ -1,0 +1,9 @@
+wxc-exec.exe : Access is denied.
+At G:\AI-Super-Agent\Lenovo-Open source agent AI framework discussion\_run_fs_t
+ests.ps1:23 char:15
++     $output = & $wxc $policyFile 2>&1 | Out-String
++               ~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Access is denied.:String) [], Rem 
+   oteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
