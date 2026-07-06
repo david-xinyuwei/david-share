@@ -1,0 +1,22 @@
+﻿MXC task-scoped RBAC / capability policy probe
+time=2026-07-05T18:42:01.7415182+08:00
+wxc=G:\AI-Super-Agent\Lenovo-Open source agent AI framework discussion\mxc-copilot-demo\vscode-workspace-demo\node_modules\@microsoft\mxc-sdk\bin\x64\wxc-exec.exe
+probe_exe=G:\AI-Super-Agent\Lenovo-Open source agent AI framework discussion\mxc-copilot-demo\vscode-workspace-demo\workspace-output\native-win32-probe\NativeWin32CapabilityProbe.exe
+action_id=52E74EB065
+host_exit=0
+host_pass=7
+host_fail=2
+host_log=G:\AI-Super-Agent\Lenovo-Open source agent AI framework discussion\mxc-copilot-demo\vscode-workspace-demo\evidence\task_rbac_00_host_baseline.log
+text_policy=G:\AI-Super-Agent\Lenovo-Open source agent AI framework discussion\mxc-copilot-demo\vscode-workspace-demo\evidence\task-rbac-text-lockdown.json
+text_exit=-1073741502
+text_pass=0
+text_fail=0
+text_log=G:\AI-Super-Agent\Lenovo-Open source agent AI framework discussion\mxc-copilot-demo\vscode-workspace-demo\evidence\task_rbac_01_text_lockdown.log
+drawing_policy=G:\AI-Super-Agent\Lenovo-Open source agent AI framework discussion\mxc-copilot-demo\vscode-workspace-demo\evidence\task-rbac-drawing-ui.json
+drawing_exit=0
+drawing_pass=0
+drawing_fail=0
+drawing_log=G:\AI-Super-Agent\Lenovo-Open source agent AI framework discussion\mxc-copilot-demo\vscode-workspace-demo\evidence\task_rbac_02_drawing_ui_allowed.log
+verdict_text_restricted=True
+verdict_drawing_ran=True
+verdict_capability_delta=True

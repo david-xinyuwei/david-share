@@ -1,0 +1,27 @@
+MXC pip policy probe
+time=2026-07-05T15:24:55.3603365+08:00
+wxc=C:\Users\david\AppData\Local\copilot\pkg\win32-x64\1.0.63\mxc-bin\x64\wxc-exec.exe
+python=C:\Python312\python.exe
+package=six==1.16.0
+action_id=115FABF854
+block_policy=G:\AI-Super-Agent\Lenovo-Open source agent AI framework discussion\mxc-copilot-demo\vscode-workspace-demo\evidence\pip-policy-network-block.json
+block_exit=-1
+block_installed=False
+block_log=G:\AI-Super-Agent\Lenovo-Open source agent AI framework discussion\mxc-copilot-demo\vscode-workspace-demo\evidence\pip_policy_01_network_block.log
+allow_policy=G:\AI-Super-Agent\Lenovo-Open source agent AI framework discussion\mxc-copilot-demo\vscode-workspace-demo\evidence\pip-policy-network-allow.json
+allow_exit=-1
+allow_installed=False
+allow_log=G:\AI-Super-Agent\Lenovo-Open source agent AI framework discussion\mxc-copilot-demo\vscode-workspace-demo\evidence\pip_policy_02_network_allow.log
+pip_filesystem_policy_unavailable=True
+pip_python_unavailable=False
+verdict_block=True
+verdict_allow=False
+win32_ui_action_id=52E74EB065
+ui_lock_policy=G:\AI-Super-Agent\Lenovo-Open source agent AI framework discussion\mxc-copilot-demo\vscode-workspace-demo\evidence\win32-ui-default-lockdown.json
+ui_lock_exit=-1073741502
+ui_lock_log=G:\AI-Super-Agent\Lenovo-Open source agent AI framework discussion\mxc-copilot-demo\vscode-workspace-demo\evidence\win32_ui_01_default_lockdown.log
+ui_allow_policy=G:\AI-Super-Agent\Lenovo-Open source agent AI framework discussion\mxc-copilot-demo\vscode-workspace-demo\evidence\win32-ui-allow-windows.json
+ui_allow_exit=0
+ui_allow_log=G:\AI-Super-Agent\Lenovo-Open source agent AI framework discussion\mxc-copilot-demo\vscode-workspace-demo\evidence\win32_ui_02_allow_windows.log
+verdict_ui_blocked=True
+verdict_ui_allowed=True
