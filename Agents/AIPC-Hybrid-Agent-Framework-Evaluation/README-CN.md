@@ -251,7 +251,7 @@ Path B 不是一个玩具脚本，而是一套 VS Code runnable test harness：p
 两个 MXC 0.7 policy profiles 证明 task-scoped capability boundary：
 
 ```json
-// text-lockdown: blocks all UI, clipboard, input, network
+// processContainer.name = "Task-Text-Lockdown": blocks all UI, clipboard, input, network
 {
   "version": "0.7.0-alpha",
   "containment": "processcontainer",
@@ -281,7 +281,7 @@ Path B 不是一个玩具脚本，而是一套 VS Code runnable test harness：p
 | Profile | Capabilities | Exit | Verdict |
 |---------|-------------|:----:|--------|
 | Host (no MXC) | N/A | 0 | 7/9 PASS |
-| `text-lockdown` | No UI | -1073741502 | Process blocked |
+| `Task-Text-Lockdown` | No UI | -1073741502 | Process blocked |
 | `drawing-ui` | GDI + sysParams + desktop | 0 | Process ran |
 
 ### Path B Code：Win32 Capability Probe (C)
@@ -382,24 +382,24 @@ MXC 可通过 `readwritePaths` / `readonlyPaths` 控制被包含进程能读写�
 
 这张表不是在说“好/坏”，而是在回答一个很具体的问题：**同一个 Windows API，在不同 MXC policy 下能不能被调用？**
 
-重要说明：`text-lockdown`、`gdi-minimal`、`broad-ui` **不是 MXC JSON schema 字段名**，而是我们给三组测试 profile 起的展示标签。真正的 MXC policy 字段是 `processContainer.name`、`processContainer.ui.*` 和顶层 `ui.*`。
+下面表格只使用 JSON policy 里的真实 `processContainer.name`。真正影响行为的字段是 `processContainer.ui.*` 和顶层 `ui.*`。
 
-| 测试 profile 标签 | Policy 文件 / JSON 里的真实名称 | 实际使用的 policy 字段 |
-|-------------------|----------------------------------|------------------------|
-| `text-lockdown` | `capability-text-lockdown.json` / `processContainer.name = "Capability-Text-Lockdown"` | `ui.disable=true`、`ui.clipboard="none"`、`ui.injection=false`、`processContainer.ui.isolation="container"` |
-| `gdi-minimal` | `capability-gdi-minimal-0.7.0-alpha.json` / `processContainer.name = "Capability-Gdi-Minimal-070"` | `ui.disable=false`、`ui.clipboard="none"`、`ui.injection=false`、`processContainer.ui.isolation="container"` |
-| `broad-ui` | `capability-broad-ui.json` / `processContainer.name = "Capability-Broad-Ui"` | `ui.disable=false`、`ui.clipboard="all"`、`ui.injection=true`、`processContainer.ui.isolation="desktop"`、`desktopSystemControl=true`、`systemSettings="all"`、`ime=true` |
+| `processContainer.name` | 实际使用的 policy 字段 |
+|--------------------------|------------------------|
+| `Capability-Text-Lockdown` | `ui.disable=true`、`ui.clipboard="none"`、`ui.injection=false`、`processContainer.ui.isolation="container"` |
+| `Capability-Gdi-Minimal-070` | `ui.disable=false`、`ui.clipboard="none"`、`ui.injection=false`、`processContainer.ui.isolation="container"` |
+| `Capability-Broad-Ui` | `ui.disable=false`、`ui.clipboard="all"`、`ui.injection=true`、`processContainer.ui.isolation="desktop"`、`desktopSystemControl=true`、`systemSettings="all"`、`ime=true` |
 
 | 列名 | 人话解释 |
 |------|----------|
 | **No MXC（Host baseline）** | 不走 MXC，直接在 Windows 上跑。✅ 表示这个 API 在 host 上本来就能调；❌ 表示它在当前 Windows 环境里本来就失败，所以不是 MXC 挡的。 |
-| **Profile label：text-lockdown** | 最严格测试 profile，给纯文本任务用。`BLOCKED` 表示 MXC 在进程启动阶段就拦住了，9 个 API 根本没机会执行。 |
-| **Profile label：gdi-minimal** | 给绘图/渲染类任务的最小 UI 测试 profile。✅ 表示这个 profile 放行了该 API；❌ 表示该 API 在这个 policy/tier 下仍然失败。 |
-| **Profile label：broad-ui** | 更宽的 UI 测试 profile。但在当前 `appcontainer-dacl` fallback tier 下，它和 `gdi-minimal` 差异不大，clipboard/desktop/display/input/WMI 仍然没解锁。 |
+| **`Capability-Text-Lockdown`** | 本测试里最严格的 JSON policy。`BLOCKED` 表示 MXC 在进程启动阶段就拦住了，9 个 API 根本没机会执行。 |
+| **`Capability-Gdi-Minimal-070`** | 给绘图/渲染类 action 的最小 UI JSON policy。✅ 表示这个 policy 放行了该 API；❌ 表示该 API 在这个 policy/tier 下仍然失败。 |
+| **`Capability-Broad-Ui`** | 更宽的 UI JSON policy。但在当前 `appcontainer-dacl` fallback tier 下，它和 `Capability-Gdi-Minimal-070` 差异不大，clipboard/desktop/display/input/WMI 仍然没解锁。 |
 
 图例：✅ = API 调用成功；❌ = API 调用失败；`BLOCKED` = MXC 在进程启动前就挡住了。
 
-| Capability probe | No MXC<br/>Host baseline | Profile<br/>text-lockdown | Profile<br/>gdi-minimal | Profile<br/>broad-ui |
+| Capability probe | No MXC<br/>Host baseline | `Capability-Text-Lockdown` | `Capability-Gdi-Minimal-070` | `Capability-Broad-Ui` |
 |------------------|:------------------------:|:-------------------:|:----------------:|:------------:|
 | GDI_GetDC | ✅ | BLOCKED | ✅ | ✅ |
 | Clipboard_OpenClipboard | ✅ | BLOCKED | ❌ | ❌ |
@@ -411,7 +411,7 @@ MXC 可通过 `readwritePaths` / `readonlyPaths` 控制被包含进程能读写�
 | CameraStack_Load_MF_DLL | ✅ | BLOCKED | ✅ | ✅ |
 | WMI_Load_wbemuuid_DLL | ❌ | BLOCKED | ❌ | ❌ |
 
-客户可读结论：MXC 可以按任务类型给不同的本地能力边界。text 任务可以完全不碰 UI；drawing/rendering 任务可以放行 GDI 和部分系统参数；clipboard、创建桌面、改显示设置、输入注入、WMI 在当前 fallback tier 下仍然不可用。
+客户可读结论：MXC 可以按任务类型给不同的本地能力边界。text 任务可以使用 `processContainer.name="Task-Text-Lockdown"` 或其他严格 policy，完全不碰 UI；drawing/rendering 任务可以使用 `processContainer.name="Capability-Gdi-Minimal-070"` 放行 GDI 和部分系统参数；clipboard、创建桌面、改显示设置、输入注入、WMI 在当前 fallback tier 下仍然不可用。
 
 边界说明：`CameraStack_Load_MF_DLL` 只证明 Media Foundation DLL 可以加载，不等于摄像头采集权限已打通。`Input_SendInput` 和 `WMI_Load_wbemuuid_DLL` 在 Host baseline 下本来就失败，所以不能说是 MXC 单独拦截。
 
@@ -455,10 +455,10 @@ MXC 可通过 `readwritePaths` / `readonlyPaths` 控制被包含进程能读写�
 | Network block | `mxc/evidence/03_network_block.log` | 同一个 curl action 在 block policy 下输出 `mxc_http:000`，exit=6 |
 | Network allow | `mxc/evidence/04_network_allow.log` | 同一个 curl action 在 allow policy 下输出 `mxc_http:200`，exit=0 |
 | pip policy summary | `mxc/evidence/pip_policy_probe_summary.txt` | pip install 在 block/allow 下都先遇到 filesystem/BFS setup 问题，不能当作 network 结论 |
-| Text profile policy | `mxc/evidence/task-rbac-text-lockdown.json` | text task 的 lockdown profile：UI/clipboard/input/network 全锁 |
+| Text policy | `mxc/evidence/task-rbac-text-lockdown.json` | `processContainer.name = "Task-Text-Lockdown"`：UI/clipboard/input/network 全锁 |
 | Drawing profile policy | `mxc/evidence/task-rbac-drawing-ui.json` | drawing task 的 UI-allowed profile：GDI/system settings 等放行 |
 | Task RBAC summary | `mxc/evidence/task_rbac_policy_probe_summary.txt` | text profile blocked、drawing profile ran、capability delta=True |
-| Capability catalog | `mxc/evidence/capability_catalog_summary.md` | 9 个 Win32 probes × host/text-lockdown/gdi-minimal/broad-ui 的矩阵 |
+| Capability catalog | `mxc/evidence/capability_catalog_summary.md` | 9 个 Win32 probes × Host / `Capability-Text-Lockdown` / `Capability-Gdi-Minimal-070` / `Capability-Broad-Ui` 的矩阵 |
 | Capability logs | `mxc/evidence/capability_catalog_*.log` | 每个 policy profile 的原始运行日志 |
 | Filesystem baseline | `mxc/evidence/fs_policy_01_baseline.log` | 无 filesystem 字段时写 `C:\temp` 被 `Access is denied` 阻止 |
 | Filesystem allow | `mxc/evidence/fs_policy_02_readwrite_allowed.log` | `readwritePaths` 指向目标目录时写入成功，输出 `MXC_FS_WRITE_ALLOWED` |
