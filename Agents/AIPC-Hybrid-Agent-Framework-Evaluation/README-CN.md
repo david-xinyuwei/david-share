@@ -367,10 +367,21 @@ MXC 可通过 `readwritePaths` / `readonlyPaths` 控制被包含进程能读写�
 
 > Evidence: `mxc/evidence/fs-policy-*.json`（policy files），`mxc/evidence/fs_policy_*.log`（execution logs）
 
-### Capability Catalog（9 个 Win32 probes × 4 个上下文）
+### Capability Catalog（9 个 Win32 probes × 4 种执行上下文）
 
-| Capability | Host | text-lockdown | gdi-minimal | broad-ui |
-|-----------|:----:|:-------------:|:-----------:|:--------:|
+这张表不是在说“好/坏”，而是在回答一个很具体的问题：**同一个 Windows API，在不同 MXC policy 下能不能被调用？**
+
+| 列名 | 人话解释 |
+|------|----------|
+| **No MXC（Host baseline）** | 不走 MXC，直接在 Windows 上跑。✅ 表示这个 API 在 host 上本来就能调；❌ 表示它在当前 Windows 环境里本来就失败，所以不是 MXC 挡的。 |
+| **MXC text-lockdown profile** | 最严格 profile，给纯文本任务用。`BLOCKED` 表示 MXC 在进程启动阶段就拦住了，9 个 API 根本没机会执行。 |
+| **MXC gdi-minimal profile** | 给绘图/渲染类任务的最小 UI profile。✅ 表示这个 profile 放行了该 API；❌ 表示该 API 在这个 policy/tier 下仍然失败。 |
+| **MXC broad-ui profile** | 更宽的 UI profile。但在当前 `appcontainer-dacl` fallback tier 下，它和 `gdi-minimal` 差异不大，clipboard/desktop/display/input/WMI 仍然没解锁。 |
+
+图例：✅ = API 调用成功；❌ = API 调用失败；`BLOCKED` = MXC 在进程启动前就挡住了。
+
+| Capability probe | No MXC<br/>Host baseline | MXC<br/>text-lockdown | MXC<br/>gdi-minimal | MXC<br/>broad-ui |
+|------------------|:------------------------:|:-------------------:|:----------------:|:------------:|
 | GDI_GetDC | ✅ | BLOCKED | ✅ | ✅ |
 | Clipboard_OpenClipboard | ✅ | BLOCKED | ❌ | ❌ |
 | Desktop_CreateDesktop | ✅ | BLOCKED | ❌ | ❌ |
@@ -381,8 +392,9 @@ MXC 可通过 `readwritePaths` / `readonlyPaths` 控制被包含进程能读写�
 | CameraStack_Load_MF_DLL | ✅ | BLOCKED | ✅ | ✅ |
 | WMI_Load_wbemuuid_DLL | ❌ | BLOCKED | ❌ | ❌ |
 
-- `text-lockdown` 会 block 整个 process，是最严格 profile。
-- `gdi-minimal` / `broad-ui` 允许 GDI、registry、camera DLL、system params；clipboard/desktop/display/input/WMI 在当前 host/path 下仍失败。
+客户可读结论：MXC 可以按任务类型给不同的本地能力边界。text 任务可以完全不碰 UI；drawing/rendering 任务可以放行 GDI 和部分系统参数；clipboard、创建桌面、改显示设置、输入注入、WMI 在当前 fallback tier 下仍然不可用。
+
+边界说明：`CameraStack_Load_MF_DLL` 只证明 Media Foundation DLL 可以加载，不等于摄像头采集权限已打通。`Input_SendInput` 和 `WMI_Load_wbemuuid_DLL` 在 Host baseline 下本来就失败，所以不能说是 MXC 单独拦截。
 
 ### Path B Boundaries
 

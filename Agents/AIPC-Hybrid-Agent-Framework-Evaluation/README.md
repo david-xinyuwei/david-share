@@ -401,10 +401,21 @@ MXC can scope which directories a contained process can read and write via `read
 
 > Evidence: `mxc/evidence/fs-policy-*.json` (policies), `mxc/evidence/fs_policy_*.log` (execution logs)
 
-### Capability Catalog (9 Win32 probes × 4 contexts)
+### Capability Catalog (9 Win32 probes × 4 execution contexts)
 
-| Capability | Host | text-lockdown | gdi-minimal | broad-ui |
-|-----------|:----:|:-------------:|:-----------:|:--------:|
+How to read this table:
+
+| Column | Plain-English meaning |
+|--------|-----------------------|
+| **No MXC (Host baseline)** | The same probe runs directly on Windows, without MXC. ✅ means the API works normally on the host. ❌ means the API already fails on this Windows environment, so MXC is not the cause. |
+| **MXC text-lockdown profile** | The strictest MXC profile for plain text tasks. `BLOCKED` means MXC stops the process before any Win32 API can run. |
+| **MXC gdi-minimal profile** | A minimal UI profile for drawing/rendering tasks. ✅ means this profile allows the API. ❌ means the API still fails under this policy/tier. |
+| **MXC broad-ui profile** | A broader UI profile. On the current `appcontainer-dacl` fallback tier, it behaves almost the same as `gdi-minimal`; it does not unlock clipboard/desktop/display/input/WMI in this test. |
+
+Legend: ✅ = API call succeeded; ❌ = API call failed; `BLOCKED` = MXC blocked process startup before probes ran.
+
+| Capability probe | No MXC<br/>(Host baseline) | MXC<br/>text-lockdown | MXC<br/>gdi-minimal | MXC<br/>broad-ui |
+|------------------|:-------------------------:|:-------------------:|:----------------:|:------------:|
 | GDI_GetDC | ✅ | BLOCKED | ✅ | ✅ |
 | Clipboard_OpenClipboard | ✅ | BLOCKED | ❌ | ❌ |
 | Desktop_CreateDesktop | ✅ | BLOCKED | ❌ | ❌ |
@@ -415,8 +426,9 @@ MXC can scope which directories a contained process can read and write via `read
 | CameraStack_Load_MF_DLL | ✅ | BLOCKED | ✅ | ✅ |
 | WMI_Load_wbemuuid_DLL | ❌ | BLOCKED | ❌ | ❌ |
 
-- `text-lockdown` blocks entire process (most restrictive)
-- Clipboard block on gdi-minimal/broad-ui is environment tier limitation (official clipboard-allow examples exist)
+Customer-readable takeaway: MXC can choose different local capability envelopes per task. A text task can get the strict profile and not touch UI at all. A drawing/rendering task can receive GDI and system-parameter access. Clipboard, desktop creation, display changes, input injection, and WMI remain unavailable in this current fallback tier.
+
+Boundary: `CameraStack_Load_MF_DLL` only proves Media Foundation DLL loading, not camera capture permission. Host `Input_SendInput` and `WMI_Load_wbemuuid_DLL` already fail without MXC, so those failures are not MXC-specific.
 
 ### Path B Boundaries
 
