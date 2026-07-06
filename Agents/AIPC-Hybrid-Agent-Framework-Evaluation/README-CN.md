@@ -382,7 +382,54 @@ MXC 可通过 `readwritePaths` / `readonlyPaths` 控制被包含进程能读写�
 
 这张表回答一个很具体的问题：**同一个 Windows API，在不同 MXC JSON policy 配置下能不能被调用？**
 
-每一列是一组不同的 `ui.*` 和 `processContainer.ui.*` 字段值，不是自造的 profile 名。
+以下是本测试使用的三个完整 policy JSON：
+
+**列：`ui.disable=true`** — 文件：`mxc/evidence/capability-text-lockdown.json`
+
+```json
+{
+  "version": "0.7.0-alpha",
+  "containment": "processcontainer",
+  "process": { "timeout": 30000 },
+  "processContainer": {
+    "ui": { "isolation": "container", "desktopSystemControl": false, "systemSettings": "none", "ime": false }
+  },
+  "network": { "defaultPolicy": "block" },
+  "ui": { "disable": true, "clipboard": "none", "injection": false }
+}
+```
+
+**列：`ui.disable=false`、`clipboard="none"`** — 文件：`mxc/evidence/capability-gdi-minimal-0.7.0-alpha.json`
+
+```json
+{
+  "version": "0.7.0-alpha",
+  "containment": "processcontainer",
+  "process": { "timeout": 30000 },
+  "processContainer": {
+    "ui": { "isolation": "container", "desktopSystemControl": false, "systemSettings": "none", "ime": false }
+  },
+  "network": { "defaultPolicy": "block" },
+  "ui": { "disable": false, "clipboard": "none", "injection": false }
+}
+```
+
+**列：`ui.disable=false`、`clipboard="all"`、`isolation="desktop"`** — 文件：`mxc/evidence/capability-broad-ui.json`
+
+```json
+{
+  "version": "0.7.0-alpha",
+  "containment": "processcontainer",
+  "process": { "timeout": 30000 },
+  "processContainer": {
+    "ui": { "isolation": "desktop", "desktopSystemControl": true, "systemSettings": "all", "ime": true }
+  },
+  "network": { "defaultPolicy": "block" },
+  "ui": { "disable": false, "clipboard": "all", "injection": true }
+}
+```
+
+三者唯一的差异在 `ui.*` 和 `processContainer.ui.*` 字段。其他（version、containment、timeout、network）完全一样。
 
 | 列名 | 使用的 MXC JSON 字段 |
 |------|---------------------|

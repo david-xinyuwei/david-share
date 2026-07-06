@@ -416,7 +416,54 @@ Test setup:
 
 How to read this table:
 
-Each column represents a different MXC JSON policy configuration. The column headers show the actual `ui.*` and `processContainer.ui.*` field values that control behavior — not invented profile names.
+Each column represents a different MXC JSON policy. Here are the three complete policy JSONs used in this test:
+
+**Column: `ui.disable=true`** — file: `mxc/evidence/capability-text-lockdown.json`
+
+```json
+{
+  "version": "0.7.0-alpha",
+  "containment": "processcontainer",
+  "process": { "timeout": 30000 },
+  "processContainer": {
+    "ui": { "isolation": "container", "desktopSystemControl": false, "systemSettings": "none", "ime": false }
+  },
+  "network": { "defaultPolicy": "block" },
+  "ui": { "disable": true, "clipboard": "none", "injection": false }
+}
+```
+
+**Column: `ui.disable=false`, `clipboard="none"`** — file: `mxc/evidence/capability-gdi-minimal-0.7.0-alpha.json`
+
+```json
+{
+  "version": "0.7.0-alpha",
+  "containment": "processcontainer",
+  "process": { "timeout": 30000 },
+  "processContainer": {
+    "ui": { "isolation": "container", "desktopSystemControl": false, "systemSettings": "none", "ime": false }
+  },
+  "network": { "defaultPolicy": "block" },
+  "ui": { "disable": false, "clipboard": "none", "injection": false }
+}
+```
+
+**Column: `ui.disable=false`, `clipboard="all"`, `isolation="desktop"`** — file: `mxc/evidence/capability-broad-ui.json`
+
+```json
+{
+  "version": "0.7.0-alpha",
+  "containment": "processcontainer",
+  "process": { "timeout": 30000 },
+  "processContainer": {
+    "ui": { "isolation": "desktop", "desktopSystemControl": true, "systemSettings": "all", "ime": true }
+  },
+  "network": { "defaultPolicy": "block" },
+  "ui": { "disable": false, "clipboard": "all", "injection": true }
+}
+```
+
+The only difference between these three is the `ui.*` and `processContainer.ui.*` fields. Everything else (version, containment, timeout, network) is identical.
 
 | Column | MXC JSON fields used |
 |--------|---------------------|
