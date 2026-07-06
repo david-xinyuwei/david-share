@@ -1,4 +1,4 @@
-# Speculative Decoding
+# Speculative Decoding for OSS Models
 
 > **作者**: 魏新宇 (Xinyu Wei) — 微软 AI GBB 高级系统工程师
 

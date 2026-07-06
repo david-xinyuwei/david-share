@@ -1,4 +1,4 @@
-# Speculative Decoding
+# Speculative Decoding for OSS Models
 
 > **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
 
