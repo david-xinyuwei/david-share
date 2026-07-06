@@ -129,6 +129,71 @@ async def sandbox_run(code: str):
 - MAF CodeAct backend = Hyperlight (documented connector)
 - Hyperlight does NOT manage host callbacks; host tools must be narrow
 
+### Hyperlight-Unikraft Stateful Execution (Cross-Turn State Persistence)
+
+Hyperlight supports **stateful multi-turn execution**: as long as the sandbox is not restored to snapshot after each turn, intermediate results (variables, imports, DataFrames) persist across turns within a session. This is critical for AIPC agent scenarios where a CodeAct agent needs to build on prior computation results.
+
+We reproduced the product team's [stateful demo](https://github.com/hyperlight-dev/hyperlight-unikraft/blob/proto/stateful-demo/host/src/bin/stateful_demo.rs) on our FY27 test environment. Key code from `stateful_demo.rs`:
+
+```rust
+// hyperlight-unikraft/host/src/bin/stateful_demo.rs — key excerpt
+let mut rt = pyhl::Runtime::new(&home, &[], None, None, Some(0))?;
+
+let turns = &[
+    ("Turn 1: Create variables",
+     "x = 42\ny = 'hello from turn 1'\nprint(f'  x = {x}, y = {y!r}')"),
+    ("Turn 2: Access previous state + compute",
+     "z = x * 2\nprint(f'  z = x * 2 = {z}')\nprint(f'  y from turn 1: {y!r}')"),
+    ("Turn 3: Import library, build on prior state",
+     "import pandas as pd\ndf = pd.DataFrame({'val': [x, z, x+z]})\nprint(df.to_string(index=False))"),
+    ("Turn 4: Use everything from all prior turns",
+     "total = df['val'].sum()\nprint(f'  x={x}, z={z}, df_sum={total}')"),
+];
+
+for (label, code) in turns {
+    let t = rt.run_code_stateful(code)?;  // state persists between calls
+}
+```
+
+**Actual output from our FY27 test** (Windows 10 Pro build 26200, WHP enabled):
+
+```
+Stateful multi-turn execution demo
+==================================
+
+[init] runtime created in 62ms
+
+--- Turn 1: Create variables ---
+  x = 42, y = 'hello from turn 1'
+  [36ms (includes initial restore: 152ms)]
+
+--- Turn 2: Access previous state + compute ---
+  z = x * 2 = 84
+  y from turn 1: 'hello from turn 1'
+  [3ms]
+
+--- Turn 3: Import library, build on prior state ---
+ val
+  42
+  84
+ 126
+  [182ms]
+
+--- Turn 4: Use everything from all prior turns ---
+  x=42, z=84, df_sum=252
+  All state persisted across 4 turns!
+  [11ms]
+
+Session complete — sandbox torn down.
+```
+
+**What this proves**: `run_code_stateful()` keeps Python interpreter state alive across 4 turns. Turn 2 reads `x` from Turn 1; Turn 3 imports `pandas` and builds a DataFrame from prior variables; Turn 4 uses `df` from Turn 3. All within a single Hyperlight micro-VM session.
+
+**Boundary**: This stateful execution model is not yet integrated with MXC mainline. Product team has started the integration at [`danbugs/mxc/tree/proto/hyperlight-stateful`](https://github.com/danbugs/mxc/tree/proto/hyperlight-stateful) — no fundamental technical blockers identified, but it is still a prototype branch.
+
+> Source: [`hyperlight-dev/hyperlight-unikraft`](https://github.com/hyperlight-dev/hyperlight-unikraft) branch `proto/stateful-demo`, commit `ced2b301`
+> Evidence: `logs/fy27_hyperlight_unikraft_stateful_demo_20260629.log`
+
 ---
 
 ## Path B: MXC + Runtime Backend Direct
