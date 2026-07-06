@@ -129,9 +129,11 @@ async def sandbox_run(code: str):
 - MAF CodeAct backend = Hyperlight (documented connector)
 - Hyperlight does NOT manage host callbacks; host tools must be narrow
 
-### Hyperlight-Unikraft Stateful Execution (Cross-Turn State Persistence)
+---
 
-Hyperlight supports **stateful multi-turn execution**: as long as the sandbox is not restored to snapshot after each turn, intermediate results (variables, imports, DataFrames) persist across turns within a session. This is critical for AIPC agent scenarios where a CodeAct agent needs to build on prior computation results.
+## Hyperlight-Unikraft Stateful Execution (Cross-Turn State Persistence)
+
+Hyperlight supports **stateful multi-turn execution**: as long as the sandbox is not restored to snapshot after each turn, intermediate results (variables, imports, DataFrames) persist across turns within a session. This is critical for AIPC agent scenarios where a CodeAct agent needs to build on prior computation results — both Path A (MAF CodeAct) and Path B (MXC + Hyperlight backend) can benefit from this capability.
 
 We reproduced the product team's [stateful demo](https://github.com/hyperlight-dev/hyperlight-unikraft/blob/proto/stateful-demo/host/src/bin/stateful_demo.rs) on our FY27 test environment. Key code from `stateful_demo.rs`:
 
