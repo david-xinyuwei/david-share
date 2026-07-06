@@ -81,6 +81,48 @@ https://github.com/user-attachments/assets/c2554bf2-da92-4a32-8692-0c576d7af376
 | `portal/sandbox_api.py` | Hyperlight Sandbox + 4 host tools | ✅ |
 | `portal/server.py` | 4-tab comparison portal | ✅ |
 
+### Path A Code: Hyperlight Sandbox + Host Tools
+
+The AIPC Sandbox API registers 4 host tools with `HyperlightCodeActProvider`. The MAF Agent decides what code to write; Hyperlight executes it in a WHP-isolated micro-VM; `call_tool()` bridges back to host callbacks:
+
+```python
+# portal/sandbox_api.py — key excerpt
+from agent_framework_hyperlight import HyperlightCodeActProvider
+
+def read_csv(filename: str) -> str: ...      # host tool: read CSV from AIPC Desktop
+def list_host_files(extension: str) -> str: ... # host tool: list files on AIPC
+def host_system_info() -> str: ...              # host tool: hostname, OS, arch
+def capture_screenshot() -> str: ...            # host tool: GDI CopyFromScreen
+
+codeact = HyperlightCodeActProvider(
+    tools=[read_csv, list_host_files, host_system_info, capture_screenshot],
+)
+agent = ChatCompletionAgent(
+    name="AIPC-CodeAct",
+    instructions="Use execute_code for EVERY request. Inside execute_code, call host tools via call_tool().",
+    model_client=azure_client,
+    code_act_provider=codeact,
+)
+result = await agent.run(task=user_query)
+```
+
+Sandbox code runs inside Hyperlight micro-VM (WASM backend, WHP isolation); `call_tool('read_csv', filename='sales_data.csv')` bridges out to the host process. The sandbox cannot access arbitrary host files — only the 4 registered tools are available.
+
+### Path A Code: Standalone Hyperlight Sandbox
+
+```python
+# portal/sandbox_api.py — direct sandbox endpoint
+from hyperlight_sandbox import Sandbox
+
+async def sandbox_run(code: str):
+    def _execute():
+        sandbox = Sandbox(backend="wasm")
+        result = sandbox.run_python(code)
+        sandbox.close()
+        return result
+    return await asyncio.to_thread(_execute)  # keep Rust !Send on one thread
+```
+
 ### CodeAct / Hyperlight Boundaries
 
 - MAF does NOT call MXC today (MXC_MATCH_COUNT=0 in source, 2026-06-20)
@@ -117,21 +159,128 @@ flowchart LR
 
 ### MXC 0.7 Probe
 
-| Fact | Value |
-|------|-------|
-| tier | `appcontainer-dacl` (fallback; BaseContainer needs Insider) |
-| baseContainerApiPresent | `true` |
-| UI capabilities (10 canBlock*) | All `true` |
+`wxc-exec.exe --probe` raw output from `@microsoft/mxc-sdk@0.7.0`:
+
+```json
+{
+  "tier": "appcontainer-dacl",
+  "needsDaclAugmentation": true,
+  "warnings": [
+    "BaseContainer API not present or not preferred ... falling back to AppContainer + DACL"
+  ],
+  "probes": {
+    "baseContainerApiPresent": true,
+    "bfscfgPresent": false,
+    "bfsCompiledIn": false,
+    "uiCapabilities": {
+      "canBlockClipboardRead": true,
+      "canBlockClipboardWrite": true,
+      "canBlockInputInjection": true,
+      "canBlockInputMethodChanges": true,
+      "canBlockExternalUiObjects": true,
+      "canBlockGlobalUiNamespace": true,
+      "canBlockDesktopSwitching": true,
+      "canBlockLogoffOrShutdown": true,
+      "canBlockSystemParameterChanges": true,
+      "canBlockDisplaySettingsChanges": true
+    }
+  }
+}
+```
+
+> Full output: `mxc/evidence/mxc_sdk_0_7_probe_raw.txt`
 
 ### Task-Scoped Capability Policy
 
+Two MXC 0.7 policy profiles demonstrate task-scoped capability boundaries:
+
+**text-lockdown** — blocks all UI, clipboard, input, network:
+
+```json
+{
+  "version": "0.7.0-alpha",
+  "containment": "processcontainer",
+  "processContainer": {
+    "name": "Task-Text-Lockdown",
+    "ui": { "isolation": "container", "desktopSystemControl": false, "systemSettings": "none", "ime": false }
+  },
+  "network": { "defaultPolicy": "block" },
+  "ui": { "disable": true, "clipboard": "none", "injection": false }
+}
+```
+
+**drawing-ui** — allows GDI, clipboard, input, system params:
+
+```json
+{
+  "version": "0.7.0-alpha",
+  "containment": "processcontainer",
+  "processContainer": {
+    "name": "Task-Drawing-UiAllowed",
+    "ui": { "isolation": "desktop", "desktopSystemControl": true, "systemSettings": "all", "ime": true }
+  },
+  "network": { "defaultPolicy": "block" },
+  "ui": { "disable": false, "clipboard": "all", "injection": true }
+}
+```
+
+A native Win32 probe ([`mxc/examples/win32_capability_probe.c`](mxc/examples/win32_capability_probe.c)) tests 9 Win32 APIs under each profile:
+
 | Profile | Capabilities | Exit | Verdict |
-|---------|-------------|:----:|---------|
+|---------|-------------|:----:|--------|
 | Host (no MXC) | N/A | 0 | 7/9 PASS |
 | `text-lockdown` | No UI | -1073741502 | Process blocked |
 | `drawing-ui` | GDI + sysParams + desktop | 0 | Process ran |
 
-**Text task = locked down. Drawing task = GDI allowed.** MXC enforces task-scoped boundaries.
+**Text task = locked down. Drawing task = GDI allowed.** This is the MXC vocabulary for Lenovo Qira task-scoped local execution.
+
+> Policy files: `mxc/evidence/task-rbac-text-lockdown.json`, `mxc/evidence/task-rbac-drawing-ui.json`
+> Probe logs: `mxc/evidence/task_rbac_*.log`
+
+### Path B Code: Win32 Capability Probe (C)
+
+The native probe tests individual Win32 API entrypoints to verify what MXC policy actually blocks:
+
+```c
+// mxc/examples/win32_capability_probe.c — key probes
+static void probe_get_dc(void) {
+    HDC dc = GetDC(NULL);
+    report_bool("GDI_GetDC", dc != NULL, GetLastError());
+    if (dc) ReleaseDC(NULL, dc);
+}
+
+static void probe_clipboard_open(void) {
+    BOOL ok = OpenClipboard(NULL);
+    report_bool("Clipboard_OpenClipboard", ok, GetLastError());
+    if (ok) CloseClipboard();
+}
+
+static void probe_create_desktop(void) {
+    HDESK desktop = CreateDesktopW(name, NULL, NULL, 0, GENERIC_ALL, NULL);
+    report_bool("Desktop_CreateDesktop", desktop != NULL, GetLastError());
+    if (desktop) CloseDesktop(desktop);
+}
+// ... 9 probes total: GDI, Clipboard, Desktop, Display, SystemParams,
+//     Input, Registry, Camera DLL, WMI DLL
+```
+
+### Path B Code: Network Policy
+
+Block vs allow external network access — two policy profiles:
+
+```json
+// mxc/policies/02-network-block.json
+{
+  "containment": "processcontainer",
+  "process": { "commandLine": "curl -s https://api.github.com", "timeout": 15000 },
+  "processContainer": { "name": "VSCode-Network-Block" },
+  "network": { "defaultPolicy": "block" }
+}
+
+// mxc/policies/03-network-allow.json — same but with:
+  "processContainer": { "capabilities": ["internetClient"] },
+  "network": { "defaultPolicy": "allow" }
+```
 
 ### Capability Catalog (9 Win32 probes × 4 contexts)
 
