@@ -22,14 +22,26 @@ AIPC needs local reasoning plus safe local execution. This repo evaluates two im
   <img src="images/slide06-path-a-vs-path-b.png" width="960" alt="Path A vs Path B decision">
 </div>
 
-### How to choose
+**Slide translation (Path A vs Path B — how to choose)**:
+
+| | Path A: MAF-based implementation | Path B: MXC + Runtime Backend Direct |
+|---|---|---|
+| **Scenario** | Complete hybrid cloud+local agent workflow | App only needs controlled Windows-native runtime, no full agent loop |
+| **How it works** | Planning → call tools → generate action → observe → continue reasoning; MAF orchestration loop | MXC declares policy; ProcessContainer runs lighter tasks; Hyperlight isolates highest-risk generated code |
+| **Representative demo** | CodeAct in Agent Framework; MAF + AIPC demo | MXC Policy demo; OpenClaw file-delete blocked |
+| **Core traits** | ✓ Full reasoning-action loop ✓ Dynamic tool calls ✓ Multi-step long tasks | ✓ Lighter, no MAF dependency ✓ Declarative security boundary ✓ Hardware-level isolation (when needed) |
+| **Best for** | ISV building complex agent experiences | Lightweight safe execution scenarios |
+
+> **Decision rule**: Need an agent reasoning loop? → Path A (MAF). Only need safe local execution? → Path B (MXC direct). Hyperlight isolates highest-risk generated code in either path.
+
+### How to choose (detailed)
 
 | | Path A: MAF-based | Path B: MXC + runtime backend direct |
 |---|---|---|
-| **Use when** | Complete agent workflow: planning, tool calls, HITL, CodeAct, recovery, cloud/local routing | Controlled local execution for a specific Windows-native action or generated code |
-| **Main loop** | MAF carries reasoning-action loop; Hyperlight isolates generated code | App chooses action; MXC carries policy; backend carries containment |
-| **Technologies** | Microsoft Agent Framework, Hyperlight CodeAct, Ollama/Foundry Local, OTel | MXC SDK 0.7, ProcessContainer, Hyperlight, JSON policy profiles |
-| **Evidence in this repo** | Framework comparison, MAF workflow/HITL, Sandbox API, host tools | MXC --probe, task-scoped policy, capability catalog, ProcessContainer |
+| **Use when** | Complete agent workflow: planning, tool calls, HITL, CodeAct, recovery, cloud/local routing | Controlled local execution for a Windows-native action — no full agent loop needed |
+| **Main loop** | MAF carries reasoning-action loop; Hyperlight isolates generated code when needed | App/model chooses action; MXC declares policy; **ProcessContainer** is the default backend; Hyperlight only for highest-risk generated code |
+| **Technologies** | Microsoft Agent Framework, Hyperlight CodeAct, Ollama/Foundry Local, OTel | MXC SDK 0.7, **ProcessContainer** (primary), Hyperlight (optional escalation), JSON policy profiles |
+| **Evidence in this repo** | Framework comparison, MAF workflow/HITL, Sandbox API, host tools | MXC --probe, task-scoped policy, capability catalog, ProcessContainer behavior |
 
 The two paths are **not mutually exclusive**. Production can use MAF for agent experience + MXC for policy-governed local actions.
 
@@ -79,7 +91,7 @@ https://github.com/user-attachments/assets/c2554bf2-da92-4a32-8692-0c576d7af376
 
 ## Path B: MXC + Runtime Backend Direct
 
-MXC is a policy-driven execution layer for controlled Windows-native execution without a full agent loop.
+MXC is a policy-driven execution layer for controlled Windows-native execution without a full agent loop. The default backend is **ProcessContainer** (lighter, runs most tasks); Hyperlight is an optional escalation for highest-risk generated code only.
 
 <div align="center">
   <img src="images/slide15-mxc-definition.png" width="960" alt="MXC definition">
@@ -145,7 +157,8 @@ flowchart LR
     A --> A2[Host tools + cloud fallback]
     R --> B[Path B: MXC policy]
     B --> B1[JSON profile]
-    B1 --> B2[ProcessContainer / Hyperlight]
+    B1 --> B2[ProcessContainer default]
+    B1 --> B3[Hyperlight if highest risk]
 ```
 
 ---
