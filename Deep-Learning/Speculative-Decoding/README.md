@@ -230,7 +230,7 @@ flowchart LR
   subgraph E3["EAGLE3<br/>separate draft head"]
     E3T["Target model<br/>full weights"]
     E3H["Hidden states<br/>selected layers"]
-    E3D["Draft head or model<br/>separate weights<br/>not full target"]
+    E3D["Draft head or model<br/>separate weights"]
     E3V["Target verifies<br/>draft tokens"]
     E3T --> E3H
     E3H --> E3D
@@ -239,7 +239,7 @@ flowchart LR
   end
 
   subgraph DF["DFlash<br/>block diffusion drafter"]
-    DFT["Target model<br/>for example Qwen3.x"]
+    DFT["Target model"]
     DFF["Target context features<br/>fused from selected layers"]
     DFD["DFlash drafter<br/>separate checkpoint<br/>block diffusion"]
     DFV["Target verifies<br/>draft block"]
@@ -249,18 +249,9 @@ flowchart LR
     DFT --> DFV
   end
 
-  subgraph DS["DeepSeek-style MTP<br/>native modules"]
-    DST["Model-family checkpoint<br/>target plus MTP modules"]
-    DSH["MTP heads or modules<br/>inside model family"]
-    DSV["Inference stack<br/>draft and verify"]
-    DST --> DSH
-    DSH --> DSV
-    DST --> DSV
-  end
-
-  subgraph NM["Native model-family MTP<br/>release-specific packaging"]
+  subgraph NM["Native model-family MTP<br/>e.g. DeepSeek, GLM-5.2, Qwen3.6"]
     NMT["Model-family checkpoint"]
-    NMD["Native MTP heads or modules<br/>packaged with the target family"]
+    NMD["Native MTP heads/modules<br/>packaged with the target"]
     NMV["Serving stack<br/>draft and verify"]
     NMT --> NMD
     NMD --> NMV
@@ -270,9 +261,9 @@ flowchart LR
   classDef target fill:#eef6ff,stroke:#1f6feb,color:#0b1f3a
   classDef drafter fill:#fff7e6,stroke:#d97706,color:#3b2500
   classDef verify fill:#ecfdf5,stroke:#059669,color:#042f2e
-  class E3T,DFT,DST,NMT target
-  class E3D,DFD,DSH,NMD drafter
-  class E3V,DFV,DSV,NMV verify
+  class E3T,DFT,NMT target
+  class E3D,DFD,NMD drafter
+  class E3V,DFV,NMV verify
 ```
 
 ### Deep Comparison: How Each Drafter Actually Works
@@ -554,38 +545,6 @@ python3 scripts/mtp_benchmark_client.py --base-url http://127.0.0.1:8080 \
 | Launch scripts | [`scripts/mtp_vllm_qwen36_mtp_launch.sh`](scripts/mtp_vllm_qwen36_mtp_launch.sh), [`scripts/mtp_vllm_qwen36_dflash_launch.sh`](scripts/mtp_vllm_qwen36_dflash_launch.sh), [`scripts/mtp_llamacpp_qwen36_mtp_build.sh`](scripts/mtp_llamacpp_qwen36_mtp_build.sh), [`scripts/mtp_llamacpp_qwen36_mtp_launch.sh`](scripts/mtp_llamacpp_qwen36_mtp_launch.sh) |
 
 ---
-
-```mermaid
-flowchart TB
-    subgraph Target["Target Model: Llama-3.1-8B"]
-        IN[Input Sequence] --> L0[Layer 0-1]
-        L0 --> L2[Layer 2]
-        L2 --> L3[Layer 3-15]
-        L3 --> L16[Layer 16]
-        L16 --> L17[Layer 17-28]
-        L17 --> L29[Layer 29]
-        L29 --> L30[Layer 30-31]
-        L30 --> TLMH[LM Head 128K]
-        TLMH --> OUT[Output Logits]
-    end
-
-    subgraph Draft["EAGLE3 Draft Model: 223M params"]
-        L2 -->|4096d| CAT[Concat 12288d]
-        L16 -->|4096d| CAT
-        L29 -->|4096d| CAT
-        CAT --> FC[FC 12288→4096]
-        FC --> DEC[1 Decoder Layer]
-        DEC --> DLMH[LM Head 32K]
-        DLMH --> DRAFT[Draft Tokens]
-    end
-
-    DRAFT --> VER[Tree Verify]
-    OUT --> VER
-    VER --> ACC[Accept N Tokens]
-    ACC --> NEXT[Next Iteration]
-
-    style NEXT fill:#90EE90
-```
 
 **Key Innovation: Multi-Layer Feature Extraction**
 

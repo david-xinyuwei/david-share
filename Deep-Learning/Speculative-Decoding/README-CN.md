@@ -230,7 +230,7 @@ flowchart LR
     subgraph E3["EAGLE3<br/>独立 draft head"]
         E3T["Target model<br/>完整权重"]
         E3H["Hidden states<br/>选定层输出"]
-        E3D["Draft head 或 model<br/>单独权重<br/>不是完整 target"]
+        E3D["Draft head 或 model<br/>单独权重"]
         E3V["Target 并行验证<br/>draft tokens"]
         E3T --> E3H
         E3H --> E3D
@@ -239,7 +239,7 @@ flowchart LR
     end
 
     subgraph DF["DFlash<br/>block diffusion drafter"]
-        DFT["Target model<br/>如 Qwen3.x"]
+        DFT["Target model"]
         DFF["Target context features<br/>从选定层融合"]
         DFD["DFlash drafter<br/>单独 checkpoint<br/>block diffusion"]
         DFV["Target 并行验证<br/>draft block"]
@@ -249,18 +249,9 @@ flowchart LR
         DFT --> DFV
     end
 
-    subgraph DS["DeepSeek-style MTP<br/>原生模块"]
-        DST["Model-family checkpoint<br/>target 加 MTP modules"]
-        DSH["MTP heads 或 modules<br/>在 model family 内部"]
-        DSV["Inference stack<br/>draft and verify"]
-        DST --> DSH
-        DSH --> DSV
-        DST --> DSV
-    end
-
-    subgraph NM["Native model-family MTP<br/>release-specific packaging"]
+    subgraph NM["Native model-family MTP<br/>如 DeepSeek, GLM-5.2, Qwen3.6"]
         NMT["Model-family checkpoint"]
-        NMD["Native MTP heads 或 modules<br/>随 target family 一起打包"]
+        NMD["Native MTP heads/modules<br/>随 target 一起打包"]
         NMV["Serving stack<br/>draft and verify"]
         NMT --> NMD
         NMD --> NMV
@@ -270,9 +261,9 @@ flowchart LR
     classDef target fill:#eef6ff,stroke:#1f6feb,color:#0b1f3a
     classDef drafter fill:#fff7e6,stroke:#d97706,color:#3b2500
     classDef verify fill:#ecfdf5,stroke:#059669,color:#042f2e
-    class E3T,DFT,DST,NMT target
-    class E3D,DFD,DSH,NMD drafter
-    class E3V,DFV,DSV,NMV verify
+    class E3T,DFT,NMT target
+    class E3D,DFD,NMD drafter
+    class E3V,DFV,NMV verify
 ```
 
 ### 深度对比：每种 Drafter 到底怎么工作
@@ -554,38 +545,6 @@ python3 scripts/mtp_benchmark_client.py --base-url http://127.0.0.1:8080 \
 | Launch scripts | [`scripts/mtp_vllm_qwen36_mtp_launch.sh`](scripts/mtp_vllm_qwen36_mtp_launch.sh), [`scripts/mtp_vllm_qwen36_dflash_launch.sh`](scripts/mtp_vllm_qwen36_dflash_launch.sh), [`scripts/mtp_llamacpp_qwen36_mtp_build.sh`](scripts/mtp_llamacpp_qwen36_mtp_build.sh), [`scripts/mtp_llamacpp_qwen36_mtp_launch.sh`](scripts/mtp_llamacpp_qwen36_mtp_launch.sh) |
 
 ---
-
-```mermaid
-flowchart TB
-    subgraph Target["目标模型: Llama-3.1-8B"]
-        IN[输入序列] --> L0[Layer 0-1]
-        L0 --> L2[Layer 2]
-        L2 --> L3[Layer 3-15]
-        L3 --> L16[Layer 16]
-        L16 --> L17[Layer 17-28]
-        L17 --> L29[Layer 29]
-        L29 --> L30[Layer 30-31]
-        L30 --> TLMH[LM Head 128K]
-        TLMH --> OUT[输出 Logits]
-    end
-
-    subgraph Draft["EAGLE3 Draft Model: 223M参数"]
-        L2 -->|4096维| CAT[拼接 12288维]
-        L16 -->|4096维| CAT
-        L29 -->|4096维| CAT
-        CAT --> FC[FC 12288→4096]
-        FC --> DEC[1个Decoder层]
-        DEC --> DLMH[LM Head 32K]
-        DLMH --> DRAFT[Draft Tokens]
-    end
-
-    DRAFT --> VER[树形验证]
-    OUT --> VER
-    VER --> ACC[接受N个Token]
-    ACC --> NEXT[继续下一轮迭代]
-
-    style NEXT fill:#90EE90
-```
 
 **核心创新: 多层特征提取**
 
