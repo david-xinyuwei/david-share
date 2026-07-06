@@ -63,6 +63,372 @@ Draft-and-verify 加速工程指南：用可复现 benchmark 对比 EAGLE3、自
 
 ---
 
+## 阶段 1：验证官方 EAGLE3 模型
+
+### 环境
+
+```
+硬件: NVIDIA H100 NVL 96GB (Azure VM)
+软件: Python 3.10, CUDA 12.4, SGLang
+```
+
+### EAGLE3 服务器部署
+
+```bash
+export SGLANG_ALLOW_OVERWRITE_LONGER_CONTEXT_LEN=1
+
+python -m sglang.launch_server \
+    --model meta-llama/Llama-3.1-8B-Instruct \
+    --speculative-algorithm EAGLE3 \
+    --speculative-draft-model-path jamesliu1/sglang-EAGLE3-Llama-3.1-Instruct-8B \
+    --speculative-num-steps 5 \
+    --speculative-eagle-topk 8 \
+    --speculative-num-draft-tokens 32 \
+    --dtype float16 \
+    --host 0.0.0.0 --port 8080
+```
+
+**服务器启动日志:**
+```
+[2025-12-02 12:01:15] server_args=ServerArgs(model_path='meta-llama/Llama-3.1-8B-Instruct', ...)
+[2025-12-02 12:01:17] Load weight begin. avail mem=92.50 GB
+Loading safetensors checkpoint shards: 100% | 4/4 [00:01<00:00, 2.31it/s]
+[2025-12-02 12:01:19] Load weight end. type=LlamaForCausalLM, dtype=torch.float16, avail mem=77.39 GB
+
+[2025-12-02 12:01:20] Loading EAGLE3 draft model: jamesliu1/sglang-EAGLE3-Llama-3.1-Instruct-8B
+[2025-12-02 12:01:20] Warning: context_length (131072) > derived (2048). Overriding.
+Loading safetensors checkpoint shards: 100% | 1/1 [00:00<00:00, 12.28it/s]
+[2025-12-02 12:01:21] Draft model loaded. type=LlamaForCausalLMEagle3, mem usage=2.21 GB
+
+[2025-12-02 12:01:32] Capture cuda graph end. Time elapsed: 7.00 s
+[2025-12-02 12:01:35] The server is fired up and ready to roll!
+```
+
+### 基线服务器（无 Speculative Decoding）
+
+```bash
+python -m sglang.launch_server \
+    --model meta-llama/Llama-3.1-8B-Instruct \
+    --dtype float16 \
+    --host 0.0.0.0 --port 8080
+```
+
+### Benchmark 结果（20 次运行，512 tokens）
+
+**EAGLE-3 原始结果:**
+```
+Run  1:  1.155s | 512 tokens |  443.3 tok/s
+Run  2:  1.160s | 512 tokens |  441.2 tok/s
+Run  3:  1.158s | 512 tokens |  442.1 tok/s
+...
+Run 20:  1.159s | 512 tokens |  441.6 tok/s
+
+平均: 1.159s | 441.7 tok/s | 标准差: 0.001s
+```
+
+**基线原始结果:**
+```
+Run  1:  3.097s | 512 tokens |  165.3 tok/s
+Run  2:  3.087s | 512 tokens |  165.8 tok/s
+Run  3:  3.091s | 512 tokens |  165.6 tok/s
+...
+Run 20:  3.085s | 512 tokens |  166.0 tok/s
+
+平均: 3.090s | 165.7 tok/s | 标准差: 0.002s
+```
+
+**汇总:**
+| 指标 | EAGLE-3 | Baseline | 对比 |
+|------|---------|----------|------|
+| 平均延迟 | 1.159s | 3.090s | **2.67x 更快** |
+| 平均吞吐 | 441.7 tok/s | 165.7 tok/s | **2.67x 加速** |
+
+### 输出质量验证
+
+| 任务 | EAGLE-3 | Baseline | 一致性 |
+|------|---------|----------|--------|
+| 代码生成 | 1882 字符 | 1882 字符 | 100% 一致 |
+| 逻辑推理 | 1744 字符 | 1744 字符 | 100% 一致 |
+| 知识问答 | 2413 字符 | 2500 字符 | ~96% (措辞差异) |
+
+知识问答的 4% 差异是因为 FP16 精度在长序列中的累积误差，核心信息完全一致。
+
+---
+
+## 阶段 2：自训练 EAGLE3 Draft 模型
+
+### 数据准备（关键步骤）
+
+EAGLE3 训练需要高质量的对话数据。SpecForge 框架提供了 `prepare_data.py` 脚本来处理各种数据集：
+
+**支持的数据集：**
+- `sharegpt` - ShareGPT 对话（推荐用于通用场景）
+- `ultrachat` - UltraChat 数据集
+- `perfectblend` - PerfectBlend 数据集（7M+ 对话）
+- `eaglechat` - EAGLE 专用聊天数据
+- `magpie-qwen2.5-pro-1m-v0.1` - Magpie Qwen 数据集
+
+**步骤 1：准备训练数据**
+
+```bash
+cd ~/SpecForge
+
+# 选项 1：使用 ShareGPT（完整数据集 ~114K 样本）
+python scripts/prepare_data.py \
+    --dataset sharegpt \
+    --output-path cache/dataset/sharegpt_train.jsonl
+
+# 选项 2：使用 ShareGPT 限制样本数（用于测试）
+python scripts/prepare_data.py \
+    --dataset sharegpt \
+    --sample-size 10000 \
+    --output-path cache/dataset/sharegpt_train.jsonl
+
+# 选项 3：使用 PerfectBlend（更大、更高质量）
+python scripts/prepare_data.py \
+    --dataset perfectblend \
+    --sample-size 50000 \
+    --output-path cache/dataset/perfectblend_train.jsonl
+```
+
+**数据格式（JSONL）：**
+```json
+{
+  "id": "HneH6K5_0",
+  "conversations": [
+    {"role": "user", "content": "写一篇关于...的文章"},
+    {"role": "assistant", "content": "标题：...的好处"}
+  ]
+}
+```
+
+**关键洞察**：数据质量直接影响 draft 模型精度。使用仅 500 个样本的原始 ShareGPT 导致 6% 精度。使用 114K ShareGPT 样本或 PerfectBlend 数据集可达到 40-50% 精度。
+
+
+### 训练配置
+
+```yaml
+model:
+  base_model: "meta-llama/Llama-3.1-8B-Instruct"
+  draft_model_type: "eagle3"
+
+training:
+  batch_size: 1
+  gradient_accumulation_steps: 8
+  learning_rate: 3.0e-5
+  max_steps: 7000
+```
+
+### 训练启动
+
+```bash
+nohup torchrun --nproc_per_node=1 scripts/train_eagle3.py \
+    --base_model_path meta-llama/Llama-3.1-8B-Instruct \
+    --data_path data/sharegpt_clean.json \
+    --output_dir output/eagle3-llama31-8b-full \
+    --batch_size 1 \
+    --gradient_accumulation_steps 8 \
+    --learning_rate 3e-5 \
+    --num_train_steps 7000 \
+    > eagle3_training.log 2>&1 &
+```
+
+### 训练日志
+
+```
+[2025-12-03 02:45:12] ============================================
+[2025-12-03 02:45:12] EAGLE3 Training Starting
+[2025-12-03 02:45:12] ============================================
+[2025-12-03 02:45:12] Target Model: meta-llama/Llama-3.1-8B-Instruct
+[2025-12-03 02:45:12] Total Steps: 7000
+[2025-12-03 02:45:12] Batch Size: 1, Gradient Accumulation: 8
+[2025-12-03 02:45:12] ============================================
+
+[2025-12-03 02:45:15] Loading target model...
+Loading safetensors: 100%|██████████| 4/4 [00:02<00:00, 1.82it/s]
+[2025-12-03 02:45:18] Target model loaded. VRAM: 15.2 GB
+
+[2025-12-03 02:45:19] Draft head parameters: 223M (849 MB)
+[2025-12-03 02:45:25] Loaded 52,000 conversations
+
+Training Epoch 0:   7%|▋         | 500/7000 [03:15<42:00, 2.58it/s]
+Step 500: loss=2.12, acc=0.40
+
+Training Epoch 0:  14%|█▍        | 1000/7000 [06:30<39:00, 2.56it/s]
+Step 1000: loss=1.90, acc=0.44
+
+Training Epoch 0:  29%|██▉       | 2000/7000 [13:00<32:30, 2.56it/s]
+Step 2000: loss=1.73, acc=0.46
+
+Training Epoch 0:  43%|████▎     | 3000/7000 [19:30<26:00, 2.56it/s]
+Step 3000: loss=1.64, acc=0.48
+
+Training Epoch 0:  57%|█████▋    | 4000/7000 [26:00<19:30, 2.56it/s]
+Step 4000: loss=1.62, acc=0.50
+
+Training Epoch 0:  71%|███████▏  | 5000/7000 [32:30<13:00, 2.56it/s]
+Step 5000: loss=1.63, acc=0.54   ← 峰值精度
+
+Training Epoch 0:  86%|████████▌ | 6000/7000 [39:00<06:30, 2.56it/s]
+Step 6000: loss=1.60, acc=0.50
+
+Training Epoch 0: 100%|██████████| 7000/7000 [45:30<00:00, 2.56it/s]
+Step 7000: loss=1.61, acc=0.48
+
+[2025-12-03 03:30:42] ============================================
+[2025-12-03 03:30:42] Training Complete
+[2025-12-03 03:30:42] Total Time: 45 minutes 30 seconds
+[2025-12-03 03:30:42] Best Checkpoint: epoch_0_step_5000 (acc=0.54)
+[2025-12-03 03:30:42] ============================================
+
+[2025-12-03 03:30:43] Segmentation fault (signal 11)
+```
+
+注：训练结束后的 segfault 是无害的 - 所有检查点已保存。
+
+### 训练指标汇总
+
+| Step | 进度 | Loss | Accuracy | 说明 |
+|------|------|------|----------|------|
+| 0 | 0% | 2.84 | 0.36 | 随机初始化 |
+| 1000 | 14% | 1.90 | 0.44 | 快速提升 |
+| 3000 | 43% | 1.64 | 0.48 | 趋于稳定 |
+| **5000** | **71%** | **1.63** | **0.54** | **峰值精度** |
+| 7000 | 100% | 1.61 | 0.48 | 轻微过拟合 |
+
+### 理解指标波动
+
+batch_size=1 时，每步指标会剧烈波动：
+```
+Step 3245: loss=0.00, acc=0.00   ← 短序列被跳过
+Step 3246: loss=4.77, acc=0.22   ← 困难样本
+Step 3247: loss=0.89, acc=0.54   ← 简单样本
+```
+
+这是正常的。关注检查点级别的趋势（每 500 步）。
+
+### 自训练模型部署
+
+```bash
+export SGLANG_ALLOW_OVERWRITE_LONGER_CONTEXT_LEN=1
+
+python -m sglang.launch_server \
+    --model-path meta-llama/Llama-3.1-8B-Instruct \
+    --speculative-algorithm EAGLE3 \
+    --speculative-draft-model-path ./output/eagle3-llama31-8b-full/epoch_0_step_5000 \
+    --speculative-num-steps 5 \
+    --speculative-eagle-topk 8 \
+    --speculative-num-draft-tokens 64 \
+    --host 0.0.0.0 --port 8080
+```
+
+### 自训练模型结果
+
+| 任务类型 | Baseline | 自训练 EAGLE3 | 加速比 |
+|----------|----------|---------------|--------|
+| 代码生成 | 159.8 tok/s | 207.7 tok/s | **1.30x** |
+| 技术问答 | 188.9 tok/s | 188.0 tok/s | 1.00x |
+| 数学推理 | 188.9 tok/s | 188.0 tok/s | 1.00x |
+| 创意写作 | 180.2 tok/s | 153.9 tok/s | 0.84x |
+
+**代码生成（最佳场景）:**
+```
+Prompt: "用 Python 实现二叉搜索树"
+Baseline:     3.204s | 512 tokens | 159.8 tok/s
+自训练:       2.465s | 512 tokens | 207.7 tok/s
+加速: 1.30x
+```
+
+**创意写作（最差场景）:**
+```
+Prompt: "写一个关于机器人学画画的故事"
+Baseline:     2.843s | 512 tokens | 180.2 tok/s
+自训练:       3.327s | 512 tokens | 153.9 tok/s
+加速: 0.84x (慢了 16%)
+```
+
+创意写作变慢是因为高熵输出导致 draft Acceptance Rate（接受率）低。
+
+### 为什么 1.30x 很有意义
+
+| 方面 | 官方模型 | 自训练 |
+|------|----------|--------|
+| 训练时间 | 数天 (8x A100) | 45 分钟 (1x H100) |
+| 加速比 | 2.67x | 1.30x |
+| 相对性能 | 100% | ~50% |
+| 计算成本 | ~$10,000+ | ~$50 |
+
+用 <1% 的计算量，达到了 ~50% 的性能。
+
+---
+
+## 阶段 3：Native MTP 与 DFlash Serving 实验
+
+这一阶段讨论 model-family MTP 和 DFlash-style serving，不再使用外部模型厂商的 assistant checkpoint 作为案例。
+
+这里有两个问题：
+
+1. **怎么看懂模型 config 里的 native MTP？**
+2. **native MTP、DFlash、llama.cpp MTP 在真实 serving benchmark 中表现如何？**
+
+### Native MTP：不要只看一个 flag，要看 model family 设计
+
+`num_nextn_predict_layers=1` 这种 config 字段只能告诉我们：模型有一个 native next-token prediction layer。它不能告诉我们 serving stack 如何在多个 draft steps 中复用这一层。
+
+GLM-5.2 是一个很好的公开例子。它的 HF config 写着 `num_nextn_predict_layers=1` 和 `model_type=glm_moe_dsa`。但官方 GLM-5.2 blog 又补上了真正关键的 serving 细节：不同 MTP steps 共享参数，训练和推理都设置 7 个 MTP steps，并用 IndexShare / KVShare 防止后续 draft steps 混入 MTP 自己生成的 KV。在官方 coding ablation 中，acceptance length 从 **4.56** 提升到 **5.47 (+20%)**。
+
+这个结论很重要：native MTP 不能只看“几层”。还要看这个 model family 如何处理参数共享、KV cache、index 复用和 train-inference discrepancy。
+
+### H100 Serving Benchmark：Native MTP vs DFlash vs llama.cpp MTP
+
+本 repo 在 NVIDIA H100 NVL 96GB 上测试了单请求 latency 和 generation TPS。vLLM 路线使用 `Qwen/Qwen3.6-27B` bf16；llama.cpp 路线使用 `unsloth/Qwen3.6-27B-MTP-GGUF:UD-Q4_K_XL`。测试覆盖 Coding、Math、Chat 三类任务，每类 warmup 1 次、正式运行 3 次，报告中位数。API 使用 non-streaming 模式，TPS = `usage.completion_tokens / total_time`。
+
+| Route | Backend | Quant | Spec Tokens | Domain | Med Total (s) | Med TPS |
+|-------|---------|-------|:-----------:|--------|:-------------:|:-------:|
+| **vLLM native MTP** | vLLM 0.21.0 | bf16 | 5 | Coding | 3.49 | **146.7** |
+| | | | | Math | 1.51 | **169.1** |
+| | | | | Chat | 1.65 | **155.4** |
+| **vLLM DFlash** | vLLM 0.21.0 | bf16 | 15 | Coding | 2.67 | **191.7** |
+| | | | | Math | 1.32 | **193.5** |
+| | | | | Chat | 1.64 | **156.1** |
+| **llama.cpp MTP** | llama.cpp (CUDA) | Q4_K_XL | 5 | Coding | 4.77 | **107.3** |
+| | | | | Math | 2.15 | **118.9** |
+| | | | | Chat | 2.48 | **103.1** |
+
+### 这一阶段得到什么结论
+
+1. **Native MTP 必须按 model family 具体分析。** GLM-5.2 说明 config 字段、MTP step count、IndexShare、KVShare 和训练 loss 要合在一起看。
+2. **DFlash 在本次 H100 single-stream 测试中更快。** Coding 场景下，15 spec tokens 的 DFlash 是 191.7 TPS，5 spec tokens 的 native MTP 是 146.7 TPS。
+3. **这不是完全控制变量的算法排名。** DFlash 用 15 个 speculative tokens，native MTP 用 5 个。这是工程结果，不是普遍结论。
+4. **llama.cpp MTP 是另一种产品形态。** Q4_K_XL 路线适合 compact local serving，但没有质量检查时不能直接和 bf16/vLLM 公平对比。
+
+### 复现 H100 三条路线
+
+```bash
+# Route 1 — vLLM native MTP
+VLLM_DEEP_GEMM_WARMUP=skip MAX_NUM_SEQS=256 bash scripts/mtp_vllm_qwen36_mtp_launch.sh
+python3 scripts/mtp_benchmark_client.py --base-url http://127.0.0.1:8000   --label vllm-native-mtp --runs 3 --warmup 1 --no-stream --output results_mtp.json
+
+# Route 2 — vLLM DFlash
+VLLM_DEEP_GEMM_WARMUP=skip MAX_MODEL_LEN=252000 MAX_NUM_SEQS=256   bash scripts/mtp_vllm_qwen36_dflash_launch.sh
+python3 scripts/mtp_benchmark_client.py --base-url http://127.0.0.1:8000   --label vllm-dflash --runs 3 --warmup 1 --no-stream --output results_dflash.json
+
+# Route 3 — llama.cpp MTP GGUF
+bash scripts/mtp_llamacpp_qwen36_mtp_launch.sh
+python3 scripts/mtp_benchmark_client.py --base-url http://127.0.0.1:8080   --label llamacpp-mtp-q4kxl --runs 3 --warmup 1 --no-stream --output results_llamacpp.json
+```
+
+归档证据：
+
+| 类型 | 文件 |
+|------|------|
+| Benchmark raw JSON | `data/h100_vllm_native_mtp.json`, `data/h100_vllm_dflash.json`, `data/h100_llamacpp_mtp_q4kxl.json` |
+| Server startup logs | `logs/h100_vllm_native_mtp_startup.log`, `logs/h100_vllm_dflash_startup.log`, `logs/h100_llamacpp_mtp_startup.log` |
+| Benchmark client | `scripts/mtp_benchmark_client.py` |
+| Orchestrator | `scripts/mtp_benchmark_orchestrator.sh` |
+
+---
+
 ## 背景：什么是 Speculative Decoding（推测解码）？
 
 LLM 推理是显存带宽受限的，而非计算受限。每次生成 token 都需要从 GPU 显存加载完整模型权重，但只输出一个 token。
@@ -683,371 +1049,6 @@ eagle3-llama31-8b/
 | LM Head (4096 → 32000) | ~131M | ~262 MB |
 | 词表映射 (d2t, t2d) | ~25M | ~50 MB |
 | LayerNorm + 其他 | <1M | ~2 MB |
-
-
-## 阶段 1：验证官方 EAGLE3 模型
-
-### 环境
-
-```
-硬件: NVIDIA H100 NVL 96GB (Azure VM)
-软件: Python 3.10, CUDA 12.4, SGLang
-```
-
-### EAGLE3 服务器部署
-
-```bash
-export SGLANG_ALLOW_OVERWRITE_LONGER_CONTEXT_LEN=1
-
-python -m sglang.launch_server \
-    --model meta-llama/Llama-3.1-8B-Instruct \
-    --speculative-algorithm EAGLE3 \
-    --speculative-draft-model-path jamesliu1/sglang-EAGLE3-Llama-3.1-Instruct-8B \
-    --speculative-num-steps 5 \
-    --speculative-eagle-topk 8 \
-    --speculative-num-draft-tokens 32 \
-    --dtype float16 \
-    --host 0.0.0.0 --port 8080
-```
-
-**服务器启动日志:**
-```
-[2025-12-02 12:01:15] server_args=ServerArgs(model_path='meta-llama/Llama-3.1-8B-Instruct', ...)
-[2025-12-02 12:01:17] Load weight begin. avail mem=92.50 GB
-Loading safetensors checkpoint shards: 100% | 4/4 [00:01<00:00, 2.31it/s]
-[2025-12-02 12:01:19] Load weight end. type=LlamaForCausalLM, dtype=torch.float16, avail mem=77.39 GB
-
-[2025-12-02 12:01:20] Loading EAGLE3 draft model: jamesliu1/sglang-EAGLE3-Llama-3.1-Instruct-8B
-[2025-12-02 12:01:20] Warning: context_length (131072) > derived (2048). Overriding.
-Loading safetensors checkpoint shards: 100% | 1/1 [00:00<00:00, 12.28it/s]
-[2025-12-02 12:01:21] Draft model loaded. type=LlamaForCausalLMEagle3, mem usage=2.21 GB
-
-[2025-12-02 12:01:32] Capture cuda graph end. Time elapsed: 7.00 s
-[2025-12-02 12:01:35] The server is fired up and ready to roll!
-```
-
-### 基线服务器（无 Speculative Decoding）
-
-```bash
-python -m sglang.launch_server \
-    --model meta-llama/Llama-3.1-8B-Instruct \
-    --dtype float16 \
-    --host 0.0.0.0 --port 8080
-```
-
-### Benchmark 结果（20 次运行，512 tokens）
-
-**EAGLE-3 原始结果:**
-```
-Run  1:  1.155s | 512 tokens |  443.3 tok/s
-Run  2:  1.160s | 512 tokens |  441.2 tok/s
-Run  3:  1.158s | 512 tokens |  442.1 tok/s
-...
-Run 20:  1.159s | 512 tokens |  441.6 tok/s
-
-平均: 1.159s | 441.7 tok/s | 标准差: 0.001s
-```
-
-**基线原始结果:**
-```
-Run  1:  3.097s | 512 tokens |  165.3 tok/s
-Run  2:  3.087s | 512 tokens |  165.8 tok/s
-Run  3:  3.091s | 512 tokens |  165.6 tok/s
-...
-Run 20:  3.085s | 512 tokens |  166.0 tok/s
-
-平均: 3.090s | 165.7 tok/s | 标准差: 0.002s
-```
-
-**汇总:**
-| 指标 | EAGLE-3 | Baseline | 对比 |
-|------|---------|----------|------|
-| 平均延迟 | 1.159s | 3.090s | **2.67x 更快** |
-| 平均吞吐 | 441.7 tok/s | 165.7 tok/s | **2.67x 加速** |
-
-### 输出质量验证
-
-| 任务 | EAGLE-3 | Baseline | 一致性 |
-|------|---------|----------|--------|
-| 代码生成 | 1882 字符 | 1882 字符 | 100% 一致 |
-| 逻辑推理 | 1744 字符 | 1744 字符 | 100% 一致 |
-| 知识问答 | 2413 字符 | 2500 字符 | ~96% (措辞差异) |
-
-知识问答的 4% 差异是因为 FP16 精度在长序列中的累积误差，核心信息完全一致。
-
----
-
-## 阶段 2：自训练 EAGLE3 Draft 模型
-
-### 数据准备（关键步骤）
-
-EAGLE3 训练需要高质量的对话数据。SpecForge 框架提供了 `prepare_data.py` 脚本来处理各种数据集：
-
-**支持的数据集：**
-- `sharegpt` - ShareGPT 对话（推荐用于通用场景）
-- `ultrachat` - UltraChat 数据集
-- `perfectblend` - PerfectBlend 数据集（7M+ 对话）
-- `eaglechat` - EAGLE 专用聊天数据
-- `magpie-qwen2.5-pro-1m-v0.1` - Magpie Qwen 数据集
-
-**步骤 1：准备训练数据**
-
-```bash
-cd ~/SpecForge
-
-# 选项 1：使用 ShareGPT（完整数据集 ~114K 样本）
-python scripts/prepare_data.py \
-    --dataset sharegpt \
-    --output-path cache/dataset/sharegpt_train.jsonl
-
-# 选项 2：使用 ShareGPT 限制样本数（用于测试）
-python scripts/prepare_data.py \
-    --dataset sharegpt \
-    --sample-size 10000 \
-    --output-path cache/dataset/sharegpt_train.jsonl
-
-# 选项 3：使用 PerfectBlend（更大、更高质量）
-python scripts/prepare_data.py \
-    --dataset perfectblend \
-    --sample-size 50000 \
-    --output-path cache/dataset/perfectblend_train.jsonl
-```
-
-**数据格式（JSONL）：**
-```json
-{
-  "id": "HneH6K5_0",
-  "conversations": [
-    {"role": "user", "content": "写一篇关于...的文章"},
-    {"role": "assistant", "content": "标题：...的好处"}
-  ]
-}
-```
-
-**关键洞察**：数据质量直接影响 draft 模型精度。使用仅 500 个样本的原始 ShareGPT 导致 6% 精度。使用 114K ShareGPT 样本或 PerfectBlend 数据集可达到 40-50% 精度。
-
-
-### 训练配置
-
-```yaml
-model:
-  base_model: "meta-llama/Llama-3.1-8B-Instruct"
-  draft_model_type: "eagle3"
-
-training:
-  batch_size: 1
-  gradient_accumulation_steps: 8
-  learning_rate: 3.0e-5
-  max_steps: 7000
-```
-
-### 训练启动
-
-```bash
-nohup torchrun --nproc_per_node=1 scripts/train_eagle3.py \
-    --base_model_path meta-llama/Llama-3.1-8B-Instruct \
-    --data_path data/sharegpt_clean.json \
-    --output_dir output/eagle3-llama31-8b-full \
-    --batch_size 1 \
-    --gradient_accumulation_steps 8 \
-    --learning_rate 3e-5 \
-    --num_train_steps 7000 \
-    > eagle3_training.log 2>&1 &
-```
-
-### 训练日志
-
-```
-[2025-12-03 02:45:12] ============================================
-[2025-12-03 02:45:12] EAGLE3 Training Starting
-[2025-12-03 02:45:12] ============================================
-[2025-12-03 02:45:12] Target Model: meta-llama/Llama-3.1-8B-Instruct
-[2025-12-03 02:45:12] Total Steps: 7000
-[2025-12-03 02:45:12] Batch Size: 1, Gradient Accumulation: 8
-[2025-12-03 02:45:12] ============================================
-
-[2025-12-03 02:45:15] Loading target model...
-Loading safetensors: 100%|██████████| 4/4 [00:02<00:00, 1.82it/s]
-[2025-12-03 02:45:18] Target model loaded. VRAM: 15.2 GB
-
-[2025-12-03 02:45:19] Draft head parameters: 223M (849 MB)
-[2025-12-03 02:45:25] Loaded 52,000 conversations
-
-Training Epoch 0:   7%|▋         | 500/7000 [03:15<42:00, 2.58it/s]
-Step 500: loss=2.12, acc=0.40
-
-Training Epoch 0:  14%|█▍        | 1000/7000 [06:30<39:00, 2.56it/s]
-Step 1000: loss=1.90, acc=0.44
-
-Training Epoch 0:  29%|██▉       | 2000/7000 [13:00<32:30, 2.56it/s]
-Step 2000: loss=1.73, acc=0.46
-
-Training Epoch 0:  43%|████▎     | 3000/7000 [19:30<26:00, 2.56it/s]
-Step 3000: loss=1.64, acc=0.48
-
-Training Epoch 0:  57%|█████▋    | 4000/7000 [26:00<19:30, 2.56it/s]
-Step 4000: loss=1.62, acc=0.50
-
-Training Epoch 0:  71%|███████▏  | 5000/7000 [32:30<13:00, 2.56it/s]
-Step 5000: loss=1.63, acc=0.54   ← 峰值精度
-
-Training Epoch 0:  86%|████████▌ | 6000/7000 [39:00<06:30, 2.56it/s]
-Step 6000: loss=1.60, acc=0.50
-
-Training Epoch 0: 100%|██████████| 7000/7000 [45:30<00:00, 2.56it/s]
-Step 7000: loss=1.61, acc=0.48
-
-[2025-12-03 03:30:42] ============================================
-[2025-12-03 03:30:42] Training Complete
-[2025-12-03 03:30:42] Total Time: 45 minutes 30 seconds
-[2025-12-03 03:30:42] Best Checkpoint: epoch_0_step_5000 (acc=0.54)
-[2025-12-03 03:30:42] ============================================
-
-[2025-12-03 03:30:43] Segmentation fault (signal 11)
-```
-
-注：训练结束后的 segfault 是无害的 - 所有检查点已保存。
-
-### 训练指标汇总
-
-| Step | 进度 | Loss | Accuracy | 说明 |
-|------|------|------|----------|------|
-| 0 | 0% | 2.84 | 0.36 | 随机初始化 |
-| 1000 | 14% | 1.90 | 0.44 | 快速提升 |
-| 3000 | 43% | 1.64 | 0.48 | 趋于稳定 |
-| **5000** | **71%** | **1.63** | **0.54** | **峰值精度** |
-| 7000 | 100% | 1.61 | 0.48 | 轻微过拟合 |
-
-### 理解指标波动
-
-batch_size=1 时，每步指标会剧烈波动：
-```
-Step 3245: loss=0.00, acc=0.00   ← 短序列被跳过
-Step 3246: loss=4.77, acc=0.22   ← 困难样本
-Step 3247: loss=0.89, acc=0.54   ← 简单样本
-```
-
-这是正常的。关注检查点级别的趋势（每 500 步）。
-
-### 自训练模型部署
-
-```bash
-export SGLANG_ALLOW_OVERWRITE_LONGER_CONTEXT_LEN=1
-
-python -m sglang.launch_server \
-    --model-path meta-llama/Llama-3.1-8B-Instruct \
-    --speculative-algorithm EAGLE3 \
-    --speculative-draft-model-path ./output/eagle3-llama31-8b-full/epoch_0_step_5000 \
-    --speculative-num-steps 5 \
-    --speculative-eagle-topk 8 \
-    --speculative-num-draft-tokens 64 \
-    --host 0.0.0.0 --port 8080
-```
-
-### 自训练模型结果
-
-| 任务类型 | Baseline | 自训练 EAGLE3 | 加速比 |
-|----------|----------|---------------|--------|
-| 代码生成 | 159.8 tok/s | 207.7 tok/s | **1.30x** |
-| 技术问答 | 188.9 tok/s | 188.0 tok/s | 1.00x |
-| 数学推理 | 188.9 tok/s | 188.0 tok/s | 1.00x |
-| 创意写作 | 180.2 tok/s | 153.9 tok/s | 0.84x |
-
-**代码生成（最佳场景）:**
-```
-Prompt: "用 Python 实现二叉搜索树"
-Baseline:     3.204s | 512 tokens | 159.8 tok/s
-自训练:       2.465s | 512 tokens | 207.7 tok/s
-加速: 1.30x
-```
-
-**创意写作（最差场景）:**
-```
-Prompt: "写一个关于机器人学画画的故事"
-Baseline:     2.843s | 512 tokens | 180.2 tok/s
-自训练:       3.327s | 512 tokens | 153.9 tok/s
-加速: 0.84x (慢了 16%)
-```
-
-创意写作变慢是因为高熵输出导致 draft Acceptance Rate（接受率）低。
-
-### 为什么 1.30x 很有意义
-
-| 方面 | 官方模型 | 自训练 |
-|------|----------|--------|
-| 训练时间 | 数天 (8x A100) | 45 分钟 (1x H100) |
-| 加速比 | 2.67x | 1.30x |
-| 相对性能 | 100% | ~50% |
-| 计算成本 | ~$10,000+ | ~$50 |
-
-用 <1% 的计算量，达到了 ~50% 的性能。
-
----
-
-## 阶段 3：Native MTP 与 DFlash Serving 实验
-
-这一阶段讨论 model-family MTP 和 DFlash-style serving，不再使用外部模型厂商的 assistant checkpoint 作为案例。
-
-这里有两个问题：
-
-1. **怎么看懂模型 config 里的 native MTP？**
-2. **native MTP、DFlash、llama.cpp MTP 在真实 serving benchmark 中表现如何？**
-
-### Native MTP：不要只看一个 flag，要看 model family 设计
-
-`num_nextn_predict_layers=1` 这种 config 字段只能告诉我们：模型有一个 native next-token prediction layer。它不能告诉我们 serving stack 如何在多个 draft steps 中复用这一层。
-
-GLM-5.2 是一个很好的公开例子。它的 HF config 写着 `num_nextn_predict_layers=1` 和 `model_type=glm_moe_dsa`。但官方 GLM-5.2 blog 又补上了真正关键的 serving 细节：不同 MTP steps 共享参数，训练和推理都设置 7 个 MTP steps，并用 IndexShare / KVShare 防止后续 draft steps 混入 MTP 自己生成的 KV。在官方 coding ablation 中，acceptance length 从 **4.56** 提升到 **5.47 (+20%)**。
-
-这个结论很重要：native MTP 不能只看“几层”。还要看这个 model family 如何处理参数共享、KV cache、index 复用和 train-inference discrepancy。
-
-### H100 Serving Benchmark：Native MTP vs DFlash vs llama.cpp MTP
-
-本 repo 在 NVIDIA H100 NVL 96GB 上测试了单请求 latency 和 generation TPS。vLLM 路线使用 `Qwen/Qwen3.6-27B` bf16；llama.cpp 路线使用 `unsloth/Qwen3.6-27B-MTP-GGUF:UD-Q4_K_XL`。测试覆盖 Coding、Math、Chat 三类任务，每类 warmup 1 次、正式运行 3 次，报告中位数。API 使用 non-streaming 模式，TPS = `usage.completion_tokens / total_time`。
-
-| Route | Backend | Quant | Spec Tokens | Domain | Med Total (s) | Med TPS |
-|-------|---------|-------|:-----------:|--------|:-------------:|:-------:|
-| **vLLM native MTP** | vLLM 0.21.0 | bf16 | 5 | Coding | 3.49 | **146.7** |
-| | | | | Math | 1.51 | **169.1** |
-| | | | | Chat | 1.65 | **155.4** |
-| **vLLM DFlash** | vLLM 0.21.0 | bf16 | 15 | Coding | 2.67 | **191.7** |
-| | | | | Math | 1.32 | **193.5** |
-| | | | | Chat | 1.64 | **156.1** |
-| **llama.cpp MTP** | llama.cpp (CUDA) | Q4_K_XL | 5 | Coding | 4.77 | **107.3** |
-| | | | | Math | 2.15 | **118.9** |
-| | | | | Chat | 2.48 | **103.1** |
-
-### 这一阶段得到什么结论
-
-1. **Native MTP 必须按 model family 具体分析。** GLM-5.2 说明 config 字段、MTP step count、IndexShare、KVShare 和训练 loss 要合在一起看。
-2. **DFlash 在本次 H100 single-stream 测试中更快。** Coding 场景下，15 spec tokens 的 DFlash 是 191.7 TPS，5 spec tokens 的 native MTP 是 146.7 TPS。
-3. **这不是完全控制变量的算法排名。** DFlash 用 15 个 speculative tokens，native MTP 用 5 个。这是工程结果，不是普遍结论。
-4. **llama.cpp MTP 是另一种产品形态。** Q4_K_XL 路线适合 compact local serving，但没有质量检查时不能直接和 bf16/vLLM 公平对比。
-
-### 复现 H100 三条路线
-
-```bash
-# Route 1 — vLLM native MTP
-VLLM_DEEP_GEMM_WARMUP=skip MAX_NUM_SEQS=256 bash scripts/mtp_vllm_qwen36_mtp_launch.sh
-python3 scripts/mtp_benchmark_client.py --base-url http://127.0.0.1:8000   --label vllm-native-mtp --runs 3 --warmup 1 --no-stream --output results_mtp.json
-
-# Route 2 — vLLM DFlash
-VLLM_DEEP_GEMM_WARMUP=skip MAX_MODEL_LEN=252000 MAX_NUM_SEQS=256   bash scripts/mtp_vllm_qwen36_dflash_launch.sh
-python3 scripts/mtp_benchmark_client.py --base-url http://127.0.0.1:8000   --label vllm-dflash --runs 3 --warmup 1 --no-stream --output results_dflash.json
-
-# Route 3 — llama.cpp MTP GGUF
-bash scripts/mtp_llamacpp_qwen36_mtp_launch.sh
-python3 scripts/mtp_benchmark_client.py --base-url http://127.0.0.1:8080   --label llamacpp-mtp-q4kxl --runs 3 --warmup 1 --no-stream --output results_llamacpp.json
-```
-
-归档证据：
-
-| 类型 | 文件 |
-|------|------|
-| Benchmark raw JSON | `data/h100_vllm_native_mtp.json`, `data/h100_vllm_dflash.json`, `data/h100_llamacpp_mtp_q4kxl.json` |
-| Server startup logs | `logs/h100_vllm_native_mtp_startup.log`, `logs/h100_vllm_dflash_startup.log`, `logs/h100_llamacpp_mtp_startup.log` |
-| Benchmark client | `scripts/mtp_benchmark_client.py` |
-| Orchestrator | `scripts/mtp_benchmark_orchestrator.sh` |
 
 ---
 

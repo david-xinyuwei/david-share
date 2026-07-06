@@ -63,6 +63,372 @@ The experiments in this project were run on the following GPU environment. Azure
 
 ---
 
+## Phase 1: Validating Official EAGLE3 Model
+
+### Environment
+
+```
+Hardware: NVIDIA H100 NVL 96GB (Azure VM)
+Software: Python 3.10, CUDA 12.4, SGLang
+```
+
+### EAGLE3 Server Deployment
+
+```bash
+export SGLANG_ALLOW_OVERWRITE_LONGER_CONTEXT_LEN=1
+
+python -m sglang.launch_server \
+    --model meta-llama/Llama-3.1-8B-Instruct \
+    --speculative-algorithm EAGLE3 \
+    --speculative-draft-model-path jamesliu1/sglang-EAGLE3-Llama-3.1-Instruct-8B \
+    --speculative-num-steps 5 \
+    --speculative-eagle-topk 8 \
+    --speculative-num-draft-tokens 32 \
+    --dtype float16 \
+    --host 0.0.0.0 --port 8080
+```
+
+**Server Startup Log:**
+```
+[2025-12-02 12:01:15] server_args=ServerArgs(model_path='meta-llama/Llama-3.1-8B-Instruct', ...)
+[2025-12-02 12:01:17] Load weight begin. avail mem=92.50 GB
+Loading safetensors checkpoint shards: 100% | 4/4 [00:01<00:00, 2.31it/s]
+[2025-12-02 12:01:19] Load weight end. type=LlamaForCausalLM, dtype=torch.float16, avail mem=77.39 GB
+
+[2025-12-02 12:01:20] Loading EAGLE3 draft model: jamesliu1/sglang-EAGLE3-Llama-3.1-Instruct-8B
+[2025-12-02 12:01:20] Warning: context_length (131072) > derived (2048). Overriding.
+Loading safetensors checkpoint shards: 100% | 1/1 [00:00<00:00, 12.28it/s]
+[2025-12-02 12:01:21] Draft model loaded. type=LlamaForCausalLMEagle3, mem usage=2.21 GB
+
+[2025-12-02 12:01:32] Capture cuda graph end. Time elapsed: 7.00 s
+[2025-12-02 12:01:35] The server is fired up and ready to roll!
+```
+
+### Baseline Server (No Speculative Decoding)
+
+```bash
+python -m sglang.launch_server \
+    --model meta-llama/Llama-3.1-8B-Instruct \
+    --dtype float16 \
+    --host 0.0.0.0 --port 8080
+```
+
+### Benchmark Results (20 runs, 512 tokens)
+
+**EAGLE-3 Raw Results:**
+```
+Run  1:  1.155s | 512 tokens |  443.3 tok/s
+Run  2:  1.160s | 512 tokens |  441.2 tok/s
+Run  3:  1.158s | 512 tokens |  442.1 tok/s
+...
+Run 20:  1.159s | 512 tokens |  441.6 tok/s
+
+Average: 1.159s | 441.7 tok/s | Std: 0.001s
+```
+
+**Baseline Raw Results:**
+```
+Run  1:  3.097s | 512 tokens |  165.3 tok/s
+Run  2:  3.087s | 512 tokens |  165.8 tok/s
+Run  3:  3.091s | 512 tokens |  165.6 tok/s
+...
+Run 20:  3.085s | 512 tokens |  166.0 tok/s
+
+Average: 3.090s | 165.7 tok/s | Std: 0.002s
+```
+
+**Summary:**
+| Metric | EAGLE-3 | Baseline | Comparison |
+|--------|---------|----------|------------|
+| Average Latency | 1.159s | 3.090s | **2.67x faster** |
+| Average Throughput | 441.7 tok/s | 165.7 tok/s | **2.67x speedup** |
+
+### Output Quality Verification
+
+| Task | EAGLE-3 | Baseline | Match |
+|------|---------|----------|-------|
+| Code Generation | 1882 chars | 1882 chars | 100% identical |
+| Logical Reasoning | 1744 chars | 1744 chars | 100% identical |
+| Knowledge Q&A | 2413 chars | 2500 chars | ~96% (minor wording) |
+
+The 4% difference in Knowledge Q&A is due to FP16 precision accumulation in long sequences. Core information is identical.
+
+---
+
+## Phase 2: Self-Training EAGLE3 Draft Model
+
+### Data Preparation (Critical Step)
+
+EAGLE3 training requires high-quality conversation data. The SpecForge framework provides `prepare_data.py` script to process various datasets:
+
+**Supported Datasets:**
+- `sharegpt` - ShareGPT conversations (recommended for general use)
+- `ultrachat` - UltraChat dataset
+- `perfectblend` - PerfectBlend dataset (7M+ conversations)
+- `eaglechat` - EAGLE-specific chat data
+- `magpie-qwen2.5-pro-1m-v0.1` - Magpie Qwen dataset
+
+**Step 1: Prepare Training Data**
+
+```bash
+cd ~/SpecForge
+
+# Option 1: Use ShareGPT (Full dataset ~114K samples)
+python scripts/prepare_data.py \
+    --dataset sharegpt \
+    --output-path cache/dataset/sharegpt_train.jsonl
+
+# Option 2: Use ShareGPT with limited samples (for testing)
+python scripts/prepare_data.py \
+    --dataset sharegpt \
+    --sample-size 10000 \
+    --output-path cache/dataset/sharegpt_train.jsonl
+
+# Option 3: Use PerfectBlend (larger, higher quality)
+python scripts/prepare_data.py \
+    --dataset perfectblend \
+    --sample-size 50000 \
+    --output-path cache/dataset/perfectblend_train.jsonl
+```
+
+**Data Format (JSONL):**
+```json
+{
+  "id": "HneH6K5_0",
+  "conversations": [
+    {"role": "user", "content": "Write an article about..."},
+    {"role": "assistant", "content": "Title: The Benefits of..."}
+  ]
+}
+```
+
+**Critical Insight**: Data quality directly impacts draft model accuracy. Using raw ShareGPT with only 500 samples resulted in 6% accuracy. Using 114K ShareGPT samples or PerfectBlend dataset achieves 40-50% accuracy.
+
+
+### Training Configuration
+
+```yaml
+model:
+  base_model: "meta-llama/Llama-3.1-8B-Instruct"
+  draft_model_type: "eagle3"
+
+training:
+  batch_size: 1
+  gradient_accumulation_steps: 8
+  learning_rate: 3.0e-5
+  max_steps: 7000
+```
+
+### Training Launch
+
+```bash
+nohup torchrun --nproc_per_node=1 scripts/train_eagle3.py \
+    --base_model_path meta-llama/Llama-3.1-8B-Instruct \
+    --data_path data/sharegpt_clean.json \
+    --output_dir output/eagle3-llama31-8b-full \
+    --batch_size 1 \
+    --gradient_accumulation_steps 8 \
+    --learning_rate 3e-5 \
+    --num_train_steps 7000 \
+    > eagle3_training.log 2>&1 &
+```
+
+### Training Log
+
+```
+[2025-12-03 02:45:12] ============================================
+[2025-12-03 02:45:12] EAGLE3 Training Starting
+[2025-12-03 02:45:12] ============================================
+[2025-12-03 02:45:12] Target Model: meta-llama/Llama-3.1-8B-Instruct
+[2025-12-03 02:45:12] Total Steps: 7000
+[2025-12-03 02:45:12] Batch Size: 1, Gradient Accumulation: 8
+[2025-12-03 02:45:12] ============================================
+
+[2025-12-03 02:45:15] Loading target model...
+Loading safetensors: 100%|██████████| 4/4 [00:02<00:00, 1.82it/s]
+[2025-12-03 02:45:18] Target model loaded. VRAM: 15.2 GB
+
+[2025-12-03 02:45:19] Draft head parameters: 223M (849 MB)
+[2025-12-03 02:45:25] Loaded 52,000 conversations
+
+Training Epoch 0:   7%|▋         | 500/7000 [03:15<42:00, 2.58it/s]
+Step 500: loss=2.12, acc=0.40
+
+Training Epoch 0:  14%|█▍        | 1000/7000 [06:30<39:00, 2.56it/s]
+Step 1000: loss=1.90, acc=0.44
+
+Training Epoch 0:  29%|██▉       | 2000/7000 [13:00<32:30, 2.56it/s]
+Step 2000: loss=1.73, acc=0.46
+
+Training Epoch 0:  43%|████▎     | 3000/7000 [19:30<26:00, 2.56it/s]
+Step 3000: loss=1.64, acc=0.48
+
+Training Epoch 0:  57%|█████▋    | 4000/7000 [26:00<19:30, 2.56it/s]
+Step 4000: loss=1.62, acc=0.50
+
+Training Epoch 0:  71%|███████▏  | 5000/7000 [32:30<13:00, 2.56it/s]
+Step 5000: loss=1.63, acc=0.54   ← PEAK ACCURACY
+
+Training Epoch 0:  86%|████████▌ | 6000/7000 [39:00<06:30, 2.56it/s]
+Step 6000: loss=1.60, acc=0.50
+
+Training Epoch 0: 100%|██████████| 7000/7000 [45:30<00:00, 2.56it/s]
+Step 7000: loss=1.61, acc=0.48
+
+[2025-12-03 03:30:42] ============================================
+[2025-12-03 03:30:42] Training Complete
+[2025-12-03 03:30:42] Total Time: 45 minutes 30 seconds
+[2025-12-03 03:30:42] Best Checkpoint: epoch_0_step_5000 (acc=0.54)
+[2025-12-03 03:30:42] ============================================
+
+[2025-12-03 03:30:43] Segmentation fault (signal 11)
+```
+
+Note: The segfault after training is harmless - all checkpoints are saved.
+
+### Training Metrics Summary
+
+| Step | Progress | Loss | Accuracy | Notes |
+|------|----------|------|----------|-------|
+| 0 | 0% | 2.84 | 0.36 | Random init |
+| 1000 | 14% | 1.90 | 0.44 | Rapid improvement |
+| 3000 | 43% | 1.64 | 0.48 | Stabilizing |
+| **5000** | **71%** | **1.63** | **0.54** | **Peak accuracy** |
+| 7000 | 100% | 1.61 | 0.48 | Slight overfit |
+
+### Understanding Metric Fluctuation
+
+With batch_size=1, per-step metrics fluctuate wildly:
+```
+Step 3245: loss=0.00, acc=0.00   ← Short sequence skipped
+Step 3246: loss=4.77, acc=0.22   ← Difficult sample
+Step 3247: loss=0.89, acc=0.54   ← Easy sample
+```
+
+This is normal. Focus on checkpoint-level trends (every 500 steps).
+
+### Self-Trained Model Deployment
+
+```bash
+export SGLANG_ALLOW_OVERWRITE_LONGER_CONTEXT_LEN=1
+
+python -m sglang.launch_server \
+    --model-path meta-llama/Llama-3.1-8B-Instruct \
+    --speculative-algorithm EAGLE3 \
+    --speculative-draft-model-path ./output/eagle3-llama31-8b-full/epoch_0_step_5000 \
+    --speculative-num-steps 5 \
+    --speculative-eagle-topk 8 \
+    --speculative-num-draft-tokens 64 \
+    --host 0.0.0.0 --port 8080
+```
+
+### Self-Trained Model Results
+
+| Task Type | Baseline | Self-Trained EAGLE3 | Speedup |
+|-----------|----------|---------------------|---------|
+| Code Generation | 159.8 tok/s | 207.7 tok/s | **1.30x** |
+| Technical Q&A | 188.9 tok/s | 188.0 tok/s | 1.00x |
+| Math Reasoning | 188.9 tok/s | 188.0 tok/s | 1.00x |
+| Creative Writing | 180.2 tok/s | 153.9 tok/s | 0.84x |
+
+**Code Generation (Best Case):**
+```
+Prompt: "Implement binary search tree in Python"
+Baseline:     3.204s | 512 tokens | 159.8 tok/s
+Self-Trained: 2.465s | 512 tokens | 207.7 tok/s
+Speedup: 1.30x
+```
+
+**Creative Writing (Worst Case):**
+```
+Prompt: "Write a story about a robot learning to paint"
+Baseline:     2.843s | 512 tokens | 180.2 tok/s
+Self-Trained: 3.327s | 512 tokens | 153.9 tok/s
+Speedup: 0.84x (16% SLOWER)
+```
+
+Creative writing is slower because high-entropy output leads to low draft acceptance rate.
+
+### Why 1.30x is Significant
+
+| Aspect | Official Model | Self-Trained |
+|--------|----------------|--------------|
+| Training Time | Days (8x A100) | 45 min (1x H100) |
+| Speedup | 2.67x | 1.30x |
+| Relative Performance | 100% | ~50% |
+| Compute Cost | ~$10,000+ | ~$50 |
+
+With <1% compute, we achieved ~50% performance.
+
+---
+
+## Phase 3: Native MTP and DFlash Serving Experiments
+
+This phase focuses on model-family MTP and DFlash-style serving rather than assistant checkpoints from an external model vendor.
+
+There are two different questions:
+
+1. **How should native MTP be interpreted from model configs?**
+2. **How do native MTP, DFlash, and llama.cpp MTP behave under an actual serving benchmark?**
+
+### Native MTP: Read the Model Family, Not Just the Flag
+
+A single config field such as `num_nextn_predict_layers=1` is not enough to explain runtime behavior. It tells us that the model has one native next-token prediction layer, but not how the serving stack reuses that layer across draft steps.
+
+GLM-5.2 is a useful public example. Its HF config reports `num_nextn_predict_layers=1` and `model_type=glm_moe_dsa`. The official GLM-5.2 blog adds the missing serving detail: different MTP steps share parameters, training and inference both use 7 MTP steps, and IndexShare / KVShare prevent later draft steps from mixing in KV produced by the MTP layer itself. In the official coding ablation, acceptance length improves from **4.56** to **5.47 (+20%)**.
+
+The lesson is general: native MTP is not just "how many layers." You also need to inspect how the model family handles parameter sharing, KV cache, index reuse, and train-inference discrepancy.
+
+### H100 Serving Benchmark: Native MTP vs DFlash vs llama.cpp MTP
+
+This repo measured single-stream latency and generation TPS on NVIDIA H100 NVL 96GB. Target model: `Qwen/Qwen3.6-27B` bf16 for vLLM routes, `unsloth/Qwen3.6-27B-MTP-GGUF:UD-Q4_K_XL` for llama.cpp. Three domains (Coding/Math/Chat), warmup 1 round + 3 timed runs, median reported. Non-streaming API, TPS = `usage.completion_tokens / total_time`.
+
+| Route | Backend | Quant | Spec Tokens | Domain | Med Total (s) | Med TPS |
+|-------|---------|-------|:-----------:|--------|:-------------:|:-------:|
+| **vLLM native MTP** | vLLM 0.21.0 | bf16 | 5 | Coding | 3.49 | **146.7** |
+| | | | | Math | 1.51 | **169.1** |
+| | | | | Chat | 1.65 | **155.4** |
+| **vLLM DFlash** | vLLM 0.21.0 | bf16 | 15 | Coding | 2.67 | **191.7** |
+| | | | | Math | 1.32 | **193.5** |
+| | | | | Chat | 1.64 | **156.1** |
+| **llama.cpp MTP** | llama.cpp (CUDA) | Q4_K_XL | 5 | Coding | 4.77 | **107.3** |
+| | | | | Math | 2.15 | **118.9** |
+| | | | | Chat | 2.48 | **103.1** |
+
+### What This Phase Concludes
+
+1. **Native MTP needs model-family-specific reading.** GLM-5.2 shows why config fields, MTP step count, IndexShare, KVShare, and training loss must be read together.
+2. **DFlash can win in the tested H100 single-stream setup.** In coding, DFlash with 15 spec tokens measured 191.7 TPS vs native MTP with 5 spec tokens at 146.7 TPS.
+3. **The comparison is not fully controlled.** DFlash uses 15 speculative tokens and native MTP uses 5. This is an engineering result, not a universal algorithm ranking.
+4. **llama.cpp MTP is a different product shape.** The Q4_K_XL route is useful for compact local serving, but it is not directly comparable to bf16/vLLM without quality checks.
+
+### Reproduce the H100 Routes
+
+```bash
+# Route 1 — vLLM native MTP
+VLLM_DEEP_GEMM_WARMUP=skip MAX_NUM_SEQS=256 bash scripts/mtp_vllm_qwen36_mtp_launch.sh
+python3 scripts/mtp_benchmark_client.py --base-url http://127.0.0.1:8000   --label vllm-native-mtp --runs 3 --warmup 1 --no-stream --output results_mtp.json
+
+# Route 2 — vLLM DFlash
+VLLM_DEEP_GEMM_WARMUP=skip MAX_MODEL_LEN=252000 MAX_NUM_SEQS=256   bash scripts/mtp_vllm_qwen36_dflash_launch.sh
+python3 scripts/mtp_benchmark_client.py --base-url http://127.0.0.1:8000   --label vllm-dflash --runs 3 --warmup 1 --no-stream --output results_dflash.json
+
+# Route 3 — llama.cpp MTP GGUF
+bash scripts/mtp_llamacpp_qwen36_mtp_launch.sh
+python3 scripts/mtp_benchmark_client.py --base-url http://127.0.0.1:8080   --label llamacpp-mtp-q4kxl --runs 3 --warmup 1 --no-stream --output results_llamacpp.json
+```
+
+Archived evidence:
+
+| Type | Files |
+|------|-------|
+| Benchmark raw JSON | `data/h100_vllm_native_mtp.json`, `data/h100_vllm_dflash.json`, `data/h100_llamacpp_mtp_q4kxl.json` |
+| Server startup logs | `logs/h100_vllm_native_mtp_startup.log`, `logs/h100_vllm_dflash_startup.log`, `logs/h100_llamacpp_mtp_startup.log` |
+| Benchmark client | `scripts/mtp_benchmark_client.py` |
+| Orchestrator | `scripts/mtp_benchmark_orchestrator.sh` |
+
+---
+
 ## Background: What is Speculative Decoding?
 
 LLM inference is memory-bandwidth bound, not compute-bound. Each token generation requires loading entire model weights from GPU memory, but outputs only ONE token.
@@ -683,372 +1049,6 @@ eagle3-llama31-8b/
 | LM Head (4096 → 32000) | ~131M | ~262 MB |
 | Vocab Mapping (d2t, t2d) | ~25M | ~50 MB |
 | LayerNorm + Others | <1M | ~2 MB |
-
----
-
-## Phase 1: Validating Official EAGLE3 Model
-
-### Environment
-
-```
-Hardware: NVIDIA H100 NVL 96GB (Azure VM)
-Software: Python 3.10, CUDA 12.4, SGLang
-```
-
-### EAGLE3 Server Deployment
-
-```bash
-export SGLANG_ALLOW_OVERWRITE_LONGER_CONTEXT_LEN=1
-
-python -m sglang.launch_server \
-    --model meta-llama/Llama-3.1-8B-Instruct \
-    --speculative-algorithm EAGLE3 \
-    --speculative-draft-model-path jamesliu1/sglang-EAGLE3-Llama-3.1-Instruct-8B \
-    --speculative-num-steps 5 \
-    --speculative-eagle-topk 8 \
-    --speculative-num-draft-tokens 32 \
-    --dtype float16 \
-    --host 0.0.0.0 --port 8080
-```
-
-**Server Startup Log:**
-```
-[2025-12-02 12:01:15] server_args=ServerArgs(model_path='meta-llama/Llama-3.1-8B-Instruct', ...)
-[2025-12-02 12:01:17] Load weight begin. avail mem=92.50 GB
-Loading safetensors checkpoint shards: 100% | 4/4 [00:01<00:00, 2.31it/s]
-[2025-12-02 12:01:19] Load weight end. type=LlamaForCausalLM, dtype=torch.float16, avail mem=77.39 GB
-
-[2025-12-02 12:01:20] Loading EAGLE3 draft model: jamesliu1/sglang-EAGLE3-Llama-3.1-Instruct-8B
-[2025-12-02 12:01:20] Warning: context_length (131072) > derived (2048). Overriding.
-Loading safetensors checkpoint shards: 100% | 1/1 [00:00<00:00, 12.28it/s]
-[2025-12-02 12:01:21] Draft model loaded. type=LlamaForCausalLMEagle3, mem usage=2.21 GB
-
-[2025-12-02 12:01:32] Capture cuda graph end. Time elapsed: 7.00 s
-[2025-12-02 12:01:35] The server is fired up and ready to roll!
-```
-
-### Baseline Server (No Speculative Decoding)
-
-```bash
-python -m sglang.launch_server \
-    --model meta-llama/Llama-3.1-8B-Instruct \
-    --dtype float16 \
-    --host 0.0.0.0 --port 8080
-```
-
-### Benchmark Results (20 runs, 512 tokens)
-
-**EAGLE-3 Raw Results:**
-```
-Run  1:  1.155s | 512 tokens |  443.3 tok/s
-Run  2:  1.160s | 512 tokens |  441.2 tok/s
-Run  3:  1.158s | 512 tokens |  442.1 tok/s
-...
-Run 20:  1.159s | 512 tokens |  441.6 tok/s
-
-Average: 1.159s | 441.7 tok/s | Std: 0.001s
-```
-
-**Baseline Raw Results:**
-```
-Run  1:  3.097s | 512 tokens |  165.3 tok/s
-Run  2:  3.087s | 512 tokens |  165.8 tok/s
-Run  3:  3.091s | 512 tokens |  165.6 tok/s
-...
-Run 20:  3.085s | 512 tokens |  166.0 tok/s
-
-Average: 3.090s | 165.7 tok/s | Std: 0.002s
-```
-
-**Summary:**
-| Metric | EAGLE-3 | Baseline | Comparison |
-|--------|---------|----------|------------|
-| Average Latency | 1.159s | 3.090s | **2.67x faster** |
-| Average Throughput | 441.7 tok/s | 165.7 tok/s | **2.67x speedup** |
-
-### Output Quality Verification
-
-| Task | EAGLE-3 | Baseline | Match |
-|------|---------|----------|-------|
-| Code Generation | 1882 chars | 1882 chars | 100% identical |
-| Logical Reasoning | 1744 chars | 1744 chars | 100% identical |
-| Knowledge Q&A | 2413 chars | 2500 chars | ~96% (minor wording) |
-
-The 4% difference in Knowledge Q&A is due to FP16 precision accumulation in long sequences. Core information is identical.
-
----
-
-## Phase 2: Self-Training EAGLE3 Draft Model
-
-### Data Preparation (Critical Step)
-
-EAGLE3 training requires high-quality conversation data. The SpecForge framework provides `prepare_data.py` script to process various datasets:
-
-**Supported Datasets:**
-- `sharegpt` - ShareGPT conversations (recommended for general use)
-- `ultrachat` - UltraChat dataset
-- `perfectblend` - PerfectBlend dataset (7M+ conversations)
-- `eaglechat` - EAGLE-specific chat data
-- `magpie-qwen2.5-pro-1m-v0.1` - Magpie Qwen dataset
-
-**Step 1: Prepare Training Data**
-
-```bash
-cd ~/SpecForge
-
-# Option 1: Use ShareGPT (Full dataset ~114K samples)
-python scripts/prepare_data.py \
-    --dataset sharegpt \
-    --output-path cache/dataset/sharegpt_train.jsonl
-
-# Option 2: Use ShareGPT with limited samples (for testing)
-python scripts/prepare_data.py \
-    --dataset sharegpt \
-    --sample-size 10000 \
-    --output-path cache/dataset/sharegpt_train.jsonl
-
-# Option 3: Use PerfectBlend (larger, higher quality)
-python scripts/prepare_data.py \
-    --dataset perfectblend \
-    --sample-size 50000 \
-    --output-path cache/dataset/perfectblend_train.jsonl
-```
-
-**Data Format (JSONL):**
-```json
-{
-  "id": "HneH6K5_0",
-  "conversations": [
-    {"role": "user", "content": "Write an article about..."},
-    {"role": "assistant", "content": "Title: The Benefits of..."}
-  ]
-}
-```
-
-**Critical Insight**: Data quality directly impacts draft model accuracy. Using raw ShareGPT with only 500 samples resulted in 6% accuracy. Using 114K ShareGPT samples or PerfectBlend dataset achieves 40-50% accuracy.
-
-
-### Training Configuration
-
-```yaml
-model:
-  base_model: "meta-llama/Llama-3.1-8B-Instruct"
-  draft_model_type: "eagle3"
-
-training:
-  batch_size: 1
-  gradient_accumulation_steps: 8
-  learning_rate: 3.0e-5
-  max_steps: 7000
-```
-
-### Training Launch
-
-```bash
-nohup torchrun --nproc_per_node=1 scripts/train_eagle3.py \
-    --base_model_path meta-llama/Llama-3.1-8B-Instruct \
-    --data_path data/sharegpt_clean.json \
-    --output_dir output/eagle3-llama31-8b-full \
-    --batch_size 1 \
-    --gradient_accumulation_steps 8 \
-    --learning_rate 3e-5 \
-    --num_train_steps 7000 \
-    > eagle3_training.log 2>&1 &
-```
-
-### Training Log
-
-```
-[2025-12-03 02:45:12] ============================================
-[2025-12-03 02:45:12] EAGLE3 Training Starting
-[2025-12-03 02:45:12] ============================================
-[2025-12-03 02:45:12] Target Model: meta-llama/Llama-3.1-8B-Instruct
-[2025-12-03 02:45:12] Total Steps: 7000
-[2025-12-03 02:45:12] Batch Size: 1, Gradient Accumulation: 8
-[2025-12-03 02:45:12] ============================================
-
-[2025-12-03 02:45:15] Loading target model...
-Loading safetensors: 100%|██████████| 4/4 [00:02<00:00, 1.82it/s]
-[2025-12-03 02:45:18] Target model loaded. VRAM: 15.2 GB
-
-[2025-12-03 02:45:19] Draft head parameters: 223M (849 MB)
-[2025-12-03 02:45:25] Loaded 52,000 conversations
-
-Training Epoch 0:   7%|▋         | 500/7000 [03:15<42:00, 2.58it/s]
-Step 500: loss=2.12, acc=0.40
-
-Training Epoch 0:  14%|█▍        | 1000/7000 [06:30<39:00, 2.56it/s]
-Step 1000: loss=1.90, acc=0.44
-
-Training Epoch 0:  29%|██▉       | 2000/7000 [13:00<32:30, 2.56it/s]
-Step 2000: loss=1.73, acc=0.46
-
-Training Epoch 0:  43%|████▎     | 3000/7000 [19:30<26:00, 2.56it/s]
-Step 3000: loss=1.64, acc=0.48
-
-Training Epoch 0:  57%|█████▋    | 4000/7000 [26:00<19:30, 2.56it/s]
-Step 4000: loss=1.62, acc=0.50
-
-Training Epoch 0:  71%|███████▏  | 5000/7000 [32:30<13:00, 2.56it/s]
-Step 5000: loss=1.63, acc=0.54   ← PEAK ACCURACY
-
-Training Epoch 0:  86%|████████▌ | 6000/7000 [39:00<06:30, 2.56it/s]
-Step 6000: loss=1.60, acc=0.50
-
-Training Epoch 0: 100%|██████████| 7000/7000 [45:30<00:00, 2.56it/s]
-Step 7000: loss=1.61, acc=0.48
-
-[2025-12-03 03:30:42] ============================================
-[2025-12-03 03:30:42] Training Complete
-[2025-12-03 03:30:42] Total Time: 45 minutes 30 seconds
-[2025-12-03 03:30:42] Best Checkpoint: epoch_0_step_5000 (acc=0.54)
-[2025-12-03 03:30:42] ============================================
-
-[2025-12-03 03:30:43] Segmentation fault (signal 11)
-```
-
-Note: The segfault after training is harmless - all checkpoints are saved.
-
-### Training Metrics Summary
-
-| Step | Progress | Loss | Accuracy | Notes |
-|------|----------|------|----------|-------|
-| 0 | 0% | 2.84 | 0.36 | Random init |
-| 1000 | 14% | 1.90 | 0.44 | Rapid improvement |
-| 3000 | 43% | 1.64 | 0.48 | Stabilizing |
-| **5000** | **71%** | **1.63** | **0.54** | **Peak accuracy** |
-| 7000 | 100% | 1.61 | 0.48 | Slight overfit |
-
-### Understanding Metric Fluctuation
-
-With batch_size=1, per-step metrics fluctuate wildly:
-```
-Step 3245: loss=0.00, acc=0.00   ← Short sequence skipped
-Step 3246: loss=4.77, acc=0.22   ← Difficult sample
-Step 3247: loss=0.89, acc=0.54   ← Easy sample
-```
-
-This is normal. Focus on checkpoint-level trends (every 500 steps).
-
-### Self-Trained Model Deployment
-
-```bash
-export SGLANG_ALLOW_OVERWRITE_LONGER_CONTEXT_LEN=1
-
-python -m sglang.launch_server \
-    --model-path meta-llama/Llama-3.1-8B-Instruct \
-    --speculative-algorithm EAGLE3 \
-    --speculative-draft-model-path ./output/eagle3-llama31-8b-full/epoch_0_step_5000 \
-    --speculative-num-steps 5 \
-    --speculative-eagle-topk 8 \
-    --speculative-num-draft-tokens 64 \
-    --host 0.0.0.0 --port 8080
-```
-
-### Self-Trained Model Results
-
-| Task Type | Baseline | Self-Trained EAGLE3 | Speedup |
-|-----------|----------|---------------------|---------|
-| Code Generation | 159.8 tok/s | 207.7 tok/s | **1.30x** |
-| Technical Q&A | 188.9 tok/s | 188.0 tok/s | 1.00x |
-| Math Reasoning | 188.9 tok/s | 188.0 tok/s | 1.00x |
-| Creative Writing | 180.2 tok/s | 153.9 tok/s | 0.84x |
-
-**Code Generation (Best Case):**
-```
-Prompt: "Implement binary search tree in Python"
-Baseline:     3.204s | 512 tokens | 159.8 tok/s
-Self-Trained: 2.465s | 512 tokens | 207.7 tok/s
-Speedup: 1.30x
-```
-
-**Creative Writing (Worst Case):**
-```
-Prompt: "Write a story about a robot learning to paint"
-Baseline:     2.843s | 512 tokens | 180.2 tok/s
-Self-Trained: 3.327s | 512 tokens | 153.9 tok/s
-Speedup: 0.84x (16% SLOWER)
-```
-
-Creative writing is slower because high-entropy output leads to low draft acceptance rate.
-
-### Why 1.30x is Significant
-
-| Aspect | Official Model | Self-Trained |
-|--------|----------------|--------------|
-| Training Time | Days (8x A100) | 45 min (1x H100) |
-| Speedup | 2.67x | 1.30x |
-| Relative Performance | 100% | ~50% |
-| Compute Cost | ~$10,000+ | ~$50 |
-
-With <1% compute, we achieved ~50% performance.
-
----
-
-## Phase 3: Native MTP and DFlash Serving Experiments
-
-This phase focuses on model-family MTP and DFlash-style serving rather than assistant checkpoints from an external model vendor.
-
-There are two different questions:
-
-1. **How should native MTP be interpreted from model configs?**
-2. **How do native MTP, DFlash, and llama.cpp MTP behave under an actual serving benchmark?**
-
-### Native MTP: Read the Model Family, Not Just the Flag
-
-A single config field such as `num_nextn_predict_layers=1` is not enough to explain runtime behavior. It tells us that the model has one native next-token prediction layer, but not how the serving stack reuses that layer across draft steps.
-
-GLM-5.2 is a useful public example. Its HF config reports `num_nextn_predict_layers=1` and `model_type=glm_moe_dsa`. The official GLM-5.2 blog adds the missing serving detail: different MTP steps share parameters, training and inference both use 7 MTP steps, and IndexShare / KVShare prevent later draft steps from mixing in KV produced by the MTP layer itself. In the official coding ablation, acceptance length improves from **4.56** to **5.47 (+20%)**.
-
-The lesson is general: native MTP is not just "how many layers." You also need to inspect how the model family handles parameter sharing, KV cache, index reuse, and train-inference discrepancy.
-
-### H100 Serving Benchmark: Native MTP vs DFlash vs llama.cpp MTP
-
-This repo measured single-stream latency and generation TPS on NVIDIA H100 NVL 96GB. Target model: `Qwen/Qwen3.6-27B` bf16 for vLLM routes, `unsloth/Qwen3.6-27B-MTP-GGUF:UD-Q4_K_XL` for llama.cpp. Three domains (Coding/Math/Chat), warmup 1 round + 3 timed runs, median reported. Non-streaming API, TPS = `usage.completion_tokens / total_time`.
-
-| Route | Backend | Quant | Spec Tokens | Domain | Med Total (s) | Med TPS |
-|-------|---------|-------|:-----------:|--------|:-------------:|:-------:|
-| **vLLM native MTP** | vLLM 0.21.0 | bf16 | 5 | Coding | 3.49 | **146.7** |
-| | | | | Math | 1.51 | **169.1** |
-| | | | | Chat | 1.65 | **155.4** |
-| **vLLM DFlash** | vLLM 0.21.0 | bf16 | 15 | Coding | 2.67 | **191.7** |
-| | | | | Math | 1.32 | **193.5** |
-| | | | | Chat | 1.64 | **156.1** |
-| **llama.cpp MTP** | llama.cpp (CUDA) | Q4_K_XL | 5 | Coding | 4.77 | **107.3** |
-| | | | | Math | 2.15 | **118.9** |
-| | | | | Chat | 2.48 | **103.1** |
-
-### What This Phase Concludes
-
-1. **Native MTP needs model-family-specific reading.** GLM-5.2 shows why config fields, MTP step count, IndexShare, KVShare, and training loss must be read together.
-2. **DFlash can win in the tested H100 single-stream setup.** In coding, DFlash with 15 spec tokens measured 191.7 TPS vs native MTP with 5 spec tokens at 146.7 TPS.
-3. **The comparison is not fully controlled.** DFlash uses 15 speculative tokens and native MTP uses 5. This is an engineering result, not a universal algorithm ranking.
-4. **llama.cpp MTP is a different product shape.** The Q4_K_XL route is useful for compact local serving, but it is not directly comparable to bf16/vLLM without quality checks.
-
-### Reproduce the H100 Routes
-
-```bash
-# Route 1 — vLLM native MTP
-VLLM_DEEP_GEMM_WARMUP=skip MAX_NUM_SEQS=256 bash scripts/mtp_vllm_qwen36_mtp_launch.sh
-python3 scripts/mtp_benchmark_client.py --base-url http://127.0.0.1:8000   --label vllm-native-mtp --runs 3 --warmup 1 --no-stream --output results_mtp.json
-
-# Route 2 — vLLM DFlash
-VLLM_DEEP_GEMM_WARMUP=skip MAX_MODEL_LEN=252000 MAX_NUM_SEQS=256   bash scripts/mtp_vllm_qwen36_dflash_launch.sh
-python3 scripts/mtp_benchmark_client.py --base-url http://127.0.0.1:8000   --label vllm-dflash --runs 3 --warmup 1 --no-stream --output results_dflash.json
-
-# Route 3 — llama.cpp MTP GGUF
-bash scripts/mtp_llamacpp_qwen36_mtp_launch.sh
-python3 scripts/mtp_benchmark_client.py --base-url http://127.0.0.1:8080   --label llamacpp-mtp-q4kxl --runs 3 --warmup 1 --no-stream --output results_llamacpp.json
-```
-
-Archived evidence:
-
-| Type | Files |
-|------|-------|
-| Benchmark raw JSON | `data/h100_vllm_native_mtp.json`, `data/h100_vllm_dflash.json`, `data/h100_llamacpp_mtp_q4kxl.json` |
-| Server startup logs | `logs/h100_vllm_native_mtp_startup.log`, `logs/h100_vllm_dflash_startup.log`, `logs/h100_llamacpp_mtp_startup.log` |
-| Benchmark client | `scripts/mtp_benchmark_client.py` |
-| Orchestrator | `scripts/mtp_benchmark_orchestrator.sh` |
 
 ---
 
