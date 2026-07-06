@@ -1,0 +1,57 @@
+/opt/venv/lib/python3.10/site-packages/transformers/modeling_rope_utils.py:1034: FutureWarning: `rope_config_validation` is deprecated and has been removed. Its functionality has been moved to RotaryEmbeddingConfigMixin.validate_rope method. PreTrainedConfig inherits this class, so please call self.validate_rope() instead. Also, make sure to use the new rope_parameters syntax. You can call self.standardize_rope_params() in the meantime.
+  warnings.warn(
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+benchmark_args=Namespace(backend='sglang', base_url=None, host='0.0.0.0', port=40000, ready_check_timeout_sec=60, dataset_name='random', dataset_path='', speed_bench_category=None, speed_bench_output_len=512, model='/data/models/MiMo-V2.5-Pro', served_model_name=None, tokenizer=None, num_prompts=2, sharegpt_output_len=None, sharegpt_context_len=None, random_input_len=128, random_output_len=16, random_range_ratio=0.0, image_count=1, image_resolution='1080p', random_image_count=False, image_format='jpeg', image_content='random', request_rate=inf, use_trace_timestamps=False, max_concurrency=1, output_file=None, output_details=False, print_requests=False, disable_tqdm=False, disable_stream=False, return_logprob=False, top_logprobs_num=0, token_ids_logprob=None, logprob_start_len=-1, return_routed_experts=False, seed=1, disable_ignore_eos=False, temperature=0.0, top_p=1.0, extra_request_body=None, apply_chat_template=False, profile=False, plot_throughput=False, profile_activities=['CPU', 'GPU'], profile_start_step=None, profile_steps=None, profile_num_steps=None, profile_by_stage=False, profile_stages=None, profile_output_dir=None, profile_prefix=None, lora_name=None, lora_request_distribution='uniform', lora_zipf_alpha=1.5, prompt_suffix='', pd_separated=True, profile_prefill_url=None, profile_decode_url=None, flush_cache=False, warmup_requests=1, tokenize_prompt=False, gsp_num_groups=64, gsp_prompts_per_group=16, gsp_system_prompt_len=2048, gsp_question_len=128, gsp_output_len=256, gsp_range_ratio=1.0, gsp_fast_prepare=False, gsp_send_routing_key=False, gsp_num_turns=1, gsp_ordered=False, gsp_group_distribution='uniform', gsp_zipf_alpha=None, mooncake_slowdown_factor=1.0, mooncake_num_rounds=1, mooncake_workload='conversation', fake_prefill=False, tag=None, header=None)
+Waiting up to 60s for http://0.0.0.0:40000/v1/models to become ready...
+Server ready in 0.0s.
+Namespace(backend='sglang', base_url=None, host='0.0.0.0', port=40000, ready_check_timeout_sec=60, dataset_name='random', dataset_path='', speed_bench_category=None, speed_bench_output_len=512, model='/data/models/MiMo-V2.5-Pro', served_model_name=None, tokenizer=None, num_prompts=2, sharegpt_output_len=None, sharegpt_context_len=None, random_input_len=128, random_output_len=16, random_range_ratio=0.0, image_count=1, image_resolution='1080p', random_image_count=False, image_format='jpeg', image_content='random', request_rate=inf, use_trace_timestamps=False, max_concurrency=1, output_file=None, output_details=False, print_requests=False, disable_tqdm=False, disable_stream=False, return_logprob=False, top_logprobs_num=0, token_ids_logprob=None, logprob_start_len=-1, return_routed_experts=False, seed=1, disable_ignore_eos=False, temperature=0.0, top_p=1.0, extra_request_body=None, apply_chat_template=False, profile=False, plot_throughput=False, profile_activities=['CPU', 'GPU'], profile_start_step=None, profile_steps=None, profile_num_steps=None, profile_by_stage=False, profile_stages=None, profile_output_dir=None, profile_prefix=None, lora_name=None, lora_request_distribution='uniform', lora_zipf_alpha=1.5, prompt_suffix='', pd_separated=True, profile_prefill_url=None, profile_decode_url=None, flush_cache=False, warmup_requests=1, tokenize_prompt=False, gsp_num_groups=64, gsp_prompts_per_group=16, gsp_system_prompt_len=2048, gsp_question_len=128, gsp_output_len=256, gsp_range_ratio=1.0, gsp_fast_prepare=False, gsp_send_routing_key=False, gsp_num_turns=1, gsp_ordered=False, gsp_group_distribution='uniform', gsp_zipf_alpha=None, mooncake_slowdown_factor=1.0, mooncake_num_rounds=1, mooncake_workload='conversation', fake_prefill=False, tag=None, header=None)
+
+#Input tokens: 146
+#Output tokens: 22
+Starting warmup with 1 sequences...
+Warmup completed with 1 sequences. Starting main benchmark run...
+  0%|          | 0/2 [00:00<?, ?it/s] 50%|█████     | 1/2 [00:00<00:00,  2.73it/s]100%|██████████| 2/2 [00:00<00:00,  2.86it/s]100%|██████████| 2/2 [00:00<00:00,  2.84it/s]
+
+============ Serving Benchmark Result ============
+Backend:                                 sglang    
+Traffic request rate:                    inf       
+Max request concurrency:                 1         
+Successful requests:                     2         
+Benchmark duration (s):                  0.71      
+Total input tokens:                      146       
+Total input text tokens:                 146       
+Total generated tokens:                  22        
+Total generated tokens (retokenized):    22        
+Request throughput (req/s):              2.81      
+Input token throughput (tok/s):          205.31    
+Output token throughput (tok/s):         30.94     
+Peak output token throughput (tok/s):    22.00     
+Peak concurrent requests:                2         
+Total token throughput (tok/s):          236.25    
+Concurrency:                             0.99      
+----------------End-to-End Latency----------------
+Mean E2E Latency (ms):                   351.76    
+Median E2E Latency (ms):                 351.76    
+P90 E2E Latency (ms):                    362.42    
+P95 E2E Latency (ms):                    363.75    
+P99 E2E Latency (ms):                    364.82    
+---------------Time to First Token----------------
+Mean TTFT (ms):                          230.78    
+Median TTFT (ms):                        230.78    
+P90 TTFT (ms):                           231.31    
+P95 TTFT (ms):                           231.38    
+P99 TTFT (ms):                           231.44    
+-----Time per Output Token (excl. 1st token)------
+Mean TPOT (ms):                          12.34     
+Median TPOT (ms):                        12.34     
+P90 TPOT (ms):                           13.30     
+P95 TPOT (ms):                           13.42     
+P99 TPOT (ms):                           13.52     
+---------------Inter-Token Latency----------------
+Mean ITL (ms):                           12.10     
+Median ITL (ms):                         9.01      
+P90 ITL (ms):                            26.27     
+P95 ITL (ms):                            26.88     
+P99 ITL (ms):                            27.64     
+Max ITL (ms):                            27.83     
+==================================================
