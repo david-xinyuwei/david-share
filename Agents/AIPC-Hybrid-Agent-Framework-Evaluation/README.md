@@ -53,6 +53,10 @@ MAF + Hyperlight host tools on Windows AIPC (screenshot, system info, CSV analys
 
 https://github.com/user-attachments/assets/c2554bf2-da92-4a32-8692-0c576d7af376
 
+<div align="center">
+  <img src="images/architecture.png" width="960" alt="Path A Architecture: MAF + Hyperlight call chain">
+</div>
+
 ### Framework Comparison
 
 | Dimension | LangChain | LangGraph | MAF |
@@ -94,6 +98,18 @@ MXC is a policy-driven execution layer for controlled Windows-native execution w
 MXC policy-driven execution: task-scoped capability policy, ProcessContainer backend, Win32 capability catalog probe:
 
 https://github.com/user-attachments/assets/581acf71-510b-489e-b3a4-af24e9977a35
+
+```mermaid
+flowchart LR
+    Q[Lenovo Qira / AIPC] --> R[Local model reasoning]
+    R --> A[Path A: MAF agent loop]
+    A --> A1[CodeAct + Hyperlight]
+    A --> A2[Host tools + cloud fallback]
+    R --> B[Path B: MXC policy]
+    B --> B1[JSON profile]
+    B1 --> B2[ProcessContainer default]
+    B1 --> B3[Hyperlight if highest risk]
+```
 
 <div align="center">
   <img src="images/slide15-mxc-definition.png" width="960" alt="MXC definition">
@@ -148,28 +164,6 @@ https://github.com/user-attachments/assets/581acf71-510b-489e-b3a4-af24e9977a35
 - Camera/fan/Android not proven
 
 ---
-
-## Composition
-
-```mermaid
-flowchart LR
-    Q[Lenovo Qira / AIPC] --> R[Local model reasoning]
-    R --> A[Path A: MAF agent loop]
-    A --> A1[CodeAct + Hyperlight]
-    A --> A2[Host tools + cloud fallback]
-    R --> B[Path B: MXC policy]
-    B --> B1[JSON profile]
-    B1 --> B2[ProcessContainer default]
-    B1 --> B3[Hyperlight if highest risk]
-```
-
----
-
-## Architecture
-
-<div align="center">
-  <img src="images/architecture.png" width="960" alt="Architecture">
-</div>
 
 ## Running on Azure
 
