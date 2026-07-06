@@ -141,18 +141,6 @@ MXC policy-driven execution: task-scoped capability policy, ProcessContainer bac
 
 https://github.com/user-attachments/assets/581acf71-510b-489e-b3a4-af24e9977a35
 
-```mermaid
-flowchart LR
-    Q[Lenovo Qira / AIPC] --> R[Local model reasoning]
-    R --> A[Path A: MAF agent loop]
-    A --> A1[CodeAct + Hyperlight]
-    A --> A2[Host tools + cloud fallback]
-    R --> B[Path B: MXC policy]
-    B --> B1[JSON profile]
-    B1 --> B2[ProcessContainer default]
-    B1 --> B3[Hyperlight if highest risk]
-```
-
 <div align="center">
   <img src="images/slide15-mxc-definition.png" width="960" alt="MXC definition">
 </div>
