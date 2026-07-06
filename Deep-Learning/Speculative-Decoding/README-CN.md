@@ -9,9 +9,8 @@
 [![SGLang](https://img.shields.io/badge/Inference-SGLang-blue.svg)](https://github.com/sgl-project/sglang)
 [![vLLM](https://img.shields.io/badge/Inference-vLLM-purple.svg)](https://github.com/vllm-project/vllm)
 [![SpecForge](https://img.shields.io/badge/Training-SpecForge-green.svg)](https://github.com/SafeAILab/SpecForge)
-[![Gemma 4](https://img.shields.io/badge/Model-Gemma_4-orange.svg)](https://huggingface.co/google/gemma-4-31B-it)
 
-Draft-and-verify 加速工程指南：用可复现 benchmark 对比 EAGLE3、自训练 draft head、原生 MTP assistant、DFlash 和 llama.cpp MTP。
+Draft-and-verify 加速工程指南：用可复现 benchmark 对比 EAGLE3、自训练 draft head、native model-family MTP、DFlash 和 llama.cpp MTP。
 
 
 ## Benchmark 环境
@@ -27,21 +26,21 @@ Draft-and-verify 加速工程指南：用可复现 benchmark 对比 EAGLE3、自
 
 ## 核心成果
 
-本项目记录多条 Speculative Decoding / draft-and-verify 路线的完整研究流程：官方 EAGLE3 验证、自训练 draft head、原生 MTP assistant，以及 DFlash/MTP serving 实验。
+本项目记录多条 Speculative Decoding / draft-and-verify 路线的完整研究流程：官方 EAGLE3 验证、自训练 draft head、native model-family MTP、GLM-5.2 的 IndexShare/KVShare MTP 设计，以及 DFlash/MTP serving 实验。
 
-| 阶段 | 模型 | 实测结果 | 测试条件 | 关键洞察 |
-|------|------|----------|----------|----------|
-| 阶段 1: 官方验证 | Llama-3.1-8B 的官方 EAGLE3 | **441.7 vs 165.7 tok/s = 2.67x** | SGLang, H100, 20 runs, 512 tokens | Feature-based EAGLE3 在低并发场景能带来明显 latency 收益 |
-| 阶段 2: 自训练 | 自定义 EAGLE3 draft head | **207.7 vs 159.8 tok/s = 1.30x**（代码任务） | 单张 H100，45 分钟训练 | 极短训练也能产生有效加速，但强依赖任务分布 |
-| 阶段 3: 原生 MTP | Gemma 4 31B + Gemma 4 assistant | **80.2 vs 46.3 tok/s = 1.73x** | vLLM, H100, 3 类 prompt，每类 5 次实测 | 不训练 draft head，也能靠官方 assistant drafter 获得稳定加速 |
-
-最新补充的是阶段 3。Google 在 Gemma 4 assistant model card 中把这些 checkpoint 描述为 "Multi-Token Prediction (MTP) drafters"，并说明它们通过 "a smaller, faster draft model" 预测后续 token，再由 target model 并行验证，可在保证标准生成质量的前提下带来 "up to 3x" 的 speedup。来源：[Gemma 4 31B assistant model card](https://huggingface.co/google/gemma-4-31B-it-assistant)，检查日期：2026-05-16。
+| 主题 | 本 repo 覆盖什么 | 证据 / 来源 | 关键洞察 |
+|------|----------------|-------------|----------|
+| EAGLE3 官方验证 | Llama-3.1-8B 的官方 EAGLE3 draft model | **441.7 vs 165.7 tok/s = 2.67x**，SGLang，H100，20 runs | Feature-based draft head 在低并发场景能带来明显 latency 收益 |
+| 自训练 draft head | 单卡训练自定义 EAGLE3 draft head | **207.7 vs 159.8 tok/s = 1.30x**（代码任务），45 分钟训练 | 极短训练也能产生有效加速，但强依赖任务分布 |
+| Native model-family MTP | Qwen3.6 / DeepSeek-style MTP patterns，以及 GLM-5.2 的单层 MTP + IndexShare/KVShare | GLM-5.2 官方 config + blog：`num_nextn_predict_layers=1`、shared MTP parameters、acceptance length **4.56 → 5.47 (+20%)** | Native MTP 不是一种固定 recipe；KVShare / IndexShare 这类 serving 架构细节很关键 |
+| DFlash vs native MTP serving | Qwen3.6 native MTP、DFlash、llama.cpp MTP 的 H100 benchmark | Repo JSON/logs：测试口径下 DFlash coding **191.7 tok/s** vs native MTP **146.7 tok/s** | DFlash 在长输出 single-stream 测试中更快，但结论受 spec tokens、backend、precision 和 workload 影响 |
+| Simulated acceptance | `SGLANG_SIMULATE_ACC_LEN=3` 在 4-token draft window 下的含义 | 公式：`accept_rate = 3 / 4 = 0.75`；README 中有 token timeline 例子 | simulated acceptance 是 runtime 诊断设置，不是真实模型质量证明 |
 
 **为什么 45 分钟训练达到 1.30x 加速很有意义？**
 - 官方模型需要在 8x A100/H100 上训练数天
 - 我们用单卡 45 分钟就达到了官方效果的 ~50%
 - 证明了 EAGLE3 的样本效率 - 极少计算量即可获得有效加速
-- Gemma 4 MTP 则给出另一条路：不自己训练 draft head，直接使用官方发布的 assistant drafter
+- GLM-5.2 和 Qwen3.6 说明 native MTP 需要按 model family 具体分析；同样是 `num_nextn_predict_layers=1`，serving 架构不同，acceptance 表现也会不同。
 
 ---
 
@@ -194,16 +193,14 @@ Target model **在单次 forward pass 中验证所有分支**，接受最长匹�
 | 家族 | Drafter 到底是什么 | 什么时候产生 | 部署时怎么挂上去 | 实测额外显存 | 优势 | 风险 |
 |------|-------------------|--------------|------------------|----------------|------|------|
 | **EAGLE3** | 读取 target model 多层 hidden features 的训练后 draft head/model | target model 固定后再训练，可以是官方训练，也可以自己训练 | 作为额外 draft model/head 和 target model 一起加载 | Phase 1 SGLang 日志显示 draft model +2.21 GiB | 官方 draft model 可用时 speedup 很高；也可以自训练 | 训练数据质量和任务分布很关键，draft 数据差会拖慢部分任务 |
-| **Gemma 4 MTP** | Google 发布的 MTP assistant checkpoint（~0.5B 参数，4 层 drafter）；它使用 target model activations 和共享 KV-cache 来提高 draft 质量（来源：[Google MTP docs](https://ai.google.dev/gemma/docs/mtp/mtp)） | Google 作为官方 assistant checkpoint 发布，本 repo 不训练它 | 作为额外 assistant/drafter model 加载；共享 target embedding 权重并映射到 target layers（vLLM 日志：draft layers mapped to target layers 58/59） | assistant 权重 +0.87 GiB；本次 vLLM run 的 KV cache 预算 -4.86 GiB | 不需要本地训练；本次 H100 实测稳定 1.73x | serving stack 必须支持 assistant 架构；本次 vLLM 需要 config shim |
 | **DFlash** | 读取 target context features 的 block diffusion drafter checkpoint，一次 forward 并行草拟一个 token block（来源：[DFlash project](https://z-lab.ai/projects/dflash/) 和 [arXiv:2602.06036](https://arxiv.org/abs/2602.06036)） | 针对某个 target model family/checkpoint 单独训练；公开 checkpoint 发布在 `z-lab/*-DFlash` | 在支持 DFlash 的 serving stack 中作为 draft model 加载，例如 SGLang 或带 DFlash 支持的 vLLM build | 本 repo 未实测 | draft 阶段本身从顺序生成变成 block 并行生成；官方 checkpoint 和 engine 支持齐全时很有潜力 | 更吃显存和 engine 版本；block size、context length、任务分布都必须 benchmark |
-| **Native model-family MTP** | 随 target model family 一起打包的 MTP heads/modules，有时表现为同一 model directory 内的单独 MTP 权重 | release-specific，作为 model-family 设计的一部分训练 | 通过该 model family 的原生 inference stack 或 model-directory 约定加载，而不是使用独立 assistant 路径 | 本 repo 未实测 | MTP 成为 model-family serving design 的一部分，而不是事后外挂 | 具体实现随 release 变化，不能照搬 EAGLE/Gemma 的启动参数 |
+| **Native model-family MTP** | 随 target model family 一起打包的 MTP heads/modules，有时表现为同一 model directory 内的单独 MTP 权重 | release-specific，作为 model-family 设计的一部分训练 | 通过该 model family 的原生 inference stack 或 model-directory 约定加载，而不是使用独立 assistant 路径 | 本 repo 未实测 | MTP 成为 model-family serving design 的一部分，而不是事后外挂 | 具体实现随 release 变化，不能照搬 EAGLE flags 或其他 model family 的 assistant-loading 约定 |
 
 这里的 “drafter” 不能统一理解成“旁边外挂一个完整 LLM”。不同路线的权重形态不一样：
 
 | 家族 | Drafter 有没有自己的权重？ | 是不是能替代 target 的完整模型？ | 推荐写法 |
 |------|----------------------------|-------------------------------|----------|
 | **EAGLE3** | 有，但它是单独的 draft-model/head 权重，不是完整 target model 权重副本 | 不是 | separate draft-model weights, not full target-model weights |
-| **Gemma 4 MTP** | 有。Google 单独发布 assistant drafter checkpoint | 不是 | separate assistant drafter checkpoint |
 | **DFlash** | 有。Z-Lab 针对特定 target 发布单独 DFlash draft checkpoint | 不是 | target-conditioned block diffusion draft checkpoint |
 | **Native model-family MTP** | 随 release 而定。有些 model family 把 MTP 表现为 checkpoint 内部的 native heads/modules，也可能以同目录 MTP 权重形式打包 | 不是 | 随 model family 一起打包的 native MTP weights，不是完整 target model 副本 |
 
@@ -222,19 +219,8 @@ flowchart LR
         E3T --> E3V
     end
 
-    subgraph G4["Gemma 4 MTP<br/>官方 assistant checkpoint"]
-        G4T["Target model<br/>google/gemma-4-31B-it"]
-        G4A["Target activations<br/>和 KV-cache"]
-        G4D["Assistant drafter 0.5B<br/>google/gemma-4-31B-it-assistant<br/>使用 target activations"]
-        G4V["Target 并行验证<br/>assistant draft"]
-        G4T --> G4A
-        G4A --> G4D
-        G4D --> G4V
-        G4T --> G4V
-    end
-
     subgraph DF["DFlash<br/>block diffusion drafter"]
-        DFT["Target model<br/>如 Qwen3.x 或 Gemma 4"]
+        DFT["Target model<br/>如 Qwen3.x"]
         DFF["Target context features<br/>从选定层融合"]
         DFD["DFlash drafter<br/>单独 checkpoint<br/>block diffusion"]
         DFV["Target 并行验证<br/>draft block"]
@@ -265,34 +251,34 @@ flowchart LR
     classDef target fill:#eef6ff,stroke:#1f6feb,color:#0b1f3a
     classDef drafter fill:#fff7e6,stroke:#d97706,color:#3b2500
     classDef verify fill:#ecfdf5,stroke:#059669,color:#042f2e
-    class E3T,G4T,DFT,DST,NMT target
-    class E3D,G4D,DFD,DSH,NMD drafter
-    class E3V,G4V,DFV,DSV,NMV verify
+    class E3T,DFT,DST,NMT target
+    class E3D,DFD,DSH,NMD drafter
+    class E3V,DFV,DSV,NMV verify
 ```
 
 ### 深度对比：每种 Drafter 到底怎么工作
 
-| 维度 | Classic Speculative Decoding | EAGLE3 | Gemma 4 MTP | DFlash | Native model-family MTP |
-|------|------------------------------|--------|-------------|--------|---------------------|
-| Drafter 读 target 哪里 | 不读；一个独立的小 LM 完全独立推理 | 读 3 个中间层的 hidden states（Llama 8B 的第 2/16/29 层） | 读最后几层的 target activations + 共享 KV-cache（Gemma 31B 的第 58/59 层） | 读取并融合 target context features，并注入 draft layers 的 KV cache | MTP heads 直接从 model forward path 分支出来 |
-| Drafter 多大 | 一个完整的小 LM（如 68M Llama-68M） | ~223M 参数，1 个 decoder 层 | ~0.5B 参数，4 个 decoder 层 | 轻量 block diffusion checkpoint；大小随 target 而变，本 repo 未实测 | model checkpoint 内部的原生 MTP modules |
-| Draft 方式 | autoregressive draft LM | autoregressive draft head/model | autoregressive assistant drafter | block diffusion，一次 forward 并行草拟一个 token block | 模型家族内部的 future-token prediction path |
-| 能不能自己训练 | 拿现成的小 LM 直接用，不需要专门训练 | 能（SpecForge，单卡 45 分钟） | 不能，只能用 Google 发布的 | 需要 target-specific DFlash 训练 recipe/checkpoint；本 repo 未训练 | 不能，模型厂商在 pre-training 时做好了 |
-| 微调 target 后怎么办 | Drafter 独立，仍然能用，但 acceptance rate 可能降低（输出分布偏移） | 重新训练 draft head 来适配新分布 | 只能赌原 assistant 还能用，不能自己重训（推测，本 repo 未实测） | 需要重新验证或重训 DFlash checkpoint；target feature 分布变化会影响接受率 | Native MTP modules 属于 model family 的一部分，微调和 serving 支持需要一起验证 |
-| 换一个 target model | 直接换小 LM，不依赖 target 内部结构 | 重新训练一个新的 draft head | 不行，assistant 只配对应的 Gemma family | 不能假设复用；要换成针对该 target 的 DFlash checkpoint | 不适用，MTP modules 和模型不可分离 |
-| Serving stack | 任何支持 assisted generation 的框架 | SGLang 原生 EAGLE3 支持，一行参数 | vLLM speculative-config；本次测试需要 config shim | 需要 DFlash-aware SGLang / vLLM build；engine 版本很关键 | 取决于模型厂商自己的 inference stack |
-| 和 target 的耦合度 | 无（最松） | 紧（读中间层 hidden states） | 紧（读最后几层 activations + 共享 KV-cache） | 紧（读取 target features，但仍是外置 checkpoint） | 最紧（原生模块内置在模型里） |
+| 维度 | Classic Speculative Decoding | EAGLE3 | DFlash | Native model-family MTP |
+|------|------------------------------|--------|--------|---------------------|
+| Drafter 读 target 哪里 | 不读；一个独立的小 LM 完全独立推理 | 读 3 个中间层的 hidden states（Llama 8B 的第 2/16/29 层） | 读取并融合 target context features，并注入 draft layers 的 KV cache | MTP heads 直接从 model forward path 分支出来 |
+| Drafter 多大 | 一个完整的小 LM（如 68M Llama-68M） | ~223M 参数，1 个 decoder 层 | 轻量 block diffusion checkpoint；大小随 target 而变，本 repo 未实测 | model checkpoint 内部的原生 MTP modules |
+| Draft 方式 | autoregressive draft LM | autoregressive draft head/model | block diffusion，一次 forward 并行草拟一个 token block | 模型家族内部的 future-token prediction path |
+| 能不能自己训练 | 拿现成的小 LM 直接用，不需要专门训练 | 能（SpecForge，单卡 45 分钟） | 需要 target-specific DFlash 训练 recipe/checkpoint；本 repo 未训练 | 不能，模型厂商在 pre-training 时做好了 |
+| 微调 target 后怎么办 | Drafter 独立，仍然能用，但 acceptance rate 可能降低（输出分布偏移） | 重新训练 draft head 来适配新分布 | 需要重新验证或重训 DFlash checkpoint；target feature 分布变化会影响接受率 | Native MTP modules 属于 model family 的一部分，微调和 serving 支持需要一起验证 |
+| 换一个 target model | 直接换小 LM，不依赖 target 内部结构 | 重新训练一个新的 draft head | 不能假设复用；要换成针对该 target 的 DFlash checkpoint | 不适用，MTP modules 和模型不可分离 |
+| Serving stack | 任何支持 assisted generation 的框架 | SGLang 原生 EAGLE3 支持，一行参数 | 需要 DFlash-aware SGLang / vLLM build；engine 版本很关键 | 取决于模型厂商自己的 inference stack |
+| 和 target 的耦合度 | 无（最松） | 紧（读中间层 hidden states） | 紧（读取 target features，但仍是外置 checkpoint） | 最紧（原生模块内置在模型里） |
 
 ### 算法理念：后装路线 vs 原生路线
 
-EAGLE3、Gemma/DeepSeek MTP 和 DFlash 代表不同的设计理念，不是简单的“新 vs 旧”：
+EAGLE3、native MTP 和 DFlash 代表不同的设计理念，不是简单的“新 vs 旧”：
 
-| 维度 | EAGLE3（后装） | Gemma 4 MTP（混合） | DFlash（外置 block diffusion） | Native model-family MTP |
-|------|----------------|---------------------|-------------------------------|-------------------------|
-| 核心问题 | target 已经固定，怎么事后造一个最好的 drafter？ | 和 target 一起训练，但拆成独立 checkpoint 发布 | 能不能让外置 drafter 一次并行草拟一整块 token，去掉 draft 阶段的顺序瓶颈？ | 把 MTP 做进 pre-training objective 本身 |
-| 关键创新 | 解决了 train-test gap：训练时用 drafter 自己的预测特征而不是 ground truth 特征，让训练和推理一致（EAGLE-3, NeurIPS 2025） | activation sharing + KV-cache 复用 | target feature fusion + KV injection + block diffusion parallel drafting | MTP 作为 training objective，不只是 inference trick；可能还改善 pre-training 的表征学习 |
-| 学术记录 | EAGLE (ICML 2024)、EAGLE-2 (EMNLP 2024)、EAGLE-3 (NeurIPS 2025) | 只有 model card，没有独立 MTP 论文 | DFlash paper: arXiv:2602.06036, ICML 2026 | DeepSeek-V2/V3 论文；GLM-5.2：IndexShare（[arXiv:2603.12201](https://arxiv.org/abs/2603.12201)）+ KVShare + rejection sampling + end-to-end TV loss for MTP |
-| 产业趋势 | 通用后装：任何 target model 都能用 | 中间地带：co-trained 但单独部署 | 新的外置 drafter 路线：依赖 target features，但 draft 是 block-parallel | 前沿方向：越来越多厂商在训练时内置 MTP；GLM-5.2 说明 shared-parameter MTP 也能通过阻止 MTP 自己生成的 KV 污染后续 steps 来提升 acceptance |
+| 维度 | EAGLE3（后装） | DFlash（外置 block diffusion） | Native model-family MTP |
+|------|----------------|-------------------------------|-------------------------|
+| 核心问题 | target 已经固定，怎么事后造一个最好的 drafter？ | 能不能让外置 drafter 一次并行草拟一整块 token，去掉 draft 阶段的顺序瓶颈？ | 把 MTP 做进 pre-training objective 本身 |
+| 关键创新 | 解决了 train-test gap：训练时用 drafter 自己的预测特征而不是 ground truth 特征，让训练和推理一致（EAGLE-3, NeurIPS 2025） | target feature fusion + KV injection + block diffusion parallel drafting | MTP 作为 training objective；GLM-5.2 进一步使用 IndexShare/KVShare，防止 MTP 自己生成的 KV 污染后续 draft steps |
+| 学术记录 | EAGLE (ICML 2024)、EAGLE-2 (EMNLP 2024)、EAGLE-3 (NeurIPS 2025) | DFlash paper: arXiv:2602.06036, ICML 2026 | DeepSeek-V2/V3 论文；GLM-5.2：IndexShare（[arXiv:2603.12201](https://arxiv.org/abs/2603.12201)）+ KVShare + rejection sampling + end-to-end TV loss for MTP |
+| 产业趋势 | 通用后装：任何 target model 都能用 | 新的外置 drafter 路线：依赖 target features，但 draft 是 block-parallel | 前沿方向：越来越多厂商在训练时内置 MTP；GLM-5.2 说明 shared-parameter MTP 也能通过阻止 MTP 自己生成的 KV 污染后续 steps 来提升 acceptance |
 
 两条路线会长期共存。后装 drafter（EAGLE3）在你需要加速一个已有的、不能重训的 target model 时仍然不可替代。Native model-family MTP 是新 model family 的设计方向。
 
@@ -300,16 +286,14 @@ EAGLE3、Gemma/DeepSeek MTP 和 DFlash 代表不同的设计理念，不是简�
 
 | 场景 | 推荐 | 原因 |
 |------|------|------|
-| 快速 PoC，用 Gemma，不想训练 | **Gemma 4 MTP** | 零成本、稳定 1.73x、下载就能用 |
-| 追求最高加速比 | **EAGLE3** | 实测 2.67x vs 1.73x |
+| 追求最高加速比 | **EAGLE3** | 本 repo 低并发验证中实测 2.67x |
 | 官方 DFlash checkpoint 存在，且 serving engine 支持 | **DFlash** | draft 阶段本身变成 block 并行；必须在自己的 workload 上验证显存、block size 和 acceptance rate |
 | 会微调 target model | **EAGLE3** | 可以重新训练 draft head 适配微调后的 target |
-| 用非 Gemma 模型（Llama/Qwen 等） | **EAGLE3** | Gemma assistant 只配 Gemma family |
 | 模型厂商自带原生 MTP | **用厂商的 MTP** | 不需要额外部署，已经内置 |
 | 长上下文或显存紧张服务 | **先 benchmark 再启用 DFlash** | DFlash 会增加 draft 权重和 engine-specific path；block 太大、acceptance 低时会浪费算力 |
 | 长期生产、不依赖单一厂商 | **EAGLE3** | 社区驱动（SafeAI Lab），不依赖厂商发布 assistant |
 
-一句话：EAGLE3 要管理 feature-based draft head（读多个中间层 hidden states）；Gemma 4 MTP 给你官方 assistant model（读 target activations + 共享 KV-cache）；DFlash 给你一个 target-conditioned diffusion drafter，一次 forward 并行草拟一个 token block；Native model-family MTP 则把 draft 机制更深地放进 model family 作为原生模块。四者都以不同方式读取或依赖 target 内部信息，区别在于 drafter 怎么打包、怎么 draft、和 serving stack 绑定多深。它们都属于 Speculative Decoding，但部署方法不能混用。
+一句话：EAGLE3 要管理 feature-based draft head（读多个中间层 hidden states）；DFlash 给你一个 target-conditioned diffusion drafter，一次 forward 并行草拟一个 token block；Native model-family MTP 则把 draft 机制更深地放进 model family 作为原生模块。这些路线都以不同方式读取或依赖 target 内部信息，区别在于 drafter 怎么打包、怎么 draft、和 serving stack 绑定多深。它们都属于 Speculative Decoding，但部署方法不能混用。
 
 ### 实用 Benchmark 矩阵：Qwen3.6 上的 DFlash vs MTP
 
@@ -1020,104 +1004,70 @@ Baseline:     2.843s | 512 tokens | 180.2 tok/s
 
 ---
 
-## 阶段 3：Gemma 4 原生 MTP Assistant Benchmark
+## 阶段 3：Native MTP 与 DFlash Serving 实验
 
-Gemma 4 给出了另一条 Speculative Decoding 路线：不训练 EAGLE-style draft head，而是直接使用官方 assistant drafter。最直接地说：这个 assistant 是 Google 发布的真实 checkpoint，不是本 repo 在推理时临时加的小脚本，也不是随便找一个小模型来模仿 target。Gemma 4 assistant model card 写明，`google/gemma-4-31B-it-assistant` 是 Gemma 4 的 Multi-Token Prediction drafter，并给出了 Transformers 中 `assistant_model=assistant_model` 的使用方式。来源：[Gemma 4 assistant model card](https://huggingface.co/google/gemma-4-31B-it-assistant)，检查日期：2026-05-16。
+这一阶段讨论 model-family MTP 和 DFlash-style serving，不再使用外部模型厂商的 assistant checkpoint 作为案例。
 
-从部署角度看，它就是额外挂在 target model 旁边的 drafter model。target model 仍然是 `google/gemma-4-31B-it`；assistant 负责提前猜后续 token，target 负责并行验证。从训练角度看，本 repo 没有训练这个 assistant，而是直接使用 Google 已发布的 `google/gemma-4-31B-it-assistant` 官方 checkpoint。
+这里有两个问题：
 
-### 测试设置
+1. **怎么看懂模型 config 里的 native MTP？**
+2. **native MTP、DFlash、llama.cpp MTP 在真实 serving benchmark 中表现如何？**
 
-| 项目 | 值 |
-|------|----|
-| Target model | `google/gemma-4-31B-it` |
-| Assistant model | `google/gemma-4-31B-it-assistant` |
-| Assistant 到底是什么 | 官方 MTP drafter checkpoint；同 family 的小型 drafter model，不是替代 target 的独立聊天模型 |
-| 谁训练它 | Google 发布；本 repo 只在 serving 时加载使用 |
-| 怎么挂上去 | 通过 vLLM speculative decoding config，作为额外 drafter 和 target model 一起加载 |
-| GPU | NVIDIA H100 NVL, 95,830 MiB |
-| Runtime | vLLM 0.21.0, Torch 2.11.0, Transformers 5.7.0 |
-| Prompt 组 | code, reasoning, qa |
-| Runs | 每组 2 次 warmup + 5 次 measured run |
-| 生成参数 | `max_tokens=512`, `temperature=0` |
-| 指标 | `response.usage.completion_tokens / elapsed_seconds` |
-| 原始数据 | `data/gemma4_mtp_h100_baseline.json`, `data/gemma4_mtp_h100_mtp.json` |
+### Native MTP：不要只看一个 flag，要看 model family 设计
 
-### vLLM MTP 启动方式
+`num_nextn_predict_layers=1` 这种 config 字段只能告诉我们：模型有一个 native next-token prediction layer。它不能告诉我们 serving stack 如何在多个 draft steps 中复用这一层。
+
+GLM-5.2 是一个很好的公开例子。它的 HF config 写着 `num_nextn_predict_layers=1` 和 `model_type=glm_moe_dsa`。但官方 GLM-5.2 blog 又补上了真正关键的 serving 细节：不同 MTP steps 共享参数，训练和推理都设置 7 个 MTP steps，并用 IndexShare / KVShare 防止后续 draft steps 混入 MTP 自己生成的 KV。在官方 coding ablation 中，acceptance length 从 **4.56** 提升到 **5.47 (+20%)**。
+
+这个结论很重要：native MTP 不能只看“几层”。还要看这个 model family 如何处理参数共享、KV cache、index 复用和 train-inference discrepancy。
+
+### H100 Serving Benchmark：Native MTP vs DFlash vs llama.cpp MTP
+
+本 repo 在 NVIDIA H100 NVL 96GB 上测试了单请求 latency 和 generation TPS。vLLM 路线使用 `Qwen/Qwen3.6-27B` bf16；llama.cpp 路线使用 `unsloth/Qwen3.6-27B-MTP-GGUF:UD-Q4_K_XL`。测试覆盖 Coding、Math、Chat 三类任务，每类 warmup 1 次、正式运行 3 次，报告中位数。API 使用 non-streaming 模式，TPS = `usage.completion_tokens / total_time`。
+
+| Route | Backend | Quant | Spec Tokens | Domain | Med Total (s) | Med TPS |
+|-------|---------|-------|:-----------:|--------|:-------------:|:-------:|
+| **vLLM native MTP** | vLLM 0.21.0 | bf16 | 5 | Coding | 3.49 | **146.7** |
+| | | | | Math | 1.51 | **169.1** |
+| | | | | Chat | 1.65 | **155.4** |
+| **vLLM DFlash** | vLLM 0.21.0 | bf16 | 15 | Coding | 2.67 | **191.7** |
+| | | | | Math | 1.32 | **193.5** |
+| | | | | Chat | 1.64 | **156.1** |
+| **llama.cpp MTP** | llama.cpp (CUDA) | Q4_K_XL | 5 | Coding | 4.77 | **107.3** |
+| | | | | Math | 2.15 | **118.9** |
+| | | | | Chat | 2.48 | **103.1** |
+
+### 这一阶段得到什么结论
+
+1. **Native MTP 必须按 model family 具体分析。** GLM-5.2 说明 config 字段、MTP step count、IndexShare、KVShare 和训练 loss 要合在一起看。
+2. **DFlash 在本次 H100 single-stream 测试中更快。** Coding 场景下，15 spec tokens 的 DFlash 是 191.7 TPS，5 spec tokens 的 native MTP 是 146.7 TPS。
+3. **这不是完全控制变量的算法排名。** DFlash 用 15 个 speculative tokens，native MTP 用 5 个。这是工程结果，不是普遍结论。
+4. **llama.cpp MTP 是另一种产品形态。** Q4_K_XL 路线适合 compact local serving，但没有质量检查时不能直接和 bf16/vLLM 公平对比。
+
+### 复现 H100 三条路线
 
 ```bash
-python3 -u -m vllm.entrypoints.openai.api_server \
-    --model google/gemma-4-31B-it \
-    --dtype auto \
-    --host 0.0.0.0 \
-    --port 8000 \
-    --max-model-len 4096 \
-    --gpu-memory-utilization 0.92 \
-    --moe-backend triton \
-    --no-enable-log-requests \
-    --speculative-config '{"model":"/path/to/gemma4-31B-it-assistant-vllm","method":"mtp","num_speculative_tokens":1}'
+# Route 1 — vLLM native MTP
+VLLM_DEEP_GEMM_WARMUP=skip MAX_NUM_SEQS=256 bash scripts/mtp_vllm_qwen36_mtp_launch.sh
+python3 scripts/mtp_benchmark_client.py --base-url http://127.0.0.1:8000   --label vllm-native-mtp --runs 3 --warmup 1 --no-stream --output results_mtp.json
+
+# Route 2 — vLLM DFlash
+VLLM_DEEP_GEMM_WARMUP=skip MAX_MODEL_LEN=252000 MAX_NUM_SEQS=256   bash scripts/mtp_vllm_qwen36_dflash_launch.sh
+python3 scripts/mtp_benchmark_client.py --base-url http://127.0.0.1:8000   --label vllm-dflash --runs 3 --warmup 1 --no-stream --output results_dflash.json
+
+# Route 3 — llama.cpp MTP GGUF
+bash scripts/mtp_llamacpp_qwen36_mtp_launch.sh
+python3 scripts/mtp_benchmark_client.py --base-url http://127.0.0.1:8080   --label llamacpp-mtp-q4kxl --runs 3 --warmup 1 --no-stream --output results_llamacpp.json
 ```
 
-这次环境里，vLLM 0.21 已经有 Gemma4 MTP model 代码，但 Transformers/vLLM 的 config registry 没有正确解析 assistant config。因此 benchmark 使用了一个很小的本地 config shim，让 assistant 能加载成 `Gemma4MTPModel`。这是环境兼容性说明，不是 Gemma 4 MTP 模型本身的要求。
+归档证据：
 
-### 实测结果
-
-| Prompt | Baseline tok/s | MTP tok/s | Speedup | Assistant 显存增量 | MTP std |
-|--------|---------------:|----------:|--------:|--------------------:|--------:|
-| code | 46.5 | 82.1 | **1.77x** | +0.87 GiB weights | 0.2 |
-| reasoning | 46.3 | 78.9 | **1.70x** | +0.87 GiB weights | 0.1 |
-| qa | 46.2 | 79.7 | **1.73x** | +0.87 GiB weights | 0.0 |
-| overall | 46.3 | 80.2 | **1.73x** | +0.87 GiB weights | - |
-
-显存说明来自 vLLM 日志：baseline model loading 使用 58.99 GiB，target+MTP drafter loading 使用 59.86 GiB，所以 assistant 权重增量是 +0.87 GiB。在相同 `--gpu-memory-utilization=0.92` 下，可用 KV cache memory 从 21.70 GiB 降到 16.84 GiB，因此 MTP run 的 serving KV cache 预算少 4.86 GiB。
-
-vLLM 运行日志里还能看到 Speculative Decoding acceptance metrics：
-
-| 指标 | 数值 |
+| 类型 | 文件 |
 |------|------|
-| Avg Draft acceptance rate | 83.2% 到 91.0%，均值 87.8% |
-| Mean acceptance length | 1.83 到 1.91，均值 1.88 |
-
-### 结果解读
-
-Gemma 4 MTP 不是随便拿一个小模型做便宜 imitation。它是一个 0.5B 参数、4 层的同 family drafter，使用 target model activations 和共享 KV-cache 来提高 draft 质量（来源：[Google MTP docs](https://ai.google.dev/gemma/docs/mtp/mtp)）。我们的 vLLM 日志确认：assistant 共享 target embedding 权重，并把 draft layers 映射到 target 的第 58/59 层。本次测试里 target 接受了大约 88% 的 drafted positions，这也是 code、reasoning、Q&A 三类 prompt 都能稳定加速的原因。
-
-这个结果低于阶段 1 的官方 EAGLE3 2.67x，但它不需要本地训练 draft head，而且 target model 是更大的 31B。相比阶段 2 的自训练 EAGLE3，它也更稳定：阶段 2 在 code 上加速，但 creative writing 会因为 high entropy output 变慢。
-
-### 外部交叉验证：Qwen3.6 / Qwen3.5 / Gemma 4 31B
-
-在本 repo 的 H100 实测之后，我们又看了一篇第三方对比文章：The Kaitchup 的 **"Qwen3.6 27B vs Qwen3.5 27B vs Gemma 4 31B: Accuracy, Latency, Memory, and Token Efficiency Tested"**，作者 Benjamin Marie，发布时间 2026 年 5 月。来源类型：本地归档的截图型 PDF；PDF 解析后主要是图片页，因此下面只作为外部方向性证据，不当作本 repo 自有原始数据。
-
-这篇文章最有价值的点不是“Gemma 每个 benchmark 都赢”。更准确地说：Gemma 4 31B 在 **token efficiency 和 latency** 上很强，而 Qwen3.5/Qwen3.6 经常需要更多 generated tokens 才能达到接近的 accuracy。
-
-| 维度 | 第三方对比给出的信号 | 对本 repo 的意义 |
-|------|----------------------|------------------|
-| Accuracy | 没有一个模型通吃所有任务；Qwen3.6、Qwen3.5、Gemma 4 各有优势任务 | 不能只按 leaderboard accuracy 选模型 |
-| Token efficiency | generated-token 图显示，Qwen3.x 在多个 reasoning/code 任务上经常比 Gemma 4 生成更多 token | 输出 token 越多，latency 和 serving cost 越高 |
-| Latency | 文章里 Gemma 4 31B 在多组默认生成设置下更快，主要因为输出 token 更少 | token 数本身就是部署指标，不是附属指标 |
-| MTP throughput | MTP 图里 Gemma 4 31B 约 **59.0 tok/s**，Qwen3.5 27B 约 **41.2 tok/s**，Qwen3.6 27B 约 **40.5 tok/s** | 从外部角度支撑 Gemma 4 MTP 的工程价值 |
-| Memory / concurrency | 同样的大显存 GPU 预算下，31B Gemma 的最大并发低于 27B Qwen | Gemma 的 latency 优势要和显存余量一起看 |
-| Benchmark affinity | CoDeC 图把 `>40` 标为 benchmark affinity；Qwen3.x 在若干 benchmark 上接近或超过这个阈值 | 解读 accuracy 时要考虑 benchmark affinity / contamination 风险 |
-
-这个外部对照和我们自己的 Phase 3 结论方向一致：Gemma 4 MTP 不只是机制好看，它确实可能是一条低延迟路线。但最终选型仍然取决于 workload。如果最大并发和显存余量最重要，27B 级模型可能更合适；如果单次回答 latency 和 token efficiency 更重要，Gemma 4 31B 值得认真评估。
-
-### 复现实验
-
-启动 baseline vLLM server 或 MTP vLLM server 后运行：
-
-```bash
-python scripts/gemma4_mtp_benchmark.py \
-    --label mtp \
-    --model google/gemma-4-31B-it \
-    --num-runs 5 \
-    --warmup-runs 2 \
-    --max-tokens 512 \
-    --temperature 0 \
-    --timeout 300 \
-    --output data/gemma4_mtp_h100_mtp.json
-```
-
-Target-only baseline 使用 `--label baseline --output data/gemma4_mtp_h100_baseline.json`。
+| Benchmark raw JSON | `data/h100_vllm_native_mtp.json`, `data/h100_vllm_dflash.json`, `data/h100_llamacpp_mtp_q4kxl.json` |
+| Server startup logs | `logs/h100_vllm_native_mtp_startup.log`, `logs/h100_vllm_dflash_startup.log`, `logs/h100_llamacpp_mtp_startup.log` |
+| Benchmark client | `scripts/mtp_benchmark_client.py` |
+| Orchestrator | `scripts/mtp_benchmark_orchestrator.sh` |
 
 ---
 
@@ -1210,8 +1160,6 @@ speculative-decoding/
 ├── README-CN.md
 ├── requirements.txt
 ├── data/
-│   ├── gemma4_mtp_h100_baseline.json
-│   ├── gemma4_mtp_h100_mtp.json
 │   ├── h100_vllm_native_mtp.json
 │   ├── h100_vllm_dflash.json
 │   └── h100_llamacpp_mtp_q4kxl.json
@@ -1227,7 +1175,6 @@ speculative-decoding/
 │   └── h100_llamacpp_mtp_startup.log
 ├── scripts/
 │   ├── deploy_server.sh
-│   ├── gemma4_mtp_benchmark.py
 │   ├── mtp_benchmark_client.py
 │   ├── mtp_benchmark_orchestrator.sh
 │   ├── mtp_vllm_qwen36_mtp_launch.sh
@@ -1272,9 +1219,6 @@ EAGLE (Extrapolation Algorithm for Greater Language-model Efficiency) 由以下�
 | 官方仓库 | [SafeAILab/EAGLE](https://github.com/SafeAILab/EAGLE) |
 | 训练框架 | [SafeAILab/SpecForge](https://github.com/SafeAILab/SpecForge) |
 | 推理引擎 | [sgl-project/sglang](https://github.com/sgl-project/sglang) |
-| Gemma 4 31B Target | [google/gemma-4-31B-it](https://huggingface.co/google/gemma-4-31B-it) |
-| Gemma 4 MTP Assistant | [google/gemma-4-31B-it-assistant](https://huggingface.co/google/gemma-4-31B-it-assistant) |
-| Gemma MTP 文档 | [Google AI for Developers: MTP](https://ai.google.dev/gemma/docs/mtp/mtp) |
 | DFlash 论文 | [arXiv:2602.06036](https://arxiv.org/abs/2602.06036) |
 | DFlash 项目页 | [Z-Lab: DFlash](https://z-lab.ai/projects/dflash/) |
 | DFlash 代码与模型 | [z-lab/dflash](https://github.com/z-lab/dflash) |
@@ -1288,7 +1232,7 @@ EAGLE (Extrapolation Algorithm for Greater Language-model Efficiency) 由以下�
 
 ## Speculative Decoding 何时真正有效？
 
-理解 Speculative Decoding 何时能带来真正收益对生产部署至关重要。下面的并发分析使用的是 EAGLE3 数据，但相同原理适用于所有 draft-and-verify 路线（Gemma MTP、DFlash、DeepSeek MTP 等）：speculative decoding 在 GPU 未充分利用时效果最好。基于实证分析 ([Benjamin Marie](https://kaitchup.substack.com/p/eagle-3-speculators-when-to-use-them))：
+理解 Speculative Decoding 何时能带来真正收益对生产部署至关重要。下面的并发分析使用的是 EAGLE3 数据，但相同原理适用于 DFlash、native model-family MTP 等 draft-and-verify 路线：speculative decoding 在 GPU 未充分利用时效果最好。基于实证分析 ([Benjamin Marie](https://kaitchup.substack.com/p/eagle-3-speculators-when-to-use-them))：
 
 ### 高并发 (Continuous Batching) - ❌ 收益有限
 
@@ -1330,9 +1274,9 @@ EAGLE (Extrapolation Algorithm for Greater Language-model Efficiency) 由以下�
 
 1. 先验证再训练：官方模型确认 2.67x 加速可行
 2. 极短训练有效：45 分钟 → 1.30x 加速，用 <1% 计算量
-3. 原生 MTP 也有效：Gemma 4 31B + assistant 不做本地训练，实测 1.73x
+3. Native MTP 必须按 model family 具体分析：GLM-5.2 说明 shared MTP parameters、IndexShare 和 KVShare 会影响 acceptance length
 4. 任务相关性很强：自训练 EAGLE3 在代码任务收益最大，high entropy creative writing 可能变慢
-5. Serving stack 很关键：EAGLE3 在 SGLang 路径最顺，Gemma 4 MTP 在 vLLM 中需要 assistant config shim
+5. Serving stack 很关键：EAGLE3 在 SGLang 路径最顺，DFlash 和 native MTP 的表现取决于 engine 支持、context length 和 speculative window 设置
 
 ---
 
@@ -1355,7 +1299,7 @@ EAGLE (Extrapolation Algorithm for Greater Language-model Efficiency) 由以下�
 
 - Python 3.10+
 - CUDA-compatible GPU（推荐）
-- Gemma 4 MTP benchmark 需要先启动对应的 baseline 或 MTP vLLM server
+- H100 MTP / DFlash benchmark 需要先启动对应的 vLLM 或 llama.cpp server
 
 ### 安装
 
@@ -1373,7 +1317,6 @@ pip install -r requirements.txt
 | `scripts/prepare_data.py` | 准备训练数据 |
 | `scripts/prepare_data.sh` | 准备训练数据的 shell wrapper |
 | `scripts/train_eagle3.sh` | 训练 EAGLE3 draft head |
-| `scripts/gemma4_mtp_benchmark.py` | 通过 vLLM OpenAI-compatible endpoint 测 Gemma 4 baseline vs MTP assistant |
 | `scripts/mtp_benchmark_client.py` | H100 MTP/DFlash benchmark 客户端，支持 streaming 和 non-streaming 模式 |
 | `scripts/mtp_benchmark_orchestrator.sh` | 三路 H100 benchmark 自动编排器：启动 → 等待 → 测试 → 停止 → 下一条 |
 | `scripts/mtp_vllm_qwen36_mtp_launch.sh` | 启动 Qwen3.6-27B 的 vLLM native MTP server |
@@ -1386,8 +1329,6 @@ pip install -r requirements.txt
 
 | 文件 | 说明 |
 |------|------|
-| `data/gemma4_mtp_h100_baseline.json` | Gemma 4 31B target-only H100 benchmark 结果 |
-| `data/gemma4_mtp_h100_mtp.json` | Gemma 4 31B + assistant MTP H100 benchmark 结果 |
 | `data/h100_vllm_native_mtp.json` | H100 vLLM native MTP benchmark 原始结果 |
 | `data/h100_vllm_dflash.json` | H100 vLLM DFlash benchmark 原始结果 |
 | `data/h100_llamacpp_mtp_q4kxl.json` | H100 llama.cpp Q4 MTP benchmark 原始结果 |
