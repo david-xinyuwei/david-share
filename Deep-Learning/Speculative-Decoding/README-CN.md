@@ -112,6 +112,15 @@ python3 scripts/mtp_benchmark_client.py --base-url http://127.0.0.1:8000 \
 | vLLM DFlash | `data/h100_vllm_dflash.json` | 191.62 / 191.75 / 191.70 | **191.7** |
 | llama.cpp MTP Q4_K_XL | `data/h100_llamacpp_mtp_q4kxl.json` | 106.65 / 107.70 / 107.28 | **107.3** |
 
+**TTFT 口径说明：** 这组 H100 证据证明的是 decode throughput / output TPS，不证明 TTFT 提升。当前保存的 JSON 是用 `--no-stream` 跑出来的，这样可以用 `usage.completion_tokens` 精确计算 TPS；在这个模式下 `ttft_s` 为 `null`。如果要比较 TTFT，需要用 streaming 模式单独记录 time-to-first-SSE-chunk。
+
+```bash
+# 可选 TTFT sanity check：去掉 --no-stream。
+# 这个命令适合比较 TTFT，不适合作为最终 TPS 口径，因为 streaming chunks 只能近似当 token 计数。
+python3 scripts/mtp_benchmark_client.py --base-url http://127.0.0.1:8000 \
+    --label vllm-dflash-ttft --runs 3 --warmup 1 --output results_dflash_stream_ttft.json
+```
+
 ## Benchmark 环境
 
 本项目使用下面的 GPU 环境完成实验。Azure 只是本次 benchmark 的测试基础设施，不是 Speculative Decoding 技术本身的依赖。
@@ -436,7 +445,9 @@ GLM-5.2 是一个很好的公开例子。它的 HF config 写着 `num_nextn_pred
 
 ### H100 Serving Benchmark：Native MTP vs DFlash vs llama.cpp MTP
 
-本 repo 在 NVIDIA H100 NVL 96GB 上测试了单请求 latency 和 generation TPS。vLLM 路线使用 `Qwen/Qwen3.6-27B` bf16；llama.cpp 路线使用 `unsloth/Qwen3.6-27B-MTP-GGUF:UD-Q4_K_XL`。测试覆盖 Coding、Math、Chat 三类任务，每类 warmup 1 次、正式运行 3 次，报告中位数。API 使用 non-streaming 模式，TPS = `usage.completion_tokens / total_time`。
+本 repo 在 NVIDIA H100 NVL 96GB 上测试了单请求 total latency 和 generation TPS。vLLM 路线使用 `Qwen/Qwen3.6-27B` bf16；llama.cpp 路线使用 `unsloth/Qwen3.6-27B-MTP-GGUF:UD-Q4_K_XL`。测试覆盖 Coding、Math、Chat 三类任务，每类 warmup 1 次、正式运行 3 次，报告中位数。API 使用 non-streaming 模式，TPS = `usage.completion_tokens / total_time`。
+
+这张表应该理解为 **decode throughput / tokens-per-second 对比**，不是 TTFT 对比。Speculative decoding 和 MTP 主要减少 generation 开始后的 target decode steps 数量；它们不会天然减少 prefill time，所以 TTFT 通常是持平，也可能因为 draft model setup、scheduler overhead 或 first visible token 前的额外验证而略有回退。本轮测试为了精确 token accounting 使用了 `--no-stream`，因此没有测 TTFT。小样本 TTFT follow-up 工作量不大：复用同一个已启动 server，去掉 `--no-stream`，每条 route 跑 3 个 prompts x 3 runs 即可。完整控制变量 TTFT study 则需要额外增加 no-speculation baseline，并把 streaming-TTFT run 和 non-streaming accurate-TPS run 分开看。
 
 **测试环境：**
 

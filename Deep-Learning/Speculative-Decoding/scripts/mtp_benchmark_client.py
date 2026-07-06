@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 Benchmark client for MTP / DFlash speculative decoding on Qwen3.6-27B.
-Measures TTFT, generation TPS, and total latency for single-stream requests.
+Streaming mode measures approximate TTFT from the first SSE chunk.
+--no-stream mode uses usage.completion_tokens for accurate TPS but cannot measure TTFT.
 
 Usage:
   python3 mtp_benchmark_client.py --base-url http://127.0.0.1:8000 --runs 3 --warmup 1 --output results.json

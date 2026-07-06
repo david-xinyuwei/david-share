@@ -112,6 +112,15 @@ python3 scripts/mtp_benchmark_client.py --base-url http://127.0.0.1:8000 \
 | vLLM DFlash | `data/h100_vllm_dflash.json` | 191.62 / 191.75 / 191.70 | **191.7** |
 | llama.cpp MTP Q4_K_XL | `data/h100_llamacpp_mtp_q4kxl.json` | 106.65 / 107.70 / 107.28 | **107.3** |
 
+**TTFT scope note:** this H100 evidence slice proves decode throughput / output TPS, not TTFT improvement. The stored JSON files were generated with `--no-stream` so that `usage.completion_tokens` could be used for accurate TPS; in that mode `ttft_s` is `null`. To compare TTFT, run the client in streaming mode and capture time-to-first-SSE-chunk separately.
+
+```bash
+# Optional TTFT sanity check: omit --no-stream.
+# Use this for TTFT comparison, not final TPS, because streaming chunks are only an approximate token counter.
+python3 scripts/mtp_benchmark_client.py --base-url http://127.0.0.1:8000 \
+  --label vllm-dflash-ttft --runs 3 --warmup 1 --output results_dflash_stream_ttft.json
+```
+
 ## Benchmark Environment
 
 The experiments in this project were run on the following GPU environment. Azure is the test infrastructure here, not a dependency of the speculative decoding technique.
@@ -436,7 +445,9 @@ The lesson is general: native MTP is not just "how many layers." You also need t
 
 ### H100 Serving Benchmark: Native MTP vs DFlash vs llama.cpp MTP
 
-This repo measured single-stream latency and generation TPS on NVIDIA H100 NVL 96GB. Target model: `Qwen/Qwen3.6-27B` bf16 for vLLM routes, `unsloth/Qwen3.6-27B-MTP-GGUF:UD-Q4_K_XL` for llama.cpp. Three domains (Coding/Math/Chat), warmup 1 round + 3 timed runs, median reported. Non-streaming API, TPS = `usage.completion_tokens / total_time`.
+This repo measured single-stream total latency and generation TPS on NVIDIA H100 NVL 96GB. Target model: `Qwen/Qwen3.6-27B` bf16 for vLLM routes, `unsloth/Qwen3.6-27B-MTP-GGUF:UD-Q4_K_XL` for llama.cpp. Three domains (Coding/Math/Chat), warmup 1 round + 3 timed runs, median reported. Non-streaming API, TPS = `usage.completion_tokens / total_time`.
+
+This table should be read as a **decode-throughput / tokens-per-second comparison**, not a TTFT comparison. Speculative decoding and MTP primarily reduce the number of target decode steps after generation has started. They do not inherently reduce prefill time, so TTFT is usually neutral and can even regress slightly if the serving stack adds draft-model setup, scheduler overhead, or extra validation before the first visible token. This run did not measure TTFT because `--no-stream` was used for accurate token accounting. A small TTFT follow-up is lightweight: reuse the same launched server, omit `--no-stream`, and run 3 prompts x 3 runs per route. A full controlled TTFT study would add a no-speculation baseline and separate streaming-TTFT from non-streaming accurate-TPS runs.
 
 **Test Environment:**
 
