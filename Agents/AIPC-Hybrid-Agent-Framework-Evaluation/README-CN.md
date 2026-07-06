@@ -328,16 +328,18 @@ MXC 可以对每个 action 单独 block/allow outbound network。
 
 | Policy | curl output | Exit code | Verdict |
 |--------|-------------|:---------:|---------|
-| `network-block` | `mxc_http:000` | 6 | ✅ Network blocked |
-| `network-allow` | `mxc_http:200` | 0 | ✅ Network allowed |
+| `network-block` | `mxc_http:000` | 6 | ✅ 网络被阻止——同一个 action 访问不了互联网 |
+| `network-allow` | `mxc_http:200` | 0 | ✅ 网络放行——同一个 action 成功访问 GitHub API |
 
-> Evidence: `mxc/evidence/03_network_block.log` (`mxc_http:000`, exit=6), `mxc/evidence/04_network_allow.log` (`mxc_http:200`, exit=0)
+同一个 executable、同一个 URL，不同 policy → 不同结果。这是最干净的 MXC network 证明。
 
-pip install 测试补充说明：`pip install six==1.16.0` 在 block/allow 下都先遇到 filesystem policy setup 问题；curl 测试才是网络层 block/allow 的直接证据。
+> Evidence: `mxc/evidence/03_network_block.log`, `mxc/evidence/04_network_allow.log`
 
 ### Filesystem Policy
 
 MXC 可通过 `readwritePaths` / `readonlyPaths` 控制被包含进程能读写哪些目录。我们测试写入 `C:\temp\mxc-fs-test\`：
+
+> **关于 pip install 测试**：我们也尝试了 `pip install six==1.16.0`，但 pip 在碰到网络层之前就先卡在 filesystem setup 错误上（`bfscfg.exe` 在当前 tier 不可用）。这是文件系统/BFS 的限制，不是 network 结论。不要用 pip 结果当 network policy 的证据；curl 才是正确的测试。
 
 ```json
 // fs-policy-02-readwrite-allowed.json — allow write to target directory

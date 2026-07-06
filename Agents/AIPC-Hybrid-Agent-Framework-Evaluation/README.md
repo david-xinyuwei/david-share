@@ -338,9 +338,7 @@ static void probe_create_desktop(void) {
 
 ### Path B Code: Network Policy
 
-MXC can block or allow external network access per-action. We tested two scenarios:
-
-**Test 1: Direct curl** — `curl https://api.github.com` under two policies:
+MXC can block or allow external network access per-action. We tested with `curl https://api.github.com` under two policies:
 
 ```json
 // mxc/policies/02-network-block.json
@@ -356,27 +354,20 @@ MXC can block or allow external network access per-action. We tested two scenari
   "network": { "defaultPolicy": "allow" }
 ```
 
-Actual results from `wxc-exec`:
-
 | Policy | curl output | Exit code | Verdict |
 |--------|-----------|:---------:|---------|
-| `network-block` | `mxc_http:000` (connection failed) | 6 | ✅ Network correctly blocked |
-| `network-allow` | `mxc_http:200` (GitHub API responded) | 0 | ✅ Network correctly allowed |
+| `network-block` | `mxc_http:000` (connection failed) | 6 | ✅ Network blocked — same action, can't reach internet |
+| `network-allow` | `mxc_http:200` (GitHub API responded) | 0 | ✅ Network allowed — same action, internet reachable |
 
-> Evidence: `mxc/evidence/03_network_block.log` (`mxc_http:000`, exit=6), `mxc/evidence/04_network_allow.log` (`mxc_http:200`, exit=0)
+Same executable, same URL, different policy → different outcome. This is the cleanest MXC network proof.
 
-**Test 2: pip install** — `pip install six==1.16.0` under block/allow policies:
-
-| Policy | pip result | Exit | Root cause |
-|--------|-----------|:----:|------------|
-| `network-block` | Failed | -1 | BFS filesystem policy error — `bfscfg.exe` not resolved on `appcontainer-dacl` tier |
-| `network-allow` | Failed | -1 | Same BFS error — pip needs `readwritePaths` for `--target` directory, which requires BFS |
-
-> Both pip tests hit the same filesystem policy error before reaching the network layer. The network block/allow distinction is proven by the curl test. The pip case should not be used as evidence that `readwritePaths` is unavailable; the dedicated filesystem test below shows that simple `readwritePaths` scoping works on the current `appcontainer-dacl` fallback tier.
+> Evidence: `mxc/evidence/03_network_block.log`, `mxc/evidence/04_network_allow.log`
 
 ### Filesystem Policy
 
 MXC can scope which directories a contained process can read and write via `readwritePaths` and `readonlyPaths`. We tested 4 scenarios writing to `C:\temp\mxc-fs-test\`:
+
+> **Note on pip install**: We also tried `pip install six==1.16.0` under network block/allow, but pip never reached the network layer — it failed earlier on a filesystem setup error (`bfscfg.exe` not available on current tier). This is a filesystem/BFS limitation, not a network result. Do not use pip results as network policy evidence; curl is the correct test.
 
 **Test policies:**
 
