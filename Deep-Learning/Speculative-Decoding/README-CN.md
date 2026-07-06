@@ -12,18 +12,6 @@
 
 Draft-and-verify 加速工程指南：用可复现 benchmark 对比 EAGLE3、自训练 draft head、native model-family MTP、DFlash 和 llama.cpp MTP。
 
-
-## Benchmark 环境
-
-本项目使用下面的 GPU 环境完成实验。Azure 只是本次 benchmark 的测试基础设施，不是 Speculative Decoding 技术本身的依赖。
-
-| 项目 | 详情 |
-|---|---|
-| **Benchmark 使用的 GPU VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
-| **GPU** | NVIDIA H100 80GB |
-| **框架** | vLLM, SGLang, llama.cpp |
-
-
 ## 核心成果
 
 本项目记录多条 Speculative Decoding / draft-and-verify 路线的完整研究流程：官方 EAGLE3 验证、自训练 draft head、native model-family MTP、GLM-5.2 的 IndexShare/KVShare MTP 设计，以及 DFlash/MTP serving 实验。
@@ -41,6 +29,37 @@ Draft-and-verify 加速工程指南：用可复现 benchmark 对比 EAGLE3、自
 - 我们用单卡 45 分钟就达到了官方效果的 ~50%
 - 证明了 EAGLE3 的样本效率 - 极少计算量即可获得有效加速
 - GLM-5.2 和 Qwen3.6 说明 native MTP 需要按 model family 具体分析；同样是 `num_nextn_predict_layers=1`，serving 架构不同，acceptance 表现也会不同。
+
+## 怎么读这个 Repo
+
+| 你关心什么 | 从哪里开始 | 能得到什么 |
+|---|---|---|
+| 核心机制 | [背景](#背景什么是-speculative-decoding推测解码) | 为什么 draft-and-verify 能降低 latency |
+| 选哪条路线 | [分类](#speculative-decoding-分类eagle3-vs-原生-mtp-vs-dflash) 和 [选型指南](#选型指南什么场景选哪条路线) | EAGLE3、native MTP、DFlash 分别适合什么场景 |
+| Native MTP 细节 | [MTP 层数与超参数](#mtp-层数与-speculative-decoding-超参数) | GLM-5.2、Qwen3.6、draft steps、模拟接受率和 `accept_rate=0.75` |
+| 复现数据 | [H100 serving benchmark](#h100-serving-benchmarknative-mtp-vs-dflash-vs-llamacpp-mtp) 和 [复现实验](#复现实验) | 脚本、raw JSON、logs 和启动命令 |
+| 自己训练 drafter | [阶段 2](#阶段-2自训练-eagle3-draft-模型) | 数据准备、训练日志、部署方式，以及什么时候自训练有用 |
+
+## Repo 质量承诺
+
+这个 repo 不是只讲概念，而是按证据交付：
+
+| 原则 | 已包含什么 | 去哪里检查 |
+|---|---|---|
+| **Data-rich** | vLLM native MTP、vLLM DFlash、llama.cpp MTP 的 H100 benchmark 原始 JSON | `data/h100_*.json` |
+| **Code-rich** | benchmark client、三路线 orchestrator、vLLM 启动脚本、llama.cpp 构建/启动脚本、EAGLE3 训练脚本 | `scripts/` |
+| **Engineering-rich** | runtime knobs、失败模式、显存/KV-cache 限制、DeepGEMM 和 context-length 修复 | H100 benchmark 章节、runtime knobs 表、`logs/` |
+| **Test-rich** | warmup + 多轮 measured runs、startup logs、输出质量检查、失败记录、JSON 支撑的 median TPS | `data/`、`logs/`、benchmark 表 |
+
+## Benchmark 环境
+
+本项目使用下面的 GPU 环境完成实验。Azure 只是本次 benchmark 的测试基础设施，不是 Speculative Decoding 技术本身的依赖。
+
+| 项目 | 详情 |
+|---|---|
+| **Benchmark 使用的 GPU VM** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU** | NVIDIA H100 80GB |
+| **框架** | vLLM, SGLang, llama.cpp |
 
 ---
 

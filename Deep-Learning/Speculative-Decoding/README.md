@@ -12,18 +12,6 @@
 
 Engineering guide to draft-and-verify acceleration: compare EAGLE3, self-trained draft heads, native model-family MTP, DFlash, and llama.cpp MTP with reproducible benchmark evidence.
 
-
-## Benchmark Environment
-
-The experiments in this project were run on the following GPU environment. Azure is the test infrastructure here, not a dependency of the speculative decoding technique.
-
-| Item | Details |
-|---|---|
-| **GPU VM used for benchmarks** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
-| **GPU** | NVIDIA H100 80GB |
-| **Frameworks** | vLLM, SGLang, llama.cpp |
-
-
 ## Executive Summary
 
 This project documents a complete research workflow for speculative decoding across multiple draft-and-verify routes: official EAGLE3 validation, self-trained draft heads, native model-family MTP, GLM-5.2's IndexShare/KVShare MTP design, and DFlash/MTP serving experiments:
@@ -41,6 +29,37 @@ This project documents a complete research workflow for speculative decoding acr
 - Our 45-minute single-GPU training achieved ~50% of the official speedup
 - Demonstrates EAGLE3 sample efficiency - useful acceleration with minimal compute
 - GLM-5.2 and Qwen3.6 show why native MTP needs model-family-specific reading; the same `num_nextn_predict_layers=1` can behave differently once the serving architecture changes.
+
+## How to Read This Repo
+
+| If you care about... | Start here | What you get |
+|---|---|---|
+| The core mechanism | [Background](#background-what-is-speculative-decoding) | Why draft-and-verify can reduce latency |
+| Choosing a route | [Taxonomy](#speculative-decoding-taxonomy-eagle3-vs-native-mtp-vs-dflash) and [Decision Guide](#decision-guide-which-route-to-use) | When to use EAGLE3, native MTP, or DFlash |
+| Native MTP details | [MTP layers and hyperparameters](#understanding-mtp-layers-and-speculative-decoding-hyperparameters) | GLM-5.2, Qwen3.6, draft steps, simulated acceptance, and `accept_rate=0.75` |
+| Reproducing numbers | [H100 serving benchmark](#h100-serving-benchmark-native-mtp-vs-dflash-vs-llamacpp-mtp) and [Reproducing](#reproducing-the-results) | Scripts, raw JSON, logs, and exact launch commands |
+| Training your own drafter | [Phase 2](#phase-2-self-training-eagle3-draft-model) | Data prep, training logs, deployment, and when self-training helps |
+
+## Repo Quality Contract
+
+This repo is meant to be evidence-rich, not just explanatory prose:
+
+| Principle | What is included | Where to inspect |
+|---|---|---|
+| **Data-rich** | Raw H100 benchmark JSON for vLLM native MTP, vLLM DFlash, and llama.cpp MTP | `data/h100_*.json` |
+| **Code-rich** | Runnable benchmark client, route orchestrator, vLLM launchers, llama.cpp build/launch scripts, EAGLE3 training scripts | `scripts/` |
+| **Engineering-rich** | Runtime knobs, failure modes, memory/KV-cache constraints, DeepGEMM and context-length fixes | H100 benchmark section, runtime knobs table, `logs/` |
+| **Test-rich** | Warmup + repeated measured runs, startup logs, output-quality checks, failure notes, JSON-backed median TPS | `data/`, `logs/`, benchmark tables |
+
+## Benchmark Environment
+
+The experiments in this project were run on the following GPU environment. Azure is the test infrastructure here, not a dependency of the speculative decoding technique.
+
+| Item | Details |
+|---|---|
+| **GPU VM used for benchmarks** | [NC40ads_H100_v5](https://learn.microsoft.com/en-us/azure/virtual-machines/nc-h100-v5-series) |
+| **GPU** | NVIDIA H100 80GB |
+| **Frameworks** | vLLM, SGLang, llama.cpp |
 
 ---
 
