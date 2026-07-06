@@ -416,25 +416,19 @@ Test setup:
 
 How to read this table:
 
-The columns below are the real `processContainer.name` values from the JSON policies. The effective knobs are `processContainer.ui.*` and top-level `ui.*`.
+Each column represents a different MXC JSON policy configuration. The column headers show the actual `ui.*` and `processContainer.ui.*` field values that control behavior — not invented profile names.
 
-| `processContainer.name` | Actual policy knobs used |
-|--------------------------|--------------------------|
-| `Capability-Text-Lockdown` | `ui.disable=true`, `ui.clipboard="none"`, `ui.injection=false`, `processContainer.ui.isolation="container"` |
-| `Capability-Gdi-Minimal-070` | `ui.disable=false`, `ui.clipboard="none"`, `ui.injection=false`, `processContainer.ui.isolation="container"` |
-| `Capability-Broad-Ui` | `ui.disable=false`, `ui.clipboard="all"`, `ui.injection=true`, `processContainer.ui.isolation="desktop"`, `desktopSystemControl=true`, `systemSettings="all"`, `ime=true` |
+| Column | MXC JSON fields used |
+|--------|---------------------|
+| **No MXC (Host baseline)** | No MXC. Probe runs directly on Windows. ✅ = API works; ❌ = API already fails on this host (not MXC's fault). |
+| **`ui.disable=true`** | All UI blocked at process level. MXC kills the process before any API can run. Policy: `ui.disable=true`, `ui.clipboard="none"`, `ui.injection=false`, `processContainer.ui.isolation="container"`. |
+| **`ui.disable=false`, `clipboard="none"`** | UI enabled but clipboard/injection still blocked. Policy: `ui.disable=false`, `ui.clipboard="none"`, `ui.injection=false`, `processContainer.ui.isolation="container"`. |
+| **`ui.disable=false`, `clipboard="all"`, `isolation="desktop"`** | Broadest UI policy. Policy: `ui.disable=false`, `ui.clipboard="all"`, `ui.injection=true`, `processContainer.ui.isolation="desktop"`, `desktopSystemControl=true`, `systemSettings="all"`, `ime=true`. On current `appcontainer-dacl` tier, clipboard/desktop/display/input still fail. |
 
-| Column | Plain-English meaning |
-|--------|-----------------------|
-| **No MXC (Host baseline)** | The same probe runs directly on Windows, without MXC. ✅ means the API works normally on the host. ❌ means the API already fails on this Windows environment, so MXC is not the cause. |
-| **`Capability-Text-Lockdown`** | The strictest JSON policy in this test. `BLOCKED` means MXC stops the process before any Win32 API can run. |
-| **`Capability-Gdi-Minimal-070`** | Minimal UI JSON policy for drawing/rendering-style actions. ✅ means this policy lets the API run. ❌ means the API still fails under this policy/tier. |
-| **`Capability-Broad-Ui`** | Broader UI JSON policy. On the current `appcontainer-dacl` fallback tier, it behaves almost the same as `Capability-Gdi-Minimal-070`; it does not unlock clipboard/desktop/display/input/WMI in this test. |
+Legend: ✅ = API call succeeded; ❌ = API call failed; `BLOCKED` = MXC killed the process before probes ran.
 
-Legend: ✅ = API call succeeded; ❌ = API call failed; `BLOCKED` = MXC blocked process startup before probes ran.
-
-| Capability probe | No MXC<br/>(Host baseline) | `Capability-Text-Lockdown` | `Capability-Gdi-Minimal-070` | `Capability-Broad-Ui` |
-|------------------|:-------------------------:|:-------------------:|:----------------:|:------------:|
+| Capability probe | No MXC | `ui.disable=true` | `ui.disable=false`<br/>`clipboard="none"` | `ui.disable=false`<br/>`clipboard="all"`<br/>`isolation="desktop"` |
+|------------------|:------:|:------------------:|:------------------------------------------:|:------------------------------------------------------------------:|
 | GDI_GetDC | ✅ | BLOCKED | ✅ | ✅ |
 | Clipboard_OpenClipboard | ✅ | BLOCKED | ❌ | ❌ |
 | Desktop_CreateDesktop | ✅ | BLOCKED | ❌ | ❌ |
@@ -445,9 +439,9 @@ Legend: ✅ = API call succeeded; ❌ = API call failed; `BLOCKED` = MXC blocked
 | CameraStack_Load_MF_DLL | ✅ | BLOCKED | ✅ | ✅ |
 | WMI_Load_wbemuuid_DLL | ❌ | BLOCKED | ❌ | ❌ |
 
-Customer-readable takeaway: MXC can choose different local capability envelopes per task. A text task can use `processContainer.name="Task-Text-Lockdown"` or another strict policy and not touch UI at all. A drawing/rendering task can use `processContainer.name="Capability-Gdi-Minimal-070"` to allow GDI and system-parameter access. Clipboard, desktop creation, display changes, input injection, and WMI remain unavailable in this current fallback tier.
+Customer-readable takeaway: Setting `ui.disable=true` blocks the process entirely. Setting `ui.disable=false` lets the process run, and GDI/registry/system-params/camera-DLL become available. But even with `clipboard="all"` and `isolation="desktop"`, clipboard/desktop/display/input/WMI remain blocked on the current `appcontainer-dacl` fallback tier.
 
-Boundary: `CameraStack_Load_MF_DLL` only proves Media Foundation DLL loading, not camera capture permission. Host `Input_SendInput` and `WMI_Load_wbemuuid_DLL` already fail without MXC, so those failures are not MXC-specific.
+Boundary: `CameraStack_Load_MF_DLL` only proves DLL loading, not camera capture. `Input_SendInput` and `WMI` already fail on the host without MXC.
 
 ### Path B Boundaries
 
