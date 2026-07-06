@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; line-height: 1.6; color: #333; font-size: 14px; }
+        table { border-collapse: collapse; margin: 12px 0; }
+        th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+        th { background: #f5f5f5; }
+        a { color: #0078d4; }
+    </style>
+</head>
+<body>
+<p>Hi Team,</p>
+
+<p>Sharing a practical evaluation I did with a GCR PC OEM (Lenovo Qira team) on how to run agent-generated code safely on Windows AIPC devices. The key question: if an on-device AI assistant needs to execute local actions, what's the architecture?</p>
+
+<p><b>Two implementation paths (from Build 2026 BRK262 / KEY01)</b>:</p>
+<table>
+    <tr><th></th><th>Path A: MAF-based</th><th>Path B: MXC + ProcessContainer</th></tr>
+    <tr><td><b>Use when</b></td><td>Full agent workflow: plan, tools, HITL, CodeAct, recovery</td><td>Just need controlled local execution, no agent loop</td></tr>
+    <tr><td><b>Execution</b></td><td>MAF carries the reasoning loop; Hyperlight sandbox for generated code</td><td>MXC policy selects ProcessContainer (default) or Hyperlight</td></tr>
+    <tr><td><b>Proven</b></td><td>MAF + Hyperlight CodeAct + 4 host tools live on Windows VM</td><td>MXC 0.7 network/filesystem/UI policy + task-scoped capability catalog</td></tr>
+</table>
+
+<p><b>Running on Azure</b>: The evaluation used Azure OpenAI (gpt-5.4 via APIM) for cloud reasoning + a Standard Windows VM (simulating the customer AIPC) for local execution. In production, the AIPC is the customer's device — Azure consumption is mainly <b>AOAI token usage</b> (cloud model calls) + <b>APIM gateway</b>. For customers deploying Hyperlight/CodeAct at scale, there's also potential for <b>Foundry Hosted Agent</b> consumption on the cloud side.</p>
+
+<p><b>Key results</b>:</p>
+<table>
+    <tr><th>Capability</th><th>Path A (MAF)</th><th>Path B (MXC)</th></tr>
+    <tr><td>Network block/allow</td><td>N/A (framework level)</td><td>✅ Proven: curl exit=6 blocked, exit=0 allowed</td></tr>
+    <tr><td>Filesystem scoping</td><td>N/A</td><td>✅ readwritePaths works on stock Win11</td></tr>
+    <tr><td>Task-scoped UI policy</td><td>N/A</td><td>✅ text=blocked, drawing=allowed (same executable)</td></tr>
+    <tr><td>Sandbox code execution</td><td>✅ Hyperlight micro-VM, 36ms first turn</td><td>ProcessContainer for lighter tasks</td></tr>
+    <tr><td>Cross-turn state</td><td>✅ 4 turns, variables persist</td><td>Proto branch (not mainline yet)</td></tr>
+    <tr><td>Host tool callbacks</td><td>✅ read_csv, screenshot, system_info, list_files</td><td>N/A (MXC doesn't own tool callbacks)</td></tr>
+</table>
+
+<p><b>Why this matters for Azure business</b>: Lenovo is evaluating Windows agent execution for Qira (their AIPC OS agent). If they adopt MAF + Hyperlight, that's AOAI consumption + Foundry hosting. If they adopt MXC for local policy governance, that's a Windows platform play that still requires AOAI for the reasoning layer. Either path = Azure AI token consumption as the cloud backbone.</p>
+
+<p>Repo with all test code, policy JSON, evidence logs, and two demo videos:<br/>
+<a href="https://github.com/david-xinyuwei/david-share/tree/master/Agents/AIPC-Hybrid-Agent-Framework-Evaluation">https://github.com/david-xinyuwei/david-share/tree/master/Agents/AIPC-Hybrid-Agent-Framework-Evaluation</a></p>
+
+<p>If you have PC OEM or ISV customers asking about local agent execution on Windows, this repo has runnable evidence for both paths. Happy to discuss.</p>
+
+<p>Xinyu</p>
+</body>
+</html>

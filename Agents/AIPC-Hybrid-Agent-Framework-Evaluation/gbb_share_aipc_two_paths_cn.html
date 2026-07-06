@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; line-height: 1.6; color: #333; font-size: 14px; }
+        table { border-collapse: collapse; margin: 12px 0; }
+        th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+        th { background: #f5f5f5; }
+        a { color: #0078d4; }
+    </style>
+</head>
+<body>
+<p>Hi Team,</p>
+
+<p>分享一下最近帮联想 Qira 团队做的 AIPC 本地 agent 执行评估。核心问题：如果端侧 AI assistant 要在 Windows 上安全执行本地 action，架构怎么选？</p>
+
+<p><b>两条实现路径（来自 Build 2026 BRK262 / KEY01）</b>：</p>
+<table>
+    <tr><th></th><th>Path A：MAF 贯穿</th><th>Path B：MXC + ProcessContainer</th></tr>
+    <tr><td><b>适用</b></td><td>完整 agent workflow：规划、工具、HITL、CodeAct、恢复</td><td>只需受控本地执行，不用完整 agent loop</td></tr>
+    <tr><td><b>执行方式</b></td><td>MAF 承载推理循环；Hyperlight sandbox 跑生成代码</td><td>MXC policy 选 ProcessContainer（默认）或 Hyperlight</td></tr>
+    <tr><td><b>已验证</b></td><td>MAF + Hyperlight CodeAct + 4 个 host tools 在 Windows VM 上跑通</td><td>MXC 0.7 network/filesystem/UI policy + task-scoped capability catalog</td></tr>
+</table>
+
+<p><b>跑在 Azure 上</b>：评估使用 Azure OpenAI（gpt-5.4 via APIM）做云端 reasoning + 一台 Standard Windows VM 模拟客户 AIPC。生产环境里 AIPC 是客户自己的设备，Azure 消耗主要是 <b>AOAI token</b>（云端模型调用）+ <b>APIM 网关</b>。如果客户大规模部署 Hyperlight/CodeAct，还可以走 <b>Foundry Hosted Agent</b> 云端托管。</p>
+
+<p><b>关键结果</b>：</p>
+<table>
+    <tr><th>能力</th><th>Path A (MAF)</th><th>Path B (MXC)</th></tr>
+    <tr><td>Network block/allow</td><td>N/A（框架层）</td><td>✅ curl exit=6 blocked, exit=0 allowed</td></tr>
+    <tr><td>Filesystem scoping</td><td>N/A</td><td>✅ readwritePaths 在 stock Win11 上可用</td></tr>
+    <tr><td>Task-scoped UI policy</td><td>N/A</td><td>✅ text=blocked, drawing=allowed（同一 exe）</td></tr>
+    <tr><td>Sandbox code execution</td><td>✅ Hyperlight micro-VM, 首轮 36ms</td><td>ProcessContainer 跑轻量任务</td></tr>
+    <tr><td>Cross-turn state</td><td>✅ 4 turns 变量跨轮保留</td><td>Proto 分支（暂未进 mainline）</td></tr>
+    <tr><td>Host tool callbacks</td><td>✅ read_csv, screenshot, system_info, list_files</td><td>N/A（MXC 不管 tool callback）</td></tr>
+</table>
+
+<p><b>对 Azure 生意的意义</b>：联想在评估 Qira（AIPC OS agent）的 Windows 本地执行架构。走 MAF + Hyperlight = AOAI 消耗 + Foundry hosting。走 MXC 做本地 policy governance = Windows 平台 play，但 reasoning 层仍然需要 AOAI。两条路径都意味着 Azure AI token 消耗作为云端主干。</p>
+
+<p>Repo 包含全部测试代码、policy JSON、evidence logs 和两个 demo 视频：<br/>
+<a href="https://github.com/david-xinyuwei/david-share/tree/master/Agents/AIPC-Hybrid-Agent-Framework-Evaluation">https://github.com/david-xinyuwei/david-share/tree/master/Agents/AIPC-Hybrid-Agent-Framework-Evaluation</a></p>
+
+<p>如果你的客户有 PC OEM 或 ISV 问本地 agent 执行的，可以参考这个 repo。有问题随时找我。</p>
+
+<p>Xinyu</p>
+</body>
+</html>
