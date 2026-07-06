@@ -89,6 +89,12 @@ https://github.com/user-attachments/assets/c2554bf2-da92-4a32-8692-0c576d7af376
 
 MXC is a policy-driven execution layer for controlled Windows-native execution without a full agent loop. The default backend is **ProcessContainer** (lighter, runs most tasks); Hyperlight is an optional escalation for highest-risk generated code only.
 
+### Path B Demo
+
+MXC policy-driven execution: task-scoped capability policy, ProcessContainer backend, Win32 capability catalog probe:
+
+https://github.com/user-attachments/assets/581acf71-510b-489e-b3a4-af24e9977a35
+
 <div align="center">
   <img src="images/slide15-mxc-definition.png" width="960" alt="MXC definition">
 </div>
