@@ -481,6 +481,44 @@ Boundary: `CameraStack_Load_MF_DLL` only proves Media Foundation DLL loading, no
 └── README.md / README-CN.md
 ```
 
+### Evidence Index
+
+| Evidence category | File path | What it proves |
+|-------------------|-----------|----------------|
+| MXC 0.7 host probe | `mxc/evidence/mxc_sdk_0_7_probe_raw.txt` | Raw `wxc-exec.exe --probe` output, including `tier=appcontainer-dacl` and 10 `canBlock*` UI capability facts |
+| Network block | `mxc/evidence/03_network_block.log` | Same curl action returns `mxc_http:000`, exit=6 under block policy |
+| Network allow | `mxc/evidence/04_network_allow.log` | Same curl action returns `mxc_http:200`, exit=0 under allow policy |
+| pip policy summary | `mxc/evidence/pip_policy_probe_summary.txt` | pip install hits filesystem/BFS setup before reaching network; do not use this as network evidence |
+| Text policy | `mxc/evidence/task-rbac-text-lockdown.json` | `processContainer.name = "Task-Text-Lockdown"`: UI/clipboard/input/network locked down |
+| Drawing policy | `mxc/evidence/task-rbac-drawing-ui.json` | Drawing task UI-allowed policy: GDI/system settings allowed |
+| Task RBAC summary | `mxc/evidence/task_rbac_policy_probe_summary.txt` | text profile blocked, drawing profile ran, capability delta=True |
+| Capability catalog | `mxc/evidence/capability_catalog_summary.md` | 9 Win32 probes across Host / `Capability-Text-Lockdown` / `Capability-Gdi-Minimal-070` / `Capability-Broad-Ui` |
+| Capability logs | `mxc/evidence/capability_catalog_*.log` | Raw execution logs for each capability policy |
+| Filesystem baseline | `mxc/evidence/fs_policy_01_baseline.log` | With no filesystem field, writing to `C:\temp` is blocked by `Access is denied` |
+| Filesystem allow | `mxc/evidence/fs_policy_02_readwrite_allowed.log` | `readwritePaths` to the target directory succeeds and prints `MXC_FS_WRITE_ALLOWED` |
+| Filesystem block | `mxc/evidence/fs_policy_03_readwrite_blocked.log` | `readwritePaths` pointing elsewhere blocks writing to the target directory |
+| Filesystem readonly | `mxc/evidence/fs_policy_04_readonly.log` | `readonlyPaths` blocks write attempts |
+| Stateful Hyperlight log | `mxc/evidence/fy27_hyperlight_unikraft_stateful_demo_20260629.log` | 4-turn stateful demo output; Turn 4 proves `x/z/df` persisted across turns |
+| MXC runner | `mxc/scripts/Invoke-MXCDemo.ps1` | Main runner for Demo 1-7: network, policy, capability catalog, Hyperlight lifecycle |
+| Native Win32 probe | `mxc/examples/win32_capability_probe.c` | C probe for GDI/Clipboard/Desktop/Display/SystemParams/Input/Registry/Camera DLL/WMI DLL |
+| Policy profiles | `mxc/policies/*.json` | Reusable policies for network block/allow, filesystem, backend-fit, Hyperlight lifecycle |
+
+Use this table as the evidence entry point. If a claim is questioned, open the linked policy/log file and verify the raw command, stdout/stderr, and exit code.
+
+### How to read the evidence logs
+
+1. Start with `*_summary.txt` or `*_summary.md` to identify time, policy file, exit code, and verdict.
+2. Open the corresponding `.json` policy to see the declared capability/network/filesystem boundary.
+3. Open the `.log` file to verify the actual `wxc-exec` command, stdout/stderr, and exit code.
+4. For network tests, the key field is `mxc_http:000` vs `mxc_http:200`.
+5. For filesystem tests, the key field is `Access is denied` or `MXC_FS_WRITE_ALLOWED`.
+6. For task-scoped policy tests, the key fields are `verdict_text_restricted=True`, `verdict_drawing_ran=True`, and `verdict_capability_delta=True`.
+7. For capability catalog, read the matrix first, then sample the raw `.log` files for each `processContainer.name`.
+8. If a test involves both network and filesystem, identify which layer failed first. The pip test fails at filesystem setup, so it is not network allow/block evidence.
+9. Any `appcontainer-dacl` conclusion is scoped to the current fallback tier and should not be generalized to BaseContainer / Windows Insider behavior.
+
+Evidence discipline: tables summarize conclusions, policy JSON shows configuration, logs show raw facts, and README connects them into engineering judgment.
+
 ## Setup
 
 ### Path A
