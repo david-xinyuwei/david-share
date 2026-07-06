@@ -372,7 +372,7 @@ Actual results from `wxc-exec`:
 | `network-block` | Failed | -1 | BFS filesystem policy error — `bfscfg.exe` not resolved on `appcontainer-dacl` tier |
 | `network-allow` | Failed | -1 | Same BFS error — pip needs `readwritePaths` for `--target` directory, which requires BFS |
 
-> Both pip tests hit the same filesystem policy error before reaching the network layer. The network block/allow distinction is proven by the curl test; pip install additionally requires filesystem policy (`readwritePaths`) which is not available on the current `appcontainer-dacl` fallback tier.
+> Both pip tests hit the same filesystem policy error before reaching the network layer. The network block/allow distinction is proven by the curl test. The pip case should not be used as evidence that `readwritePaths` is unavailable; the dedicated filesystem test below shows that simple `readwritePaths` scoping works on the current `appcontainer-dacl` fallback tier.
 
 ### Filesystem Policy
 

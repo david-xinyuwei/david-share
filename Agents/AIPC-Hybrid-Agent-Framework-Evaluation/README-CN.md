@@ -132,6 +132,17 @@ Hyperlight 支持 **stateful multi-turn execution**：只要 sandbox 执行后�
 ```rust
 let mut rt = pyhl::Runtime::new(&home, &[], None, None, Some(0))?;
 
+let turns = &[
+  ("Turn 1: Create variables",
+   "x = 42\ny = 'hello from turn 1'\nprint(f'  x = {x}, y = {y!r}')"),
+  ("Turn 2: Access previous state + compute",
+   "z = x * 2\nprint(f'  z = x * 2 = {z}')\nprint(f'  y from turn 1: {y!r}')"),
+  ("Turn 3: Import library, build on prior state",
+   "import pandas as pd\ndf = pd.DataFrame({'val': [x, z, x+z]})\nprint(df.to_string(index=False))"),
+  ("Turn 4: Use everything from all prior turns",
+   "total = df['val'].sum()\nprint(f'  x={x}, z={z}, df_sum={total}')"),
+];
+
 for (label, code) in turns {
     let t = rt.run_code_stateful(code)?;  // state persists between calls
 }
@@ -299,16 +310,49 @@ static void probe_create_desktop(void) {
 
 MXC 可以对每个 action 单独 block/allow outbound network。
 
+我们测试了两个 policy profiles。两者执行的是同一个 curl action：`curl https://api.github.com`。
+
+```json
+// mxc/policies/02-network-block.json
+{
+  "containment": "processcontainer",
+  "process": { "commandLine": "curl -s https://api.github.com", "timeout": 15000 },
+  "processContainer": { "name": "VSCode-Network-Block" },
+  "network": { "defaultPolicy": "block" }
+}
+
+// mxc/policies/03-network-allow.json — adds:
+  "processContainer": { "capabilities": ["internetClient"] },
+  "network": { "defaultPolicy": "allow" }
+```
+
 | Policy | curl output | Exit code | Verdict |
 |--------|-------------|:---------:|---------|
 | `network-block` | `mxc_http:000` | 6 | ✅ Network blocked |
 | `network-allow` | `mxc_http:200` | 0 | ✅ Network allowed |
+
+> Evidence: `mxc/evidence/03_network_block.log` (`mxc_http:000`, exit=6), `mxc/evidence/04_network_allow.log` (`mxc_http:200`, exit=0)
 
 pip install 测试补充说明：`pip install six==1.16.0` 在 block/allow 下都先遇到 filesystem policy setup 问题；curl 测试才是网络层 block/allow 的直接证据。
 
 ### Filesystem Policy
 
 MXC 可通过 `readwritePaths` / `readonlyPaths` 控制被包含进程能读写哪些目录。我们测试写入 `C:\temp\mxc-fs-test\`：
+
+```json
+// fs-policy-02-readwrite-allowed.json — allow write to target directory
+{
+  "version": "0.7.0-alpha",
+  "containment": "processcontainer",
+  "process": {
+    "commandLine": "cmd.exe /c echo MXC_FS_WRITE_ALLOWED > C:\\temp\\mxc-fs-test\\allowed.txt && type C:\\temp\\mxc-fs-test\\allowed.txt",
+    "timeout": 15000
+  },
+  "processContainer": { "name": "FS-ReadWrite-Allowed" },
+  "network": { "defaultPolicy": "block" },
+  "filesystem": { "readwritePaths": ["C:\\temp\\mxc-fs-test"] }
+}
+```
 
 | Test | Policy | Exit | Verdict |
 |------|--------|:----:|---------|
@@ -318,6 +362,8 @@ MXC 可通过 `readwritePaths` / `readonlyPaths` 控制被包含进程能读写�
 | 04 readonly | 只有 `readonlyPaths` | 1 | ❌ 只读目录不可写 |
 
 **Key finding**：`readwritePaths` 在当前 `appcontainer-dacl` fallback tier 上可用于简单文件写入控制。pip install 失败是因为 pip 的 `--target` 需要更复杂的 BFS 文件系统重定向，不是 `readwritePaths` 本身不可用。
+
+> Evidence: `mxc/evidence/fs-policy-*.json`（policy files），`mxc/evidence/fs_policy_*.log`（execution logs）
 
 ### Capability Catalog（9 个 Win32 probes × 4 个上下文）
 
@@ -367,6 +413,46 @@ MXC 可通过 `readwritePaths` / `readonlyPaths` 控制被包含进程能读写�
 ├── .env.example / requirements.txt
 └── README.md / README-CN.md
 ```
+
+### Evidence Index（中文读者快速查证）
+
+| 证据类别 | 文件路径 | 说明 |
+|----------|----------|------|
+| MXC 0.7 host probe | `mxc/evidence/mxc_sdk_0_7_probe_raw.txt` | `wxc-exec.exe --probe` 原始输出，包含 `tier=appcontainer-dacl` 和 10 个 `canBlock*` UI capability facts |
+| Network block | `mxc/evidence/03_network_block.log` | 同一个 curl action 在 block policy 下输出 `mxc_http:000`，exit=6 |
+| Network allow | `mxc/evidence/04_network_allow.log` | 同一个 curl action 在 allow policy 下输出 `mxc_http:200`，exit=0 |
+| pip policy summary | `mxc/evidence/pip_policy_probe_summary.txt` | pip install 在 block/allow 下都先遇到 filesystem/BFS setup 问题，不能当作 network 结论 |
+| Text profile policy | `mxc/evidence/task-rbac-text-lockdown.json` | text task 的 lockdown profile：UI/clipboard/input/network 全锁 |
+| Drawing profile policy | `mxc/evidence/task-rbac-drawing-ui.json` | drawing task 的 UI-allowed profile：GDI/system settings 等放行 |
+| Task RBAC summary | `mxc/evidence/task_rbac_policy_probe_summary.txt` | text profile blocked、drawing profile ran、capability delta=True |
+| Capability catalog | `mxc/evidence/capability_catalog_summary.md` | 9 个 Win32 probes × host/text-lockdown/gdi-minimal/broad-ui 的矩阵 |
+| Capability logs | `mxc/evidence/capability_catalog_*.log` | 每个 policy profile 的原始运行日志 |
+| Filesystem baseline | `mxc/evidence/fs_policy_01_baseline.log` | 无 filesystem 字段时写 `C:\temp` 被 `Access is denied` 阻止 |
+| Filesystem allow | `mxc/evidence/fs_policy_02_readwrite_allowed.log` | `readwritePaths` 指向目标目录时写入成功，输出 `MXC_FS_WRITE_ALLOWED` |
+| Filesystem block | `mxc/evidence/fs_policy_03_readwrite_blocked.log` | `readwritePaths` 指向其他目录时，目标目录写入被阻止 |
+| Filesystem readonly | `mxc/evidence/fs_policy_04_readonly.log` | `readonlyPaths` 只读场景下写入被阻止 |
+| Stateful Hyperlight log | `mxc/evidence/fy27_hyperlight_unikraft_stateful_demo_20260629.log` | 4-turn stateful demo 原始输出：Turn 4 证明 `x/z/df` 跨轮保留 |
+| MXC runner | `mxc/scripts/Invoke-MXCDemo.ps1` | Demo 1-7 的主执行脚本，包含 network、policy、capability、Hyperlight lifecycle 等路径 |
+| Native Win32 probe | `mxc/examples/win32_capability_probe.c` | GDI/Clipboard/Desktop/Display/SystemParams/Input/Registry/Camera DLL/WMI DLL 的 C 语言 probe |
+| Policy profiles | `mxc/policies/*.json` | 可复用 policy profiles：network block/allow、filesystem、backend-fit、Hyperlight lifecycle 等 |
+
+这张表是 README 结论的可复验入口。客户或同事如果质疑某个判断，可以直接从对应 evidence 文件复查原始日志，而不是只相信叙述。
+
+### How to read the evidence logs
+
+读 evidence logs 时建议按下面顺序看：
+
+1. 先看 `*_summary.txt` 或 `*_summary.md`，确认测试时间、policy 文件、exit code 和 verdict。
+2. 再看对应 `.json` policy，确认测试到底声明了什么 capability、network、filesystem boundary。
+3. 最后看 `.log` 原始输出，确认 `wxc-exec` 实际执行了哪个 command，以及 stdout/stderr/exit code。
+4. 对 network 测试，关键字段是 `mxc_http:000` vs `mxc_http:200`。
+5. 对 filesystem 测试，关键字段是 `Access is denied` 或 `MXC_FS_WRITE_ALLOWED`。
+6. 对 task-scoped policy 测试，关键字段是 `verdict_text_restricted=True`、`verdict_drawing_ran=True`、`verdict_capability_delta=True`。
+7. 对 capability catalog，先看表格矩阵，再回到每个 profile 的 `.log` 做抽查。
+8. 如果同一个测试同时涉及 network 和 filesystem，优先判断哪个层先失败；pip 测试就是 filesystem setup 先失败，因此不能拿它证明 network allow/block。
+9. 任何 `appcontainer-dacl` 结论都只代表当前 fallback tier，不能外推为 BaseContainer/Windows Insider tier 的全部行为。
+
+这也是本 repo 的证据口径：表格给结论，policy 给配置，log 给原始事实，README 只负责把它们串成工程判断。
 
 ## Setup
 
