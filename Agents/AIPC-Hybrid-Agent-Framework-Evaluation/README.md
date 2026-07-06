@@ -16,13 +16,9 @@ AIPC needs local reasoning plus safe local execution. This repo evaluates two im
   <img src="images/slide05-aipc-two-paths-overview.png" width="960" alt="AIPC demand and two implementation paths">
 </div>
 
-> Source: Build 2026 BRK262 + KEY01. Local small models can reason on device. Some AIPC tasks still need Windows-native local execution.
+>> Source: Build 2026 BRK262 + KEY01. Local small models can reason on device. Some AIPC tasks still need Windows-native local execution.
 
-<div align="center">
-  <img src="images/slide06-path-a-vs-path-b.png" width="960" alt="Path A vs Path B decision">
-</div>
-
-**Slide translation (Path A vs Path B — how to choose)**:
+**Path A vs Path B — how to choose:**
 
 | | Path A: MAF-based implementation | Path B: MXC + Runtime Backend Direct |
 |---|---|---|
