@@ -739,7 +739,7 @@ EAGLE3、native MTP 和 DFlash 代表不同的设计理念，不是简单的“�
 | 维度 | EAGLE3（后装） | DFlash（外置 block diffusion） | Native model-family MTP |
 |------|----------------|-------------------------------|-------------------------|
 | 核心问题 | target 已经固定，怎么事后造一个最好的 drafter？ | 能不能让外置 drafter 一次并行草拟一整块 token，去掉 draft 阶段的顺序瓶颈？ | 把 MTP 做进 pre-training objective 本身 |
-| 关键创新 | 解决了 train-test gap：训练时用 drafter 自己的预测特征而不是 ground truth 特征，让训练和推理一致（EAGLE-3, NeurIPS 2025） | target feature fusion + KV injection + block diffusion parallel drafting | MTP 作为 training objective；GLM-5.2 进一步使用 IndexShare/KVShare，防止 MTP 自己生成的 KV 污染后续 draft steps；MiMo-V2 展示了另一种打包方式：draft-only MTP weights 由 MTP runner 加载 |
+| 关键创新 | 解决了 train-test gap：训练时用 drafter 自己的预测特征而不是 ground truth 特征，让训练和推理一致（EAGLE-3, NeurIPS 2025） | target feature fusion + KV injection + block diffusion parallel drafting | MTP 作为 training objective；GLM-5.2 进一步使用 IndexShare/KVShare，防止 MTP 自己生成的 KV 污染后续 draft steps；MiMo-V2.5-Pro 展示了 3-step / multi-layer MTP serving path：draft-only MTP weights 由 MTP runner 加载 |
 | 学术记录 | EAGLE (ICML 2024)、EAGLE-2 (EMNLP 2024)、EAGLE-3 (NeurIPS 2025) | DFlash paper: arXiv:2602.06036, ICML 2026 | DeepSeek-V2/V3 论文；GLM-5.2：IndexShare（[arXiv:2603.12201](https://arxiv.org/abs/2603.12201)）+ KVShare + rejection sampling + end-to-end TV loss for MTP；MiMo-V2.5-Pro 的 model-family MTP 证据保留在关联 benchmark repo 中 |
 | 产业趋势 | 通用后装：任何 target model 都能用 | 新的外置 drafter 路线：依赖 target features，但 draft 是 block-parallel | 前沿方向：越来越多 OSS model family 在训练和 serving 中内置 MTP；Qwen3.6、GLM-5.2、DeepSeek-style models、MiMo-V2.5-Pro 都应该按 model-family-specific MTP 看待，而不是一个通用 flag |
 
@@ -820,11 +820,11 @@ MTP（Multi-Token Prediction）layers 是模型 pretraining 阶段训练出来�
 | Qwen3.6-27B | 1 | 单个 MTP head，跨 draft steps 复用 | — | HF `config.json` |
 | DeepSeek-V3 / R1 | 1 | 单个 MTP head | — | 官方论文 |
 | GLM-5.2（753B MoE） | 1 | 单个 MTP head，参数在多个 MTP steps 之间共享（`glm_moe_dsa`） | IndexShare + KVShare 防止后续 MTP step 混入 MTP 自己生成的 KV；官方 coding ablation 中，7 个 MTP steps 的 acceptance length 从 4.56 提升到 5.47（+20%） | HF `config.json`；[GLM-5.2 blog](https://huggingface.co/blog/zai-org/glm-52-blog) |
-| MiMo-V2.5-Pro | 本 repo 未把它当作可移植 key | `MiMoV2ForCausalLM` target architecture + `MiMoV2MTP` draft runner | draft-only MiMo-V2 MTP weights 不是普通 target weights；它们由 draft model runner 加载，因此 serving engine 必须理解这个 model family 的打包方式 | 关联 repo：[`MiMo-V2.5-Pro-on-MI300X-Benchmark`](../MiMo-V2.5-Pro-on-MI300X-Benchmark/) logs |
+| MiMo-V2.5-Pro | serving logs 中观察到 3-step / multi-layer MTP path | `MiMoV2ForCausalLM` target architecture + `MiMoV2MTP` draft runner | runtime 使用 `--speculative-num-steps 3` 和 `--enable-multi-layer-eagle`；draft-only MiMo-V2 MTP weights 不是普通 target weights，而是由 draft model runner 加载 | 关联 repo：[`MiMo-V2.5-Pro-on-MI300X-Benchmark`](../MiMo-V2.5-Pro-on-MI300X-Benchmark/) logs |
 
 GLM-5.2 值得注意的点不是“参数共享”本身，而是官方 blog 明确写了：不同 MTP steps 的参数是共享的，同时训练和推理都设置 7 个 MTP steps。没有 IndexShare / KVShare 时，第二个 MTP step 可能把 target model 算出来的 `kv_1..kv_4` 和 MTP 层自己算出来的 `kv_5` 混在一起，这就是 train-inference discrepancy：训练时看到的是 target hidden states，推理时却开始看到 draft 模块自己的 states。IndexShare 让后续 step 只能 attend 到第一步选出的 target 位置；KVShare 保证这些位置的 KV 来自 target model。说人话：同一套 MTP 模块可以草拟多个未来位置，但后面的草拟不能拿前面自己的草稿当参考资料。
 
-HF 上的打包方式也不一样。GLM-5.2 主要通过 `config.json` 里的 `num_nextn_predict_layers=1` 和 `index_share_for_mtp_iteration=true` 暴露 MTP 设计；文件列表是普通主模型 shards（如 `model-00001-of-00282.safetensors`），没有单独的 `model_mtp.safetensors`。有些 native MTP model family 会把 MTP 权重作为同目录下单独文件发布，也可能像 MiMo-V2 style logs 那样通过专门的 draft runner 加载 draft-only MTP weights。共同点是 native model-family MTP；具体文件布局随 release 而变。
+HF 上的打包方式也不一样。GLM-5.2 主要通过 `config.json` 里的 `num_nextn_predict_layers=1` 和 `index_share_for_mtp_iteration=true` 暴露 MTP 设计；文件列表是普通主模型 shards（如 `model-00001-of-00282.safetensors`），没有单独的 `model_mtp.safetensors`。有些 native MTP model family 会把 MTP 权重作为同目录下单独文件发布，也可能像 MiMo-V2 style logs 那样通过专门的 draft runner 加载 draft-only MTP weights。在关联 MiMo-V2.5-Pro benchmark repo 中，serving path 使用 three speculative steps + multi-layer EAGLE/MTP support。共同点是 native model-family MTP；具体文件布局随 release 而变。
 
 **层数为什么重要：**
 
