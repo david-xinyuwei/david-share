@@ -403,6 +403,17 @@ MXC can scope which directories a contained process can read and write via `read
 
 ### Capability Catalog (9 Win32 probes × 4 execution contexts)
 
+Test setup:
+
+| Item | Value |
+|------|-------|
+| MXC SDK | `@microsoft/mxc-sdk@0.7.0` (`wxc-exec.exe`) |
+| Runtime backend | **ProcessContainer / AppContainer+DACL fallback**, not Hyperlight |
+| MXC tier reported by `--probe` | `appcontainer-dacl` |
+| OS / host | Stock Windows 11 test host, not Windows Insider BaseContainer tier |
+| Test binary | Native C probe: `mxc/examples/win32_capability_probe.c` |
+| Evidence | `mxc/evidence/capability_catalog_summary.md` and `mxc/evidence/capability_catalog_*.log` |
+
 How to read this table:
 
 | Column | Plain-English meaning |

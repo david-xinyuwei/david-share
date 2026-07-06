@@ -369,6 +369,17 @@ MXC 可通过 `readwritePaths` / `readonlyPaths` 控制被包含进程能读写�
 
 ### Capability Catalog（9 个 Win32 probes × 4 种执行上下文）
 
+测试基座：
+
+| 项目 | 值 |
+|------|----|
+| MXC SDK | `@microsoft/mxc-sdk@0.7.0` (`wxc-exec.exe`) |
+| Runtime backend | **ProcessContainer / AppContainer+DACL fallback**，不是 Hyperlight |
+| `--probe` 报告的 MXC tier | `appcontainer-dacl` |
+| OS / host | 普通 Windows 11 测试机，不是 Windows Insider BaseContainer tier |
+| 测试程序 | Native C probe：`mxc/examples/win32_capability_probe.c` |
+| 证据文件 | `mxc/evidence/capability_catalog_summary.md` 和 `mxc/evidence/capability_catalog_*.log` |
+
 这张表不是在说“好/坏”，而是在回答一个很具体的问题：**同一个 Windows API，在不同 MXC policy 下能不能被调用？**
 
 | 列名 | 人话解释 |
