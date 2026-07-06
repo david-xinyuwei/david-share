@@ -16,7 +16,7 @@ AIPC needs local reasoning plus safe local execution. This repo evaluates two im
   <img src="images/slide05-aipc-two-paths-overview.png" width="960" alt="AIPC demand and two implementation paths">
 </div>
 
->> Source: Build 2026 BRK262 + KEY01. Local small models can reason on device. Some AIPC tasks still need Windows-native local execution.
+> Source: Build 2026 BRK262 + KEY01. Local small models can reason on device. Some AIPC tasks still need Windows-native local execution.
 
 **Path A vs Path B — how to choose:**
 
@@ -211,6 +211,23 @@ https://github.com/user-attachments/assets/581acf71-510b-489e-b3a4-af24e9977a35
 <div align="center">
   <img src="images/slide15-mxc-definition.png" width="960" alt="MXC definition">
 </div>
+
+### MXC Demo Inventory
+
+The Path B evidence is not a single toy script. It is a VS Code runnable test harness with policy files and logs checked into `mxc/`.
+
+| Demo | Task | What it proves | Key evidence |
+|------|------|----------------|--------------|
+| Demo 1 | Probe host | MXC can launch a real Windows command through ProcessContainer/AppContainer fallback | `mxc/evidence/02_mxc_hello_world.log` |
+| Demo 2 | No policy / full access | Baseline action can reach the network before policy is applied | `mxc/evidence/01_bare_baseline.log` |
+| Demo 3 | Network denied | Same curl action gets `mxc_http:000`, exit 6 under network block | `mxc/evidence/03_network_block.log` |
+| Demo 4 | Network approved | Same curl action gets `mxc_http:200`, exit 0 under allow policy | `mxc/evidence/04_network_allow.log` |
+| Demo 4b | ProcessContainer policy probe | pip is blocked by filesystem policy setup, while Win32/UI policy can block/allow PowerShell init | `mxc/evidence/pip_policy_probe_summary.txt` |
+| Demo 4c | Task-scoped policy | Text profile blocks UI capability; drawing profile allows it | `mxc/evidence/task_rbac_policy_probe_summary.txt` |
+| Demo 4d | Capability catalog | Native Win32 API matrix across `text-lockdown`, `gdi-minimal`, `broad-ui` | `mxc/evidence/capability_catalog_summary.md` |
+| Filesystem | Filesystem policy | `readwritePaths` permits only the declared directory; baseline/readonly/out-of-scope writes fail | `mxc/evidence/fs_policy_*.log` |
+
+Primary runner: `mxc/scripts/Invoke-MXCDemo.ps1`. Policy profiles live in `mxc/policies/`; the native probe source is `mxc/examples/win32_capability_probe.c`.
 
 ### MXC 0.7 Probe
 

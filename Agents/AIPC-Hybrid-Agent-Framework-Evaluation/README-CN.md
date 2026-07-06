@@ -1,310 +1,402 @@
-# 开源 Agent 框架评估：AIPC 混合计算场景
+# AIPC Edge Agent Execution：通往 Windows-Native Local Runtime 的两条路径
 
-[![LangChain](https://img.shields.io/badge/LangChain-1.3-1C3C3C?logo=langchain&logoColor=white)](https://docs.langchain.com/oss/python/langchain/overview)
-[![LangGraph](https://img.shields.io/badge/LangGraph-1.2-2d6a4f?logo=langchain&logoColor=white)](https://docs.langchain.com/oss/python/langgraph/overview)
-[![Agent Framework](https://img.shields.io/badge/MAF-1.8-0078D4?logo=microsoft&logoColor=white)](https://github.com/microsoft/agent-framework)
-[![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![MAF](https://img.shields.io/badge/MAF-1.8-0078D4?logo=microsoft&logoColor=white)](https://github.com/microsoft/agent-framework) [![MXC](https://img.shields.io/badge/MXC_SDK-0.7-purple)](https://github.com/microsoft/mxc) [![Hyperlight](https://img.shields.io/badge/Hyperlight-Sandbox-blue)](https://github.com/hyperlight-dev/hyperlight) [![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-三个开源 Agent 框架在 AIPC 混合计算场景下的架构级对比——**LangChain**、**LangGraph** 和 **Microsoft Agent Framework (MAF)**。这不是一个“谁更会调 Azure OpenAI”的 API wrapper 对比，而是先看框架本身：执行模型、工作流控制、状态持久化、HITL、本地 runtime、Windows 生产适配、可观测性和部署路径，再映射到 Lenovo Qira 这类 AIPC hybrid 场景。
+AIPC 需要本地 reasoning，也需要安全可控的 Windows-native local execution。本 repo 按 Build 2026（BRK262 / KEY01）里的两条实现路径组织：**Path A — 基于 MAF 的完整 agent loop**，以及 **Path B — MXC + runtime backend direct**。测试代码、policy profiles、evidence logs 均已入库。
 
 > **Author**: Xinyu Wei (魏新宇) — Microsoft AI GBB Senior System Engineer
 
-English | [中文版](README-CN.md)
+[English](README.md) | 中文版
 
 ---
 
-## 客户真正关心的问题
+## AIPC 双路径架构（来自 Build 2026）
 
-Lenovo Qira 这类 AIPC OS agent 要回答的不是“哪个 SDK 能调模型”，而是：
+<div align="center">
+  <img src="images/slide05-aipc-two-paths-overview.png" width="960" alt="AIPC demand and two implementation paths">
+</div>
 
-> **如果一个 OS 级 AI assistant 要同时跑本地 skill、本地模型、云端推理、人工审批，并且要能从笔记本休眠/重启/进程崩溃中恢复，应该选哪种 Agent framework？**
+> Source: Build 2026 BRK262 + KEY01。端侧小模型可以在设备上 reasoning，但一部分 AIPC 任务仍然需要 Windows-native local execution。
 
-所以本 repo 分两层对比：
+<div align="center">
+  <img src="images/slide06-path-a-vs-path-b.png" width="960" alt="Path A vs Path B decision">
+</div>
 
-1. **框架层**：每个框架是什么、内部怎么执行、怎么建 workflow、支持哪些开发语言、开源成熟度如何、生产能力有哪些。
-2. **AIPC hybrid runtime 层**：每个框架怎么映射到本地模型、本地工具/skill、云端 fallback、checkpoint、sandbox 和 Windows 部署。
+### 如何选择
 
-Chat Completions / Responses API 这些 API surface 很重要，但它只是其中一层，不是整个框架的本质。
+| | Path A：MAF-based implementation | Path B：MXC + Runtime Backend Direct |
+|---|---|---|
+| **适用场景** | 完整 agent workflow：planning、tool calls、HITL、CodeAct、recovery、cloud/local routing | 只需要对某个 Windows-native action 或生成代码做受控本地执行，不需要完整 agent loop |
+| **主循环由谁承载** | MAF 承载 reasoning-action loop；需要时由 Hyperlight 隔离生成代码 | App/model 选择 action；MXC 声明 policy；backend 负责 containment |
+| **核心技术** | Microsoft Agent Framework、Hyperlight CodeAct、Ollama/Foundry Local、OpenTelemetry | MXC SDK 0.7、ProcessContainer（默认）、Hyperlight（高风险升级）、JSON policy profiles |
+| **本 repo 证明什么** | Framework comparison、MAF workflow/HITL、Sandbox API、host tools | MXC --probe、task-scoped policy、capability catalog、ProcessContainer behavior |
 
----
-
-## 宏观框架对比
-
-| 维度 | LangChain | LangGraph | Microsoft Agent Framework (MAF) | 对 AIPC 的意义 |
-|------|-----------|-----------|----------------------------------|----------------|
-| 官方定位 | 面向 agents 和 LLM app 的 agent engineering platform | 面向 stateful agents 的 low-level orchestration framework | 面向 production-grade agents 和 workflows 的多语言框架 | 先理解 mental model，再谈 API |
-| 开源成熟度 | MIT，约 139k GitHub stars，约 3.9k contributors | MIT，约 34.3k stars，约 295 contributors | MIT，约 11.2k stars，约 160 contributors | LangChain 生态最大；MAF 更新、更贴 Microsoft 栈 |
-| 主要语言 | Python core；另有 JS/TS 生态 | Python core；另有 LangGraph.js | Python + C#/.NET 同框架支持 | Windows 原生 / .NET 团队更容易接受 MAF |
-| 核心抽象 | Agent/tool loop，围绕模型调用组织工具 | StateGraph：节点、边、状态、checkpoint | 双模式：Agent + Workflow，再加 providers、middleware、OTel、hosting | LangGraph/MAF 更容易解释运行时结构 |
-| 谁控制执行顺序 | 多数由 LLM 决定工具顺序 | 开发者定义图 | Agent 模式由 LLM 决定；Workflow 模式由开发者定义 | OS agent 往往需要显式控制本地/云端路由 |
-| Workflow 能力 | chain / agent loop；复杂 durable workflow 要靠外部实现 | StateGraph + checkpoint + interrupt | WorkflowBuilder + checkpoint/time-travel + Durable hosting 路径 | LangGraph 本地 durable graph 最直接；MAF 是更完整生产栈 |
-| 状态恢复 | Agent loop 默认无 durable state | SQLite/Postgres checkpointer 一等支持 | Workflow checkpoint/time-travel；本地 backend 需按场景验证 | 设备重启恢复是 AIPC 的一等需求 |
-| HITL | 手工 callback / UI glue | 原生 `interrupt()` | `RequestInfoExecutor` / schema validation | 不能用阻塞式 `input()` 假装审批 |
-| 可观测性 | 通常接 LangSmith | LangSmith | 内置 OpenTelemetry，可走 Azure Monitor | 客户级 demo 需要 trace，不只是 console log |
-| 本地 runtime | 很容易接 Ollama，但进程生命周期由应用负责 | 同 LangChain provider 层，但有更强 state graph | Ollama provider、Foundry Local、Hyperlight package、.NET path | MAF 的 Windows production surface 最完整，但每个本地 backend 都要实测 |
-| 最适合 | 快速原型 + 广泛集成 | local-first stateful workflow | Windows/enterprise production agent platform | 最可能不是单一赢家，而是 LangGraph 做本地 durable runtime，MAF 做企业/云端生产路径 |
-
-来源（2026-06-10 访问）：[LangChain GitHub](https://github.com/langchain-ai/langchain)、[LangGraph GitHub](https://github.com/langchain-ai/langgraph)、[Microsoft Agent Framework GitHub](https://github.com/microsoft/agent-framework)、[MAF Learn](https://learn.microsoft.com/en-us/agent-framework/)。
+这两条路径**不是二选一**。生产架构可以用 MAF 承载 agent experience，同时对具体本地 action 使用 MXC-governed execution。
 
 ---
 
-## Live Demo
-
-> `http://linuxworkvm1-work.eastasia.cloudapp.azure.com:8506`
-
-5 个场景 tab：▦ Framework、🖥 Runtime、💥 Recovery、⏸ HITL、📝 Code。
-
-### 哪些是真跑，哪些是架构可视化
-
-| 资产 | 证明什么 | 边界 |
-|------|----------|------|
-| `scenarios/langchain_travel_agent.py` | LangChain + 本地 Ollama 的 tool-calling loop | 取决于本地模型是否支持 tool calling |
-| `scenarios/langgraph_travel_agent.py` | StateGraph、typed state、`interrupt()` 模式 | 本地场景 fixture；持久化路径需按部署环境继续验证 |
-| `scenarios/maf_travel_agent.py` | 真实 MAF `OllamaChatClient.as_agent(...)` 路径，接本地 Ollama tools | 证明 Agent/provider 层；WorkflowBuilder checkpoint/HITL 还需单独 proof |
-| Portal Framework | 可视化宏观框架差异：开源成熟度、语言、执行控制、状态、workflow model | 对比视图，不是 benchmark |
-| Portal Runtime | 映射本地模型、skill/tool、本地状态、HITL、sandbox、cloud fallback、enterprise ops | backend-specific 结论要在目标 Windows AIPC 硬件上烟测 |
-| Portal Recovery / HITL | 解释 crash recovery / HITL 应该如何评估 | scripted trace，不是真实 kill/restart |
-
-所以 Portal 更适合作为**架构可视化讲解工具**，真正的 runnable evidence 在 `scenarios/` 脚本里。
-
----
-
-## 为什么做这个评估
-
-AIPC 需要 agent 在同一个工作流里编排**本地算力**（端侧 SLM + 本地工具）和**云端算力**（Azure OpenAI + 云端 API）。框架在应用和模型之间：
-
-```
-应用层 (OS 壳 / UI)
-Agent 框架层  ← 我们对比的层
-本地算力 (Ollama)  ←→  云端算力 (Azure OpenAI)
-```
-
-关键问题：**哪个框架最能处理本地和云端之间的双向交互？** 不只是"能不能调 Ollama"，而是：状态怎么跨本地/云端边界流转、任务怎么按复杂度路由、一边挂了另一边怎么恢复。
-
----
-
-## 1. 实现原理
-
-### 1.1 LangChain：ReAct 循环
-
-核心是一个 **ReAct（Reason + Act）循环**——模型想、选工具、看结果、再想，直到得出最终答案。
-
-**执行流程**：用户消息 + system prompt + 工具定义 → 发给 LLM → LLM 返回 tool_call 或 final answer → 如果 tool_call 就执行然后把结果追加到消息列表 → 循环。
-
-**架构特性**：
-- **执行控制**：LLM 决定——模型选择调哪个工具、什么顺序
-- **状态**：临时的——一个 Python 消息列表，默认不持久化
-- **并行**：隐式——LLM 一次返回 3 个 tool_call 就一起执行，但开发者没有显式控制
-- **错误恢复**：无——进程崩了全丢，从头来
-
-**对 hybrid 计算的意义**：LLM 自己决定用本地工具还是云端工具，开发者无法强制指定执行顺序。简单快速，但放弃了控制权。
-
-### 1.2 LangGraph：状态机图
-
-核心是一个 **有向图的 typed state 变换**——受 Google Pregel 启发，每个节点是一个纯函数，输入当前状态、输出状态增量。
-
-**执行流程**：开发者定义 `StateGraph`（TypedDict 状态 + 节点函数 + 边） → compile 时绑定 checkpointer → 执行时按图遍历，同一深度的节点并行跑 → 每个节点边界 checkpoint → `interrupt()` 暂停图。
-
-**架构特性**：
-- **执行控制**：开发者决定——图的拓扑在代码里定义
-- **状态**：TypedDict + 每个节点边界 checkpoint（SQLite / Postgres）
-- **并行**：显式——从同一个源出发的边并行执行
-- **错误恢复**：从最近的 checkpoint 恢复，只重跑失败节点
-
-**对 hybrid 计算的意义**：用 conditional edge 显式路由"简单任务 → 本地 Ollama 节点，复杂任务 → 云端 Azure OpenAI 节点"。SQLite checkpointer 是一等功能，状态不依赖云端就能持久化——设备重启后恢复。
-
-### 1.3 MAF：双模式（Agent + Workflow）
-
-MAF 有两种执行模式：**Agent 模式**（LLM 驱动，类似 LangChain）和 **Workflow 模式**（图编排，类似 LangGraph），再加上 middleware pipeline 和 provider 抽象。
-
-**架构特性**：
-- **执行控制**：两种都有——Agent（LLM 决定）或 WorkflowBuilder（开发者决定）
-- **状态**：Agent 用 session scope；Workflow 用 superstep checkpoint
-- **独有能力**：middleware pipeline、IChatClient provider 抽象、内置 OpenTelemetry、Python + C#/.NET 双语言、Foundry Hosted Agent 云端部署
-
-**对 hybrid 计算的意义**：IChatClient 接口让换模型只改一行代码。MAF 有原生 `OllamaChatClient`，官方 `ollama_agent_basic.py` 示例用 `@tool` + `tools=get_time` 演示了 Ollama tool calling；它还有 `FoundryLocalClient`，可以走 Foundry Local 做本地推理。另一面，`agent-framework-hyperlight` 可以让工具在 Hyperlight-backed sandbox 里隔离执行——这是三框架里唯一的框架级沙箱集成。注意：Ollama tool calling 仍取决于具体模型能力，`qwen3:0.6b` 不能直接假设可用，应实测 `qwen2.5:3b` / `qwen3:4b`。
-
----
-
-### 1.4 API surface 是子层，不是框架本身
-
-宏观框架讲完之后，再看它们怎么触达 OpenAI-compatible model。这个维度会影响 APIM 路由、hosted tools、reasoning model 和排障，但它不是框架本身。
-
-| 框架 | 默认 mental model | OpenAI / Azure OpenAI API surface | Tool 影响 | 客户应该怎么理解 |
-|------|-------------------|-----------------------------------|-----------|------------------|
-| LangChain | chat model abstraction + agent/tool loop | `ChatOpenAI` / `AzureChatOpenAI` 常见路径是 Chat Completions；`ChatOpenAI` 可用 `use_responses_api=True` 显式启用 Responses API，也会在设置 `reasoning` 时自动走 Responses API | `bind_tools` 接 Python function tools；显式启用 Responses API 后可用 server-side tools | API path 是 model/client 配置，不是 LangChain 的核心差异 |
-| LangGraph | graph runtime；model call 只是图里的一个节点 | 取决于节点里放的 chat model，通常复用 LangChain `ChatOpenAI` / `AzureChatOpenAI` | tool 语义由节点代码和 model client 决定；LangGraph 负责状态、checkpoint、retry | LangGraph 的价值在 durable control flow，不在自己发明新模型 API |
-| MAF | production agent/workflow framework + provider clients | `OpenAIChatClient` 走 Responses API，是官方推荐主路径；`OpenAIChatCompletionClient` 走 Chat Completions，用于兼容和简单场景 | Responses client 支持更完整 hosted tools：code interpreter、file search、web search、hosted MCP、image generation；Chat Completions 适合简单和兼容路径 | MAF 的 API 层更显式、更 production-oriented，但它仍只是 runtime stack 的一层 |
-
-来源（2026-06-10 访问）：[LangChain AzureChatOpenAI Responses API 文档](https://docs.langchain.com/oss/python/integrations/chat/azure_chat_openai)、[MAF OpenAI provider 文档](https://learn.microsoft.com/en-us/agent-framework/agents/providers/openai)、[MAF Azure OpenAI provider 文档](https://learn.microsoft.com/en-us/agent-framework/agents/providers/azure-openai)。
-
-**APIM 提醒**：Chat Completions 和 Responses API 的路由不同。如果 APIM 只转发 `/chat/completions`，Responses client 可能 404；这不是框架坏，而是网关路由没配。
-
----
-
-## 2. Hybrid 计算核心对比
-
-### 2.0 AIPC runtime stack 映射
-
-Lenovo Qira 关心的是 OS agent 的整条 runtime，不是单点 API：
-
-| AIPC 层 | 作用 | LangChain | LangGraph | MAF |
-|---------|------|-----------|-----------|-----|
-| 本地模型 runtime | 低延迟、离线、隐私优先任务走本地 SLM | 很容易接 Ollama；进程生命周期应用自己管 | 同 LangChain provider 层，但嵌在 graph node 里 | Ollama provider + Foundry Local 路径；Windows/.NET 路径更完整 |
-| 本地工具 / Skill | 调 OS API、本地文件、app skill、设备能力 | Python function / wrapper，简单但多在进程内 | tool 可以做成 graph node，有 typed state 和 retry 边界 | tool 可放在 provider / middleware / workflow 抽象后，和 Microsoft skill/declarative 体系更贴近 |
-| 本地状态存储 | 笔记本休眠/重启/进程崩溃后恢复 | 应用自己实现 | SQLite/Postgres checkpointer 最直接 | Workflow checkpoint/time-travel 支持，但本地 backend 要选型验证 |
-| 人工审批 | 发邮件/订票/改系统设置前暂停 | 手工 UI/callback | 原生 `interrupt()` | `RequestInfoExecutor` / request-info + schema validation |
-| 云端 fallback | 复杂推理升级到云端 LLM | 手写路由 | conditional edge 明确写在图里 | provider/client swap + Foundry hosting 路径清晰 |
-| 沙箱执行 | 隔离风险代码和工具 | 外部 wrapper | 外部 wrapper | `agent-framework-hyperlight` 是框架级选项，但要验证硬件/OS 支持 |
-| 企业运维 | tracing、部署、认证、治理 | 通常接 LangSmith + 自己运维 | LangSmith + 自己运维 | 内置 OpenTelemetry、Foundry hosting、Azure Functions/A2A、Python + .NET |
-
-因此推荐不一定是“单一赢家”：**LangGraph 适合 local durable orchestration，MAF 适合 Windows/enterprise production integration，LangChain 仍然是最快的集成和原型层。**
-
-### 2.1 本地模型能力
-
-用 Ollama 跑本地模型时，各框架能做什么：
-
-| 能力 | LangChain | LangGraph | MAF |
-|------|:---------:|:---------:|:---:|
-| Chat completion | ✅ | ✅ | ✅ |
-| Structured output (JSON) | ✅ | ✅ | ✅ |
-| **Tool calling** | ✅ | ✅ | ✅ 取决于模型 |
-| **Streaming** | ✅ | ✅ | ✅ |
-
-MAF 的关键限制不是框架不支持，而是**本地模型是否支持 tool calling**。因此 demo 不能只测 `qwen3:0.6b`，需要至少测一个明确支持 tool calling 的 Ollama 模型（如 `qwen2.5:3b` 或 `qwen3:4b`）。
-
-### 2.2 本地 ↔ 云端路由
-
-| 框架 | 路由机制 | 可见性 | 灵活性 |
-|------|---------|:------:|:------:|
-| LangChain | 手动 if/else | 低 | 中 |
-| LangGraph | conditional edge（在图里显式定义） | ✅ 高 | ✅ 高 |
-| MAF | IChatClient 接口切换 | 中 | ✅ 高（最干净的抽象） |
-
-LangGraph 的 conditional edge 最直观——路由规则就写在图定义里，一眼能看出什么条件走本地、什么条件走云端。MAF 的 IChatClient 抽象最干净——换模型改一行，业务代码不动。
-
-### 2.3 状态持久化（设备重启恢复）
-
-| 框架 | 持久化机制 | 本地友好？ |
-|------|-----------|:---------:|
-| LangChain | ❌ 无 | N/A |
-| LangGraph | SQLite checkpointer | ✅✅ 一个 `.db` 文件搞定 |
-| MAF Agent | Session scope | ⚠️ 需要按场景选存储 |
-| MAF Workflow | Checkpointing + time-travel | ✅ 支持；本地 backend 需实测 |
-
-LangGraph 的 SQLite checkpointer 仍然是最简单、最明确的本地 checkpoint 方案。MAF 也支持 workflow checkpointing / time-travel，但本地只跑时的存储路径需要在 demo 里实测，不应写成“没有”。
-
-### 2.4 Crash Recovery
-
-酒店 API 在天气和机票成功后超时：
-
-| 框架 | 天气+机票结果 | 恢复方式 | 浪费的 API 调用 |
-|------|:----------:|---------|:--------------:|
-| LangChain | ❌ 丢失 | 从头重跑全部 | 2 次（白调了） |
-| LangGraph | ✅ checkpoint 里 | 从最近 checkpoint 恢复，只重试酒店 | 0 |
-| MAF Workflow | ✅ superstep 里 | Durable Task replay，跳过已完成步骤 | 0 |
-
-### 2.5 沙箱隔离
-
-| 框架 | 内置沙箱 | 机制 |
-|------|:-------:|------|
-| LangChain | ❌ | 工具就是主进程里的 Python 函数 |
-| LangGraph | ❌ | 同上 |
-| MAF | ⚠️ Beta | `agent-framework-hyperlight`——工具在 Hyperlight micro-VM 里跑（1-2ms 冷启动） |
-
-MAF 的 Hyperlight 集成是唯一的框架级沙箱选项，但还是 beta。生产环境三个框架都需要外部沙箱层（MXC / Hyperlight standalone / OS 级容器）。
-
-**运行约束**：Hyperlight 需要 Windows host 具备 WHP / hypervisor 支持。本次 Azure VM 环境里，MXC/Hyperlight 已经走到 VM creation，但失败于 `No hypervisor was found`。因此本 repo 把 Hyperlight 当作架构差异点，而不是 Azure VM 上已验证的结果。
-
----
-
-## 3. 公平评估
-
-### 各框架最强项
-
-| 框架 | AIPC 最强项 |
-|------|------------|
-| **LangChain** | **最快原型 + 最全模型生态**——80+ 模型集成，5 行代码建 agent，Ollama 全功能支持（包括 tool calling） |
-| **LangGraph** | **最好的本地 runtime**——Ollama 全功能、SQLite 本地持久化、conditional edge 显式路由、interrupt() HITL。为有状态工作流 + 设备重启恢复量身设计。 |
-| **MAF** | **最完整的 Windows production runtime**——Ollama provider、Foundry Local、workflow checkpointing/time-travel、OpenTelemetry、middleware、C#/.NET、Foundry hosting，以及三框架里唯一的 Hyperlight 原生沙箱集成 |
-
-### 各框架最弱项（诚实评估）
-
-| 框架 | AIPC 最弱项 |
-|------|------------|
-| **LangChain** | 无状态持久化、无 crash recovery、无 HITL。对生产 AIPC 来说只能做原型。 |
-| **LangGraph** | 无内置 observability（要 LangSmith），只有 Python（没有 C#），无沙箱集成。 |
-| **MAF** | 能力最全但也最重：Ollama / Foundry Local / Hyperlight 都是可选包，模型能力和本地 checkpoint backend 需要逐项实测，学习曲线高于 LangChain/LangGraph。 |
-
-### 综合矩阵
-
-| AIPC 需求 | LangChain | LangGraph | MAF |
-|:---------|:---------:|:---------:|:---:|
-| 完全离线运行 | ✅ | ✅✅ | ✅ Ollama / Foundry Local，取决于模型 |
-| 设备重启恢复 | ❌ | ✅✅ SQLite 本地 | ✅ Workflow checkpointing；本地 backend 待实测 |
-| 本地/云端路由 | 手动 | ✅✅ Conditional edge | ✅ IChatClient 切换 |
-| Crash recovery | ❌ | ✅ | ✅ |
-| HITL 审批 | ❌ | ✅ | ✅ + schema 验证 |
-| 沙箱隔离 | ❌ 需 wrapper | ❌ 需 wrapper | ✅ `agent-framework-hyperlight` |
-| 可观测性 | ❌ | ❌ | ✅✅ 内置 OTel |
-| C#/.NET | ❌ | ❌ | ✅✅ |
-| 轻量级 | ✅ | ✅ | ⚠️ 较重 |
-
----
-
-## 4. 架构建议
-
-### 本地优先的 AIPC（离线、轻量、跨平台优先）
-
-```
-App UI → LangGraph StateGraph → Ollama (全功能) + Azure OpenAI (conditional edge)
-                              → 本地工具 + SQLite checkpoint
+## Path A：基于 MAF 的完整 Agent Loop
+
+MAF 承载完整路径：plan → call tools → generate action → observe → continue → HITL → cloud/local routing → telemetry。
+
+### Live Demo
+
+MAF + Hyperlight host tools on Windows AIPC：截图、系统信息、CSV 分析，均在 WHP-isolated Hyperlight micro-VM 中执行。
+
+https://github.com/user-attachments/assets/c2554bf2-da92-4a32-8692-0c576d7af376
+
+<div align="center">
+  <img src="images/architecture.png" width="960" alt="Path A Architecture: MAF + Hyperlight call chain">
+</div>
+
+### Framework Comparison
+
+| Dimension | LangChain | LangGraph | MAF |
+|-----------|-----------|-----------|-----|
+| Execution control | LLM decides | Developer graph | Agent + Workflow 双模式 |
+| State recovery | 无 | SQLite checkpoint | Workflow checkpoint |
+| HITL | Manual | interrupt() | RequestInfoExecutor |
+| Sandbox | 无 | 无 | agent-framework-hyperlight |
+| Windows/.NET | 无 | 无 | 有 |
+| Observability | LangSmith | LangSmith | 内置 OpenTelemetry |
+| Cloud hosting | 无 | 无 | Foundry Hosted Agents |
+
+### Path A Test Results
+
+| Script | 证明什么 | 状态 |
+|--------|----------|:----:|
+| `scenarios/maf_travel_agent.py` | MAF + Ollama tool calling | ✅ |
+| `scenarios/maf_workflow_travel.py` | MAF @workflow + HITL | ✅ |
+| `scenarios/maf_workflow_demo.py` | MAF durable workflow + checkpoint | ✅ |
+| `scenarios/langchain_travel_agent.py` | LangChain ReAct loop | ✅ |
+| `scenarios/langgraph_travel_agent.py` | LangGraph StateGraph + SQLite | ✅ |
+| `portal/sandbox_api.py` | Hyperlight Sandbox + 4 host tools | ✅ |
+| `portal/server.py` | 4-tab comparison portal | ✅ |
+
+### Path A Code：Hyperlight Sandbox + Host Tools
+
+AIPC Sandbox API 把 4 个 host tools 注册给 `HyperlightCodeActProvider`。MAF Agent 决定写什么代码；Hyperlight 在 WHP-isolated micro-VM 里执行；`call_tool()` 再桥接回 host callbacks。
+
+```python
+# portal/sandbox_api.py — key excerpt
+from agent_framework_hyperlight import HyperlightCodeActProvider
+
+def read_csv(filename: str) -> str: ...
+def list_host_files(extension: str) -> str: ...
+def host_system_info() -> str: ...
+def capture_screenshot() -> str: ...
+
+codeact = HyperlightCodeActProvider(
+    tools=[read_csv, list_host_files, host_system_info, capture_screenshot],
+)
+agent = ChatCompletionAgent(
+    name="AIPC-CodeAct",
+    instructions="Use execute_code for EVERY request. Inside execute_code, call host tools via call_tool().",
+    model_client=azure_client,
+    code_act_provider=codeact,
+)
+result = await agent.run(task=user_query)
 ```
 
-### 云端优先 + 本地回退（企业、governance、Windows C# 优先）
+Sandbox 内代码不能任意读 host 文件；它只能通过注册过的 4 个 host tools 访问本地资源。
 
-```
-App UI (C#) → MAF WorkflowBuilder → Azure OpenAI / Foundry (云端)
-                                   → Ollama / Foundry Local (本地推理，tool calling 取决于模型)
-                                   → OpenTelemetry → Azure Monitor
+### Path A Code：Standalone Hyperlight Sandbox
+
+```python
+# portal/sandbox_api.py — direct sandbox endpoint
+from hyperlight_sandbox import Sandbox
+
+async def sandbox_run(code: str):
+    def _execute():
+        sandbox = Sandbox(backend="wasm")
+        result = sandbox.run_python(code)
+        sandbox.close()
+        return result
+    return await asyncio.to_thread(_execute)  # keep Rust !Send on one thread
 ```
 
-### 混合：LangGraph 本地 + MAF 云端
+### CodeAct / Hyperlight Boundaries
 
-```
-本地: LangGraph + Ollama + SQLite (离线 agent，全功能)
-       ↕ A2A protocol
-云端: MAF Foundry Hosted Agent (复杂推理，OTel 追踪)
-```
+- MAF 今天不直接调用 MXC（2026-06-20 source scan：MXC_MATCH_COUNT=0）。
+- MAF CodeAct backend 是 Hyperlight（官方 documented connector）。
+- Hyperlight 不管理 host callbacks；host tools 必须写窄边界。
 
 ---
 
-## 5. 术语边界
+## Hyperlight-Unikraft Stateful Execution（跨轮状态保留）
 
-| 产品 | 是什么 | 和 MAF 的关系 |
-|------|--------|--------------|
-| **MAF** | 开源编排框架（本评估对象） | — |
-| **Foundry Agent Service** | 云端托管 | MAF 可部署上去 |
-| **Foundry Local** | 端侧模型推理 runtime | **不是 agent 框架**——只提供本地 LLM serving，不做编排/状态/HITL。可以作为任何框架的模型 backend。注意：部分团队反馈它对端侧设备来说偏重。 |
-| **Semantic Kernel / AutoGen** | 上一代 SDK | MAF 继任者 |
+Hyperlight 支持 **stateful multi-turn execution**：只要 sandbox 执行后不 restore 到 snapshot，session 中间结果（变量、imports、DataFrame）可以跨 turn 保留。这对 AIPC CodeAct 场景很重要：agent 可能需要在上一轮计算结果基础上继续写代码。
+
+我们在 FY27 环境复现了产品组的 [stateful demo](https://github.com/hyperlight-dev/hyperlight-unikraft/blob/proto/stateful-demo/host/src/bin/stateful_demo.rs)。核心代码如下：
+
+```rust
+let mut rt = pyhl::Runtime::new(&home, &[], None, None, Some(0))?;
+
+for (label, code) in turns {
+    let t = rt.run_code_stateful(code)?;  // state persists between calls
+}
+```
+
+FY27 实测输出（Windows 10 Pro build 26200, WHP enabled）：
+
+```text
+[init] runtime created in 62ms
+
+--- Turn 1: Create variables ---
+  x = 42, y = 'hello from turn 1'
+  [36ms (includes initial restore: 152ms)]
+
+--- Turn 2: Access previous state + compute ---
+  z = x * 2 = 84
+  y from turn 1: 'hello from turn 1'
+  [3ms]
+
+--- Turn 3: Import library, build on prior state ---
+ val
+  42
+  84
+ 126
+  [182ms]
+
+--- Turn 4: Use everything from all prior turns ---
+  x=42, z=84, df_sum=252
+  All state persisted across 4 turns!
+  [11ms]
+```
+
+**证明什么**：`run_code_stateful()` 可以让 Python interpreter state 跨 4 turns 保留。Turn 2 读取 Turn 1 的 `x`；Turn 3 用前面变量构建 DataFrame；Turn 4 继续使用 Turn 3 的 `df`。
+
+**边界**：该 stateful execution model 尚未集成到 MXC mainline。产品组已在 [`danbugs/mxc/tree/proto/hyperlight-stateful`](https://github.com/danbugs/mxc/tree/proto/hyperlight-stateful) 推进集成，当前仍是 prototype branch。
+
+> Source: `hyperlight-dev/hyperlight-unikraft` branch `proto/stateful-demo`, commit `ced2b301`
+> Evidence: `mxc/evidence/fy27_hyperlight_unikraft_stateful_demo_20260629.log`
 
 ---
 
-## 6. 复现 / 目录结构
+## Path B：MXC + Runtime Backend Direct
 
-详见 [README.md (English)](README.md#6-reproducing)。
+MXC 是 policy-driven execution layer，用于不需要完整 agent loop 的 Windows-native controlled execution。默认 backend 是 **ProcessContainer**；Hyperlight 只是最高风险生成代码时的升级选项。
 
+### Path B Demo
+
+MXC policy-driven execution：task-scoped capability policy、ProcessContainer backend、Win32 capability catalog probe。
+
+https://github.com/user-attachments/assets/581acf71-510b-489e-b3a4-af24e9977a35
+
+<div align="center">
+  <img src="images/slide15-mxc-definition.png" width="960" alt="MXC definition">
+</div>
+
+### MXC Demo Inventory
+
+Path B 不是一个玩具脚本，而是一套 VS Code runnable test harness：policy files、runner 和 evidence logs 都已入库。
+
+| Demo | Task | 证明什么 | Key evidence |
+|------|------|----------|--------------|
+| Demo 1 | Probe host | MXC 可以通过 ProcessContainer/AppContainer fallback 启动真实 Windows command | `mxc/evidence/02_mxc_hello_world.log` |
+| Demo 2 | No policy / full access | policy 前 baseline action 能访问网络 | `mxc/evidence/01_bare_baseline.log` |
+| Demo 3 | Network denied | 同一个 curl action 在 block policy 下得到 `mxc_http:000`, exit 6 | `mxc/evidence/03_network_block.log` |
+| Demo 4 | Network approved | 同一个 curl action 在 allow policy 下得到 `mxc_http:200`, exit 0 | `mxc/evidence/04_network_allow.log` |
+| Demo 4b | ProcessContainer policy probe | pip 受 filesystem setup 限制；Win32/UI policy 可 block/allow PowerShell init | `mxc/evidence/pip_policy_probe_summary.txt` |
+| Demo 4c | Task-scoped policy | text profile block UI capability；drawing profile allow UI capability | `mxc/evidence/task_rbac_policy_probe_summary.txt` |
+| Demo 4d | Capability catalog | 9 个 native Win32 API 在 3 个 policy profiles 下的矩阵 | `mxc/evidence/capability_catalog_summary.md` |
+| Filesystem | Filesystem policy | `readwritePaths` 只允许声明目录；baseline/readonly/out-of-scope 写入失败 | `mxc/evidence/fs_policy_*.log` |
+
+主 runner：`mxc/scripts/Invoke-MXCDemo.ps1`。Policy profiles 在 `mxc/policies/`；native probe 源码在 `mxc/examples/win32_capability_probe.c`。
+
+### MXC 0.7 Probe
+
+`@microsoft/mxc-sdk@0.7.0` 的 `wxc-exec.exe --probe` 原始输出：
+
+```json
+{
+  "tier": "appcontainer-dacl",
+  "needsDaclAugmentation": true,
+  "warnings": [
+    "BaseContainer API not present or not preferred ... falling back to AppContainer + DACL"
+  ],
+  "probes": {
+    "baseContainerApiPresent": true,
+    "bfscfgPresent": false,
+    "bfsCompiledIn": false,
+    "uiCapabilities": {
+      "canBlockClipboardRead": true,
+      "canBlockClipboardWrite": true,
+      "canBlockInputInjection": true,
+      "canBlockInputMethodChanges": true,
+      "canBlockExternalUiObjects": true,
+      "canBlockGlobalUiNamespace": true,
+      "canBlockDesktopSwitching": true,
+      "canBlockLogoffOrShutdown": true,
+      "canBlockSystemParameterChanges": true,
+      "canBlockDisplaySettingsChanges": true
+    }
+  }
+}
 ```
-├── README.md / README-CN.md
-├── requirements.txt / .env.example
-├── scenarios/           # 独立旅行 agent 实现
-└── portal/              # 5 场景 × 3 框架 对比 Portal
+
+### Task-Scoped Capability Policy
+
+两个 MXC 0.7 policy profiles 证明 task-scoped capability boundary：
+
+```json
+// text-lockdown: blocks all UI, clipboard, input, network
+{
+  "version": "0.7.0-alpha",
+  "containment": "processcontainer",
+  "processContainer": {
+    "name": "Task-Text-Lockdown",
+    "ui": { "isolation": "container", "desktopSystemControl": false, "systemSettings": "none", "ime": false }
+  },
+  "network": { "defaultPolicy": "block" },
+  "ui": { "disable": true, "clipboard": "none", "injection": false }
+}
 ```
+
+```json
+// drawing-ui: allows GDI, clipboard, input, system params
+{
+  "version": "0.7.0-alpha",
+  "containment": "processcontainer",
+  "processContainer": {
+    "name": "Task-Drawing-UiAllowed",
+    "ui": { "isolation": "desktop", "desktopSystemControl": true, "systemSettings": "all", "ime": true }
+  },
+  "network": { "defaultPolicy": "block" },
+  "ui": { "disable": false, "clipboard": "all", "injection": true }
+}
+```
+
+| Profile | Capabilities | Exit | Verdict |
+|---------|-------------|:----:|--------|
+| Host (no MXC) | N/A | 0 | 7/9 PASS |
+| `text-lockdown` | No UI | -1073741502 | Process blocked |
+| `drawing-ui` | GDI + sysParams + desktop | 0 | Process ran |
+
+### Path B Code：Win32 Capability Probe (C)
+
+```c
+static void probe_get_dc(void) {
+    HDC dc = GetDC(NULL);
+    report_bool("GDI_GetDC", dc != NULL, GetLastError());
+    if (dc) ReleaseDC(NULL, dc);
+}
+
+static void probe_clipboard_open(void) {
+    BOOL ok = OpenClipboard(NULL);
+    report_bool("Clipboard_OpenClipboard", ok, GetLastError());
+    if (ok) CloseClipboard();
+}
+
+static void probe_create_desktop(void) {
+    HDESK desktop = CreateDesktopW(name, NULL, NULL, 0, GENERIC_ALL, NULL);
+    report_bool("Desktop_CreateDesktop", desktop != NULL, GetLastError());
+    if (desktop) CloseDesktop(desktop);
+}
+```
+
+### Network Policy
+
+MXC 可以对每个 action 单独 block/allow outbound network。
+
+| Policy | curl output | Exit code | Verdict |
+|--------|-------------|:---------:|---------|
+| `network-block` | `mxc_http:000` | 6 | ✅ Network blocked |
+| `network-allow` | `mxc_http:200` | 0 | ✅ Network allowed |
+
+pip install 测试补充说明：`pip install six==1.16.0` 在 block/allow 下都先遇到 filesystem policy setup 问题；curl 测试才是网络层 block/allow 的直接证据。
+
+### Filesystem Policy
+
+MXC 可通过 `readwritePaths` / `readonlyPaths` 控制被包含进程能读写哪些目录。我们测试写入 `C:\temp\mxc-fs-test\`：
+
+| Test | Policy | Exit | Verdict |
+|------|--------|:----:|---------|
+| 01 baseline | 无 `filesystem` 字段 | 1 | ❌ `Access is denied`，默认禁止写 `C:\temp` |
+| 02 readwrite-allowed | `readwritePaths: ["C:\temp\mxc-fs-test"]` | **0** | ✅ 写入成功，`allowed.txt` 内容为 `MXC_FS_WRITE_ALLOWED` |
+| 03 readwrite-blocked | `readwritePaths` 指向其他目录 | 1 | ❌ 写入被阻止 |
+| 04 readonly | 只有 `readonlyPaths` | 1 | ❌ 只读目录不可写 |
+
+**Key finding**：`readwritePaths` 在当前 `appcontainer-dacl` fallback tier 上可用于简单文件写入控制。pip install 失败是因为 pip 的 `--target` 需要更复杂的 BFS 文件系统重定向，不是 `readwritePaths` 本身不可用。
+
+### Capability Catalog（9 个 Win32 probes × 4 个上下文）
+
+| Capability | Host | text-lockdown | gdi-minimal | broad-ui |
+|-----------|:----:|:-------------:|:-----------:|:--------:|
+| GDI_GetDC | ✅ | BLOCKED | ✅ | ✅ |
+| Clipboard_OpenClipboard | ✅ | BLOCKED | ❌ | ❌ |
+| Desktop_CreateDesktop | ✅ | BLOCKED | ❌ | ❌ |
+| Display_ChangeDisplaySettings | ✅ | BLOCKED | ❌ | ❌ |
+| SystemParametersInfo | ✅ | BLOCKED | ✅ | ✅ |
+| Input_SendInput | ❌ | BLOCKED | ❌ | ❌ |
+| Registry_HKCU_Read | ✅ | BLOCKED | ✅ | ✅ |
+| CameraStack_Load_MF_DLL | ✅ | BLOCKED | ✅ | ✅ |
+| WMI_Load_wbemuuid_DLL | ❌ | BLOCKED | ❌ | ❌ |
+
+- `text-lockdown` 会 block 整个 process，是最严格 profile。
+- `gdi-minimal` / `broad-ui` 允许 GDI、registry、camera DLL、system params；clipboard/desktop/display/input/WMI 在当前 host/path 下仍失败。
+
+### Path B Boundaries
+
+- 当前 tier：`appcontainer-dacl` fallback。
+- MXC 仍是 early preview，不能包装成 production security boundary。
+- Camera/fan/Android 不在本评估中证明。
 
 ---
 
-## 关联 Repo
+## Running on Azure
 
-- [Microsoft Agent Framework Workflow Demos](../Microsoft-Agent-Framework/)
+| Resource | SKU | Purpose |
+|----------|-----|---------|
+| Portal VM | Linux D4s_v5, East Asia | FastAPI + nginx |
+| AIPC VM | Windows 11, NPU | Hyperlight + Ollama + MAF |
+| Azure OpenAI | gpt-5.4 via APIM | Cloud LLM |
+
+## Project Structure
+
+```
+├── images/                     # Slides + architecture
+├── scenarios/                  # Path A: framework scripts
+├── portal/                     # Path A: demo portal + sandbox API
+├── aipc/                       # Path A: Windows service config
+├── mxc/                        # Path B: MXC test code + evidence
+│   ├── scripts/Invoke-MXCDemo.ps1
+│   ├── examples/win32_capability_probe.c
+│   ├── policies/ (13 JSON profiles)
+│   └── evidence/ (logs and policy outputs)
+├── .env.example / requirements.txt
+└── README.md / README-CN.md
+```
+
+## Setup
+
+### Path A
+
+```bash
+pip install -r requirements.txt && cp .env.example .env
+python portal/server.py       # Portal :8506
+python portal/sandbox_api.py  # AIPC :8507
+```
+
+### Path B
+
+```powershell
+npm install @microsoft/mxc-sdk@0.7.0
+.\node_modules\.bin\wxc-exec.exe --probe
+powershell -File mxc\scripts\Invoke-MXCDemo.ps1
+```
+
+## Tech Stack
+
+| Component | Version |
+|-----------|---------|
+| Microsoft Agent Framework | 1.8+ |
+| MXC SDK | 0.7.0 |
+| Hyperlight | 0.3+ |
+| LangChain / LangGraph | 0.3+ / 0.4+ |
+| Python / FastAPI | 3.12 / 0.115+ |
+
+## Related Repos
+
 - [Hyperlight & MXC Sandbox Landscape](../Hyperlight-MXC-Sandbox-Landscape/)
+- [Microsoft Agent Framework Demos](../Microsoft-Agent-Framework/)
