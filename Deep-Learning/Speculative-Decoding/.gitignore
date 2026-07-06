@@ -2,7 +2,11 @@ __pycache__/
 *.pyc
 *.pyo
 .venv/
+.env
 *.egg-info/
 dist/
 build/
 .DS_Store
+.idea/
+.vscode/
+.ipynb_checkpoints/

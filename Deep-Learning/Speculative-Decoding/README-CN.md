@@ -383,6 +383,18 @@ GLM-5.2 是一个很好的公开例子。它的 HF config 写着 `num_nextn_pred
 
 本 repo 在 NVIDIA H100 NVL 96GB 上测试了单请求 latency 和 generation TPS。vLLM 路线使用 `Qwen/Qwen3.6-27B` bf16；llama.cpp 路线使用 `unsloth/Qwen3.6-27B-MTP-GGUF:UD-Q4_K_XL`。测试覆盖 Coding、Math、Chat 三类任务，每类 warmup 1 次、正式运行 3 次，报告中位数。API 使用 non-streaming 模式，TPS = `usage.completion_tokens / total_time`。
 
+**测试环境：**
+
+| 项目 | 值 |
+|------|-------|
+| GPU | NVIDIA H100 NVL, 95830 MiB, driver 580.159.03 |
+| vLLM | 0.21.0 (stock install, `VLLM_DEEP_GEMM_WARMUP=skip`) |
+| llama.cpp | commit `27c8bb4`, CUDA build with OpenSSL |
+| 目标模型 | `Qwen/Qwen3.6-27B` (bf16, 51.89 GiB) |
+| DFlash draft | `z-lab/Qwen3.6-27B-DFlash` (3.22 GiB, block diffusion drafter) |
+| llama.cpp GGUF | `unsloth/Qwen3.6-27B-MTP-GGUF:UD-Q4_K_XL` (17.9 GiB, Q4 quantized) |
+
+**结果（single-stream，3 次取中位数）：**
 | Route | Backend | Quant | Spec Tokens | Domain | Med Total (s) | Med TPS |
 |-------|---------|-------|:-----------:|--------|:-------------:|:-------:|
 | **vLLM native MTP** | vLLM 0.21.0 | bf16 | 5 | Coding | 3.49 | **146.7** |
@@ -401,6 +413,15 @@ GLM-5.2 是一个很好的公开例子。它的 HF config 写着 `num_nextn_pred
 2. **DFlash 在本次 H100 single-stream 测试中更快。** Coding 场景下，15 spec tokens 的 DFlash 是 191.7 TPS，5 spec tokens 的 native MTP 是 146.7 TPS。
 3. **这不是完全控制变量的算法排名。** DFlash 用 15 个 speculative tokens，native MTP 用 5 个。这是工程结果，不是普遍结论。
 4. **llama.cpp MTP 是另一种产品形态。** Q4_K_XL 路线适合 compact local serving，但没有质量检查时不能直接和 bf16/vLLM 公平对比。
+
+**复现过程中发现的运行时调参：**
+
+| 问题 | 根因 | 修复 |
+|-------|-----------|-----|
+| vLLM `max_num_seqs (1024) exceeds available Mamba cache blocks` | Qwen3.6 的 Mamba+Attention 混合架构在 262K 上下文下只有 468 个 Mamba cache blocks | 添加 `--max-num-seqs 256` |
+| vLLM `DeepGEMM backend is not available or outdated` | vLLM 0.21.0 尝试 DeepGEMM warmup 但未安装 | 设置 `VLLM_DEEP_GEMM_WARMUP=skip` |
+| vLLM DFlash `KV cache memory (26.74 GiB) < required (27.69 GiB)`（262K 上下文） | DFlash draft 模型比 native MTP 多占 VRAM | 降低 `--max-model-len` 到 252000 |
+| llama.cpp `HTTPS is not supported`（`-hf` 下载） | 编译时未链接 OpenSSL | 安装 `libssl-dev` 后用 `-DLLAMA_OPENSSL=ON` 重新编译 |
 
 ### 复现 H100 三条路线
 
@@ -709,50 +730,9 @@ EAGLE3、native MTP 和 DFlash 代表不同的设计理念，不是简单的“�
 | 本地 notebook 命令线索 | “A reproduction path to test is...” |
 | 本 repo 自己的 raw logs | “This repo measured...” 并给出文件路径和命令证据 |
 
-#### 本 Repo 的 H100 实测：DFlash vs Native MTP vs llama.cpp MTP
+#### H100 Benchmark 数据
 
-本 repo 在 NVIDIA H100 NVL 96GB 上测试了单请求（concurrency=1）延迟和生成 TPS。vLLM 路线使用 `Qwen/Qwen3.6-27B` bf16；llama.cpp 路线使用 `unsloth/Qwen3.6-27B-MTP-GGUF:UD-Q4_K_XL`。测试覆盖 Coding、Math、Chat 三类任务，每类 warmup 1 次、正式运行 3 次，报告中位数。API 使用 non-streaming 模式，TPS = `usage.completion_tokens / total_time`。
-
-**测试环境：**
-
-| 项目 | 值 |
-|------|----|
-| GPU | NVIDIA H100 NVL, 95830 MiB, driver 580.159.03 |
-| vLLM | 0.21.0（stock install, `VLLM_DEEP_GEMM_WARMUP=skip`） |
-| llama.cpp | commit `27c8bb4`, CUDA build with OpenSSL |
-| Target model | `Qwen/Qwen3.6-27B`（bf16, 51.89 GiB） |
-| DFlash draft | `z-lab/Qwen3.6-27B-DFlash`（3.22 GiB, block diffusion drafter） |
-| llama.cpp GGUF | `unsloth/Qwen3.6-27B-MTP-GGUF:UD-Q4_K_XL`（17.9 GiB, Q4 quantized） |
-
-**结果（单请求，3 次取中位数）：**
-
-| 路线 | Backend | Quant | Spec Tokens | 任务 | 中位总时延 (s) | 中位 TPS |
-|------|---------|-------|:-----------:|------|:--------------:|:--------:|
-| **vLLM native MTP** | vLLM 0.21.0 | bf16 | 5 | Coding | 3.49 | **146.7** |
-| | | | | Math | 1.51 | **169.1** |
-| | | | | Chat | 1.65 | **155.4** |
-| **vLLM DFlash** | vLLM 0.21.0 | bf16 | 15 | Coding | 2.67 | **191.7** |
-| | | | | Math | 1.32 | **193.5** |
-| | | | | Chat | 1.64 | **156.1** |
-| **llama.cpp MTP** | llama.cpp (CUDA) | Q4_K_XL | 5 | Coding | 4.77 | **107.3** |
-| | | | | Math | 2.15 | **118.9** |
-| | | | | Chat | 2.48 | **103.1** |
-
-**主要发现：**
-
-1. **DFlash 使用 15 个 spec tokens 时，在长输出任务上比 native MTP 使用 5 个 tokens 高 14-31% TPS**（Coding: 191.7 vs 146.7）。短输出任务差距会缩小（Chat 基本持平）。
-2. **这个对比不是完全控制变量**：DFlash 是 block diffusion，一次并行 draft 15 个 token；native MTP 是 1-layer MTP head，5 个 speculative tokens 需要串行复用同一个 head。严格对比还需要匹配 spec token 数。
-3. **llama.cpp Q4 quantized MTP 不能和 vLLM bf16 直接公平比较**：precision 和 engine 都不同。它回答的是“17.9GB 量化模型在单卡上能跑到多少 TPS”，不是“DFlash 是否比 MTP 更快”。
-4. **本轮没有测无 speculation baseline。** 如果要计算加速比，还需要纯 `Qwen3.6-27B` vLLM baseline。
-
-**复现过程中发现的 Runtime Knobs：**
-
-| 问题 | 根因 | 修复 |
-|------|------|------|
-| vLLM `max_num_seqs (1024) exceeds available Mamba cache blocks` | Qwen3.6 是 hybrid Mamba+Attention，262K context 下只剩 468 个 Mamba cache blocks | 加 `--max-num-seqs 256` |
-| vLLM `DeepGEMM backend is not available or outdated` | vLLM 0.21.0 会尝试 DeepGEMM warmup，但环境缺 deep_gemm package | 设 `VLLM_DEEP_GEMM_WARMUP=skip` |
-| vLLM DFlash 在 262K context 报 `KV cache memory (26.74 GiB) < required (27.69 GiB)` | DFlash draft model 比 native MTP 额外占显存 | 降到 `--max-model-len 252000` |
-| llama.cpp `-hf` 下载时报 `HTTPS is not supported` | 编译时没有启用 OpenSSL | 安装 `libssl-dev` 并用 `-DLLAMA_OPENSSL=ON` 重编 |
+完整的 H100 benchmark 表格、测试环境、关键发现、运行时调参和复现命令，请参见阶段 3 的 [H100 Serving Benchmark](#h100-serving-benchmarknative-mtp-vs-dflash-vs-llamacpp-mtp) 和 [复现 H100 三条路线](#复现-h100-三条路线)。
 
 ### MTP 层数与 Speculative Decoding 超参数
 
@@ -865,50 +845,6 @@ prompt、target forward pass 和 runtime path 仍然真实执行，所以 TPOT �
 
 DFlash 使用建议仍然应该保持工程化：当官方 draft checkpoint 存在、serving engine 支持稳定、显存余量足够、且 workload-specific acceptance 足够高时，DFlash 值得测试。否则应该把 native MTP 和 DFlash 放在同一套 workload 上并排 benchmark。
 
-#### 复现 H100 Benchmark
-
-所有脚本、原始 JSON 结果和 server 启动日志都已经归档在本 repo 中，可以完整复现。
-
-**步骤 1：构建 llama.cpp（CUDA + OpenSSL，仅 Route 3 需要）**
-
-```bash
-bash scripts/mtp_llamacpp_qwen36_mtp_build.sh
-# Clones llama.cpp, builds with CUDA 90 + OpenSSL for HTTPS model download
-```
-
-**步骤 2：启动 server 并依次运行 3 条路线的 benchmark**
-
-```bash
-# Option A: 自动跑完 3 条路线（start→wait→benchmark→stop→next）
-bash scripts/mtp_benchmark_orchestrator.sh
-
-# Option B: 手动逐条运行
-# Route 1 — vLLM native MTP
-VLLM_DEEP_GEMM_WARMUP=skip MAX_NUM_SEQS=256 bash scripts/mtp_vllm_qwen36_mtp_launch.sh
-python3 scripts/mtp_benchmark_client.py --base-url http://127.0.0.1:8000 \
-    --label vllm-native-mtp --runs 3 --warmup 1 --no-stream --output results_mtp.json
-
-# Route 2 — vLLM DFlash
-VLLM_DEEP_GEMM_WARMUP=skip MAX_MODEL_LEN=252000 MAX_NUM_SEQS=256 \
-    bash scripts/mtp_vllm_qwen36_dflash_launch.sh
-python3 scripts/mtp_benchmark_client.py --base-url http://127.0.0.1:8000 \
-    --label vllm-dflash --runs 3 --warmup 1 --no-stream --output results_dflash.json
-
-# Route 3 — llama.cpp MTP GGUF
-bash scripts/mtp_llamacpp_qwen36_mtp_launch.sh
-python3 scripts/mtp_benchmark_client.py --base-url http://127.0.0.1:8080 \
-    --label llamacpp-mtp-q4kxl --runs 3 --warmup 1 --no-stream --output results_llamacpp.json
-```
-
-**归档证据：**
-
-| 类型 | 文件 |
-|------|------|
-| Benchmark raw JSON | [`data/h100_vllm_native_mtp.json`](data/h100_vllm_native_mtp.json), [`data/h100_vllm_dflash.json`](data/h100_vllm_dflash.json), [`data/h100_llamacpp_mtp_q4kxl.json`](data/h100_llamacpp_mtp_q4kxl.json) |
-| Server startup logs | [`logs/h100_vllm_native_mtp_startup.log`](logs/h100_vllm_native_mtp_startup.log), [`logs/h100_vllm_dflash_startup.log`](logs/h100_vllm_dflash_startup.log), [`logs/h100_llamacpp_mtp_startup.log`](logs/h100_llamacpp_mtp_startup.log) |
-| Benchmark client | [`scripts/mtp_benchmark_client.py`](scripts/mtp_benchmark_client.py) |
-| Orchestrator | [`scripts/mtp_benchmark_orchestrator.sh`](scripts/mtp_benchmark_orchestrator.sh) |
-| Launch scripts | [`scripts/mtp_vllm_qwen36_mtp_launch.sh`](scripts/mtp_vllm_qwen36_mtp_launch.sh), [`scripts/mtp_vllm_qwen36_dflash_launch.sh`](scripts/mtp_vllm_qwen36_dflash_launch.sh), [`scripts/mtp_llamacpp_qwen36_mtp_build.sh`](scripts/mtp_llamacpp_qwen36_mtp_build.sh), [`scripts/mtp_llamacpp_qwen36_mtp_launch.sh`](scripts/mtp_llamacpp_qwen36_mtp_launch.sh) |
 
 ---
 
@@ -1140,6 +1076,9 @@ speculative-decoding/
 ├── README.md
 ├── README-CN.md
 ├── requirements.txt
+├── config/
+│   ├── eagle3_llama31_8b.yaml
+│   └── llama3-8B-eagle3.json
 ├── data/
 │   ├── h100_vllm_native_mtp.json
 │   ├── h100_vllm_dflash.json
