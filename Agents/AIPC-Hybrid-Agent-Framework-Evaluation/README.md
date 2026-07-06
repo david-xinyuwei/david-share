@@ -490,6 +490,61 @@ Customer-readable takeaway: Setting `ui.disable=true` blocks the process entirel
 
 Boundary: `CameraStack_Load_MF_DLL` only proves DLL loading, not camera capture. `Input_SendInput` and `WMI` already fail on the host without MXC.
 
+### Single-Variable Isolation Test (per-field verification)
+
+The combined-policy matrix above raises a question: does changing `ui.clipboard` from `"none"` to `"all"` actually flip `OpenClipboard` from ❌ to ✅? To answer this, we ran 7 single-variable tests — each changes exactly ONE JSON field from a locked-down baseline, keeping everything else identical.
+
+**Result: on the current `appcontainer-dacl` tier, changing any single UI field has zero effect on Win32 API behavior.**
+
+| Capability | base (all locked) | +`clipboard="all"` | +`injection=true` | +`isolation="desktop"` | +`desktopSystemControl=true` | +`systemSettings="all"` | +`ime=true` |
+|-----------|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
+| GDI_GetDC | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Clipboard | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Desktop | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Display | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| SystemParams | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| SendInput | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Registry | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Camera DLL | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| WMI DLL | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+
+All 7 columns are identical. This is not a bug — it is a tier limitation.
+
+> Evidence: `mxc/evidence/singlevar_capability_matrix.md`, `mxc/evidence/singlevar-*.json` (policies), `mxc/evidence/singlevar-*.log` (logs)
+
+### Why: ProcessContainer tier architecture
+
+The MXC policy JSON declares WHAT the containment should enforce. But the actual enforcement depends on which ProcessContainer tier the current OS supports:
+
+```text
+MXC policy JSON (containment: "processcontainer")
+        ↓
+    wxc-exec chooses implementation at runtime
+        ↓
+┌─────────────────────────────────────────────────────────┐
+│ Does the OS have BaseContainer API + BFS?               │
+│                                                         │
+│   YES (Windows Insider)          NO (stock Windows 11)  │
+│       ↓                              ↓                  │
+│   BaseContainer tier          AppContainer+DACL tier     │
+│   • Every ui.* field            • ui.disable works      │
+│     independently enforced      • network block works   │
+│   • clipboard per-action        • filesystem works      │
+│   • isolation per-action        • BUT: clipboard,       │
+│   • BFS filesystem redirection    injection, isolation,  │
+│                                   desktop, display,     │
+│                                   input → declared but  │
+│                                   NOT enforced           │
+└─────────────────────────────────────────────────────────┘
+```
+
+This means:
+- **What works today on stock Windows 11**: `ui.disable` (kill/allow process), `network.defaultPolicy` (block/allow), `filesystem.readwritePaths` (directory scoping)
+- **What is declared but not enforced today**: `ui.clipboard`, `ui.injection`, `processContainer.ui.isolation`, `desktopSystemControl`, `systemSettings`, `ime`
+- **What will work when BaseContainer ships**: all of the above, per-field independently
+
+For Lenovo: the per-field UI policy will work on future Windows builds with BaseContainer. Today it is a schema-level capability, not a runtime-level capability.
+
 ### Path B Boundaries
 
 - Current tier: `appcontainer-dacl` (fallback)

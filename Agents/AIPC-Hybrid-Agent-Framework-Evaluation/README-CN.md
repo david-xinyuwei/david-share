@@ -456,6 +456,60 @@ MXC 可通过 `readwritePaths` / `readonlyPaths` 控制被包含进程能读写�
 
 边界说明：`CameraStack_Load_MF_DLL` 只证明 DLL 可以加载，不等于摄像头采集可用。`Input_SendInput` 和 `WMI` 在 Host 上就已经失败，不是 MXC 单独挡的。
 
+### 单变量隔离实验（逐字段验证）
+
+上面的组合 policy 矩阵留了一个问题：把 `ui.clipboard` 从 `"none"` 改成 `"all"`，`OpenClipboard` 到底会不会从 ❌ 变 ✅？为了回答这个问题，我们跑了 7 组单变量实验——每组只改一个 JSON 字段，其他完全不动。
+
+**结论：在当前 `appcontainer-dacl` tier 下，单独改任何一个 UI 字段都不会改变 Win32 API 的行为。**
+
+| Capability | 基线（全锁） | +`clipboard="all"` | +`injection=true` | +`isolation="desktop"` | +`desktopSystemControl=true` | +`systemSettings="all"` | +`ime=true` |
+|-----------|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
+| GDI_GetDC | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Clipboard | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Desktop | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Display | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| SystemParams | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| SendInput | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Registry | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Camera DLL | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| WMI DLL | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+
+7 列完全一样。这不是 bug，而是 tier 限制。
+
+> Evidence: `mxc/evidence/singlevar_capability_matrix.md`、`mxc/evidence/singlevar-*.json`（policies）、`mxc/evidence/singlevar-*.log`（logs）
+
+### 为什么：ProcessContainer 的 tier 架构
+
+MXC policy JSON 声明的是"containment 应该做什么"。但实际能做什么取决于当前 OS 支持哪个 ProcessContainer tier：
+
+```text
+MXC policy JSON（containment: "processcontainer"）
+        ↓
+    wxc-exec 在运行时选择实现方式
+        ↓
+┌─────────────────────────────────────────────────────────┐
+│ 当前 OS 有 BaseContainer API + BFS？                     │
+│                                                         │
+│   有（Windows Insider）          没有（普通 Win11）       │
+│       ↓                              ↓                  │
+│   BaseContainer tier          AppContainer+DACL tier     │
+│   • 每个 ui.* 字段              • ui.disable 生效        │
+│     独立生效                    • network block 生效      │
+│   • clipboard 按 action 控制    • filesystem 生效         │
+│   • isolation 按 action 控制    • 但 clipboard/injection/ │
+│   • BFS 文件系统重定向            isolation/desktop/       │
+│                                   display/input →        │
+│                                   声明了但不生效           │
+└─────────────────────────────────────────────────────────┘
+```
+
+这意味着：
+- **今天在普通 Win11 上能用的**：`ui.disable`（杀/放进程）、`network.defaultPolicy`（block/allow）、`filesystem.readwritePaths`（目录隔离）
+- **今天能声明但不生效的**：`ui.clipboard`、`ui.injection`、`processContainer.ui.isolation`、`desktopSystemControl`、`systemSettings`、`ime`
+- **BaseContainer 发布后能用的**：以上全部，每个字段独立生效
+
+对联想的含义：per-field UI policy 会在未来有 BaseContainer 的 Windows build 上生效。今天它是 schema-level capability，不是 runtime-level capability。
+
 ### Path B Boundaries
 
 - 当前 tier：`appcontainer-dacl` fallback。

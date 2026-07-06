@@ -1,0 +1,12 @@
+PROBE_START NativeWin32CapabilityProbe
+PID=10156
+PROBE GDI_GetDC PASS detail=0
+PROBE Clipboard_OpenClipboard FAIL detail=5
+PROBE Desktop_CreateDesktop FAIL detail=5
+PROBE SystemParametersInfo_GETBEEP PASS value=1 detail=0
+PROBE Display_ChangeDisplaySettings_CDS_TEST FAIL return=-1 detail=5
+PROBE Input_SendInput_Zero FAIL sent=0 detail=87
+PROBE Registry_HKCU_Software_Read PASS detail=0
+PROBE CameraStack_Load_MF_DLL PASS detail=0
+PROBE WMI_Load_wbemuuid_DLL FAIL detail=126
+PROBE_DONE NativeWin32CapabilityProbe
