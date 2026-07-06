@@ -401,6 +401,8 @@ MTP (Multi-Token Prediction) layers are independent draft heads trained into the
 
 GLM-5.2 is notable because its official blog states that the parameters of different MTP steps are shared, while the number of MTP steps is set to 7 for both training and inference. Without IndexShare / KVShare, the second MTP step can mix target-model KV (`kv_1..kv_4`) with KV produced by the MTP layer itself (`kv_5`). That is the train-inference discrepancy: training sees target-model hidden states, but inference starts to see the draft module's own states. With IndexShare, the later step can attend only to the first-step target positions; with KVShare, those positions use KV from the target model. In plain terms: the shared MTP module can draft several future positions, but later drafts are not allowed to use earlier drafts as their reference material.
 
+HF packaging also differs across native MTP families. GLM-5.2 exposes the MTP design through `config.json` fields such as `num_nextn_predict_layers=1` and `index_share_for_mtp_iteration=true`, while its file list is ordinary model shards (`model-00001-of-00282.safetensors`, etc.) rather than a separate `model_mtp.safetensors` file. Other native MTP families may publish a separate MTP weight file in the same model directory. The shared idea is "native model-family MTP"; the visible file layout is release-specific.
+
 **Why layer count matters:**
 
 - **N native layers can represent N future positions** (`t+1`, `t+2`, ..., `t+N`).

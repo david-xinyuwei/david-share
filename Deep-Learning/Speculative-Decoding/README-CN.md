@@ -401,6 +401,8 @@ MTP（Multi-Token Prediction）layers 是模型 pretraining 阶段训练出来�
 
 GLM-5.2 值得注意的点不是“参数共享”本身，而是官方 blog 明确写了：不同 MTP steps 的参数是共享的，同时训练和推理都设置 7 个 MTP steps。没有 IndexShare / KVShare 时，第二个 MTP step 可能把 target model 算出来的 `kv_1..kv_4` 和 MTP 层自己算出来的 `kv_5` 混在一起，这就是 train-inference discrepancy：训练时看到的是 target hidden states，推理时却开始看到 draft 模块自己的 states。IndexShare 让后续 step 只能 attend 到第一步选出的 target 位置；KVShare 保证这些位置的 KV 来自 target model。说人话：同一套 MTP 模块可以草拟多个未来位置，但后面的草拟不能拿前面自己的草稿当参考资料。
 
+HF 上的打包方式也不一样。GLM-5.2 主要通过 `config.json` 里的 `num_nextn_predict_layers=1` 和 `index_share_for_mtp_iteration=true` 暴露 MTP 设计；文件列表是普通主模型 shards（如 `model-00001-of-00282.safetensors`），没有单独的 `model_mtp.safetensors`。有些 native MTP model family 会把 MTP 权重作为同目录下单独文件发布。共同点是 native model-family MTP；具体文件布局随 release 而变。
+
 **层数为什么重要：**
 
 - **N 个 native layers 可以表示 N 个未来位置**（`t+1`, `t+2`, ..., `t+N`）。
