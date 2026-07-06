@@ -194,7 +194,7 @@ Session complete — sandbox torn down.
 **Boundary**: This stateful execution model is not yet integrated with MXC mainline. Product team has started the integration at [`danbugs/mxc/tree/proto/hyperlight-stateful`](https://github.com/danbugs/mxc/tree/proto/hyperlight-stateful) — no fundamental technical blockers identified, but it is still a prototype branch.
 
 > Source: [`hyperlight-dev/hyperlight-unikraft`](https://github.com/hyperlight-dev/hyperlight-unikraft) branch `proto/stateful-demo`, commit `ced2b301`
-> Evidence: `logs/fy27_hyperlight_unikraft_stateful_demo_20260629.log`
+> Evidence: `mxc/evidence/fy27_hyperlight_unikraft_stateful_demo_20260629.log`
 
 ---
 
