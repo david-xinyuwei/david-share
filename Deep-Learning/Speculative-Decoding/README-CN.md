@@ -291,8 +291,8 @@ EAGLE3、Gemma/DeepSeek MTP 和 DFlash 代表不同的设计理念，不是简�
 |------|----------------|---------------------|-------------------------------|-------------------------|
 | 核心问题 | target 已经固定，怎么事后造一个最好的 drafter？ | 和 target 一起训练，但拆成独立 checkpoint 发布 | 能不能让外置 drafter 一次并行草拟一整块 token，去掉 draft 阶段的顺序瓶颈？ | 把 MTP 做进 pre-training objective 本身 |
 | 关键创新 | 解决了 train-test gap：训练时用 drafter 自己的预测特征而不是 ground truth 特征，让训练和推理一致（EAGLE-3, NeurIPS 2025） | activation sharing + KV-cache 复用 | target feature fusion + KV injection + block diffusion parallel drafting | MTP 作为 training objective，不只是 inference trick；可能还改善 pre-training 的表征学习 |
-| 学术记录 | EAGLE (ICML 2024)、EAGLE-2 (EMNLP 2024)、EAGLE-3 (NeurIPS 2025) | 只有 model card，没有独立 MTP 论文 | DFlash paper: arXiv:2602.06036, ICML 2026 | 在 DeepSeek-V2/V3 论文中描述 |
-| 产业趋势 | 通用后装：任何 target model 都能用 | 中间地带：co-trained 但单独部署 | 新的外置 drafter 路线：依赖 target features，但 draft 是 block-parallel | 前沿方向：越来越多厂商会在训练时就内置 MTP |
+| 学术记录 | EAGLE (ICML 2024)、EAGLE-2 (EMNLP 2024)、EAGLE-3 (NeurIPS 2025) | 只有 model card，没有独立 MTP 论文 | DFlash paper: arXiv:2602.06036, ICML 2026 | DeepSeek-V2/V3 论文；GLM-5.2：IndexShare（[arXiv:2603.12201](https://arxiv.org/abs/2603.12201)）+ KVShare + rejection sampling + end-to-end TV loss for MTP |
+| 产业趋势 | 通用后装：任何 target model 都能用 | 中间地带：co-trained 但单独部署 | 新的外置 drafter 路线：依赖 target features，但 draft 是 block-parallel | 前沿方向：越来越多厂商在训练时内置 MTP；GLM-5.2 说明 shared-parameter MTP 也能通过阻止 MTP 自己生成的 KV 污染后续 steps 来提升 acceptance |
 
 两条路线会长期共存。后装 drafter（EAGLE3）在你需要加速一个已有的、不能重训的 target model 时仍然不可替代。Native model-family MTP 是新 model family 的设计方向。
 
@@ -407,10 +407,20 @@ MTP（Multi-Token Prediction）layers 是模型 pretraining 阶段训练出来�
 | External assistant MTP | 取决于实现 | 额外 assistant/drafter checkpoint 预测未来 token | 通过 serving engine 的 assistant/speculative config 配置，而不是 native MTP layer flags |
 | DFlash-style drafter | block-level | target-conditioned drafter 并行草拟 token block | 需要调 block size 和显存余量；不能和 autoregressive MTP flags 混用 |
 
+**已知模型 MTP 配置速查（来源：官方 HF `config.json` 和厂商文档）：**
+
+| 模型 | `num_nextn_predict_layers` | 架构 | MTP 优化 | 来源 |
+|------|:--------------------------:|------|----------|------|
+| Qwen3.6-27B | 1 | 单个 MTP head，跨 draft steps 复用 | — | HF `config.json` |
+| DeepSeek-V3 / R1 | 1 | 单个 MTP head | — | 官方论文 |
+| GLM-5.2（753B MoE） | 1 | 单个 MTP head，参数在多个 MTP steps 之间共享（`glm_moe_dsa`） | IndexShare + KVShare 防止后续 MTP step 混入 MTP 自己生成的 KV；官方 coding ablation 中，7 个 MTP steps 的 acceptance length 从 4.56 提升到 5.47（+20%） | HF `config.json`；[GLM-5.2 blog](https://huggingface.co/blog/zai-org/glm-52-blog) |
+
+GLM-5.2 值得注意的点不是“参数共享”本身，而是官方 blog 明确写了：不同 MTP steps 的参数是共享的，同时训练和推理都设置 7 个 MTP steps。没有 IndexShare / KVShare 时，第二个 MTP step 可能把 target model 算出来的 `kv_1..kv_4` 和 MTP 层自己算出来的 `kv_5` 混在一起，这就是 train-inference discrepancy：训练时看到的是 target hidden states，推理时却开始看到 draft 模块自己的 states。IndexShare 让后续 step 只能 attend 到第一步选出的 target 位置；KVShare 保证这些位置的 KV 来自 target model。说人话：同一套 MTP 模块可以草拟多个未来位置，但后面的草拟不能拿前面自己的草稿当参考资料。
+
 **层数为什么重要：**
 
 - **N 个 native layers 可以表示 N 个未来位置**（`t+1`, `t+2`, ..., `t+N`）。
-- **1-layer MTP** 也能草拟多个未来 token，但需要重复使用同一个 head；预测越远，误差越容易累积。
+- **1-layer MTP** 也能草拟多个未来 token，但需要重复使用同一个 head。真正的风险不只是“连续复用同一套参数”，而是后续 step 可能把前面 MTP 自己生成的 states 当上下文。GLM-5.2 的 IndexShare + KVShare 针对的正是这条污染路径。
 - **Multi-layer MTP** 可以把不同 native heads/modules 分配给不同未来位置，因此 `num_steps` 通常先从 native MTP layer count 附近开始调。
 
 **用一句话看懂 token timeline：`今天天气真好，我要去公园玩`**
@@ -1268,6 +1278,9 @@ EAGLE (Extrapolation Algorithm for Greater Language-model Efficiency) 由以下�
 | DFlash 论文 | [arXiv:2602.06036](https://arxiv.org/abs/2602.06036) |
 | DFlash 项目页 | [Z-Lab: DFlash](https://z-lab.ai/projects/dflash/) |
 | DFlash 代码与模型 | [z-lab/dflash](https://github.com/z-lab/dflash) |
+| GLM-5.2 模型 | [zai-org/GLM-5.2](https://huggingface.co/zai-org/GLM-5.2) |
+| GLM-5.2 Blog | [GLM-5.2: Built for Long-Horizon Tasks](https://huggingface.co/blog/zai-org/glm-52-blog) |
+| IndexShare 论文 | [arXiv:2603.12201](https://arxiv.org/abs/2603.12201) |
 
 ---
 

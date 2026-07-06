@@ -291,8 +291,8 @@ EAGLE3, Gemma/DeepSeek MTP, and DFlash represent different design philosophies, 
 |-----------|--------------------|----------------------|-----------------------------------|------------------------------|
 | Core question | Target is fixed; how to build the best drafter after the fact? | Co-train the drafter with the target, but publish it as a separate checkpoint | Can an external drafter remove the draft-stage sequential bottleneck by predicting a whole block at once? | Make MTP part of the pre-training objective itself |
 | Key innovation | Solved the train-test gap: training uses the drafter's own predicted features instead of ground-truth features, so training matches inference (EAGLE-3, NeurIPS 2025) | Activation sharing + KV-cache reuse between target and assistant | Target feature fusion + KV injection + block diffusion parallel drafting | MTP as a training objective, not just an inference trick; may also improve representation learning during pre-training |
-| Academic record | EAGLE (ICML 2024), EAGLE-2 (EMNLP 2024), EAGLE-3 (NeurIPS 2025) | Model card only; no dedicated MTP paper | DFlash paper: arXiv:2602.06036, ICML 2026 | Described in DeepSeek-V2/V3 papers |
-| Industry trend | Universal retrofit: works on any target model | Middle ground: co-trained but separately deployable | New external drafter family: target-conditioned but block-parallel | Forward-looking: more vendors will build MTP into training |
+| Academic record | EAGLE (ICML 2024), EAGLE-2 (EMNLP 2024), EAGLE-3 (NeurIPS 2025) | Model card only; no dedicated MTP paper | DFlash paper: arXiv:2602.06036, ICML 2026 | DeepSeek-V2/V3 papers; GLM-5.2: IndexShare ([arXiv:2603.12201](https://arxiv.org/abs/2603.12201)) + KVShare + rejection sampling + end-to-end TV loss for MTP |
+| Industry trend | Universal retrofit: works on any target model | Middle ground: co-trained but separately deployable | New external drafter family: target-conditioned but block-parallel | Forward-looking: more vendors build MTP into training; GLM-5.2 shows that shared-parameter MTP can be improved by preventing MTP-generated KV from contaminating later draft steps |
 
 Neither route will disappear. Post-hoc drafters (EAGLE3) remain essential when you need to accelerate an existing model you cannot re-train. Native model-family MTP is the direction for new model families designed with speculative decoding in mind.
 
@@ -407,10 +407,20 @@ MTP (Multi-Token Prediction) layers are independent draft heads trained into the
 | External assistant MTP | Implementation-specific | A separate assistant/drafter checkpoint proposes future tokens | Configure through the serving engine's assistant/speculative config rather than native MTP layer flags |
 | DFlash-style drafter | Block-level | A target-conditioned drafter proposes a token block in parallel | Tune block size and memory headroom; it is not interchangeable with autoregressive MTP flags |
 
+**Known model MTP configurations (source: official HF `config.json` and vendor docs):**
+
+| Model | `num_nextn_predict_layers` | Architecture | MTP optimization | Source |
+|-------|:--------------------------:|-------------|------------------|--------|
+| Qwen3.6-27B | 1 | Single MTP head, reused across draft steps | — | HF `config.json` |
+| DeepSeek-V3 / R1 | 1 | Single MTP head | — | Official paper |
+| GLM-5.2 (753B MoE) | 1 | Single MTP head with parameters shared across MTP steps (`glm_moe_dsa`) | IndexShare + KVShare prevent later MTP steps from mixing in MTP-generated KV; acceptance length improves from 4.56 to 5.47 (+20%) in the official coding ablation with 7 MTP steps | HF `config.json`; [GLM-5.2 blog](https://huggingface.co/blog/zai-org/glm-52-blog) |
+
+GLM-5.2 is notable because its official blog states that the parameters of different MTP steps are shared, while the number of MTP steps is set to 7 for both training and inference. Without IndexShare / KVShare, the second MTP step can mix target-model KV (`kv_1..kv_4`) with KV produced by the MTP layer itself (`kv_5`). That is the train-inference discrepancy: training sees target-model hidden states, but inference starts to see the draft module's own states. With IndexShare, the later step can attend only to the first-step target positions; with KVShare, those positions use KV from the target model. In plain terms: the shared MTP module can draft several future positions, but later drafts are not allowed to use earlier drafts as their reference material.
+
 **Why layer count matters:**
 
 - **N native layers can represent N future positions** (`t+1`, `t+2`, ..., `t+N`).
-- **1-layer MTP** can still draft multiple future tokens, but it must reuse the same head repeatedly; the farther it looks ahead, the more errors can accumulate.
+- **1-layer MTP** can still draft multiple future tokens, but it must reuse the same head repeatedly. The risk is not just "looking farther"; it is that later steps may start using earlier MTP-generated states as context. GLM-5.2's IndexShare + KVShare addresses that specific contamination path.
 - **Multi-layer MTP** can assign different native heads/modules to different future positions, so it is often configured with `num_steps` close to the native MTP layer count.
 
 **Concrete token example: "今天天气真好，我要去公园玩"**
@@ -1266,6 +1276,9 @@ EAGLE (Extrapolation Algorithm for Greater Language-model Efficiency) is develop
 | DFlash Paper | [arXiv:2602.06036](https://arxiv.org/abs/2602.06036) |
 | DFlash Project | [Z-Lab: DFlash](https://z-lab.ai/projects/dflash/) |
 | DFlash Code and Models | [z-lab/dflash](https://github.com/z-lab/dflash) |
+| GLM-5.2 Model | [zai-org/GLM-5.2](https://huggingface.co/zai-org/GLM-5.2) |
+| GLM-5.2 Blog | [GLM-5.2: Built for Long-Horizon Tasks](https://huggingface.co/blog/zai-org/glm-52-blog) |
+| IndexShare Paper | [arXiv:2603.12201](https://arxiv.org/abs/2603.12201) |
 
 ---
 
