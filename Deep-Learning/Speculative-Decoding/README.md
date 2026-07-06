@@ -46,10 +46,71 @@ This repo is meant to be evidence-rich, not just explanatory prose:
 
 | Principle | What is included | Where to inspect |
 |---|---|---|
-| **Data-rich** | Raw H100 benchmark JSON for vLLM native MTP, vLLM DFlash, and llama.cpp MTP | `data/h100_*.json` |
+| **Data-rich** | Raw H100 benchmark JSON for vLLM native MTP, vLLM DFlash, and llama.cpp MTP | `data/h100_vllm_native_mtp.json`, `data/h100_vllm_dflash.json`, `data/h100_llamacpp_mtp_q4kxl.json` |
 | **Code-rich** | Runnable benchmark client, route orchestrator, vLLM launchers, llama.cpp build/launch scripts, EAGLE3 training scripts | `scripts/` |
 | **Engineering-rich** | Runtime knobs, failure modes, memory/KV-cache constraints, DeepGEMM and context-length fixes | H100 benchmark section, runtime knobs table, `logs/` |
 | **Test-rich** | Warmup + repeated measured runs, startup logs, output-quality checks, failure notes, JSON-backed median TPS | `data/`, `logs/`, benchmark tables |
+
+## Evidence Showcase: Data, Logs, Code, CLI
+
+Before the algorithm discussion, here is the concrete evidence trail this repo is built on.
+
+| Evidence type | Artifact | What it proves |
+|---|---|---|
+| Raw result JSON | [`data/h100_vllm_native_mtp.json`](data/h100_vllm_native_mtp.json), [`data/h100_vllm_dflash.json`](data/h100_vllm_dflash.json), [`data/h100_llamacpp_mtp_q4kxl.json`](data/h100_llamacpp_mtp_q4kxl.json) | The benchmark numbers come from stored per-run measurements, not prose-only summaries |
+| Startup logs | [`logs/h100_vllm_native_mtp_startup.log`](logs/h100_vllm_native_mtp_startup.log), [`logs/h100_vllm_dflash_startup.log`](logs/h100_vllm_dflash_startup.log), [`logs/h100_llamacpp_mtp_startup.log`](logs/h100_llamacpp_mtp_startup.log) | The serving routes, speculative settings, model IDs, and runtime warnings are inspectable |
+| Benchmark code | [`scripts/mtp_benchmark_client.py`](scripts/mtp_benchmark_client.py) | TPS is computed from `usage.completion_tokens / total_time` in non-streaming mode |
+| CLI entry points | [`scripts/mtp_benchmark_orchestrator.sh`](scripts/mtp_benchmark_orchestrator.sh), [`scripts/mtp_vllm_qwen36_mtp_launch.sh`](scripts/mtp_vllm_qwen36_mtp_launch.sh), [`scripts/mtp_vllm_qwen36_dflash_launch.sh`](scripts/mtp_vllm_qwen36_dflash_launch.sh), [`scripts/mtp_llamacpp_qwen36_mtp_launch.sh`](scripts/mtp_llamacpp_qwen36_mtp_launch.sh) | The three routes can be launched and benchmarked from scripts |
+
+**Raw JSON sample** (`data/h100_vllm_dflash.json`, coding route):
+
+```jsonc
+{
+  "meta": {"label": "vllm-dflash", "runs": 3, "warmup": 1, "stream": false},
+  "results": [
+    {"domain": "coding", "run": 1, "total_s": 2.6720, "gen_tokens": 512, "gen_tps": 191.62, "finish_reason": "length"},
+    {"domain": "coding", "run": 2, "total_s": 2.6701, "gen_tokens": 512, "gen_tps": 191.75, "finish_reason": "length"},
+    {"domain": "coding", "run": 3, "total_s": 2.6709, "gen_tokens": 512, "gen_tps": 191.70, "finish_reason": "length"}
+  ]
+}
+```
+
+**Startup log evidence**:
+
+```text
+File: logs/h100_vllm_native_mtp_startup.log
+SpeculativeConfig(method='mtp', model='Qwen/Qwen3.6-27B', num_spec_tokens=5)
+
+File: logs/h100_vllm_dflash_startup.log
+speculative_config: {'method': 'dflash', 'model': 'z-lab/Qwen3.6-27B-DFlash', 'num_speculative_tokens': 15}
+```
+
+**Benchmark code path** (`scripts/mtp_benchmark_client.py`):
+
+```python
+completion_tokens = usage.get("completion_tokens", 0)
+total_s = t_end - t_start
+"gen_tps": round(completion_tokens / max(total_s, 0.001), 2)
+```
+
+**CLI reproduction path**:
+
+```bash
+# Run all three routes sequentially
+bash scripts/mtp_benchmark_orchestrator.sh
+
+# Or run one route manually
+python3 scripts/mtp_benchmark_client.py --base-url http://127.0.0.1:8000 \
+  --label vllm-dflash --runs 3 --warmup 1 --no-stream --output results_dflash.json
+```
+
+**Visible test result slice**:
+
+| Route | Source JSON | Coding runs TPS | Median TPS |
+|---|---|---:|---:|
+| vLLM native MTP | `data/h100_vllm_native_mtp.json` | 146.95 / 146.68 / 146.47 | **146.7** |
+| vLLM DFlash | `data/h100_vllm_dflash.json` | 191.62 / 191.75 / 191.70 | **191.7** |
+| llama.cpp MTP Q4_K_XL | `data/h100_llamacpp_mtp_q4kxl.json` | 106.65 / 107.70 / 107.28 | **107.3** |
 
 ## Benchmark Environment
 

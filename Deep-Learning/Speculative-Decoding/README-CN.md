@@ -46,10 +46,71 @@ Draft-and-verify 加速工程指南：用可复现 benchmark 对比 EAGLE3、自
 
 | 原则 | 已包含什么 | 去哪里检查 |
 |---|---|---|
-| **Data-rich** | vLLM native MTP、vLLM DFlash、llama.cpp MTP 的 H100 benchmark 原始 JSON | `data/h100_*.json` |
+| **Data-rich** | vLLM native MTP、vLLM DFlash、llama.cpp MTP 的 H100 benchmark 原始 JSON | `data/h100_vllm_native_mtp.json`、`data/h100_vllm_dflash.json`、`data/h100_llamacpp_mtp_q4kxl.json` |
 | **Code-rich** | benchmark client、三路线 orchestrator、vLLM 启动脚本、llama.cpp 构建/启动脚本、EAGLE3 训练脚本 | `scripts/` |
 | **Engineering-rich** | runtime knobs、失败模式、显存/KV-cache 限制、DeepGEMM 和 context-length 修复 | H100 benchmark 章节、runtime knobs 表、`logs/` |
 | **Test-rich** | warmup + 多轮 measured runs、startup logs、输出质量检查、失败记录、JSON 支撑的 median TPS | `data/`、`logs/`、benchmark 表 |
+
+## 证据展示：数据、日志、代码、CLI
+
+进入算法讨论前，先看这个 repo 的证据链长什么样。
+
+| 证据类型 | 产物 | 证明什么 |
+|---|---|---|
+| 原始 JSON 结果 | [`data/h100_vllm_native_mtp.json`](data/h100_vllm_native_mtp.json)、[`data/h100_vllm_dflash.json`](data/h100_vllm_dflash.json)、[`data/h100_llamacpp_mtp_q4kxl.json`](data/h100_llamacpp_mtp_q4kxl.json) | benchmark 数字来自逐轮保存的测量结果，不是正文里手写的汇总 |
+| 启动日志 | [`logs/h100_vllm_native_mtp_startup.log`](logs/h100_vllm_native_mtp_startup.log)、[`logs/h100_vllm_dflash_startup.log`](logs/h100_vllm_dflash_startup.log)、[`logs/h100_llamacpp_mtp_startup.log`](logs/h100_llamacpp_mtp_startup.log) | serving route、speculative settings、model ID 和 runtime warning 可以回看 |
+| Benchmark 代码 | [`scripts/mtp_benchmark_client.py`](scripts/mtp_benchmark_client.py) | TPS 用 non-streaming mode 下的 `usage.completion_tokens / total_time` 计算 |
+| CLI 入口 | [`scripts/mtp_benchmark_orchestrator.sh`](scripts/mtp_benchmark_orchestrator.sh)、[`scripts/mtp_vllm_qwen36_mtp_launch.sh`](scripts/mtp_vllm_qwen36_mtp_launch.sh)、[`scripts/mtp_vllm_qwen36_dflash_launch.sh`](scripts/mtp_vllm_qwen36_dflash_launch.sh)、[`scripts/mtp_llamacpp_qwen36_mtp_launch.sh`](scripts/mtp_llamacpp_qwen36_mtp_launch.sh) | 三条路线可以用脚本启动和复测 |
+
+**原始 JSON 样例**（`data/h100_vllm_dflash.json`，coding route）：
+
+```jsonc
+{
+    "meta": {"label": "vllm-dflash", "runs": 3, "warmup": 1, "stream": false},
+    "results": [
+        {"domain": "coding", "run": 1, "total_s": 2.6720, "gen_tokens": 512, "gen_tps": 191.62, "finish_reason": "length"},
+        {"domain": "coding", "run": 2, "total_s": 2.6701, "gen_tokens": 512, "gen_tps": 191.75, "finish_reason": "length"},
+        {"domain": "coding", "run": 3, "total_s": 2.6709, "gen_tokens": 512, "gen_tps": 191.70, "finish_reason": "length"}
+    ]
+}
+```
+
+**启动日志证据**：
+
+```text
+File: logs/h100_vllm_native_mtp_startup.log
+SpeculativeConfig(method='mtp', model='Qwen/Qwen3.6-27B', num_spec_tokens=5)
+
+File: logs/h100_vllm_dflash_startup.log
+speculative_config: {'method': 'dflash', 'model': 'z-lab/Qwen3.6-27B-DFlash', 'num_speculative_tokens': 15}
+```
+
+**Benchmark 代码路径**（`scripts/mtp_benchmark_client.py`）：
+
+```python
+completion_tokens = usage.get("completion_tokens", 0)
+total_s = t_end - t_start
+"gen_tps": round(completion_tokens / max(total_s, 0.001), 2)
+```
+
+**CLI 复现入口**：
+
+```bash
+# 自动顺序运行三条路线
+bash scripts/mtp_benchmark_orchestrator.sh
+
+# 或者手动跑其中一条路线
+python3 scripts/mtp_benchmark_client.py --base-url http://127.0.0.1:8000 \
+    --label vllm-dflash --runs 3 --warmup 1 --no-stream --output results_dflash.json
+```
+
+**可见测试结果切片**：
+
+| 路线 | Source JSON | Coding runs TPS | Median TPS |
+|---|---|---:|---:|
+| vLLM native MTP | `data/h100_vllm_native_mtp.json` | 146.95 / 146.68 / 146.47 | **146.7** |
+| vLLM DFlash | `data/h100_vllm_dflash.json` | 191.62 / 191.75 / 191.70 | **191.7** |
+| llama.cpp MTP Q4_K_XL | `data/h100_llamacpp_mtp_q4kxl.json` | 106.65 / 107.70 / 107.28 | **107.3** |
 
 ## Benchmark 环境
 
