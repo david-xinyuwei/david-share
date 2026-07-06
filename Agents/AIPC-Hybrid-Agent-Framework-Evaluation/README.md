@@ -254,7 +254,9 @@ static void probe_create_desktop(void) {
 
 ### Path B Code: Network Policy
 
-Block vs allow external network access — two policy profiles:
+MXC can block or allow external network access per-action. We tested two scenarios:
+
+**Test 1: Direct curl** — `curl https://api.github.com` under two policies:
 
 ```json
 // mxc/policies/02-network-block.json
@@ -265,10 +267,44 @@ Block vs allow external network access — two policy profiles:
   "network": { "defaultPolicy": "block" }
 }
 
-// mxc/policies/03-network-allow.json — same but with:
+// mxc/policies/03-network-allow.json — adds:
   "processContainer": { "capabilities": ["internetClient"] },
   "network": { "defaultPolicy": "allow" }
 ```
+
+Actual results from `wxc-exec`:
+
+| Policy | curl output | Exit code | Verdict |
+|--------|-----------|:---------:|---------|
+| `network-block` | `mxc_http:000` (connection failed) | 6 | ✅ Network correctly blocked |
+| `network-allow` | `mxc_http:200` (GitHub API responded) | 0 | ✅ Network correctly allowed |
+
+> Evidence: `mxc/evidence/03_network_block.log` (`mxc_http:000`, exit=6), `mxc/evidence/04_network_allow.log` (`mxc_http:200`, exit=0)
+
+**Test 2: pip install** — `pip install six==1.16.0` under block/allow policies:
+
+| Policy | pip result | Exit | Root cause |
+|--------|-----------|:----:|------------|
+| `network-block` | Failed | -1 | BFS filesystem policy error — `bfscfg.exe` not resolved on `appcontainer-dacl` tier |
+| `network-allow` | Failed | -1 | Same BFS error — pip needs `readwritePaths` for `--target` directory, which requires BFS |
+
+> Both pip tests hit the same filesystem policy error before reaching the network layer. The network block/allow distinction is proven by the curl test; pip install additionally requires filesystem policy (`readwritePaths`) which is not available on the current `appcontainer-dacl` fallback tier.
+
+### Filesystem Policy
+
+**Status: Not tested.** MXC supports `readwritePaths` and `readonlyPaths` in the policy JSON for filesystem scoping:
+
+```json
+// From MXC policy schema (0.7.0-alpha)
+"filesystem": {
+  "readwritePaths": [ "%APPDATA%\\mxc_test" ],
+  "readonlyPaths": [ "C:\\Program Files\\..." ]
+}
+```
+
+On the current `appcontainer-dacl` fallback tier, filesystem policy requires BFS (Base Filesystem) configuration via `bfscfg.exe`, which is only available on the full `BaseContainer` tier (Windows Insider). The pip install test above confirms this limitation: `"Filesystem policy error: Cannot configure BFS policy: bfscfg.exe was not resolved at probe time"`.
+
+> **What this means for Lenovo**: Filesystem scoping (restricting which directories an agent action can read/write) is a policy capability in MXC's schema, but requires BaseContainer tier to enforce. On stock Windows 11, only network, UI, and process-level containment are available today.
 
 ### Capability Catalog (9 Win32 probes × 4 contexts)
 
@@ -286,13 +322,6 @@ Block vs allow external network access — two policy profiles:
 
 - `text-lockdown` blocks entire process (most restrictive)
 - Clipboard block on gdi-minimal/broad-ui is environment tier limitation (official clipboard-allow examples exist)
-
-### Network Policy (pip install)
-
-| Profile | Network | pip install | UI |
-|---------|:-------:|:-----------:|:--:|
-| network-block | Blocked | ✅ Blocked | Blocked |
-| network-allow | Allowed | ⚠️ Inconclusive (FS issue) | ✅ Allowed |
 
 ### Path B Boundaries
 
