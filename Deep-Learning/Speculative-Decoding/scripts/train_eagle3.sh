@@ -6,6 +6,15 @@ export TORCHINDUCTOR_CACHE_DIR=./cache/compiled_kernels
 export HF_HOME=~/.cache/huggingface
 export NCCL_TIMEOUT=1800
 
+SPECFORGE_DIR="${SPECFORGE_DIR:-$HOME/SpecForge}"
+TRAIN_ENTRYPOINT="$SPECFORGE_DIR/scripts/train_eagle3.py"
+
+if [[ ! -f "$TRAIN_ENTRYPOINT" ]]; then
+    echo "Missing SpecForge training entrypoint: $TRAIN_ENTRYPOINT"
+    echo "Clone https://github.com/SafeAILab/SpecForge or set SPECFORGE_DIR=/path/to/SpecForge"
+    exit 1
+fi
+
 echo "=================================================="
 echo "EAGLE-3 Training - Optimized Version"
 echo "=================================================="
@@ -18,9 +27,9 @@ echo "=================================================="
 torchrun \
     --standalone \
     --nproc_per_node 1 \
-    scripts/train_eagle3.py \
+    "$TRAIN_ENTRYPOINT" \
     --target-model-path meta-llama/Llama-3.1-8B-Instruct \
-    --draft-model-config configs/llama3-8B-eagle3.json \
+    --draft-model-config config/llama3-8B-eagle3.json \
     --train-data-path cache/dataset/sharegpt_train.jsonl \
     --output-dir output/eagle3-llama31-8b-full \
     --num-epochs 10 \
@@ -36,9 +45,9 @@ torchrun \
     --warmup-ratio 0.02
 
 # Option 2: Simple python execution (for debugging)
-# python scripts/train_eagle3.py \
+# python "$TRAIN_ENTRYPOINT" \
 #     --target-model-path meta-llama/Llama-3.1-8B-Instruct \
-#     --draft-model-config configs/llama3-8B-eagle3.json \
+#     --draft-model-config config/llama3-8B-eagle3.json \
 #     --train-data-path cache/dataset/sharegpt_train.jsonl \
 #     --output-dir output/eagle3-llama31-8b-full \
 #     --num-epochs 10 \

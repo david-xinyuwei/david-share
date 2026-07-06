@@ -222,16 +222,10 @@ training:
 ### 训练启动
 
 ```bash
-nohup torchrun --nproc_per_node=1 scripts/train_eagle3.py \
-    --base_model_path meta-llama/Llama-3.1-8B-Instruct \
-    --data_path data/sharegpt_clean.json \
-    --output_dir output/eagle3-llama31-8b-full \
-    --batch_size 1 \
-    --gradient_accumulation_steps 8 \
-    --learning_rate 3e-5 \
-    --num_train_steps 7000 \
-    > eagle3_training.log 2>&1 &
+SPECFORGE_DIR=~/SpecForge bash scripts/train_eagle3.sh
 ```
+
+这个 wrapper 保存本 repo 的复现命令和本地 draft config；真正的训练入口来自上游 [SpecForge](https://github.com/SafeAILab/SpecForge)。如果 SpecForge 不在 `~/SpecForge`，设置 `SPECFORGE_DIR=/path/to/SpecForge` 即可。
 
 ### 训练日志
 
@@ -1011,15 +1005,14 @@ Step 500: loss=3.87, acc=0.06  ← 只有 6% 精度！
 2. **词表映射不匹配**: Draft 模型预测与目标模型输出分布不一致
 3. **Token 频率问题**: 训练数据未能代表真实推理时的 token 模式
 
-**解决方案**: 使用目标模型本身重新生成训练数据，使用更大更具代表性的数据集：
+**解决方案**: 重新构建更大、更有代表性的训练集：
 
 ```bash
-# 使用 SpecForge 数据生成，基于 PerfectBlend 数据集（7M 对话）
-python scripts/generate_data.py \
-    --model meta-llama/Llama-3.1-8B-Instruct \
-    --dataset PerfectBlend \
-    --output data/llama31_8b_eagle3_data.json \
-    --num_samples 10000
+# 使用现有数据准备脚本处理 PerfectBlend 数据集（7M 对话）
+python scripts/prepare_data.py \
+    --dataset perfectblend \
+    --sample-size 10000 \
+    --output-path cache/dataset/perfectblend_train.jsonl
 
 # 数据重新生成后的成功训练:
 # eagle3_train.log:
@@ -1106,6 +1099,13 @@ speculative-decoding/
 │   └── train_eagle3.sh
 └── test_performance.py
 ```
+
+配置文件：
+
+| 文件 | 用途 |
+|------|------|
+| [`config/eagle3_llama31_8b.yaml`](config/eagle3_llama31_8b.yaml) | 本 repo 使用的 EAGLE3 training/deployment 配置 |
+| [`config/llama3-8B-eagle3.json`](config/llama3-8B-eagle3.json) | Llama-3.1-8B EAGLE3 head 的 draft model architecture config |
 
 
 ---

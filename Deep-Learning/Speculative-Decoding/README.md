@@ -222,16 +222,10 @@ training:
 ### Training Launch
 
 ```bash
-nohup torchrun --nproc_per_node=1 scripts/train_eagle3.py \
-    --base_model_path meta-llama/Llama-3.1-8B-Instruct \
-    --data_path data/sharegpt_clean.json \
-    --output_dir output/eagle3-llama31-8b-full \
-    --batch_size 1 \
-    --gradient_accumulation_steps 8 \
-    --learning_rate 3e-5 \
-    --num_train_steps 7000 \
-    > eagle3_training.log 2>&1 &
+SPECFORGE_DIR=~/SpecForge bash scripts/train_eagle3.sh
 ```
+
+The wrapper in this repo stores the reproducible command and local draft config, while the training entrypoint comes from the upstream [SpecForge](https://github.com/SafeAILab/SpecForge) checkout. Set `SPECFORGE_DIR=/path/to/SpecForge` if it is not cloned at `~/SpecForge`.
 
 ### Training Log
 
@@ -1008,15 +1002,14 @@ Step 500: loss=3.87, acc=0.06  ← Only 6% accuracy!
 
 **Root Cause Analysis**: Training failed due to insufficient and mismatched training data.
 
-**Solution**: Regenerate training data using the Target Model itself with larger, representative dataset:
+**Solution**: Rebuild a larger, more representative training split:
 
 ```bash
-# Use SpecForge data generation with PerfectBlend dataset (7M conversations)
-python scripts/generate_data.py \
-    --model meta-llama/Llama-3.1-8B-Instruct \
-    --dataset PerfectBlend \
-    --output data/llama31_8b_eagle3_data.json \
-    --num_samples 10000
+# Use the available data preparation script with PerfectBlend (7M conversations)
+python scripts/prepare_data.py \
+  --dataset perfectblend \
+  --sample-size 10000 \
+  --output-path cache/dataset/perfectblend_train.jsonl
 
 # Successful training after data regeneration:
 # eagle3_train.log:
@@ -1103,6 +1096,13 @@ speculative-decoding/
 │   └── train_eagle3.sh
 └── test_performance.py
 ```
+
+Configuration files:
+
+| File | Purpose |
+|------|---------|
+| [`config/eagle3_llama31_8b.yaml`](config/eagle3_llama31_8b.yaml) | EAGLE3 training/deployment configuration used by this repo |
+| [`config/llama3-8B-eagle3.json`](config/llama3-8B-eagle3.json) | Draft model architecture config for the Llama-3.1-8B EAGLE3 head |
 
 
 ---
