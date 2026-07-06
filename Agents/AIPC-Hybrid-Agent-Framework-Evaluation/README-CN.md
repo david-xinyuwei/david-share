@@ -382,16 +382,24 @@ MXC 可通过 `readwritePaths` / `readonlyPaths` 控制被包含进程能读写�
 
 这张表不是在说“好/坏”，而是在回答一个很具体的问题：**同一个 Windows API，在不同 MXC policy 下能不能被调用？**
 
+重要说明：`text-lockdown`、`gdi-minimal`、`broad-ui` **不是 MXC JSON schema 字段名**，而是我们给三组测试 profile 起的展示标签。真正的 MXC policy 字段是 `processContainer.name`、`processContainer.ui.*` 和顶层 `ui.*`。
+
+| 测试 profile 标签 | Policy 文件 / JSON 里的真实名称 | 实际使用的 policy 字段 |
+|-------------------|----------------------------------|------------------------|
+| `text-lockdown` | `capability-text-lockdown.json` / `processContainer.name = "Capability-Text-Lockdown"` | `ui.disable=true`、`ui.clipboard="none"`、`ui.injection=false`、`processContainer.ui.isolation="container"` |
+| `gdi-minimal` | `capability-gdi-minimal-0.7.0-alpha.json` / `processContainer.name = "Capability-Gdi-Minimal-070"` | `ui.disable=false`、`ui.clipboard="none"`、`ui.injection=false`、`processContainer.ui.isolation="container"` |
+| `broad-ui` | `capability-broad-ui.json` / `processContainer.name = "Capability-Broad-Ui"` | `ui.disable=false`、`ui.clipboard="all"`、`ui.injection=true`、`processContainer.ui.isolation="desktop"`、`desktopSystemControl=true`、`systemSettings="all"`、`ime=true` |
+
 | 列名 | 人话解释 |
 |------|----------|
 | **No MXC（Host baseline）** | 不走 MXC，直接在 Windows 上跑。✅ 表示这个 API 在 host 上本来就能调；❌ 表示它在当前 Windows 环境里本来就失败，所以不是 MXC 挡的。 |
-| **MXC text-lockdown profile** | 最严格 profile，给纯文本任务用。`BLOCKED` 表示 MXC 在进程启动阶段就拦住了，9 个 API 根本没机会执行。 |
-| **MXC gdi-minimal profile** | 给绘图/渲染类任务的最小 UI profile。✅ 表示这个 profile 放行了该 API；❌ 表示该 API 在这个 policy/tier 下仍然失败。 |
-| **MXC broad-ui profile** | 更宽的 UI profile。但在当前 `appcontainer-dacl` fallback tier 下，它和 `gdi-minimal` 差异不大，clipboard/desktop/display/input/WMI 仍然没解锁。 |
+| **Profile label：text-lockdown** | 最严格测试 profile，给纯文本任务用。`BLOCKED` 表示 MXC 在进程启动阶段就拦住了，9 个 API 根本没机会执行。 |
+| **Profile label：gdi-minimal** | 给绘图/渲染类任务的最小 UI 测试 profile。✅ 表示这个 profile 放行了该 API；❌ 表示该 API 在这个 policy/tier 下仍然失败。 |
+| **Profile label：broad-ui** | 更宽的 UI 测试 profile。但在当前 `appcontainer-dacl` fallback tier 下，它和 `gdi-minimal` 差异不大，clipboard/desktop/display/input/WMI 仍然没解锁。 |
 
 图例：✅ = API 调用成功；❌ = API 调用失败；`BLOCKED` = MXC 在进程启动前就挡住了。
 
-| Capability probe | No MXC<br/>Host baseline | MXC<br/>text-lockdown | MXC<br/>gdi-minimal | MXC<br/>broad-ui |
+| Capability probe | No MXC<br/>Host baseline | Profile<br/>text-lockdown | Profile<br/>gdi-minimal | Profile<br/>broad-ui |
 |------------------|:------------------------:|:-------------------:|:----------------:|:------------:|
 | GDI_GetDC | ✅ | BLOCKED | ✅ | ✅ |
 | Clipboard_OpenClipboard | ✅ | BLOCKED | ❌ | ❌ |

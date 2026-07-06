@@ -416,16 +416,24 @@ Test setup:
 
 How to read this table:
 
+Important: `text-lockdown`, `gdi-minimal`, and `broad-ui` are **test profile labels**, not MXC JSON schema field names. The actual MXC policy fields are `processContainer.name`, `processContainer.ui.*`, and top-level `ui.*`.
+
+| Test profile label | Policy file / actual JSON name | Actual policy knobs used |
+|--------------------|--------------------------------|--------------------------|
+| `text-lockdown` | `capability-text-lockdown.json` / `processContainer.name = "Capability-Text-Lockdown"` | `ui.disable=true`, `ui.clipboard="none"`, `ui.injection=false`, `processContainer.ui.isolation="container"` |
+| `gdi-minimal` | `capability-gdi-minimal-0.7.0-alpha.json` / `processContainer.name = "Capability-Gdi-Minimal-070"` | `ui.disable=false`, `ui.clipboard="none"`, `ui.injection=false`, `processContainer.ui.isolation="container"` |
+| `broad-ui` | `capability-broad-ui.json` / `processContainer.name = "Capability-Broad-Ui"` | `ui.disable=false`, `ui.clipboard="all"`, `ui.injection=true`, `processContainer.ui.isolation="desktop"`, `desktopSystemControl=true`, `systemSettings="all"`, `ime=true` |
+
 | Column | Plain-English meaning |
 |--------|-----------------------|
 | **No MXC (Host baseline)** | The same probe runs directly on Windows, without MXC. ✅ means the API works normally on the host. ❌ means the API already fails on this Windows environment, so MXC is not the cause. |
-| **MXC text-lockdown profile** | The strictest MXC profile for plain text tasks. `BLOCKED` means MXC stops the process before any Win32 API can run. |
-| **MXC gdi-minimal profile** | A minimal UI profile for drawing/rendering tasks. ✅ means this profile allows the API. ❌ means the API still fails under this policy/tier. |
-| **MXC broad-ui profile** | A broader UI profile. On the current `appcontainer-dacl` fallback tier, it behaves almost the same as `gdi-minimal`; it does not unlock clipboard/desktop/display/input/WMI in this test. |
+| **Profile label: text-lockdown** | The strictest test profile for plain text tasks. `BLOCKED` means MXC stops the process before any Win32 API can run. |
+| **Profile label: gdi-minimal** | A minimal UI test profile for drawing/rendering tasks. ✅ means this profile allows the API. ❌ means the API still fails under this policy/tier. |
+| **Profile label: broad-ui** | A broader UI test profile. On the current `appcontainer-dacl` fallback tier, it behaves almost the same as `gdi-minimal`; it does not unlock clipboard/desktop/display/input/WMI in this test. |
 
 Legend: ✅ = API call succeeded; ❌ = API call failed; `BLOCKED` = MXC blocked process startup before probes ran.
 
-| Capability probe | No MXC<br/>(Host baseline) | MXC<br/>text-lockdown | MXC<br/>gdi-minimal | MXC<br/>broad-ui |
+| Capability probe | No MXC<br/>(Host baseline) | Profile<br/>text-lockdown | Profile<br/>gdi-minimal | Profile<br/>broad-ui |
 |------------------|:-------------------------:|:-------------------:|:----------------:|:------------:|
 | GDI_GetDC | ✅ | BLOCKED | ✅ | ✅ |
 | Clipboard_OpenClipboard | ✅ | BLOCKED | ❌ | ❌ |
