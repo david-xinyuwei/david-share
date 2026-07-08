@@ -23,6 +23,8 @@ English | [中文版](README-CN.md)
 
 ## Executive Summary
 
+- **Latest AMD CK reproduction (2026-07-07):** AMD's CK A8W8 blockwise GEMM path was reproduced from the original AMD scripts with `decode_full.rc=0` and `prefill_full.rc=0`. Decode mean TPOT matches AMD's CK row within 1.2%; prefill input throughput matches the observed CK 32K-chunk column within 1.2%.
+- **CK concurrency extension (2026-07-08):** decode 8K/1K completed through concurrency 256 and plateaued around 2,200 output tok/s from concurrency 64 onward. Prefill 8K/64K completed through concurrency 8; 256K completed at concurrency 1/2 and failed at concurrency 4/8 during warmup with no healthy prefill workers.
 - **Prefill:** MI300X/H200 throughput is 51.1% at 8K, 54.9% at 64K, and 214.1% at the validated 256K long-context point.
 - **Decode:** with aligned MTP acceptance (`SIMULATE_ACC_LEN=3` on both sides), MI300X is close on TPOT latency; output tok/s is also shown with the same visible-BS-row methodology.
 - **Key discovery:** H200's constant `accept_rate=0.75` is simulated via `SGLANG_SIMULATE_ACC_LEN=3`, so H200 TPOT reflects ideal MTP acceptance rather than real draft-model accuracy.
@@ -61,6 +63,88 @@ All MI300X numbers use **real expert routing** (not `fake_topk_ids`), adding 5-1
 
 ---
 
+## 2026-07-07 AMD CK A8W8 GEMM Strict Reproduction
+
+AMD's 2026-07-07 update replaced the triton A8W8 blockwise GEMM path with **CK A8W8 blockwise GEMM bpreshuffle** and added AITER INT8 quick-reduce support. This run follows AMD's original reproduction steps without editing the launch or benchmark scripts; the only execution-carrier adaptation was to keep the foreground prefill, decode, router, and benchmark commands in separate sessions.
+
+- Raw evidence: [`data/raw-logs/20260707-ck-a8w8-gemm/`](data/raw-logs/20260707-ck-a8w8-gemm/)
+- Result summary: [`reports/20260707-ck-a8w8-gemm-strict-repro.md`](reports/20260707-ck-a8w8-gemm-strict-repro.md)
+- Script snapshot: [`scripts/20260707-amd-ck-a8w8/`](scripts/20260707-amd-ck-a8w8/)
+
+### Decode 8K/1K — Strict AMD Script Reproduction
+
+N = 256 requests per BS point; target concurrency = 16/32/64/128; `decode_full.rc=0`; no benchmark `ClientPayloadError`, `Traceback`, `Exception`, `ERROR`, `No available`, `unhealthy`, or `TimedOut` markers.
+
+| BS | Successful requests | Output tok/s | Mean TPOT ms | Median TPOT ms | P99 TPOT ms | AMD CK mean TPOT ms | Delta vs AMD CK |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 16 | 256 | 1,299.18 | 10.64 | 10.83 | 11.57 | 10.59 | +0.5% |
+| 32 | 256 | 1,910.75 | 13.50 | 13.73 | 14.25 | 13.43 | +0.5% |
+| 64 | 256 | 2,188.05 | 15.10 | 15.53 | 16.58 | 14.92 | +1.2% |
+| 128 | 256 | 2,209.43 | 14.52 | 14.83 | 15.82 | 14.55 | -0.2% |
+
+**Interpretation:** the strict reproduction matches AMD's 2026-07-07 CK decode table within about 1.2% on mean TPOT and within about 0.4% on output throughput. This is the strongest evidence that the CK GEMM path materially improves MI300X decode TPOT versus the 6/26 triton-GEMM stack.
+
+### Prefill — Strict AMD Script Reproduction
+
+N = 16 requests per input length; target concurrency = 4; `prefill_full.rc=0`; no benchmark error markers. The observed prefill launch uses `--chunked-prefill-size 32768`, even though the log filename says `chunk_128k`, so the cleanest table comparison is against AMD's CK 32K-chunk column.
+
+| ISL/OSL | Successful requests | Input tok/s | Mean TTFT ms | P99 TTFT ms | AMD CK 32K input tok/s | Delta vs AMD CK |
+|---:|---:|---:|---:|---:|---:|---:|
+| 8K/1 | 16 | 16,715.80 | 1,849.62 | 2,709.97 | 16,924.08 | -1.2% |
+| 64K/1 | 16 | 17,254.14 | 14,107.62 | 16,674.08 | 17,223.51 | +0.2% |
+| 256K/1 | 16 | 37,492.80 | 19,278.17 | 86,264.51 | 37,241.84 | +0.7% |
+
+**Caveat:** the router emitted transient `/health` timeout warnings during the long 64K prefill phase, while `/generate` requests continued returning HTTP 200 and both benchmark scripts completed successfully.
+
+---
+
+## 2026-07-08 CK A8W8 Concurrency Extension
+
+This run keeps the 2026-07-07 AMD CK strict reproduction artifacts unchanged and adds a wider concurrency sweep to identify saturation and availability boundaries.
+
+- Raw evidence: [`data/raw-logs/20260708-ck-a8w8-concurrency-extension/`](data/raw-logs/20260708-ck-a8w8-concurrency-extension/)
+- Result summary: [`reports/20260708-ck-a8w8-concurrency-extension.md`](reports/20260708-ck-a8w8-concurrency-extension.md)
+- Script snapshot: [`scripts/20260708-ck-a8w8-concurrency-sweep/`](scripts/20260708-ck-a8w8-concurrency-sweep/)
+
+### Decode 8K/1K — High-Concurrency Sweep
+
+N = 256 requests per concurrency point; output length = 1024; warmup requests = 32; `decode_full.rc=0`.
+
+| Concurrency | Successful requests | Output tok/s | Mean TPOT ms | P99 TPOT ms | Mean TTFT ms |
+|---:|---:|---:|---:|---:|---:|
+| 16 | 256 | 1,321.50 | 10.79 | 11.65 | 1,191.13 |
+| 32 | 256 | 1,914.27 | 13.37 | 14.26 | 2,847.33 |
+| 64 | 256 | 2,198.77 | 15.49 | 17.08 | 11,853.11 |
+| 96 | 256 | 2,200.63 | 15.06 | 16.31 | 23,666.92 |
+| 128 | 256 | 2,203.65 | 14.83 | 16.22 | 33,429.51 |
+| 192 | 256 | 2,202.57 | 14.72 | 16.28 | 47,910.53 |
+| 256 | 256 | 2,207.97 | 14.60 | 16.36 | 55,466.82 |
+
+**Interpretation:** decode throughput saturates around concurrency 64 and remains stable through concurrency 256. Higher concurrency mainly increases queueing/TTFT rather than output-token throughput.
+
+### Prefill — Concurrency Sweep
+
+N = 16 requests per point; output length = 1; warmup requests = 1. The full prefill matrix exits with `prefill_full.rc=1` because the 256K/con4 and 256K/con8 points fail during warmup.
+
+| Input tokens | Concurrency | rc | Successful requests | Input tok/s | Mean TTFT ms | P99 TTFT ms |
+|---:|---:|---:|---:|---:|---:|---:|
+| 8192 | 1 | 0 | 16 | 14,811.18 | 552.33 | 589.05 |
+| 8192 | 2 | 0 | 16 | 16,982.94 | 958.32 | 1,368.64 |
+| 8192 | 4 | 0 | 16 | 16,783.88 | 1,840.95 | 2,680.40 |
+| 8192 | 8 | 0 | 16 | 18,617.41 | 3,210.75 | 4,690.96 |
+| 65536 | 1 | 0 | 16 | 16,602.69 | 3,946.37 | 4,869.77 |
+| 65536 | 2 | 0 | 16 | 18,077.28 | 7,122.69 | 9,003.76 |
+| 65536 | 4 | 0 | 16 | 16,904.74 | 14,231.93 | 16,774.44 |
+| 65536 | 8 | 0 | 16 | 17,252.39 | 24,482.37 | 31,726.89 |
+| 262144 | 1 | 0 | 16 | 35,452.56 | 6,995.06 | 22,647.57 |
+| 262144 | 2 | 0 | 16 | 37,429.63 | 12,417.08 | 47,335.03 |
+| 262144 | 4 | 1 | NA | NA | NA | NA |
+| 262144 | 8 | 1 | NA | NA | NA | NA |
+
+**Failure boundary:** 256K/con4 and 256K/con8 both fail before measurement during warmup with `No available prefill workers (all circuits open or unhealthy)`. This is an availability/circuit-health boundary for very long-context prefill concurrency, not a measured throughput regression.
+
+---
+
 ## 2026-06-26 AMD aiter+MTP3 Stack and Aligned Result
 
 AMD provided an updated 1P1D MI300X test stack on 2026-06-26:
@@ -71,7 +155,7 @@ AMD provided an updated 1P1D MI300X test stack on 2026-06-26:
 | aiter | `amd-aiter 0.1.14rc1.dev213+g7a8ff7dd4` |
 | Runtime | 1P1D PD router, prefill and decode both using `aiter backend + MTP=3` |
 
-> **Raw benchmark logs** for reproducibility verification are archived under [`data/raw-logs/`](data/raw-logs/). H200 decode comparisons use the aligned `SIMULATE_ACC_LEN=3` logs under [`data/raw-logs/20260626-simulate-acc3/`](data/raw-logs/20260626-simulate-acc3/).
+> **Raw benchmark logs** for reproducibility verification are archived under [`data/raw-logs/`](data/raw-logs/). The latest AMD CK strict reproduction is under [`data/raw-logs/20260707-ck-a8w8-gemm/`](data/raw-logs/20260707-ck-a8w8-gemm/). H200 decode comparisons use the aligned `SIMULATE_ACC_LEN=3` logs under [`data/raw-logs/20260626-simulate-acc3/`](data/raw-logs/20260626-simulate-acc3/).
 
 > **Decode metric provenance**: MI300X TPOT and output tok/s are measured directly from SGLang `bench_serving` logs. H200 TPOT and output tok/s are taken from Xiaomi's H200 reference sheet. The H200 output tok/s column equals `BS × 1000 / TPOT` and is shown as the sheet's visible-BS-row throughput.
 
@@ -175,7 +259,7 @@ P99 TPOT (ms):                           20.52
 
 ---
 
-## Reproducing 2026-06-26 Results (Latest)
+## Reproducing 2026-06-26 Results
 
 All scripts, environment info, and raw logs needed to reproduce the 6/26 benchmark are archived in this repo under [`scripts/20260626-amd-stack/`](scripts/20260626-amd-stack/).
 
@@ -387,7 +471,7 @@ mooncake: 0.3.7.post2
 
 ## Scripts and Files Inventory
 
-### 2026-06-26 AMD Stack (Latest)
+### 2026-06-26 AMD Stack
 
 | Script | Purpose | Run on |
 |--------|---------|--------|
@@ -401,10 +485,21 @@ mooncake: 0.3.7.post2
 | [`scripts/20260626-amd-stack/Dockerfile.mooncake`](scripts/20260626-amd-stack/Dockerfile.mooncake) | Mooncake upstream Dockerfile (reference only) | — |
 | [`scripts/20260626-amd-stack/environment_snapshot.txt`](scripts/20260626-amd-stack/environment_snapshot.txt) | Full pip list + git commits + docker SHA + VM IPs | — |
 
+### 2026-07-07 AMD CK A8W8 Script Snapshot
+
+| Script | Purpose | Run on |
+|--------|---------|--------|
+| [`scripts/20260707-amd-ck-a8w8/launch_tp8_noep_prefill_aiter_mtp.sh`](scripts/20260707-amd-ck-a8w8/launch_tp8_noep_prefill_aiter_mtp.sh) | Start prefill server with AITER CK blockscale bpreshuffle enabled | Node 1 |
+| [`scripts/20260707-amd-ck-a8w8/launch_tp8_noep_decode_aiter_mtp.sh`](scripts/20260707-amd-ck-a8w8/launch_tp8_noep_decode_aiter_mtp.sh) | Start decode server | Node 2 |
+| [`scripts/20260707-amd-ck-a8w8/launch_router.sh`](scripts/20260707-amd-ck-a8w8/launch_router.sh) | Start PD router | Node 1 |
+| [`scripts/20260707-amd-ck-a8w8/run_benchmark_mimo_pro_decode.sh`](scripts/20260707-amd-ck-a8w8/run_benchmark_mimo_pro_decode.sh) | Decode benchmark: 8K/1K, BS=16/32/64/128 | Node 1 |
+| [`scripts/20260707-amd-ck-a8w8/run_benchmark_mimo_pro_prefill.sh`](scripts/20260707-amd-ck-a8w8/run_benchmark_mimo_pro_prefill.sh) | Prefill benchmark: 8K/64K/256K, BS=4 | Node 1 |
+
 ### Data and Logs
 
 | Path | Content |
 |------|------|
+| `data/raw-logs/20260707-ck-a8w8-gemm/` | Strict AMD-step CK A8W8 benchmark logs, env gates, script SHA256, and status files |
 | `data/raw-logs/20260626-simulate-acc3/` | 4 decode logs (simulated accept_length=3) |
 
 ### Historical Scripts (6/18 baseline)
@@ -433,4 +528,4 @@ mooncake: 0.3.7.post2
 
 ---
 
-*Last updated: 2026-06-27*
+*Last updated: 2026-07-07*

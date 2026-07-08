@@ -1,0 +1,31 @@
+ROLE=decode
+PORT
+LISTEN 0      2048         0.0.0.0:30001      0.0.0.0:*    users:(("python3",pid=106374,fd=65))         
+LOAD_END_COUNT
+32
+EXACT_READY
+[2026-07-07 11:54:42] INFO:     Application startup complete.
+[2026-07-07 11:54:42] INFO:     Uvicorn running on http://0.0.0.0:30001 (Press CTRL+C to quit)
+[2026-07-07 11:54:44] The server is fired up and ready to roll!
+LAST20
+[2026-07-07 11:54:42 TP1] Tree cache initialized: source=default impl=SWAChunkCache hybrid_swa=True hybrid_ssm=False hierarchical=False streaming_wrapped=False
+[2026-07-07 11:54:42 TP3] Capture draft extend cuda graph end. Time elapsed: 1.42 s. mem usage=0.81 GB. avail mem=40.76 GB.
+[2026-07-07 11:54:42 TP3] Tree cache initialized: source=default impl=SWAChunkCache hybrid_swa=True hybrid_ssm=False hierarchical=False streaming_wrapped=False
+[2026-07-07 11:54:42 TP0] Capture draft extend cuda graph end. Time elapsed: 1.42 s. mem usage=0.81 GB. avail mem=41.17 GB.
+[2026-07-07 11:54:42 TP0] max_total_num_tokens=554304, chunked_prefill_size=32768, max_prefill_tokens=16384, max_running_requests=128, context_len=262144, available_gpu_mem=41.17 GB
+[2026-07-07 11:54:42 TP0] Tree cache initialized: source=default impl=SWAChunkCache hybrid_swa=True hybrid_ssm=False hierarchical=False streaming_wrapped=False
+[2026-07-07 11:54:42 TP2] Capture draft extend cuda graph end. Time elapsed: 1.42 s. mem usage=0.81 GB. avail mem=40.75 GB.
+[2026-07-07 11:54:42 TP2] Tree cache initialized: source=default impl=SWAChunkCache hybrid_swa=True hybrid_ssm=False hierarchical=False streaming_wrapped=False
+[2026-07-07 11:54:42 TP4] Capture draft extend cuda graph end. Time elapsed: 1.48 s. mem usage=0.81 GB. avail mem=40.81 GB.
+[2026-07-07 11:54:42 TP4] Tree cache initialized: source=default impl=SWAChunkCache hybrid_swa=True hybrid_ssm=False hierarchical=False streaming_wrapped=False
+[2026-07-07 11:54:42] INFO:     Started server process [106374]
+[2026-07-07 11:54:42] INFO:     Waiting for application startup.
+[2026-07-07 11:54:42] INFO:     Application startup complete.
+[2026-07-07 11:54:42] INFO:     Uvicorn running on http://0.0.0.0:30001 (Press CTRL+C to quit)
+[2026-07-07 11:54:43] INFO:     127.0.0.1:42444 - "GET /model_info HTTP/1.1" 200 OK
+[2026-07-07 11:54:43] Start of pd disaggregation warmup ...
+[2026-07-07 11:54:44] INFO:     127.0.0.1:42460 - "POST /generate HTTP/1.1" 200 OK
+[2026-07-07 11:54:44] Disaggregation warmup request completed with status 200, resp: [{'text': '!�������', 'output_ids': [0, 100, 100, 100, 100, 100, 100, 100], 'meta_info': {'id': 'b3c066a80bd640c8b4c70022295a63eb', 'finish_reason': {'type': 'length', 'length': 8}, 'prompt_tokens': 4, 'weight_version': 'default', 'num_retractions': 0, 'reasoning_tokens': 0, 'completion_tokens': 8, 'cached_tokens': 0, 'cached_tokens_details': None, 'dp_rank': None, 'e2e_latency': 0.36915323603898287, 'spec_accept_rate': 0.6666666666666666, 'spec_accept_length': 2.6666666666666665, 'spec_num_correct_drafts': 6, 'spec_num_proposed_drafts': 9, 'spec_verify_ct': 3, 'spec_accepted_drafts': 6, 'spec_proposed_drafts': 9, 'spec_correct_drafts_histogram': [0, 0, 3], 'spec_accept_histogram': [0, 0, 3], 'response_sent_to_client_ts': 1783425284.331015}}]
+[2026-07-07 11:54:44] End of disaggregation warmup
+[2026-07-07 11:54:44] The server is fired up and ready to roll!
+ERRORS

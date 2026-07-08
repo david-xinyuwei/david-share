@@ -19,8 +19,18 @@
 
 AMD 6 月 26 日提供了新的 1P1D MI300X 测试栈：`sammysun0711/sglang` 的 `mimo_aiter_attn` 分支，`amd-aiter 0.1.14rc1.dev213+g7a8ff7dd4`，Prefill 和 Decode 都走 `aiter backend + MTP=3`。
 
+**2026-07-07 最新 CK 复现**：AMD 将 triton A8W8 blockwise GEMM 路径替换为 **CK A8W8 blockwise GEMM bpreshuffle** 后，我们按 AMD 原始脚本严格复现，`decode_full.rc=0`、`prefill_full.rc=0`。Decode mean TPOT 与 AMD CK 表差异不超过 1.2%；Prefill input throughput 与脚本实际 `--chunked-prefill-size 32768` 对应的 CK 32K 列差异不超过 1.2%。
+
+**2026-07-08 CK 并发扩展**：在不改动 7/7 严格复现证据的基础上，新增更宽的并发 sweep。Decode 8K/1K 跑到 concurrency 256，并从 concurrency 64 开始稳定在约 2,200 output tok/s；Prefill 8K/64K 跑到 concurrency 8，256K 只跑通 concurrency 1/2，concurrency 4/8 在 warmup 阶段因为没有健康 prefill worker 失败。
+
 证据文件：
 
+- 7/7 CK 严格复现原始日志：[`data/raw-logs/20260707-ck-a8w8-gemm/`](data/raw-logs/20260707-ck-a8w8-gemm/)
+- 7/7 CK 结果摘要：[`reports/20260707-ck-a8w8-gemm-strict-repro.md`](reports/20260707-ck-a8w8-gemm-strict-repro.md)
+- 7/7 CK 脚本快照：[`scripts/20260707-amd-ck-a8w8/`](scripts/20260707-amd-ck-a8w8/)
+- 7/8 CK 并发扩展原始日志：[`data/raw-logs/20260708-ck-a8w8-concurrency-extension/`](data/raw-logs/20260708-ck-a8w8-concurrency-extension/)
+- 7/8 CK 并发扩展结果摘要：[`reports/20260708-ck-a8w8-concurrency-extension.md`](reports/20260708-ck-a8w8-concurrency-extension.md)
+- 7/8 CK 并发扩展脚本快照：[`scripts/20260708-ck-a8w8-concurrency-sweep/`](scripts/20260708-ck-a8w8-concurrency-sweep/)
 - 同口径 Decode 原始日志：[`data/raw-logs/20260626-simulate-acc3/`](data/raw-logs/20260626-simulate-acc3/)
 
 ### 对口倍数结论
@@ -51,6 +61,84 @@ Prefill 不展示 TPOT，因为这个测试是 `output=1`：首 token 之后没�
 TPOT 越低越好；output tok/s 越高越好。
 
 **指标来源说明**：MI300X 的 TPOT 和 output tok/s 来自 SGLang `bench_serving` 原始日志，是本次 MI300X 实测值。H200 的 TPOT 和 output tok/s 来自小米 H200 reference sheet；H200 output tok/s 列等于 `BS × 1000 / TPOT`，这里按 H200 表自己的 visible-BS-row throughput 展示。
+
+---
+
+## 2026-07-07 AMD CK A8W8 GEMM 严格复现
+
+本轮严格执行 AMD `测试步骤.txt` 中的原始流程：启动 Prefill、启动 Decode、启动 Router、运行 Decode benchmark、运行 Prefill benchmark。没有修改 AMD launch 或 benchmark 脚本；唯一变化是把这些前台常驻命令放到独立会话中执行，避免 router/server 前台进程阻塞后续步骤。
+
+### Decode 8K/1K — AMD 原始脚本严格复现
+
+N = 256 requests/BS 点；target concurrency = 16/32/64/128；`decode_full.rc=0`；benchmark 输出中没有 `ClientPayloadError`、`Traceback`、`Exception`、`ERROR`、`No available`、`unhealthy`、`TimedOut` 等错误标记。
+
+| BS | Successful requests | Output tok/s | Mean TPOT ms | Median TPOT ms | P99 TPOT ms | AMD CK mean TPOT ms | 相对 AMD CK 差异 |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 16 | 256 | 1,299.18 | 10.64 | 10.83 | 11.57 | 10.59 | +0.5% |
+| 32 | 256 | 1,910.75 | 13.50 | 13.73 | 14.25 | 13.43 | +0.5% |
+| 64 | 256 | 2,188.05 | 15.10 | 15.53 | 16.58 | 14.92 | +1.2% |
+| 128 | 256 | 2,209.43 | 14.52 | 14.83 | 15.82 | 14.55 | -0.2% |
+
+**解读**：严格复现结果与 AMD 2026-07-07 CK decode 表在 mean TPOT 上差异约 1.2% 以内，output throughput 差异约 0.4% 以内。这说明 CK GEMM 路径确实显著改善了 MI300X decode TPOT。
+
+### Prefill — AMD 原始脚本严格复现
+
+N = 16 requests/input length；target concurrency = 4；`prefill_full.rc=0`；benchmark 输出中没有错误标记。实测脚本启动参数是 `--chunked-prefill-size 32768`，虽然日志文件名里写了 `chunk_128k`，所以最干净的对比对象是 AMD CK 32K chunk 列。
+
+| ISL/OSL | Successful requests | Input tok/s | Mean TTFT ms | P99 TTFT ms | AMD CK 32K input tok/s | 相对 AMD CK 差异 |
+|---:|---:|---:|---:|---:|---:|---:|
+| 8K/1 | 16 | 16,715.80 | 1,849.62 | 2,709.97 | 16,924.08 | -1.2% |
+| 64K/1 | 16 | 17,254.14 | 14,107.62 | 16,674.08 | 17,223.51 | +0.2% |
+| 256K/1 | 16 | 37,492.80 | 19,278.17 | 86,264.51 | 37,241.84 | +0.7% |
+
+**注意**：Router 在 64K 长 Prefill 阶段出现过短暂 `/health` timeout warning，但 `/generate` 请求继续返回 HTTP 200，decode 和 prefill benchmark 脚本均正常完成。
+
+---
+
+## 2026-07-08 CK A8W8 并发扩展测试
+
+本轮不修改 2026-07-07 AMD CK 严格复现的原始证据，只新增更宽的并发矩阵，用来确认 CK 路径的 saturation 和长上下文并发边界。
+
+- 原始证据：[`data/raw-logs/20260708-ck-a8w8-concurrency-extension/`](data/raw-logs/20260708-ck-a8w8-concurrency-extension/)
+- 结果摘要：[`reports/20260708-ck-a8w8-concurrency-extension.md`](reports/20260708-ck-a8w8-concurrency-extension.md)
+- 脚本快照：[`scripts/20260708-ck-a8w8-concurrency-sweep/`](scripts/20260708-ck-a8w8-concurrency-sweep/)
+
+### Decode 8K/1K — 高并发 sweep
+
+N = 256 requests/并发点；output length = 1024；warmup requests = 32；`decode_full.rc=0`。
+
+| Concurrency | Successful requests | Output tok/s | Mean TPOT ms | P99 TPOT ms | Mean TTFT ms |
+|---:|---:|---:|---:|---:|---:|
+| 16 | 256 | 1,321.50 | 10.79 | 11.65 | 1,191.13 |
+| 32 | 256 | 1,914.27 | 13.37 | 14.26 | 2,847.33 |
+| 64 | 256 | 2,198.77 | 15.49 | 17.08 | 11,853.11 |
+| 96 | 256 | 2,200.63 | 15.06 | 16.31 | 23,666.92 |
+| 128 | 256 | 2,203.65 | 14.83 | 16.22 | 33,429.51 |
+| 192 | 256 | 2,202.57 | 14.72 | 16.28 | 47,910.53 |
+| 256 | 256 | 2,207.97 | 14.60 | 16.36 | 55,466.82 |
+
+**解读**：Decode throughput 在 concurrency 64 左右进入 plateau，并一直稳定到 concurrency 256。更高并发主要增加排队时间和 TTFT，不再明显提升 output-token throughput。
+
+### Prefill — 并发 sweep
+
+N = 16 requests/点；output length = 1；warmup requests = 1。由于 256K/con4 和 256K/con8 在 warmup 阶段失败，完整 prefill 矩阵的 `prefill_full.rc=1`。
+
+| Input tokens | Concurrency | rc | Successful requests | Input tok/s | Mean TTFT ms | P99 TTFT ms |
+|---:|---:|---:|---:|---:|---:|---:|
+| 8192 | 1 | 0 | 16 | 14,811.18 | 552.33 | 589.05 |
+| 8192 | 2 | 0 | 16 | 16,982.94 | 958.32 | 1,368.64 |
+| 8192 | 4 | 0 | 16 | 16,783.88 | 1,840.95 | 2,680.40 |
+| 8192 | 8 | 0 | 16 | 18,617.41 | 3,210.75 | 4,690.96 |
+| 65536 | 1 | 0 | 16 | 16,602.69 | 3,946.37 | 4,869.77 |
+| 65536 | 2 | 0 | 16 | 18,077.28 | 7,122.69 | 9,003.76 |
+| 65536 | 4 | 0 | 16 | 16,904.74 | 14,231.93 | 16,774.44 |
+| 65536 | 8 | 0 | 16 | 17,252.39 | 24,482.37 | 31,726.89 |
+| 262144 | 1 | 0 | 16 | 35,452.56 | 6,995.06 | 22,647.57 |
+| 262144 | 2 | 0 | 16 | 37,429.63 | 12,417.08 | 47,335.03 |
+| 262144 | 4 | 1 | NA | NA | NA | NA |
+| 262144 | 8 | 1 | NA | NA | NA | NA |
+
+**边界**：256K/con4 和 256K/con8 都是在正式测量前的 warmup 阶段失败，错误为 `No available prefill workers (all circuits open or unhealthy)`。这应写作“长上下文高 prefill 并发下的 worker/circuit-health 边界”，不是一个已经测得的吞吐退化点。
 
 ### Prefill 吞吐 — 2026-06-26
 
@@ -360,4 +448,4 @@ mooncake: 0.3.7.post2
 
 ---
 
-*最后更新: 2026-06-27*
+*最后更新: 2026-07-07*
