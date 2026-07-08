@@ -15,6 +15,12 @@
 
 ---
 
+## 架构
+
+<div align="center"><img src="images/pd_architecture.png" width="960"></div>
+
+---
+
 ## 核心结论
 
 **Prefill throughput（CK A8W8，output=1；越高越好）**
