@@ -23,15 +23,15 @@ English | [中文版](README-CN.md)
 
 ## Executive Summary
 
-**Prefill throughput (CK A8W8, output=1; higher is better)**
+**Prefill throughput (CK A8W8, 2-node DP=2/TP=8 server simulation; higher is better)**
 
-| Context | Concurrency | MI300X tok/s | H200 tok/s | MI300X / H200 |
-|---:|---:|---:|---:|---:|
-| 8K | 4 | 16,716 | 31,950 | 52.3% |
-| 64K | 4 | 17,254 | 27,400 | 63.0% |
-| 256K | 4 | 37,493 | 17,400 | **215.5%** |
+| Context | Concurrency | MI300X aggregate tok/s | MI300X per-node tok/s | H200 tok/s | MI300X aggregate / H200 |
+|---:|---:|---:|---:|---:|---:|
+| 8K | 8 | 38,119 | 19,060 | 31,950 | **119.3%** |
+| 64K | 4 | 35,238 | 17,619 | 27,400 | **128.6%** |
+| 256K | 8 | 73,215 | 36,608 | 17,400 | **420.8%** |
 
-The prefill table reports the strict AMD-script run at target concurrency 4. The later multi-concurrency sweep shows that 256K prefill is stable at concurrency 1/2 and hits a worker-availability boundary at concurrency 4/8.
+This AMD-provided update uses 2 nodes in a DP=2/TP=8 server-mode prefill simulation. It demonstrates that prefill-side throughput scales up with two prefill nodes. It does **not** include P→D KV-cache transfer overhead; a 2P1D end-to-end run would require 3 nodes.
 
 **Decode 8K/1K (CK A8W8, `SIMULATE_ACC_LEN=3` on both sides; TPOT: lower is better)**
 
@@ -47,7 +47,7 @@ In the decode table, `BS` equals target concurrency, matching the H200 reference
 ### Key Findings
 
 - **Decode TPOT at BS=16 and BS=128: MI300X surpasses H200.** At BS=16 the per-token latency is 0.93× of H200; at BS=128 it is 0.81×. At BS=32/64 the gap is only 9%.
-- **Prefill 256K long-context: MI300X is 2.15× of H200** throughput. At 8K/64K MI300X reaches 52–63% of H200.
+- **Prefill scales with DP=2.** In AMD's 2-node DP=2/TP=8 prefill-server simulation, aggregate MI300X throughput reaches 119% of H200 at 8K, 129% at 64K, and 421% at 256K.
 - **Output tok/s gap is wider than TPOT gap** because output tok/s also reflects serving topology and scheduling differences (single TP=8 decode path vs H200 multi-DP/EP). The TPOT comparison isolates kernel-level performance.
 - **Decode throughput plateaus at concurrency 64** (~2,200 output tok/s) and stays flat through concurrency 256.
 
@@ -102,7 +102,32 @@ N = 256 requests per concurrency point; output length = 1024; warmup = 32; `deco
 
 ## Prefill — Detailed Results
 
-### Prefill — AMD CK Reference Alignment
+### Prefill — AMD 2-Node DP=2/TP=8 Server Simulation
+
+AMD provided a 2-node DP=2/TP=8 prefill-only server simulation using the same Docker image. The test ignores P→D KV-cache transfer overhead, so it validates prefill compute/service throughput rather than 2P1D end-to-end latency. For 2P1D end-to-end testing, a 3-node setup is required.
+
+AMD-provided test sequence:
+
+```bash
+# Run DP=2, TP=8 2-node prefill benchmark with the same Docker image.
+./launch_tp8_noep_aiter_mtp_node0.sh      # node 0
+./launch_tp8_noep_aiter_mtp_node1.sh      # node 1
+./launch_dp_router.sh                     # node 0
+./run_benchmark_mimo_pro_dp2_prefill.sh   # node 0
+```
+
+| ISL/OSL | Concurrency | Aggregate input tok/s | Per-node input tok/s | Aggregate / H200 |
+|---:|---:|---:|---:|---:|
+| 8K/1 | 4 | 37,956.48 | 18,978.24 | 118.8% |
+| 64K/1 | 4 | 35,237.56 | 17,618.78 | 128.6% |
+| 256K/1 | 4 | 63,515.24 | 31,757.62 | 365.0% |
+| 8K/1 | 8 | 38,119.16 | 19,059.58 | 119.3% |
+| 64K/1 | 8 | 35,181.86 | 17,590.93 | 128.4% |
+| 256K/1 | 8 | 73,215.06 | 36,607.53 | 420.8% |
+
+**Interpretation:** the 2-node aggregate throughput is roughly proportional to the per-node prefill throughput. This shows that prefill performance can scale up with DP=2; it does not claim P→D transfer or decode-side end-to-end behavior.
+
+### Prefill — AMD CK Reference Alignment (Strict Script Reproduction)
 
 N = 16 requests per input length; target concurrency = 4; `prefill_full.rc=0`; no benchmark error markers.
 
@@ -271,6 +296,17 @@ docker exec $CONTAINER bash -c "mkdir -p $RUN_DIR && cd /data/xisun && bash run_
 docker exec $CONTAINER bash -c "cd /data/xisun && bash run_benchmark_mimo_pro_prefill.sh > $RUN_DIR/prefill_full.out 2>&1; echo \$? > $RUN_DIR/prefill_full.rc"
 ```
 
+### AMD DP=2/TP=8 Two-Node Prefill Method
+
+AMD's 2-node prefill simulation uses the same Docker image and the following command sequence. This is a prefill-only server-mode benchmark; it does not include P→D KV-cache transfer.
+
+```bash
+./launch_tp8_noep_aiter_mtp_node0.sh      # node 0
+./launch_tp8_noep_aiter_mtp_node1.sh      # node 1
+./launch_dp_router.sh                     # node 0
+./run_benchmark_mimo_pro_dp2_prefill.sh   # node 0
+```
+
 ### Archived Evidence
 
 | Path | Content |
@@ -289,7 +325,7 @@ docker exec $CONTAINER bash -c "cd /data/xisun && bash run_benchmark_mimo_pro_pr
 | Issue | Status | Impact |
 |-------|--------|--------|
 | **Decode CUDA Graph** | ⚠️ Critical config | Decode server must NOT use `--disable-cuda-graph`. Disabling causes 5× TPOT regression. Prefill server should disable it. |
-| **256K high-concurrency prefill** | ⚠️ Boundary | 256K prefill at concurrency ≥4 fails during warmup with no healthy prefill workers. Concurrency 1–2 works. |
+| **1P1D 256K high-concurrency prefill through router** | ⚠️ Boundary | In our 1P1D concurrency sweep, 256K prefill at concurrency ≥4 fails during warmup with no healthy prefill workers. AMD's 2-node DP=2 prefill-only simulation succeeds at concurrency 4/8, indicating the compute-side prefill capacity can scale; the remaining boundary is in the routed/E2E path. |
 
 ---
 

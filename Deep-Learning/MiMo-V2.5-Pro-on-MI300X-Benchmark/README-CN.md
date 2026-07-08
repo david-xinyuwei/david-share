@@ -23,15 +23,15 @@
 
 ## 核心结论
 
-**Prefill throughput（CK A8W8，output=1；越高越好）**
+**Prefill throughput（CK A8W8，2-node DP=2/TP=8 server 模拟；越高越好）**
 
-| Context | Concurrency | MI300X tok/s | H200 tok/s | MI300X / H200 |
-|---:|---:|---:|---:|---:|
-| 8K | 4 | 16,716 | 31,950 | 52.3% |
-| 64K | 4 | 17,254 | 27,400 | 63.0% |
-| 256K | 4 | 37,493 | 17,400 | **215.5%** |
+| Context | Concurrency | MI300X aggregate tok/s | MI300X per-node tok/s | H200 tok/s | MI300X aggregate / H200 |
+|---:|---:|---:|---:|---:|---:|
+| 8K | 8 | 38,119 | 19,060 | 31,950 | **119.3%** |
+| 64K | 4 | 35,238 | 17,619 | 27,400 | **128.6%** |
+| 256K | 8 | 73,215 | 36,608 | 17,400 | **420.8%** |
 
-Prefill 表展示的是 AMD 原始脚本严格复现 run 的 target concurrency 4 结果。后续多并发 sweep 显示，256K prefill 在 concurrency 1/2 稳定，concurrency 4/8 会触发 worker 可用性边界。
+这组 AMD 更新使用 2 nodes 做 DP=2/TP=8 的 prefill-only server 模拟，说明 prefill 侧吞吐可以随两个 prefill 节点上去。它**不包含** P→D KV-cache 传输开销；如果要做 2P1D end-to-end 测试，需要 3 nodes。
 
 **Decode 8K/1K（CK A8W8，两边都 `SIMULATE_ACC_LEN=3`；TPOT 越低越好）**
 
@@ -47,7 +47,7 @@ Decode 表里 `BS` 等于 target concurrency，和 H200 reference 的 load shape
 ### 关键发现
 
 - **Decode TPOT 在 BS=16 和 BS=128 反超 H200。** BS=16 时单 token 延迟是 H200 的 0.93 倍；BS=128 时是 0.81 倍。BS=32/64 差距仅 9%。
-- **Prefill 256K 长上下文：MI300X 是 H200 的 2.15 倍**吞吐。8K/64K 达到 H200 的 52–63%。
+- **Prefill 能随 DP=2 扩展。** 在 AMD 的 2-node DP=2/TP=8 prefill-server 模拟中，MI300X aggregate throughput 在 8K 达到 H200 的 119%，64K 达到 129%，256K 达到 421%。
 - **Output tok/s 差距比 TPOT 大**，因为 output tok/s 还包含 serving 拓扑和 scheduler 差异（单 TP=8 decode path vs H200 多 DP/EP）。TPOT 对比更能反映 kernel 级性能。
 - **Decode throughput 在 concurrency 64 饱和**（~2,200 output tok/s），到 concurrency 256 保持平稳。
 
@@ -102,7 +102,32 @@ N = 256 requests/并发点；output length = 1024；warmup = 32；`decode_full.r
 
 ## Prefill — 详细结果
 
-### Prefill — AMD CK 参考对齐
+### Prefill — AMD 2-Node DP=2/TP=8 Server 模拟
+
+AMD 提供了使用相同 Docker image 的 2-node DP=2/TP=8 prefill-only server 模拟结果。这个测试忽略 P→D KV-cache 传输开销，因此验证的是 prefill compute/service throughput，而不是 2P1D end-to-end latency。若要做 2P1D E2E 测试，需要 3 nodes。
+
+AMD 提供的测试方法：
+
+```bash
+# 使用相同 Docker image 跑 DP=2, TP=8 的 2-node prefill benchmark。
+./launch_tp8_noep_aiter_mtp_node0.sh      # node 0
+./launch_tp8_noep_aiter_mtp_node1.sh      # node 1
+./launch_dp_router.sh                     # node 0
+./run_benchmark_mimo_pro_dp2_prefill.sh   # node 0
+```
+
+| ISL/OSL | Concurrency | Aggregate input tok/s | Per-node input tok/s | Aggregate / H200 |
+|---:|---:|---:|---:|---:|
+| 8K/1 | 4 | 37,956.48 | 18,978.24 | 118.8% |
+| 64K/1 | 4 | 35,237.56 | 17,618.78 | 128.6% |
+| 256K/1 | 4 | 63,515.24 | 31,757.62 | 365.0% |
+| 8K/1 | 8 | 38,119.16 | 19,059.58 | 119.3% |
+| 64K/1 | 8 | 35,181.86 | 17,590.93 | 128.4% |
+| 256K/1 | 8 | 73,215.06 | 36,607.53 | 420.8% |
+
+**解读**：2-node aggregate throughput 基本和 per-node prefill throughput 成比例关系。这说明 prefill 性能能随 DP=2 上去；但它不代表 P→D 传输或 decode 侧的端到端表现。
+
+### Prefill — AMD CK 参考对齐（严格脚本复现）
 
 N = 16 requests/input length；target concurrency = 4；`prefill_full.rc=0`；无错误标记。
 
@@ -269,6 +294,17 @@ docker exec $CONTAINER bash -c "mkdir -p $RUN_DIR && cd /data/xisun && bash run_
 docker exec $CONTAINER bash -c "cd /data/xisun && bash run_benchmark_mimo_pro_prefill.sh > $RUN_DIR/prefill_full.out 2>&1; echo \$? > $RUN_DIR/prefill_full.rc"
 ```
 
+### AMD DP=2/TP=8 双节点 Prefill 测试方法
+
+AMD 的 2-node prefill 模拟使用相同 Docker image，命令顺序如下。这个测试是 prefill-only server-mode benchmark，不包含 P→D KV-cache 传输。
+
+```bash
+./launch_tp8_noep_aiter_mtp_node0.sh      # node 0
+./launch_tp8_noep_aiter_mtp_node1.sh      # node 1
+./launch_dp_router.sh                     # node 0
+./run_benchmark_mimo_pro_dp2_prefill.sh   # node 0
+```
+
 ### 归档证据
 
 | 路径 | 内容 |
@@ -287,7 +323,7 @@ docker exec $CONTAINER bash -c "cd /data/xisun && bash run_benchmark_mimo_pro_pr
 | 问题 | 状态 | 影响 |
 |------|------|------|
 | **Decode CUDA Graph** | ⚠️ 关键配置 | Decode server 禁止使用 `--disable-cuda-graph`，否则 TPOT 退化 5 倍。Prefill server 应禁用。 |
-| **256K 高并发 prefill** | ⚠️ 边界 | 256K prefill concurrency ≥4 warmup 失败，无健康 prefill worker。Concurrency 1–2 正常。 |
+| **1P1D router 路径下的 256K 高并发 prefill** | ⚠️ 边界 | 我们的 1P1D concurrency sweep 中，256K prefill concurrency ≥4 warmup 失败，无健康 prefill worker。AMD 的 2-node DP=2 prefill-only 模拟在 concurrency 4/8 可跑通，说明 prefill compute 侧容量能上去；剩余边界在 routed/E2E 路径。 |
 
 ---
 
