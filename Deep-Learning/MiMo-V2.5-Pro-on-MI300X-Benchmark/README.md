@@ -33,12 +33,12 @@ English | [中文版](README-CN.md)
 
 **Decode 8K/1K (CK A8W8, `SIMULATE_ACC_LEN=3` on both sides; TPOT: lower is better)**
 
-| BS | MI300X Median TPOT | MI300X P99 | H200 TPOT | MI300X/H200 TPOT | MI300X output tok/s | H200 output tok/s | MI300X/H200 tok/s |
-|---:|---:|---:|---:|---:|---:|---:|---:|
-| 16 | 10.83 ms | 11.57 ms | 11.59 ms | **0.93x** | 1,299 | 1,381 | 94.1% |
-| 32 | 13.73 ms | 14.25 ms | 12.56 ms | 1.09x | 1,911 | 2,549 | 74.9% |
-| 64 | 15.53 ms | 16.58 ms | 14.28 ms | 1.09x | 2,188 | 4,483 | 48.8% |
-| 128 | 14.83 ms | 15.82 ms | 18.25 ms | **0.81x** | 2,209 | 7,013 | 31.5% |
+| BS | MI300X Median TPOT | H200 Median TPOT | MI300X/H200 TPOT | MI300X output tok/s | H200 output tok/s | MI300X/H200 tok/s |
+|---:|---:|---:|---:|---:|---:|---:|
+| 16 | 10.83 ms | 11.59 ms | **0.93x** | 1,299 | 1,381 | 94.1% |
+| 32 | 13.73 ms | 12.56 ms | 1.09x | 1,911 | 2,549 | 74.9% |
+| 64 | 15.53 ms | 14.28 ms | 1.09x | 2,188 | 4,483 | 48.8% |
+| 128 | 14.83 ms | 18.25 ms | **0.81x** | 2,209 | 7,013 | 31.5% |
 
 ### Key Findings
 
@@ -72,9 +72,9 @@ N = 256 requests per BS point; target concurrency = 16/32/64/128; `decode_full.r
 - Result summary: [`reports/20260707-ck-a8w8-gemm-strict-repro.md`](reports/20260707-ck-a8w8-gemm-strict-repro.md)
 - Script snapshot: [`scripts/20260707-amd-ck-a8w8/`](scripts/20260707-amd-ck-a8w8/)
 
-### Decode 8K/1K — High-Concurrency Extension (Beyond AMD's Test Range)
+### Decode 8K/1K — High-Concurrency Sweep
 
-AMD's benchmark covers concurrency up to 128. We extended the sweep to concurrency 256 to identify the saturation point.
+Concurrency sweep extended to 256 to identify the saturation point.
 
 N = 256 requests per concurrency point; output length = 1024; warmup = 32; `decode_full.rc=0`.
 
@@ -108,9 +108,9 @@ N = 16 requests per input length; target concurrency = 4; `prefill_full.rc=0`; n
 | 64K/1 | 16 | 17,254.14 | 14,107.62 | 16,674.08 | 17,223.51 | +0.2% |
 | 256K/1 | 16 | 37,492.80 | 19,278.17 | 86,264.51 | 37,241.84 | +0.7% |
 
-### Prefill — Multi-Concurrency Extension (Beyond AMD's Test Range)
+### Prefill — Multi-Concurrency Sweep
 
-AMD's prefill benchmark uses concurrency 4. We extended the sweep to concurrency 1/2/4/8 across 8K/64K/256K to map the concurrency scaling behavior.
+Concurrency sweep across 1/2/4/8 for 8K/64K/256K to map scaling behavior.
 
 N = 16 requests per point; output = 1; warmup = 1.
 

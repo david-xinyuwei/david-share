@@ -27,12 +27,12 @@
 
 **Decode 8K/1K（CK A8W8，两边都 `SIMULATE_ACC_LEN=3`；TPOT 越低越好）**
 
-| BS | MI300X Median TPOT | MI300X P99 | H200 TPOT | MI300X/H200 TPOT | MI300X output tok/s | H200 output tok/s | MI300X/H200 tok/s |
-|---:|---:|---:|---:|---:|---:|---:|---:|
-| 16 | 10.83 ms | 11.57 ms | 11.59 ms | **0.93x** | 1,299 | 1,381 | 94.1% |
-| 32 | 13.73 ms | 14.25 ms | 12.56 ms | 1.09x | 1,911 | 2,549 | 74.9% |
-| 64 | 15.53 ms | 16.58 ms | 14.28 ms | 1.09x | 2,188 | 4,483 | 48.8% |
-| 128 | 14.83 ms | 15.82 ms | 18.25 ms | **0.81x** | 2,209 | 7,013 | 31.5% |
+| BS | MI300X Median TPOT | H200 Median TPOT | MI300X/H200 TPOT | MI300X output tok/s | H200 output tok/s | MI300X/H200 tok/s |
+|---:|---:|---:|---:|---:|---:|---:|
+| 16 | 10.83 ms | 11.59 ms | **0.93x** | 1,299 | 1,381 | 94.1% |
+| 32 | 13.73 ms | 12.56 ms | 1.09x | 1,911 | 2,549 | 74.9% |
+| 64 | 15.53 ms | 14.28 ms | 1.09x | 2,188 | 4,483 | 48.8% |
+| 128 | 14.83 ms | 18.25 ms | **0.81x** | 2,209 | 7,013 | 31.5% |
 
 ### 关键发现
 
@@ -66,9 +66,9 @@ N = 256 requests/BS 点；target concurrency = 16/32/64/128；`decode_full.rc=0`
 - 结果摘要：[`reports/20260707-ck-a8w8-gemm-strict-repro.md`](reports/20260707-ck-a8w8-gemm-strict-repro.md)
 - 脚本快照：[`scripts/20260707-amd-ck-a8w8/`](scripts/20260707-amd-ck-a8w8/)
 
-### Decode 8K/1K — 高并发扩展（超出 AMD 测试范围）
+### Decode 8K/1K — 高并发 Sweep
 
-AMD 的 benchmark 覆盖到 concurrency 128。我们把 sweep 扩展到 concurrency 256，确定饱和点。
+并发 sweep 扩展到 256，确定饱和点。
 
 N = 256 requests/并发点；output length = 1024；warmup = 32；`decode_full.rc=0`。
 
@@ -102,9 +102,9 @@ N = 16 requests/input length；target concurrency = 4；`prefill_full.rc=0`；�
 | 64K/1 | 16 | 17,254.14 | 14,107.62 | 16,674.08 | 17,223.51 | +0.2% |
 | 256K/1 | 16 | 37,492.80 | 19,278.17 | 86,264.51 | 37,241.84 | +0.7% |
 
-### Prefill — 多并发扩展（超出 AMD 测试范围）
+### Prefill — 多并发 Sweep
 
-AMD 的 prefill benchmark 使用 concurrency 4。我们扩展到 concurrency 1/2/4/8，覆盖 8K/64K/256K，验证并发 scaling 行为。
+并发 sweep 覆盖 1/2/4/8，跨 8K/64K/256K，验证 scaling 行为。
 
 N = 16 requests/点；output = 1；warmup = 1。
 
