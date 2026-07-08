@@ -25,11 +25,13 @@ English | [中文版](README-CN.md)
 
 **Prefill throughput (CK A8W8, output=1; higher is better)**
 
-| Context | MI300X tok/s | H200 tok/s | MI300X / H200 |
-|---:|---:|---:|---:|
-| 8K | 16,716 | 31,950 | 52.3% |
-| 64K | 17,254 | 27,400 | 63.0% |
-| 256K | 37,493 | 17,400 | **215.5%** |
+| Context | Concurrency | MI300X tok/s | H200 tok/s | MI300X / H200 |
+|---:|---:|---:|---:|---:|
+| 8K | 4 | 16,716 | 31,950 | 52.3% |
+| 64K | 4 | 17,254 | 27,400 | 63.0% |
+| 256K | 4 | 37,493 | 17,400 | **215.5%** |
+
+The prefill table reports the strict AMD-script run at target concurrency 4. The later multi-concurrency sweep shows that 256K prefill is stable at concurrency 1/2 and hits a worker-availability boundary at concurrency 4/8.
 
 **Decode 8K/1K (CK A8W8, `SIMULATE_ACC_LEN=3` on both sides; TPOT: lower is better)**
 
@@ -40,6 +42,8 @@ English | [中文版](README-CN.md)
 | 64 | 64 | 15.53 ms | 14.28 ms | 1.09x | 2,188 | 4,483 | 48.8% |
 | 128 | 128 | 14.83 ms | 18.25 ms | **0.81x** | 2,209 | 7,013 | 31.5% |
 
+In the decode table, `BS` equals target concurrency, matching the H200 reference load shape.
+
 ### Key Findings
 
 - **Decode TPOT at BS=16 and BS=128: MI300X surpasses H200.** At BS=16 the per-token latency is 0.93× of H200; at BS=128 it is 0.81×. At BS=32/64 the gap is only 9%.
@@ -49,7 +53,7 @@ English | [中文版](README-CN.md)
 
 ### Methodology Note
 
-Both MI300X and H200 use `SGLANG_SIMULATE_ACC_LEN=3` (fixing MTP accept_length at 3.0). All MI300X numbers use **real expert routing** (not `fake_topk_ids`), adding 5–15% overhead vs the H200 ideal-routing baseline. The H200 output tok/s column equals `BS × 1000 / TPOT` from Xiaomi's reference sheet.
+For the decode TPOT comparison, both MI300X and H200 use `SGLANG_SIMULATE_ACC_LEN=3` (fixing MTP accept_length at 3.0). All MI300X numbers use **real expert routing** (not `fake_topk_ids`), adding 5–15% overhead vs the H200 ideal-routing baseline. H200 reference values come from Xiaomi-provided H200 benchmark materials; the H200 output tok/s column equals `BS × 1000 / TPOT` from that reference sheet.
 
 ---
 
@@ -102,11 +106,11 @@ N = 256 requests per concurrency point; output length = 1024; warmup = 32; `deco
 
 N = 16 requests per input length; target concurrency = 4; `prefill_full.rc=0`; no benchmark error markers.
 
-| ISL/OSL | Successful requests | Input tok/s | Mean TTFT ms | P99 TTFT ms | AMD CK 32K input tok/s | Delta vs AMD CK |
-|---:|---:|---:|---:|---:|---:|---:|
-| 8K/1 | 16 | 16,715.80 | 1,849.62 | 2,709.97 | 16,924.08 | -1.2% |
-| 64K/1 | 16 | 17,254.14 | 14,107.62 | 16,674.08 | 17,223.51 | +0.2% |
-| 256K/1 | 16 | 37,492.80 | 19,278.17 | 86,264.51 | 37,241.84 | +0.7% |
+| ISL/OSL | Concurrency | Successful requests | Input tok/s | Mean TTFT ms | P99 TTFT ms | AMD CK 32K input tok/s | Delta vs AMD CK |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 8K/1 | 4 | 16 | 16,715.80 | 1,849.62 | 2,709.97 | 16,924.08 | -1.2% |
+| 64K/1 | 4 | 16 | 17,254.14 | 14,107.62 | 16,674.08 | 17,223.51 | +0.2% |
+| 256K/1 | 4 | 16 | 37,492.80 | 19,278.17 | 86,264.51 | 37,241.84 | +0.7% |
 
 ### Prefill — Multi-Concurrency Sweep
 

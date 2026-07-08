@@ -25,11 +25,13 @@
 
 **Prefill throughput（CK A8W8，output=1；越高越好）**
 
-| Context | MI300X tok/s | H200 tok/s | MI300X / H200 |
-|---:|---:|---:|---:|
-| 8K | 16,716 | 31,950 | 52.3% |
-| 64K | 17,254 | 27,400 | 63.0% |
-| 256K | 37,493 | 17,400 | **215.5%** |
+| Context | Concurrency | MI300X tok/s | H200 tok/s | MI300X / H200 |
+|---:|---:|---:|---:|---:|
+| 8K | 4 | 16,716 | 31,950 | 52.3% |
+| 64K | 4 | 17,254 | 27,400 | 63.0% |
+| 256K | 4 | 37,493 | 17,400 | **215.5%** |
+
+Prefill 表展示的是 AMD 原始脚本严格复现 run 的 target concurrency 4 结果。后续多并发 sweep 显示，256K prefill 在 concurrency 1/2 稳定，concurrency 4/8 会触发 worker 可用性边界。
 
 **Decode 8K/1K（CK A8W8，两边都 `SIMULATE_ACC_LEN=3`；TPOT 越低越好）**
 
@@ -40,6 +42,8 @@
 | 64 | 64 | 15.53 ms | 14.28 ms | 1.09x | 2,188 | 4,483 | 48.8% |
 | 128 | 128 | 14.83 ms | 18.25 ms | **0.81x** | 2,209 | 7,013 | 31.5% |
 
+Decode 表里 `BS` 等于 target concurrency，和 H200 reference 的 load shape 对齐。
+
 ### 关键发现
 
 - **Decode TPOT 在 BS=16 和 BS=128 反超 H200。** BS=16 时单 token 延迟是 H200 的 0.93 倍；BS=128 时是 0.81 倍。BS=32/64 差距仅 9%。
@@ -49,7 +53,7 @@
 
 ### 方法论说明
 
-MI300X 和 H200 两边都使用 `SGLANG_SIMULATE_ACC_LEN=3`（固定 MTP accept_length = 3.0）。MI300X 使用**真实 expert routing**（不用 `fake_topk_ids`），比 H200 理想路由基线多 5–15% overhead。H200 的 output tok/s 列取自小米参考表，等于 `BS × 1000 / TPOT`。
+Decode TPOT 对比中，MI300X 和 H200 两边都使用 `SGLANG_SIMULATE_ACC_LEN=3`（固定 MTP accept_length = 3.0）。MI300X 使用**真实 expert routing**（不用 `fake_topk_ids`），比 H200 理想路由基线多 5–15% overhead。H200 reference 数字来自小米提供的 H200 benchmark 材料；H200 的 output tok/s 列等于该参考表中的 `BS × 1000 / TPOT`。
 
 ---
 
@@ -102,11 +106,11 @@ N = 256 requests/并发点；output length = 1024；warmup = 32；`decode_full.r
 
 N = 16 requests/input length；target concurrency = 4；`prefill_full.rc=0`；无错误标记。
 
-| ISL/OSL | Successful requests | Input tok/s | Mean TTFT ms | P99 TTFT ms | AMD CK 32K input tok/s | 相对 AMD CK |
-|---:|---:|---:|---:|---:|---:|---:|
-| 8K/1 | 16 | 16,715.80 | 1,849.62 | 2,709.97 | 16,924.08 | -1.2% |
-| 64K/1 | 16 | 17,254.14 | 14,107.62 | 16,674.08 | 17,223.51 | +0.2% |
-| 256K/1 | 16 | 37,492.80 | 19,278.17 | 86,264.51 | 37,241.84 | +0.7% |
+| ISL/OSL | Concurrency | Successful requests | Input tok/s | Mean TTFT ms | P99 TTFT ms | AMD CK 32K input tok/s | 相对 AMD CK |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 8K/1 | 4 | 16 | 16,715.80 | 1,849.62 | 2,709.97 | 16,924.08 | -1.2% |
+| 64K/1 | 4 | 16 | 17,254.14 | 14,107.62 | 16,674.08 | 17,223.51 | +0.2% |
+| 256K/1 | 4 | 16 | 37,492.80 | 19,278.17 | 86,264.51 | 37,241.84 | +0.7% |
 
 ### Prefill — 多并发 Sweep
 
