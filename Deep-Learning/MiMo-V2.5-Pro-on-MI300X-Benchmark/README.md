@@ -33,12 +33,12 @@ English | [中文版](README-CN.md)
 
 **Decode 8K/1K (CK A8W8, `SIMULATE_ACC_LEN=3` on both sides; TPOT: lower is better)**
 
-| BS | MI300X Median TPOT | H200 Median TPOT | MI300X/H200 TPOT | MI300X output tok/s | H200 output tok/s | MI300X/H200 tok/s |
-|---:|---:|---:|---:|---:|---:|---:|
-| 16 | 10.83 ms | 11.59 ms | **0.93x** | 1,299 | 1,381 | 94.1% |
-| 32 | 13.73 ms | 12.56 ms | 1.09x | 1,911 | 2,549 | 74.9% |
-| 64 | 15.53 ms | 14.28 ms | 1.09x | 2,188 | 4,483 | 48.8% |
-| 128 | 14.83 ms | 18.25 ms | **0.81x** | 2,209 | 7,013 | 31.5% |
+| BS | Concurrency | MI300X Median TPOT | H200 Median TPOT | MI300X/H200 TPOT | MI300X output tok/s | H200 output tok/s | MI300X/H200 tok/s |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 16 | 16 | 10.83 ms | 11.59 ms | **0.93x** | 1,299 | 1,381 | 94.1% |
+| 32 | 32 | 13.73 ms | 12.56 ms | 1.09x | 1,911 | 2,549 | 74.9% |
+| 64 | 64 | 15.53 ms | 14.28 ms | 1.09x | 2,188 | 4,483 | 48.8% |
+| 128 | 128 | 14.83 ms | 18.25 ms | **0.81x** | 2,209 | 7,013 | 31.5% |
 
 ### Key Findings
 
