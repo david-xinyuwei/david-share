@@ -5,7 +5,7 @@
 [![SGLang](https://img.shields.io/badge/Engine-SGLang-green)](https://github.com/sgl-project/sglang)
 [![ROCm](https://img.shields.io/badge/ROCm-7.2.0-orange)](https://rocm.docs.amd.com/)
 
-在 Azure **AMD Instinct MI300X** 上运行 **小米 MiMo-V2.5-Pro（1.02T MoE / 42B 活跃参数 / FP8）**，使用 SGLang + AMD CK A8W8 blockwise GEMM + AITER + MTP/EAGLE，与小米 H200 参考数据做 benchmark 对比。
+在 Azure **AMD Instinct MI300X** 上运行 **小米 MiMo-V2.5-Pro（1.02T MoE / 42B 活跃参数 / FP8）**，使用 SGLang + AMD CK A8W8 blockwise GEMM + AITER + MTP/EAGLE + [`aiter@d725746`](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9) 的模型专用 fused-MoE tuning，与小米 H200 参考数据做 benchmark 对比。
 
 本 repo 提供完整的复现脚本、启动命令、benchmark 结果和 server 日志。使用 2 台 Azure ND96isr_MI300X_v5 和指定 Docker 镜像，可以按下面步骤从 clean-room 容器重建 MI300X 环境，并运行 AMD benchmark 脚本。PD-separated decode 必须把 RDMA 设备暴露给容器（`--privileged`、`/dev/mem`、`CAP_SYS_ADMIN`），否则 Mooncake 会 fallback 到 TCP，高并发吞吐结果无效。
 
@@ -23,147 +23,113 @@
 
 ## 核心结论
 
-**Prefill throughput（CK A8W8，1P 单节点，output=1；越高越好）**
+**Prefill throughput（2026-07-13 tuned fused-MoE 复测，1P1D prefill 阶段，output=1；越高越好）**
 
 | Context | Concurrency | MI300X tok/s | H200 tok/s | MI300X / H200 |
 |---:|---:|---:|---:|---:|
-| 8K | 4 | 16,716 | 31,950 | 52.3% |
-| 64K | 4 | 17,254 | 27,400 | 63.0% |
-| 256K | 4 | 37,493 | 17,400 | **215.5%** |
+| 8K | 4 | 20,780.79 | 31,950 | 65.0% |
+| 64K | 4 | 19,022.57 | 27,400 | 69.4% |
+| 256K | 4 | 39,905.41 | 17,400 | **229.3%** |
 
-Prefill throughput 来自我们严格复现 AMD CK A8W8 benchmark 脚本（单 prefill 节点，TP=8）。DP=2 多节点扩展结果见 [Prefill Scaling — AMD 2-Node DP=2/TP=8](#prefill-scaling--amd-2-node-dp2tp8)。
+三个点均完成 16/16 requests，client error marker 为 0。独立复测的 DP=2 结果见 [Prefill Scaling — AMD 2-Node DP=2/TP=8](#prefill-scaling--amd-2-node-dp2tp8)。
 
-**Decode 8K/1K（CK A8W8，两边都 `SIMULATE_ACC_LEN=3`；TPOT 越低越好）**
+**Decode 8K/1K（2026-07-13 tuned fused-MoE 复测，`SIMULATE_ACC_LEN=3`；TPOT 越低越好）**
 
 | BS | Concurrency | MI300X Median TPOT | H200 Median TPOT | MI300X/H200 TPOT | MI300X output tok/s | H200 output tok/s | MI300X/H200 tok/s |
 |---:|---:|---:|---:|---:|---:|---:|---:|
-| 16 | 16 | 10.83 ms | 11.59 ms | **0.93x** | 1,299 | 1,381 | 94.1% |
-| 32 | 32 | 13.73 ms | 12.56 ms | 1.09x | 1,911 | 2,549 | 74.9% |
-| 64 | 64 | 15.53 ms | 14.28 ms | 1.09x | 2,188 | 4,483 | 48.8% |
-| 128 | 128 | 14.83 ms | 18.25 ms | **0.81x** | 2,209 | 7,013 | 31.5% |
+| 16 | 16 | 10.97 ms | 11.59 ms | **0.95x** | 1,331.98 | 1,381 | 96.5% |
+| 32 | 32 | 13.93 ms | 12.56 ms | 1.11x | 1,936.24 | 2,549 | 76.0% |
+| 64 | 64 | 17.60 ms | 14.28 ms | 1.23x | 2,457.73 | 4,483 | 54.8% |
+| 128 | 128 | 17.30 ms | 18.25 ms | **0.95x** | 2,486.89 | 7,013 | 35.5% |
 
 Decode 表里 `BS` 等于 target concurrency，和 H200 reference 的 load shape 对齐。
 
 ### 关键发现
 
-- **Decode TPOT 在 BS=16 和 BS=128 反超 H200。** BS=16 时单 token 延迟是 H200 的 0.93 倍；BS=128 时是 0.81 倍。BS=32/64 差距仅 9%。
-- **Prefill 256K 长上下文：MI300X 是 H200 的 2.15 倍**吞吐。8K/64K 达到 H200 的 52–63%。
-- **Prefill 能随 DP=2 扩展** — 见[独立章节](#prefill-scaling--amd-2-node-dp2tp8)。AMD 的 2-node 模拟显示 per-node throughput 与单节点基线相当，同时总吞吐翻倍。
-- **Output tok/s 差距比 TPOT 大**，因为 output tok/s 还包含 serving 拓扑和 scheduler 差异（单 TP=8 decode path vs H200 多 DP/EP）。TPOT 对比更能反映 kernel 级性能。
-- **Decode throughput 在 concurrency 64 饱和**（~2,200 output tok/s），到 concurrency 256 保持平稳。
+- **1P1D prefill 在三个长度均提升：**相对 2026-07-07 独立 strict CK baseline，8K +24.32%、64K +10.25%、256K +6.43%。
+- **高并发 decode 是 throughput/latency trade-off：** BS=64/128 的 output throughput 分别提升 +12.33%/+12.56%，mean TPOT 同时增加 +12.58%/+14.05%。
+- **Decode median TPOT 在 BS=16 和 BS=128 仍低于 H200 reference**（均为 0.95x）。Output throughput 因 serving topology 未归一化而单独呈现。
+- **DP=2 prefill 六个点均完成独立复测：**8K aggregate throughput 最高 45,992.94 tok/s，256K 达到 78,613.96 tok/s。与 H200 对比时使用 MI300X per-node throughput，不使用 2-node aggregate。
+- **所有验收矩阵均通过：**4 个 decode 点各 256/256、3 个 1P1D prefill 点各 16/16、6 个 DP=2 点各 32/32，client error marker 为 0。
 
 ### 方法论说明
 
-Decode TPOT 对比中，MI300X 和 H200 两边都使用 `SGLANG_SIMULATE_ACC_LEN=3`（固定 MTP accept_length = 3.0）。MI300X 使用**真实 expert routing**（不用 `fake_topk_ids`），比 H200 理想路由基线多 5–15% overhead。H200 reference 数字来自小米提供的 H200 benchmark 材料；H200 的 output tok/s 列等于该参考表中的 `BS × 1000 / TPOT`。
+公开 aiter commit 增加的是模型专用 fused-MoE tuning CSV，不是 kernel 源码改动。`--speculative-num-draft-tokens=4` 表示 3 个 proposed draft tokens 加 1 个 bonus target token。`accept length=3` 包含该 bonus token，因此实际接受 2 个 draft tokens，reported draft accept rate 为 `2/3=0.67`。MI300X 使用真实 expert routing，H200 reference 使用理想均衡路由。AMD 报告的单-kernel latency 降低 37.6% 没有独立 microbenchmark log，因此不纳入我们的实测结论。
 
 ---
 
 ## Decode — 详细结果
 
-### Decode 8K/1K — AMD CK 参考对齐（低并发）
+### Decode 8K/1K — Tuned Fused-MoE 独立复测
 
-本章节使用 AMD 2026-07-07 CK A8W8 原始脚本严格复现。"AMD CK"列是 AMD 自己发布的数字；我们的复现结果在 ~1.2% 以内。
+N = 256 requests/点；input length = 8,192；output length = 1,024；warmup = 32；target concurrency = 16/32/64/128；`full.rc=0`。
 
-N = 256 requests/BS 点；target concurrency = 16/32/64/128；`decode_full.rc=0`；无 benchmark 错误标记。
-
-| BS | Successful requests | Output tok/s | Mean TPOT ms | Median TPOT ms | P99 TPOT ms | AMD CK mean TPOT ms | 相对 AMD CK |
+| Concurrency | Successful requests | Output tok/s | Mean TPOT ms | Median TPOT ms | P99 TPOT ms | Output vs strict baseline | Mean TPOT vs strict baseline |
 |---:|---:|---:|---:|---:|---:|---:|---:|
-| 16 | 256 | 1,299.18 | 10.64 | 10.83 | 11.57 | 10.59 | +0.5% |
-| 32 | 256 | 1,910.75 | 13.50 | 13.73 | 14.25 | 13.43 | +0.5% |
-| 64 | 256 | 2,188.05 | 15.10 | 15.53 | 16.58 | 14.92 | +1.2% |
-| 128 | 256 | 2,209.43 | 14.52 | 14.83 | 15.82 | 14.55 | -0.2% |
+| 16 | 256 | 1,331.98 | 10.83 | 10.97 | 11.35 | +2.52% | +1.79% |
+| 32 | 256 | 1,936.24 | 13.65 | 13.93 | 14.35 | +1.33% | +1.11% |
+| 64 | 256 | 2,457.73 | 17.00 | 17.60 | 18.44 | +12.33% | +12.58% |
+| 128 | 256 | 2,486.89 | 16.56 | 17.30 | 17.92 | +12.56% | +14.05% |
 
-- 原始证据：[`data/raw-logs/20260707-ck-a8w8-gemm/`](data/raw-logs/20260707-ck-a8w8-gemm/)
-- 结果摘要：[`reports/20260707-ck-a8w8-gemm-strict-repro.md`](reports/20260707-ck-a8w8-gemm-strict-repro.md)
-- 脚本快照：[`scripts/20260707-amd-ck-a8w8/`](scripts/20260707-amd-ck-a8w8/)
+**解读**：BS=64/128 出现明显 throughput 增益，但 TPOT 同时增加。决策时必须分开看 throughput 和单 token latency。
 
-### Decode 8K/1K — 高并发 Sweep
-
-并发 sweep 扩展到 256，确定饱和点。
-
-N = 256 requests/并发点；output length = 1024；warmup = 32；`decode_full.rc=0`。
-
-| Concurrency | Output tok/s | Mean TPOT ms | P99 TPOT ms | Mean TTFT ms |
-|---:|---:|---:|---:|---:|
-| 16 | 1,321.50 | 10.79 | 11.65 | 1,191 |
-| 32 | 1,914.27 | 13.37 | 14.26 | 2,847 |
-| 64 | 2,198.77 | 15.49 | 17.08 | 11,853 |
-| 96 | 2,200.63 | 15.06 | 16.31 | 23,667 |
-| 128 | 2,203.65 | 14.83 | 16.22 | 33,430 |
-| 192 | 2,202.57 | 14.72 | 16.28 | 47,911 |
-| 256 | 2,207.97 | 14.60 | 16.36 | 55,467 |
-
-**解读**：throughput 在 concurrency 64 左右饱和（~2,200 output tok/s），到 concurrency 256 保持平稳。更高并发主要增加排队/TTFT，不再提升 output throughput。
-
-- 原始证据：[`data/raw-logs/20260708-ck-a8w8-concurrency-extension/`](data/raw-logs/20260708-ck-a8w8-concurrency-extension/)
-- 结果摘要：[`reports/20260708-ck-a8w8-concurrency-extension.md`](reports/20260708-ck-a8w8-concurrency-extension.md)
-- 脚本快照：[`scripts/20260708-ck-a8w8-concurrency-sweep/`](scripts/20260708-ck-a8w8-concurrency-sweep/)
+- 原始证据：[`data/raw-logs/20260713-amd-tuned-moe-retest/decode/`](data/raw-logs/20260713-amd-tuned-moe-retest/decode/)
+- 详细报告：[`reports/20260713-amd-tuned-moe-retest.md`](reports/20260713-amd-tuned-moe-retest.md)
+- 复现 bundle：[`scripts/20260713-amd-tuned-moe-retest/`](scripts/20260713-amd-tuned-moe-retest/)
 
 ---
 
 ## Prefill — 详细结果
 
-### Prefill — AMD CK 参考对齐（严格脚本复现）
+### Prefill — Tuned Fused-MoE 独立复测
 
-N = 16 requests/input length；target concurrency = 4；`prefill_full.rc=0`；无错误标记。
+N = 16 requests/input length；output length = 1；target concurrency = 4；`full.rc=0`。
 
-| ISL/OSL | Concurrency | Successful requests | Input tok/s | Mean TTFT ms | P99 TTFT ms | AMD CK 32K input tok/s | 相对 AMD CK |
-|---:|---:|---:|---:|---:|---:|---:|---:|
-| 8K/1 | 4 | 16 | 16,715.80 | 1,849.62 | 2,709.97 | 16,924.08 | -1.2% |
-| 64K/1 | 4 | 16 | 17,254.14 | 14,107.62 | 16,674.08 | 17,223.51 | +0.2% |
-| 256K/1 | 4 | 16 | 37,492.80 | 19,278.17 | 86,264.51 | 37,241.84 | +0.7% |
+| ISL/OSL | Concurrency | Successful requests | Input tok/s | vs strict baseline | MI300X / H200 |
+|---:|---:|---:|---:|---:|---:|
+| 8K/1 | 4 | 16 | 20,780.79 | +24.32% | 65.0% |
+| 64K/1 | 4 | 16 | 19,022.57 | +10.25% | 69.4% |
+| 256K/1 | 4 | 16 | 39,905.41 | +6.43% | 229.3% |
 
-### Prefill — 多并发 Sweep
+**解读**：tuned fused-MoE configuration 在三个请求长度都提升 1P1D prefill throughput，其中 8K 相对增益最大。
 
-并发 sweep 覆盖 1/2/4/8，跨 8K/64K/256K，验证 scaling 行为。
-
-N = 16 requests/点；output = 1；warmup = 1。
-
-| Input tokens | Concurrency | Input tok/s | Mean TTFT ms | P99 TTFT ms |
-|---:|---:|---:|---:|---:|
-| 8192 | 1 | 14,811.18 | 552 | 589 |
-| 8192 | 2 | 16,982.94 | 958 | 1,369 |
-| 8192 | 4 | 16,783.88 | 1,841 | 2,680 |
-| 8192 | 8 | 18,617.41 | 3,211 | 4,691 |
-| 65536 | 1 | 16,602.69 | 3,946 | 4,870 |
-| 65536 | 2 | 18,077.28 | 7,123 | 9,004 |
-| 65536 | 4 | 16,904.74 | 14,232 | 16,774 |
-| 65536 | 8 | 17,252.39 | 24,482 | 31,727 |
-| 262144 | 1 | 35,452.56 | 6,995 | 22,648 |
-| 262144 | 2 | 37,429.63 | 12,417 | 47,335 |
-| 262144 | 4 | — (warmup 失败) | — | — |
-| 262144 | 8 | — (warmup 失败) | — | — |
-
-256K/con4 和 256K/con8 在 warmup 阶段失败：`No available prefill workers (all circuits open or unhealthy)`。这是长上下文高并发下的 worker 可用性边界，不是已测得的吞吐退化。
+- 原始证据：[`data/raw-logs/20260713-amd-tuned-moe-retest/prefill/`](data/raw-logs/20260713-amd-tuned-moe-retest/prefill/)
 
 ---
 
 ## Prefill Scaling — AMD 2-Node DP=2/TP=8
 
-AMD 提供了使用相同 Docker image 的 2-node DP=2/TP=8 prefill-only server 模拟。这个测试验证 prefill compute/service throughput 能随两个 prefill 节点扩展。它**不包含** P→D KV-cache 传输开销；如果要做 2P1D E2E 测试，需要 3 nodes。
+我们使用相同 Docker image 和 tuned fused-MoE configuration 独立复测了 2-node DP=2/TP=8 prefill-only server 路径。这个测试**不包含** P→D KV-cache 传输开销；如果要做 2P1D E2E 测试，需要 3 nodes。
 
 ### 测试方法
 
 ```bash
-# 使用相同 Docker image 跑 DP=2, TP=8 的 2-node prefill benchmark。
-./launch_tp8_noep_aiter_mtp_node0.sh      # node 0
-./launch_tp8_noep_aiter_mtp_node1.sh      # node 1
-./launch_dp_router.sh                     # node 0
-./run_benchmark_mimo_pro_dp2_prefill.sh   # node 0
+# 跑 DP=2, TP=8 的 2-node prefill benchmark。
+./launch_dp2_node0.sh       # node 0, port 30000
+./launch_dp2_node1.sh       # node 1, port 30001
+./launch_dp2_router.sh      # node 0
+./benchmark_dp2_prefill.sh  # node 0
 ```
 
 ### 结果
 
 | ISL/OSL | Concurrency | Aggregate input tok/s | Per-node input tok/s | Per-node / H200 |
 |---:|---:|---:|---:|---:|
-| 8K/1 | 4 | 37,956.48 | 18,978.24 | 59.4% |
-| 64K/1 | 4 | 35,237.56 | 17,618.78 | 64.3% |
-| 256K/1 | 4 | 63,515.24 | 31,757.62 | 182.5% |
-| 8K/1 | 8 | 38,119.16 | 19,059.58 | 59.7% |
-| 64K/1 | 8 | 35,181.86 | 17,590.93 | 64.2% |
-| 256K/1 | 8 | 73,215.06 | 36,607.53 | 210.4% |
+| 8K/1 | 4 | 43,221.12 | 21,610.56 | 67.6% |
+| 8K/1 | 8 | 45,992.94 | 22,996.47 | 72.0% |
+| 64K/1 | 4 | 38,374.65 | 19,187.33 | 70.0% |
+| 64K/1 | 8 | 38,255.28 | 19,127.64 | 69.8% |
+| 256K/1 | 4 | 74,611.25 | 37,305.62 | 214.4% |
+| 256K/1 | 8 | 78,613.96 | 39,306.98 | 225.9% |
 
-**解读**：2-node aggregate throughput 基本和 per-node prefill throughput 成比例关系，说明 prefill 性能能随 DP=2 线性扩展。这个测试不覆盖 P→D 传输或 decode 侧端到端表现。
+六个点均完成 32/32 requests。与 H200 对比时使用 per-node throughput；不能把 MI300X 2-node aggregate 直接和单节点 H200 对比。
+
+### 256K Correctness Guard
+
+当 `random_input_len=262144` 时，standard DP=2 server 路径在请求构造后实际看到 262,148 tokens。Server allowance 设为 262,144 会返回 HTTP 200 error payload，client-only success counter 可能误判。该无效 attempt 已排除。有效复测只把 server allowance 改为 `--context-length 262149`，两个 node log 的 context-overflow 计数均为 0。
+
+- 原始证据：[`data/raw-logs/20260713-amd-tuned-moe-retest/dp2/`](data/raw-logs/20260713-amd-tuned-moe-retest/dp2/)
+- 验收记录：[`data/raw-logs/20260713-amd-tuned-moe-retest/checks/validation.txt`](data/raw-logs/20260713-amd-tuned-moe-retest/checks/validation.txt)
 
 ---
 
@@ -186,7 +152,7 @@ AMD 提供了使用相同 Docker image 的 2-node DP=2/TP=8 prefill-only server 
 | Docker 镜像 | `rocm/sgl-dev:v0.5.11-rocm720-mi30x-20260510` | AMD 0510 build, SHA `bb9d2e5ab1a6` |
 | SGLang | AMD fork: [sammysun0711/sglang](https://github.com/sammysun0711/sglang) branch `mimo_aiter_attn`, commit `db840d935` | CK A8W8 blockwise GEMM bpreshuffle + AITER INT8 quick-reduce |
 | ROCm | 7.2.0 | |
-| aiter | `amd-aiter 0.1.14rc1.dev213+g7a8ff7dd4` | [ROCm/aiter](https://github.com/ROCm/aiter)，MoE/GEMM/FP8/LayerNorm/Attention 全部启用 |
+| aiter | [sammysun0711/aiter](https://github.com/sammysun0711/aiter) commit [`d725746`](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9) | MiMo 模型专用 fused-MoE tuning CSV；runtime-local 等价 commit `00e94abf1` |
 | GEMM 路径 | **CK A8W8 blockwise bpreshuffle** | `SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1` |
 | Mooncake | `0.3.7.post2` | PD 分离 KV cache 传输 |
 | PyTorch | 2.9.1+rocm7.2.0 | ROCm backend |
@@ -208,7 +174,7 @@ AMD 提供了使用相同 Docker image 的 2-node DP=2/TP=8 prefill-only server 
 
 ## 复现步骤
 
-所有脚本和原始日志归档在 [`scripts/20260707-amd-ck-a8w8/`](scripts/20260707-amd-ck-a8w8/) 和 [`scripts/20260708-ck-a8w8-concurrency-sweep/`](scripts/20260708-ck-a8w8-concurrency-sweep/) 下。
+验收通过的 launch、benchmark、configuration 和 parser bundle 归档在 [`scripts/20260713-amd-tuned-moe-retest/`](scripts/20260713-amd-tuned-moe-retest/)。Client logs 和 deterministic summary 位于 [`data/raw-logs/20260713-amd-tuned-moe-retest/`](data/raw-logs/20260713-amd-tuned-moe-retest/)。
 
 ### 前置条件
 
@@ -216,7 +182,7 @@ AMD 提供了使用相同 Docker image 的 2-node DP=2/TP=8 prefill-only server 
 - Docker 镜像：`rocm/sgl-dev:v0.5.11-rocm720-mi30x-20260510`（SHA: `bb9d2e5ab1a6`）
 - 模型：[XiaomiMiMo/MiMo-V2.5-Pro](https://huggingface.co/XiaomiMiMo/MiMo-V2.5-Pro) 下载到 `/data/models/MiMo-V2.5-Pro`
 - SGLang：`sammysun0711/sglang` 分支 `mimo_aiter_attn`，commit `db840d935`
-- aiter：`ROCm/aiter`，commit `7a8ff7dd4`
+- aiter：`sammysun0711/aiter`，commit `d725746a0f8c233d8e46e2771a7c8dbcd06e40d9`
 
 ### 容器运行时要求
 
@@ -249,8 +215,8 @@ mkdir -p /sgl-workspace && cd /sgl-workspace
 git clone https://github.com/sammysun0711/sglang.git sglang_0625
 cd sglang_0625 && git checkout db840d935
 cd /sgl-workspace
-git clone https://github.com/ROCm/aiter.git aiter_0625
-cd aiter_0625 && git checkout 7a8ff7dd4
+git clone https://github.com/sammysun0711/aiter.git aiter_0625
+cd aiter_0625 && git checkout d725746a0f8c233d8e46e2771a7c8dbcd06e40d9
 
 # 3. 安装（两个节点，--no-deps 保留 ROCm torch 栈）
 cd /sgl-workspace/sglang_0625 && pip install -e "python[all_hip]" --no-deps
@@ -269,22 +235,22 @@ test ! -d /sgl-workspace/aiter || { echo "ERROR: stale aiter shadows aiter_0625"
 # 4. 下载模型
 huggingface-cli download XiaomiMiMo/MiMo-V2.5-Pro --local-dir /data/models/MiMo-V2.5-Pro
 
-# 5. 部署 benchmark 脚本（从 scripts/20260707-amd-ck-a8w8/ 复制到 /data/xisun/）
+# 5. 把 scripts/20260713-amd-tuned-moe-retest/ 复制到 /data/xisun/20260713-amd-tuned-moe-retest/
 
 # 6. 查 IB IP
 export PREFILL_IB_IP=<prefill 节点 IB IP>
 export DECODE_IB_IP=<decode 节点 IB IP>
 
 # 7. 清理旧进程（两个节点）
-docker exec $CONTAINER bash -c "pkill -f 'sglang.launch_server|sglang_router|bench_serving' || true"
+docker exec $CONTAINER bash -c "pkill -f 'sglang.launch_server|bench_serving' || true; pkill -f '[s]glang::router|sglang_router' || true"
 
 # 8. 启动 server（每个在独立终端，前台常驻）
 # 终端 A — Node 1 (prefill):
-docker exec $CONTAINER bash -c "cd /data/xisun && bash launch_tp8_noep_prefill_aiter_mtp.sh"
+docker exec $CONTAINER bash -c "cd /data/xisun/20260713-amd-tuned-moe-retest && bash launch_pd_prefill.sh"
 # 终端 B — Node 2 (decode):
-docker exec $CONTAINER bash -c "cd /data/xisun && bash launch_tp8_noep_decode_aiter_mtp.sh"
+docker exec $CONTAINER bash -c "cd /data/xisun/20260713-amd-tuned-moe-retest && bash launch_pd_decode.sh"
 # 终端 C — Node 1 (router, 等两个 server 打印 ready):
-docker exec $CONTAINER bash -c "cd /data/xisun && PREFILL_IB_IP=$PREFILL_IB_IP DECODE_IB_IP=$DECODE_IB_IP bash launch_router.sh"
+docker exec $CONTAINER bash -c "cd /data/xisun/20260713-amd-tuned-moe-retest && PREFILL_IB_IP=$PREFILL_IB_IP DECODE_IB_IP=$DECODE_IB_IP bash launch_pd_router.sh"
 
 # 9. health + smoke test
 curl -fsS http://127.0.0.1:40000/health
@@ -295,31 +261,30 @@ docker exec $CONTAINER bash -c "python3 -m sglang.bench_serving \
 
 # 10. 跑 benchmark
 RUN_DIR=/data/xisun/benchmark-$(date +%Y%m%d-%H%M%S)
-docker exec $CONTAINER bash -c "mkdir -p $RUN_DIR && cd /data/xisun && bash run_benchmark_mimo_pro_decode.sh > $RUN_DIR/decode_full.out 2>&1; echo \$? > $RUN_DIR/decode_full.rc"
-docker exec $CONTAINER bash -c "cd /data/xisun && bash run_benchmark_mimo_pro_prefill.sh > $RUN_DIR/prefill_full.out 2>&1; echo \$? > $RUN_DIR/prefill_full.rc"
+docker exec $CONTAINER bash -c "mkdir -p $RUN_DIR/decode $RUN_DIR/prefill; cd /data/xisun/20260713-amd-tuned-moe-retest; LOG_DIR=$RUN_DIR/decode bash benchmark_decode.sh > $RUN_DIR/decode/full.out 2>&1; echo \$? > $RUN_DIR/decode/full.rc"
+docker exec $CONTAINER bash -c "cd /data/xisun/20260713-amd-tuned-moe-retest; LOG_DIR=$RUN_DIR/prefill bash benchmark_1p_prefill.sh > $RUN_DIR/prefill/full.out 2>&1; echo \$? > $RUN_DIR/prefill/full.rc"
 ```
 
 ### AMD DP=2/TP=8 双节点 Prefill 测试方法
 
-AMD 的 2-node prefill 模拟使用相同 Docker image，命令顺序如下。这个测试是 prefill-only server-mode benchmark，不包含 P→D KV-cache 传输。
+验收通过的 DP=2 复现使用相同 Docker image，并为 262,144-token request 设置 262,149-token server allowance。这个测试是 prefill-only server-mode benchmark，不包含 P→D KV-cache 传输。
 
 ```bash
-./launch_tp8_noep_aiter_mtp_node0.sh      # node 0
-./launch_tp8_noep_aiter_mtp_node1.sh      # node 1
-./launch_dp_router.sh                     # node 0
-./run_benchmark_mimo_pro_dp2_prefill.sh   # node 0
+./launch_dp2_node0.sh       # node 0
+./launch_dp2_node1.sh       # node 1
+Node0_IP=<node0-ib-ip> Node1_IP=<node1-ib-ip> ./launch_dp2_router.sh
+LOG_DIR=/data/xisun/dp2 ./benchmark_dp2_prefill.sh
 ```
 
 ### 归档证据
 
 | 路径 | 内容 |
 |------|------|
+| [`data/raw-logs/20260713-amd-tuned-moe-retest/`](data/raw-logs/20260713-amd-tuned-moe-retest/) | 验收通过的 4/3/6 矩阵：client logs、exit code、summary、JSON、SHA-256 manifest、context guard |
+| [`reports/20260713-amd-tuned-moe-retest.md`](reports/20260713-amd-tuned-moe-retest.md) | Tuned fused-MoE 独立复测报告和 evidence map |
+| [`scripts/20260713-amd-tuned-moe-retest/`](scripts/20260713-amd-tuned-moe-retest/) | 验收通过的 launch、benchmark、tuning CSV 和 deterministic parser bundle |
 | [`data/raw-logs/20260707-ck-a8w8-gemm/`](data/raw-logs/20260707-ck-a8w8-gemm/) | CK A8W8 严格复现：benchmark 日志、环境门禁、脚本 SHA256 |
-| [`data/raw-logs/20260708-ck-a8w8-concurrency-extension/`](data/raw-logs/20260708-ck-a8w8-concurrency-extension/) | 高并发扩展：decode + prefill sweep 日志 |
 | [`reports/20260707-ck-a8w8-gemm-strict-repro.md`](reports/20260707-ck-a8w8-gemm-strict-repro.md) | CK 严格复现结果摘要 |
-| [`reports/20260708-ck-a8w8-concurrency-extension.md`](reports/20260708-ck-a8w8-concurrency-extension.md) | 并发扩展结果摘要 |
-| [`scripts/20260707-amd-ck-a8w8/`](scripts/20260707-amd-ck-a8w8/) | CK launch + benchmark 脚本 |
-| [`scripts/20260708-ck-a8w8-concurrency-sweep/`](scripts/20260708-ck-a8w8-concurrency-sweep/) | 并发 sweep 脚本 |
 
 ---
 
@@ -328,7 +293,8 @@ AMD 的 2-node prefill 模拟使用相同 Docker image，命令顺序如下。�
 | 问题 | 状态 | 影响 |
 |------|------|------|
 | **Decode CUDA Graph** | ⚠️ 关键配置 | Decode server 禁止使用 `--disable-cuda-graph`，否则 TPOT 退化 5 倍。Prefill server 应禁用。 |
-| **1P1D router 路径下的 256K 高并发 prefill** | ⚠️ 边界 | 我们的 1P1D concurrency sweep 中，256K prefill concurrency ≥4 warmup 失败，无健康 prefill worker。AMD 的 2-node DP=2 prefill-only 模拟在 concurrency 4/8 可跑通，说明 prefill compute 侧容量能上去；剩余边界在 routed/E2E 路径。 |
+| **DP=2 256K request framing** | ✅ 已加 guard | `random_input_len=262144` 在 server 侧变成 262,148 tokens。必须使用 `--context-length 262149`，并检查 service-log overflow count，不能只看 client success。 |
+| **Run-to-run variance** | ⚠️ 未刻画 | 每个公开 matrix point 只运行一轮。已报告 request count，但不声称 multi-run standard deviation。 |
 
 ---
 
@@ -337,8 +303,9 @@ AMD 的 2-node prefill 模拟使用相同 Docker image，命令顺序如下。�
 - [MiMo-V2.5-Pro Model Card](https://huggingface.co/XiaomiMiMo/MiMo-V2.5-Pro)
 - [AMD SGLang Fork — `mimo_aiter_attn` 分支](https://github.com/sammysun0711/sglang/tree/mimo_aiter_attn)
 - [AMD aiter (ROCm)](https://github.com/ROCm/aiter)
+- [MiMo 模型专用 fused-MoE tuning — `aiter@d725746`](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9)
 - [SGLang PD Disaggregation Docs](https://docs.sglang.io/docs/advanced_features/pd_disaggregation.md)
 
 ---
 
-*最后更新: 2026-07-08*
+*最后更新: 2026-07-13*

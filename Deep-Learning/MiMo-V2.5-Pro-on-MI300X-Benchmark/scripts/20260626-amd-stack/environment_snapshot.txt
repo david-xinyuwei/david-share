@@ -27,8 +27,8 @@ Image: rocm/sgl-dev:v0.5.11-rocm720-mi30x-20260510
 Image SHA: sha256:bb9d2e5ab1a6b66bff693e9a5d972be378e6059dc2058066aed70ebc3ed3993b
 
 === VM INFO ===
-VM8 (Prefill): 20.102.171.186:33901, hostname=mi30011c6000008, IB=172.16.1.26
-VM10 (Decode): 20.252.129.69:33901, hostname=mi30011c600000A, IB=172.16.1.122
+VM8 (Prefill): <PREFILL_HOST>:<SSH_PORT>, hostname=<PREFILL_HOSTNAME>, IB=<PREFILL_IB_IP>
+VM10 (Decode): <DECODE_HOST>:<SSH_PORT>, hostname=<DECODE_HOSTNAME>, IB=<DECODE_IB_IP>
 Container: docker exec -it sglang bash
 Model path: /data/models/MiMo-V2.5-Pro
 Working dir: /data/xisun

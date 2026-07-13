@@ -1,0 +1,52 @@
+===benchmark_8192_con128.log===
+Max request concurrency:                 128       
+Successful requests:                     256       
+Benchmark duration (s):                  105.41    
+Input token throughput (tok/s):          19895.10  
+Output token throughput (tok/s):         2486.89   
+Mean TTFT (ms):                          27205.78  
+Median TTFT (ms):                        28662.78  
+P99 TTFT (ms):                           47951.52  
+Mean TPOT (ms):                          16.56     
+Median TPOT (ms):                        17.30     
+P99 TPOT (ms):                           17.92     
+ERRORS=0
+===benchmark_8192_con16.log===
+Max request concurrency:                 16        
+Successful requests:                     256       
+Benchmark duration (s):                  196.81    
+Input token throughput (tok/s):          10655.85  
+Output token throughput (tok/s):         1331.98   
+Mean TTFT (ms):                          998.24    
+Median TTFT (ms):                        547.08    
+P99 TTFT (ms):                           5836.96   
+Mean TPOT (ms):                          10.83     
+Median TPOT (ms):                        10.97     
+P99 TPOT (ms):                           11.35     
+ERRORS=0
+===benchmark_8192_con32.log===
+Max request concurrency:                 32        
+Successful requests:                     256       
+Benchmark duration (s):                  135.39    
+Input token throughput (tok/s):          15489.95  
+Output token throughput (tok/s):         1936.24   
+Mean TTFT (ms):                          2265.06   
+Median TTFT (ms):                        1683.47   
+P99 TTFT (ms):                           12293.04  
+Mean TPOT (ms):                          13.65     
+Median TPOT (ms):                        13.93     
+P99 TPOT (ms):                           14.35     
+ERRORS=0
+===benchmark_8192_con64.log===
+Max request concurrency:                 64        
+Successful requests:                     256       
+Benchmark duration (s):                  106.66    
+Input token throughput (tok/s):          19661.82  
+Output token throughput (tok/s):         2457.73   
+Mean TTFT (ms):                          7508.60   
+Median TTFT (ms):                        5657.30   
+P99 TTFT (ms):                           23821.40  
+Mean TPOT (ms):                          17.00     
+Median TPOT (ms):                        17.60     
+P99 TPOT (ms):                           18.44     
+ERRORS=0

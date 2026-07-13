@@ -5,7 +5,7 @@
 [![SGLang](https://img.shields.io/badge/Engine-SGLang-green)](https://github.com/sgl-project/sglang)
 [![ROCm](https://img.shields.io/badge/ROCm-7.2.0-orange)](https://rocm.docs.amd.com/)
 
-Running **Xiaomi MiMo-V2.5-Pro (1.02T MoE / 42B active / FP8)** on Azure **AMD Instinct MI300X** with SGLang + AMD CK A8W8 blockwise GEMM + AITER + MTP/EAGLE, benchmarked against Xiaomi's H200 reference data.
+Running **Xiaomi MiMo-V2.5-Pro (1.02T MoE / 42B active / FP8)** on Azure **AMD Instinct MI300X** with SGLang + AMD CK A8W8 blockwise GEMM + AITER + MTP/EAGLE + the model-specific fused-MoE tuning from [`aiter@d725746`](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9), benchmarked against Xiaomi's H200 reference data.
 
 This repo provides full reproduction scripts, launch commands, benchmark results, and server logs. With 2× Azure ND96isr_MI300X_v5 nodes and the specified Docker image, the steps below rebuild a clean-room MI300X environment and run the AMD benchmark scripts. For PD-separated decode, the container must expose RDMA devices (`--privileged`, `/dev/mem`, and `CAP_SYS_ADMIN`); otherwise Mooncake falls back to TCP and high-concurrency throughput results are invalid.
 
@@ -23,147 +23,113 @@ English | [中文版](README-CN.md)
 
 ## Executive Summary
 
-**Prefill throughput (CK A8W8, 1P single-node, output=1; higher is better)**
+**Prefill throughput (2026-07-13 tuned fused-MoE retest, 1P1D prefill stage, output=1; higher is better)**
 
 | Context | Concurrency | MI300X tok/s | H200 tok/s | MI300X / H200 |
 |---:|---:|---:|---:|---:|
-| 8K | 4 | 16,716 | 31,950 | 52.3% |
-| 64K | 4 | 17,254 | 27,400 | 63.0% |
-| 256K | 4 | 37,493 | 17,400 | **215.5%** |
+| 8K | 4 | 20,780.79 | 31,950 | 65.0% |
+| 64K | 4 | 19,022.57 | 27,400 | 69.4% |
+| 256K | 4 | 39,905.41 | 17,400 | **229.3%** |
 
-Prefill throughput from our strict reproduction of AMD's CK A8W8 benchmark scripts (single prefill node, TP=8). For DP=2 multi-node scaling results, see [Prefill Scaling — AMD 2-Node DP=2/TP=8](#prefill-scaling--amd-2-node-dp2tp8).
+All three points completed 16/16 requests with zero client error markers. For the independently retested DP=2 results, see [Prefill Scaling — AMD 2-Node DP=2/TP=8](#prefill-scaling--amd-2-node-dp2tp8).
 
-**Decode 8K/1K (CK A8W8, `SIMULATE_ACC_LEN=3` on both sides; TPOT: lower is better)**
+**Decode 8K/1K (2026-07-13 tuned fused-MoE retest, `SIMULATE_ACC_LEN=3`; TPOT: lower is better)**
 
 | BS | Concurrency | MI300X Median TPOT | H200 Median TPOT | MI300X/H200 TPOT | MI300X output tok/s | H200 output tok/s | MI300X/H200 tok/s |
 |---:|---:|---:|---:|---:|---:|---:|---:|
-| 16 | 16 | 10.83 ms | 11.59 ms | **0.93x** | 1,299 | 1,381 | 94.1% |
-| 32 | 32 | 13.73 ms | 12.56 ms | 1.09x | 1,911 | 2,549 | 74.9% |
-| 64 | 64 | 15.53 ms | 14.28 ms | 1.09x | 2,188 | 4,483 | 48.8% |
-| 128 | 128 | 14.83 ms | 18.25 ms | **0.81x** | 2,209 | 7,013 | 31.5% |
+| 16 | 16 | 10.97 ms | 11.59 ms | **0.95x** | 1,331.98 | 1,381 | 96.5% |
+| 32 | 32 | 13.93 ms | 12.56 ms | 1.11x | 1,936.24 | 2,549 | 76.0% |
+| 64 | 64 | 17.60 ms | 14.28 ms | 1.23x | 2,457.73 | 4,483 | 54.8% |
+| 128 | 128 | 17.30 ms | 18.25 ms | **0.95x** | 2,486.89 | 7,013 | 35.5% |
 
 In the decode table, `BS` equals target concurrency, matching the H200 reference load shape.
 
 ### Key Findings
 
-- **Decode TPOT at BS=16 and BS=128: MI300X surpasses H200.** At BS=16 the per-token latency is 0.93× of H200; at BS=128 it is 0.81×. At BS=32/64 the gap is only 9%.
-- **Prefill 256K long-context: MI300X is 2.15× of H200** throughput. At 8K/64K MI300X reaches 52–63% of H200.
-- **Prefill scales with DP=2** — see [separate section below](#prefill-scaling--amd-2-node-dp2tp8). AMD's 2-node simulation shows per-node throughput comparable to the single-node baseline while doubling aggregate capacity.
-- **Output tok/s gap is wider than TPOT gap** because output tok/s also reflects serving topology and scheduling differences (single TP=8 decode path vs H200 multi-DP/EP). The TPOT comparison isolates kernel-level performance.
-- **Decode throughput plateaus at concurrency 64** (~2,200 output tok/s) and stays flat through concurrency 256.
+- **1P1D prefill improves at every tested length:** +24.32% at 8K, +10.25% at 64K, and +6.43% at 256K versus our 2026-07-07 strict CK baseline.
+- **High-concurrency decode is a throughput/latency trade-off:** output throughput improves by +12.33% at BS=64 and +12.56% at BS=128, while mean TPOT increases by +12.58% and +14.05% respectively.
+- **Decode median TPOT remains below the H200 reference at BS=16 and BS=128** (0.95x in both cases). Output throughput is reported separately because the serving topologies are not normalized.
+- **DP=2 prefill completed all six points independently:** aggregate throughput reaches 45,992.94 tok/s at 8K and 78,613.96 tok/s at 256K. The H200 comparison uses MI300X per-node throughput, not the 2-node aggregate.
+- **All accepted matrices passed:** 4 decode points at 256/256 requests, 3 1P1D prefill points at 16/16, and 6 DP=2 points at 32/32, with zero client error markers.
 
 ### Methodology Note
 
-For the decode TPOT comparison, both MI300X and H200 use `SGLANG_SIMULATE_ACC_LEN=3` (fixing MTP accept_length at 3.0). All MI300X numbers use **real expert routing** (not `fake_topk_ids`), adding 5–15% overhead vs the H200 ideal-routing baseline. H200 reference values come from Xiaomi-provided H200 benchmark materials; the H200 output tok/s column equals `BS × 1000 / TPOT` from that reference sheet.
+The public aiter commit adds model-specific fused-MoE tuning CSV files; it does not change kernel source. `--speculative-num-draft-tokens=4` means three proposed draft tokens plus one bonus target token. `accept length=3` includes that bonus token, so two draft tokens are accepted and the reported draft accept rate is `2/3=0.67`. MI300X uses real expert routing; the H200 reference uses idealized balanced routing. The AMD-reported 37.6% single-kernel latency reduction is excluded from our measured conclusions because no standalone microbenchmark log was supplied.
 
 ---
 
 ## Decode — Detailed Results
 
-### Decode 8K/1K — AMD CK Reference Alignment (Low Concurrency)
+### Decode 8K/1K — Tuned Fused-MoE Independent Retest
 
-This section reproduces AMD's 2026-07-07 CK A8W8 benchmark using their original scripts without modification. The "AMD CK" column is AMD's own published result; our reproduction matches within ~1.2%.
+N = 256 requests per point; input length = 8,192; output length = 1,024; warmup = 32; target concurrency = 16/32/64/128; `full.rc=0`.
 
-N = 256 requests per BS point; target concurrency = 16/32/64/128; `decode_full.rc=0`; no benchmark error markers.
-
-| BS | Successful requests | Output tok/s | Mean TPOT ms | Median TPOT ms | P99 TPOT ms | AMD CK mean TPOT ms | Delta vs AMD CK |
+| Concurrency | Successful requests | Output tok/s | Mean TPOT ms | Median TPOT ms | P99 TPOT ms | Output vs strict baseline | Mean TPOT vs strict baseline |
 |---:|---:|---:|---:|---:|---:|---:|---:|
-| 16 | 256 | 1,299.18 | 10.64 | 10.83 | 11.57 | 10.59 | +0.5% |
-| 32 | 256 | 1,910.75 | 13.50 | 13.73 | 14.25 | 13.43 | +0.5% |
-| 64 | 256 | 2,188.05 | 15.10 | 15.53 | 16.58 | 14.92 | +1.2% |
-| 128 | 256 | 2,209.43 | 14.52 | 14.83 | 15.82 | 14.55 | -0.2% |
+| 16 | 256 | 1,331.98 | 10.83 | 10.97 | 11.35 | +2.52% | +1.79% |
+| 32 | 256 | 1,936.24 | 13.65 | 13.93 | 14.35 | +1.33% | +1.11% |
+| 64 | 256 | 2,457.73 | 17.00 | 17.60 | 18.44 | +12.33% | +12.58% |
+| 128 | 256 | 2,486.89 | 16.56 | 17.30 | 17.92 | +12.56% | +14.05% |
 
-- Raw evidence: [`data/raw-logs/20260707-ck-a8w8-gemm/`](data/raw-logs/20260707-ck-a8w8-gemm/)
-- Result summary: [`reports/20260707-ck-a8w8-gemm-strict-repro.md`](reports/20260707-ck-a8w8-gemm-strict-repro.md)
-- Script snapshot: [`scripts/20260707-amd-ck-a8w8/`](scripts/20260707-amd-ck-a8w8/)
+**Interpretation:** the material throughput gain appears at BS=64/128, but it comes with higher TPOT. Keep throughput and per-token latency as separate decision metrics.
 
-### Decode 8K/1K — High-Concurrency Sweep
-
-Concurrency sweep extended to 256 to identify the saturation point.
-
-N = 256 requests per concurrency point; output length = 1024; warmup = 32; `decode_full.rc=0`.
-
-| Concurrency | Output tok/s | Mean TPOT ms | P99 TPOT ms | Mean TTFT ms |
-|---:|---:|---:|---:|---:|
-| 16 | 1,321.50 | 10.79 | 11.65 | 1,191 |
-| 32 | 1,914.27 | 13.37 | 14.26 | 2,847 |
-| 64 | 2,198.77 | 15.49 | 17.08 | 11,853 |
-| 96 | 2,200.63 | 15.06 | 16.31 | 23,667 |
-| 128 | 2,203.65 | 14.83 | 16.22 | 33,430 |
-| 192 | 2,202.57 | 14.72 | 16.28 | 47,911 |
-| 256 | 2,207.97 | 14.60 | 16.36 | 55,467 |
-
-**Interpretation:** throughput saturates around concurrency 64 (~2,200 output tok/s) and remains stable through concurrency 256. Higher concurrency mainly increases queueing/TTFT without improving output throughput.
-
-- Raw evidence: [`data/raw-logs/20260708-ck-a8w8-concurrency-extension/`](data/raw-logs/20260708-ck-a8w8-concurrency-extension/)
-- Result summary: [`reports/20260708-ck-a8w8-concurrency-extension.md`](reports/20260708-ck-a8w8-concurrency-extension.md)
-- Script snapshot: [`scripts/20260708-ck-a8w8-concurrency-sweep/`](scripts/20260708-ck-a8w8-concurrency-sweep/)
+- Raw evidence: [`data/raw-logs/20260713-amd-tuned-moe-retest/decode/`](data/raw-logs/20260713-amd-tuned-moe-retest/decode/)
+- Detailed report: [`reports/20260713-amd-tuned-moe-retest.md`](reports/20260713-amd-tuned-moe-retest.md)
+- Reproduction bundle: [`scripts/20260713-amd-tuned-moe-retest/`](scripts/20260713-amd-tuned-moe-retest/)
 
 ---
 
 ## Prefill — Detailed Results
 
-### Prefill — AMD CK Reference Alignment (Strict Script Reproduction)
+### Prefill — Tuned Fused-MoE Independent Retest
 
-N = 16 requests per input length; target concurrency = 4; `prefill_full.rc=0`; no benchmark error markers.
+N = 16 requests per input length; output length = 1; target concurrency = 4; `full.rc=0`.
 
-| ISL/OSL | Concurrency | Successful requests | Input tok/s | Mean TTFT ms | P99 TTFT ms | AMD CK 32K input tok/s | Delta vs AMD CK |
-|---:|---:|---:|---:|---:|---:|---:|---:|
-| 8K/1 | 4 | 16 | 16,715.80 | 1,849.62 | 2,709.97 | 16,924.08 | -1.2% |
-| 64K/1 | 4 | 16 | 17,254.14 | 14,107.62 | 16,674.08 | 17,223.51 | +0.2% |
-| 256K/1 | 4 | 16 | 37,492.80 | 19,278.17 | 86,264.51 | 37,241.84 | +0.7% |
+| ISL/OSL | Concurrency | Successful requests | Input tok/s | vs strict baseline | MI300X / H200 |
+|---:|---:|---:|---:|---:|---:|
+| 8K/1 | 4 | 16 | 20,780.79 | +24.32% | 65.0% |
+| 64K/1 | 4 | 16 | 19,022.57 | +10.25% | 69.4% |
+| 256K/1 | 4 | 16 | 39,905.41 | +6.43% | 229.3% |
 
-### Prefill — Multi-Concurrency Sweep
+**Interpretation:** the tuned fused-MoE configuration improves 1P1D prefill throughput across all three tested request lengths. The largest relative gain is at 8K.
 
-Concurrency sweep across 1/2/4/8 for 8K/64K/256K to map scaling behavior.
-
-N = 16 requests per point; output = 1; warmup = 1.
-
-| Input tokens | Concurrency | Input tok/s | Mean TTFT ms | P99 TTFT ms |
-|---:|---:|---:|---:|---:|
-| 8192 | 1 | 14,811.18 | 552 | 589 |
-| 8192 | 2 | 16,982.94 | 958 | 1,369 |
-| 8192 | 4 | 16,783.88 | 1,841 | 2,680 |
-| 8192 | 8 | 18,617.41 | 3,211 | 4,691 |
-| 65536 | 1 | 16,602.69 | 3,946 | 4,870 |
-| 65536 | 2 | 18,077.28 | 7,123 | 9,004 |
-| 65536 | 4 | 16,904.74 | 14,232 | 16,774 |
-| 65536 | 8 | 17,252.39 | 24,482 | 31,727 |
-| 262144 | 1 | 35,452.56 | 6,995 | 22,648 |
-| 262144 | 2 | 37,429.63 | 12,417 | 47,335 |
-| 262144 | 4 | — (warmup failure) | — | — |
-| 262144 | 8 | — (warmup failure) | — | — |
-
-256K/con4 and 256K/con8 fail during warmup with `No available prefill workers (all circuits open or unhealthy)`. This is a high-concurrency availability boundary, not a measured throughput regression.
+- Raw evidence: [`data/raw-logs/20260713-amd-tuned-moe-retest/prefill/`](data/raw-logs/20260713-amd-tuned-moe-retest/prefill/)
 
 ---
 
 ## Prefill Scaling — AMD 2-Node DP=2/TP=8
 
-AMD provided a 2-node DP=2/TP=8 prefill-only server simulation using the same Docker image. This test validates that prefill compute/service throughput scales with two prefill nodes. It does **not** include P→D KV-cache transfer overhead; a 2P1D end-to-end run would require 3 nodes.
+We independently retested the 2-node DP=2/TP=8 prefill-only server path with the same Docker image and tuned fused-MoE configuration. This test does **not** include P→D KV-cache transfer overhead; a 2P1D end-to-end run would require 3 nodes.
 
 ### Test Method
 
 ```bash
-# Run DP=2, TP=8 2-node prefill benchmark with the same Docker image.
-./launch_tp8_noep_aiter_mtp_node0.sh      # node 0
-./launch_tp8_noep_aiter_mtp_node1.sh      # node 1
-./launch_dp_router.sh                     # node 0
-./run_benchmark_mimo_pro_dp2_prefill.sh   # node 0
+# Run DP=2, TP=8 2-node prefill benchmark.
+./launch_dp2_node0.sh       # node 0, port 30000
+./launch_dp2_node1.sh       # node 1, port 30001
+./launch_dp2_router.sh      # node 0
+./benchmark_dp2_prefill.sh  # node 0
 ```
 
 ### Results
 
 | ISL/OSL | Concurrency | Aggregate input tok/s | Per-node input tok/s | Per-node / H200 |
 |---:|---:|---:|---:|---:|
-| 8K/1 | 4 | 37,956.48 | 18,978.24 | 59.4% |
-| 64K/1 | 4 | 35,237.56 | 17,618.78 | 64.3% |
-| 256K/1 | 4 | 63,515.24 | 31,757.62 | 182.5% |
-| 8K/1 | 8 | 38,119.16 | 19,059.58 | 59.7% |
-| 64K/1 | 8 | 35,181.86 | 17,590.93 | 64.2% |
-| 256K/1 | 8 | 73,215.06 | 36,607.53 | 210.4% |
+| 8K/1 | 4 | 43,221.12 | 21,610.56 | 67.6% |
+| 8K/1 | 8 | 45,992.94 | 22,996.47 | 72.0% |
+| 64K/1 | 4 | 38,374.65 | 19,187.33 | 70.0% |
+| 64K/1 | 8 | 38,255.28 | 19,127.64 | 69.8% |
+| 256K/1 | 4 | 74,611.25 | 37,305.62 | 214.4% |
+| 256K/1 | 8 | 78,613.96 | 39,306.98 | 225.9% |
 
-**Interpretation:** the 2-node aggregate throughput is roughly proportional to the per-node prefill throughput, confirming that prefill performance scales linearly with DP=2. This does not cover P→D transfer or decode-side end-to-end behavior.
+All six points completed 32/32 requests. Per-node throughput is used for the H200 comparison; the 2-node aggregate is not compared directly with one H200 node.
+
+### 256K Correctness Guard
+
+With `random_input_len=262144`, the standard DP=2 server path observed 262,148 tokens after request construction. A server allowance of 262,144 therefore returned HTTP 200 error payloads that a client-only success counter could misclassify. The invalid attempt is excluded. The accepted run changes only the server allowance to `--context-length 262149`; both node logs contain zero context-overflow entries.
+
+- Raw evidence: [`data/raw-logs/20260713-amd-tuned-moe-retest/dp2/`](data/raw-logs/20260713-amd-tuned-moe-retest/dp2/)
+- Validation record: [`data/raw-logs/20260713-amd-tuned-moe-retest/checks/validation.txt`](data/raw-logs/20260713-amd-tuned-moe-retest/checks/validation.txt)
 
 ---
 
@@ -186,7 +152,7 @@ AMD provided a 2-node DP=2/TP=8 prefill-only server simulation using the same Do
 | Docker image | `rocm/sgl-dev:v0.5.11-rocm720-mi30x-20260510` | AMD 0510 build, SHA `bb9d2e5ab1a6` |
 | SGLang | AMD fork: [sammysun0711/sglang](https://github.com/sammysun0711/sglang) branch `mimo_aiter_attn`, commit `db840d935` | CK A8W8 blockwise GEMM bpreshuffle + AITER INT8 quick-reduce |
 | ROCm | 7.2.0 | |
-| aiter | `amd-aiter 0.1.14rc1.dev213+g7a8ff7dd4` | [ROCm/aiter](https://github.com/ROCm/aiter). MoE/GEMM/FP8/LayerNorm/Attention all enabled |
+| aiter | [sammysun0711/aiter](https://github.com/sammysun0711/aiter) commit [`d725746`](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9) | Model-specific MiMo fused-MoE tuning CSV; runtime-local equivalent commit `00e94abf1` |
 | GEMM path | **CK A8W8 blockwise bpreshuffle** | `SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1` |
 | Mooncake | `0.3.7.post2` | KV cache transfer for PD disaggregation |
 | PyTorch | 2.9.1+rocm7.2.0 | ROCm backend |
@@ -208,7 +174,7 @@ AMD provided a 2-node DP=2/TP=8 prefill-only server simulation using the same Do
 
 ## Reproducing Results
 
-All scripts and raw logs are archived under [`scripts/20260707-amd-ck-a8w8/`](scripts/20260707-amd-ck-a8w8/) and [`scripts/20260708-ck-a8w8-concurrency-sweep/`](scripts/20260708-ck-a8w8-concurrency-sweep/).
+The accepted launch, benchmark, configuration, and parser bundle is archived under [`scripts/20260713-amd-tuned-moe-retest/`](scripts/20260713-amd-tuned-moe-retest/). Client logs and deterministic summaries are under [`data/raw-logs/20260713-amd-tuned-moe-retest/`](data/raw-logs/20260713-amd-tuned-moe-retest/).
 
 ### Prerequisites
 
@@ -216,7 +182,7 @@ All scripts and raw logs are archived under [`scripts/20260707-amd-ck-a8w8/`](sc
 - Docker image: `rocm/sgl-dev:v0.5.11-rocm720-mi30x-20260510` (SHA: `bb9d2e5ab1a6`)
 - Model: [XiaomiMiMo/MiMo-V2.5-Pro](https://huggingface.co/XiaomiMiMo/MiMo-V2.5-Pro) downloaded to `/data/models/MiMo-V2.5-Pro`
 - SGLang: `sammysun0711/sglang` branch `mimo_aiter_attn`, commit `db840d935`
-- aiter: `amd-aiter 0.1.14rc1.dev213+g7a8ff7dd4`, commit `7a8ff7dd4`
+- aiter: `sammysun0711/aiter`, commit `d725746a0f8c233d8e46e2771a7c8dbcd06e40d9`
 
 ### Container Runtime Requirements
 
@@ -249,8 +215,8 @@ mkdir -p /sgl-workspace && cd /sgl-workspace
 git clone https://github.com/sammysun0711/sglang.git sglang_0625
 cd sglang_0625 && git checkout db840d935
 cd /sgl-workspace
-git clone https://github.com/ROCm/aiter.git aiter_0625
-cd aiter_0625 && git checkout 7a8ff7dd4
+git clone https://github.com/sammysun0711/aiter.git aiter_0625
+cd aiter_0625 && git checkout d725746a0f8c233d8e46e2771a7c8dbcd06e40d9
 
 # 3. Install (both nodes — use --no-deps to preserve ROCm torch stack)
 cd /sgl-workspace/sglang_0625 && pip install -e "python[all_hip]" --no-deps
@@ -269,7 +235,7 @@ test ! -d /sgl-workspace/aiter || { echo "ERROR: stale aiter shadows aiter_0625"
 # 4. Download model (both nodes or shared storage)
 huggingface-cli download XiaomiMiMo/MiMo-V2.5-Pro --local-dir /data/models/MiMo-V2.5-Pro
 
-# 5. Deploy benchmark scripts from scripts/20260707-amd-ck-a8w8/ into /data/xisun/
+# 5. Copy scripts/20260713-amd-tuned-moe-retest/ to /data/xisun/20260713-amd-tuned-moe-retest/
 
 # 6. Find IB IPs for your two nodes
 docker exec $CONTAINER bash -c "ibdev2netdev | head -1"
@@ -278,15 +244,15 @@ export PREFILL_IB_IP=<prefill-node-ib-ip>
 export DECODE_IB_IP=<decode-node-ib-ip>
 
 # 7. Clean old processes (both nodes)
-docker exec $CONTAINER bash -c "pkill -f 'sglang.launch_server|sglang_router|bench_serving' || true"
+docker exec $CONTAINER bash -c "pkill -f 'sglang.launch_server|bench_serving' || true; pkill -f '[s]glang::router|sglang_router' || true"
 
 # 8. Launch servers (each in a separate terminal — foreground processes)
 # Terminal A — Node 1 (prefill):
-docker exec $CONTAINER bash -c "cd /data/xisun && bash launch_tp8_noep_prefill_aiter_mtp.sh"
+docker exec $CONTAINER bash -c "cd /data/xisun/20260713-amd-tuned-moe-retest && bash launch_pd_prefill.sh"
 # Terminal B — Node 2 (decode):
-docker exec $CONTAINER bash -c "cd /data/xisun && bash launch_tp8_noep_decode_aiter_mtp.sh"
+docker exec $CONTAINER bash -c "cd /data/xisun/20260713-amd-tuned-moe-retest && bash launch_pd_decode.sh"
 # Terminal C — Node 1 (router, after both servers print 'ready'):
-docker exec $CONTAINER bash -c "cd /data/xisun && PREFILL_IB_IP=$PREFILL_IB_IP DECODE_IB_IP=$DECODE_IB_IP bash launch_router.sh"
+docker exec $CONTAINER bash -c "cd /data/xisun/20260713-amd-tuned-moe-retest && PREFILL_IB_IP=$PREFILL_IB_IP DECODE_IB_IP=$DECODE_IB_IP bash launch_pd_router.sh"
 
 # 9. Health + smoke test
 curl -fsS http://127.0.0.1:40000/health
@@ -297,31 +263,30 @@ docker exec $CONTAINER bash -c "python3 -m sglang.bench_serving \
 
 # 10. Run benchmarks
 RUN_DIR=/data/xisun/benchmark-$(date +%Y%m%d-%H%M%S)
-docker exec $CONTAINER bash -c "mkdir -p $RUN_DIR && cd /data/xisun && bash run_benchmark_mimo_pro_decode.sh > $RUN_DIR/decode_full.out 2>&1; echo \$? > $RUN_DIR/decode_full.rc"
-docker exec $CONTAINER bash -c "cd /data/xisun && bash run_benchmark_mimo_pro_prefill.sh > $RUN_DIR/prefill_full.out 2>&1; echo \$? > $RUN_DIR/prefill_full.rc"
+docker exec $CONTAINER bash -c "mkdir -p $RUN_DIR/decode $RUN_DIR/prefill; cd /data/xisun/20260713-amd-tuned-moe-retest; LOG_DIR=$RUN_DIR/decode bash benchmark_decode.sh > $RUN_DIR/decode/full.out 2>&1; echo \$? > $RUN_DIR/decode/full.rc"
+docker exec $CONTAINER bash -c "cd /data/xisun/20260713-amd-tuned-moe-retest; LOG_DIR=$RUN_DIR/prefill bash benchmark_1p_prefill.sh > $RUN_DIR/prefill/full.out 2>&1; echo \$? > $RUN_DIR/prefill/full.rc"
 ```
 
 ### AMD DP=2/TP=8 Two-Node Prefill Method
 
-AMD's 2-node prefill simulation uses the same Docker image and the following command sequence. This is a prefill-only server-mode benchmark; it does not include P→D KV-cache transfer.
+The accepted DP=2 reproduction uses the same Docker image and a 262,149-token server allowance for 262,144-token requests. This is a prefill-only server-mode benchmark; it does not include P→D KV-cache transfer.
 
 ```bash
-./launch_tp8_noep_aiter_mtp_node0.sh      # node 0
-./launch_tp8_noep_aiter_mtp_node1.sh      # node 1
-./launch_dp_router.sh                     # node 0
-./run_benchmark_mimo_pro_dp2_prefill.sh   # node 0
+./launch_dp2_node0.sh       # node 0
+./launch_dp2_node1.sh       # node 1
+Node0_IP=<node0-ib-ip> Node1_IP=<node1-ib-ip> ./launch_dp2_router.sh
+LOG_DIR=/data/xisun/dp2 ./benchmark_dp2_prefill.sh
 ```
 
 ### Archived Evidence
 
 | Path | Content |
 |------|---------|
+| [`data/raw-logs/20260713-amd-tuned-moe-retest/`](data/raw-logs/20260713-amd-tuned-moe-retest/) | Accepted 4/3/6 matrices: client logs, exit codes, summaries, JSON, SHA-256 manifest, context guard |
+| [`reports/20260713-amd-tuned-moe-retest.md`](reports/20260713-amd-tuned-moe-retest.md) | Independent tuned fused-MoE retest report and evidence map |
+| [`scripts/20260713-amd-tuned-moe-retest/`](scripts/20260713-amd-tuned-moe-retest/) | Accepted launch, benchmark, tuning CSV, and deterministic parser bundle |
 | [`data/raw-logs/20260707-ck-a8w8-gemm/`](data/raw-logs/20260707-ck-a8w8-gemm/) | CK A8W8 strict reproduction: benchmark logs, env gates, script SHA256 |
-| [`data/raw-logs/20260708-ck-a8w8-concurrency-extension/`](data/raw-logs/20260708-ck-a8w8-concurrency-extension/) | High-concurrency extension: decode + prefill sweep logs |
 | [`reports/20260707-ck-a8w8-gemm-strict-repro.md`](reports/20260707-ck-a8w8-gemm-strict-repro.md) | CK strict reproduction result summary |
-| [`reports/20260708-ck-a8w8-concurrency-extension.md`](reports/20260708-ck-a8w8-concurrency-extension.md) | Concurrency extension result summary |
-| [`scripts/20260707-amd-ck-a8w8/`](scripts/20260707-amd-ck-a8w8/) | CK launch + benchmark scripts |
-| [`scripts/20260708-ck-a8w8-concurrency-sweep/`](scripts/20260708-ck-a8w8-concurrency-sweep/) | Concurrency sweep scripts |
 
 ---
 
@@ -330,7 +295,8 @@ AMD's 2-node prefill simulation uses the same Docker image and the following com
 | Issue | Status | Impact |
 |-------|--------|--------|
 | **Decode CUDA Graph** | ⚠️ Critical config | Decode server must NOT use `--disable-cuda-graph`. Disabling causes 5× TPOT regression. Prefill server should disable it. |
-| **1P1D 256K high-concurrency prefill through router** | ⚠️ Boundary | In our 1P1D concurrency sweep, 256K prefill at concurrency ≥4 fails during warmup with no healthy prefill workers. AMD's 2-node DP=2 prefill-only simulation succeeds at concurrency 4/8, indicating the compute-side prefill capacity can scale; the remaining boundary is in the routed/E2E path. |
+| **DP=2 256K request framing** | ✅ Guarded | `random_input_len=262144` becomes 262,148 server-side tokens. Use `--context-length 262149` and validate service-log overflow count, not client success alone. |
+| **Run-to-run variance** | ⚠️ Not characterized | Each published matrix point is one run. Request counts are reported, but no multi-run standard deviation is claimed. |
 
 ---
 
@@ -339,8 +305,9 @@ AMD's 2-node prefill simulation uses the same Docker image and the following com
 - [MiMo-V2.5-Pro Model Card](https://huggingface.co/XiaomiMiMo/MiMo-V2.5-Pro)
 - [AMD SGLang Fork — `mimo_aiter_attn` branch](https://github.com/sammysun0711/sglang/tree/mimo_aiter_attn)
 - [AMD aiter (ROCm)](https://github.com/ROCm/aiter)
+- [MiMo model-specific fused-MoE tuning — `aiter@d725746`](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9)
 - [SGLang PD Disaggregation Docs](https://docs.sglang.io/docs/advanced_features/pd_disaggregation.md)
 
 ---
 
-*Last updated: 2026-07-08*
+*Last updated: 2026-07-13*
