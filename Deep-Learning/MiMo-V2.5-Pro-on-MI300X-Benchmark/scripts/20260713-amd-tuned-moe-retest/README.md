@@ -1,6 +1,8 @@
-# 2026-07-13 Tuned Fused-MoE Retest Bundle
+# 2026-07-13 Tuned Fused-MoE Retest Bundle (Superseded)
 
-This directory contains the accepted launch, benchmark, configuration, and result-parser files for run `tuned_moe_retest_20260713T014113Z`.
+This directory preserves the historical launch, benchmark, configuration, and result-parser files for run `tuned_moe_retest_20260713T014113Z`.
+
+> **Do not use this directory as the current 256K reproduction entry point.** Its launch scripts use `--context-length 262149`, which yields `max_req_input_len=262143` in this SGLang runtime. Client HTTP 200 responses caused the 1P1D and DP=2 256K rows to be misclassified. Use [`../20260713-amd-tuned-moe-expanded-concurrency/`](../20260713-amd-tuned-moe-expanded-concurrency/) instead; it uses context length 262151 and validates direct worker `/server_info` before measurement.
 
 ## Files
 
@@ -11,8 +13,8 @@ This directory contains the accepted launch, benchmark, configuration, and resul
 | `launch_pd_router.sh` | Start the PD router on port 40000; requires `PREFILL_IB_IP` and `DECODE_IB_IP` |
 | `benchmark_decode.sh` | Run the 8K/1K decode matrix at concurrency 16/32/64/128 |
 | `benchmark_1p_prefill.sh` | Run 8K/64K/256K 1P1D prefill at concurrency 4 |
-| `launch_dp2_node0.sh` | Start DP=2 node 0 with the validated 262,149-token server allowance |
-| `launch_dp2_node1.sh` | Start DP=2 node 1 with the validated 262,149-token server allowance |
+| `launch_dp2_node0.sh` | Historical DP=2 node 0 launch; 262149 is invalid for 256K input |
+| `launch_dp2_node1.sh` | Historical DP=2 node 1 launch; 262149 is invalid for 256K input |
 | `launch_dp2_router.sh` | Start the DP router; requires `Node0_IP` and `Node1_IP` |
 | `benchmark_dp2_prefill.sh` | Run 8K/64K/256K DP=2 prefill at concurrency 4/8 |
 | `mimo_v2_5_pro_b16_tuned_fmoe.csv` | Model-specific tuned fused-MoE configuration |
@@ -36,17 +38,7 @@ The tuned CSV SHA-256 must be:
 
 ## 256K Guard
 
-Do not reduce `--context-length 262149` in the 1P1D or DP=2 launch scripts when running `random_input_len=262144` and `random_output_len=1`. The server path adds four tokens during request construction. A 262,144-token server allowance returns an HTTP 200 error payload, which a client-only success counter can misclassify.
-
-After a DP=2 run, validate both client and service evidence:
-
-```bash
-grep -H "Successful requests:" "$LOG_DIR"/benchmark_*.log
-grep -H "Input token throughput" "$LOG_DIR"/benchmark_*.log
-grep -c "longer than the model's context length" node0_outer.log node1_outer.log
-```
-
-The accepted run has six `Successful requests: 32` entries and zero context-overflow entries on both nodes.
+The historical 262149 retry is withdrawn. For a 262,144-token input, use `--context-length 262151` and require each direct worker's `/server_info` response to report `max_req_input_len>=262145`. Validate exact request counts, client logs, both service logs, and DP=2 worker distribution. Client success alone is insufficient.
 
 ## Parse Results
 

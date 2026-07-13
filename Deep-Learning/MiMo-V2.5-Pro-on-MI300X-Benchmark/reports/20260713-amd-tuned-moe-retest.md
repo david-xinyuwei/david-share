@@ -1,5 +1,7 @@
 # AMD Tuned Fused-MoE Independent Retest (2026-07-13)
 
+> **Correction:** Later server-side validation proved that `--context-length 262149` still exposes only `max_req_input_len=262143` in this SGLang runtime. All 1P1D and DP=2 256K rows in this historical run are withdrawn. The valid Decode and 8K/64K Prefill rows remain unchanged. A 262,144-token request requires `--context-length 262151` and direct `/server_info` evidence showing `max_req_input_len>=262145`.
+
 ## Scope
 
 This report records an independent two-node Azure MI300X retest of the MiMo-V2.5-Pro model-specific fused-MoE tuning configuration introduced by [`sammysun0711/aiter@d725746`](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9).
@@ -30,7 +32,8 @@ The tuned CSV SHA-256 is `2c87ff1fa062c73e1941962f8630a335ea1e39d2dbb5b0c2d4971b
 |---|---:|---:|---:|---:|
 | Decode 8K/1K | 4 | 256 | 0 | 0 |
 | 1P1D Prefill 8K/64K/256K | 3 | 16 | 0 | 0 |
-| DP=2 Prefill 8K/64K/256K x concurrency 4/8 | 6 | 32 | 0 | 0 |
+| DP=2 Prefill 8K/64K x concurrency 4/8 | 4 accepted | 32 | 0 | 0 |
+| 1P1D and DP=2 Prefill 256K | 3 withdrawn | Client-reported success | 0 | Client-only gate insufficient |
 
 ## Decode Results
 
@@ -57,7 +60,7 @@ Output length is 1 token; concurrency is 4; each point has 16 successful request
 | 65,536 | 19,022.57 | +10.25% | 69.4% |
 | 262,144 | Excluded | Excluded | Excluded |
 
-The 8K and 64K points are valid. The 256K client summary is excluded: node 0 and node 1 each logged 11 context-overflow responses because the 262,144-token server allowance was smaller than the 262,148-token server-side request. A corrected 262,149-token rerun is required before publishing 1P1D 256K throughput.
+The 8K and 64K points are valid. The 256K client summary is excluded: node 0 and node 1 each logged 11 context-overflow responses because the 262,144-token server allowance was smaller than the 262,148-token server-side request. A corrected run requires `--context-length 262151` plus direct `/server_info` evidence showing `max_req_input_len>=262145` before publishing 1P1D 256K throughput.
 
 ## DP=2 Prefill Results
 
@@ -69,8 +72,8 @@ This is a prefill-only server-mode test with two TP=8 servers behind the DP rout
 | 8,192 | 8 | 32 | 45,992.94 | 22,996.47 | 72.0% |
 | 65,536 | 4 | 32 | 38,374.65 | 19,187.33 | 70.0% |
 | 65,536 | 8 | 32 | 38,255.28 | 19,127.64 | 69.8% |
-| 262,144 | 4 | 32 | 74,611.25 | 37,305.62 | 214.4% |
-| 262,144 | 8 | 32 | 78,613.96 | 39,306.98 | 225.9% |
+| 262,144 | 4 | Client reported 32 | Withdrawn | Withdrawn | Withdrawn |
+| 262,144 | 8 | Client reported 32 | Withdrawn | Withdrawn | Withdrawn |
 
 The H200 comparison is per-node on the MI300X side. Aggregate DP=2 throughput must not be compared directly with a single H200 node.
 
@@ -80,19 +83,20 @@ The same client-only false-success pattern affected the original 1P1D 256K point
 
 The supplied DP=2 server setting `--context-length 262144` was insufficient for a `random_input_len=262144` request on the standard server path. The server observed 262,148 tokens and returned an error payload with HTTP 200. A client-only success counter therefore produced a false positive.
 
-The invalid attempt is excluded. It produced 24 context-overflow entries on node 0 and 22 on node 1. The accepted rerun kept the requested input length at 262,144 and output length at 1, while increasing only the server allowance to 262,149. The final node logs contain zero context-overflow entries, and both 256K points completed 32/32 requests.
+The first invalid attempt produced 24 context-overflow entries on node 0 and 22 on node 1. A later retry increased the server allowance to 262149, but that setting is also invalid: the runtime computes `max_req_input_len = min(context_len - 1, max_token_pool_size - 1) - 5` and rejects `input_len >= max_req_input_len`. Therefore, 262149 exposes an effective request-input limit of 262143. The client still reported successful HTTP responses, so the two DP=2 256K summaries and the 1P1D 256K summary are withdrawn.
 
-This guard is part of the published reproduction scripts in `launch_dp2_node0.sh` and `launch_dp2_node1.sh`.
+The corrected reproduction uses `--context-length 262151`, captures `/server_info` from every direct worker, and requires `max_req_input_len>=262145` before measurement. The corrected scripts are under `scripts/20260713-amd-tuned-moe-expanded-concurrency/`.
 
 ## Evidence Map
 
 | Evidence | Path |
 |---|---|
-| Deterministic result JSON | [`data/raw-logs/20260713-amd-tuned-moe-retest/results.json`](../data/raw-logs/20260713-amd-tuned-moe-retest/results.json) |
+| Evidence status and withdrawal map | [`data/raw-logs/20260713-amd-tuned-moe-retest/STATUS.md`](../data/raw-logs/20260713-amd-tuned-moe-retest/STATUS.md) |
+| Historical derived JSON (256K rows withdrawn) | [`data/raw-logs/20260713-amd-tuned-moe-retest/results.json`](../data/raw-logs/20260713-amd-tuned-moe-retest/results.json) |
 | Decode client logs | [`data/raw-logs/20260713-amd-tuned-moe-retest/decode/`](../data/raw-logs/20260713-amd-tuned-moe-retest/decode/) |
 | 1P1D prefill client logs | [`data/raw-logs/20260713-amd-tuned-moe-retest/prefill/`](../data/raw-logs/20260713-amd-tuned-moe-retest/prefill/) |
 | DP=2 prefill client logs | [`data/raw-logs/20260713-amd-tuned-moe-retest/dp2/`](../data/raw-logs/20260713-amd-tuned-moe-retest/dp2/) |
-| Matrix and context checks | [`data/raw-logs/20260713-amd-tuned-moe-retest/checks/validation.txt`](../data/raw-logs/20260713-amd-tuned-moe-retest/checks/validation.txt) |
+| Historical matrix checks (superseded 262149 acceptance) | [`data/raw-logs/20260713-amd-tuned-moe-retest/checks/validation.txt`](../data/raw-logs/20260713-amd-tuned-moe-retest/checks/validation.txt) |
 | Public evidence hashes | [`data/raw-logs/20260713-amd-tuned-moe-retest/SHA256SUMS.txt`](../data/raw-logs/20260713-amd-tuned-moe-retest/SHA256SUMS.txt) |
 | Launch, benchmark, config, and parser bundle | [`scripts/20260713-amd-tuned-moe-retest/`](../scripts/20260713-amd-tuned-moe-retest/) |
 

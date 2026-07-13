@@ -1,0 +1,9 @@
+point=dp2:262144:1:16
+status=rejected
+reason=GPU memory-aperture fault
+evidence_index=2
+source_sha256=7e6e3a9ab1bfb8877fd1039c3e0dc6cff7bd59edc012e48c63c5d0fbe234d4aa
+fatal_lines:
+333: [2m2026-07-13 13:51:18[0m [33m WARN[0m [2msmg::core::worker[0m[2m:[0m [2m/sgl-workspace/sglang/sgl-model-gateway/src/core/worker.rs[0m[2m:[0m[2m948:[0m HTTP health check failed for http://<ip>:30001/server_info: reqwest::Error { kind: Request, url: "http://<ip>:30001/server_info", source: TimedOut }
+334: [2m2026-07-13 13:52:18[0m [33m WARN[0m [2msmg::core::worker[0m[2m:[0m [2m/sgl-workspace/sglang/sgl-model-gateway/src/core/worker.rs[0m[2m:[0m[2m948:[0m HTTP health check failed for http://<ip>:30001/server_info: reqwest::Error { kind: Request, url: "http://<ip>:30001/server_info", source: TimedOut }
+335: [2m2026-07-13 13:52:48[0m [33m WARN[0m [2msmg::core::worker[0m[2m:[0m [2m/sgl-workspace/sglang/sgl-model-gateway/src/core/worker.rs[0m[2m:[0m[2m948:[0m HTTP health check failed for http://<ip>:30001/server_info: reqwest::Error { kind: Request, url: "http://<ip>:30001/server_info", source: hyper_util::client::legacy::Error(Connect, ConnectError("tcp connect error", <ip>:30001, Os { code: 111, kind: ConnectionRefused, message: "Connection refused" })) }

@@ -23,34 +23,34 @@ English | [中文版](README-CN.md)
 
 ## Executive Summary
 
-**Prefill throughput (2026-07-13 tuned fused-MoE retest, 1P1D prefill stage, output=1; higher is better)**
+**Prefill throughput (2026-07-13 corrected single-full run, 1P1D prefill stage, output=1; higher is better)**
 
 | Context | Concurrency | MI300X tok/s | H200 tok/s | MI300X / H200 |
 |---:|---:|---:|---:|---:|
-| 8K | 4 | 20,780.79 | 31,950 | 65.0% |
-| 64K | 4 | 19,022.57 | 27,400 | 69.4% |
-| 256K | 4 | Excluded | 17,400 | Under corrected rerun |
+| 8K | 4 | 18,161.81 | 31,950 | 56.8% |
+| 64K | 4 | 18,763.17 | 27,400 | 68.5% |
+| 256K | 4 | 12,389.64 | 17,400 | 71.2% |
 
-The 8K and 64K points completed 16/16 requests with zero client or server error markers. The original 256K client summary is excluded because both 1P1D server logs contain context-overflow responses. For the independently retested DP=2 results, see [Prefill Scaling — AMD 2-Node DP=2/TP=8](#prefill-scaling--amd-2-node-dp2tp8).
+All twelve 1P1D Prefill points completed 16/16 requests with `rc=0`, context length 262151, and zero fatal markers in the Prefill, Decode, and router logs. The table above shows concurrency 4 for comparison with the H200 reference; the full concurrency 1/2/4/8 matrix is below.
 
 **Decode 8K/1K (2026-07-13 tuned fused-MoE retest, `SIMULATE_ACC_LEN=3`; TPOT: lower is better)**
 
 | BS | Concurrency | MI300X Median TPOT | H200 Median TPOT | MI300X/H200 TPOT | MI300X output tok/s | H200 output tok/s | MI300X/H200 tok/s |
 |---:|---:|---:|---:|---:|---:|---:|---:|
-| 16 | 16 | 10.97 ms | 11.59 ms | **0.95x** | 1,331.98 | 1,381 | 96.5% |
-| 32 | 32 | 13.93 ms | 12.56 ms | 1.11x | 1,936.24 | 2,549 | 76.0% |
-| 64 | 64 | 17.60 ms | 14.28 ms | 1.23x | 2,457.73 | 4,483 | 54.8% |
-| 128 | 128 | 17.30 ms | 18.25 ms | **0.95x** | 2,486.89 | 7,013 | 35.5% |
+| 16 | 16 | 10.79 ms | 11.59 ms | **0.93x** | 1,303.44 | 1,381 | 94.3% |
+| 32 | 32 | 13.91 ms | 12.56 ms | 1.11x | 1,930.10 | 2,549 | 75.7% |
+| 64 | 64 | 17.82 ms | 14.28 ms | 1.25x | 2,462.83 | 4,483 | 54.9% |
+| 128 | 128 | 16.93 ms | 18.25 ms | **0.93x** | 2,468.95 | 7,013 | 35.2% |
 
 In the decode table, `BS` equals target concurrency, matching the H200 reference load shape.
 
 ### Key Findings
 
-- **Validated 1P1D prefill improves at 8K and 64K:** +24.32% and +10.25% versus our 2026-07-07 strict CK baseline. The original 256K point is excluded pending the corrected rerun.
-- **High-concurrency decode is a throughput/latency trade-off:** output throughput improves by +12.33% at BS=64 and +12.56% at BS=128, while mean TPOT increases by +12.58% and +14.05% respectively.
-- **Decode median TPOT remains below the H200 reference at BS=16 and BS=128** (0.95x in both cases). Output throughput is reported separately because the serving topologies are not normalized.
-- **DP=2 prefill completed all six points independently:** aggregate throughput reaches 45,992.94 tok/s at 8K and 78,613.96 tok/s at 256K. The H200 comparison uses MI300X per-node throughput, not the 2-node aggregate.
-- **Accepted matrices passed:** 4 decode points at 256/256 requests, 2 valid 1P1D prefill points at 16/16, and 6 DP=2 points at 32/32. Client-only success is not sufficient for the excluded 1P1D 256K point.
+- **The corrected 1P1D Prefill matrix covers all 12 points:** 8K/64K/256K at concurrency 1/2/4/8, each with 16/16 requests. The 256K path is now valid at context length 262151 and stays near 12.4K tok/s across the concurrency sweep.
+- **Core Decode is reproducible across fresh services:** concurrency 16/32/64/128 differs by no more than 2.14% in output throughput and 1.02% in mean TPOT across two runs.
+- **Decode median TPOT remains below the H200 reference at BS=16 and BS=128** (0.93x in both cases). The expanded sweep accepts concurrency 8–192 and rejects 256 because of a prefill watchdog dump.
+- **Corrected DP=2 Prefill accepts 14/15 points:** 8K/64K concurrency 1/2/4/8/16 and 256K concurrency 1/2/4/8 complete 32/32 requests with valid two-worker distributions. The 256K/concurrency-16 point is rejected after a node-1 GPU memory-aperture fault.
+- **Expanded single-full verdict:** 35 points measured, 33 accepted, and 2 rejected boundaries: Decode concurrency 256 and DP=2 256K/concurrency 16. A separate fresh-service DP=2 256K/concurrency-2 attempt also hit a two-node GPU memory-aperture fault; its archived evidence remains part of the robustness verdict even though the targeted retry succeeded.
 
 ### Methodology Note
 
@@ -60,40 +60,64 @@ The public aiter commit adds model-specific fused-MoE tuning CSV files; it does 
 
 ## Decode — Detailed Results
 
-### Decode 8K/1K — Tuned Fused-MoE Independent Retest
+### Decode 8K/1K — Expanded Concurrency
 
-N = 256 requests per point; input length = 8,192; output length = 1,024; warmup = 32; target concurrency = 16/32/64/128; `full.rc=0`.
+Requests per point = 256; input length = 8,192; output length = 1,024; warmup = 32; target concurrency = 8/16/32/64/96/128/192/256. All clients exited `0` with 256/256 responses. Server evidence rejects concurrency 256 because the prefill service emitted watchdog thread dumps.
 
-| Concurrency | Successful requests | Output tok/s | Mean TPOT ms | Median TPOT ms | P99 TPOT ms | Output vs strict baseline | Mean TPOT vs strict baseline |
-|---:|---:|---:|---:|---:|---:|---:|---:|
-| 16 | 256 | 1,331.98 | 10.83 | 10.97 | 11.35 | +2.52% | +1.79% |
-| 32 | 256 | 1,936.24 | 13.65 | 13.93 | 14.35 | +1.33% | +1.11% |
-| 64 | 256 | 2,457.73 | 17.00 | 17.60 | 18.44 | +12.33% | +12.58% |
-| 128 | 256 | 2,486.89 | 16.56 | 17.30 | 17.92 | +12.56% | +14.05% |
+| Concurrency | Successful requests | Output tok/s | Mean TTFT ms | P99 TTFT ms | Mean TPOT ms | Median TPOT ms | P99 TPOT ms | Status |
+|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| 8 | 256 | 930.00 | 863.69 | 3,041.31 | 7.65 | 7.61 | 8.11 | Accepted |
+| 16 | 256 | 1,303.44 | 1,398.73 | 5,864.28 | 10.72 | 10.79 | 11.55 | Accepted |
+| 32 | 256 | 1,930.10 | 2,296.89 | 11,931.01 | 13.68 | 13.91 | 14.36 | Accepted |
+| 64 | 256 | 2,462.83 | 7,406.18 | 23,962.77 | 17.08 | 17.82 | 18.49 | Accepted |
+| 96 | 256 | 2,497.69 | 18,273.38 | 35,014.59 | 15.89 | 16.25 | 17.96 | Accepted |
+| 128 | 256 | 2,468.95 | 27,128.38 | 47,023.69 | 16.45 | 16.93 | 18.09 | Accepted |
+| 192 | 256 | 2,500.54 | 40,956.57 | 70,422.68 | 15.98 | 16.78 | 17.75 | Accepted |
+| 256 | 256 | 729.98 | 29,013.34 | 196,140.78 | 108.58 | 16.79 | 350.94 | Rejected: prefill watchdog |
 
-**Interpretation:** the material throughput gain appears at BS=64/128, but it comes with higher TPOT. Keep throughput and per-token latency as separate decision metrics.
+**Interpretation:** throughput plateaus around 2.47–2.50K tok/s at concurrency 64–192 while TTFT rises with queue depth. Concurrency 256 is outside the accepted operating envelope in this run; client exit code alone would have hidden the service failure.
+
+#### Core Decode Fresh-Service Repeatability
+
+The AMD headline concurrencies were measured in two separate fresh-service runs. Throughput differs by no more than 2.14%, and mean TPOT differs by no more than 1.02%.
+
+| Concurrency | Fresh run 1 tok/s | Fresh run 2 tok/s | Throughput delta | Mean TPOT delta |
+|---:|---:|---:|---:|---:|
+| 16 | 1,331.98 | 1,303.44 | -2.14% | -1.02% |
+| 32 | 1,936.24 | 1,930.10 | -0.32% | +0.22% |
+| 64 | 2,457.73 | 2,462.83 | +0.21% | +0.47% |
+| 128 | 2,486.89 | 2,468.95 | -0.72% | -0.66% |
 
 - Raw evidence: [`data/raw-logs/20260713-amd-tuned-moe-retest/decode/`](data/raw-logs/20260713-amd-tuned-moe-retest/decode/)
 - Detailed report: [`reports/20260713-amd-tuned-moe-retest.md`](reports/20260713-amd-tuned-moe-retest.md)
-- Reproduction bundle: [`scripts/20260713-amd-tuned-moe-retest/`](scripts/20260713-amd-tuned-moe-retest/)
+- Reproduction bundle: [`scripts/20260713-amd-tuned-moe-expanded-concurrency/`](scripts/20260713-amd-tuned-moe-expanded-concurrency/)
 
 ---
 
 ## Prefill — Detailed Results
 
-### Prefill — Tuned Fused-MoE Independent Retest
+### Prefill — Expanded Concurrency, Corrected Context
 
-N = 16 requests per input length; output length = 1; target concurrency = 4; `full.rc=0`.
+Requests per point = 16; output length = 1; target concurrency = 1/2/4/8; context length = 262151.
 
-| ISL/OSL | Concurrency | Successful requests | Input tok/s | vs strict baseline | MI300X / H200 |
-|---:|---:|---:|---:|---:|---:|
-| 8K/1 | 4 | 16 | 20,780.79 | +24.32% | 65.0% |
-| 64K/1 | 4 | 16 | 19,022.57 | +10.25% | 69.4% |
-| 256K/1 | 4 | Client reported 16 | Excluded | Excluded | Excluded |
+| Input | Concurrency | Successful requests | Input tok/s | Mean TTFT ms | Status |
+|---:|---:|---:|---:|---:|---|
+| 8K | 1 | 16 | 16,835.22 | 485.70 | Accepted |
+| 8K | 2 | 16 | 19,618.25 | 829.40 | Accepted |
+| 8K | 4 | 16 | 18,161.81 | 1,612.03 | Accepted |
+| 8K | 8 | 16 | 21,004.97 | 2,817.91 | Accepted |
+| 64K | 1 | 16 | 18,057.01 | 3,628.49 | Accepted |
+| 64K | 2 | 16 | 19,860.45 | 6,481.41 | Accepted |
+| 64K | 4 | 16 | 18,763.17 | 12,970.83 | Accepted |
+| 64K | 8 | 16 | 18,765.43 | 22,530.68 | Accepted |
+| 256K | 1 | 16 | 12,381.87 | 21,170.66 | Accepted |
+| 256K | 2 | 16 | 12,378.06 | 41,208.61 | Accepted |
+| 256K | 4 | 16 | 12,389.64 | 77,254.06 | Accepted |
+| 256K | 8 | 16 | 12,402.23 | 133,251.83 | Accepted |
 
-**Interpretation:** the tuned fused-MoE configuration improves the validated 8K and 64K points. The 256K client reported 16 successes, but node 0 and node 1 each logged 11 `262148 > 262144` context-overflow responses. That point is not a valid throughput measurement and is being rerun with a 262,149-token server allowance.
+**Interpretation:** 8K peaks at concurrency 8, while 64K is broadly flat from concurrency 2–8. The corrected 256K path stays near 12.4K tok/s; higher concurrency mainly increases TTFT. Because output length is 1, sustained GPU pressure is concentrated on Prefill while Decode performs only the transferred-KV handoff and one-token generation.
 
-- Raw evidence: [`data/raw-logs/20260713-amd-tuned-moe-retest/prefill/`](data/raw-logs/20260713-amd-tuned-moe-retest/prefill/)
+- Reproduction bundle: [`scripts/20260713-amd-tuned-moe-expanded-concurrency/`](scripts/20260713-amd-tuned-moe-expanded-concurrency/)
 
 ---
 
@@ -113,23 +137,33 @@ We independently retested the 2-node DP=2/TP=8 prefill-only server path with the
 
 ### Results
 
-| ISL/OSL | Concurrency | Aggregate input tok/s | Per-node input tok/s | Per-node / H200 |
-|---:|---:|---:|---:|---:|
-| 8K/1 | 4 | 43,221.12 | 21,610.56 | 67.6% |
-| 8K/1 | 8 | 45,992.94 | 22,996.47 | 72.0% |
-| 64K/1 | 4 | 38,374.65 | 19,187.33 | 70.0% |
-| 64K/1 | 8 | 38,255.28 | 19,127.64 | 69.8% |
-| 256K/1 | 4 | 74,611.25 | 37,305.62 | 214.4% |
-| 256K/1 | 8 | 78,613.96 | 39,306.98 | 225.9% |
+| ISL/OSL | Concurrency | Successful requests | Aggregate input tok/s | Worker request deltas | Status |
+|---:|---:|---:|---:|---:|---|
+| 8K/1 | 1 | 32 | 20,751.73 | 17/16 | Accepted |
+| 8K/1 | 2 | 32 | 41,201.86 | 16/17 | Accepted |
+| 8K/1 | 4 | 32 | 43,401.70 | 17/16 | Accepted |
+| 8K/1 | 8 | 32 | 46,113.92 | 16/17 | Accepted |
+| 8K/1 | 16 | 32 | 46,747.01 | 17/16 | Accepted |
+| 64K/1 | 1 | 32 | 19,695.02 | 16/17 | Accepted |
+| 64K/1 | 2 | 32 | 38,984.45 | 17/16 | Accepted |
+| 64K/1 | 4 | 32 | 38,382.03 | 16/17 | Accepted |
+| 64K/1 | 8 | 32 | 38,204.80 | 17/16 | Accepted |
+| 64K/1 | 16 | 32 | 38,155.28 | 16/17 | Accepted |
+| 256K/1 | 1 | 32 | 12,783.28 | 17/16 | Accepted |
+| 256K/1 | 2 | 32 | 25,063.73 | 17/16 | Accepted after targeted retry |
+| 256K/1 | 4 | 32 | 24,923.63 | 16/17 | Accepted |
+| 256K/1 | 8 | 32 | 24,765.29 | 17/16 | Accepted |
+| 256K/1 | 16 | 24 | 18,742.17 | Not produced | Rejected: GPU memory-aperture fault |
 
-All six points completed 32/32 requests. Per-node throughput is used for the H200 comparison; the 2-node aggregate is not compared directly with one H200 node.
+All accepted points passed exact request-count, context, client, two-worker distribution, and service-evidence gates. The rejected concurrency-16 client exited `0`, demonstrating again that client exit status is not sufficient. These are aggregate two-node capacity values; they must not be compared directly with one H200 node.
 
 ### 256K Correctness Guard
 
-With `random_input_len=262144`, the standard DP=2 server path observed 262,148 tokens after request construction. A server allowance of 262,144 therefore returned HTTP 200 error payloads that a client-only success counter could misclassify. The invalid attempt is excluded. The accepted run changes only the server allowance to `--context-length 262149`; both node logs contain zero context-overflow entries.
+With `random_input_len=262144`, HTTP 200 error payloads can be misclassified by a client-only success counter. The later 262149 retry is also withdrawn because this runtime exposes only `max_req_input_len=262143`. The corrected entry point uses `--context-length 262151`, captures `/server_info` from both workers, and requires `max_req_input_len>=262145` before measurement. A valid context gate does not guarantee runtime stability: the clean session failed at 256K/concurrency 2 on both nodes, and a targeted fresh-service retry later failed at concurrency 16 on node 1. Both incidents are disclosed.
 
-- Raw evidence: [`data/raw-logs/20260713-amd-tuned-moe-retest/dp2/`](data/raw-logs/20260713-amd-tuned-moe-retest/dp2/)
-- Validation record: [`data/raw-logs/20260713-amd-tuned-moe-retest/checks/validation.txt`](data/raw-logs/20260713-amd-tuned-moe-retest/checks/validation.txt)
+- Current sanitized evidence: [`data/raw-logs/20260713-amd-tuned-moe-expanded-concurrency/`](data/raw-logs/20260713-amd-tuned-moe-expanded-concurrency/)
+- Current report: [`reports/20260713-amd-tuned-moe-expanded-concurrency.md`](reports/20260713-amd-tuned-moe-expanded-concurrency.md)
+- Historical withdrawn evidence: [`data/raw-logs/20260713-amd-tuned-moe-retest/`](data/raw-logs/20260713-amd-tuned-moe-retest/)
 
 ---
 
@@ -174,7 +208,7 @@ With `random_input_len=262144`, the standard DP=2 server path observed 262,148 t
 
 ## Reproducing Results
 
-The accepted launch, benchmark, configuration, and parser bundle is archived under [`scripts/20260713-amd-tuned-moe-retest/`](scripts/20260713-amd-tuned-moe-retest/). Client logs and deterministic summaries are under [`data/raw-logs/20260713-amd-tuned-moe-retest/`](data/raw-logs/20260713-amd-tuned-moe-retest/).
+The current corrected launch, expanded concurrency, validation, and parser bundle is under [`scripts/20260713-amd-tuned-moe-expanded-concurrency/`](scripts/20260713-amd-tuned-moe-expanded-concurrency/). The earlier [`scripts/20260713-amd-tuned-moe-retest/`](scripts/20260713-amd-tuned-moe-retest/) bundle and its raw logs are retained as historical evidence; do not use its 262149 launch settings for current 256K reproduction.
 
 ### Prerequisites
 
@@ -235,7 +269,8 @@ test ! -d /sgl-workspace/aiter || { echo "ERROR: stale aiter shadows aiter_0625"
 # 4. Download model (both nodes or shared storage)
 huggingface-cli download XiaomiMiMo/MiMo-V2.5-Pro --local-dir /data/models/MiMo-V2.5-Pro
 
-# 5. Copy scripts/20260713-amd-tuned-moe-retest/ to /data/xisun/20260713-amd-tuned-moe-retest/
+# 5. Copy the current corrected bundle into the container
+# scripts/20260713-amd-tuned-moe-expanded-concurrency/ -> /data/mimo-tuned-expanded/
 
 # 6. Find IB IPs for your two nodes
 docker exec $CONTAINER bash -c "ibdev2netdev | head -1"
@@ -248,11 +283,11 @@ docker exec $CONTAINER bash -c "pkill -f 'sglang.launch_server|bench_serving' ||
 
 # 8. Launch servers (each in a separate terminal — foreground processes)
 # Terminal A — Node 1 (prefill):
-docker exec $CONTAINER bash -c "cd /data/xisun/20260713-amd-tuned-moe-retest && bash launch_pd_prefill.sh"
+docker exec $CONTAINER bash -c "cd /data/mimo-tuned-expanded && bash launch_pd_prefill.sh"
 # Terminal B — Node 2 (decode):
-docker exec $CONTAINER bash -c "cd /data/xisun/20260713-amd-tuned-moe-retest && bash launch_pd_decode.sh"
+docker exec $CONTAINER bash -c "cd /data/mimo-tuned-expanded && bash launch_pd_decode.sh"
 # Terminal C — Node 1 (router, after both servers print 'ready'):
-docker exec $CONTAINER bash -c "cd /data/xisun/20260713-amd-tuned-moe-retest && PREFILL_IB_IP=$PREFILL_IB_IP DECODE_IB_IP=$DECODE_IB_IP bash launch_pd_router.sh"
+docker exec $CONTAINER bash -c "cd /data/mimo-tuned-expanded && PREFILL_IB_IP=$PREFILL_IB_IP DECODE_IB_IP=$DECODE_IB_IP bash launch_pd_router.sh"
 
 # 9. Health + smoke test
 curl -fsS http://127.0.0.1:40000/health
@@ -262,29 +297,33 @@ docker exec $CONTAINER bash -c "python3 -m sglang.bench_serving \
   --num-prompts 2 --warmup-requests 1 --max-concurrency 1 --pd-separated"
 
 # 10. Run benchmarks
-RUN_DIR=/data/xisun/benchmark-$(date +%Y%m%d-%H%M%S)
-docker exec $CONTAINER bash -c "mkdir -p $RUN_DIR/decode $RUN_DIR/prefill; cd /data/xisun/20260713-amd-tuned-moe-retest; LOG_DIR=$RUN_DIR/decode bash benchmark_decode.sh > $RUN_DIR/decode/full.out 2>&1; echo \$? > $RUN_DIR/decode/full.rc"
-docker exec $CONTAINER bash -c "cd /data/xisun/20260713-amd-tuned-moe-retest; LOG_DIR=$RUN_DIR/prefill bash benchmark_1p_prefill.sh > $RUN_DIR/prefill/full.out 2>&1; echo \$? > $RUN_DIR/prefill/full.rc"
+RUN_DIR=/data/mimo-tuned-expanded/run-$(date +%Y%m%d-%H%M%S)
+docker exec $CONTAINER bash -c "mkdir -p $RUN_DIR/decode $RUN_DIR/prefill; cd /data/mimo-tuned-expanded; LOG_DIR=$RUN_DIR/decode bash benchmark_decode.sh > $RUN_DIR/decode/full.out 2>&1; echo \$? > $RUN_DIR/decode/full.rc"
+docker exec $CONTAINER bash -c "cd /data/mimo-tuned-expanded; LOG_DIR=$RUN_DIR/prefill bash benchmark_1p_prefill.sh > $RUN_DIR/prefill/full.out 2>&1; echo \$? > $RUN_DIR/prefill/full.rc"
 ```
 
 ### AMD DP=2/TP=8 Two-Node Prefill Method
 
-The accepted DP=2 reproduction uses the same Docker image and a 262,149-token server allowance for 262,144-token requests. This is a prefill-only server-mode benchmark; it does not include P→D KV-cache transfer.
+The corrected DP=2 reproduction uses the same Docker image and `--context-length 262151` for 262,144-token requests. It validates both workers through `/server_info` and uses explicit round-robin routing. This is a prefill-only server-mode benchmark; it does not include P→D KV-cache transfer.
 
 ```bash
+cd /data/mimo-tuned-expanded
 ./launch_dp2_node0.sh       # node 0
 ./launch_dp2_node1.sh       # node 1
 Node0_IP=<node0-ib-ip> Node1_IP=<node1-ib-ip> ./launch_dp2_router.sh
-LOG_DIR=/data/xisun/dp2 ./benchmark_dp2_prefill.sh
+LOG_DIR=/data/mimo-tuned-expanded/rep-1/dp2 ./benchmark_dp2_prefill.sh
 ```
+
+The sweep command is client-only convenience. Accepted DP=2 evidence must run each point with `benchmark_dp2_point.sh` and save the two worker request deltas as described in the current bundle README.
 
 ### Archived Evidence
 
 | Path | Content |
 |------|---------|
-| [`data/raw-logs/20260713-amd-tuned-moe-retest/`](data/raw-logs/20260713-amd-tuned-moe-retest/) | Accepted 4/3/6 matrices: client logs, exit codes, summaries, JSON, SHA-256 manifest, context guard |
+| [`data/raw-logs/20260713-amd-tuned-moe-retest/`](data/raw-logs/20260713-amd-tuned-moe-retest/) | Historical evidence; valid Decode and 8K/64K Prefill rows plus withdrawn 256K client summaries |
 | [`reports/20260713-amd-tuned-moe-retest.md`](reports/20260713-amd-tuned-moe-retest.md) | Independent tuned fused-MoE retest report and evidence map |
-| [`scripts/20260713-amd-tuned-moe-retest/`](scripts/20260713-amd-tuned-moe-retest/) | Accepted launch, benchmark, tuning CSV, and deterministic parser bundle |
+| [`scripts/20260713-amd-tuned-moe-expanded-concurrency/`](scripts/20260713-amd-tuned-moe-expanded-concurrency/) | Current corrected launch, expanded concurrency, validation, and parser bundle |
+| [`scripts/20260713-amd-tuned-moe-retest/`](scripts/20260713-amd-tuned-moe-retest/) | Superseded historical bundle; do not use for current 256K reproduction |
 | [`data/raw-logs/20260707-ck-a8w8-gemm/`](data/raw-logs/20260707-ck-a8w8-gemm/) | CK A8W8 strict reproduction: benchmark logs, env gates, script SHA256 |
 | [`reports/20260707-ck-a8w8-gemm-strict-repro.md`](reports/20260707-ck-a8w8-gemm-strict-repro.md) | CK strict reproduction result summary |
 
@@ -295,8 +334,9 @@ LOG_DIR=/data/xisun/dp2 ./benchmark_dp2_prefill.sh
 | Issue | Status | Impact |
 |-------|--------|--------|
 | **Decode CUDA Graph** | ⚠️ Critical config | Decode server must NOT use `--disable-cuda-graph`. Disabling causes 5× TPOT regression. Prefill server should disable it. |
-| **DP=2 256K request framing** | ✅ Guarded | `random_input_len=262144` becomes 262,148 server-side tokens. Use `--context-length 262149` and validate service-log overflow count, not client success alone. |
-| **Run-to-run variance** | ⚠️ Not characterized | Each published matrix point is one run. Request counts are reported, but no multi-run standard deviation is claimed. |
+| **DP=2 256K request framing** | ✅ Corrected | Use `--context-length 262151`; require direct worker `/server_info` with `max_req_input_len>=262145`, clean service logs, and two-worker distribution evidence. |
+| **Router health endpoint** | ✅ Corrected | SGLang `/health` performs synthetic generation and can fail under long Prefill load. Use the bundle's non-generative `/server_info` endpoint with a 30-second timeout and validate worker/router logs. |
+| **Run-to-run variance** | ⚠️ Partially characterized | The expanded matrix is one run per point. Decode concurrency 16/32/64/128 has a separate second fresh-service run; no full-matrix standard deviation is claimed. |
 
 ---
 

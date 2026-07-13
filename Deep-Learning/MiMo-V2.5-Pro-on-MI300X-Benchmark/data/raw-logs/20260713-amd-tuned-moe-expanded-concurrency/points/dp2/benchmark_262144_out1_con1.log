@@ -1,0 +1,90 @@
+/opt/venv/lib/python3.10/site-packages/transformers/modeling_rope_utils.py:1034: FutureWarning: `rope_config_validation` is deprecated and has been removed. Its functionality has been moved to RotaryEmbeddingConfigMixin.validate_rope method. PreTrainedConfig inherits this class, so please call self.validate_rope() instead. Also, make sure to use the new rope_parameters syntax. You can call self.standardize_rope_params() in the meantime.
+  warnings.warn(
+benchmark_args=Namespace(backend='sglang', base_url=None, host='<ip>', port=40000, ready_check_timeout_sec=60, dataset_name='random', dataset_path='/data/mimo-public/ShareGPT_V3_unfiltered_cleaned_split.json', speed_bench_category=None, speed_bench_output_len=512, model='/data/models/MiMo-V2.5-Pro', served_model_name=None, tokenizer=None, num_prompts=32, sharegpt_output_len=None, sharegpt_context_len=None, random_input_len=262144, random_output_len=1, random_range_ratio=1.0, image_count=1, image_resolution='1080p', random_image_count=False, image_format='jpeg', image_content='random', request_rate=inf, use_trace_timestamps=False, max_concurrency=1, output_file=None, output_details=False, print_requests=False, disable_tqdm=False, disable_stream=False, return_logprob=False, top_logprobs_num=0, token_ids_logprob=None, logprob_start_len=-1, return_routed_experts=False, seed=12345, disable_ignore_eos=False, temperature=0.0, top_p=1.0, extra_request_body=None, apply_chat_template=False, profile=False, plot_throughput=False, profile_activities=['CPU', 'GPU'], profile_start_step=None, profile_steps=None, profile_num_steps=None, profile_by_stage=False, profile_stages=None, profile_output_dir=None, profile_prefix=None, lora_name=None, lora_request_distribution='uniform', lora_zipf_alpha=1.5, prompt_suffix='', pd_separated=True, profile_prefill_url=None, profile_decode_url=None, flush_cache=True, warmup_requests=1, tokenize_prompt=False, gsp_num_groups=64, gsp_prompts_per_group=16, gsp_system_prompt_len=2048, gsp_question_len=128, gsp_output_len=256, gsp_range_ratio=1.0, gsp_fast_prepare=False, gsp_send_routing_key=False, gsp_num_turns=1, gsp_ordered=False, gsp_group_distribution='uniform', gsp_zipf_alpha=None, mooncake_slowdown_factor=1.0, mooncake_num_rounds=1, mooncake_workload='conversation', fake_prefill=False, tag=None, header=None)
+Waiting up to 60s for http://<ip>:40000/v1/models to become ready...
+Server ready in 0.0s.
+Namespace(backend='sglang', base_url=None, host='<ip>', port=40000, ready_check_timeout_sec=60, dataset_name='random', dataset_path='/data/mimo-public/ShareGPT_V3_unfiltered_cleaned_split.json', speed_bench_category=None, speed_bench_output_len=512, model='/data/models/MiMo-V2.5-Pro', served_model_name=None, tokenizer=None, num_prompts=32, sharegpt_output_len=None, sharegpt_context_len=None, random_input_len=262144, random_output_len=1, random_range_ratio=1.0, image_count=1, image_resolution='1080p', random_image_count=False, image_format='jpeg', image_content='random', request_rate=inf, use_trace_timestamps=False, max_concurrency=1, output_file=None, output_details=False, print_requests=False, disable_tqdm=False, disable_stream=False, return_logprob=False, top_logprobs_num=0, token_ids_logprob=None, logprob_start_len=-1, return_routed_experts=False, seed=12345, disable_ignore_eos=False, temperature=0.0, top_p=1.0, extra_request_body=None, apply_chat_template=False, profile=False, plot_throughput=False, profile_activities=['CPU', 'GPU'], profile_start_step=None, profile_steps=None, profile_num_steps=None, profile_by_stage=False, profile_stages=None, profile_output_dir=None, profile_prefix=None, lora_name=None, lora_request_distribution='uniform', lora_zipf_alpha=1.5, prompt_suffix='', pd_separated=True, profile_prefill_url=None, profile_decode_url=None, flush_cache=True, warmup_requests=1, tokenize_prompt=False, gsp_num_groups=64, gsp_prompts_per_group=16, gsp_system_prompt_len=2048, gsp_question_len=128, gsp_output_len=256, gsp_range_ratio=1.0, gsp_fast_prepare=False, gsp_send_routing_key=False, gsp_num_turns=1, gsp_ordered=False, gsp_group_distribution='uniform', gsp_zipf_alpha=None, mooncake_slowdown_factor=1.0, mooncake_num_rounds=1, mooncake_workload='conversation', fake_prefill=False, tag=None, header=None)
+
+#Input tokens: 8388608
+#Output tokens: 32
+Starting warmup with 1 sequences...
+Warmup completed with 1 sequences. Starting main benchmark run...
+
+  0%|          | 0/32 [00:00<?, ?it/s]
+  3%|▎         | 1/32 [00:20<10:42, 20.72s/it]
+  6%|▋         | 2/32 [00:41<10:20, 20.67s/it]
+  9%|▉         | 3/32 [01:01<09:57, 20.61s/it]
+ 12%|█▎        | 4/32 [01:22<09:32, 20.45s/it]
+ 16%|█▌        | 5/32 [01:42<09:16, 20.61s/it]
+ 19%|█▉        | 6/32 [02:03<08:51, 20.44s/it]
+ 22%|██▏       | 7/32 [02:23<08:32, 20.50s/it]
+ 25%|██▌       | 8/32 [02:44<08:10, 20.45s/it]
+ 28%|██▊       | 9/32 [03:04<07:53, 20.57s/it]
+ 31%|███▏      | 10/32 [03:25<07:32, 20.59s/it]
+ 34%|███▍      | 11/32 [03:46<07:11, 20.56s/it]
+ 38%|███▊      | 12/32 [04:06<06:51, 20.57s/it]
+ 41%|████      | 13/32 [04:27<06:31, 20.58s/it]
+ 44%|████▍     | 14/32 [04:47<06:10, 20.60s/it]
+ 47%|████▋     | 15/32 [05:08<05:49, 20.58s/it]
+ 50%|█████     | 16/32 [05:28<05:26, 20.41s/it]
+ 53%|█████▎    | 17/32 [05:48<05:06, 20.43s/it]
+ 56%|█████▋    | 18/32 [06:09<04:45, 20.43s/it]
+ 59%|█████▉    | 19/32 [06:29<04:24, 20.31s/it]
+ 62%|██████▎   | 20/32 [06:50<04:04, 20.41s/it]
+ 66%|██████▌   | 21/32 [07:10<03:44, 20.43s/it]
+ 69%|██████▉   | 22/32 [07:31<03:24, 20.47s/it]
+ 72%|███████▏  | 23/32 [07:51<03:05, 20.57s/it]
+ 75%|███████▌  | 24/32 [08:12<02:44, 20.57s/it]
+ 78%|███████▊  | 25/32 [08:32<02:23, 20.48s/it]
+ 81%|████████▏ | 26/32 [08:52<02:02, 20.42s/it]
+ 84%|████████▍ | 27/32 [09:12<01:41, 20.29s/it]
+ 88%|████████▊ | 28/32 [09:33<01:21, 20.41s/it]
+ 91%|█████████ | 29/32 [09:54<01:01, 20.43s/it]
+ 94%|█████████▍| 30/32 [10:14<00:41, 20.51s/it]
+ 97%|█████████▋| 31/32 [10:35<00:20, 20.57s/it]
+100%|██████████| 32/32 [10:56<00:00, 20.61s/it]
+100%|██████████| 32/32 [10:56<00:00, 20.51s/it]
+
+============ Serving Benchmark Result ============
+Backend:                                 sglang    
+Traffic request rate:                    inf       
+Max request concurrency:                 1         
+Successful requests:                     32        
+Benchmark duration (s):                  656.22    
+Total input tokens:                      8388608   
+Total input text tokens:                 8388608   
+Total generated tokens:                  32        
+Total generated tokens (retokenized):    32        
+Request throughput (req/s):              0.05      
+Input token throughput (tok/s):          12783.28  
+Output token throughput (tok/s):         0.05      
+Peak output token throughput (tok/s):    1.00      
+Peak concurrent requests:                2         
+Total token throughput (tok/s):          12783.33  
+Concurrency:                             1.00      
+----------------End-to-End Latency----------------
+Mean E2E Latency (ms):                   20505.91  
+Median E2E Latency (ms):                 20564.23  
+P90 E2E Latency (ms):                    20724.21  
+P95 E2E Latency (ms):                    20799.52  
+P99 E2E Latency (ms):                    20860.61  
+---------------Time to First Token----------------
+Mean TTFT (ms):                          20505.88  
+Median TTFT (ms):                        20564.20  
+P90 TTFT (ms):                           20724.18  
+P95 TTFT (ms):                           20799.49  
+P99 TTFT (ms):                           20860.58  
+-----Time per Output Token (excl. 1st token)------
+Mean TPOT (ms):                          0.00      
+Median TPOT (ms):                        0.00      
+P90 TPOT (ms):                           0.00      
+P95 TPOT (ms):                           0.00      
+P99 TPOT (ms):                           0.00      
+---------------Inter-Token Latency----------------
+Mean ITL (ms):                           0.00      
+Median ITL (ms):                         0.00      
+P90 ITL (ms):                            0.00      
+P95 ITL (ms):                            0.00      
+P99 ITL (ms):                            0.00      
+Max ITL (ms):                            0.00      
+==================================================

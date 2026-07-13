@@ -1,0 +1,25 @@
+incident=dp2-256k-c2-gpu-fault
+evidence_index=2
+source_sha256=750a291b35d06b3e3cc548a4d7bd584bada3edafbcf825b5d3c63b6861cbc966
+fatal_lines:
+3102: Memory access fault by GPU node-7 (Agent handle: 0x562691274d50) on address 0x7f4f463b8000. Reason: Unknown.
+3103: Memory access fault by GPU node-3 (Agent handle: 0x5583b6ced8e0) on address 0x7f492ea02000. Reason: Unknown.
+3104: Memory access fault by GPU node-6 (Agent handle: 0x55a564ed4c60) on address 0x7ecd125bd000. Reason: Unknown.
+3105: Memory access fault by GPU node-4 (Agent handle: 0x5627778138f0) on address 0x7f1e91d49000. Reason: Unknown.
+3106: Memory access fault by GPU node-5 (Agent handle: 0x5562665f69a0) on address 0x7ea4832cc000. Reason: Unknown.
+3115: Fatal Python error: Aborted
+3119:   File "/sgl-workspace/sglang_0625/python/sglang/srt/utils/watchdog.py", line 127 in _watchdog_thread
+3170: Fatal Python error: Aborted
+3174:   File "/sgl-workspace/sglang_0625/python/sglang/srt/utils/watchdog.py", line 127 in _watchdog_thread
+3226: Fatal Python error: Aborted
+3230:   File "/sgl-workspace/sglang_0625/python/sglang/srt/utils/watchdog.py", line 127 in _watchdog_thread
+3279: Fatal Python error: Aborted
+3283:   File "/sgl-workspace/sglang_0625/python/sglang/srt/utils/watchdog.py", line 127 in _watchdog_thread
+3334: Fatal Python error: Aborted
+3338:   File "/sgl-workspace/sglang_0625/python/sglang/srt/utils/watchdog.py", line 127 in _watchdog_thread
+3467: Thread 235546 (idle): "Thread-3 (_watchdog_thread)"
+3470:     _watchdog_thread (utils/watchdog.py:127)
+3570: Thread 235549 (idle): "Thread-3 (_watchdog_thread)"
+3573:     _watchdog_thread (utils/watchdog.py:127)
+3660: Thread 235548 (idle): "Thread-3 (_watchdog_thread)"
+3663:     _watchdog_thread (utils/watchdog.py:127)

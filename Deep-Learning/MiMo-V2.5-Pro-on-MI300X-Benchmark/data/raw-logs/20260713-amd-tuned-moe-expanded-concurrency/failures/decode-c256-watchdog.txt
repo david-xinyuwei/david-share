@@ -1,0 +1,26 @@
+point=decode:8192:1024:256
+status=rejected
+reason=prefill watchdog dump
+source_sha256=f7b4a3bf37703c62e911f3dc064d0c86e75fce5e9047c5c01bf3f2a0241372eb
+fatal_lines:
+8065: Memory access fault by GPU node-6 (Agent handle: 0x562e583a2150) on address 0x7ee377763000. Reason: Unknown.
+8066: Memory access fault by GPU node-9 (Agent handle: 0x55c5569d6e00) on address 0x7f295e25f000. Reason: Unknown.
+8067: Memory access fault by GPU node-3 (Agent handle: 0x55f539e40a50) on address 0x7f77c6830000. Reason: Unknown.
+8068: Memory access fault by GPU node-8 (Agent handle: 0x55c046c0f230) on address 0x7f1c4ddcd000. Reason: Unknown.
+8075: Fatal Python error: Aborted
+8132:   File "/sgl-workspace/sglang_0625/python/sglang/srt/utils/watchdog.py", line 127 in _watchdog_thread
+8170: Fatal Python error: Aborted
+8227:   File "/sgl-workspace/sglang_0625/python/sglang/srt/utils/watchdog.py", line 127 in _watchdog_thread
+8264: :0:rocdevice.cpp            :3586: 2360949868279 us:  Callback: Queue 0x7f70c8600000 aborting with error : HSA_STATUS_ERROR_MEMORY_APERTURE_VIOLATION: The agent attempted to access memory beyond the largest legal address. code: 0x29
+8265: Fatal Python error: Aborted
+8322:   File "/sgl-workspace/sglang_0625/python/sglang/srt/utils/watchdog.py", line 127 in _watchdog_thread
+8363: Fatal Python error: Aborted
+8421:   File "/sgl-workspace/sglang_0625/python/sglang/srt/utils/watchdog.py", line 127 in _watchdog_thread
+8458: Fatal Python error: Aborted
+8515:   File "/sgl-workspace/sglang_0625/python/sglang/srt/utils/watchdog.py", line 127 in _watchdog_thread
+8716: Thread 140018 (idle): "Thread-2 (_watchdog_thread)"
+8719:     _watchdog_thread (utils/watchdog.py:127)
+8910: Thread 141084 (idle): "Thread-2 (_watchdog_thread)"
+8913:     _watchdog_thread (utils/watchdog.py:127)
+9117: Thread 140037 (idle): "Thread-2 (_watchdog_thread)"
+9120:     _watchdog_thread (utils/watchdog.py:127)
