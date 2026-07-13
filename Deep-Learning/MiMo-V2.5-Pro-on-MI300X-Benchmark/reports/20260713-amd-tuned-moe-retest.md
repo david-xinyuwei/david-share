@@ -55,9 +55,9 @@ Output length is 1 token; concurrency is 4; each point has 16 successful request
 |---:|---:|---:|---:|
 | 8,192 | 20,780.79 | +24.32% | 65.0% |
 | 65,536 | 19,022.57 | +10.25% | 69.4% |
-| 262,144 | 39,905.41 | +6.43% | 229.3% |
+| 262,144 | Excluded | Excluded | Excluded |
 
-Prefill throughput improves at all three tested context lengths. The 256K comparison uses the same 262,144-token request length on MI300X and in the H200 reference.
+The 8K and 64K points are valid. The 256K client summary is excluded: node 0 and node 1 each logged 11 context-overflow responses because the 262,144-token server allowance was smaller than the 262,148-token server-side request. A corrected 262,149-token rerun is required before publishing 1P1D 256K throughput.
 
 ## DP=2 Prefill Results
 
@@ -75,6 +75,8 @@ This is a prefill-only server-mode test with two TP=8 servers behind the DP rout
 The H200 comparison is per-node on the MI300X side. Aggregate DP=2 throughput must not be compared directly with a single H200 node.
 
 ## 256K Correctness Guard
+
+The same client-only false-success pattern affected the original 1P1D 256K point: each server log contains 11 context-overflow responses. Its reported 39,905.41 tok/s is excluded.
 
 The supplied DP=2 server setting `--context-length 262144` was insufficient for a `random_input_len=262144` request on the standard server path. The server observed 262,148 tokens and returned an error payload with HTTP 200. A client-only success counter therefore produced a false positive.
 

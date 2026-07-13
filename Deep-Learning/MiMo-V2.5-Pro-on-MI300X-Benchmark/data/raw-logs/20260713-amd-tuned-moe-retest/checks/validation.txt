@@ -6,10 +6,16 @@ decode_successful_requests_per_point=256
 decode_error_markers=0
 decode_full_rc=0
 
-prefill_1p_points=3
+prefill_1p_client_points=3
+prefill_1p_valid_points=2
+prefill_1p_excluded_points=1
 prefill_1p_successful_requests_per_point=16
 prefill_1p_error_markers=0
 prefill_1p_full_rc=0
+invalid_1p_input_tokens=262144
+invalid_1p_server_input_tokens=262148
+invalid_1p_node0_context_overflow_count=11
+invalid_1p_node1_context_overflow_count=11
 
 prefill_dp2_points=6
 prefill_dp2_successful_requests_per_point=32

@@ -38,7 +38,7 @@ python3 -u -m sglang.launch_server \
   --disable-radix-cache \
   --disable-cuda-graph \
   --mem-fraction-static 0.85 \
-  --context-length 262144 \
+  --context-length 262149 \
   --max-running-requests 128 \
   --chunked-prefill-size 32768 \
   --attention-backend aiter \

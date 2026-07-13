@@ -29,9 +29,9 @@ English | [中文版](README-CN.md)
 |---:|---:|---:|---:|---:|
 | 8K | 4 | 20,780.79 | 31,950 | 65.0% |
 | 64K | 4 | 19,022.57 | 27,400 | 69.4% |
-| 256K | 4 | 39,905.41 | 17,400 | **229.3%** |
+| 256K | 4 | Excluded | 17,400 | Under corrected rerun |
 
-All three points completed 16/16 requests with zero client error markers. For the independently retested DP=2 results, see [Prefill Scaling — AMD 2-Node DP=2/TP=8](#prefill-scaling--amd-2-node-dp2tp8).
+The 8K and 64K points completed 16/16 requests with zero client or server error markers. The original 256K client summary is excluded because both 1P1D server logs contain context-overflow responses. For the independently retested DP=2 results, see [Prefill Scaling — AMD 2-Node DP=2/TP=8](#prefill-scaling--amd-2-node-dp2tp8).
 
 **Decode 8K/1K (2026-07-13 tuned fused-MoE retest, `SIMULATE_ACC_LEN=3`; TPOT: lower is better)**
 
@@ -46,11 +46,11 @@ In the decode table, `BS` equals target concurrency, matching the H200 reference
 
 ### Key Findings
 
-- **1P1D prefill improves at every tested length:** +24.32% at 8K, +10.25% at 64K, and +6.43% at 256K versus our 2026-07-07 strict CK baseline.
+- **Validated 1P1D prefill improves at 8K and 64K:** +24.32% and +10.25% versus our 2026-07-07 strict CK baseline. The original 256K point is excluded pending the corrected rerun.
 - **High-concurrency decode is a throughput/latency trade-off:** output throughput improves by +12.33% at BS=64 and +12.56% at BS=128, while mean TPOT increases by +12.58% and +14.05% respectively.
 - **Decode median TPOT remains below the H200 reference at BS=16 and BS=128** (0.95x in both cases). Output throughput is reported separately because the serving topologies are not normalized.
 - **DP=2 prefill completed all six points independently:** aggregate throughput reaches 45,992.94 tok/s at 8K and 78,613.96 tok/s at 256K. The H200 comparison uses MI300X per-node throughput, not the 2-node aggregate.
-- **All accepted matrices passed:** 4 decode points at 256/256 requests, 3 1P1D prefill points at 16/16, and 6 DP=2 points at 32/32, with zero client error markers.
+- **Accepted matrices passed:** 4 decode points at 256/256 requests, 2 valid 1P1D prefill points at 16/16, and 6 DP=2 points at 32/32. Client-only success is not sufficient for the excluded 1P1D 256K point.
 
 ### Methodology Note
 
@@ -89,9 +89,9 @@ N = 16 requests per input length; output length = 1; target concurrency = 4; `fu
 |---:|---:|---:|---:|---:|---:|
 | 8K/1 | 4 | 16 | 20,780.79 | +24.32% | 65.0% |
 | 64K/1 | 4 | 16 | 19,022.57 | +10.25% | 69.4% |
-| 256K/1 | 4 | 16 | 39,905.41 | +6.43% | 229.3% |
+| 256K/1 | 4 | Client reported 16 | Excluded | Excluded | Excluded |
 
-**Interpretation:** the tuned fused-MoE configuration improves 1P1D prefill throughput across all three tested request lengths. The largest relative gain is at 8K.
+**Interpretation:** the tuned fused-MoE configuration improves the validated 8K and 64K points. The 256K client reported 16 successes, but node 0 and node 1 each logged 11 `262148 > 262144` context-overflow responses. That point is not a valid throughput measurement and is being rerun with a 262,149-token server allowance.
 
 - Raw evidence: [`data/raw-logs/20260713-amd-tuned-moe-retest/prefill/`](data/raw-logs/20260713-amd-tuned-moe-retest/prefill/)
 

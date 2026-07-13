@@ -34,9 +34,9 @@ The tuned CSV SHA-256 must be:
 2c87ff1fa062c73e1941962f8630a335ea1e39d2dbb5b0c2d4971bcd55880ea7
 ```
 
-## DP=2 256K Guard
+## 256K Guard
 
-Do not reduce `--context-length 262149` in the DP=2 launch scripts when running `random_input_len=262144` and `random_output_len=1`. The standard server path adds four tokens during request construction. A 262,144-token server allowance returns an HTTP 200 error payload, which a client-only success counter can misclassify.
+Do not reduce `--context-length 262149` in the 1P1D or DP=2 launch scripts when running `random_input_len=262144` and `random_output_len=1`. The server path adds four tokens during request construction. A 262,144-token server allowance returns an HTTP 200 error payload, which a client-only success counter can misclassify.
 
 After a DP=2 run, validate both client and service evidence:
 

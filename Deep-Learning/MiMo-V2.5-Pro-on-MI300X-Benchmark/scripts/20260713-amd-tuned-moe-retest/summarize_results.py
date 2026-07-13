@@ -90,6 +90,10 @@ def enrich_decode(rows: list[dict]) -> None:
 def enrich_prefill(rows: list[dict]) -> None:
     for row in rows:
         input_tokens = int(row["input_tokens"])
+        row["valid"] = input_tokens != 262144
+        if not row["valid"]:
+            row["invalid_reason"] = "1P1D server logs contain 11 context-overflow responses per node"
+            continue
         throughput = float(row["input_tok_s"])
         row["vs_strict_pct"] = percent_change(throughput, STRICT_PREFILL_BASELINE[input_tokens])
         row["vs_h200_pct"] = throughput / H200_PREFILL[input_tokens] * 100.0
@@ -126,6 +130,19 @@ def render_markdown(run_id: str, data: dict) -> str:
         )
     prefill_rows = []
     for row in data["prefill"]:
+        if not row.get("valid", True):
+            prefill_rows.append(
+                [
+                    str(row["input_tokens"]),
+                    str(row["concurrency"]),
+                    str(row.get("successful_requests", "NA")),
+                    "EXCLUDED",
+                    "EXCLUDED",
+                    "EXCLUDED",
+                    "SERVER OVERFLOW",
+                ]
+            )
+            continue
         prefill_rows.append(
             [
                 str(row["input_tokens"]),
@@ -170,10 +187,15 @@ def render_markdown(run_id: str, data: dict) -> str:
 - The invalid attempt is excluded; its deterministic overflow counts are recorded in `checks/validation.txt`.
 - The accepted rerun kept `random_input_len=262144` and `random_output_len=1`, while setting the server allowance to 262,149 tokens. Both node service logs report zero context-overflow errors for the final six-point matrix.
 
+## 1P1D 256K Erratum
+
+- The original 1P1D 256K client summary is excluded. Node 0 and node 1 each logged 11 context-overflow responses while the client still reported 16 successful requests.
+- The published 1P1D launch scripts now use a 262,149-token server allowance. A corrected rerun is required before publishing 1P1D 256K throughput.
+
 ## Interpretation
 
 - Decode high-concurrency output throughput is the primary tuned-MoE gain; report TPOT separately because BS64/128 trade throughput for higher TPOT.
-- 1P1D Prefill gains are positive across 8K/64K/256K.
+- Validated 1P1D Prefill gains are positive at 8K and 64K; the original 256K point is excluded.
 - DP=2 results are prefill-only server-mode measurements and do not include P→D KV transfer.
 - The single-kernel 37.6% latency reduction is AMD-reported; no standalone microbenchmark log was provided in the shared evidence directory.
 """

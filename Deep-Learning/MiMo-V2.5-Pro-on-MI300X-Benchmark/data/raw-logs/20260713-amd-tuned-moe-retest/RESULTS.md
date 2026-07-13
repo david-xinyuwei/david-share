@@ -15,7 +15,7 @@
 |---|---|---|---|---|---|---|
 | 8192 | 4 | 16 | 20780.79 | +24.32% | 65.0% | 0 |
 | 65536 | 4 | 16 | 19022.57 | +10.25% | 69.4% | 0 |
-| 262144 | 4 | 16 | 39905.41 | +6.43% | 229.3% | 0 |
+| 262144 | 4 | 16 | EXCLUDED | EXCLUDED | EXCLUDED | SERVER OVERFLOW |
 
 ## DP=2 Prefill
 
@@ -34,9 +34,14 @@
 - The invalid attempt is excluded; its deterministic overflow counts are recorded in `checks/validation.txt`.
 - The accepted rerun kept `random_input_len=262144` and `random_output_len=1`, while setting the server allowance to 262,149 tokens. Both node service logs report zero context-overflow errors for the final six-point matrix.
 
+## 1P1D 256K Erratum
+
+- The original 1P1D 256K client summary is excluded. Node 0 and node 1 each logged 11 context-overflow responses while the client still reported 16 successful requests.
+- The published 1P1D launch scripts now use a 262,149-token server allowance. A corrected rerun is required before publishing 1P1D 256K throughput.
+
 ## Interpretation
 
 - Decode high-concurrency output throughput is the primary tuned-MoE gain; report TPOT separately because BS64/128 trade throughput for higher TPOT.
-- 1P1D Prefill gains are positive across 8K/64K/256K.
+- Validated 1P1D Prefill gains are positive at 8K and 64K; the original 256K point is excluded.
 - DP=2 results are prefill-only server-mode measurements and do not include P→D KV transfer.
 - The single-kernel 37.6% latency reduction is AMD-reported; no standalone microbenchmark log was provided in the shared evidence directory.

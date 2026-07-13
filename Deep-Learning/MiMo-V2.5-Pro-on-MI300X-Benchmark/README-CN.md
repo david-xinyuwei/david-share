@@ -29,9 +29,9 @@
 |---:|---:|---:|---:|---:|
 | 8K | 4 | 20,780.79 | 31,950 | 65.0% |
 | 64K | 4 | 19,022.57 | 27,400 | 69.4% |
-| 256K | 4 | 39,905.41 | 17,400 | **229.3%** |
+| 256K | 4 | 已排除 | 17,400 | 修正后重测中 |
 
-三个点均完成 16/16 requests，client error marker 为 0。独立复测的 DP=2 结果见 [Prefill Scaling — AMD 2-Node DP=2/TP=8](#prefill-scaling--amd-2-node-dp2tp8)。
+8K 和 64K 均完成 16/16 requests，client/server error marker 为 0。原始 256K client summary 已排除，因为两个 1P1D server logs 都存在 context-overflow response。独立复测的 DP=2 结果见 [Prefill Scaling — AMD 2-Node DP=2/TP=8](#prefill-scaling--amd-2-node-dp2tp8)。
 
 **Decode 8K/1K（2026-07-13 tuned fused-MoE 复测，`SIMULATE_ACC_LEN=3`；TPOT 越低越好）**
 
@@ -46,11 +46,11 @@ Decode 表里 `BS` 等于 target concurrency，和 H200 reference 的 load shape
 
 ### 关键发现
 
-- **1P1D prefill 在三个长度均提升：**相对 2026-07-07 独立 strict CK baseline，8K +24.32%、64K +10.25%、256K +6.43%。
+- **已验证的 1P1D prefill 在 8K/64K 提升：**相对 2026-07-07 独立 strict CK baseline，分别为 +24.32%/+10.25%。原始 256K 点已排除，等待修正后重测。
 - **高并发 decode 是 throughput/latency trade-off：** BS=64/128 的 output throughput 分别提升 +12.33%/+12.56%，mean TPOT 同时增加 +12.58%/+14.05%。
 - **Decode median TPOT 在 BS=16 和 BS=128 仍低于 H200 reference**（均为 0.95x）。Output throughput 因 serving topology 未归一化而单独呈现。
 - **DP=2 prefill 六个点均完成独立复测：**8K aggregate throughput 最高 45,992.94 tok/s，256K 达到 78,613.96 tok/s。与 H200 对比时使用 MI300X per-node throughput，不使用 2-node aggregate。
-- **所有验收矩阵均通过：**4 个 decode 点各 256/256、3 个 1P1D prefill 点各 16/16、6 个 DP=2 点各 32/32，client error marker 为 0。
+- **已接受矩阵均通过：**4 个 decode 点各 256/256、2 个有效 1P1D prefill 点各 16/16、6 个 DP=2 点各 32/32。对于已排除的 1P1D 256K 点，不能只看 client success。
 
 ### 方法论说明
 
@@ -89,9 +89,9 @@ N = 16 requests/input length；output length = 1；target concurrency = 4；`ful
 |---:|---:|---:|---:|---:|---:|
 | 8K/1 | 4 | 16 | 20,780.79 | +24.32% | 65.0% |
 | 64K/1 | 4 | 16 | 19,022.57 | +10.25% | 69.4% |
-| 256K/1 | 4 | 16 | 39,905.41 | +6.43% | 229.3% |
+| 256K/1 | 4 | Client reported 16 | 已排除 | 已排除 | 已排除 |
 
-**解读**：tuned fused-MoE configuration 在三个请求长度都提升 1P1D prefill throughput，其中 8K 相对增益最大。
+**解读**：tuned fused-MoE configuration 在已验证的 8K/64K 点提升 throughput。256K client 虽报告 16 successes，但 node0/node1 各记录 11 条 `262148 > 262144` context overflow；该点不是有效 throughput measurement，现正用 262,149-token server allowance 重测。
 
 - 原始证据：[`data/raw-logs/20260713-amd-tuned-moe-retest/prefill/`](data/raw-logs/20260713-amd-tuned-moe-retest/prefill/)
 
