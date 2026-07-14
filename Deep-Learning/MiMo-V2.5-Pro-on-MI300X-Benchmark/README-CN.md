@@ -23,17 +23,17 @@
 
 ## 核心结论
 
-**Prefill throughput（2026-07-13 corrected single-full run，1P1D prefill 阶段，output=1；越高越好）**
+**Concurrency 4 下的 best observed valid Prefill throughput（独立 fresh-service runs，output=1；越高越好）**
 
 | Context | Concurrency | MI300X tok/s | H200 tok/s | MI300X / H200 |
 |---:|---:|---:|---:|---:|
-| 8K | 4 | 18,161.81 | 31,950 | 56.8% |
-| 64K | 4 | 18,763.17 | 27,400 | 68.5% |
-| 256K | 4 | 12,393.19 | 17,400 | 71.2% |
+| 8K | 4 | 20,305.98 | 31,950 | 63.6% |
+| 64K | 4 | 18,983.91 | 27,400 | 69.3% |
+| 256K | 4 | 12,864.96 | 17,400 | 73.9% |
 
-全部 12 个 1P1D Prefill 点均完成 16/16 requests，`rc=0`、context length 262151，且 Prefill、Decode、router 三类日志 fatal marker 均为 0。上表采用最新独立 256K/c4 确认结果；完整矩阵值为 12,389.64 tok/s，仅低 0.03%。下文给出完整 concurrency 1/2/4/8 矩阵。
+上表逐行选择同一 workload 下、来自独立归档 fresh-service runs 的最高 accepted measurement。选值必须通过精确 request/output count、worker capacity 和零 fatal/context marker；这些行不代表同一次 paired matrix。Canonical 35-point single-full run 在下文保持不变，其中 256K/c4 为 12,389.64 tok/s；后续 exact-token confirmation 高 3.84%。
 
-> **256K supplier-comparison boundary：**当前有效的 Microsoft 结果是 `12,393.19 tok/s`（256K/concurrency 4），并有 16/16 retokenized outputs。AMD 提供的 launch script 固定 `--context-length 262144`；我们按同一脚本复现出 `39,905.41 tok/s`，但只有 5/16 retokenized outputs，并在 service logs 中出现 11 次 `262148 > 262144`。HTTP 200 error payload 被当成完整成功输入，形成 false-success 指标。AMD 未提供其 `39,279.65 tok/s` screenshot row 对应的 raw client/service logs，因此我们不推断该轮的精确失败数量。修正路径只把两端 server allowance 改为 262151，并通过 direct capacity 和 service-log gates。因此不得使用 screenshot value 计算有效的 256K uplift 或 deficit。
+> **256K supplier-comparison boundary：**最新有效结果是 `12,864.96 tok/s`（256K/concurrency 4），使用 exact token IDs，16/16 retokenized outputs，且 context/fatal marker 为 0。Checksum-locked on-node AMD scripts 可复现 `39,627.96 tok/s`（相对 screenshot +0.89%），但只有 5/16 retokenized outputs，并出现 11 次匹配的 service errors。日志中的 262,148-token validation value 是 262,144 个 prompt tokens 加 4 个 EAGLE reserved draft slots。HTTP 200 error payload 被计为完整成功输入，形成 false-success 指标。修正路径在两端使用 `--context-length 262151`，client 使用 `--tokenize-prompt`。AMD 未提供其 `39,279.65 tok/s` screenshot row 对应的 raw client/service logs，因此不据此计算有效 uplift 或 deficit。
 
 **7 月 7 日 CK 到 7 月 13 日 tuned-MoE 的有效实测对比（独立 fresh-service runs）**
 
@@ -48,6 +48,20 @@
 
 这些有效点确认 tuned-MoE 在 7 月 7 日 CK 路径上继续提升，尤其体现在 8K/64K Prefill 和 Decode c64/c128。详见[有效复现与 256K context-fix 报告](reports/20260714-valid-reproduction-and-256k-context-fix.md)。
 
+**AMD headline workloads 的 best observed valid values**
+
+| Surface | Workload | Best MI300X tok/s | AMD tok/s | 差异 | Evidence phase |
+|---|---|---:|---:|---:|---|
+| Decode | 8K/1K, c16 | 1,331.98 | 1,394.70 | -4.50% | Fresh-service repeat 1 |
+| Decode | 8K/1K, c32 | 1,936.24 | 2,042.42 | -5.20% | Fresh-service repeat 1 |
+| Decode | 8K/1K, c64 | 2,465.01 | 2,454.64 | +0.42% | Checksum-locked on-node scripts |
+| Decode | 8K/1K, c128 | 2,486.89 | 2,473.74 | +0.53% | Fresh-service repeat 1 |
+| 1P1D Prefill | 8K/1, c4 | 20,305.98 | 20,689.70 | -1.85% | AMD exact-script reproduction |
+| 1P1D Prefill | 64K/1, c4 | 18,983.91 | 18,689.51 | +1.58% | Checksum-locked on-node scripts |
+| 1P1D Prefill | 256K/1, c4 | 12,864.96 | 39,279.65 | 不可比较 | Exact-token corrected run；supplier row 缺少 validity evidence |
+
+该表是透明的 cross-run selection，不是 same-session paired A/B。结构化 provenance 见 [`data/20260714-best-observed-valid.tsv`](data/20260714-best-observed-valid.tsv)。
+
 **Decode 8K/1K（2026-07-13 tuned fused-MoE 复测，`SIMULATE_ACC_LEN=3`；TPOT 越低越好）**
 
 | BS | Concurrency | MI300X Median TPOT | H200 Median TPOT | MI300X/H200 TPOT | MI300X output tok/s | H200 output tok/s | MI300X/H200 tok/s |
@@ -61,9 +75,9 @@ Decode 表里 `BS` 等于 target concurrency，和 H200 reference 的 load shape
 
 ### 关键发现
 
-- **修正后的 1P1D Prefill 覆盖全部 12 点：**8K/64K/256K 的 concurrency 1/2/4/8 均为 16/16 requests。256K 在 context length 262151 下已有效，整个并发 sweep 稳定在约 12.4K tok/s。
-- **AMD 原始 1P1D 脚本可复现其有效 c4 行：**复制 source scripts 后，仅将 benchmark token list 去掉无效 256K，8K/1 实测 `20,305.98 tok/s`，对 AMD `20,689.70` 为 -1.85%；64K/1 实测 `18,694.26 tok/s`，对 `18,689.51` 为 +0.03%。
-- **256K 的 1P1D supplier screenshot 在该 runtime 中不是有效行：**同一脚本可以复现约 39K 的数字，但只有 5/16 retokenized outputs，并出现 11 次 service overflow。修正后的 c4 确认值为 `12,393.19 tok/s`、16/16，与完整矩阵值仅差 0.03%。
+- **修正后的 1P1D Prefill 覆盖全部 12 点：**8K/64K/256K 的 concurrency 1/2/4/8 均为 16/16 requests。Canonical 256K sweep 稳定在约 12.4K tok/s；后续 exact-token c4 confirmation 达到 `12,864.96 tok/s`，并有 16/16 exact outputs。
+- **AMD 原始 1P1D workload 的有效 c4 行可以复现：**8K/1 的 best accepted result 为 `20,305.98 tok/s`，对 AMD `20,689.70` 为 -1.85%；最新 checksum-locked 64K/1 为 `18,983.91 tok/s`，对 `18,689.51` 为 +1.58%。
+- **256K 的 1P1D supplier screenshot 在该 runtime 中不是有效行：**checksum-locked on-node scripts 可复现 `39,627.96 tok/s`，但只有 5/16 retokenized outputs，并出现 11 次 service overflow。Exact-token corrected c4 为 `12,864.96 tok/s`、16/16，且 context/fatal marker 为 0。
 - **核心 Decode 可在 fresh services 间复现：** concurrency 16/32/64/128 的两次 run 中，output throughput 最大偏差 2.14%，mean TPOT 最大偏差 1.02%。
 - **Decode median TPOT 在 BS=16 和 BS=128 仍低于 H200 reference**（均为 0.93x）。扩展 sweep 接受 concurrency 8–192；256 因 Prefill watchdog dump 被拒绝。
 - **修正后的 DP=2 Prefill 接受 14/15 点：**8K/64K 的 concurrency 1/2/4/8/16，以及 256K 的 concurrency 1/2/4/8，均完成 32/32 requests 并有有效的双 worker distribution。256K/concurrency-16 因 node 1 GPU memory-aperture fault 被拒绝。
@@ -132,7 +146,7 @@ AMD headline concurrencies 在两次独立 fresh-service run 中测量。Through
 | 256K | 4 | 16 | 12,389.64 | 77,254.06 | 已接受 |
 | 256K | 8 | 16 | 12,402.23 | 133,251.83 | 已接受 |
 
-**解读**：8K 在 concurrency 8 达到最高值，64K 在 concurrency 2–8 基本持平。修正后的 256K 路径稳定在约 12.4K tok/s；独立 c4 确认值为 12,393.19 tok/s，并有 16/16 retokenized outputs。提高 concurrency 主要增加 TTFT。由于 output length = 1，持续 GPU 压力集中在 Prefill；Decode 只完成 transferred-KV handoff 和 1-token generation。
+**解读**：8K 在 concurrency 8 达到最高值，64K 在 concurrency 2–8 基本持平。Canonical corrected 256K matrix 稳定在约 12.4K tok/s。后续 exact-token c4 run 消除了 text decode/re-encode drift，达到 12,864.96 tok/s，并有 16/16 retokenized outputs。提高 concurrency 主要增加 TTFT。由于 output length = 1，持续 GPU 压力集中在 Prefill；Decode 只完成 transferred-KV handoff 和 1-token generation。
 
 - 复现 bundle：[`scripts/20260713-amd-tuned-moe-expanded-concurrency/`](scripts/20260713-amd-tuned-moe-expanded-concurrency/)
 
@@ -176,7 +190,7 @@ AMD headline concurrencies 在两次独立 fresh-service run 中测量。Through
 
 ### 256K Correctness Guard
 
-当 `random_input_len=262144` 时，HTTP 200 error payload 可能被 client-only success counter 误判。后续 262149 retry 同样撤回，因为该 runtime 只暴露 `max_req_input_len=262143`。修正后的入口使用 `--context-length 262151`，采集两个 worker 的 `/server_info`，并要求测量前 `max_req_input_len>=262145`。正确的 context gate 仍不等于 runtime stability：clean session 在 256K/concurrency 2 上双节点失败，targeted fresh-service retry 又在 concurrency 16 上发生 node 1 failure，两次 incident 均明确披露。
+当 `random_input_len=262144` 时，HTTP 200 error payload 可能被 client-only success counter 误判。EAGLE 会预留 4 个 draft-token slots，历史 text client 还可能在 decode/re-encode 时改变长度。后续 262149 retry 同样撤回，因为该 runtime 只暴露 `max_req_input_len=262143`。修正后的入口使用 `--context-length 262151`、`--tokenize-prompt`、direct worker `/server_info`，并要求测量前 `max_req_input_len>=262145`。正确的 context gate 仍不等于 runtime stability：clean session 在 256K/concurrency 2 上双节点失败，targeted fresh-service retry 又在 concurrency 16 上发生 node 1 failure，两次 incident 均明确披露。
 
 - 当前脱敏证据：[`data/raw-logs/20260713-amd-tuned-moe-expanded-concurrency/`](data/raw-logs/20260713-amd-tuned-moe-expanded-concurrency/)
 - 当前报告：[`reports/20260713-amd-tuned-moe-expanded-concurrency.md`](reports/20260713-amd-tuned-moe-expanded-concurrency.md)
@@ -201,9 +215,9 @@ AMD headline concurrencies 在两次独立 fresh-service run 中测量。Through
 | 组件 | 版本 | 说明 |
 |------|------|------|
 | Docker 镜像 | `rocm/sgl-dev:v0.5.11-rocm720-mi30x-20260510` | AMD 0510 build, SHA `bb9d2e5ab1a6` |
-| SGLang | AMD fork: [sammysun0711/sglang](https://github.com/sammysun0711/sglang) branch `mimo_aiter_attn`, commit `db840d935` | CK A8W8 blockwise GEMM bpreshuffle + AITER INT8 quick-reduce |
+| SGLang | 7 月 14 日 package `0.0.0.dev14147+g2f9b9aedf.d20260706`、editable source HEAD `2f9b9aedf`；7 月 7 日 CK reference 使用 `db840d935` | Runtime 按 evidence phase 报告，不宣称为同一个 pristine checkout |
+| AITER | 7 月 14 日 active checkout `00e94abf`；tuned CSV SHA-256 `2c87ff1...80ea7` | Tuned CSV 与公开 `d725746` 文件 byte-identical |
 | ROCm | 7.2.0 | |
-| aiter | [sammysun0711/aiter](https://github.com/sammysun0711/aiter) commit [`d725746`](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9) | MiMo 模型专用 fused-MoE tuning CSV；runtime-local 等价 commit `00e94abf1` |
 | GEMM 路径 | **CK A8W8 blockwise bpreshuffle** | `SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1` |
 | Mooncake | `0.3.7.post2` | PD 分离 KV cache 传输 |
 | PyTorch | 2.9.1+rocm7.2.0 | ROCm backend |
@@ -335,6 +349,10 @@ LOG_DIR=/data/mimo-tuned-expanded/rep-1/dp2 ./benchmark_dp2_prefill.sh
 
 | 路径 | 内容 |
 |------|------|
+| [`data/20260714-best-observed-valid.tsv`](data/20260714-best-observed-valid.tsv) | 带逐行 evidence phase 的结构化 best-observed valid values |
+| [`data/raw-logs/20260714-exact-token-and-onnode/`](data/raw-logs/20260714-exact-token-and-onnode/) | 最新 exact-token 256K 与 checksum-locked on-node 摘要、runtime/source hashes 和 SHA manifest |
+| [`reports/20260714-valid-reproduction-and-256k-context-fix.md`](reports/20260714-valid-reproduction-and-256k-context-fix.md) | 有效 tuned-MoE 对齐、best-observed 选值策略与修正后的 256K evidence |
+| [`scripts/20260714-exact-token-256k/`](scripts/20260714-exact-token-256k/) | Exact-token 256K client 与 fail-closed validator |
 | [`data/raw-logs/20260713-amd-tuned-moe-retest/`](data/raw-logs/20260713-amd-tuned-moe-retest/) | 历史证据：有效的 Decode 与 8K/64K Prefill，以及已撤回的 256K client summaries |
 | [`reports/20260713-amd-tuned-moe-retest.md`](reports/20260713-amd-tuned-moe-retest.md) | Tuned fused-MoE 独立复测报告和 evidence map |
 | [`scripts/20260713-amd-tuned-moe-expanded-concurrency/`](scripts/20260713-amd-tuned-moe-expanded-concurrency/) | 当前修正后的 launch、扩展并发、验证和 parser bundle |
@@ -349,7 +367,7 @@ LOG_DIR=/data/mimo-tuned-expanded/rep-1/dp2 ./benchmark_dp2_prefill.sh
 | 问题 | 状态 | 影响 |
 |------|------|------|
 | **Decode CUDA Graph** | ⚠️ 关键配置 | Decode server 禁止使用 `--disable-cuda-graph`，否则 TPOT 退化 5 倍。Prefill server 应禁用。 |
-| **DP=2 256K request framing** | ✅ 已修正 | 使用 `--context-length 262151`；要求直接 worker `/server_info` 的 `max_req_input_len>=262145`、干净的 service logs 和双 worker distribution evidence。 |
+| **256K request framing** | ✅ 已修正 | 使用 `--context-length 262151` 和 `--tokenize-prompt`；要求 direct worker `/server_info` 的 `max_req_input_len>=262145`、精确 output count、干净的 service logs，并在 DP=2 时保存 worker distribution evidence。 |
 | **Router health endpoint** | ✅ 已修正 | SGLang `/health` 会执行 synthetic generation，在长 Prefill 负载下可能失败。使用 bundle 中非生成型 `/server_info` endpoint 和 30 秒 timeout，并验证 worker/router logs。 |
 | **Run-to-run variance** | ⚠️ 部分刻画 | 扩展矩阵每点运行一轮；Decode concurrency 16/32/64/128 另有第二次 fresh-service run。不声称 full-matrix standard deviation。 |
 

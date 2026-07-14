@@ -1,0 +1,14 @@
+run_id=amd_1p1d_256k_exacttokens_20260714T114857Z
+tokenize_prompt=true
+input_tokens_per_request=262144
+output_tokens_per_request=1
+concurrency=4
+successful_requests=16
+retokenized_outputs=16
+total_input_tokens=4194304
+benchmark_duration_s=326.03
+input_tok_s=12864.96
+prefill_context_errors=0
+decode_context_errors=0
+hard_fatal_markers=0
+status=ACCEPTED

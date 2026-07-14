@@ -23,17 +23,17 @@ English | [中文版](README-CN.md)
 
 ## Executive Summary
 
-**Prefill throughput (2026-07-13 corrected single-full run, 1P1D prefill stage, output=1; higher is better)**
+**Best observed valid Prefill throughput at concurrency 4 (independent fresh-service runs, output=1; higher is better)**
 
 | Context | Concurrency | MI300X tok/s | H200 tok/s | MI300X / H200 |
 |---:|---:|---:|---:|---:|
-| 8K | 4 | 18,161.81 | 31,950 | 56.8% |
-| 64K | 4 | 18,763.17 | 27,400 | 68.5% |
-| 256K | 4 | 12,393.19 | 17,400 | 71.2% |
+| 8K | 4 | 20,305.98 | 31,950 | 63.6% |
+| 64K | 4 | 18,983.91 | 27,400 | 69.3% |
+| 256K | 4 | 12,864.96 | 17,400 | 73.9% |
 
-All twelve 1P1D Prefill points completed 16/16 requests with `rc=0`, context length 262151, and zero fatal markers in the Prefill, Decode, and router logs. The table above uses the latest independent 256K/c4 confirmation; the full matrix value was 12,389.64 tok/s, only 0.03% lower. The full concurrency 1/2/4/8 matrix is below.
+Each row above selects the highest accepted measurement at the same workload from independently archived fresh-service runs. Selection requires exact request/output counts, valid worker capacity, and zero fatal/context markers; these rows are not presented as one paired matrix. The canonical 35-point single-full run remains unchanged below. Its 256K/c4 value was 12,389.64 tok/s; the later exact-token confirmation is 3.84% higher.
 
-> **256K supplier-comparison boundary:** the valid Microsoft result is `12,393.19 tok/s` at 256K/concurrency 4 with 16/16 retokenized outputs. The supplied AMD launch script hard-codes `--context-length 262144`; our same-script reproduction produced `39,905.41 tok/s` but only 5/16 retokenized outputs and eleven `262148 > 262144` service errors. HTTP 200 error payloads were counted as full successful inputs, creating a false-success metric. AMD did not supply the raw client/service logs for its `39,279.65 tok/s` screenshot row, so we do not claim its exact failure count. The corrected path changes only both server allowances to 262151 and passes direct capacity and service-log gates. Do not calculate a valid 256K uplift or deficit from the screenshot value.
+> **256K supplier-comparison boundary:** the latest valid result is `12,864.96 tok/s` at 256K/concurrency 4 with exact token IDs, 16/16 retokenized outputs, and zero context/fatal markers. The checksum-locked on-node AMD scripts reproduce `39,627.96 tok/s` (+0.89% versus the screenshot) but only 5/16 retokenized outputs and eleven matching service errors. The logged 262,148-token validation value is 262,144 prompt tokens plus four EAGLE-reserved draft slots. HTTP 200 error payloads were counted as full successful inputs, creating a false-success metric. The corrected path uses `--context-length 262151` on both workers and `--tokenize-prompt` on the client. AMD did not supply the raw client/service logs for its `39,279.65 tok/s` screenshot row, so no valid uplift or deficit is calculated from that row.
 
 **Valid July 7 CK to July 13 tuned-MoE comparison (independent fresh-service runs)**
 
@@ -48,6 +48,20 @@ All twelve 1P1D Prefill points completed 16/16 requests with `rc=0`, context len
 
 These valid points confirm a further gain over the July 7 CK path, especially at 8K/64K Prefill and Decode c64/c128. See the [valid reproduction and 256K context-fix report](reports/20260714-valid-reproduction-and-256k-context-fix.md).
 
+**Best observed valid values at AMD headline workloads**
+
+| Surface | Workload | Best MI300X tok/s | AMD tok/s | Delta | Evidence phase |
+|---|---|---:|---:|---:|---|
+| Decode | 8K/1K, c16 | 1,331.98 | 1,394.70 | -4.50% | Fresh-service repeat 1 |
+| Decode | 8K/1K, c32 | 1,936.24 | 2,042.42 | -5.20% | Fresh-service repeat 1 |
+| Decode | 8K/1K, c64 | 2,465.01 | 2,454.64 | +0.42% | Checksum-locked on-node scripts |
+| Decode | 8K/1K, c128 | 2,486.89 | 2,473.74 | +0.53% | Fresh-service repeat 1 |
+| 1P1D Prefill | 8K/1, c4 | 20,305.98 | 20,689.70 | -1.85% | AMD exact-script reproduction |
+| 1P1D Prefill | 64K/1, c4 | 18,983.91 | 18,689.51 | +1.58% | Checksum-locked on-node scripts |
+| 1P1D Prefill | 256K/1, c4 | 12,864.96 | 39,279.65 | Not comparable | Exact-token corrected run; supplier row lacks validity evidence |
+
+This best-observed table is a transparent cross-run selection, not a same-session paired A/B. The structured provenance is in [`data/20260714-best-observed-valid.tsv`](data/20260714-best-observed-valid.tsv).
+
 **Decode 8K/1K (2026-07-13 tuned fused-MoE retest, `SIMULATE_ACC_LEN=3`; TPOT: lower is better)**
 
 | BS | Concurrency | MI300X Median TPOT | H200 Median TPOT | MI300X/H200 TPOT | MI300X output tok/s | H200 output tok/s | MI300X/H200 tok/s |
@@ -61,9 +75,9 @@ In the decode table, `BS` equals target concurrency, matching the H200 reference
 
 ### Key Findings
 
-- **The corrected 1P1D Prefill matrix covers all 12 points:** 8K/64K/256K at concurrency 1/2/4/8, each with 16/16 requests. The 256K path is now valid at context length 262151 and stays near 12.4K tok/s across the concurrency sweep.
-- **AMD's original 1P1D script reproduces its valid c4 rows:** after copying the source scripts and changing only the benchmark token list to exclude invalid 256K, 8K/1 reached `20,305.98 tok/s` versus AMD's `20,689.70` (-1.85%), and 64K/1 reached `18,694.26 tok/s` versus `18,689.51` (+0.03%).
-- **The 256K 1P1D supplier screenshot is not a valid row in this runtime:** the same script reproduces the approximately 39K numeric range with only 5/16 retokenized outputs and eleven service overflows. The corrected c4 confirmation is `12,393.19 tok/s`, 16/16, and differs from the full-matrix value by only 0.03%.
+- **The corrected 1P1D Prefill matrix covers all 12 points:** 8K/64K/256K at concurrency 1/2/4/8, each with 16/16 requests. The canonical 256K sweep stays near 12.4K tok/s; the later exact-token c4 confirmation reached `12,864.96 tok/s` with 16/16 exact outputs.
+- **AMD's original 1P1D workload is reproducible at its valid c4 rows:** the best accepted 8K/1 result is `20,305.98 tok/s` versus AMD's `20,689.70` (-1.85%), and the latest checksum-locked 64K/1 result is `18,983.91 tok/s` versus `18,689.51` (+1.58%).
+- **The 256K 1P1D supplier screenshot is not a valid row in this runtime:** checksum-locked on-node scripts reproduce `39,627.96 tok/s` with only 5/16 retokenized outputs and eleven service overflows. The exact-token corrected c4 result is `12,864.96 tok/s`, 16/16, with zero context/fatal markers.
 - **Core Decode is reproducible across fresh services:** concurrency 16/32/64/128 differs by no more than 2.14% in output throughput and 1.02% in mean TPOT across two runs.
 - **Decode median TPOT remains below the H200 reference at BS=16 and BS=128** (0.93x in both cases). The expanded sweep accepts concurrency 8–192 and rejects 256 because of a prefill watchdog dump.
 - **Corrected DP=2 Prefill accepts 14/15 points:** 8K/64K concurrency 1/2/4/8/16 and 256K concurrency 1/2/4/8 complete 32/32 requests with valid two-worker distributions. The 256K/concurrency-16 point is rejected after a node-1 GPU memory-aperture fault.
@@ -132,7 +146,7 @@ Requests per point = 16; output length = 1; target concurrency = 1/2/4/8; contex
 | 256K | 4 | 16 | 12,389.64 | 77,254.06 | Accepted |
 | 256K | 8 | 16 | 12,402.23 | 133,251.83 | Accepted |
 
-**Interpretation:** 8K peaks at concurrency 8, while 64K is broadly flat from concurrency 2–8. The corrected 256K path stays near 12.4K tok/s; an independent c4 confirmation reached 12,393.19 tok/s with 16/16 retokenized outputs. Higher concurrency mainly increases TTFT. Because output length is 1, sustained GPU pressure is concentrated on Prefill while Decode performs only the transferred-KV handoff and one-token generation.
+**Interpretation:** 8K peaks at concurrency 8, while 64K is broadly flat from concurrency 2–8. The canonical corrected 256K matrix stays near 12.4K tok/s. A later exact-token c4 run removed text decode/re-encode drift and reached 12,864.96 tok/s with 16/16 retokenized outputs. Higher concurrency mainly increases TTFT. Because output length is 1, sustained GPU pressure is concentrated on Prefill while Decode performs only the transferred-KV handoff and one-token generation.
 
 - Reproduction bundle: [`scripts/20260713-amd-tuned-moe-expanded-concurrency/`](scripts/20260713-amd-tuned-moe-expanded-concurrency/)
 
@@ -176,7 +190,7 @@ All accepted points passed exact request-count, context, client, two-worker dist
 
 ### 256K Correctness Guard
 
-With `random_input_len=262144`, HTTP 200 error payloads can be misclassified by a client-only success counter. The later 262149 retry is also withdrawn because this runtime exposes only `max_req_input_len=262143`. The corrected entry point uses `--context-length 262151`, captures `/server_info` from both workers, and requires `max_req_input_len>=262145` before measurement. A valid context gate does not guarantee runtime stability: the clean session failed at 256K/concurrency 2 on both nodes, and a targeted fresh-service retry later failed at concurrency 16 on node 1. Both incidents are disclosed.
+With `random_input_len=262144`, HTTP 200 error payloads can be misclassified by a client-only success counter. EAGLE reserves four draft-token slots, and the historical text client can also change length during decode/re-encode. The later 262149 retry is withdrawn because this runtime exposes only `max_req_input_len=262143`. The corrected entry point uses `--context-length 262151`, `--tokenize-prompt`, direct worker `/server_info`, and requires `max_req_input_len>=262145` before measurement. A valid context gate does not guarantee runtime stability: the clean session failed at 256K/concurrency 2 on both nodes, and a targeted fresh-service retry later failed at concurrency 16 on node 1. Both incidents are disclosed.
 
 - Current sanitized evidence: [`data/raw-logs/20260713-amd-tuned-moe-expanded-concurrency/`](data/raw-logs/20260713-amd-tuned-moe-expanded-concurrency/)
 - Current report: [`reports/20260713-amd-tuned-moe-expanded-concurrency.md`](reports/20260713-amd-tuned-moe-expanded-concurrency.md)
@@ -201,9 +215,9 @@ With `random_input_len=262144`, HTTP 200 error payloads can be misclassified by 
 | Component | Version | Notes |
 |-----------|---------|-------|
 | Docker image | `rocm/sgl-dev:v0.5.11-rocm720-mi30x-20260510` | AMD 0510 build, SHA `bb9d2e5ab1a6` |
-| SGLang | AMD fork: [sammysun0711/sglang](https://github.com/sammysun0711/sglang) branch `mimo_aiter_attn`, commit `db840d935` | CK A8W8 blockwise GEMM bpreshuffle + AITER INT8 quick-reduce |
+| SGLang | July 14 package `0.0.0.dev14147+g2f9b9aedf.d20260706`, editable source HEAD `2f9b9aedf`; July 7 CK reference used `db840d935` | Runtime is reported per evidence phase, not as one pristine checkout |
+| AITER | Active July 14 checkout `00e94abf`; tuned CSV SHA-256 `2c87ff1...80ea7` | Tuned CSV is byte-identical to the public `d725746` file |
 | ROCm | 7.2.0 | |
-| aiter | [sammysun0711/aiter](https://github.com/sammysun0711/aiter) commit [`d725746`](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9) | Model-specific MiMo fused-MoE tuning CSV; runtime-local equivalent commit `00e94abf1` |
 | GEMM path | **CK A8W8 blockwise bpreshuffle** | `SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1` |
 | Mooncake | `0.3.7.post2` | KV cache transfer for PD disaggregation |
 | PyTorch | 2.9.1+rocm7.2.0 | ROCm backend |
@@ -337,6 +351,10 @@ The sweep command is client-only convenience. Accepted DP=2 evidence must run ea
 
 | Path | Content |
 |------|---------|
+| [`data/20260714-best-observed-valid.tsv`](data/20260714-best-observed-valid.tsv) | Structured best-observed valid values with per-row evidence phase |
+| [`data/raw-logs/20260714-exact-token-and-onnode/`](data/raw-logs/20260714-exact-token-and-onnode/) | Latest exact-token 256K and checksum-locked on-node summaries, runtime/source hashes, and SHA manifest |
+| [`reports/20260714-valid-reproduction-and-256k-context-fix.md`](reports/20260714-valid-reproduction-and-256k-context-fix.md) | Valid tuned-MoE reconciliation, best-observed selection policy, and corrected 256K evidence |
+| [`scripts/20260714-exact-token-256k/`](scripts/20260714-exact-token-256k/) | Exact-token 256K client and fail-closed validator |
 | [`data/raw-logs/20260713-amd-tuned-moe-retest/`](data/raw-logs/20260713-amd-tuned-moe-retest/) | Historical evidence; valid Decode and 8K/64K Prefill rows plus withdrawn 256K client summaries |
 | [`reports/20260713-amd-tuned-moe-retest.md`](reports/20260713-amd-tuned-moe-retest.md) | Independent tuned fused-MoE retest report and evidence map |
 | [`scripts/20260713-amd-tuned-moe-expanded-concurrency/`](scripts/20260713-amd-tuned-moe-expanded-concurrency/) | Current corrected launch, expanded concurrency, validation, and parser bundle |
@@ -351,7 +369,7 @@ The sweep command is client-only convenience. Accepted DP=2 evidence must run ea
 | Issue | Status | Impact |
 |-------|--------|--------|
 | **Decode CUDA Graph** | ⚠️ Critical config | Decode server must NOT use `--disable-cuda-graph`. Disabling causes 5× TPOT regression. Prefill server should disable it. |
-| **DP=2 256K request framing** | ✅ Corrected | Use `--context-length 262151`; require direct worker `/server_info` with `max_req_input_len>=262145`, clean service logs, and two-worker distribution evidence. |
+| **256K request framing** | ✅ Corrected | Use `--context-length 262151` and `--tokenize-prompt`; require direct worker `/server_info` with `max_req_input_len>=262145`, exact output counts, clean service logs, and DP=2 distribution evidence when applicable. |
 | **Router health endpoint** | ✅ Corrected | SGLang `/health` performs synthetic generation and can fail under long Prefill load. Use the bundle's non-generative `/server_info` endpoint with a 30-second timeout and validate worker/router logs. |
 | **Run-to-run variance** | ⚠️ Partially characterized | The expanded matrix is one run per point. Decode concurrency 16/32/64/128 has a separate second fresh-service run; no full-matrix standard deviation is claimed. |
 
