@@ -1,0 +1,40 @@
+{
+  "label": "The service recovered after the database connection pool was reset.",
+  "children": [
+    {
+      "label": "Topics",
+      "children": [
+        {
+          "label": "The service recovered after the database connection pool was reset.",
+          "children": []
+        },
+        {
+          "label": "The team decided to add pool saturation alerts before the next release.",
+          "children": []
+        },
+        {
+          "label": "DevOps will follow up with a load test and update the runbook.",
+          "children": []
+        }
+      ]
+    },
+    {
+      "label": "Decisions",
+      "children": [
+        {
+          "label": "The team decided to add pool saturation alerts before the next release.",
+          "children": []
+        }
+      ]
+    },
+    {
+      "label": "Actions",
+      "children": [
+        {
+          "label": "DevOps will follow up with a load test and update the runbook.",
+          "children": []
+        }
+      ]
+    }
+  ]
+}

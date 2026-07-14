@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "analyzer": "offline-contract",
+  "source": {
+    "session_id": "product-planning",
+    "event_count": 6,
+    "content_sha256": "413799e9783ac40a5a4e225a553bef94f33fd4c5990607add57e50547f91486b"
+  },
+  "artifacts": {
+    "analysis": {
+      "path": "meeting-analysis.json",
+      "bytes": 2026,
+      "sha256": "988d06fa2c29be218c8945ddb23734ce07752e5e5428b5e80506194f30fd4864"
+    },
+    "mind_map_json": {
+      "path": "mind-map.json",
+      "bytes": 975,
+      "sha256": "dc639d37a505baddabde1f2582bdd820d17e5f64f2b33a057e119bd9f35bc6f9"
+    },
+    "mind_map_svg": {
+      "path": "mind-map.svg",
+      "bytes": 1720,
+      "sha256": "6d0ee9d3ffc4a3a0c9059cb66cfeb4f1bc86721ead2662e277db83592042cb5f"
+    },
+    "mind_map_png": {
+      "path": "mind-map.png",
+      "bytes": 33840,
+      "sha256": "be5924995922b1c57484cb6842d689356b16b8cdbc830f8cfdcf6a740bc652b7"
+    },
+    "presentation": {
+      "path": "meeting-summary.pptx",
+      "bytes": 32615,
+      "sha256": "5b7cde5984b75f3b3651e329908aa5be9002e56e55dcb1206cb4e7e12687c804"
+    },
+    "eml": {
+      "path": "meeting-follow-up.eml",
+      "bytes": 91976,
+      "sha256": "b45e35e69e739f27a6c2dfd2277edb84ff61d54b7c48ba363b22a9cac4854ec3"
+    }
+  },
+  "eml": {
+    "x_unsent": "1",
+    "recipient_count": 0,
+    "attachment_count": 2,
+    "attachment_names": [
+      "mind-map.png",
+      "meeting-summary.pptx"
+    ],
+    "subject": "We agreed to launch the assistant pilot with the support team in March.",
+    "sha256": "b45e35e69e739f27a6c2dfd2277edb84ff61d54b7c48ba363b22a9cac4854ec3"
+  },
+  "automatic_send": false,
+  "next_state": "DRAFT_READY_MANUAL_SEND_REQUIRED"
+}

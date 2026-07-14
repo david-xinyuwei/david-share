@@ -1,6 +1,6 @@
 # Agents
 
-A collection of 27 projects covering AI agents, RAG (Retrieval-Augmented Generation), prompt engineering, LLM evaluation, and related topics.
+A collection of 28 projects covering AI agents, RAG (Retrieval-Augmented Generation), prompt engineering, LLM evaluation, and related topics.
 
 ---
 
@@ -24,6 +24,7 @@ A collection of 27 projects covering AI agents, RAG (Retrieval-Augmented Generat
 | [LLM-Judgment](LLM-Judgment/) | LLM evaluation method providing rapid feedback and monitoring |
 | [M365-Morning-Sweep](M365-Morning-Sweep/) | AI executive assistant: Graph API + Azure OpenAI for M365 email/calendar/chat briefings with live dashboard |
 | [Magentic-One](Magentic-One/) | Multi-agent systems with Microsoft's Magentic-One framework |
+| [Meeting-Agent](Meeting-Agent/) | Provider-neutral meeting pipeline with Azure OpenAI structured analysis, traceable artifacts, and human-controlled New Outlook drafts |
 | [Microsoft-Agent-Framework](Microsoft-Agent-Framework/) | Dual workflow with human-in-the-loop pipeline and MagenticBuilder orchestration |
 | [OLM-benchmark-evaluation](OLM-benchmark-evaluation/) | Online LLM benchmark evaluation inspired by optimum-benchmark |
 | [Perplexity-test](Perplexity-test/) | Perplexity measurement for evaluating large language models |

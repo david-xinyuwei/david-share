@@ -1,0 +1,19 @@
+* text=auto
+.env.example text eol=lf
+.gitattributes text eol=lf
+.gitignore text eol=lf
+LICENSE text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.json -filter -diff -merge text eol=lf
+*.jsonl text eol=lf
+*.svg text eol=lf
+*.toml text eol=lf
+*.txt text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.sh text eol=lf
+*.cmd text eol=crlf
+*.png binary
+*.pptx binary
+*.eml binary

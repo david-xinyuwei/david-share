@@ -1,0 +1,40 @@
+{
+  "label": "We agreed to launch the assistant pilot with the support team in March.",
+  "children": [
+    {
+      "label": "Topics",
+      "children": [
+        {
+          "label": "We agreed to launch the assistant pilot with the support team in March.",
+          "children": []
+        },
+        {
+          "label": "Mina will follow up with security and prepare the pilot checklist.",
+          "children": []
+        },
+        {
+          "label": "Can the pilot support multilingual meeting notes?",
+          "children": []
+        }
+      ]
+    },
+    {
+      "label": "Decisions",
+      "children": [
+        {
+          "label": "We agreed to launch the assistant pilot with the support team in March.",
+          "children": []
+        }
+      ]
+    },
+    {
+      "label": "Actions",
+      "children": [
+        {
+          "label": "Mina will follow up with security and prepare the pilot checklist.",
+          "children": []
+        }
+      ]
+    }
+  ]
+}

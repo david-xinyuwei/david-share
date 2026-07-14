@@ -1,0 +1,6 @@
+azure-identity==1.25.3
+filelock==3.29.7
+openai==2.32.0
+Pillow==12.3.0
+pydantic==2.10.4
+python-pptx==1.0.2

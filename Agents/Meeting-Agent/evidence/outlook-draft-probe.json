@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "test": "new-outlook-eml-draft",
+  "platform": "New Outlook for Windows",
+  "result": "pass",
+  "validated_behavior": [
+    "A real PNG mind map was attached",
+    "A real editable PPTX was attached",
+    "The HTML body and subject were visible in a compose window",
+    "The compose window remained open for human review"
+  ],
+  "eml": {
+    "x_unsent": "1",
+    "recipient_count": 0,
+    "attachment_count": 2,
+    "attachment_names": [
+      "mind-map.png",
+      "meeting-summary.pptx"
+    ]
+  },
+  "artifacts": {
+    "mind_map": {
+      "bytes": 9586,
+      "sha256": "36fc8058203622eee44f06b6e76e37feea34d4ed96e8ebbe8f6784da076c0b00"
+    },
+    "presentation": {
+      "bytes": 28437,
+      "sha256": "f6c1e1be337789ebeb1ba56f2a60745f09737c4498b0aafeedfca5c7fcd24aaf"
+    },
+    "eml": {
+      "bytes": 52685,
+      "sha256": "fdc2a74ca0437e41a1761615a0627f174c9c55722dbc510a106410dc15337a5b"
+    }
+  },
+  "new_outlook_window": {
+    "before_count": 1,
+    "after_count": 2,
+    "count_delta": 1
+  },
+  "documentation_screenshot": {
+    "path": "images/outlook-draft-handoff-sanitized.png",
+    "width": 1721,
+    "height": 940,
+    "bytes": 42272,
+    "sha256": "9524d7bb38f06b966ef6f20d230cbc0bdaf661bfddb6c0cc4f778cbe585e41a4",
+    "private_source_sha256": "2ddfe6786e5785bcc41829dd91e741049a494f0fea124d889a49a31386b7685e",
+    "sanitized_derivative": true,
+    "redactions": [
+      "Account identifier replaced with a redaction label",
+      "Former internal working title normalized to the public project name",
+      "Private attachment filename region cropped"
+    ]
+  },
+  "automatic_send": false,
+  "scope_note": "This evidence validates the local draft-and-attachment handoff only, not the full meeting-analysis pipeline."
+}

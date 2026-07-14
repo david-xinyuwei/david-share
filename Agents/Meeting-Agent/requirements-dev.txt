@@ -1,0 +1,4 @@
+-r requirements.txt
+pytest==8.3.3
+ruff==0.6.7
+pip-audit==2.10.1

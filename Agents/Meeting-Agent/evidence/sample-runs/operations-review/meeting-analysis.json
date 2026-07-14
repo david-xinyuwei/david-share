@@ -1,0 +1,60 @@
+{
+  "title": "The service recovered after the database connection pool was reset.",
+  "summary": "The service recovered after the database connection pool was reset. The team decided to add pool saturation alerts before the next release. DevOps will follow up with a load test and update the runbook. Visual context: The dashboard shows latency returned to the normal range after 13:18 UTC.",
+  "topics": [
+    "The service recovered after the database connection pool was reset.",
+    "The team decided to add pool saturation alerts before the next release.",
+    "DevOps will follow up with a load test and update the runbook."
+  ],
+  "decisions": [
+    "The team decided to add pool saturation alerts before the next release."
+  ],
+  "action_items": [
+    {
+      "description": "DevOps will follow up with a load test and update the runbook.",
+      "owner": null,
+      "due": null
+    }
+  ],
+  "open_questions": [],
+  "mind_map": {
+    "label": "The service recovered after the database connection pool was reset.",
+    "children": [
+      {
+        "label": "Topics",
+        "children": [
+          {
+            "label": "The service recovered after the database connection pool was reset.",
+            "children": []
+          },
+          {
+            "label": "The team decided to add pool saturation alerts before the next release.",
+            "children": []
+          },
+          {
+            "label": "DevOps will follow up with a load test and update the runbook.",
+            "children": []
+          }
+        ]
+      },
+      {
+        "label": "Decisions",
+        "children": [
+          {
+            "label": "The team decided to add pool saturation alerts before the next release.",
+            "children": []
+          }
+        ]
+      },
+      {
+        "label": "Actions",
+        "children": [
+          {
+            "label": "DevOps will follow up with a load test and update the runbook.",
+            "children": []
+          }
+        ]
+      }
+    ]
+  }
+}
