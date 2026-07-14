@@ -7,6 +7,30 @@ Every accepted point passed exact request-count, context, client, service-log,
 and topology-specific gates. DP=2 is a two-worker prefill-only capacity test;
 it is not a 2P1D end-to-end throughput measurement.
 
+## AMD Original-Script Verification and 256K Boundary
+
+The AMD launch, router, and prefill benchmark scripts named in `测试方法.txt` were copied read-only from the source container workspace and verified against source-node SHA-256 values. The benchmark script was run with exactly one change: its token list was narrowed from `8K/64K/256K` to `8K/64K` so that the known-invalid 256K row would not execute. The copied original client uses random input, output 1, concurrency 4, 16 prompts, one warmup, `--flush-cache`, seed 12345, and `--pd-separated`.
+
+| Input / output | AMD screenshot tuned tok/s | Exact-script tok/s | Delta | Requests |
+|---|---:|---:|---:|---:|
+| 8K / 1 | 20,689.70 | 20,305.98 | -1.85% | 16 / 16 |
+| 64K / 1 | 18,689.51 | 18,694.26 | +0.03% | 16 / 16 |
+
+The latest valid Microsoft 1P1D 256K/concurrency-4 confirmation is `12,393.19 tok/s`, with 16/16 retokenized outputs and zero context/fatal markers. The supplied AMD launch script uses `--context-length 262144`; our same-script reproduction produced `39,905.41 tok/s` but only 5/16 retokenized outputs and eleven matching `262148 > 262144` service errors. HTTP 200 error payloads were counted as full successful inputs. AMD did not provide the raw client/service logs for its `39,279.65 tok/s` screenshot row, so its exact failure count is unknown. The corrected run changes both server allowances to 262151 and passes direct capacity gates. Do not calculate a valid 256K uplift or deficit from the screenshot value.
+
+## Valid Improvement over the July 7 CK Path
+
+| Surface | Workload | July 7 CK tok/s | July 13 tuned tok/s | Change |
+|---|---|---:|---:|---:|
+| Decode | 8K/1K, c16 | 1,299.18 | 1,303.44 | +0.33% |
+| Decode | 8K/1K, c32 | 1,910.75 | 1,930.10 | +1.01% |
+| Decode | 8K/1K, c64 | 2,188.05 | 2,462.83 | +12.56% |
+| Decode | 8K/1K, c128 | 2,209.43 | 2,468.95 | +11.75% |
+| 1P1D Prefill | 8K/1, c4 | 16,715.80 | 20,305.98 | +21.48% |
+| 1P1D Prefill | 64K/1, c4 | 17,254.14 | 18,694.26 | +8.35% |
+
+These are independent valid fresh-service measurements rather than a same-process paired A/B. They confirm a material tuned-MoE gain at 8K/64K Prefill and Decode c64/c128, with smaller positive changes at Decode c16/c32. The invalid 256K July 7 and supplier screenshot values are excluded from this uplift table.
+
 One complete expanded matrix was requested and executed. This report does not claim full-matrix N=3 or CV.
 
 ## Decode 8K/1K
@@ -47,6 +71,8 @@ One complete expanded matrix was requested and executed. This report does not cl
 | 262144 | 2 | 16 | 12378.06 |  | ACCEPTED |
 | 262144 | 4 | 16 | 12389.64 |  | ACCEPTED |
 | 262144 | 8 | 16 | 12402.23 |  | ACCEPTED |
+
+The 256K/c4 point was independently rerun after changing only the Prefill and Decode server allowance from 262144 to 262151. It completed 16/16 requests and 16/16 retokenized outputs at `12,393.19 tok/s`, only +0.03% above the full-matrix value.
 
 ## DP=2 Prefill
 

@@ -5,7 +5,7 @@
 [![SGLang](https://img.shields.io/badge/Engine-SGLang-green)](https://github.com/sgl-project/sglang)
 [![ROCm](https://img.shields.io/badge/ROCm-7.2.0-orange)](https://rocm.docs.amd.com/)
 
-在 Azure **AMD Instinct MI300X** 上运行 **小米 MiMo-V2.5-Pro（1.02T MoE / 42B 活跃参数 / FP8）**，使用 SGLang + AMD CK A8W8 blockwise GEMM + AITER + MTP/EAGLE + [`aiter@d725746`](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9) 的模型专用 fused-MoE tuning，与小米 H200 参考数据做 benchmark 对比。
+在 Azure **AMD Instinct MI300X** 上运行 **小米 MiMo-V2.5-Pro（1.02T MoE / 42B 活跃参数 / FP8）**，使用 SGLang + AMD CK A8W8 blockwise GEMM + AITER + MTP/EAGLE + [`aiter@d725746`](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9) 的模型专用 fused-MoE tuning，并与小米 H200 参考数据并列展示。参考比例不是 configuration-aligned 的 head-to-head 结论；AMD 原始 1P1D 脚本的有效 8K/64K 行已在下文独立复现。
 
 本 repo 提供完整的复现脚本、启动命令、benchmark 结果和 server 日志。使用 2 台 Azure ND96isr_MI300X_v5 和指定 Docker 镜像，可以按下面步骤从 clean-room 容器重建 MI300X 环境，并运行 AMD benchmark 脚本。PD-separated decode 必须把 RDMA 设备暴露给容器（`--privileged`、`/dev/mem`、`CAP_SYS_ADMIN`），否则 Mooncake 会 fallback 到 TCP，高并发吞吐结果无效。
 
@@ -29,9 +29,24 @@
 |---:|---:|---:|---:|---:|
 | 8K | 4 | 18,161.81 | 31,950 | 56.8% |
 | 64K | 4 | 18,763.17 | 27,400 | 68.5% |
-| 256K | 4 | 12,389.64 | 17,400 | 71.2% |
+| 256K | 4 | 12,393.19 | 17,400 | 71.2% |
 
-全部 12 个 1P1D Prefill 点均完成 16/16 requests，`rc=0`、context length 262151，且 Prefill、Decode、router 三类日志 fatal marker 均为 0。上表展示 concurrency 4 以便与 H200 reference 对比；下文给出完整 concurrency 1/2/4/8 矩阵。
+全部 12 个 1P1D Prefill 点均完成 16/16 requests，`rc=0`、context length 262151，且 Prefill、Decode、router 三类日志 fatal marker 均为 0。上表采用最新独立 256K/c4 确认结果；完整矩阵值为 12,389.64 tok/s，仅低 0.03%。下文给出完整 concurrency 1/2/4/8 矩阵。
+
+> **256K supplier-comparison boundary：**当前有效的 Microsoft 结果是 `12,393.19 tok/s`（256K/concurrency 4），并有 16/16 retokenized outputs。AMD 提供的 launch script 固定 `--context-length 262144`；我们按同一脚本复现出 `39,905.41 tok/s`，但只有 5/16 retokenized outputs，并在 service logs 中出现 11 次 `262148 > 262144`。HTTP 200 error payload 被当成完整成功输入，形成 false-success 指标。AMD 未提供其 `39,279.65 tok/s` screenshot row 对应的 raw client/service logs，因此我们不推断该轮的精确失败数量。修正路径只把两端 server allowance 改为 262151，并通过 direct capacity 和 service-log gates。因此不得使用 screenshot value 计算有效的 256K uplift 或 deficit。
+
+**7 月 7 日 CK 到 7 月 13 日 tuned-MoE 的有效实测对比（独立 fresh-service runs）**
+
+| Surface | Workload | 7 月 7 日 CK tok/s | 7 月 13 日 tuned tok/s | 变化 |
+|---|---|---:|---:|---:|
+| Decode | 8K/1K, c16 | 1,299.18 | 1,303.44 | +0.33% |
+| Decode | 8K/1K, c32 | 1,910.75 | 1,930.10 | +1.01% |
+| Decode | 8K/1K, c64 | 2,188.05 | 2,462.83 | +12.56% |
+| Decode | 8K/1K, c128 | 2,209.43 | 2,468.95 | +11.75% |
+| 1P1D Prefill | 8K/1, c4 | 16,715.80 | 20,305.98 | +21.48% |
+| 1P1D Prefill | 64K/1, c4 | 17,254.14 | 18,694.26 | +8.35% |
+
+这些有效点确认 tuned-MoE 在 7 月 7 日 CK 路径上继续提升，尤其体现在 8K/64K Prefill 和 Decode c64/c128。详见[有效复现与 256K context-fix 报告](reports/20260714-valid-reproduction-and-256k-context-fix.md)。
 
 **Decode 8K/1K（2026-07-13 tuned fused-MoE 复测，`SIMULATE_ACC_LEN=3`；TPOT 越低越好）**
 
@@ -47,6 +62,8 @@ Decode 表里 `BS` 等于 target concurrency，和 H200 reference 的 load shape
 ### 关键发现
 
 - **修正后的 1P1D Prefill 覆盖全部 12 点：**8K/64K/256K 的 concurrency 1/2/4/8 均为 16/16 requests。256K 在 context length 262151 下已有效，整个并发 sweep 稳定在约 12.4K tok/s。
+- **AMD 原始 1P1D 脚本可复现其有效 c4 行：**复制 source scripts 后，仅将 benchmark token list 去掉无效 256K，8K/1 实测 `20,305.98 tok/s`，对 AMD `20,689.70` 为 -1.85%；64K/1 实测 `18,694.26 tok/s`，对 `18,689.51` 为 +0.03%。
+- **256K 的 1P1D supplier screenshot 在该 runtime 中不是有效行：**同一脚本可以复现约 39K 的数字，但只有 5/16 retokenized outputs，并出现 11 次 service overflow。修正后的 c4 确认值为 `12,393.19 tok/s`、16/16，与完整矩阵值仅差 0.03%。
 - **核心 Decode 可在 fresh services 间复现：** concurrency 16/32/64/128 的两次 run 中，output throughput 最大偏差 2.14%，mean TPOT 最大偏差 1.02%。
 - **Decode median TPOT 在 BS=16 和 BS=128 仍低于 H200 reference**（均为 0.93x）。扩展 sweep 接受 concurrency 8–192；256 因 Prefill watchdog dump 被拒绝。
 - **修正后的 DP=2 Prefill 接受 14/15 点：**8K/64K 的 concurrency 1/2/4/8/16，以及 256K 的 concurrency 1/2/4/8，均完成 32/32 requests 并有有效的双 worker distribution。256K/concurrency-16 因 node 1 GPU memory-aperture fault 被拒绝。
@@ -115,7 +132,7 @@ AMD headline concurrencies 在两次独立 fresh-service run 中测量。Through
 | 256K | 4 | 16 | 12,389.64 | 77,254.06 | 已接受 |
 | 256K | 8 | 16 | 12,402.23 | 133,251.83 | 已接受 |
 
-**解读**：8K 在 concurrency 8 达到最高值，64K 在 concurrency 2–8 基本持平。修正后的 256K 路径稳定在约 12.4K tok/s；提高 concurrency 主要增加 TTFT。由于 output length = 1，持续 GPU 压力集中在 Prefill；Decode 只完成 transferred-KV handoff 和 1-token generation。
+**解读**：8K 在 concurrency 8 达到最高值，64K 在 concurrency 2–8 基本持平。修正后的 256K 路径稳定在约 12.4K tok/s；独立 c4 确认值为 12,393.19 tok/s，并有 16/16 retokenized outputs。提高 concurrency 主要增加 TTFT。由于 output length = 1，持续 GPU 压力集中在 Prefill；Decode 只完成 transferred-KV handoff 和 1-token generation。
 
 - 复现 bundle：[`scripts/20260713-amd-tuned-moe-expanded-concurrency/`](scripts/20260713-amd-tuned-moe-expanded-concurrency/)
 

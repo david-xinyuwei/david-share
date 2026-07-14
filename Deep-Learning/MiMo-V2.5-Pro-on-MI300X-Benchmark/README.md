@@ -5,7 +5,7 @@
 [![SGLang](https://img.shields.io/badge/Engine-SGLang-green)](https://github.com/sgl-project/sglang)
 [![ROCm](https://img.shields.io/badge/ROCm-7.2.0-orange)](https://rocm.docs.amd.com/)
 
-Running **Xiaomi MiMo-V2.5-Pro (1.02T MoE / 42B active / FP8)** on Azure **AMD Instinct MI300X** with SGLang + AMD CK A8W8 blockwise GEMM + AITER + MTP/EAGLE + the model-specific fused-MoE tuning from [`aiter@d725746`](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9), benchmarked against Xiaomi's H200 reference data.
+Running **Xiaomi MiMo-V2.5-Pro (1.02T MoE / 42B active / FP8)** on Azure **AMD Instinct MI300X** with SGLang + AMD CK A8W8 blockwise GEMM + AITER + MTP/EAGLE + the model-specific fused-MoE tuning from [`aiter@d725746`](https://github.com/sammysun0711/aiter/commit/d725746a0f8c233d8e46e2771a7c8dbcd06e40d9), shown alongside Xiaomi's H200 reference data. The reference ratios are not configuration-aligned head-to-head claims; AMD's original 1P1D scripts are independently reproduced below for their valid 8K and 64K rows.
 
 This repo provides full reproduction scripts, launch commands, benchmark results, and server logs. With 2× Azure ND96isr_MI300X_v5 nodes and the specified Docker image, the steps below rebuild a clean-room MI300X environment and run the AMD benchmark scripts. For PD-separated decode, the container must expose RDMA devices (`--privileged`, `/dev/mem`, and `CAP_SYS_ADMIN`); otherwise Mooncake falls back to TCP and high-concurrency throughput results are invalid.
 
@@ -29,9 +29,24 @@ English | [中文版](README-CN.md)
 |---:|---:|---:|---:|---:|
 | 8K | 4 | 18,161.81 | 31,950 | 56.8% |
 | 64K | 4 | 18,763.17 | 27,400 | 68.5% |
-| 256K | 4 | 12,389.64 | 17,400 | 71.2% |
+| 256K | 4 | 12,393.19 | 17,400 | 71.2% |
 
-All twelve 1P1D Prefill points completed 16/16 requests with `rc=0`, context length 262151, and zero fatal markers in the Prefill, Decode, and router logs. The table above shows concurrency 4 for comparison with the H200 reference; the full concurrency 1/2/4/8 matrix is below.
+All twelve 1P1D Prefill points completed 16/16 requests with `rc=0`, context length 262151, and zero fatal markers in the Prefill, Decode, and router logs. The table above uses the latest independent 256K/c4 confirmation; the full matrix value was 12,389.64 tok/s, only 0.03% lower. The full concurrency 1/2/4/8 matrix is below.
+
+> **256K supplier-comparison boundary:** the valid Microsoft result is `12,393.19 tok/s` at 256K/concurrency 4 with 16/16 retokenized outputs. The supplied AMD launch script hard-codes `--context-length 262144`; our same-script reproduction produced `39,905.41 tok/s` but only 5/16 retokenized outputs and eleven `262148 > 262144` service errors. HTTP 200 error payloads were counted as full successful inputs, creating a false-success metric. AMD did not supply the raw client/service logs for its `39,279.65 tok/s` screenshot row, so we do not claim its exact failure count. The corrected path changes only both server allowances to 262151 and passes direct capacity and service-log gates. Do not calculate a valid 256K uplift or deficit from the screenshot value.
+
+**Valid July 7 CK to July 13 tuned-MoE comparison (independent fresh-service runs)**
+
+| Surface | Workload | July 7 CK tok/s | July 13 tuned tok/s | Change |
+|---|---|---:|---:|---:|
+| Decode | 8K/1K, c16 | 1,299.18 | 1,303.44 | +0.33% |
+| Decode | 8K/1K, c32 | 1,910.75 | 1,930.10 | +1.01% |
+| Decode | 8K/1K, c64 | 2,188.05 | 2,462.83 | +12.56% |
+| Decode | 8K/1K, c128 | 2,209.43 | 2,468.95 | +11.75% |
+| 1P1D Prefill | 8K/1, c4 | 16,715.80 | 20,305.98 | +21.48% |
+| 1P1D Prefill | 64K/1, c4 | 17,254.14 | 18,694.26 | +8.35% |
+
+These valid points confirm a further gain over the July 7 CK path, especially at 8K/64K Prefill and Decode c64/c128. See the [valid reproduction and 256K context-fix report](reports/20260714-valid-reproduction-and-256k-context-fix.md).
 
 **Decode 8K/1K (2026-07-13 tuned fused-MoE retest, `SIMULATE_ACC_LEN=3`; TPOT: lower is better)**
 
@@ -47,6 +62,8 @@ In the decode table, `BS` equals target concurrency, matching the H200 reference
 ### Key Findings
 
 - **The corrected 1P1D Prefill matrix covers all 12 points:** 8K/64K/256K at concurrency 1/2/4/8, each with 16/16 requests. The 256K path is now valid at context length 262151 and stays near 12.4K tok/s across the concurrency sweep.
+- **AMD's original 1P1D script reproduces its valid c4 rows:** after copying the source scripts and changing only the benchmark token list to exclude invalid 256K, 8K/1 reached `20,305.98 tok/s` versus AMD's `20,689.70` (-1.85%), and 64K/1 reached `18,694.26 tok/s` versus `18,689.51` (+0.03%).
+- **The 256K 1P1D supplier screenshot is not a valid row in this runtime:** the same script reproduces the approximately 39K numeric range with only 5/16 retokenized outputs and eleven service overflows. The corrected c4 confirmation is `12,393.19 tok/s`, 16/16, and differs from the full-matrix value by only 0.03%.
 - **Core Decode is reproducible across fresh services:** concurrency 16/32/64/128 differs by no more than 2.14% in output throughput and 1.02% in mean TPOT across two runs.
 - **Decode median TPOT remains below the H200 reference at BS=16 and BS=128** (0.93x in both cases). The expanded sweep accepts concurrency 8–192 and rejects 256 because of a prefill watchdog dump.
 - **Corrected DP=2 Prefill accepts 14/15 points:** 8K/64K concurrency 1/2/4/8/16 and 256K concurrency 1/2/4/8 complete 32/32 requests with valid two-worker distributions. The 256K/concurrency-16 point is rejected after a node-1 GPU memory-aperture fault.
@@ -115,7 +132,7 @@ Requests per point = 16; output length = 1; target concurrency = 1/2/4/8; contex
 | 256K | 4 | 16 | 12,389.64 | 77,254.06 | Accepted |
 | 256K | 8 | 16 | 12,402.23 | 133,251.83 | Accepted |
 
-**Interpretation:** 8K peaks at concurrency 8, while 64K is broadly flat from concurrency 2–8. The corrected 256K path stays near 12.4K tok/s; higher concurrency mainly increases TTFT. Because output length is 1, sustained GPU pressure is concentrated on Prefill while Decode performs only the transferred-KV handoff and one-token generation.
+**Interpretation:** 8K peaks at concurrency 8, while 64K is broadly flat from concurrency 2–8. The corrected 256K path stays near 12.4K tok/s; an independent c4 confirmation reached 12,393.19 tok/s with 16/16 retokenized outputs. Higher concurrency mainly increases TTFT. Because output length is 1, sustained GPU pressure is concentrated on Prefill while Decode performs only the transferred-KV handoff and one-token generation.
 
 - Reproduction bundle: [`scripts/20260713-amd-tuned-moe-expanded-concurrency/`](scripts/20260713-amd-tuned-moe-expanded-concurrency/)
 

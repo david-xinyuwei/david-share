@@ -1,0 +1,6 @@
+Successful requests:                     16
+Benchmark duration (s):                  338.44
+Total input tokens:                      4194304
+Total generated tokens:                  16
+Total generated tokens (retokenized):    16
+Input token throughput (tok/s):          12393.19
