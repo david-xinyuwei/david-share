@@ -1,3 +1,0 @@
-SGLANG_SIMULATE_ACC_LEN=3
-SGLANG_SIMULATE_ACC_METHOD=match-expected
-sglang-kernel decode precedence forced to 0.4.2.post1

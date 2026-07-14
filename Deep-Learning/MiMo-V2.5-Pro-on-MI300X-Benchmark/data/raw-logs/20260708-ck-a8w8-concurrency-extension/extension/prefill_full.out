@@ -1,685 +1,0 @@
-
-============================================================
-Prefill sweep: input=8192, output=1, concurrency=1
-Log file: /data/xisun/ck_a8w8_concurrency_sweep_20260708_20260708_015402/extension/prefill/prefill_8192_out1_con1.log
-============================================================
-/opt/venv/lib/python3.10/site-packages/transformers/modeling_rope_utils.py:1034: FutureWarning: `rope_config_validation` is deprecated and has been removed. Its functionality has been moved to RotaryEmbeddingConfigMixin.validate_rope method. PreTrainedConfig inherits this class, so please call self.validate_rope() instead. Also, make sure to use the new rope_parameters syntax. You can call self.standardize_rope_params() in the meantime.
-  warnings.warn(
-benchmark_args=Namespace(backend='sglang', base_url=None, host='0.0.0.0', port=40000, ready_check_timeout_sec=60, dataset_name='random', dataset_path='/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json', speed_bench_category=None, speed_bench_output_len=512, model='/data/models/MiMo-V2.5-Pro', served_model_name=None, tokenizer=None, num_prompts=16, sharegpt_output_len=None, sharegpt_context_len=None, random_input_len=8192, random_output_len=1, random_range_ratio=1.0, image_count=1, image_resolution='1080p', random_image_count=False, image_format='jpeg', image_content='random', request_rate=inf, use_trace_timestamps=False, max_concurrency=1, output_file=None, output_details=False, print_requests=False, disable_tqdm=False, disable_stream=False, return_logprob=False, top_logprobs_num=0, token_ids_logprob=None, logprob_start_len=-1, return_routed_experts=False, seed=12345, disable_ignore_eos=False, temperature=0.0, top_p=1.0, extra_request_body=None, apply_chat_template=False, profile=False, plot_throughput=False, profile_activities=['CPU', 'GPU'], profile_start_step=None, profile_steps=None, profile_num_steps=None, profile_by_stage=False, profile_stages=None, profile_output_dir=None, profile_prefix=None, lora_name=None, lora_request_distribution='uniform', lora_zipf_alpha=1.5, prompt_suffix='', pd_separated=True, profile_prefill_url=None, profile_decode_url=None, flush_cache=True, warmup_requests=1, tokenize_prompt=False, gsp_num_groups=64, gsp_prompts_per_group=16, gsp_system_prompt_len=2048, gsp_question_len=128, gsp_output_len=256, gsp_range_ratio=1.0, gsp_fast_prepare=False, gsp_send_routing_key=False, gsp_num_turns=1, gsp_ordered=False, gsp_group_distribution='uniform', gsp_zipf_alpha=None, mooncake_slowdown_factor=1.0, mooncake_num_rounds=1, mooncake_workload='conversation', fake_prefill=False, tag=None, header=None)
-Waiting up to 60s for http://0.0.0.0:40000/v1/models to become ready...
-Server ready in 0.0s.
-Namespace(backend='sglang', base_url=None, host='0.0.0.0', port=40000, ready_check_timeout_sec=60, dataset_name='random', dataset_path='/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json', speed_bench_category=None, speed_bench_output_len=512, model='/data/models/MiMo-V2.5-Pro', served_model_name=None, tokenizer=None, num_prompts=16, sharegpt_output_len=None, sharegpt_context_len=None, random_input_len=8192, random_output_len=1, random_range_ratio=1.0, image_count=1, image_resolution='1080p', random_image_count=False, image_format='jpeg', image_content='random', request_rate=inf, use_trace_timestamps=False, max_concurrency=1, output_file=None, output_details=False, print_requests=False, disable_tqdm=False, disable_stream=False, return_logprob=False, top_logprobs_num=0, token_ids_logprob=None, logprob_start_len=-1, return_routed_experts=False, seed=12345, disable_ignore_eos=False, temperature=0.0, top_p=1.0, extra_request_body=None, apply_chat_template=False, profile=False, plot_throughput=False, profile_activities=['CPU', 'GPU'], profile_start_step=None, profile_steps=None, profile_num_steps=None, profile_by_stage=False, profile_stages=None, profile_output_dir=None, profile_prefix=None, lora_name=None, lora_request_distribution='uniform', lora_zipf_alpha=1.5, prompt_suffix='', pd_separated=True, profile_prefill_url=None, profile_decode_url=None, flush_cache=True, warmup_requests=1, tokenize_prompt=False, gsp_num_groups=64, gsp_prompts_per_group=16, gsp_system_prompt_len=2048, gsp_question_len=128, gsp_output_len=256, gsp_range_ratio=1.0, gsp_fast_prepare=False, gsp_send_routing_key=False, gsp_num_turns=1, gsp_ordered=False, gsp_group_distribution='uniform', gsp_zipf_alpha=None, mooncake_slowdown_factor=1.0, mooncake_num_rounds=1, mooncake_workload='conversation', fake_prefill=False, tag=None, header=None)
-
-#Input tokens: 131072
-#Output tokens: 16
-Starting warmup with 1 sequences...
-Warmup completed with 1 sequences. Starting main benchmark run...
-  0%|          | 0/16 [00:00<?, ?it/s]  6%|▋         | 1/16 [00:00<00:08,  1.78it/s] 12%|█▎        | 2/16 [00:01<00:07,  1.75it/s] 19%|█▉        | 3/16 [00:01<00:07,  1.79it/s] 25%|██▌       | 4/16 [00:02<00:06,  1.81it/s] 31%|███▏      | 5/16 [00:02<00:06,  1.81it/s] 38%|███▊      | 6/16 [00:03<00:05,  1.87it/s] 44%|████▍     | 7/16 [00:03<00:04,  1.85it/s] 50%|█████     | 8/16 [00:04<00:04,  1.82it/s] 56%|█████▋    | 9/16 [00:04<00:03,  1.83it/s] 62%|██████▎   | 10/16 [00:05<00:03,  1.79it/s] 69%|██████▉   | 11/16 [00:06<00:02,  1.81it/s] 75%|███████▌  | 12/16 [00:06<00:02,  1.79it/s] 81%|████████▏ | 13/16 [00:07<00:01,  1.77it/s] 88%|████████▊ | 14/16 [00:07<00:01,  1.78it/s] 94%|█████████▍| 15/16 [00:08<00:00,  1.82it/s]100%|██████████| 16/16 [00:08<00:00,  1.82it/s]100%|██████████| 16/16 [00:08<00:00,  1.81it/s]
-
-============ Serving Benchmark Result ============
-Backend:                                 sglang    
-Traffic request rate:                    inf       
-Max request concurrency:                 1         
-Successful requests:                     16        
-Benchmark duration (s):                  8.85      
-Total input tokens:                      131072    
-Total input text tokens:                 131072    
-Total generated tokens:                  16        
-Total generated tokens (retokenized):    16        
-Request throughput (req/s):              1.81      
-Input token throughput (tok/s):          14811.18  
-Output token throughput (tok/s):         1.81      
-Peak output token throughput (tok/s):    2.00      
-Peak concurrent requests:                3         
-Total token throughput (tok/s):          14812.98  
-Concurrency:                             1.00      
-----------------End-to-End Latency----------------
-Mean E2E Latency (ms):                   552.35    
-Median E2E Latency (ms):                 549.55    
-P90 E2E Latency (ms):                    581.31    
-P95 E2E Latency (ms):                    586.94    
-P99 E2E Latency (ms):                    589.09    
----------------Time to First Token----------------
-Mean TTFT (ms):                          552.33    
-Median TTFT (ms):                        549.54    
-P90 TTFT (ms):                           581.24    
-P95 TTFT (ms):                           586.83    
-P99 TTFT (ms):                           589.05    
------Time per Output Token (excl. 1st token)------
-Mean TPOT (ms):                          0.00      
-Median TPOT (ms):                        0.00      
-P90 TPOT (ms):                           0.00      
-P95 TPOT (ms):                           0.00      
-P99 TPOT (ms):                           0.00      
----------------Inter-Token Latency----------------
-Mean ITL (ms):                           0.00      
-Median ITL (ms):                         0.00      
-P90 ITL (ms):                            0.00      
-P95 ITL (ms):                            0.00      
-P99 ITL (ms):                            0.00      
-Max ITL (ms):                            0.00      
-==================================================
-Finished prefill input=8192, concurrency=1, rc=0
-
-============================================================
-Prefill sweep: input=8192, output=1, concurrency=2
-Log file: /data/xisun/ck_a8w8_concurrency_sweep_20260708_20260708_015402/extension/prefill/prefill_8192_out1_con2.log
-============================================================
-/opt/venv/lib/python3.10/site-packages/transformers/modeling_rope_utils.py:1034: FutureWarning: `rope_config_validation` is deprecated and has been removed. Its functionality has been moved to RotaryEmbeddingConfigMixin.validate_rope method. PreTrainedConfig inherits this class, so please call self.validate_rope() instead. Also, make sure to use the new rope_parameters syntax. You can call self.standardize_rope_params() in the meantime.
-  warnings.warn(
-benchmark_args=Namespace(backend='sglang', base_url=None, host='0.0.0.0', port=40000, ready_check_timeout_sec=60, dataset_name='random', dataset_path='/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json', speed_bench_category=None, speed_bench_output_len=512, model='/data/models/MiMo-V2.5-Pro', served_model_name=None, tokenizer=None, num_prompts=16, sharegpt_output_len=None, sharegpt_context_len=None, random_input_len=8192, random_output_len=1, random_range_ratio=1.0, image_count=1, image_resolution='1080p', random_image_count=False, image_format='jpeg', image_content='random', request_rate=inf, use_trace_timestamps=False, max_concurrency=2, output_file=None, output_details=False, print_requests=False, disable_tqdm=False, disable_stream=False, return_logprob=False, top_logprobs_num=0, token_ids_logprob=None, logprob_start_len=-1, return_routed_experts=False, seed=12345, disable_ignore_eos=False, temperature=0.0, top_p=1.0, extra_request_body=None, apply_chat_template=False, profile=False, plot_throughput=False, profile_activities=['CPU', 'GPU'], profile_start_step=None, profile_steps=None, profile_num_steps=None, profile_by_stage=False, profile_stages=None, profile_output_dir=None, profile_prefix=None, lora_name=None, lora_request_distribution='uniform', lora_zipf_alpha=1.5, prompt_suffix='', pd_separated=True, profile_prefill_url=None, profile_decode_url=None, flush_cache=True, warmup_requests=1, tokenize_prompt=False, gsp_num_groups=64, gsp_prompts_per_group=16, gsp_system_prompt_len=2048, gsp_question_len=128, gsp_output_len=256, gsp_range_ratio=1.0, gsp_fast_prepare=False, gsp_send_routing_key=False, gsp_num_turns=1, gsp_ordered=False, gsp_group_distribution='uniform', gsp_zipf_alpha=None, mooncake_slowdown_factor=1.0, mooncake_num_rounds=1, mooncake_workload='conversation', fake_prefill=False, tag=None, header=None)
-Waiting up to 60s for http://0.0.0.0:40000/v1/models to become ready...
-Server ready in 0.0s.
-Namespace(backend='sglang', base_url=None, host='0.0.0.0', port=40000, ready_check_timeout_sec=60, dataset_name='random', dataset_path='/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json', speed_bench_category=None, speed_bench_output_len=512, model='/data/models/MiMo-V2.5-Pro', served_model_name=None, tokenizer=None, num_prompts=16, sharegpt_output_len=None, sharegpt_context_len=None, random_input_len=8192, random_output_len=1, random_range_ratio=1.0, image_count=1, image_resolution='1080p', random_image_count=False, image_format='jpeg', image_content='random', request_rate=inf, use_trace_timestamps=False, max_concurrency=2, output_file=None, output_details=False, print_requests=False, disable_tqdm=False, disable_stream=False, return_logprob=False, top_logprobs_num=0, token_ids_logprob=None, logprob_start_len=-1, return_routed_experts=False, seed=12345, disable_ignore_eos=False, temperature=0.0, top_p=1.0, extra_request_body=None, apply_chat_template=False, profile=False, plot_throughput=False, profile_activities=['CPU', 'GPU'], profile_start_step=None, profile_steps=None, profile_num_steps=None, profile_by_stage=False, profile_stages=None, profile_output_dir=None, profile_prefix=None, lora_name=None, lora_request_distribution='uniform', lora_zipf_alpha=1.5, prompt_suffix='', pd_separated=True, profile_prefill_url=None, profile_decode_url=None, flush_cache=True, warmup_requests=1, tokenize_prompt=False, gsp_num_groups=64, gsp_prompts_per_group=16, gsp_system_prompt_len=2048, gsp_question_len=128, gsp_output_len=256, gsp_range_ratio=1.0, gsp_fast_prepare=False, gsp_send_routing_key=False, gsp_num_turns=1, gsp_ordered=False, gsp_group_distribution='uniform', gsp_zipf_alpha=None, mooncake_slowdown_factor=1.0, mooncake_num_rounds=1, mooncake_workload='conversation', fake_prefill=False, tag=None, header=None)
-
-#Input tokens: 131072
-#Output tokens: 16
-Starting warmup with 1 sequences...
-Warmup completed with 1 sequences. Starting main benchmark run...
-  0%|          | 0/16 [00:00<?, ?it/s]  6%|▋         | 1/16 [00:00<00:14,  1.04it/s] 12%|█▎        | 2/16 [00:01<00:09,  1.48it/s] 19%|█▉        | 3/16 [00:01<00:07,  1.74it/s] 25%|██▌       | 4/16 [00:02<00:06,  1.85it/s] 31%|███▏      | 5/16 [00:02<00:05,  1.98it/s] 38%|███▊      | 6/16 [00:03<00:04,  2.02it/s] 44%|████▍     | 7/16 [00:03<00:04,  2.06it/s] 50%|█████     | 8/16 [00:04<00:03,  2.06it/s] 56%|█████▋    | 9/16 [00:04<00:03,  2.06it/s] 62%|██████▎   | 10/16 [00:05<00:02,  2.07it/s] 69%|██████▉   | 11/16 [00:05<00:02,  2.06it/s] 75%|███████▌  | 12/16 [00:06<00:01,  2.05it/s] 81%|████████▏ | 13/16 [00:06<00:01,  2.06it/s] 88%|████████▊ | 14/16 [00:07<00:00,  2.08it/s] 94%|█████████▍| 15/16 [00:07<00:00,  2.08it/s]100%|██████████| 16/16 [00:07<00:00,  2.07it/s]
-
-============ Serving Benchmark Result ============
-Backend:                                 sglang    
-Traffic request rate:                    inf       
-Max request concurrency:                 2         
-Successful requests:                     16        
-Benchmark duration (s):                  7.72      
-Total input tokens:                      131072    
-Total input text tokens:                 131072    
-Total generated tokens:                  16        
-Total generated tokens (retokenized):    16        
-Request throughput (req/s):              2.07      
-Input token throughput (tok/s):          16982.94  
-Output token throughput (tok/s):         2.07      
-Peak output token throughput (tok/s):    3.00      
-Peak concurrent requests:                4         
-Total token throughput (tok/s):          16985.02  
-Concurrency:                             1.99      
-----------------End-to-End Latency----------------
-Mean E2E Latency (ms):                   958.38    
-Median E2E Latency (ms):                 951.60    
-P90 E2E Latency (ms):                    980.24    
-P95 E2E Latency (ms):                    1096.70   
-P99 E2E Latency (ms):                    1368.70   
----------------Time to First Token----------------
-Mean TTFT (ms):                          958.32    
-Median TTFT (ms):                        951.59    
-P90 TTFT (ms):                           980.08    
-P95 TTFT (ms):                           1096.47   
-P99 TTFT (ms):                           1368.64   
------Time per Output Token (excl. 1st token)------
-Mean TPOT (ms):                          0.00      
-Median TPOT (ms):                        0.00      
-P90 TPOT (ms):                           0.00      
-P95 TPOT (ms):                           0.00      
-P99 TPOT (ms):                           0.00      
----------------Inter-Token Latency----------------
-Mean ITL (ms):                           0.00      
-Median ITL (ms):                         0.00      
-P90 ITL (ms):                            0.00      
-P95 ITL (ms):                            0.00      
-P99 ITL (ms):                            0.00      
-Max ITL (ms):                            0.00      
-==================================================
-Finished prefill input=8192, concurrency=2, rc=0
-
-============================================================
-Prefill sweep: input=8192, output=1, concurrency=4
-Log file: /data/xisun/ck_a8w8_concurrency_sweep_20260708_20260708_015402/extension/prefill/prefill_8192_out1_con4.log
-============================================================
-/opt/venv/lib/python3.10/site-packages/transformers/modeling_rope_utils.py:1034: FutureWarning: `rope_config_validation` is deprecated and has been removed. Its functionality has been moved to RotaryEmbeddingConfigMixin.validate_rope method. PreTrainedConfig inherits this class, so please call self.validate_rope() instead. Also, make sure to use the new rope_parameters syntax. You can call self.standardize_rope_params() in the meantime.
-  warnings.warn(
-benchmark_args=Namespace(backend='sglang', base_url=None, host='0.0.0.0', port=40000, ready_check_timeout_sec=60, dataset_name='random', dataset_path='/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json', speed_bench_category=None, speed_bench_output_len=512, model='/data/models/MiMo-V2.5-Pro', served_model_name=None, tokenizer=None, num_prompts=16, sharegpt_output_len=None, sharegpt_context_len=None, random_input_len=8192, random_output_len=1, random_range_ratio=1.0, image_count=1, image_resolution='1080p', random_image_count=False, image_format='jpeg', image_content='random', request_rate=inf, use_trace_timestamps=False, max_concurrency=4, output_file=None, output_details=False, print_requests=False, disable_tqdm=False, disable_stream=False, return_logprob=False, top_logprobs_num=0, token_ids_logprob=None, logprob_start_len=-1, return_routed_experts=False, seed=12345, disable_ignore_eos=False, temperature=0.0, top_p=1.0, extra_request_body=None, apply_chat_template=False, profile=False, plot_throughput=False, profile_activities=['CPU', 'GPU'], profile_start_step=None, profile_steps=None, profile_num_steps=None, profile_by_stage=False, profile_stages=None, profile_output_dir=None, profile_prefix=None, lora_name=None, lora_request_distribution='uniform', lora_zipf_alpha=1.5, prompt_suffix='', pd_separated=True, profile_prefill_url=None, profile_decode_url=None, flush_cache=True, warmup_requests=1, tokenize_prompt=False, gsp_num_groups=64, gsp_prompts_per_group=16, gsp_system_prompt_len=2048, gsp_question_len=128, gsp_output_len=256, gsp_range_ratio=1.0, gsp_fast_prepare=False, gsp_send_routing_key=False, gsp_num_turns=1, gsp_ordered=False, gsp_group_distribution='uniform', gsp_zipf_alpha=None, mooncake_slowdown_factor=1.0, mooncake_num_rounds=1, mooncake_workload='conversation', fake_prefill=False, tag=None, header=None)
-Waiting up to 60s for http://0.0.0.0:40000/v1/models to become ready...
-Server ready in 0.0s.
-Namespace(backend='sglang', base_url=None, host='0.0.0.0', port=40000, ready_check_timeout_sec=60, dataset_name='random', dataset_path='/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json', speed_bench_category=None, speed_bench_output_len=512, model='/data/models/MiMo-V2.5-Pro', served_model_name=None, tokenizer=None, num_prompts=16, sharegpt_output_len=None, sharegpt_context_len=None, random_input_len=8192, random_output_len=1, random_range_ratio=1.0, image_count=1, image_resolution='1080p', random_image_count=False, image_format='jpeg', image_content='random', request_rate=inf, use_trace_timestamps=False, max_concurrency=4, output_file=None, output_details=False, print_requests=False, disable_tqdm=False, disable_stream=False, return_logprob=False, top_logprobs_num=0, token_ids_logprob=None, logprob_start_len=-1, return_routed_experts=False, seed=12345, disable_ignore_eos=False, temperature=0.0, top_p=1.0, extra_request_body=None, apply_chat_template=False, profile=False, plot_throughput=False, profile_activities=['CPU', 'GPU'], profile_start_step=None, profile_steps=None, profile_num_steps=None, profile_by_stage=False, profile_stages=None, profile_output_dir=None, profile_prefix=None, lora_name=None, lora_request_distribution='uniform', lora_zipf_alpha=1.5, prompt_suffix='', pd_separated=True, profile_prefill_url=None, profile_decode_url=None, flush_cache=True, warmup_requests=1, tokenize_prompt=False, gsp_num_groups=64, gsp_prompts_per_group=16, gsp_system_prompt_len=2048, gsp_question_len=128, gsp_output_len=256, gsp_range_ratio=1.0, gsp_fast_prepare=False, gsp_send_routing_key=False, gsp_num_turns=1, gsp_ordered=False, gsp_group_distribution='uniform', gsp_zipf_alpha=None, mooncake_slowdown_factor=1.0, mooncake_num_rounds=1, mooncake_workload='conversation', fake_prefill=False, tag=None, header=None)
-
-#Input tokens: 131072
-#Output tokens: 16
-Starting warmup with 1 sequences...
-Warmup completed with 1 sequences. Starting main benchmark run...
-  0%|          | 0/16 [00:00<?, ?it/s]  6%|▋         | 1/16 [00:01<00:20,  1.34s/it] 12%|█▎        | 2/16 [00:01<00:11,  1.23it/s] 19%|█▉        | 3/16 [00:02<00:11,  1.18it/s] 38%|███▊      | 6/16 [00:03<00:03,  2.54it/s] 44%|████▍     | 7/16 [00:04<00:04,  1.99it/s] 50%|█████     | 8/16 [00:04<00:03,  2.04it/s] 56%|█████▋    | 9/16 [00:05<00:04,  1.67it/s] 75%|███████▌  | 12/16 [00:05<00:01,  2.73it/s] 81%|████████▏ | 13/16 [00:06<00:01,  2.16it/s] 88%|████████▊ | 14/16 [00:07<00:00,  2.15it/s] 94%|█████████▍| 15/16 [00:07<00:00,  1.98it/s]100%|██████████| 16/16 [00:07<00:00,  2.05it/s]
-
-============ Serving Benchmark Result ============
-Backend:                                 sglang    
-Traffic request rate:                    inf       
-Max request concurrency:                 4         
-Successful requests:                     16        
-Benchmark duration (s):                  7.81      
-Total input tokens:                      131072    
-Total input text tokens:                 131072    
-Total generated tokens:                  16        
-Total generated tokens (retokenized):    16        
-Request throughput (req/s):              2.05      
-Input token throughput (tok/s):          16783.88  
-Output token throughput (tok/s):         2.05      
-Peak output token throughput (tok/s):    4.00      
-Peak concurrent requests:                8         
-Total token throughput (tok/s):          16785.93  
-Concurrency:                             3.77      
-----------------End-to-End Latency----------------
-Mean E2E Latency (ms):                   1840.99   
-Median E2E Latency (ms):                 1787.18   
-P90 E2E Latency (ms):                    2676.08   
-P95 E2E Latency (ms):                    2677.54   
-P99 E2E Latency (ms):                    2680.41   
----------------Time to First Token----------------
-Mean TTFT (ms):                          1840.95   
-Median TTFT (ms):                        1787.16   
-P90 TTFT (ms):                           2676.07   
-P95 TTFT (ms):                           2677.53   
-P99 TTFT (ms):                           2680.40   
------Time per Output Token (excl. 1st token)------
-Mean TPOT (ms):                          0.00      
-Median TPOT (ms):                        0.00      
-P90 TPOT (ms):                           0.00      
-P95 TPOT (ms):                           0.00      
-P99 TPOT (ms):                           0.00      
----------------Inter-Token Latency----------------
-Mean ITL (ms):                           0.00      
-Median ITL (ms):                         0.00      
-P90 ITL (ms):                            0.00      
-P95 ITL (ms):                            0.00      
-P99 ITL (ms):                            0.00      
-Max ITL (ms):                            0.00      
-==================================================
-Finished prefill input=8192, concurrency=4, rc=0
-
-============================================================
-Prefill sweep: input=8192, output=1, concurrency=8
-Log file: /data/xisun/ck_a8w8_concurrency_sweep_20260708_20260708_015402/extension/prefill/prefill_8192_out1_con8.log
-============================================================
-/opt/venv/lib/python3.10/site-packages/transformers/modeling_rope_utils.py:1034: FutureWarning: `rope_config_validation` is deprecated and has been removed. Its functionality has been moved to RotaryEmbeddingConfigMixin.validate_rope method. PreTrainedConfig inherits this class, so please call self.validate_rope() instead. Also, make sure to use the new rope_parameters syntax. You can call self.standardize_rope_params() in the meantime.
-  warnings.warn(
-benchmark_args=Namespace(backend='sglang', base_url=None, host='0.0.0.0', port=40000, ready_check_timeout_sec=60, dataset_name='random', dataset_path='/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json', speed_bench_category=None, speed_bench_output_len=512, model='/data/models/MiMo-V2.5-Pro', served_model_name=None, tokenizer=None, num_prompts=16, sharegpt_output_len=None, sharegpt_context_len=None, random_input_len=8192, random_output_len=1, random_range_ratio=1.0, image_count=1, image_resolution='1080p', random_image_count=False, image_format='jpeg', image_content='random', request_rate=inf, use_trace_timestamps=False, max_concurrency=8, output_file=None, output_details=False, print_requests=False, disable_tqdm=False, disable_stream=False, return_logprob=False, top_logprobs_num=0, token_ids_logprob=None, logprob_start_len=-1, return_routed_experts=False, seed=12345, disable_ignore_eos=False, temperature=0.0, top_p=1.0, extra_request_body=None, apply_chat_template=False, profile=False, plot_throughput=False, profile_activities=['CPU', 'GPU'], profile_start_step=None, profile_steps=None, profile_num_steps=None, profile_by_stage=False, profile_stages=None, profile_output_dir=None, profile_prefix=None, lora_name=None, lora_request_distribution='uniform', lora_zipf_alpha=1.5, prompt_suffix='', pd_separated=True, profile_prefill_url=None, profile_decode_url=None, flush_cache=True, warmup_requests=1, tokenize_prompt=False, gsp_num_groups=64, gsp_prompts_per_group=16, gsp_system_prompt_len=2048, gsp_question_len=128, gsp_output_len=256, gsp_range_ratio=1.0, gsp_fast_prepare=False, gsp_send_routing_key=False, gsp_num_turns=1, gsp_ordered=False, gsp_group_distribution='uniform', gsp_zipf_alpha=None, mooncake_slowdown_factor=1.0, mooncake_num_rounds=1, mooncake_workload='conversation', fake_prefill=False, tag=None, header=None)
-Waiting up to 60s for http://0.0.0.0:40000/v1/models to become ready...
-Server ready in 0.0s.
-Namespace(backend='sglang', base_url=None, host='0.0.0.0', port=40000, ready_check_timeout_sec=60, dataset_name='random', dataset_path='/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json', speed_bench_category=None, speed_bench_output_len=512, model='/data/models/MiMo-V2.5-Pro', served_model_name=None, tokenizer=None, num_prompts=16, sharegpt_output_len=None, sharegpt_context_len=None, random_input_len=8192, random_output_len=1, random_range_ratio=1.0, image_count=1, image_resolution='1080p', random_image_count=False, image_format='jpeg', image_content='random', request_rate=inf, use_trace_timestamps=False, max_concurrency=8, output_file=None, output_details=False, print_requests=False, disable_tqdm=False, disable_stream=False, return_logprob=False, top_logprobs_num=0, token_ids_logprob=None, logprob_start_len=-1, return_routed_experts=False, seed=12345, disable_ignore_eos=False, temperature=0.0, top_p=1.0, extra_request_body=None, apply_chat_template=False, profile=False, plot_throughput=False, profile_activities=['CPU', 'GPU'], profile_start_step=None, profile_steps=None, profile_num_steps=None, profile_by_stage=False, profile_stages=None, profile_output_dir=None, profile_prefix=None, lora_name=None, lora_request_distribution='uniform', lora_zipf_alpha=1.5, prompt_suffix='', pd_separated=True, profile_prefill_url=None, profile_decode_url=None, flush_cache=True, warmup_requests=1, tokenize_prompt=False, gsp_num_groups=64, gsp_prompts_per_group=16, gsp_system_prompt_len=2048, gsp_question_len=128, gsp_output_len=256, gsp_range_ratio=1.0, gsp_fast_prepare=False, gsp_send_routing_key=False, gsp_num_turns=1, gsp_ordered=False, gsp_group_distribution='uniform', gsp_zipf_alpha=None, mooncake_slowdown_factor=1.0, mooncake_num_rounds=1, mooncake_workload='conversation', fake_prefill=False, tag=None, header=None)
-
-#Input tokens: 131072
-#Output tokens: 16
-Starting warmup with 1 sequences...
-Warmup completed with 1 sequences. Starting main benchmark run...
-  0%|          | 0/16 [00:00<?, ?it/s]  6%|▋         | 1/16 [00:01<00:20,  1.36s/it] 12%|█▎        | 2/16 [00:02<00:14,  1.02s/it] 19%|█▉        | 3/16 [00:03<00:12,  1.06it/s] 38%|███▊      | 6/16 [00:03<00:05,  1.99it/s] 44%|████▍     | 7/16 [00:04<00:05,  1.70it/s] 62%|██████▎   | 10/16 [00:05<00:02,  2.01it/s] 75%|███████▌  | 12/16 [00:06<00:01,  2.13it/s] 81%|████████▏ | 13/16 [00:07<00:01,  2.31it/s]100%|██████████| 16/16 [00:07<00:00,  2.27it/s]
-
-============ Serving Benchmark Result ============
-Backend:                                 sglang    
-Traffic request rate:                    inf       
-Max request concurrency:                 8         
-Successful requests:                     16        
-Benchmark duration (s):                  7.04      
-Total input tokens:                      131072    
-Total input text tokens:                 131072    
-Total generated tokens:                  16        
-Total generated tokens (retokenized):    16        
-Request throughput (req/s):              2.27      
-Input token throughput (tok/s):          18617.41  
-Output token throughput (tok/s):         2.27      
-Peak output token throughput (tok/s):    4.00      
-Peak concurrent requests:                12        
-Total token throughput (tok/s):          18619.69  
-Concurrency:                             7.30      
-----------------End-to-End Latency----------------
-Mean E2E Latency (ms):                   3210.80   
-Median E2E Latency (ms):                 3098.87   
-P90 E2E Latency (ms):                    4353.39   
-P95 E2E Latency (ms):                    4690.24   
-P99 E2E Latency (ms):                    4690.98   
----------------Time to First Token----------------
-Mean TTFT (ms):                          3210.75   
-Median TTFT (ms):                        3098.86   
-P90 TTFT (ms):                           4353.32   
-P95 TTFT (ms):                           4690.23   
-P99 TTFT (ms):                           4690.96   
------Time per Output Token (excl. 1st token)------
-Mean TPOT (ms):                          0.00      
-Median TPOT (ms):                        0.00      
-P90 TPOT (ms):                           0.00      
-P95 TPOT (ms):                           0.00      
-P99 TPOT (ms):                           0.00      
----------------Inter-Token Latency----------------
-Mean ITL (ms):                           0.00      
-Median ITL (ms):                         0.00      
-P90 ITL (ms):                            0.00      
-P95 ITL (ms):                            0.00      
-P99 ITL (ms):                            0.00      
-Max ITL (ms):                            0.00      
-==================================================
-Finished prefill input=8192, concurrency=8, rc=0
-
-============================================================
-Prefill sweep: input=65536, output=1, concurrency=1
-Log file: /data/xisun/ck_a8w8_concurrency_sweep_20260708_20260708_015402/extension/prefill/prefill_65536_out1_con1.log
-============================================================
-/opt/venv/lib/python3.10/site-packages/transformers/modeling_rope_utils.py:1034: FutureWarning: `rope_config_validation` is deprecated and has been removed. Its functionality has been moved to RotaryEmbeddingConfigMixin.validate_rope method. PreTrainedConfig inherits this class, so please call self.validate_rope() instead. Also, make sure to use the new rope_parameters syntax. You can call self.standardize_rope_params() in the meantime.
-  warnings.warn(
-benchmark_args=Namespace(backend='sglang', base_url=None, host='0.0.0.0', port=40000, ready_check_timeout_sec=60, dataset_name='random', dataset_path='/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json', speed_bench_category=None, speed_bench_output_len=512, model='/data/models/MiMo-V2.5-Pro', served_model_name=None, tokenizer=None, num_prompts=16, sharegpt_output_len=None, sharegpt_context_len=None, random_input_len=65536, random_output_len=1, random_range_ratio=1.0, image_count=1, image_resolution='1080p', random_image_count=False, image_format='jpeg', image_content='random', request_rate=inf, use_trace_timestamps=False, max_concurrency=1, output_file=None, output_details=False, print_requests=False, disable_tqdm=False, disable_stream=False, return_logprob=False, top_logprobs_num=0, token_ids_logprob=None, logprob_start_len=-1, return_routed_experts=False, seed=12345, disable_ignore_eos=False, temperature=0.0, top_p=1.0, extra_request_body=None, apply_chat_template=False, profile=False, plot_throughput=False, profile_activities=['CPU', 'GPU'], profile_start_step=None, profile_steps=None, profile_num_steps=None, profile_by_stage=False, profile_stages=None, profile_output_dir=None, profile_prefix=None, lora_name=None, lora_request_distribution='uniform', lora_zipf_alpha=1.5, prompt_suffix='', pd_separated=True, profile_prefill_url=None, profile_decode_url=None, flush_cache=True, warmup_requests=1, tokenize_prompt=False, gsp_num_groups=64, gsp_prompts_per_group=16, gsp_system_prompt_len=2048, gsp_question_len=128, gsp_output_len=256, gsp_range_ratio=1.0, gsp_fast_prepare=False, gsp_send_routing_key=False, gsp_num_turns=1, gsp_ordered=False, gsp_group_distribution='uniform', gsp_zipf_alpha=None, mooncake_slowdown_factor=1.0, mooncake_num_rounds=1, mooncake_workload='conversation', fake_prefill=False, tag=None, header=None)
-Waiting up to 60s for http://0.0.0.0:40000/v1/models to become ready...
-Server ready in 0.0s.
-Namespace(backend='sglang', base_url=None, host='0.0.0.0', port=40000, ready_check_timeout_sec=60, dataset_name='random', dataset_path='/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json', speed_bench_category=None, speed_bench_output_len=512, model='/data/models/MiMo-V2.5-Pro', served_model_name=None, tokenizer=None, num_prompts=16, sharegpt_output_len=None, sharegpt_context_len=None, random_input_len=65536, random_output_len=1, random_range_ratio=1.0, image_count=1, image_resolution='1080p', random_image_count=False, image_format='jpeg', image_content='random', request_rate=inf, use_trace_timestamps=False, max_concurrency=1, output_file=None, output_details=False, print_requests=False, disable_tqdm=False, disable_stream=False, return_logprob=False, top_logprobs_num=0, token_ids_logprob=None, logprob_start_len=-1, return_routed_experts=False, seed=12345, disable_ignore_eos=False, temperature=0.0, top_p=1.0, extra_request_body=None, apply_chat_template=False, profile=False, plot_throughput=False, profile_activities=['CPU', 'GPU'], profile_start_step=None, profile_steps=None, profile_num_steps=None, profile_by_stage=False, profile_stages=None, profile_output_dir=None, profile_prefix=None, lora_name=None, lora_request_distribution='uniform', lora_zipf_alpha=1.5, prompt_suffix='', pd_separated=True, profile_prefill_url=None, profile_decode_url=None, flush_cache=True, warmup_requests=1, tokenize_prompt=False, gsp_num_groups=64, gsp_prompts_per_group=16, gsp_system_prompt_len=2048, gsp_question_len=128, gsp_output_len=256, gsp_range_ratio=1.0, gsp_fast_prepare=False, gsp_send_routing_key=False, gsp_num_turns=1, gsp_ordered=False, gsp_group_distribution='uniform', gsp_zipf_alpha=None, mooncake_slowdown_factor=1.0, mooncake_num_rounds=1, mooncake_workload='conversation', fake_prefill=False, tag=None, header=None)
-
-#Input tokens: 1048576
-#Output tokens: 16
-Starting warmup with 1 sequences...
-Warmup completed with 1 sequences. Starting main benchmark run...
-  0%|          | 0/16 [00:00<?, ?it/s]  6%|▋         | 1/16 [00:03<00:58,  3.92s/it] 12%|█▎        | 2/16 [00:07<00:54,  3.91s/it] 19%|█▉        | 3/16 [00:11<00:49,  3.84s/it] 25%|██▌       | 4/16 [00:15<00:45,  3.78s/it] 31%|███▏      | 5/16 [00:19<00:41,  3.81s/it] 38%|███▊      | 6/16 [00:22<00:37,  3.76s/it] 44%|████▍     | 7/16 [00:26<00:34,  3.79s/it] 50%|█████     | 8/16 [00:30<00:30,  3.77s/it] 56%|█████▋    | 9/16 [00:34<00:26,  3.81s/it] 62%|██████▎   | 10/16 [00:39<00:24,  4.14s/it] 69%|██████▉   | 11/16 [00:42<00:20,  4.02s/it] 75%|███████▌  | 12/16 [00:46<00:15,  3.98s/it] 81%|████████▏ | 13/16 [00:50<00:11,  3.94s/it] 88%|████████▊ | 14/16 [00:54<00:07,  3.94s/it] 94%|█████████▍| 15/16 [00:58<00:03,  3.89s/it]100%|██████████| 16/16 [01:03<00:00,  4.17s/it]100%|██████████| 16/16 [01:03<00:00,  3.95s/it]
-
-============ Serving Benchmark Result ============
-Backend:                                 sglang    
-Traffic request rate:                    inf       
-Max request concurrency:                 1         
-Successful requests:                     16        
-Benchmark duration (s):                  63.16     
-Total input tokens:                      1048576   
-Total input text tokens:                 1048576   
-Total generated tokens:                  16        
-Total generated tokens (retokenized):    16        
-Request throughput (req/s):              0.25      
-Input token throughput (tok/s):          16602.69  
-Output token throughput (tok/s):         0.25      
-Peak output token throughput (tok/s):    1.00      
-Peak concurrent requests:                2         
-Total token throughput (tok/s):          16602.94  
-Concurrency:                             1.00      
-----------------End-to-End Latency----------------
-Mean E2E Latency (ms):                   3946.39   
-Median E2E Latency (ms):                 3865.44   
-P90 E2E Latency (ms):                    4365.25   
-P95 E2E Latency (ms):                    4831.14   
-P99 E2E Latency (ms):                    4869.79   
----------------Time to First Token----------------
-Mean TTFT (ms):                          3946.37   
-Median TTFT (ms):                        3865.42   
-P90 TTFT (ms):                           4365.23   
-P95 TTFT (ms):                           4831.13   
-P99 TTFT (ms):                           4869.77   
------Time per Output Token (excl. 1st token)------
-Mean TPOT (ms):                          0.00      
-Median TPOT (ms):                        0.00      
-P90 TPOT (ms):                           0.00      
-P95 TPOT (ms):                           0.00      
-P99 TPOT (ms):                           0.00      
----------------Inter-Token Latency----------------
-Mean ITL (ms):                           0.00      
-Median ITL (ms):                         0.00      
-P90 ITL (ms):                            0.00      
-P95 ITL (ms):                            0.00      
-P99 ITL (ms):                            0.00      
-Max ITL (ms):                            0.00      
-==================================================
-Finished prefill input=65536, concurrency=1, rc=0
-
-============================================================
-Prefill sweep: input=65536, output=1, concurrency=2
-Log file: /data/xisun/ck_a8w8_concurrency_sweep_20260708_20260708_015402/extension/prefill/prefill_65536_out1_con2.log
-============================================================
-/opt/venv/lib/python3.10/site-packages/transformers/modeling_rope_utils.py:1034: FutureWarning: `rope_config_validation` is deprecated and has been removed. Its functionality has been moved to RotaryEmbeddingConfigMixin.validate_rope method. PreTrainedConfig inherits this class, so please call self.validate_rope() instead. Also, make sure to use the new rope_parameters syntax. You can call self.standardize_rope_params() in the meantime.
-  warnings.warn(
-benchmark_args=Namespace(backend='sglang', base_url=None, host='0.0.0.0', port=40000, ready_check_timeout_sec=60, dataset_name='random', dataset_path='/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json', speed_bench_category=None, speed_bench_output_len=512, model='/data/models/MiMo-V2.5-Pro', served_model_name=None, tokenizer=None, num_prompts=16, sharegpt_output_len=None, sharegpt_context_len=None, random_input_len=65536, random_output_len=1, random_range_ratio=1.0, image_count=1, image_resolution='1080p', random_image_count=False, image_format='jpeg', image_content='random', request_rate=inf, use_trace_timestamps=False, max_concurrency=2, output_file=None, output_details=False, print_requests=False, disable_tqdm=False, disable_stream=False, return_logprob=False, top_logprobs_num=0, token_ids_logprob=None, logprob_start_len=-1, return_routed_experts=False, seed=12345, disable_ignore_eos=False, temperature=0.0, top_p=1.0, extra_request_body=None, apply_chat_template=False, profile=False, plot_throughput=False, profile_activities=['CPU', 'GPU'], profile_start_step=None, profile_steps=None, profile_num_steps=None, profile_by_stage=False, profile_stages=None, profile_output_dir=None, profile_prefix=None, lora_name=None, lora_request_distribution='uniform', lora_zipf_alpha=1.5, prompt_suffix='', pd_separated=True, profile_prefill_url=None, profile_decode_url=None, flush_cache=True, warmup_requests=1, tokenize_prompt=False, gsp_num_groups=64, gsp_prompts_per_group=16, gsp_system_prompt_len=2048, gsp_question_len=128, gsp_output_len=256, gsp_range_ratio=1.0, gsp_fast_prepare=False, gsp_send_routing_key=False, gsp_num_turns=1, gsp_ordered=False, gsp_group_distribution='uniform', gsp_zipf_alpha=None, mooncake_slowdown_factor=1.0, mooncake_num_rounds=1, mooncake_workload='conversation', fake_prefill=False, tag=None, header=None)
-Waiting up to 60s for http://0.0.0.0:40000/v1/models to become ready...
-Server ready in 0.0s.
-Namespace(backend='sglang', base_url=None, host='0.0.0.0', port=40000, ready_check_timeout_sec=60, dataset_name='random', dataset_path='/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json', speed_bench_category=None, speed_bench_output_len=512, model='/data/models/MiMo-V2.5-Pro', served_model_name=None, tokenizer=None, num_prompts=16, sharegpt_output_len=None, sharegpt_context_len=None, random_input_len=65536, random_output_len=1, random_range_ratio=1.0, image_count=1, image_resolution='1080p', random_image_count=False, image_format='jpeg', image_content='random', request_rate=inf, use_trace_timestamps=False, max_concurrency=2, output_file=None, output_details=False, print_requests=False, disable_tqdm=False, disable_stream=False, return_logprob=False, top_logprobs_num=0, token_ids_logprob=None, logprob_start_len=-1, return_routed_experts=False, seed=12345, disable_ignore_eos=False, temperature=0.0, top_p=1.0, extra_request_body=None, apply_chat_template=False, profile=False, plot_throughput=False, profile_activities=['CPU', 'GPU'], profile_start_step=None, profile_steps=None, profile_num_steps=None, profile_by_stage=False, profile_stages=None, profile_output_dir=None, profile_prefix=None, lora_name=None, lora_request_distribution='uniform', lora_zipf_alpha=1.5, prompt_suffix='', pd_separated=True, profile_prefill_url=None, profile_decode_url=None, flush_cache=True, warmup_requests=1, tokenize_prompt=False, gsp_num_groups=64, gsp_prompts_per_group=16, gsp_system_prompt_len=2048, gsp_question_len=128, gsp_output_len=256, gsp_range_ratio=1.0, gsp_fast_prepare=False, gsp_send_routing_key=False, gsp_num_turns=1, gsp_ordered=False, gsp_group_distribution='uniform', gsp_zipf_alpha=None, mooncake_slowdown_factor=1.0, mooncake_num_rounds=1, mooncake_workload='conversation', fake_prefill=False, tag=None, header=None)
-
-#Input tokens: 1048576
-#Output tokens: 16
-Starting warmup with 1 sequences...
-Warmup completed with 1 sequences. Starting main benchmark run...
-  0%|          | 0/16 [00:00<?, ?it/s]  6%|▋         | 1/16 [00:05<01:25,  5.67s/it] 12%|█▎        | 2/16 [00:09<01:02,  4.47s/it] 19%|█▉        | 3/16 [00:12<00:52,  4.04s/it] 25%|██▌       | 4/16 [00:16<00:46,  3.85s/it] 31%|███▏      | 5/16 [00:19<00:41,  3.74s/it] 38%|███▊      | 6/16 [00:23<00:36,  3.68s/it] 44%|████▍     | 7/16 [00:27<00:32,  3.65s/it] 50%|█████     | 8/16 [00:30<00:28,  3.62s/it] 56%|█████▋    | 9/16 [00:34<00:25,  3.64s/it] 62%|██████▎   | 10/16 [00:37<00:21,  3.62s/it] 69%|██████▉   | 11/16 [00:41<00:18,  3.61s/it] 75%|███████▌  | 12/16 [00:45<00:14,  3.62s/it] 81%|████████▏ | 13/16 [00:48<00:10,  3.63s/it] 88%|████████▊ | 14/16 [00:52<00:07,  3.63s/it] 94%|█████████▍| 15/16 [00:55<00:03,  3.61s/it]100%|██████████| 16/16 [00:58<00:00,  3.13s/it]100%|██████████| 16/16 [00:58<00:00,  3.63s/it]
-
-============ Serving Benchmark Result ============
-Backend:                                 sglang    
-Traffic request rate:                    inf       
-Max request concurrency:                 2         
-Successful requests:                     16        
-Benchmark duration (s):                  58.01     
-Total input tokens:                      1048576   
-Total input text tokens:                 1048576   
-Total generated tokens:                  16        
-Total generated tokens (retokenized):    16        
-Request throughput (req/s):              0.28      
-Input token throughput (tok/s):          18077.28  
-Output token throughput (tok/s):         0.28      
-Peak output token throughput (tok/s):    1.00      
-Peak concurrent requests:                3         
-Total token throughput (tok/s):          18077.55  
-Concurrency:                             1.96      
-----------------End-to-End Latency----------------
-Mean E2E Latency (ms):                   7122.73   
-Median E2E Latency (ms):                 7159.10   
-P90 E2E Latency (ms):                    7294.30   
-P95 E2E Latency (ms):                    7810.78   
-P99 E2E Latency (ms):                    9003.78   
----------------Time to First Token----------------
-Mean TTFT (ms):                          7122.69   
-Median TTFT (ms):                        7159.08   
-P90 TTFT (ms):                           7294.28   
-P95 TTFT (ms):                           7810.76   
-P99 TTFT (ms):                           9003.76   
------Time per Output Token (excl. 1st token)------
-Mean TPOT (ms):                          0.00      
-Median TPOT (ms):                        0.00      
-P90 TPOT (ms):                           0.00      
-P95 TPOT (ms):                           0.00      
-P99 TPOT (ms):                           0.00      
----------------Inter-Token Latency----------------
-Mean ITL (ms):                           0.00      
-Median ITL (ms):                         0.00      
-P90 ITL (ms):                            0.00      
-P95 ITL (ms):                            0.00      
-P99 ITL (ms):                            0.00      
-Max ITL (ms):                            0.00      
-==================================================
-Finished prefill input=65536, concurrency=2, rc=0
-
-============================================================
-Prefill sweep: input=65536, output=1, concurrency=4
-Log file: /data/xisun/ck_a8w8_concurrency_sweep_20260708_20260708_015402/extension/prefill/prefill_65536_out1_con4.log
-============================================================
-/opt/venv/lib/python3.10/site-packages/transformers/modeling_rope_utils.py:1034: FutureWarning: `rope_config_validation` is deprecated and has been removed. Its functionality has been moved to RotaryEmbeddingConfigMixin.validate_rope method. PreTrainedConfig inherits this class, so please call self.validate_rope() instead. Also, make sure to use the new rope_parameters syntax. You can call self.standardize_rope_params() in the meantime.
-  warnings.warn(
-benchmark_args=Namespace(backend='sglang', base_url=None, host='0.0.0.0', port=40000, ready_check_timeout_sec=60, dataset_name='random', dataset_path='/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json', speed_bench_category=None, speed_bench_output_len=512, model='/data/models/MiMo-V2.5-Pro', served_model_name=None, tokenizer=None, num_prompts=16, sharegpt_output_len=None, sharegpt_context_len=None, random_input_len=65536, random_output_len=1, random_range_ratio=1.0, image_count=1, image_resolution='1080p', random_image_count=False, image_format='jpeg', image_content='random', request_rate=inf, use_trace_timestamps=False, max_concurrency=4, output_file=None, output_details=False, print_requests=False, disable_tqdm=False, disable_stream=False, return_logprob=False, top_logprobs_num=0, token_ids_logprob=None, logprob_start_len=-1, return_routed_experts=False, seed=12345, disable_ignore_eos=False, temperature=0.0, top_p=1.0, extra_request_body=None, apply_chat_template=False, profile=False, plot_throughput=False, profile_activities=['CPU', 'GPU'], profile_start_step=None, profile_steps=None, profile_num_steps=None, profile_by_stage=False, profile_stages=None, profile_output_dir=None, profile_prefix=None, lora_name=None, lora_request_distribution='uniform', lora_zipf_alpha=1.5, prompt_suffix='', pd_separated=True, profile_prefill_url=None, profile_decode_url=None, flush_cache=True, warmup_requests=1, tokenize_prompt=False, gsp_num_groups=64, gsp_prompts_per_group=16, gsp_system_prompt_len=2048, gsp_question_len=128, gsp_output_len=256, gsp_range_ratio=1.0, gsp_fast_prepare=False, gsp_send_routing_key=False, gsp_num_turns=1, gsp_ordered=False, gsp_group_distribution='uniform', gsp_zipf_alpha=None, mooncake_slowdown_factor=1.0, mooncake_num_rounds=1, mooncake_workload='conversation', fake_prefill=False, tag=None, header=None)
-Waiting up to 60s for http://0.0.0.0:40000/v1/models to become ready...
-Server ready in 0.0s.
-Namespace(backend='sglang', base_url=None, host='0.0.0.0', port=40000, ready_check_timeout_sec=60, dataset_name='random', dataset_path='/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json', speed_bench_category=None, speed_bench_output_len=512, model='/data/models/MiMo-V2.5-Pro', served_model_name=None, tokenizer=None, num_prompts=16, sharegpt_output_len=None, sharegpt_context_len=None, random_input_len=65536, random_output_len=1, random_range_ratio=1.0, image_count=1, image_resolution='1080p', random_image_count=False, image_format='jpeg', image_content='random', request_rate=inf, use_trace_timestamps=False, max_concurrency=4, output_file=None, output_details=False, print_requests=False, disable_tqdm=False, disable_stream=False, return_logprob=False, top_logprobs_num=0, token_ids_logprob=None, logprob_start_len=-1, return_routed_experts=False, seed=12345, disable_ignore_eos=False, temperature=0.0, top_p=1.0, extra_request_body=None, apply_chat_template=False, profile=False, plot_throughput=False, profile_activities=['CPU', 'GPU'], profile_start_step=None, profile_steps=None, profile_num_steps=None, profile_by_stage=False, profile_stages=None, profile_output_dir=None, profile_prefix=None, lora_name=None, lora_request_distribution='uniform', lora_zipf_alpha=1.5, prompt_suffix='', pd_separated=True, profile_prefill_url=None, profile_decode_url=None, flush_cache=True, warmup_requests=1, tokenize_prompt=False, gsp_num_groups=64, gsp_prompts_per_group=16, gsp_system_prompt_len=2048, gsp_question_len=128, gsp_output_len=256, gsp_range_ratio=1.0, gsp_fast_prepare=False, gsp_send_routing_key=False, gsp_num_turns=1, gsp_ordered=False, gsp_group_distribution='uniform', gsp_zipf_alpha=None, mooncake_slowdown_factor=1.0, mooncake_num_rounds=1, mooncake_workload='conversation', fake_prefill=False, tag=None, header=None)
-
-#Input tokens: 1048576
-#Output tokens: 16
-Starting warmup with 1 sequences...
-Warmup completed with 1 sequences. Starting main benchmark run...
-  0%|          | 0/16 [00:00<?, ?it/s]  6%|▋         | 1/16 [00:05<01:25,  5.69s/it] 12%|█▎        | 2/16 [00:09<01:04,  4.59s/it] 19%|█▉        | 3/16 [00:13<00:54,  4.19s/it] 25%|██▌       | 4/16 [00:17<00:48,  4.03s/it] 31%|███▏      | 5/16 [00:20<00:43,  3.93s/it] 38%|███▊      | 6/16 [00:24<00:38,  3.88s/it] 44%|████▍     | 7/16 [00:28<00:34,  3.86s/it] 50%|█████     | 8/16 [00:32<00:30,  3.84s/it] 56%|█████▋    | 9/16 [00:36<00:26,  3.85s/it] 62%|██████▎   | 10/16 [00:39<00:23,  3.84s/it] 69%|██████▉   | 11/16 [00:43<00:19,  3.83s/it] 75%|███████▌  | 12/16 [00:47<00:15,  3.84s/it] 81%|████████▏ | 13/16 [00:51<00:11,  3.85s/it] 88%|████████▊ | 14/16 [00:55<00:07,  3.84s/it] 94%|█████████▍| 15/16 [00:59<00:03,  3.83s/it]100%|██████████| 16/16 [01:02<00:00,  3.57s/it]100%|██████████| 16/16 [01:02<00:00,  3.88s/it]
-
-============ Serving Benchmark Result ============
-Backend:                                 sglang    
-Traffic request rate:                    inf       
-Max request concurrency:                 4         
-Successful requests:                     16        
-Benchmark duration (s):                  62.03     
-Total input tokens:                      1048576   
-Total input text tokens:                 1048576   
-Total generated tokens:                  16        
-Total generated tokens (retokenized):    16        
-Request throughput (req/s):              0.26      
-Input token throughput (tok/s):          16904.74  
-Output token throughput (tok/s):         0.26      
-Peak output token throughput (tok/s):    1.00      
-Peak concurrent requests:                5         
-Total token throughput (tok/s):          16905.00  
-Concurrency:                             3.67      
-----------------End-to-End Latency----------------
-Mean E2E Latency (ms):                   14231.97  
-Median E2E Latency (ms):                 15212.48  
-P90 E2E Latency (ms):                    15378.50  
-P95 E2E Latency (ms):                    15793.88  
-P99 E2E Latency (ms):                    16774.49  
----------------Time to First Token----------------
-Mean TTFT (ms):                          14231.93  
-Median TTFT (ms):                        15212.45  
-P90 TTFT (ms):                           15378.38  
-P95 TTFT (ms):                           15793.70  
-P99 TTFT (ms):                           16774.44  
------Time per Output Token (excl. 1st token)------
-Mean TPOT (ms):                          0.00      
-Median TPOT (ms):                        0.00      
-P90 TPOT (ms):                           0.00      
-P95 TPOT (ms):                           0.00      
-P99 TPOT (ms):                           0.00      
----------------Inter-Token Latency----------------
-Mean ITL (ms):                           0.00      
-Median ITL (ms):                         0.00      
-P90 ITL (ms):                            0.00      
-P95 ITL (ms):                            0.00      
-P99 ITL (ms):                            0.00      
-Max ITL (ms):                            0.00      
-==================================================
-Finished prefill input=65536, concurrency=4, rc=0
-
-============================================================
-Prefill sweep: input=65536, output=1, concurrency=8
-Log file: /data/xisun/ck_a8w8_concurrency_sweep_20260708_20260708_015402/extension/prefill/prefill_65536_out1_con8.log
-============================================================
-/opt/venv/lib/python3.10/site-packages/transformers/modeling_rope_utils.py:1034: FutureWarning: `rope_config_validation` is deprecated and has been removed. Its functionality has been moved to RotaryEmbeddingConfigMixin.validate_rope method. PreTrainedConfig inherits this class, so please call self.validate_rope() instead. Also, make sure to use the new rope_parameters syntax. You can call self.standardize_rope_params() in the meantime.
-  warnings.warn(
-benchmark_args=Namespace(backend='sglang', base_url=None, host='0.0.0.0', port=40000, ready_check_timeout_sec=60, dataset_name='random', dataset_path='/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json', speed_bench_category=None, speed_bench_output_len=512, model='/data/models/MiMo-V2.5-Pro', served_model_name=None, tokenizer=None, num_prompts=16, sharegpt_output_len=None, sharegpt_context_len=None, random_input_len=65536, random_output_len=1, random_range_ratio=1.0, image_count=1, image_resolution='1080p', random_image_count=False, image_format='jpeg', image_content='random', request_rate=inf, use_trace_timestamps=False, max_concurrency=8, output_file=None, output_details=False, print_requests=False, disable_tqdm=False, disable_stream=False, return_logprob=False, top_logprobs_num=0, token_ids_logprob=None, logprob_start_len=-1, return_routed_experts=False, seed=12345, disable_ignore_eos=False, temperature=0.0, top_p=1.0, extra_request_body=None, apply_chat_template=False, profile=False, plot_throughput=False, profile_activities=['CPU', 'GPU'], profile_start_step=None, profile_steps=None, profile_num_steps=None, profile_by_stage=False, profile_stages=None, profile_output_dir=None, profile_prefix=None, lora_name=None, lora_request_distribution='uniform', lora_zipf_alpha=1.5, prompt_suffix='', pd_separated=True, profile_prefill_url=None, profile_decode_url=None, flush_cache=True, warmup_requests=1, tokenize_prompt=False, gsp_num_groups=64, gsp_prompts_per_group=16, gsp_system_prompt_len=2048, gsp_question_len=128, gsp_output_len=256, gsp_range_ratio=1.0, gsp_fast_prepare=False, gsp_send_routing_key=False, gsp_num_turns=1, gsp_ordered=False, gsp_group_distribution='uniform', gsp_zipf_alpha=None, mooncake_slowdown_factor=1.0, mooncake_num_rounds=1, mooncake_workload='conversation', fake_prefill=False, tag=None, header=None)
-Waiting up to 60s for http://0.0.0.0:40000/v1/models to become ready...
-Server ready in 0.0s.
-Namespace(backend='sglang', base_url=None, host='0.0.0.0', port=40000, ready_check_timeout_sec=60, dataset_name='random', dataset_path='/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json', speed_bench_category=None, speed_bench_output_len=512, model='/data/models/MiMo-V2.5-Pro', served_model_name=None, tokenizer=None, num_prompts=16, sharegpt_output_len=None, sharegpt_context_len=None, random_input_len=65536, random_output_len=1, random_range_ratio=1.0, image_count=1, image_resolution='1080p', random_image_count=False, image_format='jpeg', image_content='random', request_rate=inf, use_trace_timestamps=False, max_concurrency=8, output_file=None, output_details=False, print_requests=False, disable_tqdm=False, disable_stream=False, return_logprob=False, top_logprobs_num=0, token_ids_logprob=None, logprob_start_len=-1, return_routed_experts=False, seed=12345, disable_ignore_eos=False, temperature=0.0, top_p=1.0, extra_request_body=None, apply_chat_template=False, profile=False, plot_throughput=False, profile_activities=['CPU', 'GPU'], profile_start_step=None, profile_steps=None, profile_num_steps=None, profile_by_stage=False, profile_stages=None, profile_output_dir=None, profile_prefix=None, lora_name=None, lora_request_distribution='uniform', lora_zipf_alpha=1.5, prompt_suffix='', pd_separated=True, profile_prefill_url=None, profile_decode_url=None, flush_cache=True, warmup_requests=1, tokenize_prompt=False, gsp_num_groups=64, gsp_prompts_per_group=16, gsp_system_prompt_len=2048, gsp_question_len=128, gsp_output_len=256, gsp_range_ratio=1.0, gsp_fast_prepare=False, gsp_send_routing_key=False, gsp_num_turns=1, gsp_ordered=False, gsp_group_distribution='uniform', gsp_zipf_alpha=None, mooncake_slowdown_factor=1.0, mooncake_num_rounds=1, mooncake_workload='conversation', fake_prefill=False, tag=None, header=None)
-
-#Input tokens: 1048576
-#Output tokens: 16
-Starting warmup with 1 sequences...
-Warmup completed with 1 sequences. Starting main benchmark run...
-  0%|          | 0/16 [00:00<?, ?it/s]  6%|▋         | 1/16 [00:05<01:20,  5.36s/it] 12%|█▎        | 2/16 [00:09<01:01,  4.42s/it] 19%|█▉        | 3/16 [00:12<00:53,  4.12s/it] 25%|██▌       | 4/16 [00:16<00:48,  4.02s/it] 31%|███▏      | 5/16 [00:20<00:43,  3.97s/it] 38%|███▊      | 6/16 [00:24<00:39,  3.91s/it] 44%|████▍     | 7/16 [00:28<00:34,  3.84s/it] 50%|█████     | 8/16 [00:31<00:30,  3.83s/it] 56%|█████▋    | 9/16 [00:35<00:26,  3.84s/it] 62%|██████▎   | 10/16 [00:39<00:22,  3.82s/it] 69%|██████▉   | 11/16 [00:43<00:19,  3.82s/it] 75%|███████▌  | 12/16 [00:47<00:15,  3.84s/it] 81%|████████▏ | 13/16 [00:51<00:11,  3.85s/it] 88%|████████▊ | 14/16 [00:54<00:07,  3.85s/it] 94%|█████████▍| 15/16 [00:58<00:03,  3.83s/it]100%|██████████| 16/16 [01:00<00:00,  3.28s/it]100%|██████████| 16/16 [01:00<00:00,  3.80s/it]
-
-============ Serving Benchmark Result ============
-Backend:                                 sglang    
-Traffic request rate:                    inf       
-Max request concurrency:                 8         
-Successful requests:                     16        
-Benchmark duration (s):                  60.78     
-Total input tokens:                      1048576   
-Total input text tokens:                 1048576   
-Total generated tokens:                  16        
-Total generated tokens (retokenized):    16        
-Request throughput (req/s):              0.26      
-Input token throughput (tok/s):          17252.39  
-Output token throughput (tok/s):         0.26      
-Peak output token throughput (tok/s):    1.00      
-Peak concurrent requests:                9         
-Total token throughput (tok/s):          17252.66  
-Concurrency:                             6.45      
-----------------End-to-End Latency----------------
-Mean E2E Latency (ms):                   24482.42  
-Median E2E Latency (ms):                 29640.67  
-P90 E2E Latency (ms):                    30613.52  
-P95 E2E Latency (ms):                    30974.00  
-P99 E2E Latency (ms):                    31726.90  
----------------Time to First Token----------------
-Mean TTFT (ms):                          24482.37  
-Median TTFT (ms):                        29640.65  
-P90 TTFT (ms):                           30613.41  
-P95 TTFT (ms):                           30973.98  
-P99 TTFT (ms):                           31726.89  
------Time per Output Token (excl. 1st token)------
-Mean TPOT (ms):                          0.00      
-Median TPOT (ms):                        0.00      
-P90 TPOT (ms):                           0.00      
-P95 TPOT (ms):                           0.00      
-P99 TPOT (ms):                           0.00      
----------------Inter-Token Latency----------------
-Mean ITL (ms):                           0.00      
-Median ITL (ms):                         0.00      
-P90 ITL (ms):                            0.00      
-P95 ITL (ms):                            0.00      
-P99 ITL (ms):                            0.00      
-Max ITL (ms):                            0.00      
-==================================================
-Finished prefill input=65536, concurrency=8, rc=0
-
-============================================================
-Prefill sweep: input=262144, output=1, concurrency=1
-Log file: /data/xisun/ck_a8w8_concurrency_sweep_20260708_20260708_015402/extension/prefill/prefill_262144_out1_con1.log
-============================================================
-/opt/venv/lib/python3.10/site-packages/transformers/modeling_rope_utils.py:1034: FutureWarning: `rope_config_validation` is deprecated and has been removed. Its functionality has been moved to RotaryEmbeddingConfigMixin.validate_rope method. PreTrainedConfig inherits this class, so please call self.validate_rope() instead. Also, make sure to use the new rope_parameters syntax. You can call self.standardize_rope_params() in the meantime.
-  warnings.warn(
-benchmark_args=Namespace(backend='sglang', base_url=None, host='0.0.0.0', port=40000, ready_check_timeout_sec=60, dataset_name='random', dataset_path='/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json', speed_bench_category=None, speed_bench_output_len=512, model='/data/models/MiMo-V2.5-Pro', served_model_name=None, tokenizer=None, num_prompts=16, sharegpt_output_len=None, sharegpt_context_len=None, random_input_len=262144, random_output_len=1, random_range_ratio=1.0, image_count=1, image_resolution='1080p', random_image_count=False, image_format='jpeg', image_content='random', request_rate=inf, use_trace_timestamps=False, max_concurrency=1, output_file=None, output_details=False, print_requests=False, disable_tqdm=False, disable_stream=False, return_logprob=False, top_logprobs_num=0, token_ids_logprob=None, logprob_start_len=-1, return_routed_experts=False, seed=12345, disable_ignore_eos=False, temperature=0.0, top_p=1.0, extra_request_body=None, apply_chat_template=False, profile=False, plot_throughput=False, profile_activities=['CPU', 'GPU'], profile_start_step=None, profile_steps=None, profile_num_steps=None, profile_by_stage=False, profile_stages=None, profile_output_dir=None, profile_prefix=None, lora_name=None, lora_request_distribution='uniform', lora_zipf_alpha=1.5, prompt_suffix='', pd_separated=True, profile_prefill_url=None, profile_decode_url=None, flush_cache=True, warmup_requests=1, tokenize_prompt=False, gsp_num_groups=64, gsp_prompts_per_group=16, gsp_system_prompt_len=2048, gsp_question_len=128, gsp_output_len=256, gsp_range_ratio=1.0, gsp_fast_prepare=False, gsp_send_routing_key=False, gsp_num_turns=1, gsp_ordered=False, gsp_group_distribution='uniform', gsp_zipf_alpha=None, mooncake_slowdown_factor=1.0, mooncake_num_rounds=1, mooncake_workload='conversation', fake_prefill=False, tag=None, header=None)
-Waiting up to 60s for http://0.0.0.0:40000/v1/models to become ready...
-Server ready in 0.0s.
-Namespace(backend='sglang', base_url=None, host='0.0.0.0', port=40000, ready_check_timeout_sec=60, dataset_name='random', dataset_path='/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json', speed_bench_category=None, speed_bench_output_len=512, model='/data/models/MiMo-V2.5-Pro', served_model_name=None, tokenizer=None, num_prompts=16, sharegpt_output_len=None, sharegpt_context_len=None, random_input_len=262144, random_output_len=1, random_range_ratio=1.0, image_count=1, image_resolution='1080p', random_image_count=False, image_format='jpeg', image_content='random', request_rate=inf, use_trace_timestamps=False, max_concurrency=1, output_file=None, output_details=False, print_requests=False, disable_tqdm=False, disable_stream=False, return_logprob=False, top_logprobs_num=0, token_ids_logprob=None, logprob_start_len=-1, return_routed_experts=False, seed=12345, disable_ignore_eos=False, temperature=0.0, top_p=1.0, extra_request_body=None, apply_chat_template=False, profile=False, plot_throughput=False, profile_activities=['CPU', 'GPU'], profile_start_step=None, profile_steps=None, profile_num_steps=None, profile_by_stage=False, profile_stages=None, profile_output_dir=None, profile_prefix=None, lora_name=None, lora_request_distribution='uniform', lora_zipf_alpha=1.5, prompt_suffix='', pd_separated=True, profile_prefill_url=None, profile_decode_url=None, flush_cache=True, warmup_requests=1, tokenize_prompt=False, gsp_num_groups=64, gsp_prompts_per_group=16, gsp_system_prompt_len=2048, gsp_question_len=128, gsp_output_len=256, gsp_range_ratio=1.0, gsp_fast_prepare=False, gsp_send_routing_key=False, gsp_num_turns=1, gsp_ordered=False, gsp_group_distribution='uniform', gsp_zipf_alpha=None, mooncake_slowdown_factor=1.0, mooncake_num_rounds=1, mooncake_workload='conversation', fake_prefill=False, tag=None, header=None)
-
-#Input tokens: 4194304
-#Output tokens: 16
-Starting warmup with 1 sequences...
-Warmup completed with 1 sequences. Starting main benchmark run...
-  0%|          | 0/16 [00:00<?, ?it/s]  6%|▋         | 1/16 [00:22<05:39, 22.62s/it] 12%|█▎        | 2/16 [00:45<05:16, 22.64s/it] 19%|█▉        | 3/16 [00:45<02:43, 12.57s/it] 25%|██▌       | 4/16 [00:46<01:33,  7.81s/it] 31%|███▏      | 5/16 [00:47<00:57,  5.23s/it] 38%|███▊      | 6/16 [00:47<00:36,  3.65s/it] 44%|████▍     | 7/16 [00:48<00:23,  2.61s/it] 50%|█████     | 8/16 [00:48<00:15,  1.98s/it] 56%|█████▋    | 9/16 [00:49<00:10,  1.56s/it] 62%|██████▎   | 10/16 [00:49<00:07,  1.26s/it] 69%|██████▉   | 11/16 [00:50<00:05,  1.06s/it] 75%|███████▌  | 12/16 [00:51<00:03,  1.12it/s] 81%|████████▏ | 13/16 [01:13<00:22,  7.36s/it] 88%|████████▊ | 14/16 [01:35<00:23, 11.95s/it] 94%|█████████▍| 15/16 [01:36<00:08,  8.53s/it]100%|██████████| 16/16 [01:58<00:00, 12.54s/it]100%|██████████| 16/16 [01:58<00:00,  7.39s/it]
-
-============ Serving Benchmark Result ============
-Backend:                                 sglang    
-Traffic request rate:                    inf       
-Max request concurrency:                 1         
-Successful requests:                     16        
-Benchmark duration (s):                  118.31    
-Total input tokens:                      4194304   
-Total input text tokens:                 4194304   
-Total generated tokens:                  16        
-Total generated tokens (retokenized):    5         
-Request throughput (req/s):              0.14      
-Input token throughput (tok/s):          35452.56  
-Output token throughput (tok/s):         0.14      
-Peak output token throughput (tok/s):    3.00      
-Peak concurrent requests:                3         
-Total token throughput (tok/s):          35452.69  
-Concurrency:                             1.00      
-----------------End-to-End Latency----------------
-Mean E2E Latency (ms):                   7393.31   
-Median E2E Latency (ms):                 614.12    
-P90 E2E Latency (ms):                    22592.22  
-P95 E2E Latency (ms):                    22626.99  
-P99 E2E Latency (ms):                    22647.60  
----------------Time to First Token----------------
-Mean TTFT (ms):                          6995.06   
-Median TTFT (ms):                        0.00      
-P90 TTFT (ms):                           22592.19  
-P95 TTFT (ms):                           22626.97  
-P99 TTFT (ms):                           22647.57  
------Time per Output Token (excl. 1st token)------
-Mean TPOT (ms):                          0.00      
-Median TPOT (ms):                        0.00      
-P90 TPOT (ms):                           0.00      
-P95 TPOT (ms):                           0.00      
-P99 TPOT (ms):                           0.00      
----------------Inter-Token Latency----------------
-Mean ITL (ms):                           0.00      
-Median ITL (ms):                         0.00      
-P90 ITL (ms):                            0.00      
-P95 ITL (ms):                            0.00      
-P99 ITL (ms):                            0.00      
-Max ITL (ms):                            0.00      
-==================================================
-Finished prefill input=262144, concurrency=1, rc=0
-
-============================================================
-Prefill sweep: input=262144, output=1, concurrency=2
-Log file: /data/xisun/ck_a8w8_concurrency_sweep_20260708_20260708_015402/extension/prefill/prefill_262144_out1_con2.log
-============================================================
-/opt/venv/lib/python3.10/site-packages/transformers/modeling_rope_utils.py:1034: FutureWarning: `rope_config_validation` is deprecated and has been removed. Its functionality has been moved to RotaryEmbeddingConfigMixin.validate_rope method. PreTrainedConfig inherits this class, so please call self.validate_rope() instead. Also, make sure to use the new rope_parameters syntax. You can call self.standardize_rope_params() in the meantime.
-  warnings.warn(
-benchmark_args=Namespace(backend='sglang', base_url=None, host='0.0.0.0', port=40000, ready_check_timeout_sec=60, dataset_name='random', dataset_path='/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json', speed_bench_category=None, speed_bench_output_len=512, model='/data/models/MiMo-V2.5-Pro', served_model_name=None, tokenizer=None, num_prompts=16, sharegpt_output_len=None, sharegpt_context_len=None, random_input_len=262144, random_output_len=1, random_range_ratio=1.0, image_count=1, image_resolution='1080p', random_image_count=False, image_format='jpeg', image_content='random', request_rate=inf, use_trace_timestamps=False, max_concurrency=2, output_file=None, output_details=False, print_requests=False, disable_tqdm=False, disable_stream=False, return_logprob=False, top_logprobs_num=0, token_ids_logprob=None, logprob_start_len=-1, return_routed_experts=False, seed=12345, disable_ignore_eos=False, temperature=0.0, top_p=1.0, extra_request_body=None, apply_chat_template=False, profile=False, plot_throughput=False, profile_activities=['CPU', 'GPU'], profile_start_step=None, profile_steps=None, profile_num_steps=None, profile_by_stage=False, profile_stages=None, profile_output_dir=None, profile_prefix=None, lora_name=None, lora_request_distribution='uniform', lora_zipf_alpha=1.5, prompt_suffix='', pd_separated=True, profile_prefill_url=None, profile_decode_url=None, flush_cache=True, warmup_requests=1, tokenize_prompt=False, gsp_num_groups=64, gsp_prompts_per_group=16, gsp_system_prompt_len=2048, gsp_question_len=128, gsp_output_len=256, gsp_range_ratio=1.0, gsp_fast_prepare=False, gsp_send_routing_key=False, gsp_num_turns=1, gsp_ordered=False, gsp_group_distribution='uniform', gsp_zipf_alpha=None, mooncake_slowdown_factor=1.0, mooncake_num_rounds=1, mooncake_workload='conversation', fake_prefill=False, tag=None, header=None)
-Waiting up to 60s for http://0.0.0.0:40000/v1/models to become ready...
-Server ready in 0.0s.
-Namespace(backend='sglang', base_url=None, host='0.0.0.0', port=40000, ready_check_timeout_sec=60, dataset_name='random', dataset_path='/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json', speed_bench_category=None, speed_bench_output_len=512, model='/data/models/MiMo-V2.5-Pro', served_model_name=None, tokenizer=None, num_prompts=16, sharegpt_output_len=None, sharegpt_context_len=None, random_input_len=262144, random_output_len=1, random_range_ratio=1.0, image_count=1, image_resolution='1080p', random_image_count=False, image_format='jpeg', image_content='random', request_rate=inf, use_trace_timestamps=False, max_concurrency=2, output_file=None, output_details=False, print_requests=False, disable_tqdm=False, disable_stream=False, return_logprob=False, top_logprobs_num=0, token_ids_logprob=None, logprob_start_len=-1, return_routed_experts=False, seed=12345, disable_ignore_eos=False, temperature=0.0, top_p=1.0, extra_request_body=None, apply_chat_template=False, profile=False, plot_throughput=False, profile_activities=['CPU', 'GPU'], profile_start_step=None, profile_steps=None, profile_num_steps=None, profile_by_stage=False, profile_stages=None, profile_output_dir=None, profile_prefix=None, lora_name=None, lora_request_distribution='uniform', lora_zipf_alpha=1.5, prompt_suffix='', pd_separated=True, profile_prefill_url=None, profile_decode_url=None, flush_cache=True, warmup_requests=1, tokenize_prompt=False, gsp_num_groups=64, gsp_prompts_per_group=16, gsp_system_prompt_len=2048, gsp_question_len=128, gsp_output_len=256, gsp_range_ratio=1.0, gsp_fast_prepare=False, gsp_send_routing_key=False, gsp_num_turns=1, gsp_ordered=False, gsp_group_distribution='uniform', gsp_zipf_alpha=None, mooncake_slowdown_factor=1.0, mooncake_num_rounds=1, mooncake_workload='conversation', fake_prefill=False, tag=None, header=None)
-
-#Input tokens: 4194304
-#Output tokens: 16
-Starting warmup with 1 sequences...
-Warmup completed with 1 sequences. Starting main benchmark run...
-  0%|          | 0/16 [00:00<?, ?it/s]  6%|▋         | 1/16 [00:24<06:14, 24.98s/it] 12%|█▎        | 2/16 [00:25<02:28, 10.63s/it] 19%|█▉        | 3/16 [00:26<01:18,  6.01s/it] 25%|██▌       | 4/16 [00:26<00:46,  3.88s/it] 31%|███▏      | 5/16 [00:27<00:29,  2.67s/it] 38%|███▊      | 6/16 [00:27<00:19,  1.91s/it] 44%|████▍     | 7/16 [00:28<00:13,  1.47s/it] 50%|█████     | 8/16 [00:28<00:09,  1.18s/it] 56%|█████▋    | 9/16 [00:29<00:06,  1.02it/s] 62%|██████▎   | 10/16 [00:29<00:05,  1.16it/s] 69%|██████▉   | 11/16 [00:30<00:03,  1.34it/s] 75%|███████▌  | 12/16 [00:47<00:23,  5.81s/it] 81%|████████▏ | 13/16 [01:10<00:32, 10.84s/it] 88%|████████▊ | 14/16 [01:10<00:15,  7.75s/it] 94%|█████████▍| 15/16 [01:32<00:12, 12.00s/it]100%|██████████| 16/16 [01:52<00:00, 14.23s/it]100%|██████████| 16/16 [01:52<00:00,  7.00s/it]
-
-============ Serving Benchmark Result ============
-Backend:                                 sglang    
-Traffic request rate:                    inf       
-Max request concurrency:                 2         
-Successful requests:                     16        
-Benchmark duration (s):                  112.06    
-Total input tokens:                      4194304   
-Total input text tokens:                 4194304   
-Total generated tokens:                  16        
-Total generated tokens (retokenized):    5         
-Request throughput (req/s):              0.14      
-Input token throughput (tok/s):          37429.63  
-Output token throughput (tok/s):         0.14      
-Peak output token throughput (tok/s):    2.00      
-Peak concurrent requests:                4         
-Total token throughput (tok/s):          37429.78  
-Concurrency:                             1.83      
-----------------End-to-End Latency----------------
-Mean E2E Latency (ms):                   12793.76  
-Median E2E Latency (ms):                 586.61    
-P90 E2E Latency (ms):                    43059.91  
-P95 E2E Latency (ms):                    45608.90  
-P99 E2E Latency (ms):                    47335.08  
----------------Time to First Token----------------
-Mean TTFT (ms):                          12417.08  
-Median TTFT (ms):                        0.00      
-P90 TTFT (ms):                           43059.80  
-P95 TTFT (ms):                           45608.74  
-P99 TTFT (ms):                           47335.03  
------Time per Output Token (excl. 1st token)------
-Mean TPOT (ms):                          0.00      
-Median TPOT (ms):                        0.00      
-P90 TPOT (ms):                           0.00      
-P95 TPOT (ms):                           0.00      
-P99 TPOT (ms):                           0.00      
----------------Inter-Token Latency----------------
-Mean ITL (ms):                           0.00      
-Median ITL (ms):                         0.00      
-P90 ITL (ms):                            0.00      
-P95 ITL (ms):                            0.00      
-P99 ITL (ms):                            0.00      
-Max ITL (ms):                            0.00      
-==================================================
-Finished prefill input=262144, concurrency=2, rc=0
-
-============================================================
-Prefill sweep: input=262144, output=1, concurrency=4
-Log file: /data/xisun/ck_a8w8_concurrency_sweep_20260708_20260708_015402/extension/prefill/prefill_262144_out1_con4.log
-============================================================
-/opt/venv/lib/python3.10/site-packages/transformers/modeling_rope_utils.py:1034: FutureWarning: `rope_config_validation` is deprecated and has been removed. Its functionality has been moved to RotaryEmbeddingConfigMixin.validate_rope method. PreTrainedConfig inherits this class, so please call self.validate_rope() instead. Also, make sure to use the new rope_parameters syntax. You can call self.standardize_rope_params() in the meantime.
-  warnings.warn(
-Traceback (most recent call last):
-  File "/usr/lib/python3.10/runpy.py", line 196, in _run_module_as_main
-    return _run_code(code, main_globals, None,
-  File "/usr/lib/python3.10/runpy.py", line 86, in _run_code
-    exec(code, run_globals)
-  File "/sgl-workspace/sglang_0625/python/sglang/bench_serving.py", line 2559, in <module>
-    run_benchmark(args)
-  File "/sgl-workspace/sglang_0625/python/sglang/bench_serving.py", line 1966, in run_benchmark
-    return asyncio.run(
-  File "/usr/lib/python3.10/asyncio/runners.py", line 44, in run
-    return loop.run_until_complete(main)
-  File "/usr/lib/python3.10/asyncio/base_events.py", line 649, in run_until_complete
-    return future.result()
-  File "/sgl-workspace/sglang_0625/python/sglang/bench_serving.py", line 1339, in benchmark
-    raise ValueError(
-ValueError: Warmup failed - Please make sure benchmark arguments are correctly specified. Error: Service Unavailable: {"error":{"type":"Service Unavailable","code":"server_selection_failed","message":"No available servers: No available prefill workers (all circuits open or unhealthy)"}}
-benchmark_args=Namespace(backend='sglang', base_url=None, host='0.0.0.0', port=40000, ready_check_timeout_sec=60, dataset_name='random', dataset_path='/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json', speed_bench_category=None, speed_bench_output_len=512, model='/data/models/MiMo-V2.5-Pro', served_model_name=None, tokenizer=None, num_prompts=16, sharegpt_output_len=None, sharegpt_context_len=None, random_input_len=262144, random_output_len=1, random_range_ratio=1.0, image_count=1, image_resolution='1080p', random_image_count=False, image_format='jpeg', image_content='random', request_rate=inf, use_trace_timestamps=False, max_concurrency=4, output_file=None, output_details=False, print_requests=False, disable_tqdm=False, disable_stream=False, return_logprob=False, top_logprobs_num=0, token_ids_logprob=None, logprob_start_len=-1, return_routed_experts=False, seed=12345, disable_ignore_eos=False, temperature=0.0, top_p=1.0, extra_request_body=None, apply_chat_template=False, profile=False, plot_throughput=False, profile_activities=['CPU', 'GPU'], profile_start_step=None, profile_steps=None, profile_num_steps=None, profile_by_stage=False, profile_stages=None, profile_output_dir=None, profile_prefix=None, lora_name=None, lora_request_distribution='uniform', lora_zipf_alpha=1.5, prompt_suffix='', pd_separated=True, profile_prefill_url=None, profile_decode_url=None, flush_cache=True, warmup_requests=1, tokenize_prompt=False, gsp_num_groups=64, gsp_prompts_per_group=16, gsp_system_prompt_len=2048, gsp_question_len=128, gsp_output_len=256, gsp_range_ratio=1.0, gsp_fast_prepare=False, gsp_send_routing_key=False, gsp_num_turns=1, gsp_ordered=False, gsp_group_distribution='uniform', gsp_zipf_alpha=None, mooncake_slowdown_factor=1.0, mooncake_num_rounds=1, mooncake_workload='conversation', fake_prefill=False, tag=None, header=None)
-Waiting up to 60s for http://0.0.0.0:40000/v1/models to become ready...
-Server ready in 0.0s.
-Namespace(backend='sglang', base_url=None, host='0.0.0.0', port=40000, ready_check_timeout_sec=60, dataset_name='random', dataset_path='/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json', speed_bench_category=None, speed_bench_output_len=512, model='/data/models/MiMo-V2.5-Pro', served_model_name=None, tokenizer=None, num_prompts=16, sharegpt_output_len=None, sharegpt_context_len=None, random_input_len=262144, random_output_len=1, random_range_ratio=1.0, image_count=1, image_resolution='1080p', random_image_count=False, image_format='jpeg', image_content='random', request_rate=inf, use_trace_timestamps=False, max_concurrency=4, output_file=None, output_details=False, print_requests=False, disable_tqdm=False, disable_stream=False, return_logprob=False, top_logprobs_num=0, token_ids_logprob=None, logprob_start_len=-1, return_routed_experts=False, seed=12345, disable_ignore_eos=False, temperature=0.0, top_p=1.0, extra_request_body=None, apply_chat_template=False, profile=False, plot_throughput=False, profile_activities=['CPU', 'GPU'], profile_start_step=None, profile_steps=None, profile_num_steps=None, profile_by_stage=False, profile_stages=None, profile_output_dir=None, profile_prefix=None, lora_name=None, lora_request_distribution='uniform', lora_zipf_alpha=1.5, prompt_suffix='', pd_separated=True, profile_prefill_url=None, profile_decode_url=None, flush_cache=True, warmup_requests=1, tokenize_prompt=False, gsp_num_groups=64, gsp_prompts_per_group=16, gsp_system_prompt_len=2048, gsp_question_len=128, gsp_output_len=256, gsp_range_ratio=1.0, gsp_fast_prepare=False, gsp_send_routing_key=False, gsp_num_turns=1, gsp_ordered=False, gsp_group_distribution='uniform', gsp_zipf_alpha=None, mooncake_slowdown_factor=1.0, mooncake_num_rounds=1, mooncake_workload='conversation', fake_prefill=False, tag=None, header=None)
-
-#Input tokens: 4194304
-#Output tokens: 16
-Starting warmup with 1 sequences...
-Finished prefill input=262144, concurrency=4, rc=1
-
-============================================================
-Prefill sweep: input=262144, output=1, concurrency=8
-Log file: /data/xisun/ck_a8w8_concurrency_sweep_20260708_20260708_015402/extension/prefill/prefill_262144_out1_con8.log
-============================================================
-/opt/venv/lib/python3.10/site-packages/transformers/modeling_rope_utils.py:1034: FutureWarning: `rope_config_validation` is deprecated and has been removed. Its functionality has been moved to RotaryEmbeddingConfigMixin.validate_rope method. PreTrainedConfig inherits this class, so please call self.validate_rope() instead. Also, make sure to use the new rope_parameters syntax. You can call self.standardize_rope_params() in the meantime.
-  warnings.warn(
-Traceback (most recent call last):
-  File "/usr/lib/python3.10/runpy.py", line 196, in _run_module_as_main
-    return _run_code(code, main_globals, None,
-  File "/usr/lib/python3.10/runpy.py", line 86, in _run_code
-    exec(code, run_globals)
-  File "/sgl-workspace/sglang_0625/python/sglang/bench_serving.py", line 2559, in <module>
-    run_benchmark(args)
-  File "/sgl-workspace/sglang_0625/python/sglang/bench_serving.py", line 1966, in run_benchmark
-    return asyncio.run(
-  File "/usr/lib/python3.10/asyncio/runners.py", line 44, in run
-    return loop.run_until_complete(main)
-  File "/usr/lib/python3.10/asyncio/base_events.py", line 649, in run_until_complete
-    return future.result()
-  File "/sgl-workspace/sglang_0625/python/sglang/bench_serving.py", line 1339, in benchmark
-    raise ValueError(
-ValueError: Warmup failed - Please make sure benchmark arguments are correctly specified. Error: Service Unavailable: {"error":{"type":"Service Unavailable","code":"server_selection_failed","message":"No available servers: No available prefill workers (all circuits open or unhealthy)"}}
-benchmark_args=Namespace(backend='sglang', base_url=None, host='0.0.0.0', port=40000, ready_check_timeout_sec=60, dataset_name='random', dataset_path='/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json', speed_bench_category=None, speed_bench_output_len=512, model='/data/models/MiMo-V2.5-Pro', served_model_name=None, tokenizer=None, num_prompts=16, sharegpt_output_len=None, sharegpt_context_len=None, random_input_len=262144, random_output_len=1, random_range_ratio=1.0, image_count=1, image_resolution='1080p', random_image_count=False, image_format='jpeg', image_content='random', request_rate=inf, use_trace_timestamps=False, max_concurrency=8, output_file=None, output_details=False, print_requests=False, disable_tqdm=False, disable_stream=False, return_logprob=False, top_logprobs_num=0, token_ids_logprob=None, logprob_start_len=-1, return_routed_experts=False, seed=12345, disable_ignore_eos=False, temperature=0.0, top_p=1.0, extra_request_body=None, apply_chat_template=False, profile=False, plot_throughput=False, profile_activities=['CPU', 'GPU'], profile_start_step=None, profile_steps=None, profile_num_steps=None, profile_by_stage=False, profile_stages=None, profile_output_dir=None, profile_prefix=None, lora_name=None, lora_request_distribution='uniform', lora_zipf_alpha=1.5, prompt_suffix='', pd_separated=True, profile_prefill_url=None, profile_decode_url=None, flush_cache=True, warmup_requests=1, tokenize_prompt=False, gsp_num_groups=64, gsp_prompts_per_group=16, gsp_system_prompt_len=2048, gsp_question_len=128, gsp_output_len=256, gsp_range_ratio=1.0, gsp_fast_prepare=False, gsp_send_routing_key=False, gsp_num_turns=1, gsp_ordered=False, gsp_group_distribution='uniform', gsp_zipf_alpha=None, mooncake_slowdown_factor=1.0, mooncake_num_rounds=1, mooncake_workload='conversation', fake_prefill=False, tag=None, header=None)
-Waiting up to 60s for http://0.0.0.0:40000/v1/models to become ready...
-Server ready in 0.0s.
-Namespace(backend='sglang', base_url=None, host='0.0.0.0', port=40000, ready_check_timeout_sec=60, dataset_name='random', dataset_path='/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json', speed_bench_category=None, speed_bench_output_len=512, model='/data/models/MiMo-V2.5-Pro', served_model_name=None, tokenizer=None, num_prompts=16, sharegpt_output_len=None, sharegpt_context_len=None, random_input_len=262144, random_output_len=1, random_range_ratio=1.0, image_count=1, image_resolution='1080p', random_image_count=False, image_format='jpeg', image_content='random', request_rate=inf, use_trace_timestamps=False, max_concurrency=8, output_file=None, output_details=False, print_requests=False, disable_tqdm=False, disable_stream=False, return_logprob=False, top_logprobs_num=0, token_ids_logprob=None, logprob_start_len=-1, return_routed_experts=False, seed=12345, disable_ignore_eos=False, temperature=0.0, top_p=1.0, extra_request_body=None, apply_chat_template=False, profile=False, plot_throughput=False, profile_activities=['CPU', 'GPU'], profile_start_step=None, profile_steps=None, profile_num_steps=None, profile_by_stage=False, profile_stages=None, profile_output_dir=None, profile_prefix=None, lora_name=None, lora_request_distribution='uniform', lora_zipf_alpha=1.5, prompt_suffix='', pd_separated=True, profile_prefill_url=None, profile_decode_url=None, flush_cache=True, warmup_requests=1, tokenize_prompt=False, gsp_num_groups=64, gsp_prompts_per_group=16, gsp_system_prompt_len=2048, gsp_question_len=128, gsp_output_len=256, gsp_range_ratio=1.0, gsp_fast_prepare=False, gsp_send_routing_key=False, gsp_num_turns=1, gsp_ordered=False, gsp_group_distribution='uniform', gsp_zipf_alpha=None, mooncake_slowdown_factor=1.0, mooncake_num_rounds=1, mooncake_workload='conversation', fake_prefill=False, tag=None, header=None)
-
-#Input tokens: 4194304
-#Output tokens: 16
-Starting warmup with 1 sequences...
-Finished prefill input=262144, concurrency=8, rc=1
-Prefill concurrency sweep complete. Summary: /data/xisun/ck_a8w8_concurrency_sweep_20260708_20260708_015402/extension/prefill/summary.tsv

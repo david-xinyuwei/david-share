@@ -1,2 +1,0 @@
-bash: line 1: SGLANG_AITER_UNIFIED_VERIFY: command not found
-bash: line 1: SGLANG_SIMULATE_ACC: command not found

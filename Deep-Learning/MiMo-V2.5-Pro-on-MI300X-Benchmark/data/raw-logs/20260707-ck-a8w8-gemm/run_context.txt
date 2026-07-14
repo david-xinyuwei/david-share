@@ -1,3 +1,0 @@
-RUN_ID=ck_gemm_repro_20260707_20260707_193852
-REMOTE_RUN_DIR=/data/xisun/ck_gemm_repro_20260707_20260707_193852
-REPO_EVIDENCE_DIR=data/raw-logs/20260707-ck-a8w8-gemm

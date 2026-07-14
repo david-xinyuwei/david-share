@@ -1,5 +1,0 @@
---- AMD source launch scripts
-+++ Valid 256K launch scripts
-@@ Prefill and Decode
--  --context-length 262144 \
-+  --context-length 262151 \

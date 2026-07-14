@@ -1,56 +1,0 @@
-/opt/venv/lib/python3.10/site-packages/transformers/modeling_rope_utils.py:1034: FutureWarning: `rope_config_validation` is deprecated and has been removed. Its functionality has been moved to RotaryEmbeddingConfigMixin.validate_rope method. PreTrainedConfig inherits this class, so please call self.validate_rope() instead. Also, make sure to use the new rope_parameters syntax. You can call self.standardize_rope_params() in the meantime.
-  warnings.warn(
-benchmark_args=Namespace(backend='sglang', base_url=None, host='0.0.0.0', port=40000, ready_check_timeout_sec=60, dataset_name='random', dataset_path='/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json', speed_bench_category=None, speed_bench_output_len=512, model='/data/models/MiMo-V2.5-Pro', served_model_name=None, tokenizer=None, num_prompts=32, sharegpt_output_len=None, sharegpt_context_len=None, random_input_len=262144, random_output_len=1, random_range_ratio=1.0, image_count=1, image_resolution='1080p', random_image_count=False, image_format='jpeg', image_content='random', request_rate=inf, use_trace_timestamps=False, max_concurrency=4, output_file=None, output_details=False, print_requests=False, disable_tqdm=False, disable_stream=False, return_logprob=False, top_logprobs_num=0, token_ids_logprob=None, logprob_start_len=-1, return_routed_experts=False, seed=12345, disable_ignore_eos=False, temperature=0.0, top_p=1.0, extra_request_body=None, apply_chat_template=False, profile=False, plot_throughput=False, profile_activities=['CPU', 'GPU'], profile_start_step=None, profile_steps=None, profile_num_steps=None, profile_by_stage=False, profile_stages=None, profile_output_dir=None, profile_prefix=None, lora_name=None, lora_request_distribution='uniform', lora_zipf_alpha=1.5, prompt_suffix='', pd_separated=True, profile_prefill_url=None, profile_decode_url=None, flush_cache=True, warmup_requests=1, tokenize_prompt=False, gsp_num_groups=64, gsp_prompts_per_group=16, gsp_system_prompt_len=2048, gsp_question_len=128, gsp_output_len=256, gsp_range_ratio=1.0, gsp_fast_prepare=False, gsp_send_routing_key=False, gsp_num_turns=1, gsp_ordered=False, gsp_group_distribution='uniform', gsp_zipf_alpha=None, mooncake_slowdown_factor=1.0, mooncake_num_rounds=1, mooncake_workload='conversation', fake_prefill=False, tag=None, header=None)
-Waiting up to 60s for http://0.0.0.0:40000/v1/models to become ready...
-Server ready in 0.0s.
-Namespace(backend='sglang', base_url=None, host='0.0.0.0', port=40000, ready_check_timeout_sec=60, dataset_name='random', dataset_path='/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json', speed_bench_category=None, speed_bench_output_len=512, model='/data/models/MiMo-V2.5-Pro', served_model_name=None, tokenizer=None, num_prompts=32, sharegpt_output_len=None, sharegpt_context_len=None, random_input_len=262144, random_output_len=1, random_range_ratio=1.0, image_count=1, image_resolution='1080p', random_image_count=False, image_format='jpeg', image_content='random', request_rate=inf, use_trace_timestamps=False, max_concurrency=4, output_file=None, output_details=False, print_requests=False, disable_tqdm=False, disable_stream=False, return_logprob=False, top_logprobs_num=0, token_ids_logprob=None, logprob_start_len=-1, return_routed_experts=False, seed=12345, disable_ignore_eos=False, temperature=0.0, top_p=1.0, extra_request_body=None, apply_chat_template=False, profile=False, plot_throughput=False, profile_activities=['CPU', 'GPU'], profile_start_step=None, profile_steps=None, profile_num_steps=None, profile_by_stage=False, profile_stages=None, profile_output_dir=None, profile_prefix=None, lora_name=None, lora_request_distribution='uniform', lora_zipf_alpha=1.5, prompt_suffix='', pd_separated=True, profile_prefill_url=None, profile_decode_url=None, flush_cache=True, warmup_requests=1, tokenize_prompt=False, gsp_num_groups=64, gsp_prompts_per_group=16, gsp_system_prompt_len=2048, gsp_question_len=128, gsp_output_len=256, gsp_range_ratio=1.0, gsp_fast_prepare=False, gsp_send_routing_key=False, gsp_num_turns=1, gsp_ordered=False, gsp_group_distribution='uniform', gsp_zipf_alpha=None, mooncake_slowdown_factor=1.0, mooncake_num_rounds=1, mooncake_workload='conversation', fake_prefill=False, tag=None, header=None)
-
-#Input tokens: 8388608
-#Output tokens: 32
-Starting warmup with 1 sequences...
-Warmup completed with 1 sequences. Starting main benchmark run...
-  0%|          | 0/32 [00:00<?, ?it/s]  3%|▎         | 1/32 [00:01<00:41,  1.32s/it]  6%|▋         | 2/32 [00:01<00:24,  1.24it/s]  9%|▉         | 3/32 [00:02<00:27,  1.06it/s] 16%|█▌        | 5/32 [00:03<00:14,  1.93it/s] 19%|█▉        | 6/32 [00:03<00:13,  1.92it/s] 22%|██▏       | 7/32 [00:04<00:12,  1.94it/s] 25%|██▌       | 8/32 [00:04<00:11,  2.00it/s] 28%|██▊       | 9/32 [00:05<00:11,  2.03it/s] 31%|███▏      | 10/32 [00:05<00:10,  2.14it/s] 34%|███▍      | 11/32 [00:27<02:21,  6.72s/it] 38%|███▊      | 12/32 [00:27<01:37,  4.86s/it] 41%|████      | 13/32 [00:52<03:25, 10.81s/it] 44%|████▍     | 14/32 [00:52<02:19,  7.74s/it] 47%|████▋     | 15/32 [01:17<03:36, 12.73s/it] 50%|█████     | 16/32 [01:17<02:25,  9.08s/it] 53%|█████▎    | 17/32 [01:18<01:38,  6.54s/it] 56%|█████▋    | 18/32 [01:19<01:06,  4.77s/it] 59%|█████▉    | 19/32 [01:19<00:45,  3.50s/it] 62%|██████▎   | 20/32 [01:42<01:51,  9.28s/it] 66%|██████▌   | 21/32 [02:06<02:32, 13.83s/it] 69%|██████▉   | 22/32 [02:07<01:38,  9.86s/it] 72%|███████▏  | 23/32 [02:08<01:03,  7.08s/it] 75%|███████▌  | 24/32 [02:08<00:40,  5.07s/it] 78%|███████▊  | 25/32 [02:08<00:25,  3.70s/it] 81%|████████▏ | 26/32 [02:09<00:16,  2.76s/it] 84%|████████▍ | 27/32 [02:31<00:42,  8.60s/it] 88%|████████▊ | 28/32 [02:32<00:24,  6.17s/it] 91%|█████████ | 29/32 [02:32<00:13,  4.48s/it] 94%|█████████▍| 30/32 [02:56<00:20, 10.32s/it] 97%|█████████▋| 31/32 [03:21<00:14, 14.77s/it]100%|██████████| 32/32 [03:45<00:00, 17.34s/it]100%|██████████| 32/32 [03:45<00:00,  7.04s/it]
-
-============ Serving Benchmark Result ============
-Backend:                                 sglang    
-Traffic request rate:                    inf       
-Max request concurrency:                 4         
-Successful requests:                     32        
-Benchmark duration (s):                  225.19    
-Total input tokens:                      8388608   
-Total input text tokens:                 8388608   
-Total generated tokens:                  32        
-Total generated tokens (retokenized):    9         
-Request throughput (req/s):              0.14      
-Input token throughput (tok/s):          37251.55  
-Output token throughput (tok/s):         0.14      
-Peak output token throughput (tok/s):    3.00      
-Peak concurrent requests:                7         
-Total token throughput (tok/s):          37251.69  
-Concurrency:                             3.36      
-----------------End-to-End Latency----------------
-Mean E2E Latency (ms):                   23638.19  
-Median E2E Latency (ms):                 925.65    
-P90 E2E Latency (ms):                    97054.94  
-P95 E2E Latency (ms):                    99007.99  
-P99 E2E Latency (ms):                    99381.60  
----------------Time to First Token----------------
-Mean TTFT (ms):                          23078.64  
-Median TTFT (ms):                        0.00      
-P90 TTFT (ms):                           97054.92  
-P95 TTFT (ms):                           99007.92  
-P99 TTFT (ms):                           99381.54  
------Time per Output Token (excl. 1st token)------
-Mean TPOT (ms):                          0.00      
-Median TPOT (ms):                        0.00      
-P90 TPOT (ms):                           0.00      
-P95 TPOT (ms):                           0.00      
-P99 TPOT (ms):                           0.00      
----------------Inter-Token Latency----------------
-Mean ITL (ms):                           0.00      
-Median ITL (ms):                         0.00      
-P90 ITL (ms):                            0.00      
-P95 ITL (ms):                            0.00      
-P99 ITL (ms):                            0.00      
-Max ITL (ms):                            0.00      
-==================================================

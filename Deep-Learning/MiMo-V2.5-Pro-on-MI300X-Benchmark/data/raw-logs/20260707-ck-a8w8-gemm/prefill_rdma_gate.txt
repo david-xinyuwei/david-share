@@ -1,4 +1,0 @@
-/dev/infiniband/uverbs0
-/dev/mem
-    inet 172.16.1.26/16 scope global ib0
-    inet6 fe80::215:5dff:fd33:ff23/64 scope link 
