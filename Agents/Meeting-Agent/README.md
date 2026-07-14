@@ -119,7 +119,6 @@ Each run contains:
 ### Prerequisites
 
 - Python 3.11 or 3.12
-- Git LFS for the committed PPTX sample artifacts
 - Linux, macOS, or Windows for generation
 - New Outlook for Windows only when using `--open-outlook`
 - An Azure OpenAI deployment only when using `--analyzer azure`
@@ -128,9 +127,7 @@ Each run contains:
 
 ```bash
 git clone https://github.com/david-xinyuwei/david-share.git
-cd david-share
-git lfs pull --include="Agents/Meeting-Agent/evidence/**/*.pptx"
-cd Agents/Meeting-Agent
+cd david-share/Agents/Meeting-Agent
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements-dev.txt

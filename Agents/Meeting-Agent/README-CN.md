@@ -119,7 +119,6 @@
 ### 前置条件
 
 - Python 3.11 或 3.12
-- Git LFS，用于拉取已提交的 PPTX 样例产物
 - Linux、macOS 或 Windows 均可生成产物
 - 仅使用 `--open-outlook` 时需要 New Outlook for Windows
 - 仅使用 `--analyzer azure` 时需要 Azure OpenAI deployment
@@ -128,9 +127,7 @@
 
 ```bash
 git clone https://github.com/david-xinyuwei/david-share.git
-cd david-share
-git lfs pull --include="Agents/Meeting-Agent/evidence/**/*.pptx"
-cd Agents/Meeting-Agent
+cd david-share/Agents/Meeting-Agent
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements-dev.txt
