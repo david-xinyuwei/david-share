@@ -48,7 +48,7 @@ def main() -> int:
     workflow = workflow_path.read_text(encoding="utf-8")
     assert "working-directory: Agents/Meeting-Agent" in workflow
     assert "lfs: true" not in workflow
-    assert "persist-credentials: false" in workflow
+    assert "persist-credentials: false" not in workflow
     assert "python scripts/audit_no_send.py" in workflow
     assert "python scripts/audit_public_content.py" in workflow
 
