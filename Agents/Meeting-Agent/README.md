@@ -1,6 +1,6 @@
 # Meeting Agent
 
-> Author: Xinyu Wei, Cloud Solution Architect at Microsoft
+> Author: Xinyu Wei
 
 [Chinese](README-CN.md) | **English**
 

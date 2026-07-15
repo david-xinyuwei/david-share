@@ -1,6 +1,6 @@
 # Meeting Agent
 
-> 作者：魏新宇，微软云解决方案架构师
+> 作者：魏新宇
 
 **中文** | [English](README.md)
 
