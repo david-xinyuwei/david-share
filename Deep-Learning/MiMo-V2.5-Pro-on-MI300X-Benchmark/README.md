@@ -44,6 +44,17 @@ The tables below contain the final customer-comparison point set. Detailed scala
 | 64 | **2,465.01** | 4,483 | 55.0% |
 | 128 | **2,486.89** | 7,013 | 35.5% |
 
+#### Decode TPOT — Lower Is Better
+
+| Concurrency | Microsoft-tested MI300X mean TPOT (ms) | Xiaomi H200 TPOT reference (ms) | MI300X / H200 |
+|---:|---:|---:|---:|
+| 16 | **10.83** | 11.59 | 0.93× |
+| 32 | **13.65** | 12.56 | 1.09× |
+| 64 | **16.88** | 14.28 | 1.18× |
+| 128 | **16.56** | 18.25 | 0.91× |
+
+A ratio below 1.00× means lower TPOT on MI300X. Each MI300X TPOT is paired with the same measured point as the headline throughput directly above.
+
 ### Two-Node DP=2 Prefill — Peak Aggregate Throughput
 
 | Context | Concurrency | Aggregate input tok/s |
