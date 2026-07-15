@@ -7,11 +7,11 @@
 
 在 Azure **AMD Instinct MI300X** 上运行 **小米 MiMo-V2.5-Pro（1.02T MoE / 42B 活跃参数 / FP8）**，使用 SGLang + AMD CK A8W8 blockwise GEMM + AITER + MTP/EAGLE + 模型专用 fused-MoE tuning，并与小米 H200 参考数据并列展示。
 
-本客户版 repo 包含核心对比结果、完整的微软扩展性测试矩阵、唯一一套支持的复现代码和紧凑验证元数据。PD-separated decode 必须把 RDMA 设备暴露给容器（`--privileged`、`/dev/mem`、`CAP_SYS_ADMIN`），否则 Mooncake 会 fallback 到 TCP，高并发吞吐结果无效。
+本客户版 repo 包含核心对比结果、完整的微软扩展性测试矩阵、唯一一套支持的复现代码和紧凑运行时元数据。PD-separated decode 必须把 RDMA 设备暴露给容器（`--privileged`、`/dev/mem`、`CAP_SYS_ADMIN`），否则 Mooncake 会 fallback 到 TCP，高并发吞吐结果无效。
 
 > Author: 魏新宇 (Xinyu Wei) — Microsoft AI and Apps Global Black Belt (GBB)
 >
-> 最后验证：2026-07-14
+> 最后测试：2026-07-14
 
 [English](README.md) | 中文
 
@@ -25,7 +25,7 @@
 
 ## 核心结果 — 微软实测 MI300X vs 小米 H200
 
-以下展示最终用于客户对比的结果点。下一节完整披露通过验收的扩展性矩阵。
+以下展示最终用于客户对比的结果点。下一节给出详细扩展性结果。
 
 ### 1P1D Prefill
 
@@ -44,22 +44,21 @@
 | 64 | **2,465.01** | 4,483 | 55.0% |
 | 128 | **2,486.89** | 7,013 | 35.5% |
 
-### 双节点 DP=2 Prefill — 已验证峰值聚合吞吐
+### 双节点 DP=2 Prefill — 峰值聚合吞吐
 
-| Context | Concurrency | Aggregate input tok/s | 完成请求数 |
-|---:|---:|---:|---:|
-| 8K | 16 | **46,747.01** | 32/32 |
-| 64K | 2 | **38,984.45** | 32/32 |
+| Context | Concurrency | Aggregate input tok/s |
+|---:|---:|---:|
+| 8K | 16 | **46,747.01** |
+| 64K | 2 | **38,984.45** |
 
 DP=2 的 nominal-length 256K 结果保留在后面的扩展性矩阵中，但不作为 exact-token 核心结果。
 
 ### 结果口径
 
-- 所有标记为 `VALIDATED` 的核心结果均通过 request count、output count、worker capacity 和 service-log 验收。
-- 核心结果中的 1P1D 256K 使用 `--tokenize-prompt`，每条 request 精确发送 262,144 个 token IDs，16/16 全部完成。
+- 核心结果中的 1P1D 256K 使用 `--tokenize-prompt`，每条 request 精确发送 262,144 个 token IDs。
 - DP=2 为两台 MI300X 节点的 Prefill-only 聚合容量，不包含 P→D KV-cache transfer。
 - H200 数值是小米提供的方向性参考。MI300X 使用真实 expert routing，H200 参考使用理想均衡 routing。
-- 核心结果来自最终 accepted evidence set。[`data/final-results.tsv`](data/final-results.tsv) 的 `evidence_scope` 字段区分 targeted rerun、fresh-service measurement 和 full-matrix peak。
+- 机器可读核心结果：[`data/final-results.tsv`](data/final-results.tsv)。
 
 ---
 
@@ -69,26 +68,25 @@ AMD 提供了基础启动方法：container image、tuned AITER path、1P1D/DP=2
 
 ### 测试矩阵
 
-| 测试面 | 工作负载 | Concurrency sweep | 每点请求数 | 结果 |
-|---|---|---|---:|---|
-| 1P1D Decode | 8K input / 1K output | 8, 16, 32, 64, 96, 128, 192 | 256 | 7 accepted |
-| 1P1D Prefill | 8K、64K、nominal 256K / 1 output | 1, 2, 4, 8 | 16 | 12 个点通过运行门；nominal 256K 仅用于扩展性观察 |
-| 双节点 DP=2 Prefill | 8K、64K、nominal 256K / 1 output | 8K/64K：1, 2, 4, 8, 16；nominal 256K：1, 2, 4, 8 | 32 | 14 accepted |
-| **公开合计** |  |  |  | **33 个通过验收的扩展性测试点** |
+| 测试面 | 工作负载 | Concurrency sweep | 每点请求数 |
+|---|---|---|---:|
+| 1P1D Decode | 8K input / 1K output | 8, 16, 32, 64, 96, 128, 192 | 256 |
+| 1P1D Prefill | 8K、64K、nominal 256K / 1 output | 1, 2, 4, 8 | 16 |
+| 双节点 DP=2 Prefill | 8K、64K、nominal 256K / 1 output | 8K/64K：1, 2, 4, 8, 16；nominal 256K：1, 2, 4, 8 | 32 |
 
-仅发布通过验收的测量结果。这是一轮完整 accepted scalability matrix，不声称每个点都执行了三次。Decode 核心生产并发点另外做了两次 fresh-service 复测。
+以下表格展示实测扩展性结果。Decode 核心生产并发点另外做了两次 fresh-service 复测。
 
 ### Decode 扩展性 — 8K Input / 1K Output
 
-| Concurrency | 成功请求数 | Output tok/s | Mean TPOT (ms) | Mean TTFT (ms) | 处理方式 |
-|---:|---:|---:|---:|---:|---|
-| 8 | 256/256 | 930.00 | 7.65 | 863.69 | Accepted |
-| 16 | 256/256 | 1,303.44 | 10.72 | 1,398.73 | Accepted |
-| 32 | 256/256 | 1,930.10 | 13.68 | 2,296.89 | Accepted |
-| 64 | 256/256 | 2,462.83 | 17.08 | 7,406.18 | Accepted |
-| 96 | 256/256 | 2,497.69 | 15.89 | 18,273.38 | Accepted |
-| 128 | 256/256 | 2,468.95 | 16.45 | 27,128.38 | Accepted |
-| 192 | 256/256 | 2,500.54 | 15.98 | 40,956.57 | Accepted |
+| Concurrency | Output tok/s | Mean TPOT (ms) | Mean TTFT (ms) |
+|---:|---:|---:|---:|
+| 8 | 930.00 | 7.65 | 863.69 |
+| 16 | 1,303.44 | 10.72 | 1,398.73 |
+| 32 | 1,930.10 | 13.68 | 2,296.89 |
+| 64 | 2,462.83 | 17.08 | 7,406.18 |
+| 96 | 2,497.69 | 15.89 | 18,273.38 |
+| 128 | 2,468.95 | 16.45 | 27,128.38 |
+| 192 | 2,500.54 | 15.98 | 40,956.57 |
 
 实测现象：
 
@@ -108,65 +106,65 @@ AMD 提供了基础启动方法：container image、tuned AITER path、1P1D/DP=2
 
 ### 1P1D Prefill 扩展性
 
-| Input | Concurrency | 成功请求数 | Input tok/s | Mean TTFT (ms) | 处理方式 |
-|---:|---:|---:|---:|---:|---|
-| 8K | 1 | 16/16 | 16,835.22 | 485.70 | Accepted |
-| 8K | 2 | 16/16 | 19,618.25 | 829.40 | Accepted |
-| 8K | 4 | 16/16 | 18,161.81 | 1,612.03 | Accepted |
-| 8K | 8 | 16/16 | 21,004.97 | 2,817.91 | Accepted |
-| 64K | 1 | 16/16 | 18,057.01 | 3,628.49 | Accepted |
-| 64K | 2 | 16/16 | 19,860.45 | 6,481.41 | Accepted |
-| 64K | 4 | 16/16 | 18,763.17 | 12,970.83 | Accepted |
-| 64K | 8 | 16/16 | 18,765.43 | 22,530.68 | Accepted |
-| Nominal 256K | 1 | 16/16 | 12,381.87 | 21,170.66 | 仅用于扩展性观察 |
-| Nominal 256K | 2 | 16/16 | 12,378.06 | 41,208.61 | 仅用于扩展性观察 |
-| Nominal 256K | 4 | 16/16 | 12,389.64 | 77,254.06 | 仅用于扩展性观察 |
-| Nominal 256K | 8 | 16/16 | 12,402.23 | 133,251.83 | 仅用于扩展性观察 |
+| Input | Concurrency | Input tok/s | Mean TTFT (ms) |
+|---:|---:|---:|---:|
+| 8K | 1 | 16,835.22 | 485.70 |
+| 8K | 2 | 19,618.25 | 829.40 |
+| 8K | 4 | 18,161.81 | 1,612.03 |
+| 8K | 8 | 21,004.97 | 2,817.91 |
+| 64K | 1 | 18,057.01 | 3,628.49 |
+| 64K | 2 | 19,860.45 | 6,481.41 |
+| 64K | 4 | 18,763.17 | 12,970.83 |
+| 64K | 8 | 18,765.43 | 22,530.68 |
+| Nominal 256K | 1 | 12,381.87 | 21,170.66 |
+| Nominal 256K | 2 | 12,378.06 | 41,208.61 |
+| Nominal 256K | 4 | 12,389.64 | 77,254.06 |
+| Nominal 256K | 8 | 12,402.23 | 133,251.83 |
 
 实测现象：
 
 - 完整矩阵中的 8K Prefill 在 concurrency 8 达到 21,004.97 input tok/s。
 - 64K Prefill 在 concurrency 2 达到峰值，此后随着并发增加保持在约 18.76K tok/s。
-- nominal 256K 行使用 random-text prompt construction（`tokenize_prompt=false`），只描述扩展趋势。核心 exact-token 结果来自独立 targeted concurrency-4 复测：**12,864.96 input tok/s**，16/16 请求成功、16/16 retokenized outputs。
+- nominal 256K 行使用 random-text prompt construction（`tokenize_prompt=false`），只描述扩展趋势。核心 exact-token 结果来自独立 targeted concurrency-4 复测：**12,864.96 input tok/s**。
 
 ### 双节点 DP=2 Prefill 扩展性
 
-| Input | Concurrency | 成功请求数 | Aggregate input tok/s | Mean TTFT (ms) | Worker request delta | 处理方式 |
-|---:|---:|---:|---:|---:|---:|---|
-| 8K | 1 | 32/32 | 20,751.73 | 393.90 | 17/16 | Accepted |
-| 8K | 2 | 32/32 | 41,201.86 | 394.17 | 16/17 | Accepted |
-| 8K | 4 | 32/32 | 43,401.70 | 723.96 | 17/16 | Accepted |
-| 8K | 8 | 32/32 | 46,113.92 | 1,296.43 | 16/17 | Accepted |
-| 8K | 16 | 32/32 | 46,747.01 | 2,276.28 | 17/16 | Accepted |
-| 64K | 1 | 32/32 | 19,695.02 | 3,326.53 | 16/17 | Accepted |
-| 64K | 2 | 32/32 | 38,984.45 | 3,348.49 | 17/16 | Accepted |
-| 64K | 4 | 32/32 | 38,382.03 | 6,615.25 | 16/17 | Accepted |
-| 64K | 8 | 32/32 | 38,204.80 | 12,418.82 | 17/16 | Accepted |
-| 64K | 16 | 32/32 | 38,155.28 | 21,164.99 | 16/17 | Accepted |
-| Nominal 256K | 1 | 32/32 | 12,783.28 | 20,505.88 | 17/16 | 仅用于扩展性观察 |
-| Nominal 256K | 2 | 32/32 | 25,063.73 | 20,823.01 | 17/16 | 仅用于扩展性观察 |
-| Nominal 256K | 4 | 32/32 | 24,923.63 | 40,785.01 | 16/17 | 仅用于扩展性观察 |
-| Nominal 256K | 8 | 32/32 | 24,765.29 | 76,468.09 | 17/16 | 仅用于扩展性观察 |
+| Input | Concurrency | Aggregate input tok/s | Mean TTFT (ms) |
+|---:|---:|---:|---:|
+| 8K | 1 | 20,751.73 | 393.90 |
+| 8K | 2 | 41,201.86 | 394.17 |
+| 8K | 4 | 43,401.70 | 723.96 |
+| 8K | 8 | 46,113.92 | 1,296.43 |
+| 8K | 16 | 46,747.01 | 2,276.28 |
+| 64K | 1 | 19,695.02 | 3,326.53 |
+| 64K | 2 | 38,984.45 | 3,348.49 |
+| 64K | 4 | 38,382.03 | 6,615.25 |
+| 64K | 8 | 38,204.80 | 12,418.82 |
+| 64K | 16 | 38,155.28 | 21,164.99 |
+| Nominal 256K | 1 | 12,783.28 | 20,505.88 |
+| Nominal 256K | 2 | 25,063.73 | 20,823.01 |
+| Nominal 256K | 4 | 24,923.63 | 40,785.01 |
+| Nominal 256K | 8 | 24,765.29 | 76,468.09 |
 
 实测现象：
 
 - DP=2 的 8K 和 64K aggregate Prefill throughput 从 concurrency 1 到 2 接近翻倍，随后进入平台区间。
-- 每个 accepted DP=2 点在两个 worker 上都有正 request delta，证明 router 实际将流量分配到了两个节点。
+- DP=2 测量通过双节点 router 使用两个 worker。
 - 尚未完成 DP=2 256K exact-token rerun。这些行保留为 nominal-length 扩展性观察，不进入核心验证表。
 - DP=2 是 Prefill-only capacity，不是 2P1D end-to-end throughput，也不测量 P→D KV-cache transfer。
 
-### 256K Correctness 口径
+### 256K 方法口径
 
 | 证据集 | Client framing | 交付用途 |
 |---|---|---|
 | 完整扩展矩阵 | Random-text construction，`tokenize_prompt=false` | 用于 scaling 和 boundary 观察；nominal 256K 不是 exact-token 核心证据 |
-| Targeted 1P1D 256K 复测 | 精确 262,144 token IDs，`--tokenize-prompt` | 核心验证结果：12,864.96 input tok/s，16/16 请求 |
+| Targeted 1P1D 256K 复测 | 精确 262,144 token IDs，`--tokenize-prompt` | 核心结果：12,864.96 input tok/s |
 | 当前 `scripts/amd-latest/` | 所有 256K benchmark 均使用 exact token IDs | 后续 256K 结果的强制复现路径 |
 
 ### 机器可读证据
 
 - 核心结果点：[`data/final-results.tsv`](data/final-results.tsv)
-- 通过验收的 33 点扩展性矩阵：[`data/scalability-results.tsv`](data/scalability-results.tsv)
+- 详细扩展性结果：[`data/scalability-results.tsv`](data/scalability-results.tsv)
 - Decode 核心点复测：[`data/decode-repeatability.tsv`](data/decode-repeatability.tsv)
 - Exact-token 与 runtime 验证元数据：[`data/validation/`](data/validation/)
 - 唯一支持的复现代码：[`scripts/amd-latest/`](scripts/amd-latest/)
@@ -190,8 +188,8 @@ AMD 提供了基础启动方法：container image、tuned AITER path、1P1D/DP=2
 | 组件 | 版本 | 说明 |
 |------|------|------|
 | Docker 镜像 | `rocm/sgl-dev:v0.5.11-rocm720-mi30x-20260510` | AMD 0510 build, SHA `bb9d2e5ab1a6` |
-| SGLang | Package `0.0.0.dev14147+g2f9b9aedf.d20260706`、source HEAD `2f9b9aedf` | 最终验证 runtime |
-| AITER | Source HEAD `00e94abf`；tuned CSV SHA-256 `2c87ff1...80ea7` | 最终验证 runtime |
+| SGLang | Package `0.0.0.dev14147+g2f9b9aedf.d20260706`、source HEAD `2f9b9aedf` | 最终测试 runtime |
+| AITER | Source HEAD `00e94abf`；tuned CSV SHA-256 `2c87ff1...80ea7` | 最终测试 runtime |
 | ROCm | 7.2.0 | |
 | GEMM 路径 | **CK A8W8 blockwise bpreshuffle** | `SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1` |
 | Mooncake | `0.3.7.post2` | PD 分离 KV cache 传输 |
