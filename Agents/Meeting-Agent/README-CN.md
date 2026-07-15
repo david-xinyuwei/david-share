@@ -5,7 +5,7 @@
 [![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/meeting-agent-ci.yml/badge.svg?branch=master)](https://github.com/david-xinyuwei/david-share/actions/workflows/meeting-agent-ci.yml)
 [![Human Send Required](https://img.shields.io/badge/email-human%20send%20required-D83B01.svg)](#人工控制的-outlook-交接)
 
-一个带浏览器工作区的 Microsoft Foundry Hosted Agent：把与提供方解耦的会议事件转换成结构化分析、思维导图、可编辑 PowerPoint，以及未发送的 New Outlook 草稿。
+一个本机 Windows 会议工作区：通过 Azure OpenAI Responses API 调用 GPT-5.4，生成结构化纪要、Mermaid 思维导图、模板化 PowerPoint，以及未发送的 New Outlook 草稿。
 
 > 作者：魏新宇
 
@@ -13,13 +13,13 @@
 
 ## 执行摘要
 
-客户主路径是由真实 Microsoft Foundry Hosted Agent 支撑的浏览器工作区，而不是 Python 命令行。转写或视觉适配器输出严格会议事件；Agent 校验 final 证据、执行结构化模型分析、把可追溯文件写入受管 session，并让本地 UI 在 New Outlook 中打开 EML 草稿供人工审阅。
+客户主路径是本机浏览器工作区，而不是 Python 命令行。转写、结构化会议 JSON 或视觉适配器会转换成严格会议事件；本机 Python backend 使用 GPT-5.4 Responses API 结构化输出和 Medium reasoning，生成可追溯产物，并让 Windows UI 在 New Outlook 中打开 EML 草稿供人工审阅。
 
 | 结果 | 已实现行为 | 验证 |
 |---|---|---|
 | 浏览器体验 | 转写/JSONL 输入、分析审阅、思维导图预览和产物下载 | Playwright 桌面/移动端 E2E |
-| 托管运行时 | 带 OpenAPI 和严格 Pydantic 校验的 Foundry Invocations `2.0.0` | `tests/test_hosted_api.py` |
-| 会议分析 | Foundry 模型结构化输出或显式 offline contract 测试模式 | `tests/test_azure_analyzer.py`、`tests/test_cross_input.py` |
+| 本机运行时 | 带严格 Pydantic 校验的 loopback Python artifact backend | `tests/test_hosted_api.py` |
+| 会议分析 | GPT-5.4 Responses API、结构化输出、reasoning `medium`、`store=False` | `tests/test_azure_analyzer.py`、运行时 HTTP 日志 |
 | Session 产物 | 受管 `$HOME` 下的 JSON、SVG、PNG、可编辑 PPTX、HTML/纯文本 EML | `tests/test_hosted_pipeline.py` |
 | Outlook 交接 | 通过 `olk.exe` 打开带 `X-Unsent: 1` 的草稿 | `evidence/outlook-draft-probe.json` |
 | 发送安全 | Python/Node/UI/脚本均不含 SMTP、Graph `sendMail`、Outlook `.Send` 或 UI Send 激活 | `scripts/audit_no_send.py` |
@@ -28,30 +28,30 @@
 
 | 能力 | 本仓库实际执行 | 证据 | 边界 |
 |---|---|---|---|
-| 浏览器 UI | 通过 loopback BFF 调用 Hosted Agent 并渲染真实返回产物 | 浏览器 E2E 和 Node 测试 | 当前版本在本地运行，不是公开云端网站 |
-| Foundry 运行时 | 通过 Invocations `2.0.0` 暴露真实 `azure.ai.agent` | `azure.yaml`、OpenAPI、hosted API 测试 | 源代码部署是 Microsoft Foundry preview 能力 |
+| 浏览器 UI | 通过 loopback BFF 调用本机 artifact backend 并渲染真实返回产物 | 浏览器 E2E 和 Node 测试 | 当前版本在本地运行，不是公开云端网站 |
+| AOAI 运行时 | 通过 Entra 认证调用 `https://<resource>.openai.azure.com/openai/v1/responses` | Responses API 200 日志和 SDK 契约测试 | 可选 Hosted adapter 仅保留兼容性，不是客户主路径 |
 | 事件接入 | 校验、排序、去重并计算 JSONL 事件 hash | 单元测试和两份样例事件流 | 采集传输由适配器提供 |
 | 转写处理 | 生成产物时只使用 `transcript.final` | `tests/test_session.py` | 本仓库不执行 ASR 推理 |
 | 视觉上下文 | 接受视觉摘要和可选 `image_uri` | 事件 schema 测试 | 屏幕捕获和图片理解属于视觉适配器 |
-| Foundry 分析 | 使用 Hosted Agent 身份调用项目模型，以 Pydantic 结构化输出并设置 `store=False` | SDK 契约测试及 `evidence/foundry-live-validation.json` | 已发布的 live 证据经过脱敏，不含 tenant、资源、principal、session 和 invocation 标识 |
+| GPT-5.4 分析 | 加载 meeting-package skill，使用 Pydantic 结构化输出、Medium reasoning 和 `store=False` | SDK 契约与真实 AOAI response | 不会静默 fallback 到离线输出 |
 | 离线分析 | 为 CI 和集成测试生成确定性结构化分析 | 两份内容显著不同的已提交运行 | 不是 AI 质量替代品，也不是生产 fallback |
 | 产物生成 | 创建真实且可解析的 PNG/SVG/JSON/PPTX/EML | SHA-256 manifest 和产物测试 | 布局保持简洁，可按需定制 |
 | New Outlook | 打开包含真实附件的可编辑 EML 草稿 | 脱敏 Windows 实测证据 | UI 按钮或 `--open-outlook` 需要 Windows 和 New Outlook |
 | 邮件传输 | 不发送邮件 | 每个 CI job 执行静态审计 | 用户审阅后手动点击 Send |
 
-已提交的样例产物使用显式 `offline-contract` 测试模式，以便 CI 确定性复验。浏览器截图和 `evidence/foundry-live-validation.json` 是真实 Foundry Hosted Agent version 2 部署的脱敏衍生证据：两场内容显著不同的远端会议生成了不同分析，并通过 PNG、PPTX、EML 校验。这是部署路径证据，不是生产认证或模型质量 benchmark。脱敏 Outlook probe 仅验证 Windows 草稿交接。
+已提交的样例产物使用显式 `offline-contract` 模式，以便 CI 确定性复验。Live 验证使用本机 Windows UI 和 full GPT-5.4 Responses API：结构化会议 JSON 会生成有依据的分析、Mermaid SVG、六页可编辑 PPTX，以及含两个附件的 EML。这是功能证据，不是生产认证或模型质量 benchmark。脱敏 Outlook probe 仅验证 Windows 草稿交接。
 
 ## 架构
 
 ![Meeting Agent architecture](images/meeting-agent-architecture.svg)
 
-*全尺寸矢量架构图：浏览器工作区、Entra 认证的 loopback BFF、Foundry Invocations gateway、Hosted Agent 运行时、受管 session 文件和人工控制的 New Outlook 交接。[直接打开 SVG](images/meeting-agent-architecture.svg)。*
+*全尺寸矢量架构图：Windows 浏览器工作区、loopback BFF、本机 Python artifact backend、GPT-5.4 Responses API、本机 session 文件和人工控制的 New Outlook 交接。[直接打开 SVG](images/meeting-agent-architecture.svg)。*
 
 ### 浏览器工作区
 
 ![Meeting Agent browser workspace](images/meeting-agent-ui.png)
 
-*来自真实 Microsoft Foundry 路径的 1440 px 脱敏 Playwright 截图。tenant、subscription、资源、endpoint、principal、session 和 invocation 标识均未渲染或发布。*
+*来自真实本机 AOAI 路径的 1440 px 脱敏 Playwright 截图。tenant、subscription、资源、endpoint、token 和 session 标识均未渲染或发布。*
 
 ### 处理不变量
 
@@ -63,8 +63,8 @@
 6. EML 必须包含 `X-Unsent: 1` 和至少一个真实附件。
 7. 代码库不具备自动发送邮件的能力。
 8. Azure 分析会把每个事件规范为单行，并拒绝超过 200,000 字符的输入。
-9. Hosted request 会拒绝未知字段和超过 5,000 个事件的输入。
-10. Hosted 产物始终位于当前 Foundry session 的 `$HOME` 下；BFF 会拒绝路径穿越。
+9. 本机 invocation request 会拒绝未知字段和超过 5,000 个事件的输入。
+10. Runtime 产物始终位于被忽略的本机 session 目录；BFF 会拒绝路径穿越。
 11. 浏览器代码永远拿不到 Azure access token；只有 loopback BFF 获取 token。
 
 ## 事件契约
@@ -122,7 +122,7 @@
 | `mind-map.json` | 与渲染器解耦的图结构 |
 | `mind-map.svg` | 可缩放浏览器渲染 |
 | `mind-map.png` | 适合邮件的位图 |
-| `meeting-summary.pptx` | 可编辑的五页演示文稿 |
+| `meeting-summary.pptx` | 可编辑的六页模板化演示文稿 |
 | `meeting-follow-up.eml` | 带 PNG 和 PPTX 附件的未发送 MIME 草稿 |
 | `evidence.json` | 来源和产物大小/hash manifest |
 
@@ -131,23 +131,24 @@
 ### 前置条件
 
 - Azure Developer CLI `1.27+`，以及 `azure.yaml` 中声明的 `azure.ai.agents` 与 `azure.ai.projects` 扩展
-- 启用了 Microsoft Foundry 且有权限创建 project 的 Azure 订阅
-- 浏览器 UI 使用 Node.js 22
-- 本地开发支持 Python 3.11–3.13；Hosted Agent 直接部署使用 Python 3.13
+- 启用了 Azure OpenAI 且对所选模型 deployment 具有推理权限的订阅
+- 浏览器 UI 使用 Node.js 22 或更高版本
+- Windows 本机 backend 使用 Python 3.12；测试仍覆盖 Python 3.11–3.13
 - 仅在本地打开生成草稿时需要 New Outlook for Windows
 
-Microsoft Foundry 源代码部署当前仍是 preview 能力。在将其作为生产部署标准前，必须确认区域可用性和组织策略。
+本机 Demo 使用 GA 的 AOAI Responses API。在将其作为生产部署标准前，必须确认模型可用性、quota、identity policy 和数据驻留要求。
 
-### 一条命令部署 Hosted Agent 和 UI
+### 一条命令启动 GPT-5.4 Responses API 和 UI
 
-完成一次 Azure CLI 认证并选择目标订阅，然后只需运行一个启动器。启动器会把 azd 锁定到该 tenant/subscription、运行 `azd up`，再在 `http://127.0.0.1:4173` 启动 loopback UI。`azd up` 会预配 Foundry project、`gpt-5.4-mini` deployment、Application Insights 和 Hosted Agent。
+完成一次 Azure CLI 认证并选择目标订阅，然后只需运行一个启动器。启动器会验证隔离的 tenant/subscription，在需要时预配 `gpt-5.4` deployment，在 `18089` 启动本机 Python backend，并在 `http://127.0.0.1:4173` 启动 loopback UI。
 
 Windows：
 
 ```powershell
+$env:AZURE_CONFIG_DIR = "$HOME\.azure-<tenant>-<subscription-name>"
 az login --tenant <tenant-id>
 az account set --subscription <subscription-id>
-.\scripts\deploy-and-start.ps1
+.\scripts\deploy-and-start.ps1 -AzureConfigDir $env:AZURE_CONFIG_DIR
 ```
 
 Linux 或 macOS：
@@ -158,18 +159,20 @@ az account set --subscription <subscription-id>
 ./scripts/deploy-and-start.sh
 ```
 
+New Outlook 操作要求 UI BFF 作为 Windows 原生 Node 进程运行，并由 `deploy-and-start.ps1` 或 `start-ui.ps1` 启动；该交接不使用 WSL。本机 backend 直接调用 AOAI，不会调用 Foundry Hosted Agent。
+
 启动器会设置 `auth.useAzCliAuth=true`，创建或选择 `meeting-agent-dev`，并在部署前把当前 Azure CLI 的 tenant/subscription 写入该 azd environment。如果 `AZURE_CONFIG_DIR` 指向隔离 Azure CLI profile，运行启动器时保持该变量不变；azd 与 UI BFF 将共同使用这个 profile。
 
 BFF 从选定 azd environment 读取已部署 project endpoint、agent name、tenant 和 subscription。启动器先确认 Azure CLI 位于匹配 tenant；BFF 再通过绑定 subscription 的 `AzureCliCredential` 获取评估用户的 Entra token。浏览器 JavaScript 永远不会拿到该 token。
 
-仅部署或更新 Hosted Agent：
+启动前确认选中的模型：
 
 ```bash
-azd up
-azd ai agent show --output json
+azd env get-value AZURE_AI_MODEL_DEPLOYMENT_NAME
+az cognitiveservices account deployment show --resource-group <rg> --name <account> --deployment-name gpt-5.4
 ```
 
-部署后的 Agent 暴露 Invocations `2.0.0`。生成的 PNG、PPTX、EML、JSON 和 evidence 文件位于调用者的 Foundry 受管 session，并通过 session files API 下载。
+本机 backend 向 loopback BFF 暴露现有严格 invocation 契约。生成的 Mermaid、PNG、PPTX、EML、JSON 和 evidence 文件位于被忽略的本机 runtime 目录，并通过 BFF 下载。
 
 ### 仅供开发的 offline contract 路径
 
@@ -230,15 +233,15 @@ Evidence 摘要：
 }
 ```
 
-## Foundry Hosted 分析器与 standalone Azure 分析器
+## GPT-5.4 Responses 分析器与可选 Hosted Adapter
 
-Hosted Agent 是主要运行时：
+本机 Azure OpenAI 分析器是主要运行时：
 
-- `InvocationAgentServerHost` 通过 `/invocations` 暴露严格 JSON 契约。
-- Foundry 注入 `FOUNDRY_PROJECT_ENDPOINT`、Agent/session identity 和 Application Insights 配置。
-- `AIProjectClient(...).get_openai_client()` 把模型推理绑定到 Foundry project。
-- 平台分配的 Agent identity 通过 `DefaultAzureCredential` 认证。
-- 生成文件写入受管 session 的 `$HOME` 下，而不是 `/tmp`。
+- `InvocationAgentServerHost` 通过 `/invocations` 暴露严格本机 JSON 契约。
+- `AzureOpenAIAnalyzer` 使用 Entra 认证调用 AOAI `/openai/v1/responses` endpoint。
+- GPT-5.4 加载打包后的会议 skill，使用 Pydantic 结构化输出、reasoning `medium` 和 `store=False`。
+- Windows 启动器把 `DefaultAzureCredential` 绑定到选定的隔离 Azure CLI profile。
+- 生成文件写入被忽略的本机 runtime session，而不是公开目录。
 
 Standalone CLI 继续用于适配器开发和故障恢复。它的 Azure 路径遵循当前 Responses v1 模式：
 
@@ -249,7 +252,7 @@ Standalone CLI 继续用于适配器开发和故障恢复。它的 Azure 路径�
 - Response 请求设置 `store=False`
 - 每个事件文本规范化为一行，并以 200,000 字符上限 fail closed
 
-本仓库锁定官方 Foundry Invocations host、Azure AI Projects client 和 `openai==2.32.0`。从 [.env.example](.env.example) 开始，把真实 standalone 值设置到环境变量或本地被忽略的 `.env` 文件。
+本仓库锁定 `openai==2.32.0`、Azure Identity 和可选 Foundry 兼容库。从 [.env.example](.env.example) 开始，把真实值保存在隔离运行环境中，而不是源代码里。
 
 配置资源和 deployment，不提交凭据：
 
@@ -274,13 +277,16 @@ python -m meeting_agent.cli build \
 
 ## 人工控制的 Outlook 交接
 
-在 Windows 上，客户主路径是浏览器工作区中的 **Open Outlook draft** 按钮。Loopback BFF 从当前 Foundry session 下载 EML，原子写入本地临时目录，并用该文件启动 `olk.exe`。BFF 不提供 send endpoint。
+在 Windows 上，客户主路径是浏览器工作区中的 **Open Outlook draft** 按钮。Loopback BFF 从当前本机 session 读取 EML，原子写入本地临时目录，并用该文件启动 `olk.exe`。BFF 不提供 send endpoint。
 
 Agent 部署后，只启动 UI：
 
 ```powershell
-.\scripts\start-ui.ps1
+$env:AZURE_CONFIG_DIR = "$HOME\.azure-<tenant>-<subscription-name>"
+.\scripts\start-ui.ps1 -AzureConfigDir $env:AZURE_CONFIG_DIR
 ```
+
+必须在 Windows PowerShell 中运行该命令，不能在 WSL 中运行。启动器会在启用 Outlook 按钮前验证 Node.js、azd、Azure CLI tenant/subscription、已部署 Agent environment 和 `olk.exe`。
 
 Standalone CLI 可以在开发时验证同一个本地草稿交接：
 
@@ -387,7 +393,7 @@ CI 在 Ubuntu 和 Windows 上运行 Python 3.11、3.12 与 3.13 gate。独立的
 - 输入是会议内容。调用云端分析器前，必须遵守所在组织的数据分类和保留策略。
 - Azure 请求设置 `store=False`；Azure service 和 deployment policy 仍然适用。
 - 浏览器只与 loopback BFF 通信；Azure bearer token 永远不会返回给浏览器 JavaScript。
-- Foundry session 文件按已认证调用者隔离，不是公开下载 URL。
+- 本机 runtime session 文件位于被忽略的目录，不是公开下载 URL。
 - 事件 metadata 不得包含 secret、access token 或不必要的个人数据。
 - Git 忽略 `.env`、`password.txt`、token 文件、runtime 输出和本地产物。
 - Endpoint 和 deployment 值从环境变量读取。
@@ -428,11 +434,13 @@ generate_artifacts(analysis, Path("artifacts/custom"))
 ## 项目结构
 
 ```text
-main.py                                    Microsoft Foundry Hosted Agent 入口
-azure.yaml                                 一条命令部署 project、模型和 Invocations Agent
+main.py                                    本机严格 invocation backend 入口
+azure.yaml                                 GPT-5.4 模型预配与可选 Hosted 兼容配置
+src/meeting_agent/skills/                  运行时 meeting-package 提示 skill
+src/meeting_agent/templates/               可编辑六页 PPTX 模板
 src/meeting_agent/                         核心 schema、Hosted handler、session、analyzer、artifact、EML handoff 和 CLI
 ui/                                        React 工作区与 Entra 认证的 loopback BFF
-examples/                                  两份与提供方解耦的 JSONL 会议事件流
+examples/                                  JSONL 事件流与结构化 meeting-record JSON
 images/                                    全尺寸架构图与 Outlook 脱敏证据
 tests/                                     Schema、Hosted 协议、跨输入、产物、草稿和 CLI 测试
 scripts/                                   部署启动器、no-send 和证据验证门禁
@@ -445,10 +453,10 @@ evidence/                                  脱敏 Outlook probe 与已提交样�
 - 本仓库不采集麦克风音频或屏幕像素。
 - `visual.frame` 是外部适配器提供的文本摘要或引用。
 - Offline analyzer 是确定性测试基础设施，不是生产 fallback。
-- 公开证据不包含已部署 Foundry Hosted Agent invocation。
-- Foundry 源代码部署是 preview，当前目标运行时为 Python 3.13。
+- 客户主路径是本机 AOAI Responses API，而不是可选 Hosted adapter。
+- 已提交的确定性样例不用于评测模型质量。
 - 浏览器 UI 是 loopback companion，不是面向互联网的多用户 Web 服务。
-- 每位评估用户都需要获准调用目标 Foundry Agent 并访问该身份 session 的 Entra identity。
+- Windows Azure CLI 登录身份需要具备所选 AOAI deployment 的推理权限。
 - SHA-256 manifest 证明单次运行的完整性。PPTX ZIP metadata 和 MIME boundary 在重建时可能改变 binary hash，但不会改变结构化分析。
 - New Outlook 启动仅支持 Windows，并依赖 `olk.exe` 可用。
 - 生成的摘要和 action item 在外部使用前必须由人工审阅。
@@ -460,7 +468,7 @@ evidence/                                  脱敏 Outlook probe 与已提交样�
 |---|---|
 | `at least one transcript.final event is required` | Build 前至少输出一个 final transcript segment |
 | `FOUNDRY_PROJECT_ENDPOINT ... required` | 通过 `azd` 运行，或在启动 UI 前选择已部署的 azd environment |
-| Foundry `424 session_not_ready` | warm-up 后重试同一 session；持续失败时检查 Agent 日志 |
+| 可选 Hosted `424 session_not_ready` | warm-up 后重试同一 session；持续失败时检查 adapter 日志 |
 | UI 找不到 Agent | 运行 `azd ai agent show --output json` 并核对 active azd environment |
 | `AZURE_OPENAI_ENDPOINT ... required` | 同时设置两个 Azure 环境变量 |
 | Azure `401` 或 `403` | 检查当前 Azure CLI 隔离 profile、azd tenant/subscription、RBAC 和 `https://ai.azure.com/.default` scope |

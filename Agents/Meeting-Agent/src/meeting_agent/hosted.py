@@ -13,7 +13,12 @@ from pydantic import ValidationError
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
-from .analyzers import Analyzer, FoundryOpenAIAnalyzer, OfflineContractAnalyzer
+from .analyzers import (
+    Analyzer,
+    AzureOpenAIAnalyzer,
+    FoundryOpenAIAnalyzer,
+    OfflineContractAnalyzer,
+)
 from .hosted_models import HostedMeetingRequest, HostedMeetingResponse
 from .hosted_pipeline import build_hosted_run
 
@@ -146,6 +151,8 @@ def _get_analyzer() -> Analyzer:
     mode = os.environ.get("MEETING_AGENT_ANALYZER", "foundry").strip().casefold()
     if mode == "foundry":
         return FoundryOpenAIAnalyzer()
+    if mode == "azure":
+        return AzureOpenAIAnalyzer()
     if mode == "offline-contract":
         if os.environ.get("MEETING_AGENT_ENABLE_OFFLINE_CONTRACT") != "1":
             raise RuntimeError("offline-contract analyzer is disabled")

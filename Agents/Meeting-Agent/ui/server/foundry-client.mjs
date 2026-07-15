@@ -1,13 +1,24 @@
 import { AzureCliCredential } from "@azure/identity";
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { readFile, realpath } from "node:fs/promises";
 import path from "node:path";
 
 const API_VERSION = "v1";
 const FEATURE_HEADER = "HostedAgents=V1Preview";
 const TOKEN_SCOPE = "https://ai.azure.com/.default";
 const RETRYABLE_STATUS = new Set([424, 429, 502, 503, 504]);
+const ARTIFACT_FILENAMES = new Set([
+  "evidence.json",
+  "meeting-analysis.json",
+  "meeting-events.json",
+  "meeting-follow-up.eml",
+  "meeting-summary.pptx",
+  "mind-map.json",
+  "mind-map.mmd",
+  "mind-map.png",
+  "mind-map.svg",
+]);
 
 export class FoundryClientError extends Error {
   constructor(message, statusCode = 502, code = "foundry_request_failed") {
@@ -68,6 +79,9 @@ export function createFoundryClient(environment = process.env) {
     ? null
     : requiredProjectEndpoint(environment.FOUNDRY_PROJECT_ENDPOINT);
   const agentName = validateAgentName(environment.MEETING_AGENT_NAME || "meeting-agent");
+  const runtimeMode = localAgentUrl
+    ? validateLocalRuntimeMode(environment.MEETING_AGENT_RUNTIME_MODE)
+    : "foundry";
   const localSessionHome = environment.MEETING_AGENT_LOCAL_SESSION_HOME
     ? path.resolve(environment.MEETING_AGENT_LOCAL_SESSION_HOME)
     : null;
@@ -76,7 +90,7 @@ export function createFoundryClient(environment = process.env) {
     : new AzureCliCredential(buildAzureCliCredentialOptions(environment));
 
   return {
-    mode: localAgentUrl ? "local" : "foundry",
+    mode: runtimeMode,
     agentName,
 
     async createSession() {
@@ -126,7 +140,7 @@ export function createFoundryClient(environment = process.env) {
             "local_session_home_missing",
           );
         }
-        return readFile(resolveInside(localSessionHome, safePath));
+        return readFile(await resolveExistingInside(localSessionHome, safePath));
       }
       const url =
         `${projectEndpoint}/agents/${encodeURIComponent(agentName)}/endpoint/sessions/` +
@@ -142,6 +156,17 @@ export function buildAzureCliCredentialOptions(environment) {
   return {
     subscription: requiredGuid(environment.AZURE_SUBSCRIPTION_ID, "AZURE_SUBSCRIPTION_ID"),
   };
+}
+
+function validateLocalRuntimeMode(value) {
+  if (!value || value === "local") return "local";
+  if (value === "aoai") return "aoai";
+  throw new Error("MEETING_AGENT_RUNTIME_MODE must be local or aoai.");
+}
+
+export function validateRuntimeMode(value, localAgentUrl) {
+  if (!localAgentUrl) return "foundry";
+  return validateLocalRuntimeMode(value);
 }
 
 async function foundryFetch(credential, url, options) {
@@ -262,7 +287,11 @@ export function validateSessionId(value) {
 }
 
 export function validateArtifactPath(value) {
-  if (typeof value !== "string" || !/^artifacts\/[A-Za-z0-9_-]{8,128}\/[A-Za-z0-9._-]+$/.test(value)) {
+  const match =
+    typeof value === "string"
+      ? /^artifacts\/[A-Za-z0-9_-]{8,128}\/([A-Za-z0-9._-]+)$/.exec(value)
+      : null;
+  if (!match || !ARTIFACT_FILENAMES.has(match[1])) {
     throw new FoundryClientError("Artifact path is invalid.", 400, "invalid_artifact_path");
   }
   return value;
@@ -275,4 +304,23 @@ export function resolveInside(root, relativePath) {
     throw new FoundryClientError("Artifact path escapes the session directory.", 400);
   }
   return resolved;
+}
+
+export async function resolveExistingInside(root, relativePath) {
+  const resolved = resolveInside(root, relativePath);
+  let canonicalRoot;
+  let canonicalResolved;
+  try {
+    [canonicalRoot, canonicalResolved] = await Promise.all([realpath(root), realpath(resolved)]);
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      throw new FoundryClientError("Artifact file was not found.", 404, "artifact_not_found");
+    }
+    throw error;
+  }
+  const relative = path.relative(canonicalRoot, canonicalResolved);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    throw new FoundryClientError("Artifact path escapes the session directory.", 400);
+  }
+  return canonicalResolved;
 }

@@ -6,7 +6,7 @@ cd "$ROOT_DIR"
 
 ENVIRONMENT_NAME="${AZURE_ENV_NAME:-meeting-agent-dev}"
 LOCATION="${AZURE_LOCATION:-eastus2}"
-MODEL_DEPLOYMENT_NAME="${AZURE_AI_MODEL_DEPLOYMENT_NAME:-gpt-5.4-mini}"
+MODEL_DEPLOYMENT_NAME="${AZURE_AI_MODEL_DEPLOYMENT_NAME:-gpt-5.4}"
 
 subscription_id="$(az account show --only-show-errors --query id --output tsv)"
 tenant_id="$(az account show --only-show-errors --query tenantId --output tsv)"

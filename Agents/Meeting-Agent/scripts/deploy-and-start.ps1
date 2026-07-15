@@ -2,11 +2,50 @@
 param(
     [string]$EnvironmentName = "meeting-agent-dev",
     [string]$Location = "eastus2",
-    [string]$ModelDeploymentName = "gpt-5.4-mini"
+    [string]$ModelDeploymentName = "gpt-5.4",
+    [string]$AzureConfigDir
 )
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
+
+if ($env:OS -ne "Windows_NT") {
+    throw "deploy-and-start.ps1 must run in Windows PowerShell."
+}
+if (-not $AzureConfigDir) { $AzureConfigDir = $env:AZURE_CONFIG_DIR }
+if (-not $AzureConfigDir) {
+    $AzureConfigDir = [Environment]::GetEnvironmentVariable(
+        "MEETING_AGENT_AZURE_CONFIG_DIR",
+        "User"
+    )
+}
+if (-not $AzureConfigDir) {
+    throw "AzureConfigDir is required. Pass -AzureConfigDir or set MEETING_AGENT_AZURE_CONFIG_DIR."
+}
+$AzureConfigDir = [Environment]::ExpandEnvironmentVariables($AzureConfigDir)
+if (-not (Test-Path -LiteralPath $AzureConfigDir -PathType Container)) {
+    throw "AzureConfigDir does not exist: $AzureConfigDir"
+}
+$env:AZURE_CONFIG_DIR = (Resolve-Path -LiteralPath $AzureConfigDir).Path
+
+foreach ($commandName in @("node.exe", "npm.cmd", "az.cmd", "azd.exe", "olk.exe")) {
+    if (-not (Get-Command $commandName -ErrorAction SilentlyContinue)) {
+        throw "Required Windows command is unavailable: $commandName"
+    }
+}
+$nodeVersion = [Version]((node --version).TrimStart("v"))
+if ($nodeVersion -lt [Version]"22.0.0") {
+    throw "Node.js 22 or newer is required; found $nodeVersion."
+}
+$azdVersionOutput = azd version
+if ($LASTEXITCODE -ne 0 -or $azdVersionOutput -notmatch "azd version ([0-9.]+)") {
+    throw "Unable to determine the Windows azd version."
+}
+$azdVersion = [Version]$Matches[1]
+if ($azdVersion -lt [Version]"1.27.0") {
+    throw "Azure Developer CLI 1.27 or newer is required; found $azdVersion."
+}
+
 Push-Location $root
 try {
     if (-not $PSBoundParameters.ContainsKey("EnvironmentName") -and $env:AZURE_ENV_NAME) {
@@ -48,10 +87,12 @@ try {
     azd env set AZURE_AI_MODEL_DEPLOYMENT_NAME $ModelDeploymentName
     if ($LASTEXITCODE -ne 0) { throw "Unable to set the model deployment name." }
 
-    Write-Host "Deploying Meeting Agent to $($account.name) ($($account.id)), tenant $($account.tenantId), region $Location."
-    azd up --no-prompt
-    if ($LASTEXITCODE -ne 0) { throw "azd up failed with exit code $LASTEXITCODE" }
-    & (Join-Path $PSScriptRoot "start-ui.ps1")
+    Write-Host "Provisioning the Azure OpenAI model in $($account.name) ($($account.id)), tenant $($account.tenantId), region $Location."
+    azd provision --no-prompt
+    if ($LASTEXITCODE -ne 0) { throw "azd provision failed with exit code $LASTEXITCODE" }
+    & (Join-Path $PSScriptRoot "start-ui.ps1") `
+        -EnvironmentName $EnvironmentName `
+        -AzureConfigDir $env:AZURE_CONFIG_DIR
 }
 finally {
     Pop-Location

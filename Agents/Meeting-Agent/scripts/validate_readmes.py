@@ -107,7 +107,7 @@ def main() -> int:
     )
 
     ui_screenshot = Image.open(ROOT / EXPECTED_IMAGES[1]).convert("RGB")
-    assert ui_screenshot.size == (1440, 1324)
+    assert ui_screenshot.size == (1440, 1545)
     assert all(variance > 100 for variance in ImageStat.Stat(ui_screenshot).var)
 
     screenshot = Image.open(ROOT / EXPECTED_IMAGES[-1]).convert("RGB")

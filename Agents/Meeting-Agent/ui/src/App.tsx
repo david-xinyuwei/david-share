@@ -11,13 +11,30 @@ import {
   Sparkles,
   Upload,
 } from "lucide-react";
-import { ChangeEvent, FormEvent, useEffect, useState } from "react";
+import mermaid from "mermaid";
+import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 
 import { artifactUrl, createRun, getConfig, openOutlook } from "./api";
-import { jsonlEvents, recipients, transcriptEvents } from "./input";
+import { jsonlEvents, meetingRecordEvents, recipients, transcriptEvents } from "./input";
 import type { MeetingRun, UiConfig } from "./types";
 
-type InputMode = "transcript" | "provider";
+type InputMode = "meeting" | "provider" | "transcript";
+
+mermaid.initialize({
+  startOnLoad: false,
+  securityLevel: "strict",
+  theme: "base",
+  themeVariables: {
+    primaryColor: "#b11f4b",
+    primaryTextColor: "#ffffff",
+    primaryBorderColor: "#8e173c",
+    secondaryColor: "#dceced",
+    secondaryTextColor: "#242424",
+    tertiaryColor: "#f7f4ef",
+    lineColor: "#6f6f6f",
+    fontFamily: "Aptos, Segoe UI, sans-serif",
+  },
+});
 
 export default function App() {
   const [config, setConfig] = useState<UiConfig | null>(null);
@@ -43,7 +60,12 @@ export default function App() {
     setMessage(null);
     setBusy(true);
     try {
-      const events = mode === "transcript" ? transcriptEvents(input) : jsonlEvents(input);
+      const events =
+        mode === "transcript"
+          ? transcriptEvents(input)
+          : mode === "meeting"
+            ? meetingRecordEvents(input)
+            : jsonlEvents(input);
       const result = await createRun(events, recipients(recipientInput));
       setRun(result);
       show("Meeting artifacts are ready for review.", "success");
@@ -57,7 +79,7 @@ export default function App() {
   async function upload(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
-    setMode("provider");
+    setMode(file.name.toLowerCase().endsWith(".json") ? "meeting" : "provider");
     setInput(await file.text());
     setRun(null);
     setMessage(null);
@@ -82,6 +104,7 @@ export default function App() {
   }
 
   const mindMap = run ? artifactUrl(run, "mind_map_png") : null;
+  const mindMapMermaid = run ? artifactUrl(run, "mind_map_mermaid") : null;
   const presentation = run ? artifactUrl(run, "presentation") : null;
   const eml = run ? artifactUrl(run, "eml") : null;
   const analysisJson = run ? artifactUrl(run, "analysis") : null;
@@ -93,12 +116,22 @@ export default function App() {
           <span className="brand-mark" aria-hidden="true"><Network size={19} /></span>
           <div>
             <h1>Meeting Agent</h1>
-            <p>{config?.agent_name || "Connecting to agent"}</p>
+            <p>
+              {config?.mode === "aoai"
+                ? `${config.model_name} · reasoning ${config.reasoning_effort}`
+                : config?.agent_name || "Connecting"}
+            </p>
           </div>
         </div>
         <div className={`runtime-badge ${config?.mode === "local" ? "test" : "live"}`}>
           <span aria-hidden="true" />
-          {config?.mode === "local" ? "Offline contract test" : "Microsoft Foundry"}
+          {!config
+            ? "Connecting"
+            : config.mode === "aoai"
+              ? "Azure OpenAI Responses API"
+              : config.mode === "local"
+                ? "Offline contract test"
+                : "Microsoft Foundry"}
         </div>
       </header>
 
@@ -144,10 +177,21 @@ export default function App() {
               >
                 <FileJson size={16} /> Provider JSONL
               </button>
+              <button
+                type="button"
+                className={mode === "meeting" ? "selected" : ""}
+                onClick={() => setMode("meeting")}
+              >
+                <FileJson size={16} /> Meeting JSON
+              </button>
             </div>
 
             <label htmlFor="meeting-input">
-              {mode === "transcript" ? "Final transcript" : "Provider event stream"}
+              {mode === "transcript"
+                ? "Final transcript"
+                : mode === "meeting"
+                  ? "Structured meeting record"
+                  : "Provider event stream"}
             </label>
             <textarea
               id="meeting-input"
@@ -156,7 +200,9 @@ export default function App() {
               placeholder={
                 mode === "transcript"
                   ? "Paste finalized meeting transcript segments..."
-                  : '{"event_id":"...","kind":"transcript.final",...}'
+                  : mode === "meeting"
+                    ? '{"meeting":{"id":"..."},"transcript":[...]}'
+                    : '{"event_id":"...","kind":"transcript.final",...}'
               }
               spellCheck={mode === "transcript"}
               required
@@ -166,7 +212,7 @@ export default function App() {
               <label className="secondary-button" htmlFor="jsonl-upload">
                 <Upload size={16} /> Upload JSONL
               </label>
-              <input id="jsonl-upload" className="file-input" type="file" accept=".jsonl,text/plain" onChange={upload} />
+              <input id="jsonl-upload" className="file-input" type="file" accept=".json,.jsonl,application/json,text/plain" onChange={upload} />
               <span>{input ? `${input.length.toLocaleString()} characters` : "No input loaded"}</span>
             </div>
 
@@ -204,11 +250,18 @@ export default function App() {
                 <span className="run-id">Run {run.run_id.slice(0, 10)}</span>
               </div>
 
-              {mindMap && (
-                <figure className="mind-map">
-                  <img src={mindMap} alt={`Mind map for ${run.analysis.title}`} />
-                </figure>
-              )}
+              {mindMap &&
+                (mindMapMermaid ? (
+                  <MermaidMindMap
+                    sourceUrl={mindMapMermaid}
+                    fallbackUrl={mindMap}
+                    title={run.analysis.title}
+                  />
+                ) : (
+                  <figure className="mind-map">
+                    <img src={mindMap} alt={`Mind map for ${run.analysis.title}`} />
+                  </figure>
+                ))}
 
               <p className="summary">{run.analysis.summary}</p>
 
@@ -243,6 +296,50 @@ export default function App() {
       </main>
 
     </div>
+  );
+}
+
+function MermaidMindMap({
+  sourceUrl,
+  fallbackUrl,
+  title,
+}: {
+  sourceUrl: string;
+  fallbackUrl: string;
+  title: string;
+}) {
+  const container = useRef<HTMLDivElement>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setFailed(false);
+    async function render() {
+      const response = await fetch(sourceUrl, { signal: AbortSignal.timeout(30_000) });
+      if (!response.ok) throw new Error(`Mind map source returned HTTP ${response.status}.`);
+      const definition = await response.text();
+      const node = container.current;
+      if (cancelled || !node) return;
+      node.removeAttribute("data-processed");
+      node.textContent = definition;
+      await mermaid.run({ nodes: [node], suppressErrors: false });
+    }
+    render().catch(() => {
+      if (!cancelled) setFailed(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [sourceUrl]);
+
+  return (
+    <figure className="mind-map">
+      {failed ? (
+        <img src={fallbackUrl} alt={`Mind map for ${title}`} />
+      ) : (
+        <div ref={container} className="mermaid" role="img" aria-label={`Mind map for ${title}`} />
+      )}
+    </figure>
   );
 }
 

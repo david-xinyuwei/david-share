@@ -11,9 +11,9 @@ services:
         deployments:
             - model:
                 format: OpenAI
-                name: gpt-5.4-mini
-                version: "2026-03-17"
-              name: gpt-5.4-mini
+                name: gpt-5.4
+                version: "2026-03-05"
+              name: gpt-5.4
               sku:
                 capacity: 10
                 name: GlobalStandard

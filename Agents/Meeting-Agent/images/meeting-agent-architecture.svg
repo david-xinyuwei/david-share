@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="2400" height="2100" viewBox="0 0 2400 2100" role="img" aria-labelledby="title description">
-  <title id="title">Meeting Agent hosted architecture</title>
-  <desc id="description">A browser UI invokes a Microsoft Foundry Hosted Agent that generates meeting analysis and session artifacts, then opens a human-controlled New Outlook draft.</desc>
+  <title id="title">Meeting Agent local AOAI architecture</title>
+  <desc id="description">A local Windows browser UI invokes a local Python backend that calls GPT-5.4 through the Azure OpenAI Responses API, generates meeting artifacts, and opens a human-controlled New Outlook draft.</desc>
   <defs>
     <marker id="arrow" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto" markerUnits="strokeWidth">
       <path d="M0,0 L14,7 L0,14 z" fill="#4f4d4b"/>
@@ -22,7 +22,7 @@
 
   <rect width="2400" height="2100" fill="#f7f4ef"/>
   <text class="title" x="110" y="86">Meeting Agent</text>
-  <text class="subtitle" x="110" y="140">One-command Foundry deployment, browser workflow, session-scoped artifacts, and human-controlled email delivery</text>
+  <text class="subtitle" x="110" y="140">Local Windows workflow, GPT-5.4 Responses API, template artifacts, and human-controlled email delivery</text>
 
   <text class="layer" x="120" y="195">MEETING EVIDENCE</text>
   <rect x="120" y="210" width="650" height="155" rx="16" fill="#ffffff" stroke="#0078d4" stroke-width="5"/>
@@ -44,27 +44,27 @@
   <text class="layer" x="220" y="455">USER EXPERIENCE</text>
   <rect x="220" y="465" width="900" height="230" rx="18" fill="#ffffff" stroke="#b11f4b" stroke-width="5"/>
   <text class="heading" x="670" y="530" text-anchor="middle">Browser Meeting Workspace</text>
-  <text class="body" x="670" y="585" text-anchor="middle">Paste transcript or upload JSONL</text>
-  <text class="small" x="670" y="635" text-anchor="middle">Review analysis · inspect mind map · download PPTX and EML</text>
+  <text class="body" x="670" y="585" text-anchor="middle">Paste transcript or upload Meeting JSON / JSONL</text>
+  <text class="small" x="670" y="635" text-anchor="middle">Review analysis · inspect Mermaid · download template PPTX and EML</text>
 
   <rect x="1280" y="465" width="900" height="230" rx="18" fill="#ffffff" stroke="#107c10" stroke-width="5"/>
   <text class="heading" x="1730" y="530" text-anchor="middle">Loopback BFF</text>
-  <text class="body" x="1730" y="585" text-anchor="middle">DefaultAzureCredential · no browser token</text>
-  <text class="small" x="1730" y="635" text-anchor="middle">Retries · timeout · session files · local Outlook handoff</text>
+  <text class="body" x="1730" y="585" text-anchor="middle">Local API proxy · no browser token</text>
+  <text class="small" x="1730" y="635" text-anchor="middle">Retries · timeout · artifact downloads · local Outlook handoff</text>
 
   <path class="flow" d="M1120 580 L1270 580"/>
   <path class="flow" d="M1730 695 L1730 805"/>
 
-  <text class="layer" x="250" y="795">MICROSOFT FOUNDRY</text>
+  <text class="layer" x="250" y="795">LOCAL ORCHESTRATION</text>
   <rect x="250" y="805" width="1900" height="155" rx="18" fill="#0f6cbd" stroke="#0f6cbd" stroke-width="5"/>
-  <text class="white-heading" x="1200" y="865" text-anchor="middle">Foundry Agent Gateway</text>
-  <text class="white-body" x="1200" y="915" text-anchor="middle">Entra authorization · session isolation · Invocations 2.0.0 · Application Insights tracing</text>
+  <text class="white-heading" x="1200" y="865" text-anchor="middle">Local Python Invocation Backend</text>
+  <text class="white-body" x="1200" y="915" text-anchor="middle">Strict JSON contract · local session isolation · Windows Azure CLI identity · fail-closed errors</text>
 
   <path class="flow" d="M1200 960 L1200 1050"/>
 
-  <text class="layer" x="170" y="1040">HOSTED AGENT RUNTIME</text>
+  <text class="layer" x="170" y="1040">MEETING ARTIFACT PIPELINE</text>
   <rect x="170" y="1050" width="2060" height="500" rx="22" fill="#fcfbf8" stroke="#5f5f5f" stroke-width="6"/>
-  <text class="heading" x="1200" y="1110" text-anchor="middle">Meeting Agent · Python 3.13 Source Deployment</text>
+  <text class="heading" x="1200" y="1110" text-anchor="middle">Meeting Agent · Local Python 3.12 · GPT-5.4</text>
 
   <rect x="240" y="1160" width="560" height="265" rx="16" fill="#fff4ce" stroke="#a15c00" stroke-width="4"/>
   <text class="heading" x="520" y="1220" text-anchor="middle">Strict Invocation Contract</text>
@@ -79,9 +79,9 @@
   <text class="small" x="1200" y="1360" text-anchor="middle">Canonical SHA-256</text>
 
   <rect x="1600" y="1160" width="560" height="265" rx="16" fill="#e8f2fb" stroke="#0078d4" stroke-width="4"/>
-  <text class="heading" x="1880" y="1220" text-anchor="middle">Foundry Model Analysis</text>
-  <text class="small" x="1880" y="1270" text-anchor="middle">Agent managed identity</text>
-  <text class="small" x="1880" y="1315" text-anchor="middle">Structured MeetingAnalysis</text>
+  <text class="heading" x="1880" y="1220" text-anchor="middle">AOAI Responses Analysis</text>
+  <text class="small" x="1880" y="1270" text-anchor="middle">GPT-5.4 · reasoning medium</text>
+  <text class="small" x="1880" y="1315" text-anchor="middle">Skill-guided structured MeetingAnalysis</text>
   <text class="small" x="1880" y="1360" text-anchor="middle">store=False · no silent fallback</text>
 
   <rect x="820" y="1450" width="760" height="70" rx="12" fill="#f3f2f1" stroke="#a15c00" stroke-width="3"/>
@@ -92,10 +92,10 @@
   <path class="secondary" d="M1880 1425 C1880 1490 1680 1485 1680 1605"/>
   <path class="test-flow" d="M1200 1450 L1200 1428"/>
 
-  <text class="layer" x="250" y="1595">MANAGED SESSION FILES</text>
+  <text class="layer" x="250" y="1595">LOCAL SESSION FILES</text>
   <rect x="250" y="1605" width="1900" height="120" rx="18" fill="#ffffff" stroke="#5f5f5f" stroke-width="5"/>
-  <text class="heading" x="1200" y="1660" text-anchor="middle">Session-scoped $HOME/artifacts/&lt;run-id&gt;</text>
-  <text class="small" x="1200" y="1702" text-anchor="middle">Persistent across requests · downloadable through Foundry files API · isolated per caller</text>
+  <text class="heading" x="1200" y="1660" text-anchor="middle">runtime/windows-aoai/session/artifacts/&lt;run-id&gt;</text>
+  <text class="small" x="1200" y="1702" text-anchor="middle">Ignored local runtime · downloadable through loopback BFF · deterministic hashes</text>
 
   <path class="secondary" d="M1200 1725 C1200 1760 350 1750 350 1790"/>
   <path class="secondary" d="M1200 1725 C1200 1760 900 1750 900 1790"/>
@@ -108,11 +108,11 @@
 
   <rect x="670" y="1790" width="460" height="120" rx="14" fill="#e8f2fb" stroke="#0078d4" stroke-width="4"/>
   <text class="heading" x="900" y="1845" text-anchor="middle">Mind Map</text>
-  <text class="small" x="900" y="1882" text-anchor="middle">JSON · SVG · PNG</text>
+  <text class="small" x="900" y="1882" text-anchor="middle">Mermaid · JSON · SVG · PNG</text>
 
   <rect x="1270" y="1790" width="460" height="120" rx="14" fill="#dff6dd" stroke="#107c10" stroke-width="4"/>
   <text class="heading" x="1500" y="1845" text-anchor="middle">Editable PPTX</text>
-  <text class="small" x="1500" y="1882" text-anchor="middle">Five structured slides</text>
+  <text class="small" x="1500" y="1882" text-anchor="middle">Six template-driven slides</text>
 
   <rect x="1820" y="1790" width="460" height="120" rx="14" fill="#fff4ce" stroke="#a15c00" stroke-width="4"/>
   <text class="heading" x="2050" y="1845" text-anchor="middle">Unsent EML</text>

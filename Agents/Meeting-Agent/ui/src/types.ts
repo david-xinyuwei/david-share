@@ -1,6 +1,8 @@
 export type UiConfig = {
-  mode: "foundry" | "local";
+  mode: "aoai" | "foundry" | "local";
   agent_name: string;
+  model_name: string | null;
+  reasoning_effort: "medium" | null;
   outlook_available: boolean;
   automatic_send: false;
 };

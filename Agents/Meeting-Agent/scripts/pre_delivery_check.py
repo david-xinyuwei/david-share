@@ -49,6 +49,14 @@ def main() -> int:
     assert all("==" in dependency for dependency in project["project"]["dependencies"])
 
     azure = yaml.safe_load((ROOT / "azure.yaml").read_text(encoding="utf-8"))
+    deployment = azure["services"]["ai-project"]["deployments"][0]
+    assert deployment["name"] == "gpt-5.4"
+    assert deployment["model"] == {
+        "format": "OpenAI",
+        "name": "gpt-5.4",
+        "version": "2026-03-05",
+    }
+    assert deployment["sku"] == {"capacity": 10, "name": "GlobalStandard"}
     hosted = azure["services"]["meeting-agent"]
     assert hosted["host"] == "azure.ai.agent"
     assert hosted["codeConfiguration"]["runtime"] == "python_3_13"
@@ -72,11 +80,16 @@ def main() -> int:
     ]
     assert (ROOT / "main.py").is_file()
     assert (ROOT / ".agentignore").is_file()
+    assert (ROOT / "src" / "meeting_agent" / "skills" / "meeting-package" / "SKILL.md").is_file()
+    template_path = ROOT / "src" / "meeting_agent" / "templates" / "meeting-agent-template.pptx"
+    assert template_path.is_file() and template_path.stat().st_size > 20_000
+    assert (ROOT / "examples" / "meeting-record-foundry-workshop.json").is_file()
 
     package = json.loads((ROOT / "ui" / "package.json").read_text(encoding="utf-8"))
     assert package["scripts"]["build"] == "tsc --noEmit && vite build"
     assert package["scripts"]["test"] == "vitest run"
     assert package["scripts"]["test:e2e"] == "playwright test"
+    assert package["dependencies"]["mermaid"] == "11.16.0"
     assert (ROOT / "ui" / "package-lock.json").is_file()
     assert (ROOT / "ui" / "server" / "index.mjs").is_file()
     assert (ROOT / "ui" / "src" / "App.tsx").is_file()

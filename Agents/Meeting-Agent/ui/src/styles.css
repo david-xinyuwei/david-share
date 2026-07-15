@@ -105,7 +105,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   font-size: 12px;
   white-space: nowrap;
 }
-.runtime-badge span { width: 8px; height: 8px; border-radius: 50%; background: var(--cp-success); }
+.runtime-badge span { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: var(--cp-success); }
 .runtime-badge.test span { background: var(--cp-warning); }
 .truth-banner {
   padding: 9px 28px;
@@ -161,7 +161,7 @@ input::placeholder, textarea::placeholder { color: var(--cp-text-muted); }
 input:focus, textarea:focus { border-color: var(--cp-accent); }
 .segmented {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   padding: 3px;
   border: 1px solid var(--cp-border);
   border-radius: 10px;
@@ -245,6 +245,8 @@ button:disabled { cursor: not-allowed; opacity: 0.52; }
   background: var(--cp-surface);
 }
 .mind-map img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: contain; }
+.mind-map .mermaid { min-height: 420px; display: grid; place-items: center; padding: 22px; }
+.mind-map .mermaid svg { display: block; width: 100%; max-width: 1120px; height: auto; max-height: 620px; }
 .summary { max-width: 920px; margin: 0 0 26px; font-size: 16px; line-height: 1.65; }
 .analysis-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; overflow: hidden; border: 1px solid var(--cp-border); border-radius: 10px; background: var(--cp-border); }
 .result-list { min-height: 150px; padding: 18px; background: var(--cp-surface); }
@@ -290,7 +292,7 @@ button:disabled { cursor: not-allowed; opacity: 0.52; }
 @media (max-width: 560px) {
   .topbar { height: auto; min-height: 68px; padding: 12px 16px; gap: 10px; }
   .brand p { display: none; }
-  .runtime-badge { max-width: 46%; overflow: hidden; text-overflow: ellipsis; }
+  .runtime-badge { max-width: 52%; line-height: 1.2; text-align: center; white-space: normal; }
   .truth-banner { padding: 9px 16px; }
   .toast { padding: 10px 16px; }
   .input-panel { padding: 20px 16px; }

@@ -48,6 +48,8 @@ app.get("/api/config", (_request, response) => {
   response.json({
     mode: foundry.mode,
     agent_name: foundry.agentName,
+    model_name: foundry.mode === "aoai" ? process.env.AZURE_OPENAI_DEPLOYMENT : null,
+    reasoning_effort: foundry.mode === "aoai" ? "medium" : null,
     outlook_available: process.platform === "win32",
     automatic_send: false,
   });
@@ -91,6 +93,7 @@ app.post("/api/outlook/open", async (request, response) => {
 
 app.use(express.static(distribution, { index: false, maxAge: "1h" }));
 app.get("/{*splat}", (_request, response) => {
+  response.setHeader("Cache-Control", "no-store");
   response.sendFile(path.join(distribution, "index.html"));
 });
 
@@ -125,6 +128,7 @@ function mediaType(value) {
     {
       ".eml": "message/rfc822",
       ".json": "application/json",
+      ".mmd": "text/plain; charset=utf-8",
       ".png": "image/png",
       ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
       ".svg": "image/svg+xml",

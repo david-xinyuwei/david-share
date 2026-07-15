@@ -115,6 +115,7 @@ def _media_type(path: Path) -> str:
     return {
         ".eml": "message/rfc822",
         ".json": "application/json",
+        ".mmd": "text/plain; charset=utf-8",
         ".png": "image/png",
         ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         ".svg": "image/svg+xml",

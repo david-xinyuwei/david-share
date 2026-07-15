@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "meeting": {
+    "id": "foundry-workshop-20260715",
+    "title": "Foundry Agent Customer Workshop",
+    "started_at": "2026-07-15T09:00:00+08:00",
+    "objective": "Confirm the customer demo path, presentation quality requirements, and follow-up ownership.",
+    "participants": [
+      { "name": "Avery", "role": "Solution lead" },
+      { "name": "Morgan", "role": "Product specialist" },
+      { "name": "Taylor", "role": "Customer product owner" },
+      { "name": "Jordan", "role": "Customer engineering lead" }
+    ]
+  },
+  "transcript": [
+    {
+      "time": "09:01",
+      "speaker": "Taylor",
+      "text": "We need a browser-based meeting workflow rather than asking users to run Python commands."
+    },
+    {
+      "time": "09:04",
+      "speaker": "Avery",
+      "text": "The local Web UI will call Azure OpenAI through the Responses API and keep the Outlook handoff on the Windows device."
+    },
+    {
+      "time": "09:08",
+      "speaker": "Morgan",
+      "text": "The model output must stay grounded in finalized transcript evidence and must not invent owners, dates, or product commitments."
+    },
+    {
+      "time": "09:13",
+      "speaker": "Taylor",
+      "text": "The generated PowerPoint needs a reusable visual template, stronger hierarchy, and an editable action register."
+    },
+    {
+      "time": "09:17",
+      "speaker": "Jordan",
+      "text": "The mind map should be easy to scan, with short branches for topics, decisions, actions, risks, and open questions."
+    },
+    {
+      "time": "09:22",
+      "speaker": "Avery",
+      "text": "We agreed to use GPT-5.4 with medium reasoning effort for the meeting analysis."
+    },
+    {
+      "time": "09:27",
+      "speaker": "Morgan",
+      "text": "Avery will prepare the engineering template and demo package before Friday."
+    },
+    {
+      "time": "09:31",
+      "speaker": "Jordan",
+      "text": "Jordan will validate the PowerPoint and Mermaid mind-map rendering with two materially different meetings."
+    },
+    {
+      "time": "09:36",
+      "speaker": "Taylor",
+      "text": "Can the customer replace the default slide colors and logo without changing the generation code?"
+    },
+    {
+      "time": "09:40",
+      "speaker": "Avery",
+      "text": "The email output will remain an unsent New Outlook draft with the mind map and PowerPoint attached for human review."
+    }
+  ],
+  "visual_context": [
+    {
+      "description": "The shared architecture diagram shows: Windows Web UI, local BFF, Azure OpenAI Responses API, artifact generation, and New Outlook draft review."
+    },
+    {
+      "description": "The design review lists a six-slide narrative: cover, executive summary, topics, decisions and actions, mind map, and open questions."
+    }
+  ]
+}

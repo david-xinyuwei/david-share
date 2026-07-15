@@ -21,7 +21,7 @@ test("generates distinct meeting packages and downloadable artifacts", async ({ 
   await page.getByRole("button", { name: "Generate meeting package" }).click();
   await expect(page.locator(".result-heading h2")).toContainText("September pilot");
   const firstRun = await page.locator(".run-id").textContent();
-  await expect(page.locator(".mind-map img")).toBeVisible();
+  await expect(page.locator(".mind-map svg, .mind-map img")).toBeVisible();
 
   await page.getByLabel("Final transcript").fill(
     "Operations found database latency in the reporting service.\n" +

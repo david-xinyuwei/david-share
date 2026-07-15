@@ -3,6 +3,7 @@ import zipfile
 from pathlib import Path
 
 from PIL import Image, ImageStat
+from pptx import Presentation
 
 from meeting_agent.analyzers import OfflineContractAnalyzer
 from meeting_agent.artifacts import (
@@ -31,13 +32,28 @@ def test_generates_nonblank_mind_map_and_valid_pptx(tmp_path: Path) -> None:
     assert zipfile.is_zipfile(artifacts["presentation"])
     with zipfile.ZipFile(artifacts["presentation"]) as archive:
         assert "ppt/presentation.xml" in archive.namelist()
+    presentation = Presentation(artifacts["presentation"])
+    assert len(presentation.slides) == 6
+    text = "\n".join(
+        shape.text
+        for slide in presentation.slides
+        for shape in slide.shapes
+        if hasattr(shape, "text")
+    )
+    assert analysis.title in text
+    assert "Topic content" not in text
+    assert "Decision content" not in text
+    assert any(shape.shape_type == 13 for shape in presentation.slides[4].shapes)
 
     graph = json.loads(artifacts["mind_map_json"].read_text(encoding="utf-8"))
     assert graph["label"] == analysis.title
     svg = artifacts["mind_map_svg"].read_text(encoding="utf-8")
     assert svg.startswith("<svg")
     assert 'd="M600 100 L600 130 L300 130 L300 145"' in svg
-    for text_artifact in ("analysis", "mind_map_json", "mind_map_svg"):
+    mermaid = artifacts["mind_map_mermaid"].read_text(encoding="utf-8")
+    assert mermaid.startswith("mindmap\n  root((")
+    assert analysis.title in mermaid
+    for text_artifact in ("analysis", "mind_map_json", "mind_map_mermaid", "mind_map_svg"):
         assert b"\r\n" not in artifacts[text_artifact].read_bytes()
 
 

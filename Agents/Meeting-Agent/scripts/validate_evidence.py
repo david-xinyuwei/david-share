@@ -29,31 +29,45 @@ def main() -> int:
     assert hashlib.sha256(screenshot_path.read_bytes()).hexdigest() == screenshot["sha256"]
     assert all(variance > 100 for variance in ImageStat.Stat(image.convert("RGB")).var)
 
-    foundry = json.loads(
-        (root / "evidence" / "foundry-live-validation.json").read_text(encoding="utf-8")
+    aoai = json.loads(
+        (root / "evidence" / "aoai-live-validation.json").read_text(encoding="utf-8")
     )
-    assert foundry["result"] == "pass"
-    assert foundry["runtime"]["agent_status"] == "active"
-    assert foundry["runtime"]["protocol"] == "Invocations 2.0.0"
-    assert foundry["differential"] == {
-        "source_hashes_distinct": True,
-        "analysis_outputs_distinct": True,
+    assert aoai["result"] == "pass"
+    assert aoai["runtime"] == {
+        "product": "Azure OpenAI Responses API",
+        "model": "gpt-5.4",
+        "model_version": "2026-03-05",
+        "model_sku": "GlobalStandard",
+        "reasoning_effort": "medium",
+        "store": False,
+        "http_status": 200,
+        "python_runtime": "python_3_12",
     }
-    assert len(foundry["runs"]) == 2
-    assert len({run["source_sha256"] for run in foundry["runs"]}) == 2
-    assert len({run["title"] for run in foundry["runs"]}) == 2
-    for run in foundry["runs"]:
-        assert len(run["source_sha256"]) == 64
-        for artifact in run["artifacts"].values():
-            assert artifact["bytes"] > 0
-            assert len(artifact["sha256"]) == 64
-    browser = foundry["browser"]
-    assert browser["mode"] == "Microsoft Foundry"
+    assert len(aoai["source"]["content_sha256"]) == 64
+    assert aoai["artifacts"]["presentation"]["slides"] == 6
+    assert aoai["artifacts"]["mind_map_mermaid"]["bytes"] > 0
+    assert aoai["artifacts"]["eml"]["x_unsent"] == "1"
+    assert aoai["artifacts"]["eml"]["attachment_count"] == 2
+    for artifact in aoai["artifacts"].values():
+        assert artifact["bytes"] > 0
+        assert len(artifact["sha256"]) == 64
+    browser = aoai["browser"]
+    assert browser["runtime_label"] == "Azure OpenAI Responses API"
+    assert browser["model_label"] == "gpt-5.4 · reasoning medium"
     assert browser["console_errors"] == 0
     assert browser["failed_requests"] == 0
-    assert browser["eml_attachment_count"] == 2
     assert browser["desktop_viewport"]["horizontal_overflow"] is False
-    assert browser["mobile_viewport"]["horizontal_overflow"] is False
+    assert browser["mobile_viewport"] == {
+        "width": 390,
+        "height": 844,
+        "horizontal_overflow": False,
+        "mermaid_visible": True,
+        "artifact_action_count": 4,
+    }
+    assert browser["mermaid"]["width"] >= 300
+    assert browser["mermaid"]["height"] >= 150
+    assert browser["mermaid"]["groups"] > 20
+    assert browser["outlook_enabled"] is True
     live_screenshot = browser["screenshot"]
     live_screenshot_path = root / live_screenshot["path"]
     live_image = Image.open(live_screenshot_path)
@@ -63,9 +77,9 @@ def main() -> int:
         hashlib.sha256(live_screenshot_path.read_bytes()).hexdigest()
         == live_screenshot["sha256"]
     )
-    assert foundry["automatic_send"] is False
-    assert foundry["redaction"]["sanitized"] is True
-    print("PASS: sanitized Outlook and live Foundry evidence are internally consistent.")
+    assert aoai["automatic_send"] is False
+    assert aoai["redaction"]["sanitized"] is True
+    print("PASS: sanitized Outlook and live AOAI evidence are internally consistent.")
     return 0
 
 

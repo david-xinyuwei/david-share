@@ -75,10 +75,12 @@ def test_uses_official_v1_entra_path_and_non_stored_structured_response(
     assert client.responses.request["model"] == "meeting-model"
     assert client.responses.request["text_format"] is MeetingAnalysis
     assert client.responses.request["store"] is False
+    assert client.responses.request["reasoning"] == {"effort": "medium"}
     system_message = client.responses.request["input"][0]
     assert system_message["type"] == "message"
     assert system_message["content"][0]["type"] == "input_text"
     assert "untrusted data" in system_message["content"][0]["text"]
+    assert "six-slide customer-ready deck" in system_message["content"][0]["text"]
     assert result == FakeOpenAI.analysis
 
 
@@ -92,7 +94,7 @@ def test_foundry_analyzer_uses_project_endpoint_and_agent_identity(
         "FOUNDRY_PROJECT_ENDPOINT",
         "https://example.services.ai.azure.com/api/projects/meeting-project/",
     )
-    monkeypatch.setenv("AZURE_AI_MODEL_DEPLOYMENT_NAME", "gpt-5.4-mini")
+    monkeypatch.setenv("AZURE_AI_MODEL_DEPLOYMENT_NAME", "gpt-5.4")
     monkeypatch.setattr(analyzers, "DefaultAzureCredential", lambda: credential)
     monkeypatch.setattr(analyzers, "AIProjectClient", FakeProjectClient)
 
@@ -104,7 +106,7 @@ def test_foundry_analyzer_uses_project_endpoint_and_agent_identity(
         "endpoint": "https://example.services.ai.azure.com/api/projects/meeting-project",
         "credential": credential,
     }
-    assert project.openai_client.responses.request["model"] == "gpt-5.4-mini"
+    assert project.openai_client.responses.request["model"] == "gpt-5.4"
     assert project.openai_client.responses.request["text_format"] is MeetingAnalysis
     assert project.openai_client.responses.request["store"] is False
     assert result == FakeOpenAI.analysis
@@ -115,7 +117,7 @@ def test_foundry_analyzer_rejects_non_https_endpoint(monkeypatch: pytest.MonkeyP
         "FOUNDRY_PROJECT_ENDPOINT",
         "http://example.services.ai.azure.com/api/projects/meeting-project",
     )
-    monkeypatch.setenv("AZURE_AI_MODEL_DEPLOYMENT_NAME", "gpt-5.4-mini")
+    monkeypatch.setenv("AZURE_AI_MODEL_DEPLOYMENT_NAME", "gpt-5.4")
 
     with pytest.raises(ValueError, match="must use HTTPS"):
         analyzers.FoundryOpenAIAnalyzer()
