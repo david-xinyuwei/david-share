@@ -27,20 +27,20 @@ The tables below contain the final validated MI300X results.
 
 ### 1P1D Prefill
 
-| Context | Concurrency | Final MI300X input tok/s | AMD MI300X reference | Xiaomi H200 reference | MI300X / H200 |
-|---:|---:|---:|---:|---:|---:|
-| 8K | 4 | **20,305.98** | 20,689.70 | 31,950 | 63.6% |
-| 64K | 4 | **18,983.91** | 18,689.51 | 27,400 | 69.3% |
-| 256K | 4 | **12,864.96** | — | 17,400 | 73.9% |
+| Context | Concurrency | Microsoft-tested MI300X input tok/s | Xiaomi H200 reference | MI300X / H200 |
+|---:|---:|---:|---:|---:|
+| 8K | 4 | **20,305.98** | 31,950 | 63.6% |
+| 64K | 4 | **18,983.91** | 27,400 | 69.3% |
+| 256K | 4 | **12,864.96** | 17,400 | 73.9% |
 
 ### 1P1D Decode — 8K Input / 1K Output
 
-| Concurrency | Final MI300X output tok/s | AMD MI300X reference | Delta | Xiaomi H200 reference |
-|---:|---:|---:|---:|---:|
-| 16 | **1,331.98** | 1,394.70 | -4.50% | 1,381 |
-| 32 | **1,936.24** | 2,042.42 | -5.20% | 2,549 |
-| 64 | **2,465.01** | 2,454.64 | +0.42% | 4,483 |
-| 128 | **2,486.89** | 2,473.74 | +0.53% | 7,013 |
+| Concurrency | Microsoft-tested MI300X output tok/s | Xiaomi H200 reference | MI300X / H200 |
+|---:|---:|---:|---:|
+| 16 | **1,331.98** | 1,381 | 96.5% |
+| 32 | **1,936.24** | 2,549 | 76.0% |
+| 64 | **2,465.01** | 4,483 | 55.0% |
+| 128 | **2,486.89** | 7,013 | 35.5% |
 
 ### Two-Node DP=2 Prefill — Peak Valid Aggregate Throughput
 
