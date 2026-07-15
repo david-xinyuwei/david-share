@@ -7,9 +7,11 @@
 
 Running **Xiaomi MiMo-V2.5-Pro (1.02T MoE / 42B active / FP8)** on Azure **AMD Instinct MI300X** with SGLang + AMD CK A8W8 blockwise GEMM + AITER + MTP/EAGLE + model-specific fused-MoE tuning, shown alongside Xiaomi's H200 reference data.
 
-This customer-facing repo contains the final validated performance tables, one supported AMD reproduction bundle, and compact validation metadata. For PD-separated decode, the container must expose RDMA devices (`--privileged`, `/dev/mem`, and `CAP_SYS_ADMIN`); otherwise Mooncake falls back to TCP and high-concurrency throughput results are invalid.
+This customer-facing repo contains the headline comparison, the complete Microsoft-run scalability extension, one supported reproduction bundle, and compact validation metadata. For PD-separated decode, the container must expose RDMA devices (`--privileged`, `/dev/mem`, and `CAP_SYS_ADMIN`); otherwise Mooncake falls back to TCP and high-concurrency throughput results are invalid.
 
 > Author: 魏新宇 (Xinyu Wei) — Microsoft AI and Apps Global Black Belt (GBB)
+>
+> Last validated: 2026-07-14
 
 English | [中文版](README-CN.md)
 
@@ -21,9 +23,9 @@ English | [中文版](README-CN.md)
 
 ---
 
-## Final Validated Performance
+## Headline Results — Microsoft-Tested MI300X vs Xiaomi H200
 
-The tables below contain the final validated MI300X results.
+The tables below contain the final customer-comparison point set. The complete scalability matrix and its rejected boundaries are disclosed in the next section.
 
 ### 1P1D Prefill
 
@@ -42,21 +44,135 @@ The tables below contain the final validated MI300X results.
 | 64 | **2,465.01** | 4,483 | 55.0% |
 | 128 | **2,486.89** | 7,013 | 35.5% |
 
-### Two-Node DP=2 Prefill — Peak Valid Aggregate Throughput
+### Two-Node DP=2 Prefill — Validated Peak Aggregate Throughput
 
 | Context | Concurrency | Aggregate input tok/s | Completed requests |
 |---:|---:|---:|---:|
 | 8K | 16 | **46,747.01** | 32/32 |
 | 64K | 2 | **38,984.45** | 32/32 |
-| 256K | 2 | **25,063.73** | 32/32 |
+
+The nominal-length 256K DP=2 observation is retained in the detailed scalability matrix, but it is not an exact-token headline result.
 
 ### Result Scope
 
-- All final MI300X rows passed request-count, output-count, worker-capacity, and service-log validation.
-- The 256K result sends exactly 262,144 token IDs per request with `--tokenize-prompt`; all 16/16 requests completed.
+- Every headline row marked `VALIDATED` passed request-count, output-count, worker-capacity, and service-log validation.
+- The headline 1P1D 256K result sends exactly 262,144 token IDs per request with `--tokenize-prompt`; all 16/16 requests completed.
 - DP=2 values are aggregate Prefill-only capacity across two MI300X nodes; they do not include P→D KV-cache transfer.
 - H200 figures are Xiaomi-provided directional references. MI300X uses real expert routing, while the H200 reference uses idealized balanced routing.
-- Machine-readable results: [`data/final-results.tsv`](data/final-results.tsv). The only supported reproduction bundle is [`scripts/amd-latest/`](scripts/amd-latest/).
+- Headline rows are selected from the final accepted evidence set. The `evidence_scope` field in [`data/final-results.tsv`](data/final-results.tsv) identifies targeted reruns, fresh-service measurements, and full-matrix peaks.
+
+---
+
+## Microsoft Scalability Extension
+
+AMD provided the base launch method: the container image, tuned AITER path, 1P1D/DP=2 topology, and benchmark entry points. Microsoft first reproduced that path, then independently extended the context and concurrency coverage and added fail-closed correctness gates. **Every performance value below is Microsoft-measured; no AMD performance values are included.**
+
+### Test Matrix
+
+| Surface | Workload | Concurrency sweep | Requests per point | Outcome |
+|---|---|---|---:|---|
+| 1P1D Decode | 8K input / 1K output | 8, 16, 32, 64, 96, 128, 192, 256 | 256 | 7 accepted, 1 rejected boundary |
+| 1P1D Prefill | 8K, 64K, nominal 256K / 1 output | 1, 2, 4, 8 | 16 | 12 operationally accepted; nominal 256K is scalability-only |
+| Two-node DP=2 Prefill | 8K, 64K, nominal 256K / 1 output | 1, 2, 4, 8, 16 | 32 | 14 operationally accepted, 1 rejected boundary |
+| **Total** |  |  |  | **35 points: 33 operationally accepted, 2 rejected** |
+
+This is one complete expanded matrix, not a claim that every point was run three times. The core Decode production points were separately repeated on fresh services.
+
+### Decode Scalability — 8K Input / 1K Output
+
+| Concurrency | Successful requests | Output tok/s | Mean TPOT (ms) | Mean TTFT (ms) | Treatment |
+|---:|---:|---:|---:|---:|---|
+| 8 | 256/256 | 930.00 | 7.65 | 863.69 | Accepted |
+| 16 | 256/256 | 1,303.44 | 10.72 | 1,398.73 | Accepted |
+| 32 | 256/256 | 1,930.10 | 13.68 | 2,296.89 | Accepted |
+| 64 | 256/256 | 2,462.83 | 17.08 | 7,406.18 | Accepted |
+| 96 | 256/256 | 2,497.69 | 15.89 | 18,273.38 | Accepted |
+| 128 | 256/256 | 2,468.95 | 16.45 | 27,128.38 | Accepted |
+| 192 | 256/256 | 2,500.54 | 15.98 | 40,956.57 | Accepted |
+| 256 | 256/256 | 729.98 | 108.58 | 29,013.34 | **Rejected: Prefill watchdog dump** |
+
+Observed behavior:
+
+- Throughput increased from 930.00 tok/s at concurrency 8 to 2,462.83 tok/s at concurrency 64, then plateaued around 2.47–2.50K tok/s through concurrency 192.
+- TTFT increased sharply after concurrency 64 even while throughput stayed flat. The plateau is therefore a capacity result, not a latency improvement.
+- Concurrency 256 is shown only to disclose the observed boundary. Its throughput is rejected and must not be used as a performance claim.
+
+### Core Decode Fresh-Service Repeatability
+
+| Concurrency | Fresh run 1 tok/s | Fresh run 2 tok/s | Throughput delta | TPOT run 1 / run 2 (ms) |
+|---:|---:|---:|---:|---:|
+| 16 | 1,331.98 | 1,303.44 | -2.14% | 10.83 / 10.72 |
+| 32 | 1,936.24 | 1,930.10 | -0.32% | 13.65 / 13.68 |
+| 64 | 2,457.73 | 2,462.83 | +0.21% | 17.00 / 17.08 |
+| 128 | 2,486.89 | 2,468.95 | -0.72% | 16.56 / 16.45 |
+
+The maximum absolute two-run throughput delta was **2.14%** across the four repeated points.
+
+### 1P1D Prefill Scalability
+
+| Input | Concurrency | Successful requests | Input tok/s | Mean TTFT (ms) | Treatment |
+|---:|---:|---:|---:|---:|---|
+| 8K | 1 | 16/16 | 16,835.22 | 485.70 | Accepted |
+| 8K | 2 | 16/16 | 19,618.25 | 829.40 | Accepted |
+| 8K | 4 | 16/16 | 18,161.81 | 1,612.03 | Accepted |
+| 8K | 8 | 16/16 | 21,004.97 | 2,817.91 | Accepted |
+| 64K | 1 | 16/16 | 18,057.01 | 3,628.49 | Accepted |
+| 64K | 2 | 16/16 | 19,860.45 | 6,481.41 | Accepted |
+| 64K | 4 | 16/16 | 18,763.17 | 12,970.83 | Accepted |
+| 64K | 8 | 16/16 | 18,765.43 | 22,530.68 | Accepted |
+| Nominal 256K | 1 | 16/16 | 12,381.87 | 21,170.66 | Scalability-only |
+| Nominal 256K | 2 | 16/16 | 12,378.06 | 41,208.61 | Scalability-only |
+| Nominal 256K | 4 | 16/16 | 12,389.64 | 77,254.06 | Scalability-only |
+| Nominal 256K | 8 | 16/16 | 12,402.23 | 133,251.83 | Scalability-only |
+
+Observed behavior:
+
+- 8K Prefill reached 21,004.97 input tok/s at concurrency 8 in the complete matrix.
+- 64K Prefill peaked at concurrency 2 and then stayed around 18.76K tok/s as concurrency increased.
+- The nominal 256K rows used random-text prompt construction (`tokenize_prompt=false`). They describe scaling behavior only. The headline exact-token result is the separate targeted concurrency-4 run: **12,864.96 input tok/s**, 16/16 successful and 16/16 retokenized outputs.
+
+### Two-Node DP=2 Prefill Scalability
+
+| Input | Concurrency | Successful requests | Aggregate input tok/s | Mean TTFT (ms) | Worker request delta | Treatment |
+|---:|---:|---:|---:|---:|---:|---|
+| 8K | 1 | 32/32 | 20,751.73 | 393.90 | 17/16 | Accepted |
+| 8K | 2 | 32/32 | 41,201.86 | 394.17 | 16/17 | Accepted |
+| 8K | 4 | 32/32 | 43,401.70 | 723.96 | 17/16 | Accepted |
+| 8K | 8 | 32/32 | 46,113.92 | 1,296.43 | 16/17 | Accepted |
+| 8K | 16 | 32/32 | 46,747.01 | 2,276.28 | 17/16 | Accepted |
+| 64K | 1 | 32/32 | 19,695.02 | 3,326.53 | 16/17 | Accepted |
+| 64K | 2 | 32/32 | 38,984.45 | 3,348.49 | 17/16 | Accepted |
+| 64K | 4 | 32/32 | 38,382.03 | 6,615.25 | 16/17 | Accepted |
+| 64K | 8 | 32/32 | 38,204.80 | 12,418.82 | 17/16 | Accepted |
+| 64K | 16 | 32/32 | 38,155.28 | 21,164.99 | 16/17 | Accepted |
+| Nominal 256K | 1 | 32/32 | 12,783.28 | 20,505.88 | 17/16 | Scalability-only |
+| Nominal 256K | 2 | 32/32 | 25,063.73 | 20,823.01 | 17/16 | Scalability-only |
+| Nominal 256K | 4 | 32/32 | 24,923.63 | 40,785.01 | 16/17 | Scalability-only |
+| Nominal 256K | 8 | 32/32 | 24,765.29 | 76,468.09 | 17/16 | Scalability-only |
+| Nominal 256K | 16 | 24/32 | 18,742.17 | 119,483.57 | — | **Rejected: client fatal marker and GPU memory-aperture fault** |
+
+Observed behavior:
+
+- DP=2 nearly doubled 8K and 64K aggregate Prefill throughput from concurrency 1 to 2, then reached a plateau.
+- Every accepted DP=2 point recorded positive request deltas on both workers, proving that the router distributed traffic across both nodes.
+- No exact-token DP=2 256K rerun was completed. Those rows remain visible as nominal-length scalability observations and are excluded from the headline validated table.
+- DP=2 is Prefill-only capacity; it is not 2P1D end-to-end throughput and does not measure P→D KV-cache transfer.
+
+### 256K Correctness Treatment
+
+| Evidence set | Client framing | Delivery use |
+|---|---|---|
+| Complete expanded matrix | Random-text construction, `tokenize_prompt=false` | Scaling and boundary observations; nominal 256K rows are not exact-token headline evidence |
+| Targeted 1P1D 256K rerun | Exactly 262,144 token IDs, `--tokenize-prompt` | Validated headline result: 12,864.96 input tok/s, 16/16 requests |
+| Current `scripts/amd-latest/` | Exact token IDs for every 256K benchmark | Required reproduction path for future 256K results |
+
+### Machine-Readable Evidence
+
+- Headline point set: [`data/final-results.tsv`](data/final-results.tsv)
+- Complete 35-point matrix: [`data/scalability-results.tsv`](data/scalability-results.tsv)
+- Core Decode repeatability: [`data/decode-repeatability.tsv`](data/decode-repeatability.tsv)
+- Exact-token and runtime validation metadata: [`data/validation/`](data/validation/)
+- Supported reproduction bundle: [`scripts/amd-latest/`](scripts/amd-latest/)
 
 ---
 
