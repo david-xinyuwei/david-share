@@ -25,11 +25,11 @@ English | [中文版](README-CN.md)
 
 ## Headline Results — Microsoft-Tested MI300X vs Xiaomi H200
 
-The tables below contain the final customer-comparison point set. Detailed scalability results are provided in the next section.
+The tables below contain selected, validated customer-comparison points from accepted runs. Each MI300X row keeps metrics from one measurement record; the next section separately reports one complete scalability matrix.
 
 ### 1P1D Prefill
 
-| Context | Concurrency | Microsoft-tested MI300X input tok/s | Xiaomi H200 reference | MI300X / H200 |
+| Context | Concurrency | Microsoft-tested MI300X input tok/s | Xiaomi H200 TP8/EP16/DP2 per-node reference | MI300X / H200 per node |
 |---:|---:|---:|---:|---:|
 | 8K | 4 | **20,305.98** | 31,950 | 63.6% |
 | 64K | 4 | **18,983.91** | 27,400 | 69.3% |
@@ -37,23 +37,23 @@ The tables below contain the final customer-comparison point set. Detailed scala
 
 ### 1P1D Decode — 8K Input / 1K Output
 
-| Concurrency | Microsoft-tested MI300X output tok/s | Xiaomi H200 reference | MI300X / H200 |
-|---:|---:|---:|---:|
-| 16 | **1,331.98** | 1,381 | 96.5% |
-| 32 | **1,936.24** | 2,549 | 76.0% |
-| 64 | **2,465.01** | 4,483 | 55.0% |
-| 128 | **2,486.89** | 7,013 | 35.5% |
+| MI300X concurrency | H200 per-DP BS | Microsoft-tested MI300X output tok/s | Xiaomi H200 reported per-DP/per-node tok/s | MI300X / H200 per node |
+|---:|---:|---:|---:|---:|
+| 16 | 16 | **1,331.98** | 1,381 | 96.5% |
+| 32 | 32 | **1,936.24** | 2,549 | 76.0% |
+| 64 | 64 | **2,465.01** | 4,483 | 55.0% |
+| 128 | 128 | **2,486.89** | 7,013 | 35.5% |
 
 #### Decode TPOT — Lower Is Better
 
-| Concurrency | Microsoft-tested MI300X mean TPOT (ms) | Xiaomi H200 TPOT reference (ms) | MI300X / H200 |
-|---:|---:|---:|---:|
-| 16 | **10.83** | 11.59 | 0.93× |
-| 32 | **13.65** | 12.56 | 1.09× |
-| 64 | **16.88** | 14.28 | 1.18× |
-| 128 | **16.56** | 18.25 | 0.91× |
+| MI300X concurrency | H200 per-DP BS | Microsoft-tested MI300X mean TPOT (ms) | Xiaomi H200 TPOT reference (ms) | MI300X / H200 |
+|---:|---:|---:|---:|---:|
+| 16 | 16 | **10.83** | 11.59 | 0.93× |
+| 32 | 32 | **13.65** | 12.56 | 1.09× |
+| 64 | 64 | **16.88** | 14.28 | 1.18× |
+| 128 | 128 | **16.56** | 18.25 | 0.91× |
 
-A ratio below 1.00× means lower TPOT on MI300X. Each MI300X TPOT is paired with the same measured point as the headline throughput directly above.
+A ratio below 1.00× means lower TPOT on MI300X. These rows compare one MI300X decode node with one H200 DP replica/node at the same local batch size. The H200 report uses DP=4, so this is not a whole-deployment aggregate comparison. Each MI300X TPOT is paired with the same measurement record as the throughput directly above.
 
 ### Two-Node DP=2 Prefill — Peak Aggregate Throughput
 
@@ -66,9 +66,11 @@ The nominal-length 256K DP=2 observation is retained in the detailed scalability
 
 ### Result Scope
 
+- Headline values come from multiple accepted reproduction runs selected for final configuration and validity, not one single matrix or an across-run aggregate. The `headline_source` field in the machine-readable data records the source run; the detailed scalability table is the complete-matrix view, and the repeatability table shows run-to-run variation.
 - The headline 1P1D 256K result sends exactly 262,144 token IDs per request with `--tokenize-prompt`.
 - DP=2 values are aggregate Prefill-only capacity across two MI300X nodes; they do not include P→D KV-cache transfer.
-- H200 figures are Xiaomi-provided directional references. MI300X uses real expert routing, while the H200 reference uses idealized balanced routing.
+- The H200 Decode `tok/s` values are the report's per-DP/per-node-style values (`BS × TPS`); they are not presented as DP=4 aggregate throughput.
+- H200 figures remain directional references, not a strict apples-to-apples hardware benchmark: MI300X uses real expert routing, while the H200 reference uses idealized balanced routing.
 - Machine-readable headline results: [`data/final-results.tsv`](data/final-results.tsv).
 
 ---

@@ -25,11 +25,11 @@
 
 ## 核心结果 — 微软实测 MI300X vs 小米 H200
 
-以下展示最终用于客户对比的结果点。下一节给出详细扩展性结果。
+以下展示从 accepted runs 中选出的已验证客户对比点。每一行的 MI300X 指标都来自同一条测量记录；下一节单独展示一轮完整扩展性矩阵。
 
 ### 1P1D Prefill
 
-| Context | Concurrency | 微软实测 MI300X input tok/s | 小米 H200 参考 | MI300X / H200 |
+| Context | Concurrency | 微软实测 MI300X input tok/s | 小米 H200 TP8/EP16/DP2 单节点参考 | MI300X / H200 单节点 |
 |---:|---:|---:|---:|---:|
 | 8K | 4 | **20,305.98** | 31,950 | 63.6% |
 | 64K | 4 | **18,983.91** | 27,400 | 69.3% |
@@ -37,23 +37,23 @@
 
 ### 1P1D Decode — 8K Input / 1K Output
 
-| Concurrency | 微软实测 MI300X output tok/s | 小米 H200 参考 | MI300X / H200 |
-|---:|---:|---:|---:|
-| 16 | **1,331.98** | 1,381 | 96.5% |
-| 32 | **1,936.24** | 2,549 | 76.0% |
-| 64 | **2,465.01** | 4,483 | 55.0% |
-| 128 | **2,486.89** | 7,013 | 35.5% |
+| MI300X concurrency | H200 per-DP BS | 微软实测 MI300X output tok/s | 小米 H200 报告的 per-DP/单节点 tok/s | MI300X / H200 单节点 |
+|---:|---:|---:|---:|---:|
+| 16 | 16 | **1,331.98** | 1,381 | 96.5% |
+| 32 | 32 | **1,936.24** | 2,549 | 76.0% |
+| 64 | 64 | **2,465.01** | 4,483 | 55.0% |
+| 128 | 128 | **2,486.89** | 7,013 | 35.5% |
 
 #### Decode TPOT — 越低越好
 
-| Concurrency | 微软实测 MI300X mean TPOT (ms) | 小米 H200 TPOT 参考 (ms) | MI300X / H200 |
-|---:|---:|---:|---:|
-| 16 | **10.83** | 11.59 | 0.93× |
-| 32 | **13.65** | 12.56 | 1.09× |
-| 64 | **16.88** | 14.28 | 1.18× |
-| 128 | **16.56** | 18.25 | 0.91× |
+| MI300X concurrency | H200 per-DP BS | 微软实测 MI300X mean TPOT (ms) | 小米 H200 TPOT 参考 (ms) | MI300X / H200 |
+|---:|---:|---:|---:|---:|
+| 16 | 16 | **10.83** | 11.59 | 0.93× |
+| 32 | 32 | **13.65** | 12.56 | 1.09× |
+| 64 | 64 | **16.88** | 14.28 | 1.18× |
+| 128 | 128 | **16.56** | 18.25 | 0.91× |
 
-比值低于 1.00× 表示 MI300X 的 TPOT 更低。每个 MI300X TPOT 都与上方 headline throughput 使用同一个实测结果点，未跨 run 拼接指标。
+比值低于 1.00× 表示 MI300X 的 TPOT 更低。这里比较的是一个 MI300X Decode 节点与一个 H200 DP replica/节点在相同 local batch 下的结果。H200 报告使用 DP=4，因此这不是整套部署的 aggregate 对比。每个 MI300X TPOT 都与上方 throughput 使用同一条测量记录。
 
 ### 双节点 DP=2 Prefill — 峰值聚合吞吐
 
@@ -66,9 +66,11 @@ DP=2 的 nominal-length 256K 结果保留在后面的扩展性矩阵中，但不
 
 ### 结果口径
 
+- Headline 数值来自按最终配置和有效性选定的多次 accepted reproduction runs，不是一轮统一矩阵，也不是跨 run 聚合值。机器可读数据中的 `headline_source` 记录来源 run；详细扩展性表是一轮完整矩阵，repeatability 表展示跨 run 波动。
 - 核心结果中的 1P1D 256K 使用 `--tokenize-prompt`，每条 request 精确发送 262,144 个 token IDs。
 - DP=2 为两台 MI300X 节点的 Prefill-only 聚合容量，不包含 P→D KV-cache transfer。
-- H200 数值是小米提供的方向性参考。MI300X 使用真实 expert routing，H200 参考使用理想均衡 routing。
+- H200 Decode `tok/s` 是报告中的 per-DP/单节点口径（`BS × TPS`），不作为 DP=4 aggregate throughput 展示。
+- H200 数值仍是方向性参考，不是严格 apples-to-apples 硬件 benchmark：MI300X 使用真实 expert routing，H200 参考使用理想均衡 routing。
 - 机器可读核心结果：[`data/final-results.tsv`](data/final-results.tsv)。
 
 ---
