@@ -19,23 +19,23 @@
     },
     "mind_map_svg": {
       "path": "mind-map.svg",
-      "bytes": 1720,
-      "sha256": "6d0ee9d3ffc4a3a0c9059cb66cfeb4f1bc86721ead2662e277db83592042cb5f"
+      "bytes": 1715,
+      "sha256": "0e93c3ebeb7e4eb4eae28cc438341c83938f71da6790b12201af7ea65d3f3359"
     },
     "mind_map_png": {
       "path": "mind-map.png",
-      "bytes": 33840,
-      "sha256": "be5924995922b1c57484cb6842d689356b16b8cdbc830f8cfdcf6a740bc652b7"
+      "bytes": 31454,
+      "sha256": "5e879ab21837589e67c1fca2b83844fa87bab9ac7c92beea53c636804986ab55"
     },
     "presentation": {
       "path": "meeting-summary.pptx",
       "bytes": 32615,
-      "sha256": "5b7cde5984b75f3b3651e329908aa5be9002e56e55dcb1206cb4e7e12687c804"
+      "sha256": "f46b10a1c789f8fcb9c4c49812ae24fdda8354d35e3eac06ff09f4552e91dfd9"
     },
     "eml": {
       "path": "meeting-follow-up.eml",
-      "bytes": 91976,
-      "sha256": "b45e35e69e739f27a6c2dfd2277edb84ff61d54b7c48ba363b22a9cac4854ec3"
+      "bytes": 88754,
+      "sha256": "1c4d28554c231972b2cd1d5ac0daf9d924a7c9520dbb15ec87bfee262fd94620"
     }
   },
   "eml": {
@@ -47,7 +47,7 @@
       "meeting-summary.pptx"
     ],
     "subject": "We agreed to launch the assistant pilot with the support team in March.",
-    "sha256": "b45e35e69e739f27a6c2dfd2277edb84ff61d54b7c48ba363b22a9cac4854ec3"
+    "sha256": "1c4d28554c231972b2cd1d5ac0daf9d924a7c9520dbb15ec87bfee262fd94620"
   },
   "automatic_send": false,
   "next_state": "DRAFT_READY_MANUAL_SEND_REQUIRED"

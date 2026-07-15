@@ -9,7 +9,7 @@ from typing import Protocol
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from openai import OpenAI
 
-from .models import ActionItem, MeetingAnalysis, MindMapNode
+from .models import ActionItem, MeetingAnalysis, MeetingEventKind, MindMapNode
 from .session import MeetingSession
 
 MAX_ANALYSIS_CHARS = 200_000
@@ -92,10 +92,13 @@ class AzureOpenAIAnalyzer:
         )
 
     def analyze(self, session: MeetingSession) -> MeetingAnalysis:
+        if not session.finalized_text:
+            raise ValueError("at least one transcript.final event is required")
         event_text = "\n".join(
             f"[{event.sequence}] {event.kind}: "
             f"{' '.join((event.text or event.image_uri or '').split())}"
             for event in session.events
+            if event.kind is not MeetingEventKind.TRANSCRIPT_PARTIAL
         )
         if len(event_text) > MAX_ANALYSIS_CHARS:
             raise ValueError(

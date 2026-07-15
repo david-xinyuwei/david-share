@@ -19,23 +19,23 @@
     },
     "mind_map_svg": {
       "path": "mind-map.svg",
-      "bytes": 1726,
-      "sha256": "f1429e87463f1e780e2443aefb4d6eef449cb88a78d3d77b13f408ac5f73db7d"
+      "bytes": 1722,
+      "sha256": "bc596169ee9cc6e6a3fa5e419c693a5ddfd01a6bc8517559cd444b115b771b45"
     },
     "mind_map_png": {
       "path": "mind-map.png",
-      "bytes": 32865,
-      "sha256": "6d4144938233f7face6515e59c000ccb4969cd2cc24b2bbdd27a3b307494318d"
+      "bytes": 29795,
+      "sha256": "4067aba5c63e2aadf46ea95a387e773b4b299cbe6a2f4db8600bae52c20a35bf"
     },
     "presentation": {
       "path": "meeting-summary.pptx",
       "bytes": 32619,
-      "sha256": "cc461bb92516ad56657cc92a0d67a850b097a0a0822aae5f96855afd199adafa"
+      "sha256": "222d0122e4bdf6c5d3206bd74c940ebc4de882b0c26ff664c9cdb136f61084a5"
     },
     "eml": {
       "path": "meeting-follow-up.eml",
-      "bytes": 90686,
-      "sha256": "a4ee8c4c57453471e28b39fe76745a0cc45bbfc444744eb9be21c0ecf6754d49"
+      "bytes": 86540,
+      "sha256": "e155bf29fca9d200afca43c4d2e40dcb401d604b372230e7793a80bae81f551d"
     }
   },
   "eml": {
@@ -47,7 +47,7 @@
       "meeting-summary.pptx"
     ],
     "subject": "The service recovered after the database connection pool was reset.",
-    "sha256": "a4ee8c4c57453471e28b39fe76745a0cc45bbfc444744eb9be21c0ecf6754d49"
+    "sha256": "e155bf29fca9d200afca43c4d2e40dcb401d604b372230e7793a80bae81f551d"
   },
   "automatic_send": false,
   "next_state": "DRAFT_READY_MANUAL_SEND_REQUIRED"

@@ -7,7 +7,7 @@ import pytest
 import meeting_agent.draft as draft
 from meeting_agent.analyzers import OfflineContractAnalyzer
 from meeting_agent.artifacts import generate_artifacts
-from meeting_agent.draft import build_eml, validate_eml
+from meeting_agent.draft import build_eml, validate_eml, write_evidence
 from meeting_agent.session import load_jsonl
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -82,3 +82,23 @@ def test_reports_missing_new_outlook_executable(
     monkeypatch.setattr(draft.subprocess, "Popen", missing_executable)
     with pytest.raises(RuntimeError, match="olk.exe was not found"):
         draft.open_in_new_outlook(eml)
+
+
+def test_rejects_new_outlook_handoff_on_non_windows(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    eml = tmp_path / "draft.eml"
+    eml.write_text("X-Unsent: 1\n", encoding="utf-8")
+    monkeypatch.setattr(draft.platform, "system", lambda: "Linux")
+
+    with pytest.raises(RuntimeError, match="available only on Windows"):
+        draft.open_in_new_outlook(eml)
+
+
+def test_writes_evidence_with_platform_neutral_line_endings(tmp_path: Path) -> None:
+    output = tmp_path / "evidence.json"
+
+    write_evidence(output, {"schema_version": 1, "automatic_send": False})
+
+    assert b"\r\n" not in output.read_bytes()

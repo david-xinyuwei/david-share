@@ -5,7 +5,14 @@ from pathlib import Path
 from PIL import Image, ImageStat
 
 from meeting_agent.analyzers import OfflineContractAnalyzer
-from meeting_agent.artifacts import _atomic_generate, generate_artifacts
+from meeting_agent.artifacts import (
+    _atomic_generate,
+    _clip_display,
+    _connector_points,
+    _display_width,
+    _wrap_display,
+    generate_artifacts,
+)
 from meeting_agent.session import load_jsonl
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -27,7 +34,11 @@ def test_generates_nonblank_mind_map_and_valid_pptx(tmp_path: Path) -> None:
 
     graph = json.loads(artifacts["mind_map_json"].read_text(encoding="utf-8"))
     assert graph["label"] == analysis.title
-    assert artifacts["mind_map_svg"].read_text(encoding="utf-8").startswith("<svg")
+    svg = artifacts["mind_map_svg"].read_text(encoding="utf-8")
+    assert svg.startswith("<svg")
+    assert 'd="M600 100 L600 130 L300 130 L300 145"' in svg
+    for text_artifact in ("analysis", "mind_map_json", "mind_map_svg"):
+        assert b"\r\n" not in artifacts[text_artifact].read_bytes()
 
 
 def test_atomic_generation_preserves_existing_file_on_failure(tmp_path: Path) -> None:
@@ -47,3 +58,23 @@ def test_atomic_generation_preserves_existing_file_on_failure(tmp_path: Path) ->
 
     assert target.read_bytes() == b"accepted"
     assert list(tmp_path.glob("*.tmp")) == []
+
+
+def test_wraps_and_clips_cjk_text_by_display_width() -> None:
+    value = "会议总结和下一步计划安排讨论会议时间以及风险评估和发布准备"
+
+    clipped = _clip_display(value, 12)
+    lines = _wrap_display(value, width=12, max_lines=3)
+
+    assert clipped.endswith("…")
+    assert _display_width(clipped) <= 12
+    assert 1 < len(lines) <= 3
+    assert all(_display_width(line) <= 12 for line in lines)
+    assert lines[-1].endswith("…")
+
+
+def test_routes_lower_connectors_between_card_rows() -> None:
+    points = _connector_points(640, 145, 255, 360)
+
+    assert points == [(640, 145), (640, 345), (255, 345), (255, 360)]
+    assert 320 < points[1][1] < 360

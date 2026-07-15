@@ -1,15 +1,15 @@
 # Meeting Agent
 
-> 作者：魏新宇
-
-**中文** | [English](README.md)
-
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-107C10.svg)](LICENSE)
 [![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/meeting-agent-ci.yml/badge.svg?branch=master)](https://github.com/david-xinyuwei/david-share/actions/workflows/meeting-agent-ci.yml)
 [![Human Send Required](https://img.shields.io/badge/email-human%20send%20required-D83B01.svg)](#人工控制的-outlook-交接)
 
 一个与采集提供方解耦的 Python 流水线：把有序的转写事件和视觉上下文事件转换成结构化会议分析、思维导图、可编辑 PowerPoint，以及未发送的 New Outlook 草稿。
+
+> 作者：魏新宇
+
+**中文** | [English](README.md) | [源码](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Meeting-Agent)
 
 ## 执行摘要
 
@@ -31,7 +31,7 @@
 | 转写处理 | 生成产物时只使用 `transcript.final` | `tests/test_session.py` | 本仓库不执行 ASR 推理 |
 | 视觉上下文 | 接受视觉摘要和可选 `image_uri` | 事件 schema 测试 | 屏幕捕获和图片理解属于视觉适配器 |
 | Azure 分析 | 通过 Entra 调用 Azure OpenAI Responses v1，使用 Pydantic 结构化输出并设置 `store=False` | SDK 契约测试 | 公开仓库不提交真实 Azure response |
-| 离线分析 | 为 CI 和集成测试生成确定性输出 | 两份内容显著不同的已提交运行 | 不是 AI 质量替代品，也不是生产 fallback |
+| 离线分析 | 为 CI 和集成测试生成确定性结构化分析 | 两份内容显著不同的已提交运行 | 不是 AI 质量替代品，也不是生产 fallback |
 | 产物生成 | 创建真实且可解析的 PNG/SVG/JSON/PPTX/EML | SHA-256 manifest 和产物测试 | 布局保持简洁，可按需定制 |
 | New Outlook | 打开包含真实附件的可编辑 EML 草稿 | 脱敏 Windows 实测证据 | `--open-outlook` 需要 Windows 和 New Outlook |
 | 邮件传输 | 不发送邮件 | 每个 CI job 执行静态审计 | 用户审阅后手动点击 Send |
@@ -365,6 +365,7 @@ evidence/                                  脱敏 Outlook probe 与已提交样�
 - `visual.frame` 是外部适配器提供的文本摘要或引用。
 - Offline analyzer 是确定性测试基础设施，不是生产 fallback。
 - 公开证据不包含真实 Azure model invocation。
+- SHA-256 manifest 证明单次运行的完整性。PPTX ZIP metadata 和 MIME boundary 在重建时可能改变 binary hash，但不会改变结构化分析。
 - New Outlook 启动仅支持 Windows，并依赖 `olk.exe` 可用。
 - 生成的摘要和 action item 在外部使用前必须由人工审阅。
 - 代码只创建草稿；交付、mailbox policy、signature 和 Send 仍由 Outlook 与用户负责。

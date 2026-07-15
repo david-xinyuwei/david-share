@@ -1,15 +1,15 @@
 # Meeting Agent
 
-> Author: Xinyu Wei
-
-[Chinese](README-CN.md) | **English**
-
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-107C10.svg)](LICENSE)
 [![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/meeting-agent-ci.yml/badge.svg?branch=master)](https://github.com/david-xinyuwei/david-share/actions/workflows/meeting-agent-ci.yml)
 [![Human Send Required](https://img.shields.io/badge/email-human%20send%20required-D83B01.svg)](#human-controlled-outlook-handoff)
 
 A provider-neutral Python pipeline that converts ordered transcript and visual-context events into a structured meeting analysis, mind map, editable PowerPoint, and an unsent New Outlook draft.
+
+> Author: Xinyu Wei
+
+[Chinese](README-CN.md) | **English** | [Source](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Meeting-Agent)
 
 ## Executive Summary
 
@@ -31,7 +31,7 @@ The repository separates capture providers from meeting intelligence. A local AS
 | Transcript processing | Uses only `transcript.final` in generated artifacts | `tests/test_session.py` | ASR inference is not implemented here |
 | Visual context | Accepts a visual summary and optional `image_uri` | Event schema tests | Screen capture and image interpretation belong to the visual adapter |
 | Azure analysis | Calls Azure OpenAI Responses v1 with Entra auth, Pydantic structured output, and `store=False` | SDK contract test | No live Azure response is committed to this public repository |
-| Offline analysis | Produces deterministic outputs for CI and integration testing | Two materially different committed runs | It is not an AI-quality substitute or production fallback |
+| Offline analysis | Produces deterministic structured analysis for CI and integration testing | Two materially different committed runs | It is not an AI-quality substitute or production fallback |
 | Artifact generation | Creates real, parseable PNG/SVG/JSON/PPTX/EML files | SHA-256 manifest and artifact tests | Layout is intentionally compact and customizable |
 | New Outlook | Opens an editable EML draft with real attachments | Sanitized Windows probe | Windows and New Outlook are required for `--open-outlook` |
 | Message transmission | Does not transmit mail | Static audit in every CI job | The user reviews and clicks Send manually |
@@ -365,6 +365,7 @@ evidence/                                  Sanitized Outlook probe and committed
 - Visual frames are textual summaries or references supplied by an external adapter.
 - The offline analyzer is deterministic test infrastructure, not a production fallback.
 - The public evidence does not include a live Azure model invocation.
+- SHA-256 manifests attest to one run. PPTX ZIP metadata and MIME boundaries may change binary hashes across rebuilds without changing the structured analysis.
 - New Outlook launch is Windows-only and depends on `olk.exe` being available.
 - Generated summaries and action items require human review before external use.
 - The code creates a draft only; delivery, mailbox policy, signatures, and Send remain with Outlook and the user.

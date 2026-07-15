@@ -17,6 +17,15 @@ def main() -> int:
     chinese = chinese_path.read_text(encoding="utf-8")
     assert english.startswith("# Meeting Agent\n")
     assert chinese.startswith("# Meeting Agent\n")
+    english_first = english.splitlines()[:15]
+    chinese_first = chinese.splitlines()[:15]
+    assert english_first[2].startswith("[![Python 3.11+")
+    assert chinese_first[2].startswith("[![Python 3.11+")
+    assert english_first[9] == "> Author: Xinyu Wei"
+    assert chinese_first[9] == "> 作者：魏新宇"
+    source_url = "https://github.com/david-xinyuwei/david-share/tree/master/Agents/Meeting-Agent"
+    assert f"[Source]({source_url})" in english_first[11]
+    assert f"[源码]({source_url})" in chinese_first[11]
     legacy_terms = ("Yun" + "shang", "云" + "上", "xinyuwei" + "-david")
     assert not any(term.casefold() in (english + chinese).casefold() for term in legacy_terms)
     assert "Example Output" in english and "运行日志" in chinese

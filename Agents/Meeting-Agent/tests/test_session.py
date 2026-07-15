@@ -33,3 +33,13 @@ def test_rejects_event_id_reuse_with_new_content() -> None:
     session.ingest(event("event-1", 1, "Original"))
     with pytest.raises(ValueError, match="reused with new content"):
         session.ingest(event("event-1", 1, "Changed"))
+
+
+def test_saves_session_with_platform_neutral_line_endings(tmp_path) -> None:
+    session = MeetingSession("session-1")
+    session.ingest(event("event-1", 1, "Final evidence"))
+    output = tmp_path / "session.json"
+
+    session.save(output)
+
+    assert b"\r\n" not in output.read_bytes()

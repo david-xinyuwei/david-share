@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 from meeting_agent.draft import file_sha256, validate_eml
+from meeting_agent.models import MeetingAnalysis
 from meeting_agent.session import load_jsonl
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -19,6 +20,8 @@ def main() -> int:
         evidence = json.loads((run_dir / "evidence.json").read_text(encoding="utf-8"))
         session = load_jsonl(ROOT / "examples" / f"{run_name}.jsonl")
 
+        assert evidence["schema_version"] == 1
+        assert evidence["analyzer"] == "offline-contract"
         assert evidence["source"]["session_id"] == session.session_id
         assert evidence["source"]["event_count"] == len(session.events)
         assert evidence["source"]["content_sha256"] == session.content_sha256()
@@ -31,10 +34,24 @@ def main() -> int:
             assert artifact["bytes"] == path.stat().st_size
             assert artifact["sha256"] == file_sha256(path)
 
+        analysis_path = run_dir / evidence["artifacts"]["analysis"]["path"]
+        analysis = MeetingAnalysis.model_validate_json(
+            analysis_path.read_text(encoding="utf-8")
+        )
         eml = validate_eml(run_dir / evidence["artifacts"]["eml"]["path"])
         assert eml["x_unsent"] == "1"
         assert eml["recipient_count"] == 0
         assert eml["attachment_count"] == 2
+        assert eml["subject"] == analysis.title
+        for key in (
+            "x_unsent",
+            "recipient_count",
+            "attachment_count",
+            "attachment_names",
+            "subject",
+        ):
+            assert evidence["eml"][key] == eml[key]
+        assert evidence["eml"]["sha256"] == evidence["artifacts"]["eml"]["sha256"]
         analysis_hashes.add(evidence["artifacts"]["analysis"]["sha256"])
 
     assert len(analysis_hashes) == len(RUN_NAMES)

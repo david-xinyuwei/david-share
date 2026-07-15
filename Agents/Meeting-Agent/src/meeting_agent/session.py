@@ -80,6 +80,7 @@ class MeetingSession:
             temporary.write_text(
                 json.dumps(self.canonical_payload(), ensure_ascii=False, indent=2),
                 encoding="utf-8",
+                newline="\n",
             )
             temporary.replace(path)
         finally:

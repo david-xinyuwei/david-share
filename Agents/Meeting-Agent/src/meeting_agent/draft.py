@@ -112,6 +112,7 @@ def write_evidence(path: Path, evidence: dict[str, object]) -> None:
         temporary.write_text(
             json.dumps(evidence, ensure_ascii=False, indent=2),
             encoding="utf-8",
+            newline="\n",
         )
         os.replace(temporary, path)
     finally:

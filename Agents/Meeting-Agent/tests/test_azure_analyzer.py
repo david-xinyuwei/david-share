@@ -107,6 +107,18 @@ def test_normalizes_multiline_event_text_before_analysis() -> None:
     session.ingest(
         MeetingEvent.model_validate(
             {
+                "event_id": "event-0",
+                "session_id": "multiline",
+                "sequence": 0,
+                "timestamp": "2026-01-15T09:00:00Z",
+                "kind": "transcript.partial",
+                "text": "This hypothesis must not enter analysis",
+            }
+        )
+    )
+    session.ingest(
+        MeetingEvent.model_validate(
+            {
                 "event_id": "event-1",
                 "session_id": "multiline",
                 "sequence": 1,
@@ -125,6 +137,31 @@ def test_normalizes_multiline_event_text_before_analysis() -> None:
 
     user_content = client.responses.request["input"][1]["content"]
     assert user_content == "[1] transcript.final: First line Second line Third line"
+
+
+def test_requires_finalized_transcript_before_azure_call() -> None:
+    session = MeetingSession("visual-only")
+    session.ingest(
+        MeetingEvent.model_validate(
+            {
+                "event_id": "event-1",
+                "session_id": "visual-only",
+                "sequence": 1,
+                "timestamp": "2026-01-15T09:00:01Z",
+                "kind": "visual.frame",
+                "text": "A roadmap is visible.",
+            }
+        )
+    )
+    client = FakeOpenAI()
+    analyzer = object.__new__(analyzers.AzureOpenAIAnalyzer)
+    analyzer._deployment = "meeting-model"
+    analyzer._client = client
+
+    with pytest.raises(ValueError, match="transcript.final"):
+        analyzer.analyze(session)
+
+    assert client.responses.request == {}
 
 
 def test_rejects_analysis_input_over_character_limit(

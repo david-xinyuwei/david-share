@@ -1,4 +1,4 @@
-"""Command-line entrypoint for reproducible meeting-to-draft runs."""
+"""Command-line entrypoint for traceable meeting-to-draft runs."""
 
 from __future__ import annotations
 

@@ -3,9 +3,18 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Any, Self
+from typing import Annotated, Any, Self
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    model_validator,
+)
+
+NonEmptyText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
 
 class MeetingEventKind(StrEnum):
@@ -53,27 +62,27 @@ class MeetingEvent(BaseModel):
 class ActionItem(BaseModel):
     """A follow-up action extracted from the meeting."""
 
-    description: str
-    owner: str | None = None
-    due: str | None = None
+    description: NonEmptyText = Field(max_length=1_000)
+    owner: NonEmptyText | None = Field(default=None, max_length=256)
+    due: NonEmptyText | None = Field(default=None, max_length=256)
 
 
 class MindMapNode(BaseModel):
     """A renderer-neutral mind-map node."""
 
-    label: str
+    label: NonEmptyText = Field(max_length=1_000)
     children: list[MindMapNode] = Field(default_factory=list)
 
 
 class MeetingAnalysis(BaseModel):
     """Structured output consumed by all artifact generators."""
 
-    title: str
-    summary: str
-    topics: list[str] = Field(default_factory=list)
-    decisions: list[str] = Field(default_factory=list)
+    title: NonEmptyText = Field(max_length=160)
+    summary: NonEmptyText = Field(max_length=20_000)
+    topics: list[NonEmptyText] = Field(default_factory=list)
+    decisions: list[NonEmptyText] = Field(default_factory=list)
     action_items: list[ActionItem] = Field(default_factory=list)
-    open_questions: list[str] = Field(default_factory=list)
+    open_questions: list[NonEmptyText] = Field(default_factory=list)
     mind_map: MindMapNode
 
 

@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import json
 import platform
-import textwrap
 from collections.abc import Callable
 from html import escape
 from pathlib import Path
+from unicodedata import east_asian_width
 from uuid import uuid4
 
 from PIL import Image, ImageDraw, ImageFont
@@ -45,7 +45,7 @@ def generate_artifacts(analysis: MeetingAnalysis, output_dir: Path) -> dict[str,
 def _atomic_write_text(path: Path, text: str) -> None:
     temporary = _temporary_path(path)
     try:
-        temporary.write_text(text, encoding="utf-8")
+        temporary.write_text(text, encoding="utf-8", newline="\n")
         temporary.replace(path)
     finally:
         temporary.unlink(missing_ok=True)
@@ -75,24 +75,31 @@ def _mind_map_svg(root: MindMapNode) -> str:
         '.root{font-size:25px;font-weight:700;fill:white}.node{font-size:18px;font-weight:600}'
         '.leaf{font-size:14px}</style>',
         '<rect x="430" y="28" width="340" height="72" rx="12" fill="#0f6cbd"/>',
-        f'<text class="root" x="600" y="72" text-anchor="middle">{escape(root.label)}</text>',
+        f'<text class="root" x="600" y="72" text-anchor="middle">'
+        f'{escape(_clip_display(root.label, 24))}</text>',
     ]
     for index, child in enumerate(children):
         y = 145 + index * 110
+        connector = _connector_points(600, 100, 300, y)
+        connector_path = " ".join(
+            f"{'M' if point_index == 0 else 'L'}{x} {point_y}"
+            for point_index, (x, point_y) in enumerate(connector)
+        )
         lines.extend(
             [
-                f'<line x1="600" y1="100" x2="300" y2="{y + 28}" '
+                f'<path d="{connector_path}" fill="none" '
                 'stroke="#0f6cbd" stroke-width="2"/>',
                 f'<rect x="90" y="{y}" width="420" height="58" rx="10" '
                 'fill="#e8f2fb" stroke="#0f6cbd"/>',
-                f'<text class="node" x="110" y="{y + 35}">{escape(child.label)}</text>',
+                f'<text class="node" x="110" y="{y + 35}">'
+                f'{escape(_clip_display(child.label, 38))}</text>',
             ]
         )
         for leaf_index, leaf in enumerate(child.children[:3]):
             leaf_y = y + leaf_index * 26
             lines.append(
                 f'<text class="leaf" x="680" y="{leaf_y + 20}">'
-                f'- {escape(_clip(leaf.label, 68))}</text>'
+                f'- {escape(_clip_display(leaf.label, 64))}</text>'
             )
     lines.append("</svg>")
     return "\n".join(lines)
@@ -105,7 +112,7 @@ def _mind_map_png(root: MindMapNode, path: Path) -> None:
     section_font = _font(18, bold=True)
     body_font = _font(15)
     draw.rounded_rectangle((440, 30, 840, 145), radius=18, fill="#0f6cbd")
-    root_text = "\n".join(textwrap.wrap(root.label, width=34)[:3])
+    root_text = "\n".join(_wrap_display(root.label, width=30, max_lines=3))
     draw.multiline_text(
         (640, 88),
         root_text,
@@ -120,7 +127,12 @@ def _mind_map_png(root: MindMapNode, path: Path) -> None:
         top = 190 + (index // 2) * 170
         right = left + 390
         bottom = top + 130
-        draw.line((640, 145, left + 195, top), fill="#0f6cbd", width=3)
+        draw.line(
+            _connector_points(640, 145, left + 195, top),
+            fill="#0f6cbd",
+            width=3,
+            joint="curve",
+        )
         draw.rounded_rectangle(
             (left, top, right, bottom),
             radius=14,
@@ -130,12 +142,12 @@ def _mind_map_png(root: MindMapNode, path: Path) -> None:
         )
         draw.text(
             (left + 18, top + 15),
-            _clip(child.label, 38),
+            _clip_display(child.label, 38),
             fill="#1f2937",
             font=section_font,
         )
         leaf_text = "\n".join(
-            f"- {_clip(leaf.label, 42)}" for leaf in child.children[:3]
+            f"- {_clip_display(leaf.label, 42)}" for leaf in child.children[:3]
         )
         draw.multiline_text(
             (left + 18, top + 48),
@@ -209,12 +221,69 @@ def _bullet_slide(presentation: Presentation, title: str, items: list[str]) -> N
     body_frame.clear()
     for index, item in enumerate(items[:8]):
         paragraph = body_frame.paragraphs[0] if index == 0 else body_frame.add_paragraph()
-        paragraph.text = _clip(item, 180)
+        paragraph.text = _clip_display(item, 180)
         paragraph.level = 0
         paragraph.font.size = Pt(19)
         paragraph.space_after = Pt(10)
 
 
-def _clip(value: str, limit: int) -> str:
-    compact = " ".join(textwrap.wrap(" ".join(value.split()), width=limit))
-    return compact if len(compact) <= limit else compact[: limit - 1].rstrip() + "…"
+def _display_width(value: str) -> int:
+    return sum(2 if east_asian_width(character) in {"F", "W"} else 1 for character in value)
+
+
+def _connector_points(
+    source_x: int,
+    source_y: int,
+    target_x: int,
+    target_y: int,
+) -> list[tuple[int, int]]:
+    branch_y = target_y - 15
+    return [
+        (source_x, source_y),
+        (source_x, branch_y),
+        (target_x, branch_y),
+        (target_x, target_y),
+    ]
+
+
+def _clip_display(value: str, width: int) -> str:
+    compact = " ".join(value.split())
+    if _display_width(compact) <= width:
+        return compact
+    output: list[str] = []
+    used = 0
+    for character in compact:
+        character_width = 2 if east_asian_width(character) in {"F", "W"} else 1
+        if used + character_width > width - 1:
+            break
+        output.append(character)
+        used += character_width
+    return "".join(output).rstrip() + "…"
+
+
+def _wrap_display(value: str, width: int, max_lines: int) -> list[str]:
+    remaining = " ".join(value.split())
+    lines: list[str] = []
+    while remaining and len(lines) < max_lines:
+        if _display_width(remaining) <= width:
+            lines.append(remaining)
+            remaining = ""
+            break
+        used = 0
+        cut = 0
+        for index, character in enumerate(remaining):
+            character_width = 2 if east_asian_width(character) in {"F", "W"} else 1
+            if used + character_width > width:
+                break
+            used += character_width
+            cut = index + 1
+        segment = remaining[:cut]
+        last_space = segment.rfind(" ")
+        if last_space > 0:
+            cut = last_space
+            segment = remaining[:cut]
+        lines.append(segment.rstrip())
+        remaining = remaining[cut:].lstrip()
+    if remaining:
+        lines[-1] = _clip_display(f"{lines[-1]} {remaining}", width)
+    return lines
