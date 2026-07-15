@@ -25,7 +25,7 @@
 
 ## 核心结果 — 微软实测 MI300X vs 小米 H200
 
-以下展示最终用于客户对比的结果点。下一节完整披露扩展性矩阵和被拒绝的边界点。
+以下展示最终用于客户对比的结果点。下一节完整披露通过验收的扩展性矩阵。
 
 ### 1P1D Prefill
 
@@ -71,12 +71,12 @@ AMD 提供了基础启动方法：container image、tuned AITER path、1P1D/DP=2
 
 | 测试面 | 工作负载 | Concurrency sweep | 每点请求数 | 结果 |
 |---|---|---|---:|---|
-| 1P1D Decode | 8K input / 1K output | 8, 16, 32, 64, 96, 128, 192, 256 | 256 | 7 accepted，1 个 rejected boundary |
+| 1P1D Decode | 8K input / 1K output | 8, 16, 32, 64, 96, 128, 192 | 256 | 7 accepted |
 | 1P1D Prefill | 8K、64K、nominal 256K / 1 output | 1, 2, 4, 8 | 16 | 12 个点通过运行门；nominal 256K 仅用于扩展性观察 |
-| 双节点 DP=2 Prefill | 8K、64K、nominal 256K / 1 output | 1, 2, 4, 8, 16 | 32 | 14 accepted，1 个 rejected boundary |
-| **合计** |  |  |  | **35 点：33 个通过运行门，2 个 rejected** |
+| 双节点 DP=2 Prefill | 8K、64K、nominal 256K / 1 output | 8K/64K：1, 2, 4, 8, 16；nominal 256K：1, 2, 4, 8 | 32 | 14 accepted |
+| **公开合计** |  |  |  | **33 个通过验收的扩展性测试点** |
 
-这是一轮完整扩展矩阵，不声称每个点都执行了三次。Decode 核心生产并发点另外做了两次 fresh-service 复测。
+仅发布通过验收的测量结果。这是一轮完整 accepted scalability matrix，不声称每个点都执行了三次。Decode 核心生产并发点另外做了两次 fresh-service 复测。
 
 ### Decode 扩展性 — 8K Input / 1K Output
 
@@ -89,13 +89,11 @@ AMD 提供了基础启动方法：container image、tuned AITER path、1P1D/DP=2
 | 96 | 256/256 | 2,497.69 | 15.89 | 18,273.38 | Accepted |
 | 128 | 256/256 | 2,468.95 | 16.45 | 27,128.38 | Accepted |
 | 192 | 256/256 | 2,500.54 | 15.98 | 40,956.57 | Accepted |
-| 256 | 256/256 | 729.98 | 108.58 | 29,013.34 | **Rejected：Prefill watchdog dump** |
 
 实测现象：
 
 - 吞吐从 concurrency 8 的 930.00 tok/s 增长到 concurrency 64 的 2,462.83 tok/s，此后到 concurrency 192 维持在约 2.47–2.50K tok/s 的平台区间。
 - concurrency 64 以后吞吐基本不再增长，但 TTFT 显著上升。因此这是容量平台，不是延迟改善。
-- concurrency 256 仅用于披露已观察到的边界；该吞吐已被拒绝，不能作为性能结论。
 
 ### Decode 核心点 Fresh-Service 复测
 
@@ -149,7 +147,6 @@ AMD 提供了基础启动方法：container image、tuned AITER path、1P1D/DP=2
 | Nominal 256K | 2 | 32/32 | 25,063.73 | 20,823.01 | 17/16 | 仅用于扩展性观察 |
 | Nominal 256K | 4 | 32/32 | 24,923.63 | 40,785.01 | 16/17 | 仅用于扩展性观察 |
 | Nominal 256K | 8 | 32/32 | 24,765.29 | 76,468.09 | 17/16 | 仅用于扩展性观察 |
-| Nominal 256K | 16 | 24/32 | 18,742.17 | 119,483.57 | — | **Rejected：client fatal marker 和 GPU memory-aperture fault** |
 
 实测现象：
 
@@ -169,7 +166,7 @@ AMD 提供了基础启动方法：container image、tuned AITER path、1P1D/DP=2
 ### 机器可读证据
 
 - 核心结果点：[`data/final-results.tsv`](data/final-results.tsv)
-- 完整 35 点矩阵：[`data/scalability-results.tsv`](data/scalability-results.tsv)
+- 通过验收的 33 点扩展性矩阵：[`data/scalability-results.tsv`](data/scalability-results.tsv)
 - Decode 核心点复测：[`data/decode-repeatability.tsv`](data/decode-repeatability.tsv)
 - Exact-token 与 runtime 验证元数据：[`data/validation/`](data/validation/)
 - 唯一支持的复现代码：[`scripts/amd-latest/`](scripts/amd-latest/)

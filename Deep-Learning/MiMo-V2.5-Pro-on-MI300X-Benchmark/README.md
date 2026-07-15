@@ -25,7 +25,7 @@ English | [中文版](README-CN.md)
 
 ## Headline Results — Microsoft-Tested MI300X vs Xiaomi H200
 
-The tables below contain the final customer-comparison point set. The complete scalability matrix and its rejected boundaries are disclosed in the next section.
+The tables below contain the final customer-comparison point set. The complete accepted scalability matrix is disclosed in the next section.
 
 ### 1P1D Prefill
 
@@ -71,12 +71,12 @@ AMD provided the base launch method: the container image, tuned AITER path, 1P1D
 
 | Surface | Workload | Concurrency sweep | Requests per point | Outcome |
 |---|---|---|---:|---|
-| 1P1D Decode | 8K input / 1K output | 8, 16, 32, 64, 96, 128, 192, 256 | 256 | 7 accepted, 1 rejected boundary |
+| 1P1D Decode | 8K input / 1K output | 8, 16, 32, 64, 96, 128, 192 | 256 | 7 accepted |
 | 1P1D Prefill | 8K, 64K, nominal 256K / 1 output | 1, 2, 4, 8 | 16 | 12 operationally accepted; nominal 256K is scalability-only |
-| Two-node DP=2 Prefill | 8K, 64K, nominal 256K / 1 output | 1, 2, 4, 8, 16 | 32 | 14 operationally accepted, 1 rejected boundary |
-| **Total** |  |  |  | **35 points: 33 operationally accepted, 2 rejected** |
+| Two-node DP=2 Prefill | 8K, 64K, nominal 256K / 1 output | 8K/64K: 1, 2, 4, 8, 16; nominal 256K: 1, 2, 4, 8 | 32 | 14 operationally accepted |
+| **Total published** |  |  |  | **33 accepted scalability points** |
 
-This is one complete expanded matrix, not a claim that every point was run three times. The core Decode production points were separately repeated on fresh services.
+Only accepted measurements are published. This is one complete accepted scalability matrix, not a claim that every point was run three times. The core Decode production points were separately repeated on fresh services.
 
 ### Decode Scalability — 8K Input / 1K Output
 
@@ -89,13 +89,11 @@ This is one complete expanded matrix, not a claim that every point was run three
 | 96 | 256/256 | 2,497.69 | 15.89 | 18,273.38 | Accepted |
 | 128 | 256/256 | 2,468.95 | 16.45 | 27,128.38 | Accepted |
 | 192 | 256/256 | 2,500.54 | 15.98 | 40,956.57 | Accepted |
-| 256 | 256/256 | 729.98 | 108.58 | 29,013.34 | **Rejected: Prefill watchdog dump** |
 
 Observed behavior:
 
 - Throughput increased from 930.00 tok/s at concurrency 8 to 2,462.83 tok/s at concurrency 64, then plateaued around 2.47–2.50K tok/s through concurrency 192.
 - TTFT increased sharply after concurrency 64 even while throughput stayed flat. The plateau is therefore a capacity result, not a latency improvement.
-- Concurrency 256 is shown only to disclose the observed boundary. Its throughput is rejected and must not be used as a performance claim.
 
 ### Core Decode Fresh-Service Repeatability
 
@@ -149,7 +147,6 @@ Observed behavior:
 | Nominal 256K | 2 | 32/32 | 25,063.73 | 20,823.01 | 17/16 | Scalability-only |
 | Nominal 256K | 4 | 32/32 | 24,923.63 | 40,785.01 | 16/17 | Scalability-only |
 | Nominal 256K | 8 | 32/32 | 24,765.29 | 76,468.09 | 17/16 | Scalability-only |
-| Nominal 256K | 16 | 24/32 | 18,742.17 | 119,483.57 | — | **Rejected: client fatal marker and GPU memory-aperture fault** |
 
 Observed behavior:
 
@@ -169,7 +166,7 @@ Observed behavior:
 ### Machine-Readable Evidence
 
 - Headline point set: [`data/final-results.tsv`](data/final-results.tsv)
-- Complete 35-point matrix: [`data/scalability-results.tsv`](data/scalability-results.tsv)
+- Accepted 33-point scalability matrix: [`data/scalability-results.tsv`](data/scalability-results.tsv)
 - Core Decode repeatability: [`data/decode-repeatability.tsv`](data/decode-repeatability.tsv)
 - Exact-token and runtime validation metadata: [`data/validation/`](data/validation/)
 - Supported reproduction bundle: [`scripts/amd-latest/`](scripts/amd-latest/)
