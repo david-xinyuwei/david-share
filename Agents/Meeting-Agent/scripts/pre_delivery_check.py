@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import json
 import re
 import tomllib
 from pathlib import Path
+
+import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -45,6 +48,39 @@ def main() -> int:
     assert project["project"]["scripts"]["meeting-agent"] == "meeting_agent.cli:main"
     assert all("==" in dependency for dependency in project["project"]["dependencies"])
 
+    azure = yaml.safe_load((ROOT / "azure.yaml").read_text(encoding="utf-8"))
+    hosted = azure["services"]["meeting-agent"]
+    assert hosted["host"] == "azure.ai.agent"
+    assert hosted["codeConfiguration"]["runtime"] == "python_3_13"
+    assert hosted["codeConfiguration"]["entryPoint"] == "main.py"
+    assert hosted["protocols"] == [{"protocol": "invocations", "version": "2.0.0"}]
+    assert hosted["environmentVariables"] == [
+        {
+            "name": "AZURE_AI_MODEL_DEPLOYMENT_NAME",
+            "value": "${AZURE_AI_MODEL_DEPLOYMENT_NAME}",
+        }
+    ]
+    agent = yaml.safe_load((ROOT / "agent.yaml").read_text(encoding="utf-8"))
+    assert agent["kind"] == "hosted"
+    assert agent["name"] == hosted["name"]
+    assert agent["protocols"] == hosted["protocols"]
+    assert agent["environment_variables"] == [
+        {
+            "name": "AZURE_AI_MODEL_DEPLOYMENT_NAME",
+            "value": "${AZURE_AI_MODEL_DEPLOYMENT_NAME}",
+        }
+    ]
+    assert (ROOT / "main.py").is_file()
+    assert (ROOT / ".agentignore").is_file()
+
+    package = json.loads((ROOT / "ui" / "package.json").read_text(encoding="utf-8"))
+    assert package["scripts"]["build"] == "tsc --noEmit && vite build"
+    assert package["scripts"]["test"] == "vitest run"
+    assert package["scripts"]["test:e2e"] == "playwright test"
+    assert (ROOT / "ui" / "package-lock.json").is_file()
+    assert (ROOT / "ui" / "server" / "index.mjs").is_file()
+    assert (ROOT / "ui" / "src" / "App.tsx").is_file()
+
     chinese_comment = re.compile(r"^\s*#.*[\u4e00-\u9fff]")
     for source_dir in (ROOT / "src", ROOT / "tests", ROOT / "scripts"):
         for path in source_dir.rglob("*.py"):
@@ -55,13 +91,20 @@ def main() -> int:
 
     workflow_path = ROOT.parents[1] / ".github" / "workflows" / "meeting-agent-ci.yml"
     workflow = workflow_path.read_text(encoding="utf-8")
+    workflow_data = yaml.safe_load(workflow)
+    web_steps = workflow_data["jobs"]["web-ui"]["steps"]
+    assert all(isinstance(step, dict) and ("uses" in step or "run" in step) for step in web_steps)
     assert "working-directory: Agents/Meeting-Agent" in workflow
     assert "lfs: true" not in workflow
     assert "persist-credentials: false" not in workflow
     assert "python scripts/audit_no_send.py" in workflow
     assert "python scripts/audit_public_content.py" in workflow
+    assert 'python-version: ["3.11", "3.12", "3.13"]' in workflow
+    assert "npm ci --no-audit --no-fund" in workflow
+    assert "npm run build" in workflow
+    assert "python ../scripts/run_ui_e2e.py" in workflow
 
-    print("PASS: all 8 public pre-delivery structure checks passed.")
+    print("PASS: all 12 public pre-delivery structure checks passed.")
     return 0
 
 

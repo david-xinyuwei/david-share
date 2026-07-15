@@ -11,13 +11,17 @@ ROOT = Path(__file__).resolve().parents[1]
 README_PATHS = (ROOT / "README.md", ROOT / "README-CN.md")
 EXPECTED_IMAGES = [
     "images/meeting-agent-architecture.svg",
+    "images/meeting-agent-ui.png",
     "evidence/sample-runs/product-planning/mind-map.png",
     "evidence/sample-runs/operations-review/mind-map.png",
     "images/outlook-draft-handoff-sanitized.png",
 ]
 RUN_NAMES = ("product-planning", "operations-review")
 CRITICAL_CLAIMS = (
-    ("No live Azure response is committed", "公开仓库不提交真实 Azure response"),
+    (
+        "not production certification or a model-quality benchmark",
+        "不是生产认证或模型质量 benchmark",
+    ),
     ("not an AI-quality substitute", "不是 AI 质量替代品"),
     ("does not transmit mail", "不发送邮件"),
     ("store=False", "store=False"),
@@ -101,6 +105,10 @@ def main() -> int:
     assert {"Meeting Agent", "New Outlook Draft", "Human Review", "Manual Send"} <= (
         architecture_labels
     )
+
+    ui_screenshot = Image.open(ROOT / EXPECTED_IMAGES[1]).convert("RGB")
+    assert ui_screenshot.size == (1440, 1324)
+    assert all(variance > 100 for variance in ImageStat.Stat(ui_screenshot).var)
 
     screenshot = Image.open(ROOT / EXPECTED_IMAGES[-1]).convert("RGB")
     assert screenshot.size == (1721, 940)

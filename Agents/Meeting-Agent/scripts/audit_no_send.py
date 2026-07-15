@@ -7,7 +7,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE_DIRS = (ROOT / "src", ROOT / "scripts")
+SOURCE_DIRS = (ROOT / "src", ROOT / "scripts", ROOT / "ui" / "src", ROOT / "ui" / "server")
+SOURCE_SUFFIXES = {".js", ".mjs", ".ps1", ".py", ".sh", ".ts", ".tsx"}
 FORBIDDEN = {
     "Graph sendMail": re.compile(r"\bsendMail\b", re.IGNORECASE),
     "message send endpoint": re.compile(r"[/'\"]send(?:\b|[/'\"])", re.IGNORECASE),
@@ -23,7 +24,9 @@ FORBIDDEN = {
 def main() -> int:
     findings: list[str] = []
     for source_dir in SOURCE_DIRS:
-        for path in source_dir.rglob("*.py"):
+        for path in source_dir.rglob("*"):
+            if not path.is_file() or path.suffix.casefold() not in SOURCE_SUFFIXES:
+                continue
             if path.resolve() == Path(__file__).resolve():
                 continue
             text = path.read_text(encoding="utf-8")

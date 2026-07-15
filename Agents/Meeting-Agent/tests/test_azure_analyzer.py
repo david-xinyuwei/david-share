@@ -35,6 +35,18 @@ class FakeOpenAI:
         self.instances.append(self)
 
 
+class FakeProjectClient:
+    instances: list["FakeProjectClient"] = []
+
+    def __init__(self, **kwargs: Any) -> None:
+        self.configuration = kwargs
+        self.openai_client = FakeOpenAI()
+        self.instances.append(self)
+
+    def get_openai_client(self) -> FakeOpenAI:
+        return self.openai_client
+
+
 def test_uses_official_v1_entra_path_and_non_stored_structured_response(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -63,8 +75,50 @@ def test_uses_official_v1_entra_path_and_non_stored_structured_response(
     assert client.responses.request["model"] == "meeting-model"
     assert client.responses.request["text_format"] is MeetingAnalysis
     assert client.responses.request["store"] is False
-    assert "untrusted data" in client.responses.request["input"][0]["content"]
+    system_message = client.responses.request["input"][0]
+    assert system_message["type"] == "message"
+    assert system_message["content"][0]["type"] == "input_text"
+    assert "untrusted data" in system_message["content"][0]["text"]
     assert result == FakeOpenAI.analysis
+
+
+def test_foundry_analyzer_uses_project_endpoint_and_agent_identity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    credential = object()
+    FakeOpenAI.instances.clear()
+    FakeProjectClient.instances.clear()
+    monkeypatch.setenv(
+        "FOUNDRY_PROJECT_ENDPOINT",
+        "https://example.services.ai.azure.com/api/projects/meeting-project/",
+    )
+    monkeypatch.setenv("AZURE_AI_MODEL_DEPLOYMENT_NAME", "gpt-5.4-mini")
+    monkeypatch.setattr(analyzers, "DefaultAzureCredential", lambda: credential)
+    monkeypatch.setattr(analyzers, "AIProjectClient", FakeProjectClient)
+
+    analyzer = analyzers.FoundryOpenAIAnalyzer()
+    result = analyzer.analyze(load_jsonl(ROOT / "examples" / "product-planning.jsonl"))
+
+    project = FakeProjectClient.instances[0]
+    assert project.configuration == {
+        "endpoint": "https://example.services.ai.azure.com/api/projects/meeting-project",
+        "credential": credential,
+    }
+    assert project.openai_client.responses.request["model"] == "gpt-5.4-mini"
+    assert project.openai_client.responses.request["text_format"] is MeetingAnalysis
+    assert project.openai_client.responses.request["store"] is False
+    assert result == FakeOpenAI.analysis
+
+
+def test_foundry_analyzer_rejects_non_https_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(
+        "FOUNDRY_PROJECT_ENDPOINT",
+        "http://example.services.ai.azure.com/api/projects/meeting-project",
+    )
+    monkeypatch.setenv("AZURE_AI_MODEL_DEPLOYMENT_NAME", "gpt-5.4-mini")
+
+    with pytest.raises(ValueError, match="must use HTTPS"):
+        analyzers.FoundryOpenAIAnalyzer()
 
 
 @pytest.mark.parametrize(
@@ -135,7 +189,10 @@ def test_normalizes_multiline_event_text_before_analysis() -> None:
 
     analyzer.analyze(session)
 
-    user_content = client.responses.request["input"][1]["content"]
+    user_message = client.responses.request["input"][1]
+    assert user_message["type"] == "message"
+    assert user_message["content"][0]["type"] == "input_text"
+    user_content = user_message["content"][0]["text"]
     assert user_content == "[1] transcript.final: First line Second line Third line"
 
 

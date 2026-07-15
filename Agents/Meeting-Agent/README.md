@@ -5,7 +5,7 @@
 [![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/meeting-agent-ci.yml/badge.svg?branch=master)](https://github.com/david-xinyuwei/david-share/actions/workflows/meeting-agent-ci.yml)
 [![Human Send Required](https://img.shields.io/badge/email-human%20send%20required-D83B01.svg)](#human-controlled-outlook-handoff)
 
-A provider-neutral Python pipeline that converts ordered transcript and visual-context events into a structured meeting analysis, mind map, editable PowerPoint, and an unsent New Outlook draft.
+A Microsoft Foundry Hosted Agent with a browser workspace that turns provider-neutral meeting events into a structured analysis, mind map, editable PowerPoint, and an unsent New Outlook draft.
 
 > Author: Xinyu Wei
 
@@ -13,36 +13,45 @@ A provider-neutral Python pipeline that converts ordered transcript and visual-c
 
 ## Executive Summary
 
-The repository separates capture providers from meeting intelligence. A local ASR or visual adapter emits a strict JSONL event stream; Meeting Agent validates and deduplicates it, analyzes only finalized evidence, generates traceable artifacts, and optionally opens an EML draft in New Outlook for human review.
+The customer path is a browser workspace backed by a real Microsoft Foundry Hosted Agent, not a Python command line. A transcript or visual adapter emits strict meeting events; the agent validates finalized evidence, runs structured model analysis, writes traceable files into its managed session, and lets the local UI open an EML draft in New Outlook for human review.
 
 | Outcome | Delivered behavior | Verification |
 |---|---|---|
-| Provider-neutral input | Four event kinds with strict Pydantic validation | `tests/test_models.py` |
-| Meeting analysis | Azure OpenAI structured output or deterministic offline contract parser | `tests/test_azure_analyzer.py`, `tests/test_cross_input.py` |
-| Artifacts | JSON, SVG, PNG, editable PPTX, HTML/plain EML | `tests/test_artifacts.py`, committed sample runs |
+| Browser experience | Transcript/JSONL input, analysis review, mind-map preview, and artifact downloads | Playwright desktop/mobile E2E |
+| Hosted runtime | Foundry Invocations `2.0.0` with OpenAPI and strict Pydantic validation | `tests/test_hosted_api.py` |
+| Meeting analysis | Foundry model structured output or explicit offline contract test mode | `tests/test_azure_analyzer.py`, `tests/test_cross_input.py` |
+| Session artifacts | JSON, SVG, PNG, editable PPTX, HTML/plain EML under managed `$HOME` | `tests/test_hosted_pipeline.py` |
 | Outlook handoff | `X-Unsent: 1` draft opened through `olk.exe` | `evidence/outlook-draft-probe.json` |
-| Send safety | No SMTP, Graph `sendMail`, Outlook `.Send`, or UI Send activation | `scripts/audit_no_send.py` |
+| Send safety | No SMTP, Graph `sendMail`, Outlook `.Send`, or UI Send activation across Python/Node/UI/scripts | `scripts/audit_no_send.py` |
 
 ## What Is Real vs What Is Adapter-Owned
 
 | Capability | What this repository does | Evidence | Boundary |
 |---|---|---|---|
+| Browser UI | Calls the Hosted Agent through a loopback BFF and renders real returned artifacts | Browser E2E and Node tests | It is local in this release; it is not a public cloud website |
+| Foundry runtime | Exposes a real `azure.ai.agent` through Invocations `2.0.0` | `azure.yaml`, OpenAPI, hosted API tests | Source-code deployment is a Microsoft Foundry preview capability |
 | Event intake | Validates, orders, deduplicates, and hashes JSONL events | Unit tests and two sample streams | Capture transport is supplied by an adapter |
 | Transcript processing | Uses only `transcript.final` in generated artifacts | `tests/test_session.py` | ASR inference is not implemented here |
 | Visual context | Accepts a visual summary and optional `image_uri` | Event schema tests | Screen capture and image interpretation belong to the visual adapter |
-| Azure analysis | Calls Azure OpenAI Responses v1 with Entra auth, Pydantic structured output, and `store=False` | SDK contract test | No live Azure response is committed to this public repository |
+| Foundry analysis | Calls the project model with the hosted agent identity, Pydantic structured output, and `store=False` | SDK contract test and `evidence/foundry-live-validation.json` | Published live evidence is sanitized and excludes tenant, resource, principal, session, and invocation identifiers |
 | Offline analysis | Produces deterministic structured analysis for CI and integration testing | Two materially different committed runs | It is not an AI-quality substitute or production fallback |
 | Artifact generation | Creates real, parseable PNG/SVG/JSON/PPTX/EML files | SHA-256 manifest and artifact tests | Layout is intentionally compact and customizable |
-| New Outlook | Opens an editable EML draft with real attachments | Sanitized Windows probe | Windows and New Outlook are required for `--open-outlook` |
+| New Outlook | Opens an editable EML draft with real attachments | Sanitized Windows probe | Windows and New Outlook are required for the UI button or `--open-outlook` |
 | Message transmission | Does not transmit mail | Static audit in every CI job | The user reviews and clicks Send manually |
 
-The committed sample evidence uses `offline-contract`. It proves the event-to-artifact contract, cross-input behavior, file integrity, and draft safety. It does not claim model-quality validation. The sanitized Outlook probe validates the Windows draft handoff only.
+The committed sample artifacts use explicit `offline-contract` test mode for deterministic CI. The browser screenshot and `evidence/foundry-live-validation.json` are sanitized derivatives of a real Foundry Hosted Agent version 2 deployment: two materially different remote meetings produced distinct analyses and validated PNG, PPTX, and EML files. This is deployment-path evidence, not production certification or a model-quality benchmark. The sanitized Outlook probe validates the Windows draft handoff only.
 
 ## Architecture
 
 ![Meeting Agent architecture](images/meeting-agent-architecture.svg)
 
-*Full-size vector architecture: capture adapters, strict event contract, deterministic session core, analyzer routing, traceable artifacts, and human-controlled New Outlook handoff. [Open the SVG directly](images/meeting-agent-architecture.svg).*
+*Full-size vector architecture: browser workspace, Entra-authenticated loopback BFF, Foundry Invocations gateway, Hosted Agent runtime, managed session files, and human-controlled New Outlook handoff. [Open the SVG directly](images/meeting-agent-architecture.svg).*
+
+### Browser workspace
+
+![Meeting Agent browser workspace](images/meeting-agent-ui.png)
+
+*Sanitized 1440 px Playwright capture from the live Microsoft Foundry path. Tenant, subscription, resource, endpoint, principal, session, and invocation identifiers are not rendered or published.*
 
 ### Processing invariants
 
@@ -54,6 +63,9 @@ The committed sample evidence uses `offline-contract`. It proves the event-to-ar
 6. The EML must contain `X-Unsent: 1` and at least one real attachment.
 7. The codebase contains no automatic mail-transmission capability.
 8. Azure analysis normalizes each event to one line and rejects input above 200,000 characters.
+9. Hosted requests reject unknown fields and more than 5,000 events.
+10. Hosted artifacts stay under the current Foundry session `$HOME`; the BFF rejects path traversal.
+11. Browser code never receives an Azure access token; only the loopback BFF acquires one.
 
 ## Event Contract
 
@@ -118,12 +130,48 @@ Each run contains:
 
 ### Prerequisites
 
-- Python 3.11 or 3.12
-- Linux, macOS, or Windows for generation
-- New Outlook for Windows only when using `--open-outlook`
-- An Azure OpenAI deployment only when using `--analyzer azure`
+- Azure Developer CLI `1.27+` with the `azure.ai.agents` and `azure.ai.projects` extensions (declared in `azure.yaml`)
+- A Microsoft Foundry-enabled Azure subscription and permission to create a project
+- Node.js 22 for the browser UI
+- Python 3.11–3.13 for local development; direct Hosted Agent deployment uses Python 3.13
+- New Outlook for Windows only when opening the generated draft locally
 
-### Install and run the offline contract path
+Microsoft Foundry source-code deployment is currently a preview capability. Confirm regional availability and organizational policy before treating it as a production deployment standard.
+
+### One-command Hosted Agent deployment and UI
+
+Authenticate Azure CLI once, select the target subscription, then run one launcher. The launcher binds azd to that exact tenant and subscription, runs `azd up`, and starts the loopback UI at `http://127.0.0.1:4173`. `azd up` provisions the Foundry project, `gpt-5.4-mini` deployment, Application Insights, and Hosted Agent.
+
+Windows:
+
+```powershell
+az login --tenant <tenant-id>
+az account set --subscription <subscription-id>
+.\scripts\deploy-and-start.ps1
+```
+
+Linux or macOS:
+
+```bash
+az login --tenant <tenant-id>
+az account set --subscription <subscription-id>
+./scripts/deploy-and-start.sh
+```
+
+The launcher sets `auth.useAzCliAuth=true`, creates or selects `meeting-agent-dev`, and copies the active Azure CLI tenant and subscription into that azd environment before deployment. If `AZURE_CONFIG_DIR` points to an isolated Azure CLI profile, keep it set while running the launcher; azd and the UI BFF will use that same profile.
+
+The BFF reads the deployed project endpoint, agent name, tenant, and subscription from the selected azd environment. The launcher first verifies that Azure CLI is in the matching tenant; the BFF then obtains the evaluator's Entra token through a subscription-bound `AzureCliCredential`. Browser JavaScript never receives that token.
+
+To deploy or update only the Hosted Agent:
+
+```bash
+azd up
+azd ai agent show --output json
+```
+
+The deployed agent exposes Invocations `2.0.0`. Generated PNG, PPTX, EML, JSON, and evidence files live in the caller's managed Foundry session and are downloaded through the session files API.
+
+### Developer-only offline contract path
 
 ```bash
 git clone https://github.com/david-xinyuwei/david-share.git
@@ -142,7 +190,7 @@ python -m meeting_agent.cli build \
 
 After installation, `meeting-agent` and `python -m meeting_agent.cli` are equivalent.
 
-### Install and run on Windows
+### Developer CLI on Windows
 
 ```powershell
 py -3.12 -m venv .venv
@@ -182,9 +230,17 @@ Evidence excerpt:
 }
 ```
 
-## Azure OpenAI Analyzer
+## Foundry Hosted Analyzer and Standalone Azure Analyzer
 
-The Azure path follows the current Responses v1 pattern:
+The Hosted Agent is the primary runtime:
+
+- `InvocationAgentServerHost` exposes the strict JSON contract through `/invocations`.
+- Foundry injects `FOUNDRY_PROJECT_ENDPOINT`, agent/session identity, and Application Insights configuration.
+- `AIProjectClient(...).get_openai_client()` binds model inference to the Foundry project.
+- The platform-assigned agent identity authenticates through `DefaultAzureCredential`.
+- Generated files are written below the managed session `$HOME`, not `/tmp`.
+
+The standalone CLI remains available for adapter development and recovery. Its Azure path follows the current Responses v1 pattern:
 
 - `OpenAI(base_url="https://<resource>.openai.azure.com/openai/v1/")`
 - Microsoft Entra token scope `https://ai.azure.com/.default`
@@ -193,7 +249,7 @@ The Azure path follows the current Responses v1 pattern:
 - `store=False` on the response request
 - Event text normalized to one line per event, with a 200,000-character fail-closed limit
 
-The repository pins `openai==2.32.0`, which provides `responses.parse`. Start from [.env.example](.env.example), then set real values in your environment or a local ignored `.env` file.
+The repository pins the official Foundry Invocations host, Azure AI Projects client, and `openai==2.32.0`. Start from [.env.example](.env.example), then set real standalone values in your environment or a local ignored `.env` file.
 
 Configure the resource and deployment without committing credentials:
 
@@ -210,13 +266,23 @@ python -m meeting_agent.cli build \
 
 Official references:
 
+- [Deploy a Foundry Hosted Agent](https://learn.microsoft.com/azure/foundry/agents/how-to/deploy-hosted-agent)
+- [Manage Hosted Agent sessions and files](https://learn.microsoft.com/azure/foundry/agents/how-to/manage-hosted-sessions)
 - [Azure OpenAI Responses API](https://learn.microsoft.com/azure/ai-foundry/openai/how-to/responses)
 - [Azure Identity for Python](https://learn.microsoft.com/python/api/overview/azure/identity-readme)
 - [Structured Outputs parsing helpers](https://github.com/openai/openai-python/blob/main/helpers.md)
 
 ## Human-Controlled Outlook Handoff
 
-On Windows with New Outlook installed, run the Python executable directly from the virtual environment:
+On Windows, the customer path is the **Open Outlook draft** button in the browser workspace. The loopback BFF downloads the EML from the current Foundry session, writes it atomically to a local temporary directory, and starts `olk.exe` with that file. The BFF exposes no send endpoint.
+
+After the agent has been deployed, start only the UI with:
+
+```powershell
+.\scripts\start-ui.ps1
+```
+
+The standalone CLI can exercise the same local draft handoff for development:
 
 ```powershell
 py -m venv .venv
@@ -229,7 +295,7 @@ py -m venv .venv
   --open-outlook
 ```
 
-The command writes the EML first, validates it, and launches `olk.exe <absolute-eml-path>`. The compose window remains editable. The repository never clicks Send and never calls a send API.
+Both paths write or download the EML first, validate its contract, and launch `olk.exe <absolute-eml-path>`. The compose window remains editable. The repository never clicks Send and never calls a send API.
 
 ![Sanitized New Outlook draft probe](images/outlook-draft-handoff-sanitized.png)
 
@@ -288,21 +354,31 @@ python scripts/validate_evidence.py
 python scripts/validate_sample_runs.py
 python scripts/validate_readmes.py
 python scripts/pre_delivery_check.py
-ruff check src tests scripts
+ruff check src tests scripts main.py
 pytest
 pip-audit -r requirements.txt --progress-spinner off
+python -m build --wheel
+python -m pip check
+cd ui
+npm ci --no-audit --no-fund
+npm test
+npm run build
+npm run test:e2e
+npm audit --omit=dev --audit-level=high
 ```
 
-CI runs on Ubuntu and Windows with Python 3.11 and 3.12.
+CI runs the Python gates on Ubuntu and Windows with Python 3.11, 3.12, and 3.13. A separate Ubuntu/Node 22 job runs the UI/BFF tests, TypeScript build, Vite production build, and production dependency audit.
 
 | Test area | Coverage |
 |---|---|
 | Schema | Every `MeetingEvent` field, all four kinds, unknown fields, invalid payloads |
 | Session | Ordering, idempotent duplicates, conflicting IDs, final-only transcript selection |
+| Hosted protocol | Invocations request validation, explicit offline-test gate, OpenAPI, error responses, and session paths |
 | Azure contract | v1 base URL, Entra scope, structured output type, `store=False`, prompt boundary |
 | Authenticity | Two materially different inputs must produce different analysis and source hashes |
 | Artifacts | Nonblank `1280x720` PNG, valid SVG/JSON, parseable PPTX package |
 | Draft | `X-Unsent`, recipients, attachments, MIME parsing, normalized subject |
+| UI/BFF | Input conversion, azd environment parsing, traversal rejection, responsive browser E2E, and real downloads |
 | Safety | Static failure gate for automatic transmission APIs and Send activation |
 | Evidence | Source hashes, file sizes, artifact hashes, EML state, cross-run distinction |
 
@@ -310,6 +386,8 @@ CI runs on Ubuntu and Windows with Python 3.11 and 3.12.
 
 - Input is meeting content. Apply organizational data classification and retention policy before calling any cloud analyzer.
 - The Azure request sets `store=False`; Azure service and deployment policies still apply.
+- The browser talks only to the loopback BFF; Azure bearer tokens are never returned to browser JavaScript.
+- Foundry session files are isolated by the authenticated caller and are not public download URLs.
 - Event metadata must not contain secrets, access tokens, or unnecessary personal data.
 - `.env`, `password.txt`, token files, runtime output, and local artifacts are ignored by Git.
 - Endpoint and deployment values come from environment variables.
@@ -350,11 +428,14 @@ generate_artifacts(analysis, Path("artifacts/custom"))
 ## Project Structure
 
 ```text
-src/meeting_agent/                         Core schemas, session logic, analyzers, artifacts, EML handoff, CLI
+main.py                                    Microsoft Foundry Hosted Agent entry point
+azure.yaml                                 One-command project, model, and Invocations Agent deployment
+src/meeting_agent/                         Core schemas, Hosted handler, session logic, analyzers, artifacts, EML handoff, CLI
+ui/                                        React workspace and Entra-authenticated loopback BFF
 examples/                                  Two provider-neutral JSONL meeting streams
 images/                                    Full-size architecture and sanitized Outlook evidence
-tests/                                     Schema, contract, cross-input, artifact, draft, and CLI tests
-scripts/                                   No-send and evidence validation gates
+tests/                                     Schema, Hosted protocol, cross-input, artifact, draft, and CLI tests
+scripts/                                   Deployment launchers plus no-send and evidence validation gates
 evidence/                                  Sanitized Outlook probe and committed sample-run manifests/artifacts
 ../../.github/workflows/meeting-agent-ci.yml  Monorepo-scoped cross-platform CI
 ```
@@ -364,7 +445,10 @@ evidence/                                  Sanitized Outlook probe and committed
 - This repository does not capture microphone audio or screen pixels.
 - Visual frames are textual summaries or references supplied by an external adapter.
 - The offline analyzer is deterministic test infrastructure, not a production fallback.
-- The public evidence does not include a live Azure model invocation.
+- The public evidence does not include a deployed Foundry Hosted Agent invocation.
+- Foundry source-code deployment is preview and currently targets Python 3.13.
+- The browser UI is a loopback companion, not an internet-facing multi-user web service.
+- Each evaluator needs an Entra identity authorized to invoke the target Foundry Agent and access that identity's sessions.
 - SHA-256 manifests attest to one run. PPTX ZIP metadata and MIME boundaries may change binary hashes across rebuilds without changing the structured analysis.
 - New Outlook launch is Windows-only and depends on `olk.exe` being available.
 - Generated summaries and action items require human review before external use.
@@ -375,10 +459,14 @@ evidence/                                  Sanitized Outlook probe and committed
 | Symptom | Check |
 |---|---|
 | `at least one transcript.final event is required` | Emit a final transcript segment before building |
+| `FOUNDRY_PROJECT_ENDPOINT ... required` | Run through `azd`, or select a deployed azd environment before starting the UI |
+| Foundry `424 session_not_ready` | Retry the same session after warm-up; inspect Agent logs if it persists |
+| UI cannot find the Agent | Run `azd ai agent show --output json` and verify the active azd environment |
 | `AZURE_OPENAI_ENDPOINT ... required` | Set both Azure environment variables |
-| Azure `401` or `403` | Verify `DefaultAzureCredential`, tenant, RBAC, and the `https://ai.azure.com/.default` scope |
+| Azure `401` or `403` | Verify the selected Azure CLI profile, azd tenant/subscription, RBAC, and the `https://ai.azure.com/.default` scope |
 | Azure `404` | Verify the deployment name and Responses API availability |
 | `olk.exe` not found | Install New Outlook and verify it can be launched from the same Windows session |
+| Outlook button is disabled | Run the loopback UI on Windows; non-Windows hosts can still download the EML |
 | Draft opens without expected data | Inspect `evidence.json`, then run `validate_sample_runs.py` for committed samples |
 
 ## Contributing

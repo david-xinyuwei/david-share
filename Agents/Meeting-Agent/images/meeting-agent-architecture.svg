@@ -1,112 +1,134 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="2400" height="2100" viewBox="0 0 2400 2100" role="img" aria-labelledby="title description">
-  <title id="title">Meeting Agent architecture</title>
-  <desc id="description">Provider-neutral meeting events flow through validation, Azure or offline analysis, artifact generation, and a human-controlled New Outlook draft.</desc>
+  <title id="title">Meeting Agent hosted architecture</title>
+  <desc id="description">A browser UI invokes a Microsoft Foundry Hosted Agent that generates meeting analysis and session artifacts, then opens a human-controlled New Outlook draft.</desc>
   <defs>
     <marker id="arrow" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto" markerUnits="strokeWidth">
-      <path d="M0,0 L14,7 L0,14 z" fill="#605e5c"/>
+      <path d="M0,0 L14,7 L0,14 z" fill="#4f4d4b"/>
     </marker>
     <style>
-      .title { font: 700 54px "Segoe UI", Arial, sans-serif; fill: #201f1e; }
-      .subtitle { font: 32px "Segoe UI", Arial, sans-serif; fill: #605e5c; }
-      .layer { font: 700 28px "Segoe UI", Arial, sans-serif; fill: #605e5c; letter-spacing: 1px; }
-      .heading { font: 700 38px "Segoe UI", Arial, sans-serif; fill: #201f1e; }
-      .body { font: 30px "Segoe UI", Arial, sans-serif; fill: #323130; }
-      .small { font: 26px "Segoe UI", Arial, sans-serif; fill: #323130; }
+      .title { font: 700 56px "Segoe UI", Arial, sans-serif; fill: #242424; }
+      .subtitle { font: 31px "Segoe UI", Arial, sans-serif; fill: #5c5c5c; }
+      .layer { font: 700 26px "Segoe UI", Arial, sans-serif; fill: #6f6f6f; letter-spacing: 1px; }
+      .heading { font: 700 36px "Segoe UI", Arial, sans-serif; fill: #242424; }
+      .body { font: 29px "Segoe UI", Arial, sans-serif; fill: #323130; }
+      .small { font: 25px "Segoe UI", Arial, sans-serif; fill: #454545; }
       .white-heading { font: 700 38px "Segoe UI", Arial, sans-serif; fill: #ffffff; }
-      .white-body { font: 29px "Segoe UI", Arial, sans-serif; fill: #ffffff; }
-      .flow { stroke: #605e5c; stroke-width: 6; fill: none; marker-end: url(#arrow); }
-      .secondary-flow { stroke: #8a8886; stroke-width: 4; fill: none; marker-end: url(#arrow); }
+      .white-body { font: 28px "Segoe UI", Arial, sans-serif; fill: #ffffff; }
+      .flow { stroke: #4f4d4b; stroke-width: 6; fill: none; marker-end: url(#arrow); }
+      .secondary { stroke: #77736f; stroke-width: 4; fill: none; marker-end: url(#arrow); }
+      .test-flow { stroke: #a15c00; stroke-width: 4; stroke-dasharray: 14 10; fill: none; marker-end: url(#arrow); }
     </style>
   </defs>
 
-  <rect width="2400" height="2100" fill="#fbfcfe"/>
-  <text class="title" x="120" y="88">Meeting Agent</text>
-  <text class="subtitle" x="120" y="140">Provider-neutral event ingestion, structured analysis, traceable artifacts, and human-controlled email handoff</text>
+  <rect width="2400" height="2100" fill="#f7f4ef"/>
+  <text class="title" x="110" y="86">Meeting Agent</text>
+  <text class="subtitle" x="110" y="140">One-command Foundry deployment, browser workflow, session-scoped artifacts, and human-controlled email delivery</text>
 
-  <text class="layer" x="220" y="190">CAPTURE ADAPTERS</text>
-  <rect x="220" y="200" width="700" height="170" rx="18" fill="#cfe4fa" stroke="#0078d4" stroke-width="5"/>
-  <text class="heading" x="570" y="265" text-anchor="middle">Local ASR Adapter</text>
-  <text class="body" x="570" y="315" text-anchor="middle">Partial and final transcript segments</text>
+  <text class="layer" x="120" y="195">MEETING EVIDENCE</text>
+  <rect x="120" y="210" width="650" height="155" rx="16" fill="#ffffff" stroke="#0078d4" stroke-width="5"/>
+  <text class="heading" x="445" y="270" text-anchor="middle">Transcript Adapter</text>
+  <text class="body" x="445" y="320" text-anchor="middle">Partial and final provider events</text>
 
-  <rect x="1480" y="200" width="700" height="170" rx="18" fill="#cfe4fa" stroke="#0078d4" stroke-width="5"/>
-  <text class="heading" x="1830" y="265" text-anchor="middle">Visual Adapter</text>
-  <text class="body" x="1830" y="315" text-anchor="middle">Frame summary and optional image URI</text>
+  <rect x="875" y="210" width="650" height="155" rx="16" fill="#ffffff" stroke="#0078d4" stroke-width="5"/>
+  <text class="heading" x="1200" y="270" text-anchor="middle">Visual Adapter</text>
+  <text class="body" x="1200" y="320" text-anchor="middle">Frame summary and image reference</text>
 
-  <path class="flow" d="M570 370 C570 420 850 420 850 465"/>
-  <path class="flow" d="M1830 370 C1830 420 1550 420 1550 465"/>
+  <rect x="1630" y="210" width="650" height="155" rx="16" fill="#fff4ce" stroke="#a15c00" stroke-width="5"/>
+  <text class="heading" x="1955" y="270" text-anchor="middle">Provider JSONL</text>
+  <text class="body" x="1955" y="320" text-anchor="middle">Strict MeetingEvent contract</text>
 
-  <text class="layer" x="370" y="455">EVENT CONTRACT</text>
-  <rect x="370" y="465" width="1660" height="220" rx="18" fill="#fff4ce" stroke="#f7630c" stroke-width="5"/>
-  <text class="heading" x="1200" y="530" text-anchor="middle">Strict JSONL MeetingEvent Contract</text>
-  <text class="body" x="1200" y="582" text-anchor="middle">transcript.partial · transcript.final · visual.frame · meeting.end</text>
-  <text class="small" x="1200" y="630" text-anchor="middle">event_id · session_id · sequence · timezone-aware timestamp · text · image_uri · metadata</text>
+  <path class="flow" d="M445 365 C445 420 620 410 620 465"/>
+  <path class="flow" d="M1200 365 L1200 465"/>
+  <path class="flow" d="M1955 365 C1955 420 1780 410 1780 465"/>
 
-  <path class="flow" d="M1200 685 L1200 770"/>
+  <text class="layer" x="220" y="455">USER EXPERIENCE</text>
+  <rect x="220" y="465" width="900" height="230" rx="18" fill="#ffffff" stroke="#b11f4b" stroke-width="5"/>
+  <text class="heading" x="670" y="530" text-anchor="middle">Browser Meeting Workspace</text>
+  <text class="body" x="670" y="585" text-anchor="middle">Paste transcript or upload JSONL</text>
+  <text class="small" x="670" y="635" text-anchor="middle">Review analysis · inspect mind map · download PPTX and EML</text>
 
-  <text class="layer" x="370" y="760">SESSION CORE</text>
-  <rect x="370" y="770" width="1660" height="210" rx="18" fill="#dff6dd" stroke="#107c10" stroke-width="5"/>
-  <text class="heading" x="1200" y="835" text-anchor="middle">MeetingSession</text>
-  <text class="body" x="1200" y="888" text-anchor="middle">Strict validation · idempotent deduplication · deterministic ordering · final-only transcript evidence</text>
-  <text class="small" x="1200" y="936" text-anchor="middle">Canonical source payload and SHA-256 evidence boundary</text>
+  <rect x="1280" y="465" width="900" height="230" rx="18" fill="#ffffff" stroke="#107c10" stroke-width="5"/>
+  <text class="heading" x="1730" y="530" text-anchor="middle">Loopback BFF</text>
+  <text class="body" x="1730" y="585" text-anchor="middle">DefaultAzureCredential · no browser token</text>
+  <text class="small" x="1730" y="635" text-anchor="middle">Retries · timeout · session files · local Outlook handoff</text>
 
-  <path class="flow" d="M1200 980 C1200 1040 650 1030 650 1090"/>
-  <path class="flow" d="M1200 980 C1200 1040 1750 1030 1750 1090"/>
+  <path class="flow" d="M1120 580 L1270 580"/>
+  <path class="flow" d="M1730 695 L1730 805"/>
 
-  <text class="layer" x="220" y="1080">ANALYZER ROUTING</text>
-  <rect x="220" y="1090" width="860" height="240" rx="18" fill="#e8daef" stroke="#5c2d91" stroke-width="5"/>
-  <text class="heading" x="650" y="1155" text-anchor="middle">Azure OpenAI Responses v1</text>
-  <text class="body" x="650" y="1210" text-anchor="middle">Microsoft Entra ID · DefaultAzureCredential</text>
-  <text class="small" x="650" y="1255" text-anchor="middle">Pydantic structured output · store=False · no silent fallback</text>
+  <text class="layer" x="250" y="795">MICROSOFT FOUNDRY</text>
+  <rect x="250" y="805" width="1900" height="155" rx="18" fill="#0f6cbd" stroke="#0f6cbd" stroke-width="5"/>
+  <text class="white-heading" x="1200" y="865" text-anchor="middle">Foundry Agent Gateway</text>
+  <text class="white-body" x="1200" y="915" text-anchor="middle">Entra authorization · session isolation · Invocations 2.0.0 · Application Insights tracing</text>
 
-  <rect x="1320" y="1090" width="860" height="240" rx="18" fill="#f3f2f1" stroke="#605e5c" stroke-width="5"/>
-  <text class="heading" x="1750" y="1155" text-anchor="middle">Offline Contract Analyzer</text>
-  <text class="body" x="1750" y="1210" text-anchor="middle">Deterministic integration and CI path</text>
-  <text class="small" x="1750" y="1255" text-anchor="middle">Contract testing only · not an AI-quality production fallback</text>
+  <path class="flow" d="M1200 960 L1200 1050"/>
 
-  <path class="flow" d="M650 1330 C650 1380 1000 1380 1000 1425"/>
-  <path class="flow" d="M1750 1330 C1750 1380 1400 1380 1400 1425"/>
+  <text class="layer" x="170" y="1040">HOSTED AGENT RUNTIME</text>
+  <rect x="170" y="1050" width="2060" height="500" rx="22" fill="#fcfbf8" stroke="#5f5f5f" stroke-width="6"/>
+  <text class="heading" x="1200" y="1110" text-anchor="middle">Meeting Agent · Python 3.13 Source Deployment</text>
 
-  <text class="layer" x="370" y="1415">STRUCTURED ANALYSIS</text>
-  <rect x="370" y="1425" width="1660" height="170" rx="18" fill="#0f6cbd" stroke="#0f6cbd" stroke-width="5"/>
-  <text class="white-heading" x="1200" y="1490" text-anchor="middle">MeetingAnalysis</text>
-  <text class="white-body" x="1200" y="1540" text-anchor="middle">title · summary · topics · decisions · action_items · open_questions · mind_map</text>
+  <rect x="240" y="1160" width="560" height="265" rx="16" fill="#fff4ce" stroke="#a15c00" stroke-width="4"/>
+  <text class="heading" x="520" y="1220" text-anchor="middle">Strict Invocation Contract</text>
+  <text class="small" x="520" y="1270" text-anchor="middle">Pydantic validation</text>
+  <text class="small" x="520" y="1315" text-anchor="middle">5,000-event limit</text>
+  <text class="small" x="520" y="1360" text-anchor="middle">Fail-closed error responses</text>
 
-  <path class="secondary-flow" d="M1200 1595 C1200 1645 340 1635 340 1690"/>
-  <path class="secondary-flow" d="M1200 1595 C1200 1645 890 1635 890 1690"/>
-  <path class="secondary-flow" d="M1200 1595 C1200 1645 1440 1635 1440 1690"/>
-  <path class="secondary-flow" d="M1200 1595 C1200 1645 1990 1635 1990 1690"/>
+  <rect x="920" y="1160" width="560" height="265" rx="16" fill="#dff6dd" stroke="#107c10" stroke-width="4"/>
+  <text class="heading" x="1200" y="1220" text-anchor="middle">MeetingSession Core</text>
+  <text class="small" x="1200" y="1270" text-anchor="middle">Ordering · deduplication</text>
+  <text class="small" x="1200" y="1315" text-anchor="middle">Final-only evidence</text>
+  <text class="small" x="1200" y="1360" text-anchor="middle">Canonical SHA-256</text>
 
-  <rect x="100" y="1690" width="480" height="180" rx="16" fill="#f3f2f1" stroke="#605e5c" stroke-width="4"/>
-  <text class="heading" x="340" y="1755" text-anchor="middle">Evidence</text>
-  <text class="small" x="340" y="1805" text-anchor="middle">Source and artifact SHA-256</text>
-  <text class="small" x="340" y="1840" text-anchor="middle">Byte counts and safety state</text>
+  <rect x="1600" y="1160" width="560" height="265" rx="16" fill="#e8f2fb" stroke="#0078d4" stroke-width="4"/>
+  <text class="heading" x="1880" y="1220" text-anchor="middle">Foundry Model Analysis</text>
+  <text class="small" x="1880" y="1270" text-anchor="middle">Agent managed identity</text>
+  <text class="small" x="1880" y="1315" text-anchor="middle">Structured MeetingAnalysis</text>
+  <text class="small" x="1880" y="1360" text-anchor="middle">store=False · no silent fallback</text>
 
-  <rect x="650" y="1690" width="480" height="180" rx="16" fill="#cfe4fa" stroke="#0078d4" stroke-width="4"/>
-  <text class="heading" x="890" y="1755" text-anchor="middle">Mind Map</text>
-  <text class="small" x="890" y="1805" text-anchor="middle">JSON · SVG · PNG</text>
-  <text class="small" x="890" y="1840" text-anchor="middle">Renderer-neutral source</text>
+  <rect x="820" y="1450" width="760" height="70" rx="12" fill="#f3f2f1" stroke="#a15c00" stroke-width="3"/>
+  <text class="small" x="1200" y="1495" text-anchor="middle">Offline contract is an explicit CI/E2E test mode, never a production fallback</text>
 
-  <rect x="1200" y="1690" width="480" height="180" rx="16" fill="#dff6dd" stroke="#107c10" stroke-width="4"/>
-  <text class="heading" x="1440" y="1755" text-anchor="middle">Editable PPTX</text>
-  <text class="small" x="1440" y="1805" text-anchor="middle">Summary · topics · decisions</text>
-  <text class="small" x="1440" y="1840" text-anchor="middle">Actions · open questions</text>
+  <path class="secondary" d="M800 1290 L910 1290"/>
+  <path class="secondary" d="M1480 1290 L1590 1290"/>
+  <path class="secondary" d="M1880 1425 C1880 1490 1680 1485 1680 1605"/>
+  <path class="test-flow" d="M1200 1450 L1200 1428"/>
 
-  <rect x="1750" y="1690" width="480" height="180" rx="16" fill="#99e9f2" stroke="#0c8599" stroke-width="4"/>
-  <text class="heading" x="1990" y="1755" text-anchor="middle">Unsent EML</text>
-  <text class="small" x="1990" y="1805" text-anchor="middle">X-Unsent: 1 · HTML/plain body</text>
-  <text class="small" x="1990" y="1840" text-anchor="middle">PNG and PPTX attachments</text>
+  <text class="layer" x="250" y="1595">MANAGED SESSION FILES</text>
+  <rect x="250" y="1605" width="1900" height="120" rx="18" fill="#ffffff" stroke="#5f5f5f" stroke-width="5"/>
+  <text class="heading" x="1200" y="1660" text-anchor="middle">Session-scoped $HOME/artifacts/&lt;run-id&gt;</text>
+  <text class="small" x="1200" y="1702" text-anchor="middle">Persistent across requests · downloadable through Foundry files API · isolated per caller</text>
 
-  <path class="flow" d="M1990 1870 C1990 1910 670 1900 670 1940"/>
-  <rect x="430" y="1940" width="480" height="120" rx="16" fill="#cfe4fa" stroke="#0078d4" stroke-width="4"/>
-  <text class="heading" x="670" y="2012" text-anchor="middle">New Outlook Draft</text>
+  <path class="secondary" d="M1200 1725 C1200 1760 350 1750 350 1790"/>
+  <path class="secondary" d="M1200 1725 C1200 1760 900 1750 900 1790"/>
+  <path class="secondary" d="M1200 1725 C1200 1760 1500 1750 1500 1790"/>
+  <path class="secondary" d="M1200 1725 C1200 1760 2050 1750 2050 1790"/>
 
-  <path class="flow" d="M910 2000 L1185 2000"/>
-  <rect x="1190" y="1940" width="420" height="120" rx="16" fill="#fff4ce" stroke="#f7630c" stroke-width="4"/>
-  <text class="heading" x="1400" y="1988" text-anchor="middle">Human Review</text>
-  <text class="small" x="1400" y="2030" text-anchor="middle">Edit recipients and content</text>
+  <rect x="120" y="1790" width="460" height="120" rx="14" fill="#ffffff" stroke="#605e5c" stroke-width="4"/>
+  <text class="heading" x="350" y="1845" text-anchor="middle">Evidence JSON</text>
+  <text class="small" x="350" y="1882" text-anchor="middle">Hashes · bytes · safety state</text>
 
-  <path class="flow" d="M1610 2000 L1835 2000"/>
-  <rect x="1840" y="1940" width="400" height="120" rx="16" fill="#dff6dd" stroke="#107c10" stroke-width="4"/>
-  <text class="heading" x="2040" y="1988" text-anchor="middle">Manual Send</text>
-  <text class="small" x="2040" y="2030" text-anchor="middle">No automatic transmission path</text>
+  <rect x="670" y="1790" width="460" height="120" rx="14" fill="#e8f2fb" stroke="#0078d4" stroke-width="4"/>
+  <text class="heading" x="900" y="1845" text-anchor="middle">Mind Map</text>
+  <text class="small" x="900" y="1882" text-anchor="middle">JSON · SVG · PNG</text>
+
+  <rect x="1270" y="1790" width="460" height="120" rx="14" fill="#dff6dd" stroke="#107c10" stroke-width="4"/>
+  <text class="heading" x="1500" y="1845" text-anchor="middle">Editable PPTX</text>
+  <text class="small" x="1500" y="1882" text-anchor="middle">Five structured slides</text>
+
+  <rect x="1820" y="1790" width="460" height="120" rx="14" fill="#fff4ce" stroke="#a15c00" stroke-width="4"/>
+  <text class="heading" x="2050" y="1845" text-anchor="middle">Unsent EML</text>
+  <text class="small" x="2050" y="1882" text-anchor="middle">X-Unsent: 1 · real attachments</text>
+
+  <path class="flow" d="M2050 1910 C2050 1940 650 1930 650 1960"/>
+  <rect x="390" y="1960" width="520" height="110" rx="15" fill="#e8f2fb" stroke="#0078d4" stroke-width="4"/>
+  <text class="heading" x="650" y="2025" text-anchor="middle">New Outlook Draft</text>
+
+  <path class="flow" d="M910 2015 L1135 2015"/>
+  <rect x="1140" y="1960" width="470" height="110" rx="15" fill="#fff4ce" stroke="#a15c00" stroke-width="4"/>
+  <text class="heading" x="1375" y="2005" text-anchor="middle">Human Review</text>
+  <text class="small" x="1375" y="2045" text-anchor="middle">Edit recipients and content</text>
+
+  <path class="flow" d="M1610 2015 L1815 2015"/>
+  <rect x="1820" y="1960" width="440" height="110" rx="15" fill="#dff6dd" stroke="#107c10" stroke-width="4"/>
+  <text class="heading" x="2040" y="2005" text-anchor="middle">Manual Send</text>
+  <text class="small" x="2040" y="2045" text-anchor="middle">No automatic transmission path</text>
 </svg>

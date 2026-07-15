@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "test": "foundry-hosted-agent-live-differential",
+  "validated_at": "2026-07-15",
+  "result": "pass",
+  "runtime": {
+    "product": "Microsoft Foundry Hosted Agent",
+    "protocol": "Invocations 2.0.0",
+    "python_runtime": "python_3_13",
+    "agent_version": "2",
+    "agent_status": "active",
+    "model": "gpt-5.4-mini",
+    "model_version": "2026-03-17",
+    "model_sku": "GlobalStandard"
+  },
+  "runs": [
+    {
+      "name": "product-planning",
+      "source_sha256": "413799e9783ac40a5a4e225a553bef94f33fd4c5990607add57e50547f91486b",
+      "title": "Assistant Pilot Planning",
+      "artifacts": {
+        "analysis": {
+          "bytes": 1858,
+          "sha256": "63451ce24eac1dd09065c2f7ff3ab6e1955dc30434b8056cdb4d4a0690d069cc"
+        },
+        "mind_map_png": {
+          "bytes": 23170,
+          "sha256": "e6d0deca398e30d0ff77a1f10fd8d537a9dcc135e353d81244c46b4914af1a16"
+        },
+        "presentation": {
+          "bytes": 32646,
+          "sha256": "854cdd3cb4d692ab657fcd51098e941408f292bed97dda12405051b19fa97b5d"
+        },
+        "eml": {
+          "bytes": 77673,
+          "sha256": "e927625c440104cab1925b6f462b026f4165674f649cf62106baa442cf02cc90"
+        }
+      }
+    },
+    {
+      "name": "operations-review",
+      "source_sha256": "88d71ad49cd875e2eb958c884e1ce2eb76a208576047df923decda79e7e109fb",
+      "title": "Incident Follow-up: Database Pool Recovery and Alerting",
+      "artifacts": {
+        "analysis": {
+          "bytes": 1636,
+          "sha256": "93eb40cdbdfd106ee618201b87730baf28a9da6c7461e668a8a4d62e9d5f5fe5"
+        },
+        "mind_map_png": {
+          "bytes": 22259,
+          "sha256": "81f255ae7debe101d529c49d507b2f938e0e24af8aaf7e0962910dbb4961e368"
+        },
+        "presentation": {
+          "bytes": 32626,
+          "sha256": "a22fedf6dd0aadace88d116e837171fe9cfa98f2924422c17841c4f9a1a4a251"
+        },
+        "eml": {
+          "bytes": 76414,
+          "sha256": "4883d2d15490937d765f11260e49f25eb533aee740ef13e04fea7ae178a7add8"
+        }
+      }
+    }
+  ],
+  "differential": {
+    "source_hashes_distinct": true,
+    "analysis_outputs_distinct": true
+  },
+  "browser": {
+    "mode": "Microsoft Foundry",
+    "title": "Architecture Council Meeting Summary",
+    "screenshot": {
+      "path": "images/meeting-agent-ui.png",
+      "width": 1440,
+      "height": 1324,
+      "bytes": 160439,
+      "sha256": "d30c060c9302a9fca32ac1d7b34e8958c135ef63fc595a7e60d61446c419ab8e"
+    },
+    "desktop_viewport": {
+      "width": 1440,
+      "height": 900,
+      "horizontal_overflow": false
+    },
+    "mobile_viewport": {
+      "width": 390,
+      "height": 844,
+      "horizontal_overflow": false
+    },
+    "presentation_bytes": 32560,
+    "eml_bytes": 74935,
+    "eml_attachment_count": 2,
+    "console_errors": 0,
+    "failed_requests": 0
+  },
+  "automatic_send": false,
+  "next_state": "DRAFT_READY_MANUAL_SEND_REQUIRED",
+  "redaction": {
+    "sanitized": true,
+    "omitted": [
+      "tenant and subscription identifiers",
+      "resource names and endpoints",
+      "principal identifiers",
+      "session and invocation identifiers"
+    ]
+  },
+  "scope_note": "This evidence validates one real Hosted Agent deployment, two remote differential runs, generated artifact integrity, and one desktop/mobile browser flow. It is not a production certification or model-quality benchmark."
+}

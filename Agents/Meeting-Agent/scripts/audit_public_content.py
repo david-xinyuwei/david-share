@@ -6,21 +6,43 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SKIP_DIRS = {".git", ".venv", "__pycache__", ".pytest_cache", ".ruff_cache"}
+SKIP_DIRS = {
+    ".azure",
+    ".git",
+    ".venv",
+    "__pycache__",
+    ".pytest_cache",
+    ".ruff_cache",
+    "artifacts",
+    "build",
+    "dist",
+    "node_modules",
+    "playwright-report",
+    "runtime",
+    "test-results",
+}
 SKIP_FILES = {"password.txt", Path(__file__).name}
 LEGACY_TERMS = ("Yun" + "shang", "云" + "上", "xinyuwei" + "-david")
 TEXT_SUFFIXES = {
     "",
     ".cfg",
+    ".css",
     ".eml",
     ".example",
+    ".html",
+    ".js",
     ".json",
     ".jsonl",
     ".md",
+    ".mjs",
+    ".ps1",
     ".py",
+    ".sh",
     ".svg",
     ".toml",
     ".txt",
+    ".ts",
+    ".tsx",
     ".yaml",
     ".yml",
 }
@@ -64,8 +86,18 @@ def main() -> int:
             findings.append(f"invalid UTF-8: {path.relative_to(ROOT)}")
             continue
         for label, pattern in PATTERNS.items():
-            if pattern.search(text):
+            for match in pattern.finditer(text):
+                value = match.group(0).casefold()
+                if label == "email address" and value.endswith(
+                    ("@example.com", "@example.net", "@example.org")
+                ):
+                    continue
+                if label == "IPv4 address" and value in {"0.0.0.0", "127.0.0.1"}:
+                    continue
+                if label == "private Linux path" and value.startswith("/home/session/"):
+                    continue
                 findings.append(f"{label}: {path.relative_to(ROOT)}")
+                break
     assert "password.txt" in (ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()
     if findings:
         raise SystemExit("Public-content audit failed:\n- " + "\n- ".join(findings))

@@ -1,4 +1,7 @@
 -r requirements.txt
+build==1.4.0
+httpx==0.28.1
+PyYAML==6.0.3
 pytest==8.3.3
 ruff==0.6.7
 pip-audit==2.10.1

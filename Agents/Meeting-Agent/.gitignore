@@ -3,6 +3,9 @@
 !.env.example
 .venv/
 venv/
+node_modules/
+playwright-report/
+test-results/
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -14,6 +17,7 @@ build/
 *.egg-info/
 .idea/
 .vscode/
+.azure/
 .DS_Store
 runtime/
 artifacts/
