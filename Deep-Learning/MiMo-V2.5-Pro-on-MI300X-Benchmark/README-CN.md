@@ -13,13 +13,13 @@
 >
 > 最后测试：2026-07-14
 
-[English](README.md) | 中文
+[English](README.md) | 中文 | [验证证据](data/validation/)
 
 ---
 
 ## 架构
 
-<div align="center"><img src="images/pd_architecture.png" width="960"></div>
+<div align="center"><img src="images/pd_architecture.png" alt="双节点 MI300X 1P1D Prefill-Decode 架构" width="960"></div>
 
 ---
 
@@ -72,6 +72,19 @@ DP=2 的 nominal-length 256K 结果保留在后面的扩展性矩阵中，但不
 - H200 Decode `tok/s` 是报告中的 per-DP/单节点口径（`BS × TPS`），不作为 DP=4 aggregate throughput 展示。
 - H200 数值仍是方向性参考，不是严格 apples-to-apples 硬件 benchmark：MI300X 使用真实 expert routing，H200 参考使用理想均衡 routing。
 - 机器可读核心结果：[`data/final-results.tsv`](data/final-results.tsv)。
+
+### H200 参考数据来源
+
+| 字段 | 公开记录 |
+|---|---|
+| 来源 | 小米提供的 MiMo-V2.5-Pro 性能报告；私有归档，不公开转载 |
+| 审阅日期 | 2026-05-18 |
+| Prefill 参考 | TP8/EP16/DP2、balanced `fake_topk_ids`、关闭 radix cache、单机/单节点吞吐 |
+| Decode 参考 | TP8/EP32/DP4、balanced `fake_topk_ids`、MTP layer 3、报告 accept rate 0.75 |
+| Decode 吞吐口径 | 报告中的 per-DP/单节点 `BS × TPS`；未确认是 DP=4 aggregate throughput |
+| 交付用途 | 仅作方向性 per-node/per-DP 参考 |
+
+机器可读 provenance 和全部参考值见 [`data/validation/h200-reference.json`](data/validation/h200-reference.json)。
 
 ---
 
@@ -181,6 +194,7 @@ AMD 提供了基础启动方法：container image、tuned AITER path、1P1D/DP=2
 - Decode 核心点复测：[`data/decode-repeatability.tsv`](data/decode-repeatability.tsv)
 - Exact-token 与 runtime 验证元数据：[`data/validation/`](data/validation/)
 - 唯一支持的复现代码：[`scripts/amd-latest/`](scripts/amd-latest/)
+- Repo 质量门：`python3 scripts/validate_repo.py`（预期最后一行：`REPO_VALIDATION=PASS`）
 
 ---
 
@@ -191,7 +205,7 @@ AMD 提供了基础启动方法：container image、tuned AITER path、1P1D/DP=2
 | 属性 | 值 |
 |------|---|
 | Azure SKU | `Standard_ND96isr_MI300X_v5`（每节点 8× MI300X） |
-| GPU | AMD Instinct MI300X, `gfx942` (CDNA 3), **192 GB HBM3e**, 5.3 TB/s |
+| GPU | AMD Instinct MI300X, `gfx942` (CDNA 3), **192 GB HBM3**，5.3 TB/s max peak theoretical |
 | 节点数 | 2（VMSS，相同 placement group — IB 保证） |
 | 总 GPU 内存 | **16× 192 GB = 3,072 GB** |
 | InfiniBand | 8× CX7 400G NDR/节点，实测 **368 Gbps**/端口 |
@@ -200,7 +214,8 @@ AMD 提供了基础启动方法：container image、tuned AITER path、1P1D/DP=2
 
 | 组件 | 版本 | 说明 |
 |------|------|------|
-| Docker 镜像 | `rocm/sgl-dev:v0.5.11-rocm720-mi30x-20260510` | AMD 0510 build, SHA `bb9d2e5ab1a6` |
+| 已验证 runtime 镜像 | `mimomi300xacr.azurecr.io/mimo-v2.5-pro-mi300x@sha256:08deabd2f3a4e98e183944048730f560056b0e4dd724c06f74c368645a655910` | 私有 ACR；37 layers；clean Docker pull 已验证 |
+| 基础镜像来源 | `rocm/sgl-dev:v0.5.11-rocm720-mi30x-20260510` | Base image ID `sha256:bb9d2e5ab1a6...` |
 | SGLang | Package `0.0.0.dev14147+g2f9b9aedf.d20260706`、source HEAD `2f9b9aedf` | 最终测试 runtime |
 | AITER | Source HEAD `00e94abf`；tuned CSV SHA-256 `2c87ff1...80ea7` | 最终测试 runtime |
 | ROCm | 7.2.0 | |
@@ -223,45 +238,183 @@ AMD 提供了基础启动方法：container image、tuned AITER path、1P1D/DP=2
 
 ---
 
-## 复现最终结果
+## 在 Azure 上运行并复现最终结果
 
-只使用 [`scripts/amd-latest/`](scripts/amd-latest/)。该目录包含最终 1P1D、DP=2 启动脚本、客户结果对应的 benchmark 点和 fail-closed validators。
+使用下面的 immutable baked runtime。它内置已测试的 SGLang/AITER source trees、Python/runtime deltas、tuned fused-MoE 配置、RDMA userspace stack，以及位于 `/opt/mimo-mi300x/scripts/amd-latest` 的 [`scripts/amd-latest/`](scripts/amd-latest/)。
 
 ### 前置条件
 
 - 2× Azure `Standard_ND96isr_MI300X_v5` 节点
-- Docker image：`rocm/sgl-dev:v0.5.11-rocm720-mi30x-20260510`
+- 通过私有渠道提供的 repository-scoped ACR pull username 和 password
 - 模型：`/data/models/MiMo-V2.5-Pro`
-- Runtime identifiers：[`data/validation/runtime-version.txt`](data/validation/runtime-version.txt)
+- Benchmark dataset 位于 `/data`；镜像不包含模型权重和 dataset
 - PD-separated Decode 容器必须暴露 RDMA devices、`/dev/mem` 和 `CAP_SYS_ADMIN`
+
+### 拉取并启动 Runtime — 两个节点都执行
+
+容器需要较高的 host 权限来完成 RDMA memory registration，只能在专用、可信的 benchmark 节点上运行。
+
+```bash
+export ACR_LOGIN_SERVER=mimomi300xacr.azurecr.io
+export IMAGE_REF='mimomi300xacr.azurecr.io/mimo-v2.5-pro-mi300x@sha256:08deabd2f3a4e98e183944048730f560056b0e4dd724c06f74c368645a655910'
+
+read -rp 'ACR pull username: ' ACR_USERNAME
+read -rsp 'ACR pull password: ' ACR_PASSWORD && printf '\n'
+printf '%s' "$ACR_PASSWORD" | docker login "$ACR_LOGIN_SERVER" \
+	--username "$ACR_USERNAME" --password-stdin
+docker pull "$IMAGE_REF"
+docker logout "$ACR_LOGIN_SERVER"
+unset ACR_USERNAME ACR_PASSWORD
+
+docker run -d --name mimo-mi300x \
+	--privileged --network=host --ipc=host --shm-size=256g \
+	--device=/dev/kfd --device=/dev/dri --device=/dev/mem \
+	--cap-add=CAP_SYS_ADMIN --cap-add=SYS_PTRACE \
+	--security-opt seccomp=unconfined --security-opt label=disable \
+	--group-add video -v /data:/data \
+	--entrypoint /bin/bash "$IMAGE_REF" -lc 'sleep infinity'
+
+docker exec mimo-mi300x bash -lc '
+	set -euo pipefail
+	test "$(git -C /sgl-workspace/sglang_0625 rev-parse HEAD)" = 2f9b9aedf32977bc5d088a86ec0a73bcf432a4d0
+	test "$(git -C /sgl-workspace/aiter_0625 rev-parse HEAD)" = 00e94abf15e1e09ab7cf481e989bca5d19a99b82
+	test "$(sha256sum /sgl-workspace/aiter_0625/aiter/configs/model_configs/mimo_v2_5_pro_b16_tuned_fmoe.csv | cut -d" " -f1)" = 2c87ff1fa062c73e1941962f8630a335ea1e39d2dbb5b0c2d4971bcd55880ea7
+	test -e /dev/infiniband/uverbs0
+	test -e /dev/mem
+	cd /opt/mimo-mi300x/scripts/amd-latest
+	sha256sum -c SHA256SUMS.txt
+'
+```
+
+镜像 identity 与 clean-pull 证据见 [`data/validation/container-image.json`](data/validation/container-image.json)。
 
 ### 1P1D
 
 ```bash
-# 将 scripts/amd-latest/ 复制到两个容器的 /data/mimo-amd-latest/。
-cd /data/mimo-amd-latest
+# 在每个节点进入容器，然后使用内置 bundle。
+docker exec -it mimo-mi300x bash
+cd /opt/mimo-mi300x/scripts/amd-latest
+export MODEL=/data/models/MiMo-V2.5-Pro
+export DATASET_PATH=/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json
+read -rp 'Prefill node IB IP: ' PREFILL_IB_IP
+read -rp 'Decode node IB IP: ' DECODE_IB_IP
+export PREFILL_IB_IP DECODE_IB_IP
 
-# 分别在 Prefill、Decode、Router 终端执行：
+# 先在对应节点的独立终端启动两个 worker：
 bash launch_pd_prefill.sh
 bash launch_pd_decode.sh
-PREFILL_IB_IP=<prefill-node-ib-ip> DECODE_IB_IP=<decode-node-ib-ip> bash launch_pd_router.sh
 
-# Direct worker capacity validation 通过后执行：
-DATASET_PATH=/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json bash benchmark_1p_prefill.sh
-DATASET_PATH=/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json bash benchmark_decode.sh
+# Prefill 节点 capacity gate：
+python3 validate_server_info.py http://127.0.0.1:30000/server_info \
+	--output /data/mimo-amd-latest/onep/evidence/prefill-server-info.json
+
+# Decode 节点 capacity gate：
+python3 validate_server_info.py http://127.0.0.1:30001/server_info \
+	--output /data/mimo-amd-latest/onep/evidence/decode-server-info.json
+
+# 两个 capacity gate 都通过后，在 Prefill 节点启动 Router：
+bash launch_pd_router.sh
+
+# Router readiness gate：
+curl -fsS --max-time 30 http://127.0.0.1:40000/v1/models >/dev/null
+
+# 三个 gate 通过后，在 Router 节点执行：
+bash benchmark_1p_prefill.sh
+bash benchmark_decode.sh
+```
+
+完成后，把 Decode 节点证据复制到 Router 节点，使 3 份 service logs 和 2 份 `server-info.json` 位于同一目录，并保留下列 basename。然后执行：
+
+```bash
+cd /opt/mimo-mi300x/scripts/amd-latest
+EVIDENCE=/data/mimo-amd-latest/onep/evidence
+
+python3 validate_service_logs.py \
+	"$EVIDENCE/prefill_outer.log" \
+	"$EVIDENCE/decode_outer.log" \
+	"$EVIDENCE/router_outer.log" \
+	--profile onep \
+	--output "$EVIDENCE/service-validation.json"
+
+python3 validate_exact_256k.py \
+	/data/mimo-amd-latest/onep/prefill/benchmark_262144_out1_con4.log \
+	--prefill-info "$EVIDENCE/prefill-server-info.json" \
+	--decode-info "$EVIDENCE/decode-server-info.json" \
+	--service-logs \
+		"$EVIDENCE/prefill_outer.log" \
+		"$EVIDENCE/decode_outer.log" \
+		"$EVIDENCE/router_outer.log" \
+	--output "$EVIDENCE/exact-token-256k.json"
 ```
 
 ### DP=2 双节点 Prefill
 
 ```bash
-cd /data/mimo-amd-latest
+cd /opt/mimo-mi300x/scripts/amd-latest
 bash launch_dp2_node0.sh
 bash launch_dp2_node1.sh
-Node0_IP=<node0-ib-ip> Node1_IP=<node1-ib-ip> bash launch_dp2_router.sh
-DATASET_PATH=/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json bash benchmark_dp2_prefill.sh
+
+# 启动 Router 前分别直连验证 node0 和 node1：
+python3 validate_server_info.py http://127.0.0.1:30000/server_info \
+	--output /data/mimo-amd-latest/dp2/evidence/node0-server-info.json
+python3 validate_server_info.py http://127.0.0.1:30001/server_info \
+	--output /data/mimo-amd-latest/dp2/evidence/node1-server-info.json
+
+read -rp 'Node0 IB IP: ' Node0_IP
+read -rp 'Node1 IB IP: ' Node1_IP
+export Node0_IP Node1_IP
+bash launch_dp2_router.sh
+curl -fsS --max-time 30 http://127.0.0.1:40000/v1/models >/dev/null
+bash benchmark_dp2_prefill.sh
 ```
 
-Direct worker capacity、service logs 和 DP=2 worker distribution 的验收命令见 bundle README。
+上面的 convenience script 会连续执行三个点。要生成可报告的逐点 distribution 证据，需要启动 fresh DP=2 services，在单个 `run_point` 前后分别统计两个 worker log 中的 `grep -c 'POST /generate'`，再验证记录下来的四个整数。8K、64K、256K 都要分别执行：
+
+```bash
+cd /opt/mimo-mi300x/scripts/amd-latest
+export LOG_DIR=/data/mimo-amd-latest/dp2
+source ./benchmark_common.sh
+
+# 记录两个 before-count 后，在 node0 每次只执行一个点：
+run_point 8192 1 16 32 1 900 'Input token throughput'
+# run_point 65536 1 2 32 1 900 'Input token throughput'
+# run_point 262144 1 2 32 1 1200 'Input token throughput' token_ids
+
+# 分别在 node0 和 node1 记录 before/after count：
+grep -c 'POST /generate' /data/mimo-amd-latest/dp2/service/node0_outer.log || true
+grep -c 'POST /generate' /data/mimo-amd-latest/dp2/service/node1_outer.log || true
+
+read -rp 'Node0 before count: ' NODE0_BEFORE
+read -rp 'Node0 after count: ' NODE0_AFTER
+read -rp 'Node1 before count: ' NODE1_BEFORE
+read -rp 'Node1 after count: ' NODE1_AFTER
+python3 write_distribution.py \
+	--node0-before "$NODE0_BEFORE" --node0-after "$NODE0_AFTER" \
+	--node1-before "$NODE1_BEFORE" --node1-after "$NODE1_AFTER" \
+	--expected-total 33 \
+	--output /data/mimo-amd-latest/dp2/benchmark_8192_out1_con16.distribution.tsv
+```
+
+汇总 3 份 DP=2 service logs 后执行：
+
+```bash
+cd /opt/mimo-mi300x/scripts/amd-latest
+EVIDENCE=/data/mimo-amd-latest/dp2/evidence
+python3 validate_service_logs.py \
+	"$EVIDENCE/node0_outer.log" \
+	"$EVIDENCE/node1_outer.log" \
+	"$EVIDENCE/router_outer.log" \
+	--profile dp2 \
+	--output "$EVIDENCE/service-validation.json"
+```
+
+只有 client gate 通过、两个 worker delta 都为正且总和为 33（32 measured + 1 warmup）、service-log gate 通过时，该 DP=2 点才可报告。
+
+### 清理
+
+```bash
+docker rm -f mimo-mi300x
+```
 
 ---
 
@@ -277,6 +430,8 @@ Direct worker capacity、service logs 和 DP=2 worker distribution 的验收命�
 
 ## 参考资料
 
+- [Azure ND-MI300X-v5 规格系列](https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/ndmi300xv5-series)
+- [AMD Instinct MI300X datasheet](https://www.amd.com/content/dam/amd/en/documents/instinct-tech-docs/data-sheets/amd-instinct-mi300x-data-sheet.pdf)
 - [MiMo-V2.5-Pro Model Card](https://huggingface.co/XiaomiMiMo/MiMo-V2.5-Pro)
 - [AMD SGLang Fork — `mimo_aiter_attn` 分支](https://github.com/sammysun0711/sglang/tree/mimo_aiter_attn)
 - [AMD aiter (ROCm)](https://github.com/ROCm/aiter)

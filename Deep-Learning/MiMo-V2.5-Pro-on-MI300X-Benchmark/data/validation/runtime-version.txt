@@ -1,5 +1,9 @@
-docker_image=rocm/sgl-dev:v0.5.11-rocm720-mi30x-20260510
-docker_image_id=sha256:bb9d2e5ab1a6b66bff693e9a5d972be378e6059dc2058066aed70ebc3ed3993b
+runtime_image=mimomi300xacr.azurecr.io/mimo-v2.5-pro-mi300x@sha256:08deabd2f3a4e98e183944048730f560056b0e4dd724c06f74c368645a655910
+runtime_image_id=sha256:ffebe707eed74aa20994b7d0d81a967c65fe18c97e4c4626ccd8eb1dc1f02def
+runtime_image_layers=37
+runtime_clean_pull_verified=true
+base_image_provenance=rocm/sgl-dev:v0.5.11-rocm720-mi30x-20260510
+base_image_id=sha256:bb9d2e5ab1a6b66bff693e9a5d972be378e6059dc2058066aed70ebc3ed3993b
 sglang_version=0.0.0.dev14147+g2f9b9aedf.d20260706
 sglang_source_head=2f9b9aedf32977bc5d088a86ec0a73bcf432a4d0
 aiter_source_head=00e94abf15e1e09ab7cf481e989bca5d19a99b82

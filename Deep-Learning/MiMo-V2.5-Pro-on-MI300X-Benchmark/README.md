@@ -13,13 +13,13 @@ This customer-facing repo contains the headline comparison, the complete Microso
 >
 > Last tested: 2026-07-14
 
-English | [中文版](README-CN.md)
+English | [中文版](README-CN.md) | [Validation Evidence](data/validation/)
 
 ---
 
 ## Architecture
 
-<div align="center"><img src="images/pd_architecture.png" width="960"></div>
+<div align="center"><img src="images/pd_architecture.png" alt="Two-node MI300X 1P1D Prefill-Decode architecture" width="960"></div>
 
 ---
 
@@ -72,6 +72,19 @@ The nominal-length 256K DP=2 observation is retained in the detailed scalability
 - The H200 Decode `tok/s` values are the report's per-DP/per-node-style values (`BS × TPS`); they are not presented as DP=4 aggregate throughput.
 - H200 figures remain directional references, not a strict apples-to-apples hardware benchmark: MI300X uses real expert routing, while the H200 reference uses idealized balanced routing.
 - Machine-readable headline results: [`data/final-results.tsv`](data/final-results.tsv).
+
+### H200 Reference Provenance
+
+| Field | Public record |
+|---|---|
+| Source | Xiaomi-provided MiMo-V2.5-Pro performance report, privately archived and not redistributed |
+| Reviewed | 2026-05-18 |
+| Prefill reference | TP8/EP16/DP2, balanced `fake_topk_ids`, radix cache disabled, single-machine/per-node throughput |
+| Decode reference | TP8/EP32/DP4, balanced `fake_topk_ids`, MTP layer 3, reported accept rate 0.75 |
+| Decode throughput scope | Reported per-DP/per-node-style `BS × TPS`; not confirmed as DP=4 aggregate throughput |
+| Delivery use | Directional per-node/per-DP reference only |
+
+Machine-readable provenance and all reference values are in [`data/validation/h200-reference.json`](data/validation/h200-reference.json).
 
 ---
 
@@ -181,6 +194,7 @@ Observed behavior:
 - Core Decode repeatability: [`data/decode-repeatability.tsv`](data/decode-repeatability.tsv)
 - Exact-token and runtime validation metadata: [`data/validation/`](data/validation/)
 - Supported reproduction bundle: [`scripts/amd-latest/`](scripts/amd-latest/)
+- Repository quality gate: `python3 scripts/validate_repo.py` (expected final line: `REPO_VALIDATION=PASS`)
 
 ---
 
@@ -191,7 +205,7 @@ Observed behavior:
 | Property | Value |
 |----------|-------|
 | Azure SKU | `Standard_ND96isr_MI300X_v5` (8× MI300X per node) |
-| GPU | AMD Instinct MI300X, `gfx942` (CDNA 3), **192 GB HBM3e**, 5.3 TB/s |
+| GPU | AMD Instinct MI300X, `gfx942` (CDNA 3), **192 GB HBM3**, 5.3 TB/s max peak theoretical |
 | Nodes | 2 (VMSS, same placement group — IB guaranteed) |
 | Total GPU Memory | **16× 192 GB = 3,072 GB** |
 | InfiniBand | 8× CX7 400G NDR per node, measured **368 Gbps** per port |
@@ -200,7 +214,8 @@ Observed behavior:
 
 | Component | Version | Notes |
 |-----------|---------|-------|
-| Docker image | `rocm/sgl-dev:v0.5.11-rocm720-mi30x-20260510` | AMD 0510 build, SHA `bb9d2e5ab1a6` |
+| Validated runtime image | `mimomi300xacr.azurecr.io/mimo-v2.5-pro-mi300x@sha256:08deabd2f3a4e98e183944048730f560056b0e4dd724c06f74c368645a655910` | Private ACR; 37 layers; clean Docker pull verified |
+| Base image provenance | `rocm/sgl-dev:v0.5.11-rocm720-mi30x-20260510` | Base image ID `sha256:bb9d2e5ab1a6...` |
 | SGLang | Package `0.0.0.dev14147+g2f9b9aedf.d20260706`, source HEAD `2f9b9aedf` | Final tested runtime |
 | AITER | Source HEAD `00e94abf`; tuned CSV SHA-256 `2c87ff1...80ea7` | Final tested runtime |
 | ROCm | 7.2.0 | |
@@ -223,49 +238,183 @@ Observed behavior:
 
 ---
 
-## Reproduce Final Results
+## Running on Azure and Reproducing Final Results
 
-Use only [`scripts/amd-latest/`](scripts/amd-latest/). It contains the final 1P1D and DP=2 launch scripts, customer-facing benchmark points, and fail-closed validators.
+Use the immutable baked runtime below. It contains the tested SGLang/AITER source trees, Python/runtime deltas, tuned fused-MoE configuration, RDMA userspace stack, and [`scripts/amd-latest/`](scripts/amd-latest/) at `/opt/mimo-mi300x/scripts/amd-latest`.
 
 ### Prerequisites
 
 - 2× Azure `Standard_ND96isr_MI300X_v5` nodes (VMSS, same placement group for IB)
-- Docker image: `rocm/sgl-dev:v0.5.11-rocm720-mi30x-20260510` (SHA: `bb9d2e5ab1a6`)
+- Repository-scoped ACR pull username and password, supplied through a private channel
 - Model: [XiaomiMiMo/MiMo-V2.5-Pro](https://huggingface.co/XiaomiMiMo/MiMo-V2.5-Pro) downloaded to `/data/models/MiMo-V2.5-Pro`
-- Final runtime identifiers from [`data/validation/runtime-version.txt`](data/validation/runtime-version.txt)
+- Benchmark dataset available under `/data`; model weights and datasets are not included in the image
 - The PD-separated Decode container must expose RDMA devices, `/dev/mem`, and `CAP_SYS_ADMIN`
+
+### Pull and Start the Runtime — Both Nodes
+
+The container requires elevated host access for RDMA memory registration. Run it only on dedicated, trusted benchmark nodes.
+
+```bash
+export ACR_LOGIN_SERVER=mimomi300xacr.azurecr.io
+export IMAGE_REF='mimomi300xacr.azurecr.io/mimo-v2.5-pro-mi300x@sha256:08deabd2f3a4e98e183944048730f560056b0e4dd724c06f74c368645a655910'
+
+read -rp 'ACR pull username: ' ACR_USERNAME
+read -rsp 'ACR pull password: ' ACR_PASSWORD && printf '\n'
+printf '%s' "$ACR_PASSWORD" | docker login "$ACR_LOGIN_SERVER" \
+	--username "$ACR_USERNAME" --password-stdin
+docker pull "$IMAGE_REF"
+docker logout "$ACR_LOGIN_SERVER"
+unset ACR_USERNAME ACR_PASSWORD
+
+docker run -d --name mimo-mi300x \
+	--privileged --network=host --ipc=host --shm-size=256g \
+	--device=/dev/kfd --device=/dev/dri --device=/dev/mem \
+	--cap-add=CAP_SYS_ADMIN --cap-add=SYS_PTRACE \
+	--security-opt seccomp=unconfined --security-opt label=disable \
+	--group-add video -v /data:/data \
+	--entrypoint /bin/bash "$IMAGE_REF" -lc 'sleep infinity'
+
+docker exec mimo-mi300x bash -lc '
+	set -euo pipefail
+	test "$(git -C /sgl-workspace/sglang_0625 rev-parse HEAD)" = 2f9b9aedf32977bc5d088a86ec0a73bcf432a4d0
+	test "$(git -C /sgl-workspace/aiter_0625 rev-parse HEAD)" = 00e94abf15e1e09ab7cf481e989bca5d19a99b82
+	test "$(sha256sum /sgl-workspace/aiter_0625/aiter/configs/model_configs/mimo_v2_5_pro_b16_tuned_fmoe.csv | cut -d" " -f1)" = 2c87ff1fa062c73e1941962f8630a335ea1e39d2dbb5b0c2d4971bcd55880ea7
+	test -e /dev/infiniband/uverbs0
+	test -e /dev/mem
+	cd /opt/mimo-mi300x/scripts/amd-latest
+	sha256sum -c SHA256SUMS.txt
+'
+```
+
+The exact image identity and clean-pull evidence are in [`data/validation/container-image.json`](data/validation/container-image.json).
 
 ### 1P1D
 
 ```bash
-# Copy scripts/amd-latest/ to /data/mimo-amd-latest/ in both containers.
-cd /data/mimo-amd-latest
+# Enter the container on each node, then use the embedded bundle.
+docker exec -it mimo-mi300x bash
+cd /opt/mimo-mi300x/scripts/amd-latest
 export MODEL=/data/models/MiMo-V2.5-Pro
 export DATASET_PATH=/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json
-export PREFILL_IB_IP=<prefill-node-ib-ip>
-export DECODE_IB_IP=<decode-node-ib-ip>
+read -rp 'Prefill node IB IP: ' PREFILL_IB_IP
+read -rp 'Decode node IB IP: ' DECODE_IB_IP
+export PREFILL_IB_IP DECODE_IB_IP
 
-# Separate terminals:
+# Start workers in separate terminals on their respective nodes:
 bash launch_pd_prefill.sh
 bash launch_pd_decode.sh
+
+# Prefill node capacity gate:
+python3 validate_server_info.py http://127.0.0.1:30000/server_info \
+	--output /data/mimo-amd-latest/onep/evidence/prefill-server-info.json
+
+# Decode node capacity gate:
+python3 validate_server_info.py http://127.0.0.1:30001/server_info \
+	--output /data/mimo-amd-latest/onep/evidence/decode-server-info.json
+
+# After both capacity gates pass, start the router on the Prefill node:
 bash launch_pd_router.sh
 
-# After direct worker capacity validation:
+# Router readiness gate:
+curl -fsS --max-time 30 http://127.0.0.1:40000/v1/models >/dev/null
+
+# Run on the router node after all three gates pass:
 bash benchmark_1p_prefill.sh
 bash benchmark_decode.sh
+```
+
+After the run, copy the Decode node evidence to the router node so the three service logs and two `server-info.json` files are colocated, preserving the basenames below. Then run:
+
+```bash
+cd /opt/mimo-mi300x/scripts/amd-latest
+EVIDENCE=/data/mimo-amd-latest/onep/evidence
+
+python3 validate_service_logs.py \
+	"$EVIDENCE/prefill_outer.log" \
+	"$EVIDENCE/decode_outer.log" \
+	"$EVIDENCE/router_outer.log" \
+	--profile onep \
+	--output "$EVIDENCE/service-validation.json"
+
+python3 validate_exact_256k.py \
+	/data/mimo-amd-latest/onep/prefill/benchmark_262144_out1_con4.log \
+	--prefill-info "$EVIDENCE/prefill-server-info.json" \
+	--decode-info "$EVIDENCE/decode-server-info.json" \
+	--service-logs \
+		"$EVIDENCE/prefill_outer.log" \
+		"$EVIDENCE/decode_outer.log" \
+		"$EVIDENCE/router_outer.log" \
+	--output "$EVIDENCE/exact-token-256k.json"
 ```
 
 ### DP=2 Two-Node Prefill
 
 ```bash
-cd /data/mimo-amd-latest
+cd /opt/mimo-mi300x/scripts/amd-latest
 bash launch_dp2_node0.sh
 bash launch_dp2_node1.sh
-Node0_IP=<node0-ib-ip> Node1_IP=<node1-ib-ip> bash launch_dp2_router.sh
+
+# Validate node0 and node1 directly before starting the router:
+python3 validate_server_info.py http://127.0.0.1:30000/server_info \
+	--output /data/mimo-amd-latest/dp2/evidence/node0-server-info.json
+python3 validate_server_info.py http://127.0.0.1:30001/server_info \
+	--output /data/mimo-amd-latest/dp2/evidence/node1-server-info.json
+
+read -rp 'Node0 IB IP: ' Node0_IP
+read -rp 'Node1 IB IP: ' Node1_IP
+export Node0_IP Node1_IP
+bash launch_dp2_router.sh
+curl -fsS --max-time 30 http://127.0.0.1:40000/v1/models >/dev/null
 bash benchmark_dp2_prefill.sh
 ```
 
-See the bundle README for direct worker capacity and service-log validation commands.
+The convenience script above runs all three points. For reportable per-point distribution evidence, start fresh DP=2 services, capture `grep -c 'POST /generate'` from each worker log immediately before and after one `run_point`, then validate the four recorded integers. Repeat this sequence for 8K, 64K, and 256K:
+
+```bash
+cd /opt/mimo-mi300x/scripts/amd-latest
+export LOG_DIR=/data/mimo-amd-latest/dp2
+source ./benchmark_common.sh
+
+# Run one point at a time on node0 after recording both before-counts:
+run_point 8192 1 16 32 1 900 'Input token throughput'
+# run_point 65536 1 2 32 1 900 'Input token throughput'
+# run_point 262144 1 2 32 1 1200 'Input token throughput' token_ids
+
+# On node0 and node1, respectively, record before/after counts from:
+grep -c 'POST /generate' /data/mimo-amd-latest/dp2/service/node0_outer.log || true
+grep -c 'POST /generate' /data/mimo-amd-latest/dp2/service/node1_outer.log || true
+
+read -rp 'Node0 before count: ' NODE0_BEFORE
+read -rp 'Node0 after count: ' NODE0_AFTER
+read -rp 'Node1 before count: ' NODE1_BEFORE
+read -rp 'Node1 after count: ' NODE1_AFTER
+python3 write_distribution.py \
+	--node0-before "$NODE0_BEFORE" --node0-after "$NODE0_AFTER" \
+	--node1-before "$NODE1_BEFORE" --node1-after "$NODE1_AFTER" \
+	--expected-total 33 \
+	--output /data/mimo-amd-latest/dp2/benchmark_8192_out1_con16.distribution.tsv
+```
+
+After colocating the three DP=2 service logs, run:
+
+```bash
+cd /opt/mimo-mi300x/scripts/amd-latest
+EVIDENCE=/data/mimo-amd-latest/dp2/evidence
+python3 validate_service_logs.py \
+	"$EVIDENCE/node0_outer.log" \
+	"$EVIDENCE/node1_outer.log" \
+	"$EVIDENCE/router_outer.log" \
+	--profile dp2 \
+	--output "$EVIDENCE/service-validation.json"
+```
+
+A DP=2 point is reportable only when the client gate passes, both worker deltas are positive and sum to 33 requests (32 measured + 1 warmup), and the service-log gate passes.
+
+### Cleanup
+
+```bash
+docker rm -f mimo-mi300x
+```
 
 ---
 
@@ -281,6 +430,8 @@ See the bundle README for direct worker capacity and service-log validation comm
 
 ## References
 
+- [Azure ND-MI300X-v5 size series](https://learn.microsoft.com/azure/virtual-machines/sizes/gpu-accelerated/ndmi300xv5-series)
+- [AMD Instinct MI300X datasheet](https://www.amd.com/content/dam/amd/en/documents/instinct-tech-docs/data-sheets/amd-instinct-mi300x-data-sheet.pdf)
 - [MiMo-V2.5-Pro Model Card](https://huggingface.co/XiaomiMiMo/MiMo-V2.5-Pro)
 - [AMD SGLang Fork — `mimo_aiter_attn` branch](https://github.com/sammysun0711/sglang/tree/mimo_aiter_attn)
 - [AMD aiter (ROCm)](https://github.com/ROCm/aiter)
