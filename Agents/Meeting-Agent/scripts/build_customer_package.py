@@ -53,7 +53,7 @@ REQUIRED_FILES = {
     "README.md",
     "examples/meeting-record-stargate.json",
     "evidence/meeting-agent-demo-video.json",
-    "images/meeting-agent-demo-poster.png",
+    "images/meeting-agent-demo-preview.gif",
     "media/meeting-agent-demo-1.6x.mp4",
     "scripts/start-ui.ps1",
     "scripts/start-ui-key.ps1",

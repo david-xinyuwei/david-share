@@ -13,13 +13,11 @@
 
 ## 演示视频
 
-<video src="https://raw.githubusercontent.com/david-xinyuwei/david-share/master/Agents/Meeting-Agent/media/meeting-agent-demo-1.6x.mp4" controls width="100%" poster="images/meeting-agent-demo-poster.png"></video>
+[![播放 Meeting Agent 演示](images/meeting-agent-demo-preview.gif)](https://github.com/david-xinyuwei/david-share/raw/refs/heads/master/Agents/Meeting-Agent/media/meeting-agent-demo-1.6x.mp4?download=1)
 
-https://raw.githubusercontent.com/david-xinyuwei/david-share/master/Agents/Meeting-Agent/media/meeting-agent-demo-1.6x.mp4
+[下载或播放全分辨率H.264 MP4](https://github.com/david-xinyuwei/david-share/raw/refs/heads/master/Agents/Meeting-Agent/media/meeting-agent-demo-1.6x.mp4?download=1)
 
-[![播放 Meeting Agent 演示](images/meeting-agent-demo-poster.png)](media/meeting-agent-demo-1.6x.mp4)
-
-*全分辨率`2392x1500`操作演示，播放速度为原视频的`1.6x`。H.264成品保留全部3,860帧；实测SSIM为`0.99966`、PSNR为`56.17 dB`。[查看验证证据](evidence/meeting-agent-demo-video.json)。*
+*上方动画预览展示操作视频的前12秒。完整视频保持`2392x1500`分辨率并以原视频的`1.6x`速度播放，保留全部3,860帧；实测SSIM为`0.99966`、PSNR为`56.17 dB`。[查看验证证据](evidence/meeting-agent-demo-video.json)。*
 
 ## 执行摘要
 

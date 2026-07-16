@@ -59,7 +59,7 @@ def main() -> int:
     assert template_path.is_file() and template_path.stat().st_size > 20_000
     assert (ROOT / "examples" / "meeting-record-foundry-workshop.json").is_file()
     assert (ROOT / "media" / "meeting-agent-demo-1.6x.mp4").stat().st_size > 20_000_000
-    assert (ROOT / "images" / "meeting-agent-demo-poster.png").is_file()
+    assert (ROOT / "images" / "meeting-agent-demo-preview.gif").stat().st_size < 10_000_000
     assert (ROOT / "evidence" / "meeting-agent-demo-video.json").is_file()
 
     package = json.loads((ROOT / "ui" / "package.json").read_text(encoding="utf-8"))
@@ -89,7 +89,7 @@ def main() -> int:
             for step in web_steps
         )
         assert "working-directory: Agents/Meeting-Agent" in workflow
-        assert "lfs: true" not in workflow
+        assert workflow.count("lfs: true") == 2
         assert "persist-credentials: false" not in workflow
         assert "python scripts/audit_no_send.py" in workflow
         assert "python scripts/audit_public_content.py" in workflow
@@ -106,7 +106,7 @@ def main() -> int:
             "CUSTOMER-START-HERE.md",
             "CUSTOMER-START-HERE-CN.md",
             "evidence/meeting-agent-demo-video.json",
-            "images/meeting-agent-demo-poster.png",
+            "images/meeting-agent-demo-preview.gif",
             "media/meeting-agent-demo-1.6x.mp4",
             "scripts/start-ui.ps1",
             "scripts/start-ui-key.ps1",

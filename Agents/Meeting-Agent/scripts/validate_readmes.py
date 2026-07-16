@@ -10,7 +10,7 @@ from PIL import Image, ImageStat
 ROOT = Path(__file__).resolve().parents[1]
 README_PATHS = (ROOT / "README.md", ROOT / "README-CN.md")
 EXPECTED_IMAGES = [
-    "images/meeting-agent-demo-poster.png",
+    "images/meeting-agent-demo-preview.gif",
     "images/meeting-agent-architecture.svg",
     "images/meeting-agent-ui.png",
     "evidence/sample-runs/product-planning/mind-map.png",
@@ -122,11 +122,16 @@ def main() -> int:
     )
     assert all(variance > 100 for variance in ImageStat.Stat(ui_screenshot).var)
 
-    poster = Image.open(
-        ROOT / "images" / "meeting-agent-demo-poster.png"
-    ).convert("RGB")
-    assert poster.size == (2392, 1500)
-    assert all(variance > 100 for variance in ImageStat.Stat(poster).var)
+    preview_path = ROOT / "images" / "meeting-agent-demo-preview.gif"
+    with Image.open(preview_path) as preview:
+        assert preview.size == (960, 602)
+        assert getattr(preview, "n_frames", 1) == 96
+        preview.seek(40)
+        assert all(
+            variance > 100
+            for variance in ImageStat.Stat(preview.convert("RGB")).var
+        )
+    assert preview_path.stat().st_size < 10_000_000
 
     screenshot = Image.open(ROOT / EXPECTED_IMAGES[-1]).convert("RGB")
     assert screenshot.size == (1721, 940)
