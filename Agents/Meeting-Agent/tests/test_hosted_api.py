@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 from datetime import UTC, datetime
 
@@ -61,6 +62,39 @@ def test_invocations_builds_real_session_artifacts(monkeypatch, tmp_path):
     assert (tmp_path / body["artifacts"]["eml"]["path"]).is_file()
 
 
+def test_streaming_invocation_emits_real_completed_stages(monkeypatch, tmp_path):
+    monkeypatch.setenv("MEETING_AGENT_ANALYZER", "offline-contract")
+    monkeypatch.setenv("MEETING_AGENT_ENABLE_OFFLINE_CONTRACT", "1")
+    monkeypatch.setenv("MEETING_AGENT_SESSION_HOME", str(tmp_path))
+    hosted._get_analyzer.cache_clear()
+
+    response = _post(
+        "/invocations_stream?agent_session_id=stream-session-1",
+        _request(),
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/x-ndjson")
+    events = _ndjson_events(response.text)
+    assert [event for event, _ in events] == [
+        "accepted",
+        "analysis_started",
+        "analysis_ready",
+        "mind_map_ready",
+        "presentation_ready",
+        "complete",
+    ]
+    analysis = events[2][1]
+    assert analysis["mermaid"].startswith("mindmap\n")
+    mind_map = events[3][1]["artifacts"]
+    assert (tmp_path / mind_map["mind_map_mermaid"]["path"]).is_file()
+    presentation = events[4][1]["artifact"]
+    assert (tmp_path / presentation["path"]).is_file()
+    run = events[-1][1]["run"]
+    assert run["agent_session_id"] == "stream-session-1"
+    assert (tmp_path / run["artifacts"]["eml"]["path"]).is_file()
+
+
 def test_offline_contract_must_be_explicitly_enabled(monkeypatch, tmp_path):
     monkeypatch.setenv("MEETING_AGENT_ANALYZER", "offline-contract")
     monkeypatch.delenv("MEETING_AGENT_ENABLE_OFFLINE_CONTRACT", raising=False)
@@ -101,3 +135,10 @@ def test_main_rejects_invalid_port(monkeypatch):
         assert str(error) == "PORT must be an integer"
     else:
         raise AssertionError("hosted.main() accepted an invalid PORT")
+
+
+def _ndjson_events(value: str) -> list[tuple[str, dict[str, object]]]:
+    return [
+        (event["type"], event["data"])
+        for event in (json.loads(line) for line in value.splitlines() if line)
+    ]

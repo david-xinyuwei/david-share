@@ -1,40 +1,51 @@
 import {
   AlertCircle,
   CheckCircle2,
+  Circle,
+  ClipboardCopy,
   Download,
+  FileCode2,
   FileJson,
   FileText,
+  ImageDown,
   MailOpen,
   Network,
+  LoaderCircle,
   Presentation,
   RefreshCw,
   Sparkles,
   Upload,
 } from "lucide-react";
-import mermaid from "mermaid";
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 
-import { artifactUrl, createRun, getConfig, openOutlook } from "./api";
+import {
+  artifactUrlFor,
+  createRunStream,
+  getConfig,
+  openOutlook,
+} from "./api";
 import { jsonlEvents, meetingRecordEvents, recipients, transcriptEvents } from "./input";
-import type { MeetingRun, UiConfig } from "./types";
+import {
+  mindMapRichText,
+} from "./mind-map-export";
+import type {
+  HostedArtifact,
+  MeetingAnalysis,
+  MeetingRun,
+  RunStreamEvent,
+  StreamAccepted,
+  UiConfig,
+} from "./types";
 
 type InputMode = "meeting" | "provider" | "transcript";
-
-mermaid.initialize({
-  startOnLoad: false,
-  securityLevel: "strict",
-  theme: "base",
-  themeVariables: {
-    primaryColor: "#b11f4b",
-    primaryTextColor: "#ffffff",
-    primaryBorderColor: "#8e173c",
-    secondaryColor: "#dceced",
-    secondaryTextColor: "#242424",
-    tertiaryColor: "#f7f4ef",
-    lineColor: "#6f6f6f",
-    fontFamily: "Aptos, Segoe UI, sans-serif",
-  },
-});
+type StreamStage =
+  | "idle"
+  | "accepted"
+  | "analysis_started"
+  | "analysis_ready"
+  | "mind_map_ready"
+  | "presentation_ready"
+  | "complete";
 
 export default function App() {
   const [config, setConfig] = useState<UiConfig | null>(null);
@@ -45,6 +56,12 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [messageKind, setMessageKind] = useState<"success" | "error">("success");
+  const [streamStage, setStreamStage] = useState<StreamStage>("idle");
+  const [streamText, setStreamText] = useState("");
+  const [streamMeta, setStreamMeta] = useState<StreamAccepted | null>(null);
+  const [streamAnalysis, setStreamAnalysis] = useState<MeetingAnalysis | null>(null);
+  const [streamArtifacts, setStreamArtifacts] = useState<Record<string, HostedArtifact>>({});
+  const activeRequest = useRef<AbortController | null>(null);
 
   useEffect(() => {
     getConfig().then(setConfig).catch((error: Error) => show(error.message, "error"));
@@ -57,7 +74,14 @@ export default function App() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    const controller = new AbortController();
+    activeRequest.current = controller;
     setMessage(null);
+    setStreamStage("idle");
+    setStreamText("");
+    setStreamMeta(null);
+    setStreamAnalysis(null);
+    setStreamArtifacts({});
     setBusy(true);
     try {
       const events =
@@ -66,13 +90,57 @@ export default function App() {
           : mode === "meeting"
             ? meetingRecordEvents(input)
             : jsonlEvents(input);
-      const result = await createRun(events, recipients(recipientInput));
+      const result = await createRunStream(
+        events,
+        recipients(recipientInput),
+        handleStreamEvent,
+        controller.signal,
+      );
       setRun(result);
       show("Meeting artifacts are ready for review.", "success");
     } catch (error) {
       show(error instanceof Error ? error.message : "The meeting request failed.", "error");
     } finally {
-      setBusy(false);
+      if (activeRequest.current === controller) {
+        activeRequest.current = null;
+        setBusy(false);
+      }
+    }
+  }
+
+  function handleStreamEvent(event: RunStreamEvent) {
+    switch (event.type) {
+      case "accepted":
+        setRun(null);
+        setStreamMeta(event.data);
+        setStreamStage("accepted");
+        break;
+      case "analysis_started":
+        setStreamStage("analysis_started");
+        break;
+      case "model_delta":
+        setStreamText((value) => value + event.data.delta);
+        break;
+      case "analysis_ready":
+        setStreamAnalysis(event.data.analysis);
+        setStreamStage("analysis_ready");
+        break;
+      case "mind_map_ready":
+        setStreamArtifacts((value) => ({ ...value, ...event.data.artifacts }));
+        setStreamStage("mind_map_ready");
+        break;
+      case "presentation_ready":
+        setStreamArtifacts((value) => ({ ...value, presentation: event.data.artifact }));
+        setStreamStage("presentation_ready");
+        break;
+      case "complete":
+        setRun(event.data.run);
+        setStreamAnalysis(event.data.run.analysis);
+        setStreamArtifacts(event.data.run.artifacts);
+        setStreamStage("complete");
+        break;
+      case "error":
+        break;
     }
   }
 
@@ -81,7 +149,13 @@ export default function App() {
     if (!file) return;
     setMode(file.name.toLowerCase().endsWith(".json") ? "meeting" : "provider");
     setInput(await file.text());
+    activeRequest.current?.abort();
     setRun(null);
+    setStreamStage("idle");
+    setStreamText("");
+    setStreamMeta(null);
+    setStreamAnalysis(null);
+    setStreamArtifacts({});
     setMessage(null);
     event.target.value = "";
   }
@@ -96,18 +170,61 @@ export default function App() {
     }
   }
 
+  async function copyMindMap() {
+    if (!activeAnalysis) return;
+    const payload = mindMapRichText(activeAnalysis.mind_map);
+    try {
+      if (navigator.clipboard.write && typeof ClipboardItem !== "undefined") {
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            "text/html": new Blob([payload.html], { type: "text/html" }),
+            "text/plain": new Blob([payload.text], { type: "text/plain" }),
+          }),
+        ]);
+      } else {
+        await navigator.clipboard.writeText(payload.text);
+      }
+      show("Mind map rich text copied to the clipboard.", "success");
+    } catch {
+      show("The browser could not copy the mind map to the clipboard.", "error");
+    }
+  }
+
   function reset() {
+    activeRequest.current?.abort();
+    activeRequest.current = null;
     setInput("");
     setRecipientInput("");
     setRun(null);
+    setBusy(false);
+    setStreamStage("idle");
+    setStreamText("");
+    setStreamMeta(null);
+    setStreamAnalysis(null);
+    setStreamArtifacts({});
     setMessage(null);
   }
 
-  const mindMap = run ? artifactUrl(run, "mind_map_png") : null;
-  const mindMapMermaid = run ? artifactUrl(run, "mind_map_mermaid") : null;
-  const presentation = run ? artifactUrl(run, "presentation") : null;
-  const eml = run ? artifactUrl(run, "eml") : null;
-  const analysisJson = run ? artifactUrl(run, "analysis") : null;
+  const activeAnalysis = run?.analysis || streamAnalysis;
+  const activeMeta = run
+    ? {
+        run_id: run.run_id,
+        session_id: run.session_id,
+        agent_session_id: run.agent_session_id,
+        source_sha256: run.source_sha256,
+        event_count: 0,
+      }
+    : streamMeta;
+  const activeArtifacts = run?.artifacts || streamArtifacts;
+  const artifact = (name: string) => {
+    const item = activeArtifacts[name];
+    return activeMeta && item ? artifactUrlFor(activeMeta.agent_session_id, item) : null;
+  };
+  const mindMap = artifact("mind_map_png");
+  const mindMapMermaid = artifact("mind_map_mermaid");
+  const presentation = artifact("presentation");
+  const eml = artifact("eml");
+  const analysisJson = artifact("analysis");
 
   return (
     <div className="app-shell">
@@ -118,7 +235,7 @@ export default function App() {
             <h1>Meeting Agent</h1>
             <p>
               {config?.mode === "aoai"
-                ? `${config.model_name} · reasoning ${config.reasoning_effort}`
+                ? `${config.model_name} · reasoning ${config.reasoning_effort} · ${config.authentication} auth`
                 : config?.agent_name || "Connecting"}
             </p>
           </div>
@@ -131,7 +248,7 @@ export default function App() {
               ? "Azure OpenAI Responses API"
               : config.mode === "local"
                 ? "Offline contract test"
-                : "Microsoft Foundry"}
+                : "Meeting Agent"}
         </div>
       </header>
 
@@ -168,14 +285,14 @@ export default function App() {
                 className={mode === "transcript" ? "selected" : ""}
                 onClick={() => setMode("transcript")}
               >
-                <FileText size={16} /> Transcript
+                <FileText size={16} /> Transcript TXT
               </button>
               <button
                 type="button"
                 className={mode === "provider" ? "selected" : ""}
                 onClick={() => setMode("provider")}
               >
-                <FileJson size={16} /> Provider JSONL
+                <FileJson size={16} /> ASR JSONL
               </button>
               <button
                 type="button"
@@ -191,7 +308,7 @@ export default function App() {
                 ? "Final transcript"
                 : mode === "meeting"
                   ? "Structured meeting record"
-                  : "Provider event stream"}
+                  : "Normalized ASR event stream"}
             </label>
             <textarea
               id="meeting-input"
@@ -210,7 +327,7 @@ export default function App() {
 
             <div className="upload-row">
               <label className="secondary-button" htmlFor="jsonl-upload">
-                <Upload size={16} /> Upload JSONL
+                <Upload size={16} /> Upload JSON / JSONL
               </label>
               <input id="jsonl-upload" className="file-input" type="file" accept=".json,.jsonl,application/json,text/plain" onChange={upload} />
               <span>{input ? `${input.length.toLocaleString()} characters` : "No input loaded"}</span>
@@ -227,14 +344,18 @@ export default function App() {
             />
 
             <button className="primary-button" type="submit" disabled={busy || !input.trim()}>
-              <Sparkles size={17} />
+              {busy ? (
+                <LoaderCircle className="stream-spinner" size={17} />
+              ) : (
+                <Sparkles size={17} />
+              )}
               {busy ? "Agent request in progress" : "Generate meeting package"}
             </button>
           </form>
         </section>
 
         <section className="result-panel" aria-live="polite">
-          {!run ? (
+          {!activeAnalysis && !busy && !activeMeta ? (
             <div className="empty-state">
               <span aria-hidden="true"><Sparkles size={30} /></span>
               <h2>Meeting package</h2>
@@ -242,54 +363,90 @@ export default function App() {
             </div>
           ) : (
             <>
-              <div className="result-heading">
-                <div>
-                  <p className="eyebrow">Analysis</p>
-                  <h2>{run.analysis.title}</h2>
-                </div>
-                <span className="run-id">Run {run.run_id.slice(0, 10)}</span>
-              </div>
+              {streamStage !== "idle" && (
+                <StreamProgress stage={streamStage} output={streamText} />
+              )}
 
-              {mindMap &&
-                (mindMapMermaid ? (
-                  <MermaidMindMap
-                    sourceUrl={mindMapMermaid}
-                    fallbackUrl={mindMap}
-                    title={run.analysis.title}
-                  />
-                ) : (
-                  <figure className="mind-map">
-                    <img src={mindMap} alt={`Mind map for ${run.analysis.title}`} />
-                  </figure>
-                ))}
+              {activeAnalysis && (
+                <>
+                  <div className="result-heading">
+                    <div>
+                      <p className="eyebrow">Analysis</p>
+                      <h2>{activeAnalysis.title}</h2>
+                    </div>
+                    {activeMeta && (
+                      <span className="run-id">Run {activeMeta.run_id.slice(0, 10)}</span>
+                    )}
+                  </div>
 
-              <p className="summary">{run.analysis.summary}</p>
-
-              <div className="analysis-grid">
-                <ResultList title="Decisions" items={run.analysis.decisions} />
-                <ResultList
-                  title="Action items"
-                  items={run.analysis.action_items.map((item) =>
-                    [item.description, item.owner, item.due].filter(Boolean).join(" · "),
+                  {mindMap && (
+                    <figure className="mind-map">
+                      <img src={mindMap} alt={`Mind map for ${activeAnalysis.title}`} />
+                    </figure>
                   )}
-                />
-                <ResultList title="Topics" items={run.analysis.topics} />
-                <ResultList title="Open questions" items={run.analysis.open_questions} />
-              </div>
 
-              <div className="artifact-bar">
-                {presentation && <ArtifactLink href={presentation} icon={<Presentation size={17} />} label="PowerPoint" />}
-                {eml && <ArtifactLink href={eml} icon={<MailOpen size={17} />} label="EML draft" />}
-                {analysisJson && <ArtifactLink href={analysisJson} icon={<FileJson size={17} />} label="Analysis JSON" />}
-                <button className="outlook-button" type="button" onClick={openDraft} disabled={!config?.outlook_available}>
-                  <MailOpen size={17} /> Open Outlook draft
-                </button>
-              </div>
+                  {mindMap && (
+                    <div className="mind-map-actions" aria-label="Mind map exports">
+                      <button
+                        className="mind-map-action"
+                        type="button"
+                        onClick={copyMindMap}
+                        title="Copy an indented rich-text outline"
+                      >
+                        <ClipboardCopy size={17} /> Copy rich text
+                      </button>
+                      <a
+                        className="mind-map-action"
+                        href={mindMap}
+                        download="meeting-mind-map.png"
+                        title="Save the displayed card-layout mind map as a PNG image"
+                      >
+                        <ImageDown size={17} /> Save PNG
+                      </a>
+                      {mindMapMermaid && (
+                        <a
+                          className="mind-map-action"
+                          href={mindMapMermaid}
+                          download="meeting-mind-map.mmd"
+                          title="Download the renderer-neutral Mermaid source"
+                        >
+                          <FileCode2 size={17} /> Mermaid source
+                        </a>
+                      )}
+                    </div>
+                  )}
 
-              <div className="manual-send-boundary">
-                <CheckCircle2 size={17} />
-                <span>Draft only. New Outlook requires a human review and manual send.</span>
-              </div>
+                  <p className="summary">{activeAnalysis.summary}</p>
+
+                  <div className="analysis-grid">
+                    <ResultList title="Decisions" items={activeAnalysis.decisions} />
+                    <ResultList
+                      title="Action items"
+                      items={activeAnalysis.action_items.map((item) =>
+                        [item.description, item.owner, item.due].filter(Boolean).join(" · "),
+                      )}
+                    />
+                    <ResultList title="Topics" items={activeAnalysis.topics} />
+                    <ResultList title="Open questions" items={activeAnalysis.open_questions} />
+                  </div>
+
+                  <div className="artifact-bar">
+                    {presentation && <ArtifactLink href={presentation} icon={<Presentation size={17} />} label="PowerPoint" />}
+                    {eml && <ArtifactLink href={eml} icon={<MailOpen size={17} />} label="EML draft" />}
+                    {analysisJson && <ArtifactLink href={analysisJson} icon={<FileJson size={17} />} label="Analysis JSON" />}
+                    {run && (
+                      <button className="outlook-button" type="button" onClick={openDraft} disabled={!config?.outlook_available}>
+                        <MailOpen size={17} /> Open Outlook draft
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="manual-send-boundary">
+                    <CheckCircle2 size={17} />
+                    <span>Draft only. New Outlook requires a human review and manual send.</span>
+                  </div>
+                </>
+              )}
             </>
           )}
         </section>
@@ -299,47 +456,75 @@ export default function App() {
   );
 }
 
-function MermaidMindMap({
-  sourceUrl,
-  fallbackUrl,
-  title,
-}: {
-  sourceUrl: string;
-  fallbackUrl: string;
-  title: string;
-}) {
-  const container = useRef<HTMLDivElement>(null);
-  const [failed, setFailed] = useState(false);
+const STREAM_STEPS = [
+  "Input validated and run created",
+  "GPT-5.4 structured response streaming",
+  "Structured analysis ready",
+  "Mind map files ready",
+  "PowerPoint ready",
+  "Draft and evidence ready",
+] as const;
 
-  useEffect(() => {
-    let cancelled = false;
-    setFailed(false);
-    async function render() {
-      const response = await fetch(sourceUrl, { signal: AbortSignal.timeout(30_000) });
-      if (!response.ok) throw new Error(`Mind map source returned HTTP ${response.status}.`);
-      const definition = await response.text();
-      const node = container.current;
-      if (cancelled || !node) return;
-      node.removeAttribute("data-processed");
-      node.textContent = definition;
-      await mermaid.run({ nodes: [node], suppressErrors: false });
-    }
-    render().catch(() => {
-      if (!cancelled) setFailed(true);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [sourceUrl]);
+const COMPLETED_STEP: Record<StreamStage, number> = {
+  idle: -1,
+  accepted: 0,
+  analysis_started: 0,
+  analysis_ready: 2,
+  mind_map_ready: 3,
+  presentation_ready: 4,
+  complete: 5,
+};
 
+const ACTIVE_STEP: Partial<Record<StreamStage, number>> = {
+  accepted: 1,
+  analysis_started: 1,
+  analysis_ready: 3,
+  mind_map_ready: 4,
+  presentation_ready: 5,
+};
+
+function StreamProgress({ stage, output }: { stage: StreamStage; output: string }) {
+  const completed = COMPLETED_STEP[stage];
+  const active = ACTIVE_STEP[stage];
+  const finished = stage === "complete";
   return (
-    <figure className="mind-map">
-      {failed ? (
-        <img src={fallbackUrl} alt={`Mind map for ${title}`} />
-      ) : (
-        <div ref={container} className="mermaid" role="img" aria-label={`Mind map for ${title}`} />
+    <section className="stream-progress" data-stream-stage={stage} aria-label="Generation progress">
+      <div className="stream-progress-heading">
+        {finished ? (
+          <CheckCircle2 size={20} aria-hidden="true" />
+        ) : (
+          <LoaderCircle className="stream-spinner" size={20} aria-hidden="true" />
+        )}
+        <div>
+          <p className="eyebrow">Generation trace</p>
+          <h2>{finished ? "Meeting package completed" : "Building the meeting package"}</h2>
+        </div>
+      </div>
+      <ol className="stream-steps">
+        {STREAM_STEPS.map((label, index) => {
+          const done = index <= completed;
+          const current = index === active;
+          return (
+            <li key={label} className={done ? "done" : current ? "active" : "pending"}>
+              {done ? (
+                <CheckCircle2 size={16} aria-hidden="true" />
+              ) : current ? (
+                <LoaderCircle className="stream-spinner" size={16} aria-hidden="true" />
+              ) : (
+                <Circle size={16} aria-hidden="true" />
+              )}
+              <span>{label}</span>
+            </li>
+          );
+        })}
+      </ol>
+      {(stage === "analysis_started" || output) && (
+        <div className="stream-output">
+          <div className="stream-output-label">GPT-5.4 output stream</div>
+          <pre>{output || "Waiting for the first model token..."}</pre>
+        </div>
       )}
-    </figure>
+    </section>
   );
 }
 

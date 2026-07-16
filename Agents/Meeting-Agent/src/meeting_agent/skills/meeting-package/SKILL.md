@@ -39,6 +39,9 @@ Keep individual topic, decision, action, and question strings below 140 characte
 
 - Use the meeting title as the root.
 - Create 3-6 meaningful first-level branches, selected from themes such as outcomes, decisions, actions, risks, and questions.
+- For a detailed project or architecture meeting, prefer 5-6 distinct branches with 2-4 leaves each when the evidence supports them.
+- Preserve meaningful trade-offs such as on-device versus cloud processing, automation versus human review, and target versus measured result.
+- When present in the evidence, separate user scenarios, workflow or architecture, privacy controls, success metrics, risks, and owner actions instead of collapsing them into generic topics.
 - Add 1-4 concise evidence-backed leaves per branch.
 - Do not create empty branches.
 - Keep node labels short enough for presentation rendering, ideally under 60 characters.

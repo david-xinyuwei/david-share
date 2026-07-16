@@ -2,12 +2,9 @@ from datetime import UTC, datetime
 from email import policy
 from email.parser import BytesParser
 
-import pytest
-from filelock import FileLock
-
 from meeting_agent.analyzers import OfflineContractAnalyzer
 from meeting_agent.hosted_models import HostedMeetingRequest
-from meeting_agent.hosted_pipeline import build_hosted_run
+from meeting_agent.hosted_pipeline import build_hosted_run, stream_hosted_run
 from meeting_agent.models import MeetingEvent, MeetingEventKind
 
 
@@ -59,17 +56,70 @@ def test_hosted_run_generates_session_downloads(tmp_path):
     assert len(list(message.iter_attachments())) == 2
 
     repeated = build_hosted_run(request, tmp_path, OfflineContractAnalyzer())
-    assert repeated.run_id == response.run_id
+    assert repeated.run_id != response.run_id
     assert repeated.source_sha256 == response.source_sha256
+    assert repeated.artifacts["analysis"].path != response.artifacts["analysis"].path
+    assert (tmp_path / response.artifacts["analysis"].path).is_file()
+    assert (tmp_path / repeated.artifacts["analysis"].path).is_file()
 
 
-def test_same_run_fails_closed_while_generation_lock_is_held(tmp_path):
+def test_run_id_keeps_source_prefix_and_unique_nonce(tmp_path):
     request = _request()
-    response = build_hosted_run(request, tmp_path, OfflineContractAnalyzer())
-    lock_path = tmp_path / "artifacts" / response.run_id / ".meeting-agent.lock"
+    first = build_hosted_run(request, tmp_path, OfflineContractAnalyzer())
+    second = build_hosted_run(request, tmp_path, OfflineContractAnalyzer())
 
-    with (
-        FileLock(str(lock_path), timeout=0),
-        pytest.raises(RuntimeError, match="meeting run is already in progress"),
-    ):
-        build_hosted_run(request, tmp_path, OfflineContractAnalyzer())
+    assert first.run_id[:8] == first.source_sha256[:8]
+    assert second.run_id[:8] == second.source_sha256[:8]
+    assert len(first.run_id) == 24
+    assert first.run_id != second.run_id
+
+
+def test_streaming_run_emits_only_completed_stages(tmp_path):
+    class StreamingContractAnalyzer(OfflineContractAnalyzer):
+        def analyze_stream(self, session, on_delta):
+            on_delta('{"title":"')
+            on_delta('The group approved the plan"}')
+            return self.analyze(session), "resp_test_123"
+
+    events: list[tuple[str, dict[str, object]]] = []
+
+    def capture(event: str, data: dict[str, object]) -> None:
+        if event == "mind_map_ready":
+            artifacts = data["artifacts"]
+            assert isinstance(artifacts, dict)
+            for artifact in artifacts.values():
+                assert isinstance(artifact, dict)
+                assert (tmp_path / str(artifact["path"])).is_file()
+        if event == "presentation_ready":
+            artifact = data["artifact"]
+            assert isinstance(artifact, dict)
+            assert (tmp_path / str(artifact["path"])).is_file()
+        events.append((event, data))
+
+    response = stream_hosted_run(
+        _request(),
+        tmp_path,
+        StreamingContractAnalyzer(),
+        capture,
+        agent_session_id="stream-session",
+        invocation_id="stream-invocation",
+    )
+
+    assert [name for name, _ in events] == [
+        "accepted",
+        "analysis_started",
+        "model_delta",
+        "model_delta",
+        "analysis_ready",
+        "mind_map_ready",
+        "presentation_ready",
+        "complete",
+    ]
+    assert events[2][1]["delta"] == '{"title":"'
+    assert events[4][1]["model_response_id"] == "resp_test_123"
+    assert events[-1][1]["run"]["run_id"] == response.run_id
+    assert response.agent_session_id == "stream-session"
+    evidence = (
+        tmp_path / "artifacts" / response.run_id / "evidence.json"
+    ).read_text(encoding="utf-8")
+    assert '"model_response_id": "resp_test_123"' in evidence

@@ -15,9 +15,11 @@
 
 客户主路径是本机浏览器工作区，而不是 Python 命令行。转写、结构化会议 JSON 或视觉适配器会转换成严格会议事件；本机 Python backend 使用 GPT-5.4 Responses API 结构化输出和 Medium reasoning，生成可追溯产物，并让 Windows UI 在 New Outlook 中打开 EML 草稿供人工审阅。
 
+生成过程使用有限 NDJSON 响应流。UI 先显示真实 `response.output_text.delta` 内容，随后仅在对应 backend 阶段实际完成后，依次开放结构化分析、Mermaid 思维图、PowerPoint 和 EML。实现中不使用 timer、打字机模拟、固定进度百分比或合成流事件。
+
 | 结果 | 已实现行为 | 验证 |
 |---|---|---|
-| 浏览器体验 | 转写/JSONL 输入、分析审阅、思维导图预览和产物下载 | Playwright 桌面/移动端 E2E |
+| 浏览器体验 | Transcript TXT、标准化 ASR JSONL 或 Meeting JSON 输入；卡片式思维图预览；复制富文本；下载同图 PNG 和 Mermaid 源码 | Playwright 桌面/移动端 E2E |
 | 本机运行时 | 带严格 Pydantic 校验的 loopback Python artifact backend | `tests/test_hosted_api.py` |
 | 会议分析 | GPT-5.4 Responses API、结构化输出、reasoning `medium`、`store=False` | `tests/test_azure_analyzer.py`、运行时 HTTP 日志 |
 | Session 产物 | 受管 `$HOME` 下的 JSON、SVG、PNG、可编辑 PPTX、HTML/纯文本 EML | `tests/test_hosted_pipeline.py` |
@@ -29,9 +31,9 @@
 | 能力 | 本仓库实际执行 | 证据 | 边界 |
 |---|---|---|---|
 | 浏览器 UI | 通过 loopback BFF 调用本机 artifact backend 并渲染真实返回产物 | 浏览器 E2E 和 Node 测试 | 当前版本在本地运行，不是公开云端网站 |
-| AOAI 运行时 | 通过 Entra 认证调用 `https://<resource>.openai.azure.com/openai/v1/responses` | Responses API 200 日志和 SDK 契约测试 | 可选 Hosted adapter 仅保留兼容性，不是客户主路径 |
-| 事件接入 | 校验、排序、去重并计算 JSONL 事件 hash | 单元测试和两份样例事件流 | 采集传输由适配器提供 |
-| 转写处理 | 生成产物时只使用 `transcript.final` | `tests/test_session.py` | 本仓库不执行 ASR 推理 |
+| AOAI 运行时 | 通过API Key认证调用`https://<resource>.openai.azure.com/openai/v1/responses` | Key认证Responses API 200日志和SDK契约测试 | 资源必须满足`disableLocalAuth=false` |
+| 事件接入 | 校验、排序、去重并计算标准化 ASR JSONL 事件 hash | 单元测试和两份样例事件流 | 采集传输由适配器提供 |
+| 转写处理 | 生成产物时只使用 `transcript.final` | `tests/test_session.py` | Embedded Speech 返回内存识别结果，由适配器映射为 JSONL |
 | 视觉上下文 | 接受视觉摘要和可选 `image_uri` | 事件 schema 测试 | 屏幕捕获和图片理解属于视觉适配器 |
 | GPT-5.4 分析 | 加载 meeting-package skill，使用 Pydantic 结构化输出、Medium reasoning 和 `store=False` | SDK 契约与真实 AOAI response | 不会静默 fallback 到离线输出 |
 | 离线分析 | 为 CI 和集成测试生成确定性结构化分析 | 两份内容显著不同的已提交运行 | 不是 AI 质量替代品，也不是生产 fallback |
@@ -39,7 +41,9 @@
 | New Outlook | 打开包含真实附件的可编辑 EML 草稿 | 脱敏 Windows 实测证据 | UI 按钮或 `--open-outlook` 需要 Windows 和 New Outlook |
 | 邮件传输 | 不发送邮件 | 每个 CI job 执行静态审计 | 用户审阅后手动点击 Send |
 
-已提交的样例产物使用显式 `offline-contract` 模式，以便 CI 确定性复验。Live 验证使用本机 Windows UI 和 full GPT-5.4 Responses API：结构化会议 JSON 会生成有依据的分析、Mermaid SVG、六页可编辑 PPTX，以及含两个附件的 EML。这是功能证据，不是生产认证或模型质量 benchmark。脱敏 Outlook probe 仅验证 Windows 草稿交接。
+已提交的样例产物使用显式 `offline-contract` 模式，以便 CI 确定性复验。Live 验证使用本机 Windows UI 和 full GPT-5.4 Responses API：结构化会议 JSON 会生成有依据的分析；页面、PNG 下载和 Outlook 草稿正文共用同一张卡片式思维图，同时保留 renderer-neutral Mermaid 源码；另生成六页可编辑 PPTX，以及含两个附件的 EML。这是功能证据，不是生产认证或模型质量 benchmark。脱敏 Outlook probe 仅验证 Windows 草稿交接。
+
+[真实Runtime Differential证据](evidence/aoai-runtime-differential.json)记录了两份内容显著不同的真实Responses API输入；它们的source、标题、analysis、卡片PNG、PPTX和EML hash均不同；response ID在本机完成核验，但不会进入公开记录。
 
 ## 架构
 
@@ -120,59 +124,61 @@
 |---|---|
 | `meeting-analysis.json` | 完整结构化分析 |
 | `mind-map.json` | 与渲染器解耦的图结构 |
-| `mind-map.svg` | 可缩放浏览器渲染 |
-| `mind-map.png` | 适合邮件的位图 |
+| `mind-map.svg` | 可缩放的六卡片布局 |
+| `mind-map.png` | 页面、下载、PPTX 和邮件共用的六卡片位图 |
 | `meeting-summary.pptx` | 可编辑的六页模板化演示文稿 |
-| `meeting-follow-up.eml` | 带 PNG 和 PPTX 附件的未发送 MIME 草稿 |
+| `meeting-follow-up.eml` | 正文内嵌卡片图且带 PNG/PPTX 附件的未发送 MIME 草稿 |
 | `evidence.json` | 来源和产物大小/hash manifest |
 
 ## 快速开始
 
 ### 前置条件
 
-- Azure Developer CLI `1.27+`，以及 `azure.yaml` 中声明的 `azure.ai.agents` 与 `azure.ai.projects` 扩展
-- 启用了 Azure OpenAI 且对所选模型 deployment 具有推理权限的订阅
-- 浏览器 UI 使用 Node.js 22 或更高版本
-- Windows 本机 backend 使用 Python 3.12；测试仍覆盖 Python 3.11–3.13
-- 仅在本地打开生成草稿时需要 New Outlook for Windows
+- Windows 11、New Outlook、Python 3.12和Node.js 22或更高版本
+- 已有Azure OpenAI endpoint、deployment名称和API Key
+- Azure OpenAI资源必须允许Local Auth（`disableLocalAuth=false`）
 
 本机 Demo 使用 GA 的 AOAI Responses API。在将其作为生产部署标准前，必须确认模型可用性、quota、identity policy 和数据驻留要求。
 
-### 一条命令启动 GPT-5.4 Responses API 和 UI
+### AIPC客户端到端Runbook（Key认证）
 
-完成一次 Azure CLI 认证并选择目标订阅，然后只需运行一个启动器。启动器会验证隔离的 tenant/subscription，在需要时预配 `gpt-5.4` deployment，在 `18089` 启动本机 Python backend，并在 `http://127.0.0.1:4173` 启动 loopback UI。
+这是完整“浏览器 → Azure OpenAI → 产物 → New Outlook”流程的AIPC支持路径，不要求Azure账号登录或Azure命令行工具。所有命令都在Windows原生PowerShell中运行，不使用WSL。
 
-Windows：
+1. 获取源码并进入项目目录。如果收到的是客户ZIP，先解压并进入其中的`Meeting-Agent`目录：
 
 ```powershell
-$env:AZURE_CONFIG_DIR = "$HOME\.azure-<tenant>-<subscription-name>"
-az login --tenant <tenant-id>
-az account set --subscription <subscription-id>
-.\scripts\deploy-and-start.ps1 -AzureConfigDir $env:AZURE_CONFIG_DIR
+Expand-Archive .\Meeting-Agent-Customer-Package-*.zip -DestinationPath .\Meeting-Agent-Delivery
+Set-Location .\Meeting-Agent-Delivery\Meeting-Agent
 ```
 
-Linux 或 macOS：
+如果通过GitHub交付，则改为克隆Repo：
 
-```bash
-az login --tenant <tenant-id>
-az account set --subscription <subscription-id>
-./scripts/deploy-and-start.sh
+```powershell
+git clone https://github.com/david-xinyuwei/david-share.git
+Set-Location .\david-share\Agents\Meeting-Agent
 ```
 
-New Outlook 操作要求 UI BFF 作为 Windows 原生 Node 进程运行，并由 `deploy-and-start.ps1` 或 `start-ui.ps1` 启动；该交接不使用 WSL。本机 backend 直接调用 AOAI，不会调用 Foundry Hosted Agent。
+2. 使用现有Azure OpenAI资源启动应用：
 
-启动器会设置 `auth.useAzCliAuth=true`，创建或选择 `meeting-agent-dev`，并在部署前把当前 Azure CLI 的 tenant/subscription 写入该 azd environment。如果 `AZURE_CONFIG_DIR` 指向隔离 Azure CLI profile，运行启动器时保持该变量不变；azd 与 UI BFF 将共同使用这个 profile。
-
-BFF 从选定 azd environment 读取已部署 project endpoint、agent name、tenant 和 subscription。启动器先确认 Azure CLI 位于匹配 tenant；BFF 再通过绑定 subscription 的 `AzureCliCredential` 获取评估用户的 Entra token。浏览器 JavaScript 永远不会拿到该 token。
-
-启动前确认选中的模型：
-
-```bash
-azd env get-value AZURE_AI_MODEL_DEPLOYMENT_NAME
-az cognitiveservices account deployment show --resource-group <rg> --name <account> --deployment-name gpt-5.4
+```powershell
+.\scripts\start-ui-key.ps1 `
+  -Endpoint "https://<your-resource>.openai.azure.com/" `
+  -Deployment "gpt-5.4"
 ```
 
-本机 backend 向 loopback BFF 暴露现有严格 invocation 契约。生成的 Mermaid、PNG、PPTX、EML、JSON 和 evidence 文件位于被忽略的本机 runtime 目录，并通过 BFF 下载。
+启动器会用隐藏输入询问API Key。粘贴Key并按Enter；Key不会显示，也不会写入文件。启动器会校验Windows、Node.js、Python和New Outlook，安装锁定依赖，在`18089`启动Python backend，并在`http://127.0.0.1:4173`启动loopback UI。
+
+3. 打开`http://127.0.0.1:4173`，选择 **Meeting JSON**，上传`examples/meeting-record-stargate.json`，按需填写草稿收件人，然后点击 **Generate meeting package**。
+
+4. 只有以下条件全部满足才算验收通过：
+
+- 页头显示 **Azure OpenAI Responses API** 和`gpt-5.4 · reasoning medium · key auth`。
+- 六个真实生成阶段全部完成；模型文字先于分析和产物出现。
+- 页面显示六卡片思维图；**Save PNG**下载同一张图。
+- PowerPoint可以作为可编辑的六页演示文稿打开。
+- EML作为未发送的New Outlook草稿打开，正文内嵌同一卡片图，带PNG/PPTX附件，并且只能人工Send。
+
+在启动器终端按`Ctrl+C`即可停止UI和backend。以后继续使用同一条`start-ui-key.ps1`命令。Key只传给Python backend进程，并在Node BFF启动前从父进程环境中删除；不会写入`.env`、命令行参数、日志、浏览器响应、生成产物、Git或客户ZIP。如果Azure返回`403 AuthenticationTypeDisabled`，需要资源管理员根据组织策略启用Local Auth。
 
 ### 仅供开发的 offline contract 路径
 
@@ -233,60 +239,58 @@ Evidence 摘要：
 }
 ```
 
-## GPT-5.4 Responses 分析器与可选 Hosted Adapter
+## GPT-5.4 Key认证Responses分析器
 
 本机 Azure OpenAI 分析器是主要运行时：
 
 - `InvocationAgentServerHost` 通过 `/invocations` 暴露严格本机 JSON 契约。
-- `AzureOpenAIAnalyzer` 使用 Entra 认证调用 AOAI `/openai/v1/responses` endpoint。
+- `AzureOpenAIAnalyzer`使用API Key认证调用AOAI `/openai/v1/responses` endpoint。
 - GPT-5.4 加载打包后的会议 skill，使用 Pydantic 结构化输出、reasoning `medium` 和 `store=False`。
-- Windows 启动器把 `DefaultAzureCredential` 绑定到选定的隔离 Azure CLI profile。
+- Windows启动器通过隐藏提示读取Key，并且只传给Python backend进程。
 - 生成文件写入被忽略的本机 runtime session，而不是公开目录。
 
 Standalone CLI 继续用于适配器开发和故障恢复。它的 Azure 路径遵循当前 Responses v1 模式：
 
 - `OpenAI(base_url="https://<resource>.openai.azure.com/openai/v1/")`
-- Microsoft Entra token scope `https://ai.azure.com/.default`
-- 使用 `DefaultAzureCredential` 支持环境变量、workload identity、managed identity 和开发者凭据
+- 仅在进程内存中提供`AZURE_OPENAI_API_KEY`
 - 把 Pydantic `MeetingAnalysis` 传给 `responses.parse`
 - Response 请求设置 `store=False`
 - 每个事件文本规范化为一行，并以 200,000 字符上限 fail closed
 
-本仓库锁定 `openai==2.32.0`、Azure Identity 和可选 Foundry 兼容库。从 [.env.example](.env.example) 开始，把真实值保存在隔离运行环境中，而不是源代码里。
+本仓库锁定`openai==2.32.0`。从[.env.example](.env.example)开始，但真实Key不要进入源代码，应使用隐藏输入启动器。
 
 配置资源和 deployment，不提交凭据：
 
 ```bash
 export AZURE_OPENAI_ENDPOINT="https://<resource>.openai.azure.com/"
 export AZURE_OPENAI_DEPLOYMENT="<deployment-name>"
+export AZURE_OPENAI_API_KEY="<api-key>"
 python -m meeting_agent.cli build \
   --events examples/product-planning.jsonl \
   --output-dir artifacts/azure-product-planning \
   --analyzer azure
 ```
 
-`DefaultAzureCredential` 还必须找到有效身份。本地开发使用受支持的开发者凭据；部署服务优先使用同租户 managed identity，或具备最小权限的 workload/service identity。禁止把 token、client secret、租户专属 endpoint 或客户数据放入本仓库。
+这个CLI示例只适合临时开发shell。客户应使用隐藏输入启动器。禁止把API Key、租户专属endpoint或客户数据放入本仓库。
 
 官方参考：
 
-- [部署 Foundry Hosted Agent](https://learn.microsoft.com/azure/foundry/agents/how-to/deploy-hosted-agent)
-- [管理 Hosted Agent session 和文件](https://learn.microsoft.com/azure/foundry/agents/how-to/manage-hosted-sessions)
 - [Azure OpenAI Responses API](https://learn.microsoft.com/azure/ai-foundry/openai/how-to/responses)
-- [Azure Identity for Python](https://learn.microsoft.com/python/api/overview/azure/identity-readme)
 - [Structured Outputs parsing helpers](https://github.com/openai/openai-python/blob/main/helpers.md)
 
 ## 人工控制的 Outlook 交接
 
 在 Windows 上，客户主路径是浏览器工作区中的 **Open Outlook draft** 按钮。Loopback BFF 从当前本机 session 读取 EML，原子写入本地临时目录，并用该文件启动 `olk.exe`。BFF 不提供 send endpoint。
 
-Agent 部署后，只启动 UI：
+启动完整本机应用：
 
 ```powershell
-$env:AZURE_CONFIG_DIR = "$HOME\.azure-<tenant>-<subscription-name>"
-.\scripts\start-ui.ps1 -AzureConfigDir $env:AZURE_CONFIG_DIR
+.\scripts\start-ui-key.ps1 `
+  -Endpoint "https://<your-resource>.openai.azure.com/" `
+  -Deployment "gpt-5.4"
 ```
 
-必须在 Windows PowerShell 中运行该命令，不能在 WSL 中运行。启动器会在启用 Outlook 按钮前验证 Node.js、azd、Azure CLI tenant/subscription、已部署 Agent environment 和 `olk.exe`。
+必须在Windows PowerShell中运行该命令，不能在WSL中运行。启动器会在启用Outlook按钮前验证Node.js、Python、HTTPS endpoint和`olk.exe`。
 
 Standalone CLI 可以在开发时验证同一个本地草稿交接：
 
@@ -380,11 +384,11 @@ CI 在 Ubuntu 和 Windows 上运行 Python 3.11、3.12 与 3.13 gate。独立的
 | Schema | 每个 `MeetingEvent` 字段、全部四种 kind、未知字段、非法 payload |
 | Session | 排序、幂等重复、冲突 ID、只选择 final transcript |
 | Hosted 协议 | Invocations request 校验、显式 offline 测试门、OpenAPI、错误响应和 session 路径 |
-| Azure 契约 | v1 base URL、Entra scope、结构化输出类型、`store=False`、prompt 边界 |
+| Azure 契约 | v1 base URL、Key必填、结构化输出类型、`store=False`、prompt边界 |
 | 真实性 | 两份内容显著不同的输入必须生成不同分析与 source hash |
 | 产物 | 非空 `1280x720` PNG、有效 SVG/JSON、可解析 PPTX package |
 | 草稿 | `X-Unsent`、收件人、附件、MIME 解析、规范化 Subject |
-| UI/BFF | 输入转换、azd environment 解析、路径穿越拒绝、响应式浏览器 E2E 和真实下载 |
+| UI/BFF | 输入转换、仅loopback路由、路径穿越拒绝、响应式浏览器E2E和真实下载 |
 | 安全 | 自动传输 API 与 Send activation 静态失败门禁 |
 | 证据 | 来源 hash、文件大小、产物 hash、EML 状态、跨运行差异 |
 
@@ -392,7 +396,7 @@ CI 在 Ubuntu 和 Windows 上运行 Python 3.11、3.12 与 3.13 gate。独立的
 
 - 输入是会议内容。调用云端分析器前，必须遵守所在组织的数据分类和保留策略。
 - Azure 请求设置 `store=False`；Azure service 和 deployment policy 仍然适用。
-- 浏览器只与 loopback BFF 通信；Azure bearer token 永远不会返回给浏览器 JavaScript。
+- 浏览器只与loopback BFF通信；Azure OpenAI API Key不会被BFF继承，也不会返回给浏览器JavaScript。
 - 本机 runtime session 文件位于被忽略的目录，不是公开下载 URL。
 - 事件 metadata 不得包含 secret、access token 或不必要的个人数据。
 - Git 忽略 `.env`、`password.txt`、token 文件、runtime 输出和本地产物。
@@ -406,7 +410,7 @@ CI 在 Ubuntu 和 Windows 上运行 Python 3.11、3.12 与 3.13 gate。独立的
 
 ## 扩展流水线
 
-在 core package 外实现适配器，并输出文档中的 JSONL 契约。这样可以让采集库、设备协议和提供方 SDK 与分析和产物层解耦。
+在 core package 外实现适配器，并输出文档中的 JSONL 契约。对于 Microsoft Embedded Speech，应把每个 SDK 识别结果中的 `text`、offset、duration、speaker ID、confidence，以及可用的 final/partial 状态映射为一条事件；SDK 默认不会生成 TXT 文件。这样可以让采集库、设备协议和提供方 SDK 与分析和产物层解耦。
 
 新增分析器时实现：
 
@@ -435,15 +439,14 @@ generate_artifacts(analysis, Path("artifacts/custom"))
 
 ```text
 main.py                                    本机严格 invocation backend 入口
-azure.yaml                                 GPT-5.4 模型预配与可选 Hosted 兼容配置
 src/meeting_agent/skills/                  运行时 meeting-package 提示 skill
 src/meeting_agent/templates/               可编辑六页 PPTX 模板
-src/meeting_agent/                         核心 schema、Hosted handler、session、analyzer、artifact、EML handoff 和 CLI
-ui/                                        React 工作区与 Entra 认证的 loopback BFF
+src/meeting_agent/                         核心schema、本机handler、session、analyzer、artifact、EML handoff和CLI
+ui/                                        React工作区与Key隔离的loopback BFF
 examples/                                  JSONL 事件流与结构化 meeting-record JSON
 images/                                    全尺寸架构图与 Outlook 脱敏证据
 tests/                                     Schema、Hosted 协议、跨输入、产物、草稿和 CLI 测试
-scripts/                                   部署启动器、no-send 和证据验证门禁
+scripts/                                   Key启动器、no-send和证据验证门禁
 evidence/                                  脱敏 Outlook probe 与已提交样例运行的 manifest/产物
 ../../.github/workflows/meeting-agent-ci.yml  Monorepo 范围跨平台 CI
 ```
@@ -453,10 +456,9 @@ evidence/                                  脱敏 Outlook probe 与已提交样�
 - 本仓库不采集麦克风音频或屏幕像素。
 - `visual.frame` 是外部适配器提供的文本摘要或引用。
 - Offline analyzer 是确定性测试基础设施，不是生产 fallback。
-- 客户主路径是本机 AOAI Responses API，而不是可选 Hosted adapter。
 - 已提交的确定性样例不用于评测模型质量。
 - 浏览器 UI 是 loopback companion，不是面向互联网的多用户 Web 服务。
-- Windows Azure CLI 登录身份需要具备所选 AOAI deployment 的推理权限。
+- 现有Azure OpenAI资源必须允许Key认证（`disableLocalAuth=false`）。
 - SHA-256 manifest 证明单次运行的完整性。PPTX ZIP metadata 和 MIME boundary 在重建时可能改变 binary hash，但不会改变结构化分析。
 - New Outlook 启动仅支持 Windows，并依赖 `olk.exe` 可用。
 - 生成的摘要和 action item 在外部使用前必须由人工审阅。
@@ -467,11 +469,9 @@ evidence/                                  脱敏 Outlook probe 与已提交样�
 | 现象 | 检查项 |
 |---|---|
 | `at least one transcript.final event is required` | Build 前至少输出一个 final transcript segment |
-| `FOUNDRY_PROJECT_ENDPOINT ... required` | 通过 `azd` 运行，或在启动 UI 前选择已部署的 azd environment |
-| 可选 Hosted `424 session_not_ready` | warm-up 后重试同一 session；持续失败时检查 adapter 日志 |
-| UI 找不到 Agent | 运行 `azd ai agent show --output json` 并核对 active azd environment |
-| `AZURE_OPENAI_ENDPOINT ... required` | 同时设置两个 Azure 环境变量 |
-| Azure `401` 或 `403` | 检查当前 Azure CLI 隔离 profile、azd tenant/subscription、RBAC 和 `https://ai.azure.com/.default` scope |
+| `AZURE_OPENAI_ENDPOINT ... required` | 通过`start-ui-key.ps1`启动，并提供HTTPS endpoint和deployment |
+| Azure `401` | 在隐藏提示中重新输入当前Azure OpenAI API Key |
+| Azure `403 AuthenticationTypeDisabled` | 让资源管理员设置`disableLocalAuth=false` |
 | Azure `404` | 检查 deployment name 与 Responses API availability |
 | 找不到 `olk.exe` | 安装 New Outlook，并确认同一 Windows session 可启动 |
 | Outlook 按钮被禁用 | 在 Windows 上运行 loopback UI；非 Windows 仍可下载 EML |

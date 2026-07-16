@@ -107,7 +107,14 @@ def main() -> int:
     )
 
     ui_screenshot = Image.open(ROOT / EXPECTED_IMAGES[1]).convert("RGB")
-    assert ui_screenshot.size == (1440, 1545)
+    live_evidence = json.loads(
+        (ROOT / "evidence" / "aoai-live-validation.json").read_text(encoding="utf-8")
+    )
+    expected_screenshot = live_evidence["browser"]["screenshot"]
+    assert ui_screenshot.size == (
+        expected_screenshot["width"],
+        expected_screenshot["height"],
+    )
     assert all(variance > 100 for variance in ImageStat.Stat(ui_screenshot).var)
 
     screenshot = Image.open(ROOT / EXPECTED_IMAGES[-1]).convert("RGB")

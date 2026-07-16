@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 UI_DIR = ROOT / "ui"
 RUNTIME_DIR = ROOT / "runtime" / "ui-e2e"
 AGENT_URL = "http://127.0.0.1:18088"
-UI_URL = "http://127.0.0.1:4173"
+UI_URL = "http://127.0.0.1:4174"
 
 
 def main() -> int:
@@ -47,6 +47,7 @@ def main() -> int:
         ui_log = (RUNTIME_DIR / "ui.log").open("wb")
         ui_environment = {
             **os.environ,
+            "PORT": "4174",
             "MEETING_AGENT_LOCAL_AGENT_URL": AGENT_URL,
             "MEETING_AGENT_LOCAL_SESSION_HOME": str(RUNTIME_DIR / "session"),
             "MEETING_AGENT_NAME": "meeting-agent",

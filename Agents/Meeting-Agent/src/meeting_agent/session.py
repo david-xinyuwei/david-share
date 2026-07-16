@@ -88,7 +88,7 @@ class MeetingSession:
 
 
 def load_jsonl(path: Path) -> MeetingSession:
-    """Load and validate one provider event stream from JSON Lines."""
+    """Load and validate one normalized ASR event stream from JSON Lines."""
     events: list[MeetingEvent] = []
     for line_number, raw_line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
         if not raw_line.strip():

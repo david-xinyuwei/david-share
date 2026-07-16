@@ -11,8 +11,6 @@ requires-python = ">=3.11"
 authors = [{ name = "Xinyu Wei" }]
 dependencies = [
   "azure-ai-agentserver-invocations==1.0.0b6",
-  "azure-ai-projects==2.0.1",
-  "azure-identity==1.25.3",
   "filelock==3.29.7",
   "openai==2.32.0",
   "Pillow==12.3.0",

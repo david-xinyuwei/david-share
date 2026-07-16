@@ -1,26 +1,27 @@
-"""Microsoft Foundry Invocations host for Meeting Agent."""
+"""Local Invocations host for Meeting Agent."""
 
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 from functools import lru_cache
 from pathlib import Path
+from uuid import uuid4
 
 from azure.ai.agentserver.invocations import InvocationAgentServerHost
 from pydantic import ValidationError
 from starlette.requests import Request
-from starlette.responses import JSONResponse, Response
+from starlette.responses import JSONResponse, Response, StreamingResponse
 
 from .analyzers import (
     Analyzer,
     AzureOpenAIAnalyzer,
-    FoundryOpenAIAnalyzer,
     OfflineContractAnalyzer,
 )
 from .hosted_models import HostedMeetingRequest, HostedMeetingResponse
-from .hosted_pipeline import build_hosted_run
+from .hosted_pipeline import build_hosted_run, stream_hosted_run
 
 logger = logging.getLogger("meeting_agent.hosted")
 
@@ -33,7 +34,7 @@ def _openapi_spec() -> dict[str, object]:
             "version": "1.0.0",
             "description": (
                 "Build a meeting summary, mind map, PowerPoint, and unsent email draft. "
-                "Generated files are available through the Foundry session files API."
+                "Generated files are available through the loopback artifact API."
             ),
         },
         "paths": {
@@ -59,7 +60,7 @@ def _openapi_spec() -> dict[str, object]:
                         },
                         "400": {"description": "Malformed JSON"},
                         "422": {"description": "Invalid meeting contract"},
-                        "503": {"description": "Foundry runtime is not configured"},
+                        "503": {"description": "Azure OpenAI runtime is not configured"},
                     },
                 }
             }
@@ -115,7 +116,7 @@ async def handle_invoke(request: Request) -> Response:
         return _error(
             503,
             "analysis_unavailable",
-            "Meeting analysis is unavailable. Verify the Foundry model configuration and retry.",
+            "Meeting analysis is unavailable. Verify the Azure OpenAI configuration and retry.",
         )
     except OSError:
         logger.exception("Meeting artifact generation failed (invocation=%s)", invocation_id)
@@ -146,11 +147,123 @@ async def handle_invoke(request: Request) -> Response:
     )
 
 
+async def handle_invoke_stream(request: Request) -> Response:
+    """Stream real model deltas and artifact completion events as NDJSON."""
+    try:
+        payload = await request.json()
+    except Exception:
+        return _error(400, "invalid_json", "Request body must be valid JSON.")
+    try:
+        meeting_request = HostedMeetingRequest.model_validate(payload)
+    except ValidationError as error:
+        return JSONResponse(
+            {
+                "error": "invalid_request",
+                "message": "Meeting request is invalid.",
+                "details": [
+                    {
+                        "location": ".".join(str(part) for part in item["loc"]),
+                        "message": item["msg"],
+                        "type": item["type"],
+                    }
+                    for item in error.errors(include_input=False)
+                ],
+            },
+            status_code=422,
+            headers={"Cache-Control": "no-store"},
+        )
+
+    agent_session_id = request.query_params.get("agent_session_id") or None
+    invocation_id = getattr(request.state, "invocation_id", None) or uuid4().hex
+
+    async def event_stream():
+        queue: asyncio.Queue[tuple[str, dict[str, object]] | None] = asyncio.Queue()
+        loop = asyncio.get_running_loop()
+
+        def publish(event: str, data: dict[str, object]) -> None:
+            loop.call_soon_threadsafe(queue.put_nowait, (event, data))
+
+        def run() -> None:
+            try:
+                stream_hosted_run(
+                    meeting_request,
+                    _session_home(),
+                    _get_analyzer(),
+                    publish,
+                    agent_session_id=agent_session_id,
+                    invocation_id=str(invocation_id),
+                )
+            except ValueError as error:
+                publish("error", {"error": "invalid_meeting", "message": str(error)})
+            except RuntimeError:
+                logger.exception(
+                    "Streaming meeting analysis failed (invocation=%s)",
+                    invocation_id,
+                )
+                publish(
+                    "error",
+                    {
+                        "error": "analysis_unavailable",
+                        "message": (
+                            "Meeting analysis is unavailable. "
+                            "Verify the model configuration and retry."
+                        ),
+                    },
+                )
+            except OSError:
+                logger.exception(
+                    "Streaming artifact generation failed (invocation=%s)",
+                    invocation_id,
+                )
+                publish(
+                    "error",
+                    {
+                        "error": "artifact_generation_failed",
+                        "message": "Meeting artifacts could not be generated.",
+                    },
+                )
+            except Exception:
+                logger.exception(
+                    "Unexpected streaming meeting failure (invocation=%s)",
+                    invocation_id,
+                )
+                publish(
+                    "error",
+                    {
+                        "error": "internal_error",
+                        "message": "The meeting request failed unexpectedly.",
+                    },
+                )
+            finally:
+                loop.call_soon_threadsafe(queue.put_nowait, None)
+
+        worker = asyncio.create_task(asyncio.to_thread(run))
+        try:
+            while True:
+                item = await queue.get()
+                if item is None:
+                    break
+                event, data = item
+                yield _ndjson(event, data)
+        finally:
+            await worker
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="application/x-ndjson",
+        headers={
+            "Cache-Control": "no-store",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+app.add_route("/invocations_stream", handle_invoke_stream, methods=["POST"])
+
+
 @lru_cache(maxsize=1)
 def _get_analyzer() -> Analyzer:
-    mode = os.environ.get("MEETING_AGENT_ANALYZER", "foundry").strip().casefold()
-    if mode == "foundry":
-        return FoundryOpenAIAnalyzer()
+    mode = os.environ.get("MEETING_AGENT_ANALYZER", "azure").strip().casefold()
     if mode == "azure":
         return AzureOpenAIAnalyzer()
     if mode == "offline-contract":
@@ -171,6 +284,15 @@ def _error(status_code: int, code: str, message: str) -> JSONResponse:
         status_code=status_code,
         headers={"Cache-Control": "no-store"},
     )
+
+
+def _ndjson(event: str, data: dict[str, object]) -> bytes:
+    payload = json.dumps(
+        {"type": event, "data": data},
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
+    return f"{payload}\n".encode()
 
 
 def main() -> None:

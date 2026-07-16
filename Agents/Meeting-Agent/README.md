@@ -15,9 +15,11 @@ A local Windows meeting workspace that uses GPT-5.4 through the Azure OpenAI Res
 
 The customer path is a local browser workspace, not a Python command line. A transcript, structured meeting JSON, or visual adapter becomes strict meeting events; a local Python backend calls GPT-5.4 with Responses API structured output and medium reasoning, generates traceable artifacts, and lets the Windows UI open an EML draft in New Outlook for human review.
 
+Generation uses a finite NDJSON response stream. The UI displays real `response.output_text.delta` content first, then unlocks the structured analysis, Mermaid map, PowerPoint, and EML only when each corresponding backend stage has actually completed. No timer, typewriter simulation, fixed progress percentage, or synthetic stream event is used.
+
 | Outcome | Delivered behavior | Verification |
 |---|---|---|
-| Browser experience | Transcript/JSONL input, analysis review, mind-map preview, and artifact downloads | Playwright desktop/mobile E2E |
+| Browser experience | Transcript TXT, normalized ASR JSONL, or Meeting JSON input; card-layout mind-map preview; rich-text copy; matching PNG and Mermaid source downloads | Playwright desktop/mobile E2E |
 | Local runtime | Loopback Python artifact backend with strict Pydantic validation | `tests/test_hosted_api.py` |
 | Meeting analysis | GPT-5.4 Responses API, structured output, reasoning `medium`, `store=False` | `tests/test_azure_analyzer.py`, runtime HTTP log |
 | Session artifacts | JSON, SVG, PNG, editable PPTX, HTML/plain EML under managed `$HOME` | `tests/test_hosted_pipeline.py` |
@@ -29,9 +31,9 @@ The customer path is a local browser workspace, not a Python command line. A tra
 | Capability | What this repository does | Evidence | Boundary |
 |---|---|---|---|
 | Browser UI | Calls the local artifact backend through a loopback BFF and renders real returned artifacts | Browser E2E and Node tests | It is local in this release; it is not a public cloud website |
-| AOAI runtime | Calls `https://<resource>.openai.azure.com/openai/v1/responses` with Entra authentication | Responses API 200 log and SDK contract tests | The optional Hosted adapter remains for compatibility but is not the customer path |
-| Event intake | Validates, orders, deduplicates, and hashes JSONL events | Unit tests and two sample streams | Capture transport is supplied by an adapter |
-| Transcript processing | Uses only `transcript.final` in generated artifacts | `tests/test_session.py` | ASR inference is not implemented here |
+| AOAI runtime | Calls `https://<resource>.openai.azure.com/openai/v1/responses` with API key authentication | Key-auth Responses API 200 log and SDK contract tests | The resource must have `disableLocalAuth=false` |
+| Event intake | Validates, orders, deduplicates, and hashes normalized ASR JSONL events | Unit tests and two sample streams | Capture transport is supplied by an adapter |
+| Transcript processing | Uses only `transcript.final` in generated artifacts | `tests/test_session.py` | Embedded Speech returns an in-memory recognition result; an adapter maps it to JSONL |
 | Visual context | Accepts a visual summary and optional `image_uri` | Event schema tests | Screen capture and image interpretation belong to the visual adapter |
 | GPT-5.4 analysis | Loads the meeting-package skill, uses Pydantic structured output, medium reasoning, and `store=False` | SDK contract and live AOAI response | It never silently falls back to offline output |
 | Offline analysis | Produces deterministic structured analysis for CI and integration testing | Two materially different committed runs | It is not an AI-quality substitute or production fallback |
@@ -39,7 +41,9 @@ The customer path is a local browser workspace, not a Python command line. A tra
 | New Outlook | Opens an editable EML draft with real attachments | Sanitized Windows probe | Windows and New Outlook are required for the UI button or `--open-outlook` |
 | Message transmission | Does not transmit mail | Static audit in every CI job | The user reviews and clicks Send manually |
 
-The committed sample artifacts use explicit `offline-contract` mode for deterministic CI. Live validation uses the local Windows UI and full GPT-5.4 Responses API: the structured meeting JSON produces grounded analysis, a rendered Mermaid SVG, a six-slide editable PPTX, and an EML with two attachments. This is functional evidence, not production certification or a model-quality benchmark. The sanitized Outlook probe validates the Windows draft handoff only.
+The committed sample artifacts use explicit `offline-contract` mode for deterministic CI. Live validation uses the local Windows UI and full GPT-5.4 Responses API: the structured meeting JSON produces grounded analysis, one card-layout mind map shared by the page, PNG download, and inline Outlook draft, a renderer-neutral Mermaid source, a six-slide editable PPTX, and an EML with two attachments. This is functional evidence, not production certification or a model-quality benchmark. The sanitized Outlook probe validates the Windows draft handoff only.
+
+[Live runtime differential evidence](evidence/aoai-runtime-differential.json) records two materially different real Responses API inputs. Their source, title, analysis, card PNG, PPTX, and EML hashes all differ; response IDs are verified locally and redacted from the public record.
 
 ## Architecture
 
@@ -120,59 +124,61 @@ Each run contains:
 |---|---|
 | `meeting-analysis.json` | Full structured analysis |
 | `mind-map.json` | Renderer-neutral graph |
-| `mind-map.svg` | Scalable browser rendering |
-| `mind-map.png` | Email-ready bitmap |
+| `mind-map.svg` | Scalable six-card rendering |
+| `mind-map.png` | Six-card bitmap shared by the page, download, PPTX, and email |
 | `meeting-summary.pptx` | Editable six-slide template-based presentation |
-| `meeting-follow-up.eml` | Unsent MIME draft with PNG and PPTX attachments |
+| `meeting-follow-up.eml` | Unsent MIME draft with the inline card map plus PNG and PPTX attachments |
 | `evidence.json` | Source and artifact size/hash manifest |
 
 ## Quick Start
 
 ### Prerequisites
 
-- Azure Developer CLI `1.27+` with the `azure.ai.agents` and `azure.ai.projects` extensions (declared in `azure.yaml`)
-- An Azure OpenAI-enabled subscription and inference access to the selected model deployment
-- Node.js 22 or newer for the browser UI
-- Python 3.12 for the Windows local backend; Python 3.11–3.13 remains supported by tests
-- New Outlook for Windows only when opening the generated draft locally
+- Windows 11 with New Outlook, Python 3.12, and Node.js 22 or newer
+- An existing Azure OpenAI endpoint, deployment name, and API key
+- The Azure OpenAI resource must allow local authentication (`disableLocalAuth=false`)
 
 The local demo uses the GA AOAI Responses API. Confirm model availability, quota, identity policy, and data residency before treating it as a production deployment standard.
 
-### One-command GPT-5.4 Responses API and UI
+### AIPC customer end-to-end runbook (Key authentication)
 
-Authenticate Azure CLI once, select the target subscription, then run one launcher. The launcher verifies the isolated tenant/subscription, provisions the `gpt-5.4` deployment when needed, starts a local Python backend on port `18089`, and starts the loopback UI at `http://127.0.0.1:4173`.
+This is the supported AIPC path for the complete browser → Azure OpenAI → artifacts → New Outlook workflow. It does not require Azure account sign-in or Azure command-line tools. Run every command in native Windows PowerShell, not WSL.
 
-Windows:
+1. Obtain the source and enter the project directory. If you received the customer ZIP, extract it and open the extracted `Meeting-Agent` folder:
 
 ```powershell
-$env:AZURE_CONFIG_DIR = "$HOME\.azure-<tenant>-<subscription-name>"
-az login --tenant <tenant-id>
-az account set --subscription <subscription-id>
-.\scripts\deploy-and-start.ps1 -AzureConfigDir $env:AZURE_CONFIG_DIR
+Expand-Archive .\Meeting-Agent-Customer-Package-*.zip -DestinationPath .\Meeting-Agent-Delivery
+Set-Location .\Meeting-Agent-Delivery\Meeting-Agent
 ```
 
-Linux or macOS:
+For GitHub delivery, clone the repository instead:
 
-```bash
-az login --tenant <tenant-id>
-az account set --subscription <subscription-id>
-./scripts/deploy-and-start.sh
+```powershell
+git clone https://github.com/david-xinyuwei/david-share.git
+Set-Location .\david-share\Agents\Meeting-Agent
 ```
 
-The New Outlook action requires the UI BFF to run as a native Windows Node process started by `deploy-and-start.ps1` or `start-ui.ps1`. WSL is not used for this handoff. The local backend calls AOAI directly; it does not invoke a Foundry Hosted Agent.
+2. Start the application with the existing Azure OpenAI resource:
 
-The launcher sets `auth.useAzCliAuth=true`, creates or selects `meeting-agent-dev`, and copies the active Azure CLI tenant and subscription into that azd environment before deployment. If `AZURE_CONFIG_DIR` points to an isolated Azure CLI profile, keep it set while running the launcher; azd and the UI BFF will use that same profile.
-
-The BFF reads the deployed project endpoint, agent name, tenant, and subscription from the selected azd environment. The launcher first verifies that Azure CLI is in the matching tenant; the BFF then obtains the evaluator's Entra token through a subscription-bound `AzureCliCredential`. Browser JavaScript never receives that token.
-
-To confirm the selected model before starting:
-
-```bash
-azd env get-value AZURE_AI_MODEL_DEPLOYMENT_NAME
-az cognitiveservices account deployment show --resource-group <rg> --name <account> --deployment-name gpt-5.4
+```powershell
+.\scripts\start-ui-key.ps1 `
+  -Endpoint "https://<your-resource>.openai.azure.com/" `
+  -Deployment "gpt-5.4"
 ```
 
-The local backend exposes the existing strict invocation contract to the loopback BFF. Generated Mermaid, PNG, PPTX, EML, JSON, and evidence files live under the ignored local runtime directory and are downloaded through the BFF.
+The launcher asks for the API key using hidden input. Paste the key and press Enter; it is never displayed or written to a file. The launcher validates Windows, Node.js, Python, and New Outlook, installs locked dependencies, starts the Python backend on `18089`, and opens the loopback UI on `http://127.0.0.1:4173`.
+
+3. Open `http://127.0.0.1:4173`, choose **Meeting JSON**, upload `examples/meeting-record-stargate.json`, optionally enter draft recipients, and select **Generate meeting package**.
+
+4. Accept the run only when all of these are true:
+
+- The header shows **Azure OpenAI Responses API** and `gpt-5.4 · reasoning medium · key auth`.
+- All six real generation stages complete; model text appears before analysis and artifacts.
+- The page shows the six-card mind map; **Save PNG** downloads that same image.
+- The PowerPoint opens as an editable six-slide deck.
+- The EML opens as an unsent New Outlook draft with the same inline card map, PNG/PPTX attachments, and manual Send only.
+
+Press `Ctrl+C` in the launcher terminal to stop the UI and backend. Use the same `start-ui-key.ps1` command for later sessions. The key is passed only to the Python backend process, removed before the Node BFF starts, and is never written to `.env`, command-line arguments, logs, browser responses, generated artifacts, Git, or the customer ZIP. If Azure returns `403 AuthenticationTypeDisabled`, the resource administrator must enable local authentication in accordance with organizational policy.
 
 ### Developer-only offline contract path
 
@@ -233,60 +239,58 @@ Evidence excerpt:
 }
 ```
 
-## GPT-5.4 Responses Analyzer and Optional Hosted Adapter
+## GPT-5.4 Key-Authenticated Responses Analyzer
 
 The local Azure OpenAI analyzer is the primary runtime:
 
 - `InvocationAgentServerHost` exposes the strict local JSON contract through `/invocations`.
-- `AzureOpenAIAnalyzer` calls the AOAI `/openai/v1/responses` endpoint with Entra authentication.
+- `AzureOpenAIAnalyzer` calls the AOAI `/openai/v1/responses` endpoint with API key authentication.
 - GPT-5.4 uses the packaged meeting skill, Pydantic structured output, reasoning `medium`, and `store=False`.
-- The Windows launcher binds `DefaultAzureCredential` to the selected isolated Azure CLI profile.
+- The Windows launcher reads the key through a hidden prompt and passes it only to the Python backend process.
 - Generated files are written below the ignored local runtime session, not a public directory.
 
 The standalone CLI remains available for adapter development and recovery. Its Azure path follows the current Responses v1 pattern:
 
 - `OpenAI(base_url="https://<resource>.openai.azure.com/openai/v1/")`
-- Microsoft Entra token scope `https://ai.azure.com/.default`
-- `DefaultAzureCredential` for environment, workload identity, managed identity, and developer credentials
+- `AZURE_OPENAI_API_KEY` supplied only in process memory
 - Pydantic `MeetingAnalysis` passed to `responses.parse`
 - `store=False` on the response request
 - Event text normalized to one line per event, with a 200,000-character fail-closed limit
 
-The repository pins `openai==2.32.0`, Azure Identity, and the optional Foundry compatibility libraries. Start from [.env.example](.env.example), then keep real values in the isolated runtime environment rather than source control.
+The repository pins `openai==2.32.0`. Start from [.env.example](.env.example), then keep the real key out of source control and use the hidden-input launcher.
 
 Configure the resource and deployment without committing credentials:
 
 ```bash
 export AZURE_OPENAI_ENDPOINT="https://<resource>.openai.azure.com/"
 export AZURE_OPENAI_DEPLOYMENT="<deployment-name>"
+export AZURE_OPENAI_API_KEY="<api-key>"
 python -m meeting_agent.cli build \
   --events examples/product-planning.jsonl \
   --output-dir artifacts/azure-product-planning \
   --analyzer azure
 ```
 
-`DefaultAzureCredential` must also find a valid identity. For local development, use a supported developer credential. For deployed services, prefer managed identity in the same tenant or a workload/service identity with least-privilege access. Never place tokens, client secrets, tenant-specific endpoints, or customer data in this repository.
+This CLI example is for ephemeral developer shells only. The customer launcher is safer because it reads the key with hidden input. Never place API keys, tenant-specific endpoints, or customer data in this repository.
 
 Official references:
 
-- [Deploy a Foundry Hosted Agent](https://learn.microsoft.com/azure/foundry/agents/how-to/deploy-hosted-agent)
-- [Manage Hosted Agent sessions and files](https://learn.microsoft.com/azure/foundry/agents/how-to/manage-hosted-sessions)
 - [Azure OpenAI Responses API](https://learn.microsoft.com/azure/ai-foundry/openai/how-to/responses)
-- [Azure Identity for Python](https://learn.microsoft.com/python/api/overview/azure/identity-readme)
 - [Structured Outputs parsing helpers](https://github.com/openai/openai-python/blob/main/helpers.md)
 
 ## Human-Controlled Outlook Handoff
 
 On Windows, the customer path is the **Open Outlook draft** button in the browser workspace. The loopback BFF reads the EML from the current local session, writes it atomically to a local temporary directory, and starts `olk.exe` with that file. The BFF exposes no send endpoint.
 
-After the agent has been deployed, start only the UI with:
+Start the complete local application with:
 
 ```powershell
-$env:AZURE_CONFIG_DIR = "$HOME\.azure-<tenant>-<subscription-name>"
-.\scripts\start-ui.ps1 -AzureConfigDir $env:AZURE_CONFIG_DIR
+.\scripts\start-ui-key.ps1 `
+  -Endpoint "https://<your-resource>.openai.azure.com/" `
+  -Deployment "gpt-5.4"
 ```
 
-Run this command in Windows PowerShell, not WSL. The launcher verifies Node.js, azd, Azure CLI tenant/subscription, the deployed Agent environment, and `olk.exe` before enabling the Outlook button.
+Run this command in Windows PowerShell, not WSL. The launcher verifies Node.js, Python, the HTTPS endpoint, and `olk.exe` before enabling the Outlook button.
 
 The standalone CLI can exercise the same local draft handoff for development:
 
@@ -380,11 +384,11 @@ CI runs the Python gates on Ubuntu and Windows with Python 3.11, 3.12, and 3.13.
 | Schema | Every `MeetingEvent` field, all four kinds, unknown fields, invalid payloads |
 | Session | Ordering, idempotent duplicates, conflicting IDs, final-only transcript selection |
 | Hosted protocol | Invocations request validation, explicit offline-test gate, OpenAPI, error responses, and session paths |
-| Azure contract | v1 base URL, Entra scope, structured output type, `store=False`, prompt boundary |
+| Azure contract | v1 base URL, key requirement, structured output type, `store=False`, prompt boundary |
 | Authenticity | Two materially different inputs must produce different analysis and source hashes |
 | Artifacts | Nonblank `1280x720` PNG, valid SVG/JSON, parseable PPTX package |
 | Draft | `X-Unsent`, recipients, attachments, MIME parsing, normalized subject |
-| UI/BFF | Input conversion, azd environment parsing, traversal rejection, responsive browser E2E, and real downloads |
+| UI/BFF | Input conversion, loopback-only routing, traversal rejection, responsive browser E2E, and real downloads |
 | Safety | Static failure gate for automatic transmission APIs and Send activation |
 | Evidence | Source hashes, file sizes, artifact hashes, EML state, cross-run distinction |
 
@@ -392,7 +396,7 @@ CI runs the Python gates on Ubuntu and Windows with Python 3.11, 3.12, and 3.13.
 
 - Input is meeting content. Apply organizational data classification and retention policy before calling any cloud analyzer.
 - The Azure request sets `store=False`; Azure service and deployment policies still apply.
-- The browser talks only to the loopback BFF; Azure bearer tokens are never returned to browser JavaScript.
+- The browser talks only to the loopback BFF; the Azure OpenAI API key is never inherited by the BFF or returned to browser JavaScript.
 - Local runtime session files are stored under an ignored directory and are not public download URLs.
 - Event metadata must not contain secrets, access tokens, or unnecessary personal data.
 - `.env`, `password.txt`, token files, runtime output, and local artifacts are ignored by Git.
@@ -406,7 +410,7 @@ CI runs the Python gates on Ubuntu and Windows with Python 3.11, 3.12, and 3.13.
 
 ## Extending the Pipeline
 
-Implement adapters outside the core package and emit the documented JSONL contract. This keeps capture libraries, device protocols, and vendor SDKs out of the analysis and artifact layers.
+Implement adapters outside the core package and emit the documented JSONL contract. For Microsoft Embedded Speech, map each SDK recognition result (`text`, offset, duration, speaker ID, confidence, and final/partial state when available) into one event; the SDK does not create a TXT file by default. This keeps capture libraries, device protocols, and vendor SDKs out of the analysis and artifact layers.
 
 To add an analyzer, implement:
 
@@ -435,15 +439,14 @@ generate_artifacts(analysis, Path("artifacts/custom"))
 
 ```text
 main.py                                    Local strict invocation backend entry point
-azure.yaml                                 GPT-5.4 model provisioning and optional Hosted compatibility
 src/meeting_agent/skills/                  Runtime meeting-package prompt skill
 src/meeting_agent/templates/               Editable six-slide PPTX template
-src/meeting_agent/                         Core schemas, Hosted handler, session logic, analyzers, artifacts, EML handoff, CLI
-ui/                                        React workspace and Entra-authenticated loopback BFF
+src/meeting_agent/                         Core schemas, local handler, session logic, analyzers, artifacts, EML handoff, CLI
+ui/                                        React workspace and key-isolated loopback BFF
 examples/                                  JSONL streams plus a structured meeting-record JSON
 images/                                    Full-size architecture and sanitized Outlook evidence
 tests/                                     Schema, Hosted protocol, cross-input, artifact, draft, and CLI tests
-scripts/                                   Deployment launchers plus no-send and evidence validation gates
+scripts/                                   Key launcher plus no-send and evidence validation gates
 evidence/                                  Sanitized Outlook probe and committed sample-run manifests/artifacts
 ../../.github/workflows/meeting-agent-ci.yml  Monorepo-scoped cross-platform CI
 ```
@@ -453,10 +456,9 @@ evidence/                                  Sanitized Outlook probe and committed
 - This repository does not capture microphone audio or screen pixels.
 - Visual frames are textual summaries or references supplied by an external adapter.
 - The offline analyzer is deterministic test infrastructure, not a production fallback.
-- The primary customer path is local AOAI Responses API, not the optional Hosted adapter.
 - Model quality is not benchmarked by the committed deterministic samples.
 - The browser UI is a loopback companion, not an internet-facing multi-user web service.
-- The signed-in Windows Azure CLI identity needs inference access to the selected AOAI deployment.
+- The existing Azure OpenAI resource must allow key authentication (`disableLocalAuth=false`).
 - SHA-256 manifests attest to one run. PPTX ZIP metadata and MIME boundaries may change binary hashes across rebuilds without changing the structured analysis.
 - New Outlook launch is Windows-only and depends on `olk.exe` being available.
 - Generated summaries and action items require human review before external use.
@@ -467,11 +469,9 @@ evidence/                                  Sanitized Outlook probe and committed
 | Symptom | Check |
 |---|---|
 | `at least one transcript.final event is required` | Emit a final transcript segment before building |
-| `FOUNDRY_PROJECT_ENDPOINT ... required` | Run through `azd`, or select a deployed azd environment before starting the UI |
-| Optional Hosted `424 session_not_ready` | Retry the same session after warm-up; inspect adapter logs if it persists |
-| UI cannot find the Agent | Run `azd ai agent show --output json` and verify the active azd environment |
-| `AZURE_OPENAI_ENDPOINT ... required` | Set both Azure environment variables |
-| Azure `401` or `403` | Verify the selected Azure CLI profile, azd tenant/subscription, RBAC, and the `https://ai.azure.com/.default` scope |
+| `AZURE_OPENAI_ENDPOINT ... required` | Start through `start-ui-key.ps1` and provide the HTTPS endpoint and deployment |
+| Azure `401` | Re-enter the current Azure OpenAI API key through the hidden prompt |
+| Azure `403 AuthenticationTypeDisabled` | Ask the resource administrator to set `disableLocalAuth=false` |
 | Azure `404` | Verify the deployment name and Responses API availability |
 | `olk.exe` not found | Install New Outlook and verify it can be launched from the same Windows session |
 | Outlook button is disabled | Run the loopback UI on Windows; non-Windows hosts can still download the EML |

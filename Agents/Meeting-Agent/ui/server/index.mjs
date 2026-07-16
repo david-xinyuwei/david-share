@@ -1,12 +1,13 @@
 import express from "express";
+import { once } from "node:events";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 
 import {
-  createFoundryClient,
+  createLocalAgentClient,
   FoundryClientError,
-  loadAzdDeploymentEnvironment,
+  loadRuntimeEnvironment,
 } from "./foundry-client.mjs";
 import { openOutlookDraft, OutlookHandoffError } from "./outlook.mjs";
 
@@ -15,7 +16,7 @@ const distribution = path.resolve(here, "../dist");
 const projectRoot = path.resolve(here, "../..");
 const port = Number.parseInt(process.env.PORT || "4173", 10);
 const host = "127.0.0.1";
-const foundry = createFoundryClient(loadAzdDeploymentEnvironment(process.env, projectRoot));
+const localAgent = createLocalAgentClient(loadRuntimeEnvironment(process.env, projectRoot));
 const app = express();
 
 const runSchema = z.object({
@@ -41,15 +42,16 @@ app.use((request, response, next) => {
 app.use(express.json({ limit: "2mb", strict: true }));
 
 app.get("/api/health", (_request, response) => {
-  response.json({ status: "ok", mode: foundry.mode, agent: foundry.agentName });
+  response.json({ status: "ok", mode: localAgent.mode, agent: localAgent.agentName });
 });
 
 app.get("/api/config", (_request, response) => {
   response.json({
-    mode: foundry.mode,
-    agent_name: foundry.agentName,
-    model_name: foundry.mode === "aoai" ? process.env.AZURE_OPENAI_DEPLOYMENT : null,
-    reasoning_effort: foundry.mode === "aoai" ? "medium" : null,
+    mode: localAgent.mode,
+    agent_name: localAgent.agentName,
+    model_name: localAgent.mode === "aoai" ? process.env.AZURE_OPENAI_DEPLOYMENT : null,
+    reasoning_effort: localAgent.mode === "aoai" ? "medium" : null,
+    authentication: localAgent.mode === "aoai" ? "key" : null,
     outlook_available: process.platform === "win32",
     automatic_send: false,
   });
@@ -58,18 +60,50 @@ app.get("/api/config", (_request, response) => {
 app.post("/api/runs", async (request, response) => {
   try {
     const payload = runSchema.parse(request.body);
-    const sessionId = await foundry.createSession();
-    const result = await foundry.invoke(sessionId, payload);
+    const sessionId = await localAgent.createSession();
+    const result = await localAgent.invoke(sessionId, payload);
     response.json(result);
   } catch (error) {
     sendError(response, error);
   }
 });
 
+app.post("/api/runs/stream", async (request, response) => {
+  try {
+    const payload = runSchema.parse(request.body);
+    const sessionId = await localAgent.createSession();
+    const upstream = await localAgent.invokeStream(sessionId, payload);
+    response.status(200);
+    response.setHeader("Content-Type", "application/x-ndjson; charset=utf-8");
+    response.setHeader("Cache-Control", "no-store");
+    response.setHeader("Connection", "close");
+    response.setHeader("X-Accel-Buffering", "no");
+    response.flushHeaders();
+    for await (const chunk of upstream.body) {
+      if (!response.write(chunk)) await once(response, "drain");
+    }
+    response.end();
+  } catch (error) {
+    if (!response.headersSent) {
+      sendError(response, error);
+      return;
+    }
+    console.error("Streaming UI service error", error);
+    response.write(`${JSON.stringify({
+      type: "error",
+      data: {
+        error: "stream_proxy_failed",
+        message: "The streaming connection ended unexpectedly.",
+      },
+    })}\n`);
+    response.end();
+  }
+});
+
 app.get("/api/files", async (request, response) => {
   try {
     const query = fileSchema.parse(request.query);
-    const content = await foundry.downloadFile(query.session_id, query.path);
+    const content = await localAgent.downloadFile(query.session_id, query.path);
     response.type(mediaType(query.path));
     response.setHeader("Content-Disposition", `inline; filename="${path.basename(query.path)}"`);
     response.send(content);
@@ -84,7 +118,7 @@ app.post("/api/outlook/open", async (request, response) => {
     if (!input.path.toLowerCase().endsWith(".eml")) {
       throw new OutlookHandoffError("Only an EML draft can be opened in New Outlook.", 400);
     }
-    const content = await foundry.downloadFile(input.session_id, input.path);
+    const content = await localAgent.downloadFile(input.session_id, input.path);
     response.json(await openOutlookDraft(content, input.path));
   } catch (error) {
     sendError(response, error);
@@ -102,7 +136,7 @@ app.use((error, _request, response, _next) => {
 });
 
 app.listen(port, host, () => {
-  console.log(`Meeting Agent UI listening at http://${host}:${port} (${foundry.mode})`);
+  console.log(`Meeting Agent UI listening at http://${host}:${port} (${localAgent.mode})`);
 });
 
 function sendError(response, error) {

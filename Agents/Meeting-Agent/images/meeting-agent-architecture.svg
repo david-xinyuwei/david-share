@@ -34,7 +34,7 @@
   <text class="body" x="1200" y="320" text-anchor="middle">Frame summary and image reference</text>
 
   <rect x="1630" y="210" width="650" height="155" rx="16" fill="#fff4ce" stroke="#a15c00" stroke-width="5"/>
-  <text class="heading" x="1955" y="270" text-anchor="middle">Provider JSONL</text>
+  <text class="heading" x="1955" y="270" text-anchor="middle">ASR JSONL</text>
   <text class="body" x="1955" y="320" text-anchor="middle">Strict MeetingEvent contract</text>
 
   <path class="flow" d="M445 365 C445 420 620 410 620 465"/>
@@ -45,7 +45,7 @@
   <rect x="220" y="465" width="900" height="230" rx="18" fill="#ffffff" stroke="#b11f4b" stroke-width="5"/>
   <text class="heading" x="670" y="530" text-anchor="middle">Browser Meeting Workspace</text>
   <text class="body" x="670" y="585" text-anchor="middle">Paste transcript or upload Meeting JSON / JSONL</text>
-  <text class="small" x="670" y="635" text-anchor="middle">Review analysis · inspect Mermaid · download template PPTX and EML</text>
+  <text class="small" x="670" y="635" text-anchor="middle">Review analysis · inspect card mind map · download PNG, PPTX, and EML</text>
 
   <rect x="1280" y="465" width="900" height="230" rx="18" fill="#ffffff" stroke="#107c10" stroke-width="5"/>
   <text class="heading" x="1730" y="530" text-anchor="middle">Loopback BFF</text>
@@ -58,7 +58,7 @@
   <text class="layer" x="250" y="795">LOCAL ORCHESTRATION</text>
   <rect x="250" y="805" width="1900" height="155" rx="18" fill="#0f6cbd" stroke="#0f6cbd" stroke-width="5"/>
   <text class="white-heading" x="1200" y="865" text-anchor="middle">Local Python Invocation Backend</text>
-  <text class="white-body" x="1200" y="915" text-anchor="middle">Strict JSON contract · local session isolation · Windows Azure CLI identity · fail-closed errors</text>
+  <text class="white-body" x="1200" y="915" text-anchor="middle">Strict JSON contract · local session isolation · backend-only API key · fail-closed errors</text>
 
   <path class="flow" d="M1200 960 L1200 1050"/>
 
@@ -116,7 +116,7 @@
 
   <rect x="1820" y="1790" width="460" height="120" rx="14" fill="#fff4ce" stroke="#a15c00" stroke-width="4"/>
   <text class="heading" x="2050" y="1845" text-anchor="middle">Unsent EML</text>
-  <text class="small" x="2050" y="1882" text-anchor="middle">X-Unsent: 1 · real attachments</text>
+  <text class="small" x="2050" y="1882" text-anchor="middle">X-Unsent: 1 · inline card map · real attachments</text>
 
   <path class="flow" d="M2050 1910 C2050 1940 650 1930 650 1960"/>
   <rect x="390" y="1960" width="520" height="110" rx="15" fill="#e8f2fb" stroke="#0078d4" stroke-width="4"/>

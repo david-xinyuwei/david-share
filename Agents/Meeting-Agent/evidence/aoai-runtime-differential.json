@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "test": "aoai-responses-runtime-differential",
+  "validated_at": "2026-07-16",
+  "result": "pass",
+  "runtime": {
+    "product": "Azure OpenAI Responses API",
+    "authentication": "key",
+    "model": "gpt-5.4",
+    "reasoning_effort": "medium",
+    "store": false
+  },
+  "runs": [
+    {
+      "fixture": "examples/meeting-record-stargate.json",
+      "source_sha256": "dbe21cac43cf7e599ffcbcadb05249ca0a70ed1fb1c712f2c5ff0f0ae01e3cb9",
+      "title": "Stargate Pilot Scope and Trust Model",
+      "http_status": 200,
+      "artifacts": {
+        "analysis": {
+          "sha256": "ef6e8ec5d1f1581f5ded5d4546cd0fcfaf9689d248ca595a0807085e4d40eb70"
+        },
+        "mind_map_png": {
+          "sha256": "02bcfbe6ac652f869d68558b5c7be1ea844031a62c11e030259838e10203d157"
+        },
+        "presentation": {
+          "sha256": "0074cbc003a8d1ecffde26c49d7f687e73b388aeba2fc9a1c5e9f4f1360834f4"
+        },
+        "eml": {
+          "sha256": "60d9be4e65e4646476e0dfce4b8eb4e6c271488e6ba906cad756321ea11e58f0"
+        }
+      }
+    },
+    {
+      "fixture": "examples/product-planning.jsonl",
+      "source_sha256": "413799e9783ac40a5a4e225a553bef94f33fd4c5990607add57e50547f91486b",
+      "title": "March Assistant Pilot for Support Team",
+      "http_status": 200,
+      "artifacts": {
+        "analysis": {
+          "sha256": "70b7946a6f4bace5bf418a3a2953f759b1c142d3a01da0a4324a2405d4071ec4"
+        },
+        "mind_map_png": {
+          "sha256": "803d8c3a98e4951eaf9db41867ed8e80c62fb23c157fefb4fd1cd43f0b6a8c7a"
+        },
+        "presentation": {
+          "sha256": "ad2d31802bd2f6d687f52422207cc2ce7a1fc31ca1d42c18463590e50a9d5646"
+        },
+        "eml": {
+          "sha256": "dba4353b2cb9a2e6ed72788dc961f56e35d8919f3d5ca019589bfc89d6ebebca"
+        }
+      }
+    }
+  ],
+  "assertions": {
+    "source_hashes_differ": true,
+    "titles_differ": true,
+    "artifact_hashes_differ": {
+      "analysis": true,
+      "mind_map_png": true,
+      "presentation": true,
+      "eml": true
+    },
+    "live_model_response_id_present": true,
+    "differential_model_response_id_present": true,
+    "real_delta_precedes_analysis": true
+  },
+  "redaction": {
+    "sanitized": true,
+    "omitted": [
+      "tenant and subscription identifiers",
+      "resource names and endpoints",
+      "access tokens",
+      "model response IDs",
+      "local session identifiers"
+    ]
+  },
+  "scope_note": "This evidence validates input sensitivity across two materially different real Responses API runs. It is not a model-quality benchmark."
+}

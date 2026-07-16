@@ -1,10 +1,12 @@
 {
   "schema_version": 1,
   "test": "aoai-responses-live-meeting-package",
-  "validated_at": "2026-07-15",
+  "run_id": "dbe21cacb899ec8d8be04595",
+  "validated_at": "2026-07-16",
   "result": "pass",
   "runtime": {
     "product": "Azure OpenAI Responses API",
+    "authentication": "key",
     "model": "gpt-5.4",
     "model_version": "2026-03-05",
     "model_sku": "GlobalStandard",
@@ -14,46 +16,47 @@
     "python_runtime": "python_3_12"
   },
   "source": {
-    "fixture": "examples/meeting-record-foundry-workshop.json",
-    "session_id": "foundry-workshop-20260715",
-    "event_count": 14,
-    "content_sha256": "451109a30024178df70e91c754de7da51f6e272eaab0dead6ee98ecd1d6cc940"
+    "fixture": "examples/meeting-record-stargate.json",
+    "session_id": "stargate-pilot-review-20260716",
+    "event_count": 56,
+    "content_sha256": "dbe21cac43cf7e599ffcbcadb05249ca0a70ed1fb1c712f2c5ff0f0ae01e3cb9"
   },
   "artifacts": {
     "analysis": {
-      "bytes": 4115,
-      "sha256": "21d70866db1dc728e2aca3e71da2145734575885b1822245b41477120ffd41f5"
+      "bytes": 6156,
+      "sha256": "ef6e8ec5d1f1581f5ded5d4546cd0fcfaf9689d248ca595a0807085e4d40eb70"
     },
     "mind_map_mermaid": {
-      "bytes": 770,
-      "sha256": "d00e7e1239fb42517ad508c5eeaac8b16e152272a56cec3f2e210c09e64c5026"
+      "bytes": 1510,
+      "sha256": "1ff9060d157ddf8811b514f267783246d938ef2f0cc39da3dcc81ba3a200021c"
     },
     "mind_map_png": {
-      "bytes": 49572,
-      "sha256": "9241a36d31e98ddd94e392458e2ca1f80957db12fcd7b41de09b2f0876b69162"
+      "bytes": 68442,
+      "sha256": "02bcfbe6ac652f869d68558b5c7be1ea844031a62c11e030259838e10203d157"
     },
     "presentation": {
       "slides": 6,
-      "bytes": 82048,
-      "sha256": "967f21ec5280456e7a1f0389f3d05a29f8927529a9858a4d4535e8f4d816bc0a"
+      "bytes": 100907,
+      "sha256": "0074cbc003a8d1ecffde26c49d7f687e73b388aeba2fc9a1c5e9f4f1360834f4"
     },
     "eml": {
-      "bytes": 181403,
-      "sha256": "35225313dc7ea04916b4c82f0b991ebdc65a429ee06d587a8a0ab80e03be6fbd",
+      "bytes": 326327,
+      "sha256": "60d9be4e65e4646476e0dfce4b8eb4e6c271488e6ba906cad756321ea11e58f0",
       "x_unsent": "1",
-      "attachment_count": 2
+      "attachment_count": 2,
+      "inline_mind_map": true
     }
   },
   "browser": {
     "runtime_label": "Azure OpenAI Responses API",
-    "model_label": "gpt-5.4 · reasoning medium",
-    "title": "Foundry Agent Demo Path Review",
+    "model_label": "gpt-5.4 · reasoning medium · key auth",
+    "title": "Stargate Pilot Scope and Trust Model",
     "screenshot": {
       "path": "images/meeting-agent-ui.png",
       "width": 1440,
-      "height": 1545,
-      "bytes": 81429,
-      "sha256": "3112295b2821298993cef625a500fbdb69af41d9b874a5e0f5f10f02695fedf0"
+      "height": 2133,
+      "bytes": 174337,
+      "sha256": "ab5659e279d04f8fb4e99d127212057bc57e346dc32f3833fbc71e625e7e375c"
     },
     "desktop_viewport": {
       "width": 1440,
@@ -64,13 +67,25 @@
       "width": 390,
       "height": 844,
       "horizontal_overflow": false,
-      "mermaid_visible": true,
+      "mind_map_visible": true,
       "artifact_action_count": 4
     },
-    "mermaid": {
-      "width": 300,
-      "height": 150,
-      "groups": 95
+    "mind_map": {
+      "layout": "six-card",
+      "width": 932.8125,
+      "height": 524.703125,
+      "natural_width": 1280,
+      "natural_height": 720
+    },
+    "mind_map_exports": {
+      "rich_text": {
+        "lines": 31
+      },
+      "png": {
+        "bytes": 68442,
+        "sha256": "02bcfbe6ac652f869d68558b5c7be1ea844031a62c11e030259838e10203d157"
+      },
+      "mermaid_source": true
     },
     "outlook_enabled": true,
     "console_errors": 0,
@@ -87,5 +102,5 @@
       "local session identifiers"
     ]
   },
-  "scope_note": "This evidence validates one local Windows UI flow through GPT-5.4 Responses API, Mermaid rendering, a six-slide template-based PPTX, and an unsent EML. It is not a production certification or model-quality benchmark."
+  "scope_note": "This evidence validates one local Windows UI flow through GPT-5.4 Responses API, a shared six-card mind map across the page, PNG download, and inline Outlook draft, Mermaid source export, a six-slide template-based PPTX, and an unsent EML. It is not a production certification or model-quality benchmark."
 }

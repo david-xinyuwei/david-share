@@ -7,6 +7,7 @@ from pptx import Presentation
 
 from meeting_agent.analyzers import OfflineContractAnalyzer
 from meeting_agent.artifacts import (
+    BRANCH_COLORS,
     _atomic_generate,
     _clip_display,
     _connector_points,
@@ -34,6 +35,9 @@ def test_generates_nonblank_mind_map_and_valid_pptx(tmp_path: Path) -> None:
         assert "ppt/presentation.xml" in archive.namelist()
     presentation = Presentation(artifacts["presentation"])
     assert len(presentation.slides) == 6
+    assert "Azure-Agent-Skills-In-Action.pptx" in (
+        presentation.core_properties.comments or ""
+    )
     text = "\n".join(
         shape.text
         for slide in presentation.slides
@@ -49,10 +53,15 @@ def test_generates_nonblank_mind_map_and_valid_pptx(tmp_path: Path) -> None:
     assert graph["label"] == analysis.title
     svg = artifacts["mind_map_svg"].read_text(encoding="utf-8")
     assert svg.startswith("<svg")
-    assert 'd="M600 100 L600 130 L300 130 L300 145"' in svg
+    assert 'viewBox="0 0 1280 720"' in svg
+    assert '<rect x="450" y="275" width="380" height="170"' in svg
+    branch_count = min(6, len(analysis.mind_map.children))
+    assert svg.count("<path ") == branch_count
+    for color in BRANCH_COLORS[:branch_count]:
+        assert f'stroke="{color}"' in svg
     mermaid = artifacts["mind_map_mermaid"].read_text(encoding="utf-8")
     assert mermaid.startswith("mindmap\n  root((")
-    assert analysis.title in mermaid
+    assert analysis.title in mermaid.replace("<br/>", " ")
     for text_artifact in ("analysis", "mind_map_json", "mind_map_mermaid", "mind_map_svg"):
         assert b"\r\n" not in artifacts[text_artifact].read_bytes()
 

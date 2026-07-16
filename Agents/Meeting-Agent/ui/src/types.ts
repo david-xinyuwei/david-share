@@ -1,8 +1,9 @@
 export type UiConfig = {
-  mode: "aoai" | "foundry" | "local";
+  mode: "aoai" | "local";
   agent_name: string;
   model_name: string | null;
   reasoning_effort: "medium" | null;
+  authentication: "key" | null;
   outlook_available: boolean;
   automatic_send: false;
 };
@@ -24,6 +25,11 @@ export type ActionItem = {
   due?: string | null;
 };
 
+export type MindMapNode = {
+  label: string;
+  children: MindMapNode[];
+};
+
 export type MeetingAnalysis = {
   title: string;
   summary: string;
@@ -31,6 +37,7 @@ export type MeetingAnalysis = {
   decisions: string[];
   action_items: ActionItem[];
   open_questions: string[];
+  mind_map: MindMapNode;
 };
 
 export type HostedArtifact = {
@@ -58,3 +65,28 @@ export type ApiError = {
   message: string;
   details?: Array<{ path?: string; location?: string; message: string }>;
 };
+
+export type StreamAccepted = {
+  run_id: string;
+  session_id: string;
+  agent_session_id: string;
+  source_sha256: string;
+  event_count: number;
+};
+
+export type RunStreamEvent =
+  | { type: "accepted"; data: StreamAccepted }
+  | { type: "analysis_started"; data: { run_id: string } }
+  | { type: "model_delta"; data: { delta: string } }
+  | {
+      type: "analysis_ready";
+      data: {
+        analysis: MeetingAnalysis;
+        mermaid: string;
+        model_response_id: string | null;
+      };
+    }
+  | { type: "mind_map_ready"; data: { artifacts: Record<string, HostedArtifact> } }
+  | { type: "presentation_ready"; data: { artifact: HostedArtifact } }
+  | { type: "complete"; data: { run: MeetingRun } }
+  | { type: "error"; data: ApiError };

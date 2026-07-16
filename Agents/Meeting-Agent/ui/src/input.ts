@@ -41,11 +41,11 @@ export function jsonlEvents(value: string): MeetingEvent[] {
       try {
         return JSON.parse(line) as MeetingEvent;
       } catch {
-        throw new Error(`Provider JSONL line ${index + 1} is not valid JSON.`);
+        throw new Error(`ASR JSONL line ${index + 1} is not valid JSON.`);
       }
     });
   if (events.length === 0) {
-    throw new Error("Provider JSONL events are required.");
+    throw new Error("ASR JSONL events are required.");
   }
   return events;
 }
@@ -87,9 +87,25 @@ export function meetingRecordEvents(value: string): MeetingEvent[] {
         })
         .filter(Boolean)
     : [];
+  const languages = Array.isArray(meeting.languages)
+    ? meeting.languages.filter((value): value is string => typeof value === "string")
+    : [];
   const context = [
     typeof meeting.title === "string" ? `Meeting: ${meeting.title}` : null,
     typeof meeting.objective === "string" ? `Objective: ${meeting.objective}` : null,
+    typeof meeting.meeting_type === "string"
+      ? `Meeting type: ${meeting.meeting_type}`
+      : null,
+    typeof meeting.planned_duration_minutes === "number"
+      ? `Planned duration: ${meeting.planned_duration_minutes} minutes`
+      : null,
+    languages.length ? `Languages: ${languages.join(", ")}` : null,
+    typeof meeting.recording_environment === "string"
+      ? `Recording environment: ${meeting.recording_environment}`
+      : null,
+    typeof meeting.data_classification === "string"
+      ? `Data classification: ${meeting.data_classification}`
+      : null,
     participants.length ? `Participants: ${participants.join("; ")}` : null,
   ]
     .filter(Boolean)

@@ -12,17 +12,25 @@ from pptx.util import Inches, Pt
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "src" / "meeting_agent" / "templates" / "meeting-agent-template.pptx"
+AGENT_SLIDE_SOURCE = (
+    ROOT.parent
+    / "Azure-Agent-Skills-In-Action"
+    / "slides"
+    / "Azure-Agent-Skills-In-Action.pptx"
+)
 
 COLORS = {
-    "charcoal": "242424",
-    "paper": "F7F4EF",
+    "charcoal": "1A1A3E",
+    "paper": "FFFFFF",
     "white": "FFFFFF",
-    "berry": "B11F4B",
-    "teal": "007C83",
-    "gold": "E7A93B",
-    "mist": "E8EEEE",
-    "line": "D9D7D2",
-    "muted": "68645F",
+    "berry": "0078D4",
+    "teal": "00B04F",
+    "gold": "FFAA00",
+    "violet": "7C3AED",
+    "red": "E74C3C",
+    "mist": "F3F4F8",
+    "line": "D9DCE8",
+    "muted": "606070",
 }
 
 
@@ -44,7 +52,7 @@ def add_box(slide, name: str, text: str, x: float, y: float, w: float, h: float,
     paragraph = frame.paragraphs[0]
     paragraph.text = text
     paragraph.alignment = style.get("align", PP_ALIGN.LEFT)
-    paragraph.font.name = style.get("font", "Aptos")
+    paragraph.font.name = style.get("font", "Segoe UI")
     paragraph.font.size = Pt(style.get("size", 18))
     paragraph.font.bold = style.get("bold", False)
     paragraph.font.color.rgb = rgb(style.get("color", "charcoal"))
@@ -81,15 +89,16 @@ def add_round_rect(slide, x: float, y: float, w: float, h: float, fill: str, lin
 
 def add_header(slide, section: str, title: str, page: int, *, dark: bool = False):
     color = "white" if dark else "charcoal"
+    add_rect(slide, 0, 0, 13.333, 0.07, "berry")
     add_box(
         slide,
         f"MA_SECTION_{page}",
         section.upper(),
-        0.65,
-        0.38,
+        0.58,
+        0.29,
         2.8,
         0.3,
-        size=10,
+        size=9,
         bold=True,
         color="berry",
     )
@@ -97,13 +106,25 @@ def add_header(slide, section: str, title: str, page: int, *, dark: bool = False
         slide,
         f"MA_SLIDE_TITLE_{page}",
         title,
-        0.65,
-        0.78,
+        0.58,
+        0.67,
         11.8,
         0.65,
-        size=30,
+        size=28,
         bold=True,
         color=color,
+    )
+    add_box(
+        slide,
+        f"MA_FOOTER_{page}",
+        "STARGATE  /  MEETING INTELLIGENCE",
+        0.58,
+        7.05,
+        4.7,
+        0.2,
+        size=8,
+        bold=True,
+        color="muted" if not dark else "white",
     )
     add_box(
         slide,
@@ -119,8 +140,27 @@ def add_header(slide, section: str, title: str, page: int, *, dark: bool = False
     )
 
 
+def _presentation_from_agent_slides() -> Presentation:
+    if not AGENT_SLIDE_SOURCE.is_file():
+        raise FileNotFoundError(
+            "The Agent Skills slide source is required to build the meeting template: "
+            f"{AGENT_SLIDE_SOURCE}"
+        )
+    presentation = Presentation(AGENT_SLIDE_SOURCE)
+    slide_ids = presentation.slides._sldIdLst
+    for slide_id in list(slide_ids):
+        presentation.part.drop_rel(slide_id.rId)
+        slide_ids.remove(slide_id)
+    presentation.core_properties.subject = "Dynamic Meeting Agent artifact template"
+    presentation.core_properties.comments = (
+        "Theme and master inherited from Agents/Azure-Agent-Skills-In-Action/slides/"
+        "Azure-Agent-Skills-In-Action.pptx; meeting content is injected at runtime."
+    )
+    return presentation
+
+
 def build_template() -> Presentation:
-    presentation = Presentation()
+    presentation = _presentation_from_agent_slides()
     presentation.slide_width = Inches(13.333)
     presentation.slide_height = Inches(7.5)
     blank = presentation.slide_layouts[6]
@@ -128,11 +168,34 @@ def build_template() -> Presentation:
     cover = presentation.slides.add_slide(blank)
     cover.background.fill.solid()
     cover.background.fill.fore_color.rgb = rgb("charcoal")
-    add_rect(cover, 0, 0, 0.18, 7.5, "berry")
-    add_rect(cover, 9.55, 0, 3.78, 7.5, "berry")
-    add_rect(cover, 10.25, 0.9, 2.45, 1.45, "teal")
-    add_rect(cover, 9.85, 2.65, 2.85, 1.05, "gold")
-    add_rect(cover, 10.55, 4.05, 2.15, 2.3, "paper")
+    add_rect(cover, 0, 0, 0.16, 7.5, "berry")
+    add_rect(cover, 9.5, 0, 3.833, 7.5, "charcoal")
+    add_rect(cover, 9.95, 0.92, 2.72, 1.14, "berry")
+    add_rect(cover, 9.95, 2.28, 2.72, 1.14, "teal")
+    add_rect(cover, 9.95, 3.64, 2.72, 1.14, "gold")
+    add_rect(cover, 9.95, 5.0, 2.72, 1.14, "violet")
+    for index, (label, y, color) in enumerate(
+        (
+            ("CAPTURE", 1.25, "white"),
+            ("UNDERSTAND", 2.61, "white"),
+            ("DECIDE", 3.97, "charcoal"),
+            ("FOLLOW UP", 5.33, "white"),
+        ),
+        start=1,
+    ):
+        add_box(
+            cover,
+            f"MA_COVER_STAGE_{index}",
+            label,
+            10.22,
+            y,
+            2.2,
+            0.3,
+            size=12,
+            bold=True,
+            color=color,
+            align=PP_ALIGN.CENTER,
+        )
     add_box(
         cover,
         "MA_TITLE",
@@ -149,7 +212,7 @@ def build_template() -> Presentation:
     add_box(
         cover,
         "MA_SUBTITLE",
-        "Executive meeting package",
+        "Evidence-backed meeting intelligence package",
         0.85,
         3.25,
         7.4,
@@ -160,7 +223,7 @@ def build_template() -> Presentation:
     add_box(
         cover,
         "MA_COVER_LABEL",
-        "MEETING AGENT  /  EVIDENCE TO ACTION",
+        "MICROSOFT-STYLE MEETING READOUT  /  HUMAN REVIEWED",
         0.85,
         0.62,
         7.8,
@@ -172,7 +235,7 @@ def build_template() -> Presentation:
     add_box(
         cover,
         "MA_COVER_FOOTER",
-        "Generated from validated meeting evidence",
+        "Dynamic content generated from validated meeting evidence",
         0.85,
         6.78,
         7.5,
@@ -214,20 +277,25 @@ def build_template() -> Presentation:
     topics.background.fill.solid()
     topics.background.fill.fore_color.rgb = rgb("paper")
     add_header(topics, "02 / Themes", "What shaped the discussion", 3)
-    accents = ["berry", "teal", "gold"]
+    accents = ["berry", "teal", "gold", "violet", "red", "berry"]
     for index, accent in enumerate(accents):
-        x = 0.65 + index * 4.18
-        add_round_rect(topics, x, 1.78, 3.78, 4.75, "white", "line")
-        add_rect(topics, x, 1.78, 3.78, 0.14, accent)
+        column = index % 3
+        row = index // 3
+        x = 0.58 + column * 4.23
+        y = 1.52 + row * 2.55
+        card = add_round_rect(topics, x, y, 3.88, 2.22, "mist", "line")
+        card.name = f"MA_TOPIC_CARD_{index + 1}"
+        stripe = add_rect(topics, x, y, 0.1, 2.22, accent)
+        stripe.name = f"MA_TOPIC_STRIPE_{index + 1}"
         add_box(
             topics,
             f"MA_TOPIC_INDEX_{index + 1}",
             f"0{index + 1}",
             x + 0.32,
-            2.15,
+            y + 0.28,
             0.65,
             0.4,
-            size=16,
+            size=14,
             bold=True,
             color=accent,
         )
@@ -236,10 +304,11 @@ def build_template() -> Presentation:
             f"MA_TOPICS_{index + 1}",
             "Topic content",
             x + 0.32,
-            2.75,
+            y + 0.86,
             3.12,
-            3.25,
-            size=17,
+            1.0,
+            size=16,
+            bold=True,
             color="charcoal",
         )
 
@@ -345,7 +414,10 @@ def main() -> int:
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     presentation = build_template()
     presentation.save(OUTPUT)
-    print(f"PPT_TEMPLATE_BUILT path={OUTPUT} slides={len(presentation.slides)}")
+    print(
+        f"PPT_TEMPLATE_BUILT path={OUTPUT} slides={len(presentation.slides)} "
+        f"source={AGENT_SLIDE_SOURCE}"
+    )
     return 0
 
 

@@ -13,6 +13,7 @@ SKIP_DIRS = {
     "__pycache__",
     ".pytest_cache",
     ".ruff_cache",
+    ".vscode",
     "artifacts",
     "build",
     "dist",

@@ -18,6 +18,8 @@ from uuid import uuid4
 
 from .models import MeetingAnalysis
 
+MIND_MAP_CID = "meeting-mind-map"
+
 
 def build_eml(
     analysis: MeetingAnalysis,
@@ -38,7 +40,26 @@ def build_eml(
     if recipient_list:
         message["To"] = ", ".join(recipient_list)
     message.set_content(_plain_body(analysis))
-    message.add_alternative(_html_body(analysis), subtype="html")
+    mind_map = next(
+        (attachment for attachment in attachment_paths if attachment.name == "mind-map.png"),
+        None,
+    )
+    message.add_alternative(
+        _html_body(analysis, include_mind_map=mind_map is not None),
+        subtype="html",
+    )
+    if mind_map is not None:
+        html_part = message.get_body(preferencelist=("html",))
+        if html_part is None:
+            raise RuntimeError("EML HTML body was not created")
+        html_part.add_related(
+            mind_map.read_bytes(),
+            maintype="image",
+            subtype="png",
+            cid=f"<{MIND_MAP_CID}>",
+            disposition="inline",
+            filename=mind_map.name,
+        )
 
     for attachment in attachment_paths:
         maintype, subtype = _mime_type(attachment)
@@ -136,13 +157,21 @@ def _plain_body(analysis: MeetingAnalysis) -> str:
     return "\n".join(lines)
 
 
-def _html_body(analysis: MeetingAnalysis) -> str:
+def _html_body(analysis: MeetingAnalysis, *, include_mind_map: bool) -> str:
     decisions = "".join(f"<li>{_escape(item)}</li>" for item in analysis.decisions)
     actions = "".join(
         f"<li>{_escape(item.description)}</li>" for item in analysis.action_items
     )
+    mind_map = (
+        f'<h3>Mind map</h3><img src="cid:{MIND_MAP_CID}" '
+        f'alt="Mind map for {_escape(analysis.title)}" '
+        'style="display:block;width:100%;max-width:1280px;height:auto;" />'
+        if include_mind_map
+        else ""
+    )
     return (
         f"<p>{_escape(analysis.summary)}</p>"
+        f"{mind_map}"
         f"<h3>Decisions</h3><ul>{decisions or '<li>None recorded</li>'}</ul>"
         f"<h3>Action items</h3><ul>{actions or '<li>None recorded</li>'}</ul>"
         "<p><strong>Review this draft and its attachments before sending manually.</strong></p>"

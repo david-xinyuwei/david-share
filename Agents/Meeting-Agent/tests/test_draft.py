@@ -35,6 +35,15 @@ def test_builds_unsent_eml_with_two_attachments_and_no_recipients(tmp_path: Path
     assert message.get("Cc") is None
     assert message.get("Bcc") is None
     assert validate_eml(eml)["attachment_names"] == ["mind-map.png", "meeting-summary.pptx"]
+    html = message.get_body(preferencelist=("html",))
+    assert html is not None
+    assert 'src="cid:meeting-mind-map"' in html.get_content()
+    inline_image = next(
+        part for part in message.walk() if part.get("Content-ID") == "<meeting-mind-map>"
+    )
+    assert inline_image.get_content_type() == "image/png"
+    assert inline_image.get_content_disposition() == "inline"
+    assert inline_image.get_payload(decode=True) == artifacts["mind_map_png"].read_bytes()
 
 
 def test_counts_multiple_valid_recipients(tmp_path: Path) -> None:

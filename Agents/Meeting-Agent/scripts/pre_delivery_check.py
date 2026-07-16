@@ -48,38 +48,12 @@ def main() -> int:
     assert project["project"]["scripts"]["meeting-agent"] == "meeting_agent.cli:main"
     assert all("==" in dependency for dependency in project["project"]["dependencies"])
 
-    azure = yaml.safe_load((ROOT / "azure.yaml").read_text(encoding="utf-8"))
-    deployment = azure["services"]["ai-project"]["deployments"][0]
-    assert deployment["name"] == "gpt-5.4"
-    assert deployment["model"] == {
-        "format": "OpenAI",
-        "name": "gpt-5.4",
-        "version": "2026-03-05",
-    }
-    assert deployment["sku"] == {"capacity": 10, "name": "GlobalStandard"}
-    hosted = azure["services"]["meeting-agent"]
-    assert hosted["host"] == "azure.ai.agent"
-    assert hosted["codeConfiguration"]["runtime"] == "python_3_13"
-    assert hosted["codeConfiguration"]["entryPoint"] == "main.py"
-    assert hosted["protocols"] == [{"protocol": "invocations", "version": "2.0.0"}]
-    assert hosted["environmentVariables"] == [
-        {
-            "name": "AZURE_AI_MODEL_DEPLOYMENT_NAME",
-            "value": "${AZURE_AI_MODEL_DEPLOYMENT_NAME}",
-        }
-    ]
-    agent = yaml.safe_load((ROOT / "agent.yaml").read_text(encoding="utf-8"))
-    assert agent["kind"] == "hosted"
-    assert agent["name"] == hosted["name"]
-    assert agent["protocols"] == hosted["protocols"]
-    assert agent["environment_variables"] == [
-        {
-            "name": "AZURE_AI_MODEL_DEPLOYMENT_NAME",
-            "value": "${AZURE_AI_MODEL_DEPLOYMENT_NAME}",
-        }
-    ]
     assert (ROOT / "main.py").is_file()
-    assert (ROOT / ".agentignore").is_file()
+    assert not (ROOT / "azure.yaml").exists()
+    assert not (ROOT / "agent.yaml").exists()
+    assert not (ROOT / "scripts" / "deploy-and-start.ps1").exists()
+    assert not (ROOT / "scripts" / "deploy-and-start.sh").exists()
+    assert (ROOT / "scripts" / "start-ui-key.ps1").is_file()
     assert (ROOT / "src" / "meeting_agent" / "skills" / "meeting-package" / "SKILL.md").is_file()
     template_path = ROOT / "src" / "meeting_agent" / "templates" / "meeting-agent-template.pptx"
     assert template_path.is_file() and template_path.stat().st_size > 20_000
@@ -89,7 +63,7 @@ def main() -> int:
     assert package["scripts"]["build"] == "tsc --noEmit && vite build"
     assert package["scripts"]["test"] == "vitest run"
     assert package["scripts"]["test:e2e"] == "playwright test"
-    assert package["dependencies"]["mermaid"] == "11.16.0"
+    assert "mermaid" not in package["dependencies"]
     assert (ROOT / "ui" / "package-lock.json").is_file()
     assert (ROOT / "ui" / "server" / "index.mjs").is_file()
     assert (ROOT / "ui" / "src" / "App.tsx").is_file()
@@ -103,19 +77,35 @@ def main() -> int:
             ), f"non-English code comment: {path.relative_to(ROOT)}"
 
     workflow_path = ROOT.parents[1] / ".github" / "workflows" / "meeting-agent-ci.yml"
-    workflow = workflow_path.read_text(encoding="utf-8")
-    workflow_data = yaml.safe_load(workflow)
-    web_steps = workflow_data["jobs"]["web-ui"]["steps"]
-    assert all(isinstance(step, dict) and ("uses" in step or "run" in step) for step in web_steps)
-    assert "working-directory: Agents/Meeting-Agent" in workflow
-    assert "lfs: true" not in workflow
-    assert "persist-credentials: false" not in workflow
-    assert "python scripts/audit_no_send.py" in workflow
-    assert "python scripts/audit_public_content.py" in workflow
-    assert 'python-version: ["3.11", "3.12", "3.13"]' in workflow
-    assert "npm ci --no-audit --no-fund" in workflow
-    assert "npm run build" in workflow
-    assert "python ../scripts/run_ui_e2e.py" in workflow
+    if workflow_path.is_file():
+        workflow = workflow_path.read_text(encoding="utf-8")
+        workflow_data = yaml.safe_load(workflow)
+        web_steps = workflow_data["jobs"]["web-ui"]["steps"]
+        assert all(
+            isinstance(step, dict) and ("uses" in step or "run" in step)
+            for step in web_steps
+        )
+        assert "working-directory: Agents/Meeting-Agent" in workflow
+        assert "lfs: true" not in workflow
+        assert "persist-credentials: false" not in workflow
+        assert "python scripts/audit_no_send.py" in workflow
+        assert "python scripts/audit_public_content.py" in workflow
+        assert 'python-version: ["3.11", "3.12", "3.13"]' in workflow
+        assert "npm ci --no-audit --no-fund" in workflow
+        assert "npm run build" in workflow
+        assert "python ../scripts/run_ui_e2e.py" in workflow
+    else:
+        manifest = json.loads((ROOT / "PACKAGE-MANIFEST.json").read_text(encoding="utf-8"))
+        packaged_paths = {entry["path"] for entry in manifest["files"]}
+        assert manifest["excluded_runtime_and_secrets"] is True
+        assert manifest["file_count"] == len(packaged_paths)
+        assert {
+            "CUSTOMER-START-HERE.md",
+            "CUSTOMER-START-HERE-CN.md",
+            "scripts/start-ui.ps1",
+            "scripts/start-ui-key.ps1",
+            "ui/package-lock.json",
+        } <= packaged_paths
 
     print("PASS: all 12 public pre-delivery structure checks passed.")
     return 0

@@ -35,6 +35,7 @@ def main() -> int:
     assert aoai["result"] == "pass"
     assert aoai["runtime"] == {
         "product": "Azure OpenAI Responses API",
+        "authentication": "key",
         "model": "gpt-5.4",
         "model_version": "2026-03-05",
         "model_sku": "GlobalStandard",
@@ -48,12 +49,13 @@ def main() -> int:
     assert aoai["artifacts"]["mind_map_mermaid"]["bytes"] > 0
     assert aoai["artifacts"]["eml"]["x_unsent"] == "1"
     assert aoai["artifacts"]["eml"]["attachment_count"] == 2
+    assert aoai["artifacts"]["eml"]["inline_mind_map"] is True
     for artifact in aoai["artifacts"].values():
         assert artifact["bytes"] > 0
         assert len(artifact["sha256"]) == 64
     browser = aoai["browser"]
     assert browser["runtime_label"] == "Azure OpenAI Responses API"
-    assert browser["model_label"] == "gpt-5.4 · reasoning medium"
+    assert browser["model_label"] == "gpt-5.4 · reasoning medium · key auth"
     assert browser["console_errors"] == 0
     assert browser["failed_requests"] == 0
     assert browser["desktop_viewport"]["horizontal_overflow"] is False
@@ -61,12 +63,14 @@ def main() -> int:
         "width": 390,
         "height": 844,
         "horizontal_overflow": False,
-        "mermaid_visible": True,
+        "mind_map_visible": True,
         "artifact_action_count": 4,
     }
-    assert browser["mermaid"]["width"] >= 300
-    assert browser["mermaid"]["height"] >= 150
-    assert browser["mermaid"]["groups"] > 20
+    assert browser["mind_map"]["layout"] == "six-card"
+    assert browser["mind_map"]["width"] >= 300
+    assert browser["mind_map"]["height"] >= 100
+    assert browser["mind_map"]["natural_width"] == 1280
+    assert browser["mind_map"]["natural_height"] == 720
     assert browser["outlook_enabled"] is True
     live_screenshot = browser["screenshot"]
     live_screenshot_path = root / live_screenshot["path"]
@@ -79,6 +83,37 @@ def main() -> int:
     )
     assert aoai["automatic_send"] is False
     assert aoai["redaction"]["sanitized"] is True
+
+    differential = json.loads(
+        (root / "evidence" / "aoai-runtime-differential.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert differential["result"] == "pass"
+    assert differential["runtime"] == {
+        "product": "Azure OpenAI Responses API",
+        "authentication": "key",
+        "model": "gpt-5.4",
+        "reasoning_effort": "medium",
+        "store": False,
+    }
+    assert len(differential["runs"]) == 2
+    first_run, second_run = differential["runs"]
+    assert first_run["source_sha256"] != second_run["source_sha256"]
+    assert first_run["title"] != second_run["title"]
+    assert first_run["http_status"] == second_run["http_status"] == 200
+    for name in ("analysis", "mind_map_png", "presentation", "eml"):
+        first_hash = first_run["artifacts"][name]["sha256"]
+        second_hash = second_run["artifacts"][name]["sha256"]
+        assert len(first_hash) == len(second_hash) == 64
+        assert first_hash != second_hash
+        assert differential["assertions"]["artifact_hashes_differ"][name] is True
+    assert differential["assertions"]["source_hashes_differ"] is True
+    assert differential["assertions"]["titles_differ"] is True
+    assert differential["assertions"]["live_model_response_id_present"] is True
+    assert differential["assertions"]["differential_model_response_id_present"] is True
+    assert differential["assertions"]["real_delta_precedes_analysis"] is True
+    assert differential["redaction"]["sanitized"] is True
     print("PASS: sanitized Outlook and live AOAI evidence are internally consistent.")
     return 0
 

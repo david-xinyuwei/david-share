@@ -1,0 +1,287 @@
+{
+  "schema_version": 1,
+  "fixture": {
+    "classification": "synthetic-test-fixture",
+    "customer_data": false,
+    "purpose": "Exercise the real Meeting Agent analysis and artifact pipeline with a complex four-speaker recording scenario."
+  },
+  "meeting": {
+    "id": "stargate-pilot-review-20260716",
+    "title": "Stargate Meeting Intelligence Pilot Review",
+    "started_at": "2026-07-16T10:00:00+08:00",
+    "meeting_type": "Synthetic cross-functional pilot design review",
+    "planned_duration_minutes": 95,
+    "languages": ["English", "Mandarin-English code switching"],
+    "recording_environment": "Hybrid conference room with three in-room participants, one remote participant, laptop microphones, room echo, interruptions, and intermittent network loss.",
+    "data_classification": "Synthetic test fixture; no customer data or real product commitment.",
+    "objective": "Align the pilot scope for a consent-based meeting recording experience, decide the on-device and cloud processing boundary, define acceptance targets, and assign risk-reduction actions.",
+    "participants": [
+      { "name": "Maya Chen", "role": "Product Director" },
+      { "name": "Eric Zhou", "role": "Edge AI Architect" },
+      { "name": "Nina Wang", "role": "Privacy and Compliance Lead" },
+      { "name": "Daniel Xu", "role": "Cloud Solution Architect" }
+    ]
+  },
+  "transcript": [
+    {
+      "time": "10:01",
+      "speaker": "Maya Chen",
+      "text": "For this synthetic Stargate pilot, the user story is simple: four colleagues finish a project meeting and receive a trustworthy transcript, decisions, actions, a mind map, and a presentation without manually rewriting the conversation."
+    },
+    {
+      "time": "10:03",
+      "speaker": "Daniel Xu",
+      "text": "We should test three realistic meeting types: a weekly project review, a customer discovery interview, and an executive decision meeting. Each type stresses the system differently."
+    },
+    {
+      "time": "10:05",
+      "speaker": "Eric Zhou",
+      "text": "The recording client should capture microphone audio locally, preserve speaker turns, and buffer encrypted audio when the network is unavailable. Upload must resume without duplicating transcript segments."
+    },
+    {
+      "time": "10:07",
+      "speaker": "Nina Wang",
+      "text": "Before recording starts, every participant needs a visible consent notice. The pilot must show recording state continuously and provide a one-click stop control."
+    },
+    {
+      "time": "10:09",
+      "speaker": "Maya Chen",
+      "text": "Agreed. Consent and recording state are product requirements, not legal text hidden in settings. The host must confirm consent before the first audio frame is retained."
+    },
+    {
+      "time": "10:11",
+      "speaker": "Eric Zhou",
+      "text": "For the first processing stage, I recommend on-device voice activity detection, noise suppression, and short-term buffering. That reduces bandwidth and keeps the experience usable during a network interruption."
+    },
+    {
+      "time": "10:13",
+      "speaker": "Daniel Xu",
+      "text": "The cloud path can receive finalized transcript segments and selected visual context, then use Azure OpenAI Responses API for structured reasoning. Browser code should never receive the Azure token."
+    },
+    {
+      "time": "10:15",
+      "speaker": "Nina Wang",
+      "text": "I want the architecture to distinguish raw audio, finalized transcript, and generated artifacts. They have different retention and access policies, so one generic meeting-data bucket is not acceptable."
+    },
+    {
+      "time": "10:17",
+      "speaker": "Maya Chen",
+      "text": "Let us set the default pilot policy: raw audio is deleted after 24 hours unless the user explicitly saves it, while transcript and artifacts follow the workspace retention policy."
+    },
+    {
+      "time": "10:19",
+      "speaker": "Nina Wang",
+      "text": "I can support that as a pilot proposal, but Legal still needs to confirm whether 24 hours is acceptable in all pilot regions. Until then, regional rollout remains an open question."
+    },
+    {
+      "time": "10:21",
+      "speaker": "Eric Zhou",
+      "text": "Speaker diarization is the hardest quality risk. Overlapping speech, room echo, and Mandarin-English code switching can produce the right words under the wrong speaker."
+    },
+    {
+      "time": "10:23",
+      "speaker": "Daniel Xu",
+      "text": "The meeting model must preserve evidence timestamps and must not invent owners or dates. If ownership is ambiguous, the output should list an open question instead of guessing."
+    },
+    {
+      "time": "10:25",
+      "speaker": "Maya Chen",
+      "text": "For pilot acceptance, every generated decision and action must link back to at least one transcript segment. Human reviewers need to understand why the system reached a conclusion."
+    },
+    {
+      "time": "10:27",
+      "speaker": "Eric Zhou",
+      "text": "I propose a speaker-attribution target of at least 90 percent on our controlled four-person test set. This is a pilot target, not a measured result yet."
+    },
+    {
+      "time": "10:29",
+      "speaker": "Daniel Xu",
+      "text": "For latency, the draft package should be available within two minutes after a 45-minute meeting ends. We should separately measure transcription finalization and artifact-generation time."
+    },
+    {
+      "time": "10:31",
+      "speaker": "Nina Wang",
+      "text": "The privacy acceptance criteria should include zero automatic email transmission, tenant-scoped access, encrypted transport, and an audit event whenever a draft or recording is opened."
+    },
+    {
+      "time": "10:33",
+      "speaker": "Maya Chen",
+      "text": "Decision: the pilot output will remain an unsent New Outlook draft. The user must review recipients, summary, actions, and attachments before clicking Send."
+    },
+    {
+      "time": "10:35",
+      "speaker": "Daniel Xu",
+      "text": "The presentation should use a reusable Microsoft-style slide template with six pages: outcome, executive summary, themes, decisions and actions, mind map, and unresolved questions."
+    },
+    {
+      "time": "10:37",
+      "speaker": "Eric Zhou",
+      "text": "The mind map should have six evidence-backed branches: user scenarios, recording pipeline, AI architecture, privacy controls, success metrics, and risks with next actions."
+    },
+    {
+      "time": "10:39",
+      "speaker": "Nina Wang",
+      "text": "Please keep risks separate from decisions. For example, code-switching accuracy and retention approval are unresolved risks; they should not appear as completed commitments."
+    },
+    {
+      "time": "10:41",
+      "speaker": "Maya Chen",
+      "text": "The initial pilot will include 20 volunteer users across product, engineering, and program management for four weeks. We will not present that scope as a production rollout."
+    },
+    {
+      "time": "10:43",
+      "speaker": "Daniel Xu",
+      "text": "We also need failure-mode tests: no network during capture, Azure throttling during analysis, a malformed meeting event, and Outlook not installed on the device. Each path must fail visibly without fake output."
+    },
+    {
+      "time": "10:45",
+      "speaker": "Eric Zhou",
+      "text": "On-device buffering should cap storage and expose status. If the encrypted queue reaches the limit, recording should warn the user instead of silently dropping audio."
+    },
+    {
+      "time": "10:47",
+      "speaker": "Nina Wang",
+      "text": "We should add a redaction review before sharing. Names, customer identifiers, and sensitive project terms may be correct in the transcript but still inappropriate for a broad email."
+    },
+    {
+      "time": "10:49",
+      "speaker": "Maya Chen",
+      "text": "Decision: the first pilot optimizes for reviewability and trust, not fully automatic publishing. We will measure edit distance between the generated draft and the version the user approves."
+    },
+    {
+      "time": "10:51",
+      "speaker": "Daniel Xu",
+      "text": "Daniel will prepare the end-to-end architecture and failure-mode test plan by July 22, including token isolation, retries, artifact hashes, and the manual-send boundary."
+    },
+    {
+      "time": "10:53",
+      "speaker": "Eric Zhou",
+      "text": "Eric will build the four-speaker noisy-room and code-switching evaluation set by July 24, with overlapping speech and device-offline segments clearly labeled."
+    },
+    {
+      "time": "10:55",
+      "speaker": "Nina Wang",
+      "text": "Nina will confirm consent wording, regional raw-audio retention, and audit-log requirements with Legal by July 25."
+    },
+    {
+      "time": "10:57",
+      "speaker": "Maya Chen",
+      "text": "Maya will recruit the 20 pilot users and define the weekly feedback rubric by July 26. The rubric will cover trust, correction effort, usefulness, and willingness to reuse the feature."
+    },
+    {
+      "time": "10:59",
+      "speaker": "Eric Zhou",
+      "text": "One architecture question remains: should transcript finalization always run in the cloud, or should supported AI PCs provide an offline transcription option for sensitive meetings?"
+    },
+    {
+      "time": "11:01",
+      "speaker": "Nina Wang",
+      "text": "A second open question is whether participant voice profiles may be reused across meetings. That could improve attribution, but it changes the consent and biometric-data analysis."
+    },
+    {
+      "time": "11:03",
+      "speaker": "Daniel Xu",
+      "text": "The evaluation matrix should separate transcription word accuracy, speaker attribution, decision extraction, action extraction, end-to-end latency, and user correction effort. A single overall accuracy number would hide the failure mode."
+    },
+    {
+      "time": "11:05",
+      "speaker": "Eric Zhou",
+      "text": "For audio coverage, the test set should include a near-field laptop microphone, a conference-room microphone array, and a remote participant compressed by the meeting client. Device and channel metadata must stay attached to each segment."
+    },
+    {
+      "time": "11:07",
+      "speaker": "Maya Chen",
+      "text": "The weekly project-review persona needs action tracking, the customer-interview persona needs themes and quotations, and the executive persona needs decisions, risks, and unresolved trade-offs. We should not force one output emphasis on every meeting type."
+    },
+    {
+      "time": "11:09",
+      "speaker": "Nina Wang",
+      "text": "Consent withdrawal must work during the meeting, not only before it. If one participant withdraws, the host needs a clear workflow to stop capture and request deletion of the affected raw-audio interval."
+    },
+    {
+      "time": "11:11",
+      "speaker": "Daniel Xu",
+      "text": "Every uploaded transcript segment needs an idempotency key and monotonic sequence. Retries after a timeout must not duplicate a sentence, create a second action item, or overwrite a reviewed artifact."
+    },
+    {
+      "time": "11:13",
+      "speaker": "Eric Zhou",
+      "text": "The code-switching set should include product acronyms, English model names inside Mandarin sentences, names with similar pronunciation, and corrections made by another speaker. We also need a meeting-scoped glossary rather than a global hidden dictionary."
+    },
+    {
+      "time": "11:15",
+      "speaker": "Maya Chen",
+      "text": "The review UI should let a user correct the speaker, edit one transcript segment, and immediately see which summary sentence, decision, or action depends on that evidence. That makes correction effort measurable."
+    },
+    {
+      "time": "11:17",
+      "speaker": "Nina Wang",
+      "text": "Redaction needs two scopes: a private workspace version that may retain names and a shareable draft that can mask customer identifiers and sensitive project terms. The system must never claim redaction is complete without human confirmation."
+    },
+    {
+      "time": "11:19",
+      "speaker": "Daniel Xu",
+      "text": "Operational telemetry should record stage latency, retry count, model response ID, artifact hash, and error category, but not copy transcript text into general application logs. Content diagnostics require a separate restricted path."
+    },
+    {
+      "time": "11:21",
+      "speaker": "Eric Zhou",
+      "text": "The on-device stage also needs a battery and thermal test. Voice activity detection and buffering cannot make the laptop fan ramp continuously during a long meeting, so we should measure CPU time and energy impact by device profile."
+    },
+    {
+      "time": "11:23",
+      "speaker": "Maya Chen",
+      "text": "For user feedback, we should track whether participants trust the speaker labels, how many minutes they spend correcting the package, whether the actions are useful, and whether they choose to use the feature again the following week."
+    },
+    {
+      "time": "11:25",
+      "speaker": "Nina Wang",
+      "text": "The audit trail should show who started recording, who stopped it, who opened each draft, what artifact version was reviewed, and whether raw audio was retained or deleted. Audit access itself must be role-scoped."
+    },
+    {
+      "time": "11:27",
+      "speaker": "Daniel Xu",
+      "text": "For decision and action extraction, we should report precision separately from recall. Missing a tentative action and inventing an action are different risks, and the second one is more damaging in an executive meeting."
+    },
+    {
+      "time": "11:29",
+      "speaker": "Eric Zhou",
+      "text": "The offline queue test should cover a five-minute network outage, application restart, duplicate upload acknowledgement, and storage-cap warning. Recovery passes only if the final transcript hash matches the uninterrupted reference run."
+    },
+    {
+      "time": "11:31",
+      "speaker": "Maya Chen",
+      "text": "Decision: phase one will support the defined laptop, room, and remote-participant conditions, while unsupported audio setups will display a quality warning instead of pretending the confidence is high."
+    },
+    {
+      "time": "11:33",
+      "speaker": "Nina Wang",
+      "text": "The voice-profile question remains blocked until the biometric-data review is complete. The pilot can evaluate per-meeting diarization without storing a reusable voice embedding."
+    },
+    {
+      "time": "11:35",
+      "speaker": "Maya Chen",
+      "text": "We will review architecture, privacy answers, evaluation data, and pilot readiness on July 29. No external launch statement will be made before that review."
+    }
+  ],
+  "visual_context": [
+    {
+      "description": "The shared architecture canvas shows six layers: device capture, encrypted offline buffer, transcript finalization, local loopback BFF, Azure OpenAI structured analysis, and human-controlled Outlook draft review."
+    },
+    {
+      "description": "The pilot scorecard shows proposed targets, not measured results: at least 90 percent speaker attribution on a controlled four-person set, package generation within two minutes after a 45-minute meeting, evidence links for every decision and action, and zero automatic sends."
+    },
+    {
+      "description": "The risk board lists overlapping speech, Mandarin-English code switching, noisy rooms, network loss, Azure throttling, regional retention approval, sensitive-term redaction, and Outlook availability."
+    },
+    {
+      "description": "The delivery timeline shows a four-week synthetic pilot with 20 volunteers, owner actions due July 22 through July 26, and a readiness review on July 29."
+    },
+    {
+      "description": "The evaluation matrix separates word accuracy, speaker attribution, decision precision and recall, action precision and recall, stage latency, user correction time, and reuse intent; every value is labeled as a proposed pilot measure until a run produces evidence."
+    },
+    {
+      "description": "The data-lifecycle diagram separates raw audio, finalized transcript, private workspace artifacts, shareable redacted drafts, restricted content diagnostics, and role-scoped audit records with independent retention controls."
+    }
+  ]
+}
