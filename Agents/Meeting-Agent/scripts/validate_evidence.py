@@ -84,6 +84,36 @@ def main() -> int:
     assert aoai["automatic_send"] is False
     assert aoai["redaction"]["sanitized"] is True
 
+    video = json.loads(
+        (root / "evidence" / "meeting-agent-demo-video.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    video_path = root / video["asset"]
+    assert video_path.is_file()
+    assert video_path.stat().st_size == video["output"]["bytes"]
+    assert (
+        hashlib.sha256(video_path.read_bytes()).hexdigest()
+        == video["output"]["sha256"]
+    )
+    assert video["output"]["codec"] == "h264"
+    assert video["output"]["width"] == video["source"]["width"] == 2392
+    assert video["output"]["height"] == video["source"]["height"] == 1500
+    assert video["output"]["frames"] == video["source"]["frames"] == 3860
+    assert 1.595 <= video["output"]["speed"] <= 1.605
+    assert video["output"]["ssim"] >= 0.995
+    assert video["output"]["psnr_db"] >= 40
+    assert video["browser_playback"] == {
+        "protocol": "http",
+        "ready_state": 4,
+        "duration_seconds": 80.4375,
+        "width": 2392,
+        "height": 1500,
+        "media_error": None,
+        "playback_started": True,
+    }
+    assert all(video["assertions"].values())
+
     differential = json.loads(
         (root / "evidence" / "aoai-runtime-differential.json").read_text(
             encoding="utf-8"

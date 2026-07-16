@@ -11,6 +11,16 @@
 
 **中文** | [English](README.md) | [源码](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Meeting-Agent)
 
+## 演示视频
+
+<video src="https://raw.githubusercontent.com/david-xinyuwei/david-share/master/Agents/Meeting-Agent/media/meeting-agent-demo-1.6x.mp4" controls width="100%" poster="images/meeting-agent-demo-poster.png"></video>
+
+https://raw.githubusercontent.com/david-xinyuwei/david-share/master/Agents/Meeting-Agent/media/meeting-agent-demo-1.6x.mp4
+
+[![播放 Meeting Agent 演示](images/meeting-agent-demo-poster.png)](media/meeting-agent-demo-1.6x.mp4)
+
+*全分辨率`2392x1500`操作演示，播放速度为原视频的`1.6x`。H.264成品保留全部3,860帧；实测SSIM为`0.99966`、PSNR为`56.17 dB`。[查看验证证据](evidence/meeting-agent-demo-video.json)。*
+
 ## 执行摘要
 
 客户主路径是本机浏览器工作区，而不是 Python 命令行。转写、结构化会议 JSON 或视觉适配器会转换成严格会议事件；本机 Python backend 使用 GPT-5.4 Responses API 结构化输出和 Medium reasoning，生成可追溯产物，并让 Windows UI 在 New Outlook 中打开 EML 草稿供人工审阅。
@@ -158,7 +168,14 @@ git clone https://github.com/david-xinyuwei/david-share.git
 Set-Location .\david-share\Agents\Meeting-Agent
 ```
 
-2. 使用现有Azure OpenAI资源启动应用：
+2. 在Azure Portal中获取Azure OpenAI连接信息：
+
+- 打开目标 **Azure OpenAI** 或 **Azure AI Services** 资源。
+- 进入 **Resource Management > Keys and Endpoint**。
+- 复制 **Endpoint**，以及 **KEY 1** 或 **KEY 2** 中任意一个。
+- 在 **Model deployments** 中确认deployment名称；本文示例使用`gpt-5.4`。
+
+3. 使用现有Azure OpenAI资源启动应用。只替换endpoint和deployment占位符，不要把API Key写进命令：
 
 ```powershell
 .\scripts\start-ui-key.ps1 `
@@ -168,9 +185,17 @@ Set-Location .\david-share\Agents\Meeting-Agent
 
 启动器会用隐藏输入询问API Key。粘贴Key并按Enter；Key不会显示，也不会写入文件。启动器会校验Windows、Node.js、Python和New Outlook，安装锁定依赖，在`18089`启动Python backend，并在`http://127.0.0.1:4173`启动loopback UI。
 
-3. 打开`http://127.0.0.1:4173`，选择 **Meeting JSON**，上传`examples/meeting-record-stargate.json`，按需填写草稿收件人，然后点击 **Generate meeting package**。
+执行命令后，PowerShell会显示：
 
-4. 只有以下条件全部满足才算验收通过：
+```text
+Azure OpenAI API key:
+```
+
+在这个提示后粘贴 **KEY 1** 或 **KEY 2**，然后按Enter。因为是隐藏输入，粘贴时屏幕不会显示任何字符。启动器特意不提供`-ApiKey`命令参数，避免Key进入PowerShell历史记录。
+
+4. 打开`http://127.0.0.1:4173`，选择 **Meeting JSON**，上传`examples/meeting-record-stargate.json`，按需填写草稿收件人，然后点击 **Generate meeting package**。
+
+5. 只有以下条件全部满足才算验收通过：
 
 - 页头显示 **Azure OpenAI Responses API** 和`gpt-5.4 · reasoning medium · key auth`。
 - 六个真实生成阶段全部完成；模型文字先于分析和产物出现。

@@ -11,6 +11,16 @@ A local Windows meeting workspace that uses GPT-5.4 through the Azure OpenAI Res
 
 [Chinese](README-CN.md) | **English** | [Source](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Meeting-Agent)
 
+## Demo Video
+
+<video src="https://raw.githubusercontent.com/david-xinyuwei/david-share/master/Agents/Meeting-Agent/media/meeting-agent-demo-1.6x.mp4" controls width="100%" poster="images/meeting-agent-demo-poster.png"></video>
+
+https://raw.githubusercontent.com/david-xinyuwei/david-share/master/Agents/Meeting-Agent/media/meeting-agent-demo-1.6x.mp4
+
+[![Play the Meeting Agent demo](images/meeting-agent-demo-poster.png)](media/meeting-agent-demo-1.6x.mp4)
+
+*Full-resolution `2392x1500` walkthrough at `1.6x` speed. The H.264 asset preserves all 3,860 frames; measured quality is SSIM `0.99966` and PSNR `56.17 dB`. [View the validation evidence](evidence/meeting-agent-demo-video.json).*
+
 ## Executive Summary
 
 The customer path is a local browser workspace, not a Python command line. A transcript, structured meeting JSON, or visual adapter becomes strict meeting events; a local Python backend calls GPT-5.4 with Responses API structured output and medium reasoning, generates traceable artifacts, and lets the Windows UI open an EML draft in New Outlook for human review.
@@ -158,7 +168,14 @@ git clone https://github.com/david-xinyuwei/david-share.git
 Set-Location .\david-share\Agents\Meeting-Agent
 ```
 
-2. Start the application with the existing Azure OpenAI resource:
+2. Get the Azure OpenAI connection values from the Azure portal:
+
+- Open the target **Azure OpenAI** or **Azure AI Services** resource.
+- Go to **Resource Management > Keys and Endpoint**.
+- Copy the **Endpoint** and either **KEY 1** or **KEY 2**.
+- Confirm the deployment name under **Model deployments**; this runbook uses `gpt-5.4`.
+
+3. Start the application with the existing Azure OpenAI resource. Replace only the endpoint and deployment placeholders; do not put the API key in the command:
 
 ```powershell
 .\scripts\start-ui-key.ps1 `
@@ -168,9 +185,17 @@ Set-Location .\david-share\Agents\Meeting-Agent
 
 The launcher asks for the API key using hidden input. Paste the key and press Enter; it is never displayed or written to a file. The launcher validates Windows, Node.js, Python, and New Outlook, installs locked dependencies, starts the Python backend on `18089`, and opens the loopback UI on `http://127.0.0.1:4173`.
 
-3. Open `http://127.0.0.1:4173`, choose **Meeting JSON**, upload `examples/meeting-record-stargate.json`, optionally enter draft recipients, and select **Generate meeting package**.
+PowerShell displays this prompt after the command starts:
 
-4. Accept the run only when all of these are true:
+```text
+Azure OpenAI API key:
+```
+
+Paste **KEY 1** or **KEY 2** at that prompt and press Enter. No characters appear while pasting because the input is hidden. There is intentionally no `-ApiKey` command-line parameter, so the key does not enter PowerShell history.
+
+4. Open `http://127.0.0.1:4173`, choose **Meeting JSON**, upload `examples/meeting-record-stargate.json`, optionally enter draft recipients, and select **Generate meeting package**.
+
+5. Accept the run only when all of these are true:
 
 - The header shows **Azure OpenAI Responses API** and `gpt-5.4 · reasoning medium · key auth`.
 - All six real generation stages complete; model text appears before analysis and artifacts.

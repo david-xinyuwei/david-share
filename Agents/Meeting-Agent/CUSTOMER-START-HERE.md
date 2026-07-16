@@ -18,6 +18,8 @@ Use native Windows PowerShell. The complete path is:
 
 ### Start
 
+In the Azure portal, open the target Azure OpenAI or Azure AI Services resource, go to **Resource Management > Keys and Endpoint**, and copy the Endpoint plus **KEY 1** or **KEY 2**. Confirm the deployment name under **Model deployments**.
+
 ```powershell
 Set-Location .\Meeting-Agent
 .\scripts\start-ui-key.ps1 `
@@ -25,7 +27,7 @@ Set-Location .\Meeting-Agent
 	-Deployment "gpt-5.4"
 ```
 
-Paste the API key into the hidden prompt and press Enter. The key is not displayed, stored in a file, or sent to the browser.
+After the command starts, PowerShell displays `Azure OpenAI API key:`. Paste **KEY 1** or **KEY 2** after that prompt and press Enter. Hidden input displays no characters. Do not add the key to the command; there is intentionally no `-ApiKey` parameter. The key is not stored in a file or sent to the browser.
 
 Open `http://127.0.0.1:4173`, choose **Meeting JSON**, upload `examples/meeting-record-stargate.json`, and select **Generate meeting package**.
 

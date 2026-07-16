@@ -15,5 +15,6 @@ LICENSE text eol=lf
 *.sh text eol=lf
 *.cmd text eol=crlf
 *.png binary
+*.mp4 binary
 *.pptx -filter -diff -merge binary
 *.eml binary

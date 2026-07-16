@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "asset": "media/meeting-agent-demo-1.6x.mp4",
+  "source": {
+    "duration_seconds": 128.666667,
+    "bytes": 71032097,
+    "codec": "mpeg4",
+    "width": 2392,
+    "height": 1500,
+    "frames": 3860
+  },
+  "output": {
+    "duration_seconds": 80.4375,
+    "bytes": 26555169,
+    "sha256": "dc6ec65228b4ebcd31bfe0a5bd7835b6f7e96579b0d1c638a6f52c5618da1ab2",
+    "codec": "h264",
+    "profile": "High",
+    "width": 2392,
+    "height": 1500,
+    "frames": 3860,
+    "speed": 1.5995856037296037,
+    "ssim": 0.99966,
+    "psnr_db": 56.166536
+  },
+  "browser_playback": {
+    "protocol": "http",
+    "ready_state": 4,
+    "duration_seconds": 80.4375,
+    "width": 2392,
+    "height": 1500,
+    "media_error": null,
+    "playback_started": true
+  },
+  "assertions": {
+    "resolution_unchanged": true,
+    "pixel_format_unchanged": true,
+    "frame_count_unchanged": true,
+    "h264_browser_compatible": true,
+    "speed_approximately_1_6x": true,
+    "visual_quality_threshold_passed": true,
+    "browser_playback_verified": true
+  }
+}

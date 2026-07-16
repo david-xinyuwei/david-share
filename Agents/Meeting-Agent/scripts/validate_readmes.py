@@ -10,6 +10,7 @@ from PIL import Image, ImageStat
 ROOT = Path(__file__).resolve().parents[1]
 README_PATHS = (ROOT / "README.md", ROOT / "README-CN.md")
 EXPECTED_IMAGES = [
+    "images/meeting-agent-demo-poster.png",
     "images/meeting-agent-architecture.svg",
     "images/meeting-agent-ui.png",
     "evidence/sample-runs/product-planning/mind-map.png",
@@ -91,7 +92,9 @@ def main() -> int:
         )
         assert readme_evidence[0][run_name] == expected
 
-    architecture = ElementTree.parse(ROOT / EXPECTED_IMAGES[0]).getroot()
+    architecture = ElementTree.parse(
+        ROOT / "images" / "meeting-agent-architecture.svg"
+    ).getroot()
     assert architecture.attrib["width"] == "2400"
     assert architecture.attrib["height"] == "2100"
     assert architecture.attrib["viewBox"] == "0 0 2400 2100"
@@ -106,7 +109,9 @@ def main() -> int:
         architecture_labels
     )
 
-    ui_screenshot = Image.open(ROOT / EXPECTED_IMAGES[1]).convert("RGB")
+    ui_screenshot = Image.open(
+        ROOT / "images" / "meeting-agent-ui.png"
+    ).convert("RGB")
     live_evidence = json.loads(
         (ROOT / "evidence" / "aoai-live-validation.json").read_text(encoding="utf-8")
     )
@@ -116,6 +121,12 @@ def main() -> int:
         expected_screenshot["height"],
     )
     assert all(variance > 100 for variance in ImageStat.Stat(ui_screenshot).var)
+
+    poster = Image.open(
+        ROOT / "images" / "meeting-agent-demo-poster.png"
+    ).convert("RGB")
+    assert poster.size == (2392, 1500)
+    assert all(variance > 100 for variance in ImageStat.Stat(poster).var)
 
     screenshot = Image.open(ROOT / EXPECTED_IMAGES[-1]).convert("RGB")
     assert screenshot.size == (1721, 940)

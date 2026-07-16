@@ -58,6 +58,9 @@ def main() -> int:
     template_path = ROOT / "src" / "meeting_agent" / "templates" / "meeting-agent-template.pptx"
     assert template_path.is_file() and template_path.stat().st_size > 20_000
     assert (ROOT / "examples" / "meeting-record-foundry-workshop.json").is_file()
+    assert (ROOT / "media" / "meeting-agent-demo-1.6x.mp4").stat().st_size > 20_000_000
+    assert (ROOT / "images" / "meeting-agent-demo-poster.png").is_file()
+    assert (ROOT / "evidence" / "meeting-agent-demo-video.json").is_file()
 
     package = json.loads((ROOT / "ui" / "package.json").read_text(encoding="utf-8"))
     assert package["scripts"]["build"] == "tsc --noEmit && vite build"
@@ -102,6 +105,9 @@ def main() -> int:
         assert {
             "CUSTOMER-START-HERE.md",
             "CUSTOMER-START-HERE-CN.md",
+            "evidence/meeting-agent-demo-video.json",
+            "images/meeting-agent-demo-poster.png",
+            "media/meeting-agent-demo-1.6x.mp4",
             "scripts/start-ui.ps1",
             "scripts/start-ui-key.ps1",
             "ui/package-lock.json",

@@ -18,6 +18,8 @@
 
 ### 启动
 
+在Azure Portal中打开目标Azure OpenAI或Azure AI Services资源，进入 **Resource Management > Keys and Endpoint**，复制Endpoint和 **KEY 1** 或 **KEY 2**。在 **Model deployments** 中确认deployment名称。
+
 ```powershell
 Set-Location .\Meeting-Agent
 .\scripts\start-ui-key.ps1 `
@@ -25,7 +27,7 @@ Set-Location .\Meeting-Agent
 	-Deployment "gpt-5.4"
 ```
 
-请在隐藏提示中粘贴API Key并按Enter。Key不会显示、不会写入文件，也不会发送到浏览器。
+命令启动后，PowerShell会显示`Azure OpenAI API key:`。在提示后粘贴 **KEY 1** 或 **KEY 2**并按Enter；隐藏输入不会显示任何字符。不要把Key追加到命令中，启动器特意不提供`-ApiKey`参数。Key不会写入文件，也不会发送到浏览器。
 
 打开`http://127.0.0.1:4173`，选择 **Meeting JSON**，上传`examples/meeting-record-stargate.json`，然后点击 **Generate meeting package**。
 
