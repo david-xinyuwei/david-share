@@ -27,3 +27,4 @@ logs/
 password.txt
 *.token
 *.secret
+!media/meeting-agent-demo-1.6x.mp4
