@@ -31,6 +31,15 @@
     "media_error": null,
     "playback_started": true
   },
+  "distribution": {
+    "user_attachment_url": "https://github.com/user-attachments/assets/023f22f0-31f2-4039-85f0-e22712770ff2",
+    "github_native_player_verified": true,
+    "duration_seconds": 80.4375,
+    "width": 2392,
+    "height": 1500,
+    "ready_state": 4,
+    "media_error": null
+  },
   "assertions": {
     "resolution_unchanged": true,
     "pixel_format_unchanged": true,

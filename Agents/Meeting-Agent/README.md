@@ -13,11 +13,13 @@ A local Windows meeting workspace that uses GPT-5.4 through the Azure OpenAI Res
 
 ## Demo Video
 
-[![Play the Meeting Agent demo](images/meeting-agent-demo-preview.gif)](https://github.com/david-xinyuwei/david-share/raw/refs/heads/master/Agents/Meeting-Agent/media/meeting-agent-demo-1.6x.mp4?download=1)
+https://github.com/user-attachments/assets/023f22f0-31f2-4039-85f0-e22712770ff2
 
-[Download or play the full-resolution H.264 MP4](https://github.com/david-xinyuwei/david-share/raw/refs/heads/master/Agents/Meeting-Agent/media/meeting-agent-demo-1.6x.mp4?download=1)
+[![Animated preview fallback](images/meeting-agent-demo-preview.gif)](https://github.com/user-attachments/assets/023f22f0-31f2-4039-85f0-e22712770ff2)
 
-*The animated preview above is the first 12 seconds of the walkthrough. The full video remains `2392x1500` at `1.6x` speed and preserves all 3,860 frames; measured quality is SSIM `0.99966` and PSNR `56.17 dB`. [View the validation evidence](evidence/meeting-agent-demo-video.json).*
+[Download the repository copy](https://github.com/david-xinyuwei/david-share/raw/refs/heads/master/Agents/Meeting-Agent/media/meeting-agent-demo-1.6x.mp4?download=1)
+
+*GitHub renders the user-attachment URL as the native video player; the animated image is a compatibility fallback. The full video remains `2392x1500` at `1.6x` speed and preserves all 3,860 frames; measured quality is SSIM `0.99966` and PSNR `56.17 dB`. [View the validation evidence](evidence/meeting-agent-demo-video.json).*
 
 ## Executive Summary
 

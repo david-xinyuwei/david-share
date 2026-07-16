@@ -112,6 +112,18 @@ def main() -> int:
         "media_error": None,
         "playback_started": True,
     }
+    assert video["distribution"] == {
+        "user_attachment_url": (
+            "https://github.com/user-attachments/assets/"
+            "023f22f0-31f2-4039-85f0-e22712770ff2"
+        ),
+        "github_native_player_verified": True,
+        "duration_seconds": 80.4375,
+        "width": 2392,
+        "height": 1500,
+        "ready_state": 4,
+        "media_error": None,
+    }
     assert all(video["assertions"].values())
 
     differential = json.loads(

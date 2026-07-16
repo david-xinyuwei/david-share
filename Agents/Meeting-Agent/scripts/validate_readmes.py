@@ -60,6 +60,10 @@ def evidence_rows(text: str) -> dict[str, tuple[int, str, str]]:
 
 def main() -> int:
     texts = [path.read_text(encoding="utf-8") for path in README_PATHS]
+    user_attachment = (
+        "https://github.com/user-attachments/assets/"
+        "023f22f0-31f2-4039-85f0-e22712770ff2"
+    )
     lines = [text.splitlines() for text in texts]
     headings = [re.findall(r"^(#{1,6}) ", text, flags=re.MULTILINE) for text in texts]
     fence_languages = [
@@ -78,6 +82,7 @@ def main() -> int:
     assert table_shapes[0] == table_shapes[1]
     assert images[0] == images[1]
     assert images[0] == EXPECTED_IMAGES
+    assert all(text.count(user_attachment) == 2 for text in texts)
     assert readme_evidence[0] == readme_evidence[1]
     assert set(readme_evidence[0]) == set(RUN_NAMES)
     for image in images[0]:
