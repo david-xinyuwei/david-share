@@ -11,11 +11,11 @@ This customer-facing repo contains the headline comparison, the complete Microso
 
 > Author: 魏新宇 (Xinyu Wei) — Microsoft AI and Apps Global Black Belt (GBB)
 >
-> Last tested: 2026-07-17
+> Last tested: 2026-07-18
 
 English | [中文版](README-CN.md) | [Validation Evidence](data/validation/)
 
-> **Comparison status:** on the input side, MI300X reaches **18,983.91 input tok/s** at 64K and concurrency 4 versus the customer H200 saturation reference of **27,400 input tok/s**; the H200 workbook does not record the matching input concurrency. On the output side, the near-aligned 8K c16 point reaches **95.6% of the H200 Decode throughput reference with 6.6% lower TPOT**, but this remains directional because routing and deployment topology differ. Higher-concurrency 8K points and all 64K output points are reported with no hardware ratio because their actual Decode batch does not match the H200 rows.
+> **Comparison status:** on the input side, MI300X reaches **18,983.91 input tok/s** at 64K and concurrency 4 versus the customer H200 saturation reference of **27,400 input tok/s**; the H200 workbook does not record the matching input concurrency. On the output side, the near-aligned 8K c16 point reaches **95.6% of the H200 Decode throughput reference with 6.6% lower TPOT**, and a dedicated sustained fixed-batch run now provides a matched-batch 64K point: **718.12 tok/s at fixed batch 16, 53.8% of the H200 BS16 reference**, with the gap isolated to the long-KV decode-attention path of the current ROCm runtime. Higher batch sizes (BS32–96) still require an EP/multi-node Decode deployment and are reported with no hardware ratio.
 
 ---
 
@@ -110,6 +110,7 @@ AMD provided the base launch method: the container image, tuned AITER path, 1P1D
 |---|---|---|---:|
 | 1P1D Decode | 8K input / 1K output | 8, 16, 32, 64, 96, 128, 192 | 256 |
 | 1P1D long-context Decode | Requested 64K input / 1K output; requested 255K input / 1K output (256K total sequence) | 64K: 16, 32, 64, 96; 255K: 1 | 32, 64, 128, 192; 1 |
+| Single-node sustained fixed-batch Decode | 64K input / 8K output at fixed batch 4, 8, 16; 8K input / 8K output at fixed batch 16 | Batch equals client concurrency | 4, 8, 16; 16 |
 | 1P1D Prefill | 8K, 64K, nominal 256K / 1 output | 1, 2, 4, 8 | 16 |
 | Two-node DP=2 Prefill | 8K, 64K, nominal 256K / 1 output | 8K/64K: 1, 2, 4, 8, 16; nominal 256K: 1, 2, 4, 8 | 32 |
 
@@ -197,23 +198,40 @@ Machine-readable D-node audit: [`data/validation/decode-service-log-audit.json`]
 
 H200 source: customer-provided worksheet, TP8/EP32/DP4, balanced `fake_topk_ids`, MTP3, reported accept rate 0.75. H200 TPOT is derived as `1000 / (Decode output tok/s ÷ per-DP BS)`. The private workbook is not redistributed; public values and provenance are in [`data/validation/h200-reference.json`](data/validation/h200-reference.json).
 
-#### Why No Output-Side MI300X/H200 Ratio Is Reported
+#### Why the PD-Serving Points Carry No Output-Side Ratio
 
-- The observed MI300X Decode batch is steady-state 4 with peak 5; H200 rows are BS16/32/64/96.
+- In the PD-serving run above, the observed MI300X Decode batch is steady-state 4 with peak 5, while H200 rows are BS16/32/64/96; the sustained fixed-batch section below provides the matched-batch comparison.
 - MI300X uses two nodes (1P1D, 16 GPUs total); the H200 Decode reference comes from TP8/EP32/DP4 (four 8-GPU nodes, 32 GPUs total).
 - MI300X uses real expert routing; H200 uses balanced `fake_topk_ids`.
 - H200 provides no TTFT or matching E2E result.
 
-Therefore, current output tokens/s and TPOT values are shown as two separate source tables, not as a hardware ranking. A strict NVIDIA comparison requires the same actual D-node batch, topology/routing policy, 64K/1K workload, and the same direct D-node output tok/s plus E2E TTFT collection.
+Therefore, the PD-serving output tokens/s and TPOT values are shown as two separate source tables, not as a hardware ranking. A strict NVIDIA comparison requires the same actual D-node batch, topology/routing policy, 64K/1K workload, and the same direct D-node output tok/s plus E2E TTFT collection.
+
+#### Sustained Fixed-Batch Decode — Matched-Batch 64K Comparison (2026-07-18)
+
+Measured on one MI300X node (TP8, no PD disaggregation) with the same immutable runtime image. Raising `--mem-fraction-static` to 0.95 expands the full-attention KV pool from 554,880 to 1,442,464 tokens, so sixteen 64K-context requests decode concurrently; 8,192 output tokens per request create a sustained full-batch Decode window. Acceptance uses `SGLANG_SIMULATE_ACC_LEN=3`, identical to every published MI300X Decode result.
+
+| Base context | Fixed batch | Steady-state gen tok/s | Implied TPOT (ms) | H200 per-DP reference | MI300X / H200 |
+|---:|---:|---:|---:|---:|---:|
+| 64K | 16 | **718.12** | 22.28 | 1,333.89 (BS16) | **53.8%** |
+| 64K | 8 | 507.88 | 15.75 | — | — |
+| 64K | 4 | 311.57 | 12.84 | — | — |
+| 8K | 16 | 1,031.26 | 15.52 | Internal scaling reference | — |
+
+All requests succeeded at every point. The 64K rows decode against sequences growing from 65,536 to 73,728 tokens, slightly heavier than the customer H200 64K/1K workload, so the 53.8% figure is conservative. The batch-4 row (311.57 tok/s) is consistent with the PD-serving points above, whose feeding-limited batch of 4 produced 267.97–287.77 tok/s.
+
+**KV-scaling finding.** At the same fixed batch 16 and output length, growing the base context from 8K to 64K raises MI300X per-step decode time by **43.6%** (15.52 → 22.28 ms), while the H200 reference grows only **3.5%** (11.59 → 11.99 ms derived). The 64K gap therefore concentrates in the long-KV decode-attention path (fp8 KV, aiter backend) of the current ROCm runtime. MI300X peak HBM bandwidth (5.3 TB/s) exceeds H200 (4.8 TB/s), so this is a software-optimization target being pursued with AMD rather than a hardware ceiling. Matching the H200 BS32–96 rows additionally requires an EP/multi-node Decode deployment such as the customer's TP8/EP32/DP4: BS32 at 64K needs roughly 2.36M full-attention KV tokens, beyond the single-node pool of 1.44M.
+
+Machine-readable results: [`data/decode-fixed-batch-results.tsv`](data/decode-fixed-batch-results.tsv); method, runtime identity, and source hashes: [`data/validation/decode-fixed-batch-audit.json`](data/validation/decode-fixed-batch-audit.json); reproduction: [`scripts/amd-latest/launch_single_node_decode.sh`](scripts/amd-latest/launch_single_node_decode.sh) + [`scripts/amd-latest/benchmark_decode_fixed_batch.sh`](scripts/amd-latest/benchmark_decode_fixed_batch.sh).
 
 #### 3. Customer Requirement Assessment
 
 | Customer question | Current evidence | Suitable for MI300X/H200 ranking? |
 |---|---|---|
 | 64K input capacity | MI300X 18,983.91 input tok/s vs H200 27,400 input tok/s | Directional only; H200 concurrency is missing |
-| 64K output throughput | MI300X E2E and D-node output metrics exist; H200 per-DP output exists | No; actual D batch and topology differ |
+| 64K output throughput | Sustained fixed-batch BS16: MI300X 718.12 vs H200 1,333.89 tok/s | Directional at matched batch 16 (53.8%); BS32–96 need EP/multi-node |
 | Output TTFT | MI300X measured | No; H200 TTFT is not provided |
-| Decode TPOT | Both sources provide TPOT | No strict ratio; actual D batch and routing differ |
+| Decode TPOT | Both sources provide TPOT | Matched-batch BS16: 22.28 vs 11.99 ms derived; routing still differs |
 | Near-limit context | MI300X completed requested 255K input + 1K output | Capability evidence only; no matching H200 workload |
 
 #### Requested 255K Capability Point
@@ -290,6 +308,8 @@ Observed behavior:
 - Detailed scalability results: [`data/scalability-results.tsv`](data/scalability-results.tsv)
 - Core Decode repeatability: [`data/decode-repeatability.tsv`](data/decode-repeatability.tsv)
 - Long-context Decode results: [`data/decode-long-context-results.tsv`](data/decode-long-context-results.tsv)
+- Sustained fixed-batch Decode results: [`data/decode-fixed-batch-results.tsv`](data/decode-fixed-batch-results.tsv)
+- Fixed-batch method and source hashes: [`data/validation/decode-fixed-batch-audit.json`](data/validation/decode-fixed-batch-audit.json)
 - Long-context runtime and source-artifact evidence: [`data/validation/decode-long-context-evidence.json`](data/validation/decode-long-context-evidence.json)
 - Exact-token and runtime validation metadata: [`data/validation/`](data/validation/)
 - Supported reproduction bundle: [`scripts/amd-latest/`](scripts/amd-latest/)

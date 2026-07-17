@@ -422,12 +422,12 @@ def check_long_context_decode() -> None:
         assert "TPUT" in text
 
     english, chinese = readme_texts
-    assert "all 64K output points are reported with no hardware ratio" in english
-    assert "全部 64K output 点" in chinese and "不计算硬件比率" in chinese
+    assert "Higher batch sizes (BS32–96) still require an EP/multi-node Decode deployment" in english
+    assert "更高 batch（BS32–96）仍需 EP/多节点 Decode 部署" in chinese
     assert "A strict NVIDIA comparison requires" in english
     assert "要做严格 NVIDIA 对比" in chinese
     assert "actual D-node batch" in english
-    assert "实际 D batch" in chinese
+    assert "实际 D-node batch" in chinese
     assert "four 8-GPU nodes, 32 GPUs total" in english
     assert "4 台 8-GPU 节点，共 32 张 GPU" in chinese
 
@@ -560,6 +560,80 @@ def check_public_boundary() -> None:
     assert not (ROOT / "password.txt").exists()
 
 
+def check_fixed_batch_decode() -> None:
+    rows = load_tsv(ROOT / "data/decode-fixed-batch-results.tsv")
+    audit = load_json(ROOT / "data/validation/decode-fixed-batch-audit.json")
+    image = load_json(ROOT / "data/validation/container-image.json")
+    h200 = load_json(ROOT / "data/validation/h200-reference.json")
+    readme_texts = [path.read_text(encoding="utf-8") for path in READMES]
+
+    assert audit["run_id"] == "fixedbatch_sustained_decode_20260718"
+    assert audit["measurement_repetitions"] == 1
+    assert audit["runtime"]["runtime_image"] == image["immutable_pull_ref"]
+    assert audit["runtime"]["container_image_id"] == image["image_id"]
+    assert audit["runtime"]["sglang_source_head"] == image["sglang_commit"]
+    assert audit["runtime"]["aiter_source_head"] == image["aiter_commit"]
+    assert audit["runtime"]["tuned_csv_sha256"] == image["tuned_csv_sha256"]
+    for key in ("launch_server_sh_sha256", "decode_outer_log_sha256_at_analysis", "decode_outer_log_sha256_in_remote_manifest"):
+        assert re.fullmatch(r"[0-9a-f]{64}", audit["source_artifacts"][key])
+
+    assert len(rows) == 4
+    audit_points = {(p["base_input_tokens"], p["fixed_batch"]): p for p in audit["points"]}
+    assert set(audit_points) == {(65536, 16), (65536, 8), (65536, 4), (8192, 16)}
+    for row in rows:
+        key = (int(row["base_input_tokens"]), int(row["fixed_batch"]))
+        point = audit_points[key]
+        assert int(row["output_tokens"]) == point["output_tokens"] == 8192
+        assert int(row["successful_requests"]) == point["successful_requests"] == key[1]
+        assert float(row["steady_gen_tok_s_mean"]) == point["steady_state"]["mean_gen_tok_s"]
+        assert float(row["implied_tpot_ms"]) == point["steady_state"]["implied_tpot_ms_at_batch"]
+        assert math.isclose(
+            point["steady_state"]["implied_tpot_ms_at_batch"],
+            1000.0 / (point["steady_state"]["mean_gen_tok_s"] / key[1]),
+            abs_tol=0.01,
+        )
+        assert re.fullmatch(r"[0-9a-f]{64}", point["client_log_sha256"])
+        assert row["runtime_image"] == image["immutable_pull_ref"]
+        assert int(row["measurement_repetitions"]) == 1
+
+    headline = audit_points[(65536, 16)]
+    h200_bs16 = next(
+        p for p in h200["decode"]["points"]
+        if p["input_tokens"] == 65536 and p["per_dp_bs"] == 16
+    )
+    assert headline["h200_reference"]["output_tok_s"] == h200_bs16["output_tok_s"]
+    ratio_pct = round(headline["steady_state"]["mean_gen_tok_s"] / h200_bs16["output_tok_s"] * 100, 1)
+    assert ratio_pct == headline["mi300x_vs_h200_pct"] == 53.8
+    growth_mi300x = round(
+        (audit_points[(65536, 16)]["steady_state"]["implied_tpot_ms_at_batch"]
+         / audit_points[(8192, 16)]["steady_state"]["implied_tpot_ms_at_batch"] - 1) * 100,
+        1,
+    )
+    assert growth_mi300x == 43.6
+    h200_8k_bs16 = next(
+        p for p in h200["decode"]["points"]
+        if p["input_tokens"] == 8192 and p["per_dp_bs"] == 16
+    )
+    growth_h200 = round((h200_bs16["mean_tpot_ms"] / h200_8k_bs16["mean_tpot_ms"] - 1) * 100, 1)
+    assert growth_h200 == 3.5
+
+    en_row = "| 64K | 16 | **718.12** | 22.28 | 1,333.89 (BS16) | **53.8%** |"
+    cn_row = "| 64K | 16 | **718.12** | 22.28 | 1,333.89（BS16） | **53.8%** |"
+    assert en_row in readme_texts[0]
+    assert cn_row in readme_texts[1]
+    for text in readme_texts:
+        assert "data/decode-fixed-batch-results.tsv" in text
+        assert "data/validation/decode-fixed-batch-audit.json" in text
+        assert "launch_single_node_decode.sh" in text
+        assert "benchmark_decode_fixed_batch.sh" in text
+        assert "554,880" in text and "1,442,464" in text
+        assert "43.6%" in text and "3.5%" in text
+        assert "53.8%" in text
+        assert "507.88" in text and "311.57" in text and "1,031.26" in text
+    assert "conservative" in readme_texts[0]
+    assert "偏保守" in readme_texts[1]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Validate the MiMo-V2.5-Pro MI300X public benchmark repository."
@@ -569,6 +643,7 @@ def main() -> None:
         ("readmes", check_readmes),
         ("result_tables", check_result_tables),
         ("long_context_decode", check_long_context_decode),
+        ("fixed_batch_decode", check_fixed_batch_decode),
         ("provenance", check_provenance),
         ("code_and_assets", check_code_and_assets),
         ("public_boundary", check_public_boundary),
