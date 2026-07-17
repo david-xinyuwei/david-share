@@ -65,7 +65,7 @@ def main() -> int:
         _wait_for(f"{UI_URL}/api/health", ui, "UI BFF")
 
         completed = subprocess.run(
-            [_playwright_command(), "test", "--reporter=json"],
+            [_playwright_command(), "test", "--reporter=json", "--workers=1"],
             cwd=UI_DIR,
             env={**os.environ, "MEETING_AGENT_UI_URL": UI_URL},
             check=False,
