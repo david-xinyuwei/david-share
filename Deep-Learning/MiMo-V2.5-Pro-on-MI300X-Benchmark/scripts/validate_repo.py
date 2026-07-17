@@ -62,6 +62,7 @@ def check_readmes() -> None:
         for required in (
             "data/validation/container-image.json",
             "data/validation/h200-reference.json",
+            "data/validation/decode-service-log-audit-8k.json",
             "not a strict apples-to-apples" if path.name == "README.md" else "不是严格 apples-to-apples",
             "--password-stdin",
             "validate_server_info.py",
@@ -77,52 +78,118 @@ def check_result_tables() -> None:
     final_rows = load_tsv(ROOT / "data/final-results.tsv")
     scalability_rows = load_tsv(ROOT / "data/scalability-results.tsv")
     repeatability_rows = load_tsv(ROOT / "data/decode-repeatability.tsv")
+    decode_audit = load_json(ROOT / "data/validation/decode-service-log-audit-8k.json")
     assert len(final_rows) == 9
     assert len(scalability_rows) == 33
     assert len(repeatability_rows) == 4
+    assert decode_audit["measurement_repetitions_per_headline_point"] == 1
+    audit_by_concurrency = {point["client_concurrency"]: point for point in decode_audit["points"]}
+    assert set(audit_by_concurrency) == {16, 32, 64, 128}
+    expected_sources = {
+        "tuned_moe_retest_20260713T014113Z": {
+            "decode_outer_log_sha256": "7759dfb94c01c9a6e1df70e5d0b256485f12f3e1620f0f20d45cccd671981a47",
+            "client_log_sha256": {
+                "16": "69313313479cc4bca4221d69a52d0b90a6a094fb34c92eb9a04e2f85d7335664",
+                "32": "c62aa0c52b697c24f3e09538746f04b36f53eb439f3549ad1e732536a2064903",
+                "128": "dfcf0a8f96d962251f98efd51d00365eb4de13bc412c4523608e37c919f7d6d3",
+            },
+        },
+        "amd_onnode_source_exact_20260714T104200Z": {
+            "decode_outer_log_sha256": "3e85d094f11c2a06d43304657ea4f8686cb9134af881e182bc42279147455c3f",
+            "client_log_sha256": {
+                "64": "02f9585fe3a0d8bb74616fd33dfad9376718043932694c5913ee0085a9315d2c",
+            },
+        },
+    }
+    actual_sources = {
+        source["run_id"]: {
+            "decode_outer_log_sha256": source["decode_outer_log_sha256"],
+            "client_log_sha256": source["client_log_sha256"],
+        }
+        for source in decode_audit["source_artifacts"]
+    }
+    assert actual_sources == expected_sources
+    for point in decode_audit["points"]:
+        source = actual_sources[point["source_run"]]
+        assert str(point["client_concurrency"]) in source["client_log_sha256"]
     readme_texts = [path.read_text(encoding="utf-8") for path in READMES]
 
     for row in final_rows:
-        mi300x = float(row["mi300x_tok_s"])
-        concurrency = int(row["mi300x_concurrency"])
+        mi300x = float(row["mi300x_throughput_tok_s"])
+        concurrency = int(row["mi300x_client_concurrency"])
         if row["surface"] == "decode":
             h200_bs = int(row["xiaomi_h200_per_dp_bs"])
-            h200_tok_s = float(row["xiaomi_h200_per_node_reference_tok_s"])
+            h200_tok_s = float(row["xiaomi_h200_reference_tok_s"])
             h200_tpot = float(row["xiaomi_h200_per_dp_tpot_ms"])
             mi300x_tpot = float(row["mi300x_mean_tpot_ms"])
+            mi300x_ttft_s = float(row["mi300x_mean_ttft_ms"]) / 1000
+            audit = audit_by_concurrency[concurrency]
             assert concurrency == h200_bs
-            assert round(mi300x / h200_tok_s * 100, 1) == float(
-                row["mi300x_vs_h200_per_node_pct"]
+            assert row["mi300x_throughput_metric"] == "e2e_output"
+            assert row["xiaomi_h200_throughput_metric"] == "decode_output"
+            assert audit["source_run"] == row["headline_source"]
+            assert int(row["mi300x_actual_decode_batch_mode"]) == audit["running_requests_mode"]
+            assert int(row["mi300x_actual_decode_batch_max"]) == audit["running_requests_max"]
+            assert float(row["mi300x_decode_node_mean_gen_tok_s"]) == audit["mean_gen_tok_s"]
+            expected_status = (
+                "directional_near_aligned_actual_batch"
+                if concurrency in (16, 32)
+                else "not_aligned_actual_decode_batch"
             )
-            assert round(mi300x_tpot / h200_tpot, 2) == float(
-                row["mi300x_vs_h200_tpot_ratio"]
+            assert row["comparison_status"] == expected_status
+            mi300x_line = (
+                f"| {concurrency} | {audit['running_requests_mode']} / {audit['running_requests_max']} | "
+                f"**{mi300x:,.2f}** | {audit['mean_gen_tok_s']:,.2f} | "
+                f"{mi300x_ttft_s:,.2f} | {mi300x_tpot:.2f} |"
             )
-            throughput_line = (
-                f"| {concurrency} | {h200_bs} | **{mi300x:,.2f}** | "
-                f"{h200_tok_s:,.0f} | {float(row['mi300x_vs_h200_per_node_pct']):.1f}% |"
-            )
-            tpot_line = (
-                f"| {concurrency} | {h200_bs} | **{mi300x_tpot:.2f}** | "
-                f"{h200_tpot:.2f} | {float(row['mi300x_vs_h200_tpot_ratio']):.2f}x |"
-            )
-            for text in readme_texts:
-                assert throughput_line in text
-                assert tpot_line in text.replace("×", "x")
+            assert mi300x_line in readme_texts[0]
+            assert mi300x_line in readme_texts[1]
+            h200_line_en = f"| {h200_bs} | {h200_tok_s:,.0f} | {h200_tpot:.2f} | Not provided |"
+            h200_line_cn = f"| {h200_bs} | {h200_tok_s:,.0f} | {h200_tpot:.2f} | 未提供 |"
+            assert h200_line_en in readme_texts[0]
+            assert h200_line_cn in readme_texts[1]
         elif row["topology"] == "1P1D":
-            h200 = float(row["xiaomi_h200_per_node_reference_tok_s"])
-            assert round(mi300x / h200 * 100, 1) == float(row["mi300x_vs_h200_per_node_pct"])
+            h200 = float(row["xiaomi_h200_reference_tok_s"])
+            ratio = round(mi300x / h200 * 100, 1)
+            assert row["mi300x_throughput_metric"] == "input"
+            assert row["xiaomi_h200_throughput_metric"] == "input"
+            assert row["comparison_status"] == "directional_missing_h200_input_concurrency"
             label = {8192: "8K", 65536: "64K", 262144: "256K"}[int(row["input_tokens"])]
             line = (
                 f"| {label} | {concurrency} | **{mi300x:,.2f}** | "
-                f"{h200:,.0f} | {float(row['mi300x_vs_h200_per_node_pct']):.1f}% |"
+                f"{h200:,.0f} | {ratio:.1f}% |"
             )
             for text in readme_texts:
                 assert line in text
         else:
+            assert row["mi300x_throughput_metric"] == "aggregate_input"
+            assert row["comparison_status"] == "no_h200_dp2_reference"
             label = {8192: "8K", 65536: "64K"}[int(row["input_tokens"])]
             line = f"| {label} | {concurrency} | **{mi300x:,.2f}** |"
             for text in readme_texts:
                 assert line in text
+
+    c16 = next(
+        row
+        for row in final_rows
+        if row["surface"] == "decode" and row["mi300x_client_concurrency"] == "16"
+    )
+    assert round(
+        float(c16["mi300x_decode_node_mean_gen_tok_s"])
+        / float(c16["xiaomi_h200_reference_tok_s"])
+        * 100,
+        1,
+    ) == 95.6
+    assert round(
+        (float(c16["xiaomi_h200_per_dp_tpot_ms"]) - float(c16["mi300x_mean_tpot_ms"]))
+        / float(c16["xiaomi_h200_per_dp_tpot_ms"])
+        * 100,
+        1,
+    ) == 6.6
+    assert "95.6%" in readme_texts[0] and "6.6% lower" in readme_texts[0]
+    assert "95.6%" in readme_texts[1] and "低 6.6%" in readme_texts[1]
+    assert "same local batch size" not in readme_texts[0]
+    assert "相同 local batch" not in readme_texts[1]
 
     for row in scalability_rows:
         throughput = float(row["throughput_tok_s"])
@@ -243,19 +310,12 @@ def check_long_context_decode() -> None:
         for field in ("benchmark_duration_s", "input_tok_s", "output_tok_s", "peak_output_tok_s", "mean_tpot_ms", "median_tpot_ms", "mean_ttft_ms"):
             value = float(row[field])
             assert math.isfinite(value) and value > 0
-        label = "Requested 64K" if requested_input == 65536 else "Requested 255K (256K total)"
-        line = (
-            f"| {label} | 1K | {concurrency} | {prompts} | "
-            f"{float(row['output_tok_s']):,.2f} | {float(row['input_tok_s']):,.2f} | {float(row['mean_tpot_ms']):,.2f} | "
-            f"{float(row['mean_ttft_ms']):,.2f} |"
-        )
-        for text in readme_texts:
-            assert line in text
     boundary = next(row for row in rows if row["requested_input_tokens"] == "261120")
     assert int(boundary["requested_input_tokens"]) != 262144
     assert int(boundary["requested_input_tokens"]) + int(boundary["output_tokens"]) == 262144
 
     evidence = load_json(ROOT / "data/validation/decode-long-context-evidence.json")
+    service_audit = load_json(ROOT / "data/validation/decode-service-log-audit.json")
     image = load_json(ROOT / "data/validation/container-image.json")
     h200 = load_json(ROOT / "data/validation/h200-reference.json")
     assert evidence["status"] == "VALIDATED"
@@ -280,6 +340,27 @@ def check_long_context_decode() -> None:
     for digest in evidence["service_artifacts"].values():
         assert re.fullmatch(r"[0-9a-f]{64}", digest)
 
+    assert service_audit["source_run"] == evidence["run_id"]
+    assert service_audit["measurement_repetitions"] == 1
+    assert service_audit["source_artifact"]["sha256"] == evidence["service_artifacts"]["decode_outer_log_sha256"]
+    expected_service_points = {
+        16: (4, 5, 8, 267.97, 321.70),
+        32: (4, 4, 24, 276.74, 321.91),
+        64: (4, 5, 56, 282.81, 328.11),
+        96: (4, 5, 88, 287.77, 338.68),
+        1: (1, 1, 0, 80.64, 92.13),
+    }
+    assert len(service_audit["points"]) == 5
+    for point in service_audit["points"]:
+        expected_point = expected_service_points[point["client_concurrency"]]
+        assert (
+            point["running_requests_mode"],
+            point["running_requests_max"],
+            point["preallocated_requests_max"],
+            point["mean_gen_tok_s"],
+            point["max_gen_tok_s"],
+        ) == expected_point
+
     h200_64k = {
         point["per_dp_bs"]: point
         for point in h200["decode"]["points"]
@@ -301,45 +382,48 @@ def check_long_context_decode() -> None:
     for concurrency, (expected_tpot, expected_tok_s) in expected_h200_64k.items():
         assert h200_64k[concurrency]["mean_tpot_ms"] == expected_tpot
         assert h200_64k[concurrency]["output_tok_s"] == expected_tok_s
-    mi300x_64k = {
-        int(row["concurrency"]): row
-        for row in rows
-        if row["requested_input_tokens"] == "65536"
-    }
+    mi300x_64k = {int(row["concurrency"]): row for row in rows if row["requested_input_tokens"] == "65536"}
+    service_64k = {point["client_concurrency"]: point for point in service_audit["points"] if point["requested_input_tokens"] == 65536}
     for concurrency in (16, 32, 64, 96):
-        mi300x_tpot = float(mi300x_64k[concurrency]["mean_tpot_ms"])
-        h200_tpot = float(h200_64k[concurrency]["mean_tpot_ms"])
-        ratio = mi300x_tpot / h200_tpot
+        row = mi300x_64k[concurrency]
+        audit = service_64k[concurrency]
         line = (
-            f"| {concurrency} | {mi300x_tpot:.2f} | {h200_tpot:.2f} | "
-            f"{ratio:.2f}x |"
+            f"| {concurrency} | {audit['running_requests_mode']} / {audit['running_requests_max']} | "
+            f"{float(row['output_tok_s']):,.2f} | {audit['mean_gen_tok_s']:,.2f} | "
+            f"{float(row['mean_ttft_ms']) / 1000:,.2f} | {float(row['mean_tpot_ms']):,.2f} |"
         )
         for text in readme_texts:
-            assert line in text.replace("×", "x")
+            assert line in text
         h200_rate = float(h200_64k[concurrency]["output_tok_s"])
         assert math.isclose(
-            h200_tpot,
+            float(h200_64k[concurrency]["mean_tpot_ms"]),
             1000 / (h200_rate / concurrency),
             rel_tol=2e-6,
         )
+        h200_line_en = f"| {concurrency} | {h200_rate:,.2f} | {float(h200_64k[concurrency]['mean_tpot_ms']):.2f} | Not provided |"
+        h200_line_cn = f"| {concurrency} | {h200_rate:,.2f} | {float(h200_64k[concurrency]['mean_tpot_ms']):.2f} | 未提供 |"
+        assert h200_line_en in readme_texts[0]
+        assert h200_line_cn in readme_texts[1]
 
     for text in readme_texts:
         assert "data/decode-long-context-results.tsv" in text
         assert "data/validation/decode-long-context-evidence.json" in text
+        assert "data/validation/decode-service-log-audit.json" in text
         assert "benchmark_decode_long_context.sh" in text
         assert "18,983.91" in text and "27,400" in text and "69.3%" in text
-        assert "TPOT / ITL" in text
+        assert "E2E output tok/s" in text
+        assert "Decode-node gen tok/s" in text or "Decode 节点 mean gen tok/s" in text
         assert "TPUT" in text
 
     english, chinese = readme_texts
-    assert "SGLang E2E output tok/s (Prefill-inclusive)" in english
-    assert "SGLang E2E output tok/s（包含 Prefill）" in chinese
-    assert "output-equivalent" not in english
-    assert "output-equivalent" not in chinese
-    assert "No matching customer E2E result" in english
-    assert "No H200 ratio or parity claim" in english
-    assert "客户无匹配 E2E 结果" in chinese
-    assert "不计算 H200 比率" in chinese
+    assert "all 64K output points are reported with no hardware ratio" in english
+    assert "全部 64K output 点" in chinese and "不计算硬件比率" in chinese
+    assert "A strict NVIDIA comparison requires" in english
+    assert "要做严格 NVIDIA 对比" in chinese
+    assert "actual D-node batch" in english
+    assert "实际 D batch" in chinese
+    assert "four 8-GPU nodes, 32 GPUs total" in english
+    assert "4 台 8-GPU 节点，共 32 张 GPU" in chinese
 
     benchmark = (ROOT / "scripts/amd-latest/benchmark_decode_long_context.sh").read_text(
         encoding="utf-8"
@@ -365,7 +449,7 @@ def check_provenance() -> None:
             continue
         if row["surface"] == "prefill":
             assert math.isclose(
-                float(row["xiaomi_h200_per_node_reference_tok_s"]),
+                float(row["xiaomi_h200_reference_tok_s"]),
                 prefill[int(row["input_tokens"])]["input_tok_s"],
                 rel_tol=1e-9,
                 abs_tol=1e-6,
@@ -373,7 +457,7 @@ def check_provenance() -> None:
         else:
             point = decode[(int(row["input_tokens"]), int(row["xiaomi_h200_per_dp_bs"]))]
             assert math.isclose(
-                float(row["xiaomi_h200_per_node_reference_tok_s"]),
+                float(row["xiaomi_h200_reference_tok_s"]),
                 point["output_tok_s"],
                 rel_tol=1e-9,
                 abs_tol=1e-6,
@@ -414,7 +498,7 @@ def check_provenance() -> None:
     assert exact["tokenize_prompt"] is True
     assert exact["successful_requests"] == exact["retokenized_outputs"] == 16
     assert exact["total_input_tokens"] == 16 * 262144
-    assert exact["input_tok_s"] == float(headline_256k["mi300x_tok_s"])
+    assert exact["input_tok_s"] == float(headline_256k["mi300x_throughput_tok_s"])
     for role in ("prefill", "decode"):
         info = load_json(ROOT / f"data/validation/{role}-server-info.json")
         assert info["context_length"] == 262151

@@ -15,7 +15,7 @@
 
 [English](README.md) | 中文 | [验证证据](data/validation/)
 
-> **64K Decode 核心亮点（每点 1 次 measurement run）：**在最终双节点 1P1D MI300X runtime 上，从 concurrency 16 到 96，mean TPOT 稳定在 11.55–11.94 ms。与客户提供的 H200 per-DP TPOT 在相同 local batch 下对比，MI300X 在 16 基本持平，在 32–96 的 TPOT **低 17.8–41.1%**。这是方向性的 Decode-only 观察，不声明 Prefill 或 E2E 领先：MI300X 达到客户 H200 64K 单节点 Prefill 参考的 69.3%，而客户数据没有匹配的 64K E2E 结果。
+> **对比状态：**Input 侧，MI300X 在 64K、concurrency 4 达到 **18,983.91 input tok/s**，客户 H200 饱和吞吐参考为 **27,400 input tok/s**；H200 工作簿没有记录对应的 input concurrency。Output 侧，实际 batch 近似对齐的 8K c16 点达到 **H200 Decode 吞吐参考的 95.6%，且 TPOT 低 6.6%**；但由于 routing 和部署 topology 不同，这仍是方向性观察。更高 concurrency 的 8K 点和全部 64K output 点因实际 Decode batch 与 H200 行不匹配，不计算硬件比率。
 
 ---
 
@@ -27,11 +27,11 @@
 
 ---
 
-## 核心结果 — 微软实测 MI300X vs 小米 H200
+## 核心结果 — Input 与 Output 视图
 
-以下展示从 accepted runs 中选出的已验证客户对比点。每一行的 MI300X 指标都来自同一条测量记录；下一节单独展示一轮完整扩展性矩阵。
+以下展示从 accepted runs 中选出的代表点。每个 MI300X 行内的 client 与 server 指标均来自同一条 measurement record；当 runtime batch 或 metric scope 未对齐时，H200 仅作为独立客户参考展示。
 
-### 1P1D Prefill
+### Input 侧 — 1P1D Prefill
 
 | Context | Concurrency | 微软实测 MI300X input tok/s | 小米 H200 TP8/EP16/DP2 单节点参考 | MI300X / H200 单节点 |
 |---:|---:|---:|---:|---:|
@@ -39,25 +39,31 @@
 | 64K | 4 | **18,983.91** | 27,400 | 69.3% |
 | 256K | 4 | **12,864.96** | 17,400 | 73.9% |
 
-### 1P1D Decode — 8K Input / 1K Output
+这些是方向性单节点 Input 比率。H200 来源没有记录 input concurrency，并使用 balanced `fake_topk_ids`；MI300X 使用真实 expert routing。
 
-| MI300X concurrency | H200 per-DP BS | 微软实测 MI300X output tok/s | 小米 H200 报告的 per-DP/单节点 tok/s | MI300X / H200 单节点 |
-|---:|---:|---:|---:|---:|
-| 16 | 16 | **1,331.98** | 1,381 | 96.5% |
-| 32 | 32 | **1,936.24** | 2,549 | 76.0% |
-| 64 | 64 | **2,465.01** | 4,483 | 55.0% |
-| 128 | 128 | **2,486.89** | 7,013 | 35.5% |
+### Output 侧 — MI300X 1P1D Decode，8K Input / 1K Output
 
-#### Decode TPOT — 越低越好
+| Client concurrency | Decode 节点实际 running requests（众数 / 最大值） | E2E output tok/s | Decode 节点 mean gen tok/s | Mean TTFT (s) | Mean TPOT (ms) |
+|---:|---:|---:|---:|---:|---:|
+| 16 | 15 / 16 | **1,331.98** | 1,319.78 | 1.00 | 10.83 |
+| 32 | 31 / 32 | **1,936.24** | 1,861.52 | 2.27 | 13.65 |
+| 64 | 53 / 55 | **2,465.01** | 2,324.57 | 7.59 | 16.88 |
+| 128 | 51 / 54 | **2,486.89** | 2,333.44 | 27.21 | 16.56 |
 
-| MI300X concurrency | H200 per-DP BS | 微软实测 MI300X mean TPOT (ms) | 小米 H200 TPOT 参考 (ms) | MI300X / H200 |
-|---:|---:|---:|---:|---:|
-| 16 | 16 | **10.83** | 11.59 | 0.93× |
-| 32 | 32 | **13.65** | 12.56 | 1.09× |
-| 64 | 64 | **16.88** | 14.28 | 1.18× |
-| 128 | 128 | **16.56** | 18.25 | 0.91× |
+Client concurrency 是提交请求上限，不是 Decode 实际 batch。c64 和 c128 时，Decode 节点在约 50–55 个 running requests 附近饱和；这些行不能与 H200 BS64 或 BS128 配对。
 
-比值低于 1.00× 表示 MI300X 的 TPOT 更低。这里比较的是一个 MI300X Decode 节点与一个 H200 DP replica/节点在相同 local batch 下的结果。H200 报告使用 DP=4，因此这不是整套部署的 aggregate 对比。每个 MI300X TPOT 都与上方 throughput 使用同一条测量记录。
+#### 客户 H200 8K Output 参考
+
+| H200 per-DP BS | Decode output tok/s | TPOT (ms) | TTFT |
+|---:|---:|---:|---|
+| 16 | 1,381 | 11.59 | 未提供 |
+| 32 | 2,549 | 12.56 | 未提供 |
+| 64 | 4,483 | 14.28 | 未提供 |
+| 128 | 7,013 | 18.25 | 未提供 |
+
+在实际 batch 近似对齐的 c16 点，MI300X Decode 节点 batch 为众数 15 / 最大 16。其直接 D-node generation rate 为 **1,319.78 tok/s**，达到 H200 BS16 参考的 **95.6%**；同时 MI300X TPOT **低 6.6%**（10.83 vs 11.59 ms）。这是方向性观察，不是硬件 parity 声明：MI300X 使用真实 expert routing 和双节点 1P1D 部署；H200 使用 balanced `fake_topk_ids` 和 TP8/EP32/DP4。
+
+机器可读 batch 审计：[`data/validation/decode-service-log-audit-8k.json`](data/validation/decode-service-log-audit-8k.json)。
 
 ### 双节点 DP=2 Prefill — 峰值聚合吞吐
 
@@ -74,8 +80,9 @@ DP=2 的 nominal-length 256K 结果保留在后面的扩展性矩阵中，但不
 - 核心结果中的 1P1D 256K 使用 `--tokenize-prompt`，每条 request 精确发送 262,144 个 token IDs。
 - DP=2 为两台 MI300X 节点的 Prefill-only 聚合容量，不包含 P→D KV-cache transfer。
 - H200 Decode `tok/s` 是报告中的 per-DP/单节点口径（`BS × TPS`），不作为 DP=4 aggregate throughput 展示。
+- Client concurrency 不会被默认当成 Decode 实际 batch；8K 与 64K scheduler-log 审计都记录了实际众数和最大值。
 - H200 数值仍是方向性参考，不是严格 apples-to-apples 硬件 benchmark：MI300X 使用真实 expert routing，H200 参考使用理想均衡 routing。
-- 机器可读核心结果：[`data/final-results.tsv`](data/final-results.tsv)。
+- 机器可读核心结果：[`data/final-results.tsv`](data/final-results.tsv)；scheduler-log 审计：[`data/validation/decode-service-log-audit-8k.json`](data/validation/decode-service-log-audit-8k.json)。
 
 ### H200 参考数据来源
 
@@ -136,61 +143,86 @@ AMD 提供了基础启动方法：container image、tuned AITER path、1P1D/DP=2
 
 四个复测点的两次 fresh-service 吞吐最大绝对差异为 **2.14%**。
 
-### 长上下文 Decode — 最终 Baked Image
+### 长上下文测试结果 — 最终运行时镜像
 
 以下点于 2026-07-17 使用 Software Stack 章节中的 immutable image 直接拉取并运行得到。每一行是 1 次 measurement run；同一行中的多个 requests 不是独立重复实验。
 
-长 ISL 首先考验 **Prefill**。判断长输入摄入能力与在线响应，应看 Input tok/s 和 TTFT；判断首 token 之后的 Decode，应在固定 local batch 下看 TPOT/ITL。Throughput 的单位通常是 tokens/s；`TPUT` 只是 throughput 的缩写，不是另一种独立指标。
+#### 指标口径
 
-| 指标 | 主导阶段 | 含义 |
+Input 与 Output 指标回答不同问题，不能互相相除或直接比较。
+
+| 侧别 | 指标 | 准确定义 |
 |---|---|---|
-| Input tok/s | Prefill | 长 ISL 容量主指标；越高越好 |
-| TTFT | Prefill + queueing + KV transfer | 首 token 等待时间；越低越好 |
-| TPOT / ITL | Decode | 首 token 之后每个输出 token 的延迟；越低越好 |
-| Decode server output tok/s | Decode | 固定 workload 下的 Decode 侧容量；越高越好 |
-| SGLang E2E Output token throughput | 完整请求 | 包含 Prefill/TTFT；不能当作纯 Decode capacity |
+| Input | Input tok/s | 每秒处理的 aggregate input tokens；越高越好 |
+| Input | Input/client concurrency | Benchmark client 允许的最大并发请求数；不一定等于 Decode 实际 batch |
+| Output | E2E output tok/s | 请求的 output tokens 除以完整 benchmark 时长，其中包含 Prefill 和 TTFT |
+| Output | Decode-node gen tok/s | 该测点期间 Decode scheduler 日志中 `gen throughput` 样本的算术平均值 |
+| Output | TTFT | 从请求开始到首个 output token 的时间；越低越好 |
+| Output | TPOT | 首 token 之后每个 output token 的时间；越低越好 |
 
-#### Decode 侧优势 — 64K Input / 1K Output
+`TPUT` 只是 throughput 的缩写，通常以 tokens/s 表示，不是另一种独立指标。
 
-| Local concurrency / per-DP BS | MI300X mean TPOT (ms) | 小米 H200 mean TPOT (ms) | MI300X / H200 |
-|---:|---:|---:|---:|
-| 16 | 11.94 | 11.99 | 1.00× |
-| 32 | 11.76 | 14.31 | 0.82× |
-| 64 | 11.75 | 16.33 | 0.72× |
-| 96 | 11.55 | 19.63 | 0.59× |
+#### 1. Input 侧 — 64K Prefill
 
-在相同 local batch 下，MI300X 在 16 基本持平，在 32–96 的 TPOT **低 17.8–41.1%**。TPOT 越低，表示首 token 之后单条请求的 token 生成越快。
-
-H200 TPOT 本身是客户工作簿根据 per-DP Decode 日志吞吐反推的数值。这是同 workload、相同 local batch 的方向性 Decode 对比，不是整套部署对比：MI300X 使用真实 expert routing；H200 参考使用 balanced `fake_topk_ids`、TP8/EP32/DP4、MTP3 和报告 accept rate 0.75。
-
-H200 来源：客户提供报告于 2026-05-18 完成审阅，并于 2026-07-17 对原始工作簿重新核验；见 [`data/validation/h200-reference.json`](data/validation/h200-reference.json)。私有工作簿不在本 Repo 中再分发。
-
-#### 与 H200 的可比和不可比边界
-
-| 测试面 | 微软实测 MI300X | 客户提供 H200 | 判定 |
+| 字段 | 微软实测 MI300X | 客户 H200 参考 | 对齐状态 |
 |---|---:|---:|---|
-| 64K Prefill | 18,983.91 input tok/s | 27,400 input tok/s | 方向性单节点对比：MI300X 为 H200 的 69.3%，MI300X 不领先 |
-| 64K Decode | 11.55–11.94 ms TPOT | 相同 BS 下 11.99–19.63 ms TPOT | 方向性相同 local batch 对比：MI300X 在 BS32–96 领先 |
-| 64K/1K E2E | 已测 SGLang E2E output tok/s 与 TTFT | 客户无匹配 E2E 结果 | 不计算 H200 比率，不声明 parity |
-| Requested 255K + 1K | 1 个成功能力点 | 客户无完全相同 workload | 只证明能力，不做 H200 对比 |
+| Workload | 64K input / 1 output | 64K input / 1 output | 已对齐 |
+| Input/client concurrency | 4 | 源工作簿未记录 | 未完全对齐 |
+| 报告口径 | 1 个 MI300X Prefill 节点 | 单节点饱和吞吐参考 | 方向性 |
+| Input tok/s | 18,983.91 | 27,400 | MI300X 为 H200 参考的 69.3% |
 
-#### 端到端 1P1D 诊断 — 包含 Prefill
+这不是严格硬件对比，因为 H200 的 input concurrency 缺失且 routing 不同。MI300X 使用真实 expert routing；H200 参考使用 balanced `fake_topk_ids`、TP8/EP16/DP2，并关闭 radix cache。
 
-SGLang 的 `Output token throughput` 是**端到端（E2E）**指标：请求的总输出 token 数除以完整 benchmark 时长，其中包含 Prefill/TTFT；它不是纯 Decode server capacity。对于本次固定 64K/1K workload，按定义有 `Output token throughput = Input token throughput ÷ 64`。
+#### 2. Output 侧 — MI300X 64K Input / 1K Output
 
-| Requested ISL | OSL | Concurrency | Requests | SGLang E2E output tok/s（包含 Prefill） | Input tok/s | Mean TPOT (ms) | Mean TTFT (ms) |
-|---:|---:|---:|---:|---:|---:|---:|---:|
-| Requested 64K | 1K | 16 | 32 | 265.17 | 16,970.68 | 11.94 | 37,571.24 |
-| Requested 64K | 1K | 32 | 64 | 276.59 | 17,701.98 | 11.76 | 80,228.37 |
-| Requested 64K | 1K | 64 | 128 | 284.00 | 18,175.89 | 11.75 | 165,190.68 |
-| Requested 64K | 1K | 96 | 192 | 288.66 | 18,474.01 | 11.55 | 248,339.44 |
-| Requested 255K (256K total) | 1K | 1 | 1 | 31.93 | 8,142.75 | 10.88 | 20,931.86 |
+| Client concurrency | Decode 节点实际 running requests（众数 / 最大值） | E2E output tok/s | Decode 节点 mean gen tok/s | Mean TTFT (s) | Mean TPOT (ms) |
+|---:|---:|---:|---:|---:|---:|
+| 16 | 4 / 5 | 265.17 | 267.97 | 37.57 | 11.94 |
+| 32 | 4 / 4 | 276.59 | 276.74 | 80.23 | 11.76 |
+| 64 | 4 / 5 | 284.00 | 282.81 | 165.19 | 11.75 |
+| 96 | 4 / 5 | 288.66 | 287.77 | 248.34 | 11.55 |
 
-实测现象：
+所有请求均成功。Client concurrency 控制提交的 workload，但 64K KV footprint 把 Decode 节点实际活跃 batch 限制在约 4。E2E output tok/s 包含 Prefill/TTFT；Decode 节点 gen tok/s 是直接的 Decode scheduler 指标。两者数值接近，说明 Decode 节点持续有请求可处理，但它们都不能与不同 per-DP BS 的 H200 行直接比较。
 
-- Requested 64K ISL 下，E2E output throughput 只从 265.17 增长到 288.66 tok/s，Input throughput 在 16.97–18.47K tok/s 进入平台；Mean TPOT 稳定在 11.55–11.94 ms，但 Mean TTFT 从 37.57 秒增长到 248.34 秒。因此 E2E 结果受 Prefill 限制，不能把 265–289 tok/s 解读成纯 Decode capacity。
-- 最后一行实际发送 261,120 input tokens，并生成 1,024 output tokens，总序列为 262,144 tokens。这是 requested-255K 能力点，不是 256K-input 声明。
-- 客户报告中存在匹配的 64K TPOT 参考，但没有匹配的 255K 参考。
+Decode 节点机器可读审计：[`data/validation/decode-service-log-audit.json`](data/validation/decode-service-log-audit.json)。
+
+#### 客户 H200 Output 侧参考 — 未与 MI300X 行对齐
+
+| H200 per-DP BS | Decode output tok/s | TPOT (ms) | TTFT |
+|---:|---:|---:|---|
+| 16 | 1,333.89 | 11.99 | 未提供 |
+| 32 | 2,235.53 | 14.31 | 未提供 |
+| 64 | 3,919.78 | 16.33 | 未提供 |
+| 96 | 4,891.59 | 19.63 | 未提供 |
+
+H200 来源：客户提供工作簿，TP8/EP32/DP4、balanced `fake_topk_ids`、MTP3、报告 accept rate 0.75。H200 TPOT 按 `1000 / (Decode output tok/s ÷ per-DP BS)` 反推。私有工作簿不在本 Repo 中再分发；公开数值与 provenance 见 [`data/validation/h200-reference.json`](data/validation/h200-reference.json)。
+
+#### 为什么不报告 Output 侧 MI300X/H200 比率
+
+- MI300X Decode 节点实际 batch 为众数 4 / 最大 5；H200 行为 BS16/32/64/96。
+- MI300X 使用 2 台节点（1P1D，共 16 张 GPU）；H200 Decode 参考来自 TP8/EP32/DP4（4 台 8-GPU 节点，共 32 张 GPU）。
+- MI300X 使用真实 expert routing；H200 使用 balanced `fake_topk_ids`。
+- H200 没有提供 TTFT 或匹配的 E2E 结果。
+
+因此当前 Output tok/s 与 TPOT 只能按两个来源表分别展示，不能作为硬件排名。要做严格 NVIDIA 对比，必须对齐实际 D-node batch、topology/routing policy、64K/1K workload，并同时采集相同口径的 D-node output tok/s 和 E2E TTFT。
+
+#### 3. 客户需求适配性
+
+| 客户问题 | 当前证据 | 是否适合 MI300X/H200 排名？ |
+|---|---|---|
+| 64K Input 容量 | MI300X 18,983.91 input tok/s；H200 27,400 input tok/s | 仅方向性；H200 concurrency 缺失 |
+| 64K Output 吞吐 | MI300X 有 E2E 与 D-node output；H200 有 per-DP output | 不适合；实际 D batch 与 topology 不同 |
+| Output TTFT | MI300X 已测 | 不适合；H200 未提供 TTFT |
+| Decode TPOT | 两份来源都有 TPOT | 不能做严格比率；实际 D batch 与 routing 不同 |
+| Near-limit context | MI300X 完成 requested 255K input + 1K output | 只证明能力；无匹配 H200 workload |
+
+#### Requested 255K 能力点
+
+| Workload | Client concurrency | Decode 节点实际 running requests | E2E output tok/s | Decode 节点 mean gen tok/s | Mean TTFT (s) | Mean TPOT (ms) |
+|---|---:|---:|---:|---:|---:|---:|
+| Requested 255K input / 1K output | 1 | 1 | 31.93 | 80.64 | 20.93 | 10.88 |
+
+该请求实际发送 261,120 input tokens 并生成 1,024 output tokens，总序列为 262,144 tokens。这是能力点，不是 256K-input 或 H200 parity 声明。
 
 机器可读结果：[`data/decode-long-context-results.tsv`](data/decode-long-context-results.tsv)。Runtime identity、测试方法与 source-artifact hashes：[`data/validation/decode-long-context-evidence.json`](data/validation/decode-long-context-evidence.json)。
 
