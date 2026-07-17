@@ -147,6 +147,8 @@ def main() -> int:
         assert "Xinyu Wei" in text or "魏新宇" in text
         assert "automatic_send" in text
         assert "offline-contract" not in text
+        assert "offline analyzer" not in text.casefold()
+        assert "offline-test gate" not in text.casefold()
         assert "test-fixture" in text
     for english_claim, chinese_claim in CRITICAL_CLAIMS:
         assert english_claim.casefold() in texts[0].casefold()

@@ -391,7 +391,7 @@ CI runs the Python gates on Ubuntu and Windows with Python 3.11, 3.12, and 3.13.
 |---|---|
 | Schema | Every `MeetingEvent` field, all four kinds, unknown fields, invalid payloads |
 | Session | Ordering, idempotent duplicates, conflicting IDs, final-only transcript selection |
-| Hosted protocol | Invocations request validation, explicit offline-test gate, OpenAPI, error responses, and session paths |
+| Hosted protocol | Invocations request validation, explicit test-fixture injection gate, OpenAPI, error responses, and session paths |
 | Azure contract | v1 base URL, key requirement, structured output type, `store=False`, prompt boundary |
 | Authenticity | Two materially different inputs must produce different analysis and source hashes |
 | Artifacts | Nonblank `1280x720` PNG, valid SVG/JSON, parseable PPTX package |
@@ -463,7 +463,7 @@ evidence/                                  Sanitized Outlook probe and committed
 
 - This repository does not capture microphone audio or screen pixels.
 - Visual frames are textual summaries or references supplied by an external adapter.
-- The offline analyzer is deterministic test infrastructure, not a production fallback.
+- Deterministic test fixtures are isolated under `tests/` and are not a production fallback.
 - Model quality is not benchmarked by the committed deterministic samples.
 - The browser UI is a loopback companion, not an internet-facing multi-user web service.
 - The existing Azure OpenAI resource must allow key authentication (`disableLocalAuth=false`).

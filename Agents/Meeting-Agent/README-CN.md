@@ -391,7 +391,7 @@ CI 在 Ubuntu 和 Windows 上运行 Python 3.11、3.12 与 3.13 gate。独立的
 |---|---|
 | Schema | 每个 `MeetingEvent` 字段、全部四种 kind、未知字段、非法 payload |
 | Session | 排序、幂等重复、冲突 ID、只选择 final transcript |
-| Hosted 协议 | Invocations request 校验、显式 offline 测试门、OpenAPI、错误响应和 session 路径 |
+| Hosted 协议 | Invocations request 校验、显式测试 fixture 注入门、OpenAPI、错误响应和 session 路径 |
 | Azure 契约 | v1 base URL、Key必填、结构化输出类型、`store=False`、prompt边界 |
 | 真实性 | 两份内容显著不同的输入必须生成不同分析与 source hash |
 | 产物 | 非空 `1280x720` PNG、有效 SVG/JSON、可解析 PPTX package |
@@ -463,7 +463,7 @@ evidence/                                  脱敏 Outlook probe 与已提交样�
 
 - 本仓库不采集麦克风音频或屏幕像素。
 - `visual.frame` 是外部适配器提供的文本摘要或引用。
-- Offline analyzer 是确定性测试基础设施，不是生产 fallback。
+- 确定性测试 fixture 仅位于 `tests/`，不是生产 fallback。
 - 已提交的确定性样例不用于评测模型质量。
 - 浏览器 UI 是 loopback companion，不是面向互联网的多用户 Web 服务。
 - 现有Azure OpenAI资源必须允许Key认证（`disableLocalAuth=false`）。
