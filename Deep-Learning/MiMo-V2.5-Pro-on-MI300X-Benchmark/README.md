@@ -11,7 +11,7 @@ This customer-facing repo contains the headline comparison, the complete Microso
 
 > Author: 魏新宇 (Xinyu Wei) — Microsoft AI and Apps Global Black Belt (GBB)
 >
-> Last tested: 2026-07-14
+> Last tested: 2026-07-17
 
 English | [中文版](README-CN.md) | [Validation Evidence](data/validation/)
 
@@ -80,7 +80,7 @@ The nominal-length 256K DP=2 observation is retained in the detailed scalability
 | Source | Xiaomi-provided MiMo-V2.5-Pro performance report, privately archived and not redistributed |
 | Reviewed | 2026-05-18 |
 | Prefill reference | TP8/EP16/DP2, balanced `fake_topk_ids`, radix cache disabled, single-machine/per-node throughput |
-| Decode reference | TP8/EP32/DP4, balanced `fake_topk_ids`, MTP layer 3, reported accept rate 0.75 |
+| Decode reference | 8K and 64K input / 1K output; TP8/EP32/DP4, balanced `fake_topk_ids`, MTP layer 3, reported accept rate 0.75 |
 | Decode throughput scope | Reported per-DP/per-node-style `BS × TPS`; not confirmed as DP=4 aggregate throughput |
 | Delivery use | Directional per-node/per-DP reference only |
 
@@ -90,13 +90,14 @@ Machine-readable provenance and all reference values are in [`data/validation/h2
 
 ## Microsoft Scalability Extension
 
-AMD provided the base launch method: the container image, tuned AITER path, 1P1D/DP=2 topology, and benchmark entry points. Microsoft first reproduced that path, then independently extended the context and concurrency coverage and added fail-closed correctness gates. **Every performance value below is Microsoft-measured; no AMD performance values are included.**
+AMD provided the base launch method: the container image, tuned AITER path, 1P1D/DP=2 topology, and benchmark entry points. Microsoft first reproduced that path, then independently extended the context and concurrency coverage and added fail-closed correctness gates. **Every MI300X performance value below is Microsoft-measured; the H200 TPOT values are customer-provided references recorded in `h200-reference.json`. No AMD performance values are included.**
 
 ### Test Matrix
 
 | Surface | Workload | Concurrency sweep | Requests per point |
 |---|---|---|---:|
 | 1P1D Decode | 8K input / 1K output | 8, 16, 32, 64, 96, 128, 192 | 256 |
+| 1P1D long-context Decode | Requested 64K input / 1K output; requested 255K input / 1K output (256K total sequence) | 64K: 16, 32, 64, 96; 255K: 1 | 32, 64, 128, 192; 1 |
 | 1P1D Prefill | 8K, 64K, nominal 256K / 1 output | 1, 2, 4, 8 | 16 |
 | Two-node DP=2 Prefill | 8K, 64K, nominal 256K / 1 output | 8K/64K: 1, 2, 4, 8, 16; nominal 256K: 1, 2, 4, 8 | 32 |
 
@@ -129,6 +130,39 @@ Observed behavior:
 | 128 | 2,486.89 | 2,468.95 | -0.72% | 16.56 / 16.45 |
 
 The maximum absolute two-run throughput delta was **2.14%** across the four repeated points.
+
+### Long-Context Decode — Final Baked Image
+
+These points were measured on 2026-07-17 by pulling and running the immutable image listed in the Software Stack section. SGLang's `Output token throughput` is an **end-to-end (E2E)** metric: total generated output tokens divided by full benchmark duration, including Prefill/TTFT. It is not pure Decode-server capacity.
+
+| Requested ISL | OSL | Concurrency | Requests | E2E output tok/s | Input tok/s | Mean TPOT (ms) | Mean TTFT (ms) |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| Requested 64K | 1K | 16 | 32 | 265.17 | 16,970.68 | 11.94 | 37,571.24 |
+| Requested 64K | 1K | 32 | 64 | 276.59 | 17,701.98 | 11.76 | 80,228.37 |
+| Requested 64K | 1K | 64 | 128 | 284.00 | 18,175.89 | 11.75 | 165,190.68 |
+| Requested 64K | 1K | 96 | 192 | 288.66 | 18,474.01 | 11.55 | 248,339.44 |
+| Requested 255K (256K total) | 1K | 1 | 1 | 31.93 | 8,142.75 | 10.88 | 20,931.86 |
+
+Observed behavior:
+
+- At requested 64K ISL, E2E output throughput increases only from 265.17 to 288.66 tok/s while Input throughput plateaus at 16.97–18.47K tok/s. Mean TPOT remains nearly flat at 11.55–11.94 ms, but Mean TTFT rises from 37.57 to 248.34 seconds. The E2E result is therefore Prefill-limited; the 265–289 tok/s values must not be read as pure Decode capacity.
+- The final row sends 261,120 input tokens and generates 1,024 output tokens, for 262,144 total sequence tokens. It is a requested-255K capability point, not a 256K-input claim.
+- Each row is one measurement run. Multiple requests within a row are not independent repetitions. The customer report contains a matching 64K TPOT reference, but no matching 255K reference.
+
+#### 64K Decode TPOT vs Xiaomi H200 — Lower Is Better
+
+| Local concurrency / per-DP BS | MI300X mean TPOT (ms) | Xiaomi H200 mean TPOT (ms) | MI300X / H200 |
+|---:|---:|---:|---:|
+| 16 | 11.94 | 11.99 | 1.00× |
+| 32 | 11.76 | 14.31 | 0.82× |
+| 64 | 11.75 | 16.33 | 0.72× |
+| 96 | 11.55 | 19.63 | 0.59× |
+
+H200 source: customer-provided report reviewed 2026-05-18 and revalidated against the source workbook on 2026-07-17; see [`data/validation/h200-reference.json`](data/validation/h200-reference.json). The private workbook is not redistributed.
+
+MI300X is effectively at parity at concurrency 16 and has 17.8–41.1% lower TPOT at concurrency 32–96. This is a directional same-workload latency comparison, not a strict whole-deployment hardware comparison: MI300X uses real expert routing, while the H200 reference uses balanced `fake_topk_ids`, TP8/EP32/DP4, MTP3, and reported accept rate 0.75. The E2E output tok/s values above are not divided by the H200 report's per-DP `BS × TPS` throughput because those metric scopes differ.
+
+Machine-readable results: [`data/decode-long-context-results.tsv`](data/decode-long-context-results.tsv). Runtime identity, method, and source-artifact hashes: [`data/validation/decode-long-context-evidence.json`](data/validation/decode-long-context-evidence.json).
 
 ### 1P1D Prefill Scalability
 
@@ -185,13 +219,16 @@ Observed behavior:
 |---|---|---|
 | Complete expanded matrix | Random-text construction, `tokenize_prompt=false` | Scaling and boundary observations; nominal 256K rows are not exact-token headline evidence |
 | Targeted 1P1D 256K rerun | Exactly 262,144 token IDs, `--tokenize-prompt` | Headline result: 12,864.96 input tok/s |
-| Current `scripts/amd-latest/` | Exact token IDs for every 256K benchmark | Required reproduction path for future 256K results |
+| Current `scripts/amd-latest/` | Exact token IDs for every 256K-input Prefill benchmark | Required reproduction path for future 256K-input Prefill results |
+| Final baked-image long-context Decode | Random-text framing; requested 64K input and requested 255K input + 1K output | MI300X capability/scalability only; not a 256K-input or H200-parity claim |
 
 ### Machine-Readable Evidence
 
 - Headline point set: [`data/final-results.tsv`](data/final-results.tsv)
 - Detailed scalability results: [`data/scalability-results.tsv`](data/scalability-results.tsv)
 - Core Decode repeatability: [`data/decode-repeatability.tsv`](data/decode-repeatability.tsv)
+- Long-context Decode results: [`data/decode-long-context-results.tsv`](data/decode-long-context-results.tsv)
+- Long-context runtime and source-artifact evidence: [`data/validation/decode-long-context-evidence.json`](data/validation/decode-long-context-evidence.json)
 - Exact-token and runtime validation metadata: [`data/validation/`](data/validation/)
 - Supported reproduction bundle: [`scripts/amd-latest/`](scripts/amd-latest/)
 - Repository quality gate: `python3 scripts/validate_repo.py` (expected final line: `REPO_VALIDATION=PASS`)
@@ -321,6 +358,16 @@ curl -fsS --max-time 30 http://127.0.0.1:40000/v1/models >/dev/null
 # Run on the router node after all three gates pass:
 bash benchmark_1p_prefill.sh
 bash benchmark_decode.sh
+```
+
+The immutable image contains the original headline bundle. The long-context Decode script was added to this repository after that image was published; it is executed against the same immutable runtime without changing the image. Clone or copy the current repository under `/data`, then run:
+
+```bash
+cd /data/MiMo-V2.5-Pro-on-MI300X-Benchmark/scripts/amd-latest
+export MODEL=/data/models/MiMo-V2.5-Pro
+export DATASET_PATH=/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json
+export PYTHONPATH="/sgl-workspace/sglang_0625/python${PYTHONPATH:+:$PYTHONPATH}"
+bash benchmark_decode_long_context.sh
 ```
 
 After the run, copy the Decode node evidence to the router node so the three service logs and two `server-info.json` files are colocated, preserving the basenames below. Then run:

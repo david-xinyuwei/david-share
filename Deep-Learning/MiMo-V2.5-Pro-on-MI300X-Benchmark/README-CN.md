@@ -11,7 +11,7 @@
 
 > Author: 魏新宇 (Xinyu Wei) — Microsoft AI and Apps Global Black Belt (GBB)
 >
-> 最后测试：2026-07-14
+> 最后测试：2026-07-17
 
 [English](README.md) | 中文 | [验证证据](data/validation/)
 
@@ -80,7 +80,7 @@ DP=2 的 nominal-length 256K 结果保留在后面的扩展性矩阵中，但不
 | 来源 | 小米提供的 MiMo-V2.5-Pro 性能报告；私有归档，不公开转载 |
 | 审阅日期 | 2026-05-18 |
 | Prefill 参考 | TP8/EP16/DP2、balanced `fake_topk_ids`、关闭 radix cache、单机/单节点吞吐 |
-| Decode 参考 | TP8/EP32/DP4、balanced `fake_topk_ids`、MTP layer 3、报告 accept rate 0.75 |
+| Decode 参考 | 8K 和 64K input / 1K output；TP8/EP32/DP4、balanced `fake_topk_ids`、MTP layer 3、报告 accept rate 0.75 |
 | Decode 吞吐口径 | 报告中的 per-DP/单节点 `BS × TPS`；未确认是 DP=4 aggregate throughput |
 | 交付用途 | 仅作方向性 per-node/per-DP 参考 |
 
@@ -90,13 +90,14 @@ DP=2 的 nominal-length 256K 结果保留在后面的扩展性矩阵中，但不
 
 ## 微软扩展性测试
 
-AMD 提供了基础启动方法：container image、tuned AITER path、1P1D/DP=2 topology 和 benchmark 入口。微软先严格复现该路径，再独立扩展 context/concurrency 覆盖范围，并加入 fail-closed correctness gates。**以下所有性能数据均为微软实测，不包含 AMD 性能数值。**
+AMD 提供了基础启动方法：container image、tuned AITER path、1P1D/DP=2 topology 和 benchmark 入口。微软先严格复现该路径，再独立扩展 context/concurrency 覆盖范围，并加入 fail-closed correctness gates。**以下所有 MI300X 性能数据均为微软实测；H200 TPOT 是记录在 `h200-reference.json` 中的客户提供参考值。不包含 AMD 性能数值。**
 
 ### 测试矩阵
 
 | 测试面 | 工作负载 | Concurrency sweep | 每点请求数 |
 |---|---|---|---:|
 | 1P1D Decode | 8K input / 1K output | 8, 16, 32, 64, 96, 128, 192 | 256 |
+| 1P1D 长上下文 Decode | Requested 64K input / 1K output；requested 255K input / 1K output（256K total sequence） | 64K：16, 32, 64, 96；255K：1 | 32, 64, 128, 192；1 |
 | 1P1D Prefill | 8K、64K、nominal 256K / 1 output | 1, 2, 4, 8 | 16 |
 | 双节点 DP=2 Prefill | 8K、64K、nominal 256K / 1 output | 8K/64K：1, 2, 4, 8, 16；nominal 256K：1, 2, 4, 8 | 32 |
 
@@ -129,6 +130,39 @@ AMD 提供了基础启动方法：container image、tuned AITER path、1P1D/DP=2
 | 128 | 2,486.89 | 2,468.95 | -0.72% | 16.56 / 16.45 |
 
 四个复测点的两次 fresh-service 吞吐最大绝对差异为 **2.14%**。
+
+### 长上下文 Decode — 最终 Baked Image
+
+以下点于 2026-07-17 使用 Software Stack 章节中的 immutable image 直接拉取并运行得到。SGLang 的 `Output token throughput` 是**端到端（E2E）**指标：总输出 token 数除以完整 benchmark 时长，其中包含 Prefill/TTFT；它不是纯 Decode server capacity。
+
+| Requested ISL | OSL | Concurrency | Requests | E2E output tok/s | Input tok/s | Mean TPOT (ms) | Mean TTFT (ms) |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| Requested 64K | 1K | 16 | 32 | 265.17 | 16,970.68 | 11.94 | 37,571.24 |
+| Requested 64K | 1K | 32 | 64 | 276.59 | 17,701.98 | 11.76 | 80,228.37 |
+| Requested 64K | 1K | 64 | 128 | 284.00 | 18,175.89 | 11.75 | 165,190.68 |
+| Requested 64K | 1K | 96 | 192 | 288.66 | 18,474.01 | 11.55 | 248,339.44 |
+| Requested 255K (256K total) | 1K | 1 | 1 | 31.93 | 8,142.75 | 10.88 | 20,931.86 |
+
+实测现象：
+
+- Requested 64K ISL 下，E2E output throughput 只从 265.17 增长到 288.66 tok/s，Input throughput 在 16.97–18.47K tok/s 进入平台；Mean TPOT 稳定在 11.55–11.94 ms，但 Mean TTFT 从 37.57 秒增长到 248.34 秒。因此 E2E 结果受 Prefill 限制，不能把 265–289 tok/s 解读成纯 Decode capacity。
+- 最后一行实际发送 261,120 input tokens，并生成 1,024 output tokens，总序列为 262,144 tokens。这是 requested-255K 能力点，不是 256K-input 声明。
+- 每一行只执行 1 次 measurement run；同一行中的多个 requests 不是独立重复实验。客户报告中存在匹配的 64K TPOT 参考，但没有匹配的 255K 参考。
+
+#### 64K Decode TPOT vs 小米 H200 — 越低越好
+
+| Local concurrency / per-DP BS | MI300X mean TPOT (ms) | 小米 H200 mean TPOT (ms) | MI300X / H200 |
+|---:|---:|---:|---:|
+| 16 | 11.94 | 11.99 | 1.00× |
+| 32 | 11.76 | 14.31 | 0.82× |
+| 64 | 11.75 | 16.33 | 0.72× |
+| 96 | 11.55 | 19.63 | 0.59× |
+
+H200 来源：客户提供报告于 2026-05-18 完成审阅，并于 2026-07-17 对原始工作簿重新核验；见 [`data/validation/h200-reference.json`](data/validation/h200-reference.json)。私有工作簿不在本 Repo 中再分发。
+
+MI300X 在 concurrency 16 基本持平，在 concurrency 32–96 的 TPOT 低 17.8–41.1%。这是同 workload 的方向性 latency 对比，不是严格的 whole-deployment hardware comparison：MI300X 使用真实 expert routing；H200 参考使用 balanced `fake_topk_ids`、TP8/EP32/DP4、MTP3 和报告 accept rate 0.75。上表中的 E2E output tok/s 不与 H200 报告的 per-DP `BS × TPS` throughput 相除，因为两者 metric scope 不同。
+
+机器可读结果：[`data/decode-long-context-results.tsv`](data/decode-long-context-results.tsv)。Runtime identity、测试方法与 source-artifact hashes：[`data/validation/decode-long-context-evidence.json`](data/validation/decode-long-context-evidence.json)。
 
 ### 1P1D Prefill 扩展性
 
@@ -185,13 +219,16 @@ AMD 提供了基础启动方法：container image、tuned AITER path、1P1D/DP=2
 |---|---|---|
 | 完整扩展矩阵 | Random-text construction，`tokenize_prompt=false` | 用于 scaling 和 boundary 观察；nominal 256K 不是 exact-token 核心证据 |
 | Targeted 1P1D 256K 复测 | 精确 262,144 token IDs，`--tokenize-prompt` | 核心结果：12,864.96 input tok/s |
-| 当前 `scripts/amd-latest/` | 所有 256K benchmark 均使用 exact token IDs | 后续 256K 结果的强制复现路径 |
+| 当前 `scripts/amd-latest/` | 所有 256K-input Prefill benchmark 均使用 exact token IDs | 后续 256K-input Prefill 结果的强制复现路径 |
+| 最终 baked image 长上下文 Decode | Random-text framing；requested 64K input 和 requested 255K input + 1K output | 仅作为 MI300X 能力/扩展性结果；不是 256K-input 或 H200 parity 声明 |
 
 ### 机器可读证据
 
 - 核心结果点：[`data/final-results.tsv`](data/final-results.tsv)
 - 详细扩展性结果：[`data/scalability-results.tsv`](data/scalability-results.tsv)
 - Decode 核心点复测：[`data/decode-repeatability.tsv`](data/decode-repeatability.tsv)
+- 长上下文 Decode 结果：[`data/decode-long-context-results.tsv`](data/decode-long-context-results.tsv)
+- 长上下文 runtime 与 source-artifact evidence：[`data/validation/decode-long-context-evidence.json`](data/validation/decode-long-context-evidence.json)
 - Exact-token 与 runtime 验证元数据：[`data/validation/`](data/validation/)
 - 唯一支持的复现代码：[`scripts/amd-latest/`](scripts/amd-latest/)
 - Repo 质量门：`python3 scripts/validate_repo.py`（预期最后一行：`REPO_VALIDATION=PASS`）
@@ -321,6 +358,16 @@ curl -fsS --max-time 30 http://127.0.0.1:40000/v1/models >/dev/null
 # 三个 gate 通过后，在 Router 节点执行：
 bash benchmark_1p_prefill.sh
 bash benchmark_decode.sh
+```
+
+Immutable image 内置的是原 headline bundle；长上下文 Decode 脚本是在该镜像发布后新增到本 Repo 的扩展。它在不修改镜像的前提下使用相同 immutable runtime 执行。将当前 Repo clone 或复制到 `/data` 下，然后运行：
+
+```bash
+cd /data/MiMo-V2.5-Pro-on-MI300X-Benchmark/scripts/amd-latest
+export MODEL=/data/models/MiMo-V2.5-Pro
+export DATASET_PATH=/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json
+export PYTHONPATH="/sgl-workspace/sglang_0625/python${PYTHONPATH:+:$PYTHONPATH}"
+bash benchmark_decode_long_context.sh
 ```
 
 完成后，把 Decode 节点证据复制到 Router 节点，使 3 份 service logs 和 2 份 `server-info.json` 位于同一目录，并保留下列 basename。然后执行：

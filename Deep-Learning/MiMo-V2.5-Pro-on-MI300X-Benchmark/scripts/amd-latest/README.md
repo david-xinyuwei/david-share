@@ -6,10 +6,14 @@ This is the only supported reproduction bundle in the repository. It runs the fi
 
 | Topology | Launch scripts | Benchmark |
 |---|---|---|
-| 1P1D, TP=8 + TP=8 | `launch_pd_prefill.sh`, `launch_pd_decode.sh`, `launch_pd_router.sh` | `benchmark_1p_prefill.sh`, `benchmark_decode.sh` |
+| 1P1D, TP=8 + TP=8 | `launch_pd_prefill.sh`, `launch_pd_decode.sh`, `launch_pd_router.sh` | `benchmark_1p_prefill.sh`, `benchmark_decode.sh`, optional `benchmark_decode_long_context.sh` |
 | Two-node DP=2 Prefill, TP=8 per worker | `launch_dp2_node0.sh`, `launch_dp2_node1.sh`, `launch_dp2_router.sh` | `benchmark_dp2_prefill.sh` |
 
-Both worker launch paths use context length 262151 and the model-specific tuned fused-MoE CSV. The 256K clients use `--tokenize-prompt` so each request sends exactly 262,144 token IDs.
+Both worker launch paths use context length 262151 and the model-specific tuned fused-MoE CSV. The 256K-input Prefill clients use `--tokenize-prompt` so each request sends exactly 262,144 token IDs.
+
+`benchmark_decode.sh` reproduces the default 8K-input / 1K-output Decode comparison. `benchmark_decode_long_context.sh` runs a separately validated requested-64K concurrency sweep and a requested-255K-input / 1K-output capability point using random-text framing. The latter is a nominal 256K **total-sequence** point; it is not a 256K-input or exact-token claim, because 256K input plus 1K output exceeds context length 262151.
+
+For these long-context runs, SGLang's `Output token throughput` is an **end-to-end** metric: total generated output tokens divided by the full benchmark duration, including Prefill/TTFT. It is not pure Decode-server capacity. Always report it together with Input token throughput, TPOT, and TTFT.
 
 ## Required Environment
 
