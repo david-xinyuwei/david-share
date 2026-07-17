@@ -43,14 +43,14 @@
 
 ### Output 侧 — MI300X 1P1D Decode，8K Input / 1K Output
 
-| Client concurrency | Decode 节点实际 running requests（众数 / 最大值） | E2E output tok/s | Decode 节点 mean gen tok/s | Mean TTFT (s) | Mean TPOT (ms) |
+| Client concurrency | Decode 节点同时生成 token 的请求数 | E2E output tok/s | Decode 节点 mean gen tok/s | Mean TTFT (s) | Mean TPOT (ms) |
 |---:|---:|---:|---:|---:|---:|
-| 16 | 15 / 16 | **1,331.98** | 1,319.78 | 1.00 | 10.83 |
-| 32 | 31 / 32 | **1,936.24** | 1,861.52 | 2.27 | 13.65 |
-| 64 | 53 / 55 | **2,465.01** | 2,324.57 | 7.59 | 16.88 |
-| 128 | 51 / 54 | **2,486.89** | 2,333.44 | 27.21 | 16.56 |
+| 16 | 通常 15；最高 16 | **1,331.98** | 1,319.78 | 1.00 | 10.83 |
+| 32 | 通常 31；最高 32 | **1,936.24** | 1,861.52 | 2.27 | 13.65 |
+| 64 | 通常 53；最高 55 | **2,465.01** | 2,324.57 | 7.59 | 16.88 |
+| 128 | 通常 51；最高 54 | **2,486.89** | 2,333.44 | 27.21 | 16.56 |
 
-Client concurrency 是提交请求上限，不是 Decode 实际 batch。c64 和 c128 时，Decode 节点在约 50–55 个 running requests 附近饱和；这些行不能与 H200 BS64 或 BS128 配对。
+例如，`通常 15；最高 16` 表示大多数 scheduler-log 采样时，有 15 个请求正在同时生成 token，观察到的最高值是 16。Client concurrency 只是提交请求上限，不等于正在生成 token 的请求数。c64 和 c128 时，Decode 节点在约 50–55 个活跃请求附近饱和；这些行不能与 H200 BS64 或 BS128 配对。
 
 #### 客户 H200 8K Output 参考
 
@@ -61,7 +61,7 @@ Client concurrency 是提交请求上限，不是 Decode 实际 batch。c64 和 
 | 64 | 4,483 | 14.28 | 未提供 |
 | 128 | 7,013 | 18.25 | 未提供 |
 
-在实际 batch 近似对齐的 c16 点，MI300X Decode 节点 batch 为众数 15 / 最大 16。其直接 D-node generation rate 为 **1,319.78 tok/s**，达到 H200 BS16 参考的 **95.6%**；同时 MI300X TPOT **低 6.6%**（10.83 vs 11.59 ms）。这是方向性观察，不是硬件 parity 声明：MI300X 使用真实 expert routing 和双节点 1P1D 部署；H200 使用 balanced `fake_topk_ids` 和 TP8/EP32/DP4。
+在实际并发近似对齐的 c16 点，MI300X Decode 节点通常有 15 个请求同时生成 token，最高观察到 16 个。其直接 D-node generation rate 为 **1,319.78 tok/s**，达到 H200 BS16 参考的 **95.6%**；同时 MI300X TPOT **低 6.6%**（10.83 vs 11.59 ms）。这是方向性观察，不是硬件 parity 声明：MI300X 使用真实 expert routing 和双节点 1P1D 部署；H200 使用 balanced `fake_topk_ids` 和 TP8/EP32/DP4。
 
 机器可读 batch 审计：[`data/validation/decode-service-log-audit-8k.json`](data/validation/decode-service-log-audit-8k.json)。
 
@@ -80,7 +80,7 @@ DP=2 的 nominal-length 256K 结果保留在后面的扩展性矩阵中，但不
 - 核心结果中的 1P1D 256K 使用 `--tokenize-prompt`，每条 request 精确发送 262,144 个 token IDs。
 - DP=2 为两台 MI300X 节点的 Prefill-only 聚合容量，不包含 P→D KV-cache transfer。
 - H200 Decode `tok/s` 是报告中的 per-DP/单节点口径（`BS × TPS`），不作为 DP=4 aggregate throughput 展示。
-- Client concurrency 不会被默认当成 Decode 实际 batch；8K 与 64K scheduler-log 审计都记录了实际众数和最大值。
+- Client concurrency 不会被默认当成正在生成 token 的请求数；8K 与 64K scheduler-log 审计都记录了通常值和最高值。
 - H200 数值仍是方向性参考，不是严格 apples-to-apples 硬件 benchmark：MI300X 使用真实 expert routing，H200 参考使用理想均衡 routing。
 - 机器可读核心结果：[`data/final-results.tsv`](data/final-results.tsv)；scheduler-log 审计：[`data/validation/decode-service-log-audit-8k.json`](data/validation/decode-service-log-audit-8k.json)。
 
@@ -175,14 +175,14 @@ Input 与 Output 指标回答不同问题，不能互相相除或直接比较。
 
 #### 2. Output 侧 — MI300X 64K Input / 1K Output
 
-| Client concurrency | Decode 节点实际 running requests（众数 / 最大值） | E2E output tok/s | Decode 节点 mean gen tok/s | Mean TTFT (s) | Mean TPOT (ms) |
+| Client concurrency | Decode 节点同时生成 token 的请求数 | E2E output tok/s | Decode 节点 mean gen tok/s | Mean TTFT (s) | Mean TPOT (ms) |
 |---:|---:|---:|---:|---:|---:|
-| 16 | 4 / 5 | 265.17 | 267.97 | 37.57 | 11.94 |
-| 32 | 4 / 4 | 276.59 | 276.74 | 80.23 | 11.76 |
-| 64 | 4 / 5 | 284.00 | 282.81 | 165.19 | 11.75 |
-| 96 | 4 / 5 | 288.66 | 287.77 | 248.34 | 11.55 |
+| 16 | 通常 4；最高 5 | 265.17 | 267.97 | 37.57 | 11.94 |
+| 32 | 通常 4；最高 4 | 276.59 | 276.74 | 80.23 | 11.76 |
+| 64 | 通常 4；最高 5 | 284.00 | 282.81 | 165.19 | 11.75 |
+| 96 | 通常 4；最高 5 | 288.66 | 287.77 | 248.34 | 11.55 |
 
-所有请求均成功。Client concurrency 控制提交的 workload，但 64K KV footprint 把 Decode 节点实际活跃 batch 限制在约 4。E2E output tok/s 包含 Prefill/TTFT；Decode 节点 gen tok/s 是直接的 Decode scheduler 指标。两者数值接近，说明 Decode 节点持续有请求可处理，但它们都不能与不同 per-DP BS 的 H200 行直接比较。
+例如，`通常 4；最高 5` 表示大多数 scheduler-log 采样时，有 4 个请求正在同时生成 token，观察到的最高值是 5。所有请求均成功。Client concurrency 控制提交的 workload，但 64K KV footprint 把同时生成 token 的请求数限制在约 4。E2E output tok/s 包含 Prefill/TTFT；Decode 节点 gen tok/s 是直接的 Decode scheduler 指标。两者数值接近，说明 Decode 节点持续有请求可处理，但它们都不能与不同 per-DP BS 的 H200 行直接比较。
 
 Decode 节点机器可读审计：[`data/validation/decode-service-log-audit.json`](data/validation/decode-service-log-audit.json)。
 
@@ -199,7 +199,7 @@ H200 来源：客户提供工作簿，TP8/EP32/DP4、balanced `fake_topk_ids`、
 
 #### 为什么不报告 Output 侧 MI300X/H200 比率
 
-- MI300X Decode 节点实际 batch 为众数 4 / 最大 5；H200 行为 BS16/32/64/96。
+- MI300X Decode 节点通常同时为 4 个请求生成 token，最高达到 5 个；H200 行为 BS16/32/64/96。
 - MI300X 使用 2 台节点（1P1D，共 16 张 GPU）；H200 Decode 参考来自 TP8/EP32/DP4（4 台 8-GPU 节点，共 32 张 GPU）。
 - MI300X 使用真实 expert routing；H200 使用 balanced `fake_topk_ids`。
 - H200 没有提供 TTFT 或匹配的 E2E 结果。

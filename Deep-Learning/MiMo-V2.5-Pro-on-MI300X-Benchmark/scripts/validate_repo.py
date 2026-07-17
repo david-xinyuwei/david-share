@@ -137,13 +137,18 @@ def check_result_tables() -> None:
                 else "not_aligned_actual_decode_batch"
             )
             assert row["comparison_status"] == expected_status
-            mi300x_line = (
-                f"| {concurrency} | {audit['running_requests_mode']} / {audit['running_requests_max']} | "
+            mi300x_line_en = (
+                f"| {concurrency} | Usually {audit['running_requests_mode']}; peak {audit['running_requests_max']} | "
                 f"**{mi300x:,.2f}** | {audit['mean_gen_tok_s']:,.2f} | "
                 f"{mi300x_ttft_s:,.2f} | {mi300x_tpot:.2f} |"
             )
-            assert mi300x_line in readme_texts[0]
-            assert mi300x_line in readme_texts[1]
+            mi300x_line_cn = (
+                f"| {concurrency} | 通常 {audit['running_requests_mode']}；最高 {audit['running_requests_max']} | "
+                f"**{mi300x:,.2f}** | {audit['mean_gen_tok_s']:,.2f} | "
+                f"{mi300x_ttft_s:,.2f} | {mi300x_tpot:.2f} |"
+            )
+            assert mi300x_line_en in readme_texts[0]
+            assert mi300x_line_cn in readme_texts[1]
             h200_line_en = f"| {h200_bs} | {h200_tok_s:,.0f} | {h200_tpot:.2f} | Not provided |"
             h200_line_cn = f"| {h200_bs} | {h200_tok_s:,.0f} | {h200_tpot:.2f} | 未提供 |"
             assert h200_line_en in readme_texts[0]
@@ -190,6 +195,8 @@ def check_result_tables() -> None:
     assert "95.6%" in readme_texts[1] and "低 6.6%" in readme_texts[1]
     assert "same local batch size" not in readme_texts[0]
     assert "相同 local batch" not in readme_texts[1]
+    assert "mode / max" not in readme_texts[0]
+    assert "众数" not in readme_texts[1]
 
     for row in scalability_rows:
         throughput = float(row["throughput_tok_s"])
@@ -387,13 +394,18 @@ def check_long_context_decode() -> None:
     for concurrency in (16, 32, 64, 96):
         row = mi300x_64k[concurrency]
         audit = service_64k[concurrency]
-        line = (
-            f"| {concurrency} | {audit['running_requests_mode']} / {audit['running_requests_max']} | "
+        line_en = (
+            f"| {concurrency} | Usually {audit['running_requests_mode']}; peak {audit['running_requests_max']} | "
             f"{float(row['output_tok_s']):,.2f} | {audit['mean_gen_tok_s']:,.2f} | "
             f"{float(row['mean_ttft_ms']) / 1000:,.2f} | {float(row['mean_tpot_ms']):,.2f} |"
         )
-        for text in readme_texts:
-            assert line in text
+        line_cn = (
+            f"| {concurrency} | 通常 {audit['running_requests_mode']}；最高 {audit['running_requests_max']} | "
+            f"{float(row['output_tok_s']):,.2f} | {audit['mean_gen_tok_s']:,.2f} | "
+            f"{float(row['mean_ttft_ms']) / 1000:,.2f} | {float(row['mean_tpot_ms']):,.2f} |"
+        )
+        assert line_en in readme_texts[0]
+        assert line_cn in readme_texts[1]
         h200_rate = float(h200_64k[concurrency]["output_tok_s"])
         assert math.isclose(
             float(h200_64k[concurrency]["mean_tpot_ms"]),

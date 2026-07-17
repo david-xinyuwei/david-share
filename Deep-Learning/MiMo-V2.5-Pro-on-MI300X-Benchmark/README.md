@@ -43,14 +43,14 @@ These are directional per-node input ratios. The H200 source does not record inp
 
 ### Output Side — MI300X 1P1D Decode, 8K Input / 1K Output
 
-| Client concurrency | Actual D-node running requests (mode / max) | E2E output tok/s | D-node mean gen tok/s | Mean TTFT (s) | Mean TPOT (ms) |
+| Client concurrency | Requests generating tokens concurrently on the D-node | E2E output tok/s | D-node mean gen tok/s | Mean TTFT (s) | Mean TPOT (ms) |
 |---:|---:|---:|---:|---:|---:|
-| 16 | 15 / 16 | **1,331.98** | 1,319.78 | 1.00 | 10.83 |
-| 32 | 31 / 32 | **1,936.24** | 1,861.52 | 2.27 | 13.65 |
-| 64 | 53 / 55 | **2,465.01** | 2,324.57 | 7.59 | 16.88 |
-| 128 | 51 / 54 | **2,486.89** | 2,333.44 | 27.21 | 16.56 |
+| 16 | Usually 15; peak 16 | **1,331.98** | 1,319.78 | 1.00 | 10.83 |
+| 32 | Usually 31; peak 32 | **1,936.24** | 1,861.52 | 2.27 | 13.65 |
+| 64 | Usually 53; peak 55 | **2,465.01** | 2,324.57 | 7.59 | 16.88 |
+| 128 | Usually 51; peak 54 | **2,486.89** | 2,333.44 | 27.21 | 16.56 |
 
-Client concurrency is the submitted request limit, not the active Decode batch. At c64 and c128, the Decode node saturates near 50–55 running requests; those rows must not be paired with H200 BS64 or BS128.
+For example, `Usually 15; peak 16` means that 15 requests were generating tokens concurrently in most scheduler-log samples, and the highest observed count was 16. Client concurrency is the submitted request limit, not the number actively generating tokens. At c64 and c128, the Decode node saturates near 50–55 active requests; those rows must not be paired with H200 BS64 or BS128.
 
 #### Customer H200 8K Output Reference
 
@@ -61,7 +61,7 @@ Client concurrency is the submitted request limit, not the active Decode batch. 
 | 64 | 4,483 | 14.28 | Not provided |
 | 128 | 7,013 | 18.25 | Not provided |
 
-At the near-aligned c16 point, MI300X actual D-node batch is mode 15 / max 16. Its direct D-node generation rate is **1,319.78 tok/s**, or **95.6%** of the H200 BS16 reference, while MI300X TPOT is **6.6% lower** (10.83 vs 11.59 ms). This is a directional observation, not a hardware-parity claim: MI300X uses real expert routing and a two-node 1P1D deployment, while H200 uses balanced `fake_topk_ids` and TP8/EP32/DP4.
+At the near-aligned c16 point, the MI300X D-node usually had 15 requests generating tokens concurrently, with a peak of 16. Its direct D-node generation rate is **1,319.78 tok/s**, or **95.6%** of the H200 BS16 reference, while MI300X TPOT is **6.6% lower** (10.83 vs 11.59 ms). This is a directional observation, not a hardware-parity claim: MI300X uses real expert routing and a two-node 1P1D deployment, while H200 uses balanced `fake_topk_ids` and TP8/EP32/DP4.
 
 Machine-readable batch audit: [`data/validation/decode-service-log-audit-8k.json`](data/validation/decode-service-log-audit-8k.json).
 
@@ -175,14 +175,14 @@ This is not a strict hardware comparison because the H200 input concurrency is a
 
 #### 2. Output Side — MI300X 64K Input / 1K Output
 
-| Client concurrency | Actual D-node running requests (mode / max) | E2E output tok/s | D-node mean gen tok/s | Mean TTFT (s) | Mean TPOT (ms) |
+| Client concurrency | Requests generating tokens concurrently on the D-node | E2E output tok/s | D-node mean gen tok/s | Mean TTFT (s) | Mean TPOT (ms) |
 |---:|---:|---:|---:|---:|---:|
-| 16 | 4 / 5 | 265.17 | 267.97 | 37.57 | 11.94 |
-| 32 | 4 / 4 | 276.59 | 276.74 | 80.23 | 11.76 |
-| 64 | 4 / 5 | 284.00 | 282.81 | 165.19 | 11.75 |
-| 96 | 4 / 5 | 288.66 | 287.77 | 248.34 | 11.55 |
+| 16 | Usually 4; peak 5 | 265.17 | 267.97 | 37.57 | 11.94 |
+| 32 | Usually 4; peak 4 | 276.59 | 276.74 | 80.23 | 11.76 |
+| 64 | Usually 4; peak 5 | 284.00 | 282.81 | 165.19 | 11.75 |
+| 96 | Usually 4; peak 5 | 288.66 | 287.77 | 248.34 | 11.55 |
 
-All requests succeeded. Client concurrency controls submitted work, but the long 64K KV footprint limits the active Decode batch to roughly four requests. E2E output tok/s includes Prefill/TTFT; D-node gen tok/s is the direct Decode scheduler metric. Their similar values show that the Decode node was continuously fed, but neither number is comparable to an H200 row at a different per-DP BS.
+For example, `Usually 4; peak 5` means that four requests were generating tokens concurrently in most scheduler-log samples, and the highest observed count was five. All requests succeeded. Client concurrency controls submitted work, but the long 64K KV footprint limits concurrent generation to roughly four requests. E2E output tok/s includes Prefill/TTFT; D-node gen tok/s is the direct Decode scheduler metric. Their similar values show that the Decode node was continuously fed, but neither number is comparable to an H200 row at a different per-DP BS.
 
 Machine-readable D-node audit: [`data/validation/decode-service-log-audit.json`](data/validation/decode-service-log-audit.json).
 
@@ -199,7 +199,7 @@ H200 source: customer-provided worksheet, TP8/EP32/DP4, balanced `fake_topk_ids`
 
 #### Why No Output-Side MI300X/H200 Ratio Is Reported
 
-- MI300X actual D-node batch is mode 4 / max 5; H200 rows are BS16/32/64/96.
+- The MI300X D-node usually generated tokens for 4 requests concurrently and peaked at 5; H200 rows are BS16/32/64/96.
 - MI300X uses two nodes (1P1D, 16 GPUs total); the H200 Decode reference comes from TP8/EP32/DP4 (four 8-GPU nodes, 32 GPUs total).
 - MI300X uses real expert routing; H200 uses balanced `fake_topk_ids`.
 - H200 provides no TTFT or matching E2E result.
