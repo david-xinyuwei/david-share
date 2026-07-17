@@ -15,11 +15,15 @@ This customer-facing repo contains the headline comparison, the complete Microso
 
 English | [中文版](README-CN.md) | [Validation Evidence](data/validation/)
 
+> **64K Decode highlight (one measurement run per point):** on the final two-node 1P1D MI300X runtime, mean TPOT stays at 11.55–11.94 ms from concurrency 16 to 96. Against the customer-provided H200 per-DP TPOT at matching local batch, MI300X is at parity at 16 and has **17.8–41.1% lower TPOT** at 32–96. This is a directional Decode-only observation. It does not claim Prefill or E2E leadership: MI300X reaches 69.3% of the customer H200 64K per-node Prefill reference, and the customer source has no matching 64K E2E result.
+
 ---
 
 ## Architecture
 
-<div align="center"><img src="images/pd_architecture.png" alt="Two-node MI300X 1P1D Prefill-Decode architecture" width="960"></div>
+![Two-node MI300X 1P1D Prefill-Decode architecture](images/pd_architecture.png)
+
+*Figure 1. Final two-node MI300X 1P1D topology, Mooncake KV transfer path, and validated runtime stack.*
 
 ---
 
@@ -81,6 +85,7 @@ The nominal-length 256K DP=2 observation is retained in the detailed scalability
 | Reviewed | 2026-05-18 |
 | Prefill reference | TP8/EP16/DP2, balanced `fake_topk_ids`, radix cache disabled, single-machine/per-node throughput |
 | Decode reference | 8K and 64K input / 1K output; TP8/EP32/DP4, balanced `fake_topk_ids`, MTP layer 3, reported accept rate 0.75 |
+| Decode TPOT origin | Customer worksheet; derived from per-DP Decode log output rate and local BS as `1000 / (tok/s ÷ BS)` |
 | Decode throughput scope | Reported per-DP/per-node-style `BS × TPS`; not confirmed as DP=4 aggregate throughput |
 | Delivery use | Directional per-node/per-DP reference only |
 
@@ -133,9 +138,47 @@ The maximum absolute two-run throughput delta was **2.14%** across the four repe
 
 ### Long-Context Decode — Final Baked Image
 
-These points were measured on 2026-07-17 by pulling and running the immutable image listed in the Software Stack section. SGLang's `Output token throughput` is an **end-to-end (E2E)** metric: total generated output tokens divided by full benchmark duration, including Prefill/TTFT. It is not pure Decode-server capacity.
+These points were measured on 2026-07-17 by pulling and running the immutable image listed in the Software Stack section. Each row is one measurement run; multiple requests within a row are not independent repetitions.
 
-| Requested ISL | OSL | Concurrency | Requests | E2E output tok/s | Input tok/s | Mean TPOT (ms) | Mean TTFT (ms) |
+Long ISL primarily stresses **Prefill**. Use Input tok/s and TTFT to judge long-ISL ingestion and online responsiveness. Use TPOT/ITL at fixed local batch to judge Decode after the first token. Throughput is measured in tokens/s; `TPUT` is shorthand for throughput, not a separate metric.
+
+| Metric | Dominant phase | Interpretation |
+|---|---|---|
+| Input tok/s | Prefill | Primary long-ISL capacity metric; higher is better |
+| TTFT | Prefill + queueing + KV transfer | Time until the first generated token; lower is better |
+| TPOT / ITL | Decode | Per-output-token latency after the first token; lower is better |
+| Decode server output tok/s | Decode | Decode-side capacity at a fixed workload; higher is better |
+| SGLang E2E Output token throughput | Full request | Includes Prefill/TTFT; do not treat as pure Decode capacity |
+
+#### Decode-Side Advantage — 64K Input / 1K Output
+
+| Local concurrency / per-DP BS | MI300X mean TPOT (ms) | Xiaomi H200 mean TPOT (ms) | MI300X / H200 |
+|---:|---:|---:|---:|
+| 16 | 11.94 | 11.99 | 1.00× |
+| 32 | 11.76 | 14.31 | 0.82× |
+| 64 | 11.75 | 16.33 | 0.72× |
+| 96 | 11.55 | 19.63 | 0.59× |
+
+At matching local batch, MI300X is effectively at parity at 16 and has **17.8–41.1% lower TPOT** at 32–96. Lower TPOT means faster per-request token generation after the first token.
+
+H200 TPOT is a customer-worksheet value derived from per-DP Decode log throughput. This is a directional same-workload, same-local-batch Decode view, not a whole-deployment comparison: MI300X uses real expert routing, while the H200 reference uses balanced `fake_topk_ids`, TP8/EP32/DP4, MTP3, and reported accept rate 0.75.
+
+H200 source: customer-provided report reviewed 2026-05-18 and revalidated against the source workbook on 2026-07-17; see [`data/validation/h200-reference.json`](data/validation/h200-reference.json). The private workbook is not redistributed.
+
+#### What Can and Cannot Be Compared to H200
+
+| Surface | Microsoft-tested MI300X | Customer-provided H200 | Decision |
+|---|---:|---:|---|
+| 64K Prefill | 18,983.91 input tok/s | 27,400 input tok/s | Directional per-node comparison: MI300X is 69.3% of H200; no MI300X lead |
+| 64K Decode | 11.55–11.94 ms TPOT | 11.99–19.63 ms TPOT at matching BS | Directional same-local-batch comparison: MI300X leads at BS32–96 |
+| 64K/1K E2E | Measured output-equivalent tok/s and TTFT | No matching customer E2E result | No H200 ratio or parity claim |
+| Requested 255K + 1K | One successful capability point | No exact matching customer workload | Capability only; no H200 comparison |
+
+#### End-to-End 1P1D Diagnostic — Prefill-Inclusive
+
+SGLang's `Output token throughput` is an **end-to-end (E2E)** metric: total requested output tokens divided by full benchmark duration, including Prefill/TTFT. It is not pure Decode-server capacity. For this fixed 64K/1K workload, the reported `Output token throughput = Input token throughput ÷ 64` by construction.
+
+| Requested ISL | OSL | Concurrency | Requests | SGLang E2E output tok/s (Prefill-inclusive) | Input tok/s | Mean TPOT (ms) | Mean TTFT (ms) |
 |---:|---:|---:|---:|---:|---:|---:|---:|
 | Requested 64K | 1K | 16 | 32 | 265.17 | 16,970.68 | 11.94 | 37,571.24 |
 | Requested 64K | 1K | 32 | 64 | 276.59 | 17,701.98 | 11.76 | 80,228.37 |
@@ -147,20 +190,7 @@ Observed behavior:
 
 - At requested 64K ISL, E2E output throughput increases only from 265.17 to 288.66 tok/s while Input throughput plateaus at 16.97–18.47K tok/s. Mean TPOT remains nearly flat at 11.55–11.94 ms, but Mean TTFT rises from 37.57 to 248.34 seconds. The E2E result is therefore Prefill-limited; the 265–289 tok/s values must not be read as pure Decode capacity.
 - The final row sends 261,120 input tokens and generates 1,024 output tokens, for 262,144 total sequence tokens. It is a requested-255K capability point, not a 256K-input claim.
-- Each row is one measurement run. Multiple requests within a row are not independent repetitions. The customer report contains a matching 64K TPOT reference, but no matching 255K reference.
-
-#### 64K Decode TPOT vs Xiaomi H200 — Lower Is Better
-
-| Local concurrency / per-DP BS | MI300X mean TPOT (ms) | Xiaomi H200 mean TPOT (ms) | MI300X / H200 |
-|---:|---:|---:|---:|
-| 16 | 11.94 | 11.99 | 1.00× |
-| 32 | 11.76 | 14.31 | 0.82× |
-| 64 | 11.75 | 16.33 | 0.72× |
-| 96 | 11.55 | 19.63 | 0.59× |
-
-H200 source: customer-provided report reviewed 2026-05-18 and revalidated against the source workbook on 2026-07-17; see [`data/validation/h200-reference.json`](data/validation/h200-reference.json). The private workbook is not redistributed.
-
-MI300X is effectively at parity at concurrency 16 and has 17.8–41.1% lower TPOT at concurrency 32–96. This is a directional same-workload latency comparison, not a strict whole-deployment hardware comparison: MI300X uses real expert routing, while the H200 reference uses balanced `fake_topk_ids`, TP8/EP32/DP4, MTP3, and reported accept rate 0.75. The E2E output tok/s values above are not divided by the H200 report's per-DP `BS × TPS` throughput because those metric scopes differ.
+- The customer report contains a matching 64K TPOT reference, but no matching 255K reference.
 
 Machine-readable results: [`data/decode-long-context-results.tsv`](data/decode-long-context-results.tsv). Runtime identity, method, and source-artifact hashes: [`data/validation/decode-long-context-evidence.json`](data/validation/decode-long-context-evidence.json).
 

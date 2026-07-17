@@ -233,6 +233,12 @@ def check_long_context_decode() -> None:
             float(row["input_tok_s"]),
             rel_tol=0.001,
         )
+        if requested_input == 65536:
+            assert math.isclose(
+                float(row["output_tok_s"]),
+                float(row["input_tok_s"]) / 64,
+                rel_tol=2e-5,
+            )
         assert int(row["peak_concurrent_requests"]) > 0
         for field in ("benchmark_duration_s", "input_tok_s", "output_tok_s", "peak_output_tok_s", "mean_tpot_ms", "median_tpot_ms", "mean_ttft_ms"):
             value = float(row[field])
@@ -281,6 +287,11 @@ def check_long_context_decode() -> None:
     }
     assert set(h200_64k) == {16, 32, 64, 96}
     assert h200["revalidated_at"] == "2026-07-17"
+    assert h200["decode"]["tpot_origin"] == (
+        "customer worksheet; derived as 1000 / "
+        "(per-DP decode log output tok/s / per-DP BS)"
+    )
+    assert h200["matching_e2e_reference_available"] is False
     expected_h200_64k = {
         16: (11.994992, 1333.89),
         32: (14.314279, 2235.53),
@@ -305,11 +316,28 @@ def check_long_context_decode() -> None:
         )
         for text in readme_texts:
             assert line in text.replace("×", "x")
+        h200_rate = float(h200_64k[concurrency]["output_tok_s"])
+        assert math.isclose(
+            h200_tpot,
+            1000 / (h200_rate / concurrency),
+            rel_tol=2e-6,
+        )
 
     for text in readme_texts:
         assert "data/decode-long-context-results.tsv" in text
         assert "data/validation/decode-long-context-evidence.json" in text
         assert "benchmark_decode_long_context.sh" in text
+        assert "18,983.91" in text and "27,400" in text and "69.3%" in text
+        assert "TPOT / ITL" in text
+        assert "TPUT" in text
+
+    english, chinese = readme_texts
+    assert "SGLang E2E output tok/s (Prefill-inclusive)" in english
+    assert "SGLang E2E output tok/s（包含 Prefill）" in chinese
+    assert "No matching customer E2E result" in english
+    assert "No H200 ratio or parity claim" in english
+    assert "客户无匹配 E2E 结果" in chinese
+    assert "不计算 H200 比率" in chinese
 
     benchmark = (ROOT / "scripts/amd-latest/benchmark_decode_long_context.sh").read_text(
         encoding="utf-8"
