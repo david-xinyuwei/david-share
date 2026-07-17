@@ -171,7 +171,7 @@ H200 source: customer-provided report reviewed 2026-05-18 and revalidated agains
 |---|---:|---:|---|
 | 64K Prefill | 18,983.91 input tok/s | 27,400 input tok/s | Directional per-node comparison: MI300X is 69.3% of H200; no MI300X lead |
 | 64K Decode | 11.55–11.94 ms TPOT | 11.99–19.63 ms TPOT at matching BS | Directional same-local-batch comparison: MI300X leads at BS32–96 |
-| 64K/1K E2E | Measured output-equivalent tok/s and TTFT | No matching customer E2E result | No H200 ratio or parity claim |
+| 64K/1K E2E | Measured SGLang E2E output tok/s and TTFT | No matching customer E2E result | No H200 ratio or parity claim |
 | Requested 255K + 1K | One successful capability point | No exact matching customer workload | Capability only; no H200 comparison |
 
 #### End-to-End 1P1D Diagnostic — Prefill-Inclusive

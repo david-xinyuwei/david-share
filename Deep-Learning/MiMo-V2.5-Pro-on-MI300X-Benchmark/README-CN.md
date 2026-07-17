@@ -171,7 +171,7 @@ H200 来源：客户提供报告于 2026-05-18 完成审阅，并于 2026-07-17 
 |---|---:|---:|---|
 | 64K Prefill | 18,983.91 input tok/s | 27,400 input tok/s | 方向性单节点对比：MI300X 为 H200 的 69.3%，MI300X 不领先 |
 | 64K Decode | 11.55–11.94 ms TPOT | 相同 BS 下 11.99–19.63 ms TPOT | 方向性相同 local batch 对比：MI300X 在 BS32–96 领先 |
-| 64K/1K E2E | 已测 output-equivalent tok/s 与 TTFT | 客户无匹配 E2E 结果 | 不计算 H200 比率，不声明 parity |
+| 64K/1K E2E | 已测 SGLang E2E output tok/s 与 TTFT | 客户无匹配 E2E 结果 | 不计算 H200 比率，不声明 parity |
 | Requested 255K + 1K | 1 个成功能力点 | 客户无完全相同 workload | 只证明能力，不做 H200 对比 |
 
 #### 端到端 1P1D 诊断 — 包含 Prefill

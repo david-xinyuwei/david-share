@@ -334,6 +334,8 @@ def check_long_context_decode() -> None:
     english, chinese = readme_texts
     assert "SGLang E2E output tok/s (Prefill-inclusive)" in english
     assert "SGLang E2E output tok/s（包含 Prefill）" in chinese
+    assert "output-equivalent" not in english
+    assert "output-equivalent" not in chinese
     assert "No matching customer E2E result" in english
     assert "No H200 ratio or parity claim" in english
     assert "客户无匹配 E2E 结果" in chinese
