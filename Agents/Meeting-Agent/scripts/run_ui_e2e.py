@@ -28,12 +28,10 @@ def main() -> int:
             **os.environ,
             "PORT": "18088",
             "OTEL_SDK_DISABLED": "true",
-            "MEETING_AGENT_ANALYZER": "offline-contract",
-            "MEETING_AGENT_ENABLE_OFFLINE_CONTRACT": "1",
             "MEETING_AGENT_SESSION_HOME": str(RUNTIME_DIR / "session"),
         }
         agent = subprocess.Popen(
-            [sys.executable, "main.py"],
+            [sys.executable, "-m", "tests.e2e_server"],
             cwd=ROOT,
             env=agent_environment,
             stdin=subprocess.DEVNULL,

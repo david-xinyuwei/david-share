@@ -146,7 +146,8 @@ def main() -> int:
             assert (ROOT / link).exists(), link
         assert "Xinyu Wei" in text or "魏新宇" in text
         assert "automatic_send" in text
-        assert "offline-contract" in text
+        assert "offline-contract" not in text
+        assert "test-fixture" in text
     for english_claim, chinese_claim in CRITICAL_CLAIMS:
         assert english_claim.casefold() in texts[0].casefold()
         assert chinese_claim in texts[1]

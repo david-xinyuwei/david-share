@@ -5,7 +5,6 @@ from pathlib import Path
 from PIL import Image, ImageStat
 from pptx import Presentation
 
-from meeting_agent.analyzers import OfflineContractAnalyzer
 from meeting_agent.artifacts import (
     BRANCH_COLORS,
     _atomic_generate,
@@ -16,12 +15,13 @@ from meeting_agent.artifacts import (
     generate_artifacts,
 )
 from meeting_agent.session import load_jsonl
+from tests.support import DeterministicTestAnalyzer
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_generates_nonblank_mind_map_and_valid_pptx(tmp_path: Path) -> None:
-    analysis = OfflineContractAnalyzer().analyze(
+    analysis = DeterministicTestAnalyzer().analyze(
         load_jsonl(ROOT / "examples" / "product-planning.jsonl")
     )
     artifacts = generate_artifacts(analysis, tmp_path)

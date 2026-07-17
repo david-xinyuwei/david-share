@@ -10,6 +10,7 @@ from pydantic import ValidationError
 os.environ.setdefault("OTEL_SDK_DISABLED", "true")
 import meeting_agent.hosted as hosted
 from meeting_agent.hosted_models import HostedMeetingRequest
+from tests.support import DeterministicTestAnalyzer
 
 
 def _request() -> dict[str, object]:
@@ -41,10 +42,8 @@ def _post(path: str, payload: dict[str, object]) -> httpx.Response:
 
 
 def test_invocations_builds_real_session_artifacts(monkeypatch, tmp_path):
-    monkeypatch.setenv("MEETING_AGENT_ANALYZER", "offline-contract")
-    monkeypatch.setenv("MEETING_AGENT_ENABLE_OFFLINE_CONTRACT", "1")
+    monkeypatch.setattr(hosted, "_get_analyzer", lambda: DeterministicTestAnalyzer())
     monkeypatch.setenv("MEETING_AGENT_SESSION_HOME", str(tmp_path))
-    hosted._get_analyzer.cache_clear()
 
     response = _post(
         "/invocations?agent_session_id=foundry-session-1",
@@ -63,10 +62,8 @@ def test_invocations_builds_real_session_artifacts(monkeypatch, tmp_path):
 
 
 def test_streaming_invocation_emits_real_completed_stages(monkeypatch, tmp_path):
-    monkeypatch.setenv("MEETING_AGENT_ANALYZER", "offline-contract")
-    monkeypatch.setenv("MEETING_AGENT_ENABLE_OFFLINE_CONTRACT", "1")
+    monkeypatch.setattr(hosted, "_get_analyzer", lambda: DeterministicTestAnalyzer())
     monkeypatch.setenv("MEETING_AGENT_SESSION_HOME", str(tmp_path))
-    hosted._get_analyzer.cache_clear()
 
     response = _post(
         "/invocations_stream?agent_session_id=stream-session-1",
@@ -95,9 +92,8 @@ def test_streaming_invocation_emits_real_completed_stages(monkeypatch, tmp_path)
     assert (tmp_path / run["artifacts"]["eml"]["path"]).is_file()
 
 
-def test_offline_contract_must_be_explicitly_enabled(monkeypatch, tmp_path):
-    monkeypatch.setenv("MEETING_AGENT_ANALYZER", "offline-contract")
-    monkeypatch.delenv("MEETING_AGENT_ENABLE_OFFLINE_CONTRACT", raising=False)
+def test_non_azure_analyzer_is_rejected(monkeypatch, tmp_path):
+    monkeypatch.setenv("MEETING_AGENT_ANALYZER", "test-only")
     monkeypatch.setenv("MEETING_AGENT_SESSION_HOME", str(tmp_path))
     hosted._get_analyzer.cache_clear()
 

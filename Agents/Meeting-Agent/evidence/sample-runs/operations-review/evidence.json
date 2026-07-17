@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "analyzer": "offline-contract",
+  "analyzer": "test-fixture",
   "source": {
     "session_id": "operations-review",
     "event_count": 6,

@@ -18,7 +18,6 @@ from starlette.responses import JSONResponse, Response, StreamingResponse
 from .analyzers import (
     Analyzer,
     AzureOpenAIAnalyzer,
-    OfflineContractAnalyzer,
 )
 from .hosted_models import HostedMeetingRequest, HostedMeetingResponse
 from .hosted_pipeline import build_hosted_run, stream_hosted_run
@@ -264,13 +263,9 @@ app.add_route("/invocations_stream", handle_invoke_stream, methods=["POST"])
 @lru_cache(maxsize=1)
 def _get_analyzer() -> Analyzer:
     mode = os.environ.get("MEETING_AGENT_ANALYZER", "azure").strip().casefold()
-    if mode == "azure":
-        return AzureOpenAIAnalyzer()
-    if mode == "offline-contract":
-        if os.environ.get("MEETING_AGENT_ENABLE_OFFLINE_CONTRACT") != "1":
-            raise RuntimeError("offline-contract analyzer is disabled")
-        return OfflineContractAnalyzer()
-    raise RuntimeError(f"unsupported MEETING_AGENT_ANALYZER value: {mode!r}")
+    if mode != "azure":
+        raise RuntimeError("MEETING_AGENT_ANALYZER must be 'azure'")
+    return AzureOpenAIAnalyzer()
 
 
 def _session_home() -> Path:

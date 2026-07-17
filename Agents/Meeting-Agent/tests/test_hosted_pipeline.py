@@ -2,10 +2,10 @@ from datetime import UTC, datetime
 from email import policy
 from email.parser import BytesParser
 
-from meeting_agent.analyzers import OfflineContractAnalyzer
 from meeting_agent.hosted_models import HostedMeetingRequest
 from meeting_agent.hosted_pipeline import build_hosted_run, stream_hosted_run
 from meeting_agent.models import MeetingEvent, MeetingEventKind
+from tests.support import DeterministicTestAnalyzer
 
 
 def _request() -> HostedMeetingRequest:
@@ -33,7 +33,7 @@ def _request() -> HostedMeetingRequest:
 
 def test_hosted_run_generates_session_downloads(tmp_path):
     request = _request()
-    response = build_hosted_run(request, tmp_path, OfflineContractAnalyzer())
+    response = build_hosted_run(request, tmp_path, DeterministicTestAnalyzer())
 
     assert response.session_id == "session-1"
     assert response.analysis.decisions == [
@@ -55,7 +55,7 @@ def test_hosted_run_generates_session_downloads(tmp_path):
     assert str(message["To"]) == "reviewer@example.com"
     assert len(list(message.iter_attachments())) == 2
 
-    repeated = build_hosted_run(request, tmp_path, OfflineContractAnalyzer())
+    repeated = build_hosted_run(request, tmp_path, DeterministicTestAnalyzer())
     assert repeated.run_id != response.run_id
     assert repeated.source_sha256 == response.source_sha256
     assert repeated.artifacts["analysis"].path != response.artifacts["analysis"].path
@@ -65,8 +65,8 @@ def test_hosted_run_generates_session_downloads(tmp_path):
 
 def test_run_id_keeps_source_prefix_and_unique_nonce(tmp_path):
     request = _request()
-    first = build_hosted_run(request, tmp_path, OfflineContractAnalyzer())
-    second = build_hosted_run(request, tmp_path, OfflineContractAnalyzer())
+    first = build_hosted_run(request, tmp_path, DeterministicTestAnalyzer())
+    second = build_hosted_run(request, tmp_path, DeterministicTestAnalyzer())
 
     assert first.run_id[:8] == first.source_sha256[:8]
     assert second.run_id[:8] == second.source_sha256[:8]
@@ -75,7 +75,7 @@ def test_run_id_keeps_source_prefix_and_unique_nonce(tmp_path):
 
 
 def test_streaming_run_emits_only_completed_stages(tmp_path):
-    class StreamingContractAnalyzer(OfflineContractAnalyzer):
+    class StreamingFixtureAnalyzer(DeterministicTestAnalyzer):
         def analyze_stream(self, session, on_delta):
             on_delta('{"title":"')
             on_delta('The group approved the plan"}')
@@ -99,7 +99,7 @@ def test_streaming_run_emits_only_completed_stages(tmp_path):
     response = stream_hosted_run(
         _request(),
         tmp_path,
-        StreamingContractAnalyzer(),
+        StreamingFixtureAnalyzer(),
         capture,
         agent_session_id="stream-session",
         invocation_id="stream-invocation",

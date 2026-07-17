@@ -1,13 +1,13 @@
 from pathlib import Path
 
-from meeting_agent.analyzers import OfflineContractAnalyzer
 from meeting_agent.session import load_jsonl
+from tests.support import DeterministicTestAnalyzer
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_two_meetings_produce_materially_different_analysis() -> None:
-    analyzer = OfflineContractAnalyzer()
+    analyzer = DeterministicTestAnalyzer()
     product = analyzer.analyze(load_jsonl(ROOT / "examples" / "product-planning.jsonl"))
     operations = analyzer.analyze(load_jsonl(ROOT / "examples" / "operations-review.jsonl"))
 
@@ -18,8 +18,8 @@ def test_two_meetings_produce_materially_different_analysis() -> None:
     assert "database" in operations.summary.casefold()
 
 
-def test_offline_contract_analyzer_is_deterministic() -> None:
+def test_fixture_analyzer_is_deterministic() -> None:
     session = load_jsonl(ROOT / "examples" / "product-planning.jsonl")
-    analyzer = OfflineContractAnalyzer()
+    analyzer = DeterministicTestAnalyzer()
 
     assert analyzer.analyze(session) == analyzer.analyze(session)

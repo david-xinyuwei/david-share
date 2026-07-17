@@ -20,7 +20,7 @@ Please allow reasonable time for triage before public disclosure.
 ## Security Boundaries
 
 - This project creates an unsent EML draft and does not transmit mail.
-- Azure credentials are resolved by `DefaultAzureCredential`; no secret belongs in source control.
+- Azure credentials are supplied through the local process environment; no secret belongs in source control.
 - Meeting events are untrusted input and may contain sensitive organizational data.
-- The `offline-contract` analyzer is test infrastructure, not a safety or quality filter.
+- Deterministic test fixtures are isolated under `tests/` and are not available through product runtime or CLI paths.
 - Generated summaries and attachments require human review.

@@ -45,13 +45,13 @@ Generation uses a finite NDJSON response stream. The UI displays real `response.
 | Event intake | Validates, orders, deduplicates, and hashes normalized ASR JSONL events | Unit tests and two sample streams | Capture transport is supplied by an adapter |
 | Transcript processing | Uses only `transcript.final` in generated artifacts | `tests/test_session.py` | Embedded Speech returns an in-memory recognition result; an adapter maps it to JSONL |
 | Visual context | Accepts a visual summary and optional `image_uri` | Event schema tests | Screen capture and image interpretation belong to the visual adapter |
-| GPT-5.4 analysis | Loads the meeting-package skill, uses Pydantic structured output, medium reasoning, and `store=False` | SDK contract and live AOAI response | It never silently falls back to offline output |
-| Offline analysis | Produces deterministic structured analysis for CI and integration testing | Two materially different committed runs | It is not an AI-quality substitute or production fallback |
+| GPT-5.4 analysis | Loads the meeting-package skill, uses Pydantic structured output, medium reasoning, and `store=False` | SDK contract and live AOAI response | It never falls back to a local fixture |
+| Committed sample fixtures | Static artifacts for renderer, EML, and evidence-contract regression tests | Hash validation and unit tests | They are not an AI-quality substitute, executable analyzer, or production fallback |
 | Artifact generation | Creates real, parseable PNG/SVG/JSON/PPTX/EML files | SHA-256 manifest and artifact tests | Layout is intentionally compact and customizable |
 | New Outlook | Opens an editable EML draft with real attachments | Sanitized Windows probe | Windows and New Outlook are required for the UI button or `--open-outlook` |
 | Message transmission | Does not transmit mail | Static audit in every CI job | The user reviews and clicks Send manually |
 
-The committed sample artifacts use explicit `offline-contract` mode for deterministic CI. Live validation uses the local Windows UI and full GPT-5.4 Responses API: the structured meeting JSON produces grounded analysis, one card-layout mind map shared by the page, PNG download, and inline Outlook draft, a renderer-neutral Mermaid source, a six-slide editable PPTX, and an EML with two attachments. This is functional evidence, not production certification or a model-quality benchmark. The sanitized Outlook probe validates the Windows draft handoff only.
+The committed sample artifacts are static `test-fixture` evidence for deterministic renderer and draft-contract regression tests; no fixture is addressable from the customer path. Live validation uses the local Windows UI and full GPT-5.4 Responses API: the structured meeting JSON produces grounded analysis, one card-layout mind map shared by the page, PNG download, and inline Outlook draft, a renderer-neutral Mermaid source, a six-slide editable PPTX, and an EML with two attachments. This is functional evidence, not production certification or a model-quality benchmark. The sanitized Outlook probe validates the Windows draft handoff only.
 
 [Live runtime differential evidence](evidence/aoai-runtime-differential.json) records two materially different real Responses API inputs. Their source, title, analysis, card PNG, PPTX, and EML hashes all differ; response IDs are verified locally and redacted from the public record.
 
@@ -205,7 +205,7 @@ Paste **KEY 1** or **KEY 2** at that prompt and press Enter. No characters appea
 
 Press `Ctrl+C` in the launcher terminal to stop the UI and backend. Use the same `start-ui-key.ps1` command for later sessions. The key is passed only to the Python backend process, removed before the Node BFF starts, and is never written to `.env`, command-line arguments, logs, browser responses, generated artifacts, Git, or the customer ZIP. If Azure returns `403 AuthenticationTypeDisabled`, the resource administrator must enable local authentication in accordance with organizational policy.
 
-### Developer-only offline contract path
+### Deterministic test fixtures
 
 ```bash
 git clone https://github.com/david-xinyuwei/david-share.git
@@ -214,26 +214,24 @@ python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements-dev.txt
 python -m pip install -e .
-python -m meeting_agent.cli validate-events \
-  --events examples/product-planning.jsonl
-python -m meeting_agent.cli build \
-  --events examples/product-planning.jsonl \
-  --output-dir artifacts/product-planning \
-  --analyzer offline-contract
+python -m pytest \
+  tests/test_artifacts.py \
+  tests/test_hosted_pipeline.py \
+  tests/test_draft.py
 ```
 
 After installation, `meeting-agent` and `python -m meeting_agent.cli` are equivalent.
 
-### Developer CLI on Windows
+### Windows test commands
 
 ```powershell
 py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
 .\.venv\Scripts\python.exe -m pip install -e .
-.\.venv\Scripts\python.exe -m meeting_agent.cli build `
-  --events examples\product-planning.jsonl `
-  --output-dir artifacts\product-planning `
-  --analyzer offline-contract
+.\.venv\Scripts\python.exe -m pytest `
+  tests\test_artifacts.py `
+  tests\test_hosted_pipeline.py `
+  tests\test_draft.py
 ```
 
 ### Example Output
@@ -248,7 +246,7 @@ Evidence excerpt:
 
 ```json
 {
-  "analyzer": "offline-contract",
+  "analyzer": "test-fixture",
   "source": {
     "session_id": "product-planning",
     "event_count": 6,
@@ -292,8 +290,7 @@ export AZURE_OPENAI_DEPLOYMENT="<deployment-name>"
 export AZURE_OPENAI_API_KEY="<api-key>"
 python -m meeting_agent.cli build \
   --events examples/product-planning.jsonl \
-  --output-dir artifacts/azure-product-planning \
-  --analyzer azure
+  --output-dir artifacts/azure-product-planning
 ```
 
 This CLI example is for ephemeral developer shells only. The customer launcher is safer because it reads the key with hidden input. Never place API keys, tenant-specific endpoints, or customer data in this repository.
@@ -317,20 +314,7 @@ Start the complete local application with:
 
 Run this command in Windows PowerShell, not WSL. The launcher verifies Node.js, Python, the HTTPS endpoint, and `olk.exe` before enabling the Outlook button.
 
-The standalone CLI can exercise the same local draft handoff for development:
-
-```powershell
-py -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
-.\.venv\Scripts\python.exe -m pip install -e .
-.\.venv\Scripts\python.exe -m meeting_agent.cli build `
-  --events examples\product-planning.jsonl `
-  --output-dir artifacts\product-planning `
-  --analyzer offline-contract `
-  --open-outlook
-```
-
-Both paths write or download the EML first, validate its contract, and launch `olk.exe <absolute-eml-path>`. The compose window remains editable. The repository never clicks Send and never calls a send API.
+The standalone CLI remains Azure-only. CI verifies EML drafting through static test fixtures rather than exposing an alternative local analyzer. The supported UI path writes or downloads the EML first, validates its contract, and launches `olk.exe <absolute-eml-path>`. The compose window remains editable. The repository never clicks Send and never calls a send API.
 
 ![Sanitized New Outlook draft probe](images/outlook-draft-handoff-sanitized.png)
 
@@ -356,7 +340,6 @@ meeting-agent validate-events --events <meeting.jsonl>
 meeting-agent build \
   --events <meeting.jsonl> \
   --output-dir <directory> \
-  --analyzer {azure,offline-contract} \
   [--recipient <address>] \
   [--open-outlook]
 ```
@@ -371,7 +354,7 @@ Each build writes `evidence.json` with:
 | Key | Meaning |
 |---|---|
 | `schema_version` | Evidence contract version |
-| `analyzer` | `azure` or `offline-contract` |
+| `analyzer` | `azure` for executable CLI builds; `test-fixture` for committed static regression assets |
 | `source` | Session ID, event count, and canonical source SHA-256 |
 | `artifacts` | Relative filename, byte count, and SHA-256 for every output |
 | `eml` | `X-Unsent`, recipient count, attachment count/names, subject, and SHA-256 |

@@ -31,7 +31,7 @@ pip-audit -r requirements.txt --progress-spinner off
 - Use synthetic data in tests and committed evidence.
 - Keep endpoint, deployment, and credential values in environment variables.
 - Do not add SMTP, Graph `sendMail`, Outlook `.Send`, UI Send activation, or any automatic transmission path.
-- Do not turn `offline-contract` into a silent fallback for Azure failures.
+- Do not add a local analysis fallback for Azure failures; inject deterministic fixtures only from `tests/`.
 - Update both `README.md` and `README-CN.md` with the same heading and image structure.
 - Regenerate committed sample runs after artifact changes, then run `validate_sample_runs.py`.
 

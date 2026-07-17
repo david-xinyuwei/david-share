@@ -5,16 +5,16 @@ from pathlib import Path
 import pytest
 
 import meeting_agent.draft as draft
-from meeting_agent.analyzers import OfflineContractAnalyzer
 from meeting_agent.artifacts import generate_artifacts
 from meeting_agent.draft import build_eml, validate_eml, write_evidence
 from meeting_agent.session import load_jsonl
+from tests.support import DeterministicTestAnalyzer
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_builds_unsent_eml_with_two_attachments_and_no_recipients(tmp_path: Path) -> None:
-    analysis = OfflineContractAnalyzer().analyze(
+    analysis = DeterministicTestAnalyzer().analyze(
         load_jsonl(ROOT / "examples" / "operations-review.jsonl")
     )
     artifacts = generate_artifacts(analysis, tmp_path)
@@ -47,7 +47,7 @@ def test_builds_unsent_eml_with_two_attachments_and_no_recipients(tmp_path: Path
 
 
 def test_counts_multiple_valid_recipients(tmp_path: Path) -> None:
-    analysis = OfflineContractAnalyzer().analyze(
+    analysis = DeterministicTestAnalyzer().analyze(
         load_jsonl(ROOT / "examples" / "product-planning.jsonl")
     )
     artifacts = generate_artifacts(analysis, tmp_path)
@@ -62,7 +62,7 @@ def test_counts_multiple_valid_recipients(tmp_path: Path) -> None:
 
 
 def test_rejects_recipient_header_injection(tmp_path: Path) -> None:
-    analysis = OfflineContractAnalyzer().analyze(
+    analysis = DeterministicTestAnalyzer().analyze(
         load_jsonl(ROOT / "examples" / "product-planning.jsonl")
     )
     attachment = tmp_path / "attachment.png"

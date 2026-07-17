@@ -45,13 +45,13 @@ https://github.com/user-attachments/assets/023f22f0-31f2-4039-85f0-e22712770ff2
 | 事件接入 | 校验、排序、去重并计算标准化 ASR JSONL 事件 hash | 单元测试和两份样例事件流 | 采集传输由适配器提供 |
 | 转写处理 | 生成产物时只使用 `transcript.final` | `tests/test_session.py` | Embedded Speech 返回内存识别结果，由适配器映射为 JSONL |
 | 视觉上下文 | 接受视觉摘要和可选 `image_uri` | 事件 schema 测试 | 屏幕捕获和图片理解属于视觉适配器 |
-| GPT-5.4 分析 | 加载 meeting-package skill，使用 Pydantic 结构化输出、Medium reasoning 和 `store=False` | SDK 契约与真实 AOAI response | 不会静默 fallback 到离线输出 |
-| 离线分析 | 为 CI 和集成测试生成确定性结构化分析 | 两份内容显著不同的已提交运行 | 不是 AI 质量替代品，也不是生产 fallback |
+| GPT-5.4 分析 | 加载 meeting-package skill，使用 Pydantic 结构化输出、Medium reasoning 和 `store=False` | SDK 契约与真实 AOAI response | 不会 fallback 到本地 fixture |
+| 已提交样例 fixture | 用于渲染器、EML 和 evidence 契约回归测试的静态产物 | Hash 校验和单元测试 | 不是 AI 质量替代品、可执行分析器或生产 fallback |
 | 产物生成 | 创建真实且可解析的 PNG/SVG/JSON/PPTX/EML | SHA-256 manifest 和产物测试 | 布局保持简洁，可按需定制 |
 | New Outlook | 打开包含真实附件的可编辑 EML 草稿 | 脱敏 Windows 实测证据 | UI 按钮或 `--open-outlook` 需要 Windows 和 New Outlook |
 | 邮件传输 | 不发送邮件 | 每个 CI job 执行静态审计 | 用户审阅后手动点击 Send |
 
-已提交的样例产物使用显式 `offline-contract` 模式，以便 CI 确定性复验。Live 验证使用本机 Windows UI 和 full GPT-5.4 Responses API：结构化会议 JSON 会生成有依据的分析；页面、PNG 下载和 Outlook 草稿正文共用同一张卡片式思维图，同时保留 renderer-neutral Mermaid 源码；另生成六页可编辑 PPTX，以及含两个附件的 EML。这是功能证据，不是生产认证或模型质量 benchmark。脱敏 Outlook probe 仅验证 Windows 草稿交接。
+已提交的样例产物是用于确定性渲染器和草稿契约回归测试的静态 `test-fixture` 证据；客户路径不能调用任何 fixture。Live 验证使用本机 Windows UI 和 full GPT-5.4 Responses API：结构化会议 JSON 会生成有依据的分析；页面、PNG 下载和 Outlook 草稿正文共用同一张卡片式思维图，同时保留 renderer-neutral Mermaid 源码；另生成六页可编辑 PPTX，以及含两个附件的 EML。这是功能证据，不是生产认证或模型质量 benchmark。脱敏 Outlook probe 仅验证 Windows 草稿交接。
 
 [真实Runtime Differential证据](evidence/aoai-runtime-differential.json)记录了两份内容显著不同的真实Responses API输入；它们的source、标题、analysis、卡片PNG、PPTX和EML hash均不同；response ID在本机完成核验，但不会进入公开记录。
 
@@ -205,7 +205,7 @@ Azure OpenAI API key:
 
 在启动器终端按`Ctrl+C`即可停止UI和backend。以后继续使用同一条`start-ui-key.ps1`命令。Key只传给Python backend进程，并在Node BFF启动前从父进程环境中删除；不会写入`.env`、命令行参数、日志、浏览器响应、生成产物、Git或客户ZIP。如果Azure返回`403 AuthenticationTypeDisabled`，需要资源管理员根据组织策略启用Local Auth。
 
-### 仅供开发的 offline contract 路径
+### 确定性测试 fixture
 
 ```bash
 git clone https://github.com/david-xinyuwei/david-share.git
@@ -214,26 +214,24 @@ python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements-dev.txt
 python -m pip install -e .
-python -m meeting_agent.cli validate-events \
-  --events examples/product-planning.jsonl
-python -m meeting_agent.cli build \
-  --events examples/product-planning.jsonl \
-  --output-dir artifacts/product-planning \
-  --analyzer offline-contract
+python -m pytest \
+  tests/test_artifacts.py \
+  tests/test_hosted_pipeline.py \
+  tests/test_draft.py
 ```
 
 安装后，`meeting-agent` 与 `python -m meeting_agent.cli` 等价。
 
-### Windows 开发者 CLI
+### Windows 测试命令
 
 ```powershell
 py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
 .\.venv\Scripts\python.exe -m pip install -e .
-.\.venv\Scripts\python.exe -m meeting_agent.cli build `
-  --events examples\product-planning.jsonl `
-  --output-dir artifacts\product-planning `
-  --analyzer offline-contract
+.\.venv\Scripts\python.exe -m pytest `
+  tests\test_artifacts.py `
+  tests\test_hosted_pipeline.py `
+  tests\test_draft.py
 ```
 
 ### 运行日志
@@ -248,7 +246,7 @@ Evidence 摘要：
 
 ```json
 {
-  "analyzer": "offline-contract",
+  "analyzer": "test-fixture",
   "source": {
     "session_id": "product-planning",
     "event_count": 6,
@@ -292,8 +290,7 @@ export AZURE_OPENAI_DEPLOYMENT="<deployment-name>"
 export AZURE_OPENAI_API_KEY="<api-key>"
 python -m meeting_agent.cli build \
   --events examples/product-planning.jsonl \
-  --output-dir artifacts/azure-product-planning \
-  --analyzer azure
+  --output-dir artifacts/azure-product-planning
 ```
 
 这个CLI示例只适合临时开发shell。客户应使用隐藏输入启动器。禁止把API Key、租户专属endpoint或客户数据放入本仓库。
@@ -317,20 +314,7 @@ python -m meeting_agent.cli build \
 
 必须在Windows PowerShell中运行该命令，不能在WSL中运行。启动器会在启用Outlook按钮前验证Node.js、Python、HTTPS endpoint和`olk.exe`。
 
-Standalone CLI 可以在开发时验证同一个本地草稿交接：
-
-```powershell
-py -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
-.\.venv\Scripts\python.exe -m pip install -e .
-.\.venv\Scripts\python.exe -m meeting_agent.cli build `
-  --events examples\product-planning.jsonl `
-  --output-dir artifacts\product-planning `
-  --analyzer offline-contract `
-  --open-outlook
-```
-
-两条路径都会先写入或下载 EML、校验其契约，再启动 `olk.exe <absolute-eml-path>`。Compose window 保持可编辑。本仓库不会点击 Send，也不会调用发送 API。
+Standalone CLI 只支持 Azure。CI 通过静态测试 fixture 验证 EML 草稿，而不是暴露另一个本地分析器。支持的 UI 路径会先写入或下载 EML、校验其契约，再启动 `olk.exe <absolute-eml-path>`。Compose window 保持可编辑。本仓库不会点击 Send，也不会调用发送 API。
 
 ![Sanitized New Outlook draft probe](images/outlook-draft-handoff-sanitized.png)
 
@@ -356,7 +340,6 @@ meeting-agent validate-events --events <meeting.jsonl>
 meeting-agent build \
   --events <meeting.jsonl> \
   --output-dir <directory> \
-  --analyzer {azure,offline-contract} \
   [--recipient <address>] \
   [--open-outlook]
 ```
@@ -371,7 +354,7 @@ meeting-agent build \
 | Key | 含义 |
 |---|---|
 | `schema_version` | Evidence 契约版本 |
-| `analyzer` | `azure` 或 `offline-contract` |
+| `analyzer` | 可执行 CLI build 为 `azure`；已提交的静态回归资产为 `test-fixture` |
 | `source` | Session ID、事件数和 canonical source SHA-256 |
 | `artifacts` | 每个输出的相对文件名、字节数与 SHA-256 |
 | `eml` | `X-Unsent`、收件人数、附件数/名称、Subject 和 SHA-256 |

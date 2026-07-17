@@ -9,7 +9,7 @@ from pathlib import Path
 
 from filelock import FileLock, Timeout
 
-from .analyzers import AzureOpenAIAnalyzer, OfflineContractAnalyzer
+from .analyzers import AzureOpenAIAnalyzer
 from .artifacts import generate_artifacts
 from .draft import build_eml, file_sha256, open_in_new_outlook, write_evidence
 from .models import MeetingAnalysis
@@ -26,7 +26,6 @@ def parser() -> argparse.ArgumentParser:
     build = subcommands.add_parser("build", help="Generate meeting artifacts and an unsent EML")
     build.add_argument("--events", type=Path, required=True)
     build.add_argument("--output-dir", type=Path, required=True)
-    build.add_argument("--analyzer", choices=("azure", "offline-contract"), required=True)
     build.add_argument("--recipient", action="append", default=[])
     build.add_argument("--open-outlook", action="store_true")
     return root
@@ -55,7 +54,7 @@ def _execute(args: argparse.Namespace) -> int:
         )
         return 0
 
-    analyzer = AzureOpenAIAnalyzer() if args.analyzer == "azure" else OfflineContractAnalyzer()
+    analyzer = AzureOpenAIAnalyzer()
     analysis = analyzer.analyze(session)
     output_dir: Path = args.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -82,7 +81,7 @@ def _build(
     )
     evidence = {
         "schema_version": 1,
-        "analyzer": args.analyzer,
+        "analyzer": "azure",
         "source": {
             "session_id": session.session_id,
             "event_count": len(session.events),

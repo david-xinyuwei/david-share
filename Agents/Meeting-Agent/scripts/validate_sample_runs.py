@@ -21,7 +21,7 @@ def main() -> int:
         session = load_jsonl(ROOT / "examples" / f"{run_name}.jsonl")
 
         assert evidence["schema_version"] == 1
-        assert evidence["analyzer"] == "offline-contract"
+        assert evidence["analyzer"] == "test-fixture"
         assert evidence["source"]["session_id"] == session.session_id
         assert evidence["source"]["event_count"] == len(session.events)
         assert evidence["source"]["content_sha256"] == session.content_sha256()
