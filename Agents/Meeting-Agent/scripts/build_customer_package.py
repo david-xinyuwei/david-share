@@ -34,6 +34,7 @@ EXCLUDED_DIRS = {
     "playwright-report",
     "runtime",
     "test-results",
+    "tests",
     "venv",
     "__pycache__",
 }

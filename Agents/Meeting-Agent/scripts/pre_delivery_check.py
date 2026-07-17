@@ -102,6 +102,7 @@ def main() -> int:
         packaged_paths = {entry["path"] for entry in manifest["files"]}
         assert manifest["excluded_runtime_and_secrets"] is True
         assert manifest["file_count"] == len(packaged_paths)
+        assert not any(path.startswith("tests/") for path in packaged_paths)
         assert {
             "CUSTOMER-START-HERE.md",
             "CUSTOMER-START-HERE-CN.md",
