@@ -7,16 +7,11 @@ import pytest
 import meeting_agent.draft as draft
 from meeting_agent.artifacts import generate_artifacts
 from meeting_agent.draft import build_eml, validate_eml, write_evidence
-from meeting_agent.session import load_jsonl
-from tests.support import DeterministicTestAnalyzer
-
-ROOT = Path(__file__).resolve().parents[1]
+from tests.support import sample_analysis
 
 
 def test_builds_unsent_eml_with_two_attachments_and_no_recipients(tmp_path: Path) -> None:
-    analysis = DeterministicTestAnalyzer().analyze(
-        load_jsonl(ROOT / "examples" / "operations-review.jsonl")
-    )
+    analysis = sample_analysis("operations-review")
     artifacts = generate_artifacts(analysis, tmp_path)
     eml = tmp_path / "meeting-follow-up.eml"
     evidence = build_eml(
@@ -47,9 +42,7 @@ def test_builds_unsent_eml_with_two_attachments_and_no_recipients(tmp_path: Path
 
 
 def test_counts_multiple_valid_recipients(tmp_path: Path) -> None:
-    analysis = DeterministicTestAnalyzer().analyze(
-        load_jsonl(ROOT / "examples" / "product-planning.jsonl")
-    )
+    analysis = sample_analysis("product-planning")
     artifacts = generate_artifacts(analysis, tmp_path)
     evidence = build_eml(
         analysis,
@@ -62,9 +55,7 @@ def test_counts_multiple_valid_recipients(tmp_path: Path) -> None:
 
 
 def test_rejects_recipient_header_injection(tmp_path: Path) -> None:
-    analysis = DeterministicTestAnalyzer().analyze(
-        load_jsonl(ROOT / "examples" / "product-planning.jsonl")
-    )
+    analysis = sample_analysis("product-planning")
     attachment = tmp_path / "attachment.png"
     attachment.write_bytes(b"test")
 

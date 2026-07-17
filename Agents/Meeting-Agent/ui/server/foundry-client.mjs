@@ -116,9 +116,8 @@ export function createLocalAgentClient(environment = process.env) {
 }
 
 function validateLocalRuntimeMode(value) {
-  if (!value || value === "local") return "local";
   if (value === "aoai") return "aoai";
-  throw new Error("MEETING_AGENT_RUNTIME_MODE must be local or aoai.");
+  throw new Error("MEETING_AGENT_RUNTIME_MODE must be aoai.");
 }
 
 

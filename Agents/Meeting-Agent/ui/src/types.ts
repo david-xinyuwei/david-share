@@ -1,5 +1,5 @@
 export type UiConfig = {
-  mode: "aoai" | "local";
+  mode: "aoai";
   agent_name: string;
   model_name: string | null;
   reasoning_effort: "medium" | null;

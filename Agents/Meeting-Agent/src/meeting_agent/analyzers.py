@@ -1,4 +1,4 @@
-"""Meeting analyzers for real Azure inference and offline contract tests."""
+"""Meeting analyzers for real Azure inference."""
 
 from __future__ import annotations
 

@@ -21,7 +21,7 @@ test("generates distinct meeting packages and downloadable artifacts", async ({
 
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Meeting Agent" })).toBeVisible();
-  await expect(page.getByText("Offline contract test", { exact: true })).toBeVisible();
+  await expect(page.getByText("Azure OpenAI Responses API", { exact: true })).toBeVisible();
 
   await page.getByLabel("Final transcript").fill(
     "The product council approved the September pilot.\n" +
@@ -34,7 +34,8 @@ test("generates distinct meeting packages and downloadable artifacts", async ({
   await page.getByRole("button", { name: "Generate meeting package" }).click();
   const firstStreamResponse = await firstStream;
   expect(firstStreamResponse.headers()["content-type"]).toContain("application/x-ndjson");
-  await expect(page.locator(".result-heading h2")).toContainText("September pilot");
+  await expect(page.locator(".result-heading h2")).toBeVisible();
+  const firstTitle = await page.locator(".result-heading h2").textContent();
   const firstRun = await page.locator(".run-id").textContent();
   await expect(page.locator(".mind-map img")).toBeVisible();
   await expect(page.locator(".mind-map svg")).toHaveCount(0);
@@ -47,12 +48,14 @@ test("generates distinct meeting packages and downloadable artifacts", async ({
       "The team agreed to monitor error rates every hour.",
   );
   await page.getByRole("button", { name: "Generate meeting package" }).click();
-  await expect(page.locator(".result-heading h2")).toContainText("database latency");
+  await expect(page.locator(".result-heading h2")).toBeVisible();
   await expect(page.locator('[data-stream-stage="complete"]')).toBeVisible();
   await expect(page.locator(".stream-steps li.done")).toHaveCount(6);
   await expect(page.getByRole("button", { name: "Generate meeting package" })).toBeEnabled();
   const secondRun = await page.locator(".run-id").textContent();
+  const secondTitle = await page.locator(".result-heading h2").textContent();
   expect(secondRun).not.toBe(firstRun);
+  expect(secondTitle).not.toBe(firstTitle);
 
   const presentationHref = await page.getByRole("link", { name: "PowerPoint" }).getAttribute("href");
   const emlHref = await page.getByRole("link", { name: "EML draft" }).getAttribute("href");
@@ -135,7 +138,7 @@ test("generates distinct meeting packages and downloadable artifacts", async ({
 
   if (testInfo.project.name === "desktop") {
     await page.screenshot({
-      path: path.resolve(process.cwd(), "../.azure/validation/offline-ui-e2e.png"),
+      path: path.resolve(process.cwd(), "../.azure/validation/test-fixture-ui-e2e.png"),
       fullPage: true,
     });
   }
@@ -145,7 +148,7 @@ test("rejects malformed ASR JSONL without replacing the previous result", async 
   await page.goto("/");
   await page.getByLabel("Final transcript").fill("The team approved the release plan.");
   await page.getByRole("button", { name: "Generate meeting package" }).click();
-  await expect(page.locator(".result-heading h2")).toContainText("approved the release plan");
+  const previousTitle = await page.locator(".result-heading h2").textContent();
 
   await page.getByRole("button", { name: "ASR JSONL" }).click();
   await page.getByLabel("Normalized ASR event stream").fill(
@@ -154,7 +157,7 @@ test("rejects malformed ASR JSONL without replacing the previous result", async 
   await page.getByRole("button", { name: "Generate meeting package" }).click();
 
   await expect(page.getByRole("alert")).toContainText("ASR JSONL line 2 is not valid JSON");
-  await expect(page.locator(".result-heading h2")).toContainText("approved the release plan");
+  await expect(page.locator(".result-heading h2")).toHaveText(previousTitle || "");
 });
 
 async function downloadBuffer(download: Download): Promise<Buffer> {

@@ -1,15 +1,9 @@
-from pathlib import Path
-
-from meeting_agent.session import load_jsonl
-from tests.support import DeterministicTestAnalyzer
-
-ROOT = Path(__file__).resolve().parents[1]
+from tests.support import StaticFixtureAnalyzer, sample_analysis
 
 
-def test_two_meetings_produce_materially_different_analysis() -> None:
-    analyzer = DeterministicTestAnalyzer()
-    product = analyzer.analyze(load_jsonl(ROOT / "examples" / "product-planning.jsonl"))
-    operations = analyzer.analyze(load_jsonl(ROOT / "examples" / "operations-review.jsonl"))
+def test_committed_sample_fixtures_are_materially_different() -> None:
+    product = sample_analysis("product-planning")
+    operations = sample_analysis("operations-review")
 
     assert product.title != operations.title
     assert product.summary != operations.summary
@@ -18,8 +12,8 @@ def test_two_meetings_produce_materially_different_analysis() -> None:
     assert "database" in operations.summary.casefold()
 
 
-def test_fixture_analyzer_is_deterministic() -> None:
-    session = load_jsonl(ROOT / "examples" / "product-planning.jsonl")
-    analyzer = DeterministicTestAnalyzer()
+def test_static_fixture_analyzer_returns_the_supplied_analysis() -> None:
+    product = sample_analysis("product-planning")
+    analyzer = StaticFixtureAnalyzer(product)
 
-    assert analyzer.analyze(session) == analyzer.analyze(session)
+    assert analyzer.analyze(None) == product

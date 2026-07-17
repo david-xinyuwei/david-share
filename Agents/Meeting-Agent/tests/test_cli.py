@@ -7,7 +7,7 @@ import pytest
 from filelock import FileLock
 
 import meeting_agent.cli as cli
-from tests.support import DeterministicTestAnalyzer
+from tests.support import StaticFixtureAnalyzer, sample_analysis
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -21,7 +21,12 @@ def run_build(
     output_dir: Path,
     recipients: tuple[str, ...] = (),
 ) -> dict[str, object]:
-    monkeypatch.setattr(cli, "AzureOpenAIAnalyzer", DeterministicTestAnalyzer)
+    fixture_name = "product-planning" if events == "product-planning.jsonl" else "operations-review"
+    monkeypatch.setattr(
+        cli,
+        "AzureOpenAIAnalyzer",
+        lambda: StaticFixtureAnalyzer(sample_analysis(fixture_name)),
+    )
     arguments = [
         "build",
         "--events",
@@ -100,7 +105,11 @@ def test_cli_rejects_concurrent_build_to_same_output_directory(
     output_dir = tmp_path / "shared"
     output_dir.mkdir()
     lock = FileLock(str(output_dir / ".meeting-agent.lock"))
-    monkeypatch.setattr(cli, "AzureOpenAIAnalyzer", DeterministicTestAnalyzer)
+    monkeypatch.setattr(
+        cli,
+        "AzureOpenAIAnalyzer",
+        lambda: StaticFixtureAnalyzer(sample_analysis("product-planning")),
+    )
     monkeypatch.setattr(
         sys,
         "argv",

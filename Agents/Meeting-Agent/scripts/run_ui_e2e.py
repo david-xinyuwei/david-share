@@ -49,6 +49,8 @@ def main() -> int:
             "MEETING_AGENT_LOCAL_AGENT_URL": AGENT_URL,
             "MEETING_AGENT_LOCAL_SESSION_HOME": str(RUNTIME_DIR / "session"),
             "MEETING_AGENT_NAME": "meeting-agent",
+            "MEETING_AGENT_RUNTIME_MODE": "aoai",
+            "AZURE_OPENAI_DEPLOYMENT": "test-fixture",
         }
         ui = subprocess.Popen(
             [_npm_command(), "start"],

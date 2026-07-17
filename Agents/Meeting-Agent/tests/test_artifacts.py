@@ -14,16 +14,11 @@ from meeting_agent.artifacts import (
     _wrap_display,
     generate_artifacts,
 )
-from meeting_agent.session import load_jsonl
-from tests.support import DeterministicTestAnalyzer
-
-ROOT = Path(__file__).resolve().parents[1]
+from tests.support import sample_analysis
 
 
 def test_generates_nonblank_mind_map_and_valid_pptx(tmp_path: Path) -> None:
-    analysis = DeterministicTestAnalyzer().analyze(
-        load_jsonl(ROOT / "examples" / "product-planning.jsonl")
-    )
+    analysis = sample_analysis("product-planning")
     artifacts = generate_artifacts(analysis, tmp_path)
 
     image = Image.open(artifacts["mind_map_png"])

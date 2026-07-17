@@ -234,29 +234,19 @@ export default function App() {
           <div>
             <h1>Meeting Agent</h1>
             <p>
-              {config?.mode === "aoai"
+              {config
                 ? `${config.model_name} · reasoning ${config.reasoning_effort} · ${config.authentication} auth`
-                : config?.agent_name || "Connecting"}
+                : "Connecting"}
             </p>
           </div>
         </div>
-        <div className={`runtime-badge ${config?.mode === "local" ? "test" : "live"}`}>
+        <div className="runtime-badge live">
           <span aria-hidden="true" />
           {!config
             ? "Connecting"
-            : config.mode === "aoai"
-              ? "Azure OpenAI Responses API"
-              : config.mode === "local"
-                ? "Offline contract test"
-                : "Meeting Agent"}
+            : "Azure OpenAI Responses API"}
         </div>
       </header>
-
-      {config?.mode === "local" && (
-        <div className="truth-banner" role="note">
-          Offline contract mode validates integration and artifacts; it does not evaluate model quality.
-        </div>
-      )}
 
       {message && (
         <div className={`toast ${messageKind}`} role={messageKind === "error" ? "alert" : "status"}>

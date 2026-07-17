@@ -10,7 +10,7 @@ from pydantic import ValidationError
 os.environ.setdefault("OTEL_SDK_DISABLED", "true")
 import meeting_agent.hosted as hosted
 from meeting_agent.hosted_models import HostedMeetingRequest
-from tests.support import DeterministicTestAnalyzer
+from tests.support import StaticFixtureAnalyzer, sample_analysis
 
 
 def _request() -> dict[str, object]:
@@ -42,7 +42,11 @@ def _post(path: str, payload: dict[str, object]) -> httpx.Response:
 
 
 def test_invocations_builds_real_session_artifacts(monkeypatch, tmp_path):
-    monkeypatch.setattr(hosted, "_get_analyzer", lambda: DeterministicTestAnalyzer())
+    monkeypatch.setattr(
+        hosted,
+        "_get_analyzer",
+        lambda: StaticFixtureAnalyzer(sample_analysis("product-planning")),
+    )
     monkeypatch.setenv("MEETING_AGENT_SESSION_HOME", str(tmp_path))
 
     response = _post(
@@ -62,7 +66,11 @@ def test_invocations_builds_real_session_artifacts(monkeypatch, tmp_path):
 
 
 def test_streaming_invocation_emits_real_completed_stages(monkeypatch, tmp_path):
-    monkeypatch.setattr(hosted, "_get_analyzer", lambda: DeterministicTestAnalyzer())
+    monkeypatch.setattr(
+        hosted,
+        "_get_analyzer",
+        lambda: StaticFixtureAnalyzer(sample_analysis("product-planning")),
+    )
     monkeypatch.setenv("MEETING_AGENT_SESSION_HOME", str(tmp_path))
 
     response = _post(

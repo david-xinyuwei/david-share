@@ -5,7 +5,7 @@ from email.parser import BytesParser
 from meeting_agent.hosted_models import HostedMeetingRequest
 from meeting_agent.hosted_pipeline import build_hosted_run, stream_hosted_run
 from meeting_agent.models import MeetingEvent, MeetingEventKind
-from tests.support import DeterministicTestAnalyzer
+from tests.support import StaticFixtureAnalyzer, sample_analysis
 
 
 def _request() -> HostedMeetingRequest:
@@ -33,12 +33,11 @@ def _request() -> HostedMeetingRequest:
 
 def test_hosted_run_generates_session_downloads(tmp_path):
     request = _request()
-    response = build_hosted_run(request, tmp_path, DeterministicTestAnalyzer())
+    fixture = sample_analysis("product-planning")
+    response = build_hosted_run(request, tmp_path, StaticFixtureAnalyzer(fixture))
 
     assert response.session_id == "session-1"
-    assert response.analysis.decisions == [
-        "The team approved the launch plan and Alice will follow up."
-    ]
+    assert response.analysis == fixture
     assert response.automatic_send is False
     assert response.next_state == "DRAFT_READY_MANUAL_SEND_REQUIRED"
     assert {"analysis", "mind_map_png", "presentation", "eml", "source"} <= set(
@@ -55,7 +54,7 @@ def test_hosted_run_generates_session_downloads(tmp_path):
     assert str(message["To"]) == "reviewer@example.com"
     assert len(list(message.iter_attachments())) == 2
 
-    repeated = build_hosted_run(request, tmp_path, DeterministicTestAnalyzer())
+    repeated = build_hosted_run(request, tmp_path, StaticFixtureAnalyzer(fixture))
     assert repeated.run_id != response.run_id
     assert repeated.source_sha256 == response.source_sha256
     assert repeated.artifacts["analysis"].path != response.artifacts["analysis"].path
@@ -65,8 +64,9 @@ def test_hosted_run_generates_session_downloads(tmp_path):
 
 def test_run_id_keeps_source_prefix_and_unique_nonce(tmp_path):
     request = _request()
-    first = build_hosted_run(request, tmp_path, DeterministicTestAnalyzer())
-    second = build_hosted_run(request, tmp_path, DeterministicTestAnalyzer())
+    fixture = sample_analysis("product-planning")
+    first = build_hosted_run(request, tmp_path, StaticFixtureAnalyzer(fixture))
+    second = build_hosted_run(request, tmp_path, StaticFixtureAnalyzer(fixture))
 
     assert first.run_id[:8] == first.source_sha256[:8]
     assert second.run_id[:8] == second.source_sha256[:8]
@@ -75,12 +75,6 @@ def test_run_id_keeps_source_prefix_and_unique_nonce(tmp_path):
 
 
 def test_streaming_run_emits_only_completed_stages(tmp_path):
-    class StreamingFixtureAnalyzer(DeterministicTestAnalyzer):
-        def analyze_stream(self, session, on_delta):
-            on_delta('{"title":"')
-            on_delta('The group approved the plan"}')
-            return self.analyze(session), "resp_test_123"
-
     events: list[tuple[str, dict[str, object]]] = []
 
     def capture(event: str, data: dict[str, object]) -> None:
@@ -99,7 +93,11 @@ def test_streaming_run_emits_only_completed_stages(tmp_path):
     response = stream_hosted_run(
         _request(),
         tmp_path,
-        StreamingFixtureAnalyzer(),
+        StaticFixtureAnalyzer(
+            sample_analysis("product-planning"),
+            response_id="resp_test_123",
+            deltas=('{"title":"', 'The group approved the plan"}'),
+        ),
         capture,
         agent_session_id="stream-session",
         invocation_id="stream-invocation",
