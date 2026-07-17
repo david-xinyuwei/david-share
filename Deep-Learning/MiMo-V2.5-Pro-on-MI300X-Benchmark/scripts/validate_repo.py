@@ -7,6 +7,7 @@ import hashlib
 import json
 import math
 import re
+import statistics
 import struct
 import subprocess
 from pathlib import Path
@@ -373,7 +374,7 @@ def check_long_context_decode() -> None:
         if point["input_tokens"] == 65536
     }
     assert set(h200_64k) == {16, 32, 64, 96}
-    assert h200["revalidated_at"] == "2026-07-17"
+    assert h200["revalidated_at"] == "2026-07-18"
     assert h200["decode"]["tpot_origin"] == (
         "customer worksheet; derived as 1000 / "
         "(per-DP decode log output tok/s / per-DP BS)"
@@ -567,58 +568,195 @@ def check_fixed_batch_decode() -> None:
     h200 = load_json(ROOT / "data/validation/h200-reference.json")
     readme_texts = [path.read_text(encoding="utf-8") for path in READMES]
 
-    assert audit["run_id"] == "fixedbatch_sustained_decode_20260718"
-    assert audit["measurement_repetitions"] == 1
+    assert audit["run_id"] == "fixedbatch_decode_exact_and_diagnostic_20260718"
+    assert audit["measurement_repetitions"] == 2
     assert audit["runtime"]["runtime_image"] == image["immutable_pull_ref"]
     assert audit["runtime"]["container_image_id"] == image["image_id"]
     assert audit["runtime"]["sglang_source_head"] == image["sglang_commit"]
     assert audit["runtime"]["aiter_source_head"] == image["aiter_commit"]
     assert audit["runtime"]["tuned_csv_sha256"] == image["tuned_csv_sha256"]
-    for key in ("launch_server_sh_sha256", "decode_outer_log_sha256_at_analysis", "decode_outer_log_sha256_in_remote_manifest"):
+    assert audit["runtime"]["optimized_decode_env"] == {
+        "SGLANG_AITER_UNIFIED_VERIFY": "1",
+        "SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE": "1",
+    }
+    assert "bpreshuffle" in audit["runtime"]["required_kernel_marker"].lower()
+    assert "all four exact runs" in audit["method"]["transition_guard_rationale"]
+    assert "can exclude at most one sample" in audit["method"]["transition_guard_rationale"]
+    for key in (
+        "launch_server_sh_sha256",
+        "decode_outer_log_sha256_at_analysis",
+        "decode_outer_log_sha256_in_remote_manifest",
+        "exact_rep1_client_log_sha256",
+        "exact_rep1_decode_window_sha256",
+        "exact_rep1_service_log_sha256",
+        "exact_rep2_client_log_sha256",
+        "exact_rep2_decode_window_sha256",
+        "exact_rep2_service_log_sha256",
+        "exact_no_ck_rep1_client_log_sha256",
+        "exact_no_ck_rep1_decode_window_sha256",
+        "exact_no_ck_rep2_client_log_sha256",
+        "exact_no_ck_rep2_decode_window_sha256",
+    ):
         assert re.fullmatch(r"[0-9a-f]{64}", audit["source_artifacts"][key])
 
-    assert len(rows) == 4
-    audit_points = {(p["base_input_tokens"], p["fixed_batch"]): p for p in audit["points"]}
-    assert set(audit_points) == {(65536, 16), (65536, 8), (65536, 4), (8192, 16)}
-    for row in rows:
-        key = (int(row["base_input_tokens"]), int(row["fixed_batch"]))
-        point = audit_points[key]
-        assert int(row["output_tokens"]) == point["output_tokens"] == 8192
-        assert int(row["successful_requests"]) == point["successful_requests"] == key[1]
+    assert len(rows) == 6
+    exact_rows = [row for row in rows if row["result_role"] == "headline_exact_rep"]
+    diagnostic_rows = [row for row in rows if row["result_role"] == "diagnostic_output8k"]
+    assert len(exact_rows) == 2 and len(diagnostic_rows) == 4
+    for row in diagnostic_rows:
+        assert int(row["output_tokens"]) == 8192
+        assert int(row["measurement_repetitions"]) == 1
+        assert row["optimized_path"] == "not_verified"
+        assert not any(
+            row[field]
+            for field in (
+                "xiaomi_h200_per_dp_bs",
+                "xiaomi_h200_reference_tok_s",
+                "xiaomi_h200_per_dp_tpot_ms",
+                "mi300x_vs_h200_pct",
+            )
+        )
+
+    exact_points = {
+        point["repetition"]: point for point in audit["headline_exact"]["points"]
+    }
+    assert set(exact_points) == {1, 2}
+    for row in exact_rows:
+        repetition = int(row["repetition"])
+        point = exact_points[repetition]
+        assert int(row["base_input_tokens"]) == 65536
+        assert int(row["output_tokens"]) == 1024
+        assert int(row["fixed_batch"]) == 16
+        assert int(row["successful_requests"]) == point["successful_requests"] == 16
+        assert int(row["total_input_tokens"]) == point["total_input_tokens"] == 1048576
+        assert int(row["total_generated_tokens"]) == point["total_generated_tokens"] == 16384
         assert float(row["steady_gen_tok_s_mean"]) == point["steady_state"]["mean_gen_tok_s"]
         assert float(row["implied_tpot_ms"]) == point["steady_state"]["implied_tpot_ms_at_batch"]
+        assert int(row["raw_full_batch_samples"]) == point["steady_state"]["raw_full_batch_samples"] == 8
+        assert row["transition_sample_excluded"] == "true"
+        assert point["steady_state"]["transition_sample_excluded"] is True
+        assert int(row["steady_samples"]) == point["steady_state"]["samples_used"] == 7
+        used_samples = point["steady_state"]["used_gen_tok_s"]
+        assert len(used_samples) == 7
+        assert point["steady_state"]["transition_first_sample_tok_s"] < (
+            0.5 * statistics.median(used_samples)
+        )
+        assert point["steady_state"]["subsequent_sample_median_tok_s"] == round(
+            statistics.median(used_samples), 2
+        )
+        assert point["steady_state"]["mean_gen_tok_s"] == round(
+            statistics.mean(used_samples), 2
+        )
+        assert point["steady_state"]["median_gen_tok_s"] == round(
+            statistics.median(used_samples), 2
+        )
+        assert point["steady_state"]["stdev_gen_tok_s"] == round(
+            statistics.pstdev(used_samples), 2
+        )
+        assert point["steady_state"]["accept_len_values"] == [3.0]
+        assert point["steady_state"]["accept_rate_values"] == [0.67]
+        assert point["steady_state"]["queue_values"] == [0]
+        assert int(row["measurement_repetitions"]) == 2
+        assert row["source_run"] == "exact1k_ck_20260718"
+        assert row["optimized_path"] == "aiter_ck_blockscale_bpreshuffle_verified"
+        assert row["comparison_status"] == (
+            "matched_context_batch_directional_h200_output_length_unverified"
+        )
+        assert row["runtime_image"] == image["immutable_pull_ref"]
         assert math.isclose(
             point["steady_state"]["implied_tpot_ms_at_batch"],
-            1000.0 / (point["steady_state"]["mean_gen_tok_s"] / key[1]),
+            1000.0 / (point["steady_state"]["mean_gen_tok_s"] / 16),
             abs_tol=0.01,
         )
-        assert re.fullmatch(r"[0-9a-f]{64}", point["client_log_sha256"])
-        assert row["runtime_image"] == image["immutable_pull_ref"]
-        assert int(row["measurement_repetitions"]) == 1
+        assert math.isclose(
+            float(row["client_output_tok_s"]), point["client_output_tok_s"], abs_tol=0.01
+        )
 
-    headline = audit_points[(65536, 16)]
+    aggregate = audit["headline_exact"]["aggregate"]
+    run_means = [exact_points[index]["steady_state"]["mean_gen_tok_s"] for index in (1, 2)]
+    assert run_means == [931.58, 935.92]
+    assert aggregate["mean_of_fresh_runs_tok_s"] == round(sum(run_means) / 2, 2) == 933.75
+    assert aggregate["repeatability_delta_pct_run2_vs_run1"] == round(
+        (run_means[1] / run_means[0] - 1) * 100, 2
+    ) == 0.47
+    assert aggregate["implied_tpot_ms_at_batch"] == round(
+        1000 / (aggregate["mean_of_fresh_runs_tok_s"] / 16), 2
+    ) == 17.14
+
+    baseline = audit["headline_exact"]["same_image_exact_no_ck"]
+    assert baseline["optimized_path_marker_present"] is False
+    for controlled_field in (
+        "same host",
+        "immutable image",
+        "benchmark command",
+        "two fresh-service repetitions",
+        "adds only SGLANG_AITER_UNIFIED_VERIFY=1",
+        "SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1",
+        "back-to-back",
+    ):
+        assert controlled_field in baseline["ab_control"]
+    baseline_points = {point["repetition"]: point for point in baseline["points"]}
+    assert set(baseline_points) == {1, 2}
+    for point in baseline_points.values():
+        used_samples = point["used_gen_tok_s"]
+        assert len(used_samples) == 7
+        assert point["transition_first_sample_tok_s"] < (
+            0.5 * statistics.median(used_samples)
+        )
+        assert point["subsequent_sample_median_tok_s"] == round(
+            statistics.median(used_samples), 2
+        )
+        assert point["mean_gen_tok_s"] == round(statistics.mean(used_samples), 2)
+        assert point["implied_tpot_ms_at_batch"] == round(
+            1000 / (point["mean_gen_tok_s"] / 16), 2
+        )
+    baseline_means = [baseline_points[index]["mean_gen_tok_s"] for index in (1, 2)]
+    assert baseline_means == [740.29, 745.95]
+    assert baseline["aggregate_mean_gen_tok_s"] == round(
+        statistics.mean(baseline_means), 2
+    ) == 743.12
+    assert baseline["repeatability_delta_pct_run2_vs_run1"] == round(
+        (baseline_means[1] / baseline_means[0] - 1) * 100, 2
+    ) == 0.76
+    assert baseline["implied_tpot_ms_at_batch"] == round(
+        1000 / (baseline["aggregate_mean_gen_tok_s"] / 16), 2
+    ) == 21.53
+    assert aggregate["same_image_exact_no_ck_baseline_tok_s"] == baseline[
+        "aggregate_mean_gen_tok_s"
+    ]
+
     h200_bs16 = next(
         p for p in h200["decode"]["points"]
         if p["input_tokens"] == 65536 and p["per_dp_bs"] == 16
     )
-    assert headline["h200_reference"]["output_tok_s"] == h200_bs16["output_tok_s"]
-    ratio_pct = round(headline["steady_state"]["mean_gen_tok_s"] / h200_bs16["output_tok_s"] * 100, 1)
-    assert ratio_pct == headline["mi300x_vs_h200_pct"] == 53.8
-    growth_mi300x = round(
-        (audit_points[(65536, 16)]["steady_state"]["implied_tpot_ms_at_batch"]
-         / audit_points[(8192, 16)]["steady_state"]["implied_tpot_ms_at_batch"] - 1) * 100,
+    assert h200["decode"]["workbook_output_length_column_present"] is False
+    assert "not as row-level workbook evidence" in h200["decode"][
+        "point_output_tokens_modeling_note"
+    ]
+    assert "DP4 multiplier" in h200["decode"]["throughput_scope"]
+    assert aggregate["h200_64k_bs16_worksheet_tok_s"] == h200_bs16["output_tok_s"]
+    assert aggregate["h200_64k_bs16_worksheet_tpot_ms"] == h200_bs16["mean_tpot_ms"]
+    assert aggregate["mi300x_vs_h200_worksheet_pct"] == round(
+        aggregate["mean_of_fresh_runs_tok_s"] / h200_bs16["output_tok_s"] * 100, 1
+    ) == 70.0
+    assert aggregate["optimized_path_improvement_pct"] == round(
+        (
+            aggregate["mean_of_fresh_runs_tok_s"]
+            / aggregate["same_image_exact_no_ck_baseline_tok_s"]
+            - 1
+        )
+        * 100,
         1,
-    )
-    assert growth_mi300x == 43.6
-    h200_8k_bs16 = next(
-        p for p in h200["decode"]["points"]
-        if p["input_tokens"] == 8192 and p["per_dp_bs"] == 16
-    )
-    growth_h200 = round((h200_bs16["mean_tpot_ms"] / h200_8k_bs16["mean_tpot_ms"] - 1) * 100, 1)
-    assert growth_h200 == 3.5
+    ) == 25.7
 
-    en_row = "| 64K | 16 | **718.12** | 22.28 | 1,333.89 (BS16) | **53.8%** |"
-    cn_row = "| 64K | 16 | **718.12** | 22.28 | 1,333.89（BS16） | **53.8%** |"
+    en_row = (
+        "| 64K input / 1K output | 16 | 931.58 / 935.92 | **933.75** | "
+        "**0.47%** | **17.14 ms** | 1,333.89 tok/s, 11.99 ms | **70.0%** |"
+    )
+    cn_row = (
+        "| 64K input / 1K output | 16 | 931.58 / 935.92 | **933.75** | "
+        "**0.47%** | **17.14 ms** | 1,333.89 tok/s，11.99 ms | **70.0%** |"
+    )
     assert en_row in readme_texts[0]
     assert cn_row in readme_texts[1]
     for text in readme_texts:
@@ -627,11 +765,47 @@ def check_fixed_batch_decode() -> None:
         assert "launch_single_node_decode.sh" in text
         assert "benchmark_decode_fixed_batch.sh" in text
         assert "554,880" in text and "1,442,464" in text
-        assert "43.6%" in text and "3.5%" in text
-        assert "53.8%" in text
-        assert "507.88" in text and "311.57" in text and "1,031.26" in text
-    assert "conservative" in readme_texts[0]
-    assert "偏保守" in readme_texts[1]
+        for value in ("933.75", "931.58", "935.92", "0.47%", "25.7%", "70.0%"):
+            assert value in text
+        assert "718.12" not in text and "53.8%" not in text
+        assert "diagnostic_output8k" in text
+        assert "20260713-final" in text
+        assert "back-to-back" in text
+    assert "no output-length column" in readme_texts[0]
+    assert "没有 output-length 列" in readme_texts[1]
+
+    launch = (ROOT / "scripts/amd-latest/launch_single_node_decode.sh").read_text(
+        encoding="utf-8"
+    )
+    benchmark = (ROOT / "scripts/amd-latest/benchmark_decode_fixed_batch.sh").read_text(
+        encoding="utf-8"
+    )
+    bundle_readme = (ROOT / "scripts/amd-latest/README.md").read_text(encoding="utf-8")
+    for flag in (
+        "SGLANG_AITER_UNIFIED_VERIFY=1",
+        "SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1",
+    ):
+        assert flag in launch
+    for value in (
+        "--random-input-len 65536",
+        "--random-output-len 1024",
+        "--num-prompts 16",
+        "--max-concurrency 16",
+        "Total input tokens:[[:space:]]+1048576",
+        "Total generated tokens:[[:space:]]+16384",
+        "module_gemm_a8w8_blockscale_bpreshuffle",
+    ):
+        assert value in benchmark
+    for value in (
+        "Exact 64K/1K Fixed-Batch Decode",
+        "REP=1",
+        "REP=2",
+        "1,048,576 total input tokens",
+        "16,384 generated tokens",
+        "module_gemm_a8w8_blockscale_bpreshuffle",
+        "50% of the median",
+    ):
+        assert value in bundle_readme
 
 
 def main() -> None:

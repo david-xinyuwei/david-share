@@ -3,7 +3,7 @@
 This directory contains the compact validation metadata for the final customer-facing results.
 
 - `container-image.json`: immutable ACR reference, image identity, runtime commits, and clean-pull verification status.
-- `decode-fixed-batch-audit.json`: sustained fixed-batch Decode method, KV-pool expansion, steady-state windows, and source-log hashes for the matched-batch 64K points.
+- `decode-fixed-batch-audit.json`: exact 64K/1K BS16 two-run method, optimized-kernel evidence, transition-guard windows, source-log hashes, and separately labeled output8K diagnostics.
 - `decode-long-context-evidence.json`: final baked-image long-context Decode method, runtime identity, validated points, and source-artifact hashes.
 - `decode-service-log-audit-8k.json`: source-log hashes, actual running-request batch, and direct scheduler generation throughput for the selected 8K headline points.
 - `decode-service-log-audit.json`: Decode-node log windows, actual running-request batch, and direct scheduler generation throughput for the long-context points.

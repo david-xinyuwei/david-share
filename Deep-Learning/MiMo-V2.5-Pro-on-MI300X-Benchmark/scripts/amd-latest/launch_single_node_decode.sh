@@ -1,10 +1,11 @@
 #!/bin/bash
-# Single-node Decode server for the sustained fixed-batch long-context points.
+# Single-node Decode server for the exact 64K/1K fixed-batch point.
 # Identical runtime flags to launch_pd_decode.sh except: no PD disaggregation
 # (one node performs Prefill and Decode) and mem-fraction-static raised to 0.95
 # (effective 0.8075 after the automatic EAGLE factor), which expands the
 # full-attention KV pool from 554,880 to 1,442,464 tokens so that sixteen
-# 64K-context requests decode concurrently.
+# 64K-context requests decode concurrently. The optimized AITER CK A8W8
+# bpreshuffle path is enabled explicitly and must be verified in the log.
 set -euo pipefail
 
 LOG_DIR="${LOG_DIR:-/data/mimo-fixedbatch/service}"
@@ -20,6 +21,8 @@ export HSA_NO_SCRATCH_RECLAIM=1
 export SGLANG_ENABLE_SPEC_V2=1
 export SGLANG_SPEC_NAN_DETECTION=1
 export SGLANG_SPEC_OOB_DETECTION=1
+export SGLANG_AITER_UNIFIED_VERIFY=1
+export SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1
 export SGLANG_SIMULATE_ACC_LEN=3
 export SGLANG_SIMULATE_ACC_METHOD=match-expected
 
