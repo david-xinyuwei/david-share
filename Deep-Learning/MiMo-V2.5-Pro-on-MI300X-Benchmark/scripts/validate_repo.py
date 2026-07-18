@@ -92,6 +92,103 @@ def check_readmes() -> None:
     assert shapes[0] == shapes[1], f"Bilingual README structure mismatch: {shapes}"
 
 
+def check_batching_guide() -> None:
+    english, chinese = [path.read_text(encoding="utf-8") for path in READMES]
+    common_requirements = (
+        "images/request_batching_lifecycle.png",
+        "images/kv_capacity_relationship.png",
+        "requirements-diagrams.txt",
+        "generate_batching_diagrams.py",
+        "chunked-prefill-size",
+        "max-prefill-tokens",
+        "prefill-max-requests",
+        "max-running-requests",
+        "kv-cache-dtype=fp8_e4m3",
+        "page-size=32",
+        "context-length=262151",
+        "1{,}442{,}464",
+        "1{,}064{,}960",
+        "73.8\\%",
+        "255K input + 1K output",
+        "256K input + 1K output",
+    )
+    for text in (english, chinese):
+        for required in common_requirements:
+            assert required in text, f"Missing batching-guide requirement: {required}"
+
+    english_requirements = (
+        "Why PD Disaggregation Has Independent Batch Sizes and Hyperparameters",
+        "single-node, non-PD",
+        "It is not the 1P1D PD c16 record",
+        "Single-node non-PD exact long ISL",
+        "Prefill request batch",
+        "Prefill token batch",
+        "actual Decode batch",
+        "they may differ",
+        "Steady-state `4`, peak `5`",
+        "Actual Decode batch `16`, queue `0`",
+        "Non-PD capacity experiment",
+        "Planning estimates; not measured",
+        "is invalid under `context-length=262151`",
+    )
+    chinese_requirements = (
+        "为什么 PD 分离后 Prefill 与 Decode 可以拥有独立 BS 和超参",
+        "单节点、非PD",
+        "它不是1P1D PD c16记录",
+        "单节点非PD exact长ISL",
+        "Prefill request batch",
+        "Prefill token batch",
+        "actual Decode batch",
+        "彼此独立，可以不同",
+        "稳态`4`、峰值`5`",
+        "Actual Decode batch `16`、queue `0`",
+        "非PD容量实验",
+        "Planning estimates；尚未实测",
+        "在`context-length=262151`下非法",
+    )
+    for required in english_requirements:
+        assert required in english, f"Missing English batching-guide requirement: {required}"
+    for required in chinese_requirements:
+        assert required in chinese, f"Missing Chinese batching-guide requirement: {required}"
+
+    requirements = (ROOT / "requirements-diagrams.txt").read_text(encoding="utf-8")
+    assert requirements == "Pillow==12.2.0\n"
+
+    expected_images = {
+        "request_batching_lifecycle.png": (1856, 1136),
+        "kv_capacity_relationship.png": (1856, 1136),
+    }
+    for name, expected_size in expected_images.items():
+        png = (ROOT / "images" / name).read_bytes()
+        assert png[:8] == b"\x89PNG\r\n\x1a\n"
+        assert struct.unpack(">II", png[16:24]) == expected_size
+        assert len(png) > 50_000, f"Diagram unexpectedly small: {name}"
+
+    prefill_launch = (ROOT / "scripts/amd-latest/launch_pd_prefill.sh").read_text(
+        encoding="utf-8"
+    )
+    decode_launch = (ROOT / "scripts/amd-latest/launch_pd_decode.sh").read_text(
+        encoding="utf-8"
+    )
+    single_launch = (ROOT / "scripts/amd-latest/launch_single_node_decode.sh").read_text(
+        encoding="utf-8"
+    )
+    assert "--chunked-prefill-size 32768" in prefill_launch
+    assert "--disable-cuda-graph" in prefill_launch
+    assert "--chunked-prefill-size 16384" in decode_launch
+    assert "--disable-cuda-graph" not in decode_launch
+    assert "--mem-fraction-static 0.85" in prefill_launch
+    assert "--mem-fraction-static 0.85" in decode_launch
+    assert "--mem-fraction-static 0.95" in single_launch
+    for contract in (
+        "--context-length 262151",
+        "--kv-cache-dtype fp8_e4m3",
+        "--page-size 32",
+        "--disaggregation-transfer-backend mooncake",
+    ):
+        assert contract in prefill_launch and contract in decode_launch
+
+
 def check_result_tables() -> None:
     final_rows = load_tsv(ROOT / "data/final-results.tsv")
     scalability_rows = load_tsv(ROOT / "data/scalability-results.tsv")
@@ -967,6 +1064,7 @@ def main() -> None:
     parser.parse_args()
     checks = (
         ("readmes", check_readmes),
+        ("batching_guide", check_batching_guide),
         ("result_tables", check_result_tables),
         ("long_context_decode", check_long_context_decode),
         ("fixed_batch_decode", check_fixed_batch_decode),

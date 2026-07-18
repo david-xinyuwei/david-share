@@ -15,7 +15,7 @@
 
 [English](README.md) | 中文 | [验证证据](data/validation/)
 
-> **对比状态：**Input 侧，MI300X 在 64K、concurrency 4 达到 **18,983.91 input tok/s**，客户 H200 饱和吞吐参考为 **27,400 input tok/s**；H200 工作簿没有记录对应的 input concurrency。Output 侧，基于 AMD 7/13 最新环境的最终 AITER/CK path 在 exact 64K、固定 BS16 的**固定 acceptance 性能测试**中达到 **933.75 scheduler gen tok/s**，来自两次 fresh-service 测试（**931.58 / 935.92 tok/s**，重复差 **0.47%**），折算 TPOT 为 **17.14 ms**。该结果相对客户工作簿 64K BS16 行的**工作簿局部方向性算术比值为70.0%**，并比同镜像 exact no-CK baseline 高 **25.7%**。它不是自然 MTP acceptance 或输出质量结果。H200 工作簿没有逐行 output length，Column J 口径存在歧义，且 topology、routing、acceptance method 与 metric scope 均不同。更高 batch（BS32–96）仍需 EP/多节点 Decode 部署，不计算硬件比率。
+> **对比状态：**Input 侧，MI300X 在 64K、concurrency 4 达到 **18,983.91 input tok/s**，客户 H200 饱和吞吐参考为 **27,400 input tok/s**；H200 工作簿没有记录对应的 input concurrency。Output 侧，基于 AMD 7/13 最新环境的最终 AITER/CK path 在**单节点、非PD**的 exact 64K、固定 BS16 **固定 acceptance 性能测试**中达到 **933.75 scheduler gen tok/s**，来自两次 fresh-service 测试（**931.58 / 935.92 tok/s**，重复差 **0.47%**），折算 TPOT 为 **17.14 ms**。该结果相对客户工作簿 64K BS16 行的**工作簿局部方向性算术比值为70.0%**，并比同镜像 exact no-CK baseline 高 **25.7%**。它不是1P1D PD c16记录，不是自然 MTP acceptance，也不是输出质量结果。H200 工作簿没有逐行 output length，Column J 口径存在歧义，且 topology、routing、acceptance method 与 metric scope 均不同。更高 batch（BS32–96）仍需 EP/多节点 Decode 部署，不计算硬件比率。
 
 ### 一眼看清相对参考状态
 
@@ -26,7 +26,7 @@
 | 256K Prefill 吞吐 | **Exact 超长 ISL、selected record、N=1** | 12,864.96 tok/s | 17,400 tok/s | 低于参考；达到 73.9%（方向性） |
 | 8K Decode scheduler 吞吐 | 8K基线、client c16、实测batch 15 / 16 | 1,319.78 tok/s | 1,381 tok/s | 接近但低于参考；达到 95.6%（方向性） |
 | 8K Decode client mean TPOT | 同一c16测试 | **10.83 ms** | 11.59 ms | **唯一方向性更低的指标：低 6.6%** |
-| 64K Decode scheduler 吞吐 | **Exact 长 ISL：64K input / server-accounted 1K output、BS16、N=2、固定acceptance** | **933.75 tok/s** | 1,333.89 tok/s | 低于工作簿行；工作簿局部比值70.0% |
+| 64K Decode scheduler 吞吐 | **单节点非PD exact长ISL：64K input / server-accounted 1K output、actual Decode BS16、N=2、固定acceptance** | **933.75 tok/s** | 1,333.89 tok/s | 低于工作簿行；工作簿局部比值70.0% |
 | 64K Decode 折算 TPOT | **同一固定acceptance长ISL测试、N=2 fresh services** | 17.14 ms | 11.99 ms | 高约 42.9%（较差，方向性） |
 
 **直接答案：**目前所有已测 Prefill 吞吐均未超过对应 H200 参考，两项 Decode 吞吐也均未超过。MI300X 唯一方向性更优的指标是 **8K Decode TPOT，低 6.6%**。64K Decode 验证了 exact input length 和固定acceptance下的scheduler capacity，并比同镜像 MI300X baseline 提升 **25.7%**，但尚未超过 H200 工作簿对应行，也不验证输出质量。
@@ -58,6 +58,122 @@ No-CK与optimized A/B的原始样本分别记录在 [`data/validation/decode-fix
 ![双节点 MI300X 1P1D Prefill-Decode 架构](images/pd_architecture.png)
 
 *图 1：最终双节点 MI300X 1P1D 拓扑、Mooncake KV transfer 路径与已验证运行时栈。*
+
+---
+
+## 为什么 PD 分离后 Prefill 与 Decode 可以拥有独立 BS 和超参
+
+**核心结论是：“Batch Size”不是一个贯穿全系统的全局数字。** 同一请求的 input length（ISL）和 requested output length（OSL）不变，但会经过两个不同scheduler。Prefill实例把new sequences和input-token chunks组成批次；Decode实例则把正在生成下一个token的requests组成动态批次。PD分离后，这两套scheduler、实例数量以及大量执行超参都可以独立调优。
+
+![PD分离后的请求生命周期与独立batch](images/request_batching_lifecycle.png)
+
+*图 2：Prefill request/token batch与Decode running-request batch彼此独立。底部还明确区分了1P1D PD c16记录与非PD exact64 BS16容量实验。*
+
+### 一个请求，三个不同的 Batch 概念
+
+| 层次 | 符号 / 指标 | 准确定义 | 它不是什么 |
+|---|---|---|---|
+| Workload | `ISL`、`OSL` | **每个请求**的input tokens和requested output tokens | Batch Size |
+| Client | `N_prompts`、`C_client` | 总提交请求数和client侧最大in-flight请求数 | Server实测batch |
+| Prefill request batch | $B_P^{req}(t)$ | 一个Prefill scheduler batch接纳的new sequences数量 | Client concurrency或Decode batch |
+| Prefill token batch | $T_P(t)$ | 该Prefill batch中所有input-token chunks之和 | 整轮测试的全部prompt tokens |
+| Decode batch | $B_D(t)$ | 某个Decode scheduler step中正在生成token的running requests数量（`#running-req`） | `--max-running-requests` |
+| Admission ceiling | `--max-running-requests` | Server允许保持running状态的最大request数 | 实测Decode batch一定达到该值的承诺 |
+
+对同构请求，总提交input工作量为
+
+$$
+T_{input}=N_{prompts}\times ISL.
+$$
+
+在Prefill scheduler step $t$，request $i$只贡献当前chunk $c_i(t)$：
+
+$$
+B_P^{req}(t)=|\mathcal{P}(t)|,\qquad
+T_P(t)=\sum_{i\in\mathcal{P}(t)}c_i(t).
+$$
+
+三个Prefill控制项的单位不同，不能一起简化成“Prefill BS”：
+
+$$
+c_i(t)\le\texttt{chunked-prefill-size},\qquad
+T_P(t)\le\texttt{max-prefill-tokens},\qquad
+B_P^{req}(t)\le\texttt{prefill-max-requests}
+$$
+
+前提是对应limit已设置。在固定的SGLang源码中，`--chunked-prefill-size`限制单个chunk，`--max-prefill-tokens`限制一个Prefill batch中的全部new tokens，`--prefill-max-requests`限制该batch中的request数量。后两项未在本repo支持的launch scripts中显式设置，因此本文不会虚构它们的effective value。
+
+Decode拥有另一组动态request集合：
+
+$$
+B_D(t)=|\mathcal{D}(t)|\le\texttt{max-running-requests}.
+$$
+
+不同请求完成Prefill和Decode的时间不同，因此$C_{client}$、$B_P^{req}(t)$和$B_D(t)$不要求相等。这就是为什么只写“BS16”不够；本repo会明确限定它究竟是client concurrency、Prefill request batch、Prefill token batch还是actual Decode batch。
+
+### PD 可以分开什么，哪些契约仍必须对齐
+
+| 控制面 | 本次支持的1P1D Prefill实例 | 本次支持的1P1D Decode实例 | 关系 |
+|---|---|---|---|
+| Scheduler batch | 自己的request batch和token batch | 自己的dynamic running-request batch | **彼此独立，可以不同** |
+| Scale-out | Prefill instance pool | Decode instance pool | 可针对TTFT与TPOT/throughput压力分别扩缩 |
+| `--chunked-prefill-size` | `32768` | `16384` | 独立配置；主P-stage chunking path由Prefill侧数值控制 |
+| `--max-prefill-tokens` | 未显式设置 | 未显式设置 | Prefill token-batch上限；不虚构effective value |
+| `--prefill-max-requests` | 未显式设置 | 未显式设置 | Prefill request-count上限；不虚构effective value |
+| `--max-running-requests` | `128` | `128` | 配置的是admission ceiling，**不是实测Decode BS** |
+| `--mem-fraction-static` | `0.85` | `0.85` | 本次配置相同，但由两个process分别持有，可按role调优 |
+| CUDA graph | 关闭 | Launch script未关闭 | Role-specific execution tuning的直接例子 |
+| MTP/EAGLE controls | 固定acceptance length `3`、`match-expected` | 固定acceptance length `3`、`match-expected` | 为本次fixed-acceptance性能方法保持对齐；不代表natural acceptance |
+
+独立并不等于可以任意不兼容。本次validated path在两侧保持相同model/checkpoint、TP8 model partition、`context-length=262151`、`kv-cache-dtype=fp8_e4m3`、`page-size=32`、Mooncake transfer backend以及兼容的KV layout。这些共同构成model/KV-transfer contract。Batch formation、scheduler policy、process memory budget、execution graph policy和instance count属于role-specific tuning surface；序列化后的KV表示和sequence semantics必须保持兼容。
+
+### ISL 如何通过容量约束 Actual Decode Batch
+
+![长ISL Decode的KV容量关系](images/kv_capacity_relationship.png)
+
+*图 3：非PD exact64 worked example展示sequence length与KV容量如何限制actual Decode concurrency。未来128K/192K/255K组合明确属于planning points，不是实测结果。*
+
+对于active Decode requests，一个实用的容量模型是
+
+$$
+\sum_{i\in\mathcal{D}(t)}\left(ISL_i+generated_i+reserved_i\right)\le K_{pool}.
+$$
+
+忽略allocator granularity和runtime reserve，可得到同构请求的raw upper bound：
+
+$$
+B_{raw}=\left\lfloor\frac{K_{pool}}{ISL+OSL}\right\rfloor.
+$$
+
+Allocation pages、fragmentation、MTP state与safety reserve都会让usable value更低。因此，当KV容量已经成为瓶颈时，单纯提高`--max-running-requests`无法强制actual Decode batch继续增大。
+
+两条64K/1K实测记录回答的是不同问题：
+
+| 记录 | Client load | 实测Decode batch | 正确解释 |
+|---|---|---|---|
+| 双节点1P1D PD、c16 | Client concurrency 16 | 稳态`4`、峰值`5` | PD scheduler/capacity记录；不是“Decode BS16”，也不是“Prefill BS16” |
+| 单节点exact64 fixed batch | 16 prompts、client concurrency 16 | Actual Decode batch `16`、queue `0` | Fixed-BS16 headline使用的**非PD容量实验** |
+
+单节点记录的实测full-attention KV pool为$K_{pool}=1{,}442{,}464$ tokens。Raw sequence positions为
+
+$$
+16\times(65{,}536+1{,}024)=1{,}064{,}960,
+\qquad
+\frac{1{,}064{,}960}{1{,}442{,}464}=73.8\%.
+$$
+
+Scheduler报告的`full token usage`为`0.73–0.74`，与该算术结果一致。这说明为什么将单节点`mem-fraction-static`提高到`0.95`后，exact64可以保留actual Decode BS16；它**不代表**一个Prefill kernel曾同时处理十六条完整64K prompts。
+
+### 后续如何只研究输入长度而不混入其他变量
+
+| 研究目标 | 控制变量 | 建议测点 | 证据状态 |
+|---|---|---|---|
+| 纯ISL影响 | OSL固定为1K，**actual Decode batch固定为4** | 64K、128K、192K、255K input | 建议方案；尚未实测 |
+| 等KV负载容量规划 | Raw token positions维持在exact64负载附近 | 64K×16、128K×8、192K×5、255K×4 | Planning estimates；尚未实测 |
+
+最高合法input点是**255K input + 1K output**：$261{,}120+1{,}024=262{,}144\le262{,}151$。**256K input + 1K output**需要$263{,}168$个positions，在`context-length=262151`下非法。未来任何报告都必须保留actual observed Decode batch，不能把client concurrency重新标成BS。
+
+两张图可通过`python3 scripts/generate_batching_diagrams.py`复现；请先从`requirements-diagrams.txt`安装固定的文档依赖。
 
 ---
 
