@@ -41,15 +41,17 @@
 |---|---:|---|
 | 同一complete matrix，Prefill c4：8K → 64K input | 18,161.81 → 18,763.17 tok/s（**提升3.3%**） | **受控矩阵中Prefill到64K基本持平。** 这是当前可守的长度scaling结论。 |
 | 同一complete matrix，Prefill c4：64K → nominal 256K input | 18,763.17 → 12,389.64 tok/s（**下降34.0%**） | **接近256K时，超长输入成本明显增大。** 该矩阵点使用nominal random-text framing。 |
+| 同一final runtime，Prefill c4/OSL1：128K → 192K input | 15,943.02 → 13,855.30 input tok/s（**下降13.1%**）；mean TTFT 30.17 → 51.89 s | **128K/192K实测子集中，Prefill吞吐下降且TTFT上升。** 每点N=1。 |
+| 同一final runtime，单节点非PD Decode、actual BS4/OSL1K：128K → 192K | 380.56 → 319.71 scheduler gen tok/s（**下降16.0%**）；mean TPOT 22.46 → 33.03 ms（**增加47.1%**）；mean TTFT 20.31 → 35.73 s（**增加75.9%**） | **ISL增加时，Decode效率和延迟同时变差。** 这是N=1 fixed-acceptance性能测量，不是natural acceptance或输出质量结果。 |
 | 独立exact 256K Prefill确认 | 12,864.96 tok/s；16/16 requests；**measurement N=1** | **Exact 262,144-token Prefill已确认**，但该独立record不属于受控scaling曲线，也不能证明fresh-service重复性。 |
 | Decode诊断：相同固定BS16/output8K方法下，8K → 64K context | 1,031.26 → 718.12 gen tok/s（**下降30.4%**）；15.52 → 22.28 ms（**增加43.6%**） | **Decode对长context比Prefill更敏感。** 该output8K测试只用于内部scaling诊断，不用于H200 headline对比。 |
 | Exact 64K/1K Decode：no-CK → 基于AMD 7/13环境的最终path | 743.12 → 933.75 gen tok/s（**提升25.7%**）；21.53 → 17.14 ms（**降低20.4%**） | **最新optimized path显著恢复了64K Decode效率**，但尚未消除与H200工作簿行的方向性差距。 |
 
 No-CK与optimized A/B的原始样本分别记录在 [`data/validation/decode-fixed-batch-audit.json`](data/validation/decode-fixed-batch-audit.json) 的 `headline_exact.same_image_exact_no_ck` 和 `headline_exact.points`。脱敏后的client summary与scheduler window已公开在 [`data/evidence/exact64-fixed-acceptance/`](data/evidence/exact64-fixed-acceptance/)；运行 `python3 scripts/analyze_exact64_evidence.py` 可验证manifest并重建两组aggregate和uplift。它支持对已披露脱敏窗口的独立重算与一致性检查，但不能独立证明私有完整日志的来源真实性或完整性。
 
-**总体结论：**受控Prefill矩阵从8K到64K基本持平，接近nominal 256K时明显下降；Decode则成为更明显的长context瓶颈。AMD最新path明显改善了fixed-acceptance exact-64K Decode。当前证据支持的是：**“MI300X具备可信的长ISL性能测量，且64K scheduler效率正在显著改善”，而不是“H200 parity”或“输出质量已验证”。**
+**总体结论：**受控Prefill矩阵从8K到64K基本持平，接近nominal 256K时明显下降。在新增的128K/192K同runtime实测子集中，Prefill input吞吐下降13.1%，fixed-BS4 Decode scheduler吞吐下降16.0%，Decode TPOT增加47.1%。AMD最新path明显改善了fixed-acceptance exact-64K Decode，但Decode仍是更明显的长context瓶颈。当前证据支持的是：**“MI300X具备可信的长ISL性能测量”，而不是“H200 parity”“输出质量已验证”或“新测点已具备多轮稳定性”。**
 
-当前证据覆盖 exact 64K/1K Decode（BS16）、exact 256K Prefill（concurrency 4），以及255K input/1K output Decode能力点（concurrency 1）。它**不能证明**高并发128K/256K Decode性能；该结论需要额外的matched test。
+当前证据覆盖 exact 64K/1K Decode（BS16）、128K/192K Prefill selected points（concurrency 4）、单节点128K/192K Decode selected points（actual BS4）、exact 256K Prefill（concurrency 4），以及255K input/1K output Decode能力点（concurrency 1）。它**不能证明**PD-serving高并发128K/192K/256K Decode性能、natural acceptance或输出质量。
 
 ---
 
@@ -131,7 +133,7 @@ $$
 
 ![长ISL Decode的KV容量关系](images/kv_capacity_relationship.png)
 
-*图 3：非PD exact64 worked example展示sequence length与KV容量如何限制actual Decode concurrency。未来128K/192K/255K组合明确属于planning points，不是实测结果。*
+*图 3：非PD exact64 worked example展示sequence length与KV容量如何限制actual Decode concurrency。128K/192K actual-BS4子集现已实测；64K同方法anchor、255K actual-BS4点和equal-KV-load组合仍属于open或planning-only。此前单独实测的255K PD-serving c1能力点仍然有效。*
 
 对于active Decode requests，一个实用的容量模型是
 
@@ -164,11 +166,37 @@ $$
 
 Scheduler报告的`full token usage`为`0.73–0.74`，与该算术结果一致。这说明为什么将单节点`mem-fraction-static`提高到`0.95`后，exact64可以保留actual Decode BS16；它**不代表**一个Prefill kernel曾同时处理十六条完整64K prompts。
 
+### 基于7/13环境的128K/192K实测子集
+
+以下两类指标必须分开解读。Prefill使用双节点1P1D部署的aggregate input tok/s；Decode使用单节点非PD服务中经过transition guard的steady full-BS4 scheduler gen tok/s。二者不能相除、合并或当成同一指标。
+
+#### Prefill Selected Points
+
+| ISL | Topology | Client concurrency | Requests | Input tok/s | Mean TTFT | 重复次数 |
+|---:|---|---:|---:|---:|---:|---:|
+| 128K | 1P1D PD | 4 | 16 | **15,943.02** | 30.17 s | **N=1** |
+| 192K | 1P1D PD | 4 | 16 | **13,855.30** | 51.89 s | **N=1** |
+
+#### Decode Fixed-BS4 Selected Points
+
+| ISL | Topology | Actual Decode batch | Requests | Steady scheduler gen tok/s | Client output tok/s | Mean TTFT | Mean TPOT | Full-token usage | 重复次数 |
+|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 128K | 单节点TP8、非PD | **4** | 4 | **380.56** | 94.59 | 20.31 s | 22.46 ms | 0.36–0.37 | **N=1** |
+| 192K | 单节点TP8、非PD | **4** | 4 | **319.71** | 58.90 | 35.73 s | 33.03 ms | 0.55 | **N=1** |
+
+从128K到192K，Prefill input吞吐变化为**-13.1%**。在另一套fixed-BS4 Decode方法下，scheduler generation吞吐变化为**-16.0%**，mean TPOT变化为**+47.1%**，mean TTFT变化为**+75.9%**。每点只有一次accepted measurement run，这些变化不能证明多轮稳定性。
+
+128K与192K Prefill点是在metric parser故障恢复前后的两次独立service launch中验收的；两次launch都通过相同immutable runtime与配置门。两个Decode点则在后续同一个单节点service上顺序执行。因此这是一组same-runtime/method对比，不是same-service或fresh-service repeatability声明。
+
+Decode点使用`SGLANG_SIMULATE_ACC_LEN=3`和`match-expected`；scheduler报告accept length `3.00`、rate `0.67`。它们测量fixed acceptance下的scheduler capacity，不验证natural MTP acceptance或输出质量。2026年6月的BS1 boundary diagnostics未混入本结果族。
+
+机器可读结果：[`data/controlled-isl-results.tsv`](data/controlled-isl-results.tsv)；方法与runtime审计：[`data/validation/controlled-isl-evidence.json`](data/validation/controlled-isl-evidence.json)；脱敏重算证据：[`data/evidence/controlled-isl-128k-192k/`](data/evidence/controlled-isl-128k-192k/)。运行`python3 scripts/analyze_controlled_isl_evidence.py`可重建四个点及全部公开变化率。
+
 ### 后续如何只研究输入长度而不混入其他变量
 
 | 研究目标 | 控制变量 | 建议测点 | 证据状态 |
 |---|---|---|---|
-| 纯ISL影响 | OSL固定为1K，**actual Decode batch固定为4** | 64K、128K、192K、255K input | 建议方案；尚未实测 |
+| 同runtime受控实测子集 | OSL固定为1K，**actual Decode batch固定为4** | 128K、192K input | **已实测；每点N=1**。尚不是完整的64K→192K同方法曲线。 |
 | 等KV负载容量规划 | Raw token positions维持在exact64负载附近 | 64K×16、128K×8、192K×5、255K×4 | Planning estimates；尚未实测 |
 
 最高合法input点是**255K input + 1K output**：$261{,}120+1{,}024=262{,}144\le262{,}151$。**256K input + 1K output**需要$263{,}168$个positions，在`context-length=262151`下非法。未来任何报告都必须保留actual observed Decode batch，不能把client concurrency重新标成BS。
@@ -263,8 +291,10 @@ AMD 提供了基础启动方法：container image、tuned AITER path、1P1D/DP=2
 | 1P1D Decode | 8K input / 1K output | 8, 16, 32, 64, 96, 128, 192 | 256 |
 | 1P1D 长上下文 Decode | Requested 64K input / 1K output；requested 255K input / 1K output（256K total sequence） | 64K：16, 32, 64, 96；255K：1 | 32, 64, 128, 192；1 |
 | 单节点 exact 固定 batch Decode | Exact 64K input / 1K output、固定 batch 16；最终 AITER/CK path | 两次 fresh-service 重复 | 每轮 16 |
+| 单节点受控ISL Decode | 128K或192K input / 1K output、actual batch 4；最终AITER/CK path | 每个input length一次accepted measurement | 4 |
 | 单节点 diagnostic 固定 batch Decode | 64K 或 8K input / 8K output；仅保留用于内部 scaling 诊断 | 单服务，固定 batch 4/8/16 | 不用于 H200 headline |
 | 1P1D Prefill | 8K、64K、nominal 256K / 1 output | 1, 2, 4, 8 | 16 |
+| 1P1D selected长ISL Prefill | 128K、192K / 1 output | Client concurrency 4；每个input length一次accepted measurement | 16 |
 | 双节点 DP=2 Prefill | 8K、64K、nominal 256K / 1 output | 8K/64K：1, 2, 4, 8, 16；nominal 256K：1, 2, 4, 8 | 32 |
 
 以下表格展示实测扩展性结果。Decode 核心生产并发点另外做了两次 fresh-service 复测。
@@ -463,6 +493,8 @@ H200 来源：客户提供工作簿，TP8/EP32/DP4、balanced `fake_topk_ids`、
 - Decode 核心点复测：[`data/decode-repeatability.tsv`](data/decode-repeatability.tsv)
 - 长上下文 Decode 结果：[`data/decode-long-context-results.tsv`](data/decode-long-context-results.tsv)
 - 固定 batch 稳态 Decode 结果：[`data/decode-fixed-batch-results.tsv`](data/decode-fixed-batch-results.tsv)
+- 受控128K/192K结果：[`data/controlled-isl-results.tsv`](data/controlled-isl-results.tsv)
+- 受控128K/192K方法与源哈希：[`data/validation/controlled-isl-evidence.json`](data/validation/controlled-isl-evidence.json)
 - 固定 batch 方法与源哈希：[`data/validation/decode-fixed-batch-audit.json`](data/validation/decode-fixed-batch-audit.json)
 - 长上下文 runtime 与 source-artifact evidence：[`data/validation/decode-long-context-evidence.json`](data/validation/decode-long-context-evidence.json)
 - Exact-token 与 runtime 验证元数据：[`data/validation/`](data/validation/)

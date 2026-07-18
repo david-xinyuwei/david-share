@@ -41,15 +41,17 @@ English | [中文版](README-CN.md) | [Validation Evidence](data/validation/)
 |---|---:|---|
 | Same complete matrix, Prefill c4: 8K → 64K input | 18,161.81 → 18,763.17 tok/s (**+3.3%**) | **Prefill remains flat through 64K in the controlled matrix.** This is the supported length-scaling conclusion. |
 | Same complete matrix, Prefill c4: 64K → nominal 256K input | 18,763.17 → 12,389.64 tok/s (**-34.0%**) | **The long-input cost becomes material near 256K.** This matrix point uses nominal random-text framing. |
+| Same final runtime, Prefill c4/OSL1: 128K → 192K input | 15,943.02 → 13,855.30 input tok/s (**-13.1%**); mean TTFT 30.17 → 51.89 s | **Prefill throughput declines and TTFT rises across the measured 128K/192K subset.** Each point is N=1. |
+| Same final runtime, single-node non-PD Decode, actual BS4/OSL1K: 128K → 192K | 380.56 → 319.71 scheduler gen tok/s (**-16.0%**); mean TPOT 22.46 → 33.03 ms (**+47.1%**); mean TTFT 20.31 → 35.73 s (**+75.9%**) | **Decode efficiency and latency both worsen as ISL grows.** These are N=1 fixed-acceptance performance measurements, not natural-acceptance or output-quality results. |
 | Independent exact 256K Prefill confirmation | 12,864.96 tok/s; 16/16 requests; **measurement N=1** | **Exact 262,144-token Prefill is confirmed**, but this independent record is not part of the controlled scaling curve and does not establish fresh-service repeatability. |
 | Decode diagnostic: 8K → 64K context, same fixed BS16/output8K method | 1,031.26 → 718.12 gen tok/s (**-30.4%**); 15.52 → 22.28 ms (**+43.6%**) | **Decode is more sensitive to long context than Prefill.** This output8K run is diagnostic scaling evidence only, not the H200 headline comparison. |
 | Exact 64K/1K Decode: no-CK → final AMD 7/13-derived path | 743.12 → 933.75 gen tok/s (**+25.7%**); 21.53 → 17.14 ms (**-20.4%**) | **The latest optimized path materially recovers 64K Decode efficiency**, although it does not close the directional gap to the H200 worksheet row. |
 
 The no-CK and optimized A/B source samples are recorded under `headline_exact.same_image_exact_no_ck` and `headline_exact.points` in [`data/validation/decode-fixed-batch-audit.json`](data/validation/decode-fixed-batch-audit.json). The sanitized client summaries and scheduler windows are public in [`data/evidence/exact64-fixed-acceptance/`](data/evidence/exact64-fixed-acceptance/); `python3 scripts/analyze_exact64_evidence.py` verifies their manifest and rebuilds both aggregates and the uplift. This supports independent recomputation and consistency checking of the disclosed sanitized windows; it does not independently establish the provenance or completeness of the privately archived full logs.
 
-**Overall conclusion:** the controlled Prefill matrix stays flat from 8K to 64K and drops materially near nominal 256K, while Decode becomes the more visible long-context bottleneck. AMD's latest path materially improves fixed-acceptance exact-64K Decode. The evidence supports **“credible long-ISL performance measurement with improving 64K scheduler efficiency,” not “H200 parity” or “validated output quality.”**
+**Overall conclusion:** the controlled Prefill matrix stays flat from 8K to 64K and drops materially near nominal 256K. Within the newly measured 128K/192K same-runtime subset, Prefill input throughput drops 13.1% and fixed-BS4 Decode scheduler throughput drops 16.0%, while Decode TPOT rises 47.1%. AMD's latest path materially improves fixed-acceptance exact-64K Decode, but Decode remains the more visible long-context bottleneck. The evidence supports **“credible long-ISL performance measurement,” not “H200 parity,” “validated output quality,” or repeated-run stability for the new points.**
 
-The current evidence covers exact 64K/1K Decode at BS16, exact 256K Prefill at concurrency 4, and a 255K-input/1K-output Decode capability point at concurrency 1. It does **not** establish high-concurrency 128K/256K Decode performance; that would require an additional matched test.
+The current evidence covers exact 64K/1K Decode at BS16, selected 128K/192K Prefill at concurrency 4, selected single-node 128K/192K Decode at actual BS4, exact 256K Prefill at concurrency 4, and a 255K-input/1K-output Decode capability point at concurrency 1. It does **not** establish PD-serving high-concurrency 128K/192K/256K Decode performance, natural acceptance, or output quality.
 
 ---
 
@@ -131,7 +133,7 @@ Independence does **not** mean arbitrary incompatibility. The validated path kee
 
 ![KV capacity relationship for long-ISL Decode](images/kv_capacity_relationship.png)
 
-*Figure 3. The non-PD exact64 worked example shows how sequence length and KV capacity bound actual Decode concurrency. Future 128K/192K/255K combinations are explicitly planning points, not measurements.*
+*Figure 3. The non-PD exact64 worked example shows how sequence length and KV capacity bound actual Decode concurrency. The 128K/192K actual-BS4 subset is now measured; a 64K same-method anchor, a 255K actual-BS4 point, and the equal-KV-load combinations remain open or planning-only. The separately measured 255K PD-serving c1 capability point remains valid.*
 
 For the active Decode requests, a useful capacity model is
 
@@ -164,11 +166,37 @@ $$
 
 The scheduler reported `full token usage` of `0.73–0.74`, consistent with that arithmetic. This explains why exact64 could retain actual Decode BS16 after increasing the single-node `mem-fraction-static` to `0.95`; it does **not** imply that a Prefill kernel processed sixteen complete 64K prompts at once.
 
+### Measured 128K/192K Subset on the 7/13-Derived Runtime
+
+The two surfaces are intentionally separated. Prefill uses aggregate input tok/s from a two-node 1P1D deployment. Decode uses transition-guarded steady full-BS4 scheduler gen tok/s from a single-node non-PD service. They must not be divided, combined, or treated as the same metric.
+
+#### Prefill Selected Points
+
+| ISL | Topology | Client concurrency | Requests | Input tok/s | Mean TTFT | Repetitions |
+|---:|---|---:|---:|---:|---:|---:|
+| 128K | 1P1D PD | 4 | 16 | **15,943.02** | 30.17 s | **N=1** |
+| 192K | 1P1D PD | 4 | 16 | **13,855.30** | 51.89 s | **N=1** |
+
+#### Decode Fixed-BS4 Selected Points
+
+| ISL | Topology | Actual Decode batch | Requests | Steady scheduler gen tok/s | Client output tok/s | Mean TTFT | Mean TPOT | Full-token usage | Repetitions |
+|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 128K | Single-node TP8, non-PD | **4** | 4 | **380.56** | 94.59 | 20.31 s | 22.46 ms | 0.36–0.37 | **N=1** |
+| 192K | Single-node TP8, non-PD | **4** | 4 | **319.71** | 58.90 | 35.73 s | 33.03 ms | 0.55 | **N=1** |
+
+From 128K to 192K, Prefill input throughput changes **-13.1%**. Under the separate fixed-BS4 Decode method, scheduler generation throughput changes **-16.0%**, mean TPOT changes **+47.1%**, and mean TTFT changes **+75.9%**. Each point has one accepted measurement run; these deltas do not establish repeated-run stability.
+
+The 128K and 192K Prefill points were accepted under separate service launches after recovery from a metric-parser-only orchestration failure; both launches passed the same immutable runtime and configuration gates. The two Decode points ran sequentially on one later single-node service. This is a same-runtime/method comparison, not a same-service or fresh-service repeatability claim.
+
+The Decode points use `SGLANG_SIMULATE_ACC_LEN=3` with `match-expected`; the scheduler reports accept length `3.00` and rate `0.67`. They measure scheduler capacity under fixed acceptance and do not validate natural MTP acceptance or output quality. The June BS1 boundary diagnostics are not included in this result family.
+
+Machine-readable results: [`data/controlled-isl-results.tsv`](data/controlled-isl-results.tsv); method and runtime audit: [`data/validation/controlled-isl-evidence.json`](data/validation/controlled-isl-evidence.json); sanitized recomputation pack: [`data/evidence/controlled-isl-128k-192k/`](data/evidence/controlled-isl-128k-192k/). Run `python3 scripts/analyze_controlled_isl_evidence.py` to rebuild all four points and the disclosed deltas.
+
 ### How to Extend the Length Study Without Mixing Variables
 
 | Study objective | Controlled variable | Proposed points | Evidence status |
 |---|---|---|---|
-| Pure ISL effect | Hold **actual Decode batch at 4** and OSL at 1K | 64K, 128K, 192K, 255K input | Proposed; not measured |
+| Controlled same-runtime subset | Hold **actual Decode batch at 4** and OSL at 1K | 128K, 192K input | **Measured; N=1 per point**. This is not yet a complete 64K→192K same-method curve. |
 | Equal-KV-load capacity planning | Keep raw token positions near the exact64 load | 64K×16, 128K×8, 192K×5, 255K×4 | Planning estimates; not measured |
 
 The upper valid input point is **255K input + 1K output**: $261{,}120+1{,}024=262{,}144\le262{,}151$. A **256K input + 1K output** request would require $263{,}168$ positions and is invalid under `context-length=262151`. Any future report must preserve the actual observed Decode batch rather than relabel client concurrency as BS.
@@ -263,8 +291,10 @@ AMD provided the base launch method: the container image, tuned AITER path, 1P1D
 | 1P1D Decode | 8K input / 1K output | 8, 16, 32, 64, 96, 128, 192 | 256 |
 | 1P1D long-context Decode | Requested 64K input / 1K output; requested 255K input / 1K output (256K total sequence) | 64K: 16, 32, 64, 96; 255K: 1 | 32, 64, 128, 192; 1 |
 | Single-node exact fixed-batch Decode | Exact 64K input / 1K output at fixed batch 16; final AITER/CK path | Two fresh-service repetitions | 16 per repetition |
+| Single-node controlled-ISL Decode | 128K or 192K input / 1K output at actual batch 4; final AITER/CK path | One accepted measurement per input length | 4 |
 | Single-node diagnostic fixed-batch Decode | 64K or 8K input / 8K output; retained for internal scaling diagnostics only | One service, fixed batch 4/8/16 | Not used for the H200 headline |
 | 1P1D Prefill | 8K, 64K, nominal 256K / 1 output | 1, 2, 4, 8 | 16 |
+| 1P1D selected long-ISL Prefill | 128K, 192K / 1 output | Client concurrency 4; one accepted measurement per input length | 16 |
 | Two-node DP=2 Prefill | 8K, 64K, nominal 256K / 1 output | 8K/64K: 1, 2, 4, 8, 16; nominal 256K: 1, 2, 4, 8 | 32 |
 
 The tables below present the measured scalability results. The core Decode production points were separately repeated on fresh services.
@@ -463,6 +493,8 @@ Observed behavior:
 - Core Decode repeatability: [`data/decode-repeatability.tsv`](data/decode-repeatability.tsv)
 - Long-context Decode results: [`data/decode-long-context-results.tsv`](data/decode-long-context-results.tsv)
 - Sustained fixed-batch Decode results: [`data/decode-fixed-batch-results.tsv`](data/decode-fixed-batch-results.tsv)
+- Controlled 128K/192K results: [`data/controlled-isl-results.tsv`](data/controlled-isl-results.tsv)
+- Controlled 128K/192K method and source hashes: [`data/validation/controlled-isl-evidence.json`](data/validation/controlled-isl-evidence.json)
 - Fixed-batch method and source hashes: [`data/validation/decode-fixed-batch-audit.json`](data/validation/decode-fixed-batch-audit.json)
 - Long-context runtime and source-artifact evidence: [`data/validation/decode-long-context-evidence.json`](data/validation/decode-long-context-evidence.json)
 - Exact-token and runtime validation metadata: [`data/validation/`](data/validation/)

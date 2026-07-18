@@ -1,0 +1,14 @@
+surface=prefill
+input_tokens_per_request=196608
+requested_output_tokens_per_request=1
+client_concurrency=4
+num_prompts=16
+successful_requests=16
+benchmark_duration_s=227.04
+total_input_tokens=3145728
+total_generated_tokens=16
+total_generated_tokens_retokenized=16
+input_token_throughput_tok_s=13855.30
+output_token_throughput_tok_s=0.07
+mean_ttft_ms=51894.88
+measurement_repetitions=1

@@ -1,0 +1,4 @@
+module=module_gemm_a8w8_blockscale_bpreshuffle
+module_path=/sgl-workspace/aiter_0625/aiter/jit/module_gemm_a8w8_blockscale_bpreshuffle.so
+sglang_source_head=2f9b9aedf32977bc5d088a86ec0a73bcf432a4d0
+aiter_source_head=00e94abf15e1e09ab7cf481e989bca5d19a99b82

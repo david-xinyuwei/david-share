@@ -189,6 +189,205 @@ def check_batching_guide() -> None:
         assert contract in prefill_launch and contract in decode_launch
 
 
+def check_controlled_isl() -> None:
+    rows = load_tsv(ROOT / "data/controlled-isl-results.tsv")
+    audit = load_json(ROOT / "data/validation/controlled-isl-evidence.json")
+    image = load_json(ROOT / "data/validation/container-image.json")
+    readme_texts = [path.read_text(encoding="utf-8") for path in READMES]
+    expected = {
+        ("prefill", 131072): {
+            "headline": 15943.02,
+            "mean_ttft_ms": 30170.48,
+            "output_tokens": 1,
+            "concurrency": 4,
+            "num_prompts": 16,
+        },
+        ("prefill", 196608): {
+            "headline": 13855.30,
+            "mean_ttft_ms": 51894.88,
+            "output_tokens": 1,
+            "concurrency": 4,
+            "num_prompts": 16,
+        },
+        ("decode", 131072): {
+            "headline": 380.56,
+            "client_output_tok_s": 94.59,
+            "mean_ttft_ms": 20308.62,
+            "mean_tpot_ms": 22.46,
+            "output_tokens": 1024,
+            "concurrency": 4,
+            "num_prompts": 4,
+            "usage": (0.36, 0.37),
+        },
+        ("decode", 196608): {
+            "headline": 319.71,
+            "client_output_tok_s": 58.90,
+            "mean_ttft_ms": 35731.30,
+            "mean_tpot_ms": 33.03,
+            "output_tokens": 1024,
+            "concurrency": 4,
+            "num_prompts": 4,
+            "usage": (0.55, 0.55),
+        },
+    }
+    assert len(rows) == 4
+    by_key = {(row["surface"], int(row["input_tokens"])): row for row in rows}
+    assert set(by_key) == set(expected)
+    assert audit["status"] == "VALIDATED"
+    assert audit["measurement_date_beijing"] == "2026-07-19"
+    assert audit["orchestrator_resume_started_at_utc"] == "2026-07-18T17:09:58Z"
+    assert "started_at_utc" not in audit
+    assert audit["measurement_repetitions_per_point"] == 1
+    assert audit["runtime"]["runtime_image"] == image["immutable_pull_ref"]
+    assert audit["runtime"]["container_image_id"] == image["image_id"]
+    assert audit["runtime"]["sglang_source_head"] == image["sglang_commit"]
+    assert audit["runtime"]["aiter_source_head"] == image["aiter_commit"]
+    assert audit["runtime"]["tuned_csv_sha256"] == image["tuned_csv_sha256"]
+    assert audit["method"]["context_length"] == 262151
+    assert audit["method"]["fixed_acceptance"] == {
+        "length": 3.0,
+        "scheduler_reported_rate": 0.67,
+        "method": "match-expected",
+        "validates_natural_acceptance": False,
+        "validates_output_quality": False,
+    }
+    assert audit["scope"]["historical_202606_bs1_included"] is False
+    assert "separate service launches" in audit["method"]["service_lifecycle"]
+    assert "No same-service or fresh-service repeatability claim" in audit["method"]["service_lifecycle"]
+    assert re.fullmatch(r"[0-9a-f]{64}", audit["private_source_manifest_sha256"])
+
+    audit_points = {
+        (point["surface"], point["input_tokens"]): point for point in audit["points"]
+    }
+    assert set(audit_points) == set(expected)
+    for key, expected_point in expected.items():
+        surface, input_tokens = key
+        row = by_key[key]
+        output_tokens = expected_point["output_tokens"]
+        concurrency = expected_point["concurrency"]
+        prompts = expected_point["num_prompts"]
+        assert row["measurement_date"] == "2026-07-19"
+        assert row["runtime_generation"] == "AMD_20260713_derived_final_image"
+        assert row["output_tokens"] == str(output_tokens)
+        assert row["client_concurrency"] == str(concurrency)
+        assert row["num_prompts"] == str(prompts)
+        assert row["successful_requests"] == str(prompts)
+        assert int(row["total_input_tokens"]) == input_tokens * prompts
+        assert int(row["total_generated_tokens"]) == output_tokens * prompts
+        assert int(row["total_generated_tokens_retokenized"]) > 0
+        assert row["measurement_repetitions"] == "1"
+        assert row["status"] == "VALIDATED"
+        assert row["runtime_image"] == image["immutable_pull_ref"]
+        assert "202606" not in row["source_run"] and "bs1" not in row["source_run"].lower()
+        assert float(row["headline_value"]) == expected_point["headline"]
+        assert audit_points[key]["headline_value"] == expected_point["headline"]
+        assert float(row["mean_ttft_ms"]) == expected_point["mean_ttft_ms"]
+        assert math.isclose(
+            int(row["total_input_tokens"]) / float(row["benchmark_duration_s"]),
+            float(row["input_tok_s"]),
+            rel_tol=0.001,
+        )
+        if surface == "prefill":
+            assert row["topology"] == "1P1D_PD"
+            assert row["headline_metric"] == "input_tok_s"
+            assert not row["actual_decode_batch"] and not row["scheduler_gen_tok_s"]
+            assert int(row["total_generated_tokens_retokenized"]) == 16
+        else:
+            assert row["topology"] == "single_node_tp8_non_pd"
+            assert row["headline_metric"] == "steady_bs4_scheduler_gen_tok_s"
+            assert row["actual_decode_batch"] == "4"
+            assert float(row["scheduler_gen_tok_s"]) == expected_point["headline"]
+            assert row["raw_full_batch_samples"] == "8"
+            assert row["transition_sample_excluded"] == "true"
+            assert row["scheduler_samples"] == "7"
+            assert (
+                float(row["full_token_usage_min"]),
+                float(row["full_token_usage_max"]),
+            ) == expected_point["usage"]
+            assert row["accept_len"] == "3.0" and row["accept_rate"] == "0.67"
+            assert float(row["output_tok_s"]) == expected_point["client_output_tok_s"]
+            assert float(row["mean_tpot_ms"]) == expected_point["mean_tpot_ms"]
+            assert math.isclose(
+                int(row["total_generated_tokens"]) / float(row["benchmark_duration_s"]),
+                float(row["output_tok_s"]),
+                rel_tol=0.001,
+                abs_tol=0.005,
+            )
+            assert int(row["total_generated_tokens_retokenized"]) == 1028
+
+    assert audit["deltas_128k_to_192k"] == {
+        "prefill_input_tok_s_pct": -13.1,
+        "decode_scheduler_gen_tok_s_pct": -16.0,
+        "decode_mean_tpot_pct": 47.1,
+        "decode_mean_ttft_pct": 75.9,
+    }
+    check_hash_manifest(ROOT / "data/evidence/controlled-isl-128k-192k")
+    analyzer = subprocess.run(
+        ["python3", str(ROOT / "scripts/analyze_controlled_isl_evidence.py")],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert analyzer.returncode == 0, analyzer.stderr
+    analyzer_result = json.loads(analyzer.stdout)
+    assert analyzer_result["status"] == "PASS"
+    assert analyzer_result["deltas_128k_to_192k"] == audit["deltas_128k_to_192k"]
+    assert analyzer_result["acceptance_configuration"]["validates_natural_acceptance"] is False
+    assert analyzer_result["acceptance_configuration"]["validates_output_quality"] is False
+
+    english, chinese = readme_texts
+    for text in readme_texts:
+        for required in (
+            "data/controlled-isl-results.tsv",
+            "data/validation/controlled-isl-evidence.json",
+            "data/evidence/controlled-isl-128k-192k/",
+            "analyze_controlled_isl_evidence.py",
+            "15,943.02",
+            "13,855.30",
+            "380.56",
+            "319.71",
+            "-13.1%",
+            "-16.0%",
+            "+47.1%",
+            "+75.9%",
+        ):
+            assert required in text, f"Missing controlled-ISL README value: {required}"
+    assert "Measured 128K/192K Subset on the 7/13-Derived Runtime" in english
+    assert "基于7/13环境的128K/192K实测子集" in chinese
+    assert "June BS1 boundary diagnostics are not included" in english
+    assert "2026年6月的BS1 boundary diagnostics未混入" in chinese
+    assert "separate service launches" in english
+    assert "not a same-service or fresh-service repeatability claim" in english
+    assert "两次独立service launch" in chinese
+    assert "不是same-service或fresh-service repeatability声明" in chinese
+    assert "a 255K actual-BS4 point" in english
+    assert "separately measured 255K PD-serving c1 capability point remains valid" in english
+    assert "255K actual-BS4点" in chinese
+    assert "单独实测的255K PD-serving c1能力点仍然有效" in chinese
+    assert "64K same-method anchor and 255K remain open" not in english
+    assert "64K同方法anchor、255K点" not in chinese
+    assert "Future 128K/192K/255K combinations" not in english
+    assert "未来128K/192K/255K组合" not in chinese
+
+    prefill_benchmark = (ROOT / "scripts/amd-latest/benchmark_1p_prefill_long_isl_selected.sh").read_text(encoding="utf-8")
+    decode_benchmark = (ROOT / "scripts/amd-latest/benchmark_decode_fixed_batch_bs4.sh").read_text(encoding="utf-8")
+    for fragment in (
+        "run_point 131072 1 4 16 1 1800",
+        "run_point 196608 1 4 16 1 2400",
+    ):
+        assert fragment in prefill_benchmark
+    for fragment in (
+        "--random-output-len 1024",
+        "--num-prompts 4",
+        "--max-concurrency 4",
+        "Total generated tokens:[[:space:]]+4096",
+        "full_batch_samples=$(grep -c 'Decode batch, #running-req: 4'",
+        "accept len: 3\\.00, accept rate: 0\\.67",
+        "#queue-req: [1-9]",
+    ):
+        assert fragment in decode_benchmark
+
+
 def check_result_tables() -> None:
     final_rows = load_tsv(ROOT / "data/final-results.tsv")
     scalability_rows = load_tsv(ROOT / "data/scalability-results.tsv")
@@ -1065,6 +1264,7 @@ def main() -> None:
     checks = (
         ("readmes", check_readmes),
         ("batching_guide", check_batching_guide),
+        ("controlled_isl", check_controlled_isl),
         ("result_tables", check_result_tables),
         ("long_context_decode", check_long_context_decode),
         ("fixed_batch_decode", check_fixed_batch_decode),

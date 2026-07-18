@@ -6,9 +6,9 @@ This is the only supported reproduction bundle in the repository. It runs the fi
 
 | Topology | Launch scripts | Benchmark |
 |---|---|---|
-| 1P1D, TP=8 + TP=8 | `launch_pd_prefill.sh`, `launch_pd_decode.sh`, `launch_pd_router.sh` | `benchmark_1p_prefill.sh`, `benchmark_decode.sh`, optional `benchmark_decode_long_context.sh` |
+| 1P1D, TP=8 + TP=8 | `launch_pd_prefill.sh`, `launch_pd_decode.sh`, `launch_pd_router.sh` | `benchmark_1p_prefill.sh`, optional `benchmark_1p_prefill_long_isl_selected.sh`, `benchmark_decode.sh`, optional `benchmark_decode_long_context.sh` |
 | Two-node DP=2 Prefill, TP=8 per worker | `launch_dp2_node0.sh`, `launch_dp2_node1.sh`, `launch_dp2_router.sh` | `benchmark_dp2_prefill.sh` |
-| Single-node TP=8 exact Decode | `launch_single_node_decode.sh` | `benchmark_decode_fixed_batch.sh`, once per fresh service with `REP=1` and `REP=2` |
+| Single-node TP=8 exact Decode | `launch_single_node_decode.sh` | `benchmark_decode_fixed_batch.sh`; optional `benchmark_decode_fixed_batch_bs4.sh` for 128K/192K |
 
 Both worker launch paths use context length 262151 and the model-specific tuned fused-MoE CSV. The 256K-input Prefill clients use `--tokenize-prompt` so each request sends exactly 262,144 token IDs.
 
@@ -35,6 +35,27 @@ The benchmark script fails closed unless all 16 requests succeed with exactly 1,
 For each repetition, apply the documented transition guard: exclude exactly the first full-batch sample if and only if its throughput is below 50% of the median of all subsequent full-batch samples. Report the arithmetic mean of the two fresh-service steady-state means and the run-to-run delta.
 
 The published sanitized windows are under `data/evidence/exact64-fixed-acceptance/`. Run `python3 scripts/analyze_exact64_evidence.py` to verify their SHA-256 manifest and rebuild the 933.75 tok/s optimized mean, 743.12 tok/s baseline, and 25.7% bundle uplift.
+
+## Controlled 128K/192K Selected Points
+
+The selected Prefill points use 1P1D PD, client concurrency 4, 16 prompts, and OSL 1:
+
+```bash
+export LOG_DIR=/data/mimo-amd-latest/onep/prefill-long-isl-selected
+export DATASET_PATH=/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json
+bash benchmark_1p_prefill_long_isl_selected.sh
+```
+
+The selected Decode points use the single-node service, actual batch 4, four prompts, OSL 1K, and the same fixed-acceptance configuration as the exact64 performance method:
+
+```bash
+export SERVICE_LOG=/data/mimo-fixedbatch/service/decode_outer.log
+export DATASET_PATH=/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json
+export INPUT_TOKENS=131072  # use 196608 for the second point
+bash benchmark_decode_fixed_batch_bs4.sh
+```
+
+Each point has one accepted measurement run. The Decode headline is transition-guarded steady full-BS4 scheduler generation throughput; the Prefill headline is aggregate input tok/s. Do not divide or combine these metrics. The sanitized evidence is under `data/evidence/controlled-isl-128k-192k/`; run `python3 scripts/analyze_controlled_isl_evidence.py` to rebuild all four points and their 128K-to-192K deltas.
 
 ## Required Environment
 

@@ -255,12 +255,12 @@ def kv_capacity() -> None:
     lines(draw, 115, 750, example, gap=48)
 
     rounded(draw, (950, 650, 1730, 995), GREEN_BG, GREEN)
-    centered(draw, (1340, 690), "Two different future sweeps", GREEN, F_SECTION)
+    centered(draw, (1340, 690), "Measured subset and open points", GREEN, F_SECTION)
     future = [
-        "Pure ISL effect: hold actual Decode batch at 4",
-        "64K / 128K / 192K / 255K, OSL=1K",
+        "Measured: 128K / 192K, OSL=1K, actual BS4",
+        "64K anchor and 255K actual-BS4 point remain open",
         "Equal-KV-load planning: 64Kx16, 128Kx8,",
-        "192Kx5, 255Kx4 (planning only, not measured)",
+        "192Kx5, 255Kx4 (planning only)",
         "256K input + 1K output is invalid at context=262,151",
     ]
     lines(draw, 995, 750, future, gap=48)
