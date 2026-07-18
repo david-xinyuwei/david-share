@@ -17,6 +17,40 @@ English | [中文版](README-CN.md) | [Validation Evidence](data/validation/)
 
 > **Comparison status:** on the input side, MI300X reaches **18,983.91 input tok/s** at 64K and concurrency 4 versus the customer H200 saturation reference of **27,400 input tok/s**; the H200 workbook does not record the matching input concurrency. On the output side, the final AMD 7/13-derived AITER/CK path reaches **933.75 scheduler gen tok/s** at exact 64K input / 1K output and fixed batch 16, the mean of two fresh-service runs (**931.58 / 935.92 tok/s**, **0.47%** repeat delta), with an implied TPOT of **17.14 ms**. This is **70.0%** of the customer workbook's 64K BS16 row and **25.7% above** the same-image exact no-CK baseline. The ratio is directional: the H200 workbook has no output-length column, its Column J scope is ambiguous, and topology, routing, and observed MTP acceptance differ. Higher batch sizes (BS32–96) still require an EP/multi-node Decode deployment and carry no hardware ratio.
 
+### Relative Status at a Glance
+
+| Scenario | ISL scope | Microsoft-tested MI300X | Customer H200 worksheet reference | Direct status |
+|---|---|---:|---:|---|
+| 8K Prefill throughput | 8K baseline | 20,305.98 tok/s | 31,950 tok/s | Below reference; 63.6% (directional) |
+| 64K Prefill throughput | **Long ISL** | 18,983.91 tok/s | 27,400 tok/s | Below reference; 69.3% (directional) |
+| 256K Prefill throughput | **Very long ISL** | 12,864.96 tok/s | 17,400 tok/s | Below reference; 73.9% (directional) |
+| 8K Decode scheduler throughput | 8K baseline, client c16, observed batch 15 / 16 | 1,319.78 tok/s | 1,381 tok/s | Near reference but below; 95.6% (directional) |
+| 8K Decode client mean TPOT | Same c16 run | **10.83 ms** | 11.59 ms | **Only directionally lower metric: 6.6% lower** |
+| 64K Decode scheduler throughput | **Exact long ISL: 64K input / 1K output, BS16, N=2** | **933.75 tok/s** | 1,333.89 tok/s | Below worksheet row; 70.0% (directional) |
+| 64K Decode implied TPOT | **Same exact long-ISL run, N=2 fresh services** | 17.14 ms | 11.99 ms | Higher (worse) by about 42.9% (directional) |
+
+**Direct answer:** no tested Prefill-throughput row exceeds its H200 reference, and neither tested Decode-throughput row does. The only metric where MI300X is directionally better is **8K Decode TPOT, 6.6% lower**. The 64K Decode result is a verified exact long-ISL measurement and improved **25.7%** over the same-image MI300X baseline, but it does not exceed the H200 worksheet row.
+
+“Directional” is essential: H200 input concurrency is missing; its Decode rows have no explicit output length and ambiguous Column J deployment scope; topology, expert routing, and MTP acceptance also differ. This table summarizes relative status against the supplied references, not a strict hardware ranking.
+
+**TPOT metric scope:** the 8K value is the client-reported mean TPOT from the 1P1D c16 run. The 64K value is scheduler-implied TPOT, calculated as `1000 / (mean gen tok/s ÷ BS16)` from the single-node fixed-batch run. They answer different questions and must not be treated as a controlled 8K→64K TPOT curve. The controlled length-scaling signal is the explicitly labeled output8K diagnostic below, where both points use the same method.
+
+### What Happens as Input Length Grows
+
+| Measured transition | Observed change | Conclusion |
+|---|---:|---|
+| Prefill: 8K → 64K input (8× longer) | 20,305.98 → 18,983.91 tok/s (**-6.5%**) | **Prefill remains relatively stable through 64K.** An 8× longer input causes only a modest throughput reduction. |
+| Prefill: 64K → 256K input (4× longer) | 18,983.91 → 12,864.96 tok/s (**-32.2%**) | **The measured long-input cost becomes material by 256K.** MI300X still completes exact 256K Prefill, but at lower capacity. |
+| Prefill relative to H200 references: 8K → 64K → 256K | 63.6% → 69.3% → 73.9% | **MI300X's directional relative position improves as ISL grows.** This is encouraging scaling behavior, not a parity claim, because H200 input concurrency and routing differ. |
+| Decode diagnostic: 8K → 64K context, same fixed BS16/output8K method | 1,031.26 → 718.12 gen tok/s (**-30.4%**); 15.52 → 22.28 ms (**+43.6%**) | **Decode is more sensitive to long context than Prefill.** This output8K run is diagnostic scaling evidence only, not the H200 headline comparison. |
+| Exact 64K/1K Decode: no-CK → final AMD 7/13-derived path | 743.12 → 933.75 gen tok/s (**+25.7%**); 21.53 → 17.14 ms (**-20.4%**) | **The latest optimized path materially recovers 64K Decode efficiency**, although it does not close the directional gap to the H200 worksheet row. |
+
+The no-CK and optimized A/B source samples are recorded under `headline_exact.same_image_exact_no_ck` and `headline_exact.points` in [`data/validation/decode-fixed-batch-audit.json`](data/validation/decode-fixed-batch-audit.json); the validator recomputes both aggregates and the uplift.
+
+**Overall conclusion:** MI300X handles the move from 8K to 64K especially well on Prefill, while Decode becomes the more visible long-context bottleneck. At 256K, Prefill remains functional but the throughput reduction is substantial. AMD's latest path materially improves exact 64K Decode, so the evidence supports **“credible long-ISL capability with improving 64K efficiency,” not “H200 parity.”**
+
+The current evidence covers exact 64K/1K Decode at BS16, exact 256K Prefill at concurrency 4, and a 255K-input/1K-output Decode capability point at concurrency 1. It does **not** establish high-concurrency 128K/256K Decode performance; that would require an additional matched test.
+
 ---
 
 ## Architecture

@@ -17,6 +17,40 @@
 
 > **对比状态：**Input 侧，MI300X 在 64K、concurrency 4 达到 **18,983.91 input tok/s**，客户 H200 饱和吞吐参考为 **27,400 input tok/s**；H200 工作簿没有记录对应的 input concurrency。Output 侧，基于 AMD 7/13 最新环境的最终 AITER/CK path 在 exact 64K input / 1K output、固定 batch 16 下达到 **933.75 scheduler gen tok/s**，来自两次 fresh-service 测试（**931.58 / 935.92 tok/s**，重复差 **0.47%**），折算 TPOT 为 **17.14 ms**。该结果为客户工作簿 64K BS16 行的 **70.0%**，并比同镜像 exact no-CK baseline 高 **25.7%**。这个比率仅具方向性：H200 工作簿没有 output-length 列，Column J 口径存在歧义，且 topology、routing 和实测 MTP acceptance 均不同。更高 batch（BS32–96）仍需 EP/多节点 Decode 部署，不计算硬件比率。
 
+### 一眼看清相对参考状态
+
+| 场景 | ISL 范围 | 微软实测 MI300X | 客户 H200 工作簿参考 | 直接结论 |
+|---|---|---:|---:|---|
+| 8K Prefill 吞吐 | 8K 基线 | 20,305.98 tok/s | 31,950 tok/s | 低于参考；达到 63.6%（方向性） |
+| 64K Prefill 吞吐 | **长 ISL** | 18,983.91 tok/s | 27,400 tok/s | 低于参考；达到 69.3%（方向性） |
+| 256K Prefill 吞吐 | **超长 ISL** | 12,864.96 tok/s | 17,400 tok/s | 低于参考；达到 73.9%（方向性） |
+| 8K Decode scheduler 吞吐 | 8K基线、client c16、实测batch 15 / 16 | 1,319.78 tok/s | 1,381 tok/s | 接近但低于参考；达到 95.6%（方向性） |
+| 8K Decode client mean TPOT | 同一c16测试 | **10.83 ms** | 11.59 ms | **唯一方向性更低的指标：低 6.6%** |
+| 64K Decode scheduler 吞吐 | **Exact 长 ISL：64K input / 1K output、BS16、N=2** | **933.75 tok/s** | 1,333.89 tok/s | 低于工作簿行；达到 70.0%（方向性） |
+| 64K Decode 折算 TPOT | **同一exact长ISL测试、N=2 fresh services** | 17.14 ms | 11.99 ms | 高约 42.9%（较差，方向性） |
+
+**直接答案：**目前所有已测 Prefill 吞吐均未超过对应 H200 参考，两项 Decode 吞吐也均未超过。MI300X 唯一方向性更优的指标是 **8K Decode TPOT，低 6.6%**。64K Decode 是经过验证的 exact 长 ISL 实测，并比同镜像 MI300X baseline 提升 **25.7%**，但尚未超过 H200 工作簿对应行。
+
+“方向性”是必要限定：H200 缺少 input concurrency；Decode 行没有明确 output length，Column J deployment scope 也存在歧义；双方 topology、expert routing 与 MTP acceptance 均不同。因此本表只汇总相对参考状态，不构成严格硬件排名。
+
+**TPOT metric scope：**8K数值是1P1D c16测试的client-reported mean TPOT；64K数值来自单节点fixed-batch scheduler吞吐，按 `1000 / (mean gen tok/s ÷ BS16)` 折算。两者回答的问题不同，不能把这两行当作受控的8K→64K TPOT曲线。真正受控的长度scaling信号是下方明确标注的output8K诊断，其中两点采用相同方法。
+
+### 输入长度增加时发生什么
+
+| 实测变化 | 观测结果 | 明确结论 |
+|---|---:|---|
+| Prefill：8K → 64K input（长度增至8倍） | 20,305.98 → 18,983.91 tok/s（**下降6.5%**） | **Prefill 到64K仍相对稳定。**输入长度增加8倍，吞吐只小幅下降。 |
+| Prefill：64K → 256K input（长度增至4倍） | 18,983.91 → 12,864.96 tok/s（**下降32.2%**） | **到256K时，超长输入成本已明显增大。**MI300X仍能完成 exact 256K Prefill，但容量下降。 |
+| Prefill 相对H200参考：8K → 64K → 256K | 63.6% → 69.3% → 73.9% | **随着ISL增加，MI300X的方向性相对位置逐步改善。**这是积极的scaling表现，不是parity声明，因为H200 input concurrency和routing不同。 |
+| Decode诊断：相同固定BS16/output8K方法下，8K → 64K context | 1,031.26 → 718.12 gen tok/s（**下降30.4%**）；15.52 → 22.28 ms（**增加43.6%**） | **Decode对长context比Prefill更敏感。**该output8K测试只用于内部scaling诊断，不用于H200 headline对比。 |
+| Exact 64K/1K Decode：no-CK → 基于AMD 7/13环境的最终path | 743.12 → 933.75 gen tok/s（**提升25.7%**）；21.53 → 17.14 ms（**降低20.4%**） | **最新optimized path显著恢复了64K Decode效率**，但尚未消除与H200工作簿行的方向性差距。 |
+
+No-CK与optimized A/B的原始样本分别记录在 [`data/validation/decode-fixed-batch-audit.json`](data/validation/decode-fixed-batch-audit.json) 的 `headline_exact.same_image_exact_no_ck` 和 `headline_exact.points`；validator会重新计算两组aggregate和uplift。
+
+**总体结论：**MI300X从8K扩展到64K时，Prefill保持得尤其好；Decode则成为更明显的长context瓶颈。到256K时，Prefill仍可运行，但吞吐下降已经显著。AMD最新path明显改善了exact 64K Decode，因此当前证据支持的是：**“MI300X具备可信的长ISL能力，且64K效率正在显著改善”，而不是“H200 parity”。**
+
+当前证据覆盖 exact 64K/1K Decode（BS16）、exact 256K Prefill（concurrency 4），以及255K input/1K output Decode能力点（concurrency 1）。它**不能证明**高并发128K/256K Decode性能；该结论需要额外的matched test。
+
 ---
 
 ## 架构

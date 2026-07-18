@@ -65,6 +65,15 @@ def check_readmes() -> None:
             "data/validation/h200-reference.json",
             "data/validation/decode-service-log-audit-8k.json",
             "not a strict apples-to-apples" if path.name == "README.md" else "不是严格 apples-to-apples",
+            "Relative Status at a Glance" if path.name == "README.md" else "一眼看清相对参考状态",
+            "Only directionally lower metric: 6.6% lower" if path.name == "README.md" else "唯一方向性更低的指标：低 6.6%",
+            "Exact long ISL: 64K input / 1K output, BS16, N=2" if path.name == "README.md" else "Exact 长 ISL：64K input / 1K output、BS16、N=2",
+            "no tested Prefill-throughput row exceeds" if path.name == "README.md" else "所有已测 Prefill 吞吐均未超过",
+            "not a strict hardware ranking" if path.name == "README.md" else "不构成严格硬件排名",
+            "client c16, observed batch 15 / 16" if path.name == "README.md" else "client c16、实测batch 15 / 16",
+            "must not be treated as a controlled 8K→64K TPOT curve" if path.name == "README.md" else "不能把这两行当作受控的8K→64K TPOT曲线",
+            "headline_exact.same_image_exact_no_ck",
+            "headline_exact.points",
             "--password-stdin",
             "validate_server_info.py",
             "validate_service_logs.py",
@@ -114,6 +123,24 @@ def check_result_tables() -> None:
         source = actual_sources[point["source_run"]]
         assert str(point["client_concurrency"]) in source["client_log_sha256"]
     readme_texts = [path.read_text(encoding="utf-8") for path in READMES]
+
+    prefill = {
+        int(row["input_tokens"]): float(row["mi300x_throughput_tok_s"])
+        for row in final_rows
+        if row["topology"] == "1P1D" and row["surface"] == "prefill"
+    }
+    assert set(prefill) == {8192, 65536, 262144}
+    assert round((prefill[65536] / prefill[8192] - 1) * 100, 1) == -6.5
+    assert round((prefill[262144] / prefill[65536] - 1) * 100, 1) == -32.2
+    for text in readme_texts:
+        assert "20,305.98 → 18,983.91" in text
+        assert "18,983.91 → 12,864.96" in text
+        assert "63.6% → 69.3% → 73.9%" in text
+        assert "6.5%" in text and "32.2%" in text
+    assert "Prefill remains relatively stable through 64K" in readme_texts[0]
+    assert "Prefill 到64K仍相对稳定" in readme_texts[1]
+    assert "credible long-ISL capability with improving 64K efficiency" in readme_texts[0]
+    assert "MI300X具备可信的长ISL能力，且64K效率正在显著改善" in readme_texts[1]
 
     for row in final_rows:
         mi300x = float(row["mi300x_throughput_tok_s"])
@@ -603,6 +630,30 @@ def check_fixed_batch_decode() -> None:
     exact_rows = [row for row in rows if row["result_role"] == "headline_exact_rep"]
     diagnostic_rows = [row for row in rows if row["result_role"] == "diagnostic_output8k"]
     assert len(exact_rows) == 2 and len(diagnostic_rows) == 4
+    diagnostic_by_key = {
+        (int(row["base_input_tokens"]), int(row["fixed_batch"])): row
+        for row in diagnostic_rows
+    }
+    diagnostic_8k_bs16 = diagnostic_by_key[(8192, 16)]
+    diagnostic_64k_bs16 = diagnostic_by_key[(65536, 16)]
+    assert round(
+        (
+            float(diagnostic_64k_bs16["steady_gen_tok_s_mean"])
+            / float(diagnostic_8k_bs16["steady_gen_tok_s_mean"])
+            - 1
+        )
+        * 100,
+        1,
+    ) == -30.4
+    assert round(
+        (
+            float(diagnostic_64k_bs16["implied_tpot_ms"])
+            / float(diagnostic_8k_bs16["implied_tpot_ms"])
+            - 1
+        )
+        * 100,
+        1,
+    ) == 43.6
     for row in diagnostic_rows:
         assert int(row["output_tokens"]) == 8192
         assert int(row["measurement_repetitions"]) == 1
@@ -739,6 +790,14 @@ def check_fixed_batch_decode() -> None:
     assert aggregate["mi300x_vs_h200_worksheet_pct"] == round(
         aggregate["mean_of_fresh_runs_tok_s"] / h200_bs16["output_tok_s"] * 100, 1
     ) == 70.0
+    assert round(
+        (
+            aggregate["implied_tpot_ms_at_batch"] / h200_bs16["mean_tpot_ms"]
+            - 1
+        )
+        * 100,
+        1,
+    ) == 42.9
     assert aggregate["optimized_path_improvement_pct"] == round(
         (
             aggregate["mean_of_fresh_runs_tok_s"]
@@ -748,6 +807,15 @@ def check_fixed_batch_decode() -> None:
         * 100,
         1,
     ) == 25.7
+    assert round(
+        (
+            aggregate["implied_tpot_ms_at_batch"]
+            / baseline["implied_tpot_ms_at_batch"]
+            - 1
+        )
+        * 100,
+        1,
+    ) == -20.4
 
     en_row = (
         "| 64K input / 1K output | 16 | 931.58 / 935.92 | **933.75** | "
@@ -767,12 +835,26 @@ def check_fixed_batch_decode() -> None:
         assert "554,880" in text and "1,442,464" in text
         for value in ("933.75", "931.58", "935.92", "0.47%", "25.7%", "70.0%"):
             assert value in text
-        assert "718.12" not in text and "53.8%" not in text
+        assert "42.9%" in text
+        for value in (
+            "1,031.26 → 718.12",
+            "15.52 → 22.28",
+            "743.12 → 933.75",
+            "21.53 → 17.14",
+            "30.4%",
+            "43.6%",
+            "20.4%",
+        ):
+            assert value in text
+        assert "53.8%" not in text
+        assert text.count("718.12") == 1
         assert "diagnostic_output8k" in text
         assert "20260713-final" in text
         assert "back-to-back" in text
     assert "no output-length column" in readme_texts[0]
     assert "没有 output-length 列" in readme_texts[1]
+    assert "Decode diagnostic: 8K → 64K context" in readme_texts[0]
+    assert "Decode诊断：相同固定BS16/output8K方法下" in readme_texts[1]
 
     launch = (ROOT / "scripts/amd-latest/launch_single_node_decode.sh").read_text(
         encoding="utf-8"
