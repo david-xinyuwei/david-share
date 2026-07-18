@@ -67,7 +67,13 @@ def check_readmes() -> None:
             "not a strict apples-to-apples" if path.name == "README.md" else "不是严格 apples-to-apples",
             "Relative Status at a Glance" if path.name == "README.md" else "一眼看清相对参考状态",
             "Only directionally lower metric: 6.6% lower" if path.name == "README.md" else "唯一方向性更低的指标：低 6.6%",
-            "Exact long ISL: 64K input / 1K output, BS16, N=2" if path.name == "README.md" else "Exact 长 ISL：64K input / 1K output、BS16、N=2",
+            "fixed-acceptance performance benchmark" if path.name == "README.md" else "固定 acceptance 性能测试",
+            "server-accounted 1K output" if path.name == "README.md" else "server-accounted 1K output",
+            "worksheet-local directional arithmetic ratio" if path.name == "README.md" else "工作簿局部方向性算术比值",
+            "does not validate output quality" if path.name == "README.md" else "不验证输出质量",
+            "retokenized generated-text tokens",
+            "analyze_exact64_evidence.py",
+            "does not independently establish the provenance or completeness" if path.name == "README.md" else "不能独立证明私有完整日志的来源真实性或完整性",
             "no tested Prefill-throughput row exceeds" if path.name == "README.md" else "所有已测 Prefill 吞吐均未超过",
             "not a strict hardware ranking" if path.name == "README.md" else "不构成严格硬件排名",
             "client c16, observed batch 15 / 16" if path.name == "README.md" else "client c16、实测batch 15 / 16",
@@ -79,6 +85,8 @@ def check_readmes() -> None:
             "validate_service_logs.py",
             "validate_exact_256k.py",
             "write_distribution.py",
+            "CodeQL passed" if path.name == "README.md" else "CodeQL已通过",
+            "without a matching `.gitmodules` URL" if path.name == "README.md" else "缺少对应的`.gitmodules` URL",
         ):
             assert required in text, f"Missing README requirement in {path.name}: {required}"
     assert shapes[0] == shapes[1], f"Bilingual README structure mismatch: {shapes}"
@@ -130,24 +138,38 @@ def check_result_tables() -> None:
         if row["topology"] == "1P1D" and row["surface"] == "prefill"
     }
     assert set(prefill) == {8192, 65536, 262144}
-    assert round((prefill[65536] / prefill[8192] - 1) * 100, 1) == -6.5
-    assert round((prefill[262144] / prefill[65536] - 1) * 100, 1) == -32.2
+    same_matrix_prefill = {
+        int(row["input_tokens"]): float(row["throughput_tok_s"])
+        for row in scalability_rows
+        if row["topology"] == "1P1D"
+        and row["surface"] == "prefill"
+        and int(row["concurrency"]) == 4
+    }
+    assert set(same_matrix_prefill) == {8192, 65536, 262144}
+    assert round(
+        (same_matrix_prefill[65536] / same_matrix_prefill[8192] - 1) * 100, 1
+    ) == 3.3
+    assert round(
+        (same_matrix_prefill[262144] / same_matrix_prefill[65536] - 1) * 100, 1
+    ) == -34.0
     for text in readme_texts:
-        assert "20,305.98 → 18,983.91" in text
-        assert "18,983.91 → 12,864.96" in text
-        assert "63.6% → 69.3% → 73.9%" in text
-        assert "6.5%" in text and "32.2%" in text
-    assert "Prefill remains relatively stable through 64K" in readme_texts[0]
-    assert "Prefill 到64K仍相对稳定" in readme_texts[1]
+        assert "18,161.81 → 18,763.17" in text
+        assert "18,763.17 → 12,389.64" in text
+        assert "3.3%" in text and "34.0%" in text
+        assert "measurement N=1" in text
+        assert "20,305.98 → 18,983.91" not in text
+        assert "18,983.91 → 12,864.96" not in text
+    assert "Prefill remains flat through 64K in the controlled matrix" in readme_texts[0]
+    assert "受控矩阵中Prefill到64K基本持平" in readme_texts[1]
     for rendered_phrase in (
-        "**Prefill 到64K仍相对稳定。** 输入长度",
-        "**到256K时，超长输入成本已明显增大。** MI300X",
-        "**随着ISL增加，MI300X的方向性相对位置逐步改善。** 这是",
+        "**受控矩阵中Prefill到64K基本持平。** 这是",
+        "**接近256K时，超长输入成本明显增大。** 该矩阵点",
+        "**Exact 262,144-token Prefill已确认**，但该独立record",
         "**Decode对长context比Prefill更敏感。** 该output8K",
     ):
         assert rendered_phrase in readme_texts[1]
-    assert "credible long-ISL capability with improving 64K efficiency" in readme_texts[0]
-    assert "MI300X具备可信的长ISL能力，且64K效率正在显著改善" in readme_texts[1]
+    assert "credible long-ISL performance measurement" in readme_texts[0]
+    assert "MI300X具备可信的长ISL性能测量" in readme_texts[1]
 
     for row in final_rows:
         mi300x = float(row["mi300x_throughput_tok_s"])
@@ -536,6 +558,7 @@ def check_provenance() -> None:
         and row["input_tokens"] == "262144"
     )
     assert exact["status"] == "VALIDATED"
+    assert exact["measurement_repetitions"] == 1
     assert exact["tokenize_prompt"] is True
     assert exact["successful_requests"] == exact["retokenized_outputs"] == 16
     assert exact["total_input_tokens"] == 16 * 262144
@@ -604,6 +627,11 @@ def check_fixed_batch_decode() -> None:
 
     assert audit["run_id"] == "fixedbatch_decode_exact_and_diagnostic_20260718"
     assert audit["measurement_repetitions"] == 2
+    assert audit["method"]["method_identity"] == "fixed_acceptance_performance_benchmark"
+    assert "does not validate natural MTP acceptance or output quality" in audit["method"]["acceptance"]
+    assert "tokenizer.encode(generated_text)" in audit["method"]["output_accounting"]
+    assert audit["source_artifacts"]["public_sanitized_evidence"] == "data/evidence/exact64-fixed-acceptance"
+    assert audit["source_artifacts"]["public_analyzer"] == "scripts/analyze_exact64_evidence.py"
     assert audit["runtime"]["runtime_image"] == image["immutable_pull_ref"]
     assert audit["runtime"]["container_image_id"] == image["image_id"]
     assert audit["runtime"]["sglang_source_head"] == image["sglang_commit"]
@@ -688,6 +716,9 @@ def check_fixed_batch_decode() -> None:
         assert int(row["successful_requests"]) == point["successful_requests"] == 16
         assert int(row["total_input_tokens"]) == point["total_input_tokens"] == 1048576
         assert int(row["total_generated_tokens"]) == point["total_generated_tokens"] == 16384
+        assert int(row["total_generated_tokens_retokenized"]) == point[
+            "total_generated_tokens_retokenized"
+        ] == 4112
         assert float(row["steady_gen_tok_s_mean"]) == point["steady_state"]["mean_gen_tok_s"]
         assert float(row["implied_tpot_ms"]) == point["steady_state"]["implied_tpot_ms_at_batch"]
         assert int(row["raw_full_batch_samples"]) == point["steady_state"]["raw_full_batch_samples"] == 8
@@ -718,7 +749,7 @@ def check_fixed_batch_decode() -> None:
         assert row["source_run"] == "exact1k_ck_20260718"
         assert row["optimized_path"] == "aiter_ck_blockscale_bpreshuffle_verified"
         assert row["comparison_status"] == (
-            "matched_context_batch_directional_h200_output_length_unverified"
+            "worksheet_local_directional_ratio_h200_output_length_unverified"
         )
         assert row["runtime_image"] == image["immutable_pull_ref"]
         assert math.isclose(
@@ -825,12 +856,12 @@ def check_fixed_batch_decode() -> None:
     ) == -20.4
 
     en_row = (
-        "| 64K input / 1K output | 16 | 931.58 / 935.92 | **933.75** | "
-        "**0.47%** | **17.14 ms** | 1,333.89 tok/s, 11.99 ms | **70.0%** |"
+        "| 64K input / 1K server-accounted output | 16 | 931.58 / 935.92 | **933.75** | "
+        "**0.47%** | **17.14 ms** | 1,333.89 tok/s, 11.99 ms | **70.0% worksheet-local** |"
     )
     cn_row = (
-        "| 64K input / 1K output | 16 | 931.58 / 935.92 | **933.75** | "
-        "**0.47%** | **17.14 ms** | 1,333.89 tok/s，11.99 ms | **70.0%** |"
+        "| 64K input / 1K server-accounted output | 16 | 931.58 / 935.92 | **933.75** | "
+        "**0.47%** | **17.14 ms** | 1,333.89 tok/s，11.99 ms | **70.0% 工作簿局部比值** |"
     )
     assert en_row in readme_texts[0]
     assert cn_row in readme_texts[1]
@@ -858,6 +889,9 @@ def check_fixed_batch_decode() -> None:
         assert "diagnostic_output8k" in text
         assert "20260713-final" in text
         assert "back-to-back" in text
+        assert "4,112" in text
+        assert "fixed-acceptance" in text or "固定acceptance" in text
+        assert "data/evidence/exact64-fixed-acceptance/" in text
     assert "no output-length column" in readme_texts[0]
     assert "没有 output-length 列" in readme_texts[1]
     assert "Decode diagnostic: 8K → 64K context" in readme_texts[0]
@@ -882,17 +916,46 @@ def check_fixed_batch_decode() -> None:
         "--max-concurrency 16",
         "Total input tokens:[[:space:]]+1048576",
         "Total generated tokens:[[:space:]]+16384",
+        "EXPECTED_RETOKENIZED_TOKENS",
+        "Total generated tokens \\(retokenized\\)",
         "module_gemm_a8w8_blockscale_bpreshuffle",
     ):
         assert value in benchmark
+
+    analyzer = subprocess.run(
+        ["python3", str(ROOT / "scripts/analyze_exact64_evidence.py")],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert analyzer.returncode == 0, analyzer.stderr
+    analyzer_result = json.loads(analyzer.stdout)
+    assert analyzer_result["status"] == "PASS"
+    assert analyzer_result["method_identity"] == "fixed_acceptance_performance_benchmark"
+    assert analyzer_result["evidence_scope"] == {
+        "independently_recomputes_disclosed_sanitized_windows": True,
+        "checks_consistency_with_published_audit": True,
+        "proves_private_full_log_provenance_or_completeness": False,
+    }
+    assert analyzer_result["output_accounting"] == {
+        "server_accounted_output_tokens_per_repetition": 16384,
+        "retokenized_generated_text_tokens_per_repetition": 4112,
+        "definition": "retokenized is tokenizer.encode(generated_text) length",
+    }
+    assert analyzer_result["aggregate"]["optimized_mean_tok_s"] == 933.75
+    assert analyzer_result["aggregate"]["baseline_mean_tok_s"] == 743.12
+    assert analyzer_result["aggregate"]["optimized_uplift_pct"] == 25.7
     for value in (
         "Exact 64K/1K Fixed-Batch Decode",
         "REP=1",
         "REP=2",
+        "fixed-acceptance performance benchmark",
         "1,048,576 total input tokens",
-        "16,384 generated tokens",
+        "16,384 server-accounted generated tokens",
+        "4,112 retokenized generated-text tokens",
         "module_gemm_a8w8_blockscale_bpreshuffle",
         "50% of the median",
+        "analyze_exact64_evidence.py",
     ):
         assert value in bundle_readme
 

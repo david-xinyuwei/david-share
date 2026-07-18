@@ -1,0 +1,3 @@
+optimized_kernel_module=module_gemm_a8w8_blockscale_bpreshuffle
+loaded_in_repetition_1=true
+loaded_in_repetition_2=true

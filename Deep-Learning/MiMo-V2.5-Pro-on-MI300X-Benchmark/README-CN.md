@@ -15,23 +15,23 @@
 
 [English](README.md) | 中文 | [验证证据](data/validation/)
 
-> **对比状态：**Input 侧，MI300X 在 64K、concurrency 4 达到 **18,983.91 input tok/s**，客户 H200 饱和吞吐参考为 **27,400 input tok/s**；H200 工作簿没有记录对应的 input concurrency。Output 侧，基于 AMD 7/13 最新环境的最终 AITER/CK path 在 exact 64K input / 1K output、固定 batch 16 下达到 **933.75 scheduler gen tok/s**，来自两次 fresh-service 测试（**931.58 / 935.92 tok/s**，重复差 **0.47%**），折算 TPOT 为 **17.14 ms**。该结果为客户工作簿 64K BS16 行的 **70.0%**，并比同镜像 exact no-CK baseline 高 **25.7%**。这个比率仅具方向性：H200 工作簿没有 output-length 列，Column J 口径存在歧义，且 topology、routing 和实测 MTP acceptance 均不同。更高 batch（BS32–96）仍需 EP/多节点 Decode 部署，不计算硬件比率。
+> **对比状态：**Input 侧，MI300X 在 64K、concurrency 4 达到 **18,983.91 input tok/s**，客户 H200 饱和吞吐参考为 **27,400 input tok/s**；H200 工作簿没有记录对应的 input concurrency。Output 侧，基于 AMD 7/13 最新环境的最终 AITER/CK path 在 exact 64K、固定 BS16 的**固定 acceptance 性能测试**中达到 **933.75 scheduler gen tok/s**，来自两次 fresh-service 测试（**931.58 / 935.92 tok/s**，重复差 **0.47%**），折算 TPOT 为 **17.14 ms**。该结果相对客户工作簿 64K BS16 行的**工作簿局部方向性算术比值为70.0%**，并比同镜像 exact no-CK baseline 高 **25.7%**。它不是自然 MTP acceptance 或输出质量结果。H200 工作簿没有逐行 output length，Column J 口径存在歧义，且 topology、routing、acceptance method 与 metric scope 均不同。更高 batch（BS32–96）仍需 EP/多节点 Decode 部署，不计算硬件比率。
 
 ### 一眼看清相对参考状态
 
 | 场景 | ISL 范围 | 微软实测 MI300X | 客户 H200 工作簿参考 | 直接结论 |
 |---|---|---:|---:|---|
-| 8K Prefill 吞吐 | 8K 基线 | 20,305.98 tok/s | 31,950 tok/s | 低于参考；达到 63.6%（方向性） |
-| 64K Prefill 吞吐 | **长 ISL** | 18,983.91 tok/s | 27,400 tok/s | 低于参考；达到 69.3%（方向性） |
-| 256K Prefill 吞吐 | **超长 ISL** | 12,864.96 tok/s | 17,400 tok/s | 低于参考；达到 73.9%（方向性） |
+| 8K Prefill 吞吐 | 8K selected record、N=1 | 20,305.98 tok/s | 31,950 tok/s | 低于参考；达到 63.6%（方向性） |
+| 64K Prefill 吞吐 | **长 ISL、selected record、N=1** | 18,983.91 tok/s | 27,400 tok/s | 低于参考；达到 69.3%（方向性） |
+| 256K Prefill 吞吐 | **Exact 超长 ISL、selected record、N=1** | 12,864.96 tok/s | 17,400 tok/s | 低于参考；达到 73.9%（方向性） |
 | 8K Decode scheduler 吞吐 | 8K基线、client c16、实测batch 15 / 16 | 1,319.78 tok/s | 1,381 tok/s | 接近但低于参考；达到 95.6%（方向性） |
 | 8K Decode client mean TPOT | 同一c16测试 | **10.83 ms** | 11.59 ms | **唯一方向性更低的指标：低 6.6%** |
-| 64K Decode scheduler 吞吐 | **Exact 长 ISL：64K input / 1K output、BS16、N=2** | **933.75 tok/s** | 1,333.89 tok/s | 低于工作簿行；达到 70.0%（方向性） |
-| 64K Decode 折算 TPOT | **同一exact长ISL测试、N=2 fresh services** | 17.14 ms | 11.99 ms | 高约 42.9%（较差，方向性） |
+| 64K Decode scheduler 吞吐 | **Exact 长 ISL：64K input / server-accounted 1K output、BS16、N=2、固定acceptance** | **933.75 tok/s** | 1,333.89 tok/s | 低于工作簿行；工作簿局部比值70.0% |
+| 64K Decode 折算 TPOT | **同一固定acceptance长ISL测试、N=2 fresh services** | 17.14 ms | 11.99 ms | 高约 42.9%（较差，方向性） |
 
-**直接答案：**目前所有已测 Prefill 吞吐均未超过对应 H200 参考，两项 Decode 吞吐也均未超过。MI300X 唯一方向性更优的指标是 **8K Decode TPOT，低 6.6%**。64K Decode 是经过验证的 exact 长 ISL 实测，并比同镜像 MI300X baseline 提升 **25.7%**，但尚未超过 H200 工作簿对应行。
+**直接答案：**目前所有已测 Prefill 吞吐均未超过对应 H200 参考，两项 Decode 吞吐也均未超过。MI300X 唯一方向性更优的指标是 **8K Decode TPOT，低 6.6%**。64K Decode 验证了 exact input length 和固定acceptance下的scheduler capacity，并比同镜像 MI300X baseline 提升 **25.7%**，但尚未超过 H200 工作簿对应行，也不验证输出质量。
 
-“方向性”是必要限定：H200 缺少 input concurrency；Decode 行没有明确 output length，Column J deployment scope 也存在歧义；双方 topology、expert routing 与 MTP acceptance 均不同。因此本表只汇总相对参考状态，不构成严格硬件排名。
+“方向性”是必要限定：H200 缺少 input concurrency；Decode 行没有明确 output length，Column J deployment scope 也存在歧义；双方 topology、expert routing、acceptance method 与 metric scope 均不同。所有相对H200的百分比都只是工作簿局部方向性算术比值，不构成严格硬件排名。
 
 **TPOT metric scope：**8K数值是1P1D c16测试的client-reported mean TPOT；64K数值来自单节点fixed-batch scheduler吞吐，按 `1000 / (mean gen tok/s ÷ BS16)` 折算。两者回答的问题不同，不能把这两行当作受控的8K→64K TPOT曲线。真正受控的长度scaling信号是下方明确标注的output8K诊断，其中两点采用相同方法。
 
@@ -39,15 +39,15 @@
 
 | 实测变化 | 观测结果 | 明确结论 |
 |---|---:|---|
-| Prefill：8K → 64K input（长度增至8倍） | 20,305.98 → 18,983.91 tok/s（**下降6.5%**） | **Prefill 到64K仍相对稳定。** 输入长度增加8倍，吞吐只小幅下降。 |
-| Prefill：64K → 256K input（长度增至4倍） | 18,983.91 → 12,864.96 tok/s（**下降32.2%**） | **到256K时，超长输入成本已明显增大。** MI300X仍能完成 exact 256K Prefill，但容量下降。 |
-| Prefill 相对H200参考：8K → 64K → 256K | 63.6% → 69.3% → 73.9% | **随着ISL增加，MI300X的方向性相对位置逐步改善。** 这是积极的scaling表现，不是parity声明，因为H200 input concurrency和routing不同。 |
+| 同一complete matrix，Prefill c4：8K → 64K input | 18,161.81 → 18,763.17 tok/s（**提升3.3%**） | **受控矩阵中Prefill到64K基本持平。** 这是当前可守的长度scaling结论。 |
+| 同一complete matrix，Prefill c4：64K → nominal 256K input | 18,763.17 → 12,389.64 tok/s（**下降34.0%**） | **接近256K时，超长输入成本明显增大。** 该矩阵点使用nominal random-text framing。 |
+| 独立exact 256K Prefill确认 | 12,864.96 tok/s；16/16 requests；**measurement N=1** | **Exact 262,144-token Prefill已确认**，但该独立record不属于受控scaling曲线，也不能证明fresh-service重复性。 |
 | Decode诊断：相同固定BS16/output8K方法下，8K → 64K context | 1,031.26 → 718.12 gen tok/s（**下降30.4%**）；15.52 → 22.28 ms（**增加43.6%**） | **Decode对长context比Prefill更敏感。** 该output8K测试只用于内部scaling诊断，不用于H200 headline对比。 |
 | Exact 64K/1K Decode：no-CK → 基于AMD 7/13环境的最终path | 743.12 → 933.75 gen tok/s（**提升25.7%**）；21.53 → 17.14 ms（**降低20.4%**） | **最新optimized path显著恢复了64K Decode效率**，但尚未消除与H200工作簿行的方向性差距。 |
 
-No-CK与optimized A/B的原始样本分别记录在 [`data/validation/decode-fixed-batch-audit.json`](data/validation/decode-fixed-batch-audit.json) 的 `headline_exact.same_image_exact_no_ck` 和 `headline_exact.points`；validator会重新计算两组aggregate和uplift。
+No-CK与optimized A/B的原始样本分别记录在 [`data/validation/decode-fixed-batch-audit.json`](data/validation/decode-fixed-batch-audit.json) 的 `headline_exact.same_image_exact_no_ck` 和 `headline_exact.points`。脱敏后的client summary与scheduler window已公开在 [`data/evidence/exact64-fixed-acceptance/`](data/evidence/exact64-fixed-acceptance/)；运行 `python3 scripts/analyze_exact64_evidence.py` 可验证manifest并重建两组aggregate和uplift。它支持对已披露脱敏窗口的独立重算与一致性检查，但不能独立证明私有完整日志的来源真实性或完整性。
 
-**总体结论：**MI300X从8K扩展到64K时，Prefill保持得尤其好；Decode则成为更明显的长context瓶颈。到256K时，Prefill仍可运行，但吞吐下降已经显著。AMD最新path明显改善了exact 64K Decode，因此当前证据支持的是：**“MI300X具备可信的长ISL能力，且64K效率正在显著改善”，而不是“H200 parity”。**
+**总体结论：**受控Prefill矩阵从8K到64K基本持平，接近nominal 256K时明显下降；Decode则成为更明显的长context瓶颈。AMD最新path明显改善了fixed-acceptance exact-64K Decode。当前证据支持的是：**“MI300X具备可信的长ISL性能测量，且64K scheduler效率正在显著改善”，而不是“H200 parity”或“输出质量已验证”。**
 
 当前证据覆盖 exact 64K/1K Decode（BS16）、exact 256K Prefill（concurrency 4），以及255K input/1K output Decode能力点（concurrency 1）。它**不能证明**高并发128K/256K Decode性能；该结论需要额外的matched test。
 
@@ -244,23 +244,23 @@ H200 来源：客户提供工作簿，TP8/EP32/DP4、balanced `fake_topk_ids`、
 
 因此 PD-serving 的 Output tok/s 与 TPOT 只能按两个来源表分别展示，不能作为硬件排名。要做严格 NVIDIA 对比，必须对齐实际 D-node batch、topology/routing policy、64K/1K workload，并同时采集相同口径的 D-node output tok/s 和 E2E TTFT。
 
-#### Exact 固定 batch Decode — 64K Input / 1K Output，BS16（2026-07-18）
+#### Exact 固定 batch Decode — 64K Input / 1K Server-Accounted Output，BS16（2026-07-18）
 
-在 1 台 MI300X 节点（TP8，无 PD 分离）上，使用由 AMD 7/13 tuned-MoE 环境固化而来的 immutable `20260713-final` 镜像测量。将 `--mem-fraction-static` 提到 0.95 后，full-attention KV 池从 554,880 扩到 1,442,464 tokens，使 16 条 64K-context 请求能够并发 decode。最终 path 显式启用 `SGLANG_AITER_UNIFIED_VERIFY=1` 和 `SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1`；两轮 service log 均出现 `module_gemm_a8w8_blockscale_bpreshuffle` marker。
+在 1 台 MI300X 节点（TP8，无 PD 分离）上，使用由 AMD 7/13 tuned-MoE 环境固化而来的 immutable `20260713-final` 镜像测量。这是一个**固定acceptance性能测试**：`SGLANG_SIMULATE_ACC_LEN=3`和`match-expected`固定speculative acceptance length，以便进行性能比较；它不验证自然MTP acceptance或输出质量。将 `--mem-fraction-static` 提到 0.95 后，full-attention KV 池从 554,880 扩到 1,442,464 tokens，使 16 条 64K-context 请求能够并发 decode。最终 path 显式启用 `SGLANG_AITER_UNIFIED_VERIFY=1` 和 `SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1`；两轮 service log 均出现 `module_gemm_a8w8_blockscale_bpreshuffle` marker。
 
 | Exact workload | 固定 batch | Fresh-service gen tok/s | Mean gen tok/s | 重复差 | 折算 TPOT | H200 工作簿行 | 方向性比率 |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| 64K input / 1K output | 16 | 931.58 / 935.92 | **933.75** | **0.47%** | **17.14 ms** | 1,333.89 tok/s，11.99 ms | **70.0%** |
+| 64K input / 1K server-accounted output | 16 | 931.58 / 935.92 | **933.75** | **0.47%** | **17.14 ms** | 1,333.89 tok/s，11.99 ms | **70.0% 工作簿局部比值** |
 
-每轮均完成 16 条请求，并精确记录 1,048,576 total input tokens 和 16,384 total generated tokens。预声明 transition guard 仅排除首个 full-batch 样本，因为它低于后续样本中位数的 50%；每个保留窗口包含 7 个 batch-16 样本，实测 accept length 3.00、accept rate 0.67、queued requests 为 0。
+每轮均完成16条请求，并精确记录1,048,576 total input tokens、16,384 server-accounted generated tokens，以及4,112 retokenized generated-text tokens。Retokenized表示对`generated_text`重新执行`tokenizer.encode`后的长度，不是accepted draft-token count。该差异是明确的方法边界，本性能测试不验证输出质量。预声明transition guard仅排除首个full-batch样本，因为它低于后续样本中位数的50%；每个保留窗口包含7个batch-16样本，simulated accept length为3.00、scheduler-reported rate为0.67、queued requests为0。
 
 **实测 optimized-path 效果。**在同一 host、running container、immutable image、model、TP8 topology、KV-pool 设置、benchmark 命令和 fresh-service protocol 下做 back-to-back controlled A/B，no-CK 两轮 baseline 均值为 743.12 tok/s。最终 AITER verification + CK blockscale-bpreshuffle 组合均值为 **933.75 tok/s**，提升 **25.7%**；唯一变化是这两个 bundle 环境变量。这个 A/B 证明组合效果，但不能把收益单独归因于其中某一个 flag，也不能据此断言剩余差距来自某个特定软件或硬件上限。
 
-**参考边界。**客户工作簿能够证明 64K context、BS16、1,333.89 tok/s 和 11.994992 ms，但没有 output-length 列。Column J 标为单机吞吐，但数值等于 local `BS × TPS`，没有乘 DP4。因此 70.0% 只是工作簿内、context 与 batch 对齐的方向性视图，不是 apples-to-apples deployment 或 exact-workload 硬件排名。MI300X 使用真实 expert routing、实测 accept rate 0.67；H200 使用 balanced `fake_topk_ids`、TP8/EP32/DP4、报告 accept rate 0.75。
+**参考边界。**客户工作簿能够证明64K context、BS16、1,333.89 tok/s和11.994992 ms，但没有output-length列。Column J标为单机吞吐，但数值等于local `BS × TPS`，没有乘DP4。因此70.0%只能称为工作簿局部方向性算术比值，不是apples-to-apples deployment或exact-workload硬件排名。MI300X使用真实expert routing和固定simulated acceptance；H200使用balanced `fake_topk_ids`、TP8/EP32/DP4，并报告0.75，但没有公开可匹配的acceptance method。
 
 早期 output8K fixed-batch sweep 作为 `diagnostic_output8k` 保留在机器可读文件中；由于 output length、重复次数和 optimized-path verification 不同，它不用于 H200 headline。64K BS32 超出实测单节点 KV pool，因此对齐 BS32–96 还需要 EP/多节点 Decode 部署。
 
-机器可读结果：[`data/decode-fixed-batch-results.tsv`](data/decode-fixed-batch-results.tsv)；方法、runtime 身份与源哈希：[`data/validation/decode-fixed-batch-audit.json`](data/validation/decode-fixed-batch-audit.json)；复现：[`scripts/amd-latest/launch_single_node_decode.sh`](scripts/amd-latest/launch_single_node_decode.sh) + [`scripts/amd-latest/benchmark_decode_fixed_batch.sh`](scripts/amd-latest/benchmark_decode_fixed_batch.sh)。
+机器可读结果：[`data/decode-fixed-batch-results.tsv`](data/decode-fixed-batch-results.tsv)；方法、runtime身份与源哈希：[`data/validation/decode-fixed-batch-audit.json`](data/validation/decode-fixed-batch-audit.json)；脱敏raw windows：[`data/evidence/exact64-fixed-acceptance/`](data/evidence/exact64-fixed-acceptance/)；公开analyzer：[`scripts/analyze_exact64_evidence.py`](scripts/analyze_exact64_evidence.py)；复现：[`scripts/amd-latest/launch_single_node_decode.sh`](scripts/amd-latest/launch_single_node_decode.sh) + [`scripts/amd-latest/benchmark_decode_fixed_batch.sh`](scripts/amd-latest/benchmark_decode_fixed_batch.sh)。
 
 #### 3. 客户需求适配性
 
@@ -352,6 +352,8 @@ H200 来源：客户提供工作簿，TP8/EP32/DP4、balanced `fake_topk_ids`、
 - Exact-token 与 runtime 验证元数据：[`data/validation/`](data/validation/)
 - 唯一支持的复现代码：[`scripts/amd-latest/`](scripts/amd-latest/)
 - Repo 质量门：`python3 scripts/validate_repo.py`（预期最后一行：`REPO_VALIDATION=PASS`）
+
+**Repo CI边界：**审查commit的CodeQL已通过。GitHub Pages仍在Jekyll之前失败，原因是parent monorepo中既有gitlink `Deep-Learning/Foundry-Managed-Compute-Open-Models`缺少对应的`.gitmodules` URL。该checkout故障早于本MI300X Fix Pass，不影响GitHub README、fresh-clone validator或本benchmark subtree；修复责任属于parent-monorepo owner。
 
 ---
 

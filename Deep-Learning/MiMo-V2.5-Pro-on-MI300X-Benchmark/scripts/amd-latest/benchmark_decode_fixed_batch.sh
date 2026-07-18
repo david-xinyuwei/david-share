@@ -12,6 +12,7 @@ DATASET_PATH="${DATASET_PATH:-/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.j
 LOG_DIR="${LOG_DIR:-/data/mimo-fixedbatch/points}"
 SERVICE_LOG="${SERVICE_LOG:-/data/mimo-fixedbatch/service/decode_outer.log}"
 REP="${REP:-1}"
+EXPECTED_RETOKENIZED_TOKENS="${EXPECTED_RETOKENIZED_TOKENS:-4112}"
 STEM="$LOG_DIR/benchmark_65536_out1024_bs16_rep${REP}"
 mkdir -p "$LOG_DIR"
 export PYTHONPATH="${SGLANG_PYTHONPATH:-/sgl-workspace/sglang_0625/python}${PYTHONPATH:+:$PYTHONPATH}"
@@ -54,6 +55,7 @@ sed -n "$((before_line + 1)),${after_line}p" "$SERVICE_LOG" > "${STEM}.decode.lo
 grep -Eq 'Successful requests:[[:space:]]+16([[:space:]]*)$' "${STEM}.log"
 grep -Eq 'Total input tokens:[[:space:]]+1048576([[:space:]]*)$' "${STEM}.log"
 grep -Eq 'Total generated tokens:[[:space:]]+16384([[:space:]]*)$' "${STEM}.log"
+grep -Eq "Total generated tokens \(retokenized\):[[:space:]]+${EXPECTED_RETOKENIZED_TOKENS}([[:space:]]*)$" "${STEM}.log"
 grep -Eq 'accept len: 3\.00' "${STEM}.decode.log"
 ! grep -Eqi 'Traceback|ClientPayloadError|No available|TimedOut|out of memory|fatal|Exception:' \
   "${STEM}.log" "${STEM}.decode.log"

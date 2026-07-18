@@ -15,23 +15,23 @@ This customer-facing repo contains the headline comparison, the complete Microso
 
 English | [中文版](README-CN.md) | [Validation Evidence](data/validation/)
 
-> **Comparison status:** on the input side, MI300X reaches **18,983.91 input tok/s** at 64K and concurrency 4 versus the customer H200 saturation reference of **27,400 input tok/s**; the H200 workbook does not record the matching input concurrency. On the output side, the final AMD 7/13-derived AITER/CK path reaches **933.75 scheduler gen tok/s** at exact 64K input / 1K output and fixed batch 16, the mean of two fresh-service runs (**931.58 / 935.92 tok/s**, **0.47%** repeat delta), with an implied TPOT of **17.14 ms**. This is **70.0%** of the customer workbook's 64K BS16 row and **25.7% above** the same-image exact no-CK baseline. The ratio is directional: the H200 workbook has no output-length column, its Column J scope is ambiguous, and topology, routing, and observed MTP acceptance differ. Higher batch sizes (BS32–96) still require an EP/multi-node Decode deployment and carry no hardware ratio.
+> **Comparison status:** on the input side, MI300X reaches **18,983.91 input tok/s** at 64K and concurrency 4 versus the customer H200 saturation reference of **27,400 input tok/s**; the H200 workbook does not record the matching input concurrency. On the output side, the final AMD 7/13-derived AITER/CK path reaches **933.75 scheduler gen tok/s** in an exact-64K, fixed-BS16, **fixed-acceptance performance benchmark**, the mean of two fresh-service runs (**931.58 / 935.92 tok/s**, **0.47%** repeat delta), with an implied TPOT of **17.14 ms**. This is a **70.0% worksheet-local directional arithmetic ratio** against the customer workbook's 64K BS16 row and **25.7% above** the same-image exact no-CK baseline. It is not a natural-MTP-acceptance or output-quality result. The H200 workbook has no row-level output length, its Column J scope is ambiguous, and topology, routing, acceptance method, and metric scope differ. Higher batch sizes (BS32–96) still require an EP/multi-node Decode deployment and carry no hardware ratio.
 
 ### Relative Status at a Glance
 
 | Scenario | ISL scope | Microsoft-tested MI300X | Customer H200 worksheet reference | Direct status |
 |---|---|---:|---:|---|
-| 8K Prefill throughput | 8K baseline | 20,305.98 tok/s | 31,950 tok/s | Below reference; 63.6% (directional) |
-| 64K Prefill throughput | **Long ISL** | 18,983.91 tok/s | 27,400 tok/s | Below reference; 69.3% (directional) |
-| 256K Prefill throughput | **Very long ISL** | 12,864.96 tok/s | 17,400 tok/s | Below reference; 73.9% (directional) |
+| 8K Prefill throughput | 8K selected record, N=1 | 20,305.98 tok/s | 31,950 tok/s | Below reference; 63.6% (directional) |
+| 64K Prefill throughput | **Long ISL, selected record, N=1** | 18,983.91 tok/s | 27,400 tok/s | Below reference; 69.3% (directional) |
+| 256K Prefill throughput | **Exact very-long ISL, selected record, N=1** | 12,864.96 tok/s | 17,400 tok/s | Below reference; 73.9% (directional) |
 | 8K Decode scheduler throughput | 8K baseline, client c16, observed batch 15 / 16 | 1,319.78 tok/s | 1,381 tok/s | Near reference but below; 95.6% (directional) |
 | 8K Decode client mean TPOT | Same c16 run | **10.83 ms** | 11.59 ms | **Only directionally lower metric: 6.6% lower** |
-| 64K Decode scheduler throughput | **Exact long ISL: 64K input / 1K output, BS16, N=2** | **933.75 tok/s** | 1,333.89 tok/s | Below worksheet row; 70.0% (directional) |
-| 64K Decode implied TPOT | **Same exact long-ISL run, N=2 fresh services** | 17.14 ms | 11.99 ms | Higher (worse) by about 42.9% (directional) |
+| 64K Decode scheduler throughput | **Exact long ISL: 64K input / server-accounted 1K output, BS16, N=2, fixed acceptance** | **933.75 tok/s** | 1,333.89 tok/s | Below worksheet row; 70.0% worksheet-local ratio |
+| 64K Decode implied TPOT | **Same fixed-acceptance long-ISL run, N=2 fresh services** | 17.14 ms | 11.99 ms | Higher (worse) by about 42.9% (directional) |
 
-**Direct answer:** no tested Prefill-throughput row exceeds its H200 reference, and neither tested Decode-throughput row does. The only metric where MI300X is directionally better is **8K Decode TPOT, 6.6% lower**. The 64K Decode result is a verified exact long-ISL measurement and improved **25.7%** over the same-image MI300X baseline, but it does not exceed the H200 worksheet row.
+**Direct answer:** no tested Prefill-throughput row exceeds its H200 reference, and neither tested Decode-throughput row does. The only metric where MI300X is directionally better is **8K Decode TPOT, 6.6% lower**. The 64K Decode result verifies exact input length and fixed-acceptance scheduler capacity, improving **25.7%** over the same-image MI300X baseline, but it does not exceed the H200 worksheet row and does not validate output quality.
 
-“Directional” is essential: H200 input concurrency is missing; its Decode rows have no explicit output length and ambiguous Column J deployment scope; topology, expert routing, and MTP acceptance also differ. This table summarizes relative status against the supplied references, not a strict hardware ranking.
+“Directional” is essential: H200 input concurrency is missing; its Decode rows have no explicit output length and ambiguous Column J deployment scope; topology, expert routing, acceptance method, and metric scope also differ. Every percentage against H200 is a worksheet-local directional arithmetic ratio, not a strict hardware ranking.
 
 **TPOT metric scope:** the 8K value is the client-reported mean TPOT from the 1P1D c16 run. The 64K value is scheduler-implied TPOT, calculated as `1000 / (mean gen tok/s ÷ BS16)` from the single-node fixed-batch run. They answer different questions and must not be treated as a controlled 8K→64K TPOT curve. The controlled length-scaling signal is the explicitly labeled output8K diagnostic below, where both points use the same method.
 
@@ -39,15 +39,15 @@ English | [中文版](README-CN.md) | [Validation Evidence](data/validation/)
 
 | Measured transition | Observed change | Conclusion |
 |---|---:|---|
-| Prefill: 8K → 64K input (8× longer) | 20,305.98 → 18,983.91 tok/s (**-6.5%**) | **Prefill remains relatively stable through 64K.** An 8× longer input causes only a modest throughput reduction. |
-| Prefill: 64K → 256K input (4× longer) | 18,983.91 → 12,864.96 tok/s (**-32.2%**) | **The measured long-input cost becomes material by 256K.** MI300X still completes exact 256K Prefill, but at lower capacity. |
-| Prefill relative to H200 references: 8K → 64K → 256K | 63.6% → 69.3% → 73.9% | **MI300X's directional relative position improves as ISL grows.** This is encouraging scaling behavior, not a parity claim, because H200 input concurrency and routing differ. |
+| Same complete matrix, Prefill c4: 8K → 64K input | 18,161.81 → 18,763.17 tok/s (**+3.3%**) | **Prefill remains flat through 64K in the controlled matrix.** This is the supported length-scaling conclusion. |
+| Same complete matrix, Prefill c4: 64K → nominal 256K input | 18,763.17 → 12,389.64 tok/s (**-34.0%**) | **The long-input cost becomes material near 256K.** This matrix point uses nominal random-text framing. |
+| Independent exact 256K Prefill confirmation | 12,864.96 tok/s; 16/16 requests; **measurement N=1** | **Exact 262,144-token Prefill is confirmed**, but this independent record is not part of the controlled scaling curve and does not establish fresh-service repeatability. |
 | Decode diagnostic: 8K → 64K context, same fixed BS16/output8K method | 1,031.26 → 718.12 gen tok/s (**-30.4%**); 15.52 → 22.28 ms (**+43.6%**) | **Decode is more sensitive to long context than Prefill.** This output8K run is diagnostic scaling evidence only, not the H200 headline comparison. |
 | Exact 64K/1K Decode: no-CK → final AMD 7/13-derived path | 743.12 → 933.75 gen tok/s (**+25.7%**); 21.53 → 17.14 ms (**-20.4%**) | **The latest optimized path materially recovers 64K Decode efficiency**, although it does not close the directional gap to the H200 worksheet row. |
 
-The no-CK and optimized A/B source samples are recorded under `headline_exact.same_image_exact_no_ck` and `headline_exact.points` in [`data/validation/decode-fixed-batch-audit.json`](data/validation/decode-fixed-batch-audit.json); the validator recomputes both aggregates and the uplift.
+The no-CK and optimized A/B source samples are recorded under `headline_exact.same_image_exact_no_ck` and `headline_exact.points` in [`data/validation/decode-fixed-batch-audit.json`](data/validation/decode-fixed-batch-audit.json). The sanitized client summaries and scheduler windows are public in [`data/evidence/exact64-fixed-acceptance/`](data/evidence/exact64-fixed-acceptance/); `python3 scripts/analyze_exact64_evidence.py` verifies their manifest and rebuilds both aggregates and the uplift. This supports independent recomputation and consistency checking of the disclosed sanitized windows; it does not independently establish the provenance or completeness of the privately archived full logs.
 
-**Overall conclusion:** MI300X handles the move from 8K to 64K especially well on Prefill, while Decode becomes the more visible long-context bottleneck. At 256K, Prefill remains functional but the throughput reduction is substantial. AMD's latest path materially improves exact 64K Decode, so the evidence supports **“credible long-ISL capability with improving 64K efficiency,” not “H200 parity.”**
+**Overall conclusion:** the controlled Prefill matrix stays flat from 8K to 64K and drops materially near nominal 256K, while Decode becomes the more visible long-context bottleneck. AMD's latest path materially improves fixed-acceptance exact-64K Decode. The evidence supports **“credible long-ISL performance measurement with improving 64K scheduler efficiency,” not “H200 parity” or “validated output quality.”**
 
 The current evidence covers exact 64K/1K Decode at BS16, exact 256K Prefill at concurrency 4, and a 255K-input/1K-output Decode capability point at concurrency 1. It does **not** establish high-concurrency 128K/256K Decode performance; that would require an additional matched test.
 
@@ -244,23 +244,23 @@ H200 source: customer-provided worksheet, TP8/EP32/DP4, balanced `fake_topk_ids`
 
 Therefore, the PD-serving output tokens/s and TPOT values are shown as two separate source tables, not as a hardware ranking. A strict NVIDIA comparison requires the same actual D-node batch, topology/routing policy, 64K/1K workload, and the same direct D-node output tok/s plus E2E TTFT collection.
 
-#### Exact Fixed-Batch Decode — 64K Input / 1K Output, BS16 (2026-07-18)
+#### Exact Fixed-Batch Decode — 64K Input / 1K Server-Accounted Output, BS16 (2026-07-18)
 
-Measured on one MI300X node (TP8, no PD disaggregation) with the immutable `20260713-final` image derived from AMD's July 13 tuned-MoE environment. Raising `--mem-fraction-static` to 0.95 expands the full-attention KV pool from 554,880 to 1,442,464 tokens so sixteen 64K-context requests decode concurrently. The final path explicitly enables `SGLANG_AITER_UNIFIED_VERIFY=1` and `SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1`; both service logs contain the `module_gemm_a8w8_blockscale_bpreshuffle` marker.
+Measured on one MI300X node (TP8, no PD disaggregation) with the immutable `20260713-final` image derived from AMD's July 13 tuned-MoE environment. This is a **fixed-acceptance performance benchmark**: `SGLANG_SIMULATE_ACC_LEN=3` with `match-expected` fixes the speculative acceptance length for benchmark comparability. It does not validate natural MTP acceptance or output quality. Raising `--mem-fraction-static` to 0.95 expands the full-attention KV pool from 554,880 to 1,442,464 tokens so sixteen 64K-context requests decode concurrently. The final path explicitly enables `SGLANG_AITER_UNIFIED_VERIFY=1` and `SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1`; both service logs contain the `module_gemm_a8w8_blockscale_bpreshuffle` marker.
 
 | Exact workload | Fixed batch | Fresh-service gen tok/s | Mean gen tok/s | Repeat delta | Implied TPOT | H200 worksheet row | Directional ratio |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| 64K input / 1K output | 16 | 931.58 / 935.92 | **933.75** | **0.47%** | **17.14 ms** | 1,333.89 tok/s, 11.99 ms | **70.0%** |
+| 64K input / 1K server-accounted output | 16 | 931.58 / 935.92 | **933.75** | **0.47%** | **17.14 ms** | 1,333.89 tok/s, 11.99 ms | **70.0% worksheet-local** |
 
-Each repetition completed 16 requests with exactly 1,048,576 total input tokens and 16,384 generated tokens. The predeclared transition guard excluded only the first full-batch sample because it was below 50% of the subsequent-sample median; each retained window contains seven batch-16 samples, observed accept length 3.00, accept rate 0.67, and zero queued requests.
+Each repetition completed 16 requests with exactly 1,048,576 total input tokens, 16,384 server-accounted generated tokens, and 4,112 retokenized generated-text tokens. Retokenized means the length of `tokenizer.encode(generated_text)`; it is not accepted draft-token count. The difference is an explicit method boundary, and this performance run does not validate output quality. The predeclared transition guard excluded only the first full-batch sample because it was below 50% of the subsequent-sample median; each retained window contains seven batch-16 samples, simulated accept length 3.00, scheduler-reported rate 0.67, and zero queued requests.
 
 **Measured optimized-path effect.** In a back-to-back controlled A/B on the same host, running container, immutable image, model, TP8 topology, KV-pool setting, benchmark command, and fresh-service protocol, the no-CK two-run baseline averaged 743.12 tok/s. The final AITER verification plus CK blockscale-bpreshuffle bundle averages **933.75 tok/s**, a **25.7% uplift**. Only the two bundle environment flags changed. This establishes the effect of the bundle; it does not isolate either flag as the sole mechanism or prove that the remaining gap is a specific software or hardware limit.
 
-**Reference boundary.** The customer workbook proves the 64K context, BS16, 1,333.89 tok/s, and 11.994992 ms values, but it has no output-length column. Column J is labeled single-machine throughput although its arithmetic equals local `BS × TPS` without a DP4 multiplier. The 70.0% ratio is therefore a worksheet-local, matched-context/matched-batch directional view, not an apples-to-apples deployment or exact-workload hardware ranking. MI300X uses real expert routing and observed accept rate 0.67; H200 uses balanced `fake_topk_ids`, TP8/EP32/DP4, and reported accept rate 0.75.
+**Reference boundary.** The customer workbook proves the 64K context, BS16, 1,333.89 tok/s, and 11.994992 ms values, but it has no output-length column. Column J is labeled single-machine throughput although its arithmetic equals local `BS × TPS` without a DP4 multiplier. The 70.0% figure is therefore only a worksheet-local directional arithmetic ratio, not an apples-to-apples deployment or exact-workload hardware ranking. MI300X uses real expert routing and fixed simulated acceptance; H200 uses balanced `fake_topk_ids`, TP8/EP32/DP4, and a reported rate of 0.75 with no matching public acceptance method.
 
 The earlier output8K fixed-batch sweep remains in the machine-readable file as `diagnostic_output8k`; it is not used for the H200 headline because output length, repetition count, and optimized-path verification differ. Matching BS32–96 additionally requires an EP/multi-node Decode deployment because 64K BS32 exceeds the measured single-node KV pool.
 
-Machine-readable results: [`data/decode-fixed-batch-results.tsv`](data/decode-fixed-batch-results.tsv); method, runtime identity, and source hashes: [`data/validation/decode-fixed-batch-audit.json`](data/validation/decode-fixed-batch-audit.json); reproduction: [`scripts/amd-latest/launch_single_node_decode.sh`](scripts/amd-latest/launch_single_node_decode.sh) + [`scripts/amd-latest/benchmark_decode_fixed_batch.sh`](scripts/amd-latest/benchmark_decode_fixed_batch.sh).
+Machine-readable results: [`data/decode-fixed-batch-results.tsv`](data/decode-fixed-batch-results.tsv); method, runtime identity, and source hashes: [`data/validation/decode-fixed-batch-audit.json`](data/validation/decode-fixed-batch-audit.json); sanitized raw windows: [`data/evidence/exact64-fixed-acceptance/`](data/evidence/exact64-fixed-acceptance/); public analyzer: [`scripts/analyze_exact64_evidence.py`](scripts/analyze_exact64_evidence.py); reproduction: [`scripts/amd-latest/launch_single_node_decode.sh`](scripts/amd-latest/launch_single_node_decode.sh) + [`scripts/amd-latest/benchmark_decode_fixed_batch.sh`](scripts/amd-latest/benchmark_decode_fixed_batch.sh).
 
 #### 3. Customer Requirement Assessment
 
@@ -352,6 +352,8 @@ Observed behavior:
 - Exact-token and runtime validation metadata: [`data/validation/`](data/validation/)
 - Supported reproduction bundle: [`scripts/amd-latest/`](scripts/amd-latest/)
 - Repository quality gate: `python3 scripts/validate_repo.py` (expected final line: `REPO_VALIDATION=PASS`)
+
+**Repository CI boundary:** CodeQL passed for the reviewed commit. GitHub Pages remains red before Jekyll because the parent monorepo contains a pre-existing gitlink, `Deep-Learning/Foundry-Managed-Compute-Open-Models`, without a matching `.gitmodules` URL. This checkout failure predates the MI300X Fix Pass and does not affect the GitHub README, fresh-clone validator, or benchmark subtree; remediation is a parent-monorepo owner action.
 
 ---
 

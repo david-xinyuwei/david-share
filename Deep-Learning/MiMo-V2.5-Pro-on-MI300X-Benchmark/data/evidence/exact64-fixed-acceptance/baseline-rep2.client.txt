@@ -1,0 +1,15 @@
+variant=baseline_no_ck
+repetition=2
+successful_requests=16
+benchmark_duration_s=85.33
+input_tokens_per_request=65536
+requested_output_tokens_per_request=1024
+total_input_tokens=1048576
+total_generated_tokens=16384
+total_generated_tokens_retokenized=4112
+output_token_throughput_tok_s=192.01
+mean_ttft_ms=33610.02
+mean_tpot_ms=50.54
+median_itl_ms=21.41
+accept_length=3.00
+acceptance_mode=simulated_match_expected

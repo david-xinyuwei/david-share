@@ -18,7 +18,7 @@ For these long-context runs, SGLang's `Output token throughput` is an **end-to-e
 
 ## Exact 64K/1K Fixed-Batch Decode
 
-The 64K headline uses the Decode scheduler's steady-state `gen throughput`, not the client E2E output rate. Run two independent repetitions, restarting the service before each one:
+The 64K headline is a **fixed-acceptance performance benchmark** using `SGLANG_SIMULATE_ACC_LEN=3` with `match-expected`. It uses the Decode scheduler's steady-state `gen throughput`, not the client E2E output rate. It does not validate natural MTP acceptance or output quality. Run two independent repetitions, restarting the service before each one:
 
 ```bash
 export LOG_DIR=/data/mimo-fixedbatch/service
@@ -30,9 +30,11 @@ export REP=1  # use REP=2 after stopping and starting a fresh service
 bash benchmark_decode_fixed_batch.sh
 ```
 
-The benchmark script fails closed unless all 16 requests succeed with exactly 1,048,576 total input tokens and 16,384 generated tokens. It also captures the scheduler-log window and rejects missing accept-length evidence, fatal markers, or a service log without `module_gemm_a8w8_blockscale_bpreshuffle`/`BpreShuffle`.
+The benchmark script fails closed unless all 16 requests succeed with exactly 1,048,576 total input tokens, 16,384 server-accounted generated tokens, and 4,112 retokenized generated-text tokens. Retokenized means `tokenizer.encode(generated_text)` length; it is not accepted draft-token count. The script also captures the scheduler-log window and rejects missing accept-length evidence, fatal markers, or a service log without `module_gemm_a8w8_blockscale_bpreshuffle`/`BpreShuffle`.
 
 For each repetition, apply the documented transition guard: exclude exactly the first full-batch sample if and only if its throughput is below 50% of the median of all subsequent full-batch samples. Report the arithmetic mean of the two fresh-service steady-state means and the run-to-run delta.
+
+The published sanitized windows are under `data/evidence/exact64-fixed-acceptance/`. Run `python3 scripts/analyze_exact64_evidence.py` to verify their SHA-256 manifest and rebuild the 933.75 tok/s optimized mean, 743.12 tok/s baseline, and 25.7% bundle uplift.
 
 ## Required Environment
 
