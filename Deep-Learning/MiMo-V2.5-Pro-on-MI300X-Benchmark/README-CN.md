@@ -39,10 +39,10 @@
 
 | 实测变化 | 观测结果 | 明确结论 |
 |---|---:|---|
-| Prefill：8K → 64K input（长度增至8倍） | 20,305.98 → 18,983.91 tok/s（**下降6.5%**） | **Prefill 到64K仍相对稳定。**输入长度增加8倍，吞吐只小幅下降。 |
-| Prefill：64K → 256K input（长度增至4倍） | 18,983.91 → 12,864.96 tok/s（**下降32.2%**） | **到256K时，超长输入成本已明显增大。**MI300X仍能完成 exact 256K Prefill，但容量下降。 |
-| Prefill 相对H200参考：8K → 64K → 256K | 63.6% → 69.3% → 73.9% | **随着ISL增加，MI300X的方向性相对位置逐步改善。**这是积极的scaling表现，不是parity声明，因为H200 input concurrency和routing不同。 |
-| Decode诊断：相同固定BS16/output8K方法下，8K → 64K context | 1,031.26 → 718.12 gen tok/s（**下降30.4%**）；15.52 → 22.28 ms（**增加43.6%**） | **Decode对长context比Prefill更敏感。**该output8K测试只用于内部scaling诊断，不用于H200 headline对比。 |
+| Prefill：8K → 64K input（长度增至8倍） | 20,305.98 → 18,983.91 tok/s（**下降6.5%**） | **Prefill 到64K仍相对稳定。** 输入长度增加8倍，吞吐只小幅下降。 |
+| Prefill：64K → 256K input（长度增至4倍） | 18,983.91 → 12,864.96 tok/s（**下降32.2%**） | **到256K时，超长输入成本已明显增大。** MI300X仍能完成 exact 256K Prefill，但容量下降。 |
+| Prefill 相对H200参考：8K → 64K → 256K | 63.6% → 69.3% → 73.9% | **随着ISL增加，MI300X的方向性相对位置逐步改善。** 这是积极的scaling表现，不是parity声明，因为H200 input concurrency和routing不同。 |
+| Decode诊断：相同固定BS16/output8K方法下，8K → 64K context | 1,031.26 → 718.12 gen tok/s（**下降30.4%**）；15.52 → 22.28 ms（**增加43.6%**） | **Decode对长context比Prefill更敏感。** 该output8K测试只用于内部scaling诊断，不用于H200 headline对比。 |
 | Exact 64K/1K Decode：no-CK → 基于AMD 7/13环境的最终path | 743.12 → 933.75 gen tok/s（**提升25.7%**）；21.53 → 17.14 ms（**降低20.4%**） | **最新optimized path显著恢复了64K Decode效率**，但尚未消除与H200工作簿行的方向性差距。 |
 
 No-CK与optimized A/B的原始样本分别记录在 [`data/validation/decode-fixed-batch-audit.json`](data/validation/decode-fixed-batch-audit.json) 的 `headline_exact.same_image_exact_no_ck` 和 `headline_exact.points`；validator会重新计算两组aggregate和uplift。

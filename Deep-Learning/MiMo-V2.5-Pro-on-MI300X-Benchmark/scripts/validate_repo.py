@@ -139,6 +139,13 @@ def check_result_tables() -> None:
         assert "6.5%" in text and "32.2%" in text
     assert "Prefill remains relatively stable through 64K" in readme_texts[0]
     assert "Prefill 到64K仍相对稳定" in readme_texts[1]
+    for rendered_phrase in (
+        "**Prefill 到64K仍相对稳定。** 输入长度",
+        "**到256K时，超长输入成本已明显增大。** MI300X",
+        "**随着ISL增加，MI300X的方向性相对位置逐步改善。** 这是",
+        "**Decode对长context比Prefill更敏感。** 该output8K",
+    ):
+        assert rendered_phrase in readme_texts[1]
     assert "credible long-ISL capability with improving 64K efficiency" in readme_texts[0]
     assert "MI300X具备可信的长ISL能力，且64K效率正在显著改善" in readme_texts[1]
 
