@@ -193,6 +193,98 @@ def request_lifecycle() -> None:
     save(image, "request_batching_lifecycle.png")
 
 
+def xiaomi_protocol_batches() -> None:
+    image, draw = canvas()
+    centered(draw, (WIDTH // 2, 50), "Xiaomi Community Protocol: Two Independent Batch Planes", INK, F_TITLE)
+    centered(
+        draw,
+        (WIDTH // 2, 100),
+        "Client load feeds Prefill; only completed KV enters the Decode running-request population.",
+        MUTED,
+        F_SUBTITLE,
+    )
+
+    rounded(draw, (70, 160, 520, 525), BLUE_BG, BLUE)
+    centered(draw, (295, 205), "1. Client workload", BLUE, F_SECTION)
+    lines(
+        draw,
+        112,
+        260,
+        [
+            "Prefill load: C_client = 32",
+            "Each request has its own ISL",
+            "Decode workload: 16K / 1K",
+            "Client load != server batch",
+        ],
+        gap=56,
+    )
+
+    rounded(draw, (675, 160, 1125, 525), GREEN_BG, GREEN)
+    centered(draw, (900, 205), "2. Prefill scheduler", GREEN, F_SECTION)
+    lines(
+        draw,
+        717,
+        260,
+        [
+            "Chunk cap: 32K tokens",
+            "Request batch: #new-seq(t)",
+            "Token batch: #new-token(t)",
+            "Both are runtime-dynamic",
+        ],
+        gap=56,
+    )
+
+    rounded(draw, (1280, 160, 1730, 525), ORANGE_BG, ORANGE)
+    centered(draw, (1505, 205), "3. Decode scheduler", ORANGE, F_SECTION)
+    lines(
+        draw,
+        1322,
+        260,
+        [
+            "Per-DP targets: BS64 / BS96",
+            "Evidence: #running-req(t)",
+            "KV capacity may limit occupancy",
+            "Decode target != Prefill BS",
+        ],
+        gap=56,
+    )
+
+    arrow(draw, (535, 342), (660, 342), BLUE, 6)
+    arrow(draw, (1140, 342), (1265, 342), PURPLE, 6)
+    centered(draw, (598, 312), "requests", MUTED, F_SMALL)
+    centered(draw, (1202, 312), "per-request KV", MUTED, F_SMALL)
+
+    rounded(draw, (70, 580, 1730, 790), GRAY_BG, BORDER, width=2)
+    centered(draw, (WIDTH // 2, 620), "What is fixed, and what is measured", INK, F_SECTION)
+    columns = [105, 660, 1215]
+    labels = [
+        ("Client-side fixed input", BLUE, ["max-concurrency=32", "ISL / OSL and request count"]),
+        ("Prefill runtime evidence", GREEN, ["#new-seq distribution", "#new-token distribution"]),
+        ("Decode target + evidence", ORANGE, ["per-DP target: 64 or 96", "actual #running-req distribution"]),
+    ]
+    for x, (title, color, body) in zip(columns, labels):
+        draw.text((x, 665), title, fill=color, font=F_CARD)
+        lines(draw, x, 715, body, face=F_SMALL, gap=34)
+
+    rounded(draw, (70, 835, 1730, 1025), RED_BG, RED, width=2)
+    centered(draw, (WIDTH // 2, 872), "No one-to-one Prefill-BS -> Decode-BS mapping", RED, F_SECTION)
+    centered(
+        draw,
+        (WIDTH // 2, 928),
+        "C_client=32 does not mean Prefill BS32.  A 32K chunk cap does not mean request BS32.",
+        INK,
+        F_BODY_BOLD,
+    )
+    centered(
+        draw,
+        (WIDTH // 2, 978),
+        "The Prefill side must supply enough KV; the Decode side must prove actual occupancy at per-DP BS64 or BS96.",
+        MUTED,
+        F_BODY,
+    )
+    save(image, "xiaomi_protocol_batch_planes.png")
+
+
 def kv_capacity() -> None:
     image, draw = canvas()
     centered(draw, (WIDTH // 2, 50), "Long-ISL Capacity: Sequence Length x Active Requests", INK, F_TITLE)
@@ -269,6 +361,7 @@ def kv_capacity() -> None:
 
 def main() -> None:
     request_lifecycle()
+    xiaomi_protocol_batches()
     kv_capacity()
 
 

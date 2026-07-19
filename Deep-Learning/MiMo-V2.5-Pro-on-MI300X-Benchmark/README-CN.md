@@ -71,6 +71,28 @@ No-CK与optimized A/B的原始样本分别记录在 [`data/validation/decode-fix
 
 *图 2：Prefill request/token batch与Decode running-request batch彼此独立。底部还明确区分了1P1D PD c16记录与非PD exact64 BS16容量实验。*
 
+### 如何解读小米社区版协议：Prefill动态组批，Decode按目标工况验收
+
+![小米社区版协议中的两套独立Batch口径](images/xiaomi_protocol_batch_planes.png)
+
+*图 2a：Prefill侧固定的是client负载与token chunk上限，实际request/token batch由scheduler动态形成；Decode侧固定的是per-DP BS64和BS96两个目标工况，是否真正达到目标必须用`#running-req`证明。两侧没有一一映射。*
+
+| 层次 | 协议固定项 | 运行时证据 | 正确解释 |
+|---|---|---|---|
+| Client | Prefill压测`max-concurrency=32`；每个请求有自己的ISL/OSL | 实际in-flight请求数 | c32是施加的负载，不是Prefill BS |
+| Prefill | `chunked-prefill-size=32768` | `#new-seq`和`#new-token`分布 | 32K是单个请求chunk上限，不是32条请求 |
+| KV交接 | 每个完成Prefill的请求产生可交接KV | 完成Prefill并进入Decode的请求速率 | P侧必须持续供给，但不需要与D侧BS同值 |
+| Decode | 16K/1K workload下，per-DP目标BS64或BS96 | `#running-req`的modal/peak分布、queue和KV usage | 64/96是静态目标工况；actual Decode batch仍动态变化 |
+
+面对客户时，可以按四步说明：
+
+1. `max-concurrency=32`只表示Prefill压测器最多同时挂起32条请求，不表示P节点一次处理32条请求。
+2. `chunked-prefill-size=32768`只表示单个请求一次最多贡献32K input tokens，不表示Prefill request BS为32。
+3. P节点每个scheduler step实际选择多少条请求、处理多少new tokens，要看`#new-seq`和`#new-token`；请求完成Prefill后，其KV才进入Decode侧。
+4. D节点另行验收per-DP BS64和BS96。它们是预先定义的目标工况；是否真正达到并保持目标，要看`#running-req`，不能由client concurrency、CUDA Graph BS或`--max-running-requests`代替证明。
+
+因此，不存在`Prefill BS32 -> Decode BS64/96`这种固定映射。Prefill与Decode应分别测量：P侧证明不同ISL下有足够输入吞吐，D侧证明16K/1K下actual batch达到对应per-DP目标。也不需要把每个Prefill点与每个Decode点做笛卡尔积。该图解释的是客户协议口径，不代表当前MI300X路径已经达到per-DP BS96。
+
 ### 一个请求，三个不同的 Batch 概念
 
 | 层次 | 符号 / 指标 | 准确定义 | 它不是什么 |
@@ -602,7 +624,7 @@ docker exec mimo-mi300x bash -lc '
 docker exec -it mimo-mi300x bash
 cd /opt/mimo-mi300x/scripts/amd-latest
 export MODEL=/data/models/MiMo-V2.5-Pro
-export DATASET_PATH=/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json
+export DATASET_PATH=/data/datasets/ShareGPT_V3_unfiltered_cleaned_split.json
 read -rp 'Prefill node IB IP: ' PREFILL_IB_IP
 read -rp 'Decode node IB IP: ' DECODE_IB_IP
 export PREFILL_IB_IP DECODE_IB_IP
@@ -635,7 +657,7 @@ Immutable image 内置的是原 headline bundle；长上下文 Decode 脚本是�
 ```bash
 cd /data/MiMo-V2.5-Pro-on-MI300X-Benchmark/scripts/amd-latest
 export MODEL=/data/models/MiMo-V2.5-Pro
-export DATASET_PATH=/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json
+export DATASET_PATH=/data/datasets/ShareGPT_V3_unfiltered_cleaned_split.json
 export PYTHONPATH="/sgl-workspace/sglang_0625/python${PYTHONPATH:+:$PYTHONPATH}"
 bash benchmark_decode_long_context.sh
 ```

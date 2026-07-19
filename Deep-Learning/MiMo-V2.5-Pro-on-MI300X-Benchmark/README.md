@@ -71,6 +71,28 @@ The current evidence covers exact 64K/1K Decode at BS16, selected 128K/192K Pref
 
 *Figure 2. Prefill request/token batches and the Decode running-request batch are independent. The bottom row also separates the 1P1D PD c16 record from the non-PD exact64 BS16 capacity experiment.*
 
+### Reading the Xiaomi Community Protocol: Dynamic Prefill Batching, Targeted Decode Occupancy
+
+![Two independent batch planes in the Xiaomi community protocol](images/xiaomi_protocol_batch_planes.png)
+
+*Figure 2a. The Prefill side fixes client pressure and the token-chunk cap while the scheduler forms the actual request/token batches dynamically. The Decode side defines per-DP BS64 and BS96 as target operating points; `#running-req` must prove whether the targets were reached. There is no one-to-one mapping between the two sides.*
+
+| Layer | Protocol-fixed input | Runtime evidence | Correct interpretation |
+|---|---|---|---|
+| Client | Prefill `max-concurrency=32`; each request has its own ISL/OSL | Actual in-flight requests | c32 is applied pressure, not Prefill BS |
+| Prefill | `chunked-prefill-size=32768` | Distributions of `#new-seq` and `#new-token` | 32K is the per-request chunk cap, not 32 requests |
+| KV handoff | Each request that completes Prefill produces transferable KV | Rate at which completed requests enter Decode | The P side must sustain supply, but its BS need not equal the D-side BS |
+| Decode | Per-DP target BS64 or BS96 for the 16K/1K workload | Modal/peak `#running-req`, queue, and KV usage | 64/96 are static target operating points; actual Decode batch remains dynamic |
+
+The protocol can be explained in four steps:
+
+1. `max-concurrency=32` means that the Prefill benchmark client may keep at most 32 requests in flight. It does not mean that the P node processes 32 requests in one batch.
+2. `chunked-prefill-size=32768` means that one request may contribute at most 32K input tokens in one chunk. It does not define a Prefill request BS of 32.
+3. The P-node scheduler decides how many requests and new tokens enter each step; `#new-seq` and `#new-token` are the evidence. A request's KV becomes available to Decode only after its Prefill work completes.
+4. The D node is evaluated separately at per-DP BS64 and BS96. These are predefined target operating points; actual occupancy must be demonstrated with `#running-req`, not inferred from client concurrency, CUDA Graph BS, or `--max-running-requests`.
+
+Consequently, there is no fixed `Prefill BS32 -> Decode BS64/96` mapping. The two surfaces are measured independently: Prefill must demonstrate sufficient input throughput across the required ISLs, while Decode must demonstrate that the actual batch reaches the per-DP target for the 16K/1K workload. A full Cartesian product of every Prefill and Decode point is unnecessary. This diagram explains the customer protocol semantics; it does not claim that the current MI300X path has reached per-DP BS96.
+
 ### One Request, Three Batch Concepts
 
 | Layer | Symbol / metric | Exact meaning | What it is not |
@@ -602,7 +624,7 @@ The exact image identity and clean-pull evidence are in [`data/validation/contai
 docker exec -it mimo-mi300x bash
 cd /opt/mimo-mi300x/scripts/amd-latest
 export MODEL=/data/models/MiMo-V2.5-Pro
-export DATASET_PATH=/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json
+export DATASET_PATH=/data/datasets/ShareGPT_V3_unfiltered_cleaned_split.json
 read -rp 'Prefill node IB IP: ' PREFILL_IB_IP
 read -rp 'Decode node IB IP: ' DECODE_IB_IP
 export PREFILL_IB_IP DECODE_IB_IP
@@ -635,7 +657,7 @@ The immutable image contains the original headline bundle. The long-context Deco
 ```bash
 cd /data/MiMo-V2.5-Pro-on-MI300X-Benchmark/scripts/amd-latest
 export MODEL=/data/models/MiMo-V2.5-Pro
-export DATASET_PATH=/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json
+export DATASET_PATH=/data/datasets/ShareGPT_V3_unfiltered_cleaned_split.json
 export PYTHONPATH="/sgl-workspace/sglang_0625/python${PYTHONPATH:+:$PYTHONPATH}"
 bash benchmark_decode_long_context.sh
 ```

@@ -96,6 +96,7 @@ def check_batching_guide() -> None:
     english, chinese = [path.read_text(encoding="utf-8") for path in READMES]
     common_requirements = (
         "images/request_batching_lifecycle.png",
+        "images/xiaomi_protocol_batch_planes.png",
         "images/kv_capacity_relationship.png",
         "requirements-diagrams.txt",
         "generate_batching_diagrams.py",
@@ -111,6 +112,11 @@ def check_batching_guide() -> None:
         "73.8\\%",
         "255K input + 1K output",
         "256K input + 1K output",
+        "#new-seq",
+        "#new-token",
+        "#running-req",
+        "BS64",
+        "BS96",
     )
     for text in (english, chinese):
         for required in common_requirements:
@@ -130,6 +136,11 @@ def check_batching_guide() -> None:
         "Non-PD capacity experiment",
         "Planning estimates; not measured",
         "is invalid under `context-length=262151`",
+        "Reading the Xiaomi Community Protocol: Dynamic Prefill Batching, Targeted Decode Occupancy",
+        "c32 is applied pressure, not Prefill BS",
+        "There is no one-to-one mapping between the two sides",
+        "A full Cartesian product of every Prefill and Decode point is unnecessary",
+        "does not claim that the current MI300X path has reached per-DP BS96",
     )
     chinese_requirements = (
         "为什么 PD 分离后 Prefill 与 Decode 可以拥有独立 BS 和超参",
@@ -145,6 +156,11 @@ def check_batching_guide() -> None:
         "非PD容量实验",
         "Planning estimates；尚未实测",
         "在`context-length=262151`下非法",
+        "如何解读小米社区版协议：Prefill动态组批，Decode按目标工况验收",
+        "c32是施加的负载，不是Prefill BS",
+        "两侧没有一一映射",
+        "不需要把每个Prefill点与每个Decode点做笛卡尔积",
+        "不代表当前MI300X路径已经达到per-DP BS96",
     )
     for required in english_requirements:
         assert required in english, f"Missing English batching-guide requirement: {required}"
@@ -156,6 +172,7 @@ def check_batching_guide() -> None:
 
     expected_images = {
         "request_batching_lifecycle.png": (1856, 1136),
+        "xiaomi_protocol_batch_planes.png": (1856, 1136),
         "kv_capacity_relationship.png": (1856, 1136),
     }
     for name, expected_size in expected_images.items():
