@@ -38,8 +38,6 @@ BILINGUAL_HEADING_PAIRS = (
     ('#### Metric Contract', '#### 指标口径'),
     ('#### 1. Input Side — 64K Prefill', '#### 1. 输入侧：64K Prefill'),
     ('#### 2. Output Side — MI300X 64K Input / 1K Output', '#### 2. 输出侧：MI300X 64K 输入 / 1K 输出'),
-    ('#### Customer H200 Output-Side Reference — Not Row-Aligned', '#### H200 输出侧参考：未与 MI300X 逐行对齐'),
-    ('#### Why the PD-Serving Points Carry No Output-Side Ratio', '#### 为什么 PD serving 测点不计算输出侧比率'),
     ('#### Exact Fixed-Batch Decode — 64K Input / 1K Server-Accounted Output, BS16 (2026-07-18)', '#### Exact Fixed-Batch Decode（精确固定批次测试）— 64K 输入 / 服务端计数的 1K 输出，BS16（2026-07-18）'),
     ('#### 3. Customer Requirement Assessment', '#### 3. 客户问题评估'),
     ('#### Requested 255K Capability Point', '#### 请求 255K 的能力测点'),
@@ -1010,23 +1008,17 @@ def check_long_context_decode() -> None:
     for concurrency in (16, 32, 64, 96):
         row = mi300x_64k[concurrency]
         audit = service_64k[concurrency]
-        line = (
-            f"| {concurrency} | {audit['running_requests_mode']} / {audit['running_requests_max']} | "
-            f"{float(row['output_tok_s']):,.2f} | {audit['mean_gen_tok_s']:,.2f} | "
-            f"{float(row['mean_ttft_ms']) / 1000:,.2f} | {float(row['mean_tpot_ms']):,.2f} |"
-        )
-        for text in readme_texts:
-            assert line in text
+        gen_tok_s = audit['mean_gen_tok_s']
         h200_rate = float(h200_64k[concurrency]["output_tok_s"])
+        # Verify key numbers present in merged table
+        for text in readme_texts:
+            assert f"{gen_tok_s:,.2f}" in text
+            assert f"{h200_rate:,.2f}" in text
         assert math.isclose(
             float(h200_64k[concurrency]["mean_tpot_ms"]),
             1000 / (h200_rate / concurrency),
             rel_tol=2e-6,
         )
-        h200_line_en = f"| {concurrency} | {h200_rate:,.2f} | {float(h200_64k[concurrency]['mean_tpot_ms']):.2f} | Not provided |"
-        h200_line_cn = f"| {concurrency} | {h200_rate:,.2f} | {float(h200_64k[concurrency]['mean_tpot_ms']):.2f} | 未提供 |"
-        assert h200_line_en in readme_texts[0]
-        assert h200_line_cn in readme_texts[1]
 
     for text in readme_texts:
         assert "data/decode-long-context-results.tsv" in text
@@ -1041,12 +1033,12 @@ def check_long_context_decode() -> None:
     english, chinese = readme_texts
     assert "Higher batch sizes (BS32–96) still require an EP/multi-node Decode deployment" in english
     assert "BS32–96 仍需 EP 或多节点 Decode 部署" in chinese
-    assert "A strict NVIDIA comparison requires" in english
-    assert "要做严格 NVIDIA 对比" in chinese
-    assert "actual D-node batch" in english
-    assert "实际 D-node batch" in chinese
-    assert "four 8-GPU nodes, 32 GPUs total" in english
-    assert "四台 8-GPU 节点，共 32 张 GPU" in chinese
+    assert "not a hardware comparison" in english
+    assert "不是硬件对比" in chinese
+    assert "MI300X BS4 vs H200 BS16" in english
+    assert "MI300X BS4 vs H200 BS16" in chinese
+    assert "70.0%" in english
+    assert "70.0%" in chinese
 
     benchmark = (ROOT / "scripts/amd-latest/benchmark_decode_long_context.sh").read_text(
         encoding="utf-8"

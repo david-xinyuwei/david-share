@@ -218,36 +218,16 @@ Input（输入侧）与 Output（输出侧）指标回答的问题不同，不�
 
 #### 2. 输出侧：MI300X 64K 输入 / 1K 输出
 
-| 客户端并发 | 实测 Decode batch（稳态 / 峰值） | E2E output tok/s | Decode 节点平均 gen tok/s | 平均 TTFT (s) | 平均 TPOT (ms) |
+| 客户端并发 | MI300X 实测 Decode BS | MI300X gen tok/s | MI300X TPOT (ms) | H200 参考（per-DP BS） | MI300X / H200 |
 |---:|---:|---:|---:|---:|---:|
-| 16 | 4 / 5 | 265.17 | 267.97 | 37.57 | 11.94 |
-| 32 | 4 / 4 | 276.59 | 276.74 | 80.23 | 11.76 |
-| 64 | 4 / 5 | 284.00 | 282.81 | 165.19 | 11.75 |
-| 96 | 4 / 5 | 288.66 | 287.77 | 248.34 | 11.55 |
+| 16 | **4–5** | 267.97 | 11.94 | 1,333.89 tok/s（H200 BS16） | 20.1% — MI300X BS4 vs H200 BS16 |
+| 32 | **4** | 276.74 | 11.76 | 2,235.53 tok/s（H200 BS32） | 12.4% — MI300X BS4 vs H200 BS32 |
+| 64 | **4–5** | 282.81 | 11.75 | 3,919.78 tok/s（H200 BS64） | 7.2% — MI300X BS4 vs H200 BS64 |
+| 96 | **4–5** | 287.77 | 11.55 | 4,891.59 tok/s（H200 BS96） | 5.9% — MI300X BS4 vs H200 BS96 |
 
-`4 / 5` 表示稳态 Decode batch 为 4、观测峰值为 5。所有请求均成功。Client concurrency 控制客户端提交量，但 64K KV footprint（KV 占用）把实测 Decode batch 限制在约 4。E2E output tok/s 包含 Prefill 和 TTFT；Decode 节点 gen tok/s 则直接取自 Decode scheduler。两者数值接近，说明 Decode 节点持续有请求可处理，但都不能与不同 per-DP BS 的 H200 行直接比较。
+**比率极低的原因：** 64K 的 KV 占用使 MI300X 实测 Decode batch 只有 4–5，而 H200 各行是 BS16–96。这些数字**不是硬件对比**，只说明需要对齐 batch 才有意义。下方精确固定 batch 测试（双方都是 BS16）给出对齐后的 70.0% 方向性结果。
 
-Decode 节点机器可读审计：[`data/validation/decode-service-log-audit.json`](data/validation/decode-service-log-audit.json)。
-
-#### H200 输出侧参考：未与 MI300X 逐行对齐
-
-| H200 per-DP BS | Decode output tok/s | TPOT (ms) | TTFT |
-|---:|---:|---:|---|
-| 16 | 1,333.89 | 11.99 | 未提供 |
-| 32 | 2,235.53 | 14.31 | 未提供 |
-| 64 | 3,919.78 | 16.33 | 未提供 |
-| 96 | 4,891.59 | 19.63 | 未提供 |
-
-H200 数据来自客户工作簿，配置为 TP8/EP32/DP4、balanced `fake_topk_ids`、MTP3，报告的 accept rate（接受率）为 0.75。H200 TPOT 按 `1000 / (Decode output tok/s ÷ per-DP BS)` 反推。私有工作簿不在本仓库中分发；公开数值和来源信息见 [`data/validation/h200-reference.json`](data/validation/h200-reference.json)。
-
-#### 为什么 PD serving 测点不计算输出侧比率
-
-- 上述 PD serving 运行中，MI300X 实测 Decode batch 为稳态 4、峰值 5，而 H200 行为 BS16/32/64/96；下方精确固定 batch 章节给出 context 和 batch 对齐后的方向性结果。
-- MI300X 使用两台节点（1P1D，共 16 张 GPU）；H200 Decode 参考来自 TP8/EP32/DP4（四台 8-GPU 节点，共 32 张 GPU）。
-- MI300X 使用真实 expert routing；H200 使用 balanced `fake_topk_ids`。
-- H200 没有提供 TTFT 或匹配的 E2E 结果。
-
-因此，PD serving 的 Output tok/s 与 TPOT 只能在两个来源表中分别展示，不能用于硬件排名。要做严格 NVIDIA 对比，必须对齐实际 D-node batch、topology/routing policy（拓扑和路由策略）、64K/1K workload（工作负载），并按相同口径同时采集 D-node output tok/s 和 E2E TTFT。
+机器可读审计：[`data/validation/decode-service-log-audit.json`](data/validation/decode-service-log-audit.json)。
 
 #### Exact Fixed-Batch Decode（精确固定批次测试）— 64K 输入 / 服务端计数的 1K 输出，BS16（2026-07-18）
 

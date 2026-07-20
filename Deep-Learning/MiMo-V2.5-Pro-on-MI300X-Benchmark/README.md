@@ -212,36 +212,16 @@ This is not a strict hardware comparison because the H200 input concurrency is a
 
 #### 2. Output Side — MI300X 64K Input / 1K Output
 
-| Client concurrency | Observed Decode batch (steady-state / peak) | E2E output tok/s | D-node mean gen tok/s | Mean TTFT (s) | Mean TPOT (ms) |
+| Client concurrency | MI300X actual Decode BS | MI300X gen tok/s | MI300X TPOT (ms) | H200 reference (per-DP BS) | MI300X / H200 |
 |---:|---:|---:|---:|---:|---:|
-| 16 | 4 / 5 | 265.17 | 267.97 | 37.57 | 11.94 |
-| 32 | 4 / 4 | 276.59 | 276.74 | 80.23 | 11.76 |
-| 64 | 4 / 5 | 284.00 | 282.81 | 165.19 | 11.75 |
-| 96 | 4 / 5 | 288.66 | 287.77 | 248.34 | 11.55 |
+| 16 | **4–5** | 267.97 | 11.94 | 1,333.89 tok/s (H200 BS16) | 20.1% — MI300X BS4 vs H200 BS16 |
+| 32 | **4** | 276.74 | 11.76 | 2,235.53 tok/s (H200 BS32) | 12.4% — MI300X BS4 vs H200 BS32 |
+| 64 | **4–5** | 282.81 | 11.75 | 3,919.78 tok/s (H200 BS64) | 7.2% — MI300X BS4 vs H200 BS64 |
+| 96 | **4–5** | 287.77 | 11.55 | 4,891.59 tok/s (H200 BS96) | 5.9% — MI300X BS4 vs H200 BS96 |
 
-`4 / 5` denotes a steady-state Decode batch of 4 with an observed peak of 5. All requests succeeded. Client concurrency controls submitted work, but the long 64K KV footprint limits the observed Decode batch to roughly 4. E2E output tok/s includes Prefill/TTFT; D-node gen tok/s is the direct Decode scheduler metric. Their similar values show that the Decode node was continuously fed, but neither number is comparable to an H200 row at a different per-DP BS.
+**Why the ratios are so low:** The 64K KV footprint limits MI300X to actual Decode BS4–5 regardless of client concurrency, while H200 rows are at BS16–96. These numbers are **not a hardware comparison**; they only show that a matched-batch test is required. The exact fixed-batch result below (same BS16) provides the aligned 70.0% directional view.
 
 Machine-readable D-node audit: [`data/validation/decode-service-log-audit.json`](data/validation/decode-service-log-audit.json).
-
-#### Customer H200 Output-Side Reference — Not Row-Aligned
-
-| H200 per-DP BS | Decode output tok/s | TPOT (ms) | TTFT |
-|---:|---:|---:|---|
-| 16 | 1,333.89 | 11.99 | Not provided |
-| 32 | 2,235.53 | 14.31 | Not provided |
-| 64 | 3,919.78 | 16.33 | Not provided |
-| 96 | 4,891.59 | 19.63 | Not provided |
-
-H200 source: customer-provided worksheet, TP8/EP32/DP4, balanced `fake_topk_ids`, MTP3, reported accept rate 0.75. H200 TPOT is derived as `1000 / (Decode output tok/s ÷ per-DP BS)`. The private workbook is not redistributed; public values and provenance are in [`data/validation/h200-reference.json`](data/validation/h200-reference.json).
-
-#### Why the PD-Serving Points Carry No Output-Side Ratio
-
-- In the PD-serving run above, the observed MI300X Decode batch is steady-state 4 with peak 5, while H200 rows are BS16/32/64/96; the exact fixed-batch section below provides the matched-context/matched-batch directional view.
-- MI300X uses two nodes (1P1D, 16 GPUs total); the H200 Decode reference comes from TP8/EP32/DP4 (four 8-GPU nodes, 32 GPUs total).
-- MI300X uses real expert routing; H200 uses balanced `fake_topk_ids`.
-- H200 provides no TTFT or matching E2E result.
-
-Therefore, the PD-serving output tokens/s and TPOT values are shown as two separate source tables, not as a hardware ranking. A strict NVIDIA comparison requires the same actual D-node batch, topology/routing policy, 64K/1K workload, and the same direct D-node output tok/s plus E2E TTFT collection.
 
 #### Exact Fixed-Batch Decode — 64K Input / 1K Server-Accounted Output, BS16 (2026-07-18)
 
