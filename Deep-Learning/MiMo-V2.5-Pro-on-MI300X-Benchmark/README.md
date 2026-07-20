@@ -67,170 +67,6 @@ The current evidence covers exact 64K/1K Decode at BS16, selected 128K/192K Pref
 
 ---
 
-## Why PD Disaggregation Has Independent Batch Sizes and Hyperparameters
-
-**The central point is that “batch size” is not one global number.** A request keeps the same input length (ISL) and requested output length (OSL), but it passes through two different schedulers. The Prefill instance forms batches of new sequences and input-token chunks; the Decode instance forms a dynamic batch of requests that are generating their next token. PD disaggregation lets those two schedulers, their instance counts, and many execution controls be tuned independently.
-
-![PD-disaggregated request lifecycle and independent batches](images/request_batching_lifecycle.png)
-
-*Figure 2. Prefill request/token batches and the Decode running-request batch are independent. The bottom row also separates the 1P1D PD c16 record from the non-PD exact64 BS16 capacity experiment.*
-
-### Reading the Xiaomi Community Protocol: Dynamic Prefill Batching, Targeted Decode Occupancy
-
-![Two independent batch planes in the Xiaomi community protocol](images/xiaomi_protocol_batch_planes.png)
-
-*Figure 2a. The Prefill side fixes client pressure and the token-chunk cap while the scheduler forms the actual request/token batches dynamically. The Decode side defines per-DP BS64 and BS96 as target operating points; `#running-req` must prove whether the targets were reached. There is no one-to-one mapping between the two sides.*
-
-| Layer | Protocol-fixed input | Runtime evidence | Correct interpretation |
-|---|---|---|---|
-| Client | Prefill `max-concurrency=32`; each request has its own ISL/OSL | Actual in-flight requests | c32 is applied pressure, not Prefill BS |
-| Prefill | `chunked-prefill-size=32768` | Distributions of `#new-seq` and `#new-token` | 32K is the per-request chunk cap, not 32 requests |
-| KV handoff | Each request that completes Prefill produces transferable KV | Rate at which completed requests enter Decode | The P side must sustain supply, but its BS need not equal the D-side BS |
-| Decode | Per-DP target BS64 or BS96 for the 16K/1K workload | Modal/peak `#running-req`, queue, and KV usage | 64/96 are static target operating points; actual Decode batch remains dynamic |
-
-The protocol can be explained in four steps:
-
-1. `max-concurrency=32` means that the Prefill benchmark client may keep at most 32 requests in flight. It does not mean that the P node processes 32 requests in one batch.
-2. `chunked-prefill-size=32768` means that one request may contribute at most 32K input tokens in one chunk. It does not define a Prefill request BS of 32.
-3. The P-node scheduler decides how many requests and new tokens enter each step; `#new-seq` and `#new-token` are the evidence. A request's KV becomes available to Decode only after its Prefill work completes.
-4. The D node is evaluated separately at per-DP BS64 and BS96. These are predefined target operating points; actual occupancy must be demonstrated with `#running-req`, not inferred from client concurrency, CUDA Graph BS, or `--max-running-requests`.
-
-Consequently, there is no fixed `Prefill BS32 -> Decode BS64/96` mapping. The two surfaces are measured independently: Prefill must demonstrate sufficient input throughput across the required ISLs, while Decode must demonstrate that the actual batch reaches the per-DP target for the 16K/1K workload. A full Cartesian product of every Prefill and Decode point is unnecessary. This diagram explains the customer protocol semantics; it does not claim that the current MI300X path has reached per-DP BS96.
-
-### One Request, Three Batch Concepts
-
-| Layer | Symbol / metric | Exact meaning | What it is not |
-|---|---|---|---|
-| Workload | `ISL`, `OSL` | Input and requested output tokens **per request** | A batch size |
-| Client | `N_prompts`, `C_client` | Total submitted requests and maximum client-side in-flight requests | The server's observed batch |
-| Prefill request batch | $B_P^{req}(t)$ | Number of new sequences admitted to one Prefill scheduler batch | Client concurrency or Decode batch |
-| Prefill token batch | $T_P(t)$ | Sum of input-token chunks processed in that Prefill batch | Full prompt tokens across the whole run |
-| Decode batch | $B_D(t)$ | Number of running requests generating tokens in that Decode scheduler step (`#running-req`) | `--max-running-requests` |
-| Admission ceiling | `--max-running-requests` | Maximum requests the server may keep running | A promise that the observed Decode batch reaches that value |
-
-For homogeneous requests, total submitted input work is
-
-$$
-T_{input}=N_{prompts}\times ISL.
-$$
-
-At Prefill scheduler step $t$, request $i$ contributes only its current chunk $c_i(t)$:
-
-$$
-B_P^{req}(t)=|\mathcal{P}(t)|,\qquad
-T_P(t)=\sum_{i\in\mathcal{P}(t)}c_i(t).
-$$
-
-The three Prefill controls have different units and must not be collapsed into “Prefill BS”:
-
-$$
-c_i(t)\le\texttt{chunked-prefill-size},\qquad
-T_P(t)\le\texttt{max-prefill-tokens},\qquad
-B_P^{req}(t)\le\texttt{prefill-max-requests}
-$$
-
-when the corresponding limits are set. In the pinned SGLang source, `--chunked-prefill-size` limits one chunk, `--max-prefill-tokens` limits all new tokens in one Prefill batch, and `--prefill-max-requests` limits the number of requests in that batch. The latter two are not explicitly set by the supported launch scripts, so this report does not invent effective values for them.
-
-Decode has a different dynamic population:
-
-$$
-B_D(t)=|\mathcal{D}(t)|\le\texttt{max-running-requests}.
-$$
-
-Requests can finish Prefill and Decode at different times, so $C_{client}$, $B_P^{req}(t)$, and $B_D(t)$ need not be equal. This is why a bare label such as “BS16” is insufficient; this repo qualifies it as client concurrency, Prefill request batch, Prefill token batch, or actual Decode batch.
-
-### What PD Separates, and What Must Still Match
-
-| Control surface | Supported 1P1D Prefill instance | Supported 1P1D Decode instance | Relationship |
-|---|---|---|---|
-| Scheduler batch | Own request batch and token batch | Own dynamic running-request batch | **Independent; they may differ** |
-| Scale-out | Prefill instance pool | Decode instance pool | Can scale independently for TTFT versus TPOT/throughput pressure |
-| `--chunked-prefill-size` | `32768` | `16384` | Independently configured; only the Prefill-side value controls the main P-stage chunking path |
-| `--max-prefill-tokens` | Not explicitly set | Not explicitly set | Prefill token-batch ceiling; no fabricated effective value is claimed |
-| `--prefill-max-requests` | Not explicitly set | Not explicitly set | Prefill request-count ceiling; no fabricated effective value is claimed |
-| `--max-running-requests` | `128` | `128` | Configured admission ceiling, **not observed Decode BS** |
-| `--mem-fraction-static` | `0.85` | `0.85` | Same in this run, but owned by each process and tunable per role |
-| CUDA graph | Disabled | Not disabled by the launch script | Example of role-specific execution tuning |
-| MTP/EAGLE controls | Fixed acceptance length `3`, `match-expected` | Fixed acceptance length `3`, `match-expected` | Kept aligned for this fixed-acceptance performance methodology; not a natural-acceptance claim |
-
-Independence does **not** mean arbitrary incompatibility. The validated path keeps the same model/checkpoint, TP8 model partition, `context-length=262151`, `kv-cache-dtype=fp8_e4m3`, `page-size=32`, Mooncake transfer backend, and compatible KV layout on both sides. These form the model/KV-transfer contract. Batch formation, scheduler policy, process memory budget, execution graph policy, and instance count are role-specific tuning surfaces; the serialized KV representation and sequence semantics must remain compatible.
-
-### Capacity Connects ISL to the Actual Decode Batch
-
-![KV capacity relationship for long-ISL Decode](images/kv_capacity_relationship.png)
-
-*Figure 3. The non-PD exact64 worked example shows how sequence length and KV capacity bound actual Decode concurrency. The 128K/192K actual-BS4 subset is now measured; a 64K same-method anchor, a 255K actual-BS4 point, and the equal-KV-load combinations remain open or planning-only. The separately measured 255K PD-serving c1 capability point remains valid.*
-
-For the active Decode requests, a useful capacity model is
-
-$$
-\sum_{i\in\mathcal{D}(t)}\left(ISL_i+generated_i+reserved_i\right)\le K_{pool}.
-$$
-
-Ignoring allocator granularity and runtime reserves gives a raw homogeneous upper bound:
-
-$$
-B_{raw}=\left\lfloor\frac{K_{pool}}{ISL+OSL}\right\rfloor.
-$$
-
-The usable value can be lower because of allocation pages, fragmentation, MTP state, and safety reserve. Consequently, increasing `--max-running-requests` cannot force a larger actual Decode batch when KV capacity is already the bottleneck.
-
-Two measured 64K/1K records answer different questions:
-
-| Record | Client load | Observed Decode batch | Correct interpretation |
-|---|---|---|---|
-| Two-node 1P1D PD, c16 | Client concurrency 16 | Steady-state `4`, peak `5` | PD scheduler/capacity record; not “Decode BS16” and not “Prefill BS16” |
-| Single-node exact64 fixed batch | 16 prompts, client concurrency 16 | Actual Decode batch `16`, queue `0` | **Non-PD capacity experiment** used for the fixed-BS16 headline |
-
-For the single-node record, the measured full-attention KV pool was $K_{pool}=1{,}442{,}464$ tokens. The raw sequence positions were
-
-$$
-16\times(65{,}536+1{,}024)=1{,}064{,}960,
-\qquad
-\frac{1{,}064{,}960}{1{,}442{,}464}=73.8\%.
-$$
-
-The scheduler reported `full token usage` of `0.73–0.74`, consistent with that arithmetic. This explains why exact64 could retain actual Decode BS16 after increasing the single-node `mem-fraction-static` to `0.95`; it does **not** imply that a Prefill kernel processed sixteen complete 64K prompts at once.
-
-### Measured 128K/192K Subset on the 7/13-Derived Runtime
-
-The two surfaces are intentionally separated. Prefill uses aggregate input tok/s from a two-node 1P1D deployment. Decode uses transition-guarded steady full-BS4 scheduler gen tok/s from a single-node non-PD service. They must not be divided, combined, or treated as the same metric.
-
-#### Prefill Selected Points
-
-| ISL | Topology | Client concurrency | Requests | Input tok/s | Mean TTFT | Repetitions |
-|---:|---|---:|---:|---:|---:|---:|
-| 128K | 1P1D PD | 4 | 16 | **15,943.02** | 30.17 s | **N=1** |
-| 192K | 1P1D PD | 4 | 16 | **13,855.30** | 51.89 s | **N=1** |
-
-#### Decode Fixed-BS4 Selected Points
-
-| ISL | Topology | Actual Decode batch | Requests | Steady scheduler gen tok/s | Client output tok/s | Mean TTFT | Mean TPOT | Full-token usage | Repetitions |
-|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| 128K | Single-node TP8, non-PD | **4** | 4 | **380.56** | 94.59 | 20.31 s | 22.46 ms | 0.36–0.37 | **N=1** |
-| 192K | Single-node TP8, non-PD | **4** | 4 | **319.71** | 58.90 | 35.73 s | 33.03 ms | 0.55 | **N=1** |
-
-From 128K to 192K, Prefill input throughput changes **-13.1%**. Under the separate fixed-BS4 Decode method, scheduler generation throughput changes **-16.0%**, mean TPOT changes **+47.1%**, and mean TTFT changes **+75.9%**. Each point has one accepted measurement run; these deltas do not establish repeated-run stability.
-
-The 128K and 192K Prefill points were accepted under separate service launches after recovery from a metric-parser-only orchestration failure; both launches passed the same immutable runtime and configuration gates. The two Decode points ran sequentially on one later single-node service. This is a same-runtime/method comparison, not a same-service or fresh-service repeatability claim.
-
-The Decode points use `SGLANG_SIMULATE_ACC_LEN=3` with `match-expected`; the scheduler reports accept length `3.00` and rate `0.67`. They measure scheduler capacity under fixed acceptance and do not validate natural MTP acceptance or output quality. The June BS1 boundary diagnostics are not included in this result family.
-
-Machine-readable results: [`data/controlled-isl-results.tsv`](data/controlled-isl-results.tsv); method and runtime audit: [`data/validation/controlled-isl-evidence.json`](data/validation/controlled-isl-evidence.json); sanitized recomputation pack: [`data/evidence/controlled-isl-128k-192k/`](data/evidence/controlled-isl-128k-192k/). Run `python3 scripts/analyze_controlled_isl_evidence.py` to rebuild all four points and the disclosed deltas.
-
-### How to Extend the Length Study Without Mixing Variables
-
-| Study objective | Controlled variable | Proposed points | Evidence status |
-|---|---|---|---|
-| Controlled same-runtime subset | Hold **actual Decode batch at 4** and OSL at 1K | 128K, 192K input | **Measured; N=1 per point**. This is not yet a complete 64K→192K same-method curve. |
-| Equal-KV-load capacity planning | Keep raw token positions near the exact64 load | 64K×16, 128K×8, 192K×5, 255K×4 | Planning estimates; not measured |
-
-The upper valid input point is **255K input + 1K output**: $261{,}120+1{,}024=262{,}144\le262{,}151$. A **256K input + 1K output** request would require $263{,}168$ positions and is invalid under `context-length=262151`. Any future report must preserve the actual observed Decode batch rather than relabel client concurrency as BS.
-
-The two diagrams are reproducible with `python3 scripts/generate_batching_diagrams.py`; install the pinned documentation dependency from `requirements-diagrams.txt` first.
-
----
-
 ## Headline Results — Input and Output Views
 
 The tables below contain selected, validated points from accepted runs. Each MI300X row keeps client and server metrics from one measurement record; H200 values remain a separate customer reference wherever the runtime batch or metric scope is not aligned.
@@ -306,9 +142,9 @@ Machine-readable provenance and all reference values are in [`data/validation/h2
 
 ---
 
-## Microsoft Scalability Extension
+## Scalability & Long-Context Extension
 
-AMD provided the base launch method: the container image, tuned AITER path, 1P1D/DP=2 topology, and benchmark entry points. Microsoft first reproduced that path, then independently extended the context and concurrency coverage and added fail-closed correctness gates. **Every MI300X performance value below is Microsoft-measured; the H200 TPOT values are customer-provided references recorded in `h200-reference.json`. No AMD performance values are included.**
+AMD provided the base launch method (container image, tuned AITER path, 1P1D/DP=2 topology, and benchmark entry points); Microsoft reproduced the path and then jointly extended context-length and concurrency coverage with fail-closed correctness gates. **MI300X performance values below are measured on this joint runtime; H200 values are customer-provided references from `h200-reference.json`.**
 
 ### Test Matrix
 
@@ -327,15 +163,15 @@ The tables below present the measured scalability results. The core Decode produ
 
 ### Decode Scalability — 8K Input / 1K Output
 
-| Concurrency | Output tok/s | Mean TPOT (ms) | Mean TTFT (ms) |
-|---:|---:|---:|---:|
-| 8 | 930.00 | 7.65 | 863.69 |
-| 16 | 1,303.44 | 10.72 | 1,398.73 |
-| 32 | 1,930.10 | 13.68 | 2,296.89 |
-| 64 | 2,462.83 | 17.08 | 7,406.18 |
-| 96 | 2,497.69 | 15.89 | 18,273.38 |
-| 128 | 2,468.95 | 16.45 | 27,128.38 |
-| 192 | 2,500.54 | 15.98 | 40,956.57 |
+| Concurrency | MI300X Output tok/s | MI300X Mean TPOT (ms) | Mean TTFT (ms) | H200 Reference (same BS row) |
+|---:|---:|---:|---:|---:|
+| 8 | 930.00 | 7.65 | 863.69 | — |
+| 16 | 1,303.44 | 10.72 | 1,398.73 | 1,381 tok/s / 11.59 ms |
+| 32 | 1,930.10 | 13.68 | 2,296.89 | 2,549 tok/s / 12.56 ms |
+| 64 | 2,462.83 | 17.08 | 7,406.18 | 4,483 tok/s / 14.28 ms |
+| 96 | 2,497.69 | 15.89 | 18,273.38 | — |
+| 128 | 2,468.95 | 16.45 | 27,128.38 | 7,013 tok/s / 18.25 ms |
+| 192 | 2,500.54 | 15.98 | 40,956.57 | — |
 
 Observed behavior:
 
@@ -528,6 +364,170 @@ Observed behavior:
 - Repository quality gate: `python3 scripts/validate_repo.py` (expected final line: `REPO_VALIDATION=PASS`)
 
 **Repository CI boundary:** CodeQL passed for the reviewed commit. GitHub Pages remains red before Jekyll because the parent monorepo contains a pre-existing gitlink, `Deep-Learning/Foundry-Managed-Compute-Open-Models`, without a matching `.gitmodules` URL. This checkout failure predates the MI300X Fix Pass and does not affect the GitHub README, fresh-clone validator, or benchmark subtree; remediation is a parent-monorepo owner action.
+
+---
+
+## Why PD Disaggregation Has Independent Batch Sizes and Hyperparameters
+
+**The central point is that “batch size” is not one global number.** A request keeps the same input length (ISL) and requested output length (OSL), but it passes through two different schedulers. The Prefill instance forms batches of new sequences and input-token chunks; the Decode instance forms a dynamic batch of requests that are generating their next token. PD disaggregation lets those two schedulers, their instance counts, and many execution controls be tuned independently.
+
+![PD-disaggregated request lifecycle and independent batches](images/request_batching_lifecycle.png)
+
+*Figure 2. Prefill request/token batches and the Decode running-request batch are independent. The bottom row also separates the 1P1D PD c16 record from the non-PD exact64 BS16 capacity experiment.*
+
+### Reading the Xiaomi Community Protocol: Dynamic Prefill Batching, Targeted Decode Occupancy
+
+![Two independent batch planes in the Xiaomi community protocol](images/xiaomi_protocol_batch_planes.png)
+
+*Figure 2a. The Prefill side fixes client pressure and the token-chunk cap while the scheduler forms the actual request/token batches dynamically. The Decode side defines per-DP BS64 and BS96 as target operating points; `#running-req` must prove whether the targets were reached. There is no one-to-one mapping between the two sides.*
+
+| Layer | Protocol-fixed input | Runtime evidence | Correct interpretation |
+|---|---|---|---|
+| Client | Prefill `max-concurrency=32`; each request has its own ISL/OSL | Actual in-flight requests | c32 is applied pressure, not Prefill BS |
+| Prefill | `chunked-prefill-size=32768` | Distributions of `#new-seq` and `#new-token` | 32K is the per-request chunk cap, not 32 requests |
+| KV handoff | Each request that completes Prefill produces transferable KV | Rate at which completed requests enter Decode | The P side must sustain supply, but its BS need not equal the D-side BS |
+| Decode | Per-DP target BS64 or BS96 for the 16K/1K workload | Modal/peak `#running-req`, queue, and KV usage | 64/96 are static target operating points; actual Decode batch remains dynamic |
+
+The protocol can be explained in four steps:
+
+1. `max-concurrency=32` means that the Prefill benchmark client may keep at most 32 requests in flight. It does not mean that the P node processes 32 requests in one batch.
+2. `chunked-prefill-size=32768` means that one request may contribute at most 32K input tokens in one chunk. It does not define a Prefill request BS of 32.
+3. The P-node scheduler decides how many requests and new tokens enter each step; `#new-seq` and `#new-token` are the evidence. A request's KV becomes available to Decode only after its Prefill work completes.
+4. The D node is evaluated separately at per-DP BS64 and BS96. These are predefined target operating points; actual occupancy must be demonstrated with `#running-req`, not inferred from client concurrency, CUDA Graph BS, or `--max-running-requests`.
+
+Consequently, there is no fixed `Prefill BS32 -> Decode BS64/96` mapping. The two surfaces are measured independently: Prefill must demonstrate sufficient input throughput across the required ISLs, while Decode must demonstrate that the actual batch reaches the per-DP target for the 16K/1K workload. A full Cartesian product of every Prefill and Decode point is unnecessary. This diagram explains the customer protocol semantics; it does not claim that the current MI300X path has reached per-DP BS96.
+
+### One Request, Three Batch Concepts
+
+| Layer | Symbol / metric | Exact meaning | What it is not |
+|---|---|---|---|
+| Workload | `ISL`, `OSL` | Input and requested output tokens **per request** | A batch size |
+| Client | `N_prompts`, `C_client` | Total submitted requests and maximum client-side in-flight requests | The server's observed batch |
+| Prefill request batch | $B_P^{req}(t)$ | Number of new sequences admitted to one Prefill scheduler batch | Client concurrency or Decode batch |
+| Prefill token batch | $T_P(t)$ | Sum of input-token chunks processed in that Prefill batch | Full prompt tokens across the whole run |
+| Decode batch | $B_D(t)$ | Number of running requests generating tokens in that Decode scheduler step (`#running-req`) | `--max-running-requests` |
+| Admission ceiling | `--max-running-requests` | Maximum requests the server may keep running | A promise that the observed Decode batch reaches that value |
+
+For homogeneous requests, total submitted input work is
+
+$$
+T_{input}=N_{prompts}\times ISL.
+$$
+
+At Prefill scheduler step $t$, request $i$ contributes only its current chunk $c_i(t)$:
+
+$$
+B_P^{req}(t)=|\mathcal{P}(t)|,\qquad
+T_P(t)=\sum_{i\in\mathcal{P}(t)}c_i(t).
+$$
+
+The three Prefill controls have different units and must not be collapsed into “Prefill BS”:
+
+$$
+c_i(t)\le\texttt{chunked-prefill-size},\qquad
+T_P(t)\le\texttt{max-prefill-tokens},\qquad
+B_P^{req}(t)\le\texttt{prefill-max-requests}
+$$
+
+when the corresponding limits are set. In the pinned SGLang source, `--chunked-prefill-size` limits one chunk, `--max-prefill-tokens` limits all new tokens in one Prefill batch, and `--prefill-max-requests` limits the number of requests in that batch. The latter two are not explicitly set by the supported launch scripts, so this report does not invent effective values for them.
+
+Decode has a different dynamic population:
+
+$$
+B_D(t)=|\mathcal{D}(t)|\le\texttt{max-running-requests}.
+$$
+
+Requests can finish Prefill and Decode at different times, so $C_{client}$, $B_P^{req}(t)$, and $B_D(t)$ need not be equal. This is why a bare label such as “BS16” is insufficient; this repo qualifies it as client concurrency, Prefill request batch, Prefill token batch, or actual Decode batch.
+
+### What PD Separates, and What Must Still Match
+
+| Control surface | Supported 1P1D Prefill instance | Supported 1P1D Decode instance | Relationship |
+|---|---|---|---|
+| Scheduler batch | Own request batch and token batch | Own dynamic running-request batch | **Independent; they may differ** |
+| Scale-out | Prefill instance pool | Decode instance pool | Can scale independently for TTFT versus TPOT/throughput pressure |
+| `--chunked-prefill-size` | `32768` | `16384` | Independently configured; only the Prefill-side value controls the main P-stage chunking path |
+| `--max-prefill-tokens` | Not explicitly set | Not explicitly set | Prefill token-batch ceiling; no fabricated effective value is claimed |
+| `--prefill-max-requests` | Not explicitly set | Not explicitly set | Prefill request-count ceiling; no fabricated effective value is claimed |
+| `--max-running-requests` | `128` | `128` | Configured admission ceiling, **not observed Decode BS** |
+| `--mem-fraction-static` | `0.85` | `0.85` | Same in this run, but owned by each process and tunable per role |
+| CUDA graph | Disabled | Not disabled by the launch script | Example of role-specific execution tuning |
+| MTP/EAGLE controls | Fixed acceptance length `3`, `match-expected` | Fixed acceptance length `3`, `match-expected` | Kept aligned for this fixed-acceptance performance methodology; not a natural-acceptance claim |
+
+Independence does **not** mean arbitrary incompatibility. The validated path keeps the same model/checkpoint, TP8 model partition, `context-length=262151`, `kv-cache-dtype=fp8_e4m3`, `page-size=32`, Mooncake transfer backend, and compatible KV layout on both sides. These form the model/KV-transfer contract. Batch formation, scheduler policy, process memory budget, execution graph policy, and instance count are role-specific tuning surfaces; the serialized KV representation and sequence semantics must remain compatible.
+
+### Capacity Connects ISL to the Actual Decode Batch
+
+![KV capacity relationship for long-ISL Decode](images/kv_capacity_relationship.png)
+
+*Figure 3. The non-PD exact64 worked example shows how sequence length and KV capacity bound actual Decode concurrency. The 128K/192K actual-BS4 subset is now measured; a 64K same-method anchor, a 255K actual-BS4 point, and the equal-KV-load combinations remain open or planning-only. The separately measured 255K PD-serving c1 capability point remains valid.*
+
+For the active Decode requests, a useful capacity model is
+
+$$
+\sum_{i\in\mathcal{D}(t)}\left(ISL_i+generated_i+reserved_i\right)\le K_{pool}.
+$$
+
+Ignoring allocator granularity and runtime reserves gives a raw homogeneous upper bound:
+
+$$
+B_{raw}=\left\lfloor\frac{K_{pool}}{ISL+OSL}\right\rfloor.
+$$
+
+The usable value can be lower because of allocation pages, fragmentation, MTP state, and safety reserve. Consequently, increasing `--max-running-requests` cannot force a larger actual Decode batch when KV capacity is already the bottleneck.
+
+Two measured 64K/1K records answer different questions:
+
+| Record | Client load | Observed Decode batch | Correct interpretation |
+|---|---|---|---|
+| Two-node 1P1D PD, c16 | Client concurrency 16 | Steady-state `4`, peak `5` | PD scheduler/capacity record; not “Decode BS16” and not “Prefill BS16” |
+| Single-node exact64 fixed batch | 16 prompts, client concurrency 16 | Actual Decode batch `16`, queue `0` | **Non-PD capacity experiment** used for the fixed-BS16 headline |
+
+For the single-node record, the measured full-attention KV pool was $K_{pool}=1{,}442{,}464$ tokens. The raw sequence positions were
+
+$$
+16\times(65{,}536+1{,}024)=1{,}064{,}960,
+\qquad
+\frac{1{,}064{,}960}{1{,}442{,}464}=73.8\%.
+$$
+
+The scheduler reported `full token usage` of `0.73–0.74`, consistent with that arithmetic. This explains why exact64 could retain actual Decode BS16 after increasing the single-node `mem-fraction-static` to `0.95`; it does **not** imply that a Prefill kernel processed sixteen complete 64K prompts at once.
+
+### Measured 128K/192K Subset on the 7/13-Derived Runtime
+
+The two surfaces are intentionally separated. Prefill uses aggregate input tok/s from a two-node 1P1D deployment. Decode uses transition-guarded steady full-BS4 scheduler gen tok/s from a single-node non-PD service. They must not be divided, combined, or treated as the same metric.
+
+#### Prefill Selected Points
+
+| ISL | Topology | Client concurrency | Requests | Input tok/s | Mean TTFT | Repetitions |
+|---:|---|---:|---:|---:|---:|---:|
+| 128K | 1P1D PD | 4 | 16 | **15,943.02** | 30.17 s | **N=1** |
+| 192K | 1P1D PD | 4 | 16 | **13,855.30** | 51.89 s | **N=1** |
+
+#### Decode Fixed-BS4 Selected Points
+
+| ISL | Topology | Actual Decode batch | Requests | Steady scheduler gen tok/s | Client output tok/s | Mean TTFT | Mean TPOT | Full-token usage | Repetitions |
+|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 128K | Single-node TP8, non-PD | **4** | 4 | **380.56** | 94.59 | 20.31 s | 22.46 ms | 0.36–0.37 | **N=1** |
+| 192K | Single-node TP8, non-PD | **4** | 4 | **319.71** | 58.90 | 35.73 s | 33.03 ms | 0.55 | **N=1** |
+
+From 128K to 192K, Prefill input throughput changes **-13.1%**. Under the separate fixed-BS4 Decode method, scheduler generation throughput changes **-16.0%**, mean TPOT changes **+47.1%**, and mean TTFT changes **+75.9%**. Each point has one accepted measurement run; these deltas do not establish repeated-run stability.
+
+The 128K and 192K Prefill points were accepted under separate service launches after recovery from a metric-parser-only orchestration failure; both launches passed the same immutable runtime and configuration gates. The two Decode points ran sequentially on one later single-node service. This is a same-runtime/method comparison, not a same-service or fresh-service repeatability claim.
+
+The Decode points use `SGLANG_SIMULATE_ACC_LEN=3` with `match-expected`; the scheduler reports accept length `3.00` and rate `0.67`. They measure scheduler capacity under fixed acceptance and do not validate natural MTP acceptance or output quality. The June BS1 boundary diagnostics are not included in this result family.
+
+Machine-readable results: [`data/controlled-isl-results.tsv`](data/controlled-isl-results.tsv); method and runtime audit: [`data/validation/controlled-isl-evidence.json`](data/validation/controlled-isl-evidence.json); sanitized recomputation pack: [`data/evidence/controlled-isl-128k-192k/`](data/evidence/controlled-isl-128k-192k/). Run `python3 scripts/analyze_controlled_isl_evidence.py` to rebuild all four points and the disclosed deltas.
+
+### How to Extend the Length Study Without Mixing Variables
+
+| Study objective | Controlled variable | Proposed points | Evidence status |
+|---|---|---|---|
+| Controlled same-runtime subset | Hold **actual Decode batch at 4** and OSL at 1K | 128K, 192K input | **Measured; N=1 per point**. This is not yet a complete 64K→192K same-method curve. |
+| Equal-KV-load capacity planning | Keep raw token positions near the exact64 load | 64K×16, 128K×8, 192K×5, 255K×4 | Planning estimates; not measured |
+
+The upper valid input point is **255K input + 1K output**: $261{,}120+1{,}024=262{,}144\le262{,}151$. A **256K input + 1K output** request would require $263{,}168$ positions and is invalid under `context-length=262151`. Any future report must preserve the actual observed Decode batch rather than relabel client concurrency as BS.
+
+The two diagrams are reproducible with `python3 scripts/generate_batching_diagrams.py`; install the pinned documentation dependency from `requirements-diagrams.txt` first.
 
 ---
 

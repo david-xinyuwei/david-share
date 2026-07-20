@@ -73,170 +73,6 @@ No-CK 与优化路径 A/B 测试的原始样本分别记录在 [`data/validation
 
 ---
 
-## 为什么 PD 分离后 Prefill 与 Decode 可以拥有独立 BS 和超参
-
-**核心结论：Batch Size（批大小）不是贯穿整个系统的一个全局值。** 请求的 input length（输入长度，ISL）和 requested output length（请求输出长度，OSL）本身不会因阶段变化，但会先后进入两套独立的 scheduler（调度器）。Prefill scheduler 将 new sequences（新序列）和 input-token chunks（输入 Token 分块）组织成批；Decode scheduler 则对 running requests（正在生成 Token 的请求）动态组批。PD 分离后，两套 scheduler、实例规模和执行参数都可以分别调优。
-
-![PD分离后的请求生命周期与独立batch](images/request_batching_lifecycle.png)
-
-*图 2：Prefill 阶段的请求批、Token 批与 Decode 阶段的运行请求批彼此独立。底部还区分了 1P1D PD c16 记录与非 PD exact64 BS16 容量实验。*
-
-### 如何解读小米社区版协议：Prefill 动态组批，Decode 按目标工况验收
-
-![小米社区版协议中的两套独立 Batch 口径](images/xiaomi_protocol_batch_planes.png)
-
-*图 2a：Prefill 侧由协议固定的是 client load（客户端负载）和 Token chunk 上限，实际 request batch（请求批）与 token batch（Token 批）由 scheduler 动态形成。Decode 侧规定 per-DP BS64 和 BS96 两个目标工况，是否达到目标必须由 `#running-req` 验证。二者之间不存在固定的一一对应关系。*
-
-| 层次 | 协议设定 | 运行日志证据 | 解读 |
-|---|---|---|---|
-| Client（客户端） | Prefill 压测设置 `max-concurrency=32`；每条请求有自己的 ISL/OSL | 实际 in-flight requests（在途请求数） | c32 表示客户端施加的并发压力，不是 Prefill BS |
-| Prefill | `chunked-prefill-size=32768` | `#new-seq` 和 `#new-token` 的分布 | 32K 是单条请求一次允许提交的 Token chunk 上限，不代表 32 条请求 |
-| KV handoff（KV 交接） | 每条完成 Prefill 的请求都会生成可交接的 KV | 完成 Prefill 并进入 Decode 的请求速率 | P 侧必须持续供给，但 batch 无须与 D 侧取相同数值 |
-| Decode | 16K/1K workload（工作负载）下，per-DP 目标为 BS64 或 BS96 | `#running-req` 的 modal/peak（稳态值/峰值）、queue（排队请求）和 KV usage（KV 占用） | 64/96 是预设目标工况；actual Decode batch 仍由 scheduler 动态形成 |
-
-对客户说明时，可以按四点来讲：
-
-1. `max-concurrency=32` 只表示 Prefill 压测客户端最多同时挂起 32 条请求，不表示 P 节点一次处理 32 条请求。
-2. `chunked-prefill-size=32768` 只限制单条请求一次最多提交 32K input tokens，不表示 Prefill request BS 为 32。
-3. P 节点在每个 scheduler step 中接纳多少条请求、处理多少 new tokens，应以 `#new-seq` 和 `#new-token` 为准；请求完成 Prefill 后，其 KV 才能交给 Decode。
-4. D 节点单独验收 per-DP BS64 和 BS96。二者是预先定义的目标工况；是否真正达到并保持目标，必须查看 `#running-req`，不能用 client concurrency、CUDA Graph BS 或 `--max-running-requests` 代替证明。
-
-因此，不存在 `Prefill BS32 -> Decode BS64/96` 这种固定映射。Prefill 与 Decode 应分别测量：P 侧证明各 ISL 下有足够的输入吞吐，D 侧证明 16K/1K 工作负载下的 actual batch 达到对应 per-DP 目标。没有必要对所有 Prefill 与 Decode 测点做完整笛卡尔积。该图只解释客户协议的 batch 口径，不表示当前 MI300X 路径已经达到 per-DP BS96。
-
-### 一个请求涉及的三类 Batch 概念
-
-| 层次 | 符号 / 指标 | 定义 | 不等同于 |
-|---|---|---|---|
-| Workload（工作负载） | `ISL`、`OSL` | **每条请求**的 input tokens 和 requested output tokens | Batch Size |
-| Client（客户端） | `N_prompts`、`C_client` | 提交请求总数，以及客户端允许的最大 in-flight 请求数 | 服务端实测 batch |
-| Prefill request batch | $B_P^{req}(t)$ | 一个 Prefill scheduler batch 接纳的 new sequences 数量 | Client concurrency 或 Decode batch |
-| Prefill token batch | $T_P(t)$ | 该 Prefill batch 中全部 input-token chunks 之和 | 整轮测试的全部 prompt tokens |
-| Decode batch | $B_D(t)$ | 某个 Decode scheduler step 中 running requests 的数量（`#running-req`） | `--max-running-requests` |
-| Admission ceiling（接纳上限） | `--max-running-requests` | 服务端允许同时处于 running 状态的最大请求数 | 实测 Decode batch 必然达到该值的承诺 |
-
-对于规格相同的请求，提交的总输入 Token 数为：
-
-$$
-T_{input}=N_{prompts}\times ISL.
-$$
-
-在 Prefill scheduler 的第 $t$ 个 step 中，请求 $i$ 只贡献当前 chunk $c_i(t)$：
-
-$$
-B_P^{req}(t)=|\mathcal{P}(t)|,\qquad
-T_P(t)=\sum_{i\in\mathcal{P}(t)}c_i(t).
-$$
-
-三个 Prefill 控制参数的单位不同，不能统一简称为“Prefill BS”：
-
-$$
-c_i(t)\le\texttt{chunked-prefill-size},\qquad
-T_P(t)\le\texttt{max-prefill-tokens},\qquad
-B_P^{req}(t)\le\texttt{prefill-max-requests}
-$$
-
-在设置了相应的 limit（上限）时，上述约束适用。在固定的 SGLang 源码中，`--chunked-prefill-size` 限制单个 chunk，`--max-prefill-tokens` 限制一个 Prefill batch 中的全部 new tokens，`--prefill-max-requests` 限制该 batch 的请求数。后两项未在本仓库支持的 launch script（启动脚本）中显式配置，因此本文不推测其实际生效值。
-
-Decode 维护的是另一组动态请求集合：
-
-$$
-B_D(t)=|\mathcal{D}(t)|\le\texttt{max-running-requests}.
-$$
-
-不同请求完成 Prefill 和 Decode 的时间不同，因此 $C_{client}$、$B_P^{req}(t)$ 和 $B_D(t)$ 无须相等。也正因如此，只写“BS16”无法说明口径；本文会明确指出它表示 client concurrency、Prefill request batch、Prefill token batch，还是 actual Decode batch。
-
-### PD 可以分别调优什么，哪些契约必须保持一致
-
-| 控制项 | 本次支持的 1P1D Prefill 实例 | 本次支持的 1P1D Decode 实例 | 关系 |
-|---|---|---|---|
-| Scheduler batch | 独立形成 request batch 和 token batch | 独立形成 dynamic running-request batch（动态运行请求批） | **彼此独立，可以不同** |
-| Scale-out | Prefill instance pool（实例池） | Decode instance pool（实例池） | 可分别针对 TTFT 与 TPOT/吞吐压力扩缩 |
-| `--chunked-prefill-size` | `32768` | `16384` | 分别配置；主 P-stage chunking path（分块路径）由 Prefill 侧数值控制 |
-| `--max-prefill-tokens` | 未显式设置 | 未显式设置 | Prefill token-batch 上限；不推测实际生效值 |
-| `--prefill-max-requests` | 未显式设置 | 未显式设置 | Prefill request-count 上限；不推测实际生效值 |
-| `--max-running-requests` | `128` | `128` | 配置的是 admission ceiling，**不是实测 Decode BS** |
-| `--mem-fraction-static` | `0.85` | `0.85` | 本次取值相同，但由两个 process 分别管理，可按 role 调优 |
-| CUDA graph | 关闭 | Launch script 未关闭 | role-specific execution tuning（按角色调优）的直接示例 |
-| MTP/EAGLE controls | 固定接受长度 `3`、`match-expected` | 固定接受长度 `3`、`match-expected` | 为固定接受率性能测试保持一致；不代表自然接受率 |
-
-两侧可以独立调优，但相关契约仍必须保持兼容。本次 validated path（已验证路径）在两侧使用相同的 model/checkpoint（模型与权重）、TP8 model partition（模型分片）、`context-length=262151`、`kv-cache-dtype=fp8_e4m3`、`page-size=32`、Mooncake transfer backend（传输后端），以及相互兼容的 KV layout（KV 布局）。这些配置共同构成 model/KV-transfer contract（模型与 KV 传输契约）。Batch formation（组批方式）、scheduler policy（调度策略）、process memory budget（进程内存预算）、execution graph policy（执行图策略）和 instance count（实例数量）可以按角色分别调优；序列化后的 KV 表示和 sequence semantics（序列语义）则必须兼容。
-
-### ISL 如何约束实际 Decode Batch
-
-![长ISL Decode的KV容量关系](images/kv_capacity_relationship.png)
-
-*图 3：非 PD exact64 计算示例说明 sequence length（序列长度）与 KV 容量如何限制实际 Decode concurrency。128K/192K actual-BS4 子集已经实测；64K 同方法锚点、255K actual-BS4 测点和 equal-KV-load（等 KV 负载）组合尚未实测，仅用于规划。此前单独实测的 255K PD-serving c1 能力点仍然有效。*
-
-对于正在执行 Decode 的请求，可以采用以下容量模型：
-
-$$
-\sum_{i\in\mathcal{D}(t)}\left(ISL_i+generated_i+reserved_i\right)\le K_{pool}.
-$$
-
-忽略内存分配粒度和运行时预留后，可得到同规格请求的理论上界：
-
-$$
-B_{raw}=\left\lfloor\frac{K_{pool}}{ISL+OSL}\right\rfloor.
-$$
-
-Allocation pages（分配页）、fragmentation（内存碎片）、MTP state（MTP 状态）和 safety reserve（安全预留）都会降低可用上限。因此，当 KV 容量已经成为瓶颈时，单纯提高 `--max-running-requests` 无法继续增大实际 Decode batch。
-
-两条 64K/1K 实测记录回答的是不同问题：
-
-| 记录 | Client load（客户端负载） | 实测 Decode batch | 解读 |
-|---|---|---|---|
-| 双节点 1P1D PD、c16 | Client concurrency 16 | 稳态 `4`、峰值 `5` | PD scheduler/capacity（调度与容量）记录；不是“Decode BS16”，也不是“Prefill BS16” |
-| 单节点 exact64 fixed batch | 16 条 prompt、client concurrency 16 | 实际 Decode batch `16`、queue `0` | 核心 Fixed-BS16 结果采用的**非 PD 容量实验** |
-
-单节点记录的 full-attention KV pool（全注意力 KV 池）实测为 $K_{pool}=1{,}442{,}464$ tokens。Raw sequence positions（原始序列位置数）为：
-
-$$
-16\times(65{,}536+1{,}024)=1{,}064{,}960,
-\qquad
-\frac{1{,}064{,}960}{1{,}442{,}464}=73.8\%.
-$$
-
-Scheduler 报告的 `full token usage` 为 `0.73–0.74`，与上述计算一致。这说明为什么把单节点 `mem-fraction-static` 提高到 `0.95` 后，exact64 仍能保持实际 Decode BS16；但这**不表示**某个 Prefill kernel 曾同时处理十六条完整的 64K prompt。
-
-### 基于7/13环境的128K/192K实测子集
-
-以下两类指标必须分开解读。Prefill 采用双节点 1P1D 部署的 aggregate input tok/s（聚合输入吞吐）；Decode 采用单节点非 PD 服务中经 transition guard（过渡样本门）筛选后的 steady full-BS4 scheduler gen tok/s（稳态满批调度器生成吞吐）。二者不能相除、合并或视为同一指标。
-
-#### Prefill 选定测点
-
-| ISL | 拓扑 | 客户端并发 | 请求数 | Input tok/s | 平均 TTFT | 测量次数 |
-|---:|---|---:|---:|---:|---:|---:|
-| 128K | 1P1D PD | 4 | 16 | **15,943.02** | 30.17 s | **N=1** |
-| 192K | 1P1D PD | 4 | 16 | **13,855.30** | 51.89 s | **N=1** |
-
-#### Decode 固定 BS4 选定测点
-
-| ISL | 拓扑 | 实际 Decode batch | 请求数 | 稳态 scheduler gen tok/s | 客户端 output tok/s | 平均 TTFT | 平均 TPOT | Full-token usage（完整 Token 占用率） | 测量次数 |
-|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| 128K | 单节点 TP8、非 PD | **4** | 4 | **380.56** | 94.59 | 20.31 s | 22.46 ms | 0.36–0.37 | **N=1** |
-| 192K | 单节点 TP8、非 PD | **4** | 4 | **319.71** | 58.90 | 35.73 s | 33.03 ms | 0.55 | **N=1** |
-
-输入从 128K 增至 192K 后，Prefill 输入吞吐下降 **13.1%**。在另一组固定 BS4 Decode 测试中，scheduler 生成吞吐下降 **16.0%**，平均 TPOT 增加 **47.1%**，平均 TTFT 增加 **75.9%**。每个测点只有一次通过验收的测量，不能据此判断多轮稳定性。
-
-128K 和 192K Prefill 测点分别来自两次独立启动的服务；两次测试之间只修复了指标解析器，并且都通过相同的不可变运行环境与配置校验。两个 Decode 测点随后在同一个单节点服务上依次执行。因此，这组数据只能用于同运行环境、同方法对比，不代表同一服务内或服务重启后的重复性。
-
-Decode 测点使用 `SGLANG_SIMULATE_ACC_LEN=3` 和 `match-expected`；scheduler 报告的 accept length（接受长度）为 `3.00`，rate（接受率）为 `0.67`。这些测点用于评估固定接受率下的 scheduler 容量，不验证自然 MTP 接受率或输出质量。六月进行的 BS1 边界诊断未纳入这组结果。
-
-机器可读结果：[`data/controlled-isl-results.tsv`](data/controlled-isl-results.tsv)；方法与运行环境审计：[`data/validation/controlled-isl-evidence.json`](data/validation/controlled-isl-evidence.json)；脱敏后的重算证据：[`data/evidence/controlled-isl-128k-192k/`](data/evidence/controlled-isl-128k-192k/)。运行 `python3 scripts/analyze_controlled_isl_evidence.py` 可以重建四个测点和全部公开变化率。
-
-### 后续如何只改变输入长度而不混入其他变量
-
-| 研究目标 | 控制变量 | 建议测点 | 证据状态 |
-|---|---|---|---|
-| 同一运行环境的受控实测子集 | OSL 固定为 1K，**实际 Decode batch 固定为 4** | 128K、192K 输入 | **已实测；每点 N=1**。尚未形成完整的 64K→192K 同方法曲线。 |
-| 等 KV 负载容量规划 | Raw token positions（原始 Token 位置数）保持在 exact64 负载附近 | 64K×16、128K×8、192K×5、255K×4 | 规划估算；尚未实测 |
-
-允许的最大输入测点是 **255K input + 1K output**：$261{,}120+1{,}024=262{,}144\le262{,}151$。**256K input + 1K output** 需要 $263{,}168$ 个 Token 位置，超过 `context-length=262151` 的限制。后续报告必须保留实际观测到的 Decode batch，不能再把 client concurrency 记成 BS。
-
-两张图均可通过 `python3 scripts/generate_batching_diagrams.py` 复现；运行前请先根据 `requirements-diagrams.txt` 安装固定版本的文档依赖。
-
----
-
 ## 核心结果：输入与输出视图
 
 下表列出已经通过验收的代表性测点。每一行 MI300X 的 client（客户端）和 server（服务端）指标都来自同一条测量记录；如果运行时 batch 或指标口径未对齐，H200 数据只作为独立的客户参考列示。
@@ -312,9 +148,9 @@ DP=2 的 nominal-length（名义长度）256K 结果仍保留在后面的扩展�
 
 ---
 
-## 微软扩展性测试
+## 扩展性与长上下文测试
 
-AMD 提供了基础启动方案，包括 container image（容器镜像）、tuned AITER path（AITER 调优路径）、1P1D/DP=2 topology（拓扑）以及 benchmark 入口。微软先按原方案完成复现，再独立扩展上下文长度和并发覆盖范围，并补充了 fail-closed correctness gate（失败即关闭的正确性校验）。**以下所有 MI300X 性能数据均由微软实测；H200 TPOT 是记录在 `h200-reference.json` 中的客户参考值，不包含 AMD 性能数据。**
+AMD 提供基础启动方案（容器镜像、AITER 调优路径、1P1D/DP=2 拓扑和 benchmark 入口），微软完成复现后联合扩展上下文长度与并发覆盖，并加入 fail-closed 正确性校验。**以下 MI300X 数据取自该联合运行环境；H200 数据为客户提供的参考值（`h200-reference.json`）。**
 
 ### 测试矩阵
 
@@ -333,15 +169,15 @@ AMD 提供了基础启动方案，包括 container image（容器镜像）、tun
 
 ### Decode 扩展性：8K 输入 / 1K 输出
 
-| 并发 | Output tok/s | 平均 TPOT (ms) | 平均 TTFT (ms) |
-|---:|---:|---:|---:|
-| 8 | 930.00 | 7.65 | 863.69 |
-| 16 | 1,303.44 | 10.72 | 1,398.73 |
-| 32 | 1,930.10 | 13.68 | 2,296.89 |
-| 64 | 2,462.83 | 17.08 | 7,406.18 |
-| 96 | 2,497.69 | 15.89 | 18,273.38 |
-| 128 | 2,468.95 | 16.45 | 27,128.38 |
-| 192 | 2,500.54 | 15.98 | 40,956.57 |
+| 并发 | MI300X Output tok/s | MI300X 平均 TPOT (ms) | 平均 TTFT (ms) | H200 参考（对应 BS 行） |
+|---:|---:|---:|---:|---:|
+| 8 | 930.00 | 7.65 | 863.69 | — |
+| 16 | 1,303.44 | 10.72 | 1,398.73 | 1,381 tok/s / 11.59 ms |
+| 32 | 1,930.10 | 13.68 | 2,296.89 | 2,549 tok/s / 12.56 ms |
+| 64 | 2,462.83 | 17.08 | 7,406.18 | 4,483 tok/s / 14.28 ms |
+| 96 | 2,497.69 | 15.89 | 18,273.38 | — |
+| 128 | 2,468.95 | 16.45 | 27,128.38 | 7,013 tok/s / 18.25 ms |
+| 192 | 2,500.54 | 15.98 | 40,956.57 | — |
 
 实测现象：
 
@@ -534,6 +370,170 @@ H200 数据来自客户工作簿，配置为 TP8/EP32/DP4、balanced `fake_topk_
 - 仓库质量门：`python3 scripts/validate_repo.py`（预期最后一行：`REPO_VALIDATION=PASS`）
 
 **仓库 CI 边界：** 已审查 commit 的 CodeQL 已通过。GitHub Pages 在进入 Jekyll 前仍失败，原因是上层 monorepo（单仓库）中已有 gitlink `Deep-Learning/Foundry-Managed-Compute-Open-Models` 缺少对应的 `.gitmodules` URL。该 checkout 故障早于本次 MI300X Fix Pass，不影响 GitHub README、全新克隆验证或本基准测试子目录；修复工作应由上层仓库维护者完成。
+
+---
+
+## 为什么 PD 分离后 Prefill 与 Decode 可以拥有独立 BS 和超参
+
+**核心结论：Batch Size（批大小）不是贯穿整个系统的一个全局值。** 请求的 input length（输入长度，ISL）和 requested output length（请求输出长度，OSL）本身不会因阶段变化，但会先后进入两套独立的 scheduler（调度器）。Prefill scheduler 将 new sequences（新序列）和 input-token chunks（输入 Token 分块）组织成批；Decode scheduler 则对 running requests（正在生成 Token 的请求）动态组批。PD 分离后，两套 scheduler、实例规模和执行参数都可以分别调优。
+
+![PD分离后的请求生命周期与独立batch](images/request_batching_lifecycle.png)
+
+*图 2：Prefill 阶段的请求批、Token 批与 Decode 阶段的运行请求批彼此独立。底部还区分了 1P1D PD c16 记录与非 PD exact64 BS16 容量实验。*
+
+### 如何解读小米社区版协议：Prefill 动态组批，Decode 按目标工况验收
+
+![小米社区版协议中的两套独立 Batch 口径](images/xiaomi_protocol_batch_planes.png)
+
+*图 2a：Prefill 侧由协议固定的是 client load（客户端负载）和 Token chunk 上限，实际 request batch（请求批）与 token batch（Token 批）由 scheduler 动态形成。Decode 侧规定 per-DP BS64 和 BS96 两个目标工况，是否达到目标必须由 `#running-req` 验证。二者之间不存在固定的一一对应关系。*
+
+| 层次 | 协议设定 | 运行日志证据 | 解读 |
+|---|---|---|---|
+| Client（客户端） | Prefill 压测设置 `max-concurrency=32`；每条请求有自己的 ISL/OSL | 实际 in-flight requests（在途请求数） | c32 表示客户端施加的并发压力，不是 Prefill BS |
+| Prefill | `chunked-prefill-size=32768` | `#new-seq` 和 `#new-token` 的分布 | 32K 是单条请求一次允许提交的 Token chunk 上限，不代表 32 条请求 |
+| KV handoff（KV 交接） | 每条完成 Prefill 的请求都会生成可交接的 KV | 完成 Prefill 并进入 Decode 的请求速率 | P 侧必须持续供给，但 batch 无须与 D 侧取相同数值 |
+| Decode | 16K/1K workload（工作负载）下，per-DP 目标为 BS64 或 BS96 | `#running-req` 的 modal/peak（稳态值/峰值）、queue（排队请求）和 KV usage（KV 占用） | 64/96 是预设目标工况；actual Decode batch 仍由 scheduler 动态形成 |
+
+对客户说明时，可以按四点来讲：
+
+1. `max-concurrency=32` 只表示 Prefill 压测客户端最多同时挂起 32 条请求，不表示 P 节点一次处理 32 条请求。
+2. `chunked-prefill-size=32768` 只限制单条请求一次最多提交 32K input tokens，不表示 Prefill request BS 为 32。
+3. P 节点在每个 scheduler step 中接纳多少条请求、处理多少 new tokens，应以 `#new-seq` 和 `#new-token` 为准；请求完成 Prefill 后，其 KV 才能交给 Decode。
+4. D 节点单独验收 per-DP BS64 和 BS96。二者是预先定义的目标工况；是否真正达到并保持目标，必须查看 `#running-req`，不能用 client concurrency、CUDA Graph BS 或 `--max-running-requests` 代替证明。
+
+因此，不存在 `Prefill BS32 -> Decode BS64/96` 这种固定映射。Prefill 与 Decode 应分别测量：P 侧证明各 ISL 下有足够的输入吞吐，D 侧证明 16K/1K 工作负载下的 actual batch 达到对应 per-DP 目标。没有必要对所有 Prefill 与 Decode 测点做完整笛卡尔积。该图只解释客户协议的 batch 口径，不表示当前 MI300X 路径已经达到 per-DP BS96。
+
+### 一个请求涉及的三类 Batch 概念
+
+| 层次 | 符号 / 指标 | 定义 | 不等同于 |
+|---|---|---|---|
+| Workload（工作负载） | `ISL`、`OSL` | **每条请求**的 input tokens 和 requested output tokens | Batch Size |
+| Client（客户端） | `N_prompts`、`C_client` | 提交请求总数，以及客户端允许的最大 in-flight 请求数 | 服务端实测 batch |
+| Prefill request batch | $B_P^{req}(t)$ | 一个 Prefill scheduler batch 接纳的 new sequences 数量 | Client concurrency 或 Decode batch |
+| Prefill token batch | $T_P(t)$ | 该 Prefill batch 中全部 input-token chunks 之和 | 整轮测试的全部 prompt tokens |
+| Decode batch | $B_D(t)$ | 某个 Decode scheduler step 中 running requests 的数量（`#running-req`） | `--max-running-requests` |
+| Admission ceiling（接纳上限） | `--max-running-requests` | 服务端允许同时处于 running 状态的最大请求数 | 实测 Decode batch 必然达到该值的承诺 |
+
+对于规格相同的请求，提交的总输入 Token 数为：
+
+$$
+T_{input}=N_{prompts}\times ISL.
+$$
+
+在 Prefill scheduler 的第 $t$ 个 step 中，请求 $i$ 只贡献当前 chunk $c_i(t)$：
+
+$$
+B_P^{req}(t)=|\mathcal{P}(t)|,\qquad
+T_P(t)=\sum_{i\in\mathcal{P}(t)}c_i(t).
+$$
+
+三个 Prefill 控制参数的单位不同，不能统一简称为“Prefill BS”：
+
+$$
+c_i(t)\le\texttt{chunked-prefill-size},\qquad
+T_P(t)\le\texttt{max-prefill-tokens},\qquad
+B_P^{req}(t)\le\texttt{prefill-max-requests}
+$$
+
+在设置了相应的 limit（上限）时，上述约束适用。在固定的 SGLang 源码中，`--chunked-prefill-size` 限制单个 chunk，`--max-prefill-tokens` 限制一个 Prefill batch 中的全部 new tokens，`--prefill-max-requests` 限制该 batch 的请求数。后两项未在本仓库支持的 launch script（启动脚本）中显式配置，因此本文不推测其实际生效值。
+
+Decode 维护的是另一组动态请求集合：
+
+$$
+B_D(t)=|\mathcal{D}(t)|\le\texttt{max-running-requests}.
+$$
+
+不同请求完成 Prefill 和 Decode 的时间不同，因此 $C_{client}$、$B_P^{req}(t)$ 和 $B_D(t)$ 无须相等。也正因如此，只写“BS16”无法说明口径；本文会明确指出它表示 client concurrency、Prefill request batch、Prefill token batch，还是 actual Decode batch。
+
+### PD 可以分别调优什么，哪些契约必须保持一致
+
+| 控制项 | 本次支持的 1P1D Prefill 实例 | 本次支持的 1P1D Decode 实例 | 关系 |
+|---|---|---|---|
+| Scheduler batch | 独立形成 request batch 和 token batch | 独立形成 dynamic running-request batch（动态运行请求批） | **彼此独立，可以不同** |
+| Scale-out | Prefill instance pool（实例池） | Decode instance pool（实例池） | 可分别针对 TTFT 与 TPOT/吞吐压力扩缩 |
+| `--chunked-prefill-size` | `32768` | `16384` | 分别配置；主 P-stage chunking path（分块路径）由 Prefill 侧数值控制 |
+| `--max-prefill-tokens` | 未显式设置 | 未显式设置 | Prefill token-batch 上限；不推测实际生效值 |
+| `--prefill-max-requests` | 未显式设置 | 未显式设置 | Prefill request-count 上限；不推测实际生效值 |
+| `--max-running-requests` | `128` | `128` | 配置的是 admission ceiling，**不是实测 Decode BS** |
+| `--mem-fraction-static` | `0.85` | `0.85` | 本次取值相同，但由两个 process 分别管理，可按 role 调优 |
+| CUDA graph | 关闭 | Launch script 未关闭 | role-specific execution tuning（按角色调优）的直接示例 |
+| MTP/EAGLE controls | 固定接受长度 `3`、`match-expected` | 固定接受长度 `3`、`match-expected` | 为固定接受率性能测试保持一致；不代表自然接受率 |
+
+两侧可以独立调优，但相关契约仍必须保持兼容。本次 validated path（已验证路径）在两侧使用相同的 model/checkpoint（模型与权重）、TP8 model partition（模型分片）、`context-length=262151`、`kv-cache-dtype=fp8_e4m3`、`page-size=32`、Mooncake transfer backend（传输后端），以及相互兼容的 KV layout（KV 布局）。这些配置共同构成 model/KV-transfer contract（模型与 KV 传输契约）。Batch formation（组批方式）、scheduler policy（调度策略）、process memory budget（进程内存预算）、execution graph policy（执行图策略）和 instance count（实例数量）可以按角色分别调优；序列化后的 KV 表示和 sequence semantics（序列语义）则必须兼容。
+
+### ISL 如何约束实际 Decode Batch
+
+![长ISL Decode的KV容量关系](images/kv_capacity_relationship.png)
+
+*图 3：非 PD exact64 计算示例说明 sequence length（序列长度）与 KV 容量如何限制实际 Decode concurrency。128K/192K actual-BS4 子集已经实测；64K 同方法锚点、255K actual-BS4 测点和 equal-KV-load（等 KV 负载）组合尚未实测，仅用于规划。此前单独实测的 255K PD-serving c1 能力点仍然有效。*
+
+对于正在执行 Decode 的请求，可以采用以下容量模型：
+
+$$
+\sum_{i\in\mathcal{D}(t)}\left(ISL_i+generated_i+reserved_i\right)\le K_{pool}.
+$$
+
+忽略内存分配粒度和运行时预留后，可得到同规格请求的理论上界：
+
+$$
+B_{raw}=\left\lfloor\frac{K_{pool}}{ISL+OSL}\right\rfloor.
+$$
+
+Allocation pages（分配页）、fragmentation（内存碎片）、MTP state（MTP 状态）和 safety reserve（安全预留）都会降低可用上限。因此，当 KV 容量已经成为瓶颈时，单纯提高 `--max-running-requests` 无法继续增大实际 Decode batch。
+
+两条 64K/1K 实测记录回答的是不同问题：
+
+| 记录 | Client load（客户端负载） | 实测 Decode batch | 解读 |
+|---|---|---|---|
+| 双节点 1P1D PD、c16 | Client concurrency 16 | 稳态 `4`、峰值 `5` | PD scheduler/capacity（调度与容量）记录；不是“Decode BS16”，也不是“Prefill BS16” |
+| 单节点 exact64 fixed batch | 16 条 prompt、client concurrency 16 | 实际 Decode batch `16`、queue `0` | 核心 Fixed-BS16 结果采用的**非 PD 容量实验** |
+
+单节点记录的 full-attention KV pool（全注意力 KV 池）实测为 $K_{pool}=1{,}442{,}464$ tokens。Raw sequence positions（原始序列位置数）为：
+
+$$
+16\times(65{,}536+1{,}024)=1{,}064{,}960,
+\qquad
+\frac{1{,}064{,}960}{1{,}442{,}464}=73.8\%.
+$$
+
+Scheduler 报告的 `full token usage` 为 `0.73–0.74`，与上述计算一致。这说明为什么把单节点 `mem-fraction-static` 提高到 `0.95` 后，exact64 仍能保持实际 Decode BS16；但这**不表示**某个 Prefill kernel 曾同时处理十六条完整的 64K prompt。
+
+### 基于7/13环境的128K/192K实测子集
+
+以下两类指标必须分开解读。Prefill 采用双节点 1P1D 部署的 aggregate input tok/s（聚合输入吞吐）；Decode 采用单节点非 PD 服务中经 transition guard（过渡样本门）筛选后的 steady full-BS4 scheduler gen tok/s（稳态满批调度器生成吞吐）。二者不能相除、合并或视为同一指标。
+
+#### Prefill 选定测点
+
+| ISL | 拓扑 | 客户端并发 | 请求数 | Input tok/s | 平均 TTFT | 测量次数 |
+|---:|---|---:|---:|---:|---:|---:|
+| 128K | 1P1D PD | 4 | 16 | **15,943.02** | 30.17 s | **N=1** |
+| 192K | 1P1D PD | 4 | 16 | **13,855.30** | 51.89 s | **N=1** |
+
+#### Decode 固定 BS4 选定测点
+
+| ISL | 拓扑 | 实际 Decode batch | 请求数 | 稳态 scheduler gen tok/s | 客户端 output tok/s | 平均 TTFT | 平均 TPOT | Full-token usage（完整 Token 占用率） | 测量次数 |
+|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 128K | 单节点 TP8、非 PD | **4** | 4 | **380.56** | 94.59 | 20.31 s | 22.46 ms | 0.36–0.37 | **N=1** |
+| 192K | 单节点 TP8、非 PD | **4** | 4 | **319.71** | 58.90 | 35.73 s | 33.03 ms | 0.55 | **N=1** |
+
+输入从 128K 增至 192K 后，Prefill 输入吞吐下降 **13.1%**。在另一组固定 BS4 Decode 测试中，scheduler 生成吞吐下降 **16.0%**，平均 TPOT 增加 **47.1%**，平均 TTFT 增加 **75.9%**。每个测点只有一次通过验收的测量，不能据此判断多轮稳定性。
+
+128K 和 192K Prefill 测点分别来自两次独立启动的服务；两次测试之间只修复了指标解析器，并且都通过相同的不可变运行环境与配置校验。两个 Decode 测点随后在同一个单节点服务上依次执行。因此，这组数据只能用于同运行环境、同方法对比，不代表同一服务内或服务重启后的重复性。
+
+Decode 测点使用 `SGLANG_SIMULATE_ACC_LEN=3` 和 `match-expected`；scheduler 报告的 accept length（接受长度）为 `3.00`，rate（接受率）为 `0.67`。这些测点用于评估固定接受率下的 scheduler 容量，不验证自然 MTP 接受率或输出质量。六月进行的 BS1 边界诊断未纳入这组结果。
+
+机器可读结果：[`data/controlled-isl-results.tsv`](data/controlled-isl-results.tsv)；方法与运行环境审计：[`data/validation/controlled-isl-evidence.json`](data/validation/controlled-isl-evidence.json)；脱敏后的重算证据：[`data/evidence/controlled-isl-128k-192k/`](data/evidence/controlled-isl-128k-192k/)。运行 `python3 scripts/analyze_controlled_isl_evidence.py` 可以重建四个测点和全部公开变化率。
+
+### 后续如何只改变输入长度而不混入其他变量
+
+| 研究目标 | 控制变量 | 建议测点 | 证据状态 |
+|---|---|---|---|
+| 同一运行环境的受控实测子集 | OSL 固定为 1K，**实际 Decode batch 固定为 4** | 128K、192K 输入 | **已实测；每点 N=1**。尚未形成完整的 64K→192K 同方法曲线。 |
+| 等 KV 负载容量规划 | Raw token positions（原始 Token 位置数）保持在 exact64 负载附近 | 64K×16、128K×8、192K×5、255K×4 | 规划估算；尚未实测 |
+
+允许的最大输入测点是 **255K input + 1K output**：$261{,}120+1{,}024=262{,}144\le262{,}151$。**256K input + 1K output** 需要 $263{,}168$ 个 Token 位置，超过 `context-length=262151` 的限制。后续报告必须保留实际观测到的 Decode batch，不能再把 client concurrency 记成 BS。
+
+两张图均可通过 `python3 scripts/generate_batching_diagrams.py` 复现；运行前请先根据 `requirements-diagrams.txt` 安装固定版本的文档依赖。
 
 ---
 
