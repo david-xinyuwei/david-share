@@ -186,11 +186,8 @@ AMD 提供基础启动方案（容器镜像、AITER 调优路径、1P1D/DP=2 拓
 
 四个复测点在两次全新服务运行之间的最大吞吐绝对差异为 **2.14%**。
 
-### 长上下文结果：最终运行环境镜像
 
-以下测点于 2026-07-17 直接拉取并运行“软件栈”章节列出的 immutable image（不可变镜像）。每一行代表一次测量；同一行里的多条请求不能视为彼此独立的重复实验。
-
-#### 指标口径
+### 指标口径
 
 Input（输入侧）与 Output（输出侧）指标回答的问题不同，不能互相相除或直接比较。
 
@@ -205,7 +202,7 @@ Input（输入侧）与 Output（输出侧）指标回答的问题不同，不�
 
 `TPUT` 只是 throughput 的缩写，通常以 tokens/s 表示，不是另一种独立指标。
 
-#### 1. 输入侧：64K Prefill
+### 64K Prefill
 
 | 字段 | 微软实测 MI300X | 客户 H200 参考 | 对齐状态 |
 |---|---:|---:|---|
@@ -216,7 +213,7 @@ Input（输入侧）与 Output（输出侧）指标回答的问题不同，不�
 
 这不是严格的硬件对比，因为 H200 未记录 input concurrency，而且 routing 方式不同。MI300X 使用真实 expert routing；H200 参考使用 balanced `fake_topk_ids`、TP8/EP16/DP2，并关闭 radix cache。
 
-#### 2. 输出侧：MI300X 64K 输入 / 1K 输出
+### 64K Decode — PD 模式（实测 BS4–5）
 
 | 客户端并发 | MI300X 实测 Decode BS | MI300X gen tok/s | MI300X TPOT (ms) | H200 参考（per-DP BS） | MI300X / H200 |
 |---:|---:|---:|---:|---:|---:|
@@ -229,9 +226,9 @@ Input（输入侧）与 Output（输出侧）指标回答的问题不同，不�
 
 机器可读审计：[`data/validation/decode-service-log-audit.json`](data/validation/decode-service-log-audit.json)。
 
-#### Exact Fixed-Batch Decode（精确固定批次测试）— 64K 输入 / 服务端计数的 1K 输出，BS16（2026-07-18）
+### 64K Decode — 固定 BS16（与 H200 对齐）
 
-该测试在单个 MI300X 节点上运行（TP8，不采用 PD 分离），使用基于 AMD 7/13 tuned-MoE 环境生成的不可变镜像 `20260713-final`。这是 fixed-acceptance performance benchmark（固定接受率性能测试）：`SGLANG_SIMULATE_ACC_LEN=3` 与 `match-expected` 将 speculative acceptance length（投机接受长度）固定下来，以便比较性能；该方法不验证自然 MTP 接受率或输出质量。将 `--mem-fraction-static` 提高到 0.95 后，full-attention KV pool（全注意力 KV 池）从 554,880 扩大到 1,442,464 个 Token，使 16 条 64K context 请求能够同时进入 Decode。最终路径显式启用 `SGLANG_AITER_UNIFIED_VERIFY=1` 和 `SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1`；两轮服务日志均包含 `module_gemm_a8w8_blockscale_bpreshuffle` marker（标记）。
+该测试在单个 MI300X 节点上运行（TP8，不采用 PD 分离），工作负载为精确 64K 输入 / 服务端计数的 1K 输出，使用基于 AMD 7/13 tuned-MoE 环境生成的不可变镜像 `20260713-final`。这是 fixed-acceptance performance benchmark（固定接受率性能测试）：`SGLANG_SIMULATE_ACC_LEN=3` 与 `match-expected` 将 speculative acceptance length（投机接受长度）固定下来，以便比较性能；该方法不验证自然 MTP 接受率或输出质量。将 `--mem-fraction-static` 提高到 0.95 后，full-attention KV pool（全注意力 KV 池）从 554,880 扩大到 1,442,464 个 Token，使 16 条 64K context 请求能够同时进入 Decode。最终路径显式启用 `SGLANG_AITER_UNIFIED_VERIFY=1` 和 `SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1`；两轮服务日志均包含 `module_gemm_a8w8_blockscale_bpreshuffle` marker（标记）。
 
 | 精确工作负载 | 固定 BS | 两轮服务重启后的 gen tok/s | 平均 gen tok/s | 两轮差异 | 折算 TPOT | H200 工作簿行 | 方向性比率 |
 |---|---:|---:|---:|---:|---:|---:|---:|
@@ -247,7 +244,7 @@ Input（输入侧）与 Output（输出侧）指标回答的问题不同，不�
 
 机器可读结果：[`data/decode-fixed-batch-results.tsv`](data/decode-fixed-batch-results.tsv)；方法、运行环境身份和源文件哈希：[`data/validation/decode-fixed-batch-audit.json`](data/validation/decode-fixed-batch-audit.json)；脱敏后的原始采样窗口：[`data/evidence/exact64-fixed-acceptance/`](data/evidence/exact64-fixed-acceptance/)；公开分析脚本：[`scripts/analyze_exact64_evidence.py`](scripts/analyze_exact64_evidence.py)；复现脚本：[`scripts/amd-latest/launch_single_node_decode.sh`](scripts/amd-latest/launch_single_node_decode.sh) + [`scripts/amd-latest/benchmark_decode_fixed_batch.sh`](scripts/amd-latest/benchmark_decode_fixed_batch.sh)。
 
-#### 3. 客户问题评估
+### 客户问题评估
 
 | 客户问题 | 当前证据 | 是否适合 MI300X/H200 排名？ |
 |---|---|---|
@@ -257,7 +254,7 @@ Input（输入侧）与 Output（输出侧）指标回答的问题不同，不�
 | Decode TPOT | 两份来源均提供 scheduler-derived TPOT（由 scheduler 吞吐推算的 TPOT） | BS16：17.14 vs 11.99 ms；输出长度、拓扑、路由和接受率方法仍不同 |
 | Near-limit context（接近上限的上下文） | MI300X 完成请求的 255K 输入 + 1K 输出 | 只证明能力；没有匹配的 H200 工作负载 |
 
-#### 请求 255K 的能力测点
+### 255K 能力测点
 
 | 工作负载 | 客户端并发 | 实测 Decode batch | E2E output tok/s | Decode 节点平均 gen tok/s | 平均 TTFT (s) | 平均 TPOT (ms) |
 |---|---:|---:|---:|---:|---:|---:|

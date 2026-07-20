@@ -180,11 +180,7 @@ Observed behavior:
 
 The maximum absolute two-run throughput delta was **2.14%** across the four repeated points.
 
-### Long-Context Results — Final Runtime Image
-
-These points were measured on 2026-07-17 by pulling and running the immutable image listed in the Software Stack section. Each row is one measurement run; multiple requests within a row are not independent repetitions.
-
-#### Metric Contract
+### Metric Contract
 
 Input and output metrics answer different questions and must not be divided by each other.
 
@@ -199,7 +195,7 @@ Input and output metrics answer different questions and must not be divided by e
 
 `TPUT` is shorthand for throughput, usually reported in tokens/s; it is not a separate metric.
 
-#### 1. Input Side — 64K Prefill
+### 64K Prefill
 
 | Field | Microsoft-tested MI300X | Customer H200 reference | Alignment status |
 |---|---:|---:|---|
@@ -210,7 +206,7 @@ Input and output metrics answer different questions and must not be divided by e
 
 This is not a strict hardware comparison because the H200 input concurrency is absent and routing differs. MI300X uses real expert routing; the H200 reference uses balanced `fake_topk_ids`, TP8/EP16/DP2, and radix cache disabled.
 
-#### 2. Output Side — MI300X 64K Input / 1K Output
+### 64K Decode — PD Mode (Actual BS4–5)
 
 | Client concurrency | MI300X actual Decode BS | MI300X gen tok/s | MI300X TPOT (ms) | H200 reference (per-DP BS) | MI300X / H200 |
 |---:|---:|---:|---:|---:|---:|
@@ -223,9 +219,9 @@ This is not a strict hardware comparison because the H200 input concurrency is a
 
 Machine-readable D-node audit: [`data/validation/decode-service-log-audit.json`](data/validation/decode-service-log-audit.json).
 
-#### Exact Fixed-Batch Decode — 64K Input / 1K Server-Accounted Output, BS16 (2026-07-18)
+### 64K Decode — Fixed BS16 (Aligned with H200)
 
-Measured on a single MI300X node (TP8, no PD disaggregation) with the immutable `20260713-final` image derived from AMD's 7/13 tuned-MoE environment. This is a **fixed-acceptance performance benchmark**: `SGLANG_SIMULATE_ACC_LEN=3` with `match-expected` fixes the speculative acceptance length for benchmark comparability. It does not validate natural MTP acceptance or output quality. Raising `--mem-fraction-static` to 0.95 expands the full-attention KV pool from 554,880 to 1,442,464 tokens so 16 64K-context requests decode concurrently. The final path explicitly enables `SGLANG_AITER_UNIFIED_VERIFY=1` and `SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1`; both service logs contain the `module_gemm_a8w8_blockscale_bpreshuffle` marker.
+Measured on a single MI300X node (TP8, no PD disaggregation) with a workload of exact 64K input / server-accounted 1K output, using the immutable `20260713-final` image derived from AMD's 7/13 tuned-MoE environment. This is a **fixed-acceptance performance benchmark**: `SGLANG_SIMULATE_ACC_LEN=3` with `match-expected` fixes the speculative acceptance length for benchmark comparability. It does not validate natural MTP acceptance or output quality. Raising `--mem-fraction-static` to 0.95 expands the full-attention KV pool from 554,880 to 1,442,464 tokens so 16 64K-context requests decode concurrently. The final path explicitly enables `SGLANG_AITER_UNIFIED_VERIFY=1` and `SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1`; both service logs contain the `module_gemm_a8w8_blockscale_bpreshuffle` marker.
 
 | Exact workload | Fixed batch | Fresh-service gen tok/s | Mean gen tok/s | Repeat delta | Implied TPOT | H200 worksheet row | Directional ratio |
 |---|---:|---:|---:|---:|---:|---:|---:|
@@ -241,7 +237,7 @@ The earlier output8K fixed-batch sweep remains in the machine-readable file as `
 
 Machine-readable results: [`data/decode-fixed-batch-results.tsv`](data/decode-fixed-batch-results.tsv); method, runtime identity, and source hashes: [`data/validation/decode-fixed-batch-audit.json`](data/validation/decode-fixed-batch-audit.json); sanitized raw windows: [`data/evidence/exact64-fixed-acceptance/`](data/evidence/exact64-fixed-acceptance/); public analyzer: [`scripts/analyze_exact64_evidence.py`](scripts/analyze_exact64_evidence.py); reproduction: [`scripts/amd-latest/launch_single_node_decode.sh`](scripts/amd-latest/launch_single_node_decode.sh) + [`scripts/amd-latest/benchmark_decode_fixed_batch.sh`](scripts/amd-latest/benchmark_decode_fixed_batch.sh).
 
-#### 3. Customer Requirement Assessment
+### Customer Requirement Assessment
 
 | Customer question | Current evidence | Suitable for MI300X/H200 ranking? |
 |---|---|---|
@@ -251,7 +247,7 @@ Machine-readable results: [`data/decode-fixed-batch-results.tsv`](data/decode-fi
 | Decode TPOT | Both sources provide a scheduler-derived TPOT view | BS16: 17.14 vs 11.99 ms; output-length, topology, routing, and acceptance still differ |
 | Near-limit context | MI300X completed requested 255K input + 1K output | Capability evidence only; no matching H200 workload |
 
-#### Requested 255K Capability Point
+### 255K Capability Point
 
 | Workload | Client concurrency | Observed Decode batch | E2E output tok/s | D-node mean gen tok/s | Mean TTFT (s) | Mean TPOT (ms) |
 |---|---:|---:|---:|---:|---:|---:|
