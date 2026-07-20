@@ -181,8 +181,8 @@ def request_lifecycle() -> None:
     centered(draw, (WIDTH // 2, 915), "Do not mix the two measured 64K / 1K records", BLUE, F_SECTION)
     draw.text((115, 954), "1P1D PD c16:", fill=PURPLE, font=F_BODY_BOLD)
     draw.text((315, 954), "observed Decode BS mode 4 / peak 5", fill=INK, font=F_BODY)
-    draw.text((930, 954), "Single-node exact64:", fill=ORANGE, font=F_BODY_BOLD)
-    draw.text((1220, 954), "actual Decode BS 16", fill=INK, font=F_BODY)
+    draw.text((900, 954), "Single-node exact64:", fill=ORANGE, font=F_BODY_BOLD)
+    draw.text((1300, 954), "actual Decode BS 16", fill=INK, font=F_BODY)
     centered(
         draw,
         (WIDTH // 2, 998),

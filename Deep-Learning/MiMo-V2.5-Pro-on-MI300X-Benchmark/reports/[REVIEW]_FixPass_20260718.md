@@ -1,5 +1,7 @@
 # [REVIEW] Fix Pass — 2026-07-18
 
+> **Historical scope:** this report applies to baseline commit `97d5237187d1f19d08c8e15fd9d3dec568075537` and the 2026-07-18 Fix Pass only. It is preserved as historical evidence and does not certify later commits or the current worktree. See `[REVIEW]_Full-Repo-SOP68_20260719.md` for the current full-repository review.
+
 ## Scope
 
 - Repository: `david-xinyuwei/david-share`

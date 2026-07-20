@@ -12,6 +12,14 @@ Node1_IP="${Node1_IP:?Set Node1_IP to the second prefill node IB address}"
 LOG_DIR="${LOG_DIR:-/data/mimo-amd-latest/dp2/service}"
 ROUTER_HEALTH_CHECK_TIMEOUT_SECONDS="${ROUTER_HEALTH_CHECK_TIMEOUT_SECONDS:-30}"
 ROUTER_HEALTH_CHECK_ENDPOINT="${ROUTER_HEALTH_CHECK_ENDPOINT:-/server_info}"
+ROUTER_BIND_HOST="${ROUTER_BIND_HOST:-$Node0_IP}"
+
+case "$ROUTER_BIND_HOST" in
+  0.0.0.0|::|\[::\])
+    printf 'ROUTER_BIND_HOST must be a concrete private or IB address, not %s\n' "$ROUTER_BIND_HOST" >&2
+    exit 2
+    ;;
+esac
 
 mkdir -p "$LOG_DIR"
 
@@ -24,5 +32,5 @@ python3 -m sglang_router.launch_router \
   --policy round_robin \
   --health-check-timeout-secs "$ROUTER_HEALTH_CHECK_TIMEOUT_SECONDS" \
   --health-check-endpoint "$ROUTER_HEALTH_CHECK_ENDPOINT" \
-  --host 0.0.0.0 --port 40000 \
+  --host "$ROUTER_BIND_HOST" --port 40000 \
   2>&1 | tee "$LOG_DIR/router_outer.log"

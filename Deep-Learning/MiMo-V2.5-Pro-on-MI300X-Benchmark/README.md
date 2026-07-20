@@ -11,9 +11,11 @@ This customer-facing repo contains the headline comparison, the complete Microso
 
 > Author: 魏新宇 (Xinyu Wei) — Microsoft AI and Apps Global Black Belt (GBB)
 >
-> Last tested: 2026-07-18
+> Last validated: 2026-07-19
 
 English | [中文版](README-CN.md) | [Validation Evidence](data/validation/)
+
+## Executive Summary
 
 > **Comparison status:** on the input side, MI300X reaches **18,983.91 input tok/s** at 64K and concurrency 4 versus the customer H200 saturation reference of **27,400 input tok/s**; the H200 workbook does not record the matching input concurrency. On the output side, the final AMD 7/13-derived AITER/CK path reaches **933.75 scheduler gen tok/s** in a **single-node, non-PD**, exact-64K, fixed-BS16, **fixed-acceptance performance benchmark**, the mean of two fresh-service runs (**931.58 / 935.92 tok/s**, **0.47%** repeat delta), with an implied TPOT of **17.14 ms**. This is a **70.0% worksheet-local directional arithmetic ratio** against the customer workbook's 64K BS16 row and **25.7% above** the same-image exact no-CK baseline. It is not the 1P1D PD c16 record, not a natural-MTP-acceptance result, and not an output-quality result. The H200 workbook has no row-level output length, its Column J scope is ambiguous, and topology, routing, acceptance method, and metric scope differ. Higher batch sizes (BS32–96) still require an EP/multi-node Decode deployment and carry no hardware ratio.
 
@@ -32,6 +34,8 @@ English | [中文版](README-CN.md) | [Validation Evidence](data/validation/)
 **Direct answer:** no tested Prefill-throughput row exceeds its H200 reference, and neither tested Decode-throughput row does. The only metric where MI300X is directionally better is **8K Decode TPOT, 6.6% lower**. The 64K Decode result verifies exact input length and fixed-acceptance scheduler capacity, improving **25.7%** over the same-image MI300X baseline, but it does not exceed the H200 worksheet row and does not validate output quality.
 
 “Directional” is essential: H200 input concurrency is missing; its Decode rows have no explicit output length and ambiguous Column J deployment scope; topology, expert routing, acceptance method, and metric scope also differ. Every percentage against H200 is a worksheet-local directional arithmetic ratio, not a strict hardware ranking.
+
+**Customer-data sharing boundary:** the private source workbook is not redistributed. The repository contains selected numeric excerpts for directional comparison, but evidence of authorization to share those excerpts externally is not recorded in this repository. The repository owner must confirm that authority before external redistribution.
 
 **TPOT metric scope:** the 8K value is the client-reported mean TPOT from the 1P1D c16 run. The 64K value is scheduler-implied TPOT, calculated as `1000 / (mean gen tok/s ÷ BS16)` from the single-node fixed-batch run. They answer different questions and must not be treated as a controlled 8K→64K TPOT curve. The controlled length-scaling signal is the explicitly labeled output8K diagnostic below, where both points use the same method.
 
@@ -280,7 +284,7 @@ The nominal-length 256K DP=2 observation is retained in the detailed scalability
 - The headline 1P1D 256K result sends exactly 262,144 token IDs per request with `--tokenize-prompt`.
 - DP=2 values are aggregate Prefill-only capacity across two MI300X nodes; they do not include P→D KV-cache transfer.
 - The H200 workbook labels Column J as single-machine Decode throughput, but every value equals local per-DP `BS × TPS` without a DP=4 multiplier. This report treats it as a worksheet-local per-DP-style reference, not a confirmed single-machine or DP=4 aggregate metric.
-- The H200 workbook has no output-length column. `output_tokens=1024` in machine-readable reference points is retained as customer-package context, not row-level workbook evidence.
+- The H200 workbook has no output-length column. Machine-readable H200 reference points therefore use `output_tokens=null`; the separate 16K community-image narrative that mentions 1K output does not establish the output length of the 8K/64K workbook rows.
 - Client concurrency is never assumed to be the observed Decode batch; the 8K and 64K scheduler-log audits record the steady-state and peak values.
 - H200 figures remain directional references, not a strict apples-to-apples hardware benchmark: MI300X uses real expert routing, while the H200 reference uses idealized balanced routing.
 - Machine-readable headline results: [`data/final-results.tsv`](data/final-results.tsv); scheduler-log audit: [`data/validation/decode-service-log-audit-8k.json`](data/validation/decode-service-log-audit-8k.json).
@@ -414,13 +418,13 @@ Therefore, the PD-serving output tokens/s and TPOT values are shown as two separ
 
 #### Exact Fixed-Batch Decode — 64K Input / 1K Server-Accounted Output, BS16 (2026-07-18)
 
-Measured on one MI300X node (TP8, no PD disaggregation) with the immutable `20260713-final` image derived from AMD's July 13 tuned-MoE environment. This is a **fixed-acceptance performance benchmark**: `SGLANG_SIMULATE_ACC_LEN=3` with `match-expected` fixes the speculative acceptance length for benchmark comparability. It does not validate natural MTP acceptance or output quality. Raising `--mem-fraction-static` to 0.95 expands the full-attention KV pool from 554,880 to 1,442,464 tokens so sixteen 64K-context requests decode concurrently. The final path explicitly enables `SGLANG_AITER_UNIFIED_VERIFY=1` and `SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1`; both service logs contain the `module_gemm_a8w8_blockscale_bpreshuffle` marker.
+Measured on a single MI300X node (TP8, no PD disaggregation) with the immutable `20260713-final` image derived from AMD's 7/13 tuned-MoE environment. This is a **fixed-acceptance performance benchmark**: `SGLANG_SIMULATE_ACC_LEN=3` with `match-expected` fixes the speculative acceptance length for benchmark comparability. It does not validate natural MTP acceptance or output quality. Raising `--mem-fraction-static` to 0.95 expands the full-attention KV pool from 554,880 to 1,442,464 tokens so 16 64K-context requests decode concurrently. The final path explicitly enables `SGLANG_AITER_UNIFIED_VERIFY=1` and `SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1`; both service logs contain the `module_gemm_a8w8_blockscale_bpreshuffle` marker.
 
 | Exact workload | Fixed batch | Fresh-service gen tok/s | Mean gen tok/s | Repeat delta | Implied TPOT | H200 worksheet row | Directional ratio |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | 64K input / 1K server-accounted output | 16 | 931.58 / 935.92 | **933.75** | **0.47%** | **17.14 ms** | 1,333.89 tok/s, 11.99 ms | **70.0% worksheet-local** |
 
-Each repetition completed 16 requests with exactly 1,048,576 total input tokens, 16,384 server-accounted generated tokens, and 4,112 retokenized generated-text tokens. Retokenized means the length of `tokenizer.encode(generated_text)`; it is not accepted draft-token count. The difference is an explicit method boundary, and this performance run does not validate output quality. The predeclared transition guard excluded only the first full-batch sample because it was below 50% of the subsequent-sample median; each retained window contains seven batch-16 samples, simulated accept length 3.00, scheduler-reported rate 0.67, and zero queued requests.
+Each repetition completed 16 requests with exactly 1,048,576 total input tokens, 16,384 server-accounted generated tokens, and 4,112 retokenized generated-text tokens. Retokenized means the length of `tokenizer.encode(generated_text)`; it is not accepted draft-token count. The difference is an explicit method boundary, and this performance run does not validate output quality. The predeclared transition guard excluded only the first full-batch sample because it was below 50% of the subsequent-sample median; each retained window contains 7 batch-16 samples, simulated accept length 3.00, scheduler-reported rate 0.67, and 0 queued requests.
 
 **Measured optimized-path effect.** In a back-to-back controlled A/B on the same host, running container, immutable image, model, TP8 topology, KV-pool setting, benchmark command, and fresh-service protocol, the no-CK two-run baseline averaged 743.12 tok/s. The final AITER verification plus CK blockscale-bpreshuffle bundle averages **933.75 tok/s**, a **25.7% uplift**. Only the two bundle environment flags changed. This establishes the effect of the bundle; it does not isolate either flag as the sole mechanism or prove that the remaining gap is a specific software or hardware limit.
 
@@ -543,7 +547,7 @@ Observed behavior:
 
 | Component | Version | Notes |
 |-----------|---------|-------|
-| Validated runtime image | `mimomi300xacr.azurecr.io/mimo-v2.5-pro-mi300x@sha256:08deabd2f3a4e98e183944048730f560056b0e4dd724c06f74c368645a655910` | `20260713-final`; AMD July 13 tuned-MoE environment packaged by Microsoft on July 15; 37 layers; clean Docker pull verified |
+| Validated runtime image | `AMD_20260713_derived_final_image@sha256:08deabd2...5910` | Private image coordinates withheld; immutable digest, image ID, runtime commits, and clean-pull evidence are recorded in `data/validation/` |
 | Base image provenance | `rocm/sgl-dev:v0.5.11-rocm720-mi30x-20260510` | Base image ID `sha256:bb9d2e5ab1a6...` |
 | SGLang | Package `0.0.0.dev14147+g2f9b9aedf.d20260706`, source HEAD `2f9b9aedf` | Final tested runtime |
 | AITER | Source HEAD `00e94abf`; tuned CSV SHA-256 `2c87ff1...80ea7` | Final tested runtime |
@@ -569,23 +573,32 @@ Observed behavior:
 
 ## Running on Azure and Reproducing Final Results
 
-Use the immutable baked runtime below. It contains the tested SGLang/AITER source trees, Python/runtime deltas, tuned fused-MoE configuration, RDMA userspace stack, and [`scripts/amd-latest/`](scripts/amd-latest/) at `/opt/mimo-mi300x/scripts/amd-latest`.
+Use the immutable baked runtime below for the tested SGLang/AITER stack. Use [`scripts/amd-latest/`](scripts/amd-latest/) from a pinned checkout of this repository as the control-plane bundle; the image's embedded copy is historical and may not contain later safety or validation fixes.
 
 ### Prerequisites
 
 - 2× Azure `Standard_ND96isr_MI300X_v5` nodes (VMSS, same placement group for IB)
-- Repository-scoped ACR pull username and password, supplied through a private channel
+- Authorized access to the private runtime image; its registry coordinates and pull credentials are not published in this repository
 - Model: [XiaomiMiMo/MiMo-V2.5-Pro](https://huggingface.co/XiaomiMiMo/MiMo-V2.5-Pro) downloaded to `/data/models/MiMo-V2.5-Pro`
 - Benchmark dataset available under `/data`; model weights and datasets are not included in the image
 - The PD-separated Decode container must expose RDMA devices, `/dev/mem`, and `CAP_SYS_ADMIN`
+- A pinned checkout of this repository available on both nodes under `/data/david-share`
+
+Create the shared checkout before starting the containers, and record the resolved commit SHA with the run evidence:
+
+```bash
+git clone --filter=blob:none --sparse https://github.com/david-xinyuwei/david-share.git /data/david-share
+git -C /data/david-share sparse-checkout set Deep-Learning/MiMo-V2.5-Pro-on-MI300X-Benchmark
+git -C /data/david-share rev-parse HEAD
+```
 
 ### Pull and Start the Runtime — Both Nodes
 
 The container requires elevated host access for RDMA memory registration. Run it only on dedicated, trusted benchmark nodes.
 
 ```bash
-export ACR_LOGIN_SERVER=mimomi300xacr.azurecr.io
-export IMAGE_REF='mimomi300xacr.azurecr.io/mimo-v2.5-pro-mi300x@sha256:08deabd2f3a4e98e183944048730f560056b0e4dd724c06f74c368645a655910'
+read -rp 'Private registry login server: ' ACR_LOGIN_SERVER
+read -rp 'Authorized immutable image reference: ' IMAGE_REF
 
 read -rp 'ACR pull username: ' ACR_USERNAME
 read -rsp 'ACR pull password: ' ACR_PASSWORD && printf '\n'
@@ -610,19 +623,25 @@ docker exec mimo-mi300x bash -lc '
 	test "$(sha256sum /sgl-workspace/aiter_0625/aiter/configs/model_configs/mimo_v2_5_pro_b16_tuned_fmoe.csv | cut -d" " -f1)" = 2c87ff1fa062c73e1941962f8630a335ea1e39d2dbb5b0c2d4971bcd55880ea7
 	test -e /dev/infiniband/uverbs0
 	test -e /dev/mem
-	cd /opt/mimo-mi300x/scripts/amd-latest
-	sha256sum -c SHA256SUMS.txt
 '
 ```
 
 The exact image identity and clean-pull evidence are in [`data/validation/container-image.json`](data/validation/container-image.json).
 
+Validate the current source bundle separately inside each container:
+
+```bash
+export BUNDLE_DIR=/data/david-share/Deep-Learning/MiMo-V2.5-Pro-on-MI300X-Benchmark/scripts/amd-latest
+cd "$BUNDLE_DIR"
+sha256sum -c SHA256SUMS.txt
+```
+
 ### 1P1D
 
 ```bash
-# Enter the container on each node, then use the embedded bundle.
+# Enter the container on each node, then use the pinned repository bundle.
 docker exec -it mimo-mi300x bash
-cd /opt/mimo-mi300x/scripts/amd-latest
+cd /data/david-share/Deep-Learning/MiMo-V2.5-Pro-on-MI300X-Benchmark/scripts/amd-latest
 export MODEL=/data/models/MiMo-V2.5-Pro
 export DATASET_PATH=/data/datasets/ShareGPT_V3_unfiltered_cleaned_split.json
 read -rp 'Prefill node IB IP: ' PREFILL_IB_IP
@@ -630,24 +649,26 @@ read -rp 'Decode node IB IP: ' DECODE_IB_IP
 export PREFILL_IB_IP DECODE_IB_IP
 
 # Start workers in separate terminals on their respective nodes:
-bash launch_pd_prefill.sh
-bash launch_pd_decode.sh
+SERVER_HOST="$PREFILL_IB_IP" bash launch_pd_prefill.sh
+SERVER_HOST="$DECODE_IB_IP" bash launch_pd_decode.sh
 
 # Prefill node capacity gate:
-python3 validate_server_info.py http://127.0.0.1:30000/server_info \
+python3 validate_server_info.py "http://${PREFILL_IB_IP}:30000/server_info" \
 	--output /data/mimo-amd-latest/onep/evidence/prefill-server-info.json
 
 # Decode node capacity gate:
-python3 validate_server_info.py http://127.0.0.1:30001/server_info \
+python3 validate_server_info.py "http://${DECODE_IB_IP}:30001/server_info" \
 	--output /data/mimo-amd-latest/onep/evidence/decode-server-info.json
 
 # After both capacity gates pass, start the router on the Prefill node:
+export ROUTER_BIND_HOST="$PREFILL_IB_IP"
 bash launch_pd_router.sh
 
 # Router readiness gate:
-curl -fsS --max-time 30 http://127.0.0.1:40000/v1/models >/dev/null
+curl -fsS --max-time 30 "http://${ROUTER_BIND_HOST}:40000/v1/models" >/dev/null
 
 # Run on the router node after all three gates pass:
+export ROUTER_HOST="$ROUTER_BIND_HOST"
 bash benchmark_1p_prefill.sh
 bash benchmark_decode.sh
 ```
@@ -665,7 +686,7 @@ bash benchmark_decode_long_context.sh
 After the run, copy the Decode node evidence to the router node so the three service logs and two `server-info.json` files are colocated, preserving the basenames below. Then run:
 
 ```bash
-cd /opt/mimo-mi300x/scripts/amd-latest
+cd /data/david-share/Deep-Learning/MiMo-V2.5-Pro-on-MI300X-Benchmark/scripts/amd-latest
 EVIDENCE=/data/mimo-amd-latest/onep/evidence
 
 python3 validate_service_logs.py \
@@ -689,21 +710,25 @@ python3 validate_exact_256k.py \
 ### DP=2 Two-Node Prefill
 
 ```bash
-cd /opt/mimo-mi300x/scripts/amd-latest
-bash launch_dp2_node0.sh
-bash launch_dp2_node1.sh
-
-# Validate node0 and node1 directly before starting the router:
-python3 validate_server_info.py http://127.0.0.1:30000/server_info \
-	--output /data/mimo-amd-latest/dp2/evidence/node0-server-info.json
-python3 validate_server_info.py http://127.0.0.1:30001/server_info \
-	--output /data/mimo-amd-latest/dp2/evidence/node1-server-info.json
-
+cd /data/david-share/Deep-Learning/MiMo-V2.5-Pro-on-MI300X-Benchmark/scripts/amd-latest
 read -rp 'Node0 IB IP: ' Node0_IP
 read -rp 'Node1 IB IP: ' Node1_IP
 export Node0_IP Node1_IP
+
+# Start workers in separate terminals on their respective nodes:
+SERVER_HOST="$Node0_IP" bash launch_dp2_node0.sh
+SERVER_HOST="$Node1_IP" bash launch_dp2_node1.sh
+
+# Validate node0 and node1 directly before starting the router:
+python3 validate_server_info.py "http://${Node0_IP}:30000/server_info" \
+	--output /data/mimo-amd-latest/dp2/evidence/node0-server-info.json
+python3 validate_server_info.py "http://${Node1_IP}:30001/server_info" \
+	--output /data/mimo-amd-latest/dp2/evidence/node1-server-info.json
+
+export ROUTER_BIND_HOST="$Node0_IP"
 bash launch_dp2_router.sh
-curl -fsS --max-time 30 http://127.0.0.1:40000/v1/models >/dev/null
+curl -fsS --max-time 30 "http://${ROUTER_BIND_HOST}:40000/v1/models" >/dev/null
+export ROUTER_HOST="$ROUTER_BIND_HOST"
 bash benchmark_dp2_prefill.sh
 ```
 
@@ -737,7 +762,7 @@ python3 write_distribution.py \
 After colocating the three DP=2 service logs, run:
 
 ```bash
-cd /opt/mimo-mi300x/scripts/amd-latest
+cd /data/david-share/Deep-Learning/MiMo-V2.5-Pro-on-MI300X-Benchmark/scripts/amd-latest
 EVIDENCE=/data/mimo-amd-latest/dp2/evidence
 python3 validate_service_logs.py \
 	"$EVIDENCE/node0_outer.log" \

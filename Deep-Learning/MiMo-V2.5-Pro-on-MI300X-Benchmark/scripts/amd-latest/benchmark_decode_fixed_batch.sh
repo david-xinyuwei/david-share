@@ -8,7 +8,7 @@
 set -euo pipefail
 
 MODEL="${MODEL:-/data/models/MiMo-V2.5-Pro}"
-DATASET_PATH="${DATASET_PATH:-/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json}"
+DATASET_PATH="${DATASET_PATH:-/data/datasets/ShareGPT_V3_unfiltered_cleaned_split.json}"
 LOG_DIR="${LOG_DIR:-/data/mimo-fixedbatch/points}"
 SERVICE_LOG="${SERVICE_LOG:-/data/mimo-fixedbatch/service/decode_outer.log}"
 REP="${REP:-1}"

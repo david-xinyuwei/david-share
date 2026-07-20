@@ -10,11 +10,180 @@ import re
 import statistics
 import struct
 import subprocess
+import sys
+from collections import Counter
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
 READMES = (ROOT / "README.md", ROOT / "README-CN.md")
+
+BILINGUAL_HEADING_PAIRS = (
+    ("# MiMo-V2.5-Pro on AMD MI300X — Benchmark Report", "# MiMo-V2.5-Pro 在 AMD MI300X 上的 Benchmark 报告"),
+    ("## Executive Summary", "## 执行摘要"),
+    ("### Relative Status at a Glance", "### 一眼看清相对参考状态"),
+    ("### What Happens as Input Length Grows", "### 输入长度增加时发生什么"),
+    ("## Architecture", "## 架构"),
+    ("## Why PD Disaggregation Has Independent Batch Sizes and Hyperparameters", "## 为什么 PD 分离后 Prefill 与 Decode 可以拥有独立 BS 和超参"),
+    ("### Reading the Xiaomi Community Protocol: Dynamic Prefill Batching, Targeted Decode Occupancy", "### 如何解读小米社区版协议：Prefill 动态组批，Decode 按目标工况验收"),
+    ("### One Request, Three Batch Concepts", "### 一个请求涉及的三类 Batch 概念"),
+    ("### What PD Separates, and What Must Still Match", "### PD 可以分别调优什么，哪些契约必须保持一致"),
+    ("### Capacity Connects ISL to the Actual Decode Batch", "### ISL 如何约束实际 Decode Batch"),
+    ("### Measured 128K/192K Subset on the 7/13-Derived Runtime", "### 基于7/13环境的128K/192K实测子集"),
+    ("#### Prefill Selected Points", "#### Prefill 选定测点"),
+    ("#### Decode Fixed-BS4 Selected Points", "#### Decode 固定 BS4 选定测点"),
+    ("### How to Extend the Length Study Without Mixing Variables", "### 后续如何只改变输入长度而不混入其他变量"),
+    ("## Headline Results — Input and Output Views", "## 核心结果：输入与输出视图"),
+    ("### Input Side — 1P1D Prefill", "### 输入侧：1P1D Prefill"),
+    ("### Output Side — MI300X 1P1D Decode, 8K Input / 1K Output", "### 输出侧：MI300X 1P1D Decode，8K 输入 / 1K 输出"),
+    ("#### Customer H200 8K Decode Reference", "#### 客户 H200 8K Decode 参考"),
+    ("### Two-Node DP=2 Prefill — Peak Aggregate Throughput", "### 双节点 DP=2 Prefill：峰值聚合吞吐"),
+    ("### Result Scope", "### 结果口径"),
+    ("### H200 Reference Provenance", "### H200 参考数据来源"),
+    ("## Microsoft Scalability Extension", "## 微软扩展性测试"),
+    ("### Test Matrix", "### 测试矩阵"),
+    ("### Decode Scalability — 8K Input / 1K Output", "### Decode 扩展性：8K 输入 / 1K 输出"),
+    ("### Core Decode Fresh-Service Repeatability", "### Decode 核心测点的 Fresh-Service（全新服务）复测"),
+    ("### Long-Context Results — Final Runtime Image", "### 长上下文结果：最终运行环境镜像"),
+    ("#### Metric Contract", "#### 指标口径"),
+    ("#### 1. Input Side — 64K Prefill", "#### 1. 输入侧：64K Prefill"),
+    ("#### 2. Output Side — MI300X 64K Input / 1K Output", "#### 2. 输出侧：MI300X 64K 输入 / 1K 输出"),
+    ("#### Customer H200 Output-Side Reference — Not Row-Aligned", "#### H200 输出侧参考：未与 MI300X 逐行对齐"),
+    ("#### Why the PD-Serving Points Carry No Output-Side Ratio", "#### 为什么 PD serving 测点不计算输出侧比率"),
+    ("#### Exact Fixed-Batch Decode — 64K Input / 1K Server-Accounted Output, BS16 (2026-07-18)", "#### Exact Fixed-Batch Decode（精确固定批次测试）— 64K 输入 / 服务端计数的 1K 输出，BS16（2026-07-18）"),
+    ("#### 3. Customer Requirement Assessment", "#### 3. 客户问题评估"),
+    ("#### Requested 255K Capability Point", "#### 请求 255K 的能力测点"),
+    ("### 1P1D Prefill Scalability", "### 1P1D Prefill 扩展性"),
+    ("### Two-Node DP=2 Prefill Scalability", "### 双节点 DP=2 Prefill 扩展性"),
+    ("### 256K Methodology", "### 256K 测试口径"),
+    ("### Machine-Readable Evidence", "### 机器可读证据"),
+    ("## Hardware & Software Stack", "## 硬件与软件栈"),
+    ("### Compute — Two-Node Azure MI300X Cluster", "### 计算：双节点 Azure MI300X 集群"),
+    ("### Software Stack", "### 软件栈"),
+    ("### Model", "### 模型"),
+    ("## Running on Azure and Reproducing Final Results", "## 在 Azure 上运行并复现结果"),
+    ("### Prerequisites", "### 前置条件"),
+    ("### Pull and Start the Runtime — Both Nodes", "### 在两个节点拉取并启动 Runtime"),
+    ("### 1P1D", "### 1P1D"),
+    ("### DP=2 Two-Node Prefill", "### 双节点 Prefill（DP=2）"),
+    ("### Cleanup", "### 清理"),
+    ("## Required Runtime Settings", "## 必要的运行设置"),
+    ("## References", "## 参考资料"),
+)
+
+CHINESE_TERM_INTRODUCTIONS = (
+    "Prefill（预填充阶段）",
+    "Decode（解码阶段）",
+    "TTFT（首 Token 时延）",
+    "TPOT（单 Token 生成时延）",
+    "Batch Size（批大小）",
+    "scheduler（调度器）",
+    "fixed-acceptance performance benchmark（固定接受率性能测试）",
+    "Retokenized（重新分词）",
+    "expert routing（专家路由）",
+    "manifest（哈希清单）",
+    "pinned checkout（固定版本检出）",
+    "per-point distribution evidence（逐点请求分布证据）",
+    "RDMA memory registration（RDMA 内存注册）",
+)
+
+CHINESE_TRANSLATIONESE_FORBIDDEN = (
+    "客户端并发度",
+    "工作簿局部方向性算术比值",
+    "Column J",
+    "deployment scope",
+    "same-runtime",
+    "selected points",
+    "accepted runs",
+    "accepted reproduction runs",
+    "active Decode requests",
+    "allocator granularity",
+    "runtime reserve",
+    "raw upper bound",
+    "scheduler generation吞吐",
+    "fresh DP=2 services",
+    "distribution 证据",
+    "host 权限",
+    "Benchmark dataset 位于",
+    "parent monorepo",
+    "fresh-clone validator",
+    "benchmark subtree",
+    "effective value",
+    "new sequences数量",
+    "requests数量",
+    "new sequences和",
+    "input-token chunks组成",
+    "requests组成",
+    "不会因处理阶段改变，但会依次进入两个独立的 scheduler",
+    "二者不存在一一映射",
+    "只有在显式配置相应 limit",
+    "只有显式配置了相应的 limit",
+    "可以独立调优，并不意味着两侧契约可以不兼容",
+    "提供已经测试的 SGLang/AITER 运行栈",
+    "方向性对比中仅此项更低",
+    "面对客户时，可以分四步说明",
+    "重新标为 BS",
+    "只代表历史版本",
+    "不属于相互独立的重复实验",
+)
+
+
+def markdown_sections(text: str) -> list[tuple[str, str]]:
+    masked = re.sub(
+        r"```.*?```",
+        lambda match: "".join("\n" if char == "\n" else " " for char in match.group(0)),
+        text,
+        flags=re.DOTALL,
+    )
+    matches = list(re.finditer(r"^#{1,6} .+$", masked, re.MULTILINE))
+    return [
+        (
+            text[match.start() : match.end()],
+            text[match.end() : matches[index + 1].start() if index + 1 < len(matches) else len(text)],
+        )
+        for index, match in enumerate(matches)
+    ]
+
+
+def markdown_table_blocks(text: str) -> list[str]:
+    blocks: list[str] = []
+    current: list[str] = []
+    for line in text.splitlines():
+        if line.startswith("|"):
+            current.append(line)
+        elif current:
+            blocks.append("\n".join(current))
+            current = []
+    if current:
+        blocks.append("\n".join(current))
+    return blocks
+
+
+def markdown_number_tokens(text: str) -> list[str]:
+    return re.findall(r"\d+(?:,\d{3})*(?:\.\d+)?(?:[A-Za-z]+|[%×])?", text)
+
+
+def markdown_noncomment_code(text: str) -> list[tuple[str, list[str]]]:
+    blocks = re.findall(r"```([^\n]*)\n(.*?)```", text, re.DOTALL)
+    return [
+        (
+            language,
+            [line.rstrip() for line in body.splitlines() if line.strip() and not line.lstrip().startswith("#")],
+        )
+        for language, body in blocks
+    ]
+
+
+def normalized_readme_links(text: str) -> list[str]:
+    return [
+        "<LANGUAGE_SWITCH>" if target in {"README.md", "README-CN.md"} else target
+        for target in re.findall(r"\]\(([^)]+)\)", text)
+    ]
+
+
+def markdown_prose(text: str) -> str:
+    without_fences = re.sub(r"```.*?```", " ", text, flags=re.DOTALL)
+    return re.sub(r"(?<!`)`[^`\n]+`(?!`)", " ", without_fences)
 
 
 def load_tsv(path: Path) -> list[dict[str, str]]:
@@ -39,10 +208,12 @@ def check_hash_manifest(directory: Path) -> None:
 
 def check_readmes() -> None:
     shapes = []
+    readme_texts = []
     for path in READMES:
         text = path.read_text(encoding="utf-8")
+        readme_texts.append(text)
         assert text.count("```") % 2 == 0, f"Unclosed code fence: {path}"
-        headings = re.findall(r"^#{1,6} ", text, re.MULTILINE)
+        headings = markdown_sections(text)
         tables = re.findall(r"^\|", text, re.MULTILINE)
         bash_blocks = re.findall(r"```bash\n(.*?)```", text, re.DOTALL)
         shapes.append((len(headings), len(tables), len(bash_blocks)))
@@ -64,20 +235,20 @@ def check_readmes() -> None:
             "data/validation/container-image.json",
             "data/validation/h200-reference.json",
             "data/validation/decode-service-log-audit-8k.json",
-            "not a strict apples-to-apples" if path.name == "README.md" else "不是严格 apples-to-apples",
+            "not a strict apples-to-apples" if path.name == "README.md" else "不构成严格同条件的硬件 benchmark",
             "Relative Status at a Glance" if path.name == "README.md" else "一眼看清相对参考状态",
-            "Only directionally lower metric: 6.6% lower" if path.name == "README.md" else "唯一方向性更低的指标：低 6.6%",
-            "fixed-acceptance performance benchmark" if path.name == "README.md" else "固定 acceptance 性能测试",
-            "server-accounted 1K output" if path.name == "README.md" else "server-accounted 1K output",
-            "worksheet-local directional arithmetic ratio" if path.name == "README.md" else "工作簿局部方向性算术比值",
+            "Only directionally lower metric: 6.6% lower" if path.name == "README.md" else "在方向性对比中，仅这一项更低：低 6.6%",
+            "fixed-acceptance performance benchmark" if path.name == "README.md" else "fixed acceptance（固定接受率）性能测试",
+            "server-accounted 1K output" if path.name == "README.md" else "服务端计数的 1K 输出",
+            "worksheet-local directional arithmetic ratio" if path.name == "README.md" else "该结果的相对值为 **70.0%**",
             "does not validate output quality" if path.name == "README.md" else "不验证输出质量",
             "retokenized generated-text tokens",
             "analyze_exact64_evidence.py",
-            "does not independently establish the provenance or completeness" if path.name == "README.md" else "不能独立证明私有完整日志的来源真实性或完整性",
-            "no tested Prefill-throughput row exceeds" if path.name == "README.md" else "所有已测 Prefill 吞吐均未超过",
-            "not a strict hardware ranking" if path.name == "README.md" else "不构成严格硬件排名",
-            "client c16, observed batch 15 / 16" if path.name == "README.md" else "client c16、实测batch 15 / 16",
-            "must not be treated as a controlled 8K→64K TPOT curve" if path.name == "README.md" else "不能把这两行当作受控的8K→64K TPOT曲线",
+            "does not independently establish the provenance or completeness" if path.name == "README.md" else "不能单独证明私有完整日志的来源与完整性",
+            "no tested Prefill-throughput row exceeds" if path.name == "README.md" else "已实测的 Prefill 吞吐均未超过",
+            "not a strict hardware ranking" if path.name == "README.md" else "不能作为严格的硬件排名",
+            "client c16, observed batch 15 / 16" if path.name == "README.md" else "客户端 c16；实测 batch 稳态 15、峰值 16",
+            "must not be treated as a controlled 8K→64K TPOT curve" if path.name == "README.md" else "不能据此绘制受控的 8K→64K TPOT 曲线",
             "headline_exact.same_image_exact_no_ck",
             "headline_exact.points",
             "--password-stdin",
@@ -85,11 +256,76 @@ def check_readmes() -> None:
             "validate_service_logs.py",
             "validate_exact_256k.py",
             "write_distribution.py",
-            "CodeQL passed" if path.name == "README.md" else "CodeQL已通过",
-            "without a matching `.gitmodules` URL" if path.name == "README.md" else "缺少对应的`.gitmodules` URL",
+            "CodeQL passed" if path.name == "README.md" else "CodeQL 已通过",
+            "without a matching `.gitmodules` URL" if path.name == "README.md" else "缺少对应的 `.gitmodules` URL",
         ):
             assert required in text, f"Missing README requirement in {path.name}: {required}"
     assert shapes[0] == shapes[1], f"Bilingual README structure mismatch: {shapes}"
+
+    english_sections = markdown_sections(readme_texts[0])
+    chinese_sections = markdown_sections(readme_texts[1])
+    actual_heading_pairs = tuple(zip(
+        (heading for heading, _ in english_sections),
+        (heading for heading, _ in chinese_sections),
+    ))
+    assert actual_heading_pairs == BILINGUAL_HEADING_PAIRS, "Bilingual heading map or ordering changed"
+
+    for index, ((english_heading, english_body), (chinese_heading, chinese_body)) in enumerate(
+        zip(english_sections, chinese_sections),
+        1,
+    ):
+        label = f"section {index}: {english_heading} / {chinese_heading}"
+        english_links = normalized_readme_links(english_body)
+        chinese_links = normalized_readme_links(chinese_body)
+        assert english_links == chinese_links, f"Bilingual link mismatch in {label}"
+        assert markdown_noncomment_code(english_body) == markdown_noncomment_code(chinese_body), (
+            f"Bilingual executable-code mismatch in {label}"
+        )
+
+        english_tables = markdown_table_blocks(english_body)
+        chinese_tables = markdown_table_blocks(chinese_body)
+        assert len(english_tables) == len(chinese_tables), f"Bilingual table-count mismatch in {label}"
+        for table_index, (english_table, chinese_table) in enumerate(zip(english_tables, chinese_tables), 1):
+            english_rows = english_table.splitlines()
+            chinese_rows = chinese_table.splitlines()
+            english_shape = (len(english_rows), [row.count("|") for row in english_rows])
+            chinese_shape = (len(chinese_rows), [row.count("|") for row in chinese_rows])
+            assert english_shape == chinese_shape, f"Bilingual table-shape mismatch in {label}, table {table_index}"
+            for row_index, (english_row, chinese_row) in enumerate(zip(english_rows, chinese_rows), 1):
+                english_cells = english_row.strip("|").split("|")
+                chinese_cells = chinese_row.strip("|").split("|")
+                for cell_index, (english_cell, chinese_cell) in enumerate(zip(english_cells, chinese_cells), 1):
+                    english_cell_numbers = markdown_number_tokens(english_cell)
+                    chinese_cell_numbers = markdown_number_tokens(chinese_cell)
+                    english_cell_counter = Counter(english_cell_numbers)
+                    chinese_cell_counter = Counter(chinese_cell_numbers)
+                    assert english_cell_counter == chinese_cell_counter, (
+                        f"Bilingual table-number mismatch in {label}, table {table_index}, "
+                        f"row {row_index}, cell {cell_index}: "
+                        f"English-only={english_cell_counter - chinese_cell_counter}, "
+                        f"Chinese-only={chinese_cell_counter - english_cell_counter}"
+                    )
+
+        english_inline_code = re.findall(r"(?<!`)`([^`\n]+)`(?!`)", english_body)
+        chinese_inline_code = re.findall(r"(?<!`)`([^`\n]+)`(?!`)", chinese_body)
+        assert Counter(english_inline_code) == Counter(chinese_inline_code), (
+            f"Bilingual inline-code mismatch in {label}: {english_inline_code} != {chinese_inline_code}"
+        )
+        english_numbers = markdown_number_tokens(english_body)
+        chinese_numbers = markdown_number_tokens(chinese_body)
+        english_number_counter = Counter(english_numbers)
+        chinese_number_counter = Counter(chinese_numbers)
+        assert english_number_counter == chinese_number_counter, (
+            f"Bilingual numeric-fact mismatch in {label}: "
+            f"English-only={english_number_counter - chinese_number_counter}, "
+            f"Chinese-only={chinese_number_counter - english_number_counter}"
+        )
+
+    chinese_prose = markdown_prose(readme_texts[1])
+    for required in CHINESE_TERM_INTRODUCTIONS:
+        assert required in chinese_prose, f"Missing Chinese first-use term explanation: {required}"
+    for forbidden in CHINESE_TRANSLATIONESE_FORBIDDEN:
+        assert forbidden not in chinese_prose, f"Translationese remains in README-CN.md: {forbidden}"
 
 
 def check_batching_guide() -> None:
@@ -144,23 +380,23 @@ def check_batching_guide() -> None:
     )
     chinese_requirements = (
         "为什么 PD 分离后 Prefill 与 Decode 可以拥有独立 BS 和超参",
-        "单节点、非PD",
-        "它不是1P1D PD c16记录",
-        "单节点非PD exact长ISL",
+        "单节点非 PD",
+        "该测量不属于 1P1D PD c16 测试",
+        "单节点非 PD、精确长 ISL",
         "Prefill request batch",
         "Prefill token batch",
         "actual Decode batch",
         "彼此独立，可以不同",
-        "稳态`4`、峰值`5`",
-        "Actual Decode batch `16`、queue `0`",
-        "非PD容量实验",
-        "Planning estimates；尚未实测",
-        "在`context-length=262151`下非法",
-        "如何解读小米社区版协议：Prefill动态组批，Decode按目标工况验收",
-        "c32是施加的负载，不是Prefill BS",
-        "两侧没有一一映射",
-        "不需要把每个Prefill点与每个Decode点做笛卡尔积",
-        "不代表当前MI300X路径已经达到per-DP BS96",
+        "稳态 `4`、峰值 `5`",
+        "实际 Decode batch `16`、queue `0`",
+        "非 PD 容量实验",
+        "规划估算；尚未实测",
+        "超过 `context-length=262151` 的限制",
+        "如何解读小米社区版协议：Prefill 动态组批，Decode 按目标工况验收",
+        "c32 表示客户端施加的并发压力，不是 Prefill BS",
+        "二者之间不存在固定的一一对应关系",
+        "没有必要对所有 Prefill 与 Decode 测点做完整笛卡尔积",
+        "不表示当前 MI300X 路径已经达到 per-DP BS96",
     )
     for required in english_requirements:
         assert required in english, f"Missing English batching-guide requirement: {required}"
@@ -255,7 +491,7 @@ def check_controlled_isl() -> None:
     assert audit["orchestrator_resume_started_at_utc"] == "2026-07-18T17:09:58Z"
     assert "started_at_utc" not in audit
     assert audit["measurement_repetitions_per_point"] == 1
-    assert audit["runtime"]["runtime_image"] == image["immutable_pull_ref"]
+    assert audit["runtime"]["runtime_image"] == image["runtime_identity"]
     assert audit["runtime"]["container_image_id"] == image["image_id"]
     assert audit["runtime"]["sglang_source_head"] == image["sglang_commit"]
     assert audit["runtime"]["aiter_source_head"] == image["aiter_commit"]
@@ -294,7 +530,7 @@ def check_controlled_isl() -> None:
         assert int(row["total_generated_tokens_retokenized"]) > 0
         assert row["measurement_repetitions"] == "1"
         assert row["status"] == "VALIDATED"
-        assert row["runtime_image"] == image["immutable_pull_ref"]
+        assert row["runtime_image"] == image["runtime_identity"]
         assert "202606" not in row["source_run"] and "bs1" not in row["source_run"].lower()
         assert float(row["headline_value"]) == expected_point["headline"]
         assert audit_points[key]["headline_value"] == expected_point["headline"]
@@ -353,7 +589,7 @@ def check_controlled_isl() -> None:
     assert analyzer_result["acceptance_configuration"]["validates_output_quality"] is False
 
     english, chinese = readme_texts
-    for text in readme_texts:
+    for path, text in zip(READMES, readme_texts):
         for required in (
             "data/controlled-isl-results.tsv",
             "data/validation/controlled-isl-evidence.json",
@@ -363,24 +599,24 @@ def check_controlled_isl() -> None:
             "13,855.30",
             "380.56",
             "319.71",
-            "-13.1%",
-            "-16.0%",
-            "+47.1%",
-            "+75.9%",
         ):
             assert required in text, f"Missing controlled-ISL README value: {required}"
+    for required in ("-13.1%", "-16.0%", "+47.1%", "+75.9%"):
+        assert required in english, f"Missing controlled-ISL English delta: {required}"
+    for required in ("下降 **13.1%**", "下降 **16.0%**", "增加 **47.1%**", "增加 **75.9%**"):
+        assert required in chinese, f"Missing controlled-ISL Chinese delta: {required}"
     assert "Measured 128K/192K Subset on the 7/13-Derived Runtime" in english
     assert "基于7/13环境的128K/192K实测子集" in chinese
     assert "June BS1 boundary diagnostics are not included" in english
-    assert "2026年6月的BS1 boundary diagnostics未混入" in chinese
+    assert "六月进行的 BS1 边界诊断未纳入这组结果" in chinese
     assert "separate service launches" in english
     assert "not a same-service or fresh-service repeatability claim" in english
-    assert "两次独立service launch" in chinese
-    assert "不是same-service或fresh-service repeatability声明" in chinese
+    assert "两次独立启动的服务" in chinese
+    assert "不代表同一服务内或服务重启后的重复性" in chinese
     assert "a 255K actual-BS4 point" in english
     assert "separately measured 255K PD-serving c1 capability point remains valid" in english
-    assert "255K actual-BS4点" in chinese
-    assert "单独实测的255K PD-serving c1能力点仍然有效" in chinese
+    assert "255K actual-BS4 测点" in chinese
+    assert "单独实测的 255K PD-serving c1 能力点仍然有效" in chinese
     assert "64K same-method anchor and 255K remain open" not in english
     assert "64K同方法anchor、255K点" not in chinese
     assert "Future 128K/192K/255K combinations" not in english
@@ -411,6 +647,11 @@ def check_result_tables() -> None:
     repeatability_rows = load_tsv(ROOT / "data/decode-repeatability.tsv")
     decode_audit = load_json(ROOT / "data/validation/decode-service-log-audit-8k.json")
     assert len(final_rows) == 9
+    assert all(row["measurement_repetitions"] == "1" for row in final_rows)
+    assert all(
+        row["selection_policy"] == "selected_valid_record_for_reported_scope"
+        for row in final_rows
+    )
     assert len(scalability_rows) == 33
     assert len(repeatability_rows) == 4
     assert decode_audit["measurement_repetitions_per_headline_point"] == 1
@@ -465,24 +706,24 @@ def check_result_tables() -> None:
     assert round(
         (same_matrix_prefill[262144] / same_matrix_prefill[65536] - 1) * 100, 1
     ) == -34.0
-    for text in readme_texts:
+    for path, text in zip(READMES, readme_texts):
         assert "18,161.81 → 18,763.17" in text
         assert "18,763.17 → 12,389.64" in text
         assert "3.3%" in text and "34.0%" in text
-        assert "measurement N=1" in text
+        assert ("measurement N=1" if path.name == "README.md" else "测量次数 N=1") in text
         assert "20,305.98 → 18,983.91" not in text
         assert "18,983.91 → 12,864.96" not in text
     assert "Prefill remains flat through 64K in the controlled matrix" in readme_texts[0]
-    assert "受控矩阵中Prefill到64K基本持平" in readme_texts[1]
+    assert "受控矩阵中，Prefill 吞吐到 64K 仍基本持平" in readme_texts[1]
     for rendered_phrase in (
-        "**受控矩阵中Prefill到64K基本持平。** 这是",
-        "**接近256K时，超长输入成本明显增大。** 该矩阵点",
-        "**Exact 262,144-token Prefill已确认**，但该独立record",
-        "**Decode对长context比Prefill更敏感。** 该output8K",
+        "**受控矩阵中，Prefill 吞吐到 64K 仍基本持平。** 这是",
+        "**接近 256K 时，长输入带来的性能损失开始明显。** 该测点",
+        "**已确认精确 262,144 个 Token 的 Prefill 能力**，但该记录",
+        "**Decode 对长 context 比 Prefill 更敏感。** 这组输出 8K",
     ):
         assert rendered_phrase in readme_texts[1]
     assert "credible long-ISL performance measurement" in readme_texts[0]
-    assert "MI300X具备可信的长ISL性能测量" in readme_texts[1]
+    assert "长 ISL 性能测量结果可信" in readme_texts[1]
 
     for row in final_rows:
         mi300x = float(row["mi300x_throughput_tok_s"])
@@ -577,10 +818,14 @@ def check_result_tables() -> None:
                 f"{float(row['mean_tpot_ms']):,.2f} | {ttft:,.2f} |"
             )
         else:
-            label = {8192: "8K", 65536: "64K", 262144: "Nominal 256K"}[
-                int(row["input_tokens"])
-            ]
-            line = f"| {label} | {concurrency} | {throughput:,.2f} | {ttft:,.2f} |"
+            input_tokens = int(row["input_tokens"])
+            english_label = {8192: "8K", 65536: "64K", 262144: "Nominal 256K"}[input_tokens]
+            chinese_label = {8192: "8K", 65536: "64K", 262144: "名义 256K"}[input_tokens]
+            english_line = f"| {english_label} | {concurrency} | {throughput:,.2f} | {ttft:,.2f} |"
+            chinese_line = f"| {chinese_label} | {concurrency} | {throughput:,.2f} | {ttft:,.2f} |"
+            assert english_line in readme_texts[0]
+            assert chinese_line in readme_texts[1]
+            continue
         for text in readme_texts:
             assert line in text
 
@@ -697,7 +942,7 @@ def check_long_context_decode() -> None:
     assert evidence["status"] == "VALIDATED"
     assert evidence["measurement_repetitions"] == 1
     assert evidence["points"] == rows
-    assert evidence["runtime"]["runtime_image"] == image["immutable_pull_ref"]
+    assert evidence["runtime"]["runtime_image"] == image["runtime_identity"]
     assert evidence["runtime"]["container_image_id"] == image["image_id"]
     assert evidence["runtime"]["sglang_source_head"] == image["sglang_commit"]
     assert evidence["runtime"]["aiter_source_head"] == image["aiter_commit"]
@@ -744,6 +989,10 @@ def check_long_context_decode() -> None:
     }
     assert set(h200_64k) == {16, 32, 64, 96}
     assert h200["revalidated_at"] == "2026-07-18"
+    assert h200["numeric_excerpt_sharing_authorization_evidence"] == (
+        "not_recorded_in_repository; repository owner must confirm external sharing authority"
+    )
+    assert all(point["output_tokens"] is None for point in h200["decode"]["points"])
     assert h200["decode"]["tpot_origin"] == (
         "customer worksheet; derived as 1000 / "
         "(per-DP decode log output tok/s / per-DP BS)"
@@ -793,13 +1042,13 @@ def check_long_context_decode() -> None:
 
     english, chinese = readme_texts
     assert "Higher batch sizes (BS32–96) still require an EP/multi-node Decode deployment" in english
-    assert "更高 batch（BS32–96）仍需 EP/多节点 Decode 部署" in chinese
+    assert "BS32–96 仍需 EP 或多节点 Decode 部署" in chinese
     assert "A strict NVIDIA comparison requires" in english
     assert "要做严格 NVIDIA 对比" in chinese
     assert "actual D-node batch" in english
     assert "实际 D-node batch" in chinese
     assert "four 8-GPU nodes, 32 GPUs total" in english
-    assert "4 台 8-GPU 节点，共 32 张 GPU" in chinese
+    assert "四台 8-GPU 节点，共 32 张 GPU" in chinese
 
     benchmark = (ROOT / "scripts/amd-latest/benchmark_decode_long_context.sh").read_text(
         encoding="utf-8"
@@ -851,7 +1100,7 @@ def check_provenance() -> None:
         for line in (ROOT / "data/validation/runtime-version.txt").read_text().splitlines()
         if line
     )
-    assert runtime["runtime_image"] == image["immutable_pull_ref"]
+    assert runtime["runtime_image"] == image["runtime_identity"]
     assert runtime["runtime_image_id"] == image["image_id"]
     assert int(runtime["runtime_image_layers"]) == image["layer_count"] == 37
     assert runtime["sglang_source_head"] == image["sglang_commit"]
@@ -861,6 +1110,11 @@ def check_provenance() -> None:
     assert image["runtime_manifest_verified"] is True
     assert image["tag_write_enabled"] is False
     assert image["tag_delete_enabled"] is False
+    assert image["runtime_alias"] == "AMD_20260713_derived_final_image"
+    assert image["registry_visibility"].startswith("private;")
+    assert "registry" not in image and "repository" not in image
+    assert "immutable_pull_ref" not in image
+    assert "azurecr.io" not in json.dumps(image)
 
     exact = load_json(ROOT / "data/validation/exact-token-256k.json")
     headline_256k = next(
@@ -945,7 +1199,7 @@ def check_fixed_batch_decode() -> None:
     assert "tokenizer.encode(generated_text)" in audit["method"]["output_accounting"]
     assert audit["source_artifacts"]["public_sanitized_evidence"] == "data/evidence/exact64-fixed-acceptance"
     assert audit["source_artifacts"]["public_analyzer"] == "scripts/analyze_exact64_evidence.py"
-    assert audit["runtime"]["runtime_image"] == image["immutable_pull_ref"]
+    assert audit["runtime"]["runtime_image"] == image["runtime_identity"]
     assert audit["runtime"]["container_image_id"] == image["image_id"]
     assert audit["runtime"]["sglang_source_head"] == image["sglang_commit"]
     assert audit["runtime"]["aiter_source_head"] == image["aiter_commit"]
@@ -1064,7 +1318,7 @@ def check_fixed_batch_decode() -> None:
         assert row["comparison_status"] == (
             "worksheet_local_directional_ratio_h200_output_length_unverified"
         )
-        assert row["runtime_image"] == image["immutable_pull_ref"]
+        assert row["runtime_image"] == image["runtime_identity"]
         assert math.isclose(
             point["steady_state"]["implied_tpot_ms_at_batch"],
             1000.0 / (point["steady_state"]["mean_gen_tok_s"] / 16),
@@ -1132,9 +1386,10 @@ def check_fixed_batch_decode() -> None:
         if p["input_tokens"] == 65536 and p["per_dp_bs"] == 16
     )
     assert h200["decode"]["workbook_output_length_column_present"] is False
-    assert "not as row-level workbook evidence" in h200["decode"][
+    assert "output_tokens is null" in h200["decode"][
         "point_output_tokens_modeling_note"
     ]
+    assert h200_bs16["output_tokens"] is None
     assert "DP4 multiplier" in h200["decode"]["throughput_scope"]
     assert aggregate["h200_64k_bs16_worksheet_tok_s"] == h200_bs16["output_tok_s"]
     assert aggregate["h200_64k_bs16_worksheet_tpot_ms"] == h200_bs16["mean_tpot_ms"]
@@ -1174,11 +1429,11 @@ def check_fixed_batch_decode() -> None:
     )
     cn_row = (
         "| 64K input / 1K server-accounted output | 16 | 931.58 / 935.92 | **933.75** | "
-        "**0.47%** | **17.14 ms** | 1,333.89 tok/s，11.99 ms | **70.0% 工作簿局部比值** |"
+        "**0.47%** | **17.14 ms** | 1,333.89 tok/s，11.99 ms | **70.0% 对应行相对值** |"
     )
     assert en_row in readme_texts[0]
     assert cn_row in readme_texts[1]
-    for text in readme_texts:
+    for path, text in zip(READMES, readme_texts):
         assert "data/decode-fixed-batch-results.tsv" in text
         assert "data/validation/decode-fixed-batch-audit.json" in text
         assert "launch_single_node_decode.sh" in text
@@ -1201,14 +1456,18 @@ def check_fixed_batch_decode() -> None:
         assert text.count("718.12") == 1
         assert "diagnostic_output8k" in text
         assert "20260713-final" in text
-        assert "back-to-back" in text
+        assert (
+            "back-to-back" in text
+            if path.name == "README.md"
+            else "连续执行受控 A/B 测试" in text
+        )
         assert "4,112" in text
-        assert "fixed-acceptance" in text or "固定acceptance" in text
+        assert "fixed-acceptance" in text or "固定接受率" in text
         assert "data/evidence/exact64-fixed-acceptance/" in text
     assert "no output-length column" in readme_texts[0]
-    assert "没有 output-length 列" in readme_texts[1]
+    assert "没有输出长度列" in readme_texts[1]
     assert "Decode diagnostic: 8K → 64K context" in readme_texts[0]
-    assert "Decode诊断：相同固定BS16/output8K方法下" in readme_texts[1]
+    assert "Decode 诊断：采用相同的固定 BS16、输出 8K 方法" in readme_texts[1]
 
     launch = (ROOT / "scripts/amd-latest/launch_single_node_decode.sh").read_text(
         encoding="utf-8"
@@ -1274,6 +1533,10 @@ def check_fixed_batch_decode() -> None:
 
 
 def main() -> None:
+    if not __debug__ or sys.flags.optimize:
+        raise RuntimeError(
+            "Validation requires normal Python mode; -O/-OO removes assertion gates."
+        )
     parser = argparse.ArgumentParser(
         description="Validate the MiMo-V2.5-Pro MI300X public benchmark repository."
     )

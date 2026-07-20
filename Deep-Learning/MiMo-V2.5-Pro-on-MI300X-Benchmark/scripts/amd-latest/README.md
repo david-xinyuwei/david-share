@@ -1,6 +1,6 @@
 # AMD Latest MiMo-V2.5-Pro MI300X Reproduction
 
-This is the only supported reproduction bundle in the repository. It runs the final customer-facing workloads shown in the top-level README.
+This is the only supported reproduction bundle in the repository. Use these files from a pinned checkout of the current repository; the immutable runtime image supplies the tested software stack but may contain an older embedded copy of this bundle.
 
 ## Topologies
 
@@ -42,7 +42,7 @@ The selected Prefill points use 1P1D PD, client concurrency 4, 16 prompts, and O
 
 ```bash
 export LOG_DIR=/data/mimo-amd-latest/onep/prefill-long-isl-selected
-export DATASET_PATH=/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json
+export DATASET_PATH=/data/datasets/ShareGPT_V3_unfiltered_cleaned_split.json
 bash benchmark_1p_prefill_long_isl_selected.sh
 ```
 
@@ -50,7 +50,7 @@ The selected Decode points use the single-node service, actual batch 4, four pro
 
 ```bash
 export SERVICE_LOG=/data/mimo-fixedbatch/service/decode_outer.log
-export DATASET_PATH=/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json
+export DATASET_PATH=/data/datasets/ShareGPT_V3_unfiltered_cleaned_split.json
 export INPUT_TOKENS=131072  # use 196608 for the second point
 bash benchmark_decode_fixed_batch_bs4.sh
 ```
@@ -60,8 +60,11 @@ Each point has one accepted measurement run. The Decode headline is transition-g
 ## Required Environment
 
 ```bash
+export BUNDLE_DIR=/data/david-share/Deep-Learning/MiMo-V2.5-Pro-on-MI300X-Benchmark/scripts/amd-latest
+cd "$BUNDLE_DIR"
+sha256sum -c SHA256SUMS.txt
 export MODEL=/data/models/MiMo-V2.5-Pro
-export DATASET_PATH=/data/xisun/ShareGPT_V3_unfiltered_cleaned_split.json
+export DATASET_PATH=/data/datasets/ShareGPT_V3_unfiltered_cleaned_split.json
 ```
 
 For 1P1D, also set the two InfiniBand addresses before starting the router:
@@ -69,6 +72,18 @@ For 1P1D, also set the two InfiniBand addresses before starting the router:
 ```bash
 export PREFILL_IB_IP=<prefill-node-ib-ip>
 export DECODE_IB_IP=<decode-node-ib-ip>
+
+# Prefill node:
+SERVER_HOST="$PREFILL_IB_IP" bash launch_pd_prefill.sh
+
+# Decode node:
+SERVER_HOST="$DECODE_IB_IP" bash launch_pd_decode.sh
+
+# Prefill/router node, after both workers are ready:
+ROUTER_BIND_HOST="$PREFILL_IB_IP" bash launch_pd_router.sh
+
+# Benchmark client on the router node:
+export ROUTER_HOST="$PREFILL_IB_IP"
 ```
 
 ## Capacity Gate
@@ -76,7 +91,7 @@ export DECODE_IB_IP=<decode-node-ib-ip>
 Capture `/server_info` directly from every worker before measurement:
 
 ```bash
-python3 validate_server_info.py http://127.0.0.1:30000/server_info \
+python3 validate_server_info.py "http://${PREFILL_IB_IP}:30000/server_info" \
   --output /data/mimo-amd-latest/prefill-server-info.json
 ```
 

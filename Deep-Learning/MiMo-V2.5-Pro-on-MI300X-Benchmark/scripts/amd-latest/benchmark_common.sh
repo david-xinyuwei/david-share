@@ -4,11 +4,18 @@ set -Eeuo pipefail
 export PYTHONPATH="/sgl-workspace/sglang_0625/python${PYTHONPATH:+:$PYTHONPATH}"
 
 MODEL="${MODEL:-/data/models/MiMo-V2.5-Pro}"
-ROUTER_HOST="${ROUTER_HOST:-0.0.0.0}"
+ROUTER_HOST="${ROUTER_HOST:?Set ROUTER_HOST to the router private or IB address}"
 ROUTER_PORT="${ROUTER_PORT:-40000}"
 DATASET_PATH="${DATASET_PATH:?Set DATASET_PATH to the benchmark dataset JSON}"
 CONTEXT_LENGTH="${CONTEXT_LENGTH:-262151}"
 LOG_DIR="${LOG_DIR:?Set LOG_DIR}"
+
+case "$ROUTER_HOST" in
+  0.0.0.0|::|\[::\])
+    printf 'ROUTER_HOST must be a concrete private or IB address, not %s\n' "$ROUTER_HOST" >&2
+    exit 2
+    ;;
+esac
 
 mkdir -p "$LOG_DIR"
 

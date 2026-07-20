@@ -3,6 +3,15 @@ set -euo pipefail
 
 LOG_DIR="${LOG_DIR:-/data/mimo-amd-latest/dp2/service}"
 MODEL="${MODEL:-/data/models/MiMo-V2.5-Pro}"
+SERVER_HOST="${SERVER_HOST:?Set SERVER_HOST to this node private or IB address}"
+
+case "$SERVER_HOST" in
+  0.0.0.0|::|\[::\])
+    printf 'SERVER_HOST must be a concrete private or IB address, not %s\n' "$SERVER_HOST" >&2
+    exit 2
+    ;;
+esac
+
 mkdir -p "$LOG_DIR"
 
 export SGLANG_USE_AITER=1
@@ -33,7 +42,7 @@ export SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1
 python3 -u -m sglang.launch_server \
   --model-path "$MODEL" \
   --tp-size 8 \
-  --host 0.0.0.0 --port 30000 \
+  --host "$SERVER_HOST" --port 30000 \
   --trust-remote-code \
   --disable-radix-cache \
   --mem-fraction-static 0.85 \
