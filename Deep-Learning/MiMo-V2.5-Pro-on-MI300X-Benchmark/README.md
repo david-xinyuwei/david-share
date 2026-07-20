@@ -83,23 +83,14 @@ These are directional per-node input ratios. The H200 source does not record inp
 
 ### Output Side — MI300X 1P1D Decode, 8K Input / 1K Output
 
-| Client concurrency | Observed Decode batch (steady-state / peak) | E2E output tok/s | D-node mean gen tok/s | Mean TTFT (s) | Mean TPOT (ms) |
+| Client concurrency | Observed Decode batch | MI300X gen tok/s | MI300X TPOT (ms) | H200 Reference | MI300X / H200 |
 |---:|---:|---:|---:|---:|---:|
-| 16 | 15 / 16 | **1,331.98** | 1,319.78 | 1.00 | 10.83 |
-| 32 | 31 / 32 | **1,936.24** | 1,861.52 | 2.27 | 13.65 |
-| 64 | 53 / 55 | **2,465.01** | 2,324.57 | 7.59 | 16.88 |
-| 128 | 51 / 54 | **2,486.89** | 2,333.44 | 27.21 | 16.56 |
+| 16 | 15 / 16 | **1,319.78** | **10.83** | 1,381 tok/s / 11.59 ms | **95.6%** throughput; TPOT **6.6% lower** |
+| 32 | 31 / 32 | 1,861.52 | 13.65 | 2,549 tok/s / 12.56 ms | 73.0% |
+| 64 | 53 / 55 | 2,324.57 | 16.88 | 4,483 tok/s / 14.28 ms | 51.9% (batch not aligned) |
+| 128 | 51 / 54 | 2,333.44 | 16.56 | 7,013 tok/s / 18.25 ms | 33.3% (batch not aligned) |
 
-Observed Decode batch is the number of requests in concurrent token generation on the Decode node, sampled from scheduler logs; the steady-state value is the most frequent sample and the peak is the maximum observed. `15 / 16` therefore denotes steady-state 15 with peak 16. Client concurrency is the submitted request limit, not the observed Decode batch. At c64 and c128, the Decode node saturates at a batch of roughly 50–55; those rows must not be paired with H200 BS64 or BS128.
-
-#### Customer H200 8K Decode Reference
-
-| H200 per-DP BS | Decode output tok/s | TPOT (ms) | TTFT |
-|---:|---:|---:|---|
-| 16 | 1,381 | 11.59 | Not provided |
-| 32 | 2,549 | 12.56 | Not provided |
-| 64 | 4,483 | 14.28 | Not provided |
-| 128 | 7,013 | 18.25 | Not provided |
+`15 / 16` denotes steady-state 15 with peak 16. At c64/c128, the MI300X Decode node saturates at batch ~50–55 due to KV capacity; those rows cannot be paired with H200 BS64/BS128. Only the **c16 row** (batch 15–16 vs H200 BS16) is a near-aligned comparison.
 
 At the near-aligned c16 point, the observed MI300X Decode batch is steady-state 15 with peak 16. Its direct D-node generation rate is **1,319.78 tok/s**, or **95.6%** of the H200 BS16 worksheet row, while MI300X TPOT is **6.6% lower** (10.83 vs 11.59 ms). This is directional, not a hardware-parity or exact-workload claim: the H200 workbook has no output-length column, and MI300X uses real expert routing and a two-node 1P1D deployment while H200 uses balanced `fake_topk_ids` and TP8/EP32/DP4.
 
