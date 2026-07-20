@@ -26,10 +26,11 @@ English | [中文版](README-CN.md) | [Validation Evidence](data/validation/)
 | 8K Prefill throughput | 8K selected record, N=1 | 20,305.98 tok/s | 31,950 tok/s | Below reference; 63.6% (directional) |
 | 64K Prefill throughput | **Long ISL, selected record, N=1** | 18,983.91 tok/s | 27,400 tok/s | Below reference; 69.3% (directional) |
 | 256K Prefill throughput | **Exact very-long ISL, selected record, N=1** | 12,864.96 tok/s | 17,400 tok/s | Below reference; 73.9% (directional) |
-| 8K Decode scheduler throughput | 8K baseline, client c16, observed batch 15 / 16 | 1,319.78 tok/s | 1,381 tok/s | Near reference but below; 95.6% (directional) |
-| 8K Decode client mean TPOT | Same c16 run | **10.83 ms** | 11.59 ms | **Only directionally lower metric: 6.6% lower** |
-| 64K Decode scheduler throughput | **Single-node non-PD exact long ISL: 64K input / server-accounted 1K output, actual Decode BS16, N=2, fixed acceptance** | **933.75 tok/s** | 1,333.89 tok/s | Below worksheet row; 70.0% worksheet-local ratio |
-| 64K Decode implied TPOT | **Same fixed-acceptance long-ISL run, N=2 fresh services** | 17.14 ms | 11.99 ms | Higher (worse) by about 42.9% (directional) |
+| 8K Decode scheduler throughput | 8K baseline; PD c16; actual BS15–16 | 1,319.78 tok/s | 1,381 tok/s | 95.6% |
+| 8K Decode client mean TPOT | Same c16 run | **10.83 ms** | 11.59 ms | 6.6% lower |
+| 64K Decode production PD | 1P1D PD; 64K/1K; actual BS4–5 | **267.97 tok/s** | 1,333.89 tok/s (H200 BS16) | 20.1% — batch not aligned |
+| 64K Decode engine potential | Single-node non-PD; 64K/1K; BS16; N=2; fixed acceptance | **933.75 tok/s** | 1,333.89 tok/s | 70.0% (non-production) |
+| 64K Decode implied TPOT | Same fixed-acceptance run; N=2 fresh services | 17.14 ms | 11.99 ms | 42.9% higher |
 
 **Direct answer:** no tested Prefill-throughput row exceeds its H200 reference, and neither tested Decode-throughput row does. The only metric where MI300X is directionally better is **8K Decode TPOT, 6.6% lower**. The 64K Decode result verifies exact input length and fixed-acceptance scheduler capacity, improving **25.7%** over the same-image MI300X baseline, but it does not exceed the H200 worksheet row and does not validate output quality.
 
