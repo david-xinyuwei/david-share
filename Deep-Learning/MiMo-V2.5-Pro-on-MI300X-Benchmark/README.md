@@ -87,8 +87,8 @@ These are directional per-node input ratios. The H200 source does not record inp
 |---:|---:|---:|---:|---:|---:|
 | 16 | 15 / 16 | **1,319.78** | **10.83** | 1,381 tok/s / 11.59 ms | **95.6%** throughput; TPOT **6.6% lower** |
 | 32 | 31 / 32 | 1,861.52 | 13.65 | 2,549 tok/s / 12.56 ms | 73.0% |
-| 64 | 53 / 55 | 2,324.57 | 16.88 | 4,483 tok/s / 14.28 ms | 51.9% (batch not aligned) |
-| 128 | 51 / 54 | 2,333.44 | 16.56 | 7,013 tok/s / 18.25 ms | 33.3% (batch not aligned) |
+| 64 | 53 / 55 | 2,324.57 | 16.88 | 4,483 tok/s / 14.28 ms (H200 BS64) | 51.9% — MI300X actual BS53 vs H200 BS64 |
+| 128 | 51 / 54 | 2,333.44 | 16.56 | 7,013 tok/s / 18.25 ms (H200 BS128) | 33.3% — MI300X actual BS51 vs H200 BS128 |
 
 `15 / 16` denotes steady-state 15 with peak 16. At c64/c128, the MI300X Decode node saturates at batch ~50–55 due to KV capacity; those rows cannot be paired with H200 BS64/BS128. Only the **c16 row** (batch 15–16 vs H200 BS16) is a near-aligned comparison.
 
