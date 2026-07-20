@@ -21,7 +21,7 @@ READMES = (ROOT / "README.md", ROOT / "README-CN.md")
 BILINGUAL_HEADING_PAIRS = (
     ("# MiMo-V2.5-Pro on AMD MI300X — Benchmark Report", "# MiMo-V2.5-Pro 在 AMD MI300X 上的 Benchmark 报告"),
     ("## Executive Summary", "## 执行摘要"),
-    ("### Relative Status at a Glance", "### 一眼看清相对参考状态"),
+    ("### Relative Status at a Glance", "### 核心指标对比"),
     ("### What Happens as Input Length Grows", "### 输入长度增加时发生什么"),
     ("## Architecture", "## 架构"),
     ("## Why PD Disaggregation Has Independent Batch Sizes and Hyperparameters", "## 为什么 PD 分离后 Prefill 与 Decode 可以拥有独立 BS 和超参"),
@@ -88,6 +88,7 @@ CHINESE_TERM_INTRODUCTIONS = (
 )
 
 CHINESE_TRANSLATIONESE_FORBIDDEN = (
+    "一眼看清相对参考状态",
     "客户端并发度",
     "工作簿局部方向性算术比值",
     "Column J",
@@ -236,8 +237,8 @@ def check_readmes() -> None:
             "data/validation/h200-reference.json",
             "data/validation/decode-service-log-audit-8k.json",
             "not a strict apples-to-apples" if path.name == "README.md" else "不构成严格同条件的硬件 benchmark",
-            "Relative Status at a Glance" if path.name == "README.md" else "一眼看清相对参考状态",
-            "Only directionally lower metric: 6.6% lower" if path.name == "README.md" else "在方向性对比中，仅这一项更低：低 6.6%",
+            "Relative Status at a Glance" if path.name == "README.md" else "核心指标对比",
+            "Only directionally lower metric: 6.6% lower" if path.name == "README.md" else "| 低 6.6% |",
             "fixed-acceptance performance benchmark" if path.name == "README.md" else "fixed acceptance（固定接受率）性能测试",
             "server-accounted 1K output" if path.name == "README.md" else "服务端计数的 1K 输出",
             "worksheet-local directional arithmetic ratio" if path.name == "README.md" else "该结果的相对值为 **70.0%**",
@@ -247,7 +248,7 @@ def check_readmes() -> None:
             "does not independently establish the provenance or completeness" if path.name == "README.md" else "不能单独证明私有完整日志的来源与完整性",
             "no tested Prefill-throughput row exceeds" if path.name == "README.md" else "已实测的 Prefill 吞吐均未超过",
             "not a strict hardware ranking" if path.name == "README.md" else "不能作为严格的硬件排名",
-            "client c16, observed batch 15 / 16" if path.name == "README.md" else "客户端 c16；实测 batch 稳态 15、峰值 16",
+            "client c16, observed batch 15 / 16" if path.name == "README.md" else "PD c16；实测 BS15–16",
             "must not be treated as a controlled 8K→64K TPOT curve" if path.name == "README.md" else "不能据此绘制受控的 8K→64K TPOT 曲线",
             "headline_exact.same_image_exact_no_ck",
             "headline_exact.points",
@@ -382,7 +383,7 @@ def check_batching_guide() -> None:
         "为什么 PD 分离后 Prefill 与 Decode 可以拥有独立 BS 和超参",
         "单节点非 PD",
         "该测量不属于 1P1D PD c16 测试",
-        "单节点非 PD、精确长 ISL",
+        "单节点、非 PD；64K/1K",
         "Prefill request batch",
         "Prefill token batch",
         "actual Decode batch",
