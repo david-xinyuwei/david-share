@@ -226,7 +226,9 @@ Input（输入侧）与 Output（输出侧）指标回答的问题不同，不�
 
 机器可读审计：[`data/validation/decode-service-log-audit.json`](data/validation/decode-service-log-audit.json)。
 
-### 64K Decode — 固定 BS16（与 H200 对齐）
+### 64K Decode 引擎潜力验证 — 单节点固定 BS16（非生产部署）
+
+> **定位：** 这是 Decode 引擎能力测试，不是生产 PD 部署结果。MI300X 使用 1 节点 / 8 卡（TP8）；H200 参考使用 4 节点 / 32 卡（TP8/EP32/DP4）。上方 PD 模式的实测结果（BS4–5）才是客户生产环境的真实参考。
 
 该测试在单个 MI300X 节点上运行（TP8，不采用 PD 分离），工作负载为精确 64K 输入 / 服务端计数的 1K 输出，使用基于 AMD 7/13 tuned-MoE 环境生成的不可变镜像 `20260713-final`。这是 fixed-acceptance performance benchmark（固定接受率性能测试）：`SGLANG_SIMULATE_ACC_LEN=3` 与 `match-expected` 将 speculative acceptance length（投机接受长度）固定下来，以便比较性能；该方法不验证自然 MTP 接受率或输出质量。将 `--mem-fraction-static` 提高到 0.95 后，full-attention KV pool（全注意力 KV 池）从 554,880 扩大到 1,442,464 个 Token，使 16 条 64K context 请求能够同时进入 Decode。最终路径显式启用 `SGLANG_AITER_UNIFIED_VERIFY=1` 和 `SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1`；两轮服务日志均包含 `module_gemm_a8w8_blockscale_bpreshuffle` marker（标记）。
 

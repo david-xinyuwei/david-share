@@ -219,7 +219,9 @@ This is not a strict hardware comparison because the H200 input concurrency is a
 
 Machine-readable D-node audit: [`data/validation/decode-service-log-audit.json`](data/validation/decode-service-log-audit.json).
 
-### 64K Decode — Fixed BS16 (Aligned with H200)
+### 64K Decode Engine Potential — Single-Node Fixed BS16 (Non-Production)
+
+> **Positioning:** This is a Decode engine capability test, not a production PD deployment result. MI300X uses 1 node / 8 GPUs (TP8); the H200 reference uses 4 nodes / 32 GPUs (TP8/EP32/DP4). The production PD result above (actual BS4–5) is the customer-facing reality.
 
 Measured on a single MI300X node (TP8, no PD disaggregation) with a workload of exact 64K input / server-accounted 1K output, using the immutable `20260713-final` image derived from AMD's 7/13 tuned-MoE environment. This is a **fixed-acceptance performance benchmark**: `SGLANG_SIMULATE_ACC_LEN=3` with `match-expected` fixes the speculative acceptance length for benchmark comparability. It does not validate natural MTP acceptance or output quality. Raising `--mem-fraction-static` to 0.95 expands the full-attention KV pool from 554,880 to 1,442,464 tokens so 16 64K-context requests decode concurrently. The final path explicitly enables `SGLANG_AITER_UNIFIED_VERIFY=1` and `SGLANG_USE_AITER_CK_BLOCKSCALE_BPRESHUFFLE=1`; both service logs contain the `module_gemm_a8w8_blockscale_bpreshuffle` marker.
 

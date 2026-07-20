@@ -37,7 +37,7 @@ BILINGUAL_HEADING_PAIRS = (
     ('### Metric Contract', '### 指标口径'),
     ('### 64K Prefill', '### 64K Prefill'),
     ('### 64K Decode — PD Mode (Actual BS4–5)', '### 64K Decode — PD 模式（实测 BS4–5）'),
-    ('### 64K Decode — Fixed BS16 (Aligned with H200)', '### 64K Decode — 固定 BS16（与 H200 对齐）'),
+    ('### 64K Decode Engine Potential — Single-Node Fixed BS16 (Non-Production)', '### 64K Decode 引擎潜力验证 — 单节点固定 BS16（非生产部署）'),
     ('### Customer Requirement Assessment', '### 客户问题评估'),
     ('### 255K Capability Point', '### 255K 能力测点'),
     ('### 1P1D Prefill Scalability', '### 1P1D Prefill 扩展性'),
