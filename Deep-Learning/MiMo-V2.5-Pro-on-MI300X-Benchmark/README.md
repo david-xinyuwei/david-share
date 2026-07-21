@@ -39,7 +39,7 @@ English | [中文版](README-CN.md) | [Validation Evidence](data/validation/)
 | 192K | 14,402.00 tok/s (c4) | — (no H200 reference) | 63.30–71.34 tok/s; batch 1 / 1 | — (no H200 reference) | 0.47% (c4) |
 | 256K | 12,725.25 tok/s (c2 exact; c4 `REJECTED_BOUNDARY`) | 12,864.96 vs 17,400 = 73.9% (separate N=1) | 36.04–162.63 tok/s (255K/1K); batch 1 / 1 | — (no H200 reference) | 0.03% (c1) |
 
-Throughput cells are tok/s (higher is better) and TPOT is ms (lower is better). “—” means the customer worksheet has no row at that ISL. Every H200 percentage remains a worksheet-local directional ratio, and each ISL chapter below carries its own full matrices plus a dedicated vs-H200 subsection.
+Throughput cells are tok/s (higher is better) and TPOT is ms (lower is better). “—” means the customer worksheet has no row at that ISL. Every H200 percentage remains a worksheet-local directional ratio, and each ISL chapter below carries its own full matrices plus a dedicated vs-H200 subsection. All throughput columns are node-level totals aggregated across all concurrent requests, not per-request rates; per-request Decode speed ≈ 1000 / TPOT.
 
 **Direct answer:** no tested Prefill-throughput row exceeds its H200 reference, and neither tested Decode-throughput row does. The only metric where MI300X is directionally better is **8K Decode TPOT, 6.6% lower**. The 64K Decode result verifies exact input length and fixed-acceptance scheduler capacity, improving **25.7%** over the same-image MI300X baseline, but it does not exceed the H200 worksheet row and does not validate output quality.
 
@@ -117,25 +117,25 @@ Observed behavior:
 
 #### 1P1D Decode Scalability — 8K Input / 1K Output
 
-| Client concurrency | Observed Decode batch | Scheduler gen tok/s | E2E Output tok/s | Mean TPOT (ms) | Mean TTFT (ms) | H200 Reference |
+| Client concurrency | MI300X Observed Decode batch | Scheduler gen tok/s (aggregate) | E2E Output tok/s (aggregate) | Mean TPOT (ms) | Mean TTFT (ms) | H200 Reference |
 |---:|---:|---:|---:|---:|---:|---:|
 | 8 | — | — | 930.00 | 7.65 | 863.69 | — |
-| 16 | — | — | 1,303.44 | 10.72 | 1,398.73 | 1,381 tok/s / 11.59 ms |
-| 32 | — | — | 1,930.10 | 13.68 | 2,296.89 | 2,549 tok/s / 12.56 ms |
-| 64 | — | — | 2,462.83 | 17.08 | 7,406.18 | 4,483 tok/s / 14.28 ms |
+| 16 | — | — | 1,303.44 | 10.72 | 1,398.73 | 1,381 tok/s / 11.59 ms (H200 BS16) = 94.4% E2E-based, not batch-aligned |
+| 32 | — | — | 1,930.10 | 13.68 | 2,296.89 | 2,549 tok/s / 12.56 ms (H200 BS32) = 75.7% E2E-based, not batch-aligned |
+| 64 | — | — | 2,462.83 | 17.08 | 7,406.18 | 4,483 tok/s / 14.28 ms (H200 BS64) = 54.9% E2E-based, not batch-aligned |
 | 96 | — | — | 2,497.69 | 15.89 | 18,273.38 | — |
-| 128 | — | — | 2,468.95 | 16.45 | 27,128.38 | 7,013 tok/s / 18.25 ms |
+| 128 | — | — | 2,468.95 | 16.45 | 27,128.38 | 7,013 tok/s / 18.25 ms (H200 BS128) = 35.2% E2E-based, not batch-aligned |
 | 192 | — | — | 2,500.54 | 15.98 | 40,956.57 | — |
 
 Observed behavior:
 
 - Throughput increases from 930.00 tok/s at concurrency 8 to 2,462.83 tok/s at concurrency 64, then plateaus around 2.47–2.50K tok/s through concurrency 192.
-- The E2E rows above do not have run-matched scheduler windows, so their actual-batch and scheduler-gen cells remain `—`. Separate audited headline records at c16/c32/c64/c128 have observed Decode batches of 15/16, 31/32, 53/55, and 51/54 respectively; those values are not backfilled into different runs.
+- The E2E rows above do not have run-matched scheduler windows, so their actual-batch and scheduler-gen cells remain `—`. Separate audited headline records at c16/c32/c64/c128 have observed Decode batches of 15/16, 31/32, 53/55, and 51/54 respectively; those values are not backfilled into different runs. The per-row H200 percentages are E2E-based directional ratios only; the batch-aligned audited comparison is in the vs-H200 subsection below.
 - TTFT rises sharply after concurrency 64 even while throughput stays flat. The plateau is a capacity result, not a latency improvement.
 
 #### 8K Decode Fresh-Service Repeatability
 
-| Client concurrency | Observed Decode batch | Fresh run 1 Output tok/s | Fresh run 2 Output tok/s | Throughput delta | TPOT run 1 / run 2 (ms) |
+| Client concurrency | MI300X Observed Decode batch | Fresh run 1 Output tok/s | Fresh run 2 Output tok/s | Throughput delta | TPOT run 1 / run 2 (ms) |
 |---:|---:|---:|---:|---:|---:|
 | 16 | — | 1,331.98 | 1,303.44 | -2.14% | 10.83 / 10.72 |
 | 32 | — | 1,936.24 | 1,930.10 | -0.32% | 13.65 / 13.68 |
@@ -156,7 +156,7 @@ Selected Prefill record (separate N=1 run from the full matrix above):
 
 Audited Decode headline records vs the customer worksheet:
 
-| Client concurrency | Observed Decode batch | MI300X gen tok/s | MI300X TPOT (ms) | H200 Reference | MI300X / H200 |
+| Client concurrency | MI300X Observed Decode batch | MI300X gen tok/s | MI300X TPOT (ms) | H200 Reference | MI300X / H200 |
 |---:|---:|---:|---:|---:|---:|
 | 16 | 15 / 16 | **1,319.78** | **10.83** | 1,381 tok/s / 11.59 ms | **95.6%** throughput; TPOT **6.6% lower** |
 | 32 | 31 / 32 | 1,861.52 | 13.65 | 2,549 tok/s / 12.56 ms | 73.0% |
@@ -188,12 +188,12 @@ Observed behavior:
 
 #### 1P1D Decode Scalability — 64K Input / 1K Output
 
-| Client concurrency | Observed Decode batch | Scheduler gen tok/s | E2E Output tok/s | Mean TPOT (ms) | Mean TTFT (ms) | H200 Reference |
+| Client concurrency | MI300X Observed Decode batch | Scheduler gen tok/s (aggregate) | E2E Output tok/s (aggregate) | Mean TPOT (ms) | Mean TTFT (ms) | H200 Reference |
 |---:|---:|---:|---:|---:|---:|---:|
-| 16 | 4 / 5 | 267.97 | 265.17 | 11.94 | 37,571.24 | 1,333.89 tok/s / 11.99 ms (BS16) = 20.1%, not batch-aligned |
-| 32 | 4 / 4 | 276.74 | 276.59 | 11.76 | 80,228.37 | 2,235.53 tok/s / 14.31 ms (BS32) = 12.4%, not batch-aligned |
-| 64 | 4 / 5 | 282.81 | 284.00 | 11.75 | 165,190.68 | 3,919.78 tok/s / 16.33 ms (BS64) = 7.2%, not batch-aligned |
-| 96 | 4 / 5 | 287.77 | 288.66 | 11.55 | 248,339.44 | 4,891.59 tok/s / 19.63 ms (BS96) = 5.9%, not batch-aligned |
+| 16 | 4 / 5 | 267.97 | 265.17 | 11.94 | 37,571.24 | 1,333.89 tok/s / 11.99 ms (H200 BS16) = 20.1%, not batch-aligned |
+| 32 | 4 / 4 | 276.74 | 276.59 | 11.76 | 80,228.37 | 2,235.53 tok/s / 14.31 ms (H200 BS32) = 12.4%, not batch-aligned |
+| 64 | 4 / 5 | 282.81 | 284.00 | 11.75 | 165,190.68 | 3,919.78 tok/s / 16.33 ms (H200 BS64) = 7.2%, not batch-aligned |
+| 96 | 4 / 5 | 287.77 | 288.66 | 11.55 | 248,339.44 | 4,891.59 tok/s / 19.63 ms (H200 BS96) = 5.9%, not batch-aligned |
 
 Observed behavior:
 
@@ -203,7 +203,7 @@ Observed behavior:
 
 #### 64K Decode Fresh-Service Repeatability
 
-| Client concurrency | Observed Decode batch | Fresh run 1 Output tok/s | Fresh run 2 Output tok/s | Throughput delta | TPOT run 1 / run 2 (ms) |
+| Client concurrency | MI300X Observed Decode batch | Fresh run 1 Output tok/s | Fresh run 2 Output tok/s | Throughput delta | TPOT run 1 / run 2 (ms) |
 |---:|---:|---:|---:|---:|---:|
 | 16 | 16 / 16 | 224.26 | 223.66 | -0.27% | 42.63 / 42.67 |
 
@@ -245,7 +245,7 @@ Observed behavior:
 
 #### 1P1D Decode Scalability — 128K Input / 1K Output
 
-| Client concurrency | Observed Decode batch | Scheduler gen tok/s | E2E Output tok/s | Mean TPOT (ms) | Mean TTFT (ms) | H200 Reference |
+| Client concurrency | MI300X Observed Decode batch | Scheduler gen tok/s (aggregate) | E2E Output tok/s (aggregate) | Mean TPOT (ms) | Mean TTFT (ms) | H200 Reference |
 |---:|---:|---:|---:|---:|---:|---:|
 | 4 | 1 / 1 | 140.72 | 112.79 | 5.76 | 24,639.84 | — |
 | 8 | 1 / 1 | 137.62 | 117.32 | 5.76 | 49,712.45 | — |
@@ -260,7 +260,7 @@ Observed behavior:
 
 #### 128K Decode Fresh-Service Repeatability
 
-| Client concurrency | Observed Decode batch | Fresh run 1 Output tok/s | Fresh run 2 Output tok/s | Throughput delta | TPOT run 1 / run 2 (ms) |
+| Client concurrency | MI300X Observed Decode batch | Fresh run 1 Output tok/s | Fresh run 2 Output tok/s | Throughput delta | TPOT run 1 / run 2 (ms) |
 |---:|---:|---:|---:|---:|---:|
 | 4 | 1 / 1 | 113.64 | 113.37 | -0.24% | 5.84 / 5.86 |
 
@@ -296,7 +296,7 @@ Observed behavior:
 
 #### 1P1D Decode Scalability — 192K Input / 1K Output
 
-| Client concurrency | Observed Decode batch | Scheduler gen tok/s | E2E Output tok/s | Mean TPOT (ms) | Mean TTFT (ms) | H200 Reference |
+| Client concurrency | MI300X Observed Decode batch | Scheduler gen tok/s (aggregate) | E2E Output tok/s (aggregate) | Mean TPOT (ms) | Mean TTFT (ms) | H200 Reference |
 |---:|---:|---:|---:|---:|---:|---:|
 | 2 | 1 / 1 | 129.42 | 63.30 | 6.34 | 22,617.83 | — |
 | 4 | 1 / 1 | 126.99 | 68.15 | 6.46 | 43,550.54 | — |
@@ -311,7 +311,7 @@ Observed behavior:
 
 #### 192K Decode Fresh-Service Repeatability
 
-| Client concurrency | Observed Decode batch | Fresh run 1 Output tok/s | Fresh run 2 Output tok/s | Throughput delta | TPOT run 1 / run 2 (ms) |
+| Client concurrency | MI300X Observed Decode batch | Fresh run 1 Output tok/s | Fresh run 2 Output tok/s | Throughput delta | TPOT run 1 / run 2 (ms) |
 |---:|---:|---:|---:|---:|---:|
 | 4 | 1 / 1 | 67.88 | 68.20 | +0.47% | 6.89 / 6.62 |
 
@@ -347,7 +347,7 @@ Observed behavior:
 
 #### 1P1D Decode Scalability — 255K Input / 1K Output
 
-| Client concurrency | Observed Decode batch | Scheduler gen tok/s | E2E Output tok/s | Mean TPOT (ms) | Mean TTFT (ms) | H200 Reference |
+| Client concurrency | MI300X Observed Decode batch | Scheduler gen tok/s (aggregate) | E2E Output tok/s (aggregate) | Mean TPOT (ms) | Mean TTFT (ms) | H200 Reference |
 |---:|---:|---:|---:|---:|---:|---:|
 | 1 | 1 / 1 | 131.15 | 36.04 | 7.16 | 21,076.57 | — |
 | 2 | 1 / 1 | 127.64 | 82.19 | 3.61 | 16,441.84 | — |
@@ -361,7 +361,7 @@ Observed behavior:
 
 #### 256K Decode Fresh-Service Repeatability
 
-| Client concurrency | Observed Decode batch | Fresh run 1 Output tok/s | Fresh run 2 Output tok/s | Throughput delta | TPOT run 1 / run 2 (ms) |
+| Client concurrency | MI300X Observed Decode batch | Fresh run 1 Output tok/s | Fresh run 2 Output tok/s | Throughput delta | TPOT run 1 / run 2 (ms) |
 |---:|---:|---:|---:|---:|---:|
 | 1 | 1 / 1 | 35.97 | 35.96 | -0.03% | 7.15 / 7.21 |
 
@@ -389,8 +389,8 @@ Input and output metrics answer different questions and must not be divided by e
 |---|---|---|
 | Input | Input tok/s | Aggregate input tokens processed per second; higher is better |
 | Input | Input/client concurrency | Maximum requests admitted by the benchmark client; it is not necessarily the active Decode batch |
-| Output | E2E output tok/s | Requested output tokens divided by full benchmark duration, including Prefill and TTFT |
-| Output | Decode-node gen tok/s | Arithmetic mean of the Decode scheduler's `gen throughput` log samples during the point |
+| Output | E2E output tok/s | Requested output tokens divided by full benchmark duration, including Prefill and TTFT; a total across all concurrent requests, not per-request |
+| Output | Decode-node gen tok/s | Arithmetic mean of the Decode scheduler's `gen throughput` log samples during the point; a node-level total across the active batch, not per-request |
 | Output | TTFT | Time from request start to first output token; lower is better |
 | Output | TPOT | Time per output token after the first token; lower is better |
 
@@ -452,7 +452,7 @@ Machine-readable results: [`data/decode-fixed-batch-results.tsv`](data/decode-fi
 
 ### 255K Capability Point
 
-| Workload | Client concurrency | Observed Decode batch | E2E output tok/s | D-node mean gen tok/s | Mean TTFT (s) | Mean TPOT (ms) |
+| Workload | Client concurrency | MI300X Observed Decode batch | E2E output tok/s | D-node mean gen tok/s | Mean TTFT (s) | Mean TPOT (ms) |
 |---|---:|---:|---:|---:|---:|---:|
 | Requested 255K input / 1K output | 1 | 1 | 31.93 | 80.64 | 20.93 | 10.88 |
 
@@ -684,7 +684,7 @@ The usable value can be lower because of allocation pages, fragmentation, MTP st
 
 Two measured 64K/1K records answer different questions:
 
-| Record | Client load | Observed Decode batch | Correct interpretation |
+| Record | Client load | MI300X Observed Decode batch | Correct interpretation |
 |---|---|---|---|
 | Two-node 1P1D PD, c16 | Client concurrency 16 | Steady-state `4`, peak `5` | PD scheduler/capacity record; not “Decode BS16” and not “Prefill BS16” |
 | Single-node exact64 fixed batch | 16 prompts, client concurrency 16 | Actual Decode batch `16`, queue `0` | **Non-PD capacity experiment** used for the fixed-BS16 headline |

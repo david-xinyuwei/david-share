@@ -43,7 +43,7 @@
 | 192K | 14,402.00 tok/s（c4） | —（无 H200 参考） | 63.30–71.34 tok/s；batch 1 / 1 | —（无 H200 参考） | 0.47%（c4） |
 | 256K | 12,725.25 tok/s（c2 精确；c4 `REJECTED_BOUNDARY`） | 12,864.96 vs 17,400 = 73.9%（独立 N=1） | 36.04–162.63 tok/s（255K/1K）；batch 1 / 1 | —（无 H200 参考） | 0.03%（c1） |
 
-吞吐单元格单位为 tok/s（越高越好），TPOT 单位为 ms（越低越好）。“—”表示客户工作簿在该 ISL 没有对应行。所有 H200 百分比仍是工作簿对应行的方向性比值；下方每个 ISL 章节都自带完整矩阵和专门的 vs H200 小节。
+吞吐单元格单位为 tok/s（越高越好），TPOT 单位为 ms（越低越好）。“—”表示客户工作簿在该 ISL 没有对应行。所有 H200 百分比仍是工作簿对应行的方向性比值；下方每个 ISL 章节都自带完整矩阵和专门的 vs H200 小节。所有吞吐列都是节点上全部并发请求合计的总吞吐，不是单请求速率；单请求 Decode 速率 ≈ 1000 / TPOT。
 
 **结论：** 已实测的 Prefill 吞吐均未超过 H200 参考值，两个 Decode 吞吐测点亦未超过。仅 MI300X 的 **8K Decode TPOT** 较低，差异为 **6.6%**。64K Decode 验证了精确输入长度和固定接受率下的 scheduler 容量；与同一镜像下的 MI300X 基线相比，吞吐提高 **25.7%**，但仍未达到 H200 工作簿对应行，也不验证输出质量。
 
@@ -121,25 +121,25 @@ AMD 提供基础启动方案（容器镜像、AITER 调优路径、1P1D/DP=2 拓
 
 #### 1P1D Decode 扩展性：8K 输入 / 1K 输出
 
-| 客户端并发 | 实测 Decode batch | Scheduler gen tok/s | E2E Output tok/s | 平均 TPOT (ms) | 平均 TTFT (ms) | H200 参考 |
+| 客户端并发 | MI300X 实测 Decode batch | Scheduler gen tok/s（总吞吐） | E2E Output tok/s（总吞吐） | 平均 TPOT (ms) | 平均 TTFT (ms) | H200 参考 |
 |---:|---:|---:|---:|---:|---:|---:|
 | 8 | — | — | 930.00 | 7.65 | 863.69 | — |
-| 16 | — | — | 1,303.44 | 10.72 | 1,398.73 | 1,381 tok/s / 11.59 ms |
-| 32 | — | — | 1,930.10 | 13.68 | 2,296.89 | 2,549 tok/s / 12.56 ms |
-| 64 | — | — | 2,462.83 | 17.08 | 7,406.18 | 4,483 tok/s / 14.28 ms |
+| 16 | — | — | 1,303.44 | 10.72 | 1,398.73 | 1,381 tok/s / 11.59 ms (H200 BS16) = 94.4% E2E 口径，batch 未对齐 |
+| 32 | — | — | 1,930.10 | 13.68 | 2,296.89 | 2,549 tok/s / 12.56 ms (H200 BS32) = 75.7% E2E 口径，batch 未对齐 |
+| 64 | — | — | 2,462.83 | 17.08 | 7,406.18 | 4,483 tok/s / 14.28 ms (H200 BS64) = 54.9% E2E 口径，batch 未对齐 |
 | 96 | — | — | 2,497.69 | 15.89 | 18,273.38 | — |
-| 128 | — | — | 2,468.95 | 16.45 | 27,128.38 | 7,013 tok/s / 18.25 ms |
+| 128 | — | — | 2,468.95 | 16.45 | 27,128.38 | 7,013 tok/s / 18.25 ms (H200 BS128) = 35.2% E2E 口径，batch 未对齐 |
 | 192 | — | — | 2,500.54 | 15.98 | 40,956.57 | — |
 
 实测现象：
 
 - 客户端并发从 8 增至 64 时，吞吐由 930.00 tok/s 提高到 2,462.83 tok/s；此后直到并发 192，吞吐均维持在约 2.47–2.50K tok/s。
-- 上表 E2E 行没有与同一次运行匹配的 scheduler window，因此实际 batch 与 scheduler gen 单元格保留为 `—`。另外完成审计的 c16/c32/c64/c128 headline 记录中，实测 Decode batch 分别为 15/16、31/32、53/55 和 51/54；本文不会把这些数值回填到不同运行的结果行。
+- 上表 E2E 行没有与同一次运行匹配的 scheduler window，因此实际 batch 与 scheduler gen 单元格保留为 `—`。另外完成审计的 c16/c32/c64/c128 headline 记录中，实测 Decode batch 分别为 15/16、31/32、53/55 和 51/54；本文不会把这些数值回填到不同运行的结果行。上表每行的 H200 百分比只是按 E2E 吞吐折算的方向性比值；batch 对齐的已审计对比见下方 vs H200 小节。
 - 并发超过 64 后，吞吐基本不再增长，但 TTFT 明显上升。这是容量平台，不表示延迟得到改善。
 
 #### 8K Decode Fresh-Service（全新服务）复测
 
-| 客户端并发 | 实测 Decode batch | 第 1 轮 Output tok/s | 第 2 轮 Output tok/s | 吞吐差异 | TPOT 第 1 轮 / 第 2 轮 (ms) |
+| 客户端并发 | MI300X 实测 Decode batch | 第 1 轮 Output tok/s | 第 2 轮 Output tok/s | 吞吐差异 | TPOT 第 1 轮 / 第 2 轮 (ms) |
 |---:|---:|---:|---:|---:|---:|
 | 16 | — | 1,331.98 | 1,303.44 | -2.14% | 10.83 / 10.72 |
 | 32 | — | 1,936.24 | 1,930.10 | -0.32% | 13.65 / 13.68 |
@@ -160,7 +160,7 @@ AMD 提供基础启动方案（容器镜像、AITER 调优路径、1P1D/DP=2 拓
 
 已审计的 Decode headline 记录与客户工作簿对比：
 
-| 客户端并发 | 实测 Decode batch | MI300X gen tok/s | MI300X TPOT (ms) | H200 参考 | MI300X / H200 |
+| 客户端并发 | MI300X 实测 Decode batch | MI300X gen tok/s | MI300X TPOT (ms) | H200 参考 | MI300X / H200 |
 |---:|---:|---:|---:|---:|---:|
 | 16 | 15 / 16 | **1,319.78** | **10.83** | 1,381 tok/s / 11.59 ms | **95.6%** 吞吐；TPOT **低 6.6%** |
 | 32 | 31 / 32 | 1,861.52 | 13.65 | 2,549 tok/s / 12.56 ms | 73.0% |
@@ -192,12 +192,12 @@ AMD 提供基础启动方案（容器镜像、AITER 调优路径、1P1D/DP=2 拓
 
 #### 1P1D Decode 扩展性：64K 输入 / 1K 输出
 
-| 客户端并发 | 实测 Decode batch | Scheduler gen tok/s | E2E Output tok/s | 平均 TPOT (ms) | 平均 TTFT (ms) | H200 参考 |
+| 客户端并发 | MI300X 实测 Decode batch | Scheduler gen tok/s（总吞吐） | E2E Output tok/s（总吞吐） | 平均 TPOT (ms) | 平均 TTFT (ms) | H200 参考 |
 |---:|---:|---:|---:|---:|---:|---:|
-| 16 | 4 / 5 | 267.97 | 265.17 | 11.94 | 37,571.24 | 1,333.89 tok/s / 11.99 ms (BS16) = 20.1%，batch 未对齐 |
-| 32 | 4 / 4 | 276.74 | 276.59 | 11.76 | 80,228.37 | 2,235.53 tok/s / 14.31 ms (BS32) = 12.4%，batch 未对齐 |
-| 64 | 4 / 5 | 282.81 | 284.00 | 11.75 | 165,190.68 | 3,919.78 tok/s / 16.33 ms (BS64) = 7.2%，batch 未对齐 |
-| 96 | 4 / 5 | 287.77 | 288.66 | 11.55 | 248,339.44 | 4,891.59 tok/s / 19.63 ms (BS96) = 5.9%，batch 未对齐 |
+| 16 | 4 / 5 | 267.97 | 265.17 | 11.94 | 37,571.24 | 1,333.89 tok/s / 11.99 ms (H200 BS16) = 20.1%，batch 未对齐 |
+| 32 | 4 / 4 | 276.74 | 276.59 | 11.76 | 80,228.37 | 2,235.53 tok/s / 14.31 ms (H200 BS32) = 12.4%，batch 未对齐 |
+| 64 | 4 / 5 | 282.81 | 284.00 | 11.75 | 165,190.68 | 3,919.78 tok/s / 16.33 ms (H200 BS64) = 7.2%，batch 未对齐 |
+| 96 | 4 / 5 | 287.77 | 288.66 | 11.55 | 248,339.44 | 4,891.59 tok/s / 19.63 ms (H200 BS96) = 5.9%，batch 未对齐 |
 
 实测现象：
 
@@ -207,7 +207,7 @@ AMD 提供基础启动方案（容器镜像、AITER 调优路径、1P1D/DP=2 拓
 
 #### 64K Decode Fresh-Service（全新服务）复测
 
-| 客户端并发 | 实测 Decode batch | 第 1 轮 Output tok/s | 第 2 轮 Output tok/s | 吞吐差异 | TPOT 第 1 轮 / 第 2 轮 (ms) |
+| 客户端并发 | MI300X 实测 Decode batch | 第 1 轮 Output tok/s | 第 2 轮 Output tok/s | 吞吐差异 | TPOT 第 1 轮 / 第 2 轮 (ms) |
 |---:|---:|---:|---:|---:|---:|
 | 16 | 16 / 16 | 224.26 | 223.66 | -0.27% | 42.63 / 42.67 |
 
@@ -249,7 +249,7 @@ Decode：上方 PD 矩阵的实测 batch 为 4–5，而 H200 工作簿行为 BS
 
 #### 1P1D Decode 扩展性：128K 输入 / 1K 输出
 
-| 客户端并发 | 实测 Decode batch | Scheduler gen tok/s | E2E Output tok/s | 平均 TPOT (ms) | 平均 TTFT (ms) | H200 参考 |
+| 客户端并发 | MI300X 实测 Decode batch | Scheduler gen tok/s（总吞吐） | E2E Output tok/s（总吞吐） | 平均 TPOT (ms) | 平均 TTFT (ms) | H200 参考 |
 |---:|---:|---:|---:|---:|---:|---:|
 | 4 | 1 / 1 | 140.72 | 112.79 | 5.76 | 24,639.84 | — |
 | 8 | 1 / 1 | 137.62 | 117.32 | 5.76 | 49,712.45 | — |
@@ -264,7 +264,7 @@ Decode：上方 PD 矩阵的实测 batch 为 4–5，而 H200 工作簿行为 BS
 
 #### 128K Decode Fresh-Service（全新服务）复测
 
-| 客户端并发 | 实测 Decode batch | 第 1 轮 Output tok/s | 第 2 轮 Output tok/s | 吞吐差异 | TPOT 第 1 轮 / 第 2 轮 (ms) |
+| 客户端并发 | MI300X 实测 Decode batch | 第 1 轮 Output tok/s | 第 2 轮 Output tok/s | 吞吐差异 | TPOT 第 1 轮 / 第 2 轮 (ms) |
 |---:|---:|---:|---:|---:|---:|
 | 4 | 1 / 1 | 113.64 | 113.37 | -0.24% | 5.84 / 5.86 |
 
@@ -300,7 +300,7 @@ Decode：上方 PD 矩阵的实测 batch 为 4–5，而 H200 工作簿行为 BS
 
 #### 1P1D Decode 扩展性：192K 输入 / 1K 输出
 
-| 客户端并发 | 实测 Decode batch | Scheduler gen tok/s | E2E Output tok/s | 平均 TPOT (ms) | 平均 TTFT (ms) | H200 参考 |
+| 客户端并发 | MI300X 实测 Decode batch | Scheduler gen tok/s（总吞吐） | E2E Output tok/s（总吞吐） | 平均 TPOT (ms) | 平均 TTFT (ms) | H200 参考 |
 |---:|---:|---:|---:|---:|---:|---:|
 | 2 | 1 / 1 | 129.42 | 63.30 | 6.34 | 22,617.83 | — |
 | 4 | 1 / 1 | 126.99 | 68.15 | 6.46 | 43,550.54 | — |
@@ -315,7 +315,7 @@ Decode：上方 PD 矩阵的实测 batch 为 4–5，而 H200 工作簿行为 BS
 
 #### 192K Decode Fresh-Service（全新服务）复测
 
-| 客户端并发 | 实测 Decode batch | 第 1 轮 Output tok/s | 第 2 轮 Output tok/s | 吞吐差异 | TPOT 第 1 轮 / 第 2 轮 (ms) |
+| 客户端并发 | MI300X 实测 Decode batch | 第 1 轮 Output tok/s | 第 2 轮 Output tok/s | 吞吐差异 | TPOT 第 1 轮 / 第 2 轮 (ms) |
 |---:|---:|---:|---:|---:|---:|
 | 4 | 1 / 1 | 67.88 | 68.20 | +0.47% | 6.89 / 6.62 |
 
@@ -351,7 +351,7 @@ Decode：上方 PD 矩阵的实测 batch 为 4–5，而 H200 工作簿行为 BS
 
 #### 1P1D Decode 扩展性：255K 输入 / 1K 输出
 
-| 客户端并发 | 实测 Decode batch | Scheduler gen tok/s | E2E Output tok/s | 平均 TPOT (ms) | 平均 TTFT (ms) | H200 参考 |
+| 客户端并发 | MI300X 实测 Decode batch | Scheduler gen tok/s（总吞吐） | E2E Output tok/s（总吞吐） | 平均 TPOT (ms) | 平均 TTFT (ms) | H200 参考 |
 |---:|---:|---:|---:|---:|---:|---:|
 | 1 | 1 / 1 | 131.15 | 36.04 | 7.16 | 21,076.57 | — |
 | 2 | 1 / 1 | 127.64 | 82.19 | 3.61 | 16,441.84 | — |
@@ -365,7 +365,7 @@ Decode：上方 PD 矩阵的实测 batch 为 4–5，而 H200 工作簿行为 BS
 
 #### 256K Decode Fresh-Service（全新服务）复测
 
-| 客户端并发 | 实测 Decode batch | 第 1 轮 Output tok/s | 第 2 轮 Output tok/s | 吞吐差异 | TPOT 第 1 轮 / 第 2 轮 (ms) |
+| 客户端并发 | MI300X 实测 Decode batch | 第 1 轮 Output tok/s | 第 2 轮 Output tok/s | 吞吐差异 | TPOT 第 1 轮 / 第 2 轮 (ms) |
 |---:|---:|---:|---:|---:|---:|
 | 1 | 1 / 1 | 35.97 | 35.96 | -0.03% | 7.15 / 7.21 |
 
@@ -393,8 +393,8 @@ Input（输入侧）与 Output（输出侧）指标回答的问题不同，不�
 |---|---|---|
 | Input | Input tok/s | 每秒处理的聚合 input tokens；越高越好 |
 | Input | Input/client concurrency | benchmark client（压测客户端）允许的最大并发请求数；不一定等于 Decode 实际 batch |
-| Output | E2E output tok/s | 请求的 output tokens 除以完整测试时长，其中包含 Prefill 和 TTFT |
-| Output | Decode-node gen tok/s | 该测点期间 Decode scheduler 日志中 `gen throughput` 样本的算术平均值 |
+| Output | E2E output tok/s | 请求的 output tokens 除以完整测试时长，其中包含 Prefill 和 TTFT；为全部并发请求的合计值，不是单请求速率 |
+| Output | Decode-node gen tok/s | 该测点期间 Decode scheduler 日志中 `gen throughput` 样本的算术平均值；为活跃 batch 的节点级合计值，不是单请求速率 |
 | Output | TTFT | 从请求开始到首个 output token 的时间；越低越好 |
 | Output | TPOT | 首个 Token 之后每个 output token 的时间；越低越好 |
 
@@ -456,7 +456,7 @@ Input（输入侧）与 Output（输出侧）指标回答的问题不同，不�
 
 ### 255K 能力测点
 
-| 工作负载 | 客户端并发 | 实测 Decode batch | E2E output tok/s | Decode 节点平均 gen tok/s | 平均 TTFT (s) | 平均 TPOT (ms) |
+| 工作负载 | 客户端并发 | MI300X 实测 Decode batch | E2E output tok/s | Decode 节点平均 gen tok/s | 平均 TTFT (s) | 平均 TPOT (ms) |
 |---|---:|---:|---:|---:|---:|---:|
 | 请求 255K 输入 / 1K 输出 | 1 | 1 | 31.93 | 80.64 | 20.93 | 10.88 |
 
@@ -688,7 +688,7 @@ Allocation pages（分配页）、fragmentation（内存碎片）、MTP state（
 
 两条 64K/1K 实测记录回答的是不同问题：
 
-| 记录 | Client load（客户端负载） | 实测 Decode batch | 解读 |
+| 记录 | Client load（客户端负载） | MI300X 实测 Decode batch | 解读 |
 |---|---|---|---|
 | 双节点 1P1D PD、c16 | Client concurrency 16 | 稳态 `4`、峰值 `5` | PD scheduler/capacity（调度与容量）记录；不是“Decode BS16”，也不是“Prefill BS16” |
 | 单节点 exact64 fixed batch | 16 条 prompt、client concurrency 16 | 实际 Decode batch `16`、queue `0` | 核心 Fixed-BS16 结果采用的**非 PD 容量实验** |
