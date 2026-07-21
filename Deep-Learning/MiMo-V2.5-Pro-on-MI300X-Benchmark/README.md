@@ -41,6 +41,8 @@ English | [中文版](README-CN.md) | [Validation Evidence](data/validation/)
 
 Throughput cells are tok/s (higher is better) and TPOT is ms (lower is better). “—” means the customer worksheet has no row at that ISL. Every H200 percentage remains a worksheet-local directional ratio, and each ISL chapter below carries its own full matrices plus a dedicated vs-H200 subsection. All throughput columns are node-level totals aggregated across all concurrent requests, not per-request rates; per-request Decode speed ≈ 1000 / TPOT.
 
+**Deployment-scale reading:** every MI300X value comes from one node (8 GPUs) per role in the 1P1D pair. The H200 Prefill reference comes from a 2-node TP8/EP16/DP2 deployment quoted per node; the H200 Decode reference comes from a 4-node TP8/EP32/DP4 deployment quoted per DP replica (Column J arithmetic equals local `BS × TPS`). Every H200 percentage in this report is therefore a per-8-GPU-share comparison, not a whole-deployment total-throughput comparison. Read this way, the near-aligned 8K Decode c16 point puts one MI300X node at **95.6%** of one H200 DP replica with **6.6% lower** TPOT, and the 64K PD gap is primarily single-node KV-capacity batch misalignment: **20.1%** not batch-aligned versus **70.0%** batch-aligned at BS16.
+
 **Direct answer:** no tested Prefill-throughput row exceeds its H200 reference, and neither tested Decode-throughput row does. The only metric where MI300X is directionally better is **8K Decode TPOT, 6.6% lower**. The 64K Decode result verifies exact input length and fixed-acceptance scheduler capacity, improving **25.7%** over the same-image MI300X baseline, but it does not exceed the H200 worksheet row and does not validate output quality.
 
 “Directional” is essential: H200 input concurrency is missing; its Decode rows have no explicit output length and ambiguous Column J deployment scope; topology, expert routing, acceptance method, and metric scope also differ. Every percentage against H200 is a worksheet-local directional arithmetic ratio, not a strict hardware ranking.
@@ -165,6 +167,8 @@ Audited Decode headline records vs the customer worksheet:
 
 `15 / 16` denotes steady-state 15 with peak 16. At c64/c128, the MI300X Decode node saturates at batch ~50–55 due to KV capacity, so those rows cannot be paired with H200 BS64/BS128; only the **c16 row** (batch 15–16 vs H200 BS16) is a near-aligned comparison — **1,319.78 tok/s**, **95.6%** of the H200 BS16 worksheet row, with MI300X TPOT **6.6% lower** (10.83 vs 11.59 ms). These audited records come from separate headline runs and are not backfilled into the E2E matrix above. Batch audit: [`data/validation/decode-service-log-audit-8k.json`](data/validation/decode-service-log-audit-8k.json).
 
+Per 8-GPU share, this near-aligned point is effectively at the same level as the H200 DP replica. It is not a 2-node-versus-4-node total-throughput claim: the MI300X figure is one Decode node, and the H200 worksheet row is one DP replica of a 4-node TP8/EP32/DP4 deployment.
+
 </details>
 
 ### ISL=64K
@@ -219,7 +223,7 @@ Selected Prefill record (separate N=1 run):
 |---:|---:|---:|---:|---:|
 | 64K | 4 | **18,983.91** | 27,400 | 69.3% |
 
-Decode: the PD matrix above runs at actual batch 4–5 while the H200 worksheet rows are BS16–96, so the PD ratios (20.1% at c16 down to 5.9% at c96) are not batch-aligned; see “64K Decode — PD Mode (Actual BS4–5)” below. The batch-aligned view is the single-node fixed-BS16 engine-potential record: **933.75 vs 1,333.89 gen tok/s = 70.0% (non-production)**, implied TPOT **17.14 vs 11.99 ms (42.9% higher)**; see “64K Decode Engine Potential” below.
+Decode: the PD matrix above runs at actual batch 4–5 while the H200 worksheet rows are BS16–96, quoted per DP replica of a 4-node TP8/EP32/DP4 deployment, so the PD ratios (20.1% at c16 down to 5.9% at c96) are not batch-aligned; see “64K Decode — PD Mode (Actual BS4–5)” below. The batch-aligned view is the single-node fixed-BS16 engine-potential record: **933.75 vs 1,333.89 gen tok/s = 70.0% (non-production)**, implied TPOT **17.14 vs 11.99 ms (42.9% higher)**; see “64K Decode Engine Potential” below.
 
 </details>
 
