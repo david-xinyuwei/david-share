@@ -35,20 +35,17 @@
 
 ### 核心指标对比
 
-| 测试项 | 测试条件 | MI300X 实测 | H200 参考 | 对比结果 |
-|---|---|---:|---:|---|
-| Prefill 吞吐（8K） | 8K 测点；N=1 | 20,305.98 tok/s | 31,950 tok/s | 63.6% |
-| Prefill 吞吐（64K） | 长 ISL 测点；N=1 | 18,983.91 tok/s | 27,400 input tok/s | 69.3% |
-| Prefill 吞吐（256K） | 精确超长 ISL 测点；N=1 | 12,864.96 tok/s | 17,400 input tok/s | 73.9% |
-| Decode scheduler 吞吐（8K） | 8K 基线；PD c16；实测 BS15–16 | 1,319.78 tok/s | 1,381 tok/s | 95.6% |
-| Decode 客户端平均 TPOT（8K） | 同一 c16 测试 | **10.83 ms** | 11.59 ms | 低 6.6% |
-| Decode 生产 PD 吞吐（64K） | 1P1D PD；64K/1K；实测 BS4–5 | **267.97 tok/s** | 1,333.89 tok/s (H200 BS16) | 20.1% — batch 未对齐 |
-| Decode 引擎潜力（64K） | 单节点非 PD；64K/1K；BS16；N=2；固定接受率 | **933.75 tok/s** | 1,333.89 tok/s | 70.0%（非生产部署） |
-| Decode 折算 TPOT（64K） | 同一固定接受率测试；N=2（独立启动） | 17.14 ms | 11.99 ms | 高 42.9% |
+| ISL | Prefill 完整矩阵（峰值） | Prefill vs H200（选定记录） | PD Decode 完整矩阵（E2E；实测 batch） | Decode vs H200 | Fresh-Service N=2 差异 |
+|---|---:|---:|---|---|---:|
+| 8K | 21,004.97 tok/s（c8） | 20,305.98 vs 31,950 = 63.6% | 930.00–2,500.54 tok/s；已审计 batch 15–55 | PD c16 已审计：1,319.78 vs 1,381 = 95.6%；TPOT 10.83 vs 11.59 ms（低 6.6%） | 最大 2.14%（c16–c128） |
+| 64K | 19,860.45 tok/s（c2） | 18,983.91 vs 27,400 = 69.3% | 265.17–288.66 tok/s；实测 batch 4–5 | PD c16 为 20.1%（batch 未对齐）；单节点非 PD BS16 引擎潜力 933.75 vs 1,333.89 = 70.0%（非生产部署），TPOT 17.14 vs 11.99 ms（高 42.9%） | 0.27%（单节点 BS16） |
+| 128K | 16,711.96 tok/s（c2） | —（无 H200 参考） | 112.79–122.32 tok/s；batch 1 / 1 | —（无 H200 参考） | 0.24%（c4） |
+| 192K | 14,402.00 tok/s（c4） | —（无 H200 参考） | 63.30–71.34 tok/s；batch 1 / 1 | —（无 H200 参考） | 0.47%（c4） |
+| 256K | 12,725.25 tok/s（c2 精确；c4 `REJECTED_BOUNDARY`） | 12,864.96 vs 17,400 = 73.9%（独立 N=1） | 36.04–162.63 tok/s（255K/1K）；batch 1 / 1 | —（无 H200 参考） | 0.03%（c1） |
 
-**读表说明：** 吞吐项显示 MI300X 实测值与参考值的比值；TPOT 项显示相对差异。吞吐越高越好，TPOT 越低越好。由于测试条件并不完全一致，以上结果仅作方向性参考。
+吞吐单元格单位为 tok/s（越高越好），TPOT 单位为 ms（越低越好）。“—”表示客户工作簿在该 ISL 没有对应行。所有 H200 百分比仍是工作簿对应行的方向性比值；下方每个 ISL 章节都自带完整矩阵和专门的 vs H200 小节。
 
-**结论：** 已实测的 Prefill 吞吐均未超过 H200 参考值，两个 Decode 吞吐测点亦未超过。仅 **8K Decode TPOT** 较低，差异为 **6.6%**。64K Decode 验证了精确输入长度和固定接受率下的 scheduler 容量；与同一镜像下的 MI300X 基线相比，吞吐提高 **25.7%**，但仍未达到 H200 工作簿对应行，也不验证输出质量。
+**结论：** 已实测的 Prefill 吞吐均未超过 H200 参考值，两个 Decode 吞吐测点亦未超过。仅 MI300X 的 **8K Decode TPOT** 较低，差异为 **6.6%**。64K Decode 验证了精确输入长度和固定接受率下的 scheduler 容量；与同一镜像下的 MI300X 基线相比，吞吐提高 **25.7%**，但仍未达到 H200 工作簿对应行，也不验证输出质量。
 
 这里必须强调“方向性”：H200 工作簿未记录 input concurrency（输入并发）；Decode 各行未注明 output length（输出长度），J 列的部署范围定义也不明确；双方的 topology（部署拓扑）、expert routing（专家路由）、acceptance method（接受率方法）和 metric scope（指标口径）均不一致。因此，所有相对 H200 的百分比只表示工作簿对应行的算术相对值，不能作为严格的硬件排名。
 
@@ -56,37 +53,17 @@
 
 **TPOT 指标口径：** 8K 数据取自 1P1D c16 测试的客户端平均 TPOT；64K 数据根据单节点固定 BS 的 scheduler 吞吐，按 `1000 / (mean gen tok/s ÷ BS16)` 计算得到。两项指标回答的问题不同，不能据此绘制受控的 8K→64K TPOT 曲线。受控的长度变化应以下方明确标注的输出 8K 诊断为准，其中两点采用相同方法。
 
-### 输入长度增加时发生什么
+**实测长度变化锚点（仅限同方法可比的变化）：**
 
-| 实测变化 | 观测结果 | 明确结论 |
-|---|---:|---|
-| 同一完整矩阵，Prefill c4：输入从 8K 增至 64K | 18,161.81 → 18,763.17 tok/s（**提升 3.3%**） | **受控矩阵中，Prefill 吞吐到 64K 仍基本持平。** 这是目前有数据支撑的长度扩展结论。 |
-| 同一完整矩阵，Prefill c4：输入从 64K 增至名义 256K | 18,763.17 → 12,389.64 tok/s（**下降 34.0%**） | **接近 256K 时，长输入带来的性能损失开始明显。** 该测点采用随机文本构造，长度仅按名义值统计。 |
-| 独立的精确 256K Prefill 确认 | 12,864.96 tok/s；16/16 条请求；**测量次数 N=1** | **已确认精确 262,144 个 Token 的 Prefill 能力**，但该记录不属于受控长度曲线，也不能证明服务重启后的重复性。 |
-| Decode 诊断：采用相同的固定 BS16、输出 8K 方法，context 从 8K 增至 64K | 1,031.26 → 718.12 gen tok/s（**下降 30.4%**）；15.52 → 22.28 ms（**增加 43.6%**） | **Decode 对长 context 比 Prefill 更敏感。** 这组输出 8K 的数据只用于长度扩展诊断，不用于 H200 核心对比。 |
-| 精确 64K/1K Decode：no-CK → AMD 7/13 最终路径 | 743.12 → 933.75 gen tok/s（**提升 25.7%**）；21.53 → 17.14 ms（**降低 20.4%**） | **最新优化路径明显改善了 64K Decode 效率**，但与 H200 工作簿对应行相比，方向性差距仍然存在。 |
+- 同一完整矩阵，Prefill c4，输入从 8K 增至 64K：18,161.81 → 18,763.17 tok/s（**提升 3.3%**）。**受控矩阵中，Prefill 吞吐到 64K 仍基本持平。** 这是目前有数据支撑的长度扩展结论。
+- 同一完整矩阵，Prefill c4，输入从 64K 增至名义 256K：18,763.17 → 12,389.64 tok/s（**下降 34.0%**）。**接近 256K 时，长输入带来的性能损失开始明显。** 该测点采用随机文本构造，长度按名义值统计。
+- 独立的精确 256K Prefill 确认：12,864.96 tok/s，16/16 条请求，**测量次数 N=1**。**已确认精确 262,144 个 Token 的 Prefill 能力**，但该记录不属于受控长度曲线。
+- Decode 诊断：采用相同的固定 BS16、输出 8K 方法，context 从 8K 增至 64K：1,031.26 → 718.12 gen tok/s（**下降 30.4%**），15.52 → 22.28 ms（**增加 43.6%**）。**Decode 对长 context 比 Prefill 更敏感。** 这组输出 8K 数据只用于长度扩展诊断，不用于 H200 核心对比。
+- 精确 64K/1K Decode，no-CK → AMD 7/13 最终路径：743.12 → 933.75 gen tok/s（**提升 25.7%**），21.53 → 17.14 ms（**降低 20.4%**）。
 
-No-CK 与优化路径 A/B 测试的原始样本分别记录在 [`data/validation/decode-fixed-batch-audit.json`](data/validation/decode-fixed-batch-audit.json) 的 `headline_exact.same_image_exact_no_ck` 和 `headline_exact.points` 字段中。脱敏后的客户端摘要和 scheduler 采样窗口位于 [`data/evidence/exact64-fixed-acceptance/`](data/evidence/exact64-fixed-acceptance/)；运行 `python3 scripts/analyze_exact64_evidence.py` 可以校验 manifest（哈希清单），并重新计算两组汇总值和提升幅度。这些公开数据支持独立重算和一致性检查，但不能单独证明私有完整日志的来源与完整性。
+No-CK 与优化路径 A/B 测试的原始样本分别记录在 [`data/validation/decode-fixed-batch-audit.json`](data/validation/decode-fixed-batch-audit.json) 的 `headline_exact.same_image_exact_no_ck` 和 `headline_exact.points` 字段中；脱敏采样窗口公开在 [`data/evidence/exact64-fixed-acceptance/`](data/evidence/exact64-fixed-acceptance/)，运行 `python3 scripts/analyze_exact64_evidence.py` 可校验 manifest（哈希清单）并重算两组汇总值和提升幅度，但不能单独证明私有完整日志的来源与完整性。
 
-把五个长度放在一起看：ISL 增长时，Prefill 吞吐平缓、可预期地下降；PD Decode 则发生质变——实际 Decode batch 从 8K 的数十个请求收缩到 64K 的 4–5，再从 128K 起收缩到 1。这正是长 ISL 的 Decode 吞吐比 Prefill 下降快得多的原因。
-
-| ISL | Prefill 峰值（完整矩阵） | PD Decode E2E Output 范围 | 实测 Decode batch | Fresh-Service N=2 差异 |
-|---|---:|---:|---:|---|
-| 8K | 21,004.97 tok/s（c8） | 930.00–2,500.54 tok/s | 15–55（已审计的 headline 记录） | 最大 2.14%（c16–c128） |
-| 64K | 19,860.45 tok/s（c2） | 265.17–288.66 tok/s | 4–5 | 0.27%（单节点 BS16） |
-| 128K | 16,711.96 tok/s（c2） | 112.79–122.32 tok/s | 1 / 1 | 0.24%（c4） |
-| 192K | 14,402.00 tok/s（c4） | 63.30–71.34 tok/s | 1 / 1 | 0.47%（c4） |
-| 精确 256K | 12,725.25 tok/s（c2；c4 `REJECTED_BOUNDARY`） | 36.04–162.63 tok/s | 1 / 1 | 0.03%（c1） |
-
-下方每个 ISL 章节都是可独立折叠的完整模块，包含该长度的全部 Prefill、Decode 和 Fresh-Service 实测矩阵。
-
-**总体结论：** 受控 Prefill 矩阵从 8K 到 64K 基本持平，接近名义 256K 时明显下降。128K、192K 和 256K 现已分别形成独立的 1P1D PD 客户端并发矩阵，且没有把客户端并发写成 Decode 实际 batch。所有通过验收的长 ISL PD 测点中，实测 Decode batch 均为 1。核心测点具有 N=2 Fresh-Service 复测，其他矩阵测点只有一次通过验收的测量。当前证据支持**“长 ISL 性能测量结果可信”**，但不能据此宣称**“达到 H200 同等性能”**、**“输出质量已经验证”**或自然 MTP 接受率已经验证。
-
-**ISL=128K 证据边界：** Prefill 和 PD Decode 完整矩阵均已测量，Decode c4 完成 N=2 Fresh-Service 复测；其他 128K 矩阵测点为 N=1。
-
-**ISL=192K 证据边界：** Prefill 和 PD Decode 完整矩阵均已测量，Decode c4 完成 N=2 Fresh-Service 复测；其他 192K 矩阵测点为 N=1。
-
-**ISL=256K 证据边界：** Prefill c1/c2 与 Decode c1/c2/c4 为有效测点；Prefill c4 保留为 `REJECTED_BOUNDARY`，不提供性能数值。Decode c1 完成 N=2 Fresh-Service 复测；其他有效的 256K 测点为 N=1。
+**证据范围：** 所有通过验收的测点均通过请求数、Token 账目和 fatal log 验收门。N=2 Fresh-Service 复测覆盖 8K c16/c32/c64/c128、64K 单节点固定 BS16 记录、128K c4、192K c4 和 256K c1；其余矩阵测点均为 N=1，256K Prefill c4 保留为 `REJECTED_BOUNDARY`。当前证据支持**“长 ISL 性能测量结果可信”**，但不能据此宣称**“达到 H200 同等性能”**、**“输出质量已经验证”**或自然 MTP 接受率已经验证。
 
 ---
 
@@ -95,72 +72,6 @@ No-CK 与优化路径 A/B 测试的原始样本分别记录在 [`data/validation
 ![双节点 MI300X 1P1D Prefill-Decode 架构](images/pd_architecture.png)
 
 *图 1：最终双节点 MI300X 1P1D 拓扑、Mooncake KV transfer 路径与已验证运行时栈。*
-
----
-
-## 核心结果：输入与输出视图
-
-下表列出已经通过验收的代表性测点。每一行 MI300X 的 client（客户端）和 server（服务端）指标都来自同一条测量记录；如果运行时 batch 或指标口径未对齐，H200 数据只作为独立的客户参考列示。
-
-### 输入侧：1P1D Prefill
-
-| 上下文 | 客户端并发 | MI300X 实测 input tok/s | 小米 H200 TP8/EP16/DP2 单节点参考 | MI300X / H200 单节点 |
-|---:|---:|---:|---:|---:|
-| 8K | 4 | **20,305.98** | 31,950 | 63.6% |
-| 64K | 4 | **18,983.91** | 27,400 | 69.3% |
-| 256K | 4 | **12,864.96** | 17,400 | 73.9% |
-
-这些比值只用于单节点方向性比较。H200 来源未记录 input concurrency，并使用 balanced `fake_topk_ids`；MI300X 使用真实 expert routing。
-
-### 输出侧：MI300X 1P1D Decode，8K 输入 / 1K 输出
-
-| 客户端并发 | 实测 Decode batch | MI300X gen tok/s | MI300X TPOT (ms) | H200 参考 | MI300X / H200 |
-|---:|---:|---:|---:|---:|---:|
-| 16 | 15 / 16 | **1,319.78** | **10.83** | 1,381 tok/s / 11.59 ms | **95.6%** 吞吐；TPOT **低 6.6%** |
-| 32 | 31 / 32 | 1,861.52 | 13.65 | 2,549 tok/s / 12.56 ms | 73.0% |
-| 64 | 53 / 55 | 2,324.57 | 16.88 | 4,483 tok/s / 14.28 ms（H200 BS64） | 51.9% — MI300X 实测 BS53 vs H200 BS64 |
-| 128 | 51 / 54 | 2,333.44 | 16.56 | 7,013 tok/s / 18.25 ms（H200 BS128） | 33.3% — MI300X 实测 BS51 vs H200 BS128 |
-
-`15 / 16` 表示稳态 15、峰值 16。c64/c128 时 MI300X 的 Decode batch 因 KV 容量饱和在 ~50–55，无法与 H200 BS64/BS128 配对。只有 **c16 行**（batch 15–16 vs H200 BS16）是近似对齐的对比。
-
-在实测 batch 近似对齐的 c16 测点，MI300X 的 Decode batch 为稳态 15、峰值 16。D-node generation rate（D 节点生成速率）为 **1,319.78 tok/s**，达到 H200 BS16 工作簿对应行的 **95.6%**；MI300X TPOT 同时**低 6.6%**（10.83 vs 11.59 ms）。这只是方向性观察，不代表硬件性能持平或工作负载完全一致：H200 工作簿没有输出长度列；MI300X 使用真实 expert routing 和双节点 1P1D 部署，H200 使用 balanced `fake_topk_ids` 和 TP8/EP32/DP4。
-
-batch 审计的机器可读记录：[`data/validation/decode-service-log-audit-8k.json`](data/validation/decode-service-log-audit-8k.json)。
-
-### 双节点 DP=2 Prefill：峰值聚合吞吐
-
-| 上下文 | 客户端并发 | 聚合 input tok/s |
-|---:|---:|---:|
-| 8K | 16 | **46,747.01** |
-| 64K | 2 | **38,984.45** |
-
-DP=2 的 nominal-length（名义长度）256K 结果仍保留在后面的扩展性矩阵中，但不作为 exact-token（精确 Token）核心结果。
-
-### 结果口径
-
-- 核心数值并非来自一轮统一矩阵，也不是跨轮平均值，而是从多次复现中按最终配置和有效性筛选的测点。机器可读数据通过 `headline_source` 标记来源；详细扩展性表展示完整矩阵，重复性表展示轮次间波动。
-- 核心结果中的 1P1D 256K 使用 `--tokenize-prompt`，每条请求精确发送 262,144 个 token IDs。
-- DP=2 表示两台 MI300X 节点的 Prefill-only capacity（仅 Prefill 聚合容量），不包含 P→D KV-cache transfer（KV 缓存传输）。
-- H200 工作簿将 J 列标注为单机 Decode 吞吐，但每个值都等于本地 per-DP `BS × TPS`，没有乘 DP4。因此，本文将其作为工作簿内的 per-DP 口径参考，不认定为已确认的单机或 DP4 聚合指标。
-- H200 工作簿没有输出长度列。因此，机器可读的 H200 参考点使用 `output_tokens=null`；另一份 16K 社区镜像说明虽然提到 1K 输出，但不能证明 8K/64K 工作簿各行的输出长度。
-- 本文不会把 Client concurrency 直接当成实测 Decode batch；8K 与 64K 的 scheduler-log 审计都记录了稳态值与峰值。
-- H200 数值只作为方向性参考，不构成严格同条件的硬件 benchmark：MI300X 使用真实 expert routing，H200 参考使用理想均衡 routing。
-- 机器可读的核心结果：[`data/final-results.tsv`](data/final-results.tsv)；scheduler-log 审计：[`data/validation/decode-service-log-audit-8k.json`](data/validation/decode-service-log-audit-8k.json)。
-
-### H200 参考数据来源
-
-| 字段 | 公开记录 |
-|---|---|
-| 来源 | 小米提供的 MiMo-V2.5-Pro 性能报告；私有归档，不公开转载 |
-| 审阅日期 | 2026-05-18 |
-| Prefill 参考 | TP8/EP16/DP2、balanced `fake_topk_ids`、关闭 radix cache、单机/单节点吞吐 |
-| Decode 参考 | 8K 和 64K 上下文行；TP8/EP32/DP4、balanced `fake_topk_ids`、MTP 3 层、报告接受率 0.75；工作簿没有输出长度列 |
-| Decode TPOT 来源 | 客户工作簿；根据 per-DP Decode 日志输出速率和本地 BS，按 `1000 / (tok/s ÷ BS)` 反推 |
-| Decode 吞吐口径 | J 列标为单机吞吐，但数值等于本地 `BS × TPS`，且未乘 DP4；本文按工作簿内的 per-DP 口径参考处理 |
-| Decode 输出长度证据 | 工作簿逐行未明确；相邻 Word 说明只在另一项 16K 社区镜像测试中提到 1K 输出 |
-| 交付用途 | 只作为方向性的 per-node/per-DP 参考 |
-
-机器可读的来源信息和全部参考值见 [`data/validation/h200-reference.json`](data/validation/h200-reference.json)。
 
 ---
 
@@ -239,6 +150,25 @@ AMD 提供基础启动方案（容器镜像、AITER 调优路径、1P1D/DP=2 拓
 
 机器可读证据：[Prefill 与 Decode](data/scalability-results.tsv)、[Fresh-Service](data/decode-repeatability.tsv)和[scheduler 审计](data/validation/decode-service-log-audit-8k.json)。
 
+#### 8K vs H200 参考
+
+选定 Prefill 记录（与上方完整矩阵分属不同运行，独立 N=1）：
+
+| 上下文 | 客户端并发 | MI300X 实测 input tok/s | 小米 H200 TP8/EP16/DP2 单节点参考 | MI300X / H200 单节点 |
+|---:|---:|---:|---:|---:|
+| 8K | 4 | **20,305.98** | 31,950 | 63.6% |
+
+已审计的 Decode headline 记录与客户工作簿对比：
+
+| 客户端并发 | 实测 Decode batch | MI300X gen tok/s | MI300X TPOT (ms) | H200 参考 | MI300X / H200 |
+|---:|---:|---:|---:|---:|---:|
+| 16 | 15 / 16 | **1,319.78** | **10.83** | 1,381 tok/s / 11.59 ms | **95.6%** 吞吐；TPOT **低 6.6%** |
+| 32 | 31 / 32 | 1,861.52 | 13.65 | 2,549 tok/s / 12.56 ms | 73.0% |
+| 64 | 53 / 55 | 2,324.57 | 16.88 | 4,483 tok/s / 14.28 ms（H200 BS64） | 51.9% — MI300X 实测 BS53 vs H200 BS64 |
+| 128 | 51 / 54 | 2,333.44 | 16.56 | 7,013 tok/s / 18.25 ms（H200 BS128） | 33.3% — MI300X 实测 BS51 vs H200 BS128 |
+
+`15 / 16` 表示稳态 15、峰值 16。c64/c128 时 MI300X Decode 节点因 KV 容量饱和在 batch ~50–55，无法与 H200 BS64/BS128 配对；只有 **c16 行**（batch 15–16 vs H200 BS16）是近似对齐的对比——**1,319.78 tok/s**，相当于 H200 BS16 工作簿行的 **95.6%**，同时 MI300X TPOT **低 6.6%**（10.83 vs 11.59 ms）。这些已审计记录来自独立的 headline 运行，不回填到上方 E2E 矩阵。batch 审计：[`data/validation/decode-service-log-audit-8k.json`](data/validation/decode-service-log-audit-8k.json)。
+
 </details>
 
 ### ISL=64K
@@ -284,6 +214,16 @@ AMD 提供基础启动方案（容器镜像、AITER 调优路径、1P1D/DP=2 拓
 两轮全新服务测试的客户端 E2E Output 吞吐相差 **0.27%**。该 N=2 记录来自单节点、非 PD、精确 64K、固定 BS16、固定接受率测试，不是 PD 部署测点；其稳态 scheduler 生成吞吐为 931.58 / 935.92 tok/s，按 BS16 折算 TPOT 为 17.14 ms。上方 PD 模式的 64K 矩阵测点均只有一次通过验收的测量。
 
 机器可读证据：[Prefill](data/scalability-results.tsv)、[Decode](data/decode-long-context-results.tsv)、[Fresh-Service](data/decode-fixed-batch-results.tsv)和[scheduler 审计](data/validation/decode-service-log-audit.json)。
+
+#### 64K vs H200 参考
+
+选定 Prefill 记录（独立 N=1 运行）：
+
+| 上下文 | 客户端并发 | MI300X 实测 input tok/s | 小米 H200 TP8/EP16/DP2 单节点参考 | MI300X / H200 单节点 |
+|---:|---:|---:|---:|---:|
+| 64K | 4 | **18,983.91** | 27,400 | 69.3% |
+
+Decode：上方 PD 矩阵的实测 batch 为 4–5，而 H200 工作簿行为 BS16–96，因此 PD 比值（c16 的 20.1% 降至 c96 的 5.9%）并非 batch 对齐；详见下方“64K Decode — PD 模式（实测 BS4–5）”。batch 对齐的视角是单节点固定 BS16 引擎潜力记录：**933.75 vs 1,333.89 gen tok/s = 70.0%（非生产部署）**，折算 TPOT **17.14 vs 11.99 ms（高 42.9%）**；详见下方“64K Decode 引擎潜力验证”。
 
 </details>
 
@@ -332,6 +272,10 @@ AMD 提供基础启动方案（容器镜像、AITER 调优路径、1P1D/DP=2 拓
 
 机器可读证据：[Prefill](data/long-isl/128k/prefill-results.tsv)、[Decode](data/long-isl/128k/decode-results.tsv)和[Fresh-Service](data/long-isl/128k/decode-repeatability.tsv)。
 
+#### 128K vs H200 参考
+
+客户 H200 工作簿没有 128K 行，该 ISL 不存在 H200 参考。上方 128K Prefill 与 Decode 矩阵作为 MI300X 独立证据单独成立；所有通过验收的测点实测 Decode batch 均保持 1 / 1。
+
 </details>
 
 ### ISL=192K
@@ -379,6 +323,10 @@ AMD 提供基础启动方案（容器镜像、AITER 调优路径、1P1D/DP=2 拓
 
 机器可读证据：[Prefill](data/long-isl/192k/prefill-results.tsv)、[Decode](data/long-isl/192k/decode-results.tsv)和[Fresh-Service](data/long-isl/192k/decode-repeatability.tsv)。
 
+#### 192K vs H200 参考
+
+客户 H200 工作簿没有 192K 行，该 ISL 不存在 H200 参考。上方 192K Prefill 与 Decode 矩阵作为 MI300X 独立证据单独成立；所有通过验收的测点实测 Decode batch 均保持 1 / 1。
+
 </details>
 
 ### ISL=256K
@@ -424,6 +372,16 @@ AMD 提供基础启动方案（容器镜像、AITER 调优路径、1P1D/DP=2 拓
 两轮全新服务测试的 E2E Output 吞吐相差 **0.03%**。该复测只覆盖客户端并发 1；客户端并发 2 和 4 的 Decode 测点均只有一次通过验收的测量。
 
 机器可读证据：[Prefill](data/long-isl/256k/prefill-results.tsv)、[Decode](data/long-isl/256k/decode-results.tsv)和[Fresh-Service](data/long-isl/256k/decode-repeatability.tsv)。
+
+#### 256K vs H200 参考
+
+选定 exact-token Prefill 记录（独立 N=1 运行；上方 c1/c2 矩阵行是本轮矩阵证据）：
+
+| 上下文 | 客户端并发 | MI300X 实测 input tok/s | 小米 H200 TP8/EP16/DP2 单节点参考 | MI300X / H200 单节点 |
+|---:|---:|---:|---:|---:|
+| 256K | 4 | **12,864.96** | 17,400 | 73.9% |
+
+Decode：工作簿没有 255K 输入/1K 输出行，该 ISL 不存在 H200 Decode 参考。
 
 </details>
 
@@ -531,6 +489,17 @@ Input（输入侧）与 Output（输出侧）指标回答的问题不同，不�
 
 ### 双节点 DP=2 Prefill 扩展性
 
+峰值聚合核心记录：
+
+| 上下文 | 客户端并发 | 聚合 input tok/s |
+|---:|---:|---:|
+| 8K | 16 | **46,747.01** |
+| 64K | 2 | **38,984.45** |
+
+DP=2 的 nominal-length（名义长度）256K 结果仍保留在下方完整矩阵中，但不作为 exact-token（精确 Token）核心结果。
+
+完整矩阵：
+
 | 输入长度 | 客户端并发 | 聚合 input tok/s | 平均 TTFT (ms) |
 |---:|---:|---:|---:|
 | 8K | 1 | 20,751.73 | 393.90 |
@@ -563,6 +532,32 @@ Input（输入侧）与 Output（输出侧）指标回答的问题不同，不�
 | 定向 1P1D 256K 复测 | 精确 262,144 token IDs，`--tokenize-prompt` | 核心结果：12,864.96 input tok/s |
 | 当前 `scripts/amd-latest/` | 所有 256K 输入的 Prefill benchmark 均使用 exact token IDs | 后续 256K 输入 Prefill 结果的强制复现路径 |
 | 最终固化镜像的长上下文 Decode | Random-text framing（随机文本构造）；请求 64K 输入，以及请求 255K 输入 + 1K 输出 | 只作为 MI300X 能力和扩展性结果；不代表 256K 输入或达到 H200 同等性能 |
+
+### 结果口径
+
+- 核心数值并非来自一轮统一矩阵，也不是跨轮平均值，而是从多次复现中按最终配置和有效性筛选的测点。机器可读数据通过 `headline_source` 标记来源；详细扩展性表展示完整矩阵，重复性表展示轮次间波动。
+- 核心结果中的 1P1D 256K 使用 `--tokenize-prompt`，每条请求精确发送 262,144 个 token IDs。
+- DP=2 表示两台 MI300X 节点的 Prefill-only capacity（仅 Prefill 聚合容量），不包含 P→D KV-cache transfer（KV 缓存传输）。
+- H200 工作簿将 J 列标注为单机 Decode 吞吐，但每个值都等于本地 per-DP `BS × TPS`，没有乘 DP4。因此，本文将其作为工作簿内的 per-DP 口径参考，不认定为已确认的单机或 DP4 聚合指标。
+- H200 工作簿没有输出长度列。因此，机器可读的 H200 参考点使用 `output_tokens=null`；另一份 16K 社区镜像说明虽然提到 1K 输出，但不能证明 8K/64K 工作簿各行的输出长度。
+- 本文不会把 Client concurrency 直接当成实测 Decode batch；8K 与 64K 的 scheduler-log 审计都记录了稳态值与峰值。
+- H200 数值只作为方向性参考，不构成严格同条件的硬件 benchmark：MI300X 使用真实 expert routing，H200 参考使用理想均衡 routing。
+- 机器可读的核心结果：[`data/final-results.tsv`](data/final-results.tsv)；scheduler-log 审计：[`data/validation/decode-service-log-audit-8k.json`](data/validation/decode-service-log-audit-8k.json)。
+
+### H200 参考数据来源
+
+| 字段 | 公开记录 |
+|---|---|
+| 来源 | 小米提供的 MiMo-V2.5-Pro 性能报告；私有归档，不公开转载 |
+| 审阅日期 | 2026-05-18 |
+| Prefill 参考 | TP8/EP16/DP2、balanced `fake_topk_ids`、关闭 radix cache、单机/单节点吞吐 |
+| Decode 参考 | 8K 和 64K 上下文行；TP8/EP32/DP4、balanced `fake_topk_ids`、MTP 3 层、报告接受率 0.75；工作簿没有输出长度列 |
+| Decode TPOT 来源 | 客户工作簿；根据 per-DP Decode 日志输出速率和本地 BS，按 `1000 / (tok/s ÷ BS)` 反推 |
+| Decode 吞吐口径 | J 列标为单机吞吐，但数值等于本地 `BS × TPS`，且未乘 DP4；本文按工作簿内的 per-DP 口径参考处理 |
+| Decode 输出长度证据 | 工作簿逐行未明确；相邻 Word 说明只在另一项 16K 社区镜像测试中提到 1K 输出 |
+| 交付用途 | 只作为方向性的 per-node/per-DP 参考 |
+
+机器可读的来源信息和全部参考值见 [`data/validation/h200-reference.json`](data/validation/h200-reference.json)。
 
 ### 机器可读证据
 

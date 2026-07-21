@@ -22,36 +22,34 @@ BILINGUAL_HEADING_PAIRS = (
     ('# MiMo-V2.5-Pro on AMD MI300X — Benchmark Report', '# MiMo-V2.5-Pro 在 AMD MI300X 上的 Benchmark 报告'),
     ('## Executive Summary', '## 执行摘要'),
     ('### Relative Status at a Glance', '### 核心指标对比'),
-    ('### What Happens as Input Length Grows', '### 输入长度增加时发生什么'),
     ('## Architecture', '## 架构'),
-    ('## Headline Results — Input and Output Views', '## 核心结果：输入与输出视图'),
-    ('### Input Side — 1P1D Prefill', '### 输入侧：1P1D Prefill'),
-    ('### Output Side — MI300X 1P1D Decode, 8K Input / 1K Output', '### 输出侧：MI300X 1P1D Decode，8K 输入 / 1K 输出'),
-    ('### Two-Node DP=2 Prefill — Peak Aggregate Throughput', '### 双节点 DP=2 Prefill：峰值聚合吞吐'),
-    ('### Result Scope', '### 结果口径'),
-    ('### H200 Reference Provenance', '### H200 参考数据来源'),
     ('## Scalability & Long-Context Extension', '## 扩展性与长上下文测试'),
     ('### Test Matrix', '### 测试矩阵'),
     ('### ISL=8K', '### ISL=8K'),
     ('#### 1P1D Prefill Scalability — 8K Input / 1 Output', '#### 1P1D Prefill 扩展性：8K 输入 / 输出 1'),
     ('#### 1P1D Decode Scalability — 8K Input / 1K Output', '#### 1P1D Decode 扩展性：8K 输入 / 1K 输出'),
     ('#### 8K Decode Fresh-Service Repeatability', '#### 8K Decode Fresh-Service（全新服务）复测'),
+    ('#### 8K vs H200 Reference', '#### 8K vs H200 参考'),
     ('### ISL=64K', '### ISL=64K'),
     ('#### 1P1D Prefill Scalability — 64K Input / 1 Output', '#### 1P1D Prefill 扩展性：64K 输入 / 输出 1'),
     ('#### 1P1D Decode Scalability — 64K Input / 1K Output', '#### 1P1D Decode 扩展性：64K 输入 / 1K 输出'),
     ('#### 64K Decode Fresh-Service Repeatability', '#### 64K Decode Fresh-Service（全新服务）复测'),
+    ('#### 64K vs H200 Reference', '#### 64K vs H200 参考'),
     ('### ISL=128K', '### ISL=128K'),
     ('#### 1P1D Prefill Scalability — 128K Input / 1 Output', '#### 1P1D Prefill 扩展性：128K 输入 / 输出 1'),
     ('#### 1P1D Decode Scalability — 128K Input / 1K Output', '#### 1P1D Decode 扩展性：128K 输入 / 1K 输出'),
     ('#### 128K Decode Fresh-Service Repeatability', '#### 128K Decode Fresh-Service（全新服务）复测'),
+    ('#### 128K vs H200 Reference', '#### 128K vs H200 参考'),
     ('### ISL=192K', '### ISL=192K'),
     ('#### 1P1D Prefill Scalability — 192K Input / 1 Output', '#### 1P1D Prefill 扩展性：192K 输入 / 输出 1'),
     ('#### 1P1D Decode Scalability — 192K Input / 1K Output', '#### 1P1D Decode 扩展性：192K 输入 / 1K 输出'),
     ('#### 192K Decode Fresh-Service Repeatability', '#### 192K Decode Fresh-Service（全新服务）复测'),
+    ('#### 192K vs H200 Reference', '#### 192K vs H200 参考'),
     ('### ISL=256K', '### ISL=256K'),
     ('#### 1P1D Prefill Scalability — Exact 256K Input / 1 Output', '#### 1P1D Prefill 扩展性：精确 256K 输入 / 输出 1'),
     ('#### 1P1D Decode Scalability — 255K Input / 1K Output', '#### 1P1D Decode 扩展性：255K 输入 / 1K 输出'),
     ('#### 256K Decode Fresh-Service Repeatability', '#### 256K Decode Fresh-Service（全新服务）复测'),
+    ('#### 256K vs H200 Reference', '#### 256K vs H200 参考'),
     ('### Metric Contract', '### 指标口径'),
     ('### 64K Prefill', '### 64K Prefill'),
     ('### 64K Decode — PD Mode (Actual BS4–5)', '### 64K Decode — PD 模式（实测 BS4–5）'),
@@ -61,6 +59,8 @@ BILINGUAL_HEADING_PAIRS = (
     ('### 1P1D Prefill Scalability', '### 1P1D Prefill 扩展性'),
     ('### Two-Node DP=2 Prefill Scalability', '### 双节点 DP=2 Prefill 扩展性'),
     ('### 256K Methodology', '### 256K 测试口径'),
+    ('### Result Scope', '### 结果口径'),
+    ('### H200 Reference Provenance', '### H200 参考数据来源'),
     ('### Machine-Readable Evidence', '### 机器可读证据'),
     ('## Why PD Disaggregation Has Independent Batch Sizes and Hyperparameters', '## 为什么 PD 分离后 Prefill 与 Decode 可以拥有独立 BS 和超参'),
     ('### Reading the Xiaomi Community Protocol: Dynamic Prefill Batching, Targeted Decode Occupancy', '### 如何解读小米社区版协议：Prefill 动态组批，Decode 按目标工况验收'),
@@ -366,7 +366,7 @@ def check_isl_chapter_layout() -> None:
             sections = markdown_sections(text[start:end])
             assert sections[0][0] == chapter_markers[index]
             children = sections[1:]
-            assert len(children) == 3, f"{path.name} ISL={label} must have exactly three child sections"
+            assert len(children) == 4, f"{path.name} ISL={label} must have exactly four child sections"
 
             if path.name == "README.md":
                 prefill_label = "Exact 256K" if label == "256K" else label
@@ -375,6 +375,7 @@ def check_isl_chapter_layout() -> None:
                     f"#### 1P1D Prefill Scalability — {prefill_label} Input / 1 Output",
                     f"#### 1P1D Decode Scalability — {decode_label} Input / 1K Output",
                     f"#### {label} Decode Fresh-Service Repeatability",
+                    f"#### {label} vs H200 Reference",
                 )
                 observed_marker = "Observed behavior:"
                 evidence_marker = "Machine-readable evidence:"
@@ -385,6 +386,7 @@ def check_isl_chapter_layout() -> None:
                     f"#### 1P1D Prefill 扩展性：{prefill_label} 输入 / 输出 1",
                     f"#### 1P1D Decode 扩展性：{decode_label} 输入 / 1K 输出",
                     f"#### {label} Decode Fresh-Service（全新服务）复测",
+                    f"#### {label} vs H200 参考",
                 )
                 observed_marker = "实测现象："
                 evidence_marker = "机器可读证据："
@@ -393,6 +395,12 @@ def check_isl_chapter_layout() -> None:
             table_schemas: list[tuple[str, str]] = []
             for child_index, (_, body) in enumerate(children):
                 tables = markdown_table_blocks(body)
+                if child_index == 3:
+                    assert len(tables) <= 2, (
+                        f"{path.name} ISL={label} vs-H200 child holds at most two tables"
+                    )
+                    assert observed_marker not in body
+                    continue
                 assert len(tables) == 1, (
                     f"{path.name} ISL={label} child {child_index + 1} must contain one table"
                 )

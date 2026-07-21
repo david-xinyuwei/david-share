@@ -31,16 +31,15 @@ English | [中文版](README-CN.md) | [Validation Evidence](data/validation/)
 
 ### Relative Status at a Glance
 
-| Scenario | ISL scope | Microsoft-tested MI300X | Customer H200 worksheet reference | Direct status |
-|---|---|---:|---:|---|
-| 8K Prefill throughput | 8K selected record, N=1 | 20,305.98 tok/s | 31,950 tok/s | Below reference; 63.6% (directional) |
-| 64K Prefill throughput | **Long ISL, selected record, N=1** | 18,983.91 tok/s | 27,400 tok/s | Below reference; 69.3% (directional) |
-| 256K Prefill throughput | **Exact very-long ISL, selected record, N=1** | 12,864.96 tok/s | 17,400 tok/s | Below reference; 73.9% (directional) |
-| 8K Decode scheduler throughput | 8K baseline; PD c16; actual BS15–16 | 1,319.78 tok/s | 1,381 tok/s | 95.6% |
-| 8K Decode client mean TPOT | Same c16 run | **10.83 ms** | 11.59 ms | 6.6% lower |
-| 64K Decode production PD | 1P1D PD; 64K/1K; actual BS4–5 | **267.97 tok/s** | 1,333.89 tok/s (H200 BS16) | 20.1% — batch not aligned |
-| 64K Decode engine potential | Single-node non-PD; 64K/1K; BS16; N=2; fixed acceptance | **933.75 tok/s** | 1,333.89 tok/s | 70.0% (non-production) |
-| 64K Decode implied TPOT | Same fixed-acceptance run; N=2 fresh services | 17.14 ms | 11.99 ms | 42.9% higher |
+| ISL | Prefill full matrix (peak) | Prefill vs H200 (selected record) | PD Decode full matrix (E2E; actual batch) | Decode vs H200 | Fresh-Service N=2 delta |
+|---|---:|---:|---|---|---:|
+| 8K | 21,004.97 tok/s (c8) | 20,305.98 vs 31,950 = 63.6% | 930.00–2,500.54 tok/s; audited batch 15–55 | PD c16 audited: 1,319.78 vs 1,381 = 95.6%; TPOT 10.83 vs 11.59 ms (6.6% lower) | max 2.14% (c16–c128) |
+| 64K | 19,860.45 tok/s (c2) | 18,983.91 vs 27,400 = 69.3% | 265.17–288.66 tok/s; actual batch 4–5 | PD 20.1% at c16 (batch not aligned); Single-node non-PD BS16 engine potential 933.75 vs 1,333.89 = 70.0% (non-production), TPOT 17.14 vs 11.99 ms (42.9% higher) | 0.27% (single-node BS16) |
+| 128K | 16,711.96 tok/s (c2) | — (no H200 reference) | 112.79–122.32 tok/s; batch 1 / 1 | — (no H200 reference) | 0.24% (c4) |
+| 192K | 14,402.00 tok/s (c4) | — (no H200 reference) | 63.30–71.34 tok/s; batch 1 / 1 | — (no H200 reference) | 0.47% (c4) |
+| 256K | 12,725.25 tok/s (c2 exact; c4 `REJECTED_BOUNDARY`) | 12,864.96 vs 17,400 = 73.9% (separate N=1) | 36.04–162.63 tok/s (255K/1K); batch 1 / 1 | — (no H200 reference) | 0.03% (c1) |
+
+Throughput cells are tok/s (higher is better) and TPOT is ms (lower is better). “—” means the customer worksheet has no row at that ISL. Every H200 percentage remains a worksheet-local directional ratio, and each ISL chapter below carries its own full matrices plus a dedicated vs-H200 subsection.
 
 **Direct answer:** no tested Prefill-throughput row exceeds its H200 reference, and neither tested Decode-throughput row does. The only metric where MI300X is directionally better is **8K Decode TPOT, 6.6% lower**. The 64K Decode result verifies exact input length and fixed-acceptance scheduler capacity, improving **25.7%** over the same-image MI300X baseline, but it does not exceed the H200 worksheet row and does not validate output quality.
 
@@ -50,37 +49,17 @@ English | [中文版](README-CN.md) | [Validation Evidence](data/validation/)
 
 **TPOT metric scope:** the 8K value is the client-reported mean TPOT from the 1P1D c16 run. The 64K value is scheduler-implied TPOT, calculated as `1000 / (mean gen tok/s ÷ BS16)` from the single-node fixed-batch run. They answer different questions and must not be treated as a controlled 8K→64K TPOT curve. The controlled length-scaling signal is the explicitly labeled output8K diagnostic below, where both points use the same method.
 
-### What Happens as Input Length Grows
+**Measured length-scaling anchors (same-method transitions only):**
 
-| Measured transition | Observed change | Conclusion |
-|---|---:|---|
-| Same complete matrix, Prefill c4: 8K → 64K input | 18,161.81 → 18,763.17 tok/s (**+3.3%**) | **Prefill remains flat through 64K in the controlled matrix.** This is the supported length-scaling conclusion. |
-| Same complete matrix, Prefill c4: 64K → nominal 256K input | 18,763.17 → 12,389.64 tok/s (**-34.0%**) | **The long-input cost becomes material near 256K.** This matrix point uses nominal random-text framing. |
-| Independent exact 256K Prefill confirmation | 12,864.96 tok/s; 16/16 requests; **measurement N=1** | **Exact 262,144-token Prefill is confirmed**, but this independent record is not part of the controlled scaling curve and does not establish fresh-service repeatability. |
-| Decode diagnostic: 8K → 64K context, same fixed BS16/output8K method | 1,031.26 → 718.12 gen tok/s (**-30.4%**); 15.52 → 22.28 ms (**+43.6%**) | **Decode is more sensitive to long context than Prefill.** This output8K run is diagnostic scaling evidence only, not the H200 headline comparison. |
-| Exact 64K/1K Decode: no-CK → final AMD 7/13-derived path | 743.12 → 933.75 gen tok/s (**+25.7%**); 21.53 → 17.14 ms (**-20.4%**) | **The latest optimized path materially recovers 64K Decode efficiency**, although it does not close the directional gap to the H200 worksheet row. |
+- Same complete matrix, Prefill c4, 8K → 64K input: 18,161.81 → 18,763.17 tok/s (**+3.3%**). **Prefill remains flat through 64K in the controlled matrix.**
+- Same complete matrix, Prefill c4, 64K → nominal 256K input: 18,763.17 → 12,389.64 tok/s (**-34.0%**); the long-input cost becomes material near 256K under nominal random-text framing.
+- Independent exact 256K Prefill confirmation: 12,864.96 tok/s, 16/16 requests, **measurement N=1**. **Exact 262,144-token Prefill is confirmed**, but this record is not part of the controlled scaling curve.
+- Decode diagnostic: 8K → 64K context, same fixed BS16/output8K method: 1,031.26 → 718.12 gen tok/s (**-30.4%**), 15.52 → 22.28 ms (**+43.6%**). **Decode is more sensitive to long context than Prefill.** This output8K run is diagnostic scaling evidence only, not the H200 headline comparison.
+- Exact 64K/1K Decode, no-CK → final AMD 7/13-derived path: 743.12 → 933.75 gen tok/s (**+25.7%**), 21.53 → 17.14 ms (**-20.4%**).
 
-The no-CK and optimized A/B source samples are recorded under `headline_exact.same_image_exact_no_ck` and `headline_exact.points` in [`data/validation/decode-fixed-batch-audit.json`](data/validation/decode-fixed-batch-audit.json). The sanitized client summaries and scheduler windows are public in [`data/evidence/exact64-fixed-acceptance/`](data/evidence/exact64-fixed-acceptance/); `python3 scripts/analyze_exact64_evidence.py` verifies their manifest and rebuilds both aggregates and the uplift. This supports independent recomputation and consistency checking of the disclosed sanitized windows; it does not independently establish the provenance or completeness of the privately archived full logs.
+The no-CK and optimized A/B source samples are recorded under `headline_exact.same_image_exact_no_ck` and `headline_exact.points` in [`data/validation/decode-fixed-batch-audit.json`](data/validation/decode-fixed-batch-audit.json); sanitized windows are public in [`data/evidence/exact64-fixed-acceptance/`](data/evidence/exact64-fixed-acceptance/), and `python3 scripts/analyze_exact64_evidence.py` rebuilds both aggregates and the uplift. It does not independently establish the provenance or completeness of the privately archived full logs.
 
-Reading the five lengths together: Prefill throughput declines gently and predictably as ISL grows, while the PD Decode surface changes character — the actual Decode batch collapses from tens of requests at 8K to 4–5 at 64K and to 1 from 128K onward. This is why long-ISL Decode throughput falls much faster than Prefill throughput.
-
-| ISL | Prefill peak (complete matrix) | PD Decode E2E Output range | Observed Decode batch | Fresh-Service N=2 delta |
-|---|---:|---:|---:|---|
-| 8K | 21,004.97 tok/s (c8) | 930.00–2,500.54 tok/s | 15–55 (audited headline records) | max 2.14% (c16–c128) |
-| 64K | 19,860.45 tok/s (c2) | 265.17–288.66 tok/s | 4–5 | 0.27% (single-node BS16) |
-| 128K | 16,711.96 tok/s (c2) | 112.79–122.32 tok/s | 1 / 1 | 0.24% (c4) |
-| 192K | 14,402.00 tok/s (c4) | 63.30–71.34 tok/s | 1 / 1 | 0.47% (c4) |
-| Exact 256K | 12,725.25 tok/s (c2; c4 `REJECTED_BOUNDARY`) | 36.04–162.63 tok/s | 1 / 1 | 0.03% (c1) |
-
-Each ISL section below is a self-contained, collapsible module containing its complete measured Prefill, Decode, and Fresh-Service matrices.
-
-**Overall conclusion:** the controlled Prefill matrix stays flat from 8K to 64K and drops materially near nominal 256K. The separately reported 128K, 192K, and 256K sections now establish the tested 1P1D PD client-concurrency matrices without treating client concurrency as the actual Decode batch. The observed Decode batch remains 1 in every accepted long-ISL PD point. Selected core points have N=2 Fresh-Service repeatability; the remaining matrix points have one accepted measurement. The evidence supports **“credible long-ISL performance measurement,” not “H200 parity,” “validated output quality,” or natural-MTP-acceptance claims.**
-
-**ISL=128K evidence boundary:** the full Prefill and PD Decode matrices are measured, and Decode c4 has an N=2 Fresh-Service repeat. Other 128K matrix points are N=1.
-
-**ISL=192K evidence boundary:** the full Prefill and PD Decode matrices are measured, and Decode c4 has an N=2 Fresh-Service repeat. Other 192K matrix points are N=1.
-
-**ISL=256K evidence boundary:** Prefill c1/c2 and Decode c1/c2/c4 are valid. Prefill c4 is retained as `REJECTED_BOUNDARY` with no performance number. Decode c1 has an N=2 Fresh-Service repeat; the other valid 256K points are N=1.
+**Evidence scope:** every accepted point passes its request, token-accounting, and fatal-log gates. N=2 Fresh-Service repeats cover 8K c16/c32/c64/c128, the 64K single-node fixed-BS16 record, 128K c4, 192K c4, and 256K c1; all other matrix points are N=1, and 256K Prefill c4 is retained as `REJECTED_BOUNDARY`. The evidence supports **“credible long-ISL performance measurement,” not “H200 parity,” “validated output quality,” or natural-MTP-acceptance claims.**
 
 ---
 
@@ -89,72 +68,6 @@ Each ISL section below is a self-contained, collapsible module containing its co
 ![Two-node MI300X 1P1D Prefill-Decode architecture](images/pd_architecture.png)
 
 *Figure 1. Final two-node MI300X 1P1D topology, Mooncake KV transfer path, and validated runtime stack.*
-
----
-
-## Headline Results — Input and Output Views
-
-The tables below contain selected, validated points from accepted runs. Each MI300X row keeps client and server metrics from one measurement record; H200 values remain a separate customer reference wherever the runtime batch or metric scope is not aligned.
-
-### Input Side — 1P1D Prefill
-
-| Context | Concurrency | Microsoft-tested MI300X input tok/s | Xiaomi H200 TP8/EP16/DP2 per-node reference | MI300X / H200 per node |
-|---:|---:|---:|---:|---:|
-| 8K | 4 | **20,305.98** | 31,950 | 63.6% |
-| 64K | 4 | **18,983.91** | 27,400 | 69.3% |
-| 256K | 4 | **12,864.96** | 17,400 | 73.9% |
-
-These are directional per-node input ratios. The H200 source does not record input concurrency, and it uses balanced `fake_topk_ids` rather than MI300X's real expert routing.
-
-### Output Side — MI300X 1P1D Decode, 8K Input / 1K Output
-
-| Client concurrency | Observed Decode batch | MI300X gen tok/s | MI300X TPOT (ms) | H200 Reference | MI300X / H200 |
-|---:|---:|---:|---:|---:|---:|
-| 16 | 15 / 16 | **1,319.78** | **10.83** | 1,381 tok/s / 11.59 ms | **95.6%** throughput; TPOT **6.6% lower** |
-| 32 | 31 / 32 | 1,861.52 | 13.65 | 2,549 tok/s / 12.56 ms | 73.0% |
-| 64 | 53 / 55 | 2,324.57 | 16.88 | 4,483 tok/s / 14.28 ms (H200 BS64) | 51.9% — MI300X actual BS53 vs H200 BS64 |
-| 128 | 51 / 54 | 2,333.44 | 16.56 | 7,013 tok/s / 18.25 ms (H200 BS128) | 33.3% — MI300X actual BS51 vs H200 BS128 |
-
-`15 / 16` denotes steady-state 15 with peak 16. At c64/c128, the MI300X Decode node saturates at batch ~50–55 due to KV capacity; those rows cannot be paired with H200 BS64/BS128. Only the **c16 row** (batch 15–16 vs H200 BS16) is a near-aligned comparison.
-
-At the near-aligned c16 point, the observed MI300X Decode batch is steady-state 15 with peak 16. Its direct D-node generation rate is **1,319.78 tok/s**, or **95.6%** of the H200 BS16 worksheet row, while MI300X TPOT is **6.6% lower** (10.83 vs 11.59 ms). This is directional, not a hardware-parity or exact-workload claim: the H200 workbook has no output-length column, and MI300X uses real expert routing and a two-node 1P1D deployment while H200 uses balanced `fake_topk_ids` and TP8/EP32/DP4.
-
-Machine-readable batch audit: [`data/validation/decode-service-log-audit-8k.json`](data/validation/decode-service-log-audit-8k.json).
-
-### Two-Node DP=2 Prefill — Peak Aggregate Throughput
-
-| Context | Concurrency | Aggregate input tok/s |
-|---:|---:|---:|
-| 8K | 16 | **46,747.01** |
-| 64K | 2 | **38,984.45** |
-
-The nominal-length 256K DP=2 observation is retained in the detailed scalability matrix, but it is not an exact-token headline result.
-
-### Result Scope
-
-- Headline values come from multiple accepted reproduction runs selected for final configuration and validity, not one single matrix or an across-run aggregate. The `headline_source` field in the machine-readable data records the source run; the detailed scalability table is the complete-matrix view, and the repeatability table shows run-to-run variation.
-- The headline 1P1D 256K result sends exactly 262,144 token IDs per request with `--tokenize-prompt`.
-- DP=2 values are aggregate Prefill-only capacity across two MI300X nodes; they do not include P→D KV-cache transfer.
-- The H200 workbook labels Column J as single-machine Decode throughput, but every value equals local per-DP `BS × TPS` without a DP=4 multiplier. This report treats it as a worksheet-local per-DP-style reference, not a confirmed single-machine or DP=4 aggregate metric.
-- The H200 workbook has no output-length column. Machine-readable H200 reference points therefore use `output_tokens=null`; the separate 16K community-image narrative that mentions 1K output does not establish the output length of the 8K/64K workbook rows.
-- Client concurrency is never assumed to be the observed Decode batch; the 8K and 64K scheduler-log audits record the steady-state and peak values.
-- H200 figures remain directional references, not a strict apples-to-apples hardware benchmark: MI300X uses real expert routing, while the H200 reference uses idealized balanced routing.
-- Machine-readable headline results: [`data/final-results.tsv`](data/final-results.tsv); scheduler-log audit: [`data/validation/decode-service-log-audit-8k.json`](data/validation/decode-service-log-audit-8k.json).
-
-### H200 Reference Provenance
-
-| Field | Public record |
-|---|---|
-| Source | Xiaomi-provided MiMo-V2.5-Pro performance report, privately archived and not redistributed |
-| Reviewed | 2026-05-18 |
-| Prefill reference | TP8/EP16/DP2, balanced `fake_topk_ids`, radix cache disabled, single-machine/per-node throughput |
-| Decode reference | 8K and 64K context rows; TP8/EP32/DP4, balanced `fake_topk_ids`, MTP layer 3, reported accept rate 0.75; workbook has no output-length column |
-| Decode TPOT origin | Customer worksheet; derived from per-DP Decode log output rate and local BS as `1000 / (tok/s ÷ BS)` |
-| Decode throughput scope | Column J is labeled single-machine throughput, but values equal local `BS × TPS` without a DP4 multiplier; treated here as worksheet-local per-DP-style references |
-| Decode output-length evidence | Not explicit per workbook row; a nearby Word narrative mentions 1K output for a separate 16K community-image test only |
-| Delivery use | Directional per-node/per-DP reference only |
-
-Machine-readable provenance and all reference values are in [`data/validation/h200-reference.json`](data/validation/h200-reference.json).
 
 ---
 
@@ -233,6 +146,25 @@ The maximum absolute two-run throughput delta is **2.14%** across the four repea
 
 Machine-readable evidence: [Prefill and Decode](data/scalability-results.tsv), [Fresh-Service](data/decode-repeatability.tsv), and [scheduler audit](data/validation/decode-service-log-audit-8k.json).
 
+#### 8K vs H200 Reference
+
+Selected Prefill record (separate N=1 run from the full matrix above):
+
+| Context | Concurrency | Microsoft-tested MI300X input tok/s | Xiaomi H200 TP8/EP16/DP2 per-node reference | MI300X / H200 per node |
+|---:|---:|---:|---:|---:|
+| 8K | 4 | **20,305.98** | 31,950 | 63.6% |
+
+Audited Decode headline records vs the customer worksheet:
+
+| Client concurrency | Observed Decode batch | MI300X gen tok/s | MI300X TPOT (ms) | H200 Reference | MI300X / H200 |
+|---:|---:|---:|---:|---:|---:|
+| 16 | 15 / 16 | **1,319.78** | **10.83** | 1,381 tok/s / 11.59 ms | **95.6%** throughput; TPOT **6.6% lower** |
+| 32 | 31 / 32 | 1,861.52 | 13.65 | 2,549 tok/s / 12.56 ms | 73.0% |
+| 64 | 53 / 55 | 2,324.57 | 16.88 | 4,483 tok/s / 14.28 ms (H200 BS64) | 51.9% — MI300X actual BS53 vs H200 BS64 |
+| 128 | 51 / 54 | 2,333.44 | 16.56 | 7,013 tok/s / 18.25 ms (H200 BS128) | 33.3% — MI300X actual BS51 vs H200 BS128 |
+
+`15 / 16` denotes steady-state 15 with peak 16. At c64/c128, the MI300X Decode node saturates at batch ~50–55 due to KV capacity, so those rows cannot be paired with H200 BS64/BS128; only the **c16 row** (batch 15–16 vs H200 BS16) is a near-aligned comparison — **1,319.78 tok/s**, **95.6%** of the H200 BS16 worksheet row, with MI300X TPOT **6.6% lower** (10.83 vs 11.59 ms). These audited records come from separate headline runs and are not backfilled into the E2E matrix above. Batch audit: [`data/validation/decode-service-log-audit-8k.json`](data/validation/decode-service-log-audit-8k.json).
+
 </details>
 
 ### ISL=64K
@@ -278,6 +210,16 @@ Observed behavior:
 The two fresh-service runs differ by **0.27%** in client E2E Output throughput. This N=2 record is the single-node, non-PD, exact-64K, fixed-BS16, fixed-acceptance run — not a PD deployment point; its steady scheduler generation is 931.58 / 935.92 tok/s with an implied TPOT of 17.14 ms at BS16. Each PD-mode 64K matrix point above has one accepted measurement.
 
 Machine-readable evidence: [Prefill](data/scalability-results.tsv), [Decode](data/decode-long-context-results.tsv), [Fresh-Service](data/decode-fixed-batch-results.tsv), and [scheduler audit](data/validation/decode-service-log-audit.json).
+
+#### 64K vs H200 Reference
+
+Selected Prefill record (separate N=1 run):
+
+| Context | Concurrency | Microsoft-tested MI300X input tok/s | Xiaomi H200 TP8/EP16/DP2 per-node reference | MI300X / H200 per node |
+|---:|---:|---:|---:|---:|
+| 64K | 4 | **18,983.91** | 27,400 | 69.3% |
+
+Decode: the PD matrix above runs at actual batch 4–5 while the H200 worksheet rows are BS16–96, so the PD ratios (20.1% at c16 down to 5.9% at c96) are not batch-aligned; see “64K Decode — PD Mode (Actual BS4–5)” below. The batch-aligned view is the single-node fixed-BS16 engine-potential record: **933.75 vs 1,333.89 gen tok/s = 70.0% (non-production)**, implied TPOT **17.14 vs 11.99 ms (42.9% higher)**; see “64K Decode Engine Potential” below.
 
 </details>
 
@@ -326,6 +268,10 @@ The two fresh-service runs differ by **0.24%** in E2E Output throughput. This re
 
 Machine-readable evidence: [Prefill](data/long-isl/128k/prefill-results.tsv), [Decode](data/long-isl/128k/decode-results.tsv), and [Fresh-Service](data/long-isl/128k/decode-repeatability.tsv).
 
+#### 128K vs H200 Reference
+
+The customer H200 worksheet has no 128K row, so no H200 reference exists at this ISL. The 128K Prefill and Decode matrices above stand alone as MI300X evidence; the observed Decode batch stays 1 / 1 at every accepted point.
+
 </details>
 
 ### ISL=192K
@@ -373,6 +319,10 @@ The two fresh-service runs differ by **0.47%** in E2E Output throughput. This re
 
 Machine-readable evidence: [Prefill](data/long-isl/192k/prefill-results.tsv), [Decode](data/long-isl/192k/decode-results.tsv), and [Fresh-Service](data/long-isl/192k/decode-repeatability.tsv).
 
+#### 192K vs H200 Reference
+
+The customer H200 worksheet has no 192K row, so no H200 reference exists at this ISL. The 192K Prefill and Decode matrices above stand alone as MI300X evidence; the observed Decode batch stays 1 / 1 at every accepted point.
+
 </details>
 
 ### ISL=256K
@@ -418,6 +368,16 @@ Observed behavior:
 The two fresh-service runs differ by **0.03%** in E2E Output throughput. This repeat confirms the concurrency-1 point only; the concurrency-2 and concurrency-4 Decode points each have one accepted measurement.
 
 Machine-readable evidence: [Prefill](data/long-isl/256k/prefill-results.tsv), [Decode](data/long-isl/256k/decode-results.tsv), and [Fresh-Service](data/long-isl/256k/decode-repeatability.tsv).
+
+#### 256K vs H200 Reference
+
+Selected exact-token Prefill record (separate N=1 run; the c1/c2 matrix rows above are the current-matrix evidence):
+
+| Context | Concurrency | Microsoft-tested MI300X input tok/s | Xiaomi H200 TP8/EP16/DP2 per-node reference | MI300X / H200 per node |
+|---:|---:|---:|---:|---:|
+| 256K | 4 | **12,864.96** | 17,400 | 73.9% |
+
+Decode: the worksheet has no 255K-input/1K-output row, so no H200 Decode reference exists at this ISL.
 
 </details>
 
@@ -525,6 +485,17 @@ Observed behavior:
 
 ### Two-Node DP=2 Prefill Scalability
 
+Peak aggregate headline records:
+
+| Context | Concurrency | Aggregate input tok/s |
+|---:|---:|---:|
+| 8K | 16 | **46,747.01** |
+| 64K | 2 | **38,984.45** |
+
+The nominal-length 256K DP=2 observation is retained in the full matrix below, but it is not an exact-token headline result.
+
+Full matrix:
+
 | Input | Concurrency | Aggregate input tok/s | Mean TTFT (ms) |
 |---:|---:|---:|---:|
 | 8K | 1 | 20,751.73 | 393.90 |
@@ -557,6 +528,32 @@ Observed behavior:
 | Targeted 1P1D 256K rerun | Exactly 262,144 token IDs, `--tokenize-prompt` | Headline result: 12,864.96 input tok/s |
 | Current `scripts/amd-latest/` | Exact token IDs for every 256K-input Prefill benchmark | Required reproduction path for future 256K-input Prefill results |
 | Final baked-image long-context Decode | Random-text framing; requested 64K input and requested 255K input + 1K output | MI300X capability/scalability only; not a 256K-input or H200-parity claim |
+
+### Result Scope
+
+- Headline values come from multiple accepted reproduction runs selected for final configuration and validity, not one single matrix or an across-run aggregate. The `headline_source` field in the machine-readable data records the source run; the detailed scalability table is the complete-matrix view, and the repeatability table shows run-to-run variation.
+- The headline 1P1D 256K result sends exactly 262,144 token IDs per request with `--tokenize-prompt`.
+- DP=2 values are aggregate Prefill-only capacity across two MI300X nodes; they do not include P→D KV-cache transfer.
+- The H200 workbook labels Column J as single-machine Decode throughput, but every value equals local per-DP `BS × TPS` without a DP=4 multiplier. This report treats it as a worksheet-local per-DP-style reference, not a confirmed single-machine or DP=4 aggregate metric.
+- The H200 workbook has no output-length column. Machine-readable H200 reference points therefore use `output_tokens=null`; the separate 16K community-image narrative that mentions 1K output does not establish the output length of the 8K/64K workbook rows.
+- Client concurrency is never assumed to be the observed Decode batch; the 8K and 64K scheduler-log audits record the steady-state and peak values.
+- H200 figures remain directional references, not a strict apples-to-apples hardware benchmark: MI300X uses real expert routing, while the H200 reference uses idealized balanced routing.
+- Machine-readable headline results: [`data/final-results.tsv`](data/final-results.tsv); scheduler-log audit: [`data/validation/decode-service-log-audit-8k.json`](data/validation/decode-service-log-audit-8k.json).
+
+### H200 Reference Provenance
+
+| Field | Public record |
+|---|---|
+| Source | Xiaomi-provided MiMo-V2.5-Pro performance report, privately archived and not redistributed |
+| Reviewed | 2026-05-18 |
+| Prefill reference | TP8/EP16/DP2, balanced `fake_topk_ids`, radix cache disabled, single-machine/per-node throughput |
+| Decode reference | 8K and 64K context rows; TP8/EP32/DP4, balanced `fake_topk_ids`, MTP layer 3, reported accept rate 0.75; workbook has no output-length column |
+| Decode TPOT origin | Customer worksheet; derived from per-DP Decode log output rate and local BS as `1000 / (tok/s ÷ BS)` |
+| Decode throughput scope | Column J is labeled single-machine throughput, but values equal local `BS × TPS` without a DP4 multiplier; treated here as worksheet-local per-DP-style references |
+| Decode output-length evidence | Not explicit per workbook row; a nearby Word narrative mentions 1K output for a separate 16K community-image test only |
+| Delivery use | Directional per-node/per-DP reference only |
+
+Machine-readable provenance and all reference values are in [`data/validation/h200-reference.json`](data/validation/h200-reference.json).
 
 ### Machine-Readable Evidence
 
