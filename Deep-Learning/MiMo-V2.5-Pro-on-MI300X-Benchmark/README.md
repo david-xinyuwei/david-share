@@ -190,10 +190,10 @@ Observed behavior:
 
 | Client concurrency | Observed Decode batch | Scheduler gen tok/s | E2E Output tok/s | Mean TPOT (ms) | Mean TTFT (ms) | H200 Reference |
 |---:|---:|---:|---:|---:|---:|---:|
-| 16 | 4 / 5 | 267.97 | 265.17 | 11.94 | 37,571.24 | 1,333.89 tok/s / 11.99 ms (BS16) |
-| 32 | 4 / 4 | 276.74 | 276.59 | 11.76 | 80,228.37 | 2,235.53 tok/s / 14.31 ms (BS32) |
-| 64 | 4 / 5 | 282.81 | 284.00 | 11.75 | 165,190.68 | 3,919.78 tok/s / 16.33 ms (BS64) |
-| 96 | 4 / 5 | 287.77 | 288.66 | 11.55 | 248,339.44 | 4,891.59 tok/s / 19.63 ms (BS96) |
+| 16 | 4 / 5 | 267.97 | 265.17 | 11.94 | 37,571.24 | 1,333.89 tok/s / 11.99 ms (BS16) = 20.1%, not batch-aligned |
+| 32 | 4 / 4 | 276.74 | 276.59 | 11.76 | 80,228.37 | 2,235.53 tok/s / 14.31 ms (BS32) = 12.4%, not batch-aligned |
+| 64 | 4 / 5 | 282.81 | 284.00 | 11.75 | 165,190.68 | 3,919.78 tok/s / 16.33 ms (BS64) = 7.2%, not batch-aligned |
+| 96 | 4 / 5 | 287.77 | 288.66 | 11.55 | 248,339.44 | 4,891.59 tok/s / 19.63 ms (BS96) = 5.9%, not batch-aligned |
 
 Observed behavior:
 
