@@ -11,7 +11,7 @@
 
 > 作者：魏新宇（Xinyu Wei）— Microsoft AI and Apps Global Black Belt（GBB）
 >
-> 最后验证时间：2026-07-19
+> 最后验证时间：2026-07-21
 
 [English](README.md) | 中文 | [验证证据](data/validation/)
 
@@ -22,6 +22,12 @@
 > **Decode（解码阶段）：** 在 AMD 7/13 环境的最终 AITER/CK 路径下，**单节点非 PD、精确 64K 输入、固定 BS16**的 fixed acceptance（固定接受率）性能测试达到 **933.75 scheduler gen tok/s**。该值取自两次 fresh-service run（每次重启服务后的独立测试）：**931.58 / 935.92 tok/s**，两次结果相差 **0.47%**；折算得到的 TPOT（单 Token 生成时延）为 **17.14 ms**。
 >
 > **结论边界：** 与 H200 工作簿的 64K BS16 行相比，该结果的相对值为 **70.0%**；与同一镜像下精确长度的 no-CK 基线相比，吞吐提高 **25.7%**。该测量不属于 1P1D PD c16 测试，不验证自然 MTP 接受率，也不验证输出质量。该工作簿没有逐行记录输出长度，J 列的部署范围定义也不明确；双方的部署拓扑、专家路由、接受率方法和指标口径均不相同。BS32–96 仍需 EP 或多节点 Decode 部署，当前不计算硬件比率。
+
+> **ISL=128K 覆盖范围：** 下方独立章节包含 Prefill c1/2/4/8、PD Decode c4/8/16/32，以及 Decode c4 的 N=2 Fresh-Service 复测。所有矩阵测点均通过请求数、Token 账目和 fatal log 验收门。
+>
+> **ISL=192K 覆盖范围：** 下方独立章节包含 Prefill c1/2/4/8、PD Decode c2/4/8/16，以及 Decode c4 的 N=2 Fresh-Service 复测。所有矩阵测点均通过请求数、Token 账目和 fatal log 验收门。
+>
+> **ISL=256K 覆盖范围：** 下方独立章节将精确输入 Prefill c1/c2 列为有效测点，c4 列为 `REJECTED_BOUNDARY`；255K 输入/1K 输出的 PD Decode 矩阵覆盖 c1/c2/c4，并对 c1 进行了 N=2 Fresh-Service 复测。根据本轮指令，DP=2 不在测量范围内。
 
 ### 核心指标对比
 
@@ -52,17 +58,19 @@
 |---|---:|---|
 | 同一完整矩阵，Prefill c4：输入从 8K 增至 64K | 18,161.81 → 18,763.17 tok/s（**提升 3.3%**） | **受控矩阵中，Prefill 吞吐到 64K 仍基本持平。** 这是目前有数据支撑的长度扩展结论。 |
 | 同一完整矩阵，Prefill c4：输入从 64K 增至名义 256K | 18,763.17 → 12,389.64 tok/s（**下降 34.0%**） | **接近 256K 时，长输入带来的性能损失开始明显。** 该测点采用随机文本构造，长度仅按名义值统计。 |
-| 同一最终运行环境，Prefill c4/OSL1：输入从 128K 增至 192K | 15,943.02 → 13,855.30 input tok/s（**下降 13.1%**）；平均 TTFT 30.17 → 51.89 s | **在 128K/192K 实测子集中，Prefill 吞吐下降，TTFT 上升。** 每个测点均为 N=1。 |
-| 同一最终运行环境，单节点非 PD Decode、实际 BS4/OSL1K：输入从 128K 增至 192K | 380.56 → 319.71 scheduler gen tok/s（**下降 16.0%**）；平均 TPOT 22.46 → 33.03 ms（**增加 47.1%**）；平均 TTFT 20.31 → 35.73 s（**增加 75.9%**） | **ISL 增加后，Decode 效率下降，时延上升。** 这些测点均为 N=1 的固定接受率性能测量，不代表自然接受率或输出质量。 |
 | 独立的精确 256K Prefill 确认 | 12,864.96 tok/s；16/16 条请求；**测量次数 N=1** | **已确认精确 262,144 个 Token 的 Prefill 能力**，但该记录不属于受控长度曲线，也不能证明服务重启后的重复性。 |
 | Decode 诊断：采用相同的固定 BS16、输出 8K 方法，context 从 8K 增至 64K | 1,031.26 → 718.12 gen tok/s（**下降 30.4%**）；15.52 → 22.28 ms（**增加 43.6%**） | **Decode 对长 context 比 Prefill 更敏感。** 这组输出 8K 的数据只用于长度扩展诊断，不用于 H200 核心对比。 |
 | 精确 64K/1K Decode：no-CK → AMD 7/13 最终路径 | 743.12 → 933.75 gen tok/s（**提升 25.7%**）；21.53 → 17.14 ms（**降低 20.4%**） | **最新优化路径明显改善了 64K Decode 效率**，但与 H200 工作簿对应行相比，方向性差距仍然存在。 |
 
 No-CK 与优化路径 A/B 测试的原始样本分别记录在 [`data/validation/decode-fixed-batch-audit.json`](data/validation/decode-fixed-batch-audit.json) 的 `headline_exact.same_image_exact_no_ck` 和 `headline_exact.points` 字段中。脱敏后的客户端摘要和 scheduler 采样窗口位于 [`data/evidence/exact64-fixed-acceptance/`](data/evidence/exact64-fixed-acceptance/)；运行 `python3 scripts/analyze_exact64_evidence.py` 可以校验 manifest（哈希清单），并重新计算两组汇总值和提升幅度。这些公开数据支持独立重算和一致性检查，但不能单独证明私有完整日志的来源与完整性。
 
-**总体结论：** 受控 Prefill 矩阵从 8K 到 64K 基本持平，接近名义 256K 时明显下降。在新增的 128K/192K 同一运行环境子集中，Prefill 输入吞吐下降 13.1%，固定 BS4 的 Decode scheduler 吞吐下降 16.0%，Decode TPOT 增加 47.1%。AMD 最新优化路径明显改善了固定接受率下的精确 64K Decode 性能，但 Decode 仍是更突出的长 context 瓶颈。当前证据只能说明**“长 ISL 性能测量结果可信”**，不能据此宣称**“达到 H200 同等性能”**、**“输出质量已经验证”**或**“新测点已具备多轮稳定性”**。
+**总体结论：** 受控 Prefill 矩阵从 8K 到 64K 基本持平，接近名义 256K 时明显下降。128K、192K 和 256K 现已分别形成独立的 1P1D PD 客户端并发矩阵，且没有把客户端并发写成 Decode 实际 batch。所有通过验收的长 ISL PD 测点中，实测 Decode batch 均为 1。核心测点具有 N=2 Fresh-Service 复测，其他矩阵测点只有一次通过验收的测量。当前证据支持**“长 ISL 性能测量结果可信”**，但不能据此宣称**“达到 H200 同等性能”**、**“输出质量已经验证”**或自然 MTP 接受率已经验证。
 
-当前证据覆盖精确 64K/1K Decode（BS16）、128K/192K Prefill 选定点（客户端并发 4）、单节点 128K/192K Decode 选定点（实际 BS4）、精确 256K Prefill（客户端并发 4），以及 255K 输入/1K 输出 Decode 能力点（客户端并发 1）。这些证据**不能证明** PD serving 高并发 128K/192K/256K Decode 性能、自然接受率或输出质量。
+**ISL=128K 证据边界：** Prefill 和 PD Decode 完整矩阵均已测量，Decode c4 完成 N=2 Fresh-Service 复测；其他 128K 矩阵测点为 N=1。
+
+**ISL=192K 证据边界：** Prefill 和 PD Decode 完整矩阵均已测量，Decode c4 完成 N=2 Fresh-Service 复测；其他 192K 矩阵测点为 N=1。
+
+**ISL=256K 证据边界：** Prefill c1/c2 与 Decode c1/c2/c4 为有效测点；Prefill c4 保留为 `REJECTED_BOUNDARY`，不提供性能数值。Decode c1 完成 N=2 Fresh-Service 复测；其他有效的 256K 测点为 N=1。
 
 ---
 
@@ -151,41 +159,190 @@ AMD 提供基础启动方案（容器镜像、AITER 调优路径、1P1D/DP=2 拓
 | 1P1D Decode | 8K 输入 / 1K 输出 | 8, 16, 32, 64, 96, 128, 192 | 256 |
 | 1P1D 长上下文 Decode | 请求 64K 输入 / 1K 输出；请求 255K 输入 / 1K 输出（总序列 256K） | 64K：16, 32, 64, 96；255K：1 | 32, 64, 128, 192；1 |
 | 单节点精确固定 batch Decode | 精确 64K 输入 / 1K 输出、固定 batch 16；最终 AITER/CK 路径 | 两次全新服务复测 | 每轮 16 |
-| 单节点受控 ISL Decode | 128K 或 192K 输入 / 1K 输出、实际 batch 4；最终 AITER/CK 路径 | 每个输入长度做一次通过验收的测量 | 4 |
+| 单节点受控 ISL=128K Decode | 128K 输入 / 1K 输出、实际 batch 4；最终 AITER/CK 路径 | 一次通过验收的测量 | 4 |
+| 单节点受控 ISL=192K Decode | 192K 输入 / 1K 输出、实际 batch 4；最终 AITER/CK 路径 | 一次通过验收的测量 | 4 |
 | 单节点诊断性固定 batch Decode | 64K 或 8K 输入 / 8K 输出；只用于内部长度变化诊断 | 单次服务启动，固定 batch 4/8/16 | 不用于 H200 核心对比 |
 | 1P1D Prefill | 8K、64K、名义 256K / 输出 1 | 1, 2, 4, 8 | 16 |
-| 1P1D 长 ISL Prefill 选定测点 | 128K、192K / 输出 1 | 客户端并发 4；每个输入长度做一次通过验收的测量 | 16 |
+| 1P1D ISL=128K Prefill 选定测点 | 128K 输入 / 输出 1 | 客户端并发 4；一次通过验收的测量 | 16 |
+| 1P1D ISL=192K Prefill 选定测点 | 192K 输入 / 输出 1 | 客户端并发 4；一次通过验收的测量 | 16 |
+| 1P1D ISL=128K 完整矩阵 | 128K 输入 / 输出 1；128K 输入 / 1K 输出 | Prefill：1, 2, 4, 8；Decode：4, 8, 16, 32 | Prefill：16；Decode：并发 × 2；Fresh Decode c4：N=2 |
+| 1P1D ISL=192K 完整矩阵 | 192K 输入 / 输出 1；192K 输入 / 1K 输出 | Prefill：1, 2, 4, 8；Decode：2, 4, 8, 16 | Prefill：16；Decode：并发 × 2；Fresh Decode c4：N=2 |
+| 1P1D ISL=256K 完整矩阵 | 精确 256K 输入 / 输出 1；255K 输入 / 1K 输出 | Prefill：1, 2, 4；Decode：1, 2, 4 | Prefill：16；Decode：并发 × 2；Fresh Decode c1：N=2 |
 | 双节点 DP=2 Prefill | 8K、64K、名义 256K / 输出 1 | 8K/64K：1, 2, 4, 8, 16；名义 256K：1, 2, 4, 8 | 32 |
 
 以下表格展示实测扩展性结果。Decode 核心生产并发测点还单独做了两次全新服务复测。
 
-### Decode 扩展性：8K 输入 / 1K 输出
+### ISL=8K
 
-| 并发 | MI300X Output tok/s | MI300X 平均 TPOT (ms) | 平均 TTFT (ms) | H200 参考（对应 BS 行） |
-|---:|---:|---:|---:|---:|
-| 8 | 930.00 | 7.65 | 863.69 | — |
-| 16 | 1,303.44 | 10.72 | 1,398.73 | 1,381 tok/s / 11.59 ms |
-| 32 | 1,930.10 | 13.68 | 2,296.89 | 2,549 tok/s / 12.56 ms |
-| 64 | 2,462.83 | 17.08 | 7,406.18 | 4,483 tok/s / 14.28 ms |
-| 96 | 2,497.69 | 15.89 | 18,273.38 | — |
-| 128 | 2,468.95 | 16.45 | 27,128.38 | 7,013 tok/s / 18.25 ms |
-| 192 | 2,500.54 | 15.98 | 40,956.57 | — |
+#### 1P1D Prefill 扩展性：8K 输入 / 输出 1
+
+| 输入长度 | 客户端并发 | 状态 | Input tok/s | 平均 TTFT (ms) | P95 TTFT (ms) |
+|---:|---:|---|---:|---:|---:|
+| 8K | 1 | VALIDATED | 16,835.22 | 485.70 | — |
+| 8K | 2 | VALIDATED | 19,618.25 | 829.40 | — |
+| 8K | 4 | VALIDATED | 18,161.81 | 1,612.03 | — |
+| 8K | 8 | VALIDATED | 21,004.97 | 2,817.91 | — |
 
 实测现象：
 
-- 并发从 8 增至 64 时，吞吐由 930.00 tok/s 提高到 2,462.83 tok/s；此后一直到并发 192，吞吐都维持在约 2.47–2.50K tok/s。
-- 并发超过 64 后，吞吐基本不再增长，但 TTFT 明显上升。这说明系统已经进入容量平台，延迟并未改善。
+- Input 吞吐在客户端并发 8 时达到峰值 **21,004.97 tok/s**。
+- 平均 TTFT 从客户端并发 1 时的 **485.70 ms** 增至并发 8 时的 **2,817.91 ms**。
 
-### Decode 核心测点的 Fresh-Service（全新服务）复测
+#### 1P1D Decode 扩展性：8K 输入 / 1K 输出
 
-| 并发 | 第 1 轮 tok/s | 第 2 轮 tok/s | 吞吐差异 | TPOT 第 1 轮 / 第 2 轮 (ms) |
-|---:|---:|---:|---:|---:|
-| 16 | 1,331.98 | 1,303.44 | -2.14% | 10.83 / 10.72 |
-| 32 | 1,936.24 | 1,930.10 | -0.32% | 13.65 / 13.68 |
-| 64 | 2,457.73 | 2,462.83 | +0.21% | 17.00 / 17.08 |
-| 128 | 2,486.89 | 2,468.95 | -0.72% | 16.56 / 16.45 |
+| 客户端并发 | 实测 Decode batch | Scheduler gen tok/s | E2E Output tok/s | 平均 TPOT (ms) | 平均 TTFT (ms) | H200 参考 |
+|---:|---:|---:|---:|---:|---:|---:|
+| 8 | — | — | 930.00 | 7.65 | 863.69 | — |
+| 16 | — | — | 1,303.44 | 10.72 | 1,398.73 | 1,381 tok/s / 11.59 ms |
+| 32 | — | — | 1,930.10 | 13.68 | 2,296.89 | 2,549 tok/s / 12.56 ms |
+| 64 | — | — | 2,462.83 | 17.08 | 7,406.18 | 4,483 tok/s / 14.28 ms |
+| 96 | — | — | 2,497.69 | 15.89 | 18,273.38 | — |
+| 128 | — | — | 2,468.95 | 16.45 | 27,128.38 | 7,013 tok/s / 18.25 ms |
+| 192 | — | — | 2,500.54 | 15.98 | 40,956.57 | — |
 
-四个复测点在两次全新服务运行之间的最大吞吐绝对差异为 **2.14%**。
+实测现象：
+
+- 客户端并发从 8 增至 64 时，吞吐由 930.00 tok/s 提高到 2,462.83 tok/s；此后直到并发 192，吞吐均维持在约 2.47–2.50K tok/s。
+- 上表 E2E 行没有与同一次运行匹配的 scheduler window，因此实际 batch 与 scheduler gen 单元格保留为 `—`。另外完成审计的 c16/c32/c64/c128 headline 记录中，实测 Decode batch 分别为 15/16、31/32、53/55 和 51/54；本文不会把这些数值回填到不同运行的结果行。
+- 并发超过 64 后，吞吐基本不再增长，但 TTFT 明显上升。这是容量平台，不表示延迟得到改善。
+
+#### 8K Decode Fresh-Service（全新服务）复测
+
+| 客户端并发 | 实测 Decode batch | 第 1 轮 Output tok/s | 第 2 轮 Output tok/s | 吞吐差异 | TPOT 第 1 轮 / 第 2 轮 (ms) |
+|---:|---:|---:|---:|---:|---:|
+| 16 | — | 1,331.98 | 1,303.44 | -2.14% | 10.83 / 10.72 |
+| 32 | — | 1,936.24 | 1,930.10 | -0.32% | 13.65 / 13.68 |
+| 64 | — | 2,457.73 | 2,462.83 | +0.21% | 17.00 / 17.08 |
+| 128 | — | 2,486.89 | 2,468.95 | -0.72% | 16.56 / 16.45 |
+
+四个复测点在两次全新服务运行之间的最大吞吐绝对差异为 **2.14%**。实际 batch 保留为 `—`，因为所有行都没有同时覆盖两轮 Fresh-Service 的配对 scheduler 审计。
+
+机器可读证据：[Prefill 与 Decode](data/scalability-results.tsv)、[Fresh-Service](data/decode-repeatability.tsv)和[scheduler 审计](data/validation/decode-service-log-audit-8k.json)。
+
+### ISL=128K
+
+#### 1P1D Prefill 扩展性：128K 输入 / 输出 1
+
+| 输入长度 | 客户端并发 | 状态 | Input tok/s | 平均 TTFT (ms) | P95 TTFT (ms) |
+|---:|---:|---|---:|---:|---:|
+| 128K | 1 | VALIDATED | 16,389.66 | 7,995.96 | 8,387.76 |
+| 128K | 2 | VALIDATED | 16,711.96 | 15,280.91 | 16,227.41 |
+| 128K | 4 | VALIDATED | 16,667.06 | 28,777.69 | 31,952.15 |
+| 128K | 8 | VALIDATED | 16,641.77 | 49,817.65 | 63,576.07 |
+
+实测现象：
+
+- 客户端并发从 1 增至 8 时，Input 吞吐的波动范围不超过 **2.0%**；峰值为并发 2 时的 **16,711.96 tok/s**。
+- 平均 TTFT 从并发 1 时的 **7,995.96 ms** 增至并发 8 时的 **49,817.65 ms**。提高客户端并发只增加等待时间，没有提高 Prefill 吞吐。
+- 所有观测样本中的 Prefill scheduler 均只接收一条新序列；本文不会把客户端并发写成 Prefill 实际 batch。
+
+#### 1P1D Decode 扩展性：128K 输入 / 1K 输出
+
+| 客户端并发 | 实测 Decode batch | Scheduler gen tok/s | E2E Output tok/s | 平均 TPOT (ms) | 平均 TTFT (ms) | H200 参考 |
+|---:|---:|---:|---:|---:|---:|---:|
+| 4 | 1 / 1 | 140.72 | 112.79 | 5.76 | 24,639.84 | — |
+| 8 | 1 / 1 | 137.62 | 117.32 | 5.76 | 49,712.45 | — |
+| 16 | 1 / 1 | 138.85 | 121.64 | 5.81 | 98,633.02 | — |
+| 32 | 1 / 1 | 138.20 | 122.32 | 5.80 | 198,594.63 | — |
+
+实测现象：
+
+- 所有测点的 Decode 实际 batch 常见值均为 1、峰值均为 1。128K 矩阵中，Decode scheduler 从未达到客户端设置的并发值。
+- 客户端并发从 4 增至 32 时，E2E Output 吞吐仅提高 **8.4%**，平均 TTFT 则从 **24,639.84 ms** 增至 **198,594.63 ms**。
+- 在实测 batch 下，scheduler 生成吞吐稳定在约 **138–141 tok/s**。继续提高客户端并发主要增加 Decode 前的等待，不会形成更大的实际 Decode batch。
+
+#### 128K Decode Fresh-Service（全新服务）复测
+
+| 客户端并发 | 实测 Decode batch | 第 1 轮 Output tok/s | 第 2 轮 Output tok/s | 吞吐差异 | TPOT 第 1 轮 / 第 2 轮 (ms) |
+|---:|---:|---:|---:|---:|---:|
+| 4 | 1 / 1 | 113.64 | 113.37 | -0.24% | 5.84 / 5.86 |
+
+两轮全新服务测试的 E2E Output 吞吐相差 **0.24%**。该复测只覆盖客户端并发 4；128K 矩阵中的其他测点均只有一次通过验收的测量。
+
+机器可读证据：[Prefill](data/long-isl/128k/prefill-results.tsv)、[Decode](data/long-isl/128k/decode-results.tsv)和[Fresh-Service](data/long-isl/128k/decode-repeatability.tsv)。
+
+### ISL=192K
+
+#### 1P1D Prefill 扩展性：192K 输入 / 输出 1
+
+| 输入长度 | 客户端并发 | 状态 | Input tok/s | 平均 TTFT (ms) | P95 TTFT (ms) |
+|---:|---:|---|---:|---:|---:|
+| 192K | 1 | VALIDATED | 13,827.37 | 14,217.14 | 14,906.98 |
+| 192K | 2 | VALIDATED | 14,401.79 | 26,537.49 | 27,911.73 |
+| 192K | 4 | VALIDATED | 14,402.00 | 49,755.39 | 55,124.70 |
+| 192K | 8 | VALIDATED | 14,395.10 | 85,961.99 | 109,824.77 |
+
+实测现象：
+
+- 客户端并发从 1 增至 8 时，Input 吞吐的波动范围不超过 **4.2%**；峰值为并发 4 时的 **14,402.00 tok/s**。
+- 平均 TTFT 从并发 1 时的 **14,217.14 ms** 增至并发 8 时的 **85,961.99 ms**。提高客户端并发没有提高持续 Prefill 吞吐。
+- 所有观测样本中的 Prefill scheduler 均只接收一条新序列；本文不会把客户端并发写成 Prefill 实际 batch。
+
+#### 1P1D Decode 扩展性：192K 输入 / 1K 输出
+
+| 客户端并发 | 实测 Decode batch | Scheduler gen tok/s | E2E Output tok/s | 平均 TPOT (ms) | 平均 TTFT (ms) | H200 参考 |
+|---:|---:|---:|---:|---:|---:|---:|
+| 2 | 1 / 1 | 129.42 | 63.30 | 6.34 | 22,617.83 | — |
+| 4 | 1 / 1 | 126.99 | 68.15 | 6.46 | 43,550.54 | — |
+| 8 | 1 / 1 | 126.14 | 70.12 | 6.48 | 86,300.12 | — |
+| 16 | 1 / 1 | 125.04 | 71.34 | 6.19 | 171,203.13 | — |
+
+实测现象：
+
+- 所有测点的 Decode 实际 batch 常见值均为 1、峰值均为 1。192K 矩阵中，Decode scheduler 从未达到客户端设置的并发值。
+- 客户端并发从 2 增至 16 时，E2E Output 吞吐提高 **12.7%**，平均 TTFT 则从 **22,617.83 ms** 增至 **171,203.13 ms**。
+- 在实测 batch 下，scheduler 生成吞吐稳定在约 **125–129 tok/s**。E2E 聚合吞吐的提高来自完整 PD 路径上的请求重叠，不代表实际 Decode batch 增大。
+
+#### 192K Decode Fresh-Service（全新服务）复测
+
+| 客户端并发 | 实测 Decode batch | 第 1 轮 Output tok/s | 第 2 轮 Output tok/s | 吞吐差异 | TPOT 第 1 轮 / 第 2 轮 (ms) |
+|---:|---:|---:|---:|---:|---:|
+| 4 | 1 / 1 | 67.88 | 68.20 | +0.47% | 6.89 / 6.62 |
+
+两轮全新服务测试的 E2E Output 吞吐相差 **0.47%**。该复测只覆盖客户端并发 4；192K 矩阵中的其他测点均只有一次通过验收的测量。
+
+机器可读证据：[Prefill](data/long-isl/192k/prefill-results.tsv)、[Decode](data/long-isl/192k/decode-results.tsv)和[Fresh-Service](data/long-isl/192k/decode-repeatability.tsv)。
+
+### ISL=256K
+
+#### 1P1D Prefill 扩展性：精确 256K 输入 / 输出 1
+
+| 输入长度 | 客户端并发 | 状态 | Input tok/s | 平均 TTFT (ms) | P95 TTFT (ms) |
+|---:|---:|---|---:|---:|---:|
+| 精确 256K | 1 | VALIDATED | 12,631.60 | 20,751.02 | 21,048.17 |
+| 精确 256K | 2 | VALIDATED | 12,725.25 | 40,002.62 | 41,913.75 |
+| 精确 256K | 4 | `REJECTED_BOUNDARY` | — | — | — |
+
+实测现象：
+
+- 两个通过验收的测点都为每条请求精确发送 262,144 个 input token IDs。客户端并发 1 与 2 的 Input 吞吐相差 **0.7%**，平均 TTFT 则接近翻倍。
+- 客户端并发 4 已执行多次，但每次都只有部分请求完成。两个独立服务生命周期均记录到 AMDGPU page fault 和 worker 异常退出，随后 Router 才出现错误。该测点保留为 `REJECTED_BOUNDARY`，不把部分完成的吞吐写成有效结果。
+- 早期独立完成的精确 256K c4 headline 仍作为另一条 N=1 记录保留，但不能用于回填本次被拒绝的完整矩阵行，也不能证明当前 c4 具有重复性。
+- 客户端并发 2 的 canonical client 结果通过了请求数和精确 Token 验收门；补充 scheduler trace 只用于诊断，不作为性能结果。
+
+#### 1P1D Decode 扩展性：255K 输入 / 1K 输出
+
+| 客户端并发 | 实测 Decode batch | Scheduler gen tok/s | E2E Output tok/s | 平均 TPOT (ms) | 平均 TTFT (ms) | H200 参考 |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 1 / 1 | 131.15 | 36.04 | 7.16 | 21,076.57 | — |
+| 2 | 1 / 1 | 127.64 | 82.19 | 3.61 | 16,441.84 | — |
+| 4 | 1 / 1 | 127.84 | 162.63 | 2.65 | 8,351.65 | — |
+
+实测现象：
+
+- 所有测点的 Decode 实际 batch 常见值均为 1、峰值均为 1。Decode scheduler 从未达到客户端设置的并发 2 或 4。
+- 在实测 batch 下，scheduler 生成吞吐稳定在约 **128–131 tok/s**。客户端并发提高后的 E2E 聚合吞吐来自完整 PD 路径上的请求重叠，不代表实际 Decode batch 增大。
+- 每条请求发送 261,120 个 input tokens，并请求生成 1,024 个 output tokens，总序列长度为 262,144 个 Token。这是 256K 总序列测试，不是 256K 输入的 Decode 测试。
+
+#### 256K Decode Fresh-Service（全新服务）复测
+
+| 客户端并发 | 实测 Decode batch | 第 1 轮 Output tok/s | 第 2 轮 Output tok/s | 吞吐差异 | TPOT 第 1 轮 / 第 2 轮 (ms) |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 1 / 1 | 35.97 | 35.96 | -0.03% | 7.15 / 7.21 |
+
+两轮全新服务测试的 E2E Output 吞吐相差 **0.03%**。该复测只覆盖客户端并发 1；客户端并发 2 和 4 的 Decode 测点均只有一次通过验收的测量。
+
+机器可读证据：[Prefill](data/long-isl/256k/prefill-results.tsv)、[Decode](data/long-isl/256k/decode-results.tsv)和[Fresh-Service](data/long-isl/256k/decode-repeatability.tsv)。
 
 
 ### 指标口径
@@ -332,8 +489,8 @@ Input（输入侧）与 Output（输出侧）指标回答的问题不同，不�
 - Decode 核心点复测：[`data/decode-repeatability.tsv`](data/decode-repeatability.tsv)
 - 长上下文 Decode 结果：[`data/decode-long-context-results.tsv`](data/decode-long-context-results.tsv)
 - 固定 batch 稳态 Decode 结果：[`data/decode-fixed-batch-results.tsv`](data/decode-fixed-batch-results.tsv)
-- 受控 128K/192K 结果：[`data/controlled-isl-results.tsv`](data/controlled-isl-results.tsv)
-- 受控 128K/192K 方法与源文件哈希：[`data/validation/controlled-isl-evidence.json`](data/validation/controlled-isl-evidence.json)
+- 历史受控 ISL 结果包：[`data/controlled-isl-results.tsv`](data/controlled-isl-results.tsv)
+- 历史受控 ISL 方法与源文件哈希：[`data/validation/controlled-isl-evidence.json`](data/validation/controlled-isl-evidence.json)
 - 固定 batch 方法与源哈希：[`data/validation/decode-fixed-batch-audit.json`](data/validation/decode-fixed-batch-audit.json)
 - 长上下文运行环境与源文件证据：[`data/validation/decode-long-context-evidence.json`](data/validation/decode-long-context-evidence.json)
 - Exact-token 与运行环境验证元数据：[`data/validation/`](data/validation/)
@@ -436,7 +593,7 @@ $$
 
 ![长ISL Decode的KV容量关系](images/kv_capacity_relationship.png)
 
-*图 3：非 PD exact64 计算示例说明 sequence length（序列长度）与 KV 容量如何限制实际 Decode concurrency。128K/192K actual-BS4 子集已经实测；64K 同方法锚点、255K actual-BS4 测点和 equal-KV-load（等 KV 负载）组合尚未实测，仅用于规划。此前单独实测的 255K PD-serving c1 能力点仍然有效。*
+*图 3：非 PD exact64 计算示例说明 sequence length（序列长度）与 KV 容量如何限制实际 Decode concurrency。历史 128K actual-BS4 测点和历史 192K actual-BS4 测点分别完成了实测。64K 同方法锚点、255K actual-BS4 测点和 equal-KV-load（等 KV 负载）组合尚未实测，仅用于规划。此前单独实测的 255K PD-serving c1 能力点仍然有效。*
 
 对于正在执行 Decode 的请求，可以采用以下容量模型：
 
@@ -469,38 +626,60 @@ $$
 
 Scheduler 报告的 `full token usage` 为 `0.73–0.74`，与上述计算一致。这说明为什么把单节点 `mem-fraction-static` 提高到 `0.95` 后，exact64 仍能保持实际 Decode BS16；但这**不表示**某个 Prefill kernel 曾同时处理十六条完整的 64K prompt。
 
-### 基于7/13环境的128K/192K实测子集
+### 基于7/13环境的历史受控 ISL=128K 记录
 
-以下两类指标必须分开解读。Prefill 采用双节点 1P1D 部署的 aggregate input tok/s（聚合输入吞吐）；Decode 采用单节点非 PD 服务中经 transition guard（过渡样本门）筛选后的 steady full-BS4 scheduler gen tok/s（稳态满批调度器生成吞吐）。二者不能相除、合并或视为同一指标。
+这条历史记录采用的方法不同于上方的 1P1D 完整矩阵，不能替代完整矩阵结果。Prefill 采用双节点 1P1D 部署的 aggregate input tok/s（聚合输入吞吐）；Decode 采用单节点非 PD 服务中经 transition guard（过渡样本门）筛选后的 steady full-BS4 scheduler gen tok/s（稳态满批调度器生成吞吐）。两类指标不能相除，也不能视为同一种吞吐。
 
-#### Prefill 选定测点
+#### 历史 128K Prefill 测点
 
-| ISL | 拓扑 | 客户端并发 | 请求数 | Input tok/s | 平均 TTFT | 测量次数 |
-|---:|---|---:|---:|---:|---:|---:|
-| 128K | 1P1D PD | 4 | 16 | **15,943.02** | 30.17 s | **N=1** |
-| 192K | 1P1D PD | 4 | 16 | **13,855.30** | 51.89 s | **N=1** |
+| 拓扑 | 客户端并发 | 请求数 | Input tok/s | 平均 TTFT | 测量次数 |
+|---|---:|---:|---:|---:|---:|
+| 1P1D PD | 4 | 16 | **15,943.02** | 30.17 s | **N=1** |
 
-#### Decode 固定 BS4 选定测点
+#### 历史 128K Decode 固定 BS4 测点
 
-| ISL | 拓扑 | 实际 Decode batch | 请求数 | 稳态 scheduler gen tok/s | 客户端 output tok/s | 平均 TTFT | 平均 TPOT | Full-token usage（完整 Token 占用率） | 测量次数 |
-|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| 128K | 单节点 TP8、非 PD | **4** | 4 | **380.56** | 94.59 | 20.31 s | 22.46 ms | 0.36–0.37 | **N=1** |
-| 192K | 单节点 TP8、非 PD | **4** | 4 | **319.71** | 58.90 | 35.73 s | 33.03 ms | 0.55 | **N=1** |
+| 拓扑 | 实际 Decode batch | 请求数 | 稳态 scheduler gen tok/s | 客户端 output tok/s | 平均 TTFT | 平均 TPOT | Full-token usage（完整 Token 占用率） | 测量次数 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 单节点 TP8、非 PD | **4** | 4 | **380.56** | 94.59 | 20.31 s | 22.46 ms | 0.36–0.37 | **N=1** |
 
-输入从 128K 增至 192K 后，Prefill 输入吞吐下降 **13.1%**。在另一组固定 BS4 Decode 测试中，scheduler 生成吞吐下降 **16.0%**，平均 TPOT 增加 **47.1%**，平均 TTFT 增加 **75.9%**。每个测点只有一次通过验收的测量，不能据此判断多轮稳定性。
+Prefill 测点来自指标解析器恢复后的一次有效服务启动；Decode 测点随后在单节点服务上运行。两项均为 N=1，不能证明同一服务内或 Fresh-Service 的重复性。
 
-128K 和 192K Prefill 测点分别来自两次独立启动的服务；两次测试之间只修复了指标解析器，并且都通过相同的不可变运行环境与配置校验。两个 Decode 测点随后在同一个单节点服务上依次执行。因此，这组数据只能用于同运行环境、同方法对比，不代表同一服务内或服务重启后的重复性。
+Decode 测点使用 `SGLANG_SIMULATE_ACC_LEN=3` 和 `match-expected`；scheduler 报告的 accept length（接受长度）为 `3.00`，rate（接受率）为 `0.67`。该测点用于评估固定接受率下的 scheduler 容量，不验证自然 MTP 接受率或输出质量。六月进行的 BS1 边界诊断未纳入该记录。
 
-Decode 测点使用 `SGLANG_SIMULATE_ACC_LEN=3` 和 `match-expected`；scheduler 报告的 accept length（接受长度）为 `3.00`，rate（接受率）为 `0.67`。这些测点用于评估固定接受率下的 scheduler 容量，不验证自然 MTP 接受率或输出质量。六月进行的 BS1 边界诊断未纳入这组结果。
+历史机器可读证据：[`data/controlled-isl-results.tsv`](data/controlled-isl-results.tsv)；方法与运行环境审计：[`data/validation/controlled-isl-evidence.json`](data/validation/controlled-isl-evidence.json)；脱敏后的重算证据：[`data/evidence/controlled-isl-128k-192k/`](data/evidence/controlled-isl-128k-192k/)。
 
-机器可读结果：[`data/controlled-isl-results.tsv`](data/controlled-isl-results.tsv)；方法与运行环境审计：[`data/validation/controlled-isl-evidence.json`](data/validation/controlled-isl-evidence.json)；脱敏后的重算证据：[`data/evidence/controlled-isl-128k-192k/`](data/evidence/controlled-isl-128k-192k/)。运行 `python3 scripts/analyze_controlled_isl_evidence.py` 可以重建四个测点和全部公开变化率。
+### 基于7/13环境的历史受控 ISL=192K 记录
+
+这条历史记录同样采用不同于上方 1P1D 完整矩阵的方法。Prefill 与 Decode 仍是两类独立指标，不进行合并。
+
+#### 历史 192K Prefill 测点
+
+| 拓扑 | 客户端并发 | 请求数 | Input tok/s | 平均 TTFT | 测量次数 |
+|---|---:|---:|---:|---:|---:|
+| 1P1D PD | 4 | 16 | **13,855.30** | 51.89 s | **N=1** |
+
+#### 历史 192K Decode 固定 BS4 测点
+
+| 拓扑 | 实际 Decode batch | 请求数 | 稳态 scheduler gen tok/s | 客户端 output tok/s | 平均 TTFT | 平均 TPOT | Full-token usage（完整 Token 占用率） | 测量次数 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 单节点 TP8、非 PD | **4** | 4 | **319.71** | 58.90 | 35.73 s | 33.03 ms | 0.55 | **N=1** |
+
+Prefill 测点来自通过相同不可变运行环境和配置验收门的一次有效服务启动。Decode 测点随后在历史 128K Decode 测点所用的同一单节点服务上运行。这条 192K 记录仍为 N=1，不能证明同一服务内或 Fresh-Service 的重复性。
+
+Decode 测点使用 `SGLANG_SIMULATE_ACC_LEN=3` 和 `match-expected`；scheduler 报告的 accept length（接受长度）为 `3.00`，rate（接受率）为 `0.67`。该测点用于评估固定接受率下的 scheduler 容量，不验证自然 MTP 接受率或输出质量。六月进行的 BS1 边界诊断未纳入该记录。
+
+历史机器可读证据：[`data/controlled-isl-results.tsv`](data/controlled-isl-results.tsv)；方法与运行环境审计：[`data/validation/controlled-isl-evidence.json`](data/validation/controlled-isl-evidence.json)；脱敏后的重算证据：[`data/evidence/controlled-isl-128k-192k/`](data/evidence/controlled-isl-128k-192k/)。运行 `python3 scripts/analyze_controlled_isl_evidence.py` 可以重建历史测点及已披露的跨长度变化率。
 
 ### 后续如何只改变输入长度而不混入其他变量
 
 | 研究目标 | 控制变量 | 建议测点 | 证据状态 |
 |---|---|---|---|
-| 同一运行环境的受控实测子集 | OSL 固定为 1K，**实际 Decode batch 固定为 4** | 128K、192K 输入 | **已实测；每点 N=1**。尚未形成完整的 64K→192K 同方法曲线。 |
-| 等 KV 负载容量规划 | Raw token positions（原始 Token 位置数）保持在 exact64 负载附近 | 64K×16、128K×8、192K×5、255K×4 | 规划估算；尚未实测 |
+| 历史受控 128K 锚点 | OSL 固定为 1K，**实际 Decode batch 固定为 4** | 128K 输入 | **已实测；N=1**。 |
+| 历史受控 192K 锚点 | OSL 固定为 1K，**实际 Decode batch 固定为 4** | 192K 输入 | **已实测；N=1**。尚未形成完整的 64K→192K 同方法曲线。 |
+| 等 KV 负载规划：64K | Raw token positions（原始 Token 位置数）保持在 exact64 负载附近 | 64K×16 | 规划估算；尚未实测 |
+| 等 KV 负载规划：128K | Raw token positions（原始 Token 位置数）保持在 exact64 负载附近 | 128K×8 | 规划估算；尚未实测 |
+| 等 KV 负载规划：192K | Raw token positions（原始 Token 位置数）保持在 exact64 负载附近 | 192K×5 | 规划估算；尚未实测 |
+| 等 KV 负载规划：255K | Raw token positions（原始 Token 位置数）保持在 exact64 负载附近 | 255K×4 | 规划估算；尚未实测 |
 
 允许的最大输入测点是 **255K input + 1K output**：$261{,}120+1{,}024=262{,}144\le262{,}151$。**256K input + 1K output** 需要 $263{,}168$ 个 Token 位置，超过 `context-length=262151` 的限制。后续报告必须保留实际观测到的 Decode batch，不能再把 client concurrency 记成 BS。
 

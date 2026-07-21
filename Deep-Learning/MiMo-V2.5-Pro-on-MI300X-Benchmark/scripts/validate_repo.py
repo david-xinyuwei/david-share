@@ -32,8 +32,22 @@ BILINGUAL_HEADING_PAIRS = (
     ('### H200 Reference Provenance', '### H200 参考数据来源'),
     ('## Scalability & Long-Context Extension', '## 扩展性与长上下文测试'),
     ('### Test Matrix', '### 测试矩阵'),
-    ('### Decode Scalability — 8K Input / 1K Output', '### Decode 扩展性：8K 输入 / 1K 输出'),
-    ('### Core Decode Fresh-Service Repeatability', '### Decode 核心测点的 Fresh-Service（全新服务）复测'),
+    ('### ISL=8K', '### ISL=8K'),
+    ('#### 1P1D Prefill Scalability — 8K Input / 1 Output', '#### 1P1D Prefill 扩展性：8K 输入 / 输出 1'),
+    ('#### 1P1D Decode Scalability — 8K Input / 1K Output', '#### 1P1D Decode 扩展性：8K 输入 / 1K 输出'),
+    ('#### 8K Decode Fresh-Service Repeatability', '#### 8K Decode Fresh-Service（全新服务）复测'),
+    ('### ISL=128K', '### ISL=128K'),
+    ('#### 1P1D Prefill Scalability — 128K Input / 1 Output', '#### 1P1D Prefill 扩展性：128K 输入 / 输出 1'),
+    ('#### 1P1D Decode Scalability — 128K Input / 1K Output', '#### 1P1D Decode 扩展性：128K 输入 / 1K 输出'),
+    ('#### 128K Decode Fresh-Service Repeatability', '#### 128K Decode Fresh-Service（全新服务）复测'),
+    ('### ISL=192K', '### ISL=192K'),
+    ('#### 1P1D Prefill Scalability — 192K Input / 1 Output', '#### 1P1D Prefill 扩展性：192K 输入 / 输出 1'),
+    ('#### 1P1D Decode Scalability — 192K Input / 1K Output', '#### 1P1D Decode 扩展性：192K 输入 / 1K 输出'),
+    ('#### 192K Decode Fresh-Service Repeatability', '#### 192K Decode Fresh-Service（全新服务）复测'),
+    ('### ISL=256K', '### ISL=256K'),
+    ('#### 1P1D Prefill Scalability — Exact 256K Input / 1 Output', '#### 1P1D Prefill 扩展性：精确 256K 输入 / 输出 1'),
+    ('#### 1P1D Decode Scalability — 255K Input / 1K Output', '#### 1P1D Decode 扩展性：255K 输入 / 1K 输出'),
+    ('#### 256K Decode Fresh-Service Repeatability', '#### 256K Decode Fresh-Service（全新服务）复测'),
     ('### Metric Contract', '### 指标口径'),
     ('### 64K Prefill', '### 64K Prefill'),
     ('### 64K Decode — PD Mode (Actual BS4–5)', '### 64K Decode — PD 模式（实测 BS4–5）'),
@@ -49,9 +63,12 @@ BILINGUAL_HEADING_PAIRS = (
     ('### One Request, Three Batch Concepts', '### 一个请求涉及的三类 Batch 概念'),
     ('### What PD Separates, and What Must Still Match', '### PD 可以分别调优什么，哪些契约必须保持一致'),
     ('### Capacity Connects ISL to the Actual Decode Batch', '### ISL 如何约束实际 Decode Batch'),
-    ('### Measured 128K/192K Subset on the 7/13-Derived Runtime', '### 基于7/13环境的128K/192K实测子集'),
-    ('#### Prefill Selected Points', '#### Prefill 选定测点'),
-    ('#### Decode Fixed-BS4 Selected Points', '#### Decode 固定 BS4 选定测点'),
+    ('### Historical Controlled ISL=128K Record on the 7/13-Derived Runtime', '### 基于7/13环境的历史受控 ISL=128K 记录'),
+    ('#### Historical 128K Prefill Point', '#### 历史 128K Prefill 测点'),
+    ('#### Historical 128K Decode Fixed-BS4 Point', '#### 历史 128K Decode 固定 BS4 测点'),
+    ('### Historical Controlled ISL=192K Record on the 7/13-Derived Runtime', '### 基于7/13环境的历史受控 ISL=192K 记录'),
+    ('#### Historical 192K Prefill Point', '#### 历史 192K Prefill 测点'),
+    ('#### Historical 192K Decode Fixed-BS4 Point', '#### 历史 192K Decode 固定 BS4 测点'),
     ('### How to Extend the Length Study Without Mixing Variables', '### 后续如何只改变输入长度而不混入其他变量'),
     ('## Hardware & Software Stack', '## 硬件与软件栈'),
     ('### Compute — Two-Node Azure MI300X Cluster', '### 计算：双节点 Azure MI300X 集群'),
@@ -325,6 +342,75 @@ def check_readmes() -> None:
         assert forbidden not in chinese_prose, f"Translationese remains in README-CN.md: {forbidden}"
 
 
+def check_isl_chapter_layout() -> None:
+    labels = ("8K", "128K", "192K", "256K")
+    for path in READMES:
+        text = path.read_text(encoding="utf-8")
+        chapter_markers = [f"### ISL={label}" for label in labels]
+        metric_marker = "### Metric Contract" if path.name == "README.md" else "### 指标口径"
+        chapter_positions = [text.index(marker) for marker in chapter_markers]
+        assert chapter_positions == sorted(chapter_positions)
+        metric_position = text.index(metric_marker)
+        assert chapter_positions[-1] < metric_position
+        chapter_region = text[chapter_positions[0]:metric_position]
+        assert re.findall(r"^### .+$", chapter_region, re.MULTILINE) == chapter_markers
+
+        canonical_table_schemas: list[tuple[str, str]] | None = None
+        for index, label in enumerate(labels):
+            start = chapter_positions[index]
+            end = chapter_positions[index + 1] if index + 1 < len(labels) else metric_position
+            sections = markdown_sections(text[start:end])
+            assert sections[0][0] == chapter_markers[index]
+            children = sections[1:]
+            assert len(children) == 3, f"{path.name} ISL={label} must have exactly three child sections"
+
+            if path.name == "README.md":
+                prefill_label = "Exact 256K" if label == "256K" else label
+                decode_label = "255K" if label == "256K" else label
+                expected_headings = (
+                    f"#### 1P1D Prefill Scalability — {prefill_label} Input / 1 Output",
+                    f"#### 1P1D Decode Scalability — {decode_label} Input / 1K Output",
+                    f"#### {label} Decode Fresh-Service Repeatability",
+                )
+                observed_marker = "Observed behavior:"
+                evidence_marker = "Machine-readable evidence:"
+            else:
+                prefill_label = "精确 256K" if label == "256K" else label
+                decode_label = "255K" if label == "256K" else label
+                expected_headings = (
+                    f"#### 1P1D Prefill 扩展性：{prefill_label} 输入 / 输出 1",
+                    f"#### 1P1D Decode 扩展性：{decode_label} 输入 / 1K 输出",
+                    f"#### {label} Decode Fresh-Service（全新服务）复测",
+                )
+                observed_marker = "实测现象："
+                evidence_marker = "机器可读证据："
+
+            assert tuple(heading for heading, _ in children) == expected_headings
+            table_schemas: list[tuple[str, str]] = []
+            for child_index, (_, body) in enumerate(children):
+                tables = markdown_table_blocks(body)
+                assert len(tables) == 1, (
+                    f"{path.name} ISL={label} child {child_index + 1} must contain one table"
+                )
+                table_lines = tables[0].splitlines()
+                table_schemas.append((table_lines[0], table_lines[1]))
+                if child_index < 2:
+                    assert body.count(observed_marker) == 1
+                    assert evidence_marker not in body
+                    assert body.index(tables[0]) < body.index(observed_marker)
+                else:
+                    assert observed_marker not in body
+                    assert body.count(evidence_marker) == 1
+                    assert body.index(tables[0]) < body.index(evidence_marker)
+
+            if canonical_table_schemas is None:
+                canonical_table_schemas = table_schemas
+            else:
+                assert table_schemas == canonical_table_schemas, (
+                    f"{path.name} ISL={label} table schema diverges from ISL=8K"
+                )
+
+
 def check_batching_guide() -> None:
     english, chinese = [path.read_text(encoding="utf-8") for path in READMES]
     common_requirements = (
@@ -367,7 +453,7 @@ def check_batching_guide() -> None:
         "Steady-state `4`, peak `5`",
         "Actual Decode batch `16`, queue `0`",
         "Non-PD capacity experiment",
-        "Planning estimates; not measured",
+        "Planning estimate; not measured",
         "is invalid under `context-length=262151`",
         "Reading the Xiaomi Community Protocol: Dynamic Prefill Batching, Targeted Decode Occupancy",
         "c32 is applied pressure, not Prefill BS",
@@ -598,18 +684,32 @@ def check_controlled_isl() -> None:
             "319.71",
         ):
             assert required in text, f"Missing controlled-ISL README value: {required}"
-    for required in ("-13.1%", "-16.0%", "+47.1%", "+75.9%"):
-        assert required in english, f"Missing controlled-ISL English delta: {required}"
-    for required in ("下降 **13.1%**", "下降 **16.0%**", "增加 **47.1%**", "增加 **75.9%**"):
-        assert required in chinese, f"Missing controlled-ISL Chinese delta: {required}"
-    assert "Measured 128K/192K Subset on the 7/13-Derived Runtime" in english
-    assert "基于7/13环境的128K/192K实测子集" in chinese
-    assert "June BS1 boundary diagnostics are not included" in english
-    assert "六月进行的 BS1 边界诊断未纳入这组结果" in chinese
-    assert "separate service launches" in english
-    assert "not a same-service or fresh-service repeatability claim" in english
-    assert "两次独立启动的服务" in chinese
-    assert "不代表同一服务内或服务重启后的重复性" in chinese
+    for forbidden in (
+        "128K → 192K input",
+        "15,943.02 → 13,855.30",
+        "380.56 → 319.71",
+    ):
+        assert forbidden not in english, f"Cross-ISL presentation remains: {forbidden}"
+    for forbidden in (
+        "输入从 128K 增至 192K",
+        "15,943.02 → 13,855.30",
+        "380.56 → 319.71",
+    ):
+        assert forbidden not in chinese, f"跨 ISL 混排仍然存在: {forbidden}"
+    assert "Historical Controlled ISL=128K Record on the 7/13-Derived Runtime" in english
+    assert "Historical Controlled ISL=192K Record on the 7/13-Derived Runtime" in english
+    assert "基于7/13环境的历史受控 ISL=128K 记录" in chinese
+    assert "基于7/13环境的历史受控 ISL=192K 记录" in chinese
+    assert english.count("June BS1 boundary diagnostic is not included") == 2
+    assert chinese.count("六月进行的 BS1 边界诊断未纳入该记录") == 2
+    assert "Both are N=1 records" in english
+    assert "This 192K record remains N=1" in english
+    assert "两项均为 N=1" in chinese
+    assert "这条 192K 记录仍为 N=1" in chinese
+    assert "128K | 1P1D PD" not in english
+    assert "192K | 1P1D PD" not in english
+    assert "| 128K | 单节点 TP8、非 PD" not in chinese
+    assert "| 192K | 单节点 TP8、非 PD" not in chinese
     assert "a 255K actual-BS4 point" in english
     assert "separately measured 255K PD-serving c1 capability point remains valid" in english
     assert "255K actual-BS4 测点" in chinese
@@ -809,15 +909,29 @@ def check_result_tables() -> None:
         concurrency = int(row["concurrency"])
         if row["surface"] == "decode":
             line = (
-                f"| {concurrency} | {throughput:,.2f} | "
+                f"| {concurrency} | — | — | {throughput:,.2f} | "
                 f"{float(row['mean_tpot_ms']):,.2f} | {ttft:,.2f} |"
             )
         else:
             input_tokens = int(row["input_tokens"])
             english_label = {8192: "8K", 65536: "64K", 262144: "Nominal 256K"}[input_tokens]
             chinese_label = {8192: "8K", 65536: "64K", 262144: "名义 256K"}[input_tokens]
-            english_line = f"| {english_label} | {concurrency} | {throughput:,.2f} | {ttft:,.2f} |"
-            chinese_line = f"| {chinese_label} | {concurrency} | {throughput:,.2f} | {ttft:,.2f} |"
+            if row["topology"] == "1P1D" and input_tokens == 8192:
+                english_line = (
+                    f"| {english_label} | {concurrency} | VALIDATED | "
+                    f"{throughput:,.2f} | {ttft:,.2f} | — |"
+                )
+                chinese_line = (
+                    f"| {chinese_label} | {concurrency} | VALIDATED | "
+                    f"{throughput:,.2f} | {ttft:,.2f} | — |"
+                )
+            else:
+                english_line = (
+                    f"| {english_label} | {concurrency} | {throughput:,.2f} | {ttft:,.2f} |"
+                )
+                chinese_line = (
+                    f"| {chinese_label} | {concurrency} | {throughput:,.2f} | {ttft:,.2f} |"
+                )
             assert english_line in readme_texts[0]
             assert chinese_line in readme_texts[1]
             continue
@@ -826,7 +940,8 @@ def check_result_tables() -> None:
 
     for row in repeatability_rows:
         line = (
-            f"| {int(row['concurrency'])} | {float(row['fresh_run_1_output_tok_s']):,.2f} | "
+            f"| {int(row['concurrency'])} | — | "
+            f"{float(row['fresh_run_1_output_tok_s']):,.2f} | "
             f"{float(row['fresh_run_2_output_tok_s']):,.2f} | "
             f"{float(row['throughput_delta_pct']):+.2f}% | "
             f"{float(row['fresh_run_1_mean_tpot_ms']):.2f} / "
@@ -834,6 +949,186 @@ def check_result_tables() -> None:
         )
         for text in readme_texts:
             assert line in text
+
+
+def check_full_long_isl_matrix() -> None:
+    expected = {
+        "128k": {
+            "input_tokens": 131072,
+            "prefill": {
+                1: (16389.66, 7995.96, 8387.76),
+                2: (16711.96, 15280.91, 16227.41),
+                4: (16667.06, 28777.69, 31952.15),
+                8: (16641.77, 49817.65, 63576.07),
+            },
+            "decode": {
+                4: (140.72, 112.79, 5.76, 24639.84),
+                8: (137.62, 117.32, 5.76, 49712.45),
+                16: (138.85, 121.64, 5.81, 98633.02),
+                32: (138.20, 122.32, 5.80, 198594.63),
+            },
+            "repeat": (4, 113.64, 113.37, -0.24, 5.84, 5.86),
+        },
+        "192k": {
+            "input_tokens": 196608,
+            "prefill": {
+                1: (13827.37, 14217.14, 14906.98),
+                2: (14401.79, 26537.49, 27911.73),
+                4: (14402.00, 49755.39, 55124.70),
+                8: (14395.10, 85961.99, 109824.77),
+            },
+            "decode": {
+                2: (129.42, 63.30, 6.34, 22617.83),
+                4: (126.99, 68.15, 6.46, 43550.54),
+                8: (126.14, 70.12, 6.48, 86300.12),
+                16: (125.04, 71.34, 6.19, 171203.13),
+            },
+            "repeat": (4, 67.88, 68.20, 0.47, 6.89, 6.62),
+        },
+        "256k": {
+            "input_tokens": 262144,
+            "prefill": {
+                1: (12631.60, 20751.02, 21048.17),
+                2: (12725.25, 40002.62, 41913.75),
+            },
+            "decode": {
+                1: (131.15, 36.04, 7.16, 21076.57),
+                2: (127.64, 82.19, 3.61, 16441.84),
+                4: (127.84, 162.63, 2.65, 8351.65),
+            },
+            "repeat": (1, 35.97, 35.96, -0.03, 7.15, 7.21),
+        },
+    }
+    readmes = [path.read_text(encoding="utf-8") for path in READMES]
+    digest = re.compile(r"[0-9a-f]{64}")
+
+    for isl, values in expected.items():
+        root = ROOT / "data" / "long-isl" / isl
+        prefill_rows = load_tsv(root / "prefill-results.tsv")
+        decode_rows = load_tsv(root / "decode-results.tsv")
+        repeat_rows = load_tsv(root / "decode-repeatability.tsv")
+        assert len(prefill_rows) == (3 if isl == "256k" else 4)
+        assert len(decode_rows) == len(values["decode"])
+        assert len(repeat_rows) == 1
+
+        for row in prefill_rows:
+            concurrency = int(row["client_concurrency"])
+            assert row["topology"] == "1P1D"
+            assert int(row["input_tokens"]) == values["input_tokens"]
+            assert int(row["output_tokens"]) == 1
+            assert int(row["num_prompts"]) == 16
+            if row["status"] == "REJECTED_BOUNDARY":
+                assert isl == "256k" and concurrency == 4
+                assert row["valid_performance_result"] == "false"
+                assert row["input_tok_s"] == ""
+                assert row["client_log_sha256"] == ""
+                assert "AMDGPU page faults" in row["reason"]
+                continue
+            assert row["status"] == "VALIDATED"
+            assert int(row["successful_requests"]) == 16
+            assert int(row["failed_requests"]) == 0
+            assert int(row["scheduler_modal_new_seq"]) == 1
+            assert int(row["scheduler_peak_new_seq"]) == 1
+            assert int(row["measurement_repetitions"]) == 1
+            actual = (
+                float(row["input_tok_s"]),
+                float(row["mean_ttft_ms"]),
+                float(row["p95_ttft_ms"]),
+            )
+            assert actual == values["prefill"][concurrency]
+            assert digest.fullmatch(row["client_log_sha256"])
+            assert digest.fullmatch(row["scheduler_window_sha256"])
+
+        valid_prefill_throughput = [
+            float(row["input_tok_s"])
+            for row in prefill_rows
+            if row["status"] == "VALIDATED"
+        ]
+        spread_pct = round(
+            (max(valid_prefill_throughput) / min(valid_prefill_throughput) - 1) * 100,
+            1,
+        )
+        expected_spread = {"128k": 2.0, "192k": 4.2, "256k": 0.7}[isl]
+        assert spread_pct == expected_spread
+        assert all(f"**{spread_pct:.1f}%**" in readme for readme in readmes)
+
+        for row in decode_rows:
+            concurrency = int(row["client_concurrency"])
+            assert row["topology"] == "1P1D"
+            assert row["status"] == "VALIDATED"
+            assert int(row["output_tokens"]) == 1024
+            assert int(row["num_prompts"]) == concurrency * 2
+            assert int(row["successful_requests"]) == concurrency * 2
+            assert int(row["failed_requests"]) == 0
+            assert int(row["actual_decode_batch_modal"]) == 1
+            assert int(row["actual_decode_batch_peak"]) == 1
+            assert int(row["measurement_repetitions"]) == 1
+            actual = (
+                float(row["scheduler_gen_tok_s"]),
+                float(row["e2e_output_tok_s"]),
+                float(row["mean_tpot_ms"]),
+                float(row["mean_ttft_ms"]),
+            )
+            assert actual == values["decode"][concurrency]
+            assert digest.fullmatch(row["client_log_sha256"])
+            assert digest.fullmatch(row["scheduler_window_sha256"])
+            if isl == "256k":
+                assert int(row["input_tokens"]) == 261120
+                assert int(row["total_sequence_tokens"]) == 262144
+            else:
+                assert int(row["input_tokens"]) == values["input_tokens"]
+
+        if isl in {"128k", "192k"}:
+            decode_by_concurrency = {
+                int(row["client_concurrency"]): float(row["e2e_output_tok_s"])
+                for row in decode_rows
+            }
+            first = decode_by_concurrency[min(decode_by_concurrency)]
+            last = decode_by_concurrency[max(decode_by_concurrency)]
+            gain_pct = round((last / first - 1) * 100, 1)
+            assert gain_pct == {"128k": 8.4, "192k": 12.7}[isl]
+            assert all(f"**{gain_pct:.1f}%**" in readme for readme in readmes)
+
+        repeat = repeat_rows[0]
+        concurrency, run1, run2, delta, tpot1, tpot2 = values["repeat"]
+        assert int(repeat["client_concurrency"]) == concurrency
+        assert int(repeat["actual_decode_batch_modal"]) == 1
+        assert int(repeat["actual_decode_batch_peak"]) == 1
+        assert int(repeat["measurement_repetitions"]) == 2
+        assert float(repeat["fresh_run_1_output_tok_s"]) == run1
+        assert float(repeat["fresh_run_2_output_tok_s"]) == run2
+        assert float(repeat["throughput_delta_pct"]) == delta
+        assert round((run2 / run1 - 1) * 100, 2) == delta
+        assert float(repeat["fresh_run_1_mean_tpot_ms"]) == tpot1
+        assert float(repeat["fresh_run_2_mean_tpot_ms"]) == tpot2
+        for field in (
+            "fresh_run_1_client_log_sha256",
+            "fresh_run_2_client_log_sha256",
+            "fresh_run_1_scheduler_window_sha256",
+            "fresh_run_2_scheduler_window_sha256",
+        ):
+            assert digest.fullmatch(repeat[field])
+
+        for filename in (
+            "prefill-results.tsv",
+            "decode-results.tsv",
+            "decode-repeatability.tsv",
+        ):
+            target = f"data/long-isl/{isl}/{filename}"
+            assert all(target in readme for readme in readmes)
+
+    assert "not used to fill this rejected full-matrix row" in readmes[0]
+    assert "不能用于回填本次被拒绝的完整矩阵行" in readmes[1]
+    for readme in readmes:
+        for line in readme.splitlines():
+            if not line.startswith("|"):
+                continue
+            labels = sum(label in line for label in ("128K", "192K", "256K"))
+            assert labels <= 1, f"Multiple ISLs mixed in one visible table row: {line}"
+    assert "### Measured 128K/192K Subset" not in readmes[0]
+    assert "### 基于7/13环境的128K/192K实测子集" not in readmes[1]
+    assert "128K/192K actual-BS4" not in readmes[0]
+    assert "128K/192K actual-BS4" not in readmes[1]
 
 
 def check_long_context_decode() -> None:
@@ -1532,9 +1827,11 @@ def main() -> None:
     parser.parse_args()
     checks = (
         ("readmes", check_readmes),
+        ("isl_chapter_layout", check_isl_chapter_layout),
         ("batching_guide", check_batching_guide),
         ("controlled_isl", check_controlled_isl),
         ("result_tables", check_result_tables),
+        ("full_long_isl_matrix", check_full_long_isl_matrix),
         ("long_context_decode", check_long_context_decode),
         ("fixed_batch_decode", check_fixed_batch_decode),
         ("provenance", check_provenance),
