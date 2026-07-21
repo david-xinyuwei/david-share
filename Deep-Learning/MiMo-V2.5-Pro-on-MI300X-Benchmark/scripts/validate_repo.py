@@ -36,6 +36,10 @@ BILINGUAL_HEADING_PAIRS = (
     ('#### 1P1D Prefill Scalability — 8K Input / 1 Output', '#### 1P1D Prefill 扩展性：8K 输入 / 输出 1'),
     ('#### 1P1D Decode Scalability — 8K Input / 1K Output', '#### 1P1D Decode 扩展性：8K 输入 / 1K 输出'),
     ('#### 8K Decode Fresh-Service Repeatability', '#### 8K Decode Fresh-Service（全新服务）复测'),
+    ('### ISL=64K', '### ISL=64K'),
+    ('#### 1P1D Prefill Scalability — 64K Input / 1 Output', '#### 1P1D Prefill 扩展性：64K 输入 / 输出 1'),
+    ('#### 1P1D Decode Scalability — 64K Input / 1K Output', '#### 1P1D Decode 扩展性：64K 输入 / 1K 输出'),
+    ('#### 64K Decode Fresh-Service Repeatability', '#### 64K Decode Fresh-Service（全新服务）复测'),
     ('### ISL=128K', '### ISL=128K'),
     ('#### 1P1D Prefill Scalability — 128K Input / 1 Output', '#### 1P1D Prefill 扩展性：128K 输入 / 输出 1'),
     ('#### 1P1D Decode Scalability — 128K Input / 1K Output', '#### 1P1D Decode 扩展性：128K 输入 / 1K 输出'),
@@ -343,7 +347,7 @@ def check_readmes() -> None:
 
 
 def check_isl_chapter_layout() -> None:
-    labels = ("8K", "128K", "192K", "256K")
+    labels = ("8K", "64K", "128K", "192K", "256K")
     for path in READMES:
         text = path.read_text(encoding="utf-8")
         chapter_markers = [f"### ISL={label}" for label in labels]

@@ -23,6 +23,10 @@
 >
 > **结论边界：** 与 H200 工作簿的 64K BS16 行相比，该结果的相对值为 **70.0%**；与同一镜像下精确长度的 no-CK 基线相比，吞吐提高 **25.7%**。该测量不属于 1P1D PD c16 测试，不验证自然 MTP 接受率，也不验证输出质量。该工作簿没有逐行记录输出长度，J 列的部署范围定义也不明确；双方的部署拓扑、专家路由、接受率方法和指标口径均不相同。BS32–96 仍需 EP 或多节点 Decode 部署，当前不计算硬件比率。
 
+> **ISL=8K 覆盖范围：** 下方独立章节包含 Prefill c1/2/4/8、PD Decode c8/16/32/64/96/128/192，以及 Decode c16/c32/c64/c128 的 N=2 Fresh-Service 复测。
+>
+> **ISL=64K 覆盖范围：** 下方独立章节包含 Prefill c1/2/4/8、PD Decode c16/32/64/96（实测 Decode batch 4–5），以及 N=2 的单节点固定 BS16 固定接受率记录。
+>
 > **ISL=128K 覆盖范围：** 下方独立章节包含 Prefill c1/2/4/8、PD Decode c4/8/16/32，以及 Decode c4 的 N=2 Fresh-Service 复测。所有矩阵测点均通过请求数、Token 账目和 fatal log 验收门。
 >
 > **ISL=192K 覆盖范围：** 下方独立章节包含 Prefill c1/2/4/8、PD Decode c2/4/8/16，以及 Decode c4 的 N=2 Fresh-Service 复测。所有矩阵测点均通过请求数、Token 账目和 fatal log 验收门。
@@ -63,6 +67,18 @@
 | 精确 64K/1K Decode：no-CK → AMD 7/13 最终路径 | 743.12 → 933.75 gen tok/s（**提升 25.7%**）；21.53 → 17.14 ms（**降低 20.4%**） | **最新优化路径明显改善了 64K Decode 效率**，但与 H200 工作簿对应行相比，方向性差距仍然存在。 |
 
 No-CK 与优化路径 A/B 测试的原始样本分别记录在 [`data/validation/decode-fixed-batch-audit.json`](data/validation/decode-fixed-batch-audit.json) 的 `headline_exact.same_image_exact_no_ck` 和 `headline_exact.points` 字段中。脱敏后的客户端摘要和 scheduler 采样窗口位于 [`data/evidence/exact64-fixed-acceptance/`](data/evidence/exact64-fixed-acceptance/)；运行 `python3 scripts/analyze_exact64_evidence.py` 可以校验 manifest（哈希清单），并重新计算两组汇总值和提升幅度。这些公开数据支持独立重算和一致性检查，但不能单独证明私有完整日志的来源与完整性。
+
+把五个长度放在一起看：ISL 增长时，Prefill 吞吐平缓、可预期地下降；PD Decode 则发生质变——实际 Decode batch 从 8K 的数十个请求收缩到 64K 的 4–5，再从 128K 起收缩到 1。这正是长 ISL 的 Decode 吞吐比 Prefill 下降快得多的原因。
+
+| ISL | Prefill 峰值（完整矩阵） | PD Decode E2E Output 范围 | 实测 Decode batch | Fresh-Service N=2 差异 |
+|---|---:|---:|---:|---|
+| 8K | 21,004.97 tok/s（c8） | 930.00–2,500.54 tok/s | 15–55（已审计的 headline 记录） | 最大 2.14%（c16–c128） |
+| 64K | 19,860.45 tok/s（c2） | 265.17–288.66 tok/s | 4–5 | 0.27%（单节点 BS16） |
+| 128K | 16,711.96 tok/s（c2） | 112.79–122.32 tok/s | 1 / 1 | 0.24%（c4） |
+| 192K | 14,402.00 tok/s（c4） | 63.30–71.34 tok/s | 1 / 1 | 0.47%（c4） |
+| 精确 256K | 12,725.25 tok/s（c2；c4 `REJECTED_BOUNDARY`） | 36.04–162.63 tok/s | 1 / 1 | 0.03%（c1） |
+
+下方每个 ISL 章节都是可独立折叠的完整模块，包含该长度的全部 Prefill、Decode 和 Fresh-Service 实测矩阵。
 
 **总体结论：** 受控 Prefill 矩阵从 8K 到 64K 基本持平，接近名义 256K 时明显下降。128K、192K 和 256K 现已分别形成独立的 1P1D PD 客户端并发矩阵，且没有把客户端并发写成 Decode 实际 batch。所有通过验收的长 ISL PD 测点中，实测 Decode batch 均为 1。核心测点具有 N=2 Fresh-Service 复测，其他矩阵测点只有一次通过验收的测量。当前证据支持**“长 ISL 性能测量结果可信”**，但不能据此宣称**“达到 H200 同等性能”**、**“输出质量已经验证”**或自然 MTP 接受率已经验证。
 
@@ -165,6 +181,7 @@ AMD 提供基础启动方案（容器镜像、AITER 调优路径、1P1D/DP=2 拓
 | 1P1D Prefill | 8K、64K、名义 256K / 输出 1 | 1, 2, 4, 8 | 16 |
 | 1P1D ISL=128K Prefill 选定测点 | 128K 输入 / 输出 1 | 客户端并发 4；一次通过验收的测量 | 16 |
 | 1P1D ISL=192K Prefill 选定测点 | 192K 输入 / 输出 1 | 客户端并发 4；一次通过验收的测量 | 16 |
+| 1P1D ISL=64K 汇总矩阵 | 64K 输入 / 输出 1；64K 输入 / 1K 输出 | Prefill：1, 2, 4, 8；Decode：16, 32, 64, 96 | Prefill：16；Decode：并发 × 2；Fresh 固定 BS16 单节点：N=2 |
 | 1P1D ISL=128K 完整矩阵 | 128K 输入 / 输出 1；128K 输入 / 1K 输出 | Prefill：1, 2, 4, 8；Decode：4, 8, 16, 32 | Prefill：16；Decode：并发 × 2；Fresh Decode c4：N=2 |
 | 1P1D ISL=192K 完整矩阵 | 192K 输入 / 输出 1；192K 输入 / 1K 输出 | Prefill：1, 2, 4, 8；Decode：2, 4, 8, 16 | Prefill：16；Decode：并发 × 2；Fresh Decode c4：N=2 |
 | 1P1D ISL=256K 完整矩阵 | 精确 256K 输入 / 输出 1；255K 输入 / 1K 输出 | Prefill：1, 2, 4；Decode：1, 2, 4 | Prefill：16；Decode：并发 × 2；Fresh Decode c1：N=2 |
@@ -173,6 +190,9 @@ AMD 提供基础启动方案（容器镜像、AITER 调优路径、1P1D/DP=2 拓
 以下表格展示实测扩展性结果。Decode 核心生产并发测点还单独做了两次全新服务复测。
 
 ### ISL=8K
+
+<details open>
+<summary><b>ISL=8K —— 完整矩阵（Prefill / Decode / Fresh-Service）</b></summary>
 
 #### 1P1D Prefill 扩展性：8K 输入 / 输出 1
 
@@ -219,7 +239,58 @@ AMD 提供基础启动方案（容器镜像、AITER 调优路径、1P1D/DP=2 拓
 
 机器可读证据：[Prefill 与 Decode](data/scalability-results.tsv)、[Fresh-Service](data/decode-repeatability.tsv)和[scheduler 审计](data/validation/decode-service-log-audit-8k.json)。
 
+</details>
+
+### ISL=64K
+
+<details open>
+<summary><b>ISL=64K —— 完整矩阵（Prefill / Decode / Fresh-Service）</b></summary>
+
+#### 1P1D Prefill 扩展性：64K 输入 / 输出 1
+
+| 输入长度 | 客户端并发 | 状态 | Input tok/s | 平均 TTFT (ms) | P95 TTFT (ms) |
+|---:|---:|---|---:|---:|---:|
+| 64K | 1 | VALIDATED | 18,057.01 | 3,628.49 | — |
+| 64K | 2 | VALIDATED | 19,860.45 | 6,481.41 | — |
+| 64K | 4 | VALIDATED | 18,763.17 | 12,970.83 | — |
+| 64K | 8 | VALIDATED | 18,765.43 | 22,530.68 | — |
+
+实测现象：
+
+- Input 吞吐在客户端并发 2 时达到峰值 **19,860.45 tok/s**；并发 4–8 时保持在 **18,763.17**–**18,765.43 tok/s** 之间。
+- 平均 TTFT 从并发 1 时的 **3,628.49 ms** 增至并发 8 时的 **22,530.68 ms**。
+
+#### 1P1D Decode 扩展性：64K 输入 / 1K 输出
+
+| 客户端并发 | 实测 Decode batch | Scheduler gen tok/s | E2E Output tok/s | 平均 TPOT (ms) | 平均 TTFT (ms) | H200 参考 |
+|---:|---:|---:|---:|---:|---:|---:|
+| 16 | 4 / 5 | 267.97 | 265.17 | 11.94 | 37,571.24 | 1,333.89 tok/s / 11.99 ms (BS16) |
+| 32 | 4 / 4 | 276.74 | 276.59 | 11.76 | 80,228.37 | 2,235.53 tok/s / 14.31 ms (BS32) |
+| 64 | 4 / 5 | 282.81 | 284.00 | 11.75 | 165,190.68 | 3,919.78 tok/s / 16.33 ms (BS64) |
+| 96 | 4 / 5 | 287.77 | 288.66 | 11.55 | 248,339.44 | 4,891.59 tok/s / 19.63 ms (BS96) |
+
+实测现象：
+
+- 64K 上下文的 KV 占用把实测 Decode batch 限制在 4–5，客户端并发 16–96 无法提高活跃 batch。
+- 客户端并发从 16 增至 96 时，E2E Output 吞吐仅提高 **8.9%**，平均 TTFT 则从 **37,571.24 ms** 增至 **248,339.44 ms**。
+- 上表 H200 参考行对应 BS16–96，而 MI300X 实测 batch 只有 4–5，因此这些比值并非 batch 对齐比较；batch 对齐的 BS16 视角见下方固定 batch 记录。
+
+#### 64K Decode Fresh-Service（全新服务）复测
+
+| 客户端并发 | 实测 Decode batch | 第 1 轮 Output tok/s | 第 2 轮 Output tok/s | 吞吐差异 | TPOT 第 1 轮 / 第 2 轮 (ms) |
+|---:|---:|---:|---:|---:|---:|
+| 16 | 16 / 16 | 224.26 | 223.66 | -0.27% | 42.63 / 42.67 |
+
+两轮全新服务测试的客户端 E2E Output 吞吐相差 **0.27%**。该 N=2 记录来自单节点、非 PD、精确 64K、固定 BS16、固定接受率测试，不是 PD 部署测点；其稳态 scheduler 生成吞吐为 931.58 / 935.92 tok/s，按 BS16 折算 TPOT 为 17.14 ms。上方 PD 模式的 64K 矩阵测点均只有一次通过验收的测量。
+
+机器可读证据：[Prefill](data/scalability-results.tsv)、[Decode](data/decode-long-context-results.tsv)、[Fresh-Service](data/decode-fixed-batch-results.tsv)和[scheduler 审计](data/validation/decode-service-log-audit.json)。
+
+</details>
+
 ### ISL=128K
+
+<details open>
+<summary><b>ISL=128K —— 完整矩阵（Prefill / Decode / Fresh-Service）</b></summary>
 
 #### 1P1D Prefill 扩展性：128K 输入 / 输出 1
 
@@ -261,7 +332,12 @@ AMD 提供基础启动方案（容器镜像、AITER 调优路径、1P1D/DP=2 拓
 
 机器可读证据：[Prefill](data/long-isl/128k/prefill-results.tsv)、[Decode](data/long-isl/128k/decode-results.tsv)和[Fresh-Service](data/long-isl/128k/decode-repeatability.tsv)。
 
+</details>
+
 ### ISL=192K
+
+<details open>
+<summary><b>ISL=192K —— 完整矩阵（Prefill / Decode / Fresh-Service）</b></summary>
 
 #### 1P1D Prefill 扩展性：192K 输入 / 输出 1
 
@@ -303,7 +379,12 @@ AMD 提供基础启动方案（容器镜像、AITER 调优路径、1P1D/DP=2 拓
 
 机器可读证据：[Prefill](data/long-isl/192k/prefill-results.tsv)、[Decode](data/long-isl/192k/decode-results.tsv)和[Fresh-Service](data/long-isl/192k/decode-repeatability.tsv)。
 
+</details>
+
 ### ISL=256K
+
+<details open>
+<summary><b>ISL=256K —— 完整矩阵（Prefill / Decode / Fresh-Service）</b></summary>
 
 #### 1P1D Prefill 扩展性：精确 256K 输入 / 输出 1
 
@@ -344,6 +425,7 @@ AMD 提供基础启动方案（容器镜像、AITER 调优路径、1P1D/DP=2 拓
 
 机器可读证据：[Prefill](data/long-isl/256k/prefill-results.tsv)、[Decode](data/long-isl/256k/decode-results.tsv)和[Fresh-Service](data/long-isl/256k/decode-repeatability.tsv)。
 
+</details>
 
 ### 指标口径
 

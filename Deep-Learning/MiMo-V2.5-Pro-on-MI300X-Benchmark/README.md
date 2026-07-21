@@ -19,6 +19,10 @@ English | [中文版](README-CN.md) | [Validation Evidence](data/validation/)
 
 > **Comparison status:** on the input side, MI300X reaches **18,983.91 input tok/s** at 64K and concurrency 4 versus the customer H200 saturation reference of **27,400 input tok/s**; the H200 workbook does not record the matching input concurrency. On the output side, the final AMD 7/13-derived AITER/CK path reaches **933.75 scheduler gen tok/s** in a **single-node, non-PD**, exact-64K, fixed-BS16, **fixed-acceptance performance benchmark**, the mean of two fresh-service runs (**931.58 / 935.92 tok/s**, **0.47%** repeat delta), with an implied TPOT of **17.14 ms**. This is a **70.0% worksheet-local directional arithmetic ratio** against the customer workbook's 64K BS16 row and **25.7% above** the same-image exact no-CK baseline. It is not the 1P1D PD c16 record, not a natural-MTP-acceptance result, and not an output-quality result. The H200 workbook has no row-level output length, its Column J scope is ambiguous, and topology, routing, acceptance method, and metric scope differ. Higher batch sizes (BS32–96) still require an EP/multi-node Decode deployment and carry no hardware ratio.
 
+> **ISL=8K coverage:** the independent section below reports Prefill c1/2/4/8 and PD Decode c8/16/32/64/96/128/192, with N=2 Fresh-Service repeats at Decode c16/c32/c64/c128.
+>
+> **ISL=64K coverage:** the independent section below reports Prefill c1/2/4/8 and PD Decode c16/32/64/96 at observed Decode batch 4–5, plus the N=2 single-node fixed-BS16 fixed-acceptance record.
+>
 > **ISL=128K coverage:** the independent section below reports Prefill c1/2/4/8, PD Decode c4/8/16/32, and an N=2 Fresh-Service repeat at Decode c4. All matrix points pass their request, token-accounting, and fatal-log gates.
 >
 > **ISL=192K coverage:** the independent section below reports Prefill c1/2/4/8, PD Decode c2/4/8/16, and an N=2 Fresh-Service repeat at Decode c4. All matrix points pass their request, token-accounting, and fatal-log gates.
@@ -57,6 +61,18 @@ English | [中文版](README-CN.md) | [Validation Evidence](data/validation/)
 | Exact 64K/1K Decode: no-CK → final AMD 7/13-derived path | 743.12 → 933.75 gen tok/s (**+25.7%**); 21.53 → 17.14 ms (**-20.4%**) | **The latest optimized path materially recovers 64K Decode efficiency**, although it does not close the directional gap to the H200 worksheet row. |
 
 The no-CK and optimized A/B source samples are recorded under `headline_exact.same_image_exact_no_ck` and `headline_exact.points` in [`data/validation/decode-fixed-batch-audit.json`](data/validation/decode-fixed-batch-audit.json). The sanitized client summaries and scheduler windows are public in [`data/evidence/exact64-fixed-acceptance/`](data/evidence/exact64-fixed-acceptance/); `python3 scripts/analyze_exact64_evidence.py` verifies their manifest and rebuilds both aggregates and the uplift. This supports independent recomputation and consistency checking of the disclosed sanitized windows; it does not independently establish the provenance or completeness of the privately archived full logs.
+
+Reading the five lengths together: Prefill throughput declines gently and predictably as ISL grows, while the PD Decode surface changes character — the actual Decode batch collapses from tens of requests at 8K to 4–5 at 64K and to 1 from 128K onward. This is why long-ISL Decode throughput falls much faster than Prefill throughput.
+
+| ISL | Prefill peak (complete matrix) | PD Decode E2E Output range | Observed Decode batch | Fresh-Service N=2 delta |
+|---|---:|---:|---:|---|
+| 8K | 21,004.97 tok/s (c8) | 930.00–2,500.54 tok/s | 15–55 (audited headline records) | max 2.14% (c16–c128) |
+| 64K | 19,860.45 tok/s (c2) | 265.17–288.66 tok/s | 4–5 | 0.27% (single-node BS16) |
+| 128K | 16,711.96 tok/s (c2) | 112.79–122.32 tok/s | 1 / 1 | 0.24% (c4) |
+| 192K | 14,402.00 tok/s (c4) | 63.30–71.34 tok/s | 1 / 1 | 0.47% (c4) |
+| Exact 256K | 12,725.25 tok/s (c2; c4 `REJECTED_BOUNDARY`) | 36.04–162.63 tok/s | 1 / 1 | 0.03% (c1) |
+
+Each ISL section below is a self-contained, collapsible module containing its complete measured Prefill, Decode, and Fresh-Service matrices.
 
 **Overall conclusion:** the controlled Prefill matrix stays flat from 8K to 64K and drops materially near nominal 256K. The separately reported 128K, 192K, and 256K sections now establish the tested 1P1D PD client-concurrency matrices without treating client concurrency as the actual Decode batch. The observed Decode batch remains 1 in every accepted long-ISL PD point. Selected core points have N=2 Fresh-Service repeatability; the remaining matrix points have one accepted measurement. The evidence supports **“credible long-ISL performance measurement,” not “H200 parity,” “validated output quality,” or natural-MTP-acceptance claims.**
 
@@ -159,6 +175,7 @@ AMD provided the base launch method (container image, tuned AITER path, 1P1D/DP=
 | 1P1D Prefill | 8K, 64K, nominal 256K / 1 output | 1, 2, 4, 8 | 16 |
 | 1P1D selected ISL=128K Prefill | 128K input / 1 output | Client concurrency 4; one accepted measurement | 16 |
 | 1P1D selected ISL=192K Prefill | 192K input / 1 output | Client concurrency 4; one accepted measurement | 16 |
+| 1P1D ISL=64K assembled matrix | 64K input / 1 output; 64K input / 1K output | Prefill: 1, 2, 4, 8; Decode: 16, 32, 64, 96 | Prefill: 16; Decode: 2 × concurrency; Fresh fixed-BS16 single-node: N=2 |
 | 1P1D ISL=128K full matrix | 128K input / 1 output; 128K input / 1K output | Prefill: 1, 2, 4, 8; Decode: 4, 8, 16, 32 | Prefill: 16; Decode: 2 × concurrency; Fresh Decode c4: N=2 |
 | 1P1D ISL=192K full matrix | 192K input / 1 output; 192K input / 1K output | Prefill: 1, 2, 4, 8; Decode: 2, 4, 8, 16 | Prefill: 16; Decode: 2 × concurrency; Fresh Decode c4: N=2 |
 | 1P1D ISL=256K full matrix | Exact 256K input / 1 output; 255K input / 1K output | Prefill: 1, 2, 4; Decode: 1, 2, 4 | Prefill: 16; Decode: 2 × concurrency; Fresh Decode c1: N=2 |
@@ -167,6 +184,9 @@ AMD provided the base launch method (container image, tuned AITER path, 1P1D/DP=
 The tables below present the measured scalability results. The core Decode production points were separately repeated on fresh services.
 
 ### ISL=8K
+
+<details open>
+<summary><b>ISL=8K — full matrix (Prefill / Decode / Fresh-Service)</b></summary>
 
 #### 1P1D Prefill Scalability — 8K Input / 1 Output
 
@@ -213,7 +233,58 @@ The maximum absolute two-run throughput delta is **2.14%** across the four repea
 
 Machine-readable evidence: [Prefill and Decode](data/scalability-results.tsv), [Fresh-Service](data/decode-repeatability.tsv), and [scheduler audit](data/validation/decode-service-log-audit-8k.json).
 
+</details>
+
+### ISL=64K
+
+<details open>
+<summary><b>ISL=64K — full matrix (Prefill / Decode / Fresh-Service)</b></summary>
+
+#### 1P1D Prefill Scalability — 64K Input / 1 Output
+
+| Input | Client concurrency | Status | Input tok/s | Mean TTFT (ms) | P95 TTFT (ms) |
+|---:|---:|---|---:|---:|---:|
+| 64K | 1 | VALIDATED | 18,057.01 | 3,628.49 | — |
+| 64K | 2 | VALIDATED | 19,860.45 | 6,481.41 | — |
+| 64K | 4 | VALIDATED | 18,763.17 | 12,970.83 | — |
+| 64K | 8 | VALIDATED | 18,765.43 | 22,530.68 | — |
+
+Observed behavior:
+
+- Input throughput peaks at **19,860.45 tok/s** at concurrency 2 and holds between **18,763.17** and **18,765.43 tok/s** at concurrency 4–8.
+- Mean TTFT rises from **3,628.49 ms** at concurrency 1 to **22,530.68 ms** at concurrency 8.
+
+#### 1P1D Decode Scalability — 64K Input / 1K Output
+
+| Client concurrency | Observed Decode batch | Scheduler gen tok/s | E2E Output tok/s | Mean TPOT (ms) | Mean TTFT (ms) | H200 Reference |
+|---:|---:|---:|---:|---:|---:|---:|
+| 16 | 4 / 5 | 267.97 | 265.17 | 11.94 | 37,571.24 | 1,333.89 tok/s / 11.99 ms (BS16) |
+| 32 | 4 / 4 | 276.74 | 276.59 | 11.76 | 80,228.37 | 2,235.53 tok/s / 14.31 ms (BS32) |
+| 64 | 4 / 5 | 282.81 | 284.00 | 11.75 | 165,190.68 | 3,919.78 tok/s / 16.33 ms (BS64) |
+| 96 | 4 / 5 | 287.77 | 288.66 | 11.55 | 248,339.44 | 4,891.59 tok/s / 19.63 ms (BS96) |
+
+Observed behavior:
+
+- The 64K KV footprint caps the observed Decode batch at 4–5 across client concurrency 16–96; client pressure does not raise the active batch.
+- E2E Output throughput increases only **8.9%** from concurrency 16 to 96, while mean TTFT grows from **37,571.24 ms** to **248,339.44 ms**.
+- The H200 reference rows are at BS16–96 while the MI300X observed batch stays 4–5, so these ratios are not batch-aligned; the batch-aligned BS16 view is the fixed-batch record below.
+
+#### 64K Decode Fresh-Service Repeatability
+
+| Client concurrency | Observed Decode batch | Fresh run 1 Output tok/s | Fresh run 2 Output tok/s | Throughput delta | TPOT run 1 / run 2 (ms) |
+|---:|---:|---:|---:|---:|---:|
+| 16 | 16 / 16 | 224.26 | 223.66 | -0.27% | 42.63 / 42.67 |
+
+The two fresh-service runs differ by **0.27%** in client E2E Output throughput. This N=2 record is the single-node, non-PD, exact-64K, fixed-BS16, fixed-acceptance run — not a PD deployment point; its steady scheduler generation is 931.58 / 935.92 tok/s with an implied TPOT of 17.14 ms at BS16. Each PD-mode 64K matrix point above has one accepted measurement.
+
+Machine-readable evidence: [Prefill](data/scalability-results.tsv), [Decode](data/decode-long-context-results.tsv), [Fresh-Service](data/decode-fixed-batch-results.tsv), and [scheduler audit](data/validation/decode-service-log-audit.json).
+
+</details>
+
 ### ISL=128K
+
+<details open>
+<summary><b>ISL=128K — full matrix (Prefill / Decode / Fresh-Service)</b></summary>
 
 #### 1P1D Prefill Scalability — 128K Input / 1 Output
 
@@ -255,7 +326,12 @@ The two fresh-service runs differ by **0.24%** in E2E Output throughput. This re
 
 Machine-readable evidence: [Prefill](data/long-isl/128k/prefill-results.tsv), [Decode](data/long-isl/128k/decode-results.tsv), and [Fresh-Service](data/long-isl/128k/decode-repeatability.tsv).
 
+</details>
+
 ### ISL=192K
+
+<details open>
+<summary><b>ISL=192K — full matrix (Prefill / Decode / Fresh-Service)</b></summary>
 
 #### 1P1D Prefill Scalability — 192K Input / 1 Output
 
@@ -297,7 +373,12 @@ The two fresh-service runs differ by **0.47%** in E2E Output throughput. This re
 
 Machine-readable evidence: [Prefill](data/long-isl/192k/prefill-results.tsv), [Decode](data/long-isl/192k/decode-results.tsv), and [Fresh-Service](data/long-isl/192k/decode-repeatability.tsv).
 
+</details>
+
 ### ISL=256K
+
+<details open>
+<summary><b>ISL=256K — full matrix (Prefill / Decode / Fresh-Service)</b></summary>
 
 #### 1P1D Prefill Scalability — Exact 256K Input / 1 Output
 
@@ -337,6 +418,8 @@ Observed behavior:
 The two fresh-service runs differ by **0.03%** in E2E Output throughput. This repeat confirms the concurrency-1 point only; the concurrency-2 and concurrency-4 Decode points each have one accepted measurement.
 
 Machine-readable evidence: [Prefill](data/long-isl/256k/prefill-results.tsv), [Decode](data/long-isl/256k/decode-results.tsv), and [Fresh-Service](data/long-isl/256k/decode-repeatability.tsv).
+
+</details>
 
 ### Metric Contract
 
