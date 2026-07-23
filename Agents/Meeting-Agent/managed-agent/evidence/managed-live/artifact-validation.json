@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "runs": {
+    "live-product-planning": {
+      "session_id": "product-planning",
+      "analysis_sha256": "e87a6b96f62ca039473282365ff7fdd016618067e711d8e55e859a72413df2ef",
+      "title": "Assistant Pilot Planning Meeting",
+      "png": {
+        "format": "PNG",
+        "size": [
+          1280,
+          720
+        ],
+        "bytes": 23574,
+        "nonblank_extrema": [
+          [
+            0,
+            255
+          ],
+          [
+            26,
+            255
+          ],
+          [
+            0,
+            255
+          ]
+        ]
+      },
+      "pptx": {
+        "slides": 6,
+        "bytes": 57957,
+        "all_slides_have_text": true
+      },
+      "eml": {
+        "x_unsent": "1",
+        "recipient_count": 0,
+        "attachments": [
+          "mind-map.png",
+          "meeting-summary.pptx"
+        ],
+        "bytes": 144871
+      }
+    },
+    "live-operations-review": {
+      "session_id": "operations-review",
+      "analysis_sha256": "52919943a30afa727cef8605a21b5215f65687e240017f537d65b3213e1104f3",
+      "title": "Service Incident Review and Alert Planning",
+      "png": {
+        "format": "PNG",
+        "size": [
+          1280,
+          720
+        ],
+        "bytes": 27409,
+        "nonblank_extrema": [
+          [
+            0,
+            255
+          ],
+          [
+            26,
+            255
+          ],
+          [
+            0,
+            255
+          ]
+        ]
+      },
+      "pptx": {
+        "slides": 6,
+        "bytes": 61083,
+        "all_slides_have_text": true
+      },
+      "eml": {
+        "x_unsent": "1",
+        "recipient_count": 0,
+        "attachments": [
+          "mind-map.png",
+          "meeting-summary.pptx"
+        ],
+        "bytes": 159426
+      }
+    }
+  },
+  "cross_input_analysis_differs": true
+}

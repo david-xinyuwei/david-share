@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "baseline_repository": "https://github.com/david-xinyuwei/david-share",
+  "baseline_commit": "667357dac6ee2dc30102d572c458c77861112bea",
+  "validated_at_utc": "2026-07-23T09:51:57.027104+00:00",
+  "comparison": "byte-for-byte SHA-256 equality",
+  "entries": [
+    {
+      "baseline_path": "Agents/Meeting-Agent/src/meeting_agent/models.py",
+      "managed_path": "Agents/Meeting-Agent/managed-agent/src/meeting_agent/models.py",
+      "sha256": "cec11f922f5dc8a61333e4673ff070759dd6296e720046dca6b68bca4b0cefde"
+    },
+    {
+      "baseline_path": "Agents/Meeting-Agent/src/meeting_agent/session.py",
+      "managed_path": "Agents/Meeting-Agent/managed-agent/src/meeting_agent/session.py",
+      "sha256": "cf23289f174bae20c4ce14882c13650e378ed9e80358edb5a069de679ffd0a9d"
+    },
+    {
+      "baseline_path": "Agents/Meeting-Agent/src/meeting_agent/draft.py",
+      "managed_path": "Agents/Meeting-Agent/managed-agent/src/meeting_agent/draft.py",
+      "sha256": "c660f31814998e5203774d3007c3b993ba7d5a956f4e87f7f5cd9e4ccf563fbd"
+    },
+    {
+      "baseline_path": "Agents/Meeting-Agent/src/meeting_agent/hosted_models.py",
+      "managed_path": "Agents/Meeting-Agent/managed-agent/src/meeting_agent/hosted_models.py",
+      "sha256": "45975dc49cd9710e473820f8c74f17c4c45e47d9ed8bd4bda7199148cb828866"
+    },
+    {
+      "baseline_path": "Agents/Meeting-Agent/src/meeting_agent/hosted_pipeline.py",
+      "managed_path": "Agents/Meeting-Agent/managed-agent/src/meeting_agent/hosted_pipeline.py",
+      "sha256": "a4076f9778e9c34b869fc8695d62656ca082858454873ca62db618d91dcaf0c4"
+    },
+    {
+      "baseline_path": "Agents/Meeting-Agent/ui/src/input.ts",
+      "managed_path": "Agents/Meeting-Agent/managed-agent/ui/src/input.ts",
+      "sha256": "0ddc82492a26055516e4d53941a8d3af70674d7e90ac6e3b46678b3d776801c9"
+    },
+    {
+      "baseline_path": "Agents/Meeting-Agent/ui/src/mind-map-export.ts",
+      "managed_path": "Agents/Meeting-Agent/managed-agent/ui/src/mind-map-export.ts",
+      "sha256": "bbd8e047f28a481ccbf89461dbdc35e3d7a39cffcdfeeb7ebaa1a5cc7f87e4ac"
+    },
+    {
+      "baseline_path": "Agents/Meeting-Agent/ui/server/outlook.mjs",
+      "managed_path": "Agents/Meeting-Agent/managed-agent/ui/server/outlook.mjs",
+      "sha256": "4044e0465361407256daf9445b992c9e70687600c1b607f99b7e20abae7825f5"
+    }
+  ]
+}

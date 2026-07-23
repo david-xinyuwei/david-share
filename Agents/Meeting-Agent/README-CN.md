@@ -11,6 +11,25 @@
 
 **中文** | [English](README.md) | [源码](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Meeting-Agent)
 
+## 一个Meeting Agent，两条实现路径
+
+本Repo包含同一个Meeting Agent产品契约的两条实现：
+
+| 维度 | Classic Direct Responses实现 | 使用Managed GHCP Harness的Foundry Prompt Agent实现 |
+|---|---|---|
+| 位置 | Repo根目录 | [`managed-agent/`](managed-agent/) |
+| 模型循环责任方 | 本机应用代码 | Foundry托管的GHCP Harness |
+| 模型访问 | 直接调用Azure OpenAI Responses | 调用Foundry Agent Responses Endpoint |
+| 认证 | 本机Backend进程使用API Key | Entra ID；客户主路径不使用模型API Key |
+| Skill生命周期 | 应用代码加载本机`SKILL.md` | 版本化Foundry Skill通过Toolbox MCP绑定 |
+| 产物与UI契约 | JSON、Mermaid、SVG、PNG、可编辑PPTX、EML、浏览器UI、New Outlook草稿 | 完全相同；八个共用核心模块逐字节一致 |
+| 客户代码责任 | 负责模型请求构造与编排 | 负责事件校验、产物与Outlook交接；Foundry负责模型循环 |
+| 适用场景 | 需要最大直接控制，以及GA风格API简洁性 | 希望减少编排责任、使用托管Skill生命周期和平台治理Agent Runtime |
+
+Classic路径是**本机prompt-style编排**，并不是已经部署的Foundry Prompt Agent。这个口径能准确隔离Managed Agent带来的责任转移，不会把早期实现包装成不存在的产品能力。
+
+详见[Managed实现](managed-agent/README-CN.md)和[功能等价证据](managed-agent/FEATURE-PARITY-CN.md)。
+
 ## 演示视频
 
 https://github.com/user-attachments/assets/023f22f0-31f2-4039-85f0-e22712770ff2

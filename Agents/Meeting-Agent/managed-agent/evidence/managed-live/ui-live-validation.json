@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "runtime": {
+    "agent": "managed-meeting-agent",
+    "version": "1",
+    "authentication": "Entra",
+    "fixture": false
+  },
+  "playwright": {
+    "project": "desktop",
+    "expected": 1,
+    "unexpected": 0,
+    "flaky": 0,
+    "test_duration_ms": 21621,
+    "result": "passed"
+  },
+  "validated": [
+    "managed runtime label",
+    "real streamed model output",
+    "six completed stages",
+    "input-grounded analysis",
+    "mind-map rendering",
+    "analysis JSON download",
+    "PowerPoint ZIP signature",
+    "X-Unsent EML with PNG and PPTX attachments"
+  ],
+  "resource_identifiers": "redacted; public alias used"
+}

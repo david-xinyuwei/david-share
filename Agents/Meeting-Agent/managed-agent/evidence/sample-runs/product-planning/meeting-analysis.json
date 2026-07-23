@@ -1,0 +1,62 @@
+{
+  "title": "We agreed to launch the assistant pilot with the support team in March.",
+  "summary": "We agreed to launch the assistant pilot with the support team in March. Mina will follow up with security and prepare the pilot checklist. Can the pilot support multilingual meeting notes? Visual context: The shared roadmap shows three phases: prototype, pilot, and rollout.",
+  "topics": [
+    "We agreed to launch the assistant pilot with the support team in March.",
+    "Mina will follow up with security and prepare the pilot checklist.",
+    "Can the pilot support multilingual meeting notes?"
+  ],
+  "decisions": [
+    "We agreed to launch the assistant pilot with the support team in March."
+  ],
+  "action_items": [
+    {
+      "description": "Mina will follow up with security and prepare the pilot checklist.",
+      "owner": null,
+      "due": null
+    }
+  ],
+  "open_questions": [
+    "Can the pilot support multilingual meeting notes?"
+  ],
+  "mind_map": {
+    "label": "We agreed to launch the assistant pilot with the support team in March.",
+    "children": [
+      {
+        "label": "Topics",
+        "children": [
+          {
+            "label": "We agreed to launch the assistant pilot with the support team in March.",
+            "children": []
+          },
+          {
+            "label": "Mina will follow up with security and prepare the pilot checklist.",
+            "children": []
+          },
+          {
+            "label": "Can the pilot support multilingual meeting notes?",
+            "children": []
+          }
+        ]
+      },
+      {
+        "label": "Decisions",
+        "children": [
+          {
+            "label": "We agreed to launch the assistant pilot with the support team in March.",
+            "children": []
+          }
+        ]
+      },
+      {
+        "label": "Actions",
+        "children": [
+          {
+            "label": "Mina will follow up with security and prepare the pilot checklist.",
+            "children": []
+          }
+        ]
+      }
+    ]
+  }
+}

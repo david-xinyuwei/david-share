@@ -1,0 +1,6 @@
+{"event_id":"ops-001","session_id":"operations-review","sequence":1,"timestamp":"2026-01-16T13:30:01Z","kind":"transcript.partial","text":"The service recovered","metadata":{"source":"local-asr"}}
+{"event_id":"ops-002","session_id":"operations-review","sequence":2,"timestamp":"2026-01-16T13:30:04Z","kind":"transcript.final","text":"The service recovered after the database connection pool was reset.","metadata":{"source":"local-asr"}}
+{"event_id":"ops-003","session_id":"operations-review","sequence":3,"timestamp":"2026-01-16T13:30:06Z","kind":"visual.frame","text":"The dashboard shows latency returned to the normal range after 13:18 UTC.","image_uri":"frame://dashboard-002","metadata":{"source":"screen-share"}}
+{"event_id":"ops-004","session_id":"operations-review","sequence":4,"timestamp":"2026-01-16T13:30:09Z","kind":"transcript.final","text":"The team decided to add pool saturation alerts before the next release.","metadata":{"source":"local-asr"}}
+{"event_id":"ops-005","session_id":"operations-review","sequence":5,"timestamp":"2026-01-16T13:30:12Z","kind":"transcript.final","text":"DevOps will follow up with a load test and update the runbook.","metadata":{"source":"local-asr"}}
+{"event_id":"ops-006","session_id":"operations-review","sequence":6,"timestamp":"2026-01-16T13:30:15Z","kind":"meeting.end","metadata":{"source":"meeting-host"}}

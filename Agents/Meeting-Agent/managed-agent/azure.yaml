@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+
+requiredVersions:
+    extensions:
+        azure.ai.agents: '>=0.1.0-preview'
+name: managed-meeting-agent
+services:
+    managed-meeting-agent:
+        project: .
+        host: azure.ai.agent
+        config:
+            deployments:
+                - model:
+                      format: OpenAI-OSS
+                      name: gpt-oss-120b
+                      version: "1"
+                  name: gpt-oss-120b
+                  sku:
+                      capacity: 1
+                      name: GlobalStandard
+            promptAgent:
+                apiVersion: v1
+                baseUrl: https://ai.azure.com/api
+                modelEndpoint: ${AZURE_AI_MODEL_ENDPOINT}
+                projectEndpoint: ${AZURE_AI_PROJECT_ENDPOINT}
+                resourceGroup: ${AZURE_RESOURCE_GROUP}
+                subscriptionId: ${AZURE_SUBSCRIPTION_ID}
+                workspace: ${AZURE_AI_PROJECT_NAME}

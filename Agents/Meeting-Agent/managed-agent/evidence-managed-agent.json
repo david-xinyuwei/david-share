@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "agent": {
+    "name": "managed-meeting-agent",
+    "version": "1",
+    "status": "active",
+    "kind": "prompt",
+    "harness": "ghcp",
+    "model": "gpt-oss-120b",
+    "tool_count": 1,
+    "protocols": [
+      "responses"
+    ],
+    "authentication": [
+      "Entra"
+    ]
+  },
+  "validation": {
+    "source": "live Foundry agent GET response",
+    "resource_identifiers": "redacted; public alias used",
+    "validated_at_utc": "2026-07-23T04:37:30Z",
+    "source_baseline": "local pre-publication tree; public commit pending",
+    "assertions_passed": true,
+    "identities_and_tenant_urls_redacted": true,
+    "scope": "historical validation snapshot; revalidate after deployment"
+  }
+}

@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools==83.0.0", "wheel==0.46.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "meeting-agent"
+version = "0.1.0"
+description = "A provider-neutral multimodal meeting pipeline with a human-controlled New Outlook draft handoff."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "Xinyu Wei" }]
+dependencies = [
+  "azure-ai-agentserver-invocations==1.0.0b6",
+  "azure-identity==1.25.3",
+  "filelock==3.29.7",
+  "httpx==0.28.1",
+  "Pillow==12.3.0",
+  "pydantic==2.10.4",
+  "python-pptx==1.0.2"
+]
+
+[project.scripts]
+meeting-agent = "meeting_agent.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+meeting_agent = ["skills/*/*.md", "templates/*.zip"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]

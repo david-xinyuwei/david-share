@@ -1,0 +1,7 @@
+{
+  "uri": "skill://meeting-package/SKILL.md",
+  "sha256": "102d3ffaf2baed277aa8140d811a53c35c0c2dde330e782e1896f4baa9d41271",
+  "cloud_matches_local_at_validation_time": true,
+  "validated_at_utc": "2026-07-23T04:38:53Z",
+  "scope": "historical cloud snapshot; redeploy and revalidate after source changes"
+}

@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "scenarios": {
+    "windows-managed-runtime": {
+      "type": "dynamic-runtime",
+      "entrypoint": "scripts/start-ui.ps1",
+      "attestation": "live-managed",
+      "fallback": false
+    },
+    "cli-managed-runtime": {
+      "type": "dynamic-runtime",
+      "entrypoint": "meeting-agent build",
+      "attestation": "live-managed",
+      "fallback": false
+    },
+    "browser-contract-e2e": {
+      "type": "test-fixture",
+      "entrypoint": "scripts/run_ui_e2e.py",
+      "attestation": "test-fixture",
+      "requires_explicit_mode": false
+    },
+    "browser-live-e2e": {
+      "type": "dynamic-runtime",
+      "entrypoint": "MEETING_AGENT_E2E_MODE=live python scripts/run_ui_e2e.py",
+      "attestation": "live-managed",
+      "requires_explicit_mode": true,
+      "fallback": false
+    }
+  }
+}

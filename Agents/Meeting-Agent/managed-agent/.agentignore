@@ -1,0 +1,17 @@
+.azure/
+.venv/
+.venv-win/
+.venv-wsl/
+artifacts/
+build/
+delivery/
+logs/
+node_modules/
+runtime/
+test-results/
+__pycache__/
+*.py[cod]
+password.txt
+.env
+.env.*
+!.env.example

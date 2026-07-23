@@ -1,0 +1,6 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/microsoft/AgentSchema/refs/heads/main/schemas/v1.0/PromptAgent.yaml
+
+kind: prompt
+name: managed-meeting-agent
+description: Managed meeting analysis for evidence-grounded artifacts and manual Outlook handoff
+model: gpt-oss-120b

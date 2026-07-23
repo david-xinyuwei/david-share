@@ -11,6 +11,25 @@ A local Windows meeting workspace that uses GPT-5.4 through the Azure OpenAI Res
 
 [Chinese](README-CN.md) | **English** | [Source](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Meeting-Agent)
 
+## Two Implementations, One Meeting Agent
+
+This repository contains two implementations of the same Meeting Agent product contract:
+
+| Dimension | Classic direct Responses implementation | Foundry prompt agent with managed GHCP harness |
+|---|---|---|
+| Location | Repository root | [`managed-agent/`](managed-agent/) |
+| Model loop owner | Local application code | Foundry-managed GHCP harness |
+| Model access | Direct Azure OpenAI Responses client | Foundry Agent Responses endpoint |
+| Authentication | API key in the local backend process | Entra ID; no model API key in the customer path |
+| Skill lifecycle | Packaged local `SKILL.md` loaded by application code | Versioned Foundry Skill linked through Toolbox MCP |
+| Artifact/UI contract | JSON, Mermaid, SVG, PNG, editable PPTX, EML, browser UI, New Outlook draft | The same contract; eight shared core modules are byte-for-byte identical |
+| Customer code ownership | Owns model request construction and orchestration | Owns event validation, artifacts, and Outlook handoff; Foundry owns the model loop |
+| Best fit | Maximum direct control and GA-style API simplicity | Reduced orchestration ownership, managed Skill lifecycle, and platform-governed Agent runtime |
+
+The classic path is **prompt-style local orchestration**, not a deployed Foundry Prompt Agent. The comparison therefore isolates the practical ownership transfer introduced by the Managed Agent path without overstating the earlier implementation.
+
+See the [Managed implementation](managed-agent/README.md) and its [feature-parity evidence](managed-agent/FEATURE-PARITY.md).
+
 ## Demo Video
 
 https://github.com/user-attachments/assets/023f22f0-31f2-4039-85f0-e22712770ff2

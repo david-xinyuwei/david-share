@@ -1,0 +1,6 @@
+{"event_id":"product-001","session_id":"product-planning","sequence":1,"timestamp":"2026-01-15T09:00:01Z","kind":"transcript.partial","text":"We should launch the pilot","metadata":{"source":"local-asr"}}
+{"event_id":"product-002","session_id":"product-planning","sequence":2,"timestamp":"2026-01-15T09:00:03Z","kind":"transcript.final","text":"We agreed to launch the assistant pilot with the support team in March.","metadata":{"source":"local-asr"}}
+{"event_id":"product-003","session_id":"product-planning","sequence":3,"timestamp":"2026-01-15T09:00:05Z","kind":"visual.frame","text":"The shared roadmap shows three phases: prototype, pilot, and rollout.","image_uri":"frame://roadmap-001","metadata":{"source":"screen-share"}}
+{"event_id":"product-004","session_id":"product-planning","sequence":4,"timestamp":"2026-01-15T09:00:08Z","kind":"transcript.final","text":"Mina will follow up with security and prepare the pilot checklist.","metadata":{"source":"local-asr"}}
+{"event_id":"product-005","session_id":"product-planning","sequence":5,"timestamp":"2026-01-15T09:00:12Z","kind":"transcript.final","text":"Can the pilot support multilingual meeting notes?","metadata":{"source":"local-asr"}}
+{"event_id":"product-006","session_id":"product-planning","sequence":6,"timestamp":"2026-01-15T09:00:15Z","kind":"meeting.end","metadata":{"source":"meeting-host"}}
