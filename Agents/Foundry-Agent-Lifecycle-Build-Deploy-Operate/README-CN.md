@@ -414,5 +414,6 @@ azd deploy
 |:-----------|:-----|
 | [Foundry-Agent-Post-Training-Deep-Dive](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/Foundry-Agent-Post-Training-Deep-Dive) | Foundry agent post-training 深度解析：distillation, SFT, RFT, Low-Level Training API (BRK231/BRK232) |
 | [Foundry-Hosted-Agent-Toolbox-Demo](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Foundry-Hosted-Agent-Toolbox-Demo) | Foundry Hosted Agents + Toolbox 集成实战 Demo |
+| [Foundry-Long-Running-Agent-Resilience](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Foundry-Long-Running-Agent-Resilience) | 用 evidence-first 方法验证 checkpoint、failure injection、reconnect、recovery 和 terminal completion |
 | [Azure-Agent-Skills-In-Action](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Azure-Agent-Skills-In-Action) | 61 个 Azure Agent Skills 端到端验证 |
 | [Microsoft-Agent-Framework](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Microsoft-Agent-Framework) | Microsoft Agent Framework 分析与示例 |

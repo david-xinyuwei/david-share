@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "disclosure": "public-sanitized-attestation",
+  "artifacts": [
+    {
+      "path": "data/validation-matrix.json",
+      "bytes": 4475,
+      "sha256": "acf4ef50ee2c0a7d39ced55acbd6068aee887b391c032879e1b0210c80b4c2d0"
+    },
+    {
+      "path": "evidence/sanitized-runs/durable-workflow-python.json",
+      "bytes": 363,
+      "sha256": "adc614e676baf25610e0b58b7ef35f5ece1df7402a98667afcacb33b4a3d74b6"
+    },
+    {
+      "path": "evidence/sanitized-runs/graph-hitl-invocations-python.json",
+      "bytes": 436,
+      "sha256": "dcf22445dfac17b906da2691d42cc32efe4e86eec4719cb1fbde787d73312ba0"
+    },
+    {
+      "path": "evidence/sanitized-runs/graph-hitl-responses-python.json",
+      "bytes": 432,
+      "sha256": "1f83ed5fea71fd4ba20d11f587f126c073850148417cf6e79142cb061e98d84d"
+    },
+    {
+      "path": "evidence/sanitized-runs/research-invocations-dotnet.json",
+      "bytes": 473,
+      "sha256": "6595e3d6194df1ed5dcf5c2cf7eb0b96b5e2890973d6fa574f6270107ec017ad"
+    },
+    {
+      "path": "evidence/sanitized-runs/research-invocations-python.json",
+      "bytes": 473,
+      "sha256": "4bf9a1693211646030c2566889a0a8c1ff7a45964339e383a26adc48ec4a0353"
+    },
+    {
+      "path": "evidence/sanitized-runs/research-responses-dotnet.json",
+      "bytes": 519,
+      "sha256": "a16b8c3fb4637eb613dbfcfdfd2df0e3986fe647427bffee872d7205c120aa5b"
+    },
+    {
+      "path": "evidence/sanitized-runs/research-responses-python.json",
+      "bytes": 512,
+      "sha256": "d07f3af507fb559c91e2505f34da564945a1546a31546344111fd7b7c331191b"
+    },
+    {
+      "path": "evidence/sanitized-runs/steering-python.json",
+      "bytes": 393,
+      "sha256": "caf8aace85022e62074e22884a87a91497e34023926ff39a5b105ceef6a003d2"
+    }
+  ]
+}

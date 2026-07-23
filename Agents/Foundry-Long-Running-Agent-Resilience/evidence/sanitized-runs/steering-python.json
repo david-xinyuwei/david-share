@@ -1,0 +1,16 @@
+{
+  "id": "steering-python",
+  "runtime": "python",
+  "protocol": "responses",
+  "pattern": "steering",
+  "status": "passed",
+  "source_kind": "sanitized-authenticated-run",
+  "scope": "main-documented-scenario",
+  "assertions": {
+    "different_input": true,
+    "follow_up_queued": true,
+    "first_turn_terminated": true,
+    "second_turn_completed": true,
+    "relevant_answer": true
+  }
+}

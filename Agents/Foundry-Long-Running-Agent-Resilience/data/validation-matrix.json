@@ -1,0 +1,153 @@
+{
+  "schema_version": 1,
+  "disclosure": "public-sanitized-attestation",
+  "scope": "eight-main-documented-scenarios",
+  "validation_date": "2026-07-23",
+  "raw_evidence_disclosed": false,
+  "scenarios": [
+    {
+      "id": "durable-workflow-python",
+      "runtime": "python",
+      "protocol": "responses",
+      "pattern": "durable-workflow",
+      "status": "passed",
+      "source_kind": "sanitized-authenticated-run",
+      "scope": "main-documented-scenario",
+      "assertions": {
+        "persisted_state": true,
+        "completed": true,
+        "round_trip_output": true,
+        "output_stage_count": 3
+      }
+    },
+    {
+      "id": "graph-hitl-invocations-python",
+      "runtime": "python",
+      "protocol": "invocations",
+      "pattern": "graph-hitl",
+      "status": "passed",
+      "source_kind": "sanitized-authenticated-run",
+      "scope": "main-documented-scenario",
+      "assertions": {
+        "approval_checkpoint": true,
+        "failure_injected": true,
+        "reconnect_observed": true,
+        "approval_resumed": true,
+        "completed": true,
+        "confirmation_observed": true
+      }
+    },
+    {
+      "id": "graph-hitl-responses-python",
+      "runtime": "python",
+      "protocol": "responses",
+      "pattern": "graph-hitl",
+      "status": "passed",
+      "source_kind": "sanitized-authenticated-run",
+      "scope": "main-documented-scenario",
+      "assertions": {
+        "approval_checkpoint": true,
+        "failure_injected": true,
+        "reconnect_observed": true,
+        "approval_resumed": true,
+        "completed": true,
+        "confirmation_observed": true
+      }
+    },
+    {
+      "id": "research-invocations-dotnet",
+      "runtime": "dotnet",
+      "protocol": "invocations",
+      "pattern": "research",
+      "status": "passed",
+      "source_kind": "sanitized-authenticated-run",
+      "scope": "main-documented-scenario",
+      "assertions": {
+        "checkpoint_before_failure": true,
+        "failure_injected": true,
+        "connection_drop_observed": true,
+        "completed": true,
+        "phase_count": 18,
+        "recovery_observed": true,
+        "terminal_state": "run_completion"
+      }
+    },
+    {
+      "id": "research-invocations-python",
+      "runtime": "python",
+      "protocol": "invocations",
+      "pattern": "research",
+      "status": "passed",
+      "source_kind": "sanitized-authenticated-run",
+      "scope": "main-documented-scenario",
+      "assertions": {
+        "checkpoint_before_failure": true,
+        "failure_injected": true,
+        "connection_drop_observed": true,
+        "completed": true,
+        "phase_count": 18,
+        "recovery_observed": true,
+        "terminal_state": "run_completion"
+      }
+    },
+    {
+      "id": "research-responses-dotnet",
+      "runtime": "dotnet",
+      "protocol": "responses",
+      "pattern": "research",
+      "status": "passed",
+      "source_kind": "sanitized-authenticated-run",
+      "scope": "main-documented-scenario",
+      "assertions": {
+        "checkpoint_before_failure": true,
+        "failure_injected": true,
+        "connection_drop_observed": true,
+        "completed": true,
+        "phase_count": 18,
+        "same_response_resume": true,
+        "output_item_count": 18,
+        "resume_evidence": "same-response-output-continuity"
+      }
+    },
+    {
+      "id": "research-responses-python",
+      "runtime": "python",
+      "protocol": "responses",
+      "pattern": "research",
+      "status": "passed",
+      "source_kind": "sanitized-authenticated-run",
+      "scope": "main-documented-scenario",
+      "assertions": {
+        "checkpoint_before_failure": true,
+        "failure_injected": true,
+        "connection_drop_observed": true,
+        "completed": true,
+        "phase_count": 18,
+        "same_response_resume": true,
+        "output_item_count": 18,
+        "resume_evidence": "protocol-recovery-marker"
+      }
+    },
+    {
+      "id": "steering-python",
+      "runtime": "python",
+      "protocol": "responses",
+      "pattern": "steering",
+      "status": "passed",
+      "source_kind": "sanitized-authenticated-run",
+      "scope": "main-documented-scenario",
+      "assertions": {
+        "different_input": true,
+        "follow_up_queued": true,
+        "first_turn_terminated": true,
+        "second_turn_completed": true,
+        "relevant_answer": true
+      }
+    }
+  ],
+  "summary": {
+    "passed": 8,
+    "total": 8,
+    "all_main_scenarios_passed": true
+  }
+}

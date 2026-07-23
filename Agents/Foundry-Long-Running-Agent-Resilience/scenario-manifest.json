@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "scenarios": [
+    {
+      "id": "committed-sanitized-attestations",
+      "type": "test-fixture",
+      "boundary": "Sanitized summaries derived from authenticated hosted runs; raw private evidence is not committed."
+    },
+    {
+      "id": "user-event-summarization",
+      "type": "dynamic-runtime",
+      "boundary": "The output is computed from the supplied JSONL event stream and must change with materially different input."
+    },
+    {
+      "id": "validation-architecture",
+      "type": "architecture-explainer",
+      "boundary": "Static documentation explains evidence requirements; it is not an executed hosted-agent result."
+    }
+  ]
+}

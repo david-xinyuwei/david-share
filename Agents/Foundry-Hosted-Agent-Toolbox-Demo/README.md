@@ -996,6 +996,7 @@ These repos in [`david-share`](https://github.com/davidsky-msft/david-share) cov
 | [`AI-Agent-Private-Endpoint`](../AI-Agent-Private-Endpoint/) | Private link / VNet patterns when your hosted agent must reach private resources. |
 | [`AI-Foundry-Agent-VNET-Deployment`](../AI-Foundry-Agent-VNET-Deployment/) | Network-isolated Foundry agent deployment recipes. |
 | [`Foundry-IQ`](../Foundry-IQ/) | Foundry knowledge-grounding patterns to combine with Toolbox `azure_ai_search` and `file_search`. |
+| [`Foundry-Long-Running-Agent-Resilience`](../Foundry-Long-Running-Agent-Resilience/) | Evidence-first recovery validation for long-running hosted workloads across Responses and Invocations. |
 
 ## Troubleshooting
 

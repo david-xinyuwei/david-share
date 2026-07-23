@@ -1,0 +1,19 @@
+{
+  "id": "research-responses-python",
+  "runtime": "python",
+  "protocol": "responses",
+  "pattern": "research",
+  "status": "passed",
+  "source_kind": "sanitized-authenticated-run",
+  "scope": "main-documented-scenario",
+  "assertions": {
+    "checkpoint_before_failure": true,
+    "failure_injected": true,
+    "connection_drop_observed": true,
+    "completed": true,
+    "phase_count": 18,
+    "same_response_resume": true,
+    "output_item_count": 18,
+    "resume_evidence": "protocol-recovery-marker"
+  }
+}

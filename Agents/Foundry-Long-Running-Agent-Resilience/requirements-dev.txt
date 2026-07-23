@@ -1,0 +1,6 @@
+-r requirements.txt
+build==1.2.2.post1
+Pillow==12.3.0
+pip-audit==2.9.0
+pytest==9.0.3
+ruff==0.12.5

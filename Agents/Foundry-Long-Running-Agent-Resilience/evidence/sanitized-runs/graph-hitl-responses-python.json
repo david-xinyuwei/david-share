@@ -1,0 +1,17 @@
+{
+  "id": "graph-hitl-responses-python",
+  "runtime": "python",
+  "protocol": "responses",
+  "pattern": "graph-hitl",
+  "status": "passed",
+  "source_kind": "sanitized-authenticated-run",
+  "scope": "main-documented-scenario",
+  "assertions": {
+    "approval_checkpoint": true,
+    "failure_injected": true,
+    "reconnect_observed": true,
+    "approval_resumed": true,
+    "completed": true,
+    "confirmation_observed": true
+  }
+}

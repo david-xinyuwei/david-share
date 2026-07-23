@@ -1,0 +1,18 @@
+{
+  "id": "research-invocations-python",
+  "runtime": "python",
+  "protocol": "invocations",
+  "pattern": "research",
+  "status": "passed",
+  "source_kind": "sanitized-authenticated-run",
+  "scope": "main-documented-scenario",
+  "assertions": {
+    "checkpoint_before_failure": true,
+    "failure_injected": true,
+    "connection_drop_observed": true,
+    "completed": true,
+    "phase_count": 18,
+    "recovery_observed": true,
+    "terminal_state": "run_completion"
+  }
+}

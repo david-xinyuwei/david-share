@@ -1,6 +1,6 @@
 # Agents
 
-A collection of 28 projects covering AI agents, RAG (Retrieval-Augmented Generation), prompt engineering, LLM evaluation, and related topics.
+A collection of 29 projects covering AI agents, RAG (Retrieval-Augmented Generation), prompt engineering, LLM evaluation, and related topics.
 
 ---
 
@@ -18,6 +18,7 @@ A collection of 28 projects covering AI agents, RAG (Retrieval-Augmented Generat
 | [Deep-Research-Usage](Deep-Research-Usage/) | Azure Deep Research setup with service principal auth and multi-turn conversations |
 | [Dify-With-AI-Search](Dify-With-AI-Search/) | Dify platform integration with Azure AI Search for LLM application development |
 | [Foundry-IQ](Foundry-IQ/) | Azure AI Search Foundry IQ for Agentic RAG with knowledge graphs |
+| [Foundry-Long-Running-Agent-Resilience](Foundry-Long-Running-Agent-Resilience/) | Evidence-first validation kit for checkpoint, failure injection, reconnect, recovery, and terminal completion |
 | [Foundry-Local](Foundry-Local/) | Foundry Local installation and verification on Windows with Open WebUI |
 | [gpt4o-to-gpt51-migration](gpt4o-to-gpt51-migration/) | Production benchmark comparing GPT-4o vs GPT-5.1 for enterprise migration |
 | [graphrag](graphrag/) | Microsoft GraphRAG configuration and validation |

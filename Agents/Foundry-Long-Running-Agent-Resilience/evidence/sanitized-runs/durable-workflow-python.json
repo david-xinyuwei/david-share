@@ -1,0 +1,15 @@
+{
+  "id": "durable-workflow-python",
+  "runtime": "python",
+  "protocol": "responses",
+  "pattern": "durable-workflow",
+  "status": "passed",
+  "source_kind": "sanitized-authenticated-run",
+  "scope": "main-documented-scenario",
+  "assertions": {
+    "persisted_state": true,
+    "completed": true,
+    "round_trip_output": true,
+    "output_stage_count": 3
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/lra-resilience/evidence-contract.schema.json",
+  "title": "Public-safe long-running agent evidence matrix",
+  "type": "object",
+  "required": ["schema_version", "disclosure", "scope", "validation_date", "raw_evidence_disclosed", "scenarios", "summary"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "disclosure": {"const": "public-sanitized-attestation"},
+    "scope": {"const": "eight-main-documented-scenarios"},
+    "validation_date": {"type": "string", "format": "date"},
+    "raw_evidence_disclosed": {"const": false},
+    "scenarios": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "required": ["id", "runtime", "protocol", "pattern", "status", "source_kind", "scope", "assertions"],
+        "properties": {
+          "id": {"type": "string"},
+          "runtime": {"enum": ["python", "dotnet"]},
+          "protocol": {"enum": ["responses", "invocations"]},
+          "pattern": {"enum": ["research", "graph-hitl", "durable-workflow", "steering"]},
+          "status": {"const": "passed"},
+          "source_kind": {"const": "sanitized-authenticated-run"},
+          "scope": {"const": "main-documented-scenario"},
+          "assertions": {"type": "object", "minProperties": 3}
+        },
+        "additionalProperties": false
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": ["passed", "total", "all_main_scenarios_passed"],
+      "properties": {
+        "passed": {"type": "integer", "minimum": 0},
+        "total": {"type": "integer", "minimum": 1},
+        "all_main_scenarios_passed": {"type": "boolean"}
+      }
+    }
+  },
+  "additionalProperties": false
+}

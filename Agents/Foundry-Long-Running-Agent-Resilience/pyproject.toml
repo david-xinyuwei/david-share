@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools==80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "foundry-long-running-agent-resilience"
+version = "0.1.0"
+description = "Public-safe evidence validation for long-running hosted-agent resilience"
+readme = "README.md"
+requires-python = ">=3.10,<4"
+authors = [{ name = "Xinyu Wei" }]
+dependencies = []
+classifiers = [
+	"Programming Language :: Python :: 3.10",
+	"Programming Language :: Python :: 3.11",
+	"Programming Language :: Python :: 3.12",
+	"Programming Language :: Python :: 3.13",
+]
+
+[project.scripts]
+lra-evidence = "lra_resilience.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+minversion = "9.0"
+testpaths = ["tests"]
