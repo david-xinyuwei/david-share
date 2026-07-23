@@ -4,8 +4,14 @@
   "protocol": "responses",
   "pattern": "steering",
   "status": "passed",
-  "source_kind": "sanitized-authenticated-run",
+  "source_kind": "author-attested-sanitized-run",
   "scope": "main-documented-scenario",
+  "provenance": {
+    "attestation_type": "author-attested-sanitized-result",
+    "campaign_verified_date": "2026-07-23",
+    "private_source_artifact_count": 1,
+    "private_source_commitment_sha256": "df2966719c6967424c6228635b25e181b713418f56635c188cc18aef21b509a2"
+  },
   "assertions": {
     "different_input": true,
     "follow_up_queued": true,

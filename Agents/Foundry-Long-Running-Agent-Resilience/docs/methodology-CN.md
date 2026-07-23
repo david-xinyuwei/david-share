@@ -4,7 +4,9 @@
 
 这套方法只回答一个问题：长时间运行的 Hosted workload 丢失当前进程或连接后，能否从持久化状态恢复同一个逻辑任务，并得到有效的最终结果？
 
-## 验收顺序
+## Recovery pattern 验收顺序
+
+以下顺序适用于 Research durability 与 Graph human approval。Durable workflow 与 steering 使用后文定义的不同 proof contract。
 
 1. 启动经过身份验证的 Hosted workload。
 2. 观察 workload 代码产生的真实 checkpoint。
@@ -32,8 +34,29 @@ Deployment 为 active 只能证明 control plane 接受并启动了 Agent versio
 
 本 Repo 只有达到第 6 层才计为 scenario PASS。
 
+## Pattern-specific 验收
+
+| Pattern | 必须具备的证据 |
+|---|---|
+| Research | 故障前 checkpoint、connection loss、重连后原逻辑任务、18 个 phase/item、显式 terminal success |
+| Graph HITL | Durable pending approval、process replacement、只恢复一次的 decision、approval 后 confirmation 与 terminal success |
+| Durable workflow | 所有必需 stage 的 persisted output 与 completed round-trip result |
+| Steering | Materially different queued input、旧 turn 协作结束、新 turn 返回相关 completed answer |
+
+Workflow 与 steering PASS 不表示这两个场景执行了 Research 的 crash/reconnect 链路。
+
 ## Runtime 差异
 
 Responses 与 Invocations 的证据表面不同。Invocations 可以发出专用 `recovered` event 和任务终止原因；Responses 可能发出 lifecycle reset，也可能表现为更强的可观察不变量：同一个 stored response 从第一个未 checkpoint 的 output index 继续，并最终进入 `completed`。
 
 因此 validator 同时接受 protocol recovery marker 和 same-response output continuity。它不会把某个 SDK 的 event 顺序强套到另一个 runtime。
+
+## Stream continuity 诊断
+
+Public event summarizer 保留有序 phase 与 output-index observation，并分别报告 sequence monotonicity、strict increase、duplicate count 与 gap。Monotonic sequence 仍可能有 gap，因此绝不能把 `monotonic=true` 解读成完整 replay。Terminal completion 还必须带显式 `completed` status。
+
+## Provenance 与 integrity
+
+每个公开 record 都是作者证明的脱敏结果，并包含由保留的私有 source artifact 生成的 commitment。该 commitment 可支持后续私有 drift check，但公开读者无法据此认证或 replay 私有 execution。
+
+Public manifest 负责另一件事：发现 committed 脱敏 record 与 generated matrix 的变化。Contract validity、artifact integrity 与 execution provenance 是三类不同声明。

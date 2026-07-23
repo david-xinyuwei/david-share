@@ -4,8 +4,14 @@
   "protocol": "responses",
   "pattern": "research",
   "status": "passed",
-  "source_kind": "sanitized-authenticated-run",
+  "source_kind": "author-attested-sanitized-run",
   "scope": "main-documented-scenario",
+  "provenance": {
+    "attestation_type": "author-attested-sanitized-result",
+    "campaign_verified_date": "2026-07-23",
+    "private_source_artifact_count": 3,
+    "private_source_commitment_sha256": "e0cc945f93d55c7f021acca19c9b6bf01c1142ca5bbfab7bbbe9cab0a18654b6"
+  },
   "assertions": {
     "checkpoint_before_failure": true,
     "failure_injected": true,

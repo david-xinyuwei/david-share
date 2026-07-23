@@ -6,12 +6,14 @@ on:
     paths:
       - "Agents/Foundry-Long-Running-Agent-Resilience/**"
       - "Agents/README.md"
+      - "LICENSE"
       - ".github/workflows/foundry-long-running-agent-resilience-ci.yml"
   pull_request:
     branches: [master]
     paths:
       - "Agents/Foundry-Long-Running-Agent-Resilience/**"
       - "Agents/README.md"
+      - "LICENSE"
       - ".github/workflows/foundry-long-running-agent-resilience-ci.yml"
 
 permissions:
@@ -38,24 +40,22 @@ jobs:
             Agents/Foundry-Long-Running-Agent-Resilience/requirements.txt
             Agents/Foundry-Long-Running-Agent-Resilience/requirements-dev.txt
             Agents/Foundry-Long-Running-Agent-Resilience/pyproject.toml
-      - run: python -m pip install --upgrade pip
+      - run: python -m pip install --upgrade pip setuptools==83.0.0
       - run: python -m pip install -r requirements-dev.txt
       - run: python -m pip install -e .
+      - run: python scripts/check_lfs_pointers.py
       - run: python scripts/build_public_evidence.py
-      - run: python scripts/generate_assets.py
-        if: runner.os == 'Linux' && matrix.python-version == '3.12'
-      - run: git diff --exit-code -- data/validation-matrix.json evidence/manifest.json images
+      - run: git diff --exit-code -- data/evidence-contract.schema.json data/validation-matrix.json evidence/manifest.json
         if: runner.os == 'Linux' && matrix.python-version == '3.12'
       - run: python scripts/validate_evidence.py
-      - run: python scripts/runtime_differential.py
+      - run: python scripts/protocol_summary_differential.py
       - run: python scripts/validate_readmes.py
       - run: python scripts/validate_repo.py
       - run: ruff check src tests scripts
       - run: pytest -q tests
       - run: pip-audit --local --progress-spinner off
       - run: python -m build --wheel
-      - run: python -m pip install --force-reinstall dist/foundry_long_running_agent_resilience-0.1.0-py3-none-any.whl
+      - run: python -m pip install --force-reinstall dist/foundry_long_running_agent_resilience-0.2.0-py3-none-any.whl
       - run: lra-evidence --help
-      - run: lra-evidence validate
-      - run: lra-evidence manifest
+      - run: python scripts/package_smoke.py
       - run: python -m pip check

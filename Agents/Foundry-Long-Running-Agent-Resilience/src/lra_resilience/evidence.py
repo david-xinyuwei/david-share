@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from collections.abc import Mapping
 from datetime import date
 from typing import Any
@@ -47,8 +48,15 @@ REQUIRED_SCENARIO_FIELDS = {
     "pattern",
     "status",
     "source_kind",
+    "provenance",
     "assertions",
     "scope",
+}
+REQUIRED_PROVENANCE_FIELDS = {
+    "attestation_type",
+    "campaign_verified_date",
+    "private_source_artifact_count",
+    "private_source_commitment_sha256",
 }
 MATRIX_FIELDS = {
     "schema_version",
@@ -121,6 +129,128 @@ def canonical_sha256(value: Any) -> str:
         sort_keys=True,
     ).encode("utf-8")
     return hashlib.sha256(payload).hexdigest()
+
+
+def build_evidence_schema() -> dict[str, Any]:
+    """Build the exact public JSON Schema from the authoritative Python contract."""
+
+    assertion_schemas: dict[tuple[str, str], dict[str, Any]] = {}
+    for key, fields in ASSERTION_FIELDS.items():
+        properties: dict[str, Any] = {}
+        for field in sorted(fields):
+            if field in {"phase_count", "output_item_count"}:
+                properties[field] = {"const": 18}
+            elif field == "output_stage_count":
+                properties[field] = {"type": "integer", "minimum": 3}
+            elif field == "terminal_state":
+                properties[field] = {"const": "run_completion"}
+            elif field == "resume_evidence":
+                properties[field] = {
+                    "enum": ["protocol-recovery-marker", "same-response-output-continuity"]
+                }
+            else:
+                properties[field] = {"const": True}
+        assertion_schemas[key] = {
+            "type": "object",
+            "required": sorted(fields),
+            "properties": properties,
+            "additionalProperties": False,
+        }
+
+    scenario_branches = []
+    for scenario_id, (runtime, protocol, pattern) in EXPECTED_SCENARIO_SHAPES.items():
+        scenario_branches.append(
+            {
+                "type": "object",
+                "required": sorted(REQUIRED_SCENARIO_FIELDS),
+                "properties": {
+                    "id": {"const": scenario_id},
+                    "runtime": {"const": runtime},
+                    "protocol": {"const": protocol},
+                    "pattern": {"const": pattern},
+                    "status": {"const": "passed"},
+                    "source_kind": {"const": "author-attested-sanitized-run"},
+                    "scope": {"const": "main-documented-scenario"},
+                    "provenance": {
+                        "type": "object",
+                        "required": sorted(REQUIRED_PROVENANCE_FIELDS),
+                        "properties": {
+                            "attestation_type": {
+                                "const": "author-attested-sanitized-result"
+                            },
+                            "campaign_verified_date": {
+                                "type": "string",
+                                "format": "date",
+                                "pattern": r"^\d{4}-\d{2}-\d{2}$",
+                            },
+                            "private_source_artifact_count": {
+                                "type": "integer",
+                                "minimum": 1,
+                            },
+                            "private_source_commitment_sha256": {
+                                "type": "string",
+                                "pattern": "^[0-9a-f]{64}$",
+                            },
+                        },
+                        "additionalProperties": False,
+                    },
+                    "assertions": assertion_schemas[(pattern, protocol)],
+                },
+                "additionalProperties": False,
+            }
+        )
+
+    scenarios_schema: dict[str, Any] = {
+        "type": "array",
+        "minItems": len(EXPECTED_SCENARIOS),
+        "maxItems": len(EXPECTED_SCENARIOS),
+        "items": {"oneOf": scenario_branches},
+        "allOf": [
+            {
+                "contains": {
+                    "type": "object",
+                    "properties": {"id": {"const": scenario_id}},
+                    "required": ["id"],
+                },
+                "minContains": 1,
+                "maxContains": 1,
+            }
+            for scenario_id in sorted(EXPECTED_SCENARIOS)
+        ],
+    }
+    return {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": (
+            "https://github.com/david-xinyuwei/david-share/raw/master/Agents/"
+            "Foundry-Long-Running-Agent-Resilience/data/evidence-contract.schema.json"
+        ),
+        "title": "Author-attested public long-running agent evidence matrix",
+        "type": "object",
+        "required": sorted(MATRIX_FIELDS),
+        "properties": {
+            "schema_version": {"const": 2},
+            "disclosure": {"const": "public-sanitized-attestation"},
+            "scope": {"const": "eight-main-documented-scenarios"},
+            "validation_date": {
+                "type": "string",
+                "format": "date",
+                "pattern": r"^\d{4}-\d{2}-\d{2}$",
+            },
+            "raw_evidence_disclosed": {"const": False},
+            "scenarios": scenarios_schema,
+            "summary": {
+                "type": "object",
+                "required": ["passed", "total", "all_main_scenarios_passed"],
+                "properties": {
+                    "passed": {"const": 8},
+                    "total": {"const": 8},
+                    "all_main_scenarios_passed": {"const": True},
+                },
+                "additionalProperties": False,
+            },
+        },
+        "additionalProperties": False,
+    }
 
 
 def _forbidden_paths(value: Any, path: str = "$") -> list[str]:
@@ -233,10 +363,45 @@ def _validate_scenario(scenario: Mapping[str, Any], index: int) -> list[str]:
         return [f"{scenario_id}.assertions must be an object"]
     if scenario.get("status") != "passed":
         errors.append(f"{scenario_id}.status must be passed")
-    if scenario.get("source_kind") != "sanitized-authenticated-run":
-        errors.append(f"{scenario_id}.source_kind must be sanitized-authenticated-run")
+    if scenario.get("source_kind") != "author-attested-sanitized-run":
+        errors.append(f"{scenario_id}.source_kind must be author-attested-sanitized-run")
     if scenario.get("scope") != "main-documented-scenario":
         errors.append(f"{scenario_id}.scope must be main-documented-scenario")
+
+    provenance = scenario.get("provenance")
+    if not isinstance(provenance, Mapping):
+        errors.append(f"{scenario_id}.provenance must be an object")
+    else:
+        missing_provenance = sorted(REQUIRED_PROVENANCE_FIELDS - set(provenance))
+        extra_provenance = sorted(set(provenance) - REQUIRED_PROVENANCE_FIELDS)
+        if missing_provenance:
+            errors.append(
+                f"{scenario_id}.provenance missing fields: {', '.join(missing_provenance)}"
+            )
+        if extra_provenance:
+            errors.append(
+                f"{scenario_id}.provenance has unexpected fields: {', '.join(extra_provenance)}"
+            )
+        if provenance.get("attestation_type") != "author-attested-sanitized-result":
+            errors.append(
+                f"{scenario_id}.provenance.attestation_type must be author-attested-sanitized-result"
+            )
+        try:
+            date.fromisoformat(str(provenance.get("campaign_verified_date")))
+        except ValueError:
+            errors.append(
+                f"{scenario_id}.provenance.campaign_verified_date must be an ISO date"
+            )
+        source_count = provenance.get("private_source_artifact_count")
+        if not isinstance(source_count, int) or isinstance(source_count, bool) or source_count < 1:
+            errors.append(
+                f"{scenario_id}.provenance.private_source_artifact_count must be a positive integer"
+            )
+        commitment = provenance.get("private_source_commitment_sha256")
+        if not isinstance(commitment, str) or re.fullmatch(r"[0-9a-f]{64}", commitment) is None:
+            errors.append(
+                f"{scenario_id}.provenance.private_source_commitment_sha256 must be lowercase SHA-256"
+            )
 
     expected_shape = EXPECTED_SCENARIO_SHAPES.get(scenario_id)
     actual_shape = (scenario.get("runtime"), scenario.get("protocol"), scenario.get("pattern"))
@@ -273,8 +438,8 @@ def validate_matrix(matrix: Mapping[str, Any]) -> list[str]:
     unexpected_matrix_fields = sorted(set(matrix) - MATRIX_FIELDS)
     if unexpected_matrix_fields:
         errors.append(f"matrix has unexpected fields: {', '.join(unexpected_matrix_fields)}")
-    if matrix.get("schema_version") != 1:
-        errors.append("matrix.schema_version must equal 1")
+    if matrix.get("schema_version") != 2:
+        errors.append("matrix.schema_version must equal 2")
     if matrix.get("disclosure") != "public-sanitized-attestation":
         errors.append("matrix.disclosure must be public-sanitized-attestation")
     if matrix.get("scope") != "eight-main-documented-scenarios":

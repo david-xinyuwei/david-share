@@ -37,6 +37,7 @@ class CliTests(unittest.TestCase):
             with contextlib.redirect_stdout(output):
                 self.assertEqual(main(), 1)
         self.assertIn("ERROR: file not found", output.getvalue())
+        self.assertIn("HINT: run from the repository root", output.getvalue())
 
 
 if __name__ == "__main__":

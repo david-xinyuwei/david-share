@@ -49,6 +49,34 @@ class EventSummaryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "no public protocol events"):
             summarize_event_records([{"session_id": "discarded"}])
 
+    def test_sequence_diagnostics_report_gaps_and_duplicates(self) -> None:
+        gap_summary = summarize_event_records(
+            [
+                {"type": "delta", "sequence_number": 10},
+                {"type": "done", "sequence_number": 12, "status": "completed"},
+            ]
+        )
+        self.assertTrue(gap_summary["sequence"]["monotonic"])
+        self.assertTrue(gap_summary["sequence"]["strictly_increasing"])
+        self.assertEqual(gap_summary["sequence"]["gap_count"], 1)
+
+        duplicate_summary = summarize_event_records(
+            [
+                {"type": "phase", "phase": 1, "sequence_number": 10},
+                {"type": "phase", "phase": 1, "sequence_number": 10},
+                {"type": "done", "sequence_number": 11, "status": "completed"},
+            ]
+        )
+        self.assertEqual(duplicate_summary["phase_events"], [1, 1])
+        self.assertEqual(duplicate_summary["phases"], [1])
+        self.assertFalse(duplicate_summary["sequence"]["strictly_increasing"])
+        self.assertEqual(duplicate_summary["sequence"]["duplicate_count"], 1)
+
+    def test_terminal_status_is_required_for_completion(self) -> None:
+        summary = summarize_event_records([{"type": "done", "sequence_number": 1}])
+        self.assertFalse(summary["completion_observed"])
+        self.assertEqual(summary["terminal_statuses"], [])
+
 
 if __name__ == "__main__":
     unittest.main()

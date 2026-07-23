@@ -16,7 +16,9 @@ from lra_resilience.manifest import load_manifest, validate_manifest
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED = {
     ".gitignore",
+    ".gitattributes",
     "CONTRIBUTING.md",
+    "LICENSE",
     "README-CN.md",
     "README.md",
     "SECURITY.md",
@@ -24,21 +26,31 @@ REQUIRED = {
     "data/validation-matrix.json",
     "docs/evidence-contract-CN.md",
     "docs/evidence-contract.md",
+    "docs/architecture-CN.md",
+    "docs/architecture.md",
     "docs/failure-modes-CN.md",
     "docs/failure-modes.md",
     "docs/methodology-CN.md",
     "docs/methodology.md",
+    "docs/scenario-runbooks-CN.md",
+    "docs/scenario-runbooks.md",
     "evidence/manifest.json",
     "evidence/README-CN.md",
     "evidence/README.md",
     "images/evidence-pipeline.png",
+    "images/evidence-pipeline-cn.png",
+    "images/resilience-architecture.png",
+    "images/resilience-architecture-cn.png",
     "images/scenario-coverage.png",
+    "images/scenario-coverage-cn.png",
     "pyproject.toml",
     "requirements-dev.txt",
     "requirements.txt",
     "scenario-manifest.json",
     "scripts/build_public_evidence.py",
-    "scripts/runtime_differential.py",
+    "scripts/check_lfs_pointers.py",
+    "scripts/package_smoke.py",
+    "scripts/protocol_summary_differential.py",
     "scripts/validate_evidence.py",
     "scripts/validate_readmes.py",
     "scripts/validate_repo.py",
@@ -112,12 +124,24 @@ def main() -> int:
 
     manifest = json.loads((ROOT / "scenario-manifest.json").read_text(encoding="utf-8"))
     scenario_types = {scenario.get("type") for scenario in manifest.get("scenarios", [])}
-    if scenario_types != {"architecture-explainer", "dynamic-runtime", "test-fixture"}:
-        errors.append("scenario-manifest.json must classify architecture, dynamic runtime, and test fixture")
+    if scenario_types != {
+        "architecture-explainer",
+        "dynamic-runtime",
+        "sanitized-runtime-attestation",
+        "test-fixture",
+    }:
+        errors.append(
+            "scenario-manifest.json must classify architecture, dynamic runtime, "
+            "sanitized runtime attestation, and test fixture"
+        )
 
     expected_dimensions = {
         "evidence-pipeline.png": (1600, 900),
+        "evidence-pipeline-cn.png": (1600, 900),
+        "resilience-architecture.png": (1600, 900),
+        "resilience-architecture-cn.png": (1600, 900),
         "scenario-coverage.png": (1600, 900),
+        "scenario-coverage-cn.png": (1600, 900),
     }
     for filename, dimensions in expected_dimensions.items():
         with Image.open(ROOT / "images" / filename) as image:
@@ -136,7 +160,10 @@ def main() -> int:
         for error in errors:
             print(f"ERROR: {error}")
         return 1
-    print("PASS: public boundary, 8 scenarios, 9 evidence artifacts, and 2 images verified")
+    print(
+        "PASS: deterministic public-boundary scanner, 8 scenarios, "
+        "9 evidence artifacts, and 6 localized images verified"
+    )
     return 0
 
 

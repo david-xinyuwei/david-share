@@ -39,19 +39,33 @@ def summarize_event_records(records: Iterable[Mapping[str, Any]]) -> dict[str, A
     if not public_events:
         raise ValueError("no public protocol events found in input records")
     event_types = Counter(str(event.get("type", "unknown")) for event in public_events)
-    phases = sorted({event["phase"] for event in public_events if isinstance(event.get("phase"), int)})
-    output_indexes = sorted(
-        {event["output_index"] for event in public_events if isinstance(event.get("output_index"), int)}
-    )
+    phase_events = [event["phase"] for event in public_events if isinstance(event.get("phase"), int)]
+    output_index_events = [
+        event["output_index"]
+        for event in public_events
+        if isinstance(event.get("output_index"), int)
+    ]
+    phases = sorted(set(phase_events))
+    output_indexes = sorted(set(output_index_events))
     sequences = [
         event["sequence_number"]
         for event in public_events
         if isinstance(event.get("sequence_number"), int)
     ]
+    sequence_pairs = list(zip(sequences, sequences[1:], strict=False))
+    sequence_monotonic = all(current <= following for current, following in sequence_pairs)
+    sequence_strictly_increasing = all(current < following for current, following in sequence_pairs)
+    sequence_duplicate_count = len(sequences) - len(set(sequences))
+    sequence_gap_count = (
+        sum(following - current - 1 for current, following in sequence_pairs if following > current + 1)
+        if sequence_monotonic
+        else None
+    )
     terminal_statuses = [
         str(event.get("status"))
         for event in public_events
         if event.get("type") in {"done", "response.completed", "response.failed", "response.cancelled"}
+        and event.get("status") is not None
     ]
     return {
         "schema_version": 1,
@@ -59,11 +73,16 @@ def summarize_event_records(records: Iterable[Mapping[str, Any]]) -> dict[str, A
         "event_count": len(public_events),
         "event_types": dict(sorted(event_types.items())),
         "phases": phases,
+        "phase_events": phase_events,
         "output_indexes": output_indexes,
+        "output_index_events": output_index_events,
         "sequence": {
             "first": sequences[0] if sequences else None,
             "last": sequences[-1] if sequences else None,
-            "monotonic": sequences == sorted(sequences),
+            "monotonic": sequence_monotonic,
+            "strictly_increasing": sequence_strictly_increasing,
+            "duplicate_count": sequence_duplicate_count,
+            "gap_count": sequence_gap_count,
         },
         "recovery_observed": any(event.get("type") == "recovered" for event in public_events),
         "in_progress_reset_observed": any(
@@ -71,7 +90,7 @@ def summarize_event_records(records: Iterable[Mapping[str, Any]]) -> dict[str, A
         ),
         "completion_observed": any(
             event.get("type") in {"done", "response.completed"}
-            and event.get("status", "completed") == "completed"
+            and event.get("status") == "completed"
             for event in public_events
         ),
         "terminal_statuses": terminal_statuses,

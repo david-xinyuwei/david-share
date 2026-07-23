@@ -3,7 +3,9 @@ from __future__ import annotations
 import copy
 import unittest
 
-from lra_resilience.evidence import canonical_sha256, validate_matrix
+from jsonschema import Draft202012Validator, FormatChecker
+
+from lra_resilience.evidence import build_evidence_schema, canonical_sha256, validate_matrix
 
 
 def valid_matrix() -> dict:
@@ -21,7 +23,7 @@ def valid_matrix() -> dict:
             "protocol": "invocations",
             "pattern": "research",
             "status": "passed",
-            "source_kind": "sanitized-authenticated-run",
+            "source_kind": "author-attested-sanitized-run",
             "assertions": {**common, "recovery_observed": True, "terminal_state": "run_completion"},
         },
         {
@@ -30,7 +32,7 @@ def valid_matrix() -> dict:
             "protocol": "responses",
             "pattern": "research",
             "status": "passed",
-            "source_kind": "sanitized-authenticated-run",
+            "source_kind": "author-attested-sanitized-run",
             "assertions": {
                 **common,
                 "same_response_resume": True,
@@ -44,7 +46,7 @@ def valid_matrix() -> dict:
             "protocol": "invocations",
             "pattern": "graph-hitl",
             "status": "passed",
-            "source_kind": "sanitized-authenticated-run",
+            "source_kind": "author-attested-sanitized-run",
             "assertions": {
                 "approval_checkpoint": True,
                 "failure_injected": True,
@@ -60,7 +62,7 @@ def valid_matrix() -> dict:
             "protocol": "responses",
             "pattern": "graph-hitl",
             "status": "passed",
-            "source_kind": "sanitized-authenticated-run",
+            "source_kind": "author-attested-sanitized-run",
             "assertions": {
                 "approval_checkpoint": True,
                 "failure_injected": True,
@@ -76,7 +78,7 @@ def valid_matrix() -> dict:
             "protocol": "responses",
             "pattern": "durable-workflow",
             "status": "passed",
-            "source_kind": "sanitized-authenticated-run",
+            "source_kind": "author-attested-sanitized-run",
             "assertions": {
                 "persisted_state": True,
                 "completed": True,
@@ -90,7 +92,7 @@ def valid_matrix() -> dict:
             "protocol": "responses",
             "pattern": "steering",
             "status": "passed",
-            "source_kind": "sanitized-authenticated-run",
+            "source_kind": "author-attested-sanitized-run",
             "assertions": {
                 "different_input": True,
                 "follow_up_queued": True,
@@ -105,7 +107,7 @@ def valid_matrix() -> dict:
             "protocol": "invocations",
             "pattern": "research",
             "status": "passed",
-            "source_kind": "sanitized-authenticated-run",
+            "source_kind": "author-attested-sanitized-run",
             "assertions": {**common, "recovery_observed": True, "terminal_state": "run_completion"},
         },
         {
@@ -114,7 +116,7 @@ def valid_matrix() -> dict:
             "protocol": "responses",
             "pattern": "research",
             "status": "passed",
-            "source_kind": "sanitized-authenticated-run",
+            "source_kind": "author-attested-sanitized-run",
             "assertions": {
                 **common,
                 "same_response_resume": True,
@@ -125,8 +127,15 @@ def valid_matrix() -> dict:
     ]
     for scenario in scenarios:
         scenario["scope"] = "main-documented-scenario"
+        scenario["source_kind"] = "author-attested-sanitized-run"
+        scenario["provenance"] = {
+            "attestation_type": "author-attested-sanitized-result",
+            "campaign_verified_date": "2026-07-23",
+            "private_source_artifact_count": 1,
+            "private_source_commitment_sha256": "a" * 64,
+        }
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "disclosure": "public-sanitized-attestation",
         "scope": "eight-main-documented-scenarios",
         "validation_date": "2026-07-23",
@@ -176,6 +185,20 @@ class EvidenceTests(unittest.TestCase):
         matrix["scenarios"][0]["assertions"]["raw_payload"] = "not allowed"
         self.assertTrue(any("unexpected fields: raw_payload" in error for error in validate_matrix(matrix)))
 
+    def test_provenance_commitment_is_required(self) -> None:
+        matrix = valid_matrix()
+        matrix["scenarios"][0]["provenance"].pop("private_source_commitment_sha256")
+        self.assertTrue(
+            any("provenance missing fields" in error for error in validate_matrix(matrix))
+        )
+
+    def test_provenance_commitment_must_be_sha256(self) -> None:
+        matrix = valid_matrix()
+        matrix["scenarios"][0]["provenance"]["private_source_commitment_sha256"] = "not-a-digest"
+        self.assertTrue(
+            any("must be lowercase SHA-256" in error for error in validate_matrix(matrix))
+        )
+
     def test_canonical_digest_is_order_independent(self) -> None:
         matrix = valid_matrix()
         reordered = copy.deepcopy(matrix)
@@ -185,6 +208,23 @@ class EvidenceTests(unittest.TestCase):
             "passed": 8,
         }
         self.assertEqual(canonical_sha256(matrix), canonical_sha256(reordered))
+
+    def test_json_schema_rejects_fake_scenario_ids(self) -> None:
+        matrix = valid_matrix()
+        matrix["scenarios"][0]["id"] = "fake-scenario"
+        self.assertTrue(list(Draft202012Validator(build_evidence_schema()).iter_errors(matrix)))
+
+    def test_json_schema_enforces_dates(self) -> None:
+        matrix = valid_matrix()
+        matrix["validation_date"] = "not-a-date"
+        matrix["scenarios"][0]["provenance"]["campaign_verified_date"] = "2026-99-99"
+        errors = list(
+            Draft202012Validator(
+                build_evidence_schema(),
+                format_checker=FormatChecker(),
+            ).iter_errors(matrix)
+        )
+        self.assertGreaterEqual(len(errors), 2)
 
 
 if __name__ == "__main__":

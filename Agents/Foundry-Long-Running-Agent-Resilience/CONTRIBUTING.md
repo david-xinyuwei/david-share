@@ -18,13 +18,15 @@ python scripts/build_public_evidence.py
 python scripts/validate_evidence.py
 python scripts/validate_readmes.py
 python scripts/validate_repo.py
-python scripts/runtime_differential.py
+python scripts/protocol_summary_differential.py
+python scripts/check_lfs_pointers.py
 ruff check src tests scripts
 pytest -q
 python -m build --wheel
+python scripts/package_smoke.py
 ```
 
-Generated matrix, manifest, and images must not change after rebuilding from committed sources.
+Generated Schema, matrix, and manifest must not change after rebuilding from committed sources.
 
 ## Add or change a scenario pattern
 
@@ -43,6 +45,8 @@ The committed eight-scenario matrix is a fixed campaign contract. Changing its I
 
 `scripts/validate_readmes.py` checks heading levels, code-block languages, table shapes, image order, local links, all eight scenario IDs, and critical scope statements across both READMEs.
 
-Canonical PNGs are generated in Linux with Pillow 12.3.0 and DejaVu Sans. CI regenerates them only in the Linux/Python 3.12 job and fails if committed bytes drift. Other platforms should review images but should not replace the canonical PNGs without passing that job.
+Canonical bilingual PNGs are generated with Pillow 12.3.0. Set `LRA_CJK_FONT` to a CJK-capable font before regenerating localized images. Font rasterization is platform-specific, so CI validates committed image presence, dimensions, and variance instead of comparing cross-platform pixel bytes. Every changed image must also be opened and reviewed for text rendering, clipping, overlap, caption accuracy, and public-boundary safety. Do not edit generated images manually.
+
+`scripts/validate_readmes.py` is a deterministic structure, link, numeric-claim, and critical-boundary gate. It does not prove native-language quality by itself. Native Chinese and bilingual semantic review remain required for an external delivery.
 
 Delete local `build/`, `dist/`, `.venv/`, and `*.egg-info/` directories when they are no longer needed; all are ignored and must never be staged.

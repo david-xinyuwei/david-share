@@ -72,6 +72,7 @@ def main() -> int:
         "--matrix",
         type=Path,
         default=root / "data" / "validation-matrix.json",
+        help="Matrix path (default: ./data/validation-matrix.json; run from the repository root).",
     )
 
     summarize_parser = subparsers.add_parser("summarize", help="Summarize JSONL events without identity fields.")
@@ -80,7 +81,12 @@ def main() -> int:
 
     manifest_parser = subparsers.add_parser("manifest", help="Build or verify the evidence manifest.")
     manifest_parser.add_argument("--root", type=Path, default=root)
-    manifest_parser.add_argument("--manifest", type=Path, default=root / "evidence" / "manifest.json")
+    manifest_parser.add_argument(
+        "--manifest",
+        type=Path,
+        default=root / "evidence" / "manifest.json",
+        help="Manifest path (default: ./evidence/manifest.json; run from the repository root).",
+    )
     manifest_parser.add_argument("--write", action="store_true")
 
     args = parser.parse_args()
@@ -98,6 +104,8 @@ def main() -> int:
             return _manifest(args.root, args.manifest, args.write)
     except (OSError, ValueError) as error:
         print(f"ERROR: {error}")
+        if "file not found" in str(error):
+            print("HINT: run from the repository root or pass an explicit --matrix/--manifest path.")
         return 1
     parser.error(f"unknown command: {args.command}")
 

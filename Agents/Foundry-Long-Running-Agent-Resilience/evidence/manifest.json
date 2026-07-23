@@ -4,48 +4,48 @@
   "artifacts": [
     {
       "path": "data/validation-matrix.json",
-      "bytes": 4475,
-      "sha256": "acf4ef50ee2c0a7d39ced55acbd6068aee887b391c032879e1b0210c80b4c2d0"
+      "bytes": 6875,
+      "sha256": "299c028dba6bd300cf8c36313a2b0d842865a89eecdc43b80835b0a9b0b10f09"
     },
     {
       "path": "evidence/sanitized-runs/durable-workflow-python.json",
-      "bytes": 363,
-      "sha256": "adc614e676baf25610e0b58b7ef35f5ece1df7402a98667afcacb33b4a3d74b6"
+      "bytes": 639,
+      "sha256": "b6f76e085deec8987bf1efa91dc04c30680c1767600de0f1f13d84c3e63ea19e"
     },
     {
       "path": "evidence/sanitized-runs/graph-hitl-invocations-python.json",
-      "bytes": 436,
-      "sha256": "dcf22445dfac17b906da2691d42cc32efe4e86eec4719cb1fbde787d73312ba0"
+      "bytes": 712,
+      "sha256": "c3321ffe225e785550cc9a6c8995005abc431a097fc7be41ac4aedc03d9e8db7"
     },
     {
       "path": "evidence/sanitized-runs/graph-hitl-responses-python.json",
-      "bytes": 432,
-      "sha256": "1f83ed5fea71fd4ba20d11f587f126c073850148417cf6e79142cb061e98d84d"
+      "bytes": 708,
+      "sha256": "fd24498d1fe26dba9555f8ab20c2358e52b00e1acf196d23a1903aac90aefded"
     },
     {
       "path": "evidence/sanitized-runs/research-invocations-dotnet.json",
-      "bytes": 473,
-      "sha256": "6595e3d6194df1ed5dcf5c2cf7eb0b96b5e2890973d6fa574f6270107ec017ad"
+      "bytes": 749,
+      "sha256": "9bff6208a650f3fbadd861d6a5782d48ebf9b1f7b5c624b1e213f8d00a71c991"
     },
     {
       "path": "evidence/sanitized-runs/research-invocations-python.json",
-      "bytes": 473,
-      "sha256": "4bf9a1693211646030c2566889a0a8c1ff7a45964339e383a26adc48ec4a0353"
+      "bytes": 749,
+      "sha256": "0017e6f4018bcbf21cef9972b94a09a61c28faaa887d10026f0756f7e46579d0"
     },
     {
       "path": "evidence/sanitized-runs/research-responses-dotnet.json",
-      "bytes": 519,
-      "sha256": "a16b8c3fb4637eb613dbfcfdfd2df0e3986fe647427bffee872d7205c120aa5b"
+      "bytes": 795,
+      "sha256": "ba62277840afbd078b5e71f84321a5228736a2afb9503e6d1897e908fa1ee925"
     },
     {
       "path": "evidence/sanitized-runs/research-responses-python.json",
-      "bytes": 512,
-      "sha256": "d07f3af507fb559c91e2505f34da564945a1546a31546344111fd7b7c331191b"
+      "bytes": 788,
+      "sha256": "4710f5a178e6234bda703650743d679214d069fff22781c49d1e1de9fceb4263"
     },
     {
       "path": "evidence/sanitized-runs/steering-python.json",
-      "bytes": 393,
-      "sha256": "caf8aace85022e62074e22884a87a91497e34023926ff39a5b105ceef6a003d2"
+      "bytes": 669,
+      "sha256": "3605a8878009dfdade28dcb5c622515e02618f9b96e754fc8ebbc273d500830a"
     }
   ]
 }

@@ -3,8 +3,8 @@
   "scenarios": [
     {
       "id": "committed-sanitized-attestations",
-      "type": "test-fixture",
-      "boundary": "Sanitized summaries derived from authenticated hosted runs; raw private evidence is not committed."
+      "type": "sanitized-runtime-attestation",
+      "boundary": "Author-attested summaries derived from private authenticated runs. Public commitments can detect source-artifact drift when checked against the retained private evidence, but cannot independently prove execution."
     },
     {
       "id": "user-event-summarization",
@@ -15,6 +15,11 @@
       "id": "validation-architecture",
       "type": "architecture-explainer",
       "boundary": "Static documentation explains evidence requirements; it is not an executed hosted-agent result."
+    },
+    {
+      "id": "synthetic-parser-fixtures",
+      "type": "test-fixture",
+      "boundary": "Small synthetic JSONL inputs under tests/fixtures exercise parser behavior only and never count as campaign evidence."
     }
   ]
 }

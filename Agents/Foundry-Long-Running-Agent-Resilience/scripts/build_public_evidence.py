@@ -6,13 +6,14 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from lra_resilience.evidence import validate_matrix
+from lra_resilience.evidence import build_evidence_schema, validate_matrix
 from lra_resilience.manifest import build_manifest
 
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNS = ROOT / "evidence" / "sanitized-runs"
 MATRIX_PATH = ROOT / "data" / "validation-matrix.json"
+SCHEMA_PATH = ROOT / "data" / "evidence-contract.schema.json"
 MANIFEST_PATH = ROOT / "evidence" / "manifest.json"
 
 
@@ -26,7 +27,7 @@ def write_json(path: Path, value: dict) -> None:
 def main() -> int:
     scenarios = [json.loads(path.read_text(encoding="utf-8")) for path in sorted(RUNS.glob("*.json"))]
     matrix = {
-        "schema_version": 1,
+        "schema_version": 2,
         "disclosure": "public-sanitized-attestation",
         "scope": "eight-main-documented-scenarios",
         "validation_date": "2026-07-23",
@@ -44,6 +45,7 @@ def main() -> int:
             print(f"ERROR: {error}")
         return 1
     write_json(MATRIX_PATH, matrix)
+    write_json(SCHEMA_PATH, build_evidence_schema())
     write_json(MANIFEST_PATH, build_manifest(ROOT))
     print(f"Built {len(scenarios)} sanitized attestations.")
     return 0
