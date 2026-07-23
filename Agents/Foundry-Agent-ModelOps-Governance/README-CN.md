@@ -250,7 +250,7 @@ Governance-plane conclusion: unified_context_specialized_operations
 | [AI-Foundry-Model-Performance](../../Deep-Learning/AI-Foundry-Model-Performance/) | 展示旧 AML managed online endpoint performance-testing path。 |
 | [AI-Foundry-Agent-VNET-Deployment](../AI-Foundry-Agent-VNET-Deployment/) | 用网络加固模式补充治理叙事。 |
 | [Foundry-Hosted-Agent-Toolbox-Demo](../Foundry-Hosted-Agent-Toolbox-Demo/) | 展示 hosted-agent operational pattern，可消费统一 endpoint 叙事。 |
-| [Foundry-Long-Running-Agent-Resilience](../Foundry-Long-Running-Agent-Resilience/) | 补充 Responses、Invocations、Python 与 .NET 的 evidence-first workload recovery 验证。 |
+| [Foundry-Long-Running-Agent-Resilience](../Foundry-Long-Running-Agent-Resilience/) | 补充 Responses/Invocations workload proof pattern 的 documentation-only Private Preview 笔记。 |
 
 ---
 

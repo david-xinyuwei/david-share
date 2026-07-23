@@ -1,6 +1,0 @@
-*.md text eol=lf
-*.py text eol=lf
-LICENSE text eol=lf
-.gitattributes text eol=lf
-*.json -filter -diff -merge text eol=lf
-**/*.json -filter -diff -merge text eol=lf

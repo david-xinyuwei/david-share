@@ -42,3 +42,6 @@
 *.json filter=lfs diff=lfs merge=lfs -text
 LICENSE text eol=lf
 .gitattributes text eol=lf
+Agents/Foundry-Long-Running-Agent-Resilience/*.md text eol=lf
+Agents/Foundry-Long-Running-Agent-Resilience/LICENSE text eol=lf
+Agents/Foundry-Long-Running-Agent-Resilience/images/*.png binary

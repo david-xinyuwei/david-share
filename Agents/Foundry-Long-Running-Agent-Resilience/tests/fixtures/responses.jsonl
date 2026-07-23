@@ -1,4 +1,0 @@
-{"event":{"type":"response.output_item.done","output_index":0,"response_id":"discarded"}}
-{"event":{"type":"response.in_progress","sequence_number":10,"session_id":"discarded"}}
-{"event":{"type":"response.output_item.done","output_index":1,"sequence_number":11}}
-{"event":{"type":"response.completed","status":"completed","sequence_number":12}}

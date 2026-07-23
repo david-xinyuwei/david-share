@@ -1028,7 +1028,7 @@ python scripts/measure_latency.py --iterations 5      # Terminal 2
 | [`AI-Agent-Private-Endpoint`](../AI-Agent-Private-Endpoint/) | Hosted Agent 需访问私网资源时的 private link / VNet 模式。 |
 | [`AI-Foundry-Agent-VNET-Deployment`](../AI-Foundry-Agent-VNET-Deployment/) | 网络隔离 Foundry agent 部署 recipe。 |
 | [`Foundry-IQ`](../Foundry-IQ/) | Foundry knowledge grounding，可与 Toolbox 的 `azure_ai_search` / `file_search` 组合。 |
-| [`Foundry-Long-Running-Agent-Resilience`](../Foundry-Long-Running-Agent-Resilience/) | 面向 Responses 与 Invocations 长任务的 evidence-first recovery 验证。 |
+| [`Foundry-Long-Running-Agent-Resilience`](../Foundry-Long-Running-Agent-Resilience/) | 面向 Responses/Invocations 长任务 proof pattern 的 documentation-only Private Preview 笔记。 |
 
 ## 排错指南 (Troubleshooting)
 

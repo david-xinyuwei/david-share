@@ -1,5 +1,0 @@
-{"type":"phase","phase":1,"total":2,"title":"fixture phase one","session_id":"discarded"}
-{"type":"status","text":"checkpointed"}
-{"type":"recovered","phase":1,"total":2,"invocation_id":"discarded"}
-{"type":"phase","phase":2,"total":2,"title":"fixture phase two"}
-{"type":"done","status":"completed"}

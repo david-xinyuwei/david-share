@@ -250,7 +250,7 @@ Not necessarily. It remains useful for existing deployments and performance test
 | [AI-Foundry-Model-Performance](../../Deep-Learning/AI-Foundry-Model-Performance/) | Shows the older AML managed online endpoint performance-testing path. |
 | [AI-Foundry-Agent-VNET-Deployment](../AI-Foundry-Agent-VNET-Deployment/) | Complements the governance story with network hardening patterns. |
 | [Foundry-Hosted-Agent-Toolbox-Demo](../Foundry-Hosted-Agent-Toolbox-Demo/) | Shows hosted-agent operational patterns that can consume the unified endpoint story. |
-| [Foundry-Long-Running-Agent-Resilience](../Foundry-Long-Running-Agent-Resilience/) | Adds evidence-first workload recovery validation across Responses, Invocations, Python, and .NET. |
+| [Foundry-Long-Running-Agent-Resilience](../Foundry-Long-Running-Agent-Resilience/) | Documentation-only Private Preview notes on Responses/Invocations workload proof patterns. |
 
 ---
 

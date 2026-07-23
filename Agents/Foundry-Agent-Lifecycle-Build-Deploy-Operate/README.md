@@ -414,6 +414,6 @@ See the [field-ops-agent README](https://github.com/microsoft/Build26-BRK241-fro
 |:-----------|:------------|
 | [Foundry-Agent-Post-Training-Deep-Dive](https://github.com/david-xinyuwei/david-share/tree/master/Deep-Learning/Foundry-Agent-Post-Training-Deep-Dive) | Deep dive into Foundry agent post-training: distillation, SFT, RFT, and Low-Level Training API (BRK231/BRK232) |
 | [Foundry-Hosted-Agent-Toolbox-Demo](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Foundry-Hosted-Agent-Toolbox-Demo) | Hands-on demo of Foundry Hosted Agents with Toolbox integration |
-| [Foundry-Long-Running-Agent-Resilience](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Foundry-Long-Running-Agent-Resilience) | Evidence-first validation of checkpoint, failure injection, reconnect, recovery, and terminal completion |
+| [Foundry-Long-Running-Agent-Resilience](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Foundry-Long-Running-Agent-Resilience) | Documentation-only Private Preview notes on long-running proof patterns; no preview implementation |
 | [Azure-Agent-Skills-In-Action](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Azure-Agent-Skills-In-Action) | 61 Azure Agent Skills validated end-to-end |
 | [Microsoft-Agent-Framework](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Microsoft-Agent-Framework) | Microsoft Agent Framework analysis and examples |
