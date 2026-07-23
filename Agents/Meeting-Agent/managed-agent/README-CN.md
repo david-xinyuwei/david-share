@@ -2,13 +2,14 @@
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB.svg)](https://www.python.org/)
 [![Managed Agent](https://img.shields.io/badge/Foundry-Managed%20Agent-0078D4.svg)](agent.yaml)
+[![Managed Agent CI](https://github.com/david-xinyuwei/david-share/actions/workflows/managed-meeting-agent-ci.yml/badge.svg?branch=master)](https://github.com/david-xinyuwei/david-share/actions/workflows/managed-meeting-agent-ci.yml)
 [![Human Send Required](https://img.shields.io/badge/email-human%20send%20required-D83B01.svg)](#outlook-安全边界)
 
 同一个Meeting Agent Repo中的Managed Agent实现。它与根目录Classic Direct Responses实现共用事件、产物、UI、PowerPoint、EML和Outlook契约，同时把模型循环与Skill生命周期交给使用Managed GHCP Harness的Foundry Prompt Agent。
 
 > 作者：魏新宇
 
-**中文** | [English](README.md) | [客户快速入口](CUSTOMER-START-HERE-CN.md)
+**中文** | [English](README.md) | [客户快速入口](CUSTOMER-START-HERE-CN.md) | [源码](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Meeting-Agent/managed-agent)
 
 ## 真实能力
 

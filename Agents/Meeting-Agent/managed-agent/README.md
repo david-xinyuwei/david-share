@@ -2,13 +2,14 @@
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB.svg)](https://www.python.org/)
 [![Managed Agent](https://img.shields.io/badge/Foundry-Managed%20Agent-0078D4.svg)](agent.yaml)
+[![Managed Agent CI](https://github.com/david-xinyuwei/david-share/actions/workflows/managed-meeting-agent-ci.yml/badge.svg?branch=master)](https://github.com/david-xinyuwei/david-share/actions/workflows/managed-meeting-agent-ci.yml)
 [![Human Send Required](https://img.shields.io/badge/email-human%20send%20required-D83B01.svg)](#outlook-safety)
 
 The Managed Agent implementation inside the single Meeting Agent repository. It uses the same event, artifact, UI, PowerPoint, EML, and Outlook contracts as the classic direct Responses implementation, while moving the model loop and Skill lifecycle to a Foundry prompt agent with a managed GHCP harness.
 
 > Author: Xinyu Wei
 
-[Chinese](README-CN.md) | **English** | [Customer Start Here](CUSTOMER-START-HERE.md)
+[Chinese](README-CN.md) | **English** | [Customer Start Here](CUSTOMER-START-HERE.md) | [Source](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Meeting-Agent/managed-agent)
 
 ## What Is Real
 
