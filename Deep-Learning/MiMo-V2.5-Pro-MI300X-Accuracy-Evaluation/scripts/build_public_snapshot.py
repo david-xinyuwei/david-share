@@ -2,9 +2,9 @@
 """Build a public, auditable accuracy snapshot without redistributing prompts.
 
 The input directory is a private staging area containing validated evaluator
-outputs. Public per-response records retain identifiers, metrics, finish
-metadata, and content hashes, but omit benchmark prompt text, ground-truth text,
-and generated response text.
+outputs. Public per-response records retain identifiers, metrics, and finish
+metadata, but omit benchmark prompt text, answer keys, predictions, generated
+response text, and all per-content hashes.
 """
 
 from __future__ import annotations
@@ -12,10 +12,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 DATASET_SPECS = {
     "aime": {
@@ -68,15 +67,14 @@ DATASET_SPECS = {
     },
 }
 
-
-def sha256_bytes(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
-
-
-def sha256_text(value: Any) -> str:
-    return sha256_bytes(
-        json.dumps(value, ensure_ascii=False, sort_keys=True).encode("utf-8")
-    )
+SAMPLING_SPECS = {
+    "aime": {"temperature": 1.0, "top_p": 0.95, "max_tokens": 65_536, "enable_thinking": True},
+    "cmmlu": {"temperature": 0.0, "top_p": 1.0, "max_tokens": 16_384, "enable_thinking": None},
+    "minerva_math": {"temperature": 0.0, "top_p": 1.0, "max_tokens": 16_384, "enable_thinking": None},
+    "mmlu_pro": {"temperature": 0.0, "top_p": 1.0, "max_tokens": 16_384, "enable_thinking": None},
+    "mmlu_redux": {"temperature": 0.0, "top_p": 1.0, "max_tokens": 16_384, "enable_thinking": None},
+    "supergpqa": {"temperature": 0.0, "top_p": 1.0, "max_tokens": 16_384, "enable_thinking": None},
+}
 
 
 def sha256_file(path: Path) -> str:
@@ -103,7 +101,7 @@ def result_path(root: Path, dataset: str) -> list[Path]:
             *sorted((root / "cmmlu-r1-2").glob("*.artifact.cmmlu_results_*.jsonl")),
         ],
         "minerva_math": sorted((root / "minerva" / "raw" / "results").glob("*results*.jsonl")),
-        "mmlu_pro": list((root / "mmlu-pro").rglob("*.artifact.mmlu_pro_results_*.jsonl")),
+        "mmlu_pro": sorted((root / "mmlu-pro").rglob("*.artifact.mmlu_pro_results_*.jsonl")),
         "mmlu_redux": [root / "mmlu-redux" / "results.jsonl"],
         "supergpqa": [
             root
@@ -119,6 +117,62 @@ def result_path(root: Path, dataset: str) -> list[Path]:
     if not paths or any(not path.is_file() for path in paths):
         raise RuntimeError(f"missing private result inputs for {dataset}: {paths}")
     return paths
+
+
+def summary_paths(root: Path, dataset: str) -> list[Path]:
+    patterns = {
+        "aime": [root / "aime" / "summary.json"],
+        "cmmlu": [
+            root / "cmmlu-r0" / "summary.json",
+            *sorted((root / "cmmlu-r1-2").glob("*.artifact.cmmlu_summary_*.json")),
+        ],
+        "minerva_math": sorted((root / "minerva" / "raw" / "results").glob("*summary*.json")),
+        "mmlu_pro": sorted((root / "mmlu-pro").rglob("*.artifact.mmlu_pro_summary_*.json")),
+        "mmlu_redux": [root / "mmlu-redux" / "summary.json"],
+        "supergpqa": [
+            root
+            / "supergpqa"
+            / "balanced-stage"
+            / "vm10"
+            / "supergpqa"
+            / "merged"
+            / "supergpqa_summary_merged.json"
+        ],
+    }
+    paths = patterns[dataset]
+    if not paths or any(not path.is_file() for path in paths):
+        raise RuntimeError(f"missing private summary inputs for {dataset}: {paths}")
+    return paths
+
+
+def sampling_evidence(root: Path, dataset: str) -> dict[str, Any]:
+    expected = SAMPLING_SPECS[dataset]
+    sources = []
+    for index, path in enumerate(summary_paths(root, dataset)):
+        summary = json.loads(path.read_text(encoding="utf-8"))
+        model_config = summary.get("model_config") or {}
+        observed = {
+            "temperature": float(model_config.get("temperature")),
+            "top_p": float(model_config.get("top_p")),
+            "max_tokens": int(model_config.get("max_tokens")),
+            "enable_thinking": (
+                model_config.get("extra_body", {})
+                .get("chat_template_kwargs", {})
+                .get("enable_thinking")
+            ),
+        }
+        if observed != expected:
+            raise RuntimeError(
+                f"sampling contract mismatch for {dataset} source {index}: "
+                f"observed={observed} expected={expected}"
+            )
+        sources.append(
+            {
+                "source_id": f"{dataset}-summary-{index}",
+                "sha256": sha256_file(path),
+            }
+        )
+    return {"dataset": dataset, "observed_config": expected, "source_summaries": sources}
 
 
 def metadata_for(row: dict[str, Any], index: int) -> dict[str, Any]:
@@ -159,7 +213,7 @@ def audit_rows(dataset: str, paths: list[Path]) -> tuple[list[dict[str, Any]], l
         sources.append(
             {
                 "source_index": source_index,
-                "private_artifact_basename": path.name,
+                "source_id": f"{dataset}-source-{source_index}",
                 "sha256": sha256_file(path),
                 "bytes": path.stat().st_size,
                 "rows": len(rows),
@@ -168,13 +222,16 @@ def audit_rows(dataset: str, paths: list[Path]) -> tuple[list[dict[str, Any]], l
         for row in rows:
             responses = row.get("model_responses", [])
             predictions = row.get("extracted_preds", [])
-            metrics = [int(value) for value in row.get("metrics", [])]
+            raw_metrics = row.get("metrics", [])
+            if any(type(value) is not int or value not in (0, 1) for value in raw_metrics):
+                raise RuntimeError(f"non-binary metric for {dataset} id={row.get('id')}")
+            metrics = list(raw_metrics)
             if not (len(responses) == len(predictions) == len(metrics)):
                 raise RuntimeError(f"misaligned arrays for {dataset} id={row.get('id')}")
             repeat_ids, provenance = response_repeat_ids(dataset, source_index, row)
             if len(repeat_ids) != len(metrics):
                 raise RuntimeError(f"repeat provenance mismatch for {dataset} id={row.get('id')}")
-            for slot, (repeat_id, response, prediction, metric) in enumerate(
+            for slot, (repeat_id, response, _prediction, metric) in enumerate(
                 zip(repeat_ids, responses, predictions, metrics)
             ):
                 metadata = metadata_for(row, slot)
@@ -190,15 +247,6 @@ def audit_rows(dataset: str, paths: list[Path]) -> tuple[list[dict[str, Any]], l
                         "finish_reason": metadata.get("finish_reason"),
                         "prompt_tokens": metadata.get("prompt_tokens"),
                         "completion_tokens": metadata.get("completion_tokens"),
-                        "response_id_sha256": (
-                            sha256_text(metadata.get("response_id"))
-                            if metadata.get("response_id")
-                            else None
-                        ),
-                        "prompt_sha256": sha256_text(row.get("input_msgs")),
-                        "ground_truth_sha256": sha256_text(row.get("ground_truth")),
-                        "prediction_sha256": sha256_text(prediction),
-                        "response_sha256": sha256_text(response),
                         "source_index": source_index,
                     }
                 )
@@ -207,8 +255,10 @@ def audit_rows(dataset: str, paths: list[Path]) -> tuple[list[dict[str, Any]], l
 
 def write_json(path: Path, value: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8", newline="\n") as handle:
+    temp_path = path.with_name(f".{path.name}.tmp")
+    with temp_path.open("w", encoding="utf-8", newline="\n") as handle:
         handle.write(json.dumps(value, ensure_ascii=False, indent=2) + "\n")
+    temp_path.replace(path)
 
 
 def main() -> None:
@@ -223,24 +273,31 @@ def main() -> None:
     all_source_artifacts: list[dict[str, Any]] = []
     total_validated_responses = 0
     total_correct = 0
+    total_empty_responses = 0
     total_observed_questions = 0
 
     for dataset, spec in DATASET_SPECS.items():
         paths = result_path(args.private_input, dataset)
         audit, sources = audit_rows(dataset, paths)
+        observed_sampling = sampling_evidence(args.private_input, dataset)
         metrics = [row["metric"] for row in audit]
         question_ids = sorted({row["question_id"] for row in audit})
         if any(metric not in (0, 1) for metric in metrics):
             raise RuntimeError(f"non-binary metric in {dataset}")
         pair_keys = [
-            (row["question_id"], row["repeat_id"], row["repeat_slot"], row["source_index"])
+            (
+                row["question_id"],
+                "repeat" if row["repeat_id"] is not None else row["repeat_provenance"],
+                row["repeat_id"] if row["repeat_id"] is not None else row["repeat_slot"],
+            )
             for row in audit
         ]
         if len(pair_keys) != len(set(pair_keys)):
             raise RuntimeError(f"duplicate public audit pair in {dataset}")
 
         audit_path = audit_dir / f"{dataset}.jsonl"
-        with audit_path.open("w", encoding="utf-8", newline="\n") as handle:
+        audit_temp = audit_path.with_name(f".{audit_path.name}.tmp")
+        with audit_temp.open("w", encoding="utf-8", newline="\n") as handle:
             for row in sorted(
                 audit,
                 key=lambda value: (
@@ -251,9 +308,11 @@ def main() -> None:
                 ),
             ):
                 handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
+        audit_temp.replace(audit_path)
 
         responses = len(metrics)
         correct = sum(metrics)
+        empty_responses = sum(row["response_empty"] for row in audit)
         questions = len(question_ids)
         expected_responses = spec["total_questions"] * spec["final_repeats"]
         summary = {
@@ -261,6 +320,8 @@ def main() -> None:
             **spec,
             "validated_unique_questions": questions,
             "validated_responses": responses,
+            "nonempty_responses": responses - empty_responses,
+            "length_limited_empty_responses": empty_responses,
             "correct": correct,
             "mi300x_accuracy": correct / responses,
             "directional_delta_percentage_points": 100
@@ -271,6 +332,7 @@ def main() -> None:
             "comparison_scope": (
                 "directional subset comparison; H200 reference was provided and was not independently reproduced"
             ),
+            "sampling_evidence": observed_sampling,
             "audit_file": str(audit_path.relative_to(args.repo_dir)).replace("\\", "/"),
             "audit_sha256": sha256_file(audit_path),
             "source_artifacts": sources,
@@ -280,6 +342,7 @@ def main() -> None:
             all_source_artifacts.append({"dataset": dataset, **source})
         total_validated_responses += responses
         total_correct += correct
+        total_empty_responses += empty_responses
         total_observed_questions += questions
 
     final_questions = sum(spec["total_questions"] for spec in DATASET_SPECS.values())
@@ -297,6 +360,8 @@ def main() -> None:
             "validated snapshot totals changed unexpectedly: "
             f"{total_observed_questions}/{total_validated_responses}/{total_correct}"
         )
+    if total_empty_responses != 107:
+        raise RuntimeError(f"length-limited empty response total changed: {total_empty_responses}")
 
     snapshot = {
         "schema_version": "1.0",
@@ -325,6 +390,8 @@ def main() -> None:
             "observed_unique_questions": total_observed_questions,
             "validated_responses": total_validated_responses,
             "correct_responses": total_correct,
+            "nonempty_responses": total_validated_responses - total_empty_responses,
+            "length_limited_empty_responses": total_empty_responses,
             "question_coverage": total_observed_questions / final_questions,
             "response_coverage": total_validated_responses / final_responses,
             "aggregate_accuracy_reported": False,
@@ -356,10 +423,11 @@ def main() -> None:
                 ]
             )
         )
-    with (args.repo_dir / "data" / "results-summary.tsv").open(
-        "w", encoding="utf-8", newline="\n"
-    ) as handle:
+    tsv_path = args.repo_dir / "data" / "results-summary.tsv"
+    tsv_temp = tsv_path.with_name(f".{tsv_path.name}.tmp")
+    with tsv_temp.open("w", encoding="utf-8", newline="\n") as handle:
         handle.write("\n".join(tsv) + "\n")
+    tsv_temp.replace(tsv_path)
     print(
         "PUBLIC_SNAPSHOT=PASS "
         f"datasets={len(dataset_summaries)} questions={total_observed_questions} "
