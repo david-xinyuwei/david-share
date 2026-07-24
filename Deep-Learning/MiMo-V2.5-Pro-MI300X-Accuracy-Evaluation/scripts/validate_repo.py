@@ -125,7 +125,7 @@ def validate_readme(repo: Path) -> None:
     required = [
         "8,080条已验证评测记录", "7,973", "107", "134,239", "100.0000%",
         "89.8438%", "97.6128%", "89.3555%", "96.2240%", "70.3125%",
-        "Temperature不同是数据集Evaluator（评测器）合同的差异",
+        "Temperature不同来源于各数据集Evaluator（评测器）的合同",
         "NOT VERIFIED / DIRECTIONAL", "旧公开commit曾含低熵答案哈希",
     ]
     for fragment in required:

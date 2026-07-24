@@ -50,7 +50,7 @@
 
 ## 2. 为什么不同数据集的Temperature不一样
 
-**Temperature不同是数据集Evaluator（评测器）合同的差异，不是H200与MI300X测试条件不一致。**
+**Temperature不同来源于各数据集Evaluator（评测器）的合同，而不是按硬件临时调整；H200执行层一致性仍受`NOT VERIFIED`边界约束。**
 
 | 数据集 | Temperature | Top-p | Repeat | 为什么采用该设置 |
 |---|---:|---:|---:|---|
