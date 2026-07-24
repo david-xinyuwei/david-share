@@ -9,7 +9,11 @@
 | Bilingual deterministic gate | PASS | Matching tables, figures, links, numbers, and limitations | AI language audit not independently executed |
 | Clean-environment validation | PASS | Python standard library only; compile and validator pass | Full private evaluator execution requires supplied environment |
 | Demo authenticity | N/A | This is a benchmark evidence repository, not a demo | — |
-| Git/CI/online | Pending at file creation | Filled by final commit/push verification | — |
+| Git/online | PASS | Public GitHub page, immutable commit, remote SHA, API path and rendered README verified | — |
+| Push workflow | PASS | `Push on master` run 30064926863 completed successfully | — |
+| GitHub Pages | BLOCKED (unrelated monorepo issue) | Checkout fails on a pre-existing submodule path without a `.gitmodules` URL; the previous five Pages runs failed before this repository was added | Does not block the public GitHub repository page |
 | Multi-model super review | N/A | Not requested | — |
 
 `AI_LANGUAGE_AUDIT=NOT_VERIFIED`: no authorized independent language-review service was invoked. Deterministic bilingual numeric and structural checks were executed.
+
+The public repository page, six-dataset table, Mermaid evidence chain, parameter-alignment links, machine-readable result file, and immutable commit page were opened and verified after push.
