@@ -118,24 +118,34 @@ def validate_public_text(repo: Path) -> None:
             require(pattern.search(text) is None, f"{label} found in {path.relative_to(repo)}")
 
 
-def validate_readme(repo: Path) -> None:
+def validate_readmes(repo: Path) -> None:
     markdown_files = sorted(path for path in repo.rglob("*") if path.is_file() and path.suffix.lower() == ".md")
-    require(markdown_files == [repo / "README.md"], f"expected exactly one Markdown file: {markdown_files}")
-    readme = (repo / "README.md").read_text(encoding="utf-8")
-    required = [
-        "8,080条已验证评测记录", "7,973", "107", "134,239", "100.0000%",
-        "89.8438%", "97.6128%", "89.3555%", "96.2240%", "70.3125%",
-        "Temperature不同来源于各数据集Evaluator（评测器）的合同",
-        "NOT VERIFIED / DIRECTIONAL", "旧公开commit曾含低熵答案哈希",
-    ]
-    for fragment in required:
-        require(fragment in readme, f"README required fragment missing: {fragment}")
-    require(readme.count("```") % 2 == 0, "unbalanced Markdown code fences")
-    for target in re.findall(r"\[[^\]]+\]\(([^)]+)\)", readme):
-        if re.match(r"https?://", target) or target.startswith("#"):
-            continue
-        local_target = target.split("#", 1)[0]
-        require((repo / local_target).exists(), f"broken README link: {target}")
+    expected_markdown = {repo / "README.md", repo / "README-CN.md"}
+    require(set(markdown_files) == expected_markdown, f"expected exactly two root README files: {markdown_files}")
+    required_by_file = {
+        "README.md": [
+            "8,080 validated evaluation records", "7,973", "107", "134,239", "100.0000%",
+            "89.8438%", "97.6128%", "89.3555%", "96.2240%", "70.3125%",
+            "different Temperature values come from each dataset's evaluator contract",
+            "NOT VERIFIED / DIRECTIONAL", "older public commit contained low-entropy answer hashes",
+        ],
+        "README-CN.md": [
+            "8,080条已验证评测记录", "7,973", "107", "134,239", "100.0000%",
+            "89.8438%", "97.6128%", "89.3555%", "96.2240%", "70.3125%",
+            "Temperature不同来源于各数据集Evaluator（评测器）的合同",
+            "NOT VERIFIED / DIRECTIONAL", "旧公开commit曾含低熵答案哈希",
+        ],
+    }
+    for filename, required in required_by_file.items():
+        readme = (repo / filename).read_text(encoding="utf-8")
+        for fragment in required:
+            require(fragment in readme, f"{filename} required fragment missing: {fragment}")
+        require(readme.count("```") % 2 == 0, f"unbalanced Markdown code fences: {filename}")
+        for target in re.findall(r"\[[^\]]+\]\(([^)]+)\)", readme):
+            if re.match(r"https?://", target) or target.startswith("#"):
+                continue
+            local_target = target.split("#", 1)[0]
+            require((repo / local_target).exists(), f"broken {filename} link: {target}")
 
 
 def validate_repo(repo: Path) -> None:
@@ -205,7 +215,7 @@ def validate_repo(repo: Path) -> None:
     require({path.name for path in (repo / "scripts").glob("*.py")} == {"build_public_snapshot.py", "validate_repo.py"}, "unexpected public scripts")
     validate_manifest(repo)
     validate_public_text(repo)
-    validate_readme(repo)
+    validate_readmes(repo)
 
 
 def main() -> None:
