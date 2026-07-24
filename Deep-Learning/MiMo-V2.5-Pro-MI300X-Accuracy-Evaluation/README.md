@@ -69,7 +69,7 @@
 
 协议层面遵守该原则：H200参考方法与MI300X方法都声明AIME采用`temperature=1.0 / top_p=0.95`，其余五项采用`temperature=0 / top_p=1`。MI300X实际summary的配置和SHA已进入机器可读证据；由于H200原始输出与逐响应metadata不可用，H200执行层一致性标记为`NOT VERIFIED`。如果为了表面统一而把六项强改为同一Temperature，反而会偏离原始Evaluator合同。
 
-Max tokens也遵循同一逻辑：AIME的长链路数学推理上限为65,536，其他五项为16,384；该差异在H200参考方法和MI300X实测方法中按数据集保持一致。
+Max tokens也遵循同一逻辑：AIME的长链路数学推理上限为65,536，其他五项为16,384；MI300X实测summary与该合同一致，H200参考方法声明相同设置，但执行层仍受上述`NOT VERIFIED`边界约束。
 
 ---
 
@@ -339,8 +339,8 @@ python scripts/validate_repo.py .
 | Public安全边界 | PASS | 无凭据、IP、内部端口、绝对路径、题目/答案/prediction/回答全文或低熵答案哈希 | 旧公开commit曾含低熵答案哈希；未获授权不执行历史重写 |
 | Evaluator身份可审计性 | PASS（身份承诺） | 记录6个原始/修改后SHA，不分发许可证未知的源码、diff或anchor | 完整复现需合法获得上游环境 |
 | 单README呈现 | PASS | 仓库仅保留根目录本文件一个Markdown；其他资产为JSON/TSV/JSONL、SHA和代码 | 无 |
-| 在线可访问性 | PENDING | 本地质量门通过后，以新commit的GitHub页面、README和结果文件验收 | 当前线上仍是上一版 |
-| Push workflow | PENDING | 完成本地全量门后提交到`master` | 当前新版本尚未push |
+| 在线可访问性 | PASS | GitHub项目页、唯一README、主结果表、Temperature章节和结果文件已实际打开验收 | 以不可变commit为最终引用 |
+| Push workflow | PASS | 单README安全快照已提交并推送到`master`，本地与远端SHA一致 | GitHub Pages状态单列，不作为Repo页面可访问性的前提 |
 | GitHub Pages | BLOCKED（与本项目无关） | Monorepo既有子模块缺少`.gitmodules` URL；本项目加入前连续多个commit同样失败 | 不影响GitHub Repo页面访问 |
 | AI中文母语/双语审校 | NOT VERIFIED | 本次未调用独立授权语言审校服务 | 不宣称经过独立AI语言审校 |
 | 多模型Super Review | N/A | 用户要求SOP Repo质量检查，未要求多模型Review | — |
