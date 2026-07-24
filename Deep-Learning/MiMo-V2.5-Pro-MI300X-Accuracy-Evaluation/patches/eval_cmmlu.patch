@@ -1,0 +1,91 @@
+--- upstream/eval_cmmlu.py
++++ patched/eval_cmmlu.py
+@@ -19,6 +19,10 @@
+ }
+ 
+ MAX_CONCURRENT_REQUESTS = int(os.getenv("MAX_CONCURRENT_REQUESTS", 50))
++MAX_SAMPLES = int(os.getenv("MAX_SAMPLES", 0))
++SAMPLE_OFFSET = int(os.getenv("SAMPLE_OFFSET", 0))
++EVAL_REPEATS = int(os.getenv("REPEATS", 3))
++REPEAT_OFFSET = int(os.getenv("REPEAT_OFFSET", 0))
+ 
+ # 这里用不含脚本的版本
+ CMMLU_DATASET_NAME = os.getenv("CMMLU_DATASET_NAME", "svjack/cmmlu")
+@@ -119,17 +123,32 @@
+                 except Exception:
+                     content = ""
+ 
+-                return request_idx, content
++                usage = getattr(resp, "usage", None)
++                metadata = {
++                    "response_id": getattr(resp, "id", None),
++                    "request_idx": str(request_idx),
++                    "repeat_idx": int(str(request_idx).split("_", 1)[0]),
++                    "finish_reason": getattr(choice0, "finish_reason", None),
++                    "content_is_none": getattr(msg0, "content", None) is None,
++                    "content_chars": len(getattr(msg0, "content", None) or ""),
++                    "reasoning_chars": len(getattr(msg0, "reasoning_content", None) or ""),
++                    "tool_calls_present": bool(getattr(msg0, "tool_calls", None)),
++                    "prompt_tokens": getattr(usage, "prompt_tokens", None),
++                    "completion_tokens": getattr(usage, "completion_tokens", None),
++                    "total_tokens": getattr(usage, "total_tokens", None),
++                }
++                return request_idx, content, metadata
+             except Exception as e:
+                 if attempt < max_retries - 1:
+                     await asyncio.sleep(2**attempt)
+                 else:
+-                    print(f"Failed to get response for request {request_idx}: {e}")
+-                    return request_idx, ""
++                    raise RuntimeError(
++                        f"Request {request_idx} failed after {max_retries} attempts: {e}"
++                    ) from e
+ 
+ 
+ async def eval_cmmlu():
+-    repeats = 3
++    repeats = EVAL_REPEATS
+ 
+     client = openai.AsyncClient(
+         base_url=LOCAL_API_BASE,
+@@ -137,6 +156,11 @@
+     )
+ 
+     query_idxs, messages, gts = load_cmmlu_data(CMMLU_DATASET_NAME)
++    if MAX_SAMPLES > 0:
++        stop = SAMPLE_OFFSET + MAX_SAMPLES
++        query_idxs = query_idxs[SAMPLE_OFFSET:stop]
++        messages = messages[SAMPLE_OFFSET:stop]
++        gts = gts[SAMPLE_OFFSET:stop]
+ 
+     results = {}
+     for qid, msg, gt in zip(query_idxs, messages, gts):
+@@ -147,11 +171,12 @@
+             "model_responses": [],
+             "extracted_preds": [],
+             "metrics": [],
++            "response_metadata": [],
+         }
+ 
+     tasks = []
+     semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
+-    for repeat_idx in range(repeats):
++    for repeat_idx in range(REPEAT_OFFSET, REPEAT_OFFSET + repeats):
+         for qid, msg in zip(query_idxs, messages):
+             tasks.append(
+                 llm_inference(
+@@ -163,12 +188,13 @@
+             )
+ 
+     for future in tqdm(asyncio.as_completed(tasks), total=len(tasks)):
+-        request_idx, response = await future
++        request_idx, response, response_metadata = await future
+         response = response or ""
+         repeat_idx = request_idx.split("_")[0]
+         qid = int("_".join(request_idx.split("_")[1:]))
+ 
+         results[qid]["model_responses"].append(response)
++        results[qid]["response_metadata"].append(response_metadata)
+ 
+         if response and "<think>" in response:
+             response = response.split("</think>")[-1].strip()

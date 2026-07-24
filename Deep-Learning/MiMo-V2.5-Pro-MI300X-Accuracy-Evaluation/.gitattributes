@@ -1,0 +1,8 @@
+*.jsonl text eol=lf
+*.json text eol=lf
+*.tsv text eol=lf
+*.md text eol=lf
+*.py text eol=lf
+*.sh text eol=lf
+*.patch text eol=lf whitespace=-blank-at-eol
+*.txt text eol=lf
