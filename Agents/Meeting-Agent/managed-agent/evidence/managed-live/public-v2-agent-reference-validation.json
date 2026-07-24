@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "agent_reference_validated": {
+    "name": "managed-meeting-agent",
+    "version": "2"
+  },
+  "non_stream_title": "Assistant Pilot Launch Planning",
+  "stream_title": "Service Recovery and Alerting Discussion",
+  "stream_delta_count": 58,
+  "stream_text_chars": 1832,
+  "response_id_present": true,
+  "response_id_sha256": "4c1d343ccbd5e4f50b06a9997877631c197f9d8236c8721cb0086400cd1e4a74"
+}

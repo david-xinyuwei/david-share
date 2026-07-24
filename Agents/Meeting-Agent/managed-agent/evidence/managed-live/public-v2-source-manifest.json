@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "agent": {
+    "name": "managed-meeting-agent",
+    "version": "2",
+    "status": "active",
+    "harness": "ghcp",
+    "model": "gpt-oss-120b",
+    "authentication": "Entra"
+  },
+  "deployment": {
+    "result": "success",
+    "duration_seconds": 23,
+    "source_commit": "f34c1a8e3ccf1c2f46a6e5901399a79d6d27fcd8",
+    "public_source_plus_reviewed_deployment_fixes": true,
+    "deployed_name_matches_public_source": true
+  },
+  "source_sha256": {
+    "agent.yaml": "921d2a374e53202dff7d67f2a4b309a4facef8eb856b8c06280a0cefd345b25b",
+    "azure.yaml": "525e7fc7431f545c245ab0aa00813082f58b1741fb6989a96fb9031b05a42fcd",
+    "instructions.md": "9f7a8b18b831b9b28d1584303d1b0015fd82710df6bcc42113267dfb7f419bc2",
+    "skills/meeting-package/SKILL.md": "e7ee390ff72a1577c254332f55bf58ad3d2d3bc7391eafff0d8c4134b9420563"
+  },
+  "private_environment_values": "redacted; rendered only under ignored .azure",
+  "validated_at_utc": "2026-07-23T13:25:06Z"
+}

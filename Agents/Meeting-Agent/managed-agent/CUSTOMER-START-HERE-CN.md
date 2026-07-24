@@ -1,6 +1,6 @@
 # Managed Meeting Agent 客户快速入口
 
-本交付包包含独立的Managed Agent实现。早期`Agents/Meeting-Agent` Repo保持不变。
+本交付包提供Meeting Agent产品的Foundry Managed实现路径。Classic实现继续保留在同一产品主页中。
 
 ## 支持路径
 
@@ -25,7 +25,7 @@ az account show
 .\scripts\start-ui.ps1 `
   -ManagedAgentEndpoint "https://<account>.services.ai.azure.com/api/projects/<project>/openai/v1/responses" `
   -ManagedAgentName "managed-meeting-agent" `
-  -ManagedAgentVersion "1" `
+  -ManagedAgentVersion "2" `
   -AzureConfigDir $env:AZURE_CONFIG_DIR
 ```
 
@@ -42,4 +42,4 @@ az account show
 5. New Outlook打开可编辑草稿，包含`X-Unsent: 1`、正文内嵌思维图，以及PNG/PPTX附件。
 6. 用户必须手动点击 **Send**。
 
-客户主路径不使用AOAI API Key，也不具备自动发送能力。架构、证据、测试和边界见[README-CN.md](README-CN.md)。
+客户主路径不使用AOAI API Key，也不具备自动发送能力。架构、证据、测试和边界见[Managed实现说明](docs/MANAGED-IMPLEMENTATION-CN.md)，统一入口见[产品首页](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Meeting-Agent)。

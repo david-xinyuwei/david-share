@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "agent": {
+    "name": "managed-meeting-agent",
+    "version": "2",
+    "authentication": "Entra"
+  },
+  "source_commit_under_test": "f34c1a8e3ccf1c2f46a6e5901399a79d6d27fcd8",
+  "runs": {
+    "product-planning": {
+      "source_sha256": "413799e9783ac40a5a4e225a553bef94f33fd4c5990607add57e50547f91486b",
+      "analysis_sha256": "36502698aeb8b2d831885222fef4bd0cce7de00e75dad87e8f84e27e9b07eae4",
+      "title": "Assistant Pilot Planning Meeting",
+      "png": {
+        "format": "PNG",
+        "size": [
+          1280,
+          720
+        ],
+        "bytes": 24314,
+        "extrema": [
+          [
+            0,
+            255
+          ],
+          [
+            26,
+            255
+          ],
+          [
+            0,
+            255
+          ]
+        ]
+      },
+      "pptx": {
+        "slides": 6,
+        "all_slides_have_text": true,
+        "bytes": 58690
+      },
+      "eml": {
+        "x_unsent": "1",
+        "to_count": 0,
+        "attachments": [
+          "mind-map.png",
+          "meeting-summary.pptx"
+        ],
+        "bytes": 147838
+      }
+    },
+    "operations-review": {
+      "source_sha256": "88d71ad49cd875e2eb958c884e1ce2eb76a208576047df923decda79e7e109fb",
+      "analysis_sha256": "8498b3b568ca46907753535c779c55d4b5a6c01ed63aea1a06420997ac923ee7",
+      "title": "Service Recovery and Monitoring Updates",
+      "png": {
+        "format": "PNG",
+        "size": [
+          1280,
+          720
+        ],
+        "bytes": 35329,
+        "extrema": [
+          [
+            0,
+            255
+          ],
+          [
+            26,
+            255
+          ],
+          [
+            0,
+            255
+          ]
+        ]
+      },
+      "pptx": {
+        "slides": 6,
+        "all_slides_have_text": true,
+        "bytes": 68703
+      },
+      "eml": {
+        "x_unsent": "1",
+        "to_count": 0,
+        "attachments": [
+          "mind-map.png",
+          "meeting-summary.pptx"
+        ],
+        "bytes": 190868
+      }
+    }
+  },
+  "cross_input_analysis_differs": true,
+  "automatic_send": false
+}

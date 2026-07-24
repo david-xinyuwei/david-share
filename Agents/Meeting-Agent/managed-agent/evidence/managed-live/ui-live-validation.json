@@ -2,7 +2,7 @@
   "schema_version": 1,
   "runtime": {
     "agent": "managed-meeting-agent",
-    "version": "1",
+    "version": "2",
     "authentication": "Entra",
     "fixture": false
   },
@@ -11,7 +11,7 @@
     "expected": 1,
     "unexpected": 0,
     "flaky": 0,
-    "test_duration_ms": 21621,
+    "test_duration_ms": 17901,
     "result": "passed"
   },
   "validated": [

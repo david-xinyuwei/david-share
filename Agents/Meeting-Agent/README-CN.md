@@ -5,30 +5,77 @@
 [![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/meeting-agent-ci.yml/badge.svg?branch=master)](https://github.com/david-xinyuwei/david-share/actions/workflows/meeting-agent-ci.yml)
 [![Human Send Required](https://img.shields.io/badge/email-human%20send%20required-D83B01.svg)](#人工控制的-outlook-交接)
 
-一个本机 Windows 会议工作区：通过 Azure OpenAI Responses API 调用 GPT-5.4，生成结构化纪要、Mermaid 思维导图、模板化 PowerPoint，以及未发送的 New Outlook 草稿。
+同一个Meeting Agent产品，两种实现路径：Classic路径由应用自己负责Prompt编排；Managed路径把模型循环和版本化Skill交给Microsoft Foundry管理。两条路径都生成结构化纪要、思维导图、可编辑PowerPoint和未发送的New Outlook草稿。
 
 > 作者：魏新宇
 
 **中文** | [English](README.md) | [源码](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Meeting-Agent)
 
-## 一个Meeting Agent，两条实现路径
+## 从这里开始：为什么要比较两种实现？
 
-本Repo包含同一个Meeting Agent产品契约的两条实现：
+原始实现证明了会议工作流可行，但应用几乎负责全部AI Runtime：构造System Prompt、读取`SKILL.md`、选择模型、直接调用Azure OpenAI、解析返回结果并持有API Key。Managed实现保留确定性的会议与产物代码，同时把模型循环、Agent身份、Instructions和Skill生命周期移交给Microsoft Foundry。
+
+本Repo用一个具体应用回答下面的问题：
+
+> 使用Foundry托管Agent后，能否减少应用自己承担的编排和Key管理，同时不降低Meeting Agent能力？
 
 | 维度 | Classic Direct Responses实现 | 使用Managed GHCP Harness的Foundry Prompt Agent实现 |
 |---|---|---|
-| 位置 | Repo根目录 | [`managed-agent/`](managed-agent/) |
+| 实现位置 | Repo根目录 | 同一产品Repo中的`managed-agent/`源码目录 |
+| Agent定义 | 无；应用本身承担Orchestrator | [`agent.yaml`](managed-agent/agent.yaml)定义Foundry Agent资源 |
+| Instructions | Python代码构造System Message | [`instructions.md`](managed-agent/instructions.md)随Agent部署 |
+| Skill | Python读取本机`SKILL.md`并在每次请求中注入 | [`meeting-package`](managed-agent/skills/meeting-package/SKILL.md)作为版本化Foundry Skill，通过Toolbox MCP绑定 |
 | 模型循环责任方 | 本机应用代码 | Foundry托管的GHCP Harness |
-| 模型访问 | 直接调用Azure OpenAI Responses | 调用Foundry Agent Responses Endpoint |
+| 调用方式 | 直接调用Azure OpenAI Responses | 应用引用Agent name和不可变version；Endpoint只是传输入口，不是Agent本身 |
 | 认证 | 本机Backend进程使用API Key | Entra ID；客户主路径不使用模型API Key |
-| Skill生命周期 | 应用代码加载本机`SKILL.md` | 版本化Foundry Skill通过Toolbox MCP绑定 |
 | 产物与UI契约 | JSON、Mermaid、SVG、PNG、可编辑PPTX、EML、浏览器UI、New Outlook草稿 | 完全相同；八个共用核心模块逐字节一致 |
 | 客户代码责任 | 负责模型请求构造与编排 | 负责事件校验、产物与Outlook交接；Foundry负责模型循环 |
-| 适用场景 | 需要最大直接控制，以及GA风格API简洁性 | 希望减少编排责任、使用托管Skill生命周期和平台治理Agent Runtime |
+| 运维变化 | Prompt、Skill加载、模型调用、Key和解析都跟随应用发布 | Instructions和Skill成为平台版本化资产；应用只保留更小的确定性责任边界 |
 
 Classic路径是**本机prompt-style编排**，并不是已经部署的Foundry Prompt Agent。这个口径能准确隔离Managed Agent带来的责任转移，不会把早期实现包装成不存在的产品能力。
 
-详见[Managed实现](managed-agent/README-CN.md)和[功能等价证据](managed-agent/FEATURE-PARITY-CN.md)。
+### 这个Repo里的Managed Agent到底是什么
+
+Managed Agent不是第二套UI，也不只是一个AI Endpoint。它是通过`agent_reference.name`和`agent_reference.version`选中的Foundry Agent资源。它的行为由四类具体资产组成：
+
+1. [`agent.yaml`](managed-agent/agent.yaml)：Agent kind、公开名称、描述和模型。
+2. [`instructions.md`](managed-agent/instructions.md)：由Agent持有的稳定证据边界和安全策略。
+3. [`skills/meeting-package/SKILL.md`](managed-agent/skills/meeting-package/SKILL.md)：可复用会议分析方法，作为版本化Skill由Toolbox MCP提供。
+4. [`ManagedAgentAnalyzer`](managed-agent/src/meeting_agent/analyzers.py)：很薄的Entra Adapter，只负责提交会议证据、锁定Agent版本，并校验返回的`MeetingAnalysis`契约。
+
+本机应用继续负责应当保持确定性的部分：事件校验、排序与幂等、文件生成、路径安全、浏览器工作区，以及人工控制的Outlook交接。
+
+### 这个Repo必须证明什么
+
+| 声明 | Repo中的证明方式 |
+|---|---|
+| 功能不回退 | 两条路径共用事件、Session、Artifact、UI和Outlook契约；八个共用模块SHA-256一致 |
+| 结果随会议输入变化 | 两份内容明显不同的会议必须生成不同的Analysis与Artifact Hash |
+| Managed部署真实存在 | Repo中的Agent、Instructions和Skill必须部署为新的不可变Foundry Agent版本，并达到`active`状态 |
+| Managed调用真实发生 | 已部署版本必须返回自身Agent Reference和严格`MeetingAnalysis` JSON，认证使用Entra |
+| 收益可以从代码看见 | 应用不再持有模型API Key，也不再把完整Skill作为System Message注入；这些生命周期由Foundry负责 |
+| 安全边界不回退 | 不存在发送API或Send按钮自动化；Outlook停留在可编辑、未发送草稿 |
+
+实现细节和Parity证据统一从本根页面进入；`managed-agent/`只是源码目录，不是第二个产品或第二个Repo。
+
+### 实测结论：Public源码部署的Managed Agent v2
+
+发布Review后，我们没有继续沿用早期内部命名Agent，而是从Repo源码重新部署。第一次部署暴露了真实可复现性缺陷：Preview扩展不会展开`promptAgent`内部占位符。现在Repo中的部署门禁只在被忽略的`.azure`目录渲染私有azd值，沿已建立的项目根目录部署，并恢复Public占位符YAML。
+
+| 验证项 | 实测结果 |
+|---|---|
+| Public源码部署 | `managed-meeting-agent`版本`2`，23秒成功完成 |
+| 源码绑定 | 记录`agent.yaml`、`azure.yaml`、`instructions.md`和`meeting-package/SKILL.md`的SHA-256 |
+| Agent身份 | 非Stream与Stream响应都通过严格Agent Reference校验：name=`managed-meeting-agent`、version=`2` |
+| 真实Streaming | 58个模型Delta、1,832个文本字符、非空Response ID Hash |
+| 跨输入行为 | 产品规划与运维复盘生成不同标题、Analysis Hash、思维导图、PPTX和EML |
+| 产物契约 | 两次运行均生成非空1280x720 PNG、可编辑六页PPTX，以及`X-Unsent: 1`、0收件人、2附件的EML草稿 |
+| 浏览器工作流 | Live Desktop Playwright `1/1`，17.9秒，0 unexpected、0 flaky |
+| 共用确定性行为 | 八个核心模块继续与固定Classic baseline逐字节一致 |
+
+这证明了合同与工作流层面的功能等价；它**不代表**不同模型会生成逐字相同的文案，也不把Private Preview能力包装成永久生产SLA。
+
+[Managed实现说明](managed-agent/docs/MANAGED-IMPLEMENTATION-CN.md) · [功能等价矩阵](managed-agent/FEATURE-PARITY-CN.md) · [v2部署证据](managed-agent/evidence/managed-live/public-v2-source-manifest.json)
 
 ## 演示视频
 

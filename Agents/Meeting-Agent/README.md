@@ -5,30 +5,77 @@
 [![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/meeting-agent-ci.yml/badge.svg?branch=master)](https://github.com/david-xinyuwei/david-share/actions/workflows/meeting-agent-ci.yml)
 [![Human Send Required](https://img.shields.io/badge/email-human%20send%20required-D83B01.svg)](#human-controlled-outlook-handoff)
 
-A local Windows meeting workspace that uses GPT-5.4 through the Azure OpenAI Responses API to create structured notes, a Mermaid mind map, a template-based PowerPoint, and an unsent New Outlook draft.
+One Meeting Agent product, implemented two ways: classic application-owned prompt orchestration and a Microsoft Foundry Agent whose model loop and versioned Skill are managed by the platform. Both paths produce the same structured notes, mind map, editable PowerPoint, and unsent New Outlook draft.
 
 > Author: Xinyu Wei
 
 [Chinese](README-CN.md) | **English** | [Source](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Meeting-Agent)
 
-## Two Implementations, One Meeting Agent
+## Start Here: Why Two Implementations?
 
-This repository contains two implementations of the same Meeting Agent product contract:
+The original implementation proved the workflow, but the application owns almost the entire AI runtime: it constructs the system prompt, loads `SKILL.md`, selects the model, calls Azure OpenAI directly, parses the response, and carries the API key. The Managed implementation keeps the deterministic meeting and artifact code while moving the model loop, Agent identity, instructions, and Skill lifecycle into Microsoft Foundry.
+
+This is the question the repository answers with one concrete application:
+
+> Can a Foundry-managed Agent remove application-owned orchestration and key handling without making the Meeting Agent less capable?
 
 | Dimension | Classic direct Responses implementation | Foundry prompt agent with managed GHCP harness |
 |---|---|---|
-| Location | Repository root | [`managed-agent/`](managed-agent/) |
+| Implementation | Repository root | `managed-agent/` source inside this same product repository |
+| Agent definition | None; the application is the orchestrator | [`agent.yaml`](managed-agent/agent.yaml) defines the Foundry Agent resource |
+| Instructions | Python builds the system message | [`instructions.md`](managed-agent/instructions.md) is deployed with the Agent |
+| Skill | Python reads local `SKILL.md` and injects it into every request | [`meeting-package`](managed-agent/skills/meeting-package/SKILL.md) is a versioned Foundry Skill linked through Toolbox MCP |
 | Model loop owner | Local application code | Foundry-managed GHCP harness |
-| Model access | Direct Azure OpenAI Responses client | Foundry Agent Responses endpoint |
+| Invocation | Direct Azure OpenAI Responses client | Application references Agent name + immutable version; the endpoint is transport, not the Agent itself |
 | Authentication | API key in the local backend process | Entra ID; no model API key in the customer path |
-| Skill lifecycle | Packaged local `SKILL.md` loaded by application code | Versioned Foundry Skill linked through Toolbox MCP |
 | Artifact/UI contract | JSON, Mermaid, SVG, PNG, editable PPTX, EML, browser UI, New Outlook draft | The same contract; eight shared core modules are byte-for-byte identical |
 | Customer code ownership | Owns model request construction and orchestration | Owns event validation, artifacts, and Outlook handoff; Foundry owns the model loop |
-| Best fit | Maximum direct control and GA-style API simplicity | Reduced orchestration ownership, managed Skill lifecycle, and platform-governed Agent runtime |
+| Operational change | Prompt, Skill loading, model call, key handling, and parsing are one application release | Agent instructions and Skill are versioned platform assets; app code keeps a smaller deterministic responsibility |
 
 The classic path is **prompt-style local orchestration**, not a deployed Foundry Prompt Agent. The comparison therefore isolates the practical ownership transfer introduced by the Managed Agent path without overstating the earlier implementation.
 
-See the [Managed implementation](managed-agent/README.md) and its [feature-parity evidence](managed-agent/FEATURE-PARITY.md).
+### What the Managed Agent is in this codebase
+
+The Managed Agent is not a second UI and not merely an AI endpoint. It is the deployed Foundry Agent selected by `agent_reference.name` and `agent_reference.version`. Its behavior is assembled from four concrete assets:
+
+1. [`agent.yaml`](managed-agent/agent.yaml): Agent kind, public name, description, and model.
+2. [`instructions.md`](managed-agent/instructions.md): stable evidence and safety policy owned by the Agent.
+3. [`skills/meeting-package/SKILL.md`](managed-agent/skills/meeting-package/SKILL.md): reusable meeting-analysis method, versioned and exposed through Toolbox MCP.
+4. [`ManagedAgentAnalyzer`](managed-agent/src/meeting_agent/analyzers.py): a thin Entra-authenticated adapter that supplies meeting evidence, requires one exact Agent version, and validates the returned `MeetingAnalysis` contract.
+
+The local application still owns what should remain deterministic: event validation, ordering and idempotency, file generation, path safety, the browser workspace, and the human-controlled Outlook handoff.
+
+### What this repository must prove
+
+| Claim | Repository proof |
+|---|---|
+| No feature regression | The same event, session, artifact, UI, and Outlook contracts; eight shared modules have identical SHA-256 values |
+| Output changes with the meeting | Two materially different meeting inputs must produce different analysis and artifact hashes |
+| Managed deployment is real | The checked-in Agent, instructions, and Skill must deploy as a new immutable Foundry Agent version and report `active` |
+| Managed invocation is real | The deployed version must return its own Agent reference and strict `MeetingAnalysis` JSON over Entra authentication |
+| The benefit is concrete | The application no longer carries a model API key or injects the full Skill as a system message; Foundry owns those lifecycle concerns |
+| Safety is preserved | No send API or Send-button automation; Outlook stops at an editable unsent draft |
+
+Implementation details and parity evidence are linked from this root page; `managed-agent/` is a source directory, not a separate product or repository.
+
+### Measured result: public-source Managed Agent v2
+
+The repository source was deployed again after publication review, rather than relying on the earlier internal-name Agent. The deployment initially exposed a reproducibility defect: the Preview extension does not expand placeholders inside `promptAgent`. The checked-in deployment gate now renders private azd values only under ignored `.azure`, deploys from the established project root, and restores the public placeholder YAML.
+
+| Verification | Measured result |
+|---|---|
+| Public-source deployment | `managed-meeting-agent` version `2`, successful in 23 seconds |
+| Source binding | SHA-256 recorded for `agent.yaml`, `azure.yaml`, `instructions.md`, and `meeting-package/SKILL.md` |
+| Agent identity | Non-stream and stream responses passed strict Agent Reference validation for name `managed-meeting-agent`, version `2` |
+| Real streaming | 58 model deltas, 1,832 text characters, nonempty hashed response ID |
+| Cross-input behavior | Planning and operations meetings produced different titles, analysis hashes, mind maps, PPTX files, and EML files |
+| Artifact contract | Both runs produced nonblank 1280x720 PNGs, editable six-slide PPTX files, and `X-Unsent: 1` EML drafts with zero recipients and two attachments |
+| Browser workflow | Live desktop Playwright `1/1`, 17.9 seconds, zero unexpected and zero flaky results |
+| Shared deterministic behavior | Eight core modules remain byte-for-byte identical to the fixed Classic baseline |
+
+This proves functional parity at the contract and workflow level. It does **not** claim that different models produce identical prose or that Private Preview behavior is a permanent production SLA.
+
+[Managed implementation details](managed-agent/docs/MANAGED-IMPLEMENTATION.md) · [Feature parity](managed-agent/FEATURE-PARITY.md) · [v2 deployment evidence](managed-agent/evidence/managed-live/public-v2-source-manifest.json)
 
 ## Demo Video
 

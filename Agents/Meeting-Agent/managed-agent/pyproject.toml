@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "meeting-agent"
 version = "0.1.0"
 description = "A provider-neutral multimodal meeting pipeline with a human-controlled New Outlook draft handoff."
-readme = "README.md"
+readme = "docs/MANAGED-IMPLEMENTATION.md"
 requires-python = ">=3.11"
 authors = [{ name = "Xinyu Wei" }]
 dependencies = [

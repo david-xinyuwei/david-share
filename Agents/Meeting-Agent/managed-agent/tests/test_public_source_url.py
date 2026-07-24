@@ -12,13 +12,19 @@ def test_public_source_uses_single_repo_path() -> None:
     assert "managed-agent/" in text
 
 
-def test_public_readmes_show_source_and_ci_in_first_screen() -> None:
-    english = "\n".join((ROOT / "README.md").read_text(encoding="utf-8").splitlines()[:20])
+def test_public_docs_link_back_to_product_home_and_ci() -> None:
+    english = "\n".join(
+        (ROOT / "docs" / "MANAGED-IMPLEMENTATION.md")
+        .read_text(encoding="utf-8")
+        .splitlines()[:20]
+    )
     chinese = "\n".join(
-        (ROOT / "README-CN.md").read_text(encoding="utf-8").splitlines()[:20]
+        (ROOT / "docs" / "MANAGED-IMPLEMENTATION-CN.md")
+        .read_text(encoding="utf-8")
+        .splitlines()[:20]
     )
 
-    assert f"[Source]({SOURCE_URL})" in english
-    assert f"[源码]({SOURCE_URL})" in chinese
+    assert f"[Product Home]({SOURCE_URL.rsplit('/managed-agent', 1)[0]})" in english
+    assert f"[产品首页]({SOURCE_URL.rsplit('/managed-agent', 1)[0]})" in chinese
     assert "managed-meeting-agent-ci.yml/badge.svg?branch=master" in english
     assert "managed-meeting-agent-ci.yml/badge.svg?branch=master" in chinese

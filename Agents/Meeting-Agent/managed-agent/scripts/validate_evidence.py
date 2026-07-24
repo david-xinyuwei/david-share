@@ -14,7 +14,7 @@ def main() -> int:
     definition = agent["agent"]
     assert definition == {
         "name": "managed-meeting-agent",
-        "version": "1",
+        "version": "2",
         "status": "active",
         "kind": "prompt",
         "harness": "ghcp",
@@ -32,11 +32,17 @@ def main() -> int:
         )
     )
     assert skill["uri"] == "skill://meeting-package/SKILL.md"
-    assert len(skill["sha256"]) == 64
+    assert len(skill["raw_crlf_sha256"]) == 64
+    assert len(skill["canonical_lf_sha256"]) == 64
     assert skill["cloud_matches_local_at_validation_time"] is True
+    assert skill["canonical_text_matches_public_v2_source"] is True
     canonical_skill = ROOT / "skills" / "meeting-package" / "SKILL.md"
     packaged_skill = ROOT / "src" / "meeting_agent" / "skills" / "meeting-package" / "SKILL.md"
     assert canonical_skill.read_bytes() == packaged_skill.read_bytes()
+    canonical_text = canonical_skill.read_text(encoding="utf-8").replace("\r\n", "\n")
+    assert hashlib.sha256(canonical_text.encode()).hexdigest() == skill[
+        "canonical_lf_sha256"
+    ]
 
     scenarios = json.loads((ROOT / "scenario-manifest.json").read_text(encoding="utf-8"))
     assert scenarios["scenarios"]["windows-managed-runtime"]["fallback"] is False
@@ -86,13 +92,60 @@ def main() -> int:
     )
     assert live_ui["runtime"] == {
         "agent": "managed-meeting-agent",
-        "version": "1",
+        "version": "2",
         "authentication": "Entra",
         "fixture": False,
     }
     assert live_ui["playwright"]["result"] == "passed"
     assert live_ui["playwright"]["unexpected"] == 0
     assert live_ui["resource_identifiers"] == "redacted; public alias used"
+
+    deployment = json.loads(
+        (
+            ROOT
+            / "evidence"
+            / "managed-live"
+            / "public-v2-deployment-validation.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert deployment["agent"] == {
+        "name": "managed-meeting-agent",
+        "version": "2",
+        "authentication": "Entra",
+    }
+    assert deployment["source_commit_under_test"] == (
+        "f34c1a8e3ccf1c2f46a6e5901399a79d6d27fcd8"
+    )
+    assert deployment["cross_input_analysis_differs"] is True
+    assert deployment["automatic_send"] is False
+    assert len({run["analysis_sha256"] for run in deployment["runs"].values()}) == 2
+    for run in deployment["runs"].values():
+        assert run["png"]["format"] == "PNG"
+        assert run["png"]["size"] == [1280, 720]
+        assert run["pptx"]["slides"] == 6
+        assert run["pptx"]["all_slides_have_text"] is True
+        assert run["eml"]["x_unsent"] == "1"
+        assert run["eml"]["to_count"] == 0
+        assert run["eml"]["attachments"] == [
+            "mind-map.png",
+            "meeting-summary.pptx",
+        ]
+
+    agent_reference = json.loads(
+        (
+            ROOT
+            / "evidence"
+            / "managed-live"
+            / "public-v2-agent-reference-validation.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert agent_reference["agent_reference_validated"] == {
+        "name": "managed-meeting-agent",
+        "version": "2",
+    }
+    assert agent_reference["stream_delta_count"] > 0
+    assert agent_reference["stream_text_chars"] > 0
+    assert agent_reference["response_id_present"] is True
     print("PASS: Managed Agent cloud, Skill, and cross-input artifact evidence is valid.")
     return 0
 

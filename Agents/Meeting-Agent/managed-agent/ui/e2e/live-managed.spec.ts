@@ -6,6 +6,8 @@ test("builds a complete package through the deployed Managed Agent", async ({
   request,
 }, testInfo) => {
   test.setTimeout(180_000);
+  const expectedVersion = process.env.MANAGED_AGENT_VERSION;
+  expect(expectedVersion).toBeTruthy();
   const consoleErrors: string[] = [];
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
@@ -15,7 +17,7 @@ test("builds a complete package through the deployed Managed Agent", async ({
   await expect(
     page.getByText("Foundry Prompt Agent · Managed GHCP", { exact: true }),
   ).toBeVisible();
-  await expect(page.locator(".brand p")).toContainText("v1");
+  await expect(page.locator(".brand p")).toContainText(`v${expectedVersion}`);
   await expect(page.locator(".brand p")).toContainText("entra auth");
 
   await page.getByLabel("Final transcript").fill(
@@ -63,5 +65,8 @@ test("builds a complete package through the deployed Managed Agent", async ({
     path: testInfo.outputPath("ui-live-desktop.png"),
     fullPage: true,
   });
-  testInfo.annotations.push({ type: "runtime", description: "managed-agent-v1" });
+  testInfo.annotations.push({
+    type: "runtime",
+    description: `managed-agent-v${expectedVersion}`,
+  });
 });

@@ -1,7 +1,9 @@
 {
   "uri": "skill://meeting-package/SKILL.md",
-  "sha256": "102d3ffaf2baed277aa8140d811a53c35c0c2dde330e782e1896f4baa9d41271",
+  "raw_crlf_sha256": "e7ee390ff72a1577c254332f55bf58ad3d2d3bc7391eafff0d8c4134b9420563",
+  "canonical_lf_sha256": "dcf1694c972add47fe70bd7b3d38cb708db6193506272d73a5cc8bf99d913aa3",
   "cloud_matches_local_at_validation_time": true,
-  "validated_at_utc": "2026-07-23T04:38:53Z",
-  "scope": "historical cloud snapshot; redeploy and revalidate after source changes"
+  "canonical_text_matches_public_v2_source": true,
+  "validated_at_utc": "2026-07-23T13:25:06Z",
+  "scope": "v2 deployment used the canonical-equal Skill source; revalidate after source changes"
 }

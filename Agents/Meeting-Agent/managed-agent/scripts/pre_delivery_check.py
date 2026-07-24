@@ -13,8 +13,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def main() -> int:
     for required in (
-        "README.md",
-        "README-CN.md",
+        "docs/MANAGED-IMPLEMENTATION.md",
+        "docs/MANAGED-IMPLEMENTATION-CN.md",
         "CUSTOMER-START-HERE.md",
         "CUSTOMER-START-HERE-CN.md",
         "agent.yaml",

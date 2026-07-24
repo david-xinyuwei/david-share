@@ -2,7 +2,7 @@
   "schema_version": 1,
   "agent": {
     "name": "managed-meeting-agent",
-    "version": "1",
+    "version": "2",
     "status": "active",
     "kind": "prompt",
     "harness": "ghcp",
@@ -18,10 +18,13 @@
   "validation": {
     "source": "live Foundry agent GET response",
     "resource_identifiers": "redacted; public alias used",
-    "validated_at_utc": "2026-07-23T04:37:30Z",
-    "source_baseline": "local pre-publication tree; public commit pending",
+    "validated_at_utc": "2026-07-23T13:25:06Z",
+    "source_baseline": "public commit f34c1a8e3ccf1c2f46a6e5901399a79d6d27fcd8 plus deployment-gate fixes under review",
+    "deployment_duration_seconds": 23,
+    "deployed_name_matches_public_source": true,
+    "source_hash_manifest": "evidence/managed-live/public-v2-source-manifest.json",
     "assertions_passed": true,
     "identities_and_tenant_urls_redacted": true,
-    "scope": "historical validation snapshot; revalidate after deployment"
+    "scope": "public-source deployment and live validation snapshot; revalidate after source or environment changes"
   }
 }

@@ -9,7 +9,8 @@ Included:
 - Deployment declarations with placeholders
 - Synthetic examples and the two analysis JSON fixtures required by tests
 - Sanitized cloud, Skill, UI, and parity summaries
-- Bilingual documentation and security policy
+- Bilingual implementation documentation under `docs/`, with the monorepo root README as the only product home
+- Sanitized public-source v2 deployment, Agent Reference, cross-input artifact, and live UI evidence
 
 Excluded:
 

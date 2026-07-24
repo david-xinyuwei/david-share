@@ -25,6 +25,7 @@ def main() -> int:
         raise RuntimeError("MEETING_AGENT_E2E_MODE must be fixture or live")
     live = mode == "live"
     RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
+    (RUNTIME_DIR / "playwright.json").unlink(missing_ok=True)
     processes: list[tuple[subprocess.Popen[bytes], object]] = []
     try:
         agent_log = (RUNTIME_DIR / "agent.log").open("wb")

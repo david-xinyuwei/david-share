@@ -18,6 +18,9 @@ def test_public_evidence_contains_only_sanitized_managed_summaries() -> None:
         "evidence/managed-live/README.md",
         "evidence/managed-live/artifact-validation.json",
         "evidence/managed-live/parity-manifest.json",
+        "evidence/managed-live/public-v2-agent-reference-validation.json",
+        "evidence/managed-live/public-v2-deployment-validation.json",
+        "evidence/managed-live/public-v2-source-manifest.json",
         "evidence/managed-live/toolbox-skill-validation.json",
         "evidence/managed-live/ui-live-validation.json",
     }

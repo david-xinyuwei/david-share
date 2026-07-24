@@ -7,7 +7,10 @@ from pathlib import Path
 from xml.etree import ElementTree
 
 ROOT = Path(__file__).resolve().parents[1]
-README_PATHS = (ROOT / "README.md", ROOT / "README-CN.md")
+README_PATHS = (
+    ROOT / "docs" / "MANAGED-IMPLEMENTATION.md",
+    ROOT / "docs" / "MANAGED-IMPLEMENTATION-CN.md",
+)
 
 
 def _local_links(text: str) -> list[str]:
@@ -41,9 +44,9 @@ def main() -> int:
     assert chinese.count("| `product-planning` |") == 1
     assert english.count("| `operations-review` |") == 1
     assert chinese.count("| `operations-review` |") == 1
-    for text in (english, chinese):
+    for path, text in zip(README_PATHS, (english, chinese), strict=True):
         for link in _local_links(text):
-            assert (ROOT / link).exists(), link
+            assert (path.parent / link).resolve().exists(), link
 
     architecture = ElementTree.parse(ROOT / "images" / "meeting-agent-architecture.svg").getroot()
     assert architecture.attrib["viewBox"] == "0 0 2400 2100"

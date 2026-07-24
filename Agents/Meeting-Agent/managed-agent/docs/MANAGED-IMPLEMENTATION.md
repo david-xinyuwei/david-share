@@ -1,7 +1,7 @@
 # Meeting Agent — Managed Agent Implementation
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB.svg)](https://www.python.org/)
-[![Managed Agent](https://img.shields.io/badge/Foundry-Managed%20Agent-0078D4.svg)](agent.yaml)
+[![Managed Agent](https://img.shields.io/badge/Foundry-Managed%20Agent-0078D4.svg)](../agent.yaml)
 [![Managed Agent CI](https://github.com/david-xinyuwei/david-share/actions/workflows/managed-meeting-agent-ci.yml/badge.svg?branch=master)](https://github.com/david-xinyuwei/david-share/actions/workflows/managed-meeting-agent-ci.yml)
 [![Human Send Required](https://img.shields.io/badge/email-human%20send%20required-D83B01.svg)](#outlook-safety)
 
@@ -9,16 +9,16 @@ The Managed Agent implementation inside the single Meeting Agent repository. It 
 
 > Author: Xinyu Wei
 
-[Chinese](README-CN.md) | **English** | [Customer Start Here](CUSTOMER-START-HERE.md) | [Source](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Meeting-Agent/managed-agent)
+[Chinese](MANAGED-IMPLEMENTATION-CN.md) | **English** | [Customer Start Here](../CUSTOMER-START-HERE.md) | [Product Home](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Meeting-Agent)
 
 ## What Is Real
 
 | Layer | Real implementation | Evidence |
 |---|---|---|
-| Cloud runtime | A private-preview v1 deployment, published under the redacted alias `managed-meeting-agent`, was validated on 2026-07-23 with `status=active`, `harness=ghcp`, `gpt-oss-120b`, Responses protocol, and Entra authentication | [Dated cloud snapshot](evidence-managed-agent.json) |
-| Cloud Skill | Versioned `meeting-package` Skill exposed through the Agent's Foundry Toolbox MCP | [Skill validation](evidence/managed-live/toolbox-skill-validation.json) |
-| Meeting analysis | `ManagedAgentAnalyzer` sends the actual normalized meeting events and strict `MeetingAnalysis` schema to the deployed Agent | [Client contract](tests/test_managed_analyzer.py) |
-| Artifact pipeline | Real JSON, Mermaid, SVG, 1280x720 PNG, editable six-slide PPTX, and MIME EML | [Artifact validation](evidence/managed-live/artifact-validation.json) |
+| Cloud runtime | Public source was deployed as `managed-meeting-agent` v2 and validated with `status=active`, `harness=ghcp`, `gpt-oss-120b`, Responses protocol, and Entra authentication | [Dated cloud snapshot](../evidence-managed-agent.json) |
+| Cloud Skill | Versioned `meeting-package` Skill exposed through the Agent's Foundry Toolbox MCP | [Skill validation](../evidence/managed-live/toolbox-skill-validation.json) |
+| Meeting analysis | `ManagedAgentAnalyzer` sends the actual normalized meeting events and strict `MeetingAnalysis` schema to the deployed Agent | [Client contract](../tests/test_managed_analyzer.py) |
+| Artifact pipeline | Real JSON, Mermaid, SVG, 1280x720 PNG, editable six-slide PPTX, and MIME EML | [v2 artifact validation](../evidence/managed-live/public-v2-deployment-validation.json) |
 | Browser UI | React workspace, loopback BFF, real streamed model deltas, artifact downloads, and Outlook draft action | Playwright desktop/mobile E2E |
 | Mail safety | `X-Unsent: 1`, zero recipients by default, two real attachments, no send API or Send-button automation | `scripts/audit_no_send.py` |
 
@@ -40,7 +40,7 @@ The implementation preserves the earlier Meeting Agent's user-visible contracts:
 
 ## Architecture
 
-![Managed Meeting Agent architecture](images/meeting-agent-architecture.svg)
+![Managed Meeting Agent architecture](../images/meeting-agent-architecture.svg)
 
 ```mermaid
 flowchart LR
@@ -61,13 +61,13 @@ Foundry owns the model loop, GHCP harness, and Skill/Toolbox integration. The lo
 The checked-in source declares a dedicated prompt Agent:
 
 - Agent example: `managed-meeting-agent`
-- Version validated: `1`
+- Version validated: `2`
 - Model: `gpt-oss-120b`
 - Harness: `ghcp`
 - Skill: `meeting-package`
 - Authentication: Entra only
 
-`agent.yaml`, `instructions.md`, `skills/meeting-package/SKILL.md`, and `azure.yaml` are the deployment source. The checked-in capacity is a minimal example; quota and cost approval are required before increasing it. Deploy with an isolated Azure CLI and azd profile for the target tenant and subscription. A successful deploy creates a new immutable Agent version.
+`agent.yaml`, `instructions.md`, `skills/meeting-package/SKILL.md`, and `azure.yaml` are the deployment source. Because the current Preview extension does not expand placeholders inside `promptAgent`, `scripts/deploy-managed-agent.sh` resolves the active isolated azd environment into an ignored deployment view, deploys from the established project root, and restores the public placeholder YAML. A successful deploy creates a new immutable Agent version.
 
 ## Windows Start
 
@@ -88,7 +88,7 @@ az account show
 .\scripts\start-ui.ps1 `
   -ManagedAgentEndpoint "https://<account>.services.ai.azure.com/api/projects/<project>/openai/v1/responses" `
   -ManagedAgentName "managed-meeting-agent" `
-  -ManagedAgentVersion "1" `
+  -ManagedAgentVersion "2" `
   -AzureConfigDir $env:AZURE_CONFIG_DIR
 ```
 
@@ -102,7 +102,7 @@ Use the same Managed Agent environment in a developer shell:
 export AZURE_CONFIG_DIR="$HOME/.azure-<tenant>-<subscription>"
 export MANAGED_AGENT_ENDPOINT="https://<account>.services.ai.azure.com/api/projects/<project>/openai/v1/responses"
 export MANAGED_AGENT_NAME="managed-meeting-agent"
-export MANAGED_AGENT_VERSION="1"
+export MANAGED_AGENT_VERSION="2"
 
 python -m meeting_agent.cli build \
   --events examples/product-planning.jsonl \
@@ -113,12 +113,12 @@ The CLI fails closed when Entra authentication, the configured Agent version, th
 
 ## Validation
 
-Two materially different inputs were sent to the deployed v1 Agent. Their source and analysis hashes differ, proving the runtime is input-dependent rather than a fixed scenario.
+Two materially different inputs were sent to the public-source v2 Agent. Their source and analysis hashes differ, proving the runtime is input-dependent rather than a fixed scenario.
 
 | Run | Source SHA-256 | Analysis SHA-256 | PPTX | EML |
 |---|---|---|---:|---|
-| `product-planning` | `413799e9783ac40a5a4e225a553bef94f33fd4c5990607add57e50547f91486b` | `e87a6b96f62ca039473282365ff7fdd016618067e711d8e55e859a72413df2ef` | 6 slides | `X-Unsent: 1`, 0 recipients, 2 attachments |
-| `operations-review` | `88d71ad49cd875e2eb958c884e1ce2eb76a208576047df923decda79e7e109fb` | `52919943a30afa727cef8605a21b5215f65687e240017f537d65b3213e1104f3` | 6 slides | `X-Unsent: 1`, 0 recipients, 2 attachments |
+| `product-planning` | `413799e9783ac40a5a4e225a553bef94f33fd4c5990607add57e50547f91486b` | `36502698aeb8b2d831885222fef4bd0cce7de00e75dad87e8f84e27e9b07eae4` | 6 slides | `X-Unsent: 1`, 0 recipients, 2 attachments |
+| `operations-review` | `88d71ad49cd875e2eb958c884e1ce2eb76a208576047df923decda79e7e109fb` | `8498b3b568ca46907753535c779c55d4b5a6c01ed63aea1a06420997ac923ee7` | 6 slides | `X-Unsent: 1`, 0 recipients, 2 attachments |
 
 Independent validation reopened both PNGs with Pillow, both PPTX files with `python-pptx`, both analyses with Pydantic, and both EML files with Python's MIME parser. This is functional evidence, not production certification or a model-quality benchmark.
 
@@ -150,7 +150,7 @@ The local BFF writes the generated EML atomically and starts `olk.exe <absolute-
 
 ## Comparison With The Classic Implementation
 
-The classic implementation remains at the repository root. This `managed-agent/` directory is the second implementation in the same repository, not a second repository. The comparison is fixed to baseline commit `667357dac6ee2dc30102d572c458c77861112bea`; the [parity manifest](evidence/managed-live/parity-manifest.json) records byte-for-byte SHA-256 equality for eight shared core modules, while artifact behavior is checked independently. [FEATURE-PARITY.md](FEATURE-PARITY.md) compares runtime ownership, authentication, Skill lifecycle, and operational responsibilities.
+The classic implementation remains at the repository root. This `managed-agent/` directory is the second implementation in the same repository, not a second repository. The comparison is fixed to baseline commit `667357dac6ee2dc30102d572c458c77861112bea`; the [parity manifest](../evidence/managed-live/parity-manifest.json) records byte-for-byte SHA-256 equality for eight shared core modules, while artifact behavior is checked independently. [FEATURE-PARITY.md](../FEATURE-PARITY.md) compares runtime ownership, authentication, Skill lifecycle, and operational responsibilities.
 
 The classic path is prompt-style local orchestration, not a deployed Foundry Prompt Agent. This distinction keeps the comparison focused on the real ownership transfer introduced by the managed GHCP harness.
 

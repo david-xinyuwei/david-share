@@ -1,6 +1,6 @@
 # Managed Meeting Agent Customer Start Here
 
-This package contains the independent Managed Agent implementation. The earlier `Agents/Meeting-Agent` repository remains unchanged.
+This package contains the Foundry-managed implementation path of the Meeting Agent product. The Classic implementation remains available from the same product home.
 
 ## Supported Path
 
@@ -25,7 +25,7 @@ az account show
 .\scripts\start-ui.ps1 `
   -ManagedAgentEndpoint "https://<account>.services.ai.azure.com/api/projects/<project>/openai/v1/responses" `
   -ManagedAgentName "managed-meeting-agent" `
-  -ManagedAgentVersion "1" `
+  -ManagedAgentVersion "2" `
   -AzureConfigDir $env:AZURE_CONFIG_DIR
 ```
 
@@ -42,4 +42,4 @@ Accept the run only when:
 5. New Outlook opens an editable draft with `X-Unsent: 1`, the inline mind map, and PNG/PPTX attachments.
 6. The user must select **Send** manually.
 
-The customer path uses no AOAI API key and has no automatic-send capability. See [README.md](README.md) for architecture, evidence, tests, and boundaries.
+The customer path uses no AOAI API key and has no automatic-send capability. See [Managed implementation details](docs/MANAGED-IMPLEMENTATION.md) for architecture, evidence, tests, and boundaries, or return to the [product home](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Meeting-Agent).
