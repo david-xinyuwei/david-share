@@ -161,14 +161,14 @@ Recovery should be designed with **at-least-once execution** in mind. Work perfo
 
 ```mermaid
 flowchart TD
-	A["Call or stream is interrupted"] --> B{"Can the same logical work be read?"}
-	B -->|"Completed"| C["Return the existing result"]
-	B -->|"Still active"| D{"Which layer failed?"}
-	D -->|"Hosted Agent runtime"| E["Allow platform re-entry<br/>reattach to the same work"]
-	D -->|"Client connection"| F["Reconnect from durable output or cursor"]
-	D -->|"424 classified as host replacement"| G["Bounded polling with backoff<br/>same response"]
-	D -->|"403 observer authentication"| H["Refresh observer auth<br/>read the same work again"]
-	B -->|"No durable state or terminal failure"| I["Stop and diagnose<br/>before any resubmission"]
+	A["Call or stream is interrupted"] --> B{"Read the same logical work"}
+	B --> C["Completed: return the existing result"]
+	B --> D["Still active: classify the failed layer"]
+	B --> I["Unavailable or terminal failure: stop and diagnose"]
+	D --> E["Runtime loss: allow platform re-entry and reattach"]
+	D --> F["Client disconnect: reconnect to durable output"]
+	D --> G["Host replacement 424: bounded polling of same response"]
+	D --> H["Observer 403: refresh auth and read again"]
 ```
 
 The decision rule is deliberately conservative: **do not create new work until the existing work has a confirmed terminal failure or is proven unaddressable.**
