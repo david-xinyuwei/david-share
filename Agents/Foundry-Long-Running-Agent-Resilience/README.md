@@ -228,7 +228,116 @@ And while you are there, note a second trap in the same family: a monotonic sequ
 
 ---
 
-## 6. Failure and recovery playbook
+## 6. Client implementation: code, logs, and fixes
+
+This is where the platform boundary becomes client engineering. The continuity helper below corrects the private evaluation extractor; its companion coverage helper makes the workload-level acceptance rule explicit. Executable counterexamples proved that the original sorted-order check accepted both gaps and duplicates. The other snippets are public-safe patterns distilled from the evaluation harness, not preview SDK source. Log excerpts are sanitized and retain only the behavior needed to explain the failure and fix.
+
+### 6.1 Continuity: reject gaps and duplicates
+
+The broken check was effectively `sequence == sorted(sequence)`. That proves ordering, not continuity. The replacement checks every adjacent step and validates workload output against the complete expected domain.
+
+```python
+def sequence_has_no_gap(sequence: list[int]) -> bool:
+	return all(
+		current - previous == 1
+		for previous, current in zip(sequence, sequence[1:])
+	)
+
+
+def output_coverage_complete(indexes: list[int], expected_last: int) -> bool:
+	return sorted(indexes) == list(range(expected_last + 1))
+```
+
+| Counterexample | Original sorted-order check | Corrected check |
+|---|---:|---:|
+| Dropped event: `[10, 12]` | `True` | `False` |
+| Duplicate event: `[10, 10, 11]` | `True` | `False` |
+| Clean stream: `[10, 11, 12]` | `True` | `True` |
+
+The same executable check rejected a finalized output-item list with a missing index and with a duplicated index. Feed it one index per completed output item, not every streaming delta: multiple deltas for one item legitimately reuse that item's `output_index`. Use transport sequence only as diagnostic evidence; make workload indexes, phases, and durable state the acceptance criteria.
+
+### 6.2 Terminal state: a `done` frame is not proof of success
+
+The local evaluation evidence included streams with a bare `done` frame, but the harness pass criteria came from explicit invocation status and workload assertions. A closed stream can mean success, cancellation, failure, or observer loss. Map the protocol-specific terminal event to a workload invariant before declaring success.
+
+```python
+def completion_is_proven(snapshot: dict, *, expected_phases: int) -> bool:
+	return (
+		snapshot.get("status") == "completed"
+		and snapshot.get("terminal_event") == "run_complete"
+		and snapshot.get("phases_completed") == expected_phases
+	)
+```
+
+This is the distilled phase-based pattern used by the harness, not a universal adapter. A Responses client should substitute its own explicit terminal event and output-coverage rule; a bare `{"type": "done"}` still does not prove the business result.
+
+### 6.3 Bounded retry: classify `424` separately from `403`
+
+The sanitized failure trace below came from the real workflow client. It kept the same response reference throughout host replacement.
+
+```text
+Created durable background response: <response-id>
+Redeploy or replace the host while this client continues polling.
+Host temporarily unavailable; retrying: Client error '424 Failed Dependency'
+Response status: in_progress
+... the same response returned 424 a total of 29 times ...
+Response status: completed
+PASS: The original response completed.
+```
+
+The repair was not "retry every error." It was to preserve the same work reference, classify the layer that failed, and stop at a caller-owned deadline.
+
+```python
+def recovery_action(
+	status_code: int,
+	*,
+	host_replacement_confirmed: bool,
+	same_work_addressable: bool,
+	observer_auth_expired: bool,
+	deadline_expired: bool,
+) -> str:
+	if deadline_expired:
+		return "timeout"
+	if status_code == 424 and host_replacement_confirmed and same_work_addressable:
+		return "retry_same_work_with_bounded_backoff"
+	if status_code in {401, 403} and observer_auth_expired:
+		return "refresh_observer_auth_then_read_again"
+	return "fail_closed"
+```
+
+The deadline should come from the workload's recovery objective, not an arbitrary small retry count. `403` takes a different path because refreshing observer authorization is safer than replaying business work.
+
+### 6.4 Human approval: make the decision and the side effect idempotent
+
+The real approval run crossed the pause once and produced one confirmation:
+
+```text
+[12:25:23Z] lifecycle: running
+[12:25:23Z] -> human_approval
+[12:25:25Z] agent: selected flight and hotel
+[12:25:30Z] -> agent    Confirmation: TRIP-182336
+done
+```
+
+After recovery, the same approval message may be delivered again. Persist the decision under a stable logical-work checkpoint, reject conflicting replays, and pass the same key to the external side effect.
+
+```python
+def apply_approval(ledger, logical_work: str, checkpoint: str, requested: str):
+	key = (logical_work, checkpoint, "approval")
+	recorded = ledger.put_if_absent(key, requested)
+	if recorded != requested:
+		raise RuntimeError("conflicting approval replay")
+	return ledger.run_once(
+		(*key, "booking"),
+		lambda: book_trip(recorded, idempotency_key=key),
+	)
+```
+
+`put_if_absent` and `run_once` are interface sketches, not library calls. Their implementation must atomically claim the operation, persist its terminal result, and return that result on replay; the downstream operation must also honor its idempotency key. Otherwise, durable recovery can correctly replay the step while the client incorrectly books twice.
+
+---
+
+## 7. Failure and recovery playbook
 
 <div align="center"><img src="images/recovery-decision-guide.png" width="560" alt="Decision guide for classifying runtime, client, host-replacement, and observer failures before recovering"></div>
 
@@ -246,7 +355,7 @@ Every row below follows the same discipline: **read the same logical work first,
 
 ---
 
-## 7. Design guidance
+## 8. Design guidance
 
 These generalize well beyond the preview that produced them.
 
@@ -261,9 +370,9 @@ These generalize well beyond the preview that produced them.
 
 ---
 
-## 8. Evidence, boundaries, and adoption gate
+## 9. Evidence, boundaries, and adoption gate
 
-### 8.1 How these claims were challenged
+### 9.1 How these claims were challenged
 
 Eight passing runs are easy to over-read, so each conclusion was attacked before it was published.
 
@@ -277,7 +386,7 @@ Eight passing runs are easy to over-read, so each conclusion was attacked before
 | Analogy | Do observations align with public platform concepts? | Public session persistence and protocol ownership documentation | Consistent, but idle resume was never used as proof of active recovery |
 | Consistency | Does the conclusion survive runtime and protocol changes? | Python/.NET and Responses/Invocations pairs | Workload-output continuity held; transport event shape did not |
 
-### 8.2 What the numbers trace to
+### 9.2 What the numbers trace to
 
 | Claim | Source artifact |
 |---|---|
@@ -289,7 +398,7 @@ Eight passing runs are easy to over-read, so each conclusion was attacked before
 
 Raw artifacts stay private because they contain endpoints, work identifiers, environment metadata, and generated payload text. Every chart on this page is rendered from the aggregate values above and contains no identifiers.
 
-### 8.3 Boundaries
+### 9.3 Boundaries
 
 - Numbers are **observed values from one evaluation**, not benchmarks, guarantees, or SLAs.
 - The capability was in **private preview**, so its implementation, packages, APIs, and deployment recipes are not published here.
@@ -297,7 +406,7 @@ Raw artifacts stay private because they contain endpoints, work identifiers, env
 - Recovery behavior was validated. Business-domain correctness and model quality were not.
 - Verify current capabilities against the [official documentation](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents) before designing against anything described here.
 
-### 8.4 Before you call this production-ready
+### 9.4 Before you call this production-ready
 
 For a specific workload, require all of the following:
 

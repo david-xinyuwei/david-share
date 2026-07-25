@@ -228,7 +228,116 @@ The quick brown fox jumps over the lazy dog.
 
 ---
 
-## 6. 故障判断与恢复速查表
+## 6. 客户端实现：关键代码、失败日志与修复方式
+
+从这里开始，平台能力要靠客户端工程来接住。下面的连续性 helper 修复了私有评估指标提取器，配套的覆盖度 helper 则明确了 workload 层的验收规则。可执行反例证明，原来的排序检查会同时放过缺口和重复。其余代码是从评估 harness 提炼出的可公开模式，不是 preview SDK 源码。日志已经脱敏，只保留解释故障与修复所需的行为。
+
+### 6.1 连续性：同时拒绝缺口和重复
+
+原检查实质上是 `sequence == sorted(sequence)`。它只能证明顺序，不能证明连续。修复后逐项检查相邻差值，并用完整预期区间验证 workload output。
+
+```python
+def sequence_has_no_gap(sequence: list[int]) -> bool:
+	return all(
+		current - previous == 1
+		for previous, current in zip(sequence, sequence[1:])
+	)
+
+
+def output_coverage_complete(indexes: list[int], expected_last: int) -> bool:
+	return sorted(indexes) == list(range(expected_last + 1))
+```
+
+| 反例 | 原排序检查 | 修复后的检查 |
+|---|---:|---:|
+| 丢事件：`[10, 12]` | `True` | `False` |
+| 重复事件：`[10, 10, 11]` | `True` | `False` |
+| 干净事件流：`[10, 11, 12]` | `True` | `True` |
+
+同一组可执行检查也能拒绝缺少 index 或重复 index 的“已完成 output item 清单”。输入时必须保证每个已完成 item 只出现一次，不能把每个 streaming delta 都直接喂进去，因为同一个 item 的多个 delta 会合法复用同一个 `output_index`。传输层 sequence 适合诊断，不适合作为验收标准；真正的验收标准应该是 workload index、phase 和持久化状态。
+
+### 6.2 终态：一个 `done` 帧不能证明成功
+
+本地评估证据中确实有只带 `done` 帧的事件流，但 harness 的通过条件来自显式 invocation 状态与 workload 断言。流关闭可能代表成功、取消、失败，也可能只是观察连接断了。只有把 protocol 对应的终态事件与 workload invariant 对上，才能宣布成功。
+
+```python
+def completion_is_proven(snapshot: dict, *, expected_phases: int) -> bool:
+	return (
+		snapshot.get("status") == "completed"
+		and snapshot.get("terminal_event") == "run_complete"
+		and snapshot.get("phases_completed") == expected_phases
+	)
+```
+
+这是从 harness 的 phase-based run 中提炼出的实现模式，不是通用适配器。Responses 客户端应替换成自己的显式终态事件与 output coverage 规则；单独一个 `{"type": "done"}` 仍然不能证明业务结果成立。
+
+### 6.3 有界重试：把 `424` 和 `403` 分开处理
+
+下面是来自真实 workflow 客户端的脱敏故障日志。主机替换期间，客户端始终保留同一个 response 引用。
+
+```text
+Created durable background response: <response-id>
+Redeploy or replace the host while this client continues polling.
+Host temporarily unavailable; retrying: Client error '424 Failed Dependency'
+Response status: in_progress
+... the same response returned 424 a total of 29 times ...
+Response status: completed
+PASS: The original response completed.
+```
+
+修复方式不是“所有错误都重试”，而是保留同一个任务引用，先判断失败发生在哪一层，再受调用方 deadline 约束地恢复。
+
+```python
+def recovery_action(
+	status_code: int,
+	*,
+	host_replacement_confirmed: bool,
+	same_work_addressable: bool,
+	observer_auth_expired: bool,
+	deadline_expired: bool,
+) -> str:
+	if deadline_expired:
+		return "timeout"
+	if status_code == 424 and host_replacement_confirmed and same_work_addressable:
+		return "retry_same_work_with_bounded_backoff"
+	if status_code in {401, 403} and observer_auth_expired:
+		return "refresh_observer_auth_then_read_again"
+	return "fail_closed"
+```
+
+deadline 应由 workload 的恢复目标决定，而不是随手设一个很小的重试次数。`403` 必须走另一条路径：刷新观察者授权，再做只读查询，比重放业务任务安全得多。
+
+### 6.4 人工审批：决定与副作用都必须幂等
+
+真实审批运行只跨过一次暂停点，并且只产生一个确认号：
+
+```text
+[12:25:23Z] lifecycle: running
+[12:25:23Z] -> human_approval
+[12:25:25Z] agent: selected flight and hotel
+[12:25:30Z] -> agent    Confirmation: TRIP-182336
+done
+```
+
+恢复后，同一条审批消息可能再次送达。客户端要把决定写入稳定的“逻辑任务 + checkpoint”，拒绝内容冲突的 replay，并把同一个 key 传给外部副作用。
+
+```python
+def apply_approval(ledger, logical_work: str, checkpoint: str, requested: str):
+	key = (logical_work, checkpoint, "approval")
+	recorded = ledger.put_if_absent(key, requested)
+	if recorded != requested:
+		raise RuntimeError("conflicting approval replay")
+	return ledger.run_once(
+		(*key, "booking"),
+		lambda: book_trip(recorded, idempotency_key=key),
+	)
+```
+
+`put_if_absent` 与 `run_once` 是接口示意，不是现成库函数。实现时必须原子地取得执行权、持久化终态结果，并在 replay 时返回该结果；下游也必须真正遵守 idempotency key。否则，持久化恢复机制可以正确 replay 该步骤，客户端却会把一次审批执行成两次预订。
+
+---
+
+## 7. 故障判断与恢复速查表
 
 <div align="center"><img src="images/recovery-decision-guide-cn.png" width="560" alt="恢复前的判断流程：区分运行实例、客户端、主机替换和观察者故障"></div>
 
@@ -246,7 +355,7 @@ The quick brown fox jumps over the lazy dog.
 
 ---
 
-## 7. 设计建议
+## 8. 设计建议
 
 这几条可以迁移到本次 preview 之外。
 
@@ -261,9 +370,9 @@ The quick brown fox jumps over the lazy dog.
 
 ---
 
-## 8. 证据、边界与采用门槛
+## 9. 证据、边界与采用门槛
 
-### 8.1 这些结论是怎么被挑战的
+### 9.1 这些结论是怎么被挑战的
 
 八次通过很容易被过度解读，所以每条结论在发布之前都先被攻击过一遍。
 
@@ -277,7 +386,7 @@ The quick brown fox jumps over the lazy dog.
 | 类比 | 观测是否与公开平台概念一致？ | 公开的 session 持久化与 protocol 责任边界 | 一致，但始终没有用空闲恢复代替活跃恢复的证据 |
 | 一致性 | 结论能否跨 runtime 与 protocol 成立？ | Python / .NET 与 Responses / Invocations 配对 | workload output 连续性成立；传输事件形态不成立 |
 
-### 8.2 数字能追溯到哪里
+### 9.2 数字能追溯到哪里
 
 | 声明 | 来源产物 |
 |---|---|
@@ -289,7 +398,7 @@ The quick brown fox jumps over the lazy dog.
 
 原始产物保留在私有边界内，因为其中包含 endpoint、任务标识、环境 metadata 和生成的 payload 文本。本文所有图表都由上述聚合值绘制，不含任何标识信息。
 
-### 8.3 边界
+### 9.3 边界
 
 - 文中数字是**一次评估的观测值**，不是 benchmark、保证或 SLA。
 - 该能力当时处于 **private preview**，其实现、包、API 和部署配方不在此公开。
@@ -297,7 +406,7 @@ The quick brown fox jumps over the lazy dog.
 - 验证的是恢复行为，不包括业务领域正确性和模型质量。
 - 在依据本文做设计之前，请以[官方文档](https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agents)核对当前能力。
 
-### 8.4 宣称“可以上生产”之前
+### 9.4 宣称“可以上生产”之前
 
 针对某个具体 workload，至少还要完成这些：
 
