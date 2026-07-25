@@ -159,17 +159,7 @@ Recovery should be designed with **at-least-once execution** in mind. Work perfo
 
 ### 3.1 First classify what failed
 
-```mermaid
-flowchart TD
-	A["Call or stream is interrupted"] --> B{"Read the same logical work"}
-	B --> C["Completed: return the existing result"]
-	B --> D["Still active: classify the failed layer"]
-	B --> I["Unavailable or terminal failure: stop and diagnose"]
-	D --> E["Runtime loss: allow platform re-entry and reattach"]
-	D --> F["Client disconnect: reconnect to durable output"]
-	D --> G["Host replacement 424: bounded polling of same response"]
-	D --> H["Observer 403: refresh auth and read again"]
-```
+![Decision tree for classifying runtime, client, host-replacement, and observer failures before recovery](images/recovery-decision-tree.png)
 
 The decision rule is deliberately conservative: **do not create new work until the existing work has a confirmed terminal failure or is proven unaddressable.**
 
