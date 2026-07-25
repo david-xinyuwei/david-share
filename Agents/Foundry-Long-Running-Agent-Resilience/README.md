@@ -161,14 +161,14 @@ Recovery should be designed with **at-least-once execution** in mind. Work perfo
 
 ```mermaid
 flowchart TD
-	A[Call or stream is interrupted] --> B{Can the same logical work be read?}
-	B -->|Completed| C[Return the existing result]
-	B -->|Still active| D{Which layer failed?}
-	D -->|Hosted Agent runtime| E[Allow platform re-entry<br/>reattach to the same work]
-	D -->|Client connection| F[Reconnect from durable output or cursor]
-	D -->|424 classified as host replacement| G[Bounded polling with backoff<br/>same response]
-	D -->|403 observer authentication| H[Refresh observer auth<br/>read the same work again]
-	B -->|No durable state or terminal failure| I[Stop and diagnose<br/>before any resubmission]
+	A["Call or stream is interrupted"] --> B{"Can the same logical work be read?"}
+	B -->|"Completed"| C["Return the existing result"]
+	B -->|"Still active"| D{"Which layer failed?"}
+	D -->|"Hosted Agent runtime"| E["Allow platform re-entry<br/>reattach to the same work"]
+	D -->|"Client connection"| F["Reconnect from durable output or cursor"]
+	D -->|"424 classified as host replacement"| G["Bounded polling with backoff<br/>same response"]
+	D -->|"403 observer authentication"| H["Refresh observer auth<br/>read the same work again"]
+	B -->|"No durable state or terminal failure"| I["Stop and diagnose<br/>before any resubmission"]
 ```
 
 The decision rule is deliberately conservative: **do not create new work until the existing work has a confirmed terminal failure or is proven unaddressable.**
@@ -256,7 +256,7 @@ The decision rule is deliberately conservative: **do not create new work until t
 
 ### 4.1 Runtime loss mid-run: the work did not stop
 
-![Measured recovery timeline showing 599 events before the crash and 11,649 after reattachment](images/recovery-timeline.png)
+![Measured recovery timeline showing 599 events before runtime-instance loss and 11,649 after reattachment](images/recovery-timeline.png)
 
 Python Invocations research run:
 
