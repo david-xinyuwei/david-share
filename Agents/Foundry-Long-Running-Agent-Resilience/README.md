@@ -159,7 +159,7 @@ Recovery should be designed with **at-least-once execution** in mind. Work perfo
 
 ### 3.1 First classify what failed
 
-![Decision tree for classifying runtime, client, host-replacement, and observer failures before recovery](images/recovery-decision-tree.png)
+![Decision tree for classifying runtime, client, host-replacement, and observer failures before recovery](images/recovery-decision-guide.png)
 
 The decision rule is deliberately conservative: **do not create new work until the existing work has a confirmed terminal failure or is proven unaddressable.**
 

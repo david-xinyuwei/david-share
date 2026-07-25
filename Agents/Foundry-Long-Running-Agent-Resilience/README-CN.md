@@ -159,7 +159,7 @@ Microsoft Foundry Hosted Agent 把客户的 Agent 代码运行在微软托管、
 
 ### 3.1 先判断到底是哪一层失败
 
-![故障恢复前的判断树：区分运行实例、客户端、主机替换和观察者故障](images/recovery-decision-tree-cn.png)
+![故障恢复前的判断树：区分运行实例、客户端、主机替换和观察者故障](images/recovery-decision-guide-cn.png)
 
 这棵判断树有意采用保守策略：**在确认已有任务终态失败或已经无法寻址之前，不创建新任务。**
 
