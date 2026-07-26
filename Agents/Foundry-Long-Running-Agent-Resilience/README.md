@@ -109,7 +109,112 @@ The model is framework-agnostic. What changes between tiers is how much of it yo
 
 LangGraph, Microsoft Agent Framework, and hand-written orchestration can all participate. None of them removes the application's obligation to define what "already done" means.
 
-### 2.4 From Hosted Agent configuration to a recoverable call
+### 2.4 The LRA core: durable work, leases, and recovery re-entry
+
+The client code later in this section is **not** the LRA core. The core is a runtime state machine that keeps the identity and input of logical work alive after the worker process disappears. The following model shows the contract without publishing private-preview SDK symbols, storage schemas, or service-internal implementation.
+
+| Core primitive | Durable responsibility | Failure rule |
+|---|---|---|
+| Work record | Stable work and input identity, persisted input, status, retry state, small metadata | A replacement worker receives the same identity and input; it does not create a new job |
+| Lease | One current owner, lease generation, and expiry | The active worker renews it; process loss abandons it without writing a false terminal state |
+| Atomic reclaim | Compare-and-set takeover of an expired lease | Only one replacement worker can advance the lease generation and re-enter the work |
+| Progress reference | A small watermark or pointer to a framework/application checkpoint | Work after the last committed checkpoint may run again |
+| Durable output state | Checkpointed response snapshots, stream events, and explicit terminal state | Observers rebuild from committed output; stream closure alone is not completion |
+
+```mermaid
+sequenceDiagram
+	participant C as Client
+	participant T as Durable task store
+	participant A as Worker A
+	participant P as Checkpoint/output store
+	participant R as Recovery scanner
+	participant B as Worker B
+
+	C->>T: Create stable work ID and persist input
+	T->>A: Atomic lease claim (generation n)
+	loop While Worker A is alive
+		A->>T: Renew lease
+		A->>P: Commit one business phase and checkpoint
+	end
+	A--xA: Process disappears; lease renewal stops
+	R->>T: Detect expired running lease
+	R->>T: Compare-and-set reclaim (generation n+1)
+	T->>B: Same work ID, input, metadata, recovery entry
+	B->>P: Load last committed checkpoint
+	B->>P: Continue with the next replay-safe phase
+	B->>T: Write explicit terminal state
+	C->>P: Retrieve or reattach to the same logical output
+```
+
+The old process cannot catch its own hard death. Recovery starts because lease renewal stops, a later scanner observes expiry, and one new worker atomically reclaims the same record. The lease generation prevents split-brain execution: a stale worker from generation $n$ must not commit after generation $n+1$ has taken ownership.
+
+#### 2.4.1 Conceptual runtime loop
+
+This pseudocode describes the runtime contract, not the private SDK or its database implementation:
+
+```python
+def recover_expired_work(now):
+	for work in task_store.list_expired_running(now):
+		claim = task_store.reclaim_if_lease_matches(
+			work_id=work.id,
+			expected_generation=work.lease_generation,
+			new_owner=worker_id,
+		)
+		if not claim.acquired:
+			continue
+
+		run_claimed_work(work, claim, entry_mode="recovered")
+
+
+def run_claimed_work(work, claim, *, entry_mode):
+	# The runtime renews and generation-fences the lease while user code runs.
+	with task_store.renew_lease_while_running(work.id, claim.generation):
+		invoke_handler(
+			work_id=work.id,
+			persisted_input=work.input,
+			metadata=work.metadata,
+			checkpoint=progress_store.load_checkpoint(work.id),
+			entry_mode=entry_mode,
+			lease_generation=claim.generation,
+		)
+
+
+def run_handler(context):
+	for phase in plan.remaining_after(context.checkpoint):
+		phase_key = f"{context.work_id}:{phase}"
+		result = execute_phase(
+			context.persisted_input,
+			phase,
+			idempotency_key=phase_key,
+		)
+		commit = progress_store.commit_phase_once(
+			work_id=context.work_id,
+			expected_checkpoint=context.checkpoint,
+			phase=phase,
+			result=result,
+			side_effect_ids=result.side_effect_ids,
+			lease_generation=context.lease_generation,
+		)
+		output_store.project_snapshot(commit)  # Idempotent, rebuildable projection.
+		context.checkpoint = commit.checkpoint
+
+	task_store.mark_completed(
+		context.work_id,
+		generation=context.lease_generation,
+	)
+```
+
+Five invariants matter more than the method names:
+
+1. **Reclaim is conditional.** The expired lease generation must still match, otherwise another worker already owns the work.
+2. **The runtime owns the heartbeat.** Lease renewal continues while user code runs, and every durable write is fenced by the current lease generation so a stale worker cannot commit.
+3. **Recovery is at-least-once.** A crash after an external action but before its phase commit can re-run that phase. The same `phase_key` must deduplicate that action.
+4. **One store is the progress authority.** `commit_phase_once` advances the business checkpoint and records result/side-effect identity together. The client-facing output snapshot is an idempotent projection that can be rebuilt from that commit; it is not a second source of truth.
+5. **The original deadline does not reset.** Recovery changes the worker and lease generation, not the identity, input, or wall-clock recovery objective of the logical work.
+
+The LRA runtime gets the same work back into a handler. It cannot infer whether a payment, booking, tool call, or workflow node was already committed. That is why the application checkpoint and side-effect ledger are part of the recovery contract even though they are not the lease engine itself.
+
+### 2.5 From Hosted Agent configuration to a recoverable call
 
 The feature is not enabled by one magic switch in the portal. Four layers must line up. The first and fourth use the public Hosted Agents and Responses surfaces. The recovery options and checkpoint hooks in the middle are from the **private-preview build evaluated here**; as of July 26, 2026, they are not available in the public PyPI interface. Treat those lines as preview-specific usage evidence, not a promise about the current public SDK.
 
@@ -120,7 +225,7 @@ The feature is not enabled by one magic switch in the portal. Four layers must l
 | Handler *(private preview)* | Recovery context + framework checkpoint hook | Defines the last durable output boundary | Does not make external side effects idempotent |
 | Client | `store=True`, `background=True`, same `response.id` | Creates addressable work and lets the caller poll or reattach | Must not replace recovery with a new create call |
 
-#### 2.4.1 Declare a Hosted Agent with the Responses protocol
+#### 2.5.1 Declare a Hosted Agent with the Responses protocol
 
 This is a public `services` fragment for an **existing, scaffolded azd project**. It follows the current Foundry `azure.yaml` shape; the required top-level project metadata, model deployment, and provisioning blocks are omitted because they are independent of recovery. Start from the [official Hosted Agent sample](https://github.com/microsoft-foundry/foundry-samples/tree/main/samples/python/hosted-agents) rather than treating this fragment as a complete file.
 
@@ -145,13 +250,13 @@ services:
 
 In a complete azd project, `azd deploy` reads this service block, creates an immutable Hosted Agent version, and routes the declared protocol endpoint. CPU, memory, image or source packaging, model selection, and identity belong to the version definition; they are not the recovery checkpoint.
 
-#### 2.4.2 Opt the agent process into recovery *(private preview)*
+#### 2.5.2 Opt the agent process into recovery *(private preview)*
 
 The evaluated build added a **preview recovery opt-in** to the Responses host. That option changed a stored background response from “mark failed after a crash” to “re-invoke the handler in the next process lifetime.” A separate preview steering option allowed an overlapping follow-up turn to queue and cooperatively stop the current turn.
 
-The exact constructor fields are intentionally not reproduced here: they are absent from the public PyPI interface and form part of the private-preview API surface. With public packages, you still get the Hosted Agent and background Responses baseline shown in Sections 2.4.1 and 2.4.4, but you must not infer active-handler crash recovery from that baseline. Preview participants should use the package and enablement instructions supplied with their preview build.
+The exact constructor fields are intentionally not reproduced here: they are absent from the public PyPI interface and form part of the private-preview API surface. With public packages, you still get the Hosted Agent and background Responses baseline shown in Sections 2.5.1 and 2.5.4, but you must not infer active-handler crash recovery from that baseline. Preview participants should use the package and enablement instructions supplied with their preview build.
 
-#### 2.4.3 Resume from a business checkpoint *(private preview)*
+#### 2.5.3 Resume from a business checkpoint *(private preview)*
 
 Re-invocation alone starts the handler again. The private-preview handler received recovery context, loaded the last framework snapshot, and committed a framework checkpoint only after a complete business unit was durable. The evaluated sample made one completed phase equal one finalized output item. A process loss before the checkpoint repeated that phase; a loss after it skipped the phase on recovery.
 
@@ -165,7 +270,7 @@ Those recovery-context members and checkpoint hooks are also private-preview API
 
 Any payment, booking, write, or tool action inside the replay window still needs the idempotency discipline from Section 6.4.
 
-#### 2.4.4 Separate dispatch from observation
+#### 2.5.4 Separate dispatch from observation
 
 The standard Hosted Agent client surface comes from the Foundry project client. Keep the code that creates work separate from every process that observes it:
 

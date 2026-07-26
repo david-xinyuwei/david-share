@@ -109,7 +109,112 @@ Hosted Agent 是客户自己的 Agent 代码，以 container image 的形式交�
 
 LangGraph、Microsoft Agent Framework、手写 orchestration 都能接进来。但没有任何一种能替你定义“哪些步骤算已经做完了”。
 
-### 2.4 从 Hosted Agent 配置到一次可恢复调用
+### 2.4 LRA 核心：持久任务、租约与恢复重入
+
+本节后面的客户端代码**不是** LRA 核心。真正的核心，是一个 runtime state machine：即使 worker 进程已经消失，它仍然保留逻辑任务的身份与输入。下面展示的是这套核心契约，不公开 private-preview SDK 符号、存储 schema 或服务内部实现。
+
+| 核心原语 | 持久化职责 | 故障规则 |
+|---|---|---|
+| Work record | 稳定的任务与输入身份、持久化输入、状态、retry state、小型 metadata | 替代 worker 收到同一个身份与输入，不创建新任务 |
+| Lease | 当前唯一 owner、lease generation 与过期时间 | 活跃 worker 持续续租；进程丢失只会遗弃 lease，不写入虚假终态 |
+| Atomic reclaim | 对过期 lease 做 compare-and-set 接管 | 只有一个替代 worker 能推进 lease generation 并重新进入任务 |
+| Progress reference | 小型 watermark，或指向 framework/application checkpoint 的引用 | 最后一个已提交 checkpoint 之后的工作可能再次执行 |
+| Durable output state | 已 checkpoint 的 response snapshot、stream event 与显式终态 | 观察者从已提交 output 重建；连接关闭本身不等于完成 |
+
+```mermaid
+sequenceDiagram
+	participant C as 客户端
+	participant T as 持久任务存储
+	participant A as Worker A
+	participant P as Checkpoint/output 存储
+	participant R as Recovery scanner
+	participant B as Worker B
+
+	C->>T: 创建稳定 work ID 并持久化输入
+	T->>A: 原子取得 lease（generation n）
+	loop Worker A 存活期间
+		A->>T: 续租
+		A->>P: 提交一个业务 phase 与 checkpoint
+	end
+	A--xA: 进程消失，停止续租
+	R->>T: 发现已过期的 running lease
+	R->>T: Compare-and-set reclaim（generation n+1）
+	T->>B: 同一 work ID、输入、metadata、恢复入口
+	B->>P: 加载最后一个已提交 checkpoint
+	B->>P: 从下一个可安全 replay 的 phase 继续
+	B->>T: 写入显式终态
+	C->>P: Retrieve 或重新接回同一逻辑 output
+```
+
+旧进程无法捕获自己的硬崩溃。恢复之所以发生，是因为 lease 不再续期；后续 scanner 发现它已过期，再由一个新 worker 原子接管同一条记录。Lease generation 用来阻止 split-brain：generation $n+1$ 已经取得所有权后，generation $n$ 的旧 worker 不能再提交结果。
+
+#### 2.4.1 概念级 runtime loop
+
+下面的伪代码描述 runtime contract，不是 private SDK 或其数据库实现：
+
+```python
+def recover_expired_work(now):
+	for work in task_store.list_expired_running(now):
+		claim = task_store.reclaim_if_lease_matches(
+			work_id=work.id,
+			expected_generation=work.lease_generation,
+			new_owner=worker_id,
+		)
+		if not claim.acquired:
+			continue
+
+		run_claimed_work(work, claim, entry_mode="recovered")
+
+
+def run_claimed_work(work, claim, *, entry_mode):
+	# Runtime 在用户代码执行期间持续续租，并使用 generation 防止旧 owner 提交。
+	with task_store.renew_lease_while_running(work.id, claim.generation):
+		invoke_handler(
+			work_id=work.id,
+			persisted_input=work.input,
+			metadata=work.metadata,
+			checkpoint=progress_store.load_checkpoint(work.id),
+			entry_mode=entry_mode,
+			lease_generation=claim.generation,
+		)
+
+
+def run_handler(context):
+	for phase in plan.remaining_after(context.checkpoint):
+		phase_key = f"{context.work_id}:{phase}"
+		result = execute_phase(
+			context.persisted_input,
+			phase,
+			idempotency_key=phase_key,
+		)
+		commit = progress_store.commit_phase_once(
+			work_id=context.work_id,
+			expected_checkpoint=context.checkpoint,
+			phase=phase,
+			result=result,
+			side_effect_ids=result.side_effect_ids,
+			lease_generation=context.lease_generation,
+		)
+		output_store.project_snapshot(commit)  # 幂等、可重建的 projection。
+		context.checkpoint = commit.checkpoint
+
+	task_store.mark_completed(
+		context.work_id,
+		generation=context.lease_generation,
+	)
+```
+
+真正重要的不是函数名，而是五个 invariant：
+
+1. **Reclaim 必须带条件。** 过期 lease generation 仍然匹配时才能接管，否则说明已有其他 worker 取得所有权。
+2. **Heartbeat 归 runtime 所有。** 用户代码运行期间 lease 持续续期；每个持久化写入都由当前 lease generation 做 fence，旧 worker 不能提交。
+3. **恢复是 at-least-once。** 外部动作完成、phase commit 尚未落盘时崩溃，这个 phase 可能再次执行；相同 `phase_key` 必须能去重该动作。
+4. **进度只能有一个权威存储。** `commit_phase_once` 同时推进业务 checkpoint，并记录 result / side-effect identity。面向客户端的 output snapshot 是幂等、可从 commit 重建的 projection，不是第二个 source of truth。
+5. **原始 deadline 不会重置。** 恢复改变的是 worker 与 lease generation，不是逻辑任务的身份、输入或 wall-clock recovery objective。
+
+LRA runtime 负责把同一个任务重新送进 handler，却无法判断支付、预订、tool call 或 workflow node 是否已经提交。这就是为什么 application checkpoint 与 side-effect ledger 属于恢复契约，但不属于 lease engine 本身。
+
+### 2.5 从 Hosted Agent 配置到一次可恢复调用
 
 这项能力不是在 Portal 里打开一个开关就结束了，四层配置必须同时对齐。第一层和第四层属于 Hosted Agents 与 Responses 的公开能力；中间的恢复开关和 checkpoint hook 来自**本次评估使用的 private-preview 构件**。截至 2026 年 7 月 26 日，公共 PyPI 接口并不提供这些字段。下面的中间两段是 preview 用法证据，不代表当前公共 SDK 已经支持。
 
@@ -120,7 +225,7 @@ LangGraph、Microsoft Agent Framework、手写 orchestration 都能接进来。�
 | Handler（private preview） | 恢复上下文 + framework checkpoint hook | 定义最后一个持久化 output 边界 | 不能自动保证外部副作用幂等 |
 | 客户端 | `store=True`、`background=True`、复用同一 `response.id` | 创建可寻址任务，并允许轮询或重新接回 | 不能用新建 response 代替恢复 |
 
-#### 2.4.1 用 Responses protocol 声明 Hosted Agent
+#### 2.5.1 用 Responses protocol 声明 Hosted Agent
 
 这是给**已经完成 scaffold 的 azd project** 使用的公开 `services` 片段，字段遵循当前 Foundry `azure.yaml` 结构。这里省略了必需的顶层 project metadata、模型部署与 provisioning block，因为它们和恢复机制是两个独立问题。实际使用时应从[官方 Hosted Agent sample](https://github.com/microsoft-foundry/foundry-samples/tree/main/samples/python/hosted-agents)开始，不要把这个片段当成完整文件。
 
@@ -145,13 +250,13 @@ services:
 
 在完整的 azd project 中，`azd deploy` 会读取这个 service block，创建不可变的 Hosted Agent version，并把 endpoint 路由到声明的 protocol。CPU、内存、镜像或源码打包、模型选择、身份都属于 version definition；它们不是恢复 checkpoint。
 
-#### 2.4.2 让 Agent 进程进入恢复模式（private preview）
+#### 2.5.2 让 Agent 进程进入恢复模式（private preview）
 
 本次评估使用的构件，在 Responses host 上增加了一个 **preview recovery opt-in**。对于已存储的 background response，这个开关会把行为从“进程崩溃后标记失败”改成“在下一个进程生命周期重新调用 handler”。另一个 preview steering 开关则允许重叠的新一轮进入队列，并让当前轮次协作式停止。
 
-这里刻意不公开具体构造参数：它们不在公共 PyPI 接口中，属于 private-preview API surface。使用公共 package 时，你仍然可以获得第 2.4.1 和 2.4.4 节所示的 Hosted Agent 与 background Responses 基线，但不能据此推断活跃 handler 能跨 crash 恢复。Preview 参与者应使用产品组随 preview 构件提供的 package 与 enablement 指南。
+这里刻意不公开具体构造参数：它们不在公共 PyPI 接口中，属于 private-preview API surface。使用公共 package 时，你仍然可以获得第 2.5.1 和 2.5.4 节所示的 Hosted Agent 与 background Responses 基线，但不能据此推断活跃 handler 能跨 crash 恢复。Preview 参与者应使用产品组随 preview 构件提供的 package 与 enablement 指南。
 
-#### 2.4.3 从业务 checkpoint 恢复（private preview）
+#### 2.5.3 从业务 checkpoint 恢复（private preview）
 
 重新调用 handler 只代表“重新进入”，并不代表“从正确位置继续”。Private-preview handler 会收到恢复上下文、加载最后一个 framework snapshot，并且只在一个完整业务单元持久化之后提交 framework checkpoint。实测 sample 把“一个完成 phase”映射成“一个 finalized output item”：进程死在 checkpoint 之前，phase 再跑一次；死在 checkpoint 之后，恢复后的 handler 跳过它。
 
@@ -165,7 +270,7 @@ services:
 
 Replay 窗口内的支付、预订、写入或 tool action，仍然必须采用第 6.4 节的幂等设计。
 
-#### 2.4.4 把任务下发和状态观察彻底分开
+#### 2.5.4 把任务下发和状态观察彻底分开
 
 标准 Hosted Agent client surface 从 Foundry project client 获取。负责创建任务的代码，必须和所有观察任务的进程彻底分开：
 
