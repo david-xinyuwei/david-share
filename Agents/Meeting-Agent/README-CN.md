@@ -11,6 +11,14 @@
 
 **中文** | [English](README.md) | [源码](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Meeting-Agent)
 
+## 演示视频
+
+https://github.com/user-attachments/assets/023f22f0-31f2-4039-85f0-e22712770ff2
+
+[下载Repo内视频副本](https://github.com/david-xinyuwei/david-share/raw/refs/heads/master/Agents/Meeting-Agent/media/meeting-agent-demo-1.6x.mp4?download=1)
+
+*完整视频保持`2392x1500`分辨率并以原视频的`1.6x`速度播放，保留全部3,860帧；实测SSIM为`0.99966`、PSNR为`56.17 dB`。[查看验证证据](evidence/meeting-agent-demo-video.json)。*
+
 ## 从这里开始：为什么要比较两种实现？
 
 原始实现证明了会议工作流可行，但应用几乎负责全部AI Runtime：构造System Prompt、读取`SKILL.md`、选择模型、直接调用Azure OpenAI、解析返回结果并持有API Key。Managed实现保留确定性的会议与产物代码，同时把模型循环、Agent身份、Instructions和Skill生命周期移交给Microsoft Foundry。
@@ -76,16 +84,6 @@ Repo源码已使用与Classic路径相同的GPT-5.4模型系列重新部署。Pr
 这证明了合同与工作流层面的功能等价；它**不代表**两条编排路径会生成逐字相同的文案，也不把Preview能力包装成永久生产SLA。
 
 [Managed实现说明](managed-agent/docs/MANAGED-IMPLEMENTATION-CN.md) · [功能等价矩阵](managed-agent/FEATURE-PARITY-CN.md) · [GPT-5.4证据](managed-agent/evidence/managed-live-gpt54/runtime-validation.json)
-
-## 演示视频
-
-https://github.com/user-attachments/assets/023f22f0-31f2-4039-85f0-e22712770ff2
-
-[![动画预览回退](images/meeting-agent-demo-preview.gif)](https://github.com/user-attachments/assets/023f22f0-31f2-4039-85f0-e22712770ff2)
-
-[下载Repo内视频副本](https://github.com/david-xinyuwei/david-share/raw/refs/heads/master/Agents/Meeting-Agent/media/meeting-agent-demo-1.6x.mp4?download=1)
-
-*GitHub会把user-attachment裸链接渲染为原生视频播放器；动画图片用于兼容回退。完整视频保持`2392x1500`分辨率并以原视频的`1.6x`速度播放，保留全部3,860帧；实测SSIM为`0.99966`、PSNR为`56.17 dB`。[查看验证证据](evidence/meeting-agent-demo-video.json)。*
 
 ## 执行摘要
 

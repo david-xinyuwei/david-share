@@ -10,7 +10,6 @@ from PIL import Image, ImageStat
 ROOT = Path(__file__).resolve().parents[1]
 README_PATHS = (ROOT / "README.md", ROOT / "README-CN.md")
 EXPECTED_IMAGES = [
-    "images/meeting-agent-demo-preview.gif",
     "images/meeting-agent-architecture.svg",
     "images/meeting-agent-ui.png",
     "evidence/sample-runs/product-planning/mind-map.png",
@@ -82,7 +81,7 @@ def main() -> int:
     assert table_shapes[0] == table_shapes[1]
     assert images[0] == images[1]
     assert images[0] == EXPECTED_IMAGES
-    assert all(text.count(user_attachment) == 2 for text in texts)
+    assert all(text.count(user_attachment) == 1 for text in texts)
     assert readme_evidence[0] == readme_evidence[1]
     assert set(readme_evidence[0]) == set(RUN_NAMES)
     for image in images[0]:

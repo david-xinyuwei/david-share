@@ -11,6 +11,14 @@ One Meeting Agent product, implemented two ways: classic application-owned promp
 
 [Chinese](README-CN.md) | **English** | [Source](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Meeting-Agent)
 
+## Demo Video
+
+https://github.com/user-attachments/assets/023f22f0-31f2-4039-85f0-e22712770ff2
+
+[Download the repository copy](https://github.com/david-xinyuwei/david-share/raw/refs/heads/master/Agents/Meeting-Agent/media/meeting-agent-demo-1.6x.mp4?download=1)
+
+*The full video remains `2392x1500` at `1.6x` speed and preserves all 3,860 frames; measured quality is SSIM `0.99966` and PSNR `56.17 dB`. [View the validation evidence](evidence/meeting-agent-demo-video.json).*
+
 ## Start Here: Why Two Implementations?
 
 The original implementation proved the workflow, but the application owns almost the entire AI runtime: it constructs the system prompt, loads `SKILL.md`, selects the model, calls Azure OpenAI directly, parses the response, and carries the API key. The Managed implementation keeps the deterministic meeting and artifact code while moving the model loop, Agent identity, instructions, and Skill lifecycle into Microsoft Foundry.
@@ -76,16 +84,6 @@ The repository source was redeployed with the same GPT-5.4 model family used by 
 This proves functional parity at the contract and workflow level. It does **not** claim that the two orchestration paths produce identical prose or that Preview behavior is a permanent production SLA.
 
 [Managed implementation details](managed-agent/docs/MANAGED-IMPLEMENTATION.md) · [Feature parity](managed-agent/FEATURE-PARITY.md) · [GPT-5.4 evidence](managed-agent/evidence/managed-live-gpt54/runtime-validation.json)
-
-## Demo Video
-
-https://github.com/user-attachments/assets/023f22f0-31f2-4039-85f0-e22712770ff2
-
-[![Animated preview fallback](images/meeting-agent-demo-preview.gif)](https://github.com/user-attachments/assets/023f22f0-31f2-4039-85f0-e22712770ff2)
-
-[Download the repository copy](https://github.com/david-xinyuwei/david-share/raw/refs/heads/master/Agents/Meeting-Agent/media/meeting-agent-demo-1.6x.mp4?download=1)
-
-*GitHub renders the user-attachment URL as the native video player; the animated image is a compatibility fallback. The full video remains `2392x1500` at `1.6x` speed and preserves all 3,860 frames; measured quality is SSIM `0.99966` and PSNR `56.17 dB`. [View the validation evidence](evidence/meeting-agent-demo-video.json).*
 
 ## Executive Summary
 
