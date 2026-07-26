@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "validated_at_utc": "2026-07-24T11:24:05Z",
+  "runtime": {
+    "mode": "managed",
+    "agent": "managed-meeting-agent",
+    "version": "6",
+    "model": "gpt-5.4",
+    "authentication": "Entra",
+    "attestation": "live-managed",
+    "outlook_available": true,
+    "automatic_send": false
+  },
+  "windows_runtime": {
+    "os_architecture": "ARM64",
+    "node_architecture": "arm64",
+    "node_version": "22.23.1",
+    "edge_architecture": "ARM64",
+    "edge_pe_machine": "0xAA64",
+    "edge_version": "150.0.4078.83"
+  },
+  "playwright": {
+    "browser_channel": "msedge",
+    "projects": ["desktop", "mobile"],
+    "tests": 2,
+    "passed": 2,
+    "failed": 0,
+    "real_stream": true,
+    "analysis_download_valid": true,
+    "pptx_zip_valid": true,
+    "eml_x_unsent_valid": true,
+    "console_errors": 0,
+    "screenshots_reviewed": true,
+    "overlap_or_overflow_found": false
+  },
+  "resource_identifiers": "redacted"
+}

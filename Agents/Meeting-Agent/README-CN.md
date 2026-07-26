@@ -27,7 +27,7 @@
 | Skill | Python读取本机`SKILL.md`并在每次请求中注入 | [`meeting-package`](managed-agent/skills/meeting-package/SKILL.md)作为版本化Foundry Skill，通过Toolbox MCP绑定 |
 | 模型循环责任方 | 本机应用代码 | Foundry托管的GHCP Harness |
 | 调用方式 | 直接调用Azure OpenAI Responses | 应用引用Agent name和不可变version；Endpoint只是传输入口，不是Agent本身 |
-| 认证 | 本机Backend进程使用API Key | Entra ID；客户主路径不使用模型API Key |
+| 认证 | 本机Backend进程使用API Key | Responses使用Entra ID，Toolbox使用Agentic Identity；客户主路径不使用模型API Key |
 | 产物与UI契约 | JSON、Mermaid、SVG、PNG、可编辑PPTX、EML、浏览器UI、New Outlook草稿 | 完全相同；八个共用核心模块逐字节一致 |
 | 客户代码责任 | 负责模型请求构造与编排 | 负责事件校验、产物与Outlook交接；Foundry负责模型循环 |
 | 运维变化 | Prompt、Skill加载、模型调用、Key和解析都跟随应用发布 | Instructions和Skill成为平台版本化资产；应用只保留更小的确定性责任边界 |
@@ -58,24 +58,24 @@ Managed Agent不是第二套UI，也不只是一个AI Endpoint。它是通过`ag
 
 实现细节和Parity证据统一从本根页面进入；`managed-agent/`只是源码目录，不是第二个产品或第二个Repo。
 
-### 实测结论：Public源码部署的Managed Agent v2
+### 实测结论：Public源码部署的Managed Agent v6与GPT-5.4
 
-发布Review后，我们没有继续沿用早期内部命名Agent，而是从Repo源码重新部署。第一次部署暴露了真实可复现性缺陷：Preview扩展不会展开`promptAgent`内部占位符。现在Repo中的部署门禁只在被忽略的`.azure`目录渲染私有azd值，沿已建立的项目根目录部署，并恢复Public占位符YAML。
+Repo源码已使用与Classic路径相同的GPT-5.4模型系列重新部署。Preview扩展生成的纯Skill Toolbox经过reconcile后符合官方Toolbox Search契约，Agent使用独立`AgenticIdentityToken`连接。Repo中的部署门禁只在被忽略的`.azure`目录处理私有azd值，恢复Public占位符YAML，并以幂等方式把Active Runtime写入`.azure/managed-runtime.json`。
 
 | 验证项 | 实测结果 |
 |---|---|
-| Public源码部署 | `managed-meeting-agent`版本`2`，23秒成功完成 |
-| 源码绑定 | 记录`agent.yaml`、`azure.yaml`、`instructions.md`和`meeting-package/SKILL.md`的SHA-256 |
-| Agent身份 | 非Stream与Stream响应都通过严格Agent Reference校验：name=`managed-meeting-agent`、version=`2` |
-| 真实Streaming | 58个模型Delta、1,832个文本字符、非空Response ID Hash |
-| 跨输入行为 | 产品规划与运维复盘生成不同标题、Analysis Hash、思维导图、PPTX和EML |
+| Public源码部署 | `managed-meeting-agent`版本`6`，`status=active`、`harness=ghcp`，模型为`gpt-5.4`版本`2026-03-05` |
+| Toolbox与Identity | Toolbox v2提供`meeting-package`和Toolbox Search；只有Agent专属Identity在Project Scope拥有`Foundry User` |
+| Agent身份 | 非Stream与Stream响应都通过严格Agent Reference校验：name=`managed-meeting-agent`、version=`6` |
+| 真实Streaming | 脱敏证据记录了非空模型Delta和两个不同Response ID Hash |
+| 跨输入行为 | 产品规划与运维复盘生成不同标题、Analysis Hash、思维导图、PPTX Hash和EML Hash |
 | 产物契约 | 两次运行均生成非空1280x720 PNG、可编辑六页PPTX，以及`X-Unsent: 1`、0收件人、2附件的EML草稿 |
-| 浏览器工作流 | Live Desktop Playwright `1/1`，17.9秒，0 unexpected、0 flaky |
+| 浏览器工作流 | 使用Windows ARM64原生Node与Edge完成真实GPT-5.4 Playwright桌面/移动端`2/2`，0 Console Error |
 | 共用确定性行为 | 八个核心模块继续与固定Classic baseline逐字节一致 |
 
-这证明了合同与工作流层面的功能等价；它**不代表**不同模型会生成逐字相同的文案，也不把Private Preview能力包装成永久生产SLA。
+这证明了合同与工作流层面的功能等价；它**不代表**两条编排路径会生成逐字相同的文案，也不把Preview能力包装成永久生产SLA。
 
-[Managed实现说明](managed-agent/docs/MANAGED-IMPLEMENTATION-CN.md) · [功能等价矩阵](managed-agent/FEATURE-PARITY-CN.md) · [v2部署证据](managed-agent/evidence/managed-live/public-v2-source-manifest.json)
+[Managed实现说明](managed-agent/docs/MANAGED-IMPLEMENTATION-CN.md) · [功能等价矩阵](managed-agent/FEATURE-PARITY-CN.md) · [GPT-5.4证据](managed-agent/evidence/managed-live-gpt54/runtime-validation.json)
 
 ## 演示视频
 

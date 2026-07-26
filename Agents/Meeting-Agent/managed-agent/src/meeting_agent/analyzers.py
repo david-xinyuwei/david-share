@@ -23,6 +23,14 @@ MANAGED_AGENT_FEATURES = "HostedAgents=V1Preview"
 MANAGED_AGENT_TIMEOUT_SECONDS = 30.0
 MANAGED_AGENT_ATTEMPTS = 3
 RETRYABLE_STATUS = {424, 429, 502, 503, 504}
+RETRYABLE_STREAM_CODES = {
+    "internal_error",
+    "rate_limit_exceeded",
+    "server_error",
+    "service_unavailable",
+    "temporarily_unavailable",
+}
+MAX_RETRY_DELAY_SECONDS = 60.0
 FOUNDRY_HOST_SUFFIX = ".services.ai.azure.com"
 
 
@@ -74,59 +82,104 @@ class ManagedAgentAnalyzer:
         on_delta: Callable[[str], None],
     ) -> tuple[MeetingAnalysis, str | None]:
         payload = self._payload(session, stream=True)
-        deltas: list[str] = []
-        pending_deltas: list[str] = []
-        reference_validated = False
-        completed_response: dict[str, Any] | None = None
-        try:
-            with self._http_client.stream(
-                "POST",
-                self._endpoint,
-                headers={**self._headers(), "Accept": "text/event-stream"},
-                json=payload,
-            ) as response:
-                response.raise_for_status()
-                for line in response.iter_lines():
-                    if not line.startswith("data:"):
-                        continue
-                    event = json.loads(line[5:].strip())
-                    event_type = event.get("type")
-                    if event_type in {"response.created", "response.in_progress"}:
-                        response_body = event.get("response")
-                        if isinstance(response_body, dict):
-                            self._validate_agent_reference(response_body)
-                            reference_validated = True
-                            for pending in pending_deltas:
-                                on_delta(pending)
-                            pending_deltas.clear()
-                    if event_type == "response.output_text.delta":
-                        delta = event.get("delta")
-                        if not isinstance(delta, str):
-                            raise RuntimeError("Managed Agent returned a non-text delta")
-                        deltas.append(delta)
-                        if reference_validated:
-                            on_delta(delta)
-                        else:
-                            pending_deltas.append(delta)
-                    elif event_type == "response.completed":
-                        response_body = event.get("response")
-                        if not isinstance(response_body, dict):
-                            raise RuntimeError(
-                                "Managed Agent returned an invalid completed response"
-                            )
-                        completed_response = response_body
-                    elif event_type in {"error", "response.failed"}:
-                        raise RuntimeError("Managed Agent stream reported a failure")
-        except (httpx.HTTPError, json.JSONDecodeError, ValueError) as error:
-            raise RuntimeError(f"Managed Agent analysis failed: {error}") from error
-        if not completed_response:
+        for attempt in range(MANAGED_AGENT_ATTEMPTS):
+            deltas: list[str] = []
+            pending_deltas: list[str] = []
+            reference_validated = False
+            completed_response: dict[str, Any] | None = None
+            retry_error: str | None = None
+            retry_delay = _retry_delay_seconds(None, attempt)
+            try:
+                with self._http_client.stream(
+                    "POST",
+                    self._endpoint,
+                    headers={**self._headers(), "Accept": "text/event-stream"},
+                    json=payload,
+                ) as response:
+                    if response.status_code in RETRYABLE_STATUS:
+                        response.read()
+                        retry_error = (
+                            f"Managed Agent analysis failed: {_response_error(response)}"
+                        )
+                        retry_delay = _retry_delay_seconds(response.headers, attempt)
+                    elif response.is_error:
+                        response.read()
+                        raise RuntimeError(
+                            f"Managed Agent analysis failed: {_response_error(response)}"
+                        )
+                    else:
+                        for line in response.iter_lines():
+                            if not line.startswith("data:"):
+                                continue
+                            event = json.loads(line[5:].strip())
+                            event_type = event.get("type")
+                            if event_type in {
+                                "response.created",
+                                "response.in_progress",
+                            }:
+                                response_body = event.get("response")
+                                if isinstance(response_body, dict):
+                                    self._validate_agent_reference(response_body)
+                                    reference_validated = True
+                                    for pending in pending_deltas:
+                                        on_delta(pending)
+                                    pending_deltas.clear()
+                            if event_type == "response.output_text.delta":
+                                delta = event.get("delta")
+                                if not isinstance(delta, str):
+                                    raise RuntimeError(
+                                        "Managed Agent returned a non-text delta"
+                                    )
+                                deltas.append(delta)
+                                if reference_validated:
+                                    on_delta(delta)
+                                else:
+                                    pending_deltas.append(delta)
+                            elif event_type == "response.completed":
+                                response_body = event.get("response")
+                                if not isinstance(response_body, dict):
+                                    raise RuntimeError(
+                                        "Managed Agent returned an invalid completed response"
+                                    )
+                                completed_response = response_body
+                            elif event_type == "response.failed" and not isinstance(
+                                _managed_stream_error_value(event), dict
+                            ):
+                                # Foundry can emit an empty response.failed immediately
+                                # before a top-level error event containing the real cause.
+                                retry_error = _managed_stream_error(event)
+                            elif event_type in {"error", "response.failed"}:
+                                message = _managed_stream_error(event)
+                                if not deltas and _retryable_stream_failure(event):
+                                    retry_error = message
+                                    retry_delay = _retry_delay_seconds(
+                                        response.headers,
+                                        attempt,
+                                    )
+                                    break
+                                raise RuntimeError(message)
+            except httpx.RequestError as error:
+                if deltas:
+                    raise RuntimeError(f"Managed Agent analysis failed: {error}") from error
+                retry_error = f"Managed Agent analysis failed: {error}"
+            except (json.JSONDecodeError, ValueError) as error:
+                raise RuntimeError(f"Managed Agent analysis failed: {error}") from error
+
+            if completed_response:
+                self._validate_agent_reference(completed_response)
+                for pending in pending_deltas:
+                    on_delta(pending)
+                analysis = _parse_managed_analysis("".join(deltas))
+                response_id = completed_response.get("id")
+                return analysis, response_id if isinstance(response_id, str) else None
+            if retry_error:
+                if attempt == MANAGED_AGENT_ATTEMPTS - 1:
+                    raise RuntimeError(retry_error)
+                time.sleep(retry_delay)
+                continue
             raise RuntimeError("Managed Agent stream ended without response.completed")
-        self._validate_agent_reference(completed_response)
-        for pending in pending_deltas:
-            on_delta(pending)
-        analysis = _parse_managed_analysis("".join(deltas))
-        response_id = completed_response.get("id")
-        return analysis, response_id if isinstance(response_id, str) else None
+
+        raise RuntimeError("Managed Agent analysis failed without a response")
 
     def _headers(self) -> dict[str, str]:
         try:
@@ -153,6 +206,7 @@ class ManagedAgentAnalyzer:
 
     def _post_with_retry(self, payload: dict[str, Any]) -> dict[str, Any]:
         for attempt in range(MANAGED_AGENT_ATTEMPTS):
+            response: httpx.Response | None = None
             try:
                 response = self._http_client.post(
                     self._endpoint,
@@ -160,19 +214,24 @@ class ManagedAgentAnalyzer:
                     json=payload,
                 )
                 if response.status_code not in RETRYABLE_STATUS:
-                    response.raise_for_status()
+                    if response.is_error:
+                        raise RuntimeError(
+                            f"Managed Agent analysis failed: {_response_error(response)}"
+                        )
                     body = response.json()
                     if not isinstance(body, dict):
                         raise RuntimeError("Managed Agent returned a non-object response")
                     return body
                 if attempt == MANAGED_AGENT_ATTEMPTS - 1:
-                    response.raise_for_status()
+                    raise RuntimeError(
+                        f"Managed Agent analysis failed: {_response_error(response)}"
+                    )
             except httpx.RequestError as error:
                 if attempt == MANAGED_AGENT_ATTEMPTS - 1:
                     raise RuntimeError(f"Managed Agent analysis failed: {error}") from error
             except (httpx.HTTPStatusError, json.JSONDecodeError, ValueError) as error:
                 raise RuntimeError(f"Managed Agent analysis failed: {error}") from error
-            time.sleep(2**attempt)
+            time.sleep(_retry_delay_seconds(response.headers if response else None, attempt))
         raise RuntimeError("Managed Agent analysis failed without a response")
 
     def _analysis_from_response(self, body: dict[str, Any]) -> MeetingAnalysis:
@@ -192,6 +251,55 @@ class ManagedAgentAnalyzer:
             raise RuntimeError("Managed Agent response omitted agent_reference")
         if reference.get("name") != self._name or str(reference.get("version")) != self._version:
             raise RuntimeError("Managed Agent response came from an unexpected agent version")
+
+
+def _response_error(response: httpx.Response) -> str:
+    try:
+        body = response.json()
+    except (json.JSONDecodeError, ValueError):
+        body = None
+    if isinstance(body, dict) and isinstance(body.get("error"), dict):
+        error = body["error"]
+        code = str(error.get("code") or "unknown_error")
+        message = str(error.get("message") or "No error message returned")
+        return f"HTTP {response.status_code} {code}: {message}"
+    return f"HTTP {response.status_code}: {response.text[:500].strip()}"
+
+
+def _managed_stream_error(event: dict[str, Any]) -> str:
+    error = _managed_stream_error_value(event)
+    if isinstance(error, dict):
+        code = str(error.get("code") or "unknown_error")
+        message = str(error.get("message") or "No error message returned")
+        return f"Managed Agent stream failed: {code}: {message}"
+    return (
+        "Managed Agent stream failed without error details. "
+        "Check model quota and Foundry runtime logs before retrying."
+    )
+
+
+def _managed_stream_error_value(event: dict[str, Any]) -> Any:
+    error: Any = event.get("error")
+    if event.get("type") == "response.failed" and isinstance(event.get("response"), dict):
+        error = event["response"].get("error")
+    return error
+
+
+def _retryable_stream_failure(event: dict[str, Any]) -> bool:
+    error = _managed_stream_error_value(event)
+    if not isinstance(error, dict):
+        return True
+    return str(error.get("code") or "").casefold() in RETRYABLE_STREAM_CODES
+
+
+def _retry_delay_seconds(headers: httpx.Headers | None, attempt: int) -> float:
+    retry_after = headers.get("retry-after") if headers else None
+    if retry_after:
+        try:
+            return min(max(float(retry_after), 0.0), MAX_RETRY_DELAY_SECONDS)
+        except ValueError:
+            pass
+    return min(float(2**attempt), MAX_RETRY_DELAY_SECONDS)
 
 
 def _managed_agent_endpoints(endpoint: str) -> tuple[str, str]:

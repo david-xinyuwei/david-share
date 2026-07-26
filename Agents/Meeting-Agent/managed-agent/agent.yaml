@@ -2,5 +2,5 @@
 
 kind: prompt
 name: managed-meeting-agent
-description: Managed meeting analysis for evidence-grounded artifacts and manual Outlook handoff
-model: gpt-oss-120b
+description: GPT-5.4 Responses meeting analysis for evidence-grounded artifacts and manual Outlook handoff
+model: gpt-5.4

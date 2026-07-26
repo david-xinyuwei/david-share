@@ -15,11 +15,11 @@ The Managed Agent implementation inside the single Meeting Agent repository. It 
 
 | Layer | Real implementation | Evidence |
 |---|---|---|
-| Cloud runtime | Public source was deployed as `managed-meeting-agent` v2 and validated with `status=active`, `harness=ghcp`, `gpt-oss-120b`, Responses protocol, and Entra authentication | [Dated cloud snapshot](../evidence-managed-agent.json) |
-| Cloud Skill | Versioned `meeting-package` Skill exposed through the Agent's Foundry Toolbox MCP | [Skill validation](../evidence/managed-live/toolbox-skill-validation.json) |
+| Cloud runtime | Public source was deployed as `managed-meeting-agent` v6 and validated with `status=active`, `harness=ghcp`, `gpt-5.4`, Responses protocol, and Entra authentication | [GPT-5.4 runtime validation](../evidence/managed-live-gpt54/runtime-validation.json) |
+| Cloud Skill | Versioned `meeting-package` Skill exposed through Toolbox v2, with the official Toolbox Search compatibility tool and Agentic identity authentication | [Toolbox validation](../evidence/managed-live-gpt54/runtime-validation.json) |
 | Meeting analysis | `ManagedAgentAnalyzer` sends the actual normalized meeting events and strict `MeetingAnalysis` schema to the deployed Agent | [Client contract](../tests/test_managed_analyzer.py) |
-| Artifact pipeline | Real JSON, Mermaid, SVG, 1280x720 PNG, editable six-slide PPTX, and MIME EML | [v2 artifact validation](../evidence/managed-live/public-v2-deployment-validation.json) |
-| Browser UI | React workspace, loopback BFF, real streamed model deltas, artifact downloads, and Outlook draft action | Playwright desktop/mobile E2E |
+| Artifact pipeline | Real JSON, Mermaid, SVG, 1280x720 PNG, editable six-slide PPTX, and MIME EML | [GPT-5.4 dual-input validation](../evidence/managed-live-gpt54/dual-input-validation.json) |
+| Browser UI | React workspace, loopback BFF, real streamed model deltas, artifact downloads, and Outlook draft action | [ARM64 desktop/mobile validation](../evidence/managed-live-gpt54/ui-validation.json) |
 | Mail safety | `X-Unsent: 1`, zero recipients by default, two real attachments, no send API or Send-button automation | `scripts/audit_no_send.py` |
 
 No AOAI API-key fallback exists in the customer path. Static fixture analyzers are test-only and cannot be selected by the production host or CLI. The browser never receives an Azure token.
@@ -61,13 +61,13 @@ Foundry owns the model loop, GHCP harness, and Skill/Toolbox integration. The lo
 The checked-in source declares a dedicated prompt Agent:
 
 - Agent example: `managed-meeting-agent`
-- Version validated: `2`
-- Model: `gpt-oss-120b`
+- Version validated: `6`
+- Model: `gpt-5.4` (`2026-03-05`, `GlobalStandard`)
 - Harness: `ghcp`
 - Skill: `meeting-package`
-- Authentication: Entra only
+- Authentication: Entra only; Toolbox access uses `AgenticIdentityToken`
 
-`agent.yaml`, `instructions.md`, `skills/meeting-package/SKILL.md`, and `azure.yaml` are the deployment source. Because the current Preview extension does not expand placeholders inside `promptAgent`, `scripts/deploy-managed-agent.sh` resolves the active isolated azd environment into an ignored deployment view, deploys from the established project root, and restores the public placeholder YAML. A successful deploy creates a new immutable Agent version.
+`agent.yaml`, `instructions.md`, `skills/meeting-package/SKILL.md`, and `azure.yaml` are the deployment source. Because the current Preview extension does not expand placeholders inside `promptAgent`, `scripts/deploy-managed-agent.sh` resolves the active isolated azd environment into an ignored deployment view, deploys from the established project root, and restores the public placeholder YAML. It then runs `scripts/reconcile_managed_runtime.py`, which idempotently reuses or creates the Toolbox Search version, Agentic connection, Agent version, and project-scoped `Foundry User` assignment for the Agent identity. The resulting active version is written to the ignored `.azure/managed-runtime.json` file.
 
 ## Windows Start
 
@@ -85,14 +85,10 @@ Run in native Windows PowerShell:
 $env:AZURE_CONFIG_DIR = "$env:USERPROFILE\.azure-<tenant>-<subscription>"
 az account show
 
-.\scripts\start-ui.ps1 `
-  -ManagedAgentEndpoint "https://<account>.services.ai.azure.com/api/projects/<project>/openai/v1/responses" `
-  -ManagedAgentName "managed-meeting-agent" `
-  -ManagedAgentVersion "2" `
-  -AzureConfigDir $env:AZURE_CONFIG_DIR
+.\scripts\start-ui.ps1 -AzureConfigDir $env:AZURE_CONFIG_DIR
 ```
 
-Open `http://127.0.0.1:4173`. Choose transcript, ASR JSONL, or Meeting JSON input, then select **Generate meeting package**. The launcher validates the isolated Azure CLI profile and Foundry token scope before starting the local backend.
+The launcher reads the endpoint, name, and active Agent version from `.azure/managed-runtime.json`. Explicit parameters remain available when connecting to an existing deployment. Open `http://127.0.0.1:4173`, choose transcript, ASR JSONL, or Meeting JSON input, then select **Generate meeting package**.
 
 ## CLI
 
@@ -102,7 +98,7 @@ Use the same Managed Agent environment in a developer shell:
 export AZURE_CONFIG_DIR="$HOME/.azure-<tenant>-<subscription>"
 export MANAGED_AGENT_ENDPOINT="https://<account>.services.ai.azure.com/api/projects/<project>/openai/v1/responses"
 export MANAGED_AGENT_NAME="managed-meeting-agent"
-export MANAGED_AGENT_VERSION="2"
+export MANAGED_AGENT_VERSION="<active-version>"
 
 python -m meeting_agent.cli build \
   --events examples/product-planning.jsonl \
@@ -113,12 +109,12 @@ The CLI fails closed when Entra authentication, the configured Agent version, th
 
 ## Validation
 
-Two materially different inputs were sent to the public-source v2 Agent. Their source and analysis hashes differ, proving the runtime is input-dependent rather than a fixed scenario.
+Two materially different inputs were sent through the public-source v6 Agent with GPT-5.4. Their source, analysis, PPTX, and EML hashes differ, proving the runtime and generated artifacts are input-dependent rather than fixed scenario output.
 
-| Run | Source SHA-256 | Analysis SHA-256 | PPTX | EML |
-|---|---|---|---:|---|
-| `product-planning` | `413799e9783ac40a5a4e225a553bef94f33fd4c5990607add57e50547f91486b` | `36502698aeb8b2d831885222fef4bd0cce7de00e75dad87e8f84e27e9b07eae4` | 6 slides | `X-Unsent: 1`, 0 recipients, 2 attachments |
-| `operations-review` | `88d71ad49cd875e2eb958c884e1ce2eb76a208576047df923decda79e7e109fb` | `8498b3b568ca46907753535c779c55d4b5a6c01ed63aea1a06420997ac923ee7` | 6 slides | `X-Unsent: 1`, 0 recipients, 2 attachments |
+| Run | Source SHA-256 | Analysis SHA-256 | PPTX SHA-256 | EML |
+|---|---|---|---|---|
+| `product-planning` | `413799e9783ac40a5a4e225a553bef94f33fd4c5990607add57e50547f91486b` | `1989142296708857b6d4dcb2688d839bcbcbf5d563247d9d6e2b29d0aa2746e0` | `bd3f17ee2e17cd5f5df0b773d9c8005483e7592f8b8d7fcae8a88465729c023a` | `X-Unsent: 1`, 0 recipients, 2 attachments |
+| `operations-review` | `88d71ad49cd875e2eb958c884e1ce2eb76a208576047df923decda79e7e109fb` | `fa7055acaa9e6a84fe6e53a0a85f763600cccfa0450ee6d15cf65da073604419` | `21f679b38ce96018dc0c58ed707ffb32779c7000e0ad43bcb46dfc8aeceadc5e` | `X-Unsent: 1`, 0 recipients, 2 attachments |
 
 Independent validation reopened both PNGs with Pillow, both PPTX files with `python-pptx`, both analyses with Pydantic, and both EML files with Python's MIME parser. This is functional evidence, not production certification or a model-quality benchmark.
 
@@ -160,4 +156,5 @@ The classic path is prompt-style local orchestration, not a deployed Foundry Pro
 - The current UI is loopback-only, not a public website.
 - New Outlook handoff requires an interactive Windows desktop.
 - Explicit cross-invocation persistent filesystem sessions are not claimed or required.
-- The validated cloud Agent and model remain private-preview dependencies and must be revalidated before customer delivery in another tenant or project.
+- The Prompt Agent, managed GHCP harness, and Toolbox Skill integration remain Preview dependencies and must be revalidated before customer delivery in another tenant or project.
+- Historical v2 / `gpt-oss-120b` evidence remains under `evidence/managed-live/`; current GPT-5.4 evidence is under `evidence/managed-live-gpt54/`.

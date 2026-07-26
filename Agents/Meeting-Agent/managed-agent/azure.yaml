@@ -11,12 +11,12 @@ services:
         config:
             deployments:
                 - model:
-                      format: OpenAI-OSS
-                      name: gpt-oss-120b
-                      version: "1"
-                  name: gpt-oss-120b
+                      format: OpenAI
+                      name: gpt-5.4
+                      version: "2026-03-05"
+                  name: gpt-5.4
                   sku:
-                      capacity: 1
+                      capacity: 100
                       name: GlobalStandard
             promptAgent:
                 apiVersion: v1

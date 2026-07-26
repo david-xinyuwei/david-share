@@ -119,7 +119,7 @@ try {
     $env:MEETING_AGENT_RUNTIME_MODE = "managed"
     $env:MEETING_AGENT_RUNTIME_ATTESTATION = "live-managed"
     $env:MEETING_AGENT_NAME = $ManagedAgentName
-    $env:MANAGED_AGENT_MODEL = "gpt-oss-120b"
+    $env:MANAGED_AGENT_MODEL = "gpt-5.4"
     npm ci --no-audit --no-fund
     if ($LASTEXITCODE -ne 0) { throw "npm ci failed with exit code $LASTEXITCODE" }
     npm run build

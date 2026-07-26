@@ -10,7 +10,7 @@ Included:
 - Synthetic examples and the two analysis JSON fixtures required by tests
 - Sanitized cloud, Skill, UI, and parity summaries
 - Bilingual implementation documentation under `docs/`, with the monorepo root README as the only product home
-- Sanitized public-source v2 deployment, Agent Reference, cross-input artifact, and live UI evidence
+- Historical public-source v2 evidence plus current GPT-5.4 v6 runtime, cross-input artifact, and ARM64 live UI evidence
 
 Excluded:
 

@@ -48,7 +48,7 @@ def main() -> int:
     agent = yaml.safe_load((ROOT / "agent.yaml").read_text(encoding="utf-8"))
     assert agent["kind"] == "prompt"
     assert agent["name"] == "managed-meeting-agent"
-    assert agent["model"] == "gpt-oss-120b"
+    assert agent["model"] == "gpt-5.4"
     assert (
         ROOT / "skills" / "meeting-package" / "SKILL.md"
     ).read_bytes() == (

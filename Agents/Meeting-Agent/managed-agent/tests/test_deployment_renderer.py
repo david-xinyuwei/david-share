@@ -1,5 +1,6 @@
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 import yaml
@@ -22,7 +23,7 @@ def test_renderer_resolves_private_values_outside_public_source(tmp_path: Path) 
 
     subprocess.run(
         [
-            "python3",
+            sys.executable,
             str(ROOT / "scripts" / "render_deployment_source.py"),
             "--env-json",
             str(environment_path),

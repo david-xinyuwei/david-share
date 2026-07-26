@@ -27,7 +27,7 @@ This is the question the repository answers with one concrete application:
 | Skill | Python reads local `SKILL.md` and injects it into every request | [`meeting-package`](managed-agent/skills/meeting-package/SKILL.md) is a versioned Foundry Skill linked through Toolbox MCP |
 | Model loop owner | Local application code | Foundry-managed GHCP harness |
 | Invocation | Direct Azure OpenAI Responses client | Application references Agent name + immutable version; the endpoint is transport, not the Agent itself |
-| Authentication | API key in the local backend process | Entra ID; no model API key in the customer path |
+| Authentication | API key in the local backend process | Entra ID for Responses and Agentic identity for Toolbox; no model API key in the customer path |
 | Artifact/UI contract | JSON, Mermaid, SVG, PNG, editable PPTX, EML, browser UI, New Outlook draft | The same contract; eight shared core modules are byte-for-byte identical |
 | Customer code ownership | Owns model request construction and orchestration | Owns event validation, artifacts, and Outlook handoff; Foundry owns the model loop |
 | Operational change | Prompt, Skill loading, model call, key handling, and parsing are one application release | Agent instructions and Skill are versioned platform assets; app code keeps a smaller deterministic responsibility |
@@ -58,24 +58,24 @@ The local application still owns what should remain deterministic: event validat
 
 Implementation details and parity evidence are linked from this root page; `managed-agent/` is a source directory, not a separate product or repository.
 
-### Measured result: public-source Managed Agent v2
+### Measured result: public-source Managed Agent v6 with GPT-5.4
 
-The repository source was deployed again after publication review, rather than relying on the earlier internal-name Agent. The deployment initially exposed a reproducibility defect: the Preview extension does not expand placeholders inside `promptAgent`. The checked-in deployment gate now renders private azd values only under ignored `.azure`, deploys from the established project root, and restores the public placeholder YAML.
+The repository source was redeployed with the same GPT-5.4 model family used by the Classic path. The Preview extension's generated skills-only Toolbox was reconciled to the official Toolbox Search contract, and the Agent uses a dedicated `AgenticIdentityToken` connection. The checked-in deployment gate keeps private azd values under ignored `.azure`, restores the public placeholder YAML, and idempotently records the active runtime in `.azure/managed-runtime.json`.
 
 | Verification | Measured result |
 |---|---|
-| Public-source deployment | `managed-meeting-agent` version `2`, successful in 23 seconds |
-| Source binding | SHA-256 recorded for `agent.yaml`, `azure.yaml`, `instructions.md`, and `meeting-package/SKILL.md` |
-| Agent identity | Non-stream and stream responses passed strict Agent Reference validation for name `managed-meeting-agent`, version `2` |
-| Real streaming | 58 model deltas, 1,832 text characters, nonempty hashed response ID |
-| Cross-input behavior | Planning and operations meetings produced different titles, analysis hashes, mind maps, PPTX files, and EML files |
+| Public-source deployment | `managed-meeting-agent` version `6`, `status=active`, `harness=ghcp`, model `gpt-5.4` version `2026-03-05` |
+| Toolbox and identity | Toolbox v2 exposes `meeting-package` plus Toolbox Search; Agent-specific identity has project-scoped `Foundry User` |
+| Agent identity | Non-stream and stream responses passed strict Agent Reference validation for name `managed-meeting-agent`, version `6` |
+| Real streaming | Nonempty model deltas and two distinct hashed response IDs are recorded in the sanitized evidence |
+| Cross-input behavior | Planning and operations meetings produced different titles, analysis hashes, mind maps, PPTX hashes, and EML hashes |
 | Artifact contract | Both runs produced nonblank 1280x720 PNGs, editable six-slide PPTX files, and `X-Unsent: 1` EML drafts with zero recipients and two attachments |
-| Browser workflow | Live desktop Playwright `1/1`, 17.9 seconds, zero unexpected and zero flaky results |
+| Browser workflow | Live GPT-5.4 Playwright desktop/mobile `2/2` with native Windows ARM64 Node and Edge; zero console errors |
 | Shared deterministic behavior | Eight core modules remain byte-for-byte identical to the fixed Classic baseline |
 
-This proves functional parity at the contract and workflow level. It does **not** claim that different models produce identical prose or that Private Preview behavior is a permanent production SLA.
+This proves functional parity at the contract and workflow level. It does **not** claim that the two orchestration paths produce identical prose or that Preview behavior is a permanent production SLA.
 
-[Managed implementation details](managed-agent/docs/MANAGED-IMPLEMENTATION.md) · [Feature parity](managed-agent/FEATURE-PARITY.md) · [v2 deployment evidence](managed-agent/evidence/managed-live/public-v2-source-manifest.json)
+[Managed implementation details](managed-agent/docs/MANAGED-IMPLEMENTATION.md) · [Feature parity](managed-agent/FEATURE-PARITY.md) · [GPT-5.4 evidence](managed-agent/evidence/managed-live-gpt54/runtime-validation.json)
 
 ## Demo Video
 

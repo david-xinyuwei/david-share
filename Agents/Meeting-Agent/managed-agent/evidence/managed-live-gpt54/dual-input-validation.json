@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "validated_at_utc": "2026-07-24T11:24:05Z",
+  "agent": {
+    "name": "managed-meeting-agent",
+    "version": "6",
+    "model": "gpt-5.4"
+  },
+  "mode": "real Responses streaming followed by local deterministic artifact generation",
+  "runs": {
+    "product-planning": {
+      "title": "Assistant pilot planning",
+      "source_sha256": "413799e9783ac40a5a4e225a553bef94f33fd4c5990607add57e50547f91486b",
+      "response_id_sha256": "c6ec69cf4a85209a6d7a7c44daa62d3f4fc9a0094b6f55f0f74f8391e6a397b4",
+      "analysis_sha256": "1989142296708857b6d4dcb2688d839bcbcbf5d563247d9d6e2b29d0aa2746e0",
+      "png": {
+        "sha256": "f1cf4a5563094aa8a2fe18046645305521863ba97e14a9a0c340504d23dfccf8",
+        "bytes": 29044,
+        "size": [1280, 720],
+        "nonblank": true
+      },
+      "pptx": {
+        "sha256": "bd3f17ee2e17cd5f5df0b773d9c8005483e7592f8b8d7fcae8a88465729c023a",
+        "bytes": 62652,
+        "slides": 6,
+        "title_present": true,
+        "current_mind_map_embedded": true
+      },
+      "eml": {
+        "sha256": "ebe3036676057ae5e32bf0a37f9bbbe439a87181e21c39b074183d4a398c4420",
+        "bytes": 165914,
+        "x_unsent": "1",
+        "recipient_count": 0,
+        "attachment_count": 2
+      }
+    },
+    "operations-review": {
+      "title": "Service recovery and follow-up planning",
+      "source_sha256": "88d71ad49cd875e2eb958c884e1ce2eb76a208576047df923decda79e7e109fb",
+      "response_id_sha256": "4d1ab445cf9de9fc3729a8378f9b9a1aa9f5bb33d5e89eff80932f4fce530b5e",
+      "analysis_sha256": "fa7055acaa9e6a84fe6e53a0a85f763600cccfa0450ee6d15cf65da073604419",
+      "png": {
+        "sha256": "d624bbc13122eec904c625163c69a868e968afa2d94ba76695e862abfb0ebcf9",
+        "bytes": 33230,
+        "size": [1280, 720],
+        "nonblank": true
+      },
+      "pptx": {
+        "sha256": "21f679b38ce96018dc0c58ed707ffb32779c7000e0ad43bcb46dfc8aeceadc5e",
+        "bytes": 66725,
+        "slides": 6,
+        "title_present": true,
+        "current_mind_map_embedded": true
+      },
+      "eml": {
+        "sha256": "883ef0d8b00d6249b0e8dc26008ed96e04153250d19e642dc2593e7b8fd7b964",
+        "bytes": 182667,
+        "x_unsent": "1",
+        "recipient_count": 0,
+        "attachment_count": 2
+      }
+    }
+  },
+  "stream_model_deltas_present": true,
+  "stage_order_validated": true,
+  "cross_input_analysis_differs": true,
+  "cross_input_pptx_differs": true,
+  "automatic_send": false,
+  "resource_identifiers": "redacted"
+}

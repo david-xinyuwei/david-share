@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "validated_at_utc": "2026-07-24T11:24:05Z",
+  "agent": {
+    "name": "managed-meeting-agent",
+    "version": "6",
+    "status": "active",
+    "kind": "prompt",
+    "harness": "ghcp",
+    "model": "gpt-5.4",
+    "protocol": "responses",
+    "authentication": "Entra"
+  },
+  "model_deployment": {
+    "format": "OpenAI",
+    "name": "gpt-5.4",
+    "version": "2026-03-05",
+    "sku": "GlobalStandard",
+    "capacity": 1,
+    "region": "East US 2"
+  },
+  "toolbox": {
+    "version": "2",
+    "skill": "meeting-package",
+    "compatibility_tool": "toolbox_search_preview",
+    "connection_auth_type": "AgenticIdentityToken",
+    "require_approval": "never"
+  },
+  "rbac": {
+    "principal": "agent-specific identity",
+    "role": "Foundry User",
+    "scope": "Foundry project",
+    "project_managed_identity_role_required": false,
+    "shared_agent_identity_role_required": false
+  },
+  "minimal_response": {
+    "http_status": 200,
+    "status": "completed",
+    "model": "gpt-5.4",
+    "agent_reference_version": "6",
+    "error": null
+  },
+  "reconcile": {
+    "consecutive_runs": 2,
+    "toolbox_version_after_each_run": "2",
+    "agent_version_after_each_run": "6",
+    "idempotent": true
+  },
+  "resource_identifiers": "redacted"
+}

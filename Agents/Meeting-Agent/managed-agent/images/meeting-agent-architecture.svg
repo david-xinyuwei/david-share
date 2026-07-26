@@ -80,7 +80,7 @@
 
   <rect x="1600" y="1160" width="560" height="265" rx="16" fill="#e8f2fb" stroke="#0078d4" stroke-width="4"/>
   <text class="heading" x="1880" y="1220" text-anchor="middle">Managed Agent Analysis</text>
-  <text class="small" x="1880" y="1270" text-anchor="middle">GHCP harness · gpt-oss-120b</text>
+  <text class="small" x="1880" y="1270" text-anchor="middle">GHCP harness · GPT-5.4</text>
   <text class="small" x="1880" y="1315" text-anchor="middle">Cloud meeting-package Skill · strict JSON</text>
   <text class="small" x="1880" y="1360" text-anchor="middle">Entra authentication · no API-key fallback</text>
 

@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "validated_at_utc": "2026-07-25T07:50:30Z",
+  "scope": "large structured meeting input through the local UI API and Foundry Managed Agent v6",
+  "runtime": {
+    "mode": "managed",
+    "agent": "managed-meeting-agent",
+    "version": "6",
+    "model": "gpt-5.4",
+    "model_version": "2026-03-05",
+    "authentication": "Entra",
+    "attestation": "live-managed",
+    "region": "East US 2"
+  },
+  "input": {
+    "fixture": "examples/meeting-record-stargate.json",
+    "file_characters": 16242,
+    "normalized_event_count": 56,
+    "normalized_text_characters": 12016,
+    "customer_data": false
+  },
+  "failure": {
+    "http_status": 200,
+    "sse_sequence": ["response.created", "response.failed", "error"],
+    "error_code": "rate_limit_exceeded",
+    "deployment_capacity_before": 1,
+    "tokens_per_minute_before": 1000,
+    "requests_per_minute_before": 10,
+    "generic_error_was_incorrect": true
+  },
+  "subscription_quota_at_validation_time": {
+    "sku": "GlobalStandard",
+    "quota_unit": "one thousand tokens per minute",
+    "limit": 3000,
+    "current_before_change": 1
+  },
+  "correction": {
+    "deployment_capacity_after": 100,
+    "tokens_per_minute_after": 100000,
+    "requests_per_minute_after": 1000,
+    "provisioning_state": "Succeeded",
+    "agent_or_model_changed": false,
+    "sse_parser_continues_after_empty_response_failed": true,
+    "regression_test": "test_surfaces_error_after_empty_response_failed"
+  },
+  "retest": {
+    "same_input": true,
+    "ui_api_http_transport_completed": true,
+    "real_model_delta_count": 1738,
+    "event_order": [
+      "accepted",
+      "analysis_started",
+      "model_delta",
+      "analysis_ready",
+      "mind_map_ready",
+      "presentation_ready",
+      "complete"
+    ],
+    "backend_elapsed_seconds": 18.2,
+    "browser_result": "passed",
+    "browser_summary_visible": true,
+    "downloads": [
+      "mind-map.png",
+      "mind-map.mmd",
+      "meeting-summary.pptx",
+      "meeting-follow-up.eml",
+      "meeting-analysis.json"
+    ],
+    "meeting_package_failed_visible": false
+  },
+  "code_validation": {
+    "focused_managed_analyzer_tests": 15,
+    "focused_test_failures": 0,
+    "ruff": "passed",
+    "editor_diagnostics": 0
+  },
+  "resource_identifiers": "redacted",
+  "classification": "synthetic-test-fixture"
+}

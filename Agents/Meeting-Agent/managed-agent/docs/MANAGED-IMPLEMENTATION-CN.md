@@ -15,11 +15,11 @@
 
 | 层级 | 真实实现 | 证据 |
 |---|---|---|
-| 云端运行时 | Public源码已部署为`managed-meeting-agent` v2，并完成`active`、`harness=ghcp`、模型`gpt-oss-120b`、Responses协议和Entra认证实测 | [带日期的云端快照](../evidence-managed-agent.json) |
-| 云端Skill | 版本化`meeting-package` Skill，通过Agent专属Foundry Toolbox MCP提供 | [Skill验证](../evidence/managed-live/toolbox-skill-validation.json) |
+| 云端运行时 | Public源码已部署为`managed-meeting-agent` v6，并完成`active`、`harness=ghcp`、模型`gpt-5.4`、Responses协议和Entra认证实测 | [GPT-5.4运行时验证](../evidence/managed-live-gpt54/runtime-validation.json) |
+| 云端Skill | 版本化`meeting-package` Skill通过Toolbox v2提供；Toolbox包含官方Toolbox Search兼容工具，并使用Agentic Identity认证 | [Toolbox验证](../evidence/managed-live-gpt54/runtime-validation.json) |
 | 会议分析 | `ManagedAgentAnalyzer`把实际标准化会议事件和严格`MeetingAnalysis` Schema发送到已部署Agent | [客户端契约](../tests/test_managed_analyzer.py) |
-| 产物流水线 | 真实生成JSON、Mermaid、SVG、1280x720 PNG、可编辑六页PPTX和MIME EML | [v2产物验证](../evidence/managed-live/public-v2-deployment-validation.json) |
-| 浏览器UI | React工作区、loopback BFF、真实模型delta流、产物下载和Outlook草稿操作 | Playwright桌面端/移动端E2E |
+| 产物流水线 | 真实生成JSON、Mermaid、SVG、1280x720 PNG、可编辑六页PPTX和MIME EML | [GPT-5.4双输入验证](../evidence/managed-live-gpt54/dual-input-validation.json) |
+| 浏览器UI | React工作区、loopback BFF、真实模型delta流、产物下载和Outlook草稿操作 | [ARM64桌面端/移动端验证](../evidence/managed-live-gpt54/ui-validation.json) |
 | 邮件安全 | 默认`X-Unsent: 1`、0个收件人、2个真实附件，不包含发送API或Send按钮自动化 | `scripts/audit_no_send.py` |
 
 客户主路径不存在AOAI API Key fallback。静态fixture analyzer只用于测试，生产Host和CLI无法选择。浏览器永远拿不到Azure token。
@@ -61,13 +61,13 @@ Foundry负责模型循环、GHCP Harness和Skill/Toolbox集成。本机应用负
 代码声明了独立Prompt Agent：
 
 - Agent示例：`managed-meeting-agent`
-- 已验证版本：`2`
-- 模型：`gpt-oss-120b`
+- 已验证版本：`6`
+- 模型：`gpt-5.4`（`2026-03-05`，`GlobalStandard`）
 - Harness：`ghcp`
 - Skill：`meeting-package`
-- 认证：仅Entra
+- 认证：仅Entra；Toolbox访问使用`AgenticIdentityToken`
 
-`agent.yaml`、`instructions.md`、`skills/meeting-package/SKILL.md`和`azure.yaml`共同构成部署源。当前Preview扩展不会展开`promptAgent`内部占位符，因此`scripts/deploy-managed-agent.sh`会把双隔离azd环境解析到被忽略的部署视图，沿已建立的项目根目录部署，并恢复Public占位符YAML。每次成功部署都会创建不可变Agent版本。
+`agent.yaml`、`instructions.md`、`skills/meeting-package/SKILL.md`和`azure.yaml`共同构成部署源。当前Preview扩展不会展开`promptAgent`内部占位符，因此`scripts/deploy-managed-agent.sh`会把双隔离azd环境解析到被忽略的部署视图，沿已建立的项目根目录部署，并恢复Public占位符YAML。随后，`scripts/reconcile_managed_runtime.py`以幂等方式复用或创建Toolbox Search版本、Agentic连接和Agent版本，并只为Agent Identity在Project Scope授予`Foundry User`。最终运行版本写入被忽略的`.azure/managed-runtime.json`。
 
 ## Windows启动
 
@@ -85,14 +85,10 @@ Foundry负责模型循环、GHCP Harness和Skill/Toolbox集成。本机应用负
 $env:AZURE_CONFIG_DIR = "$env:USERPROFILE\.azure-<tenant>-<subscription>"
 az account show
 
-.\scripts\start-ui.ps1 `
-  -ManagedAgentEndpoint "https://<account>.services.ai.azure.com/api/projects/<project>/openai/v1/responses" `
-  -ManagedAgentName "managed-meeting-agent" `
-  -ManagedAgentVersion "2" `
-  -AzureConfigDir $env:AZURE_CONFIG_DIR
+.\scripts\start-ui.ps1 -AzureConfigDir $env:AZURE_CONFIG_DIR
 ```
 
-打开`http://127.0.0.1:4173`。选择转写、ASR JSONL或Meeting JSON输入，然后点击 **Generate meeting package**。启动器会在本机Backend启动前验证隔离Azure CLI profile和Foundry token scope。
+启动器会从`.azure/managed-runtime.json`读取Endpoint、Agent Name和Active Version；连接既有部署时仍可显式传参。打开`http://127.0.0.1:4173`，选择转写、ASR JSONL或Meeting JSON输入，然后点击 **Generate meeting package**。
 
 ## CLI
 
@@ -102,7 +98,7 @@ az account show
 export AZURE_CONFIG_DIR="$HOME/.azure-<tenant>-<subscription>"
 export MANAGED_AGENT_ENDPOINT="https://<account>.services.ai.azure.com/api/projects/<project>/openai/v1/responses"
 export MANAGED_AGENT_NAME="managed-meeting-agent"
-export MANAGED_AGENT_VERSION="2"
+export MANAGED_AGENT_VERSION="<active-version>"
 
 python -m meeting_agent.cli build \
   --events examples/product-planning.jsonl \
@@ -113,12 +109,12 @@ Entra认证、配置的Agent版本、HTTP响应或严格JSON契约任一不满�
 
 ## 验证结果
 
-两份内容显著不同的输入已真实发送到Public源码部署的v2 Agent。它们的来源和分析Hash均不同，证明运行结果随输入变化，不是固定场景。
+两份内容显著不同的输入已通过Public源码部署的v6 Agent和GPT-5.4真实运行。它们的来源、分析、PPTX和EML Hash均不同，证明运行时和生成产物随输入变化，不是固定场景输出。
 
-| 运行 | 来源SHA-256 | 分析SHA-256 | PPTX | EML |
-|---|---|---|---:|---|
-| `product-planning` | `413799e9783ac40a5a4e225a553bef94f33fd4c5990607add57e50547f91486b` | `36502698aeb8b2d831885222fef4bd0cce7de00e75dad87e8f84e27e9b07eae4` | 6页 | `X-Unsent: 1`、0个收件人、2个附件 |
-| `operations-review` | `88d71ad49cd875e2eb958c884e1ce2eb76a208576047df923decda79e7e109fb` | `8498b3b568ca46907753535c779c55d4b5a6c01ed63aea1a06420997ac923ee7` | 6页 | `X-Unsent: 1`、0个收件人、2个附件 |
+| 运行 | 来源SHA-256 | 分析SHA-256 | PPTX SHA-256 | EML |
+|---|---|---|---|---|
+| `product-planning` | `413799e9783ac40a5a4e225a553bef94f33fd4c5990607add57e50547f91486b` | `1989142296708857b6d4dcb2688d839bcbcbf5d563247d9d6e2b29d0aa2746e0` | `bd3f17ee2e17cd5f5df0b773d9c8005483e7592f8b8d7fcae8a88465729c023a` | `X-Unsent: 1`、0个收件人、2个附件 |
+| `operations-review` | `88d71ad49cd875e2eb958c884e1ce2eb76a208576047df923decda79e7e109fb` | `fa7055acaa9e6a84fe6e53a0a85f763600cccfa0450ee6d15cf65da073604419` | `21f679b38ce96018dc0c58ed707ffb32779c7000e0ad43bcb46dfc8aeceadc5e` | `X-Unsent: 1`、0个收件人、2个附件 |
 
 独立验收使用Pillow重新打开两张PNG，使用`python-pptx`重新解析两份PPTX，使用Pydantic重新校验两份Analysis，并使用Python MIME Parser重新解析两封EML。这是功能证据，不是生产认证，也不是模型质量Benchmark。
 
@@ -160,4 +156,5 @@ Classic路径是本机prompt-style编排，并不是已经部署的Foundry Promp
 - 当前UI仅监听loopback，不是公网网站。
 - New Outlook交接需要交互式Windows桌面。
 - 不声明、也不依赖跨Invocation的持久文件系统Session。
-- 已验证的云端Agent和模型属于Private Preview依赖；迁移到其他Tenant或Project后必须重新验证。
+- Prompt Agent、Managed GHCP Harness和Toolbox Skill集成仍属于Preview依赖；迁移到其他Tenant或Project后必须重新验证。
+- 历史v2 / `gpt-oss-120b`证据保留在`evidence/managed-live/`；当前GPT-5.4证据位于`evidence/managed-live-gpt54/`。

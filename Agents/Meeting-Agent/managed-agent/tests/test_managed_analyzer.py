@@ -160,6 +160,30 @@ def test_rejects_non_object_success_response(monkeypatch: pytest.MonkeyPatch) ->
         analyzer.analyze(load_jsonl(ROOT / "examples" / "product-planning.jsonl"))
 
 
+def test_surfaces_managed_error_code_and_message(monkeypatch: pytest.MonkeyPatch) -> None:
+    configure(monkeypatch)
+    client = httpx.Client(
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(
+                400,
+                json={
+                    "error": {
+                        "code": "tool_user_error",
+                        "message": "Toolbox access denied",
+                    }
+                },
+            )
+        )
+    )
+    analyzer = ManagedAgentAnalyzer(credential=FakeCredential(), http_client=client)
+
+    with pytest.raises(
+        RuntimeError,
+        match="HTTP 400 tool_user_error: Toolbox access denied",
+    ):
+        analyzer.analyze(load_jsonl(ROOT / "examples" / "product-planning.jsonl"))
+
+
 def test_does_not_emit_delta_before_agent_reference_validation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -191,6 +215,85 @@ def test_does_not_emit_delta_before_agent_reference_validation(
         )
 
     assert deltas == []
+
+
+def test_surfaces_stream_failure_code_and_message(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    configure(monkeypatch)
+    failure = {
+        "type": "response.failed",
+        "response": {
+            "error": {
+                "code": "invalid_prompt",
+                "message": "Meeting input exceeded the supported context.",
+            }
+        },
+    }
+    body = f"event: response.failed\ndata: {json.dumps(failure)}\n\n"
+    client = httpx.Client(
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(
+                200, text=body, headers={"Content-Type": "text/event-stream"}
+            )
+        )
+    )
+    analyzer = ManagedAgentAnalyzer(credential=FakeCredential(), http_client=client)
+
+    with pytest.raises(
+        RuntimeError,
+        match=(
+            "Managed Agent stream failed: invalid_prompt: "
+            "Meeting input exceeded the supported context"
+        ),
+    ):
+        analyzer.analyze_stream(
+            load_jsonl(ROOT / "examples" / "product-planning.jsonl"),
+            lambda delta: None,
+        )
+
+
+def test_surfaces_error_after_empty_response_failed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    configure(monkeypatch)
+    failed = completed_response()
+    failed["status"] = "failed"
+    failed["error"] = None
+    events = [
+        {"type": "response.failed", "response": failed},
+        {
+            "type": "error",
+            "error": {
+                "type": "too_many_requests",
+                "code": "rate_limit_exceeded",
+                "message": "GPT-5.4 in eastus2 exceeded rate limit.",
+            },
+        },
+    ]
+    body = "".join(
+        f"event: {event['type']}\ndata: {json.dumps(event)}\n\n" for event in events
+    )
+    client = httpx.Client(
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(
+                200, text=body, headers={"Content-Type": "text/event-stream"}
+            )
+        )
+    )
+    analyzer = ManagedAgentAnalyzer(credential=FakeCredential(), http_client=client)
+
+    with pytest.raises(
+        RuntimeError,
+        match=(
+            "Managed Agent stream failed: rate_limit_exceeded: "
+            "GPT-5.4 in eastus2 exceeded rate limit"
+        ),
+    ):
+        analyzer.analyze_stream(
+            load_jsonl(ROOT / "examples" / "product-planning.jsonl"),
+            lambda delta: None,
+        )
 
 
 @pytest.mark.parametrize(

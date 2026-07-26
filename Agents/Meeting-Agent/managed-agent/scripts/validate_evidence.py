@@ -14,17 +14,20 @@ def main() -> int:
     definition = agent["agent"]
     assert definition == {
         "name": "managed-meeting-agent",
-        "version": "2",
+        "version": "6",
         "status": "active",
         "kind": "prompt",
         "harness": "ghcp",
-        "model": "gpt-oss-120b",
+        "model": "gpt-5.4",
         "tool_count": 1,
         "protocols": ["responses"],
         "authentication": ["Entra"],
     }
     assert agent["validation"]["assertions_passed"] is True
     assert agent["validation"]["identities_and_tenant_urls_redacted"] is True
+    assert agent["validation"]["source_hash_manifest"] == (
+        "evidence/managed-live-gpt54/runtime-validation.json"
+    )
 
     skill = json.loads(
         (ROOT / "evidence" / "managed-live" / "toolbox-skill-validation.json").read_text(
@@ -146,7 +149,73 @@ def main() -> int:
     assert agent_reference["stream_delta_count"] > 0
     assert agent_reference["stream_text_chars"] > 0
     assert agent_reference["response_id_present"] is True
-    print("PASS: Managed Agent cloud, Skill, and cross-input artifact evidence is valid.")
+
+    current_runtime = json.loads(
+        (
+            ROOT / "evidence" / "managed-live-gpt54" / "runtime-validation.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert current_runtime["agent"] == {
+        "name": "managed-meeting-agent",
+        "version": "6",
+        "status": "active",
+        "kind": "prompt",
+        "harness": "ghcp",
+        "model": "gpt-5.4",
+        "protocol": "responses",
+        "authentication": "Entra",
+    }
+    assert current_runtime["model_deployment"]["version"] == "2026-03-05"
+    assert current_runtime["model_deployment"]["sku"] == "GlobalStandard"
+    assert current_runtime["toolbox"]["connection_auth_type"] == (
+        "AgenticIdentityToken"
+    )
+    assert current_runtime["rbac"]["principal"] == "agent-specific identity"
+    assert current_runtime["reconcile"]["idempotent"] is True
+    assert current_runtime["resource_identifiers"] == "redacted"
+
+    current_runs = json.loads(
+        (
+            ROOT
+            / "evidence"
+            / "managed-live-gpt54"
+            / "dual-input-validation.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert current_runs["agent"]["version"] == "6"
+    assert current_runs["agent"]["model"] == "gpt-5.4"
+    assert current_runs["stream_model_deltas_present"] is True
+    assert current_runs["cross_input_analysis_differs"] is True
+    assert current_runs["cross_input_pptx_differs"] is True
+    assert current_runs["automatic_send"] is False
+    assert len(
+        {run["analysis_sha256"] for run in current_runs["runs"].values()}
+    ) == 2
+    for run in current_runs["runs"].values():
+        assert run["png"]["size"] == [1280, 720]
+        assert run["png"]["nonblank"] is True
+        assert run["pptx"]["slides"] == 6
+        assert run["pptx"]["title_present"] is True
+        assert run["pptx"]["current_mind_map_embedded"] is True
+        assert run["eml"]["x_unsent"] == "1"
+        assert run["eml"]["recipient_count"] == 0
+        assert run["eml"]["attachment_count"] == 2
+
+    current_ui = json.loads(
+        (ROOT / "evidence" / "managed-live-gpt54" / "ui-validation.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert current_ui["runtime"]["version"] == "6"
+    assert current_ui["runtime"]["model"] == "gpt-5.4"
+    assert current_ui["windows_runtime"]["node_architecture"] == "arm64"
+    assert current_ui["windows_runtime"]["edge_pe_machine"] == "0xAA64"
+    assert current_ui["playwright"]["projects"] == ["desktop", "mobile"]
+    assert current_ui["playwright"]["passed"] == 2
+    assert current_ui["playwright"]["failed"] == 0
+    print(
+        "PASS: historical v2 and current GPT-5.4 Managed Agent evidence is valid."
+    )
     return 0
 
 
