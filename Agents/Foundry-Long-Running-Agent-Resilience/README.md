@@ -12,7 +12,7 @@ Ninety-five percent of that work was performed by a process that no longer exist
 This page explains why that worked, which signals proved it, and which perfectly reasonable instincts would have destroyed it.
 
 > **What this is.** Measured behavior from a private-preview evaluation of long-running agent execution on Microsoft Foundry Hosted Agents.
-> **What it is not.** It ships **no preview SDK source, no implementation code, no deployment recipe, no API schema, and no raw telemetry**, because the capability was in private preview at the time. Every number is an observation from that evaluation, not a service-level commitment.
+> **What it is not.** It ships **no preview SDK source, complete agent implementation, end-to-end deployment recipe, API schema, or raw telemetry**, because the recovery extension was in private preview at the time. Section 2.4 shows only the minimum configuration and call path needed to locate the feature. Every number is an observation from that evaluation, not a service-level commitment.
 
 > **Author:** Xinyu Wei (魏新宇)
 
@@ -108,6 +108,127 @@ The model is framework-agnostic. What changes between tiers is how much of it yo
 | Invocations protocol | Transport and primitives only | Session and task semantics, event schema, checkpoint mapping, polling, recovery behavior | Structured workflows and custom protocols |
 
 LangGraph, Microsoft Agent Framework, and hand-written orchestration can all participate. None of them removes the application's obligation to define what "already done" means.
+
+### 2.4 From Hosted Agent configuration to a recoverable call
+
+The feature is not enabled by one magic switch in the portal. Four layers must line up. The first and fourth use the public Hosted Agents and Responses surfaces. The recovery options and checkpoint hooks in the middle are from the **private-preview build evaluated here**; as of July 26, 2026, they are not available in the public PyPI interface. Treat those lines as preview-specific usage evidence, not a promise about the current public SDK.
+
+| Layer | Configuration | What it enables | What it does not do alone |
+|---|---|---|---|
+| Hosted Agent version | `host: azure.ai.agent` + Responses protocol | Deploys your code and exposes a managed Responses endpoint | Does not make an active handler crash-recoverable |
+| Agent process *(private preview)* | Preview recovery opt-in | Re-invokes a stored background response after process loss | Does not know which business step was committed |
+| Handler *(private preview)* | Recovery context + framework checkpoint hook | Defines the last durable output boundary | Does not make external side effects idempotent |
+| Client | `store=True`, `background=True`, same `response.id` | Creates addressable work and lets the caller poll or reattach | Must not replace recovery with a new create call |
+
+#### 2.4.1 Declare a Hosted Agent with the Responses protocol
+
+This is a public `services` fragment for an **existing, scaffolded azd project**. It follows the current Foundry `azure.yaml` shape; the required top-level project metadata, model deployment, and provisioning blocks are omitted because they are independent of recovery. Start from the [official Hosted Agent sample](https://github.com/microsoft-foundry/foundry-samples/tree/main/samples/python/hosted-agents) rather than treating this fragment as a complete file.
+
+```yaml
+services:
+  research-agent:
+    host: azure.ai.agent
+    project: src/research-agent
+    language: python
+    kind: hosted
+    codeConfiguration:
+      runtime: python_3_13
+      entryPoint: app.py
+    protocols:
+      - protocol: responses
+        version: 2.0.0
+    container:
+      resources:
+        cpu: "0.5"
+        memory: 1Gi
+```
+
+In a complete azd project, `azd deploy` reads this service block, creates an immutable Hosted Agent version, and routes the declared protocol endpoint. CPU, memory, image or source packaging, model selection, and identity belong to the version definition; they are not the recovery checkpoint.
+
+#### 2.4.2 Opt the agent process into recovery *(private preview)*
+
+The evaluated build added a **preview recovery opt-in** to the Responses host. That option changed a stored background response from “mark failed after a crash” to “re-invoke the handler in the next process lifetime.” A separate preview steering option allowed an overlapping follow-up turn to queue and cooperatively stop the current turn.
+
+The exact constructor fields are intentionally not reproduced here: they are absent from the public PyPI interface and form part of the private-preview API surface. With public packages, you still get the Hosted Agent and background Responses baseline shown in Sections 2.4.1 and 2.4.4, but you must not infer active-handler crash recovery from that baseline. Preview participants should use the package and enablement instructions supplied with their preview build.
+
+#### 2.4.3 Resume from a business checkpoint *(private preview)*
+
+Re-invocation alone starts the handler again. The private-preview handler received recovery context, loaded the last framework snapshot, and committed a framework checkpoint only after a complete business unit was durable. The evaluated sample made one completed phase equal one finalized output item. A process loss before the checkpoint repeated that phase; a loss after it skipped the phase on recovery.
+
+Those recovery-context members and checkpoint hooks are also private-preview API surface, so this public article describes their contract rather than reproducing their names. The application pattern is still concrete:
+
+1. Read the stable logical-work identity and last committed business watermark.
+2. Reconstruct application state from the framework snapshot or an external store.
+3. Run exactly one replay-safe phase.
+4. Persist its output and side-effect identifiers.
+5. Advance the framework checkpoint only after step 4 succeeds.
+
+Any payment, booking, write, or tool action inside the replay window still needs the idempotency discipline from Section 6.4.
+
+#### 2.4.4 Separate dispatch from observation
+
+The standard Hosted Agent client surface comes from the Foundry project client. Keep the code that creates work separate from every process that observes it:
+
+```python
+import time
+
+
+class ResponseReader:
+	def __init__(self, responses_api):
+		self._responses_api = responses_api
+
+	def retrieve(self, response_id: str):
+		return self._responses_api.retrieve(response_id)
+
+
+def dispatch(client, *, work_key: str, prompt: str) -> None:
+	# Atomic unique insert: exactly one concurrent dispatcher can claim this key.
+	claim = durable_state.claim_dispatch(
+		work_key,
+		deadline_at=time.time() + settings.recovery_objective_seconds,
+	)
+	if not claim.acquired:
+		raise RuntimeError(f"work already claimed: {work_key}")
+
+	response = client.responses.create(
+		input=prompt,
+		store=True,
+		background=True,
+	)
+	durable_state.attach_response(
+		work_key,
+		response_id=response.id,
+		expected_state="dispatching",
+	)
+
+
+def observe(reader: ResponseReader, *, work_key: str):
+	work = durable_state.require_dispatched(work_key)
+	response = reader.retrieve(work.response_id)
+
+	while response.status in {"queued", "in_progress"}:
+		if time.time() >= work.deadline_at:
+			raise TimeoutError(f"response {work.response_id} exceeded its deadline")
+		time.sleep(2)
+		response = reader.retrieve(work.response_id)
+
+	if response.status != "completed":
+		raise RuntimeError(f"terminal response status: {response.status}")
+	validate_workload_output(response)
+	return response
+```
+
+`claim_dispatch` must be a unique, atomic insert that moves the logical work to `dispatching`; it closes the concurrent-dispatcher race before the remote call. `attach_response` is a compare-and-set transition to `dispatched`. `durable_state` represents a database or other store that survives the observer process, not an in-memory dictionary. Pass `ResponseReader(client.responses)` to the observer rather than the full client. Its public application interface exposes only `retrieve`, but this is still a maintainability boundary, **not** a security sandbox or RBAC boundary. If observer code is untrusted, isolate it behind a separate service and identity. After a restart it must load a dispatched mapping or fail closed. The recovery objective is workload configuration, not a fixed small retry budget; it must exceed the expected healthy runtime and host-replacement allowance. `validate_workload_output` is application code: for the measured research run it checked the finalized output indexes and expected phase count. Platform status and workload completion are separate checks.
+
+There is one unavoidable public-API boundary in this minimal pattern: remote create and `attach_response` are not one atomic transaction, and the public create call does not expose lookup by your `work_key`. A process can therefore die after the claim, either before remote creation or after remote creation but before the response ID is attached. Leave that record in `dispatching`; do not automatically create again. A normal transactional outbox cannot decide whether an unknown remote create succeeded. Production dispatch needs a product-supported idempotency/deduplication contract or an operational reconciliation path for `dispatching` records and orphaned responses. The evaluation started observation only after the response ID had been durably captured.
+
+If the polling process disappears after the mapping exists, a new observer reads `response_id` and `deadline_at` from `durable_state` and retrieves **that same response**. Streaming is also a public Responses mode, but active-handler crash replay is part of the private-preview recovery contract. The evaluation persisted transport cursors when available, accepted a new `response.in_progress` snapshot as a reset point, and rebuilt observer output from finalized items.
+
+Most importantly, it did **not** make a high transport sequence cursor the sole recovery key: one measured runtime restarted sequence numbering at 5. A sequence number can optimize replay within a compatible stream lifetime, but the durable `response_id` plus workload state are the recovery authority. Continue to validate finalized output indexes, phases, and durable business state as described in Section 5.
+
+A later sequential turn can use `previous_response_id=response_id`. Concurrent queuing and cooperative steering require the preview option shown above; the public `previous_response_id` field by itself only establishes response-chain continuity.
+
+The shortest operational route after deployment is `azd ai agent invoke`; it manages the Hosted Agent session and Responses conversation for ordinary calls. Use the explicit client pattern above when your application must own the background response ID, polling deadline, dispatch/observe separation, and workload-level completion checks.
 
 ---
 

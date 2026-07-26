@@ -12,7 +12,7 @@
 这篇文章讲清楚三件事：它为什么能成立、什么信号能证明它、以及哪些看起来非常合理的下意识反应反而会毁掉它。
 
 > **这是什么。** 一次 private preview 评估的实测行为，针对 Microsoft Foundry Hosted Agent 上的长任务执行能力。
-> **不是什么。** 这里**不包含 preview SDK 源码、实现代码、部署配方、API schema，也不包含原始 telemetry**——当时该能力仍处于 private preview。文中每个数字都是那次评估的观测值，不是服务级承诺。
+> **不是什么。** 这里**不包含 preview SDK 源码、完整 Agent 实现、端到端部署配方、API schema，也不包含原始 telemetry**——恢复扩展当时仍处于 private preview。第 2.4 节只展示定位这项能力所必需的最小配置与调用链。文中每个数字都是那次评估的观测值，不是服务级承诺。
 
 > **Author:** 魏新宇 (Xinyu Wei)
 
@@ -108,6 +108,127 @@ Hosted Agent 是客户自己的 Agent 代码，以 container image 的形式交�
 | Invocations protocol | 只提供传输和底层原语 | session 与 task 语义、事件 schema、checkpoint 映射、轮询、恢复行为 | 结构化 workflow 与自定义协议 |
 
 LangGraph、Microsoft Agent Framework、手写 orchestration 都能接进来。但没有任何一种能替你定义“哪些步骤算已经做完了”。
+
+### 2.4 从 Hosted Agent 配置到一次可恢复调用
+
+这项能力不是在 Portal 里打开一个开关就结束了，四层配置必须同时对齐。第一层和第四层属于 Hosted Agents 与 Responses 的公开能力；中间的恢复开关和 checkpoint hook 来自**本次评估使用的 private-preview 构件**。截至 2026 年 7 月 26 日，公共 PyPI 接口并不提供这些字段。下面的中间两段是 preview 用法证据，不代表当前公共 SDK 已经支持。
+
+| 层次 | 配置 | 开启什么 | 单独做不到什么 |
+|---|---|---|---|
+| Hosted Agent version | `host: azure.ai.agent` + Responses protocol | 部署客户代码并暴露托管 Responses endpoint | 不能让活跃 handler 自动跨 crash 恢复 |
+| Agent 进程（private preview） | Preview recovery opt-in | 进程丢失后重新调用已存储的 background response | 不知道哪个业务步骤已经提交 |
+| Handler（private preview） | 恢复上下文 + framework checkpoint hook | 定义最后一个持久化 output 边界 | 不能自动保证外部副作用幂等 |
+| 客户端 | `store=True`、`background=True`、复用同一 `response.id` | 创建可寻址任务，并允许轮询或重新接回 | 不能用新建 response 代替恢复 |
+
+#### 2.4.1 用 Responses protocol 声明 Hosted Agent
+
+这是给**已经完成 scaffold 的 azd project** 使用的公开 `services` 片段，字段遵循当前 Foundry `azure.yaml` 结构。这里省略了必需的顶层 project metadata、模型部署与 provisioning block，因为它们和恢复机制是两个独立问题。实际使用时应从[官方 Hosted Agent sample](https://github.com/microsoft-foundry/foundry-samples/tree/main/samples/python/hosted-agents)开始，不要把这个片段当成完整文件。
+
+```yaml
+services:
+  research-agent:
+    host: azure.ai.agent
+    project: src/research-agent
+    language: python
+    kind: hosted
+    codeConfiguration:
+      runtime: python_3_13
+      entryPoint: app.py
+    protocols:
+      - protocol: responses
+        version: 2.0.0
+    container:
+      resources:
+        cpu: "0.5"
+        memory: 1Gi
+```
+
+在完整的 azd project 中，`azd deploy` 会读取这个 service block，创建不可变的 Hosted Agent version，并把 endpoint 路由到声明的 protocol。CPU、内存、镜像或源码打包、模型选择、身份都属于 version definition；它们不是恢复 checkpoint。
+
+#### 2.4.2 让 Agent 进程进入恢复模式（private preview）
+
+本次评估使用的构件，在 Responses host 上增加了一个 **preview recovery opt-in**。对于已存储的 background response，这个开关会把行为从“进程崩溃后标记失败”改成“在下一个进程生命周期重新调用 handler”。另一个 preview steering 开关则允许重叠的新一轮进入队列，并让当前轮次协作式停止。
+
+这里刻意不公开具体构造参数：它们不在公共 PyPI 接口中，属于 private-preview API surface。使用公共 package 时，你仍然可以获得第 2.4.1 和 2.4.4 节所示的 Hosted Agent 与 background Responses 基线，但不能据此推断活跃 handler 能跨 crash 恢复。Preview 参与者应使用产品组随 preview 构件提供的 package 与 enablement 指南。
+
+#### 2.4.3 从业务 checkpoint 恢复（private preview）
+
+重新调用 handler 只代表“重新进入”，并不代表“从正确位置继续”。Private-preview handler 会收到恢复上下文、加载最后一个 framework snapshot，并且只在一个完整业务单元持久化之后提交 framework checkpoint。实测 sample 把“一个完成 phase”映射成“一个 finalized output item”：进程死在 checkpoint 之前，phase 再跑一次；死在 checkpoint 之后，恢复后的 handler 跳过它。
+
+这些恢复上下文成员和 checkpoint hook 同样属于 private-preview API surface，因此公开文章只说明它们的契约，不复现具体名称。应用侧的模式仍然是明确的：
+
+1. 读取稳定的逻辑任务身份和最后一个已提交业务 watermark。
+2. 从 framework snapshot 或外部存储重建应用状态。
+3. 只执行一个可以安全 replay 的 phase。
+4. 持久化该 phase 的 output 与副作用标识。
+5. 只有第 4 步成功后，才推进 framework checkpoint。
+
+Replay 窗口内的支付、预订、写入或 tool action，仍然必须采用第 6.4 节的幂等设计。
+
+#### 2.4.4 把任务下发和状态观察彻底分开
+
+标准 Hosted Agent client surface 从 Foundry project client 获取。负责创建任务的代码，必须和所有观察任务的进程彻底分开：
+
+```python
+import time
+
+
+class ResponseReader:
+	def __init__(self, responses_api):
+		self._responses_api = responses_api
+
+	def retrieve(self, response_id: str):
+		return self._responses_api.retrieve(response_id)
+
+
+def dispatch(client, *, work_key: str, prompt: str) -> None:
+	# 原子唯一插入：并发 dispatcher 中只有一个能取得这个 key。
+	claim = durable_state.claim_dispatch(
+		work_key,
+		deadline_at=time.time() + settings.recovery_objective_seconds,
+	)
+	if not claim.acquired:
+		raise RuntimeError(f"work already claimed: {work_key}")
+
+	response = client.responses.create(
+		input=prompt,
+		store=True,
+		background=True,
+	)
+	durable_state.attach_response(
+		work_key,
+		response_id=response.id,
+		expected_state="dispatching",
+	)
+
+
+def observe(reader: ResponseReader, *, work_key: str):
+	work = durable_state.require_dispatched(work_key)
+	response = reader.retrieve(work.response_id)
+
+	while response.status in {"queued", "in_progress"}:
+		if time.time() >= work.deadline_at:
+			raise TimeoutError(f"response {work.response_id} exceeded its deadline")
+		time.sleep(2)
+		response = reader.retrieve(work.response_id)
+
+	if response.status != "completed":
+		raise RuntimeError(f"terminal response status: {response.status}")
+	validate_workload_output(response)
+	return response
+```
+
+`claim_dispatch` 必须是原子、唯一的 insert，在远端调用前先把逻辑任务置为 `dispatching`，从根上关闭并发 dispatcher 竞态。`attach_response` 则通过 compare-and-set 把状态推进到 `dispatched`。`durable_state` 代表能够跨观察进程存在的数据库或其他持久化存储，不是内存 dictionary。传给 observer 的应该是 `ResponseReader(client.responses)`，而不是完整 client。这个 wrapper 的公开应用接口只有 `retrieve`，但它仍然只是可维护性边界，**不是**安全沙箱或底层服务的 RBAC 边界。如果 observer 代码不可信，应把它隔离到独立服务和身份中。进程重启后，它只能读取已经进入 `dispatched` 的映射；映射不存在就 fail closed。Recovery objective 是 workload 配置，不是固定的小重试预算；它必须覆盖健康运行的预期耗时和主机替换余量。`validate_workload_output` 是应用代码；在本次 Research 实测中，它检查 finalized output index 和预期 phase 数量。平台终态与 workload 完整性是两道独立检查。
+
+这个最小 pattern 仍有一个绕不开的公共 API 边界：远端 create 与 `attach_response` 不是一个原子事务，公开 create 调用也不支持按应用的 `work_key` 找回 response。进程在取得 claim 之后，可能死在远端 create 之前，也可能死在远端 create 成功、response ID 尚未 attach 之前。此时记录必须停在 `dispatching`，不能自动再创建。普通 transactional outbox 无法判断一次结果未知的远端 create 是否成功。生产 dispatcher 需要产品支持的 idempotency / deduplication contract，或者针对 `dispatching` 记录与 orphan response 的运维对账路径。本次评估是在 response ID 已经持久化之后才开始观察。
+
+如果映射已经存在，轮询进程消失后，新 observer 从 `durable_state` 读取 `response_id` 和 `deadline_at`，再 retrieve **同一个 response**。Streaming 本身也是 Responses 的公开模式，但 active-handler crash replay 属于 private-preview 恢复契约。本次评估会在可用时持久化传输游标，把新的 `response.in_progress` snapshot 当作 reset point，并根据 finalized item 重建观察者输出。
+
+最重要的是，它**没有**把高位 transport sequence cursor 当成唯一恢复 key：有一次实测的 runtime 在恢复后把 sequence 从 5 重新计数。Sequence number 可以在兼容的 stream lifetime 内优化 replay，但真正的恢复权威是持久化 `response_id` 与 workload state。仍然要按第 5 节验证 finalized output index、phase 和持久化业务状态。
+
+后续的顺序轮次可以设置 `previous_response_id=response_id`。并发排队和协作式 steering 仍然依赖上面的 preview 开关；公共 `previous_response_id` 字段本身只负责建立 response chain 连续性。
+
+部署后，最短操作路径是 `azd ai agent invoke`，它会替普通调用管理 Hosted Agent session 与 Responses conversation。如果应用必须自行掌握 background response ID、轮询 deadline、dispatch / observe 分离和 workload 终态检查，就使用上面的显式 client pattern。
 
 ---
 
