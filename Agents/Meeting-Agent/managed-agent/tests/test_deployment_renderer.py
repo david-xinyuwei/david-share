@@ -75,5 +75,8 @@ def test_deploy_script_requires_double_isolation() -> None:
     assert "render_deployment_source.py" in source
     assert "trap restore_public_yaml EXIT" in source
     assert 'cp "$deploy_root/azure.yaml" "$public_azure_yaml"' in source
+    assert 'azd env get-values --cwd "$ROOT"' in source
     assert '--cwd "$ROOT"' in source
     assert "azd deploy managed-meeting-agent" in source
+    assert "reconcile_managed_runtime.py" in source
+    assert '"$ROOT/.azure/managed-runtime.json"' in source

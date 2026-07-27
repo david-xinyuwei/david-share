@@ -22,10 +22,15 @@ def main() -> int:
         "instructions.md",
         "scenario-manifest.json",
         "skills/meeting-package/SKILL.md",
+        "scripts/reconcile_managed_runtime.py",
         "scripts/start-ui.ps1",
         "evidence-managed-agent.json",
         "evidence/managed-live/artifact-validation.json",
         "evidence/managed-live/toolbox-skill-validation.json",
+        "evidence/managed-live-gpt54/dual-input-validation.json",
+        "evidence/managed-live-gpt54/large-input-recovery-validation.json",
+        "evidence/managed-live-gpt54/runtime-validation.json",
+        "evidence/managed-live-gpt54/ui-validation.json",
         "src/meeting_agent/templates/meeting-agent-template.zip",
         "ui/package-lock.json",
     ):
@@ -49,6 +54,8 @@ def main() -> int:
     assert agent["kind"] == "prompt"
     assert agent["name"] == "managed-meeting-agent"
     assert agent["model"] == "gpt-5.4"
+    instructions = (ROOT / "instructions.md").read_text(encoding="utf-8")
+    assert "Do not call tool_search or call_tool" in instructions
     assert (
         ROOT / "skills" / "meeting-package" / "SKILL.md"
     ).read_bytes() == (

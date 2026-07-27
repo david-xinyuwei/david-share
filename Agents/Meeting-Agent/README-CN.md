@@ -32,15 +32,18 @@ https://github.com/user-attachments/assets/023f22f0-31f2-4039-85f0-e22712770ff2
 | 实现位置 | Repo根目录 | 同一产品Repo中的`managed-agent/`源码目录 |
 | Agent定义 | 无；应用本身承担Orchestrator | [`agent.yaml`](managed-agent/agent.yaml)定义Foundry Agent资源 |
 | Instructions | Python代码构造System Message | [`instructions.md`](managed-agent/instructions.md)随Agent部署 |
-| Skill | Python读取本机`SKILL.md`并在每次请求中注入 | [`meeting-package`](managed-agent/skills/meeting-package/SKILL.md)作为版本化Foundry Skill，通过Toolbox MCP绑定 |
+| Skill | Python读取本机`SKILL.md`并在每次请求中注入 | [`meeting-package`](managed-agent/skills/meeting-package/SKILL.md)可独立版本化，并由版本化 Toolbox 引用；当前 v6 证据没有证明已锁定不可变 Skill Version |
 | 模型循环责任方 | 本机应用代码 | Foundry托管的GHCP Harness |
 | 调用方式 | 直接调用Azure OpenAI Responses | 应用引用Agent name和不可变version；Endpoint只是传输入口，不是Agent本身 |
 | 认证 | 本机Backend进程使用API Key | Responses使用Entra ID，Toolbox使用Agentic Identity；客户主路径不使用模型API Key |
 | 产物与UI契约 | JSON、Mermaid、SVG、PNG、可编辑PPTX、EML、浏览器UI、New Outlook草稿 | 完全相同；八个共用核心模块逐字节一致 |
+| PowerPoint责任 | 本地Skill提供内容指导，本地模板/Renderer生成PPT | Toolbox Skill指导模型生成适合六页结构的内容；确定性模板/Renderer负责字段到页面的映射、Fallback、视觉格式和可编辑PPTX生成 |
 | 客户代码责任 | 负责模型请求构造与编排 | 负责事件校验、产物与Outlook交接；Foundry负责模型循环 |
 | 运维变化 | Prompt、Skill加载、模型调用、Key和解析都跟随应用发布 | Instructions和Skill成为平台版本化资产；应用只保留更小的确定性责任边界 |
 
 Classic路径是**本机prompt-style编排**，并不是已经部署的Foundry Prompt Agent。这个口径能准确隔离Managed Agent带来的责任转移，不会把早期实现包装成不存在的产品能力。
+
+Microsoft Learn 把 Foundry Agent Service 定义为构建、部署和扩缩 AI Agent 的托管平台：Prompt Agent 是由 Foundry 运行的声明式 Agent；Hosted Agent 则是由客户编写、Foundry 托管的代码。本 Repo 的 Managed 路径属于 **Prompt Agent**；本机 UI 和 Python 产物 Backend 是它的确定性客户端，不是 Hosted Agent。详见[官方产品定义与本项目映射](managed-agent/docs/MANAGED-IMPLEMENTATION-CN.md#微软官方定义与本项目映射)。
 
 ### 这个Repo里的Managed Agent到底是什么
 
@@ -52,6 +55,8 @@ Managed Agent不是第二套UI，也不只是一个AI Endpoint。它是通过`ag
 4. [`ManagedAgentAnalyzer`](managed-agent/src/meeting_agent/analyzers.py)：很薄的Entra Adapter，只负责提交会议证据、锁定Agent版本，并校验返回的`MeetingAnalysis`契约。
 
 本机应用继续负责应当保持确定性的部分：事件校验、排序与幂等、文件生成、路径安全、浏览器工作区，以及人工控制的Outlook交接。
+
+当前 Managed v6 已把 PowerPoint **内容故事线**松耦合到版本化 `meeting-package` Skill，但还没有把整个 Presentation Domain 独立出来。后续若增加专用 `presentation-story` Skill 与 `DeckPlan` Schema，必须发布新的 Skill、Toolbox 和 Agent Version。字体、颜色、命名占位符和 Shape 几何继续由版本化模板与确定性 Renderer 管理，而不是交给 LLM Prompt 猜测。
 
 ### 这个Repo必须证明什么
 

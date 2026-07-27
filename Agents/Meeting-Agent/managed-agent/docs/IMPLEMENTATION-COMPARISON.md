@@ -24,14 +24,72 @@ flowchart LR
     P -->|Managed| A[Foundry Prompt Agent v6]
     A --> H[Managed GHCP harness]
     H --> M2[GPT-5.4]
-    H --> T[Toolbox v2 and meeting-package Skill]
+    H --> T[Toolbox v2 and meeting-package Skill\nanalysis + slide narrative]
     M1 --> P
-    A --> P
-    P --> O[JSON / Mind map / PPTX / EML]
+    A --> J[Strict MeetingAnalysis JSON]
+    J --> P
+    P --> R[Deterministic PPTX template + renderer]
+    R --> O[JSON / Mind map / PPTX / EML]
     O --> D[Unsent Outlook draft]
 ```
 
 The shared deterministic pipeline remains responsible for event validation, ordering, idempotency, strict `MeetingAnalysis` validation, artifact generation, file safety, and the human-controlled Outlook boundary. The LLM does not own these deterministic controls in either implementation.
+
+## What `GHCP Harness` Means — and What It Does Not Mean
+
+`GHCP` describes the managed model-loop implementation used by the validated
+Prompt Agent runtime. It does **not** mean that the Meeting Agent must run in
+GitHub, that its source must be public, or that Foundry reads a GitHub repository
+for every request. In this architecture, **GitHub is an optional source-control
+and CI/CD surface; Microsoft Foundry is the runtime host**.
+
+The validated private-preview API made this boundary visible. The Agent
+definition selected `harness: ghcp`; it did not contain a repository URL,
+branch, commit, or GitHub token. The service returned the same harness identifier
+as part of the deployed Agent version. The platform, not the wrapper, resolved
+and operated that runtime.
+
+| Frequently confused object | Where it lives or runs | Is GitHub required? |
+|---|---|---|
+| Meeting Agent source: `agent.yaml`, instructions, Skill, wrapper code | Local folder, private/public GitHub repository, Azure DevOps, or another approved source system | No |
+| Deployed Agent name/version, identity, instructions, and Toolbox binding | Microsoft Foundry project | No |
+| `ghcp` harness execution | Foundry-managed Prompt Agent runtime | No customer-provided repository |
+| Preview `azd` extension package used during the dated deployment | Downloaded from an extension registry; the historical preview registry happened to use a GitHub raw/release URL | GitHub was a package distribution channel, not the Agent runtime |
+| Custom LangGraph, Agent Framework, OpenAI Agents SDK, Semantic Kernel, or proprietary loop | Customer code packaged as a Foundry Hosted Agent | No `harness` string substitution; deploy code/container instead |
+
+### Is `harness` a framework selector?
+
+Not in the product path validated by this repository. The private-preview
+Managed Prompt Agent API accepted and returned `ghcp`; no other harness value was
+validated. The current public `PromptAgent` schema does not expose `harness` as
+an authoring property at all. Therefore this repository does not claim that
+values such as `langgraph`, `semantic-kernel`, or `autogen` can replace `ghcp`.
+When custom orchestration is required, the supported architectural choice is a
+[Foundry Hosted Agent](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agents),
+not an invented harness value.
+
+### Three authentication boundaries
+
+The word “managed” also does not mean that every connection uses the same
+credential:
+
+1. **Wrapper → deployed Agent:** the validated path uses Microsoft Entra bearer
+    authentication and RBAC. A GPT-5.4 model API key cannot replace this identity
+    without bypassing the deployed Agent and reverting to the Classic path.
+2. **Agent runtime → model:** Foundry resolves the model deployment selected by
+    the Agent; the wrapper does not pass a model API key.
+3. **Agent → Toolbox or external tool:** each connection can use the supported
+    method appropriate to that tool, such as Agent identity, project managed
+    identity, OAuth On-Behalf-Of, or a managed key-based connection.
+
+These distinctions explain why a private source repository is valid, why an
+Agent invocation does not read a customer-provided GitHub repository or require
+customer GitHub credentials, and why a tool API key does not authorize a caller
+to invoke the Agent. They do not assert anything about undisclosed internal
+service dependencies.
+
+Public references: [Foundry Agent Service overview](https://learn.microsoft.com/azure/foundry/agents/overview)
+and [Hosted agents](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agents).
 
 ## Detailed Comparison
 
@@ -42,7 +100,8 @@ The shared deterministic pipeline remains responsible for event validation, orde
 | Agent resource | None; the application is the orchestrator | Foundry Prompt Agent v6 | Agent behavior can be deployed and versioned independently |
 | Model loop owner | Local application code | Foundry-managed GHCP harness | The principal responsibility transfer |
 | Instructions | Constructed by local application code | Deployed with the Agent | Instructions become a managed, versioned asset |
-| Meeting method | Local `SKILL.md` injected into requests | Versioned `meeting-package` Skill through Toolbox v2 | Skill lifecycle moves out of each wrapper |
+| Meeting and slide-guidance method | Local `SKILL.md` injected into requests | Versioned Toolbox references the independently versionable `meeting-package` Skill | Model-facing method moves out of each wrapper; v6 evidence does not prove an immutable Skill-version pin |
+| PowerPoint Deck Plan and visual format | Packaged template and deterministic renderer | The same packaged template and deterministic renderer | Field mapping, fallbacks, limits, fonts, colors, placeholders, and coordinates are not delegated to the LLM |
 | Tool catalog | Registered and wired by each application | Curated and versioned through Toolbox | Shared tools can be reused across agents and clients |
 | Tool loop | Application interprets and continues tool calls | Managed harness selects and continues tool calls | Less agent-loop code in the wrapper |
 | Model authentication | API key in the local backend | Entra authentication to the Agent | The Managed customer path carries no model API key |
@@ -99,6 +158,13 @@ These records prove functional behavior and responsibility transfer. They are no
 4. Toolbox access uses an Agent-specific identity with project-scoped RBAC.
 5. The application gives up the model loop while retaining strict deterministic controls.
 6. The user workflow and artifact safety contract remain intact after that responsibility transfer.
+
+The repository proves that model-facing slide **guidance** is an independently versionable behavior asset in
+the Managed architecture. It does not claim that the Skill is the runtime
+framework or that the entire PowerPoint implementation moved into Foundry. The
+actual Deck Plan, visual template, and renderer intentionally remain deterministic
+application assets. A dedicated `presentation-story` Skill and `DeckPlan` schema are a
+future versioning boundary, not a v6 capability.
 
 ### Potential, not yet claimed as complete here
 

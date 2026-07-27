@@ -5,18 +5,131 @@
 [![Managed Agent CI](https://github.com/david-xinyuwei/david-share/actions/workflows/managed-meeting-agent-ci.yml/badge.svg?branch=master)](https://github.com/david-xinyuwei/david-share/actions/workflows/managed-meeting-agent-ci.yml)
 [![Human Send Required](https://img.shields.io/badge/email-human%20send%20required-D83B01.svg)](#outlook-safety)
 
-The Managed Agent implementation inside the single Meeting Agent repository. It uses the same event, artifact, UI, PowerPoint, EML, and Outlook contracts as the classic direct Responses implementation, while moving the model loop and Skill lifecycle to a Foundry prompt agent with a managed GHCP harness.
+The Managed Agent implementation inside the single Meeting Agent repository. It uses the same event, artifact, UI, PowerPoint, EML, and Outlook contracts as the classic direct Responses implementation, while moving the model loop and meeting-analysis/slide-narrative Skill lifecycle to a Foundry prompt agent with a managed GHCP harness. Deterministic PowerPoint rendering remains in the application.
 
 > Author: Xinyu Wei
 
 [Chinese](MANAGED-IMPLEMENTATION-CN.md) | **English** | [Customer Start Here](../CUSTOMER-START-HERE.md) | [Product Home](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Meeting-Agent)
+
+## Microsoft Official Definition and This Implementation
+
+According to Microsoft Learn, [Foundry Agent Service](https://learn.microsoft.com/azure/foundry/agents/overview)
+is a managed platform for building, deploying, and scaling AI agents. An Agent
+combines a model, instructions, and tools. The Agent Runtime hosts and scales
+Prompt and Hosted agents and manages conversations, tool calls, and Agent
+lifecycle.
+
+Microsoft documents two primary Agent types:
+
+| Official Agent type | Microsoft definition | Mapping in this repository |
+|---|---|---|
+| Prompt Agent | A declaratively defined Agent combining a Foundry model, instructions, tools, and natural-language prompts. Foundry runs it; there is no customer Agent-runtime code or container to maintain. | **This is the deployed Managed Meeting Agent.** `agent.yaml`, `instructions.md`, the `meeting-package` Skill, and Toolbox bindings define the cloud Agent behavior. |
+| Hosted Agent | Customer orchestration code or a framework such as Agent Framework, LangGraph, OpenAI Agents SDK, Semantic Kernel, or custom code, deployed to Foundry-managed container compute with managed endpoint, scaling, identity, state, and observability. | **Not the current cloud Agent type.** It is the migration path if the model loop later requires custom code or protocols. |
+
+Microsoft also documents calling the Responses API directly from existing
+application code without creating an Agent resource. That is an integration
+pattern, not a third Agent type. It corresponds conceptually to the Classic
+ownership model, although this repository's Classic path uses its documented
+Azure OpenAI endpoint.
+
+### Why `PromptAgent.yaml` is correct for a Managed Agent
+
+The first line of `agent.yaml` is a YAML Language Server authoring directive:
+
+```yaml
+# yaml-language-server: $schema=https://raw.githubusercontent.com/microsoft/AgentSchema/refs/heads/main/schemas/v1.0/PromptAgent.yaml
+```
+
+It downloads Microsoft's public authoring schema for editor validation and
+completion. It does not select a runtime host, upload source to GitHub, or add
+GitHub to the request path. It is not a deployment property, runtime endpoint,
+repository binding, or hosting instruction.
+
+The official schema fixes `kind` to `prompt`, and the Microsoft Learn Prompt
+Agent quickstart uses the same `kind: "prompt"` in SDK and REST examples.
+**`kind: prompt` identifies what is declared;
+Foundry-managed identifies who runs it.** There is no documented
+`kind: managed` or `ManagedAgent.yaml` in the current AgentSchema. There is no `kind: managed` value.
+Replacing `kind: prompt` or the `PromptAgent.yaml` schema with a made-up Managed
+kind would make the definition invalid rather than make it more managed.
+
+The terms describe different dimensions:
+
+- **Prompt Agent** is the Agent type: declarative model, instructions, and tools.
+- **Managed** is the operating model: Foundry runs the Agent Runtime and manages
+  its scaling and lifecycle.
+- **Hosted Agent** is the other primary Agent type: customer orchestration code
+  runs on Foundry-managed container compute.
+
+The `raw.githubusercontent.com` host only distributes Microsoft's public schema
+file to development tools. It does not bind this Agent to a customer GitHub
+repository, and Agent invocation does not require customer GitHub credentials.
+This statement does not infer undisclosed internal service dependencies.
+
+The local React UI, loopback BFF, and Python artifact backend are not a Hosted
+Agent and do not contradict the Prompt Agent classification. They are deterministic client/application
+layers: they validate meeting events, invoke the deployed Agent, validate its
+structured result, generate files, and enforce the human Outlook boundary. The
+model loop itself is not reimplemented locally.
+
+### Are Instructions and Skills the Managed Agent framework?
+
+No. They are **versioned behavior assets inside the Managed Prompt Agent
+architecture**, not the Agent Runtime framework itself:
+
+```text
+Foundry Agent Service / Prompt Agent Runtime
+└─ Agent Version
+  ├─ Model
+  ├─ Instructions
+  └─ Toolbox binding
+    └─ Toolbox Version
+      └─ Skill reference
+            └─ Skill Version (when explicitly pinned; otherwise default)
+```
+
+The runtime executes the Agent. Instructions define Agent-wide behavior. A Skill
+packages a reusable method. Toolbox governs and exposes Skills and tools. These
+layers can evolve independently. In the current v6 evidence, the versioned
+Toolbox references the named Skill, but the evidence does not prove that the
+reference pins an immutable Skill version rather than following its default.
+
+### Official lifecycle and governance versus this repository's evidence
+
+Microsoft documents a broader create, test, version, trace, evaluate, publish,
+and monitor lifecycle. It also documents Microsoft Entra Agent identities for
+governance and downstream tool authentication, and Toolbox as a centrally
+managed, versioned MCP-compatible tool surface. This repository demonstrates a
+specific subset rather than claiming the entire platform:
+
+| Microsoft-documented capability | Proven here | Not claimed here |
+|---|---|---|
+| Agent versions | Calls pin the name and immutable version of deployed Agent v6 | A complete production promotion or rollback service |
+| Prompt Agent managed runtime | Foundry owns the model/tool loop; the wrapper owns deterministic validation and artifacts | That managed orchestration improves model intelligence, latency, or cost |
+| Agent identity and tool authentication | Entra authenticates the client path; the Toolbox connection uses Agentic identity with scoped RBAC | Every possible OBO, published-identity, or external-tool flow |
+| Toolbox and Skill | Toolbox v2 references the named, independently versionable `meeting-package` Skill | An immutable Skill-version pin for v6, or an enterprise-wide shared Toolbox catalog |
+| Trace, evaluation, publishing, monitoring | Architectural extension points only | Production monitoring, continuous evaluation, or enterprise-channel publication |
+
+Official sources, retrieved 2026-07-27:
+
+- [What is Microsoft Foundry Agent Service?](https://learn.microsoft.com/azure/foundry/agents/overview)
+- [Quickstart: Create a Prompt Agent](https://learn.microsoft.com/azure/foundry/agents/quickstarts/prompt-agent)
+- [Hosted agents in Foundry Agent Service](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agents)
+- [Agent development lifecycle](https://learn.microsoft.com/azure/foundry/agents/concepts/development-lifecycle)
+- [Agent identity concepts](https://learn.microsoft.com/azure/foundry/agents/concepts/agent-identity)
+- [Create, test, and deploy a Toolbox](https://learn.microsoft.com/azure/foundry/agents/how-to/tools/toolbox)
+- [Microsoft AgentSchema](https://github.com/microsoft/AgentSchema)
+- [PromptAgent v1.0 schema](https://raw.githubusercontent.com/microsoft/AgentSchema/refs/heads/main/schemas/v1.0/PromptAgent.yaml)
+
+Product terminology and availability can change. Recheck these Microsoft Learn
+pages before using this Preview-dependent implementation for another delivery.
 
 ## What Is Real
 
 | Layer | Real implementation | Evidence |
 |---|---|---|
 | Cloud runtime | Public source was deployed as `managed-meeting-agent` v6 and validated with `status=active`, `harness=ghcp`, `gpt-5.4`, Responses protocol, and Entra authentication | [GPT-5.4 runtime validation](../evidence/managed-live-gpt54/runtime-validation.json) |
-| Cloud Skill | Versioned `meeting-package` Skill exposed through Toolbox v2, with the official Toolbox Search compatibility tool and Agentic identity authentication | [Toolbox validation](../evidence/managed-live-gpt54/runtime-validation.json) |
+| Cloud Skill | Agent v6 is bound to Toolbox v2 with the named `meeting-package` Skill, Toolbox Search compatibility tool, and Agentic identity authentication. Historical v2 evidence separately hashes the cloud Skill body against source. | [v6 Toolbox binding](../evidence/managed-live-gpt54/runtime-validation.json) · [v2 Skill body hash](../evidence/managed-live/toolbox-skill-validation.json) |
 | Meeting analysis | `ManagedAgentAnalyzer` sends the actual normalized meeting events and strict `MeetingAnalysis` schema to the deployed Agent | [Client contract](../tests/test_managed_analyzer.py) |
 | Artifact pipeline | Real JSON, Mermaid, SVG, 1280x720 PNG, editable six-slide PPTX, and MIME EML | [GPT-5.4 dual-input validation](../evidence/managed-live-gpt54/dual-input-validation.json) |
 | Browser UI | React workspace, loopback BFF, real streamed model deltas, artifact downloads, and Outlook draft action | [ARM64 desktop/mobile validation](../evidence/managed-live-gpt54/ui-validation.json) |
@@ -47,14 +160,45 @@ flowchart LR
     E[Meeting events] --> UI[Windows browser UI]
     UI --> BFF[Loopback BFF]
     BFF --> API[Local Python artifact backend]
-    API --> MA[Foundry Prompt Agent\nManaged GHCP + meeting-package Skill]
-    MA --> API
-    API --> A[JSON / Mermaid / SVG / PNG / PPTX / EML]
+  API --> MA[Foundry Prompt Agent\nManaged GHCP Runtime]
+  MA --> TB[Toolbox v2]
+  TB --> S[meeting-package Skill\nmodel-facing analysis + slide guidance]
+  S --> J[Strict MeetingAnalysis JSON]
+  J --> API
+  API --> R[Deterministic renderer\nPPTX template + visual rules]
+  R --> A[JSON / Mermaid / SVG / PNG / PPTX / EML]
     A --> O[New Outlook unsent draft]
     O --> H[Human review and manual Send]
 ```
 
-Foundry owns the model loop, GHCP harness, and Skill/Toolbox integration. The local application owns provider-neutral event validation, deterministic artifact generation, local file safety, and the human-controlled Outlook handoff. The application does not depend on the private-preview persistent-filesystem session API.
+Foundry owns the model loop, GHCP harness, and Skill/Toolbox integration. The local application owns provider-neutral event validation, strict output validation, deterministic artifact generation, local file safety, and the human-controlled Outlook handoff. The application does not depend on the private-preview persistent-filesystem session API.
+
+### Where the PowerPoint requirements live
+
+PowerPoint generation deliberately has two contracts:
+
+| Concern | Current source of truth | Why |
+|---|---|---|
+| Model-facing slide guidance: intended six-slide story, information priority, evidence boundaries, concise strings | [`meeting-package` Skill](../skills/meeting-package/SKILL.md), delivered through Toolbox | This guides analysis content without defining the actual Deck Plan |
+| Structured content returned by the Agent | Strict `MeetingAnalysis` schema validated by the local application | Prevents free-form Prompt output from becoming a file-generation contract |
+| Actual Deck Plan and visual format: field-to-slide mapping, fallbacks, list limits, packaged template, named placeholders, Segoe UI, font sizes, colors, image containment | `src/meeting_agent/templates/meeting-agent-template.zip` and `src/meeting_agent/artifacts.py` | These rules must be deterministic, editable, reproducible, and testable; the LLM must not guess layout coordinates |
+| Editable `.pptx` generation | Local deterministic renderer | Keeps artifact creation auditable and preserves the same contract in Classic and Managed paths |
+
+The current v6 architecture therefore has **model-guidance decoupling**, not complete
+presentation-domain decoupling. The six-slide narrative is in the versioned
+Skill, but it is one section of the broader `meeting-package` Skill and the
+Agent returns the general `MeetingAnalysis` contract. A future implementation
+could introduce a dedicated `presentation-story` Skill and `DeckPlan` schema,
+then publish new Skill, Toolbox, and Agent versions. That target is not claimed
+as implemented by v6. Moving fonts, colors, and shape coordinates into a Prompt
+would be the wrong abstraction; those belong in the versioned template/style
+configuration and deterministic renderer.
+
+Evidence is also version-scoped. The historical v2 validation compared the
+cloud `skill://meeting-package/SKILL.md` body to the public source by SHA-256.
+The current v6 evidence validates the Toolbox v2 binding, Skill name, Agentic
+identity, and live Agent behavior; it does not claim a second byte-for-byte
+cloud Skill-body comparison or an immutable Skill-version pin for v6.
 
 ## Cloud Deployment
 
@@ -66,6 +210,14 @@ The checked-in source declares a dedicated prompt Agent:
 - Harness: `ghcp`
 - Skill: `meeting-package`
 - Authentication: Entra only; Toolbox access uses `AgenticIdentityToken`
+
+`ghcp` is a Foundry-managed runtime identifier, not a requirement to host this
+repository in GitHub. The Agent source can come from a private repository or a
+local/enterprise source system; Foundry invokes the deployed Agent version
+rather than reading a source repository per request. See
+[What `GHCP Harness` means](https://github.com/david-xinyuwei/david-share/blob/master/Agents/Meeting-Agent/managed-agent/docs/IMPLEMENTATION-COMPARISON.md#what-ghcp-harness-means--and-what-it-does-not-mean)
+for the source/runtime boundary, supported-value evidence, and authentication
+chains.
 
 `agent.yaml`, `instructions.md`, `skills/meeting-package/SKILL.md`, and `azure.yaml` are the deployment source. Because the current Preview extension does not expand placeholders inside `promptAgent`, `scripts/deploy-managed-agent.sh` resolves the active isolated azd environment into an ignored deployment view, deploys from the established project root, and restores the public placeholder YAML. It then runs `scripts/reconcile_managed_runtime.py`, which idempotently reuses or creates the Toolbox Search version, Agentic connection, Agent version, and project-scoped `Foundry User` assignment for the Agent identity. The resulting active version is written to the ignored `.azure/managed-runtime.json` file.
 

@@ -8,7 +8,8 @@ Classic实现保留在Repo根目录，固定基线为`david-xinyuwei/david-share
 | Session排序与幂等 | 排序、重复处理、冲突拒绝、仅使用最终转写、来源Hash | 文件SHA-256完全一致 | 模块Hash对比和Session测试 | 等价 |
 | 转写与视觉输入 | Transcript TXT、ASR JSONL、Meeting JSON、视觉摘要 | Input Adapter SHA-256完全一致 | Node输入测试和浏览器E2E | 等价 |
 | 结构化分析 | 使用GPT-5.4的本机AOAI Key认证客户端 | Foundry Managed Agent v6、GPT-5.4、GHCP、Entra、严格`MeetingAnalysis` JSON | Public源码部署、Agent Reference校验、两份真实差分输入、真实浏览器E2E | 运行时责任增强 |
-| Skill | 模型请求中携带本机`SKILL.md` | 通过Toolbox MCP提供版本化云端`meeting-package` Skill | 云端`resources/read`与本地SHA-256一致 | 生命周期增强 |
+| Skill | 模型请求中携带本机`SKILL.md` | 通过Toolbox MCP提供版本化云端`meeting-package` Skill | v2 云端`resources/read`与源码SHA-256一致；v6另行验证Toolbox v2 Binding、Skill名称、Agentic Identity和真实行为 | 生命周期增强，证据按版本限定 |
+| PowerPoint责任 | 本地Skill指导内容，确定性模板/Renderer生成文件 | Toolbox Skill指导模型生成适合六页结构的内容；确定性模板/Renderer负责Deck Plan、Fallback、视觉格式和文件生成 | Skill指导契约与Renderer/Template测试 | 模型指导生命周期增强，确定性行为等价 |
 | Streaming | 真实Responses文本Delta和完成阶段 | 真实Managed Responses SSE Delta和相同完成阶段 | 契约测试和真实浏览器Stream | 等价 |
 | 思维导图 | JSON、Mermaid、SVG、PNG | 输出契约一致 | Pillow独立解析、Schema检查、桌面/移动端UI | 等价 |
 | PowerPoint | 可编辑六页模板化PPTX | 相同OOXML模板字节，Managed路径使用OneDrive安全的`.zip`资源扩展名 | `python-pptx`独立解析，六页均有内容 | 等价 |

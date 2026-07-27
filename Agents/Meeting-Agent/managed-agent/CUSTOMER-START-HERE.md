@@ -25,9 +25,12 @@ az account show
 .\scripts\start-ui.ps1 `
   -ManagedAgentEndpoint "https://<account>.services.ai.azure.com/api/projects/<project>/openai/v1/responses" `
   -ManagedAgentName "managed-meeting-agent" `
-  -ManagedAgentVersion "2" `
+  -ManagedAgentVersion "<active-version>" `
   -AzureConfigDir $env:AZURE_CONFIG_DIR
 ```
+
+Use the active version returned by the deployment/reconciliation output; do not
+copy a historical version number from dated evidence.
 
 Open `http://127.0.0.1:4173`, select **Meeting JSON**, upload `examples/meeting-record-stargate.json`, and choose **Generate meeting package**.
 

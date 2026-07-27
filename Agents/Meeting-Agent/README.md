@@ -32,15 +32,23 @@ This is the question the repository answers with one concrete application:
 | Implementation | Repository root | `managed-agent/` source inside this same product repository |
 | Agent definition | None; the application is the orchestrator | [`agent.yaml`](managed-agent/agent.yaml) defines the Foundry Agent resource |
 | Instructions | Python builds the system message | [`instructions.md`](managed-agent/instructions.md) is deployed with the Agent |
-| Skill | Python reads local `SKILL.md` and injects it into every request | [`meeting-package`](managed-agent/skills/meeting-package/SKILL.md) is a versioned Foundry Skill linked through Toolbox MCP |
+| Skill | Python reads local `SKILL.md` and injects it into every request | [`meeting-package`](managed-agent/skills/meeting-package/SKILL.md) is independently versionable and referenced by the versioned Toolbox; current v6 evidence does not prove an immutable Skill-version pin |
 | Model loop owner | Local application code | Foundry-managed GHCP harness |
 | Invocation | Direct Azure OpenAI Responses client | Application references Agent name + immutable version; the endpoint is transport, not the Agent itself |
 | Authentication | API key in the local backend process | Entra ID for Responses and Agentic identity for Toolbox; no model API key in the customer path |
 | Artifact/UI contract | JSON, Mermaid, SVG, PNG, editable PPTX, EML, browser UI, New Outlook draft | The same contract; eight shared core modules are byte-for-byte identical |
+| PowerPoint responsibility | Local Skill provides content guidance; local template/renderer creates the deck | Toolbox Skill guides model-facing six-slide content; the deterministic template/renderer owns field-to-slide mapping, fallbacks, visual format, and editable PPTX generation |
 | Customer code ownership | Owns model request construction and orchestration | Owns event validation, artifacts, and Outlook handoff; Foundry owns the model loop |
 | Operational change | Prompt, Skill loading, model call, key handling, and parsing are one application release | Agent instructions and Skill are versioned platform assets; app code keeps a smaller deterministic responsibility |
 
 The classic path is **prompt-style local orchestration**, not a deployed Foundry Prompt Agent. The comparison therefore isolates the practical ownership transfer introduced by the Managed Agent path without overstating the earlier implementation.
+
+Microsoft Learn defines Foundry Agent Service as a managed platform for building,
+deploying, and scaling AI agents, with Prompt agents as declarative agents that
+Foundry runs and Hosted agents as customer code that Foundry hosts. This
+repository's Managed path is a **Prompt agent**; the local UI and Python artifact
+backend are its deterministic client application, not a Hosted Agent. See the
+[official-product mapping](managed-agent/docs/MANAGED-IMPLEMENTATION.md#microsoft-official-definition-and-this-implementation).
 
 ### What the Managed Agent is in this codebase
 
@@ -52,6 +60,13 @@ The Managed Agent is not a second UI and not merely an AI endpoint. It is the de
 4. [`ManagedAgentAnalyzer`](managed-agent/src/meeting_agent/analyzers.py): a thin Entra-authenticated adapter that supplies meeting evidence, requires one exact Agent version, and validates the returned `MeetingAnalysis` contract.
 
 The local application still owns what should remain deterministic: event validation, ordering and idempotency, file generation, path safety, the browser workspace, and the human-controlled Outlook handoff.
+
+The current Managed v6 path has decoupled the PowerPoint **storyline** into the
+versioned `meeting-package` Skill, but not the entire presentation domain. A
+future dedicated `presentation-story` Skill and `DeckPlan` schema would require
+new Skill, Toolbox, and Agent versions. Fonts, colors, named placeholders, and
+shape geometry deliberately remain in the versioned template and deterministic
+renderer rather than in an LLM prompt.
 
 ### What this repository must prove
 

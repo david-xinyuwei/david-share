@@ -24,14 +24,46 @@ flowchart LR
     P -->|Managed| A[Foundry Prompt Agent v6]
     A --> H[Managed GHCP Harness]
     H --> M2[GPT-5.4]
-    H --> T[Toolbox v2 与 meeting-package Skill]
+    H --> T[Toolbox v2 与 meeting-package Skill\n会议分析 + PPT内容叙事]
     M1 --> P
-    A --> P
-    P --> O[JSON / 思维导图 / PPTX / EML]
+    A --> J[严格MeetingAnalysis JSON]
+    J --> P
+    P --> R[确定性PPTX模板 + Renderer]
+    R --> O[JSON / 思维导图 / PPTX / EML]
     O --> D[未发送 Outlook 草稿]
 ```
 
 共用的确定性流水线始终负责事件校验、排序、幂等、严格的 `MeetingAnalysis` 校验、产物生成、文件安全和人工发送边界。无论采用哪种实现，这些确定性控制都不交给 LLM。
+
+## `GHCP Harness` 到底是什么
+
+`GHCP` 是本项目已验证的 Prompt Agent Runtime（提示词智能体运行时）所使用的托管模型循环标识，不代表 Meeting Agent 必须运行在 GitHub，也不要求源码必须公开。Foundry 处理请求时不会临时读取 GitHub Repo。这里应当把两件事分开：**GitHub 可以承载源码和 CI/CD；Microsoft Foundry 才是 Agent Runtime 的运行位置。**
+
+本项目使用的 Private Preview API 清楚体现了这条边界：Agent 定义只选择了 `harness: ghcp`，没有填写 Repo URL、Branch、Commit 或 GitHub Token；云端 Agent Version 也只返回同一个 Harness 标识。Harness 的定位、版本和运行由平台负责，不由 Wrapper 提供。
+
+| 容易混淆的对象 | 存放或运行位置 | 是否必须使用 GitHub |
+|---|---|---|
+| Meeting Agent 源码：`agent.yaml`、Instructions、Skill、Wrapper 代码 | 本地目录、GitHub 私有/公开 Repo、Azure DevOps 或其他获批准的源码系统 | 否 |
+| 部署后的 Agent 名称/版本、身份、Instructions 与 Toolbox 绑定 | Microsoft Foundry Project | 否 |
+| `ghcp` Harness 执行 | Foundry 托管的 Prompt Agent Runtime | 不需要客户提供 Repo |
+| 本项目历史部署使用的 Preview `azd` Extension | 从 Extension Registry 下载；当时的 Preview Registry 恰好使用 GitHub raw/release URL | GitHub 只是安装包分发通道，不是 Agent Runtime |
+| LangGraph、Agent Framework、OpenAI Agents SDK、Semantic Kernel 或自定义模型循环 | 客户代码打包为 Foundry Hosted Agent | 不能靠替换 `harness` 字符串实现，应部署代码或容器 |
+
+### `harness` 是不是框架选择器
+
+在本 Repo 已验证的产品路径中，不是。Private Preview Managed Prompt Agent API 已验证接受并返回的值是 `ghcp`，没有证据证明还可以设置其他值；当前公开的 `PromptAgent` Schema 没有把 `harness` 暴露为可配置字段。因此，不能凭框架名称写出 `harness: langgraph`、`harness: semantic-kernel` 或 `harness: autogen`。需要自定义编排时，应选择 [Foundry Hosted Agent](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agents)，而不是自造 Harness 值。
+
+### 三条认证链必须分开
+
+“托管”也不表示所有连接都使用同一种凭据：
+
+1. **Wrapper → 已部署 Agent：** 本项目使用 Microsoft Entra Bearer Token 与 RBAC。GPT-5.4 模型 API Key 不能替代这条身份链；使用模型 Key 直连会绕过 Agent，退回 Classic 路径。
+2. **Agent Runtime → 模型：** Foundry 解析 Agent 选择的模型部署，Wrapper 不传模型 API Key。
+3. **Agent → Toolbox 或外部 Tool：** 根据具体连接选择 Agent Identity、Project Managed Identity、OAuth On-Behalf-Of 或平台管理的 Key-based Connection。
+
+由此可以得到三个明确结论：源码可以放在私有 Repo；调用 Agent 时不会读取客户提供的 GitHub Repo，也不需要客户提供 GitHub 凭据；Tool API Key 不能用于调用 Agent Endpoint。这里不推断服务未公开的内部依赖。
+
+公开参考：[Foundry Agent Service 概览](https://learn.microsoft.com/azure/foundry/agents/overview)与 [Hosted Agent](https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agents)。
 
 ## 详细对比
 
@@ -42,7 +74,8 @@ flowchart LR
 | Agent 资源 | 没有独立云端 Agent，应用本身承担 Orchestrator | Foundry Prompt Agent v6 | Agent 行为可以独立部署和版本化 |
 | 模型循环责任方 | 本地应用代码 | Foundry 托管的 GHCP Harness | 这是两种实现最核心的责任转移 |
 | Instructions | 由本地应用代码构造 | 随 Agent 部署 | Instructions 成为受管、可版本化资产 |
-| 会议分析方法 | 请求时注入本地 `SKILL.md` | 通过 Toolbox v2 提供版本化 `meeting-package` Skill | Skill 生命周期不再散落在各 Wrapper 中 |
+| 会议分析与 PPT 内容指导方法 | 请求时注入本地 `SKILL.md` | 版本化 Toolbox 引用可独立版本化的 `meeting-package` Skill | 面向模型的方法不再散落在各 Wrapper 中；v6 证据未证明 Pin 到不可变 Skill Version |
+| PowerPoint Deck Plan 与视觉格式 | 内置模板与确定性 Renderer | 共用同一内置模板与确定性 Renderer | 字段映射、Fallback、上限、字体、颜色、占位符和坐标不交给 LLM |
 | Tool 管理 | 每个应用分别注册和连接 | 通过 Toolbox 集中组织和版本化 | 多个 Agent 和客户端可以复用同一 Tool 集合 |
 | Tool 循环 | 应用解释并继续 tool call | Managed Harness 选择 Tool 并继续循环 | Wrapper 中的 Agent loop 代码减少 |
 | 模型认证 | 本地 Backend 保存 API Key | 使用 Entra 调用 Agent | Managed 客户路径不保存模型 API Key |
@@ -99,6 +132,8 @@ flowchart LR
 4. Toolbox 使用 Agent 专属身份和 Project Scope RBAC。
 5. 应用不再承担模型循环，但继续保留严格的确定性控制。
 6. 完成责任转移后，用户流程与产物安全合同没有回退。
+
+本 Repo 证明的是面向模型的 Slides **内容指导**成为 Managed 架构中可独立版本化的行为资产，不表示 Skill 本身就是 Runtime 框架，也不表示整个 PowerPoint 实现都迁入 Foundry。实际 Deck Plan、视觉模板与 Renderer 有意保留为确定性应用资产。独立 `presentation-story` Skill 和 `DeckPlan` Schema 是下一版本的边界，不是 v6 已实现能力。
 
 ### 后续潜力，当前不作为已实现能力
 

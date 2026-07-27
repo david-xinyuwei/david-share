@@ -32,7 +32,7 @@ PY
 )
 deploy_root="$ROOT/.azure/deploy-source"
 environment_json="$ROOT/.azure/deploy-environment.json"
-azd env get-values --environment "$environment_name" --no-prompt -o json \
+azd env get-values --cwd "$ROOT" --environment "$environment_name" --no-prompt -o json \
   >"$environment_json"
 python3 "$ROOT/scripts/render_deployment_source.py" \
   --env-json "$environment_json" \
@@ -52,3 +52,7 @@ azd deploy managed-meeting-agent \
   --cwd "$ROOT" \
   --environment "$environment_name" \
   --no-prompt
+
+python3 "$ROOT/scripts/reconcile_managed_runtime.py" \
+  --env-json "$environment_json" \
+  --output "$ROOT/.azure/managed-runtime.json"
