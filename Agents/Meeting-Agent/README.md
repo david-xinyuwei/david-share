@@ -43,12 +43,7 @@ This is the question the repository answers with one concrete application:
 
 The classic path is **prompt-style local orchestration**, not a deployed Foundry Prompt Agent. The comparison therefore isolates the practical ownership transfer introduced by the Managed Agent path without overstating the earlier implementation.
 
-Microsoft Learn defines Foundry Agent Service as a managed platform for building,
-deploying, and scaling AI agents, with Prompt agents as declarative agents that
-Foundry runs and Hosted agents as customer code that Foundry hosts. This
-repository's Managed path is a **Prompt agent**; the local UI and Python artifact
-backend are its deterministic client application, not a Hosted Agent. See the
-[official-product mapping](managed-agent/docs/MANAGED-IMPLEMENTATION.md#microsoft-official-definition-and-this-implementation).
+Microsoft Learn defines Foundry Agent Service as a managed platform for building, deploying, and scaling AI agents, with Prompt agents as declarative agents that Foundry runs and Hosted agents as customer code that Foundry hosts. This repository's Managed path is a **Prompt agent**; the local UI and Python artifact backend are its deterministic client application, not a Hosted Agent. See the [official-product mapping](managed-agent/docs/MANAGED-IMPLEMENTATION.md#microsoft-official-definition-and-this-implementation).
 
 ### What the Managed Agent is in this codebase
 
@@ -61,12 +56,7 @@ The Managed Agent is not a second UI and not merely an AI endpoint. It is the de
 
 The local application still owns what should remain deterministic: event validation, ordering and idempotency, file generation, path safety, the browser workspace, and the human-controlled Outlook handoff.
 
-The current Managed v6 path has decoupled the PowerPoint **storyline** into the
-versioned `meeting-package` Skill, but not the entire presentation domain. A
-future dedicated `presentation-story` Skill and `DeckPlan` schema would require
-new Skill, Toolbox, and Agent versions. Fonts, colors, named placeholders, and
-shape geometry deliberately remain in the versioned template and deterministic
-renderer rather than in an LLM prompt.
+The current Managed v6 path has decoupled the PowerPoint **storyline** into the versioned `meeting-package` Skill, but not the entire presentation domain. A future dedicated `presentation-story` Skill and `DeckPlan` schema would require new Skill, Toolbox, and Agent versions. Fonts, colors, named placeholders, and shape geometry deliberately remain in the versioned template and deterministic renderer rather than in an LLM prompt.
 
 ### What this repository must prove
 
