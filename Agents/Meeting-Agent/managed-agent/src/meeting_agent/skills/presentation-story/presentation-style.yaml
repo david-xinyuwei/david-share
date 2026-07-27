@@ -1,0 +1,26 @@
+schema_version: 1
+font_family: Segoe UI
+font_sizes:
+  cover_title: 32
+  cover_subtitle: 18
+  summary: 16
+  metric: 27
+  topic: 16
+  decision: 16
+  action_number: 11
+  action_content: 11
+  action_metadata: 10
+  question: 18
+  next_step: 22
+colors:
+  primary_text: "242424"
+  secondary_text: "606070"
+  inverse_text: "FFFFFF"
+  topic_accent: "00B04F"
+  decision_accent: "0078D4"
+  action_accent: "FFAA00"
+spacing_points:
+  numbered_list_after: 12
+  action_after: 7
+mind_map:
+  frame_margin_inches: 0.14

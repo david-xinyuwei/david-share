@@ -4,12 +4,12 @@ The classic implementation remains at the repository root, fixed to baseline `da
 
 | Capability | Earlier implementation | Managed implementation | Verification | Result |
 |---|---|---|---|---|
-| Event contract | Strict `MeetingEvent` schema | Same file SHA-256 | Module hash comparison and model tests | Equivalent |
+| Event contract | Strict `MeetingEvent` schema | Same `MeetingEvent` behavior; Models module additionally defines optional `DeckPlan` | Model tests plus intentional-difference hashes | Equivalent event contract; Managed extension documented |
 | Session ordering and idempotency | Ordering, duplicate handling, conflict rejection, final-only transcript, source hash | Same file SHA-256 | Module hash comparison and session tests | Equivalent |
 | Transcript and visual inputs | Transcript TXT, ASR JSONL, Meeting JSON, visual summaries | Same input adapter SHA-256 | Node input tests and browser E2E | Equivalent |
 | Structured analysis | Local AOAI key-auth client with GPT-5.4 | Foundry Managed Agent v6, GPT-5.4, GHCP, Entra, strict `MeetingAnalysis` JSON | Public-source deployment, Agent Reference validation, two live differential inputs, live browser E2E | Enhanced runtime ownership |
-| Skill | Packaged local `SKILL.md` in the model request | Versioned cloud `meeting-package` Skill through Toolbox MCP | v2 cloud `resources/read` matched source SHA-256; v6 separately validates Toolbox v2 binding, Skill name, Agentic identity, and live behavior | Enhanced lifecycle with version-scoped evidence |
-| PowerPoint responsibility | Local Skill guides content; deterministic template/renderer creates the file | Toolbox Skill guides model-facing six-slide content; the deterministic template/renderer owns Deck Plan, fallbacks, visual format, and file generation | Skill guidance contract plus renderer/template tests | Model-guidance lifecycle enhanced; deterministic behavior equivalent |
+| Skills | Packaged local `SKILL.md` in the model request | Separate `meeting-package` and `presentation-story` Skills through Toolbox MCP | v2/v6 evidence covers the meeting Skill; source tests require both Skill references | Enhanced lifecycle; dual-Skill live validation pending a new Agent version |
+| PowerPoint responsibility | Local Skill guides content; deterministic template/renderer creates the file | `presentation-story` owns writing; strict `DeckPlan`, Deck/Style YAML, and template drive deterministic rendering | Skill/Schema/config/renderer tests plus parseable six-slide PPTX | Presentation domain decoupled in source |
 | Streaming | Real Responses text deltas and completion stages | Real Managed Responses SSE deltas and same completion stages | Contract tests and live browser stream | Equivalent |
 | Mind map | JSON, Mermaid, SVG, PNG | Same output contract | Independent Pillow parse, schema checks, desktop/mobile UI | Equivalent |
 | PowerPoint | Editable six-slide template deck | Same OOXML template bytes stored with a OneDrive-safe `.zip` resource extension | Independent `python-pptx` parse, six nonempty slides | Equivalent |
@@ -21,6 +21,6 @@ The classic implementation remains at the repository root, fixed to baseline `da
 | Authentication | AOAI API key in backend process | Entra token for Responses plus `AgenticIdentityToken` for Toolbox; project-scoped `Foundry User` only on the Agent identity | Production source scan, RBAC ablation, and live v6 invocation | Enhanced |
 | Explicit persistent filesystem | Not required | Not required; no preview persistence claim | Architecture and README boundary | Equivalent boundary |
 
-Eight core files are byte-for-byte identical between the fixed baseline and the Managed implementation: models, session, draft, hosted request/response models, hosted artifact pipeline, UI input adapter, mind-map export, and Outlook BFF module. The artifact module differs only where the Managed path loads the same OOXML template bytes from a OneDrive-safe `.zip` resource; generated PNG/PPTX/EML behavior is validated independently.
+The current Parity Manifest records six byte-equal modules and two intentional differences with baseline/current hashes: Models adds the optional strict `DeckPlan`, and Hosted Pipeline resolves v6 compatibility before rendering. Artifact and UI changes are verified through executable contracts rather than represented as byte-equal modules.
 
 The comparison establishes functional parity, not identical prose or model-quality parity. Both implementations now use GPT-5.4, but their orchestration owners remain different, so acceptance is based on strict contracts, evidence grounding, artifacts, safety, and user workflows rather than identical wording.

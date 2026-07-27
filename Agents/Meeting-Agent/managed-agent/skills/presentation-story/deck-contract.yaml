@@ -1,0 +1,23 @@
+schema_version: 1
+slide_order:
+  - cover
+  - overview
+  - topics
+  - decisions_actions
+  - mind_map
+  - next_steps
+limits:
+  topics: 6
+  decisions: 5
+  actions: 5
+  questions: 7
+  title_display_width: 70
+  subtitle_display_width: 260
+  topic_display_width: 110
+  list_item_display_width: 180
+  next_step_display_width: 150
+empty_states:
+  decisions: No decision recorded
+  actions: No action item was identified in the supplied evidence.
+  questions: No open question recorded
+  next_step: Confirm the action owners and publish the reviewed meeting package.

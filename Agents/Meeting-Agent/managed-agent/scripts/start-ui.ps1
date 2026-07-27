@@ -3,6 +3,7 @@ param(
     [string]$ManagedAgentEndpoint = $env:MANAGED_AGENT_ENDPOINT,
     [string]$ManagedAgentName = $env:MANAGED_AGENT_NAME,
     [string]$ManagedAgentVersion = $env:MANAGED_AGENT_VERSION,
+    [Nullable[bool]]$RequireDeckPlan = $null,
     [string]$AzureConfigDir = $env:AZURE_CONFIG_DIR,
     [int]$BackendPort = 18089,
     [int]$UiPort = 4173
@@ -10,6 +11,17 @@ param(
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
+$runtimeManifestPath = Join-Path $root ".azure\managed-runtime.json"
+if (Test-Path -LiteralPath $runtimeManifestPath -PathType Leaf) {
+    $runtimeManifest = Get-Content -LiteralPath $runtimeManifestPath -Raw | ConvertFrom-Json
+    if (-not $ManagedAgentEndpoint) { $ManagedAgentEndpoint = $runtimeManifest.managed_agent_endpoint }
+    if (-not $ManagedAgentName) { $ManagedAgentName = $runtimeManifest.managed_agent_name }
+    if (-not $ManagedAgentVersion) { $ManagedAgentVersion = $runtimeManifest.managed_agent_version }
+    if ($null -eq $RequireDeckPlan -and $null -ne $runtimeManifest.managed_agent_requires_deck_plan) {
+        $RequireDeckPlan = [bool]$runtimeManifest.managed_agent_requires_deck_plan
+    }
+}
+if ($null -eq $RequireDeckPlan) { $RequireDeckPlan = $false }
 
 if ($env:OS -ne "Windows_NT") {
     throw "start-ui.ps1 must run in Windows PowerShell. WSL cannot open the New Outlook draft."
@@ -83,6 +95,7 @@ try {
     $env:MANAGED_AGENT_ENDPOINT = $ManagedAgentEndpoint
     $env:MANAGED_AGENT_NAME = $ManagedAgentName
     $env:MANAGED_AGENT_VERSION = $ManagedAgentVersion
+    $env:MANAGED_AGENT_REQUIRE_DECK_PLAN = $RequireDeckPlan.ToString().ToLowerInvariant()
     $backendProcess = Start-Process `
         -FilePath $backendPython `
         -ArgumentList "main.py" `

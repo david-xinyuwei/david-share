@@ -107,7 +107,7 @@ specific subset rather than claiming the entire platform:
 | Agent versions | Calls pin the name and immutable version of deployed Agent v6 | A complete production promotion or rollback service |
 | Prompt Agent managed runtime | Foundry owns the model/tool loop; the wrapper owns deterministic validation and artifacts | That managed orchestration improves model intelligence, latency, or cost |
 | Agent identity and tool authentication | Entra authenticates the client path; the Toolbox connection uses Agentic identity with scoped RBAC | Every possible OBO, published-identity, or external-tool flow |
-| Toolbox and Skill | Toolbox v2 references the named, independently versionable `meeting-package` Skill | An immutable Skill-version pin for v6, or an enterprise-wide shared Toolbox catalog |
+| Toolbox and Skill | v6 evidence covers `meeting-package`; current source adds an independently versionable `presentation-story` Skill and a dual-Skill Toolbox reconciliation contract | Live deployment evidence for the new dual-Skill Agent version |
 | Trace, evaluation, publishing, monitoring | Architectural extension points only | Production monitoring, continuous evaluation, or enterprise-channel publication |
 
 Official sources, retrieved 2026-07-27:
@@ -130,6 +130,7 @@ pages before using this Preview-dependent implementation for another delivery.
 |---|---|---|
 | Cloud runtime | Public source was deployed as `managed-meeting-agent` v6 and validated with `status=active`, `harness=ghcp`, `gpt-5.4`, Responses protocol, and Entra authentication | [GPT-5.4 runtime validation](../evidence/managed-live-gpt54/runtime-validation.json) |
 | Cloud Skill | Agent v6 is bound to Toolbox v2 with the named `meeting-package` Skill, Toolbox Search compatibility tool, and Agentic identity authentication. Historical v2 evidence separately hashes the cloud Skill body against source. | [v6 Toolbox binding](../evidence/managed-live-gpt54/runtime-validation.json) · [v2 Skill body hash](../evidence/managed-live/toolbox-skill-validation.json) |
+| Presentation source contract | Current source separates `presentation-story`, strict `DeckPlan`, `deck-contract.yaml`, `presentation-style.yaml`, and deterministic rendering; the deployment reconciler requires both Skills | `tests/test_presentation_responsibility_contract.py` · `tests/test_runtime_reconciler.py` |
 | Meeting analysis | `ManagedAgentAnalyzer` sends the actual normalized meeting events and strict `MeetingAnalysis` schema to the deployed Agent | [Client contract](../tests/test_managed_analyzer.py) |
 | Artifact pipeline | Real JSON, Mermaid, SVG, 1280x720 PNG, editable six-slide PPTX, and MIME EML | [GPT-5.4 dual-input validation](../evidence/managed-live-gpt54/dual-input-validation.json) |
 | Browser UI | React workspace, loopback BFF, real streamed model deltas, artifact downloads, and Outlook draft action | [ARM64 desktop/mobile validation](../evidence/managed-live-gpt54/ui-validation.json) |
@@ -145,6 +146,7 @@ The implementation preserves the earlier Meeting Agent's user-visible contracts:
 - Strict event schema, ordering, idempotent duplicate handling, conflict detection, final-transcript selection, and source SHA-256.
 - Real finite NDJSON streaming: `accepted`, `analysis_started`, model deltas, analysis, mind map, presentation, and completion.
 - Structured title, summary, topics, decisions, action items, open questions, and renderer-neutral mind-map tree.
+- Strict six-section `DeckPlan` plus a separately downloadable `deck-plan.json` artifact.
 - Mind-map JSON, Mermaid, SVG, and nonblank PNG.
 - Editable six-slide PowerPoint generated from the packaged template.
 - Plain/HTML MIME EML with inline mind map, PNG and PPTX attachments, and manual Send only.
@@ -161,11 +163,15 @@ flowchart LR
     UI --> BFF[Loopback BFF]
     BFF --> API[Local Python artifact backend]
   API --> MA[Foundry Prompt Agent\nManaged GHCP Runtime]
-  MA --> TB[Toolbox v2]
-  TB --> S[meeting-package Skill\nmodel-facing analysis + slide guidance]
-  S --> J[Strict MeetingAnalysis JSON]
+  MA --> TB[Toolbox]
+  TB --> S1[meeting-package Skill\nmeeting analysis]
+  TB --> S2[presentation-story Skill\nsix-slide narrative]
+  S1 --> J[MeetingAnalysis + strict DeckPlan]
+  S2 --> J
   J --> API
-  API --> R[Deterministic renderer\nPPTX template + visual rules]
+  C[deck-contract.yaml] --> R[Deterministic renderer]
+  V[presentation-style.yaml + PPTX template] --> R
+  API --> R
   R --> A[JSON / Mermaid / SVG / PNG / PPTX / EML]
     A --> O[New Outlook unsent draft]
     O --> H[Human review and manual Send]
@@ -175,30 +181,28 @@ Foundry owns the model loop, GHCP harness, and Skill/Toolbox integration. The lo
 
 ### Where the PowerPoint requirements live
 
-PowerPoint generation deliberately has two contracts:
+PowerPoint generation now uses three separately versioned contracts:
 
 | Concern | Current source of truth | Why |
 |---|---|---|
-| Model-facing slide guidance: intended six-slide story, information priority, evidence boundaries, concise strings | [`meeting-package` Skill](../skills/meeting-package/SKILL.md), delivered through Toolbox | This guides analysis content without defining the actual Deck Plan |
-| Structured content returned by the Agent | Strict `MeetingAnalysis` schema validated by the local application | Prevents free-form Prompt output from becoming a file-generation contract |
-| Actual Deck Plan and visual format: field-to-slide mapping, fallbacks, list limits, packaged template, named placeholders, Segoe UI, font sizes, colors, image containment | `src/meeting_agent/templates/meeting-agent-template.zip` and `src/meeting_agent/artifacts.py` | These rules must be deterministic, editable, reproducible, and testable; the LLM must not guess layout coordinates |
+| Model-facing presentation writing | [`presentation-story` Skill](../skills/presentation-story/SKILL.md) | Owns evidence-grounded story, information priority, and six typed sections; the generic meeting Skill no longer duplicates slide instructions |
+| Structured exchange contract | Strict `DeckPlan` nested in `MeetingAnalysis`; `deck-plan.json` is emitted separately | Prevents free-form Prompt output from becoming a file-generation contract and makes the Agent/renderer boundary auditable |
+| Template mapping and empty states | [`deck-contract.yaml`](../skills/presentation-story/deck-contract.yaml) | Externalizes slide order, capacities, clipping limits, and evidence-safe empty states |
+| Visual tokens and geometry | [`presentation-style.yaml`](../skills/presentation-story/presentation-style.yaml) plus the packaged PPTX template | Externalizes fonts, sizes, colors, spacing, and image margin; the template remains the source of shape geometry |
 | Editable `.pptx` generation | Local deterministic renderer | Keeps artifact creation auditable and preserves the same contract in Classic and Managed paths |
 
-The current v6 architecture therefore has **model-guidance decoupling**, not complete
-presentation-domain decoupling. The six-slide narrative is in the versioned
-Skill, but it is one section of the broader `meeting-package` Skill and the
-Agent returns the general `MeetingAnalysis` contract. A future implementation
-could introduce a dedicated `presentation-story` Skill and `DeckPlan` schema,
-then publish new Skill, Toolbox, and Agent versions. That target is not claimed
-as implemented by v6. Moving fonts, colors, and shape coordinates into a Prompt
-would be the wrong abstraction; those belong in the versioned template/style
-configuration and deterministic renderer.
+The source implementation now completes the presentation-domain separation.
+For backward compatibility, responses from the deployed v6 Agent that omit
+`deck_plan` receive a deterministic plan derived from the same external deck
+contract. New deployments are instructed to return `deck_plan` directly. Fonts,
+colors, and shape coordinates remain outside the Prompt by design.
 
 Evidence is also version-scoped. The historical v2 validation compared the
 cloud `skill://meeting-package/SKILL.md` body to the public source by SHA-256.
-The current v6 evidence validates the Toolbox v2 binding, Skill name, Agentic
-identity, and live Agent behavior; it does not claim a second byte-for-byte
-cloud Skill-body comparison or an immutable Skill-version pin for v6.
+The current v6 evidence validates the original single-Skill Toolbox binding and
+live Agent behavior. It does **not** prove that `presentation-story` is deployed
+or that a new Agent version returns `deck_plan`; those remain deployment/live
+validation gates for the next Agent version.
 
 ## Cloud Deployment
 
@@ -208,7 +212,7 @@ The checked-in source declares a dedicated prompt Agent:
 - Version validated: `6`
 - Model: `gpt-5.4` (`2026-03-05`, `GlobalStandard`)
 - Harness: `ghcp`
-- Skill: `meeting-package`
+- Skills in current source: `meeting-package`, `presentation-story`
 - Authentication: Entra only; Toolbox access uses `AgenticIdentityToken`
 
 `ghcp` is a Foundry-managed runtime identifier, not a requirement to host this
@@ -219,7 +223,7 @@ rather than reading a source repository per request. See
 for the source/runtime boundary, supported-value evidence, and authentication
 chains.
 
-`agent.yaml`, `instructions.md`, `skills/meeting-package/SKILL.md`, and `azure.yaml` are the deployment source. Because the current Preview extension does not expand placeholders inside `promptAgent`, `scripts/deploy-managed-agent.sh` resolves the active isolated azd environment into an ignored deployment view, deploys from the established project root, and restores the public placeholder YAML. It then runs `scripts/reconcile_managed_runtime.py`, which idempotently reuses or creates the Toolbox Search version, Agentic connection, Agent version, and project-scoped `Foundry User` assignment for the Agent identity. The resulting active version is written to the ignored `.azure/managed-runtime.json` file.
+`agent.yaml`, `instructions.md`, both Skill directories, and `azure.yaml` are the deployment source. The deployment view hashes the Presentation Skill and both YAML resources. After `azd deploy`, `scripts/reconcile_managed_runtime.py` requires both Skill references, creates a new Toolbox version when needed, binds the Agentic connection, and writes the resulting Agent version under ignored `.azure` state.
 
 ## Windows Start
 
@@ -298,7 +302,7 @@ The local BFF writes the generated EML atomically and starts `olk.exe <absolute-
 
 ## Comparison With The Classic Implementation
 
-The classic implementation remains at the repository root. This `managed-agent/` directory is the second implementation in the same repository, not a second repository. The comparison is fixed to baseline commit `667357dac6ee2dc30102d572c458c77861112bea`; the [parity manifest](../evidence/managed-live/parity-manifest.json) records byte-for-byte SHA-256 equality for eight shared core modules, while artifact behavior is checked independently. [FEATURE-PARITY.md](../FEATURE-PARITY.md) compares runtime ownership, authentication, Skill lifecycle, and operational responsibilities.
+The classic implementation remains at the repository root. This `managed-agent/` directory is the second implementation in the same repository, not a second repository. The comparison is fixed to baseline commit `667357dac6ee2dc30102d572c458c77861112bea`; the [parity manifest](../evidence/managed-live/parity-manifest.json) records byte-for-byte SHA-256 equality for six shared modules and baseline/current hashes for two intentional DeckPlan differences. Artifact and UI behavior are checked independently. [FEATURE-PARITY.md](../FEATURE-PARITY.md) compares runtime ownership, authentication, Skill lifecycle, and operational responsibilities.
 
 The classic path is prompt-style local orchestration, not a deployed Foundry Prompt Agent. This distinction keeps the comparison focused on the real ownership transfer introduced by the managed GHCP harness.
 

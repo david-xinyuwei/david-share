@@ -124,12 +124,12 @@ def test_docs_scope_skill_evidence_by_agent_version() -> None:
     parity = (ROOT / "FEATURE-PARITY.md").read_text(encoding="utf-8")
     parity_cn = (ROOT / "FEATURE-PARITY-CN.md").read_text(encoding="utf-8")
 
-    assert "Historical v2 evidence separately hashes the cloud Skill body" in english
-    assert "历史 v2 证据另行对比过云端 Skill 正文" in chinese
-    assert "v2 cloud `resources/read` matched source SHA-256" in parity
-    assert "v6 separately validates Toolbox v2 binding" in parity
-    assert "v2 云端`resources/read`与源码SHA-256一致" in parity_cn
-    assert "v6另行验证Toolbox v2 Binding" in parity_cn
+    assert "current source adds an independently versionable `presentation-story`" in english
+    assert "当前源码新增可独立版本化的 `presentation-story`" in chinese
+    assert "dual-Skill live validation pending a new Agent version" in parity
+    assert "双Skill Live验收等待新Agent Version" in parity_cn
+    assert "does **not** prove that `presentation-story` is deployed" in english
+    assert "**不证明** `presentation-story` 已部署" in chinese
 
 
 def test_customer_runbook_and_package_use_current_runtime_boundaries() -> None:
@@ -146,6 +146,7 @@ def test_customer_runbook_and_package_use_current_runtime_boundaries() -> None:
     assert '-ManagedAgentVersion "<active-version>"' in start_cn
     assert '-ManagedAgentVersion "2"' not in start_en + start_cn
     assert "large-input-recovery-validation.json" in package
-    assert "does not prove that the\nreference pins an immutable Skill version" in (
+    assert "source implementation now completes the presentation-domain separation" in (
         managed_doc
     )
+    assert "dual-Skill Agent version" in managed_doc

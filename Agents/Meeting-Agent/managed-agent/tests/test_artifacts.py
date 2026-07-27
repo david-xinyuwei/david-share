@@ -46,6 +46,12 @@ def test_generates_nonblank_mind_map_and_valid_pptx(tmp_path: Path) -> None:
 
     graph = json.loads(artifacts["mind_map_json"].read_text(encoding="utf-8"))
     assert graph["label"] == analysis.title
+    deck_plan = json.loads(artifacts["deck_plan"].read_text(encoding="utf-8"))
+    assert deck_plan["schema_version"] == 1
+    assert deck_plan["cover"]["title"] == analysis.title
+    assert deck_plan["topics"]["items"] == analysis.topics
+    analysis_json = json.loads(artifacts["analysis"].read_text(encoding="utf-8"))
+    assert "deck_plan" not in analysis_json
     svg = artifacts["mind_map_svg"].read_text(encoding="utf-8")
     assert svg.startswith("<svg")
     assert 'viewBox="0 0 1280 720"' in svg
@@ -57,7 +63,13 @@ def test_generates_nonblank_mind_map_and_valid_pptx(tmp_path: Path) -> None:
     mermaid = artifacts["mind_map_mermaid"].read_text(encoding="utf-8")
     assert mermaid.startswith("mindmap\n  root((")
     assert analysis.title in mermaid.replace("<br/>", " ")
-    for text_artifact in ("analysis", "mind_map_json", "mind_map_mermaid", "mind_map_svg"):
+    for text_artifact in (
+        "analysis",
+        "deck_plan",
+        "mind_map_json",
+        "mind_map_mermaid",
+        "mind_map_svg",
+    ):
         assert b"\r\n" not in artifacts[text_artifact].read_bytes()
 
 

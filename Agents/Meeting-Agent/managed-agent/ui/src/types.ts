@@ -32,6 +32,24 @@ export type MindMapNode = {
   children: MindMapNode[];
 };
 
+export type DeckPlan = {
+  schema_version: 1;
+  cover: { kind: "cover"; title: string; subtitle: string };
+  overview: { kind: "overview"; summary: string };
+  topics: { kind: "topics"; items: string[] };
+  decisions_actions: {
+    kind: "decisions_actions";
+    decisions: string[];
+    actions: ActionItem[];
+  };
+  mind_map: { kind: "mind_map"; title: string };
+  next_steps: {
+    kind: "next_steps";
+    questions: string[];
+    next_step?: string | null;
+  };
+};
+
 export type MeetingAnalysis = {
   title: string;
   summary: string;
@@ -40,6 +58,7 @@ export type MeetingAnalysis = {
   action_items: ActionItem[];
   open_questions: string[];
   mind_map: MindMapNode;
+  deck_plan?: DeckPlan | null;
 };
 
 export type HostedArtifact = {

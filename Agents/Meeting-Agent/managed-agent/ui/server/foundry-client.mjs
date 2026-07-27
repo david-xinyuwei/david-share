@@ -4,6 +4,7 @@ import path from "node:path";
 
 const RETRYABLE_STATUS = new Set([424, 429, 502, 503, 504]);
 const ARTIFACT_FILENAMES = new Set([
+  "deck-plan.json",
   "evidence.json",
   "meeting-analysis.json",
   "meeting-events.json",

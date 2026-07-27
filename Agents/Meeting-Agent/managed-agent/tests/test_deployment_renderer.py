@@ -53,10 +53,24 @@ def test_renderer_resolves_private_values_outside_public_source(tmp_path: Path) 
     assert (output_dir / "skills" / "meeting-package" / "SKILL.md").read_bytes() == (
         ROOT / "skills" / "meeting-package" / "SKILL.md"
     ).read_bytes()
+    for relative in (
+        "skills/presentation-story/SKILL.md",
+        "skills/presentation-story/deck-contract.yaml",
+        "skills/presentation-story/presentation-style.yaml",
+    ):
+        assert (output_dir / relative).read_bytes() == (ROOT / relative).read_bytes()
     manifest = json.loads(
         (output_dir / "DEPLOY-SOURCE-MANIFEST.json").read_text(encoding="utf-8")
     )
     assert manifest["service_name"] == "managed-meeting-agent"
+    assert set(manifest["source_files"]) == {
+        "agent.yaml",
+        "instructions.md",
+        "skills/meeting-package/SKILL.md",
+        "skills/presentation-story/SKILL.md",
+        "skills/presentation-story/deck-contract.yaml",
+        "skills/presentation-story/presentation-style.yaml",
+    }
     assert manifest["private_values_written_only_under_ignored_azure_directory"] is True
 
 

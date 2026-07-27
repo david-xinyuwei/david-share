@@ -13,6 +13,7 @@ from .analyzers import ManagedAgentAnalyzer
 from .artifacts import generate_artifacts
 from .draft import build_eml, file_sha256, open_in_new_outlook, write_evidence
 from .models import MeetingAnalysis
+from .presentation import ensure_deck_plan
 from .session import MeetingSession, load_jsonl
 
 
@@ -59,7 +60,7 @@ def _execute(args: argparse.Namespace) -> int:
     try:
         with FileLock(str(output_dir / ".meeting-agent.lock"), timeout=0):
             analyzer = ManagedAgentAnalyzer()
-            analysis = analyzer.analyze(session)
+            analysis = ensure_deck_plan(analyzer.analyze(session))
             return _build(args, session, analysis, output_dir)
     except Timeout as error:
         raise RuntimeError(f"output directory is already in use: {output_dir}") from error

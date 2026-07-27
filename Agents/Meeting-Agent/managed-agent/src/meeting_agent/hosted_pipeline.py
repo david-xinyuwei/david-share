@@ -15,6 +15,7 @@ from .artifacts import (
 )
 from .draft import build_eml, file_sha256, write_evidence
 from .hosted_models import HostedArtifact, HostedMeetingRequest, HostedMeetingResponse
+from .presentation import ensure_deck_plan
 from .session import MeetingSession, ingest_all
 
 StreamEventCallback = Callable[[str, dict[str, object]], None]
@@ -76,6 +77,7 @@ def stream_hosted_run(
         session,
         lambda delta: on_event("model_delta", {"delta": delta}),
     )
+    analysis = ensure_deck_plan(analysis)
     mermaid = mind_map_mermaid(analysis.mind_map)
     on_event(
         "analysis_ready",
@@ -170,7 +172,7 @@ def _build_locked(
 ) -> HostedMeetingResponse:
     source_path = output_dir / "meeting-events.json"
     session.save(source_path)
-    analysis = analyzer.analyze(session)
+    analysis = ensure_deck_plan(analyzer.analyze(session))
     generated = generate_artifacts(analysis, output_dir)
     eml_path = output_dir / "meeting-follow-up.eml"
     eml_evidence = build_eml(

@@ -10,5 +10,8 @@ def test_windows_launcher_uses_loopback_private_runtime_and_cli_credential() -> 
     assert "IsDefaultPort" in source
     assert "UserInfo" in source
     assert 'MANAGED_AGENT_CREDENTIAL = "azure-cli"' in source
+    assert '.azure\\managed-runtime.json' in source
+    assert "managed_agent_requires_deck_plan" in source
+    assert "MANAGED_AGENT_REQUIRE_DECK_PLAN" in source
     assert 'Join-Path $env:LOCALAPPDATA "ManagedMeetingAgent\\runtime"' in source
     assert 'http://127.0.0.1:$BackendPort/readiness' in source

@@ -4,4 +4,5 @@ filelock==3.29.7
 httpx==0.28.1
 Pillow==12.3.0
 pydantic==2.10.4
+PyYAML==6.0.3
 python-pptx==1.0.2

@@ -1,6 +1,6 @@
 ---
 name: meeting-package
-description: Turn meeting evidence into structured notes, action items, and a concise mind map.
+description: Turn meeting evidence into structured notes, slide content, action items, and a concise mind map.
 ---
 
 # Meeting Package Skill
@@ -21,6 +21,19 @@ description: Turn meeting evidence into structured notes, action items, and a co
 - Phrase decisions as completed choices, not discussion themes.
 - Phrase action items as verbs; include owner and due date only when explicitly stated.
 - Keep open questions actionable and remove rhetorical questions already answered in the meeting.
+
+## Slide narrative
+
+The structured analysis feeds a six-slide customer-ready deck. Shape the content for:
+
+1. A concise cover and executive summary.
+2. A visual overview of the main topics.
+3. Decisions paired with supporting context.
+4. An action register with owner and due date.
+5. A mind-map overview.
+6. Open questions and next-step discussion.
+
+Keep individual topic, decision, action, and question strings below 140 characters where possible. Prefer concrete phrases over paragraphs.
 
 ## Mind map
 

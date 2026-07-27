@@ -18,12 +18,21 @@ from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN
 from pptx.util import Inches, Pt
 
-from .models import MeetingAnalysis, MindMapNode
+from .models import DeckPlan, MeetingAnalysis, MindMapNode
+from .presentation import (
+    DeckContract,
+    PresentationStyle,
+    ensure_deck_plan,
+    load_deck_contract,
+    load_presentation_style,
+    resolve_deck_plan,
+)
 
 BRANCH_COLORS = ("#0078D4", "#00B04F", "#FFAA00", "#7C3AED", "#E74C3C", "#008C95")
 
 
 def generate_artifacts(analysis: MeetingAnalysis, output_dir: Path) -> dict[str, Path]:
+    analysis = ensure_deck_plan(analysis)
     generated = generate_mind_map_artifacts(analysis, output_dir)
     generated["presentation"] = generate_presentation_artifact(
         analysis,
@@ -43,17 +52,24 @@ def generate_mind_map_artifacts(
     graph_svg = output_dir / "mind-map.svg"
     graph_png = output_dir / "mind-map.png"
     analysis_json = output_dir / "meeting-analysis.json"
+    deck_plan_json = output_dir / "deck-plan.json"
+    deck_plan = resolve_deck_plan(analysis)
 
     _atomic_write_text(
         graph_json,
         json.dumps(analysis.mind_map.model_dump(), ensure_ascii=False, indent=2),
     )
-    _atomic_write_text(analysis_json, analysis.model_dump_json(indent=2))
+    _atomic_write_text(
+        analysis_json,
+        analysis.model_dump_json(indent=2, exclude={"deck_plan"}),
+    )
+    _atomic_write_text(deck_plan_json, deck_plan.model_dump_json(indent=2))
     _atomic_write_text(graph_mermaid, mind_map_mermaid(analysis.mind_map))
     _atomic_write_text(graph_svg, _mind_map_svg(analysis.mind_map))
     _atomic_generate(graph_png, lambda temporary: _mind_map_png(analysis.mind_map, temporary))
     return {
         "analysis": analysis_json,
+        "deck_plan": deck_plan_json,
         "mind_map_json": graph_json,
         "mind_map_mermaid": graph_mermaid,
         "mind_map_svg": graph_svg,
@@ -67,9 +83,18 @@ def generate_presentation_artifact(
     output_dir: Path,
 ) -> Path:
     presentation = output_dir / "meeting-summary.pptx"
+    deck_plan = resolve_deck_plan(analysis)
+    contract = load_deck_contract()
+    style = load_presentation_style()
     _atomic_generate(
         presentation,
-        lambda temporary: _presentation(analysis, mind_map_path, temporary),
+        lambda temporary: _presentation(
+            deck_plan,
+            mind_map_path,
+            temporary,
+            contract,
+            style,
+        ),
     )
     return presentation
 
@@ -303,60 +328,86 @@ def _font(size: int, *, bold: bool = False) -> ImageFont.FreeTypeFont | ImageFon
     return ImageFont.load_default(size=size)
 
 
-def _presentation(analysis: MeetingAnalysis, mind_map_path: Path, path: Path) -> None:
+def _presentation(
+    deck_plan: DeckPlan,
+    mind_map_path: Path,
+    path: Path,
+    contract: DeckContract,
+    style: PresentationStyle,
+) -> None:
     template = files("meeting_agent").joinpath("templates/meeting-agent-template.zip")
     with as_file(template) as template_path:
         presentation = Presentation(template_path)
 
+    limits = contract.limits
+    colors = style.colors
+    sizes = style.font_sizes
     _set_shape_text(
         presentation,
         "MA_TITLE",
-        _clip_display(analysis.title, 70),
-        size=32,
+        _clip_display(deck_plan.cover.title, limits.title_display_width),
+        size=sizes.cover_title,
         bold=True,
-        color="FFFFFF",
+        color=colors.inverse_text,
+        font_family=style.font_family,
     )
     _set_shape_text(
         presentation,
         "MA_SUBTITLE",
-        _clip_display(analysis.summary, 260),
-        size=18,
-        color="FFFFFF",
+        _clip_display(deck_plan.cover.subtitle, limits.subtitle_display_width),
+        size=sizes.cover_subtitle,
+        color=colors.inverse_text,
+        font_family=style.font_family,
     )
-    _set_shape_text(presentation, "MA_SUMMARY", analysis.summary, size=16)
+    _set_shape_text(
+        presentation,
+        "MA_SUMMARY",
+        deck_plan.overview.summary,
+        size=sizes.summary,
+        color=colors.primary_text,
+        font_family=style.font_family,
+    )
     _set_shape_text(
         presentation,
         "MA_TOPIC_COUNT",
-        f"{len(analysis.topics):02d}",
-        size=27,
+        f"{len(deck_plan.topics.items):02d}",
+        size=sizes.metric,
         bold=True,
-        color="00B04F",
+        color=colors.topic_accent,
+        font_family=style.font_family,
     )
     _set_shape_text(
         presentation,
         "MA_DECISION_COUNT",
-        f"{len(analysis.decisions):02d}",
-        size=27,
+        f"{len(deck_plan.decisions_actions.decisions):02d}",
+        size=sizes.metric,
         bold=True,
-        color="0078D4",
+        color=colors.decision_accent,
+        font_family=style.font_family,
     )
     _set_shape_text(
         presentation,
         "MA_ACTION_COUNT",
-        f"{len(analysis.action_items):02d}",
-        size=27,
+        f"{len(deck_plan.decisions_actions.actions):02d}",
+        size=sizes.metric,
         bold=True,
-        color="FFAA00",
+        color=colors.action_accent,
+        font_family=style.font_family,
     )
 
-    for index in range(1, 7):
-        if index <= len(analysis.topics):
+    for index in range(1, limits.topics + 1):
+        if index <= len(deck_plan.topics.items):
             _set_shape_text(
                 presentation,
                 f"MA_TOPICS_{index}",
-                _clip_display(analysis.topics[index - 1], 110),
-                size=16,
+                _clip_display(
+                    deck_plan.topics.items[index - 1],
+                    limits.topic_display_width,
+                ),
+                size=sizes.topic,
                 bold=True,
+                color=colors.primary_text,
+                font_family=style.font_family,
             )
         else:
             _remove_named_shapes(
@@ -371,31 +422,60 @@ def _presentation(analysis: MeetingAnalysis, mind_map_path: Path, path: Path) ->
     _set_numbered_list(
         presentation,
         "MA_DECISIONS",
-        analysis.decisions or ["No decision recorded"],
-        size=16,
-        limit=5,
+        deck_plan.decisions_actions.decisions
+        or [contract.empty_states.decisions],
+        size=sizes.decision,
+        limit=limits.decisions,
+        clip_width=limits.list_item_display_width,
+        font_family=style.font_family,
+        color=colors.primary_text,
+        space_after=style.spacing_points.numbered_list_after,
     )
     _set_action_register(
         presentation,
         "MA_ACTIONS",
-        analysis.action_items,
-        limit=5,
+        deck_plan.decisions_actions.actions,
+        limit=limits.actions,
+        empty_text=contract.empty_states.actions,
+        clip_width=limits.list_item_display_width,
+        font_family=style.font_family,
+        number_size=sizes.action_number,
+        content_size=sizes.action_content,
+        metadata_size=sizes.action_metadata,
+        number_color=colors.action_accent,
+        content_color=colors.primary_text,
+        metadata_color=colors.secondary_text,
+        space_after=style.spacing_points.action_after,
     )
-    _add_contained_picture(presentation, "MA_MIND_MAP_FRAME", mind_map_path)
-    questions = analysis.open_questions or ["No open question recorded"]
-    _set_numbered_list(presentation, "MA_QUESTIONS", questions, size=18, limit=7)
+    _add_contained_picture(
+        presentation,
+        "MA_MIND_MAP_FRAME",
+        mind_map_path,
+        margin_inches=style.mind_map.frame_margin_inches,
+    )
+    questions = deck_plan.next_steps.questions or [contract.empty_states.questions]
+    _set_numbered_list(
+        presentation,
+        "MA_QUESTIONS",
+        questions,
+        size=sizes.question,
+        limit=limits.questions,
+        clip_width=limits.list_item_display_width,
+        font_family=style.font_family,
+        color=colors.primary_text,
+        space_after=style.spacing_points.numbered_list_after,
+    )
     _set_shape_text(
         presentation,
         "MA_NEXT_STEP",
         _clip_display(
-            analysis.open_questions[0]
-            if analysis.open_questions
-            else "Confirm the action owners and publish the reviewed meeting package.",
-            150,
+            deck_plan.next_steps.next_step or contract.empty_states.next_step,
+            limits.next_step_display_width,
         ),
-        size=22,
+        size=sizes.next_step,
         bold=True,
-        color="FFFFFF",
+        color=colors.inverse_text,
+        font_family=style.font_family,
     )
     presentation.save(path)
 
@@ -418,11 +498,13 @@ def _add_contained_picture(
     presentation: Presentation,
     frame_name: str,
     image_path: Path,
+    *,
+    margin_inches: float,
 ) -> None:
     frame = _find_shape(presentation, frame_name)
     with Image.open(image_path) as image:
         image_ratio = image.width / image.height
-    margin = Inches(0.14)
+    margin = Inches(margin_inches)
     available_width = frame.width - 2 * margin
     available_height = frame.height - 2 * margin
     available_ratio = available_width / available_height
@@ -451,7 +533,8 @@ def _set_shape_text(
     *,
     size: int,
     bold: bool = False,
-    color: str = "242424",
+    color: str,
+    font_family: str,
 ) -> None:
     shape = _find_shape(presentation, name)
     frame = shape.text_frame
@@ -459,7 +542,7 @@ def _set_shape_text(
     frame.word_wrap = True
     paragraph = frame.paragraphs[0]
     paragraph.text = text
-    paragraph.font.name = "Segoe UI"
+    paragraph.font.name = font_family
     paragraph.font.size = Pt(size)
     paragraph.font.bold = bold
     paragraph.font.color.rgb = RGBColor.from_string(color)
@@ -472,6 +555,10 @@ def _set_numbered_list(
     *,
     size: int,
     limit: int,
+    clip_width: int,
+    font_family: str,
+    color: str,
+    space_after: int,
 ) -> None:
     shape = _find_shape(presentation, name)
     frame = shape.text_frame
@@ -479,12 +566,12 @@ def _set_numbered_list(
     frame.word_wrap = True
     for index, item in enumerate(items[:limit]):
         paragraph = frame.paragraphs[0] if index == 0 else frame.add_paragraph()
-        paragraph.text = f"{index + 1:02d}  {_clip_display(item, 180)}"
+        paragraph.text = f"{index + 1:02d}  {_clip_display(item, clip_width)}"
         paragraph.alignment = PP_ALIGN.LEFT
-        paragraph.font.name = "Segoe UI"
+        paragraph.font.name = font_family
         paragraph.font.size = Pt(size)
-        paragraph.font.color.rgb = RGBColor.from_string("242424")
-        paragraph.space_after = Pt(12)
+        paragraph.font.color.rgb = RGBColor.from_string(color)
+        paragraph.space_after = Pt(space_after)
 
 
 def _set_action_register(
@@ -493,6 +580,16 @@ def _set_action_register(
     items: list,
     *,
     limit: int,
+    empty_text: str,
+    clip_width: int,
+    font_family: str,
+    number_size: int,
+    content_size: int,
+    metadata_size: int,
+    number_color: str,
+    content_color: str,
+    metadata_color: str,
+    space_after: int,
 ) -> None:
     shape = _find_shape(presentation, name)
     frame = shape.text_frame
@@ -500,24 +597,24 @@ def _set_action_register(
     frame.word_wrap = True
     if not items:
         paragraph = frame.paragraphs[0]
-        paragraph.text = "No action item was identified in the supplied evidence."
-        paragraph.font.name = "Segoe UI"
-        paragraph.font.size = Pt(12)
-        paragraph.font.color.rgb = RGBColor.from_string("606070")
+        paragraph.text = empty_text
+        paragraph.font.name = font_family
+        paragraph.font.size = Pt(content_size)
+        paragraph.font.color.rgb = RGBColor.from_string(metadata_color)
         return
     for index, item in enumerate(items[:limit]):
         paragraph = frame.paragraphs[0] if index == 0 else frame.add_paragraph()
         number = paragraph.add_run()
         number.text = f"{index + 1:02d}  "
-        number.font.name = "Segoe UI"
-        number.font.size = Pt(11)
+        number.font.name = font_family
+        number.font.size = Pt(number_size)
         number.font.bold = True
-        number.font.color.rgb = RGBColor.from_string("00B04F")
+        number.font.color.rgb = RGBColor.from_string(number_color)
         content = paragraph.add_run()
-        content.text = _clip_display(item.description, 180)
-        content.font.name = "Segoe UI"
-        content.font.size = Pt(11)
-        content.font.color.rgb = RGBColor.from_string("242424")
+        content.text = _clip_display(item.description, clip_width)
+        content.font.name = font_family
+        content.font.size = Pt(content_size)
+        content.font.color.rgb = RGBColor.from_string(content_color)
         metadata = " · ".join(
             value
             for value in (
@@ -527,12 +624,12 @@ def _set_action_register(
         )
         details = paragraph.add_run()
         details.text = f"  /  {metadata}"
-        details.font.name = "Segoe UI"
-        details.font.size = Pt(10)
+        details.font.name = font_family
+        details.font.size = Pt(metadata_size)
         details.font.bold = True
-        details.font.color.rgb = RGBColor.from_string("606070")
+        details.font.color.rgb = RGBColor.from_string(metadata_color)
         paragraph.alignment = PP_ALIGN.LEFT
-        paragraph.space_after = Pt(7)
+        paragraph.space_after = Pt(space_after)
 
 
 def _display_width(value: str) -> int:

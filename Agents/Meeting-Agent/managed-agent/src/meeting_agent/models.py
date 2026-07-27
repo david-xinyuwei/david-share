@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Annotated, Any, Self
+from typing import Annotated, Any, Literal, Self
 
 from pydantic import (
     AwareDatetime,
@@ -74,6 +74,77 @@ class MindMapNode(BaseModel):
     children: list[MindMapNode] = Field(default_factory=list)
 
 
+class CoverSlide(BaseModel):
+    """Content slots for the cover slide."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["cover"] = "cover"
+    title: NonEmptyText = Field(max_length=160)
+    subtitle: NonEmptyText = Field(max_length=1_000)
+
+
+class OverviewSlide(BaseModel):
+    """Content slots for the executive overview slide."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["overview"] = "overview"
+    summary: NonEmptyText = Field(max_length=20_000)
+
+
+class TopicsSlide(BaseModel):
+    """Content slots for the topic landscape slide."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["topics"] = "topics"
+    items: list[NonEmptyText] = Field(default_factory=list, max_length=6)
+
+
+class DecisionsActionsSlide(BaseModel):
+    """Content slots for decisions and the action register."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["decisions_actions"] = "decisions_actions"
+    decisions: list[NonEmptyText] = Field(default_factory=list, max_length=5)
+    actions: list[ActionItem] = Field(default_factory=list, max_length=5)
+
+
+class MindMapSlide(BaseModel):
+    """Content slots for the evidence-backed mind-map slide."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["mind_map"] = "mind_map"
+    title: NonEmptyText = Field(max_length=160)
+
+
+class NextStepsSlide(BaseModel):
+    """Content slots for open questions and the immediate next step."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["next_steps"] = "next_steps"
+    questions: list[NonEmptyText] = Field(default_factory=list, max_length=7)
+    next_step: NonEmptyText | None = Field(default=None, max_length=1_000)
+
+
+class DeckPlan(BaseModel):
+    """Strict six-slide content contract consumed by the PowerPoint renderer."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal[1] = 1
+    cover: CoverSlide
+    overview: OverviewSlide
+    topics: TopicsSlide
+    decisions_actions: DecisionsActionsSlide
+    mind_map: MindMapSlide
+    next_steps: NextStepsSlide
+
+
 class MeetingAnalysis(BaseModel):
     """Structured output consumed by all artifact generators."""
 
@@ -84,6 +155,7 @@ class MeetingAnalysis(BaseModel):
     action_items: list[ActionItem] = Field(default_factory=list)
     open_questions: list[NonEmptyText] = Field(default_factory=list)
     mind_map: MindMapNode
+    deck_plan: DeckPlan | None = None
 
 
 MindMapNode.model_rebuild()

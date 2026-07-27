@@ -55,6 +55,9 @@ describe("Local backend client boundaries", () => {
   it("accepts only generated artifact paths", () => {
     const value = "artifacts/0123456789abcdef01234567/meeting-summary.pptx";
     expect(validateArtifactPath(value)).toBe(value);
+    expect(
+      validateArtifactPath("artifacts/0123456789abcdef01234567/deck-plan.json"),
+    ).toContain("deck-plan.json");
     expect(resolveInside("/workspace/safe", value)).toBe(
       path.resolve("/workspace/safe", value),
     );

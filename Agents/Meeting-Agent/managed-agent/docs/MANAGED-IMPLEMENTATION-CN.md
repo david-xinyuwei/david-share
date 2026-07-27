@@ -72,7 +72,7 @@ Microsoft Learn 描述了 Create、Test、Version、Trace、Evaluate、Publish �
 | Agent Version | 调用锁定已部署 Agent v6 的名称和不可变版本 | 完整生产晋级或回滚服务 |
 | Prompt Agent 托管 Runtime | Foundry 负责模型/Tool 循环；Wrapper 负责确定性校验和产物 | 托管编排天然提升模型智力、延迟或成本 |
 | Agent Identity 与 Tool 认证 | 客户端路径使用 Entra；Toolbox Connection 使用 Agentic Identity 与 Scope RBAC | 所有 OBO、Published Identity 或外部 Tool 流程 |
-| Toolbox 与 Skill | 版本化 `meeting-package` Skill 通过 Toolbox v2 暴露 | 企业级共享 Toolbox Catalog |
+| Toolbox 与 Skill | v6 证据覆盖 `meeting-package`；当前源码新增可独立版本化的 `presentation-story` Skill 与双 Skill Toolbox Reconcile 契约 | 新双 Skill Agent Version 的 Live 部署证据 |
 | Trace、Evaluation、Publishing、Monitoring | 仅保留架构扩展点 | 已完成生产监控、持续评测或企业渠道发布 |
 
 官方来源（访问日期：2026-07-27）：
@@ -94,6 +94,7 @@ Microsoft Learn 描述了 Create、Test、Version、Trace、Evaluate、Publish �
 |---|---|---|
 | 云端运行时 | Public源码已部署为`managed-meeting-agent` v6，并完成`active`、`harness=ghcp`、模型`gpt-5.4`、Responses协议和Entra认证实测 | [GPT-5.4运行时验证](../evidence/managed-live-gpt54/runtime-validation.json) |
 | 云端 Skill | Agent v6 已绑定 Toolbox v2、`meeting-package` Skill、Toolbox Search 兼容 Tool 与 Agentic Identity；历史 v2 证据另行对比过云端 Skill 正文与源码 Hash | [v6 Toolbox Binding](../evidence/managed-live-gpt54/runtime-validation.json) · [v2 Skill 正文 Hash](../evidence/managed-live/toolbox-skill-validation.json) |
+| Presentation 源码契约 | 当前源码已拆分 `presentation-story`、严格 `DeckPlan`、`deck-contract.yaml`、`presentation-style.yaml` 与确定性 Renderer；部署 Reconciler 强制要求两个 Skill | `tests/test_presentation_responsibility_contract.py` · `tests/test_runtime_reconciler.py` |
 | 会议分析 | `ManagedAgentAnalyzer`把实际标准化会议事件和严格`MeetingAnalysis` Schema发送到已部署Agent | [客户端契约](../tests/test_managed_analyzer.py) |
 | 产物流水线 | 真实生成JSON、Mermaid、SVG、1280x720 PNG、可编辑六页PPTX和MIME EML | [GPT-5.4双输入验证](../evidence/managed-live-gpt54/dual-input-validation.json) |
 | 浏览器UI | React工作区、loopback BFF、真实模型delta流、产物下载和Outlook草稿操作 | [ARM64桌面端/移动端验证](../evidence/managed-live-gpt54/ui-validation.json) |
@@ -109,6 +110,7 @@ Microsoft Learn 描述了 Create、Test、Version、Trace、Evaluate、Publish �
 - 严格事件Schema、排序、幂等重复处理、冲突检测、最终转写选择和来源SHA-256。
 - 真实有限NDJSON流：`accepted`、`analysis_started`、模型delta、分析完成、导图完成、PPT完成和整体完成。
 - 结构化标题、摘要、主题、决策、行动项、开放问题，以及与渲染器解耦的思维导图树。
+- 严格六段 `DeckPlan`，并单独生成可下载的 `deck-plan.json`。
 - 思维导图JSON、Mermaid、SVG和非空PNG。
 - 从内置模板生成可编辑六页PowerPoint。
 - 同时包含纯文本和HTML正文的MIME EML，正文内嵌思维图，附带PNG与PPTX，只允许人工发送。
@@ -125,11 +127,15 @@ flowchart LR
     UI --> BFF[Loopback BFF]
     BFF --> API[本机Python产物Backend]
   API --> MA[Foundry Prompt Agent\nManaged GHCP Runtime]
-  MA --> TB[Toolbox v2]
-  TB --> S[meeting-package Skill\n面向模型的分析 + PPT内容指导]
-  S --> J[严格MeetingAnalysis JSON]
+  MA --> TB[Toolbox]
+  TB --> S1[meeting-package Skill\n会议分析]
+  TB --> S2[presentation-story Skill\n六页故事线]
+  S1 --> J[MeetingAnalysis + 严格DeckPlan]
+  S2 --> J
   J --> API
-  API --> R[确定性Renderer\nPPTX模板 + 视觉规则]
+  C[deck-contract.yaml] --> R[确定性Renderer]
+  V[presentation-style.yaml + PPTX模板] --> R
+  API --> R
   R --> A[JSON / Mermaid / SVG / PNG / PPTX / EML]
     A --> O[New Outlook未发送草稿]
     O --> H[人工审阅并手动发送]
@@ -139,18 +145,19 @@ Foundry 负责模型循环、GHCP Harness 和 Skill/Toolbox 集成。本机应�
 
 ### PowerPoint 要求分别放在哪里
 
-PowerPoint 生成刻意拆成两个契约：
+PowerPoint 生成现在由三个可独立版本化的契约驱动：
 
 | 关注点 | 当前事实来源 | 原因 |
 |---|---|---|
-| 面向模型的 PPT 内容指导：预期六页故事线、信息优先级、证据边界、精炼文案 | 通过 Toolbox 提供的 [`meeting-package` Skill](../skills/meeting-package/SKILL.md) | 指导分析内容，但不定义实际 Deck Plan |
-| Agent 返回的结构化内容 | 本机应用严格校验的 `MeetingAnalysis` Schema | 防止自由文本 Prompt 直接变成文件生成契约 |
-| 实际 Deck Plan 与视觉格式：字段到页面的映射、Fallback、列表上限、内置模板、命名占位符、Segoe UI、字号、颜色和图片装入规则 | `src/meeting_agent/templates/meeting-agent-template.zip` 与 `src/meeting_agent/artifacts.py` | 必须确定、可编辑、可复现、可测试；不能让 LLM 猜坐标 |
+| 面向模型的 PPT 写作方法 | [`presentation-story` Skill](../skills/presentation-story/SKILL.md) | 负责证据约束、故事线、信息优先级和六个强类型 Section；通用 Meeting Skill 不再重复 Slides 指令 |
+| 结构化交换契约 | `MeetingAnalysis` 中的严格 `DeckPlan`；另行输出 `deck-plan.json` | 防止自由文本 Prompt 直接变成文件生成契约，并让 Agent/Renderer 边界可审计 |
+| 模板映射与空状态 | [`deck-contract.yaml`](../skills/presentation-story/deck-contract.yaml) | 外置 Slide 顺序、容量、裁剪上限和不造事实的空状态文案 |
+| 视觉 Token 与几何 | [`presentation-style.yaml`](../skills/presentation-story/presentation-style.yaml) 与内置 PPTX Template | 外置字体、字号、颜色、间距和图片边距；Shape 几何继续由 Template 管理 |
 | 可编辑 `.pptx` 生成 | 本机确定性 Renderer | 保持产物可审计，并让 Classic/Managed 共用同一契约 |
 
-因此，当前 v6 做到的是 **模型指导松耦合**，不是完整的 Presentation Domain 松耦合。六页内容指导已经进入可独立版本化的 Skill，但它仍是通用 `meeting-package` Skill 的一个章节，Agent 返回的也是通用 `MeetingAnalysis`。后续可以增加独立 `presentation-story` Skill 与 `DeckPlan` Schema，再发布新的 Skill、Toolbox 和 Agent Version；本 Repo 不把这个目标写成 v6 已实现能力。字体、颜色和 Shape 坐标也不应塞进 Prompt，而应进入版本化模板/Style Config 与确定性 Renderer。
+当前源码已经完成 Presentation Domain 松耦合。为了兼容已部署 v6，若响应缺少 `deck_plan`，本机会按同一外置 Deck Contract 生成确定性兼容计划；新部署则要求 Agent 直接返回 `deck_plan`。字体、颜色与 Shape 坐标仍有意保留在 Prompt 之外。
 
-证据同样按版本区分：历史 v2 验证曾用 SHA-256 对比云端 `skill://meeting-package/SKILL.md` 正文与 Public 源码；当前 v6 证据验证了 Toolbox v2 Binding、Skill 名称、Agentic Identity 和真实 Agent 行为，但没有声称再次逐字节对比 v6 云端 Skill 正文，也没有声称 v6 已 Pin 到不可变 Skill Version。
+证据继续按版本区分：历史 v2 验证曾对比 `meeting-package` 正文 Hash；当前 v6 证据只证明旧单 Skill Toolbox 与真实 Agent 行为，**不证明** `presentation-story` 已部署，也不证明新 Agent Version 已返回 `deck_plan`。这些属于下一 Agent Version 的部署/Live 验收门。
 
 ## 云端部署
 
@@ -160,12 +167,12 @@ PowerPoint 生成刻意拆成两个契约：
 - 已验证版本：`6`
 - 模型：`gpt-5.4`（`2026-03-05`，`GlobalStandard`）
 - Harness：`ghcp`
-- Skill：`meeting-package`
+- 当前源码 Skills：`meeting-package`、`presentation-story`
 - 认证：仅Entra；Toolbox访问使用`AgenticIdentityToken`
 
 `ghcp` 是 Foundry 托管的 Runtime 标识，不表示本 Repo 必须托管在 GitHub。Agent 源码可以来自私有 Repo、本地目录或企业源码系统；Foundry 每次调用的是已经部署的 Agent Version，不会在请求时读取源码仓库。关于源码与 Runtime 的边界、Harness 可选值证据和三条认证链，详见公开 Repo 的 [`GHCP Harness` 到底是什么](https://github.com/david-xinyuwei/david-share/blob/master/Agents/Meeting-Agent/managed-agent/docs/IMPLEMENTATION-COMPARISON-CN.md#ghcp-harness-到底是什么)。
 
-`agent.yaml`、`instructions.md`、`skills/meeting-package/SKILL.md`和`azure.yaml`共同构成部署源。当前Preview扩展不会展开`promptAgent`内部占位符，因此`scripts/deploy-managed-agent.sh`会把双隔离azd环境解析到被忽略的部署视图，沿已建立的项目根目录部署，并恢复Public占位符YAML。随后，`scripts/reconcile_managed_runtime.py`以幂等方式复用或创建Toolbox Search版本、Agentic连接和Agent版本，并只为Agent Identity在Project Scope授予`Foundry User`。最终运行版本写入被忽略的`.azure/managed-runtime.json`。
+`agent.yaml`、`instructions.md`、两个 Skill 目录与 `azure.yaml` 共同构成部署源。部署视图会 Hash Presentation Skill 与两份 YAML 资源。`azd deploy` 后，`scripts/reconcile_managed_runtime.py`强制要求两个 Skill Reference，必要时创建新 Toolbox Version，再绑定 Agentic Connection，并把最终 Agent Version 写入被忽略的 `.azure` 状态。
 
 ## Windows启动
 
@@ -244,7 +251,7 @@ Agent endpoint、name、version和credential后，才设置
 
 ## 与Classic实现对比
 
-Classic实现保留在Repo根目录；当前`managed-agent/`是同一个Repo里的第二条实现路径，不是第二个Repo。比较固定到baseline commit `667357dac6ee2dc30102d572c458c77861112bea`；[Parity Manifest](../evidence/managed-live/parity-manifest.json)记录八个共用核心模块逐字节SHA-256一致，Artifact行为另行独立验证。[FEATURE-PARITY-CN.md](../FEATURE-PARITY-CN.md)集中比较运行时责任、认证、Skill生命周期和运维边界。
+Classic实现保留在Repo根目录；当前`managed-agent/`是同一个Repo里的第二条实现路径，不是第二个Repo。比较固定到baseline commit `667357dac6ee2dc30102d572c458c77861112bea`；[Parity Manifest](../evidence/managed-live/parity-manifest.json)记录六个共用模块逐字节SHA-256一致，并记录两个DeckPlan有意差异的Baseline/Current Hash。Artifact与UI行为另行独立验证。[FEATURE-PARITY-CN.md](../FEATURE-PARITY-CN.md)集中比较运行时责任、认证、Skill生命周期和运维边界。
 
 Classic路径是本机prompt-style编排，并不是已经部署的Foundry Prompt Agent。这个区分让对比聚焦于Managed GHCP Harness真正带来的责任转移。
 

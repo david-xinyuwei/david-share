@@ -225,6 +225,7 @@ export default function App() {
   const presentation = artifact("presentation");
   const eml = artifact("eml");
   const analysisJson = artifact("analysis");
+  const deckPlanJson = artifact("deck_plan");
 
   return (
     <div className="app-shell">
@@ -430,6 +431,7 @@ export default function App() {
                     {presentation && <ArtifactLink href={presentation} icon={<Presentation size={17} />} label="PowerPoint" />}
                     {eml && <ArtifactLink href={eml} icon={<MailOpen size={17} />} label="EML draft" />}
                     {analysisJson && <ArtifactLink href={analysisJson} icon={<FileJson size={17} />} label="Analysis JSON" />}
+                    {deckPlanJson && <ArtifactLink href={deckPlanJson} icon={<FileJson size={17} />} label="DeckPlan JSON" />}
                     {run && (
                       <button className="outlook-button" type="button" onClick={openDraft} disabled={!config?.outlook_available}>
                         <MailOpen size={17} /> Open Outlook draft

@@ -74,8 +74,8 @@ flowchart LR
 | Agent 资源 | 没有独立云端 Agent，应用本身承担 Orchestrator | Foundry Prompt Agent v6 | Agent 行为可以独立部署和版本化 |
 | 模型循环责任方 | 本地应用代码 | Foundry 托管的 GHCP Harness | 这是两种实现最核心的责任转移 |
 | Instructions | 由本地应用代码构造 | 随 Agent 部署 | Instructions 成为受管、可版本化资产 |
-| 会议分析与 PPT 内容指导方法 | 请求时注入本地 `SKILL.md` | 版本化 Toolbox 引用可独立版本化的 `meeting-package` Skill | 面向模型的方法不再散落在各 Wrapper 中；v6 证据未证明 Pin 到不可变 Skill Version |
-| PowerPoint Deck Plan 与视觉格式 | 内置模板与确定性 Renderer | 共用同一内置模板与确定性 Renderer | 字段映射、Fallback、上限、字体、颜色、占位符和坐标不交给 LLM |
+| 会议分析与 Presentation 方法 | 请求时注入本地 `SKILL.md` | Toolbox 分别引用 `meeting-package` 与 `presentation-story` Skill | 会议分析与 PPT 写作可独立演进；双 Skill Live 证据需要新 Agent Version |
+| PowerPoint 契约与视觉格式 | 内置模板与确定性 Renderer | 严格`DeckPlan`、外置Deck/Style YAML与内置Template驱动Renderer | 故事线、映射、视觉Token和几何有独立版本责任方 |
 | Tool 管理 | 每个应用分别注册和连接 | 通过 Toolbox 集中组织和版本化 | 多个 Agent 和客户端可以复用同一 Tool 集合 |
 | Tool 循环 | 应用解释并继续 tool call | Managed Harness 选择 Tool 并继续循环 | Wrapper 中的 Agent loop 代码减少 |
 | 模型认证 | 本地 Backend 保存 API Key | 使用 Entra 调用 Agent | Managed 客户路径不保存模型 API Key |
@@ -109,7 +109,7 @@ flowchart LR
 | PowerPoint | 可编辑六页 PPTX | 可编辑六页 PPTX | 产物合同等价 |
 | 邮件 | `X-Unsent: 1`、2 个附件、人工发送 | `X-Unsent: 1`、2 个附件、人工发送 | 安全边界等价 |
 | 浏览器 | 桌面端/移动端 UI；带日期证据中 Console Error 为 0 | Windows ARM64 桌面端/移动端 `2/2`，Console Error 为 0 | 两条真实链路均通过 |
-| 共用确定性核心 | 基线实现 | 8 个模块逐字节一致 | 业务不变量保持不变 |
+| 共用确定性行为 | 基线实现 | Schema、Artifact、Draft、安全和UI契约均有回归测试 | Presentation拆分会有意改变Models/Pipeline/Artifact模块 |
 
 证据入口：
 
@@ -128,12 +128,12 @@ flowchart LR
 
 1. Managed 路径的 Wrapper 不再保存模型 API Key。
 2. 客户端可以按 Agent 名称和不可变版本调用。
-3. Instructions 与 `meeting-package` Skill 成为可部署资产，而不是每次请求时临时拼装。
+3. Instructions、`meeting-package` 与 `presentation-story` 成为可部署资产，而不是每次请求时临时拼装。
 4. Toolbox 使用 Agent 专属身份和 Project Scope RBAC。
 5. 应用不再承担模型循环，但继续保留严格的确定性控制。
 6. 完成责任转移后，用户流程与产物安全合同没有回退。
 
-本 Repo 证明的是面向模型的 Slides **内容指导**成为 Managed 架构中可独立版本化的行为资产，不表示 Skill 本身就是 Runtime 框架，也不表示整个 PowerPoint 实现都迁入 Foundry。实际 Deck Plan、视觉模板与 Renderer 有意保留为确定性应用资产。独立 `presentation-story` Skill 和 `DeckPlan` Schema 是下一版本的边界，不是 v6 已实现能力。
+当前源码已实现 `presentation-story`、严格 `DeckPlan`、外置 Deck/Style YAML 与确定性 Renderer。Skill 是行为资产，不是 Runtime 框架。Live v6 证据早于双 Skill 契约；下一 Agent Version 必须证明两个 Skill 可发现，并由 Agent 直接返回 `deck_plan`。
 
 ### 后续潜力，当前不作为已实现能力
 

@@ -32,12 +32,12 @@ This is the question the repository answers with one concrete application:
 | Implementation | Repository root | `managed-agent/` source inside this same product repository |
 | Agent definition | None; the application is the orchestrator | [`agent.yaml`](managed-agent/agent.yaml) defines the Foundry Agent resource |
 | Instructions | Python builds the system message | [`instructions.md`](managed-agent/instructions.md) is deployed with the Agent |
-| Skill | Python reads local `SKILL.md` and injects it into every request | [`meeting-package`](managed-agent/skills/meeting-package/SKILL.md) is independently versionable and referenced by the versioned Toolbox; current v6 evidence does not prove an immutable Skill-version pin |
+| Skill | Python reads local `SKILL.md` and injects it into every request | Toolbox references independent [`meeting-package`](managed-agent/skills/meeting-package/SKILL.md) and [`presentation-story`](managed-agent/skills/presentation-story/SKILL.md) behavior assets; current v6 live evidence covers only the former |
 | Model loop owner | Local application code | Foundry-managed GHCP harness |
 | Invocation | Direct Azure OpenAI Responses client | Application references Agent name + immutable version; the endpoint is transport, not the Agent itself |
 | Authentication | API key in the local backend process | Entra ID for Responses and Agentic identity for Toolbox; no model API key in the customer path |
-| Artifact/UI contract | JSON, Mermaid, SVG, PNG, editable PPTX, EML, browser UI, New Outlook draft | The same contract; eight shared core modules are byte-for-byte identical |
-| PowerPoint responsibility | Local Skill provides content guidance; local template/renderer creates the deck | Toolbox Skill guides model-facing six-slide content; the deterministic template/renderer owns field-to-slide mapping, fallbacks, visual format, and editable PPTX generation |
+| Artifact/UI contract | JSON, Mermaid, SVG, PNG, editable PPTX, EML, browser UI, New Outlook draft | The same user contract; six shared modules remain byte-identical, while Models and Hosted Pipeline intentionally add DeckPlan support |
+| PowerPoint responsibility | Local Skill provides content guidance; local template/renderer creates the deck | `presentation-story` owns writing guidance; strict `DeckPlan`, external Deck/Style YAML, and the PPTX template drive deterministic rendering |
 | Customer code ownership | Owns model request construction and orchestration | Owns event validation, artifacts, and Outlook handoff; Foundry owns the model loop |
 | Operational change | Prompt, Skill loading, model call, key handling, and parsing are one application release | Agent instructions and Skill are versioned platform assets; app code keeps a smaller deterministic responsibility |
 
@@ -51,18 +51,18 @@ The Managed Agent is not a second UI and not merely an AI endpoint. It is the de
 
 1. [`agent.yaml`](managed-agent/agent.yaml): Agent kind, public name, description, and model.
 2. [`instructions.md`](managed-agent/instructions.md): stable evidence and safety policy owned by the Agent.
-3. [`skills/meeting-package/SKILL.md`](managed-agent/skills/meeting-package/SKILL.md): reusable meeting-analysis method, versioned and exposed through Toolbox MCP.
+3. [`meeting-package`](managed-agent/skills/meeting-package/SKILL.md) and [`presentation-story`](managed-agent/skills/presentation-story/SKILL.md): separate meeting-analysis and six-slide writing methods exposed through Toolbox MCP.
 4. [`ManagedAgentAnalyzer`](managed-agent/src/meeting_agent/analyzers.py): a thin Entra-authenticated adapter that supplies meeting evidence, requires one exact Agent version, and validates the returned `MeetingAnalysis` contract.
 
 The local application still owns what should remain deterministic: event validation, ordering and idempotency, file generation, path safety, the browser workspace, and the human-controlled Outlook handoff.
 
-The current Managed v6 path has decoupled the PowerPoint **storyline** into the versioned `meeting-package` Skill, but not the entire presentation domain. A future dedicated `presentation-story` Skill and `DeckPlan` schema would require new Skill, Toolbox, and Agent versions. Fonts, colors, named placeholders, and shape geometry deliberately remain in the versioned template and deterministic renderer rather than in an LLM prompt.
+Current source fully separates the presentation domain: `presentation-story` owns the six-slide writing method, `DeckPlan` is the strict exchange contract, Deck/Style YAML owns mapping and visual tokens, and the PPTX template owns geometry. The deployed v6 evidence predates this split; a new Skill/Toolbox/Agent version still requires live validation.
 
 ### What this repository must prove
 
 | Claim | Repository proof |
 |---|---|
-| No feature regression | The same event, session, artifact, UI, and Outlook contracts; eight shared modules have identical SHA-256 values |
+| No feature regression | Executable event, session, artifact, UI, and Outlook contracts plus a Parity Manifest with six equal modules and two documented DeckPlan differences |
 | Output changes with the meeting | Two materially different meeting inputs must produce different analysis and artifact hashes |
 | Managed deployment is real | The checked-in Agent, instructions, and Skill must deploy as a new immutable Foundry Agent version and report `active` |
 | Managed invocation is real | The deployed version must return its own Agent reference and strict `MeetingAnalysis` JSON over Entra authentication |
@@ -84,7 +84,7 @@ The repository source was redeployed with the same GPT-5.4 model family used by 
 | Cross-input behavior | Planning and operations meetings produced different titles, analysis hashes, mind maps, PPTX hashes, and EML hashes |
 | Artifact contract | Both runs produced nonblank 1280x720 PNGs, editable six-slide PPTX files, and `X-Unsent: 1` EML drafts with zero recipients and two attachments |
 | Browser workflow | Live GPT-5.4 Playwright desktop/mobile `2/2` with native Windows ARM64 Node and Edge; zero console errors |
-| Shared deterministic behavior | Eight core modules remain byte-for-byte identical to the fixed Classic baseline |
+| Shared deterministic behavior | Six core modules remain byte-for-byte identical; Models and Hosted Pipeline have explicit baseline/current hashes and DeckPlan reasons |
 
 This proves functional parity at the contract and workflow level. It does **not** claim that the two orchestration paths produce identical prose or that Preview behavior is a permanent production SLA.
 

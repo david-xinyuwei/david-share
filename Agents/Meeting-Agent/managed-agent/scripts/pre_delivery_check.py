@@ -22,6 +22,9 @@ def main() -> int:
         "instructions.md",
         "scenario-manifest.json",
         "skills/meeting-package/SKILL.md",
+        "skills/presentation-story/SKILL.md",
+        "skills/presentation-story/deck-contract.yaml",
+        "skills/presentation-story/presentation-style.yaml",
         "scripts/reconcile_managed_runtime.py",
         "scripts/start-ui.ps1",
         "evidence-managed-agent.json",
@@ -61,6 +64,12 @@ def main() -> int:
     ).read_bytes() == (
         ROOT / "src" / "meeting_agent" / "skills" / "meeting-package" / "SKILL.md"
     ).read_bytes()
+    for name in ("SKILL.md", "deck-contract.yaml", "presentation-style.yaml"):
+        assert (
+            ROOT / "skills" / "presentation-story" / name
+        ).read_bytes() == (
+            ROOT / "src" / "meeting_agent" / "skills" / "presentation-story" / name
+        ).read_bytes()
     deployment = yaml.safe_load((ROOT / "azure.yaml").read_text(encoding="utf-8"))
     service = deployment["services"]["managed-meeting-agent"]
     assert service["host"] == "azure.ai.agent"

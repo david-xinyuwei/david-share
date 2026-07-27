@@ -16,10 +16,12 @@ FEATURES = "HostedAgents=V1Preview,Toolboxes=V1Preview,Skills=V1Preview"
 FOUNDRY_USER_ROLE_ID = "53ca6127-db72-4b80-b1b0-d745d6d5456d"
 TOOL_SEARCH_TYPE = "toolbox_search_preview"
 SKILL_CONTEXT_INSTRUCTION = (
-    "The meeting-package Skill instructions are already available in your context. "
-    "Do not call tool_search or call_tool for this Skill; apply the Skill "
+    "The meeting-package and presentation-story Skill instructions are already "
+    "available in your context. Do not call tool_search or call_tool for these "
+    "Skills; apply the Skill "
     "instructions directly."
 )
+DEFAULT_SKILL_NAMES = ("meeting-package", "presentation-story")
 
 
 class AzRunner:
@@ -50,7 +52,12 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--agent-name", default="managed-meeting-agent")
     parser.add_argument("--toolbox-name", default="managed-meeting-agent")
-    parser.add_argument("--skill-name", default="meeting-package")
+    parser.add_argument(
+        "--skill-name",
+        action="append",
+        dest="skill_names",
+        help="Required Toolbox Skill name; repeat for multiple Skills.",
+    )
     parser.add_argument("--expected-model", default="gpt-5.4")
     args = parser.parse_args()
 
@@ -60,7 +67,7 @@ def main() -> int:
         values,
         agent_name=args.agent_name,
         toolbox_name=args.toolbox_name,
-        skill_name=args.skill_name,
+        skill_names=tuple(args.skill_names or DEFAULT_SKILL_NAMES),
         expected_model=args.expected_model,
     )
     _atomic_json(args.output, manifest)
@@ -74,7 +81,7 @@ def reconcile(
     *,
     agent_name: str,
     toolbox_name: str,
-    skill_name: str,
+    skill_names: tuple[str, ...],
     expected_model: str,
 ) -> dict[str, Any]:
     project_endpoint = _project_endpoint(values)
@@ -87,7 +94,7 @@ def reconcile(
         runner,
         project_endpoint,
         toolbox_name,
-        skill_name,
+        skill_names,
     )
     toolbox_endpoint = (
         f"{project_endpoint}/toolboxes/{toolbox_name}/versions/"
@@ -143,8 +150,10 @@ def reconcile(
         "managed_agent_name": agent_name,
         "managed_agent_version": str(final["version"]),
         "managed_agent_model": expected_model,
+        "managed_agent_requires_deck_plan": True,
         "toolbox_name": toolbox_name,
         "toolbox_version": str(toolbox_version),
+        "toolbox_skills": list(skill_names),
         "toolbox_endpoint": toolbox_endpoint,
         "toolbox_connection": connection_name,
         "toolbox_connection_auth_type": "AgenticIdentityToken",
@@ -220,50 +229,65 @@ def _ensure_toolbox_version(
     runner: AzRunner,
     project_endpoint: str,
     toolbox_name: str,
-    skill_name: str,
+    skill_names: tuple[str, ...],
 ) -> str:
     versions = _toolbox_versions(runner, project_endpoint, toolbox_name)
-    for version in versions:
-        if _compatible_toolbox(version, skill_name):
-            return str(version["version"])
-
     latest = versions[0]
+    if _compatible_toolbox(latest, skill_names):
+        return str(latest["version"])
+
     skills = copy.deepcopy(latest.get("skills") or [])
-    if not any(
-        isinstance(skill, dict) and skill.get("name") == skill_name for skill in skills
-    ):
-        raise RuntimeError(f"Toolbox does not reference required Skill {skill_name!r}")
-    tools = copy.deepcopy(latest.get("tools") or [])
-    tools.append(
-        {
-            "type": TOOL_SEARCH_TYPE,
-            "name": "toolbox-search",
-            "description": "Discover available meeting package capabilities",
-        }
+    present = {
+        str(skill.get("name"))
+        for skill in skills
+        if isinstance(skill, dict) and skill.get("name")
+    }
+    missing = [name for name in skill_names if name not in present]
+    skills.extend(
+        {"type": "skill_reference", "name": name}
+        for name in missing
     )
+    tools = copy.deepcopy(latest.get("tools") or [])
+    if not any(
+        isinstance(tool, dict) and tool.get("type") == TOOL_SEARCH_TYPE
+        for tool in tools
+    ):
+        tools.append(
+            {
+                "type": TOOL_SEARCH_TYPE,
+                "name": "toolbox-search",
+                "description": "Discover meeting and presentation capabilities",
+            }
+        )
     created = _data_request(
         runner,
         "post",
         f"{project_endpoint}/toolboxes/{toolbox_name}/versions?api-version=v1",
         {
-            "description": "Meeting package Skill with Prompt Agent tool discovery",
+            "description": "Meeting and presentation Skills with Prompt Agent discovery",
             "tools": tools,
             "skills": skills,
         },
     )
-    if not _compatible_toolbox(created, skill_name):
-        raise RuntimeError("Created Toolbox version does not satisfy the Skill contract")
+    if not _compatible_toolbox(created, skill_names):
+        raise RuntimeError("Created Toolbox version does not satisfy the Skills contract")
     return str(created["version"])
 
 
-def _compatible_toolbox(version: dict[str, Any], skill_name: str) -> bool:
+def _compatible_toolbox(
+    version: dict[str, Any],
+    skill_names: tuple[str, ...],
+) -> bool:
     tools = version.get("tools") or []
     skills = version.get("skills") or []
+    present = {
+        str(skill.get("name"))
+        for skill in skills
+        if isinstance(skill, dict) and skill.get("name")
+    }
     return any(
         isinstance(tool, dict) and tool.get("type") == TOOL_SEARCH_TYPE for tool in tools
-    ) and any(
-        isinstance(skill, dict) and skill.get("name") == skill_name for skill in skills
-    )
+    ) and set(skill_names) <= present
 
 
 def _ensure_agentic_connection(

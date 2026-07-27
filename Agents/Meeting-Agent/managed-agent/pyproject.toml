@@ -16,6 +16,7 @@ dependencies = [
   "httpx==0.28.1",
   "Pillow==12.3.0",
   "pydantic==2.10.4",
+  "PyYAML==6.0.3",
   "python-pptx==1.0.2"
 ]
 
@@ -26,7 +27,7 @@ meeting-agent = "meeting_agent.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-meeting_agent = ["skills/*/*.md", "templates/*.zip"]
+meeting_agent = ["skills/*/*.md", "skills/*/*.yaml", "templates/*.zip"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

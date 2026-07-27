@@ -39,13 +39,28 @@ def main() -> int:
     assert len(skill["canonical_lf_sha256"]) == 64
     assert skill["cloud_matches_local_at_validation_time"] is True
     assert skill["canonical_text_matches_public_v2_source"] is True
-    canonical_skill = ROOT / "skills" / "meeting-package" / "SKILL.md"
-    packaged_skill = ROOT / "src" / "meeting_agent" / "skills" / "meeting-package" / "SKILL.md"
-    assert canonical_skill.read_bytes() == packaged_skill.read_bytes()
-    canonical_text = canonical_skill.read_text(encoding="utf-8").replace("\r\n", "\n")
-    assert hashlib.sha256(canonical_text.encode()).hexdigest() == skill[
+    historical_skill = (
+        ROOT / "evidence" / "managed-live" / "meeting-package-v2-SKILL.md"
+    )
+    historical_text = historical_skill.read_text(encoding="utf-8").replace("\r\n", "\n")
+    assert hashlib.sha256(historical_text.encode()).hexdigest() == skill[
         "canonical_lf_sha256"
     ]
+    current_skills = {
+        "meeting-package": ("SKILL.md",),
+        "presentation-story": (
+            "SKILL.md",
+            "deck-contract.yaml",
+            "presentation-style.yaml",
+        ),
+    }
+    for skill_name, filenames in current_skills.items():
+        for filename in filenames:
+            source = ROOT / "skills" / skill_name / filename
+            packaged = (
+                ROOT / "src" / "meeting_agent" / "skills" / skill_name / filename
+            )
+            assert source.read_bytes() == packaged.read_bytes()
 
     scenarios = json.loads((ROOT / "scenario-manifest.json").read_text(encoding="utf-8"))
     assert scenarios["scenarios"]["windows-managed-runtime"]["fallback"] is False
@@ -57,14 +72,36 @@ def main() -> int:
             encoding="utf-8"
         )
     )
+    assert parity["schema_version"] == 2
     assert parity["baseline_commit"] == "667357dac6ee2dc30102d572c458c77861112bea"
-    assert len(parity["entries"]) == 8
+    assert len(parity["entries"]) == 6
     for entry in parity["entries"]:
         managed_relative = entry["managed_path"].removeprefix(
             "Agents/Meeting-Agent/managed-agent/"
         )
         managed_path = ROOT / managed_relative
         assert hashlib.sha256(managed_path.read_bytes()).hexdigest() == entry["sha256"]
+    intentional = parity["intentional_differences"]
+    assert len(intentional) == 2
+    assert {
+        entry["managed_path"].removeprefix(
+            "Agents/Meeting-Agent/managed-agent/"
+        )
+        for entry in intentional
+    } == {
+        "src/meeting_agent/models.py",
+        "src/meeting_agent/hosted_pipeline.py",
+    }
+    for entry in intentional:
+        managed_relative = entry["managed_path"].removeprefix(
+            "Agents/Meeting-Agent/managed-agent/"
+        )
+        managed_path = ROOT / managed_relative
+        assert hashlib.sha256(managed_path.read_bytes()).hexdigest() == (
+            entry["managed_sha256"]
+        )
+        assert entry["baseline_sha256"] != entry["managed_sha256"]
+        assert entry["reason"]
 
     artifacts = json.loads(
         (ROOT / "evidence" / "managed-live" / "artifact-validation.json").read_text(

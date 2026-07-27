@@ -3,7 +3,7 @@ from copy import deepcopy
 import pytest
 from pydantic import ValidationError
 
-from meeting_agent.models import MeetingAnalysis, MeetingEvent, MeetingEventKind
+from meeting_agent.models import DeckPlan, MeetingAnalysis, MeetingEvent, MeetingEventKind
 
 BASE_EVENT = {
     "event_id": "event-001",
@@ -114,3 +114,62 @@ def test_rejects_semantically_empty_analysis_fields(override: dict[str, object])
 
     with pytest.raises(ValidationError):
         MeetingAnalysis.model_validate(payload)
+
+
+def test_accepts_legacy_v6_analysis_without_deck_plan() -> None:
+    analysis = MeetingAnalysis.model_validate(BASE_ANALYSIS)
+
+    assert analysis.deck_plan is None
+
+
+def test_accepts_strict_six_slide_deck_plan() -> None:
+    deck_plan = DeckPlan.model_validate(
+        {
+            "schema_version": 1,
+            "cover": {"kind": "cover", "title": "Pilot", "subtitle": "Summary"},
+            "overview": {"kind": "overview", "summary": "Executive summary"},
+            "topics": {"kind": "topics", "items": ["Security", "Rollout"]},
+            "decisions_actions": {
+                "kind": "decisions_actions",
+                "decisions": ["Launch the pilot"],
+                "actions": [{"description": "Prepare the checklist"}],
+            },
+            "mind_map": {"kind": "mind_map", "title": "Pilot landscape"},
+            "next_steps": {
+                "kind": "next_steps",
+                "questions": ["Who approves access?"],
+                "next_step": "Confirm the approver",
+            },
+        }
+    )
+
+    assert deck_plan.cover.kind == "cover"
+    assert deck_plan.next_steps.kind == "next_steps"
+
+
+@pytest.mark.parametrize(
+    "override",
+    [
+        {"unknown": True},
+        {"topics": {"kind": "topics", "items": [str(index) for index in range(7)]}},
+        {"cover": {"kind": "overview", "title": "Pilot", "subtitle": "Summary"}},
+    ],
+)
+def test_rejects_invalid_deck_plan(override: dict[str, object]) -> None:
+    payload = {
+        "schema_version": 1,
+        "cover": {"kind": "cover", "title": "Pilot", "subtitle": "Summary"},
+        "overview": {"kind": "overview", "summary": "Executive summary"},
+        "topics": {"kind": "topics", "items": []},
+        "decisions_actions": {
+            "kind": "decisions_actions",
+            "decisions": [],
+            "actions": [],
+        },
+        "mind_map": {"kind": "mind_map", "title": "Pilot landscape"},
+        "next_steps": {"kind": "next_steps", "questions": [], "next_step": None},
+    }
+    payload.update(override)
+
+    with pytest.raises(ValidationError):
+        DeckPlan.model_validate(payload)

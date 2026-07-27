@@ -100,8 +100,8 @@ and [Hosted agents](https://learn.microsoft.com/azure/foundry/agents/concepts/ho
 | Agent resource | None; the application is the orchestrator | Foundry Prompt Agent v6 | Agent behavior can be deployed and versioned independently |
 | Model loop owner | Local application code | Foundry-managed GHCP harness | The principal responsibility transfer |
 | Instructions | Constructed by local application code | Deployed with the Agent | Instructions become a managed, versioned asset |
-| Meeting and slide-guidance method | Local `SKILL.md` injected into requests | Versioned Toolbox references the independently versionable `meeting-package` Skill | Model-facing method moves out of each wrapper; v6 evidence does not prove an immutable Skill-version pin |
-| PowerPoint Deck Plan and visual format | Packaged template and deterministic renderer | The same packaged template and deterministic renderer | Field mapping, fallbacks, limits, fonts, colors, placeholders, and coordinates are not delegated to the LLM |
+| Meeting and presentation methods | Local `SKILL.md` injected into requests | Toolbox references separate `meeting-package` and `presentation-story` Skills | Meeting analysis and presentation writing evolve independently; dual-Skill live evidence requires a new Agent version |
+| PowerPoint contract and visual format | Packaged template and deterministic renderer | Strict `DeckPlan`, external Deck/Style YAML, and packaged template drive the renderer | Story, mapping, visual tokens, and geometry have separate versioned owners |
 | Tool catalog | Registered and wired by each application | Curated and versioned through Toolbox | Shared tools can be reused across agents and clients |
 | Tool loop | Application interprets and continues tool calls | Managed harness selects and continues tool calls | Less agent-loop code in the wrapper |
 | Model authentication | API key in the local backend | Entra authentication to the Agent | The Managed customer path carries no model API key |
@@ -135,7 +135,7 @@ The comparison is based on executable evidence, not architecture diagrams alone.
 | PowerPoint | Editable six-slide PPTX | Editable six-slide PPTX | Equivalent artifact contract |
 | Email | `X-Unsent: 1`, two attachments, human Send | `X-Unsent: 1`, two attachments, human Send | Equivalent safety boundary |
 | Browser | Desktop/mobile UI, zero reported console errors in the dated live evidence | Windows ARM64 desktop/mobile `2/2`, zero console errors | Both live paths validated |
-| Shared deterministic core | Baseline | Eight modules match byte-for-byte | Business invariants preserved |
+| Shared deterministic behavior | Baseline | Schema, artifact, draft, security, and UI contracts are regression-tested | Presentation separation intentionally changes models/pipeline/artifact modules |
 
 Evidence:
 
@@ -154,17 +154,16 @@ These records prove functional behavior and responsibility transfer. They are no
 
 1. The wrapper no longer stores a model API key for the Managed path.
 2. Calls are pinned to an Agent name and immutable version.
-3. Instructions and the `meeting-package` Skill are deployable assets rather than request-time prompt assembly.
+3. Instructions, `meeting-package`, and `presentation-story` are deployable assets rather than request-time prompt assembly.
 4. Toolbox access uses an Agent-specific identity with project-scoped RBAC.
 5. The application gives up the model loop while retaining strict deterministic controls.
 6. The user workflow and artifact safety contract remain intact after that responsibility transfer.
 
-The repository proves that model-facing slide **guidance** is an independently versionable behavior asset in
-the Managed architecture. It does not claim that the Skill is the runtime
-framework or that the entire PowerPoint implementation moved into Foundry. The
-actual Deck Plan, visual template, and renderer intentionally remain deterministic
-application assets. A dedicated `presentation-story` Skill and `DeckPlan` schema are a
-future versioning boundary, not a v6 capability.
+Current source implements `presentation-story`, strict `DeckPlan`, external
+Deck/Style YAML, and a deterministic renderer. Skills are behavior assets, not
+the runtime framework. The live v6 evidence predates the dual-Skill contract;
+the next deployed Agent version must prove both Skill discovery and Agent-authored
+`deck_plan` output.
 
 ### Potential, not yet claimed as complete here
 

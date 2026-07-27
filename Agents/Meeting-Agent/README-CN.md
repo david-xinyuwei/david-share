@@ -32,12 +32,12 @@ https://github.com/user-attachments/assets/023f22f0-31f2-4039-85f0-e22712770ff2
 | 实现位置 | Repo根目录 | 同一产品Repo中的`managed-agent/`源码目录 |
 | Agent定义 | 无；应用本身承担Orchestrator | [`agent.yaml`](managed-agent/agent.yaml)定义Foundry Agent资源 |
 | Instructions | Python代码构造System Message | [`instructions.md`](managed-agent/instructions.md)随Agent部署 |
-| Skill | Python读取本机`SKILL.md`并在每次请求中注入 | [`meeting-package`](managed-agent/skills/meeting-package/SKILL.md)可独立版本化，并由版本化 Toolbox 引用；当前 v6 证据没有证明已锁定不可变 Skill Version |
+| Skill | Python读取本机`SKILL.md`并在每次请求中注入 | Toolbox 引用独立的 [`meeting-package`](managed-agent/skills/meeting-package/SKILL.md) 与 [`presentation-story`](managed-agent/skills/presentation-story/SKILL.md) 行为资产；当前 v6 Live 证据只覆盖前者 |
 | 模型循环责任方 | 本机应用代码 | Foundry托管的GHCP Harness |
 | 调用方式 | 直接调用Azure OpenAI Responses | 应用引用Agent name和不可变version；Endpoint只是传输入口，不是Agent本身 |
 | 认证 | 本机Backend进程使用API Key | Responses使用Entra ID，Toolbox使用Agentic Identity；客户主路径不使用模型API Key |
-| 产物与UI契约 | JSON、Mermaid、SVG、PNG、可编辑PPTX、EML、浏览器UI、New Outlook草稿 | 完全相同；八个共用核心模块逐字节一致 |
-| PowerPoint责任 | 本地Skill提供内容指导，本地模板/Renderer生成PPT | Toolbox Skill指导模型生成适合六页结构的内容；确定性模板/Renderer负责字段到页面的映射、Fallback、视觉格式和可编辑PPTX生成 |
+| 产物与UI契约 | JSON、Mermaid、SVG、PNG、可编辑PPTX、EML、浏览器UI、New Outlook草稿 | 用户契约一致；六个共用模块保持逐字节一致，Models与Hosted Pipeline为DeckPlan有意扩展 |
+| PowerPoint责任 | 本地Skill提供内容指导，本地模板/Renderer生成PPT | `presentation-story`负责写作方法；严格`DeckPlan`、外置Deck/Style YAML与PPTX Template驱动确定性渲染 |
 | 客户代码责任 | 负责模型请求构造与编排 | 负责事件校验、产物与Outlook交接；Foundry负责模型循环 |
 | 运维变化 | Prompt、Skill加载、模型调用、Key和解析都跟随应用发布 | Instructions和Skill成为平台版本化资产；应用只保留更小的确定性责任边界 |
 
@@ -51,18 +51,18 @@ Managed Agent不是第二套UI，也不只是一个AI Endpoint。它是通过`ag
 
 1. [`agent.yaml`](managed-agent/agent.yaml)：Agent kind、公开名称、描述和模型。
 2. [`instructions.md`](managed-agent/instructions.md)：由Agent持有的稳定证据边界和安全策略。
-3. [`skills/meeting-package/SKILL.md`](managed-agent/skills/meeting-package/SKILL.md)：可复用会议分析方法，作为版本化Skill由Toolbox MCP提供。
+3. [`meeting-package`](managed-agent/skills/meeting-package/SKILL.md)与[`presentation-story`](managed-agent/skills/presentation-story/SKILL.md)：分别管理会议分析和六页写作方法，通过Toolbox MCP提供。
 4. [`ManagedAgentAnalyzer`](managed-agent/src/meeting_agent/analyzers.py)：很薄的Entra Adapter，只负责提交会议证据、锁定Agent版本，并校验返回的`MeetingAnalysis`契约。
 
 本机应用继续负责应当保持确定性的部分：事件校验、排序与幂等、文件生成、路径安全、浏览器工作区，以及人工控制的Outlook交接。
 
-当前 Managed v6 已把 PowerPoint **内容故事线**松耦合到版本化 `meeting-package` Skill，但还没有把整个 Presentation Domain 独立出来。后续若增加专用 `presentation-story` Skill 与 `DeckPlan` Schema，必须发布新的 Skill、Toolbox 和 Agent Version。字体、颜色、命名占位符和 Shape 几何继续由版本化模板与确定性 Renderer 管理，而不是交给 LLM Prompt 猜测。
+当前源码已完整拆分 Presentation Domain：`presentation-story`负责六页写作方法，`DeckPlan`是严格交换契约，Deck/Style YAML负责映射与视觉Token，PPTX Template负责几何。已部署v6证据早于本次拆分；新的Skill/Toolbox/Agent Version仍需Live验收。
 
 ### 这个Repo必须证明什么
 
 | 声明 | Repo中的证明方式 |
 |---|---|
-| 功能不回退 | 两条路径共用事件、Session、Artifact、UI和Outlook契约；八个共用模块SHA-256一致 |
+| 功能不回退 | 可执行事件、Session、Artifact、UI和Outlook契约，加上记录六个相等模块与两个DeckPlan有意差异的Parity Manifest |
 | 结果随会议输入变化 | 两份内容明显不同的会议必须生成不同的Analysis与Artifact Hash |
 | Managed部署真实存在 | Repo中的Agent、Instructions和Skill必须部署为新的不可变Foundry Agent版本，并达到`active`状态 |
 | Managed调用真实发生 | 已部署版本必须返回自身Agent Reference和严格`MeetingAnalysis` JSON，认证使用Entra |
@@ -84,7 +84,7 @@ Repo源码已使用与Classic路径相同的GPT-5.4模型系列重新部署。Pr
 | 跨输入行为 | 产品规划与运维复盘生成不同标题、Analysis Hash、思维导图、PPTX Hash和EML Hash |
 | 产物契约 | 两次运行均生成非空1280x720 PNG、可编辑六页PPTX，以及`X-Unsent: 1`、0收件人、2附件的EML草稿 |
 | 浏览器工作流 | 使用Windows ARM64原生Node与Edge完成真实GPT-5.4 Playwright桌面/移动端`2/2`，0 Console Error |
-| 共用确定性行为 | 八个核心模块继续与固定Classic baseline逐字节一致 |
+| 共用确定性行为 | 六个核心模块继续逐字节一致；Models与Hosted Pipeline记录Baseline/Current Hash及DeckPlan差异原因 |
 
 这证明了合同与工作流层面的功能等价；它**不代表**两条编排路径会生成逐字相同的文案，也不把Preview能力包装成永久生产SLA。
 

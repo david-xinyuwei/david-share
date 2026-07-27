@@ -5,6 +5,7 @@ from email.parser import BytesParser
 from meeting_agent.hosted_models import HostedMeetingRequest
 from meeting_agent.hosted_pipeline import build_hosted_run, stream_hosted_run
 from meeting_agent.models import MeetingEvent, MeetingEventKind
+from meeting_agent.presentation import ensure_deck_plan
 from tests.support import StaticFixtureAnalyzer, sample_analysis
 
 
@@ -37,12 +38,17 @@ def test_hosted_run_generates_session_downloads(tmp_path):
     response = build_hosted_run(request, tmp_path, StaticFixtureAnalyzer(fixture))
 
     assert response.session_id == "session-1"
-    assert response.analysis == fixture
+    assert response.analysis == ensure_deck_plan(fixture)
     assert response.automatic_send is False
     assert response.next_state == "DRAFT_READY_MANUAL_SEND_REQUIRED"
-    assert {"analysis", "mind_map_png", "presentation", "eml", "source"} <= set(
-        response.artifacts
-    )
+    assert {
+        "analysis",
+        "deck_plan",
+        "mind_map_png",
+        "presentation",
+        "eml",
+        "source",
+    } <= set(response.artifacts)
     for artifact in response.artifacts.values():
         path = tmp_path / artifact.path
         assert path.is_file()

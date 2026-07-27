@@ -84,6 +84,8 @@ def test_uses_entra_agent_reference_and_strict_analysis_contract(
         }
         assert payload["stream"] is False
         assert "MEETING_ANALYSIS_SCHEMA=" in payload["input"]
+        assert "legacy Agent may omit deck_plan" in payload["input"]
+        assert '"required":["title","summary","mind_map"]' in payload["input"]
         assert "untrusted evidence" in payload["input"]
         assert "transcript.partial" not in payload["input"]
         assert "Azure OpenAI API" not in payload["input"]
@@ -324,3 +326,30 @@ def test_rejects_unknown_credential_mode(monkeypatch: pytest.MonkeyPatch) -> Non
 
     with pytest.raises(RuntimeError, match="must be 'azure-cli' or 'default'"):
         ManagedAgentAnalyzer()
+
+
+def test_new_runtime_requires_agent_authored_deck_plan(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    configure(monkeypatch)
+    monkeypatch.setenv("MANAGED_AGENT_REQUIRE_DECK_PLAN", "true")
+    def handler(request: httpx.Request) -> httpx.Response:
+        prompt = json.loads(request.content)["input"]
+        assert "presentation-story Skill" in prompt
+        assert "required six-slide deck_plan" in prompt
+        assert '"deck_plan"' in prompt
+        return httpx.Response(200, json=completed_response())
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    analyzer = ManagedAgentAnalyzer(credential=FakeCredential(), http_client=client)
+
+    with pytest.raises(RuntimeError, match="omitted required deck_plan"):
+        analyzer.analyze(load_jsonl(ROOT / "examples" / "product-planning.jsonl"))
+
+
+def test_rejects_invalid_deck_plan_flag(monkeypatch: pytest.MonkeyPatch) -> None:
+    configure(monkeypatch)
+    monkeypatch.setenv("MANAGED_AGENT_REQUIRE_DECK_PLAN", "sometimes")
+
+    with pytest.raises(RuntimeError, match="must be true or false"):
+        ManagedAgentAnalyzer(credential=FakeCredential())
