@@ -136,7 +136,7 @@ sequenceDiagram
 		A->>T: Renew lease
 		A->>P: Commit one business phase and checkpoint
 	end
-	A--xA: Process disappears; lease renewal stops
+	A--xA: Process disappears, lease renewal stops
 	R->>T: Detect expired running lease
 	R->>T: Compare-and-set reclaim (generation n+1)
 	T->>B: Same work ID, input, metadata, recovery entry
