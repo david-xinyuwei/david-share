@@ -28,6 +28,7 @@ def test_customer_package_includes_test_tree() -> None:
     assert "tests/test_hosted_api.py" in packaged_paths
     assert "tests/e2e_server.py" in packaged_paths
     assert ".agentignore" in packaged_paths
+    assert "skills/mind-map-story/SKILL.md" in packaged_paths
     assert (
         "evidence/managed-live-gpt54/presentation-skill-v9-validation.json"
         in packaged_paths

@@ -80,8 +80,9 @@ def main() -> int:
             (
                 "Managed Harness",
                 "Toolbox MCP Endpoint",
-                "Managed Sandbox",
-                "does not run its scripts",
+                "Managed Hand / Sandbox",
+                "built-in Bash · Shell · Execute Code",
+                "Sandbox validation requires West US 2",
             ),
         ),
         (
@@ -89,8 +90,9 @@ def main() -> int:
             (
                 "Managed Harness",
                 "Toolbox MCP Endpoint",
-                "Managed Sandbox",
-                "未使用 Managed Sandbox",
+                "Managed Hand / Sandbox",
+                "内置 Bash · Shell · Execute Code",
+                "Sandbox 验收必须使用 West US 2",
             ),
         ),
     ):

@@ -22,6 +22,7 @@ def main() -> int:
         "instructions.md",
         "scenario-manifest.json",
         "skills/meeting-package/SKILL.md",
+        "skills/mind-map-story/SKILL.md",
         "skills/presentation-story/SKILL.md",
         "skills/presentation-story/references/deck-contract.yaml",
         "skills/presentation-story/assets/presentation-style.yaml",
@@ -63,6 +64,11 @@ def main() -> int:
         ROOT / "skills" / "meeting-package" / "SKILL.md"
     ).read_bytes() == (
         ROOT / "src" / "meeting_agent" / "skills" / "meeting-package" / "SKILL.md"
+    ).read_bytes()
+    assert (
+        ROOT / "skills" / "mind-map-story" / "SKILL.md"
+    ).read_bytes() == (
+        ROOT / "src" / "meeting_agent" / "skills" / "mind-map-story" / "SKILL.md"
     ).read_bytes()
     for name in (
         "SKILL.md",

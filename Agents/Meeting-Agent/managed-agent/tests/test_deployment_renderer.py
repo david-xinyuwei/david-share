@@ -53,6 +53,9 @@ def test_renderer_resolves_private_values_outside_public_source(tmp_path: Path) 
     assert (output_dir / "skills" / "meeting-package" / "SKILL.md").read_bytes() == (
         ROOT / "skills" / "meeting-package" / "SKILL.md"
     ).read_bytes()
+    assert (output_dir / "skills" / "mind-map-story" / "SKILL.md").read_bytes() == (
+        ROOT / "skills" / "mind-map-story" / "SKILL.md"
+    ).read_bytes()
     for relative in (
         "skills/presentation-story/SKILL.md",
         "skills/presentation-story/references/deck-contract.yaml",
@@ -67,6 +70,7 @@ def test_renderer_resolves_private_values_outside_public_source(tmp_path: Path) 
         "agent.yaml",
         "instructions.md",
         "skills/meeting-package/SKILL.md",
+            "skills/mind-map-story/SKILL.md",
         "skills/presentation-story/SKILL.md",
         "skills/presentation-story/references/deck-contract.yaml",
         "skills/presentation-story/assets/presentation-style.yaml",

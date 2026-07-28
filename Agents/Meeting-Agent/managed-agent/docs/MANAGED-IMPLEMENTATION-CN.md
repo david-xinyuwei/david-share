@@ -102,9 +102,9 @@ Microsoft Learn 描述了 Create、Test、Version、Trace、Evaluate、Publish �
 
 客户主路径不存在AOAI API Key fallback。静态fixture analyzer只用于测试，生产Host和CLI无法选择。浏览器永远拿不到Azure token。
 
-![Skill、Toolbox 与条件式 Sandbox 关系](../images/managed-agent-skill-toolbox-sandbox-flow-cn.svg)
+![Skill、Toolbox 与 Managed Sandbox 关系](../images/managed-agent-skill-toolbox-sandbox-flow-cn.svg)
 
-图中的 Sandbox 分支属于条件能力：只有 Agent 显式配置受支持的代码执行或 Sandbox 能力时才适用。当前 Meeting Agent v9 只配置了 Skill Reference 与 Toolbox Search，没有 Sandbox/代码执行 Tool；PPTX 与 EML Renderer 仍在本机运行。
+Managed Harness 内置按需 Hand/Sandbox 执行面，用于 Skill 代码、Shell、CLI 和文件操作；它与 Toolbox 能力目录分离，也不是常驻计算。当前 Meeting Agent v9 的 PPTX 与 EML Renderer 仍在本机运行，且带日期的 East US 2 证据没有实际调用 Private Preview Hand/Sandbox。Sandbox Ready 必须在 West US 2 环境通过真实内置 Hand Tool 调用单独证明。
 
 ## 功能范围
 

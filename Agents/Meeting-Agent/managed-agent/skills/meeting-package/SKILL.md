@@ -1,6 +1,6 @@
 ---
 name: meeting-package
-description: Turn meeting evidence into structured notes, action items, and a concise mind map.
+description: Turn meeting evidence into structured notes, decisions, action items, and open questions.
 ---
 
 # Meeting Package Skill
@@ -21,14 +21,3 @@ description: Turn meeting evidence into structured notes, action items, and a co
 - Phrase decisions as completed choices, not discussion themes.
 - Phrase action items as verbs; include owner and due date only when explicitly stated.
 - Keep open questions actionable and remove rhetorical questions already answered in the meeting.
-
-## Mind map
-
-- Use the meeting title as the root.
-- Create 3-6 meaningful first-level branches from outcomes, decisions, actions, risks, and questions.
-- For detailed project or architecture meetings, prefer 5-6 distinct branches with 2-4 leaves each when evidence supports them.
-- Preserve meaningful trade-offs such as on-device versus cloud processing, automation versus human review, and target versus measured result.
-- Separate user scenarios, workflow or architecture, privacy controls, success metrics, risks, and owner actions when the evidence contains them.
-- Add 1-4 concise evidence-backed leaves per branch.
-- Do not create empty branches or duplicate the same statement across branches.
-- Keep node labels short enough for presentation rendering, ideally under 60 characters.

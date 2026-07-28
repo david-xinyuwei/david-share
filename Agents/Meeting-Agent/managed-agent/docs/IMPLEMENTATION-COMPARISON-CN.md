@@ -37,7 +37,9 @@ flowchart LR
 
 ![Managed Agent、Skill、Toolbox与Sandbox关系](../images/managed-agent-skill-toolbox-sandbox-flow-cn.svg)
 
-上图区分发布关系与运行时控制流：Toolbox 是能力目录与治理入口，Managed Harness 才是运行时控制方。Sandbox 属于条件分支，只有显式配置受支持的代码执行能力时才适用；Sandbox 不是 Toolbox 的下级。当前 Meeting Agent v9 已验证 Harness、Toolbox v5 和两个 Skill v3，但未配置 Sandbox/代码执行 Tool，PPTX/EML Renderer 仍在本机执行。
+上图区分发布关系与运行时控制流：Toolbox 是能力目录与治理入口，Managed Harness 才是运行时控制方，并内置按需 Hand/Sandbox 执行面，用于 Skill 代码、Shell、CLI 和文件操作。Sandbox 不是 Toolbox 的下级，也不是常驻计算。当前 Meeting Agent v9 已验证 Harness、Toolbox v5 和两个 Skill v3，PPTX/EML Renderer 仍在本机执行；带日期的 v9 证据没有实际调用 Hand/Sandbox。
+
+本实现采用的 Private Preview Quickstart 明确要求 Foundry Resource 与 Project 创建在 West US 2。当前 v9 证据来自 East US 2，因此只证明 Agent、双 Skill Toolbox、严格 `DeckPlan` 和浏览器工作流，不能证明 Private Preview Hand/Sandbox 已 Ready。后续必须在 West US 2 环境真实通过 Bash、Shell、Read File、Execute Code 和 Stage to Hand 调用后，才能在 Repo 中声明 Sandbox 验收通过。
 
 ## `GHCP Harness` 到底是什么
 

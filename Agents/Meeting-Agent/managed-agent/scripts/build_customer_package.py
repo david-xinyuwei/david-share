@@ -119,6 +119,7 @@ REQUIRED_FILES = {
     "scripts/reconcile_managed_runtime.py",
     "scripts/start-ui.ps1",
     "skills/meeting-package/SKILL.md",
+    "skills/mind-map-story/SKILL.md",
     "skills/presentation-story/SKILL.md",
     "skills/presentation-story/references/deck-contract.yaml",
     "skills/presentation-story/assets/presentation-style.yaml",

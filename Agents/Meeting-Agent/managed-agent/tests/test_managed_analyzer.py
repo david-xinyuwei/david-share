@@ -163,6 +163,67 @@ def test_rejects_non_object_success_response(monkeypatch: pytest.MonkeyPatch) ->
         analyzer.analyze(load_jsonl(ROOT / "examples" / "product-planning.jsonl"))
 
 
+def test_retries_completed_response_without_output(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    configure(monkeypatch)
+    calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            empty = completed_response()
+            empty["output"] = []
+            return httpx.Response(200, json=empty)
+        return httpx.Response(200, json=completed_response())
+
+    monkeypatch.setattr(analyzers.time, "sleep", lambda _: None)
+    analyzer = ManagedAgentAnalyzer(
+        credential=FakeCredential(),
+        http_client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+
+    assert analyzer.analyze(load_jsonl(ROOT / "examples" / "product-planning.jsonl"))
+    assert calls == 2
+
+
+def test_retries_stream_without_events(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    configure(monkeypatch)
+    serialized = analysis().model_dump_json()
+    calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return httpx.Response(200, text="", headers={"Content-Type": "text/event-stream"})
+        events = [
+            {"type": "response.output_text.delta", "delta": serialized},
+            {"type": "response.completed", "response": completed_response()},
+        ]
+        body = "".join(
+            f"event: {event['type']}\ndata: {json.dumps(event)}\n\n"
+            for event in events
+        )
+        return httpx.Response(200, text=body, headers={"Content-Type": "text/event-stream"})
+
+    monkeypatch.setattr(analyzers.time, "sleep", lambda _: None)
+    analyzer = ManagedAgentAnalyzer(
+        credential=FakeCredential(),
+        http_client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+
+    result, _ = analyzer.analyze_stream(
+        load_jsonl(ROOT / "examples" / "product-planning.jsonl"),
+        lambda _: None,
+    )
+    assert result == analysis()
+    assert calls == 2
+
+
 def test_surfaces_managed_error_code_and_message(monkeypatch: pytest.MonkeyPatch) -> None:
     configure(monkeypatch)
     client = httpx.Client(

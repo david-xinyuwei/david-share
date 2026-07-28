@@ -37,7 +37,9 @@ The shared deterministic pipeline remains responsible for event validation, orde
 
 ![Managed Agent, Skill, Toolbox, and Sandbox relationship](../images/managed-agent-skill-toolbox-sandbox-flow.svg)
 
-The diagram separates publishing relationships from runtime control flow. Toolbox is the governed capability catalog; Managed Harness owns runtime control. The Sandbox branch is conditional and applies only when a supported code-execution capability is explicitly configured; Sandbox is not a Toolbox child. Meeting Agent v9 validates the Harness, Toolbox v5, and both Skill v3 packages, while PPTX/EML rendering remains local and no Sandbox/code-execution Tool is configured.
+The diagram separates publishing relationships from runtime control flow. Toolbox is the governed capability catalog; Managed Harness owns runtime control and includes an on-demand Hand/Sandbox execution surface for Skill code, shell commands, CLIs, and file operations. Sandbox is not a Toolbox child and is not standing compute. Meeting Agent v9 validates the Harness, Toolbox v5, and both Skill v3 packages, while PPTX/EML rendering remains local; the dated v9 evidence did not exercise Hand/Sandbox execution.
+
+The private-preview quickstart used for this implementation requires the Foundry resource and project to be created in West US 2. The current v9 evidence came from an East US 2 project, so it proves the Agent, dual-Skill Toolbox, strict `DeckPlan`, and browser workflow, but it is not evidence that the private-preview Hand/Sandbox path is ready. A West US 2 deployment must separately pass real Bash/Shell/Read File/Execute Code/Stage-to-Hand calls before this repository claims Sandbox readiness.
 
 ## What `GHCP Harness` Means — and What It Does Not Mean
 

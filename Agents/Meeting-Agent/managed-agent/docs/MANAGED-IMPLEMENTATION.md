@@ -140,12 +140,14 @@ pages before using this Preview-dependent implementation for another delivery.
 
 No AOAI API-key fallback exists in the customer path. Static fixture analyzers are test-only and cannot be selected by the production host or CLI. The browser never receives an Azure token.
 
-![Skill, Toolbox, and conditional Sandbox relationship](../images/managed-agent-skill-toolbox-sandbox-flow.svg)
+![Skill, Toolbox, and Managed Sandbox relationship](../images/managed-agent-skill-toolbox-sandbox-flow.svg)
 
-The Sandbox branch in this general relationship is conditional: it applies only
-when an Agent is explicitly configured with a supported code-execution or Sandbox
-capability. This Meeting Agent v9 configuration has Skill references and Toolbox
-Search, but no Sandbox/code-execution Tool. Its PPTX and EML renderers run locally.
+The Managed Harness includes an on-demand Hand/Sandbox execution surface for
+Skill code, shell commands, CLIs, and file operations. It is separate from the
+Toolbox catalog and is not standing compute. This Meeting Agent v9 keeps its PPTX
+and EML renderers local, and its dated East US 2 evidence did not exercise the
+private-preview Hand/Sandbox path. Sandbox readiness requires a separate West US 2
+deployment and real built-in Hand tool calls.
 
 ## Functional Scope
 
