@@ -74,6 +74,31 @@ def main() -> int:
     assert "Managed Agent Analysis" in xml_text
     assert "no API-key fallback" in xml_text
     assert "AOAI Responses Analysis" not in xml_text
+    for filename, markers in (
+        (
+            "managed-agent-skill-toolbox-sandbox-flow.svg",
+            (
+                "Managed Harness",
+                "Toolbox MCP Endpoint",
+                "Managed Sandbox",
+                "does not run its scripts",
+            ),
+        ),
+        (
+            "managed-agent-skill-toolbox-sandbox-flow-cn.svg",
+            (
+                "Managed Harness",
+                "Toolbox MCP Endpoint",
+                "Managed Sandbox",
+                "未使用 Managed Sandbox",
+            ),
+        ),
+    ):
+        relationship = ElementTree.parse(ROOT / "images" / filename).getroot()
+        assert relationship.attrib["viewBox"] == "0 0 1600 1000"
+        relationship_text = ElementTree.tostring(relationship, encoding="unicode")
+        for marker in markers:
+            assert marker in relationship_text, f"{filename}: {marker}"
     print("PASS: required bilingual documentation markers and local links are valid.")
     return 0
 

@@ -26,11 +26,15 @@ az account show
   -ManagedAgentEndpoint "https://<account>.services.ai.azure.com/api/projects/<project>/openai/v1/responses" `
   -ManagedAgentName "managed-meeting-agent" `
   -ManagedAgentVersion "<active-version>" `
+  -RequireDeckPlan $true `
   -AzureConfigDir $env:AZURE_CONFIG_DIR
 ```
 
 Use the active version returned by the deployment/reconciliation output; do not
 copy a historical version number from dated evidence.
+Current reconciled versions must keep `-RequireDeckPlan $true`; the launcher also
+uses this strict default when the switch is omitted. Set it to false only for an
+intentional replay of the historical v6 compatibility path.
 
 Open `http://127.0.0.1:4173`, select **Meeting JSON**, upload `examples/meeting-record-stargate.json`, and choose **Generate meeting package**.
 

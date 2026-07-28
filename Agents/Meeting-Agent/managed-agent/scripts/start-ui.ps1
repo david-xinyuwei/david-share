@@ -21,7 +21,7 @@ if (Test-Path -LiteralPath $runtimeManifestPath -PathType Leaf) {
         $RequireDeckPlan = [bool]$runtimeManifest.managed_agent_requires_deck_plan
     }
 }
-if ($null -eq $RequireDeckPlan) { $RequireDeckPlan = $false }
+if ($null -eq $RequireDeckPlan) { $RequireDeckPlan = $true }
 
 if ($env:OS -ne "Windows_NT") {
     throw "start-ui.ps1 must run in Windows PowerShell. WSL cannot open the New Outlook draft."

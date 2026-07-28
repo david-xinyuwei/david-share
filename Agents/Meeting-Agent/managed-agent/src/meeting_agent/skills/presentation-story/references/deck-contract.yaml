@@ -17,7 +17,7 @@ limits:
   list_item_display_width: 180
   next_step_display_width: 150
 empty_states:
-  decisions: No decision recorded
-  actions: No action item was identified in the supplied evidence.
-  questions: No open question recorded
-  next_step: Confirm the action owners and publish the reviewed meeting package.
+  decisions: No decision recorded / 未记录决策
+  actions: No action item identified / 未识别到行动项
+  questions: No open question recorded / 未记录开放问题
+  next_step: No evidence-backed next step / 无证据支持的下一步

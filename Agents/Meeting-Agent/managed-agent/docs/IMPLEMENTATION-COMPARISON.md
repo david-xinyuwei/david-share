@@ -21,10 +21,10 @@ flowchart LR
     UI --> P[Shared deterministic pipeline]
     P -->|Classic| C[Application-owned prompt orchestration]
     C --> M1[GPT-5.4 Responses]
-    P -->|Managed| A[Foundry Prompt Agent v6]
+    P -->|Managed| A[Foundry Prompt Agent v9]
     A --> H[Managed GHCP harness]
     H --> M2[GPT-5.4]
-    H --> T[Toolbox v2 and meeting-package Skill\nanalysis + slide narrative]
+    H --> T[Toolbox v5\nmeeting-package v3 + presentation-story v3]
     M1 --> P
     A --> J[Strict MeetingAnalysis JSON]
     J --> P
@@ -34,6 +34,10 @@ flowchart LR
 ```
 
 The shared deterministic pipeline remains responsible for event validation, ordering, idempotency, strict `MeetingAnalysis` validation, artifact generation, file safety, and the human-controlled Outlook boundary. The LLM does not own these deterministic controls in either implementation.
+
+![Managed Agent, Skill, Toolbox, and Sandbox relationship](../images/managed-agent-skill-toolbox-sandbox-flow.svg)
+
+The diagram separates publishing relationships from runtime control flow. Toolbox is the governed capability catalog; Managed Harness owns runtime control. The Sandbox branch is conditional and applies only when a supported code-execution capability is explicitly configured; Sandbox is not a Toolbox child. Meeting Agent v9 validates the Harness, Toolbox v5, and both Skill v3 packages, while PPTX/EML rendering remains local and no Sandbox/code-execution Tool is configured.
 
 ## What `GHCP Harness` Means — and What It Does Not Mean
 
@@ -97,10 +101,10 @@ and [Hosted agents](https://learn.microsoft.com/azure/foundry/agents/concepts/ho
 |---|---|---|---|
 | Primary invocation target | GPT-5.4 Responses deployment | `managed-meeting-agent` name and immutable version | Classic addresses a model; Managed addresses an Agent resource |
 | Model | GPT-5.4 | GPT-5.4 | The model family is held constant so the runtime boundary can be compared |
-| Agent resource | None; the application is the orchestrator | Foundry Prompt Agent v6 | Agent behavior can be deployed and versioned independently |
+| Agent resource | None; the application is the orchestrator | Foundry Prompt Agent v9 | Agent behavior can be deployed and versioned independently |
 | Model loop owner | Local application code | Foundry-managed GHCP harness | The principal responsibility transfer |
 | Instructions | Constructed by local application code | Deployed with the Agent | Instructions become a managed, versioned asset |
-| Meeting and presentation methods | Local `SKILL.md` injected into requests | Toolbox references separate `meeting-package` and `presentation-story` Skills | Meeting analysis and presentation writing evolve independently; dual-Skill live evidence requires a new Agent version |
+| Meeting and presentation methods | Local `SKILL.md` injected into requests | Toolbox v5 references `meeting-package` v3 and `presentation-story` v3 | Meeting analysis and presentation writing evolve independently; v9 has live dual-Skill evidence |
 | PowerPoint contract and visual format | Packaged template and deterministic renderer | Strict `DeckPlan`, external Deck/Style YAML, and packaged template drive the renderer | Story, mapping, visual tokens, and geometry have separate versioned owners |
 | Tool catalog | Registered and wired by each application | Curated and versioned through Toolbox | Shared tools can be reused across agents and clients |
 | Tool loop | Application interprets and continues tool calls | Managed harness selects and continues tool calls | Less agent-loop code in the wrapper |
@@ -125,7 +129,7 @@ and [Hosted agents](https://learn.microsoft.com/azure/foundry/agents/concepts/ho
 
 The comparison is based on executable evidence, not architecture diagrams alone.
 
-| Gate | Classic direct Responses | Managed Agent v6 | Result |
+| Gate | Classic direct Responses | Managed Agent v9 | Result |
 |---|---|---|---|
 | Real model | GPT-5.4 `2026-03-05` | GPT-5.4 `2026-03-05` | Same model family |
 | Authentication | Key in local backend | Entra to Agent; Agentic identity to Toolbox | Different trust boundary |
@@ -141,9 +145,9 @@ Evidence:
 
 - [Classic live GPT-5.4 validation](../../evidence/aoai-live-validation.json)
 - [Classic cross-input differential](../../evidence/aoai-runtime-differential.json)
-- [Managed v6 runtime](../evidence/managed-live-gpt54/runtime-validation.json)
-- [Managed v6 cross-input differential](../evidence/managed-live-gpt54/dual-input-validation.json)
-- [Managed v6 browser validation](../evidence/managed-live-gpt54/ui-validation.json)
+- [Managed v9 dual-Skill and browser validation](../evidence/managed-live-gpt54/presentation-skill-v9-validation.json)
+- [Historical Managed v6 runtime](../evidence/managed-live-gpt54/runtime-validation.json)
+- [Historical Managed v6 cross-input differential](../evidence/managed-live-gpt54/dual-input-validation.json)
 - [Large-input recovery and SSE error-path validation](../evidence/managed-live-gpt54/large-input-recovery-validation.json)
 
 These records prove functional behavior and responsibility transfer. They are not a model-quality benchmark, a latency comparison, a cost comparison, or production certification.
@@ -161,9 +165,9 @@ These records prove functional behavior and responsibility transfer. They are no
 
 Current source implements `presentation-story`, strict `DeckPlan`, external
 Deck/Style YAML, and a deterministic renderer. Skills are behavior assets, not
-the runtime framework. The live v6 evidence predates the dual-Skill contract;
-the next deployed Agent version must prove both Skill discovery and Agent-authored
-`deck_plan` output.
+the runtime framework. The v9 evidence proves discovery of both Skills, Toolbox
+v5 resolution to both v3 Skill packages, and Agent-authored strict `deck_plan`
+output.
 
 ### Potential, not yet claimed as complete here
 

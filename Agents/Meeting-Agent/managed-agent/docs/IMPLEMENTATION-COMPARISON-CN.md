@@ -21,10 +21,10 @@ flowchart LR
     UI --> P[共用确定性流水线]
     P -->|Classic| C[应用负责 Prompt 编排]
     C --> M1[GPT-5.4 Responses]
-    P -->|Managed| A[Foundry Prompt Agent v6]
+    P -->|Managed| A[Foundry Prompt Agent v9]
     A --> H[Managed GHCP Harness]
     H --> M2[GPT-5.4]
-    H --> T[Toolbox v2 与 meeting-package Skill\n会议分析 + PPT内容叙事]
+    H --> T[Toolbox v5\nmeeting-package v3 + presentation-story v3]
     M1 --> P
     A --> J[严格MeetingAnalysis JSON]
     J --> P
@@ -34,6 +34,10 @@ flowchart LR
 ```
 
 共用的确定性流水线始终负责事件校验、排序、幂等、严格的 `MeetingAnalysis` 校验、产物生成、文件安全和人工发送边界。无论采用哪种实现，这些确定性控制都不交给 LLM。
+
+![Managed Agent、Skill、Toolbox与Sandbox关系](../images/managed-agent-skill-toolbox-sandbox-flow-cn.svg)
+
+上图区分发布关系与运行时控制流：Toolbox 是能力目录与治理入口，Managed Harness 才是运行时控制方。Sandbox 属于条件分支，只有显式配置受支持的代码执行能力时才适用；Sandbox 不是 Toolbox 的下级。当前 Meeting Agent v9 已验证 Harness、Toolbox v5 和两个 Skill v3，但未配置 Sandbox/代码执行 Tool，PPTX/EML Renderer 仍在本机执行。
 
 ## `GHCP Harness` 到底是什么
 
@@ -71,10 +75,10 @@ flowchart LR
 |---|---|---|---|
 | 主要调用对象 | GPT-5.4 Responses deployment | `managed-meeting-agent` 名称和不可变版本 | Classic 调模型；Managed 调 Agent 资源 |
 | 模型 | GPT-5.4 | GPT-5.4 | 固定模型家族，避免把模型差异误当成框架差异 |
-| Agent 资源 | 没有独立云端 Agent，应用本身承担 Orchestrator | Foundry Prompt Agent v6 | Agent 行为可以独立部署和版本化 |
+| Agent 资源 | 没有独立云端 Agent，应用本身承担 Orchestrator | Foundry Prompt Agent v9 | Agent 行为可以独立部署和版本化 |
 | 模型循环责任方 | 本地应用代码 | Foundry 托管的 GHCP Harness | 这是两种实现最核心的责任转移 |
 | Instructions | 由本地应用代码构造 | 随 Agent 部署 | Instructions 成为受管、可版本化资产 |
-| 会议分析与 Presentation 方法 | 请求时注入本地 `SKILL.md` | Toolbox 分别引用 `meeting-package` 与 `presentation-story` Skill | 会议分析与 PPT 写作可独立演进；双 Skill Live 证据需要新 Agent Version |
+| 会议分析与 Presentation 方法 | 请求时注入本地 `SKILL.md` | Toolbox v5 分别引用 `meeting-package` v3 与 `presentation-story` v3 | 会议分析与 PPT 写作可独立演进；v9 已完成双 Skill Live 验证 |
 | PowerPoint 契约与视觉格式 | 内置模板与确定性 Renderer | 严格`DeckPlan`、外置Deck/Style YAML与内置Template驱动Renderer | 故事线、映射、视觉Token和几何有独立版本责任方 |
 | Tool 管理 | 每个应用分别注册和连接 | 通过 Toolbox 集中组织和版本化 | 多个 Agent 和客户端可以复用同一 Tool 集合 |
 | Tool 循环 | 应用解释并继续 tool call | Managed Harness 选择 Tool 并继续循环 | Wrapper 中的 Agent loop 代码减少 |
@@ -99,7 +103,7 @@ flowchart LR
 
 下表来自可执行证据，而不是只根据架构图推断。
 
-| 验证门 | Classic Direct Responses | Managed Agent v6 | 结论 |
+| 验证门 | Classic Direct Responses | Managed Agent v9 | 结论 |
 |---|---|---|---|
 | 真实模型 | GPT-5.4 `2026-03-05` | GPT-5.4 `2026-03-05` | 模型家族一致 |
 | 认证 | 本地 Backend 使用 Key | Entra 调用 Agent，Agentic Identity 访问 Toolbox | 信任边界不同 |
@@ -115,9 +119,9 @@ flowchart LR
 
 - [Classic GPT-5.4 真实验证](../../evidence/aoai-live-validation.json)
 - [Classic 跨输入差分](../../evidence/aoai-runtime-differential.json)
-- [Managed v6 Runtime](../evidence/managed-live-gpt54/runtime-validation.json)
-- [Managed v6 跨输入差分](../evidence/managed-live-gpt54/dual-input-validation.json)
-- [Managed v6 浏览器验证](../evidence/managed-live-gpt54/ui-validation.json)
+- [Managed v9 双 Skill 与浏览器验证](../evidence/managed-live-gpt54/presentation-skill-v9-validation.json)
+- [Managed v6 历史 Runtime](../evidence/managed-live-gpt54/runtime-validation.json)
+- [Managed v6 历史跨输入差分](../evidence/managed-live-gpt54/dual-input-validation.json)
 - [大输入恢复与 SSE 错误路径验证](../evidence/managed-live-gpt54/large-input-recovery-validation.json)
 
 这些证据证明功能行为和责任转移，不是模型质量 Benchmark、延迟对比、成本对比或生产认证。
@@ -133,7 +137,7 @@ flowchart LR
 5. 应用不再承担模型循环，但继续保留严格的确定性控制。
 6. 完成责任转移后，用户流程与产物安全合同没有回退。
 
-当前源码已实现 `presentation-story`、严格 `DeckPlan`、外置 Deck/Style YAML 与确定性 Renderer。Skill 是行为资产，不是 Runtime 框架。Live v6 证据早于双 Skill 契约；下一 Agent Version 必须证明两个 Skill 可发现，并由 Agent 直接返回 `deck_plan`。
+当前源码已实现 `presentation-story`、严格 `DeckPlan`、外置 Deck/Style YAML 与确定性 Renderer。Skill 是行为资产，不是 Runtime 框架。v9 证据已经证明两个 Skill 可发现、Toolbox v5 解析到两个 v3 Skill，且 Agent 直接返回严格 `deck_plan`。
 
 ### 后续潜力，当前不作为已实现能力
 

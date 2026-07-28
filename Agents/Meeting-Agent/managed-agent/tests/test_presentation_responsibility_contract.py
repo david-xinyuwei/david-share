@@ -57,6 +57,7 @@ def test_legacy_v6_analysis_gets_a_strict_six_slide_plan() -> None:
     assert deck_plan.topics.items == analysis.topics
     assert deck_plan.decisions_actions.actions == analysis.action_items
     assert deck_plan.next_steps.questions == analysis.open_questions
+    assert deck_plan.next_steps.next_step is None
 
 
 def test_renderer_has_no_presentation_content_or_style_literals() -> None:
@@ -78,10 +79,16 @@ def test_renderer_has_no_presentation_content_or_style_literals() -> None:
         '"FFAA00"',
         "No decision recorded",
         "No open question recorded",
-        "Confirm the action owners",
+        "No evidence-backed next step",
     ):
         assert literal not in renderer
-    for placeholder in ("MA_TITLE", "MA_SUMMARY", "MA_DECISIONS", "MA_ACTIONS"):
+    for placeholder in (
+        "MA_TITLE",
+        "MA_SUMMARY",
+        "MA_DECISIONS",
+        "MA_ACTIONS",
+        "MA_SLIDE_TITLE_5",
+    ):
         assert placeholder in renderer
 
 
@@ -101,5 +108,7 @@ def test_docs_describe_implemented_source_and_live_boundaries() -> None:
     assert "当前源码已经完成 Presentation Domain 松耦合" in chinese_flat
     assert "presentation-story" in english
     assert "presentation-story" in chinese
-    assert "does **not** prove that `presentation-story` is deployed" in english_flat
-    assert "**不证明** `presentation-story` 已部署" in chinese_flat
+    assert "current v9 evidence" in english_flat
+    assert "当前 v9 证据" in chinese_flat
+    assert "references/deck-contract.yaml" in english
+    assert "assets/presentation-style.yaml" in chinese

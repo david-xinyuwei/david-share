@@ -17,8 +17,8 @@ SOURCE_FILES = (
     "instructions.md",
     "skills/meeting-package/SKILL.md",
     "skills/presentation-story/SKILL.md",
-    "skills/presentation-story/deck-contract.yaml",
-    "skills/presentation-story/presentation-style.yaml",
+    "skills/presentation-story/references/deck-contract.yaml",
+    "skills/presentation-story/assets/presentation-style.yaml",
 )
 REQUIRED_ENV = (
     "AZURE_AI_PROJECT_ENDPOINT",

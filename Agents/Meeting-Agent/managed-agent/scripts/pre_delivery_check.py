@@ -23,8 +23,8 @@ def main() -> int:
         "scenario-manifest.json",
         "skills/meeting-package/SKILL.md",
         "skills/presentation-story/SKILL.md",
-        "skills/presentation-story/deck-contract.yaml",
-        "skills/presentation-story/presentation-style.yaml",
+        "skills/presentation-story/references/deck-contract.yaml",
+        "skills/presentation-story/assets/presentation-style.yaml",
         "scripts/reconcile_managed_runtime.py",
         "scripts/start-ui.ps1",
         "evidence-managed-agent.json",
@@ -64,7 +64,11 @@ def main() -> int:
     ).read_bytes() == (
         ROOT / "src" / "meeting_agent" / "skills" / "meeting-package" / "SKILL.md"
     ).read_bytes()
-    for name in ("SKILL.md", "deck-contract.yaml", "presentation-style.yaml"):
+    for name in (
+        "SKILL.md",
+        "references/deck-contract.yaml",
+        "assets/presentation-style.yaml",
+    ):
         assert (
             ROOT / "skills" / "presentation-story" / name
         ).read_bytes() == (

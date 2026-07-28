@@ -14,7 +14,7 @@ def main() -> int:
     definition = agent["agent"]
     assert definition == {
         "name": "managed-meeting-agent",
-        "version": "6",
+        "version": "9",
         "status": "active",
         "kind": "prompt",
         "harness": "ghcp",
@@ -26,8 +26,38 @@ def main() -> int:
     assert agent["validation"]["assertions_passed"] is True
     assert agent["validation"]["identities_and_tenant_urls_redacted"] is True
     assert agent["validation"]["source_hash_manifest"] == (
-        "evidence/managed-live-gpt54/runtime-validation.json"
+        "evidence/managed-live-gpt54/presentation-skill-v9-validation.json"
     )
+
+    presentation_v9 = json.loads(
+        (
+            ROOT
+            / "evidence"
+            / "managed-live-gpt54"
+            / "presentation-skill-v9-validation.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert presentation_v9["agent"] == {
+        "name": "managed-meeting-agent",
+        "version": "9",
+        "status": "active",
+        "kind": "prompt",
+        "harness": "ghcp",
+        "model": "gpt-5.4",
+        "authentication": "Entra",
+    }
+    assert presentation_v9["presentation_skill"]["version"] == "3"
+    assert presentation_v9["presentation_skill"]["package_files"] == [
+        "SKILL.md",
+        "references/deck-contract.yaml",
+        "assets/presentation-style.yaml",
+    ]
+    assert presentation_v9["toolbox"]["version"] == "5"
+    assert presentation_v9["strict_response"]["deck_plan_authored_by_agent"] is True
+    assert presentation_v9["live_browser_json_e2e"]["status"] == "passed"
+    assert presentation_v9["live_browser_json_e2e"]["pptx_slides"] == 6
+    assert presentation_v9["live_browser_json_e2e"]["eml_x_unsent"] == "1"
+    assert presentation_v9["resource_identifiers"] == "redacted"
 
     skill = json.loads(
         (ROOT / "evidence" / "managed-live" / "toolbox-skill-validation.json").read_text(
@@ -50,8 +80,8 @@ def main() -> int:
         "meeting-package": ("SKILL.md",),
         "presentation-story": (
             "SKILL.md",
-            "deck-contract.yaml",
-            "presentation-style.yaml",
+            "references/deck-contract.yaml",
+            "assets/presentation-style.yaml",
         ),
     }
     for skill_name, filenames in current_skills.items():
@@ -187,12 +217,12 @@ def main() -> int:
     assert agent_reference["stream_text_chars"] > 0
     assert agent_reference["response_id_present"] is True
 
-    current_runtime = json.loads(
+    historical_gpt54_runtime = json.loads(
         (
             ROOT / "evidence" / "managed-live-gpt54" / "runtime-validation.json"
         ).read_text(encoding="utf-8")
     )
-    assert current_runtime["agent"] == {
+    assert historical_gpt54_runtime["agent"] == {
         "name": "managed-meeting-agent",
         "version": "6",
         "status": "active",
@@ -202,16 +232,16 @@ def main() -> int:
         "protocol": "responses",
         "authentication": "Entra",
     }
-    assert current_runtime["model_deployment"]["version"] == "2026-03-05"
-    assert current_runtime["model_deployment"]["sku"] == "GlobalStandard"
-    assert current_runtime["toolbox"]["connection_auth_type"] == (
+    assert historical_gpt54_runtime["model_deployment"]["version"] == "2026-03-05"
+    assert historical_gpt54_runtime["model_deployment"]["sku"] == "GlobalStandard"
+    assert historical_gpt54_runtime["toolbox"]["connection_auth_type"] == (
         "AgenticIdentityToken"
     )
-    assert current_runtime["rbac"]["principal"] == "agent-specific identity"
-    assert current_runtime["reconcile"]["idempotent"] is True
-    assert current_runtime["resource_identifiers"] == "redacted"
+    assert historical_gpt54_runtime["rbac"]["principal"] == "agent-specific identity"
+    assert historical_gpt54_runtime["reconcile"]["idempotent"] is True
+    assert historical_gpt54_runtime["resource_identifiers"] == "redacted"
 
-    current_runs = json.loads(
+    historical_gpt54_runs = json.loads(
         (
             ROOT
             / "evidence"
@@ -219,16 +249,16 @@ def main() -> int:
             / "dual-input-validation.json"
         ).read_text(encoding="utf-8")
     )
-    assert current_runs["agent"]["version"] == "6"
-    assert current_runs["agent"]["model"] == "gpt-5.4"
-    assert current_runs["stream_model_deltas_present"] is True
-    assert current_runs["cross_input_analysis_differs"] is True
-    assert current_runs["cross_input_pptx_differs"] is True
-    assert current_runs["automatic_send"] is False
+    assert historical_gpt54_runs["agent"]["version"] == "6"
+    assert historical_gpt54_runs["agent"]["model"] == "gpt-5.4"
+    assert historical_gpt54_runs["stream_model_deltas_present"] is True
+    assert historical_gpt54_runs["cross_input_analysis_differs"] is True
+    assert historical_gpt54_runs["cross_input_pptx_differs"] is True
+    assert historical_gpt54_runs["automatic_send"] is False
     assert len(
-        {run["analysis_sha256"] for run in current_runs["runs"].values()}
+        {run["analysis_sha256"] for run in historical_gpt54_runs["runs"].values()}
     ) == 2
-    for run in current_runs["runs"].values():
+    for run in historical_gpt54_runs["runs"].values():
         assert run["png"]["size"] == [1280, 720]
         assert run["png"]["nonblank"] is True
         assert run["pptx"]["slides"] == 6
@@ -238,20 +268,52 @@ def main() -> int:
         assert run["eml"]["recipient_count"] == 0
         assert run["eml"]["attachment_count"] == 2
 
-    current_ui = json.loads(
+    historical_gpt54_ui = json.loads(
         (ROOT / "evidence" / "managed-live-gpt54" / "ui-validation.json").read_text(
             encoding="utf-8"
         )
     )
-    assert current_ui["runtime"]["version"] == "6"
-    assert current_ui["runtime"]["model"] == "gpt-5.4"
-    assert current_ui["windows_runtime"]["node_architecture"] == "arm64"
-    assert current_ui["windows_runtime"]["edge_pe_machine"] == "0xAA64"
-    assert current_ui["playwright"]["projects"] == ["desktop", "mobile"]
-    assert current_ui["playwright"]["passed"] == 2
-    assert current_ui["playwright"]["failed"] == 0
+    assert historical_gpt54_ui["runtime"]["version"] == "6"
+    assert historical_gpt54_ui["runtime"]["model"] == "gpt-5.4"
+    assert historical_gpt54_ui["windows_runtime"]["node_architecture"] == "arm64"
+    assert historical_gpt54_ui["windows_runtime"]["edge_pe_machine"] == "0xAA64"
+    assert historical_gpt54_ui["playwright"]["projects"] == ["desktop", "mobile"]
+    assert historical_gpt54_ui["playwright"]["passed"] == 2
+    assert historical_gpt54_ui["playwright"]["failed"] == 0
+
+    current_v9 = json.loads(
+        (
+            ROOT
+            / "evidence"
+            / "managed-live-gpt54"
+            / "presentation-skill-v9-validation.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert current_v9["agent"] == {
+        "name": "managed-meeting-agent",
+        "version": "9",
+        "status": "active",
+        "kind": "prompt",
+        "harness": "ghcp",
+        "model": "gpt-5.4",
+        "authentication": "Entra",
+    }
+    assert current_v9["presentation_skill"]["package_files"] == [
+        "SKILL.md",
+        "references/deck-contract.yaml",
+        "assets/presentation-style.yaml",
+    ]
+    assert current_v9["toolbox"]["version"] == "5"
+    assert current_v9["toolbox"]["skills"] == {
+        "meeting-package": "3",
+        "presentation-story": "3",
+    }
+    assert current_v9["strict_response"]["deck_plan_authored_by_agent"] is True
+    assert current_v9["live_browser_json_e2e"]["status"] == "passed"
+    assert current_v9["live_browser_json_e2e"]["pptx_slides"] == 6
+    assert current_v9["live_browser_json_e2e"]["eml_x_unsent"] == "1"
     print(
-        "PASS: historical v2 and current GPT-5.4 Managed Agent evidence is valid."
+        "PASS: historical v2/v6 and current v9 Managed Agent evidence is valid."
     )
     return 0
 

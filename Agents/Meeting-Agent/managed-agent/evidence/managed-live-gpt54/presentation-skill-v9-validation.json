@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "validated_at_utc": "2026-07-27T14:27:04Z",
+  "source_base_commit": "cb4f5011a75cba3872d52af138fadb9e30da3f29",
+  "agent": {
+    "name": "managed-meeting-agent",
+    "version": "9",
+    "status": "active",
+    "kind": "prompt",
+    "harness": "ghcp",
+    "model": "gpt-5.4",
+    "authentication": "Entra"
+  },
+  "presentation_skill": {
+    "name": "presentation-story",
+    "version": "3",
+    "default_version": "3",
+    "package_files": [
+      "SKILL.md",
+      "references/deck-contract.yaml",
+      "assets/presentation-style.yaml"
+    ],
+    "cloud_package_layout_verified": true
+  },
+  "toolbox": {
+    "name": "managed-meeting-agent",
+    "version": "5",
+    "skills": {
+      "meeting-package": "3",
+      "presentation-story": "3"
+    },
+    "connection_auth_type": "AgenticIdentityToken"
+  },
+  "strict_response": {
+    "http_status": 200,
+    "status": "completed",
+    "agent_reference_version": "9",
+    "deck_plan_authored_by_agent": true,
+    "deck_plan_schema_version": 1,
+    "invented_date_tokens": []
+  },
+  "live_browser_json_e2e": {
+    "status": "passed",
+    "project": "desktop",
+    "input": "examples/meeting-record-stargate.json",
+    "input_mode": "Meeting JSON file upload",
+    "runtime": "local UI and deterministic renderer calling deployed Agent v9",
+    "artifacts": {
+      "analysis_json": true,
+      "deck_plan_json": true,
+      "mind_map_png": true,
+      "editable_pptx": true,
+      "eml_draft": true
+    },
+    "pptx_slides": 6,
+    "pptx_bytes": 99882,
+    "pptx_sha256": "4944086ed300d99853f23da554ea1634d4351b480d0a3f131e77a3acc234bbaa",
+    "eml_x_unsent": "1",
+    "eml_attachments": [
+      "mind-map.png",
+      "meeting-summary.pptx"
+    ]
+  },
+  "resource_identifiers": "redacted"
+}

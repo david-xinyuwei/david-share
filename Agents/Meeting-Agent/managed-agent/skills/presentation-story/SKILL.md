@@ -12,6 +12,8 @@ description: Convert evidence-grounded meeting analysis into a strict six-slide 
 - Decide the customer-facing story, information priority, slide titles, and content slots.
 - Do not choose fonts, colors, coordinates, template shapes, or file-generation behavior.
 - Match the dominant language of the meeting evidence.
+- Read `references/deck-contract.yaml` when exact slide order, content limits, or empty-state rules are needed.
+- Treat `assets/presentation-style.yaml` as renderer-owned visual tokens; do not copy those values into the story.
 
 ## DeckPlan contract
 

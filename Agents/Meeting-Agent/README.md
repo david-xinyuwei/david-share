@@ -32,7 +32,7 @@ This is the question the repository answers with one concrete application:
 | Implementation | Repository root | `managed-agent/` source inside this same product repository |
 | Agent definition | None; the application is the orchestrator | [`agent.yaml`](managed-agent/agent.yaml) defines the Foundry Agent resource |
 | Instructions | Python builds the system message | [`instructions.md`](managed-agent/instructions.md) is deployed with the Agent |
-| Skill | Python reads local `SKILL.md` and injects it into every request | Toolbox references independent [`meeting-package`](managed-agent/skills/meeting-package/SKILL.md) and [`presentation-story`](managed-agent/skills/presentation-story/SKILL.md) behavior assets; current v6 live evidence covers only the former |
+| Skill | Python reads local `SKILL.md` and injects it into every request | Toolbox v5 references independent [`meeting-package`](managed-agent/skills/meeting-package/SKILL.md) v3 and [`presentation-story`](managed-agent/skills/presentation-story/SKILL.md) v3 behavior assets; v9 live evidence covers both Skills |
 | Model loop owner | Local application code | Foundry-managed GHCP harness |
 | Invocation | Direct Azure OpenAI Responses client | Application references Agent name + immutable version; the endpoint is transport, not the Agent itself |
 | Authentication | API key in the local backend process | Entra ID for Responses and Agentic identity for Toolbox; no model API key in the customer path |
@@ -56,7 +56,7 @@ The Managed Agent is not a second UI and not merely an AI endpoint. It is the de
 
 The local application still owns what should remain deterministic: event validation, ordering and idempotency, file generation, path safety, the browser workspace, and the human-controlled Outlook handoff.
 
-Current source fully separates the presentation domain: `presentation-story` owns the six-slide writing method, `DeckPlan` is the strict exchange contract, Deck/Style YAML owns mapping and visual tokens, and the PPTX template owns geometry. The deployed v6 evidence predates this split; a new Skill/Toolbox/Agent version still requires live validation.
+Current source fully separates the presentation domain: `presentation-story` owns the six-slide writing method, `DeckPlan` is the strict exchange contract, Deck/Style YAML owns mapping and visual tokens, and the PPTX template owns geometry. Deployed Agent v9, Toolbox v5, and both Skill v3 packages have passed strict-response and live Meeting JSON browser validation.
 
 ### What this repository must prove
 
@@ -71,24 +71,24 @@ Current source fully separates the presentation domain: `presentation-story` own
 
 Implementation details and parity evidence are linked from this root page; `managed-agent/` is a source directory, not a separate product or repository.
 
-### Measured result: public-source Managed Agent v6 with GPT-5.4
+### Measured result: deployed Managed Agent v9 with GPT-5.4
 
 The repository source was redeployed with the same GPT-5.4 model family used by the Classic path. The Preview extension's generated skills-only Toolbox was reconciled to the official Toolbox Search contract, and the Agent uses a dedicated `AgenticIdentityToken` connection. The checked-in deployment gate keeps private azd values under ignored `.azure`, restores the public placeholder YAML, and idempotently records the active runtime in `.azure/managed-runtime.json`.
 
 | Verification | Measured result |
 |---|---|
-| Public-source deployment | `managed-meeting-agent` version `6`, `status=active`, `harness=ghcp`, model `gpt-5.4` version `2026-03-05` |
-| Toolbox and identity | Toolbox v2 exposes `meeting-package` plus Toolbox Search; Agent-specific identity has project-scoped `Foundry User` |
-| Agent identity | Non-stream and stream responses passed strict Agent Reference validation for name `managed-meeting-agent`, version `6` |
-| Real streaming | Nonempty model deltas and two distinct hashed response IDs are recorded in the sanitized evidence |
-| Cross-input behavior | Planning and operations meetings produced different titles, analysis hashes, mind maps, PPTX hashes, and EML hashes |
-| Artifact contract | Both runs produced nonblank 1280x720 PNGs, editable six-slide PPTX files, and `X-Unsent: 1` EML drafts with zero recipients and two attachments |
-| Browser workflow | Live GPT-5.4 Playwright desktop/mobile `2/2` with native Windows ARM64 Node and Edge; zero console errors |
+| Deployed runtime | `managed-meeting-agent` version `9`, `status=active`, `harness=ghcp`, model `gpt-5.4` version `2026-03-05`; the evidence records the base commit and normalized Skill package layout, not a byte-for-byte deployed-tree attestation |
+| Toolbox and identity | Toolbox v5 exposes `meeting-package` v3, `presentation-story` v3, and Toolbox Search; Agent-specific identity has project-scoped `Foundry User` |
+| Agent identity | Strict response and browser paths passed Agent Reference validation for name `managed-meeting-agent`, version `9` |
+| Strict response | One direct v9 response completed with an Agent-authored strict `DeckPlan`; no invented date token was detected |
+| Historical cross-input behavior | The dated v6 evidence contains two materially different meeting runs and remains the cross-input differential record; it is not relabeled as v9 evidence |
+| v9 artifact contract | The Stargate JSON browser run produced a nonblank mind map, an editable six-slide PPTX, and an `X-Unsent: 1` EML draft with two attachments |
+| Browser workflow | Local UI uploaded Meeting JSON and called cloud v9 to produce Analysis, an Agent-authored DeckPlan, a six-slide PPTX, and an unsent EML; Playwright desktop `1/1` |
 | Shared deterministic behavior | Six core modules remain byte-for-byte identical; Models and Hosted Pipeline have explicit baseline/current hashes and DeckPlan reasons |
 
 This proves functional parity at the contract and workflow level. It does **not** claim that the two orchestration paths produce identical prose or that Preview behavior is a permanent production SLA.
 
-[Managed implementation details](managed-agent/docs/MANAGED-IMPLEMENTATION.md) · [Feature parity](managed-agent/FEATURE-PARITY.md) · [GPT-5.4 evidence](managed-agent/evidence/managed-live-gpt54/runtime-validation.json)
+[Managed implementation details](managed-agent/docs/MANAGED-IMPLEMENTATION.md) · [Feature parity](managed-agent/FEATURE-PARITY.md) · [v9 dual-Skill evidence](managed-agent/evidence/managed-live-gpt54/presentation-skill-v9-validation.json)
 
 ## Executive Summary
 

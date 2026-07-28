@@ -55,8 +55,8 @@ def test_renderer_resolves_private_values_outside_public_source(tmp_path: Path) 
     ).read_bytes()
     for relative in (
         "skills/presentation-story/SKILL.md",
-        "skills/presentation-story/deck-contract.yaml",
-        "skills/presentation-story/presentation-style.yaml",
+        "skills/presentation-story/references/deck-contract.yaml",
+        "skills/presentation-story/assets/presentation-style.yaml",
     ):
         assert (output_dir / relative).read_bytes() == (ROOT / relative).read_bytes()
     manifest = json.loads(
@@ -68,8 +68,8 @@ def test_renderer_resolves_private_values_outside_public_source(tmp_path: Path) 
         "instructions.md",
         "skills/meeting-package/SKILL.md",
         "skills/presentation-story/SKILL.md",
-        "skills/presentation-story/deck-contract.yaml",
-        "skills/presentation-story/presentation-style.yaml",
+        "skills/presentation-story/references/deck-contract.yaml",
+        "skills/presentation-story/assets/presentation-style.yaml",
     }
     assert manifest["private_values_written_only_under_ignored_azure_directory"] is True
 

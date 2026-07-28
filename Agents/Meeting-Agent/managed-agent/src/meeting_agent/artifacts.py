@@ -453,6 +453,15 @@ def _presentation(
         mind_map_path,
         margin_inches=style.mind_map.frame_margin_inches,
     )
+    _set_shape_text(
+        presentation,
+        "MA_SLIDE_TITLE_5",
+        _clip_display(deck_plan.mind_map.title, limits.title_display_width),
+        size=sizes.cover_subtitle,
+        bold=True,
+        color=colors.primary_text,
+        font_family=style.font_family,
+    )
     questions = deck_plan.next_steps.questions or [contract.empty_states.questions]
     _set_numbered_list(
         presentation,

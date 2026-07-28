@@ -132,7 +132,7 @@ class PresentationStyle(BaseModel):
 @lru_cache(maxsize=1)
 def load_deck_contract() -> DeckContract:
     """Load and validate the packaged six-slide content contract."""
-    value = _load_yaml_resource("deck-contract.yaml")
+    value = _load_yaml_resource("references", "deck-contract.yaml")
     contract = DeckContract.model_validate(value)
     if contract.slide_order != SLIDE_ORDER:
         raise ValueError("Presentation deck contract must preserve the six-slide order")
@@ -143,7 +143,7 @@ def load_deck_contract() -> DeckContract:
 def load_presentation_style() -> PresentationStyle:
     """Load and validate the packaged visual style tokens."""
     return PresentationStyle.model_validate(
-        _load_yaml_resource("presentation-style.yaml")
+        _load_yaml_resource("assets", "presentation-style.yaml")
     )
 
 
@@ -168,7 +168,7 @@ def resolve_deck_plan(
         mind_map=MindMapSlide(title=analysis.mind_map.label),
         next_steps=NextStepsSlide(
             questions=questions,
-            next_step=questions[0] if questions else None,
+            next_step=None,
         ),
     )
 
@@ -180,11 +180,12 @@ def ensure_deck_plan(analysis: MeetingAnalysis) -> MeetingAnalysis:
     return analysis.model_copy(update={"deck_plan": resolve_deck_plan(analysis)})
 
 
-def _load_yaml_resource(name: str) -> object:
+def _load_yaml_resource(*parts: str) -> object:
     resource = files("meeting_agent").joinpath(
-        "skills", "presentation-story", name
+        "skills", "presentation-story", *parts
     )
     value = yaml.safe_load(resource.read_text(encoding="utf-8"))
     if not isinstance(value, dict):
+        name = "/".join(parts)
         raise ValueError(f"Presentation resource {name} must contain a YAML object")
     return value

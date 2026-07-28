@@ -11,7 +11,12 @@ from urllib.parse import urlparse
 
 import httpx
 from azure.core.exceptions import ClientAuthenticationError
-from azure.identity import AzureCliCredential, CredentialUnavailableError, DefaultAzureCredential
+from azure.identity import (
+    AzureCliCredential,
+    AzureDeveloperCliCredential,
+    CredentialUnavailableError,
+    DefaultAzureCredential,
+)
 from pydantic import ValidationError
 
 from .models import MeetingAnalysis, MeetingEventKind
@@ -336,9 +341,22 @@ def _managed_agent_credential() -> Any:
     mode = os.environ.get("MANAGED_AGENT_CREDENTIAL", "default").strip().casefold()
     if mode == "azure-cli":
         return AzureCliCredential()
+    if mode == "azure-developer-cli":
+        tenant_id = os.environ.get("AZURE_TENANT_ID", "").strip()
+        if not tenant_id:
+            raise RuntimeError(
+                "AZURE_TENANT_ID is required for azure-developer-cli credential mode"
+            )
+        return AzureDeveloperCliCredential(
+            tenant_id=tenant_id,
+            process_timeout=30,
+        )
     if mode == "default":
         return DefaultAzureCredential(exclude_interactive_browser_credential=True)
-    raise RuntimeError("MANAGED_AGENT_CREDENTIAL must be 'azure-cli' or 'default'")
+    raise RuntimeError(
+        "MANAGED_AGENT_CREDENTIAL must be 'azure-cli', "
+        "'azure-developer-cli', or 'default'"
+    )
 
 
 def _managed_analysis_prompt(

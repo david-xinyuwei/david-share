@@ -5,6 +5,7 @@ from types import SimpleNamespace
 import httpx
 import pytest
 
+from meeting_agent import analyzers
 from meeting_agent.analyzers import MANAGED_AGENT_SCOPE, ManagedAgentAnalyzer
 from meeting_agent.models import MeetingAnalysis, MindMapNode
 from meeting_agent.session import load_jsonl
@@ -324,8 +325,39 @@ def test_rejects_unknown_credential_mode(monkeypatch: pytest.MonkeyPatch) -> Non
     configure(monkeypatch)
     monkeypatch.setenv("MANAGED_AGENT_CREDENTIAL", "unexpected")
 
-    with pytest.raises(RuntimeError, match="must be 'azure-cli' or 'default'"):
+    with pytest.raises(RuntimeError, match="must be 'azure-cli'"):
         ManagedAgentAnalyzer()
+
+
+def test_azure_developer_cli_mode_requires_explicit_tenant(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    configure(monkeypatch)
+    monkeypatch.setenv("MANAGED_AGENT_CREDENTIAL", "azure-developer-cli")
+    monkeypatch.delenv("AZURE_TENANT_ID", raising=False)
+
+    with pytest.raises(RuntimeError, match="AZURE_TENANT_ID is required"):
+        ManagedAgentAnalyzer()
+
+
+def test_azure_developer_cli_mode_uses_explicit_tenant(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    configure(monkeypatch)
+    monkeypatch.setenv("MANAGED_AGENT_CREDENTIAL", "azure-developer-cli")
+    monkeypatch.setenv("AZURE_TENANT_ID", "tenant-test")
+    captured: dict[str, str | int] = {}
+
+    def credential(*, tenant_id: str, process_timeout: int) -> FakeCredential:
+        captured["tenant_id"] = tenant_id
+        captured["process_timeout"] = process_timeout
+        return FakeCredential()
+
+    monkeypatch.setattr(analyzers, "AzureDeveloperCliCredential", credential)
+
+    ManagedAgentAnalyzer()
+
+    assert captured == {"tenant_id": "tenant-test", "process_timeout": 30}
 
 
 def test_new_runtime_requires_agent_authored_deck_plan(

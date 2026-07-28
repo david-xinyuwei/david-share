@@ -40,6 +40,7 @@ def test_generates_nonblank_mind_map_and_valid_pptx(tmp_path: Path) -> None:
         if hasattr(shape, "text")
     )
     assert analysis.title in text
+    assert analysis.mind_map.label in text
     assert "Topic content" not in text
     assert "Decision content" not in text
     assert any(shape.shape_type == 13 for shape in presentation.slides[4].shapes)

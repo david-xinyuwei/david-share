@@ -27,7 +27,12 @@ meeting-agent = "meeting_agent.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-meeting_agent = ["skills/*/*.md", "skills/*/*.yaml", "templates/*.zip"]
+meeting_agent = [
+  "skills/*/*.md",
+  "skills/*/references/*.yaml",
+  "skills/*/assets/*.yaml",
+  "templates/*.zip"
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

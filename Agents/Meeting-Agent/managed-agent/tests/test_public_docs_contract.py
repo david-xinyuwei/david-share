@@ -124,12 +124,12 @@ def test_docs_scope_skill_evidence_by_agent_version() -> None:
     parity = (ROOT / "FEATURE-PARITY.md").read_text(encoding="utf-8")
     parity_cn = (ROOT / "FEATURE-PARITY-CN.md").read_text(encoding="utf-8")
 
-    assert "current source adds an independently versionable `presentation-story`" in english
-    assert "当前源码新增可独立版本化的 `presentation-story`" in chinese
-    assert "dual-Skill live validation pending a new Agent version" in parity
-    assert "双Skill Live验收等待新Agent Version" in parity_cn
-    assert "does **not** prove that `presentation-story` is deployed" in english
-    assert "**不证明** `presentation-story` 已部署" in chinese
+    assert "v9 evidence covers Toolbox v5 resolving" in english
+    assert "v9 证据覆盖 Toolbox v5" in chinese
+    assert "Enhanced versioned lifecycle verified live" in parity
+    assert "版本化生命周期已完成Live验证" in parity_cn
+    assert "current v9 evidence" in english
+    assert "当前 v9 证据" in chinese
 
 
 def test_customer_runbook_and_package_use_current_runtime_boundaries() -> None:
@@ -146,7 +146,8 @@ def test_customer_runbook_and_package_use_current_runtime_boundaries() -> None:
     assert '-ManagedAgentVersion "<active-version>"' in start_cn
     assert '-ManagedAgentVersion "2"' not in start_en + start_cn
     assert "large-input-recovery-validation.json" in package
+    assert "presentation-skill-v9-validation.json" in package
     assert "source implementation now completes the presentation-domain separation" in (
         managed_doc
     )
-    assert "dual-Skill Agent version" in managed_doc
+    assert "Agent-authored strict `DeckPlan`" in managed_doc
