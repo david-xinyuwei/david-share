@@ -101,7 +101,7 @@ Repo源码已使用与Classic路径相同的GPT-5.4模型系列重新部署。Pr
 *Agents 列表显示云端资源处于 `Running`，类型为 `prompt`，Harness 为 GitHub Copilot。这里展示的是云端 Agent，不是本机 React 应用。*
 
 <div align="center">
-<img src="managed-agent/images/foundry-portal/toolbox-skills.png" width="720" alt="脱敏 Foundry Toolbox：Web Search 与会议输出 Skill">
+<img src="managed-agent/images/foundry-portal/toolbox-skills.png" width="500" alt="脱敏 Foundry Toolbox：Web Search 与会议输出 Skill">
 </div>
 
 *Toolbox 是版本化 MCP Surface，用于治理 Tool 与 Skill Resource。Meeting、Mind Map 和 Presentation Skill 分别承担不同语义职责；Toolbox 不是 Hand Sandbox。*

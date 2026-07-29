@@ -101,7 +101,7 @@ The local browser workspace is the user-facing application; Microsoft Foundry is
 *The Agents list shows the cloud resource as `Running`, type `prompt`, with the GitHub Copilot harness. This is the cloud Agent, not the local React application.*
 
 <div align="center">
-<img src="managed-agent/images/foundry-portal/toolbox-skills.png" width="720" alt="Sanitized Foundry Toolbox showing Web Search and meeting Skills">
+<img src="managed-agent/images/foundry-portal/toolbox-skills.png" width="500" alt="Sanitized Foundry Toolbox showing Web Search and meeting Skills">
 </div>
 
 *Toolbox is the versioned MCP surface for tools and Skill resources. The meeting, mind-map, and presentation Skills own separate semantic responsibilities; Toolbox is not the Hand Sandbox.*

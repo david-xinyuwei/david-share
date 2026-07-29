@@ -25,7 +25,7 @@ Playground 显示选中的模型与 Agent Instructions。Toolbox Endpoint 和资
 Toolbox 页面显示 Web Search 和会议输出 Skill。Toolbox 是版本化 Foundry 资源，通过 MCP Endpoint 向 Agent 暴露 Tool 与 Skill Resource；Toolbox 不是 Hand Sandbox。
 
 <div align="center">
-<img src="../images/foundry-portal/toolbox-skills.png" width="800" alt="脱敏 Foundry Toolbox：Web Search 与会议输出 Skill">
+<img src="../images/foundry-portal/toolbox-skills.png" width="500" alt="脱敏 Foundry Toolbox：Web Search 与会议输出 Skill">
 </div>
 
 该截图是 Portal Observation（界面观测），不是完整 Inventory Contract（清单契约）。精确成员必须按 Toolbox Version，通过 API 或 MCP `resources/list` 验证。当前 Repo 把三个会议输出职责拆开：

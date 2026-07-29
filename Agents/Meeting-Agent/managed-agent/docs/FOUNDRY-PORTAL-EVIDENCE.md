@@ -25,7 +25,7 @@ The Playground then shows the selected model and Agent instructions. The Toolbox
 The Toolbox view exposes Web Search and the meeting-output Skills. A Toolbox is a versioned Foundry resource whose MCP endpoint presents tools and Skill resources to the Agent. Toolbox is not the Hand Sandbox.
 
 <div align="center">
-<img src="../images/foundry-portal/toolbox-skills.png" width="800" alt="Sanitized Foundry Toolbox showing Web Search and meeting Skills">
+<img src="../images/foundry-portal/toolbox-skills.png" width="500" alt="Sanitized Foundry Toolbox showing Web Search and meeting Skills">
 </div>
 
 The screenshot is a Portal observation, not a complete inventory contract. Exact membership is version-scoped and should be verified through the Toolbox API or MCP `resources/list`. The repository source defines three meeting-output responsibilities:
