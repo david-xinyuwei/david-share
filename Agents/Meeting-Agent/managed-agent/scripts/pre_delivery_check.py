@@ -21,6 +21,16 @@ def main() -> int:
         "azure.yaml",
         "instructions.md",
         "scenario-manifest.json",
+        "docs/FOUNDRY-PORTAL-EVIDENCE-CN.md",
+        "docs/FOUNDRY-PORTAL-EVIDENCE.md",
+        "evidence/managed-live-westus2/sandbox-runtime-observation.json",
+        "images/foundry-portal/agent-list.png",
+        "images/foundry-portal/agent-playground.png",
+        "images/foundry-portal/toolbox-skills.png",
+        "images/foundry-portal/skill-meeting-package-version-drift.png",
+        "images/foundry-portal/skill-mind-map-story.png",
+        "images/foundry-portal/skill-presentation-story.png",
+        "images/foundry-portal/hand-sandbox-capacity.png",
         "skills/meeting-package/SKILL.md",
         "skills/mind-map-story/SKILL.md",
         "skills/presentation-story/SKILL.md",
@@ -60,6 +70,14 @@ def main() -> int:
     assert agent["model"] == "gpt-5.4"
     instructions = (ROOT / "instructions.md").read_text(encoding="utf-8")
     assert "Do not call tool_search or call_tool" in instructions
+    scenario_manifest = json.loads(
+        (ROOT / "scenario-manifest.json").read_text(encoding="utf-8")
+    )
+    portal_evidence = scenario_manifest["evidence_sets"]["foundry-portal-20260728"]
+    assert portal_evidence["type"] == "portal-architecture-and-configuration-evidence"
+    assert len(portal_evidence["images"]) == 7
+    assert all((ROOT / path).is_file() for path in portal_evidence["images"])
+    assert any("single-session" in boundary for boundary in portal_evidence["boundaries"])
     assert (
         ROOT / "skills" / "meeting-package" / "SKILL.md"
     ).read_bytes() == (

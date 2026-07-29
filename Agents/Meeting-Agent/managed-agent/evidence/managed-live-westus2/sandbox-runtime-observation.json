@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-07-29",
+  "classification": "single-session-runtime-observation",
+  "environment": {
+    "region": "westus2",
+    "agent_kind": "prompt",
+    "harness": "ghcp"
+  },
+  "observed_values": {
+    "kernel": "Linux 6.12.8+ x86_64",
+    "architecture": "x86_64",
+    "visible_processors": 2,
+    "memory_total_kib": 4272180,
+    "memory_total_approx_gib": 4.07,
+    "os": "Debian 12",
+    "python": "3.13.14",
+    "dotnet": "not observed on PATH",
+    "node": "not observed on PATH",
+    "working_directory": "/workspace",
+    "portal_root_filesystem_gb": 19
+  },
+  "attestation": {
+    "sandbox_command_executed": true,
+    "random_nonce_sha256_recomputed_locally": true
+  },
+  "boundary": "Observed values describe one runtime instance. They are not an immutable Agent-version guarantee, quota, image contract, or SLA. Resource names, endpoint, response ID, identity IDs, tenant, and subscription are intentionally omitted."
+}

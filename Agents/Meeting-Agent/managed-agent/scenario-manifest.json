@@ -26,5 +26,26 @@
       "requires_explicit_mode": true,
       "fallback": false
     }
+  },
+  "evidence_sets": {
+    "foundry-portal-20260728": {
+      "type": "portal-architecture-and-configuration-evidence",
+      "walkthrough": "docs/FOUNDRY-PORTAL-EVIDENCE.md",
+      "runtime_observation": "evidence/managed-live-westus2/sandbox-runtime-observation.json",
+      "images": [
+        "images/foundry-portal/agent-list.png",
+        "images/foundry-portal/agent-playground.png",
+        "images/foundry-portal/toolbox-skills.png",
+        "images/foundry-portal/skill-meeting-package-version-drift.png",
+        "images/foundry-portal/skill-mind-map-story.png",
+        "images/foundry-portal/skill-presentation-story.png",
+        "images/foundry-portal/hand-sandbox-capacity.png"
+      ],
+      "boundaries": [
+        "Portal screenshots are not immutable Agent-version attestations.",
+        "The meeting-package capture intentionally records an older Skill version.",
+        "The Hand capacity values are a single-session observation, not a quota or SLA."
+      ]
+    }
   }
 }

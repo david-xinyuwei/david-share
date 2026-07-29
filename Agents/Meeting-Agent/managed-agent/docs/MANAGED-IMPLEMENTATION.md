@@ -11,6 +11,8 @@ The Managed Agent implementation inside the single Meeting Agent repository. It 
 
 [Chinese](MANAGED-IMPLEMENTATION-CN.md) | **English** | [Customer Start Here](../CUSTOMER-START-HERE.md) | [Product Home](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Meeting-Agent)
 
+**Portal walkthrough:** [Agent, Toolbox, Skills, and built-in Hand/Sandbox evidence](FOUNDRY-PORTAL-EVIDENCE.md). The walkthrough uses sanitized screenshots from a separate West US 2 private-preview validation deployment and distinguishes Portal observations from versioned API contracts.
+
 ## Microsoft Official Definition and This Implementation
 
 According to Microsoft Learn, [Foundry Agent Service](https://learn.microsoft.com/azure/foundry/agents/overview)
@@ -148,6 +150,13 @@ Toolbox catalog and is not standing compute. This Meeting Agent v9 keeps its PPT
 and EML renderers local, and its dated East US 2 evidence did not exercise the
 private-preview Hand/Sandbox path. Sandbox readiness requires a separate West US 2
 deployment and real built-in Hand tool calls.
+
+The West US 2 Portal walkthrough records one such Hand invocation: the observed
+runtime exposed a 19 GB root filesystem, two CPU cores, and 4 GB memory. Those
+values describe one session only; the Managed Agent definition does not expose a
+versioned Sandbox CPU, memory, image, OS, or language-runtime contract. See the
+[Portal evidence page](FOUNDRY-PORTAL-EVIDENCE.md) and the sanitized
+[runtime observation](../evidence/managed-live-westus2/sandbox-runtime-observation.json).
 
 ## Functional Scope
 

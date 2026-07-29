@@ -90,6 +90,30 @@ This proves functional parity at the contract and workflow level. It does **not*
 
 [Managed implementation details](managed-agent/docs/MANAGED-IMPLEMENTATION.md) · [Feature parity](managed-agent/FEATURE-PARITY.md) · [v9 dual-Skill evidence](managed-agent/evidence/managed-live-gpt54/presentation-skill-v9-validation.json)
 
+### Foundry Portal evidence: Agent, Toolbox, Skills, and Hand
+
+The local browser workspace is the user-facing application; Microsoft Foundry is the cloud control and authoring surface. A separate West US 2 private-preview validation deployment made the managed Prompt Agent, Toolbox/Skill resources, and built-in Hand/Sandbox behavior visible in the Portal. Private project and Agent identifiers, endpoint host values, tenant, subscription, account, and identity values are removed from the public images; generic capability labels remain visible.
+
+<div align="center">
+<img src="managed-agent/images/foundry-portal/agent-list.png" width="960" alt="Sanitized Foundry Agents list showing Running prompt Agent with GitHub Copilot harness">
+</div>
+
+*The Agents list shows the cloud resource as `Running`, type `prompt`, with the GitHub Copilot harness. This is the cloud Agent, not the local React application.*
+
+<div align="center">
+<img src="managed-agent/images/foundry-portal/toolbox-skills.png" width="720" alt="Sanitized Foundry Toolbox showing Web Search and meeting Skills">
+</div>
+
+*Toolbox is the versioned MCP surface for tools and Skill resources. The meeting, mind-map, and presentation Skills own separate semantic responsibilities; Toolbox is not the Hand Sandbox.*
+
+<div align="center">
+<img src="managed-agent/images/foundry-portal/hand-sandbox-capacity.png" width="960" alt="Foundry Portal Hand Sandbox filesystem CPU and memory observation">
+</div>
+
+*One built-in Hand run observed a 19 GB root filesystem, two visible CPU cores, and 4 GB memory. This is a single-session observation—not an immutable Sandbox profile, quota, or SLA. The Agent definition does not expose CPU, memory, image, or language-runtime fields.*
+
+[Open the complete seven-image Portal walkthrough](managed-agent/docs/FOUNDRY-PORTAL-EVIDENCE.md), including all three Skill views, the version-drift caveat, and the customer-auditable runtime-contract gap.
+
 ## Executive Summary
 
 The customer path is a local browser workspace, not a Python command line. A transcript, structured meeting JSON, or visual adapter becomes strict meeting events; a local Python backend calls GPT-5.4 with Responses API structured output and medium reasoning, generates traceable artifacts, and lets the Windows UI open an EML draft in New Outlook for human review.

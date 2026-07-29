@@ -21,3 +21,15 @@ def test_customer_package_excludes_test_tree() -> None:
     }
 
     assert not any(path.startswith("tests/") for path in packaged_paths)
+    assert "managed-agent/docs/FOUNDRY-PORTAL-EVIDENCE.md" in packaged_paths
+    assert "managed-agent/docs/FOUNDRY-PORTAL-EVIDENCE-CN.md" in packaged_paths
+    for filename in (
+        "agent-list.png",
+        "agent-playground.png",
+        "toolbox-skills.png",
+        "skill-meeting-package-version-drift.png",
+        "skill-mind-map-story.png",
+        "skill-presentation-story.png",
+        "hand-sandbox-capacity.png",
+    ):
+        assert f"managed-agent/images/foundry-portal/{filename}" in packaged_paths

@@ -90,6 +90,30 @@ Repo源码已使用与Classic路径相同的GPT-5.4模型系列重新部署。Pr
 
 [Managed实现说明](managed-agent/docs/MANAGED-IMPLEMENTATION-CN.md) · [功能等价矩阵](managed-agent/FEATURE-PARITY-CN.md) · [v9 双 Skill 证据](managed-agent/evidence/managed-live-gpt54/presentation-skill-v9-validation.json)
 
+### Foundry Portal 实证：Agent、Toolbox、Skill 与 Hand
+
+本机浏览器工作区是面向用户的应用；Microsoft Foundry 是云端 Control/Authoring Surface（控制与编写界面）。一套独立的 West US 2 Private Preview 验证部署，让 Managed Prompt Agent、Toolbox/Skill 资源与内置 Hand/Sandbox 行为能够在 Portal 中直接观察。公开图片已移除私有 Project/Agent 标识、Endpoint Host、Tenant、Subscription、Account 和 Identity；通用能力标签仍保留可见。
+
+<div align="center">
+<img src="managed-agent/images/foundry-portal/agent-list.png" width="960" alt="脱敏 Foundry Agent 列表：Running Prompt Agent 与 GitHub Copilot Harness">
+</div>
+
+*Agents 列表显示云端资源处于 `Running`，类型为 `prompt`，Harness 为 GitHub Copilot。这里展示的是云端 Agent，不是本机 React 应用。*
+
+<div align="center">
+<img src="managed-agent/images/foundry-portal/toolbox-skills.png" width="720" alt="脱敏 Foundry Toolbox：Web Search 与会议输出 Skill">
+</div>
+
+*Toolbox 是版本化 MCP Surface，用于治理 Tool 与 Skill Resource。Meeting、Mind Map 和 Presentation Skill 分别承担不同语义职责；Toolbox 不是 Hand Sandbox。*
+
+<div align="center">
+<img src="managed-agent/images/foundry-portal/hand-sandbox-capacity.png" width="960" alt="Foundry Portal Hand Sandbox 文件系统、CPU 与内存实测">
+</div>
+
+*一次内置 Hand 运行观测到 19 GB Root Filesystem、2 个可见 CPU Core 与 4 GB Memory。它只是单次 Session Observation，不是不可变 Sandbox Profile、Quota 或 SLA；Agent Definition 也没有暴露 CPU、Memory、Image 或语言 Runtime 字段。*
+
+[查看完整七图 Portal Walkthrough](managed-agent/docs/FOUNDRY-PORTAL-EVIDENCE-CN.md)，其中包括三个 Skill 页面、版本漂移边界，以及客户可审计 Runtime Contract 的产品缺口。
+
 ## 执行摘要
 
 客户主路径是本机浏览器工作区，而不是 Python 命令行。转写、结构化会议 JSON 或视觉适配器会转换成严格会议事件；本机 Python backend 使用 GPT-5.4 Responses API 结构化输出和 Medium reasoning，生成可追溯产物，并让 Windows UI 在 New Outlook 中打开 EML 草稿供人工审阅。

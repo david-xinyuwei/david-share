@@ -11,6 +11,8 @@
 
 **中文** | [English](MANAGED-IMPLEMENTATION.md) | [客户快速入口](../CUSTOMER-START-HERE-CN.md) | [产品首页](https://github.com/david-xinyuwei/david-share/tree/master/Agents/Meeting-Agent)
 
+**Portal Walkthrough：**[Agent、Toolbox、Skill 与内置 Hand/Sandbox 实证](FOUNDRY-PORTAL-EVIDENCE-CN.md)。该页使用一套独立 West US 2 Private Preview 验证部署的脱敏截图，并明确区分 Portal Observation 与版本化 API Contract。
+
 ## 微软官方定义与本项目映射
 
 根据 Microsoft Learn，[Foundry Agent Service](https://learn.microsoft.com/azure/foundry/agents/overview) 是构建、部署和扩缩 AI Agent 的托管平台。一个 Agent 由模型、Instructions 和 Tools 三类核心组件组成；Agent Runtime 负责托管和扩缩 Prompt Agent 与 Hosted Agent，并管理 Conversation、Tool Call 和 Agent 生命周期。
@@ -105,6 +107,8 @@ Microsoft Learn 描述了 Create、Test、Version、Trace、Evaluate、Publish �
 ![Skill、Toolbox 与 Managed Sandbox 关系](../images/managed-agent-skill-toolbox-sandbox-flow-cn.svg)
 
 Managed Harness 内置按需 Hand/Sandbox 执行面，用于 Skill 代码、Shell、CLI 和文件操作；它与 Toolbox 能力目录分离，也不是常驻计算。当前 Meeting Agent v9 的 PPTX 与 EML Renderer 仍在本机运行，且带日期的 East US 2 证据没有实际调用 Private Preview Hand/Sandbox。Sandbox Ready 必须在 West US 2 环境通过真实内置 Hand Tool 调用单独证明。
+
+West US 2 Portal Walkthrough 记录了一次真实 Hand 调用：该次 Runtime Observation 显示 19 GB Root Filesystem、2 个 CPU Core 与 4 GB Memory。这些值只描述一个 Session；Managed Agent Definition 并没有暴露版本化 Sandbox CPU、Memory、Image、OS 或语言 Runtime Contract。详见 [Portal 实证页](FOUNDRY-PORTAL-EVIDENCE-CN.md)与脱敏的 [Runtime Observation](../evidence/managed-live-westus2/sandbox-runtime-observation.json)。
 
 ## 功能范围
 

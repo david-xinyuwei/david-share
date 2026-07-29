@@ -20,6 +20,10 @@ DOCUMENT_PAIRS = (
         ROOT / "docs" / "IMPLEMENTATION-COMPARISON.md",
         ROOT / "docs" / "IMPLEMENTATION-COMPARISON-CN.md",
     ),
+    (
+        ROOT / "docs" / "FOUNDRY-PORTAL-EVIDENCE.md",
+        ROOT / "docs" / "FOUNDRY-PORTAL-EVIDENCE-CN.md",
+    ),
 )
 
 
@@ -67,6 +71,39 @@ def main() -> int:
             text = path.read_text(encoding="utf-8")
             for link in _local_links(text):
                 assert (path.parent / link).resolve().exists(), f"{path}: {link}"
+
+    portal_english = (ROOT / "docs" / "FOUNDRY-PORTAL-EVIDENCE.md").read_text(
+        encoding="utf-8"
+    )
+    portal_chinese = (ROOT / "docs" / "FOUNDRY-PORTAL-EVIDENCE-CN.md").read_text(
+        encoding="utf-8"
+    )
+    for marker in (
+        "single-session observation",
+        "not an immutable Agent-version guarantee",
+        "Version drift",
+        "Toolbox is not the Hand Sandbox",
+    ):
+        assert marker.casefold() in portal_english.casefold(), marker
+    for marker in (
+        "单次 Session Observation",
+        "不可变 Sandbox Profile",
+        "版本漂移",
+        "Toolbox 不是 Hand Sandbox",
+    ):
+        assert marker in portal_chinese, marker
+    for filename in (
+        "agent-list.png",
+        "agent-playground.png",
+        "toolbox-skills.png",
+        "skill-meeting-package-version-drift.png",
+        "skill-mind-map-story.png",
+        "skill-presentation-story.png",
+        "hand-sandbox-capacity.png",
+    ):
+        assert (ROOT / "images" / "foundry-portal" / filename).is_file(), filename
+        assert filename in portal_english, f"English Portal page: {filename}"
+        assert filename in portal_chinese, f"Chinese Portal page: {filename}"
 
     architecture = ElementTree.parse(ROOT / "images" / "meeting-agent-architecture.svg").getroot()
     assert architecture.attrib["viewBox"] == "0 0 2400 2100"
