@@ -1,4 +1,4 @@
-# Meeting Agent
+# Managed Meeting by Prompt Agent and Managed Agent
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-107C10.svg)](LICENSE)
