@@ -68,7 +68,7 @@ def main() -> int:
             "MEETING_AGENT_LOCAL_AGENT_URL": AGENT_URL,
             "MEETING_AGENT_LOCAL_SESSION_HOME": str(RUNTIME_DIR / "session"),
             "MEETING_AGENT_NAME": os.environ.get(
-                "MANAGED_AGENT_NAME", "managed-meeting-agent"
+                "MANAGED_AGENT_NAME", "true-meeting-managed-agent"
             ),
             "MEETING_AGENT_RUNTIME_MODE": "managed",
             "MEETING_AGENT_RUNTIME_ATTESTATION": (

@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "validated_at_utc": "2026-07-28T13:45:40Z",
+  "agent": {
+    "name": "true-meeting-managed-agent",
+    "version": "6",
+    "status": "active",
+    "kind": "prompt",
+    "harness": "ghcp",
+    "model": "Kimi-K2.7-Code",
+    "protocols": [
+      "responses"
+    ],
+    "authentication": [
+      "Entra"
+    ]
+  },
+  "model_deployment": {
+    "name": "Kimi-K2.7-Code",
+    "format": "MoonshotAI",
+    "version": "2026-06-12",
+    "sku": "GlobalStandard",
+    "validated_capacity": 50,
+    "capacity_scope": "working validation configuration; not a universal sizing recommendation"
+  },
+  "toolbox": {
+    "name": "my-toolbox",
+    "version": "7",
+    "connection_authentication": "AgenticIdentityToken",
+    "tools": [
+      "web_search"
+    ],
+    "observed_skills": {
+      "incident-triage": "1",
+      "meeting-package": "1",
+      "mind-map-story": "1",
+      "presentation-story": "1"
+    },
+    "public_meeting_source_skills": [
+      "meeting-package",
+      "mind-map-story",
+      "presentation-story"
+    ],
+    "source_boundary": "incident-triage was observed in the live Toolbox but is not represented as a local public Skill because no public source package was attested"
+  },
+  "runtime_gates": {
+    "managed_harness": "passed",
+    "toolbox_mcp_initialize": "passed",
+    "toolbox_mcp_resources_list": "passed",
+    "toolbox_mcp_resources_read": "passed",
+    "built_in_hand_sandbox_probe": "passed",
+    "meeting_json_browser_e2e": "passed",
+    "automatic_mail_send": false
+  },
+  "browser_e2e": {
+    "project": "desktop",
+    "tests": 1,
+    "passed": 1,
+    "unexpected": 0,
+    "flaky": 0,
+    "input": "examples/meeting-record-stargate.json",
+    "source_event_count": 56,
+    "model_response_id_present": true,
+    "artifacts": {
+      "analysis_json": true,
+      "deck_plan_json": true,
+      "mind_map_png": {
+        "nonblank": true,
+        "bytes": 60472,
+        "sha256": "5a91881d00eff0af7c6646f3433630636a75ffd1c09d2d1518771c4344a69155"
+      },
+      "editable_pptx": {
+        "slides": 6,
+        "bytes": 93230,
+        "sha256": "40030e596915c095c49171f5dedb5d812b44b3022b9979325802673580187a95"
+      },
+      "eml_draft": {
+        "x_unsent": "1",
+        "attachment_count": 2,
+        "attachments": [
+          "mind-map.png",
+          "meeting-summary.pptx"
+        ],
+        "bytes": 295356,
+        "sha256": "418a84a70dd4bfe077c112a040837e90509c9d094d3dbe09b0021f97e39f13b5"
+      }
+    }
+  },
+  "sandbox": {
+    "working_directory": "/workspace",
+    "runtime_observation": "evidence/managed-live-westus2/sandbox-runtime-observation.json",
+    "scope": "single-session observation; not a fixed SKU, quota, image, persistence contract, or SLA"
+  },
+  "validation": {
+    "source": "sanitized summary of live Foundry Agent, Toolbox, Hand, and browser E2E responses",
+    "source_baseline": "West US 2 Kimi Managed Agent v6 and Toolbox v7",
+    "assertions_passed": true,
+    "identities_and_tenant_urls_redacted": true,
+    "resource_identifiers": "redacted",
+    "scope": "current Kimi v6 runtime and browser-workflow validation snapshot; revalidate after source or environment changes"
+  }
+}

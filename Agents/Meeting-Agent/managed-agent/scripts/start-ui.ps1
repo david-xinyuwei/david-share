@@ -3,6 +3,7 @@ param(
     [string]$ManagedAgentEndpoint = $env:MANAGED_AGENT_ENDPOINT,
     [string]$ManagedAgentName = $env:MANAGED_AGENT_NAME,
     [string]$ManagedAgentVersion = $env:MANAGED_AGENT_VERSION,
+    [string]$ManagedAgentModel = $env:MANAGED_AGENT_MODEL,
     [Nullable[bool]]$RequireDeckPlan = $null,
     [string]$AzureConfigDir = $env:AZURE_CONFIG_DIR,
     [int]$BackendPort = 18089,
@@ -17,11 +18,13 @@ if (Test-Path -LiteralPath $runtimeManifestPath -PathType Leaf) {
     if (-not $ManagedAgentEndpoint) { $ManagedAgentEndpoint = $runtimeManifest.managed_agent_endpoint }
     if (-not $ManagedAgentName) { $ManagedAgentName = $runtimeManifest.managed_agent_name }
     if (-not $ManagedAgentVersion) { $ManagedAgentVersion = $runtimeManifest.managed_agent_version }
+    if (-not $ManagedAgentModel) { $ManagedAgentModel = $runtimeManifest.managed_agent_model }
     if ($null -eq $RequireDeckPlan -and $null -ne $runtimeManifest.managed_agent_requires_deck_plan) {
         $RequireDeckPlan = [bool]$runtimeManifest.managed_agent_requires_deck_plan
     }
 }
 if ($null -eq $RequireDeckPlan) { $RequireDeckPlan = $true }
+if (-not $ManagedAgentModel) { $ManagedAgentModel = "Kimi-K2.7-Code" }
 
 if ($env:OS -ne "Windows_NT") {
     throw "start-ui.ps1 must run in Windows PowerShell. WSL cannot open the New Outlook draft."
@@ -125,14 +128,14 @@ try {
         throw "The local Managed Agent backend did not become ready. $details"
     }
 
-    Write-Host "Starting Meeting Agent UI with Foundry Managed Agent $ManagedAgentName v$ManagedAgentVersion (Entra authentication)."
+    Write-Host "Starting Meeting Agent UI with Foundry Managed Agent $ManagedAgentName v$ManagedAgentVersion and $ManagedAgentModel (Entra authentication)."
     $env:PORT = [string]$UiPort
     $env:MEETING_AGENT_LOCAL_AGENT_URL = "http://127.0.0.1:$BackendPort"
     $env:MEETING_AGENT_LOCAL_SESSION_HOME = $sessionDirectory
     $env:MEETING_AGENT_RUNTIME_MODE = "managed"
     $env:MEETING_AGENT_RUNTIME_ATTESTATION = "live-managed"
     $env:MEETING_AGENT_NAME = $ManagedAgentName
-    $env:MANAGED_AGENT_MODEL = "gpt-5.4"
+    $env:MANAGED_AGENT_MODEL = $ManagedAgentModel
     npm ci --no-audit --no-fund
     if ($LASTEXITCODE -ne 0) { throw "npm ci failed with exit code $LASTEXITCODE" }
     npm run build

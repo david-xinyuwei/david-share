@@ -13,12 +13,12 @@ def main() -> int:
     agent = json.loads((ROOT / "evidence-managed-agent.json").read_text(encoding="utf-8"))
     definition = agent["agent"]
     assert definition == {
-        "name": "managed-meeting-agent",
-        "version": "9",
+        "name": "true-meeting-managed-agent",
+        "version": "6",
         "status": "active",
         "kind": "prompt",
         "harness": "ghcp",
-        "model": "gpt-5.4",
+        "model": "Kimi-K2.7-Code",
         "tool_count": 1,
         "protocols": ["responses"],
         "authentication": ["Entra"],
@@ -26,10 +26,63 @@ def main() -> int:
     assert agent["validation"]["assertions_passed"] is True
     assert agent["validation"]["identities_and_tenant_urls_redacted"] is True
     assert agent["validation"]["source_hash_manifest"] == (
-        "evidence/managed-live-gpt54/presentation-skill-v9-validation.json"
+        "evidence/managed-live-westus2/kimi-v6-runtime-validation.json"
     )
 
-    presentation_v9 = json.loads(
+    kimi_v6 = json.loads(
+        (
+            ROOT
+            / "evidence"
+            / "managed-live-westus2"
+            / "kimi-v6-runtime-validation.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert kimi_v6["agent"] == {
+        "name": "true-meeting-managed-agent",
+        "version": "6",
+        "status": "active",
+        "kind": "prompt",
+        "harness": "ghcp",
+        "model": "Kimi-K2.7-Code",
+        "protocols": ["responses"],
+        "authentication": ["Entra"],
+    }
+    assert kimi_v6["model_deployment"] == {
+        "name": "Kimi-K2.7-Code",
+        "format": "MoonshotAI",
+        "version": "2026-06-12",
+        "sku": "GlobalStandard",
+        "validated_capacity": 50,
+        "capacity_scope": (
+            "working validation configuration; not a universal sizing recommendation"
+        ),
+    }
+    assert kimi_v6["toolbox"]["name"] == "my-toolbox"
+    assert kimi_v6["toolbox"]["version"] == "7"
+    assert kimi_v6["toolbox"]["connection_authentication"] == (
+        "AgenticIdentityToken"
+    )
+    assert set(kimi_v6["toolbox"]["observed_skills"]) == {
+        "incident-triage",
+        "meeting-package",
+        "mind-map-story",
+        "presentation-story",
+    }
+    assert kimi_v6["toolbox"]["public_meeting_source_skills"] == [
+        "meeting-package",
+        "mind-map-story",
+        "presentation-story",
+    ]
+    assert kimi_v6["runtime_gates"]["built_in_hand_sandbox_probe"] == "passed"
+    assert kimi_v6["runtime_gates"]["meeting_json_browser_e2e"] == "passed"
+    assert kimi_v6["runtime_gates"]["automatic_mail_send"] is False
+    assert kimi_v6["browser_e2e"]["artifacts"]["editable_pptx"]["slides"] == 6
+    assert kimi_v6["browser_e2e"]["artifacts"]["eml_draft"]["x_unsent"] == "1"
+    assert kimi_v6["validation"]["assertions_passed"] is True
+    assert kimi_v6["validation"]["identities_and_tenant_urls_redacted"] is True
+    assert kimi_v6["validation"]["resource_identifiers"] == "redacted"
+
+    historical_presentation_v9 = json.loads(
         (
             ROOT
             / "evidence"
@@ -37,7 +90,7 @@ def main() -> int:
             / "presentation-skill-v9-validation.json"
         ).read_text(encoding="utf-8")
     )
-    assert presentation_v9["agent"] == {
+    assert historical_presentation_v9["agent"] == {
         "name": "managed-meeting-agent",
         "version": "9",
         "status": "active",
@@ -46,18 +99,18 @@ def main() -> int:
         "model": "gpt-5.4",
         "authentication": "Entra",
     }
-    assert presentation_v9["presentation_skill"]["version"] == "3"
-    assert presentation_v9["presentation_skill"]["package_files"] == [
+    assert historical_presentation_v9["presentation_skill"]["version"] == "3"
+    assert historical_presentation_v9["presentation_skill"]["package_files"] == [
         "SKILL.md",
         "references/deck-contract.yaml",
         "assets/presentation-style.yaml",
     ]
-    assert presentation_v9["toolbox"]["version"] == "5"
-    assert presentation_v9["strict_response"]["deck_plan_authored_by_agent"] is True
-    assert presentation_v9["live_browser_json_e2e"]["status"] == "passed"
-    assert presentation_v9["live_browser_json_e2e"]["pptx_slides"] == 6
-    assert presentation_v9["live_browser_json_e2e"]["eml_x_unsent"] == "1"
-    assert presentation_v9["resource_identifiers"] == "redacted"
+    assert historical_presentation_v9["toolbox"]["version"] == "5"
+    assert historical_presentation_v9["strict_response"]["deck_plan_authored_by_agent"] is True
+    assert historical_presentation_v9["live_browser_json_e2e"]["status"] == "passed"
+    assert historical_presentation_v9["live_browser_json_e2e"]["pptx_slides"] == 6
+    assert historical_presentation_v9["live_browser_json_e2e"]["eml_x_unsent"] == "1"
+    assert historical_presentation_v9["resource_identifiers"] == "redacted"
 
     skill = json.loads(
         (ROOT / "evidence" / "managed-live" / "toolbox-skill-validation.json").read_text(
@@ -78,6 +131,7 @@ def main() -> int:
     ]
     current_skills = {
         "meeting-package": ("SKILL.md",),
+        "mind-map-story": ("SKILL.md",),
         "presentation-story": (
             "SKILL.md",
             "references/deck-contract.yaml",
@@ -281,7 +335,7 @@ def main() -> int:
     assert historical_gpt54_ui["playwright"]["passed"] == 2
     assert historical_gpt54_ui["playwright"]["failed"] == 0
 
-    current_v9 = json.loads(
+    historical_v9 = json.loads(
         (
             ROOT
             / "evidence"
@@ -289,7 +343,7 @@ def main() -> int:
             / "presentation-skill-v9-validation.json"
         ).read_text(encoding="utf-8")
     )
-    assert current_v9["agent"] == {
+    assert historical_v9["agent"] == {
         "name": "managed-meeting-agent",
         "version": "9",
         "status": "active",
@@ -298,22 +352,22 @@ def main() -> int:
         "model": "gpt-5.4",
         "authentication": "Entra",
     }
-    assert current_v9["presentation_skill"]["package_files"] == [
+    assert historical_v9["presentation_skill"]["package_files"] == [
         "SKILL.md",
         "references/deck-contract.yaml",
         "assets/presentation-style.yaml",
     ]
-    assert current_v9["toolbox"]["version"] == "5"
-    assert current_v9["toolbox"]["skills"] == {
+    assert historical_v9["toolbox"]["version"] == "5"
+    assert historical_v9["toolbox"]["skills"] == {
         "meeting-package": "3",
         "presentation-story": "3",
     }
-    assert current_v9["strict_response"]["deck_plan_authored_by_agent"] is True
-    assert current_v9["live_browser_json_e2e"]["status"] == "passed"
-    assert current_v9["live_browser_json_e2e"]["pptx_slides"] == 6
-    assert current_v9["live_browser_json_e2e"]["eml_x_unsent"] == "1"
+    assert historical_v9["strict_response"]["deck_plan_authored_by_agent"] is True
+    assert historical_v9["live_browser_json_e2e"]["status"] == "passed"
+    assert historical_v9["live_browser_json_e2e"]["pptx_slides"] == 6
+    assert historical_v9["live_browser_json_e2e"]["eml_x_unsent"] == "1"
     print(
-        "PASS: historical v2/v6 and current v9 Managed Agent evidence is valid."
+        "PASS: current Kimi v6 and historical v2/v6/v9 Managed Agent evidence is valid."
     )
     return 0
 

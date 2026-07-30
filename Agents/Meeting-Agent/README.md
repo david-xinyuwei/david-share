@@ -32,7 +32,7 @@ This is the question the repository answers with one concrete application:
 | Implementation | Repository root | `managed-agent/` source inside this same product repository |
 | Agent definition | None; the application is the orchestrator | [`agent.yaml`](managed-agent/agent.yaml) defines the Foundry Agent resource |
 | Instructions | Python builds the system message | [`instructions.md`](managed-agent/instructions.md) is deployed with the Agent |
-| Skill | Python reads local `SKILL.md` and injects it into every request | Toolbox v5 references independent [`meeting-package`](managed-agent/skills/meeting-package/SKILL.md) v3 and [`presentation-story`](managed-agent/skills/presentation-story/SKILL.md) v3 behavior assets; v9 live evidence covers both Skills |
+| Skill | Python reads local `SKILL.md` and injects it into every request | Toolbox v7 references independent [`meeting-package`](managed-agent/skills/meeting-package/SKILL.md), [`mind-map-story`](managed-agent/skills/mind-map-story/SKILL.md), and [`presentation-story`](managed-agent/skills/presentation-story/SKILL.md) behavior assets |
 | Model loop owner | Local application code | Foundry-managed GHCP harness |
 | Invocation | Direct Azure OpenAI Responses client | Application references Agent name + immutable version; the endpoint is transport, not the Agent itself |
 | Authentication | API key in the local backend process | Entra ID for Responses and Agentic identity for Toolbox; no model API key in the customer path |
@@ -51,12 +51,12 @@ The Managed Agent is not a second UI and not merely an AI endpoint. It is the de
 
 1. [`agent.yaml`](managed-agent/agent.yaml): Agent kind, public name, description, and model.
 2. [`instructions.md`](managed-agent/instructions.md): stable evidence and safety policy owned by the Agent.
-3. [`meeting-package`](managed-agent/skills/meeting-package/SKILL.md) and [`presentation-story`](managed-agent/skills/presentation-story/SKILL.md): separate meeting-analysis and six-slide writing methods exposed through Toolbox MCP.
+3. [`meeting-package`](managed-agent/skills/meeting-package/SKILL.md), [`mind-map-story`](managed-agent/skills/mind-map-story/SKILL.md), and [`presentation-story`](managed-agent/skills/presentation-story/SKILL.md): separate meeting-analysis, mind-map, and six-slide writing methods exposed through Toolbox MCP.
 4. [`ManagedAgentAnalyzer`](managed-agent/src/meeting_agent/analyzers.py): a thin Entra-authenticated adapter that supplies meeting evidence, requires one exact Agent version, and validates the returned `MeetingAnalysis` contract.
 
 The local application still owns what should remain deterministic: event validation, ordering and idempotency, file generation, path safety, the browser workspace, and the human-controlled Outlook handoff.
 
-Current source fully separates the presentation domain: `presentation-story` owns the six-slide writing method, `DeckPlan` is the strict exchange contract, Deck/Style YAML owns mapping and visual tokens, and the PPTX template owns geometry. Deployed Agent v9, Toolbox v5, and both Skill v3 packages have passed strict-response and live Meeting JSON browser validation.
+Current source fully separates the presentation domain: `presentation-story` owns the six-slide writing method, `DeckPlan` is the strict exchange contract, Deck/Style YAML owns mapping and visual tokens, and the PPTX template owns geometry. The current West US 2 runtime is `true-meeting-managed-agent` v6 with `Kimi-K2.7-Code`, Toolbox v7, and three public Meeting Skills.
 
 ### What this repository must prove
 
@@ -71,24 +71,23 @@ Current source fully separates the presentation domain: `presentation-story` own
 
 Implementation details and parity evidence are linked from this root page; `managed-agent/` is a source directory, not a separate product or repository.
 
-### Measured result: deployed Managed Agent v9 with GPT-5.4
+### Measured result: Portal-deployed Managed Agent v6 with Kimi
 
-The repository source was redeployed with the same GPT-5.4 model family used by the Classic path. The Preview extension's generated skills-only Toolbox was reconciled to the official Toolbox Search contract, and the Agent uses a dedicated `AgenticIdentityToken` connection. The checked-in deployment gate keeps private azd values under ignored `.azure`, restores the public placeholder YAML, and idempotently records the active runtime in `.azure/managed-runtime.json`.
+The validated Agent was created in the Foundry Portal by selecting the GitHub Copilot managed harness and the existing Kimi deployment. The repository now records the equivalent CLI source and exports the immutable live Agent/Toolbox contract into ignored `.azure/managed-runtime.json` before the local UI starts. The Classic path remains on GPT-5.4; this is a workflow and operating-model comparison, not a model-quality benchmark.
 
 | Verification | Measured result |
 |---|---|
-| Deployed runtime | `managed-meeting-agent` version `9`, `status=active`, `harness=ghcp`, model `gpt-5.4` version `2026-03-05`; the evidence records the base commit and normalized Skill package layout, not a byte-for-byte deployed-tree attestation |
-| Toolbox and identity | Toolbox v5 exposes `meeting-package` v3, `presentation-story` v3, and Toolbox Search; Agent-specific identity has project-scoped `Foundry User` |
-| Agent identity | Strict response and browser paths passed Agent Reference validation for name `managed-meeting-agent`, version `9` |
-| Strict response | One direct v9 response completed with an Agent-authored strict `DeckPlan`; no invented date token was detected |
-| Historical cross-input behavior | The dated v6 evidence contains two materially different meeting runs and remains the cross-input differential record; it is not relabeled as v9 evidence |
-| v9 artifact contract | The Stargate JSON browser run produced a nonblank mind map, an editable six-slide PPTX, and an `X-Unsent: 1` EML draft with two attachments |
-| Browser workflow | Local UI uploaded Meeting JSON and called cloud v9 to produce Analysis, an Agent-authored DeckPlan, a six-slide PPTX, and an unsent EML; Playwright desktop `1/1` |
-| Shared deterministic behavior | Six core modules remain byte-for-byte identical; Models and Hosted Pipeline have explicit baseline/current hashes and DeckPlan reasons |
+| Deployed runtime | `true-meeting-managed-agent` version `6`, `status=active`, `harness=ghcp`, model `Kimi-K2.7-Code` version `2026-06-12`, Responses protocol, Entra authentication |
+| Model deployment | `MoonshotAI`, `GlobalStandard`, validated capacity `50`; this is one working configuration, not a universal sizing recommendation |
+| Toolbox and identity | `my-toolbox` v7 exposes `incident-triage`, `meeting-package`, `mind-map-story`, and `presentation-story`; the public Meeting source represents the latter three, and Toolbox access uses `AgenticIdentityToken` |
+| Agent identity | The browser and direct Responses paths pin `true-meeting-managed-agent` version `6` and reject another Agent reference |
+| Browser workflow | One structured Meeting JSON run produced grounded Analysis, a nonblank mind map, an editable six-slide PPTX, and an unsent EML with two attachments; Playwright desktop `1/1` |
+| Sandbox | One built-in Hand call executed a random runtime probe; the observed instance shape is not a fixed SKU or SLA |
+| Historical evidence | GPT-5.4 v9 presentation-package and two-input records remain historical evidence; they are not relabeled as the current Kimi runtime |
 
-This proves functional parity at the contract and workflow level. It does **not** claim that the two orchestration paths produce identical prose or that Preview behavior is a permanent production SLA.
+This proves functional parity at the contract and workflow level. It does **not** claim identical prose, model-quality parity, or that Preview behavior is a permanent production SLA.
 
-[Managed implementation details](managed-agent/docs/MANAGED-IMPLEMENTATION.md) · [Feature parity](managed-agent/FEATURE-PARITY.md) · [v9 dual-Skill evidence](managed-agent/evidence/managed-live-gpt54/presentation-skill-v9-validation.json)
+[Kimi Portal and CLI deployment](managed-agent/docs/KIMI-MANAGED-DEPLOYMENT.md) · [Managed implementation details](managed-agent/docs/MANAGED-IMPLEMENTATION.md) · [Feature parity](managed-agent/FEATURE-PARITY.md) · [Kimi v6 evidence](managed-agent/evidence/managed-live-westus2/kimi-v6-runtime-validation.json)
 
 ### Foundry Portal evidence: Agent, Toolbox, Skills, and Hand
 
@@ -114,7 +113,7 @@ The local browser workspace is the user-facing application; Microsoft Foundry is
 
 [Open the complete seven-image Portal walkthrough](managed-agent/docs/FOUNDRY-PORTAL-EVIDENCE.md), including all three Skill views, the version-drift caveat, and the customer-auditable runtime-contract gap.
 
-## Executive Summary
+## Classic Prompt-Based Path
 
 The customer path is a local browser workspace, not a Python command line. A transcript, structured meeting JSON, or visual adapter becomes strict meeting events; a local Python backend calls GPT-5.4 with Responses API structured output and medium reasoning, generates traceable artifacts, and lets the Windows UI open an EML draft in New Outlook for human review.
 
@@ -355,7 +354,7 @@ Evidence excerpt:
 }
 ```
 
-## GPT-5.4 Key-Authenticated Responses Analyzer
+## Classic GPT-5.4 Key-Authenticated Responses Analyzer
 
 The local Azure OpenAI analyzer is the primary runtime:
 

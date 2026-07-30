@@ -81,12 +81,11 @@ def main() -> int:
         encoding="utf-8",
         newline="\n",
     )
+    agent_source = yaml.safe_load((ROOT / "agent.yaml").read_text(encoding="utf-8"))
 
     manifest = {
         "schema_version": 1,
-        "agent_name": service["config"]["promptAgent"].get(
-            "name", deployment["name"]
-        ),
+        "agent_name": agent_source["name"],
         "service_name": "managed-meeting-agent",
         "source_files": {
             relative: _sha256(ROOT / relative) for relative in SOURCE_FILES

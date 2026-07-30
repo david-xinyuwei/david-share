@@ -6,7 +6,7 @@ This guide explains why the repository contains two implementations of one Meeti
 
 ## Decision Summary
 
-Both implementations use GPT-5.4 and preserve the same user-visible workflow: validated meeting events become structured notes, a mind map, an editable PowerPoint, and an unsent New Outlook draft. The difference is not model intelligence. The difference is **who owns the agent runtime**.
+Classic uses GPT-5.4 and the current Managed path uses `Kimi-K2.7-Code`. Both preserve the same user-visible workflow: validated meeting events become structured notes, a mind map, an editable PowerPoint, and an unsent New Outlook draft. This is therefore a **workflow-contract and runtime-ownership comparison**, not a controlled model-quality benchmark.
 
 - Choose **Classic direct Responses** when one application needs a short, portable path and the team wants complete control over each model call.
 - Choose **Foundry Managed Agent** when agent identity, versioned instructions and Skills, centralized tools, governed access, shared reuse, evaluation, and enterprise distribution matter more than minimizing platform dependencies.
@@ -21,10 +21,10 @@ flowchart LR
     UI --> P[Shared deterministic pipeline]
     P -->|Classic| C[Application-owned prompt orchestration]
     C --> M1[GPT-5.4 Responses]
-    P -->|Managed| A[Foundry Prompt Agent v9]
+    P -->|Managed| A[Foundry Prompt Agent v6]
     A --> H[Managed GHCP harness]
-    H --> M2[GPT-5.4]
-    H --> T[Toolbox v5\nmeeting-package v3 + presentation-story v3]
+    H --> M2[Kimi-K2.7-Code]
+    H --> T[Toolbox v7\nthree public Meeting Skills]
     M1 --> P
     A --> J[Strict MeetingAnalysis JSON]
     J --> P
@@ -37,9 +37,9 @@ The shared deterministic pipeline remains responsible for event validation, orde
 
 ![Managed Agent, Skill, Toolbox, and Sandbox relationship](../images/managed-agent-skill-toolbox-sandbox-flow.svg)
 
-The diagram separates publishing relationships from runtime control flow. Toolbox is the governed capability catalog; Managed Harness owns runtime control and includes an on-demand Hand/Sandbox execution surface for Skill code, shell commands, CLIs, and file operations. Sandbox is not a Toolbox child and is not standing compute. Meeting Agent v9 validates the Harness, Toolbox v5, and both Skill v3 packages, while PPTX/EML rendering remains local; the dated v9 evidence did not exercise Hand/Sandbox execution.
+The diagram separates publishing relationships from runtime control flow. Toolbox is the governed capability catalog; Managed Harness owns runtime control and includes an on-demand Hand/Sandbox execution surface for Skill code, shell commands, CLIs, and file operations. Sandbox is not a Toolbox child and is not standing compute. The Kimi v6 run validates the Harness, Toolbox v7, three public Meeting Skills, and one built-in Hand probe, while PPTX/EML rendering remains local.
 
-The private-preview quickstart used for this implementation requires the Foundry resource and project to be created in West US 2. The current v9 evidence came from an East US 2 project, so it proves the Agent, dual-Skill Toolbox, strict `DeckPlan`, and browser workflow, but it is not evidence that the private-preview Hand/Sandbox path is ready. A West US 2 deployment must separately pass real Bash/Shell/Read File/Execute Code/Stage-to-Hand calls before this repository claims Sandbox readiness.
+The private-preview quickstart used for this implementation requires the Foundry resource and project to be created in West US 2. The current Kimi v6 evidence came from West US 2 and includes one real built-in Hand/Sandbox probe. That proves the on-demand path for that run; it does not establish a fixed Sandbox SKU, image, quota, persistence contract, or SLA.
 
 ## What `GHCP Harness` Means — and What It Does Not Mean
 
@@ -80,8 +80,9 @@ The word “managed” also does not mean that every connection uses the same
 credential:
 
 1. **Wrapper → deployed Agent:** the validated path uses Microsoft Entra bearer
-    authentication and RBAC. A GPT-5.4 model API key cannot replace this identity
-    without bypassing the deployed Agent and reverting to the Classic path.
+    authentication and RBAC. A model API key—including the Classic GPT-5.4 key—
+    cannot replace this identity without bypassing the deployed Agent and
+    reverting to the Classic path.
 2. **Agent runtime → model:** Foundry resolves the model deployment selected by
     the Agent; the wrapper does not pass a model API key.
 3. **Agent → Toolbox or external tool:** each connection can use the supported
@@ -99,14 +100,14 @@ and [Hosted agents](https://learn.microsoft.com/azure/foundry/agents/concepts/ho
 
 ## Detailed Comparison
 
-| Dimension | Classic: application-owned GPT-5.4 | Managed: Foundry Agent + GPT-5.4 | Meaning for this repository |
+| Dimension | Classic: application-owned GPT-5.4 | Managed: Foundry Agent + Kimi | Meaning for this repository |
 |---|---|---|---|
-| Primary invocation target | GPT-5.4 Responses deployment | `managed-meeting-agent` name and immutable version | Classic addresses a model; Managed addresses an Agent resource |
-| Model | GPT-5.4 | GPT-5.4 | The model family is held constant so the runtime boundary can be compared |
-| Agent resource | None; the application is the orchestrator | Foundry Prompt Agent v9 | Agent behavior can be deployed and versioned independently |
+| Primary invocation target | GPT-5.4 Responses deployment | `true-meeting-managed-agent` name and immutable version | Classic addresses a model; Managed addresses an Agent resource |
+| Model | GPT-5.4 | `Kimi-K2.7-Code` | Model is not controlled; do not attribute output differences to the runtime alone |
+| Agent resource | None; the application is the orchestrator | Foundry Prompt Agent v6 | Agent behavior can be deployed and versioned independently |
 | Model loop owner | Local application code | Foundry-managed GHCP harness | The principal responsibility transfer |
 | Instructions | Constructed by local application code | Deployed with the Agent | Instructions become a managed, versioned asset |
-| Meeting and presentation methods | Local `SKILL.md` injected into requests | Toolbox v5 references `meeting-package` v3 and `presentation-story` v3 | Meeting analysis and presentation writing evolve independently; v9 has live dual-Skill evidence |
+| Meeting and presentation methods | Local `SKILL.md` injected into requests | Toolbox v7 references `meeting-package`, `mind-map-story`, and `presentation-story` | Meeting analysis, mind-map semantics, and presentation writing evolve independently |
 | PowerPoint contract and visual format | Packaged template and deterministic renderer | Strict `DeckPlan`, external Deck/Style YAML, and packaged template drive the renderer | Story, mapping, visual tokens, and geometry have separate versioned owners |
 | Tool catalog | Registered and wired by each application | Curated and versioned through Toolbox | Shared tools can be reused across agents and clients |
 | Tool loop | Application interprets and continues tool calls | Managed harness selects and continues tool calls | Less agent-loop code in the wrapper |
@@ -123,7 +124,7 @@ and [Hosted agents](https://learn.microsoft.com/azure/foundry/agents/concepts/ho
 | Portability | Higher; fewer platform assumptions | Higher Foundry dependency | Governance is gained in exchange for platform coupling |
 | Latency | Shorter control path in principle | Adds Agent runtime and possible tool hops | This repository does not claim Managed is faster |
 | Cost | Model and application operation | Model/tool usage; Prompt Agent has no customer-managed container | This repository does not claim Managed is cheaper |
-| Model quality | Depends on model, prompt, Skill, and evidence | Depends on the same factors | Managed does not inherently make GPT-5.4 smarter |
+| Model quality | Depends on GPT-5.4, prompt, Skill, and evidence | Depends on Kimi, instructions, Skills, and evidence | No model-quality equivalence or runtime-caused quality claim is made |
 | Failure surface | Key, endpoint, prompt/parser, model quota | Entra, RBAC, Agent version, Toolbox, SSE, model quota, Preview runtime | Managed improves governance but adds platform diagnostics |
 | Best fit | One app, few tools, simple flow, portability | Shared agents/tools, enterprise identity, version governance, continuous evaluation | Select by operating model, not by marketing label |
 
@@ -131,11 +132,11 @@ and [Hosted agents](https://learn.microsoft.com/azure/foundry/agents/concepts/ho
 
 The comparison is based on executable evidence, not architecture diagrams alone.
 
-| Gate | Classic direct Responses | Managed Agent v9 | Result |
+| Gate | Classic direct Responses | Managed Agent v6 | Result |
 |---|---|---|---|
-| Real model | GPT-5.4 `2026-03-05` | GPT-5.4 `2026-03-05` | Same model family |
+| Real model | GPT-5.4 `2026-03-05` | `Kimi-K2.7-Code` `2026-06-12` | Different models; workflow contract only |
 | Authentication | Key in local backend | Entra to Agent; Agentic identity to Toolbox | Different trust boundary |
-| Cross-input differential | Two materially different inputs produced different titles and artifact hashes | Two materially different inputs produced different titles and artifact hashes | No fixed-output implementation |
+| Input dependence | Two historical materially different GPT-5.4 inputs produced different titles and artifact hashes | One current Kimi Meeting JSON run completed with input-grounded artifacts | No fixed-output claim for either recorded path; current Kimi evidence is not a two-input quality benchmark |
 | Streaming | Real model delta before artifact stages | Real Managed SSE delta before artifact stages | Equivalent UI contract |
 | Mind map | Nonblank 1280×720 PNG plus Mermaid source | Nonblank 1280×720 PNG plus Mermaid source | Equivalent artifact contract |
 | PowerPoint | Editable six-slide PPTX | Editable six-slide PPTX | Equivalent artifact contract |
@@ -147,7 +148,8 @@ Evidence:
 
 - [Classic live GPT-5.4 validation](../../evidence/aoai-live-validation.json)
 - [Classic cross-input differential](../../evidence/aoai-runtime-differential.json)
-- [Managed v9 dual-Skill and browser validation](../evidence/managed-live-gpt54/presentation-skill-v9-validation.json)
+- [Current Kimi v6 runtime and browser validation](../evidence/managed-live-westus2/kimi-v6-runtime-validation.json)
+- [Historical Managed v9 dual-Skill and browser validation](../evidence/managed-live-gpt54/presentation-skill-v9-validation.json)
 - [Historical Managed v6 runtime](../evidence/managed-live-gpt54/runtime-validation.json)
 - [Historical Managed v6 cross-input differential](../evidence/managed-live-gpt54/dual-input-validation.json)
 - [Large-input recovery and SSE error-path validation](../evidence/managed-live-gpt54/large-input-recovery-validation.json)
@@ -160,16 +162,16 @@ These records prove functional behavior and responsibility transfer. They are no
 
 1. The wrapper no longer stores a model API key for the Managed path.
 2. Calls are pinned to an Agent name and immutable version.
-3. Instructions, `meeting-package`, and `presentation-story` are deployable assets rather than request-time prompt assembly.
+3. Instructions, `meeting-package`, `mind-map-story`, and `presentation-story` are deployable assets rather than request-time prompt assembly.
 4. Toolbox access uses an Agent-specific identity with project-scoped RBAC.
 5. The application gives up the model loop while retaining strict deterministic controls.
 6. The user workflow and artifact safety contract remain intact after that responsibility transfer.
 
-Current source implements `presentation-story`, strict `DeckPlan`, external
-Deck/Style YAML, and a deterministic renderer. Skills are behavior assets, not
-the runtime framework. The v9 evidence proves discovery of both Skills, Toolbox
-v5 resolution to both v3 Skill packages, and Agent-authored strict `deck_plan`
-output.
+Current source implements three public Meeting Skills, strict `DeckPlan`,
+external Deck/Style YAML, and a deterministic renderer. Skills are behavior
+assets, not the runtime framework. The Kimi v6 evidence proves Toolbox v7
+resolution, Agent-authored strict `deck_plan`, one built-in Hand probe, and the
+browser artifact workflow.
 
 ### Potential, not yet claimed as complete here
 
@@ -189,7 +191,7 @@ These are platform evolution paths. They must not be described as implemented un
 |---|---|---|
 | Cross-tenant Preview deployment returned 403 | Azure CLI and Azure Developer CLI used different identity caches; the extension selected a home-tenant identity | Isolate both CLIs and pass tenant/subscription explicitly to the parent deployment process |
 | Agent control plane appeared active while a Preview session API failed | Control-plane status did not prove every runtime substrate was ready; explicit persistent filesystem sessions were a separate product boundary | Validate Brain, tools, session APIs, and artifacts independently; do not infer one capability from another |
-| Large meeting failed with a generic stream error | GPT-5.4 deployment was configured at 1K TPM, below the request size; an empty `response.failed` event hid the following detailed `error` event | Size deployment capacity for realistic inputs and continue parsing until the detailed SSE error arrives |
+| Historical GPT-5.4 large meeting failed with a generic stream error | The historical GPT-5.4 deployment was configured at 1K TPM, below the request size; an empty `response.failed` event hid the following detailed `error` event | Size deployment capacity for realistic inputs and continue parsing until the detailed SSE error arrives |
 | UI build failed after restart | Node and Playwright libraries were stored in `/tmp` | Use persistent user tool directories |
 | Python backend appeared hung | Running the environment from a OneDrive/9p path blocked in `p9_client_rpc` | Run the backend environment and mutable runtime state on WSL ext4 |
 | Evidence hashes changed without code changes | Microsoft Purview encrypted PPTX files in place | Keep hash-critical evidence outside automatic Office encryption boundaries or recover from independently hashed attachments |

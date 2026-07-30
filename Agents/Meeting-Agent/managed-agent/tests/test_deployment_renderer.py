@@ -65,6 +65,7 @@ def test_renderer_resolves_private_values_outside_public_source(tmp_path: Path) 
     manifest = json.loads(
         (output_dir / "DEPLOY-SOURCE-MANIFEST.json").read_text(encoding="utf-8")
     )
+    assert manifest["agent_name"] == "true-meeting-managed-agent"
     assert manifest["service_name"] == "managed-meeting-agent"
     assert set(manifest["source_files"]) == {
         "agent.yaml",

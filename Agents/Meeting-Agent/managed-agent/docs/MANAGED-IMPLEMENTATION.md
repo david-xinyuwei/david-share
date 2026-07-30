@@ -92,11 +92,11 @@ Foundry Agent Service / Prompt Agent Runtime
 
 The runtime executes the Agent. Instructions define Agent-wide behavior. A Skill
 packages a reusable method. Toolbox governs and exposes Skills and tools. These
-layers can evolve independently. Current v9 evidence shows Toolbox v5 resolving
-both `meeting-package` v3 and `presentation-story` v3; the presentation Skill's
-default and resolved versions are both v3. Historical v6 evidence only showed a
-versioned Toolbox referencing a named Skill, without proving an immutable Skill
-version pin rather than default-version resolution.
+layers can evolve independently. Current Kimi v6 evidence shows Toolbox v7
+resolving `meeting-package`, `mind-map-story`, and `presentation-story` for the
+Meeting workflow. The same live Toolbox also contained `incident-triage`; because
+its public source package was not attested, this repository records it as an
+observed Toolbox capability rather than inventing a local Skill source.
 
 ### Official lifecycle and governance versus this repository's evidence
 
@@ -108,10 +108,10 @@ specific subset rather than claiming the entire platform:
 
 | Microsoft-documented capability | Proven here | Not claimed here |
 |---|---|---|
-| Agent versions | Calls pin the name and immutable version of deployed Agent v9; v6 remains dated historical evidence | A complete production promotion or rollback service |
+| Agent versions | Calls pin `true-meeting-managed-agent` and immutable version 6 | A complete production promotion or rollback service |
 | Prompt Agent managed runtime | Foundry owns the model/tool loop; the wrapper owns deterministic validation and artifacts | That managed orchestration improves model intelligence, latency, or cost |
 | Agent identity and tool authentication | Entra authenticates the client path; the Toolbox connection uses Agentic identity with scoped RBAC | Every possible OBO, published-identity, or external-tool flow |
-| Toolbox and Skill | v9 evidence covers Toolbox v5 resolving `meeting-package` v3 and normalized `presentation-story` v3, plus an Agent-authored strict `DeckPlan` | Runtime use of Managed Sandbox or every possible Tool type |
+| Toolbox and Skill | Kimi v6 evidence covers Toolbox v7 resolving the three public Meeting Skills, an Agent-authored strict `DeckPlan`, and one built-in Hand/Sandbox probe | Every possible Tool type, a fixed Sandbox shape, or a persistent Sandbox SLA |
 | Trace, evaluation, publishing, monitoring | Architectural extension points only | Production monitoring, continuous evaluation, or enterprise-channel publication |
 
 Official sources, retrieved 2026-07-27:
@@ -132,12 +132,12 @@ pages before using this Preview-dependent implementation for another delivery.
 
 | Layer | Real implementation | Evidence |
 |---|---|---|
-| Cloud runtime | `managed-meeting-agent` v9 is validated with `status=active`, `harness=ghcp`, `gpt-5.4`, strict Agent-authored `DeckPlan`, Responses protocol, and Entra authentication; v6 remains the historical baseline | [v9 Presentation validation](../evidence/managed-live-gpt54/presentation-skill-v9-validation.json) · [v6 historical runtime validation](../evidence/managed-live-gpt54/runtime-validation.json) |
-| Cloud Skill | Toolbox v5 binds `meeting-package` v3 and the normalized `presentation-story` v3 package (`SKILL.md`, `references/`, `assets/`) through Agentic identity authentication | [v9 Presentation validation](../evidence/managed-live-gpt54/presentation-skill-v9-validation.json) · [historical v2 Skill body hash](../evidence/managed-live/toolbox-skill-validation.json) |
-| Presentation source contract | Current source separates `presentation-story`, strict `DeckPlan`, `deck-contract.yaml`, `presentation-style.yaml`, and deterministic rendering; the deployment reconciler requires both Skills | `tests/test_presentation_responsibility_contract.py` · `tests/test_runtime_reconciler.py` |
+| Cloud runtime | `true-meeting-managed-agent` v6 is validated with `status=active`, `harness=ghcp`, `Kimi-K2.7-Code`, strict Agent-authored `DeckPlan`, Responses protocol, and Entra authentication | [Kimi v6 runtime validation](../evidence/managed-live-westus2/kimi-v6-runtime-validation.json) |
+| Cloud Skill | Toolbox v7 binds the three public Meeting Skills through Agentic identity authentication; `incident-triage` is recorded only as an observed live Toolbox Skill | [Kimi v6 runtime validation](../evidence/managed-live-westus2/kimi-v6-runtime-validation.json) · [historical v9 Presentation validation](../evidence/managed-live-gpt54/presentation-skill-v9-validation.json) |
+| Presentation source contract | Current source separates `presentation-story`, strict `DeckPlan`, `deck-contract.yaml`, `presentation-style.yaml`, and deterministic rendering; the deployment reconciler requires all three Meeting Skills | `tests/test_presentation_responsibility_contract.py` · `tests/test_runtime_reconciler.py` |
 | Meeting analysis | `ManagedAgentAnalyzer` sends the actual normalized meeting events and strict `MeetingAnalysis` schema to the deployed Agent | [Client contract](../tests/test_managed_analyzer.py) |
-| Artifact pipeline | Real JSON, Mermaid, SVG, 1280x720 PNG, editable six-slide PPTX, and MIME EML | [GPT-5.4 dual-input validation](../evidence/managed-live-gpt54/dual-input-validation.json) |
-| Browser UI | React workspace, loopback BFF, real streamed model deltas, artifact downloads, and Outlook draft action | [ARM64 desktop/mobile validation](../evidence/managed-live-gpt54/ui-validation.json) |
+| Artifact pipeline | Real JSON, Mermaid, SVG, nonblank PNG, editable six-slide PPTX, and MIME EML | [Kimi v6 browser E2E](../evidence/managed-live-westus2/kimi-v6-runtime-validation.json) · [historical GPT-5.4 cross-input validation](../evidence/managed-live-gpt54/dual-input-validation.json) |
+| Browser UI | React workspace, loopback BFF, real streamed model deltas, artifact downloads, and Outlook draft action | [Kimi v6 browser E2E](../evidence/managed-live-westus2/kimi-v6-runtime-validation.json) |
 | Mail safety | `X-Unsent: 1`, zero recipients by default, two real attachments, no send API or Send-button automation | `scripts/audit_no_send.py` |
 
 No AOAI API-key fallback exists in the customer path. Static fixture analyzers are test-only and cannot be selected by the production host or CLI. The browser never receives an Azure token.
@@ -146,10 +146,10 @@ No AOAI API-key fallback exists in the customer path. Static fixture analyzers a
 
 The Managed Harness includes an on-demand Hand/Sandbox execution surface for
 Skill code, shell commands, CLIs, and file operations. It is separate from the
-Toolbox catalog and is not standing compute. This Meeting Agent v9 keeps its PPTX
-and EML renderers local, and its dated East US 2 evidence did not exercise the
-private-preview Hand/Sandbox path. Sandbox readiness requires a separate West US 2
-deployment and real built-in Hand tool calls.
+Toolbox catalog and is not standing compute. The current Kimi v6 Agent keeps its
+PPTX and EML renderers local. Its West US 2 validation exercised one real built-in
+Hand call; that proves the on-demand path for that run, not a fixed Sandbox SKU,
+image, persistence contract, quota, or SLA.
 
 The West US 2 Portal walkthrough records one such Hand invocation: the observed
 runtime exposed a 19 GB root filesystem, two CPU cores, and 4 GB memory. Those
@@ -217,22 +217,22 @@ For backward compatibility, responses from the deployed v6 Agent that omit
 contract. New deployments are instructed to return `deck_plan` directly. Fonts,
 colors, and shape coordinates remain outside the Prompt by design.
 
-Evidence remains version-scoped. The historical v2 validation compared the
-cloud `skill://meeting-package/SKILL.md` body to the public source by SHA-256,
-and v6 validates the original single-Skill Toolbox. The current v9 evidence
-validates the normalized multi-file `presentation-story` v3 package, Toolbox v5,
-strict Agent-authored `deck_plan`, and the local browser JSON-upload path through
-editable PPTX and unsent EML generation.
+Evidence remains version-scoped. The historical v2 validation compared the cloud
+`skill://meeting-package/SKILL.md` body to the public source by SHA-256; the
+historical GPT-5.4 v6/v9 records remain unchanged under `managed-live-gpt54/`.
+The current Kimi v6 evidence validates Toolbox v7, all three public Meeting Skill
+references, strict Agent-authored `deck_plan`, one built-in Hand probe, and the
+local browser JSON-upload path through editable PPTX and unsent EML generation.
 
 ## Cloud Deployment
 
 The checked-in source declares a dedicated prompt Agent:
 
-- Agent example: `managed-meeting-agent`
-- Version validated: `9` (v6 retained as the historical baseline)
-- Model: `gpt-5.4` (`2026-03-05`, `GlobalStandard`)
+- Agent name: `true-meeting-managed-agent`
+- Version validated: `6`
+- Model: `Kimi-K2.7-Code` (`MoonshotAI`, `2026-06-12`, `GlobalStandard`, validated capacity `50`)
 - Harness: `ghcp`
-- Skills in current source: `meeting-package`, `presentation-story`
+- Skills in current public source: `meeting-package`, `mind-map-story`, `presentation-story`
 - Authentication: Entra only; Toolbox access uses `AgenticIdentityToken`
 
 `ghcp` is a Foundry-managed runtime identifier, not a requirement to host this
@@ -243,7 +243,9 @@ rather than reading a source repository per request. See
 for the source/runtime boundary, supported-value evidence, and authentication
 chains.
 
-`agent.yaml`, `instructions.md`, both Skill directories, and `azure.yaml` are the deployment source. The deployment view hashes the Presentation Skill, `references/deck-contract.yaml`, and `assets/presentation-style.yaml`. After deployment, `scripts/reconcile_managed_runtime.py` requires both Skill references, creates a new Toolbox version when needed, binds the Agentic connection, and writes the resulting Agent version under ignored `.azure` state.
+`agent.yaml`, `instructions.md`, the three public Meeting Skill directories, and `azure.yaml` are the deployment source. The deployment view hashes each source asset, including the Presentation Skill references and assets. After deployment, `scripts/reconcile_managed_runtime.py` requires all three Meeting Skill references, accepts the validated Web Search/legacy Toolbox Search tool contracts, creates a new Toolbox version only when needed, binds the Agentic connection, and writes the resulting Agent version under ignored `.azure` state.
+
+For exact Portal and CLI steps, see [Kimi Managed Agent deployment](KIMI-MANAGED-DEPLOYMENT.md).
 
 ## Windows Start
 
@@ -273,8 +275,9 @@ Use the same Managed Agent environment in a developer shell:
 ```bash
 export AZURE_CONFIG_DIR="$HOME/.azure-<tenant>-<subscription>"
 export MANAGED_AGENT_ENDPOINT="https://<account>.services.ai.azure.com/api/projects/<project>/openai/v1/responses"
-export MANAGED_AGENT_NAME="managed-meeting-agent"
-export MANAGED_AGENT_VERSION="<active-version>"
+export MANAGED_AGENT_NAME="true-meeting-managed-agent"
+export MANAGED_AGENT_VERSION="6"
+export MANAGED_AGENT_MODEL="Kimi-K2.7-Code"
 
 python -m meeting_agent.cli build \
   --events examples/product-planning.jsonl \
@@ -283,9 +286,18 @@ python -m meeting_agent.cli build \
 
 The CLI fails closed when Entra authentication, the configured Agent version, the HTTP response, or the strict JSON contract is invalid.
 
-## Validation
+## Current Kimi Validation
 
-Two materially different inputs were sent through the public-source v6 Agent with GPT-5.4. Their source, analysis, PPTX, and EML hashes differ, proving the runtime and generated artifacts are input-dependent rather than fixed scenario output.
+The current West US 2 run sent structured Meeting JSON through
+`true-meeting-managed-agent` v6. The response completed, returned strict Analysis
+and `DeckPlan`, and generated a nonblank mind map, editable six-slide PPTX, and
+an unsent EML with two attachments. The same run validated Toolbox v7, the three
+public Meeting Skills, and one built-in Hand/Sandbox probe. See the
+[sanitized Kimi v6 evidence](../evidence/managed-live-westus2/kimi-v6-runtime-validation.json).
+
+## Historical GPT-5.4 Differential Evidence
+
+Two materially different inputs were previously sent through the public-source v6 Agent with GPT-5.4. Their source, analysis, PPTX, and EML hashes differ, proving that historical runtime and artifact generation were input-dependent rather than fixed scenario output. These records are retained as historical differential evidence; they do not describe the current Kimi deployment.
 
 | Run | Source SHA-256 | Analysis SHA-256 | PPTX SHA-256 | EML |
 |---|---|---|---|---|
@@ -333,4 +345,4 @@ The classic path is prompt-style local orchestration, not a deployed Foundry Pro
 - New Outlook handoff requires an interactive Windows desktop.
 - Explicit cross-invocation persistent filesystem sessions are not claimed or required.
 - The Prompt Agent, managed GHCP harness, and Toolbox Skill integration remain Preview dependencies and must be revalidated before customer delivery in another tenant or project.
-- Historical v2 / `gpt-oss-120b` evidence remains under `evidence/managed-live/`; current GPT-5.4 evidence is under `evidence/managed-live-gpt54/`.
+- Current Kimi v6 evidence is under `evidence/managed-live-westus2/`; historical v2 / `gpt-oss-120b` evidence remains under `evidence/managed-live/`, and historical GPT-5.4 v6/v9 evidence remains under `evidence/managed-live-gpt54/`.

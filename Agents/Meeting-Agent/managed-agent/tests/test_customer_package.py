@@ -33,10 +33,16 @@ def test_customer_package_includes_test_tree() -> None:
         "evidence/managed-live-gpt54/presentation-skill-v9-validation.json"
         in packaged_paths
     )
+    assert (
+        "evidence/managed-live-westus2/kimi-v6-runtime-validation.json"
+        in packaged_paths
+    )
     assert "images/managed-agent-skill-toolbox-sandbox-flow.svg" in packaged_paths
     assert "images/managed-agent-skill-toolbox-sandbox-flow-cn.svg" in packaged_paths
     assert "docs/FOUNDRY-PORTAL-EVIDENCE.md" in packaged_paths
     assert "docs/FOUNDRY-PORTAL-EVIDENCE-CN.md" in packaged_paths
+    assert "docs/KIMI-MANAGED-DEPLOYMENT.md" in packaged_paths
+    assert "docs/KIMI-MANAGED-DEPLOYMENT-CN.md" in packaged_paths
     assert "evidence/managed-live-westus2/sandbox-runtime-observation.json" in packaged_paths
     for filename in (
         "agent-list.png",

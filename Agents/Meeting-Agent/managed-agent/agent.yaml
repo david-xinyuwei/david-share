@@ -3,6 +3,6 @@
 # Foundry provides the managed runtime. There is no `kind: managed` value.
 
 kind: prompt
-name: managed-meeting-agent
-description: GPT-5.4 Responses meeting analysis for evidence-grounded artifacts and manual Outlook handoff
-model: gpt-5.4
+name: true-meeting-managed-agent
+description: Kimi meeting analysis for evidence-grounded artifacts and manual Outlook handoff
+model: Kimi-K2.7-Code

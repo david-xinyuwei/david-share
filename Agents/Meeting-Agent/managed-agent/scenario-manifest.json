@@ -28,6 +28,15 @@
     }
   },
   "evidence_sets": {
+    "kimi-managed-20260728": {
+      "type": "current-runtime-and-browser-evidence",
+      "summary": "evidence/managed-live-westus2/kimi-v6-runtime-validation.json",
+      "boundaries": [
+        "The Kimi record is a sanitized validation snapshot, not a byte-for-byte cloud export.",
+        "Historical GPT-5.4 records remain historical and are not relabeled as Kimi.",
+        "The observed Hand runtime shape is not a fixed SKU, quota, persistence contract, or SLA."
+      ]
+    },
     "foundry-portal-20260728": {
       "type": "portal-architecture-and-configuration-evidence",
       "walkthrough": "docs/FOUNDRY-PORTAL-EVIDENCE.md",

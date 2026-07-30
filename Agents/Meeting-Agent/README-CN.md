@@ -32,7 +32,7 @@ https://github.com/user-attachments/assets/023f22f0-31f2-4039-85f0-e22712770ff2
 | 实现位置 | Repo根目录 | 同一产品Repo中的`managed-agent/`源码目录 |
 | Agent定义 | 无；应用本身承担Orchestrator | [`agent.yaml`](managed-agent/agent.yaml)定义Foundry Agent资源 |
 | Instructions | Python代码构造System Message | [`instructions.md`](managed-agent/instructions.md)随Agent部署 |
-| Skill | Python读取本机`SKILL.md`并在每次请求中注入 | Toolbox v5 引用独立的 [`meeting-package`](managed-agent/skills/meeting-package/SKILL.md) v3 与 [`presentation-story`](managed-agent/skills/presentation-story/SKILL.md) v3 行为资产；v9 Live 证据覆盖两个 Skill |
+| Skill | Python读取本机`SKILL.md`并在每次请求中注入 | Toolbox v7引用独立的[`meeting-package`](managed-agent/skills/meeting-package/SKILL.md)、[`mind-map-story`](managed-agent/skills/mind-map-story/SKILL.md)与[`presentation-story`](managed-agent/skills/presentation-story/SKILL.md)行为资产 |
 | 模型循环责任方 | 本机应用代码 | Foundry托管的GHCP Harness |
 | 调用方式 | 直接调用Azure OpenAI Responses | 应用引用Agent name和不可变version；Endpoint只是传输入口，不是Agent本身 |
 | 认证 | 本机Backend进程使用API Key | Responses使用Entra ID，Toolbox使用Agentic Identity；客户主路径不使用模型API Key |
@@ -51,12 +51,12 @@ Managed Agent不是第二套UI，也不只是一个AI Endpoint。它是通过`ag
 
 1. [`agent.yaml`](managed-agent/agent.yaml)：Agent kind、公开名称、描述和模型。
 2. [`instructions.md`](managed-agent/instructions.md)：由Agent持有的稳定证据边界和安全策略。
-3. [`meeting-package`](managed-agent/skills/meeting-package/SKILL.md)与[`presentation-story`](managed-agent/skills/presentation-story/SKILL.md)：分别管理会议分析和六页写作方法，通过Toolbox MCP提供。
+3. [`meeting-package`](managed-agent/skills/meeting-package/SKILL.md)、[`mind-map-story`](managed-agent/skills/mind-map-story/SKILL.md)与[`presentation-story`](managed-agent/skills/presentation-story/SKILL.md)：分别管理会议分析、思维导图和六页写作方法，通过Toolbox MCP提供。
 4. [`ManagedAgentAnalyzer`](managed-agent/src/meeting_agent/analyzers.py)：很薄的Entra Adapter，只负责提交会议证据、锁定Agent版本，并校验返回的`MeetingAnalysis`契约。
 
 本机应用继续负责应当保持确定性的部分：事件校验、排序与幂等、文件生成、路径安全、浏览器工作区，以及人工控制的Outlook交接。
 
-当前源码已完整拆分 Presentation Domain：`presentation-story`负责六页写作方法，`DeckPlan`是严格交换契约，Deck/Style YAML负责映射与视觉Token，PPTX Template负责几何。已部署 v9、Toolbox v5 与两个 Skill v3 已完成严格响应和 Meeting JSON 浏览器 Live 验收。
+当前源码已完整拆分Presentation Domain：`presentation-story`负责六页写作方法，`DeckPlan`是严格交换契约，Deck/Style YAML负责映射与视觉Token，PPTX Template负责几何。当前West US 2运行时是`true-meeting-managed-agent` v6、`Kimi-K2.7-Code`、Toolbox v7与三个公开Meeting Skill。
 
 ### 这个Repo必须证明什么
 
@@ -71,24 +71,23 @@ Managed Agent不是第二套UI，也不只是一个AI Endpoint。它是通过`ag
 
 实现细节和Parity证据统一从本根页面进入；`managed-agent/`只是源码目录，不是第二个产品或第二个Repo。
 
-### 实测结论：已部署的Managed Agent v9与GPT-5.4
+### 实测结论：Portal部署的Kimi Managed Agent v6
 
-Repo源码已使用与Classic路径相同的GPT-5.4模型系列重新部署。Preview扩展生成的纯Skill Toolbox经过reconcile后符合官方Toolbox Search契约，Agent使用独立`AgenticIdentityToken`连接。Repo中的部署门禁只在被忽略的`.azure`目录处理私有azd值，恢复Public占位符YAML，并以幂等方式把Active Runtime写入`.azure/managed-runtime.json`。
+已验证Agent通过Foundry Portal创建：选择GitHub Copilot Managed Harness和已有Kimi Deployment。Repo现在记录等价CLI Source，并在本机UI启动前把不可变Agent/Toolbox合同导出到被忽略的`.azure/managed-runtime.json`。Classic路径继续使用GPT-5.4；这里比较工作流与运维责任，不做模型质量Benchmark。
 
 | 验证项 | 实测结果 |
 |---|---|
-| 已部署运行时 | `managed-meeting-agent`版本`9`，`status=active`、`harness=ghcp`，模型为`gpt-5.4`版本`2026-03-05`；证据记录基础提交与规范化 Skill 包结构，不把它表述成部署树逐字节证明 |
-| Toolbox与Identity | Toolbox v5提供`meeting-package` v3、`presentation-story` v3和Toolbox Search；只有Agent专属Identity在Project Scope拥有`Foundry User` |
-| Agent身份 | 严格响应与浏览器链路通过Agent Reference校验：name=`managed-meeting-agent`、version=`9` |
-| 严格响应 | 一次 v9 直接响应完成，并返回 Agent 原生严格 `DeckPlan`；未检测到虚构日期 Token |
-| 历史跨输入行为 | 带日期的 v6 证据保存两份内容显著不同的会议运行，继续作为跨输入差分记录，不改标为 v9 证据 |
-| v9产物契约 | Stargate JSON 浏览器运行生成非空思维导图、可编辑六页PPTX，以及`X-Unsent: 1`、2附件的EML草稿 |
-| 浏览器工作流 | 本地 UI 上传 Meeting JSON，调用云端 v9 后生成 Analysis、Agent 原生 DeckPlan、六页 PPTX 与未发送 EML；Playwright桌面端`1/1` |
-| 共用确定性行为 | 六个核心模块继续逐字节一致；Models与Hosted Pipeline记录Baseline/Current Hash及DeckPlan差异原因 |
+| 已部署运行时 | `true-meeting-managed-agent`版本`6`，`status=active`、`harness=ghcp`，模型为`Kimi-K2.7-Code`版本`2026-06-12`，使用Responses协议和Entra认证 |
+| 模型Deployment | `MoonshotAI`、`GlobalStandard`、实测Capacity `50`；这是一个跑通配置，不是通用容量建议 |
+| Toolbox与Identity | `my-toolbox` v7提供`incident-triage`、`meeting-package`、`mind-map-story`与`presentation-story`；Public Meeting源码只表示后三个Skill，Toolbox访问使用`AgenticIdentityToken` |
+| Agent身份 | 浏览器与Direct Responses路径锁定`true-meeting-managed-agent`版本`6`，其他Agent Reference会被拒绝 |
+| 浏览器工作流 | 一次结构化Meeting JSON运行生成有依据的Analysis、非空思维导图、可编辑六页PPTX，以及含两个附件的未发送EML；Playwright桌面端`1/1` |
+| Sandbox | 一次内置Hand调用执行随机Runtime Probe；观察到的实例形态不是固定SKU或SLA |
+| 历史证据 | GPT-5.4 v9 Presentation Package与两输入记录继续作为历史证据，不改标为当前Kimi运行时 |
 
-这证明了合同与工作流层面的功能等价；它**不代表**两条编排路径会生成逐字相同的文案，也不把Preview能力包装成永久生产SLA。
+这证明了合同与工作流层面的功能等价；它**不代表**两条编排路径会生成逐字相同的文案，不声称模型质量等价，也不把Preview能力包装成永久生产SLA。
 
-[Managed实现说明](managed-agent/docs/MANAGED-IMPLEMENTATION-CN.md) · [功能等价矩阵](managed-agent/FEATURE-PARITY-CN.md) · [v9 双 Skill 证据](managed-agent/evidence/managed-live-gpt54/presentation-skill-v9-validation.json)
+[Kimi Portal与CLI部署](managed-agent/docs/KIMI-MANAGED-DEPLOYMENT-CN.md) · [Managed实现说明](managed-agent/docs/MANAGED-IMPLEMENTATION-CN.md) · [功能等价矩阵](managed-agent/FEATURE-PARITY-CN.md) · [Kimi v6证据](managed-agent/evidence/managed-live-westus2/kimi-v6-runtime-validation.json)
 
 ### Foundry Portal 实证：Agent、Toolbox、Skill 与 Hand
 
@@ -114,7 +113,7 @@ Repo源码已使用与Classic路径相同的GPT-5.4模型系列重新部署。Pr
 
 [查看完整七图 Portal Walkthrough](managed-agent/docs/FOUNDRY-PORTAL-EVIDENCE-CN.md)，其中包括三个 Skill 页面、版本漂移边界，以及客户可审计 Runtime Contract 的产品缺口。
 
-## 执行摘要
+## Classic Prompt-Based路径
 
 客户主路径是本机浏览器工作区，而不是 Python 命令行。转写、结构化会议 JSON 或视觉适配器会转换成严格会议事件；本机 Python backend 使用 GPT-5.4 Responses API 结构化输出和 Medium reasoning，生成可追溯产物，并让 Windows UI 在 New Outlook 中打开 EML 草稿供人工审阅。
 
@@ -355,7 +354,7 @@ Evidence 摘要：
 }
 ```
 
-## GPT-5.4 Key认证Responses分析器
+## Classic GPT-5.4 Key认证Responses分析器
 
 本机 Azure OpenAI 分析器是主要运行时：
 

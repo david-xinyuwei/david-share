@@ -23,6 +23,9 @@ def main() -> int:
         "scenario-manifest.json",
         "docs/FOUNDRY-PORTAL-EVIDENCE-CN.md",
         "docs/FOUNDRY-PORTAL-EVIDENCE.md",
+        "docs/KIMI-MANAGED-DEPLOYMENT-CN.md",
+        "docs/KIMI-MANAGED-DEPLOYMENT.md",
+        "evidence/managed-live-westus2/kimi-v6-runtime-validation.json",
         "evidence/managed-live-westus2/sandbox-runtime-observation.json",
         "images/foundry-portal/agent-list.png",
         "images/foundry-portal/agent-playground.png",
@@ -66,8 +69,8 @@ def main() -> int:
 
     agent = yaml.safe_load((ROOT / "agent.yaml").read_text(encoding="utf-8"))
     assert agent["kind"] == "prompt"
-    assert agent["name"] == "managed-meeting-agent"
-    assert agent["model"] == "gpt-5.4"
+    assert agent["name"] == "true-meeting-managed-agent"
+    assert agent["model"] == "Kimi-K2.7-Code"
     instructions = (ROOT / "instructions.md").read_text(encoding="utf-8")
     assert "Do not call tool_search or call_tool" in instructions
     scenario_manifest = json.loads(
@@ -78,6 +81,9 @@ def main() -> int:
     assert len(portal_evidence["images"]) == 7
     assert all((ROOT / path).is_file() for path in portal_evidence["images"])
     assert any("single-session" in boundary for boundary in portal_evidence["boundaries"])
+    kimi_evidence = scenario_manifest["evidence_sets"]["kimi-managed-20260728"]
+    assert kimi_evidence["type"] == "current-runtime-and-browser-evidence"
+    assert (ROOT / kimi_evidence["summary"]).is_file()
     assert (
         ROOT / "skills" / "meeting-package" / "SKILL.md"
     ).read_bytes() == (
@@ -101,6 +107,16 @@ def main() -> int:
     deployment = yaml.safe_load((ROOT / "azure.yaml").read_text(encoding="utf-8"))
     service = deployment["services"]["managed-meeting-agent"]
     assert service["host"] == "azure.ai.agent"
+    model = service["config"]["deployments"][0]
+    assert model == {
+        "model": {
+            "format": "MoonshotAI",
+            "name": "Kimi-K2.7-Code",
+            "version": "2026-06-12",
+        },
+        "name": "Kimi-K2.7-Code",
+        "sku": {"capacity": 50, "name": "GlobalStandard"},
+    }
     prompt = service["config"]["promptAgent"]
     assert all(str(prompt[key]).startswith("${") for key in (
         "modelEndpoint", "projectEndpoint", "resourceGroup", "subscriptionId", "workspace"

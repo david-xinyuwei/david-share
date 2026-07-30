@@ -24,6 +24,10 @@ DOCUMENT_PAIRS = (
         ROOT / "docs" / "FOUNDRY-PORTAL-EVIDENCE.md",
         ROOT / "docs" / "FOUNDRY-PORTAL-EVIDENCE-CN.md",
     ),
+    (
+        ROOT / "docs" / "KIMI-MANAGED-DEPLOYMENT.md",
+        ROOT / "docs" / "KIMI-MANAGED-DEPLOYMENT-CN.md",
+    ),
 )
 
 
@@ -46,7 +50,7 @@ def main() -> int:
     chinese_flat = _squash_whitespace(chinese)
     required_pairs = (
         ("Foundry Prompt Agent", "Foundry Prompt Agent"),
-        ("managed-meeting-agent", "managed-meeting-agent"),
+        ("true-meeting-managed-agent", "true-meeting-managed-agent"),
         ("harness=ghcp", "harness=ghcp"),
         ("Entra", "Entra"),
         ("six-slide", "六页"),
@@ -56,6 +60,8 @@ def main() -> int:
         ("does not depend", "不依赖"),
         ("not a requirement to host this repository in GitHub", "不表示本 Repo 必须托管在 GitHub"),
         ("667357dac6ee2dc30102d572c458c77861112bea", "667357dac6ee2dc30102d572c458c77861112bea"),
+        ("Kimi-K2.7-Code", "Kimi-K2.7-Code"),
+        ("Toolbox v7", "Toolbox v7"),
     )
     for english_text, chinese_text in required_pairs:
         assert english_text.casefold() in english_flat.casefold(), english_text

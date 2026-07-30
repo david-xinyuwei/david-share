@@ -14,14 +14,17 @@ from urllib.parse import urlparse
 FOUNDRY_RESOURCE = "https://ai.azure.com"
 FEATURES = "HostedAgents=V1Preview,Toolboxes=V1Preview,Skills=V1Preview"
 FOUNDRY_USER_ROLE_ID = "53ca6127-db72-4b80-b1b0-d745d6d5456d"
-TOOL_SEARCH_TYPE = "toolbox_search_preview"
+TOOL_SEARCH_TYPES = {"toolbox_search_preview", "web_search"}
 SKILL_CONTEXT_INSTRUCTION = (
-    "The meeting-package and presentation-story Skill instructions are already "
-    "available in your context. Do not call tool_search or call_tool for these "
-    "Skills; apply the Skill "
-    "instructions directly."
+    "The meeting-package, mind-map-story, and presentation-story Skill instructions "
+    "are already available in your context. Do not call tool_search or call_tool for "
+    "these Skills; apply the Skill instructions directly."
 )
-DEFAULT_SKILL_NAMES = ("meeting-package", "presentation-story")
+DEFAULT_SKILL_NAMES = (
+    "meeting-package",
+    "mind-map-story",
+    "presentation-story",
+)
 
 
 class AzRunner:
@@ -50,15 +53,15 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--env-json", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--agent-name", default="managed-meeting-agent")
-    parser.add_argument("--toolbox-name", default="managed-meeting-agent")
+    parser.add_argument("--agent-name", default="true-meeting-managed-agent")
+    parser.add_argument("--toolbox-name", default="my-toolbox")
     parser.add_argument(
         "--skill-name",
         action="append",
         dest="skill_names",
         help="Required Toolbox Skill name; repeat for multiple Skills.",
     )
-    parser.add_argument("--expected-model", default="gpt-5.4")
+    parser.add_argument("--expected-model", default="Kimi-K2.7-Code")
     args = parser.parse_args()
 
     values = json.loads(args.env_json.read_text(encoding="utf-8"))
@@ -249,14 +252,14 @@ def _ensure_toolbox_version(
     )
     tools = copy.deepcopy(latest.get("tools") or [])
     if not any(
-        isinstance(tool, dict) and tool.get("type") == TOOL_SEARCH_TYPE
+        isinstance(tool, dict) and tool.get("type") in TOOL_SEARCH_TYPES
         for tool in tools
     ):
         tools.append(
             {
-                "type": TOOL_SEARCH_TYPE,
-                "name": "toolbox-search",
-                "description": "Discover meeting and presentation capabilities",
+                "type": "web_search",
+                "name": "web-search",
+                "description": "Access current public information with citations",
             }
         )
     created = _data_request(
@@ -264,7 +267,7 @@ def _ensure_toolbox_version(
         "post",
         f"{project_endpoint}/toolboxes/{toolbox_name}/versions?api-version=v1",
         {
-            "description": "Meeting and presentation Skills with Prompt Agent discovery",
+            "description": "Meeting analysis and presentation Skills with Web Search",
             "tools": tools,
             "skills": skills,
         },
@@ -286,7 +289,8 @@ def _compatible_toolbox(
         if isinstance(skill, dict) and skill.get("name")
     }
     return any(
-        isinstance(tool, dict) and tool.get("type") == TOOL_SEARCH_TYPE for tool in tools
+        isinstance(tool, dict) and tool.get("type") in TOOL_SEARCH_TYPES
+        for tool in tools
     ) and set(skill_names) <= present
 
 

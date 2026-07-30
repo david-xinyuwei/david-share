@@ -43,9 +43,9 @@ def test_public_docs_explain_ghcp_source_and_runtime_boundaries() -> None:
     assert "Foundry Hosted Agent" in english
     assert "Foundry Hosted Agent" in chinese
     assert "Wrapper → deployed Agent" in english
-    assert "Wrapper → 已部署 Agent" in chinese
-    assert "A GPT-5.4 model API key cannot replace this identity" in english
-    assert "GPT-5.4 模型 API Key 不能替代这条身份链" in chinese
+    assert "Wrapper → 已部署Agent" in chinese
+    assert "A model API key—including the Classic GPT-5.4 key—" in english
+    assert "任何模型API Key（包括Classic使用的GPT-5.4 Key）" in chinese
     assert "langgraph" in english.casefold()
     assert "langgraph" in chinese.casefold()
     assert "not an invented harness value" in english.casefold()
@@ -124,12 +124,12 @@ def test_docs_scope_skill_evidence_by_agent_version() -> None:
     parity = (ROOT / "FEATURE-PARITY.md").read_text(encoding="utf-8")
     parity_cn = (ROOT / "FEATURE-PARITY-CN.md").read_text(encoding="utf-8")
 
-    assert "v9 evidence covers Toolbox v5 resolving" in english
-    assert "v9 证据覆盖 Toolbox v5" in chinese
+    assert "Current Kimi v6 evidence shows Toolbox v7" in english
+    assert "当前Kimi v6证据证明Toolbox v7" in chinese
     assert "Enhanced versioned lifecycle verified live" in parity
     assert "版本化生命周期已完成Live验证" in parity_cn
-    assert "current v9 evidence" in english
-    assert "当前 v9 证据" in chinese
+    assert "current Kimi v6 evidence" in english
+    assert "当前Kimi v6证据" in chinese
 
 
 def test_customer_runbook_and_package_use_current_runtime_boundaries() -> None:
@@ -142,11 +142,16 @@ def test_customer_runbook_and_package_use_current_runtime_boundaries() -> None:
         encoding="utf-8"
     )
 
-    assert '-ManagedAgentVersion "<active-version>"' in start_en
-    assert '-ManagedAgentVersion "<active-version>"' in start_cn
-    assert '-ManagedAgentVersion "2"' not in start_en + start_cn
+    assert '-ManagedAgentName "true-meeting-managed-agent"' in start_en
+    assert '-ManagedAgentName "true-meeting-managed-agent"' in start_cn
+    assert '-ManagedAgentVersion "6"' in start_en
+    assert '-ManagedAgentVersion "6"' in start_cn
+    assert '-ManagedAgentModel "Kimi-K2.7-Code"' in start_en
+    assert '-ManagedAgentModel "Kimi-K2.7-Code"' in start_cn
+    assert '-ManagedAgentName "managed-meeting-agent"' not in start_en + start_cn
     assert "large-input-recovery-validation.json" in package
     assert "presentation-skill-v9-validation.json" in package
+    assert "kimi-v6-runtime-validation.json" in package
     assert "source implementation now completes the presentation-domain separation" in (
         managed_doc
     )

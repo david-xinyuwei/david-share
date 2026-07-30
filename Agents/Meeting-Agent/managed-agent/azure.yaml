@@ -2,7 +2,7 @@
 
 requiredVersions:
     extensions:
-        azure.ai.agents: '>=0.1.0-preview'
+    azure.ai.agents: '0.1.46-preview'
 name: managed-meeting-agent
 services:
     managed-meeting-agent:
@@ -11,12 +11,12 @@ services:
         config:
             deployments:
                 - model:
-                      format: OpenAI
-                      name: gpt-5.4
-                      version: "2026-03-05"
-                  name: gpt-5.4
+                      format: MoonshotAI
+                      name: Kimi-K2.7-Code
+                      version: "2026-06-12"
+                  name: Kimi-K2.7-Code
                   sku:
-                      capacity: 100
+                      capacity: 50
                       name: GlobalStandard
             promptAgent:
                 apiVersion: v1

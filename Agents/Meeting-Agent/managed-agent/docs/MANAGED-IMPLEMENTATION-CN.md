@@ -63,7 +63,7 @@ Foundry Agent Service / Prompt Agent Runtime
             └─ Skill Version（显式 Pin 时；否则跟随 Default）
 ```
 
-Runtime 负责执行 Agent；Instructions 定义 Agent 级行为；Skill 封装可复用方法；Toolbox 负责治理和暴露 Skill/Tool。它们可以独立演进。当前 v9 证据证明 Toolbox v5 同时解析到 `meeting-package` v3 与 `presentation-story` v3；`presentation-story` 的 Default Version 和实际引用版本均为 v3。
+Runtime负责执行Agent；Instructions定义Agent级行为；Skill封装可复用方法；Toolbox负责治理和暴露Skill/Tool。它们可以独立演进。当前Kimi v6证据证明Toolbox v7为Meeting工作流解析`meeting-package`、`mind-map-story`与`presentation-story`。同一个Live Toolbox还包含`incident-triage`；由于其Public Source Package没有完成证明，本Repo只把它记录为已观察能力，不伪造本地Skill源码。
 
 ### 官方生命周期与本 Repo 证据边界
 
@@ -71,10 +71,10 @@ Microsoft Learn 描述了 Create、Test、Version、Trace、Evaluate、Publish �
 
 | 微软官方能力 | 本 Repo 已证明 | 本 Repo 不声明 |
 |---|---|---|
-| Agent Version | 调用锁定已部署 Agent v9 的名称和不可变版本；v6 保留为带日期的历史证据 | 完整生产晋级或回滚服务 |
+| Agent Version | 调用锁定`true-meeting-managed-agent`与不可变版本6 | 完整生产晋级或回滚服务 |
 | Prompt Agent 托管 Runtime | Foundry 负责模型/Tool 循环；Wrapper 负责确定性校验和产物 | 托管编排天然提升模型智力、延迟或成本 |
 | Agent Identity 与 Tool 认证 | 客户端路径使用 Entra；Toolbox Connection 使用 Agentic Identity 与 Scope RBAC | 所有 OBO、Published Identity 或外部 Tool 流程 |
-| Toolbox 与 Skill | v9 证据覆盖 Toolbox v5 解析 `meeting-package` v3、规范化的 `presentation-story` v3，以及 Agent 原生严格 `DeckPlan` | Managed Sandbox 运行或所有可能的 Tool 类型 |
+| Toolbox 与 Skill | Kimi v6证据覆盖Toolbox v7解析三个Public Meeting Skill、Agent原生严格`DeckPlan`和一次内置Hand/Sandbox Probe | 所有可能的Tool类型、固定Sandbox形态或持久化SLA |
 | Trace、Evaluation、Publishing、Monitoring | 仅保留架构扩展点 | 已完成生产监控、持续评测或企业渠道发布 |
 
 官方来源（访问日期：2026-07-27）：
@@ -94,19 +94,19 @@ Microsoft Learn 描述了 Create、Test、Version、Trace、Evaluate、Publish �
 
 | 层级 | 真实实现 | 证据 |
 |---|---|---|
-| 云端运行时 | `managed-meeting-agent` v9 已完成 `active`、`harness=ghcp`、`gpt-5.4`、严格 Agent 原生 `DeckPlan`、Responses 协议和 Entra 认证实测；v6 保留为历史基线 | [v9 Presentation 验证](../evidence/managed-live-gpt54/presentation-skill-v9-validation.json) · [v6 历史运行时验证](../evidence/managed-live-gpt54/runtime-validation.json) |
-| 云端 Skill | Toolbox v5 通过 Agentic Identity 绑定 `meeting-package` v3 与规范化的 `presentation-story` v3（`SKILL.md`、`references/`、`assets/`） | [v9 Presentation 验证](../evidence/managed-live-gpt54/presentation-skill-v9-validation.json) · [历史 v2 Skill 正文 Hash](../evidence/managed-live/toolbox-skill-validation.json) |
-| Presentation 源码契约 | 当前源码已拆分 `presentation-story`、严格 `DeckPlan`、`deck-contract.yaml`、`presentation-style.yaml` 与确定性 Renderer；部署 Reconciler 强制要求两个 Skill | `tests/test_presentation_responsibility_contract.py` · `tests/test_runtime_reconciler.py` |
+| 云端运行时 | `true-meeting-managed-agent` v6已完成`active`、`harness=ghcp`、`Kimi-K2.7-Code`、严格Agent原生`DeckPlan`、Responses协议和Entra认证实测 | [Kimi v6运行时验证](../evidence/managed-live-westus2/kimi-v6-runtime-validation.json) |
+| 云端 Skill | Toolbox v7通过Agentic Identity绑定三个Public Meeting Skill；`incident-triage`只记录为Live Toolbox中的已观察Skill | [Kimi v6运行时验证](../evidence/managed-live-westus2/kimi-v6-runtime-validation.json) · [历史v9 Presentation验证](../evidence/managed-live-gpt54/presentation-skill-v9-validation.json) |
+| Presentation 源码契约 | 当前源码已拆分`presentation-story`、严格`DeckPlan`、`deck-contract.yaml`、`presentation-style.yaml`与确定性Renderer；部署Reconciler强制要求三个Meeting Skill | `tests/test_presentation_responsibility_contract.py` · `tests/test_runtime_reconciler.py` |
 | 会议分析 | `ManagedAgentAnalyzer`把实际标准化会议事件和严格`MeetingAnalysis` Schema发送到已部署Agent | [客户端契约](../tests/test_managed_analyzer.py) |
-| 产物流水线 | 真实生成JSON、Mermaid、SVG、1280x720 PNG、可编辑六页PPTX和MIME EML | [GPT-5.4双输入验证](../evidence/managed-live-gpt54/dual-input-validation.json) |
-| 浏览器UI | React工作区、loopback BFF、真实模型delta流、产物下载和Outlook草稿操作 | [ARM64桌面端/移动端验证](../evidence/managed-live-gpt54/ui-validation.json) |
+| 产物流水线 | 真实生成JSON、Mermaid、SVG、非空PNG、可编辑六页PPTX和MIME EML | [Kimi v6浏览器E2E](../evidence/managed-live-westus2/kimi-v6-runtime-validation.json) · [历史GPT-5.4跨输入验证](../evidence/managed-live-gpt54/dual-input-validation.json) |
+| 浏览器UI | React工作区、loopback BFF、真实模型delta流、产物下载和Outlook草稿操作 | [Kimi v6浏览器E2E](../evidence/managed-live-westus2/kimi-v6-runtime-validation.json) |
 | 邮件安全 | 默认`X-Unsent: 1`、0个收件人、2个真实附件，不包含发送API或Send按钮自动化 | `scripts/audit_no_send.py` |
 
 客户主路径不存在AOAI API Key fallback。静态fixture analyzer只用于测试，生产Host和CLI无法选择。浏览器永远拿不到Azure token。
 
 ![Skill、Toolbox 与 Managed Sandbox 关系](../images/managed-agent-skill-toolbox-sandbox-flow-cn.svg)
 
-Managed Harness 内置按需 Hand/Sandbox 执行面，用于 Skill 代码、Shell、CLI 和文件操作；它与 Toolbox 能力目录分离，也不是常驻计算。当前 Meeting Agent v9 的 PPTX 与 EML Renderer 仍在本机运行，且带日期的 East US 2 证据没有实际调用 Private Preview Hand/Sandbox。Sandbox Ready 必须在 West US 2 环境通过真实内置 Hand Tool 调用单独证明。
+Managed Harness内置按需Hand/Sandbox执行面，用于Skill代码、Shell、CLI和文件操作；它与Toolbox能力目录分离，也不是常驻计算。当前Kimi v6 Agent的PPTX与EML Renderer仍在本机运行。West US 2验证已完成一次真实内置Hand调用；这只证明该次按需执行路径，不代表固定Sandbox SKU、Image、持久化合同、Quota或SLA。
 
 West US 2 Portal Walkthrough 记录了一次真实 Hand 调用：该次 Runtime Observation 显示 19 GB Root Filesystem、2 个 CPU Core 与 4 GB Memory。这些值只描述一个 Session；Managed Agent Definition 并没有暴露版本化 Sandbox CPU、Memory、Image、OS 或语言 Runtime Contract。详见 [Portal 实证页](FOUNDRY-PORTAL-EVIDENCE-CN.md)与脱敏的 [Runtime Observation](../evidence/managed-live-westus2/sandbox-runtime-observation.json)。
 
@@ -165,22 +165,24 @@ PowerPoint 生成现在由三个可独立版本化的契约驱动：
 
 当前源码已经完成 Presentation Domain 松耦合。为了兼容已部署 v6，若响应缺少 `deck_plan`，本机会按同一外置 Deck Contract 生成确定性兼容计划；新部署则要求 Agent 直接返回 `deck_plan`。字体、颜色与 Shape 坐标仍有意保留在 Prompt 之外。
 
-证据继续按版本区分：历史 v2 验证曾对比 `meeting-package` 正文 Hash，v6 记录旧单 Skill Toolbox；当前 v9 证据已经验证规范化的 `presentation-story` v3 多文件包、Toolbox v5、Agent 原生严格 `deck_plan`，以及本机浏览器上传 Meeting JSON 后生成可编辑 PPTX 与未发送 EML 的完整链路。
+证据继续按版本区分：历史v2验证曾对比云端`meeting-package`正文Hash；历史GPT-5.4 v6/v9记录原样保留在`managed-live-gpt54/`。当前Kimi v6证据验证Toolbox v7、三个Public Meeting Skill Reference、Agent原生严格`deck_plan`、一次内置Hand Probe，以及本机浏览器上传Meeting JSON后生成可编辑PPTX与未发送EML的完整链路。
 
 ## 云端部署
 
 代码声明了独立Prompt Agent：
 
-- Agent示例：`managed-meeting-agent`
-- 已验证版本：`9`（v6 保留为历史基线）
-- 模型：`gpt-5.4`（`2026-03-05`，`GlobalStandard`）
+- Agent名称：`true-meeting-managed-agent`
+- 已验证版本：`6`
+- 模型：`Kimi-K2.7-Code`（`MoonshotAI`、`2026-06-12`、`GlobalStandard`、实测Capacity `50`）
 - Harness：`ghcp`
-- 当前源码 Skills：`meeting-package`、`presentation-story`
+- 当前Public源码Skills：`meeting-package`、`mind-map-story`、`presentation-story`
 - 认证：仅Entra；Toolbox访问使用`AgenticIdentityToken`
 
 `ghcp` 是 Foundry 托管的 Runtime 标识，不表示本 Repo 必须托管在 GitHub。Agent 源码可以来自私有 Repo、本地目录或企业源码系统；Foundry 每次调用的是已经部署的 Agent Version，不会在请求时读取源码仓库。关于源码与 Runtime 的边界、Harness 可选值证据和三条认证链，详见公开 Repo 的 [`GHCP Harness` 到底是什么](https://github.com/david-xinyuwei/david-share/blob/master/Agents/Meeting-Agent/managed-agent/docs/IMPLEMENTATION-COMPARISON-CN.md#ghcp-harness-到底是什么)。
 
-`agent.yaml`、`instructions.md`、两个 Skill 目录与 `azure.yaml` 共同构成部署源。部署视图会 Hash Presentation Skill、`references/deck-contract.yaml` 与 `assets/presentation-style.yaml`。部署后，`scripts/reconcile_managed_runtime.py`强制要求两个 Skill Reference，必要时创建新 Toolbox Version，再绑定 Agentic Connection，并把最终 Agent Version 写入被忽略的 `.azure` 状态。
+`agent.yaml`、`instructions.md`、三个Public Meeting Skill目录与`azure.yaml`共同构成部署源。部署视图会Hash每个Source Asset，包括Presentation Skill的Reference与Asset。部署后，`scripts/reconcile_managed_runtime.py`强制要求三个Meeting Skill Reference，兼容已验证Web Search和历史Toolbox Search合同，只在需要时创建新Toolbox Version，再绑定Agentic Connection，并把最终Agent Version写入被忽略的`.azure`状态。
+
+Portal与CLI的精确步骤见[Kimi Managed Agent部署说明](KIMI-MANAGED-DEPLOYMENT-CN.md)。
 
 ## Windows启动
 
@@ -210,8 +212,9 @@ az account show
 ```bash
 export AZURE_CONFIG_DIR="$HOME/.azure-<tenant>-<subscription>"
 export MANAGED_AGENT_ENDPOINT="https://<account>.services.ai.azure.com/api/projects/<project>/openai/v1/responses"
-export MANAGED_AGENT_NAME="managed-meeting-agent"
-export MANAGED_AGENT_VERSION="<active-version>"
+export MANAGED_AGENT_NAME="true-meeting-managed-agent"
+export MANAGED_AGENT_VERSION="6"
+export MANAGED_AGENT_MODEL="Kimi-K2.7-Code"
 
 python -m meeting_agent.cli build \
   --events examples/product-planning.jsonl \
@@ -220,9 +223,13 @@ python -m meeting_agent.cli build \
 
 Entra认证、配置的Agent版本、HTTP响应或严格JSON契约任一不满足时，CLI都会明确失败，不会静默fallback。
 
-## 验证结果
+## 当前Kimi验证
 
-两份内容显著不同的输入已通过Public源码部署的v6 Agent和GPT-5.4真实运行。它们的来源、分析、PPTX和EML Hash均不同，证明运行时和生成产物随输入变化，不是固定场景输出。
+当前West US 2运行把结构化Meeting JSON发送给`true-meeting-managed-agent` v6。响应完整结束并返回严格Analysis与`DeckPlan`，随后生成非空思维导图、可编辑六页PPTX和含两个附件的未发送EML。同一轮还验证Toolbox v7、三个Public Meeting Skill以及一次内置Hand/Sandbox Probe。详见[脱敏Kimi v6证据](../evidence/managed-live-westus2/kimi-v6-runtime-validation.json)。
+
+## 历史GPT-5.4差分证据
+
+两份内容显著不同的输入此前已通过Public源码部署的v6 Agent和GPT-5.4真实运行。它们的来源、分析、PPTX和EML Hash均不同，证明历史运行时和产物生成随输入变化，不是固定场景输出。这些记录保留为历史差分证据，不描述当前Kimi部署。
 
 | 运行 | 来源SHA-256 | 分析SHA-256 | PPTX SHA-256 | EML |
 |---|---|---|---|---|
@@ -270,4 +277,4 @@ Classic路径是本机prompt-style编排，并不是已经部署的Foundry Promp
 - New Outlook交接需要交互式Windows桌面。
 - 不声明、也不依赖跨Invocation的持久文件系统Session。
 - Prompt Agent、Managed GHCP Harness和Toolbox Skill集成仍属于Preview依赖；迁移到其他Tenant或Project后必须重新验证。
-- 历史v2 / `gpt-oss-120b`证据保留在`evidence/managed-live/`；当前GPT-5.4证据位于`evidence/managed-live-gpt54/`。
+- 当前Kimi v6证据位于`evidence/managed-live-westus2/`；历史v2 / `gpt-oss-120b`证据保留在`evidence/managed-live/`，历史GPT-5.4 v6/v9证据保留在`evidence/managed-live-gpt54/`。

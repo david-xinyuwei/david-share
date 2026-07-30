@@ -12,7 +12,7 @@ This package contains the Foundry-managed implementation path of the Meeting Age
 - Python 3.12
 - Node.js 22 or newer
 - Azure CLI signed in through a dedicated `AZURE_CONFIG_DIR`
-- Foundry access to the deployed `managed-meeting-agent`
+- Foundry access to the deployed `true-meeting-managed-agent` v6
 
 ## Start
 
@@ -24,17 +24,19 @@ az account show
 
 .\scripts\start-ui.ps1 `
   -ManagedAgentEndpoint "https://<account>.services.ai.azure.com/api/projects/<project>/openai/v1/responses" `
-  -ManagedAgentName "managed-meeting-agent" `
-  -ManagedAgentVersion "<active-version>" `
+  -ManagedAgentName "true-meeting-managed-agent" `
+  -ManagedAgentVersion "6" `
+  -ManagedAgentModel "Kimi-K2.7-Code" `
   -RequireDeckPlan $true `
   -AzureConfigDir $env:AZURE_CONFIG_DIR
 ```
 
-Use the active version returned by the deployment/reconciliation output; do not
-copy a historical version number from dated evidence.
+Use the active name and version returned by deployment/reconciliation; `6` is
+the validated Kimi version, not a promise that every redeployment retains that
+number. Do not copy a name or version from historical GPT-5.4 evidence.
 Current reconciled versions must keep `-RequireDeckPlan $true`; the launcher also
 uses this strict default when the switch is omitted. Set it to false only for an
-intentional replay of the historical v6 compatibility path.
+intentional replay of the historical `managed-meeting-agent` GPT-5.4 v6 path.
 
 Open `http://127.0.0.1:4173`, select **Meeting JSON**, upload `examples/meeting-record-stargate.json`, and choose **Generate meeting package**.
 
@@ -42,7 +44,7 @@ Open `http://127.0.0.1:4173`, select **Meeting JSON**, upload `examples/meeting-
 
 Accept the run only when:
 
-1. The header shows **Foundry Managed Agent** and **entra auth**.
+1. The header shows **Foundry Managed Agent**, `Kimi-K2.7-Code`, and **entra auth**.
 2. All six actual processing stages complete.
 3. The page displays a mind map and downloads valid JSON, Mermaid, PNG, PPTX, and EML artifacts.
 4. The PowerPoint opens as an editable six-slide deck.

@@ -6,7 +6,7 @@
 
 ## 选型结论
 
-两种实现都使用 GPT-5.4，也都保留相同的用户流程：会议事件经过校验后，生成结构化纪要、思维导图、可编辑 PowerPoint 和未发送的 New Outlook 草稿。区别不在于模型是否更聪明，而在于 **Agent Runtime（智能体运行时）由谁负责**。
+Classic使用GPT-5.4，当前Managed路径使用`Kimi-K2.7-Code`。两种实现都保留相同的用户流程：会议事件经过校验后，生成结构化纪要、思维导图、可编辑PowerPoint和未发送的New Outlook草稿。因此这里比较的是**工作流合同与Runtime责任边界**，不是受控的模型质量Benchmark。
 
 - 如果只有一个应用、调用链短、强调可移植性和完整控制，优先选择 **Classic Direct Responses**。
 - 如果更看重 Agent 身份、版本化 Instructions 和 Skill、Tool 集中治理、跨应用复用、持续评测及企业分发，选择 **Foundry Managed Agent**。
@@ -21,10 +21,10 @@ flowchart LR
     UI --> P[共用确定性流水线]
     P -->|Classic| C[应用负责 Prompt 编排]
     C --> M1[GPT-5.4 Responses]
-    P -->|Managed| A[Foundry Prompt Agent v9]
+    P -->|Managed| A[Foundry Prompt Agent v6]
     A --> H[Managed GHCP Harness]
-    H --> M2[GPT-5.4]
-    H --> T[Toolbox v5\nmeeting-package v3 + presentation-story v3]
+    H --> M2[Kimi-K2.7-Code]
+    H --> T[Toolbox v7\n三个Public Meeting Skill]
     M1 --> P
     A --> J[严格MeetingAnalysis JSON]
     J --> P
@@ -37,9 +37,9 @@ flowchart LR
 
 ![Managed Agent、Skill、Toolbox与Sandbox关系](../images/managed-agent-skill-toolbox-sandbox-flow-cn.svg)
 
-上图区分发布关系与运行时控制流：Toolbox 是能力目录与治理入口，Managed Harness 才是运行时控制方，并内置按需 Hand/Sandbox 执行面，用于 Skill 代码、Shell、CLI 和文件操作。Sandbox 不是 Toolbox 的下级，也不是常驻计算。当前 Meeting Agent v9 已验证 Harness、Toolbox v5 和两个 Skill v3，PPTX/EML Renderer 仍在本机执行；带日期的 v9 证据没有实际调用 Hand/Sandbox。
+上图区分发布关系与运行时控制流：Toolbox是能力目录与治理入口，Managed Harness才是运行时控制方，并内置按需Hand/Sandbox执行面，用于Skill代码、Shell、CLI和文件操作。Sandbox不是Toolbox的下级，也不是常驻计算。当前Kimi v6运行已验证Harness、Toolbox v7、三个Public Meeting Skill和一次内置Hand Probe，PPTX/EML Renderer仍在本机执行。
 
-本实现采用的 Private Preview Quickstart 明确要求 Foundry Resource 与 Project 创建在 West US 2。当前 v9 证据来自 East US 2，因此只证明 Agent、双 Skill Toolbox、严格 `DeckPlan` 和浏览器工作流，不能证明 Private Preview Hand/Sandbox 已 Ready。后续必须在 West US 2 环境真实通过 Bash、Shell、Read File、Execute Code 和 Stage to Hand 调用后，才能在 Repo 中声明 Sandbox 验收通过。
+本实现采用的Private Preview Quickstart明确要求Foundry Resource与Project创建在West US 2。当前Kimi v6证据来自West US 2，并包含一次真实内置Hand/Sandbox Probe。这证明该次按需执行路径，但不代表固定Sandbox SKU、Image、Quota、持久化合同或SLA。
 
 ## `GHCP Harness` 到底是什么
 
@@ -63,7 +63,7 @@ flowchart LR
 
 “托管”也不表示所有连接都使用同一种凭据：
 
-1. **Wrapper → 已部署 Agent：** 本项目使用 Microsoft Entra Bearer Token 与 RBAC。GPT-5.4 模型 API Key 不能替代这条身份链；使用模型 Key 直连会绕过 Agent，退回 Classic 路径。
+1. **Wrapper → 已部署Agent：** 本项目使用Microsoft Entra Bearer Token与RBAC。任何模型API Key（包括Classic使用的GPT-5.4 Key）都不能替代这条身份链；使用模型Key直连会绕过Agent，退回Classic路径。
 2. **Agent Runtime → 模型：** Foundry 解析 Agent 选择的模型部署，Wrapper 不传模型 API Key。
 3. **Agent → Toolbox 或外部 Tool：** 根据具体连接选择 Agent Identity、Project Managed Identity、OAuth On-Behalf-Of 或平台管理的 Key-based Connection。
 
@@ -73,14 +73,14 @@ flowchart LR
 
 ## 详细对比
 
-| 对比维度 | Classic：应用自编排 GPT-5.4 | Managed：Foundry Agent + GPT-5.4 | 对本项目的实际意义 |
+| 对比维度 | Classic：应用自编排GPT-5.4 | Managed：Foundry Agent + Kimi | 对本项目的实际意义 |
 |---|---|---|---|
-| 主要调用对象 | GPT-5.4 Responses deployment | `managed-meeting-agent` 名称和不可变版本 | Classic 调模型；Managed 调 Agent 资源 |
-| 模型 | GPT-5.4 | GPT-5.4 | 固定模型家族，避免把模型差异误当成框架差异 |
-| Agent 资源 | 没有独立云端 Agent，应用本身承担 Orchestrator | Foundry Prompt Agent v9 | Agent 行为可以独立部署和版本化 |
+| 主要调用对象 | GPT-5.4 Responses deployment | `true-meeting-managed-agent`名称和不可变版本 | Classic调模型；Managed调Agent资源 |
+| 模型 | GPT-5.4 | `Kimi-K2.7-Code` | 模型变量未控制，不能把输出差异单独归因于Runtime |
+| Agent资源 | 没有独立云端Agent，应用本身承担Orchestrator | Foundry Prompt Agent v6 | Agent行为可以独立部署和版本化 |
 | 模型循环责任方 | 本地应用代码 | Foundry 托管的 GHCP Harness | 这是两种实现最核心的责任转移 |
 | Instructions | 由本地应用代码构造 | 随 Agent 部署 | Instructions 成为受管、可版本化资产 |
-| 会议分析与 Presentation 方法 | 请求时注入本地 `SKILL.md` | Toolbox v5 分别引用 `meeting-package` v3 与 `presentation-story` v3 | 会议分析与 PPT 写作可独立演进；v9 已完成双 Skill Live 验证 |
+| 会议分析与Presentation方法 | 请求时注入本地`SKILL.md` | Toolbox v7分别引用`meeting-package`、`mind-map-story`与`presentation-story` | 会议分析、思维导图语义与PPT写作可以独立演进 |
 | PowerPoint 契约与视觉格式 | 内置模板与确定性 Renderer | 严格`DeckPlan`、外置Deck/Style YAML与内置Template驱动Renderer | 故事线、映射、视觉Token和几何有独立版本责任方 |
 | Tool 管理 | 每个应用分别注册和连接 | 通过 Toolbox 集中组织和版本化 | 多个 Agent 和客户端可以复用同一 Tool 集合 |
 | Tool 循环 | 应用解释并继续 tool call | Managed Harness 选择 Tool 并继续循环 | Wrapper 中的 Agent loop 代码减少 |
@@ -97,7 +97,7 @@ flowchart LR
 | 可移植性 | 较高，平台假设少 | 对 Foundry 依赖更强 | 以平台耦合换取治理能力 |
 | 延迟 | 原理上控制链更短 | 多一层 Agent Runtime，可能还有 Tool 调用 | 本 Repo 不声称 Managed 更快 |
 | 成本 | 模型调用与应用运维成本 | 模型/Tool 用量；Prompt Agent 无需客户维护容器 | 本 Repo 不声称 Managed 更便宜 |
-| 模型质量 | 取决于模型、Prompt、Skill 和输入证据 | 同样取决于这些因素 | Managed 不会天然让 GPT-5.4 更聪明 |
+| 模型质量 | 取决于GPT-5.4、Prompt、Skill和输入证据 | 取决于Kimi、Instructions、Skills和输入证据 | 不声明模型质量等价，也不把质量差异归因于Runtime |
 | 故障面 | Key、Endpoint、Prompt/Parser、模型配额 | Entra、RBAC、Agent 版本、Toolbox、SSE、模型配额、Preview Runtime | Managed 治理更强，但平台排障链更长 |
 | 最适合场景 | 单应用、少量 Tool、简单流程、强调可移植性 | 多应用、多 Tool、企业身份、版本治理、持续评测 | 根据运维模型选型，不根据产品标签选型 |
 
@@ -105,11 +105,11 @@ flowchart LR
 
 下表来自可执行证据，而不是只根据架构图推断。
 
-| 验证门 | Classic Direct Responses | Managed Agent v9 | 结论 |
+| 验证门 | Classic Direct Responses | Managed Agent v6 | 结论 |
 |---|---|---|---|
-| 真实模型 | GPT-5.4 `2026-03-05` | GPT-5.4 `2026-03-05` | 模型家族一致 |
+| 真实模型 | GPT-5.4 `2026-03-05` | `Kimi-K2.7-Code` `2026-06-12` | 模型不同，只比较工作流合同 |
 | 认证 | 本地 Backend 使用 Key | Entra 调用 Agent，Agentic Identity 访问 Toolbox | 信任边界不同 |
-| 跨输入差分 | 两份明显不同的输入生成不同标题和产物 Hash | 两份明显不同的输入生成不同标题和产物 Hash | 均非固定输出 |
+| 输入依赖 | 两份历史GPT-5.4输入生成不同标题和产物Hash | 一次当前Kimi Meeting JSON运行完成输入约束产物 | 两条记录路径均不支持“固定输出”判断；当前Kimi证据不是双输入质量Benchmark |
 | Streaming | 真实模型 Delta 先于产物阶段 | 真实 Managed SSE Delta 先于产物阶段 | UI 合同等价 |
 | 思维导图 | 非空 1280×720 PNG 与 Mermaid 源码 | 非空 1280×720 PNG 与 Mermaid 源码 | 产物合同等价 |
 | PowerPoint | 可编辑六页 PPTX | 可编辑六页 PPTX | 产物合同等价 |
@@ -121,7 +121,8 @@ flowchart LR
 
 - [Classic GPT-5.4 真实验证](../../evidence/aoai-live-validation.json)
 - [Classic 跨输入差分](../../evidence/aoai-runtime-differential.json)
-- [Managed v9 双 Skill 与浏览器验证](../evidence/managed-live-gpt54/presentation-skill-v9-validation.json)
+- [当前Kimi v6运行时与浏览器验证](../evidence/managed-live-westus2/kimi-v6-runtime-validation.json)
+- [历史Managed v9双Skill与浏览器验证](../evidence/managed-live-gpt54/presentation-skill-v9-validation.json)
 - [Managed v6 历史 Runtime](../evidence/managed-live-gpt54/runtime-validation.json)
 - [Managed v6 历史跨输入差分](../evidence/managed-live-gpt54/dual-input-validation.json)
 - [大输入恢复与 SSE 错误路径验证](../evidence/managed-live-gpt54/large-input-recovery-validation.json)
@@ -134,12 +135,12 @@ flowchart LR
 
 1. Managed 路径的 Wrapper 不再保存模型 API Key。
 2. 客户端可以按 Agent 名称和不可变版本调用。
-3. Instructions、`meeting-package` 与 `presentation-story` 成为可部署资产，而不是每次请求时临时拼装。
+3. Instructions、`meeting-package`、`mind-map-story`与`presentation-story`成为可部署资产，而不是每次请求时临时拼装。
 4. Toolbox 使用 Agent 专属身份和 Project Scope RBAC。
 5. 应用不再承担模型循环，但继续保留严格的确定性控制。
 6. 完成责任转移后，用户流程与产物安全合同没有回退。
 
-当前源码已实现 `presentation-story`、严格 `DeckPlan`、外置 Deck/Style YAML 与确定性 Renderer。Skill 是行为资产，不是 Runtime 框架。v9 证据已经证明两个 Skill 可发现、Toolbox v5 解析到两个 v3 Skill，且 Agent 直接返回严格 `deck_plan`。
+当前源码已实现三个Public Meeting Skill、严格`DeckPlan`、外置Deck/Style YAML与确定性Renderer。Skill是行为资产，不是Runtime框架。Kimi v6证据已证明Toolbox v7解析、Agent原生严格`deck_plan`、一次内置Hand Probe和浏览器产物工作流。
 
 ### 后续潜力，当前不作为已实现能力
 
@@ -159,7 +160,7 @@ flowchart LR
 |---|---|---|
 | 跨租户 Preview 部署返回 403 | Azure CLI 与 Azure Developer CLI 使用不同认证缓存，Extension 选中了 Home Tenant 身份 | 同时隔离两套 CLI，并在父部署进程显式传入 Tenant 与 Subscription |
 | 控制面显示 Agent Active，但某个 Preview Session API 失败 | `active` 不代表每个 Runtime substrate 都已就绪；显式持久文件系统 Session 是独立产品边界 | Brain、Tool、Session API 和 Artifact 分别验收，不能以一种能力推断另一种能力 |
-| 大型 Meeting 输入只显示泛化 Stream 错误 | GPT-5.4 deployment 只有 1K TPM，低于请求规模；空 `response.failed` 又遮住了后续详细 `error` | 按真实输入规划容量，并继续解析 SSE，直到取得详细错误 |
+| 历史GPT-5.4大型Meeting输入只显示泛化Stream错误 | 历史GPT-5.4 deployment只有1K TPM，低于请求规模；空`response.failed`又遮住了后续详细`error` | 按真实输入规划容量，并继续解析SSE，直到取得详细错误 |
 | WSL 重启后 UI Build 失败 | Node 与 Playwright 依赖放在 `/tmp` | 工具链迁移到持久用户目录 |
 | Python Backend 看似卡死 | OneDrive/9p 路径上的运行环境阻塞在 `p9_client_rpc` | Backend 环境和可变 Runtime 状态放到 WSL ext4 |
 | 代码没变但 Evidence Hash 改变 | Microsoft Purview 就地加密了 PPTX | Hash 关键证据避开自动 Office 加密边界，或从独立 Hash 附件恢复 |

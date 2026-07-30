@@ -108,7 +108,7 @@ def test_docs_describe_implemented_source_and_live_boundaries() -> None:
     assert "当前源码已经完成 Presentation Domain 松耦合" in chinese_flat
     assert "presentation-story" in english
     assert "presentation-story" in chinese
-    assert "current v9 evidence" in english_flat
-    assert "当前 v9 证据" in chinese_flat
+    assert "current Kimi v6 evidence" in english_flat
+    assert "当前Kimi v6证据" in chinese_flat
     assert "references/deck-contract.yaml" in english
     assert "assets/presentation-style.yaml" in chinese

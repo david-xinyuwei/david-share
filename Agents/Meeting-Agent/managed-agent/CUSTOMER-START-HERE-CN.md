@@ -12,7 +12,7 @@
 - Python 3.12
 - Node.js 22或更高版本
 - Azure CLI已在独立`AZURE_CONFIG_DIR`中登录
-- 当前身份有权访问已部署的`managed-meeting-agent`
+- 当前身份有权访问已部署的`true-meeting-managed-agent` v6
 
 ## 启动
 
@@ -24,14 +24,15 @@ az account show
 
 .\scripts\start-ui.ps1 `
   -ManagedAgentEndpoint "https://<account>.services.ai.azure.com/api/projects/<project>/openai/v1/responses" `
-  -ManagedAgentName "managed-meeting-agent" `
-  -ManagedAgentVersion "<active-version>" `
+  -ManagedAgentName "true-meeting-managed-agent" `
+  -ManagedAgentVersion "6" `
+  -ManagedAgentModel "Kimi-K2.7-Code" `
   -RequireDeckPlan $true `
   -AzureConfigDir $env:AZURE_CONFIG_DIR
 ```
 
-应填写部署/Reconcile 输出的 Active Version，不要从带日期的历史证据复制旧版本号。
-当前 Reconcile 后的版本必须保持 `-RequireDeckPlan $true`；即使省略该参数，启动器也默认启用严格模式。只有明确重放历史 v6 兼容路径时才可设为 false。
+应使用部署/Reconcile输出的Active Name与Version；`6`是已验证Kimi版本，不代表每次重新部署都继续使用相同编号。不要从历史GPT-5.4证据复制Agent Name或Version。
+当前Reconcile后的版本必须保持`-RequireDeckPlan $true`；即使省略该参数，启动器也默认启用严格模式。只有明确重放历史`managed-meeting-agent` GPT-5.4 v6兼容路径时才可设为false。
 
 打开`http://127.0.0.1:4173`，选择 **Meeting JSON**，上传`examples/meeting-record-stargate.json`，然后点击 **Generate meeting package**。
 
@@ -39,7 +40,7 @@ az account show
 
 只有以下条件全部满足才算通过：
 
-1. 页面Header显示 **Foundry Managed Agent** 和 **entra auth**。
+1. 页面Header显示 **Foundry Managed Agent**、`Kimi-K2.7-Code`和 **entra auth**。
 2. 六个真实处理阶段全部完成。
 3. 页面显示思维导图，并能下载有效的JSON、Mermaid、PNG、PPTX和EML产物。
 4. PowerPoint能够打开并编辑，共六页。

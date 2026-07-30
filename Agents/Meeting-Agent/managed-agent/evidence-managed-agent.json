@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
   "agent": {
-    "name": "managed-meeting-agent",
-    "version": "9",
+    "name": "true-meeting-managed-agent",
+    "version": "6",
     "status": "active",
     "kind": "prompt",
     "harness": "ghcp",
-    "model": "gpt-5.4",
+    "model": "Kimi-K2.7-Code",
     "tool_count": 1,
     "protocols": [
       "responses"
@@ -18,12 +18,12 @@
   "validation": {
     "source": "live Foundry agent GET response",
     "resource_identifiers": "redacted; public alias used",
-    "validated_at_utc": "2026-07-27T14:27:04Z",
-    "source_baseline": "Managed Agent v9 deployment with GPT-5.4 and normalized dual-Skill packages",
+    "validated_at_utc": "2026-07-28T13:45:40Z",
+    "source_baseline": "West US 2 Kimi Managed Agent v6 with Toolbox v7",
     "deployed_name_matches_public_source": true,
-    "source_hash_manifest": "evidence/managed-live-gpt54/presentation-skill-v9-validation.json",
+    "source_hash_manifest": "evidence/managed-live-westus2/kimi-v6-runtime-validation.json",
     "assertions_passed": true,
     "identities_and_tenant_urls_redacted": true,
-    "scope": "current GPT-5.4 v9 deployment and browser workflow validation snapshot; base commit and package layout are recorded, but this file is not a byte-for-byte deployed-tree attestation; revalidate after source or environment changes"
+    "scope": "current Kimi v6 deployment and browser workflow validation snapshot; historical GPT-5.4 evidence remains separately versioned; revalidate after source or environment changes"
   }
 }
