@@ -10,6 +10,7 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
+README_TITLE = "# Managed Meeting by Prompt Agent and Managed Agent\n"
 
 
 def main() -> int:
@@ -18,8 +19,8 @@ def main() -> int:
     assert english_path.is_file() and chinese_path.is_file()
     english = english_path.read_text(encoding="utf-8")
     chinese = chinese_path.read_text(encoding="utf-8")
-    assert english.startswith("# Meeting Agent\n")
-    assert chinese.startswith("# Meeting Agent\n")
+    assert english.startswith(README_TITLE)
+    assert chinese.startswith(README_TITLE)
     english_first = english.splitlines()[:15]
     chinese_first = chinese.splitlines()[:15]
     assert english_first[2].startswith("[![Python 3.11+")
