@@ -1,6 +1,6 @@
 # Deep Learning
 
-A comprehensive collection of 76 projects covering quantization, fine-tuning, inference optimization, training parallelism, GPU benchmarks, and more.
+A comprehensive collection of 77 projects covering quantization, fine-tuning, inference optimization, training parallelism, GPU benchmarks, and more.
 
 > Projects marked with ⭐ were consolidated from multiple related projects during the 2026-02 restructuring.
 
@@ -13,7 +13,7 @@ A comprehensive collection of 76 projects covering quantization, fine-tuning, in
 | 1 | [Quantization & Data Types](#1-quantization--data-types) | 6 |
 | 2 | [Fine-Tuning & Training Techniques](#2-fine-tuning--training-techniques) | 20 |
 | 3 | [RLHF, Alignment & Reasoning](#3-rlhf-alignment--reasoning) | 4 |
-| 4 | [Inference Optimization](#4-inference-optimization) | 16 |
+| 4 | [Inference Optimization](#4-inference-optimization) | 17 |
 | 5 | [Training Parallelism & Distributed Systems](#5-training-parallelism--distributed-systems) | 7 |
 | 6 | [GPU Benchmarks & Hardware](#6-gpu-benchmarks--hardware) | 9 |
 | 7 | [Model Architecture & Understanding](#7-model-architecture--understanding) | 14 |
@@ -93,6 +93,7 @@ vLLM, FlashAttention, KV cache, speculative decoding, and serving frameworks.
 | ⭐ [LLM-Memory-Estimation](LLM-Memory-Estimation/) | Inference memory estimation tool + training/inference memory consumption theory |
 | [MInference](MInference/) | MInference for long-context acceleration |
 | [Network-Attached-KV-Cache](Network-Attached-KV-Cache/) | Network-attached KV cache architecture |
+| [OSS-Model-SWE-bench-Evaluation-Playbook](OSS-Model-SWE-bench-Evaluation-Playbook/) | End-to-end SWE-bench Verified evaluation for OSS coding models, including generation, official scoring, frozen-dispute retesting, and troubleshooting |
 | [Padding-Free](Padding-Free/) | Padding-free training and inference |
 | [Qwen-Virtual-TryOn-Inference-Benchmark](Qwen-Virtual-TryOn-Inference-Benchmark/) | Qwen virtual try-on inference benchmark |
 | [SGLang-vs-LLM](SGLang-vs-LLM/) | SGLang vs other LLM serving frameworks |

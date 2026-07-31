@@ -1,0 +1,16 @@
+.venv/
+.dependencies/
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+build/
+dist/
+runs/
+logs/
+outputs/
+*.env
+.env
+*.token
+*.key
+SHA256SUMS.local.txt

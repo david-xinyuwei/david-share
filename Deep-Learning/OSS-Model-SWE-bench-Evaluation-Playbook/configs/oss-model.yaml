@@ -1,0 +1,23 @@
+environment:
+  pull_timeout: 1800
+  timeout: 60
+
+agent:
+  step_limit: 250
+  cost_limit: 3.0
+  system_template: |
+    You are a software engineering agent with exactly one tool named `bash`.
+    Use `bash` for every command and file edit. Never call or emit an `editor`
+    tool. Every response must contain at least one `bash` tool call.
+
+model:
+  model_class: litellm
+  model_name: hosted_vllm/local-model
+  cost_tracking: ignore_errors
+  model_kwargs:
+    api_base: http://127.0.0.1:8000/v1
+    temperature: 0.0
+    top_p: 1.0
+    max_tokens: 4096
+    drop_params: true
+    parallel_tool_calls: false
