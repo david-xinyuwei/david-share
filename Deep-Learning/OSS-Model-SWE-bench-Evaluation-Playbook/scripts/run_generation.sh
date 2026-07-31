@@ -12,8 +12,53 @@ CONFIG="${CONFIG:-configs/oss-model.yaml}"
 SUBSET="${SUBSET:-verified}"
 SPLIT="${SPLIT:-test}"
 INSTANCE_FILTER="${INSTANCE_FILTER:-}"
+INSTANCE_MANIFEST="${INSTANCE_MANIFEST:-}"
 MODEL_API_KEY="${MODEL_API_KEY:-}"
 DOCKER_EXECUTABLE="${MSWEA_DOCKER_EXECUTABLE:-docker}"
+PYTHON_EXECUTABLE="${PYTHON_EXECUTABLE:-python3}"
+
+if test -n "$INSTANCE_FILTER" && test -n "$INSTANCE_MANIFEST"; then
+  echo "Set only one of INSTANCE_FILTER or INSTANCE_MANIFEST" >&2
+  exit 2
+fi
+INSTANCE_SELECTOR=all
+INSTANCE_MANIFEST_SHA256=""
+if test -n "$INSTANCE_MANIFEST"; then
+  if ! test -f "$INSTANCE_MANIFEST"; then
+    echo "INSTANCE_MANIFEST not found: $INSTANCE_MANIFEST" >&2
+    exit 2
+  fi
+  selector="$({ python3 - "$INSTANCE_MANIFEST" <<'PY'
+import csv
+import hashlib
+import re
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+with path.open(newline="") as stream:
+    reader = csv.DictReader(stream, delimiter="\t")
+    if not reader.fieldnames or "instance_id" not in reader.fieldnames:
+        raise SystemExit("INSTANCE_MANIFEST must be TSV with an instance_id column")
+    instance_ids = [row.get("instance_id", "") for row in reader]
+if not instance_ids or any(not instance_id for instance_id in instance_ids):
+    raise SystemExit("INSTANCE_MANIFEST contains no instances or an empty ID")
+if len(instance_ids) != len(set(instance_ids)):
+    raise SystemExit("INSTANCE_MANIFEST contains duplicate instance IDs")
+pattern = "^(?:" + "|".join(re.escape(value) for value in sorted(instance_ids)) + ")$"
+print(pattern)
+print(hashlib.sha256(path.read_bytes()).hexdigest())
+PY
+  } 2>&1)" || {
+    echo "$selector" >&2
+    exit 2
+  }
+  INSTANCE_FILTER="$(printf '%s\n' "$selector" | sed -n '1p')"
+  INSTANCE_MANIFEST_SHA256="$(printf '%s\n' "$selector" | sed -n '2p')"
+  INSTANCE_SELECTOR=manifest
+elif test -n "$INSTANCE_FILTER"; then
+  INSTANCE_SELECTOR=filter
+fi
 
 if ! command -v "$DOCKER_EXECUTABLE" >/dev/null 2>&1; then
   echo "Docker executable not found: $DOCKER_EXECUTABLE" >&2
@@ -90,7 +135,8 @@ mkdir -p "$OUTPUT_DIR"
 CONTRACT_PATH="$OUTPUT_DIR/provider-contract.json"
 export CONTRACT_PATH ENDPOINT_MODE EVALUATION_SCENARIO RUN_LABEL MODEL_NAME MODEL_API_BASE
 export AUTH_ENV_NAME WORKERS CONFIG SUBSET SPLIT
-python - <<'PY'
+export INSTANCE_SELECTOR INSTANCE_MANIFEST_SHA256
+"$PYTHON_EXECUTABLE" - <<'PY'
 import json
 import os
 from pathlib import Path
@@ -107,6 +153,8 @@ payload = {
     "subset": os.environ["SUBSET"],
     "split": os.environ["SPLIT"],
     "workers": int(os.environ["WORKERS"]),
+    "instance_selector": os.environ["INSTANCE_SELECTOR"],
+    "instance_manifest_sha256": os.environ["INSTANCE_MANIFEST_SHA256"] or None,
     "config": os.environ["CONFIG"],
     "protocol": "openai_chat_completions_with_function_tools",
 }
@@ -116,7 +164,7 @@ os.replace(temporary, path)
 PY
 
 args=(
-  python -m minisweagent.run.benchmarks.swebench
+  "$PYTHON_EXECUTABLE" -m minisweagent.run.benchmarks.swebench
   --subset "$SUBSET"
   --split "$SPLIT"
   --output "$OUTPUT_DIR"

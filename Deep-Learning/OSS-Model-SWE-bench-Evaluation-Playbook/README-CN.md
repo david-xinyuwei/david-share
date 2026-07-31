@@ -5,7 +5,7 @@
 [![SWE-bench](https://img.shields.io/badge/Harness-f7bbbb2-ca6f1e)](https://github.com/SWE-bench/SWE-bench/commit/f7bbbb2ccdf479001d6467c9e34af59e44a840f9)
 [![Python](https://img.shields.io/badge/Python-3.12-3776ab)](https://www.python.org/)
 
-一套面向生产迁移的工程流程：使用同一份冻结的 SWE-bench 合同，测量 OSS coding model 迁移到 Microsoft Foundry 或 Fireworks 前后的准确度，以及微调前后的准确度。
+一套面向生产迁移的工程流程：使用同一份冻结的SWE-bench合同，测量OSS coding model迁移到Azure GPU VM、Microsoft Foundry Serverless API或Fireworks前后的准确度，以及微调前后的准确度。
 
 > **作者**：魏新宇 (Xinyu Wei) — Microsoft AI and Apps Global Black Belt (GBB)
 
@@ -42,6 +42,33 @@ SWE-bench 不是把一道题发给模型，再比较一段文本答案。它评�
 
 客户对OSS model迁移或微调后的准确度不放心时，endpoint健康并不能证明软件工程能力没有下降。本手册把这类顾虑转成可复验的go/no-go测量。
 
+### 本Repo解决的客户决策
+
+客户已经在云下运行并认可一个open-source model。现在他们希望把**同一个model**迁到Azure GPU VM、Microsoft Foundry直接Serverless API deployment或Fireworks，同时不损失软件工程准确率。Managed Compute单独作为pending path管理，只有data plane通过同一套canary后才纳入。客户首先关心的不是新endpoint能否返回HTTP 200，甚至也不是速度是否更快，而是：
+
+> 在model、Agent、SWE-bench workload和official scorer相同的前提下，迁移后准确率是否保持？
+
+```mermaid
+flowchart LR
+  O[客户云下OSS model] --> R[冻结的reference run]
+  R --> V[Azure GPU VM candidate]
+  R --> S[Foundry Serverless API candidate]
+  R --> F[Fireworks candidate]
+  V --> P[同一套parity和SWE-bench gates]
+  S --> P
+  F --> P
+  P --> G[放行、修复或拒绝迁移]
+```
+
+因此，本Repo的价值不只是提供一个benchmark runner：
+
+- **Accuracy-preservation contract：** 证明同一个OSS model迁移后，工程能力是否保持。
+- **Substrate-neutral decision：** 使用同一个Agent、dataset、scorer和evidence model比较三条主要承载路径。
+- **Root-cause separation：** 区分model regression、provider/API incompatibility、serving-capacity limit、Agent drift和harness fault。
+- **Auditable go/no-go：** 交付完整分母、逐题回退、机器可读合同和不可变证据，而不是只给一个dashboard分数。
+
+如果candidate platform无法提供客户的精确model，只能改测另一个model，流程仍然有价值，但结论必须从platform migration改成`MODEL_SELECTION_METHOD_ALIGNED`。Repo会阻止这两种结论被混在一起。
+
 | 业务决策 | Reference run | Candidate run | 能证明什么 |
 |---|---|---|---|
 | 云下OSS model迁移到托管平台 | 云下或基于AMD的OpenAI-compatible endpoint | Microsoft Foundry或Fireworks deployment | 同一model和revision迁移平台后，SWE-bench准确度是否保持 |
@@ -54,21 +81,222 @@ SWE-bench 不是把一道题发给模型，再比较一段文本答案。它评�
 ### 证据边界
 
 - **已验证的reference path：** 本方法来自并已运行于基于AMD、形态接近云下部署的OpenAI-compatible endpoint。
-- **已完成scored canary的Microsoft Foundry路径：** `2026-07-31`，Azure管理面识别为`FW-GLM-5.1`的Foundry Fireworks deployment通过HTTP 200 preflight，返回1个function tool call和request ID。随后mini-swe-agent `2.4.6`为`astropy__astropy-7166`提交1个非空patch；固定版本的official harness将其判为Resolved，0个error、0个未停止container。详见[脱敏的机器可读证据](examples/live-foundry-fw-glm51-scored-canary.yaml)。
-- **已实现并完成shape test的Fireworks公网路径：** `fireworks`通过固定LiteLLM provider路由到`api.fireworks.ai`，secret不会进入process arguments。
-- **尚未宣称的结果：** Microsoft Foundry或Fireworks full accuracy必须等声明的full run完成后才能公布。这道1-case Resolved结果只是compatibility gate，不能写成`1/500`准确率，也不能当作model comparison。未来部署GLM 5.2时，也必须使用精确deployment/model ID，不能只写display name。
+- **Azure GPU VM路径：** `openai_compatible` runner、exact-reproduction contract和official-scoring workflow均已实现并通过测试；当前不发布Azure GPU VM full migration score。
+- **Microsoft Foundry Serverless API路径：** `2026-07-31`，一个通过Foundry售卖、且被Azure管理面识别为`FW-GLM-5.1`的Fireworks model通过HTTP 200 preflight，返回1个function tool call和request ID。随后mini-swe-agent `2.4.6`为`astropy__astropy-7166`提交1个非空patch；固定版本的official harness将其判为Resolved，0个error、0个未停止container。这只验证Foundry Serverless API compatibility path，不是full score。详见[脱敏的机器可读证据](examples/live-foundry-fw-glm51-scored-canary.yaml)。
+- **Fireworks公网API路径：** `fireworks` mode已实现，并针对固定LiteLLM provider完成shape test；请求路由到`api.fireworks.ai`，secret不会进入process arguments。当前不发布Fireworks公网API scored result。
+- **Managed Compute待验证：** 当前不发布Managed Compute分数，也不宣称data plane已验证。只有provisioning成功，并通过同一套tool-call和scored-canary gate后，才能解除`PENDING / NOT VERIFIED`。
+- **尚未宣称的结果：** 三条主要路径都必须等声明的full run完成后才能公布full migration score。Foundry的1-case结果只是compatibility gate，不能写成`1/500`准确率，也不能当作model comparison。未来部署GLM 5.2时，也必须使用精确deployment/model ID，不能只写display name。
 
 ### 支持的Endpoint模式
 
 | `ENDPOINT_MODE` | 目标平台 | Model naming | Authentication source |
 |---|---|---|---|
 | `openai_compatible` | 云下、AMD验证环境或其他OpenAI-compatible cloud | `hosted_vllm/<served-name>`；未写prefix时自动添加 | `HOSTED_VLLM_API_KEY`或`MODEL_API_KEY`；无认证local endpoint可用`EMPTY` |
-| `azure_foundry` | Microsoft Foundry Models v1 cross-provider chat-completions endpoint，包括Azure中售卖的Fireworks模型 | Deployment name通过OpenAI-compatible route发送；内部自动加`hosted_vllm/` | `AZURE_API_KEY`、`AZURE_OPENAI_API_KEY`、`AZURE_AD_TOKEN`或`MODEL_API_KEY`，映射为Bearer且不进入argv |
+| `azure_foundry` | Microsoft Foundry Models v1 endpoint，包括直接Serverless API deployment和Azure中售卖的Fireworks模型；Managed Compute仍待live data-plane验证 | Deployment name通过OpenAI-compatible route发送；内部自动加`hosted_vllm/` | `AZURE_API_KEY`、`AZURE_OPENAI_API_KEY`、`AZURE_AD_TOKEN`或`MODEL_API_KEY`，映射为Bearer且不进入argv |
 | `fireworks` | Fireworks serverless、account model或direct-route deployment | `fireworks_ai/<exact-model-id>`；未写prefix时自动添加 | `FIREWORKS_AI_API_KEY`或`MODEL_API_KEY` |
 
 每次generation都会写入`provider-contract.json`，记录endpoint mode、业务scenario、run label、model name、API base、非秘密auth变量名、workers、dataset和config；不会保存credential value。
 
 `EVALUATION_SCENARIO`支持`single_endpoint`、`onprem_to_managed`、`cloud_to_managed`和`base_vs_finetuned`。
+
+## 云下到微软侧的对齐框架
+
+只有reference与candidate在所有可能改变结果的层面都完成对齐，迁移benchmark才站得住脚。“两个endpoint都返回HTTP 200”只能证明API可访问，不能证明模型一致。“两边都是mini-swe-agent 2.4.6”也只是version label相同，不能证明prompt、defaults、源码和retry语义一致。
+
+### 对齐阶梯
+
+| 层面 | 必须冻结或证明什么 | 为什么重要 |
+|---|---|---|
+| Claim | Platform migration、fine-tuning或model selection | 决定哪些差异是有意引入的变量 |
+| Model identity | Family、revision、weight SHA-256、tokenizer SHA-256、precision | 防止把不同权重包装成单纯的平台迁移对比 |
+| Agent identity | Package hash、effective config、system prompt、tool schema、limits | 任一字段漂移都可能改变multi-turn行为 |
+| API semantics | Protocol、tool schema、finish reasons、replayed messages | OpenAI-compatible不等于所有provider都接受相同metadata |
+| Workload | Dataset revision、execution-image manifest、partition、denominator、sampling、workers和retry policy | 防止隐藏的selection、环境漂移和concurrency bias |
+| Scoring | Harness源码、dependency lock、images、timeout、cache和clean policy | 同一个patch在不同评测环境中也可能得到不同结果 |
+| Evidence | Trajectories、reports、实际process command line、hash和phase lineage | 让每条结论都能被独立审计 |
+
+在platform-migration comparison中，endpoint、authentication、serving runtime、accelerator、topology和deployment name可以不同。这些差异共同构成被测的**platform plus serving stack**，不能再把结果单独归因给hardware或runtime。Model identity、Agent行为、workload、sampling、concurrency和scoring仍必须保持不变。
+
+### 结论强度由证据计算，不由作者选择
+
+| Classification | Evidence contract | 可以宣称什么 |
+|---|---|---|
+| `MODEL_AND_METHOD_ALIGNED` | Model和tokenizer identity已验证，所有method invariants一致 | 同一model的端到端迁移对比 |
+| `FINETUNING_METHOD_ALIGNED` | Base和fine-tuned weights有意不同，platform和method invariants一致 | 受控的base-versus-fine-tuned comparison |
+| `MODEL_SELECTION_METHOD_ALIGNED` | Models可以不同，Agent、workload和scoring invariants一致 | Combined model-selection comparison，不能写成platform-only claim |
+| `METHOD_ALIGNED` | Method invariants一致，但至少一个identity hash是`UNVERIFIED` | 带明确provenance caveat的方法级对比 |
+| `ADAPTED_RUN` | 显式允许了一个会影响行为的差异 | 真实的adapted run，不是exact或fully aligned replay |
+| `NOT_COMPARABLE` | 未经批准的invariant发生变化 | 不得计算或公布migration delta |
+
+Comparator默认fail closed。即使通过`--allow-difference`显式声明例外，仍会标为`ADAPTED_RUN`并退出等待review；只有再显式增加`--accept-adapted`才继续。
+
+```bash
+python scripts/compare_run_contracts.py \
+  --reference examples/parity-reference.toml \
+  --candidate examples/parity-candidate.toml \
+  --scenario platform_migration \
+  --output runs/parity-report.json
+```
+
+Repo内置的合成示例最终输出：
+
+```text
+PARITY_GATE=PASS scenario=platform_migration classification=MODEL_AND_METHOD_ALIGNED
+```
+
+### Reference到Candidate的执行链
+
+```mermaid
+flowchart LR
+    R[Reference run passport] --> P[Parity contract gate]
+    C[Candidate run passport] --> P
+    P -->|Aligned| A[API and tool-call preflight]
+    P -->|Mismatch| X[Stop or label ADAPTED_RUN]
+    A --> S[Scored canary]
+    S --> F[Complete frozen run]
+    F --> D[Bidirectional dispute analysis]
+    D --> E[Hash-sealed evidence and scoped claim]
+```
+
+### 从真实多节点评测中泛化出的坑位
+
+| Failure pattern | 隐藏风险 | 通用Gate |
+|---|---|---|
+| Package version相同，实际import的源码不同 | Editable install、mount或path precedence改变行为 | 记录imported file path并hash评分敏感源码 |
+| Preview sample与live control plane不一致 | 文档中的asset reference或API field已经过时 | 固定API version，保存服务端error，只修改live response已经证明的字段 |
+| Provisioning超过典型时长 | 仍在执行的create LRO看起来像stall；allocation活跃时delete可能返回conflict | 联合provisioning state、quota usage、Activity Log和delete response判断；禁止盲目重复创建 |
+| Reference launcher明明存在，实际却运行了重写版本 | 参数看起来一致，但environment和control flow已变化 | 把实际process command line和executable SHA-256绑定到run |
+| Effective config一致，trajectory仍不同 | Temperature zero无法让multi-turn Agent变成确定性系统 | 保存逐turn trajectory，把variability写成observed effect |
+| 第一个tool call成功，后续turn失败 | Provider metadata被重放到更严格的schema | 必须跑multi-turn scored canary，不能只看HTTP health |
+| Endpoint健康，但artifact不再增长 | Health只是lifecycle signal，不代表workload推进 | 使用无副作用health probe，同时检查prediction、report、log和runtime activity |
+| Worker count或retry policy变化 | Request interleaving会改变tool observation和后续Agent决策 | Generation前冻结concurrency、queueing、timeout和retry语义 |
+| 长请求超过active-context limit | Silent truncation或stall会伪装成model failure | 记录required context；serving capacity不足时在run前失败 |
+| 存在host cache | Secondary cache不一定扩大active-sequence GPU capacity | 按每层memory实际控制的limit分别验收 |
+| Infrastructure exception被计入model fail | 既压低accuracy，也掩盖reliability问题 | Resolved、Unresolved、Empty和Error必须是互斥且穷尽的分类 |
+| 相同patch bytes得到不同分数 | Harness源码、image、timing或timeout发生变化 | 固定evaluator源码，保存逐题test output |
+| 只复测有利于候选分数的争议题 | Optional stopping形成隐藏的best-of | 一次冻结两个争议方向，再统一替换 |
+| 把端到端task time叫作model speed | Shell tool、repository test和official scoring属于不同阶段 | 分开报告API latency、tool time、generation wall time和harness time |
+
+### 客户迁移验收门
+
+1. **Reference gate：** 保存客户实际使用的server launcher、Agent config、dependency lock、model/tokenizer identity和原始逐题artifact。
+2. **Parity gate：** 比较机器可读的run passport；一旦出现未经批准的invariant drift，立即停止。
+3. **Capability gate：** 验证tool-call correctness、multi-turn replay、一个generated patch和一份official report。
+4. **Full evidence gate：** 跑完冻结分母，分类每道题，封存artifact，最后只发布computed classification支持的结论。
+
+这套顺序既允许微软侧灵活选择deployment，也让所有不可避免的差异保持可见。Managed service不需要逐字节复刻客户GPU topology，但必须证明model、Agent、workload、scoring contract、API behavior和evidence semantics保持对齐。
+
+### Serving Topology：P/D分离还是双独立Endpoint？
+
+Prefill/decode（P/D）disaggregation与independent replica解决的是不同问题。P/D提供一个logical endpoint，prefill和decode role可以运行在不同worker上；双独立endpoint则在每个endpoint上加载完整model，再把彼此独立的SWE-bench题目拆开执行。
+
+| Topology | 适用条件 | 主要风险 |
+|---|---|---|
+| P/D disaggregation | Model或KV workload需要role specialization，且实测prefill/decode imbalance足以抵消额外协调成本 | Cross-node communication、head-of-line blocking、role recovery耦合和更大的failure domain |
+| 双独立endpoint | Model能完整放进每个endpoint，任务彼此独立，更关注aggregate cases/hour和fault isolation | 重复占用model memory，必须建立严格的disjoint-shard/merge contract |
+
+在一次大型OSS coding-model评测中，一个cross-node P/D endpoint比两个各跑一半冻结manifest的独立endpoint更慢、稳定性也更差。这是特定workload的observed result，不能泛化成“P/D永远更慢”。正确决策方式是：
+
+1. 冻结一份有代表性的calibration manifest，以及完整model/Agent/sampling contract。
+2. 用P/D endpoint跑一次，再用双独立endpoint跑一次。
+3. 比较valid generation cases/hour、逐题generation wall time、API latency distribution、Error rate、restart count和GPU utilization。Official scoring time必须单独列出，因为它不衡量model serving。
+4. Full run之前选定topology。只要中途切换topology，就进入新的runtime epoch；不同epoch不能合并成一个homogeneous score。
+5. 如果双独立endpoint胜出，对**同一份冻结full manifest**做确定性分片，最终只合并互斥的official reports。
+
+```bash
+python scripts/shard_instance_manifest.py \
+  --manifest examples/instance-manifest.tsv \
+  --shards 2 \
+  --output-dir outputs/two-endpoint-shards
+
+# Node A
+export INSTANCE_MANIFEST="outputs/two-endpoint-shards/shard-000.tsv"
+bash scripts/run_generation.sh
+
+# Node B
+export INSTANCE_MANIFEST="outputs/two-endpoint-shards/shard-001.tsv"
+bash scripts/run_generation.sh
+```
+
+预期sharding marker：
+
+```text
+SHARD_MANIFEST=PASS cases=6 shards=2 counts=3,3
+```
+
+每次generation都会把选中manifest的SHA-256写入`provider-contract.json`。Official scoring完成后，使用`merge_official_reports.py`合并两份aggregate report；只要出现overlap、duplicate ID或union不完整，就直接fail closed。
+
+### Agent版本和Sampling也是Benchmark的一部分
+
+SWE-bench评测的是一个system，不是裸model。Score由model、Agent version、instructions、tool schema、sampling、serving behavior和scorer共同决定。较新的Agent可能改善provider compatibility和tool-call handling，但静默升级会破坏可比性。
+
+- **Agent版本要足够新，然后精确固定。** 本Repo验证的是mini-swe-agent `2.4.6`。禁止使用可变的`latest` image，也不能仅凭另一台机器package label相同就认为源码一致。
+- **迁移对比两侧使用同一Agent。** 固定package SHA-256、imported source、effective config、system prompt、tool schema、step/cost/wall-time limits和output/status semantics。
+- **显式冻结sampling。** Temperature、top-p、maximum output tokens、seed、parallel-tool policy、server sampling backend和generation worker count都会改变trajectory。
+- **Agent升级必须作为新实验。** 先跑scored canary，使用新run ID，再单独比较版本；不能把新旧Agent结果拼成一个accuracy score。
+- **Temperature zero不等于确定性。** Multi-turn tool observations、backend scheduling和tied token choices仍可能改变calls和patches；必须保留所有trajectory并分析paired disagreement。
+
+Parity comparator会拒绝platform-migration claim中的Agent version、sampling、partition和retry-policy drift。如果客户明确接受其中某项变化，就必须显式声明adaptation，最终结果标为`ADAPTED_RUN`。
+
+## 三条部署路径的测试手册
+
+三条主要路径共用同一条主链：保存客户reference passport、通过parity gate、验证multi-turn tool calling、完成scored canary、运行冻结的SWE-bench分母、分析双向逐题差异。变化的只是各平台的部署方式和专属证据。
+
+| Candidate path | `ENDPOINT_MODE` | 平台专属证据 | 最强可用结论 |
+|---|---|---|---|
+| Azure GPU VM | `openai_compatible` | Image、model/tokenizer hashes、实际launcher、runtime commit、driver、GPU topology和context capacity | 同一weights和method均验证后可标`MODEL_AND_METHOD_ALIGNED` |
+| Foundry Serverless API | `azure_foundry` | 精确model format/name/version、deployment SKU和scope、TPM capacity、RAI policy、region和API capabilities | 只有精确客户model/revision可用时才是same-model migration；否则标`MODEL_SELECTION_METHOD_ALIGNED` |
+| Fireworks through Azure或public API | `azure_foundry`或`fireworks` | 精确Foundry deployment或account/direct-route model ID、provider format、API version、context、rate limits和replay schema | 只有部署了客户精确model/revision才是same-model migration；否则标`MODEL_SELECTION_METHOD_ALIGNED` |
+
+### 如何测试 Azure GPU VM
+
+Azure GPU VM控制力最高，通常也是复刻客户精确model stack最直接的路径。
+
+1. **从reference重建，不靠记忆重写。** 使用客户精确的weights、tokenizer、precision、model revision、runtime源码、container image和launcher；启动后记录实际process command line。
+2. **冻结serving contract。** 保存GPU SKU和数量、tensor/pipeline parallelism、context和active KV capacity、quantization、tool parser、sampling backend、deterministic flags、driver/runtime版本和environment hash。
+3. **统一为OpenAI-compatible contract。** 使用`ENDPOINT_MODE=openai_compatible`；验证`/v1/chat/completions`、正确function arguments、finish reasons和multi-turn replay。
+4. **运行同一套evaluation path。** Agent package/config、tool schema、dataset manifest、generation concurrency、retry policy和official harness必须与云下reference一致。
+5. **把infrastructure failure单独分类。** GPU fault、server crash、context truncation、Docker failure和endpoint timeout属于Error/retry evidence，不得计成model Fail。
+
+这条路径最大的风险是accidental adaptation：重写launcher后，参数看起来相同，但inherited environment、import、cache state、binding、defaults或process lifecycle已经改变。Parity contract会绑定launcher和environment identity，防止它被静默写成exact migration。
+
+### 如何测试 Foundry Serverless API
+
+这条路径直接从Microsoft Foundry catalog部署model，使用Standard、Global Standard、Data Zone Standard或其他支持的pay-per-token deployment。Serving infrastructure由Azure管理，客户通过统一Foundry endpoint调用deployment。
+
+1. **冻结management-plane identity。** 保存model `format`、`name`、`version`、deployment name、SKU、capacity、processing scope、region和provisioning state。只有deployment name不能证明model identity。
+2. **冻结policy surfaces。** 记录RAI/content-filter policy、API capabilities、context window、tool support、rate limits和version-upgrade setting。即使model weights相同，filter或policy差异也可能改变观察到的failure。
+3. **选择正确claim。** Foundry能提供客户精确model/revision时，使用`platform_migration`；如果只能使用另一个model，则使用`model_selection`，结果只支持model choice，不能冒充same-model migration。
+4. **复用统一Foundry route。** 设置`ENDPOINT_MODE=azure_foundry`，调用`/openai/v1/chat/completions`，并在`model`字段传deployment name。
+5. **Quota不能污染accuracy。** HTTP 429、capacity exhaustion和transient gateway fault属于Error/retry evidence，不能变成Unresolved model outcome。
+6. **运行不变的SWE-bench路径。** Tool-call preflight、multi-turn scored canary、frozen full denominator、official harness和双向regression analysis全部保持一致。
+
+Foundry Serverless API是运维门槛最低的Azure-native路径，按token而不是accelerator-hour计费。它验证迁移时的核心限制仍是model availability：如果不能部署客户的精确model identity，它回答的是model-selection问题。
+
+### 如何测试 Fireworks
+
+本Repo支持两个Fireworks入口：Azure中售卖的Fireworks模型使用`ENDPOINT_MODE=azure_foundry`和`/openai/v1/chat/completions`；Fireworks公网API使用`ENDPOINT_MODE=fireworks`和`/inference/v1/chat/completions`。
+
+1. **部署前先锁定model identity。** 保存精确account model或Foundry deployment ID、upstream revision、tokenizer、precision和context；display name不够。
+2. **运行前先决定claim。** Fireworks托管同一个客户weights/revision时使用`platform_migration`；如果使用不同catalog model，则使用`model_selection`，不能把score delta单独归因给Fireworks。
+3. **验证provider semantics。** 检查function-tool JSON、`finish_reason`、parallel-tool behavior、token limits、rate limits和response metadata。First-turn HTTP 200不够，因为provider metadata可能在后续turn重放时破坏schema。
+4. **Rate limit不能污染accuracy。** Throttling、transient gateway error和service incident属于infrastructure outcome，只能按冻结的retry policy处理。
+5. **Full run之前必须过scored canary。** 先拿到合法trajectory、未损坏prediction和official report，再投入完整分母。
+
+Fireworks运维负担最低，但model availability决定它回答的是migration问题，还是model-selection问题。
+
+### 待验证：Managed Compute
+
+**状态：`PENDING / NOT VERIFIED`。** 本Repo当前不发布Managed Compute分数，也不宣称其data plane已经通过canary。Managed Compute保留为后续路径；下面的checklist定义了它加入前三条测试手册前必须补齐的证据。
+
+1. **绑定catalog assets。** 保存完整registry model ID和version；保存deployment template ID、resolved version、runtime、context、accelerator count和`versionUpgradeOption`。只记录可变的`labels/latest`不足以支撑benchmark复现。
+2. **创建前验证capacity。** Managed Compute quota与Azure VM quota互相独立。保存accelerator-family quota、current usage、live capacity、SKU、model instances和total accelerators。
+3. **等待control plane完成。** `provisioningState`不是`Succeeded`时不得调用data plane；返回的routes还必须与选定的chat-completions runtime一致。
+4. **复用统一provider path。** 设置`ENDPOINT_MODE=azure_foundry`，在`model`字段传deployment name，并通过同一套tool-call preflight和multi-turn adapter验证`/openai/v1/chat/completions`。
+5. **准确率Gate保持不变。** 继续执行parity contract、scored canary、frozen full run、穷尽outcome分类和双向dispute analysis。
+6. **闭合billing lifecycle。** Managed Compute按accelerator-hour计费。Bounded test完成后先保存证据，再删除deployment，验证资源消失，并记录最终usage/cost scope。
+
+Managed Compute当前处于Preview，data path不内置Content Safety。这不会改变离线SWE-bench评分，但它是独立的production-readiness requirement，不能被accuracy结果掩盖。
 
 ## 1. SWE-bench 原理
 
@@ -432,14 +660,15 @@ python scripts/hash_assets.py runs/full --output runs/full/SHA256SUMS.txt
 | 范围 | Generation前必须冻结 |
 |---|---|
 | Dataset | Repository、split、row count、revision和完整instance-manifest SHA-256 |
-| Agent | mini-swe-agent版本和实际安装产物身份 |
-| Agent config | YAML SHA-256、config顺序、prompt、step/cost/wall-time limits |
+| Agent | mini-swe-agent版本、实际安装package SHA-256和imported source identity |
+| Agent config | YAML SHA-256、system prompt SHA-256、tool schema SHA-256、config顺序和limits |
 | Python environment | `pip freeze`输出和SHA-256 |
-| Model | Public model ID、weight revision、served model name |
-| Endpoint | API shape和非秘密base URL pattern |
-| Sampling | Temperature、top-p、maximum output tokens |
-| Concurrency | Generation worker count |
-| Harness | SWE-bench commit、namespace、timeout、cache level、clean mode、worker count |
+| Model | Public model ID、weight和tokenizer SHA-256、precision、served model name |
+| Endpoint | API shape、非秘密base URL pattern、authentication mode和replay adapter |
+| Serving | 实际launcher/environment、runtime、deployment template及resolved version、upgrade policy、accelerator、topology和context capacity |
+| Sampling | Temperature、top-p、maximum output tokens、seed和parallel tool-call policy |
+| Orchestration | Generation worker count、partition manifest、queue order和retry policy |
+| Harness | SWE-bench commit、dependency lock、execution-image manifest、namespace、timeout、cache、clean mode和workers |
 
 Secret必须走provider的环境变量合同。使用`hosted_vllm`时，应设置`HOSTED_VLLM_API_KEY`；不能把真实key写进YAML或`-c key=value`进程参数。
 
@@ -626,20 +855,30 @@ python -m swebench.harness.run_evaluation --help
 {
   "dataset": "princeton-nlp/SWE-Bench_Verified",
   "split": "test",
-  "resolved": 0,
-  "unresolved": 0,
-  "empty": 0,
-  "errors": 0,
   "total": 500,
-  "accuracy_pct": 0.0,
-  "generation_run_id": "<run-id>",
-  "harness_run_id": "<run-id>",
+  "comparison_scenario": "platform_migration",
+  "parity_classification": "MODEL_AND_METHOD_ALIGNED",
+  "reference_contract_sha256": "<sha256>",
+  "candidate_contract_sha256": "<sha256>",
+  "partition_manifest_sha256": "<sha256>",
+  "agent_config_sha256": "<sha256>",
+  "reference_resolved": 0,
+  "candidate_resolved": 0,
+  "reference_errors": 0,
+  "candidate_errors": 0,
+  "reference_pass_candidate_not": 0,
+  "candidate_pass_reference_not": 0,
+  "delta_percentage_points": 0.0,
+  "reference_generation_run_id": "<run-id>",
+  "candidate_generation_run_id": "<run-id>",
+  "reference_harness_run_id": "<run-id>",
+  "candidate_harness_run_id": "<run-id>",
   "agent_version": "2.4.6",
   "harness_commit": "f7bbbb2ccdf479001d6467c9e34af59e44a840f9"
 }
 ```
 
-Empty 和 Error 必须显式列出。准确率使用完整声明分母；如果另算 completed-only 比例，必须明确标为辅助诊断指标，不能替代正式准确率。
+即使上面的compact example只展示decision fields，也必须分别报告两侧的Resolved、Unresolved、Empty和Error。准确率使用完整声明分母；如果另算completed-only比例，必须明确标为辅助诊断指标，不能替代正式准确率。
 
 ## 9. 验证
 
@@ -651,6 +890,9 @@ make test
 当前确定性测试覆盖：
 
 - 双向争议识别。
+- 按scenario计算parity classification，并对invariant drift fail closed。
+- 拒绝Agent sampling、partition和context-capacity mismatch。
+- 确定性均衡sharding、duplicate拒绝和exact-union检查。
 - 完整冻结集合替换。
 - 缺题拒绝。
 - 重叠shard拒绝。
@@ -728,6 +970,10 @@ make test
 - [SWE-bench Verified dataset](https://huggingface.co/datasets/princeton-nlp/SWE-Bench_Verified)
 - [SWE-bench论文](https://arxiv.org/abs/2310.06770)
 - [Microsoft Foundry Models v1 API](https://learn.microsoft.com/en-us/azure/ai-foundry/model-inference/how-to/use-chat-completions)
+- [Deploy Foundry Models with Azure CLI and Bicep](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/create-model-deployments)
+- [Deployment types for Foundry Models](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/concepts/deployment-types)
+- [Managed compute in Microsoft Foundry](https://learn.microsoft.com/en-us/azure/foundry/concepts/managed-compute-overview)
+- [Deploy open-source models with Managed Compute](https://learn.microsoft.com/en-us/azure/foundry/how-to/deploy-models-managed)
 - [Fireworks OpenAI compatibility](https://docs.fireworks.ai/tools-sdks/openai-compatibility)
 - [LiteLLM Azure provider](https://docs.litellm.ai/docs/providers/azure)
 - [LiteLLM Fireworks provider](https://docs.litellm.ai/docs/providers/fireworks_ai)

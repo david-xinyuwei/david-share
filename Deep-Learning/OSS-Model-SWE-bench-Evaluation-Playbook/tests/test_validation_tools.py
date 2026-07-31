@@ -212,6 +212,9 @@ class ValidationToolTests(unittest.TestCase):
             "env | sort > \"$CAPTURE_DIR/env.txt\"\n"
         )
         fake_python.chmod(0o755)
+        fake_python3 = fake_bin / "python3"
+        fake_python3.write_text(fake_python.read_text())
+        fake_python3.chmod(0o755)
         fake_docker = fake_bin / "docker"
         fake_docker.write_text("#!/bin/bash\nexit 0\n")
         fake_docker.chmod(0o755)
@@ -313,6 +316,52 @@ class ValidationToolTests(unittest.TestCase):
         self.assertNotIn("fireworks-secret-probe", args)
         self.assertIn("FIREWORKS_AI_API_KEY=fireworks-secret-probe", env)
         self.assertEqual(contract["run_label"], "fireworks-candidate")
+
+    def test_instance_manifest_becomes_a_hashed_exact_filter(self) -> None:
+        manifest = self.root / "instances.tsv"
+        manifest.write_text("instance_id\nrepo__issue-2\nrepo__issue-1\n")
+        output, capture = self.run_generation_mode(
+            "openai_compatible",
+            "local-model",
+            MODEL_API_BASE="http://127.0.0.1:8000/v1",
+            MODEL_API_KEY="EMPTY",
+            INSTANCE_MANIFEST=str(manifest),
+        )
+        args = (capture / "args.txt").read_text()
+        contract = json.loads((output / "provider-contract.json").read_text())
+        self.assertIn("--filter", args)
+        self.assertIn(r"^(?:repo__issue\-1|repo__issue\-2)$", args)
+        self.assertEqual(contract["instance_selector"], "manifest")
+        self.assertRegex(contract["instance_manifest_sha256"], r"^[0-9a-f]{64}$")
+
+    def test_duplicate_instance_manifest_fails_closed(self) -> None:
+        manifest = self.root / "duplicates.tsv"
+        manifest.write_text("instance_id\nrepo__issue-1\nrepo__issue-1\n")
+        fake_bin = self.root / "duplicate-fake-bin"
+        fake_bin.mkdir()
+        fake_docker = fake_bin / "docker"
+        fake_docker.write_text("#!/bin/bash\nexit 0\n")
+        fake_docker.chmod(0o755)
+        env = os.environ.copy()
+        env.update(
+            {
+                "PATH": f"{fake_bin}:{env['PATH']}",
+                "OUTPUT_DIR": str(self.root / "duplicate-output"),
+                "MODEL_NAME": "local-model",
+                "MODEL_API_BASE": "http://127.0.0.1:8000/v1",
+                "INSTANCE_MANIFEST": str(manifest),
+            }
+        )
+        result = subprocess.run(
+            ["bash", str(SCRIPTS / "run_generation.sh")],
+            cwd=ROOT,
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("duplicate instance IDs", result.stderr)
 
     def run_preflight(
         self,

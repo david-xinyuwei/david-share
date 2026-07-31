@@ -1,0 +1,81 @@
+schema_version = 1
+
+[run]
+label = "onprem-reference"
+
+[model]
+family = "contoso-code-7b"
+revision = "2026-07-01"
+weights_sha256 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+tokenizer_sha256 = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+precision = "bf16"
+
+[agent]
+name = "mini-swe-agent"
+version = "2.4.6"
+package_sha256 = "1111111111111111111111111111111111111111111111111111111111111111"
+config_sha256 = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+system_prompt_sha256 = "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+tool_schema_sha256 = "2222222222222222222222222222222222222222222222222222222222222222"
+step_limit = 250
+cost_limit = 3.0
+wall_time_limit_seconds = 7200
+
+[dataset]
+name = "princeton-nlp/SWE-Bench_Verified"
+split = "test"
+revision = "c104f840cc67f8b6eec6f759ebc8b2693d585d4a"
+manifest_sha256 = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+execution_images_sha256 = "3333333333333333333333333333333333333333333333333333333333333333"
+expected_cases = 500
+
+[harness]
+source_commit = "f7bbbb2ccdf479001d6467c9e34af59e44a840f9"
+python_lock_sha256 = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+namespace = "swebench"
+timeout_seconds = 1800
+cache_level = "env"
+clean = true
+workers = 4
+
+[generation]
+workers = 8
+temperature = 0.0
+top_p = 1.0
+max_output_tokens = 4096
+seed = 0
+parallel_tool_calls = false
+
+[orchestration]
+partition_manifest_sha256 = "4444444444444444444444444444444444444444444444444444444444444444"
+queue_policy = "dataset-order"
+retry_policy = "infrastructure-only-once"
+
+[endpoint]
+mode = "openai_compatible"
+protocol = "openai_chat_completions_with_function_tools"
+base_url_pattern = "http://127.0.0.1:8000/v1"
+auth_method = "none"
+deployment_name = "contoso-code-7b"
+replay_adapter = "none"
+content_filter_policy = "none"
+
+[serving]
+deployment_type = "self_hosted_gpu_vm"
+billing_model = "vm_hour"
+deployment_scope = "regional"
+runtime = "sglang"
+runtime_version = "reference-build"
+deployment_template = "self-managed-launcher"
+deployment_template_version = "launcher-sha-bound"
+version_upgrade_option = "manual"
+launcher_sha256 = "5555555555555555555555555555555555555555555555555555555555555555"
+environment_sha256 = "6666666666666666666666666666666666666666666666666666666666666666"
+accelerator_family = "onprem-gpu"
+tensor_parallel = 1
+context_length = 262144
+deterministic_inference = false
+sampling_backend = "pytorch"
+
+[evaluation]
+required_context_tokens = 131072

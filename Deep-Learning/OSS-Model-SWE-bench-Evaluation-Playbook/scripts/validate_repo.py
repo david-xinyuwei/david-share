@@ -23,9 +23,16 @@ REQUIRED = {
     "scripts/run_official_harness.sh",
     "scripts/setup_environment.sh",
     "scripts/build_dispute_manifest.py",
+    "scripts/compare_run_contracts.py",
     "scripts/finalize_frozen_disputes.py",
+    "scripts/shard_instance_manifest.py",
     "tests/test_frozen_disputes.py",
+    "tests/test_parity_contract.py",
+    "tests/test_shard_manifest.py",
     "tests/test_validation_tools.py",
+    "examples/instance-manifest.tsv",
+    "examples/parity-reference.toml",
+    "examples/parity-candidate.toml",
     "examples/live-foundry-fw-glm51-scored-canary.yaml",
 }
 
@@ -180,7 +187,16 @@ def main() -> None:
             if not resolved.exists():
                 raise SystemExit(f"Broken local link in {markdown}: {target}")
 
-    text_extensions = {".md", ".py", ".sh", ".yaml", ".yml", ".json", ".txt"}
+    text_extensions = {
+        ".json",
+        ".md",
+        ".py",
+        ".sh",
+        ".toml",
+        ".txt",
+        ".yaml",
+        ".yml",
+    }
     scanner_allowlist = {(root / "scripts" / "validate_repo.py").resolve()}
     for path in files:
         if path.suffix.lower() not in text_extensions:
@@ -217,6 +233,39 @@ def main() -> None:
     for mode in ("openai_compatible", "azure_foundry", "fireworks"):
         if mode not in generation_script or mode not in readme or mode not in readme_cn:
             raise SystemExit(f"Missing endpoint mode coverage: {mode}")
+    for marker in (
+        "compare_run_contracts.py",
+        "MODEL_AND_METHOD_ALIGNED",
+        "FINETUNING_METHOD_ALIGNED",
+        "MODEL_SELECTION_METHOD_ALIGNED",
+        "METHOD_ALIGNED",
+        "ADAPTED_RUN",
+        "NOT_COMPARABLE",
+    ):
+        if marker not in readme or marker not in readme_cn:
+            raise SystemExit(f"Missing parity framework marker: {marker}")
+    deployment_playbooks = (
+        ("Three Deployment Test Playbooks", "三条部署路径的测试手册"),
+        ("How to Test Azure GPU VM", "如何测试 Azure GPU VM"),
+        ("How to Test Foundry Serverless API", "如何测试 Foundry Serverless API"),
+        ("How to Test Fireworks", "如何测试 Fireworks"),
+        ("Pending: Managed Compute", "待验证：Managed Compute"),
+    )
+    for marker_en, marker_cn in deployment_playbooks:
+        if marker_en not in readme or marker_cn not in readme_cn:
+            raise SystemExit(
+                f"Missing deployment test playbook: {marker_en} / {marker_cn}"
+            )
+    operational_markers = (
+        ("P/D Disaggregation or Independent Endpoints", "P/D分离还是双独立Endpoint"),
+        ("Agent Version and Sampling", "Agent版本和Sampling"),
+        ("shard_instance_manifest.py", "shard_instance_manifest.py"),
+    )
+    for marker_en, marker_cn in operational_markers:
+        if marker_en not in readme or marker_cn not in readme_cn:
+            raise SystemExit(
+                f"Missing operational best-practice marker: {marker_en} / {marker_cn}"
+            )
     if re.search(r"AMD|MI300|Xiaomi|小米", generation_script + model_config, re.I):
         raise SystemExit("Runtime code must not be coupled to the validation hardware or customer")
 
