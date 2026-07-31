@@ -15,16 +15,33 @@ REQUIRED = {
     "configs/oss-model.yaml",
     "images/swebench_workflow.png",
     "scripts/run_generation.sh",
+    "scripts/preflight_provider.py",
+    "scripts/run_scored_canary.sh",
+    "scripts/provider_compat.py",
+    "scripts/provider_model.py",
+    "scripts/swebench_outcomes.py",
     "scripts/run_official_harness.sh",
     "scripts/setup_environment.sh",
     "scripts/build_dispute_manifest.py",
     "scripts/finalize_frozen_disputes.py",
     "tests/test_frozen_disputes.py",
+    "tests/test_validation_tools.py",
+    "examples/live-foundry-fw-glm51-scored-canary.yaml",
 }
 
 FORBIDDEN = {
     "absolute workspace path": re.compile(r"/mnt/[a-z]/|[A-Z]:\\"),
     "unsafe remote access": re.compile(r"sshpass|root@"),
+    "resource UUID": re.compile(
+        r"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b"
+    ),
+    "non-example email": re.compile(
+        r"\b[A-Za-z0-9._%+-]+@(?!example\.com\b)[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"
+    ),
+    "non-placeholder Azure endpoint": re.compile(
+        r"https://(?!(?:<resource-name>|example)\.)[A-Za-z0-9.-]+\."
+        r"(?:services\.ai\.azure\.com|openai\.azure\.com)"
+    ),
     "credential value": re.compile(
         r"(?:sk|ghp|github_pat)_[A-Za-z0-9_]{20,}|Bearer\s+[A-Za-z0-9._-]{20,}"
     ),
@@ -73,7 +90,12 @@ def code_blocks(text: str):
 def bilingual_tokens(text: str) -> dict[str, collections.Counter]:
     prose = re.sub(r"```.*?```", "", text, flags=re.S)
     return {
-        "external URLs": collections.Counter(re.findall(r"https?://[^) >]+", text)),
+        "external URLs": collections.Counter(
+            url.rstrip(".,;:")
+            for url in re.findall(
+                r"https?://[A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-]+", text
+            )
+        ),
         "numeric tokens": collections.Counter(
             re.findall(r"(?<![A-Za-z])\d+(?:\.\d+)?(?:%|GB|MB|s)?", text)
         ),
@@ -192,6 +214,11 @@ def main() -> None:
         r"^\s*api_key\s*:", model_config, re.M
     ):
         raise SystemExit("Model API key must not be passed through config or process argv")
+    for mode in ("openai_compatible", "azure_foundry", "fireworks"):
+        if mode not in generation_script or mode not in readme or mode not in readme_cn:
+            raise SystemExit(f"Missing endpoint mode coverage: {mode}")
+    if re.search(r"AMD|MI300|Xiaomi|小米", generation_script + model_config, re.I):
+        raise SystemExit("Runtime code must not be coupled to the validation hardware or customer")
 
     print(
         "REPO_VALIDATION=PASS "

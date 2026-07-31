@@ -5,5 +5,5 @@ test:
 
 validate:
 	python3 -m py_compile scripts/*.py tests/*.py
-	bash -n scripts/setup_environment.sh scripts/run_generation.sh scripts/run_official_harness.sh
+	bash -n scripts/setup_environment.sh scripts/run_generation.sh scripts/run_official_harness.sh scripts/run_scored_canary.sh
 	python3 scripts/validate_repo.py .

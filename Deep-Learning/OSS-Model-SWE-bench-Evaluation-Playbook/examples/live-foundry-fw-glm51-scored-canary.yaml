@@ -1,0 +1,53 @@
+schema_version: 1
+verified_at_utc: "2026-07-31T05:19:26Z"
+scope:
+  purpose: provider_agent_and_official_harness_compatibility_gate
+  sample_size: 1
+  instance_id: astropy__astropy-7166
+  accuracy_estimate: false
+  full_run_completed: false
+provider:
+  endpoint_mode: azure_foundry
+  management_plane_model_id: FW-GLM-5.1
+  route: foundry_v1_openai_compatible
+  api_base_redacted: true
+  credential_redacted: true
+preflight:
+  state: PASS
+  http_status: 200
+  tool_calls: 1
+  request_id_present: true
+generation:
+  state: PASS
+  predictions: 1
+  nonempty_patches: 1
+  empty_patches: 0
+  effective_config_count: 1
+  exit_statuses:
+    Submitted: 1
+official_evaluation:
+  dataset_total_instances: 500
+  submitted_instances: 1
+  completed_instances: 1
+  resolved_instances: 1
+  unresolved_instances: 0
+  empty_patch_instances: 0
+  error_instances: 0
+  unstopped_containers: 0
+  unremoved_images: 0
+  elapsed_seconds: 19.13
+runtime:
+  mini_swe_agent_version: 2.4.6
+  swebench_version: 4.1.0
+  swebench_source_commit: f7bbbb2ccdf479001d6467c9e34af59e44a840f9
+  docker_version: 27.5.1
+cleanup:
+  driver_container_present_after_run: false
+  credential_file_present_after_run: false
+source_artifact_sha256:
+  provider_preflight: a642ff8605457b265d62b12897352d236b781580fe231b0bcd5069a6285c41d5
+  provider_contract: 6df8268d2236a4d394bde2bd1944cca62b824e8388ce173145c4f34163c1e933
+  generation_summary: 20b8314c06153777471ac2ddcc358c6323213064a7b3550b659fd6dff5f77c96
+  predictions: 5775be1d7c8a4f421ee169297e4edf40a1a04901487901ec2a706c02aebbe19c
+  trajectory: 46e7957bd615932818bf0acdd2c6af50b1e1fe1e017adc5f1cd3a0fed529c457
+  official_aggregate: 8bcf5b7b15d01fda8437a76deab96b6ff983dea901cedebe9f6b2e5838cf31f4

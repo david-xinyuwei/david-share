@@ -5,7 +5,7 @@
 [![SWE-bench](https://img.shields.io/badge/Harness-f7bbbb2-ca6f1e)](https://github.com/SWE-bench/SWE-bench/commit/f7bbbb2ccdf479001d6467c9e34af59e44a840f9)
 [![Python](https://img.shields.io/badge/Python-3.12-3776ab)](https://www.python.org/)
 
-A complete workflow for evaluating an open-source coding model that exposes an OpenAI-compatible endpoint with function tool calls, using mini-swe-agent and the official SWE-bench Docker harness.
+A production-oriented workflow for measuring OSS coding-model accuracy before and after migration to Microsoft Foundry or Fireworks, and before and after fine-tuning, using one frozen SWE-bench contract.
 
 > **Author**: 魏新宇 (Xinyu Wei) — Microsoft AI and Apps Global Black Belt (GBB)
 
@@ -25,11 +25,11 @@ SWE-bench does not send a prompt to a model and compare one text answer. It eval
 4. The harness applies the candidate patch and authoritative test patch.
 5. The issue is Resolved only when the required tests pass without regressing existing tests.
 
-This repo provides the complete path from a local OpenAI-compatible model endpoint to auditable official results:
+This repo provides the complete path from an on-premises, cloud, Microsoft Foundry, or Fireworks model endpoint to auditable official results:
 
 | Stage | Input | Output | Gate |
 |---|---|---|---|
-| Endpoint preflight | Model URL and served model | `/v1/models` response | Expected model visible |
+| Endpoint preflight | Model URL and served model | Chat-completions tool-call response | HTTP success and at least 1 valid `ping` function tool call |
 | Agent generation | Issue, repository, Agent YAML | `preds.json` + trajectories | Exact ID coverage and valid status |
 | Effective-config audit | Trajectory `info.config` | Canonical config hash | One intended config after approved per-task fields |
 | Official evaluation | Candidate patches | Per-instance reports + aggregate JSON | Docker harness exits cleanly |
@@ -37,6 +37,38 @@ This repo provides the complete path from a local OpenAI-compatible model endpoi
 | Evidence seal | Completed files | `SHA256SUMS.txt` | No writers remain; manifest verifies |
 
 The scripts are standard-library-first, fail closed on missing or overlapping cases, and contain no model-specific endpoint, credential, VM, or private dataset.
+
+## Business Value and Production Modes
+
+Customers often hesitate to migrate or fine-tune an OSS model because a healthy endpoint does not prove that software-engineering accuracy has been preserved. This playbook turns that concern into a controlled go/no-go measurement.
+
+| Business decision | Reference run | Candidate run | What the result can establish |
+|---|---|---|---|
+| Move an on-premises OSS model to a managed platform | On-premises or AMD-based OpenAI-compatible endpoint | Microsoft Foundry or Fireworks deployment | Whether the same model and revision preserve SWE-bench accuracy after platform migration |
+| Move from another cloud to a managed platform | Existing cloud endpoint | Microsoft Foundry or Fireworks deployment | Whether the target platform meets the customer's predeclared accuracy threshold |
+| Validate fine-tuning | Base model | Fine-tuned deployment on the same platform | Which tasks improved, regressed, stayed stable, or failed operationally |
+| Select a production model | Existing production model | A different candidate, such as an Azure Foundry Fireworks GLM deployment | Comparative model quality; this is not a platform-only migration claim |
+
+**Single-variable rule:** a platform-migration claim requires the same model family, weight revision, Agent config, dataset, concurrency, and harness. Comparing an AMD-hosted model with a different Fireworks GLM model changes both model and platform, so the result is a model-selection comparison, not proof that Fireworks alone caused the difference.
+
+### Evidence Boundary
+
+- **Validated reference path:** the methodology was derived from and exercised on an AMD-based, on-premises-style OpenAI-compatible endpoint.
+- **Live-scored Microsoft Foundry path:** on `2026-07-31`, an Azure Foundry Fireworks deployment identified by the management plane as `FW-GLM-5.1` passed the HTTP 200 preflight with 1 function tool call and a request ID. mini-swe-agent `2.4.6` then submitted 1 non-empty patch for `astropy__astropy-7166`; the pinned official harness classified it Resolved with 0 errors and 0 unstopped containers. See the [sanitized machine-readable evidence](examples/live-foundry-fw-glm51-scored-canary.yaml).
+- **Implemented and shape-tested public Fireworks path:** `fireworks` routes to `api.fireworks.ai` through the pinned LiteLLM provider without putting secrets in process arguments.
+- **Not yet claimed:** no Microsoft Foundry or Fireworks full accuracy result is published until the declared full run completes. This 1-case Resolved outcome is a compatibility gate, not a `1/500` accuracy result or a model comparison. A future GLM 5.2 display name must be replaced by the exact deployment/model ID before execution.
+
+### Supported Endpoint Modes
+
+| `ENDPOINT_MODE` | Intended platform | Model naming | Authentication source |
+|---|---|---|---|
+| `openai_compatible` | On-premises, AMD validation environment, or another OpenAI-compatible cloud | `hosted_vllm/<served-name>`; prefix is added when omitted | `HOSTED_VLLM_API_KEY` or `MODEL_API_KEY`; `EMPTY` is allowed for an unauthenticated local endpoint |
+| `azure_foundry` | Microsoft Foundry Models v1 cross-provider chat-completions endpoint, including Fireworks models sold through Azure | The deployment name is sent through the OpenAI-compatible route; `hosted_vllm/` is added internally | `AZURE_API_KEY`, `AZURE_OPENAI_API_KEY`, `AZURE_AD_TOKEN`, or `MODEL_API_KEY`, mapped to a Bearer credential without entering argv |
+| `fireworks` | Fireworks serverless, account model, or direct-route deployment | `fireworks_ai/<exact-model-id>`; prefix is added when omitted | `FIREWORKS_AI_API_KEY` or `MODEL_API_KEY` |
+
+Every generation run writes `provider-contract.json` with endpoint mode, business scenario, run label, model name, API base, non-secret auth variable name, workers, dataset, and config. It never stores the credential value.
+
+Supported `EVALUATION_SCENARIO` values are `single_endpoint`, `onprem_to_managed`, `cloud_to_managed`, and `base_vs_finetuned`.
 
 ## 1. How SWE-bench Works
 
@@ -132,7 +164,7 @@ runs/<run-id>/
 └── SHA256SUMS.txt
 ```
 
-## 3. Quick Start
+## 3. Quick Start and Running on Azure
 
 ### 3.1 Prerequisites
 
@@ -164,18 +196,62 @@ That SWE-bench commit fixes new-file-only test patches that could otherwise rese
 The setup script keeps the pinned SWE-bench checkout and installs it in editable mode. A direct VCS wheel build can omit non-Python harness fixtures in some revisions; retaining the checkout avoids that packaging failure.
 Set `REQUIREMENTS_FILE=./requirements.txt` only when deliberately resolving a fresh dependency set, then capture and audit the resulting `pip freeze` before comparing scores.
 
-### 3.3 Verify the Model Endpoint
+### 3.3 Select the Endpoint Mode
+
+Use the same generation and scoring commands for every platform. Only the provider-specific environment changes.
+
+**On-premises / AMD / generic OpenAI-compatible baseline:**
 
 ```bash
+export ENDPOINT_MODE="openai_compatible"
+export EVALUATION_SCENARIO="single_endpoint"
+export RUN_LABEL="onprem-baseline"
 export MODEL_API_BASE="http://127.0.0.1:8000/v1"
-export MODEL_NAME="hosted_vllm/your-model"
+export MODEL_NAME="your-served-model"
 export MODEL_API_KEY="EMPTY"
-
-curl --fail --silent "$MODEL_API_BASE/models" | python -m json.tool
 ```
 
-Set `MODEL_NAME` to the name expected by your LiteLLM-compatible provider. Do not put a real key in YAML or shell history; load it from a secure environment source.
-`run_generation.sh` maps `MODEL_API_KEY` to LiteLLM's `HOSTED_VLLM_API_KEY` environment variable and does not place the value in the child process arguments.
+**Microsoft Foundry candidate:**
+
+```bash
+export ENDPOINT_MODE="azure_foundry"
+export EVALUATION_SCENARIO="onprem_to_managed"
+export RUN_LABEL="foundry-candidate"
+export MODEL_API_BASE="https://<resource-name>.services.ai.azure.com"
+export MODEL_NAME="<deployment-name>"
+: "${AZURE_API_KEY:?Set AZURE_API_KEY securely}"
+```
+
+The script normalizes the endpoint to `/openai/v1` and uses the OpenAI-compatible route required by Azure Foundry cross-provider deployments. The pinned LiteLLM `azure/` deployment route returned `Resource not found` for the live Fireworks deployment and is deliberately not used. A minimal adapter also removes only LiteLLM's top-level `provider_specific_fields` transport metadata before replaying assistant messages; Foundry rejects that nonstandard field, while user content and tool calls remain unchanged. `AZURE_AD_TOKEN` is accepted, but a static token is not a durable production credential. For unattended production runs, use Managed Identity or Service Principal with automatic token refresh in the managed runtime or an upstream proxy; do not depend on a user's `az login` cache.
+
+**Fireworks public API candidate:**
+
+```bash
+export ENDPOINT_MODE="fireworks"
+export EVALUATION_SCENARIO="onprem_to_managed"
+export RUN_LABEL="fireworks-glm-candidate"
+export MODEL_API_BASE="https://api.fireworks.ai/inference/v1"
+export MODEL_NAME="accounts/<account>/models/<exact-glm-model-id>"
+: "${FIREWORKS_AI_API_KEY:?Set FIREWORKS_AI_API_KEY securely}"
+```
+
+Fireworks defaults to `https://api.fireworks.ai/inference/v1`. Copy the exact model ID from the Fireworks account; do not derive it from a display name. A direct-route deployment can override `MODEL_API_BASE`.
+
+Do not put a real key in YAML, shell history, or CLI overrides. `run_generation.sh` maps each mode to its provider environment and keeps secret values out of child-process arguments.
+
+Validate the selected provider and run the full 1-case generation-plus-scoring path before any full benchmark:
+
+```bash
+python scripts/preflight_provider.py \
+  --mode "$ENDPOINT_MODE" \
+  --api-base "$MODEL_API_BASE" \
+  --model "$MODEL_NAME"
+
+export OUTPUT_ROOT="runs/${RUN_LABEL}-scored-canary"
+bash scripts/run_scored_canary.sh
+```
+
+The preflight must return `state=PASS` with at least 1 valid `ping` tool call whose arguments contain `{"value":"ok"}`. The scored canary is a pipeline gate, not an accuracy estimate; the 1 canary task may be Resolved, Unresolved, or Empty as long as the outcome is produced by the official harness without infrastructure errors.
 
 ### 3.4 Run a One-Case Canary
 
@@ -254,6 +330,9 @@ Create a machine-readable contract before generation:
   "agent_step_limit": 250,
   "agent_cost_limit": 3.0,
   "python_packages_sha256": "<sha256>",
+  "endpoint_mode": "<openai_compatible|azure_foundry|fireworks>",
+  "evaluation_scenario": "<scenario>",
+  "provider_contract_sha256": "<sha256>",
   "model_revision": "<public-model-revision>",
   "generation_workers": 8,
   "swe_bench_commit": "f7bbbb2ccdf479001d6467c9e34af59e44a840f9",
@@ -272,7 +351,7 @@ sha256sum runs/full/python-packages.txt
 
 ### Step 2: Capture the Effective Config
 
-YAML files are inputs; trajectory `info.config` is runtime truth. Audit all trajectories after generation:
+YAML files and `provider-contract.json` are inputs; trajectory `info.config` is runtime truth. Audit all trajectories after generation:
 
 ```bash
 python scripts/audit_effective_configs.py \
@@ -386,9 +465,13 @@ Never retest only the direction that can improve your score. Freeze both directi
 python scripts/build_dispute_manifest.py \
   --reference-report reference-full.json \
   --candidate-report candidate-full.json \
+  --reference-label onprem-baseline \
+  --candidate-label managed-platform-candidate \
   --expected-count 500 \
   --output runs/differential/frozen-disputes.tsv
 ```
+
+The generated summary reports both accuracies, resolved-case delta, percentage-point delta, and both disagreement directions. Use labels such as `base-model` / `fine-tuned-model` for a fine-tuning comparison.
 
 ### BP5. Never Dynamically Shrink a Retest Set
 
@@ -410,6 +493,8 @@ python scripts/finalize_frozen_disputes.py \
 ### BP6. Separate Effect From Mechanism
 
 A score change proves an observed effect under the recorded run. It does not by itself prove which kernel, prompt, scheduler, or dependency caused the change.
+
+For migration, change only the endpoint mode while retaining the same model revision. For fine-tuning, keep the platform fixed and change only the base versus fine-tuned deployment. If both model and platform change, label the result as a combined model-selection comparison.
 
 ### BP7. Count Progress From Artifacts
 
@@ -465,6 +550,7 @@ These are the failure modes encountered while building and validating the workfl
 | Same patch, different result | Harness source, image, timeout, host timing | Pin commit and preserve test logs |
 | Same package version, different score | Installed source drift | Install/mount exact commit |
 | Pinned VCS install imports fail | Wheel omitted non-Python fixtures | Keep the exact checkout and use editable install |
+| Foundry rejects `provider_specific_fields` | LiteLLM replayed nonstandard response metadata | Use the Foundry adapter; preserve content and tool calls |
 | Aggregate path unexpected | Harness version behavior | Use dedicated cwd; locate exactly one aggregate |
 | Official timeout | Slow tests or host load | Keep Error unless retry policy was frozen in advance |
 | One-direction retest | Selection bias | Freeze both directions |
@@ -525,6 +611,14 @@ python -m swebench.harness.run_evaluation --help
 **Cause:** one-direction selection, dynamic narrowing, missing shards, or overlapping partitions.
 
 **Fix:** return to two complete reports, freeze both binary dispute directions once, pass the declared denominator through `--expected-count`, and require every frozen case exactly once. The repository scripts reject missing, extra, duplicate, and overlapping cases.
+
+### 7.7 Foundry Rejects Replayed Provider Metadata
+
+**Symptom:** tool call 1 succeeds, then a later turn returns `Extra inputs are not permitted` for `provider_specific_fields`.
+
+**Cause:** LiteLLM retained provider response metadata on an assistant message and replayed it to the strict Foundry v1 schema.
+
+**Fix:** `FoundryOpenAIModel` removes only the top-level `provider_specific_fields` key before the next API request. It preserves role, content, tool calls, tool-call IDs, and observations. The adapter is enabled only for `azure_foundry` mode and is covered by a regression test.
 
 ## 8. Evidence and Reporting
 
@@ -635,6 +729,10 @@ make test
 - [Pinned SWE-bench commit](https://github.com/SWE-bench/SWE-bench/commit/f7bbbb2ccdf479001d6467c9e34af59e44a840f9)
 - [SWE-bench Verified dataset](https://huggingface.co/datasets/princeton-nlp/SWE-Bench_Verified)
 - [SWE-bench paper](https://arxiv.org/abs/2310.06770)
+- [Microsoft Foundry Models v1 API](https://learn.microsoft.com/en-us/azure/ai-foundry/model-inference/how-to/use-chat-completions)
+- [Fireworks OpenAI compatibility](https://docs.fireworks.ai/tools-sdks/openai-compatibility)
+- [LiteLLM Azure provider](https://docs.litellm.ai/docs/providers/azure)
+- [LiteLLM Fireworks provider](https://docs.litellm.ai/docs/providers/fireworks_ai)
 
 ## 12. Related Repositories
 

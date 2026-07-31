@@ -13,6 +13,8 @@ def main() -> None:
     )
     parser.add_argument("--reference-report", type=Path, required=True)
     parser.add_argument("--candidate-report", type=Path, required=True)
+    parser.add_argument("--reference-label", default="reference")
+    parser.add_argument("--candidate-label", default="candidate")
     parser.add_argument("--expected-count", type=int, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
@@ -66,6 +68,8 @@ def main() -> None:
 
     summary = {
         "contract": "bidirectional binary disputes frozen before any targeted retest",
+        "reference_label": args.reference_label,
+        "candidate_label": args.candidate_label,
         "expected_cases": args.expected_count,
         "total_cases": len(reference),
         "frozen_disputes": len(rows),
@@ -78,6 +82,18 @@ def main() -> None:
         "reference_report_sha256": sha256(args.reference_report),
         "candidate_report_sha256": sha256(args.candidate_report),
         "manifest_sha256": sha256(args.output),
+    }
+    reference_resolved = sum(is_pass(outcome) for outcome in reference.values())
+    candidate_resolved = sum(is_pass(outcome) for outcome in candidate.values())
+    summary["accuracy_comparison"] = {
+        "reference_resolved": reference_resolved,
+        "candidate_resolved": candidate_resolved,
+        "reference_accuracy_pct": round(reference_resolved / len(reference) * 100, 2),
+        "candidate_accuracy_pct": round(candidate_resolved / len(candidate) * 100, 2),
+        "delta_resolved": candidate_resolved - reference_resolved,
+        "delta_percentage_points": round(
+            (candidate_resolved - reference_resolved) / len(reference) * 100, 2
+        ),
     }
     summary_path = args.output.with_suffix(".summary.json")
     summary_path.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n")

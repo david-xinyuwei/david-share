@@ -5,7 +5,7 @@
 [![SWE-bench](https://img.shields.io/badge/Harness-f7bbbb2-ca6f1e)](https://github.com/SWE-bench/SWE-bench/commit/f7bbbb2ccdf479001d6467c9e34af59e44a840f9)
 [![Python](https://img.shields.io/badge/Python-3.12-3776ab)](https://www.python.org/)
 
-一套完整的工程流程：使用 mini-swe-agent 和官方 SWE-bench Docker harness，评测通过 OpenAI-compatible endpoint 提供服务、并支持 function tool calls 的 OSS coding model。
+一套面向生产迁移的工程流程：使用同一份冻结的 SWE-bench 合同，测量 OSS coding model 迁移到 Microsoft Foundry 或 Fireworks 前后的准确度，以及微调前后的准确度。
 
 > **作者**：魏新宇 (Xinyu Wei) — Microsoft AI and Apps Global Black Belt (GBB)
 
@@ -25,11 +25,11 @@ SWE-bench 不是把一道题发给模型，再比较一段文本答案。它评�
 4. Harness 应用候选 patch 和官方 test patch。
 5. 只有要求修复的测试通过、原有测试不回退，这道题才算 Resolved。
 
-本 Repo 从已验证的本地 OpenAI-compatible model endpoint 开始，覆盖到官方评测结果的完整流程：
+本 Repo 支持从云下、其他云、Microsoft Foundry或Fireworks model endpoint开始，产出可审计的官方评测结果：
 
 | 阶段 | 输入 | 输出 | 验收门 |
 |---|---|---|---|
-| Endpoint 预检 | 模型 URL、served model | `/v1/models` 响应 | 能看到目标模型 |
+| Endpoint 预检 | 模型 URL、served model | Chat-completions tool-call响应 | HTTP成功且至少返回1个有效的`ping` function tool call |
 | Agent generation | Issue、仓库、Agent YAML | `preds.json` + trajectories | ID 全覆盖、状态合法 |
 | Effective config 审计 | Trajectory `info.config` | Canonical config hash | 去除允许的逐题字段后只剩目标配置 |
 | 官方评测 | 候选 patches | 逐题 report + aggregate JSON | Docker harness 正常退出 |
@@ -37,6 +37,38 @@ SWE-bench 不是把一道题发给模型，再比较一段文本答案。它评�
 | 证据封存 | 已完成文件 | `SHA256SUMS.txt` | 写入进程已停止，manifest 可验证 |
 
 核心脚本尽量只依赖 Python 标准库；一旦发现缺题、重复题或 shard 重叠，就直接终止，不生成看似完整的结果。Repo 不包含模型私有 endpoint、凭据、VM、客户数据或内部测试结果。
+
+## 业务价值与生产模式
+
+客户对OSS model迁移或微调后的准确度不放心时，endpoint健康并不能证明软件工程能力没有下降。本手册把这类顾虑转成可复验的go/no-go测量。
+
+| 业务决策 | Reference run | Candidate run | 能证明什么 |
+|---|---|---|---|
+| 云下OSS model迁移到托管平台 | 云下或基于AMD的OpenAI-compatible endpoint | Microsoft Foundry或Fireworks deployment | 同一model和revision迁移平台后，SWE-bench准确度是否保持 |
+| 从其他云迁移到托管平台 | 现有cloud endpoint | Microsoft Foundry或Fireworks deployment | 目标平台是否达到客户事先冻结的准确度门槛 |
+| 验证微调效果 | Base model | 同一平台上的fine-tuned deployment | 哪些题提升、回退、保持不变或出现运行故障 |
+| 选择生产模型 | 现有production model | 另一个候选，例如Azure Foundry中的Fireworks GLM deployment | 比较不同模型质量；这不是单纯的平台迁移结论 |
+
+**单变量原则：** 平台迁移结论要求model family、weight revision、Agent config、dataset、concurrency和harness保持一致。如果AMD平台上的baseline model与Fireworks GLM不是同一模型，那么model和platform同时变化，结果只能叫model-selection comparison，不能把差异归因给Fireworks平台。
+
+### 证据边界
+
+- **已验证的reference path：** 本方法来自并已运行于基于AMD、形态接近云下部署的OpenAI-compatible endpoint。
+- **已完成scored canary的Microsoft Foundry路径：** `2026-07-31`，Azure管理面识别为`FW-GLM-5.1`的Foundry Fireworks deployment通过HTTP 200 preflight，返回1个function tool call和request ID。随后mini-swe-agent `2.4.6`为`astropy__astropy-7166`提交1个非空patch；固定版本的official harness将其判为Resolved，0个error、0个未停止container。详见[脱敏的机器可读证据](examples/live-foundry-fw-glm51-scored-canary.yaml)。
+- **已实现并完成shape test的Fireworks公网路径：** `fireworks`通过固定LiteLLM provider路由到`api.fireworks.ai`，secret不会进入process arguments。
+- **尚未宣称的结果：** Microsoft Foundry或Fireworks full accuracy必须等声明的full run完成后才能公布。这道1-case Resolved结果只是compatibility gate，不能写成`1/500`准确率，也不能当作model comparison。未来部署GLM 5.2时，也必须使用精确deployment/model ID，不能只写display name。
+
+### 支持的Endpoint模式
+
+| `ENDPOINT_MODE` | 目标平台 | Model naming | Authentication source |
+|---|---|---|---|
+| `openai_compatible` | 云下、AMD验证环境或其他OpenAI-compatible cloud | `hosted_vllm/<served-name>`；未写prefix时自动添加 | `HOSTED_VLLM_API_KEY`或`MODEL_API_KEY`；无认证local endpoint可用`EMPTY` |
+| `azure_foundry` | Microsoft Foundry Models v1 cross-provider chat-completions endpoint，包括Azure中售卖的Fireworks模型 | Deployment name通过OpenAI-compatible route发送；内部自动加`hosted_vllm/` | `AZURE_API_KEY`、`AZURE_OPENAI_API_KEY`、`AZURE_AD_TOKEN`或`MODEL_API_KEY`，映射为Bearer且不进入argv |
+| `fireworks` | Fireworks serverless、account model或direct-route deployment | `fireworks_ai/<exact-model-id>`；未写prefix时自动添加 | `FIREWORKS_AI_API_KEY`或`MODEL_API_KEY` |
+
+每次generation都会写入`provider-contract.json`，记录endpoint mode、业务scenario、run label、model name、API base、非秘密auth变量名、workers、dataset和config；不会保存credential value。
+
+`EVALUATION_SCENARIO`支持`single_endpoint`、`onprem_to_managed`、`cloud_to_managed`和`base_vs_finetuned`。
 
 ## 1. SWE-bench 原理
 
@@ -132,7 +164,7 @@ runs/<run-id>/
 └── SHA256SUMS.txt
 ```
 
-## 3. Quick Start
+## 3. Quick Start 与在 Azure 上运行
 
 ### 3.1 前置条件
 
@@ -164,18 +196,62 @@ bash scripts/setup_environment.sh
 安装脚本会保留固定 commit 的 SWE-bench checkout，并使用 editable install。部分 revision 直接构建 VCS wheel 时，可能漏掉 harness 运行需要的非 Python fixture；保留源码 checkout 可以避开这个打包问题。
 只有在明确要重新解析依赖时，才设置`REQUIREMENTS_FILE=./requirements.txt`；之后必须重新保存并审计`pip freeze`，不能把新旧依赖环境的分数直接比较。
 
-### 3.3 验证模型Endpoint
+### 3.3 选择Endpoint模式
+
+所有平台都使用同一套generation和scoring命令，只替换provider相关环境变量。
+
+**云下 / AMD / 通用OpenAI-compatible baseline：**
 
 ```bash
+export ENDPOINT_MODE="openai_compatible"
+export EVALUATION_SCENARIO="single_endpoint"
+export RUN_LABEL="onprem-baseline"
 export MODEL_API_BASE="http://127.0.0.1:8000/v1"
-export MODEL_NAME="hosted_vllm/your-model"
+export MODEL_NAME="your-served-model"
 export MODEL_API_KEY="EMPTY"
-
-curl --fail --silent "$MODEL_API_BASE/models" | python -m json.tool
 ```
 
-`MODEL_NAME`要符合当前LiteLLM provider的命名约定。不要把真实key写进YAML或shell history，应从安全环境变量或本地凭据源读取。
-`run_generation.sh`会把`MODEL_API_KEY`映射到LiteLLM的`HOSTED_VLLM_API_KEY`环境变量，不会把key放进子进程参数。
+**Microsoft Foundry candidate：**
+
+```bash
+export ENDPOINT_MODE="azure_foundry"
+export EVALUATION_SCENARIO="onprem_to_managed"
+export RUN_LABEL="foundry-candidate"
+export MODEL_API_BASE="https://<resource-name>.services.ai.azure.com"
+export MODEL_NAME="<deployment-name>"
+: "${AZURE_API_KEY:?Set AZURE_API_KEY securely}"
+```
+
+脚本会把endpoint规范化为`/openai/v1`，并使用Azure Foundry cross-provider deployment要求的OpenAI-compatible route。固定LiteLLM的`azure/`deployment route对真实Fireworks deployment返回`Resource not found`，因此明确不使用。最小adapter还会在重放assistant message前，只删除LiteLLM顶层`provider_specific_fields` transport metadata；Foundry会拒绝这个非标准字段，用户content和tool calls保持不变。也可以使用`AZURE_AD_TOKEN`，但静态token不是持久的生产认证。无人值守的生产run应在managed runtime或上游proxy中使用可自动刷新的Managed Identity或Service Principal；禁止依赖用户`az login`cache。
+
+**Fireworks公网API candidate：**
+
+```bash
+export ENDPOINT_MODE="fireworks"
+export EVALUATION_SCENARIO="onprem_to_managed"
+export RUN_LABEL="fireworks-glm-candidate"
+export MODEL_API_BASE="https://api.fireworks.ai/inference/v1"
+export MODEL_NAME="accounts/<account>/models/<exact-glm-model-id>"
+: "${FIREWORKS_AI_API_KEY:?Set FIREWORKS_AI_API_KEY securely}"
+```
+
+Fireworks默认使用`https://api.fireworks.ai/inference/v1`。必须从Fireworks account复制精确model ID，不能根据display name猜ID。Direct-route deployment可以覆盖`MODEL_API_BASE`。
+
+不要把真实key写进YAML、shell history或CLI override。`run_generation.sh`会按mode映射provider环境变量，secret value不会进入child-process arguments。
+
+开始full benchmark前，先验证所选provider，再跑完1题generation加official scoring：
+
+```bash
+python scripts/preflight_provider.py \
+  --mode "$ENDPOINT_MODE" \
+  --api-base "$MODEL_API_BASE" \
+  --model "$MODEL_NAME"
+
+export OUTPUT_ROOT="runs/${RUN_LABEL}-scored-canary"
+bash scripts/run_scored_canary.sh
+```
+
+Preflight必须返回`state=PASS`，且至少有1个有效的`ping` tool call，arguments包含`{"value":"ok"}`。Scored canary是pipeline gate，不是准确率估计；这1道题可以是Resolved、Unresolved或Empty，但必须由official harness产出，且不能有infrastructure error。
 
 ### 3.4 运行单题Canary
 
@@ -254,6 +330,9 @@ Generation开始前先保存机器可读合同：
   "agent_step_limit": 250,
   "agent_cost_limit": 3.0,
   "python_packages_sha256": "<sha256>",
+  "endpoint_mode": "<openai_compatible|azure_foundry|fireworks>",
+  "evaluation_scenario": "<scenario>",
+  "provider_contract_sha256": "<sha256>",
   "model_revision": "<public-model-revision>",
   "generation_workers": 8,
   "swe_bench_commit": "f7bbbb2ccdf479001d6467c9e34af59e44a840f9",
@@ -272,7 +351,7 @@ sha256sum runs/full/python-packages.txt
 
 ### 步骤2：检查Effective Config
 
-YAML 只是输入，trajectory 里的`info.config`才代表实际生效的配置。Generation 结束后执行：
+YAML和`provider-contract.json`只是输入，trajectory里的`info.config`才代表实际生效的配置。Generation结束后执行：
 
 ```bash
 python scripts/audit_effective_configs.py \
@@ -384,9 +463,13 @@ Secret必须走provider的环境变量合同。使用`hosted_vllm`时，应设�
 python scripts/build_dispute_manifest.py \
   --reference-report reference-full.json \
   --candidate-report candidate-full.json \
+  --reference-label onprem-baseline \
+  --candidate-label managed-platform-candidate \
   --expected-count 500 \
   --output runs/differential/frozen-disputes.tsv
 ```
+
+生成的summary会同时报告两份准确率、resolved-case delta、percentage-point delta和两个争议方向。验证微调时，可将label写成`base-model`和`fine-tuned-model`。
 
 ### BP5：禁止动态缩小复测集合
 
@@ -408,6 +491,8 @@ python scripts/finalize_frozen_disputes.py \
 ### BP6：Effect不等于Mechanism
 
 分数变化只证明当前run观察到了效果，不能单凭分数断言是某个kernel、prompt、scheduler或依赖导致。
+
+平台迁移对比只改变endpoint mode，model revision保持不变；微调对比固定platform，只改变base与fine-tuned deployment。如果model和platform同时变化，必须标为combined model-selection comparison。
 
 ### BP7：用产物判断进度
 
@@ -463,6 +548,7 @@ flowchart TD
 | 相同patch、不同结果 | Harness源码、image、timeout、host timing | 固定commit并保留测试日志 |
 | 同版本、评分不同 | Installed source漂移 | 安装或挂载精确commit |
 | 固定VCS安装后import失败 | Wheel漏掉非Python fixture | 保留精确checkout并使用editable install |
+| Foundry拒绝`provider_specific_fields` | LiteLLM重放了非标准response metadata | 使用Foundry adapter，保留content和tool calls |
 | Aggregate位置异常 | Harness版本行为 | 独立cwd运行，只接受一份aggregate |
 | 官方测试timeout | 慢测试或host load | 保留Error，除非事先冻结了重试规则 |
 | 只复测单向争议 | Selection bias | 同时冻结两个方向 |
@@ -523,6 +609,14 @@ python -m swebench.harness.run_evaluation --help
 **原因：** 单向selection、dynamic narrowing、missing shards或overlapping partitions。
 
 **修复：** 回到两份完整报告，只冻结一次双向binary disputes，通过`--expected-count`传入声明分母，并要求每道冻结题恰好出现一次。Repo脚本会拒绝missing、extra、duplicate和overlapping cases。
+
+### 7.7 Foundry拒绝重放的Provider Metadata
+
+**症状：** Tool call 1成功，后续turn针对`provider_specific_fields`返回`Extra inputs are not permitted`。
+
+**原因：** LiteLLM把provider response metadata保留在assistant message中，下一轮又发给严格的Foundry v1 schema。
+
+**修复：** `FoundryOpenAIModel`只在下一次API请求前删除顶层`provider_specific_fields`，role、content、tool calls、tool-call IDs和observations全部保留。Adapter只在`azure_foundry`mode启用，并有regression test覆盖。
 
 ## 8. 证据与报告
 
@@ -633,6 +727,10 @@ make test
 - [固定SWE-bench commit](https://github.com/SWE-bench/SWE-bench/commit/f7bbbb2ccdf479001d6467c9e34af59e44a840f9)
 - [SWE-bench Verified dataset](https://huggingface.co/datasets/princeton-nlp/SWE-Bench_Verified)
 - [SWE-bench论文](https://arxiv.org/abs/2310.06770)
+- [Microsoft Foundry Models v1 API](https://learn.microsoft.com/en-us/azure/ai-foundry/model-inference/how-to/use-chat-completions)
+- [Fireworks OpenAI compatibility](https://docs.fireworks.ai/tools-sdks/openai-compatibility)
+- [LiteLLM Azure provider](https://docs.litellm.ai/docs/providers/azure)
+- [LiteLLM Fireworks provider](https://docs.litellm.ai/docs/providers/fireworks_ai)
 
 ## 12. 相关项目
 

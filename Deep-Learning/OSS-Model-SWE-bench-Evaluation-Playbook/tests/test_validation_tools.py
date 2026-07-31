@@ -4,7 +4,14 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import os
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+
+from scripts.preflight_provider import count_valid_ping_calls, request_candidates
+from scripts.provider_compat import remove_provider_specific_fields
+from scripts.swebench_outcomes import validate_scored_canary_counts
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -153,6 +160,17 @@ class ValidationToolTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("coverage 1 != expected 2", result.stderr)
 
+    def test_scored_canary_rejects_infrastructure_error(self) -> None:
+        with self.assertRaisesRegex(ValueError, "infrastructure error"):
+            validate_scored_canary_counts(
+                {
+                    "resolved_instances": 0,
+                    "unresolved_instances": 0,
+                    "empty_patch_instances": 0,
+                    "error_instances": 1,
+                }
+            )
+
     def test_time_exceeded_is_a_valid_agent_limit(self) -> None:
         run = self.make_generation(ids=("a",))
         trajectory = run / "a" / "a.traj.json"
@@ -180,6 +198,259 @@ class ValidationToolTests(unittest.TestCase):
         )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("No files found", result.stderr)
+
+    def run_generation_mode(self, mode: str, model_name: str, **environment: str):
+        fake_bin = self.root / f"fake-{mode}"
+        fake_bin.mkdir()
+        capture = self.root / f"capture-{mode}"
+        capture.mkdir()
+        fake_python = fake_bin / "python"
+        fake_python.write_text(
+            "#!/bin/bash\n"
+            "if [[ \"${1:-}\" == '-' ]]; then exec \"$REAL_PYTHON\" \"$@\"; fi\n"
+            "printf '%s\\n' \"$@\" > \"$CAPTURE_DIR/args.txt\"\n"
+            "env | sort > \"$CAPTURE_DIR/env.txt\"\n"
+        )
+        fake_python.chmod(0o755)
+        fake_docker = fake_bin / "docker"
+        fake_docker.write_text("#!/bin/bash\nexit 0\n")
+        fake_docker.chmod(0o755)
+        output = self.root / f"output-{mode}"
+        env = os.environ.copy()
+        env.update(
+            {
+                "PATH": f"{fake_bin}:{env['PATH']}",
+                "REAL_PYTHON": sys.executable,
+                "CAPTURE_DIR": str(capture),
+                "OUTPUT_DIR": str(output),
+                "ENDPOINT_MODE": mode,
+                "EVALUATION_SCENARIO": "onprem_to_managed",
+                "RUN_LABEL": f"{mode}-candidate",
+                "MODEL_NAME": model_name,
+            }
+        )
+        env.update(environment)
+        result = subprocess.run(
+            ["bash", str(SCRIPTS / "run_generation.sh")],
+            cwd=ROOT,
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            self.fail(result.stderr or result.stdout)
+        return output, capture
+
+    def test_openai_compatible_mode_keeps_secret_out_of_argv(self) -> None:
+        output, capture = self.run_generation_mode(
+            "openai_compatible",
+            "local-model",
+            MODEL_API_BASE="http://127.0.0.1:8000/v1",
+            MODEL_API_KEY="generic-secret-probe",
+        )
+        args = (capture / "args.txt").read_text()
+        env = (capture / "env.txt").read_text()
+        contract = json.loads((output / "provider-contract.json").read_text())
+        self.assertIn("model.model_name=hosted_vllm/local-model", args)
+        self.assertNotIn("generic-secret-probe", args)
+        self.assertIn("HOSTED_VLLM_API_KEY=generic-secret-probe", env)
+        self.assertEqual(contract["endpoint_mode"], "openai_compatible")
+
+    def test_azure_foundry_mode_routes_v1_without_secret_in_argv(self) -> None:
+        output, capture = self.run_generation_mode(
+            "azure_foundry",
+            "glm-deployment",
+            MODEL_API_BASE="https://example.services.ai.azure.com",
+            MODEL_API_KEY="azure-secret-probe",
+            AZURE_AD_TOKEN="stale-token-probe",
+        )
+        args = (capture / "args.txt").read_text()
+        env = (capture / "env.txt").read_text()
+        contract = json.loads((output / "provider-contract.json").read_text())
+        self.assertIn("model.model_name=hosted_vllm/glm-deployment", args)
+        self.assertIn(
+            "model.model_kwargs.api_base=https://example.services.ai.azure.com/openai/v1",
+            args,
+        )
+        self.assertIn(
+            "model.model_class=scripts.provider_model.FoundryOpenAIModel", args
+        )
+        self.assertNotIn("azure-secret-probe", args)
+        self.assertIn("HOSTED_VLLM_API_KEY=azure-secret-probe", env)
+        self.assertNotIn("HOSTED_VLLM_API_KEY=stale-token-probe", env)
+        self.assertEqual(contract["evaluation_scenario"], "onprem_to_managed")
+        self.assertEqual(contract["auth_env_name"], "HOSTED_VLLM_API_KEY")
+
+    def test_foundry_message_adapter_removes_only_transport_metadata(self) -> None:
+        messages = [
+            {"role": "user", "content": "question"},
+            {
+                "role": "assistant",
+                "content": None,
+                "tool_calls": [{"id": "call-1"}],
+                "provider_specific_fields": {"reasoning": "transport-only"},
+            },
+        ]
+        sanitized = remove_provider_specific_fields(messages)
+        self.assertNotIn("provider_specific_fields", sanitized[1])
+        self.assertEqual(sanitized[1]["tool_calls"], [{"id": "call-1"}])
+        self.assertEqual(sanitized[0], messages[0])
+
+    def test_fireworks_mode_routes_glm_without_secret_in_argv(self) -> None:
+        output, capture = self.run_generation_mode(
+            "fireworks",
+            "accounts/example/models/glm-5-2",
+            MODEL_API_KEY="fireworks-secret-probe",
+        )
+        args = (capture / "args.txt").read_text()
+        env = (capture / "env.txt").read_text()
+        contract = json.loads((output / "provider-contract.json").read_text())
+        self.assertIn(
+            "model.model_name=fireworks_ai/accounts/example/models/glm-5-2", args
+        )
+        self.assertIn("https://api.fireworks.ai/inference/v1", args)
+        self.assertNotIn("fireworks-secret-probe", args)
+        self.assertIn("FIREWORKS_AI_API_KEY=fireworks-secret-probe", env)
+        self.assertEqual(contract["run_label"], "fireworks-candidate")
+
+    def run_preflight(
+        self,
+        mode: str,
+        model: str,
+        expected_path: str,
+        key_env: str,
+        **extra_environment: str,
+    ):
+        captured = {}
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_POST(self):
+                captured["path"] = self.path
+                captured["authorization"] = self.headers.get("Authorization")
+                captured["api_key"] = self.headers.get("api-key")
+                length = int(self.headers.get("Content-Length", "0"))
+                captured["body"] = json.loads(self.rfile.read(length))
+                payload = {
+                    "choices": [
+                        {
+                            "finish_reason": "tool_calls",
+                            "message": {
+                                "tool_calls": [
+                                    {
+                                        "id": "call-1",
+                                        "type": "function",
+                                        "function": {"name": "ping", "arguments": '{"value":"ok"}'},
+                                    }
+                                ]
+                            },
+                        }
+                    ]
+                }
+                data = json.dumps(payload).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(data)))
+                self.send_header("x-request-id", "request-1")
+                self.end_headers()
+                self.wfile.write(data)
+
+            def log_message(self, format, *args):
+                return
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            env = os.environ.copy()
+            env.update(extra_environment)
+            env[key_env] = "probe-secret"
+            suffix = {
+                "openai_compatible": "/v1",
+                "azure_foundry": "",
+                "fireworks": "/inference/v1",
+            }[mode]
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPTS / "preflight_provider.py"),
+                    "--mode",
+                    mode,
+                    "--api-base",
+                    f"http://127.0.0.1:{server.server_port}{suffix}",
+                    "--model",
+                    model,
+                ],
+                env=env,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+        finally:
+            server.shutdown()
+            thread.join()
+            server.server_close()
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+        self.assertNotIn("probe-secret", result.stdout)
+        self.assertEqual(captured["path"], expected_path)
+        self.assertEqual(captured["body"]["model"], model.split("/", 1)[-1] if mode != "fireworks" else model.removeprefix("fireworks_ai/"))
+        return captured, json.loads(result.stdout)
+
+    def test_preflight_openai_compatible_contract(self) -> None:
+        captured, result = self.run_preflight(
+            "openai_compatible", "hosted_vllm/local-model", "/v1/chat/completions", "MODEL_API_KEY"
+        )
+        self.assertEqual(captured["authorization"], "Bearer probe-secret")
+        self.assertEqual(result["tool_calls"], 1)
+        self.assertEqual(result["valid_ping_calls"], 1)
+
+    def test_preflight_rejects_malformed_or_wrong_tool_calls(self) -> None:
+        self.assertEqual(
+            count_valid_ping_calls(
+                [
+                    {
+                        "type": "function",
+                        "function": {"name": "wrong", "arguments": '{"value":"ok"}'},
+                    },
+                    {
+                        "type": "function",
+                        "function": {"name": "ping", "arguments": "not-json"},
+                    },
+                ]
+            ),
+            0,
+        )
+
+    def test_preflight_azure_foundry_contract(self) -> None:
+        captured, result = self.run_preflight(
+            "azure_foundry",
+            "azure/glm-deployment",
+            "/openai/v1/chat/completions",
+            "MODEL_API_KEY",
+            AZURE_AD_TOKEN="stale-token-probe",
+        )
+        self.assertEqual(captured["authorization"], "Bearer probe-secret")
+        self.assertEqual(result["route"], "v1")
+
+    def test_foundry_preflight_uses_only_the_generation_route(self) -> None:
+        self.assertEqual(
+            request_candidates(
+                "azure_foundry", "https://example.services.ai.azure.com"
+            ),
+            [
+                (
+                    "https://example.services.ai.azure.com/openai/v1/chat/completions",
+                    "v1",
+                )
+            ],
+        )
+
+    def test_preflight_fireworks_contract(self) -> None:
+        captured, result = self.run_preflight(
+            "fireworks", "fireworks_ai/accounts/example/models/glm", "/inference/v1/chat/completions", "FIREWORKS_AI_API_KEY"
+        )
+        self.assertEqual(captured["authorization"], "Bearer probe-secret")
+        self.assertEqual(result["state"], "PASS")
 
 
 if __name__ == "__main__":

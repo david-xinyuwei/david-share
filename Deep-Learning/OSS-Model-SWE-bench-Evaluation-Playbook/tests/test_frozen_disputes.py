@@ -69,6 +69,10 @@ class FrozenDisputeTests(unittest.TestCase):
         directions = {row["instance_id"]: row["direction"] for row in rows}
         self.assertEqual(directions["b"], "REFERENCE_PASS_CANDIDATE_NOT")
         self.assertEqual(directions["d"], "CANDIDATE_PASS_REFERENCE_NOT")
+        summary = json.loads(self.manifest.with_suffix(".summary.json").read_text())
+        self.assertEqual(summary["accuracy_comparison"]["reference_resolved"], 3)
+        self.assertEqual(summary["accuracy_comparison"]["candidate_resolved"], 2)
+        self.assertEqual(summary["accuracy_comparison"]["delta_percentage_points"], -20.0)
 
     def test_full_frozen_set_is_replaced_once(self) -> None:
         self.build_manifest()

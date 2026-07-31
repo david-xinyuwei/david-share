@@ -11,6 +11,13 @@ OUTCOME_KEYS = {
     "error_ids": "X",
 }
 
+CANARY_COUNT_KEYS = {
+    "resolved": "resolved_instances",
+    "unresolved": "unresolved_instances",
+    "empty": "empty_patch_instances",
+    "errors": "error_instances",
+}
+
 
 def sha256(path: Path) -> str:
     digest = hashlib.sha256()
@@ -51,3 +58,20 @@ def require_expected_count(outcomes: dict[str, str], expected_count: int, path: 
 
 def is_pass(outcome: str) -> bool:
     return outcome == "R"
+
+
+def validate_scored_canary_counts(payload: dict) -> dict[str, int]:
+    if not isinstance(payload, dict):
+        raise ValueError("Canary aggregate report must be a JSON object")
+    counts = {}
+    for label, key in CANARY_COUNT_KEYS.items():
+        value = payload.get(key, 0)
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            raise ValueError(f"Canary aggregate field {key} must be a non-negative integer")
+        counts[label] = value
+    total = sum(counts.values())
+    if total != 1:
+        raise ValueError(f"Expected one classified canary outcome, found {total}")
+    if counts["errors"]:
+        raise ValueError("Scored canary ended with an infrastructure error")
+    return counts
