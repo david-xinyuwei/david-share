@@ -261,12 +261,30 @@ def main() -> None:
         ("P/D Disaggregation or Independent Endpoints", "P/D分离还是双独立Endpoint"),
         ("Agent Version and Sampling", "Agent版本和Sampling"),
         ("shard_instance_manifest.py", "shard_instance_manifest.py"),
+        ("Managed Compute API Contract (Specification Only)", "Managed Compute API合同（仅规范，不执行）"),
     )
     for marker_en, marker_cn in operational_markers:
         if marker_en not in readme or marker_cn not in readme_cn:
             raise SystemExit(
                 f"Missing operational best-practice marker: {marker_en} / {marker_cn}"
             )
+    managed_compute_contract_markers = (
+        "FOUNDRY_ACCOUNT_NAME",
+        "FOUNDRY_DEPLOYMENT_NAME",
+        "FOUNDRY_PROJECT_ENDPOINT",
+        "FOUNDRY_TOKEN_SCOPE",
+        "FOUNDRY_API_KEY",
+        "create_entra_client",
+        "create_api_key_client",
+        "create_project_client",
+        "create_tool_probe",
+        "/managed-deployments/<deployment-name>/v1",
+        "DeploymentNotFound",
+        "Model service is unavailable",
+    )
+    for marker in managed_compute_contract_markers:
+        if marker not in readme or marker not in readme_cn:
+            raise SystemExit(f"Missing Managed Compute API contract marker: {marker}")
     if re.search(r"AMD|MI300|Xiaomi|小米", generation_script + model_config, re.I):
         raise SystemExit("Runtime code must not be coupled to the validation hardware or customer")
 

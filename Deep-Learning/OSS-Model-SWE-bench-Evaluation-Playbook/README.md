@@ -306,6 +306,169 @@ Fireworks is the lowest-operations path, but model availability determines wheth
 5. **Apply the same accuracy gates.** Parity contract, scored canary, frozen full run, exhaustive outcome classification and bidirectional dispute analysis remain unchanged.
 6. **Close the billing lifecycle.** Managed Compute is billed per accelerator-hour. Preserve evidence, delete the deployment after the bounded test, verify removal, and record the final usage/cost scope.
 
+#### Managed Compute API Contract (Specification Only)
+
+The following is a non-executing integration contract. The examples define clients and request functions, but they don't send traffic unless the caller invokes them. Replace placeholders through environment variables; never put a real key, endpoint, or deployment identifier in source control.
+
+| Surface | Contract |
+|---|---|
+| Resource base | `https://<account>.services.ai.azure.com` |
+| OpenAI-compatible base | `https://<account>.services.ai.azure.com/openai/v1` |
+| Managed deployment base | `https://<account>.services.ai.azure.com/managed-deployments/<deployment-name>/v1` |
+| Project SDK endpoint | `https://<account>.services.ai.azure.com/api/projects/<project-name>` |
+| Request model key | `model=<deployment-name>` |
+| Chat operation | `POST /chat/completions` |
+| Tool type | `function` with JSON Schema arguments |
+
+```bash
+export FOUNDRY_ACCOUNT_NAME="<account>"
+export FOUNDRY_DEPLOYMENT_NAME="<deployment-name>"
+export FOUNDRY_PROJECT_ENDPOINT="https://<account>.services.ai.azure.com/api/projects/<project-name>"
+export FOUNDRY_TOKEN_SCOPE="https://ai.azure.com/.default"
+export FOUNDRY_API_KEY="<read-from-a-secure-store>"
+```
+
+The Portal-generated Entra sample currently uses `https://ai.azure.com/.default`. The Managed Compute how-to also documents a bearer-header variant with `https://cognitiveservices.azure.com/.default`. Freeze the scope shown by the deployment's current Portal or official sample; don't switch audiences as an implicit retry.
+
+**Microsoft Entra ID client factory:**
+
+```python
+import os
+from collections.abc import Iterator
+from contextlib import contextmanager
+
+from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+from openai import OpenAI
+
+
+@contextmanager
+def create_entra_client() -> Iterator[OpenAI]:
+  credential = DefaultAzureCredential()
+  token_provider = get_bearer_token_provider(
+    credential,
+    os.getenv("FOUNDRY_TOKEN_SCOPE", "https://ai.azure.com/.default"),
+  )
+  client = OpenAI(
+    base_url=(
+      f"https://{os.environ['FOUNDRY_ACCOUNT_NAME']}"
+      ".services.ai.azure.com/openai/v1"
+    ),
+    api_key=token_provider,
+    timeout=120.0,
+    max_retries=0,
+  )
+  try:
+    yield client
+  finally:
+    client.close()
+    credential.close()
+```
+
+**API Key client factory:**
+
+```python
+import os
+from collections.abc import Iterator
+from contextlib import contextmanager
+
+from openai import OpenAI
+
+
+@contextmanager
+def create_api_key_client() -> Iterator[OpenAI]:
+  client = OpenAI(
+    base_url=(
+      f"https://{os.environ['FOUNDRY_ACCOUNT_NAME']}"
+      ".services.ai.azure.com/openai/v1"
+    ),
+    api_key=os.environ["FOUNDRY_API_KEY"],
+    timeout=120.0,
+    max_retries=0,
+  )
+  try:
+    yield client
+  finally:
+    client.close()
+```
+
+The Project endpoint belongs to `AIProjectClient`; it isn't the raw chat base URL and doesn't replace the resource-level OpenAI route:
+
+```python
+import os
+from collections.abc import Iterator
+from contextlib import contextmanager
+
+from azure.ai.projects import AIProjectClient
+from azure.identity import DefaultAzureCredential
+
+
+@contextmanager
+def create_project_client() -> Iterator[AIProjectClient]:
+  credential = DefaultAzureCredential()
+  client = AIProjectClient(
+    endpoint=os.environ["FOUNDRY_PROJECT_ENDPOINT"],
+    credential=credential,
+    allow_preview=True,
+  )
+  try:
+    yield client
+  finally:
+    client.close()
+    credential.close()
+```
+
+**Chat and function-tool request contract:**
+
+```python
+import os
+
+from openai import OpenAI
+
+
+def create_tool_probe(client: OpenAI):
+  return client.chat.completions.create(
+    model=os.environ["FOUNDRY_DEPLOYMENT_NAME"],
+    messages=[
+      {
+        "role": "user",
+        "content": "Call the ping tool once with value ok.",
+      }
+    ],
+    tools=[
+      {
+        "type": "function",
+        "function": {
+          "name": "ping",
+          "description": "Return a value",
+          "parameters": {
+            "type": "object",
+            "properties": {"value": {"type": "string"}},
+            "required": ["value"],
+          },
+        },
+      }
+    ],
+    tool_choice="auto",
+    temperature=0,
+    max_tokens=128,
+  )
+```
+
+The response contract requires a response ID, `finish_reason`, and either message content or parseable `tool_calls`. Preserve provider request IDs when returned. For a multi-turn tool exchange, replay the assistant tool call and answer with the matching `tool_call_id`; don't inject provider-only transport metadata into the next request.
+
+The caller owns request execution and must enter the selected client context before calling `create_tool_probe`. The specification itself has no import-time or module-level network side effects.
+
+| Result | Classification | Required action |
+|---|---|---|
+| HTTP `200` plus valid content/tool call | Capability candidate | Continue to multi-turn replay and scored canary |
+| HTTP `401` or `403` | Authentication/RBAC failure | Fix credential, audience, role, or key source |
+| HTTP `404` / `DeploymentNotFound` | Route or deployment registration failure | Verify exact deployment name, runtime route, and data-plane publication |
+| HTTP `429` | Quota, throttling, or capacity outcome | Apply the frozen infrastructure retry policy; don't count it as model accuracy |
+| HTTP `500` / `Model service is unavailable` | External model-serving failure | Stop before Agent generation; preserve the failure as `NOT VERIFIED` |
+| Timeout | Infrastructure failure | Preserve timing and request evidence; retry only under the frozen policy |
+
+The readiness order is fixed: control-plane identity -> authenticated chat -> valid function tool call -> multi-turn replay -> one-case official scored canary. A control-plane `Succeeded` state, model-list response, generated code sample, or HTTP health result can't skip a later gate.
+
 Managed Compute is currently Preview and doesn't include built-in Content Safety in its data path. That doesn't change offline SWE-bench scoring, but it is a separate production-readiness requirement and must not be hidden behind an accuracy result.
 
 ## 1. How SWE-bench Works

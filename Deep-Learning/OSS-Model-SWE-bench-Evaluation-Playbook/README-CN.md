@@ -306,6 +306,169 @@ Fireworks运维负担最低，但model availability决定它回答的是migratio
 5. **准确率Gate保持不变。** 继续执行parity contract、scored canary、frozen full run、穷尽outcome分类和双向dispute analysis。
 6. **闭合billing lifecycle。** Managed Compute按accelerator-hour计费。Bounded test完成后先保存证据，再删除deployment，验证资源消失，并记录最终usage/cost scope。
 
+#### Managed Compute API合同（仅规范，不执行）
+
+下面是不会自动执行的integration contract。示例只定义client和request function，只有调用方显式调用时才会发送流量。所有placeholder都必须通过environment variable替换；真实key、endpoint和deployment identifier不能进入source control。
+
+| Surface | Contract |
+|---|---|
+| Resource base | `https://<account>.services.ai.azure.com` |
+| OpenAI-compatible base | `https://<account>.services.ai.azure.com/openai/v1` |
+| Managed deployment base | `https://<account>.services.ai.azure.com/managed-deployments/<deployment-name>/v1` |
+| Project SDK endpoint | `https://<account>.services.ai.azure.com/api/projects/<project-name>` |
+| Request model key | `model=<deployment-name>` |
+| Chat operation | `POST /chat/completions` |
+| Tool type | `function`，arguments使用JSON Schema |
+
+```bash
+export FOUNDRY_ACCOUNT_NAME="<account>"
+export FOUNDRY_DEPLOYMENT_NAME="<deployment-name>"
+export FOUNDRY_PROJECT_ENDPOINT="https://<account>.services.ai.azure.com/api/projects/<project-name>"
+export FOUNDRY_TOKEN_SCOPE="https://ai.azure.com/.default"
+export FOUNDRY_API_KEY="<read-from-a-secure-store>"
+```
+
+Portal当前生成的Entra sample使用`https://ai.azure.com/.default`。Managed Compute how-to还提供了使用`https://cognitiveservices.azure.com/.default`的bearer-header写法。必须冻结当前deployment Portal或官方sample显示的scope；禁止把切换audience当作隐式retry。
+
+**Microsoft Entra ID client factory：**
+
+```python
+import os
+from collections.abc import Iterator
+from contextlib import contextmanager
+
+from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+from openai import OpenAI
+
+
+@contextmanager
+def create_entra_client() -> Iterator[OpenAI]:
+  credential = DefaultAzureCredential()
+  token_provider = get_bearer_token_provider(
+    credential,
+    os.getenv("FOUNDRY_TOKEN_SCOPE", "https://ai.azure.com/.default"),
+  )
+  client = OpenAI(
+    base_url=(
+      f"https://{os.environ['FOUNDRY_ACCOUNT_NAME']}"
+      ".services.ai.azure.com/openai/v1"
+    ),
+    api_key=token_provider,
+    timeout=120.0,
+    max_retries=0,
+  )
+  try:
+    yield client
+  finally:
+    client.close()
+    credential.close()
+```
+
+**API Key client factory：**
+
+```python
+import os
+from collections.abc import Iterator
+from contextlib import contextmanager
+
+from openai import OpenAI
+
+
+@contextmanager
+def create_api_key_client() -> Iterator[OpenAI]:
+  client = OpenAI(
+    base_url=(
+      f"https://{os.environ['FOUNDRY_ACCOUNT_NAME']}"
+      ".services.ai.azure.com/openai/v1"
+    ),
+    api_key=os.environ["FOUNDRY_API_KEY"],
+    timeout=120.0,
+    max_retries=0,
+  )
+  try:
+    yield client
+  finally:
+    client.close()
+```
+
+Project endpoint属于`AIProjectClient`；它不是raw chat base URL，也不能替代resource-level OpenAI route：
+
+```python
+import os
+from collections.abc import Iterator
+from contextlib import contextmanager
+
+from azure.ai.projects import AIProjectClient
+from azure.identity import DefaultAzureCredential
+
+
+@contextmanager
+def create_project_client() -> Iterator[AIProjectClient]:
+  credential = DefaultAzureCredential()
+  client = AIProjectClient(
+    endpoint=os.environ["FOUNDRY_PROJECT_ENDPOINT"],
+    credential=credential,
+    allow_preview=True,
+  )
+  try:
+    yield client
+  finally:
+    client.close()
+    credential.close()
+```
+
+**Chat与function-tool request contract：**
+
+```python
+import os
+
+from openai import OpenAI
+
+
+def create_tool_probe(client: OpenAI):
+  return client.chat.completions.create(
+    model=os.environ["FOUNDRY_DEPLOYMENT_NAME"],
+    messages=[
+      {
+        "role": "user",
+        "content": "Call the ping tool once with value ok.",
+      }
+    ],
+    tools=[
+      {
+        "type": "function",
+        "function": {
+          "name": "ping",
+          "description": "Return a value",
+          "parameters": {
+            "type": "object",
+            "properties": {"value": {"type": "string"}},
+            "required": ["value"],
+          },
+        },
+      }
+    ],
+    tool_choice="auto",
+    temperature=0,
+    max_tokens=128,
+  )
+```
+
+Response contract要求response ID、`finish_reason`，以及message content或可解析的`tool_calls`。Provider返回request ID时必须保留。Multi-turn tool exchange需要重放assistant tool call，再使用匹配的`tool_call_id`返回tool answer；禁止把provider-only transport metadata带入下一次请求。
+
+调用方负责真正执行request；调用`create_tool_probe`前必须进入选定client context。规范本身没有import-time或module-level network side effect。
+
+| Result | Classification | Required action |
+|---|---|---|
+| HTTP `200`且content/tool call合法 | Capability candidate | 继续multi-turn replay和scored canary |
+| HTTP `401`或`403` | Authentication/RBAC failure | 修复credential、audience、role或key source |
+| HTTP `404` / `DeploymentNotFound` | Route或deployment registration failure | 核对精确deployment name、runtime route和data-plane publication |
+| HTTP `429` | Quota、throttling或capacity outcome | 只按冻结的infrastructure retry policy处理，不能计入model accuracy |
+| HTTP `500` / `Model service is unavailable` | External model-serving failure | 在Agent generation前停止，并把结果保留为`NOT VERIFIED` |
+| Timeout | Infrastructure failure | 保存timing和request evidence，只按冻结策略retry |
+
+Readiness顺序固定为：control-plane identity -> authenticated chat -> valid function tool call -> multi-turn replay -> one-case official scored canary。Control-plane `Succeeded`、model-list response、generated code sample或HTTP health result都不能跳过后续gate。
+
 Managed Compute当前处于Preview，data path不内置Content Safety。这不会改变离线SWE-bench评分，但它是独立的production-readiness requirement，不能被accuracy结果掩盖。
 
 ## 1. SWE-bench 原理
