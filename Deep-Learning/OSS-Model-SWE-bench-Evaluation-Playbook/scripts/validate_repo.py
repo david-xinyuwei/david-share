@@ -33,6 +33,7 @@ REQUIRED = {
     "examples/instance-manifest.tsv",
     "examples/parity-reference.toml",
     "examples/parity-candidate.toml",
+    "examples/live-foundry-direct-deepseek-v4-flash-scored-canary.yaml",
     "examples/live-foundry-fw-glm51-scored-canary.yaml",
 }
 

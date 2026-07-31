@@ -1,0 +1,63 @@
+schema_version: 1
+verified_at_utc: "2026-07-31T08:29:01Z"
+scope:
+  purpose: direct_foundry_serverless_agent_and_official_harness_compatibility_gate
+  sample_size: 1
+  instance_id: astropy__astropy-7166
+  accuracy_estimate: false
+  full_run_completed: false
+provider:
+  endpoint_mode: azure_foundry
+  management_plane_model_id: DeepSeek-V4-Flash
+  management_plane_model_format: DeepSeek
+  model_version: "2026-04-23"
+  deployment_sku: GlobalStandard
+  route: foundry_v1_openai_compatible
+  api_base_redacted: true
+  credential_redacted: true
+preflight:
+  state: PASS
+  http_status: 200
+  tool_calls: 1
+  request_id_present: true
+generation:
+  state: PASS
+  predictions: 1
+  nonempty_patches: 1
+  empty_patches: 0
+  effective_config_count: 1
+  exit_statuses:
+    Submitted: 1
+official_evaluation:
+  dataset_total_instances: 500
+  submitted_instances: 1
+  completed_instances: 1
+  resolved_instances: 1
+  unresolved_instances: 0
+  empty_patch_instances: 0
+  error_instances: 0
+  unstopped_containers: 0
+  unremoved_images: 0
+  elapsed_seconds: 20.30
+runtime:
+  mini_swe_agent_version: 2.4.6
+  swebench_version: 4.1.0
+  swebench_source_commit: f7bbbb2ccdf479001d6467c9e34af59e44a840f9
+  docker_version: 27.5.1-1
+  evaluation_driver_image_sha256: 10c1cd38e6f9b9d8109f8bbc296133c88406b7bb4eba39d1dd14b156f95bcd57
+execution_boundary:
+  model_inference: microsoft_foundry_serverless
+  agent_and_official_scorer: external_x86_64_docker_host
+cleanup:
+  driver_container_present_after_run: false
+  evaluation_container_present_after_run: false
+  credential_file_present_after_run: false
+source_artifact_sha256:
+  provider_preflight: a642ff8605457b265d62b12897352d236b781580fe231b0bcd5069a6285c41d5
+  provider_contract: 00cb6935bb004c0d98a700a84afb5540320fef57d60bd98c7ce8f3055b72705a
+  generation_summary: 20b8314c06153777471ac2ddcc358c6323213064a7b3550b659fd6dff5f77c96
+  predictions: bbf06acd0cfa7f8a29150a4ed06e29b769b0bf629883e3c31c20c24027b64479
+  trajectory: a692e99f7f86d78ebd82196076e46ee8e217e935e4fcc7eeb37f25603f18a7f6
+  official_aggregate: 8bcf5b7b15d01fda8437a76deab96b6ff983dea901cedebe9f6b2e5838cf31f4
+  generation_log: 48245610632f375a2215984321a08de47c2fd57f6c1e4d7106e90603854c3650
+  official_log: d2ecdbdfe688befedbd6ccb1c1eb483fab783ca5ae5ad5dd6d4081d3e371307f

@@ -82,10 +82,11 @@ flowchart LR
 
 - **已验证的reference path：** 本方法来自并已运行于基于AMD、形态接近云下部署的OpenAI-compatible endpoint。
 - **Azure GPU VM路径：** `openai_compatible` runner、exact-reproduction contract和official-scoring workflow均已实现并通过测试；当前不发布Azure GPU VM full migration score。
-- **Microsoft Foundry Serverless API路径：** `2026-07-31`，一个通过Foundry售卖、且被Azure管理面识别为`FW-GLM-5.1`的Fireworks model通过HTTP 200 preflight，返回1个function tool call和request ID。随后mini-swe-agent `2.4.6`为`astropy__astropy-7166`提交1个非空patch；固定版本的official harness将其判为Resolved，0个error、0个未停止container。这只验证Foundry Serverless API compatibility path，不是full score。详见[脱敏的机器可读证据](examples/live-foundry-fw-glm51-scored-canary.yaml)。
+- **直接Microsoft Foundry Serverless路径：** `2026-07-31`，非Fireworks的`DeepSeek-V4-Flash` deployment通过HTTP 200 function-tool preflight。随后mini-swe-agent `2.4.6`为`astropy__astropy-7166`提交1个非空patch；固定版本的official harness将其判为Resolved，0个error、0个未停止container。详见[脱敏的直接Foundry证据](examples/live-foundry-direct-deepseek-v4-flash-scored-canary.yaml)。
+- **Fireworks through Foundry路径：** 单独部署的`FW-GLM-5.1`也通过了同一套1题generation和official-scoring canary。这证明的是Fireworks经Foundry的route，不是直接Foundry catalog path。详见[脱敏的Fireworks-through-Foundry证据](examples/live-foundry-fw-glm51-scored-canary.yaml)。
 - **Fireworks公网API路径：** `fireworks` mode已实现，并针对固定LiteLLM provider完成shape test；请求路由到`api.fireworks.ai`，secret不会进入process arguments。当前不发布Fireworks公网API scored result。
 - **Managed Compute待验证：** 当前不发布Managed Compute分数，也不宣称data plane已验证。一个live deployment的control plane已经达到`Succeeded`，但经过认证的`/openai/v1` chat route仍返回HTTP 500 `Model service is unavailable`；只有Portal给出的client route通过同一套tool-call和scored-canary gate后，才能解除`PENDING / NOT VERIFIED`。
-- **尚未宣称的结果：** 三条主要路径都必须等声明的full run完成后才能公布full migration score。Foundry的1-case结果只是compatibility gate，不能写成`1/500`准确率，也不能当作model comparison。未来部署GLM 5.2时，也必须使用精确deployment/model ID，不能只写display name。
+- **尚未宣称的结果：** 三条主要路径都必须等声明的full run完成后才能公布full migration score。每个1-case结果都只是compatibility gate，不能写成`1/500`准确率，也不能当作model comparison。
 
 ### 支持的Endpoint模式
 
@@ -263,6 +264,15 @@ Azure GPU VM控制力最高，通常也是复刻客户精确model stack最直接
 ### 如何测试 Foundry Serverless API
 
 这条路径直接从Microsoft Foundry catalog部署model，使用Standard、Global Standard、Data Zone Standard或其他支持的pay-per-token deployment。Serving infrastructure由Azure管理，客户通过统一Foundry endpoint调用deployment。
+
+| 组件 | 在哪里运行 | 职责 |
+|---|---|---|
+| Model inference | Microsoft Foundry Serverless | 托管model weights，返回chat与tool-call response |
+| mini-swe-agent | 客户控制的evaluation host | 把issue和tool observation发送给远端model，并生成candidate patch |
+| SWE-bench题目环境 | Evaluation host上的Docker | Checkout代码仓库，并向Agent提供shell tool |
+| Official scorer | Evaluation host上的Docker harness | 应用patch，评测`FAIL_TO_PASS`和`PASS_TO_PASS`测试 |
+
+Evaluation host不会加载Foundry model weights；它只运行Agent和scorer，真正的model inference始终发生在托管的Serverless service中。
 
 1. **冻结management-plane identity。** 保存model `format`、`name`、`version`、deployment name、SKU、capacity、processing scope、region和provisioning state。只有deployment name不能证明model identity。
 2. **冻结policy surfaces。** 记录RAI/content-filter policy、API capabilities、context window、tool support、rate limits和version-upgrade setting。即使model weights相同，filter或policy差异也可能改变观察到的failure。

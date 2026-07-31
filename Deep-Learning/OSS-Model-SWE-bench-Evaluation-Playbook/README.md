@@ -82,10 +82,11 @@ If the exact customer model isn't available on a candidate platform and a differ
 
 - **Validated reference path:** the methodology was derived from and exercised on an AMD-based, on-premises-style OpenAI-compatible endpoint.
 - **Azure GPU VM path:** the `openai_compatible` runner, exact-reproduction contract and official-scoring workflow are implemented and tested. No Azure GPU VM full migration score is published yet.
-- **Microsoft Foundry Serverless API path:** on `2026-07-31`, a Fireworks model sold through Foundry and identified by the management plane as `FW-GLM-5.1` passed the HTTP 200 preflight with 1 function tool call and a request ID. mini-swe-agent `2.4.6` then submitted 1 non-empty patch for `astropy__astropy-7166`; the pinned official harness classified it Resolved with 0 errors and 0 unstopped containers. This validates the Foundry Serverless API compatibility path only, not a full score. See the [sanitized machine-readable evidence](examples/live-foundry-fw-glm51-scored-canary.yaml).
+- **Direct Microsoft Foundry Serverless path:** on `2026-07-31`, the non-Fireworks `DeepSeek-V4-Flash` deployment passed the HTTP 200 function-tool preflight. mini-swe-agent `2.4.6` then submitted 1 non-empty patch for `astropy__astropy-7166`; the pinned official harness classified it Resolved with 0 errors and 0 unstopped containers. See the [sanitized direct-Foundry evidence](examples/live-foundry-direct-deepseek-v4-flash-scored-canary.yaml).
+- **Fireworks through Foundry path:** a separately deployed `FW-GLM-5.1` model also passed the same 1-case generation and official-scoring canary. This proves its Foundry route, not the direct Foundry catalog path. See the [sanitized Fireworks-through-Foundry evidence](examples/live-foundry-fw-glm51-scored-canary.yaml).
 - **Fireworks public API path:** the `fireworks` mode is implemented and shape-tested against the pinned LiteLLM provider, routes to `api.fireworks.ai`, and keeps secrets out of process arguments. No Fireworks public API scored result is published yet.
 - **Managed Compute pending:** no Managed Compute score or data-plane validation is published. A live deployment reached control-plane `Succeeded`, but its authenticated `/openai/v1` chat route still returned HTTP 500 `Model service is unavailable`; it therefore remains `PENDING / NOT VERIFIED` until the Portal-published client route passes the same tool-call plus scored-canary gates.
-- **Not yet claimed:** no full migration score for any of the three primary paths is published until the declared full run completes. The 1-case Foundry outcome is a compatibility gate, not a `1/500` accuracy result or a model comparison. A future GLM 5.2 display name must be replaced by the exact deployment/model ID before execution.
+- **Not yet claimed:** no full migration score for any of the three primary paths is published until the declared full run completes. Each 1-case outcome is a compatibility gate, not a `1/500` accuracy result or a model comparison.
 
 ### Supported Endpoint Modes
 
@@ -263,6 +264,15 @@ The main risk is accidental adaptation: a locally rewritten launcher can look pa
 ### How to Test Foundry Serverless API
 
 This path uses a model deployed directly from the Microsoft Foundry catalog as a Standard, Global Standard, Data Zone Standard, or another supported pay-per-token deployment. Azure owns the serving infrastructure; the customer calls the deployment through the unified Foundry endpoint.
+
+| Component | Where it runs | Responsibility |
+|---|---|---|
+| Model inference | Microsoft Foundry Serverless | Hosts the model weights and returns chat/tool-call responses |
+| mini-swe-agent | Customer-controlled evaluation host | Sends issues and tool observations to the remote model and creates candidate patches |
+| SWE-bench task environment | Docker on the evaluation host | Checks out the repository and exposes shell tools to the Agent |
+| Official scorer | Docker harness on the evaluation host | Applies patches and evaluates `FAIL_TO_PASS` and `PASS_TO_PASS` tests |
+
+The evaluation host never loads the Foundry model weights. It runs the Agent and scorer while model inference remains in the managed Serverless service.
 
 1. **Freeze the management-plane identity.** Save model `format`, `name`, `version`, deployment name, SKU, capacity, processing scope, region and provisioning state. A deployment name by itself isn't model evidence.
 2. **Freeze policy surfaces.** Record the RAI/content-filter policy, API capabilities, context window, tool support, rate limits and version-upgrade setting. Filter or policy differences can change observed failures even when model weights match.
