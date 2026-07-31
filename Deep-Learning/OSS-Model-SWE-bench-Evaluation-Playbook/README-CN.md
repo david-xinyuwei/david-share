@@ -84,7 +84,7 @@ flowchart LR
 - **Azure GPU VM路径：** `openai_compatible` runner、exact-reproduction contract和official-scoring workflow均已实现并通过测试；当前不发布Azure GPU VM full migration score。
 - **Microsoft Foundry Serverless API路径：** `2026-07-31`，一个通过Foundry售卖、且被Azure管理面识别为`FW-GLM-5.1`的Fireworks model通过HTTP 200 preflight，返回1个function tool call和request ID。随后mini-swe-agent `2.4.6`为`astropy__astropy-7166`提交1个非空patch；固定版本的official harness将其判为Resolved，0个error、0个未停止container。这只验证Foundry Serverless API compatibility path，不是full score。详见[脱敏的机器可读证据](examples/live-foundry-fw-glm51-scored-canary.yaml)。
 - **Fireworks公网API路径：** `fireworks` mode已实现，并针对固定LiteLLM provider完成shape test；请求路由到`api.fireworks.ai`，secret不会进入process arguments。当前不发布Fireworks公网API scored result。
-- **Managed Compute待验证：** 当前不发布Managed Compute分数，也不宣称data plane已验证。一个live deployment的control plane已经达到`Succeeded`，但经过认证的chat route仍返回HTTP 500 `Model service is unavailable`；只有deployment-specific route通过同一套tool-call和scored-canary gate后，才能解除`PENDING / NOT VERIFIED`。
+- **Managed Compute待验证：** 当前不发布Managed Compute分数，也不宣称data plane已验证。一个live deployment的control plane已经达到`Succeeded`，但经过认证的`/openai/v1` chat route仍返回HTTP 500 `Model service is unavailable`；只有Portal给出的client route通过同一套tool-call和scored-canary gate后，才能解除`PENDING / NOT VERIFIED`。
 - **尚未宣称的结果：** 三条主要路径都必须等声明的full run完成后才能公布full migration score。Foundry的1-case结果只是compatibility gate，不能写成`1/500`准确率，也不能当作model comparison。未来部署GLM 5.2时，也必须使用精确deployment/model ID，不能只写display name。
 
 ### 支持的Endpoint模式
@@ -292,7 +292,7 @@ Fireworks运维负担最低，但model availability决定它回答的是migratio
 1. **绑定catalog assets。** 保存完整registry model ID和version；保存deployment template ID、resolved version、runtime、context、accelerator count和`versionUpgradeOption`。只记录可变的`labels/latest`不足以支撑benchmark复现。
 2. **创建前验证capacity。** Managed Compute quota与Azure VM quota互相独立。保存accelerator-family quota、current usage、live capacity、SKU、model instances和total accelerators。
 3. **同时验证control plane和data plane。** `provisioningState=Succeeded`只是必要条件，不代表data plane可用。先读取deployment返回的routes，再要求认证请求得到HTTP 200；如果返回500 `Model service is unavailable`，就还不能开始canary。
-4. **使用返回的deployment-specific route。** Managed Compute返回的路径形如`/managed-deployments/<deployment-name>/v1/chat/completions`，不能强行套用Foundry Serverless的`/openai/v1` route。在Public runner实现独立Managed Compute mode且scored canary通过前，继续标为`PENDING / NOT VERIFIED`。
+4. **使用Portal给出的client contract。** OpenAI SDK的`base_url`应指向资源的`/openai/v1` endpoint，并在`model`字段传Managed Compute deployment name。Management plane返回的deployment-specific route可用于诊断，但不能替代Portal client sample。Live probe中`models.list()`成功，而chat completion仍返回HTTP 500，因此当前故障位于model serving层，不是endpoint authentication。
 5. **准确率Gate保持不变。** 继续执行parity contract、scored canary、frozen full run、穷尽outcome分类和双向dispute analysis。
 6. **闭合billing lifecycle。** Managed Compute按accelerator-hour计费。Bounded test完成后先保存证据，再删除deployment，验证资源消失，并记录最终usage/cost scope。
 
