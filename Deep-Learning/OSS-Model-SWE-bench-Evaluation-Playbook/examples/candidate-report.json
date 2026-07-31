@@ -1,3 +1,6 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:3257aee05d92718980ba68ea170a76a2079547183b89abc300107e69f7b44366
-size 184
+{
+  "resolved_ids": ["demo__repo-1", "demo__repo-4", "demo__repo-5"],
+  "unresolved_ids": ["demo__repo-2", "demo__repo-3", "demo__repo-6"],
+  "empty_patch_ids": [],
+  "error_ids": []
+}

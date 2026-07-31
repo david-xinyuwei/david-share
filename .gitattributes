@@ -40,6 +40,7 @@
 *.tsv filter=lfs diff=lfs merge=lfs -text
 *.parquet filter=lfs diff=lfs merge=lfs -text
 *.json filter=lfs diff=lfs merge=lfs -text
+Deep-Learning/OSS-Model-SWE-bench-Evaluation-Playbook/examples/*.json !filter !diff !merge text eol=lf
 LICENSE text eol=lf
 .gitattributes text eol=lf
 Agents/Foundry-Long-Running-Agent-Resilience/*.md text eol=lf
