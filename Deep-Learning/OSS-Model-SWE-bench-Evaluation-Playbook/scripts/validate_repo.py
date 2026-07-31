@@ -116,9 +116,17 @@ def main() -> None:
     readme_cn = (root / "README-CN.md").read_text()
     if re.search(r"\]\(docs/", readme + readme_cn):
         raise SystemExit("Customer-facing content must stay in the bilingual README files")
-    docs_dir = root / "docs"
-    if docs_dir.is_dir() and any(docs_dir.glob("*.md")):
-        raise SystemExit("Standalone customer Markdown under docs/ is not allowed")
+    allowed_markdown = {
+        (root / "README.md").resolve(),
+        (root / "README-CN.md").resolve(),
+    }
+    extra_markdown = sorted(
+        str(path.relative_to(root))
+        for path in root.rglob("*.md")
+        if path.resolve() not in allowed_markdown
+    )
+    if extra_markdown:
+        raise SystemExit(f"Standalone customer Markdown is not allowed: {extra_markdown}")
     h2_en = [line for line in readme.splitlines() if line.startswith("## ")]
     h2_cn = [line for line in readme_cn.splitlines() if line.startswith("## ")]
     if len(h2_en) != len(h2_cn):

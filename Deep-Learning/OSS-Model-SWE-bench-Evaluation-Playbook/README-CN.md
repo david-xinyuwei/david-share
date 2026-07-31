@@ -563,7 +563,28 @@ make test
 - Python和Shell语法。
 - 公开边界和双语文档检查。
 
-[离线合成示例](examples/README.md)无需模型endpoint或Docker，就能验证冻结争议集的计算流程；它只是测试fixture，不是模型实测结果。
+### 离线合成示例
+
+`examples/`下的6道合成case无需模型endpoint或Docker，就能验证冻结争议集的计算流程。它们只是测试fixture，不是模型实测结果。
+
+```bash
+python scripts/build_dispute_manifest.py \
+  --reference-report examples/reference-report.json \
+  --candidate-report examples/candidate-report.json \
+  --expected-count 6 \
+  --output outputs/example/frozen-disputes.tsv
+
+python scripts/finalize_frozen_disputes.py \
+  --reference-report examples/reference-report.json \
+  --baseline-report examples/candidate-report.json \
+  --expected-count 6 \
+  --dispute-manifest outputs/example/frozen-disputes.tsv \
+  --retest-report examples/retest-shard-a.json \
+  --retest-report examples/retest-shard-b.json \
+  --output-dir outputs/example/final
+```
+
+预期结果：冻结4道双向争议题，最终合成分数为3/6 = 50.00%。
 
 本地质量门应以这些marker结束：
 

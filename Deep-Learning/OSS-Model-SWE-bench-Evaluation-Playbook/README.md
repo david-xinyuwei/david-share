@@ -565,7 +565,28 @@ Current deterministic coverage includes:
 - Python and Shell syntax.
 - Public-boundary and bilingual documentation checks.
 
-The [offline synthetic example](examples/README.md) exercises frozen-dispute arithmetic without a model endpoint or Docker; it is a test fixture, not a measured benchmark.
+### Offline Synthetic Example
+
+The 6 synthetic cases under `examples/` exercise frozen-dispute arithmetic without a model endpoint or Docker. They are test fixtures, not measured benchmark results.
+
+```bash
+python scripts/build_dispute_manifest.py \
+  --reference-report examples/reference-report.json \
+  --candidate-report examples/candidate-report.json \
+  --expected-count 6 \
+  --output outputs/example/frozen-disputes.tsv
+
+python scripts/finalize_frozen_disputes.py \
+  --reference-report examples/reference-report.json \
+  --baseline-report examples/candidate-report.json \
+  --expected-count 6 \
+  --dispute-manifest outputs/example/frozen-disputes.tsv \
+  --retest-report examples/retest-shard-a.json \
+  --retest-report examples/retest-shard-b.json \
+  --output-dir outputs/example/final
+```
+
+Expected result: 4 frozen bidirectional disputes and a final synthetic score of 3/6 = 50.00%.
 
 The local gate should end with these markers:
 
