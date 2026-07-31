@@ -13,10 +13,6 @@ REQUIRED = {
     "requirements.txt",
     "requirements-lock.txt",
     "configs/oss-model.yaml",
-    "docs/methodology.md",
-    "docs/troubleshooting.md",
-    "docs/validation.md",
-    "docs/sources.md",
     "images/swebench_workflow.png",
     "scripts/run_generation.sh",
     "scripts/run_official_harness.sh",
@@ -118,6 +114,11 @@ def main() -> None:
 
     readme = (root / "README.md").read_text()
     readme_cn = (root / "README-CN.md").read_text()
+    if re.search(r"\]\(docs/", readme + readme_cn):
+        raise SystemExit("Customer-facing content must stay in the bilingual README files")
+    docs_dir = root / "docs"
+    if docs_dir.is_dir() and any(docs_dir.glob("*.md")):
+        raise SystemExit("Standalone customer Markdown under docs/ is not allowed")
     h2_en = [line for line in readme.splitlines() if line.startswith("## ")]
     h2_cn = [line for line in readme_cn.splitlines() if line.startswith("## ")]
     if len(h2_en) != len(h2_cn):
@@ -150,10 +151,7 @@ def main() -> None:
                 raise SystemExit(f"Broken local link in {markdown}: {target}")
 
     text_extensions = {".md", ".py", ".sh", ".yaml", ".yml", ".json", ".txt"}
-    scanner_allowlist = {
-        (root / "scripts" / "validate_repo.py").resolve(),
-        (root / "docs" / "validation.md").resolve(),
-    }
+    scanner_allowlist = {(root / "scripts" / "validate_repo.py").resolve()}
     for path in files:
         if path.suffix.lower() not in text_extensions:
             continue

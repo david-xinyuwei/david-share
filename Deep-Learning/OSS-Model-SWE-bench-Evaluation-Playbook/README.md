@@ -9,7 +9,7 @@ A complete workflow for evaluating an open-source coding model that exposes an O
 
 > **Author**: 魏新宇 (Xinyu Wei) — Microsoft AI and Apps Global Black Belt (GBB)
 
-English | [中文版](README-CN.md) | [Best Practices](docs/methodology.md) | [Troubleshooting](docs/troubleshooting.md)
+English | [中文版](README-CN.md)
 
 <div align="center">
   <img src="images/swebench_workflow.png" width="960" alt="SWE-bench generation and official evaluation workflow">
@@ -333,7 +333,38 @@ python scripts/hash_assets.py runs/full --output runs/full/SHA256SUMS.txt
 (cd runs/full && sha256sum -c SHA256SUMS.txt)
 ```
 
-## 5. Best Practices
+## 5. Best Practices and Bad Practices
+
+The customer-facing contract is intentionally kept here rather than split across companion documents. Each best practice is paired with the bad practice it prevents and the gate that catches it.
+
+| Best practice | Bad practice | Why it fails | Verification gate |
+|---|---|---|---|
+| Freeze the full execution contract | Treat matching version labels as sufficient | Source, defaults, limits, or concurrency can still differ | Hash configs and inputs; save `pip freeze` |
+| Separate generation from scoring | Treat a generated patch as a pass | Only the official tests determine Resolved | Run a scored canary through both planes |
+| Validate every planned artifact | Count only entries in `preds.json` | Trajectories, embedded IDs, configs, or patches may be invalid | Run `validate_predictions.py` and `audit_effective_configs.py` |
+| Retry infrastructure failures only | Retry model/test failures until they pass | Creates an undisclosed best-of result | Freeze retry policy before the run |
+| Freeze both dispute directions | Retest only cases that can improve the candidate | Introduces selection bias | Require the full denominator with `--expected-count` |
+| Isolate canary, full, retry, and retest phases | Overwrite outputs between phases | Destroys provenance and allows accidental mixing | Use separate run IDs and directories |
+| Hash only after writers stop | Hash active logs or partial reports | Produces an immediately stale manifest | Verify `sha256sum -c` after quiescence |
+| State scope before the score | Present a subset hit rate as full accuracy | Hides denominator and coverage | Report Resolved, Unresolved, Empty, Error, and total |
+| Measure progress from artifacts | Treat an active service as workload progress | A healthy process may be stalled | Check predictions, reports, logs, containers, and runtime activity |
+| Keep the Public boundary explicit | Publish internal paths, endpoints, or customer artifacts | Leaks private infrastructure and invalidates reuse | Run the Public validator before staging |
+
+### Execution Contract Checklist
+
+| Surface | Freeze before generation |
+|---|---|
+| Dataset | Repository, split, row count, revision, and full instance-manifest SHA-256 |
+| Agent | mini-swe-agent version and installed artifact identity |
+| Agent config | YAML SHA-256, config order, prompt, step/cost/wall-time limits |
+| Python environment | `pip freeze` output and SHA-256 |
+| Model | Public model ID, weight revision, served model name |
+| Endpoint | API shape and non-secret base URL pattern |
+| Sampling | Temperature, top-p, maximum output tokens |
+| Concurrency | Generation worker count |
+| Harness | SWE-bench commit, namespace, timeout, cache level, clean mode, worker count |
+
+Secrets must use the provider environment-variable contract. For `hosted_vllm`, use `HOSTED_VLLM_API_KEY`; never put a real key in YAML or a `-c key=value` process argument.
 
 ### BP1. Pin Source, Not Just Version Labels
 
@@ -396,8 +427,6 @@ Do not overwrite full-run files with canary or retest output. Link phases throug
 
 Public examples use loopback endpoints, public model IDs, and synthetic fixtures. Private endpoints, VM identities, credentials, local paths, and customer artifacts do not belong in a public Repo.
 
-Full guidance: [docs/methodology.md](docs/methodology.md).
-
 ## 6. Frozen-Dispute Retesting
 
 Use targeted retesting only after two complete reports exist.
@@ -423,16 +452,19 @@ flowchart TD
 
 ## 7. Problems and Troubleshooting
 
-The complete guide is in [docs/troubleshooting.md](docs/troubleshooting.md).
+These are the failure modes encountered while building and validating the workflow. The table keeps symptom, first diagnosis, and safe action together so the reader does not need another document.
 
 | Problem | Root cause to check first | Safe response |
 |---|---|---|
 | Generation is much slower | Agent version, limits, prompt, workers | Compare effective configs and canary calls |
+| YAML looks right but runtime differs | Config merge order, CLI overrides, global config | Treat trajectory `info.config` as runtime truth |
 | Docker exit 125 | Image pull, disk, stale container | Preserve error; pre-pull exact image; retry infrastructure only |
+| Root disk fills | Docker layers, stopped containers, core dumps | Inspect usage; delete only proven inactive artifacts |
 | Empty patch | Format or Agent limit | Keep Empty category; inspect trajectory |
 | Temperature 0 still differs | Multi-turn/runtime nondeterminism | Report variability; do not promise byte identity |
 | Same patch, different result | Harness source, image, timeout, host timing | Pin commit and preserve test logs |
 | Same package version, different score | Installed source drift | Install/mount exact commit |
+| Pinned VCS install imports fail | Wheel omitted non-Python fixtures | Keep the exact checkout and use editable install |
 | Aggregate path unexpected | Harness version behavior | Use dedicated cwd; locate exactly one aggregate |
 | Official timeout | Slow tests or host load | Keep Error unless retry policy was frozen in advance |
 | One-direction retest | Selection bias | Freeze both directions |
@@ -440,6 +472,59 @@ The complete guide is in [docs/troubleshooting.md](docs/troubleshooting.md).
 | Shards overlap | Partition bug | Fail merge; fix manifest |
 | Service active but no output | Lifecycle signal without workload progress | Check artifacts, containers, logs and runtime activity |
 | SHA fails after creation | Writer still active | Stop writers, then regenerate manifest |
+
+### 7.1 Effective Config Drift
+
+**Symptom:** the YAML looks correct, but trajectories use a different endpoint, model, prompt, timeout, image, or limit.
+
+**Cause:** multiple `-c` inputs are merged in order; CLI and global configuration may override the visible file.
+
+**Fix and validation:** treat trajectory `info.config` as authoritative. Run `audit_effective_configs.py` and ignore only intentional per-instance fields such as the task image.
+
+### 7.2 Docker Startup and Storage Failures
+
+**Symptom:** `docker run` returns exit 125, no Agent messages appear, or the host reports `no space left on device`.
+
+**Cause:** an interrupted image pull, stale container name, Docker daemon issue, accumulated task layers, stopped containers, or core dumps.
+
+**Fix:** preserve the original error, inspect free space and `docker system df`, pre-pull the exact image, and retry only IDs that failed before model execution. Keep `--clean true`; never prune while another evaluation is active.
+
+### 7.3 Empty Patch
+
+**Symptom:** a prediction exists but `model_patch` is empty, often with `RepeatedFormatError`, `LimitsExceeded`, or `TimeExceeded`.
+
+**Cause:** the Agent did not submit, tool formatting repeatedly failed, or a declared limit was reached.
+
+**Fix:** preserve the trajectory and count the frozen-run result as Empty. Any retry is a separate phase and must not be merged as hidden best-of.
+
+### 7.4 Temperature 0 and Same-Patch Variability
+
+**Symptom:** identical high-level config produces different calls, patches, or outcomes; sometimes identical patch bytes receive different official outcomes.
+
+**Cause:** temperature 0 does not make a multi-turn tool Agent deterministic. Backend scheduling, tied choices, tool observations, task image, harness source, host load, and timeout can all affect later turns or test execution.
+
+**Fix:** freeze the method and preserve per-instance trajectories, `report.json`, and test output. Report variability as an observed effect; do not infer a mechanism without independent evidence.
+
+### 7.5 Broken Wheel From a Pinned Commit
+
+**Symptom:** a direct VCS install succeeds, then importing the harness raises `FileNotFoundError` for a non-Python fixture such as `Cargo.lock`.
+
+**Cause:** the wheel built from that revision omitted files required at runtime.
+
+**Fix:** retain the exact source checkout, verify its commit and clean worktree, check a known fixture, then install it in editable mode:
+
+```bash
+bash scripts/setup_environment.sh
+python -m swebench.harness.run_evaluation --help
+```
+
+### 7.6 Optional Stopping and Incomplete Shards
+
+**Symptom:** only favorable disagreements are retested, the dispute set shrinks after each round, or the merged denominator is unexpectedly small or large.
+
+**Cause:** one-direction selection, dynamic narrowing, missing shards, or overlapping partitions.
+
+**Fix:** return to two complete reports, freeze both binary dispute directions once, pass the declared denominator through `--expected-count`, and require every frozen case exactly once. The repository scripts reject missing, extra, duplicate, and overlapping cases.
 
 ## 8. Evidence and Reporting
 
@@ -480,7 +565,6 @@ Current deterministic coverage includes:
 - Python and Shell syntax.
 - Public-boundary and bilingual documentation checks.
 
-Maintainer details: [docs/validation.md](docs/validation.md).
 The [offline synthetic example](examples/README.md) exercises frozen-dispute arithmetic without a model endpoint or Docker; it is a test fixture, not a measured benchmark.
 
 The local gate should end with these markers:
@@ -489,6 +573,20 @@ The local gate should end with these markers:
 REPO_VALIDATION=PASS
 ...
 OK
+```
+
+### Clean-Environment Validation
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+bash scripts/setup_environment.sh
+python -m pip check
+python -m minisweagent.run.benchmarks.swebench --help
+python -m swebench.harness.run_evaluation --help
+make validate
+make test
 ```
 
 ### Cleanup Boundary
@@ -511,11 +609,11 @@ OK
 - [mini-swe-agent v2.4.6](https://github.com/SWE-agent/mini-swe-agent/tree/v2.4.6)
 - [mini-swe-agent documentation](https://mini-swe-agent.com/latest/)
 - [SWE-bench official Repo](https://github.com/SWE-bench/SWE-bench)
+- [SWE-bench evaluation guide](https://www.swebench.com/SWE-bench/guides/evaluation/)
+- [SWE-bench Docker setup guide](https://www.swebench.com/SWE-bench/guides/docker_setup/)
 - [Pinned SWE-bench commit](https://github.com/SWE-bench/SWE-bench/commit/f7bbbb2ccdf479001d6467c9e34af59e44a840f9)
 - [SWE-bench Verified dataset](https://huggingface.co/datasets/princeton-nlp/SWE-Bench_Verified)
 - [SWE-bench paper](https://arxiv.org/abs/2310.06770)
-
-See [docs/sources.md](docs/sources.md) for the source registry.
 
 ## 12. Related Repositories
 

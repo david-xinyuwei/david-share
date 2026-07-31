@@ -9,7 +9,7 @@
 
 > **作者**：魏新宇 (Xinyu Wei) — Microsoft AI and Apps Global Black Belt (GBB)
 
-[English](README.md) | 中文版 | [最佳实践](docs/methodology.md) | [问题排查](docs/troubleshooting.md)
+[English](README.md) | 中文版
 
 <div align="center">
   <img src="images/swebench_workflow.png" width="960" alt="SWE-bench generation 与官方评测流程">
@@ -331,7 +331,38 @@ python scripts/hash_assets.py runs/full --output runs/full/SHA256SUMS.txt
 (cd runs/full && sha256sum -c SHA256SUMS.txt)
 ```
 
-## 5. 最佳实践
+## 5. 最佳实践与错误做法
+
+面向客户的评测合同全部放在本 README，不再拆到配套文档。每条最佳实践都对应一种错误做法，并给出能够拦住它的验证门。
+
+| 最佳实践 | 错误做法 | 为什么会失败 | 验证门 |
+|---|---|---|---|
+| 冻结完整执行合同 | 认为版本号相同就足够 | 源码、默认值、限制或并发仍可能不同 | 对配置和输入生成hash，保存`pip freeze` |
+| 分离generation与scoring | 把生成patch当成通过 | 只有官方测试能判定Resolved | Canary必须走完两个阶段并完成评分 |
+| 校验每个计划产物 | 只统计`preds.json`条目 | Trajectory、内嵌ID、config或patch仍可能无效 | 运行`validate_predictions.py`和`audit_effective_configs.py` |
+| 只重试基础设施失败 | 把模型或测试失败重试到通过 | 会形成未披露的best-of结果 | Run前冻结retry policy |
+| 同时冻结两个争议方向 | 只复测能提高候选分数的一边 | 会引入selection bias | 使用`--expected-count`强制完整分母 |
+| 隔离canary、full、retry和retest | 不同阶段覆盖同一输出 | 会破坏provenance并导致结果混用 | 使用独立run ID和目录 |
+| Writer停止后再hash | 对仍在写入的log或report做hash | Manifest会立即失效 | 文件静止后执行`sha256sum -c` |
+| 先写范围，再写分数 | 把子集命中率写成全量准确率 | 会隐藏分母和覆盖范围 | 同时报告Resolved、Unresolved、Empty、Error和total |
+| 用产物判断进度 | 把service active当成工作负载进展 | 健康进程也可能已经stall | 检查predictions、reports、logs、containers和runtime活动 |
+| 明确Public边界 | 发布内部路径、endpoint或客户产物 | 会泄露私有基础设施，也无法通用复现 | Stage前运行Public validator |
+
+### 执行合同清单
+
+| 范围 | Generation前必须冻结 |
+|---|---|
+| Dataset | Repository、split、row count、revision和完整instance-manifest SHA-256 |
+| Agent | mini-swe-agent版本和实际安装产物身份 |
+| Agent config | YAML SHA-256、config顺序、prompt、step/cost/wall-time limits |
+| Python environment | `pip freeze`输出和SHA-256 |
+| Model | Public model ID、weight revision、served model name |
+| Endpoint | API shape和非秘密base URL pattern |
+| Sampling | Temperature、top-p、maximum output tokens |
+| Concurrency | Generation worker count |
+| Harness | SWE-bench commit、namespace、timeout、cache level、clean mode、worker count |
+
+Secret必须走provider的环境变量合同。使用`hosted_vllm`时，应设置`HOSTED_VLLM_API_KEY`；不能把真实key写进YAML或`-c key=value`进程参数。
 
 ### BP1：固定源码，不只看版本号
 
@@ -394,8 +425,6 @@ Canary、full、infrastructure retry和differential retest不能互相覆盖。�
 
 示例使用loopback endpoint、公开model ID和合成fixture。私有endpoint、VM、凭据、本地绝对路径和客户数据不能进入Public Repo。
 
-完整说明见[docs/methodology.md](docs/methodology.md)。
-
 ## 6. 冻结争议集复测
 
 定向复测必须建立在两份完整报告之上。
@@ -421,16 +450,19 @@ flowchart TD
 
 ## 7. 遇到的问题与排查
 
-完整手册见[docs/troubleshooting.md](docs/troubleshooting.md)。
+下面都是构建和验证本流程时真实遇到的故障模式。症状、第一检查项和安全处理放在同一张表里，读者不需要跳到另一份文档。
 
 | 问题 | 第一检查项 | 正确处理 |
 |---|---|---|
 | Generation明显更慢 | Agent版本、limits、prompt、workers | 对比effective config和canary调用数 |
+| YAML看起来正确但runtime不同 | Config merge顺序、CLI overrides、global config | 以trajectory `info.config`为runtime truth |
 | Docker exit 125 | Image pull、磁盘、stale container | 保存错误；预拉精确image；只补基础设施失败 |
+| Root disk写满 | Docker layers、stopped containers、core dumps | 检查占用；只删除已证明不活跃的产物 |
 | Empty patch | Format error或Agent limit | 保留Empty；检查trajectory |
 | Temperature 0仍不一致 | 多轮Agent/runtime非确定性 | 报告波动，不承诺字节一致 |
 | 相同patch、不同结果 | Harness源码、image、timeout、host timing | 固定commit并保留测试日志 |
 | 同版本、评分不同 | Installed source漂移 | 安装或挂载精确commit |
+| 固定VCS安装后import失败 | Wheel漏掉非Python fixture | 保留精确checkout并使用editable install |
 | Aggregate位置异常 | Harness版本行为 | 独立cwd运行，只接受一份aggregate |
 | 官方测试timeout | 慢测试或host load | 保留Error，除非事先冻结了重试规则 |
 | 只复测单向争议 | Selection bias | 同时冻结两个方向 |
@@ -438,6 +470,59 @@ flowchart TD
 | Shard重叠 | Partition错误 | 合并fail closed，修manifest |
 | Service active但无产物 | 只有生命周期信号，没有工作负载进展 | 同时检查产物、容器、日志和runtime活动 |
 | SHA生成后立刻失效 | 写入进程仍在运行 | 停止写入后重新生成manifest |
+
+### 7.1 Effective Config漂移
+
+**症状：** YAML看起来正确，但trajectory使用了不同的endpoint、model、prompt、timeout、image或limit。
+
+**原因：** 多个`-c`输入会按顺序merge；CLI和global config也可能覆盖眼前的文件。
+
+**修复与验证：** 以trajectory `info.config`为权威值。运行`audit_effective_configs.py`，只忽略task image等有意存在的逐题字段。
+
+### 7.2 Docker启动和存储故障
+
+**症状：** `docker run`返回exit 125，没有Agent messages，或者host报告`no space left on device`。
+
+**原因：** Image pull中断、stale container name、Docker daemon异常、task layers积累、stopped containers或core dumps。
+
+**修复：** 保留原始错误，检查free space和`docker system df`，预拉精确image，只重试model execution开始前失败的ID。保持`--clean true`；其他评测运行时禁止prune。
+
+### 7.3 Empty Patch
+
+**症状：** Prediction存在，但`model_patch`为空，常见exit status是`RepeatedFormatError`、`LimitsExceeded`或`TimeExceeded`。
+
+**原因：** Agent没有提交，tool格式持续失败，或者达到了已声明的limit。
+
+**修复：** 保留trajectory，并在冻结run中计为Empty。任何retry都属于独立phase，不能静默并入隐藏best-of。
+
+### 7.4 Temperature 0与相同Patch波动
+
+**症状：** 相同高层config产生不同calls、patches或outcomes；有时patch字节完全相同，官方结果仍不同。
+
+**原因：** Temperature 0不能保证多轮tool Agent端到端确定。Backend scheduling、tied choices、tool observations、task image、harness source、host load和timeout都可能改变后续turn或测试执行。
+
+**修复：** 冻结方法，并保留逐题trajectory、`report.json`和test output。把波动写成实测effect；没有独立证据时，不能直接推断mechanism。
+
+### 7.5 固定Commit构建出的Wheel缺文件
+
+**症状：** 直接VCS install成功，但import harness时因`Cargo.lock`等非Python fixture缺失而抛出`FileNotFoundError`。
+
+**原因：** 该revision构建出的wheel没有包含runtime需要的全部文件。
+
+**修复：** 保留精确source checkout，验证commit和clean worktree，检查已知fixture，再使用editable install：
+
+```bash
+bash scripts/setup_environment.sh
+python -m swebench.harness.run_evaluation --help
+```
+
+### 7.6 Optional Stopping与Shard不完整
+
+**症状：** 只复测有利方向、每轮继续缩小争议集，或者合并后的分母异常变小或变大。
+
+**原因：** 单向selection、dynamic narrowing、missing shards或overlapping partitions。
+
+**修复：** 回到两份完整报告，只冻结一次双向binary disputes，通过`--expected-count`传入声明分母，并要求每道冻结题恰好出现一次。Repo脚本会拒绝missing、extra、duplicate和overlapping cases。
 
 ## 8. 证据与报告
 
@@ -478,7 +563,6 @@ make test
 - Python和Shell语法。
 - 公开边界和双语文档检查。
 
-维护者命令见[docs/validation.md](docs/validation.md)。
 [离线合成示例](examples/README.md)无需模型endpoint或Docker，就能验证冻结争议集的计算流程；它只是测试fixture，不是模型实测结果。
 
 本地质量门应以这些marker结束：
@@ -487,6 +571,20 @@ make test
 REPO_VALIDATION=PASS
 ...
 OK
+```
+
+### Clean-Environment验证
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+bash scripts/setup_environment.sh
+python -m pip check
+python -m minisweagent.run.benchmarks.swebench --help
+python -m swebench.harness.run_evaluation --help
+make validate
+make test
 ```
 
 ### 清理边界
@@ -509,11 +607,11 @@ OK
 - [mini-swe-agent v2.4.6](https://github.com/SWE-agent/mini-swe-agent/tree/v2.4.6)
 - [mini-swe-agent文档](https://mini-swe-agent.com/latest/)
 - [SWE-bench官方Repo](https://github.com/SWE-bench/SWE-bench)
+- [SWE-bench evaluation guide](https://www.swebench.com/SWE-bench/guides/evaluation/)
+- [SWE-bench Docker setup guide](https://www.swebench.com/SWE-bench/guides/docker_setup/)
 - [固定SWE-bench commit](https://github.com/SWE-bench/SWE-bench/commit/f7bbbb2ccdf479001d6467c9e34af59e44a840f9)
 - [SWE-bench Verified dataset](https://huggingface.co/datasets/princeton-nlp/SWE-Bench_Verified)
 - [SWE-bench论文](https://arxiv.org/abs/2310.06770)
-
-完整来源登记见[docs/sources.md](docs/sources.md)。
 
 ## 12. 相关项目
 
