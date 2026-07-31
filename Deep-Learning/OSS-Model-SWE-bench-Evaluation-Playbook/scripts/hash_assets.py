@@ -16,6 +16,8 @@ def main() -> None:
     output = args.output.resolve()
     if not root.is_dir():
         raise ValueError(f"Asset root is not a directory: {root}")
+    if output.exists():
+        raise SystemExit(f"Refusing to overwrite asset manifest: {output}")
     files = []
     for current, directories, filenames in os.walk(root, followlinks=False):
         current_path = Path(current)
@@ -33,9 +35,11 @@ def main() -> None:
     if not files:
         raise ValueError(f"No files found under asset root: {root}")
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(
+    temporary = output.with_suffix(output.suffix + ".tmp")
+    temporary.write_text(
         "".join(f"{sha256(path)}  {path.relative_to(root).as_posix()}\n" for path in files)
     )
+    os.replace(temporary, output)
     print(f"ASSET_MANIFEST=PASS files={len(files)} output={output}")
 
 

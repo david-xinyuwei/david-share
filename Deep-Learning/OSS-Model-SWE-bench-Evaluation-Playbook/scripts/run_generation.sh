@@ -131,6 +131,12 @@ case "$ENDPOINT_MODE" in
     ;;
 esac
 
+if test -e "$OUTPUT_DIR"; then
+  if ! test -d "$OUTPUT_DIR" || test -n "$(find "$OUTPUT_DIR" -mindepth 1 -maxdepth 1 -print -quit)"; then
+    echo "OUTPUT_DIR must be empty: $OUTPUT_DIR" >&2
+    exit 2
+  fi
+fi
 mkdir -p "$OUTPUT_DIR"
 CONTRACT_PATH="$OUTPUT_DIR/provider-contract.json"
 export CONTRACT_PATH ENDPOINT_MODE EVALUATION_SCENARIO RUN_LABEL MODEL_NAME MODEL_API_BASE

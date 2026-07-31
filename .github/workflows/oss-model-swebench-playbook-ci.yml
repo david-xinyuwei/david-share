@@ -1,0 +1,40 @@
+name: OSS Model SWE-bench Playbook CI
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "Deep-Learning/OSS-Model-SWE-bench-Evaluation-Playbook/**"
+      - ".github/workflows/oss-model-swebench-playbook-ci.yml"
+  pull_request:
+    branches: [master]
+    paths:
+      - "Deep-Learning/OSS-Model-SWE-bench-Evaluation-Playbook/**"
+      - ".github/workflows/oss-model-swebench-playbook-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: Deep-Learning/OSS-Model-SWE-bench-Evaluation-Playbook
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            Deep-Learning/OSS-Model-SWE-bench-Evaluation-Playbook/requirements-lock.txt
+            Deep-Learning/OSS-Model-SWE-bench-Evaluation-Playbook/requirements-diagrams.txt
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -r requirements-lock.txt
+      - run: python -m pip install pip-audit==2.10.1
+      - run: python -m pip check
+      - run: pip-audit -r requirements-lock.txt --progress-spinner off
+      - run: make validate
+      - run: make test

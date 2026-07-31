@@ -65,7 +65,9 @@ def validate_scored_canary_counts(payload: dict) -> dict[str, int]:
         raise ValueError("Canary aggregate report must be a JSON object")
     counts = {}
     for label, key in CANARY_COUNT_KEYS.items():
-        value = payload.get(key, 0)
+        if key not in payload:
+            raise ValueError(f"Canary aggregate is missing required field {key}")
+        value = payload[key]
         if isinstance(value, bool) or not isinstance(value, int) or value < 0:
             raise ValueError(f"Canary aggregate field {key} must be a non-negative integer")
         counts[label] = value

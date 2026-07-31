@@ -21,6 +21,10 @@ def main() -> None:
 
     reference = load_outcomes(args.reference_report)
     candidate = load_outcomes(args.candidate_report)
+    summary_path = args.output.with_suffix(".summary.json")
+    existing = [path for path in (args.output, summary_path) if path.exists()]
+    if existing:
+        raise SystemExit(f"Refusing to overwrite frozen dispute outputs: {existing}")
     require_expected_count(reference, args.expected_count, args.reference_report)
     require_expected_count(candidate, args.expected_count, args.candidate_report)
     if set(reference) != set(candidate):
@@ -95,7 +99,6 @@ def main() -> None:
             (candidate_resolved - reference_resolved) / len(reference) * 100, 2
         ),
     }
-    summary_path = args.output.with_suffix(".summary.json")
     summary_path.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n")
     print(
         "DISPUTE_MANIFEST=PASS "

@@ -4,12 +4,15 @@
 [![mini-swe-agent](https://img.shields.io/badge/Agent-mini--swe--agent%20v2.4.6-148f77)](https://github.com/SWE-agent/mini-swe-agent/tree/v2.4.6)
 [![SWE-bench](https://img.shields.io/badge/Harness-f7bbbb2-ca6f1e)](https://github.com/SWE-bench/SWE-bench/commit/f7bbbb2ccdf479001d6467c9e34af59e44a840f9)
 [![Python](https://img.shields.io/badge/Python-3.12-3776ab)](https://www.python.org/)
+[![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/oss-model-swebench-playbook-ci.yml/badge.svg?branch=master)](https://github.com/david-xinyuwei/david-share/actions/workflows/oss-model-swebench-playbook-ci.yml)
 
-A production-oriented workflow for measuring OSS coding-model accuracy before and after migration to Azure GPU VM, Microsoft Foundry Serverless API, or Fireworks, and before and after fine-tuning, using one frozen SWE-bench contract.
+A production-oriented workflow that uses one frozen SWE-bench evaluation contract to measure OSS coding-model accuracy before and after migration to Microsoft Foundry OSS Serverless API, Microsoft Foundry Managed Compute, Fireworks, and Azure GPU VM, as well as before and after fine-tuning.
 
 > **Author**: 魏新宇 (Xinyu Wei) — Microsoft AI and Apps Global Black Belt (GBB)
 
 English | [中文版](README-CN.md)
+
+[Customer decision](#the-customer-decision-this-repo-solves) | [Quick start](#3-quick-start-and-running-on-azure) | [Current evidence](#evidence-boundary)
 
 <div align="center">
   <img src="images/swebench_workflow.png" width="960" alt="SWE-bench generation and official evaluation workflow">
@@ -44,26 +47,43 @@ Customers often hesitate to migrate or fine-tune an OSS model because a healthy 
 
 ### The Customer Decision This Repo Solves
 
-A customer already runs and trusts an open-source model on-premises. They want to move that **same model** to Azure GPU VM, a direct Microsoft Foundry Serverless API deployment, or Fireworks without losing software-engineering accuracy. Managed Compute is tracked separately as a pending path until its data plane passes the same canary. Their first question is not whether the new endpoint returns HTTP 200, or even whether it is faster. It is:
+A customer already runs and trusts an open-source model on-premises. They want to move that **same model** to Azure GPU VM, Microsoft Foundry OSS Serverless API, Microsoft Foundry Managed Compute, or Fireworks without losing software-engineering accuracy. The same evaluation contract covers all four paths, while each path keeps its own evidence status. Their first question is not whether the new endpoint returns HTTP 200, or even whether it is faster. It is:
 
 > Under the same model, Agent, SWE-bench workload, and official scorer, did the migration preserve accuracy?
 
 ```mermaid
 flowchart LR
-  O[Customer on-prem OSS model] --> R[Frozen reference run]
-  R --> V[Azure GPU VM candidate]
-  R --> S[Foundry Serverless API candidate]
-  R --> F[Fireworks candidate]
-  V --> P[Same parity and SWE-bench gates]
+  O["On-prem OSS<br/>model"] --> R["Frozen<br/>reference"]
+  R --> V["Azure<br/>GPU VM"]
+  R --> S["Foundry OSS<br/>Serverless"]
+  R --> M["Foundry Managed<br/>Compute<br/>(pending)"]
+  R --> F["Fireworks<br/>Foundry / public"]
+  V --> P["Parity +<br/>SWE-bench gates"]
   S --> P
+  M --> P
   F --> P
-  P --> G[Go, remediate, or reject migration]
+  P --> G["Go / remediate /<br/>reject"]
+
+  classDef source fill:#f4f6f7,stroke:#5d6d7e,color:#17202a
+  classDef vm fill:#eaf2f8,stroke:#2e86c1,color:#17202a
+  classDef serverless fill:#e8f8f5,stroke:#148f77,color:#17202a
+  classDef managed fill:#fef9e7,stroke:#b7950b,color:#17202a,stroke-dasharray:5 3
+  classDef fireworks fill:#fbeee6,stroke:#ca6f1e,color:#17202a
+  classDef gate fill:#eef2f7,stroke:#34495e,color:#17202a
+  classDef outcome fill:#eafaf1,stroke:#117864,color:#17202a
+  class O,R source
+  class V vm
+  class S serverless
+  class M managed
+  class F fireworks
+  class P gate
+  class G outcome
 ```
 
 The value is therefore broader than a benchmark runner:
 
 - **Accuracy-preservation contract:** prove whether the same OSS model keeps its engineering ability after migration.
-- **Substrate-neutral decision:** compare three primary hosting paths with one Agent, one dataset, one scorer, and one evidence model.
+- **Substrate-neutral decision:** compare four hosting paths with one Agent, one dataset, one scorer, and one evidence model.
 - **Root-cause separation:** distinguish model regression, provider/API incompatibility, serving-capacity limits, Agent drift, and harness faults.
 - **Auditable go/no-go:** deliver a full denominator, per-case regressions, machine-readable contracts, and immutable evidence instead of a dashboard-only score.
 
@@ -71,8 +91,8 @@ If the exact customer model isn't available on a candidate platform and a differ
 
 | Business decision | Reference run | Candidate run | What the result can establish |
 |---|---|---|---|
-| Move an on-premises OSS model to a managed platform | On-premises or AMD-based OpenAI-compatible endpoint | Microsoft Foundry or Fireworks deployment | Whether the same model and revision preserve SWE-bench accuracy after platform migration |
-| Move from another cloud to a managed platform | Existing cloud endpoint | Microsoft Foundry or Fireworks deployment | Whether the target platform meets the customer's predeclared accuracy threshold |
+| Move an on-premises OSS model to a managed platform | On-premises or AMD-based OpenAI-compatible endpoint | Azure GPU VM, Foundry OSS Serverless, Foundry Managed Compute, or Fireworks | Whether the same model and revision preserve SWE-bench accuracy after platform migration |
+| Move from another cloud to a managed platform | Existing cloud endpoint | Any of the four candidate paths | Whether the target platform meets the customer's predeclared accuracy threshold |
 | Validate fine-tuning | Base model | Fine-tuned deployment on the same platform | Which tasks improved, regressed, stayed stable, or failed operationally |
 | Select a production model | Existing production model | A different candidate, such as an Azure Foundry Fireworks GLM deployment | Comparative model quality; this is not a platform-only migration claim |
 
@@ -83,10 +103,10 @@ If the exact customer model isn't available on a candidate platform and a differ
 - **Validated reference path:** the methodology was derived from and exercised on an AMD-based, on-premises-style OpenAI-compatible endpoint.
 - **Azure GPU VM path:** the `openai_compatible` runner, exact-reproduction contract and official-scoring workflow are implemented and tested. No Azure GPU VM full migration score is published yet.
 - **Direct Microsoft Foundry Serverless path:** on `2026-07-31`, the non-Fireworks `DeepSeek-V4-Flash` deployment passed the HTTP 200 function-tool preflight. mini-swe-agent `2.4.6` then submitted 1 non-empty patch for `astropy__astropy-7166`; the pinned official harness classified it Resolved with 0 errors and 0 unstopped containers. See the [sanitized direct-Foundry evidence](examples/live-foundry-direct-deepseek-v4-flash-scored-canary.yaml).
-- **Fireworks through Foundry path:** a separately deployed `FW-GLM-5.1` model also passed the same 1-case generation and official-scoring canary. This proves its Foundry route, not the direct Foundry catalog path. See the [sanitized Fireworks-through-Foundry evidence](examples/live-foundry-fw-glm51-scored-canary.yaml).
+- **Fireworks through Foundry path:** a separately deployed `FW-GLM-5.1` model also passed the same one-case generation and official-scoring canary. This proves its Foundry route, not the direct Foundry catalog path. See the [sanitized Fireworks-through-Foundry evidence](examples/live-foundry-fw-glm51-scored-canary.yaml).
 - **Fireworks public API path:** the `fireworks` mode is implemented and shape-tested against the pinned LiteLLM provider, routes to `api.fireworks.ai`, and keeps secrets out of process arguments. No Fireworks public API scored result is published yet.
-- **Managed Compute pending:** no Managed Compute score or data-plane validation is published. A live deployment reached control-plane `Succeeded`, but its authenticated `/openai/v1` chat route still returned HTTP 500 `Model service is unavailable`; it therefore remains `PENDING / NOT VERIFIED` until the Portal-published client route passes the same tool-call plus scored-canary gates.
-- **Not yet claimed:** no full migration score for any of the three primary paths is published until the declared full run completes. Each 1-case outcome is a compatibility gate, not a `1/500` accuracy result or a model comparison.
+- **Managed Compute pending:** no Managed Compute score or data-plane validation is published. A live deployment reached control-plane `Succeeded`, but its authenticated `/openai/v1` chat route still returned HTTP 500 `Model service is unavailable`; it therefore remains `PENDING / NOT VERIFIED` until the Portal-published client route passes the same tool-call plus scored-canary gates. See the [sanitized pending evidence](examples/live-foundry-managed-compute-pending.yaml).
+- **Not yet claimed:** no full migration score for any of the four candidate paths is published until the declared full run completes. Each one-case outcome is a compatibility gate, not a `1/500` accuracy result or a model comparison.
 
 ### Supported Endpoint Modes
 
@@ -148,7 +168,7 @@ PARITY_GATE=PASS scenario=platform_migration classification=MODEL_AND_METHOD_ALI
 ### Reference-to-Candidate Execution Flow
 
 ```mermaid
-flowchart LR
+flowchart TB
     R[Reference run passport] --> P[Parity contract gate]
     C[Candidate run passport] --> P
     P -->|Aligned| A[API and tool-call preflight]
@@ -239,14 +259,15 @@ SWE-bench measures a system, not a naked model. The score is a function of the m
 
 The parity comparator rejects Agent-version, sampling, partition and retry-policy drift for a platform-migration claim. If a customer intentionally accepts one of those changes, it must be declared through an explicit adaptation and the result is labeled `ADAPTED_RUN`.
 
-## Three Deployment Test Playbooks
+## Four Deployment Paths and Test Contracts
 
-The three primary paths use the same backbone: capture the customer's reference passport, pass the parity gate, verify multi-turn tool calling, complete a scored canary, run the frozen SWE-bench denominator, and analyze bidirectional per-case differences. Only the platform-specific deployment and evidence surfaces change.
+All four paths use the same intended backbone: capture the customer's reference passport, pass the parity gate, verify multi-turn tool calling, complete a scored canary, run the frozen SWE-bench denominator, and analyze bidirectional per-case differences. Their implementation and current evidence status remain separate.
 
 | Candidate path | `ENDPOINT_MODE` | Platform-specific evidence | Strongest valid claim |
 |---|---|---|---|
 | Azure GPU VM | `openai_compatible` | Image, model/tokenizer hashes, actual launcher, runtime commit, driver, GPU topology and context capacity | `MODEL_AND_METHOD_ALIGNED` when the same weights and method are verified |
 | Foundry Serverless API | `azure_foundry` | Exact model format/name/version, deployment SKU and scope, TPM capacity, RAI policy, region and API capabilities | Same-model migration only when the exact customer model/revision is available; otherwise `MODEL_SELECTION_METHOD_ALIGNED` |
+| Foundry Managed Compute | `azure_foundry` client contract; data plane pending | Registry model/version, resolved deployment template, accelerator family/count, context capacity, runtime route and upgrade policy | Currently `NOT VERIFIED`; eligible for `MODEL_AND_METHOD_ALIGNED` only after the data-plane and scored-canary gates pass |
 | Fireworks through Azure or public API | `azure_foundry` or `fireworks` | Exact Foundry deployment or account/direct-route model ID, provider format, API version, context, rate limits and replay schema | Same-model migration only when the exact customer model/revision is deployed; otherwise `MODEL_SELECTION_METHOD_ALIGNED` |
 
 ### How to Test Azure GPU VM
@@ -297,7 +318,7 @@ Fireworks is the lowest-operations path, but model availability determines wheth
 
 ### Pending: Managed Compute
 
-**Status: `PENDING / NOT VERIFIED`.** This Repo does not publish a Managed Compute score or claim that its data plane has passed the canary. Managed Compute remains a future path; the checklist below defines the evidence required before it can join the three validated playbooks.
+**Status: `PENDING / NOT VERIFIED`.** Managed Compute is one of the four target paths, but this Repo doesn't publish a score or claim that its data plane has passed the canary. The checklist below defines the evidence required before it can join the validated path set.
 
 1. **Bind catalog assets.** Save the full registry model ID and version. Save the deployment template ID, its resolved version, runtime, context, accelerator count and `versionUpgradeOption`; a mutable `labels/latest` reference alone isn't sufficient evidence for a benchmark.
 2. **Validate capacity before create.** Managed Compute quota is separate from Azure VM quota. Record accelerator-family quota, current usage, live capacity, SKU, model instances and total accelerators.
@@ -652,7 +673,7 @@ export OUTPUT_ROOT="runs/${RUN_LABEL}-scored-canary"
 bash scripts/run_scored_canary.sh
 ```
 
-The preflight must return `state=PASS` with at least 1 valid `ping` tool call whose arguments contain `{"value":"ok"}`. The scored canary is a pipeline gate, not an accuracy estimate; the 1 canary task may be Resolved, Unresolved, or Empty as long as the outcome is produced by the official harness without infrastructure errors.
+The preflight must return `state=PASS` with at least 1 valid `ping` tool call whose arguments contain `{"value":"ok"}`. Successful and failed preflight results preserve the provider request ID when one is returned. The scored canary is a pipeline gate, not an accuracy estimate; the 1 canary task may be Resolved, Unresolved, or Empty as long as the official aggregate includes all four outcome counters and reports no infrastructure Error.
 
 ### 3.4 Run a One-Case Canary
 
@@ -802,7 +823,7 @@ python scripts/merge_official_reports.py \
   --output runs/merged/aggregate.json
 ```
 
-The merger fails if an instance appears in more than one shard.
+The merger fails if an instance appears in more than one shard. It also refuses an existing output file, so a previous aggregate cannot be replaced in place.
 
 ### Step 6: Seal the Run
 
@@ -824,8 +845,8 @@ The customer-facing contract is intentionally kept here rather than split across
 | Validate every planned artifact | Count only entries in `preds.json` | Trajectories, embedded IDs, configs, or patches may be invalid | Run `validate_predictions.py` and `audit_effective_configs.py` |
 | Retry infrastructure failures only | Retry model/test failures until they pass | Creates an undisclosed best-of result | Freeze retry policy before the run |
 | Freeze both dispute directions | Retest only cases that can improve the candidate | Introduces selection bias | Require the full denominator with `--expected-count` |
-| Isolate canary, full, retry, and retest phases | Overwrite outputs between phases | Destroys provenance and allows accidental mixing | Use separate run IDs and directories |
-| Hash only after writers stop | Hash active logs or partial reports | Produces an immediately stale manifest | Verify `sha256sum -c` after quiescence |
+| Isolate canary, full, retry, and retest phases | Overwrite outputs between phases | Destroys provenance and allows accidental mixing | Use separate run IDs and empty directories; launchers reject non-empty outputs |
+| Hash only after writers stop | Hash active logs or partial reports | Produces an immediately stale manifest | Verify `sha256sum -c` after quiescence; existing manifests are never overwritten |
 | State scope before the score | Present a subset hit rate as full accuracy | Hides denominator and coverage | Report Resolved, Unresolved, Empty, Error, and total |
 | Measure progress from artifacts | Treat an active service as workload progress | A healthy process may be stalled | Check predictions, reports, logs, containers, and runtime activity |
 | Keep the Public boundary explicit | Publish internal paths, endpoints, or customer artifacts | Leaks private infrastructure and invalidates reuse | Run the Public validator before staging |
@@ -847,19 +868,19 @@ The customer-facing contract is intentionally kept here rather than split across
 
 Secrets must use the provider environment-variable contract. For `hosted_vllm`, use `HOSTED_VLLM_API_KEY`; never put a real key in YAML or a `-c key=value` process argument.
 
-### BP1. Pin Source, Not Just Version Labels
+### 5.1 Pin Source, Not Just Version Labels
 
 Package versions can hide source drift. Record the exact mini-swe-agent tag and SWE-bench commit. For scoring-sensitive fixes, install or mount the intended checkout and verify the imported file path.
 
-### BP2. Start With a Scored Canary
+### 5.2 Start With a Scored Canary
 
 The canary must complete both planes. A generated patch without an official report is only half a validation.
 
-### BP3. Keep Retry Semantics Explicit
+### 5.3 Keep Retry Semantics Explicit
 
 Retry infrastructure failures only. Model and test failures are benchmark outcomes, not operational incidents.
 
-### BP4. Freeze Bidirectional Disputes
+### 5.4 Freeze Bidirectional Disputes
 
 Never retest only the direction that can improve your score. Freeze both directions once:
 
@@ -875,7 +896,9 @@ python scripts/build_dispute_manifest.py \
 
 The generated summary reports both accuracies, resolved-case delta, percentage-point delta, and both disagreement directions. Use labels such as `base-model` / `fine-tuned-model` for a fine-tuning comparison.
 
-### BP5. Never Dynamically Shrink a Retest Set
+The dispute builder refuses to overwrite an existing manifest or summary. A frozen set therefore requires a new output path rather than an in-place rebuild.
+
+### 5.5 Never Dynamically Shrink a Retest Set
 
 Cases that happen to agree in an intermediate round must not be retained while only remaining disagreements receive extra attempts. That is optional stopping and creates a hidden best-of score.
 
@@ -892,25 +915,25 @@ python scripts/finalize_frozen_disputes.py \
   --output-dir runs/differential/final
 ```
 
-### BP6. Separate Effect From Mechanism
+### 5.6 Separate Effect From Mechanism
 
 A score change proves an observed effect under the recorded run. It does not by itself prove which kernel, prompt, scheduler, or dependency caused the change.
 
 For migration, change only the endpoint mode while retaining the same model revision. For fine-tuning, keep the platform fixed and change only the base versus fine-tuned deployment. If both model and platform change, label the result as a combined model-selection comparison.
 
-### BP7. Count Progress From Artifacts
+### 5.7 Count Progress From Artifacts
 
 Use growing predictions, trajectories, reports, test output, and logs. A live PID, active service, or healthy endpoint alone is not workload progress.
 
-### BP8. Seal Only Quiescent Files
+### 5.8 Seal Only Quiescent Files
 
 Create SHA manifests after writers stop. Never hash a log that is still growing.
 
-### BP9. Preserve Phase Lineage
+### 5.9 Preserve Phase Lineage
 
 Do not overwrite full-run files with canary or retest output. Link phases through source hashes and explicit run IDs.
 
-### BP10. Publish Placeholders, Not Infrastructure
+### 5.10 Publish Placeholders, Not Infrastructure
 
 Public examples use loopback endpoints, public model IDs, and synthetic fixtures. Private endpoints, VM identities, credentials, local paths, and customer artifacts do not belong in a public Repo.
 
@@ -1071,6 +1094,9 @@ Current deterministic coverage includes:
 - Full frozen-set replacement.
 - Missing-case rejection.
 - Overlapping-shard rejection.
+- Public evidence claim-boundary checks for one-case canaries and pending Managed Compute.
+- Byte-for-byte workflow diagram regeneration with `generate_workflow_diagram.py`.
+- Dependency consistency and known-vulnerability audit for `requirements-lock.txt`.
 - Python and Shell syntax.
 - Public-boundary and bilingual documentation checks.
 

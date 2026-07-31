@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import argparse
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
@@ -14,14 +15,66 @@ def font(size: int, bold: bool = False):
     return ImageFont.truetype(FONT_BOLD if bold else FONT, size)
 
 
+def wrap_text(draw, text, text_font, max_width):
+    words = text.split()
+    lines = []
+    current = ""
+    for word in words:
+        candidate = f"{current} {word}".strip()
+        if draw.textbbox((0, 0), candidate, font=text_font)[2] <= max_width:
+            current = candidate
+        else:
+            if not current:
+                raise ValueError(f"Text token is wider than its container: {word}")
+            lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
+    return lines
+
+
+def draw_bounded_text(draw, position, text, text_font, fill, bounds):
+    x, y = position
+    left, top, right, bottom = draw.textbbox((x, y), text, font=text_font)
+    x1, y1, x2, y2 = bounds
+    if left < x1 or top < y1 or right > x2 or bottom > y2:
+        raise ValueError(
+            f"Text exceeds bounds: {text!r} bbox={(left, top, right, bottom)} "
+            f"bounds={bounds}"
+        )
+    draw.text(position, text, font=text_font, fill=fill)
+
+
 def box(draw, xy, title, lines, fill, border):
     draw.rounded_rectangle(xy, radius=8, fill=fill, outline=border, width=2)
-    x1, y1, _, _ = xy
-    draw.text((x1 + 18, y1 + 16), title, font=font(23, True), fill="#17202a")
-    y = y1 + 56
+    x1, y1, x2, y2 = xy
+    title_font = font(21, True)
+    title_lines = wrap_text(draw, title, title_font, x2 - x1 - 36)
+    if len(title_lines) > 2:
+        raise ValueError(f"Card title requires more than two lines: {title!r}")
+    title_y = y1 + 14
+    for title_line in title_lines:
+        draw_bounded_text(
+            draw,
+            (x1 + 18, title_y),
+            title_line,
+            title_font,
+            "#17202a",
+            (x1 + 16, y1 + 10, x2 - 16, y2 - 10),
+        )
+        title_y += 25
+    body_font = font(16)
+    y = title_y + 10
     for line in lines:
-        draw.text((x1 + 18, y), line, font=font(17), fill="#34495e")
-        y += 28
+        draw_bounded_text(
+            draw,
+            (x1 + 18, y),
+            line,
+            body_font,
+            "#34495e",
+            (x1 + 16, y1 + 10, x2 - 16, y2 - 10),
+        )
+        y += 24
 
 
 def arrow(draw, start, end, color="#5d6d7e"):
@@ -31,6 +84,16 @@ def arrow(draw, start, end, color="#5d6d7e"):
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Generate the SWE-bench workflow diagram.")
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=Path(__file__).resolve().parents[1]
+        / "images"
+        / "swebench_workflow.png",
+    )
+    args = parser.parse_args()
+
     image = Image.new("RGB", (WIDTH, HEIGHT), "#ffffff")
     draw = ImageDraw.Draw(image)
     draw.rectangle((0, 0, WIDTH, 94), fill="#17202a")
@@ -103,7 +166,7 @@ def main() -> None:
         fill="#34495e",
     )
 
-    output = Path(__file__).resolve().parents[1] / "images" / "swebench_workflow.png"
+    output = args.output.resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
     image.save(output, optimize=True)
     print(f"WORKFLOW_DIAGRAM=PASS path={output} size={image.size}")

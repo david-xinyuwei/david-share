@@ -1,0 +1,36 @@
+schema_version: 1
+verified_at_utc: "2026-07-31T07:19:21Z"
+scope:
+  purpose: managed_compute_data_plane_readiness_gate
+  accuracy_estimate: false
+  scored_canary_started: false
+  full_run_completed: false
+deployment:
+  deployment_type: GlobalManagedCompute
+  model_family: Qwen3-4B
+  endpoint_redacted: true
+  deployment_name_redacted: true
+  credential_redacted: true
+control_plane:
+  provisioning_state: Succeeded
+data_plane:
+  client_contract: portal_published_openai_v1
+  models_list:
+    state: PASS
+  chat_completion:
+    state: FAIL
+    http_status: 500
+    error_message: Model service is unavailable
+execution_boundary:
+  model_inference: unavailable
+  agent_generation: not_started
+  official_evaluation: not_started
+classification:
+  state: PENDING
+  verification: NOT_VERIFIED
+  reason: data_plane_model_serving_unavailable
+public_evidence:
+  source_terminal_output_retained_privately: true
+  resource_identifiers_omitted: true
+  request_identifiers_omitted: true
+  credentials_omitted: true

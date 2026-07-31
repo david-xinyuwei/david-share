@@ -7,6 +7,12 @@ set -euo pipefail
 
 test -f "$PREDICTIONS_PATH"
 PREDICTIONS_PATH="$(realpath "$PREDICTIONS_PATH")"
+if test -e "$REPORT_DIR"; then
+  if ! test -d "$REPORT_DIR" || test -n "$(find "$REPORT_DIR" -mindepth 1 -maxdepth 1 -print -quit)"; then
+    echo "REPORT_DIR must be empty: $REPORT_DIR" >&2
+    exit 2
+  fi
+fi
 mkdir -p "$REPORT_DIR"
 REPORT_DIR="$(realpath "$REPORT_DIR")"
 

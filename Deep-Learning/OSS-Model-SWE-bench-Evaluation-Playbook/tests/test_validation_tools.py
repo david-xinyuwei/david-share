@@ -9,6 +9,8 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+import yaml
+
 from scripts.preflight_provider import count_valid_ping_calls, request_candidates
 from scripts.provider_compat import remove_provider_specific_fields
 from scripts.swebench_outcomes import validate_scored_canary_counts
@@ -160,6 +162,34 @@ class ValidationToolTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("coverage 1 != expected 2", result.stderr)
 
+    def test_report_merge_refuses_existing_output(self) -> None:
+        report = self.root / "report.json"
+        report.write_text(
+            json.dumps(
+                {
+                    "resolved_ids": ["a"],
+                    "unresolved_ids": [],
+                    "empty_patch_ids": [],
+                    "error_ids": [],
+                }
+            )
+        )
+        output = self.root / "merged.json"
+        output.write_text('{"existing": true}\n')
+        result = self.run_script(
+            "merge_official_reports.py",
+            "--report",
+            str(report),
+            "--expected-count",
+            "1",
+            "--output",
+            str(output),
+            expect_success=False,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Refusing to overwrite", result.stderr)
+        self.assertEqual(json.loads(output.read_text()), {"existing": True})
+
     def test_scored_canary_rejects_infrastructure_error(self) -> None:
         with self.assertRaisesRegex(ValueError, "infrastructure error"):
             validate_scored_canary_counts(
@@ -170,6 +200,10 @@ class ValidationToolTests(unittest.TestCase):
                     "error_instances": 1,
                 }
             )
+
+    def test_scored_canary_requires_all_outcome_fields(self) -> None:
+        with self.assertRaisesRegex(ValueError, "missing required field"):
+            validate_scored_canary_counts({"resolved_instances": 1})
 
     def test_time_exceeded_is_a_valid_agent_limit(self) -> None:
         run = self.make_generation(ids=("a",))
@@ -198,6 +232,118 @@ class ValidationToolTests(unittest.TestCase):
         )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("No files found", result.stderr)
+
+    def test_hash_assets_refuses_existing_manifest(self) -> None:
+        assets = self.root / "assets"
+        assets.mkdir()
+        (assets / "evidence.json").write_text("{}\n")
+        manifest = assets / "SHA256SUMS.txt"
+        manifest.write_text("existing manifest\n")
+        result = self.run_script(
+            "hash_assets.py",
+            str(assets),
+            "--output",
+            str(manifest),
+            expect_success=False,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Refusing to overwrite", result.stderr)
+        self.assertEqual(manifest.read_text(), "existing manifest\n")
+
+    def test_workflow_diagram_matches_generator(self) -> None:
+        output = self.root / "workflow.png"
+        self.run_script(
+            "generate_workflow_diagram.py",
+            "--output",
+            str(output),
+        )
+        self.assertEqual(
+            output.read_bytes(),
+            (ROOT / "images" / "swebench_workflow.png").read_bytes(),
+        )
+
+    def test_public_evidence_preserves_claim_boundaries(self) -> None:
+        examples = ROOT / "examples"
+        for name in (
+            "live-foundry-direct-deepseek-v4-flash-scored-canary.yaml",
+            "live-foundry-fw-glm51-scored-canary.yaml",
+        ):
+            payload = yaml.safe_load((examples / name).read_text())
+            self.assertFalse(payload["scope"]["accuracy_estimate"])
+            self.assertFalse(payload["scope"]["full_run_completed"])
+            self.assertEqual(payload["scope"]["sample_size"], 1)
+
+        managed = yaml.safe_load(
+            (examples / "live-foundry-managed-compute-pending.yaml").read_text()
+        )
+        self.assertFalse(managed["scope"]["accuracy_estimate"])
+        self.assertFalse(managed["scope"]["scored_canary_started"])
+        self.assertFalse(managed["scope"]["full_run_completed"])
+        self.assertEqual(managed["data_plane"]["models_list"]["state"], "PASS")
+        self.assertEqual(managed["data_plane"]["chat_completion"]["http_status"], 500)
+        self.assertEqual(managed["classification"]["verification"], "NOT_VERIFIED")
+
+    def test_generation_refuses_nonempty_output_dir(self) -> None:
+        fake_bin = self.root / "generation-fake-bin"
+        fake_bin.mkdir()
+        fake_docker = fake_bin / "docker"
+        fake_docker.write_text("#!/bin/bash\nexit 0\n")
+        fake_docker.chmod(0o755)
+        output = self.root / "existing-generation"
+        output.mkdir()
+        (output / "existing.json").write_text("{}\n")
+        env = os.environ.copy()
+        env.update(
+            {
+                "PATH": f"{fake_bin}:{env['PATH']}",
+                "OUTPUT_DIR": str(output),
+                "MODEL_NAME": "local-model",
+                "MODEL_API_BASE": "http://127.0.0.1:8000/v1",
+                "MODEL_API_KEY": "EMPTY",
+                "PYTHON_EXECUTABLE": "/bin/false",
+            }
+        )
+        result = subprocess.run(
+            ["bash", str(SCRIPTS / "run_generation.sh")],
+            cwd=ROOT,
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("OUTPUT_DIR must be empty", result.stderr)
+
+    def test_official_harness_refuses_nonempty_report_dir(self) -> None:
+        fake_bin = self.root / "harness-fake-bin"
+        fake_bin.mkdir()
+        fake_python = fake_bin / "python"
+        fake_python.write_text("#!/bin/bash\nexit 0\n")
+        fake_python.chmod(0o755)
+        predictions = self.root / "preds.json"
+        predictions.write_text("{}\n")
+        report_dir = self.root / "existing-report"
+        report_dir.mkdir()
+        (report_dir / "existing.json").write_text("{}\n")
+        env = os.environ.copy()
+        env.update(
+            {
+                "PATH": f"{fake_bin}:{env['PATH']}",
+                "PREDICTIONS_PATH": str(predictions),
+                "RUN_ID": "test-run",
+                "REPORT_DIR": str(report_dir),
+            }
+        )
+        result = subprocess.run(
+            ["bash", str(SCRIPTS / "run_official_harness.sh")],
+            cwd=ROOT,
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("REPORT_DIR must be empty", result.stderr)
 
     def run_generation_mode(self, mode: str, model_name: str, **environment: str):
         fake_bin = self.root / f"fake-{mode}"
@@ -369,6 +515,7 @@ class ValidationToolTests(unittest.TestCase):
         model: str,
         expected_path: str,
         key_env: str,
+        response_status: int = 200,
         **extra_environment: str,
     ):
         captured = {}
@@ -380,24 +527,28 @@ class ValidationToolTests(unittest.TestCase):
                 captured["api_key"] = self.headers.get("api-key")
                 length = int(self.headers.get("Content-Length", "0"))
                 captured["body"] = json.loads(self.rfile.read(length))
-                payload = {
-                    "choices": [
-                        {
-                            "finish_reason": "tool_calls",
-                            "message": {
-                                "tool_calls": [
-                                    {
-                                        "id": "call-1",
-                                        "type": "function",
-                                        "function": {"name": "ping", "arguments": '{"value":"ok"}'},
-                                    }
-                                ]
-                            },
-                        }
-                    ]
-                }
+                payload = (
+                    {
+                        "choices": [
+                            {
+                                "finish_reason": "tool_calls",
+                                "message": {
+                                    "tool_calls": [
+                                        {
+                                            "id": "call-1",
+                                            "type": "function",
+                                            "function": {"name": "ping", "arguments": '{"value":"ok"}'},
+                                        }
+                                    ]
+                                },
+                            }
+                        ]
+                    }
+                    if response_status == 200
+                    else {"error": {"message": "provider unavailable"}}
+                )
                 data = json.dumps(payload).encode()
-                self.send_response(200)
+                self.send_response(response_status)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Content-Length", str(len(data)))
                 self.send_header("x-request-id", "request-1")
@@ -439,7 +590,12 @@ class ValidationToolTests(unittest.TestCase):
             server.shutdown()
             thread.join()
             server.server_close()
-        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+        expected_returncode = 0 if response_status == 200 else 3
+        self.assertEqual(
+            result.returncode,
+            expected_returncode,
+            result.stderr or result.stdout,
+        )
         self.assertNotIn("probe-secret", result.stdout)
         self.assertEqual(captured["path"], expected_path)
         self.assertEqual(captured["body"]["model"], model.split("/", 1)[-1] if mode != "fireworks" else model.removeprefix("fireworks_ai/"))
@@ -452,6 +608,7 @@ class ValidationToolTests(unittest.TestCase):
         self.assertEqual(captured["authorization"], "Bearer probe-secret")
         self.assertEqual(result["tool_calls"], 1)
         self.assertEqual(result["valid_ping_calls"], 1)
+        self.assertEqual(result["request_id"], "request-1")
 
     def test_preflight_rejects_malformed_or_wrong_tool_calls(self) -> None:
         self.assertEqual(
@@ -468,6 +625,25 @@ class ValidationToolTests(unittest.TestCase):
                 ]
             ),
             0,
+        )
+
+    def test_preflight_error_preserves_request_id(self) -> None:
+        _, result = self.run_preflight(
+            "openai_compatible",
+            "hosted_vllm/local-model",
+            "/v1/chat/completions",
+            "MODEL_API_KEY",
+            response_status=500,
+        )
+        self.assertEqual(
+            result["attempts"],
+            [
+                {
+                    "route": "openai-compatible",
+                    "http_status": 500,
+                    "request_id": "request-1",
+                }
+            ],
         )
 
     def test_preflight_azure_foundry_contract(self) -> None:

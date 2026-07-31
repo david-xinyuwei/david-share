@@ -74,6 +74,23 @@ class FrozenDisputeTests(unittest.TestCase):
         self.assertEqual(summary["accuracy_comparison"]["candidate_resolved"], 2)
         self.assertEqual(summary["accuracy_comparison"]["delta_percentage_points"], -20.0)
 
+    def test_frozen_manifest_refuses_overwrite(self) -> None:
+        self.build_manifest()
+        result = self.run_script(
+            "build_dispute_manifest.py",
+            "--reference-report",
+            str(self.reference),
+            "--candidate-report",
+            str(self.baseline),
+            "--expected-count",
+            "5",
+            "--output",
+            str(self.manifest),
+            expect_success=False,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Refusing to overwrite", result.stderr)
+
     def test_full_frozen_set_is_replaced_once(self) -> None:
         self.build_manifest()
         retest = self.root / "retest.json"

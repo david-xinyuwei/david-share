@@ -35,6 +35,7 @@ REQUIRED = {
     "examples/parity-candidate.toml",
     "examples/live-foundry-direct-deepseek-v4-flash-scored-canary.yaml",
     "examples/live-foundry-fw-glm51-scored-canary.yaml",
+    "examples/live-foundry-managed-compute-pending.yaml",
 }
 
 FORBIDDEN = {
@@ -216,6 +217,7 @@ def main() -> None:
 
     requirements = (root / "requirements.txt").read_text()
     requirements_lock = (root / "requirements-lock.txt").read_text()
+    diagram_requirements = (root / "requirements-diagrams.txt").read_text()
     setup_script = (root / "scripts" / "setup_environment.sh").read_text()
     generation_script = (root / "scripts" / "run_generation.sh").read_text()
     model_config = (root / "configs" / "oss-model.yaml").read_text()
@@ -223,6 +225,10 @@ def main() -> None:
         raise SystemExit("mini-swe-agent is not pinned to v2.4.6")
     if "mini-swe-agent==2.4.6" not in requirements_lock:
         raise SystemExit("Dependency lock does not contain mini-swe-agent v2.4.6")
+    if "Pillow==12.3.0" not in diagram_requirements:
+        raise SystemExit("Diagram requirements do not pin Pillow 12.3.0")
+    if "pillow==12.3.0" not in requirements_lock.lower():
+        raise SystemExit("Dependency lock does not contain Pillow 12.3.0")
     if re.search(r"(?:^|\n)(?:-e\s+)?(?:git\+|.*swebench\s*@)", requirements_lock):
         raise SystemExit("Dependency lock must not install SWE-bench as a VCS wheel")
     if "f7bbbb2ccdf479001d6467c9e34af59e44a840f9" not in setup_script:
@@ -246,7 +252,7 @@ def main() -> None:
         if marker not in readme or marker not in readme_cn:
             raise SystemExit(f"Missing parity framework marker: {marker}")
     deployment_playbooks = (
-        ("Three Deployment Test Playbooks", "三条部署路径的测试手册"),
+        ("Four Deployment Paths and Test Contracts", "四条部署路径与测试合同"),
         ("How to Test Azure GPU VM", "如何测试 Azure GPU VM"),
         ("How to Test Foundry Serverless API", "如何测试 Foundry Serverless API"),
         ("How to Test Fireworks", "如何测试 Fireworks"),
@@ -258,10 +264,10 @@ def main() -> None:
                 f"Missing deployment test playbook: {marker_en} / {marker_cn}"
             )
     operational_markers = (
-        ("P/D Disaggregation or Independent Endpoints", "P/D分离还是双独立Endpoint"),
+        ("P/D Disaggregation or Independent Endpoints", "P/D分离还是两个独立Endpoint"),
         ("Agent Version and Sampling", "Agent版本和Sampling"),
         ("shard_instance_manifest.py", "shard_instance_manifest.py"),
-        ("Managed Compute API Contract (Specification Only)", "Managed Compute API合同（仅规范，不执行）"),
+        ("Managed Compute API Contract (Specification Only)", "Managed Compute接口规范（仅定义，不执行）"),
     )
     for marker_en, marker_cn in operational_markers:
         if marker_en not in readme or marker_cn not in readme_cn:

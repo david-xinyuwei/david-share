@@ -13,6 +13,8 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 
+    if args.output.exists():
+        raise SystemExit(f"Refusing to overwrite merged report: {args.output}")
     merged = {}
     hashes = {}
     for path in args.report:

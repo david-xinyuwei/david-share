@@ -122,6 +122,9 @@ def main() -> None:
                 choice = (payload.get("choices") or [{}])[0]
                 tool_calls = (choice.get("message") or {}).get("tool_calls") or []
                 valid_ping_calls = count_valid_ping_calls(tool_calls)
+                request_id = response.headers.get("x-request-id") or response.headers.get(
+                    "apim-request-id"
+                )
                 result = {
                     "state": "PASS" if valid_ping_calls else "FAIL",
                     "mode": args.mode,
@@ -130,15 +133,22 @@ def main() -> None:
                     "tool_calls": len(tool_calls),
                     "valid_ping_calls": valid_ping_calls,
                     "finish_reason": choice.get("finish_reason"),
-                    "request_id_present": bool(
-                        response.headers.get("x-request-id")
-                        or response.headers.get("apim-request-id")
-                    ),
+                    "request_id": request_id,
+                    "request_id_present": bool(request_id),
                 }
                 print(json.dumps(result, sort_keys=True))
                 raise SystemExit(0 if valid_ping_calls else 4)
         except urllib.error.HTTPError as error:
-            attempts.append({"route": route, "http_status": error.code})
+            request_id = error.headers.get("x-request-id") or error.headers.get(
+                "apim-request-id"
+            )
+            attempts.append(
+                {
+                    "route": route,
+                    "http_status": error.code,
+                    "request_id": request_id,
+                }
+            )
             print(
                 json.dumps(
                     {

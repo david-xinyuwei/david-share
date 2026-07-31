@@ -59,6 +59,7 @@ numpy==2.5.1
 openai==2.51.0
 packaging==26.2
 pandas==3.0.5
+pillow==12.3.0
 platformdirs==4.11.0
 pre_commit==4.6.1
 prompt_toolkit==3.0.53
