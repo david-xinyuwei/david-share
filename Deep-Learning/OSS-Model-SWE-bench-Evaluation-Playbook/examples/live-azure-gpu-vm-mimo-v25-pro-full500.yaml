@@ -1,0 +1,73 @@
+schema_version: 1
+verified_at_utc: "2026-08-01T04:54:29Z"
+scope:
+  purpose: official_swebench_evaluation_of_frozen_predictions
+  model: MiMo-V2.5-Pro
+  dataset: princeton-nlp/SWE-Bench_Verified
+  submitted_instances: 500
+  generation_rerun_for_this_result: false
+  accuracy_claim: resolved_rate_over_submitted_instances
+input:
+  prediction_count: 500
+  predictions_sha256: 48aa186dd03a936ac7ea3ac27b6c5f86dec38c69d506b44f7d3854935a17efda
+  source_bundle_sha256: e407e13f51310276ae35c494671d350f026ad0b30e8b10170040ff6640fc4ee0
+method:
+  harness: SWE-bench
+  package_version: 4.1.0
+  source_commit: f7bbbb2ccdf479001d6467c9e34af59e44a840f9
+  dataset_name: princeton-nlp/SWE-Bench_Verified
+  split: test
+  timeout_seconds: 1800
+  recovery_cache_level: instance
+  clean: false
+result:
+  total_instances: 500
+  completed_instances: 472
+  resolved_instances: 360
+  unresolved_instances: 112
+  empty_patch_instances: 27
+  error_instances: 1
+  resolved_rate_percent: 72.00
+  arithmetic_checks:
+    completed: "360 + 112 = 472"
+    submitted: "472 + 27 + 1 = 500"
+error_boundary:
+  instance_id: sympy__sympy-19040
+  classification: harness_timeout
+  timeout_seconds: 1800
+source_artifact_sha256:
+  official_aggregate: 9692a56e3b683ab6330d5d7aeae3f442087e0bed2e91b8c49e6f798a61a079a0
+  official_resume_log: 030e6419bb5810be758e9a787aa18533197a4294942d98366c772de80ae7641e
+reproduction:
+  shell: bash
+  paths_redacted: true
+  cli: |
+    RUN_ID="amd-mimo-official-full-20260801T015414Z"
+    PREDICTIONS="/path/to/frozen-preds.json"
+    REPORT_DIR="runs/$RUN_ID/official-eval"
+    mkdir -p "$REPORT_DIR"
+    cd "$REPORT_DIR"
+    python -m swebench.harness.run_evaluation \
+      --dataset_name princeton-nlp/SWE-Bench_Verified \
+      --split test \
+      --predictions_path "$PREDICTIONS" \
+      --max_workers 2 \
+      --run_id "$RUN_ID" \
+      --timeout 1800 \
+      --namespace swebench \
+      --cache_level instance \
+      --clean false
+  observed_log:
+    - "initial infrastructure failure: dockerhub_429=248 image_pull_failure=2"
+    - "recovery: same predictions and run_id; completed reports were preserved"
+    - "final: resolved=360 unresolved=112 empty=27 errors=1 submitted=500"
+    - "error: sympy__sympy-19040 timed out after 1800 seconds"
+claim_boundary:
+  official_evaluation_stage: VERIFIED
+  end_to_end_generation_reproduction: NOT_CLAIMED
+  completed_only_rate_is_headline: false
+public_safety:
+  endpoint_omitted: true
+  credentials_omitted: true
+  customer_identifiers_omitted: true
+  raw_private_artifacts_omitted: true

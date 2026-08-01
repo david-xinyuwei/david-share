@@ -1,5 +1,5 @@
 schema_version: 1
-verified_at_utc: "2026-07-31T05:19:26Z"
+verified_at_utc: "2026-08-01T15:22:39Z"
 scope:
   purpose: provider_agent_and_official_harness_compatibility_gate
   sample_size: 1
@@ -34,20 +34,37 @@ official_evaluation:
   empty_patch_instances: 0
   error_instances: 0
   unstopped_containers: 0
-  unremoved_images: 0
-  elapsed_seconds: 19.13
+  unremoved_images: 251
+  elapsed_seconds: 24.44
 runtime:
   mini_swe_agent_version: 2.4.6
   swebench_version: 4.1.0
   swebench_source_commit: f7bbbb2ccdf479001d6467c9e34af59e44a840f9
-  docker_version: 27.5.1
+  docker_version: 29.1.3
 cleanup:
   driver_container_present_after_run: false
   credential_file_present_after_run: false
 source_artifact_sha256:
-  provider_preflight: a642ff8605457b265d62b12897352d236b781580fe231b0bcd5069a6285c41d5
-  provider_contract: 6df8268d2236a4d394bde2bd1944cca62b824e8388ce173145c4f34163c1e933
+  provider_preflight: ed3daee1a03a8792ffe657fd64f95e4d3593ffa7b8b0495361792a97ca723de3
+  provider_contract: 05854a35ea0886f87b8e741f09ba8ec4e67fc45b122f9ad47e9a4fc3af10b802
   generation_summary: 20b8314c06153777471ac2ddcc358c6323213064a7b3550b659fd6dff5f77c96
-  predictions: 5775be1d7c8a4f421ee169297e4edf40a1a04901487901ec2a706c02aebbe19c
-  trajectory: 46e7957bd615932818bf0acdd2c6af50b1e1fe1e017adc5f1cd3a0fed529c457
+  predictions: 550cd8d6ff5a8d3c8d4a86c62cae06900d21b9d41b102a3049c3ec977e7ce385
+  trajectory: 687d9dfa41984f2f15dcdbff434b472399dbf3bbed7b9a92283a76a4b5fecd3a
   official_aggregate: 8bcf5b7b15d01fda8437a76deab96b6ff983dea901cedebe9f6b2e5838cf31f4
+  generation_log: 620db72cd71649364c58a10b87104761a832033d92b90b4a23387f485380c191
+  official_log: 9cc16b30e9ba4a975f1e42ac19f61a1f0ca813d8858446b6d47c03bb9400022a
+reproduction:
+  shell: bash
+  cli: |
+    export ENDPOINT_MODE="azure_foundry"
+    export MODEL_API_BASE="https://<resource-name>.services.ai.azure.com"
+    export MODEL_NAME="<fireworks-deployment-name>"
+    export MODEL_API_KEY="<credential>"
+    export RUN_LABEL="foundry-fireworks-canary"
+    export OUTPUT_ROOT="runs/foundry-fireworks-canary"
+    bash scripts/run_scored_canary.sh
+  observed_log:
+    - "provider-preflight: PASS http_status=200 tool_calls=1"
+    - "generation: PASS predictions=1 nonempty_patches=1"
+    - "official-harness: resolved=1 unresolved=0 empty=0 errors=0"
+    - "SCORED_CANARY=PASS resolved=1 unresolved=0 empty=0 errors=0"

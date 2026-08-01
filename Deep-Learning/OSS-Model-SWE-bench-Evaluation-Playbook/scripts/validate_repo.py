@@ -13,8 +13,12 @@ REQUIRED = {
     "requirements.txt",
     "requirements-lock.txt",
     "configs/oss-model.yaml",
+    "images/mimo_swebench_result.png",
     "images/swebench_workflow.png",
+    "images/swebench_roles.png",
+    "scripts/generate_mimo_result_diagram.py",
     "scripts/run_generation.sh",
+    "scripts/generate_roles_diagram.py",
     "scripts/preflight_provider.py",
     "scripts/run_scored_canary.sh",
     "scripts/provider_compat.py",
@@ -33,8 +37,10 @@ REQUIRED = {
     "examples/instance-manifest.tsv",
     "examples/parity-reference.toml",
     "examples/parity-candidate.toml",
+    "examples/live-azure-gpu-vm-mimo-v25-pro-full500.yaml",
     "examples/live-foundry-direct-deepseek-v4-flash-scored-canary.yaml",
     "examples/live-foundry-fw-glm51-scored-canary.yaml",
+    "examples/live-foundry-managed-compute-scored-canary.yaml",
     "examples/live-foundry-managed-compute-pending.yaml",
 }
 
@@ -214,6 +220,12 @@ def main() -> None:
     width, height = png_size(root / "images" / "swebench_workflow.png")
     if (width, height) != (1280, 720):
         raise SystemExit(f"Unexpected workflow image size: {width}x{height}")
+    roles_size = png_size(root / "images" / "swebench_roles.png")
+    if roles_size != (1280, 720):
+        raise SystemExit(f"Unexpected roles image size: {roles_size[0]}x{roles_size[1]}")
+    result_size = png_size(root / "images" / "mimo_swebench_result.png")
+    if result_size != (1280, 720):
+        raise SystemExit(f"Unexpected result image size: {result_size[0]}x{result_size[1]}")
 
     requirements = (root / "requirements.txt").read_text()
     requirements_lock = (root / "requirements-lock.txt").read_text()
@@ -251,46 +263,20 @@ def main() -> None:
     ):
         if marker not in readme or marker not in readme_cn:
             raise SystemExit(f"Missing parity framework marker: {marker}")
-    deployment_playbooks = (
-        ("Four Deployment Paths and Test Contracts", "四条部署路径与测试合同"),
-        ("How to Test Azure GPU VM", "如何测试 Azure GPU VM"),
-        ("How to Test Foundry Serverless API", "如何测试 Foundry Serverless API"),
-        ("How to Test Fireworks", "如何测试 Fireworks"),
-        ("Pending: Managed Compute", "待验证：Managed Compute"),
+    concise_workflow_markers = (
+        "python -m swebench.harness.run_evaluation",
+        "scripts/run_generation.sh",
+        "scripts/run_scored_canary.sh",
+        "scripts/validate_predictions.py",
+        "scripts/audit_effective_configs.py",
+        "scripts/shard_instance_manifest.py",
+        "Docker Hub",
+        "SHA256SUMS.txt",
+        "AI Foundry / Fireworks",
     )
-    for marker_en, marker_cn in deployment_playbooks:
-        if marker_en not in readme or marker_cn not in readme_cn:
-            raise SystemExit(
-                f"Missing deployment test playbook: {marker_en} / {marker_cn}"
-            )
-    operational_markers = (
-        ("P/D Disaggregation or Independent Endpoints", "P/D分离还是两个独立Endpoint"),
-        ("Agent Version and Sampling", "Agent版本和Sampling"),
-        ("shard_instance_manifest.py", "shard_instance_manifest.py"),
-        ("Managed Compute API Contract (Specification Only)", "Managed Compute接口规范（仅定义，不执行）"),
-    )
-    for marker_en, marker_cn in operational_markers:
-        if marker_en not in readme or marker_cn not in readme_cn:
-            raise SystemExit(
-                f"Missing operational best-practice marker: {marker_en} / {marker_cn}"
-            )
-    managed_compute_contract_markers = (
-        "FOUNDRY_ACCOUNT_NAME",
-        "FOUNDRY_DEPLOYMENT_NAME",
-        "FOUNDRY_PROJECT_ENDPOINT",
-        "FOUNDRY_TOKEN_SCOPE",
-        "FOUNDRY_API_KEY",
-        "create_entra_client",
-        "create_api_key_client",
-        "create_project_client",
-        "create_tool_probe",
-        "/managed-deployments/<deployment-name>/v1",
-        "DeploymentNotFound",
-        "Model service is unavailable",
-    )
-    for marker in managed_compute_contract_markers:
+    for marker in concise_workflow_markers:
         if marker not in readme or marker not in readme_cn:
-            raise SystemExit(f"Missing Managed Compute API contract marker: {marker}")
+            raise SystemExit(f"Missing concise workflow marker: {marker}")
     if re.search(r"AMD|MI300|Xiaomi|小米", generation_script + model_config, re.I):
         raise SystemExit("Runtime code must not be coupled to the validation hardware or customer")
 

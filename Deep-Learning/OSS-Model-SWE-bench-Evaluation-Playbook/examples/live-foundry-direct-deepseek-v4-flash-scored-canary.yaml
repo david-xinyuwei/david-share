@@ -1,5 +1,5 @@
 schema_version: 1
-verified_at_utc: "2026-07-31T08:29:01Z"
+verified_at_utc: "2026-08-01T14:03:03Z"
 scope:
   purpose: direct_foundry_serverless_agent_and_official_harness_compatibility_gate
   sample_size: 1
@@ -37,14 +37,13 @@ official_evaluation:
   empty_patch_instances: 0
   error_instances: 0
   unstopped_containers: 0
-  unremoved_images: 0
-  elapsed_seconds: 20.30
+  unremoved_images: 251
+  elapsed_seconds: 24.00
 runtime:
   mini_swe_agent_version: 2.4.6
   swebench_version: 4.1.0
   swebench_source_commit: f7bbbb2ccdf479001d6467c9e34af59e44a840f9
-  docker_version: 27.5.1-1
-  evaluation_driver_image_sha256: 10c1cd38e6f9b9d8109f8bbc296133c88406b7bb4eba39d1dd14b156f95bcd57
+  docker_version: 29.1.3
 execution_boundary:
   model_inference: microsoft_foundry_serverless
   agent_and_official_scorer: external_x86_64_docker_host
@@ -53,11 +52,26 @@ cleanup:
   evaluation_container_present_after_run: false
   credential_file_present_after_run: false
 source_artifact_sha256:
-  provider_preflight: a642ff8605457b265d62b12897352d236b781580fe231b0bcd5069a6285c41d5
-  provider_contract: 00cb6935bb004c0d98a700a84afb5540320fef57d60bd98c7ce8f3055b72705a
+  provider_preflight: 56087ae25f84b3c313761a5ab76a1aabbafc1b3d88b59b590e26a7ccbc03b005
+  provider_contract: ddfe0a1c5db1dd4382a1dd50d8a0e8bf3ae720b6aa4e67c3e3986cafe052888c
   generation_summary: 20b8314c06153777471ac2ddcc358c6323213064a7b3550b659fd6dff5f77c96
-  predictions: bbf06acd0cfa7f8a29150a4ed06e29b769b0bf629883e3c31c20c24027b64479
-  trajectory: a692e99f7f86d78ebd82196076e46ee8e217e935e4fcc7eeb37f25603f18a7f6
+  predictions: d49729f1ea422179d47d2ce6df96a468a896094bc951a16c5578c8e51fea78a1
+  trajectory: d4f5260d4731c2240d19d02493e46e571498b729ab08bd37d8c6664e25fae1a3
   official_aggregate: 8bcf5b7b15d01fda8437a76deab96b6ff983dea901cedebe9f6b2e5838cf31f4
-  generation_log: 48245610632f375a2215984321a08de47c2fd57f6c1e4d7106e90603854c3650
-  official_log: d2ecdbdfe688befedbd6ccb1c1eb483fab783ca5ae5ad5dd6d4081d3e371307f
+  generation_log: 725376d116029c4b8a24bd85d17a5e5658c598c1cb01b9a6b47a6faba86a3579
+  official_log: cecdfa593048c06a1330cd1797798ddee394d25af2dd14cecbf38929c44bc391
+reproduction:
+  shell: bash
+  cli: |
+    export ENDPOINT_MODE="azure_foundry"
+    export MODEL_API_BASE="https://<resource-name>.services.ai.azure.com"
+    export MODEL_NAME="DeepSeek-V4-Flash"
+    export MODEL_API_KEY="<credential>"
+    export RUN_LABEL="foundry-serverless-canary"
+    export OUTPUT_ROOT="runs/foundry-serverless-canary"
+    bash scripts/run_scored_canary.sh
+  observed_log:
+    - "provider-preflight: PASS http_status=200 tool_calls=1"
+    - "generation: PASS predictions=1 nonempty_patches=1"
+    - "official-harness: resolved=1 unresolved=0 empty=0 errors=0"
+    - "SCORED_CANARY=PASS resolved=1 unresolved=0 empty=0 errors=0"

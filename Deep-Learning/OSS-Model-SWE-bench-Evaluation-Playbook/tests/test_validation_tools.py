@@ -262,6 +262,78 @@ class ValidationToolTests(unittest.TestCase):
             (ROOT / "images" / "swebench_workflow.png").read_bytes(),
         )
 
+    def test_roles_diagram_matches_generator(self) -> None:
+        output = self.root / "roles.png"
+        self.run_script(
+            "generate_roles_diagram.py",
+            "--output",
+            str(output),
+        )
+        self.assertEqual(
+            output.read_bytes(),
+            (ROOT / "images" / "swebench_roles.png").read_bytes(),
+        )
+
+    def test_mimo_result_diagram_matches_generator(self) -> None:
+        output = self.root / "mimo-result.png"
+        self.run_script(
+            "generate_mimo_result_diagram.py",
+            "--output",
+            str(output),
+        )
+        self.assertEqual(
+            output.read_bytes(),
+            (ROOT / "images" / "mimo_swebench_result.png").read_bytes(),
+        )
+
+    def test_mimo_full_result_uses_submitted_denominator(self) -> None:
+        payload = yaml.safe_load(
+            (ROOT / "examples" / "live-azure-gpu-vm-mimo-v25-pro-full500.yaml").read_text()
+        )
+        result = payload["result"]
+        self.assertEqual(
+            result["resolved_instances"] + result["unresolved_instances"],
+            result["completed_instances"],
+        )
+        self.assertEqual(
+            result["completed_instances"]
+            + result["empty_patch_instances"]
+            + result["error_instances"],
+            result["total_instances"],
+        )
+        self.assertEqual(result["resolved_rate_percent"], 72.00)
+        self.assertFalse(payload["scope"]["generation_rerun_for_this_result"])
+
+    def test_readme_evidence_claims_match_sealed_yaml(self) -> None:
+        readme = (ROOT / "README.md").read_text()
+        readme_cn = (ROOT / "README-CN.md").read_text()
+        mimo = yaml.safe_load(
+            (ROOT / "examples" / "live-azure-gpu-vm-mimo-v25-pro-full500.yaml").read_text()
+        )["result"]
+        self.assertIn(
+            f"{mimo['resolved_instances']} Resolved / {mimo['total_instances']} submitted "
+            f"({mimo['resolved_rate_percent']:.2f}%), {mimo['empty_patch_instances']} Empty",
+            readme,
+        )
+        self.assertIn(
+            f"{mimo['resolved_instances']} Resolved / {mimo['total_instances']} submitted"
+            f"（{mimo['resolved_rate_percent']:.2f}%），{mimo['empty_patch_instances']}个Empty",
+            readme_cn,
+        )
+        managed = yaml.safe_load(
+            (ROOT / "examples" / "live-foundry-managed-compute-scored-canary.yaml").read_text()
+        )["official_evaluation"]
+        marker = (
+            f"{managed['resolved_instances']} Resolved / "
+            f"{managed['unresolved_instances']} Unresolved / "
+            f"{managed['empty_patch_instances']} Empty / "
+            f"{managed['error_instances']} Error"
+        )
+        self.assertIn(marker, readme)
+        self.assertIn(marker, readme_cn)
+        self.assertNotIn("or an enabled account key", readme)
+        self.assertNotIn("或已启用的account key", readme_cn)
+
     def test_public_evidence_preserves_claim_boundaries(self) -> None:
         examples = ROOT / "examples"
         for name in (
@@ -282,6 +354,26 @@ class ValidationToolTests(unittest.TestCase):
         self.assertEqual(managed["data_plane"]["models_list"]["state"], "PASS")
         self.assertEqual(managed["data_plane"]["chat_completion"]["http_status"], 500)
         self.assertEqual(managed["classification"]["verification"], "NOT_VERIFIED")
+        self.assertEqual(
+            managed["superseded_by"],
+            "live-foundry-managed-compute-scored-canary.yaml",
+        )
+
+        managed_verified = yaml.safe_load(
+            (examples / "live-foundry-managed-compute-scored-canary.yaml").read_text()
+        )
+        self.assertFalse(managed_verified["scope"]["accuracy_estimate"])
+        self.assertFalse(managed_verified["scope"]["full_run_completed"])
+        self.assertEqual(managed_verified["scope"]["instance_id"], "sympy__sympy-20590")
+        self.assertEqual(managed_verified["generation"]["agent_step_limit"], 40)
+        self.assertEqual(managed_verified["generation"]["nonempty_patches"], 1)
+        self.assertGreater(managed_verified["generation"]["patch_bytes"], 0)
+        self.assertEqual(managed_verified["official_evaluation"]["unresolved_instances"], 1)
+        self.assertEqual(managed_verified["official_evaluation"]["empty_patch_instances"], 0)
+        self.assertEqual(managed_verified["official_evaluation"]["error_instances"], 0)
+        self.assertEqual(managed_verified["claim_boundary"]["provider_data_plane"], "VERIFIED")
+        self.assertEqual(managed_verified["claim_boundary"]["nonempty_patch_generation"], "VERIFIED")
+        self.assertEqual(managed_verified["claim_boundary"]["model_accuracy"], "NOT_CLAIMED")
 
     def test_generation_refuses_nonempty_output_dir(self) -> None:
         fake_bin = self.root / "generation-fake-bin"
@@ -345,6 +437,40 @@ class ValidationToolTests(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn("REPORT_DIR must be empty", result.stderr)
 
+    def test_official_harness_uses_official_cli_defaults(self) -> None:
+        fake_bin = self.root / "harness-capture-bin"
+        fake_bin.mkdir()
+        captured_args = self.root / "harness-args.txt"
+        fake_python = fake_bin / "python"
+        fake_python.write_text("#!/bin/bash\nprintf '%s\\n' \"$@\" > \"$CAPTURE_FILE\"\n")
+        fake_python.chmod(0o755)
+        predictions = self.root / "preds.json"
+        predictions.write_text("{}\n")
+        report_dir = self.root / "report"
+        env = os.environ.copy()
+        env.update(
+            {
+                "PATH": f"{fake_bin}:{env['PATH']}",
+                "CAPTURE_FILE": str(captured_args),
+                "PREDICTIONS_PATH": str(predictions),
+                "RUN_ID": "test-run",
+                "REPORT_DIR": str(report_dir),
+            }
+        )
+        result = subprocess.run(
+            ["bash", str(SCRIPTS / "run_official_harness.sh")],
+            cwd=ROOT,
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        args = captured_args.read_text().splitlines()
+        self.assertEqual(args[:2], ["-m", "swebench.harness.run_evaluation"])
+        self.assertEqual(args[args.index("--clean") + 1], "false")
+        self.assertNotIn("--rewrite_reports", args)
+
     def run_generation_mode(self, mode: str, model_name: str, **environment: str):
         fake_bin = self.root / f"fake-{mode}"
         fake_bin.mkdir()
@@ -366,6 +492,18 @@ class ValidationToolTests(unittest.TestCase):
         fake_docker.chmod(0o755)
         output = self.root / f"output-{mode}"
         env = os.environ.copy()
+        for name in (
+            "AGENT_STEP_LIMIT",
+            "AZURE_AD_TOKEN",
+            "AZURE_API_KEY",
+            "AZURE_OPENAI_API_KEY",
+            "FIREWORKS_AI_API_BASE",
+            "FIREWORKS_AI_API_KEY",
+            "HOSTED_VLLM_API_KEY",
+            "MODEL_API_BASE",
+            "MODEL_API_KEY",
+        ):
+            env.pop(name, None)
         env.update(
             {
                 "PATH": f"{fake_bin}:{env['PATH']}",
@@ -430,6 +568,45 @@ class ValidationToolTests(unittest.TestCase):
         self.assertNotIn("HOSTED_VLLM_API_KEY=stale-token-probe", env)
         self.assertEqual(contract["evaluation_scenario"], "onprem_to_managed")
         self.assertEqual(contract["auth_env_name"], "HOSTED_VLLM_API_KEY")
+
+    def test_azure_foundry_accepts_entra_token_without_key(self) -> None:
+        output, capture = self.run_generation_mode(
+            "azure_foundry",
+            "managed-deployment",
+            MODEL_API_BASE=(
+                "https://example.services.ai.azure.com/managed-deployments/"
+                "managed-deployment/v1"
+            ),
+            MODEL_API_KEY="",
+            AZURE_API_KEY="",
+            AZURE_OPENAI_API_KEY="",
+            AZURE_AD_TOKEN="entra-token-probe",
+        )
+        args = (capture / "args.txt").read_text()
+        env = (capture / "env.txt").read_text()
+        contract = json.loads((output / "provider-contract.json").read_text())
+        self.assertNotIn("entra-token-probe", args)
+        self.assertIn("HOSTED_VLLM_API_KEY=entra-token-probe", env)
+        self.assertEqual(contract["auth_env_name"], "HOSTED_VLLM_API_KEY")
+
+    def test_azure_foundry_managed_compute_preserves_published_v1_route(self) -> None:
+        output, capture = self.run_generation_mode(
+            "azure_foundry",
+            "managed-deployment",
+            MODEL_API_BASE=(
+                "https://example.services.ai.azure.com/managed-deployments/"
+                "managed-deployment/v1"
+            ),
+            MODEL_API_KEY="azure-secret-probe",
+        )
+        args = (capture / "args.txt").read_text()
+        contract = json.loads((output / "provider-contract.json").read_text())
+        expected = (
+            "https://example.services.ai.azure.com/managed-deployments/"
+            "managed-deployment/v1"
+        )
+        self.assertIn(f"model.model_kwargs.api_base={expected}", args)
+        self.assertEqual(contract["api_base"], expected)
 
     def test_foundry_message_adapter_removes_only_transport_metadata(self) -> None:
         messages = [
@@ -509,6 +686,19 @@ class ValidationToolTests(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn("duplicate instance IDs", result.stderr)
 
+    def test_agent_step_limit_is_explicit_and_recorded(self) -> None:
+        output, capture = self.run_generation_mode(
+            "openai_compatible",
+            "local-model",
+            MODEL_API_BASE="http://127.0.0.1:8000/v1",
+            MODEL_API_KEY="EMPTY",
+            AGENT_STEP_LIMIT="12",
+        )
+        args = (capture / "args.txt").read_text()
+        contract = json.loads((output / "provider-contract.json").read_text())
+        self.assertIn("agent.step_limit=12", args)
+        self.assertEqual(contract["agent_step_limit"], 12)
+
     def run_preflight(
         self,
         mode: str,
@@ -563,6 +753,15 @@ class ValidationToolTests(unittest.TestCase):
         thread.start()
         try:
             env = os.environ.copy()
+            for name in (
+                "AZURE_AD_TOKEN",
+                "AZURE_API_KEY",
+                "AZURE_OPENAI_API_KEY",
+                "FIREWORKS_AI_API_KEY",
+                "HOSTED_VLLM_API_KEY",
+                "MODEL_API_KEY",
+            ):
+                env.pop(name, None)
             env.update(extra_environment)
             env[key_env] = "probe-secret"
             suffix = {
@@ -665,6 +864,22 @@ class ValidationToolTests(unittest.TestCase):
             [
                 (
                     "https://example.services.ai.azure.com/openai/v1/chat/completions",
+                    "v1",
+                )
+            ],
+        )
+        self.assertEqual(
+            request_candidates(
+                "azure_foundry",
+                (
+                    "https://example.services.ai.azure.com/managed-deployments/"
+                    "managed-deployment/v1"
+                ),
+            ),
+            [
+                (
+                    "https://example.services.ai.azure.com/managed-deployments/"
+                    "managed-deployment/v1/chat/completions",
                     "v1",
                 )
             ],

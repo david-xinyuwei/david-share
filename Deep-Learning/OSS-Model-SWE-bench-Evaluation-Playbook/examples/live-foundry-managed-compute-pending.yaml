@@ -1,5 +1,7 @@
 schema_version: 1
 verified_at_utc: "2026-07-31T07:19:21Z"
+superseded_at_utc: "2026-08-01T15:31:51Z"
+superseded_by: live-foundry-managed-compute-scored-canary.yaml
 scope:
   purpose: managed_compute_data_plane_readiness_gate
   accuracy_estimate: false
@@ -29,6 +31,7 @@ classification:
   state: PENDING
   verification: NOT_VERIFIED
   reason: data_plane_model_serving_unavailable
+  historical_only: true
 public_evidence:
   source_terminal_output_retained_privately: true
   resource_identifiers_omitted: true

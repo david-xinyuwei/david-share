@@ -8,6 +8,7 @@ ENDPOINT_MODE="${ENDPOINT_MODE:-openai_compatible}"
 EVALUATION_SCENARIO="${EVALUATION_SCENARIO:-single_endpoint}"
 RUN_LABEL="${RUN_LABEL:-$ENDPOINT_MODE}"
 WORKERS="${WORKERS:-8}"
+AGENT_STEP_LIMIT="${AGENT_STEP_LIMIT:-}"
 CONFIG="${CONFIG:-configs/oss-model.yaml}"
 SUBSET="${SUBSET:-verified}"
 SPLIT="${SPLIT:-test}"
@@ -78,6 +79,13 @@ case "$EVALUATION_SCENARIO" in
 esac
 
 extra_config=()
+if test -n "$AGENT_STEP_LIMIT"; then
+  if ! [[ "$AGENT_STEP_LIMIT" =~ ^[1-9][0-9]*$ ]]; then
+    echo "AGENT_STEP_LIMIT must be a positive integer: $AGENT_STEP_LIMIT" >&2
+    exit 2
+  fi
+  extra_config+=("-c" "agent.step_limit=$AGENT_STEP_LIMIT")
+fi
 case "$ENDPOINT_MODE" in
   openai_compatible)
     : "${MODEL_API_BASE:?Set MODEL_API_BASE for openai_compatible mode}"
@@ -91,8 +99,9 @@ case "$ENDPOINT_MODE" in
   azure_foundry)
     : "${MODEL_API_BASE:?Set MODEL_API_BASE for azure_foundry mode}"
     MODEL_API_BASE="${MODEL_API_BASE%/}"
+    # Managed Compute publishes /managed-deployments/<name>/v1; only serverless needs the /openai/v1 suffix.
     case "$MODEL_API_BASE" in
-      */openai/v1) ;;
+      */v1) ;;
       *) MODEL_API_BASE="$MODEL_API_BASE/openai/v1" ;;
     esac
     case "$MODEL_NAME" in
@@ -140,7 +149,7 @@ fi
 mkdir -p "$OUTPUT_DIR"
 CONTRACT_PATH="$OUTPUT_DIR/provider-contract.json"
 export CONTRACT_PATH ENDPOINT_MODE EVALUATION_SCENARIO RUN_LABEL MODEL_NAME MODEL_API_BASE
-export AUTH_ENV_NAME WORKERS CONFIG SUBSET SPLIT
+export AUTH_ENV_NAME WORKERS AGENT_STEP_LIMIT CONFIG SUBSET SPLIT
 export INSTANCE_SELECTOR INSTANCE_MANIFEST_SHA256
 "$PYTHON_EXECUTABLE" - <<'PY'
 import json
@@ -159,6 +168,9 @@ payload = {
     "subset": os.environ["SUBSET"],
     "split": os.environ["SPLIT"],
     "workers": int(os.environ["WORKERS"]),
+    "agent_step_limit": (
+      int(os.environ["AGENT_STEP_LIMIT"]) if os.environ["AGENT_STEP_LIMIT"] else None
+    ),
     "instance_selector": os.environ["INSTANCE_SELECTOR"],
     "instance_manifest_sha256": os.environ["INSTANCE_MANIFEST_SHA256"] or None,
     "config": os.environ["CONFIG"],

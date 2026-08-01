@@ -1,0 +1,124 @@
+schema_version: 1
+verified_at_utc: "2026-08-01T16:19:41Z"
+scope:
+  purpose: managed_compute_provider_agent_and_official_harness_compatibility_gate
+  sample_size: 1
+  instance_id: sympy__sympy-20590
+  selection_basis: official_swebench_evaluation_guide_example
+  accuracy_estimate: false
+  full_run_completed: false
+  bounded_canary: true
+provider:
+  endpoint_mode: azure_foundry
+  deployment_type: GlobalManagedCompute
+  model_family: Qwen3-4B
+  accelerator_type: A100_80GB
+  model_instances: 1
+  route: managed_deployments_v1_openai_compatible
+  authentication: microsoft_entra_id
+  local_key_authentication: disabled
+  api_base_redacted: true
+  credential_redacted: true
+capacity_preflight:
+  subscription_quota_before:
+    current: 1
+    limit: 8
+  subscription_quota_after:
+    current: 2
+    limit: 8
+  available_single_accelerator_capacity: 33
+control_plane:
+  state: PASS
+  provisioning_state: Succeeded
+  elapsed_seconds: 1061
+preflight:
+  state: PASS
+  http_status: 200
+  tool_calls: 1
+  request_id_present: true
+generation:
+  state: PASS
+  predictions: 1
+  nonempty_patches: 1
+  empty_patches: 0
+  effective_config_count: 1
+  agent_step_limit: 40
+  patch_bytes: 27798
+  patch_sha256: 524e2f605ca5dd0d380e8edc315481afd1e088f032dd30e816959ce5405ecf99
+  exit_statuses:
+    Submitted: 1
+official_evaluation:
+  dataset_total_instances: 500
+  submitted_instances: 1
+  completed_instances: 1
+  resolved_instances: 0
+  unresolved_instances: 1
+  empty_patch_instances: 0
+  error_instances: 0
+  unstopped_containers: 0
+  unremoved_images: 251
+runtime:
+  mini_swe_agent_version: 2.4.6
+  swebench_version: 4.1.0
+  swebench_source_commit: f7bbbb2ccdf479001d6467c9e34af59e44a840f9
+  docker_version: 29.1.3
+source_artifact_sha256:
+  control_plane_log: 86a0b63d3be3c64434709238c19db0acebeb23a51a3cc32e56df6513a4dd8c43
+  provider_preflight: 2bddead66be9ace5df065d17845866fcf39e029fe76bad26f97248cc42fd3f59
+  provider_contract: 2bc638ed10f44fdf9bf3cd94d30d22b7f2a056e9f14d364d6d3de3f1833195b1
+  generation_summary: 20b8314c06153777471ac2ddcc358c6323213064a7b3550b659fd6dff5f77c96
+  predictions: d7016167e4d18f50ecc04e86975237cad7bd5da32579c074cc5cd7686793a1c7
+  trajectory: c147521820eedad1d0a25ac77c0946dfcb9d4132ee3a8237cd04c05edf1b986f
+  official_aggregate: 44f09ddba6834ddbba040f76301476c0d178a9763d88b33cee78e6e48aaa1d52
+  per_instance_report: 4eefffe91fa1220336c2b3e266a3aff9e815066a96303a235c26f453ad68b259
+  generation_log: 3ba41e9c5d0fc603b4772e4afa6229b3d7f00aaebb4284812c7fd0611e5491f4
+  official_log: d73f992ec43c3649c7dc0f9c66784fe191f2d47264a2b86a0f789ba80ae4380b
+reproduction:
+  shell: bash
+  cli: |
+    export AZURE_CONFIG_DIR="$HOME/.azure-<isolated-profile>"
+    az account show --query '{subscription:id,tenant:tenantId,user:user.name}' -o json
+    unset MODEL_API_KEY AZURE_API_KEY AZURE_OPENAI_API_KEY HOSTED_VLLM_API_KEY
+    export ENDPOINT_MODE="azure_foundry"
+    export MODEL_API_BASE="https://<resource-name>.services.ai.azure.com/managed-deployments/<deployment-name>/v1"
+    export MODEL_NAME="<deployment-name>"
+    export AZURE_AD_TOKEN="$(az account get-access-token --resource https://cognitiveservices.azure.com --query accessToken -o tsv)"
+    export INSTANCE_ID="sympy__sympy-20590"
+    export AGENT_STEP_LIMIT="40"
+    export RUN_LABEL="foundry-managed-compute-nonempty-canary"
+    export OUTPUT_ROOT="runs/foundry-managed-compute-nonempty-canary"
+    bash scripts/run_scored_canary.sh
+  observed_log:
+    - "control-plane: Succeeded elapsed=1061s accelerator=A100_80GB capacity=1"
+    - "provider-preflight: PASS http_status=200 tool_calls=1"
+    - "generation: PASS predictions=1 nonempty_patches=1 exit_status=Submitted step_limit=40"
+    - "official-harness: resolved=0 unresolved=1 empty=0 errors=0"
+    - "SCORED_CANARY=PASS resolved=0 unresolved=1 empty=0 errors=0"
+claim_boundary:
+  provider_data_plane: VERIFIED
+  agent_loop: VERIFIED
+  nonempty_patch_generation: VERIFIED
+  official_harness_aggregate: VERIFIED
+  model_accuracy: NOT_CLAIMED
+  reason: one selected compatibility canary produced a nonempty but unresolved patch
+cleanup:
+  deployment_deleted: true
+  deleted_at_utc: "2026-08-01T16:28:28Z"
+  post_delete_get_status: 404
+  a100_quota_before_delete:
+    current: 2
+    limit: 8
+  a100_quota_after_delete:
+    current: 1
+    limit: 8
+prior_bounded_canary:
+  instance_id: astropy__astropy-7166
+  agent_step_limit: 12
+  outcome: Empty
+  status: SUPERSEDED_BY_NONEMPTY_CANARY
+public_safety:
+  subscription_id_omitted: true
+  account_name_omitted: true
+  deployment_name_omitted: true
+  endpoint_omitted: true
+  credential_omitted: true

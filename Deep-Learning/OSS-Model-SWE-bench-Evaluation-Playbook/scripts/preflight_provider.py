@@ -41,7 +41,8 @@ def count_valid_ping_calls(tool_calls) -> int:
 def request_candidates(mode: str, api_base: str):
     base = api_base.rstrip("/")
     if mode == "azure_foundry":
-        if base.endswith("/openai/v1"):
+        # Managed Compute exposes /managed-deployments/<name>/v1; serverless needs /openai/v1 appended.
+        if base.endswith("/v1"):
             return [(base + "/chat/completions", "v1")]
         return [(base + "/openai/v1/chat/completions", "v1")]
     return [(base + "/chat/completions", "openai-compatible")]
