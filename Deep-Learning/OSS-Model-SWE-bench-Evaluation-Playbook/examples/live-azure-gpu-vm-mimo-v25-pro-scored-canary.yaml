@@ -1,0 +1,96 @@
+schema_version: 1
+verified_at_utc: "2026-08-02T15:00:16Z"
+scope:
+  purpose: self_hosted_gpu_vm_agent_and_official_harness_compatibility_gate
+  sample_size: 1
+  instance_id: astropy__astropy-7166
+  accuracy_estimate: false
+  full_run_completed: false
+provider:
+  endpoint_mode: openai_compatible
+  model_family: MiMo-V2.5-Pro
+  model_type: mimo_v2
+  route: openai_v1_compatible
+  authentication: private_endpoint_without_application_key
+  api_base_redacted: true
+  accelerator_type: MI300X
+  accelerator_count: 8
+  tensor_parallel_size: 8
+preflight:
+  state: PASS
+  http_status: 200
+  tool_calls: 1
+  valid_ping_calls: 1
+  request_id_present: false
+generation:
+  state: PASS
+  predictions: 1
+  nonempty_patches: 1
+  empty_patches: 0
+  patch_bytes: 549
+  patch_sha256: b933d3d8ec8cb00425b0f8c5240a2f226d32219c907a4a1b8515067ed934caa2
+  provider_metadata_errors: 0
+  elapsed_seconds: 34
+  exit_statuses:
+    Submitted: 1
+official_evaluation:
+  dataset_total_instances: 500
+  submitted_instances: 1
+  completed_instances: 1
+  resolved_instances: 1
+  unresolved_instances: 0
+  empty_patch_instances: 0
+  error_instances: 0
+  unstopped_containers: 0
+  unremoved_images: 252
+  elapsed_seconds: 24.38
+runtime:
+  playbook_commit: 1c86292b7382df46d35bcbeb6628f61242718936
+  mini_swe_agent_version: 2.4.6
+  swebench_version: 4.1.0
+  swebench_source_commit: f7bbbb2ccdf479001d6467c9e34af59e44a840f9
+  sglang_source_commit: a2fd773ab43f960f5f2c29b5c592b0ca43c5ba8f
+  model_server_launcher_sha256: 327b532fa50fb496fbf205f92aaadb0a02689f74f155e365ee3219c80191bcc4
+  docker_version: 29.1.3
+execution_boundary:
+  model_inference: self_hosted_azure_gpu_vm_sglang
+  agent_and_official_scorer: external_x86_64_docker_host
+  transport: ssh_port_forward_to_private_model_endpoint
+source_artifact_sha256:
+  provider_model: d732cd554c58cbe32844b76a4dcb7ceb2a1b9c44f9c7931defb4b8b03ac8e167
+  generation_launcher: 03701da5d13512c3b21abb2006915a6ec48bce46fea1fa735b06cca9c78654bc
+  provider_contract: d1ad39f64354b18f96e1048c94664f1c026a12ae97fa1693b14160ee7e326925
+  predictions: 31e04cb5e42eb2060f960c015cfb3311466f195cb0b34402744c0c8b972feb49
+  trajectory: 4d6f34a0715c4686cba391afa028b009e1609b94f68bfdf154352fa41dc01d87
+  generation_log: 03a2a682ddf25045ee66f1022b9a1f5a62134f2c58c435c231aeec7e2eb11276
+  official_aggregate: 8bcf5b7b15d01fda8437a76deab96b6ff983dea901cedebe9f6b2e5838cf31f4
+  official_log: 8c0700b33a00a153428772df633229d7c7ef5e76452608e301feaa25fd233cdf
+reproduction:
+  shell: bash
+  cli: |
+    export ENDPOINT_MODE="openai_compatible"
+    export MODEL_API_BASE="http://127.0.0.1:30001/v1"
+    export MODEL_NAME="<served-model-name>"
+    export MODEL_API_KEY="EMPTY"
+    export RUN_LABEL="self-hosted-gpu-canary"
+    export OUTPUT_ROOT="runs/self-hosted-gpu-canary"
+    bash scripts/run_scored_canary.sh
+  observed_log:
+    - "provider-preflight: PASS http_status=200 tool_calls=1"
+    - "generation: PASS predictions=1 nonempty_patches=1 provider_metadata_errors=0"
+    - "official-harness: resolved=1 unresolved=0 empty=0 errors=0"
+    - "PIPELINE_CANARY=PASS outcome=Resolved resolved=1 unresolved=0 empty=0 errors=0"
+claim_boundary:
+  self_hosted_transport: VERIFIED
+  model_tool_calling: VERIFIED
+  multi_turn_agent_loop: VERIFIED
+  nonempty_patch_generation: VERIFIED
+  official_harness_aggregate: VERIFIED
+  full_accuracy: NOT_CLAIMED
+  reason: one fixed compatibility canary is not an accuracy estimate
+public_safety:
+  public_ip_omitted: true
+  private_ip_omitted: true
+  machine_name_omitted: true
+  endpoint_omitted: true
+  credential_omitted: true

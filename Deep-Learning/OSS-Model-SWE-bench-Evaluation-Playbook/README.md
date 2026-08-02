@@ -78,12 +78,12 @@ flowchart LR
 
 | Path | Evidence | Status |
 |---|---|---|
-| Azure GPU VM / on-premises | MiMo-V2.5-Pro, one frozen 500-prediction set, official SWE-bench harness | [360 Resolved / 500 submitted (72.00%), 27 Empty, 1 harness timeout](examples/live-azure-gpu-vm-mimo-v25-pro-full500.yaml) |
+| Azure GPU VM / on-premises | MiMo-V2.5-Pro: live Agent generation through this Repo plus official scoring of the frozen 500 predictions | [Live pipeline: 1 Resolved / 0 Error](examples/live-azure-gpu-vm-mimo-v25-pro-scored-canary.yaml); [full frozen-prediction score: 360 Resolved / 500 submitted (72.00%), 27 Empty, 1 harness timeout](examples/live-azure-gpu-vm-mimo-v25-pro-full500.yaml) |
 | AI Foundry OSS Serverless | DeepSeek-V4-Flash, tool preflight, one-task Agent run, and official harness | [1 Resolved / 0 Error](examples/live-foundry-direct-deepseek-v4-flash-scored-canary.yaml) |
 | AI Foundry / Fireworks | FW-GLM-5.1 deployment, tool preflight, one-task Agent run, and official harness | [1 Resolved / 0 Error](examples/live-foundry-fw-glm51-scored-canary.yaml) |
 | AI Foundry Managed Compute | Qwen3-4B on one A100, Entra authentication, nonempty patch, and official aggregate | [0 Resolved / 1 Unresolved / 0 Empty / 0 Error; pipeline verified, accuracy not claimed](examples/live-foundry-managed-compute-scored-canary.yaml) |
 
-All four paths reached an official SWE-bench aggregate. A pipeline canary proves compatibility, not that the model resolved the task or achieved a full-set accuracy. The MiMo result remains the full-result example: it is an official evaluation of supplied predictions, and generation was not rerun for that result.
+All four paths now have live Agent-generation and official-aggregate canaries. A pipeline canary proves compatibility only; it does not establish per-model accuracy. MiMo also remains the complete-result example: its 360/500 score is an official evaluation of existing predictions, and generation was not rerun for that full result.
 
 <div align="center">
   <img src="images/mimo_swebench_result.png" width="960" alt="MiMo-V2.5-Pro official SWE-bench result">

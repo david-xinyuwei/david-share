@@ -363,6 +363,22 @@ class ValidationToolTests(unittest.TestCase):
         self.assertEqual(managed_evidence["provider"]["authentication"], "microsoft_entra_id")
         self.assertTrue(managed_evidence["provider"]["local_key_authentication"] == "disabled")
 
+        gpu_canary = yaml.safe_load(
+            (examples / "live-azure-gpu-vm-mimo-v25-pro-scored-canary.yaml").read_text()
+        )
+        self.assertEqual(gpu_canary["provider"]["endpoint_mode"], "openai_compatible")
+        self.assertEqual(gpu_canary["generation"]["provider_metadata_errors"], 0)
+        self.assertEqual(gpu_canary["official_evaluation"]["resolved_instances"], 1)
+        self.assertFalse(gpu_canary["scope"]["accuracy_estimate"])
+        self.assertIn("live-azure-gpu-vm-mimo-v25-pro-scored-canary.yaml", readme)
+        self.assertIn("live-azure-gpu-vm-mimo-v25-pro-scored-canary.yaml", readme_cn)
+        self.assertEqual(
+            readme.count("live-azure-gpu-vm-mimo-v25-pro-scored-canary.yaml"), 1
+        )
+        self.assertEqual(
+            readme_cn.count("live-azure-gpu-vm-mimo-v25-pro-scored-canary.yaml"), 1
+        )
+
         for text in (readme, readme_cn):
             self.assertIn("| AI Foundry OSS Serverless | `azure_foundry` | `MODEL_API_KEY` |", text)
             self.assertIn("| AI Foundry / Fireworks | `azure_foundry` | `MODEL_API_KEY` |", text)

@@ -78,12 +78,12 @@ flowchart LR
 
 | 路径 | 证据 | 状态 |
 |---|---|---|
-| Azure GPU VM / 本地部署 | MiMo-V2.5-Pro、同一份冻结的500条predictions、SWE-bench官方harness | [360 Resolved / 500 submitted（72.00%），27个Empty，1个harness timeout](examples/live-azure-gpu-vm-mimo-v25-pro-full500.yaml) |
+| Azure GPU VM / 本地部署 | MiMo-V2.5-Pro：本Repo真实Agent生成链路，加上冻结500条predictions的官方评分 | [Live pipeline：1 Resolved / 0 Error](examples/live-azure-gpu-vm-mimo-v25-pro-scored-canary.yaml)；[冻结predictions全量评分：360 Resolved / 500 submitted（72.00%），27个Empty，1个harness timeout](examples/live-azure-gpu-vm-mimo-v25-pro-full500.yaml) |
 | AI Foundry OSS Serverless | DeepSeek-V4-Flash、tool预检、单题Agent运行与官方harness | [1 Resolved / 0 Error](examples/live-foundry-direct-deepseek-v4-flash-scored-canary.yaml) |
 | AI Foundry / Fireworks | FW-GLM-5.1 deployment、tool预检、单题Agent运行与官方harness | [1 Resolved / 0 Error](examples/live-foundry-fw-glm51-scored-canary.yaml) |
 | AI Foundry Managed Compute | 单卡A100上的Qwen3-4B、Entra认证、非空patch与官方aggregate | [0 Resolved / 1 Unresolved / 0 Empty / 0 Error；流水线已验证，不声明准确率](examples/live-foundry-managed-compute-scored-canary.yaml) |
 
-四条路径都到达了SWE-bench官方aggregate。Pipeline canary只证明兼容性，不代表模型解出该题或达到全量准确率。MiMo仍作为完整结果示例：它是对现有predictions的官方评测，该结果没有重跑生成阶段。
+四条路径现在都有真实Agent生成和官方aggregate canary。Pipeline canary只证明兼容性，不代表模型达到全量准确率。MiMo同时保留完整结果示例：360/500来自对现有predictions的官方评测，该全量结果没有重跑生成阶段。
 
 <div align="center">
   <img src="images/mimo_swebench_result.png" width="960" alt="MiMo-V2.5-Pro official SWE-bench result">
