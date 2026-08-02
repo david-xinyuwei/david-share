@@ -258,6 +258,20 @@ RESUME=true bash scripts/run_official_harness.sh 2>&1 \
   | tee -a "$REPORT_DIR/harness-resume.log"
 ```
 
+### Runtime expectations
+
+Wall-clock time is dominated by model serving throughput, not by the harness: generation time ≈ tasks × agent turns per task × tokens per turn ÷ serving throughput. Official Docker scoring is model-independent.
+
+Observed reference points from the sealed runs behind this Repo:
+
+| Stage | Observed wall clock |
+|---|---|
+| Single-task pipeline canary, any platform | ~10 minutes |
+| 500-task generation: MiMo-V2.5-Pro (MoE, ~1 TB FP8 weights) on two Azure ND MI300X v5 nodes, TP8, 250 tasks per node | ~4–5 hours |
+| Official harness scoring of 500 predictions on a CPU Docker host | ~5 hours |
+
+A smaller model or higher serving throughput shortens generation roughly linearly; scoring time depends only on the evaluation host.
+
 ## Comparison Contract
 
 Freeze these fields before comparing endpoints:
