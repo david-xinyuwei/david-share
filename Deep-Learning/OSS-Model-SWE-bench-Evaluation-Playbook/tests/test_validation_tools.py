@@ -370,6 +370,11 @@ class ValidationToolTests(unittest.TestCase):
         self.assertEqual(gpu_canary["generation"]["provider_metadata_errors"], 0)
         self.assertEqual(gpu_canary["official_evaluation"]["resolved_instances"], 1)
         self.assertFalse(gpu_canary["scope"]["accuracy_estimate"])
+        gpu_canary_text = (
+            examples / "live-azure-gpu-vm-mimo-v25-pro-scored-canary.yaml"
+        ).read_text()
+        self.assertNotIn("127.0.0.1", gpu_canary_text)
+        self.assertIn("<gpu-vm-private-ip>:30001/v1", gpu_canary_text)
         self.assertIn("live-azure-gpu-vm-mimo-v25-pro-scored-canary.yaml", readme)
         self.assertIn("live-azure-gpu-vm-mimo-v25-pro-scored-canary.yaml", readme_cn)
         self.assertEqual(

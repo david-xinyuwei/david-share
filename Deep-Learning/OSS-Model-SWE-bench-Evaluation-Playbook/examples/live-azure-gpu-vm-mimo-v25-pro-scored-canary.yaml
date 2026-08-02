@@ -55,7 +55,8 @@ runtime:
 execution_boundary:
   model_inference: self_hosted_azure_gpu_vm_sglang
   agent_and_official_scorer: external_x86_64_docker_host
-  transport: ssh_port_forward_to_private_model_endpoint
+  observed_transport: ssh_port_forward_to_private_model_endpoint
+  direct_vnet_connectivity: verified_from_peer_gpu_vm
 source_artifact_sha256:
   provider_model: d732cd554c58cbe32844b76a4dcb7ceb2a1b9c44f9c7931defb4b8b03ac8e167
   generation_launcher: 03701da5d13512c3b21abb2006915a6ec48bce46fea1fa735b06cca9c78654bc
@@ -67,9 +68,10 @@ source_artifact_sha256:
   official_log: 8c0700b33a00a153428772df633229d7c7ef5e76452608e301feaa25fd233cdf
 reproduction:
   shell: bash
+  network_requirement: execution_host_can_route_to_gpu_vm_private_endpoint
   cli: |
     export ENDPOINT_MODE="openai_compatible"
-    export MODEL_API_BASE="http://127.0.0.1:30001/v1"
+    export MODEL_API_BASE="http://<gpu-vm-private-ip>:30001/v1"
     export MODEL_NAME="<served-model-name>"
     export MODEL_API_KEY="EMPTY"
     export RUN_LABEL="self-hosted-gpu-canary"
