@@ -6,7 +6,7 @@
 [![Python](https://img.shields.io/badge/Python-3.12-3776ab)](https://www.python.org/)
 [![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/oss-model-swebench-playbook-ci.yml/badge.svg?branch=master)](https://github.com/david-xinyuwei/david-share/actions/workflows/oss-model-swebench-playbook-ci.yml)
 
-一套简洁、可审计的评测流程：在Azure GPU VM、AI Foundry OSS Serverless、AI Foundry Managed Compute和AI Foundry / Fireworks上生成代码patch，再使用SWE-bench官方Docker harness评分。
+本Repo用于测量运行在微软平台上的OSS模型（开源权重或微调后模型）的SWE-bench Verified准确率，覆盖四条部署路径：Azure GPU VM、AI Foundry OSS Serverless、AI Foundry Managed Compute和AI Foundry / Fireworks。Repo本身只提供endpoint配置和可审计的缝合层：Agent循环来自官方mini-swe-agent，评分走官方SWE-bench Docker harness，因此结果可与公开发表的SWE-bench分数直接对比。
 
 > **作者**：魏新宇 (Xinyu Wei) — Microsoft AI and Apps Global Black Belt (GBB)
 

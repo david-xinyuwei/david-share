@@ -6,7 +6,7 @@
 [![Python](https://img.shields.io/badge/Python-3.12-3776ab)](https://www.python.org/)
 [![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/oss-model-swebench-playbook-ci.yml/badge.svg?branch=master)](https://github.com/david-xinyuwei/david-share/actions/workflows/oss-model-swebench-playbook-ci.yml)
 
-A concise, auditable workflow for generating coding-model patches on Azure GPU VM, AI Foundry OSS Serverless, AI Foundry Managed Compute, and AI Foundry / Fireworks, then scoring them with the official SWE-bench Docker harness.
+Measure the SWE-bench Verified accuracy of OSS models running on Microsoft platforms — open-weight or fine-tuned — across four deployment paths: Azure GPU VM, AI Foundry OSS Serverless, AI Foundry Managed Compute, and AI Foundry / Fireworks. This Repo supplies the endpoint configuration and auditable glue only; the agent loop comes from official mini-swe-agent and scoring runs through the official SWE-bench Docker harness, so results are comparable with published SWE-bench numbers.
 
 > **Author**: 魏新宇 (Xinyu Wei) — Microsoft AI and Apps Global Black Belt (GBB)
 
