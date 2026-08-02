@@ -634,6 +634,9 @@ class ValidationToolTests(unittest.TestCase):
         env = (capture / "env.txt").read_text()
         contract = json.loads((output / "provider-contract.json").read_text())
         self.assertIn("model.model_name=hosted_vllm/local-model", args)
+        self.assertIn(
+            "model.model_class=scripts.provider_model.SanitizingOpenAIModel", args
+        )
         self.assertNotIn("generic-secret-probe", args)
         self.assertIn("HOSTED_VLLM_API_KEY=generic-secret-probe", env)
         self.assertEqual(contract["endpoint_mode"], "openai_compatible")
@@ -655,7 +658,7 @@ class ValidationToolTests(unittest.TestCase):
             args,
         )
         self.assertIn(
-            "model.model_class=scripts.provider_model.FoundryOpenAIModel", args
+            "model.model_class=scripts.provider_model.SanitizingOpenAIModel", args
         )
         self.assertNotIn("azure-secret-probe", args)
         self.assertIn("HOSTED_VLLM_API_KEY=azure-secret-probe", env)

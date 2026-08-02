@@ -116,13 +116,16 @@ case "$ENDPOINT_MODE" in
     fi
     export HOSTED_VLLM_API_KEY="$AZURE_FOUNDRY_CREDENTIAL"
     AUTH_ENV_NAME=HOSTED_VLLM_API_KEY
-    extra_config+=("-c" "model.model_class=scripts.provider_model.FoundryOpenAIModel")
     ;;
   *)
     echo "Unsupported ENDPOINT_MODE: $ENDPOINT_MODE" >&2
     exit 2
     ;;
 esac
+
+# LiteLLM stores provider metadata on assistant messages and replays it on the next turn;
+# reasoning-capable servers reject the echoed field, so both transports need the sanitizer.
+extra_config+=("-c" "model.model_class=scripts.provider_model.SanitizingOpenAIModel")
 
 if test -e "$OUTPUT_DIR"; then
   if ! test -d "$OUTPUT_DIR" || test -n "$(find "$OUTPUT_DIR" -mindepth 1 -maxdepth 1 -print -quit)"; then
