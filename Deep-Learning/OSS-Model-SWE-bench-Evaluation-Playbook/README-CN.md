@@ -341,6 +341,7 @@ Agentic评测流量不同于在线服务流量：
 
 | 现象 | 处理 |
 |---|---|
+| clone或sparse checkout时出现`git-lfs filter-process: git-lfs: not found`与`fatal: the remote end hung up unexpectedly` | 该主机声明了LFS filter但缺少二进制，导致checkout中途停止、本子树文件不完整。安装后重跑即可（`apt-get install -y git-lfs`），随后重新执行`git sparse-checkout set`和`git checkout HEAD -- <subtree>/`。本子树不存放LFS对象，只要求filter可被解析 |
 | Docker Hub `429 Too Many Requests` | 执行`docker login`，降低workers，保持同一run ID恢复；已有report会被跳过 |
 | 磁盘压力或image pull中断 | 检查`docker system df`；其他评测运行时禁止prune |
 | 空patch | 保留为`Empty`；不得补造patch或从分母删除 |

@@ -341,6 +341,7 @@ For sharded execution, use `scripts/shard_instance_manifest.py` and merge only d
 
 | Symptom | Action |
 |---|---|
+| `git-lfs filter-process: git-lfs: not found` and `fatal: the remote end hung up unexpectedly` during clone or sparse checkout | The host declares an LFS filter but the binary is missing, so checkout stops midway and this subtree lands incomplete. Install it (`apt-get install -y git-lfs`), then rerun `git sparse-checkout set` and `git checkout HEAD -- <subtree>/`. This subtree stores no LFS objects; the filter only has to be resolvable |
 | Docker Hub `429 Too Many Requests` | Run `docker login`, reduce workers, keep the same run ID, and resume; completed reports are skipped |
 | Disk pressure or interrupted image pull | Inspect `docker system df`; do not prune while another evaluation is active |
 | Empty patch | Preserve it as `Empty`; do not manufacture a patch or remove it from the denominator |
