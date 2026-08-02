@@ -232,6 +232,8 @@ def main() -> None:
     diagram_requirements = (root / "requirements-diagrams.txt").read_text()
     setup_script = (root / "scripts" / "setup_environment.sh").read_text()
     generation_script = (root / "scripts" / "run_generation.sh").read_text()
+    preflight_script = (root / "scripts" / "preflight_provider.py").read_text()
+    canary_script = (root / "scripts" / "run_scored_canary.sh").read_text()
     model_config = (root / "configs" / "oss-model.yaml").read_text()
     if "mini-swe-agent==2.4.6" not in requirements:
         raise SystemExit("mini-swe-agent is not pinned to v2.4.6")
@@ -249,9 +251,18 @@ def main() -> None:
         r"^\s*api_key\s*:", model_config, re.M
     ):
         raise SystemExit("Model API key must not be passed through config or process argv")
-    for mode in ("openai_compatible", "azure_foundry", "fireworks"):
+    for mode in ("openai_compatible", "azure_foundry"):
         if mode not in generation_script or mode not in readme or mode not in readme_cn:
             raise SystemExit(f"Missing endpoint mode coverage: {mode}")
+    public_fireworks_surface = readme + readme_cn + generation_script + preflight_script + canary_script
+    for marker in (
+        "fireworks_" + "ai",
+        "FIREWORKS_" + "AI_API",
+        "Fireworks " + "public API",
+        "Fireworks" + "公网API",
+    ):
+        if marker in public_fireworks_surface:
+            raise SystemExit(f"Public Fireworks API mode is out of scope: {marker}")
     for marker in (
         "compare_run_contracts.py",
         "MODEL_AND_METHOD_ALIGNED",

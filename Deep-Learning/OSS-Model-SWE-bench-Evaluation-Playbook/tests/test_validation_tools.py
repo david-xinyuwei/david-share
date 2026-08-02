@@ -13,7 +13,7 @@ import yaml
 
 from scripts.preflight_provider import count_valid_ping_calls, request_candidates
 from scripts.provider_compat import remove_provider_specific_fields
-from scripts.swebench_outcomes import validate_scored_canary_counts
+from scripts.swebench_outcomes import canary_outcome, validate_scored_canary_counts
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -205,6 +205,20 @@ class ValidationToolTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "missing required field"):
             validate_scored_canary_counts({"resolved_instances": 1})
 
+    def test_pipeline_canary_names_the_scoreable_outcome(self) -> None:
+        self.assertEqual(
+            canary_outcome({"resolved": 1, "unresolved": 0, "empty": 0, "errors": 0}),
+            "Resolved",
+        )
+        self.assertEqual(
+            canary_outcome({"resolved": 0, "unresolved": 1, "empty": 0, "errors": 0}),
+            "Unresolved",
+        )
+        self.assertEqual(
+            canary_outcome({"resolved": 0, "unresolved": 0, "empty": 1, "errors": 0}),
+            "Empty",
+        )
+
     def test_time_exceeded_is_a_valid_agent_limit(self) -> None:
         run = self.make_generation(ids=("a",))
         trajectory = run / "a" / "a.traj.json"
@@ -334,6 +348,52 @@ class ValidationToolTests(unittest.TestCase):
         self.assertNotIn("or an enabled account key", readme)
         self.assertNotIn("或已启用的account key", readme_cn)
 
+        examples = ROOT / "examples"
+        for name in (
+            "live-foundry-direct-deepseek-v4-flash-scored-canary.yaml",
+            "live-foundry-fw-glm51-scored-canary.yaml",
+        ):
+            reproduction = yaml.safe_load((examples / name).read_text())["reproduction"]["cli"]
+            self.assertIn('export MODEL_API_KEY="<credential>"', reproduction)
+            self.assertNotIn("AZURE_AD_TOKEN", reproduction)
+
+        managed_evidence = yaml.safe_load(
+            (examples / "live-foundry-managed-compute-scored-canary.yaml").read_text()
+        )
+        self.assertEqual(managed_evidence["provider"]["authentication"], "microsoft_entra_id")
+        self.assertTrue(managed_evidence["provider"]["local_key_authentication"] == "disabled")
+
+        for text in (readme, readme_cn):
+            self.assertIn("| AI Foundry OSS Serverless | `azure_foundry` | `MODEL_API_KEY` |", text)
+            self.assertIn("| AI Foundry / Fireworks | `azure_foundry` | `MODEL_API_KEY` |", text)
+            self.assertIn('export MODEL_API_KEY="<deployment-key>"', text)
+            self.assertIn('export MODEL_API_KEY="<resource-key>"', text)
+            self.assertIn("disableLocalAuth=true", text)
+            self.assertIn(
+                "https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/configure-entra-id",
+                text,
+            )
+
+    def test_readme_uses_exact_sparse_checkout_and_four_azure_profiles(self) -> None:
+        readme = (ROOT / "README.md").read_text()
+        readme_cn = (ROOT / "README-CN.md").read_text()
+        for text in (readme, readme_cn):
+            self.assertIn("git clone --filter=blob:none --sparse --branch master", text)
+            self.assertIn(
+                "git sparse-checkout set --no-cone \\\n"
+                "  '/Deep-Learning/OSS-Model-SWE-bench-Evaluation-Playbook/'",
+                text,
+            )
+            self.assertIn("AI Foundry OSS<br/>Serverless", text)
+            self.assertIn("Same Agent<br/>Same dataset<br/>Official harness" if text is readme else "相同Agent<br/>相同题目集<br/>官方harness", text)
+            self.assertNotIn("AI Foundry Serverless", text)
+        self.assertEqual(readme.count("### AI Foundry OSS Serverless"), 1)
+        self.assertEqual(readme.count("### AI Foundry Managed Compute"), 1)
+        self.assertEqual(readme.count("### AI Foundry / Fireworks"), 1)
+        self.assertEqual(readme_cn.count("### AI Foundry OSS Serverless"), 1)
+        self.assertEqual(readme_cn.count("### AI Foundry Managed Compute"), 1)
+        self.assertEqual(readme_cn.count("### AI Foundry / Fireworks"), 1)
+
     def test_public_evidence_preserves_claim_boundaries(self) -> None:
         examples = ROOT / "examples"
         for name in (
@@ -435,7 +495,43 @@ class ValidationToolTests(unittest.TestCase):
             check=False,
         )
         self.assertEqual(result.returncode, 2)
-        self.assertIn("REPORT_DIR must be empty", result.stderr)
+        self.assertIn("REPORT_DIR must be empty unless RESUME=true", result.stderr)
+
+    def test_official_harness_resume_reuses_nonempty_report_dir(self) -> None:
+        fake_bin = self.root / "harness-resume-bin"
+        fake_bin.mkdir()
+        captured_args = self.root / "harness-resume-args.txt"
+        fake_python = fake_bin / "python"
+        fake_python.write_text("#!/bin/bash\nprintf '%s\\n' \"$@\" > \"$CAPTURE_FILE\"\n")
+        fake_python.chmod(0o755)
+        predictions = self.root / "resume-preds.json"
+        predictions.write_text("{}\n")
+        report_dir = self.root / "resume-report"
+        report_dir.mkdir()
+        (report_dir / "existing-report.json").write_text("{}\n")
+        env = os.environ.copy()
+        env.update(
+            {
+                "PATH": f"{fake_bin}:{env['PATH']}",
+                "CAPTURE_FILE": str(captured_args),
+                "PREDICTIONS_PATH": str(predictions),
+                "RUN_ID": "same-run",
+                "REPORT_DIR": str(report_dir),
+                "RESUME": "true",
+            }
+        )
+        result = subprocess.run(
+            ["bash", str(SCRIPTS / "run_official_harness.sh")],
+            cwd=ROOT,
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        args = captured_args.read_text().splitlines()
+        self.assertIn("same-run", args)
+        self.assertEqual(args[args.index("--report_dir") + 1], str(report_dir.resolve()))
 
     def test_official_harness_uses_official_cli_defaults(self) -> None:
         fake_bin = self.root / "harness-capture-bin"
@@ -497,8 +593,6 @@ class ValidationToolTests(unittest.TestCase):
             "AZURE_AD_TOKEN",
             "AZURE_API_KEY",
             "AZURE_OPENAI_API_KEY",
-            "FIREWORKS_AI_API_BASE",
-            "FIREWORKS_AI_API_KEY",
             "HOSTED_VLLM_API_KEY",
             "MODEL_API_BASE",
             "MODEL_API_KEY",
@@ -623,23 +717,6 @@ class ValidationToolTests(unittest.TestCase):
         self.assertEqual(sanitized[1]["tool_calls"], [{"id": "call-1"}])
         self.assertEqual(sanitized[0], messages[0])
 
-    def test_fireworks_mode_routes_glm_without_secret_in_argv(self) -> None:
-        output, capture = self.run_generation_mode(
-            "fireworks",
-            "accounts/example/models/glm-5-2",
-            MODEL_API_KEY="fireworks-secret-probe",
-        )
-        args = (capture / "args.txt").read_text()
-        env = (capture / "env.txt").read_text()
-        contract = json.loads((output / "provider-contract.json").read_text())
-        self.assertIn(
-            "model.model_name=fireworks_ai/accounts/example/models/glm-5-2", args
-        )
-        self.assertIn("https://api.fireworks.ai/inference/v1", args)
-        self.assertNotIn("fireworks-secret-probe", args)
-        self.assertIn("FIREWORKS_AI_API_KEY=fireworks-secret-probe", env)
-        self.assertEqual(contract["run_label"], "fireworks-candidate")
-
     def test_instance_manifest_becomes_a_hashed_exact_filter(self) -> None:
         manifest = self.root / "instances.tsv"
         manifest.write_text("instance_id\nrepo__issue-2\nrepo__issue-1\n")
@@ -757,7 +834,6 @@ class ValidationToolTests(unittest.TestCase):
                 "AZURE_AD_TOKEN",
                 "AZURE_API_KEY",
                 "AZURE_OPENAI_API_KEY",
-                "FIREWORKS_AI_API_KEY",
                 "HOSTED_VLLM_API_KEY",
                 "MODEL_API_KEY",
             ):
@@ -767,7 +843,6 @@ class ValidationToolTests(unittest.TestCase):
             suffix = {
                 "openai_compatible": "/v1",
                 "azure_foundry": "",
-                "fireworks": "/inference/v1",
             }[mode]
             result = subprocess.run(
                 [
@@ -797,7 +872,7 @@ class ValidationToolTests(unittest.TestCase):
         )
         self.assertNotIn("probe-secret", result.stdout)
         self.assertEqual(captured["path"], expected_path)
-        self.assertEqual(captured["body"]["model"], model.split("/", 1)[-1] if mode != "fireworks" else model.removeprefix("fireworks_ai/"))
+        self.assertEqual(captured["body"]["model"], model.split("/", 1)[-1])
         return captured, json.loads(result.stdout)
 
     def test_preflight_openai_compatible_contract(self) -> None:
@@ -884,13 +959,6 @@ class ValidationToolTests(unittest.TestCase):
                 )
             ],
         )
-
-    def test_preflight_fireworks_contract(self) -> None:
-        captured, result = self.run_preflight(
-            "fireworks", "fireworks_ai/accounts/example/models/glm", "/inference/v1/chat/completions", "FIREWORKS_AI_API_KEY"
-        )
-        self.assertEqual(captured["authorization"], "Bearer probe-secret")
-        self.assertEqual(result["state"], "PASS")
 
 
 if __name__ == "__main__":

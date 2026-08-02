@@ -7,11 +7,23 @@ set -euo pipefail
 
 test -f "$PREDICTIONS_PATH"
 PREDICTIONS_PATH="$(realpath "$PREDICTIONS_PATH")"
-if test -e "$REPORT_DIR"; then
-  if ! test -d "$REPORT_DIR" || test -n "$(find "$REPORT_DIR" -mindepth 1 -maxdepth 1 -print -quit)"; then
-    echo "REPORT_DIR must be empty: $REPORT_DIR" >&2
+RESUME="${RESUME:-false}"
+if [[ "$RESUME" != "true" && "$RESUME" != "false" ]]; then
+  echo "RESUME must be true or false: $RESUME" >&2
+  exit 2
+fi
+if test -e "$REPORT_DIR" && ! test -d "$REPORT_DIR"; then
+  echo "REPORT_DIR must be a directory: $REPORT_DIR" >&2
+  exit 2
+fi
+if [[ "$RESUME" == "true" ]]; then
+  if ! test -d "$REPORT_DIR" || test -z "$(find "$REPORT_DIR" -mindepth 1 -maxdepth 1 -print -quit)"; then
+    echo "RESUME=true requires an existing nonempty REPORT_DIR: $REPORT_DIR" >&2
     exit 2
   fi
+elif test -d "$REPORT_DIR" && test -n "$(find "$REPORT_DIR" -mindepth 1 -maxdepth 1 -print -quit)"; then
+  echo "REPORT_DIR must be empty unless RESUME=true: $REPORT_DIR" >&2
+  exit 2
 fi
 mkdir -p "$REPORT_DIR"
 REPORT_DIR="$(realpath "$REPORT_DIR")"

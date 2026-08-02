@@ -6,7 +6,7 @@
 [![Python](https://img.shields.io/badge/Python-3.12-3776ab)](https://www.python.org/)
 [![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/oss-model-swebench-playbook-ci.yml/badge.svg?branch=master)](https://github.com/david-xinyuwei/david-share/actions/workflows/oss-model-swebench-playbook-ci.yml)
 
-A concise, auditable workflow for generating coding-model patches and scoring them with the official SWE-bench Docker harness across Azure GPU VM, AI Foundry, and Fireworks endpoints.
+A concise, auditable workflow for generating coding-model patches on Azure GPU VM, AI Foundry OSS Serverless, AI Foundry Managed Compute, and AI Foundry / Fireworks, then scoring them with the official SWE-bench Docker harness.
 
 > **Author**: 魏新宇 (Xinyu Wei) — Microsoft AI and Apps Global Black Belt (GBB)
 
@@ -66,11 +66,11 @@ Because the judge only reads `preds.json`, it cannot tell which endpoint produce
 
 ```mermaid
 flowchart LR
-  R[Reference endpoint] --> V[Azure GPU VM]
-  R --> S[AI Foundry Serverless]
-  R --> F[AI Foundry / Fireworks]
-  R --> M[AI Foundry Managed Compute]
-  V --> G[Same Agent, dataset, and official harness]
+  R[Reference<br/>endpoint] --> V[Azure GPU VM]
+  R --> S[AI Foundry OSS<br/>Serverless]
+  R --> F[AI Foundry /<br/>Fireworks]
+  R --> M[AI Foundry<br/>Managed Compute]
+  V --> G[Same Agent<br/>Same dataset<br/>Official harness]
   S --> G
   F --> G
   M --> G
@@ -79,11 +79,11 @@ flowchart LR
 | Path | Evidence | Status |
 |---|---|---|
 | Azure GPU VM / on-premises | MiMo-V2.5-Pro, one frozen 500-prediction set, official SWE-bench harness | [360 Resolved / 500 submitted (72.00%), 27 Empty, 1 harness timeout](examples/live-azure-gpu-vm-mimo-v25-pro-full500.yaml) |
-| AI Foundry Serverless | DeepSeek-V4-Flash, tool preflight, one-task Agent run, and official harness | [1 Resolved / 0 Error](examples/live-foundry-direct-deepseek-v4-flash-scored-canary.yaml) |
+| AI Foundry OSS Serverless | DeepSeek-V4-Flash, tool preflight, one-task Agent run, and official harness | [1 Resolved / 0 Error](examples/live-foundry-direct-deepseek-v4-flash-scored-canary.yaml) |
 | AI Foundry / Fireworks | FW-GLM-5.1 deployment, tool preflight, one-task Agent run, and official harness | [1 Resolved / 0 Error](examples/live-foundry-fw-glm51-scored-canary.yaml) |
 | AI Foundry Managed Compute | Qwen3-4B on one A100, Entra authentication, nonempty patch, and official aggregate | [0 Resolved / 1 Unresolved / 0 Empty / 0 Error; pipeline verified, accuracy not claimed](examples/live-foundry-managed-compute-scored-canary.yaml) |
 
-All four paths reached an official SWE-bench aggregate. A canary proves compatibility, not full-set accuracy. The MiMo result remains the full-result example: it is an official evaluation of supplied predictions, and generation was not rerun for that result. The separate Fireworks public API adapter is shape-tested but is outside these four validated Azure paths.
+All four paths reached an official SWE-bench aggregate. A pipeline canary proves compatibility, not that the model resolved the task or achieved a full-set accuracy. The MiMo result remains the full-result example: it is an official evaluation of supplied predictions, and generation was not rerun for that result.
 
 <div align="center">
   <img src="images/mimo_swebench_result.png" width="960" alt="MiMo-V2.5-Pro official SWE-bench result">
@@ -100,8 +100,12 @@ Prerequisites:
 | Local evaluation capacity | `120GB` free disk, `16GB` RAM, `8` CPU cores |
 
 ```bash
-git clone https://github.com/david-xinyuwei/david-share.git
-cd david-share/Deep-Learning/OSS-Model-SWE-bench-Evaluation-Playbook
+git clone --filter=blob:none --sparse --branch master \
+  https://github.com/david-xinyuwei/david-share.git david-share
+cd david-share
+git sparse-checkout set --no-cone \
+  '/Deep-Learning/OSS-Model-SWE-bench-Evaluation-Playbook/'
+cd Deep-Learning/OSS-Model-SWE-bench-Evaluation-Playbook
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
@@ -112,15 +116,50 @@ The setup script pins mini-swe-agent and the SWE-bench source commit used by thi
 
 Set the platform variables; every command after this point is identical:
 
-| Platform | `ENDPOINT_MODE` | `MODEL_API_BASE` | `MODEL_NAME` | Authentication |
-|---|---|---|---|---|
-| Azure GPU VM / on-premises | `openai_compatible` | `http://<host>:8000/v1` | `<served-model>` | `MODEL_API_KEY` or `EMPTY` |
-| AI Foundry Serverless | `azure_foundry` | `https://<resource-name>.services.ai.azure.com` | `<deployment-name>` | `AZURE_AD_TOKEN` |
-| AI Foundry Managed Compute | `azure_foundry` | `https://<resource-name>.services.ai.azure.com/managed-deployments/<deployment-name>/v1` | `<deployment-name>` | `AZURE_AD_TOKEN` |
-| AI Foundry / Fireworks | `azure_foundry` | `https://<resource-name>.services.ai.azure.com` | `<deployment-name>` | `AZURE_AD_TOKEN` |
-| Fireworks public API | `fireworks` | `https://api.fireworks.ai/inference/v1` | `accounts/<account>/models/<model-id>` | `FIREWORKS_AI_API_KEY` |
+| Platform | `ENDPOINT_MODE` | Authentication |
+|---|---|---|
+| Azure GPU VM / on-premises | `openai_compatible` | `MODEL_API_KEY` or `EMPTY` |
+| AI Foundry OSS Serverless | `azure_foundry` | `MODEL_API_KEY` |
+| AI Foundry Managed Compute | `azure_foundry` | `MODEL_API_KEY`; use `AZURE_AD_TOKEN` when local auth is disabled |
+| AI Foundry / Fireworks | `azure_foundry` | `MODEL_API_KEY` |
 
-For Microsoft Entra ID, isolate Azure CLI state per subscription and acquire a short-lived token. `AZURE_CONFIG_DIR` belongs to Azure CLI, not to SWE-bench:
+### Azure GPU VM / on-premises
+
+```bash
+export ENDPOINT_MODE="openai_compatible"
+export MODEL_API_BASE="http://<host>:8000/v1"
+export MODEL_NAME="<served-model>"
+export MODEL_API_KEY="<model-api-key-or-EMPTY>"
+export RUN_LABEL="azure-gpu-vm-$(date -u +%Y%m%dT%H%M%SZ)"
+```
+
+### AI Foundry OSS Serverless
+
+```bash
+export ENDPOINT_MODE="azure_foundry"
+export MODEL_API_BASE="https://<resource-name>.services.ai.azure.com"
+export MODEL_NAME="<deployment-name>"
+unset AZURE_AD_TOKEN
+export MODEL_API_KEY="<deployment-key>"
+export RUN_LABEL="foundry-oss-serverless-$(date -u +%Y%m%dT%H%M%SZ)"
+```
+
+The sealed AI Foundry OSS Serverless and AI Foundry / Fireworks canaries both used key authentication. Store deployment keys in a secret manager, rotate them, and never persist them in the Repo or evidence.
+
+### AI Foundry Managed Compute
+
+For a customer resource with local authentication enabled, use its access key. Microsoft Learn documents that developer inference operations accept either access keys or Microsoft Entra ID; setting `disableLocalAuth=true` disables the key path. See [Microsoft Learn](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/configure-entra-id).
+
+```bash
+export ENDPOINT_MODE="azure_foundry"
+export MODEL_API_BASE="https://<resource-name>.services.ai.azure.com/managed-deployments/<deployment-name>/v1"
+export MODEL_NAME="<deployment-name>"
+unset AZURE_AD_TOKEN
+export MODEL_API_KEY="<resource-key>"
+export RUN_LABEL="foundry-managed-compute-$(date -u +%Y%m%dT%H%M%SZ)"
+```
+
+If the target resource has `disableLocalAuth=true`, Key authentication is unavailable. Use Microsoft Entra ID instead: isolate Azure CLI state per subscription and acquire a short-lived token. `AZURE_CONFIG_DIR` belongs to Azure CLI, not to SWE-bench:
 
 ```bash
 export AZURE_CONFIG_DIR="$HOME/.azure-<isolated-profile>"
@@ -134,18 +173,22 @@ export AZURE_AD_TOKEN="$(az account get-access-token \
 
 Azure CLI user tokens are short-lived and fit local development or canaries. For a long full run, use Managed Identity or a Service Principal, or refresh the token before each isolated shard; never persist the token in the Repo or evidence.
 
+### AI Foundry / Fireworks
+
 ```bash
 export ENDPOINT_MODE="azure_foundry"
 export MODEL_API_BASE="https://<resource-name>.services.ai.azure.com"
 export MODEL_NAME="<deployment-name>"
-export RUN_LABEL="reference-$(date -u +%Y%m%dT%H%M%SZ)"
+unset AZURE_AD_TOKEN
+export MODEL_API_KEY="<deployment-key>"
+export RUN_LABEL="foundry-fireworks-$(date -u +%Y%m%dT%H%M%SZ)"
 ```
 
 These variables belong to `scripts/run_generation.sh`, not to SWE-bench. The wrapper translates them into the official mini-swe-agent arguments `-c model.model_name` and `-c model.model_kwargs.api_base`, exports the matching LiteLLM credential variable, and records the mapping in `provider-contract.json`. SWE-bench itself accepts no endpoint variables; it takes CLI flags only.
 
 ## Run
 
-Run the provider preflight and a full generation-plus-scoring canary first:
+Run the provider preflight and a full generation-plus-scoring pipeline canary first:
 
 ```bash
 python scripts/preflight_provider.py \
@@ -156,6 +199,8 @@ python scripts/preflight_provider.py \
 export OUTPUT_ROOT="runs/${RUN_LABEL}-scored-canary"
 bash scripts/run_scored_canary.sh
 ```
+
+The final marker reports the pipeline state and the model outcome separately, for example: `PIPELINE_CANARY=PASS outcome=Unresolved ...`.
 
 For a slow or weak model, set `AGENT_STEP_LIMIT=12` only to bound this compatibility canary. The value is recorded in `provider-contract.json`; an `Empty` result still proves transport and official aggregation, but it is not an accuracy estimate. Unset it before a full run.
 
@@ -202,6 +247,16 @@ tail -F "runs/${RUN_LABEL}-full/official-eval/harness.log"
 ```
 
 The harness skips existing per-case reports. Do not delete valid reports before a recovery run.
+
+Resume only through the same wrapper, report directory, predictions, and run ID:
+
+```bash
+export PREDICTIONS_PATH="$(realpath "$OUTPUT_DIR/preds.json")"
+export REPORT_DIR="$(pwd)/runs/${RUN_LABEL}-full/official-eval"
+export RUN_ID="${RUN_LABEL}-verified"
+RESUME=true bash scripts/run_official_harness.sh 2>&1 \
+  | tee -a "$REPORT_DIR/harness-resume.log"
+```
 
 ## Comparison Contract
 

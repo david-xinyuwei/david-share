@@ -77,3 +77,10 @@ def validate_scored_canary_counts(payload: dict) -> dict[str, int]:
     if counts["errors"]:
         raise ValueError("Scored canary ended with an infrastructure error")
     return counts
+
+
+def canary_outcome(counts: dict[str, int]) -> str:
+    for label in ("resolved", "unresolved", "empty"):
+        if counts.get(label) == 1:
+            return label.capitalize()
+    raise ValueError("Canary counts do not contain one scoreable outcome")

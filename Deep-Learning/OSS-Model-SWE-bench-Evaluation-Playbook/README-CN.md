@@ -6,7 +6,7 @@
 [![Python](https://img.shields.io/badge/Python-3.12-3776ab)](https://www.python.org/)
 [![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/oss-model-swebench-playbook-ci.yml/badge.svg?branch=master)](https://github.com/david-xinyuwei/david-share/actions/workflows/oss-model-swebench-playbook-ci.yml)
 
-一套简洁、可审计的评测流程：在Azure GPU VM、AI Foundry和Fireworks endpoint上生成代码patch，再使用SWE-bench官方Docker harness评分。
+一套简洁、可审计的评测流程：在Azure GPU VM、AI Foundry OSS Serverless、AI Foundry Managed Compute和AI Foundry / Fireworks上生成代码patch，再使用SWE-bench官方Docker harness评分。
 
 > **作者**：魏新宇 (Xinyu Wei) — Microsoft AI and Apps Global Black Belt (GBB)
 
@@ -66,11 +66,11 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-  R[基线endpoint] --> V[Azure GPU VM]
-  R --> S[AI Foundry Serverless]
-  R --> F[AI Foundry / Fireworks]
-  R --> M[AI Foundry Managed Compute]
-  V --> G[相同Agent、题目集与官方harness]
+  R[基线<br/>endpoint] --> V[Azure GPU VM]
+  R --> S[AI Foundry OSS<br/>Serverless]
+  R --> F[AI Foundry /<br/>Fireworks]
+  R --> M[AI Foundry<br/>Managed Compute]
+  V --> G[相同Agent<br/>相同题目集<br/>官方harness]
   S --> G
   F --> G
   M --> G
@@ -79,11 +79,11 @@ flowchart LR
 | 路径 | 证据 | 状态 |
 |---|---|---|
 | Azure GPU VM / 本地部署 | MiMo-V2.5-Pro、同一份冻结的500条predictions、SWE-bench官方harness | [360 Resolved / 500 submitted（72.00%），27个Empty，1个harness timeout](examples/live-azure-gpu-vm-mimo-v25-pro-full500.yaml) |
-| AI Foundry Serverless | DeepSeek-V4-Flash、tool预检、单题Agent运行与官方harness | [1 Resolved / 0 Error](examples/live-foundry-direct-deepseek-v4-flash-scored-canary.yaml) |
+| AI Foundry OSS Serverless | DeepSeek-V4-Flash、tool预检、单题Agent运行与官方harness | [1 Resolved / 0 Error](examples/live-foundry-direct-deepseek-v4-flash-scored-canary.yaml) |
 | AI Foundry / Fireworks | FW-GLM-5.1 deployment、tool预检、单题Agent运行与官方harness | [1 Resolved / 0 Error](examples/live-foundry-fw-glm51-scored-canary.yaml) |
 | AI Foundry Managed Compute | 单卡A100上的Qwen3-4B、Entra认证、非空patch与官方aggregate | [0 Resolved / 1 Unresolved / 0 Empty / 0 Error；流水线已验证，不声明准确率](examples/live-foundry-managed-compute-scored-canary.yaml) |
 
-四条路径都到达了SWE-bench官方aggregate。Canary只证明兼容性，不代表全量准确率。MiMo仍作为完整结果示例：它是对现有predictions的官方评测，该结果没有重跑生成阶段。独立的Fireworks公网API adapter只完成了shape test，不属于这四条已验证Azure路径。
+四条路径都到达了SWE-bench官方aggregate。Pipeline canary只证明兼容性，不代表模型解出该题或达到全量准确率。MiMo仍作为完整结果示例：它是对现有predictions的官方评测，该结果没有重跑生成阶段。
 
 <div align="center">
   <img src="images/mimo_swebench_result.png" width="960" alt="MiMo-V2.5-Pro official SWE-bench result">
@@ -100,8 +100,12 @@ flowchart LR
 | 本地评测资源 | `120GB`可用磁盘、`16GB`内存、`8`个CPU core |
 
 ```bash
-git clone https://github.com/david-xinyuwei/david-share.git
-cd david-share/Deep-Learning/OSS-Model-SWE-bench-Evaluation-Playbook
+git clone --filter=blob:none --sparse --branch master \
+  https://github.com/david-xinyuwei/david-share.git david-share
+cd david-share
+git sparse-checkout set --no-cone \
+  '/Deep-Learning/OSS-Model-SWE-bench-Evaluation-Playbook/'
+cd Deep-Learning/OSS-Model-SWE-bench-Evaluation-Playbook
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
@@ -112,15 +116,50 @@ Setup脚本会固定本Repo使用的mini-swe-agent与SWE-bench源码commit。两
 
 按平台设置变量；之后的命令完全相同：
 
-| 平台 | `ENDPOINT_MODE` | `MODEL_API_BASE` | `MODEL_NAME` | 认证 |
-|---|---|---|---|---|
-| Azure GPU VM / 本地部署 | `openai_compatible` | `http://<host>:8000/v1` | `<served-model>` | `MODEL_API_KEY`或`EMPTY` |
-| AI Foundry Serverless | `azure_foundry` | `https://<resource-name>.services.ai.azure.com` | `<deployment-name>` | `AZURE_AD_TOKEN` |
-| AI Foundry Managed Compute | `azure_foundry` | `https://<resource-name>.services.ai.azure.com/managed-deployments/<deployment-name>/v1` | `<deployment-name>` | `AZURE_AD_TOKEN` |
-| AI Foundry / Fireworks | `azure_foundry` | `https://<resource-name>.services.ai.azure.com` | `<deployment-name>` | `AZURE_AD_TOKEN` |
-| Fireworks公网API | `fireworks` | `https://api.fireworks.ai/inference/v1` | `accounts/<account>/models/<model-id>` | `FIREWORKS_AI_API_KEY` |
+| 平台 | `ENDPOINT_MODE` | 认证 |
+|---|---|---|
+| Azure GPU VM / 本地部署 | `openai_compatible` | `MODEL_API_KEY`或`EMPTY` |
+| AI Foundry OSS Serverless | `azure_foundry` | `MODEL_API_KEY` |
+| AI Foundry Managed Compute | `azure_foundry` | 默认`MODEL_API_KEY`；禁用local auth时使用`AZURE_AD_TOKEN` |
+| AI Foundry / Fireworks | `azure_foundry` | `MODEL_API_KEY` |
 
-使用Microsoft Entra ID时，每个订阅使用独立Azure CLI profile，再获取短期token。`AZURE_CONFIG_DIR`属于Azure CLI，不属于SWE-bench：
+### Azure GPU VM / 本地部署
+
+```bash
+export ENDPOINT_MODE="openai_compatible"
+export MODEL_API_BASE="http://<host>:8000/v1"
+export MODEL_NAME="<served-model>"
+export MODEL_API_KEY="<model-api-key-or-EMPTY>"
+export RUN_LABEL="azure-gpu-vm-$(date -u +%Y%m%dT%H%M%SZ)"
+```
+
+### AI Foundry OSS Serverless
+
+```bash
+export ENDPOINT_MODE="azure_foundry"
+export MODEL_API_BASE="https://<resource-name>.services.ai.azure.com"
+export MODEL_NAME="<deployment-name>"
+unset AZURE_AD_TOKEN
+export MODEL_API_KEY="<deployment-key>"
+export RUN_LABEL="foundry-oss-serverless-$(date -u +%Y%m%dT%H%M%SZ)"
+```
+
+封存的AI Foundry OSS Serverless与AI Foundry / Fireworks canary都使用Key认证。Deployment key应保存在secret manager中并定期轮换，禁止写入Repo或证据。
+
+### AI Foundry Managed Compute
+
+客户资源若启用了local authentication，直接使用access key。Microsoft Learn明确说明数据面推理可以使用access key或Microsoft Entra ID；只有设置`disableLocalAuth=true`才会禁用Key路径。详见[Microsoft Learn](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/configure-entra-id)。
+
+```bash
+export ENDPOINT_MODE="azure_foundry"
+export MODEL_API_BASE="https://<resource-name>.services.ai.azure.com/managed-deployments/<deployment-name>/v1"
+export MODEL_NAME="<deployment-name>"
+unset AZURE_AD_TOKEN
+export MODEL_API_KEY="<resource-key>"
+export RUN_LABEL="foundry-managed-compute-$(date -u +%Y%m%dT%H%M%SZ)"
+```
+
+如果目标资源设置了`disableLocalAuth=true`，Key认证不可用，必须改用Microsoft Entra ID：每个订阅使用独立Azure CLI profile，再获取短期token。`AZURE_CONFIG_DIR`属于Azure CLI，不属于SWE-bench：
 
 ```bash
 export AZURE_CONFIG_DIR="$HOME/.azure-<isolated-profile>"
@@ -134,18 +173,22 @@ export AZURE_AD_TOKEN="$(az account get-access-token \
 
 Azure CLI用户token有效期较短，适合本地开发或canary。长时间full run应使用Managed Identity或Service Principal，或在每个独立分片前刷新token；禁止把token保存到Repo或证据中。
 
+### AI Foundry / Fireworks
+
 ```bash
 export ENDPOINT_MODE="azure_foundry"
 export MODEL_API_BASE="https://<resource-name>.services.ai.azure.com"
 export MODEL_NAME="<deployment-name>"
-export RUN_LABEL="reference-$(date -u +%Y%m%dT%H%M%SZ)"
+unset AZURE_AD_TOKEN
+export MODEL_API_KEY="<deployment-key>"
+export RUN_LABEL="foundry-fireworks-$(date -u +%Y%m%dT%H%M%SZ)"
 ```
 
 这几个变量属于`scripts/run_generation.sh`，不属于SWE-bench。Wrapper把它们翻译成官方mini-swe-agent参数`-c model.model_name`和`-c model.model_kwargs.api_base`，导出对应的LiteLLM凭据变量，并把映射记录在`provider-contract.json`。SWE-bench本身不接受任何endpoint环境变量，只接受CLI参数。
 
 ## 运行
 
-先完成provider预检和单题生成加评分canary：
+先完成provider预检和单题生成加评分pipeline canary：
 
 ```bash
 python scripts/preflight_provider.py \
@@ -156,6 +199,8 @@ python scripts/preflight_provider.py \
 export OUTPUT_ROOT="runs/${RUN_LABEL}-scored-canary"
 bash scripts/run_scored_canary.sh
 ```
+
+最终marker会分开报告流水线状态和模型结果，例如：`PIPELINE_CANARY=PASS outcome=Unresolved ...`。
 
 如果模型较慢或能力较弱，可以设置`AGENT_STEP_LIMIT=12`，但它只用于限制兼容性canary的成本。该值会写入`provider-contract.json`；`Empty`结果仍可证明transport与官方aggregate链路可用，但不能作为准确率估计。全量运行前必须取消该变量。
 
@@ -202,6 +247,16 @@ tail -F "runs/${RUN_LABEL}-full/official-eval/harness.log"
 ```
 
 Harness会跳过已有逐题report。恢复运行前不要删除有效report。
+
+只允许通过相同wrapper、report目录、predictions和run ID续跑：
+
+```bash
+export PREDICTIONS_PATH="$(realpath "$OUTPUT_DIR/preds.json")"
+export REPORT_DIR="$(pwd)/runs/${RUN_LABEL}-full/official-eval"
+export RUN_ID="${RUN_LABEL}-verified"
+RESUME=true bash scripts/run_official_harness.sh 2>&1 \
+  | tee -a "$REPORT_DIR/harness-resume.log"
+```
 
 ## 对比合同
 

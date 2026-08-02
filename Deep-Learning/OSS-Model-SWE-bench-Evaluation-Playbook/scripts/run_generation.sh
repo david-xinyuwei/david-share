@@ -99,7 +99,7 @@ case "$ENDPOINT_MODE" in
   azure_foundry)
     : "${MODEL_API_BASE:?Set MODEL_API_BASE for azure_foundry mode}"
     MODEL_API_BASE="${MODEL_API_BASE%/}"
-    # Managed Compute publishes /managed-deployments/<name>/v1; only serverless needs the /openai/v1 suffix.
+    # Managed Compute publishes /managed-deployments/<name>/v1; only AI Foundry OSS Serverless needs the /openai/v1 suffix.
     case "$MODEL_API_BASE" in
       */v1) ;;
       *) MODEL_API_BASE="$MODEL_API_BASE/openai/v1" ;;
@@ -117,22 +117,6 @@ case "$ENDPOINT_MODE" in
     export HOSTED_VLLM_API_KEY="$AZURE_FOUNDRY_CREDENTIAL"
     AUTH_ENV_NAME=HOSTED_VLLM_API_KEY
     extra_config+=("-c" "model.model_class=scripts.provider_model.FoundryOpenAIModel")
-    ;;
-  fireworks)
-    MODEL_API_BASE="${MODEL_API_BASE:-https://api.fireworks.ai/inference/v1}"
-    case "$MODEL_NAME" in
-      fireworks_ai/*) ;;
-      *) MODEL_NAME="fireworks_ai/$MODEL_NAME" ;;
-    esac
-    if test -n "$MODEL_API_KEY"; then
-      export FIREWORKS_AI_API_KEY="$MODEL_API_KEY"
-    fi
-    if test -z "${FIREWORKS_AI_API_KEY:-}"; then
-      echo "Set FIREWORKS_AI_API_KEY or MODEL_API_KEY" >&2
-      exit 2
-    fi
-    export FIREWORKS_AI_API_BASE="$MODEL_API_BASE"
-    AUTH_ENV_NAME=FIREWORKS_AI_API_KEY
     ;;
   *)
     echo "Unsupported ENDPOINT_MODE: $ENDPOINT_MODE" >&2

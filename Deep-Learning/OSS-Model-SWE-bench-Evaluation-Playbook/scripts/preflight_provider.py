@@ -41,7 +41,7 @@ def count_valid_ping_calls(tool_calls) -> int:
 def request_candidates(mode: str, api_base: str):
     base = api_base.rstrip("/")
     if mode == "azure_foundry":
-        # Managed Compute exposes /managed-deployments/<name>/v1; serverless needs /openai/v1 appended.
+        # Managed Compute exposes /managed-deployments/<name>/v1; AI Foundry OSS Serverless needs /openai/v1 appended.
         if base.endswith("/v1"):
             return [(base + "/chat/completions", "v1")]
         return [(base + "/openai/v1/chat/completions", "v1")]
@@ -54,7 +54,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--mode",
-        choices=("openai_compatible", "azure_foundry", "fireworks"),
+        choices=("openai_compatible", "azure_foundry"),
         required=True,
     )
     parser.add_argument("--api-base", required=True)
@@ -70,12 +70,6 @@ def main() -> None:
         key = secret("MODEL_API_KEY", "HOSTED_VLLM_API_KEY") or "EMPTY"
         headers = {"Authorization": f"Bearer {key}"}
         model = strip_provider(args.model, "hosted_vllm")
-    elif args.mode == "fireworks":
-        key = secret("MODEL_API_KEY", "FIREWORKS_AI_API_KEY")
-        if not key:
-            raise SystemExit("Set FIREWORKS_AI_API_KEY or MODEL_API_KEY")
-        headers = {"Authorization": f"Bearer {key}"}
-        model = strip_provider(args.model, "fireworks_ai")
     else:
         credential = secret(
             "MODEL_API_KEY",

@@ -9,9 +9,6 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd -P)"
 : "${OUTPUT_ROOT:?Set OUTPUT_ROOT to a new directory}"
 
 MODEL_API_BASE="${MODEL_API_BASE:-}"
-if test "$ENDPOINT_MODE" = "fireworks"; then
-  MODEL_API_BASE="${MODEL_API_BASE:-https://api.fireworks.ai/inference/v1}"
-fi
 : "${MODEL_API_BASE:?Set MODEL_API_BASE}"
 
 INSTANCE_ID="${INSTANCE_ID:-astropy__astropy-7166}"
@@ -58,7 +55,7 @@ import json
 import sys
 from pathlib import Path
 
-from scripts.swebench_outcomes import validate_scored_canary_counts
+from scripts.swebench_outcomes import canary_outcome, validate_scored_canary_counts
 
 report_dir = Path(sys.argv[1])
 reports = list(report_dir.glob("*.json"))
@@ -70,7 +67,8 @@ try:
 except ValueError as error:
   raise SystemExit(str(error)) from error
 print(
-    "SCORED_CANARY=PASS "
+    "PIPELINE_CANARY=PASS "
+  f"outcome={canary_outcome(counts)} "
   f"resolved={counts['resolved']} "
   f"unresolved={counts['unresolved']} "
   f"empty={counts['empty']} "
