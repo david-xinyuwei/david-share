@@ -89,6 +89,12 @@ flowchart LR
   <img src="images/mimo_swebench_result.png" width="960" alt="MiMo-V2.5-Pro official SWE-bench result">
 </div>
 
+该次官方harness运行的原始终端输出，作为一手证据保留。末尾那段就是上方数字的出处：
+
+<div align="center">
+  <img src="images/mimo_swebench_harness_console.png" width="960" alt="Official SWE-bench harness console output for the MiMo-V2.5-Pro run">
+</div>
+
 ## 安装
 
 前置条件：
@@ -268,9 +274,8 @@ RESUME=true bash scripts/run_official_harness.sh 2>&1 \
 |---|---|
 | 单题pipeline canary（任一平台） | 约10分钟 |
 | 500题生成：MiMo-V2.5-Pro（MoE，约1TB FP8权重）在单节点8×MI300X、TP8 | 约5小时 |
-| 官方harness在CPU Docker主机上评分500条predictions | 约5小时 |
 
-更小的模型或更高服务吞吐会大致线性缩短生成时间；评分时长只取决于评测主机。
+更小的模型或更高服务吞吐会大致线性缩短生成时间。官方Docker评分耗时取决于评测主机的CPU核数、磁盘速度、镜像缓存和worker数，本Repo未做基准测量。
 
 ## 对比合同
 

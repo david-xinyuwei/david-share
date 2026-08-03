@@ -1,5 +1,6 @@
 import csv
 import json
+import struct
 import subprocess
 import sys
 import tempfile
@@ -299,6 +300,18 @@ class ValidationToolTests(unittest.TestCase):
             output.read_bytes(),
             (ROOT / "images" / "mimo_swebench_result.png").read_bytes(),
         )
+
+    def test_harness_console_evidence_is_readable_and_linked(self) -> None:
+        data = (ROOT / "images" / "mimo_swebench_harness_console.png").read_bytes()
+        self.assertEqual(data[:8], b"\x89PNG\r\n\x1a\n")
+        width, height = struct.unpack(">II", data[16:24])
+        self.assertGreaterEqual(width, 1600)
+        self.assertGreaterEqual(height, 400)
+        for name in ("README.md", "README-CN.md"):
+            self.assertIn(
+                'src="images/mimo_swebench_harness_console.png"',
+                (ROOT / name).read_text(),
+            )
 
     def test_mimo_full_result_uses_submitted_denominator(self) -> None:
         payload = yaml.safe_load(

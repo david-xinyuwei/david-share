@@ -89,6 +89,12 @@ All four paths now have live Agent-generation and official-aggregate canaries. A
   <img src="images/mimo_swebench_result.png" width="960" alt="MiMo-V2.5-Pro official SWE-bench result">
 </div>
 
+Raw console output of that official harness run, kept as first-hand evidence. The tail block is the harness summary the numbers above are read from:
+
+<div align="center">
+  <img src="images/mimo_swebench_harness_console.png" width="960" alt="Official SWE-bench harness console output for the MiMo-V2.5-Pro run">
+</div>
+
 ## Setup
 
 Prerequisites:
@@ -268,9 +274,8 @@ Observed reference points from the sealed runs behind this Repo:
 |---|---|
 | Single-task pipeline canary, any platform | ~10 minutes |
 | 500-task generation: MiMo-V2.5-Pro (MoE, ~1 TB FP8 weights) on one 8 × MI300X node, TP8 | ~5 hours |
-| Official harness scoring of 500 predictions on a CPU Docker host | ~5 hours |
 
-A smaller model or higher serving throughput shortens generation roughly linearly; scoring time depends only on the evaluation host.
+A smaller model or higher serving throughput shortens generation roughly linearly. Official Docker scoring time depends on the evaluation host — CPU cores, disk speed, image cache, and worker count — and is not benchmarked here.
 
 ## Comparison Contract
 
