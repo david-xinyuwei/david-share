@@ -267,7 +267,7 @@ RESUME=true bash scripts/run_official_harness.sh 2>&1 \
 | 阶段 | 实测墙钟 |
 |---|---|
 | 单题pipeline canary（任一平台） | 约10分钟 |
-| 500题生成：MiMo-V2.5-Pro（MoE，约1TB FP8权重）在两台Azure ND MI300X v5节点、TP8、每节点250题 | 约4–5小时 |
+| 500题生成：MiMo-V2.5-Pro（MoE，约1TB FP8权重）在单节点8×MI300X、TP8 | 约5小时 |
 | 官方harness在CPU Docker主机上评分500条predictions | 约5小时 |
 
 更小的模型或更高服务吞吐会大致线性缩短生成时间；评分时长只取决于评测主机。

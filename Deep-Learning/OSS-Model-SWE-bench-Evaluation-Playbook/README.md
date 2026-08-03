@@ -267,7 +267,7 @@ Observed reference points from the sealed runs behind this Repo:
 | Stage | Observed wall clock |
 |---|---|
 | Single-task pipeline canary, any platform | ~10 minutes |
-| 500-task generation: MiMo-V2.5-Pro (MoE, ~1 TB FP8 weights) on two Azure ND MI300X v5 nodes, TP8, 250 tasks per node | ~4–5 hours |
+| 500-task generation: MiMo-V2.5-Pro (MoE, ~1 TB FP8 weights) on one 8 × MI300X node, TP8 | ~5 hours |
 | Official harness scoring of 500 predictions on a CPU Docker host | ~5 hours |
 
 A smaller model or higher serving throughput shortens generation roughly linearly; scoring time depends only on the evaluation host.
