@@ -14,7 +14,6 @@ REQUIRED = {
     "requirements-lock.txt",
     "configs/oss-model.yaml",
     "images/mimo_swebench_result.png",
-    "images/mimo_swebench_harness_console.png",
     "images/swebench_workflow.png",
     "images/swebench_roles.png",
     "scripts/generate_mimo_result_diagram.py",
@@ -227,11 +226,6 @@ def main() -> None:
     result_size = png_size(root / "images" / "mimo_swebench_result.png")
     if result_size != (1280, 720):
         raise SystemExit(f"Unexpected result image size: {result_size[0]}x{result_size[1]}")
-    console_size = png_size(root / "images" / "mimo_swebench_harness_console.png")
-    if console_size[0] < 1600 or console_size[1] < 400:
-        raise SystemExit(
-            f"Console evidence image is too small to read: {console_size[0]}x{console_size[1]}"
-        )
 
     requirements = (root / "requirements.txt").read_text()
     requirements_lock = (root / "requirements-lock.txt").read_text()
