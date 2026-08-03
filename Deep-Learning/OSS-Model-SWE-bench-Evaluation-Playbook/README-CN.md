@@ -85,9 +85,6 @@ flowchart LR
 
 四条路径现在都有真实Agent生成和官方aggregate canary。Pipeline canary只证明兼容性，不代表模型达到全量准确率。MiMo同时保留完整结果示例：360/500来自对现有predictions的官方评测，该全量结果没有重跑生成阶段。
 
-<div align="center">
-  <img src="images/mimo_swebench_result.png" width="960" alt="MiMo-V2.5-Pro official SWE-bench result">
-</div>
 
 该次官方harness运行的原始终端输出，作为一手证据保留。末尾那段就是上方数字的出处：
 
