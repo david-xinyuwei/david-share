@@ -85,10 +85,6 @@ flowchart LR
 
 All four paths now have live Agent-generation and official-aggregate canaries. A pipeline canary proves compatibility only; it does not establish per-model accuracy. MiMo also remains the complete-result example: its 360/500 score is an official evaluation of existing predictions, and generation was not rerun for that full result.
 
-<div align="center">
-  <img src="images/mimo_swebench_result.png" width="960" alt="MiMo-V2.5-Pro official SWE-bench result">
-</div>
-
 Raw console output of that official harness run, kept as first-hand evidence. The tail block is the harness summary the numbers above are read from:
 
 <div align="center">
