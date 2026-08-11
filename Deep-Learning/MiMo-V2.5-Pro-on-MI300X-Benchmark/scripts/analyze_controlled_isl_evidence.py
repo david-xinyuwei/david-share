@@ -10,7 +10,10 @@ import json
 import math
 import re
 import statistics
+import sys
 from pathlib import Path
+
+from evidence_hash import verify_sha256
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -35,19 +38,17 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
 def check_manifest(directory: Path) -> None:
     manifest = directory / "SHA256SUMS.txt"
     covered = set()
+    normalized = []
     for line in manifest.read_text(encoding="utf-8").splitlines():
         expected, name = line.split(maxsplit=1)
         covered.add(name)
-        actual = sha256(directory / name)
-        if actual != expected:
-            raise ValueError(f"SHA mismatch: {name}")
+        if verify_sha256(directory / name, expected) == "canonical_lf":
+            normalized.append(name)
+    if normalized:
+        print(f"hash_mode=canonical_lf files={len(normalized)}", file=sys.stderr)
     expected_files = {
         "README.md",
         "prefill-128k.client.txt",

@@ -15,6 +15,10 @@
 
 [English](README.md) | 中文 | [验证证据](data/validation/)
 
+> **优化演进专题：** [English deep dive](docs/optimization-evolution.md) | [中文深度解析](docs/optimization-evolution-CN.md) 解释 AITER、CK、Tuned MoE、长上下文 Paged Attention、Parallelism 与 EAGLE Correctness 为什么必须按特定顺序引入。
+
+![MiMo-V2.5-Pro MI300X 优化演进](images/optimization-evolution.png)
+
 ## 执行摘要
 
 > **Prefill（预填充阶段）：** 在 64K 输入、客户端并发 4 的条件下，MI300X 达到 **18,983.91 input tok/s**。客户提供的 H200 饱和吞吐参考为 **27,400 input tok/s**，但对应的 H200 工作簿未记录客户端并发，因此这里只能作为方向性参考。

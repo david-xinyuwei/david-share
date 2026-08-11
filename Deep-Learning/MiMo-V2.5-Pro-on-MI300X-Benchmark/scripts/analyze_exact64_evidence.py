@@ -8,7 +8,10 @@ import hashlib
 import json
 import re
 import statistics
+import sys
 from pathlib import Path
+
+from evidence_hash import verify_sha256
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -32,11 +35,13 @@ def parse_args() -> argparse.Namespace:
 
 
 def check_manifest(directory: Path) -> None:
+    normalized = []
     for line in (directory / "SHA256SUMS.txt").read_text(encoding="utf-8").splitlines():
         expected, name = line.split(maxsplit=1)
-        actual = hashlib.sha256((directory / name).read_bytes()).hexdigest()
-        if actual != expected:
-            raise ValueError(f"SHA mismatch: {name}")
+        if verify_sha256(directory / name, expected) == "canonical_lf":
+            normalized.append(name)
+    if normalized:
+        print(f"hash_mode=canonical_lf files={len(normalized)}", file=sys.stderr)
 
 
 def parse_client(path: Path) -> dict[str, str]:

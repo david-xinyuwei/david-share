@@ -14,6 +14,8 @@ import sys
 from collections import Counter
 from pathlib import Path
 
+from evidence_hash import verify_sha256
+
 
 ROOT = Path(__file__).resolve().parents[1]
 READMES = (ROOT / "README.md", ROOT / "README-CN.md")
@@ -217,11 +219,14 @@ def load_json(path: Path) -> dict:
 
 def check_hash_manifest(directory: Path) -> None:
     manifest = directory / "SHA256SUMS.txt"
+    normalized = []
     for line in manifest.read_text(encoding="utf-8").splitlines():
         expected, name = line.split(maxsplit=1)
         path = directory / name
-        actual = hashlib.sha256(path.read_bytes()).hexdigest()
-        assert actual == expected, f"SHA mismatch: {path}"
+        if verify_sha256(path, expected) == "canonical_lf":
+            normalized.append(name)
+    if normalized:
+        print(f"hash_mode=canonical_lf directory={directory.relative_to(ROOT)} files={len(normalized)}")
 
 
 def check_readmes() -> None:
@@ -1435,9 +1440,23 @@ def check_provenance() -> None:
 def check_code_and_assets() -> None:
     bundle = ROOT / "scripts/amd-latest"
     for path in sorted(bundle.glob("*.sh")):
-        subprocess.run(["bash", "-n", str(path)], check=True)
+        source = path.read_text(encoding="utf-8").replace("\r\n", "\n")
+        subprocess.run(
+            ["bash", "-n"],
+            input=source,
+            text=True,
+            check=True,
+        )
     for path in sorted((ROOT / "scripts").rglob("*.py")):
         compile(path.read_text(encoding="utf-8"), str(path), "exec")
+    tests = subprocess.run(
+        [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py"],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert tests.returncode == 0, tests.stdout + tests.stderr
     check_hash_manifest(bundle)
     check_hash_manifest(ROOT / "data/validation")
 
@@ -1447,7 +1466,32 @@ def check_code_and_assets() -> None:
     assert (width, height) == (1648, 948)
 
 
+def check_optimization_evolution() -> None:
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "scripts/validate_optimization_evolution.py")],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "OPTIMIZATION_EVOLUTION_DATA=PASS" in result.stdout
+    assert "generated_artifacts=PASS" in result.stdout
+
+
 def check_public_boundary() -> None:
+    excluded_directories = {
+        ".git",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".ruff_cache",
+        ".venv",
+        "__pycache__",
+        "build",
+        "dist",
+        "node_modules",
+        "venv",
+    }
     patterns = {
         "credential": re.compile(
             r"(?i)(?:gh[pousr]_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9_-]{20,}|"
@@ -1465,8 +1509,10 @@ def check_public_boundary() -> None:
     }
     findings = []
     for path in ROOT.rglob("*"):
+        relative = path.relative_to(ROOT)
         if (
             not path.is_file()
+            or any(part in excluded_directories for part in relative.parts)
             or path.suffix.lower() in {".png", ".jpg", ".jpeg"}
         ):
             continue
@@ -1476,7 +1522,7 @@ def check_public_boundary() -> None:
             continue
         for name, pattern in patterns.items():
             if pattern.search(text):
-                findings.append((name, path.relative_to(ROOT).as_posix()))
+                findings.append((name, relative.as_posix()))
     assert not findings, f"Public boundary findings: {findings}"
     assert not (ROOT / "password.txt").exists()
 
@@ -1847,6 +1893,7 @@ def main() -> None:
         ("long_context_decode", check_long_context_decode),
         ("fixed_batch_decode", check_fixed_batch_decode),
         ("provenance", check_provenance),
+        ("optimization_evolution", check_optimization_evolution),
         ("code_and_assets", check_code_and_assets),
         ("public_boundary", check_public_boundary),
     )

@@ -1,0 +1,165 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import io
+import json
+import sys
+import textwrap
+from pathlib import Path
+
+from PIL import Image, ImageDraw, ImageFont
+
+
+ROOT = Path(__file__).resolve().parents[1]
+DATA = ROOT / "data" / "optimization-evolution.json"
+DEFAULT_OUTPUT = ROOT / "images" / "optimization-evolution.png"
+WIDTH = 1920
+HEIGHT = 1080
+
+PALETTE = {
+    "model": (190, 54, 62),
+    "operators-memory": (31, 104, 151),
+    "architecture": (30, 128, 115),
+    "kernels-communication": (78, 121, 45),
+    "moe": (194, 112, 28),
+    "attention-memory": (118, 78, 145),
+    "scheduling-parallelism": (66, 92, 138),
+    "correctness": (175, 63, 92),
+    "evaluation": (92, 92, 92),
+}
+
+
+def font(size: int) -> ImageFont.FreeTypeFont:
+    return ImageFont.load_default(size=size)
+
+
+def draw_arrow(draw: ImageDraw.ImageDraw, start: tuple[int, int], end: tuple[int, int]) -> None:
+    draw.line([start, end], fill=(94, 102, 112), width=5)
+    x, y = end
+    draw.polygon([(x, y), (x - 16, y - 10), (x - 16, y + 10)], fill=(94, 102, 112))
+
+
+def wrap(text: str, width: int) -> list[str]:
+    return textwrap.wrap(text, width=width, break_long_words=False, break_on_hyphens=False)
+
+
+def build_png(data: dict) -> bytes:
+    image = Image.new("RGB", (WIDTH, HEIGHT), (248, 249, 251))
+    draw = ImageDraw.Draw(image)
+
+    title_font = font(44)
+    subtitle_font = font(24)
+    stage_font = font(21)
+    lane_font = font(17)
+    body_font = font(18)
+    footer_font = font(19)
+
+    draw.text((70, 52), "MiMo-V2.5-Pro on MI300X: Optimization Evolution", fill=(25, 31, 39), font=title_font)
+    draw.text(
+        (72, 112),
+        "Chronological progression; the exact dependency DAG is documented alongside this figure.",
+        fill=(75, 83, 92),
+        font=subtitle_font,
+    )
+
+    stages = data["stages"]
+    card_w = 520
+    card_h = 220
+    positions = [
+        (70, 185),
+        (700, 185),
+        (1330, 185),
+        (1330, 445),
+        (700, 445),
+        (70, 445),
+        (70, 705),
+        (700, 705),
+        (1330, 705),
+    ]
+
+    for index in range(len(positions) - 1):
+        x1, y1 = positions[index]
+        x2, y2 = positions[index + 1]
+        if y1 == y2:
+            if x2 > x1:
+                draw_arrow(draw, (x1 + card_w + 12, y1 + card_h // 2), (x2 - 18, y2 + card_h // 2))
+            else:
+                draw_arrow(draw, (x1 - 12, y1 + card_h // 2), (x2 + card_w + 18, y2 + card_h // 2))
+        else:
+            draw.line(
+                [(x1 + card_w // 2, y1 + card_h + 8), (x1 + card_w // 2, y2 - 28), (x2 + card_w // 2, y2 - 28)],
+                fill=(94, 102, 112),
+                width=5,
+            )
+            draw.polygon(
+                [
+                    (x2 + card_w // 2, y2 - 6),
+                    (x2 + card_w // 2 - 10, y2 - 24),
+                    (x2 + card_w // 2 + 10, y2 - 24),
+                ],
+                fill=(94, 102, 112),
+            )
+
+    for stage, (x, y) in zip(stages, positions):
+        accent = PALETTE[stage["lane"]]
+        draw.rounded_rectangle(
+            (x, y, x + card_w, y + card_h),
+            radius=14,
+            fill=(255, 255, 255),
+            outline=(207, 211, 216),
+            width=2,
+        )
+        draw.rounded_rectangle((x, y, x + 14, y + card_h), radius=7, fill=accent)
+        title_lines = wrap(f"{stage['sequence']}  {stage['title_en']}", 43)[:2]
+        for line_index, line in enumerate(title_lines):
+            draw.text((x + 32, y + 17 + line_index * 27), line, fill=(28, 34, 42), font=stage_font)
+        draw.text((x + 34, y + 77), stage["lane"].upper(), fill=accent, font=lane_font)
+
+        body = stage["change_en"]
+        all_lines = wrap(body, 55)
+        lines = all_lines[:4]
+        if len(all_lines) > 4:
+            lines[-1] = lines[-1].rstrip(".,;:") + "..."
+        for line_index, line in enumerate(lines):
+            draw.text((x + 34, y + 108 + line_index * 23), line, fill=(67, 74, 83), font=body_font)
+
+    draw.rounded_rectangle((70, 966, 1850, 1030), radius=10, fill=(235, 238, 242))
+    draw.text(
+        (92, 985),
+        "Reading rule: timeline order is not causal proof; use the machine-readable DAG and evidence boundaries for claims.",
+        fill=(55, 62, 71),
+        font=footer_font,
+    )
+
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG", optimize=True)
+    return buffer.getvalue()
+
+
+def main() -> int:
+    if not __debug__ or sys.flags.optimize:
+        raise RuntimeError("Generation checks require normal Python mode; -O/-OO is not supported.")
+    parser = argparse.ArgumentParser(description="Generate the MI300X optimization evolution diagram")
+    parser.add_argument("--data", type=Path, default=DATA)
+    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument("--check", action="store_true", help="Fail if the committed PNG differs from generated bytes")
+    args = parser.parse_args()
+
+    data = json.loads(args.data.read_text(encoding="utf-8"))
+    generated = build_png(data)
+    if args.check:
+        assert args.output.exists(), f"missing generated image: {args.output}"
+        assert args.output.read_bytes() == generated, f"stale generated image: {args.output}"
+        print(f"DIAGRAM_CURRENT=PASS bytes={len(generated)}")
+        return 0
+
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_bytes(generated)
+    print(f"generated={args.output}")
+    print(f"bytes={len(generated)}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -15,6 +15,10 @@ This customer-facing repo contains the headline comparison, the complete Microso
 
 English | [中文版](README-CN.md) | [Validation Evidence](data/validation/)
 
+> **Optimization evolution:** [English deep dive](docs/optimization-evolution.md) | [中文深度解析](docs/optimization-evolution-CN.md) explains why AITER, CK, tuned MoE, long-context Paged Attention, parallelism, and EAGLE correctness must be introduced in a specific order.
+
+![MiMo-V2.5-Pro MI300X optimization evolution](images/optimization-evolution.png)
+
 ## Executive Summary
 
 > **Comparison status:** on the input side, MI300X reaches **18,983.91 input tok/s** at 64K and concurrency 4 versus the customer H200 saturation reference of **27,400 input tok/s**; the H200 workbook does not record the matching input concurrency. On the output side, the final AMD 7/13-derived AITER/CK path reaches **933.75 scheduler gen tok/s** in a **single-node, non-PD**, exact-64K, fixed-BS16, **fixed-acceptance performance benchmark**, the mean of two fresh-service runs (**931.58 / 935.92 tok/s**, **0.47%** repeat delta), with an implied TPOT of **17.14 ms**. This is a **70.0% worksheet-local directional arithmetic ratio** against the customer workbook's 64K BS16 row and **25.7% above** the same-image exact no-CK baseline. It is not the 1P1D PD c16 record, not a natural-MTP-acceptance result, and not an output-quality result. The H200 workbook has no row-level output length, its Column J scope is ambiguous, and topology, routing, acceptance method, and metric scope differ. Higher batch sizes (BS32–96) still require an EP/multi-node Decode deployment and carry no hardware ratio.
