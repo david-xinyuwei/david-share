@@ -6,7 +6,7 @@
 [![GPU](https://img.shields.io/badge/GPU-4%C3%97A100%2080GB%20PCIe-green)](https://learn.microsoft.com/azure/virtual-machines/nca100v4-series)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
-Custom Code Training 是 Foundry 上给「装不进托管 fine-tuning 表单」的训练准备的入口：训练脚本、数据集和容器镜像由你提供，GPU 集群、作业契约和可观测性由平台提供。这个 repo 先说清这个入口到底给了什么，再用产品自带的 verl template 把 `Qwen/Qwen3-14B` 的 GRPO 训练跑到**完成**——单个 4×A100 节点上 14 个优化器 step、5 小时 41 分钟——包括路上的七个失败点，和跑通之后每一步的实测开销。
+对于标准托管 fine-tuning 流程无法覆盖的训练任务，Custom Code Training 提供了运行自定义训练代码的入口：训练脚本、数据集和容器镜像由你提供，GPU 集群、作业契约和可观测性由平台提供。这个 repo 先说清这个入口到底给了什么，再用产品自带的 verl template 把 `Qwen/Qwen3-14B` 的 GRPO 训练跑到**完成**——单个 4×A100 节点上 14 个优化器 step、5 小时 41 分钟——包括路上的七个失败点，和跑通之后每一步的实测开销。
 
 > Author: 魏新宇 (Xinyu Wei)
 
