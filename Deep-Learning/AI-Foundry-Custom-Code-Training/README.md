@@ -9,10 +9,9 @@
 Custom Code Training is the Foundry surface for training that does **not** fit a managed
 fine-tuning form: you supply the training script, the dataset and the container image, and
 the platform supplies the GPU cluster, the job contract and the observability. This repo
-documents what that surface actually gives you, then takes the product's own verl template
-all the way to a **completed** GRPO run on `Qwen/Qwen3-14B` — 14 optimizer steps in 5 h 41 m
-on one 4×A100 node — including the seven failures on the way and the measured cost per step
-at the other end.
+validates that product path in three stages: Hello World, LoRA SFT on `Qwen/Qwen3-14B`, and
+finally a **completed** VERL GRPO run — 14 optimizer steps in 5 h 41 m on one 4×A100 node —
+including the seven failures on the way and the measured cost per step at the other end.
 
 > Author: 魏新宇 (Xinyu Wei)
 
@@ -176,7 +175,25 @@ checkout rather than fetched by this public workflow.
 
 ---
 
-## What we ran on it
+## Three SDK demos, completed end to end
+
+The same Foundry project and managed A100 compute were used to validate three progressively
+deeper product paths. Each row reached the terminal `Complete` state; these are three
+different workflows, not three repetitions of one benchmark.
+
+| SDK demo | Product path validated | Actual run | Output / evidence |
+|---|---|---|---|
+| `hello-world` | Compute provisioning, queueing, node registration and command execution | `sdk-hello-world-a5b1` — **Complete**, 7m 38s | No dataset required; [job history](images/portal-training-job-list.png) |
+| `quickstart-sft` | Dataset upload and mount, LoRA SFT on `Qwen/Qwen3-14B`, versioned output collection | `sft-lora-862f` — **Complete**, 2h 09m 52s | `retail-sft-lora-c78047` adapter; [model list](images/portal-models-deploy.png) |
+| `rft-with-verl` | Custom image, Ray, FSDP2, vLLM rollout, GRPO updates and four validation passes | `verl-rft-dpactor-f3e1` — **Complete**, 5h 41m, 14/14 steps | `model_output_dfead6`, checkpoints and [per-step metrics](evidence/training-metrics.jsonl) |
+
+The SLIME sample is not counted as completed. Its checked-in notebook defaults to 4 nodes ×
+8 GPUs; on the available 1-node × 4-GPU quota, that default parameterization fails the
+sample's actor/rollout topology guard before training.
+
+---
+
+## Deep dive: the VERL run
 
 RL post-training is usually described as if it needs a cluster. It does not. GRPO on
 `Qwen/Qwen3-14B` fits on a single node with 4× A100 80GB, including a live vLLM rollout

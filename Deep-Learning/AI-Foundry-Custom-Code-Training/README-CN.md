@@ -6,7 +6,7 @@
 [![GPU](https://img.shields.io/badge/GPU-4%C3%97A100%2080GB%20PCIe-green)](https://learn.microsoft.com/azure/virtual-machines/nca100v4-series)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
-对于标准托管 fine-tuning 流程无法覆盖的训练任务，Custom Code Training 提供了运行自定义训练代码的入口：训练脚本、数据集和容器镜像由你提供，GPU 集群、作业契约和可观测性由平台提供。这个 repo 先说清这个入口到底给了什么，再用产品自带的 verl template 把 `Qwen/Qwen3-14B` 的 GRPO 训练跑到**完成**——单个 4×A100 节点上 14 个优化器 step、5 小时 41 分钟——包括路上的七个失败点，和跑通之后每一步的实测开销。
+对于标准托管 fine-tuning 流程无法覆盖的训练任务，Custom Code Training 提供了运行自定义训练代码的入口：训练脚本、数据集和容器镜像由你提供，GPU 集群、作业契约和可观测性由平台提供。这个 repo 按三个层次验证了这条产品路径：Hello World、`Qwen/Qwen3-14B` LoRA SFT，以及最终完整跑通的 VERL GRPO——单个 4×A100 节点上 14 个优化器 step、5 小时 41 分钟——包括路上的七个失败点和每一步的实测开销。
 
 > Author: 魏新宇 (Xinyu Wei)
 
@@ -133,7 +133,21 @@ CI 在 Python 3.11/3.12 上运行这个 public repo 的测试矩阵，核对 SDK
 
 ---
 
-## 我们在上面跑了什么
+## 三个 SDK demo，全部端到端跑通
+
+三个 demo 使用同一个 Foundry project 和托管 A100 compute，验证深度逐步增加。每一项都到达终态 `Complete`；它们是三条不同的产品路径，不是同一个 benchmark 重复跑三次。
+
+| SDK demo | 验证的产品路径 | 实际运行 | 产出 / 证据 |
+|---|---|---|---|
+| `hello-world` | Compute 创建、排队、节点注册和命令执行 | `sdk-hello-world-a5b1` —— **Complete**，7 分 38 秒 | 无需 dataset；[作业历史](images/portal-training-job-list.png) |
+| `quickstart-sft` | Dataset 上传与挂载、`Qwen/Qwen3-14B` LoRA SFT、版本化产出回收 | `sft-lora-862f` —— **Complete**，2 小时 09 分 52 秒 | `retail-sft-lora-c78047` adapter；[模型列表](images/portal-models-deploy.png) |
+| `rft-with-verl` | 自定义镜像、Ray、FSDP2、vLLM rollout、GRPO 更新和四次验证 | `verl-rft-dpactor-f3e1` —— **Complete**，5 小时 41 分，14/14 步 | `model_output_dfead6`、checkpoint 和[逐步指标](evidence/training-metrics.jsonl) |
+
+SLIME sample 不计入已完成项。它随 repo 提供的 notebook 默认使用 4 节点 × 8 GPU；在现有 1 节点 × 4 GPU 的配额下，这组默认参数会在训练开始前触发 sample 自带的 actor/rollout 拓扑检查。
+
+---
+
+## 深入分析：VERL 训练
 
 RL 后训练通常被描述成需要集群的事情。其实不必。`Qwen/Qwen3-14B` 的 GRPO 训练可以在一台 4×A100 80GB 的机器上完整跑起来，包括一个常驻的 vLLM rollout engine——前提是两件事算对：**80 GB 怎么在训练 actor 和推理引擎之间切分**，以及**卡与卡之间实际可用的 NCCL transport 是哪一条**。
 
