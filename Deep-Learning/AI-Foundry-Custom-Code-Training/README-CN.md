@@ -129,7 +129,7 @@ Code 页逐个文件地显示这次作业实际跑的是什么——启动脚本
 | [`evidence/`](evidence/) | 原始结构化指标、验证结果、输入/日志 hash、镜像 build differential |
 | [`tests/`](tests/) | patch、契约、JSONL、placeholder、SKU、image tag、Hydra 拒绝路径 |
 
-CI 在 Python 3.11/3.12 上运行测试矩阵，拉取冻结的生产方 sample，核对 270/62 数据契约，渲染离线 `CommandJob`，并在不提交作业的前提下检查合并 Dockerfile。
+CI 在 Python 3.11/3.12 上运行这个 public repo 的测试矩阵，核对 SDK pin、编译全部 Python 源码、执行确定性 repository gate，并在不提交作业的前提下检查合并后的 Dockerfile。生产方 sample 有访问控制，因此 270/62 数据契约和冻结 hash 只在完成授权 checkout 后做本地验证，不由 public workflow 拉取。
 
 ---
 

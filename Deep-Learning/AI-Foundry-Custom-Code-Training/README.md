@@ -168,9 +168,11 @@ which is what made it safe to release the GPU as soon as the run finished.
 | [`evidence/`](evidence/) | Raw structured metrics, validation passes, input/log hashes and image-build differential |
 | [`tests/`](tests/) | Patch, contract, JSONL, placeholder, SKU, image-tag and Hydra refusal tests |
 
-CI runs the test matrix on Python 3.11 and 3.12, fetches the pinned producer sample, verifies
-the 270/62 dataset contract, renders the offline `CommandJob`, and checks the consolidated
-Dockerfile without submitting a job.
+CI runs the public repository's test matrix on Python 3.11 and 3.12, verifies the SDK pins,
+compiles every Python source, runs the deterministic repository gate, and checks the
+consolidated Dockerfile without submitting a job. The producer sample is access-controlled,
+so its 270/62 dataset contract and frozen hashes are verified locally after an authorized
+checkout rather than fetched by this public workflow.
 
 ---
 

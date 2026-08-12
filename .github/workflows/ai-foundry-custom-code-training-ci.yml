@@ -66,27 +66,6 @@ jobs:
       - name: Run deterministic repository gate
         run: python scripts/validate_repo.py
 
-      - name: Fetch the pinned producer sample
-        shell: bash
-        run: |
-          upstream="$RUNNER_TEMP/custom-code-training"
-          git init "$upstream"
-          git -C "$upstream" remote add origin https://github.com/microsoft-foundry/custom-code-training.git
-          git -C "$upstream" fetch --depth 1 origin 018d095f508280efce9e79c4b19fc941d7361b30
-          git -C "$upstream" checkout --detach FETCH_HEAD
-
-      - name: Render the offline Foundry job plan
-        shell: bash
-        run: |
-          python scripts/submit_job.py --action plan \
-            --config configs/foundry-job.example.json \
-            --overrides configs/verified-overrides.json \
-            --sample-dir "$RUNNER_TEMP/custom-code-training/code-samples/sdk/training/rft-with-verl" \
-            --allow-placeholders > "$RUNNER_TEMP/foundry-job-plan.json"
-          grep -q '"status": "EXAMPLE_CONFIG_ONLY"' "$RUNNER_TEMP/foundry-job-plan.json"
-          grep -q '"records": 270' "$RUNNER_TEMP/foundry-job-plan.json"
-          grep -q '"records": 62' "$RUNNER_TEMP/foundry-job-plan.json"
-
       - name: Check consolidated Dockerfile
         if: matrix.python-version == '3.11'
         run: docker buildx build --check --file docker/Dockerfile .
