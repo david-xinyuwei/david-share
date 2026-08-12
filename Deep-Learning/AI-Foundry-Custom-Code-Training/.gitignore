@@ -1,0 +1,14 @@
+# Patched verl copies and local venvs are per-machine, never committed.
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Raw job logs can reach several MB and contain environment-specific identifiers;
+# only curated, sanitised excerpts belong under evidence/.
+*.raw.log
+*-full.log
+evidence/**/raw/
+
+.DS_Store
+Thumbs.db
