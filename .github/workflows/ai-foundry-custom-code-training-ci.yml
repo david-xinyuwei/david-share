@@ -1,0 +1,90 @@
+name: AI Foundry Custom Code Training CI
+
+on:
+  push:
+    paths:
+      - "Deep-Learning/AI-Foundry-Custom-Code-Training/**"
+      - ".github/workflows/ai-foundry-custom-code-training-ci.yml"
+  pull_request:
+    paths:
+      - "Deep-Learning/AI-Foundry-Custom-Code-Training/**"
+      - ".github/workflows/ai-foundry-custom-code-training-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    defaults:
+      run:
+        working-directory: Deep-Learning/AI-Foundry-Custom-Code-Training
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: |
+            Deep-Learning/AI-Foundry-Custom-Code-Training/requirements.txt
+            Deep-Learning/AI-Foundry-Custom-Code-Training/requirements-dev.txt
+
+      - name: Install pinned dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Verify SDK identity
+        run: |
+          python - <<'PY'
+          from importlib import metadata
+          expected = {
+              "azure-ai-projects": "2.3.0a20260525001",
+              "azure-identity": "1.26.0b2",
+              "pytest": "9.1.1",
+          }
+          actual = {name: metadata.version(name) for name in expected}
+          print(actual)
+          assert actual == expected
+          PY
+
+      - name: Compile all Python sources
+        run: >-
+          python -m compileall -q
+          scripts tools patches tests docker/verify_stack.py
+
+      - name: Run unit and refusal-path tests
+        run: python -m pytest tests -q
+
+      - name: Run deterministic repository gate
+        run: python scripts/validate_repo.py
+
+      - name: Fetch the pinned producer sample
+        shell: bash
+        run: |
+          upstream="$RUNNER_TEMP/custom-code-training"
+          git init "$upstream"
+          git -C "$upstream" remote add origin https://github.com/microsoft-foundry/custom-code-training.git
+          git -C "$upstream" fetch --depth 1 origin 018d095f508280efce9e79c4b19fc941d7361b30
+          git -C "$upstream" checkout --detach FETCH_HEAD
+
+      - name: Render the offline Foundry job plan
+        shell: bash
+        run: |
+          python scripts/submit_job.py --action plan \
+            --config configs/foundry-job.example.json \
+            --overrides configs/verified-overrides.json \
+            --sample-dir "$RUNNER_TEMP/custom-code-training/code-samples/sdk/training/rft-with-verl" \
+            --allow-placeholders > "$RUNNER_TEMP/foundry-job-plan.json"
+          grep -q '"status": "EXAMPLE_CONFIG_ONLY"' "$RUNNER_TEMP/foundry-job-plan.json"
+          grep -q '"records": 270' "$RUNNER_TEMP/foundry-job-plan.json"
+          grep -q '"records": 62' "$RUNNER_TEMP/foundry-job-plan.json"
+
+      - name: Check consolidated Dockerfile
+        if: matrix.python-version == '3.11'
+        run: docker buildx build --check --file docker/Dockerfile .
