@@ -1,12 +1,12 @@
 # Microsoft Foundry Custom Code Training —— 把自己的 GRPO 代码跑在托管的 4×A100 节点上
 
 [![Foundry](https://img.shields.io/badge/Microsoft%20Foundry-Custom%20Code%20Training-0067b8)](https://github.com/microsoft-foundry/custom-code-training)
-[![Preview](https://img.shields.io/badge/status-preview-orange)](https://github.com/microsoft-foundry/custom-code-training)
+[![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/ai-foundry-custom-code-training-ci.yml/badge.svg)](https://github.com/david-xinyuwei/david-share/actions/workflows/ai-foundry-custom-code-training-ci.yml)
 [![verl](https://img.shields.io/badge/verl-0.7.1-blue)](https://github.com/volcengine/verl)
 [![GPU](https://img.shields.io/badge/GPU-4%C3%97A100%2080GB%20PCIe-green)](https://learn.microsoft.com/azure/virtual-machines/nca100v4-series)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
-Custom Code Training 是 Foundry 上给「装不进托管 fine-tuning 表单」的训练准备的入口：训练脚本、数据集和容器镜像由你提供，GPU 集群、作业契约和可观测性由平台提供。这个 repo 先说清这个入口到底给了什么，再用产品自带的 verl template 把 `Qwen/Qwen3-14B` 的 GRPO 训练真正跑起来——包括路上的七个失败点，和跑通之后每一步的实测开销。
+Custom Code Training 是 Foundry 上给「装不进托管 fine-tuning 表单」的训练准备的入口：训练脚本、数据集和容器镜像由你提供，GPU 集群、作业契约和可观测性由平台提供。这个 repo 先说清这个入口到底给了什么，再用产品自带的 verl template 把 `Qwen/Qwen3-14B` 的 GRPO 训练跑到**完成**——单个 4×A100 节点上 14 个优化器 step、5 小时 41 分钟——包括路上的七个失败点，和跑通之后每一步的实测开销。
 
 > Author: 魏新宇 (Xinyu Wei)
 
@@ -25,6 +25,19 @@ Custom Code Training 是 Foundry 上给「装不进托管 fine-tuning 表单」�
 | 每个作业的代码、日志、指标、模型都能在 portal 里翻 | 镜像里没有、而你的框架需要的一切 |
 
 这笔交换是明确的：训练循环完全归你控制，镜像里的每一个依赖也完全归你负责。这个 repo 的大部分篇幅花在后半句上。
+
+## 哪些是真实执行、哪些做过适配、哪些不能宣称
+
+| 对象 | 证据状态 | 边界 |
+|---|---|---|
+| Foundry portal、托管 Compute、挂载资产、Ray、作业历史 | **EXECUTED** | 截图来自实际项目；容器 registry 坐标已遮蔽。 |
+| 零售工具、reward、训练/验证 JSONL、GRPO launcher | **REUSED INPUT** | 生产方 sample commit `018d095f508280efce9e79c4b19fc941d7361b30`；hash 冻结在 [`method-and-lineage.md`](docs/method-and-lineage.md)。 |
+| NC96ads A100 镜像和 runtime 配置 | **ADAPTED + EXECUTED** | 保留官方作业路径，但为这套拓扑改变了镜像字节和 6 个环境配置。 |
+| 每步性能、显存、reward、KL、gradient 指标 | **MEASURED** | 一次完整运行的全部 14 个优化器 step，每步约 80 个指标。 |
+| 质量提升、收敛、其他 SKU、生产就绪 | **NOT CLAIMED** | 运行确实跑完了，但单次 14 步运行的四次验证不足以建立方向性。 |
+| 合并后的 [`docker/Dockerfile`](docker/Dockerfile) | **RECONSTRUCTED RECIPE** | 四个组成 layer 分别 build 并过 gate；合并后的单文件尚未作为一个 ACR task 重建。 |
+
+完整 authority matrix，以及相对生产方 sample 的每一处有意差异，见 [`docs/method-and-lineage.md`](docs/method-and-lineage.md)。
 
 ### 两个入口
 
@@ -73,7 +86,13 @@ bash "${{inputs.code_dataset}}/verl_rft_startup.sh" \
 
 <div align="center"><img src="images/portal-job-details.png" width="960"/></div>
 
-Details 页是这次运行的可复现记录：job ID、compute target、容器镜像（此处已遮蔽）、instance type `Singularity.NC96ad_A100_v4-n1`、shared memory size，以及 **Distribution type: Ray**——Ray 集群由平台拉起，你的代码直接用。输入以 `URI folder / ReadOnlyMount` 形式出现。
+Details 页是这次运行的可复现记录：job ID、状态与墙钟耗时、compute target、容器镜像（此处已遮蔽）、instance type `Singularity.NC96ad_A100_v4-n1`、shared memory size，以及 **Distribution type: Ray**——Ray 集群由平台拉起，你的代码直接用。输入以 `URI folder / ReadOnlyMount` 形式出现。这就是跑完的那次：`Complete`，**5 小时 41 分**。
+
+### 输出，以及让它能跑起来的那几个设置
+
+<div align="center"><img src="images/portal-job-outputs-and-env.png" width="900"/></div>
+
+输入表下面，同一页列出作业产出了什么，以及它带着哪些环境变量跑。[`configs/verified-overrides.json`](configs/verified-overrides.json) 里的六个值就在这里，是平台实际记录下来的样子——`NCCL_P2P_DISABLE=1`、`NCCL_SHM_DISABLE=1`、`ROLLOUT_GPU_MEMORY_UTILIZATION=0.6`、`N_GPUS_PER_NODE=4`、`N_NODES=1` 和 `VERL_EXTRA_OVERRIDES`。每一个分别防的是哪种失败，下文逐条展开。
 
 ### 你的代码，挂载后可直接翻
 
@@ -86,6 +105,31 @@ Code 页逐个文件地显示这次作业实际跑的是什么——启动脚本
 <div align="center"><img src="images/portal-training-job-list.png" width="900"/></div>
 
 每次尝试的状态、时长和 compute target。那些很短的 `Complete` 行是用来确认可用镜像的节点探针；`Failed` 行的故事在 [`docs/troubleshooting.md`](docs/troubleshooting.md)。
+
+### 这次运行留下了什么
+
+<div align="center"><img src="images/portal-job-model-output.png" width="900"/></div>
+
+命令里声明的输出会以带版本的 asset 形式回来，而不是让你去 storage account 里找文件。`model_output_dfead6` 的类型是 `Custom model`；`intermediate_folder_dfead6` 装的是 checkpoint。
+
+<div align="center"><img src="images/portal-models-deploy.png" width="960"/></div>
+
+它们随后出现在 **Deployments → Models** 下，和之前 SFT 跑出的 LoRA adapter 并列，旁边就是 **Deploy** 按钮。这正是这个入口的意义：你自己写的训练循环产出的东西，和任何其他 Foundry 模型落在同一个地方。删掉 compute 集群不会碰到它们——它们存在项目的 storage 里，这也是跑完就能放心释放 GPU 的原因。
+
+### 这不是只有文章的 repo
+
+| 路径 | 契约 |
+|---|---|
+| [`configs/`](configs/) | JSON Schema、fail-closed 示例配置、6 个实测 runtime override |
+| [`scripts/preflight.py`](scripts/preflight.py) | 离线检查输入/schema/hash；不 import Azure，也无副作用 |
+| [`scripts/submit_job.py`](scripts/submit_job.py) | 分离 `plan`、上传 dataset + SDK `validate`、计费 `submit` 三个动作 |
+| [`scripts/job_status.py`](scripts/job_status.py) | 一次只读 job 查询，不打开会阻塞的 log stream |
+| [`docker/Dockerfile`](docker/Dockerfile) | 合并后的 CUDA 兼容镜像配方，内含 build-time compatibility gate |
+| [`patches/`](patches/) | 两个幂等、fail-closed 的源码转换和读回验证 |
+| [`evidence/`](evidence/) | 原始结构化指标、验证结果、输入/日志 hash、镜像 build differential |
+| [`tests/`](tests/) | patch、契约、JSONL、placeholder、SKU、image tag、Hydra 拒绝路径 |
+
+CI 在 Python 3.11/3.12 上运行测试矩阵，拉取冻结的生产方 sample，核对 270/62 数据契约，渲染离线 `CommandJob`，并在不提交作业的前提下检查合并 Dockerfile。
 
 ---
 
@@ -189,35 +233,43 @@ export NCCL_DEBUG=INFO      # 打印实际选中的 transport
 | 权重同步 | 分桶广播，actor → vLLM |
 | 优化器 step | 对 LoRA adapter 做 GRPO 更新 |
 
-第一次验证是**未训练策略在 grader 上的基线**，在任何优化器 step 之前采集。评估集此后每 5 步跑一次：
+第一次验证是**未训练策略在 grader 上的基线**，在任何优化器 step 之前采集。评估集此后每 5 步跑一次，结束时再跑一次：
 
 | 验证通道 | `val-core/retail_grader/acc/mean@1` |
 |---|---|
 | 训练前 | 0.05565 |
 | step 5 之后 | 0.05242 |
+| step 10 之后 | 0.05565 |
+| step 14 之后（最终） | 0.05726 |
 
-**这既不能说明学到了东西，也不能说明训坏了。**一次运行、5 个优化器 step、绝对差 0.003，而基线本身已经贴近下限。两个数都在 [`evidence/validation-baseline.json`](evidence/validation-baseline.json) 里；想从中读出方向，需要重复运行和远多于此的步数。
+**这既不能说明学到了东西，也不能说明训坏了。**这条曲线先降、回到基线、再升；整个区间只跨越 0.005，而基线本身已经贴近下限，step 10 更是精确落回基线值。一次 14 步的运行无法把它和噪声区分开。四次验证都在 [`evidence/validation-baseline.json`](evidence/validation-baseline.json) 里；想从中读出方向，需要重复运行和远多于此的步数。
 
 ### 稳态训练
 
-计划 14 步，已捕获 8 步。下表由 [`tools/make_steps_table.py`](tools/make_steps_table.py) 从 [`evidence/training-metrics.jsonl`](evidence/training-metrics.jsonl) **生成**，不是手抄的，因此不会和源数据脱节：
+计划 14 步，全部跑完。下表由 [`tools/make_steps_table.py`](tools/make_steps_table.py) 从 [`evidence/training-metrics.jsonl`](evidence/training-metrics.jsonl) **生成**，不是手抄的，因此不会和源数据脱节。`s/step` 取的是 verl 自己的 `perf/time_per_step`：
 
 | Step | s/step | `global_seqlen/mean` | rank 间不均衡 | `actor/entropy` | `critic/score/mean` | `actor/kl_loss` | `actor/grad_norm` |
 |---|---|---|---|---|---|---|---|
-| 1 | 1381.65 | 147 628 | 1 885 | 5.6864 | 0.0577 | 0.0326 | 0.0313 |
-| 2 | 1387.50 | 147 906 | 2 845 | 5.7761 | 0.0551 | 0.0669 | 0.0688 |
-| 3 | 1398.62 | 148 133 | 837 | 5.7379 | 0.0566 | 0.0596 | 0.0412 |
-| 4 | 1404.31 | 148 756 | 3 099 | 5.7788 | 0.0563 | 0.0534 | 0.0111 |
-| 5 | 1404.85 | 149 836 | 3 397 | 6.1491 | 0.0552 | 0.0501 | 0.0261 |
-| 6 | 1395.79 | 148 397 | 1 985 | 5.8183 | 0.0573 | 0.0748 | 0.0526 |
-| 7 | 1390.90 | 148 623 | 600 | 5.7896 | 0.0557 | 0.0789 | 0.0291 |
-| 8 | 1387.27 | 148 284 | 2 521 | 5.9270 | 0.0573 | 0.0888 | 0.0252 |
+| 1 | 1381.62 | 147 628 | 1 885 | 5.6864 | 0.0577 | 0.0326 | 0.0313 |
+| 2 | 1391.57 | 147 906 | 2 845 | 5.7761 | 0.0551 | 0.0669 | 0.0688 |
+| 3 | 1411.82 | 148 133 | 837 | 5.7379 | 0.0566 | 0.0596 | 0.0412 |
+| 4 | 1413.00 | 148 756 | 3 099 | 5.7788 | 0.0563 | 0.0534 | 0.0111 |
+| 5 | 1403.31 | 149 836 | 3 397 | 6.1491 | 0.0552 | 0.0501 | 0.0261 |
+| 6 | 1378.17 | 148 397 | 1 985 | 5.8183 | 0.0573 | 0.0748 | 0.0526 |
+| 7 | 1380.81 | 148 623 | 600 | 5.7896 | 0.0557 | 0.0789 | 0.0291 |
+| 8 | 1379.47 | 148 284 | 2 521 | 5.9270 | 0.0573 | 0.0888 | 0.0252 |
+| 9 | 1424.94 | 148 536 | 1 582 | 5.9374 | 0.0564 | 0.1043 | 0.0371 |
+| 10 | 1409.09 | 147 899 | 839 | 5.8163 | 0.0568 | 0.1378 | 0.0349 |
+| 11 | 1400.95 | 149 339 | 2 547 | 6.1412 | 0.0573 | 0.1193 | 0.0228 |
+| 12 | 1420.04 | 148 335 | 2 395 | 5.8874 | 0.0551 | 0.1616 | 0.0518 |
+| 13 | 1399.12 | 147 989 | 2 168 | 5.9197 | 0.0557 | 0.1804 | 0.0239 |
+| 14 | 1575.99 | 149 131 | 3 130 | 6.1207 | 0.0569 | 0.2023 | 0.0554 |
 
-**开销很稳。**均值 1393.86 s，约 23 分钟一步；最快和最慢相差 1.66%；每步约 14.8 万 token；rank 之间的序列长度不均衡峰值 2.27%。负载均衡器工作正常。按实测均值外推，14 步约 5.4 小时。
+**开销稳定且可预测。**第 1–13 步均值 1399.53 s，约 23 分钟一步；最快和最慢相差 3.34%；每步约 14.8 万 token；rank 之间的序列长度不均衡峰值 2.27%。负载均衡器工作正常。第 14 步 1575.99 s，因为它还要跑最终验证通道——整个运行里唯一的离群点就是它。端到端训练循环耗时 **5 小时 29 分 38 秒**，作业总墙钟 **5 小时 41 分**，差额是镜像拉取、Ray 启动、模型加载和产物上传。
 
-**利用率很低，而这正是设计使然。**`perf/mfu/actor` 在 6.15% 到 6.37% 之间。每一步的大部分时间花在 rollout 生成而不是优化器通道上：vLLM 采样 128 prompt × 3 的时候，actor 在等。把 6% MFU 读成「效率低」，是误解了 RL 的一步到底包含什么。
+**利用率很低，而这正是设计使然。**`perf/mfu/actor` 在 6.08% 到 6.37% 之间。每一步的大部分时间花在 rollout 生成而不是优化器通道上：vLLM 采样 128 prompt × 3 的时候，actor 在等。把 6% MFU 读成「效率低」，是误解了 RL 的一步到底包含什么。
 
-**什么都还没收敛，而 8 步本来也远不该收敛。**`critic/score/mean` 始终在 0.0551–0.0577 之间，看不出趋势。`actor/kl_loss` 从 0.033 升到 0.089，说明策略正在离开 reference——符合预期，相对 `kl_coef=0.01` 也仍然很小。熵在 5.69 到 6.15 之间震荡而非下降：策略仍在探索。这个阶段如果熵单调坍缩，通常意味着 KL 约束太松或学习率过高——这 8 步显示的不是那种形态。
+**什么都没收敛，而 14 步本来也远不该收敛。**`critic/score/mean` 在全部 14 步里始终位于 0.0551–0.0577 之间，看不出趋势。`actor/kl_loss` 从 0.033 单调升到 0.202，说明策略在持续离开 reference——符合预期，相对 `kl_coef=0.01` 也仍然很小。熵在 5.69 到 6.15 之间震荡而非下降：策略仍在探索。这个阶段如果熵单调坍缩，通常意味着 KL 约束太松或学习率过高——这次运行显示的不是那种形态。
 
 ---
 
@@ -226,7 +278,47 @@ export NCCL_DEBUG=INFO      # 打印实际选中的 transport
 ```bash
 git clone https://github.com/david-xinyuwei/david-share.git
 cd david-share/Deep-Learning/AI-Foundry-Custom-Code-Training
+python -m venv .venv
+source .venv/bin/activate            # Windows PowerShell: .venv\Scripts\Activate.ps1
+python -m pip install -r requirements-dev.txt
 ```
+
+先按冻结 commit 获取生产方 sample，再建立本地配置：
+
+```bash
+git init upstream-custom-code-training
+git -C upstream-custom-code-training remote add origin https://github.com/microsoft-foundry/custom-code-training.git
+git -C upstream-custom-code-training fetch --depth 1 origin 018d095f508280efce9e79c4b19fc941d7361b30
+git -C upstream-custom-code-training checkout --detach FETCH_HEAD
+cp configs/foundry-job.example.json configs/foundry-job.local.json
+```
+
+替换本地配置里的每一个 `<...>`。认证和云端调用之前，先跑离线 gate：
+
+```bash
+python scripts/preflight.py \
+    --config configs/foundry-job.local.json \
+    --overrides configs/verified-overrides.json \
+    --sample-dir upstream-custom-code-training/code-samples/sdk/training/rft-with-verl \
+    --write-plan run-output/preflight.json
+
+python scripts/submit_job.py --action plan \
+    --config configs/foundry-job.local.json \
+    --overrides configs/verified-overrides.json \
+    --sample-dir upstream-custom-code-training/code-samples/sdk/training/rft-with-verl
+```
+
+Done-when 是 `PREFLIGHT_PASS`、270 条训练数据、62 条验证数据、6 个输入 hash，以及完整 Ray `CommandJob`。上面两条命令的 `sideEffects: []`。接下来的 gate 刻意分开：
+
+```bash
+# 上传 versioned code/data asset，调用 validate().try_raise()，不创建 job。
+python scripts/submit_job.py --action validate <同一组 --config/--overrides/--sample-dir 参数>
+
+# 申请 GPU 执行。先检查 quota、capacity 和 idle-shutdown policy 再运行。
+python scripts/submit_job.py --action submit <同一组 --config/--overrides/--sample-dir 参数>
+```
+
+[`docs/reproduction.md`](docs/reproduction.md) 给出了完整命令、镜像 build、identity/RBAC 要求、监控和 evidence 提取。
 
 在这套硬件上复现，是两件互相独立的事：把作业在 Foundry 上立起来，以及让容器活到第一个优化器 step。
 
@@ -260,14 +352,15 @@ python patches/02-dp-actor-out-of-place/apply.py
 
 ### 测试
 
-转换逻辑放在 [`patches/transforms.py`](patches/transforms.py) 里，是不依赖外部状态的纯函数，因此不需要 GPU、CUDA 或安装 verl 就能跑：
+patch 和 job contract 测试不需要 GPU、CUDA 或 Azure credential：
 
 ```bash
-pip install pytest
-pytest tests/ -q
+python -m pip install -r requirements-dev.txt
+python -m pytest tests/ -q
+python scripts/validate_repo.py
 ```
 
-15 个用例覆盖缩进保持、幂等性、输出仍然是合法 Python，以及每一条拒绝路径是否真的拒绝——包括 `x = logits.div_(temperature)` 这类写法。朴素的正则会把它们改坏且不报错。
+测试覆盖缩进保持、幂等性、合法 Python、dataset schema、挂载/输出形状、资源映射，以及每一条拒绝路径：placeholder、未知配置、`:latest`、不支持的 SKU、缺失 payload、没有禁用 NCCL SHM，以及会创建合法但无人读取 key 的 Hydra `+` 前缀。
 
 ---
 
@@ -295,6 +388,7 @@ pytest tests/ -q
 | [`evidence/training-metrics.jsonl`](evidence/training-metrics.jsonl) | 每步约 80 个指标，原样保留 |
 | [`evidence/validation-baseline.json`](evidence/validation-baseline.json) | 每次验证通道的 grader 分数 |
 | [`evidence/run-manifest.json`](evidence/run-manifest.json) | 源日志的 SHA-256、记录数、捕获了哪些 step |
+| [`evidence/image-build.json`](evidence/image-build.json) | 基础镜像/包版本、compatibility probe 前后对比、四个 layer digest |
 | [`evidence/run-timeline.md`](evidence/run-timeline.md) | 每次尝试：改了什么，死在哪里 |
 
 稳态表和两个验证数字都由上述文件生成。[`docs/troubleshooting.md`](docs/troubleshooting.md) 里的失败签名来自那些在训练循环之前就死掉的运行——它们没有产生任何指标，所以这里没有对应行。显存表中 vLLM 和 KV cache 两行是推算值，已在表内标出。

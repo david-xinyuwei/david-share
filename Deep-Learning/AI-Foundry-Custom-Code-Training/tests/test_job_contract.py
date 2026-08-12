@@ -1,0 +1,163 @@
+"""Offline tests for the Foundry job contract. No Azure SDK or credential required."""
+
+from __future__ import annotations
+
+import copy
+import json
+import sys
+from pathlib import Path
+
+import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+
+from job_contract import (  # noqa: E402
+    ContractError,
+    build_contract,
+    validate_config,
+    validate_overrides,
+    validate_sample_layout,
+)
+
+
+@pytest.fixture
+def config() -> dict:
+    return {
+        "projectEndpoint": "https://account.services.ai.azure.com/api/projects/project",
+        "computeId": (
+            "/subscriptions/sub/resourcegroups/rg/providers/"
+            "Microsoft.CognitiveServices/accounts/account/computes/cluster"
+        ),
+        "computeClusterSku": "STANDARD_NC96ADS_A100_V4",
+        "uamiId": (
+            "/subscriptions/sub/resourcegroups/rg/providers/"
+            "Microsoft.ManagedIdentity/userAssignedIdentities/training-uami"
+        ),
+        "storageConnectionName": "workspace-storage",
+        "modelDatasetUri": (
+            "azureml://registries/azure-huggingface/models/qwen--qwen3-14b/versions/2"
+        ),
+        "environmentImage": "registry.example/verl-rft:cu128-verified",
+        "nodeCount": 1,
+        "gpusPerNode": 4,
+        "codeDatasetName": "verl-retail-code",
+        "dataDatasetName": "verl-retail-data",
+        "jobPrefix": "verl-retail-grpo",
+    }
+
+
+@pytest.fixture
+def overrides() -> dict:
+    return {
+        "NCCL_P2P_DISABLE": "1",
+        "NCCL_SHM_DISABLE": "1",
+        "NCCL_DEBUG": "INFO",
+        "ROLLOUT_GPU_MEMORY_UTILIZATION": "0.6",
+        "TRAINER_LOGGER": '["console"]',
+        "VERL_EXTRA_OVERRIDES": (
+            "actor_rollout_ref.rollout.checkpoint_engine."
+            "update_weights_bucket_megabytes=4096 "
+            "actor_rollout_ref.actor.entropy_from_logits_with_chunking=True"
+        ),
+    }
+
+
+def test_builds_measured_nc96_contract(config, overrides):
+    contract = build_contract(
+        config,
+        overrides,
+        code_uri="azureai://code/version/1",
+        data_uri="azureai://data/version/1",
+        suffix="abc123",
+    )
+
+    assert contract.resources["instance_type"] == "Singularity.NC96ad_A100_v4-n1"
+    assert contract.resources["instance_count"] == 1
+    assert contract.distribution == {
+        "type": "Ray",
+        "port": 6379,
+        "include_dashboard": "False",
+        "head_node_additional_args": "",
+        "worker_node_additional_args": "",
+    }
+    assert contract.inputs["model"]["mode"] == "ReadOnlyMount"
+    assert contract.outputs["model_output_abc123"]["type"] == "custom_model"
+    assert contract.outputs["model_output_abc123"]["asset_name"] == "model_output_abc123"
+    assert "${{inputs.code_dataset}}/verl_rft_startup.sh" in contract.command
+    assert "${{outputs.model_output_abc123}}" in contract.command
+
+
+def test_contract_contains_every_measured_override(config, overrides):
+    contract = build_contract(
+        config, overrides, code_uri="code", data_uri="data", suffix="run"
+    )
+    assert contract.environment["NCCL_P2P_DISABLE"] == "1"
+    assert contract.environment["NCCL_SHM_DISABLE"] == "1"
+    assert contract.environment["ROLLOUT_GPU_MEMORY_UTILIZATION"] == "0.6"
+    assert "checkpoint_engine.update_weights_bucket_megabytes=4096" in (
+        contract.environment["VERL_EXTRA_OVERRIDES"]
+    )
+    assert "entropy_from_logits_with_chunking=True" in (
+        contract.environment["VERL_EXTRA_OVERRIDES"]
+    )
+
+
+def test_rejects_unreplaced_placeholder(config):
+    config["projectEndpoint"] = "https://<account>.services.ai.azure.com/api/projects/project"
+    with pytest.raises(ContractError, match="placeholder remains"):
+        validate_config(config)
+
+
+def test_example_mode_allows_placeholders_but_still_checks_shape(config):
+    config["computeId"] = "/subscriptions/<sub>/resourcegroups/<rg>/providers/Microsoft.CognitiveServices/accounts/<account>/computes/<compute>"
+    validate_config(config, allow_placeholders=True)
+    config["nodeCount"] = 0
+    with pytest.raises(ContractError, match="positive integer"):
+        validate_config(config, allow_placeholders=True)
+
+
+def test_rejects_unknown_config_key(config):
+    config["gpuCount"] = 4
+    with pytest.raises(ContractError, match="unknown config keys: gpuCount"):
+        validate_config(config)
+
+
+def test_rejects_mutable_latest_image(config):
+    config["environmentImage"] = "registry.example/verl-rft:latest"
+    with pytest.raises(ContractError, match="must not use"):
+        validate_config(config)
+
+
+def test_rejects_unsupported_sku(config):
+    config["computeClusterSku"] = "STANDARD_NC24ADS_A100_V4"
+    with pytest.raises(ContractError, match="unsupported computeClusterSku"):
+        validate_config(config)
+
+
+def test_rejects_wrong_resource_id_shapes(config):
+    config["computeId"] = "/subscriptions/sub/resourcegroups/rg/providers/Microsoft.Compute/virtualMachines/vm"
+    with pytest.raises(ContractError, match="Compute ARM ID"):
+        validate_config(config)
+
+
+def test_rejects_missing_nccl_shm_override(overrides):
+    del overrides["NCCL_SHM_DISABLE"]
+    with pytest.raises(ContractError, match="NCCL_SHM_DISABLE"):
+        validate_overrides(overrides)
+
+
+def test_rejects_hydra_plus_prefix(overrides):
+    overrides["VERL_EXTRA_OVERRIDES"] = (
+        "+actor_rollout_ref.rollout.checkpoint_engine."
+        "update_weights_bucket_megabytes=4096 "
+        "actor_rollout_ref.actor.entropy_from_logits_with_chunking=True"
+    )
+    with pytest.raises(ContractError, match="must not start"):
+        validate_overrides(overrides)
+
+
+def test_rejects_incomplete_upstream_sample(tmp_path):
+    (tmp_path / "code").mkdir()
+    (tmp_path / "code/verl_rft_startup.sh").write_text("#!/bin/bash\n", encoding="utf-8")
+    with pytest.raises(ContractError, match="payload is incomplete"):
+        validate_sample_layout(tmp_path)

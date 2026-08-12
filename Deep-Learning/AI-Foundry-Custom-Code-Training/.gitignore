@@ -4,6 +4,9 @@ __pycache__/
 .venv/
 venv/
 .pytest_cache/
+configs/*.local.json
+run-output/
+upstream-custom-code-training/
 
 # Raw job logs can reach several MB and contain environment-specific identifiers;
 # only curated, sanitised excerpts belong under evidence/.

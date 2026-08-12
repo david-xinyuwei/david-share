@@ -64,12 +64,12 @@ def parse_metric_line(payload: str) -> dict[str, float | int | str]:
     return metrics
 
 
-def read_records(log_path: Path) -> list[str]:
+def read_records(log_path: Path) -> tuple[list[str], str]:
     """Return logical records, splitting on carriage returns so tqdm frames separate."""
     raw = log_path.read_bytes()
-    utf16 = b"\x00" in raw[:200]
-    text = raw.decode("utf-16-le" if utf16 else "utf-8", errors="replace")
-    return text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    encoding = "utf-16-le" if b"\x00" in raw[:200] else "utf-8"
+    text = raw.decode(encoding, errors="replace")
+    return text.replace("\r\n", "\n").replace("\r", "\n").split("\n"), encoding
 
 
 def main() -> int:
@@ -83,7 +83,7 @@ def main() -> int:
         raise SystemExit(f"log not found: {args.log}")
 
     digest = hashlib.sha256(args.log.read_bytes()).hexdigest()
-    records = read_records(args.log)
+    records, encoding = read_records(args.log)
 
     steps: dict[int, dict] = {}
     validation: list[dict] = []
@@ -137,7 +137,7 @@ def main() -> int:
             "sha256": digest,
             "bytes": args.log.stat().st_size,
             "records": len(records),
-            "encoding": "utf-16-le",
+            "encoding": encoding,
         },
         "run": {
             "totalStepsPlanned": total_steps,

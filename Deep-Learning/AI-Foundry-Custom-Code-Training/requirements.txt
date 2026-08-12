@@ -1,0 +1,13 @@
+# Pinned to the versions used by the verified Foundry submission path.
+# The preview SDK is published on the public Azure SDK feed.
+#
+# Wheels only. Without this, a platform with no wheel for a transitive dependency (for
+# example cryptography on win_arm64) starts a source build, and pip then probes every index
+# for build dependencies. The Azure feed answers anonymously with 401 rather than 404, so
+# pip stops to prompt for credentials and the install hangs or dies on EOF. Pass --no-input
+# as well when installing non-interactively.
+--only-binary=:all:
+--extra-index-url https://pkgs.dev.azure.com/azure-sdk/public/_packaging/azure-sdk-for-python/pypi/simple
+
+azure-ai-projects==2.3.0a20260525001
+azure-identity==1.26.0b2

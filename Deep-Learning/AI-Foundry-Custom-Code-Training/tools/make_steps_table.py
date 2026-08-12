@@ -13,9 +13,11 @@ import argparse
 import json
 from pathlib import Path
 
+# tqdm's `s/it` is a running average and drops frames; verl's own `perf/time_per_step`
+# is the per-step wall time and is emitted on every step line.
 COLUMNS = [
     ("step", "Step", lambda v: str(v)),
-    ("secondsPerStep", "s/step", lambda v: f"{v:.2f}"),
+    ("perf/time_per_step", "s/step", lambda v: f"{v:.2f}"),
     ("global_seqlen/mean", "`global_seqlen/mean`", lambda v: f"{v:,.0f}".replace(",", " ")),
     ("global_seqlen/minmax_diff", "rank imbalance", lambda v: f"{v:,.0f}".replace(",", " ")),
     ("actor/entropy", "`actor/entropy`", lambda v: f"{v:.4f}"),
@@ -45,13 +47,29 @@ def main() -> int:
     print()
     print(f"STEPS={len(rows)}")
 
-    seconds = [row["secondsPerStep"] for row in rows if "secondsPerStep" in row]
+    seconds = [row["perf/time_per_step"] for row in rows if "perf/time_per_step" in row]
     if seconds:
         mean = sum(seconds) / len(seconds)
         print(f"SECONDS_PER_STEP_MEAN={mean:.2f}")
         print(f"SECONDS_PER_STEP_MIN={min(seconds):.2f}")
         print(f"SECONDS_PER_STEP_MAX={max(seconds):.2f}")
         print(f"SECONDS_PER_STEP_SPREAD_PCT={(max(seconds) - min(seconds)) / mean * 100:.2f}")
+
+        # Step 14 also runs the final validation pass, so quote the steady state separately.
+        steady = [
+            row["perf/time_per_step"]
+            for row in rows
+            if "perf/time_per_step" in row and row["step"] != max(r["step"] for r in rows)
+        ]
+        if steady:
+            steady_mean = sum(steady) / len(steady)
+            print(f"STEADY_MEAN={steady_mean:.2f}")
+            print(f"STEADY_MIN={min(steady):.2f}")
+            print(f"STEADY_MAX={max(steady):.2f}")
+            print(
+                "STEADY_SPREAD_PCT="
+                f"{(max(steady) - min(steady)) / steady_mean * 100:.2f}"
+            )
 
     imbalance = [
         row["global_seqlen/minmax_diff"] / row["global_seqlen/mean"]
