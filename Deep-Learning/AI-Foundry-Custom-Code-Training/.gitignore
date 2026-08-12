@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 .venv/
 venv/
+.pytest_cache/
 
 # Raw job logs can reach several MB and contain environment-specific identifiers;
 # only curated, sanitised excerpts belong under evidence/.

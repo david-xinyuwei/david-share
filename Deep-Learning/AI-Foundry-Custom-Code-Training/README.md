@@ -1,14 +1,17 @@
-# GRPO reinforcement learning post-training on a single 4-GPU node
+# Custom Code Training on Microsoft Foundry — running your own GRPO code on a managed 4×A100 node
 
+[![Foundry](https://img.shields.io/badge/Microsoft%20Foundry-Custom%20Code%20Training-0067b8)](https://github.com/microsoft-foundry/custom-code-training)
+[![Preview](https://img.shields.io/badge/status-preview-orange)](https://github.com/microsoft-foundry/custom-code-training)
 [![verl](https://img.shields.io/badge/verl-0.7.1-blue)](https://github.com/volcengine/verl)
-[![vLLM](https://img.shields.io/badge/rollout-vLLM-purple)](https://github.com/vllm-project/vllm)
-[![FSDP2](https://img.shields.io/badge/sharding-FSDP2-informational)](https://pytorch.org/docs/stable/fsdp.html)
 [![GPU](https://img.shields.io/badge/GPU-4%C3%97A100%2080GB%20PCIe-green)](https://learn.microsoft.com/azure/virtual-machines/nca100v4-series)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
-Reinforcement learning post-training of a 14B model — actor, rollout engine, reward model
-and reference policy — running together on **four GPUs in one box**, with the memory
-budget and interconnect facts that decide whether it fits.
+Custom Code Training is the Foundry surface for training that does **not** fit a managed
+fine-tuning form: you supply the training script, the dataset and the container image, and
+the platform supplies the GPU cluster, the job contract and the observability. This repo
+documents what that surface actually gives you, then takes the product's own verl template
+all the way to a running GRPO job on `Qwen/Qwen3-14B` — including the seven failures on the
+way and the measured cost per step at the other end.
 
 > Author: 魏新宇 (Xinyu Wei)
 
@@ -16,7 +19,103 @@ budget and interconnect facts that decide whether it fits.
 
 ---
 
-## What this shows
+## What the platform gives you, and what you bring
+
+| Platform provides | You bring |
+|---|---|
+| Managed GPU cluster, provisioned and released as a Foundry resource | Container image with your framework and CUDA build |
+| Job submission, queueing, retry and status | Entry-point script and its command line |
+| **Ray** distribution across the node, no cluster wiring | Training code, dataset, reward function |
+| Inputs mounted read-only, outputs collected and versioned | Model weights, registered as a Foundry dataset |
+| Code, logs, metrics and models browsable per job in the portal | Anything your framework needs that the image does not ship |
+
+The trade is explicit: you keep full control of the training loop, and you own every
+dependency inside the image. Most of the work in this repo is on the second half.
+
+### Two ways in
+
+<div align="center"><img src="images/portal-start-training-entry-points.png" width="440"/></div>
+
+**Experiment and train on compute** creates a persistent workbench you attach to — the path
+for iterating on code. **Submit training from the browser** opens VS Code for the Web
+against a job definition, for simple runs. Everything below uses the first.
+
+### Templates, including the one this repo follows
+
+<div align="center"><img src="images/portal-new-workbench-templates.png" width="720"/></div>
+
+The template dropdown offers a Quickstart plus two reinforcement-learning options,
+**VERL** and **SLIME**. The same three appear as cards in the Code workbench:
+
+<div align="center"><img src="images/portal-code-workbench-templates.png" width="960"/></div>
+
+This repo takes the **VERL** template. SLIME asks for 4 nodes × 8 GPU, which is a different
+capacity conversation.
+
+### Idle shutdown is part of the product
+
+<div align="center"><img src="images/portal-new-workbench-idle-shutdown.png" width="720"/></div>
+
+A GPU workbench that stays up costs the same whether or not you are typing, so the create
+dialog carries an idle-shutdown timer, defaulted to one hour. Worth setting deliberately
+rather than accepting.
+
+### The managed compute cluster
+
+<div align="center"><img src="images/portal-managed-compute-cluster.png" width="960"/></div>
+
+One A100 cluster, `Complete`, showing **0/4 GPUs available** because the job below is
+holding all four. Cluster state and job state are separate: a healthy cluster does not mean
+a running job.
+
+### The job contract
+
+<div align="center"><img src="images/portal-job-command-and-tags.png" width="960"/></div>
+
+This is the part worth reading closely. The command is an ordinary shell line, and the
+platform binds your registered assets into it:
+
+```bash
+bash "${{inputs.code_dataset}}/verl_rft_startup.sh" \
+  --model-path            "${{inputs.model}}" \
+  --dataset-path          "${{inputs.train_data}}" \
+  --code-path             "${{inputs.code_dataset}}" \
+  --output-model-path     "${{outputs.model_output}}" \
+  --output-intermediate-folder "${{outputs.intermediate_folder}}"
+```
+
+`${{inputs.*}}` and `${{outputs.*}}` resolve to mount paths at run time. Your script never
+hard-codes a storage account — it receives directories. Environment variables and tags are
+set alongside, which is where framework-level configuration such as
+`VERL_EXTRA_OVERRIDES` is injected.
+
+<div align="center"><img src="images/portal-job-details.png" width="960"/></div>
+
+The Details tab is the reproducibility record: job ID, compute target, container image
+(redacted here), instance type `Singularity.NC96ad_A100_v4-n1`, shared memory size, and
+**Distribution type: Ray** — the platform starts the Ray cluster, your code just uses it.
+Inputs appear as `URI folder / ReadOnlyMount`.
+
+### Your code, mounted and browsable
+
+<div align="center"><img src="images/portal-job-code.png" width="900"/></div>
+
+The Code tab shows exactly what the job ran, file by file — the startup script, the trainer,
+the dataset adapter, the reward function and the tool definitions. When a run fails three
+hours in, being able to read the code the job actually saw, rather than the code you think
+you uploaded, is the difference between a diagnosis and a guess.
+
+### Job history
+
+<div align="center"><img src="images/portal-training-job-list.png" width="900"/></div>
+
+Status, duration and compute target per attempt. The short `Complete` rows are node probes
+used to identify a working image; the story of the `Failed` rows is in
+[`docs/troubleshooting.md`](docs/troubleshooting.md).
+
+---
+
+## What we ran on it
 
 RL post-training is usually described as if it needs a cluster. It does not. GRPO on
 `Qwen/Qwen3-14B` fits on a single node with 4× A100 80GB, including a live vLLM rollout
@@ -28,6 +127,7 @@ Both are covered below with measured numbers.
 
 | | |
 |---|---|
+| **Task** | Retail customer-service agent, tool-calling, graded by a custom reward function |
 | **Model** | `Qwen/Qwen3-14B` — vocab 151936, hidden 5120, intermediate 17408 |
 | **Algorithm** | GRPO, LoRA rank 64 on all linear layers, `kl_loss_coef=0.01` (low-variance KL) |
 | **Rollout** | vLLM, `n=3` samples per prompt, 4 agent-loop servers, tensor parallel = 1 |
@@ -79,12 +179,16 @@ a `[tokens, 151936]` logits tensor. Both are addressed in the configuration belo
 This is the number that decides feasibility. On an 80 GB card with tensor parallel = 1,
 vLLM loads a **full copy** of the 14B model on every GPU:
 
-| Consumer | Size | Note |
+| Consumer | Size | Source |
 |---|---|---|
-| vLLM reservation at `gpu_memory_utilization=0.6` | ~47.5 GB | of which ~28 GB is model weights |
-| → KV cache remainder | ~19 GB | what actually serves generation |
-| FSDP actor process | ~26 GB | sharded weights, gradients, optimizer state |
-| Free headroom | ~4 GB | absorbs the transient logits tensor |
+| vLLM reservation at `gpu_memory_utilization=0.6` | ~47.5 GB | derived: fraction × usable VRAM |
+| → KV cache remainder | ~19 GB | derived: reservation minus a full 14B weight copy |
+| FSDP actor process | **26.7–27.8 GB** | **measured** — `perf/max_memory_reserved_gb`, 8 steps |
+| Free headroom | ~4 GB | remainder; absorbs the transient logits tensor |
+
+Only the actor row is instrumented. The vLLM and KV-cache rows follow from the configured
+fraction and the model size, and are shown to make the split legible rather than to claim
+per-component telemetry.
 
 Two consequences worth internalising before sizing a run:
 
@@ -129,31 +233,58 @@ Measured stages from a live run, in order:
 | Model load and FSDP2 wrap | full state dict broadcast across 4 ranks |
 | vLLM engine start | CUDA graphs captured, `70/70` |
 | Agent-loop servers | 4 rollout servers registered |
-| Validation pass | grader scored the eval set — `acc/mean@1 = 0.0556`, minimum 2 turns per episode |
+| Validation pass | grader scored the eval set — `acc/mean@1 = 0.05565`, minimum 2 turns per episode |
 | Rollout generation | 12m10s for the first training batch (128 prompts × 3 samples) |
 | Weight sync | bucketed broadcast, actor to vLLM |
 | Optimizer step | GRPO update against the LoRA adapters |
 
-The validation number is the **untrained policy's baseline** on the grader, captured before
-any optimizer step. It is a reference point, not a result.
+That first validation is the **untrained policy's baseline** on the grader, captured before
+any optimizer step. The eval set runs again every 5 steps:
+
+| Validation pass | `val-core/retail_grader/acc/mean@1` |
+|---|---|
+| before training | 0.05565 |
+| after step 5 | 0.05242 |
+
+**This is not evidence of learning, and not evidence of harm.** It is one run, 5 optimizer
+steps, and an absolute difference of 0.003 on a grader whose baseline is already near the
+floor. Both numbers are in [`evidence/validation-baseline.json`](evidence/validation-baseline.json);
+drawing a direction from them would need repeat runs and many more steps than this.
 
 ### Steady-state training
 
-Once the loop is running, per-step cost is stable:
+Eight steps of a planned fourteen were captured. The table is generated from
+[`evidence/training-metrics.jsonl`](evidence/training-metrics.jsonl) by
+[`tools/make_steps_table.py`](tools/make_steps_table.py) — it is not transcribed, so it
+cannot drift from the source:
 
-| Step | Wall time | `global_seqlen/mean` | rank imbalance | `actor/entropy` |
-|---|---|---|---|---|
-| 1 | 1381.65 s | 147 627 | 1 885 | 5.6864 |
-| 2 | 1387.50 s | 147 906 | 2 845 | 5.7761 |
-| 3 | 1398.62 s | 148 133 | 837 | 5.7379 |
+| Step | s/step | `global_seqlen/mean` | rank imbalance | `actor/entropy` | `critic/score/mean` | `actor/kl_loss` | `actor/grad_norm` |
+|---|---|---|---|---|---|---|---|
+| 1 | 1381.65 | 147 628 | 1 885 | 5.6864 | 0.0577 | 0.0326 | 0.0313 |
+| 2 | 1387.50 | 147 906 | 2 845 | 5.7761 | 0.0551 | 0.0669 | 0.0688 |
+| 3 | 1398.62 | 148 133 | 837 | 5.7379 | 0.0566 | 0.0596 | 0.0412 |
+| 4 | 1404.31 | 148 756 | 3 099 | 5.7788 | 0.0563 | 0.0534 | 0.0111 |
+| 5 | 1404.85 | 149 836 | 3 397 | 6.1491 | 0.0552 | 0.0501 | 0.0261 |
+| 6 | 1395.79 | 148 397 | 1 985 | 5.8183 | 0.0573 | 0.0748 | 0.0526 |
+| 7 | 1390.90 | 148 623 | 600 | 5.7896 | 0.0557 | 0.0789 | 0.0291 |
+| 8 | 1387.27 | 148 284 | 2 521 | 5.9270 | 0.0573 | 0.0888 | 0.0252 |
 
-Roughly **23 minutes per step** with under 1.3% variance, ~148 K tokens processed per step,
-and rank-to-rank sequence-length imbalance under 2% — the balancer is doing its job. A full
-14-step run projects to about 5.5 hours on this node.
+**Cost is stable.** Mean 1393.86 s — about 23 minutes per step — with a 1.66% spread
+between the fastest and slowest step, ~148 K tokens per step, and rank-to-rank
+sequence-length imbalance peaking at 2.27%. The balancer is doing its job. Fourteen steps
+at the measured mean projects to about 5.4 hours on this node.
 
-Entropy oscillating around 5.7 rather than falling monotonically is the expected early-GRPO
-shape: the policy is still exploring. A monotonic collapse this early usually means the KL
-constraint is too loose or the learning rate too high.
+**Utilisation is low, and that is the design.** `perf/mfu/actor` sits between 6.15% and
+6.37%. Most of each step is rollout generation, not the optimizer pass: the actor waits
+while vLLM samples 128 prompts × 3. Reading 6% MFU as inefficiency misreads what an RL
+step is.
+
+**Nothing has converged, and eight steps is far too few to expect it to.** `critic/score/mean`
+stays inside 0.0551–0.0577 with no trend. `actor/kl_loss` climbs from 0.033 to 0.089, which
+is the policy moving away from the reference — expected, and still small against
+`kl_coef=0.01`. Entropy oscillates between 5.69 and 6.15 rather than falling: the policy is
+still exploring. A monotonic entropy collapse this early usually means the KL constraint is
+too loose or the learning rate too high; that is not what these eight steps show.
 
 ---
 
@@ -164,8 +295,23 @@ git clone https://github.com/david-xinyuwei/david-share.git
 cd david-share/Deep-Learning/AI-Foundry-Custom-Code-Training
 ```
 
-Configuration that works on this hardware. These keys already exist, so they are plain
-overrides with no Hydra `+` prefix:
+Reproducing the run itself is two separate problems: standing the job up on Foundry, and
+getting the container to survive to the first optimizer step.
+
+**On Foundry** — register three assets and point the VERL template at them:
+
+| Asset | What it is | Appears in the command as |
+|---|---|---|
+| Model | Qwen3-14B weights, registered as a Foundry dataset | `${{inputs.model}}` |
+| Code | The folder shown in the Code tab above, containing `verl_rft_startup.sh` | `${{inputs.code_dataset}}` |
+| Data | Training and validation JSONL | `${{inputs.train_data}}` |
+
+Then set the container image to one whose CUDA build matches the node driver. On this node
+the driver caps at CUDA 12.8, and the tag that satisfies it is **not** the template default
+— the measured tag matrix is in [`docs/troubleshooting.md`](docs/troubleshooting.md).
+
+**In the container** — configuration that works on this hardware. These keys already exist,
+so they are plain overrides with no Hydra `+` prefix:
 
 ```
 actor_rollout_ref.rollout.gpu_memory_utilization=0.6
@@ -204,9 +350,10 @@ other forms a naive regex would silently corrupt.
 
 ## Troubleshooting
 
-Getting from a clean environment to a running training loop took seven distinct fixes, and
-several of them report an error that points somewhere other than the cause. Symptom, root
-cause and evidence for each: [`docs/troubleshooting.md`](docs/troubleshooting.md).
+Getting from a clean environment to a running training loop took one image decision and
+seven further fixes, and several of them report an error that points somewhere other than
+the cause. Symptom, root cause and evidence for each:
+[`docs/troubleshooting.md`](docs/troubleshooting.md).
 
 Per-attempt runtimes and what changed between them:
 [`evidence/run-timeline.md`](evidence/run-timeline.md).
@@ -215,13 +362,26 @@ Per-attempt runtimes and what changed between them:
 
 | Tool | What it does |
 |---|---|
+| [`tools/extract_training_evidence.py`](tools/extract_training_evidence.py) | Parses a captured job log into the JSON under `evidence/`, redacting environment identifiers without touching any numeric value |
+| [`tools/make_steps_table.py`](tools/make_steps_table.py) | Regenerates the steady-state table above from `evidence/training-metrics.jsonl` |
 | [`tools/inspect_config_path.ps1`](tools/inspect_config_path.ps1) | Reconstructs a key's real dotted path from a runtime config dump |
 | [`tools/scan_job_log.ps1`](tools/scan_job_log.ps1) | Filters multi-MB job logs; collapses repeated spam so the first exception is visible |
 
-Both read UTF-16LE, because PowerShell 5.1's `*>` redirection writes UTF-16 and ordinary
-grep tooling silently reports zero matches on those files.
+The two PowerShell tools read UTF-16LE, because PowerShell 5.1's `*>` redirection writes
+UTF-16 and ordinary grep tooling silently reports zero matches on those files.
 
 ## Evidence
 
-Every measured number above traces to a run under [`evidence/`](evidence/). Environment
-identifiers are removed; anything supporting a technical claim is kept verbatim.
+| File | Contents |
+|---|---|
+| [`evidence/training-metrics.jsonl`](evidence/training-metrics.jsonl) | ~80 metrics per step, verbatim |
+| [`evidence/validation-baseline.json`](evidence/validation-baseline.json) | Grader score from each validation pass |
+| [`evidence/run-manifest.json`](evidence/run-manifest.json) | Source-log SHA-256, record count, which steps were captured |
+| [`evidence/run-timeline.md`](evidence/run-timeline.md) | Per attempt: what changed, where it died |
+
+The steady-state table and both validation numbers are generated from those files. The
+failure signatures in [`docs/troubleshooting.md`](docs/troubleshooting.md) are quoted from
+the job logs of runs that died before emitting any metric, so they have no rows here. The
+vLLM and KV-cache figures in the memory table are derived, as marked.
+
+Environment identifiers are redacted; no numeric value is altered.

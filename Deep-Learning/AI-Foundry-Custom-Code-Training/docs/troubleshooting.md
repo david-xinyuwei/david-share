@@ -1,8 +1,8 @@
 # Troubleshooting
 
-Seven failures stand between a clean environment and a running GRPO loop on this hardware.
-They are listed in the order they fire — fixing one reveals the next, so working top-down
-is the fastest path.
+Getting from a clean environment to a running GRPO loop on this hardware takes one image
+decision plus seven fixes. They are listed in the order they fire — fixing one reveals the
+next, so working top-down is the fastest path.
 
 Environment for every observation: 4× A100 80GB **PCIe** (no NVLink), driver `570.195.03`,
 max CUDA 12.8, `verl 0.7.1`, `transformers 5.8.1`, `torch 2.10+cu128`, `NCCL 2.27.5`,
@@ -13,6 +13,7 @@ checkpointing enabled, `entropy_coeff=0`.
 
 | Symptom you see | Jump to |
 |---|---|
+| `CUDA driver too old (found version 12080)` | [image matrix](#first-pick-an-image-whose-cuda-matches-the-node) |
 | `Parameter.__new__() ... '_is_hf_initialized'` | [1](#1-accelerate-forwards-a-transformers-v5-kwarg) |
 | `'set' object is not subscriptable` | [2](#2-_no_split_modules-became-a-set) |
 | `Cuda failure 217 'peer access is not supported'` | [3](#3-both-nccl-p2p-and-shm-call-peer-access) |
@@ -20,6 +21,50 @@ checkpointing enabled, `entropy_coeff=0`.
 | `too large for the 2048 MB bucket` | [5](#5-the-weight-transfer-bucket) |
 | `OutOfMemoryError` inside `entropy_from_logits` | [6](#6-entropy-is-computed-even-when-its-coefficient-is-zero) |
 | `SqueezeBackward1 is a view and is being modified inplace` | [7](#7-in-place-temperature-scaling) |
+
+---
+
+## First: pick an image whose CUDA matches the node
+
+This one sits before the numbered list because it decides whether the container starts at
+all. Five published tags, tested on the same compute, same driver, same day:
+
+| Image | torch | compiled CUDA | `cuda_is_available` | Outcome |
+|---|---|---|---|---|
+| `acft-rft-training:20` *(template default)* | 2.11.0+cu130 | 13.0 | **false** | 4 worker processes die in `__init__`: `CUDA driver too old (found version 12080)` |
+| `acft-rft-training:18` | 2.11.0+cu130 | 13.0 | **false** | same |
+| `acft-rft-training:19` | — | — | — | import fails: `ValueError: Either a revision or a version must be specified.` |
+| `acft-rft-training:23` | — | — | — | user process never starts; only `compute_record.txt` is produced |
+| `acft-rft-training:15` | 2.10.0+cu128 | 12.8 | **true** | CUDA matches, but `ImportError: cannot import name 'AutoModelForVision2Seq' from 'transformers'` |
+| `acft-hf-nlp-gpu:122` *(SFT reference)* | 2.8.0+cu126 | 12.6 | **true** | included to show the node itself is healthy |
+
+The node's driver is `570.195.03`, which supports CUDA up to **12.8**. A torch built against
+CUDA 13.0 loads and then reports no usable device, and the traceback arrives from four
+worker processes at once rather than from the loader — so it reads as a distributed problem
+rather than a version mismatch.
+
+`:15` is the only tag whose CUDA matches, and it pairs verl 0.7.0 with transformers 5.8.1.
+verl 0.7.0 still imports `AutoModelForVision2Seq`, which transformers v5 removed. So the
+image with the right CUDA cannot import, and the images that import have the wrong CUDA.
+
+The way out is to keep `:15`'s CUDA stack and replace only verl, which ships as a pure
+Python wheel:
+
+```dockerfile
+FROM mcr.microsoft.com/azureml/curated/acft-rft-training:15
+RUN pip install --no-deps --no-cache-dir verl==0.7.1
+```
+
+`--no-deps` is what makes this safe: without it pip resolves a different torch underneath a
+working CUDA build. Verify on the node rather than at build time — a build host has no GPU,
+so `cuda_is_available` there tells you nothing:
+
+```python
+import torch
+print(torch.__version__, torch.version.cuda, torch.cuda.is_available(), torch.cuda.device_count())
+```
+
+Everything below assumes that image.
 
 ---
 
