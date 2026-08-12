@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -113,3 +114,35 @@ def test_preflight_is_offline_and_freezes_inputs(tmp_path):
     assert len(report["sample"]["inventory"]) == len(REQUIRED_SAMPLE_FILES)
     assert report["contract"]["distribution"]["type"] == "Ray"
     assert report["contract"]["resources"]["instance_count"] == 1
+
+
+def test_rejects_input_drift_before_cloud_access(tmp_path):
+    sample = tmp_path / "sample"
+    write_sample(sample)
+    config_path, overrides_path = write_inputs(tmp_path)
+    manifest_path = tmp_path / "input-manifest.jsonl"
+    rows = []
+    for relative in REQUIRED_SAMPLE_FILES:
+        path = sample / relative
+        rows.append(
+            {
+                "path": relative,
+                "bytes": path.stat().st_size,
+                "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+            }
+        )
+    manifest_path.write_text(
+        "".join(json.dumps(row) + "\n" for row in rows),
+        encoding="utf-8",
+    )
+
+    changed = sample / "code/retail_db.json"
+    changed.write_text(changed.read_text(encoding="utf-8") + "drift\n", encoding="utf-8")
+    with pytest.raises(ContractError, match="input drift.*retail_db.json"):
+        build_preflight_report(
+            config_path,
+            overrides_path,
+            sample,
+            allow_placeholders=False,
+            expected_input_manifest=manifest_path,
+        )

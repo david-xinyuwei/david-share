@@ -1,16 +1,18 @@
-# Microsoft Foundry Custom Code Training —— 把自己的 GRPO 代码跑在托管的 4×A100 节点上
+# Microsoft Foundry Custom Code Training —— 从 Hello World、SFT 到托管 GPU 上的 GRPO
 
-[![Foundry](https://img.shields.io/badge/Microsoft%20Foundry-Custom%20Code%20Training-0067b8)](https://github.com/microsoft-foundry/custom-code-training)
+[![Foundry Preview](https://img.shields.io/badge/Microsoft%20Foundry-Preview-0067b8)](https://learn.microsoft.com/azure/ai-foundry/what-is-azure-ai-foundry)
 [![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/ai-foundry-custom-code-training-ci.yml/badge.svg)](https://github.com/david-xinyuwei/david-share/actions/workflows/ai-foundry-custom-code-training-ci.yml)
 [![verl](https://img.shields.io/badge/verl-0.7.1-blue)](https://github.com/volcengine/verl)
 [![GPU](https://img.shields.io/badge/GPU-4%C3%97A100%2080GB%20PCIe-green)](https://learn.microsoft.com/azure/virtual-machines/nca100v4-series)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
-对于标准托管 fine-tuning 流程无法覆盖的训练任务，Custom Code Training 提供了运行自定义训练代码的入口：训练脚本、数据集和容器镜像由你提供，GPU 集群、作业契约和可观测性由平台提供。这个 repo 按三个层次验证了这条产品路径：Hello World、`Qwen/Qwen3-14B` LoRA SFT，以及最终完整跑通的 VERL GRPO——单个 4×A100 节点上 14 个优化器 step、5 小时 41 分钟——包括路上的七个失败点和每一步的实测开销。
+Custom Code Training 面向标准托管 fine-tuning 默认能力之外的代码驱动训练：训练脚本、数据集和容器镜像由你提供，托管 GPU compute、作业编排、可观测性和版本化模型产出由平台提供。这个 repo 按三个层次验证了这条产品路径：Hello World、`Qwen/Qwen3-14B` LoRA SFT，以及完整跑通的 VERL GRPO——单个 4×A100 节点上 14 个优化器 step、5 小时 41 分钟——并给出算力规划、兼容性配置和实测运行数据。
 
 > Author: 魏新宇 (Xinyu Wei)
 
 [English](README.md) | [中文](README-CN.md)
+
+[已完成的 SDK 路径](#三个-sdk-demo全部端到端跑通) · [GPU / VM / quota](#gpuvm-与-quota-规划) · [快速上手](#快速上手) · [证据](#证据) · [产品源码（需要访问权限）](https://github.com/microsoft-foundry/custom-code-training)
 
 ---
 
@@ -26,18 +28,17 @@
 
 这笔交换是明确的：训练循环完全归你控制，镜像里的每一个依赖也完全归你负责。这个 repo 的大部分篇幅花在后半句上。
 
-## 哪些是真实执行、哪些做过适配、哪些不能宣称
+## 这个 repo 验证了什么
 
-| 对象 | 证据状态 | 边界 |
+| 产品能力 | 验证内容 | 证据 |
 |---|---|---|
-| Foundry portal、托管 Compute、挂载资产、Ray、作业历史 | **EXECUTED** | 截图来自实际项目；容器 registry 坐标已遮蔽。 |
-| 零售工具、reward、训练/验证 JSONL、GRPO launcher | **REUSED INPUT** | 生产方 sample commit `018d095f508280efce9e79c4b19fc941d7361b30`；hash 冻结在 [`method-and-lineage.md`](docs/method-and-lineage.md)。 |
-| NC96ads A100 镜像和 runtime 配置 | **ADAPTED + EXECUTED** | 保留官方作业路径，但为这套拓扑改变了镜像字节和 6 个环境配置。 |
-| 每步性能、显存、reward、KL、gradient 指标 | **MEASURED** | 一次完整运行的全部 14 个优化器 step，每步约 80 个指标。 |
-| 质量提升、收敛、其他 SKU、生产就绪 | **NOT CLAIMED** | 运行确实跑完了，但单次 14 步运行的四次验证不足以建立方向性。 |
-| 合并后的 [`docker/Dockerfile`](docker/Dockerfile) | **RECONSTRUCTED RECIPE** | 四个组成 layer 分别 build 并过 gate；合并后的单文件尚未作为一个 ACR task 重建。 |
+| 托管 compute 与作业生命周期 | Compute 创建、排队、节点注册、执行、完成和清理 | [Portal 截图](images/portal-training-job-list.png)和下文三个已完成的 SDK demo |
+| 版本化数据与模型资产 | 只读输入挂载，以及版本化的 SFT adapter、GRPO model 和 checkpoint 产出 | [作业输出](images/portal-job-model-output.png)与[模型列表](images/portal-models-deploy.png) |
+| 自定义分布式 runtime | 单个托管 4×A100 节点上的 Ray、FSDP2、vLLM rollout 和 GRPO 更新 | [完成作业详情](images/portal-job-details.png)与[runtime 设置](images/portal-job-outputs-and-env.png) |
+| 实测可观测性 | 四次 validation，以及 14 个优化器 step 每步约 80 个指标 | [`evidence/`](evidence/)与下文生成表格 |
+| 可复现工程控制 | 固定 SDK、schema 校验、fail-closed 配置、patch 测试和 Python 3.11/3.12 CI | [`scripts/`](scripts/)、[`tests/`](tests/)与上方 CI badge |
 
-完整 authority matrix，以及相对生产方 sample 的每一处有意差异，见 [`docs/method-and-lineage.md`](docs/method-and-lineage.md)。
+这里展示的是一套已验证配置，不是跨 SKU 性能对比。指标趋势按原始数据呈现，不用单次短运行外推质量提升或收敛结论。需要审计细节的读者，可在 [`docs/method-and-lineage.md`](docs/method-and-lineage.md) 查看文件哈希、运行时差异与证据链路。
 
 ### 两个入口
 
@@ -45,7 +46,7 @@
 
 **Experiment and train on compute** 会创建一个常驻 workbench 供你连上去——适合反复改代码。**Submit training from the browser** 直接用 VS Code for the Web 对着作业定义改，适合简单任务。下面全部走第一条。
 
-### Template，以及本文用的那一个
+### 模板总览，以及本文采用的模板
 
 <div align="center"><img src="images/portal-new-workbench-templates.png" width="720"/></div>
 
@@ -53,13 +54,13 @@
 
 <div align="center"><img src="images/portal-code-workbench-templates.png" width="960"/></div>
 
-本文走 **VERL**。SLIME 要求 4 节点 × 8 GPU，那是另一个容量话题。
+本文走 **VERL**。SLIME notebook 面向多节点拓扑，不在本次单节点验证范围内。
 
 ### Idle shutdown 是产品自带的
 
 <div align="center"><img src="images/portal-new-workbench-idle-shutdown.png" width="720"/></div>
 
-GPU workbench 开着就在计费，跟你有没有在敲键盘无关，所以创建对话框里带了 idle shutdown 计时器，默认一小时。这个值应该主动设，而不是默认接受。
+GPU workbench 开着就在计费，跟你有没有在敲键盘无关，所以创建对话框里带了 idle shutdown 计时器，默认一小时。建议按成本策略主动设置该值，不要直接沿用默认值。
 
 ### 托管计算集群
 
@@ -98,13 +99,13 @@ Details 页是这次运行的可复现记录：job ID、状态与墙钟耗时、
 
 <div align="center"><img src="images/portal-job-code.png" width="900"/></div>
 
-Code 页逐个文件地显示这次作业实际跑的是什么——启动脚本、trainer、数据集适配、reward function、tool 定义。当一次运行在三小时后失败时，能读到作业真正看到的代码，而不是你以为自己上传的代码，是「定位」和「猜测」的分界线。
+Code 页按文件展示本次作业实际执行的内容，包括启动脚本、训练器、数据适配器、奖励函数和工具定义。对于长时间运行的作业，这让运行负载在验证和排障时可以直接核查。
 
 ### 作业历史
 
 <div align="center"><img src="images/portal-training-job-list.png" width="900"/></div>
 
-每次尝试的状态、时长和 compute target。那些很短的 `Complete` 行是用来确认可用镜像的节点探针；`Failed` 行的故事在 [`docs/troubleshooting.md`](docs/troubleshooting.md)。
+每次尝试的状态、时长和 compute target。那些很短的 `Complete` 行是在正式运行前完成的兼容性探针；镜像、显存和互连方面的工程经验集中在 [`docs/troubleshooting.md`](docs/troubleshooting.md)。
 
 ### 这次运行留下了什么
 
@@ -114,7 +115,7 @@ Code 页逐个文件地显示这次作业实际跑的是什么——启动脚本
 
 <div align="center"><img src="images/portal-models-deploy.png" width="960"/></div>
 
-它们随后出现在 **Deployments → Models** 下，和之前 SFT 跑出的 LoRA adapter 并列，旁边就是 **Deploy** 按钮。这正是这个入口的意义：你自己写的训练循环产出的东西，和任何其他 Foundry 模型落在同一个地方。删掉 compute 集群不会碰到它们——它们存在项目的 storage 里，这也是跑完就能放心释放 GPU 的原因。
+它们随后出现在 **Deployments → Models** 下，和之前 SFT 跑出的 LoRA adapter 并列。截图中的 **Deploy** 操作对应当前选中的完整模型产物 `model_output_dfead6`；SFT adapter 仅表示训练产物已注册，不代表其已作为部署目标完成验证。Custom training 的产出因此可以进入 Foundry 统一的模型资产列表。删掉 compute 集群不会碰到这些资产——它们存在项目的 storage 里，这也是跑完就能放心释放 GPU 的原因。
 
 ### 这不是只有文章的 repo
 
@@ -139,11 +140,49 @@ CI 在 Python 3.11/3.12 上运行这个 public repo 的测试矩阵，核对 SDK
 
 | SDK demo | 验证的产品路径 | 实际运行 | 产出 / 证据 |
 |---|---|---|---|
-| `hello-world` | Compute 创建、排队、节点注册和命令执行 | `sdk-hello-world-a5b1` —— **Complete**，7 分 38 秒 | 无需 dataset；[作业历史](images/portal-training-job-list.png) |
-| `quickstart-sft` | Dataset 上传与挂载、`Qwen/Qwen3-14B` LoRA SFT、版本化产出回收 | `sft-lora-862f` —— **Complete**，2 小时 09 分 52 秒 | `retail-sft-lora-c78047` adapter；[模型列表](images/portal-models-deploy.png) |
-| `rft-with-verl` | 自定义镜像、Ray、FSDP2、vLLM rollout、GRPO 更新和四次验证 | `verl-rft-dpactor-f3e1` —— **Complete**，5 小时 41 分，14/14 步 | `model_output_dfead6`、checkpoint 和[逐步指标](evidence/training-metrics.jsonl) |
+| `hello-world` | Compute 创建、排队、节点注册和命令执行 | `sdk-hello-world-a5b1` —— **Complete**，7 分 38 秒 | 无需 dataset；[结构化运行证据](evidence/sdk-demo-runs.jsonl) |
+| `quickstart-sft` | Dataset 上传与挂载、`Qwen/Qwen3-14B` LoRA SFT、版本化产出回收 | `sft-lora-862f` —— **Complete**，2 小时 09 分 52 秒 | `retail-sft-lora-c78047` adapter；[模型列表](images/portal-models-deploy.png)与[运行证据](evidence/sdk-demo-runs.jsonl) |
+| `rft-with-verl` | 自定义镜像、Ray、FSDP2、vLLM rollout、GRPO 更新和四次验证 | `verl-rft-dpactor-f3e1` —— **Complete**，5 小时 41 分，14/14 步 | `model_output_dfead6`、checkpoint、[运行证据](evidence/sdk-demo-runs.jsonl)与[逐步指标](evidence/training-metrics.jsonl) |
 
-SLIME sample 不计入已完成项。它随 repo 提供的 notebook 默认使用 4 节点 × 8 GPU；在现有 1 节点 × 4 GPU 的配额下，这组默认参数会在训练开始前触发 sample 自带的 actor/rollout 拓扑检查。
+### GPU、VM 与 quota 规划
+
+Custom Code Training job 运行在 **Foundry Compute** 上。它是 Foundry account 下的托管 compute 资源：创建 GPU pool 时选择 Azure VM SKU，提交 job 时再使用该 SKU 对应的 Singularity `instance_type`。它不是自建 IaaS VM；训练 sample 只接受 **full-node SKU**，不接受 `D4_v3`、`NC24ad_A100` 这类 sub-node size。
+
+| Workload | 文档要求的 compute | 本 repo 的验证配置 |
+|---|---|---|
+| Hello World | 挂在 project 下的 GPU compute；不涉及模型显存能否放下 | 1 × `Standard_NC96ads_A100_v4` |
+| Quickstart SFT | 单节点 GPU compute；显存下限由模型与镜像决定 | 4 × A100 80GB 上的 Qwen3-14B LoRA SFT |
+| VERL GRPO | 单节点 **A100/H100 或更高规格 GPU** | 4 × A100 80GB 上的 Qwen3-14B，14/14 步 |
+| SLIME GRPO | 多节点 **A100 或更高规格 GPU**；notebook 默认 4 节点 × 8 GPU | 不在本次单节点验证范围内 |
+
+sample 内置的 job 映射覆盖 full-node A100、H100 和 H200 family。能映射只表示 Foundry 可以把 compute SKU 绑定到 job 的 `instance_type`；它**不等于**某个具体模型、镜像和序列长度已经在该 SKU 上验证通过。
+
+| GPU family | Compute cluster SKU 示例 | Job `instance_type` 示例 | 证据状态 |
+|---|---|---|---|
+| A100 | `STANDARD_NC96ADS_A100_V4`、`STANDARD_ND96AMS_A100_V4`、`STANDARD_ND96AMSR_A100_V4` | `Singularity.NC96ad_A100_v4-n1`、`Singularity.ND96am_A100_v4-n1` | NC96ads 已实测；ND 变体已映射但本文未测性能 |
+| H100 | `STANDARD_ND96IS_H100_V5`、`STANDARD_ND96ISR_H100_V5`、`STANDARD_ND96ISRF_H100_V5` | `Singularity.ND96_H100_v5`、`Singularity.ND96r_H100_v5` | sample 已映射；本文未实测 |
+| H200 | `STANDARD_ND96IS_H200_V5`、`STANDARD_ND96ISR_H200_V5`、`STANDARD_ND96ISRF_H200_V5` | `Singularity.ND96_H200_v5`、`Singularity.ND96r_H200_v5` | sample 已映射；本文未实测 |
+
+这里消耗的是 **Azure Machine Learning VM-family quota**，不是模型/token quota，也不是普通 Microsoft.Compute core quota。quota 按 subscription + region 计量，scope 位于 `Microsoft.MachineLearningServices/locations/<region>`。创建 compute 前要同时检查两道门：
+
+1. 目标 VM family 的 dedicated vCPU quota，例如 `standardNCADSA100v4Family`；
+2. `TotalDedicatedCores`，即该区域的 dedicated vCPU 总 quota。
+
+`node_count` 个节点需要两项 quota 都至少剩余 `node_count × 每个 full node 的 vCPU 数`。本次使用一个 NC96ads 节点，需要 96 vCPU。实时预检读到 family `limit=100 / usage=96`，区域总量 `200 / 96`，因此真正限制节点数量的是 family quota：只能同时存在一个节点。脱敏后的实测记录见 [`evidence/compute-quota.jsonl`](evidence/compute-quota.jsonl)。
+
+```bash
+az extension add --name quota --yes
+SUBSCRIPTION_ID="<subscription-id>"
+REGION="<region>"
+SCOPE="/subscriptions/${SUBSCRIPTION_ID}/providers/Microsoft.MachineLearningServices/locations/${REGION}"
+
+az quota show --scope "$SCOPE" --resource-name standardNCADSA100v4Family
+az quota usage show --scope "$SCOPE" --resource-name standardNCADSA100v4Family
+az quota show --scope "$SCOPE" --resource-name TotalDedicatedCores
+az quota usage show --scope "$SCOPE" --resource-name TotalDedicatedCores
+```
+
+配额申请入口是 **Azure portal → Usage + quotas**，筛选目标 region 和 VM family 后提交 increase request。自动审批不可用时，提交 **Service and subscription limits (quotas) → Machine Learning Service: Virtual Machine Quota** 支持请求。quota 本身不产生 GPU 费用，也不保证后台一定有容量；真正的 capacity 会在创建 compute 时判定。参考：[Microsoft Learn：管理 Azure Machine Learning quota](https://learn.microsoft.com/azure/machine-learning/how-to-manage-quotas)。
 
 ---
 
@@ -206,7 +245,7 @@ flowchart TB
 |---|---|---|
 | vLLM 预留（`gpu_memory_utilization=0.6`） | ~47.5 GB | 推算：比例 × 可用显存 |
 | └ KV cache 余量 | ~19 GB | 推算：预留量减去一份完整 14B 权重 |
-| FSDP actor 进程 | **26.7–27.8 GB** | **实测** —— `perf/max_memory_reserved_gb`，8 步 |
+| FSDP actor 进程 | **26.7–27.8 GB** | **实测** —— `perf/max_memory_reserved_gb`，14 步 |
 | 空闲余量 | ~4 GB | 余数；吸收瞬时的 logits 张量 |
 
 只有 actor 那一行有仪表数据。vLLM 和 KV cache 两行由配置比例和模型大小推算而来，列出是为了让切分可读，不是声称有分组件遥测。
@@ -290,14 +329,19 @@ export NCCL_DEBUG=INFO      # 打印实际选中的 transport
 ## 快速上手
 
 ```bash
-git clone https://github.com/david-xinyuwei/david-share.git
+git lfs version
+git clone --filter=blob:none --sparse https://github.com/david-xinyuwei/david-share.git
+git -C david-share sparse-checkout set Deep-Learning/AI-Foundry-Custom-Code-Training .github/workflows
+git -C david-share lfs pull --include="Deep-Learning/AI-Foundry-Custom-Code-Training/**"
 cd david-share/Deep-Learning/AI-Foundry-Custom-Code-Training
 python -m venv .venv
 source .venv/bin/activate            # Windows PowerShell: .venv\Scripts\Activate.ps1
-python -m pip install -r requirements-dev.txt
+python -m pip install --no-input -r requirements-dev.txt
 ```
 
-先按冻结 commit 获取生产方 sample，再建立本地配置：
+训练适配器依赖产品预览仓库中的源码与数据集，当前仓库未二次分发。因此，执行以下命令前需确认：**当前 GitHub 身份已经获得 `microsoft-foundry/custom-code-training` 的访问权限**。clone 或 fetch 返回 `404` 表示尚未开通源码访问；不要用其他公开实现替换本次实测负载。
+
+确认访问权限后，获取本次实测使用的 sample，再建立本地配置：
 
 ```bash
 git init upstream-custom-code-training
@@ -306,6 +350,8 @@ git -C upstream-custom-code-training fetch --depth 1 origin 018d095f508280efce9e
 git -C upstream-custom-code-training checkout --detach FETCH_HEAD
 cp configs/foundry-job.example.json configs/foundry-job.local.json
 ```
+
+本次实测证据链固定在 commit `018d095f508280efce9e79c4b19fc941d7361b30`。如果产品预览仓库已向前推进，或授权 checkout 中已无法读取该对象，应先将实际文件与 [`docs/method-and-lineage.md`](docs/method-and-lineage.md) 中的 11 个哈希对账，再决定是否建立新的实验证据链。没有源码访问时，public 测试和已发布 evidence 仍可使用，但 `plan`、`validate`、`submit` 无法重建训练负载。
 
 替换本地配置里的每一个 `<...>`。认证和云端调用之前，先跑离线 gate：
 
@@ -322,7 +368,7 @@ python scripts/submit_job.py --action plan \
     --sample-dir upstream-custom-code-training/code-samples/sdk/training/rft-with-verl
 ```
 
-Done-when 是 `PREFLIGHT_PASS`、270 条训练数据、62 条验证数据、6 个输入 hash，以及完整 Ray `CommandJob`。上面两条命令的 `sideEffects: []`。接下来的 gate 刻意分开：
+Done-when 是 `PREFLIGHT_PASS`、270 条训练数据、62 条验证数据、11 个输入 hash，以及完整 Ray `CommandJob`。上面两条命令的 `sideEffects: []`。接下来的 gate 刻意分开：
 
 ```bash
 # 上传 versioned code/data asset，调用 validate().try_raise()，不创建 job。
@@ -369,7 +415,7 @@ python patches/02-dp-actor-out-of-place/apply.py
 patch 和 job contract 测试不需要 GPU、CUDA 或 Azure credential：
 
 ```bash
-python -m pip install -r requirements-dev.txt
+python -m pip install --no-input -r requirements-dev.txt
 python -m pytest tests/ -q
 python scripts/validate_repo.py
 ```
@@ -378,9 +424,9 @@ python scripts/validate_repo.py
 
 ---
 
-## 排障
+## 兼容性说明（实测环境）
 
-从干净环境走到运行中的训练循环，要做一个镜像选择加七个修复，其中几个的报错指向的位置并不是真正的原因。每一个的现象、根因和证据：[`docs/troubleshooting.md`](docs/troubleshooting.md)。
+本次实测镜像、依赖栈、显存预算和 PCIe 互连的兼容性说明集中在 [`docs/troubleshooting.md`](docs/troubleshooting.md)。
 
 每次尝试的运行时长与变更内容：[`evidence/run-timeline.md`](evidence/run-timeline.md)。
 
@@ -403,8 +449,11 @@ python scripts/validate_repo.py
 | [`evidence/validation-baseline.json`](evidence/validation-baseline.json) | 每次验证通道的 grader 分数 |
 | [`evidence/run-manifest.json`](evidence/run-manifest.json) | 源日志的 SHA-256、记录数、捕获了哪些 step |
 | [`evidence/image-build.json`](evidence/image-build.json) | 基础镜像/包版本、compatibility probe 前后对比、四个 layer digest |
-| [`evidence/run-timeline.md`](evidence/run-timeline.md) | 每次尝试：改了什么，死在哪里 |
+| [`evidence/sdk-demo-runs.jsonl`](evidence/sdk-demo-runs.jsonl) | Hello World、SFT 和 VERL GRPO 的终态、时长、拓扑与产出 |
+| [`evidence/input-manifest.jsonl`](evidence/input-manifest.jsonl) | 11 个 runtime 关键 sample 文件的字节数与 SHA-256，以及 270/62 dataset 记录数 |
+| [`evidence/compute-quota.jsonl`](evidence/compute-quota.jsonl) | 脱敏后的 family/区域 quota 观测与节点容量计算 |
+| [`evidence/run-timeline.md`](evidence/run-timeline.md) | 每次兼容性尝试改了什么，以及运行到哪个阶段 |
 
-稳态表和两个验证数字都由上述文件生成。[`docs/troubleshooting.md`](docs/troubleshooting.md) 里的失败签名来自那些在训练循环之前就死掉的运行——它们没有产生任何指标，所以这里没有对应行。显存表中 vLLM 和 KV cache 两行是推算值，已在表内标出。
+稳态表和四次验证数字都由上述文件生成。早期兼容性尝试在进入优化器循环前结束，因此没有对应的指标行；诊断签名保留在 [`docs/troubleshooting.md`](docs/troubleshooting.md)。显存表中 vLLM 和 KV cache 两行是推算值，已在表内标出。
 
 环境标识已脱敏；没有任何数值被改动。

@@ -27,10 +27,10 @@ from job_contract import (
     validate_overrides,
     validate_sample_layout,
 )
-from preflight import build_preflight_report, write_json_atomic
+from preflight import DEFAULT_INPUT_MANIFEST, build_preflight_report, write_json_atomic
 
-# Copied from the public upstream notebook pinned in job_contract.py. It selects the
-# product's preview bootstrapper; it is not a customer registry or credential.
+# Copied from the access-controlled product notebook pinned in job_contract.py. It selects
+# the product's preview bootstrapper; it is not a customer registry or credential.
 UPSTREAM_BOOTSTRAPPER_CONFIG = (
     '{"capabilities_registry":{"registry":{"url":"foundrycommandjobpreview.azurecr.io",'
     '"username":null,"password":null},"repo_prefix":"cr2026051502_singularity_bootstrapper",'
@@ -44,6 +44,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--config", required=True, type=Path)
     parser.add_argument("--overrides", required=True, type=Path)
     parser.add_argument("--sample-dir", required=True, type=Path)
+    parser.add_argument(
+        "--expected-input-manifest",
+        type=Path,
+        default=DEFAULT_INPUT_MANIFEST,
+        help="Measured input identity; any byte drift fails before upload",
+    )
     parser.add_argument("--evidence", type=Path, default=Path("run-output/submission.json"))
     parser.add_argument("--credential", choices=("default", "azure-cli"), default="default")
     parser.add_argument("--tenant-id", help="Optional tenant constraint for AzureCliCredential")
@@ -128,6 +134,7 @@ def main() -> int:
             overrides_path,
             sample_dir,
             allow_placeholders=args.allow_placeholders,
+            expected_input_manifest=args.expected_input_manifest.resolve(),
         )
         config = load_json_object(config_path)
         overrides = validate_overrides(load_json_object(overrides_path))

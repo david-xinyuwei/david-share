@@ -14,8 +14,8 @@ method. The definition of Custom Code Training and the authoritative job path be
 | Base model | AzureML registry model from the official Configure cell | Qwen3-14B version 2 | **EXECUTED** |
 | Image | Official `acft-rft-training:15` plus measured pure-Python compatibility layers | [`evidence/image-build.json`](../evidence/image-build.json) | **EXECUTED_AS_LAYERS** |
 | Runtime overrides | This repo, derived from one-variable failure progression | [`configs/verified-overrides.json`](../configs/verified-overrides.json) | **EXECUTED** |
-| Metrics | verl console output | [`evidence/training-metrics.jsonl`](../evidence/training-metrics.jsonl) | **8 STEPS CAPTURED** |
-| Final effect | post-training validation and exported model | not present in the captured stream | **NOT CLAIMED** |
+| Metrics | verl console output | [`evidence/training-metrics.jsonl`](../evidence/training-metrics.jsonl) | **14 STEPS CAPTURED** |
+| Final output | post-training validation and exported model | four validation passes plus registered model/checkpoint assets | **EXECUTED** |
 
 ## Frozen upstream input
 
@@ -26,6 +26,11 @@ the identity-critical files, not a newly authored substitute:
 |---|---:|---|
 | `code/verl_rft_startup.sh` | 9,563 | `6068e57909376e1e88d3c9cfad6d63a6533bfbf5c39d464d0a6e18be54ff41c6` |
 | `code/reasoning_train_rft.py` | 67,272 | `ff2b99cdf537f5111aebd44aed1920d4b0f4b3ff5251a6d1dc004f6148bc4ef9` |
+| `code/jsonl_dataset.py` | 3,018 | `3437e7e366904117b69f2e3516669e34955cd7746319cc181b77c6f01e3952e2` |
+| `code/retail_tool.py` | 3,703 | `d0a4c0e0a36db3660eb7232df3fd78ae8302e5b404166ed4f49358f17e81ed57` |
+| `code/retail_tools.py` | 27,337 | `86ca1f537f4ed4cdc928e9f57d12d4419a029bef6a91124816842e2e6c535e74` |
+| `code/retail_db.json` | 24,619 | `311e84f45a03f3707c7b8fe410a338564767fa3ba8d329e980f4c52dbbba44e3` |
+| `code/retail_grader_rft_tools_v3.py` | 26,079 | `a298bce3de3bcf6f9b52747c08de7130214eb506f76ec601ea9c9c94f7b05fdb` |
 | `code/retail_toolcall_reward.py` | 4,709 | `86284726df54071c16188952c888c06adbb86b4125e0cc20cb267a92dee2dd82` |
 | `code/config/tool_config/tool_config_template.yaml` | 5,444 | `8ca14526300036332bab94d39650dec00081b37703c8eeb82e4f013e98321f64` |
 | `data/train.jsonl` | 863,163 | `b1329f6b419617285c9cefe93f40e7015a6534196745b3f1568ddd2ce83885a1` |
@@ -66,7 +71,7 @@ an exact replay of the Notebook default image.
 ## Claim boundary
 
 The captured evidence proves that the product accepted the job, mounted the assets, started
-Ray, loaded Qwen3-14B, completed validation and ran eight GRPO optimizer steps with stable
-per-step cost. It does **not** prove final convergence, a quality improvement, portability to
-another SKU, or production readiness. The validation delta after step 5 is reported rather
-than interpreted.
+Ray, loaded Qwen3-14B, ran all 14 planned GRPO optimizer steps, completed four validation
+passes and registered the model/checkpoint outputs. It does **not** prove convergence, a
+quality improvement, portability to another SKU, or production readiness. The validation
+series at steps 0, 5, 10 and 14 is reported rather than interpreted.

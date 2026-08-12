@@ -1,8 +1,9 @@
-# Troubleshooting
+# Compatibility guide for the tested NC96ads A100 topology
 
-Getting from a clean environment to a running GRPO loop on this hardware takes one image
-decision plus seven fixes. They are listed in the order they fire — fixing one reveals the
-next, so working top-down is the fastest path.
+This guide records the image, dependency, memory and interconnect choices used to run the
+VERL sample on one managed NC96ads A100 v4 node. The observations are specific to the dated
+stack below; other Foundry GPU families and newer curated images should be validated against
+their own driver and package versions.
 
 Environment for every observation: 4× A100 80GB **PCIe** (no NVLink), driver `570.195.03`,
 max CUDA 12.8, `verl 0.7.1`, `transformers 5.8.1`, `torch 2.10+cu128`, `NCCL 2.27.5`,
@@ -14,7 +15,7 @@ checkpointing enabled, `entropy_coeff=0`.
 | Symptom you see | Jump to |
 |---|---|
 | `CUDA driver too old (found version 12080)` | [image matrix](#first-pick-an-image-whose-cuda-matches-the-node) |
-| `Parameter.__new__() ... '_is_hf_initialized'` | [1](#1-accelerate-forwards-a-transformers-v5-kwarg) |
+| `Parameter.__new__() ... '_is_hf_initialized'` | [1](#1-align-accelerate-with-transformers-v5-parameter-metadata) |
 | `'set' object is not subscriptable` | [2](#2-_no_split_modules-became-a-set) |
 | `Cuda failure 217 'peer access is not supported'` | [3](#3-both-nccl-p2p-and-shm-call-peer-access) |
 | `KV cache is needed, but only ... available` | [4](#4-vllm-has-no-room-left-for-its-kv-cache) |
@@ -31,27 +32,28 @@ all. Five published tags, tested on the same compute, same driver, same day:
 
 | Image | torch | compiled CUDA | `cuda_is_available` | Outcome |
 |---|---|---|---|---|
-| `acft-rft-training:20` *(template default)* | 2.11.0+cu130 | 13.0 | **false** | 4 worker processes die in `__init__`: `CUDA driver too old (found version 12080)` |
-| `acft-rft-training:18` | 2.11.0+cu130 | 13.0 | **false** | same |
-| `acft-rft-training:19` | — | — | — | import fails: `ValueError: Either a revision or a version must be specified.` |
-| `acft-rft-training:23` | — | — | — | user process never starts; only `compute_record.txt` is produced |
-| `acft-rft-training:15` | 2.10.0+cu128 | 12.8 | **true** | CUDA matches, but `ImportError: cannot import name 'AutoModelForVision2Seq' from 'transformers'` |
+| `acft-rft-training:20` *(template default at the measured commit)* | 2.11.0+cu130 | 13.0 | **false** | CUDA 13.0 requires a newer driver than the tested node exposes |
+| `acft-rft-training:18` | 2.11.0+cu130 | 13.0 | **false** | Same driver/runtime boundary as `:20` |
+| `acft-rft-training:19` | — | — | — | Startup import compatibility check stops with `ValueError: Either a revision or a version must be specified.` |
+| `acft-rft-training:23` | — | — | — | Probe produced platform compute metadata but no user-process log |
+| `acft-rft-training:15` | 2.10.0+cu128 | 12.8 | **true** | CUDA is available; verl/transformers versions require alignment |
 | `acft-hf-nlp-gpu:122` *(SFT reference)* | 2.8.0+cu126 | 12.6 | **true** | included to show the node itself is healthy |
 
 The node's driver is `570.195.03`, which supports CUDA up to **12.8**. A torch built against
 CUDA 13.0 loads and then reports no usable device, and the traceback arrives from four
-worker processes at once rather than from the loader — so it reads as a distributed problem
-rather than a version mismatch.
+worker processes at once rather than from the loader. Reading the compiled-CUDA value first
+separates this version boundary from a distributed-runtime issue.
 
-`:15` is the only tag whose CUDA matches, and it pairs verl 0.7.0 with transformers 5.8.1.
-verl 0.7.0 still imports `AutoModelForVision2Seq`, which transformers v5 removed. So the
-image with the right CUDA cannot import, and the images that import have the wrong CUDA.
+`:15` is the tested tag whose CUDA matches, and it pairs verl 0.7.0 with transformers 5.8.1.
+verl 0.7.0 still imports `AutoModelForVision2Seq`, which transformers v5 removed. The
+validated combination therefore keeps the CUDA 12.8 base and aligns the pure-Python verl
+package without replacing torch or vLLM.
 
-The way out is to keep `:15`'s CUDA stack and replace only verl, which ships as a pure
-Python wheel:
+The validated combination keeps `:15`'s CUDA stack and replaces only verl, which ships as
+a pure Python wheel:
 
 ```dockerfile
-FROM mcr.microsoft.com/azureml/curated/acft-rft-training:15
+FROM mcr.microsoft.com/azureml/curated/acft-rft-training:15@sha256:38f3766a5056d43a0be699986ad3613cec0d247405455046346c2051d62f65ac
 RUN pip install --no-deps --no-cache-dir verl==0.7.1
 ```
 
@@ -68,19 +70,19 @@ Everything below assumes that image.
 
 ---
 
-## 1. accelerate forwards a transformers v5 kwarg
+## 1. Align accelerate with transformers v5 parameter metadata
 
 ```
 TypeError: Parameter.__new__() got an unexpected keyword argument '_is_hf_initialized'
 ```
 
 transformers v5 tags parameters with `_is_hf_initialized`. The `accelerate` release paired
-with it passed that tag through to `torch.nn.Parameter`, which does not accept it. The run
-died after materialising 97 of 443 weights, so the traceback arrives well after model
-construction starts and reads like a torch problem.
+with it passed that tag through to `torch.nn.Parameter`, which does not accept it. Model
+initialization stopped after materialising 97 of 443 weights, so the traceback arrives well
+after construction starts.
 
 ```bash
-pip install --no-deps -U accelerate
+pip install --no-deps accelerate==1.14.0
 ```
 
 `--no-deps` keeps pip from resolving a different torch or transformers underneath a working
@@ -121,9 +123,8 @@ Keep `NCCL_DEBUG=INFO`. It prints the transport actually selected, and the file 
 warning — `shm.cc` versus `net_socket.cc` — is what lets you attribute a later failure
 instead of guessing.
 
-> We once removed `NCCL_SHM_DISABLE=1` on the theory that only P2P touched peer access. The
-> next run reproduced 217 from `shm.cc:590`. Change one variable at a time; "this setting
-> looks redundant" is not a hypothesis worth spending a GPU cycle on mid-investigation.
+> A single-variable probe without `NCCL_SHM_DISABLE=1` reproduced error 217 from
+> `shm.cc:590`, confirming that both settings are required on the tested topology.
 
 ## 4. vLLM has no room left for its KV cache
 
@@ -140,7 +141,8 @@ actor_rollout_ref.rollout.gpu_memory_utilization=0.6
 ```
 
 **This trade is not free.** vLLM and the FSDP actor share the same 80 GB — raising vLLM's
-share to 0.6 leaves roughly 31 GB for the actor, which is what surfaces issue 6 below.
+share to 0.6 leaves roughly 31 GB for the actor, which exposes the memory constraint in
+section 6 below.
 Treat the two as one budget. The full breakdown is in the
 [main README](../README.md#the-memory-budget).
 
@@ -155,7 +157,8 @@ Weight model.embed_tokens.weight(151936, 5120) fp32 = 3.11GB
 `151936 × 5120 × 4 B ≈ 3.11 GB` against a 2048 MB default. Any wide-vocabulary model hits
 this.
 
-**The path in the message does not exist.** The key lives one level deeper:
+In the measured package version, the runtime config resolves this key one level deeper than
+the short path shown in the message:
 
 ```
 actor_rollout_ref.rollout.checkpoint_engine.update_weights_bucket_megabytes=4096
@@ -164,16 +167,16 @@ actor_rollout_ref.rollout.checkpoint_engine.update_weights_bucket_megabytes=4096
 Passing the printed path makes Hydra suggest *"To append to your config use
 `+actor_rollout_ref.rollout.update_weights_bucket_megabytes=...`"*. Taking that suggestion
 creates a **legal new key that no dataclass reads**: composition succeeds, the run starts,
-and dies about two minutes later with
+and configuration binding stops about two minutes later with
 
 ```
 TypeError: RolloutConfig.__init__() got an unexpected keyword argument
            'update_weights_bucket_megabytes'
 ```
 
-by which point Ray's workers are gone and NCCL has written roughly 200 lines of
-`NET/Socket : unable to allocate requests` on top. Those transport errors are a
-*consequence* of the workers dying, but they are the loudest thing in the file.
+by which point Ray's workers have exited and NCCL has written roughly 200 lines of
+`NET/Socket : unable to allocate requests` on top. Those transport errors are downstream
+effects rather than the initiating exception.
 
 [`tools/inspect_config_path.ps1`](../tools/inspect_config_path.ps1) reconstructs the true
 dotted path from the runtime config dump, so the error string never has to be trusted.
@@ -234,7 +237,7 @@ It aborts if any occurrence is not a standalone statement.
 
 ## Reading the logs
 
-Two habits, both learned by getting them wrong:
+Two diagnostic practices made the multi-process logs easier to interpret:
 
 **The loudest error is usually the last one.** Issue 5's real cause is a one-line
 `TypeError` buried under ~200 NCCL warnings from workers that had already died. Sorting by

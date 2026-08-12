@@ -9,6 +9,8 @@ import sys
 from pathlib import Path
 from urllib.parse import unquote
 
+from job_contract import REQUIRED_SAMPLE_FILES, SKU_TO_GPUS_PER_NODE, SKU_TO_INSTANCE_TYPE
+
 ROOT = Path(__file__).resolve().parents[1]
 CI_WORKFLOW = ROOT.parents[1] / ".github/workflows/ai-foundry-custom-code-training-ci.yml"
 README_FILES = (ROOT / "README.md", ROOT / "README-CN.md")
@@ -29,6 +31,9 @@ REQUIRED = (
     "evidence/validation-baseline.json",
     "evidence/run-manifest.json",
     "evidence/image-build.json",
+    "evidence/sdk-demo-runs.jsonl",
+    "evidence/input-manifest.jsonl",
+    "evidence/compute-quota.jsonl",
     "docs/method-and-lineage.md",
     "docs/reproduction.md",
 )
@@ -82,13 +87,33 @@ def markdown_shape(text: str) -> dict:
     }
 
 
+def markdown_anchors(text: str) -> set[str]:
+    anchors: set[str] = set()
+    seen: dict[str, int] = {}
+    for line in prose_without_fences(text).splitlines():
+        match = re.match(r"^#{1,6}\s+(.+?)\s*#*$", line)
+        if not match:
+            continue
+        heading = match.group(1).replace("`", "").lower()
+        slug = "".join(character for character in heading if character.isalnum() or character in " -_")
+        slug = re.sub(r"\s+", "-", slug).strip("-")
+        duplicate = seen.get(slug, 0)
+        seen[slug] = duplicate + 1
+        anchors.add(slug if duplicate == 0 else f"{slug}-{duplicate}")
+    return anchors
+
+
 def check_links(path: Path, text: str) -> int:
     checked = 0
     for target in LOCAL_LINK_RE.findall(text):
-        relative = unquote(target.split("#", 1)[0])
-        if not relative:
-            continue
-        require((path.parent / relative).exists(), f"broken link in {path.name}: {target}")
+        parts = target.split("#", 1)
+        relative = unquote(parts[0])
+        fragment = unquote(parts[1]).lower() if len(parts) == 2 else ""
+        target_path = path if not relative else path.parent / relative
+        require(target_path.exists(), f"broken link in {path.name}: {target}")
+        if fragment and target_path.suffix.lower() == ".md":
+            anchors = markdown_anchors(target_path.read_text(encoding="utf-8"))
+            require(fragment in anchors, f"broken anchor in {path.name}: {target}")
         checked += 1
     for target in HTML_IMAGE_RE.findall(text):
         require((path.parent / target).is_file(), f"missing image in {path.name}: {target}")
@@ -108,13 +133,26 @@ def main() -> int:
         for relative in REQUIRED:
             require((ROOT / relative).is_file(), f"required file missing: {relative}")
         require(CI_WORKFLOW.is_file(), "monorepo-root CI workflow is missing")
+        workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+        require(re.search(r"actions/checkout@[0-9a-f]{40}", workflow), "checkout action is not SHA-pinned")
+        require(re.search(r"actions/setup-python@[0-9a-f]{40}", workflow), "setup-python action is not SHA-pinned")
+        require("python -m pip check" in workflow, "CI does not validate the dependency graph")
 
         english = README_FILES[0].read_text(encoding="utf-8")
         chinese = README_FILES[1].read_text(encoding="utf-8")
-        require(english.startswith("# Custom Code Training on Microsoft Foundry"), "English H1 is not product-first")
+        require(english.startswith("# Microsoft Foundry Custom Code Training"), "English H1 is not product-first")
         require(chinese.startswith("# Microsoft Foundry Custom Code Training"), "Chinese H1 is not product-first")
         require(markdown_shape(english) == markdown_shape(chinese), "README bilingual structure differs")
         links = sum(check_links(path, text) for path, text in zip(README_FILES, (english, chinese)))
+
+        for text, name in ((english, "README.md"), (chinese, "README-CN.md")):
+            for demo in ("hello-world", "quickstart-sft", "rft-with-verl"):
+                require(f"`{demo}`" in text, f"{name} does not name completed demo {demo}")
+            require("GPU" in text and "quota" in text, f"{name} lacks GPU/quota planning")
+            require("Microsoft.MachineLearningServices/locations/" in text, f"{name} lacks quota scope")
+            require("TotalDedicatedCores" in text, f"{name} lacks regional quota gate")
+            require("compute-quota.jsonl" in text, f"{name} lacks quota evidence link")
+            require("018d095f508280efce9e79c4b19fc941d7361b30" in text, f"{name} lacks measured lineage")
 
         metrics = [
             json.loads(line)
@@ -140,6 +178,36 @@ def main() -> int:
         require(manifest["run"]["stepsCaptured"] == steps, "manifest and metrics step sets differ")
         require(manifest["sourceLog"]["sha256"], "source log hash is empty")
 
+        demo_runs = [
+            json.loads(line)
+            for line in (ROOT / "evidence/sdk-demo-runs.jsonl").read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        require(
+            [row["sample"] for row in demo_runs] == ["hello-world", "quickstart-sft", "rft-with-verl"],
+            "SDK demo evidence set changed",
+        )
+        require(all(row["status"] == "Completed" for row in demo_runs), "an SDK demo is not completed")
+        require(demo_runs[2]["optimizerStepsCompleted"] == 14, "VERL demo step count changed")
+        require(demo_runs[2]["validationPasses"] == [0, 5, 10, 14], "VERL demo validation set changed")
+
+        quota_path = ROOT / "evidence/compute-quota.jsonl"
+        quota_text = quota_path.read_text(encoding="utf-8")
+        quota = read_json(quota_path)
+        tested = quota["testedCompute"]
+        family = quota["quotaObservations"]["targetVmFamily"]
+        regional = quota["quotaObservations"]["regionalDedicated"]
+        capacity = quota["nodeCapacityAtObservation"]
+        require(tested["nodeCount"] * tested["vcpusPerNode"] == family["usageVcpus"], "quota usage does not match tested topology")
+        require(family["remainingVcpus"] == family["limitVcpus"] - family["usageVcpus"], "family quota arithmetic differs")
+        require(regional["remainingVcpus"] == regional["limitVcpus"] - regional["usageVcpus"], "regional quota arithmetic differs")
+        require(capacity["effectiveAdditionalNodes"] == 0, "tested quota boundary changed")
+        require("<subscription-id>" in quota_text, "quota evidence lacks a subscription placeholder")
+        require(
+            not re.search(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", quota_text, re.IGNORECASE),
+            "quota evidence contains a GUID",
+        )
+
         validation = read_json(ROOT / "evidence/validation-baseline.json")
         passes = [row["afterStep"] for row in validation]
         require(passes == [0, 5, 10, 14], f"validation pass set changed: {passes}")
@@ -148,9 +216,37 @@ def main() -> int:
             "final validation pass is not aligned with the last optimizer step",
         )
         read_json(ROOT / "evidence/image-build.json")
-        read_json(ROOT / "configs/foundry-job.schema.json")
+        schema = read_json(ROOT / "configs/foundry-job.schema.json")
+        schema_skus = set(schema["properties"]["computeClusterSku"]["enum"])
+        require(schema_skus == set(SKU_TO_INSTANCE_TYPE), "schema and Python SKU mappings differ")
+        require(set(SKU_TO_GPUS_PER_NODE) == set(SKU_TO_INSTANCE_TYPE), "GPU-count and instance mappings differ")
         read_json(ROOT / "configs/foundry-job.example.json")
         read_json(ROOT / "configs/verified-overrides.json")
+
+        lineage = (ROOT / "docs/method-and-lineage.md").read_text(encoding="utf-8")
+        require("14 STEPS CAPTURED" in lineage, "method lineage does not reflect the completed run")
+        require("steps 0, 5, 10 and 14" in lineage, "method lineage lacks all validation passes")
+
+        input_manifest = [
+            json.loads(line)
+            for line in (ROOT / "evidence/input-manifest.jsonl").read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        input_paths = [row["path"] for row in input_manifest]
+        require(input_paths == list(REQUIRED_SAMPLE_FILES), "input manifest and runtime file contract differ")
+        require(len(input_paths) == len(set(input_paths)), "input manifest contains duplicate paths")
+        for row in input_manifest:
+            require(isinstance(row["bytes"], int) and row["bytes"] > 0, f"invalid byte count for {row['path']}")
+            require(re.fullmatch(r"[0-9a-f]{64}", row["sha256"]), f"invalid SHA-256 for {row['path']}")
+            require(f"`{row['path']}`" in lineage, f"method lineage lacks {row['path']}")
+            require(row["sha256"] in lineage, f"method lineage hash differs for {row['path']}")
+        require(next(row for row in input_manifest if row["path"] == "data/train.jsonl")["records"] == 270, "train record count changed")
+        require(next(row for row in input_manifest if row["path"] == "data/validation.jsonl")["records"] == 62, "validation record count changed")
+
+        require("14 steps" in english, "English README lacks 14-step evidence claim")
+        require("14 步" in chinese, "Chinese README lacks 14-step evidence claim")
+        require("8 steps" not in english, "English README retains stale 8-step claim")
+        require("8 步" not in chinese, "Chinese README retains stale 8-step claim")
 
         for text, name in ((english, "README.md"), (chinese, "README-CN.md")):
             rows = {int(step): float(seconds) for step, seconds in STEP_ROW_RE.findall(text)}
@@ -172,7 +268,10 @@ def main() -> int:
             if not stripped or stripped.startswith(("#", "--")):
                 continue
             require("==" in stripped, f"unpinned direct dependency: {stripped}")
-        require(":latest" not in (ROOT / "docker/Dockerfile").read_text(encoding="utf-8"), "Dockerfile uses :latest")
+        dockerfile = (ROOT / "docker/Dockerfile").read_text(encoding="utf-8")
+        require(":latest" not in dockerfile, "Dockerfile uses :latest")
+        image_build = read_json(ROOT / "evidence/image-build.json")
+        require(image_build["base"]["digest"] in dockerfile, "Dockerfile base digest differs from image evidence")
 
         print(f"REQUIRED_FILES={len(REQUIRED)}")
         print(f"CI_WORKFLOW={CI_WORKFLOW.relative_to(ROOT.parents[1])}")

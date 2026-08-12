@@ -1,3 +1,86 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:22ab7745255d5b642b5e5e30abf3c4b16e8d7de17ede62b33cd94a3419f06087
-size 2419
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/david-xinyuwei/david-share/Deep-Learning/AI-Foundry-Custom-Code-Training/configs/foundry-job.schema.json",
+  "title": "Foundry Custom Code Training GRPO job",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "projectEndpoint",
+    "computeId",
+    "computeClusterSku",
+    "uamiId",
+    "storageConnectionName",
+    "environmentImage",
+    "nodeCount",
+    "gpusPerNode"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "computeClusterSku": { "const": "STANDARD_NC96ADS_A100_V4" }
+        },
+        "required": ["computeClusterSku"]
+      },
+      "then": {
+        "properties": {
+          "gpusPerNode": { "const": 4 }
+        }
+      },
+      "else": {
+        "properties": {
+          "gpusPerNode": { "const": 8 }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "projectEndpoint": {
+      "type": "string",
+      "pattern": "^https://[^/]+\\.services\\.ai\\.azure\\.com/api/projects/[^/]+$"
+    },
+    "computeId": {
+      "type": "string",
+      "pattern": "^/subscriptions/[^/]+/resourcegroups/[^/]+/providers/[Mm]icrosoft\\.[Cc]ognitive[Ss]ervices/accounts/[^/]+/computes/[^/]+$"
+    },
+    "computeClusterSku": {
+      "type": "string",
+      "enum": [
+        "STANDARD_ND96AMS_A100_V4",
+        "STANDARD_ND96AMSR_A100_V4",
+        "STANDARD_ND96ISR_H200_V5",
+        "STANDARD_ND96ISRF_H200_V5",
+        "STANDARD_ND96IS_H200_V5",
+        "STANDARD_ND96ISRF_H100_V5",
+        "STANDARD_ND96ISR_H100_V5",
+        "STANDARD_ND96IS_H100_V5",
+        "STANDARD_ND96IS_NOIB_H100_V5",
+        "STANDARD_ND96IS_FLEX_H100_V5",
+        "STANDARD_ND96AMS_A100_FLEX_V4",
+        "STANDARD_NC96ADS_A100_V4",
+        "STANDARD_ND96ASR_V4"
+      ]
+    },
+    "uamiId": {
+      "type": "string",
+      "pattern": "^/subscriptions/[^/]+/resourcegroups/[^/]+/providers/[Mm]icrosoft\\.[Mm]anaged[Ii]dentity/user[Aa]ssigned[Ii]dentities/[^/]+$"
+    },
+    "storageConnectionName": { "type": "string", "minLength": 1 },
+    "modelDatasetUri": {
+      "type": "string",
+      "pattern": "^azure(ai|ml)://"
+    },
+    "environmentImage": {
+      "type": "string",
+      "pattern": "^[^\\s]+(:[^/\\s]+|@sha256:[0-9a-f]{64})$",
+      "not": { "pattern": ":latest$" }
+    },
+    "nodeCount": { "type": "integer", "minimum": 1 },
+    "gpusPerNode": { "type": "integer", "minimum": 1 },
+    "codeDatasetName": { "type": "string", "minLength": 1 },
+    "dataDatasetName": { "type": "string", "minLength": 1 },
+    "jobPrefix": { "type": "string", "minLength": 1 },
+    "description": { "type": "string", "minLength": 1 }
+  }
+}

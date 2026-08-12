@@ -26,6 +26,7 @@ from job_contract import (
 
 REQUIRED_RECORD_KEYS = {"data_source", "prompt", "reward_model", "extra_info"}
 ALLOWED_ROLES = {"system", "user", "assistant", "tool"}
+DEFAULT_INPUT_MANIFEST = Path(__file__).resolve().parents[1] / "evidence/input-manifest.jsonl"
 
 
 def sha256(path: Path) -> str:
@@ -103,12 +104,41 @@ def validate_jsonl(path: Path) -> dict[str, Any]:
     }
 
 
+def validate_input_manifest(inventory: list[dict[str, Any]], manifest_path: Path) -> dict[str, Any]:
+    if not manifest_path.is_file():
+        raise ContractError(f"expected input manifest is missing: {manifest_path}")
+    try:
+        expected = [
+            json.loads(line)
+            for line in manifest_path.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+    except json.JSONDecodeError as error:
+        raise ContractError(f"invalid input manifest {manifest_path}: {error}") from error
+
+    expected_identity = [
+        {"path": row.get("path"), "bytes": row.get("bytes"), "sha256": row.get("sha256")}
+        for row in expected
+    ]
+    if inventory != expected_identity:
+        actual_by_path = {row["path"]: row for row in inventory}
+        expected_by_path = {row["path"]: row for row in expected_identity}
+        changed = sorted(
+            path
+            for path in set(actual_by_path) | set(expected_by_path)
+            if actual_by_path.get(path) != expected_by_path.get(path)
+        )
+        raise ContractError("input drift from measured lineage: " + ", ".join(changed))
+    return {"path": str(manifest_path), "sha256": sha256(manifest_path), "files": len(expected)}
+
+
 def build_preflight_report(
     config_path: Path,
     overrides_path: Path,
     sample_dir: Path,
     *,
     allow_placeholders: bool,
+    expected_input_manifest: Path | None = None,
 ) -> dict[str, Any]:
     config = load_json_object(config_path)
     overrides = load_json_object(overrides_path)
@@ -122,6 +152,11 @@ def build_preflight_report(
         inventory.append(
             {"path": relative, "bytes": path.stat().st_size, "sha256": sha256(path)}
         )
+    manifest = (
+        validate_input_manifest(inventory, expected_input_manifest)
+        if expected_input_manifest is not None
+        else None
+    )
 
     train = validate_jsonl(sample_dir / "data/train.jsonl")
     validation = validate_jsonl(sample_dir / "data/validation.jsonl")
@@ -142,7 +177,11 @@ def build_preflight_report(
             "placeholdersAllowed": allow_placeholders,
         },
         "overrides": {"path": str(overrides_path), "sha256": sha256(overrides_path)},
-        "sample": {"root": str(sample_dir), "inventory": inventory},
+        "sample": {
+            "root": str(sample_dir),
+            "inventory": inventory,
+            "expectedInputManifest": manifest,
+        },
         "datasets": {"train": train, "validation": validation},
         "contract": contract.as_dict(),
     }
@@ -164,6 +203,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--write-plan", type=Path)
     parser.add_argument(
+        "--expected-input-manifest",
+        type=Path,
+        default=DEFAULT_INPUT_MANIFEST,
+        help="Measured input identity; any byte drift fails before Azure access",
+    )
+    parser.add_argument(
         "--allow-placeholders",
         action="store_true",
         help="Validate the shipped example shape; never use for validate/submit",
@@ -179,6 +224,7 @@ def main() -> int:
             args.overrides.resolve(),
             args.sample_dir.resolve(),
             allow_placeholders=args.allow_placeholders,
+            expected_input_manifest=args.expected_input_manifest.resolve(),
         )
     except ContractError as error:
         print(f"PREFLIGHT_FAIL: {error}")

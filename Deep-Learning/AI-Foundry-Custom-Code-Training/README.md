@@ -1,21 +1,23 @@
-# Custom Code Training on Microsoft Foundry — running your own GRPO code on a managed 4×A100 node
+# Microsoft Foundry Custom Code Training — from Hello World and SFT to GRPO on managed GPU compute
 
-[![Foundry](https://img.shields.io/badge/Microsoft%20Foundry-Custom%20Code%20Training-0067b8)](https://github.com/microsoft-foundry/custom-code-training)
+[![Foundry Preview](https://img.shields.io/badge/Microsoft%20Foundry-Preview-0067b8)](https://learn.microsoft.com/azure/ai-foundry/what-is-azure-ai-foundry)
 [![CI](https://github.com/david-xinyuwei/david-share/actions/workflows/ai-foundry-custom-code-training-ci.yml/badge.svg)](https://github.com/david-xinyuwei/david-share/actions/workflows/ai-foundry-custom-code-training-ci.yml)
 [![verl](https://img.shields.io/badge/verl-0.7.1-blue)](https://github.com/volcengine/verl)
 [![GPU](https://img.shields.io/badge/GPU-4%C3%97A100%2080GB%20PCIe-green)](https://learn.microsoft.com/azure/virtual-machines/nca100v4-series)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
-Custom Code Training is the Foundry surface for training that does **not** fit a managed
-fine-tuning form: you supply the training script, the dataset and the container image, and
-the platform supplies the GPU cluster, the job contract and the observability. This repo
-validates that product path in three stages: Hello World, LoRA SFT on `Qwen/Qwen3-14B`, and
-finally a **completed** VERL GRPO run — 14 optimizer steps in 5 h 41 m on one 4×A100 node —
-including the seven failures on the way and the measured cost per step at the other end.
+Custom Code Training is the Foundry path for code-driven training beyond managed
+fine-tuning defaults: you bring the training script, dataset and container image, while the
+platform provides managed GPU compute, job orchestration, observability and versioned model
+outputs. This repo validates that product path in three stages: Hello World, LoRA SFT on
+`Qwen/Qwen3-14B`, and a completed VERL GRPO run — 14 optimizer steps in 5 h 41 m on one
+4×A100 node — then documents the compute plan, compatibility choices and measured runtime.
 
 > Author: 魏新宇 (Xinyu Wei)
 
 [English](README.md) | [中文](README-CN.md)
+
+[Completed SDK paths](#three-sdk-demos-completed-end-to-end) · [GPU / VM / quota](#gpu-vm-and-quota-planning) · [Quick start](#quick-start) · [Evidence](#evidence) · [Product source (access required)](https://github.com/microsoft-foundry/custom-code-training)
 
 ---
 
@@ -32,19 +34,20 @@ including the seven failures on the way and the measured cost per step at the ot
 The trade is explicit: you keep full control of the training loop, and you own every
 dependency inside the image. Most of the work in this repo is on the second half.
 
-## What's real, adapted, and not claimed
+## What this repo validates
 
-| Surface | Evidence status | Boundary |
+| Product capability | What was validated | Evidence |
 |---|---|---|
-| Foundry portal, managed Compute, mounted assets, Ray and job history | **EXECUTED** | The screenshots are from the actual project; the container registry coordinate is redacted. |
-| Retail tools, reward, train/validation JSONL and GRPO launcher | **REUSED INPUT** | Producer-owned sample at commit `018d095f508280efce9e79c4b19fc941d7361b30`; hashes are frozen in [`method-and-lineage.md`](docs/method-and-lineage.md). |
-| NC96ads A100 image and runtime configuration | **ADAPTED + EXECUTED** | Keeps the official job path, but changes the image bytes and six environment settings for this topology. |
-| Per-step performance, memory, reward, KL and gradient metrics | **MEASURED** | All 14 optimizer steps of one completed run; roughly 80 metrics per step. |
-| Quality improvement, convergence, another SKU or production readiness | **NOT CLAIMED** | The run completed, but four validation passes of a single 14-step run cannot establish a direction. |
-| Consolidated [`docker/Dockerfile`](docker/Dockerfile) | **RECONSTRUCTED RECIPE** | Its four constituent layers were built and gated; the one-file consolidation has not been rebuilt as a single ACR task. |
+| Managed compute and job lifecycle | Compute provisioning, queueing, node registration, execution, completion and cleanup | [Portal screenshots](images/portal-training-job-list.png) and three completed SDK demos below |
+| Versioned data and model assets | Read-only input mounts plus versioned SFT adapter, GRPO model and checkpoint outputs | [Job outputs](images/portal-job-model-output.png) and [Models](images/portal-models-deploy.png) |
+| Custom distributed runtime | Ray, FSDP2, vLLM rollout and GRPO updates on one managed 4×A100 node | [Completed job details](images/portal-job-details.png) and [runtime settings](images/portal-job-outputs-and-env.png) |
+| Measured observability | Four validation passes and roughly 80 metrics for each of 14 optimizer steps | [`evidence/`](evidence/) and the generated tables below |
+| Reproducible engineering controls | Pinned SDKs, schema validation, fail-closed config, patch tests and CI on Python 3.11/3.12 | [`scripts/`](scripts/), [`tests/`](tests/) and the CI badge above |
 
-The detailed authority matrix and every intentional difference from the producer's sample
-are in [`docs/method-and-lineage.md`](docs/method-and-lineage.md).
+The measured configuration is one validated deployment, not a cross-SKU performance study.
+Metric trends are reported without treating a single short run as a quality or convergence
+claim. File hashes, runtime differences and evidence lineage remain available in
+[`docs/method-and-lineage.md`](docs/method-and-lineage.md) for readers who need audit detail.
 
 ### Two ways in
 
@@ -63,8 +66,8 @@ The template dropdown offers a Quickstart plus two reinforcement-learning option
 
 <div align="center"><img src="images/portal-code-workbench-templates.png" width="960"/></div>
 
-This repo takes the **VERL** template. SLIME asks for 4 nodes × 8 GPU, which is a different
-capacity conversation.
+This repo takes the **VERL** template. The SLIME notebook targets a multi-node topology and
+is outside this single-node validation scope.
 
 ### Idle shutdown is part of the product
 
@@ -126,17 +129,16 @@ are visible here as the platform recorded them — `NCCL_P2P_DISABLE=1`, `NCCL_S
 <div align="center"><img src="images/portal-job-code.png" width="900"/></div>
 
 The Code tab shows exactly what the job ran, file by file — the startup script, the trainer,
-the dataset adapter, the reward function and the tool definitions. When a run fails three
-hours in, being able to read the code the job actually saw, rather than the code you think
-you uploaded, is the difference between a diagnosis and a guess.
+the dataset adapter, the reward function and the tool definitions. For a long-running job,
+this makes the runtime payload directly inspectable during validation and troubleshooting.
 
 ### Job history
 
 <div align="center"><img src="images/portal-training-job-list.png" width="900"/></div>
 
-Status, duration and compute target per attempt. The short `Complete` rows are node probes
-used to identify a working image; the story of the `Failed` rows is in
-[`docs/troubleshooting.md`](docs/troubleshooting.md).
+Status, duration and compute target per attempt. The short `Complete` rows are compatibility
+probes used before the full run; their image, memory and interconnect learnings are collected
+in [`docs/troubleshooting.md`](docs/troubleshooting.md).
 
 ### What the run leaves behind
 
@@ -149,10 +151,12 @@ go find in a storage account. `model_output_dfead6` is typed `Custom model`;
 <div align="center"><img src="images/portal-models-deploy.png" width="960"/></div>
 
 They then appear under **Deployments → Models**, alongside the LoRA adapter from the earlier
-SFT run, with a **Deploy** button. That is the point of the surface: the artifact of a
-custom training loop you wrote yourself lands in the same place as any other Foundry model.
-Deleting the compute cluster does not touch these — they live in the project's storage,
-which is what made it safe to release the GPU as soon as the run finished.
+SFT run. In the screenshot, the **Deploy** action belongs to the selected full model output
+`model_output_dfead6`; the SFT adapter is shown as a registered training artifact, not as a
+validated deployment target. The custom training output therefore lands in the same model
+inventory used by the rest of Foundry. Deleting the compute cluster does not touch these —
+they live in the project's storage, which is what made it safe to release the GPU as soon
+as the run finished.
 
 ### The repository is executable, not just a write-up
 
@@ -183,13 +187,66 @@ different workflows, not three repetitions of one benchmark.
 
 | SDK demo | Product path validated | Actual run | Output / evidence |
 |---|---|---|---|
-| `hello-world` | Compute provisioning, queueing, node registration and command execution | `sdk-hello-world-a5b1` — **Complete**, 7m 38s | No dataset required; [job history](images/portal-training-job-list.png) |
-| `quickstart-sft` | Dataset upload and mount, LoRA SFT on `Qwen/Qwen3-14B`, versioned output collection | `sft-lora-862f` — **Complete**, 2h 09m 52s | `retail-sft-lora-c78047` adapter; [model list](images/portal-models-deploy.png) |
-| `rft-with-verl` | Custom image, Ray, FSDP2, vLLM rollout, GRPO updates and four validation passes | `verl-rft-dpactor-f3e1` — **Complete**, 5h 41m, 14/14 steps | `model_output_dfead6`, checkpoints and [per-step metrics](evidence/training-metrics.jsonl) |
+| `hello-world` | Compute provisioning, queueing, node registration and command execution | `sdk-hello-world-a5b1` — **Complete**, 7m 38s | No dataset required; [structured run evidence](evidence/sdk-demo-runs.jsonl) |
+| `quickstart-sft` | Dataset upload and mount, LoRA SFT on `Qwen/Qwen3-14B`, versioned output collection | `sft-lora-862f` — **Complete**, 2h 09m 52s | `retail-sft-lora-c78047` adapter; [model list](images/portal-models-deploy.png) and [run evidence](evidence/sdk-demo-runs.jsonl) |
+| `rft-with-verl` | Custom image, Ray, FSDP2, vLLM rollout, GRPO updates and four validation passes | `verl-rft-dpactor-f3e1` — **Complete**, 5h 41m, 14/14 steps | `model_output_dfead6`, checkpoints, [run evidence](evidence/sdk-demo-runs.jsonl) and [per-step metrics](evidence/training-metrics.jsonl) |
 
-The SLIME sample is not counted as completed. Its checked-in notebook defaults to 4 nodes ×
-8 GPUs; on the available 1-node × 4-GPU quota, that default parameterization fails the
-sample's actor/rollout topology guard before training.
+### GPU, VM and quota planning
+
+Custom Code Training jobs run on **Foundry Compute**, a managed child resource under the
+Foundry account. You create a GPU pool by choosing an Azure VM SKU; the job then references
+that compute and uses the matching Singularity `instance_type`. It is not a bring-your-own
+IaaS VM, and the training samples accept **full-node SKUs**, not sub-node sizes such as
+`D4_v3` or `NC24ad_A100`.
+
+| Workload | Documented compute requirement | Validated in this repo |
+|---|---|---|
+| Hello World | A project-attached GPU compute cluster; model fit is not exercised | 1 × `Standard_NC96ads_A100_v4` |
+| Quickstart SFT | Single-node GPU compute; model and image determine the VRAM floor | Qwen3-14B LoRA SFT on 4 × A100 80GB |
+| VERL GRPO | Single-node **A100/H100 or larger** | Qwen3-14B on 4 × A100 80GB; 14/14 steps |
+| SLIME GRPO | Multi-node **A100 or larger**; the notebook defaults to 4 nodes × 8 GPUs | Outside the single-node validation scope |
+
+The checked-in job mappings cover full-node A100, H100 and H200 families. A mapping means
+that Foundry can bind the compute SKU to a job `instance_type`; it does **not** prove that a
+particular model, image and sequence length fit on that SKU.
+
+| GPU family | Compute cluster SKU examples | Job `instance_type` examples | Evidence status |
+|---|---|---|---|
+| A100 | `STANDARD_NC96ADS_A100_V4`, `STANDARD_ND96AMS_A100_V4`, `STANDARD_ND96AMSR_A100_V4` | `Singularity.NC96ad_A100_v4-n1`, `Singularity.ND96am_A100_v4-n1` | NC96ads tested; ND variants mapped but not benchmarked here |
+| H100 | `STANDARD_ND96IS_H100_V5`, `STANDARD_ND96ISR_H100_V5`, `STANDARD_ND96ISRF_H100_V5` | `Singularity.ND96_H100_v5`, `Singularity.ND96r_H100_v5` | Mapped by the samples; not tested here |
+| H200 | `STANDARD_ND96IS_H200_V5`, `STANDARD_ND96ISR_H200_V5`, `STANDARD_ND96ISRF_H200_V5` | `Singularity.ND96_H200_v5`, `Singularity.ND96r_H200_v5` | Mapped by the samples; not tested here |
+
+Quota comes from **Azure Machine Learning VM-family quota**, not model/token quota and not
+the ordinary Microsoft.Compute core quota. It is scoped per subscription and region under
+`Microsoft.MachineLearningServices/locations/<region>`. Two limits must both have room:
+
+1. the target VM-family dedicated-vCPU quota, for example `standardNCADSA100v4Family`;
+2. `TotalDedicatedCores`, the total dedicated-vCPU quota for the region.
+
+For `node_count` nodes, both limits need at least
+`node_count × vCPUs_per_full_node` available.
+The completed run used one NC96ads node, so it required 96 vCPUs. The live preflight read
+`100 limit / 96 used` for the family and `200 / 96` regionally; the family quota therefore
+limited the project to one node. The sanitized observation is in
+[`evidence/compute-quota.jsonl`](evidence/compute-quota.jsonl).
+
+```bash
+az extension add --name quota --yes
+SUBSCRIPTION_ID="<subscription-id>"
+REGION="<region>"
+SCOPE="/subscriptions/${SUBSCRIPTION_ID}/providers/Microsoft.MachineLearningServices/locations/${REGION}"
+
+az quota show --scope "$SCOPE" --resource-name standardNCADSA100v4Family
+az quota usage show --scope "$SCOPE" --resource-name standardNCADSA100v4Family
+az quota show --scope "$SCOPE" --resource-name TotalDedicatedCores
+az quota usage show --scope "$SCOPE" --resource-name TotalDedicatedCores
+```
+
+Request an increase from **Azure portal → Usage + quotas**, filtering to the target region
+and VM family. If automatic approval is unavailable, open **Service and subscription limits
+(quotas) → Machine Learning Service: Virtual Machine Quota**. Quota itself does not incur
+GPU charges and is not a capacity guarantee; backend capacity is checked when compute is
+created. See [Microsoft Learn: manage Azure Machine Learning quotas](https://learn.microsoft.com/azure/machine-learning/how-to-manage-quotas).
 
 ---
 
@@ -383,14 +440,23 @@ this run shows.
 ## Quick start
 
 ```bash
-git clone https://github.com/david-xinyuwei/david-share.git
+git lfs version
+git clone --filter=blob:none --sparse https://github.com/david-xinyuwei/david-share.git
+git -C david-share sparse-checkout set Deep-Learning/AI-Foundry-Custom-Code-Training .github/workflows
+git -C david-share lfs pull --include="Deep-Learning/AI-Foundry-Custom-Code-Training/**"
 cd david-share/Deep-Learning/AI-Foundry-Custom-Code-Training
 python -m venv .venv
 source .venv/bin/activate            # Windows PowerShell: .venv\Scripts\Activate.ps1
-python -m pip install -r requirements-dev.txt
+python -m pip install --no-input -r requirements-dev.txt
 ```
 
-Get the producer's sample at the pinned commit, then make a local config:
+The training adapter consumes source and datasets from the product preview repository; they
+are not redistributed here. **An authorized GitHub identity with access to
+`microsoft-foundry/custom-code-training` is therefore a prerequisite** for the commands
+below. A `404` while cloning or fetching means that source access has not been granted; do
+not replace the measured payload with an unrelated public implementation.
+
+After access is confirmed, get the sample used by the measured run and make a local config:
 
 ```bash
 git init upstream-custom-code-training
@@ -399,6 +465,13 @@ git -C upstream-custom-code-training fetch --depth 1 origin 018d095f508280efce9e
 git -C upstream-custom-code-training checkout --detach FETCH_HEAD
 cp configs/foundry-job.example.json configs/foundry-job.local.json
 ```
+
+The measured lineage is fixed to commit `018d095f508280efce9e79c4b19fc941d7361b30`.
+If the preview repository has advanced or no longer exposes that object, use an authorized
+checkout and compare the 11 file hashes in
+[`docs/method-and-lineage.md`](docs/method-and-lineage.md) before treating a new run as the
+same lineage. Without source access, the public tests and published evidence remain usable,
+but `plan`, `validate` and `submit` cannot reconstruct the training payload.
 
 Replace every `<...>` in the local config. Before authentication or any cloud call, run the
 offline gate:
@@ -416,7 +489,7 @@ python scripts/submit_job.py --action plan \
     --sample-dir upstream-custom-code-training/code-samples/sdk/training/rft-with-verl
 ```
 
-Done-when is `PREFLIGHT_PASS`, 270 train and 62 validation records, six input hashes and a
+Done-when is `PREFLIGHT_PASS`, 270 train and 62 validation records, 11 input hashes and a
 rendered Ray `CommandJob`. The two commands above have `sideEffects: []`. The next gates are
 deliberately separate:
 
@@ -473,7 +546,7 @@ python patches/02-dp-actor-out-of-place/apply.py
 The patch and job-contract tests run without a GPU, CUDA or Azure credential:
 
 ```bash
-python -m pip install -r requirements-dev.txt
+python -m pip install --no-input -r requirements-dev.txt
 python -m pytest tests/ -q
 python scripts/validate_repo.py
 ```
@@ -485,12 +558,10 @@ Hydra `+` prefix that would otherwise create a legal but unused key.
 
 ---
 
-## Troubleshooting
+## Compatibility notes
 
-Getting from a clean environment to a running training loop took one image decision and
-seven further fixes, and several of them report an error that points somewhere other than
-the cause. Symptom, root cause and evidence for each:
-[`docs/troubleshooting.md`](docs/troubleshooting.md).
+Compatibility notes for the tested image, dependency stack, memory budget and PCIe
+interconnect are collected in [`docs/troubleshooting.md`](docs/troubleshooting.md).
 
 Per-attempt runtimes and what changed between them:
 [`evidence/run-timeline.md`](evidence/run-timeline.md).
@@ -515,11 +586,14 @@ UTF-16 and ordinary grep tooling silently reports zero matches on those files.
 | [`evidence/validation-baseline.json`](evidence/validation-baseline.json) | Grader score from each validation pass |
 | [`evidence/run-manifest.json`](evidence/run-manifest.json) | Source-log SHA-256, record count, which steps were captured |
 | [`evidence/image-build.json`](evidence/image-build.json) | Base/package versions, compatibility probe before/after, four layer digests |
-| [`evidence/run-timeline.md`](evidence/run-timeline.md) | Per attempt: what changed, where it died |
+| [`evidence/sdk-demo-runs.jsonl`](evidence/sdk-demo-runs.jsonl) | Terminal state, duration, topology and outputs for Hello World, SFT and VERL GRPO |
+| [`evidence/input-manifest.jsonl`](evidence/input-manifest.jsonl) | Bytes and SHA-256 for all 11 runtime-critical sample files; 270/62 dataset counts |
+| [`evidence/compute-quota.jsonl`](evidence/compute-quota.jsonl) | Sanitized family/regional quota observation and node-capacity arithmetic |
+| [`evidence/run-timeline.md`](evidence/run-timeline.md) | Per compatibility attempt: what changed and which runtime stage was reached |
 
-The steady-state table and both validation numbers are generated from those files. The
-failure signatures in [`docs/troubleshooting.md`](docs/troubleshooting.md) are quoted from
-the job logs of runs that died before emitting any metric, so they have no rows here. The
-vLLM and KV-cache figures in the memory table are derived, as marked.
+The steady-state table and four validation numbers are generated from those files. Earlier
+compatibility attempts that ended before the optimizer loop emitted no metric rows; their
+diagnostic signatures are retained in [`docs/troubleshooting.md`](docs/troubleshooting.md).
+The vLLM and KV-cache figures in the memory table are derived, as marked.
 
 Environment identifiers are redacted; no numeric value is altered.

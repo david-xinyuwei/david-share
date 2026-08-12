@@ -6,6 +6,10 @@ and data assets but does not create a job. Only `submit` requests GPU execution.
 
 ## 1. Get the producer's sample at the measured commit
 
+This step requires a GitHub identity authorized for the Custom Code Training preview source.
+The sample is not redistributed by this public repo. A `404` from GitHub means the identity
+does not currently have source access; stop rather than substituting another implementation.
+
 ```bash
 git init upstream-custom-code-training
 cd upstream-custom-code-training
@@ -21,16 +25,17 @@ The expected sample directory is:
 upstream-custom-code-training/code-samples/sdk/training/rft-with-verl
 ```
 
-The preflight prints bytes and SHA-256 for the six identity-critical files. Compare those
+The preflight prints bytes and SHA-256 for the 11 identity-critical files. Compare those
 with [`method-and-lineage.md`](method-and-lineage.md) before using evidence from this repo as
-a reference.
+a reference. If the measured commit is no longer reachable in the authorized checkout,
+compare those 11 hashes and create a new lineage for any changed payload.
 
 ## 2. Install the pinned client
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate            # Windows PowerShell: .venv\Scripts\Activate.ps1
-python -m pip install -r requirements-dev.txt
+python -m pip install --no-input -r requirements-dev.txt
 ```
 
 `requirements.txt` pins the preview SDK and Azure Identity versions used by the verified
@@ -51,7 +56,32 @@ Replace every `<...>` value. The local file is ignored by Git. Important distinc
 - the project identity needs `AcrPull` on the image registry and data-write access through
   `storageConnectionName`.
 
-## 4. Offline preflight and plan
+## 4. Confirm compute and quota
+
+Custom Code Training uses the Azure Machine Learning VM-family quota surface. Check both
+the target family and the regional dedicated-vCPU total before creating or submitting to a
+cluster:
+
+```bash
+az extension add --name quota --yes
+SUBSCRIPTION_ID="<subscription-id>"
+REGION="<region>"
+VM_FAMILY="<vm-family-resource-name>"   # e.g. standardNCADSA100v4Family
+SCOPE="/subscriptions/${SUBSCRIPTION_ID}/providers/Microsoft.MachineLearningServices/locations/${REGION}"
+
+az quota show --scope "$SCOPE" --resource-name "$VM_FAMILY"
+az quota usage show --scope "$SCOPE" --resource-name "$VM_FAMILY"
+az quota show --scope "$SCOPE" --resource-name TotalDedicatedCores
+az quota usage show --scope "$SCOPE" --resource-name TotalDedicatedCores
+```
+
+Done-when: both remaining-vCPU values are at least
+`nodeCount × vCPUs_per_full_node`, and the compute referenced by `computeId` reads
+`provisioningState=Succeeded`. Quota is necessary but does not guarantee backend capacity.
+The public example and measured arithmetic are in
+[`../evidence/compute-quota.jsonl`](../evidence/compute-quota.jsonl).
+
+## 5. Offline preflight and plan
 
 ```bash
 python scripts/preflight.py \
@@ -66,11 +96,11 @@ python scripts/submit_job.py --action plan \
   --sample-dir upstream-custom-code-training/code-samples/sdk/training/rft-with-verl
 ```
 
-Done-when: `PREFLIGHT_PASS`, zero placeholders, 270 train and 62 validation records, six
-input hashes, and a rendered `CommandJob` contract. These commands do not import the Azure
-SDK or touch cloud state.
+Done-when: `PREFLIGHT_PASS`, zero placeholders, 270 train and 62 validation records, 11
+input hashes matching `evidence/input-manifest.jsonl`, and a rendered `CommandJob` contract.
+These commands do not import the Azure SDK or touch cloud state.
 
-## 5. Build the compatibility image
+## 6. Build the compatibility image
 
 The Docker build context is the root of this repo:
 
@@ -87,7 +117,7 @@ runs the transformers/accelerate probe, applies both patches, reads them back, a
 that torch was compiled for CUDA 12.8. The final `torch.cuda.is_available()` gate must run
 on the real Foundry node; an ACR build worker has no GPU.
 
-## 6. Run the SDK validation gate
+## 7. Run the SDK validation gate
 
 Authenticate in the owning shell first. The official Notebook uses
 `DefaultAzureCredential`; `--credential azure-cli` is available when an isolated Azure CLI
@@ -105,7 +135,7 @@ This uploads versioned code/data assets, then calls
 `client.beta.jobs.validate(job).try_raise()`. It does **not** submit a job, but the dataset
 uploads are real side effects.
 
-## 7. Submit one job
+## 8. Submit one job
 
 ```bash
 python scripts/submit_job.py --action submit \
@@ -126,7 +156,7 @@ python scripts/job_status.py \
 Do not use `client.beta.jobs.stream()` as a status probe: it is a foreground log stream and
 correctly waits while the job is running.
 
-## 8. Extract metrics after the console log is available
+## 9. Extract metrics after the console log is available
 
 ```bash
 python tools/extract_training_evidence.py \

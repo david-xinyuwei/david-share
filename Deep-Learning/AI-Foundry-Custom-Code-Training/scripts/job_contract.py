@@ -34,10 +34,13 @@ SKU_TO_INSTANCE_TYPE = {
     "STANDARD_ND96IS_NOIB_H100_V5": "Singularity.ND96_H100_v5",
     "STANDARD_ND96IS_FLEX_H100_V5": "Singularity.ND96_H100_v5",
     "STANDARD_ND96AMS_A100_FLEX_V4": "Singularity.ND96am_A100_v4-n1",
-    "STANDARD_D64_V3": "Singularity.D64_v3-n1",
-    "STANDARD_NC24S_V3": "Singularity.NC24_v3",
     "STANDARD_NC96ADS_A100_V4": "Singularity.NC96ad_A100_v4-n1",
     "STANDARD_ND96ASR_V4": "Singularity.ND96rs_v4-n1",
+}
+
+SKU_TO_GPUS_PER_NODE = {
+    sku: (4 if sku == "STANDARD_NC96ADS_A100_V4" else 8)
+    for sku in SKU_TO_INSTANCE_TYPE
 }
 
 REQUIRED_CONFIG_KEYS = {
@@ -61,6 +64,11 @@ OPTIONAL_CONFIG_KEYS = {
 REQUIRED_SAMPLE_FILES = (
     "code/verl_rft_startup.sh",
     "code/reasoning_train_rft.py",
+    "code/jsonl_dataset.py",
+    "code/retail_tool.py",
+    "code/retail_tools.py",
+    "code/retail_db.json",
+    "code/retail_grader_rft_tools_v3.py",
     "code/retail_toolcall_reward.py",
     "code/config/tool_config/tool_config_template.yaml",
     "data/train.jsonl",
@@ -161,6 +169,12 @@ def validate_config(config: Mapping[str, Any], *, allow_placeholders: bool = Fal
         value = config[key]
         if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
             raise ContractError(f"{key} must be a positive integer")
+
+    expected_gpus = SKU_TO_GPUS_PER_NODE[sku]
+    if config["gpusPerNode"] != expected_gpus:
+        raise ContractError(
+            f"gpusPerNode must equal {expected_gpus} for {sku}, got {config['gpusPerNode']}"
+        )
 
     image = str(config["environmentImage"])
     if not allow_placeholders:

@@ -1,8 +1,9 @@
 # syntax=docker/dockerfile:1
 # The managed NC96ads_A100_v4 node exposes driver 570.195.03 (CUDA 12.8 max).
 # Among the published acft-rft-training tags tested on that node, :15 is the one
-# whose torch build uses CUDA 12.8.
-ARG BASE_IMAGE=mcr.microsoft.com/azureml/curated/acft-rft-training:15
+# whose torch build uses CUDA 12.8. The digest is the exact base pulled by the
+# successful compatibility build recorded in evidence/image-build.json.
+ARG BASE_IMAGE=mcr.microsoft.com/azureml/curated/acft-rft-training:15@sha256:38f3766a5056d43a0be699986ad3613cec0d247405455046346c2051d62f65ac
 FROM ${BASE_IMAGE}
 
 ARG VERL_VERSION=0.7.1

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -13,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 from job_contract import (  # noqa: E402
     ContractError,
+    REQUIRED_SAMPLE_FILES,
     build_contract,
     validate_config,
     validate_overrides,
@@ -134,6 +136,19 @@ def test_rejects_unsupported_sku(config):
         validate_config(config)
 
 
+@pytest.mark.parametrize("sku", ["STANDARD_D64_V3", "STANDARD_NC24S_V3"])
+def test_rejects_non_grpo_compute_families(config, sku):
+    config["computeClusterSku"] = sku
+    with pytest.raises(ContractError, match="unsupported computeClusterSku"):
+        validate_config(config)
+
+
+def test_rejects_gpu_count_that_does_not_match_sku(config):
+    config["gpusPerNode"] = 8
+    with pytest.raises(ContractError, match="must equal 4"):
+        validate_config(config)
+
+
 def test_rejects_wrong_resource_id_shapes(config):
     config["computeId"] = "/subscriptions/sub/resourcegroups/rg/providers/Microsoft.Compute/virtualMachines/vm"
     with pytest.raises(ContractError, match="Compute ARM ID"):
@@ -160,4 +175,17 @@ def test_rejects_incomplete_upstream_sample(tmp_path):
     (tmp_path / "code").mkdir()
     (tmp_path / "code/verl_rft_startup.sh").write_text("#!/bin/bash\n", encoding="utf-8")
     with pytest.raises(ContractError, match="payload is incomplete"):
+        validate_sample_layout(tmp_path)
+
+
+@pytest.mark.parametrize("missing", REQUIRED_SAMPLE_FILES)
+def test_rejects_each_missing_runtime_file(tmp_path, missing):
+    for relative in REQUIRED_SAMPLE_FILES:
+        if relative == missing:
+            continue
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("test fixture\n", encoding="utf-8")
+
+    with pytest.raises(ContractError, match=re.escape(missing)):
         validate_sample_layout(tmp_path)

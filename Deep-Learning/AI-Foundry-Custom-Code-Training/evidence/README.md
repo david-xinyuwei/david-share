@@ -1,7 +1,8 @@
 # Evidence
 
-Every number quoted in the READMEs comes from one of the files here, or from the failure
-text quoted verbatim in [`../docs/troubleshooting.md`](../docs/troubleshooting.md).
+Measured numbers quoted in the READMEs come from the structured files in this directory or
+from the dated Portal screenshots. Public product mappings and quota semantics link to the
+product sample or Microsoft Learn; derived values are marked where they appear.
 
 ## What is here
 
@@ -11,6 +12,10 @@ text quoted verbatim in [`../docs/troubleshooting.md`](../docs/troubleshooting.m
 | `validation-baseline.json` | Grader scores from every validation pass, each tagged with the step it ran after. |
 | `run-manifest.json` | SHA-256 and record count of the source job log, which steps were captured, and which tool produced the extraction. |
 | `run-timeline.md` | Per attempt across the whole investigation: what changed, how long the container ran, where it died. |
+| `image-build.json` | Base image and compatibility-layer identities, package versions, build gates and layer digests. |
+| `sdk-demo-runs.jsonl` | Sanitized terminal state, duration, topology and output records for the three completed SDK demos. |
+| `input-manifest.jsonl` | The 11 runtime-critical product-sample files, with bytes and SHA-256; dataset rows also record 270/62 counts. |
+| `compute-quota.jsonl` | Sanitized live quota observation for the tested NC96ads A100 topology; subscription and resource identifiers removed. |
 
 The steady-state table in the README is **generated** from `training-metrics.jsonl` by
 [`../tools/make_steps_table.py`](../tools/make_steps_table.py), not transcribed. Rerunning
@@ -19,10 +24,9 @@ README quotes in prose.
 
 ## Scope of the captured run
 
-`run-manifest.json` records exactly which steps are present. The capture is a console
-stream, so it ends where the stream ended rather than where the job ended — if
-`stepsCaptured` stops short of `totalStepsPlanned`, the remaining steps ran but were not
-recorded on this side, and no claim in the README depends on them.
+`run-manifest.json` records exactly which steps are present. The completed evidence set has
+all 14 planned optimizer steps and validation passes after steps 0, 5, 10 and 14. The
+source-log hash anchors every extracted metric to the captured job stream.
 
 ## What is not here
 
