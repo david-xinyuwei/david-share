@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Azure Voice Live 全组件参考表</title>
+<script>
+  (() => {
+    const param = new URLSearchParams(window.location.search).get("clawpilotTheme");
+    const theme =
+      param || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.setAttribute("data-theme", theme);
+  })();
+</script>
+<style>
+:root {
+  color-scheme: light;
+  --cp-bg: #f7f4ef;
+  --cp-bg-elevated: #fcfbf8;
+  --cp-surface: #ffffff;
+  --cp-surface-soft: #f5f5f5;
+  --cp-border: #dedede;
+  --cp-border-strong: #919191;
+  --cp-text: #242424;
+  --cp-text-muted: #5c5c5c;
+  --cp-text-soft: #6f6f6f;
+  --cp-accent: #b11f4b;
+  --cp-accent-hover: #9a1a41;
+  --cp-accent-soft: rgba(177, 31, 75, 0.08);
+  --cp-accent-fg: #ffffff;
+  --cp-success: #16a34a;
+  --cp-danger: #dc2626;
+  --cp-warning: #f59e0b;
+  --cp-link: #0078d4;
+  --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.12);
+  --cp-overlay: rgba(255, 255, 255, 0.8);
+  --cp-panel: rgba(255, 255, 255, 0.86);
+  --cp-panel-strong: rgba(255, 255, 255, 0.96);
+  --cp-sheen: rgba(255, 255, 255, 0.55);
+  --cp-highlight: rgba(177, 31, 75, 0.12);
+}
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --cp-bg: #3d3b3a;
+  --cp-bg-elevated: #343231;
+  --cp-surface: #292929;
+  --cp-surface-soft: #2e2e2e;
+  --cp-border: #474747;
+  --cp-border-strong: #5f5f5f;
+  --cp-text: #dedede;
+  --cp-text-muted: #919191;
+  --cp-text-soft: #b0b0b0;
+  --cp-accent: #fd8ea1;
+  --cp-accent-hover: #fb7b91;
+  --cp-accent-soft: rgba(253, 142, 161, 0.14);
+  --cp-accent-fg: #1a1a1a;
+  --cp-success: #4ade80;
+  --cp-danger: #f87171;
+  --cp-warning: #fbbf24;
+  --cp-link: #4da6ff;
+  --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+  --cp-overlay: rgba(41, 41, 41, 0.88);
+  --cp-panel: rgba(41, 41, 41, 0.72);
+  --cp-panel-strong: rgba(41, 41, 41, 0.96);
+  --cp-sheen: rgba(255, 255, 255, 0.04);
+  --cp-highlight: rgba(253, 142, 161, 0.12);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 32px 24px 64px;
+  background: var(--cp-bg);
+  color: var(--cp-text);
+  font-family: "Segoe UI", Aptos, Calibri, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.wrap { max-width: 1320px; margin: 0 auto; }
+
+header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+h1 {
+  font-size: 30px;
+  font-weight: 650;
+  margin: 0 0 4px;
+  letter-spacing: -0.01em;
+}
+
+.sub { color: var(--cp-text-muted); margin: 0 0 24px; font-size: 14px; }
+
+h2 {
+  font-size: 21px;
+  font-weight: 620;
+  margin: 44px 0 12px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--cp-accent);
+  display: inline-block;
+}
+
+h3 { font-size: 16px; font-weight: 600; margin: 26px 0 10px; color: var(--cp-text); }
+
+.card {
+  background: var(--cp-surface);
+  border: 1px solid var(--cp-border);
+  border-radius: 16px;
+  padding: 4px;
+  box-shadow: 0 0 2px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.14);
+  overflow-x: auto;
+  margin-bottom: 8px;
+}
+
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+
+th {
+  text-align: left;
+  padding: 11px 12px;
+  background: var(--cp-surface-soft);
+  border-bottom: 2px solid var(--cp-border-strong);
+  font-weight: 620;
+  white-space: nowrap;
+}
+
+td { padding: 10px 12px; border-bottom: 1px solid var(--cp-border); vertical-align: top; }
+tr:last-child td { border-bottom: none; }
+tbody tr:hover { background: var(--cp-accent-soft); }
+
+.grp td {
+  background: var(--cp-highlight);
+  font-weight: 650;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  border-bottom: 1px solid var(--cp-border-strong);
+}
+.grp tr:hover td { background: var(--cp-highlight); }
+
+code, .api {
+  font-family: Consolas, "Courier New", Courier, monospace;
+  font-size: 12.5px;
+  background: var(--cp-surface-soft);
+  border: 1px solid var(--cp-border);
+  border-radius: 5px;
+  padding: 1px 5px;
+  color: var(--cp-accent);
+  white-space: nowrap;
+}
+
+.ctr { text-align: center; width: 46px; }
+.yes { color: var(--cp-success); font-weight: 700; }
+.no  { color: var(--cp-danger);  font-weight: 700; }
+
+.tag {
+  display: inline-block;
+  font-family: Consolas, "Courier New", Courier, monospace;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 1px 6px;
+  border-radius: 5px;
+  vertical-align: middle;
+  margin-left: 6px;
+}
+.tag-llm { background: var(--cp-accent); color: var(--cp-accent-fg); }
+.tag-slm { background: var(--cp-warning); color: #1a1a1a; }
+
+.note {
+  background: var(--cp-accent-soft);
+  border-left: 3px solid var(--cp-accent);
+  border-radius: 0 10px 10px 0;
+  padding: 12px 16px;
+  margin: 16px 0;
+  font-size: 14px;
+}
+
+pre {
+  background: var(--cp-surface);
+  border: 1px solid var(--cp-border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  overflow-x: auto;
+  font-family: Consolas, "Courier New", Courier, monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 10px 0 20px;
+  color: var(--cp-text);
+}
+pre code { background: none; border: none; padding: 0; color: inherit; white-space: pre; font-size: 13px; }
+.c-com { color: var(--cp-text-soft); font-style: italic; }
+.c-key { color: var(--cp-link); }
+.c-str { color: var(--cp-accent); }
+
+.ev { font-size: 13.5px; }
+.ev td:first-child { white-space: nowrap; font-weight: 600; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 4px; }
+.legend span {
+  font-size: 12.5px;
+  padding: 3px 10px;
+  border: 1px solid var(--cp-border);
+  border-radius: 999px;
+  background: var(--cp-surface);
+  color: var(--cp-text-muted);
+}
+
+button#tt {
+  background: var(--cp-surface);
+  color: var(--cp-text);
+  border: 1px solid var(--cp-border-strong);
+  border-radius: 0.625rem;
+  padding: 7px 14px;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+button#tt:hover { background: var(--cp-accent); color: var(--cp-accent-fg); border-color: var(--cp-accent); }
+
+footer {
+  margin-top: 48px;
+  padding-top: 16px;
+  border-top: 1px solid var(--cp-border);
+  color: var(--cp-text-soft);
+  font-size: 12.5px;
+}
+
+@media print {
+  body { padding: 0; background: #fff; }
+  button#tt { display: none; }
+  .card { box-shadow: none; break-inside: auto; }
+  h2 { break-after: avoid; }
+  tr { break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div>
+    <h1>Azure Voice Live 全组件参考表</h1>
+    <p class="sub">听 · 想 · 说 三层拆解 &nbsp;|&nbsp; 可读命名 ↔ 官方 API 值对照 &nbsp;|&nbsp; 生成日期 2026-08-12</p>
+  </div>
+  <button id="tt">切换深浅色</button>
+</header>
+
+<div class="note">
+  <strong>命名约定：</strong>「展示名」是为了可读性自定的写法（<code>Azure-Speech-STT</code> / <code>Azure-Speech-TTS-standard</code>），
+  <strong>写 JSON 时必须使用「API 实际值」那一列</strong>，展示名不是合法枚举值。
+</div>
+
+<div class="note" style="border-left-color:var(--cp-danger);background:rgba(220,38,38,0.06)">
+  <strong>③ 层有两种本质不同的性质 —— 很容易看错：</strong><br>
+  <strong>原生发声</strong>（<span class="api">openai</span> / <span class="api">azure-realtime-native</span>）—— 模型是 <strong>speech-to-speech 端到端</strong>，音频进、音频出，
+  <strong>根本没有独立 TTS 环节</strong>；<span class="api">voice.type</span> 在这里只是“选哪个声线”。<br>
+  <strong>外接合成</strong>（<span class="api">azure-standard</span> / <span class="api">azure-custom</span> / <span class="api">azure-personal</span> / <span class="api">avatar-voice-sync</span>）——
+  文本真的送进 Azure Speech 引擎合成，<strong>端到端被打断</strong>，因此产生额外延迟。<br>
+  <span style="font-size:13px">这也解释了为什么 <span class="api">instructions</span> 只对 OpenAI voice 生效（语音是推理的一部分），而换 Azure 音色会加延迟（插入了真实 TTS 环节）。</span>
+</div>
+
+<h2>一、全组件总表</h2>
+<div class="card">
+<table>
+<thead>
+<tr>
+  <th style="min-width:210px">展示名（可读）</th>
+  <th style="min-width:230px">API 实际值</th>
+  <th style="min-width:200px">配置位置</th>
+  <th class="ctr">听</th>
+  <th class="ctr">想</th>
+  <th class="ctr">说</th>
+  <th style="min-width:300px">关键约束</th>
+</tr>
+</thead>
+
+<tbody class="grp"><tr><td colspan="7">① STT — 听</td></tr></tbody>
+<tbody>
+<tr>
+  <td><strong>Azure-Speech-STT</strong></td>
+  <td><span class="api">azure-speech</span></td>
+  <td><span class="api">input_audio_transcription.model</span></td>
+  <td class="ctr yes">✔</td><td class="ctr no">✘</td><td class="ctr no">✘</td>
+  <td><strong>默认自动激活</strong>；<strong>唯一支持 Phrase List + Custom Speech</strong>（最多 10 个 locale）</td>
+</tr>
+<tr>
+  <td>MAI-Transcribe-STT</td>
+  <td><span class="api">mai-transcribe</span></td>
+  <td>同上</td>
+  <td class="ctr yes">✔</td><td class="ctr no">✘</td><td class="ctr no">✘</td>
+  <td>微软 preview；配全部非多模态模型</td>
+</tr>
+<tr>
+  <td>OpenAI-Whisper-STT</td>
+  <td><span class="api">whisper-1</span></td>
+  <td>同上</td>
+  <td class="ctr yes">✔</td><td class="ctr no">✘</td><td class="ctr no">✘</td>
+  <td><strong>仅配 <span class="api">gpt-realtime*</span></strong>；不支持 Phrase List</td>
+</tr>
+<tr>
+  <td>OpenAI-GPT4o-STT</td>
+  <td><span class="api">gpt-4o-transcribe</span></td>
+  <td>同上</td>
+  <td class="ctr yes">✔</td><td class="ctr no">✘</td><td class="ctr no">✘</td>
+  <td>同上；可用 <span class="api">prompt</span> 引导术语</td>
+</tr>
+<tr>
+  <td>OpenAI-GPT4o-mini-STT</td>
+  <td><span class="api">gpt-4o-mini-transcribe</span></td>
+  <td>同上</td>
+  <td class="ctr yes">✔</td><td class="ctr no">✘</td><td class="ctr no">✘</td>
+  <td>同上；成本更低</td>
+</tr>
+<tr>
+  <td>OpenAI-GPT4o-Diarize-STT</td>
+  <td><span class="api">gpt-4o-transcribe-diarize</span></td>
+  <td>同上</td>
+  <td class="ctr yes">✔</td><td class="ctr no">✘</td><td class="ctr no">✘</td>
+  <td>同上；带说话人分离（diarization）</td>
+</tr>
+</tbody>
+
+<tbody class="grp"><tr><td colspan="7">② LLM / SLM — 想</td></tr></tbody>
+<tbody>
+<tr>
+  <td>GPT-Realtime<span class="tag tag-llm">LLM</span></td>
+  <td><span class="api">gpt-realtime</span> / <span class="api">-1.5</span> / <span class="api">-mini</span></td>
+  <td>WebSocket URL <span class="api">?model=</span></td>
+  <td class="ctr yes">✔</td><td class="ctr yes">✔</td><td class="ctr yes">✔</td>
+  <td>官方写 “<strong>option to use</strong> Azure TTS” → 自带语音，也可换成 Azure 音色</td>
+</tr>
+<tr>
+  <td>Azure-Realtime<span class="tag tag-llm">LLM</span></td>
+  <td><span class="api">azure-realtime</span></td>
+  <td>同上</td>
+  <td class="ctr yes">✔</td><td class="ctr yes">✔</td><td class="ctr yes">✔</td>
+  <td>需 API <span class="api">2026-01-01-preview</span> 及以上</td>
+</tr>
+<tr>
+  <td><strong>Phi4-MM-Realtime</strong><span class="tag tag-slm">SLM</span></td>
+  <td><span class="api">phi4-mm-realtime</span></td>
+  <td>同上</td>
+  <td class="ctr yes">✔</td><td class="ctr yes">✔</td><td class="ctr no">✘</td>
+  <td>官方表述无 “option” 字样 → <strong>必须外接 TTS</strong>（⚠️ 推断，见证据表）</td>
+</tr>
+<tr>
+  <td><strong>纯文本模型</strong><span class="tag tag-slm">SLM</span><span class="tag tag-llm">LLM</span></td>
+  <td>
+    <span class="api">phi4-mini</span> ·
+    <span class="api">gpt-4o</span> · <span class="api">gpt-4o-mini</span> ·
+    <span class="api">gpt-4.1</span> · <span class="api">-mini</span> · <span class="api">-nano</span> ·
+    <span class="api">gpt-5.4</span> · <span class="api">gpt-5.3-chat</span> · <span class="api">gpt-5.2</span> ·
+    <span class="api">gpt-5.2-chat</span> · <span class="api">gpt-5.1</span> · <span class="api">gpt-5.1-chat</span> ·
+    <span class="api">gpt-5</span> · <span class="api">-mini</span> · <span class="api">-nano</span>
+  </td>
+  <td>同上</td>
+  <td class="ctr no">✘</td><td class="ctr yes">✔</td><td class="ctr no">✘</td>
+  <td>没耳朵、没嘴 → <strong>① 和 ③ 都必须配</strong>（<span class="api">phi4-mini</span> 为 SLM，其余为 LLM）</td>
+</tr>
+</tbody>
+
+<tbody class="grp"><tr><td colspan="7">③ TTS — 说　<span style="font-weight:400">（下面 4 个是<strong>外接合成</strong>，最后 2 个是端到端模型的<strong>原生发声</strong>，不是独立 TTS 环节）</span></td></tr></tbody>
+<tbody>
+<tr>
+  <td><strong>Azure-Speech-TTS-standard</strong><br><span style="font-size:12px;color:var(--cp-text-muted)">外接合成</span></td>
+  <td><span class="api">azure-standard</span></td>
+  <td><span class="api">voice.type</span></td>
+  <td class="ctr no">✘</td><td class="ctr no">✘</td><td class="ctr yes">✔</td>
+  <td>Neural / HD / <strong>MAI-Voice-2-Flash</strong>；参数 <span class="api">name</span> <span class="api">rate</span> <span class="api">temperature</span> <span class="api">custom_lexicon_url</span></td>
+</tr>
+<tr>
+  <td><strong>Azure-Speech-TTS-custom</strong><br><span style="font-size:12px;color:var(--cp-text-muted)">外接合成</span></td>
+  <td><span class="api">azure-custom</span></td>
+  <td><span class="api">voice.type</span></td>
+  <td class="ctr no">✘</td><td class="ctr no">✘</td><td class="ctr yes">✔</td>
+  <td><strong>品牌专属音色</strong>（Professional CNV）；必须给 <span class="api">endpoint_id</span>（GUID）</td>
+</tr>
+<tr>
+  <td><strong>Azure-Speech-TTS-personal</strong><br><span style="font-size:12px;color:var(--cp-text-muted)">外接合成</span></td>
+  <td><span class="api">azure-personal</span></td>
+  <td><span class="api">voice.type</span></td>
+  <td class="ctr no">✘</td><td class="ctr no">✘</td><td class="ctr yes">✔</td>
+  <td>短样本克隆；必须给 <span class="api">model</span>（<span class="api">DragonLatestNeural</span> / <span class="api">DragonHDOmniLatestNeural</span> / <span class="api">MAI-Voice-1</span>）</td>
+</tr>
+<tr>
+  <td><strong>Azure-Speech-TTS-avatar-sync</strong><br><span style="font-size:12px;color:var(--cp-text-muted)">外接合成</span></td>
+  <td><span class="api">avatar-voice-sync</span></td>
+  <td><span class="api">voice.type</span></td>
+  <td class="ctr no">✘</td><td class="ctr no">✘</td><td class="ctr yes">✔</td>
+  <td>配 custom avatar；只要 <span class="api">model</span>，<strong>不要</strong> <span class="api">name</span></td>
+</tr>
+<tr style="background:var(--cp-accent-soft)">
+  <td><strong>Azure-Realtime 原生声线</strong><br><span style="font-size:12px;color:var(--cp-accent);font-weight:600">原生发声 · 非独立 TTS</span></td>
+  <td><span class="api">azure-realtime-native</span></td>
+  <td><span class="api">voice.type</span></td>
+  <td class="ctr no">✘</td><td class="ctr no">✘</td><td class="ctr yes">✔</td>
+  <td><strong>只是选声线，不是接 TTS 引擎</strong>（<span class="api">native</span> 即此意）；<strong>仅</strong> <span class="api">azure-realtime</span> 可用；30 个音色，默认 <span class="api">ava</span>，中文 <span class="api">xiaoxiao</span> / <span class="api">yunxi</span></td>
+</tr>
+<tr style="background:var(--cp-accent-soft)">
+  <td><strong>OpenAI 原生声线</strong><br><span style="font-size:12px;color:var(--cp-accent);font-weight:600">原生发声 · 非独立 TTS</span></td>
+  <td><span class="api">openai</span></td>
+  <td><span class="api">voice.type</span></td>
+  <td class="ctr no">✘</td><td class="ctr no">✘</td><td class="ctr yes">✔</td>
+  <td><strong>只是选声线，不是接 TTS 引擎</strong>；对象 <span class="api">RealtimeOpenAIVoice</span>；10 个音色 <span class="api">alloy</span> <span class="api">ash</span> <span class="api">ballad</span> <span class="api">coral</span> <span class="api">echo</span> <span class="api">sage</span> <span class="api">shimmer</span> <span class="api">verse</span> <span class="api">marin</span> <span class="api">cedar</span>；<strong>独有 <span class="api">instructions</span></strong> 可用自然语言控制语气</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<h2>二、Azure Speech 在 Voice Live 里的 5 个入口</h2>
+<div class="note">
+  <strong>1 个 STT + 4 个 TTS。</strong>
+  <span class="api">azure-speech</span> 这个字面值只存在于 STT 配置里；TTS 侧的 Azure Speech 用 <span class="api">azure-*</span> 四兄弟表示。
+  之所以 TTS 要拆四个，是因为每种输出的必填参数不同（<span class="api">endpoint_id</span> / <span class="api">model</span> / 无），
+  这是 tagged union 设计，一个名字承载不了。
+</div>
+<div class="card">
+<table>
+<thead><tr><th>组件</th><th class="ctr" style="width:120px">属于 Azure Speech</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>Azure-Speech-<strong>STT</strong> <span class="api">azure-speech</span></td><td class="ctr yes">✔</td><td>语音转文字</td></tr>
+<tr><td>Azure-Speech-<strong>TTS-standard</strong> <span class="api">azure-standard</span></td><td class="ctr yes">✔</td><td>预制音色</td></tr>
+<tr><td>Azure-Speech-<strong>TTS-custom</strong> <span class="api">azure-custom</span></td><td class="ctr yes">✔</td><td>专业自训音色</td></tr>
+<tr><td>Azure-Speech-<strong>TTS-personal</strong> <span class="api">azure-personal</span></td><td class="ctr yes">✔</td><td>个人语音克隆</td></tr>
+<tr><td>Azure-Speech-<strong>TTS-avatar-sync</strong> <span class="api">avatar-voice-sync</span></td><td class="ctr yes">✔</td><td>数字人同步语音</td></tr>
+<tr><td>Azure-Realtime 原生声线 <span class="api">azure-realtime-native</span></td><td class="ctr" style="color:var(--cp-warning);font-weight:700">△</td><td><strong>不是 TTS 引擎</strong>，是 <span class="api">azure-realtime</span> 端到端模型的声线选项</td></tr>
+<tr><td>MAI-Transcribe-STT <span class="api">mai-transcribe</span></td><td class="ctr" style="color:var(--cp-warning);font-weight:700">△</td><td>微软 MAI 线</td></tr>
+<tr><td>OpenAI 原生声线 / OpenAI STT <span class="api">openai</span> <span class="api">whisper-1</span> …</td><td class="ctr no">✘</td><td>OpenAI 产品线；<span class="api">openai</span> 同样不是 TTS 引擎，是端到端模型的声线选项</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2>三、② 层其实只有 4 类</h2>
+<div class="card">
+<table>
+<thead><tr><th style="min-width:200px">类别</th><th style="min-width:220px">代表</th><th class="ctr">听</th><th class="ctr">说</th><th>你还需要补什么</th></tr></thead>
+<tbody>
+<tr><td>多模态 LLM（嘴可换）</td><td>GPT-Realtime</td><td class="ctr yes">✔</td><td class="ctr yes">✔</td><td>什么都不用补</td></tr>
+<tr><td>多模态 LLM（Azure 线）</td><td>Azure-Realtime</td><td class="ctr yes">✔</td><td class="ctr yes">✔</td><td>什么都不用补</td></tr>
+<tr><td><strong>多模态 SLM（有耳无嘴）</strong></td><td>Phi4-MM-Realtime</td><td class="ctr yes">✔</td><td class="ctr no">✘</td><td><strong>只补 ③ TTS</strong></td></tr>
+<tr><td><strong>纯文本 LLM / SLM（无耳无嘴）</strong></td><td>Phi4-Mini · GPT-4o / 4.1 / 5 全系</td><td class="ctr no">✘</td><td class="ctr no">✘</td><td><strong>① 和 ③ 都要补</strong></td></tr>
+</tbody>
+</table>
+</div>
+
+<h3>LLM vs SLM</h3>
+<div class="card">
+<table>
+<thead><tr><th style="width:90px">类型</th><th>模型</th><th style="width:180px">定位</th><th style="width:120px">计费档</th></tr></thead>
+<tbody>
+<tr><td><span class="tag tag-llm" style="margin:0">LLM</span></td><td><span class="api">gpt-realtime</span> 全系 · <span class="api">azure-realtime</span> · <span class="api">gpt-4o</span> · <span class="api">gpt-4.1</span> · <span class="api">gpt-5</span> 全系</td><td>Azure OpenAI 大模型</td><td>pro / basic / lite</td></tr>
+<tr><td><span class="tag tag-slm" style="margin:0">SLM</span></td><td><span class="api">phi4-mm-realtime</span> · <span class="api">phi4-mini</span></td><td>微软 Phi 小模型，车载 / 边缘</td><td><strong>lite（最低档）</strong></td></tr>
+</tbody>
+</table>
+</div>
+
+<h2>四、STT × ② 配对矩阵</h2>
+<div class="card">
+<table>
+<thead><tr><th style="min-width:230px">STT</th><th class="ctr" style="width:140px">纯文本 LLM/SLM</th><th class="ctr" style="width:130px">GPT-Realtime</th><th class="ctr" style="width:130px">Azure-Realtime</th><th class="ctr" style="width:110px">Phi4-MM</th></tr></thead>
+<tbody>
+<tr><td><strong>Azure-Speech-STT</strong> <span class="api">azure-speech</span></td><td class="ctr yes">✔ 默认</td><td class="ctr no">✘</td><td class="ctr no">✘</td><td class="ctr no">✘</td></tr>
+<tr><td>MAI-Transcribe-STT <span class="api">mai-transcribe</span></td><td class="ctr yes">✔</td><td class="ctr no">✘</td><td class="ctr no">✘</td><td class="ctr no">✘</td></tr>
+<tr><td>OpenAI-Whisper-STT <span class="api">whisper-1</span></td><td class="ctr no">✘</td><td class="ctr yes">✔ 旁路</td><td class="ctr no">✘</td><td class="ctr no">✘</td></tr>
+<tr><td>OpenAI-GPT4o-STT 三兄弟</td><td class="ctr no">✘</td><td class="ctr yes">✔ 旁路</td><td class="ctr no">✘</td><td class="ctr no">✘</td></tr>
+</tbody>
+</table>
+</div>
+<div class="note"><strong>旁路</strong> = Realtime 模型自带耳朵，此处配转录模型只是额外产出一份文字记录，不改变语音理解路径。多模态模型（含 <span class="api">phi4-mm-realtime</span>）不接外部 STT。</div>
+
+<h2>五、五种典型链路</h2>
+<div class="card">
+<table>
+<thead><tr><th style="width:130px">链路</th><th style="min-width:150px">① STT</th><th style="min-width:180px">② LLM / SLM</th><th style="min-width:220px">③ TTS</th><th style="min-width:230px">适用场景</th></tr></thead>
+<tbody>
+<tr>
+  <td><strong>A · Cascade</strong></td>
+  <td>Azure-Speech-STT</td>
+  <td>纯文本 <span class="tag tag-llm" style="margin:0">LLM</span></td>
+  <td>TTS-standard / TTS-custom</td>
+  <td><strong>要 Phrase List / Custom Speech / fine-tune</strong></td>
+</tr>
+<tr>
+  <td><strong>B · GPT 原生</strong></td>
+  <td>自带</td>
+  <td colspan="2" style="text-align:center;background:var(--cp-accent-soft)"><strong>GPT-Realtime <span class="tag tag-llm" style="margin:0">LLM</span> —— 端到端 S2S，音频进音频出</strong><br><span style="font-size:12.5px;color:var(--cp-text-muted)">无独立 TTS 环节；<span class="api">voice.type="openai"</span> 只是选声线</span></td>
+  <td><strong>最低延迟</strong></td>
+</tr>
+<tr>
+  <td><strong>C · Hybrid</strong></td>
+  <td>自带</td>
+  <td>GPT-Realtime <span class="tag tag-llm" style="margin:0">LLM</span></td>
+  <td><strong>Azure-Speech-TTS-custom</strong><br><span style="font-size:12.5px;color:var(--cp-accent);font-weight:600">真的插入独立 TTS 环节</span></td>
+  <td><strong>要品牌专属音色</strong>；代价 = 端到端被打断 → 引入额外 TTS 合成延迟（具体数值取决于 region / 音色 / 文本长度，需自行实测）</td>
+</tr>
+<tr>
+  <td><strong>D · Phi 低成本</strong></td>
+  <td>自带</td>
+  <td><strong>Phi4-MM-Realtime</strong> <span class="tag tag-slm" style="margin:0">SLM</span></td>
+  <td><strong>必须外接 Azure-Speech-TTS-*</strong></td>
+  <td>官方车载 Scenario 4，lite 档最省</td>
+</tr>
+<tr>
+  <td><strong>E · Azure 全栈</strong></td>
+  <td>自带</td>
+  <td colspan="2" style="text-align:center;background:var(--cp-accent-soft)"><strong>Azure-Realtime <span class="tag tag-llm" style="margin:0">LLM</span> —— 端到端 S2S，音频进音频出</strong><br><span style="font-size:12.5px;color:var(--cp-text-muted)">无独立 TTS 环节；<span class="api">voice.type="azure-realtime-native"</span> 只是选声线</span></td>
+  <td>中文音色内置（<span class="api">xiaoxiao</span> / <span class="api">yunxi</span>）</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<h2>六、配置示例（必须用官方值）</h2>
+
+<h3>A · Cascade —— 纯文本 LLM，① 和 ③ 都要配</h3>
+<pre><code><span class="c-com">// URL: wss://&lt;resource&gt;/voice-live/realtime?api-version=2026-04-10&amp;model=gpt-4.1</span>
+{
+  <span class="c-key">"input_audio_transcription"</span>: {
+    <span class="c-key">"model"</span>: <span class="c-str">"azure-speech"</span>,                  <span class="c-com">// Azure-Speech-STT</span>
+    <span class="c-key">"phrase_list"</span>: [<span class="c-str">"Contoso"</span>, <span class="c-str">"Fabrikam"</span>],
+    <span class="c-key">"custom_speech"</span>: { <span class="c-key">"zh-CN"</span>: <span class="c-str">"&lt;model-id&gt;"</span> }
+  },
+  <span class="c-key">"voice"</span>: {
+    <span class="c-key">"type"</span>: <span class="c-str">"azure-custom"</span>,                    <span class="c-com">// Azure-Speech-TTS-custom</span>
+    <span class="c-key">"name"</span>: <span class="c-str">"zh-CN-BrandNeural"</span>,
+    <span class="c-key">"endpoint_id"</span>: <span class="c-str">"&lt;your-endpoint-guid&gt;"</span>
+  },
+  <span class="c-key">"turn_detection"</span>: { <span class="c-key">"type"</span>: <span class="c-str">"azure_semantic_vad_multilingual"</span> }
+}</code></pre>
+
+<h3>D · Phi 低成本 —— SLM 自带耳朵，只补 ③</h3>
+<pre><code><span class="c-com">// URL: ...?model=phi4-mm-realtime</span>
+{
+  <span class="c-key">"voice"</span>: {
+    <span class="c-key">"type"</span>: <span class="c-str">"azure-standard"</span>,                  <span class="c-com">// Azure-Speech-TTS-standard</span>
+    <span class="c-key">"name"</span>: <span class="c-str">"zh-CN-XiaoxiaoNeural"</span>
+  }
+}</code></pre>
+
+<h3>四种 TTS 的参数差异（为什么不能合并成一个名字）</h3>
+<pre><code><span class="c-com">// azure-standard —— 只要语音名</span>
+{ <span class="c-key">"type"</span>: <span class="c-str">"azure-standard"</span>, <span class="c-key">"name"</span>: <span class="c-str">"en-US-AvaNeural"</span> }
+
+<span class="c-com">// azure-custom —— 必须给训练好的 endpoint</span>
+{ <span class="c-key">"type"</span>: <span class="c-str">"azure-custom"</span>, <span class="c-key">"name"</span>: <span class="c-str">"en-US-CustomNeural"</span>,
+  <span class="c-key">"endpoint_id"</span>: <span class="c-str">"your-endpoint-id"</span> }        <span class="c-com">// ← 多了这个</span>
+
+<span class="c-com">// azure-personal —— 必须指定基座模型</span>
+{ <span class="c-key">"type"</span>: <span class="c-str">"azure-personal"</span>, <span class="c-key">"name"</span>: <span class="c-str">"your-voice"</span>,
+  <span class="c-key">"model"</span>: <span class="c-str">"DragonLatestNeural"</span> }             <span class="c-com">// ← 多了这个</span>
+
+<span class="c-com">// avatar-voice-sync —— 只要 model，不要 name</span>
+{ <span class="c-key">"type"</span>: <span class="c-str">"avatar-voice-sync"</span>,
+  <span class="c-key">"model"</span>: <span class="c-str">"DragonHDOmniLatestNeural"</span> }       <span class="c-com">// ← 没有 name</span></code></pre>
+
+<h2>七、计费档位</h2>
+<div class="card">
+<table>
+<thead><tr><th style="width:110px">档位</th><th>模型</th><th style="width:90px">类型</th></tr></thead>
+<tbody>
+<tr><td><strong>pro</strong></td><td><span class="api">gpt-realtime</span> · <span class="api">gpt-4o</span> · <span class="api">gpt-4.1</span> · <span class="api">gpt-5</span> · <span class="api">gpt-5-chat</span></td><td><span class="tag tag-llm" style="margin:0">LLM</span></td></tr>
+<tr><td><strong>basic</strong></td><td><span class="api">gpt-realtime-mini</span> · <span class="api">gpt-4o-mini</span> · <span class="api">gpt-4.1-mini</span> · <span class="api">gpt-5-mini</span></td><td><span class="tag tag-llm" style="margin:0">LLM</span></td></tr>
+<tr><td><strong>lite</strong></td><td><span class="api">gpt-5-nano</span></td><td><span class="tag tag-llm" style="margin:0">LLM</span></td></tr>
+<tr><td><strong>lite</strong></td><td><span class="api">phi4-mm-realtime</span> · <span class="api">phi4-mini</span></td><td><span class="tag tag-slm" style="margin:0">SLM</span></td></tr>
+<tr><td>❓ 未列出</td><td><span class="api">azure-realtime</span> · <span class="api">gpt-realtime-1.5</span> · <span class="api">gpt-5.1</span> ~ <span class="api">gpt-5.4</span></td><td>—</td></tr>
+</tbody>
+</table>
+</div>
+<div class="note">
+Token 换算速率：Azure OpenAI 约 <strong>10 / 20</strong>，Phi SLM 约 <strong>12.5 / 20</strong>（输入 / 输出，tokens 每秒）。
+<br><strong>⚠️ 命名对不齐：</strong>计费页用通用名 <span class="api">gpt-5-chat</span>，模型清单用带小版本的 <span class="api">gpt-5.1-chat</span> / <span class="api">gpt-5.2-chat</span> / <span class="api">gpt-5.3-chat</span>，
+两者是否完全等价未在官方文档中明确对应，正式报价前需向产品组确认。
+</div>
+
+<h2>八、证据等级</h2>
+<div class="legend">
+  <span>✅✅ 双源官方交叉验证</span>
+  <span>✅ 单源官方文档</span>
+  <span>⚠️ 推断 / 未交叉</span>
+  <span>❓ 未知</span>
+</div>
+<div class="card">
+<table class="ev">
+<thead><tr><th style="width:130px">等级</th><th>内容</th></tr></thead>
+<tbody>
+<tr>
+  <td>✅✅ 双源</td>
+  <td>STT × 模型兼容矩阵；Phrase List 不支持 <span class="api">whisper-1</span> / <span class="api">gpt-4o-transcribe</span> / <span class="api">-mini-transcribe</span> / <span class="api">-transcribe-diarize</span>；Custom Speech 仅支持 <span class="api">azure-speech</span>；<span class="api">azure-standard</span> 与 <span class="api">azure-custom</span> 的参数结构；MAI-Voice-2-Flash 及 4 个中文音色（<span class="api">zh-CN-Bo</span> / <span class="api">Lan</span> / <span class="api">Mei</span> / <span class="api">Wei</span>）</td>
+</tr>
+<tr>
+  <td>✅ 单源官方</td>
+  <td>② 层模型清单；Phi 系列的 SLM 定位；<span class="api">azure-realtime</span> 的 30 个音色与默认 <span class="api">ava</span>；<span class="api">azure-personal</span>；<span class="api">avatar-voice-sync</span>；<span class="api">custom_lexicon_url</span>；<strong><span class="api">openai</span> voice 完整定义</strong>（官方对象 <span class="api">RealtimeOpenAIVoice</span>，10 个音色，<span class="api">instructions</span> 字段原文：“The instructions could guide the output audio if OpenAI voices are used but <strong>may not apply to Azure voices</strong>”）；官方四分法“OpenAI voices, Azure custom voices, Azure standard voices, and Azure personal voices”</td>
+</tr>
+<tr>
+  <td>⚠️ 推断</td>
+  <td><strong><span class="api">phi4-mm-realtime</span> 不能原生出声</strong> —— 依据是官方模型表对它写 “Phi4-mm + audio output through Azure text to speech voices”，<strong>没有</strong><span class="api">gpt-realtime</span> 那句 “<em>option to</em> use Azure TTS”，加上计费 Scenario 4 将其原生音频按 lite 档、Azure Speech Custom 输出按 pro 档<strong>分别计费</strong>。官方未用一句话明写“不能原生输出语音”。</td>
+</tr>
+<tr>
+  <td>⚠️ 单源未交叉</td>
+  <td>pro / basic / lite 三档划分；token 换算速率</td>
+</tr>
+<tr>
+  <td>❓ 未知</td>
+  <td><span class="api">azure-realtime</span> · <span class="api">gpt-realtime-1.5</span> · <span class="api">gpt-5.1</span>~<span class="api">gpt-5.4</span> 的计费档位；<span class="api">gpt-5-chat</span> 与 <span class="api">gpt-5.x-chat</span> 的对应关系</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<footer>
+  数据来源：Microsoft Learn — Voice Live API Reference（<span class="api">2026-01-01-preview</span>）、Voice Live 模型与语音清单、Voice Live 自定义指南、Voice Live 计费说明。<br>
+  本表为技术参考，官方 preview API 可能变更；对外报价与承诺前请以当时的官方文档为准。
+</footer>
+
+</div>
+
+<script>
+document.getElementById('tt').addEventListener('click', () => {
+  const el = document.documentElement;
+  el.setAttribute('data-theme', el.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+});
+</script>
+</body>
+</html>
