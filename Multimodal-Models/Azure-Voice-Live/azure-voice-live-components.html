@@ -265,6 +265,15 @@ footer {
   <span style="font-size:13px">这也解释了为什么 <span class="api">instructions</span> 只对 OpenAI voice 生效（语音是推理的一部分），而换 Azure 音色会加延迟（插入了真实 TTS 环节）。</span>
 </div>
 
+<div class="note" style="border-left-color:#b45309;background:rgba(180,83,9,0.07)">
+  <strong>① 层同样容易看错：转录不是「边说边出字」的前置 ASR。</strong><br>
+  <span class="api">input_audio_transcription</span> <strong>整层、不分模型</strong>，都不是流式识别器，而是<strong>音频 buffer 被 commit 之后</strong>异步跑的旁路转录。官方原文：<br>
+  <span style="font-size:13px;display:block;margin:8px 0 6px;padding-left:12px;border-left:2px solid var(--cp-border)">“<strong>Transcription begins when the input audio buffer is committed</strong> by the client or server (in <span class="api">server_vad</span> mode). Transcription runs asynchronously with response creation, so this event can come before or after the response events.”</span>
+  <span style="font-size:13px;display:block;margin:0 0 8px;padding-left:12px;border-left:2px solid var(--cp-border)">“Input audio transcription <strong>isn't native to the model</strong>, since the model consumes audio directly. Transcription runs asynchronously through the <span class="api">/audio/transcriptions</span> endpoint and should be treated as <strong>guidance</strong> of input audio content rather than precisely what the model heard.”</span>
+  所以真正的分界不是「谁流式」，而是<strong>转录在不在语音理解路径上</strong>：配纯文本 LLM 时模型只能吃文字，转录是必经环节；配多模态模型时模型直接吃音频，转录只是留一份文字记录。<br>
+  <strong>工程影响：</strong>Cascade 链路拿不到传统流式 ASR 意义上的 <em>first partial</em>；凡是按「ASR 首字延迟」拆解端到端延迟的指标定义，都要按这个语义重写。
+</div>
+
 <h2>一、全组件总表</h2>
 <div class="card">
 <table>
@@ -287,7 +296,7 @@ footer {
   <td><span class="api">azure-speech</span></td>
   <td><span class="api">input_audio_transcription.model</span></td>
   <td class="ctr yes">✔</td><td class="ctr no">✘</td><td class="ctr no">✘</td>
-  <td><strong>默认自动激活</strong>；<strong>唯一支持 Phrase List + Custom Speech</strong>（最多 10 个 locale）</td>
+  <td><strong>默认自动激活</strong>；<strong>唯一支持 Phrase List + Custom Speech</strong>（最多 10 个 locale）；转录在 buffer commit 后异步产生，非流式前置 ASR</td>
 </tr>
 <tr>
   <td>MAI-Transcribe-STT</td>
@@ -472,7 +481,11 @@ footer {
 </tbody>
 </table>
 </div>
-<div class="note"><strong>旁路</strong> = Realtime 模型自带耳朵，此处配转录模型只是额外产出一份文字记录，不改变语音理解路径。多模态模型（含 <span class="api">phi4-mm-realtime</span>）不接外部 STT。</div>
+<div class="note">
+  <strong>「旁路」的准确含义</strong> —— 不是说这两格机制特殊，而是说<strong>下游模型能直接吃音频</strong>：Realtime 系列自带耳朵，配转录模型只是额外产出一份文字记录，不改变语音理解路径。<br>
+  <span class="api">input_audio_transcription</span> 这一层<strong>所有模型（含 <span class="api">azure-speech</span>）都在 buffer commit 之后异步转录</strong>，机制相同；区别只在于转录<strong>在不在理解路径上</strong> —— 配纯文本 LLM 时是必经环节，配多模态模型时不是。<br>
+  多模态模型 <span class="api">gpt-realtime*</span> / <span class="api">azure-realtime</span> / <span class="api">phi4-mm-realtime</span> 音频直接进模型，其中后两者不接外部转录模型。
+</div>
 
 <h2>五、五种典型链路</h2>
 <div class="card">
@@ -595,7 +608,7 @@ Token 换算速率：Azure OpenAI 约 <strong>10 / 20</strong>，Phi SLM 约 <st
 </tr>
 <tr>
   <td>✅ 单源官方</td>
-  <td>② 层模型清单；Phi 系列的 SLM 定位；<span class="api">azure-realtime</span> 的 30 个音色与默认 <span class="api">ava</span>；<span class="api">azure-personal</span>；<span class="api">avatar-voice-sync</span>；<span class="api">custom_lexicon_url</span>；<strong><span class="api">openai</span> voice 完整定义</strong>（官方对象 <span class="api">RealtimeOpenAIVoice</span>，10 个音色，<span class="api">instructions</span> 字段原文：“The instructions could guide the output audio if OpenAI voices are used but <strong>may not apply to Azure voices</strong>”）；官方四分法“OpenAI voices, Azure custom voices, Azure standard voices, and Azure personal voices”</td>
+  <td>② 层模型清单；Phi 系列的 SLM 定位；<span class="api">azure-realtime</span> 的 30 个音色与默认 <span class="api">ava</span>；<span class="api">azure-personal</span>；<span class="api">avatar-voice-sync</span>；<span class="api">custom_lexicon_url</span>；<strong><span class="api">openai</span> voice 完整定义</strong>（官方对象 <span class="api">RealtimeOpenAIVoice</span>，10 个音色，<span class="api">instructions</span> 字段原文：“The instructions could guide the output audio if OpenAI voices are used but <strong>may not apply to Azure voices</strong>”）；官方四分法“OpenAI voices, Azure custom voices, Azure standard voices, and Azure personal voices”；<strong>转录层语义</strong>（转录在 buffer commit 后开始、异步走 <span class="api">/audio/transcriptions</span>、应视为 guidance 而非模型实际所听 —— 同一 API reference 页两处描述）</td>
 </tr>
 <tr>
   <td>⚠️ 推断</td>
@@ -607,7 +620,7 @@ Token 换算速率：Azure OpenAI 约 <strong>10 / 20</strong>，Phi SLM 约 <st
 </tr>
 <tr>
   <td>❓ 未知</td>
-  <td><span class="api">azure-realtime</span> · <span class="api">gpt-realtime-1.5</span> · <span class="api">gpt-5.1</span>~<span class="api">gpt-5.4</span> 的计费档位；<span class="api">gpt-5-chat</span> 与 <span class="api">gpt-5.x-chat</span> 的对应关系</td>
+  <td><span class="api">azure-realtime</span> · <span class="api">gpt-realtime-1.5</span> · <span class="api">gpt-5.1</span>~<span class="api">gpt-5.4</span> 的计费档位；<span class="api">gpt-5-chat</span> 与 <span class="api">gpt-5.x-chat</span> 的对应关系；<strong>各转录模型是否都发送 <span class="api">conversation.item.input_audio_transcription.delta</span>、以及 partial 的实际粒度</strong> —— 官方定义该事件为“provides partial transcription results”但<strong>未逐模型说明</strong>，需实测 WebSocket 事件流确认</td>
 </tr>
 </tbody>
 </table>

@@ -32,6 +32,23 @@
 - **`instructions` 只对 OpenAI voice 生效**。官方原文：*"The instructions could guide the output audio if OpenAI voices are used but may not apply to Azure voices."* 因为原生发声时，**语音本身就是推理的一部分**。
 - **换成 Azure 自定义音色会增加延迟** —— 端到端链路被打断，插入了真实的合成环节。
 
+## 转录不是前置的流式 ASR
+
+第二个容易看错的地方。`input_audio_transcription` **整层、不分模型**，都在**音频 buffer 被 commit 之后**异步跑，属于旁路。官方原文：
+
+> "**Transcription begins when the input audio buffer is committed** by the client or server (in `server_vad` mode). Transcription runs asynchronously with response creation, so this event can come before or after the response events."
+
+> "Input audio transcription **isn't native to the model**, since the model consumes audio directly. Transcription runs asynchronously through the `/audio/transcriptions` endpoint and should be treated as **guidance** of input audio content rather than precisely what the model heard."
+
+所以真正的分界不是“谁流式”，而是**转录在不在语音理解路径上**：
+
+| 组合 | 转录的角色 |
+|---|---|
+| `azure-speech` + 纯文本 LLM | **在路径上** —— 模型只能吃文字，转录是必经环节 |
+| `gpt-4o-transcribe` + `gpt-realtime` | **不在路径上** —— 模型直接吃音频，转录只是留一份文字记录 |
+
+**工程影响：**Cascade 链路拿不到传统流式 ASR 意义上的 *first partial*。凡是按“ASR 首字延迟”拆解端到端延迟的指标定义，都要按这个语义重写。
+
 ---
 
 ## 一、全组件总表
@@ -40,7 +57,7 @@
 
 | 展示名 | **API 实际值** | 关键约束 |
 |---|---|---|
-| **Azure-Speech-STT** | `azure-speech` | **默认自动激活**。**唯一**支持 Phrase List + Custom Speech（最多 10 个 locale） |
+| **Azure-Speech-STT** | `azure-speech` | **默认自动激活**。**唯一**支持 Phrase List + Custom Speech（最多 10 个 locale）。转录在 buffer commit 后产生，不是流式前置 ASR |
 | MAI-Transcribe-STT | `mai-transcribe` | 微软 preview；可配全部非多模态模型 |
 | OpenAI-Whisper-STT | `whisper-1` | **仅配 `gpt-realtime*`**；不支持 Phrase List |
 | OpenAI-GPT4o-STT | `gpt-4o-transcribe` | 同上；可用 `prompt` 引导术语 |
@@ -104,7 +121,11 @@
 | OpenAI-Whisper-STT | ❌ | ✅ 旁路 | ❌ | ❌ |
 | OpenAI-GPT4o-STT 三兄弟 | ❌ | ✅ 旁路 | ❌ | ❌ |
 
-**旁路** = Realtime 模型自带耳朵，这里配转录模型只是额外产出一份文字记录，不改变语音理解路径。多模态模型（含 `phi4-mm-realtime`）不接外部 STT。
+**旁路**不是说这两格机制特殊，而是说**下游模型能直接吃音频**：Realtime 模型自带耳朵，这里配转录模型只是额外产出一份文字记录。
+
+注意 `input_audio_transcription` 这一层**所有模型（含 `azure-speech`）都在 buffer commit 之后转录**，机制相同。区别只在于**转录在不在理解路径上**：配纯文本 LLM 时是必经环节，配多模态模型时只是记账。
+
+多模态模型 `gpt-realtime*` / `azure-realtime` / `phi4-mm-realtime` 音频直接进模型，其中后两者不接外部转录模型。
 
 ## 五、五种典型链路
 
@@ -185,10 +206,10 @@ Token 换算速率：Azure OpenAI 约 **10 / 20**；Phi SLM 约 **12.5 / 20**（
 | 等级 | 内容 |
 |---|---|
 | ✅✅ | STT × 模型兼容矩阵；Phrase List 不支持 `whisper-1` / `gpt-4o-transcribe` / `-mini-transcribe` / `-transcribe-diarize`；Custom Speech 仅支持 `azure-speech`；`azure-standard` 与 `azure-custom` 的参数结构；MAI-Voice-2-Flash 及其 4 个中文音色（`zh-CN-Bo` / `Lan` / `Mei` / `Wei`） |
-| ✅ | ② 层模型清单；Phi 的 SLM 定位；`azure-realtime` 的 30 个音色与默认 `ava`；`azure-personal`；`avatar-voice-sync`；`RealtimeOpenAIVoice` 完整定义（含 `instructions` 字段）；官方四分法 *"OpenAI voices, Azure custom voices, Azure standard voices, and Azure personal voices"* |
+| ✅ | ② 层模型清单；Phi 的 SLM 定位；`azure-realtime` 的 30 个音色与默认 `ava`；`azure-personal`；`avatar-voice-sync`；`RealtimeOpenAIVoice` 完整定义（含 `instructions` 字段）；官方四分法 *"OpenAI voices, Azure custom voices, Azure standard voices, and Azure personal voices"*；**转录层语义** —— 转录在 buffer commit 后开始、异步走 `/audio/transcriptions`、应视为 guidance 而非模型实际所听（同一 API reference 页两处描述） |
 | ⚠️ | **`phi4-mm-realtime` 不能原生出声** —— 依据是官方缺少 *"option to use"* 字样，加上计费 Scenario 4 把它的原生音频与 Azure Speech Custom 输出**分开计费**。微软没有用一句话明确说过这件事。 |
 | ⚠️ | 计费档位与 token 换算速率 —— 单一官方页面，未交叉验证 |
-| ❓ | `azure-realtime`、`gpt-realtime-1.5`、`gpt-5.1`–`gpt-5.4` 的计费档位；计费页的通用名 `gpt-5-chat` 与模型清单的 `gpt-5.1-chat` / `5.2-chat` / `5.3-chat` 是否一一对应 —— **正式报价前必须确认** |
+| ❓ | `azure-realtime`、`gpt-realtime-1.5`、`gpt-5.1`–`gpt-5.4` 的计费档位；计费页的通用名 `gpt-5-chat` 与模型清单的 `gpt-5.1-chat` / `5.2-chat` / `5.3-chat` 是否一一对应 —— **正式报价前必须确认**；**各转录模型是否都发送 `conversation.item.input_audio_transcription.delta`、以及 partial 的实际粒度** —— 官方将该事件定义为 *"provides partial transcription results"* 但**未逐模型说明**，需实测 WebSocket 事件流确认 |
 
 ## 适用范围与限制
 

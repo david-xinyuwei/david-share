@@ -32,6 +32,23 @@ This single fact explains two behaviours that otherwise look arbitrary:
 - **`instructions` steers output audio only for OpenAI voices.** Official wording: *"The instructions could guide the output audio if OpenAI voices are used but may not apply to Azure voices."* With a native voice, speech **is** part of the inference.
 - **Switching to an Azure custom voice adds latency** — it breaks the end-to-end path and inserts a real synthesis stage.
 
+## Transcription is not a streaming ASR front-end
+
+The second thing that trips people up. The entire `input_audio_transcription` layer — **regardless of model** — runs **after the audio buffer is committed**, asynchronously, as a side-channel. Official wording:
+
+> "**Transcription begins when the input audio buffer is committed** by the client or server (in `server_vad` mode). Transcription runs asynchronously with response creation, so this event can come before or after the response events."
+
+> "Input audio transcription **isn't native to the model**, since the model consumes audio directly. Transcription runs asynchronously through the `/audio/transcriptions` endpoint and should be treated as **guidance** of input audio content rather than precisely what the model heard."
+
+So the real dividing line is not *which model streams* — it is **whether transcription sits on the speech-understanding path**:
+
+| Combination | Role of transcription |
+|---|---|
+| `azure-speech` + text-only LLM | **On the path** — the model can only consume text, so transcription is mandatory |
+| `gpt-4o-transcribe` + `gpt-realtime` | **Off the path** — the model consumes audio directly; transcription is only a text record |
+
+**Engineering consequence:** a Cascade pipeline does **not** hand you a traditional streaming-ASR *first partial*. Any latency budget that decomposes end-to-end time by "ASR first-token latency" has to be redefined against this semantics.
+
 ---
 
 ## 1. Full component table
@@ -40,7 +57,7 @@ This single fact explains two behaviours that otherwise look arbitrary:
 
 | Display name | **API literal** | Constraints |
 |---|---|---|
-| **Azure-Speech-STT** | `azure-speech` | **On by default.** The **only** model supporting Phrase List + Custom Speech (max 10 locales) |
+| **Azure-Speech-STT** | `azure-speech` | **On by default.** The **only** model supporting Phrase List + Custom Speech (max 10 locales). Transcript is produced after buffer commit, not as a streaming front-end |
 | MAI-Transcribe-STT | `mai-transcribe` | Microsoft preview; pairs with all non-multimodal models |
 | OpenAI-Whisper-STT | `whisper-1` | **Only with `gpt-realtime*`**; no Phrase List |
 | OpenAI-GPT4o-STT | `gpt-4o-transcribe` | Same; supports `prompt` for terminology hints |
@@ -104,7 +121,11 @@ This single fact explains two behaviours that otherwise look arbitrary:
 | OpenAI-Whisper-STT | ❌ | ✅ side-channel | ❌ | ❌ |
 | OpenAI-GPT4o-STT ×3 | ❌ | ✅ side-channel | ❌ | ❌ |
 
-**Side-channel** = the Realtime model already hears; the transcription model only produces an extra text record. Multimodal models (including `phi4-mm-realtime`) do not take an external STT.
+**Side-channel** does not mean these two cells are mechanically special — it means the **downstream model can consume audio directly**: the Realtime model already hears, so a transcription model here only produces an extra text record.
+
+Note that **every** model in the `input_audio_transcription` layer (including `azure-speech`) transcribes after buffer commit — the mechanism is identical. The only difference is **whether transcription sits on the understanding path**: mandatory with a text-only LLM, bookkeeping with a multimodal model.
+
+Multimodal models `gpt-realtime*` / `azure-realtime` / `phi4-mm-realtime` consume audio directly; the latter two take no external transcription model.
 
 ## 5. Five reference pipelines
 
@@ -185,10 +206,10 @@ Token conversion: Azure OpenAI ≈ **10 / 20**; Phi SLM ≈ **12.5 / 20** (input
 | Grade | Content |
 |---|---|
 | ✅✅ | STT × model compatibility; Phrase List unsupported for `whisper-1` / `gpt-4o-transcribe` / `-mini-transcribe` / `-transcribe-diarize`; Custom Speech only on `azure-speech`; `azure-standard` and `azure-custom` parameter shapes; MAI-Voice-2-Flash and its 4 Chinese voices (`zh-CN-Bo` / `Lan` / `Mei` / `Wei`) |
-| ✅ | Layer ② model roster; Phi as SLM; `azure-realtime` 30 voices and default `ava`; `azure-personal`; `avatar-voice-sync`; full `RealtimeOpenAIVoice` definition incl. the `instructions` field; the official four-way split *"OpenAI voices, Azure custom voices, Azure standard voices, and Azure personal voices"* |
+| ✅ | Layer ② model roster; Phi as SLM; `azure-realtime` 30 voices and default `ava`; `azure-personal`; `avatar-voice-sync`; full `RealtimeOpenAIVoice` definition incl. the `instructions` field; the official four-way split *"OpenAI voices, Azure custom voices, Azure standard voices, and Azure personal voices"*; **transcription-layer semantics** — starts after buffer commit, runs async via `/audio/transcriptions`, to be treated as guidance rather than what the model heard (two passages on the same API reference page) |
 | ⚠️ | **`phi4-mm-realtime` cannot speak natively** — inferred from the missing *"option to use"* wording plus the billing scenario metering its native audio and Azure Speech Custom output **separately**. Not stated by Microsoft in one explicit sentence. |
 | ⚠️ | Billing tiers and token rates — single official page, not cross-verified |
-| ❓ | Billing tier for `azure-realtime`, `gpt-realtime-1.5`, `gpt-5.1`–`gpt-5.4`; whether pricing-page `gpt-5-chat` maps 1:1 to roster `gpt-5.1-chat` / `5.2-chat` / `5.3-chat` — **confirm before quoting a price** |
+| ❓ | Billing tier for `azure-realtime`, `gpt-realtime-1.5`, `gpt-5.1`–`gpt-5.4`; whether pricing-page `gpt-5-chat` maps 1:1 to roster `gpt-5.1-chat` / `5.2-chat` / `5.3-chat` — **confirm before quoting a price**; **whether every transcription model emits `conversation.item.input_audio_transcription.delta`, and the real partial granularity** — the event is officially defined as *"provides partial transcription results"* but is **not documented per model**; needs a WebSocket event-stream test |
 
 ## Scope and limitations
 
