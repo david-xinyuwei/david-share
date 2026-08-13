@@ -40,6 +40,16 @@ Custom Code Training 面向标准托管 fine-tuning 默认能力之外的代码�
 
 这里展示的是一套已验证配置，不是跨 SKU 性能对比。指标趋势按原始数据呈现，不用单次短运行外推质量提升或收敛结论。需要审计细节的读者，可在 [`docs/method-and-lineage.md`](docs/method-and-lineage.md) 查看文件哈希、运行时差异与证据链路。
 
+### Code workbench 总览
+
+<div align="center"><img src="images/portal-code-workbench-overview.png" width="960"/></div>
+
+**Train → Code workbench** 将常驻 workbench、可复用模板和托管计算集群集中在同一个入口。Workbenches 页签是开发和运行自定义训练代码的起点。
+
+<div align="center"><img src="images/portal-code-workbench-templates.png" width="960"/></div>
+
+Templates 页签提供三条产品路径：**Quickstart**、**VERL** 和 **SLIME**。这两张总览图先交代产品入口，再进入下文的启动方式和作业细节。
+
 ### 两个入口
 
 <div align="center"><img src="images/portal-start-training-entry-points.png" width="440"/></div>
@@ -50,11 +60,7 @@ Custom Code Training 面向标准托管 fine-tuning 默认能力之外的代码�
 
 <div align="center"><img src="images/portal-new-workbench-templates.png" width="720"/></div>
 
-下拉里除 Quickstart 外给了两个强化学习选项：**VERL** 和 **SLIME**。同样三个在 Code workbench 里以卡片形式出现：
-
-<div align="center"><img src="images/portal-code-workbench-templates.png" width="960"/></div>
-
-本文走 **VERL**。SLIME notebook 面向多节点拓扑，不在本次单节点验证范围内。
+创建 workbench 时可以选择同一组 Quickstart、VERL 和 SLIME 路径。本文采用 **VERL**；SLIME notebook 面向多节点拓扑，不在本次单节点验证范围内。
 
 ### Idle shutdown 是产品自带的
 

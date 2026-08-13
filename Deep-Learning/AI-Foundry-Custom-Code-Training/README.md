@@ -49,6 +49,19 @@ Metric trends are reported without treating a single short run as a quality or c
 claim. File hashes, runtime differences and evidence lineage remain available in
 [`docs/method-and-lineage.md`](docs/method-and-lineage.md) for readers who need audit detail.
 
+### Code workbench at a glance
+
+<div align="center"><img src="images/portal-code-workbench-overview.png" width="960"/></div>
+
+The **Train → Code workbench** surface brings persistent workbenches, reusable templates
+and managed compute clusters into one place. The Workbenches tab is the starting point for
+developing and running custom training code.
+
+<div align="center"><img src="images/portal-code-workbench-templates.png" width="960"/></div>
+
+The Templates tab exposes three first-class paths: **Quickstart**, **VERL** and **SLIME**.
+They establish the product context before the entry modes and job details shown below.
+
 ### Two ways in
 
 <div align="center"><img src="images/portal-start-training-entry-points.png" width="440"/></div>
@@ -61,13 +74,9 @@ against a job definition, for simple runs. Everything below uses the first.
 
 <div align="center"><img src="images/portal-new-workbench-templates.png" width="720"/></div>
 
-The template dropdown offers a Quickstart plus two reinforcement-learning options,
-**VERL** and **SLIME**. The same three appear as cards in the Code workbench:
-
-<div align="center"><img src="images/portal-code-workbench-templates.png" width="960"/></div>
-
-This repo takes the **VERL** template. The SLIME notebook targets a multi-node topology and
-is outside this single-node validation scope.
+The workbench creation dialog exposes the same Quickstart, VERL and SLIME paths. This repo
+takes the **VERL** template. The SLIME notebook targets a multi-node topology and is outside
+this single-node validation scope.
 
 ### Idle shutdown is part of the product
 

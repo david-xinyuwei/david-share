@@ -153,6 +153,13 @@ def main() -> int:
             require("TotalDedicatedCores" in text, f"{name} lacks regional quota gate")
             require("compute-quota.jsonl" in text, f"{name} lacks quota evidence link")
             require("018d095f508280efce9e79c4b19fc941d7361b30" in text, f"{name} lacks measured lineage")
+            overview_position = text.find("portal-code-workbench-overview.png")
+            templates_position = text.find("portal-code-workbench-templates.png")
+            entry_position = text.find("portal-start-training-entry-points.png")
+            require(
+                0 <= overview_position < templates_position < entry_position,
+                f"{name} does not place the Code workbench overview before existing screenshots",
+            )
 
         metrics = [
             json.loads(line)
@@ -257,7 +264,7 @@ def main() -> int:
                 )
 
         images = sorted((ROOT / "images").glob("*.png"))
-        require(len(images) >= 12, "expected at least 12 product screenshots")
+        require(len(images) >= 13, "expected at least 13 product screenshots")
         for image in images:
             width, height = png_size(image)
             require(width >= 400 and height >= 280, f"image too small: {image.name} {width}x{height}")
