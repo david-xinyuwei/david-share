@@ -6,6 +6,7 @@
 {"path":"code/retail_db.json","bytes":24619,"sha256":"311e84f45a03f3707c7b8fe410a338564767fa3ba8d329e980f4c52dbbba44e3"}
 {"path":"code/retail_grader_rft_tools_v3.py","bytes":26079,"sha256":"a298bce3de3bcf6f9b52747c08de7130214eb506f76ec601ea9c9c94f7b05fdb"}
 {"path":"code/retail_toolcall_reward.py","bytes":4709,"sha256":"86284726df54071c16188952c888c06adbb86b4125e0cc20cb267a92dee2dd82"}
+{"path":"code/config/interaction_config/interaction_config_template.yaml","bytes":234,"sha256":"5c701cc09823073f3708893e4b5b17ff2614a5720f84afde5b95d9464d31c3aa"}
 {"path":"code/config/tool_config/tool_config_template.yaml","bytes":5444,"sha256":"8ca14526300036332bab94d39650dec00081b37703c8eeb82e4f013e98321f64"}
 {"path":"data/train.jsonl","bytes":863163,"sha256":"b1329f6b419617285c9cefe93f40e7015a6534196745b3f1568ddd2ce83885a1","records":270}
 {"path":"data/validation.jsonl","bytes":196329,"sha256":"6a587a65d2d29e4e40753488d4b25fc5c85aa41a15a5f99130f3000e7f874d59","records":62}

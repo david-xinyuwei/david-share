@@ -110,6 +110,48 @@ def test_rejects_unreplaced_placeholder(config):
         validate_config(config)
 
 
+@pytest.mark.parametrize(
+    "endpoint",
+    [
+        "http://account.services.ai.azure.com/api/projects/project",
+        "https://evil.example/api/projects/project",
+        "https://account.services.ai.azure.com@evil.example/api/projects/project",
+        "https://account.services.ai.azure.com:443/api/projects/project",
+        "https://ACCOUNT.services.ai.azure.com/api/projects/project",
+        "https://account.services.ai.azure.com/api/projects/project/extra",
+        "https://account.services.ai.azure.com/api/projects/project?target=other",
+        "https://account.services.ai.azure.com/api/projects/project#fragment",
+        "https://account.services.ai.azure.com/api/projects/project%2Fextra",
+        "https://account.services.ai.azure.com/api/projects/project%3Ftarget",
+        "https://account.services.ai.azure.com/api/projects/project%23fragment",
+    ],
+)
+def test_rejects_non_foundry_project_endpoint(config, endpoint):
+    config["projectEndpoint"] = endpoint
+    with pytest.raises(ContractError, match="HTTPS Foundry project endpoint"):
+        validate_config(config)
+
+
+def test_schema_and_runtime_accept_exact_foundry_project_endpoint(config):
+    endpoint = "https://account-01.services.ai.azure.com/api/projects/project_name"
+    config["projectEndpoint"] = endpoint
+    validate_config(config)
+    schema_path = Path(__file__).resolve().parents[1] / "configs/foundry-job.schema.json"
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    endpoint_schema = schema["properties"]["projectEndpoint"]
+    assert sum(bool(re.search(rule["pattern"], endpoint)) for rule in endpoint_schema["oneOf"]) == 1
+
+
+def test_schema_and_example_mode_accept_exact_endpoint_placeholders(config):
+    endpoint = "https://<account>.services.ai.azure.com/api/projects/<project>"
+    config["projectEndpoint"] = endpoint
+    validate_config(config, allow_placeholders=True)
+    schema_path = Path(__file__).resolve().parents[1] / "configs/foundry-job.schema.json"
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    endpoint_schema = schema["properties"]["projectEndpoint"]
+    assert sum(bool(re.search(rule["pattern"], endpoint)) for rule in endpoint_schema["oneOf"]) == 1
+
+
 def test_example_mode_allows_placeholders_but_still_checks_shape(config):
     config["computeId"] = "/subscriptions/<sub>/resourcegroups/<rg>/providers/Microsoft.CognitiveServices/accounts/<account>/computes/<compute>"
     validate_config(config, allow_placeholders=True)
@@ -128,6 +170,57 @@ def test_rejects_mutable_latest_image(config):
     config["environmentImage"] = "registry.example/verl-rft:latest"
     with pytest.raises(ContractError, match="must not use"):
         validate_config(config)
+
+
+@pytest.mark.parametrize(
+    "image",
+    [
+        "registry.example/verl-rft@sha256:not-a-digest",
+        "registry.example/verl-rft@sha256:ABCDEF",
+        "registry.example/verl-rft@sha256:" + "a" * 63,
+        "registry.example/verl-rft@other:tag",
+    ],
+)
+def test_rejects_malformed_image_digest(config, image):
+    config["environmentImage"] = image
+    with pytest.raises(ContractError, match="64 lowercase hex"):
+        validate_config(config)
+
+
+def schema_accepts_image(image: str) -> bool:
+    schema_path = Path(__file__).resolve().parents[1] / "configs/foundry-job.schema.json"
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    image_schema = schema["properties"]["environmentImage"]
+    matches = sum(bool(re.search(rule["pattern"], image)) for rule in image_schema["oneOf"])
+    rejected = bool(re.search(image_schema["not"]["pattern"], image))
+    return matches == 1 and not rejected
+
+
+@pytest.mark.parametrize(
+    "image",
+    [
+        "registry.example/verl-rft:verified",
+        "registry.example:5000/team/verl-rft:verified",
+        "registry.example/verl-rft@sha256:" + "a" * 64,
+        "registry.example/verl-rft:verified@sha256:" + "b" * 64,
+    ],
+)
+def test_schema_accepts_pinned_image_reference(image):
+    assert schema_accepts_image(image)
+
+
+@pytest.mark.parametrize(
+    "image",
+    [
+        "registry.example/verl-rft:latest",
+        "registry.example/verl-rft@sha256:not-a-digest",
+        "registry.example/verl-rft@sha256:" + "a" * 63,
+        "registry.example/verl-rft@other:tag",
+        "registry.example/verl-rft",
+    ],
+)
+def test_schema_rejects_unpinned_or_malformed_image_reference(image):
+    assert not schema_accepts_image(image)
 
 
 def test_rejects_unsupported_sku(config):

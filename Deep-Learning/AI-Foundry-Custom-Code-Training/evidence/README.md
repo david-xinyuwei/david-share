@@ -14,7 +14,7 @@ product sample or Microsoft Learn; derived values are marked where they appear.
 | `run-timeline.md` | Per attempt across the whole investigation: what changed, how long the container ran, where it died. |
 | `image-build.json` | Base image and compatibility-layer identities, package versions, build gates and layer digests. |
 | `sdk-demo-runs.jsonl` | Sanitized terminal state, duration, topology and output records for the three completed SDK demos. |
-| `input-manifest.jsonl` | The 11 runtime-critical product-sample files, with bytes and SHA-256; dataset rows also record 270/62 counts. |
+| `input-manifest.jsonl` | All 12 files in the uploaded product-sample tree, with bytes and SHA-256; dataset rows also record 270/62 counts. |
 | `compute-quota.jsonl` | Sanitized live quota observation for the tested NC96ads A100 topology; subscription and resource identifiers removed. |
 
 The steady-state table in the README is **generated** from `training-metrics.jsonl` by

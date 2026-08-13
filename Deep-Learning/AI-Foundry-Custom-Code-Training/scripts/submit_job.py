@@ -14,6 +14,8 @@ import argparse
 import json
 import os
 import secrets
+import sys
+import tempfile
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -27,7 +29,13 @@ from job_contract import (
     validate_overrides,
     validate_sample_layout,
 )
-from preflight import DEFAULT_INPUT_MANIFEST, build_preflight_report, write_json_atomic
+from preflight import (
+    DEFAULT_INPUT_MANIFEST,
+    build_preflight_report,
+    create_upload_snapshot,
+    require_upload_tree_unchanged,
+    write_json_atomic,
+)
 
 # Copied from the access-controlled product notebook pinned in job_contract.py. It selects
 # the product's preview bootstrapper; it is not a customer registry or credential.
@@ -76,12 +84,32 @@ def _sdk_imports() -> dict[str, Any]:
 
 
 def make_credential(sdk: dict[str, Any], mode: str, tenant_id: str | None) -> Any:
+    if tenant_id and mode != "azure-cli":
+        raise ContractError("--tenant-id requires --credential azure-cli")
     if mode == "azure-cli":
         kwargs: dict[str, Any] = {"process_timeout": 120}
         if tenant_id:
             kwargs["tenant_id"] = tenant_id
         return sdk["AzureCliCredential"](**kwargs)
     return sdk["DefaultAzureCredential"]()
+
+
+def close_resources(client: Any, credential: Any) -> list[str]:
+    warnings: list[str] = []
+    if client is not None:
+        try:
+            client.close()
+        except Exception as error:
+            warnings.append(f"client.close failed: {type(error).__name__}: {error}")
+    close = getattr(credential, "close", None)
+    if callable(close):
+        try:
+            close()
+        except Exception as error:
+            warnings.append(f"credential.close failed: {type(error).__name__}: {error}")
+    for warning in warnings:
+        print(f"CLEANUP_WARNING: {warning}", file=sys.stderr)
+    return warnings
 
 
 def sdk_job_from_contract(sdk: dict[str, Any], config: dict[str, Any], contract: Contract) -> Any:
@@ -129,6 +157,8 @@ def main() -> int:
     overrides_path = args.overrides.resolve()
     sample_dir = args.sample_dir.resolve()
     try:
+        if args.tenant_id and args.credential != "azure-cli":
+            raise ContractError("--tenant-id requires --credential azure-cli")
         report = build_preflight_report(
             config_path,
             overrides_path,
@@ -147,84 +177,189 @@ def main() -> int:
         print(json.dumps(report, indent=2))
         return 0
 
-    sdk = _sdk_imports()
-    credential = make_credential(sdk, args.credential, args.tenant_id)
-    client = sdk["AIProjectClient"](endpoint=config["projectEndpoint"], credential=credential)
-    evidence: dict[str, Any] = {
-        "startedAt": datetime.now(UTC).isoformat(),
-        "action": args.action,
-        "preflight": report,
-        "status": "STARTED",
-    }
+    with tempfile.TemporaryDirectory(prefix="cct-upload-") as temporary:
+        try:
+            snapshot_root = Path(temporary)
+            snapshot_dir = create_upload_snapshot(sample_dir, snapshot_root / "sample")
+            snapshot_config = snapshot_root / "config.json"
+            snapshot_overrides = snapshot_root / "overrides.json"
+            snapshot_manifest = snapshot_root / "input-manifest.jsonl"
+            snapshot_config.write_bytes(config_path.read_bytes())
+            snapshot_overrides.write_bytes(overrides_path.read_bytes())
+            snapshot_manifest.write_bytes(args.expected_input_manifest.resolve().read_bytes())
+            report = build_preflight_report(
+                snapshot_config,
+                snapshot_overrides,
+                snapshot_dir,
+                allow_placeholders=False,
+                expected_input_manifest=snapshot_manifest,
+            )
+            config = load_json_object(snapshot_config)
+            overrides = validate_overrides(load_json_object(snapshot_overrides))
+        except (ContractError, OSError) as error:
+            print(f"SUBMIT_FAIL: {error}")
+            return 1
+        report["config"]["sourcePath"] = str(config_path)
+        report["overrides"]["sourcePath"] = str(overrides_path)
+        report["sample"]["sourceRoot"] = str(sample_dir)
+        report["sample"]["expectedInputManifest"]["sourcePath"] = str(
+            args.expected_input_manifest.resolve()
+        )
+        report["sample"]["snapshot"] = {
+            "ephemeral": True,
+            "removedAfterAction": True,
+        }
+        snapshot_inventory = report["sample"]["uploadInventory"]
 
-    try:
+        evidence: dict[str, Any] = {
+            "startedAt": datetime.now(UTC).isoformat(),
+            "action": args.action,
+            "preflight": report,
+            "status": "STARTED",
+        }
         version = str(int(time.time() * 1000))
-        code_dataset = client.datasets.upload_folder(
-            name=str(config.get("codeDatasetName", "verl-retail-code")),
-            version=version,
-            folder=str(sample_dir / "code"),
-            connection_name=config["storageConnectionName"],
-        )
-        data_dataset = client.datasets.upload_folder(
-            name=str(config.get("dataDatasetName", "verl-retail-data")),
-            version=version,
-            folder=str(sample_dir / "data"),
-            connection_name=config["storageConnectionName"],
-        )
+        code_name = str(config.get("codeDatasetName", "verl-retail-code"))
+        data_name = str(config.get("dataDatasetName", "verl-retail-data"))
         evidence["datasets"] = {
             "version": version,
-            "code": code_dataset.id,
-            "data": data_dataset.id,
+            "code": None,
+            "data": None,
+            "uploads": {
+                "code": {"name": code_name, "version": version, "status": "PENDING"},
+                "data": {"name": data_name, "version": version, "status": "PENDING"},
+            },
+            "failurePolicy": {
+                "automaticDeletion": False,
+                "reason": "Retain uploaded versions for diagnosis; verify references before deletion",
+            },
         }
+        write_json_atomic(args.evidence, evidence)
 
-        suffix = secrets.token_hex(3)
-        contract = build_contract(
-            config,
-            overrides,
-            code_uri=code_dataset.id,
-            data_uri=data_dataset.id,
-            suffix=suffix,
-        )
-        job = sdk_job_from_contract(sdk, config, contract)
-        client.beta.jobs.validate(job).try_raise()
-        evidence["offlineValidate"] = {
-            "passed": True,
-            "capturedAt": datetime.now(UTC).isoformat(),
-        }
-
-        if args.action == "validate":
-            evidence["status"] = "VALIDATED_NOT_SUBMITTED"
+        credential = None
+        client = None
+        try:
+            sdk = _sdk_imports()
+            credential = make_credential(sdk, args.credential, args.tenant_id)
+            client = sdk["AIProjectClient"](
+                endpoint=config["projectEndpoint"], credential=credential
+            )
+            require_upload_tree_unchanged(snapshot_dir, snapshot_inventory)
+            evidence["datasets"]["uploads"]["code"]["status"] = "UPLOADING"
             write_json_atomic(args.evidence, evidence)
-            print(json.dumps(evidence, indent=2, default=str))
-            return 0
+            code_dataset = client.datasets.upload_folder(
+                name=code_name,
+                version=version,
+                folder=str(snapshot_dir / "code"),
+                connection_name=config["storageConnectionName"],
+            )
+            evidence["datasets"]["code"] = code_dataset.id
+            evidence["datasets"]["uploads"]["code"].update(
+                {"status": "UPLOADED", "id": code_dataset.id}
+            )
+            write_json_atomic(args.evidence, evidence)
 
-        job_name = f"{config.get('jobPrefix', 'verl-retail-grpo')}-{secrets.token_hex(2)}"
-        created = client.beta.jobs.create_or_update(name=job_name, job=job)
-        evidence["submission"] = {
-            "name": created.name,
-            "id": created.id,
-            "status": getattr(created, "status", None),
-            "portalUrl": getattr(created, "foundry_portal_url", None),
-            "submittedAt": datetime.now(UTC).isoformat(),
-        }
-        evidence["status"] = "SUBMITTED"
-        write_json_atomic(args.evidence, evidence)
-        print(json.dumps(evidence["submission"], indent=2, default=str))
-        return 0
-    except Exception as error:
-        evidence["status"] = "FAILED"
-        evidence["error"] = {
-            "type": type(error).__name__,
-            "message": str(error),
-            "capturedAt": datetime.now(UTC).isoformat(),
-        }
-        write_json_atomic(args.evidence, evidence)
-        raise
-    finally:
-        client.close()
-        close = getattr(credential, "close", None)
-        if callable(close):
-            close()
+            require_upload_tree_unchanged(snapshot_dir, snapshot_inventory)
+            evidence["datasets"]["uploads"]["data"]["status"] = "UPLOADING"
+            write_json_atomic(args.evidence, evidence)
+            data_dataset = client.datasets.upload_folder(
+                name=data_name,
+                version=version,
+                folder=str(snapshot_dir / "data"),
+                connection_name=config["storageConnectionName"],
+            )
+            evidence["datasets"]["data"] = data_dataset.id
+            evidence["datasets"]["uploads"]["data"].update(
+                {"status": "UPLOADED", "id": data_dataset.id}
+            )
+            write_json_atomic(args.evidence, evidence)
+            require_upload_tree_unchanged(snapshot_dir, snapshot_inventory)
+
+            suffix = secrets.token_hex(3)
+            contract = build_contract(
+                config,
+                overrides,
+                code_uri=code_dataset.id,
+                data_uri=data_dataset.id,
+                suffix=suffix,
+            )
+            job = sdk_job_from_contract(sdk, config, contract)
+            client.beta.jobs.validate(job).try_raise()
+            evidence["offlineValidate"] = {
+                "passed": True,
+                "capturedAt": datetime.now(UTC).isoformat(),
+            }
+
+            if args.action == "validate":
+                evidence["status"] = "VALIDATED_NOT_SUBMITTED"
+                write_json_atomic(args.evidence, evidence)
+                print(json.dumps(evidence, indent=2, default=str))
+                return 0
+
+            job_name = f"{config.get('jobPrefix', 'verl-retail-grpo')}-{secrets.token_hex(2)}"
+            evidence["submission"] = {
+                "name": job_name,
+                "requestStatus": "SUBMITTING",
+                "requestedAt": datetime.now(UTC).isoformat(),
+            }
+            write_json_atomic(args.evidence, evidence)
+            created = client.beta.jobs.create_or_update(name=job_name, job=job)
+            evidence["submission"].update(
+                {
+                    "name": created.name,
+                    "id": created.id,
+                    "requestStatus": "ACCEPTED",
+                    "status": getattr(created, "status", None),
+                    "portalUrl": getattr(created, "foundry_portal_url", None),
+                    "submittedAt": datetime.now(UTC).isoformat(),
+                }
+            )
+            evidence["status"] = "SUBMITTED"
+            write_json_atomic(args.evidence, evidence)
+            print(json.dumps(evidence["submission"], indent=2, default=str))
+            return 0
+        except Exception as error:
+            evidence["status"] = "FAILED"
+            evidence["error"] = {
+                "type": type(error).__name__,
+                "message": str(error),
+                "capturedAt": datetime.now(UTC).isoformat(),
+            }
+            potentially_created = [
+                upload
+                for upload in evidence["datasets"]["uploads"].values()
+                if upload["status"] in {"UPLOADING", "UPLOADED"}
+            ]
+            evidence["recovery"] = {
+                "potentiallyCreatedDatasetVersions": potentially_created,
+                "nextAction": (
+                    "Query each listed name/version, then inspect job references before choosing reuse "
+                    "or client.datasets.delete(name, version)"
+                ),
+            }
+            if evidence.get("submission", {}).get("requestStatus") == "SUBMITTING":
+                evidence["recovery"]["potentiallyCreatedJobs"] = [
+                    {
+                        "name": evidence["submission"]["name"],
+                        "status": "SUBMISSION_RESULT_UNKNOWN",
+                    }
+                ]
+                evidence["recovery"]["nextAction"] = (
+                    "Query the listed job name before retrying; then inspect dataset references "
+                    "before choosing reuse or client.datasets.delete(name, version)"
+                )
+            write_json_atomic(args.evidence, evidence)
+            raise
+        finally:
+            cleanup_warnings = close_resources(client, credential)
+            if cleanup_warnings:
+                evidence["cleanupWarnings"] = cleanup_warnings
+                try:
+                    write_json_atomic(args.evidence, evidence)
+                except OSError as error:
+                    print(
+                        f"CLEANUP_WARNING: cannot persist cleanup warnings: {error}",
+                        file=sys.stderr,
+                    )
 
 
 if __name__ == "__main__":

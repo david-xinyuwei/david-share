@@ -172,13 +172,13 @@ as the run finished.
 | Path | Contract |
 |---|---|
 | [`configs/`](configs/) | JSON Schema, fail-closed example config and the six measured runtime overrides |
-| [`scripts/preflight.py`](scripts/preflight.py) | Offline input/schema/hash gate; no Azure import and no side effects |
-| [`scripts/submit_job.py`](scripts/submit_job.py) | Separate `plan`, dataset-upload + SDK `validate`, and billable `submit` actions |
+| [`scripts/preflight.py`](scripts/preflight.py) | Offline schema/hash gate plus a complete `code/` and `data/` upload-tree inventory; no Azure import or side effects |
+| [`scripts/submit_job.py`](scripts/submit_job.py) | Runs cloud actions from an isolated run snapshot and records every dataset transition before SDK `validate` or billable `submit` |
 | [`scripts/job_status.py`](scripts/job_status.py) | One read-only job query; never opens a blocking log stream |
 | [`docker/Dockerfile`](docker/Dockerfile) | Consolidated CUDA-compatible image recipe with build-time compatibility gates |
 | [`patches/`](patches/) | Two idempotent, fail-closed source transforms plus read-back verification |
 | [`evidence/`](evidence/) | Raw structured metrics, validation passes, input/log hashes and image-build differential |
-| [`tests/`](tests/) | Patch, contract, JSONL, placeholder, SKU, image-tag and Hydra refusal tests |
+| [`tests/`](tests/) | Patch, contract, JSONL, snapshot isolation, partial-upload recovery, credential, SKU, image-tag and Hydra refusal tests |
 
 CI runs the public repository's test matrix on Python 3.11 and 3.12, verifies the SDK pins,
 compiles every Python source, runs the deterministic repository gate, and checks the
@@ -477,7 +477,7 @@ cp configs/foundry-job.example.json configs/foundry-job.local.json
 
 The measured lineage is fixed to commit `018d095f508280efce9e79c4b19fc941d7361b30`.
 If the preview repository has advanced or no longer exposes that object, use an authorized
-checkout and compare the 11 file hashes in
+checkout and compare the 12 file hashes in
 [`docs/method-and-lineage.md`](docs/method-and-lineage.md) before treating a new run as the
 same lineage. Without source access, the public tests and published evidence remain usable,
 but `plan`, `validate` and `submit` cannot reconstruct the training payload.
@@ -498,7 +498,7 @@ python scripts/submit_job.py --action plan \
     --sample-dir upstream-custom-code-training/code-samples/sdk/training/rft-with-verl
 ```
 
-Done-when is `PREFLIGHT_PASS`, 270 train and 62 validation records, 11 input hashes and a
+Done-when is `PREFLIGHT_PASS`, 270 train and 62 validation records, 12 input hashes and a
 rendered Ray `CommandJob`. The two commands above have `sideEffects: []`. The next gates are
 deliberately separate:
 
@@ -509,6 +509,17 @@ python scripts/submit_job.py --action validate <the same --config/--overrides/--
 # Requests GPU execution. Run only after checking quota, capacity and idle-shutdown policy.
 python scripts/submit_job.py --action submit <the same --config/--overrides/--sample-dir args>
 ```
+
+For either cloud action, the adapter first copies the config, overrides, expected manifest
+and complete `code/` / `data/` trees into one isolated run snapshot. The second preflight
+and both uploads read only that snapshot. The evidence file is written before the first
+cloud call and after every dataset transition (`PENDING` → `UPLOADING` → `UPLOADED`). If an
+upload, SDK validation or submission fails, it lists every potentially created dataset
+name/version for operator inspection; an uncertain submit also records the job name before
+the RPC, so the operator can query it before retrying. Dataset versions are retained by
+default because automatic deletion could remove an asset already referenced by another job.
+`--tenant-id` is accepted only with `--credential azure-cli`; `DefaultAzureCredential`
+remains available for managed identity, workload identity and service-principal environments.
 
 [`docs/reproduction.md`](docs/reproduction.md) contains the complete commands, image build,
 identity/RBAC requirements, monitor step and evidence extraction.
@@ -561,9 +572,10 @@ python scripts/validate_repo.py
 ```
 
 The suite covers indentation preservation, idempotency, valid Python output, dataset schema,
-mount/output shape, resource mapping and every refusal path: placeholders, unknown config
-keys, `:latest`, unsupported SKUs, missing payload files, absent NCCL SHM disablement and a
-Hydra `+` prefix that would otherwise create a legal but unused key.
+snapshot isolation, partial-upload evidence, credential constraints, mount/output shape,
+resource mapping and every refusal path: placeholders, unknown config keys, `:latest`,
+unsupported SKUs, missing payload files, absent NCCL SHM disablement and a Hydra `+` prefix
+that would otherwise create a legal but unused key.
 
 ---
 
@@ -596,7 +608,7 @@ UTF-16 and ordinary grep tooling silently reports zero matches on those files.
 | [`evidence/run-manifest.json`](evidence/run-manifest.json) | Source-log SHA-256, record count, which steps were captured |
 | [`evidence/image-build.json`](evidence/image-build.json) | Base/package versions, compatibility probe before/after, four layer digests |
 | [`evidence/sdk-demo-runs.jsonl`](evidence/sdk-demo-runs.jsonl) | Terminal state, duration, topology and outputs for Hello World, SFT and VERL GRPO |
-| [`evidence/input-manifest.jsonl`](evidence/input-manifest.jsonl) | Bytes and SHA-256 for all 11 runtime-critical sample files; 270/62 dataset counts |
+| [`evidence/input-manifest.jsonl`](evidence/input-manifest.jsonl) | Bytes and SHA-256 for all 12 files in the uploaded sample tree; 270/62 dataset counts |
 | [`evidence/compute-quota.jsonl`](evidence/compute-quota.jsonl) | Sanitized family/regional quota observation and node-capacity arithmetic |
 | [`evidence/run-timeline.md`](evidence/run-timeline.md) | Per compatibility attempt: what changed and which runtime stage was reached |
 

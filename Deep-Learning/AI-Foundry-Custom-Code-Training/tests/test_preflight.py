@@ -12,7 +12,13 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 from job_contract import ContractError, REQUIRED_SAMPLE_FILES  # noqa: E402
-from preflight import build_preflight_report, validate_jsonl  # noqa: E402
+from preflight import (  # noqa: E402
+    build_preflight_report,
+    create_upload_snapshot,
+    require_upload_tree_unchanged,
+    upload_tree_inventory,
+    validate_jsonl,
+)
 
 
 def valid_record() -> dict:
@@ -112,8 +118,82 @@ def test_preflight_is_offline_and_freezes_inputs(tmp_path):
     assert report["sideEffects"] == []
     assert report["datasets"]["train"]["records"] == 1
     assert len(report["sample"]["inventory"]) == len(REQUIRED_SAMPLE_FILES)
+    assert report["sample"]["uploadInventory"] == upload_tree_inventory(sample)
     assert report["contract"]["distribution"]["type"] == "Ray"
     assert report["contract"]["resources"]["instance_count"] == 1
+
+
+def test_upload_snapshot_is_isolated_and_inventories_every_file(tmp_path):
+    sample = tmp_path / "sample"
+    write_sample(sample)
+    extra = sample / "code/extra-runtime-file.txt"
+    extra.write_text("snapshot bytes\n", encoding="utf-8")
+
+    snapshot = create_upload_snapshot(sample, tmp_path / "snapshot")
+    expected = upload_tree_inventory(snapshot)
+    assert "code/extra-runtime-file.txt" in {row["path"] for row in expected}
+
+    extra.write_text("mutated source bytes\n", encoding="utf-8")
+    assert (snapshot / "code/extra-runtime-file.txt").read_text(encoding="utf-8") == (
+        "snapshot bytes\n"
+    )
+    require_upload_tree_unchanged(snapshot, expected)
+
+
+def test_expected_manifest_rejects_extra_upload_file(tmp_path):
+    sample = tmp_path / "sample"
+    write_sample(sample)
+    config_path, overrides_path = write_inputs(tmp_path)
+    manifest_path = tmp_path / "input-manifest.jsonl"
+    rows = []
+    for relative in REQUIRED_SAMPLE_FILES:
+        path = sample / relative
+        rows.append(
+            {
+                "path": relative,
+                "bytes": path.stat().st_size,
+                "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+            }
+        )
+    manifest_path.write_text(
+        "".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8"
+    )
+    (sample / "code/untracked-runtime.py").write_text("raise RuntimeError\n", encoding="utf-8")
+
+    with pytest.raises(ContractError, match="complete upload tree drift.*untracked-runtime.py"):
+        build_preflight_report(
+            config_path,
+            overrides_path,
+            sample,
+            allow_placeholders=False,
+            expected_input_manifest=manifest_path,
+        )
+
+
+def test_rejects_linked_upload_tree_root(tmp_path):
+    sample = tmp_path / "sample"
+    write_sample(sample)
+    external_code = tmp_path / "external-code"
+    (sample / "code").rename(external_code)
+    try:
+        (sample / "code").symlink_to(external_code, target_is_directory=True)
+    except OSError as error:
+        pytest.skip(f"directory symlink is unavailable: {error}")
+
+    with pytest.raises(ContractError, match="root must not be a link or reparse point"):
+        upload_tree_inventory(sample)
+
+
+def test_rejects_mutated_upload_snapshot(tmp_path):
+    sample = tmp_path / "sample"
+    write_sample(sample)
+    snapshot = create_upload_snapshot(sample, tmp_path / "snapshot")
+    expected = upload_tree_inventory(snapshot)
+
+    changed = snapshot / "code/retail_db.json"
+    changed.write_text("changed after preflight\n", encoding="utf-8")
+    with pytest.raises(ContractError, match="staged upload payload changed.*retail_db.json"):
+        require_upload_tree_unchanged(snapshot, expected)
 
 
 def test_rejects_input_drift_before_cloud_access(tmp_path):

@@ -128,13 +128,13 @@ Code 页按文件展示本次作业实际执行的内容，包括启动脚本、
 | 路径 | 契约 |
 |---|---|
 | [`configs/`](configs/) | JSON Schema、fail-closed 示例配置、6 个实测 runtime override |
-| [`scripts/preflight.py`](scripts/preflight.py) | 离线检查输入/schema/hash；不 import Azure，也无副作用 |
-| [`scripts/submit_job.py`](scripts/submit_job.py) | 分离 `plan`、上传 dataset + SDK `validate`、计费 `submit` 三个动作 |
+| [`scripts/preflight.py`](scripts/preflight.py) | 离线检查 schema/hash，并盘点完整 `code/`、`data/` 上传树；不 import Azure，也无副作用 |
+| [`scripts/submit_job.py`](scripts/submit_job.py) | 云端动作只读取隔离的运行快照；每个 dataset 状态变化都先落 evidence，再执行 SDK `validate` 或计费 `submit` |
 | [`scripts/job_status.py`](scripts/job_status.py) | 一次只读 job 查询，不打开会阻塞的 log stream |
 | [`docker/Dockerfile`](docker/Dockerfile) | 合并后的 CUDA 兼容镜像配方，内含 build-time compatibility gate |
 | [`patches/`](patches/) | 两个幂等、fail-closed 的源码转换和读回验证 |
 | [`evidence/`](evidence/) | 原始结构化指标、验证结果、输入/日志 hash、镜像 build differential |
-| [`tests/`](tests/) | patch、契约、JSONL、placeholder、SKU、image tag、Hydra 拒绝路径 |
+| [`tests/`](tests/) | patch、契约、JSONL、快照隔离、部分上传恢复、credential、SKU、image tag、Hydra 拒绝路径 |
 
 CI 在 Python 3.11/3.12 上运行这个 public repo 的测试矩阵，核对 SDK pin、编译全部 Python 源码、执行确定性 repository gate，并在不提交作业的前提下检查合并后的 Dockerfile。生产方 sample 有访问控制，因此 270/62 数据契约和冻结 hash 只在完成授权 checkout 后做本地验证，不由 public workflow 拉取。
 
@@ -357,7 +357,7 @@ git -C upstream-custom-code-training checkout --detach FETCH_HEAD
 cp configs/foundry-job.example.json configs/foundry-job.local.json
 ```
 
-本次实测证据链固定在 commit `018d095f508280efce9e79c4b19fc941d7361b30`。如果产品预览仓库已向前推进，或授权 checkout 中已无法读取该对象，应先将实际文件与 [`docs/method-and-lineage.md`](docs/method-and-lineage.md) 中的 11 个哈希对账，再决定是否建立新的实验证据链。没有源码访问时，public 测试和已发布 evidence 仍可使用，但 `plan`、`validate`、`submit` 无法重建训练负载。
+本次实测证据链固定在 commit `018d095f508280efce9e79c4b19fc941d7361b30`。如果产品预览仓库已向前推进，或授权 checkout 中已无法读取该对象，应先将实际文件与 [`docs/method-and-lineage.md`](docs/method-and-lineage.md) 中的 12 个哈希对账，再决定是否建立新的实验证据链。没有源码访问时，public 测试和已发布 evidence 仍可使用，但 `plan`、`validate`、`submit` 无法重建训练负载。
 
 替换本地配置里的每一个 `<...>`。认证和云端调用之前，先跑离线 gate：
 
@@ -374,7 +374,7 @@ python scripts/submit_job.py --action plan \
     --sample-dir upstream-custom-code-training/code-samples/sdk/training/rft-with-verl
 ```
 
-Done-when 是 `PREFLIGHT_PASS`、270 条训练数据、62 条验证数据、11 个输入 hash，以及完整 Ray `CommandJob`。上面两条命令的 `sideEffects: []`。接下来的 gate 刻意分开：
+Done-when 是 `PREFLIGHT_PASS`、270 条训练数据、62 条验证数据、12 个输入 hash，以及完整 Ray `CommandJob`。上面两条命令的 `sideEffects: []`。接下来的 gate 刻意分开：
 
 ```bash
 # 上传 versioned code/data asset，调用 validate().try_raise()，不创建 job。
@@ -383,6 +383,16 @@ python scripts/submit_job.py --action validate <同一组 --config/--overrides/-
 # 申请 GPU 执行。先检查 quota、capacity 和 idle-shutdown policy 再运行。
 python scripts/submit_job.py --action submit <同一组 --config/--overrides/--sample-dir 参数>
 ```
+
+两个云端动作都会先把 config、overrides、expected manifest，以及完整的 `code/`、
+`data/` 目录复制到同一个隔离运行快照。第二次 preflight 和两次上传只读取这份快照。
+evidence 会在第一次云端调用前落盘，并记录每个 dataset 的状态转换（`PENDING` →
+`UPLOADING` → `UPLOADED`）。上传、SDK validation 或提交失败时，evidence 会列出
+所有可能已创建的 dataset name/version；提交结果不确定时，还会在 RPC 前记录 job
+name，操作者必须先查询该名称再决定是否重提。dataset 版本默认保留，因为自动删除
+可能误伤已经被其他作业引用的资产。`--tenant-id` 只允许与
+`--credential azure-cli` 一起使用；Managed Identity、Workload Identity 和 Service
+Principal 环境仍可使用 `DefaultAzureCredential`。
 
 [`docs/reproduction.md`](docs/reproduction.md) 给出了完整命令、镜像 build、identity/RBAC 要求、监控和 evidence 提取。
 
@@ -426,7 +436,7 @@ python -m pytest tests/ -q
 python scripts/validate_repo.py
 ```
 
-测试覆盖缩进保持、幂等性、合法 Python、dataset schema、挂载/输出形状、资源映射，以及每一条拒绝路径：placeholder、未知配置、`:latest`、不支持的 SKU、缺失 payload、没有禁用 NCCL SHM，以及会创建合法但无人读取 key 的 Hydra `+` 前缀。
+测试覆盖缩进保持、幂等性、合法 Python、dataset schema、快照隔离、部分上传 evidence、credential 约束、挂载/输出形状、资源映射，以及每一条拒绝路径：placeholder、未知配置、`:latest`、不支持的 SKU、缺失 payload、没有禁用 NCCL SHM，以及会创建合法但无人读取 key 的 Hydra `+` 前缀。
 
 ---
 
@@ -456,7 +466,7 @@ python scripts/validate_repo.py
 | [`evidence/run-manifest.json`](evidence/run-manifest.json) | 源日志的 SHA-256、记录数、捕获了哪些 step |
 | [`evidence/image-build.json`](evidence/image-build.json) | 基础镜像/包版本、compatibility probe 前后对比、四个 layer digest |
 | [`evidence/sdk-demo-runs.jsonl`](evidence/sdk-demo-runs.jsonl) | Hello World、SFT 和 VERL GRPO 的终态、时长、拓扑与产出 |
-| [`evidence/input-manifest.jsonl`](evidence/input-manifest.jsonl) | 11 个 runtime 关键 sample 文件的字节数与 SHA-256，以及 270/62 dataset 记录数 |
+| [`evidence/input-manifest.jsonl`](evidence/input-manifest.jsonl) | 上传 sample 树中全部 12 个文件的字节数与 SHA-256，以及 270/62 dataset 记录数 |
 | [`evidence/compute-quota.jsonl`](evidence/compute-quota.jsonl) | 脱敏后的 family/区域 quota 观测与节点容量计算 |
 | [`evidence/run-timeline.md`](evidence/run-timeline.md) | 每次兼容性尝试改了什么，以及运行到哪个阶段 |
 

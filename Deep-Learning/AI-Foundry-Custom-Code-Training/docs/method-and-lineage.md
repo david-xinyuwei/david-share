@@ -32,6 +32,7 @@ the identity-critical files, not a newly authored substitute:
 | `code/retail_db.json` | 24,619 | `311e84f45a03f3707c7b8fe410a338564767fa3ba8d329e980f4c52dbbba44e3` |
 | `code/retail_grader_rft_tools_v3.py` | 26,079 | `a298bce3de3bcf6f9b52747c08de7130214eb506f76ec601ea9c9c94f7b05fdb` |
 | `code/retail_toolcall_reward.py` | 4,709 | `86284726df54071c16188952c888c06adbb86b4125e0cc20cb267a92dee2dd82` |
+| `code/config/interaction_config/interaction_config_template.yaml` | 234 | `5c701cc09823073f3708893e4b5b17ff2614a5720f84afde5b95d9464d31c3aa` |
 | `code/config/tool_config/tool_config_template.yaml` | 5,444 | `8ca14526300036332bab94d39650dec00081b37703c8eeb82e4f013e98321f64` |
 | `data/train.jsonl` | 863,163 | `b1329f6b419617285c9cefe93f40e7015a6534196745b3f1568ddd2ce83885a1` |
 | `data/validation.jsonl` | 196,329 | `6a587a65d2d29e4e40753488d4b25fc5c85aa41a15a5f99130f3000e7f874d59` |

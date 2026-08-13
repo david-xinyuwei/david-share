@@ -38,7 +38,10 @@
     "$schema": { "type": "string" },
     "projectEndpoint": {
       "type": "string",
-      "pattern": "^https://[^/]+\\.services\\.ai\\.azure\\.com/api/projects/[^/]+$"
+      "oneOf": [
+        { "pattern": "^https://[a-z0-9-]+\\.services\\.ai\\.azure\\.com/api/projects/[A-Za-z0-9._~-]+$" },
+        { "pattern": "^https://<[^/<>]+>\\.services\\.ai\\.azure\\.com/api/projects/<[^/<>]+>$" }
+      ]
     },
     "computeId": {
       "type": "string",
@@ -73,7 +76,10 @@
     },
     "environmentImage": {
       "type": "string",
-      "pattern": "^[^\\s]+(:[^/\\s]+|@sha256:[0-9a-f]{64})$",
+      "oneOf": [
+        { "pattern": "^[^@\\s]+:[^/@\\s]+$" },
+        { "pattern": "^[^@\\s]+@sha256:[0-9a-f]{64}$" }
+      ],
       "not": { "pattern": ":latest$" }
     },
     "nodeCount": { "type": "integer", "minimum": 1 },

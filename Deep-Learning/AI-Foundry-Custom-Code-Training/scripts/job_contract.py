@@ -13,7 +13,6 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
-from urllib.parse import urlparse
 
 UPSTREAM_REPOSITORY = "https://github.com/microsoft-foundry/custom-code-training"
 UPSTREAM_COMMIT = "018d095f508280efce9e79c4b19fc941d7361b30"
@@ -70,6 +69,7 @@ REQUIRED_SAMPLE_FILES = (
     "code/retail_db.json",
     "code/retail_grader_rft_tools_v3.py",
     "code/retail_toolcall_reward.py",
+    "code/config/interaction_config/interaction_config_template.yaml",
     "code/config/tool_config/tool_config_template.yaml",
     "data/train.jsonl",
     "data/validation.jsonl",
@@ -149,8 +149,16 @@ def validate_config(config: Mapping[str, Any], *, allow_placeholders: bool = Fal
         _require_no_placeholders(config)
 
     endpoint = str(config["projectEndpoint"])
-    parsed = urlparse(endpoint)
-    if parsed.scheme != "https" or not parsed.netloc or "/api/projects/" not in parsed.path:
+    real_endpoint_re = re.compile(
+        r"https://[a-z0-9-]+\.services\.ai\.azure\.com/api/projects/[A-Za-z0-9._~-]+"
+    )
+    placeholder_endpoint_re = re.compile(
+        r"https://<[^/<>]+>\.services\.ai\.azure\.com/api/projects/<[^/<>]+>"
+    )
+    endpoint_is_valid = bool(real_endpoint_re.fullmatch(endpoint)) or (
+        allow_placeholders and bool(placeholder_endpoint_re.fullmatch(endpoint))
+    )
+    if not endpoint_is_valid:
         raise ContractError("projectEndpoint must be an HTTPS Foundry project endpoint")
 
     compute_id = str(config["computeId"])
@@ -178,7 +186,12 @@ def validate_config(config: Mapping[str, Any], *, allow_placeholders: bool = Fal
 
     image = str(config["environmentImage"])
     if not allow_placeholders:
-        if ":" not in image.rsplit("/", 1)[-1] and "@sha256:" not in image:
+        if "@" in image:
+            if not re.fullmatch(r"[^@\s]+@sha256:[0-9a-f]{64}", image):
+                raise ContractError(
+                    "environmentImage digest must be sha256 followed by 64 lowercase hex characters"
+                )
+        elif not re.fullmatch(r"[^@\s]+:[^/@\s]+", image):
             raise ContractError("environmentImage must be pinned by tag or digest")
         if image.endswith(":latest"):
             raise ContractError("environmentImage must not use the mutable :latest tag")

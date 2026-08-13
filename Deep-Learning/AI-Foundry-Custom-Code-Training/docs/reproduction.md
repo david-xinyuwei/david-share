@@ -25,10 +25,11 @@ The expected sample directory is:
 upstream-custom-code-training/code-samples/sdk/training/rft-with-verl
 ```
 
-The preflight prints bytes and SHA-256 for the 11 identity-critical files. Compare those
-with [`method-and-lineage.md`](method-and-lineage.md) before using evidence from this repo as
-a reference. If the measured commit is no longer reachable in the authorized checkout,
-compare those 11 hashes and create a new lineage for any changed payload.
+The preflight prints bytes and SHA-256 for all 12 files that `upload_folder()` will read
+from `code/` and `data/`. Compare the 12 lineage
+hashes with [`method-and-lineage.md`](method-and-lineage.md) before using evidence from this
+repo as a reference. If the measured commit is no longer reachable in the authorized
+checkout, compare those hashes and create a new lineage for any changed payload.
 
 ## 2. Install the pinned client
 
@@ -96,7 +97,7 @@ python scripts/submit_job.py --action plan \
   --sample-dir upstream-custom-code-training/code-samples/sdk/training/rft-with-verl
 ```
 
-Done-when: `PREFLIGHT_PASS`, zero placeholders, 270 train and 62 validation records, 11
+Done-when: `PREFLIGHT_PASS`, zero placeholders, 270 train and 62 validation records, 12
 input hashes matching `evidence/input-manifest.jsonl`, and a rendered `CommandJob` contract.
 These commands do not import the Azure SDK or touch cloud state.
 
@@ -121,7 +122,9 @@ on the real Foundry node; an ACR build worker has no GPU.
 
 Authenticate in the owning shell first. The official Notebook uses
 `DefaultAzureCredential`; `--credential azure-cli` is available when an isolated Azure CLI
-profile is the explicit owner.
+profile is the explicit owner. A tenant constraint is fail-closed: `--tenant-id` is accepted
+only together with `--credential azure-cli`, rather than being silently ignored by the
+default credential chain.
 
 ```bash
 python scripts/submit_job.py --action validate \
@@ -133,7 +136,23 @@ python scripts/submit_job.py --action validate \
 
 This uploads versioned code/data assets, then calls
 `client.beta.jobs.validate(job).try_raise()`. It does **not** submit a job, but the dataset
-uploads are real side effects.
+uploads are real side effects. Before importing the SDK, the adapter copies the config,
+overrides, expected manifest and complete `code/` / `data/` trees into one temporary run
+snapshot. It repeats preflight against that snapshot, inventories every upload byte, and
+passes only snapshot directories to `upload_folder()`.
+
+The evidence file is created before the first cloud call. Each dataset is recorded as
+`PENDING`, `UPLOADING` and then `UPLOADED`, with its name, version and returned ID. On any
+failure, `recovery.potentiallyCreatedDatasetVersions` lists the versions that must be queried.
+The adapter deliberately does not delete them automatically: first determine whether a job
+or another recovery attempt references the version, then choose reuse or
+`client.datasets.delete(name, version)`.
+
+For `submit`, the requested job name and `SUBMITTING` state are persisted before
+`create_or_update()`. If the service accepts the job but the client times out, the failure
+evidence includes `recovery.potentiallyCreatedJobs`. Query that exact name with
+`scripts/job_status.py` before retrying; otherwise a retry could create a second billable
+GPU job.
 
 ## 8. Submit one job
 

@@ -11,6 +11,8 @@ import argparse
 import hashlib
 import json
 import os
+import shutil
+import stat
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +29,7 @@ from job_contract import (
 REQUIRED_RECORD_KEYS = {"data_source", "prompt", "reward_model", "extra_info"}
 ALLOWED_ROLES = {"system", "user", "assistant", "tool"}
 DEFAULT_INPUT_MANIFEST = Path(__file__).resolve().parents[1] / "evidence/input-manifest.jsonl"
+UPLOAD_ROOTS = ("code", "data")
 
 
 def sha256(path: Path) -> str:
@@ -35,6 +38,78 @@ def sha256(path: Path) -> str:
         for block in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def is_link_like(path: Path) -> bool:
+    if path.is_symlink():
+        return True
+    is_junction = getattr(path, "is_junction", None)
+    if callable(is_junction) and is_junction():
+        return True
+    try:
+        attributes = getattr(path.lstat(), "st_file_attributes", 0)
+    except OSError as error:
+        raise ContractError(f"cannot inspect upload tree entry {path}: {error}") from error
+    return bool(attributes & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0))
+
+
+def upload_tree_inventory(sample_dir: Path) -> list[dict[str, Any]]:
+    inventory: list[dict[str, Any]] = []
+    for root_name in UPLOAD_ROOTS:
+        root = sample_dir / root_name
+        if is_link_like(root):
+            raise ContractError(f"upload tree root must not be a link or reparse point: {root}")
+        if not root.is_dir():
+            raise ContractError(f"upload tree is missing directory: {root}")
+        for path in sorted(root.rglob("*"), key=lambda item: item.as_posix()):
+            if is_link_like(path):
+                raise ContractError(f"upload tree must not contain links or reparse points: {path}")
+            if path.is_file():
+                inventory.append(
+                    {
+                        "path": path.relative_to(sample_dir).as_posix(),
+                        "bytes": path.stat().st_size,
+                        "sha256": sha256(path),
+                    }
+                )
+            elif not path.is_dir():
+                raise ContractError(f"upload tree contains an unsupported entry: {path}")
+    if not inventory:
+        raise ContractError("upload tree contains no files")
+    return inventory
+
+
+def create_upload_snapshot(sample_dir: Path, destination: Path) -> Path:
+    if destination.exists():
+        raise ContractError(f"upload snapshot destination already exists: {destination}")
+    source_inventory = upload_tree_inventory(sample_dir)
+    try:
+        destination.mkdir(parents=True)
+        for root_name in UPLOAD_ROOTS:
+            shutil.copytree(
+                sample_dir / root_name,
+                destination / root_name,
+                symlinks=True,
+            )
+    except OSError as error:
+        raise ContractError(f"cannot create upload snapshot: {error}") from error
+    require_upload_tree_unchanged(destination, source_inventory)
+    return destination
+
+
+def require_upload_tree_unchanged(
+    sample_dir: Path, expected_inventory: list[dict[str, Any]]
+) -> None:
+    actual_inventory = upload_tree_inventory(sample_dir)
+    if actual_inventory != expected_inventory:
+        expected_by_path = {row["path"]: row for row in expected_inventory}
+        actual_by_path = {row["path"]: row for row in actual_inventory}
+        changed = sorted(
+            path
+            for path in set(expected_by_path) | set(actual_by_path)
+            if expected_by_path.get(path) != actual_by_path.get(path)
+        )
+        raise ContractError("staged upload payload changed: " + ", ".join(changed))
 
 
 def validate_jsonl(path: Path) -> dict[str, Any]:
@@ -104,7 +179,11 @@ def validate_jsonl(path: Path) -> dict[str, Any]:
     }
 
 
-def validate_input_manifest(inventory: list[dict[str, Any]], manifest_path: Path) -> dict[str, Any]:
+def validate_input_manifest(
+    inventory: list[dict[str, Any]],
+    manifest_path: Path,
+    upload_inventory: list[dict[str, Any]],
+) -> dict[str, Any]:
     if not manifest_path.is_file():
         raise ContractError(f"expected input manifest is missing: {manifest_path}")
     try:
@@ -129,6 +208,15 @@ def validate_input_manifest(inventory: list[dict[str, Any]], manifest_path: Path
             if actual_by_path.get(path) != expected_by_path.get(path)
         )
         raise ContractError("input drift from measured lineage: " + ", ".join(changed))
+    upload_by_path = {row["path"]: row for row in upload_inventory}
+    expected_by_path = {row["path"]: row for row in expected_identity}
+    if upload_by_path != expected_by_path:
+        changed = sorted(
+            path
+            for path in set(upload_by_path) | set(expected_by_path)
+            if upload_by_path.get(path) != expected_by_path.get(path)
+        )
+        raise ContractError("complete upload tree drift from measured lineage: " + ", ".join(changed))
     return {"path": str(manifest_path), "sha256": sha256(manifest_path), "files": len(expected)}
 
 
@@ -152,8 +240,9 @@ def build_preflight_report(
         inventory.append(
             {"path": relative, "bytes": path.stat().st_size, "sha256": sha256(path)}
         )
+    upload_inventory = upload_tree_inventory(sample_dir)
     manifest = (
-        validate_input_manifest(inventory, expected_input_manifest)
+        validate_input_manifest(inventory, expected_input_manifest, upload_inventory)
         if expected_input_manifest is not None
         else None
     )
@@ -180,6 +269,7 @@ def build_preflight_report(
         "sample": {
             "root": str(sample_dir),
             "inventory": inventory,
+            "uploadInventory": upload_inventory,
             "expectedInputManifest": manifest,
         },
         "datasets": {"train": train, "validation": validation},

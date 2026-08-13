@@ -27,6 +27,8 @@ REQUIRED = (
     "scripts/preflight.py",
     "scripts/submit_job.py",
     "scripts/job_status.py",
+    "tests/test_preflight.py",
+    "tests/test_submit_job.py",
     "evidence/training-metrics.jsonl",
     "evidence/validation-baseline.json",
     "evidence/run-manifest.json",
@@ -254,6 +256,23 @@ def main() -> int:
         require("14 步" in chinese, "Chinese README lacks 14-step evidence claim")
         require("8 steps" not in english, "English README retains stale 8-step claim")
         require("8 步" not in chinese, "Chinese README retains stale 8-step claim")
+        require("isolated run snapshot" in english, "English README lacks upload snapshot contract")
+        require("隔离运行快照" in chinese, "Chinese README lacks upload snapshot contract")
+
+        preflight_source = (ROOT / "scripts/preflight.py").read_text(encoding="utf-8")
+        submit_source = (ROOT / "scripts/submit_job.py").read_text(encoding="utf-8")
+        status_source = (ROOT / "scripts/job_status.py").read_text(encoding="utf-8")
+        submit_tests = (ROOT / "tests/test_submit_job.py").read_text(encoding="utf-8")
+        require("create_upload_snapshot" in preflight_source, "preflight lacks upload snapshot support")
+        require('"uploadInventory"' in preflight_source, "preflight lacks full upload inventory")
+        require("potentiallyCreatedDatasetVersions" in submit_source, "submit evidence lacks partial upload recovery")
+        require("potentiallyCreatedJobs" in submit_source, "submit evidence lacks uncertain job recovery")
+        require('"automaticDeletion": False' in submit_source, "submit may silently auto-delete datasets")
+        require("--tenant-id requires --credential azure-cli" in submit_source, "submit tenant constraint is not fail-closed")
+        require("--tenant-id requires --credential azure-cli" in status_source, "status tenant constraint is not fail-closed")
+        require("test_records_code_asset_when_data_upload_fails" in submit_tests, "partial upload failure is untested")
+        require("test_validate_uses_snapshot_and_never_submits" in submit_tests, "snapshot isolation is untested")
+        require("test_submit_timeout_records_potential_job_before_retry" in submit_tests, "submit timeout recovery is untested")
 
         for text, name in ((english, "README.md"), (chinese, "README-CN.md")):
             rows = {int(step): float(seconds) for step, seconds in STEP_ROW_RE.findall(text)}
