@@ -133,34 +133,6 @@ The most naive arrangement for freshly computed K/V is to store them the way the
 
 Those three letters spell **NHD**, which is also the name the source gives this layout. Its rule is a single sentence: **write every dimension of one token, then move to the next token.**
 
-One thing that trips people up: **different frameworks name layouts by different conventions.**
-
-Start with the letters: **the number of letters is the number of dimensions.**
-
-| Name | Expanded | Dims | From |
-|---|---|---:|---|
-| **NHD** | (tokens, heads, head_dim) | 3 | SGLang / FlashInfer |
-| HND | (heads, tokens, head_dim) | 3 | same |
-| **THD** | (total tokens, heads, head_dim) | 3 | NVIDIA Transformer Engine |
-| BSHD | (batch, seq_len, heads, head_dim) | 4 | same |
-| SBHD | (seq_len, batch, heads, head_dim) | 4 | same |
-
-Notice it: **NHD and THD agree on how the axes are ordered** — tokens outermost, heads in the middle, head_dim innermost.
-
-But **they are not the same thing**, because what sits on those axes differs:
-
-| | NHD | THD |
-|---|---|---|
-| Describes | KV Cache storage layout | Format of the Q/K/V input tensors |
-| First axis is | Total slots in the cache | Total tokens in one forward pass |
-| Where tokens come from | Many requests share one pool, indexed by a page table | One batch packed end to end, delimited by `cu_seqlens` |
-| Lifetime | Read again on every decode step | Consumed by a single forward pass |
-| Defined against | HND (heads first) | BSHD (batch as its own axis) |
-
-This is one more instance of the point this article keeps making: **the same shape does not imply the same meaning.** A tensor of shape `[100, 8, 128]` may be 100 cache slots on one side and 100 packed tokens on the other.
-
-The check is easy: passing `thd` to SGLang raises an error, because its only accepted values are `nhd` and `vectorized_5d`. The two names do not recognize each other across frameworks.
-
 NHD is not the only option. The same data can be arranged in a different order — not one element is added or removed, only what comes first changes. The 5D layout examined here is one such alternative.
 
 To restate the division of labor: **PagedAttention governs how pages come to exist; layout governs how things are arranged inside a page.** The two are independent and can be combined freely.
