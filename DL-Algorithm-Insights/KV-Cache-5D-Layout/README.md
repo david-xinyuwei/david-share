@@ -133,6 +133,15 @@ The most naive arrangement for freshly computed K/V is to store them the way the
 
 Those three letters spell **NHD**, which is also the name the source gives this layout. Its rule is a single sentence: **write every dimension of one token, then move to the next token.**
 
+One thing that trips people up: **different frameworks use different naming schemes for layouts.**
+
+| Ecosystem | Common layout names | What the first letter means |
+|---|---|---|
+| SGLang / FlashInfer / AITER | **NHD**, HND | N = number of tokens |
+| NVIDIA Transformer Engine | BSHD, SBHD, **THD** | B = batch, S = per-sequence length, T = total tokens in a batch |
+
+H and D mean the same thing on both sides; the difference is the first letter. Transformer Engine's `thd` specifically denotes the packed format where sequences in a batch have different lengths, with `t = sum(s_i)`. This article is on the SGLang side, where the only accepted string in the source is `nhd` — there is no `thd` option.
+
 NHD is not the only option. The same data can be arranged in a different order — not one element is added or removed, only what comes first changes. The 5D layout examined here is one such alternative.
 
 To restate the division of labor: **PagedAttention governs how pages come to exist; layout governs how things are arranged inside a page.** The two are independent and can be combined freely.

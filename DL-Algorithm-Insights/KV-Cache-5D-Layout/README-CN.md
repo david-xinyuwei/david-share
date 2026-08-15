@@ -133,6 +133,15 @@ Attention 刚算出的 K/V，最朴素的摆法是照着它算出来的样子摆
 
 这三个字母连起来就是 **NHD**，也是源码里给这种布局起的名字。它的规则只有一句：**先把一个 token 的所有维度写完，再写下一个 token**。
 
+这里有个容易混的地方：**不同框架的布局命名体系不一样。**
+
+| 体系 | 常见布局名 | 首字母指什么 |
+|---|---|---|
+| SGLang / FlashInfer / AITER | **NHD**、HND | N = token 数 |
+| NVIDIA Transformer Engine | BSHD、SBHD、**THD** | B = batch，S = 单条序列长度，T = 一批里的 token 总数 |
+
+两边的 H 和 D 意思相同，差别在第一个字母。Transformer Engine 的 `thd` 专指“一批内序列不等长、打包在一起”的格式，`t = sum(s_i)`。本文讲的是 SGLang 侧，源码里的合法取值就是字符串 `nhd`，没有 `thd` 这个选项。
+
 NHD 不是唯一选择。同一批数据完全可以按别的顺序摆，元素一个不少，只是谁在前谁在后变了。本文要拆的 5D 就是另一种摆法。
 
 再强调一遍这两层的分工：**PagedAttention 管页怎么来，layout 管页里怎么摆。** 两者相互独立，可以自由组合。
